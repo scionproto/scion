@@ -107,49 +107,19 @@ Use cases of such information include:
 
 ### Conceptual Implementation Latency
 
-The latency information will be comprised of  main parts:
+The latency information will be comprised of 2 main parts:
 
-- The subtype field, which identifies it
-- The inter-AS latency between the egress interface and the ingress interface of
-  the AS the PCB will be propagated to
-- A variable number of non-peering latency clusters
-- A variable number of peering latency clusters
-
-In general, a latency cluster serves to pool all interfaces which have the same
-propagation delay (within a 1 ms range) between them and the egress interface (i.e.
-the interface the PCB will be sent out on). 
-The difference between peering and non-peering latency clusters is that in peering
-latency clusters, the latency of the link attached to the peering interface is also
-included in the cluster for every such peering interface. In non-peering clusters
-this information is omitted.
-The clustering process is straightforward. When doing clustering, it will simply
-pick the first value it comes across that can't be assigned to an already
-existing cluster and, if it is not an integer, round it down to the nearest integer.
-This value will then serve as the baseline for the newly created cluster, which will
-include all interfaces with intra-AS delay values in the interval
-(baseline, baseline+1(.
-Each peering latency cluster is itself comprised of 3 types of elements:
-
-- The intra-AS propagation delay for every interface in the cluster, in ms (1
-  value per cluster)
-- The interface ID for every interface in the cluster (1 value per interface)
-- The inter-AS propagation delay for the connections attached to these
-  interfaces, in ms (1 value per interface)
-
-Non-peering latency clusters look almost exactly the same, with the one difference
-being that the inter-AS propagation delays are omitted:
-
-- The intra-AS propagation delay for every interface in the cluster, in ms (1
-  value per cluster)
-- The interface ID for every interface in the cluster (1 value per interface)
+- The inter-AS latency between every interface of this AS and the ingress interface of
+  the AS on the other side of the connection
+- The intra-AS latency between every pair of interfaces in the AS whose AS Entry
+  is being extended
 
 Information about the inter-AS latency, as well as the intra-AS latency from
-every interface to the egress interface is required to deal with peering
-paths (see diagram).
+every interface to the egress interface is required to deal with certain types of paths.
 
 ![Normal Path](fig/normal_path.png)
 
-In the case of a "normal", the interfaces where traffic enters
+In the case of a "normal" path, the interfaces where traffic enters
 and leaves correspond to the ingress and egress interfaces respectively, that are
 saved in the AS Entry of the PCB. The terms ingress and egress interfaces refer to
 the way these interfaces would be encoded in the PCB during the beaconing process,
@@ -168,14 +138,15 @@ the form of a path segment during the path lookup process. Thus AS 3 now has inf
 about both the inter-AS connection between AS 3 and AS 2, and the inter-AS connection
 between AS 2 and AS 4. In the presence of information about intra-AS latencies, 
 this information is sufficient to calculate the end-to-end latency betwen AS 3 and AS 4
-(see figure below). Thus, for non-peering interfaces, we will only encode the inter-AS
-latency for the egress interface in the latency information.
+(see figure below). 
 
-Peering connections need to be dealt with separately. A peering link may differ
+Peering connections however introduce a problem. A peering link may differ
 from the egress interface encoded in any of the AS Entries of any of the path segments that
 were received or fetched by AS 3. Therefore we need to make sure that the inter-AS latency
-for every connection attached to a peering interface of the AS is also stored in the PCB
-(this is done in the peering latency clusters) (see figure below).
+for every connection attached to a peering interface of the AS is also stored (see figure below).
+Since at the time of storing the information we do not necessarily know which interface will be
+the egress interface, and we need to deal with peering connections,
+we will simply store the inter-AS latency for every interface in the AS.
 
 Intra-AS delays present a problem in the presence of both shortcut-, or peering
 paths. In those situations, merely 
@@ -192,34 +163,9 @@ for the paths from the egress interface to such a non-ingress interface also
 ![Shortcut Path](fig/shortcut_path.png)
 ![Peering Path](fig/peering_path.png)
 
+Because of this we will store the intra-AS latency between every pair of interfaces.
 All these considerations also apply to other properties, such as maximum bandwidth
 (see below).
-
-### Concrete Format Latency
-
-The format for latency information looks like this:
-
-`SubType` | `NPLC_1` | ... | `NPLC_n` | `PLC_1`| ... | `PLC_n`|
-----------|----------|-----|----------|--------|-----|--------|
-
-Each `NPLC_i` field looks as follows:
-
-`ClusterDelay_i` | `ID_i_0` | ... | `ID_i_m` | 
------------------|----------|-----|----------|
-
-Each `PLC_i` field looks as follows:
-
-`ClusterDelay_i` | `ID_i_0` | `InterDelay_i_0` | ... | `ID_i_m` | `InterDelay_i_m` |
------------------|----------|------------------|-----|----------|------------------|
-
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name               | Type | Length |
--------------------|------|--------|
-`SubType`          |UInt8 |1       |
-`ClusterDelay_i`   |UInt16|2       |
-`ID_i_j`           |UInt64|8       |
-`Interdelay_i_j`   |UInt16|2       |
 
 ## Maximum Bandwidth
 
@@ -241,65 +187,11 @@ Use cases of such information include:
 
 ### Conceptual Implementation Maximum Bandwidth
 
-The maximum bandwidth information will be comprised of 3 main parts:
+The maximum bandwidth information will be comprised of 2 main parts:
 
-- The subtype field, which identifies it
-- The inter-AS maximum bandwidth between the egress interface and the next
-  AS the PCB will be propagated to
-- A variable number of non-peering maximum bandwidth clusters
-- A variable number of peering maximum bandwidth clusters
-
-A maximum bandwidth cluster serves to pool all interfaces which have the
-same maximum bandwidth between them and the egress interface. 
-The difference between peering- and non-peering maximum bandwidth clusters is that
-non-peering clusters do not include the inter-AS maximum bandwidth for every
-interface in the cluster (see below).
-When doing clustering, the system will simply pick the first value it comes across
-that can't be assigned to an already existing cluster and, if it is not an integer,
-round it down to the nearest integer. This value will then serve as the
-baseline for the newly created cluster, which will include all interfaces with
-delay values in the interval (baseline, baseline+10(.
-Each peering cluster is itself formed of 3 types of elements:
-
-- The intra-AS maximum bandwidth for all interfaces in the cluster (1 value per
-  cluster)
-- The interface IDs of all the interfaces in the cluster (1 value per interface)
-- The maximum bandwidth of the inter-AS links attached to each of these interfaces
-  (1 value per interface)
-  
-Each non-peering cluster is formed of 2 types of elements:
-
-- The intra-AS maximum bandwidth for all interfaces in the cluster (1 value per
-  cluster)
-- The interface IDs of all the interfaces in the cluster (1 value per interface)
-
-Here the inter-AS bandwidths are omitted. 
-
-### Concrete Format Maximum Bandwidth
-
-The format for maximum bandwidth information looks like this:
-
-`SubType` | `NPMBC_1` | ... | `NPMBC_n` | `PMBC_1` | ... | `PMBC_n` |
-----------|-----------|-----|-----------|----------|-----|----------|
-
-Each `NPMBC_i` field looks as follows:
-
-`ClusterBW_i` | `ID_i_0` | ... | `ID_i_m` |
---------------|----------|-----|----------|
-
-Each `PMBC_i` field looks as follows:
-
-`ClusterBW_i` | `ID_i_0` | `InterBW_i_0` | ... | `ID_i_m` | `InterBw_i_m` |
---------------|----------|---------------|-----|----------|---------------|
-
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name               | Type | Length |
--------------------|------|--------|
-`SubType`          |UInt8 |1       |
-`ClusterBW_i`      |UInt32|4       |
-`ID_i_j`           |UInt64|8       |
-`InterBW_i_j`      |UInt32|4       |
+- The inter-AS maximum bandwidth between every interface and the 
+  AS on the other side of the connection
+- The intra-AS maximum bandwidth between every pair of interfaces in the AS
 
 ## Geographic Information
 
@@ -317,53 +209,20 @@ Use cases of such information include:
 
 ### Conceptual Implementation Geographic Information
 
-The geographic information will be comprised of 2 main parts:
+The geographic information will be comprised of only a single type of element:
 
-- The subtype field, which identifies it
-- A variable number of location clusters
+- A variable number of locations (1 per interface)
 
-A location cluster serves to pool all interfaces which are located in the same
-geographic location (i.e. same address). Each location cluster is itself formed
-of 2 main types of elements:
+Each location contains the following:
 
-- The location of the cluster, consisting of a pair of GPS coordinates
-  describing latitude and longitude, as well as a civic address, in the format
+- A pair of GPS coordinates
+  describing latitude and longitude
+- A civic address, in the format
   specified in RFC 4776 (found
   <a href = "https://tools.ietf.org/html/rfc4776#section-3.3"> here </a>)
-  (1 value in total)
-- The interface ID for every interface in the cluster (1 value per interface)
 
 It is possible to use only the latititude and longitude pair, or the civic
 address by simply omitting one of the two.
-
-
-### Concrete Format Geographic Information
-
-The format for geographic information looks like this:
-
-`SubType` | `GC_1` | `GC_2` | ... | `GC_n` |
-----------|--------|--------|-----|--------|
-
-Each `GC_i` field looks as follows:
-
-`ClusterLocation_i` | `ID_i_0` | ... | `ID_i_m` |
---------------------|----------|-----|----------|
-
-A `ClusterLocation_i` field looks like this:
-
-`GPS_i_0` | `GPS_i_1` | `CivAdd` |
-----------|-----------|----------|
-
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name               | Type  | Length |
--------------------|-------|--------|
-`SubType`          |UInt8  |1       |
-`GPS_i_0`          |Float32|4       |
-`GPS_i_0`          |Float32|4       |
-`CivAdd`           |Data   |Variable, max 500|
-`ID_i_j`           |UInt64 |8       |
-
 
 ## Link Type
 
@@ -389,53 +248,8 @@ public. Use cases of such information include:
 
 The Link type will be comprised of 2 parts:
 
-- The subtype field, which identifies it
-- The link type for the link attached to the egress interface
-- A variable number of non-peering link type clusters
-- A variable number of peering link type clusters
-
-A link type cluster serves to pool all interfaces which are attached to the
-same type of intra-AS link between them and the egress interface. 
-The difference betwen peering- and non-peering link type clusters is that non-peering
-link type clusters do not include the link type for the connections attached to the
-interfaces in the cluster (see below).
-Each peering link type cluster is itself comprised of 3 types of elements:
-
-- The intra-AS link type for all interfaces in the cluster (1 value per cluster)
-- The interface ID for every interface in the cluster (1 value per interface)
-- The link type for each of the inter-AS connections attached to the interfaces
-  in the cluster (1 value per interface)
-  
-Each non-peering link type cluster is itself comprised of 2 types of elements:
-
-- The intra-AS link type for all interfaces in the cluster (1 value per cluster)
-- The interface ID for every interface in the cluster (1 value per interface)
-
-### Concrete Format Link Type
-
-The format for the link type looks like this:
-
-`SubType` | `NPLT_1` | ... | `NPLT_n` | `PLT_1` | ... | `PLT_n` |
-----------|----------|-----|----------|---------|-----|---------|
-
-Each `NPLT_i` field looks as follows:
-
-`ClusterLinkType_i` | `ID_i_0` | ... | `ID_i_m` |
---------------------|----------|-----|----------|
-
-Each `PLT_i` field looks as follows:
-
-`ClusterLinkType_i` | `ID_i_0` | `InterLink_i_0` | ... | `ID_i_m` | `InterLink_i_m` |
---------------------|----------|-----------------|-----|----------|-----------------|
-
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name                | Type | Length |
---------------------|------|--------|
-`SubType`           |UInt8 |1       |
-`ClusterLinkType_i` |Uint8 |1       |
-`ID_i_j`            |UInt64|8       |
-`InterLink_i_j`     |UInt8 |1       |
+- The link type for the inter-AS link attached to every interface in the AS
+- The intra-AS link type between every pair of interfaces in the AS
 
 ## Number of Internal Hops
 
@@ -448,39 +262,9 @@ Use cases of such information include:
 
 ### Conceptual Implementation Number of Internal Hops
 
-The number of internal hops will be comprised of 2 main parts:
+The number of internal hops will be stored as
 
-- The subtype field, which identifies it
-- A variable number of hoplength clusters
-
-A hoplength cluster serves to pool all interfaces which have the same number of
-internal hops on the intra-AS path between them and the egress interface. Each
-hoplength cluster is itself formed of 2 main elements:
-
-- The number of internal hops for all interfaces in the cluster (1 value per
-  cluster)
-- The interface ID for every interface in the cluster (1 value per interface)
-
-### Concrete Format Number of Internal Hops
-
-The format for the number of internal hops looks like this:
-
-`SubType` | `HC_1` | `HC_2` | ... | `HC_n` |
-----------|--------|--------|-----|--------|
-
-Each `HC_i` field looks as follows:
-
-`ClusterHops_i` | `ID_i_0` | ... | `ID_i_m` |
-----------------|----------|-----|----------|
-
-The table below shows names, types
-and lengths (in bytes) of each value:
-
-Name               | Type | Length |
--------------------|------|--------|
-`SubType`          |UInt8 |1       |
-`ClusterHops_i`    |UInt8 |1       |
-`ID_i_j`           |UInt64|8       |
+- The number of internal hops between every pair of interfaces in the AS
 
 ## Note
 
@@ -492,9 +276,8 @@ Use cases of such information include:
 
 ### Conceptual Implementation Note
 
-The Note subtype is comprised of 4 elements:
+The Note subtype is comprised of 2 types of elements:
 
-- The subtype field, which identifies it
 - The "default" field, which contains a default note, which is always included for
   every PCB that is propagated by this AS.
 - The "specific" field, which contains the contents of a note that is meant to only
@@ -507,58 +290,12 @@ If no such note is specified in the config file, then the contents of the "speci
 field will be set to null (it is also possible to do this for the "default" note as
 well.
 
-### Concrete Format Note
-
-The format for the note looks like this:
-
-`SubType` | `Default` | `Interface` | `Words` |
-----------|-----------|-------------|---------|
-
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name               | Type | Length |
--------------------|------|--------|
-`SubType`          |UInt8 |1       |
-`Default`          |Text  |Variable, max 2000     |
-`Words`            |Text  |Variable, max 2000     |
-
-## Metadata Endpoint
-
-The Metadata Endpoint is a URL which can be used to fetch additional metadata
-(i.e. the aforementioned as well as additional (non-)static properties describing
-the (topology of the) AS whose AS Entry it extends.
-Use cases of such information include:
-
-- Decreases size of PCB
-- Supply additional data that might not have its own extension yet
-- Less Information needs to be included in the PCB itself
-
-### Conceptual Implementation Metadata Endpoint
-
-The metadata endpoint subtype is comprised of 2 elements:
-
-- The subtype field, which identifies it
-- The url field, which contains the url
-
-### Concrete Format Metadata Endpoint
-
-The format for the metadata endpoint looks like this:
-
-`SubType` | `URL` |
-----------|-------|
-
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name               | Type | Length |
--------------------|------|--------|
-`SubType`          |UInt8 |1       |
-`URL`              |Text  |Variable, max 200     |
-
 ## Config File Format
 
 In order for the extension to work, a config file needs to be provided to a
-specific location [tbd]. The config file comes in the form of a JSON file
-and needs to have the format shown below. First of all, we have the
+specific location [tbd]. The config file comes in the form of a JSON file.
+Taking into consideration the above explanations, the format of the config 
+file will need to be as shown below. First of all, we have the
 following value:
 
 Name               | Type  | Description |
@@ -642,8 +379,19 @@ for an AS with three interfaces with IDs 1, 2 and 3:
 
 ## Concrete Implementation
 
-Cap'nProto will be used for the wire formats of the extension[??? Ask in slack
-about this]. The following section is devoted to looking at the implementation
-of each property in detail.
+This section will be devoted to looking at the details of the system
+that stores and fetches the static properties, as well as the implementation
+of the extension itself.
 
+### Config File Location
+
+Asdf.
+
+### Fetching Mechanism
+
+Asdf.
+
+### Extension Wire Format
+
+Cap'nProto will be used for the wire formats of the extension. 
 
