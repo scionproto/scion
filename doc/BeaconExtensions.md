@@ -68,13 +68,12 @@ latency refers to the delays between an interface and the egress interface
 measured from any other interface). As the figure shows, interface 1 is
 attached to both an intra-AS connection as well as an inter-AS connection.
 We therefore need to store both the intra- and the inter-AS metrics.
-In order to not store redundant information, we will only do this for
-the non-egress interfaces. As can be seen when looking at the diagram,
+As can be seen when looking at the diagram,
 this means that for every AS we then have the delay inside the AS, and the
-delay from this AS to the AS from which it received the PCB that we are
-extending. Using this method, we can then calculate the end-to-end delay
-by simply combining intra- and inter-AS delays. This concept applies
-similarly to many other properties.
+delay from the AS whose AS Entry we are extending (i.e. the current AS)
+to the AS that the PCB will be propagated to next (i.e. the next AS). Using
+this method, we can then calculate the end-to-end delay by simply combining intra-
+and inter-AS delays. This concept applies similarly to many other properties.
 We will now discuss the properties we will embed and the information that
 needs to be provided for each of them.
 
