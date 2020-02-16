@@ -1,8 +1,9 @@
-# Embedding Static Information in SCION Beacons
+# Obtaining Static Information about SCION paths
 
-In order to estimate certain properties of a SCION path segment, a hash which can
-be used to fetch information about static properties of that path can be embedded
-inside the path construction beacons in the form of an extension.
+In order to estimate certain properties of a SCION path segment, a service,
+here called the Supplementary Highspeed Information Transmission Service (simply
+referred to as "the service" in the following, can
+be constructed to fetch information about static properties of that path. 
 
 ## Table of Contents
 
@@ -24,7 +25,7 @@ inside the path construction beacons in the form of an extension.
 - [Concrete Implementation](#concrete-implementation)
     - [Config File Location](#config-file-location)
     - [Fetching Mechanism](#fetching-mechanism)
-    - [Extension Wire Format](#extension-wire-format)
+    - [Payload Format](#payload-format)
 
 ## Static Properties
 
@@ -35,10 +36,10 @@ duration of the lifetime of that path segment.
 
 The following assumptions are made:
 
-- The Beacon Service, which is responsible for adding all this metadata, has
+- The Service, which is responsible for fetching all this metadata, has
   reliable information about the infrastructure (such as the border routers
   and the interfaces attached to them)
-- The Beacon Service has access to a blackbox (which could be the AS itself,
+- The Service has access to a blackbox (which could be the AS itself,
   a dedicated SCION service or any other entity), which provides information
   that characterizes the AS topology and the routing processes within the AS
 - The AS topology remains stable throughout the lifetime of a path segment
@@ -75,13 +76,12 @@ needs to be provided for each of them.
 
 ## General Concept
 
-This functionality allows for a hash to be included in the extension field of the AS Entry
-of the PCB. This hash identifies a location in a path server (either local or remote),
-where information about the static properties is stored in the form of a config file.
-When an end host tries to reach a destination, it will fetch path segements (which are
-simply modified PCBs) and construct an end to end path. Once this path is constructed,
-the hashes in the PCBs can then be used to fetch the relevant pieces of information
-about the static properties of this end-to-end path from their respective locations.
+The purpose of this service is to fetch information regarding static properties of a
+fully constructed SCION path. To this end, it will send a request in the form of a SCION
+packet to the path servers of each AS on the end-to-end path. The path servers will store
+the relevant information in the form of a config file that will need to be curated manually.
+The path servers will respond in kind, returning the requested information for their respective
+AS.
 Once fetched, the information can be "assembled" and used to e.g. calculate propagation
 delays on the path.
 Next we will look at which static properties we will use and what information in particular
@@ -375,7 +375,7 @@ for an AS with three interfaces with IDs 1, 2 and 3:
 
 This section will be devoted to looking at the details of the system
 that stores and fetches the static properties, as well as the implementation
-of the extension itself.
+of the Service itself.
 
 ### Config File Location
 
@@ -383,9 +383,15 @@ Asdf.
 
 ### Fetching Mechanism
 
-Asdf.
+As soon as an end to end path has been fetched and constructed by a host, the
+following steps are taken:
 
-### Extension Wire Format
+- The Service is invoked and examines the constructed path
+- The Service constructs requests in the form of SCION packets,
+  each with specific payloads
+- The 
 
-Cap'nProto will be used for the wire formats of the extension. 
+### Payload Format
+
+JSON will be used for the format of the extension. 
 
