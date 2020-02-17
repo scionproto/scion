@@ -18,7 +18,7 @@ const trustDbSample = `
 # The type of trustdb backend. (default sqlite)
 backend = "sqlite"
 
-# Connection for the trust database.
+# Connection for the trust database. (required)
 connection = "/var/lib/scion/spki/%s.trust.db"
 
 # The maximum number of open connections to the database. In case of the
