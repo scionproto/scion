@@ -18,7 +18,7 @@ const pathDbSample = `
 # The type of pathdb backend.
 backend = "sqlite"
 
-# Path to the path database.
+# Path to the path database. (required)
 connection = "/var/lib/scion/pathdb/%s.path.db"
 
 # The maximum number of open connections to the database. In case of the
