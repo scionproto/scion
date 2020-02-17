@@ -20,6 +20,3 @@ Connection = "cs1-ff00_0_110-1.beacon.db"
 
 [metrics]
 Prometheus = "242.253.100.2:30453"
-
-[sd_client]
-Address = "242.253.100.3:30255"

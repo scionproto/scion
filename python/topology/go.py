@@ -111,7 +111,6 @@ class GoGenerator(object):
                                             CS_CONFIG_NAME), toml.dumps(bs_conf))
 
     def _build_control_service_conf(self, topo_id, ia, base, name, infra_elem):
-        sciond = "[%s]:%d" % (sciond_ip(self.args.docker, topo_id, self.args.networks), SD_API_PORT)
         config_dir = '/share/conf' if self.args.docker else os.path.join(
             base, name)
         raw_entry = {
@@ -132,9 +131,6 @@ class GoGenerator(object):
             'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(name, infra_elem, CS_PROM_PORT),
             'quic': self._quic_conf_entry(CS_QUIC_PORT, self.args.svcfrac, infra_elem),
-            'sd_client': {
-                'address': sciond,
-            },
             'cs': {
                 'LeafReissueLeadTime': "6h",
                 'IssuerReissueLeadTime': "3d",
