@@ -80,18 +80,17 @@ var _ config.Config = (*Config)(nil)
 
 // Config is the beacon server configuration.
 type Config struct {
-	General        env.General
-	Features       env.Features
-	Logging        env.Logging
-	Metrics        env.Metrics
-	Tracing        env.Tracing
-	QUIC           env.QUIC `toml:"quic"`
-	TrustDB        truststorage.TrustDBConf
-	BeaconDB       beaconstorage.BeaconDBConf
-	BS             BSConfig
-	CS             CSConfig
-	PS             PSConfig
-	EnableQUICTest bool
+	General  env.General
+	Features env.Features
+	Logging  env.Logging
+	Metrics  env.Metrics
+	Tracing  env.Tracing
+	QUIC     env.QUIC `toml:"quic"`
+	TrustDB  truststorage.TrustDBConf
+	BeaconDB beaconstorage.BeaconDBConf
+	BS       BSConfig
+	CS       CSConfig
+	PS       PSConfig
 }
 
 // InitDefaults initializes the default values for all parts of the config.
