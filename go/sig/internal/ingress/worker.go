@@ -21,11 +21,11 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/sig/internal/metrics"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 const (
@@ -43,7 +43,7 @@ type sender interface {
 type Worker struct {
 	log.Logger
 	Remote           *snet.UDPAddr
-	SessId           mgmt.SessionType
+	SessId           sig_mgmt.SessionType
 	Ring             *ringbuf.Ring
 	rlists           map[int]*ReassemblyList
 	markedForCleanup bool
@@ -51,7 +51,9 @@ type Worker struct {
 	tunIO            io.ReadWriteCloser
 }
 
-func NewWorker(remote *snet.UDPAddr, sessId mgmt.SessionType, tunIO io.ReadWriteCloser) *Worker {
+func NewWorker(remote *snet.UDPAddr, sessId sig_mgmt.SessionType,
+	tunIO io.ReadWriteCloser) *Worker {
+
 	worker := &Worker{
 		Logger: log.New("ingress", remote.String(), "sessId", sessId),
 		Remote: remote,

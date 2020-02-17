@@ -26,6 +26,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pktdisp"
 	"github.com/scionproto/scion/go/lib/ringbuf"
@@ -35,7 +36,6 @@ import (
 	"github.com/scionproto/scion/go/sig/egress/worker"
 	"github.com/scionproto/scion/go/sig/internal/pathmgr"
 	"github.com/scionproto/scion/go/sig/internal/sigcmn"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 var _ iface.Session = (*Session)(nil)
@@ -45,7 +45,7 @@ var _ iface.Session = (*Session)(nil)
 type Session struct {
 	log.Logger
 	ia     addr.IA
-	SessId mgmt.SessionType
+	SessId sig_mgmt.SessionType
 
 	// pool contains paths managed by pathmgr.
 	pool iface.PathPool
@@ -62,7 +62,7 @@ type Session struct {
 	workerStopped  chan struct{}
 }
 
-func NewSession(dstIA addr.IA, sessId mgmt.SessionType, logger log.Logger,
+func NewSession(dstIA addr.IA, sessId sig_mgmt.SessionType, logger log.Logger,
 	pool iface.PathPool) (*Session, error) {
 
 	var err error
@@ -140,7 +140,7 @@ func (s *Session) IA() addr.IA {
 	return s.ia
 }
 
-func (s *Session) ID() mgmt.SessionType {
+func (s *Session) ID() sig_mgmt.SessionType {
 	return s.SessId
 }
 

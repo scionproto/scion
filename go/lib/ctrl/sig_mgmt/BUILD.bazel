@@ -8,7 +8,7 @@ go_library(
         "pld.go",
         "poll.go",
     ],
-    importpath = "github.com/scionproto/scion/go/sig/mgmt",
+    importpath = "github.com/scionproto/scion/go/lib/ctrl/sig_mgmt",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",

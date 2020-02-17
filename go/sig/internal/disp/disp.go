@@ -22,10 +22,10 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pktdisp"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 func Init(conn snet.Conn, useid bool) {
@@ -51,7 +51,7 @@ func (rt RegType) String() string {
 }
 
 type RegPld struct {
-	Id   mgmt.MsgIdType
+	Id   sig_mgmt.MsgIdType
 	P    interface{}
 	Addr *snet.UDPAddr
 }
@@ -100,7 +100,7 @@ func (dm *dispRegistry) Unregister(regType RegType, key RegPollKey) error {
 	return nil
 }
 
-func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.UDPAddr) {
+func (dm *dispRegistry) sigCtrl(pld *sig_mgmt.Pld, addr *snet.UDPAddr) {
 	dm.Lock()
 	defer dm.Unlock()
 	u, err := pld.Union()
@@ -110,9 +110,9 @@ func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.UDPAddr) {
 	}
 	msgId := pld.Id
 	switch pld := u.(type) {
-	case *mgmt.PollReq:
+	case *sig_mgmt.PollReq:
 		dm.PollReqC <- &RegPld{Id: msgId, P: pld, Addr: addr}
-	case *mgmt.PollRep:
+	case *sig_mgmt.PollRep:
 		regPld := &RegPld{Id: msgId, P: pld, Addr: addr}
 		if pld.Addr == nil || pld.Addr.Ctrl == nil {
 			log.Error("Incomplete SIG PollRep received", "src", addr, "pld", pld)
@@ -159,7 +159,7 @@ func dispFunc(dp *pktdisp.DispPkt) {
 		return
 	}
 	switch pld := u.(type) {
-	case *mgmt.Pld:
+	case *sig_mgmt.Pld:
 		Dispatcher.sigCtrl(pld, src)
 	default:
 		log.Error("Unsupported ctrl payload type", "type", common.TypeOf(pld))
@@ -168,7 +168,7 @@ func dispFunc(dp *pktdisp.DispPkt) {
 
 type RegPollKey string
 
-func MkRegPollKey(ia addr.IA, session mgmt.SessionType, id mgmt.MsgIdType) RegPollKey {
+func MkRegPollKey(ia addr.IA, session sig_mgmt.SessionType, id sig_mgmt.MsgIdType) RegPollKey {
 	if useID {
 		return RegPollKey(fmt.Sprintf("%s-%s-%d", ia, session, id))
 	} else {

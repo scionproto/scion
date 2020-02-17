@@ -23,8 +23,8 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/proto"
-	sigmgmt "github.com/scionproto/scion/go/sig/mgmt"
 )
 
 // union represents the contents of the unnamed capnp union.
@@ -36,7 +36,7 @@ type union struct {
 	PathMgmt  *path_mgmt.Pld
 	Sibra     []byte `capnp:"-"` // Omit for now
 	DRKeyMgmt []byte `capnp:"-"` // Omit for now
-	Sig       *sigmgmt.Pld
+	Sig       *sig_mgmt.Pld
 	Extn      *extn.CtrlExtnDataList
 	Ack       *ack.Ack
 }
@@ -52,7 +52,7 @@ func (u *union) set(c proto.Cerealizable) error {
 	case *path_mgmt.Pld:
 		u.Which = proto.CtrlPld_Which_pathMgmt
 		u.PathMgmt = p
-	case *sigmgmt.Pld:
+	case *sig_mgmt.Pld:
 		u.Which = proto.CtrlPld_Which_sig
 		u.Sig = p
 	case *cert_mgmt.Pld:
