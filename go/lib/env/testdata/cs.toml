@@ -14,13 +14,6 @@
   # reconnects.
   ReconnectToDispatcher = true
 
-[sd_client]
-  # Sciond path. It defaults to sciond.DefaultSCIONDPath.
-  Path = "/run/shm/sciond/1-ff00_0_110.sock"
-
-  # Timeout for trying to connect to sciond. (default 20s)
-  Timeout = "20s"
-
 [logging]
   [logging.file]
     # Location of the logging file.
