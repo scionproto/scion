@@ -17,9 +17,9 @@ package snetmigrate
 import (
 	"context"
 
+	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/sig/internal/pathmgr"
 )
 
 func ResolverFromSD(sciondPath string, pathCount uint16) (pathmgr.Resolver, error) {
