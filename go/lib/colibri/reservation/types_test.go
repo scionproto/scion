@@ -239,6 +239,10 @@ func TestInfoFieldFromRaw(t *testing.T) {
 
 func TestInfoFieldRead(t *testing.T) {
 	raw := make([]byte, InfoFieldLen)
+	// pollute the buffer with garbage
+	for i := 0; i < InfoFieldLen; i++ {
+		raw[i] = byte(i % 256)
+	}
 	n, err := reference.Read(raw)
 	if err != nil {
 		t.Fatalf("Unexpect error: %v", err)

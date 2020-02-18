@@ -233,6 +233,6 @@ func (f *InfoField) Read(b []byte) (int, error) {
 	b[4] = byte(f.BWCls)
 	b[5] = byte(f.RLC)
 	b[6] = byte(f.Idx<<4) | uint8(f.PathType)
-	// b[7] is padding
+	b[7] = 0 // b[7] is padding
 	return 8, nil
 }
