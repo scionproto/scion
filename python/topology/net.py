@@ -21,10 +21,10 @@ import logging
 import math
 import sys
 from collections import defaultdict
+from ipaddress import ip_interface, ip_network
 
 # External packages
 import yaml
-from external.ipaddress import ip_interface, ip_network
 
 # SCION
 from lib.defines import DEFAULT6_NETWORK_ADDR
