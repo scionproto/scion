@@ -18,7 +18,7 @@ import subprocess
 import sys
 
 # SCION
-from lib.packet.scion_addr import ISD_AS
+from lib.scion_addr import ISD_AS
 from topology.net import AddressProxy
 
 COMMON_DIR = 'endhost'
