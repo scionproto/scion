@@ -20,7 +20,7 @@
 import struct
 
 # External
-from external.ipaddress import (
+from ipaddress import (
     AddressValueError,
     IPV4LENGTH,
     IPV6LENGTH,
