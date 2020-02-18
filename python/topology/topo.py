@@ -36,7 +36,6 @@ from lib.defines import (
     SCION_ROUTER_PORT,
     TOPO_FILE,
 )
-from lib.topology import Topology
 from lib.types import LinkType
 from lib.util import write_file
 from topology.common import (
@@ -348,8 +347,6 @@ class TopoGenerator(object):
             contents_json = json.dumps(self.topo_dicts[topo_id],
                                        default=json_default, indent=2)
             write_file(path, contents_json + '\n')
-            # Test if topo file parses cleanly
-            Topology.from_file(path)
 
     def _write_as_list(self):
         list_path = os.path.join(self.args.output_dir, AS_LIST_FILE)
