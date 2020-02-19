@@ -98,6 +98,7 @@ class SubnetGenerator(object):
                 alloc = self._allocations[prefix].pop()
                 # Carve out subnet of the required size
                 new_net = next(alloc.subnets(new_prefix=req_prefix))
+                new_net = _workaround_ip_network_hosts_py35(new_net)
                 logging.debug("Allocating %s from %s for subnet size %d" %
                               (new_net, alloc, len(subnet)))
                 networks[new_net] = subnet.alloc_addrs(new_net)
@@ -173,3 +174,15 @@ def socket_address_str(ip, port):
     if ip.version == 4:
         return "%s:%d" % (ip, port)
     return "[%s]:%d" % (ip, port)
+
+
+def _workaround_ip_network_hosts_py35(net):
+    """
+    Returns an _identical_ ipaddress.ip_network for which hosts() which will work as it should.
+
+    This works around a regression in python 3.5, where the behaviour of hosts was broken
+    when using a certain form of the ip_network constructor.
+    This regression is fixed in python 3.6.6 / 3.7.0.
+    See https://bugs.python.org/issue27683
+    """
+    return ip_network('%s/%i' % (net.network_address, net.prefixlen))
