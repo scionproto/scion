@@ -163,6 +163,6 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		// Update port
 		conn.listen.Port = int(port)
 	}
-	log.Debug("Registered with dispatcher", "addr", conn.listen)
+	log.Debug("Registered with dispatcher", "addr", &UDPAddr{IA: n.localIA, Host: conn.listen})
 	return newSCIONConn(conn, n.querier, packetConn), nil
 }
