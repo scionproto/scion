@@ -181,6 +181,18 @@ for the paths from the egress interface to such a non-ingress interface also
 ![Shortcut Path](fig/shortcut_path.png)
 ![Peering Path](fig/peering_path.png)
 
+In the case of non-peering connections, we will also make an additional assumption
+in order to reduce the amount of data we need to include in the PCBs in total. That
+assumption being that intra-AS latencies are symmetric. We can illustrate the use of
+this assumption using the drawing of a shortcut path above. In the PCB sent to AS 3,
+the latency between interface 2 (the egress interface for this PCB) and interface 3
+is saved. Now is when the assumption comes into play. Since the latency between 
+interfaces 2 and 3, and that between 3 and 2 is identical, we can omit the latency
+between interface 3 and 2 in the PCB that is sent to AS 4. Let interface i be the
+egress interface the PCB is sent out on. The this approach ultimately allows us to
+always omit the latency between interfaces i and j, in the case that the interface ID
+of j is smaller than that of i, or expressed as a formula, id(j)<id(i)
+
 All these considerations also apply to other properties, such as maximum bandwidth
 (see below).
 
