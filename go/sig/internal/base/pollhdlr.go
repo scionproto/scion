@@ -21,14 +21,14 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sigdisp"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/sig/internal/disp"
 	"github.com/scionproto/scion/go/sig/internal/sigcmn"
 )
 
 func PollReqHdlr() {
 	log.Info("PollReqHdlr: starting")
-	for rpld := range disp.Dispatcher.PollReqC {
+	for rpld := range sigdisp.Dispatcher.PollReqC {
 		req, ok := rpld.P.(*sig_mgmt.PollReq)
 		if !ok {
 			log.Error("PollReqHdlr: non-SIGPollReq payload received",

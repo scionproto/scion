@@ -15,8 +15,8 @@ go_library(
         "//go/lib/ctrl/sig_mgmt:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/log:go_default_library",
+        "//go/lib/sigdisp:go_default_library",
         "//go/lib/snet:go_default_library",
-        "//go/sig/internal/disp:go_default_library",
         "//go/sig/internal/sigcmn:go_default_library",
     ],
 )

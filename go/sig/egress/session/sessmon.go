@@ -24,9 +24,9 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sigdisp"
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/siginfo"
-	"github.com/scionproto/scion/go/sig/internal/disp"
 	"github.com/scionproto/scion/go/sig/internal/metrics"
 	"github.com/scionproto/scion/go/sig/internal/sigcmn"
 )
@@ -81,9 +81,9 @@ func (sm *sessMonitor) run() {
 	pathExpiryTick := time.NewTicker(pathExpiryLen)
 	defer pathExpiryTick.Stop()
 	// Register with SIG ctrl dispatcher
-	regc := make(disp.RegPldChan, 1)
-	disp.Dispatcher.Register(disp.RegPollRep,
-		disp.MkRegPollKey(sm.sess.IA(), sm.sess.SessId, 0), regc)
+	regc := make(sigdisp.RegPldChan, 1)
+	sigdisp.Dispatcher.Register(sigdisp.RegPollRep,
+		sigdisp.MkRegPollKey(sm.sess.IA(), sm.sess.SessId, 0), regc)
 	sm.lastReply = time.Now()
 	// Start by querying for the remote SIG instance.
 	sm.smRemote = &iface.RemoteInfo{
@@ -108,7 +108,7 @@ Top:
 			sm.sessPathPool.ExpireFails()
 		}
 	}
-	err := disp.Dispatcher.Unregister(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA(),
+	err := sigdisp.Dispatcher.Unregister(sigdisp.RegPollRep, sigdisp.MkRegPollKey(sm.sess.IA(),
 		sm.sess.SessId, 0))
 	if err != nil {
 		log.Error("sessMonitor: unable to unregister from ctrl dispatcher", "err", err)
@@ -292,7 +292,7 @@ func (sm *sessMonitor) sendReq() {
 	metrics.SessionProbes.WithLabelValues(sm.sess.IA().String(), sm.sess.SessId.String()).Inc()
 }
 
-func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
+func (sm *sessMonitor) handleRep(rpld *sigdisp.RegPld) {
 	pollRep, ok := rpld.P.(*sig_mgmt.PollRep)
 	if !ok {
 		sm.Error("sessMonitor: non-SIGPollRep payload received",
