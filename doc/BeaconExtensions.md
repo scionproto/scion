@@ -177,7 +177,7 @@ that latencies (or other metrics when looking at a different property) be known
 for the paths from the egress interface to such a non-ingress interface also
 (see figure below).
 
-![Shortcut Path](fig/shortcut_path.png)
+![Shortcut Path](fig/shortcut_path_with_IDs.png)
 ![Peering Path](fig/peering_path.png)
 
 In the case of non-peering connections, we will also make an additional assumption
@@ -190,7 +190,10 @@ interfaces 2 and 3, and that between 3 and 2 is identical, we can omit the laten
 between interface 3 and 2 in the PCB that is sent to AS 4. Let interface i be the
 egress interface the PCB is sent out on. The this approach ultimately allows us to
 always omit the latency between interfaces i and j, in the case that the interface ID
-of j is smaller than that of i, or expressed as a formula, id(j)<id(i)
+of j is smaller than that of i, or expressed as a formula, id(j)<id(i). This also
+means that when it comes to non-peering interfaces, we need only include those with
+an ID bigger than the ID of the egress interface in the latency clusters. If this means
+a cluster would contain no interface IDs anymore, we simply omit it as a whole.
 
 All these considerations also apply to other properties, such as maximum bandwidth
 (see below).
@@ -273,7 +276,9 @@ Each non-peering cluster is formed of 2 types of elements:
   cluster)
 - The interface IDs of all the interfaces in the cluster (1 value per interface)
 
-Here the inter-AS bandwidths are omitted. 
+Here the inter-AS bandwidths are omitted. Be reminded that only the interfaces with
+IDs bigger than the ID of the egress interface are included, and if this would mean a
+cluster is devoid of interface IDs, the cluster is simply removed as a whole.
 
 ### Concrete Format Maximum Bandwidth
 
@@ -410,6 +415,10 @@ Each non-peering link type cluster is itself comprised of 2 types of elements:
 
 - The intra-AS link type for all interfaces in the cluster (1 value per cluster)
 - The interface ID for every interface in the cluster (1 value per interface)
+
+Be reminded that only the interfaces with
+IDs bigger than the ID of the egress interface are included, and if this would mean a
+cluster is devoid of interface IDs, the cluster is simply removed as a whole. 
 
 ### Concrete Format Link Type
 
