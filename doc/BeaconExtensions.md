@@ -14,7 +14,6 @@ in the form of an extension.
 - [Maximum Bandwidth](#maximum-bandwidth)
 - [Number of Internal Hops](#number-of-internal-hops)
 - [Note](#note)
-- [Metadata Enbpoint](#metadata-endpoint)
 - [Config File Format](#config-file-format)
 - [Concrete Implementation](#concrete-implementation)
 
