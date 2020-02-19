@@ -523,38 +523,6 @@ Name               | Type | Length |
 `Default`          |Text  |Variable, max 2000     |
 `Words`            |Text  |Variable, max 2000     |
 
-## Metadata Endpoint
-
-The Metadata Endpoint is a URL which can be used to fetch additional metadata
-(i.e. the aforementioned as well as additional (non-)static properties describing
-the (topology of the) AS whose AS Entry it extends.
-Use cases of such information include:
-
-- Decreases size of PCB
-- Supply additional data that might not have its own extension yet
-- Less Information needs to be included in the PCB itself
-
-### Conceptual Implementation Metadata Endpoint
-
-The metadata endpoint subtype is comprised of 2 elements:
-
-- The subtype field, which identifies it
-- The url field, which contains the url
-
-### Concrete Format Metadata Endpoint
-
-The format for the metadata endpoint looks like this:
-
-`SubType` | `URL` |
-----------|-------|
-
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name               | Type | Length |
--------------------|------|--------|
-`SubType`          |UInt8 |1       |
-`URL`              |Text  |Variable, max 200     |
-
 ## Config File Format
 
 In order for the extension to work, a config file needs to be provided to a
