@@ -37,25 +37,9 @@ class SCIONIOError(SCIONBaseError):
     """IO error"""
 
 
-class SCIONIndexError(SCIONBaseError):
-    """Index error (accessing out of bound index on array)"""
-
-
-class SCIONKeyError(SCIONBaseError):
-    """Key error (trying to access invalid entry in dictionary)"""
-
-
 class SCIONYAMLError(SCIONBaseError):
     """YAML parsing error"""
 
 
 class SCIONParseError(SCIONBaseError):
     """Parsing error"""
-
-
-class SCIONTypeError(SCIONBaseError):
-    """Wrong type"""
-
-
-class SCIONVerificationError(SCIONBaseError):
-    """MAC/Signature verification error"""

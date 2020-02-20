@@ -38,31 +38,6 @@ class TypeBase(object):  # pragma: no cover
 
 
 ############################
-# Basic types
-############################
-class AddrType(TypeBase):
-    NONE = 0
-    IPV4 = 1
-    IPV6 = 2
-    SVC = 3
-
-
-############################
-# Service types
-############################
-class ServiceType(TypeBase):
-    # these values must be kept in sync with the common.capnp ServiceType enum
-    #: Unset
-    UNSET = "unset"
-    #: Certificate service
-    CS = "cs"
-    #: Border router
-    BR = "br"
-    #: SCION-IP gateway
-    SIG = "sig"
-
-
-############################
 # Link types
 ############################
 class LinkType(TypeBase):

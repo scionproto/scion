@@ -30,7 +30,7 @@ from lib.defines import (
     DEFAULT6_NETWORK,
     NETWORKS_FILE,
 )
-from lib.packet.scion_addr import ISD_AS
+from lib.scion_addr import ISD_AS
 from lib.util import (
     load_yaml_file,
     write_file,
@@ -99,10 +99,10 @@ class ConfigGenerator(object):
         seen = set()
         for asStr in self.topo_config["ASes"]:
             ia = ISD_AS(asStr)
-            if ia[1] in seen:
-                logging.critical("Non-unique AS Id '%s'", ia[1])
+            if ia.as_str() in seen:
+                logging.critical("Non-unique AS Id '%s'", ia.as_str())
                 sys.exit(1)
-            seen.add(ia[1])
+            seen.add(ia.as_str())
 
     def _generate_with_topo(self, topo_dicts):
         self._generate_go(topo_dicts)
