@@ -22,7 +22,6 @@ import argparse
 
 # SCION
 from lib.defines import (
-    DEFAULT_SEGMENT_TTL,
     GEN_PATH,
 )
 from topology.config import (
@@ -43,8 +42,6 @@ def add_arguments(parser):
                         help='Output directory')
     parser.add_argument('-t', '--trace', action='store_true',
                         help='Enable TRACE level file logging in Go services')
-    parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_SEGMENT_TTL,
-                        help='Path segment TTL (in seconds)')
     parser.add_argument('-f', '--svcfrac', type=float, default=0.4,
                         help='Attempt SVC resolution in RPC calls for a fraction of\
                         available timeout')
