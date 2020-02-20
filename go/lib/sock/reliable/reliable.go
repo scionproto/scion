@@ -187,7 +187,7 @@ func register(ctx context.Context, dispatcher string, ia addr.IA, public *net.UD
 	}
 	resultChannel := make(chan RegistrationReturn)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 
 		// If a timeout was specified, make reads and writes return if deadline exceeded.
 		if deadline, ok := ctx.Deadline(); ok {

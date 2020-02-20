@@ -64,7 +64,7 @@ func NewServer(address string) (*Server, error) {
 func (as *Server) Serve() error {
 	errChan := make(chan error)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		netToRingDataplane := &NetToRingDataplane{
 			OverlayConn:  as.ipv4Conn,
 			RoutingTable: as.routingTable,
@@ -72,7 +72,7 @@ func (as *Server) Serve() error {
 		errChan <- netToRingDataplane.Run()
 	}()
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		netToRingDataplane := &NetToRingDataplane{
 			OverlayConn:  as.ipv6Conn,
 			RoutingTable: as.routingTable,

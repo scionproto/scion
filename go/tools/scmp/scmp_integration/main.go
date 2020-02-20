@@ -31,7 +31,7 @@ func realMain() int {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	defer log.Flush()
 
 	cmnArgs := []string{"-timeout", "4s", "-local", integration.SrcAddrPattern,

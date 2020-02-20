@@ -130,7 +130,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 	// parse until we have the ready signal.
 	// and then discard the output until the end (required by StdoutPipe).
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer sp.Close()
 		signal := fmt.Sprintf("%s%s", ReadySignal, dst.IA)
 		init := true
@@ -147,7 +147,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 		}
 	}()
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		bi.writeLog("server", dst.IA.FileFmt(false), dst.IA.FileFmt(false), ep)
 	}()
 	if err = r.Start(); err != nil {
@@ -186,7 +186,7 @@ func (bi *binaryIntegration) StartClient(ctx context.Context,
 		return nil, err
 	}
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		bi.writeLog("client", clientId(src, dst), fmt.Sprintf("%s -> %s", src.IA, dst.IA), ep)
 	}()
 	return r, r.Start()

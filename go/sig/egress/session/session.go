@@ -85,7 +85,7 @@ func NewSession(dstIA addr.IA, sessId sig_mgmt.SessionType, logger log.Logger,
 	s.workerStopped = make(chan struct{})
 	// spawn a PktDispatcher to log any unexpected messages received on a write-only connection.
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer close(s.pktDispStopped)
 		pktdisp.PktDispatcher(s.conn, pktdisp.DispLogger, s.pktDispStop)
 	}()
@@ -94,11 +94,11 @@ func NewSession(dstIA addr.IA, sessId sig_mgmt.SessionType, logger log.Logger,
 
 func (s *Session) Start() {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		newSessMonitor(s).run()
 	}()
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		worker.NewWorker(s, s.conn, false, s.Logger).Run()
 	}()
 }

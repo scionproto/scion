@@ -194,7 +194,7 @@ func (r *resolver) WatchFilter(ctx context.Context, src, dst addr.IA,
 	sp.setDestructor(w.Destroy)
 
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		w.Run()
 	}()
 	return sp, nil

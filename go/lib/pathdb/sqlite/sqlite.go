@@ -547,7 +547,7 @@ func (e *executor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error)
 	}
 	resCh := make(chan query.ResultOrErr)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer close(resCh)
 		defer rows.Close()
 		prevID := -1

@@ -233,12 +233,12 @@ func (ae *ASEntry) cleanSessions() {
 func (ae *ASEntry) setupNet() {
 	ae.egressRing = ringbuf.New(iface.EgressRemotePkts, nil, fmt.Sprintf("egress_%s", ae.IAString))
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		dispatcher.NewDispatcher(ae.IA, ae.egressRing,
 			&selector.SingleSession{Session: ae.Session}).Run()
 	}()
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		ae.monitorHealth()
 	}()
 	ae.Session.Start()

@@ -71,7 +71,7 @@ func realMain() int {
 	}
 	defer log.Flush()
 	defer env.LogAppStopped("SIG", cfg.Sig.ID)
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	if err := validateConfig(); err != nil {
 		log.Crit("Validation of config failed", "err", err)
 		return 1
@@ -101,7 +101,7 @@ func realMain() int {
 	}
 	// Reply to probes from other SIGs.
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		base.PollReqHdlr()
 	}()
 	egress.Init(tunIO)
