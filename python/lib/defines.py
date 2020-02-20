@@ -17,9 +17,6 @@
 Contains constant definitions used throughout the codebase.
 """
 
-#: Default TTL of a PathSegment in realtime seconds.
-DEFAULT_SEGMENT_TTL = 6 * 60 * 60
-
 #: Generated files directory
 GEN_PATH = 'gen'
 #: Topology configuration
