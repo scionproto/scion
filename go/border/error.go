@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rpkt"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/log"
@@ -39,7 +40,16 @@ type pktErrorArgs struct {
 func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
 	// XXX(kormat): uncomment for debugging:
 	// perr = common.NewBasicError("Raw packet", perr, "raw", rp.Raw)
-	rp.Error(desc, "err", perr)
+
+	// FIXME(shitz): Do not log an error for SVC_NONE dst address.
+	// This hack should be removed once https://github.com/scionproto/scion/issues/1801
+	// is implemented and pathmon is not "abusing" SVC_NONE anymore for path probes.
+	var serr *scmp.Error
+	isSCMPErr := errors.As(perr, &serr)
+	if !isSCMPErr || serr.CT.Class != scmp.C_Routing || serr.CT.Type != scmp.T_R_BadHost ||
+		!errors.Is(perr, addr.ErrUnsupportedSVCAddress) {
+		rp.Error(desc, "err", perr)
+	}
 	rp.RefInc(1)
 	args := pktErrorArgs{rp: rp, perr: perr}
 	select {
