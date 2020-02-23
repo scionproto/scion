@@ -41,6 +41,13 @@ const (
 // extnParseHBH parses a specified hop-by-hop extension in a packet.
 func (rp *RtrPkt) extnParseHBH(extType common.ExtnType,
 	start, end, pos int) (rExtension, error) {
+	if end-start <= common.LineLen {
+		return nil, common.NewBasicError(
+			"Invalid hop-by-hop offset or length",
+			scmp.NewError(scmp.C_Ext, scmp.T_E_BadHopByHop, &scmp.InfoExtIdx{Idx: uint8(pos)}, nil),
+			"type", extType,
+		)
+	}
 	switch {
 	case extType == common.ExtnSCMPType:
 		return rSCMPExtFromRaw(rp, start, end)
