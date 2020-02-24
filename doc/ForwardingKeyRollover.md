@@ -74,7 +74,7 @@ For simplicity, for the rest of this document we assume the following sizes:
 `OriginationTime` is problematic because it is rarely decided by the local AS.
 Depending on how beaconing happens upstream, `OriginationTime` can be so far in
 the past that no forwarding key can be valid for the whole lifetime of the path.
-However, assuming somewhat comparable clocks between BSes and BRs, is is
+However, assuming somewhat comparable clocks between BSes and BRs, it is
 irrelevant if the key is valid for any point in time prior to the moment when
 the MAC is computed.
 
@@ -89,7 +89,8 @@ lifetime of this path going to be, according to my security policy?
 ![Origination time far in the
 past](fig/ForwardingKeyRollover/rollover-origination-time.png).
 
-**Property 4**: `OriginationTime` must not be used during any decision.
+**Property 4**: `OriginationTime` must not be used directly for key selection;
+`ExpirationTime` should be used instead.
 
 If `OriginationTime` is not used by the BS when deciding to compute the MAC, it
 also cannot be used by the BR when verifying the MAC (note that it _will_ be
@@ -105,7 +106,7 @@ We remove the ambiguity by always choosing the key that is valid at
 
 In the diagram below, a beacon must be constructed, and at `CurrentTime` keys
 `K_n` and `K_(n+1)` are valid. The BS wants to build a HF with a desired remaining
-lifetime of half of key lifetime. Because `K_n` is not valid for the desired
+lifetime of half of `KeyLifetime`. Because `K_n` is not valid for the desired
 remaining lifetime, `K_(n+1)` must be chosen.
 
 ![One key choice](fig/ForwardingKeyRollover/rollover-key-choice.png).
@@ -130,14 +131,14 @@ remaining lifetime is greater than key lifetime), or no valid key might exist at
 current time.
 
 The latter situation is described in the diagram below. Desired remaining
-lifetime is 3/4 of key lifetime. Thus, no valid key can be found.
+lifetime is 3/4 of `keyLifetime`. Thus, no valid key can be found.
 
 ![Invalid lifetime](fig/ForwardingKeyRollover/rollover-invalid-lifetime.png).
 
 To avoid this, we add the constraint that desired remaining lifetime be at
-smaller or equal to 1/2 of key lifetime. If an AS wants paths to have maximum
-lifetime while being having constant remaining lifetime, then desired remaining
-lifetime can be set to 1/2 key lifetime.
+smaller or equal to 1/2 of `keyLifetime`. If an AS wants paths to have maximum
+lifetime while having constant remaining lifetime, then desired remaining
+lifetime can be set to 1/2 `keyLifetime`.
 
 ### Implementing the BS
 
@@ -149,11 +150,11 @@ The BS needs to compute two values:
 #### ExpirationField
 
 The `ExpirationField` depends on the policy of desired remaining HF lifetime.
-Taking into account **Property 5**, we select a constand desired remaining HF
-lifetime of half the key lifetime.
+Taking into account **Property 5**, we select a constant desired remaining HF
+lifetime of half of `keyLifetime`.
 
-Let `Tk` be the constant key lifetime, and `DesiredRemainingLifetime` be the
-time the HF is going to be valid for, relative to current time.
+Let `DesiredRemainingLifetime` be the time the HF is going to be valid for,
+relative to current time.
 
 We add the constraint that the HF MUST NOT be valid for longer than a
 `DesiredRemainingLifetime`, but CAN be valid for less. This leads to a cleaner
@@ -186,35 +187,36 @@ First, the secret key needs to be computed from the `MasterKey`. The function we
 recommend is:
 
 ```text
-Key = HKDF(pad128(2*ExpirationTime//Tk) - 1) || MasterKey)
+Key = HKDF(pad128(2*ExpirationTime//KeyLifetime) - 1) || MasterKey
 ```
 
 where `pad128` is a padding function to a bit-length of 128, `||` is the bit
 concatentation operator, `//` is integer division with integer quotient, and
 `MasterKey` is a shared secret of the AS. How to disseminate `MasterKey` is up
-for discussion, with the solution of storing it in a file on-disk being
-the simplest option for now. Other systems like Vault might be useful in this
-scenario, if storing it on disk is undesirable. `MasterKey` should be refreshed
-periodically (e.g., once every few months).
+for discussion, with the solution of storing it in a file on-disk being the
+simplest option for now. Other systems like
+[Vault](https://www.vaultproject.io/) might be useful in this scenario, if
+storing it on disk is undesirable. `MasterKey` should be refreshed periodically
+(e.g., once every 6 months).
 
 Then, the `MACField` is computed as defined in the SCION protocol.
 
 #### Implementing the BR
 
 When the BR receives a path for processing, it must verify the HF. The first
-step in this process if computing the MAC verification key. To compute the key,
+step in this process is computing the MAC verification key. To compute the key,
 first the `ExpirationTime` must be computed:
 
 ```text
 ExpirationTime = OriginationTime + (1 + ExpirationField) * 337s
 ```
 
-If `ExpirationTime > CurrentTime`, the BR SHOULD return an error stating as
+If `ExpirationTime < CurrentTime`, the BR SHOULD return an error stating as
 such. If the check is successful, then the same function as in the BS can be
 used to compute the key:
 
 ```text
-Key = HKDF(pad128(2*ExpirationTime//Tk) - 1) || MasterKey)
+Key = HKDF(pad128(2*ExpirationTime//KeyLifetime) - 1) || MasterKey
 ```
 
 If `Key` is not valid at `CurrentTime`, then HF verification MUST fail.
@@ -225,15 +227,16 @@ It is expensive to compute the `Key` for every MAC. A key rollover sequence
 could be used instead. We show how a rollover sequence of size 4 can be used and
 updated.
 
-Let `K_n` be the sequence of forwarding keys, with `n` an integer value greater or
-equal to 0. Let `Tk` be the lifetime of each key. `K_0` is active from moment 0
-(beginning of unix time) to `Tk` (excluding `Tk`, so open interval on Tk), `K_1` is
-active from `Tk//2` to `3*Tk//2`, and so on and so forth. Key `K_n` is thus valid from
-`(2n-1)Tk/2` to `(2n+1)Tk//2`.
+Let `K_n` be the sequence of forwarding keys, with `n` an integer value greater
+or equal to 0. `K_0` is active from moment 0 (beginning of unix time) to
+`KeyLifetime` (excluding `KeyLifetime`, so open interval on `KeyLifetime`),
+`K_1` is active from `KeyLifetime//2` to `3*KeyLifetime//2`, and so on and so
+forth. Key `K_n` is thus valid from `n*KeyLifetime//2` to
+`(n+2)*KeyLifetime//2`.
 
 At any point in time, 2 items in the vector contain the currently valid keys
 while the other two are zeroized. The control plane of the border router has the
-task of tracking `CurrentTime`, and making sure that `CurrentTime` falls over
+task of tracking `CurrentTime`, and making sure that `CurrentTime` falls in
 array slots with computed keys.
 
 Refer to the diagram below. It shows the state of the rollover sequence at a
@@ -256,13 +259,13 @@ The index of the sequence element to use given for the HF with the above
 `ExpirationTime` is given by:
 
 ```text
-i = ((2 * ExpirationTime // Tk) - 1) mod 4
+i = ((2 * ExpirationTime // KeyLifetime) - 1) mod 4
 ```
 
 where `//` is integer division with integer quotient, and `mod` is the modulo
 operator.
 
-For fast computation of `i`, consider using a value of `Tk` that allows for
+For fast computation of `i`, consider using a value of `KeyLifetime` that allows for
 a single shift right implementation of integer division.
 
 Finally, MAC verification can proceed by using the key at `S[i]`.
@@ -271,7 +274,7 @@ Finally, MAC verification can proceed by using the key at `S[i]`.
 
 ```text
 DesiredRemainingLifetime: 3 days
-Tk: 6 days
+KeyLifetime: 6 days
 MasterKey bit length: 128 bits
 Representation of pad(n) for HKDF: 128-bit unsigned int representation of n, in big endian
 HKDF HMAC function: HMAC-SHA256
