@@ -49,14 +49,6 @@ struct SegmentSetupResData {
     }
 }
 
-# Request to renew an existing segment reservation.
-# They travel inside a hop by hop colibri extension (SegmentReservationID and index available externally).
-struct SegmentRenewalData {
-    minBW @0 :UInt8;
-    maxBW @1 :UInt8;
-    allocationTrail @2 :List(AllocationBeads);
-}
-
 # Telescoped segment reservations. Their response is identical to a non telescoped setup.
 # They travel in a hop by hop colibri extension.
 struct SegmentTelesSetupData {
@@ -87,21 +79,18 @@ struct SegmentCleanupData {
 }
 
 # Setup an E2E reservation. Sent in a hop by hop colibri extension through a stitched segment reservation.
-struct E2ESetupReqData {
-    reservationID @0 :E2EReservationID;     # 16 byte e2e reservation ID
-    token @1 :Data;
-}
-
-# Response to a e2e setup request.
-struct E2ESetupResData {
-    reservationID @0 :E2EReservationID;     # 16 byte e2e reservation ID
-    errorCode @1 :UInt8;
-    maxBWs @2 :List(UInt8);     # max bandwidths granted by the ASes along the path, until failure
-}
-
-# A renewal consists of the same fields as a setup.
-struct E2ERenewalData {
-    setup @0 :E2ESetupReqData;
+struct E2ESetupData {
+    union {
+        success :group {
+            reservationID @0 :E2EReservationID;     # 16 byte e2e reservation ID
+            token @1 :Data;
+        }
+        failure :group {
+            errorCode @2 :UInt8;
+            infoField @3 :Data;
+            maxBWs @4 :List(UInt8);     # max bandwidths granted by the ASes along the path, until failure
+        }
+    }
 }
 
 # The reservation ID is needed because this request can be for a previously failed setup.
@@ -114,14 +103,14 @@ struct Request {
     union {
         unset @0 :Void;
         segmentSetup @1 :SegmentSetupReqData;
-        segmentRenewal @2 :SegmentRenewalData;
+        segmentRenewal @2 :SegmentSetupReqData;
         segmentTelesSetup @3 :SegmentTelesSetupData;
-        segmentTelesRenewal @4 :SegmentRenewalData;
+        segmentTelesRenewal @4 :SegmentTelesSetupData;
         segmentTeardown @5 :SegmentTeardownReqData;
         segmentIndexConfirmation @6 :SegmentIndexConfirmationData;
         segmentCleanup @7 :SegmentCleanupData;
-        e2eSetup @8 :E2ESetupReqData;
-        e2eRenewal @9 :E2ERenewalData;
+        e2eSetup @8 :E2ESetupData;
+        e2eRenewal @9 :E2ESetupData;
         e2eCleanup @10 :E2ECleanupData;
     }
 }
@@ -136,8 +125,8 @@ struct Response {
         segmentTeardown @5 :SegmentTeardownResData;
         segmentIndexConfirmation @6 :SegmentIndexConfirmationData;
         segmentCleanup @7 :SegmentCleanupData;
-        e2eSetup @8 :E2ESetupResData;
-        e2eRenewal @9 :E2ESetupResData; # same response type as a setup
+        e2eSetup @8 :E2ESetupData;
+        e2eRenewal @9 :E2ESetupData; # same response type as a setup
         e2eCleanup @10 :E2ECleanupData;
     }
     accepted @11 :Bool;
