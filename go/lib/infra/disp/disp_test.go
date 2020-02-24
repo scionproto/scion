@@ -132,7 +132,6 @@ func TestUnreliableNotify(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	l := log.Root()
-	l.SetHandler(log.DiscardHandler())
+	log.Discard()
 	os.Exit(m.Run())
 }

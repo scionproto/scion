@@ -124,7 +124,7 @@ func setupBasic() error {
 		return serrors.New("Failed to load config", "err", err, "file", env.ConfigFile())
 	}
 	cfg.InitDefaults()
-	if err := env.InitLogging(&cfg.Logging); err != nil {
+	if err := log.Setup(cfg.Logging); err != nil {
 		return serrors.New("Failed to initialize logging", "err", err)
 	}
 	prom.ExportElementID(cfg.Sig.ID)

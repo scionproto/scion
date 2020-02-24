@@ -156,13 +156,13 @@ class SIGGenerator(object):
             'sd_client': {
                 'address': socket_address_str(sciond_ip, SD_API_PORT),
             },
-            'logging': {
+            'log': {
                 'file': {
-                    'Level': log_level,
-                    'Path': '/share/logs/%s.log' % name
+                    'level': log_level,
+                    'path': '/share/logs/%s.log' % name
                 },
                 'console': {
-                    'Level': 'error',
+                    'level': 'error',
                 }
             },
             'metrics': {

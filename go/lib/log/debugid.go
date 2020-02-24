@@ -12,17 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pathmgr_test
+package log
 
 import (
-	"os"
-	"testing"
-
-	"github.com/scionproto/scion/go/lib/log"
+	"fmt"
+	"math/rand"
 )
 
-// Disable logging in all tests
-func TestMain(m *testing.M) {
-	log.Discard()
-	os.Exit(m.Run())
+// DebugID is used to correlate behavior in logs. A DebugID is allocated
+// for each outgoing request/response or notify message exchange, and for each
+// handler executed during ListenAndServe.
+type DebugID uint32
+
+// NewDebugID creates a new debug id.
+func NewDebugID() DebugID {
+	return DebugID(rand.Uint32())
+}
+
+func (id DebugID) String() string {
+	return fmt.Sprintf("%08x", uint32(id))
 }

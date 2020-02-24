@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package brconf
+package log_test
 
 import (
 	"bytes"
@@ -21,39 +21,19 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/env/envtest"
+	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/log/logtest"
 )
 
-func TestConfigSample(t *testing.T) {
+func TestLoggingSample(t *testing.T) {
+	id := "logID"
 	var sample bytes.Buffer
-	var cfg Config
-	cfg.Sample(&sample, nil, nil)
-
-	InitTestConfig(&cfg)
+	var cfg log.Config
+	cfg.Sample(&sample, nil, map[string]string{config.ID: id})
+	logtest.InitTestLogging(&cfg)
 	meta, err := toml.Decode(sample.String(), &cfg)
 	assert.NoError(t, err)
 	assert.Empty(t, meta.Undecoded())
-	CheckTestConfig(t, &cfg, idSample)
-}
-
-func InitTestConfig(cfg *Config) {
-	envtest.InitTest(&cfg.General, &cfg.Metrics, nil, nil)
-	logtest.InitTestLogging(&cfg.Logging)
-	InitTestBRConfig(&cfg.BR)
-}
-
-func InitTestBRConfig(cfg *BR) {
-	cfg.Profile = true
-}
-
-func CheckTestConfig(t *testing.T, cfg *Config, id string) {
-	envtest.CheckTest(t, &cfg.General, &cfg.Metrics, nil, nil, id)
-	logtest.CheckTestLogging(t, &cfg.Logging, id)
-	CheckTestBRConfig(t, &cfg.BR)
-}
-
-func CheckTestBRConfig(t *testing.T, cfg *BR) {
-	assert.False(t, cfg.Profile)
-	assert.Equal(t, FailActionFatal, cfg.RollbackFailAction)
+	logtest.CheckTestLogging(t, &cfg, id)
 }

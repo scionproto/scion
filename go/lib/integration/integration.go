@@ -52,6 +52,10 @@ const (
 	SCIONDAddressesFile = "gen/sciond_addresses.json"
 )
 
+var (
+	logConsole string
+)
+
 type iaArgs []addr.IA
 
 func (a iaArgs) String() string {
@@ -109,16 +113,16 @@ func Init(name string) error {
 }
 
 func addTestFlags() {
-	log.ConsoleLevel = "info"
-	log.AddLogConsFlags()
-	log.AddLogFileFlags()
+	flag.StringVar(&logConsole, "log.console", "info",
+		"Console logging level: trace|debug|info|warn|error|crit")
 	flag.Var(&srcIAs, "src", "Source ISD-ASes (comma separated list)")
 	flag.Var(&dstIAs, "dst", "Destination ISD-ASes (comma separated list)")
 }
 
 func validateFlags(name string) error {
 	flag.Parse()
-	if err := log.SetupFromFlags(name); err != nil {
+	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
+	if err := log.Setup(logCfg); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
 		flag.Usage()
 		return err
@@ -258,11 +262,11 @@ func RunClient(in Integration, pair IAPair, timeout time.Duration) error {
 func ExecuteTimed(name string, f func() error) error {
 	start := time.Now()
 	err := f()
-	level := log.LvlInfo
+	level := log.LevelInfo
 	result := "successful"
 	if err != nil {
 		result = "failed"
-		level = log.LvlError
+		level = log.LevelError
 	}
 	elapsed := time.Since(start)
 	log.Log(level, fmt.Sprintf("Test %s %s, used %v\n", name, result, elapsed))

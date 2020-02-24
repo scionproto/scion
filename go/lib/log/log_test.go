@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,29 +28,41 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestSetupLogConsole(t *testing.T) {
+func TestSetup(t *testing.T) {
 	tmpDir, cleanF := xtest.MustTempDir("", "test-folder")
 	defer cleanF()
 
 	tests := map[string]struct {
-		dir       string
+		cfg       log.Config
 		assertErr assert.ErrorAssertionFunc
 	}{
+		"empty, no error": {
+			cfg:       log.Config{},
+			assertErr: assert.NoError,
+		},
+		"invalid file level": {
+			cfg:       log.Config{File: log.FileConfig{Path: "test/foo", Level: "invalid"}},
+			assertErr: assert.Error,
+		},
+		"invalid console level": {
+			cfg:       log.Config{Console: log.ConsoleConfig{Level: "invalid"}},
+			assertErr: assert.Error,
+		},
 		"cannot create, errors": {
-			dir:       "/sys/aka/doesnt/exist",
+			cfg:       log.Config{File: log.FileConfig{Path: "/sys/aka/doesnt/exist"}},
 			assertErr: assert.Error,
 		},
 
 		"can create, nil": {
-			dir:       filepath.Join(tmpDir, "new"),
+			cfg:       log.Config{File: log.FileConfig{Path: filepath.Join(tmpDir, "new")}},
 			assertErr: assert.NoError,
 		},
 	}
 
-	for td, tc := range tests {
-		t.Run(td, func(t *testing.T) {
-			err := log.SetupLogFile("test", tc.dir, "debug", 0, 0, 0, 0, false)
-			tc.assertErr(t, err)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := log.Setup(test.cfg)
+			test.assertErr(t, err)
 		})
 	}
 }
@@ -62,7 +75,7 @@ func TestTraceFilterHandler(t *testing.T) {
 		defer ctrl.Finish()
 		mockHandler := mock_log.NewMockHandler(ctrl)
 		logger := log.Root()
-		logger.SetHandler(mockHandler)
+		log.SetHandler(logger, mockHandler)
 		var msgSeenByMockHandler string
 		mockHandler.EXPECT().Log(gomock.Any()).Do(func(record *log15.Record) {
 			msgSeenByMockHandler = record.Msg
@@ -81,7 +94,7 @@ func TestTraceFilterHandler(t *testing.T) {
 		mockHandler := mock_log.NewMockHandler(ctrl)
 		logger := log.Root()
 		handler := log.FilterTraceHandler(mockHandler)
-		logger.SetHandler(handler)
+		log.SetHandler(logger, handler)
 		t.Log("debug messages are printed")
 		var msgSeenByMockHandler string
 		mockHandler.EXPECT().Log(gomock.Any()).Do(func(record *log15.Record) {

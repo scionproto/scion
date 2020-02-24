@@ -512,6 +512,6 @@ func MustPackQuotedSCMPL4Header(header *scmp.Hdr, meta *scmp.Meta, info scmp.Inf
 }
 
 func TestMain(m *testing.M) {
-	log.Root().SetHandler(log.DiscardHandler())
+	log.Discard()
 	os.Exit(m.Run())
 }

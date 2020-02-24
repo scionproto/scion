@@ -72,18 +72,21 @@ var (
 	sciondAddr  = flag.String("sciond", sciond.DefaultSCIONDAddress, "SCIOND address")
 	timeout     = flag.Duration("timeout", DefaultTimeout, "Timeout for the ping response")
 	verbose     = flag.Bool("v", false, "sets verbose output")
+	logConsole  string
 )
 
 func init() {
 	flag.Var(&local, "local", "(Mandatory) address to listen on")
 	flag.Var(&remote, "remote", "(Mandatory for clients) address to connect to")
+	flag.StringVar(&logConsole, "log.console", "info",
+		"Console logging level: trace|debug|info|warn|error|crit")
 }
 
 func main() {
 	os.Setenv("TZ", "UTC")
-	log.AddLogConsFlags()
 	validateFlags()
-	if err := log.SetupFromFlags(""); err != nil {
+	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
+	if err := log.Setup(logCfg); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
 		flag.Usage()
 		os.Exit(1)

@@ -36,17 +36,6 @@ func TestGeneralSample(t *testing.T) {
 	CheckTestGeneral(t, &cfg, "general")
 }
 
-func TestLoggingSample(t *testing.T) {
-	var sample bytes.Buffer
-	var cfg env.Logging
-	cfg.Sample(&sample, nil, map[string]string{config.ID: "logging"})
-	InitTestLogging(&cfg)
-	meta, err := toml.Decode(sample.String(), &cfg)
-	assert.NoError(t, err)
-	assert.Empty(t, meta.Undecoded())
-	CheckTestLogging(t, &cfg, "logging")
-}
-
 func TestMetricsSample(t *testing.T) {
 	var sample bytes.Buffer
 	var cfg env.Metrics

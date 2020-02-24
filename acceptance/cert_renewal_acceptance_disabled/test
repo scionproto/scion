@@ -24,8 +24,8 @@ CORE_IA_FILE="$(ia_file $CORE_IA)"
 test_setup() {
     set -e
     ./scion.sh topology -c $TEST_TOPOLOGY -d -t --database=sqlite
-    sed -i -e 's/Level = .*$/Level = "trace"/g' \
-        -e '/\[logging\.file\]/a FlushInterval = 1' \
+    sed -i -e 's/level = .*$/level = "trace"/g' \
+        -e '/\[log\.file\]/a flush_interval = 1' \
         -e '/\[cs\]/a AutomaticRenewal = true' \
         -e "s/LeafReissueLeadTime.\+/LeafReissueLeadTime = \"$((365 * 24 * 60 * 60 - 10))s\"/" \
         -e "s/IssuerReissueLeadTime.\+/IssuerReissueLeadTime = \"$((365 * 24 * 60 * 60 - 10))s\"/" \

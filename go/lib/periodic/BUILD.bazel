@@ -8,7 +8,6 @@ go_library(
     deps = [
         "//go/lib/log:go_default_library",
         "//go/lib/periodic/internal/metrics:go_default_library",
-        "//go/lib/util:go_default_library",
     ],
 )
 

@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -37,7 +38,7 @@ var _ config.Config = (*Config)(nil)
 type Config struct {
 	General  env.General
 	Features env.Features
-	Logging  env.Logging
+	Logging  log.Config `toml:"log,omitempty"`
 	Metrics  env.Metrics
 	Tracing  env.Tracing
 	TrustDB  truststorage.TrustDBConf

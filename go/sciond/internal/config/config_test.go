@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
+	"github.com/scionproto/scion/go/lib/log/logtest"
 	"github.com/scionproto/scion/go/lib/pathstorage/pathstoragetest"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/truststorage/truststoragetest"
@@ -40,7 +41,8 @@ func TestConfigSample(t *testing.T) {
 }
 
 func InitTestConfig(cfg *Config) {
-	envtest.InitTest(&cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, nil)
+	envtest.InitTest(&cfg.General, &cfg.Metrics, &cfg.Tracing, nil)
+	logtest.InitTestLogging(&cfg.Logging)
 	truststoragetest.InitTestConfig(&cfg.TrustDB)
 	InitTestSDConfig(&cfg.SD)
 }
@@ -51,7 +53,8 @@ func InitTestSDConfig(cfg *SDConfig) {
 }
 
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
-	envtest.CheckTest(t, &cfg.General, &cfg.Logging, &cfg.Metrics, &cfg.Tracing, nil, id)
+	envtest.CheckTest(t, &cfg.General, &cfg.Metrics, &cfg.Tracing, nil, id)
+	logtest.CheckTestLogging(t, &cfg.Logging, id)
 	truststoragetest.CheckTestConfig(t, &cfg.TrustDB, id)
 	CheckTestSDConfig(t, &cfg.SD, id)
 }

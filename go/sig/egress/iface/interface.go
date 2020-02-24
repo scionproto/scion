@@ -48,8 +48,8 @@ var EgressFreePkts *ringbuf.Ring
 
 // Session defines a stateful context for sending traffic to a remote AS.
 type Session interface {
-	// Logger defines common logging primitives
-	log.Logger
+	// Logger returns the logger associated with this session.
+	Logger() log.Logger
 	// IA returns the session's remote IA
 	IA() addr.IA
 	// ID returns the session's ID.
