@@ -33,7 +33,7 @@ var _ config.Config = (*Config)(nil)
 
 type Config struct {
 	Features   env.Features
-	Logging    log.Config   `toml:"log,omitempty"`
+	Logging    log.Config `toml:"log,omitempty"`
 	Metrics    env.Metrics
 	Dispatcher struct {
 		// ID of the Dispatcher (required)

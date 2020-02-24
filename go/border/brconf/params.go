@@ -29,7 +29,7 @@ var _ config.Config = (*Config)(nil)
 type Config struct {
 	General  env.General
 	Features env.Features
-	Logging  log.Config   `toml:"log,omitempty"`
+	Logging  log.Config `toml:"log,omitempty"`
 	Metrics  env.Metrics
 	BR       BR
 }
