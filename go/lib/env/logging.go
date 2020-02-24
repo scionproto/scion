@@ -16,12 +16,9 @@ package env
 
 import (
 	"fmt"
-	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -32,107 +29,9 @@ var (
 	StartupVersion string
 )
 
-var _ (config.Config) = (*Logging)(nil)
-
-type Logging struct {
-	config.NoValidator
-	File struct {
-		// Path is the location of the logging file. If unset, no file logging
-		// is performed.
-		Path string
-		// Level of file logging (defaults to lib/log default).
-		Level string
-		// Size is the max size of log file in MiB (defaults to lib/log default).
-		Size uint
-		// MaxAge is the max age of log file in days (defaults to lib/log default).
-		MaxAge uint
-		// MaxBackups is the max number of log files to retain (defaults to lib/log default).
-		MaxBackups uint
-		// FlushInterval specifies how frequently to flush to the log file,
-		// in seconds (defaults to lib/log default).
-		FlushInterval *int
-		// Compress can be set to enable rotated file compression.
-		Compress bool
-	}
-
-	Console struct {
-		// Level of console logging (defaults to lib/log default).
-		Level string
-	}
-}
-
-// InitDefaults populates unset fields in cfg to their default values (if they
-// have one).
-func (cfg *Logging) InitDefaults() {
-	if cfg.Console.Level == "" {
-		cfg.Console.Level = log.DefaultConsoleLevel
-	}
-	if cfg.File.Level == "" {
-		cfg.File.Level = log.DefaultFileLevel
-	}
-	if cfg.File.Size == 0 {
-		cfg.File.Size = log.DefaultFileSizeMiB
-	}
-	if cfg.File.MaxAge == 0 {
-		cfg.File.MaxAge = log.DefaultFileMaxAgeDays
-	}
-	if cfg.File.MaxBackups == 0 {
-		cfg.File.MaxBackups = log.DefaultFileMaxBackups
-	}
-	if cfg.File.FlushInterval == nil {
-		s := log.DefaultFileFlushSeconds
-		cfg.File.FlushInterval = &s
-	}
-}
-
-func (cfg *Logging) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteSample(dst, path, nil,
-		config.StringSampler{
-			Text: fmt.Sprintf(loggingFileSample, ctx[config.ID]),
-			Name: "file",
-		},
-		config.StringSampler{
-			Text: loggingConsoleSample,
-			Name: "console",
-		},
-	)
-}
-
-func (cfg *Logging) ConfigName() string {
-	return "logging"
-}
-
-// InitLogging initializes logging and sets the root logger Log.
-func InitLogging(cfg *Logging) error {
-	cfg.InitDefaults()
-	if err := setupFileLogging(cfg); err != nil {
-		return err
-	}
-	if err := log.SetupLogConsole(cfg.Console.Level); err != nil {
-		return err
-	}
-	return nil
-}
-
-func setupFileLogging(cfg *Logging) error {
-	if cfg.File.Path != "" {
-		return log.SetupLogFile(
-			filepath.Base(cfg.File.Path),
-			filepath.Dir(cfg.File.Path),
-			cfg.File.Level,
-			int(cfg.File.Size),
-			int(cfg.File.MaxAge),
-			int(cfg.File.MaxBackups),
-			*cfg.File.FlushInterval,
-			cfg.File.Compress,
-		)
-	}
-	return nil
-}
-
 // LogAppStarted should be called by applications as soon as logging is
 // initialized.
-func LogAppStarted(svcType, elemId string) error {
+func LogAppStarted(svcType, elemID string) error {
 	inDocker, err := util.RunsInDocker()
 	if err != nil {
 		return common.NewBasicError("Unable to determine if running in docker", err)
@@ -140,7 +39,7 @@ func LogAppStarted(svcType, elemId string) error {
 	info := fmt.Sprintf("=====================> Service started %s %s\n"+
 		"%s  %s\n  %s\n  %s\n  %s\n",
 		svcType,
-		elemId,
+		elemID,
 		VersionInfo(),
 		fmt.Sprintf("In docker:     %v", inDocker),
 		fmt.Sprintf("pid:           %d", os.Getpid()),
@@ -156,6 +55,6 @@ func VersionInfo() string {
 	return fmt.Sprintf("  Scion version: %s\n", StartupVersion)
 }
 
-func LogAppStopped(svcType, elemId string) {
-	log.Info(fmt.Sprintf("=====================> Service stopped %s %s", svcType, elemId))
+func LogAppStopped(svcType, elemID string) {
+	log.Info(fmt.Sprintf("=====================> Service stopped %s %s", svcType, elemID))
 }

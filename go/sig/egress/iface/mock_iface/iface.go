@@ -78,71 +78,6 @@ func (mr *MockSessionMockRecorder) Conn() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Conn", reflect.TypeOf((*MockSession)(nil).Conn))
 }
 
-// Crit mocks base method
-func (m *MockSession) Crit(arg0 string, arg1 ...interface{}) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0}
-	for _, a := range arg1 {
-		varargs = append(varargs, a)
-	}
-	m.ctrl.Call(m, "Crit", varargs...)
-}
-
-// Crit indicates an expected call of Crit
-func (mr *MockSessionMockRecorder) Crit(arg0 interface{}, arg1 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0}, arg1...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Crit", reflect.TypeOf((*MockSession)(nil).Crit), varargs...)
-}
-
-// Debug mocks base method
-func (m *MockSession) Debug(arg0 string, arg1 ...interface{}) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0}
-	for _, a := range arg1 {
-		varargs = append(varargs, a)
-	}
-	m.ctrl.Call(m, "Debug", varargs...)
-}
-
-// Debug indicates an expected call of Debug
-func (mr *MockSessionMockRecorder) Debug(arg0 interface{}, arg1 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0}, arg1...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Debug", reflect.TypeOf((*MockSession)(nil).Debug), varargs...)
-}
-
-// Error mocks base method
-func (m *MockSession) Error(arg0 string, arg1 ...interface{}) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0}
-	for _, a := range arg1 {
-		varargs = append(varargs, a)
-	}
-	m.ctrl.Call(m, "Error", varargs...)
-}
-
-// Error indicates an expected call of Error
-func (mr *MockSessionMockRecorder) Error(arg0 interface{}, arg1 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0}, arg1...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Error", reflect.TypeOf((*MockSession)(nil).Error), varargs...)
-}
-
-// GetHandler mocks base method
-func (m *MockSession) GetHandler() log.Handler {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetHandler")
-	ret0, _ := ret[0].(log.Handler)
-	return ret0
-}
-
-// GetHandler indicates an expected call of GetHandler
-func (mr *MockSessionMockRecorder) GetHandler() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHandler", reflect.TypeOf((*MockSession)(nil).GetHandler))
-}
-
 // Healthy mocks base method
 func (m *MockSession) Healthy() bool {
 	m.ctrl.T.Helper()
@@ -185,39 +120,18 @@ func (mr *MockSessionMockRecorder) ID() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockSession)(nil).ID))
 }
 
-// Info mocks base method
-func (m *MockSession) Info(arg0 string, arg1 ...interface{}) {
+// Logger mocks base method
+func (m *MockSession) Logger() log.Logger {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0}
-	for _, a := range arg1 {
-		varargs = append(varargs, a)
-	}
-	m.ctrl.Call(m, "Info", varargs...)
-}
-
-// Info indicates an expected call of Info
-func (mr *MockSessionMockRecorder) Info(arg0 interface{}, arg1 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0}, arg1...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Info", reflect.TypeOf((*MockSession)(nil).Info), varargs...)
-}
-
-// New mocks base method
-func (m *MockSession) New(arg0 ...interface{}) log.Logger {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{}
-	for _, a := range arg0 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "New", varargs...)
+	ret := m.ctrl.Call(m, "Logger")
 	ret0, _ := ret[0].(log.Logger)
 	return ret0
 }
 
-// New indicates an expected call of New
-func (mr *MockSessionMockRecorder) New(arg0 ...interface{}) *gomock.Call {
+// Logger indicates an expected call of Logger
+func (mr *MockSessionMockRecorder) Logger() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "New", reflect.TypeOf((*MockSession)(nil).New), arg0...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Logger", reflect.TypeOf((*MockSession)(nil).Logger))
 }
 
 // PathPool mocks base method
@@ -260,50 +174,4 @@ func (m *MockSession) Ring() *ringbuf.Ring {
 func (mr *MockSessionMockRecorder) Ring() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ring", reflect.TypeOf((*MockSession)(nil).Ring))
-}
-
-// SetHandler mocks base method
-func (m *MockSession) SetHandler(arg0 log.Handler) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetHandler", arg0)
-}
-
-// SetHandler indicates an expected call of SetHandler
-func (mr *MockSessionMockRecorder) SetHandler(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetHandler", reflect.TypeOf((*MockSession)(nil).SetHandler), arg0)
-}
-
-// Trace mocks base method
-func (m *MockSession) Trace(arg0 string, arg1 ...interface{}) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0}
-	for _, a := range arg1 {
-		varargs = append(varargs, a)
-	}
-	m.ctrl.Call(m, "Trace", varargs...)
-}
-
-// Trace indicates an expected call of Trace
-func (mr *MockSessionMockRecorder) Trace(arg0 interface{}, arg1 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0}, arg1...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trace", reflect.TypeOf((*MockSession)(nil).Trace), varargs...)
-}
-
-// Warn mocks base method
-func (m *MockSession) Warn(arg0 string, arg1 ...interface{}) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0}
-	for _, a := range arg1 {
-		varargs = append(varargs, a)
-	}
-	m.ctrl.Call(m, "Warn", varargs...)
-}
-
-// Warn indicates an expected call of Warn
-func (mr *MockSessionMockRecorder) Warn(arg0 interface{}, arg1 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0}, arg1...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Warn", reflect.TypeOf((*MockSession)(nil).Warn), varargs...)
 }

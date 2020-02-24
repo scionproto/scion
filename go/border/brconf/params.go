@@ -20,6 +20,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 var _ config.Config = (*Config)(nil)
@@ -28,7 +29,7 @@ var _ config.Config = (*Config)(nil)
 type Config struct {
 	General  env.General
 	Features env.Features
-	Logging  env.Logging
+	Logging  log.Config   `toml:"log,omitempty"`
 	Metrics  env.Metrics
 	BR       BR
 }

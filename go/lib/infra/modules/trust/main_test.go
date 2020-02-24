@@ -104,7 +104,7 @@ func TestMain(m *testing.M) {
 		fmt.Println(help)
 		os.Exit(1)
 	}
-	log.Root().SetHandler(log.DiscardHandler())
+	log.Discard()
 	os.Exit(m.Run())
 }
 

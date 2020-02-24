@@ -2,9 +2,6 @@
 ConfigDir = "/share/conf"
 ID = <AUTOFILLED>
 
-[logging.console]
-Level = "crit"
-
-[logging.file]
-Level = "debug"
-Path = <AUTOFILLED>
+[log.file]
+level = "debug"
+path = <AUTOFILLED>

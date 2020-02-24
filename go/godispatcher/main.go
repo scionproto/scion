@@ -125,7 +125,7 @@ func setupBasic() error {
 		return err
 	}
 	cfg.InitDefaults()
-	if err := env.InitLogging(&cfg.Logging); err != nil {
+	if err := log.Setup(cfg.Logging); err != nil {
 		return err
 	}
 	prom.ExportElementID(cfg.Dispatcher.ID)

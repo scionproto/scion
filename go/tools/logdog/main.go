@@ -54,11 +54,11 @@ var (
 		fmt.Sprintf(
 			"The minimum (inclusive) log level a line must have to be included in the output,"+
 				" any of [%s] (case insensitive)", strings.Join([]string{
-				log.LvlDebug.String(),
-				log.LvlInfo.String(),
-				log.LvlWarn.String(),
-				log.LvlError.String(),
-				log.LvlCrit.String(),
+				log.LevelDebug.String(),
+				log.LevelInfo.String(),
+				log.LevelWarn.String(),
+				log.LevelError.String(),
+				log.LevelCrit.String(),
 			}, ",")))
 	containsFlag = flag.String("contains", "",
 		"A string that must be contained in a log line to be included in the output.")
@@ -104,7 +104,7 @@ func main() {
 
 func filterFromFlags() (Filter, error) {
 	var filters Filters
-	logLevel, err := log.LvlFromString(*logLevelFlag)
+	logLevel, err := log.LevelFromString(*logLevelFlag)
 	if err != nil {
 		return filters, err
 	}
@@ -192,7 +192,7 @@ func (f FilterFunc) Keep(e logparse.LogEntry) bool {
 }
 
 // MinLevel returns a filter that checks that an entry has at least level min.
-func MinLevel(min log.Lvl) Filter {
+func MinLevel(min log.Level) Filter {
 	return FilterFunc(func(e logparse.LogEntry) bool {
 		return e.Level <= min
 	})

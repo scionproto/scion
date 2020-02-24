@@ -22,6 +22,6 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	log.Root().SetHandler(log.DiscardHandler())
+	log.Discard()
 	os.Exit(m.Run())
 }

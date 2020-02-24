@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -31,7 +33,7 @@ var _ config.Config = (*Config)(nil)
 
 type Config struct {
 	Features   env.Features
-	Logging    env.Logging
+	Logging    log.Config   `toml:"log,omitempty"`
 	Metrics    env.Metrics
 	Dispatcher struct {
 		// ID of the Dispatcher (required)

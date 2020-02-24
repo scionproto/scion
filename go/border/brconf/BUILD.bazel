@@ -16,6 +16,7 @@ go_library(
         "//go/lib/config:go_default_library",
         "//go/lib/env:go_default_library",
         "//go/lib/keyconf:go_default_library",
+        "//go/lib/log:go_default_library",
         "//go/lib/topology:go_default_library",
     ],
 )
@@ -27,6 +28,7 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/lib/env/envtest:go_default_library",
+        "//go/lib/log/logtest:go_default_library",
         "@com_github_burntsushi_toml//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],
