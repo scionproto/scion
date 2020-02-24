@@ -154,7 +154,9 @@ Taking into account **Property 5**, we select a constant desired remaining HF
 lifetime of half of `keyLifetime`.
 
 Let `DesiredRemainingLifetime` be the time the HF is going to be valid for,
-relative to current time.
+relative to current time. This is a value chosen by AS security policy; the
+policy will usually specify a `MaxRemainingLifetime`, which is the upper bound
+on acceptable `DesiredRemainingLifetime`.
 
 We add the constraint that the HF MUST NOT be valid for longer than a
 `DesiredRemainingLifetime`, but CAN be valid for less. This leads to a cleaner
@@ -224,56 +226,51 @@ If `Key` is not valid at `CurrentTime`, then HF verification MUST fail.
 #### Fast key lookup
 
 It is expensive to compute the `Key` for every MAC. A key rollover sequence
-could be used instead. We show how a rollover sequence of size 4 can be used and
-updated.
+could be used instead. We show how a rollover sequence of size 2 can be used and
+updated. Let `KeyContext` be this rollover sequence. The sequence has the
+following fields:
+
+- `Key0`, the first valid key;
+- `Key1`, the second valid key;
+- `ExpirationTimeKey0`, the expiration time of the first key;
+- `ExpirationTimeKey1`, the expiration time of the second key;
 
 Let `K_n` be the sequence of forwarding keys, with `n` an integer value greater
 or equal to 0. `K_0` is active from moment 0 (beginning of unix time) to
 `KeyLifetime` (excluding `KeyLifetime`, so open interval on `KeyLifetime`),
 `K_1` is active from `KeyLifetime//2` to `3*KeyLifetime//2`, and so on and so
 forth. Key `K_n` is thus valid from `n*KeyLifetime//2` to
-`(n+2)*KeyLifetime//2`.
+`(n+2)*KeyLifetime//2`. Whenever a new key becomes valid, the following procedure runs:
 
-At any point in time, 2 items in the vector contain the currently valid keys
-while the other two are zeroized. The control plane of the border router has the
-task of tracking `CurrentTime`, and making sure that `CurrentTime` falls in
-array slots with computed keys.
+```python
+set_new_key(NewKey, ExpTimeNewKey)
+    NewKeyCtx.Key0 = CurrentKeyCtx.Key1
+    NewKeyCtx.ExpirationTimeKey0 = CurrentKeyCtx.ExpirationTimeKey1
+    NewKeyCtx.Key1 = NewKey
+    NewKeyCtx.ExpirationTimeKey1 = ExpirationTimeNewKey
+    update_key_ctx(NewKeyCtx)
+```
 
-Refer to the diagram below. It shows the state of the rollover sequence at a
-given point in time. Key `K_n` and `K_(n+1)` are valid at this time.
-
-![Rollover sequence A](fig/ForwardingKeyRollover/rollover-slot-rollover-a.png).
-
-As system time advances, the control plane eventually converts the sequence to
-the one in the following diagram.
-
-![Rollover sequence B](fig/ForwardingKeyRollover/rollover-slot-rollover-b.png).
-
-The BR must first compute the expiration time of the HF, similarly to the BS:
+For each packet, the BR must first compute the expiration time of the HF, similarly to the BS:
 
 ```text
 ExpirationTime = OriginationTime + (1 + ExpirationField) * 337s
 ```
 
-The index of the sequence element to use given for the HF with the above
-`ExpirationTime` is given by:
-
-```text
-i = ((2 * ExpirationTime // KeyLifetime) - 1) mod 4
+```python
+get_key(ExpirationTime)
+    if ExpirationTime < CurrentKeyCtx.ExpirationTimeKey0
+        return CurrentKeyCtx.Key0
+    else
+        return CurrentKeyCtx.Key1
 ```
 
-where `//` is integer division with integer quotient, and `mod` is the modulo
-operator.
-
-For fast computation of `i`, consider using a value of `KeyLifetime` that allows for
-a single shift right implementation of integer division.
-
-Finally, MAC verification can proceed by using the key at `S[i]`.
+The key can then be used by the BR to verify the MAC.
 
 ### Recommended values
 
 ```text
-DesiredRemainingLifetime: 3 days
+MaxDesiredRemainingLifetime: 3 days
 KeyLifetime: 6 days
 MasterKey bit length: 128 bits
 Representation of pad(n) for HKDF: 128-bit unsigned int representation of n, in big endian
