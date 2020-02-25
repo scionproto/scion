@@ -572,48 +572,65 @@ for an AS with three interfaces with IDs 1, 2 and 3:
 
 ````JSON
 {
-  "N": 3,
-  "Interfaces": [{
-    "IntfID": 1,
-    "IntraLatency": [0, 10, 20],
-    "InterLatency": 30,
-    "C1": 45.7,
-    "C2": 25.9,
-    "CivAddr": "asdf",
-    "IntraLink": [0,1,0],
-    "InterLink": 2,
-    "IntraBW": [0, 200000000, 100000000],
-    "InterBW": 150000000,
-    "SpecificNote": "asdf",
-    "Hops": [0, 2, 4]
-  },{
-    "IntfID": 2,
-    "IntraLatency": [10, 0, 20],
-    "InterLatency": 40,
-    "C1": 34.7,
-    "C2": 27.2,
-    "CivAddr": "asdf",
-    "IntraLink": [1,0,2],
-    "InterLink": 2,
-    "IntraBW": [200000000, 0, 100000000],
-    "InterBW": 450000000,
-    "Hops": [1, 0, 4]
-  },{
-    "IntfID": 3,
-    "IntraLatency": [10, 40, 0],
-    "InterLatency": 10,
-    "C1": 66.2,
-    "C2": 37.0,
-    "CivAddr": "asdf",
-    "IntraLink": [1,1,0],
-    "InterLink": 1,
-    "IntraBW": [200000000, 300000000, 0],
-    "InterBW": 50000000,
-    "SpecificNote": "asdf",
-    "Hops": [1, 0, 0]
-  }],
-  "DefaultNote": "asdf",
-  "URL": "asdf"
+  "Ntot": 4,
+  "Nonpeer": 3,
+  "Peer": 1,
+  "Interfaces": {
+    "NonPeeringInterfaces": [{
+      "IntfID": 1,
+      "IntraLatency": [0, 10, 20,10],
+      "InterLatency": 30,
+      "C1": 45.7,
+      "C2": 25.9,
+      "CivAddr": "asdf",
+      "IntraLink": [0,1,0,0],
+      "InterLink": 2,
+      "IntraBW": [0, 200000000, 100000000, 20000000],
+      "InterBW": 150000000,
+      "SpecificNote": "asdf1",
+      "Hops": [0, 2, 4, 2]
+    },{
+      "IntfID": 2,
+      "IntraLatency": [10, 0, 20, 10],
+      "InterLatency": 40,
+      "C1": 34.7,
+      "C2": 27.2,
+      "CivAddr": "asdf",
+      "IntraLink": [1,0,2,3],
+      "InterLink": 2,
+      "IntraBW": [200000000, 0, 100000000, 30000000],
+      "InterBW": 450000000,
+      "Hops": [1, 0, 4, 1]
+    },{
+      "IntfID": 3,
+      "IntraLatency": [10, 40, 0, 20],
+      "InterLatency": 10,
+      "C1": 66.2,
+      "C2": 37.0,
+      "CivAddr": "asdf",
+      "IntraLink": [1,1,0,1],
+      "InterLink": 1,
+      "IntraBW": [200000000, 300000000, 0, 10000000],
+      "InterBW": 50000000,
+      "SpecificNote": "asdf3",
+      "Hops": [1, 0, 0, 1]
+    }],
+    "PeeringInterfaces":[{
+      "IntfID": 4,
+      "IntraLatency": [0, 10, 20, 0],
+      "InterLatency": 30,
+      "C1": 45.7,
+      "C2": 25.9,
+      "CivAddr": "asdf",
+      "IntraLink": [0,1,0,0],
+      "InterLink": 2,
+      "IntraBW": [0, 200000000, 100000000, 0],
+      "InterBW": 150000000,
+      "SpecificNote": "asdf4",
+      "Hops": [0, 2, 4, 0]
+    }]
+  },
+  "DefaultNote": "asdf"
 }
 ````
 
