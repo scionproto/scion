@@ -514,7 +514,7 @@ When constructing the extension from the config file (see below) the BS will che
 the egress interface field in the AS Entry and attach the "specific" note accordingly.
 If no such note is specified in the config file, then the contents of the "specific"
 field will be set to null (it is also possible to do this for the "default" note as
-well.
+well).
 
 ### Concrete Format Note
 
@@ -540,9 +540,14 @@ following value:
 
 Name               | Type  | Description |
 -------------------|-------|-------------|
-`N`                |Integer|Number of interfaces in the AS|
+`Ntot`             |Integer|Number of interfaces in the AS|
+`Nonpeer`          |Integer|Number of nonpeering interfaces in the AS|
+`Peer`             |Integer|Number of peering interfaces in the AS|
 
-Then, for every interface `i` the following values can be provided:
+The interfaces are divided into two categories, the first being nonpeering
+interfaces, and the second being peering interfaces.
+Regardless of category, for every interface `i` the same values can be provided
+as listed below:
 
 Name             | Type  | Description |
 -----------------|-------|-------------|
@@ -559,12 +564,11 @@ Name             | Type  | Description |
 `SpecificNote`   |String |Note that should be used when this interface is the egress interface in the AS Entry that is being extended|
 `Hops`           |List of Integers|Number of internal hops from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
 
-Then, after every interface has been listed, follow a few final fields:
+Then, after every interface has been listed, follows a final field:
 
 Name               | Type  | Description |
 -------------------|-------|-------------|
 `DefaultNote`      |String |Default Note|
-`URLContents`      |String |URL for metadata endpoint|
 
 Below is a simple example of how such a config file could look like (actual
 values are abitrary, "asdf" is used as a placeholder for longer strings)
