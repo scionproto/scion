@@ -640,8 +640,39 @@ for an AS with three interfaces with IDs 1, 2 and 3:
 
 ## Concrete Implementation
 
-Cap'nProto will be used for the wire formats of the extension[??? Ask in slack
-about this]. The following section is devoted to looking at the implementation
-of each property in detail.
+The following section is devoted to looking at the implementation in detail.
+The implementation consists of four main parts:
+
+- The wire format of the extension, in the form of a capnp struct
+- A number of go structs, that provide an internal representation of the extension
+- A parser, that reads data from the JSON file and parses it into the go structs
+- A number of functions that make the contents of the go structs available to cap n' proto
+
+We will look at each of these in order.
+
+### Capnp Struct
+
+The capnp struct defines the wire format of the extension. It has the following form: 
+//insert capnp strcut here
+
+
+
+### Go Representation of the Extension
+
+The format of the go representation of the extension corresponds to that of the capnp struct.
+At the top level, it consists of 7 elements, as can be seen below:
+//insert code for main extension body
+`ExtType` is an unsigned int of size 8 bits. It defines the type of the extension. We have chosen
+125 (i.e. 01111101 in binary) as the value identifiying the Static_Info extension type.
+The 6 following elements are themselves also structs, and each represents one property described
+above.
+First is the latency information `LI`, which is encapsulated in a `Latency_Info` struct.
+
+
+
+
+
+
+
 
 
