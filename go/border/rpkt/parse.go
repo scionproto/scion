@@ -118,7 +118,7 @@ func (rp *RtrPkt) parseHopExtns() error {
 		if currHdr != common.HopByHopClass { // Reached end2end header or L4 protocol
 			break
 		}
-		if *offset+1 >= len(rp.Raw) {
+		if *offset+2 >= len(rp.Raw) {
 			return common.NewBasicError(ErrExtChainTooLong, nil, "curr", *offset, "max", len(rp.Raw))
 		}
 		currExtn := common.ExtnType{Class: currHdr, Type: rp.Raw[*offset+2]}
