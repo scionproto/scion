@@ -44,9 +44,10 @@ var (
 )
 
 var (
-	dstIA addr.IA
-	srcIA addr.IA
-	local snet.UDPAddr
+	dstIA      addr.IA
+	srcIA      addr.IA
+	local      snet.UDPAddr
+	logConsole string
 )
 
 func init() {
@@ -55,9 +56,11 @@ func init() {
 }
 
 func main() {
-	log.AddLogConsFlags()
+	flag.StringVar(&logConsole, "log.console", "info",
+		"Console logging level: trace|debug|info|warn|error|crit")
 	validateFlags()
-	if err := log.SetupFromFlags(""); err != nil {
+	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
+	if err := log.Setup(logCfg); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
 		flag.Usage()
 		os.Exit(1)

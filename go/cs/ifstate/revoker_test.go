@@ -62,7 +62,7 @@ type brMsg struct {
 
 func TestMain(m *testing.M) {
 	metrics.InitBSMetrics()
-	log.Root().SetHandler(log.DiscardHandler())
+	log.Discard()
 	os.Exit(m.Run())
 }
 

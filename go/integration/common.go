@@ -44,6 +44,7 @@ var (
 	sciondAddr   string
 	networksFile string
 	Attempts     int
+	logConsole   string
 )
 
 func Setup() {
@@ -58,7 +59,8 @@ func addFlags() {
 	flag.StringVar(&networksFile, "networks", integration.SCIONDAddressesFile,
 		"File containing network definitions")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
-	log.AddLogConsFlags()
+	flag.StringVar(&logConsole, "log.console", "info",
+		"Console logging level: trace|debug|info|warn|error|crit")
 }
 
 // InitTracer initializes the global tracer and returns a closer function.
@@ -83,7 +85,8 @@ func InitTracer(name string) (func(), error) {
 
 func validateFlags() {
 	flag.Parse()
-	if err := log.SetupFromFlags(""); err != nil {
+	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
+	if err := log.Setup(logCfg); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
 		flag.Usage()
 		os.Exit(1)

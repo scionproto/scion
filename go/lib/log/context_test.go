@@ -12,30 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package log
+package log_test
 
 import (
 	"context"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 func TestLoggerCtxEmbedding(t *testing.T) {
-	Convey("Given a context with no logger attached", t, func() {
+	t.Run("Given a context with no logger attached", func(t *testing.T) {
 		ctx, cancelF := context.WithCancel(context.Background())
 		defer cancelF()
-		Convey("Extracting the logger yields a non-nil logger", func() {
-			logger := FromCtx(ctx)
-			So(logger, ShouldNotBeNil)
+		t.Run("Extracting the logger yields a non-nil logger", func(t *testing.T) {
+			logger := log.FromCtx(ctx)
+			assert.NotNil(t, logger)
 		})
 	})
-	Convey("Given a context with a logger attached", t, func() {
-		logger := Root().New()
-		ctx := CtxWith(context.Background(), logger)
-		Convey("Extracting the logger returns the correct object", func() {
-			extractedLogger := FromCtx(ctx)
-			So(extractedLogger, ShouldEqual, logger)
+	t.Run("Given a context with a logger attached", func(t *testing.T) {
+		logger := log.Root().New()
+		ctx := log.CtxWith(context.Background(), logger)
+		t.Run("Extracting the logger returns the correct object", func(t *testing.T) {
+			extractedLogger := log.FromCtx(ctx)
+			assert.Equal(t, logger, extractedLogger)
 		})
 	})
 }

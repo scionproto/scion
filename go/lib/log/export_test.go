@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2020 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package log
 
-import (
-	"fmt"
-	"math/rand"
-)
-
-// DebugID is used to correlate behavior in logs. A DebugID is allocated
-// for each outgoing request/response or notify message exchange, and for each
-// handler executed during ListenAndServe.
-type DebugID uint32
-
-func GetDebugID() DebugID {
-	return DebugID(rand.Uint32())
+func SetHandler(logger Logger, h Handler) {
+	logger.(*loggerWithTrace).Logger.SetHandler(h)
 }
 
-func (id DebugID) String() string {
-	return fmt.Sprintf("%08x", uint32(id))
+func FilterTraceHandler(h Handler) Handler {
+	return &filterTraceHandler{Handler: h}
 }

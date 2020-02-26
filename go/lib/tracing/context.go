@@ -22,7 +22,6 @@ import (
 	"github.com/uber/jaeger-client-go"
 
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/util"
 )
 
 // CtxWith creates a new span and attaches it to the context, it also sets the
@@ -35,7 +34,7 @@ func CtxWith(parentCtx context.Context, operationName string,
 		id := spanCtx.TraceID()
 		return span, log.CtxWith(ctx, log.New("debug_id", id.String()[:8], "trace_id", id))
 	}
-	return span, log.CtxWith(ctx, log.New("debug_id", util.GetDebugID()))
+	return span, log.CtxWith(ctx, log.New("debug_id", log.NewDebugID()))
 }
 
 // IDFromCtx reads the tracing ID from the context.

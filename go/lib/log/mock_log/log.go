@@ -122,20 +122,6 @@ func (mr *MockLoggerMockRecorder) Error(arg0 interface{}, arg1 ...interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Error", reflect.TypeOf((*MockLogger)(nil).Error), varargs...)
 }
 
-// GetHandler mocks base method
-func (m *MockLogger) GetHandler() log.Handler {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetHandler")
-	ret0, _ := ret[0].(log.Handler)
-	return ret0
-}
-
-// GetHandler indicates an expected call of GetHandler
-func (mr *MockLoggerMockRecorder) GetHandler() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHandler", reflect.TypeOf((*MockLogger)(nil).GetHandler))
-}
-
 // Info mocks base method
 func (m *MockLogger) Info(arg0 string, arg1 ...interface{}) {
 	m.ctrl.T.Helper()
@@ -169,18 +155,6 @@ func (m *MockLogger) New(arg0 ...interface{}) log.Logger {
 func (mr *MockLoggerMockRecorder) New(arg0 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "New", reflect.TypeOf((*MockLogger)(nil).New), arg0...)
-}
-
-// SetHandler mocks base method
-func (m *MockLogger) SetHandler(arg0 log.Handler) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetHandler", arg0)
-}
-
-// SetHandler indicates an expected call of SetHandler
-func (mr *MockLoggerMockRecorder) SetHandler(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetHandler", reflect.TypeOf((*MockLogger)(nil).SetHandler), arg0)
 }
 
 // Trace mocks base method

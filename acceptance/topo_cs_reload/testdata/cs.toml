@@ -7,8 +7,8 @@ ID = "cs1-ff00_0_110-1"
 Connection = "cs1-ff00_0_110-1.trust.db"
 Backend = "sqlite"
 
-[logging.console]
-Level = "trace"
+[log.console]
+level = "trace"
 
 [ps.pathDB]
 Connection = "cs1-ff00_0_110-1.path.db"

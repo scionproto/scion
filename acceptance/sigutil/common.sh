@@ -10,7 +10,7 @@ test_setup() {
     set -e
     ./scion.sh topology -c $TEST_TOPOLOGY -d -t --sig -n 242.254.0.0/16
     for sig in gen/ISD1/*/sig*/sig.toml; do
-        sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sig"
+        sed -i '/\[log\.file\]/a flush_interval = 1' "$sig"
     done
     ./scion.sh run nobuild
     ./tools/dc start 'tester*'

@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,11 +43,14 @@ const (
 var (
 	testName    string
 	keysDirPath string
+	logConsole  string
 )
 
 func init() {
 	flag.StringVar(&testName, "testName", "", "Test to run")
 	flag.StringVar(&keysDirPath, "keysDirPath", "", "AS keys directory path")
+	flag.StringVar(&logConsole, "log.console", "info",
+		"Console logging level: trace|debug|info|warn|error|crit")
 }
 
 var (
@@ -60,14 +64,13 @@ func main() {
 }
 
 func realMain() int {
-	log.ConsoleLevel = "info"
-	log.AddLogConsFlags()
 	if err := checkFlags(); err != nil {
 		flag.Usage()
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return 1
 	}
-	if err := log.SetupFromFlags(""); err != nil {
+	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
+	if err := log.Setup(logCfg); err != nil {
 		flag.Usage()
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return 1

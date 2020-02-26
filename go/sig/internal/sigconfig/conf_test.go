@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
+	"github.com/scionproto/scion/go/lib/log/logtest"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -39,7 +40,8 @@ func TestConfigSample(t *testing.T) {
 }
 
 func InitTestConfig(cfg *Config) {
-	envtest.InitTest(nil, &cfg.Logging, &cfg.Metrics, nil, &cfg.Sciond)
+	envtest.InitTest(nil, &cfg.Metrics, nil, &cfg.Sciond)
+	logtest.InitTestLogging(&cfg.Logging)
 	InitTestSigConf(&cfg.Sig)
 }
 
@@ -48,7 +50,8 @@ func InitTestSigConf(cfg *SigConf) {
 }
 
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
-	envtest.CheckTest(t, nil, &cfg.Logging, &cfg.Metrics, nil, &cfg.Sciond, id)
+	envtest.CheckTest(t, nil, &cfg.Metrics, nil, &cfg.Sciond, id)
+	logtest.CheckTestLogging(t, &cfg.Logging, id)
 	CheckTestSigConf(t, &cfg.Sig, id)
 }
 

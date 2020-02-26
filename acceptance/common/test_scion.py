@@ -38,22 +38,22 @@ class MergeDictTestCase(unittest.TestCase):
 
     def test_replace_leaf_entry(self):
         actual = self._orig()
-        merge_dict(path_to_dict('logging.file.level', 'crit'), actual)
+        merge_dict(path_to_dict('log.file.level', 'crit'), actual)
         expected = self._orig()
-        expected['logging']['file']['level'] = 'crit'
+        expected['log']['file']['level'] = 'crit'
         self.assertEqual(actual, expected, "level not overwritten")
 
     def test_replace_dict(self):
         actual = self._orig()
-        merge_dict(path_to_dict('logging.file', 'disable'), actual)
+        merge_dict(path_to_dict('log.file', 'disable'), actual)
         expected = self._orig()
-        expected['logging']['file'] = 'disable'
+        expected['log']['file'] = 'disable'
         self.assertEqual(actual, expected, "file dict not overwritten")
 
     @staticmethod
     def _orig() -> Dict[str, Any]:
         return {
-            'logging': {
+            'log': {
                 'file': {
                     'path': '/var/log/scion/bs.log',
                     'level': 'info',

@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,92 +20,100 @@ import (
 	"strings"
 
 	"github.com/inconshreveable/log15"
-	logext "github.com/inconshreveable/log15/ext"
 )
 
-type Lvl log15.Lvl
+// Level is the log level.
+type Level log15.Lvl
 
+// The different log levels
 const (
-	LvlCrit  = Lvl(log15.LvlCrit)
-	LvlError = Lvl(log15.LvlError)
-	LvlWarn  = Lvl(log15.LvlWarn)
-	LvlInfo  = Lvl(log15.LvlInfo)
-	LvlDebug = Lvl(log15.LvlDebug)
+	LevelCrit  = Level(log15.LvlCrit)
+	LevelError = Level(log15.LvlError)
+	LevelWarn  = Level(log15.LvlWarn)
+	LevelInfo  = Level(log15.LvlInfo)
+	LevelDebug = Level(log15.LvlDebug)
 )
 
-func LvlFromString(lvl string) (Lvl, error) {
+// LevelFromString parses the log level.
+func LevelFromString(lvl string) (Level, error) {
 	// Since we also parse python log entries we also have to handle the levels of python.
 	switch strings.ToUpper(lvl) {
 	case "DEBUG", "DBUG":
-		return LvlDebug, nil
+		return LevelDebug, nil
 	case "INFO":
-		return LvlInfo, nil
+		return LevelInfo, nil
 	case "WARN", "WARNING":
-		return LvlWarn, nil
+		return LevelWarn, nil
 	case "ERROR", "EROR":
-		return LvlError, nil
+		return LevelError, nil
 	case "CRIT", "CRITICAL":
-		return LvlCrit, nil
+		return LevelCrit, nil
 	default:
-		return LvlDebug, fmt.Errorf("Unknown level: %v", lvl)
+		return LevelDebug, fmt.Errorf("Unknown level: %v", lvl)
 	}
 }
 
-func (l Lvl) String() string {
+func (l Level) String() string {
 	return strings.ToUpper(log15.Lvl(l).String())
 }
 
 const (
-	LvlTraceStr = "trace"
+	LevelTraceStr = "trace"
 	// TraceMsgPrefix is prepended to TRACE level logging messages.
 	TraceMsgPrefix = "[TRACE] "
 )
 
+// Trace logs at trace level
 func Trace(msg string, ctx ...interface{}) {
 	Debug(TraceMsgPrefix+msg, ctx...)
 }
 
+// Debug logs at debug level.
 func Debug(msg string, ctx ...interface{}) {
 	log15.Debug(msg, ctx...)
 }
 
+// Info logs at info level.
 func Info(msg string, ctx ...interface{}) {
 	log15.Info(msg, ctx...)
 }
 
+// Warn logs at warn level.
 func Warn(msg string, ctx ...interface{}) {
 	log15.Warn(msg, ctx...)
 }
 
+// Error logs at error level.
 func Error(msg string, ctx ...interface{}) {
 	log15.Error(msg, ctx...)
 }
 
+// Crit logs at crit level.
 func Crit(msg string, ctx ...interface{}) {
 	log15.Crit(msg, ctx...)
 }
 
-func Log(lvl Lvl, msg string, ctx ...interface{}) {
+// Log logs at the given level.
+func Log(level Level, msg string, ctx ...interface{}) {
 	var logFun func(string, ...interface{})
-	switch lvl {
-	case LvlDebug:
+	switch level {
+	case LevelDebug:
 		logFun = Debug
-	case LvlInfo:
+	case LevelInfo:
 		logFun = Info
-	case LvlWarn:
+	case LevelWarn:
 		logFun = Warn
-	case LvlError:
+	case LevelError:
 		logFun = Error
-	case LvlCrit:
+	case LevelCrit:
 		logFun = Crit
 	}
 	logFun(msg, ctx...)
 }
 
+// Logger describes the logger interface.
 type Logger interface {
 	New(ctx ...interface{}) Logger
-	GetHandler() Handler
-	SetHandler(h Handler)
 	Trace(msg string, ctx ...interface{})
 	Debug(msg string, ctx ...interface{})
 	Info(msg string, ctx ...interface{})
@@ -119,10 +128,12 @@ type loggerWithTrace struct {
 	log15.Logger
 }
 
+// New creates a logger with the given context.
 func New(ctx ...interface{}) Logger {
 	return &loggerWithTrace{Logger: log15.New(ctx...)}
 }
 
+// Root returns the root logger. It's a logger without any context.
 func Root() Logger {
 	return &loggerWithTrace{Logger: log15.Root()}
 }
@@ -135,30 +146,19 @@ func (logger *loggerWithTrace) New(ctx ...interface{}) Logger {
 	return &loggerWithTrace{Logger: logger.Logger.New(ctx...)}
 }
 
-func (logger *loggerWithTrace) SetHandler(h Handler) {
-	logger.Logger.SetHandler(h)
+// Discard sets the logger up to discard all log entries. This is useful for
+// testing.
+func Discard() {
+	Root().(*loggerWithTrace).Logger.SetHandler(log15.DiscardHandler())
 }
 
-func (logger *loggerWithTrace) GetHandler() Handler {
-	return logger.Logger.GetHandler()
-}
-
+// Handler wraps log15.Handler, should only be used for testing.
 type Handler interface {
 	log15.Handler
 }
 
-func DiscardHandler() Handler {
-	return log15.DiscardHandler()
-}
-
-var _ Handler = (*filterTraceHandler)(nil)
-
 type filterTraceHandler struct {
 	log15.Handler
-}
-
-func FilterTraceHandler(handler log15.Handler) log15.Handler {
-	return &filterTraceHandler{Handler: handler}
 }
 
 func (h *filterTraceHandler) Log(r *log15.Record) error {
@@ -166,8 +166,4 @@ func (h *filterTraceHandler) Log(r *log15.Record) error {
 		return h.Handler.Log(r)
 	}
 	return nil
-}
-
-func RandId(idlen int) string {
-	return logext.RandId(idlen)
 }

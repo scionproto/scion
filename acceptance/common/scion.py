@@ -88,11 +88,11 @@ class Scion(ABC):
         """
         Overwrite or set the values in the toml files with the specified
         changes. The key in the change dictionary is a dot separated path
-        to the toml value. E.g. {'logging.file.Level': 'trace'} result in the
+        to the toml value. E.g. {'log.file.level': 'trace'} result in the
         toml file with the following set:
 
-        [logging.file]
-          Level = "trace"
+        [log.file]
+          level = "trace"
         """
         for f in files:
             t = toml.load(f)

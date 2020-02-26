@@ -43,7 +43,7 @@ var _ iface.Session = (*Session)(nil)
 // Session contains a pool of paths to the remote AS, metrics about those paths,
 // as well as maintaining the currently favoured path and remote SIG to use.
 type Session struct {
-	log.Logger
+	logger log.Logger
 	ia     addr.IA
 	SessId sig_mgmt.SessionType
 
@@ -67,7 +67,7 @@ func NewSession(dstIA addr.IA, sessId sig_mgmt.SessionType, logger log.Logger,
 
 	var err error
 	s := &Session{
-		Logger: logger.New("sessId", sessId),
+		logger: logger.New("sessId", sessId),
 		ia:     dstIA,
 		SessId: sessId,
 		pool:   pool,
@@ -92,6 +92,10 @@ func NewSession(dstIA addr.IA, sessId sig_mgmt.SessionType, logger log.Logger,
 	return s, err
 }
 
+func (s *Session) Logger() log.Logger {
+	return s.logger
+}
+
 func (s *Session) Start() {
 	go func() {
 		defer log.HandlePanic()
@@ -99,22 +103,22 @@ func (s *Session) Start() {
 	}()
 	go func() {
 		defer log.HandlePanic()
-		worker.NewWorker(s, s.conn, false, s.Logger).Run()
+		worker.NewWorker(s, s.conn, false, s.logger).Run()
 	}()
 }
 
 func (s *Session) Cleanup() error {
 	s.ring.Close()
 	close(s.sessMonStop)
-	s.Debug("iface.Session Cleanup: wait for worker")
+	s.logger.Debug("iface.Session Cleanup: wait for worker")
 	<-s.workerStopped
-	s.Debug("iface.Session Cleanup: wait for session monitor")
+	s.logger.Debug("iface.Session Cleanup: wait for session monitor")
 	<-s.sessMonStopped
 	close(s.pktDispStop)
-	s.Debug("iface.Session Cleanup: wait for pktDisp")
+	s.logger.Debug("iface.Session Cleanup: wait for pktDisp")
 	s.conn.SetReadDeadline(time.Now())
 	<-s.pktDispStopped
-	s.Debug("iface.Session Cleanup: closing conn")
+	s.logger.Debug("iface.Session Cleanup: closing conn")
 	if err := s.conn.Close(); err != nil {
 		return common.NewBasicError("Unable to close conn", err)
 	}

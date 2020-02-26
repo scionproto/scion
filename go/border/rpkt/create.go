@@ -38,7 +38,7 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, ctx *rctx.Ctx) (*RtrPkt, error) {
 	totalLen := sp.TotalLen()
 	hdrLen := sp.HdrLen() / common.LineLen
 	rp.TimeIn = time.Now()
-	rp.Id = log.RandId(4)
+	rp.Id = log.NewDebugID().String()
 	rp.Logger = log.New("rpkt", rp.Id)
 	rp.DirFrom = rcmn.DirSelf
 	// Fill in common header.

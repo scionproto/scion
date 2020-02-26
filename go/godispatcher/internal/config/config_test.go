@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
+	"github.com/scionproto/scion/go/lib/log/logtest"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/topology"
 )
@@ -40,13 +41,15 @@ func TestConfigSample(t *testing.T) {
 }
 
 func InitTestConfig(cfg *Config) {
-	envtest.InitTest(nil, &cfg.Logging, &cfg.Metrics, nil, nil)
+	envtest.InitTest(nil, &cfg.Metrics, nil, nil)
+	logtest.InitTestLogging(&cfg.Logging)
 	cfg.Dispatcher.DeleteSocket = true
 	cfg.Dispatcher.PerfData = "Invalid"
 }
 
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
-	envtest.CheckTest(t, nil, &cfg.Logging, &cfg.Metrics, nil, nil, id)
+	envtest.CheckTest(t, nil, &cfg.Metrics, nil, nil, id)
+	logtest.CheckTestLogging(t, &cfg.Logging, id)
 	assert.Equal(t, id, cfg.Dispatcher.ID)
 	assert.Equal(t, reliable.DefaultDispPath, cfg.Dispatcher.ApplicationSocket)
 	assert.Equal(t, reliable.DefaultDispSocketFileMode, int(cfg.Dispatcher.SocketFileMode))

@@ -14,13 +14,13 @@
   # reconnects.
   ReconnectToDispatcher = true
 
-[logging]
-  [logging.file]
+[log]
+  [log.file]
     # Location of the logging file.
     Path = "logs/cert_srv.test.log"
 
     # File logging level (trace|debug|info|warn|error|crit) (default debug)
-    Level = "debug"
+    level = "debug"
 
     # Max size of log file in MiB (default 50)
     # Size = 50
@@ -34,10 +34,10 @@
     # How frequently to flush to the log file, in seconds. If 0, all messages
     # are immediately flushed. If negative, messages are never flushed
     # automatically. (default 5)
-    FlushInterval = 10
-  [logging.console]
+    flush_interval = 10
+  [log.console]
     # Console logging level (trace|debug|info|warn|error|crit) (default crit)
-    Level = "warn"
+    level = "warn"
 
 [metrics]
   # The address to export prometheus metrics on. If not set, metrics are not

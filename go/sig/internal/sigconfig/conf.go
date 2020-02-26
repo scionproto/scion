@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -36,7 +37,7 @@ var _ config.Config = (*Config)(nil)
 
 type Config struct {
 	Features env.Features
-	Logging  env.Logging
+	Logging  log.Config `toml:"log,omitempty"`
 	Metrics  env.Metrics
 	Sciond   env.SCIONDClient `toml:"sd_client"`
 	Sig      SigConf

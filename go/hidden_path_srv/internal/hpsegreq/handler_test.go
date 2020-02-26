@@ -40,7 +40,7 @@ import (
 )
 
 func TestSegReq(t *testing.T) {
-	log.Root().SetHandler(log.DiscardHandler())
+	log.Discard()
 	newTestGraph(t, gomock.NewController(t))
 	tests := map[string]func(*testing.T, context.Context, infra.Handler, *mocks){
 		"valid request": func(t *testing.T, ctx context.Context, handler infra.Handler, m *mocks) {

@@ -89,7 +89,7 @@ class GoGenerator(object):
                 'ID': name,
                 'ConfigDir': config_dir,
             },
-            'logging': self._log_entry(name),
+            'log': self._log_entry(name),
             'metrics': {
                 'Prometheus': prom_addr_br(name, v, DEFAULT_BR_PROM_PORT),
             },
@@ -119,7 +119,7 @@ class GoGenerator(object):
                 'ConfigDir': config_dir,
                 'ReconnectToDispatcher': True,
             },
-            'logging': self._log_entry(name),
+            'log': self._log_entry(name),
             'trustDB': {
                 'Backend': 'sqlite',
                 'Connection': os.path.join(self.db_dir, '%s.trust.db' % name),
@@ -172,7 +172,7 @@ class GoGenerator(object):
                 'ConfigDir': config_dir,
                 'ReconnectToDispatcher': True,
             },
-            'logging': self._log_entry(name),
+            'log': self._log_entry(name),
             'trustDB': {
                 'Backend': 'sqlite',
                 'Connection': os.path.join(self.db_dir, '%s.trust.db' % name),
@@ -254,7 +254,7 @@ class GoGenerator(object):
                 'ConfigDir': config_dir,
                 'ReconnectToDispatcher': True,
             },
-            'logging': self._log_entry(name),
+            'log': self._log_entry(name),
             'trustDB': {
                 'Backend': 'sqlite',
                 'Connection': os.path.join(self.db_dir, '%s.trust.db' % name),
@@ -301,7 +301,7 @@ class GoGenerator(object):
             'dispatcher': {
                 'ID': name,
             },
-            'logging': self._log_entry(name),
+            'log': self._log_entry(name),
             'metrics': {
                 'Prometheus': prometheus_addr,
             },
@@ -319,11 +319,11 @@ class GoGenerator(object):
     def _log_entry(self, name):
         entry = {
             'file': {
-                'Path': os.path.join(self.log_dir, "%s.log" % name),
-                'Level': self.log_level,
+                'path': os.path.join(self.log_dir, "%s.log" % name),
+                'level': self.log_level,
             },
             'console': {
-                'Level': 'crit',
+                'level': 'crit',
             },
         }
         return entry

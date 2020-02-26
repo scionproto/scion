@@ -38,7 +38,7 @@ func TestParseFrom(t *testing.T) {
 			Entries: []LogEntry{
 				{
 					Timestamp: defaultTs,
-					Level:     log.LvlError,
+					Level:     log.LevelError,
 					Lines:     []string{"Txt"},
 				},
 			},
@@ -49,7 +49,7 @@ func TestParseFrom(t *testing.T) {
 			Entries: []LogEntry{
 				{
 					Timestamp: defaultTs,
-					Level:     log.LvlCrit,
+					Level:     log.LevelCrit,
 					Lines:     []string{"(CliSrvExt 2-ff00:0: > ...", "> SCIONDPathReplyEntry:"},
 				},
 			},
@@ -60,7 +60,7 @@ func TestParseFrom(t *testing.T) {
 			Entries: []LogEntry{
 				{
 					Timestamp: defaultTs,
-					Level:     log.LvlCrit,
+					Level:     log.LevelCrit,
 					Lines:     []string{"(CliSrvExt 2-ff00:0: > ...", " SCIONDPathReplyEntry:"},
 				},
 			},
@@ -74,12 +74,12 @@ func TestParseFrom(t *testing.T) {
 			Entries: []LogEntry{
 				{
 					Timestamp: defaultTs,
-					Level:     log.LvlError,
+					Level:     log.LevelError,
 					Lines:     []string{"Txt"},
 				},
 				{
 					Timestamp: mustParse("2018-07-19 14:39:30.489625+0000", t),
-					Level:     log.LvlInfo,
+					Level:     log.LevelInfo,
 					Lines:     []string{"Txt2"},
 				},
 			},
@@ -107,7 +107,6 @@ func mustParse(ts string, t *testing.T) time.Time {
 }
 
 func TestMain(m *testing.M) {
-	l := log.Root()
-	l.SetHandler(log.DiscardHandler())
+	log.Discard()
 	os.Exit(m.Run())
 }

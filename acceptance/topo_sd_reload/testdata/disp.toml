@@ -4,5 +4,5 @@ ID = "disp_1-ff00_0_110"
 [features]
 AllowRunAsRoot = true
 
-[logging.console]
-Level = "trace"
+[log.console]
+level = "trace"

@@ -35,7 +35,7 @@ type LogEntry struct {
 	Timestamp time.Time
 	// Element describes the source of this LogEntry, e.g. the file name.
 	Element string
-	Level   log.Lvl
+	Level   log.Level
 	Lines   []string
 }
 
@@ -101,7 +101,7 @@ func parseInitialEntry(line, fileName, element string, lineno int) *LogEntry {
 			fileName, lineno, lineRegex))
 		return nil
 	}
-	lvl, err := log.LvlFromString(matches[1])
+	lvl, err := log.LevelFromString(matches[1])
 	if err != nil {
 		log.Error(fmt.Sprintf("%s:%d: Unknown log level: %v", fileName, lineno, err))
 	}

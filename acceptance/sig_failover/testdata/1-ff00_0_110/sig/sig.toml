@@ -9,12 +9,8 @@ AllowRunAsRoot = true
 
 [sd_client]
 FakeData = "/fake_sciond.json"
-Path = "/run/shm/sciond/sd1-ff00_0_110.sock"
 
-[logging.console]
-Level = "crit"
-
-[logging.file]
-FlushInterval = 1
-Level = "trace"
-Path = "/share/logs/sig1-ff00_0_110.log"
+[log.file]
+flush_interval = 1
+level = "trace"
+path = "/share/logs/sig1-ff00_0_110.log"
