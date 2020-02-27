@@ -135,7 +135,7 @@ Information about the inter-AS latency, as well as the intra-AS latency from
 every interface to the egress interface is required to deal with peering
 paths (see diagram).
 
-![Normal Path](fig/normal_path.png)
+![Normal Path](fig/normal_paths_with_labels.png)
 
 In the case of a "normal", the interfaces where traffic enters
 and leaves correspond to the ingress and egress interfaces respectively, that are
@@ -177,8 +177,8 @@ that latencies (or other metrics when looking at a different property) be known
 for the paths from the egress interface to such a non-ingress interface also
 (see figure below).
 
-![Shortcut Path](fig/shortcut_path_with_IDs.png)
-![Peering Path](fig/peering_path.png)
+![Shortcut Path](fig/shortcut_paths_with_labels.png)
+![Peering Path](fig/peering_paths_with_labels.png)
 
 In the case of non-peering connections, we will also make an additional assumption
 in order to reduce the amount of data we need to include in the PCBs in total. That
