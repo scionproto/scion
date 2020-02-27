@@ -1,4 +1,4 @@
-# SCION Control-Plane PKI
+# Control-Plane PKI
 
 The control-plane PKI (CP-PKI) allows each isolation domain (ISD) to define its own roots of trust
 for ISD and AS identities. Each ISD maintains its own trust root configuration (TRC), where the
