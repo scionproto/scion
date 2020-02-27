@@ -314,11 +314,11 @@ func (c *connUDPBase) handleCmsg(oob common.RawBytes, meta *ReadMeta, readTime t
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_TIMESTAMPNS:
 			tv := *(*syscall.Timespec)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
 			meta.Recvd = time.Unix(int64(tv.Sec), int64(tv.Nsec))
-			meta.ReadDelay = readTime.Sub(meta.Recvd)
-			// Guard against leap-seconds.
-			if meta.ReadDelay < 0 {
-				meta.ReadDelay = 0
+			// Guard against the system clock moving backwards.
+			if meta.Recvd.After(readTime) {
+				meta.Recvd = readTime
 			}
+			meta.ReadDelay = readTime.Sub(meta.Recvd)
 		}
 		// What we actually want is the padded length of the cmsg, but CmsgLen
 		// adds a CmsgHdr length to the result, so we subtract that.
