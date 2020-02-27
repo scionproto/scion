@@ -633,7 +633,7 @@ interface with ID 4:
     "4": [0,1,0,0]
   },
   "note": {
-    "default": "asdf"
+    "default": "asdf",
     "1": "asdf1",
     "2": "asdf2",
     "4": "asdf4"
