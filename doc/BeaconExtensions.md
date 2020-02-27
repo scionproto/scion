@@ -7,7 +7,6 @@ in the form of an extension.
 ## Table of Contents
 
 - [Static Properties](#static-properties)
-- [Format Overall](#format-overall)
 - [Latency Information](#latency-information)
 - [Geographic Information](#geographic-information)
 - [Link Type](#link-type)
@@ -47,39 +46,26 @@ AS 2. In the AS Entry of AS 1, interface 1 is the ingress and inteface 2
 the egress interface. In order to be able to calculate the end-to-end
 propagation delay of a path starting in AS 2 and ending in AS 3, we need
 both the delay inside each AS (intra-AS), as well as the delay on the
-connections between ASes (inter-AS). Recall that in this scenario intra-AS
-latency refers to the delays between an interface and the egress interface
-(i.e. the egress interface is the "target" interface to which latency is
-measured from any other interface). As the figure shows, interface 1 is
-attached to both an intra-AS connection as well as an inter-AS connection.
-We therefore need to store both the intra- and the inter-AS metrics.
-As can be seen when looking at the diagram,
-this means that for every AS we then have the delay inside the AS, and the
-delay from the AS whose AS Entry we are extending (i.e. the current AS)
-to the AS that the PCB will be propagated to next (i.e. the next AS). Using
-this method, we can then calculate the end-to-end delay by simply combining intra-
-and inter-AS delays. This concept applies similarly to many other properties.
-We will now discuss the properties we will embed and the information that
-needs to be provided for each of them.
+connections between ASes (inter-AS). When measuring intra-AS latency,
+the egress interface is the "target" interface, to which the latency is
+measured from any other interface (as we will see later, only having the
+latency between the ingress and egress interface is not sufficient).
+When it comes to inter-AS metrics, we will always extend the PCB only with
+the metrics describing the outgoing connection (i.e. the connection that is
+used to propagate the PCB to the next AS) in the PCB. Looking at the figure
+above, this would mean that AS 1 would extend the PCB with information about the
+connection between interface 2 and interface 3 before propagating it to AS 2.
+This assures that:
 
-## Format Overall
+- The PCB always carries information about the entire path
+it has traversed so far
+- The final AS in the path does not need to make additions/modifications to the
+data it receieved through the PCB before being able to use said data
 
-For the purpose of embedding static information in the SCION beacons, the
-extension field in the AS Entry of the PCB will be used. Every extension
-field starts with its type, encoded in 1 byte. After that comes the payload,
-i.e. the actual contents of the extension. In order to keep things simple
-while at the same time retaining as much versatility as possible,
-we will introduce the new extension-type "Static Property". Inside the
-payload of a Static Property extension a special "subtype" field will be
-used, which denotes which property in particular is encoded in the rest
-of the payload. The following chart illustrates the overall format of the
-extension:
-
-`Type` | `Latency` | `GeoInfo` | `LT` | `MBW` | `NIH` | `Note` | `ME` |
--------|-----------|-----------|------|-------|-------|--------|------|
-
-Except for `Type` at the beginning, all of these fields are optional.
-
+Using this method, we can then calculate the end-to-end delay by simply combining
+intra- and inter-AS delays. These concepts appliy similarly to many other
+properties. We will now discuss the properties we will embed and the
+information that needs to be provided for each of them.
 
 ## Latency Information
 
@@ -89,15 +75,11 @@ milliseconds.
 Use cases of such information include:
 
 - Allows to augment path selection policy in order to obtain low latency paths
-- Shortening the duration it takes to fetch data and thus decreasing wait times
-  for the user
-- Time critical applications
 
 ### Conceptual Implementation Latency
 
 The latency information will be comprised of  main parts:
 
-- The subtype field, which identifies it
 - The inter-AS latency between the egress interface and the ingress interface of
   the AS the PCB will be propagated to
 - A variable number of non-peering latency clusters
@@ -107,7 +89,7 @@ In general, a latency cluster serves to pool all interfaces which have the same
 propagation delay (within a 1 ms range) between them and the egress interface (i.e.
 the interface the PCB will be sent out on). 
 The difference between peering and non-peering latency clusters is that in peering
-latency clusters, the latency of the link attached to the peering interface is also
+latency clusters, the latency of the inter-AS link attached to the peering interface is also
 included in the cluster for every such peering interface. In non-peering clusters
 this information is omitted.
 The clustering process is straightforward. When doing clustering, it will simply
@@ -202,8 +184,8 @@ All these considerations also apply to other properties, such as maximum bandwid
 
 The format for latency information looks like this:
 
-`SubType` | `NPLC_1` | ... | `NPLC_n` | `PLC_1`| ... | `PLC_n`|
-----------|----------|-----|----------|--------|-----|--------|
+`NPLC_1` | ... | `NPLC_n` | `PLC_1`| ... | `PLC_n`|
+---------|-----|----------|--------|-----|--------|
 
 Each `NPLC_i` field looks as follows:
 
@@ -219,9 +201,8 @@ The table below shows names, types and lengths (in bytes) of each value:
 
 Name               | Type | Length |
 -------------------|------|--------|
-`SubType`          |UInt8 |1       |
 `ClusterDelay_i`   |UInt16|2       |
-`ID_i_j`           |UInt64|8       |
+`ID_i_j`           |UInt16|8       |
 `Interdelay_i_j`   |UInt16|2       |
 
 ## Maximum Bandwidth
@@ -246,7 +227,6 @@ Use cases of such information include:
 
 The maximum bandwidth information will be comprised of 3 main parts:
 
-- The subtype field, which identifies it
 - The inter-AS maximum bandwidth between the egress interface and the next
   AS the PCB will be propagated to
 - A variable number of non-peering maximum bandwidth clusters
@@ -284,8 +264,8 @@ cluster is devoid of interface IDs, the cluster is simply removed as a whole.
 
 The format for maximum bandwidth information looks like this:
 
-`SubType` | `NPMBC_1` | ... | `NPMBC_n` | `PMBC_1` | ... | `PMBC_n` |
-----------|-----------|-----|-----------|----------|-----|----------|
+`NPMBC_1` | ... | `NPMBC_n` | `PMBC_1` | ... | `PMBC_n` |
+----------|-----|-----------|----------|-----|----------|
 
 Each `NPMBC_i` field looks as follows:
 
@@ -301,9 +281,8 @@ The table below shows names, types and lengths (in bytes) of each value:
 
 Name               | Type | Length |
 -------------------|------|--------|
-`SubType`          |UInt8 |1       |
 `ClusterBW_i`      |UInt32|4       |
-`ID_i_j`           |UInt64|8       |
+`ID_i_j`           |UInt16|8       |
 `InterBW_i_j`      |UInt32|4       |
 
 ## Geographic Information
@@ -322,9 +301,8 @@ Use cases of such information include:
 
 ### Conceptual Implementation Geographic Information
 
-The geographic information will be comprised of 2 main parts:
+The geographic information will be comprised of 1 main part:
 
-- The subtype field, which identifies it
 - A variable number of location clusters
 
 A location cluster serves to pool all interfaces which are located in the same
@@ -346,8 +324,8 @@ address by simply omitting one of the two.
 
 The format for geographic information looks like this:
 
-`SubType` | `GC_1` | `GC_2` | ... | `GC_n` |
-----------|--------|--------|-----|--------|
+`GC_1` | `GC_2` | ... | `GC_n` |
+-------|--------|-----|--------|
 
 Each `GC_i` field looks as follows:
 
@@ -363,11 +341,10 @@ The table below shows names, types and lengths (in bytes) of each value:
 
 Name               | Type  | Length |
 -------------------|-------|--------|
-`SubType`          |UInt8  |1       |
 `GPS_i_0`          |Float32|4       |
 `GPS_i_0`          |Float32|4       |
 `CivAdd`           |Data   |Variable, max 500|
-`ID_i_j`           |UInt64 |8       |
+`ID_i_j`           |UInt16 |8       |
 
 
 ## Link Type
@@ -392,9 +369,8 @@ public. Use cases of such information include:
 
 ### Conceptual Implementation Link Type
 
-The Link type will be comprised of 2 parts:
+The Link type will be comprised of 3 parts:
 
-- The subtype field, which identifies it
 - The link type for the link attached to the egress interface
 - A variable number of non-peering link type clusters
 - A variable number of peering link type clusters
@@ -424,8 +400,8 @@ cluster is devoid of interface IDs, the cluster is simply removed as a whole.
 
 The format for the link type looks like this:
 
-`SubType` | `NPLT_1` | ... | `NPLT_n` | `PLT_1` | ... | `PLT_n` |
-----------|----------|-----|----------|---------|-----|---------|
+`NPLT_1` | ... | `NPLT_n` | `PLT_1` | ... | `PLT_n` |
+---------|-----|----------|---------|-----|---------|
 
 Each `NPLT_i` field looks as follows:
 
@@ -441,9 +417,8 @@ The table below shows names, types and lengths (in bytes) of each value:
 
 Name                | Type | Length |
 --------------------|------|--------|
-`SubType`           |UInt8 |1       |
 `ClusterLinkType_i` |Uint8 |1       |
-`ID_i_j`            |UInt64|8       |
+`ID_i_j`            |UInt16|8       |
 `InterLink_i_j`     |UInt8 |1       |
 
 ## Number of Internal Hops
@@ -457,9 +432,8 @@ Use cases of such information include:
 
 ### Conceptual Implementation Number of Internal Hops
 
-The number of internal hops will be comprised of 2 main parts:
+The number of internal hops will be comprised of 1 main part:
 
-- The subtype field, which identifies it
 - A variable number of hoplength clusters
 
 A hoplength cluster serves to pool all interfaces which have the same number of
@@ -474,8 +448,8 @@ hoplength cluster is itself formed of 2 main elements:
 
 The format for the number of internal hops looks like this:
 
-`SubType` | `HC_1` | `HC_2` | ... | `HC_n` |
-----------|--------|--------|-----|--------|
+`HC_1` | `HC_2` | ... | `HC_n` |
+-------|--------|-----|--------|
 
 Each `HC_i` field looks as follows:
 
@@ -487,9 +461,8 @@ and lengths (in bytes) of each value:
 
 Name               | Type | Length |
 -------------------|------|--------|
-`SubType`          |UInt8 |1       |
 `ClusterHops_i`    |UInt8 |1       |
-`ID_i_j`           |UInt64|8       |
+`ID_i_j`           |UInt16|8       |
 
 ## Note
 
@@ -501,9 +474,8 @@ Use cases of such information include:
 
 ### Conceptual Implementation Note
 
-The Note subtype is comprised of 4 elements:
+The Note subtype is comprised of 2 elements:
 
-- The subtype field, which identifies it
 - The "default" field, which contains a default note, which is always included for
   every PCB that is propagated by this AS.
 - The "specific" field, which contains the contents of a note that is meant to only
@@ -520,14 +492,13 @@ well).
 
 The format for the note looks like this:
 
-`SubType` | `Default` | `Interface` | `Words` |
-----------|-----------|-------------|---------|
+`Default` | `Interface` | `Words` |
+----------|-------------|---------|
 
 The table below shows names, types and lengths (in bytes) of each value:
 
 Name               | Type | Length |
 -------------------|------|--------|
-`SubType`          |UInt8 |1       |
 `Default`          |Text  |Variable, max 2000     |
 `Words`            |Text  |Variable, max 2000     |
 
@@ -535,15 +506,7 @@ Name               | Type | Length |
 
 In order for the extension to work, a config file needs to be provided to a
 specific location [tbd]. The config file comes in the form of a JSON file
-and needs to have the format shown below. First of all, we have the
-following value:
-
-Name               | Type  | Description |
--------------------|-------|-------------|
-`Ntot`             |Integer|Number of interfaces in the AS|
-`Nonpeer`          |Integer|Number of nonpeering interfaces in the AS|
-`Peer`             |Integer|Number of peering interfaces in the AS|
-
+and needs to have the format shown below.
 The interfaces are divided into two categories, the first being nonpeering
 interfaces, and the second being peering interfaces.
 Regardless of category, for every interface `i` the same values can be provided
@@ -576,9 +539,6 @@ for an AS with three interfaces with IDs 1, 2 and 3:
 
 ````JSON
 {
-  "Ntot": 4,
-  "Nonpeer": 3,
-  "Peer": 1,
   "Interfaces": {
     "NonPeeringInterfaces": [{
       "IntfID": 1,
