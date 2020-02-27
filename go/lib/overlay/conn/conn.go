@@ -314,11 +314,11 @@ func (c *connUDPBase) handleCmsg(oob common.RawBytes, meta *ReadMeta, readTime t
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_TIMESTAMPNS:
 			tv := *(*syscall.Timespec)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
 			meta.Recvd = time.Unix(int64(tv.Sec), int64(tv.Nsec))
-			// Guard against the system clock moving backwards.
-			if meta.Recvd.After(readTime) {
-				meta.Recvd = readTime
-			}
 			meta.ReadDelay = readTime.Sub(meta.Recvd)
+			// Guard against leap-seconds.
+			if meta.ReadDelay < 0 {
+				meta.ReadDelay = 0
+			}
 		}
 		// What we actually want is the padded length of the cmsg, but CmsgLen
 		// adds a CmsgHdr length to the result, so we subtract that.
@@ -366,7 +366,7 @@ type ReadMeta struct {
 	// to the receive buffers being full.
 	RcvOvfl uint32
 	// Recvd is the timestamp when the kernel placed the packet in the socket's
-	// receive buffer.
+	// receive buffer. N.B. this is in system time, it is _not_ monotonic.
 	Recvd time.Time
 	// ReadDelay is the time elapsed between the kernel adding a packet to the
 	// socket's receive buffer, and the application reading it from the Go
