@@ -225,38 +225,31 @@ Use cases of such information include:
 
 ### Conceptual Implementation Maximum Bandwidth
 
-The maximum bandwidth information will be comprised of 3 main parts:
+The maximum bandwidth information will be comprised of 2 main parts:
 
 - The inter-AS maximum bandwidth between the egress interface and the next
   AS the PCB will be propagated to
-- A variable number of non-peering maximum bandwidth clusters
-- A variable number of peering maximum bandwidth clusters
+- A variable number of maximum bandwidth clusters
+
 
 A maximum bandwidth cluster serves to pool all interfaces which have the
 same maximum bandwidth between them and the egress interface. 
-The difference between peering- and non-peering maximum bandwidth clusters is that
-non-peering clusters do not include the inter-AS maximum bandwidth for every
-interface in the cluster (see below).
+The difference between looking at peering- and non-peering interfaces is that
+for each peering interface we first calculate the minimum between the inter-AS and
+intra-AS maximum bandwidth before inserting it into a cluster with said minimum as
+its maximum bandwidth value.
 When doing clustering, the system will simply pick the first value it comes across
 that can't be assigned to an already existing cluster and, if it is not an integer,
 round it down to the nearest integer. This value will then serve as the
 baseline for the newly created cluster, which will include all interfaces with
 delay values in the interval (baseline, baseline+10(.
-Each peering cluster is itself formed of 3 types of elements:
+Each cluster is itself formed of 2 types of elements:
 
-- The intra-AS maximum bandwidth for all interfaces in the cluster (1 value per
-  cluster)
-- The interface IDs of all the interfaces in the cluster (1 value per interface)
-- The maximum bandwidth of the inter-AS links attached to each of these interfaces
-  (1 value per interface)
-  
-Each non-peering cluster is formed of 2 types of elements:
-
-- The intra-AS maximum bandwidth for all interfaces in the cluster (1 value per
+- The maximum bandwidth for all interfaces in the cluster (1 value per
   cluster)
 - The interface IDs of all the interfaces in the cluster (1 value per interface)
 
-Here the inter-AS bandwidths are omitted. Be reminded that only the interfaces with
+Be reminded that only the interfaces with
 IDs bigger than the ID of the egress interface are included, and if this would mean a
 cluster is devoid of interface IDs, the cluster is simply removed as a whole.
 
@@ -264,18 +257,13 @@ cluster is devoid of interface IDs, the cluster is simply removed as a whole.
 
 The format for maximum bandwidth information looks like this:
 
-`NPMBC_1` | ... | `NPMBC_n` | `PMBC_1` | ... | `PMBC_n` |
-----------|-----|-----------|----------|-----|----------|
+`MBC_1` | ... | `MBC_n` |
+--------|-----|---------|
 
-Each `NPMBC_i` field looks as follows:
+Each `MBC_i` field looks as follows:
 
 `ClusterBW_i` | `ID_i_0` | ... | `ID_i_m` |
 --------------|----------|-----|----------|
-
-Each `PMBC_i` field looks as follows:
-
-`ClusterBW_i` | `ID_i_0` | `InterBW_i_0` | ... | `ID_i_m` | `InterBw_i_m` |
---------------|----------|---------------|-----|----------|---------------|
 
 The table below shows names, types and lengths (in bytes) of each value:
 
@@ -283,7 +271,6 @@ Name               | Type | Length |
 -------------------|------|--------|
 `ClusterBW_i`      |UInt32|4       |
 `ID_i_j`           |UInt16|8       |
-`InterBW_i_j`      |UInt32|4       |
 
 ## Geographic Information
 
@@ -507,94 +494,150 @@ Name               | Type | Length |
 In order for the extension to work, a config file needs to be provided to a
 specific location [tbd]. The config file comes in the form of a JSON file
 and needs to have the format shown below.
-The interfaces are divided into two categories, the first being nonpeering
-interfaces, and the second being peering interfaces.
-Regardless of category, for every interface `i` the same values can be provided
-as listed below:
+The config file begins with the following value:
 
 Name             | Type  | Description |
 -----------------|-------|-------------|
-`IntfID`         |Integer|Interface ID of the interface described by the data that follows|
-`IntraLatency`   |List of N Integers|Intra-AS latency from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
-`InterLatency`   |Integer|Inter-AS latency from interface `i` to AS on the other end of the link|
+`peering`        |List of integers|Lists the IDs of every peering interface in the AS|
+
+Then, each property is listed in turn, starting with latency:
+
+Name             | Type  | Description |
+-----------------|-------|-------------|
+`inter`   |Integer|Inter-AS latency from interface `i` to AS on the other end of the link|
+`intra`   |List of N Integers|Intra-AS latency from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
+
+Geographic inforamtion: 
+
+Name             | Type  | Description |
+-----------------|-------|-------------|
 `C1`             |Decimal value|Longitude gps coordinates of interface `i`|
 `C2`             |Decimal value|Latitude gps coordinate of interface `i`|
 `CivAddr`        |String|Civic address of interface `i`|
-`IntraLink`      |List of Integers |Describes link type between interface `i` and any other interface, including itself (this entry is set to 0), where 0 means direct link, 1 means multihop link and every other number means link that uses the open internet|
-`InterLink`      |Integer  |Possible values of a list entry : `Multi`, `Direct`, `OpenNet`; Describes link type between interface `i` and the AS at the other end of the link|
-`IntraBW`        |List of Integers|Intra-AS bandwidth from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
-`InterBW`        |Integer|Inter-AS bandwidth from interface i to the AS at the other end of the link|
-`SpecificNote`   |String |Note that should be used when this interface is the egress interface in the AS Entry that is being extended|
-`Hops`           |List of Integers|Number of internal hops from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
 
-Then, after every interface has been listed, follows a final field:
+Maximum bandwidth: 
 
-Name               | Type  | Description |
--------------------|-------|-------------|
-`DefaultNote`      |String |Default Note|
+Name             | Type  | Description |
+-----------------|-------|-------------|
+`inter`        |Integer|Inter-AS bandwidth from interface i to the AS at the other end of the link|
+`intra`        |List of Integers|Intra-AS bandwidth from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
+
+Link type:
+
+Name             | Type  | Description |
+-----------------|-------|-------------|
+`inter`      |Integer  |Possible values of a list entry : `Multi`, `Direct`, `OpenNet`; Describes link type between interface `i` and the AS at the other end of the link|
+`intra`      |List of Integers |Describes link type between interface `i` and any other interface, including itself (this entry is set to 0), where 0 means direct link, 1 means multihop link and every other number means link that uses the open internet|
+
+Hops:
+
+Name             | Type  | Description |
+-----------------|-------|-------------|
+`hops`           |List of Integers|Number of internal hops from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
+
+Note:
+
+Name             | Type  | Description |
+-----------------|-------|-------------|
+`default`          |String |Default Note|
+`IntfID`   |String |Note that should be used when the interface with ID `IntfID` is the egress interface in the AS Entry that is being extended|
 
 Below is a simple example of how such a config file could look like (actual
-values are abitrary, "asdf" is used as a placeholder for longer strings)
-for an AS with three interfaces with IDs 1, 2 and 3:
+values are abitrary, "asdf" is used as a placeholder for any string)
+for an AS with three non-peering interfaces with IDs 1, 2 and 3, and one peering
+interface with ID 4:
 
 ````JSON
 {
-  "Interfaces": {
-    "NonPeeringInterfaces": [{
-      "IntfID": 1,
-      "IntraLatency": [0, 10, 20,10],
-      "InterLatency": 30,
+  "peering": [4],
+  "latency": {
+    "1": {
+      "inter": 30,
+      "intra": [0, 10, 20, 10]
+    },
+    "2": {
+      "inter": 40,
+      "intra": [10, 0, 20, 10]
+    },
+    "3": {
+      "inter": 10,
+      "intra": [10, 40, 0, 20]
+    },
+    "4": {
+      "inter": 30,
+      "intra": [0, 10, 20, 0]
+    }
+  },
+  "geo": {
+    "1": {
       "C1": 45.7,
       "C2": 25.9,
-      "CivAddr": "asdf",
-      "IntraLink": [0,1,0,0],
-      "InterLink": 2,
-      "IntraBW": [0, 200000000, 100000000, 20000000],
-      "InterBW": 150000000,
-      "SpecificNote": "asdf1",
-      "Hops": [0, 2, 4, 2]
-    },{
-      "IntfID": 2,
-      "IntraLatency": [10, 0, 20, 10],
-      "InterLatency": 40,
+      "CivAddr": "asdf"
+    },
+    "2": {
       "C1": 34.7,
       "C2": 27.2,
-      "CivAddr": "asdf",
-      "IntraLink": [1,0,2,3],
-      "InterLink": 2,
-      "IntraBW": [200000000, 0, 100000000, 30000000],
-      "InterBW": 450000000,
-      "Hops": [1, 0, 4, 1]
-    },{
-      "IntfID": 3,
-      "IntraLatency": [10, 40, 0, 20],
-      "InterLatency": 10,
+      "CivAddr": "asdf"
+    },
+    "3": {
       "C1": 66.2,
       "C2": 37.0,
-      "CivAddr": "asdf",
-      "IntraLink": [1,1,0,1],
-      "InterLink": 1,
-      "IntraBW": [200000000, 300000000, 0, 10000000],
-      "InterBW": 50000000,
-      "SpecificNote": "asdf3",
-      "Hops": [1, 0, 0, 1]
-    }],
-    "PeeringInterfaces":[{
-      "IntfID": 4,
-      "IntraLatency": [0, 10, 20, 0],
-      "InterLatency": 30,
+      "CivAddr": "asdf"
+    },
+    "4": {
       "C1": 45.7,
       "C2": 25.9,
-      "CivAddr": "asdf",
-      "IntraLink": [0,1,0,0],
-      "InterLink": 2,
-      "IntraBW": [0, 200000000, 100000000, 0],
-      "InterBW": 150000000,
-      "SpecificNote": "asdf4",
-      "Hops": [0, 2, 4, 0]
-    }]
+      "CivAddr": "asdf"
+    }
   },
-  "DefaultNote": "asdf"
+  "bw": {
+    "1": {
+      "inter": 150000000,
+      "intra": [0, 200000000, 100000000, 20000000]
+    },
+    "2": {
+      "inter": 450000000,
+      "intra": [200000000, 0, 100000000, 30000000]
+    },
+    "3": {
+      "inter": 50000000,
+      "intra": [200000000, 300000000, 0, 10000000]
+    },
+    "4": {
+      "inter": 150000000,
+      "intra": [0, 200000000, 100000000, 0]
+    }
+  },
+  "linktype": {
+    "1": {
+      "inter": 2,
+      "intra": [0,1,0,0]
+    },
+    "2": {
+      "inter": 2,
+      "intra": [1,0,2,3]
+    },
+    "3": {
+      "inter": 1,
+      "intra": [1,1,0,1]
+    },
+    "4": {
+      "inter": 2,
+      "intra": [0,1,0,0]
+    }
+  },
+  "hops": {
+    "1": [0,1,0,0],
+    "2": [1,0,2,3],
+    "3": [1,1,0,1],
+    "4": [0,1,0,0]
+  },
+  "note": {
+    "default": "asdf"
+    "1": "asdf1",
+    "2": "asdf2",
+    "4": "asdf4"
+  }
 }
 ````
 
