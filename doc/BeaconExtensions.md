@@ -7,6 +7,7 @@ in the form of an extension.
 ## Table of Contents
 
 - [Static Properties](#static-properties)
+- [Implementation Overall](#implementation-overall)
 - [Latency Information](#latency-information)
 - [Geographic Information](#geographic-information)
 - [Link Type](#link-type)
@@ -15,6 +16,18 @@ in the form of an extension.
 - [Note](#note)
 - [Config File Format](#config-file-format)
 - [Concrete Implementation](#concrete-implementation)
+
+## Implementation Overall
+
+The implementation consists of five main parts:
+
+- The static properties to be included in the extension
+- The wire format of the extension, in the form of a capnp struct
+- A number of go structs, that provide an internal representation of the extension
+- A parser, that reads data from the JSON file and parses it into the go structs
+- A number of functions that make the contents of the go structs available to cap n' proto
+
+We will look at each of these aspects in order.
 
 ## Static Properties
 
@@ -588,8 +601,9 @@ for an AS with three interfaces with IDs 1, 2 and 3:
 ## Concrete Implementation
 
 The following section is devoted to looking at the implementation in detail.
-The implementation consists of four main parts:
+The implementation consists of five main parts:
 
+- The static properties to be included in the extension
 - The wire format of the extension, in the form of a capnp struct
 - A number of go structs, that provide an internal representation of the extension
 - A parser, that reads data from the JSON file and parses it into the go structs
