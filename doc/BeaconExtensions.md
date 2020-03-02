@@ -14,16 +14,16 @@ in the form of an extension.
 - [Maximum Bandwidth](#maximum-bandwidth)
 - [Number of Internal Hops](#number-of-internal-hops)
 - [Note](#note)
+- [Concrete Format Extension](#concrete-format-extension)
 - [Config File Format](#config-file-format)
 - [Concrete Implementation](#concrete-implementation)
 
 ## Implementation Overall
 
-The implementation consists of five main parts:
+The implementation consists of four main parts:
 
 - The static properties to be included in the extension
 - The wire format of the extension, in the form of a capnp struct
-- A number of go structs, that provide an internal representation of the extension
 - A parser, that reads data from the JSON file and parses it into the go structs
 - A number of functions that make the contents of the go structs available to cap n' proto
 
@@ -195,28 +195,32 @@ All these considerations also apply to other properties, such as maximum bandwid
 
 ### Concrete Format Latency
 
-The format for latency information looks like this:
+The format for latency information, specified in terms of its capnp encoding, looks like this:
 
-`NPLC_1` | ... | `NPLC_n` | `PLC_1`| ... | `PLC_n`|
----------|-----|----------|--------|-----|--------|
+````CAPNP
+struct Latencyinfo {
+  lnpcs @0 :List(Lnpcluster);
+  lpcs @1 :List(Lpcluster);
 
-Each `NPLC_i` field looks as follows:
+  struct Lnpcluster {
+     clusterdelay @0 :UInt16;
+     interfaces @1 :List(UInt64);
+  }
 
-`ClusterDelay_i` | `ID_i_0` | ... | `ID_i_m` | 
------------------|----------|-----|----------|
+  struct Lpcluster {
+     clusterdelay @0 :UInt16;
+     lpps @1 :List(Lppair);
 
-Each `PLC_i` field looks as follows:
+     struct Lppair {
+        interface @0 :UInt64;
+        interdelay @1 :UInt16;
+     }
+  }
+}
+````
 
-`ClusterDelay_i` | `ID_i_0` | `InterDelay_i_0` | ... | `ID_i_m` | `InterDelay_i_m` |
------------------|----------|------------------|-----|----------|------------------|
+`lpcs` are the peering-, and `lnpcs` the nonpeering latency clusters.
 
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name               | Type | Length |
--------------------|------|--------|
-`ClusterDelay_i`   |UInt16|2       |
-`ID_i_j`           |UInt16|8       |
-`Interdelay_i_j`   |UInt16|2       |
 
 ## Maximum Bandwidth
 
@@ -268,22 +272,32 @@ cluster is devoid of interface IDs, the cluster is simply removed as a whole.
 
 ### Concrete Format Maximum Bandwidth
 
-The format for maximum bandwidth information looks like this:
+The format for maximum bandwidth information, specified in terms of its capnp
+encoding, looks like this:
 
-`MBC_1` | ... | `MBC_n` |
---------|-----|---------|
+````CAPNP
+struct Bandwidthinfo {
+  bwnpcs @0 :List(Bwnpcluster);
+  bwpcs @1 :List(Bwpcluster);
 
-Each `MBC_i` field looks as follows:
+  struct Bwnpcluster {
+     clusterbw @0 :UInt32;
+     interfaces @1 :List(UInt64);
+  }
 
-`ClusterBW_i` | `ID_i_0` | ... | `ID_i_m` |
---------------|----------|-----|----------|
+  struct Bwpcluster {
+     clusterbw @0 :UInt32;
+     bwpps @1 :List(Bwppair);
 
-The table below shows names, types and lengths (in bytes) of each value:
+     struct Bwppair {
+        interface @0 :UInt64;
+        interbw @1 :UInt32;
+     }
+  }
+}
+````
 
-Name               | Type | Length |
--------------------|------|--------|
-`ClusterBW_i`      |UInt32|4       |
-`ID_i_j`           |UInt16|8       |
+`bwpcs` are the peering-, and `bwnpcs` the nonpeering bandwidth clusters.
 
 ## Geographic Information
 
@@ -324,28 +338,26 @@ address by simply omitting one of the two.
 
 The format for geographic information looks like this:
 
-`GC_1` | `GC_2` | ... | `GC_n` |
--------|--------|-----|--------|
+````CAPNP
+struct Geoinfo {
+  gcs @0 :List(Geocluster);
 
-Each `GC_i` field looks as follows:
+  struct Geocluster {
+     cl @0 :Clusterlocation;
+     interfaces @1 :List(UInt64);
 
-`ClusterLocation_i` | `ID_i_0` | ... | `ID_i_m` |
---------------------|----------|-----|----------|
+     struct Clusterlocation {
+        gps1 @0 :Float32;
+        gps2 @1 :Float32;
+        civadd @2 :Data;
+     }
+  }
+}
+````
 
-A `ClusterLocation_i` field looks like this:
-
-`GPS_i_0` | `GPS_i_1` | `CivAdd` |
-----------|-----------|----------|
-
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name               | Type  | Length |
--------------------|-------|--------|
-`GPS_i_0`          |Float32|4       |
-`GPS_i_0`          |Float32|4       |
-`CivAdd`           |Data   |Variable, max 500|
-`ID_i_j`           |UInt16 |8       |
-
+It should be noted that civil addresses (`civadd`) can be of variable length,
+but are allowed to occupy a maximum of 500 bytes. Anything beyond that will
+be discarded.
 
 ## Link Type
 
@@ -400,26 +412,36 @@ cluster is devoid of interface IDs, the cluster is simply removed as a whole.
 
 The format for the link type looks like this:
 
-`NPLT_1` | ... | `NPLT_n` | `PLT_1` | ... | `PLT_n` |
----------|-----|----------|---------|-----|---------|
+````CAPNP
+struct Linktypeinfo {
+  ltnpcs @0 :List(Ltnpcluster);
+  ltpcs @1 :List(Ltpcluster);
 
-Each `NPLT_i` field looks as follows:
+  enum Linktype{
+     direct @0;
+     multihop @1;
+     opennet @2;
+     undisclosed @3;
+  }
 
-`ClusterLinkType_i` | `ID_i_0` | ... | `ID_i_m` |
---------------------|----------|-----|----------|
+  struct Ltnpcluster {
+     clusterlt @0 :Linktype;
+     interfaces @1 :List(UInt64);
+  }
 
-Each `PLT_i` field looks as follows:
+  struct Ltpcluster {
+     clusterlt @0 :Linktype;
+     ltpps @1 :List(Ltppair);
 
-`ClusterLinkType_i` | `ID_i_0` | `InterLink_i_0` | ... | `ID_i_m` | `InterLink_i_m` |
---------------------|----------|-----------------|-----|----------|-----------------|
+     struct Ltppair {
+        interface @0 :UInt64;
+        interlt @1 :Linktype;
+     }
+  }
+}
+````
 
-The table below shows names, types and lengths (in bytes) of each value:
-
-Name                | Type | Length |
---------------------|------|--------|
-`ClusterLinkType_i` |Uint8 |1       |
-`ID_i_j`            |UInt16|8       |
-`InterLink_i_j`     |UInt8 |1       |
+`ltpcs` are the peering-, and `ltnpcs` the nonpeering linktype clusters.
 
 ## Number of Internal Hops
 
@@ -448,21 +470,16 @@ hoplength cluster is itself formed of 2 main elements:
 
 The format for the number of internal hops looks like this:
 
-`HC_1` | `HC_2` | ... | `HC_n` |
--------|--------|-----|--------|
+````CAPNP
+struct Internalhopsinfo {
+  hcs @0 :List(Hopcluster);
 
-Each `HC_i` field looks as follows:
-
-`ClusterHops_i` | `ID_i_0` | ... | `ID_i_m` |
-----------------|----------|-----|----------|
-
-The table below shows names, types
-and lengths (in bytes) of each value:
-
-Name               | Type | Length |
--------------------|------|--------|
-`ClusterHops_i`    |UInt8 |1       |
-`ID_i_j`           |UInt16|8       |
+  struct Hopcluster {
+     clusterhops @0 :UInt8;
+     interfaces @1 :List(UInt64);
+  }
+}
+````
 
 ## Note
 
@@ -492,15 +509,30 @@ well).
 
 The format for the note looks like this:
 
-`Default` | `Interface` | `Words` |
-----------|-------------|---------|
+````CAPNP
+struct Note {
+  defaultnote @0 :Data;
+  specificnote @1 :Data;
+}
+````
 
-The table below shows names, types and lengths (in bytes) of each value:
+The lengths of both `defaultnote` and `specificnote` are variable, but capped at 2000 bytes. 
 
-Name               | Type | Length |
--------------------|------|--------|
-`Default`          |Text  |Variable, max 2000     |
-`Words`            |Text  |Variable, max 2000     |
+## Concrete Format Extension
+
+The full wire format of the extension simply combines the capnp structs for each individual
+property described above:
+
+````CAPNP
+struct Staticinfo {
+   ei @1 :Latencyinfo;
+   gi @2 :Geoinfo;
+   lt @3 :Linktypeinfo;
+   bw @4 :Bandwidthinfo;
+   ih @5 :Internalhopsinfo;
+   ni @6 :Note;
+}
+````
 
 ## Config File Format
 
@@ -597,136 +629,6 @@ for an AS with three interfaces with IDs 1, 2 and 3:
   "DefaultNote": "asdf"
 }
 ````
-
-## Concrete Implementation
-
-The following section is devoted to looking at the implementation in detail.
-The implementation consists of five main parts:
-
-- The static properties to be included in the extension
-- The wire format of the extension, in the form of a capnp struct
-- A number of go structs, that provide an internal representation of the extension
-- A parser, that reads data from the JSON file and parses it into the go structs
-- A number of functions that make the contents of the go structs available to cap n' proto
-
-We will look at each of these in order.
-
-### Capnp Struct
-
-The capnp struct defines the wire format of the extension. It has the following form: 
-
-````CAPNP
-struct Staticinfo {
-   exttype @0 :UInt8;
-   ei @1 :Latencyinfo;
-   gi @2 :Geoinfo;
-   lt @3 :Linktypeinfo;
-   bw @4 :Bandwidthinfo;
-   ih @5 :Internalhopsinfo;
-   ni @6 :Note;
-
-   struct Latencyinfo {
-      lnpcs @0 :List(Lnpcluster);
-      lpcs @1 :List(Lpcluster);
-
-      struct Lnpcluster {
-         clusterdelay @0 :UInt16;
-         interfaces @1 :List(UInt64);
-      }
-
-      struct Lpcluster {
-         clusterdelay @0 :UInt16;
-         lpps @1 :List(Lppair);
-
-         struct Lppair {
-            interface @0 :UInt64;
-            interdelay @1 :UInt16;
-         }
-      }
-   }
-
-   struct Bandwidthinfo {
-      bwnpcs @0 :List(Bwnpcluster);
-      bwpcs @1 :List(Bwpcluster);
-
-      struct Bwnpcluster {
-         clusterbw @0 :UInt32;
-         interfaces @1 :List(UInt64);
-      }
-
-      struct Bwpcluster {
-         clusterbw @0 :UInt32;
-         bwpps @1 :List(Bwppair);
-
-         struct Bwppair {
-            interface @0 :UInt64;
-            interbw @1 :UInt32;
-         }
-      }
-   }
-
-   struct Geoinfo {
-      gcs @0 :List(Geocluster);
-
-      struct Geocluster {
-         cl @0 :Clusterlocation;
-         interfaces @1 :List(UInt64);
-
-         struct Clusterlocation {
-            gps1 @0 :Float32;
-            gps2 @1 :Float32;
-            civadd @2 :Data;
-         }
-      }
-   }
-
-   struct Linktypeinfo {
-      ltnpcs @0 :List(Ltnpcluster);
-      ltpcs @1 :List(Ltpcluster);
-
-      enum Linktype{
-         direct @0;
-         multihop @1;
-         opennet @2;
-         undisclosed @3;
-      }
-
-      struct Ltnpcluster {
-         clusterlt @0 :Linktype;
-         interfaces @1 :List(UInt64);
-      }
-
-      struct Ltpcluster {
-         clusterlt @0 :Linktype;
-         ltpps @1 :List(Ltppair);
-
-         struct Ltppair {
-            interface @0 :UInt64;
-            interlt @1 :Linktype;
-         }
-      }
-   }
-
-   struct Internalhopsinfo {
-      hcs @0 :List(Hopcluster);
-
-      struct Hopcluster {
-         clusterhops @0 :UInt8;
-         interfaces @1 :List(UInt64);
-      }
-   }
-
-   struct Note {
-      defaultnote @0 :Data;
-      specificnote @1 :Data;
-   }
-}
-````
-
-It begins with the type of the extension, encoded in 1 byte. After that follow
-the 6 static properties described above, each implemented in the form of their own
-struct. The format chosen for each property represents the conceptual approach that
-was already explored.
 
 ### Go Representation of the Extension
 
