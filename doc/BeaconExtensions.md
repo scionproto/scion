@@ -79,7 +79,7 @@ Use cases of such information include:
 
 ### Conceptual Implementation Latency
 
-The latency information will be comprised of  main parts:
+The latency information will be comprised of three main parts:
 
 - The inter-AS latency between the egress interface and the ingress interface of
   the AS the PCB will be propagated to
@@ -189,6 +189,7 @@ The format for latency information, specified in terms of its capnp encoding, lo
 struct Latencyinfo {
   lnpcs @0 :List(Lnpcluster);
   lpcs @1 :List(Lpcluster);
+  egresslatency @2 :UInt16;
 
   struct Lnpcluster {
      clusterdelay @0 :UInt16;
@@ -230,19 +231,13 @@ Use cases of such information include:
 
 ### Conceptual Implementation Maximum Bandwidth
 
-The maximum bandwidth information will be comprised of 2 main parts:
+The maximum bandwidth information will be comprised of 1 main part:
 
-- The inter-AS maximum bandwidth between the egress interface and the next
-  AS the PCB will be propagated to
 - A variable number of maximum bandwidth clusters
 
-
 A maximum bandwidth cluster serves to pool all interfaces which have the
-same maximum bandwidth between them and the egress interface. 
-The difference between looking at peering- and non-peering interfaces is that
-for each peering interface we first calculate the minimum between the inter-AS and
-intra-AS maximum bandwidth before inserting it into a cluster with said minimum as
-its maximum bandwidth value.
+same total maximum bandwidth. The total maximum bandwidth is calculated as the
+minimum between the intra-AS and the inter-AS bandwidths.
 When doing clustering, the system will simply pick the first value it comes across
 that can't be assigned to an already existing cluster and, if it is not an integer,
 round it down to the nearest integer. This value will then serve as the
@@ -265,22 +260,11 @@ encoding, looks like this:
 
 ````CAPNP
 struct Bandwidthinfo {
-  bwnpcs @0 :List(Bwnpcluster);
-  bwpcs @1 :List(Bwpcluster);
+  bwcs @0 :List(Bwcluster);
 
-  struct Bwnpcluster {
+  struct Bwcluster {
      clusterbw @0 :UInt32;
      interfaces @1 :List(UInt64);
-  }
-
-  struct Bwpcluster {
-     clusterbw @0 :UInt32;
-     bwpps @1 :List(Bwppair);
-
-     struct Bwppair {
-        interface @0 :UInt64;
-        interbw @1 :UInt32;
-     }
   }
 }
 ````
@@ -404,6 +388,7 @@ The format for the link type looks like this:
 struct Linktypeinfo {
   ltnpcs @0 :List(Ltnpcluster);
   ltpcs @1 :List(Ltpcluster);
+  egresslt @2 :Linktype;
 
   enum Linktype{
      direct @0;
