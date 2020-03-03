@@ -519,87 +519,443 @@ as listed below:
 
 Name             | Type  | Description |
 -----------------|-------|-------------|
-`IntfID`         |Integer|Interface ID of the interface described by the data that follows|
-`IntraLatency`   |List of N Integers|Intra-AS latency from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
-`InterLatency`   |Integer|Inter-AS latency from interface `i` to AS on the other end of the link|
+`ID`         |Integer|Interface ID of the interface described by the data that follows|
+`Peer`      |Boolean|Indicates whether an interface is a peering interface|
+`Delay`   |List of Integers|Intra-AS latency from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
+`Inter` (`Latency`)   |Integer|Inter-AS latency from interface `i` to AS on the other end of the link|
 `C1`             |Decimal value|Longitude gps coordinates of interface `i`|
 `C2`             |Decimal value|Latitude gps coordinate of interface `i`|
 `CivAddr`        |String|Civic address of interface `i`|
-`IntraLink`      |List of Integers |Describes link type between interface `i` and any other interface, including itself (this entry is set to 0), where 0 means direct link, 1 means multihop link and every other number means link that uses the open internet|
-`InterLink`      |Integer  |Possible values of a list entry : `Multi`, `Direct`, `OpenNet`; Describes link type between interface `i` and the AS at the other end of the link|
-`IntraBW`        |List of Integers|Intra-AS bandwidth from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
-`InterBW`        |Integer|Inter-AS bandwidth from interface i to the AS at the other end of the link|
+`LT`      |String |Describes link type between interface `i` and any other interface, including itself (this entry should be set to `"direct"`), where `direct` means direct link, `multihop` means multihop link, `opennet` means link that uses the open internet and everything else means undisclosed|
+`Inter` (`Linktype`)      |Integer  |Possible values of an entry : `multihop`, `direct`, `opennet`; Describes link type between interface `i` and the AS at the other end of the link|
+`BW`        |Integer|Intra-AS bandwidth from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
+`Inter` (`Bandwidth`)        |Integer|Inter-AS bandwidth from interface i to the AS at the other end of the link|
 `SpecificNote`   |String |Note that should be used when this interface is the egress interface in the AS Entry that is being extended|
-`Hops`           |List of Integers|Number of internal hops from interface `i` to every other interface in the AS, including itself (this entry is set to 0)|
-
-Then, after every interface has been listed, follows a final field:
-
-Name               | Type  | Description |
--------------------|-------|-------------|
-`DefaultNote`      |String |Default Note|
+`HN`           |Integer|Number of internal hops from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
+`Default`      |String |Default Note|
+`Msg`      |String |Specific Note for the interface with ID `ID` mentioned in the same entry in the `specific` field|
 
 Below is a simple example of how such a config file could look like (actual
 values are abitrary, "asdf" is used as a placeholder for longer strings)
-for an AS with three interfaces with IDs 1, 2 and 3:
+for an AS with three interfaces with IDs 1, 2, 3 and 5:
 
 ````JSON
 {
-  "Interfaces": {
-    "NonPeeringInterfaces": [{
-      "IntfID": 1,
-      "IntraLatency": [0, 10, 20,10],
-      "InterLatency": 30,
-      "C1": 45.7,
-      "C2": 25.9,
-      "CivAddr": "asdf",
-      "IntraLink": [0,1,0,0],
-      "InterLink": 2,
-      "IntraBW": [0, 200000000, 100000000, 20000000],
-      "InterBW": 150000000,
-      "SpecificNote": "asdf1",
-      "Hops": [0, 2, 4, 2]
-    },{
-      "IntfID": 2,
-      "IntraLatency": [10, 0, 20, 10],
-      "InterLatency": 40,
-      "C1": 34.7,
-      "C2": 27.2,
-      "CivAddr": "asdf",
-      "IntraLink": [1,0,2,3],
-      "InterLink": 2,
-      "IntraBW": [200000000, 0, 100000000, 30000000],
-      "InterBW": 450000000,
-      "Hops": [1, 0, 4, 1]
-    },{
-      "IntfID": 3,
-      "IntraLatency": [10, 40, 0, 20],
-      "InterLatency": 10,
-      "C1": 66.2,
-      "C2": 37.0,
-      "CivAddr": "asdf",
-      "IntraLink": [1,1,0,1],
-      "InterLink": 1,
-      "IntraBW": [200000000, 300000000, 0, 10000000],
-      "InterBW": 50000000,
-      "SpecificNote": "asdf3",
-      "Hops": [1, 0, 0, 1]
-    }],
-    "PeeringInterfaces":[{
-      "IntfID": 4,
-      "IntraLatency": [0, 10, 20, 0],
-      "InterLatency": 30,
-      "C1": 45.7,
-      "C2": 25.9,
-      "CivAddr": "asdf",
-      "IntraLink": [0,1,0,0],
-      "InterLink": 2,
-      "IntraBW": [0, 200000000, 100000000, 0],
-      "InterBW": 150000000,
-      "SpecificNote": "asdf4",
-      "Hops": [0, 2, 4, 0]
-    }]
-  },
-  "DefaultNote": "asdf"
+  "Latency": [
+    {
+      "ID": 1,
+      "Peer": false,
+      "Inter": 30,
+      "Intra": [
+        {
+          "ID": 1,
+          "Delay": 0
+        },
+        {
+          "ID": 2,
+          "Delay": 10
+        },
+        {
+          "ID": 3,
+          "Delay": 20
+        },
+        {
+          "ID": 5,
+          "Delay": 30
+        }
+      ]
+    },
+    {
+      "ID": 2,
+      "Peer": false,
+      "Inter": 20,
+      "Intra": [
+        {
+          "ID": 1,
+          "Delay": 10
+        },
+        {
+          "ID": 2,
+          "Delay": 0
+        },
+        {
+          "ID": 3,
+          "Delay": 30
+        },
+        {
+          "ID": 5,
+          "Delay": 40
+        }
+      ]
+    },
+    {
+      "ID": 3,
+      "Peer": false,
+      "Inter": 15,
+      "Intra": [
+        {
+          "ID": 1,
+          "Delay": 20
+        },
+        {
+          "ID": 2,
+          "Delay": 30
+        },
+        {
+          "ID": 3,
+          "Delay": 0
+        },
+        {
+          "ID": 5,
+          "Delay": 60
+        }
+      ]
+    },
+    {
+      "ID": 5,
+      "Peer": true,
+      "Inter": 24,
+      "Intra": [
+        {
+          "ID": 1,
+          "Delay": 10
+        },
+        {
+          "ID": 2,
+          "Delay": 30
+        },
+        {
+          "ID": 3,
+          "Delay": 20
+        },
+        {
+          "ID": 5,
+          "Delay": 40
+        }
+      ]
+    }
+  ],
+  "Bandwidth": [
+    {
+      "ID": 1,
+      "Peer": false,
+      "Inter": 1000000,
+      "Intra": [
+        {
+          "ID": 1,
+          "BW": 0
+        },
+        {
+          "ID": 2,
+          "BW": 1500000
+        },
+        {
+          "ID": 3,
+          "BW": 2000000
+        },
+        {
+          "ID": 5,
+          "BW": 3000000
+        }
+      ]
+    },
+    {
+      "ID": 2,
+      "Peer": false,
+      "Inter": 2200000,
+      "Intra": [
+        {
+          "ID": 1,
+          "BW": 1000098
+        },
+        {
+          "ID": 2,
+          "BW": 0
+        },
+        {
+          "ID": 3,
+          "BW": 38778770
+        },
+        {
+          "ID": 5,
+          "BW": 4879770
+        }
+      ]
+    },
+    {
+      "ID": 3,
+      "Peer": false,
+      "Inter": 15789789,
+      "Intra": [
+        {
+          "ID": 1,
+          "BW": 20789789
+        },
+        {
+          "ID": 2,
+          "BW": 30789879
+        },
+        {
+          "ID": 3,
+          "BW": 78978978
+        },
+        {
+          "ID": 5,
+          "BW": 60456456
+        }
+      ]
+    },
+    {
+      "ID": 5,
+      "Peer": true,
+      "Inter": 2467867,
+      "Intra": [
+        {
+          "ID": 1,
+          "BW": 10435663446
+        },
+        {
+          "ID": 2,
+          "BW": 303333333
+        },
+        {
+          "ID": 3,
+          "BW": 203333333
+        },
+        {
+          "ID": 5,
+          "BW": 40444444
+        }
+      ]
+    }
+  ],
+  "Linktype": [
+    {
+      "ID": 1,
+      "Peer": false,
+      "Inter": "direct",
+      "Intra": [
+        {
+          "ID": 1,
+          "LT": "direct"
+        },
+        {
+          "ID": 2,
+          "LT": "direct"
+        },
+        {
+          "ID": 3,
+          "LT": "multihop"
+        },
+        {
+          "ID": 5,
+          "LT": "opennet"
+        }
+      ]
+    },
+    {
+      "ID": 2,
+      "Peer": false,
+      "Inter": "opennet",
+      "Intra": [
+        {
+          "ID": 1,
+          "LT": "direct"
+        },
+        {
+          "ID": 2,
+          "LT": "multihop"
+        },
+        {
+          "ID": 3,
+          "LT": "multihop"
+        },
+        {
+          "ID": 5,
+          "LT": "opennet"
+        }
+      ]
+    },
+    {
+      "ID": 3,
+      "Peer": false,
+      "Inter": "direct",
+      "Intra": [
+        {
+          "ID": 1,
+          "LT": "direct"
+        },
+        {
+          "ID": 2,
+          "LT": "direct"
+        },
+        {
+          "ID": 3,
+          "LT": "opennet"
+        },
+        {
+          "ID": 5,
+          "LT": "direct"
+        }
+      ]
+    },
+    {
+      "ID": 5,
+      "Peer": true,
+      "Inter": "direct",
+      "Intra": [
+        {
+          "ID": 1,
+          "LT": "opennet"
+        },
+        {
+          "ID": 2,
+          "LT": "opennet"
+        },
+        {
+          "ID": 3,
+          "LT": "multihop"
+        },
+        {
+          "ID": 5,
+          "LT": "undisclosed"
+        }
+      ]
+    }
+  ],
+  "Geo": [
+    {
+      "ID": 1,
+      "Peer": false,
+      "C1": 47.2,
+      "C2": 62.2,
+      "CivAddr": "geo1"
+    },
+    {
+      "ID": 2,
+      "Peer": false,
+      "C1": 79.2,
+      "C2": 45.2,
+      "CivAddr": "geo2"
+    },
+    {
+      "ID": 3,
+      "Peer": false,
+      "C1": 47.22,
+      "C2": 42.23,
+      "CivAddr": "geo3"
+    },
+    {
+      "ID": 5,
+      "Peer": true,
+      "C1": 48.2,
+      "C2": 46.2,
+      "CivAddr": "geo5"
+    }
+  ],
+  "Hops": [
+    {
+      "ID": 1,
+      "Peer": false,
+      "Intra": [
+        {
+          "ID": 1,
+          "HN": 0
+        },
+        {
+          "ID": 2,
+          "HN": 2
+        },
+        {
+          "ID": 3,
+          "HN": 3
+        },
+        {
+          "ID": 5,
+          "HN": 0
+        }
+      ]
+    },
+    {
+      "ID": 2,
+      "Peer": false,
+      "Intra": [
+        {
+          "ID": 1,
+          "HN": 2
+        },
+        {
+          "ID": 2,
+          "HN": 2
+        },
+        {
+          "ID": 3,
+          "HN": 1
+        },
+        {
+          "ID": 5,
+          "HN": 1
+        }
+      ]
+    },
+    {
+      "ID": 3,
+      "Peer": false,
+      "Intra": [
+        {
+          "ID": 1,
+          "HN": 1
+        },
+        {
+          "ID": 2,
+          "HN": 2
+        },
+        {
+          "ID": 3,
+          "HN": 0
+        },
+        {
+          "ID": 5,
+          "HN": 4
+        }
+      ]
+    },
+    {
+      "ID": 5,
+      "Peer": true,
+      "Intra": [
+        {
+          "ID": 1,
+          "HN": 2
+        },
+        {
+          "ID": 2,
+          "HN": 1
+        },
+        {
+          "ID": 3,
+          "HN": 6
+        },
+        {
+          "ID": 5,
+          "HN": 0
+        }
+      ]
+    }
+  ],
+  "Note":{
+    "Default": "asdf0",
+    "Specific" : [
+      {
+        "ID": 2,
+        "Msg": "asdf2"
+      },
+      {
+        "ID": 5,
+        "Msg": "asdf5"
+      }
+    ]
+  }
 }
 ````
 
