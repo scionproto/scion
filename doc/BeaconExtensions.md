@@ -231,13 +231,15 @@ Use cases of such information include:
 
 ### Conceptual Implementation Maximum Bandwidth
 
-The maximum bandwidth information will be comprised of 1 main part:
+The maximum bandwidth information will be comprised of 2 main parts:
 
 - A variable number of maximum bandwidth clusters
+- The bandwidth of the egress connection
 
 A maximum bandwidth cluster serves to pool all interfaces which have the
-same total maximum bandwidth. The total maximum bandwidth is calculated as the
-minimum between the intra-AS and the inter-AS bandwidths.
+same total maximum bandwidth. For peering interfaces, the total maximum bandwidth
+is calculated as the minimum between the intra-AS bandwidth and the bandwidth of
+the inter-AS peering link.
 When doing clustering, the system will simply pick the first value it comes across
 that can't be assigned to an already existing cluster and, if it is not an integer,
 round it down to the nearest integer. This value will then serve as the
@@ -261,6 +263,7 @@ encoding, looks like this:
 ````CAPNP
 struct Bandwidthinfo {
   bwcs @0 :List(Bwcluster);
+  egressBW @1 :UInt32;
 
   struct Bwcluster {
      clusterbw @0 :UInt32;
