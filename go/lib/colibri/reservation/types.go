@@ -236,3 +236,34 @@ func (f *InfoField) Read(b []byte) (int, error) {
 	b[7] = 0 // b[7] is padding
 	return 8, nil
 }
+
+// PathEndProps represent the zero or more properties a COLIBRI path can have at both ends.
+type PathEndProps uint8
+
+// The only current properties are "Local" (can be used to create e2e rsvs) and "Transfer" (can be
+// stiched together with another segment reservation). The first 4 bits encode the properties
+// of the "Start" AS, and the last 4 bits encode those of the "End" AS.
+const (
+	StartLocal    PathEndProps = 0x10
+	StartTransfer PathEndProps = 0x20
+	EndLocal      PathEndProps = 0x01
+	EndTransfer   PathEndProps = 0x02
+)
+
+// Validate will return an error for invalid values.
+func (pep PathEndProps) Validate() error {
+	if pep&0x0F > 0x03 {
+		return serrors.New("Invalid path end properties (@End)", "PathEndProps", pep)
+	}
+	if pep>>4 > 0x03 {
+		return serrors.New("Invalid path end properties (@Start)", "PathEndProps", pep)
+	}
+	return nil
+}
+
+// AllocationBead represents an allocation resolved in an AS for a given reservation.
+// It is used in an array to represent the allocation trail that happenend for a reservation.
+type AllocationBead struct {
+	AllocBW uint8
+	MaxBW   uint8
+}
