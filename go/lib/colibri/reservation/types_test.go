@@ -256,3 +256,32 @@ func TestInfoFieldRead(t *testing.T) {
 			hex.EncodeToString(raw), hex.EncodeToString(rawReference))
 	}
 }
+
+func TestValidatePathEndProperties(t *testing.T) {
+	for i := 0; i < 4; i++ {
+		pep := PathEndProps(i)
+		if err := pep.Validate(); err != nil {
+			t.Fatalf("Unexpected error at i = %d: %v", i, err)
+		}
+	}
+	pep := PathEndProps(4)
+	if err := pep.Validate(); err == nil {
+		t.Fatal("Expected validation error but got none")
+	}
+
+	for i := 0; i < 4; i++ {
+		pep := PathEndProps(i << 4)
+		if err := pep.Validate(); err != nil {
+			t.Fatalf("Unexpected error at i = %d: %v", i, err)
+		}
+	}
+	pep = PathEndProps(4 << 4)
+	if err := pep.Validate(); err == nil {
+		t.Fatal("Expected validation error but got none")
+	}
+
+	pep = PathEndProps(0x10 | 0x04)
+	if err := pep.Validate(); err == nil {
+		t.Fatal("Expected validation error but got none")
+	}
+}
