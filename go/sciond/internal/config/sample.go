@@ -22,5 +22,5 @@ const sdSample = `
 address = "127.0.0.1:30255"
 
 # The time after which segments for a destination are refetched. (default 5m)
-QueryInterval = "5m"
+query_interval = "5m"
 `

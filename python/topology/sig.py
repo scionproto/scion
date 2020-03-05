@@ -148,12 +148,12 @@ class SIGGenerator(object):
 
         sig_conf = {
             'sig': {
-                'ID': name,
-                'SIGConfig': 'conf/cfg.json',
-                'IA': str(topo_id),
-                'IP': str(net[ipv]),
+                'id': name,
+                'sig_config': 'conf/cfg.json',
+                'isd_as': str(topo_id),
+                'ip': str(net[ipv]),
             },
-            'sd_client': {
+            'sciond_connection': {
                 'address': socket_address_str(sciond_ip, SD_API_PORT),
             },
             'log': {
@@ -166,7 +166,7 @@ class SIGGenerator(object):
                 }
             },
             'metrics': {
-                'Prometheus': '0.0.0.0:%s' % SIG_PROM_PORT
+                'prometheus': '0.0.0.0:%s' % SIG_PROM_PORT
             }
         }
         path = os.path.join(topo_id.base_dir(self.args.output_dir), name, SIG_CONFIG_NAME)

@@ -122,7 +122,7 @@ func (cfg *BeaconDBConf) Sample(dst io.Writer, path config.Path, ctx config.CtxM
 
 // ConfigName is the key in the toml file.
 func (cfg *BeaconDBConf) ConfigName() string {
-	return "beaconDB"
+	return "beacon_db"
 }
 
 // New creates a BeaconDB from the config.

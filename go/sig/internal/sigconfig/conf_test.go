@@ -62,7 +62,6 @@ func CheckTestSigConf(t *testing.T, cfg *SigConf, id string) {
 	assert.Equal(t, net.ParseIP("192.0.2.100"), cfg.IP)
 	assert.Equal(t, DefaultCtrlPort, int(cfg.CtrlPort))
 	assert.Equal(t, DefaultEncapPort, int(cfg.EncapPort))
-	assert.Empty(t, cfg.Dispatcher)
 	assert.Equal(t, DefaultTunName, cfg.Tun)
 	assert.Equal(t, DefaultTunRTableId, cfg.TunRTableId)
 }
