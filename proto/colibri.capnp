@@ -44,8 +44,9 @@ struct SegmentSetupReqData {
 # They travel inside a hop by hop colibri extension.
 struct SegmentSetupResData {
     union{
-        failure @0 :SegmentSetupReqData; # sent along the path in the opposite direction in case of failure
-        token   @1 :Data;                # if successful
+        unset @0 :Void;
+        failure @1 :SegmentSetupReqData; # sent along the path in the opposite direction in case of failure
+        token   @2 :Data;                # if successful
     }
 }
 
@@ -81,14 +82,15 @@ struct SegmentCleanupData {
 # Setup an E2E reservation. Sent in a hop by hop colibri extension through a stitched segment reservation.
 struct E2ESetupData {
     union {
+        unset @0 :Void;
         success :group {
-            reservationID @0 :E2EReservationID;     # 16 byte e2e reservation ID
-            token @1 :Data;
+            reservationID @1 :E2EReservationID;     # 16 byte e2e reservation ID
+            token @2 :Data;
         }
         failure :group {
-            errorCode @2 :UInt8;
-            infoField @3 :Data;
-            maxBWs @4 :List(UInt8);     # max bandwidths granted by the ASes along the path, until failure
+            errorCode @3 :UInt8;
+            infoField @4 :Data;
+            maxBWs @5 :List(UInt8);     # max bandwidths granted by the ASes along the path, until failure
         }
     }
 }
