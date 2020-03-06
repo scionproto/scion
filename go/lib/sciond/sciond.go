@@ -125,10 +125,17 @@ func (c *conn) checkForSciond(ctx context.Context) error {
 	if err != nil {
 		return serrors.Wrap(ErrUnableToConnect, err)
 	}
-	if err := conn.Close(); err != nil {
-		return serrors.WrapStr("Error when closing test SCIOND conn", err)
-	}
-	return nil
+	defer conn.Close()
+	// FIXME(roosd): This is hack until we have a proper health check.
+	_, err = roundTrip(
+		&Pld{
+			TraceId:   tracing.IDFromCtx(ctx),
+			Which:     proto.SCIONDMsg_Which_asInfoReq,
+			AsInfoReq: &ASInfoReq{},
+		},
+		conn,
+	)
+	return err
 }
 
 // connect establishes a connection to SCIOND.
