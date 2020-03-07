@@ -44,7 +44,8 @@ const (
 func (rp *RtrPkt) extnParseHBH(extType common.ExtnType,
 	start, end, pos int) (rExtension, error) {
 	if assert.On {
-		assert.Must(end-start >= common.LineLen, "Extension must be at least one line length")
+		assert.Must(end-start+common.ExtnSubHdrLen >= common.LineLen,
+			"Extension must be at least one line length")
 	}
 	switch {
 	case extType == common.ExtnSCMPType:
