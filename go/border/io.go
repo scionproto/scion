@@ -74,7 +74,12 @@ func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
 
 	// Called when the packet's reference count hits 0.
 	free := func(rp *rpkt.RtrPkt) {
-		procPktTime.Add(time.Since(rp.TimeIn).Seconds())
+		// Protect against system clock moving backwards
+		t := time.Since(rp.TimeIn).Seconds()
+		if t < 0 {
+			t = 0
+		}
+		procPktTime.Add(t)
 		rp.Reset()
 		r.freePkts.Write(ringbuf.EntryList{rp}, true)
 	}

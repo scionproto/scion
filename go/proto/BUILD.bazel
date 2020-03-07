@@ -7,6 +7,7 @@ go_library(
         "asm_exts.capnp.go",
         "cereal.go",
         "cert_mgmt.capnp.go",
+        "colibri.capnp.go",
         "common.capnp.go",
         "ctrl_extn.capnp.go",
         "ctrl_pld.capnp.go",

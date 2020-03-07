@@ -366,7 +366,7 @@ type ReadMeta struct {
 	// to the receive buffers being full.
 	RcvOvfl uint32
 	// Recvd is the timestamp when the kernel placed the packet in the socket's
-	// receive buffer.
+	// receive buffer. N.B. this is in system time, it is _not_ monotonic.
 	Recvd time.Time
 	// ReadDelay is the time elapsed between the kernel adding a packet to the
 	// socket's receive buffer, and the application reading it from the Go
