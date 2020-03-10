@@ -15,6 +15,8 @@
 package colibri_mgmt
 
 import (
+	"strings"
+
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -35,11 +37,24 @@ func (p *ColibriRequestPayload) ProtoId() proto.ProtoIdType {
 }
 
 func (p *ColibriRequestPayload) String() string {
-	// TODO(juagargi) something more descriptive
-	return ""
+	strs := make([]string, 1, 2)
+	strs[0] = "ColibriRequestPayload:"
+	switch p.Which {
+	case proto.ColibriRequestPayload_Which_request:
+		strs = append(strs, "Request")
+	case proto.ColibriRequestPayload_Which_response:
+		strs = append(strs, "Response")
+	default:
+		strs = append(strs, "Unknown subtype")
+	}
+	return strings.Join(strs, " ")
 }
 
-func NewColibriRequestPayloadFromRaw(b []byte) (*ColibriRequestPayload, error) {
+func (p *ColibriRequestPayload) PackRoot() ([]byte, error) {
+	return proto.PackRoot(p)
+}
+
+func NewFromRaw(b []byte) (*ColibriRequestPayload, error) {
 	pld := &ColibriRequestPayload{}
 	err := proto.ParseFromRaw(pld, b)
 	if err != nil {
