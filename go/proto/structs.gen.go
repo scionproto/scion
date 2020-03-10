@@ -68,6 +68,12 @@ func NewRootStruct(id ProtoIdType, seg *capnp.Segment) (capnp.Struct, error) {
 			return blank, common.NewBasicError("Error creating new SVCResolutionReply capnp struct", err)
 		}
 		return v.Struct, nil
+	case ColibriRequestPayload_TypeID:
+		v, err := NewRootColibriRequestPayload(seg)
+		if err != nil {
+			return blank, common.NewBasicError("Error creating new ColibriRequestPayload capnp struct", err)
+		}
+		return v.Struct, nil
 	}
 	return blank, common.NewBasicError(
 		"Unsupported capnp struct type (i.e. not listed in go/proto/structs_gen_go.sh:ROOTTYPES)",
@@ -101,5 +107,8 @@ func (s SignedCtrlPld) GetStruct() capnp.Struct {
 	return s.Struct
 }
 func (s SVCResolutionReply) GetStruct() capnp.Struct {
+	return s.Struct
+}
+func (s ColibriRequestPayload) GetStruct() capnp.Struct {
 	return s.Struct
 }
