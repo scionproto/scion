@@ -14,58 +14,58 @@
 
 package config
 
-const BSSample = `
+const bsSample = `
 # The interval between sending interface keepalives. (default 1s)
-KeepaliveInterval = "1s"
+keepalive_interval = "1s"
 
 # The timeout until an interface that has not received keepalives
 # is considered expired. (default 3s)
-KeepaliveTimeout = "3s"
+keepalive_timeout = "3s"
 
 # The interval between originating beacons. (default 5s)
-OriginationInterval = "5s"
+origination_interval = "5s"
 
 # The interval between propagating beacons. (default 5s)
-PropagationInterval = "5s"
+propagation_interval = "5s"
 
 # The interval between registering beacons. (default 5s)
-RegistrationInterval = "5s"
+registration_interval = "5s"
 
 # The interval between checking for expired interfaces to revoke. (default 200ms)
-ExpiredCheckInterval = "200ms"
+expired_check_interval = "200ms"
 
 # The revocation TTL. (default 10s)
-RevTTL = "10s"
+rev_ttl = "10s"
 
 # The amount of time before the expiry of an existing revocation where the revoker can reissue a
 # new revocation. (default 5s)
-RevOverlap = "5s"
+rev_overlap = "5s"
 `
 
-const PoliciesSample = `
+const policiesSample = `
 # Output a sample policy file by providing the -help-policy flag.
 
 # The file path for the propagation policy. In case of the empty string,
 # the default policy is used. (default "")
-Propagation = ""
+propagation = ""
 
 # The file path for the core registration policy. In case of the empty string,
 # the default policy is used. In a non-core beacon server, this field is ignored.
 # (default "")
-CoreRegistration = ""
+core_registration = ""
 
 # The file path for the up registration policy. In case of the empty string,
 # the default policy is used. In a core beacon server, this field is ignored.
 # (default "")
-UpRegistration = ""
+up_registration = ""
 
 # The file path for the down registration policy. In case of the empty string,
 # the default policy is used. In a core beacon server, this field is ignored.
 # (default "")
-DownRegistration = ""
+down_registration = ""
 
 # The file path for the hidden path registration policy. In case of the empty string,
 # no hidden path functionality is used.
 # (default "")
-HiddenPathRegistration = ""
+hidden_path_registration = ""
 `

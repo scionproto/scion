@@ -115,13 +115,13 @@ func realMain() int {
 	metrics.InitBSMetrics()
 	metrics.InitPSMetrics()
 
-	pathDB, revCache, err := pathstorage.NewPathStorage(cfg.PS.PathDB, cfg.PS.RevCache)
+	pathDB, revCache, err := pathstorage.NewPathStorage(cfg.PathDB)
 	if err != nil {
 		log.Crit("Unable to initialize path storage", "err", err)
 		return 1
 	}
 	defer revCache.Close()
-	pathDB = pathdb.WithMetrics(string(cfg.PS.PathDB.Backend()), pathDB)
+	pathDB = pathdb.WithMetrics(string(cfg.PathDB.Backend()), pathDB)
 	defer pathDB.Close()
 
 	topo := itopo.Get()
@@ -283,7 +283,7 @@ func realMain() int {
 	segReqHandler := segreq.NewHandler(args)
 	msgr.AddHandler(infra.SegRequest, segReqHandler)
 	msgr.AddHandler(infra.SegReg, handlers.NewSegRegHandler(args))
-	if cfg.PS.SegSync && topo.Core() {
+	if topo.Core() {
 		// Old down segment sync mechanism
 		msgr.AddHandler(infra.SegSync, handlers.NewSyncHandler(args))
 	}
@@ -460,7 +460,7 @@ func (t *periodicTasks) Start() error {
 	// t.corePusher = t.startCorePusher()
 	// t.reissuance = t.startReissuance(t.corePusher)
 
-	if cfg.PS.SegSync && itopo.Get().Core() {
+	if itopo.Get().Core() {
 		t.segSyncers, err = segsyncer.StartAll(t.args, t.msgr)
 		if err != nil {
 			return common.NewBasicError("Unable to start seg syncer", err)
@@ -715,7 +715,7 @@ func setup() error {
 	if err := cfg.Validate(); err != nil {
 		return common.NewBasicError("Unable to validate config", err)
 	}
-	topo, err := topology.FromJSONFile(cfg.General.Topology)
+	topo, err := topology.FromJSONFile(cfg.General.Topology())
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
 	}
@@ -741,7 +741,7 @@ func initTopo(topo topology.Topology) error {
 	if err := itopo.Update(topo); err != nil {
 		return serrors.WrapStr("Unable to set initial static topology", err)
 	}
-	infraenv.InitInfraEnvironment(cfg.General.Topology)
+	infraenv.InitInfraEnvironment(cfg.General.Topology())
 	return nil
 }
 

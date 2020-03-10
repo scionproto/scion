@@ -16,6 +16,7 @@ package brconf
 
 import (
 	"io"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
@@ -27,11 +28,11 @@ var _ config.Config = (*Config)(nil)
 
 // Config is the border router configuration that is loaded from file.
 type Config struct {
-	General  env.General
-	Features env.Features
-	Logging  log.Config `toml:"log,omitempty"`
-	Metrics  env.Metrics
-	BR       BR
+	General  env.General  `toml:"general,omitempty"`
+	Features env.Features `toml:"features,omitempty"`
+	Logging  log.Config   `toml:"log,omitempty"`
+	Metrics  env.Metrics  `toml:"metrics,omitempty"`
+	BR       BR           `toml:"br,omitempty"`
 }
 
 func (cfg *Config) InitDefaults() {
@@ -72,11 +73,9 @@ var _ config.Config = (*BR)(nil)
 
 // BR contains the border router specific parts of the configuration.
 type BR struct {
-	// Profile enables cpu and memory profiling.
-	Profile bool
 	// RollbackFailAction indicates the action that should be taken
 	// if the rollback fails.
-	RollbackFailAction FailAction
+	RollbackFailAction FailAction `toml:"rollback_fail_action,omitempty"`
 }
 
 func (cfg *BR) InitDefaults() {
@@ -101,9 +100,9 @@ type FailAction string
 
 const (
 	// FailActionFatal indicates that the process exits on error.
-	FailActionFatal FailAction = "Fatal"
+	FailActionFatal FailAction = "fatal"
 	// FailActionContinue indicates that the process continues on error.
-	FailActionContinue FailAction = "Continue"
+	FailActionContinue FailAction = "continue"
 )
 
 func (f *FailAction) Validate() error {
@@ -116,7 +115,7 @@ func (f *FailAction) Validate() error {
 }
 
 func (f *FailAction) UnmarshalText(text []byte) error {
-	switch FailAction(text) {
+	switch FailAction(strings.ToLower(string(text))) {
 	case FailActionFatal:
 		*f = FailActionFatal
 	case FailActionContinue:

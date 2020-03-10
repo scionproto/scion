@@ -44,24 +44,22 @@ func InitTestConfig(cfg *Config) {
 	envtest.InitTest(&cfg.General, &cfg.Metrics, &cfg.Tracing, nil)
 	logtest.InitTestLogging(&cfg.Logging)
 	truststoragetest.InitTestConfig(&cfg.TrustDB)
+	pathstoragetest.InitTestPathDBConf(&cfg.PathDB)
 	InitTestSDConfig(&cfg.SD)
 }
 
 func InitTestSDConfig(cfg *SDConfig) {
-	pathstoragetest.InitTestPathDBConf(&cfg.PathDB)
-	pathstoragetest.InitTestRevCacheConf(&cfg.RevCache)
 }
 
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	envtest.CheckTest(t, &cfg.General, &cfg.Metrics, &cfg.Tracing, nil, id)
 	logtest.CheckTestLogging(t, &cfg.Logging, id)
 	truststoragetest.CheckTestConfig(t, &cfg.TrustDB, id)
+	pathstoragetest.CheckTestPathDBConf(t, &cfg.PathDB, id)
 	CheckTestSDConfig(t, &cfg.SD, id)
 }
 
 func CheckTestSDConfig(t *testing.T, cfg *SDConfig, id string) {
-	pathstoragetest.CheckTestPathDBConf(t, &cfg.PathDB, id)
-	pathstoragetest.CheckTestRevCacheConf(t, &cfg.RevCache)
 	assert.Equal(t, sciond.DefaultSCIONDAddress, cfg.Address)
 	assert.Equal(t, DefaultQueryInterval, cfg.QueryInterval.Duration)
 }

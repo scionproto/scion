@@ -44,7 +44,6 @@ func InitTestConfig(cfg *Config) {
 }
 
 func InitTestBRConfig(cfg *BR) {
-	cfg.Profile = true
 }
 
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
@@ -54,6 +53,5 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 }
 
 func CheckTestBRConfig(t *testing.T, cfg *BR) {
-	assert.False(t, cfg.Profile)
 	assert.Equal(t, FailActionFatal, cfg.RollbackFailAction)
 }

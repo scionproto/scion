@@ -86,15 +86,6 @@ func realMain() int {
 			fatal.Fatal(err)
 		}
 	}()
-	if cfg.Dispatcher.PerfData != "" {
-		go func() {
-			defer log.HandlePanic()
-			err := http.ListenAndServe(cfg.Dispatcher.PerfData, nil)
-			if err != nil {
-				fatal.Fatal(err)
-			}
-		}()
-	}
 
 	env.SetupEnv(nil)
 	http.HandleFunc("/config", configHandler)

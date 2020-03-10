@@ -81,7 +81,7 @@ func (cfg *TrustDBConf) Sample(dst io.Writer, path config.Path, ctx config.CtxMa
 }
 
 func (cfg *TrustDBConf) ConfigName() string {
-	return "trustDB"
+	return "trust_db"
 }
 
 func (cfg *TrustDBConf) Validate() error {

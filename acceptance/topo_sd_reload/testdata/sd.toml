@@ -1,21 +1,19 @@
 [general]
-ReconnectToDispatcher = true
-ConfigDir = "/"
-ID = "sd1-ff00_0_110"
+reconnect_to_dispatcher = true
+config_dir = "/"
+id = "sd1-ff00_0_110"
 
-[trustDB]
-Connection = "sd1-ff00_0_110.trust.db"
-Backend = "sqlite"
+[trust_db]
+connection = "sd1-ff00_0_110.trust.db"
 
 [log.console]
 level = "trace"
 
 [sd]
-Public = "[242.254.100.2]:0"
+address = "[242.254.100.2]:0"
 
-[sd.pathDB]
-Connection = "sd1-ff00_0_110.path.db"
-Backend = "sqlite"
+[path_db]
+connection = "sd1-ff00_0_110.path.db"
 
 [metrics]
-Prometheus = "242.254.100.2:30455"
+prometheus = "242.254.100.2:30455"

@@ -33,14 +33,12 @@ const (
 	DefaultTunRTableId = 11
 )
 
-var _ config.Config = (*Config)(nil)
-
 type Config struct {
 	Features env.Features
-	Logging  log.Config `toml:"log,omitempty"`
-	Metrics  env.Metrics
-	Sciond   env.SCIONDClient `toml:"sd_client"`
-	Sig      SigConf
+	Logging  log.Config       `toml:"log,omitempty"`
+	Metrics  env.Metrics      `toml:"metrics,omitempty"`
+	Sciond   env.SCIONDClient `toml:"sciond_connection,omitempty"`
+	Sig      SigConf          `toml:"sig,omitempty"`
 }
 
 func (cfg *Config) InitDefaults() {
@@ -82,35 +80,52 @@ var _ config.Config = (*SigConf)(nil)
 // SigConf contains the configuration specific to the SIG.
 type SigConf struct {
 	// ID of the SIG (required)
-	ID string
+	ID string `toml:"id,omitempty"`
 	// The SIG config json file. (required)
-	SIGConfig string
+	SIGConfig string `toml:"sig_config,omitempty"`
 	// IA the local IA (required)
-	IA addr.IA
+	IA addr.IA `toml:"isd_as,omitempty"`
 	// IP the bind IP address (required)
-	IP net.IP
+	IP net.IP `toml:"ip,omitempty"`
 	// Control data port, e.g. keepalives. (default DefaultCtrlPort)
-	CtrlPort uint16
+	CtrlPort uint16 `toml:"ctrl_port,omitempty"`
 	// Encapsulation data port. (default DefaultEncapPort)
-	EncapPort uint16
-	// SCION dispatcher path. (default "")
-	Dispatcher string
+	EncapPort uint16 `toml:"encap_port,omitempty"`
 	// Name of TUN device to create. (default DefaultTunName)
-	Tun string
+	Tun string `toml:"tun,omitempty"`
 	// TunRTableId the id of the routing table used in the SIG. (default DefaultTunRTableId)
-	TunRTableId int
+	TunRTableId int `toml:"tun_routing_table_id,omitempty"`
 	// IPv4 source address hint to put into routing table.
-	SrcIP4 net.IP
+	SrcIP4 net.IP `toml:"src_ipv4,omitempty"`
 	// IPv6 source address hint to put into routing table.
-	SrcIP6 net.IP
+	SrcIP6 net.IP `toml:"src_ipv6,omitempty"`
 	// DispatcherBypass is the overlay address (e.g. ":30041") to use when bypassing SCION
 	// dispatcher. If the field is empty bypass is not done and SCION dispatcher is used
 	// instead.
-	DispatcherBypass string
+	DispatcherBypass string `toml:"disaptcher_bypass,omitempty"`
 }
 
 // InitDefaults sets the default values to unset values.
 func (cfg *SigConf) InitDefaults() {
+}
+
+// Validate validate the config and returns an error if a value is not valid.
+func (cfg *SigConf) Validate() error {
+	if cfg.ID == "" {
+		return serrors.New("id must be set!")
+	}
+	if cfg.SIGConfig == "" {
+		return serrors.New("sig_config must be set!")
+	}
+	if cfg.IA.IsZero() {
+		return serrors.New("isd_as must be set")
+	}
+	if cfg.IA.IsWildcard() {
+		return serrors.New("Wildcard isd_as not allowed")
+	}
+	if cfg.IP.IsUnspecified() {
+		return serrors.New("ip must be set")
+	}
 	if cfg.CtrlPort == 0 {
 		cfg.CtrlPort = DefaultCtrlPort
 	}
@@ -122,25 +137,6 @@ func (cfg *SigConf) InitDefaults() {
 	}
 	if cfg.TunRTableId == 0 {
 		cfg.TunRTableId = DefaultTunRTableId
-	}
-}
-
-// Validate validate the config and returns an error if a value is not valid.
-func (cfg *SigConf) Validate() error {
-	if cfg.ID == "" {
-		return serrors.New("ID must be set!")
-	}
-	if cfg.SIGConfig == "" {
-		return serrors.New("Config must be set!")
-	}
-	if cfg.IA.IsZero() {
-		return serrors.New("IA must be set")
-	}
-	if cfg.IA.IsWildcard() {
-		return serrors.New("Wildcard IA not allowed")
-	}
-	if cfg.IP.IsUnspecified() {
-		return serrors.New("IP must be set")
 	}
 	return nil
 }

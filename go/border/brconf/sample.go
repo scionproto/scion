@@ -17,10 +17,7 @@ package brconf
 const idSample = "br-1"
 
 const brSample = `
-# Enable cpu and memory profiling. (default false)
-Profile = false
-
 # Action that should be taken when an error occurs during a context rollback.
-# (Fatal | Continue) (default Fatal)
-RollbackFailAction = "Fatal"
+# (fatal | continue) (default fatal)
+rollback_fail_action = "fatal"
 `
