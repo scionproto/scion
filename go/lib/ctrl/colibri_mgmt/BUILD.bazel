@@ -8,6 +8,7 @@ go_library(
         "e2e_setup.go",
         "request.go",
         "reservation_ids.go",
+        "response.go",
         "segment_cleanup.go",
         "segment_index_confirmation.go",
         "segment_setup.go",
