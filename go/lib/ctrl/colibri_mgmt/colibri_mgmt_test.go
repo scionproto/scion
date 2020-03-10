@@ -65,7 +65,7 @@ func TestSerializeRequest(t *testing.T) {
 			Transfer: true,
 		},
 		AllocationTrail: []*colibri_mgmt.AllocationBeads{
-			&colibri_mgmt.AllocationBeads{
+			{
 				AllocBW: 5,
 				MaxBW:   6,
 			},
