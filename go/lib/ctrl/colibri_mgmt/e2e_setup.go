@@ -20,8 +20,8 @@ import (
 
 type E2ESetup struct {
 	Which   proto.E2ESetupData_Which
-	Success E2ESetupSuccess
-	Failure E2ESetupFailure
+	Success *E2ESetupSuccess
+	Failure *E2ESetupFailure
 }
 
 func (s *E2ESetup) ProtoId() proto.ProtoIdType {
@@ -34,7 +34,7 @@ type E2ESetupSuccess struct {
 }
 
 type E2ESetupFailure struct {
-	ErrorCode  uint8
-	InforField []byte
-	MaxBW      []uint8
+	ErrorCode uint8
+	InfoField []byte
+	MaxBWs    []uint8
 }

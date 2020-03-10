@@ -24,12 +24,12 @@ type Request struct {
 	SegmentRenewal           *SegmentSetup
 	SegmentTelesSetup        *SegmentTelesSetup
 	SegmentTelesRenewal      *SegmentTelesSetup
-	SegmentTeardown          *SegmentTeardown
+	SegmentTeardown          *SegmentTeardownReq
 	SegmentIndexConfirmation *SegmentIndexConfirmation
 	SegmentCleanup           *SegmentCleanup
-	E2ESetup                 *E2ESetup
-	E2ERenewal               *E2ESetup
-	E2ECleanup               *E2ECleanup
+	E2ESetup                 *E2ESetup   `capnp:"e2eSetup"`
+	E2ERenewal               *E2ESetup   `capnp:"e2eRenewal"`
+	E2ECleanup               *E2ECleanup `capnp:"e2eCleanup"`
 }
 
 func (r *Request) ProtoId() proto.ProtoIdType {

@@ -20,7 +20,7 @@ import (
 
 type SegmentReservationID struct {
 	ASID   []byte `capnp:"asid"`
-	Suffix []byte
+	Suffix []byte // 4 bytes long
 }
 
 func (id *SegmentReservationID) ProtoId() proto.ProtoIdType {
@@ -29,7 +29,7 @@ func (id *SegmentReservationID) ProtoId() proto.ProtoIdType {
 
 type E2EReservationID struct {
 	ASID   []byte `capnp:"asid"`
-	Suffix []byte
+	Suffix []byte // 16 bytes long
 }
 
 func (id *E2EReservationID) ProtoId() proto.ProtoIdType {

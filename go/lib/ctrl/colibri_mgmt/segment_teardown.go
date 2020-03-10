@@ -18,10 +18,8 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-type SegmentTeardown struct {
-	ErrorCode uint8
-}
+type SegmentTeardownReq struct{}
 
-func (s *SegmentTeardown) ProtoId() proto.ProtoIdType {
+func (s *SegmentTeardownReq) ProtoId() proto.ProtoIdType {
 	return proto.SegmentTeardownReqData_TypeID
 }
