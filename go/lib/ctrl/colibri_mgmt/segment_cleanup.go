@@ -19,7 +19,7 @@ import (
 )
 
 type SegmentCleanup struct {
-	ID    *SegmentReservationID
+	ID    *SegmentReservationID `capnp:"id"`
 	Index uint8
 }
 
