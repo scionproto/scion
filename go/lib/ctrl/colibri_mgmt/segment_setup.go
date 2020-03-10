@@ -31,6 +31,16 @@ func (s *SegmentSetup) ProtoId() proto.ProtoIdType {
 	return proto.SegmentSetupReqData_TypeID
 }
 
+type SegmentSetupRes struct {
+	Which   proto.SegmentSetupResData_Which
+	Failure *SegmentSetup
+	Token   []byte
+}
+
+func (s *SegmentSetupRes) ProtoId() proto.ProtoIdType {
+	return proto.SegmentSetupResData_TypeID
+}
+
 type PathEndProps struct {
 	Local    bool
 	Transfer bool

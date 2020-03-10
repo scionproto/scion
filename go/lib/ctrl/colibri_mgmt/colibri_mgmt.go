@@ -20,10 +20,6 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-type Response struct {
-	// TODO(juagargi)
-}
-
 type ColibriRequestPayload struct {
 	Which    proto.ColibriRequestPayload_Which
 	Request  *Request
