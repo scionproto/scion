@@ -125,7 +125,7 @@ func (rp *RtrPkt) parseHopExtns() error {
 		hdrLen := int(rp.Raw[*offset+1]) * common.LineLen
 		start := *offset + common.ExtnSubHdrLen
 		end := *offset + hdrLen
-		if start >= end || end >= len(rp.Raw) {
+		if start >= end || end > len(rp.Raw) {
 			return common.NewBasicError(ErrExtChainCorrupt, nil, "start", start, "end", end)
 		}
 		e, err := rp.extnParseHBH(
