@@ -119,7 +119,8 @@ func (rp *RtrPkt) parseHopExtns() error {
 			break
 		}
 		if *offset+2 >= len(rp.Raw) {
-			return common.NewBasicError(ErrExtChainTooLong, nil, "curr", *offset, "max", len(rp.Raw))
+			return common.NewBasicError(ErrExtChainTooLong, nil, "curr", *offset, "max",
+				len(rp.Raw))
 		}
 		currExtn := common.ExtnType{Class: currHdr, Type: rp.Raw[*offset+2]}
 		hdrLen := int(rp.Raw[*offset+1]) * common.LineLen
