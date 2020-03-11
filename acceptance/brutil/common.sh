@@ -57,7 +57,7 @@ test_config() {
     cp -Lr "acceptance/${TEST_DIR}/conf/." "$TEST_ARTIFACTS_DIR/conf"
 
     # Replace BR ID
-    sed -i "s/ID = .*$/ID = \"${BRID}\"/g" "$BR_TOML"
+    sed -i "s/id = .*$/id = \"${BRID}\"/g" "$BR_TOML"
     sed -i "s/path = .*$/path = \"\/share\/logs\/${BRID}.log\"/g" "$BR_TOML"
 }
 

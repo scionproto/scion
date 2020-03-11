@@ -1,8 +1,8 @@
 [dispatcher]
-ID = "disp_1-ff00_0_110"
+id = "disp_1-ff00_0_110"
 
 [features]
-AllowRunAsRoot = true
+allow_run_as_root = true
 
 [log.console]
 level = "trace"

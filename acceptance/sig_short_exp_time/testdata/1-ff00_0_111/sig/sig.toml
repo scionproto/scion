@@ -1,14 +1,14 @@
 [sig]
-ID = "sig1-ff00_0_111"
-SIGConfig = "/cfg.json"
-IA = "1-ff00:0:111"
-IP = "242.254.200.2"
+id = "sig1-ff00_0_111"
+sig_config = "/cfg.json"
+isd_as = "1-ff00:0:111"
+ip = "242.254.200.2"
 
 [features]
-AllowRunAsRoot = true
+allow_run_as_root = true
 
-[sd_client]
-FakeData = "/fake_sciond.json"
+[sciond_connection]
+fake_data = "/fake_sciond.json"
 
 [log.file]
 flush_interval = 1

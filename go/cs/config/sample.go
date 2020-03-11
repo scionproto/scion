@@ -1,4 +1,4 @@
-// Copyright 2018 Anapaya Systems
+// Copyright 2020 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,9 @@
 
 package config
 
-const PSSample = `
-# Enable the "old" replication of down segments between cores using SegSync
-# messages. (default false)
-SegSync = false
+const idSample = "cs-1"
 
+const psSample = `
 # The time after which segments for a destination are refetched. (default 5m)
-QueryInterval = "5m"
-
-# The interval of crypto pushes towards the local CS. (default 30s)
-CryptoSyncInterval = "30s"
+query_interval = "5m"
 `

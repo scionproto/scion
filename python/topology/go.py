@@ -86,15 +86,12 @@ class GoGenerator(object):
         config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
         raw_entry = {
             'general': {
-                'ID': name,
-                'ConfigDir': config_dir,
+                'id': name,
+                'config_dir': config_dir,
             },
             'log': self._log_entry(name),
             'metrics': {
-                'Prometheus': prom_addr_br(name, v, DEFAULT_BR_PROM_PORT),
-            },
-            'br': {
-                'Profile': False,
+                'prometheus': prom_addr_br(name, v, DEFAULT_BR_PROM_PORT),
             },
         }
         return raw_entry
@@ -115,35 +112,26 @@ class GoGenerator(object):
             base, name)
         raw_entry = {
             'general': {
-                'ID': name,
-                'ConfigDir': config_dir,
-                'ReconnectToDispatcher': True,
+                'id': name,
+                'config_dir': config_dir,
+                'reconnect_to_dispatcher': True,
             },
             'log': self._log_entry(name),
-            'trustDB': {
-                'Backend': 'sqlite',
-                'Connection': os.path.join(self.db_dir, '%s.trust.db' % name),
+            'trust_db': {
+                'backend': 'sqlite',
+                'connection': os.path.join(self.db_dir, '%s.trust.db' % name),
             },
-            'beaconDB':     {
-                'Backend': 'sqlite',
-                'Connection': os.path.join(self.db_dir, '%s.beacon.db' % name),
+            'beacon_db':     {
+                'backend': 'sqlite',
+                'connection': os.path.join(self.db_dir, '%s.beacon.db' % name),
+            },
+            'path_db': {
+                'backend': 'sqlite',
+                'connection': os.path.join(self.db_dir, '%s.path.db' % name),
             },
             'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(name, infra_elem, CS_PROM_PORT),
             'quic': self._quic_conf_entry(CS_QUIC_PORT, self.args.svcfrac, infra_elem),
-            'cs': {
-                'LeafReissueLeadTime': "6h",
-                'IssuerReissueLeadTime': "3d",
-                'ReissueRate': "10s",
-                'ReissueTimeout': "5s",
-            },
-            'ps': {
-                'pathDB': {
-                    'Backend': 'sqlite',
-                    'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
-                },
-                'SegSync': True,
-            },
         }
         return raw_entry
 
@@ -173,9 +161,9 @@ class GoGenerator(object):
                 'ReconnectToDispatcher': True,
             },
             'log': self._log_entry(name),
-            'trustDB': {
-                'Backend': 'sqlite',
-                'Connection': os.path.join(self.db_dir, '%s.trust.db' % name),
+            'trust_db': {
+                'backend': 'sqlite',
+                'connection': os.path.join(self.db_dir, '%s.trust.db' % name),
             },
             'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(name, infra_elem, CO_PROM_PORT),
@@ -250,24 +238,24 @@ class GoGenerator(object):
         ip = sciond_ip(self.args.docker, topo_id, self.args.networks)
         raw_entry = {
             'general': {
-                'ID': name,
-                'ConfigDir': config_dir,
-                'ReconnectToDispatcher': True,
+                'id': name,
+                'config_dir': config_dir,
+                'reconnect_to_dispatcher': True,
             },
             'log': self._log_entry(name),
-            'trustDB': {
-                'Backend': 'sqlite',
-                'Connection': os.path.join(self.db_dir, '%s.trust.db' % name),
+            'trust_db': {
+                'backend': 'sqlite',
+                'connection': os.path.join(self.db_dir, '%s.trust.db' % name),
+            },
+            'path_db': {
+                'connection': os.path.join(self.db_dir, '%s.path.db' % name),
             },
             'sd': {
                 'address': socket_address_str(ip, SD_API_PORT),
-                'pathDB': {
-                    'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
-                },
             },
             'tracing': self._tracing_entry(),
             'metrics': {
-                'Prometheus': socket_address_str(ip, SCIOND_PROM_PORT)
+                'prometheus': socket_address_str(ip, SCIOND_PROM_PORT)
             },
             'quic': self._quic_conf_entry(SD_QUIC_PORT, self.args.svcfrac),
         }
@@ -299,11 +287,11 @@ class GoGenerator(object):
                                                self.args.networks, DISP_PROM_PORT, name)
         return {
             'dispatcher': {
-                'ID': name,
+                'id': name,
             },
             'log': self._log_entry(name),
             'metrics': {
-                'Prometheus': prometheus_addr,
+                'prometheus': prometheus_addr,
             },
         }
 
@@ -322,16 +310,13 @@ class GoGenerator(object):
                 'path': os.path.join(self.log_dir, "%s.log" % name),
                 'level': self.log_level,
             },
-            'console': {
-                'level': 'crit',
-            },
         }
         return entry
 
     def _metrics_entry(self, name, infra_elem, base_port):
         prom_addr = prom_addr_infra(self.args.docker, name, infra_elem, base_port)
         return {
-            'Prometheus': prom_addr
+            'prometheus': prom_addr
         }
 
     def _quic_conf_entry(self, port, svcfrac, elem=None):
@@ -341,7 +326,7 @@ class GoGenerator(object):
             port = pub['Public']['L4Port']+1
         return {
             'address':  '[%s]:%s' % (addr, port),
-            'CertFile': os.path.join(self.certs_dir, 'tls.pem'),
-            'KeyFile': os.path.join(self.certs_dir, 'tls.key'),
-            'ResolutionFraction': svcfrac,
+            'cert_file': os.path.join(self.certs_dir, 'tls.pem'),
+            'key_file': os.path.join(self.certs_dir, 'tls.key'),
+            'resolution_fraction': svcfrac,
         }

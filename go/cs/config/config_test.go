@@ -62,6 +62,7 @@ func InitTestConfig(cfg *Config) {
 	logtest.InitTestLogging(&cfg.Logging)
 	truststoragetest.InitTestConfig(&cfg.TrustDB)
 	beaconstoragetest.InitTestBeaconDBConf(&cfg.BeaconDB)
+	pathstoragetest.InitTestPathDBConf(&cfg.PathDB)
 	InitTestBSConfig(&cfg.BS)
 }
 
@@ -81,8 +82,8 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	logtest.CheckTestLogging(t, &cfg.Logging, id)
 	truststoragetest.CheckTestConfig(t, &cfg.TrustDB, id)
 	beaconstoragetest.CheckTestBeaconDBConf(t, &cfg.BeaconDB, id)
+	pathstoragetest.CheckTestPathDBConf(t, &cfg.PathDB, id)
 	CheckTestBSConfig(t, &cfg.BS)
-	CheckTestCSConfig(t, &cfg.CS)
 	CheckTestPSConfig(t, &cfg.PS, id)
 }
 
@@ -105,30 +106,9 @@ func CheckTestPolicies(t *testing.T, cfg *Policies) {
 	assert.Empty(t, cfg.DownRegistration)
 }
 
-func InitTestCSConfig(cfg *CSConfig) {
-	cfg.AutomaticRenewal = true
-	cfg.DisableCorePush = true
-}
-
-func CheckTestCSConfig(t *testing.T, cfg *CSConfig) {
-	assert.Equal(t, ReissReqRate, cfg.ReissueRate.Duration)
-	assert.Equal(t, ReissueReqTimeout, cfg.ReissueTimeout.Duration)
-	assert.False(t, cfg.AutomaticRenewal)
-	assert.Equal(t, LeafReissTime, cfg.LeafReissueLeadTime.Duration)
-	assert.Equal(t, IssuerReissTime, cfg.IssuerReissueLeadTime.Duration)
-	assert.False(t, cfg.DisableCorePush)
-}
-
 func InitTestPSConfig(cfg *PSConfig) {
-	cfg.SegSync = true
-	pathstoragetest.InitTestPathDBConf(&cfg.PathDB)
-	pathstoragetest.InitTestRevCacheConf(&cfg.RevCache)
 }
 
 func CheckTestPSConfig(t *testing.T, cfg *PSConfig, id string) {
-	pathstoragetest.CheckTestPathDBConf(t, &cfg.PathDB, id)
-	pathstoragetest.CheckTestRevCacheConf(t, &cfg.RevCache)
-	assert.False(t, cfg.SegSync)
 	assert.Equal(t, DefaultQueryInterval, cfg.QueryInterval.Duration)
-	assert.Equal(t, DefaultCryptoSyncInterval, cfg.CryptoSyncInterval.Duration)
 }

@@ -53,22 +53,9 @@ const (
 	// DefaultRevOverlap specifies the default for how long before the expiry of an existing
 	// revocation the revoker can reissue a new revocation.
 	DefaultRevOverlap = DefaultRevTTL / 2
-
-	// LeafReissTime is the default value for CSConf.LeafReissTime. It is set to
-	// the default path segment TTL to provide optimal coverage.
-	LeafReissTime = 6 * time.Hour
-	// IssuerReissTime is the default value for CSConf.IssuerReissTime. It is larger
-	// than the leaf certificate validity period in order to provide optimal coverage.
-	IssuerReissTime = (3*24 + 1) * time.Hour
-	// ReissReqRate is the default interval between two consecutive reissue requests.
-	ReissReqRate = 10 * time.Second
-	// ReissueReqTimeout is the default timeout of a reissue request.
-	ReissueReqTimeout = 5 * time.Second
-)
-
-var (
-	DefaultQueryInterval      = 5 * time.Minute
-	DefaultCryptoSyncInterval = 30 * time.Second
+	// DefaultQueryInterval is the default interval after which the segment
+	// cache expires.
+	DefaultQueryInterval = 5 * time.Minute
 )
 
 // Error values
@@ -81,17 +68,17 @@ var _ config.Config = (*Config)(nil)
 
 // Config is the beacon server configuration.
 type Config struct {
-	General  env.General
-	Features env.Features
-	Logging  log.Config `toml:"log,omitempty"`
-	Metrics  env.Metrics
-	Tracing  env.Tracing
-	QUIC     env.QUIC `toml:"quic"`
-	TrustDB  truststorage.TrustDBConf
-	BeaconDB beaconstorage.BeaconDBConf
-	BS       BSConfig
-	CS       CSConfig
-	PS       PSConfig
+	General  env.General                `toml:"general,omitempty"`
+	Features env.Features               `toml:"features,omitempty"`
+	Logging  log.Config                 `toml:"log,omitempty"`
+	Metrics  env.Metrics                `toml:"metrics,omitempty"`
+	Tracing  env.Tracing                `toml:"tracing,omitempty"`
+	QUIC     env.QUIC                   `toml:"quic,omitempty"`
+	BeaconDB beaconstorage.BeaconDBConf `toml:"beacon_db,omitempty"`
+	TrustDB  truststorage.TrustDBConf   `toml:"trust_db,omitempty"`
+	PathDB   pathstorage.PathDBConf     `toml:"path_db,omitempty"`
+	BS       BSConfig                   `toml:"beaconing,omitempty"`
+	PS       PSConfig                   `toml:"path,omitempty"`
 }
 
 // InitDefaults initializes the default values for all parts of the config.
@@ -102,10 +89,10 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.Tracing,
-		&cfg.TrustDB,
 		&cfg.BeaconDB,
+		&cfg.TrustDB,
+		&cfg.PathDB,
 		&cfg.BS,
-		&cfg.CS,
 		&cfg.PS,
 	)
 }
@@ -117,10 +104,10 @@ func (cfg *Config) Validate() error {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
-		&cfg.TrustDB,
 		&cfg.BeaconDB,
+		&cfg.TrustDB,
+		&cfg.PathDB,
 		&cfg.BS,
-		&cfg.CS,
 		&cfg.PS,
 	)
 }
@@ -134,10 +121,10 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Metrics,
 		&cfg.Tracing,
 		&cfg.QUIC,
-		&cfg.TrustDB,
 		&cfg.BeaconDB,
+		&cfg.TrustDB,
+		&cfg.PathDB,
 		&cfg.BS,
-		&cfg.CS,
 		&cfg.PS,
 	)
 }
@@ -152,85 +139,77 @@ var _ config.Config = (*BSConfig)(nil)
 // BSConfig holds the configuration specific to the beacon server.
 type BSConfig struct {
 	// KeepaliveInterval is the interval between sending interface keepalives.
-	KeepaliveInterval util.DurWrap
+	KeepaliveInterval util.DurWrap `toml:"keepalive_interval,omitempty"`
 	// KeepaliveTimeout is the timeout indicating how long an interface can
 	// receive no keepalive until it is considered expired.
-	KeepaliveTimeout util.DurWrap
+	KeepaliveTimeout util.DurWrap `toml:"keepalive_timeout,omitempty"`
 	// OriginationInterval is the interval between originating beacons in a core BS.
-	OriginationInterval util.DurWrap
+	OriginationInterval util.DurWrap `toml:"origination_interval,omitempty"`
 	// PropagationInterval is the interval between propagating beacons.
-	PropagationInterval util.DurWrap
+	PropagationInterval util.DurWrap `toml:"propagation_interval,omitempty"`
 	// RegistrationInterval is the interval between registering segments.
-	RegistrationInterval util.DurWrap
+	RegistrationInterval util.DurWrap `toml:"registration_interval,omitempty"`
 	// ExpiredCheckInterval is the interval between checking whether interfaces
 	// have expired and should be revoked.
-	ExpiredCheckInterval util.DurWrap
+	ExpiredCheckInterval util.DurWrap `toml:"expired_check_interval,omitempty"`
 	// RevTTL is the revocation TTL. (default 10s)
-	RevTTL util.DurWrap
+	RevTTL util.DurWrap `toml:"rev_ttl,omitempty"`
 	// RevOverlap specifies for how long before the expiry of an existing revocation the revoker
 	// can reissue a new revocation. (default 5s)
-	RevOverlap util.DurWrap
+	RevOverlap util.DurWrap `toml:"rev_overlap,omitempty"`
 	// Policies contains the policy files.
-	Policies Policies
+	Policies Policies `toml:"policies,omitempty"`
 }
 
 // InitDefaults the default values for the durations that are equal to zero.
 func (cfg *BSConfig) InitDefaults() {
-	initDurWrap(&cfg.KeepaliveInterval, DefaultKeepaliveInterval)
-	initDurWrap(&cfg.KeepaliveTimeout, DefaultKeepaliveTimeout)
-	initDurWrap(&cfg.OriginationInterval, DefaultOriginationInterval)
-	initDurWrap(&cfg.PropagationInterval, DefaultPropagationInterval)
-	initDurWrap(&cfg.RegistrationInterval, DefaultRegistrationInterval)
-	initDurWrap(&cfg.ExpiredCheckInterval, DefaultExpiredCheckInterval)
-	initDurWrap(&cfg.RevTTL, DefaultRevTTL)
-	initDurWrap(&cfg.RevOverlap, DefaultRevOverlap)
 }
 
 // Validate validates that all durations are set.
 func (cfg *BSConfig) Validate() error {
 	if cfg.KeepaliveInterval.Duration == 0 {
-		return serrors.New("KeepaliveInterval not set")
+		initDurWrap(&cfg.KeepaliveInterval, DefaultKeepaliveInterval)
 	}
 	if cfg.KeepaliveTimeout.Duration == 0 {
-		return serrors.New("KeepaliveTimeout not set")
+		initDurWrap(&cfg.KeepaliveTimeout, DefaultKeepaliveTimeout)
 	}
 	if cfg.OriginationInterval.Duration == 0 {
-		return serrors.New("OriginationInterval not set")
+		initDurWrap(&cfg.OriginationInterval, DefaultOriginationInterval)
 	}
 	if cfg.PropagationInterval.Duration == 0 {
-		return serrors.New("PropagationInterval not set")
+		initDurWrap(&cfg.PropagationInterval, DefaultPropagationInterval)
 	}
 	if cfg.RegistrationInterval.Duration == 0 {
-		return serrors.New("RegistrationInterval not set")
+		initDurWrap(&cfg.RegistrationInterval, DefaultRegistrationInterval)
 	}
 	if cfg.ExpiredCheckInterval.Duration == 0 {
-		return serrors.New("ExpiredCheckInterval not set")
+		initDurWrap(&cfg.ExpiredCheckInterval, DefaultExpiredCheckInterval)
 	}
 	if cfg.RevTTL.Duration == 0 {
-		return serrors.New("RevTTL is not set")
+		initDurWrap(&cfg.RevTTL, DefaultRevTTL)
 	}
 	if cfg.RevTTL.Duration < path_mgmt.MinRevTTL {
-		return common.NewBasicError("RevTTL must be equal or greater than MinRevTTL", nil,
+		return common.NewBasicError("rev_ttl must be equal or greater than MinRevTTL", nil,
 			"MinRevTTL", path_mgmt.MinRevTTL)
 	}
 	if cfg.RevOverlap.Duration == 0 {
-		return serrors.New("RevOverlap not set")
+		initDurWrap(&cfg.RevOverlap, DefaultRevOverlap)
 	}
 	if cfg.RevOverlap.Duration > cfg.RevTTL.Duration {
-		return serrors.New("RevOverlap cannot be greater than RevTTL")
+		return serrors.New("rev_overlap cannot be greater than rev_ttl")
 	}
 	return nil
 }
 
 // Sample generates a sample for the beacon server specific configuration.
 func (cfg *BSConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, BSSample)
+	config.WriteString(dst, bsSample)
 	config.WriteSample(dst, path, ctx, &cfg.Policies)
 }
 
 // ConfigName is the toml key for the beacon server specific configuration.
 func (cfg *BSConfig) ConfigName() string {
-	return "bs"
+	return "beaconing"
 }
 
 func initDurWrap(w *util.DurWrap, def time.Duration) {
@@ -239,104 +218,33 @@ func initDurWrap(w *util.DurWrap, def time.Duration) {
 	}
 }
 
-var _ config.Config = (*CSConfig)(nil)
-
-type CSConfig struct {
-	// LeafReissueLeadTime indicates how long in advance of leaf cert expiration
-	// the reissuance process starts.
-	LeafReissueLeadTime util.DurWrap
-	// IssuerReissueLeadTime indicates how long in advance core cert expiration
-	// the self reissuance process starts.
-	IssuerReissueLeadTime util.DurWrap
-	// ReissueRate is the interval between two consecutive reissue requests.
-	ReissueRate util.DurWrap
-	// ReissueTimeout is the timeout for resissue request.
-	ReissueTimeout util.DurWrap
-	// AutomaticRenewal whether automatic reissuing is enabled.
-	AutomaticRenewal bool
-	// DisableCorePush disables the core pusher task.
-	DisableCorePush bool
-}
-
-func (cfg *CSConfig) InitDefaults() {
-	if cfg.LeafReissueLeadTime.Duration == 0 {
-		cfg.LeafReissueLeadTime.Duration = LeafReissTime
-	}
-	if cfg.IssuerReissueLeadTime.Duration == 0 {
-		cfg.IssuerReissueLeadTime.Duration = IssuerReissTime
-	}
-	if cfg.ReissueRate.Duration == 0 {
-		cfg.ReissueRate.Duration = ReissReqRate
-	}
-	if cfg.ReissueTimeout.Duration == 0 {
-		cfg.ReissueTimeout.Duration = ReissueReqTimeout
-	}
-}
-
-func (cfg *CSConfig) Validate() error {
-	if cfg.LeafReissueLeadTime.Duration == 0 {
-		return serrors.New("LeafReissueLeadTime must not be zero")
-	}
-	if cfg.IssuerReissueLeadTime.Duration == 0 {
-		return serrors.New("IssuerReissueLeadTime must not be zero")
-	}
-	if cfg.ReissueRate.Duration == 0 {
-		return serrors.New("ReissueRate must not be zero")
-	}
-	if cfg.ReissueTimeout.Duration == 0 {
-		return serrors.New("ReissueTimeout must not be zero")
-	}
-	return nil
-}
-
-func (cfg *CSConfig) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
-	config.WriteString(dst, CSSample)
-}
-
-func (cfg *CSConfig) ConfigName() string {
-	return "cs"
-}
-
 var _ config.Config = (*PSConfig)(nil)
 
 type PSConfig struct {
-	// SegSync enables the "old" replication of down segments between cores,
-	// using SegSync messages.
-	SegSync  bool
-	PathDB   pathstorage.PathDBConf
-	RevCache pathstorage.RevCacheConf
 	// QueryInterval specifies after how much time segments
 	// for a destination should be refetched.
-	QueryInterval util.DurWrap
-	// CryptoSyncInterval specifies the interval of crypto pushes towards
-	// the local CS.
-	CryptoSyncInterval util.DurWrap
+	QueryInterval util.DurWrap `toml:"query_interval,omitempty"`
 }
 
 func (cfg *PSConfig) InitDefaults() {
 	if cfg.QueryInterval.Duration == 0 {
 		cfg.QueryInterval.Duration = DefaultQueryInterval
 	}
-	if cfg.CryptoSyncInterval.Duration == 0 {
-		cfg.CryptoSyncInterval.Duration = DefaultCryptoSyncInterval
-	}
-	config.InitAll(&cfg.PathDB, &cfg.RevCache)
 }
 
 func (cfg *PSConfig) Validate() error {
 	if cfg.QueryInterval.Duration == 0 {
-		return serrors.New("QueryInterval must not be zero")
+		return serrors.New("query_interval must not be zero")
 	}
-	return config.ValidateAll(&cfg.PathDB, &cfg.RevCache)
+	return nil
 }
 
 func (cfg *PSConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, PSSample)
-	config.WriteSample(dst, path, ctx, &cfg.PathDB, &cfg.RevCache)
+	config.WriteString(dst, psSample)
 }
 
 func (cfg *PSConfig) ConfigName() string {
-	return "ps"
+	return "path"
 }
 
 var _ config.Config = (*Policies)(nil)
@@ -347,28 +255,28 @@ type Policies struct {
 	config.NoValidator
 	// Propagation contains the file path for the propagation policy. If this
 	// is the empty string, the default policy is used.
-	Propagation string
+	Propagation string `toml:"propagation,omitempty"`
 	// CoreRegistration contains the file path for the core registration
 	// policy. If this is the empty string, the default policy is used. In a
 	// non-core beacon server, this field is ignored.
-	CoreRegistration string
+	CoreRegistration string `toml:"core_registration,omitempty"`
 	// UpRegistration contains the file path for the up registration policy. If
 	// this is the empty string, the default policy is used. In a core beacon
 	// server, this field is ignored.
-	UpRegistration string
+	UpRegistration string `toml:"up_registration,omitempty"`
 	// DownRegistration contains the file path for the down registration policy.
 	// If this is the empty string, the default policy is used. In a core beacon
 	// server, this field is ignored.
-	DownRegistration string
+	DownRegistration string `toml:"down_registration,omitempty"`
 	// HiddenPathRegistration contains the file path for the hidden path registration policy
 	// and the corresponding hidden path groups.
 	// If this is the empty string, no hidden path functionality is used.
-	HiddenPathRegistration string
+	HiddenPathRegistration string `toml:"hidden_path_registration,omitempty"`
 }
 
 // Sample generates a sample for the beacon server specific configuration.
 func (cfg *Policies) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
-	config.WriteString(dst, PoliciesSample)
+	config.WriteString(dst, policiesSample)
 }
 
 // ConfigName is the toml key for the beacon server specific configuration.

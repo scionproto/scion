@@ -1,6 +1,6 @@
 [general]
-ConfigDir = "/share/conf"
-ID = <AUTOFILLED>
+config_dir = "/share/conf"
+id = <AUTOFILLED>
 
 [log.file]
 level = "debug"

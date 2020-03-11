@@ -34,7 +34,6 @@ import (
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
@@ -47,13 +46,8 @@ import (
 )
 
 const (
-	DefaultLoggingLevel = "info"
-	// Default max size of log files in MiB
-	DefaultLoggingFileSize = 50
-	// Default max age of log file in days
-	DefaultLoggingFileMaxAge = 7
-	// Default file name for topology file (only the last element of the path)
-	DefaultTopologyPath = "topology.json"
+	// TopologyFile is the file name for the topology file.
+	TopologyFile = "topology.json"
 
 	// SciondInitConnectPeriod is the default total amount of time spent
 	// attempting to connect to sciond on start.
@@ -77,26 +71,21 @@ var _ config.Config = (*General)(nil)
 type General struct {
 	// ID is the SCION element ID. This is used to choose the relevant
 	// portion of the topology file for some services.
-	ID string
+	ID string `toml:"id,omitempty"`
 	// ConfigDir for loading extra files (currently, only topology.json)
-	ConfigDir string
-	// Topology is the file path for the local topology JSON file.
-	Topology string
+	ConfigDir string `toml:"config_dir,omitempty"`
 	// ReconnectToDispatcher can be set to true to enable transparent dispatcher
 	// reconnects.
-	ReconnectToDispatcher bool
+	ReconnectToDispatcher bool `toml:"reconnect_to_dispatcher,omitempty"`
 }
 
 // InitDefaults sets the default value for Topology if not already set.
 func (cfg *General) InitDefaults() {
-	if cfg.Topology == "" {
-		cfg.Topology = filepath.Join(cfg.ConfigDir, DefaultTopologyPath)
-	}
 }
 
 func (cfg *General) Validate() error {
 	if cfg.ID == "" {
-		return serrors.New("No element ID specified")
+		return serrors.New("no element id specified")
 	}
 	return cfg.checkDir()
 }
@@ -109,7 +98,7 @@ func (cfg *General) checkDir() error {
 			return err
 		}
 		if !info.IsDir() {
-			return common.NewBasicError("Not a directory", nil, "dir", cfg.ConfigDir)
+			return serrors.New("config_dir is not a directory", "dir", cfg.ConfigDir)
 		}
 	}
 	return nil
@@ -123,21 +112,26 @@ func (cfg *General) ConfigName() string {
 	return "general"
 }
 
+// Topology returns the path to the topology file
+func (cfg *General) Topology() string {
+	return filepath.Join(cfg.ConfigDir, TopologyFile)
+}
+
 var _ config.Config = (*SCIONDClient)(nil)
 
 // SCIONDClient contains information for running snet with sciond.
 type SCIONDClient struct {
 	// Address of the SCIOND server the client should connect to. Defaults to
 	// 127.0.0.1:30255.
-	Address string
+	Address string `toml:"address,omitempty"`
 	// InitialConnectPeriod is the maximum amount of time spent attempting to
 	// connect to sciond on start.
-	InitialConnectPeriod util.DurWrap
+	InitialConnectPeriod util.DurWrap `toml:"initial_connect_period,omitempty"`
 	// FakeData can be used to replace the local SCIOND with a fake data source.
 	// It must point to a fake SCIOND configuration file.
-	FakeData string
+	FakeData string `toml:"fake_data,omitempty"`
 	// PathCount is the maximum number of paths returned to the user.
-	PathCount uint16
+	PathCount uint16 `toml:"path_count,omitempty"`
 }
 
 func (cfg *SCIONDClient) InitDefaults() {
@@ -161,7 +155,7 @@ func (cfg *SCIONDClient) Sample(dst io.Writer, path config.Path, _ config.CtxMap
 }
 
 func (cfg *SCIONDClient) ConfigName() string {
-	return "sd_client"
+	return "sciond_connection"
 }
 
 // SetupEnv initializes a basic environment for applications. If reloadF is not
@@ -215,7 +209,7 @@ type Metrics struct {
 	config.NoValidator
 	// Prometheus contains the address to export prometheus metrics on. If
 	// not set, metrics are not exported.
-	Prometheus string
+	Prometheus string `toml:"prometheus,omitempty"`
 }
 
 func (cfg *Metrics) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
@@ -234,7 +228,7 @@ func (cfg *Metrics) StartPrometheus() {
 		go func() {
 			defer log.HandlePanic()
 			if err := http.ListenAndServe(cfg.Prometheus, nil); err != nil {
-				fatal.Fatal(common.NewBasicError("HTTP ListenAndServe error", err))
+				fatal.Fatal(serrors.WrapStr("HTTP ListenAndServe error", err))
 			}
 		}()
 	}
@@ -243,12 +237,12 @@ func (cfg *Metrics) StartPrometheus() {
 // Tracing contains configuration for tracing.
 type Tracing struct {
 	// Enabled enables tracing for this service.
-	Enabled bool
+	Enabled bool `toml:"enabled,omitempty"`
 	// Enable debug mode.
-	Debug bool
+	Debug bool `toml:"debug,omitempty"`
 	// Agent is the address of the local agent that handles the reported
 	// traces. (default: localhost:6831)
-	Agent string
+	Agent string `toml:"agent,omitempty"`
 }
 
 func (cfg *Tracing) InitDefaults() {
@@ -290,10 +284,10 @@ func (cfg *Tracing) NewTracer(id string) (opentracing.Tracer, io.Closer, error) 
 
 // QUIC contains configuration for control-plane speakers.
 type QUIC struct {
-	ResolutionFraction float64
-	Address            string
-	CertFile           string
-	KeyFile            string
+	ResolutionFraction float64 `toml:"resolution_fraction,omitempty"`
+	Address            string  `toml:"address,omitempty"`
+	CertFile           string  `toml:"cert_file,omitempty"`
+	KeyFile            string  `toml:"key_file,omitempty"`
 }
 
 func (cfg *QUIC) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {

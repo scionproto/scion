@@ -28,7 +28,6 @@ container_image(
         "-config",
         "/disp.toml",
     ],
-    stamp = True,
 )
 
 container_image(
@@ -45,5 +44,4 @@ container_image(
         "-config",
         "/sd.toml",
     ],
-    stamp = True,
 )

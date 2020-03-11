@@ -36,13 +36,15 @@ var (
 var _ config.Config = (*Config)(nil)
 
 type Config struct {
-	General  env.General
-	Features env.Features
-	Logging  log.Config `toml:"log,omitempty"`
-	Metrics  env.Metrics
-	Tracing  env.Tracing
-	TrustDB  truststorage.TrustDBConf
-	SD       SDConfig
+	General  env.General              `toml:"general,omitempty"`
+	Features env.Features             `toml:"features,omitempty"`
+	Logging  log.Config               `toml:"log,omitempty"`
+	Metrics  env.Metrics              `toml:"metrics,omitempty"`
+	Tracing  env.Tracing              `toml:"tracing,omitempty"`
+	TrustDB  truststorage.TrustDBConf `toml:"trust_db,omitempty"`
+	// PathDB contains the configuration for the PathDB connection.
+	PathDB pathstorage.PathDBConf `toml:"path_db,omitempty"`
+	SD     SDConfig               `toml:"sd,omitempty"`
 }
 
 func (cfg *Config) InitDefaults() {
@@ -53,6 +55,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Metrics,
 		&cfg.Tracing,
 		&cfg.TrustDB,
+		&cfg.PathDB,
 		&cfg.SD,
 	)
 }
@@ -64,6 +67,7 @@ func (cfg *Config) Validate() error {
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.TrustDB,
+		&cfg.PathDB,
 		&cfg.SD,
 	)
 }
@@ -76,6 +80,7 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Metrics,
 		&cfg.Tracing,
 		&cfg.TrustDB,
+		&cfg.PathDB,
 		&cfg.SD,
 	)
 }
@@ -89,14 +94,10 @@ var _ config.Config = (*SDConfig)(nil)
 type SDConfig struct {
 	// Address is the local address to listen on for SCION messages, and to send out messages to
 	// other nodes.
-	Address string
-	// PathDB contains the configuration for the PathDB connection.
-	PathDB pathstorage.PathDBConf
-	// RevCache contains the configuration for the RevCache connection.
-	RevCache pathstorage.RevCacheConf
+	Address string `toml:"address,omitempty"`
 	// QueryInterval specifies after how much time segments
 	// for a destination should be refetched.
-	QueryInterval util.DurWrap
+	QueryInterval util.DurWrap `toml:"query_interval,omitempty"`
 }
 
 func (cfg *SDConfig) InitDefaults() {
@@ -106,19 +107,17 @@ func (cfg *SDConfig) InitDefaults() {
 	if cfg.QueryInterval.Duration == 0 {
 		cfg.QueryInterval.Duration = DefaultQueryInterval
 	}
-	config.InitAll(&cfg.PathDB, &cfg.RevCache)
 }
 
 func (cfg *SDConfig) Validate() error {
 	if cfg.QueryInterval.Duration == 0 {
 		return serrors.New("QueryInterval must not be zero")
 	}
-	return config.ValidateAll(&cfg.PathDB, &cfg.RevCache)
+	return nil
 }
 
 func (cfg *SDConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
 	config.WriteString(dst, sdSample)
-	config.WriteSample(dst, path, ctx, &cfg.PathDB, &cfg.RevCache)
 }
 
 func (cfg *SDConfig) ConfigName() string {

@@ -37,7 +37,6 @@ import (
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/profile"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -79,10 +78,6 @@ func realMain() int {
 	if err := checkPerms(); err != nil {
 		log.Crit("Permissions checks failed", "err", err)
 		return 1
-	}
-	if cfg.BR.Profile {
-		// Start profiling if requested.
-		profile.Start(cfg.General.ID)
 	}
 	var err error
 	if r, err = NewRouter(cfg.General.ID, cfg.General.ConfigDir); err != nil {

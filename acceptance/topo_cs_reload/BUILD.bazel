@@ -30,7 +30,6 @@ container_image(
         "-config",
         "/disp.toml",
     ],
-    stamp = True,
 )
 
 container_image(
@@ -50,7 +49,6 @@ container_image(
         "-config",
         "/cs.toml",
     ],
-    stamp = True,
 )
 
 genrule(

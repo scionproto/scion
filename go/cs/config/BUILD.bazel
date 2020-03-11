@@ -5,8 +5,7 @@ go_library(
     srcs = [
         "bs_sample.go",
         "config.go",
-        "cs_sample.go",
-        "ps_sample.go",
+        "sample.go",
     ],
     importpath = "github.com/scionproto/scion/go/cs/config",
     visibility = ["//visibility:public"],

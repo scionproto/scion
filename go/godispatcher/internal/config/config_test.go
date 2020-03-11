@@ -44,7 +44,6 @@ func InitTestConfig(cfg *Config) {
 	envtest.InitTest(nil, &cfg.Metrics, nil, nil)
 	logtest.InitTestLogging(&cfg.Logging)
 	cfg.Dispatcher.DeleteSocket = true
-	cfg.Dispatcher.PerfData = "Invalid"
 }
 
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
@@ -54,6 +53,5 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	assert.Equal(t, reliable.DefaultDispPath, cfg.Dispatcher.ApplicationSocket)
 	assert.Equal(t, reliable.DefaultDispSocketFileMode, int(cfg.Dispatcher.SocketFileMode))
 	assert.Equal(t, topology.EndhostPort, cfg.Dispatcher.OverlayPort)
-	assert.Empty(t, cfg.Dispatcher.PerfData)
 	assert.False(t, cfg.Dispatcher.DeleteSocket)
 }

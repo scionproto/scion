@@ -16,17 +16,13 @@ package env
 
 const generalSample = `
 # The ID of the service. (required)
-ID = "%s"
+id = "%s"
 
 # Directory for loading AS information, certs, keys, path policy, topology.
-ConfigDir = "/etc/scion"
-
-# Topology file. If not specified, it is loaded from the config directory.
-# (default ConfigDir/topology.json)
-Topology = "/etc/scion/topology.json"
+config_dir = "/etc/scion"
 
 # Enable the snetproxy reconnecter. (default false)
-ReconnectToDispatcher = false
+reconnect_to_dispatcher = false
 `
 
 const featuresSample = `
@@ -35,71 +31,46 @@ const featuresSample = `
 
 const sciondClientSample = `
 # Address of the SCIOND server the client should connect to.
-Address = "127.0.0.1:30255"
+address = "127.0.0.1:30255"
 
 # Maximum time spent attempting to connect to sciond on start. (default 20s)
-InitialConnectPeriod = "20s"
+initial_connect_period = "20s"
 
 # Maximum numer of paths provided by SCIOND.
 # Zero means that all the paths should be provided. (default 0)
-PathCount = 0
-`
-
-const loggingFileSample = `
-# Location of the logging file. If not specified, logging to file is disabled.
-Path = "/var/log/scion/%s.log"
-
-# File logging level. (trace|debug|info|warn|error|crit) (default debug)
-Level = "debug"
-
-# Max size of log file in MiB. (default 50)
-Size = 50
-
-# Max age of log file in days. (default 7)
-MaxAge = 7
-
-# Maximum number of log files to retain. (default 10)
-MaxBackups = 10
-
-# How frequently to flush to the log file, in seconds. If 0, all messages
-# are immediately flushed. If negative, messages are never flushed
-# automatically. (default 5)
-FlushInterval = 5
-`
-
-const loggingConsoleSample = `
-# Console logging level (trace|debug|info|warn|error|crit) (default crit)
-Level = "crit"
+path_count = 0
 `
 
 const metricsSample = `
 # The address to export prometheus metrics on (host:port or ip:port or :port).
+# The prometheus metrics can be found under /metrics, furthermore pprof
+# endpoints are exposed see (https://golang.org/pkg/net/http/pprof/).
 # If not set, metrics are not exported. (default "")
-Prometheus = ""
+prometheus = ""
 `
 
 const tracingSample = `
 # Enable the tracing. (default false)
-Enabled = false
+enabled = false
 # Enable debug mode. (default false)
-Debug = false
+debug = false
 # Address of the local agent that handles the reported traces.
 # (default: localhost:6831)
-Agent = "localhost:6831"
+agent = "localhost:6831"
 `
 
 const quicSample = `
 # The address to start a QUIC server on (ip:port). If not set, a QUIC server is
 # not started. (default "")
-Address = ""
+address = ""
 
 # Certificate file to use for authenticating QUIC connections.
-CertFile = "/etc/scion/quic/tls.pem"
+cert_file = "/etc/scion/quic/tls.pem"
 
 # Key file to use for authenticating QUIC connections.
-KeyFile = "/etc/scion/quic/tls.key"
+key_file = "/etc/scion/quic/tls.key"
 
-# SVCResolutionFraction enables SVC resolution for traffic to SVC
+# Enables SVC resolution for traffic to SVC
 # destinations in a way that is also compatible with control plane servers
 # that do not implement the SVC Resolution Mechanism. The value represents
 # the percentage of time, out of the total available context timeout,
@@ -111,5 +82,5 @@ KeyFile = "/etc/scion/quic/tls.key"
 # destination. If the value is 1 or more, then legacy behavior is
 # disabled, and data packets are never sent to SVC destinations unless the
 # resolution step is successful.
-ResolutionFraction = 0.0
+resolution_fraction = 0.0
 `

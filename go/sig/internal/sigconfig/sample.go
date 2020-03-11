@@ -18,29 +18,26 @@ const idSample = "sig4"
 
 const sigSample = `
 # ID of the SIG. (required)
-ID = "%s"
+id = "%s"
 
 # The SIG config json file. (required)
-SIGConfig = "/etc/scion/sig/sig.json"
+sig_config = "/etc/scion/sig/sig.json"
 
-# The local IA. (required)
-IA = "1-ff00:0:113"
+# The local ISD-AS. (required)
+isd_as = "1-ff00:0:113"
 
 # The bind IP address. (required)
-IP = "192.0.2.100"
+ip = "192.0.2.100"
 
 # Control data port, e.g. keepalives. (default 30256)
-CtrlPort = 30256
+ctrl_port = 30256
 
 # Encapsulation data port. (default 30056)
-EncapPort = 30056
-
-# SCION dispatcher path. (default "")
-Dispatcher = ""
+encap_port = 30056
 
 # Name of TUN device to create. (default DefaultTunName)
-Tun = "sig"
+tun = "sig"
 
 # Id of the routing table. (default 11)
-TunRTableId = 11
+tun_routing_table_id = 11
 `

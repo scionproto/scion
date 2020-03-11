@@ -55,7 +55,6 @@ container_image(
         ":sig_entrypoint",
 
     ],
-    stamp = True,
     workdir = "/share",
     entrypoint = ["./sig.sh"],
 )
@@ -118,7 +117,6 @@ container_image(
         ":tester_integration_scripts",
         ":tester_binaries",
     ],
-    stamp = True,
     workdir = "/share",
     cmd = "tail -f /dev/null"
 )

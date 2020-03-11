@@ -87,7 +87,7 @@ func realMain() int {
 		log.Crit("Setup failed", "err", err)
 		return 1
 	}
-	pathDB, revCache, err := pathstorage.NewPathStorage(cfg.SD.PathDB, cfg.SD.RevCache)
+	pathDB, revCache, err := pathstorage.NewPathStorage(cfg.PathDB)
 	if err != nil {
 		log.Crit("Unable to initialize path storage", "err", err)
 		return 1
@@ -219,7 +219,7 @@ func setup() error {
 	if err := cfg.Validate(); err != nil {
 		return common.NewBasicError("unable to validate config", err)
 	}
-	topo, err := topology.FromJSONFile(cfg.General.Topology)
+	topo, err := topology.FromJSONFile(cfg.General.Topology())
 	if err != nil {
 		return common.NewBasicError("unable to load topology", err)
 	}
@@ -227,7 +227,7 @@ func setup() error {
 	if err := itopo.Update(topo); err != nil {
 		return common.NewBasicError("unable to set initial static topology", err)
 	}
-	infraenv.InitInfraEnvironment(cfg.General.Topology)
+	infraenv.InitInfraEnvironment(cfg.General.Topology())
 	return nil
 }
 
