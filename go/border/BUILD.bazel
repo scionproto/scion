@@ -17,6 +17,7 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//go/border/brconf:go_default_library",
+        "//go/border/ifstate:go_default_library",
         "//go/border/internal/metrics:go_default_library",
         "//go/border/rcmn:go_default_library",
         "//go/border/rctrl:go_default_library",
