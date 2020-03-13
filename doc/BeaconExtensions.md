@@ -177,6 +177,10 @@ of j is smaller than that of i, or expressed as a formula, id(j)<id(i). This als
 means that when it comes to non-peering interfaces, we need only include those with
 an ID bigger than the ID of the egress interface in the latency clusters. If this means
 a cluster would contain no interface IDs anymore, we simply omit it as a whole.
+However, in order to still be able to obtain the intra AS latency in the case where
+the ID of the ingress interface is smaller than that of the egress interface and the
+AS does not serve as a shortcut AS, we will always include the latency from ingress-
+to egress interface.
 
 All these considerations also apply to other properties, such as maximum bandwidth
 (see below).
@@ -190,6 +194,7 @@ struct Latencyinfo {
   lnpcs @0 :List(Lnpcluster);
   lpcs @1 :List(Lpcluster);
   egresslatency @2 :UInt16;
+  intooutlatency @3 :UInt16;
 
   struct Lnpcluster {
      clusterdelay @0 :UInt16;
@@ -264,6 +269,7 @@ encoding, looks like this:
 struct Bandwidthinfo {
   bwcs @0 :List(Bwcluster);
   egressBW @1 :UInt32;
+  intooutBW @2 :UInt32;
 
   struct Bwcluster {
      clusterbw @0 :UInt32;
@@ -392,6 +398,7 @@ struct Linktypeinfo {
   ltnpcs @0 :List(Ltnpcluster);
   ltpcs @1 :List(Ltpcluster);
   egresslt @2 :Linktype;
+  intooutlt @3 :Linktype;
 
   enum Linktype{
      direct @0;
@@ -449,6 +456,7 @@ The format for the number of internal hops looks like this:
 ````CAPNP
 struct Internalhopsinfo {
   hcs @0 :List(Hopcluster);
+  intouthops @1 :UInt8;
 
   struct Hopcluster {
      clusterhops @0 :UInt8;
