@@ -14,7 +14,7 @@ go_library(
         "//go/lib/prom:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/sigdisp:go_default_library",
-        "//go/sig/config:go_default_library",
+        "//go/lib/sigjson:go_default_library",
         "//go/sig/egress:go_default_library",
         "//go/sig/internal/base:go_default_library",
         "//go/sig/internal/ingress:go_default_library",

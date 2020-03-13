@@ -36,7 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sigdisp"
-	"github.com/scionproto/scion/go/sig/config"
+	"github.com/scionproto/scion/go/lib/sigjson"
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/internal/base"
 	"github.com/scionproto/scion/go/sig/internal/ingress"
@@ -195,7 +195,7 @@ func checkPerms() error {
 }
 
 func loadConfig(path string) bool {
-	cfg, err := config.LoadFromFile(path)
+	cfg, err := sigjson.LoadFromFile(path)
 	if err != nil {
 		log.Error("loadConfig: Failed", "err", err)
 		return false
