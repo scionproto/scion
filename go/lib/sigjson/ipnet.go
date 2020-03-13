@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package config is responsible for parsing the SIG json config file into a
-// set of simple intermediate data-structures.
-package config
+package sigjson
 
 import (
 	"encoding/json"

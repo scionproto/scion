@@ -20,7 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/sig/config"
+	"github.com/scionproto/scion/go/lib/sigjson"
 	"github.com/scionproto/scion/go/sig/egress/asmap"
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/reader"
@@ -36,7 +36,7 @@ func Init(tunIO io.ReadWriteCloser) {
 	}()
 }
 
-func ReloadConfig(cfg *config.Cfg) bool {
+func ReloadConfig(cfg *sigjson.Cfg) bool {
 	res := asmap.Map.ReloadConfig(cfg)
 	log.Info("Config reloaded")
 	return res

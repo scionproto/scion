@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
-	"github.com/scionproto/scion/go/sig/config"
+	"github.com/scionproto/scion/go/lib/sigjson"
 	"github.com/scionproto/scion/go/sig/egress/dispatcher"
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/router"
@@ -72,7 +72,7 @@ func newASEntry(ia addr.IA) (*ASEntry, error) {
 	return ae, nil
 }
 
-func (ae *ASEntry) ReloadConfig(cfg *config.Cfg, cfgEntry *config.ASEntry) bool {
+func (ae *ASEntry) ReloadConfig(cfg *sigjson.Cfg, cfgEntry *sigjson.ASEntry) bool {
 	ae.Lock()
 	defer ae.Unlock()
 	// Method calls first to prevent skips due to logical short-circuit
@@ -81,7 +81,7 @@ func (ae *ASEntry) ReloadConfig(cfg *config.Cfg, cfgEntry *config.ASEntry) bool 
 }
 
 // addNewNets adds the networks in ipnets that are not currently configured.
-func (ae *ASEntry) addNewNets(ipnets []*config.IPNet) bool {
+func (ae *ASEntry) addNewNets(ipnets []*sigjson.IPNet) bool {
 	s := true
 	for _, ipnet := range ipnets {
 		err := ae.addNet(ipnet.IPNet())
@@ -94,7 +94,7 @@ func (ae *ASEntry) addNewNets(ipnets []*config.IPNet) bool {
 }
 
 // delOldNets deletes currently configured networks that are not in ipnets.
-func (ae *ASEntry) delOldNets(ipnets []*config.IPNet) bool {
+func (ae *ASEntry) delOldNets(ipnets []*sigjson.IPNet) bool {
 	s := true
 Top:
 	for k, v := range ae.Nets {

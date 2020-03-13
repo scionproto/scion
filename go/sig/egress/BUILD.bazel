@@ -8,7 +8,7 @@ go_library(
     deps = [
         "//go/lib/fatal:go_default_library",
         "//go/lib/log:go_default_library",
-        "//go/sig/config:go_default_library",
+        "//go/lib/sigjson:go_default_library",
         "//go/sig/egress/asmap:go_default_library",
         "//go/sig/egress/iface:go_default_library",
         "//go/sig/egress/reader:go_default_library",

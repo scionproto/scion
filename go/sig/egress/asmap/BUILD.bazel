@@ -13,7 +13,7 @@ go_library(
         "//go/lib/common:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/ringbuf:go_default_library",
-        "//go/sig/config:go_default_library",
+        "//go/lib/sigjson:go_default_library",
         "//go/sig/egress/dispatcher:go_default_library",
         "//go/sig/egress/iface:go_default_library",
         "//go/sig/egress/router:go_default_library",
