@@ -83,7 +83,7 @@ type Densemetadata struct {
 	Specialnotes []string
 }
 
-func (data *Pathmetadata) condensemetadata() Densemetadata{
+func (data *Pathmetadata) Condensemetadata() Densemetadata{
 	var ret Densemetadata
 	ret.totaldelay = 0
 	ret.totalhops = 0
