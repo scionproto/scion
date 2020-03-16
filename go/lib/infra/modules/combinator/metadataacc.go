@@ -68,13 +68,81 @@ type Pathmetadata struct {
 
 
 /*
-TODO: 1)FIX DESIGN DOC CONCEPTUAL IMPLEMENTATION SECTIONS TO INCLUDE INTOOUTXYZ IN THE BULLET POINTS
-TODO: 2)ADD FUNCTION THAT GOES THROUGH RESULT OF ASSEMBLEPCBMETADATA AND GATHERS DATA AND ENTERS IT INTO TOTALDELAY ETC
-TODO: 3)CHECK SCIOND FOR RELATIONSHIP BETWEEN SCIOND AND SHOWPATHS AGAIN
-TODO: 4)IMPLEMENT AS PART OF SHOWPATHS
-TODO: 5)FIX REST OF CODEBASE (CS MOSTLY) TO IMPLEMENT THE NEW ASENTRY FORMAT
+TODO: 1)IMPLEMENT AS PART OF SHOWPATHS
+TODO: 2)FIX MESSAGING FOR SCIOND (INCLUDING CAPNP CODE)
+TODO: 3)FIX REST OF CODEBASE (CS MOSTLY) TO IMPLEMENT THE NEW ASENTRY FORMAT
  */
 
+type Densemetadata struct {
+	totaldelay uint16
+	totalhops uint8
+	maxbw uint32
+	links []ASlink
+	locations []ASgeo
+	Defaultnotes []string
+	Specialnotes []string
+}
+
+func (data *Pathmetadata) condensemetadata() Densemetadata{
+	var ret Densemetadata
+	ret.totaldelay = 0
+	ret.totalhops = 0
+	ret.maxbw = 0
+	if len(data.Singlebw)>0 {
+		if (data.Singlebw[0].Intrabw > 0){
+			ret.maxbw = data.Singlebw[0].Intrabw
+		}
+		if (data.Singlebw[0].Interbw > 0){
+			if !(ret.maxbw>0) {
+				ret.maxbw = math.MaxUint32-10
+			}
+			ret.maxbw = uint32(math.Min(float64(data.Singlebw[0].Interbw), float64(ret.maxbw)))
+		}
+		if (data.Singlebw[0].Peerbw > 0){
+			if !(ret.maxbw>0) {
+				ret.maxbw = math.MaxUint32-10
+			}
+			ret.maxbw = uint32(math.Min(float64(data.Singlebw[0].Peerbw), float64(ret.maxbw)))
+		}
+	}
+	for i:=0;i< len(data.SingleDelays);i++{
+		ret.totaldelay += data.SingleDelays[i].Interdelay + data.SingleDelays[i].Intradelay + data.SingleDelays[i].Peerdelay
+	}
+	for i:=0;i< len(data.Singlebw);i++{
+		if (data.Singlebw[0].Intrabw > 0){
+			if !(ret.maxbw>0) {
+				ret.maxbw = math.MaxUint32-10
+			}
+			ret.maxbw = uint32(math.Min(float64(data.Singlebw[0].Intrabw), float64(ret.maxbw)))
+		}
+		if (data.Singlebw[0].Interbw > 0){
+			if !(ret.maxbw>0) {
+				ret.maxbw = math.MaxUint32-10
+			}
+			ret.maxbw = uint32(math.Min(float64(data.Singlebw[0].Intrabw), float64(ret.maxbw)))
+		}
+		if (data.Singlebw[0].Peerbw > 0){
+			if !(ret.maxbw>0) {
+				ret.maxbw = math.MaxUint32-10
+			}
+			ret.maxbw = uint32(math.Min(float64(data.Singlebw[0].Peerbw), float64(ret.maxbw)))
+		}
+	}
+	for i:=0;i< len(data.SingleHops);i++{
+		ret.totalhops += data.SingleHops[i].Hops
+	}
+	for _,note := range data.Notes{
+		ret.Defaultnotes = append(ret.Defaultnotes, note.Defaultnote)
+		ret.Specialnotes = append(ret.Specialnotes, note.Specificnote)
+	}
+	for _,loc := range data.Geo{
+		ret.locations = append(ret.locations, loc)
+	}
+	for _,link := range data.Links{
+		ret.links = append(ret.links, link)
+	}
+	return ret
+}
 
 func (solution *PathSolution) Assemblepcbmetadata() Pathmetadata{
 	var res Pathmetadata
