@@ -79,12 +79,15 @@ Use cases of such information include:
 
 ### Conceptual Implementation Latency
 
-The latency information will be comprised of three main parts:
+The latency information will be comprised of four main parts:
 
 - The inter-AS latency between the egress interface and the ingress interface of
   the AS the PCB will be propagated to
+- The intra-AS latency between the ingress and egress interface of the AS in the
+  absence of shortcut/peering paths
 - A variable number of non-peering latency clusters
 - A variable number of peering latency clusters
+
 
 In general, a latency cluster serves to pool all interfaces which have the same
 propagation delay (within a 1 ms range) between them and the egress interface (i.e.
@@ -236,10 +239,12 @@ Use cases of such information include:
 
 ### Conceptual Implementation Maximum Bandwidth
 
-The maximum bandwidth information will be comprised of 2 main parts:
+The maximum bandwidth information will be comprised of 3 main parts:
 
 - A variable number of maximum bandwidth clusters
 - The bandwidth of the egress connection
+- The intra-AS maximum bandwidth between the ingress and egress interface
+  of the AS in the absence of shortcut/peering paths
 
 A maximum bandwidth cluster serves to pool all interfaces which have the
 same total maximum bandwidth. For peering interfaces, the total maximum bandwidth
@@ -362,9 +367,11 @@ public. Use cases of such information include:
 
 ### Conceptual Implementation Link Type
 
-The Link type will be comprised of 3 parts:
+The Link type will be comprised of 4 parts:
 
 - The link type for the link attached to the egress interface
+- The intra-AS link type between the ingress and egress interface of the AS
+  in the absence of shortcut/peering paths
 - A variable number of non-peering link type clusters
 - A variable number of peering link type clusters
 
@@ -437,8 +444,10 @@ Use cases of such information include:
 
 ### Conceptual Implementation Number of Internal Hops
 
-The number of internal hops will be comprised of 1 main part:
+The number of internal hops will be comprised of 2 main parts:
 
+- The number of internal hops between the ingress and egress interface of the
+  AS in the absence of shortcut/peering paths
 - A variable number of hoplength clusters
 
 A hoplength cluster serves to pool all interfaces which have the same number of
