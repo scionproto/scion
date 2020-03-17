@@ -518,12 +518,12 @@ property described above:
 
 ````CAPNP
 struct Staticinfo {
-   ei @1 :Latencyinfo;
-   gi @2 :Geoinfo;
-   lt @3 :Linktypeinfo;
-   bw @4 :Bandwidthinfo;
-   ih @5 :Internalhopsinfo;
-   ni @6 :Note;
+   ei @0 :Latencyinfo;
+   gi @1 :Geoinfo;
+   lt @2 :Linktypeinfo;
+   bw @3 :Bandwidthinfo;
+   ih @4 :Internalhopsinfo;
+   ni @5 :Note;
 }
 ````
 
