@@ -83,11 +83,12 @@ type Densemetadata struct {
 	Specialnotes []string
 }
 
-func (data *Pathmetadata) Condensemetadata() Densemetadata{
-	var ret Densemetadata
-	ret.totaldelay = 0
-	ret.totalhops = 0
-	ret.maxbw = 0
+func (data *Pathmetadata) Condensemetadata() *Densemetadata{
+	ret := &Densemetadata{
+		totaldelay: 0,
+		totalhops: 0,
+		maxbw: 0,
+	}
 	if len(data.Singlebw)>0 {
 		if (data.Singlebw[0].Intrabw > 0){
 			ret.maxbw = data.Singlebw[0].Intrabw
@@ -144,10 +145,11 @@ func (data *Pathmetadata) Condensemetadata() Densemetadata{
 	return ret
 }
 
-func (solution *PathSolution) Assemblepcbmetadata() Pathmetadata{
-	var res Pathmetadata
-	res.Xover = false
-	res.Peerover = false
+func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
+	res := &Pathmetadata{
+		Xover : false,
+		Peerover : false,
+	}
 	/*
 		iterate over solutionEdges in solution, start in last ASEntry, go until entry with index "shortcut"
 		while not shortcut, simply assemble metadata normally using inifid and outifid from the hf in the ASEntry
