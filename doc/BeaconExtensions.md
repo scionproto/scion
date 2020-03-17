@@ -494,16 +494,16 @@ Name             | Type  | Description |
 -----------------|-------|-------------|
 `ID`         |Integer|Interface ID of the interface described by the data that follows|
 `Peer`      |Boolean|Indicates whether an interface is a peering interface|
-`Delay`   |List of Integers|Intra-AS latency from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
+`Intra` (`Latency`)   |List of Integers|Intra-AS latency from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
 `Inter` (`Latency`)   |Integer|Inter-AS latency from interface `i` to AS on the other end of the link|
-`C1`             |Decimal value|Longitude gps coordinates of interface `i`|
-`C2`             |Decimal value|Latitude gps coordinate of interface `i`|
+`Latitude`             |Decimal value|Longitude gps coordinates of interface `i`|
+`Longitude`             |Decimal value|Latitude gps coordinate of interface `i`|
 `CivAddr`        |String|Civic address of interface `i`|
 `Inter` (`Linktype`)      |Integer  |Possible values of an entry : `multihop`, `direct`, `opennet`, where `direct` means direct link, `multihop` means multihop link, `opennet` means link that uses the open internet. Describes link type between interface `i` and the AS at the other end of the link|
-`BW`        |Integer|Intra-AS bandwidth from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
+`Intra` (`Bandwidth`)        |Integer|Intra-AS bandwidth from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
 `Inter` (`Bandwidth`)        |Integer|Inter-AS bandwidth from interface i to the AS at the other end of the link|
 `Note`   |String |Note |
-`HN`           |Integer|Number of internal hops from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
+`Intra` (`Hops`)           |Integer|Number of internal hops from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
 
 Below is a simple example of how such a config file could look like (actual
 values are abitrary, "asdf" is used as a placeholder for longer strings)
@@ -614,7 +614,7 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
     }
   },
   "Geo": {
-    1:{
+    "1":{
       "Peer": false,
       "Latitude": 47.2,
       "Longitude": 62.2,
