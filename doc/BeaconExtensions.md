@@ -503,10 +503,8 @@ Name             | Type  | Description |
 `Inter` (`Linktype`)      |Integer  |Possible values of an entry : `multihop`, `direct`, `opennet`; Describes link type between interface `i` and the AS at the other end of the link|
 `BW`        |Integer|Intra-AS bandwidth from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
 `Inter` (`Bandwidth`)        |Integer|Inter-AS bandwidth from interface i to the AS at the other end of the link|
-`SpecificNote`   |String |Note that should be used when this interface is the egress interface in the AS Entry that is being extended|
+`Note`   |String |Note |
 `HN`           |Integer|Number of internal hops from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
-`Default`      |String |Default Note|
-`Msg`      |String |Specific Note for the interface with ID `ID` mentioned in the same entry in the `specific` field|
 
 Below is a simple example of how such a config file could look like (actual
 values are abitrary, "asdf" is used as a placeholder for longer strings)
@@ -916,168 +914,11 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
       ]
     }
   ],
-  "Note":{
-    "Default": "asdf0",
-    "Specific" : [
-      {
-        "ID": 2,
-        "Msg": "asdf2"
-      },
-      {
-        "ID": 5,
-        "Msg": "asdf5"
-      }
-    ]
-  }
+  "Note": "asdf"
 }
 ````
 
-### Go Representation of the Extension
 
-The format of the go representation of the extension corresponds to that of the capnp struct.
-At the top level, it consists of 7 elements, as can be seen below:
-
-````GOLANG
-type Static_Info struct {
-	ExtType uint8 `capnp:"exttype"`
-	LI Latency_Info `capnp:"ei"`
-	GI Geo_Info `capnp:"gi"`
-	LT Linktype_Info `capnp:"lt"`
-	BW Bandwidth_Info `capnp:"bw"`
-	IH InternalHops_Info `capnp:"ih"`
-	NI Note `capnp:"ni"`
-}
-````
-
-`ExtType` is an unsigned int of size 8 bits. It defines the type of the extension. We have chosen
-125[or whatever] (i.e. 01111101 in binary) as the value identifiying the Static_Info extension type.
-The 6 following elements are themselves also structs, and each represents one property described
-above.
-First is the latency information `LI`, which is encapsulated in a `Latency_Info` struct. The
-`Latency_Info` struct is itself comprised of the following parts: 
-
-````GOLANG
-type Latency_Info struct{
-	NPClusters []LNPCluster
-	PClusters []LPCluster
-}
-
-type LNPCluster struct {
-	ClusterDelay uint16 `capnp:"clusterdelay"`
-Interfaces []uint64 `capnp:"interfaces"`
-}
-
-type LPPair struct {
-	IntfID uint64 `capnp:"interface"`
-	IntfDelay uint16 `capnp:"interdelay"`
-}
-
-type LPCluster struct {
-	ClusterDelay uint16 `capnp:"clusterdelay"`
-	PPairs []LPPair
-}
-````
-
-This struct represents the conceptual approach outlined above, and is analogous to the 
-capnp struct seen in the previous section.
-The same goes for all the other properties.
-`GI`describes geographic information and is encapsulated in the `Geo_Info` struct, which
-internally looks like this: 
-
-````GOLANG
-type Geo_Info struct{
-	GeoClusters []GeoCluster
-}
-
-type GeoCluster struct {
-	GL ClusterLocation
-	IntfIDs []uint64 `capnp:"interfaces"`
-}
-
-type ClusterLocation struct {
-	GPS1 float32 `capnp:"gps1"`
-	GPS2 float32 `capnp:"gps2"`
-	CivAdd []byte `capnp:"civadd"`
-}
-````
-
-`LT`describes link type information and is encapsulated in the `Linktype_Info` struct, which
-internally looks like this: 
-
-````GOLANG
-type Linktype_Info struct {
-	NPClusters []LTNPCluster
-	PClusters  []LTPCluster
-}
-
-type LTNPCluster struct {
-	ClusterLT uint8  `capnp:"clusterlt"`
-	Interfaces []uint64 `capnp:"interfaces"`
-}
-
-type LTPPair struct {
-	IntfID uint64 `capnp:"interface"`
-	IntfLT uint8 `capnp:"interlt"`
-}
-
-type LTPCluster struct {
-	ClusterLT uint8 `capnp:"clusterlt"`
-	PPairs []LTPPair
-}
-````
-
-`BW`describes maximum bandwidth information and is encapsulated in the `Bandwidth_Info` struct, which
-internally looks like this: 
-
-````GOLANG
-type Bandwidth_Info struct {
-	NPClusters []BWNPCluster
-	PClusters []BWPCluster
-}
-
-type BWNPCluster struct {
-	ClusterBW uint32 `capnp:"clusterbw"`
-	Interfaces []uint64 `capnp:"interfaces"`
-}
-
-type BWPPair struct {
-	IntfID uint64 `capnp:"interface"`
-	IntfBW uint32 `capnp:"interbw"`
-}
-
-type BWPCluster struct {
-	ClusterBW uint32 `capnp:"clusterbw"`
-	PPairs []BWPPair
-}
-````
-
-`IH`describes the number of internal hops and is encapsulated in the `InternalHops_Info` struct, which
-internally looks like this: 
-
-````GOLANG
-type InternalHops_Info struct{
-	HopClusters []HopCluster
-}
-
-type HopCluster struct {
-	ClusterHops uint8 `capnp:"clusterhops"`
-	IntfIDs []uint64 `capnp:"interfaces"`
-}
-````
-
-`NI`describes the note information and is encapsulated in the `Note` struct, which
-internally looks like this: 
-
-````GOLANG
-type Note struct{
-	SpecialNote string `capnp:"specificnote"`
-	DefaultNote string `capnp:"defaultnote"`
-}
-````
-
-### The Parser
-
-Asdf.
 
 
 
