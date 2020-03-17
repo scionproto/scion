@@ -333,8 +333,8 @@ struct Geoinfo {
      interfaces @1 :List(UInt64);
 
      struct Clusterlocation {
-        gps1 @0 :Float32;
-        gps2 @1 :Float32;
+        latitude @0 :Float32;
+        longitude @1 :Float32;
         civadd @2 :Data;
      }
   }
