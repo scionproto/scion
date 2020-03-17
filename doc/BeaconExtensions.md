@@ -499,8 +499,7 @@ Name             | Type  | Description |
 `C1`             |Decimal value|Longitude gps coordinates of interface `i`|
 `C2`             |Decimal value|Latitude gps coordinate of interface `i`|
 `CivAddr`        |String|Civic address of interface `i`|
-`LT`      |String |Describes link type between interface `i` and any other interface, including itself (this entry should be set to `"direct"`), where `direct` means direct link, `multihop` means multihop link, `opennet` means link that uses the open internet and everything else means undisclosed|
-`Inter` (`Linktype`)      |Integer  |Possible values of an entry : `multihop`, `direct`, `opennet`; Describes link type between interface `i` and the AS at the other end of the link|
+`Inter` (`Linktype`)      |Integer  |Possible values of an entry : `multihop`, `direct`, `opennet`, where `direct` means direct link, `multihop` means multihop link, `opennet` means link that uses the open internet. Describes link type between interface `i` and the AS at the other end of the link|
 `BW`        |Integer|Intra-AS bandwidth from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
 `Inter` (`Bandwidth`)        |Integer|Inter-AS bandwidth from interface i to the AS at the other end of the link|
 `Note`   |String |Note |
@@ -704,94 +703,22 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
     {
       "ID": 1,
       "Peer": false,
-      "Inter": "direct",
-      "Intra": [
-        {
-          "ID": 1,
-          "LT": "direct"
-        },
-        {
-          "ID": 2,
-          "LT": "direct"
-        },
-        {
-          "ID": 3,
-          "LT": "multihop"
-        },
-        {
-          "ID": 5,
-          "LT": "opennet"
-        }
-      ]
+      "Inter": "direct"
     },
     {
       "ID": 2,
       "Peer": false,
-      "Inter": "opennet",
-      "Intra": [
-        {
-          "ID": 1,
-          "LT": "direct"
-        },
-        {
-          "ID": 2,
-          "LT": "multihop"
-        },
-        {
-          "ID": 3,
-          "LT": "multihop"
-        },
-        {
-          "ID": 5,
-          "LT": "opennet"
-        }
-      ]
+      "Inter": "opennet"
     },
     {
       "ID": 3,
       "Peer": false,
-      "Inter": "direct",
-      "Intra": [
-        {
-          "ID": 1,
-          "LT": "direct"
-        },
-        {
-          "ID": 2,
-          "LT": "direct"
-        },
-        {
-          "ID": 3,
-          "LT": "opennet"
-        },
-        {
-          "ID": 5,
-          "LT": "direct"
-        }
-      ]
+      "Inter": "direct"
     },
     {
       "ID": 5,
       "Peer": true,
-      "Inter": "direct",
-      "Intra": [
-        {
-          "ID": 1,
-          "LT": "opennet"
-        },
-        {
-          "ID": 2,
-          "LT": "opennet"
-        },
-        {
-          "ID": 3,
-          "LT": "multihop"
-        },
-        {
-          "ID": 5,
-          "LT": "undisclosed"
-        }
-      ]
+      "Inter": "direct"
     }
   ],
   "Geo": [
