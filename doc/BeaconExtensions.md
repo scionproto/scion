@@ -134,9 +134,9 @@ latency (from ingress to egress interface) as well as the inter-AS latency (from
 interface to the next AS on the path) for every AS on the end to end path.
 
 Knowing merely the inter-AS latency for the egress interface is also sufficient
-in the case of shortcut paths. The interface where traffic will enter AS 2
+in the case of shortcut paths. Traffic will enter AS 2 via interface 22, which
 is the egress interface saved in the AS Entry for AS 2 in the PCB which was directly
-received by AS 3. The interface where traffic will leave AS 2 is the interface that
+received by AS 3. Traffic will leave AS 2 via interface 21, which is the interface that
 was saved in AS Entry of the PCB that was sent to AS 4 and was fetched by AS 3 in
 the form of a path segment during the path lookup process. Thus AS 3 now has information
 about both the inter-AS connection between AS 3 and AS 2, and the inter-AS connection
