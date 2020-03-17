@@ -445,7 +445,7 @@ The Note subtype is comprised of 1 single element:
 
 The format for the note can be seen below in the full extension format.
 
-The lengths of both `defaultnote` and `specificnote` are variable, but capped at 2000 bytes. 
+The length `note` is variable, but capped at 2000 bytes. 
 
 ## Concrete Format Extension
 
