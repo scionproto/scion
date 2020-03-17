@@ -437,30 +437,13 @@ Use cases of such information include:
 
 ### Conceptual Implementation Note
 
-The Note subtype is comprised of 2 elements:
+The Note subtype is comprised of 1 single element:
 
-- The "default" field, which contains a default note, which is always included for
-  every PCB that is propagated by this AS.
-- The "specific" field, which contains the contents of a note that is meant to only
-  be attached when sending out a PCB over the particular interface mentioned in the
-  egress interface field of the AS Entry that we are extending.
-  
-When constructing the extension from the config file (see below) the BS will check
-the egress interface field in the AS Entry and attach the "specific" note accordingly.
-If no such note is specified in the config file, then the contents of the "specific"
-field will be set to null (it is also possible to do this for the "default" note as
-well).
+- A string
 
 ### Concrete Format Note
 
-The format for the note looks like this:
-
-````CAPNP
-struct Note {
-  defaultnote @0 :Data;
-  specificnote @1 :Data;
-}
-````
+The format for the note can be seen below in the full extension format.
 
 The lengths of both `defaultnote` and `specificnote` are variable, but capped at 2000 bytes. 
 
@@ -476,7 +459,7 @@ struct Staticinfo {
    lt @2 :Linktypeinfo;
    bw @3 :Bandwidthinfo;
    ih @4 :Internalhopsinfo;
-   ni @5 :Note;
+   note @5 :Text;
 }
 ````
 
