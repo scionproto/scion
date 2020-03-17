@@ -79,12 +79,15 @@ Use cases of such information include:
 
 ### Conceptual Implementation Latency
 
-The latency information will be comprised of three main parts:
+The latency information will be comprised of four main parts:
 
 - The inter-AS latency between the egress interface and the ingress interface of
   the AS the PCB will be propagated to
+- The intra-AS latency between the ingress and egress interface of the AS in the
+  absence of shortcut/peering paths
 - A variable number of non-peering latency clusters
 - A variable number of peering latency clusters
+
 
 In general, a latency cluster serves to pool all interfaces which have the same
 propagation delay (within a 1 ms range) between them and the egress interface (i.e.
@@ -236,10 +239,12 @@ Use cases of such information include:
 
 ### Conceptual Implementation Maximum Bandwidth
 
-The maximum bandwidth information will be comprised of 2 main parts:
+The maximum bandwidth information will be comprised of 3 main parts:
 
 - A variable number of maximum bandwidth clusters
 - The bandwidth of the egress connection
+- The intra-AS maximum bandwidth between the ingress and egress interface
+  of the AS in the absence of shortcut/peering paths
 
 A maximum bandwidth cluster serves to pool all interfaces which have the
 same total maximum bandwidth. For peering interfaces, the total maximum bandwidth
@@ -328,8 +333,8 @@ struct Geoinfo {
      interfaces @1 :List(UInt64);
 
      struct Clusterlocation {
-        gps1 @0 :Float32;
-        gps2 @1 :Float32;
+        latitude @0 :Float32;
+        longitude @1 :Float32;
         civadd @2 :Data;
      }
   }
@@ -362,9 +367,11 @@ public. Use cases of such information include:
 
 ### Conceptual Implementation Link Type
 
-The Link type will be comprised of 3 parts:
+The Link type will be comprised of 4 parts:
 
 - The link type for the link attached to the egress interface
+- The intra-AS link type between the ingress and egress interface of the AS
+  in the absence of shortcut/peering paths
 - A variable number of non-peering link type clusters
 - A variable number of peering link type clusters
 
@@ -437,8 +444,10 @@ Use cases of such information include:
 
 ### Conceptual Implementation Number of Internal Hops
 
-The number of internal hops will be comprised of 1 main part:
+The number of internal hops will be comprised of 2 main parts:
 
+- The number of internal hops between the ingress and egress interface of the
+  AS in the absence of shortcut/peering paths
 - A variable number of hoplength clusters
 
 A hoplength cluster serves to pool all interfaces which have the same number of
@@ -509,12 +518,12 @@ property described above:
 
 ````CAPNP
 struct Staticinfo {
-   ei @1 :Latencyinfo;
-   gi @2 :Geoinfo;
-   lt @3 :Linktypeinfo;
-   bw @4 :Bandwidthinfo;
-   ih @5 :Internalhopsinfo;
-   ni @6 :Note;
+   ei @0 :Latencyinfo;
+   gi @1 :Geoinfo;
+   lt @2 :Linktypeinfo;
+   bw @3 :Bandwidthinfo;
+   ih @4 :Internalhopsinfo;
+   ni @5 :Note;
 }
 ````
 
