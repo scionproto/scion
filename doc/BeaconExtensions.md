@@ -15,6 +15,7 @@ in the form of an extension.
 - [Note](#note)
 - [Concrete Format Extension](#concrete-format-extension)
 - [Config File Format](#config-file-format)
+- [Command Line Interface](#command-line-interface)
 
 ## Static Properties
 
@@ -844,8 +845,19 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
 }
 ````
 
+## Command Line Interface
 
+In order to make use of the information this extension provides, we will provide a command line interface (CLI) to extract data from the extension. This CLI will be implemented as an extension of the current showpaths tool.
+To display information about the static properties, showpaths can be called with the flag `-staticinfo` and the following values will be displayed:
 
+Name               | Description |
+-------------------|-------------|
+EndToEndLatency | Minimal end to end propagation delay along the entire path|
+Geo | Geographical location in terms of GPS coordinates of each AS on the path (achieved by averaging the geographical location of all interfaces of the AS)|
+MaxBW | Bottleneck maximum bandwidth along the entire path|
+InternalHops | The number of internal hops along the entire path|
+Linktypes| The link type of each inter-AS connection along the entire path| 
+Notes | The notes for each AS on the path|
 
 
 
