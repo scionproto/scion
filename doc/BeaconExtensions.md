@@ -352,43 +352,17 @@ For now it distinguishes three different types of links:
 - Direct links
 - Multihop links
 
-The option to have undisclosed link types allows ASes to withhold such
-information should they deem it undesirable to make it available to the
-public. Use cases of such information include:
+Use cases of such information include:
 
 - Mitigating security concerns
 - Allowing users to select paths that e.g. avoid the open internet
 
 ### Conceptual Implementation Link Type
 
-The Link type will be comprised of 4 parts:
+The Link type will be comprised of 2 parts:
 
-- The link type for the link attached to the egress interface
-- The intra-AS link type between the ingress and egress interface of the AS
-  in the absence of shortcut/peering paths
-- A variable number of non-peering link type clusters
-- A variable number of peering link type clusters
-
-A link type cluster serves to pool all interfaces which are attached to the
-same type of intra-AS link between them and the egress interface. 
-The difference betwen peering- and non-peering link type clusters is that non-peering
-link type clusters do not include the link type for the connections attached to the
-interfaces in the cluster (see below).
-Each peering link type cluster is itself comprised of 3 types of elements:
-
-- The intra-AS link type for all interfaces in the cluster (1 value per cluster)
-- The interface ID for every interface in the cluster (1 value per interface)
-- The link type for each of the inter-AS connections attached to the interfaces
-  in the cluster (1 value per interface)
-  
-Each non-peering link type cluster is itself comprised of 2 types of elements:
-
-- The intra-AS link type for all interfaces in the cluster (1 value per cluster)
-- The interface ID for every interface in the cluster (1 value per interface)
-
-Be reminded that only the interfaces with
-IDs bigger than the ID of the egress interface are included, and if this would mean a
-cluster is devoid of interface IDs, the cluster is simply removed as a whole. 
+- The link type for the inter-AS link attached to the egress interface
+- The inter-AS link type of all links attached to peering interfaces
 
 ### Concrete Format Link Type
 
@@ -396,10 +370,8 @@ The format for the link type looks like this:
 
 ````CAPNP
 struct Linktypeinfo {
-  linktypenonpeerinclusters @0 :List(Ltnpcluster);
-  linktypepeeringclusters @1 :List(Ltpcluster);
-  egresslinktype @2 :Linktype;
-  intooutlinktype @3 :Linktype;
+  peeringlinks @0 :List(Peeringpair);
+  egresslinktype @1 :Linktype;
 
   enum Linktype{
      direct @0;
@@ -407,19 +379,9 @@ struct Linktypeinfo {
      opennet @2;
   }
 
-  struct Ltnpcluster {
-     clusterlinktype @0 :Linktype;
-     interfaces @1 :List(UInt16);
-  }
-
-  struct Ltpcluster {
-     clusterlintkype @0 :Linktype;
-     linktypeinterfacepairs @1 :List(Ltppair);
-
-     struct Ltppair {
-        interface @0 :UInt16;
-        interlinktype @1 :Linktype;
-     }
+  struct Peeringpair {
+     interface @0 :UInt16;
+     peeringinterlinktype @1 :Linktype;
   }
 }
 ````
