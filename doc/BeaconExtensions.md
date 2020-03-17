@@ -194,30 +194,27 @@ The format for latency information, specified in terms of its capnp encoding, lo
 
 ````CAPNP
 struct Latencyinfo {
-  lnpcs @0 :List(Lnpcluster);
-  lpcs @1 :List(Lpcluster);
+  latencynonpeeringclusters @0 :List(Lnpcluster);
+  latencypeeringclusters @1 :List(Lpcluster);
   egresslatency @2 :UInt16;
   intooutlatency @3 :UInt16;
 
   struct Lnpcluster {
      clusterdelay @0 :UInt16;
-     interfaces @1 :List(UInt64);
+     interfaces @1 :List(UInt16);
   }
 
   struct Lpcluster {
      clusterdelay @0 :UInt16;
-     lpps @1 :List(Lppair);
+     latencyinterfacepairs @1 :List(Lppair);
 
      struct Lppair {
-        interface @0 :UInt64;
+        interface @0 :UInt16;
         interdelay @1 :UInt16;
      }
   }
 }
 ````
-
-`lpcs` are the peering-, and `lnpcs` the nonpeering latency clusters.
-
 
 ## Maximum Bandwidth
 
@@ -272,18 +269,16 @@ encoding, looks like this:
 
 ````CAPNP
 struct Bandwidthinfo {
-  bwcs @0 :List(Bwcluster);
+  bandwidthclusters @0 :List(Bwcluster);
   egressBW @1 :UInt32;
   intooutBW @2 :UInt32;
 
   struct Bwcluster {
      clusterbw @0 :UInt32;
-     interfaces @1 :List(UInt64);
+     interfaces @1 :List(UInt16);
   }
 }
 ````
-
-`bwpcs` are the peering-, and `bwnpcs` the nonpeering bandwidth clusters.
 
 ## Geographic Information
 
@@ -326,22 +321,22 @@ The format for geographic information looks like this:
 
 ````CAPNP
 struct Geoinfo {
-  gcs @0 :List(Geocluster);
+  geoclusters @0 :List(Geocluster);
 
   struct Geocluster {
-     cl @0 :Clusterlocation;
-     interfaces @1 :List(UInt64);
+     location @0 :Clusterlocation;
+     interfaces @1 :List(UInt16);
 
      struct Clusterlocation {
         latitude @0 :Float32;
         longitude @1 :Float32;
-        civadd @2 :Data;
+        civiladdress @2 :Data;
      }
   }
 }
 ````
 
-It should be noted that civil addresses (`civadd`) can be of variable length,
+It should be noted that civil addresses (`civiladdress`) can be of variable length,
 but are allowed to occupy a maximum of 500 bytes. Anything beyond that will
 be discarded.
 
@@ -351,12 +346,11 @@ be discarded.
 
 Link Type information gives a broad classification of the different protocols
 being used on the links between two entities.
-For now it distinguishes four different types of links:
+For now it distinguishes three different types of links:
 
 - Links that go over the open internet
 - Direct links
 - Multihop links
-- Undisclosed
 
 The option to have undisclosed link types allows ASes to withhold such
 information should they deem it undesirable to make it available to the
@@ -402,36 +396,33 @@ The format for the link type looks like this:
 
 ````CAPNP
 struct Linktypeinfo {
-  ltnpcs @0 :List(Ltnpcluster);
-  ltpcs @1 :List(Ltpcluster);
-  egresslt @2 :Linktype;
-  intooutlt @3 :Linktype;
+  linktypenonpeerinclusters @0 :List(Ltnpcluster);
+  linktypepeeringclusters @1 :List(Ltpcluster);
+  egresslinktype @2 :Linktype;
+  intooutlinktype @3 :Linktype;
 
   enum Linktype{
      direct @0;
      multihop @1;
      opennet @2;
-     undisclosed @3;
   }
 
   struct Ltnpcluster {
-     clusterlt @0 :Linktype;
-     interfaces @1 :List(UInt64);
+     clusterlinktype @0 :Linktype;
+     interfaces @1 :List(UInt16);
   }
 
   struct Ltpcluster {
-     clusterlt @0 :Linktype;
-     ltpps @1 :List(Ltppair);
+     clusterlintkype @0 :Linktype;
+     linktypeinterfacepairs @1 :List(Ltppair);
 
      struct Ltppair {
-        interface @0 :UInt64;
-        interlt @1 :Linktype;
+        interface @0 :UInt16;
+        interlinktype @1 :Linktype;
      }
   }
 }
 ````
-
-`ltpcs` are the peering-, and `ltnpcs` the nonpeering linktype clusters.
 
 ## Number of Internal Hops
 
@@ -464,12 +455,12 @@ The format for the number of internal hops looks like this:
 
 ````CAPNP
 struct Internalhopsinfo {
-  hcs @0 :List(Hopcluster);
+  hopclusters @0 :List(Hopcluster);
   intouthops @1 :UInt8;
 
   struct Hopcluster {
      clusterhops @0 :UInt8;
-     interfaces @1 :List(UInt64);
+     interfaces @1 :List(UInt16);
   }
 }
 ````
