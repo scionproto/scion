@@ -15,7 +15,6 @@ in the form of an extension.
 - [Note](#note)
 - [Concrete Format Extension](#concrete-format-extension)
 - [Config File Format](#config-file-format)
-- [Concrete Implementation](#concrete-implementation)
 
 ## Static Properties
 
