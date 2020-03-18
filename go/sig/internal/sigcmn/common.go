@@ -46,29 +46,29 @@ var (
 )
 
 var (
-	IA   addr.IA
-	Host addr.HostAddr
-
+	IA         addr.IA
 	PathMgr    pathmgr.Resolver
 	Dispatcher reliable.Dispatcher
 	Network    *snet.SCIONNetwork
+	CtrlAddr   net.IP
+	CtrlPort   int
+	DataAddr   net.IP
+	DataPort   int
 	CtrlConn   snet.Conn
-	MgmtAddr   *sig_mgmt.Addr
-	encapPort  uint16
 )
 
 func Init(cfg sigconfig.SigConf, sdCfg env.SCIONDClient) error {
 	IA = cfg.IA
-	Host = addr.HostFromIP(cfg.IP)
-	MgmtAddr = sig_mgmt.NewAddr(Host, cfg.CtrlPort, cfg.EncapPort)
-	encapPort = cfg.EncapPort
-
+	CtrlAddr = cfg.IP
+	CtrlPort = int(cfg.CtrlPort)
+	DataAddr = cfg.IP
+	DataPort = int(cfg.EncapPort)
 	network, resolver, err := initNetwork(cfg, sdCfg)
 	if err != nil {
 		return common.NewBasicError("Error creating local SCION Network context", err)
 	}
 	conn, err := network.Listen(context.Background(), "udp",
-		&net.UDPAddr{IP: Host.IP(), Port: int(cfg.CtrlPort)}, addr.SvcSIG)
+		&net.UDPAddr{IP: CtrlAddr, Port: CtrlPort}, addr.SvcSIG)
 	if err != nil {
 		return common.NewBasicError("Error creating ctrl socket", err)
 	}
@@ -151,14 +151,15 @@ func newDispatcher(cfg sigconfig.SigConf) (reliable.Dispatcher, error) {
 	return dispServer, nil
 }
 
-func EncapSnetAddr() *snet.UDPAddr {
-	return &snet.UDPAddr{IA: IA, Host: &net.UDPAddr{IP: Host.IP(), Port: int(encapPort)}}
-}
-
 func ValidatePort(desc string, port int) error {
 	if port < 1 || port > MaxPort {
 		return common.NewBasicError("Invalid port", nil,
 			"min", 1, "max", MaxPort, "actual", port, "desc", desc)
 	}
 	return nil
+}
+
+func GetMgmtAddr() sig_mgmt.Addr {
+	return *sig_mgmt.NewAddr(addr.HostFromIP(CtrlAddr), uint16(CtrlPort),
+		addr.HostFromIP(DataAddr), uint16(DataPort))
 }

@@ -20,6 +20,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/l4"
@@ -220,7 +221,8 @@ func (w *worker) resetFrame(f *frame) {
 	if remote != nil {
 		w.currSig = remote.Sig
 		if w.currSig != nil {
-			addrLen = uint16(spkt.AddrHdrLen(w.currSig.Host, sigcmn.Host))
+			addrLen = uint16(spkt.AddrHdrLen(w.currSig.Host,
+				addr.HostFromIP(sigcmn.DataAddr)))
 		}
 		w.currPathEntry = nil
 		if remote.SessPath != nil {

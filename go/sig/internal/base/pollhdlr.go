@@ -16,6 +16,7 @@
 package base
 
 import (
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
@@ -35,9 +36,9 @@ func PollReqHdlr() {
 				"src", rpld.Addr, "type", common.TypeOf(rpld.P), "Id", rpld.Id, "pld", rpld.P)
 			continue
 		}
-		//log.Debug("PollReqHdlr: got PollReq", "src", rpld.Addr, "pld", req,
-		//	"replyAddr", sigcmn.MgmtAddr, "replySession", req.Session)
-		spld, err := sig_mgmt.NewPld(rpld.Id, sig_mgmt.NewPollRep(sigcmn.MgmtAddr, req.Session))
+		addr := sig_mgmt.NewAddr(addr.HostFromIP(sigcmn.CtrlAddr), uint16(sigcmn.CtrlPort),
+			addr.HostFromIP(sigcmn.DataAddr), uint16(sigcmn.DataPort))
+		spld, err := sig_mgmt.NewPld(rpld.Id, sig_mgmt.NewPollRep(addr, req.Session))
 		if err != nil {
 			log.Error("PollReqHdlr: Error creating SIGCtrl payload", "err", err)
 			break

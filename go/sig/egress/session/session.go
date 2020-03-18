@@ -77,7 +77,7 @@ func NewSession(dstIA addr.IA, sessId sig_mgmt.SessionType, logger log.Logger,
 	s.ring = ringbuf.New(64, nil, fmt.Sprintf("egress_%s_%s", dstIA, sessId))
 	// Not using a fixed local port, as this is for outgoing data only.
 	s.conn, err = sigcmn.Network.Listen(context.Background(), "udp",
-		&net.UDPAddr{IP: sigcmn.Host.IP()}, addr.SvcNone)
+		&net.UDPAddr{IP: sigcmn.DataAddr}, addr.SvcNone)
 	s.sessMonStop = make(chan struct{})
 	s.sessMonStopped = make(chan struct{})
 	s.pktDispStop = make(chan struct{})
