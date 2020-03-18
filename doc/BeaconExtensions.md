@@ -236,10 +236,9 @@ Use cases of such information include:
 
 ### Conceptual Implementation Maximum Bandwidth
 
-The maximum bandwidth information will be comprised of 4 main parts:
+The maximum bandwidth information will be comprised of 3 main parts:
 
-- A variable number of nonpeering maximum bandwidth clusters
-- A variable number of peering maximum bandwidth clusters
+- A variable number of maximum bandwidth clusters
 - The bandwidth of the egress connection
 - The intra-AS maximum bandwidth between the ingress and egress interface
   of the AS in the absence of shortcut/peering paths
@@ -259,7 +258,7 @@ Each cluster is itself formed of 2 types of elements:
   cluster)
 - The interface IDs of all the interfaces in the cluster (1 value per interface)
 
-Be reminded that in nonpeering clusters only the interfaces with
+Be reminded that only the interfaces with
 IDs bigger than the ID of the egress interface are included, and if this would mean a
 cluster is devoid of interface IDs, the cluster is simply removed as a whole.
 
@@ -270,8 +269,7 @@ encoding, looks like this:
 
 ````CAPNP
 struct Bandwidthinfo {
-  nonpeeringbandwidthclusters @0 :List(Bwcluster);
-  peeringbandwidthclusters @0 :List(Bwcluster);
+  bandwidthclusters @0 :List(Bwcluster);
   egressBW @1 :UInt32;
   intooutBW @2 :UInt32;
 
@@ -399,7 +397,7 @@ Use cases of such information include:
 
 ### Conceptual Implementation Number of Internal Hops
 
-The number of internal hops will be comprised of 3 main parts:
+The number of internal hops will be comprised of 2 main parts:
 
 - The number of internal hops between the ingress and egress interface of the
   AS in the absence of shortcut/peering paths
@@ -413,18 +411,13 @@ hoplength cluster is itself formed of 2 main elements:
   cluster)
 - The interface ID for every interface in the cluster (1 value per interface)
 
-Be reminded that in nonpeering clusters only the interfaces with
-IDs bigger than the ID of the egress interface are included, and if this would mean a
-cluster is devoid of interface IDs, the cluster is simply removed as a whole.
-
 ### Concrete Format Number of Internal Hops
 
 The format for the number of internal hops looks like this:
 
 ````CAPNP
 struct Internalhopsinfo {
-  nonpeeringhopclusters @0 :List(Hopcluster);
-  peeringhopclusters
+  hopclusters @0 :List(Hopcluster);
   intouthops @1 :UInt8;
 
   struct Hopcluster {
