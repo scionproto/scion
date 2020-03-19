@@ -205,24 +205,24 @@ being that the inter-AS propagation delays are omitted:
 The format for latency information, specified in terms of its capnp encoding, looks like this:
 
 ````CAPNP
-struct Latencyinfo {
-  latencynonpeeringclusters @0 :List(Lnpcluster);
-  latencypeeringclusters @1 :List(Lpcluster);
-  egresslatency @2 :UInt16;
-  intooutlatency @3 :UInt16;
+struct LatencyInfo {
+  latencyNonpeeringClusters @0 :List(LnpCluster);
+  latencyPeeringClusters @1 :List(LpCluster);
+  egressLatency @2 :UInt16;
+  intooutLatency @3 :UInt16;
 
-  struct Lnpcluster {
-     clusterdelay @0 :UInt16;
+  struct LnpCluster {
+     clusterDelay @0 :UInt16;
      interfaces @1 :List(UInt16);
   }
 
-  struct Lpcluster {
-     clusterdelay @0 :UInt16;
-     latencyinterfacepairs @1 :List(Lppair);
+  struct LpCluster {
+     clusterDelay @0 :UInt16;
+     latencyInterfacePairs @1 :List(Lppair);
 
-     struct Lppair {
+     struct LpPair {
         interface @0 :UInt16;
-        interdelay @1 :UInt16;
+        interDelay @1 :UInt16;
      }
   }
 }
@@ -274,12 +274,12 @@ encoding, looks like this:
 
 ````CAPNP
 struct Bandwidthinfo {
-  bandwidthclusters @0 :List(Bwcluster);
+  bandwidthClusters @0 :List(BwCluster);
   egressBW @1 :UInt32;
-  intooutBW @2 :UInt32;
+  inToOutBW @2 :UInt32;
 
-  struct Bwcluster {
-     clusterbw @0 :UInt32;
+  struct BwCluster {
+     clusterBW @0 :UInt32;
      interfaces @1 :List(UInt16);
   }
 }
@@ -325,23 +325,23 @@ address by simply omitting one of the two.
 The format for geographic information looks like this:
 
 ````CAPNP
-struct Geoinfo {
-  geoclusters @0 :List(Geocluster);
+struct GeoInfo {
+  geoClusters @0 :List(GeoCluster);
 
-  struct Geocluster {
-     location @0 :Clusterlocation;
+  struct GeoCluster {
+     location @0 :ClusterLocation;
      interfaces @1 :List(UInt16);
 
-     struct Clusterlocation {
+     struct ClusterLocation {
         latitude @0 :Float32;
         longitude @1 :Float32;
-        civiladdress @2 :Data;
+        civilAddress @2 :Data;
      }
   }
 }
 ````
 
-It should be noted that civil addresses (`civiladdress`) can be of variable length,
+It should be noted that civil addresses (`civilAddress`) can be of variable length,
 but are allowed to occupy a maximum of 500 bytes. Anything beyond that will
 be discarded.
 
@@ -374,19 +374,19 @@ The Link type will be comprised of 2 parts:
 The format for the link type looks like this:
 
 ````CAPNP
-struct Linktypeinfo {
-  peeringlinks @0 :List(Peeringpair);
-  egresslinktype @1 :Linktype;
+struct LinktypeInfo {
+  peeringLinks @0 :List(PeeringPair);
+  egressLinktype @1 :Linktype;
 
   enum Linktype{
      direct @0;
-     multihop @1;
-     opennet @2;
+     multiHop @1;
+     openNet @2;
   }
 
-  struct Peeringpair {
+  struct PeeringPair {
      interface @0 :UInt16;
-     peeringinterlinktype @1 :Linktype;
+     peeringInterLinktype @1 :Linktype;
   }
 }
 ````
@@ -421,12 +421,12 @@ hoplength cluster is itself formed of 2 main elements:
 The format for the number of internal hops looks like this:
 
 ````CAPNP
-struct Internalhopsinfo {
-  hopclusters @0 :List(Hopcluster);
-  intouthops @1 :UInt8;
+struct InternalHopsInfo {
+  hopClusters @0 :List(HopCluster);
+  inToOutHops @1 :UInt8;
 
-  struct Hopcluster {
-     clusterhops @0 :UInt8;
+  struct HopCluster {
+     clusterHops @0 :UInt8;
      interfaces @1 :List(UInt16);
   }
 }
@@ -458,12 +458,12 @@ The full wire format of the extension simply combines the capnp structs for each
 property described above:
 
 ````CAPNP
-struct Staticinfo {
-   ei @0 :Latencyinfo;
-   gi @1 :Geoinfo;
-   lt @2 :Linktypeinfo;
-   bw @3 :Bandwidthinfo;
-   ih @4 :Internalhopsinfo;
+struct StaticInfo {
+   latencyInfo @0 :LatencyInfo;
+   geoInfo @1 :GeoInfo;
+   linktypeInfo @2 :LinktypeInfo;
+   bandwidthInfo @3 :BandwidthInfo;
+   internalHopsInfo @4 :InternalHopsInfo;
    note @5 :Text;
 }
 ````
