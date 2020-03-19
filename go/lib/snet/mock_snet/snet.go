@@ -327,7 +327,7 @@ func (mr *MockPacketConnMockRecorder) Close() *gomock.Call {
 }
 
 // ReadFrom mocks base method
-func (m *MockPacketConn) ReadFrom(arg0 *snet.SCIONPacket, arg1 *net.UDPAddr) error {
+func (m *MockPacketConn) ReadFrom(arg0 *snet.Packet, arg1 *net.UDPAddr) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReadFrom", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -383,7 +383,7 @@ func (mr *MockPacketConnMockRecorder) SetWriteDeadline(arg0 interface{}) *gomock
 }
 
 // WriteTo mocks base method
-func (m *MockPacketConn) WriteTo(arg0 *snet.SCIONPacket, arg1 *net.UDPAddr) error {
+func (m *MockPacketConn) WriteTo(arg0 *snet.Packet, arg1 *net.UDPAddr) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WriteTo", arg0, arg1)
 	ret0, _ := ret[0].(error)

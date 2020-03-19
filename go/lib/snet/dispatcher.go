@@ -76,7 +76,7 @@ type SCMPHandler interface {
 	//
 	// If the handler mutates the packet, the changes are seen by snet
 	// connection method callers.
-	Handle(pkt *SCIONPacket) error
+	Handle(pkt *Packet) error
 }
 
 // NewSCMPHandler creates a default SCMP handler that forwards revocations to the revocation
@@ -98,7 +98,7 @@ type scmpHandler struct {
 	revocationHandler RevocationHandler
 }
 
-func (h *scmpHandler) Handle(pkt *SCIONPacket) error {
+func (h *scmpHandler) Handle(pkt *Packet) error {
 	hdr, ok := pkt.L4Header.(*scmp.Hdr)
 	if !ok {
 		return common.NewBasicError("scmp handler invoked with non-scmp packet", nil, "pkt", pkt)
@@ -119,7 +119,7 @@ func (h *scmpHandler) Handle(pkt *SCIONPacket) error {
 	return nil
 }
 
-func (h *scmpHandler) handleSCMPRev(hdr *scmp.Hdr, pkt *SCIONPacket) error {
+func (h *scmpHandler) handleSCMPRev(hdr *scmp.Hdr, pkt *Packet) error {
 	scmpPayload, ok := pkt.Payload.(*scmp.Payload)
 	if !ok {
 		return common.NewBasicError("Unable to type assert payload to SCMP payload", nil,

@@ -324,7 +324,7 @@ func InitInfraEnvironmentFunc(topologyPath string, f func()) {
 // inform local SCION state (CS informing the local SD).
 type ignoreSCMP struct{}
 
-func (ignoreSCMP) Handle(pkt *snet.SCIONPacket) error {
+func (ignoreSCMP) Handle(pkt *snet.Packet) error {
 	// Always reattempt reads from the socket.
 	return nil
 }

@@ -61,10 +61,10 @@ func TestSenderRun(t *testing.T) {
 		Signer:       createTestSigner(t, priv),
 		TopoProvider: topoProvider,
 	}
-	pkts := make([]*snet.SCIONPacket, 0, len(topoProvider.Get().IFInfoMap()))
+	pkts := make([]*snet.Packet, 0, len(topoProvider.Get().IFInfoMap()))
 	conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Times(cap(pkts)).DoAndReturn(
 		func(ipkts, _ interface{}) error {
-			pkts = append(pkts, ipkts.(*snet.SCIONPacket))
+			pkts = append(pkts, ipkts.(*snet.Packet))
 			return nil
 		},
 	)
