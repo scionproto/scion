@@ -54,9 +54,9 @@ type Session interface {
 	IA() addr.IA
 	// ID returns the session's ID.
 	ID() sig_mgmt.SessionType
-	// Conn returns the session's outbound snet Conn.
+	// Conn returns the session's outbound *snet.Conn.
 	// The returned value must be the same for the entire lifetime of the object.
-	Conn() snet.Conn
+	Conn() *snet.Conn
 	// Ring returns the session's ring buffer.
 	Ring() *ringbuf.Ring
 	// Remote returns the session's currently chosen SIG and path.

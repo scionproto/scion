@@ -35,7 +35,7 @@ type DispatchFunc func(*DispPkt)
 // PktDispatcher listens on c, and calls f for every packet read.
 // N.B. the DispPkt passed to f is reused, so applications should make a copy if
 // this is a problem.
-func PktDispatcher(c snet.Conn, f DispatchFunc, pktDispStop chan struct{}) {
+func PktDispatcher(c *snet.Conn, f DispatchFunc, pktDispStop chan struct{}) {
 	fatal.Check()
 	var err error
 	var n int

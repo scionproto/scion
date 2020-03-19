@@ -52,19 +52,18 @@ func (e *OpError) Error() string {
 	return e.scmp.String()
 }
 
-var _ net.Conn = (*SCIONConn)(nil)
-var _ net.PacketConn = (*SCIONConn)(nil)
-var _ Conn = (*SCIONConn)(nil)
+var _ net.Conn = (*Conn)(nil)
+var _ net.PacketConn = (*Conn)(nil)
 
-type SCIONConn struct {
+type Conn struct {
 	conn PacketConn
 	scionConnBase
 	scionConnWriter
 	scionConnReader
 }
 
-func newSCIONConn(base *scionConnBase, querier PathQuerier, conn PacketConn) *SCIONConn {
-	c := &SCIONConn{
+func newConn(base *scionConnBase, querier PathQuerier, conn PacketConn) *Conn {
+	c := &Conn{
 		conn:          conn,
 		scionConnBase: *base,
 	}
@@ -73,7 +72,7 @@ func newSCIONConn(base *scionConnBase, querier PathQuerier, conn PacketConn) *SC
 	return c
 }
 
-func (c *SCIONConn) SetDeadline(t time.Time) error {
+func (c *Conn) SetDeadline(t time.Time) error {
 	if err := c.scionConnReader.SetReadDeadline(t); err != nil {
 		return err
 	}
@@ -83,6 +82,6 @@ func (c *SCIONConn) SetDeadline(t time.Time) error {
 	return nil
 }
 
-func (c *SCIONConn) Close() error {
+func (c *Conn) Close() error {
 	return c.conn.Close()
 }

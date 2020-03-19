@@ -54,7 +54,7 @@ type Session struct {
 	// FIXME: Use AtomicBool instead.
 	healthy        atomic.Value
 	ring           *ringbuf.Ring
-	conn           snet.Conn
+	conn           *snet.Conn
 	sessMonStop    chan struct{}
 	sessMonStopped chan struct{}
 	pktDispStop    chan struct{}
@@ -136,7 +136,7 @@ func (s *Session) Ring() *ringbuf.Ring {
 	return s.ring
 }
 
-func (s *Session) Conn() snet.Conn {
+func (s *Session) Conn() *snet.Conn {
 	return s.conn
 }
 

@@ -54,7 +54,7 @@ var (
 	CtrlPort   int
 	DataAddr   net.IP
 	DataPort   int
-	CtrlConn   snet.Conn
+	CtrlConn   *snet.Conn
 )
 
 func Init(cfg sigconfig.SigConf, sdCfg env.SCIONDClient) error {

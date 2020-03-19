@@ -102,7 +102,7 @@ func NewCustomNetworkWithPR(ia addr.IA, pktDispatcher PacketDispatcherService) *
 // The context is used for connection setup, it doesn't affect the returned
 // connection.
 func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDPAddr,
-	remote *UDPAddr, svc addr.HostSVC) (Conn, error) {
+	remote *UDPAddr, svc addr.HostSVC) (*Conn, error) {
 
 	metrics.M.Dials().Inc()
 	if remote == nil {
@@ -112,8 +112,7 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 	if err != nil {
 		return nil, err
 	}
-	snetConn := conn.(*SCIONConn)
-	snetConn.remote = remote.Copy()
+	conn.remote = remote.Copy()
 	return conn, nil
 }
 
@@ -125,7 +124,7 @@ func (n *SCIONNetwork) Dial(ctx context.Context, network string, listen *net.UDP
 // The context is used for connection setup, it doesn't affect the returned
 // connection.
 func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.UDPAddr,
-	svc addr.HostSVC) (Conn, error) {
+	svc addr.HostSVC) (*Conn, error) {
 
 	metrics.M.Listens().Inc()
 
@@ -164,5 +163,5 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		conn.listen.Port = int(port)
 	}
 	log.Debug("Registered with dispatcher", "addr", &UDPAddr{IA: n.localIA, Host: conn.listen})
-	return newSCIONConn(conn, n.querier, packetConn), nil
+	return newConn(conn, n.querier, packetConn), nil
 }

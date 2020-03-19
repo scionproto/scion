@@ -260,10 +260,10 @@ func (m *MockNetwork) EXPECT() *MockNetworkMockRecorder {
 }
 
 // Dial mocks base method
-func (m *MockNetwork) Dial(arg0 context.Context, arg1 string, arg2 *net.UDPAddr, arg3 *snet.UDPAddr, arg4 addr.HostSVC) (snet.Conn, error) {
+func (m *MockNetwork) Dial(arg0 context.Context, arg1 string, arg2 *net.UDPAddr, arg3 *snet.UDPAddr, arg4 addr.HostSVC) (*snet.Conn, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Dial", arg0, arg1, arg2, arg3, arg4)
-	ret0, _ := ret[0].(snet.Conn)
+	ret0, _ := ret[0].(*snet.Conn)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -275,10 +275,10 @@ func (mr *MockNetworkMockRecorder) Dial(arg0, arg1, arg2, arg3, arg4 interface{}
 }
 
 // Listen mocks base method
-func (m *MockNetwork) Listen(arg0 context.Context, arg1 string, arg2 *net.UDPAddr, arg3 addr.HostSVC) (snet.Conn, error) {
+func (m *MockNetwork) Listen(arg0 context.Context, arg1 string, arg2 *net.UDPAddr, arg3 addr.HostSVC) (*snet.Conn, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Listen", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(snet.Conn)
+	ret0, _ := ret[0].(*snet.Conn)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
