@@ -21,5 +21,5 @@ struct SIGPoll {
 
 struct SIGAddr {
     ctrl @0 :Sciond.HostInfo;
-    encapPort @1 :UInt16;
+    data @1 :Sciond.HostInfo;
 }

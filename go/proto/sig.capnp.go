@@ -265,12 +265,12 @@ type SIGAddr struct{ capnp.Struct }
 const SIGAddr_TypeID = 0xddf1fce11d9b0028
 
 func NewSIGAddr(s *capnp.Segment) (SIGAddr, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
 	return SIGAddr{st}, err
 }
 
 func NewRootSIGAddr(s *capnp.Segment) (SIGAddr, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
 	return SIGAddr{st}, err
 }
 
@@ -309,12 +309,29 @@ func (s SIGAddr) NewCtrl() (HostInfo, error) {
 	return ss, err
 }
 
-func (s SIGAddr) EncapPort() uint16 {
-	return s.Struct.Uint16(0)
+func (s SIGAddr) Data() (HostInfo, error) {
+	p, err := s.Struct.Ptr(1)
+	return HostInfo{Struct: p.Struct()}, err
 }
 
-func (s SIGAddr) SetEncapPort(v uint16) {
-	s.Struct.SetUint16(0, v)
+func (s SIGAddr) HasData() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s SIGAddr) SetData(v HostInfo) error {
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+}
+
+// NewData sets the data field to a newly
+// allocated HostInfo struct, preferring placement in s's segment.
+func (s SIGAddr) NewData() (HostInfo, error) {
+	ss, err := NewHostInfo(s.Struct.Segment())
+	if err != nil {
+		return HostInfo{}, err
+	}
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	return ss, err
 }
 
 // SIGAddr_List is a list of SIGAddr.
@@ -322,7 +339,7 @@ type SIGAddr_List struct{ capnp.List }
 
 // NewSIGAddr creates a new list of SIGAddr.
 func NewSIGAddr_List(s *capnp.Segment, sz int32) (SIGAddr_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
 	return SIGAddr_List{l}, err
 }
 
@@ -347,29 +364,33 @@ func (p SIGAddr_Promise) Ctrl() HostInfo_Promise {
 	return HostInfo_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-const schema_8273379c3e06a721 = "x\xda\x8c\x91\xb1\xeb\xd3@\x1c\xc5\xdf\xbbk\x92\xdfO" +
-	",Mh\xa7\x82\xa8P\xb1\x15\x15[,jA\xb1\x8a" +
-	"\x88[\xaf\xae\"\x86&\xd8@L\xd2$\xa5c\xc1?" +
-	"\xa1n\xea(8\xb9\xf8\x7f88\x88\x93C'gw" +
-	"\xeb\xc9\x11\xb5C\x1d~\xd3\x17\xbe\xef\xdd}\xee\xdds" +
-	"?\xdc\x15}\xabA@\x9d\xb6l=\xf6\xdf\x0d\xc5\xe8" +
-	"\xebk\xa8S\xa4>\xff\xde\xbe\xf3\xf6F\xf1\x12\x16\x1d" +
-	"\xc0{\xb1\xf1\x96f.V\xe0\xae\xfb\xe6\xcc\xf6\xe7\x8f" +
-	"o\xff\xf3}\xdax_\xcc\xfc\xbc\x02\xf5\xd1\xedA\xd1" +
-	"\xeb<\xdd\x9a\x1b\xc5\xde\xf9\x80\x8ed\xad\xd9\xe7\xa6y" +
-	"\xcb\x1cj\x0e\xf9\x1d\xd4E\xf4\xfc\xea\xcc\xcf\x12f\xa3" +
-	"\xc7\x8f\x1eN\xd2\x98\xf1\x84TG\xb2\x06\xd4\x08x\xbd" +
-	"K\x80\xeaH\xaak\x82d\x8bfw\xe5\x1e\xa0\xba\x92" +
-	"\xea\xba`\xc3\x0f\x82\x9c\xee\xdf\xe7\x81t\xc1u\x11\x16" +
-	"E\x94&\xb4!h\x1f`\xc6A\xc0\xfc\x04\x98)\xa0" +
-	".K\xaa\x9b\x82\x8dY\x99\xc7t\xf5\xb9\x0b\xafV\xd6" +
-	"\xc5\xf6GT \x1d&3?\x9b\xa49X\xd2\x81\xa0" +
-	"s\x00\xbb_\xe6U&\xf7\x1f\xcco\x03\xea\x89\xa4\x9a" +
-	"\x0b\xd6\xa9u\x85\x0b\x07\x80z&\xa9b\xc1\xba\xf8\xa5" +
-	"[\x14\x80\x17\x99\xac\x81\xa4\xca\x04\xebr\xa7[\x94\xa6" +
-	"\x19\xb3\x9dK\xaaRPF\x01\x8f!x\x0c\x9e]&" +
-	"EX\xc2^gi\x1cO\xc3\x05\xdd}\xc1\x7f~\xa6" +
-	"R\xb2C\xe5w\x00\x00\x00\xff\xfflyx\xa7"
+func (p SIGAddr_Promise) Data() HostInfo_Promise {
+	return HostInfo_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
+}
+
+const schema_8273379c3e06a721 = "x\xdat\x91Ok\x1aQ\x14\xc5\xefy\xcf\x19\xffP" +
+	"q\x06]\x09\xa5-X\xaa\x82\xa5J\xa5 \xb4\xd4\x96" +
+	"R\xb2\xf3%\xdb\x1028C\x1c\x98\xe883\xe2R" +
+	"\xc8G0\xbb$\xcb@6Y\xe5{d\x91E\xc8*" +
+	"\x0bWYg\x1f\xf3\xc2c\x12\x95HV\x17\xce\xb9\xdc" +
+	"\xdf;\xef\x18\xe7\xbfY]\xcb\x81H\xbc\xd3t\xd9\xb6" +
+	"N\x9b\xacusD\"\x03\xc8Og\xfa\xaf\x93\x1f\xe1" +
+	"\x01iH\x12\x99\xfbSs\xa4\xe6pL\x98\x97\x8f\xdf" +
+	"\xcf\x1e\xeeo\xcd\xcc\xea\x1aS\xf6\xe5\xd4\xbcV\xf3j" +
+	"L\x90\xa9\x9f\x8d\xb0R\xda\x99\xa9\x83l\xb9\xf9\x0fI" +
+	"\x8eD\xbe\x86i\xbe\xa9n\xe7\xeb\xb8#\xc8\xd0\xdd\xfb" +
+	"\xda\xb5\xfc>\xfc\xd6\xd6\xc6\xff\xce\xc0\x83\xd7\x01D\x8a" +
+	"'\x88\x12 2+U\"Q\xe2\x10\xdf\x18\x80\x02\x94" +
+	"V\xfbC$\xca\x1c\xe2;C\xce\xb2\xed\x00\xc6\xcb\xeb" +
+	"\x080\x08\x93\xd0\x09Cw\xd0\x87N\x0c\xfa\x1a\xa6m" +
+	"\xdb\x08\xde\xc6\x98\x0bNu\x85\xd3\x8d\x02\x0f\x86\xfc\xf8" +
+	"\xf9p\xac})^PL\xca\xd9Vd\xad\xcb\xaf\x80" +
+	"\x7f\xa3 \xcee,\x80V\x91Hls\x88\x1eC\x16" +
+	"R\xc6D\xa7A$v9\x84\xc7\x90e\x8f\xb2\x00F" +
+	"d\xba*\xaf\xcd!|\x86,\x9f\xcb\x02\xb8*G\xa9" +
+	"=\x0e\x111p\xd7F\x9a\x18\xd2\x84\x0f\xa3~\xe8D" +
+	"\xa4O\xfc\x81\xe7m:C\x18\xcb\x8e\x9f\x7f'v\xfc" +
+	"u\xe7)\x00\x00\xff\xff\x12\xacx\x8f"
 
 func init() {
 	schemas.Register(schema_8273379c3e06a721,

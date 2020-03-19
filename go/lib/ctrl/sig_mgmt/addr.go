@@ -27,14 +27,14 @@ import (
 var _ proto.Cerealizable = (*Addr)(nil)
 
 type Addr struct {
-	Ctrl      *hostinfo.Host
-	EncapPort uint16
+	Ctrl *hostinfo.Host
+	Data *hostinfo.Host
 }
 
-func NewAddr(host addr.HostAddr, ctrlPort, encapPort uint16) *Addr {
+func NewAddr(ctrl addr.HostAddr, ctrlPort uint16, data addr.HostAddr, dataPort uint16) *Addr {
 	return &Addr{
-		Ctrl:      hostinfo.FromHostAddr(host, ctrlPort),
-		EncapPort: encapPort,
+		Ctrl: hostinfo.FromHostAddr(ctrl, ctrlPort),
+		Data: hostinfo.FromHostAddr(data, dataPort),
 	}
 }
 
@@ -52,6 +52,6 @@ func (a *Addr) Write(b common.RawBytes) (int, error) {
 }
 
 func (a *Addr) String() string {
-	return fmt.Sprintf("Host: %s CtrlPort: %d EncapPort: %d",
-		a.Ctrl.Host(), a.Ctrl.Port, a.EncapPort)
+	return fmt.Sprintf("Ctrl: %s CtrlPort: %d Data: %s DataPort: %d",
+		a.Ctrl.Host(), a.Ctrl.Port, a.Data.Host(), a.Data.Port)
 }
