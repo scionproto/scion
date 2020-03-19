@@ -57,11 +57,13 @@ var (
 	Interactive bool
 	Interval    time.Duration
 	Timeout     time.Duration
-	Local       snet.UDPAddr
 	Remote      snet.UDPAddr
+	localIP     string
 )
 
 var (
+	LocalIA   addr.IA
+	LocalIP   net.IP
 	Conn      net.PacketConn
 	Mtu       uint16
 	PathEntry snet.Path
@@ -75,7 +77,7 @@ func init() {
 	flag.DurationVar(&Interval, "interval", DefaultInterval, "time between packets (echo only)")
 	flag.DurationVar(&Timeout, "timeout", DefaultTimeout, "timeout per packet")
 	flag.UintVar(&Count, "c", 0, "Total number of packet to send (echo only). Maximum value 65535")
-	flag.Var(&Local, "local", "(Mandatory) address to listen on")
+	flag.StringVar(&localIP, "local", "", "(Optional) IP address to listen on")
 	flag.Var(&Remote, "remote", "(Mandatory for clients) address to connect to")
 	flag.Usage = scmpUsage
 	Stats = &ScmpStats{}
@@ -123,8 +125,11 @@ func ParseFlags(version *bool) string {
 }
 
 func ValidateFlags() {
-	if Local.Host == nil {
-		Fatal("Invalid local address")
+	if localIP != "" {
+		LocalIP = net.ParseIP(localIP)
+		if LocalIP == nil {
+			Fatal("Invalid local address")
+		}
 	}
 	if Remote.Host == nil {
 		Fatal("Invalid remote address")
@@ -151,9 +156,9 @@ func NewSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 	}
 	pkt := &spkt.ScnPkt{
 		DstIA:   Remote.IA,
-		SrcIA:   Local.IA,
+		SrcIA:   LocalIA,
 		DstHost: addr.HostFromIP(Remote.Host.IP),
-		SrcHost: addr.HostFromIP(Local.Host.IP),
+		SrcHost: addr.HostFromIP(LocalIP),
 		Path:    Remote.Path,
 		HBHExt:  exts,
 		L4:      scmpHdr,
