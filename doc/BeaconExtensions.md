@@ -19,7 +19,6 @@ in the form of an extension.
 
 ## Static Properties
 
-For the purpose of this document, we will adhere to the following definition:
 A static property is any quantifiable piece of information describing a
 property of a SCION path segment that remains unchanged over the entire
 duration of the lifetime of that path segment.
@@ -34,28 +33,31 @@ The following assumptions are made:
   that characterizes the AS topology and the routing processes within the AS
 - The AS topology remains stable throughout the lifetime of a path segment
 
-When discussing static properties, we always need to distinguish between
-inter-AS and intra-AS elements. Most properties will be comprised of both.
-Using the diagram below, the concept of this difference between intra-AS
-and inter-AS elements will be illustrated with the example of propagation
-delay.
+### Inter- vs Intra-AS Metrics
+The diagram below illustrates the difference between inter- and intra-as 
+metrics.
 
 ![Inter VS Intra Metrics](fig/inter_vs_intra_metrics.png)
 
-The PCB originates in AS 3, and is then propagated to AS 1, and then to
-AS 2. In the AS Entry of AS 1, interface 1 is the ingress and inteface 2
-the egress interface. In order to be able to calculate the end-to-end
+In order to be able to calculate the end-to-end
 propagation delay of a path starting in AS 2 and ending in AS 3, we need
 both the delay inside each AS (intra-AS), as well as the delay on the
-connections between ASes (inter-AS). When measuring intra-AS latency,
-the egress interface is the "target" interface, to which the latency is
-measured from any other interface (as we will see later, only having the
-latency between the ingress and egress interface is not sufficient).
-When it comes to inter-AS metrics, we will always extend the PCB only with
-the metrics describing the outgoing connection (i.e. the connection that is
-used to propagate the PCB to the next AS) in the PCB. Looking at the figure
-above, this would mean that AS 1 would extend the PCB with information about the
-connection between interface 2 and interface 3 before propagating it to AS 2.
+connections between ASes (inter-AS). 
+
+#### Intra-AS Metrics
+
+When measuring intra-AS metrics,
+the egress interface is the "target" interface, to which the metric is
+measured from every other interface. Only having the
+metric between the ingress and egress interface is not sufficient 
+(see below).
+
+#### Inter-AS Metrics
+
+The PCB is extended with metrics describing the outgoing connection (i.e. the 
+child link) in the PCB. Looking at the figure
+above, this means that AS 1 extends the PCB with information about its child link
+from interface 2 to 3 before propagating it to AS 2.
 This assures that:
 
 - The PCB always carries information about the entire path
@@ -63,10 +65,93 @@ it has traversed so far
 - The final AS in the path does not need to make additions/modifications to the
 data it receieved through the PCB before being able to use said data
 
-Using this method, we can then calculate the end-to-end delay by simply combining
-intra- and inter-AS delays. These concepts appliy similarly to many other
-properties. We will now discuss the properties we will embed and the
-information that needs to be provided for each of them.
+Using this method, end-to-end metrics can be calculated by simply combining
+intra- and inter-AS metrics.
+
+## Path Segment Combination
+
+### Segments
+
+As the structure of an AS Entry is identical for up-, down-, and core segments,
+all of them are extended in the same way.
+Since each AS Entry carries information about one AS on the path, the different
+segments of a path can be combined as follows: 
+
+- Create an initially empty list of extension entries
+- Look at each segment in order
+- Extract the extension information from each AS Entry of the current segment
+  and add it to the list
+- The resulting list of extension entries contains all the information
+  necessary to calculate metrics for the end-to-end path
+
+### Normal Path
+
+![Normal Path](fig/normal_paths_with_labels.png)
+
+In the case of a "normal" path without shortcuts or peering links, the
+interfaces where traffic enters and leaves correspond to the ingress and
+egress interfaces saved in the AS Entry of the PCB. The terms ingress and
+egress interface refer to the way these interfaces would be encoded in the
+PCB during the beaconing process.
+Therefore the lower interface is always labelled as the egress interface, even when it is in
+the up segment and would thus technically be the interface on which traffic enters the AS.
+Calculating end-to-end metrics can therefore be done by simply adding up the intra-AS
+latency (from ingress to egress interface) as well as the inter-AS latency (from egress
+interface to the next AS on the path) for every AS on the end to end path.
+
+### Shortcuts
+
+![Shortcut Path](fig/shortcut_paths_with_labels.png)
+
+In the diagram above, traffic will enter AS 2 via interface 22.
+Traffic will leave AS 2 via interface 21. Information about the
+metrics of the child link attached to interface 22 is included in the up segment.
+Metrics describing the intra-AS connection between interface 22 and 21 are also
+included in the up segment, in the AS Entry of AS 2. Metrics describing the
+child link attached to interface 21 are included in the down segment.
+Thus AS 3 now has information about both the inter-AS connection between AS 3
+and AS 2, and the inter-AS connection between AS 2 and AS 4.
+To deal with peering connections it is therefore sufficient to encode the following
+2 things: 
+
+- The intra-AS metrics from the egress interface to every other interface in the AS
+- The inter-As metrics of the child link
+
+### Peering Links
+
+![Peering Path](fig/peering_paths_with_labels.png)
+
+As the figure shows, peering interfaces may differ from the egress interface encoded
+in the AS Entry. Therefore the inter-AS metrics for every connection attached to a
+peering interface of the AS also need to be stored in the PCB.
+
+## Symmetry
+
+In order to reduce the amount of data we need to include in the PCBs in total,
+it is assumed that intra-AS metrics are symmetric. We can illustrate the use of
+this assumption using the drawing of a shortcut path above. In the PCB sent to AS 3,
+the metric between interface 22 (the egress interface for this PCB) and interface 23
+is saved. Since the metric between 
+interfaces 22 and 23, and that between 23 and 22 is assumed to be identical,
+the metric between interface 23 and 22 can be omitted in the PCB that is sent to AS 4.
+Let interface i be the egress interface the PCB is sent out on. This allows us to
+include the latency between interfaces i and j if and only if the interface ID
+of j is larger than that of i, i.e. id(j)>id(i). 
+However, we still need to always include the metric from ingress-
+to egress interface regardless of their IDs.
+
+## Clustering
+
+For each metric, interfaces are grouped into clusters, designed to contain interfaces
+with roughly similar values of said metric.
+We employ a greedy clustering algorithm, which does the following: 
+
+- check for each value in turn if it can be assigned to an already existing cluster
+- if yes, add the ID of the associated interface to the cluster
+- if not, use this value as the baseline for a new cluster, and add the associated
+  ID to this new cluster
+
+The details depend on the metric in question.
 
 ## Latency Information
 
@@ -96,10 +181,7 @@ The difference between peering and non-peering latency clusters is that in peeri
 latency clusters, the latency of the inter-AS link attached to the peering interface is also
 included in the cluster for every such peering interface. In non-peering clusters
 this information is omitted.
-The clustering process is straightforward. When doing clustering, it will simply
-pick the first value it comes across that can't be assigned to an already
-existing cluster and, if it is not an integer, round it down to the nearest integer.
-This value will then serve as the baseline for the newly created cluster, which will
+A cluster will
 include all interfaces with intra-AS delay values in the interval
 (baseline, baseline+1(.
 Each peering latency cluster is itself comprised of 3 types of elements:
@@ -116,6 +198,8 @@ being that the inter-AS propagation delays are omitted:
 - The intra-AS propagation delay for every interface in the cluster, in ms (1
   value per cluster)
 - The interface ID for every interface in the cluster (1 value per interface)
+
+//------ this is about to go away
 
 Information about the inter-AS latency, as well as the intra-AS latency from
 every interface to the egress interface is required to deal with peering
@@ -188,6 +272,8 @@ to egress interface.
 All these considerations also apply to other properties, such as maximum bandwidth
 (see below).
 
+//--------- up to here
+
 ### Concrete Format Latency
 
 The format for latency information, specified in terms of its capnp encoding, looks like this:
@@ -247,20 +333,13 @@ A maximum bandwidth cluster serves to pool all interfaces which have the
 same total maximum bandwidth. For peering interfaces, the total maximum bandwidth
 is calculated as the minimum between the intra-AS bandwidth and the bandwidth of
 the inter-AS peering link.
-When doing clustering, the system will simply pick the first value it comes across
-that can't be assigned to an already existing cluster and, if it is not an integer,
-round it down to the nearest integer. This value will then serve as the
-baseline for the newly created cluster, which will include all interfaces with
-delay values in the interval (baseline, baseline+10(.
+A cluster will include all interfaces with values in the
+interval (baseline-5, baseline+5(. 
 Each cluster is itself formed of 2 types of elements:
 
 - The maximum bandwidth for all interfaces in the cluster (1 value per
   cluster)
 - The interface IDs of all the interfaces in the cluster (1 value per interface)
-
-Be reminded that only the interfaces with
-IDs bigger than the ID of the egress interface are included, and if this would mean a
-cluster is devoid of interface IDs, the cluster is simply removed as a whole.
 
 ### Concrete Format Maximum Bandwidth
 
