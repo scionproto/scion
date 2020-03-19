@@ -7,6 +7,8 @@ in the form of an extension.
 ## Table of Contents
 
 - [Static Properties](#static-properties)
+- [Symmetry](#symmetry)
+- [Clustering](#clustering)
 - [Latency Information](#latency-information)
 - [Geographic Information](#geographic-information)
 - [Link Type](#link-type)
@@ -173,7 +175,6 @@ The latency information will be comprised of four main parts:
 - A variable number of non-peering latency clusters
 - A variable number of peering latency clusters
 
-
 In general, a latency cluster serves to pool all interfaces which have the same
 propagation delay (within a 1 ms range) between them and the egress interface (i.e.
 the interface the PCB will be sent out on). 
@@ -198,81 +199,6 @@ being that the inter-AS propagation delays are omitted:
 - The intra-AS propagation delay for every interface in the cluster, in ms (1
   value per cluster)
 - The interface ID for every interface in the cluster (1 value per interface)
-
-//------ this is about to go away
-
-Information about the inter-AS latency, as well as the intra-AS latency from
-every interface to the egress interface is required to deal with peering
-paths (see diagram).
-
-![Normal Path](fig/normal_paths_with_labels.png)
-
-In the case of a "normal", the interfaces where traffic enters
-and leaves correspond to the ingress and egress interfaces respectively, that are
-saved in the AS Entry of the PCB. The terms ingress and egress interfaces refer to
-the way these interfaces would be encoded in the PCB during the beaconing process,
-therefore the lower interface is always labelled as the egress interface, even when it is in
-the up segment and would thus technically be the interface on which traffic enters the AS.
-Calculating end-to-end latencies can therefore be done by simply adding up the intra-AS
-latency (from ingress to egress interface) as well as the inter-AS latency (from egress
-interface to the next AS on the path) for every AS on the end to end path.
-
-Knowing merely the inter-AS latency for the egress interface is also sufficient
-in the case of shortcut paths. Traffic will enter AS 2 via interface 22, which
-is the egress interface saved in the AS Entry for AS 2 in the PCB which was directly
-received by AS 3. Traffic will leave AS 2 via interface 21, which is the interface that
-was saved in AS Entry of the PCB that was sent to AS 4 and was fetched by AS 3 in
-the form of a path segment during the path lookup process. Thus AS 3 now has information
-about both the inter-AS connection between AS 3 and AS 2, and the inter-AS connection
-between AS 2 and AS 4. In the presence of information about intra-AS latencies, 
-this information is sufficient to calculate the end-to-end latency betwen AS 3 and AS 4
-(see figure below). Thus, for non-peering interfaces, we will only encode the inter-AS
-latency for the egress interface in the latency information.
-
-Peering connections need to be dealt with separately. A peering link may differ
-from the egress interface encoded in any of the AS Entries of any of the path segments that
-were received or fetched by AS 3. Therefore we need to make sure that the inter-AS latency
-for every connection attached to a peering interface of the AS is also stored in the PCB
-(this is done in the peering latency clusters) (see figure below).
-
-Intra-AS delays present a problem in the presence of both shortcut-, or peering
-paths. In those situations, merely 
-storing the latency from the ingress to the egress interface will be insufficient.
-This is because the interface on which traffic will leave the AS as it travels
-along the path will no longer be the ingress interface encoded in the PCB that
-was used to construct the up segment, but rather either the egress interface
-stored in a different PCB (in the case of a shortcut connection) or a peering
-interface (in the case of a peering conncetion). Therefore, it is necessary
-that latencies (or other metrics when looking at a different property) be known
-for the paths from the egress interface to such a non-ingress interface also
-(see figure below).
-
-![Shortcut Path](fig/shortcut_paths_with_labels.png)
-![Peering Path](fig/peering_paths_with_labels.png)
-
-In the case of non-peering connections, we will also make an additional assumption
-in order to reduce the amount of data we need to include in the PCBs in total. That
-assumption being that intra-AS latencies are symmetric. We can illustrate the use of
-this assumption using the drawing of a shortcut path above. In the PCB sent to AS 3,
-the latency between interface 22 (the egress interface for this PCB) and interface 23
-is saved. Now is when the assumption comes into play. Since the latency between 
-interfaces 22 and 23, and that between 23 and 22 is identical, we can omit the latency
-between interface 23 and 22 in the PCB that is sent to AS 4. Let interface i be the
-egress interface the PCB is sent out on. The this approach ultimately allows us to
-always omit the latency between interfaces i and j, in the case that the interface ID
-of j is smaller than that of i, or expressed as a formula, id(j)<id(i). This also
-means that when it comes to non-peering interfaces, we need only include those with
-an ID bigger than the ID of the egress interface in the latency clusters. If this means
-a cluster would contain no interface IDs anymore, we simply omit it as a whole.
-However, in order to still be able to obtain the intra AS latency in the case where
-the ID of the ingress interface is smaller than that of the egress interface and the
-AS does not serve as a shortcut AS, we will always include the latency from ingress-
-to egress interface.
-
-All these considerations also apply to other properties, such as maximum bandwidth
-(see below).
-
-//--------- up to here
 
 ### Concrete Format Latency
 
