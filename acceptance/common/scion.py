@@ -26,8 +26,8 @@ from acceptance.common.log import LogExec
 logger = logging.getLogger(__name__)
 
 
-class Scion(ABC):
-    """ Scion is the base class for interacting with the infrastructure. """
+class SCION(ABC):
+    """ SCION is the base class for interacting with the infrastructure. """
     scion_sh = local['./scion.sh']
     end2end = local['./bin/end2end_integration']
 
@@ -101,9 +101,9 @@ class Scion(ABC):
             toml.dump(t, f)
 
 
-class ScionDocker(Scion):
+class SCIONDocker(SCION):
     """
-    ScionDocker is used for interacting with the dockerized
+    SCIONDocker is used for interacting with the dockerized
     scion infrastructure.
     """
     tools_dc = local['./tools/dc']
@@ -121,10 +121,10 @@ class ScionDocker(Scion):
         self.end2end('-d', retcode=code)
 
 
-class ScionSupervisor(Scion):
+class SCIONSupervisor(SCION):
     """
-    ScionSupervisor is used for interacting with the supervisor
-    scion infrastructure.
+    SCIONSupervisor is used for interacting with the supervisor
+    SCION infrastructure.
     """
 
     @LogExec(logger, "creating supervisor topology")
