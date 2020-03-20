@@ -41,7 +41,7 @@ metrics.
 
 ![Inter VS Intra Metrics](fig/inter_vs_intra_metrics.png)
 
-In order to be able to calculate the end-to-end
+In order to be able to calculate e.g. the end-to-end
 propagation delay of a path starting in AS 2 and ending in AS 3, we need
 both the delay inside each AS (intra-AS), as well as the delay on the
 connections between ASes (inter-AS). 
@@ -57,15 +57,15 @@ metric between the ingress and egress interface is not sufficient
 #### Inter-AS Metrics
 
 The PCB is extended with metrics describing the outgoing connection (i.e. the 
-child link) in the PCB. Looking at the figure
+child link). Looking at the figure
 above, this means that AS 1 extends the PCB with information about its child link
 from interface 2 to 3 before propagating it to AS 2.
 This assures that:
 
 - The PCB always carries information about the entire path
 it has traversed so far
-- The final AS in the path does not need to make additions/modifications to the
-data it receieved through the PCB before being able to use said data
+- The final AS in the segment does not need to make additions/modifications to the
+data it receieved through the PCB
 
 Using this method, end-to-end metrics can be calculated by simply combining
 intra- and inter-AS metrics.
@@ -106,14 +106,14 @@ interface to the next AS on the path) for every AS on the end to end path.
 ![Shortcut Path](fig/shortcut_paths_with_labels.png)
 
 In the diagram above, traffic will enter AS 2 via interface 22.
-Traffic will leave AS 2 via interface 21. Information about the
+Traffic will leave AS 2 via interface 23. Information about the
 metrics of the child link attached to interface 22 is included in the up segment.
-Metrics describing the intra-AS connection between interface 22 and 21 are also
+Metrics describing the intra-AS connection between interface 22 and 23 are also
 included in the up segment, in the AS Entry of AS 2. Metrics describing the
-child link attached to interface 21 are included in the down segment.
+child link attached to interface 23 are included in the down segment.
 Thus AS 3 now has information about both the inter-AS connection between AS 3
 and AS 2, and the inter-AS connection between AS 2 and AS 4.
-To deal with peering connections it is therefore sufficient to encode the following
+To deal with shortcut connections it is therefore sufficient to encode the following
 2 things: 
 
 - The intra-AS metrics from the egress interface to every other interface in the AS
@@ -124,8 +124,9 @@ To deal with peering connections it is therefore sufficient to encode the follow
 ![Peering Path](fig/peering_paths_with_labels.png)
 
 As the figure shows, peering interfaces may differ from the egress interface encoded
-in the AS Entry. Therefore the inter-AS metrics for every connection attached to a
-peering interface of the AS also need to be stored in the PCB.
+in the AS Entry. Therefore, in addition to the list above, we also need to store the
+inter-AS metrics for every connection attached to a peering interface of the AS in
+the extension.
 
 ## Symmetry
 
