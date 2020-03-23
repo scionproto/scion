@@ -33,7 +33,6 @@ import (
 
 var (
 	dstIAStr   = flag.String("dstIA", "", "Destination IA address: ISD-AS")
-	srcIAStr   = flag.String("srcIA", "", "Source IA address: ISD-AS")
 	sciondAddr = flag.String("sciond", sciond.DefaultSCIONDAddress, "SCIOND address")
 	timeout    = flag.Duration("timeout", 5*time.Second, "Timeout in seconds")
 	maxPaths   = flag.Int("maxpaths", 10, "Maximum number of paths")
@@ -45,7 +44,6 @@ var (
 
 var (
 	dstIA      addr.IA
-	srcIA      addr.IA
 	local      snet.UDPAddr
 	logConsole string
 )
@@ -113,12 +111,6 @@ func validateFlags() {
 		}
 	}
 
-	if *srcIAStr != "" {
-		if srcIA, err = addr.IAFromString(*srcIAStr); err != nil {
-			LogFatal("Unable to parse source IA", "err", err)
-		}
-	}
-
 	if *status && (local.IA.IsZero() || local.Host == nil) {
 		LogFatal("Local address is required for health checks")
 	}
@@ -132,7 +124,7 @@ func getPaths(ctx context.Context) ([]snet.Path, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("failed to connect to SCIOND", err)
 	}
-	paths, err := sdConn.Paths(ctx, dstIA, srcIA,
+	paths, err := sdConn.Paths(ctx, dstIA, addr.IA{},
 		sciond.PathReqFlags{Refresh: *refresh, PathCount: uint16(*maxPaths)})
 	if err != nil {
 		return nil, serrors.WrapStr("failed to retrieve paths from SCIOND", err)
