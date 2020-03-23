@@ -44,12 +44,10 @@ var (
 
 var (
 	dstIA      addr.IA
-	local      snet.UDPAddr
 	logConsole string
 )
 
 func init() {
-	flag.Var(&local, "local", "Local address to use for health checks")
 	flag.Usage = flagUsage
 }
 
@@ -67,7 +65,11 @@ func main() {
 
 	ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
 	defer cancelF()
-	paths, err := getPaths(ctx)
+	sdConn, err := sciond.NewService(*sciondAddr).Connect(ctx)
+	if err != nil {
+		LogFatal("Failed to connect to SCIOND", err)
+	}
+	paths, err := getPaths(sdConn, ctx)
 	if err != nil {
 		LogFatal("Failed to get paths", "err", err)
 	}
@@ -75,8 +77,8 @@ func main() {
 	var pathStatuses map[string]pathprobe.Status
 	if *status {
 		pathStatuses, err = pathprobe.Prober{
-			Local: local,
-			DstIA: dstIA,
+			DstIA:      dstIA,
+			SciondConn: sdConn,
 		}.GetStatuses(ctx, paths)
 		if err != nil {
 			LogFatal("Failed to get status", "err", err)
@@ -110,20 +112,12 @@ func validateFlags() {
 			LogFatal("Unable to parse destination IA", "err", err)
 		}
 	}
-
-	if *status && (local.IA.IsZero() || local.Host == nil) {
-		LogFatal("Local address is required for health checks")
-	}
 }
 
 // TODO(lukedirtwalker): Replace this with snet.Router once we have the
 // possibility to have the same functionality, i.e. refresh, fetch all paths.
 // https://github.com/scionproto/scion/issues/3348
-func getPaths(ctx context.Context) ([]snet.Path, error) {
-	sdConn, err := sciond.NewService(*sciondAddr).Connect(ctx)
-	if err != nil {
-		return nil, serrors.WrapStr("failed to connect to SCIOND", err)
-	}
+func getPaths(sdConn sciond.Connector, ctx context.Context) ([]snet.Path, error) {
 	paths, err := sdConn.Paths(ctx, dstIA, addr.IA{},
 		sciond.PathReqFlags{Refresh: *refresh, PathCount: uint16(*maxPaths)})
 	if err != nil {
