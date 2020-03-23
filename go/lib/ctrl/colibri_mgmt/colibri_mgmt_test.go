@@ -15,8 +15,9 @@
 package colibri_mgmt_test
 
 import (
-	"bytes"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -28,180 +29,176 @@ func TestSerializeRoot(t *testing.T) {
 		Which: proto.ColibriRequestPayload_Which_unset,
 	}
 	buffer, err := root.PackRoot()
-	if err != nil {
-		t.Fatalf("Error serializing root: %v", err)
-	}
-	if len(buffer) != 7 {
-		t.Fatalf("Expected 15 bytes, got %d", len(buffer))
-	}
-	copy, err := colibri_mgmt.NewFromRaw(buffer)
-	if err != nil {
-		t.Fatalf("Error deserializing buffer: %v", err)
-	}
-	if copy.Which != root.Which {
-		t.Fatalf("Not equal")
-	}
-	otherBuffer, err := copy.PackRoot()
-	if err != nil {
-		t.Fatalf("Error serializing root: %v", err)
-	}
-	if bytes.Compare(buffer, otherBuffer) != 0 {
-		t.Fatalf("Serialized message not equal")
-	}
+	require.NoError(t, err)
+	require.Len(t, buffer, 7)
+	otherRoot, err := colibri_mgmt.NewFromRaw(buffer)
+	require.NoError(t, err)
+	require.Equal(t, root.Which, otherRoot.Which)
+	otherBuffer, err := otherRoot.PackRoot()
+	require.NoError(t, err)
+	require.Equal(t, buffer, otherBuffer)
 }
 
 // tests serialization for all types of requests
 func TestSerializeRequest(t *testing.T) {
-	setup := &colibri_mgmt.SegmentSetup{
-		MinBW:    1,
-		MaxBW:    2,
-		SplitCls: 3,
-		StartProps: colibri_mgmt.PathEndProps{
-			Local:    true,
-			Transfer: false,
+	newSegmentSetup := func() *colibri_mgmt.SegmentSetup {
+		return &colibri_mgmt.SegmentSetup{
+			MinBW:    1,
+			MaxBW:    2,
+			SplitCls: 3,
+			StartProps: colibri_mgmt.PathEndProps{
+				Local:    true,
+				Transfer: false,
+			},
+			EndProps: colibri_mgmt.PathEndProps{
+				Local:    false,
+				Transfer: true,
+			},
+			AllocationTrail: []*colibri_mgmt.AllocationBeads{
+				{
+					AllocBW: 5,
+					MaxBW:   6,
+				},
+			},
+		}
+	}
+
+	testCases := map[string]struct {
+		Request *colibri_mgmt.Request
+	}{
+		"setup": {
+			Request: &colibri_mgmt.Request{
+				Which:        proto.Request_Which_segmentSetup,
+				SegmentSetup: newSegmentSetup(),
+			},
 		},
-		EndProps: colibri_mgmt.PathEndProps{
-			Local:    false,
-			Transfer: true,
+		"renewal": {
+			Request: &colibri_mgmt.Request{
+				Which:          proto.Request_Which_segmentRenewal,
+				SegmentRenewal: newSegmentSetup(),
+			},
 		},
-		AllocationTrail: []*colibri_mgmt.AllocationBeads{
-			{
-				AllocBW: 5,
-				MaxBW:   6,
+		"teles_setup": {
+			Request: &colibri_mgmt.Request{
+				Which: proto.Request_Which_segmentTelesSetup,
+				SegmentTelesSetup: &colibri_mgmt.SegmentTelesSetup{
+					Setup: newSegmentSetup(),
+					BaseID: &colibri_mgmt.SegmentReservationID{
+						ASID:   xtest.MustParseHexString("ff00cafe0001"),
+						Suffix: xtest.MustParseHexString("deadbeef"),
+					},
+				},
+			},
+		},
+		"teles_renewal": {
+			Request: &colibri_mgmt.Request{
+				Which: proto.Request_Which_segmentTelesRenewal,
+				SegmentTelesRenewal: &colibri_mgmt.SegmentTelesSetup{
+					Setup: newSegmentSetup(),
+					BaseID: &colibri_mgmt.SegmentReservationID{
+						ASID:   xtest.MustParseHexString("ff00cafe0001"),
+						Suffix: xtest.MustParseHexString("deadbeef"),
+					},
+				},
+			},
+		},
+		"teardown": {
+			Request: &colibri_mgmt.Request{
+				Which:           proto.Request_Which_segmentTeardown,
+				SegmentTeardown: &colibri_mgmt.SegmentTeardownReq{},
+			},
+		},
+		"index_confirmation": {
+			Request: &colibri_mgmt.Request{
+				Which: proto.Request_Which_segmentIndexConfirmation,
+				SegmentIndexConfirmation: &colibri_mgmt.SegmentIndexConfirmation{
+					Index: 111,
+					State: proto.ReservationIndexState_active,
+				},
+			},
+		},
+		"cleanup": {
+			Request: &colibri_mgmt.Request{
+				Which: proto.Request_Which_segmentCleanup,
+				SegmentCleanup: &colibri_mgmt.SegmentCleanup{
+					ID: &colibri_mgmt.SegmentReservationID{
+						ASID:   xtest.MustParseHexString("ff00cafe0001"),
+						Suffix: xtest.MustParseHexString("deadbeef"),
+					},
+					Index: 17,
+				},
+			},
+		},
+		"e2esetup": {
+			Request: &colibri_mgmt.Request{
+				Which: proto.Request_Which_e2eSetup,
+				E2ESetup: &colibri_mgmt.E2ESetup{
+					Which: proto.E2ESetupData_Which_success,
+					Success: &colibri_mgmt.E2ESetupSuccess{
+						ReservationID: &colibri_mgmt.E2EReservationID{
+							ASID:   xtest.MustParseHexString("ff00cafe0001"),
+							Suffix: xtest.MustParseHexString("0123456789abcdef0123456789abcdef"),
+						},
+						Token: xtest.MustParseHexString("0000"),
+					},
+				},
+			},
+		},
+		"e2esetup_failure": {
+			Request: &colibri_mgmt.Request{
+				Which: proto.Request_Which_e2eSetup,
+				E2ESetup: &colibri_mgmt.E2ESetup{
+					Which: proto.E2ESetupData_Which_failure,
+					Failure: &colibri_mgmt.E2ESetupFailure{
+						ErrorCode: 1,
+						InfoField: xtest.MustParseHexString("fedcba9876543210"),
+						MaxBWs:    []uint8{1, 1, 2, 2},
+					},
+				},
+			},
+		},
+		"e2erenewal": {
+			Request: &colibri_mgmt.Request{
+				Which: proto.Request_Which_e2eRenewal,
+				E2ERenewal: &colibri_mgmt.E2ESetup{
+					Which: proto.E2ESetupData_Which_failure,
+					Failure: &colibri_mgmt.E2ESetupFailure{
+						ErrorCode: 1,
+						InfoField: xtest.MustParseHexString("fedcba9876543210"),
+						MaxBWs:    []uint8{1, 1, 2, 2},
+					},
+				},
+			},
+		},
+		"e2ecleanup": {
+			Request: &colibri_mgmt.Request{
+				Which: proto.Request_Which_e2eCleanup,
+				E2ECleanup: &colibri_mgmt.E2ECleanup{
+					ReservationID: &colibri_mgmt.E2EReservationID{
+						ASID:   xtest.MustParseHexString("ff00cafe0001"),
+						Suffix: xtest.MustParseHexString("0123456789abcdef0123456789abcdef"),
+					},
+				},
 			},
 		},
 	}
-	request := &colibri_mgmt.Request{
-		Which:        proto.Request_Which_segmentSetup,
-		SegmentSetup: setup,
-	}
-	buildRequestAndCheck(t, request)
 
-	request = &colibri_mgmt.Request{
-		Which:          proto.Request_Which_segmentRenewal,
-		SegmentRenewal: setup,
-	}
-	buildRequestAndCheck(t, request)
-
-	segmentTelesSetup := &colibri_mgmt.SegmentTelesSetup{
-		Setup: setup,
-		BaseID: &colibri_mgmt.SegmentReservationID{
-			ASID:   xtest.MustParseHexString("ff00cafe0001"),
-			Suffix: xtest.MustParseHexString("deadbeef"),
-		},
-	}
-	request = &colibri_mgmt.Request{
-		Which:             proto.Request_Which_segmentTelesSetup,
-		SegmentTelesSetup: segmentTelesSetup,
-	}
-	buildRequestAndCheck(t, request)
-
-	request = &colibri_mgmt.Request{
-		Which:               proto.Request_Which_segmentTelesRenewal,
-		SegmentTelesRenewal: segmentTelesSetup,
-	}
-	buildRequestAndCheck(t, request)
-
-	request = &colibri_mgmt.Request{
-		Which:           proto.Request_Which_segmentTeardown,
-		SegmentTeardown: &colibri_mgmt.SegmentTeardownReq{},
-	}
-	buildRequestAndCheck(t, request)
-
-	segmentIndexConfirmation := &colibri_mgmt.SegmentIndexConfirmation{
-		Index: 111,
-		State: proto.ReservationIndexState_active,
-	}
-	request = &colibri_mgmt.Request{
-		Which:                    proto.Request_Which_segmentIndexConfirmation,
-		SegmentIndexConfirmation: segmentIndexConfirmation,
-	}
-	buildRequestAndCheck(t, request)
-
-	segmentCleanup := &colibri_mgmt.SegmentCleanup{
-		ID: &colibri_mgmt.SegmentReservationID{
-			ASID:   xtest.MustParseHexString("ff00cafe0001"),
-			Suffix: xtest.MustParseHexString("deadbeef"),
-		},
-		Index: 17,
-	}
-	request = &colibri_mgmt.Request{
-		Which:          proto.Request_Which_segmentCleanup,
-		SegmentCleanup: segmentCleanup,
-	}
-	buildRequestAndCheck(t, request)
-
-	e2eSetup := &colibri_mgmt.E2ESetup{
-		Which: proto.E2ESetupData_Which_success,
-		Success: &colibri_mgmt.E2ESetupSuccess{
-			ReservationID: &colibri_mgmt.E2EReservationID{
-				ASID:   xtest.MustParseHexString("ff00cafe0001"),
-				Suffix: xtest.MustParseHexString("0123456789abcdef0123456789abcdef"),
-			},
-			Token: xtest.MustParseHexString("0000"),
-		},
-	}
-	request = &colibri_mgmt.Request{
-		Which:    proto.Request_Which_e2eSetup,
-		E2ESetup: e2eSetup,
-	}
-	buildRequestAndCheck(t, request)
-	e2eSetup = &colibri_mgmt.E2ESetup{
-		Which: proto.E2ESetupData_Which_failure,
-		Failure: &colibri_mgmt.E2ESetupFailure{
-			ErrorCode: 1,
-			InfoField: xtest.MustParseHexString("fedcba9876543210"),
-			MaxBWs:    []uint8{1, 1, 2, 2},
-		},
-	}
-	request = &colibri_mgmt.Request{
-		Which:    proto.Request_Which_e2eSetup,
-		E2ESetup: e2eSetup,
-	}
-	buildRequestAndCheck(t, request)
-
-	request = &colibri_mgmt.Request{
-		Which:      proto.Request_Which_e2eRenewal,
-		E2ERenewal: e2eSetup,
-	}
-	buildRequestAndCheck(t, request)
-
-	e2eCleanup := &colibri_mgmt.E2ECleanup{
-		ReservationID: &colibri_mgmt.E2EReservationID{
-			ASID:   xtest.MustParseHexString("ff00cafe0001"),
-			Suffix: xtest.MustParseHexString("0123456789abcdef0123456789abcdef"),
-		},
-	}
-	request = &colibri_mgmt.Request{
-		Which:      proto.Request_Which_e2eCleanup,
-		E2ECleanup: e2eCleanup,
-	}
-	buildRequestAndCheck(t, request)
-}
-
-func buildRequestAndCheck(t *testing.T, request *colibri_mgmt.Request) {
-	root := &colibri_mgmt.ColibriRequestPayload{
-		Which:   proto.ColibriRequestPayload_Which_request,
-		Request: request,
-	}
-	serializeAndCompareRoot(t, root)
-}
-
-func serializeAndCompareRoot(t *testing.T, root *colibri_mgmt.ColibriRequestPayload) {
-	buffer, err := root.PackRoot()
-	if err != nil {
-		t.Fatalf("Error serializing root: %v", err)
-	}
-	copy, err := colibri_mgmt.NewFromRaw(buffer)
-	if err != nil {
-		t.Fatalf("Error deserializing root: %v", err)
-	}
-	copyBuffer, err := copy.PackRoot()
-	if err != nil {
-		t.Fatalf("Error serializing copy: %v", err)
-	}
-	if bytes.Compare(buffer, copyBuffer) != 0 {
-		t.Fatalf("The colibri message is different after (de)serialization.\nOriginal: %v\n"+
-			"Recreated one: %v", root, copy)
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			root := &colibri_mgmt.ColibriRequestPayload{
+				Which:   proto.ColibriRequestPayload_Which_request,
+				Request: tc.Request,
+			}
+			buffer, err := root.PackRoot()
+			require.NoError(t, err)
+			otherRoot, err := colibri_mgmt.NewFromRaw(buffer)
+			require.NoError(t, err)
+			otherBuffer, err := otherRoot.PackRoot()
+			require.NoError(t, err)
+			require.NoError(t, err)
+			require.Equal(t, buffer, otherBuffer)
+		})
 	}
 }
