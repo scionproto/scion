@@ -149,8 +149,14 @@ func getPaths(sdConn sciond.Connector, ctx context.Context) ([]snet.Path, error)
 }
 
 // TODO(matzf): this is a simple, hopefully temporary, workaround to not having
-// wildcard addresses in snet. Once this is available, this should simply be removed and
-// a wildcard address should be used.
+// wildcard addresses in snet.
+// Here we just use a seemingly sensible default IP, but in the general case
+// the local IP would depend on the next hop of selected path. This approach
+// will not work in more complicated setups where e.g. different network
+// interface are used to talk to different AS interfaces.
+// Once a available, a wildcard address should be used and this should simply
+// be removed.
+//
 // findDefaultLocalIP returns _a_ IP of this host in the local AS.
 func findDefaultLocalIP(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
 	hostInLocalAS, err := findAnyHostInLocalAS(ctx, sciondConn)
