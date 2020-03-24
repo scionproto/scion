@@ -1,4 +1,4 @@
-.PHONY: all clean godeps gogen mocks bazel gazelle setcap
+.PHONY: all clean godeps gogen mocks bazel gazelle setcap licenses
 
 BRACCEPT = bin/braccept
 
@@ -42,3 +42,6 @@ gazelle:
 
 setcap:
 	tools/setcap cap_net_admin,cap_net_raw+ep $(BRACCEPT)
+
+licenses:
+	tools/licenses.sh
