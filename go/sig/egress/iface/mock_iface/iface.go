@@ -65,10 +65,10 @@ func (mr *MockSessionMockRecorder) Cleanup() *gomock.Call {
 }
 
 // Conn mocks base method
-func (m *MockSession) Conn() snet.Conn {
+func (m *MockSession) Conn() *snet.Conn {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Conn")
-	ret0, _ := ret[0].(snet.Conn)
+	ret0, _ := ret[0].(*snet.Conn)
 	return ret0
 }
 

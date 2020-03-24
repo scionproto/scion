@@ -81,7 +81,7 @@ func Listen(network *snet.SCIONNetwork, listen *net.UDPAddr,
 }
 
 func sListen(network *snet.SCIONNetwork, listen *net.UDPAddr,
-	svc addr.HostSVC) (snet.Conn, error) {
+	svc addr.HostSVC) (*snet.Conn, error) {
 
 	if network == nil {
 		return nil, serrors.New("squic:  SCION network must not be nil")

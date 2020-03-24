@@ -65,7 +65,7 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	pkt := SCIONPacket{
+	pkt := Packet{
 		Bytes: Bytes(c.buffer),
 	}
 	var lastHop net.UDPAddr

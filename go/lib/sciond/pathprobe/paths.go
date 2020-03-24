@@ -142,7 +142,7 @@ func (p Prober) GetStatuses(ctx context.Context,
 	return scmpH.statuses, nil
 }
 
-func (p Prober) send(scionConn snet.Conn, path snet.Path) error {
+func (p Prober) send(scionConn *snet.Conn, path snet.Path) error {
 	addr := &snet.SVCAddr{
 		IA:      p.DstIA,
 		Path:    path.Path(),
@@ -157,7 +157,7 @@ func (p Prober) send(scionConn snet.Conn, path snet.Path) error {
 	return nil
 }
 
-func (p Prober) receive(scionConn snet.Conn) error {
+func (p Prober) receive(scionConn *snet.Conn) error {
 	b := make([]byte, 1500, 1500)
 	_, _, err := scionConn.ReadFrom(b)
 	if err == nil {
@@ -182,7 +182,7 @@ type scmpHandler struct {
 	statuses map[string]Status
 }
 
-func (h *scmpHandler) Handle(pkt *snet.SCIONPacket) error {
+func (h *scmpHandler) Handle(pkt *snet.Packet) error {
 	hdr, ok := pkt.L4Header.(*scmp.Hdr)
 	if ok {
 		path, err := h.path(pkt)
@@ -199,7 +199,7 @@ func (h *scmpHandler) Handle(pkt *snet.SCIONPacket) error {
 	return nil
 }
 
-func (h *scmpHandler) path(pkt *snet.SCIONPacket) (string, error) {
+func (h *scmpHandler) path(pkt *snet.Packet) (string, error) {
 	path := pkt.Path.Copy()
 	if err := path.Reverse(); err != nil {
 		return "", common.NewBasicError("unable to reverse path on received packet", err)

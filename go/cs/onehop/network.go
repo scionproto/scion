@@ -47,11 +47,11 @@ type ohpPacketConn struct {
 	snet.PacketConn
 }
 
-func (c *ohpPacketConn) WriteTo(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
+func (c *ohpPacketConn) WriteTo(pkt *snet.Packet, ov *net.UDPAddr) error {
 	return c.PacketConn.WriteTo(
-		&snet.SCIONPacket{
+		&snet.Packet{
 			Bytes: pkt.Bytes,
-			SCIONPacketInfo: snet.SCIONPacketInfo{
+			PacketInfo: snet.PacketInfo{
 				Destination: pkt.Destination,
 				Source:      pkt.Source,
 				Path:        pkt.Path,

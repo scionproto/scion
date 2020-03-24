@@ -194,7 +194,7 @@ func TestPropagatorRun(t *testing.T) {
 					msgsMtx.Lock()
 					defer msgsMtx.Unlock()
 					msgs = append(msgs, msg{
-						pkt: ipkt.(*snet.SCIONPacket),
+						pkt: ipkt.(*snet.Packet),
 						ov:  iov.(*net.UDPAddr),
 					})
 					return nil

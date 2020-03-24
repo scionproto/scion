@@ -42,12 +42,12 @@ const (
 // appropriate Worker, starting a new one if none currently exists.
 type Dispatcher struct {
 	workers            map[string]*Worker
-	extConn            snet.Conn
+	extConn            *snet.Conn
 	tunIO              io.ReadWriteCloser
 	framesRecvCounters map[metrics.CtrPairKey]metrics.CtrPair
 }
 
-func NewDispatcher(tio io.ReadWriteCloser, conn snet.Conn) *Dispatcher {
+func NewDispatcher(tio io.ReadWriteCloser, conn *snet.Conn) *Dispatcher {
 	return &Dispatcher{
 		tunIO:              tio,
 		extConn:            conn,

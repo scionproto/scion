@@ -101,7 +101,7 @@ type resolverPacketConn struct {
 	handler RequestHandler
 }
 
-func (c *resolverPacketConn) ReadFrom(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
+func (c *resolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
 	for {
 		if err := c.PacketConn.ReadFrom(pkt, ov); err != nil {
 			return err
@@ -155,7 +155,7 @@ type Request struct {
 	Source snet.SCIONAddress
 	// Conn is the connection to send the reply on. Conn must not be nil.
 	Conn    snet.PacketConn
-	Packet  *snet.SCIONPacket
+	Packet  *snet.Packet
 	Overlay *net.UDPAddr
 }
 
@@ -175,8 +175,8 @@ func (h *BaseHandler) Handle(request *Request) (Result, error) {
 		return Error, err
 	}
 	l4header := h.reverseL4Header(request.Packet.L4Header)
-	replyPacket := &snet.SCIONPacket{
-		SCIONPacketInfo: snet.SCIONPacketInfo{
+	replyPacket := &snet.Packet{
+		PacketInfo: snet.PacketInfo{
 			Destination: request.Packet.Source,
 			Source:      request.Source,
 			Path:        path,

@@ -116,7 +116,7 @@ func (s server) run() {
 	log.Debug("Listening", "local", fmt.Sprintf("%v:%d", integration.Local.Host, port))
 	// Receive ping message
 	for {
-		var p snet.SCIONPacket
+		var p snet.Packet
 		var ov net.UDPAddr
 		if err := conn.ReadFrom(&p, &ov); err != nil {
 			log.Error("Error reading packet", "err", err)
@@ -210,8 +210,8 @@ func (c client) ping(ctx context.Context, n int) error {
 	// API guarantees return values are ok
 	_, _ = rand.Read(debugID[:])
 	return c.conn.WriteTo(
-		&snet.SCIONPacket{
-			SCIONPacketInfo: snet.SCIONPacketInfo{
+		&snet.Packet{
+			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
 					IA:   remote.IA,
 					Host: addr.HostFromIP(remote.Host.IP),
@@ -261,7 +261,7 @@ func (c client) getRemote(ctx context.Context, n int) error {
 
 func (c client) pong(ctx context.Context) error {
 	c.conn.SetReadDeadline(getDeadline(ctx))
-	var p snet.SCIONPacket
+	var p snet.Packet
 	var ov net.UDPAddr
 	if err := c.conn.ReadFrom(&p, &ov); err != nil {
 		return common.NewBasicError("Error reading packet", err)

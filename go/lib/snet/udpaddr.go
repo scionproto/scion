@@ -36,7 +36,7 @@ type UDPAddr struct {
 	Host    *net.UDPAddr
 }
 
-// UDPAddrFromString converts an address string to a SCION address.
+// ParseUDPAddr converts an address string to a SCION address.
 // The supported formats are:
 //
 // Recommended:
@@ -53,7 +53,7 @@ type UDPAddr struct {
 // Not supported:
 //  - isd-as,ipv6:port    (caveat if ipv6:port builds a valid ipv6 address,
 //                         it will successfully parse as ipv6 without error)
-func UDPAddrFromString(s string) (*UDPAddr, error) {
+func ParseUDPAddr(s string) (*UDPAddr, error) {
 	rawIA, rawHost, err := parseAddr(s)
 	if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func (a *UDPAddr) GetPath() (Path, error) {
 
 // Set implements the flag.Value interface
 func (a *UDPAddr) Set(s string) error {
-	other, err := UDPAddrFromString(s)
+	other, err := ParseUDPAddr(s)
 	if err != nil {
 		return err
 	}

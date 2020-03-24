@@ -39,7 +39,7 @@ const (
 )
 
 var (
-	snetConn snet.Conn
+	snetConn *snet.Conn
 	ia       addr.IA
 	logger   log.Logger
 )

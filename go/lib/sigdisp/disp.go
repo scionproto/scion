@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-func Init(conn snet.Conn, useid bool) {
+func Init(conn *snet.Conn, useid bool) {
 	useID = useid
 	go func() {
 		defer log.HandlePanic()

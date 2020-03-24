@@ -87,7 +87,7 @@ func TestRoundTripper(t *testing.T) {
 	}
 	testCases := []struct {
 		Description   string
-		InputPacket   *snet.SCIONPacket
+		InputPacket   *snet.Packet
 		InputOverlay  *net.UDPAddr
 		ExpectedError bool
 		ExpectedReply *svc.Reply
@@ -100,12 +100,12 @@ func TestRoundTripper(t *testing.T) {
 		},
 		{
 			Description:   "nil overlay returns error",
-			InputPacket:   &snet.SCIONPacket{},
+			InputPacket:   &snet.Packet{},
 			ExpectedError: true,
 		},
 		{
 			Description:   "if write fails, return error",
-			InputPacket:   &snet.SCIONPacket{},
+			InputPacket:   &snet.Packet{},
 			InputOverlay:  &net.UDPAddr{},
 			ExpectedError: true,
 			ConnSetup: func(c *mock_snet.MockPacketConn) {
@@ -114,7 +114,7 @@ func TestRoundTripper(t *testing.T) {
 		},
 		{
 			Description:   "if read fails, return error",
-			InputPacket:   &snet.SCIONPacket{},
+			InputPacket:   &snet.Packet{},
 			InputOverlay:  &net.UDPAddr{},
 			ExpectedError: true,
 			ConnSetup: func(c *mock_snet.MockPacketConn) {
@@ -124,13 +124,13 @@ func TestRoundTripper(t *testing.T) {
 		},
 		{
 			Description:   "if bad payload type, return error",
-			InputPacket:   &snet.SCIONPacket{},
+			InputPacket:   &snet.Packet{},
 			InputOverlay:  &net.UDPAddr{},
 			ExpectedError: true,
 			ConnSetup: func(c *mock_snet.MockPacketConn) {
 				c.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(nil)
 				c.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.SCIONPacket, _ *net.UDPAddr) error {
+					func(pkt *snet.Packet, _ *net.UDPAddr) error {
 						pkt.Payload = &ctrl.SignedPld{}
 						return nil
 					},
@@ -139,13 +139,13 @@ func TestRoundTripper(t *testing.T) {
 		},
 		{
 			Description:   "if reply cannot be parsed, return error",
-			InputPacket:   &snet.SCIONPacket{},
+			InputPacket:   &snet.Packet{},
 			InputOverlay:  &net.UDPAddr{},
 			ExpectedError: true,
 			ConnSetup: func(c *mock_snet.MockPacketConn) {
 				c.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(nil)
 				c.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.SCIONPacket, _ *net.UDPAddr) error {
+					func(pkt *snet.Packet, _ *net.UDPAddr) error {
 						pkt.Payload = common.RawBytes{42}
 						return nil
 					},
@@ -154,12 +154,12 @@ func TestRoundTripper(t *testing.T) {
 		},
 		{
 			Description:  "successful operation",
-			InputPacket:  &snet.SCIONPacket{},
+			InputPacket:  &snet.Packet{},
 			InputOverlay: &net.UDPAddr{},
 			ConnSetup: func(c *mock_snet.MockPacketConn) {
 				c.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(nil)
 				c.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.SCIONPacket, _ *net.UDPAddr) error {
+					func(pkt *snet.Packet, _ *net.UDPAddr) error {
 						buf := &bytes.Buffer{}
 						if err := testReply.SerializeTo(buf); err != nil {
 							panic(err)

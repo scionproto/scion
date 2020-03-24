@@ -91,7 +91,7 @@ func TestOriginatorRun(t *testing.T) {
 				msgsMtx.Lock()
 				defer msgsMtx.Unlock()
 				msgs = append(msgs, msg{
-					pkt: ipkt.(*snet.SCIONPacket),
+					pkt: ipkt.(*snet.Packet),
 					ov:  iov.(*net.UDPAddr),
 				})
 				return nil
@@ -159,7 +159,7 @@ func TestOriginatorRun(t *testing.T) {
 }
 
 type msg struct {
-	pkt *snet.SCIONPacket
+	pkt *snet.Packet
 	ov  *net.UDPAddr
 }
 

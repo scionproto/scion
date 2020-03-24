@@ -73,9 +73,9 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 			"addr", fmt.Sprintf("%v(%T)", a, a))
 	}
 
-	pkt := &SCIONPacket{
+	pkt := &Packet{
 		Bytes: Bytes(c.buffer),
-		SCIONPacketInfo: SCIONPacketInfo{
+		PacketInfo: PacketInfo{
 			Destination: dst,
 			Source: SCIONAddress{IA: c.base.scionNet.localIA,
 				Host: addr.HostFromIP(c.base.listen.IP)},

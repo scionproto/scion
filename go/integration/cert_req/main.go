@@ -66,7 +66,7 @@ func addFlags() {
 }
 
 type client struct {
-	conn snet.Conn
+	conn *snet.Conn
 	msgr infra.Messenger
 }
 
