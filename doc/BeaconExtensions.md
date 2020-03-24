@@ -212,21 +212,21 @@ The format for latency information, specified in terms of its capnp encoding, lo
 
 ````CAPNP
 struct LatencyInfo {
-  latencyNonpeeringClusters @0 :List(LnpCluster);
+  latencyChildClusters @0 :List(LnpCluster);
   latencyPeeringClusters @1 :List(LpCluster);
   egressLatency @2 :UInt16;
   intooutLatency @3 :UInt16;
 
-  struct LnpCluster {
+  struct LCCluster {
      clusterDelay @0 :UInt16;
      interfaces @1 :List(UInt16);
   }
 
-  struct LpCluster {
+  struct LPCluster {
      clusterDelay @0 :UInt16;
      latencyInterfacePairs @1 :List(Lppair);
 
-     struct LpPair {
+     struct LPPair {
         interface @0 :UInt16;
         interDelay @1 :UInt16;
      }
