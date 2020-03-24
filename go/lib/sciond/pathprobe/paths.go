@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -89,8 +88,9 @@ func FilterEmptyPaths(paths []snet.Path) []snet.Path {
 
 // Prober can be used to get the status of a path.
 type Prober struct {
-	DstIA      addr.IA
-	SciondConn sciond.Connector
+	DstIA   addr.IA
+	LocalIA addr.IA
+	LocalIP net.IP
 }
 
 // GetStatuses probes the paths and returns the statuses of the paths. The
@@ -104,28 +104,19 @@ func (p Prober) GetStatuses(ctx context.Context,
 		return nil, serrors.New("deadline required on ctx")
 	}
 
-	localIA, err := findLocalIA(ctx, p.SciondConn)
-	if err != nil {
-		return nil, common.NewBasicError("failed to query local IA from sciond", err)
-	}
-	localIP, err := findDefaultLocalIP(ctx, p.SciondConn)
-	if err != nil {
-		return nil, common.NewBasicError("failed to determine local IP", err)
-	}
-
 	// Check whether paths are alive. This is done by sending a packet
 	// with invalid address via the path. The border router at the destination
 	// is going to reply with SCMP error. Receiving the error means that
 	// the path is alive.
 	pathStatuses := make(map[string]Status, len(paths))
 	scmpH := &scmpHandler{statuses: pathStatuses}
-	network := snet.NewCustomNetworkWithPR(localIA,
+	network := snet.NewCustomNetworkWithPR(p.LocalIA,
 		&snet.DefaultPacketDispatcherService{
 			Dispatcher:  reliable.NewDispatcher(""),
 			SCMPHandler: scmpH,
 		},
 	)
-	snetConn, err := network.Listen(ctx, "udp", &net.UDPAddr{IP: localIP}, addr.SvcNone)
+	snetConn, err := network.Listen(ctx, "udp", &net.UDPAddr{IP: p.LocalIP}, addr.SvcNone)
 	if err != nil {
 		return nil, common.NewBasicError("listening failed", err)
 	}
@@ -222,44 +213,4 @@ func (h *scmpHandler) setStatus(path string, status Status) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 	h.statuses[path] = status
-}
-
-// findLocalIA gets the local IA from sciond
-func findLocalIA(ctx context.Context, sciondConn sciond.Connector) (addr.IA, error) {
-	asInfo, err := sciondConn.ASInfo(ctx, addr.IA{})
-	if err != nil {
-		return addr.IA{}, err
-	}
-	ia := asInfo.Entries[0].RawIsdas.IA()
-	return ia, nil
-}
-
-// findDefaultLocalIP returns _a_ IP of this host in the local AS.
-func findDefaultLocalIP(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
-	hostInLocalAS, err := findAnyHostInLocalAS(ctx, sciondConn)
-	if err != nil {
-		return nil, err
-	}
-	return findSrcIP(hostInLocalAS)
-}
-
-// findSrcIP returns the src IP used for traffic destined to dst
-func findSrcIP(dst net.IP) (net.IP, error) {
-	udpAddr := net.UDPAddr{IP: dst, Port: 1}
-	udpConn, err := net.DialUDP(udpAddr.Network(), nil, &udpAddr)
-	if err != nil {
-		return nil, err
-	}
-	defer udpConn.Close()
-	srcIP := udpConn.LocalAddr().(*net.UDPAddr).IP
-	return srcIP, nil
-}
-
-// findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
-func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
-	addr, err := sciond.TopoQuerier{Connector: sciondConn}.OverlayAnycast(ctx, addr.SvcBS)
-	if err != nil {
-		return nil, err
-	}
-	return addr.IP, nil
 }

@@ -19,6 +19,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond/pathprobe"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 )
 
 var (
@@ -39,11 +41,13 @@ var (
 	expiration = flag.Bool("expiration", false, "Show path expiration timestamps")
 	refresh    = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
 	status     = flag.Bool("p", false, "Probe the paths and print out the statuses")
+	localIPStr = flag.String("local", "", "(Optional) local IP address to use for health checks")
 	version    = flag.Bool("version", false, "Output version information and exit.")
 )
 
 var (
 	dstIA      addr.IA
+	localIP    net.IP
 	logConsole string
 )
 
@@ -67,8 +71,13 @@ func main() {
 	defer cancelF()
 	sdConn, err := sciond.NewService(*sciondAddr).Connect(ctx)
 	if err != nil {
-		LogFatal("Failed to connect to SCIOND", err)
+		LogFatal("Failed to connect to SCIOND", "err", err)
 	}
+	localIA, err := sdConn.LocalIA(ctx)
+	if err != nil {
+		LogFatal("Failed to query local IA from SCIOND", "err", err)
+	}
+
 	paths, err := getPaths(sdConn, ctx)
 	if err != nil {
 		LogFatal("Failed to get paths", "err", err)
@@ -76,9 +85,16 @@ func main() {
 	fmt.Println("Available paths to", dstIA)
 	var pathStatuses map[string]pathprobe.Status
 	if *status {
+		if localIP == nil {
+			localIP, err = findDefaultLocalIP(ctx, sdConn)
+			if err != nil {
+				LogFatal("Failed to determine local IP", "err", err)
+			}
+		}
 		pathStatuses, err = pathprobe.Prober{
-			DstIA:      dstIA,
-			SciondConn: sdConn,
+			DstIA:   dstIA,
+			LocalIA: localIA,
+			LocalIP: localIP,
 		}.GetStatuses(ctx, paths)
 		if err != nil {
 			LogFatal("Failed to get status", "err", err)
@@ -112,6 +128,12 @@ func validateFlags() {
 			LogFatal("Unable to parse destination IA", "err", err)
 		}
 	}
+	if *localIPStr != "" {
+		localIP = net.ParseIP(*localIPStr)
+		if localIP == nil {
+			LogFatal("Invalid local address")
+		}
+	}
 }
 
 // TODO(lukedirtwalker): Replace this with snet.Router once we have the
@@ -124,6 +146,27 @@ func getPaths(sdConn sciond.Connector, ctx context.Context) ([]snet.Path, error)
 		return nil, serrors.WrapStr("failed to retrieve paths from SCIOND", err)
 	}
 	return paths, nil
+}
+
+// TODO(matzf): this is a simple, hopefully temporary, workaround to not having
+// wildcard addresses in snet. Once this is available, this should simply be removed and
+// a wildcard address should be used.
+// findDefaultLocalIP returns _a_ IP of this host in the local AS.
+func findDefaultLocalIP(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
+	hostInLocalAS, err := findAnyHostInLocalAS(ctx, sciondConn)
+	if err != nil {
+		return nil, err
+	}
+	return addrutil.ResolveLocal(hostInLocalAS)
+}
+
+// findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
+func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
+	addr, err := sciond.TopoQuerier{Connector: sciondConn}.OverlayAnycast(ctx, addr.SvcBS)
+	if err != nil {
+		return nil, err
+	}
+	return addr.IP, nil
 }
 
 func flagUsage() {
