@@ -107,7 +107,7 @@ metrics of the child link attached to interface 22 is included in the up segment
 Metrics describing the intra-AS connection between interface 22 and 23 are also
 included in the up segment, in the AS Entry of AS 2. Metrics describing the
 child link attached to interface 23 are included in the down segment.
-Thus the total of all extensions of the path segments thus contains information about
+Thus the total of all extensions of the path segments contains information about
 both the inter-AS connection between AS 3 and AS 2, and the inter-AS connection
 between AS 2 and AS 4.
 
