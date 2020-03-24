@@ -122,6 +122,21 @@ func (mr *MockConnectorMockRecorder) IFInfo(arg0, arg1 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IFInfo", reflect.TypeOf((*MockConnector)(nil).IFInfo), arg0, arg1)
 }
 
+// LocalIA mocks base method
+func (m *MockConnector) LocalIA(arg0 context.Context) (addr.IA, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LocalIA", arg0)
+	ret0, _ := ret[0].(addr.IA)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LocalIA indicates an expected call of LocalIA
+func (mr *MockConnectorMockRecorder) LocalIA(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LocalIA", reflect.TypeOf((*MockConnector)(nil).LocalIA), arg0)
+}
+
 // Paths mocks base method
 func (m *MockConnector) Paths(arg0 context.Context, arg1, arg2 addr.IA, arg3 sciond.PathReqFlags) ([]snet.Path, error) {
 	m.ctrl.T.Helper()
