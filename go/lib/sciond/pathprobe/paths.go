@@ -104,11 +104,11 @@ func (p Prober) GetStatuses(ctx context.Context,
 		return nil, serrors.New("deadline required on ctx")
 	}
 
-	localIA, err := findLocalIA(p.SciondConn)
+	localIA, err := findLocalIA(ctx, p.SciondConn)
 	if err != nil {
 		return nil, common.NewBasicError("failed to query local IA from sciond", err)
 	}
-	localIP, err := findDefaultLocalIP(p.SciondConn)
+	localIP, err := findDefaultLocalIP(ctx, p.SciondConn)
 	if err != nil {
 		return nil, common.NewBasicError("failed to determine local IP", err)
 	}
@@ -225,8 +225,8 @@ func (h *scmpHandler) setStatus(path string, status Status) {
 }
 
 // findLocalIA gets the local IA from sciond
-func findLocalIA(sciondConn sciond.Connector) (addr.IA, error) {
-	asInfo, err := sciondConn.ASInfo(context.TODO(), addr.IA{})
+func findLocalIA(ctx context.Context, sciondConn sciond.Connector) (addr.IA, error) {
+	asInfo, err := sciondConn.ASInfo(ctx, addr.IA{})
 	if err != nil {
 		return addr.IA{}, err
 	}
@@ -235,8 +235,8 @@ func findLocalIA(sciondConn sciond.Connector) (addr.IA, error) {
 }
 
 // findDefaultLocalIP returns _a_ IP of this host in the local AS.
-func findDefaultLocalIP(sciondConn sciond.Connector) (net.IP, error) {
-	hostInLocalAS, err := findAnyHostInLocalAS(sciondConn)
+func findDefaultLocalIP(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
+	hostInLocalAS, err := findAnyHostInLocalAS(ctx, sciondConn)
 	if err != nil {
 		return nil, err
 	}
@@ -256,8 +256,8 @@ func findSrcIP(dst net.IP) (net.IP, error) {
 }
 
 // findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
-func findAnyHostInLocalAS(sciondConn sciond.Connector) (net.IP, error) {
-	addr, err := sciond.TopoQuerier{Connector: sciondConn}.OverlayAnycast(context.Background(), addr.SvcBS)
+func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
+	addr, err := sciond.TopoQuerier{Connector: sciondConn}.OverlayAnycast(ctx, addr.SvcBS)
 	if err != nil {
 		return nil, err
 	}
