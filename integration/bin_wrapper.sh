@@ -16,5 +16,8 @@ set -o pipefail
 log "bin_wrapper: Starting $PROG $@"
 
 "$PROG" "$@" |& while read line; do log $line; done
+exit_status=$?
 
 log "bin_wrapper: Stopped"
+
+exit $exit_status
