@@ -652,7 +652,7 @@ To display information about the static properties, showpaths can be called with
 Name               | Description |
 -------------------|-------------|
 EndToEndLatency | Minimal end to end propagation delay along the entire path|
-Geo | Geographical location in terms of GPS coordinates of each AS on the path (achieved by averaging the geographical location of all interfaces of the AS)|
+Geo | Geographical location in terms of GPS coordinates of each AS on the path (achieved by displaying the geographical locations of all interfaces of the AS)|
 MaxBW | Bottleneck maximum bandwidth along the entire path|
 InternalHops | The number of internal hops along the entire path|
 Linktypes| The link type of each inter-AS connection along the entire path| 
