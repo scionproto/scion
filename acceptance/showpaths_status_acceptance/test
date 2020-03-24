@@ -62,8 +62,7 @@ class TestRun(Base):
         sciond_file = load_sciond_file('gen/sciond_addresses.json')
         if self.no_docker:
             out = self.showpaths('-sciond', "[%s]:%d" % (sciond_file["1-ff00:0:112"], 30255),
-                                 '-dstIA', '1-ff00:0:110', '-p', '-local',
-                                 '1-ff00:0:112,[127.0.0.1]')
+                                 '-dstIA', '1-ff00:0:110', '-p')
         else:
             out = self.tools_dc('exec_tester', '1-ff00_0_112', './bin/showpaths',
                                 '-sciond', "[%s]:%d" % (sciond_file["1-ff00:0:112"], 30255),
