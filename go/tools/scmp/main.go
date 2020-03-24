@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/tools/scmp/cmn"
 	"github.com/scionproto/scion/go/tools/scmp/echo"
@@ -38,8 +40,9 @@ var (
 	sciondAddr = flag.String("sciond", sciond.DefaultSCIONDAddress, "SCIOND address")
 	dispatcher = flag.String("dispatcher", reliable.DefaultDispPath, "Path to dispatcher socket")
 	refresh    = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
-	sdConn     sciond.Connector
 	version    = flag.Bool("version", false, "Output version information and exit.")
+	sdConn     sciond.Connector
+	localMtu   uint16
 )
 
 func main() {
@@ -54,24 +57,33 @@ func main() {
 	if err != nil {
 		cmn.Fatal("Failed to connect to SCIOND: %v\n", err)
 	}
-	// Connect to the dispatcher
-	dispatcherService := reliable.NewDispatcher(*dispatcher)
-	cmn.Conn, _, err = dispatcherService.Register(context.Background(), cmn.Local.IA,
-		cmn.Local.Host, addr.SvcNone)
-	if err != nil {
-		cmn.Fatal("Unable to register with the dispatcher addr=%s\nerr=%v", cmn.Local, err)
-	}
-	defer cmn.Conn.Close()
+
+	setLocalASInfo()
 
 	// If remote is not in local AS, we need a path!
 	var pathStr string
-	if !cmn.Remote.IA.Equal(cmn.Local.IA) {
+	if !cmn.Remote.IA.Equal(cmn.LocalIA) {
 		setPathAndMtu()
 		pathStr = fmt.Sprintf("%s", cmn.PathEntry)
+		if cmn.LocalIP == nil {
+			cmn.LocalIP = resolveLocalIP(cmn.Remote.NextHop.IP)
+		}
 	} else {
-		cmn.Mtu = setLocalMtu()
+		cmn.Mtu = localMtu
+		if cmn.LocalIP == nil {
+			cmn.LocalIP = resolveLocalIP(cmn.Remote.Host.IP)
+		}
 	}
 	fmt.Printf("Using path:\n  %s\n", pathStr)
+
+	// Connect to the dispatcher
+	dispatcherService := reliable.NewDispatcher(*dispatcher)
+	cmn.Conn, _, err = dispatcherService.Register(context.Background(), cmn.LocalIA,
+		&net.UDPAddr{IP: cmn.LocalIP}, addr.SvcNone)
+	if err != nil {
+		cmn.Fatal("Unable to register with the dispatcher addr=%s\nerr=%v", cmn.LocalIP, err)
+	}
+	defer cmn.Conn.Close()
 
 	ret := doCommand(cmd)
 	os.Exit(ret)
@@ -98,7 +110,7 @@ func doCommand(cmd string) int {
 }
 
 func choosePath() snet.Path {
-	paths, err := sdConn.Paths(context.Background(), cmn.Remote.IA, cmn.Local.IA,
+	paths, err := sdConn.Paths(context.Background(), cmn.Remote.IA, cmn.LocalIA,
 		sciond.PathReqFlags{Refresh: *refresh})
 	if err != nil {
 		cmn.Fatal("Failed to retrieve paths from SCIOND: %v\n", err)
@@ -136,12 +148,22 @@ func setPathAndMtu() {
 	cmn.Mtu = path.MTU()
 }
 
-func setLocalMtu() uint16 {
-	// Use local AS MTU when we have no path
-	reply, err := sdConn.ASInfo(context.Background(), addr.IA{})
+// setLocalASInfo queries the local AS information from SCIOND; sets cmn.LocalIA and localMtu.
+func setLocalASInfo() {
+	asInfo, err := sdConn.ASInfo(context.Background(), addr.IA{})
 	if err != nil {
-		cmn.Fatal("Unable to request AS info to sciond")
+		cmn.Fatal("Failed to query local IA from SCIOND: %v\n", err)
 	}
-	// XXX We expect a single entry in the reply
-	return reply.Entries[0].Mtu
+	e0 := asInfo.Entries[0]
+	cmn.LocalIA = e0.RawIsdas.IA()
+	localMtu = e0.Mtu
+}
+
+// resolveLocalIP returns the src IP used for traffic destined to dst
+func resolveLocalIP(dst net.IP) net.IP {
+	srcIP, err := addrutil.ResolveLocal(dst)
+	if err != nil {
+		cmn.Fatal("Failed to determine local IP: %v\n", err)
+	}
+	return srcIP
 }

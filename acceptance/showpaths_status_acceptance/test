@@ -61,10 +61,8 @@ class TestRun(Base):
     def main(self):
         sciond_file = load_sciond_file('gen/sciond_addresses.json')
         if self.no_docker:
-            out = self.showpaths('-srcIA', '1-ff00:0:112',
-                                '-sciond', "[%s]:%d" % (sciond_file["1-ff00:0:112"], 30255),
-                                 '-dstIA', '1-ff00:0:110', '-p', '-local',
-                                 '1-ff00:0:112,[127.0.0.1]')
+            out = self.showpaths('-sciond', "[%s]:%d" % (sciond_file["1-ff00:0:112"], 30255),
+                                 '-dstIA', '1-ff00:0:110', '-p')
         else:
             dcFile = load_yaml_file('gen/scion-dc.yml')
             networks = dcFile['services']['scion_disp_cs1-ff00_0_112-1']['networks']
@@ -75,9 +73,8 @@ class TestRun(Base):
                 local_disp = disp_net['ipv6_address']
             out = self.tools_dc('exec_tester', '1-ff00_0_112', './bin/showpaths',
                                 '-sciond', "[%s]:%d" % (sciond_file["1-ff00:0:112"], 30255),
-                                '-srcIA', '1-ff00:0:112',
-                                '-dstIA', '1-ff00:0:110', '-p', '-local',
-                                '1-ff00:0:112,[%s]' % local_disp)
+                                '-dstIA', '1-ff00:0:110', '-p',
+                                '-local', local_disp)
 
         if 'Alive' not in out:
             logger.error("Alive not found in output, output=%s", out)

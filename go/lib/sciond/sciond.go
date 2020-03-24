@@ -78,11 +78,12 @@ func (s *service) Connect(ctx context.Context) (Connector, error) {
 	return newConn(ctx, s.path)
 }
 
-// A Connector is used to query SCIOND. The connector maintains an internal
-// cache for interface, service and AS information. All connector methods block until either
-// an error occurs, or the method successfully returns.
+// A Connector is used to query SCIOND. All connector methods block until
+// either an error occurs, or the method successfully returns.
 type Connector interface {
-	// Paths requests from SCIOND a set of end to end paths between src and
+	// LocalIA requests from SCIOND the local ISD-AS number.
+	LocalIA(ctx context.Context) (addr.IA, error)
+	// Paths requests from SCIOND a set of end to end paths between the source and destination.
 	Paths(ctx context.Context, dst, src addr.IA, f PathReqFlags) ([]snet.Path, error)
 	// ASInfo requests from SCIOND information about AS ia.
 	ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error)
@@ -175,6 +176,15 @@ func (c *conn) Paths(ctx context.Context, dst, src addr.IA,
 	}
 	metrics.PathRequests.Inc(metrics.OkSuccess)
 	return pathReplyToPaths(reply.PathReply, dst)
+}
+
+func (c *conn) LocalIA(ctx context.Context) (addr.IA, error) {
+	asInfo, err := c.ASInfo(ctx, addr.IA{})
+	if err != nil {
+		return addr.IA{}, err
+	}
+	ia := asInfo.Entries[0].RawIsdas.IA()
+	return ia, nil
 }
 
 func (c *conn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {

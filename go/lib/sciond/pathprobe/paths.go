@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -87,9 +88,9 @@ func FilterEmptyPaths(paths []snet.Path) []snet.Path {
 
 // Prober can be used to get the status of a path.
 type Prober struct {
-	DstIA    addr.IA
-	Local    snet.UDPAddr
-	DispPath string
+	DstIA   addr.IA
+	LocalIA addr.IA
+	LocalIP net.IP
 }
 
 // GetStatuses probes the paths and returns the statuses of the paths. The
@@ -102,19 +103,20 @@ func (p Prober) GetStatuses(ctx context.Context,
 	if !ok {
 		return nil, serrors.New("deadline required on ctx")
 	}
+
 	// Check whether paths are alive. This is done by sending a packet
 	// with invalid address via the path. The border router at the destination
 	// is going to reply with SCMP error. Receiving the error means that
 	// the path is alive.
 	pathStatuses := make(map[string]Status, len(paths))
 	scmpH := &scmpHandler{statuses: pathStatuses}
-	network := snet.NewCustomNetworkWithPR(p.Local.IA,
+	network := snet.NewCustomNetworkWithPR(p.LocalIA,
 		&snet.DefaultPacketDispatcherService{
-			Dispatcher:  reliable.NewDispatcher(p.DispPath),
+			Dispatcher:  reliable.NewDispatcher(""),
 			SCMPHandler: scmpH,
 		},
 	)
-	snetConn, err := network.Listen(ctx, "udp", p.Local.Host, addr.SvcNone)
+	snetConn, err := network.Listen(ctx, "udp", &net.UDPAddr{IP: p.LocalIP}, addr.SvcNone)
 	if err != nil {
 		return nil, common.NewBasicError("listening failed", err)
 	}
