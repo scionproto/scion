@@ -1,0 +1,31 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "colibri_mgmt.go",
+        "e2e_cleanup.go",
+        "e2e_setup.go",
+        "request.go",
+        "reservation_ids.go",
+        "segment_cleanup.go",
+        "segment_index_confirmation.go",
+        "segment_setup.go",
+        "segment_teardown.go",
+        "segment_teles_setup.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt",
+    visibility = ["//visibility:public"],
+    deps = ["//go/proto:go_default_library"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["colibri_mgmt_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/xtest:go_default_library",
+        "//go/proto:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)
