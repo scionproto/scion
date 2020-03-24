@@ -81,9 +81,9 @@ func (s *service) Connect(ctx context.Context) (Connector, error) {
 // A Connector is used to query SCIOND. All connector methods block until
 // either an error occurs, or the method successfully returns.
 type Connector interface {
-	// LocalIA is a convenience function to query the local IA, using ASInfo
+	// LocalIA requests from SCIOND the local ISD-AS number.
 	LocalIA(ctx context.Context) (addr.IA, error)
-	// Paths requests from SCIOND a set of end to end paths between src and
+	// Paths requests from SCIOND a set of end to end paths between the source and destination.
 	Paths(ctx context.Context, dst, src addr.IA, f PathReqFlags) ([]snet.Path, error)
 	// ASInfo requests from SCIOND information about AS ia.
 	ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error)
