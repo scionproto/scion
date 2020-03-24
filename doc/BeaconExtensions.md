@@ -67,8 +67,11 @@ intra- and inter-AS metrics.
 
 ### Segments
 
-As the structure of an AS Entry is identical for up-, down-, and core segments,
-all of them are extended in the same way.
+As the structure of an AS Entry is identical for up- and down segments,
+both of them are extended in the same way.
+AS Entries in core segments are treated slightly differently in that all
+entries related to peering and shortcuts are omitted (see individual properties
+for details).
 Since each AS Entry carries information about one AS on the path, the different
 segments of a path can be combined as follows: 
 
@@ -168,19 +171,20 @@ Use cases of such information include:
 
 The latency information will be comprised of four main parts:
 
-- The inter-AS latency between the egress interface and the ingress interface of
-  the AS the PCB will be propagated to
+- The inter-AS latency of the child link between the egress interface and
+  the ingress interface of the AS the PCB will be propagated to
 - The intra-AS latency between the ingress and egress interface of the AS in the
   absence of shortcut/peering paths
-- A variable number of non-peering latency clusters
+- A variable number of child latency clusters
 - A variable number of peering latency clusters
 
 In general, a latency cluster serves to pool all interfaces which have the same
 propagation delay (within a 1 ms range) between them and the egress interface (i.e.
-the interface the PCB will be sent out on). 
-The difference between peering and non-peering latency clusters is that in peering
-latency clusters, the latency of the inter-AS link attached to the peering interface is also
-included in the cluster for every such peering interface. In non-peering clusters
+the interface the PCB will be sent out on). A peering cluster gathers all peering
+interfaces, whereas a child cluster gathers all interfaces attached to a child link.
+The difference between peering and child latency clusters is that in peering
+latency clusters, the latency of the inter-AS link attached to the interface is also
+included in the cluster for every such peering interface. In child clusters
 this information is omitted.
 A cluster will
 include all interfaces with intra-AS delay values in the interval
@@ -193,12 +197,14 @@ Each peering latency cluster is itself comprised of 3 types of elements:
 - The inter-AS propagation delay for the connections attached to these
   interfaces, in ms (1 value per interface)
 
-Non-peering latency clusters look almost exactly the same, with the one difference
+Child latency clusters look almost exactly the same, with the one difference
 being that the inter-AS propagation delays are omitted:
 
 - The intra-AS propagation delay for every interface in the cluster, in ms (1
   value per cluster)
 - The interface ID for every interface in the cluster (1 value per interface)
+
+In core segments, both child- and peering latency clusters are omitted.
 
 ### Concrete Format Latency
 
@@ -266,6 +272,8 @@ Each cluster is itself formed of 2 types of elements:
 - The maximum bandwidth for all interfaces in the cluster (1 value per
   cluster)
 - The interface IDs of all the interfaces in the cluster (1 value per interface)
+
+In core segments, the bandwidth clusters are omitted.
 
 ### Concrete Format Maximum Bandwidth
 
@@ -368,6 +376,8 @@ The Link type will be comprised of 2 parts:
 
 - The link type for the inter-AS link attached to the egress interface
 - The inter-AS link type of all links attached to peering interfaces
+
+The latter is omitted in core segments.
 
 ### Concrete Format Link Type
 
