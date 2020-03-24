@@ -109,6 +109,9 @@ func (p Prober) GetStatuses(ctx context.Context,
 		return nil, common.NewBasicError("failed to query local IA from sciond", err)
 	}
 	localIP, err := findDefaultLocalIP(p.SciondConn)
+	if err != nil {
+		return nil, common.NewBasicError("failed to determine local IP", err)
+	}
 
 	// Check whether paths are alive. This is done by sending a packet
 	// with invalid address via the path. The border router at the destination
