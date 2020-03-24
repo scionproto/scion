@@ -7,8 +7,6 @@ in the form of an extension.
 ## Table of Contents
 
 - [Static Properties](#static-properties)
-- [Symmetry](#symmetry)
-- [Clustering](#clustering)
 - [Latency Information](#latency-information)
 - [Geographic Information](#geographic-information)
 - [Link Type](#link-type)
@@ -106,8 +104,10 @@ metrics of the child link attached to interface 22 is included in the up segment
 Metrics describing the intra-AS connection between interface 22 and 23 are also
 included in the up segment, in the AS Entry of AS 2. Metrics describing the
 child link attached to interface 23 are included in the down segment.
-Thus AS 3 now has information about both the inter-AS connection between AS 3
-and AS 2, and the inter-AS connection between AS 2 and AS 4.
+Thus the total of all extensions of the path segments thus contains information about
+both the inter-AS connection between AS 3 and AS 2, and the inter-AS connection
+between AS 2 and AS 4.
+
 To deal with shortcut connections it is therefore sufficient to encode the following
 2 things: 
 
@@ -123,22 +123,26 @@ in the AS Entry. Therefore, in addition to the list above, we also need to store
 inter-AS metrics for every connection attached to a peering interface of the AS in
 the extension.
 
-## Symmetry
+### Symmetry
 
 In order to reduce the amount of data we need to include in the PCBs in total,
 it is assumed that intra-AS metrics are symmetric. We can illustrate the use of
-this assumption using the drawing of a shortcut path above. In the PCB sent to AS 3,
+this assumption using the drawing of a shortcut path above.
+
+In the PCB sent to AS 3,
 the metric between interface 22 (the egress interface for this PCB) and interface 23
 is saved. Since the metric between 
 interfaces 22 and 23, and that between 23 and 22 is assumed to be identical,
 the metric between interface 23 and 22 can be omitted in the PCB that is sent to AS 4.
-Let interface i be the egress interface the PCB is sent out on. This allows us to
+Let interface i be the egress interface the PCB is sent out on. 
+
+In a broader context, this allows us to
 include the latency between interfaces i and j if and only if the interface ID
 of j is larger than that of i, i.e. id(j)>id(i). 
 However, we still need to always include the metric from ingress-
 to egress interface regardless of their IDs.
 
-## Clustering
+### Clustering
 
 For each metric, interfaces are grouped into clusters, designed to contain interfaces
 with roughly similar values of said metric.
