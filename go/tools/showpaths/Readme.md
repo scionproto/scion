@@ -6,13 +6,13 @@ Then, run:
 
 ```bash
 make
-./bin/showpaths -dstIA 2-ff00:0:222 -srcIA 1-ff00:0:133
+./bin/showpaths -dstIA 2-ff00:0:222
 ```
 
 Alternatively, you can also run the application using:
 
 ```bash
-go run paths.go -dstIA 2-ff00:0:222 -srcIA 1-ff00:0:133
+go run paths.go -dstIA 2-ff00:0:222
 ```
 
 In the examples above, the application will display the paths between 1-ff00:0:133 and
