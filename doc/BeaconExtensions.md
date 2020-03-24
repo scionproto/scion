@@ -30,9 +30,6 @@ The following assumptions are made:
 - The Beacon Service, which is responsible for adding all this metadata, has
   reliable information about the infrastructure (such as the border routers
   and the interfaces attached to them)
-- The Beacon Service has access to a blackbox (which could be the AS itself,
-  a dedicated SCION service or any other entity), which provides information
-  that characterizes the AS topology and the routing processes within the AS
 - The AS topology remains stable throughout the lifetime of a path segment
 
 ### Inter- vs Intra-AS Metrics
@@ -64,8 +61,6 @@ This assures that:
 
 - The PCB always carries information about the entire path
 it has traversed so far
-- The final AS in the segment does not need to make additions/modifications to the
-data it receieved through the PCB
 
 Using this method, end-to-end metrics can be calculated by simply combining
 intra- and inter-AS metrics.
@@ -482,7 +477,6 @@ as listed below:
 Name             | Type  | Description |
 -----------------|-------|-------------|
 `ID`         |Integer|Interface ID of the interface described by the data that follows|
-`Peer`      |Boolean|Indicates whether an interface is a peering interface|
 `Intra` (`Latency`)   |List of Integers|Intra-AS latency from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
 `Inter` (`Latency`)   |Integer|Inter-AS latency from interface `i` to AS on the other end of the link|
 `Latitude`             |Decimal value|Longitude gps coordinates of interface `i`|
@@ -502,7 +496,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
 {
   "Latency": {
     "1":{
-      "Peer": false,
       "Inter": 30,
       "Intra": {
         "1": 0,
@@ -512,7 +505,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
       }
     },
     "2":{
-      "Peer": false,
       "Inter": 40,
       "Intra": {
         "1": 50,
@@ -522,7 +514,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
       }
     },
     "3":{
-      "Peer": false,
       "Inter": 80,
       "Intra": {
         "1": 90,
@@ -532,7 +523,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
       }
     },
     "5":{
-      "Peer": true,
       "Inter": 120,
       "Intra": {
         "1": 130,
@@ -544,7 +534,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
   },
   "Bandwidth": {
     "1":{
-      "Peer": false,
       "Inter": 400000000,
       "Intra": {
         "1": 0,
@@ -554,7 +543,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
       }
     },
     "2":{
-      "Peer": false,
       "Inter": 4000000000,
       "Intra": {
         "1": 5044444,
@@ -564,7 +552,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
       }
     },
     "3":{
-      "Peer": false,
       "Inter": 80,
       "Intra": {
         "1": 9333330,
@@ -574,7 +561,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
       }
     },
     "5":{
-      "Peer": true,
       "Inter": 120,
       "Intra": {
         "1": 1333330,
@@ -586,43 +572,35 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
   },
   "Linktype": {
     "1":{
-      "Peer": false,
       "Inter": "direct"
     },
     "2":{
-      "Peer": false,
       "Inter": "opennet"
     },
     "3":{
-      "Peer": false,
       "Inter": "direct"
     },
     "5":{
-      "Peer": true,
       "Inter": "direct"
     }
   },
   "Geo": {
     "1":{
-      "Peer": false,
       "Latitude": 47.2,
       "Longitude": 62.2,
       "CivAddr": "geo1"
     },
     "2":{
-      "Peer": false,
       "Latitude": 79.2,
       "Longitude": 45.2,
       "CivAddr": "geo2"
     },
     "3":{
-      "Peer": false,
       "Latitude": 47.22,
       "Longitude": 42.23,
       "CivAddr": "geo3"
     },
     "5":{
-      "Peer": true,
       "Latitude": 48.2,
       "Longitude": 46.2,
       "CivAddr": "geo5"
@@ -630,7 +608,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
   },
   "Hops": {
     "1":{
-      "Peer": false,
       "Intra": {
         "1": 0,
         "2": 2,
@@ -639,7 +616,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
       }
     },
     "2":{
-      "Peer": false,
       "Intra": {
         "1": 2,
         "2": 2,
@@ -648,7 +624,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
       }
     },
     "3":{
-      "Peer": false,
       "Intra": {
         "1": 4,
         "2": 6,
@@ -657,7 +632,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
       }
     },
     "5":{
-      "Peer": false,
       "Intra": {
         "1": 2,
         "2": 3,
