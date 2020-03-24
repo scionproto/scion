@@ -39,6 +39,11 @@ func realMain() int {
 		"-sciond", integration.SCIOND,
 		"-remote", integration.DstAddrPattern,
 	}
+	if *integration.Docker {
+		cmnArgs = append(cmnArgs,
+			"-local", integration.SrcHostReplace,
+		)
+	}
 
 	testCases := []struct {
 		Name string
