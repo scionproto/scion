@@ -148,7 +148,7 @@ func setPathAndMtu() {
 	cmn.Mtu = path.MTU()
 }
 
-// setLocalASInfo queries the local AS information from SCIOND; sets cmn.LocalIA and localMtu
+// setLocalASInfo queries the local AS information from SCIOND; sets cmn.LocalIA and localMtu.
 func setLocalASInfo() {
 	asInfo, err := sdConn.ASInfo(context.Background(), addr.IA{})
 	if err != nil {

@@ -15,8 +15,7 @@ Alternatively, you can also run the application using:
 go run paths.go -dstIA 2-ff00:0:222
 ```
 
-In the examples above, the application will display the paths between 1-ff00:0:133 and
-2-ff00:0:222.
+In the examples above, the application will display the paths between the local AS and 2-ff00:0:222.
 
 For complete options:
 
