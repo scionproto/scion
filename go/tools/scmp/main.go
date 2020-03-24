@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/tools/scmp/cmn"
 	"github.com/scionproto/scion/go/tools/scmp/echo"
@@ -65,12 +66,12 @@ func main() {
 		setPathAndMtu()
 		pathStr = fmt.Sprintf("%s", cmn.PathEntry)
 		if cmn.LocalIP == nil {
-			cmn.LocalIP = findSrcIP(cmn.Remote.NextHop.IP)
+			cmn.LocalIP = resolveLocalIP(cmn.Remote.NextHop.IP)
 		}
 	} else {
 		cmn.Mtu = localMtu
 		if cmn.LocalIP == nil {
-			cmn.LocalIP = findSrcIP(cmn.Remote.Host.IP)
+			cmn.LocalIP = resolveLocalIP(cmn.Remote.Host.IP)
 		}
 	}
 	fmt.Printf("Using path:\n  %s\n", pathStr)
@@ -158,14 +159,11 @@ func setLocalASInfo() {
 	localMtu = e0.Mtu
 }
 
-// findSrcIP returns the src IP used for traffic destined to dst
-func findSrcIP(dst net.IP) net.IP {
-	// Use net.Dial to lookup source address. Alternatively, could use netlink.
-	udpAddr := net.UDPAddr{IP: dst, Port: 1}
-	udpConn, err := net.DialUDP(udpAddr.Network(), nil, &udpAddr)
+// resolveLocalIP returns the src IP used for traffic destined to dst
+func resolveLocalIP(dst net.IP) net.IP {
+	srcIP, err := addrutil.ResolveLocal(dst)
 	if err != nil {
 		cmn.Fatal("Failed to determine local IP: %v\n", err)
 	}
-	defer udpConn.Close()
-	return udpConn.LocalAddr().(*net.UDPAddr).IP
+	return srcIP
 }

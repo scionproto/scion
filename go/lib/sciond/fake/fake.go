@@ -195,6 +195,10 @@ func (c connector) adapter(paths []*Path) []snet.Path {
 	return snetPaths
 }
 
+func (c connector) LocalIA(ctx context.Context) (addr.IA, error) {
+	panic("not implemented")
+}
+
 func (c connector) ASInfo(ctx context.Context, ia addr.IA) (*sciond.ASInfoReply, error) {
 	panic("not implemented")
 }
