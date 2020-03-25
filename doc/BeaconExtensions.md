@@ -30,9 +30,17 @@ The following assumptions are made:
   and the interfaces attached to them)
 - The AS topology remains stable throughout the lifetime of a path segment
 
-### Inter- vs Intra-AS Metrics
-The diagram below illustrates the difference between inter- and intra-as 
-metrics.
+### Basic Concept
+
+Information about static properties is stored inside the PCBs. This is
+achieved by each AS embedding information about itself in an extension field
+of its ASEntry. Each such extension contains a small amount of metdata
+describing a section of the path. In order to obtain static properties of
+the end-to-end path, the relevant data in each of these extension entries is
+extracted from the PCBs and combined to deliver the actual information.
+
+The data being stored is divided into two principal categories, inter- and
+intra-AS metrics. The diagram below illustrates the difference between them:
 
 ![Inter VS Intra Metrics](fig/inter_vs_intra_metrics.png)
 
@@ -51,9 +59,9 @@ metric between the ingress and egress interface is not sufficient
 
 #### Inter-AS Metrics
 
-The PCB is extended with metrics describing the outgoing connection (i.e. the 
+The AS Entry is extended with metrics describing the outgoing connection (i.e. the 
 child link). Looking at the figure
-above, this means that AS 1 extends the PCB with information about its child link
+above, this means that AS 1 extends its AS Entry with information about its child link
 from interface 2 to 3 before propagating it to AS 2.
 This assures that:
 
@@ -72,6 +80,7 @@ both of them are extended in the same way.
 AS Entries in core segments are treated slightly differently in that all
 entries related to peering and shortcuts are omitted (see individual properties
 for details).
+
 Since each AS Entry carries information about one AS on the path, the different
 segments of a path can be combined as follows: 
 
@@ -81,6 +90,10 @@ segments of a path can be combined as follows:
   and add it to the list
 - The resulting list of extension entries contains all the information
   necessary to calculate metrics for the end-to-end path
+  
+There are three types of different paths: Normal paths, Shortcut paths, and 
+Peering Paths. In order to be able to deal with all of them, different
+methods of embedding and combining data need to be employed.
 
 ### Normal Path
 
@@ -111,11 +124,11 @@ Thus the total of all extensions of the path segments contains information about
 both the inter-AS connection between AS 3 and AS 2, and the inter-AS connection
 between AS 2 and AS 4.
 
-To deal with shortcut connections it is therefore sufficient to encode the following
+To deal with shortcut connections it is therefore necessary to include the following
 2 things: 
 
 - The intra-AS metrics from the egress interface to every other interface in the AS
-- The inter-As metrics of the child link
+- The inter-AS metrics of the child link
 
 ### Peering Links
 
@@ -212,8 +225,8 @@ The format for latency information, specified in terms of its capnp encoding, lo
 
 ````CAPNP
 struct LatencyInfo {
-  latencyChildClusters @0 :List(LnpCluster);
-  latencyPeeringClusters @1 :List(LpCluster);
+  latencyChildClusters @0 :List(LCCluster);
+  latencyPeeringClusters @1 :List(LPCluster);
   egressLatency @2 :UInt16;
   intooutLatency @3 :UInt16;
 
@@ -491,16 +504,16 @@ as listed below:
 Name             | Type  | Description |
 -----------------|-------|-------------|
 `ID`         |Integer|Interface ID of the interface described by the data that follows|
-`Intra` (`Latency`)   |List of Integers|Intra-AS latency from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
+`Intra` (`Latency`)   |List of Integers|Intra-AS latency from interface `i` to every other interface in the AS|
 `Inter` (`Latency`)   |Integer|Inter-AS latency from interface `i` to AS on the other end of the link|
 `Latitude`             |Decimal value|Longitude gps coordinates of interface `i`|
 `Longitude`             |Decimal value|Latitude gps coordinate of interface `i`|
 `CivAddr`        |String|Civic address of interface `i`|
 `Inter` (`Linktype`)      |Integer  |Possible values of an entry : `multihop`, `direct`, `opennet`, where `direct` means direct link, `multihop` means multihop link, `opennet` means link that uses the open internet. Describes link type between interface `i` and the AS at the other end of the link|
-`Intra` (`Bandwidth`)        |Integer|Intra-AS bandwidth from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
+`Intra` (`Bandwidth`)        |Integer|Intra-AS bandwidth from interface `i` to every other interface in the AS|
 `Inter` (`Bandwidth`)        |Integer|Inter-AS bandwidth from interface i to the AS at the other end of the link|
 `Note`   |String |Note |
-`Intra` (`Hops`)           |Integer|Number of internal hops from interface `i` to every other interface in the AS, including itself (this entry should normally be set to 0)|
+`Intra` (`Hops`)           |Integer|Number of internal hops from interface `i` to every other interface in the AS|
 
 Below is a simple example of how such a config file could look like (actual
 values are abitrary, "asdf" is used as a placeholder for longer strings)
@@ -585,18 +598,10 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
     }
   },
   "Linktype": {
-    "1":{
-      "Inter": "direct"
-    },
-    "2":{
-      "Inter": "opennet"
-    },
-    "3":{
-      "Inter": "direct"
-    },
-    "5":{
-      "Inter": "direct"
-    }
+    "1":"direct",
+    "2":"opennet",
+    "3":"multihop",
+    "5":"direct"
   },
   "Geo": {
     "1":{
