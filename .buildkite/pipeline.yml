@@ -26,6 +26,16 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
+  - label: "Check licenses"
+    command:
+      - mkdir -p /tmp/test-artifacts/licenses
+      - ./tools/licenses.sh /tmp/test-artifacts/licenses
+      - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
+    key: licenses
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
   - label: "Check generated go_deps.bzl file is up to date with go.mod"
     command:
       - mkdir -p /tmp/test-artifacts
