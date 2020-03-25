@@ -3,7 +3,6 @@
 set -e
 
 ROOTDIR=$(dirname "$0")/..
-echo $ROOTDIR
 
 bazel build //:all
 
