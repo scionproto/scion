@@ -91,7 +91,7 @@ segments of a path can be combined as follows:
 - The resulting list of extension entries contains all the information
   necessary to calculate metrics for the end-to-end path
   
-There are three types of different paths: Normal paths, Shortcut paths, and 
+There are three different types of paths: Normal Paths, Shortcut Paths, and 
 Peering Paths. In order to be able to deal with all of them, different
 methods of embedding and combining data need to be employed.
 
