@@ -11,7 +11,7 @@ DSTDIR=${1:-$ROOTDIR/licenses/data}
 
 rm -rf $DSTDIR
 
-find -L $ROOTDIR/bazel-scion/external -iregex '.*\(LICENSE\|COPYING\).*' | cut -d/ -f5- | while IFS= read -r path ; do
+(cd $ROOTDIR/bazel-scion/external; find -L . -iregex '.*\(LICENSE\|COPYING\).*') | while IFS= read -r path ; do
     dst=$DSTDIR/$(dirname $path)
     mkdir -p $dst
     cp $ROOTDIR/bazel-scion/external/$path $dst
