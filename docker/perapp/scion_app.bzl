@@ -2,10 +2,6 @@ load("@bazel_tools//tools/build_defs/pkg:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_docker//container:container.bzl", "container_image")
 load("@package_bundle//file:packages.bzl", "packages")
 
-# NOTE: In the git repo licenses.tar is an empty tarball.
-# It is replaced by an actual tarball in the base docker image.
-# See: tools/licenses.sh
-
 # Defines a common base image for all app images.
 def scion_app_base():
 
@@ -43,7 +39,7 @@ def scion_app_base():
         debs = debs,
         tars = [
             ":app_base_files",
-            "licenses.tar",
+            "//licenses:licenses",
         ],
         visibility = ["//visibility:public"],
     )
@@ -56,7 +52,7 @@ def scion_app_base():
         debs = debs,
         tars = [
             ":app_base_files",
-            "licenses.tar",
+            "//licenses:licenses",
         ],
         visibility = ["//visibility:public"],
     )
