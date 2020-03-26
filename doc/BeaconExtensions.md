@@ -1,12 +1,13 @@
 # Embedding Static Information in SCION Beacons
 
 In order to estimate certain properties of a SCION path segment, static
-information about that path can be embedded inside the path construction beacons
+information about that path can be embedded inside path construction beacons
 in the form of an extension.
 
 ## Table of Contents
 
 - [Static Properties](#static-properties)
+- [Path Segment Combination](#path-segment-combination)
 - [Latency Information](#latency-information)
 - [Geographic Information](#geographic-information)
 - [Link Type](#link-type)
@@ -25,10 +26,10 @@ duration of the lifetime of that path segment.
 
 The following assumptions are made:
 
-- The Beacon Service, which is responsible for adding all this metadata, has
+- The control service, which is responsible for adding all this metadata, has
   reliable information about the infrastructure (such as the border routers
-  and the interfaces attached to them)
-- The AS topology remains stable throughout the lifetime of a path segment
+  and the interfaces attached to them).
+- The AS topology remains stable throughout the lifetime of a path segment.
 
 ### Basic Concept
 
@@ -47,15 +48,15 @@ intra-AS metrics. The diagram below illustrates the difference between them:
 In order to be able to calculate e.g. the end-to-end
 propagation delay of a path starting in AS 2 and ending in AS 3, we need
 both the delay inside each AS (intra-AS), as well as the delay on the
-connections between ASes (inter-AS). 
+connections between ASes (inter-AS).
 
 #### Intra-AS Metrics
 
 When measuring intra-AS metrics,
 the egress interface is the "target" interface, to which the metric is
 measured from every other interface. Only having the
-metric between the ingress and egress interface is not sufficient 
-(see below).
+metric between the ingress and egress interface is not sufficient
+(see [Path Segment Combination]).
 
 #### Inter-AS Metrics
 
@@ -63,13 +64,9 @@ The AS Entry is extended with metrics describing the outgoing connection (i.e. t
 child link). Looking at the figure
 above, this means that AS 1 extends its AS Entry with information about its child link
 from interface 2 to 3 before propagating it to AS 2.
-This assures that:
-
-- The PCB always carries information about the entire path
-it has traversed so far
-
-Using this method, end-to-end metrics can be calculated by simply combining
-intra- and inter-AS metrics.
+This assures that the PCB always carries information about the entire path
+it has traversed so far. Using this method, end-to-end metrics can be calculated
+by simply combining intra- and inter-AS metrics.
 
 ## Path Segment Combination
 
@@ -84,13 +81,13 @@ for details).
 Since each AS Entry carries information about one AS on the path, the different
 segments of a path can be combined as follows: 
 
-- Create an initially empty list of extension entries
-- Look at each segment in order
+- Create an initially empty list of extension entries.
+- Look at each segment in order.
 - Extract the extension information from each AS Entry of the current segment
-  and add it to the list
+  and add it to the list.
 - The resulting list of extension entries contains all the information
-  necessary to calculate metrics for the end-to-end path
-  
+  necessary to calculate metrics for the end-to-end path.
+
 There are three different types of paths: Normal Paths, Shortcut Paths, and 
 Peering Paths. In order to be able to deal with all of them, different
 methods of embedding and combining data need to be employed.
@@ -125,10 +122,10 @@ both the inter-AS connection between AS 3 and AS 2, and the inter-AS connection
 between AS 2 and AS 4.
 
 To deal with shortcut connections it is therefore necessary to include the following
-2 things: 
+2 things:
 
-- The intra-AS metrics from the egress interface to every other interface in the AS
-- The inter-AS metrics of the child link
+- The intra-AS metrics from the egress interface to every other interface in the AS.
+- The inter-AS metrics of the child link.
 
 ### Peering Links
 
@@ -147,14 +144,13 @@ this assumption using the drawing of a shortcut path above.
 
 In the PCB sent to AS 3,
 the metric between interface 22 (the egress interface for this PCB) and interface 23
-is saved. Since the metric between 
+is saved. Since the metric between
 interfaces 22 and 23, and that between 23 and 22 is assumed to be identical,
 the metric between interface 23 and 22 can be omitted in the PCB that is sent to AS 4.
-Let interface i be the egress interface the PCB is sent out on. 
 
 In a broader context, this allows us to
-include the latency between interfaces i and j if and only if the interface ID
-of j is larger than that of i, i.e. id(j)>id(i). 
+include the latency between interfaces i and j, where i is the egress interface,
+if and only if the interface ID of j is larger than that of i, i.e. id(j)>id(i).
 However, we still need to always include the metric from ingress-
 to egress interface regardless of their IDs.
 
@@ -164,10 +160,10 @@ For each metric, interfaces are grouped into clusters, designed to contain inter
 with roughly similar values of said metric.
 We employ a greedy clustering algorithm, which does the following: 
 
-- check for each value in turn if it can be assigned to an already existing cluster
-- if yes, add the ID of the associated interface to the cluster
-- if not, use this value as the baseline for a new cluster, and add the associated
-  ID to this new cluster
+- Check for each value in turn if it can be assigned to an already existing cluster.
+- If yes, add the ID of the associated interface to the cluster.
+- If not, use this value as the baseline for a new cluster, and add the associated
+  ID to this new cluster.
 
 The details depend on the metric in question.
 
@@ -178,18 +174,18 @@ path, comprised of intra- and inter-AS delays and measured on the scale of
 milliseconds.
 Use cases of such information include:
 
-- Allows to augment path selection policy in order to obtain low latency paths
+- Allows to augment path selection policy in order to obtain low latency paths.
 
 ### Conceptual Implementation Latency
 
 The latency information will be comprised of four main parts:
 
 - The inter-AS latency of the child link between the egress interface and
-  the ingress interface of the AS the PCB will be propagated to
+  the ingress interface of the AS the PCB will be propagated to.
 - The intra-AS latency between the ingress and egress interface of the AS in the
-  absence of shortcut/peering paths
-- A variable number of child latency clusters
-- A variable number of peering latency clusters
+  absence of shortcut/peering paths.
+- A variable number of child latency clusters.
+- A variable number of peering latency clusters.
 
 In general, a latency cluster serves to pool all interfaces which have the same
 propagation delay (within a 1 ms range) between them and the egress interface (i.e.
@@ -205,17 +201,17 @@ include all interfaces with intra-AS delay values in the interval
 Each peering latency cluster is itself comprised of 3 types of elements:
 
 - The intra-AS propagation delay for every interface in the cluster, in ms (1
-  value per cluster)
-- The interface ID for every interface in the cluster (1 value per interface)
+  value per cluster).
+- The interface ID for every interface in the cluster (1 value per interface).
 - The inter-AS propagation delay for the connections attached to these
-  interfaces, in ms (1 value per interface)
+  interfaces, in ms (1 value per interface).
 
 Child latency clusters look almost exactly the same, with the one difference
 being that the inter-AS propagation delays are omitted:
 
 - The intra-AS propagation delay for every interface in the cluster, in ms (1
-  value per cluster)
-- The interface ID for every interface in the cluster (1 value per interface)
+  value per cluster).
+- The interface ID for every interface in the cluster (1 value per interface).
 
 In core segments, both child- and peering latency clusters are omitted.
 
@@ -223,7 +219,7 @@ In core segments, both child- and peering latency clusters are omitted.
 
 The format for latency information, specified in terms of its capnp encoding, looks like this:
 
-````CAPNP
+```CAPNP
 struct LatencyInfo {
   latencyChildClusters @0 :List(LCCluster);
   latencyPeeringClusters @1 :List(LPCluster);
@@ -245,7 +241,7 @@ struct LatencyInfo {
      }
   }
 }
-````
+```
 
 ## Maximum Bandwidth
 
@@ -256,35 +252,35 @@ Maximum Bandwidth Information consists of 2 parts, Inter- and Intra-AS:
 - Intra-AS Maximum Bandwidth Information describes the smallest maximum
   bandwidth available on any link that lies on the intra-AS routing path,
   i.e. the path from an interface to the egress interface.
-  
+
 Bandwidth is measured at the granularity of Kb/s.
 Use cases of such information include:
 
 - Allows to augment path selection policy, such that unsuitable paths can be
-  excluded a priori
+  excluded a priori.
 - Avoid connections that are prone to congestion due to a low-bandwidth
-  bottleneck somewhere
+  bottleneck somewhere.
 
 ### Conceptual Implementation Maximum Bandwidth
 
 The maximum bandwidth information will be comprised of 3 main parts:
 
-- A variable number of maximum bandwidth clusters
-- The bandwidth of the egress connection
+- A variable number of maximum bandwidth clusters.
+- The bandwidth of the egress connection.
 - The intra-AS maximum bandwidth between the ingress and egress interface
-  of the AS in the absence of shortcut/peering paths
+  of the AS in the absence of shortcut/peering paths.
 
 A maximum bandwidth cluster serves to pool all interfaces which have the
 same total maximum bandwidth. For peering interfaces, the total maximum bandwidth
 is calculated as the minimum between the intra-AS bandwidth and the bandwidth of
 the inter-AS peering link.
 A cluster will include all interfaces with values in the
-interval (baseline-5, baseline+5(. 
+interval (baseline-5, baseline+5(.
 Each cluster is itself formed of 2 types of elements:
 
 - The maximum bandwidth for all interfaces in the cluster (1 value per
-  cluster)
-- The interface IDs of all the interfaces in the cluster (1 value per interface)
+  cluster).
+- The interface IDs of all the interfaces in the cluster (1 value per interface).
 
 In core segments, the bandwidth clusters are omitted.
 
@@ -293,7 +289,7 @@ In core segments, the bandwidth clusters are omitted.
 The format for maximum bandwidth information, specified in terms of its capnp
 encoding, looks like this:
 
-````CAPNP
+```CAPNP
 struct Bandwidthinfo {
   bandwidthClusters @0 :List(BwCluster);
   egressBW @1 :UInt32;
@@ -304,7 +300,7 @@ struct Bandwidthinfo {
      interfaces @1 :List(UInt16);
   }
 }
-````
+```
 
 ## Geographic Information
 
@@ -315,16 +311,16 @@ Use cases of such information include:
 
 - Can be used to augment path selection policies in order to ensure paths do not
   leave a particular area, or alternatively ascertain that they never cross
-  territory that is considered "undesirable" by the user
+  territory that is considered "undesirable" by the user.
 - Can be used to provide users with information about the location of the entity
-  they are communicating with (i.e. the endpoint on the other side of the path)
-- Informing network admins about router locations
+  they are communicating with (i.e. the endpoint on the other side of the path).
+- Informing network admins about router locations.
 
 ### Conceptual Implementation Geographic Information
 
 The geographic information will be comprised of 1 main part:
 
-- A variable number of location clusters
+- A variable number of location clusters.
 
 A location cluster serves to pool all interfaces which are located in the same
 geographic location (i.e. same address). Each location cluster is itself formed
@@ -334,8 +330,8 @@ of 2 main types of elements:
   describing latitude and longitude, as well as a civic address, in the format
   specified in RFC 4776 (found
   <a href = "https://tools.ietf.org/html/rfc4776#section-3.3"> here </a>)
-  (1 value in total)
-- The interface ID for every interface in the cluster (1 value per interface)
+  (1 value in total).
+- The interface ID for every interface in the cluster (1 value per interface).
 
 It is possible to use only the latititude and longitude pair, or the civic
 address by simply omitting one of the two.
@@ -345,7 +341,7 @@ address by simply omitting one of the two.
 
 The format for geographic information looks like this:
 
-````CAPNP
+```CAPNP
 struct GeoInfo {
   geoClusters @0 :List(GeoCluster);
 
@@ -360,7 +356,7 @@ struct GeoInfo {
      }
   }
 }
-````
+```
 
 It should be noted that civil addresses (`civilAddress`) can be of variable length,
 but are allowed to occupy a maximum of 500 bytes. Anything beyond that will
@@ -374,21 +370,21 @@ Link Type information gives a broad classification of the different protocols
 being used on the links between two entities.
 For now it distinguishes three different types of links:
 
-- Links that go over the open internet
-- Direct links
-- Multihop links
+- Links that go over the open internet.
+- Direct links.
+- Multihop links.
 
 Use cases of such information include:
 
-- Mitigating security concerns
-- Allowing users to select paths that e.g. avoid the open internet
+- Mitigating security concerns.
+- Allowing users to select paths that e.g. avoid the open internet.
 
 ### Conceptual Implementation Link Type
 
 The Link type will be comprised of 2 parts:
 
-- The link type for the inter-AS link attached to the egress interface
-- The inter-AS link type of all links attached to peering interfaces
+- The link type for the inter-AS link attached to the egress interface.
+- The inter-AS link type of all links attached to peering interfaces.
 
 The latter is omitted in core segments.
 
@@ -396,7 +392,7 @@ The latter is omitted in core segments.
 
 The format for the link type looks like this:
 
-````CAPNP
+```CAPNP
 struct LinktypeInfo {
   peeringLinks @0 :List(PeeringPair);
   egressLinktype @1 :Linktype;
@@ -412,38 +408,38 @@ struct LinktypeInfo {
      peeringInterLinktype @1 :Linktype;
   }
 }
-````
+```
 
 ## Number of Internal Hops
 
 The Number of Internal Hops describes how many hops are on the Intra-AS path.
 Use cases of such information include:
 
-- Can be used to exclude undesireable paths from the selection
+- Can be used to exclude undesireable paths from the selection.
 - Obtain a selection of efficient, low latency paths (especially when combined
-  with Latency Information)
+  with Latency Information).
 
 ### Conceptual Implementation Number of Internal Hops
 
 The number of internal hops will be comprised of 2 main parts:
 
 - The number of internal hops between the ingress and egress interface of the
-  AS in the absence of shortcut/peering paths
-- A variable number of hoplength clusters
+  AS in the absence of shortcut/peering paths.
+- A variable number of hoplength clusters.
 
 A hoplength cluster serves to pool all interfaces which have the same number of
 internal hops on the intra-AS path between them and the egress interface. Each
 hoplength cluster is itself formed of 2 main elements:
 
 - The number of internal hops for all interfaces in the cluster (1 value per
-  cluster)
-- The interface ID for every interface in the cluster (1 value per interface)
+  cluster).
+- The interface ID for every interface in the cluster (1 value per interface).
 
 ### Concrete Format Number of Internal Hops
 
 The format for the number of internal hops looks like this:
 
-````CAPNP
+```CAPNP
 struct InternalHopsInfo {
   hopClusters @0 :List(HopCluster);
   inToOutHops @1 :UInt8;
@@ -453,7 +449,7 @@ struct InternalHopsInfo {
      interfaces @1 :List(UInt16);
   }
 }
-````
+```
 
 ## Note
 
@@ -461,26 +457,26 @@ A Note is simply a bit of plaintext.
 Use cases of such information include:
 
 - Tool for network engineers to communicate interesting/important information to
-  their peers as well as users
+  their peers as well as users.
 
 ### Conceptual Implementation Note
 
 The Note subtype is comprised of 1 single element:
 
-- A string
+- A string.
 
 ### Concrete Format Note
 
 The format for the note can be seen below in the full extension format.
 
-The length `note` is variable, but capped at 2000 bytes. 
+The length of `note` is variable, but capped at 2000 bytes. 
 
 ## Concrete Format Extension
 
 The full wire format of the extension simply combines the capnp structs for each individual
 property described above:
 
-````CAPNP
+```CAPNP
 struct StaticInfo {
    latencyInfo @0 :LatencyInfo;
    geoInfo @1 :GeoInfo;
@@ -489,7 +485,7 @@ struct StaticInfo {
    internalHopsInfo @4 :InternalHopsInfo;
    note @5 :Text;
 }
-````
+```
 
 ## Config File Format
 
@@ -519,7 +515,7 @@ Below is a simple example of how such a config file could look like (actual
 values are abitrary, "asdf" is used as a placeholder for longer strings)
 for an AS with three interfaces with IDs 1, 2, 3 and 5:
 
-````JSON
+```JSON
 {
   "Latency": {
     "1":{
@@ -661,7 +657,7 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
   },
   "Note": "asdf"
 }
-````
+```
 
 ## Command Line Interface
 
