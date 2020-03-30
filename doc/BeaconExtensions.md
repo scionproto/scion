@@ -107,6 +107,9 @@ Calculating end-to-end metrics can therefore be done by simply adding up the int
 latency (from ingress to egress interface) as well as the inter-AS latency (from egress
 interface to the next AS on the path) for every AS on the end to end path.
 
+In order to deal with such a normal path, we will always include ingress to egress metrics
+in the PCB.
+
 ### Shortcuts
 
 ![Shortcut Path](fig/shortcut_paths_with_labels.png)
@@ -127,6 +130,22 @@ To deal with shortcut connections it is therefore necessary to include the follo
 - The intra-AS metrics from the egress interface to every other interface in the AS.
 - The inter-AS metrics of the child link.
 
+Assuming that intra-AS metrics are symmetric, there will be redundant information
+in the data described above when combining two path segments for a shortcut. We
+can exploit this symmetry to reduce the amount of data we need to include in the PCBs
+in total. The following example illustrates this idea.
+
+In the PCB sent to AS 3,
+the metric between interface 22 (the egress interface for this PCB) and interface 23
+is saved. Since the metric between
+interfaces 22 and 23, and that between 23 and 22 is assumed to be identical,
+the metric between interface 23 and 22 can be omitted in the PCB that is sent to AS 4.
+
+In a broader context, this allows us to reduce the data we include as follows:
+Let i be the egress interface and j be any other interface that could be used in a
+shortcut path. Then the metrics between interfaces i and j are included
+if and only if the interface ID of j is larger than that of i, i.e. id(j)>id(i).
+
 ### Peering Links
 
 ![Peering Path](fig/peering_paths_with_labels.png)
@@ -136,26 +155,10 @@ in the AS Entry. Therefore, in addition to the list above, we also need to store
 inter-AS metrics for every connection attached to a peering interface of the AS in
 the extension.
 
-### Symmetry
+### Metrics Summary
 
-In order to reduce the amount of data we need to include in the PCBs in total,
-it is assumed that intra-AS metrics are symmetric. We can illustrate the use of
-this assumption using the drawing of a shortcut path above.
-
-In the PCB sent to AS 3,
-the metric between interface 22 (the egress interface for this PCB) and interface 23
-is saved. Since the metric between
-interfaces 22 and 23, and that between 23 and 22 is assumed to be identical,
-the metric between interface 23 and 22 can be omitted in the PCB that is sent to AS 4.
-
-In a broader context, this allows us to
-include the latency between interfaces i and j, where i is the egress interface,
-if and only if the interface ID of j is larger than that of i, i.e. id(j)>id(i).
-However, we still need to always include the metric from ingress-
-to egress interface regardless of their IDs.
-
-To clarify all of these considerations, we will make an example using the diagram
-below.
+To summarize what all of these considerations mean for the data being included in the
+beacons, we will make an example using the diagram below.
 
 ![Metric Symmetry](fig/metric_symmetry.png)
 
