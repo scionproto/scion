@@ -544,9 +544,14 @@ Name             | Type  | Description |
 `Note`   |String |Note |
 `Intra` (`Hops`)           |Integer|Number of internal hops from interface `i` to every other interface in the AS|
 
-Below is a simple example of how such a config file could look like (actual
-values are abitrary, "asdf" is used as a placeholder for longer strings)
-for an AS with three interfaces with IDs 1, 2, 3 and 5:
+Let us look at an AS with three interfaces with IDs 1, 2, 3 and 5 which looks like
+the diagram below. The values attached to the connections represent the latency
+between interfaces.
+
+![Config Metrics](fig/config_metrics.png)
+
+The config file for this AS would then look like this (actual
+values are abitrary, "asdf" is used as a placeholder for longer strings):
 
 ```JSON
 {
@@ -554,7 +559,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
     "1":{
       "Inter": 30,
       "Intra": {
-        "1": 0,
         "2": 10,
         "3": 20,
         "5": 30
@@ -563,28 +567,25 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
     "2":{
       "Inter": 40,
       "Intra": {
-        "1": 50,
-        "2": 0,
-        "3": 60,
-        "5": 70
+        "1": 10,
+        "3": 70,
+        "5": 50
       }
     },
     "3":{
       "Inter": 80,
       "Intra": {
-        "1": 90,
-        "2": 100,
-        "3": 0,
-        "5": 110
+        "1": 20,
+        "2": 70,
+        "5": 60
       }
     },
     "5":{
-      "Inter": 120,
+      "Inter": 90,
       "Intra": {
-        "1": 130,
-        "2": 140,
-        "3": 150,
-        "5": 0
+        "1": 30,
+        "2": 50,
+        "3": 60
       }
     }
   },
@@ -592,7 +593,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
     "1":{
       "Inter": 400000000,
       "Intra": {
-        "1": 0,
         "2": 100000000,
         "3": 200000000,
         "5": 300000000
@@ -602,7 +602,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
       "Inter": 4000000000,
       "Intra": {
         "1": 5044444,
-        "2": 0,
         "3": 6555555550,
         "5": 75555550
       }
@@ -612,7 +611,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
       "Intra": {
         "1": 9333330,
         "2": 10444440,
-        "3": 0,
         "5": 133333310
       }
     },
@@ -621,8 +619,7 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
       "Intra": {
         "1": 1333330,
         "2": 155555540,
-        "3": 15666660,
-        "5": 0
+        "3": 15666660
       }
     }
   },
@@ -657,7 +654,6 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
   "Hops": {
     "1":{
       "Intra": {
-        "1": 0,
         "2": 2,
         "3": 3,
         "5": 0
@@ -666,16 +662,14 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
     "2":{
       "Intra": {
         "1": 2,
-        "2": 2,
         "3": 3,
-        "5": 0
+        "5": 1
       }
     },
     "3":{
       "Intra": {
         "1": 4,
         "2": 6,
-        "3": 3,
         "5": 3
       }
     },
@@ -683,8 +677,7 @@ for an AS with three interfaces with IDs 1, 2, 3 and 5:
       "Intra": {
         "1": 2,
         "2": 3,
-        "3": 4,
-        "5": 0
+        "3": 4
       }
     }
   },
