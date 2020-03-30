@@ -29,7 +29,7 @@ steps:
   - label: "Check licenses"
     command:
       - mkdir -p /tmp/test-artifacts/licenses
-      - ./tools/licenses.sh /tmp/test-artifacts/licenses
+      - ./tools/licenses.sh /tmp/test-artifacts/licenses $BUILDKITE_PIPELINE_SLUG
       - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
     key: licenses
     retry:
