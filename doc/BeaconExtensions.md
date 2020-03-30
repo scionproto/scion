@@ -154,6 +154,39 @@ if and only if the interface ID of j is larger than that of i, i.e. id(j)>id(i).
 However, we still need to always include the metric from ingress-
 to egress interface regardless of their IDs.
 
+To clarify all of these considerations, we will make an example using the diagram
+below.
+
+![Metric Symmetry](fig/metric_symmetry.png)
+
+Assume a PCB is sent out by AS 1 and arrives in AS 2 on interface 1. AS 2 now
+propagates the PCB to two of its child ASes, AS 3 and AS 5. Let's first look at the
+PCB sent out to AS 3. The egress interface in AS 2 is interface 3. Therefore, the
+following information is included: 
+
+- Ingress to egress metrics
+  - Intf1 to Intf2
+- Peering metrics
+  - Intf2 to Intf5
+  - Intf2 to Intf6
+- Shortcut metrics
+  - Intf2 to Intf3
+  - Intf2 to Intf4
+
+Now let's look at the PCB sent out to AS 5. The egress interface is interface 4: 
+
+- Ingress to egress metrics
+  - Intf1 to Intf4
+- Peering metrics
+  - Intf4 to Intf5
+  - Intf4 to Intf6
+- Shortcut metrics
+  - None
+
+Here the metrics between interface 4 and interfaces 2/3 can be omitted, since their
+symmetric counterparts (Intf2/3 to Intf4) are already included in the beacons sent out
+over the respective links.
+
 ### Clustering
 
 For each metric, interfaces are grouped into clusters, designed to contain interfaces
