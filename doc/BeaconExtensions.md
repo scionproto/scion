@@ -1,47 +1,64 @@
 # Embedding Static Information in SCION Beacons
 
-In order to estimate certain properties of a SCION path segment, static
-information about that path can be embedded inside path construction beacons
-in the form of an extension.
+This document describes how static information can be included in the
+PCBs in order to assist in the path selection process. It first defines
+what static metrics are, and gives a basic outline of how they can be
+embedded in the PCBs. Then it provides a method of combining the fragments
+of information included in the individual AS Entries into values that
+describe the full end-to-end path.
+Next it will describe each individual property to be included in detail,
+as well as giving an overview of the information that needs to be provided
+by an AS to make this functionality possible.
+It concludes by laying out a proposal for an interface that will make
+this information accessible to users and how this could be improved beyond
+the scope of this project.
 
 ## Table of Contents
 
-- [Static Properties](#static-properties)
-- [Path Segment Combination](#path-segment-combination)
-- [Latency Information](#latency-information)
-- [Geographic Information](#geographic-information)
-- [Link Type](#link-type)
-- [Maximum Bandwidth](#maximum-bandwidth)
-- [Number of Internal Hops](#number-of-internal-hops)
-- [Note](#note)
-- [Concrete Format Extension](#concrete-format-extension)
-- [Config File Format](#config-file-format)
-- [Command Line Interface](#command-line-interface)
+- [Overview and Motivation](#overview-and-motivation)
+- [Combining Static Inter- and Intra-AS Metrics to End-to-End Metrics](#combining-static-inter-and-intra-as-metrics-to-end-to-end-metrics)
+- [Extension Metrics Definitions](#extension-metrics-definitions)
+  - [Latency Information](#latency-information)
+  - [Geographic Information](#geographic-information)
+  - [Link Type](#link-type)
+  - [Maximum Bandwidth](#maximum-bandwidth)
+  - [Number of Internal Hops](#number-of-internal-hops)
+  - [Generic Note](#generic-note)
+  - [Overall Format](#overall-format)
+- [Configuration File Format](#configuration-file-format)
+- [Security and Reliability](#security-and-reliability)
+- [Application Programming Interface](#application-programming-interface)
+- [User Interface](#user-interface)
 
-## Static Properties
+## Overview and Motivation
 
-A static property is any quantifiable piece of information describing a
-property of a SCION path segment that remains unchanged over the entire
-duration of the lifetime of that path segment.
-
-The following assumptions are made:
+When trying to find optimal end-to-end paths in the SCION network, it is often
+useful to look at the properties of such paths in order to separate suitable paths
+from undesirable ones. 
+These properties can be divided
+into 2 distinct categories: Static and Dynamic. Static properties refer to
+attributes of a path that remain unchanged over the course of its entire lifetime.
+Dynamic properties on the other hand can change from moment to moment. 
+We illustrate the difference between the two using the example of bandwidth.
+A static property of an end to end path would for example be the minimum
+of the maximal bandwidths of all links along the path, i.e. the bandwidth
+bottleneck.
+A dynamic property would be the ephemeral bandwidth, i.e. the bandwidth
+that is actually available to a connection at any given moment.
+While dynamic properties need to be measured, static properties are known a priori
+and can therefore be included upfront. 
+In order to apply the above definition of static properties to SCION paths, the
+following assumptions need to be made:
 
 - The control service, which is responsible for adding all this metadata, has
   reliable information about the infrastructure (such as the border routers
   and the interfaces attached to them).
 - The AS topology remains stable throughout the lifetime of a path segment.
 
-### Basic Concept
 
-Information about static properties is stored inside the PCBs. This is
-achieved by each AS embedding information about itself in an extension field
-of its ASEntry. Each such extension contains a small amount of metdata
-describing a section of the path. In order to obtain static properties of
-the end-to-end path, the relevant data in each of these extension entries is
-extracted from the PCBs and combined to deliver the actual information.
-
-The data being stored is divided into two principal categories, inter- and
-intra-AS metrics. The diagram below illustrates the difference between them:
+Static information itself can be subdivided into two principal categories,
+inter- and intra-AS metrics. The diagram below illustrates the difference
+between them:
 
 ![Inter VS Intra Metrics](fig/inter_vs_intra_metrics.png)
 
@@ -68,7 +85,14 @@ This assures that the PCB always carries information about the entire path
 it has traversed so far. Using this method, end-to-end metrics can be calculated
 by simply combining intra- and inter-AS metrics.
 
-## Path Segment Combination
+## Combining Static Inter- and Intra-AS Metrics to End-to-End Metrics
+
+Information about static properties is stored inside the PCBs. This is
+achieved by each AS embedding information about itself in an extension field
+of its ASEntry. Each such extension contains a small amount of metdata
+describing a section of the path. In order to obtain static properties of
+the end-to-end path, the relevant data in each of these extension entries is
+extracted from the PCBs and combined to deliver the actual information.
 
 ### Segments
 
@@ -104,7 +128,7 @@ PCB during the beaconing process.
 Therefore the lower interface is always labelled as the egress interface, even when it is in
 the up segment and would thus technically be the interface on which traffic enters the AS.
 Calculating end-to-end metrics can therefore be done by simply adding up the intra-AS
-latency (from ingress to egress interface) as well as the inter-AS latency (from egress
+metrics (from ingress to egress interface) as well as the inter-AS metrics (from egress
 interface to the next AS on the path) for every AS on the end to end path.
 
 In order to deal with such a normal path, we will always include ingress to egress metrics
@@ -203,7 +227,9 @@ We employ a greedy clustering algorithm, which does the following:
 
 The details depend on the metric in question.
 
-## Latency Information
+## Extension Metrics Definitions
+
+### Latency Information
 
 Latency Information refers to the total propagation delay on an end to end
 path, comprised of intra- and inter-AS delays and measured on the scale of
@@ -212,7 +238,7 @@ Use cases of such information include:
 
 - Allows to augment path selection policy in order to obtain low latency paths.
 
-### Conceptual Implementation Latency
+#### Conceptual Implementation Latency
 
 The latency information will be comprised of four main parts:
 
@@ -251,7 +277,7 @@ being that the inter-AS propagation delays are omitted:
 
 In core segments, both child- and peering latency clusters are omitted.
 
-### Concrete Format Latency
+#### Concrete Format Latency
 
 The format for latency information, specified in terms of its capnp encoding, looks like this:
 
@@ -279,7 +305,7 @@ struct LatencyInfo {
 }
 ```
 
-## Maximum Bandwidth
+### Maximum Bandwidth
 
 Maximum Bandwidth Information consists of 2 parts, Inter- and Intra-AS:
 
@@ -297,7 +323,7 @@ Use cases of such information include:
 - Avoid connections that are prone to congestion due to a low-bandwidth
   bottleneck somewhere.
 
-### Conceptual Implementation Maximum Bandwidth
+#### Conceptual Implementation Maximum Bandwidth
 
 The maximum bandwidth information will be comprised of 3 main parts:
 
@@ -320,7 +346,7 @@ Each cluster is itself formed of 2 types of elements:
 
 In core segments, the bandwidth clusters are omitted.
 
-### Concrete Format Maximum Bandwidth
+#### Concrete Format Maximum Bandwidth
 
 The format for maximum bandwidth information, specified in terms of its capnp
 encoding, looks like this:
@@ -338,7 +364,7 @@ struct Bandwidthinfo {
 }
 ```
 
-## Geographic Information
+### Geographic Information
 
 Geographic Information is the full set of GPS coordinates identifying the
 location of every SCION border router deployed by an AS, as well as a real
@@ -352,7 +378,7 @@ Use cases of such information include:
   they are communicating with (i.e. the endpoint on the other side of the path).
 - Informing network admins about router locations.
 
-### Conceptual Implementation Geographic Information
+#### Conceptual Implementation Geographic Information
 
 The geographic information will be comprised of 1 main part:
 
@@ -373,7 +399,7 @@ It is possible to use only the latititude and longitude pair, or the civic
 address by simply omitting one of the two.
 
 
-### Concrete Format Geographic Information
+#### Concrete Format Geographic Information
 
 The format for geographic information looks like this:
 
@@ -398,9 +424,9 @@ It should be noted that civil addresses (`civilAddress`) can be of variable leng
 but are allowed to occupy a maximum of 500 bytes. Anything beyond that will
 be discarded.
 
-## Link Type
+### Link Type
 
-### Definition Link Type
+#### Definition Link Type
 
 Link Type information gives a broad classification of the different protocols
 being used on the links between two entities.
@@ -415,7 +441,7 @@ Use cases of such information include:
 - Mitigating security concerns.
 - Allowing users to select paths that e.g. avoid the open internet.
 
-### Conceptual Implementation Link Type
+#### Conceptual Implementation Link Type
 
 The Link type will be comprised of 2 parts:
 
@@ -424,7 +450,7 @@ The Link type will be comprised of 2 parts:
 
 The latter is omitted in core segments.
 
-### Concrete Format Link Type
+#### Concrete Format Link Type
 
 The format for the link type looks like this:
 
@@ -446,7 +472,7 @@ struct LinktypeInfo {
 }
 ```
 
-## Number of Internal Hops
+### Number of Internal Hops
 
 The Number of Internal Hops describes how many hops are on the Intra-AS path.
 Use cases of such information include:
@@ -455,7 +481,7 @@ Use cases of such information include:
 - Obtain a selection of efficient, low latency paths (especially when combined
   with Latency Information).
 
-### Conceptual Implementation Number of Internal Hops
+#### Conceptual Implementation Number of Internal Hops
 
 The number of internal hops will be comprised of 2 main parts:
 
@@ -471,7 +497,7 @@ hoplength cluster is itself formed of 2 main elements:
   cluster).
 - The interface ID for every interface in the cluster (1 value per interface).
 
-### Concrete Format Number of Internal Hops
+#### Concrete Format Number of Internal Hops
 
 The format for the number of internal hops looks like this:
 
@@ -487,7 +513,7 @@ struct InternalHopsInfo {
 }
 ```
 
-## Note
+### Note
 
 A Note is simply a bit of plaintext.
 Use cases of such information include:
@@ -495,19 +521,19 @@ Use cases of such information include:
 - Tool for network engineers to communicate interesting/important information to
   their peers as well as users.
 
-### Conceptual Implementation Note
+#### Conceptual Implementation Note
 
 The Note subtype is comprised of 1 single element:
 
 - A string.
 
-### Concrete Format Note
+#### Concrete Format Note
 
 The format for the note can be seen below in the full extension format.
 
 The length of `note` is variable, but capped at 2000 bytes. 
 
-## Concrete Format Extension
+### Overall Format
 
 The full wire format of the extension simply combines the capnp structs for each individual
 property described above:
@@ -523,7 +549,7 @@ struct StaticInfo {
 }
 ```
 
-## Config File Format
+## Configuration File Format
 
 In order for the extension to work, a config file needs to be provided to a
 specific location [tbd]. The config file comes in the form of a JSON file
@@ -688,10 +714,37 @@ values are abitrary, "asdf" is used as a placeholder for longer strings):
 }
 ```
 
-## Command Line Interface
+## Security and Reliability
 
-In order to make use of the information this extension provides, we will provide a command line interface (CLI) to extract data from the extension. This CLI will be implemented as an extension of the current showpaths tool.
-To display information about the static properties, showpaths can be called with the flag `-staticinfo` and the following values will be displayed:
+The responsibility for providing all of this metadata lies with the individual
+ASes. There is no mechanism to enforce that this information
+is complete or accurate. Thus no correctness guarantees can be given
+for the static information. 
+This must be considered when trying to use static information for security purposes,
+such as avoiding links that go over the open internet or not routing through certain
+geographical areas.
+
+We can however provide guarantees when it comes to integrity and accountability,
+thanks to the fact that path segments are signed. This has 2 implications:
+
+- No other AS can tamper with the information included by a certain AS.
+- The source of information is visible and non-repudiable. Thus, if an AS was
+  detected to be including false information, it can be held accountable by e.g.
+  being added to a black list.
+
+## Application Programming Interface
+
+Asdf.
+
+## User Interface
+
+### Command Line Interface
+
+In order to make use of the information this extension provides, we will
+create a command line interface (CLI) to extract data from the extension.
+This CLI will be implemented as an extension of the current showpaths tool.
+To display information about the static properties, showpaths can be
+called with the flag `-staticinfo` and the following values will be displayed:
 
 Name               | Description |
 -------------------|-------------|
@@ -702,5 +755,8 @@ InternalHops | The number of internal hops along the entire path|
 Linktypes| The link type of each inter-AS connection along the entire path| 
 Notes | The notes for each AS on the path|
 
+### Other Frontends
 
-
+There could be other ways of making this information available to users,
+such as a GUI. While worth exploring in the future however, they are beyond
+the scope of this document.
