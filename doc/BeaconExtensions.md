@@ -712,7 +712,14 @@ thanks to the fact that path segments are signed. This has 2 implications:
 
 ## Application Programming Interface
 
-Asdf.
+Applications that would like to make use of static information could do so by
+configuring their path selection policies to consider them during the selection
+process. This could be achieved by extending the path policy language.
+Furthermore a clearly defined way how such a policy could be used by an
+application (e.g. using another special json file to
+configure this process) would need to be provided.
+However, these considerations are beyond the scope of this document and not
+further explored here.
 
 ## User Interface
 
@@ -736,5 +743,5 @@ Notes | The notes for each AS on the path|
 ### Other Frontends
 
 There could be other ways of making this information available to users,
-such as a GUI. While worth exploring in the future however, they are beyond
+such as a GUI. While worth exploring in the future, such tools are beyond
 the scope of this document.
