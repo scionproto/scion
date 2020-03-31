@@ -508,27 +508,48 @@ struct StaticInfo {
 
 ## Configuration File Format
 
-In order for the extension to work, a config file needs to be provided to a
-specific location [tbd]. The config file comes in the form of a JSON file
-and needs to have the format shown below.
-The interfaces are divided into two categories, the first being nonpeering
-interfaces, and the second being peering interfaces.
-Regardless of category, for every interface `i` the same values can be provided
-as listed below:
+In order for the extension to work, a configuration file needs to be provided to a
+specific location [tbd]. This config file comes in the form of a JSON file, which
+contains a list of all the properties.
+
+Latency is represented by a map of key-value pairs, where the keys are the
+interface IDs and the values look as follows:
 
 Name             | Type  | Description |
 -----------------|-------|-------------|
-`ID`         |Integer|Interface ID of the interface described by the data that follows|
-`Intra` (`Latency`)   |List of Integers|Intra-AS latency from interface `i` to every other interface in the AS|
-`Inter` (`Latency`)   |Integer|Inter-AS latency from interface `i` to AS on the other end of the link|
-`Latitude`             |Decimal value|Longitude gps coordinates of interface `i`|
+`Inter`          |Integer|Inter-AS latency from interface to AS on the other end of the link|
+`Intra`          |List of Integers, indexed by interface ID |Intra-AS latency from egress interface to the interface the index refers to|
+
+Bandwidth is represented by a map of key-value pairs, where the keys are the
+interface IDs and the values look as follows:
+
+Name             | Type  | Description |
+-----------------|-------|-------------|
+`Inter`          |Integer|Inter-AS bandwidth from interface to AS on the other end of the link|
+`Intra`          |List of Integers, indexed by interface ID |Intra-AS bandwidth from egress interface to the interface the index refers to|
+
+Geographical Information is represented by a map of key-value pairs, where the keys are the
+interface IDs and the values look as follows:
+
+
+Name             | Type  | Description |
+-----------------|-------|-------------|
+`Latitude`             |Decimal value|Longitude gps coordinates of interface `i`, i.e. the interface associated with the key|
 `Longitude`             |Decimal value|Latitude gps coordinate of interface `i`|
 `CivAddr`        |String|Civic address of interface `i`|
-`Inter` (`Linktype`)      |Integer  |Possible values of an entry : `multihop`, `direct`, `opennet`, where `direct` means direct link, `multihop` means multihop link, `opennet` means link that uses the open internet. Describes link type between interface `i` and the AS at the other end of the link|
-`Intra` (`Bandwidth`)        |Integer|Intra-AS bandwidth from interface `i` to every other interface in the AS|
-`Inter` (`Bandwidth`)        |Integer|Inter-AS bandwidth from interface i to the AS at the other end of the link|
-`Note`   |String |Note |
-`Intra` (`Hops`)           |Integer|Number of internal hops from interface `i` to every other interface in the AS|
+
+Linktype is represented by a map of key-value pairs, where the keys are the
+interface IDs and the values are the link type (in the form of a string)
+of the inter-AS connection attached to that interface.
+
+Internal hops is represented by a map of key-value pairs, where the keys are the
+interface IDs and the values look as follows:
+
+Name             | Type  | Description |
+-----------------|-------|-------------|
+`Intra`          |List of Integers, indexed by interface ID |Number of internal hops from egress interface to the interface the index refers to|
+
+The note is simply represented as a string of arbitrary length.
 
 Let us look at an AS with three interfaces with IDs 1, 2, 3 and 5 which looks like
 the diagram below. The values attached to the connections represent the latency
