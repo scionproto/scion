@@ -16,7 +16,7 @@ the scope of this project.
 ## Table of Contents
 
 - [Overview and Motivation](#overview-and-motivation)
-- [Combining Static Inter- and Intra-AS Metrics to End-to-End Metrics](#combining-static-inter--and-intra--as-metrics-to-end--to--end-metrics)
+- [Combining Static Inter- and Intra-AS Metrics to End-to-End Metrics](#combining-static-inter-and-intra-as-metrics-to-end-to-end-metrics)
 - [Extension Metrics Definitions](#extension-metrics-definitions)
   - [Latency Information](#latency-information)
   - [Geographic Information](#geographic-information)
@@ -214,19 +214,6 @@ Here the metrics between interface 4 and interfaces 2/3 can be omitted, since th
 symmetric counterparts (Intf2/3 to Intf4) are already included in the beacons sent out
 over the respective links.
 
-### Clustering
-
-For each metric, interfaces are grouped into clusters, designed to contain interfaces
-with roughly similar values of said metric.
-We employ a greedy clustering algorithm, which does the following: 
-
-- Check for each value in turn if it can be assigned to an already existing cluster.
-- If yes, add the ID of the associated interface to the cluster.
-- If not, use this value as the baseline for a new cluster, and add the associated
-  ID to this new cluster.
-
-The details depend on the metric in question.
-
 ## Extension Metrics Definitions
 
 ### Latency Information
@@ -246,36 +233,20 @@ The latency information will be comprised of four main parts:
   the ingress interface of the AS the PCB will be propagated to.
 - The intra-AS latency between the ingress and egress interface of the AS in the
   absence of shortcut/peering paths.
-- A variable number of child latency clusters.
-- A variable number of peering latency clusters.
+- A variable number of child latency pairs.
+- A variable number of peering latency triplets.
 
-In general, a latency cluster serves to pool all interfaces which have the same
-propagation delay (within a 1 ms range) between them and the egress interface (i.e.
-the interface the PCB will be sent out on). A peering cluster gathers all peering
-interfaces, whereas a child cluster gathers all interfaces attached to a child link.
-The difference between peering and child latency clusters is that in peering
-latency clusters, the latency of the inter-AS link attached to the interface is also
-included in the cluster for every such peering interface. In child clusters
-this information is omitted.
-A cluster will
-include all interfaces with intra-AS delay values in the interval
-(baseline, baseline+1(.
-Each peering latency cluster is itself comprised of 3 types of elements:
+There is one child latency pair for every interface attached to a child link. Each
+such pair contains an interface ID and the latency in ms of the intra-AS connection
+from the egress interface to that interface.
 
-- The intra-AS propagation delay for every interface in the cluster, in ms (1
-  value per cluster).
-- The interface ID for every interface in the cluster (1 value per interface).
-- The inter-AS propagation delay for the connections attached to these
-  interfaces, in ms (1 value per interface).
+Peering latency triplets are very similar. There is one of them for each peering
+interface, and each triplet contains the ID of the peering interface and the
+intra-AS latency in ms from the egress interface to the peering interface.
+Additionally, each triplet also contains the latency in ms of the peering
+link attached to the peering interface.
 
-Child latency clusters look almost exactly the same, with the one difference
-being that the inter-AS propagation delays are omitted:
-
-- The intra-AS propagation delay for every interface in the cluster, in ms (1
-  value per cluster).
-- The interface ID for every interface in the cluster (1 value per interface).
-
-In core segments, both child- and peering latency clusters are omitted.
+In core segments, both child pairs and peering triplets are omitted.
 
 #### Concrete Format Latency
 
@@ -283,24 +254,20 @@ The format for latency information, specified in terms of its capnp encoding, lo
 
 ```CAPNP
 struct LatencyInfo {
-  latencyChildClusters @0 :List(LCCluster);
-  latencyPeeringClusters @1 :List(LPCluster);
+  latencyChildPairs @0 :List(LCPair);
+  latencyPeeringTriplets @1 :List(LPTriplet);
   egressLatency @2 :UInt16;
   intooutLatency @3 :UInt16;
 
-  struct LCCluster {
-     clusterDelay @0 :UInt16;
-     interfaces @1 :List(UInt16);
+  struct LCPair {
+     intraDelay @0 :UInt16;
+     interface @1 :UInt16;
   }
 
-  struct LPCluster {
-     clusterDelay @0 :UInt16;
-     latencyInterfacePairs @1 :List(Lppair);
-
-     struct LPPair {
-        interface @0 :UInt16;
-        interDelay @1 :UInt16;
-     }
+  struct LPTriplet {
+     intraDelay @0 :UInt16;
+     interDelay @1 :UInt16;
+     interface @2 :UInt16;
   }
 }
 ```
@@ -327,24 +294,17 @@ Use cases of such information include:
 
 The maximum bandwidth information will be comprised of 3 main parts:
 
-- A variable number of maximum bandwidth clusters.
+- A variable number of maximum bandwidth pairs
 - The bandwidth of the egress connection.
 - The intra-AS maximum bandwidth between the ingress and egress interface
   of the AS in the absence of shortcut/peering paths.
 
-A maximum bandwidth cluster serves to pool all interfaces which have the
-same total maximum bandwidth. For peering interfaces, the total maximum bandwidth
-is calculated as the minimum between the intra-AS bandwidth and the bandwidth of
-the inter-AS peering link.
-A cluster will include all interfaces with values in the
-interval (baseline-5, baseline+5(.
-Each cluster is itself formed of 2 types of elements:
+A maximum bandwidth pair consists of an interface ID and the intra-AS maximum bandwidth
+between the egress interface and the interface with that ID. For peering interfaces,
+the total maximum bandwidth is calculated as the minimum between the intra-AS bandwidth
+and the bandwidth of the inter-AS peering link.
 
-- The maximum bandwidth for all interfaces in the cluster (1 value per
-  cluster).
-- The interface IDs of all the interfaces in the cluster (1 value per interface).
-
-In core segments, the bandwidth clusters are omitted.
+In core segments, the bandwidth pairs are omitted.
 
 #### Concrete Format Maximum Bandwidth
 
@@ -353,13 +313,13 @@ encoding, looks like this:
 
 ```CAPNP
 struct Bandwidthinfo {
-  bandwidthClusters @0 :List(BwCluster);
+  bandwidthPairs @0 :List(BWPair);
   egressBW @1 :UInt32;
   inToOutBW @2 :UInt32;
 
-  struct BwCluster {
-     clusterBW @0 :UInt32;
-     interfaces @1 :List(UInt16);
+  struct BWPair {
+     BW @0 :UInt32;
+     interface @1 :UInt16;
   }
 }
 ```
@@ -487,15 +447,11 @@ The number of internal hops will be comprised of 2 main parts:
 
 - The number of internal hops between the ingress and egress interface of the
   AS in the absence of shortcut/peering paths.
-- A variable number of hoplength clusters.
+- A variable number of hoplength pairs.
 
-A hoplength cluster serves to pool all interfaces which have the same number of
-internal hops on the intra-AS path between them and the egress interface. Each
-hoplength cluster is itself formed of 2 main elements:
-
-- The number of internal hops for all interfaces in the cluster (1 value per
-  cluster).
-- The interface ID for every interface in the cluster (1 value per interface).
+A hoplength pair contains an interface ID and the number of
+internal hops on the intra-AS path between the egress interface and the
+interface associated with that ID.
 
 #### Concrete Format Number of Internal Hops
 
@@ -503,12 +459,12 @@ The format for the number of internal hops looks like this:
 
 ```CAPNP
 struct InternalHopsInfo {
-  hopClusters @0 :List(HopCluster);
+  hopPairs @0 :List(HopPair);
   inToOutHops @1 :UInt8;
 
-  struct HopCluster {
-     clusterHops @0 :UInt8;
-     interfaces @1 :List(UInt16);
+  struct HopPair {
+     Hops @0 :UInt8;
+     interface @1 :UInt16;
   }
 }
 ```
