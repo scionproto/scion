@@ -16,7 +16,7 @@ the scope of this project.
 ## Table of Contents
 
 - [Overview and Motivation](#overview-and-motivation)
-- [Combining Static Inter- and Intra-AS Metrics to End-to-End Metrics](#combining-static-inter-and-intra-as-metrics-to-end-to-end-metrics)
+- [Combining Static Inter- and Intra-AS Metrics to End-to-End Metrics](#combining-static-inter--and-intra--as-metrics-to-end--to--end-metrics)
 - [Extension Metrics Definitions](#extension-metrics-definitions)
   - [Latency Information](#latency-information)
   - [Geographic Information](#geographic-information)
@@ -73,7 +73,7 @@ When measuring intra-AS metrics,
 the egress interface is the "target" interface, to which the metric is
 measured from every other interface. Only having the
 metric between the ingress and egress interface is not sufficient
-(see [Path Segment Combination]).
+(see [Combining Static Inter- and Intra-AS Metrics to End-to-End Metrics]).
 
 #### Inter-AS Metrics
 
@@ -184,11 +184,11 @@ the extension.
 To summarize what all of these considerations mean for the data being included in the
 beacons, we will make an example using the diagram below.
 
-![Metric Symmetry](fig/metric_symmetry.png)
+![Metric Symmetry](fig/metric_symmetry_2.png)
 
 Assume a PCB is sent out by AS 1 and arrives in AS 2 on interface 1. AS 2 now
 propagates the PCB to two of its child ASes, AS 3 and AS 5. Let's first look at the
-PCB sent out to AS 3. The egress interface in AS 2 is interface 3. Therefore, the
+PCB sent out to AS 3. The egress interface in AS 2 is interface 2. Therefore, the
 following information is included: 
 
 - Ingress to egress metrics
