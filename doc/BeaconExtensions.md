@@ -312,7 +312,7 @@ The format for maximum bandwidth information, specified in terms of its capnp
 encoding, looks like this:
 
 ```CAPNP
-struct Bandwidthinfo {
+struct BandwidthInfo {
   bandwidthPairs @0 :List(BWPair);
   egressBW @1 :UInt32;
   inToOutBW @2 :UInt32;
@@ -342,18 +342,19 @@ Use cases of such information include:
 
 The geographic information will be comprised of 1 main part:
 
-- A variable number of location clusters.
+- A variable number of locations.
 
-A location cluster serves to pool all interfaces which are located in the same
-geographic location (i.e. same address). Each location cluster is itself formed
+A location serves to pool all interfaces which are located in the same
+geographic location (i.e. within a certain range in terms of coordinates).
+Each location is itself formed
 of 2 main types of elements:
 
-- The location of the cluster, consisting of a pair of GPS coordinates
-  describing latitude and longitude, as well as a civic address, in the format
-  specified in RFC 4776 (found
+- A pair of GPS coordinates
+  describing latitude and longitude of the location, as well as a civic address,
+  in the format specified in RFC 4776 (found
   <a href = "https://tools.ietf.org/html/rfc4776#section-3.3"> here </a>)
   (1 value in total).
-- The interface ID for every interface in the cluster (1 value per interface).
+- The interface ID for every interface in the location (1 value per interface).
 
 It is possible to use only the latititude and longitude pair, or the civic
 address by simply omitting one of the two.
@@ -365,13 +366,13 @@ The format for geographic information looks like this:
 
 ```CAPNP
 struct GeoInfo {
-  geoClusters @0 :List(GeoCluster);
+  locations @0 :List(Location);
 
-  struct GeoCluster {
-     location @0 :ClusterLocation;
+  struct Location {
+     gpsData @0 :Coordinates;
      interfaces @1 :List(UInt16);
 
-     struct ClusterLocation {
+     struct Coordinates {
         latitude @0 :Float32;
         longitude @1 :Float32;
         civilAddress @2 :Data;
