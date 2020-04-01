@@ -169,7 +169,9 @@ func (r *Registrar) registerRemote(ctx context.Context, segments <-chan beacon.B
 	if expected > 0 && s.count <= 0 {
 		return common.NewBasicError("No beacons registered", nil, "candidates", expected)
 	}
-	r.lastSucc = r.tick.now
+	if s.count > 0 {
+		r.lastSucc = r.tick.now
+	}
 	r.logSummary(logger, s)
 	return nil
 }
