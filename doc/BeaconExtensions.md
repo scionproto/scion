@@ -184,7 +184,7 @@ the extension.
 To summarize what all of these considerations mean for the data being included in the
 beacons, we will make an example using the diagram below.
 
-![Metric Symmetry](fig/metric_symmetry_2.png)
+![Metrics Summary](fig/metrics_summary.png)
 
 Assume a PCB is sent out by AS 1 and arrives in AS 2 on interface 1. AS 2 now
 propagates the PCB to two of its child ASes, AS 3 and AS 5. Let's first look at the
@@ -231,8 +231,7 @@ The latency information will be comprised of four main parts:
 
 - The inter-AS latency of the child link between the egress interface and
   the ingress interface of the AS the PCB will be propagated to.
-- The intra-AS latency between the ingress and egress interface of the AS in the
-  absence of shortcut/peering paths.
+- The intra-AS latency between the ingress and egress interface of the PCB.
 - A variable number of child latency pairs.
 - A variable number of peering latency triplets.
 
@@ -257,7 +256,7 @@ struct LatencyInfo {
   latencyChildPairs @0 :List(LCPair);
   latencyPeeringTriplets @1 :List(LPTriplet);
   egressLatency @2 :UInt16;
-  intooutLatency @3 :UInt16;
+  inToOutLatency @3 :UInt16;
 
   struct LCPair {
      intraDelay @0 :UInt16;
@@ -297,7 +296,7 @@ The maximum bandwidth information will be comprised of 3 main parts:
 - A variable number of maximum bandwidth pairs
 - The bandwidth of the egress connection.
 - The intra-AS maximum bandwidth between the ingress and egress interface
-  of the AS in the absence of shortcut/peering paths.
+  of the PCB.
 
 A maximum bandwidth pair consists of an interface ID and the intra-AS maximum bandwidth
 between the egress interface and the interface with that ID. For peering interfaces,
@@ -447,7 +446,7 @@ Use cases of such information include:
 The number of internal hops will be comprised of 2 main parts:
 
 - The number of internal hops between the ingress and egress interface of the
-  AS in the absence of shortcut/peering paths.
+  PCB.
 - A variable number of hoplength pairs.
 
 A hoplength pair contains an interface ID and the number of
@@ -518,7 +517,7 @@ interface IDs and the values look as follows:
 Name             | Type  | Description |
 -----------------|-------|-------------|
 `Inter`          |Integer|Inter-AS latency from interface to AS on the other end of the link|
-`Intra`          |List of Integers, indexed by interface ID |Intra-AS latency from egress interface to the interface the index refers to|
+`Intra`          |Map of key-value pairs, the keys being the interface ID|Values: Intra-AS latency from egress interface to the interface the index refers to|
 
 Bandwidth is represented by a map of key-value pairs, where the keys are the
 interface IDs and the values look as follows:
@@ -526,7 +525,7 @@ interface IDs and the values look as follows:
 Name             | Type  | Description |
 -----------------|-------|-------------|
 `Inter`          |Integer|Inter-AS bandwidth from interface to AS on the other end of the link|
-`Intra`          |List of Integers, indexed by interface ID |Intra-AS bandwidth from egress interface to the interface the index refers to|
+`Intra`          |Map of key-value pairs, the keys being the interface ID|Values: Intra-AS bandwidth from egress interface to the interface the index refers to|
 
 Geographical Information is represented by a map of key-value pairs, where the keys are the
 interface IDs and the values look as follows:
@@ -547,7 +546,7 @@ interface IDs and the values look as follows:
 
 Name             | Type  | Description |
 -----------------|-------|-------------|
-`Intra`          |List of Integers, indexed by interface ID |Number of internal hops from egress interface to the interface the index refers to|
+`Intra`          |Map of key-value pairs, the keys being the interface ID|Values: Number of internal hops from egress interface to the interface the index refers to|
 
 The note is simply represented as a string of arbitrary length.
 
