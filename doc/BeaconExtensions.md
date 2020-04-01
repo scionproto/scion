@@ -1,7 +1,8 @@
-# Embedding Static Information in SCION Beacons
+# Embedding Static Information in SCION Path Construction Beacons
 
 This document describes how static information can be included in the
-PCBs in order to assist in the path selection process. It first defines
+Path Construction Beacons (PCBs) in order to assist in the path
+selection process. It first defines
 what static metrics are, and gives a basic outline of how they can be
 embedded in the PCBs. Then it provides a method of combining the fragments
 of information included in the individual AS Entries into values that
@@ -17,7 +18,7 @@ the scope of this project.
 
 - [Overview and Motivation](#overview-and-motivation)
 - [Combining Static Inter- and Intra-AS Metrics to End-to-End Metrics](#combining-static-inter-and-intra-as-metrics-to-end-to-end-metrics)
-- [Extension Metrics Definitions](#extension-metrics-definitions)
+- [Definitions of Metric Extensions](#definitions-of-metric-extensions)
   - [Latency Information](#latency-information)
   - [Geographic Information](#geographic-information)
   - [Link Type](#link-type)
@@ -26,7 +27,7 @@ the scope of this project.
   - [Generic Note](#generic-note)
   - [Overall Format](#overall-format)
 - [Configuration File Format](#configuration-file-format)
-- [Security and Reliability](#security-and-reliability)
+- [Security and Accuracy of Information](#security-and-accuracy-of-information)
 - [Application Programming Interface](#application-programming-interface)
 - [User Interface](#user-interface)
 
@@ -214,7 +215,7 @@ Here the metrics between interface 4 and interfaces 2/3 can be omitted, since th
 symmetric counterparts (Intf2/3 to Intf4) are already included in the beacons sent out
 over the respective links.
 
-## Extension Metrics Definitions
+## Definitions of Metric Extensions
 
 ### Latency Information
 
@@ -245,7 +246,8 @@ intra-AS latency in ms from the egress interface to the peering interface.
 Additionally, each triplet also contains the latency in ms of the peering
 link attached to the peering interface.
 
-In core segments, both child pairs and peering triplets are omitted.
+In core segments, both child pairs and peering triplets are omitted, since there
+can be no peering or shortcut paths in such segments.
 
 #### Concrete Format Latency
 
@@ -253,10 +255,10 @@ The format for latency information, specified in terms of its capnp encoding, lo
 
 ```CAPNP
 struct LatencyInfo {
-  latencyChildPairs @0 :List(LCPair);
-  latencyPeeringTriplets @1 :List(LPTriplet);
+  childLatencies @0 :List(LCPair);
+  peeringLatencies @1 :List(LPTriplet);
   egressLatency @2 :UInt16;
-  inToOutLatency @3 :UInt16;
+  ingressToEgressLatency @3 :UInt16;
 
   struct LCPair {
      intraDelay @0 :UInt16;
@@ -303,7 +305,8 @@ between the egress interface and the interface with that ID. For peering interfa
 the total maximum bandwidth is calculated as the minimum between the intra-AS bandwidth
 and the bandwidth of the inter-AS peering link.
 
-In core segments, the bandwidth pairs are omitted.
+In core segments, the bandwidth pairs are omitted, since there
+can be no peering or shortcut paths in such segments.
 
 #### Concrete Format Maximum Bandwidth
 
@@ -314,7 +317,7 @@ encoding, looks like this:
 struct BandwidthInfo {
   bandwidthPairs @0 :List(BWPair);
   egressBW @1 :UInt32;
-  inToOutBW @2 :UInt32;
+  ingressToEgressBW @2 :UInt32;
 
   struct BWPair {
      BW @0 :UInt32;
@@ -349,7 +352,7 @@ Each location is itself formed
 of 2 main types of elements:
 
 - A pair of GPS coordinates
-  describing latitude and longitude of the location, as well as a civic address,
+  describing latitude and longitude of the location, as well as an address,
   in the format specified in RFC 4776 (found
   <a href = "https://tools.ietf.org/html/rfc4776#section-3.3"> here </a>)
   (1 value in total).
@@ -374,13 +377,13 @@ struct GeoInfo {
      struct Coordinates {
         latitude @0 :Float32;
         longitude @1 :Float32;
-        civilAddress @2 :Data;
+        address @2 :Data;
      }
   }
 }
 ```
 
-It should be noted that civil addresses (`civilAddress`) can be of variable length,
+It should be noted that addresses (`address`) can be of variable length,
 but are allowed to occupy a maximum of 500 bytes. Anything beyond that will
 be discarded.
 
@@ -415,11 +418,11 @@ The latter is omitted in core segments.
 The format for the link type looks like this:
 
 ```CAPNP
-struct LinktypeInfo {
+struct LinkTypeInfo {
   peeringLinks @0 :List(PeeringPair);
-  egressLinktype @1 :Linktype;
+  egressLinkType @1 :LinkType;
 
-  enum Linktype{
+  enum LinkType{
      direct @0;
      multiHop @1;
      openNet @2;
@@ -427,7 +430,7 @@ struct LinktypeInfo {
 
   struct PeeringPair {
      interface @0 :UInt16;
-     peeringInterLinktype @1 :Linktype;
+     peeringLinkType @1 :LinkType;
   }
 }
 ```
@@ -496,11 +499,11 @@ property described above:
 
 ```CAPNP
 struct StaticInfo {
-   latencyInfo @0 :LatencyInfo;
-   geoInfo @1 :GeoInfo;
-   linktypeInfo @2 :LinktypeInfo;
-   bandwidthInfo @3 :BandwidthInfo;
-   internalHopsInfo @4 :InternalHopsInfo;
+   latency @0 :LatencyInfo;
+   geo @1 :GeoInfo;
+   linktype @2 :LinktypeInfo;
+   bandwidth @3 :BandwidthInfo;
+   internalHops @4 :InternalHopsInfo;
    note @5 :Text;
 }
 ```
@@ -535,7 +538,7 @@ Name             | Type  | Description |
 -----------------|-------|-------------|
 `Latitude`             |Decimal value|Longitude gps coordinates of interface `i`, i.e. the interface associated with the key|
 `Longitude`             |Decimal value|Latitude gps coordinate of interface `i`|
-`CivAddr`        |String|Civic address of interface `i`|
+`Address`        |String|Address of interface `i`|
 
 Linktype is represented by a map of key-value pairs, where the keys are the
 interface IDs and the values are the link type (in the form of a string)
@@ -639,22 +642,22 @@ values are abitrary, "asdf" is used as a placeholder for longer strings):
     "1":{
       "Latitude": 47.2,
       "Longitude": 62.2,
-      "CivAddr": "geo1"
+      "Address": "geo1"
     },
     "2":{
       "Latitude": 79.2,
       "Longitude": 45.2,
-      "CivAddr": "geo2"
+      "Address": "geo2"
     },
     "3":{
       "Latitude": 47.22,
       "Longitude": 42.23,
-      "CivAddr": "geo3"
+      "Address": "geo3"
     },
     "5":{
       "Latitude": 48.2,
       "Longitude": 46.2,
-      "CivAddr": "geo5"
+      "Address": "geo5"
     }
   },
   "Hops": {
@@ -691,7 +694,7 @@ values are abitrary, "asdf" is used as a placeholder for longer strings):
 }
 ```
 
-## Security and Reliability
+## Security and Accuracy of Information
 
 The responsibility for providing all of this metadata lies with the individual
 ASes. There is no mechanism to enforce that this information
@@ -728,7 +731,8 @@ In order to make use of the information this extension provides, we will
 create a command line interface (CLI) to extract data from the extension.
 This CLI will be implemented as an extension of the current showpaths tool.
 To display information about the static properties, showpaths can be
-called with the flag `-staticinfo` and the following values will be displayed:
+called with the flag `-staticinfo` and the following values will be displayed
+(provided they are available):
 
 Name               | Description |
 -------------------|-------------|
