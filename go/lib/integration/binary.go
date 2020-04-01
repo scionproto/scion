@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -63,7 +64,11 @@ const (
 )
 
 var (
-	serverPorts = make(map[addr.IA]string)
+	// FIXME(roosd): The caller to StartServer and StartClient
+	// should take care of aggregating the data. I would prefer not to use a
+	// global here.
+	serverPortsMtx sync.Mutex
+	serverPorts    = make(map[addr.IA]string)
 )
 
 var _ Integration = (*binaryIntegration)(nil)
@@ -138,7 +143,9 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 		for scanner.Scan() {
 			line := scanner.Text()
 			if strings.HasPrefix(line, portString) {
+				serverPortsMtx.Lock()
 				serverPorts[dst.IA] = strings.TrimPrefix(line, portString)
+				serverPortsMtx.Unlock()
 			}
 			if init && signal == line {
 				close(ready)

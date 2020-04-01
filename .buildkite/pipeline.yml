@@ -122,3 +122,20 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
+  - label: ":docker: Integration: end2end_integration full topology"
+    if: build.message !~ /\[doc\]/
+    command:
+    - bazel run //docker/perapp:prod >/dev/null 2>&1
+    - ./scion.sh topology -t -d
+    - ./scion.sh run
+    - docker-compose -f gen/scion-dc.yml -p scion up -d $(docker-compose -f gen/scion-dc.yml config --services | grep tester)
+    - sleep 10
+    - ./bin/end2end_integration -d -log.console warn
+    artifact_paths:
+      - "artifacts.out/**/*"
+    timeout_in_minutes: 10
+    key: docker_integration_e2e_default
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
