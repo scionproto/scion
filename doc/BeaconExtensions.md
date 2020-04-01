@@ -517,7 +517,7 @@ interface IDs and the values look as follows:
 Name             | Type  | Description |
 -----------------|-------|-------------|
 `Inter`          |Integer|Inter-AS latency from interface to AS on the other end of the link|
-`Intra`          |Map of key-value pairs, the keys being the interface ID|Values: Intra-AS latency from egress interface to the interface the index refers to|
+`Intra`          |Map of key-value pairs, the keys being the interface ID|Values: Intra-AS latency from egress interface to the interface the key refers to|
 
 Bandwidth is represented by a map of key-value pairs, where the keys are the
 interface IDs and the values look as follows:
@@ -525,7 +525,7 @@ interface IDs and the values look as follows:
 Name             | Type  | Description |
 -----------------|-------|-------------|
 `Inter`          |Integer|Inter-AS bandwidth from interface to AS on the other end of the link|
-`Intra`          |Map of key-value pairs, the keys being the interface ID|Values: Intra-AS bandwidth from egress interface to the interface the index refers to|
+`Intra`          |Map of key-value pairs, the keys being the interface ID|Values: Intra-AS bandwidth from egress interface to the interface the key refers to|
 
 Geographical Information is represented by a map of key-value pairs, where the keys are the
 interface IDs and the values look as follows:
@@ -546,7 +546,7 @@ interface IDs and the values look as follows:
 
 Name             | Type  | Description |
 -----------------|-------|-------------|
-`Intra`          |Map of key-value pairs, the keys being the interface ID|Values: Number of internal hops from egress interface to the interface the index refers to|
+`Intra`          |Map of key-value pairs, the keys being the interface ID|Values: Number of internal hops from egress interface to the interface the key refers to|
 
 The note is simply represented as a string of arbitrary length.
 
