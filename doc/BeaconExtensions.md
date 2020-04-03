@@ -17,15 +17,15 @@ the scope of this project.
 ## Table of Contents
 
 - [Overview and Motivation](#overview-and-motivation)
-- [Combining Static Inter- and Intra-AS Metrics to End-to-End Metrics](#combining-static-inter-and-intra-as-metrics-to-end-to-end-metrics)
+- [Combining Static Inter- and Intra-AS Metrics to End-to-End Metrics](#combining-static-inter--and-intra-as-metrics-to-end-to-end-metrics)
 - [Definitions of Metric Extensions](#definitions-of-metric-extensions)
-  - [Latency Information](#latency-information)
-  - [Geographic Information](#geographic-information)
-  - [Link Type](#link-type)
-  - [Maximum Bandwidth](#maximum-bandwidth)
-  - [Number of Internal Hops](#number-of-internal-hops)
-  - [Generic Note](#generic-note)
-  - [Overall Format](#overall-format)
+    - [Latency Information](#latency-information)
+    - [Geographic Information](#geographic-information)
+    - [Link Type](#link-type)
+    - [Maximum Bandwidth](#maximum-bandwidth)
+    - [Number of Internal Hops](#number-of-internal-hops)
+    - [Generic Note](#generic-note)
+    - [Overall Format](#overall-format)
 - [Configuration File Format](#configuration-file-format)
 - [Security and Accuracy of Information](#security-and-accuracy-of-information)
 - [Application Programming Interface](#application-programming-interface)
@@ -35,11 +35,11 @@ the scope of this project.
 
 When trying to find optimal end-to-end paths in the SCION network, it is often
 useful to look at the properties of such paths in order to separate suitable paths
-from undesirable ones. 
+from undesirable ones.
 These properties can be divided
 into 2 distinct categories: Static and Dynamic. Static properties refer to
 attributes of a path that remain unchanged over the course of its entire lifetime.
-Dynamic properties on the other hand can change from moment to moment. 
+Dynamic properties on the other hand can change from moment to moment.
 We illustrate the difference between the two using the example of bandwidth.
 A static property of an end to end path would for example be the minimum
 of the maximal bandwidths of all links along the path, i.e. the bandwidth
@@ -47,7 +47,7 @@ bottleneck.
 A dynamic property would be the ephemeral bandwidth, i.e. the bandwidth
 that is actually available to a connection at any given moment.
 While dynamic properties need to be measured, static properties are known a priori
-and can therefore be included upfront. 
+and can therefore be included upfront.
 In order to apply the above definition of static properties to SCION paths, the
 following assumptions need to be made:
 
@@ -55,7 +55,6 @@ following assumptions need to be made:
   reliable information about the infrastructure (such as the border routers
   and the interfaces attached to them).
 - The AS topology remains stable throughout the lifetime of a path segment.
-
 
 Static information itself can be subdivided into two principal categories,
 inter- and intra-AS metrics. The diagram below illustrates the difference
@@ -68,7 +67,7 @@ propagation delay of a path starting in AS 2 and ending in AS 3, we need
 both the delay inside each AS (intra-AS), as well as the delay on the
 connections between ASes (inter-AS).
 
-#### Intra-AS Metrics
+### Intra-AS Metrics
 
 When measuring intra-AS metrics,
 the egress interface is the "target" interface, to which the metric is
@@ -76,9 +75,9 @@ measured from every other interface. Only having the
 metric between the ingress and egress interface is not sufficient
 (see [Combining Static Inter- and Intra-AS Metrics to End-to-End Metrics]).
 
-#### Inter-AS Metrics
+### Inter-AS Metrics
 
-The AS Entry is extended with metrics describing the outgoing connection (i.e. the 
+The AS Entry is extended with metrics describing the outgoing connection (i.e. the
 child link). Looking at the figure
 above, this means that AS 1 extends its AS Entry with information about its child link
 from interface 2 to 3 before propagating it to AS 2.
@@ -104,7 +103,7 @@ entries related to peering and shortcuts are omitted (see individual properties
 for details).
 
 Since each AS Entry carries information about one AS on the path, the different
-segments of a path can be combined as follows: 
+segments of a path can be combined as follows:
 
 - Create an initially empty list of extension entries.
 - Look at each segment in order.
@@ -113,7 +112,7 @@ segments of a path can be combined as follows:
 - The resulting list of extension entries contains all the information
   necessary to calculate metrics for the end-to-end path.
 
-There are three different types of paths: Normal Paths, Shortcut Paths, and 
+There are three different types of paths: Normal Paths, Shortcut Paths, and
 Peering Paths. In order to be able to deal with all of them, different
 methods of embedding and combining data need to be employed.
 
@@ -190,26 +189,26 @@ beacons, we will make an example using the diagram below.
 Assume a PCB is sent out by AS 1 and arrives in AS 2 on interface 1. AS 2 now
 propagates the PCB to two of its child ASes, AS 3 and AS 5. Let's first look at the
 PCB sent out to AS 3. The egress interface in AS 2 is interface 2. Therefore, the
-following information is included: 
+following information is included:
 
 - Ingress to egress metrics
-  - Intf1 to Intf2
+    - Intf1 to Intf2
 - Peering metrics
-  - Intf2 to Intf5
-  - Intf2 to Intf6
+    - Intf2 to Intf5
+    - Intf2 to Intf6
 - Shortcut metrics
-  - Intf2 to Intf3
-  - Intf2 to Intf4
+    - Intf2 to Intf3
+    - Intf2 to Intf4
 
-Now let's look at the PCB sent out to AS 5. The egress interface is interface 4: 
+Now let's look at the PCB sent out to AS 5. The egress interface is interface 4:
 
 - Ingress to egress metrics
-  - Intf1 to Intf4
+    - Intf1 to Intf4
 - Peering metrics
-  - Intf4 to Intf5
-  - Intf4 to Intf6
+    - Intf4 to Intf5
+    - Intf4 to Intf6
 - Shortcut metrics
-  - None
+    - None
 
 Here the metrics between interface 4 and interfaces 2/3 can be omitted, since their
 symmetric counterparts (Intf2/3 to Intf4) are already included in the beacons sent out
@@ -361,7 +360,6 @@ of 2 main types of elements:
 It is possible to use only the latititude and longitude pair, or the civic
 address by simply omitting one of the two.
 
-
 #### Concrete Format Geographic Information
 
 The format for geographic information looks like this:
@@ -490,7 +488,7 @@ The Note subtype is comprised of 1 single element:
 
 The format for the note can be seen below in the full extension format.
 
-The length of `note` is variable, but capped at 2000 bytes. 
+The length of `note` is variable, but capped at 2000 bytes.
 
 ### Overall Format
 
@@ -532,7 +530,6 @@ Name             | Type  | Description |
 
 Geographical Information is represented by a map of key-value pairs, where the keys are the
 interface IDs and the values look as follows:
-
 
 Name             | Type  | Description |
 -----------------|-------|-------------|
@@ -699,7 +696,7 @@ values are abitrary, "asdf" is used as a placeholder for longer strings):
 The responsibility for providing all of this metadata lies with the individual
 ASes. There is no mechanism to enforce that this information
 is complete or accurate. Thus no correctness guarantees can be given
-for the static information. 
+for the static information.
 This must be considered when trying to use static information for security purposes,
 such as avoiding links that go over the open internet or not routing through certain
 geographical areas.
@@ -740,7 +737,7 @@ EndToEndLatency | Minimal end to end propagation delay along the entire path|
 Geo | Geographical location in terms of GPS coordinates of each AS on the path (achieved by displaying the geographical locations of all interfaces of the AS)|
 MaxBW | Bottleneck maximum bandwidth along the entire path|
 InternalHops | The number of internal hops along the entire path|
-Linktypes| The link type of each inter-AS connection along the entire path| 
+Linktypes| The link type of each inter-AS connection along the entire path|
 Notes | The notes for each AS on the path|
 
 ### Other Frontends
