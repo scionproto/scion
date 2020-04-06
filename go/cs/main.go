@@ -700,8 +700,12 @@ func maxExpTimeFactory(store beaconstorage.Store, p beacon.PolicyType) func() sp
 }
 
 func setupBasic() error {
-	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
+	md, err := toml.DecodeFile(env.ConfigFile(), &cfg)
+	if err != nil {
 		return serrors.New("Failed to load config", "err", err, "file", env.ConfigFile())
+	}
+	if len(md.Undecoded()) > 0 {
+		return serrors.New("Failed to load config: undecoded keys", "undecoded", md.Undecoded())
 	}
 	cfg.InitDefaults()
 	if err := log.Setup(cfg.Logging); err != nil {
