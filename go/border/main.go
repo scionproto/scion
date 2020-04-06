@@ -104,14 +104,14 @@ func realMain() int {
 func setupBasic() error {
 	md, err := toml.DecodeFile(env.ConfigFile(), &cfg)
 	if err != nil {
-		return serrors.New("Failed to load config", "err", err, "file", env.ConfigFile())
+		return serrors.WrapStr("Failed to load config", err, "file", env.ConfigFile())
 	}
 	if len(md.Undecoded()) > 0 {
 		return serrors.New("Failed to load config: undecoded keys", "undecoded", md.Undecoded())
 	}
 	cfg.InitDefaults()
 	if err := log.Setup(cfg.Logging); err != nil {
-		return serrors.New("Failed to initialize logging", "err", err)
+		return serrors.WrapStr("Failed to initialize logging", err)
 	}
 	prom.ExportElementID(cfg.General.ID)
 	return env.LogAppStarted(common.BR, cfg.General.ID)
