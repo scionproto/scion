@@ -218,7 +218,7 @@ func (p *Policy) initDefaults(t PolicyType) error {
 // ParsePolicyYaml parses the policy in yaml format and initializes the default values.
 func ParsePolicyYaml(b common.RawBytes, t PolicyType) (*Policy, error) {
 	p := &Policy{}
-	if err := yaml.Unmarshal(b, p); err != nil {
+	if err := yaml.UnmarshalStrict(b, p); err != nil {
 		return nil, common.NewBasicError("Unable to parse policy", err)
 	}
 	if err := p.initDefaults(t); err != nil {
