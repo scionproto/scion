@@ -49,7 +49,7 @@ const (
 
 var (
 	remote  snet.UDPAddr
-	timeout = &util.DurWrap{Duration: 2 * time.Second}
+	timeout = &util.DurWrap{Duration: 10 * time.Second}
 )
 
 func main() {

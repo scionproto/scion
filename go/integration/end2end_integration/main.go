@@ -39,9 +39,10 @@ const (
 )
 
 var (
-	subset   string
-	attempts int
-	timeout  = &util.DurWrap{Duration: 5 * time.Second}
+	subset      string
+	attempts    int
+	timeout     = &util.DurWrap{Duration: 10 * time.Second}
+	parallelism int
 )
 
 func getCmd() (string, bool) {
@@ -101,6 +102,7 @@ func addFlags() {
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
 	flag.StringVar(&subset, "subset", "all", "Subset of pairs to run (all|core-core|"+
 		"noncore-localcore|noncore-core|noncore-noncore)")
+	flag.IntVar(&parallelism, "parallelism", 1, "How many end2end tests run in parallel.")
 }
 
 // runTests runs the end2end tests for all pairs. In case of an error the
@@ -173,6 +175,9 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		}
 		defer clean()
 
+		// CI collapses if parallelism is too high.
+		semaphore := make(chan struct{}, parallelism)
+
 		// Docker exec comes with a 1 second overhead. We group all the pairs by
 		// the clients. And run all pairs for a given client in one execution.
 		// Thus, reducing the overhead dramatically.
@@ -182,6 +187,8 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 			go func(src *snet.UDPAddr, dsts []*snet.UDPAddr) {
 				defer log.HandlePanic()
 
+				semaphore <- struct{}{}
+				defer func() { <-semaphore }()
 				// Aggregate all the commands that need to be run.
 				cmds := make([]integration.Cmd, 0, len(dsts))
 				for _, dst := range dsts {
