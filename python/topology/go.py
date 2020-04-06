@@ -55,7 +55,6 @@ from topology.topo import DEFAULT_LINK_BW
 
 CS_QUIC_PORT = 30352
 CO_QUIC_PORT = 30357
-SD_QUIC_PORT = 0
 
 
 class GoGenArgs(ArgsTopoDicts):
@@ -256,10 +255,8 @@ class GoGenerator(object):
             'tracing': self._tracing_entry(),
             'metrics': {
                 'prometheus': socket_address_str(ip, SCIOND_PROM_PORT)
-            },
-            'quic': self._quic_conf_entry(SD_QUIC_PORT, self.args.svcfrac),
+            }
         }
-        raw_entry['quic']['address'] = socket_address_str(ip, SD_QUIC_PORT)
         return raw_entry
 
     def generate_disp(self):
