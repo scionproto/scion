@@ -54,9 +54,9 @@ cmd_run() {
         make -s || exit 1
         if is_docker_be; then
             echo "Build perapp images"
-            ./tools/quiet make -C docker/perapp bazel
+            ./tools/quiet make -C docker prod
             echo "Build scion tester"
-            ./tools/quiet ./docker.sh tester
+            ./tools/quiet make -C docker test
         fi
     fi
     run_setup

@@ -21,7 +21,7 @@ go_test(
 
 container_image(
     name = "dispatcher",
-    base = "//docker/perapp:dispatcher_debug",
+    base = "//docker:dispatcher_debug",
     files = ["testdata/disp.toml"],
     entrypoint = [
         "/app/dispatcher",
@@ -32,7 +32,7 @@ container_image(
 
 container_image(
     name = "sciond",
-    base = "//docker/perapp:sciond_debug",
+    base = "//docker:sciond_debug",
     files = [
         "testdata/sd.toml",
         "//acceptance/topo_common:topology",

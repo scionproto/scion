@@ -1,4 +1,0 @@
-shell bash
-startup_message off
-hardstatus alwayslastline
-hardstatus string "%-w%{= BW}%50>%n %t%{-}%+w%< %=%{= ck}A%{-}"

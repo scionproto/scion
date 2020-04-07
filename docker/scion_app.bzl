@@ -64,7 +64,8 @@ def scion_app_base():
 #   appdir - the directory to deploy the binary to
 #   workdir - working directory
 #   entrypoint - a list of strings that add up to the command line
-def scion_app_images(name, binary, appdir, workdir, entrypoint):
+#   stamp - whether to stamp the created images (default=True).
+def scion_app_images(name, binary, appdir, workdir, entrypoint, stamp=True):
     pkg_tar(
         name = name + "_docker_files",
         srcs = [binary],
@@ -75,21 +76,21 @@ def scion_app_images(name, binary, appdir, workdir, entrypoint):
     container_image(
         name = name + "_prod",
         repository = "scion",
-        base = "//docker/perapp:app_base",
+        base = "//docker:app_base",
         tars = [":" + name + "_docker_files"],
         workdir = workdir,
         entrypoint = ["/sbin/su-exec"] + entrypoint,
-        stamp = True,
+        stamp = stamp,
         visibility = ["//visibility:public"],
     )
 
     container_image(
         name = name + "_debug",
         repository = "scion",
-        base = "//docker/perapp:app_base_debug",
+        base = "//docker:app_base_debug",
         tars = [":" + name + "_docker_files"],
         workdir = workdir,
         entrypoint = entrypoint,
-        stamp = True,
+        stamp = stamp,
         visibility = ["//visibility:public"],
     )
