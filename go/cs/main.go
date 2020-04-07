@@ -330,6 +330,11 @@ func realMain() int {
 		log.Crit("Unable to create SCION packet conn", "err", err)
 		return 1
 	}
+	propPolicy, err := loadPolicy(cfg.BS.Policies.Propagation, beacon.PropPolicy)
+	if err != nil {
+		log.Crit("Unable to load propagation policy", "err", err)
+		return 1
+	}
 	tasks = &periodicTasks{
 		args:         args,
 		intfs:        intfs,
@@ -337,6 +342,7 @@ func realMain() int {
 		trustStore:   trustStore,
 		trustDB:      trustDB,
 		store:        beaconStore,
+		allowIsdLoop: *propPolicy.Filter.AllowIsdLoop,
 		pathDB:       pathDB,
 		msgr:         msgr,
 		topoProvider: itopo.Provider(),
