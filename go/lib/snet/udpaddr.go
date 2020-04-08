@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -35,7 +36,7 @@ type UDPAddr struct {
 	Host    *net.UDPAddr
 }
 
-// UDPAddrFromString converts an address string to a SCION address.
+// ParseUDPAddr converts an address string to a SCION address.
 // The supported formats are:
 //
 // Recommended:
@@ -52,7 +53,7 @@ type UDPAddr struct {
 // Not supported:
 //  - isd-as,ipv6:port    (caveat if ipv6:port builds a valid ipv6 address,
 //                         it will successfully parse as ipv6 without error)
-func UDPAddrFromString(s string) (*UDPAddr, error) {
+func ParseUDPAddr(s string) (*UDPAddr, error) {
 	rawIA, rawHost, err := parseAddr(s)
 	if err != nil {
 		return nil, err
@@ -65,14 +66,20 @@ func UDPAddrFromString(s string) (*UDPAddr, error) {
 	if ip := net.ParseIP(strings.Trim(rawHost, "[]")); ip != nil {
 		return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: ip, Port: 0}}, nil
 	}
-	udpAddr, err := net.ResolveUDPAddr("udp", rawHost)
+
+	rawIP, rawPort, err := net.SplitHostPort(rawHost)
 	if err != nil {
 		return nil, err
 	}
-	if udpAddr.IP == nil {
+	ip := net.ParseIP(rawIP)
+	if ip == nil {
 		return nil, serrors.New("invalid address: no IP specified", "host", rawHost)
 	}
-	return &UDPAddr{IA: ia, Host: udpAddr}, nil
+	port, err := strconv.ParseUint(rawPort, 10, 16)
+	if err != nil {
+		return nil, serrors.New("invalid port", "host", rawHost)
+	}
+	return &UDPAddr{IA: ia, Host: &net.UDPAddr{IP: ip, Port: int(port)}}, nil
 }
 
 // Network implements net.Addr interface.
@@ -104,7 +111,7 @@ func (a *UDPAddr) GetPath() (Path, error) {
 
 // Set implements the flag.Value interface
 func (a *UDPAddr) Set(s string) error {
-	other, err := UDPAddrFromString(s)
+	other, err := ParseUDPAddr(s)
 	if err != nil {
 		return err
 	}

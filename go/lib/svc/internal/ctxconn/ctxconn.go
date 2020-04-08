@@ -46,7 +46,7 @@ func CloseConnOnDone(ctx context.Context, conn DeadlineCloser) CancelFunc {
 
 	cancelSignal := make(chan struct{})
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		select {
 		case <-ctx.Done():
 			if err := conn.Close(); err != nil {

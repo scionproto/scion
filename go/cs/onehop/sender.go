@@ -80,13 +80,13 @@ func (s *Sender) Send(msg *Msg, nextHop *net.UDPAddr) error {
 }
 
 // CreatePkt creates a scion packet with a one-hop path and the payload.
-func (s *Sender) CreatePkt(msg *Msg) (*snet.SCIONPacket, error) {
+func (s *Sender) CreatePkt(msg *Msg) (*snet.Packet, error) {
 	path, err := s.CreatePath(msg.Ifid, msg.InfoTime)
 	if err != nil {
 		return nil, err
 	}
-	pkt := &snet.SCIONPacket{
-		SCIONPacketInfo: snet.SCIONPacketInfo{
+	pkt := &snet.Packet{
+		PacketInfo: snet.PacketInfo{
 			Destination: msg.Dst,
 			Source: snet.SCIONAddress{
 				IA:   s.IA,

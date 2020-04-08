@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
+	"github.com/scionproto/scion/go/lib/log/logtest"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -39,7 +40,8 @@ func TestConfigSample(t *testing.T) {
 }
 
 func InitTestConfig(cfg *Config) {
-	envtest.InitTest(nil, &cfg.Logging, &cfg.Metrics, nil, &cfg.Sciond)
+	envtest.InitTest(nil, &cfg.Metrics, nil, &cfg.Sciond)
+	logtest.InitTestLogging(&cfg.Logging)
 	InitTestSigConf(&cfg.Sig)
 }
 
@@ -48,7 +50,8 @@ func InitTestSigConf(cfg *SigConf) {
 }
 
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
-	envtest.CheckTest(t, nil, &cfg.Logging, &cfg.Metrics, nil, &cfg.Sciond, id)
+	envtest.CheckTest(t, nil, &cfg.Metrics, nil, &cfg.Sciond, id)
+	logtest.CheckTestLogging(t, &cfg.Logging, id)
 	CheckTestSigConf(t, &cfg.Sig, id)
 }
 
@@ -59,7 +62,6 @@ func CheckTestSigConf(t *testing.T, cfg *SigConf, id string) {
 	assert.Equal(t, net.ParseIP("192.0.2.100"), cfg.IP)
 	assert.Equal(t, DefaultCtrlPort, int(cfg.CtrlPort))
 	assert.Equal(t, DefaultEncapPort, int(cfg.EncapPort))
-	assert.Empty(t, cfg.Dispatcher)
 	assert.Equal(t, DefaultTunName, cfg.Tun)
 	assert.Equal(t, DefaultTunRTableId, cfg.TunRTableId)
 }

@@ -30,6 +30,52 @@ type verifier struct {
 	Dirs pkicmn.Dirs
 }
 
+// Run validates and verifies all issuer certificates and certificate chains in
+// the file list.
+func (v verifier) Run(files []string) error {
+	var errs serrors.List
+	issuers, chains := MatchFiles(files)
+	if err := v.verifyIssuers(issuers); err != nil {
+		errs = append(errs, err)
+	}
+	if err := v.verifyChains(chains); err != nil {
+		errs = append(errs, err)
+	}
+	return errs.ToError()
+}
+
+func (v verifier) verifyIssuers(files []string) error {
+	var errs serrors.List
+	for _, file := range files {
+		raw, err := ioutil.ReadFile(file)
+		if err != nil {
+			errs = append(errs, serrors.WrapStr("unable to load issuer certificate", err,
+				"file", file))
+			continue
+		}
+		if err := v.VerifyIssuer(raw); err != nil {
+			errs = append(errs, serrors.WithCtx(err, "file", file))
+		}
+	}
+	return errs.ToError()
+}
+
+func (v verifier) verifyChains(files []string) error {
+	var errs serrors.List
+	for _, file := range files {
+		raw, err := ioutil.ReadFile(file)
+		if err != nil {
+			errs = append(errs, serrors.WrapStr("unable to load certificate chain", err,
+				"file", file))
+			continue
+		}
+		if err := v.VerifyChain(raw); err != nil {
+			errs = append(errs, serrors.WithCtx(err, "file", file))
+		}
+	}
+	return errs.ToError()
+}
+
 // VerifyIssuer validates and verifies a raw signed issuer certificate. For
 // verification, the issuing TRC is loaded from the file system.
 func (v verifier) VerifyIssuer(raw []byte) error {

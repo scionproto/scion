@@ -92,7 +92,7 @@ func Fatal(err error) {
 		// If the main goroutine fatals out correctly, this won't get a chance
 		// to run.
 		time.AfterFunc(FatalGraceInterval, func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			panic("Main goroutine is not responding to the fatal error. " +
 				"It's probably stuck. Shutting down anyway.")
 		})
@@ -120,7 +120,7 @@ func Shutdown(d time.Duration) {
 		// If the main goroutine shuts down everything in time, this won't get
 		// a chance to run.
 		time.AfterFunc(d, func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			panic(fmt.Sprintf("Main goroutine did not shut down in time (waited %v). It's "+
 				"probably stuck. Forcing shutdown.", d))
 		})

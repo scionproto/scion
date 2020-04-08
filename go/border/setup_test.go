@@ -299,7 +299,7 @@ func initTestRouter(maxNumPosixInput int) *Router {
 	// Init metrics.
 	testInitOnce.Do(func() {
 		// Reduce output displayed in goconvey.
-		log.Root().SetHandler(log.DiscardHandler())
+		log.Discard()
 	})
 	// The number of free packets has to be at least the number of posix
 	// input routines times inputBufCnt. Otherwise they might get stuck

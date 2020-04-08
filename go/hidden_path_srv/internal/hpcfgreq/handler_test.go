@@ -83,7 +83,7 @@ var group4 = &hiddenpath.Group{
 }
 
 func TestCfgReq(t *testing.T) {
-	log.Root().SetHandler(log.DiscardHandler())
+	log.Discard()
 	tests := map[string]func(*testing.T, context.Context, infra.Handler,
 		*mock_infra.MockResponseWriter){
 

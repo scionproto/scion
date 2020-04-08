@@ -75,7 +75,7 @@ func (m *MockRoundTripper) EXPECT() *MockRoundTripperMockRecorder {
 }
 
 // RoundTrip mocks base method
-func (m *MockRoundTripper) RoundTrip(arg0 context.Context, arg1 snet.PacketConn, arg2 *snet.SCIONPacket, arg3 *net.UDPAddr) (*svc.Reply, error) {
+func (m *MockRoundTripper) RoundTrip(arg0 context.Context, arg1 snet.PacketConn, arg2 *snet.Packet, arg3 *net.UDPAddr) (*svc.Reply, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RoundTrip", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(*svc.Reply)

@@ -90,17 +90,7 @@
       }
     }
   },
-  "PathService": {
-    "psA": { "Addrs": {
-        "IPv4": { "Public": { "L4Port": 20005, "Addr": "192.168.0.51" } }
-    } }
-  },
-  "BeaconService": {
-    "bsA": { "Addrs": {
-        "IPv4": { "Public": { "L4Port": 20006, "Addr": "192.168.0.61" } }
-    } }
-  },
-  "CertificateService": {
+  "ControlService": {
     "csA": { "Addrs": {
         "IPv4": { "Public": { "L4Port": 20007, "Addr": "192.168.0.71" } }
     } }

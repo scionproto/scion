@@ -83,7 +83,7 @@ func (cfg *BRConf) loadTopo(id string) error {
 	return nil
 }
 
-// initTopo initializesthe entries related to topo in the config.
+// initTopo initializes the entries related to topo in the config.
 func (cfg *BRConf) initTopo(id string, topo topology.Topology) error {
 	cfg.Topo = topo
 	cfg.IA = cfg.Topo.IA()

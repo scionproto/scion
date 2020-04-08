@@ -58,8 +58,9 @@ _go_image_repos()
 # Distroless
 git_repository(
     name = "distroless",
-    commit = "07399042ca65818d19aa0a2b0325716e237c4d01",
+    commit = "48dba0a4ace4fcb4fdd8d7e1f7dc1a9ed8b38f7c",
     remote = "https://github.com/GoogleContainerTools/distroless.git",
+    shallow_since = "1582150737 -0500",
 )
 
 # Debian packages to install in containers

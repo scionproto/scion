@@ -75,8 +75,8 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 		return nil, common.NewBasicError(errRegistration, err)
 	}
 
-	requestPacket := &snet.SCIONPacket{
-		SCIONPacketInfo: snet.SCIONPacketInfo{
+	requestPacket := &snet.Packet{
+		PacketInfo: snet.PacketInfo{
 			Source: snet.SCIONAddress{
 				IA:   r.LocalIA,
 				Host: addr.HostFromIP(r.LocalIP),
@@ -106,7 +106,7 @@ func (r *Resolver) getRoundTripper() RoundTripper {
 // connection, using the specified request packet and overlay address.
 type RoundTripper interface {
 	// RoundTrip performs the round trip interaction.
-	RoundTrip(ctx context.Context, c snet.PacketConn, request *snet.SCIONPacket,
+	RoundTrip(ctx context.Context, c snet.PacketConn, request *snet.Packet,
 		ov *net.UDPAddr) (*Reply, error)
 }
 
@@ -120,7 +120,7 @@ var _ RoundTripper = (*roundTripper)(nil)
 
 type roundTripper struct{}
 
-func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.SCIONPacket,
+func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.Packet,
 	ov *net.UDPAddr) (*Reply, error) {
 
 	cancelF := ctxconn.CloseConnOnDone(ctx, c)
@@ -137,7 +137,7 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 		return nil, common.NewBasicError(errWrite, err)
 	}
 
-	var replyPacket snet.SCIONPacket
+	var replyPacket snet.Packet
 	var replyOv net.UDPAddr
 	if err := c.ReadFrom(&replyPacket, &replyOv); err != nil {
 		return nil, common.NewBasicError(errRead, err)

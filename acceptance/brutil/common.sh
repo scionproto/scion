@@ -11,6 +11,7 @@ DOCKER_COMPOSE_FN=${DOCKER_COMPOSE_FN:=$UTIL_DIR/docker-compose.yml}
 
 BR_TOML_FN=${BR_TOML_FN:=br.toml}
 BR_TOML=$TEST_ARTIFACTS_DIR/conf/$BR_TOML_FN
+BR_POST_SETUP_SLEEP_PERIOD=${BR_POST_SETUP_SLEEP_PERIOD:=0}
 
 . $BRUTIL
 . acceptance/common.sh
@@ -38,6 +39,8 @@ test_setup() {
 
     docker-compose -f $DOCKER_COMPOSE_FN --no-ansi up --detach $BRID
     docker_status
+
+    sleep $BR_POST_SETUP_SLEEP_PERIOD
 }
 
 test_config() {
@@ -54,8 +57,8 @@ test_config() {
     cp -Lr "acceptance/${TEST_DIR}/conf/." "$TEST_ARTIFACTS_DIR/conf"
 
     # Replace BR ID
-    sed -i "s/ID = .*$/ID = \"${BRID}\"/g" "$BR_TOML"
-    sed -i "s/Path = .*$/Path = \"\/share\/logs\/${BRID}.log\"/g" "$BR_TOML"
+    sed -i "s/id = .*$/id = \"${BRID}\"/g" "$BR_TOML"
+    sed -i "s/path = .*$/path = \"\/share\/logs\/${BRID}.log\"/g" "$BR_TOML"
 }
 
 test_run() {

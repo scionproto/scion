@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import random
+import sys
 from collections import defaultdict
 
 # External packages
@@ -35,7 +36,6 @@ from lib.defines import (
     SCION_ROUTER_PORT,
     TOPO_FILE,
 )
-from lib.topology import Topology
 from lib.types import LinkType
 from lib.util import write_file
 from topology.common import (
@@ -45,15 +45,14 @@ from topology.common import (
     srv_iter,
     TopoID
 )
+from topology.net import PortGenerator
 
 DEFAULT_LINK_BW = 1000
 
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_GRACE_PERIOD = 18000
-DEFAULT_CERTIFICATE_SERVERS = 1
-DEFAULT_PATH_SERVERS = 1
+DEFAULT_CONTROL_SERVERS = 1
 DEFAULT_COLIBRI_SERVERS = 1
-DEFAULT_DISCOVERY_SERVERS = 1
 
 UNDERLAY_4 = 'UDP/IPv4'
 UNDERLAY_6 = 'UDP/IPv6'
@@ -63,14 +62,13 @@ ADDR_TYPE_6 = 'IPv6'
 
 
 class TopoGenArgs(ArgsBase):
-    def __init__(self, args, topo_config, subnet_gen4, subnet_gen6, default_mtu, port_gen):
+    def __init__(self, args, topo_config, subnet_gen4, subnet_gen6, default_mtu):
         """
         :param ArgsBase args: Contains the passed command line arguments.
         :param dict topo_config: The parsed topology config.
         :param SubnetGenerator subnet_gen4: The default network generator for IPv4.
         :param SubnetGenerator subnet_gen6: The default network generator for IPv6.
         :param dict default_mtu: The default mtu.
-        :param PortGenerator port_gen: The port generator
         """
         super().__init__(args)
         self.topo_config_dict = topo_config
@@ -79,7 +77,7 @@ class TopoGenArgs(ArgsBase):
             ADDR_TYPE_6: subnet_gen6,
         }
         self.default_mtu = default_mtu
-        self.port_gen = port_gen
+        self.port_gen = PortGenerator()
 
 
 class TopoGenerator(object):
@@ -129,11 +127,14 @@ class TopoGenerator(object):
     def _register_sig(self, topo_id, as_conf):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
         self._reg_addr(topo_id, "sig" + topo_id.file_fmt(), addr_type)
-        self._reg_addr(topo_id, "tester_" + topo_id.file_fmt(), addr_type)
 
     def _register_sciond(self, topo_id, as_conf):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
         self._reg_addr(topo_id, "sd" + topo_id.file_fmt(), addr_type)
+        # Always register the tester element. This causes the generator to create a
+        # bridge in the docker topology, which SCIOND, SIG (if enabled) and
+        # client applications can use to communicate.
+        self._reg_addr(topo_id, "tester_" + topo_id.file_fmt(), addr_type)
 
     def _br_name(self, ep, assigned_br_id, br_ids, if_ids):
         br_name = ep.br_name()
@@ -202,57 +203,49 @@ class TopoGenerator(object):
             self._gen_sig_entries(topo_id, as_conf)
 
     def _gen_srv_entries(self, topo_id, as_conf):
-        srvs = [
-            ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs", "BeaconService"),
-            ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
-             "CertificateService"),
-            ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService"),
-        ]
+        srvs = [("control_servers", DEFAULT_CONTROL_SERVERS, "cs", "ControlService")]
         if self.args.colibri:
             srvs.append(("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co", "ColibriService"))
         for conf_key, def_num, nick, topo_key in srvs:
-            self._gen_srv_entry(
-                topo_id, as_conf, conf_key, def_num, nick, topo_key)
-        # The discovery service does not run on top of the dispatcher.
-        self._gen_srv_entry(topo_id, as_conf, "discovery_servers", DEFAULT_DISCOVERY_SERVERS,
-                            "ds", "DiscoveryService", lambda elem_id: elem_id)
+            self._gen_srv_entry(topo_id, as_conf, conf_key, def_num, nick, topo_key)
 
     def _gen_srv_entry(self, topo_id, as_conf, conf_key, def_num, nick,
-                       topo_key, reg_id_func=None):
+                       topo_key, uses_dispatcher=True):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
         count = self._srv_count(as_conf, conf_key, def_num)
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
-            reg_id = reg_id_func(
-                elem_id) if reg_id_func else self._reg_id_disp(topo_id, elem_id)
 
-            address_lookup_reg_id = reg_id
-            address_lookup_elem_id = elem_id
-            if self.args.monolith and (nick == "bs" or nick == "cs" or nick == "ps"):
-                address_lookup_reg_id = "cs"
-                address_lookup_elem_id = "%s%s-%s" % (
-                    address_lookup_reg_id, topo_id.file_fmt(), i)
+            reg_id = elem_id
+
+            port = self._default_ctrl_port(nick)
+            if not self.args.docker:
+                port = self.args.port_gen.register(elem_id)
+
             d = {
                 'Addrs': {
                     addr_type: {
                         'Public': {
-                            'Addr': self._reg_addr(topo_id, address_lookup_reg_id, addr_type),
-                            'L4Port': self.args.port_gen.register(address_lookup_elem_id),
+                            'Addr': self._reg_addr(topo_id, reg_id, addr_type),
+                            'L4Port': port,
                         }
                     }
                 }
             }
-            self.topo_dicts[topo_id][topo_key][address_lookup_elem_id] = d
+            self.topo_dicts[topo_id][topo_key][elem_id] = d
 
-    def _reg_id_disp(self, topo_id, elem_id):
-        return "disp" + topo_id.file_fmt() if self.args.docker else elem_id
+    def _default_ctrl_port(self, nick):
+        if nick == "cs":
+            return 30252
+        if nick == "co":
+            return 30257
+        print('Invalid nick: %s' % nick)
+        sys.exit(1)
 
     def _srv_count(self, as_conf, conf_key, def_num):
         count = as_conf.get(conf_key, def_num)
-        if conf_key in ["path_servers", "certificate_servers", "beacon_servers"]:
+        if conf_key == "control_servers":
             count = 1
-        if conf_key == "discovery_servers" and not self.args.discovery:
-            count = 0
         return count
 
     def _gen_br_entries(self, topo_id, as_conf):
@@ -266,19 +259,24 @@ class TopoGenerator(object):
         link_addr_type = addr_type_from_underlay(attrs.get('underlay', DEFAULT_UNDERLAY))
         public_addr, remote_addr = self._reg_link_addrs(local_br, remote_br, l_ifid,
                                                         r_ifid, link_addr_type)
+
+        ctrl_addr = int_addr = self._reg_addr(local, local_br + "_ctrl", addr_type)
         if self.args.docker:
-            ctrl_addr = self._reg_addr(local, local_br + "_ctrl", addr_type)
             int_addr = self._reg_addr(local, local_br + "_internal", addr_type)
-        else:
-            ctrl_addr = int_addr = self._reg_addr(local, local_br, addr_type)
 
         if self.topo_dicts[local]["BorderRouters"].get(local_br) is None:
+            ctrl_port = 30242
+            intl_port = 30042
+            if not self.args.docker:
+                ctrl_port = self.args.port_gen.register(local_br + "_ctrl")
+                intl_port = self.args.port_gen.register(local_br + "_internal")
+
             self.topo_dicts[local]["BorderRouters"][local_br] = {
                 'CtrlAddr': {
                     addr_type: {
                         'Public': {
                             'Addr': ctrl_addr,
-                            'L4Port': self.args.port_gen.register(local_br + "_ctrl"),
+                            'L4Port': ctrl_port,
                         }
                     }
                 },
@@ -286,7 +284,7 @@ class TopoGenerator(object):
                     addr_type: {
                         'PublicOverlay': {
                             'Addr': int_addr,
-                            'OverlayPort': self.args.port_gen.register(local_br + "_internal"),
+                            'OverlayPort': intl_port,
                         }
                     }
                 },
@@ -320,12 +318,15 @@ class TopoGenerator(object):
         addr_type = addr_type_from_underlay(DEFAULT_UNDERLAY)
         elem_id = "sig" + topo_id.file_fmt()
         reg_id = "sig" + topo_id.file_fmt()
+        port = 30256
+        if not self.args.docker:
+            port = self.args.port_gen.register(elem_id)
         d = {
             'Addrs': {
                 addr_type: {
                     'Public': {
                         'Addr': self._reg_addr(topo_id, reg_id, addr_type),
-                        'L4Port': self.args.port_gen.register(elem_id),
+                        'L4Port': port,
                     }
                 }
             }
@@ -346,8 +347,6 @@ class TopoGenerator(object):
             contents_json = json.dumps(self.topo_dicts[topo_id],
                                        default=json_default, indent=2)
             write_file(path, contents_json + '\n')
-            # Test if topo file parses cleanly
-            Topology.from_file(path)
 
     def _write_as_list(self):
         list_path = os.path.join(self.args.output_dir, AS_LIST_FILE)

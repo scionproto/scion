@@ -1,7 +1,7 @@
 steps:
   - label: ":bazel: Build scion code"
     command:
-      - bazel build --announce_rc //:scion //:scion-ci
+      - bazel build --announce_rc //:all
     key: build
     retry:
       automatic:
@@ -22,6 +22,16 @@ steps:
   - label: ":python: Python tests"
     command: ./scion.sh test py
     key: py_tests
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+  - label: "Check licenses"
+    command:
+      - mkdir -p /tmp/test-artifacts/licenses
+      - ./tools/licenses.sh /tmp/test-artifacts/licenses $BUILDKITE_PIPELINE_SLUG
+      - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
+    key: licenses
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
@@ -108,22 +118,6 @@ steps:
       - "artifacts.out/**/*"
     timeout_in_minutes: 10
     key: docker_integration_tests
-    retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: "Integration: end2end_integration"
-    command:
-    - bazel build //:scion //:scion-ci >/dev/null 2>&1
-    - tar -kxf bazel-bin/scion.tar -C bin --overwrite
-    - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
-    - ./scion.sh topology -t --monolith
-    - ./scion.sh run && sleep 10
-    - ./bin/end2end_integration -log.console warn
-    artifact_paths:
-      - "artifacts.out/**/*"
-    timeout_in_minutes: 10
-    key: integration_tests_monolith
     retry:
       automatic:
         - exit_status: -1  # Agent was lost

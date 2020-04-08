@@ -20,7 +20,9 @@ import (
 	"net"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
@@ -31,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/sig/egress/siginfo"
 	"github.com/scionproto/scion/go/sig/internal/metrics"
 	"github.com/scionproto/scion/go/sig/internal/sigcmn"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 //   SIG Frame Header, used to encapsulate SIG to SIG traffic. The sequence
@@ -98,7 +99,7 @@ func NewWorker(sess iface.Session, writer SCIONWriter, ignoreAddress bool,
 }
 
 func (w *worker) Run() {
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	w.Info("EgressWorker: starting")
 	f := newFrame()
 
@@ -220,7 +221,8 @@ func (w *worker) resetFrame(f *frame) {
 	if remote != nil {
 		w.currSig = remote.Sig
 		if w.currSig != nil {
-			addrLen = uint16(spkt.AddrHdrLen(w.currSig.Host, sigcmn.Host))
+			addrLen = uint16(spkt.AddrHdrLen(w.currSig.Host,
+				addr.HostFromIP(sigcmn.DataAddr)))
 		}
 		w.currPathEntry = nil
 		if remote.SessPath != nil {
@@ -276,7 +278,7 @@ func (f *frame) startPkt(pktLen uint16) {
 	f.offset += PktLenSize
 }
 
-func (f *frame) writeHdr(sessId mgmt.SessionType, epoch uint16, seq uint32) {
+func (f *frame) writeHdr(sessId sig_mgmt.SessionType, epoch uint16, seq uint32) {
 	f.b[0] = uint8(sessId)
 	common.Order.PutUint16(f.b[1:3], epoch)
 	common.Order.PutUintN(f.b[3:6], uint64(seq), 3)

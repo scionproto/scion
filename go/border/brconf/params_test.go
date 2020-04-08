@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
-	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery/idiscoverytest"
+	"github.com/scionproto/scion/go/lib/log/logtest"
 )
 
 func TestConfigSample(t *testing.T) {
@@ -38,31 +38,20 @@ func TestConfigSample(t *testing.T) {
 }
 
 func InitTestConfig(cfg *Config) {
-	envtest.InitTest(&cfg.General, &cfg.Logging, &cfg.Metrics, nil, nil)
-	InitTestDiscoveryConfig(&cfg.Discovery)
+	envtest.InitTest(&cfg.General, &cfg.Metrics, nil, nil)
+	logtest.InitTestLogging(&cfg.Logging)
 	InitTestBRConfig(&cfg.BR)
-}
-func InitTestDiscoveryConfig(cfg *Discovery) {
-	cfg.AllowSemiMutable = true
-	idiscoverytest.InitTestConfig(&cfg.Config)
 }
 
 func InitTestBRConfig(cfg *BR) {
-	cfg.Profile = true
 }
 
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
-	envtest.CheckTest(t, &cfg.General, &cfg.Logging, &cfg.Metrics, nil, nil, id)
-	CheckTestDiscoveryConfig(t, &cfg.Discovery)
+	envtest.CheckTest(t, &cfg.General, &cfg.Metrics, nil, nil, id)
+	logtest.CheckTestLogging(t, &cfg.Logging, id)
 	CheckTestBRConfig(t, &cfg.BR)
 }
 
-func CheckTestDiscoveryConfig(t *testing.T, cfg *Discovery) {
-	assert.False(t, cfg.AllowSemiMutable)
-	idiscoverytest.CheckTestConfig(t, &cfg.Config)
-}
-
 func CheckTestBRConfig(t *testing.T, cfg *BR) {
-	assert.False(t, cfg.Profile)
 	assert.Equal(t, FailActionFatal, cfg.RollbackFailAction)
 }

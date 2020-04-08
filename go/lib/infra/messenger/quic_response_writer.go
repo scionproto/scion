@@ -37,7 +37,7 @@ type QUICResponseWriter struct {
 
 func (rw *QUICResponseWriter) SendAckReply(ctx context.Context, msg *ack.Ack) error {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		<-ctx.Done()
 		rw.ReplyWriter.Close()
 	}()
@@ -50,7 +50,7 @@ func (rw *QUICResponseWriter) SendAckReply(ctx context.Context, msg *ack.Ack) er
 
 func (rw *QUICResponseWriter) SendTRCReply(ctx context.Context, msg *cert_mgmt.TRC) error {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		<-ctx.Done()
 		rw.ReplyWriter.Close()
 	}()
@@ -63,7 +63,7 @@ func (rw *QUICResponseWriter) SendTRCReply(ctx context.Context, msg *cert_mgmt.T
 
 func (rw *QUICResponseWriter) SendCertChainReply(ctx context.Context, msg *cert_mgmt.Chain) error {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		<-ctx.Done()
 		rw.ReplyWriter.Close()
 	}()
@@ -78,7 +78,7 @@ func (rw *QUICResponseWriter) SendChainIssueReply(ctx context.Context,
 	msg *cert_mgmt.ChainIssRep) error {
 
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		<-ctx.Done()
 		rw.ReplyWriter.Close()
 	}()
@@ -91,7 +91,7 @@ func (rw *QUICResponseWriter) SendChainIssueReply(ctx context.Context,
 
 func (rw *QUICResponseWriter) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply) error {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		<-ctx.Done()
 		rw.ReplyWriter.Close()
 	}()
@@ -111,7 +111,7 @@ func (rw *QUICResponseWriter) SendIfStateInfoReply(ctx context.Context,
 
 func (rw *QUICResponseWriter) SendHPSegReply(ctx context.Context, msg *path_mgmt.HPSegReply) error {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		<-ctx.Done()
 		rw.ReplyWriter.Close()
 	}()
@@ -124,7 +124,7 @@ func (rw *QUICResponseWriter) SendHPSegReply(ctx context.Context, msg *path_mgmt
 
 func (rw *QUICResponseWriter) SendHPCfgReply(ctx context.Context, msg *path_mgmt.HPCfgReply) error {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		<-ctx.Done()
 		rw.ReplyWriter.Close()
 	}()
@@ -140,7 +140,7 @@ func (rw *QUICResponseWriter) sendMessage(ctrlPld *ctrl.Pld) error {
 	if err != nil {
 		return err
 	}
-	msg, err := signedPldToMsg(signedCtrlPld)
+	msg, err := SignedPldToMsg(signedCtrlPld)
 	if err != nil {
 		return err
 	}

@@ -40,10 +40,15 @@ func realMain() int {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	defer log.Flush()
-	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
-		"-local", integration.SrcAddrPattern, "-remoteIA", integration.DstIAReplace}
+	clientArgs := []string{
+		"-log.console", "debug",
+		"-attempts", strconv.Itoa(*attempts),
+		"-sciond", integration.SCIOND,
+		"-local", integration.SrcAddrPattern,
+		"-remoteIA", integration.DstIAReplace,
+	}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{})
 	timeout := integration.DefaultRunTimeout + integration.RetryTimeout*time.Duration(*attempts)
 	if err := integration.RunUnaryTests(in, integration.IAPairs(integration.DispAddr),

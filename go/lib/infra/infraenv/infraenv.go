@@ -269,7 +269,7 @@ func (h *LegacyForwardingHandler) Handle(request *svc.Request) (svc.Result, erro
 }
 
 // NewRouter constructs a path router for paths starting from localIA.
-func NewRouter(localIA addr.IA, sd env.SciondClient) (snet.Router, error) {
+func NewRouter(localIA addr.IA, sd env.SCIONDClient) (snet.Router, error) {
 	ticker := time.NewTicker(time.Second)
 	timer := time.NewTimer(sd.InitialConnectPeriod.Duration)
 	ctx, cancelF := context.WithTimeout(context.Background(), sd.InitialConnectPeriod.Duration)
@@ -281,7 +281,7 @@ func NewRouter(localIA addr.IA, sd env.SciondClient) (snet.Router, error) {
 	// done transparently and pushed to snet.NewNetwork.
 	var router snet.Router
 	for {
-		sciondConn, err := sciond.NewService(sd.Path).Connect(ctx)
+		sciondConn, err := sciond.NewService(sd.Address).Connect(ctx)
 		if err == nil {
 			router = &snet.BaseRouter{
 				Querier: sciond.Querier{
@@ -324,7 +324,7 @@ func InitInfraEnvironmentFunc(topologyPath string, f func()) {
 // inform local SCION state (CS informing the local SD).
 type ignoreSCMP struct{}
 
-func (ignoreSCMP) Handle(pkt *snet.SCIONPacket) error {
+func (ignoreSCMP) Handle(pkt *snet.Packet) error {
 	// Always reattempt reads from the socket.
 	return nil
 }

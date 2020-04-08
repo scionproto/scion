@@ -51,3 +51,15 @@ func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv topology.Provider) 
 	}
 	return &snet.SVCAddr{IA: ps.FirstIA(), Path: p, NextHop: overlayNextHop, SVC: svc}, nil
 }
+
+// ResolveLocal returns the local IP address used for traffic destined to dst.
+func ResolveLocal(dst net.IP) (net.IP, error) {
+	udpAddr := net.UDPAddr{IP: dst, Port: 1}
+	udpConn, err := net.DialUDP(udpAddr.Network(), nil, &udpAddr)
+	if err != nil {
+		return nil, err
+	}
+	defer udpConn.Close()
+	srcIP := udpConn.LocalAddr().(*net.UDPAddr).IP
+	return srcIP, nil
+}

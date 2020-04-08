@@ -49,17 +49,17 @@ func TestFilters(t *testing.T) {
 func TestMinLevelFilter(t *testing.T) {
 	tests := map[string]struct {
 		Entry    logparse.LogEntry
-		MinLevel log.Lvl
+		MinLevel log.Level
 		Keep     assert.BoolAssertionFunc
 	}{
 		"Crit entry is kept with Crit min": {
-			Entry:    logparse.LogEntry{Level: log.LvlCrit},
-			MinLevel: log.LvlCrit,
+			Entry:    logparse.LogEntry{Level: log.LevelCrit},
+			MinLevel: log.LevelCrit,
 			Keep:     assert.True,
 		},
 		"Debug is removed with Info min": {
-			Entry:    logparse.LogEntry{Level: log.LvlDebug},
-			MinLevel: log.LvlInfo,
+			Entry:    logparse.LogEntry{Level: log.LevelDebug},
+			MinLevel: log.LevelInfo,
 			Keep:     assert.False,
 		},
 	}

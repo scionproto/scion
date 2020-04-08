@@ -111,7 +111,7 @@ func (p Path) Destination() addr.IA {
 }
 
 func (p Path) MTU() uint16 {
-	return 1500
+	return 1472
 }
 
 func (p Path) Expiry() time.Time {
@@ -193,6 +193,10 @@ func (c connector) adapter(paths []*Path) []snet.Path {
 		snetPaths = append(snetPaths, path.Copy())
 	}
 	return snetPaths
+}
+
+func (c connector) LocalIA(ctx context.Context) (addr.IA, error) {
+	panic("not implemented")
 }
 
 func (c connector) ASInfo(ctx context.Context, ia addr.IA) (*sciond.ASInfoReply, error) {

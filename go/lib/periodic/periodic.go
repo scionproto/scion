@@ -20,7 +20,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic/internal/metrics"
-	"github.com/scionproto/scion/go/lib/util"
 )
 
 // A Task that has to be periodically executed.
@@ -51,7 +50,7 @@ type Runner struct {
 // time it will be immediately retriggered.
 func Start(task Task, period, timeout time.Duration) *Runner {
 	ctx, cancelF := context.WithCancel(context.Background())
-	logger := log.New("debug_id", util.GetDebugID())
+	logger := log.New("debug_id", log.NewDebugID())
 	ctx = log.CtxWith(ctx, logger)
 	r := &Runner{
 		task:         task,
@@ -68,7 +67,7 @@ func Start(task Task, period, timeout time.Duration) *Runner {
 	r.metric.Period(period)
 	r.metric.StartTimestamp(time.Now())
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		r.runLoop()
 	}()
 	return r

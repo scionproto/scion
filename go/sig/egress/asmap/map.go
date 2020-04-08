@@ -22,7 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/sig/config"
+	"github.com/scionproto/scion/go/lib/sigjson"
 )
 
 var Map = &ASMap{}
@@ -60,14 +60,14 @@ func (am *ASMap) Range(f func(key addr.IAInt, value *ASEntry) bool) {
 	})
 }
 
-func (am *ASMap) ReloadConfig(cfg *config.Cfg) bool {
+func (am *ASMap) ReloadConfig(cfg *sigjson.Cfg) bool {
 	// Method calls first to prevent skips due to logical short-circuit
 	s := am.addNewIAs(cfg)
 	return am.delOldIAs(cfg) && s
 }
 
 // addNewIAs adds the ASes in cfg that are not currently configured.
-func (am *ASMap) addNewIAs(cfg *config.Cfg) bool {
+func (am *ASMap) addNewIAs(cfg *sigjson.Cfg) bool {
 	s := true
 	for ia, cfgEntry := range cfg.ASes {
 		log.Info("ReloadConfig: Adding AS...", "ia", ia)
@@ -83,7 +83,7 @@ func (am *ASMap) addNewIAs(cfg *config.Cfg) bool {
 	return s
 }
 
-func (am *ASMap) delOldIAs(cfg *config.Cfg) bool {
+func (am *ASMap) delOldIAs(cfg *sigjson.Cfg) bool {
 	s := true
 	// Delete all ASes that currently exist but are not in cfg
 	am.Range(func(iaInt addr.IAInt, as *ASEntry) bool {

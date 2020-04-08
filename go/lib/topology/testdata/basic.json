@@ -92,45 +92,7 @@
             }
         }
     },
-    "BeaconService": {
-        "bs1-ff00:0:311-1": {
-            "Addrs": {
-                "IPv4": {
-                    "Public": {
-                        "Addr": "127.0.0.65",
-                        "L4Port": 30054
-                    }
-                }
-            }
-        },
-        "bs1-ff00:0:311-2": {
-            "Addrs": {
-                "IPv6": {
-                    "Public": {
-                        "Addr": "2001:db8:f00:b43::65",
-                        "L4Port": 30054
-                    }
-                }
-            }
-        },
-        "bs1-ff00:0:311-3": {
-            "Addrs": {
-                "IPv6": {
-                    "Public": {
-                        "Addr": "2001:db8:f00:b43::123",
-                        "L4Port": 10054
-                    }
-                },
-                "IPv4": {
-                    "Public": {
-                        "Addr": "127.0.0.123",
-                        "L4Port": 10054
-                    }
-                }
-            }
-        }
-    },
-    "CertificateService": {
+    "ControlService": {
         "cs1-ff00:0:311-2": {
             "Addrs": {
                 "IPv4": {
@@ -147,28 +109,6 @@
                     "Public": {
                         "Addr": "2001:db8:f00:b43::1",
                         "L4Port": 23421
-                    }
-                }
-            }
-        }
-    },
-    "PathService": {
-        "ps1-ff00:0:311-1": {
-            "Addrs": {
-                "IPv4": {
-                    "Public": {
-                        "Addr": "127.0.0.73",
-                        "L4Port": 30091
-                    }
-                }
-            }
-        },
-        "ps1-ff00:0:311-2": {
-            "Addrs": {
-                "IPv6": {
-                    "Public": {
-                        "Addr": "2001:db8:f00:b43::73",
-                        "L4Port": 30091
                     }
                 }
             }
@@ -235,28 +175,6 @@
                     "Public": {
                         "Addr": "2001:db8:f00:b43::82",
                         "L4Port": 30100
-                    }
-                }
-            }
-        }
-    },
-    "DiscoveryService": {
-        "ds1-ff00:0:311-1": {
-            "Addrs": {
-                "IPv4": {
-                    "Public": {
-                        "Addr": "127.0.0.99",
-                        "L4Port": 53535
-                    }
-                }
-            }
-        },
-        "ds1-ff00:0:311-2": {
-            "Addrs": {
-                "IPv6": {
-                    "Public": {
-                        "Addr": "2001:db8:f00:b43::99",
-                        "L4Port": 53535
                     }
                 }
             }

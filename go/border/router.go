@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
@@ -48,9 +47,7 @@ type Router struct {
 	// pktErrorQ is a channel for handling packet errors
 	pktErrorQ chan pktErrorArgs
 	// setCtxMtx serializes modifications to the router context. Topology updates
-	// can either be caused by a sighup reload, receiving an updated dynamic or
-	// static topology from the discovery service, or from dropping an expired
-	// dynamic topology.
+	// can be caused by a SIGHUP reload.
 	setCtxMtx sync.Mutex
 }
 
@@ -66,16 +63,13 @@ func NewRouter(id, confDir string) (*Router, error) {
 // processing as well as various other router functions.
 func (r *Router) Start() {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		r.PacketError()
 	}()
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		rctrl.Control(r.sRevInfoQ, cfg.General.ReconnectToDispatcher)
 	}()
-	if err := r.startDiscovery(); err != nil {
-		fatal.Fatal(common.NewBasicError("Unable to start discovery", err))
-	}
 }
 
 // ReloadConfig handles reloading the configuration when SIGHUP is received.
@@ -92,7 +86,7 @@ func (r *Router) ReloadConfig() error {
 }
 
 func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	defer close(stopped)
 	pkts := make(ringbuf.EntryList, processBufCnt)
 	dst := s.Conn.LocalAddr()
@@ -131,7 +125,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		IntfOut: metrics.Drop,
 	}
 	// Assign a pseudorandom ID to the packet, for correlating log entries.
-	rp.Id = log.RandId(4)
+	rp.Id = log.NewDebugID().String()
 	rp.Logger = log.New("rpkt", rp.Id)
 	// XXX(kormat): uncomment for debugging:
 	//rp.Debug("processPacket", "raw", rp.Raw)

@@ -27,10 +27,13 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
+	// SCIOND is a placeholder for the SCIOND server in the arguments.
+	SCIOND = "<SCIOND>"
 	// ServerPortReplace is a placeholder for the server port in the arguments.
 	ServerPortReplace = "<ServerPort>"
 	// SrcIAReplace is a placeholder for the source IA in the arguments.
@@ -103,6 +106,13 @@ func (bi *binaryIntegration) Name() string {
 func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr) (Waiter, error) {
 	args := replacePattern(DstIAReplace, dst.IA.String(), bi.serverArgs)
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
+	if needSCIOND(args) {
+		sciond, err := GetSCIONDAddress(SCIONDAddressesFile, dst.IA)
+		if err != nil {
+			return nil, serrors.WrapStr("unable to determine SCIOND address", err)
+		}
+		args = replacePattern(SCIOND, sciond, args)
+	}
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.cmd, args...),
 	}
@@ -120,7 +130,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 	// parse until we have the ready signal.
 	// and then discard the output until the end (required by StdoutPipe).
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer sp.Close()
 		signal := fmt.Sprintf("%s%s", ReadySignal, dst.IA)
 		init := true
@@ -137,7 +147,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 		}
 	}()
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		bi.writeLog("server", dst.IA.FileFmt(false), dst.IA.FileFmt(false), ep)
 	}()
 	if err = r.Start(); err != nil {
@@ -153,11 +163,19 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 
 func (bi *binaryIntegration) StartClient(ctx context.Context,
 	src, dst *snet.UDPAddr) (Waiter, error) {
+
 	args := replacePattern(SrcIAReplace, src.IA.String(), bi.clientArgs)
 	args = replacePattern(SrcHostReplace, src.Host.IP.String(), args)
 	args = replacePattern(DstIAReplace, dst.IA.String(), args)
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
 	args = replacePattern(ServerPortReplace, serverPorts[dst.IA], args)
+	if needSCIOND(args) {
+		sciond, err := GetSCIONDAddress(SCIONDAddressesFile, src.IA)
+		if err != nil {
+			return nil, serrors.WrapStr("unable to determine SCIOND address", err)
+		}
+		args = replacePattern(SCIOND, sciond, args)
+	}
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.cmd, args...),
 	}
@@ -168,7 +186,7 @@ func (bi *binaryIntegration) StartClient(ctx context.Context,
 		return nil, err
 	}
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		bi.writeLog("client", clientId(src, dst), fmt.Sprintf("%s -> %s", src.IA, dst.IA), ep)
 	}()
 	return r, r.Start()
@@ -213,6 +231,14 @@ func (bi *binaryIntegration) writeLog(name, id, startInfo string, ep io.ReadClos
 	}
 }
 
+func needSCIOND(args []string) bool {
+	for _, arg := range args {
+		if strings.Contains(arg, SCIOND) {
+			return true
+		}
+	}
+	return false
+}
 func clientId(src, dst *snet.UDPAddr) string {
 	return fmt.Sprintf("%s_%s", src.IA.FileFmt(false), dst.IA.FileFmt(false))
 }

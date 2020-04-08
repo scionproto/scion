@@ -79,6 +79,6 @@ func ctxMultiplier(multiplier time.Duration) context.Context {
 func TestMain(m *testing.M) {
 	// Inject a smaller timeout s.t. tests run quickly
 	reconnect.DefaultTickerInterval = 10 * time.Millisecond
-	log.Root().SetHandler(log.DiscardHandler())
+	log.Discard()
 	os.Exit(m.Run())
 }

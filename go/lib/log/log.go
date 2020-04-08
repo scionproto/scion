@@ -16,11 +16,10 @@
 package log
 
 import (
-	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime/debug"
-	"strings"
 	"time"
 
 	"github.com/inconshreveable/log15"
@@ -30,6 +29,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 func init() {
@@ -38,101 +38,92 @@ func init() {
 
 var logBuf *syncBuf
 
-var (
-	logFileHandler Handler
-	logConsHandler Handler
-)
+// Setup configures the logging library with the given config.
+func Setup(cfg Config) error {
+	cfg.InitDefaults()
+	var file, console log15.Handler
+	var err error
+	if file, err = setupFile(cfg.File); err != nil {
+		return err
+	}
+	if console, err = setupConsole(cfg.Console); err != nil {
+		return err
+	}
+	setHandlers(file, console)
+	return nil
+}
 
-// SetupLogFile initializes a file for logging. The path is logDir/name.log if
-// name doesn't already contain the .log extension, or logDir/name otherwise.
-// logLevel can be one of trace, debug, info, warn, error, and crit and states
-// the minimum level of logging events that get written to the file. logSize is
-// the maximum size, in MiB, until the log rotates. logAge is the maximum
-// number of days to retain old log files. logBackups is the maximum number of
-// old log files to retain. If logFlush > 0, logging output is
-// buffered, and flushed every logFlush seconds.  If logFlush < 0: logging
-// output is buffered, but must be manually flushed by calling Flush(). If
-// logFlush = 0 logging output is unbuffered and Flush() is a no-op.
-// Set compress to true to enable rotated file compression.
-func SetupLogFile(name string, logDir string, logLevel string, logSize int, logAge int,
-	logBackups int, logFlush int, compress bool) error {
-
-	if err := os.MkdirAll(logDir, os.ModePerm); err != nil {
-		return common.NewBasicError("Unable create log directory:", err)
+func setupFile(cfg FileConfig) (log15.Handler, error) {
+	if cfg.Path == "" {
+		return nil, nil
 	}
 
-	logLvl, err := log15.LvlFromString(changeTraceToDebug(logLevel))
+	if err := os.MkdirAll(filepath.Dir(cfg.Path), os.ModePerm); err != nil {
+		return nil, serrors.WrapStr("unable create log directory", err,
+			"dir", filepath.Dir(cfg.Path))
+	}
+
+	logLvl, err := log15.LvlFromString(changeTraceToDebug(cfg.Level))
 	if err != nil {
-		return common.NewBasicError("Unable to parse log.level flag:", err)
+		return nil, serrors.WrapStr("unable to parse log.file.level", err, "level", cfg.Level)
 	}
 
-	// Strip .log extension s.t. config files can contain the exact filename
-	// while not breaking existing behavior for apps that don't contain the
-	// extension.
-	name = strings.TrimSuffix(name, ".log")
-	var fileLogger io.WriteCloser
-	fileLogger = &lumberjack.Logger{
-		Filename:   fmt.Sprintf("%s/%s.log", logDir, name),
-		MaxSize:    logSize, // MiB
-		MaxAge:     logAge,  // days
-		MaxBackups: logBackups,
-		Compress:   compress,
+	var logger io.WriteCloser
+	logger = &lumberjack.Logger{
+		Filename:   cfg.Path,
+		MaxSize:    int(cfg.Size),   // MiB
+		MaxAge:     int(cfg.MaxAge), // days
+		MaxBackups: int(cfg.MaxBackups),
+		Compress:   cfg.Compress,
 	}
 
-	if logFlush != 0 {
-		logBuf = newSyncBuf(fileLogger)
-		fileLogger = logBuf
+	if cfg.FlushInterval != nil {
+		logBuf = newSyncBuf(logger)
+		logger = logBuf
 	}
 
-	logFileHandler = log15.LvlFilterHandler(logLvl,
-		log15.StreamHandler(fileLogger, fmt15.Fmt15Format(nil)))
-	if logLevel != LvlTraceStr {
+	handler := log15.LvlFilterHandler(logLvl, log15.StreamHandler(logger, fmt15.Fmt15Format(nil)))
+	if cfg.Level != LevelTraceStr {
 		// Discard trace messages
-		logFileHandler = FilterTraceHandler(logFileHandler)
+		handler = &filterTraceHandler{Handler: handler}
 	}
-	setHandlers()
 
-	if logFlush > 0 {
+	if cfg.FlushInterval != nil && *cfg.FlushInterval > 0 {
 		go func() {
-			defer LogPanicAndExit()
-			for range time.Tick(time.Duration(logFlush) * time.Second) {
+			defer HandlePanic()
+			for range time.Tick(time.Duration(*cfg.FlushInterval) * time.Second) {
 				Flush()
 			}
 		}()
 	}
-	return nil
+	return handler, nil
 }
 
-// SetupLogConsole sets up logging on default stderr. logLevel can be one of
-// trace, debug, info, warn, error, and crit, and states the minimum level of
-// logging events that gets printed to the console.
-func SetupLogConsole(logLevel string) error {
-	lvl, err := log15.LvlFromString(changeTraceToDebug(logLevel))
+func setupConsole(cfg ConsoleConfig) (log15.Handler, error) {
+	lvl, err := log15.LvlFromString(changeTraceToDebug(cfg.Level))
 	if err != nil {
-		return common.NewBasicError("Unable to parse log.console flag:", err)
+		return nil, serrors.WrapStr("unable to parse log.console.level", err, "level", cfg.Level)
 	}
 	var cMap map[log15.Lvl]int
 	if isatty.IsTerminal(os.Stderr.Fd()) {
 		cMap = fmt15.ColorMap
 	}
-	logConsHandler = log15.LvlFilterHandler(lvl,
-		log15.StreamHandler(os.Stderr, fmt15.Fmt15Format(cMap)))
-	if logLevel != LvlTraceStr {
+	handler := log15.LvlFilterHandler(lvl, log15.StreamHandler(os.Stderr, fmt15.Fmt15Format(cMap)))
+	if cfg.Level != LevelTraceStr {
 		// Discard trace messages
-		logConsHandler = FilterTraceHandler(logConsHandler)
+		handler = &filterTraceHandler{Handler: handler}
 	}
-	setHandlers()
-	return nil
+	return handler, nil
 }
 
 func changeTraceToDebug(logLevel string) string {
-	if logLevel == LvlTraceStr {
+	if logLevel == LevelTraceStr {
 		return "debug"
 	}
 	return logLevel
 }
 
-func setHandlers() {
+func setHandlers(logFileHandler, logConsHandler log15.Handler) {
 	var handler log15.Handler
 	switch {
 	case logFileHandler != nil && logConsHandler != nil:
@@ -145,8 +136,8 @@ func setHandlers() {
 	log15.Root().SetHandler(handler)
 }
 
-// LogPanicAndExit catches panics and logs them.
-func LogPanicAndExit() {
+// HandlePanic catches panics and logs them.
+func HandlePanic() {
 	if msg := recover(); msg != nil {
 		log15.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
 		log15.Crit("=====================> Service panicked!")

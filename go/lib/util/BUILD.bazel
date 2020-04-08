@@ -5,7 +5,6 @@ go_library(
     srcs = [
         "aslist.go",
         "checksum.go",
-        "debugid.go",
         "docker.go",
         "duration.go",
         "duration_wrap.go",

@@ -26,8 +26,8 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	opentracingext "github.com/opentracing/opentracing-go/ext"
+	capnp "zombiezen.com/go/capnproto2"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/tracing"
@@ -38,38 +38,30 @@ import (
 // reads messages from the transport, and passes them to the relevant request
 // handler.
 type ConnHandler struct {
-	Conn net.PacketConn
+	Conn net.Conn
 	// State for request Handlers
 	Handlers map[proto.SCIONDMsg_Which]Handler
 }
 
-func NewConnHandler(conn net.PacketConn, handlers HandlerMap) *ConnHandler {
-	return &ConnHandler{
-		Conn:     conn,
-		Handlers: handlers,
-	}
-}
-
-func (srv *ConnHandler) Serve() error {
-	for {
-		b := make(common.RawBytes, common.MaxMTU)
-		n, address, err := srv.Conn.ReadFrom(b)
-		if err != nil {
-			return err
-		}
-		go func() {
-			defer log.LogPanicAndExit()
-			srv.Handle(b[:n], address)
-		}()
-	}
-}
-
-func (srv *ConnHandler) Handle(b common.RawBytes, address net.Addr) {
-	p := &sciond.Pld{}
-	if err := proto.ParseFromReader(p, bytes.NewReader(b)); err != nil {
-		log.Error("capnp error", "err", err)
+func (srv *ConnHandler) Serve(address net.Addr) {
+	msg, err := proto.SafeDecode(capnp.NewDecoder(srv.Conn))
+	if err != nil {
+		log.Error("Unable to decode RPC request", "err", err)
 		return
 	}
+
+	root, err := msg.RootPtr()
+	if err != nil {
+		log.Error("Unable to extract capnp root", "err", err)
+		return
+	}
+
+	p := &sciond.Pld{}
+	if err := proto.SafeExtract(p, proto.SCIONDMsg_TypeID, root.Struct()); err != nil {
+		log.Error("Unable to extract capnp SCIOND payload", "err", err)
+		return
+	}
+
 	handler, ok := srv.Handlers[p.Which]
 	if !ok {
 		log.Error("handler not found for capnp message", "which", p.Which)
@@ -89,6 +81,7 @@ func (srv *ConnHandler) Handle(b common.RawBytes, address net.Addr) {
 	span, ctx := tracing.CtxWith(context.Background(), fmt.Sprintf("%s.handler", p.Which),
 		opentracingext.RPCServerOption(spanCtx))
 	defer span.Finish()
+
 	handler.Handle(ctx, srv.Conn, address, p)
 }
 

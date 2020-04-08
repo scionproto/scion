@@ -125,13 +125,13 @@ func (g signatureGen) castVote(signatures map[trc.Protected]trc.Signature, ia ad
 	if !ok {
 		return nil
 	}
-	prev, _, err := loadTRC(SignedFile(g.Dirs.Out, t.ISD, t.Version-1))
+	dec, err := loadTRC(SignedFile(g.Dirs.Out, t.ISD, t.Version-1))
 	if err != nil {
 		return err
 	}
 	id := keyconf.ID{
 		IA:      ia,
-		Version: prev.PrimaryASes[ia.A].Keys[keyType].KeyVersion,
+		Version: dec.TRC.PrimaryASes[ia.A].Keys[keyType].KeyVersion,
 	}
 	id.Usage, err = keys.UsageFromTRCKeyType(keyType)
 	if err != nil {

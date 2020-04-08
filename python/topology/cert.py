@@ -73,5 +73,5 @@ class CertGenerator(object):
             custom_dir = as_dir / 'customers'
             if not custom_dir.exists():
                 continue
-            for elem in as_topo["CertificateService"]:
+            for elem in as_topo["ControlService"]:
                 cp('-r', as_dir / 'customers', as_dir / elem / 'customers')

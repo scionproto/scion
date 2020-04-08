@@ -20,20 +20,13 @@
 package main
 
 import (
-	"fmt"
-	"net"
-	"net/http"
-	"time"
-
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/fatal"
-	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
@@ -76,10 +69,16 @@ func (r *Router) setup() error {
 		return err
 	}
 	// Initialize itopo.
-	itopo.Init(r.Id, proto.ServiceType_br, itopo.Callbacks{CleanDynamic: r.setupCtxOnClean})
-	if _, _, err := itopo.SetStatic(conf.Topo, true); err != nil {
+	itopo.Init(
+		&itopo.Config{
+			ID:  r.Id,
+			Svc: proto.ServiceType_br,
+		},
+	)
+	if err := itopo.Update(conf.Topo); err != nil {
 		return err
 	}
+	conf.Topo = itopo.Get()
 	// Setup new context.
 	if err = r.setupCtxFromConfig(conf); err != nil {
 		return err
@@ -127,14 +126,13 @@ func (r *Router) setupCtxFromConfig(config *brconf.BRConf) error {
 	// We want to keep in sync itopo and the context that is set.
 	// We attempt to set the context with the topology that will be current
 	// after setting itopo. If setting itopo fails in the end, we rollback the context.
-	tx, err := itopo.BeginSetStatic(config.Topo.Writable(), true)
+	tx, err := itopo.BeginUpdate(config.Topo.Writable())
 	if err != nil {
 		return err
 	}
 	// Set config to use the appropriate topology. The returned topology is
-	// not necessarily the same as config.Topo. It can be another static
-	// or dynamic topology.
-	newConf, err := brconf.WithNewTopo(r.Id, topology.FromRWTopology(tx.Get()), config)
+	// not necessarily the same as config.Topo. It can be another static topology.
+	newConf, err := brconf.WithNewTopo(r.Id, tx.Get(), config)
 	if err != nil {
 		return err
 	}
@@ -146,50 +144,24 @@ func (r *Router) setupCtxFromConfig(config *brconf.BRConf) error {
 func (r *Router) setupCtxFromStatic(topo *topology.RWTopology) (bool, error) {
 	r.setCtxMtx.Lock()
 	defer r.setCtxMtx.Unlock()
-	tx, err := itopo.BeginSetStatic(topo, cfg.Discovery.AllowSemiMutable)
-	return r.setupCtxFromTopoUpdate(discovery.Static, tx, err)
-}
-
-// setupCtxFromDynamic sets up a new router context after receiving an updated
-// dynamic topology from the discovey service.
-func (r *Router) setupCtxFromDynamic(topo *topology.RWTopology) (bool, error) {
-	r.setCtxMtx.Lock()
-	defer r.setCtxMtx.Unlock()
-	tx, err := itopo.BeginSetDynamic(topo)
-	return r.setupCtxFromTopoUpdate(discovery.Dynamic, tx, err)
+	tx, err := itopo.BeginUpdate(topo)
+	return r.setupCtxFromTopoUpdate(tx, err)
 }
 
 // setupCtxFromTopoUpdate sets up a new router context given a itopo.Transaction.
-func (r *Router) setupCtxFromTopoUpdate(mode discovery.Mode, tx itopo.Transaction,
-	err error) (bool, error) {
-
+func (r *Router) setupCtxFromTopoUpdate(tx itopo.Transaction, err error) (bool, error) {
 	if err != nil {
 		return false, err
 	}
 	if !tx.IsUpdate() {
 		return false, nil
 	}
-	log.Trace("====> Setting up new context from topology update", "mode", mode)
-	newConf, err := brconf.WithNewTopo(r.Id, topology.FromRWTopology(tx.Get()), rctx.Get().Conf)
+	log.Trace("====> Setting up new context from topology update")
+	newConf, err := brconf.WithNewTopo(r.Id, tx.Get(), rctx.Get().Conf)
 	if err != nil {
 		return false, err
 	}
 	return true, r.setupNewContext(rctx.New(newConf), &tx)
-}
-
-// setupCtxOnClean sets up a new router context after the dynamic topology has expired.
-func (r *Router) setupCtxOnClean() {
-	log.Trace("====> Setting up new context on dynamic topology cleanup")
-	r.setCtxMtx.Lock()
-	defer r.setCtxMtx.Unlock()
-	newConf, err := brconf.WithNewTopo(r.Id, itopo.Get(), rctx.Get().Conf)
-	if err != nil {
-		log.Error("Unable to create new conf on dynamic cleanup", "err", err)
-		return
-	}
-	if err := r.setupNewContext(rctx.New(newConf), nil); err != nil {
-		log.Error("Unable to set context on dynamic cleanup", "err", err)
-	}
 }
 
 // setupNewContext sets up a new router context.
@@ -279,54 +251,6 @@ func (r *Router) teardownNet(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) {
 	for _, intf := range oldCtx.Conf.BR.IFs {
 		registeredExtSockOps[sockConf.Ext(intf.ID)].Teardown(r, ctx, intf, oldCtx)
 	}
-}
-
-// startDiscovery starts automatic topology fetching from the discovery service if enabled.
-func (r *Router) startDiscovery() error {
-	var err error
-	var client *http.Client
-	if cfg.Discovery.Dynamic.Enable {
-		if client, err = r.discoveryClient(); err != nil {
-			return common.NewBasicError("Unable to create discovery client", err)
-		}
-	}
-	handlers := idiscovery.TopoHandlers{
-		Static:  r.setupCtxFromStatic,
-		Dynamic: r.setupCtxFromDynamic,
-	}
-	_, err = idiscovery.StartRunners(cfg.Discovery.Config, discovery.Full,
-		handlers, client, "border")
-	if err != nil {
-		return common.NewBasicError("Unable to start discovery runners", err)
-	}
-	return nil
-}
-
-// discoveryClient returns a client with the source address set to the internal address.
-func (r *Router) discoveryClient() (*http.Client, error) {
-	internalAddr := rctx.Get().Conf.BR.InternalAddr
-	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:0", internalAddr.IP))
-	if err != nil {
-		return nil, err
-	}
-	// The border router needs to use the correct source address to make sure
-	// it is on the ACL. The local address is set to internal address of the border router.
-	client := &http.Client{
-		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: (&net.Dialer{
-				LocalAddr: tcpAddr,
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-				DualStack: true,
-			}).DialContext,
-			MaxIdleConns:          100,
-			IdleConnTimeout:       90 * time.Second,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
-	}
-	return client, nil
 }
 
 // startSocks starts all sockets for the given context.

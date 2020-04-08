@@ -108,25 +108,17 @@
       }
     }
   },
-  "BeaconService": {
-    "bsA": { "Addrs": {
-        "IPv4": { "Public": { "L4Port": 20006, "Addr": "192.168.0.61" } }
+  "SIG": {
+    "sigA": { "Addrs": {
+      "IPv4": { "Public": { "L4Port": 31014, "Addr": "192.168.0.51" } }
+    } },
+    "sigB": { "Addrs": {
+      "IPv4": { "Public": { "L4Port": 31014, "Addr": "192.168.0.61" } }
     } }
   },
-  "CertificateService": {
+  "ControlService": {
     "csA": { "Addrs": {
         "IPv4": { "Public": { "L4Port": 20007, "Addr": "192.168.0.71" } }
-    } },
-    "csB": { "Addrs": {
-        "IPv4": { "Public": { "L4Port": 20007, "Addr": "192.168.0.72" } }
-    } }
-  },
-  "PathService": {
-    "psA": { "Addrs": {
-        "IPv4": { "Public": { "L4Port": 20005, "Addr": "192.168.0.51" } }
-    } },
-    "psB": { "Addrs": {
-        "IPv4": { "Public": { "L4Port": 20055, "Addr": "192.168.0.51" } }
     } }
   }
 }

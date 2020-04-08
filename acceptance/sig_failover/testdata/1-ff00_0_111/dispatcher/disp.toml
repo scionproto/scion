@@ -1,12 +1,9 @@
 [dispatcher]
-ID = "disp_1-ff00_0_111"
+id = "disp_1-ff00_0_111"
 
 [features]
-AllowRunAsRoot = true
+allow_run_as_root = true
 
-[logging.console]
-Level = "crit"
-
-[logging.file]
-Level = "trace"
-Path = "/share/logs/disp_1-ff00_0_111.log"
+[log.file]
+level = "trace"
+path = "/share/logs/disp_1-ff00_0_111.log"

@@ -65,7 +65,7 @@ func StartVerification(ctx context.Context, verifier infra.Verifier, server net.
 	for i := range units {
 		unit := units[i]
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			unit.Verify(ctx, verifier, server, unitResultsC)
 		}()
 	}
@@ -111,13 +111,13 @@ func (u *Unit) Verify(ctx context.Context, verifier infra.Verifier,
 
 	responses := make(chan ElemResult, u.Len())
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		verifySegment(ctx, verifier, server, u.SegMeta, responses)
 	}()
 	for i := range u.SRevInfos {
 		index := i
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			verifyRevInfo(ctx, verifier, server, index, u.SRevInfos[index], responses)
 		}()
 	}

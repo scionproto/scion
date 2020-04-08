@@ -134,7 +134,7 @@ func (e *executor) AllRevocations(ctx context.Context) (<-chan beacon.Revocation
 	}
 	res := make(chan beacon.RevocationOrErr)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer close(res)
 		defer rows.Close()
 		for rows.Next() {
@@ -232,7 +232,7 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 	}
 	results := make(chan beacon.BeaconOrErr)
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer close(results)
 		for _, b := range beacons {
 			results <- beacon.BeaconOrErr{Beacon: b}

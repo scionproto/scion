@@ -18,6 +18,7 @@
 package rpkt
 
 import (
+	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -36,11 +37,16 @@ type rExtension interface {
 const (
 	// FIXME(kormat): remove when generic header walker is implemented.
 	ErrExtChainTooLong common.ErrMsg = "Extension header chain longer than packet"
+	ErrExtChainCorrupt common.ErrMsg = "Extension header specifies invalid size"
 )
 
 // extnParseHBH parses a specified hop-by-hop extension in a packet.
 func (rp *RtrPkt) extnParseHBH(extType common.ExtnType,
 	start, end, pos int) (rExtension, error) {
+	if assert.On {
+		assert.Must(end-start+common.ExtnSubHdrLen >= common.LineLen,
+			"Extension must be at least one line length")
+	}
 	switch {
 	case extType == common.ExtnSCMPType:
 		return rSCMPExtFromRaw(rp, start, end)

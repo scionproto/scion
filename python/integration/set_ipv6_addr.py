@@ -47,6 +47,9 @@ def net_clear(net):
 
 def set_interfaces():
     path = os.path.join(GEN_PATH, NETWORKS_FILE)
+    if not os.path.exists(path):
+        # no network configuration file, nothing to do
+        return
     with open(path, 'r') as f:
         for l in f.readlines():
             split = l.split("= ")

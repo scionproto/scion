@@ -19,10 +19,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra/modules/idiscovery"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -37,15 +36,15 @@ var (
 var _ config.Config = (*Config)(nil)
 
 type Config struct {
-	General   env.General
-	Features  env.Features
-	Logging   env.Logging
-	Metrics   env.Metrics
-	Tracing   env.Tracing
-	QUIC      env.QUIC `toml:"quic"`
-	TrustDB   truststorage.TrustDBConf
-	Discovery idiscovery.Config
-	SD        SDConfig
+	General  env.General              `toml:"general,omitempty"`
+	Features env.Features             `toml:"features,omitempty"`
+	Logging  log.Config               `toml:"log,omitempty"`
+	Metrics  env.Metrics              `toml:"metrics,omitempty"`
+	Tracing  env.Tracing              `toml:"tracing,omitempty"`
+	TrustDB  truststorage.TrustDBConf `toml:"trust_db,omitempty"`
+	// PathDB contains the configuration for the PathDB connection.
+	PathDB pathstorage.PathDBConf `toml:"path_db,omitempty"`
+	SD     SDConfig               `toml:"sd,omitempty"`
 }
 
 func (cfg *Config) InitDefaults() {
@@ -56,7 +55,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Metrics,
 		&cfg.Tracing,
 		&cfg.TrustDB,
-		&cfg.Discovery,
+		&cfg.PathDB,
 		&cfg.SD,
 	)
 }
@@ -68,7 +67,7 @@ func (cfg *Config) Validate() error {
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.TrustDB,
-		&cfg.Discovery,
+		&cfg.PathDB,
 		&cfg.SD,
 	)
 }
@@ -80,9 +79,8 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.Tracing,
-		&cfg.QUIC,
 		&cfg.TrustDB,
-		&cfg.Discovery,
+		&cfg.PathDB,
 		&cfg.SD,
 	)
 }
@@ -94,75 +92,34 @@ func (cfg *Config) ConfigName() string {
 var _ config.Config = (*SDConfig)(nil)
 
 type SDConfig struct {
-	// Address to listen on via the reliable socket protocol. If empty,
-	// a reliable socket server on the default socket is started.
-	Reliable string
-	// Address to listen on for normal unixgram messages. If empty, a
-	// unixgram server on the default socket is started.
-	Unix string
-	// Socket files (both Reliable and Unix) permissions when created; read from octal (e.g. 0755).
-	SocketFileMode util.FileMode
-	// If set to True, the socket is removed before being created
-	DeleteSocket bool
-	// Public is the local address to listen on for SCION messages (if Bind is
-	// not set), and to send out messages to other nodes.
-	Public string
-	// PathDB contains the configuration for the PathDB connection.
-	PathDB pathstorage.PathDBConf
-	// RevCache contains the configuration for the RevCache connection.
-	RevCache pathstorage.RevCacheConf
+	// Address is the local address to listen on for SCION messages, and to send out messages to
+	// other nodes.
+	Address string `toml:"address,omitempty"`
 	// QueryInterval specifies after how much time segments
 	// for a destination should be refetched.
-	QueryInterval util.DurWrap
+	QueryInterval util.DurWrap `toml:"query_interval,omitempty"`
 }
 
 func (cfg *SDConfig) InitDefaults() {
-	if cfg.Reliable == "" {
-		cfg.Reliable = sciond.DefaultSCIONDPath
-	}
-	if cfg.Unix == "" {
-		cfg.Unix = "/run/shm/sciond/default-unix.sock"
-	}
-	if cfg.SocketFileMode == 0 {
-		cfg.SocketFileMode = sciond.DefaultSocketFileMode
+	if cfg.Address == "" {
+		cfg.Address = sciond.DefaultSCIONDAddress
 	}
 	if cfg.QueryInterval.Duration == 0 {
 		cfg.QueryInterval.Duration = DefaultQueryInterval
 	}
-	config.InitAll(&cfg.PathDB, &cfg.RevCache)
 }
 
 func (cfg *SDConfig) Validate() error {
-	if cfg.Reliable == "" {
-		return serrors.New("Reliable must be set")
-	}
-	if cfg.Unix == "" {
-		return serrors.New("Unix must be set")
-	}
-	if cfg.SocketFileMode == 0 {
-		return serrors.New("SocketFileMode must be set")
-	}
 	if cfg.QueryInterval.Duration == 0 {
 		return serrors.New("QueryInterval must not be zero")
 	}
-	return config.ValidateAll(&cfg.PathDB, &cfg.RevCache)
+	return nil
 }
 
 func (cfg *SDConfig) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
 	config.WriteString(dst, sdSample)
-	config.WriteSample(dst, path, ctx, &cfg.PathDB, &cfg.RevCache)
 }
 
 func (cfg *SDConfig) ConfigName() string {
 	return "sd"
-}
-
-func (cfg *SDConfig) CreateSocketDirs() error {
-	if err := util.CreateParentDirs(cfg.Reliable); err != nil {
-		return common.NewBasicError("Cannot create reliable socket dir", err)
-	}
-	if err := util.CreateParentDirs(cfg.Unix); err != nil {
-		return common.NewBasicError("Cannot create unix socket dir", err)
-	}
-	return nil
 }

@@ -26,16 +26,16 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/pktdisp"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/worker"
-	"github.com/scionproto/scion/go/sig/internal/pathmgr"
 	"github.com/scionproto/scion/go/sig/internal/sigcmn"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 var _ iface.Session = (*Session)(nil)
@@ -43,9 +43,9 @@ var _ iface.Session = (*Session)(nil)
 // Session contains a pool of paths to the remote AS, metrics about those paths,
 // as well as maintaining the currently favoured path and remote SIG to use.
 type Session struct {
-	log.Logger
+	logger log.Logger
 	ia     addr.IA
-	SessId mgmt.SessionType
+	SessId sig_mgmt.SessionType
 
 	// pool contains paths managed by pathmgr.
 	pool iface.PathPool
@@ -54,7 +54,7 @@ type Session struct {
 	// FIXME: Use AtomicBool instead.
 	healthy        atomic.Value
 	ring           *ringbuf.Ring
-	conn           snet.Conn
+	conn           *snet.Conn
 	sessMonStop    chan struct{}
 	sessMonStopped chan struct{}
 	pktDispStop    chan struct{}
@@ -62,12 +62,12 @@ type Session struct {
 	workerStopped  chan struct{}
 }
 
-func NewSession(dstIA addr.IA, sessId mgmt.SessionType, logger log.Logger,
+func NewSession(dstIA addr.IA, sessId sig_mgmt.SessionType, logger log.Logger,
 	pool iface.PathPool) (*Session, error) {
 
 	var err error
 	s := &Session{
-		Logger: logger.New("sessId", sessId),
+		logger: logger.New("sessId", sessId),
 		ia:     dstIA,
 		SessId: sessId,
 		pool:   pool,
@@ -77,7 +77,7 @@ func NewSession(dstIA addr.IA, sessId mgmt.SessionType, logger log.Logger,
 	s.ring = ringbuf.New(64, nil, fmt.Sprintf("egress_%s_%s", dstIA, sessId))
 	// Not using a fixed local port, as this is for outgoing data only.
 	s.conn, err = sigcmn.Network.Listen(context.Background(), "udp",
-		&net.UDPAddr{IP: sigcmn.Host.IP()}, addr.SvcNone)
+		&net.UDPAddr{IP: sigcmn.DataAddr}, addr.SvcNone)
 	s.sessMonStop = make(chan struct{})
 	s.sessMonStopped = make(chan struct{})
 	s.pktDispStop = make(chan struct{})
@@ -85,36 +85,40 @@ func NewSession(dstIA addr.IA, sessId mgmt.SessionType, logger log.Logger,
 	s.workerStopped = make(chan struct{})
 	// spawn a PktDispatcher to log any unexpected messages received on a write-only connection.
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer close(s.pktDispStopped)
 		pktdisp.PktDispatcher(s.conn, pktdisp.DispLogger, s.pktDispStop)
 	}()
 	return s, err
 }
 
+func (s *Session) Logger() log.Logger {
+	return s.logger
+}
+
 func (s *Session) Start() {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		newSessMonitor(s).run()
 	}()
 	go func() {
-		defer log.LogPanicAndExit()
-		worker.NewWorker(s, s.conn, false, s.Logger).Run()
+		defer log.HandlePanic()
+		worker.NewWorker(s, s.conn, false, s.logger).Run()
 	}()
 }
 
 func (s *Session) Cleanup() error {
 	s.ring.Close()
 	close(s.sessMonStop)
-	s.Debug("iface.Session Cleanup: wait for worker")
+	s.logger.Debug("iface.Session Cleanup: wait for worker")
 	<-s.workerStopped
-	s.Debug("iface.Session Cleanup: wait for session monitor")
+	s.logger.Debug("iface.Session Cleanup: wait for session monitor")
 	<-s.sessMonStopped
 	close(s.pktDispStop)
-	s.Debug("iface.Session Cleanup: wait for pktDisp")
+	s.logger.Debug("iface.Session Cleanup: wait for pktDisp")
 	s.conn.SetReadDeadline(time.Now())
 	<-s.pktDispStopped
-	s.Debug("iface.Session Cleanup: closing conn")
+	s.logger.Debug("iface.Session Cleanup: closing conn")
 	if err := s.conn.Close(); err != nil {
 		return common.NewBasicError("Unable to close conn", err)
 	}
@@ -132,7 +136,7 @@ func (s *Session) Ring() *ringbuf.Ring {
 	return s.ring
 }
 
-func (s *Session) Conn() snet.Conn {
+func (s *Session) Conn() *snet.Conn {
 	return s.conn
 }
 
@@ -140,7 +144,7 @@ func (s *Session) IA() addr.IA {
 	return s.ia
 }
 
-func (s *Session) ID() mgmt.SessionType {
+func (s *Session) ID() sig_mgmt.SessionType {
 	return s.SessId
 }
 

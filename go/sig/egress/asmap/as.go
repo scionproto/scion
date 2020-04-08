@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
-	"github.com/scionproto/scion/go/sig/config"
+	"github.com/scionproto/scion/go/lib/sigjson"
 	"github.com/scionproto/scion/go/sig/egress/dispatcher"
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/router"
@@ -47,14 +47,14 @@ type ASEntry struct {
 	egressRing        *ringbuf.Ring
 	healthMonitorStop chan struct{}
 	version           uint64 // used to track certain changes made to ASEntry
-	log.Logger
+	logger            log.Logger
 
 	Session *session.Session
 }
 
 func newASEntry(ia addr.IA) (*ASEntry, error) {
 	ae := &ASEntry{
-		Logger:            log.New("ia", ia),
+		logger:            log.New("ia", ia),
 		IA:                ia,
 		IAString:          ia.String(),
 		Nets:              make(map[string]*net.IPNet),
@@ -65,14 +65,14 @@ func newASEntry(ia addr.IA) (*ASEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	ae.Session, err = session.NewSession(ia, 0, ae.Logger, pool)
+	ae.Session, err = session.NewSession(ia, 0, ae.logger, pool)
 	if err != nil {
 		return nil, err
 	}
 	return ae, nil
 }
 
-func (ae *ASEntry) ReloadConfig(cfg *config.Cfg, cfgEntry *config.ASEntry) bool {
+func (ae *ASEntry) ReloadConfig(cfg *sigjson.Cfg, cfgEntry *sigjson.ASEntry) bool {
 	ae.Lock()
 	defer ae.Unlock()
 	// Method calls first to prevent skips due to logical short-circuit
@@ -81,12 +81,12 @@ func (ae *ASEntry) ReloadConfig(cfg *config.Cfg, cfgEntry *config.ASEntry) bool 
 }
 
 // addNewNets adds the networks in ipnets that are not currently configured.
-func (ae *ASEntry) addNewNets(ipnets []*config.IPNet) bool {
+func (ae *ASEntry) addNewNets(ipnets []*sigjson.IPNet) bool {
 	s := true
 	for _, ipnet := range ipnets {
 		err := ae.addNet(ipnet.IPNet())
 		if err != nil {
-			ae.Error("Unable to add network", "net", ipnet, "err", err)
+			ae.logger.Error("Unable to add network", "net", ipnet, "err", err)
 			s = false
 		}
 	}
@@ -94,7 +94,7 @@ func (ae *ASEntry) addNewNets(ipnets []*config.IPNet) bool {
 }
 
 // delOldNets deletes currently configured networks that are not in ipnets.
-func (ae *ASEntry) delOldNets(ipnets []*config.IPNet) bool {
+func (ae *ASEntry) delOldNets(ipnets []*sigjson.IPNet) bool {
 	s := true
 Top:
 	for k, v := range ae.Nets {
@@ -105,7 +105,7 @@ Top:
 		}
 		err := ae.delNet(v)
 		if err != nil {
-			ae.Error("Unable to delete network", "net", k, "err", err)
+			ae.logger.Error("Unable to delete network", "net", k, "err", err)
 			s = false
 		}
 	}
@@ -134,7 +134,7 @@ func (ae *ASEntry) addNet(ipnet *net.IPNet) error {
 		Added:    true,
 	}
 	base.NetworkChanged(params)
-	ae.Info("Added network", "net", ipnet)
+	ae.logger.Info("Added network", "net", ipnet)
 	return nil
 }
 
@@ -156,14 +156,14 @@ func (ae *ASEntry) delNet(ipnet *net.IPNet) error {
 		Added:    false,
 	}
 	base.NetworkChanged(params)
-	ae.Info("Removed network", "net", ipnet)
+	ae.logger.Info("Removed network", "net", ipnet)
 	return nil
 }
 
 func (ae *ASEntry) monitorHealth() {
 	ticker := time.NewTicker(healthMonitorTick)
 	defer ticker.Stop()
-	ae.Info("Health monitor starting")
+	ae.logger.Info("Health monitor starting")
 	prevHealth := false
 	prevVersion := uint64(0)
 Top:
@@ -176,7 +176,7 @@ Top:
 		}
 	}
 	close(ae.healthMonitorStop)
-	ae.Info("Health monitor stopping")
+	ae.logger.Info("Health monitor stopping")
 }
 
 func (ae *ASEntry) performHealthCheck(prevHealth *bool, prevVersion *uint64) {
@@ -215,7 +215,7 @@ func (ae *ASEntry) Cleanup() error {
 	// Clean up NetMap entries
 	for _, v := range ae.Nets {
 		if err := ae.delNet(v); err != nil {
-			ae.Error("Error removing networks during cleanup", "err", err)
+			ae.logger.Error("Error removing networks during cleanup", "err", err)
 		}
 	}
 	ae.egressRing.Close()
@@ -226,21 +226,21 @@ func (ae *ASEntry) Cleanup() error {
 
 func (ae *ASEntry) cleanSessions() {
 	if err := ae.Session.Cleanup(); err != nil {
-		ae.Session.Error("Error cleaning up session", "err", err)
+		ae.Session.Logger().Error("Error cleaning up session", "err", err)
 	}
 }
 
 func (ae *ASEntry) setupNet() {
 	ae.egressRing = ringbuf.New(iface.EgressRemotePkts, nil, fmt.Sprintf("egress_%s", ae.IAString))
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		dispatcher.NewDispatcher(ae.IA, ae.egressRing,
 			&selector.SingleSession{Session: ae.Session}).Run()
 	}()
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		ae.monitorHealth()
 	}()
 	ae.Session.Start()
-	ae.Info("Network setup done")
+	ae.logger.Info("Network setup done")
 }

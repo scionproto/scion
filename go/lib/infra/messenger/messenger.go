@@ -261,7 +261,7 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 		return nil, common.NewBasicError("[Messenger] Request error", err,
 			"req_type", infra.TRCRequest)
 	}
-	_, replyMsg, err := validate(replyCtrlPld)
+	_, replyMsg, err := Validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -301,7 +301,7 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 		return nil, common.NewBasicError("[Messenger] Request error", err,
 			"req_type", infra.ChainRequest)
 	}
-	_, replyMsg, err := validate(replyCtrlPld)
+	_, replyMsg, err := Validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -382,7 +382,7 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 		return nil, common.NewBasicError("[Messenger] Request error", err,
 			"req_type", infra.SegRequest)
 	}
-	_, replyMsg, err := validate(replyCtrlPld)
+	_, replyMsg, err := Validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -439,7 +439,7 @@ func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 		return nil, common.NewBasicError("[Messenger] Request error", err,
 			"req_type", infra.SegChangesIdReq)
 	}
-	_, replyMsg, err := validate(replyCtrlPld)
+	_, replyMsg, err := Validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -484,7 +484,7 @@ func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 		return nil, common.NewBasicError("[Messenger] Request error", err,
 			"req_type", infra.SegChangesReq)
 	}
-	_, replyMsg, err := validate(replyCtrlPld)
+	_, replyMsg, err := Validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -542,7 +542,7 @@ func (m *Messenger) GetHPSegs(ctx context.Context, msg *path_mgmt.HPSegReq, a ne
 		return nil, common.NewBasicError("[Messenger] Request error", err,
 			"req_type", infra.HPSegRequest)
 	}
-	_, replyMsg, err := validate(replyCtrlPld)
+	_, replyMsg, err := Validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -589,7 +589,7 @@ func (m *Messenger) GetHPCfgs(ctx context.Context, msg *path_mgmt.HPCfgReq, a ne
 		return nil, common.NewBasicError("[Messenger] Request error", err,
 			"req_type", infra.HPCfgRequest)
 	}
-	_, replyMsg, err := validate(replyCtrlPld)
+	_, replyMsg, err := Validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -633,7 +633,7 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 		return nil, common.NewBasicError("[Messenger] Request error", err,
 			"req_type", infra.ChainIssueRequest)
 	}
-	_, replyMsg, err := validate(replyCtrlPld)
+	_, replyMsg, err := Validate(replyCtrlPld)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -684,7 +684,7 @@ func (m *Messenger) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr,
 		return common.NewBasicError("[Messenger] Beaconing error", err,
 			"req_type", infra.Seg)
 	}
-	_, replyMsg, err := validate(replyCtrlPld)
+	_, replyMsg, err := Validate(replyCtrlPld)
 	if err != nil {
 		return common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
@@ -733,7 +733,7 @@ func (m *Messenger) ListenAndServe() {
 	done := make(chan struct{})
 	if m.config.QUIC != nil {
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			m.listenAndServeQUIC()
 			close(done)
 		}()
@@ -820,7 +820,7 @@ func (m *Messenger) serve(parentCtx context.Context, cancelF context.CancelFunc,
 
 	// Validate that the message is of acceptable type, and that its top-level
 	// signature is correct.
-	msgType, msg, err := validate(pld)
+	msgType, msg, err := Validate(pld)
 	if err != nil {
 		metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrValidate}).Inc()
 		log.Error("Received message, but unable to validate message",
@@ -871,7 +871,7 @@ func (m *Messenger) serve(parentCtx context.Context, cancelF context.CancelFunc,
 	metrics.Dispatcher.ReadSizes().Observe(float64(size))
 
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer cancelF()
 		defer span.Finish()
 		handler.Handle(infra.NewRequest(ctx, msg, signedPld, address, pld.ReqId))
@@ -1032,7 +1032,7 @@ func (r *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
 		return nil, err
 	}
 
-	msg, err := signedPldToMsg(signedPld)
+	msg, err := SignedPldToMsg(signedPld)
 	if err != nil {
 		return nil, err
 	}
@@ -1044,7 +1044,7 @@ func (r *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
 		return nil, err
 	}
 
-	replySignedPld, err := msgToSignedPld(reply.Message)
+	replySignedPld, err := MsgToSignedPld(reply.Message)
 	if err != nil {
 		return nil, err
 	}
@@ -1056,11 +1056,11 @@ func (r *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
 	return replyPld, nil
 }
 
-// validate checks that msg is one of the acceptable message types for SCION
+// Validate checks that msg is one of the acceptable message types for SCION
 // infra communication (listed in package level documentation), and returns the
 // message type, the message (the inner proto.Cerealizable object), and an
 // error (if one occurred).
-func validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
+func Validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
 	// XXX(scrye): For now, only the messages in the top comment of this
 	// package are supported.
 	switch pld.Which {

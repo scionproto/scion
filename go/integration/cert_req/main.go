@@ -47,7 +47,7 @@ func main() {
 }
 
 func realMain() int {
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	defer log.Flush()
 	addFlags()
 	integration.Setup()
@@ -66,7 +66,7 @@ func addFlags() {
 }
 
 type client struct {
-	conn snet.Conn
+	conn *snet.Conn
 	msgr infra.Messenger
 }
 

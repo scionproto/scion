@@ -17,16 +17,7 @@ package brconf
 const idSample = "br-1"
 
 const brSample = `
-# Enable cpu and memory profiling. (default false)
-Profile = false
-
 # Action that should be taken when an error occurs during a context rollback.
-# (Fatal | Continue) (default Fatal)
-RollbackFailAction = "Fatal"
-`
-
-const discoverySample = `
-# Allow changes to the semi-mutable section during updates to the static
-# topology fetched from the discovery service. (default false)
-AllowSemiMutable = false
+# (fatal | continue) (default fatal)
+rollback_fail_action = "fatal"
 `

@@ -36,17 +36,6 @@ func TestGeneralSample(t *testing.T) {
 	CheckTestGeneral(t, &cfg, "general")
 }
 
-func TestLoggingSample(t *testing.T) {
-	var sample bytes.Buffer
-	var cfg env.Logging
-	cfg.Sample(&sample, nil, map[string]string{config.ID: "logging"})
-	InitTestLogging(&cfg)
-	meta, err := toml.Decode(sample.String(), &cfg)
-	assert.NoError(t, err)
-	assert.Empty(t, meta.Undecoded())
-	CheckTestLogging(t, &cfg, "logging")
-}
-
 func TestMetricsSample(t *testing.T) {
 	var sample bytes.Buffer
 	var cfg env.Metrics
@@ -69,13 +58,13 @@ func TestTracingSample(t *testing.T) {
 	CheckTestTracing(t, &cfg)
 }
 
-func TestSciondClientSample(t *testing.T) {
+func TestSCIONDClientSample(t *testing.T) {
 	var sample bytes.Buffer
-	var cfg env.SciondClient
+	var cfg env.SCIONDClient
 	cfg.Sample(&sample, nil, nil)
-	InitTestSciond(&cfg)
+	InitTestSCIOND(&cfg)
 	meta, err := toml.Decode(sample.String(), &cfg)
 	assert.NoError(t, err)
 	assert.Empty(t, meta.Undecoded())
-	InitTestSciond(&cfg)
+	InitTestSCIOND(&cfg)
 }

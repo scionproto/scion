@@ -53,7 +53,7 @@ func (h *AppSocketServer) Handle(conn net.PacketConn) {
 		Logger: log.Root().New("clientID", fmt.Sprintf("%p", conn)),
 	}
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		ch.Handle(h.DispServer)
 	}()
 }
@@ -84,7 +84,7 @@ func (h *AppConnHandler) Handle(appServer *dispatcher.Server) {
 	defer metrics.M.OpenSockets(metrics.SVC{Type: svc}).Dec()
 
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		h.RunRingToAppDataplane()
 	}()
 

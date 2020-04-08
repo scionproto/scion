@@ -93,7 +93,7 @@
             }
         }
     },
-    "CertificateService": {
+    "ControlService": {
         "cs1-ff00:0:311-1": {
             "Addrs": {
                 "IPv4": {

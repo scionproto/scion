@@ -117,7 +117,7 @@ func TestUDPAddrSet(t *testing.T) {
 	}
 }
 
-func TestUDPAddrFromString(t *testing.T) {
+func TestParseUDPAddr(t *testing.T) {
 	tests := []struct {
 		address string
 		isError bool
@@ -186,7 +186,7 @@ func TestUDPAddrFromString(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Log(fmt.Sprintf("given address %q", test.address))
-		a, err := snet.UDPAddrFromString(test.address)
+		a, err := snet.ParseUDPAddr(test.address)
 		if test.isError {
 			assert.Error(t, err)
 		} else {

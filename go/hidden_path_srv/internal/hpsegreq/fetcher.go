@@ -84,12 +84,12 @@ func (f *DefaultFetcher) Fetch(ctx context.Context,
 	for hps, ids := range mapping {
 		if hps.Equal(f.groupInfo.LocalIA) {
 			go func(ids []hiddenpath.GroupId) {
-				defer log.LogPanicAndExit()
+				defer log.HandlePanic()
 				f.fetchDB(ctx, ids, endsAt, replyChan)
 			}(ids)
 		} else {
 			go func(ids []hiddenpath.GroupId, hps addr.IA) {
-				defer log.LogPanicAndExit()
+				defer log.HandlePanic()
 				f.fetchRemote(ctx, ids, endsAt, hps, replyChan)
 			}(ids, hps)
 		}

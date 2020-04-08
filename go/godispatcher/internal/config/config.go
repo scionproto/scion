@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -30,28 +32,31 @@ import (
 var _ config.Config = (*Config)(nil)
 
 type Config struct {
-	Features   env.Features
-	Logging    env.Logging
-	Metrics    env.Metrics
-	Dispatcher struct {
-		// ID of the Dispatcher (required)
-		ID string
-		// ApplicationSocket is the local API socket (default /run/shm/dispatcher/default.sock)
-		ApplicationSocket string
-		// Socket file permissions when created; read from octal. (default 0770)
-		SocketFileMode util.FileMode
-		// OverlayPort is the native port opened by the dispatcher (default 30041)
-		OverlayPort int
-		// PerfData starts the pprof HTTP server on the specified address. If not set,
-		// the server is not started.
-		PerfData string
-		// DeleteSocket specifies whether the dispatcher should delete the
-		// socket file prior to attempting to create a new one.
-		DeleteSocket bool
-	}
+	Features   env.Features `toml:"features,omitempty"`
+	Logging    log.Config   `toml:"log,omitempty"`
+	Metrics    env.Metrics  `toml:"metrics,omitempty"`
+	Dispatcher Dispatcher   `toml:"dispatcher,omitempty"`
+}
+
+// Dispatcher contains the dispatcher specific confing
+type Dispatcher struct {
+	// ID of the Dispatcher (required)
+	ID string `toml:"id,omitempty"`
+	// ApplicationSocket is the local API socket (default /run/shm/dispatcher/default.sock)
+	ApplicationSocket string `toml:"application_socket,omitempty"`
+	// Socket file permissions when created; read from octal. (default 0770)
+	SocketFileMode util.FileMode `toml:"socket_file_mode,omitempty"`
+	// OverlayPort is the native port opened by the dispatcher (default 30041)
+	OverlayPort int `toml:"underlay_port,omitempty"`
+	// DeleteSocket specifies whether the dispatcher should delete the
+	// socket file prior to attempting to create a new one.
+	DeleteSocket bool `toml:"delete_socket,omitempty"`
 }
 
 func (cfg *Config) InitDefaults() {
+}
+
+func (cfg *Config) Validate() error {
 	if cfg.Dispatcher.ApplicationSocket == "" {
 		cfg.Dispatcher.ApplicationSocket = reliable.DefaultDispPath
 	}
@@ -61,20 +66,8 @@ func (cfg *Config) InitDefaults() {
 	if cfg.Dispatcher.OverlayPort == 0 {
 		cfg.Dispatcher.OverlayPort = topology.EndhostPort
 	}
-}
-
-func (cfg *Config) Validate() error {
-	if cfg.Dispatcher.ApplicationSocket == "" {
-		return serrors.New("ApplicationSocket must be set")
-	}
-	if cfg.Dispatcher.SocketFileMode == 0 {
-		return serrors.New("SocketFileMode must be set")
-	}
-	if cfg.Dispatcher.OverlayPort == 0 {
-		return serrors.New("OverlayPort must be set")
-	}
 	if cfg.Dispatcher.ID == "" {
-		return serrors.New("ID must be set")
+		return serrors.New("id must be set")
 	}
 	return config.ValidateAll(&cfg.Logging, &cfg.Metrics)
 }

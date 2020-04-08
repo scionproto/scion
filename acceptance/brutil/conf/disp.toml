@@ -1,9 +1,6 @@
 [dispatcher]
-ID = "dispatcher"
+id = "dispatcher"
 
-[logging.file]
-Level = "debug"
-Path = "/share/logs/dispatcher.log"
-
-[logging.console]
-Level = "crit"
+[log.file]
+level = "debug"
+path = "/share/logs/dispatcher.log"

@@ -147,6 +147,17 @@ func LoadState(ifID common.IFIDType) (*Info, bool) {
 	return (*Info)(atomic.LoadPointer(&s.info)), ok
 }
 
+// LoadStates returns info for all interfaces.
+func LoadStates() []*Info {
+	var res []*Info
+	(*sync.Map)(&states).Range(func(_, s interface{}) bool {
+		info := (*Info)(atomic.LoadPointer(&s.(*state).info))
+		res = append(res, info)
+		return true
+	})
+	return res
+}
+
 // UpdateIfNew atomically updates the state info for a given ifid, if the state has
 // not been changed in the meantime. If there is no state info, a new one will be created
 // and the new state will be inserted.

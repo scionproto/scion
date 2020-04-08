@@ -102,8 +102,12 @@ func TestVerify(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		p := mock_trust.NewMockCryptoProvider(ctrl)
-		p.EXPECT().GetASKey(gomock.Any(), gomock.Any(),
-			gomock.Any()).Return(scrypto.KeyMeta{Key: public, Algorithm: scrypto.Ed25519}, nil)
+		p.EXPECT().AnnounceTRC(gomock.Any(), trust.TRCID{ISD: 1, Version: 2}, gomock.Any()).Return(
+			nil,
+		)
+		p.EXPECT().GetASKey(gomock.Any(), gomock.Any(), gomock.Any()).Return(
+			scrypto.KeyMeta{Key: public, Algorithm: scrypto.Ed25519}, nil,
+		)
 
 		v := &trust.Verifier{
 			Store: p,
@@ -123,13 +127,12 @@ func TestVerifierWithIA(t *testing.T) {
 	assert.Equal(t, y.BoundIA, ia)
 }
 
-func validSignS(msg, ias string) *proto.SignS {
-	//_, priv, _ := scrypto.GenKeyPair(scrypto.Ed25519)
-	ia, _ := addr.IAFromString(ias)
+func validSignS(msg, rawIA string) *proto.SignS {
+	ia, _ := addr.IAFromString(rawIA)
 	src := ctrl.SignSrcDef{
 		IA:       ia,
 		ChainVer: 1,
-		TRCVer:   1,
+		TRCVer:   2,
 	}
 	sign := proto.NewSignS(proto.SignType_ed25519, src.Pack())
 	sign.SetTimestamp(time.Now())

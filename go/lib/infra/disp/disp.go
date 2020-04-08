@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -93,7 +94,7 @@ func New(conn net.PacketConn, adapter MessageAdapter, logger log.Logger) *Dispat
 		readEvents:  make(chan *readEventDesc, maxReadEvents),
 		stoppedChan: make(chan struct{}),
 		closedChan:  make(chan struct{}),
-		log:         logger.New("id", log.RandId(4), "goroutine", "dispatcher_bck"),
+		log:         logger.New("id", log.NewDebugID(), "goroutine", "dispatcher_bck"),
 	}
 	d.goBackgroundReceiver()
 	return d
@@ -172,7 +173,7 @@ func (d *Dispatcher) RecvFrom(ctx context.Context) (proto.Cerealizable, int, net
 
 func (d *Dispatcher) goBackgroundReceiver() {
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		defer close(d.stoppedChan)
 	Loop:
 		for {

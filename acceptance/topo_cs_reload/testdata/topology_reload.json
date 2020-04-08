@@ -1,0 +1,97 @@
+{
+  "MTU": 1400,
+  "BorderRouters": {
+    "br1-ff00_0_110-1": {
+      "Interfaces": {
+        "1": {
+          "MTU": 1280,
+          "RemoteOverlay": {
+            "Addr": "127.0.1.5",
+            "OverlayPort": 50000
+          },
+          "Bandwidth": 1000,
+          "ISD_AS": "1-ff00:0:111",
+          "PublicOverlay": {
+            "Addr": "127.0.1.4",
+            "OverlayPort": 50000
+          },
+          "LinkTo": "CHILD",
+          "Overlay": "UDP/IPv4"
+        }
+      },
+      "InternalAddrs": {
+        "IPv4": {
+          "PublicOverlay": {
+            "Addr": "127.0.1.9",
+            "OverlayPort": 31008
+          }
+        }
+      },
+      "CtrlAddr": {
+        "IPv4": {
+          "Public": {
+            "Addr": "127.0.1.9",
+            "L4Port": 31006
+          }
+        }
+      }
+    },
+    "br1-ff00_0_110-2": {
+      "Interfaces": {
+        "2": {
+          "MTU": 1472,
+          "RemoteOverlay": {
+            "Addr": "127.0.1.7",
+            "OverlayPort": 50000
+          },
+          "Bandwidth": 500,
+          "ISD_AS": "1-ff00:0:112",
+          "PublicOverlay": {
+            "Addr": "127.0.1.6",
+            "OverlayPort": 50000
+          },
+          "LinkTo": "CHILD",
+          "Overlay": "UDP/IPv4"
+        }
+      },
+      "InternalAddrs": {
+        "IPv4": {
+          "PublicOverlay": {
+            "Addr": "127.0.1.10",
+            "OverlayPort": 31012
+          }
+        }
+      },
+      "CtrlAddr": {
+        "IPv4": {
+          "Public": {
+            "Addr": "127.0.1.10",
+            "L4Port": 31010
+          }
+        }
+      }
+    }
+  },
+  "ColibriService": {},
+  "DiscoveryService": {},
+  "Attributes": [
+    "authoritative",
+    "core",
+    "issuing",
+    "voting"
+  ],
+  "ISD_AS": "1-ff00:0:110",
+  "ControlService": {
+    "cs1-ff00_0_110-1": {
+      "Addrs": {
+        "IPv4": {
+          "Public": {
+            "Addr": "127.0.0.12",
+            "L4Port": 31002
+          }
+        }
+      }
+    }
+  },
+  "Overlay": "UDP/IPv4"
+}

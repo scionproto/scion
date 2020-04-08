@@ -19,10 +19,10 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 const (
@@ -49,7 +49,7 @@ func NewFrameBufs(frames ringbuf.EntryList) int {
 // multiple SIG frames. It contains the raw bytes and metadata needed for reassembly.
 type FrameBuf struct {
 	// Session Id of the frame.
-	sessId mgmt.SessionType
+	sessId sig_mgmt.SessionType
 	// Sequence number of the frame.
 	seqNr int
 	// Index of the frame.

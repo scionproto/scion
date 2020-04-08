@@ -51,7 +51,7 @@ const (
 )
 
 func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	defer close(stopped)
 	dst := s.Conn.LocalAddr()
 	log.Info("posixInput starting", "addr", dst)
@@ -74,7 +74,12 @@ func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
 
 	// Called when the packet's reference count hits 0.
 	free := func(rp *rpkt.RtrPkt) {
-		procPktTime.Add(time.Since(rp.TimeIn).Seconds())
+		// Protect against system clock moving backwards
+		t := time.Since(rp.TimeIn).Seconds()
+		if t < 0 {
+			t = 0
+		}
+		procPktTime.Add(t)
 		rp.Reset()
 		r.freePkts.Write(ringbuf.EntryList{rp}, true)
 	}
@@ -193,7 +198,7 @@ func (r *Router) posixInputRead(msgs []ipv4.Message, metas []conn.ReadMeta,
 }
 
 func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	defer close(stopped)
 	src := s.Conn.LocalAddr()
 	dst := s.Conn.RemoteAddr()

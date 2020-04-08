@@ -16,20 +16,18 @@
 package ingress
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/sig/internal/metrics"
-	"github.com/scionproto/scion/go/sig/internal/sigcmn"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 const (
@@ -43,28 +41,22 @@ const (
 // source ISD-AS -> source host Addr -> Sess Id and hands it off to the
 // appropriate Worker, starting a new one if none currently exists.
 type Dispatcher struct {
-	laddr              *snet.UDPAddr
 	workers            map[string]*Worker
-	extConn            snet.Conn
+	extConn            *snet.Conn
 	tunIO              io.ReadWriteCloser
 	framesRecvCounters map[metrics.CtrPairKey]metrics.CtrPair
 }
 
-func NewDispatcher(tio io.ReadWriteCloser) *Dispatcher {
+func NewDispatcher(tio io.ReadWriteCloser, conn *snet.Conn) *Dispatcher {
 	return &Dispatcher{
 		tunIO:              tio,
+		extConn:            conn,
 		framesRecvCounters: make(map[metrics.CtrPairKey]metrics.CtrPair),
-		laddr:              sigcmn.EncapSnetAddr(),
 		workers:            make(map[string]*Worker),
 	}
 }
 
 func (d *Dispatcher) Run() error {
-	var err error
-	d.extConn, err = sigcmn.Network.Listen(context.Background(), "udp", d.laddr.Host, addr.SvcNone)
-	if err != nil {
-		return common.NewBasicError("Unable to initialize extConn", err)
-	}
 	return d.read()
 }
 
@@ -86,7 +78,7 @@ func (d *Dispatcher) read() error {
 				switch v := src.(type) {
 				case *snet.UDPAddr:
 					frame.frameLen = read
-					frame.sessId = mgmt.SessionType((frame.raw[0]))
+					frame.sessId = sig_mgmt.SessionType((frame.raw[0]))
 					d.updateMetrics(v.IA.IAInt(), frame.sessId, read)
 					d.dispatch(frame, v)
 				default:
@@ -113,7 +105,7 @@ func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.UDPAddr) {
 		worker = NewWorker(src, frame.sessId, d.tunIO)
 		d.workers[dispatchStr] = worker
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			worker.Run()
 		}()
 	}
@@ -128,7 +120,7 @@ func (d *Dispatcher) cleanup() {
 		if worker.markedForCleanup {
 			delete(d.workers, key)
 			go func() {
-				defer log.LogPanicAndExit()
+				defer log.HandlePanic()
 				worker.Stop()
 			}()
 		} else {
@@ -137,7 +129,7 @@ func (d *Dispatcher) cleanup() {
 	}
 }
 
-func (d *Dispatcher) updateMetrics(remoteIA addr.IAInt, sessId mgmt.SessionType, read int) {
+func (d *Dispatcher) updateMetrics(remoteIA addr.IAInt, sessId sig_mgmt.SessionType, read int) {
 	key := metrics.CtrPairKey{RemoteIA: remoteIA, SessId: sessId}
 	counters, ok := d.framesRecvCounters[key]
 	if !ok {

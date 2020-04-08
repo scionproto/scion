@@ -35,10 +35,10 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/sig/config"
+	"github.com/scionproto/scion/go/lib/sigdisp"
+	"github.com/scionproto/scion/go/lib/sigjson"
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/internal/base"
-	"github.com/scionproto/scion/go/sig/internal/disp"
 	"github.com/scionproto/scion/go/sig/internal/ingress"
 	"github.com/scionproto/scion/go/sig/internal/metrics"
 	"github.com/scionproto/scion/go/sig/internal/sigcmn"
@@ -71,7 +71,7 @@ func realMain() int {
 	}
 	defer log.Flush()
 	defer env.LogAppStopped("SIG", cfg.Sig.ID)
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	if err := validateConfig(); err != nil {
 		log.Crit("Validation of config failed", "err", err)
 		return 1
@@ -93,7 +93,7 @@ func realMain() int {
 			log.Info("reloadOnSIGHUP: reload done", "success", success)
 		},
 	)
-	disp.Init(sigcmn.CtrlConn, false)
+	sigdisp.Init(sigcmn.CtrlConn, false)
 	// Parse sig config
 	if loadConfig(cfg.Sig.SIGConfig) != true {
 		log.Crit("Unable to load sig config on startup")
@@ -101,7 +101,7 @@ func realMain() int {
 	}
 	// Reply to probes from other SIGs.
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		base.PollReqHdlr()
 	}()
 	egress.Init(tunIO)
@@ -120,12 +120,16 @@ func realMain() int {
 // setupBasic loads the config from file and initializes logging.
 func setupBasic() error {
 	// Load and initialize config.
-	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
-		return serrors.New("Failed to load config", "err", err, "file", env.ConfigFile())
+	md, err := toml.DecodeFile(env.ConfigFile(), &cfg)
+	if err != nil {
+		return serrors.WrapStr("Failed to load config", err, "file", env.ConfigFile())
+	}
+	if len(md.Undecoded()) > 0 {
+		return serrors.New("Failed to load config: undecoded keys", "undecoded", md.Undecoded())
 	}
 	cfg.InitDefaults()
-	if err := env.InitLogging(&cfg.Logging); err != nil {
-		return serrors.New("Failed to initialize logging", "err", err)
+	if err := log.Setup(cfg.Logging); err != nil {
+		return serrors.WrapStr("Failed to initialize logging", err)
 	}
 	prom.ExportElementID(cfg.Sig.ID)
 	return env.LogAppStarted("SIG", cfg.Sig.ID)
@@ -150,16 +154,16 @@ func setupTun() (io.ReadWriteCloser, error) {
 		return nil, err
 	}
 	src := cfg.Sig.SrcIP4
-	if len(src) == 0 && cfg.Sig.IP.To4() != nil {
-		src = cfg.Sig.IP
+	if len(src) == 0 && sigcmn.CtrlAddr.To4() != nil {
+		src = sigcmn.CtrlAddr
 	}
 	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV4Net, src); err != nil {
 		return nil,
 			common.NewBasicError("Unable to add default IPv4 route to SIG routing table", err)
 	}
 	src = cfg.Sig.SrcIP6
-	if len(src) == 0 && cfg.Sig.IP.To16() != nil && cfg.Sig.IP.To4() == nil {
-		src = cfg.Sig.IP
+	if len(src) == 0 && sigcmn.CtrlAddr.To16() != nil && sigcmn.CtrlAddr.To4() == nil {
+		src = sigcmn.CtrlAddr
 	}
 	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV6Net, src); err != nil {
 		return nil,
@@ -195,7 +199,7 @@ func checkPerms() error {
 }
 
 func loadConfig(path string) bool {
-	cfg, err := config.LoadFromFile(path)
+	cfg, err := sigjson.LoadFromFile(path)
 	if err != nil {
 		log.Error("loadConfig: Failed", "err", err)
 		return false

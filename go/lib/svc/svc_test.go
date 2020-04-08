@@ -69,11 +69,11 @@ func TestSVCResolutionServer(t *testing.T) {
 			SoMsg("port", port, ShouldEqual, 1337)
 			SoMsg("err", err, ShouldBeNil)
 
-			var pkt snet.SCIONPacket
+			var pkt snet.Packet
 			var ov net.UDPAddr
 			Convey("If handler fails, caller sees error", func() {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
+					func(pkt *snet.Packet, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
 							Host: addr.SvcPS,
 						}
@@ -88,7 +88,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			})
 			Convey("If handler returns forward, caller sees data", func() {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
+					func(pkt *snet.Packet, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
 							Host: addr.SvcPS,
 						}
@@ -102,7 +102,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			})
 			Convey("If handler succeeds", func() {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
+					func(pkt *snet.Packet, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
 							Host: addr.SvcPS,
 						}
@@ -112,7 +112,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				mockReqHandler.EXPECT().Handle(gomock.Any()).Return(svc.Handled, nil).AnyTimes()
 				Convey("return from conn with no error next internal read yields data", func() {
 					mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-						func(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
+						func(pkt *snet.Packet, ov *net.UDPAddr) error {
 							pkt.Destination = snet.SCIONAddress{
 								Host: addr.HostIPv4(net.IP{192, 168, 0, 1}),
 							}
@@ -124,7 +124,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				})
 				Convey("return from socket with error if next internal read fails", func() {
 					mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-						func(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
+						func(pkt *snet.Packet, ov *net.UDPAddr) error {
 							return serrors.New("forced exit")
 						},
 					)
@@ -134,7 +134,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			})
 			Convey("Multicast SVC packets get delivered to caller", func() {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.SCIONPacket, ov *net.UDPAddr) error {
+					func(pkt *snet.Packet, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
 							Host: addr.SvcBS.Multicast(),
 						}
@@ -155,14 +155,14 @@ func TestDefaultHandler(t *testing.T) {
 			Description    string
 			ReplySource    snet.SCIONAddress
 			ReplyPayload   []byte
-			InputPacket    *snet.SCIONPacket
-			ExpectedPacket *snet.SCIONPacket
+			InputPacket    *snet.Packet
+			ExpectedPacket *snet.Packet
 			ExpectedError  bool
 		}{
 			{
 				Description: "path cannot be reversed",
-				InputPacket: &snet.SCIONPacket{
-					SCIONPacketInfo: snet.SCIONPacketInfo{
+				InputPacket: &snet.Packet{
+					PacketInfo: snet.PacketInfo{
 						Path: spath.New(common.RawBytes{0x00, 0x01, 0x02, 0x03}),
 					},
 				},
@@ -170,11 +170,11 @@ func TestDefaultHandler(t *testing.T) {
 			},
 			{
 				Description: "nil l4 header, success",
-				InputPacket: &snet.SCIONPacket{
-					SCIONPacketInfo: snet.SCIONPacketInfo{},
+				InputPacket: &snet.Packet{
+					PacketInfo: snet.PacketInfo{},
 				},
-				ExpectedPacket: &snet.SCIONPacket{
-					SCIONPacketInfo: snet.SCIONPacketInfo{
+				ExpectedPacket: &snet.Packet{
+					PacketInfo: snet.PacketInfo{
 						Source: snet.SCIONAddress{},
 					},
 				},
@@ -182,13 +182,13 @@ func TestDefaultHandler(t *testing.T) {
 			},
 			{
 				Description: "L4 header with ports",
-				InputPacket: &snet.SCIONPacket{
-					SCIONPacketInfo: snet.SCIONPacketInfo{
+				InputPacket: &snet.Packet{
+					PacketInfo: snet.PacketInfo{
 						L4Header: &l4.UDP{SrcPort: 42, DstPort: 73},
 					},
 				},
-				ExpectedPacket: &snet.SCIONPacket{
-					SCIONPacketInfo: snet.SCIONPacketInfo{
+				ExpectedPacket: &snet.Packet{
+					PacketInfo: snet.PacketInfo{
 						L4Header: &l4.UDP{SrcPort: 73, DstPort: 42},
 					},
 				},
@@ -196,9 +196,9 @@ func TestDefaultHandler(t *testing.T) {
 			{
 				Description:  "Non-nil payload",
 				ReplyPayload: []byte{1, 2, 3, 4},
-				InputPacket:  &snet.SCIONPacket{},
-				ExpectedPacket: &snet.SCIONPacket{
-					SCIONPacketInfo: snet.SCIONPacketInfo{
+				InputPacket:  &snet.Packet{},
+				ExpectedPacket: &snet.Packet{
+					PacketInfo: snet.PacketInfo{
 						Payload: common.RawBytes{1, 2, 3, 4},
 					},
 				},
@@ -206,9 +206,9 @@ func TestDefaultHandler(t *testing.T) {
 			{
 				Description: "Source address override",
 				ReplySource: snet.SCIONAddress{Host: addr.HostIPv4(net.IP{192, 168, 0, 1})},
-				InputPacket: &snet.SCIONPacket{},
-				ExpectedPacket: &snet.SCIONPacket{
-					SCIONPacketInfo: snet.SCIONPacketInfo{
+				InputPacket: &snet.Packet{},
+				ExpectedPacket: &snet.Packet{
+					PacketInfo: snet.PacketInfo{
 						Source: snet.SCIONAddress{Host: addr.HostIPv4(net.IP{192, 168, 0, 1})},
 					},
 				},
@@ -245,7 +245,7 @@ func TestDefaultHandler(t *testing.T) {
 		defer ctrl.Finish()
 
 		conn := mock_snet.NewMockPacketConn(ctrl)
-		packet := &snet.SCIONPacket{}
+		packet := &snet.Packet{}
 		ov := &net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 0x29a}
 		conn.EXPECT().WriteTo(packet, ov).Times(1)
 		sender := &svc.BaseHandler{}

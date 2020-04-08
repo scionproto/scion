@@ -1,2 +1,3 @@
 ^\./docker/_build/
 ^\./go/vendor/
+^\./licenses/data

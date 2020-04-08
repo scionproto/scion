@@ -32,8 +32,8 @@ import (
 // PacketConn gives applications easy access to writing and reading custom
 // SCION packets.
 type PacketConn interface {
-	ReadFrom(pkt *SCIONPacket, ov *net.UDPAddr) error
-	WriteTo(pkt *SCIONPacket, ov *net.UDPAddr) error
+	ReadFrom(pkt *Packet, ov *net.UDPAddr) error
+	WriteTo(pkt *Packet, ov *net.UDPAddr) error
 	SetReadDeadline(t time.Time) error
 	SetWriteDeadline(t time.Time) error
 	SetDeadline(t time.Time) error
@@ -68,17 +68,17 @@ func (b *Bytes) Prepare() {
 	*b = (*b)[:cap(*b)]
 }
 
-type SCIONPacket struct {
+type Packet struct {
 	Bytes
-	SCIONPacketInfo
+	PacketInfo
 }
 
-// SCIONPacketInfo contains the data needed to construct a SCION packet.
+// PacketInfo contains the data needed to construct a SCION packet.
 //
 // This is a high-level structure, and can only be used to create valid
 // packets. The documentation for each field specifies cases where
 // serialization might fail due to some violation of SCION protocol rules.
-type SCIONPacketInfo struct {
+type PacketInfo struct {
 	// Destination contains the destination address.
 	Destination SCIONAddress
 	// Source contains the source address. If it is an SVC address, packet
@@ -144,14 +144,14 @@ func (c *SCIONPacketConn) Close() error {
 	return c.conn.Close()
 }
 
-func (c *SCIONPacketConn) WriteTo(pkt *SCIONPacket, ov *net.UDPAddr) error {
+func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
 	StableSortExtensions(pkt.Extensions)
 	hbh, e2e, err := hpkt.ValidateExtensions(pkt.Extensions)
 	if err != nil {
 		return common.NewBasicError("Bad extension list", err)
 	}
 	// TODO(scrye): scnPkt is a temporary solution. Its functionality will be
-	// absorbed by the easier to use SCIONPacket structure in this package.
+	// absorbed by the easier to use Packet structure in this package.
 	scnPkt := &spkt.ScnPkt{
 		DstIA:   pkt.Destination.IA,
 		SrcIA:   pkt.Source.IA,
@@ -183,7 +183,7 @@ func (c *SCIONPacketConn) SetWriteDeadline(d time.Time) error {
 	return c.conn.SetWriteDeadline(d)
 }
 
-func (c *SCIONPacketConn) ReadFrom(pkt *SCIONPacket, ov *net.UDPAddr) error {
+func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
 	for {
 		// Read until we get an error or a data packet
 		if err := c.readFrom(pkt, ov); err != nil {
@@ -208,7 +208,7 @@ func (c *SCIONPacketConn) ReadFrom(pkt *SCIONPacket, ov *net.UDPAddr) error {
 	}
 }
 
-func (c *SCIONPacketConn) readFrom(pkt *SCIONPacket, ov *net.UDPAddr) error {
+func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 	pkt.Prepare()
 	n, lastHopNetAddr, err := c.conn.ReadFrom(pkt.Bytes)
 	if err != nil {
@@ -229,7 +229,7 @@ func (c *SCIONPacketConn) readFrom(pkt *SCIONPacket, ov *net.UDPAddr) error {
 	}
 
 	// TODO(scrye): scnPkt is a temporary solution. Its functionality will be
-	// absorbed by the easier to use SCIONPacket structure in this package.
+	// absorbed by the easier to use Packet structure in this package.
 	scnPkt := &spkt.ScnPkt{
 		DstIA: addr.IA{},
 		SrcIA: addr.IA{},
@@ -258,10 +258,10 @@ func (c *SCIONPacketConn) SetReadDeadline(d time.Time) error {
 }
 
 type SerializationOptions struct {
-	// If ComputeChecksums is true, the checksums in sent SCIONPackets are
+	// If ComputeChecksums is true, the checksums in sent Packets are
 	// recomputed. Otherwise, the checksum value is left intact.
 	ComputeChecksums bool
-	// If FixLengths is true, any lengths in sent SCIONPackets are recomputed
+	// If FixLengths is true, any lengths in sent Packets are recomputed
 	// to match the data contained in payloads/inner layers. This currently
 	// concerns extension headers and the L4 header.
 	FixLengths bool

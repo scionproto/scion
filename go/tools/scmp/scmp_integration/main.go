@@ -31,11 +31,19 @@ func realMain() int {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	defer log.Flush()
 
-	cmnArgs := []string{"-sciondFromIA", "-timeout", "4s", "-local", integration.SrcAddrPattern,
-		"-remote", integration.DstAddrPattern}
+	cmnArgs := []string{
+		"-timeout", "4s",
+		"-sciond", integration.SCIOND,
+		"-remote", integration.DstAddrPattern,
+	}
+	if *integration.Docker {
+		cmnArgs = append(cmnArgs,
+			"-local", integration.SrcHostReplace,
+		)
+	}
 
 	testCases := []struct {
 		Name string

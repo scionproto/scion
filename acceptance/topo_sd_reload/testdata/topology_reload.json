@@ -73,19 +73,6 @@
     }
   },
   "ColibriService": {},
-  "DiscoveryService": {},
-  "PathService": {
-    "ps1-ff00_0_110-1": {
-      "Addrs": {
-        "IPv4": {
-          "Public": {
-            "Addr": "127.0.1.13",
-            "L4Port": 31004
-          }
-        }
-      }
-    }
-  },
   "Attributes": [
     "authoritative",
     "core",
@@ -93,25 +80,13 @@
     "voting"
   ],
   "ISD_AS": "1-ff00:0:110",
-  "CertificateService": {
+  "ControlService": {
     "cs1-ff00_0_110-1": {
       "Addrs": {
         "IPv4": {
           "Public": {
             "Addr": "127.0.1.12",
             "L4Port": 31002
-          }
-        }
-      }
-    }
-  },
-  "BeaconService": {
-    "bs1-ff00_0_110-1": {
-      "Addrs": {
-        "IPv4": {
-          "Public": {
-            "Addr": "127.0.1.11",
-            "L4Port": 31000
           }
         }
       }

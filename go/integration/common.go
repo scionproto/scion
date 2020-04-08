@@ -39,10 +39,12 @@ const (
 )
 
 var (
-	Local    snet.UDPAddr
-	Mode     string
-	sdSocket string
-	Attempts int
+	Local        snet.UDPAddr
+	Mode         string
+	sciondAddr   string
+	networksFile string
+	Attempts     int
+	logConsole   string
 )
 
 func Setup() {
@@ -53,9 +55,12 @@ func Setup() {
 func addFlags() {
 	flag.Var((*snet.UDPAddr)(&Local), "local", "(Mandatory) address to listen on")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
-	flag.StringVar(&sdSocket, "sciond", "", "Path to sciond socket")
+	flag.StringVar(&sciondAddr, "sciond", sciond.DefaultSCIONDAddress, "SCIOND address")
+	flag.StringVar(&networksFile, "networks", integration.SCIONDAddressesFile,
+		"File containing network definitions")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
-	log.AddLogConsFlags()
+	flag.StringVar(&logConsole, "log.console", "info",
+		"Console logging level: trace|debug|info|warn|error|crit")
 }
 
 // InitTracer initializes the global tracer and returns a closer function.
@@ -80,16 +85,14 @@ func InitTracer(name string) (func(), error) {
 
 func validateFlags() {
 	flag.Parse()
-	if err := log.SetupFromFlags(""); err != nil {
+	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
+	if err := log.Setup(logCfg); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
 		flag.Usage()
 		os.Exit(1)
 	}
 	if Mode != ModeClient && Mode != ModeServer {
 		LogFatal("Unknown mode, must be either '" + ModeClient + "' or '" + ModeServer + "'")
-	}
-	if sdSocket == "" {
-		sdSocket = sciond.GetDefaultSCIONDPath(&Local.IA)
 	}
 	if Local.Host == nil {
 		LogFatal("Missing local address")
@@ -98,7 +101,7 @@ func validateFlags() {
 
 func InitNetwork() *snet.SCIONNetwork {
 	ds := reliable.NewDispatcher("")
-	sciondConn, err := sciond.NewService(sdSocket).Connect(context.Background())
+	sciondConn, err := sciond.NewService(sciondAddr).Connect(context.Background())
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
@@ -113,7 +116,7 @@ func InitNetwork() *snet.SCIONNetwork {
 func SDConn() sciond.Connector {
 	ctx, cancelF := context.WithTimeout(context.Background(), DefaultIOTimeout)
 	defer cancelF()
-	conn, err := sciond.NewService(sdSocket).Connect(ctx)
+	conn, err := sciond.NewService(sciondAddr).Connect(ctx)
 	if err != nil {
 		LogFatal("Unable to initialize sciond connection", "err", err)
 	}

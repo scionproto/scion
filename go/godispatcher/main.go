@@ -58,7 +58,7 @@ func realMain() int {
 	}
 	defer log.Flush()
 	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	if err := cfg.Validate(); err != nil {
 		log.Crit("Unable to validate config", "err", err)
 		return 1
@@ -75,7 +75,7 @@ func realMain() int {
 	}
 
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		err := RunDispatcher(
 			cfg.Dispatcher.DeleteSocket,
 			cfg.Dispatcher.ApplicationSocket,
@@ -86,15 +86,6 @@ func realMain() int {
 			fatal.Fatal(err)
 		}
 	}()
-	if cfg.Dispatcher.PerfData != "" {
-		go func() {
-			defer log.LogPanicAndExit()
-			err := http.ListenAndServe(cfg.Dispatcher.PerfData, nil)
-			if err != nil {
-				fatal.Fatal(err)
-			}
-		}()
-	}
 
 	env.SetupEnv(nil)
 	http.HandleFunc("/config", configHandler)
@@ -108,7 +99,7 @@ func realMain() int {
 	// up the sockets and let the application close.
 	errDelete := deleteSocket(cfg.Dispatcher.ApplicationSocket)
 	if errDelete != nil {
-		log.Warn("Unable to delete socket when shutting down", errDelete)
+		log.Warn("Unable to delete socket when shutting down", "err", errDelete)
 	}
 	switch {
 	case returnCode != 0:
@@ -121,12 +112,16 @@ func realMain() int {
 }
 
 func setupBasic() error {
-	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
-		return err
+	md, err := toml.DecodeFile(env.ConfigFile(), &cfg)
+	if err != nil {
+		return serrors.WrapStr("Failed to load config", err, "file", env.ConfigFile())
+	}
+	if len(md.Undecoded()) > 0 {
+		return serrors.New("Failed to load config: undecoded keys", "undecoded", md.Undecoded())
 	}
 	cfg.InitDefaults()
-	if err := env.InitLogging(&cfg.Logging); err != nil {
-		return err
+	if err := log.Setup(cfg.Logging); err != nil {
+		return serrors.WrapStr("Failed to initialize logging", err)
 	}
 	prom.ExportElementID(cfg.Dispatcher.ID)
 	return env.LogAppStarted("Dispatcher", cfg.Dispatcher.ID)

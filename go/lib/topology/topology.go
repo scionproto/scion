@@ -67,10 +67,7 @@ type (
 		BRNames   []string
 		IFInfoMap IfInfoMap
 
-		BS  IDAddrMap
 		CS  IDAddrMap
-		PS  IDAddrMap
-		DS  IDAddrMap
 		SIG IDAddrMap
 	}
 
@@ -127,11 +124,8 @@ type (
 func NewRWTopology() *RWTopology {
 	return &RWTopology{
 		BR:        make(map[string]BRInfo),
-		BS:        make(IDAddrMap),
 		CS:        make(IDAddrMap),
-		PS:        make(IDAddrMap),
 		SIG:       make(IDAddrMap),
-		DS:        make(IDAddrMap),
 		IFInfoMap: make(IfInfoMap),
 	}
 }
@@ -273,25 +267,13 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 
 func (t *RWTopology) populateServices(raw *jsontopo.Topology) error {
 	var err error
-	t.BS, err = svcMapFromRaw(raw.BeaconService)
-	if err != nil {
-		return serrors.WrapStr("unable to extract BS address", err)
-	}
-	t.CS, err = svcMapFromRaw(raw.CertificateService)
+	t.CS, err = svcMapFromRaw(raw.ControlService)
 	if err != nil {
 		return serrors.WrapStr("unable to extract CS address", err)
-	}
-	t.PS, err = svcMapFromRaw(raw.PathService)
-	if err != nil {
-		return serrors.WrapStr("unable to extract PS address", err)
 	}
 	t.SIG, err = svcMapFromRaw(raw.SIG)
 	if err != nil {
 		return serrors.WrapStr("unable to extract SIG address", err)
-	}
-	t.DS, err = svcMapFromRaw(raw.DiscoveryService)
-	if err != nil {
-		return serrors.WrapStr("unable to extract DS address", err)
 	}
 	return nil
 }
@@ -342,16 +324,10 @@ func (t *RWTopology) getSvcInfo(svc proto.ServiceType) (*svcInfo, error) {
 	switch svc {
 	case proto.ServiceType_unset:
 		return nil, serrors.New("Service type unset")
-	case proto.ServiceType_bs:
-		return &svcInfo{idTopoAddrMap: t.BS}, nil
-	case proto.ServiceType_ps:
-		return &svcInfo{idTopoAddrMap: t.PS}, nil
-	case proto.ServiceType_cs:
+	case proto.ServiceType_bs, proto.ServiceType_cs, proto.ServiceType_ps:
 		return &svcInfo{idTopoAddrMap: t.CS}, nil
 	case proto.ServiceType_sig:
 		return &svcInfo{idTopoAddrMap: t.SIG}, nil
-	case proto.ServiceType_ds:
-		return &svcInfo{idTopoAddrMap: t.DS}, nil
 	default:
 		return nil, common.NewBasicError("Unsupported service type", nil, "type", svc)
 	}

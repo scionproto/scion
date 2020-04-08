@@ -19,12 +19,11 @@ package fetcher
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
@@ -51,65 +50,52 @@ type TrustStore interface {
 	infra.ASInspector
 }
 
-type Fetcher struct {
-	pathDB          pathdb.PathDB
-	revocationCache revcache.RevCache
-	topoProvider    topology.Provider
-	config          config.SDConfig
-	segfetcher      *segfetcher.Fetcher
+type Fetcher interface {
+	GetPaths(ctx context.Context, req *sciond.PathReq,
+		earlyReplyInterval time.Duration) (*sciond.PathReply, error)
 }
 
-func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, inspector infra.ASInspector,
+type fetcher struct {
+	pather segfetcher.Pather
+	config config.SDConfig
+}
+
+func NewFetcher(requestAPI segfetcher.RequestAPI, pathDB pathdb.PathDB, inspector infra.ASInspector,
 	verificationFactory infra.VerificationFactory, revCache revcache.RevCache, cfg config.SDConfig,
-	topoProvider topology.Provider) *Fetcher {
+	topoProvider topology.Provider) Fetcher {
 
 	localIA := topoProvider.Get().IA()
-	return &Fetcher{
-		pathDB:          pathDB,
-		revocationCache: revCache,
-		topoProvider:    topoProvider,
-		config:          cfg,
-		segfetcher: segfetcher.FetcherConfig{
-			QueryInterval:       cfg.QueryInterval.Duration,
-			LocalIA:             localIA,
-			ASInspector:         inspector,
-			VerificationFactory: verificationFactory,
-			PathDB:              pathDB,
-			RevCache:            revCache,
-			RequestAPI:          messenger,
-			DstProvider:         &dstProvider{IA: localIA},
-			Splitter:            NewRequestSplitter(localIA, inspector),
-			SciondMode:          true,
-			MetricsNamespace:    metrics.Namespace,
-			LocalInfo:           neverLocal{},
-		}.New(),
+	return &fetcher{
+		pather: segfetcher.Pather{
+			PathDB:       pathDB,
+			RevCache:     revCache,
+			TopoProvider: topoProvider,
+			Fetcher: segfetcher.FetcherConfig{
+				QueryInterval:       cfg.QueryInterval.Duration,
+				LocalIA:             localIA,
+				VerificationFactory: verificationFactory,
+				PathDB:              pathDB,
+				RevCache:            revCache,
+				RequestAPI:          requestAPI,
+				DstProvider:         &dstProvider{IA: localIA},
+				Splitter: &segfetcher.MultiSegmentSplitter{
+					Local:     localIA,
+					Inspector: inspector,
+				},
+				SciondMode:       true,
+				MetricsNamespace: metrics.Namespace,
+				LocalInfo:        neverLocal{},
+			}.New(),
+		},
+		config: cfg,
 	}
-}
-
-func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
-	earlyReplyInterval time.Duration, logger log.Logger) (*sciond.PathReply, error) {
-
-	handler := &fetcherHandler{
-		Fetcher:  f,
-		topology: f.topoProvider.Get(),
-		logger:   logger,
-	}
-	return handler.GetPaths(ctx, req, earlyReplyInterval)
-}
-
-// fetcherHandler contains the custom state of one path retrieval request
-// received by the Fetcher.
-type fetcherHandler struct {
-	*Fetcher
-	topology topology.Topology
-	logger   log.Logger
 }
 
 // GetPaths fulfills the path request described by req. GetPaths will attempt
 // to build paths at start, after earlyReplyInterval and at context expiration
 // (or whenever all background workers return). An earlyReplyInterval of 0
 // means no early reply attempt is made.
-func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
+func (f *fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	earlyReplyInterval time.Duration) (*sciond.PathReply, error) {
 
 	// TODO(lukedirtwalker): move to validator, but we need to keep sciond
@@ -119,203 +105,84 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	if _, ok := ctx.Deadline(); !ok {
 		return nil, serrors.New("Context must have deadline set")
 	}
+	local := f.pather.TopoProvider.Get().IA()
 	// Check source
-	if req.Src.IA().IsZero() {
-		req.Src = f.topology.IA().IAInt()
+	if !req.Src.IA().IsZero() && !req.Src.IA().Equal(local) {
+		return &sciond.PathReply{ErrorCode: sciond.ErrorBadSrcIA},
+			serrors.New("Bad source AS", "src", req.Src.IA())
 	}
-	if !req.Src.IA().Equal(f.topology.IA()) {
-		return f.buildSCIONDReply(nil, 0, sciond.ErrorBadSrcIA),
-			common.NewBasicError("Bad source AS", nil, "ia", req.Src.IA())
+	cPaths, err := f.pather.GetPaths(ctx, req.Dst.IA(), req.Flags.Refresh)
+	switch {
+	case err == nil:
+		break
+	case errors.Is(err, segfetcher.ErrBadDst):
+		return &sciond.PathReply{ErrorCode: sciond.ErrorBadDstIA}, err
+	case errors.Is(err, segfetcher.ErrNoPaths):
+		return &sciond.PathReply{ErrorCode: sciond.ErrorNoPaths}, err
+	default:
+		return &sciond.PathReply{ErrorCode: sciond.ErrorInternal}, err
 	}
-	// Check destination
-	if req.Dst.IA().I == 0 {
-		return f.buildSCIONDReply(nil, 0, sciond.ErrorBadDstIA),
-			common.NewBasicError("Bad destination AS", nil, "ia", req.Dst.IA())
-	}
-	if req.Dst.IA().Equal(f.topology.IA()) {
-		return f.buildSCIONDReply(nil, 0, sciond.ErrorOk), nil
-	}
-
-	// A ISD-0 destination should not require a TRC lookup in sciond, it could lead to a
-	// lookup loop: If sciond doesn't have the TRC, it would ask the CS, the CS would try to connect
-	// to the CS in the destination ISD and for that it will ask sciond for paths to ISD-0.
-	// Instead we consider ISD-0 always as core destination in sciond.
-	// If there are no cached paths in sciond, send the query to the local PS,
-	// which will forward the query to a ISD-local core PS, so there won't be
-	// any loop.
-
-	segReq := segfetcher.Request{Src: req.Src.IA(), Dst: req.Dst.IA()}
-	if req.Flags.Refresh {
-		segReq.State = segfetcher.Fetch
-	}
-	segs, err := f.segfetcher.FetchSegs(ctx, segReq)
-	if err != nil {
-		return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
-	}
-	paths := f.buildPathsToAllDsts(req, segs.Up, segs.Core, segs.Down)
-	paths, err = f.filterRevokedPaths(ctx, paths)
-	if err != nil {
-		return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
-	}
-	if len(paths) == 0 {
-		return f.buildSCIONDReply(nil, req.Flags.PathCount, sciond.ErrorNoPaths), nil
-	}
-	return f.buildSCIONDReply(paths, req.Flags.PathCount, sciond.ErrorOk), nil
-}
-
-// buildSCIONDReply constructs a fresh SCIOND PathReply from the information
-// contained in paths. Information from the topology is used to populate the
-// HostInfo field.
-//
-// If an error (so anything other that ErrorOk) is specified, a reply
-// containing no path and the error is returned. For no error and len(paths) =
-// 0, a reply containing an empty path is returned. For no error and non-zero
-// len(paths), a path reply containing each path for which a BR could be found
-// in the topology is returned. If no such paths exist, a reply containing no
-// path and an internal error is returned.
-func (f *fetcherHandler) buildSCIONDReply(paths []*combinator.Path,
-	maxPaths uint16, errCode sciond.PathErrorCode) *sciond.PathReply {
-
-	var entries []sciond.PathReplyEntry
-	if errCode == sciond.ErrorOk {
-		entries = f.buildSCIONDReplyEntries(paths, maxPaths)
-	}
-	return &sciond.PathReply{
-		ErrorCode: errCode,
-		Entries:   entries,
-	}
-}
-
-// buildSCIONDReplyEntries returns a slice of sciond.PathReplyEntry objects
-// from the metadata contained within paths.
-//
-// If paths is nil or contains zero entries, a slice containing a single
-// PathReplyEntry is returned. The Entry contains an empty RawFwdPath, the MTU
-// set to the MTU of the local AS and an expiration time of time.Now() +
-// MAX_SEGMENT_TTL.
-//
-// The length of the returned slice is not guaranteed to be the same length as
-// paths, as some paths might contain invalid first IFIDs that are not
-// associated to any BR. Thus, it is possible for len(paths) to be non-zero
-// length and the returned slice be of zero length.
-func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path,
-	maxPaths uint16) []sciond.PathReplyEntry {
-
-	var entries []sciond.PathReplyEntry
-	if len(paths) == 0 {
-		// Return a single entry with an empty path
-		return []sciond.PathReplyEntry{
-			{
-				Path: &sciond.FwdPathMeta{
-					FwdPath:    []byte{},
-					Mtu:        f.topology.MTU(),
-					Interfaces: []sciond.PathInterface{},
-					ExpTime:    util.TimeToSecs(time.Now().Add(spath.MaxTTL * time.Second)),
-				},
-			},
-		}
-	}
-	for _, path := range paths {
-		x := &bytes.Buffer{}
-		_, err := path.WriteTo(x)
+	var paths []sciond.PathReplyEntry
+	var errs serrors.List
+	for _, path := range cPaths {
+		p, err := f.translate(path)
 		if err != nil {
-			// In-memory write should never fail
-			panic(err)
-		}
-		nextHop, ok := f.topology.OverlayNextHop(path.Interfaces[0].IfID)
-		if !ok {
-			f.logger.Warn("Unable to find first-hop BR for path", "ifid", path.Interfaces[0].IfID)
+			errs = append(errs, err)
 			continue
 		}
-		entries = append(entries, sciond.PathReplyEntry{
-			Path: &sciond.FwdPathMeta{
-				FwdPath:    x.Bytes(),
-				Mtu:        path.Mtu,
-				Interfaces: path.Interfaces,
-				ExpTime:    uint32(path.ComputeExpTime().Unix()),
-			},
-			HostInfo: hostinfo.FromUDPAddr(*nextHop),
-		})
-		if maxPaths != 0 && len(entries) == int(maxPaths) {
+		paths = append(paths, p)
+		if req.Flags.PathCount != 0 && len(paths) == int(req.Flags.PathCount) {
 			break
 		}
 	}
-	return entries
+	if len(errs) > 0 {
+		log.FromCtx(ctx).Warn("Errors while translating paths", "errs", errs.ToError())
+	}
+	if len(paths) == 0 {
+		return nil, serrors.New("no paths after translation", "errs", errs.ToError())
+	}
+	return &sciond.PathReply{ErrorCode: sciond.ErrorOk, Entries: paths}, nil
 }
 
-// filterRevokedPaths returns a new slice containing only those paths that do
-// not have revoked interfaces in their forwarding path. Only the interfaces
-// that have traffic going through them are checked.
-func (f *fetcherHandler) filterRevokedPaths(ctx context.Context,
-	paths []*combinator.Path) ([]*combinator.Path, error) {
-
-	prevPaths := len(paths)
-	var newPaths []*combinator.Path
-	for _, path := range paths {
-		revoked := false
-		for _, iface := range path.Interfaces {
-			// cache automatically expires outdated revocations every second,
-			// so a cache hit implies revocation is still active.
-			revs, err := f.revocationCache.Get(ctx, revcache.SingleKey(iface.IA(), iface.IfID))
-			if err != nil {
-				f.logger.Error("Failed to get revocation", "err", err)
-				// continue, the client might still get some usable paths like this.
-			}
-			revoked = revoked || len(revs) > 0
+// translate returns a translated sciond.PathReplyEntry objects from the
+// combinator path.
+//
+// For an empty path, the resulting entry contains an empty RawFwdPath, the MTU
+// is set to the MTU of the local AS and an expiration time of time.Now() +
+// MAX_SEGMENT_TTL.
+func (f *fetcher) translate(path *combinator.Path) (sciond.PathReplyEntry, error) {
+	if len(path.Segments) == 0 {
+		entry := sciond.PathReplyEntry{
+			Path: &sciond.FwdPathMeta{
+				FwdPath:    []byte{},
+				Mtu:        f.pather.TopoProvider.Get().MTU(),
+				Interfaces: []sciond.PathInterface{},
+				ExpTime:    util.TimeToSecs(time.Now().Add(spath.MaxTTL * time.Second)),
+			},
 		}
-		if !revoked {
-			newPaths = append(newPaths, path)
-		}
+		return entry, nil
 	}
-	f.logger.Trace("Filtered paths with revocations",
-		"paths", prevPaths, "nonrevoked", len(newPaths))
-	return newPaths, nil
-}
-
-func (f *fetcherHandler) buildPathsToAllDsts(req *sciond.PathReq,
-	ups, cores, downs seg.Segments) []*combinator.Path {
-
-	dsts := f.determineDsts(req, ups, cores)
-	var paths []*combinator.Path
-	for dst := range dsts {
-		paths = append(paths, combinator.Combine(req.Src.IA(), dst, ups, cores, downs)...)
+	x := &bytes.Buffer{}
+	_, err := path.WriteTo(x)
+	if err != nil {
+		// In-memory write should never fail
+		panic(err)
 	}
-	return filterExpiredPaths(paths)
-}
-
-func (f *fetcherHandler) determineDsts(req *sciond.PathReq,
-	ups, cores seg.Segments) map[addr.IA]struct{} {
-
-	wildcardDst := req.Dst.IA().A == 0
-	if wildcardDst {
-		isdLocal := req.Dst.IA().I == f.topology.IA().I
-		return wildcardDsts(wildcardDst, isdLocal, ups, cores)
+	nextHop, ok := f.pather.TopoProvider.Get().OverlayNextHop(path.Interfaces[0].IfID)
+	if !ok {
+		return sciond.PathReplyEntry{}, serrors.New("unable to find first-hop BR for path",
+			"ifid", path.Interfaces[0].IfID)
 	}
-	return map[addr.IA]struct{}{req.Dst.IA(): {}}
-}
-
-func wildcardDsts(wildcard, isdLocal bool, ups, cores seg.Segments) map[addr.IA]struct{} {
-	newDsts := cores.FirstIAs()
-	if isdLocal {
-		// for isd local wildcard we want to reach cores, they are at the end of the up segs.
-		newDsts = append(newDsts, ups.FirstIAs()...)
+	entry := sciond.PathReplyEntry{
+		Path: &sciond.FwdPathMeta{
+			FwdPath:    x.Bytes(),
+			Mtu:        path.Mtu,
+			Interfaces: path.Interfaces,
+			ExpTime:    uint32(path.ComputeExpTime().Unix()),
+		},
+		HostInfo: hostinfo.FromUDPAddr(*nextHop),
 	}
-	dsts := make(map[addr.IA]struct{})
-	for _, dst := range newDsts {
-		dsts[dst] = struct{}{}
-	}
-	return dsts
-}
-
-func filterExpiredPaths(paths []*combinator.Path) []*combinator.Path {
-	var validPaths []*combinator.Path
-	now := time.Now()
-	for _, path := range paths {
-		if path.ComputeExpTime().After(now) {
-			validPaths = append(validPaths, path)
-		}
-	}
-	return validPaths
+	return entry, nil
 }
 
 type dstProvider struct {

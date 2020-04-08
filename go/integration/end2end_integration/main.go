@@ -51,14 +51,22 @@ func realMain() int {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 	defer log.Flush()
-	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(attempts),
+	clientArgs := []string{
+		"-log.console", "debug",
+		"-attempts", strconv.Itoa(attempts),
 		"-timeout", timeout.String(),
+		"-sciond", integration.SCIOND,
 		"-local", integration.SrcAddrPattern + ":0",
-		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace}
-	serverArgs := []string{"-log.console", "debug", "-mode", "server",
-		"-local", integration.DstAddrPattern + ":0"}
+		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
+	}
+	serverArgs := []string{
+		"-log.console", "debug",
+		"-mode", "server",
+		"-sciond", integration.SCIOND,
+		"-local", integration.DstAddrPattern + ":0",
+	}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
 	pairs, err := getPairs()
 	if err != nil {

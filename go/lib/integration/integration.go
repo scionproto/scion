@@ -17,9 +17,11 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"strings"
@@ -30,6 +32,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
@@ -44,6 +47,13 @@ const (
 	CtxTimeout = 2 * time.Second
 	// RetryTimeout is the timeout between different attempts
 	RetryTimeout = time.Second / 2
+	// SCIONDAddressesFile is the default file for SCIOND addresses in a topology created
+	// with the topology generator.
+	SCIONDAddressesFile = "gen/sciond_addresses.json"
+)
+
+var (
+	logConsole string
 )
 
 type iaArgs []addr.IA
@@ -103,16 +113,16 @@ func Init(name string) error {
 }
 
 func addTestFlags() {
-	log.ConsoleLevel = "info"
-	log.AddLogConsFlags()
-	log.AddLogFileFlags()
+	flag.StringVar(&logConsole, "log.console", "info",
+		"Console logging level: trace|debug|info|warn|error|crit")
 	flag.Var(&srcIAs, "src", "Source ISD-ASes (comma separated list)")
 	flag.Var(&dstIAs, "dst", "Destination ISD-ASes (comma separated list)")
 }
 
 func validateFlags(name string) error {
 	flag.Parse()
-	if err := log.SetupFromFlags(name); err != nil {
+	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
+	if err := log.Setup(logCfg); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
 		flag.Usage()
 		return err
@@ -252,11 +262,11 @@ func RunClient(in Integration, pair IAPair, timeout time.Duration) error {
 func ExecuteTimed(name string, f func() error) error {
 	start := time.Now()
 	err := f()
-	level := log.LvlInfo
+	level := log.LevelInfo
 	result := "successful"
 	if err != nil {
 		result = "failed"
-		level = log.LvlError
+		level = log.LevelError
 	}
 	elapsed := time.Since(start)
 	log.Log(level, fmt.Sprintf("Test %s %s, used %v\n", name, result, elapsed))
@@ -348,7 +358,7 @@ func workInParallel(workChan chan workFunc, errors chan error, maxGoRoutines int
 	for i := 1; i <= maxGoRoutines; i++ {
 		wg.Add(1)
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			defer wg.Done()
 			for work := range workChan {
 				err := work()
@@ -370,4 +380,26 @@ func errFromChan(errors chan error) error {
 	default:
 		return nil
 	}
+}
+
+func GetSCIONDAddresses(networksFile string) (map[string]string, error) {
+	b, err := ioutil.ReadFile(networksFile)
+	if err != nil {
+		return nil, err
+	}
+
+	var networks map[string]string
+	err = json.Unmarshal(b, &networks)
+	if err != nil {
+		return nil, err
+	}
+	return networks, nil
+}
+
+func GetSCIONDAddress(networksFile string, ia addr.IA) (string, error) {
+	addresses, err := GetSCIONDAddresses(networksFile)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("[%v]:%d", addresses[ia.String()], sciond.DefaultSCIONDPort), nil
 }

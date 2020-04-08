@@ -118,10 +118,19 @@ func (rp *RtrPkt) parseHopExtns() error {
 		if currHdr != common.HopByHopClass { // Reached end2end header or L4 protocol
 			break
 		}
+		if *offset+2 >= len(rp.Raw) {
+			return common.NewBasicError(ErrExtChainTooLong, nil, "curr", *offset, "max",
+				len(rp.Raw))
+		}
 		currExtn := common.ExtnType{Class: currHdr, Type: rp.Raw[*offset+2]}
 		hdrLen := int(rp.Raw[*offset+1]) * common.LineLen
+		start := *offset + common.ExtnSubHdrLen
+		end := *offset + hdrLen
+		if start >= end || end > len(rp.Raw) {
+			return common.NewBasicError(ErrExtChainCorrupt, nil, "start", start, "end", end)
+		}
 		e, err := rp.extnParseHBH(
-			currExtn, *offset+common.ExtnSubHdrLen, *offset+hdrLen, len(rp.idxs.hbhExt))
+			currExtn, start, end, len(rp.idxs.hbhExt))
 		if err != nil {
 			return err
 		}

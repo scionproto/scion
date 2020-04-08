@@ -28,9 +28,9 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
@@ -42,12 +42,18 @@ type SegmentProvider interface {
 		<-chan beacon.BeaconOrErr, error)
 }
 
+// SegmentStore stores segments in the path database.
+type SegmentStore interface {
+	StoreSegs(context.Context, []*seghandler.SegWithHP) (seghandler.SegStats, error)
+}
+
 var _ periodic.Task = (*Registrar)(nil)
 
 // RegistrarConf is the configuration to create a new registrar.
 type RegistrarConf struct {
 	Config       ExtenderConf
 	SegProvider  SegmentProvider
+	SegStore     SegmentStore
 	TopoProvider topology.Provider
 	Msgr         infra.Messenger
 	Period       time.Duration
@@ -61,6 +67,7 @@ type Registrar struct {
 	*segExtender
 	msgr         infra.Messenger
 	segProvider  SegmentProvider
+	segStore     SegmentStore
 	topoProvider topology.Provider
 	segType      proto.PathSegType
 
@@ -78,6 +85,7 @@ func (cfg RegistrarConf) New() (*Registrar, error) {
 	}
 	r := &Registrar{
 		segProvider:  cfg.SegProvider,
+		segStore:     cfg.SegStore,
 		topoProvider: cfg.TopoProvider,
 		segType:      cfg.SegType,
 		msgr:         cfg.Msgr,
@@ -117,38 +125,91 @@ func (r *Registrar) run(ctx context.Context) error {
 		logger.Debug("[beaconing.Registrar] Ignore non-active peer interfaces", "type", r.segType,
 			"intfs", nonActivePeers)
 	}
+	if r.segType != proto.PathSegType_down {
+		return r.registerLocal(ctx, segments, peers)
+	}
+	return r.registerRemote(ctx, segments, peers)
+}
+
+func (r *Registrar) registerRemote(ctx context.Context, segments <-chan beacon.BeaconOrErr,
+	peers []common.IFIDType) error {
+
+	logger := log.FromCtx(ctx)
 	s := newSummary()
 	var expected int
 	var wg sync.WaitGroup
 	for bOrErr := range segments {
 		if bOrErr.Err != nil {
-			logger.Error("[beaconing.Registrar] Unable to get beacon", "err", err)
+			logger.Error("[beaconing.Registrar] Unable to get beacon", "err", bOrErr.Err)
 			metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
 			continue
 		}
 		if !r.IntfActive(bOrErr.Beacon.InIfId) {
 			continue
 		}
-		expected++
-		s := segmentRegistrar{
-			Registrar: r,
-			beacon:    bOrErr.Beacon,
-			peers:     peers,
-			summary:   s,
-			logger:    logger,
+		if err := r.extend(bOrErr.Beacon.Segment, bOrErr.Beacon.InIfId, 0, peers); err != nil {
+			metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
+			logger.Error("[beaconing.Registrar] Unable to terminate beacon",
+				"beacon", bOrErr.Beacon, "err", err)
+			continue
 		}
+		expected++
+		s := remoteRegistrar{
+			segType:      r.segType,
+			msgr:         r.msgr,
+			topoProvider: r.topoProvider,
+			summary:      s,
+			wg:           &wg,
+		}
+
 		// Avoid head-of-line blocking when sending message to slow servers.
-		s.start(ctx, &wg)
+		s.start(ctx, bOrErr.Beacon)
 	}
 	wg.Wait()
-	if expected == 0 {
-		return nil
-	}
-	if s.count <= 0 {
+	if expected > 0 && s.count <= 0 {
 		return common.NewBasicError("No beacons registered", nil, "candidates", expected)
 	}
 	r.lastSucc = r.tick.now
 	r.logSummary(logger, s)
+	return nil
+}
+
+func (r *Registrar) registerLocal(ctx context.Context, segments <-chan beacon.BeaconOrErr,
+	peers []common.IFIDType) error {
+
+	logger := log.FromCtx(ctx)
+	beacons := make(map[string]beacon.Beacon)
+	var toRegister []*seghandler.SegWithHP
+	for bOrErr := range segments {
+		if bOrErr.Err != nil {
+			logger.Error("[beaconing.Registrar] Unable to get beacon", "err", bOrErr.Err)
+			metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
+			continue
+		}
+		if !r.IntfActive(bOrErr.Beacon.InIfId) {
+			continue
+		}
+		if err := r.extend(bOrErr.Beacon.Segment, bOrErr.Beacon.InIfId, 0, peers); err != nil {
+			metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
+			logger.Error("[beaconing.Registrar] Unable to terminate beacon",
+				"beacon", bOrErr.Beacon, "err", err)
+			continue
+		}
+		toRegister = append(toRegister, &seghandler.SegWithHP{
+			Seg: &seg.Meta{Type: r.segType, Segment: bOrErr.Beacon.Segment},
+		})
+		beacons[bOrErr.Beacon.Segment.GetLoggingID()] = bOrErr.Beacon
+	}
+	if len(toRegister) == 0 {
+		return nil
+	}
+	stats, err := r.segStore.StoreSegs(ctx, toRegister)
+	updateMetricsFromStat(stats, beacons, r.segType.String())
+	if err != nil {
+		return err
+	}
+	r.lastSucc = r.tick.now
+	r.logSummary(logger, summarizeStats(stats, beacons))
 	return nil
 }
 
@@ -164,90 +225,95 @@ func (r *Registrar) logSummary(logger log.Logger, s *summary) {
 	}
 }
 
-// segmentRegistrar registers one segment with the path server.
-type segmentRegistrar struct {
-	*Registrar
-	beacon  beacon.Beacon
-	peers   []common.IFIDType
-	summary *summary
-	logger  log.Logger
-
-	// mutable
-	reg  *path_mgmt.SegReg
-	addr net.Addr
+// remoteRegistrar registers one segment with the path server.
+type remoteRegistrar struct {
+	segType      proto.PathSegType
+	msgr         infra.Messenger
+	topoProvider topology.Provider
+	summary      *summary
+	wg           *sync.WaitGroup
 }
 
 // start extends the beacon and starts a go routine that registers the beacon
 // with the path server.
-func (r *segmentRegistrar) start(ctx context.Context, wg *sync.WaitGroup) {
-	if err := r.setSegToRegister(); err != nil {
-		r.logger.Error("[beaconing.Registrar] Unable to create segment",
-			"type", r.segType, "err", err)
-		return
-	}
-	r.startSendSegReg(ctx, wg)
-}
-
-// setSegToRegister sets the segment to register and the address to send to.
-func (r *segmentRegistrar) setSegToRegister() error {
-	if err := r.extend(r.beacon.Segment, r.beacon.InIfId, 0, r.peers); err != nil {
-		metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
-		return common.NewBasicError("Unable to terminate", err, "beacon", r.beacon)
-	}
-	r.reg = &path_mgmt.SegReg{
+func (r *remoteRegistrar) start(ctx context.Context, bseg beacon.Beacon) {
+	logger := log.FromCtx(ctx)
+	reg := &path_mgmt.SegReg{
 		SegRecs: &path_mgmt.SegRecs{
 			Recs: []*seg.Meta{
 				{
 					Type:    r.segType,
-					Segment: r.beacon.Segment,
+					Segment: bseg.Segment,
 				},
 			},
 		},
 	}
-	var err error
-	r.addr, err = r.chooseServer(r.beacon.Segment)
+	addr, err := addrutil.GetPath(addr.SvcPS, bseg.Segment, r.topoProvider)
 	if err != nil {
 		metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
-		return common.NewBasicError("Unable to choose server", err)
+		logger.Error("[beaconing.Registrar] Unable to choose server", "err", err)
+		return
 	}
-	return nil
+	r.startSendSegReg(ctx, bseg, reg, addr)
 }
 
 // startSendSegReg adds to the wait group and starts a goroutine that sends the
 // registration message to the peer.
-func (r *segmentRegistrar) startSendSegReg(ctx context.Context, wg *sync.WaitGroup) {
-	wg.Add(1)
+func (r *remoteRegistrar) startSendSegReg(ctx context.Context, bseg beacon.Beacon,
+	reg *path_mgmt.SegReg, addr net.Addr) {
+
+	r.wg.Add(1)
 	go func() {
-		defer log.LogPanicAndExit()
-		defer wg.Done()
-		if err := r.msgr.SendSegReg(ctx, r.reg, r.addr, messenger.NextId()); err != nil {
-			r.logger.Error("[beaconing.Registrar] Unable to register segment",
-				"addr", r.addr, "err", err)
+		defer log.HandlePanic()
+		defer r.wg.Done()
+		logger := log.FromCtx(ctx)
+		if err := r.msgr.SendSegReg(ctx, reg, addr, messenger.NextId()); err != nil {
+			logger.Error("[beaconing.Registrar] Unable to register segment", "type", r.segType,
+				"addr", addr, "err", err)
 			metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
 			return
 		}
-		r.onSuccess()
-		r.logger.Trace("[beaconing.Registrar] Successfully registered segment", "type", r.segType,
-			"addr", r.addr, "seg", r.beacon.Segment)
+		r.summary.AddSrc(bseg.Segment.FirstIA())
+		r.summary.Inc()
+		l := metrics.RegistrarLabels{
+			SegType: r.segType.String(),
+			StartIA: bseg.Segment.FirstIA(),
+			InIfID:  bseg.InIfId,
+			Result:  metrics.Success,
+		}
+		metrics.Registrar.Beacons(l).Inc()
+		logger.Trace("[beaconing.Registrar] Successfully registered segment", "type", r.segType,
+			"addr", addr, "seg", bseg.Segment)
 	}()
 }
 
-func (r *segmentRegistrar) onSuccess() {
-	r.summary.AddSrc(r.beacon.Segment.FirstIA())
-	r.summary.Inc()
-	l := metrics.RegistrarLabels{
-		SegType: r.segType.String(),
-		StartIA: r.beacon.Segment.FirstIA(),
-		InIfID:  r.beacon.InIfId,
-		Result:  metrics.Success,
+func updateMetricsFromStat(s seghandler.SegStats, b map[string]beacon.Beacon, segType string) {
+	for _, id := range s.InsertedSegs {
+		metrics.Registrar.Beacons(metrics.RegistrarLabels{
+			InIfID:  b[id].InIfId,
+			StartIA: b[id].Segment.FirstIA(),
+			Result:  metrics.OkNew,
+			SegType: segType,
+		}).Inc()
 	}
-	metrics.Registrar.Beacons(l).Inc()
+	for _, id := range s.UpdatedSegs {
+		metrics.Registrar.Beacons(metrics.RegistrarLabels{
+			InIfID:  b[id].InIfId,
+			StartIA: b[id].Segment.FirstIA(),
+			Result:  metrics.OkUpdated,
+			SegType: segType,
+		}).Inc()
+	}
+	if c := len(b) - s.Total(); c > 0 {
+		metrics.Registrar.InternalErrorsWithType(segType).Add(float64(c))
+	}
 }
 
-func (r *segmentRegistrar) chooseServer(pseg *seg.PathSegment) (net.Addr, error) {
-	if r.segType != proto.PathSegType_down {
-		topo := r.topoProvider.Get()
-		return &snet.SVCAddr{IA: topo.IA(), SVC: addr.SvcPS}, nil
+func summarizeStats(s seghandler.SegStats, b map[string]beacon.Beacon) *summary {
+	sum := newSummary()
+	for _, id := range append(s.InsertedSegs, s.UpdatedSegs...) {
+		sum.AddSrc(b[id].Segment.FirstIA())
+		sum.Inc()
 	}
-	return addrutil.GetPath(addr.SvcPS, pseg, r.topoProvider)
+	return sum
 }

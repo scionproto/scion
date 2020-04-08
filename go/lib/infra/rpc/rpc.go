@@ -119,7 +119,7 @@ func (s *Server) handleQUICSession(session quic.Session) error {
 		Address: session.RemoteAddr(),
 	}
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		s.Handler.ServeRPC(rw, request)
 	}()
 	return nil
@@ -152,7 +152,7 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 		return nil, err
 	}
 	go func() {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		<-ctx.Done()
 		stream.CancelRead(CtxTimedOutError)
 		stream.CancelWrite(CtxTimedOutError)

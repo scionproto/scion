@@ -16,6 +16,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/scionproto/scion/go/border/braccept/shared"
 )
@@ -75,7 +76,7 @@ func revocation_core_to_local_isd() int {
 	pkt2 := AllocatePacket()
 	pkt2.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
-		IP4: Src=192.168.0.11 Dst=192.168.0.51 NextHdr=UDP Flags=DF Checksum=0
+		IP4: Src=192.168.0.11 Dst=192.168.0.71 NextHdr=UDP Flags=DF Checksum=0
 		UDP: Src=30041 Dst=30041
 		SCION: NextHdr=UDP SrcType=IPv4 DstType=SVC
 			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.101 DstIA=1-ff00:0:1 Dst=PS
@@ -87,7 +88,7 @@ func revocation_core_to_local_isd() int {
 	pkt2.SetChecksum("UDP_1", "SCION")
 
 	pkt3 := pkt2.CloneAndUpdate(`
-		IP4: Dst=192.168.0.61
+		IP4: Dst=192.168.0.71
 		SCION:
 			ADDR: Dst=BS
 	`)
@@ -153,7 +154,7 @@ func revocation_child_to_internal_host() int {
 	pkt2 := AllocatePacket()
 	pkt2.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
-		IP4: Src=192.168.0.11 Dst=192.168.0.51 NextHdr=UDP Flags=DF Checksum=0
+		IP4: Src=192.168.0.11 Dst=192.168.0.71 NextHdr=UDP Flags=DF Checksum=0
 		UDP: Src=30041 Dst=30041
 		SCION: NextHdr=UDP SrcType=IPv4 DstType=SVC
 			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.101 DstIA=1-ff00:0:1 Dst=PS
@@ -223,7 +224,7 @@ func revocation_parent_to_child() int {
 	pkt2 := AllocatePacket()
 	pkt2.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
-		IP4: Src=192.168.0.11 Dst=192.168.0.51 NextHdr=UDP Flags=DF Checksum=0
+		IP4: Src=192.168.0.11 Dst=192.168.0.71 NextHdr=UDP Flags=DF Checksum=0
 		UDP: Src=30041 Dst=30041
 		SCION: NextHdr=UDP SrcType=IPv4 DstType=SVC
 			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.101 DstIA=1-ff00:0:1 Dst=PS
@@ -235,7 +236,7 @@ func revocation_parent_to_child() int {
 	pkt2.SetChecksum("UDP_1", "SCION")
 
 	pkt3 := pkt2.CloneAndUpdate(`
-		IP4: Dst=192.168.0.61
+		IP4: Dst=192.168.0.71
 		SCION:
 			ADDR: Dst=BS
 	`)
@@ -504,4 +505,58 @@ func revocation_not_owned_child_link() int {
 	Sleep("250ms")
 
 	return ret
+}
+
+func revocation_expired_not_owned_child_link() int {
+
+	shared.UpdateNow()
+
+	ifStateDown := AllocatePacket()
+	ifStateDown.ParsePacket(fmt.Sprintf(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=f0:0d:ca:fe:00:01 EthernetType=IPv4
+		IP4: Src=192.168.0.61 Dst=192.168.0.11 NextHdr=UDP Flags=DF
+		UDP: Src=20006 Dst=30041
+		SCION: NextHdr=UDP SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.61 DstIA=1-ff00:0:1 Dst=192.168.0.101
+		UDP_1: Src=20006 Dst=20001
+		IFStateInfo: IfID=181 Active=false
+			SignedRevInfo: IfID=181 IA=1-ff00:0:1 Link=child TS=%d TTL=10
+	`, time.Now().Add(-9*time.Second).Unix()))
+	ifStateDown.SetDev("veth_int")
+	ifStateDown.SetChecksum("UDP", "IP4")
+	ifStateDown.SetChecksum("UDP_1", "SCION")
+
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=f0:0d:ca:fe:00:13 EthernetType=IPv4
+		IP4: Src=192.168.13.3 Dst=192.168.13.2 NextHdr=UDP Flags=DF
+		UDP: Src=40000 Dst=50000
+		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:3 Src=172.16.3.1 DstIA=1-ff00:0:8 Dst=172.16.8.1
+			IF_1: ISD=1 Hops=3 Flags=ConsDir
+				HF_1: ConsIngress=0   ConsEgress=311
+				HF_2: ConsIngress=131 ConsEgress=181
+				HF_3: ConsIngress=811 ConsEgress=0
+		UDP_1: Src=40111 Dst=40222
+	`)
+	pkt0.SetDev("veth_131")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("UDP_1", "SCION")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_2", "HF_1")
+
+	pkt1 := pkt0.CloneAndUpdate(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:00:01 DstMAC=f0:0d:ca:fe:be:ef
+		IP4: Src=192.168.0.11 Dst=192.168.0.13 Checksum=0
+		UDP: Src=30001 Dst=30003
+	`)
+	pkt1.SetDev("veth_int")
+	pkt1.SetChecksum("UDP", "IP4")
+
+	// Send/Expect packets
+	SendPackets(ifStateDown)
+	Sleep("1000ms")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("expired revoked child (not owned) interface", defaultTimeout, pkt1)
 }

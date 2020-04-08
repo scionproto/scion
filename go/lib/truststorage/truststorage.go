@@ -81,7 +81,7 @@ func (cfg *TrustDBConf) Sample(dst io.Writer, path config.Path, ctx config.CtxMa
 }
 
 func (cfg *TrustDBConf) ConfigName() string {
-	return "trustDB"
+	return "trust_db"
 }
 
 func (cfg *TrustDBConf) Validate() error {
@@ -102,6 +102,13 @@ func (cfg *TrustDBConf) validateBackend() error {
 		return serrors.New("No backend set")
 	}
 	return common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
+}
+
+func (cfg *TrustDBConf) validateConnection() error {
+	if cfg.Connection() == "" {
+		return serrors.New("empty connection not allowed")
+	}
+	return nil
 }
 
 // New creates a trust database from the config.

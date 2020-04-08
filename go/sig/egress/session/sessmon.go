@@ -21,14 +21,14 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sigdisp"
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/siginfo"
-	"github.com/scionproto/scion/go/sig/internal/disp"
 	"github.com/scionproto/scion/go/sig/internal/metrics"
 	"github.com/scionproto/scion/go/sig/internal/sigcmn"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 const (
@@ -42,7 +42,7 @@ const (
 // sessMonitor is responsible for monitoring a session, polling remote SIGs, and switching
 // remote SIGs and paths as needed.
 type sessMonitor struct {
-	log.Logger
+	logger log.Logger
 	// the Session this instance is monitoring.
 	sess *Session
 	// the (filtered) pool of paths to the remote AS, maintained by pathmgr.
@@ -56,7 +56,7 @@ type sessMonitor struct {
 	// when sessMonitor is trying to switch SIGs/paths, this is the id of the
 	// last PollReq sent, so that sessMonitor can correlate replies to the
 	// remoteInfo used for the request.
-	updateMsgId mgmt.MsgIdType
+	updateMsgId sig_mgmt.MsgIdType
 	// the last time a PollRep was received.
 	lastReply time.Time
 }
@@ -66,7 +66,7 @@ func newSessMonitor(sess *Session) *sessMonitor {
 	metrics.SessionHealth.WithLabelValues(sess.IA().String(),
 		sess.SessId.String()).Set(0.0)
 	return &sessMonitor{
-		Logger:       sess.Logger,
+		logger:       sess.logger,
 		sess:         sess,
 		pool:         sess.pool,
 		sessPathPool: iface.NewSessPathPool(),
@@ -81,9 +81,9 @@ func (sm *sessMonitor) run() {
 	pathExpiryTick := time.NewTicker(pathExpiryLen)
 	defer pathExpiryTick.Stop()
 	// Register with SIG ctrl dispatcher
-	regc := make(disp.RegPldChan, 1)
-	disp.Dispatcher.Register(disp.RegPollRep,
-		disp.MkRegPollKey(sm.sess.IA(), sm.sess.SessId, 0), regc)
+	regc := make(sigdisp.RegPldChan, 1)
+	sigdisp.Dispatcher.Register(sigdisp.RegPollRep,
+		sigdisp.MkRegPollKey(sm.sess.IA(), sm.sess.SessId, 0), regc)
 	sm.lastReply = time.Now()
 	// Start by querying for the remote SIG instance.
 	sm.smRemote = &iface.RemoteInfo{
@@ -108,12 +108,12 @@ Top:
 			sm.sessPathPool.ExpireFails()
 		}
 	}
-	err := disp.Dispatcher.Unregister(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA(),
+	err := sigdisp.Dispatcher.Unregister(sigdisp.RegPollRep, sigdisp.MkRegPollKey(sm.sess.IA(),
 		sm.sess.SessId, 0))
 	if err != nil {
 		log.Error("sessMonitor: unable to unregister from ctrl dispatcher", "err", err)
 	}
-	sm.Info("sessMonitor: stopped")
+	sm.logger.Info("sessMonitor: stopped")
 }
 
 func (sm *sessMonitor) updatePaths() {
@@ -130,7 +130,7 @@ func (sm *sessMonitor) updatePaths() {
 	// Expiration or MTU of the current path may have changed during the update.
 	// In such a case we want to push the updated path to the Session.
 	if currPath.Path().Expiry() != expTime || currPath.Path().MTU() != mtu {
-		sm.Trace("sessMonitor: Path metadata changed",
+		sm.logger.Trace("sessMonitor: Path metadata changed",
 			"oldExpiration", expTime,
 			"newExpiration", currPath.Path().Expiry(),
 			"oldMTU", mtu,
@@ -145,7 +145,7 @@ func (sm *sessMonitor) updateRemote() {
 	// path but also ask for a new SIG address via anycast SvcSIG request.
 	since := time.Since(sm.lastReply)
 	if since > tout {
-		sm.Info("sessMonitor: Remote SIG timeout", "remote", sm.smRemote, "duration", since)
+		sm.logger.Info("sessMonitor: Remote SIG timeout", "remote", sm.smRemote, "duration", since)
 		metrics.SessionTimedOut.WithLabelValues(
 			sm.sess.IA().String(),
 			sm.sess.SessId.String()).Inc()
@@ -163,19 +163,19 @@ func (sm *sessMonitor) updateRemote() {
 		// XXX(roosd): The session's remote SIG will remain the same until the
 		// monitor discovers a remote SIG.
 		sm.updateSessSnap()
-		sm.Info("sessMonitor: New remote", "remote", sm.smRemote)
+		sm.logger.Info("sessMonitor: New remote", "remote", sm.smRemote)
 		return
 	}
 
 	// There's no path selected yet. This happens at the beginning of the session,
 	// but also when the pool is empty. Try to get a new path.
 	if sm.smRemote.SessPath == nil {
-		sm.Info("sessMonitor: Path not available", "remote", sm.smRemote)
+		sm.logger.Info("sessMonitor: Path not available", "remote", sm.smRemote)
 		sm.setHealth(false)
 		// Start monitoring the new path.
 		sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath, "no_path")
 		sm.updateSessSnap()
-		sm.Info("sessMonitor: New remote", "remote", sm.smRemote)
+		sm.logger.Info("sessMonitor: New remote", "remote", sm.smRemote)
 		return
 	}
 
@@ -185,26 +185,26 @@ func (sm *sessMonitor) updateRemote() {
 	// by the session monitor through the regular timeout mechanism above.
 	updatedPath := sm.sessPathPool.GetByKey(sm.smRemote.SessPath.Key())
 	if updatedPath == nil {
-		sm.Info("sessMonitor: Current path was invalidated", "remote", sm.smRemote)
+		sm.logger.Info("sessMonitor: Current path was invalidated", "remote", sm.smRemote)
 		// Start monitoring the new path.
 		sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath, "retired")
 		// Make session use the new path immediately even though we haven't yet checked
 		// whether it works.
 		sm.updateSessSnap()
-		sm.Info("sessMonitor: New remote", "remote", sm.smRemote)
+		sm.logger.Info("sessMonitor: New remote", "remote", sm.smRemote)
 		return
 	}
 
 	// If the current path is about to expire, make session use the updated version of the path.
 	// If the updated version is about to expire as well, let's switch to a different path.
 	if sm.smRemote.SessPath.IsCloseToExpiry() {
-		sm.Info("sessMonitor: Current path is about to expire", "remote", sm.smRemote)
+		sm.logger.Info("sessMonitor: Current path is about to expire", "remote", sm.smRemote)
 		sm.smRemote.SessPath = updatedPath
 		if sm.smRemote.SessPath.IsCloseToExpiry() {
 			sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath, "expired")
 		}
 		sm.updateSessSnap()
-		sm.Info("sessMonitor: New remote", "remote", sm.smRemote)
+		sm.logger.Info("sessMonitor: New remote", "remote", sm.smRemote)
 		return
 	}
 }
@@ -256,25 +256,27 @@ func (sm *sessMonitor) sendReq() {
 	if sm.smRemote == nil || sm.smRemote.SessPath == nil {
 		return
 	}
-	sm.updateMsgId = mgmt.MsgIdType(time.Now().UnixNano())
-	spld, err := mgmt.NewPld(sm.updateMsgId, mgmt.NewPollReq(sigcmn.MgmtAddr, sm.sess.SessId))
+	sm.updateMsgId = sig_mgmt.MsgIdType(time.Now().UnixNano())
+	mgmtAddr := sigcmn.GetMgmtAddr()
+	spld, err := sig_mgmt.NewPld(sm.updateMsgId, sig_mgmt.NewPollReq(&mgmtAddr,
+		sm.sess.SessId))
 	if err != nil {
-		sm.Error("sessMonitor: Error creating SIGCtrl payload", "err", err)
+		sm.logger.Error("sessMonitor: Error creating SIGCtrl payload", "err", err)
 		return
 	}
 	cpld, err := ctrl.NewPld(spld, nil)
 	if err != nil {
-		sm.Error("sessMonitor: Error creating Ctrl payload", "err", err)
+		sm.logger.Error("sessMonitor: Error creating Ctrl payload", "err", err)
 		return
 	}
 	scpld, err := cpld.SignedPld(infra.NullSigner)
 	if err != nil {
-		sm.Error("sessMonitor: Error creating signed Ctrl payload", "err", err)
+		sm.logger.Error("sessMonitor: Error creating signed Ctrl payload", "err", err)
 		return
 	}
 	raw, err := scpld.PackPld()
 	if err != nil {
-		sm.Error("sessMonitor: Error packing signed Ctrl payload", "err", err)
+		sm.logger.Error("sessMonitor: Error packing signed Ctrl payload", "err", err)
 		return
 	}
 	raddr := sm.smRemote.Sig.CtrlSnetAddr(
@@ -286,20 +288,20 @@ func (sm *sessMonitor) sendReq() {
 	// goroutines write to it.
 	_, err = sm.sess.conn.WriteTo(raw, raddr)
 	if err != nil {
-		sm.Error("sessMonitor: Error sending signed Ctrl payload", "err", err)
+		sm.logger.Error("sessMonitor: Error sending signed Ctrl payload", "err", err)
 	}
 	metrics.SessionProbes.WithLabelValues(sm.sess.IA().String(), sm.sess.SessId.String()).Inc()
 }
 
-func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
-	pollRep, ok := rpld.P.(*mgmt.PollRep)
+func (sm *sessMonitor) handleRep(rpld *sigdisp.RegPld) {
+	pollRep, ok := rpld.P.(*sig_mgmt.PollRep)
 	if !ok {
-		sm.Error("sessMonitor: non-SIGPollRep payload received",
+		sm.logger.Error("sessMonitor: non-SIGPollRep payload received",
 			"src", rpld.Addr, "type", common.TypeOf(rpld.P), "pld", rpld.P)
 		return
 	}
 	if !sm.sess.IA().Equal(rpld.Addr.IA) {
-		sm.Error("sessMonitor: SIGPollRep from wrong IA",
+		sm.logger.Error("sessMonitor: SIGPollRep from wrong IA",
 			"expected", sm.sess.IA(), "actual", rpld.Addr.IA)
 		return
 	}
@@ -320,13 +322,14 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 			IA:          sm.smRemote.Sig.IA,
 			Host:        pollRep.Addr.Ctrl.Host(),
 			CtrlL4Port:  int(pollRep.Addr.Ctrl.Port),
-			EncapL4Port: int(pollRep.Addr.EncapPort),
+			EncapL4Port: int(pollRep.Addr.Data.Port),
 		}
 		// Update session's remote, if needed.
 		sessRemote := sm.sess.Remote()
 		if sessRemote == nil || !sm.smRemote.Sig.Equal(sessRemote.Sig) {
 			sm.updateSessSnap()
-			sm.Info("sessMonitor: updating remote Info", "msgId", rpld.Id, "remote", sm.smRemote)
+			sm.logger.Info("sessMonitor: updating remote Info",
+				"msgId", rpld.Id, "remote", sm.smRemote)
 			metrics.SessionRemoteSwitched.WithLabelValues(sm.sess.IA().String(),
 				sm.sess.SessId.String()).Inc()
 		}
@@ -337,7 +340,8 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 			sm.sess.SessId.String()).Observe(latency.Seconds())
 	} else {
 		// This is going to happen if latency of the path is greater than the poll ticker period.
-		sm.Info("Reply to an old request received", "request", sm.updateMsgId, "reply", rpld.Id)
+		sm.logger.Info("Reply to an old request received",
+			"request", sm.updateMsgId, "reply", rpld.Id)
 		metrics.SessionOldPollReplies.WithLabelValues(
 			sm.sess.IA().String(),
 			sm.sess.SessId.String()).Inc()

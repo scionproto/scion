@@ -32,15 +32,15 @@ import (
 	"fmt"
 	"net"
 
+	capnp "zombiezen.com/go/capnproto2"
+	"zombiezen.com/go/capnproto2/pogs"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/infra/disp"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond/internal/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -51,10 +51,10 @@ var (
 )
 
 const (
-	// DefaultSCIONDPath contains the system default for a SCIOND socket.
-	DefaultSCIONDPath = "/run/shm/sciond/default.sock"
-	// DefaultSocketFileMode allows read/write to the user and group only.
-	DefaultSocketFileMode = 0770
+	// DefaultSCIONDAddress contains the system default for a SCIOND socket.
+	DefaultSCIONDAddress = "127.0.0.1:30255"
+	// DefaultSCIONDPort contains the default port for a SCIOND client API socket.
+	DefaultSCIONDPort = 30255
 )
 
 // Service describes a SCIOND endpoint. New connections to SCIOND can be
@@ -78,11 +78,12 @@ func (s *service) Connect(ctx context.Context) (Connector, error) {
 	return newConn(ctx, s.path)
 }
 
-// A Connector is used to query SCIOND. The connector maintains an internal
-// cache for interface, service and AS information. All connector methods block until either
-// an error occurs, or the method successfully returns.
+// A Connector is used to query SCIOND. All connector methods block until
+// either an error occurs, or the method successfully returns.
 type Connector interface {
-	// Paths requests from SCIOND a set of end to end paths between src and
+	// LocalIA requests from SCIOND the local ISD-AS number.
+	LocalIA(ctx context.Context) (addr.IA, error)
+	// Paths requests from SCIOND a set of end to end paths between the source and destination.
 	Paths(ctx context.Context, dst, src addr.IA, f PathReqFlags) ([]snet.Path, error)
 	// ASInfo requests from SCIOND information about AS ia.
 	ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error)
@@ -105,12 +106,11 @@ type Connector interface {
 }
 
 type conn struct {
-	requestID uint64
-	path      string
+	address string
 }
 
-func newConn(ctx context.Context, path string) (*conn, error) {
-	c := &conn{path: path}
+func newConn(ctx context.Context, address string) (*conn, error) {
+	c := &conn{address: address}
 	// Test during initialization that SCIOND is alive; this helps catch some
 	// unfixable issues (like bad socket name) while apps are still
 	// initializing their networking.
@@ -121,56 +121,44 @@ func newConn(ctx context.Context, path string) (*conn, error) {
 }
 
 func (c *conn) checkForSciond(ctx context.Context) error {
-	dispatcher, err := c.ctxAwareConnect(ctx)
+	conn, err := c.connect(ctx)
 	if err != nil {
 		return serrors.Wrap(ErrUnableToConnect, err)
 	}
-	if err := dispatcher.Close(ctx); err != nil {
+	if err := conn.Close(); err != nil {
 		return serrors.WrapStr("Error when closing test SCIOND conn", err)
 	}
 	return nil
 }
 
-// ctxAwareConnect establishes a connection to SCIOND. The returned infra message dispatcher is not
-// used for its request-response matching capabilities (because a single RPC is happening on each
-// underlying connection), but rather for its context-aware API.
-func (c *conn) ctxAwareConnect(ctx context.Context) (*disp.Dispatcher, error) {
-	type returnValue struct {
-		dispatcher *disp.Dispatcher
-		err        error
+// connect establishes a connection to SCIOND.
+func (c *conn) connect(ctx context.Context) (net.Conn, error) {
+	dialer := &net.Dialer{}
+	conn, err := dialer.DialContext(ctx, "tcp", c.address)
+	if err != nil {
+		metrics.Conns.Inc(errorToPrometheusLabel(err))
+		return nil, err
 	}
-	barrier := make(chan returnValue, 1)
-	go func() {
-		defer log.LogPanicAndExit()
-		dispatcher, err := dial(ctx, c.path)
-		barrier <- returnValue{dispatcher: dispatcher, err: err}
-	}()
-
-	select {
-	case rValue := <-barrier:
-		metrics.Conns.Inc(errorToPrometheusLabel(rValue.err))
-		return rValue.dispatcher, rValue.err
-	case <-ctx.Done():
-		// In the situation where ConnectTimeout doesn't finish and ctx is Done
-		// via a cancellation function, this may (1) permanently leak a
-		// goroutine, if ctx doesn't have a deadline, or (2) for a long amount
-		// of time, if the deadline is very far into the future.
-		metrics.Conns.Inc(errorToPrometheusLabel(ctx.Err()))
-		return nil, ctx.Err()
+	if deadline, ok := ctx.Deadline(); ok {
+		if err := conn.SetDeadline(deadline); err != nil {
+			metrics.Conns.Inc(errorToPrometheusLabel(err))
+			return nil, err
+		}
 	}
+	return conn, nil
 }
 
 func (c *conn) Paths(ctx context.Context, dst, src addr.IA,
 	f PathReqFlags) ([]snet.Path, error) {
 
-	roundTripper, err := c.ctxAwareConnect(ctx)
+	conn, err := c.connect(ctx)
 	if err != nil {
 		metrics.PathRequests.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.Wrap(ErrUnableToConnect, err)
 	}
-	defer roundTripper.Close(ctx)
-	reply, err := roundTripper.Request(
-		ctx,
+	defer conn.Close()
+
+	reply, err := roundTrip(
 		&Pld{
 			TraceId: tracing.IDFromCtx(ctx),
 			Which:   proto.SCIONDMsg_Which_pathReq,
@@ -180,25 +168,32 @@ func (c *conn) Paths(ctx context.Context, dst, src addr.IA,
 				Flags: f,
 			},
 		},
-		nil,
+		conn,
 	)
 	if err != nil {
 		metrics.PathRequests.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.WrapStr("[sciond-API] Failed to get Paths", err)
 	}
 	metrics.PathRequests.Inc(metrics.OkSuccess)
-	return pathReplyToPaths(reply.(*Pld).PathReply, dst)
+	return pathReplyToPaths(reply.PathReply, dst)
+}
+
+func (c *conn) LocalIA(ctx context.Context) (addr.IA, error) {
+	asInfo, err := c.ASInfo(ctx, addr.IA{})
+	if err != nil {
+		return addr.IA{}, err
+	}
+	ia := asInfo.Entries[0].RawIsdas.IA()
+	return ia, nil
 }
 
 func (c *conn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
-	roundTripper, err := c.ctxAwareConnect(ctx)
+	conn, err := c.connect(ctx)
 	if err != nil {
 		metrics.ASInfos.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.Wrap(ErrUnableToConnect, err)
 	}
-	defer roundTripper.Close(ctx)
-	pld, err := roundTripper.Request(
-		ctx,
+	pld, err := roundTrip(
 		&Pld{
 			TraceId: tracing.IDFromCtx(ctx),
 			Which:   proto.SCIONDMsg_Which_asInfoReq,
@@ -206,27 +201,25 @@ func (c *conn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
 				Isdas: ia.IAInt(),
 			},
 		},
-		nil,
+		conn,
 	)
 	if err != nil {
 		metrics.ASInfos.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.WrapStr("[sciond-API] Failed to get ASInfo", err)
 	}
 	metrics.ASInfos.Inc(metrics.OkSuccess)
-	return pld.(*Pld).AsInfoReply, nil
+	return pld.AsInfoReply, nil
 }
 
 func (c *conn) IFInfo(ctx context.Context,
 	ifs []common.IFIDType) (map[common.IFIDType]*net.UDPAddr, error) {
 
-	roundTripper, err := c.ctxAwareConnect(ctx)
+	conn, err := c.connect(ctx)
 	if err != nil {
 		metrics.IFInfos.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.Wrap(ErrUnableToConnect, err)
 	}
-	defer roundTripper.Close(ctx)
-	pld, err := roundTripper.Request(
-		ctx,
+	pld, err := roundTrip(
 		&Pld{
 			TraceId: tracing.IDFromCtx(ctx),
 			Which:   proto.SCIONDMsg_Which_ifInfoRequest,
@@ -234,27 +227,25 @@ func (c *conn) IFInfo(ctx context.Context,
 				IfIDs: ifs,
 			},
 		},
-		nil,
+		conn,
 	)
 	if err != nil {
 		metrics.IFInfos.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.WrapStr("[sciond-API] Failed to get IFInfo", err)
 	}
 	metrics.IFInfos.Inc(metrics.OkSuccess)
-	return ifinfoReplyToMap(pld.(*Pld).IfInfoReply), nil
+	return ifinfoReplyToMap(pld.IfInfoReply), nil
 }
 
 func (c *conn) SVCInfo(ctx context.Context,
 	svcTypes []proto.ServiceType) (*ServiceInfoReply, error) {
 
-	roundTripper, err := c.ctxAwareConnect(ctx)
+	conn, err := c.connect(ctx)
 	if err != nil {
 		metrics.SVCInfos.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.Wrap(ErrUnableToConnect, err)
 	}
-	defer roundTripper.Close(ctx)
-	pld, err := roundTripper.Request(
-		ctx,
+	pld, err := roundTrip(
 		&Pld{
 			TraceId: tracing.IDFromCtx(ctx),
 			Which:   proto.SCIONDMsg_Which_serviceInfoRequest,
@@ -262,14 +253,14 @@ func (c *conn) SVCInfo(ctx context.Context,
 				ServiceTypes: svcTypes,
 			},
 		},
-		nil,
+		conn,
 	)
 	if err != nil {
 		metrics.SVCInfos.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.WrapStr("[sciond-API] Failed to get SVCInfo", err)
 	}
 	metrics.SVCInfos.Inc(metrics.OkSuccess)
-	return pld.(*Pld).ServiceInfoReply, nil
+	return pld.ServiceInfoReply, nil
 }
 
 func (c *conn) RevNotificationFromRaw(ctx context.Context, b []byte) (*RevReply, error) {
@@ -284,14 +275,12 @@ func (c *conn) RevNotificationFromRaw(ctx context.Context, b []byte) (*RevReply,
 func (c *conn) RevNotification(ctx context.Context,
 	sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error) {
 
-	roundTripper, err := c.ctxAwareConnect(ctx)
+	conn, err := c.connect(ctx)
 	if err != nil {
 		metrics.Revocations.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.Wrap(ErrUnableToConnect, err)
 	}
-	defer roundTripper.Close(ctx)
-	reply, err := roundTripper.Request(
-		ctx,
+	reply, err := roundTrip(
 		&Pld{
 			TraceId: tracing.IDFromCtx(ctx),
 			Which:   proto.SCIONDMsg_Which_revNotification,
@@ -299,38 +288,26 @@ func (c *conn) RevNotification(ctx context.Context,
 				SRevInfo: sRevInfo,
 			},
 		},
-		nil,
+		conn,
 	)
 	if err != nil {
 		metrics.Revocations.Inc(errorToPrometheusLabel(err))
 		return nil, serrors.WrapStr("[sciond-API] Failed to send RevNotification", err)
 	}
 	metrics.Revocations.Inc(metrics.OkSuccess)
-	return reply.(*Pld).RevReply, nil
+	return reply.RevReply, nil
 }
 
 func (c *conn) Close(_ context.Context) error {
 	return nil
 }
 
-func dial(ctx context.Context, socketName string) (*disp.Dispatcher, error) {
-	rConn, err := reliable.Dial(ctx, socketName)
-	if err != nil {
-		return nil, err
-	}
-	return disp.New(
-		rConn,
-		&Adapter{},
-		log.Root(),
-	), nil
-}
-
-// GetDefaultSCIONDPath return default sciond path for a given IA
-func GetDefaultSCIONDPath(ia *addr.IA) string {
+// GetDefaultSCIONDAddress return default sciond path for a given IA
+func GetDefaultSCIONDAddress(ia *addr.IA) string {
 	if ia == nil || ia.IsZero() {
-		return DefaultSCIONDPath
+		return DefaultSCIONDAddress
 	}
-	return fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia.FileFmt(false))
+	return fmt.Sprintf("127.0.0.%d:30255", ia.A%256)
 }
 
 func errorToPrometheusLabel(err error) string {
@@ -342,4 +319,51 @@ func errorToPrometheusLabel(err error) string {
 	default:
 		return metrics.ErrNotClassified
 	}
+}
+
+func Send(pld *Pld, conn net.Conn) error {
+	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
+	if err != nil {
+		return serrors.WrapStr("unable to create capnp message", err)
+	}
+	root, err := proto.NewRootSCIONDMsg(seg)
+	if err != nil {
+		return serrors.WrapStr("unable to create capnp root", err)
+	}
+	if err := pogs.Insert(proto.SCIONDMsg_TypeID, root.Struct, pld); err != nil {
+		return serrors.WrapStr("unable to insert struct data into capnp object", err)
+	}
+	if err := capnp.NewEncoder(conn).Encode(msg); err != nil {
+		return serrors.WrapStr("unable to encode capnp message", err)
+	}
+	return nil
+}
+
+func receive(conn net.Conn) (*Pld, error) {
+	msg, err := proto.SafeDecode(capnp.NewDecoder(conn))
+	if err != nil {
+		return nil, serrors.WrapStr("unable to decode RPC request", err)
+	}
+
+	root, err := msg.RootPtr()
+	if err != nil {
+		return nil, serrors.WrapStr("unable to extract capnp root", err)
+	}
+
+	p := &Pld{}
+	if err := proto.SafeExtract(p, proto.SCIONDMsg_TypeID, root.Struct()); err != nil {
+		return nil, serrors.New("unable to extract capnp SCIOND payload", "err", err)
+	}
+	return p, nil
+}
+
+func roundTrip(pld *Pld, conn net.Conn) (*Pld, error) {
+	if err := Send(pld, conn); err != nil {
+		return nil, serrors.WrapStr("send request failed", err)
+	}
+	pld, err := receive(conn)
+	if err != nil {
+		return nil, serrors.WrapStr("receive reply failed", err)
+	}
+	return pld, nil
 }
