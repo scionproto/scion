@@ -44,18 +44,18 @@ func main() {
 	if origFilename == "" {
 		origFilename = defaultDBfilename()
 	}
+	// TODO(juagargi) it would be ideal to open the DB file in place instead of copying it,
+	// but we always get a "database is locked" error. Tried with a combination of
+	// ?mode=ro&_journal=OFF&_mutex=no&_txlock=immediate&journal=wal&_query_only=yes
+	// ?_locking=normal&immutable=true . It fails because of setting journal
+	// (vendor/.../mattn/.../sqlite3.go:1480), for all journal modes)
 	filename := copyDBToTemp(origFilename)
 	defer removeAllDir(filepath.Dir(filename))
 
-	// TODO it would be ideal to open the DB file in place instead of copying it, but we always get
-	// a "database is locked" error. Tried with a combination of ?mode=ro&_journal=OFF&_mutex=no&
-	// _txlock=immediate&journal=wal&_query_only=yes?_locking=normal&immutable=true
-	// Fails because setting journal (vendor/.../mattn/.../sqlite3.go:1480), for all journal modes")
 	db, err := sql.Open("sqlite3", filename+"?mode=ro")
 	if err != nil {
 		errorAndQuit(err.Error())
 	}
-	// TODO: three queries? query 1 and 3 coud be easily joined
 	sqlstmt := `SELECT SegRowID, Type from SegTypes`
 	rows, err := db.Query(sqlstmt)
 	if err != nil {
