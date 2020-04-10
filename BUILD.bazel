@@ -19,6 +19,7 @@ pkg_tar(
         "//go/tools/scion-pki:scion-pki",
         "//go/tools/scmp:scmp",
         "//go/tools/showpaths:showpaths",
+        "//go/tools/pathdb_dump:pathdb_dump",
         "//go/sig:sig",
     ],
     mode = "0755",
