@@ -49,13 +49,17 @@ To list the paths with their health statuses, specify that the paths should be p
 through the flag.
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Do not output help message if we get this far.
-		cmd.SilenceUsage = true
-
 		dst, err := addr.IAFromString(args[0])
 		if err != nil {
 			return serrors.WrapStr("invalid destination ISD-AS", err)
 		}
+
+		// At this point it is reasonable to assume that the caller knows how to
+		// call the command. Silence the usage help output on error, because subsequent
+		// errors are likely not caused malformed CLI arguments.
+		// See https://github.com/spf13/cobra/issues/340
+		cmd.SilenceUsage = true
+
 		ctx, cancel := context.WithTimeout(context.Background(), showpathsFlags.timeout)
 		defer cancel()
 		opts := []showpaths.Option{
