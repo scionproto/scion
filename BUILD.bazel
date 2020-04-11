@@ -16,6 +16,7 @@ pkg_tar(
         "//go/dispatcher:dispatcher",
         "//go/tools/logdog:logdog",
         "//go/sciond:sciond",
+        "//go/scion:scion",
         "//go/tools/scion-pki:scion-pki",
         "//go/tools/scmp:scmp",
         "//go/tools/showpaths:showpaths",
