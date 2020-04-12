@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -29,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/prom"
+	"github.com/scionproto/scion/go/lib/tracing"
 )
 
 const (
@@ -102,7 +104,12 @@ func (c *counters) Observe(ctx context.Context, op promOp, action func(ctx conte
 	defer span.Finish()
 	c.queriesTotal.WithLabelValues(string(op)).Inc()
 	err := action(ctx)
-	c.resultsTotal.WithLabelValues(db.ErrToMetricLabel(err), string(op)).Inc()
+
+	label := db.ErrToMetricLabel(err)
+	ext.Error.Set(span, err != nil)
+	tracing.ResultLabel(span, label)
+
+	c.resultsTotal.WithLabelValues(label, string(op)).Inc()
 }
 
 var _ (PathDB) = (*metricsPathDB)(nil)
@@ -168,6 +175,9 @@ func (tx *metricsTransaction) Rollback() error {
 	var err error
 	tx.metrics.Observe(tx.ctx, promOpRollbackTx, func(_ context.Context) error {
 		err = tx.tx.Rollback()
+		if err == sql.ErrTxDone {
+			return nil
+		}
 		return err
 	})
 	return err

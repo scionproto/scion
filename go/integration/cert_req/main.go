@@ -21,6 +21,8 @@ import (
 	"net"
 	"os"
 
+	"github.com/opentracing/opentracing-go/ext"
+
 	"github.com/scionproto/scion/go/integration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -112,11 +114,13 @@ func (c client) attemptRequest(n int) bool {
 	var err error
 	if chain, err = c.requestCert(ctx); err != nil {
 		log.Error("Error requesting certificate chain", "err", err)
+		ext.Error.Set(span, true)
 		return false
 	}
 	// Send TRC request
 	if err = c.requestTRC(ctx, chain); err != nil {
 		log.Error("Error requesting TRC", "err", err)
+		ext.Error.Set(span, true)
 		return false
 	}
 	return true

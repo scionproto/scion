@@ -8,6 +8,7 @@ go_library(
     deps = [
         "//go/lib/log:go_default_library",
         "//go/lib/periodic/internal/metrics:go_default_library",
+        "@com_github_opentracing_opentracing_go//:go_default_library",
     ],
 )
 

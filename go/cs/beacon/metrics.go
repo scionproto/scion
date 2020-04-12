@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -29,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/prom"
+	"github.com/scionproto/scion/go/lib/tracing"
 )
 
 const (
@@ -176,7 +178,12 @@ func (c *counters) Observe(ctx context.Context, op string, action func(ctx conte
 	defer span.Finish()
 	c.queriesTotal.WithLabelValues(op).Inc()
 	err := action(ctx)
-	c.resultsTotal.WithLabelValues(op, db.ErrToMetricLabel(err)).Inc()
+
+	label := db.ErrToMetricLabel(err)
+	ext.Error.Set(span, err != nil)
+	tracing.ResultLabel(span, label)
+
+	c.resultsTotal.WithLabelValues(op, label).Inc()
 }
 
 type executor struct {

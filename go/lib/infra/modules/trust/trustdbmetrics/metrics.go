@@ -22,6 +22,7 @@ import (
 	"io"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	dblib "github.com/scionproto/scion/go/lib/infra/modules/db"
@@ -30,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/internal/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/tracing"
 )
 
 type observer struct {
@@ -41,10 +43,14 @@ func (o observer) Observe(ctx context.Context, op string, action func(ctx contex
 	defer span.Finish()
 	err := action(ctx)
 
+	label := errToLabel(err)
+	ext.Error.Set(span, err != nil)
+	tracing.ResultLabel(span, label)
+
 	l := metrics.QueryLabels{
 		Driver:    o.driver,
 		Operation: op,
-		Result:    errToLabel(err),
+		Result:    label,
 	}
 	metrics.DB.Queries(l).Inc()
 }
@@ -131,6 +137,9 @@ func (t *tx) Rollback() error {
 	var err error
 	t.metrics.Observe(t.ctx, metrics.RollbackTx, func(_ context.Context) error {
 		err = t.backend.Rollback()
+		if err == sql.ErrTxDone {
+			return nil
+		}
 		return err
 	})
 	return err

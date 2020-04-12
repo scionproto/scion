@@ -13,7 +13,9 @@ go_library(
         "//go/lib/infra/modules/trust/internal/metrics:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/trc:go_default_library",
+        "//go/lib/tracing:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
+        "@com_github_opentracing_opentracing_go//ext:go_default_library",
     ],
 )
 
