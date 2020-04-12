@@ -16,6 +16,7 @@ cmd_topo_clean() {
     fi
     supervisor/supervisor.sh shutdown
     stop_jaeger
+    rm -rf traces/*
     mkdir -p logs traces gen gen-cache
     find gen gen-cache -mindepth 1 -maxdepth 1 -exec rm -r {} +
 }
@@ -96,7 +97,7 @@ stop_jaeger() {
         return
     fi
     echo "Stopping jaeger..."
-    ./tools/quiet ./tools/dc jaeger down
+    ./tools/quiet ./tools/dc jaeger down -v
 }
 
 cmd_mstart() {
