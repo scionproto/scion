@@ -15,8 +15,6 @@
 package colibri_mgmt_test
 
 import (
-	"bytes"
-	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -199,170 +197,162 @@ func TestSerializeRequest(t *testing.T) {
 			require.NoError(t, err)
 			otherBuffer, err := otherRoot.PackRoot()
 			require.NoError(t, err)
-			require.NoError(t, err)
 			require.Equal(t, buffer, otherBuffer)
 		})
 	}
 }
 
 func TestSerializeResponse(t *testing.T) {
-	setupFailed := &colibri_mgmt.SegmentSetupRes{
-		Which: proto.SegmentSetupResData_Which_failure,
-		Failure: &colibri_mgmt.SegmentSetup{
-			MinBW:    1,
-			MaxBW:    2,
-			SplitCls: 3,
-			StartProps: colibri_mgmt.PathEndProps{
-				Local:    true,
-				Transfer: false,
-			},
-			EndProps: colibri_mgmt.PathEndProps{
-				Local:    false,
-				Transfer: true,
-			},
-			AllocationTrail: []*colibri_mgmt.AllocationBeads{
-				{
-					AllocBW: 5,
-					MaxBW:   6,
-				},
-			},
-		},
-	}
-	response := &colibri_mgmt.Response{
-		Which:        proto.Response_Which_segmentSetup,
-		SegmentSetup: setupFailed,
-		Accepted:     false,
-		FailedHop:    3,
-	}
-	buildResponseAndCheck(t, response)
-	setupSuccess := &colibri_mgmt.SegmentSetupRes{
-		Which: proto.SegmentSetupResData_Which_token,
-		Token: xtest.MustParseHexString("0000"),
-	}
-	response = &colibri_mgmt.Response{
-		Which:        proto.Response_Which_segmentSetup,
-		SegmentSetup: setupSuccess,
-		Accepted:     true,
-	}
-	buildResponseAndCheck(t, response)
-
-	response = &colibri_mgmt.Response{
-		Which:          proto.Response_Which_segmentRenewal,
-		SegmentRenewal: setupSuccess,
-		Accepted:       true,
-	}
-	buildResponseAndCheck(t, response)
-
-	response = &colibri_mgmt.Response{
-		Which:             proto.Response_Which_segmentTelesSetup,
-		SegmentTelesSetup: setupSuccess,
-		Accepted:          true,
-	}
-	buildResponseAndCheck(t, response)
-
-	response = &colibri_mgmt.Response{
-		Which:               proto.Response_Which_segmentTelesRenewal,
-		SegmentTelesRenewal: setupSuccess,
-		Accepted:            true,
-	}
-	buildResponseAndCheck(t, response)
-
-	response = &colibri_mgmt.Response{
-		Which:           proto.Response_Which_segmentTeardown,
-		SegmentTeardown: &colibri_mgmt.SegmentTeardownRes{ErrorCode: 123},
-		Accepted:        false,
-		FailedHop:       2,
-	}
-	buildResponseAndCheck(t, response)
-
-	segmentIndexConfirmation := &colibri_mgmt.SegmentIndexConfirmation{
-		Index: 111,
-		State: proto.ReservationIndexState_active,
-	}
-	response = &colibri_mgmt.Response{
-		Which:                    proto.Response_Which_segmentIndexConfirmation,
-		SegmentIndexConfirmation: segmentIndexConfirmation,
-		Accepted:                 true,
-	}
-	buildResponseAndCheck(t, response)
-
-	segmentCleanup := &colibri_mgmt.SegmentCleanup{
-		ID: &colibri_mgmt.SegmentReservationID{
-			ASID:   xtest.MustParseHexString("ff00cafe0001"),
-			Suffix: xtest.MustParseHexString("deadbeef"),
-		},
-		Index: 17,
-	}
-	response = &colibri_mgmt.Response{
-		Which:          proto.Response_Which_segmentCleanup,
-		SegmentCleanup: segmentCleanup,
-		Accepted:       true,
-	}
-	buildResponseAndCheck(t, response)
-
-	e2eSetup := &colibri_mgmt.E2ESetup{
-		Which: proto.E2ESetupData_Which_success,
-		Success: &colibri_mgmt.E2ESetupSuccess{
-			ReservationID: &colibri_mgmt.E2EReservationID{
-				ASID:   xtest.MustParseHexString("ff00cafe0001"),
-				Suffix: xtest.MustParseHexString("0123456789abcdef0123456789abcdef"),
-			},
+	newSegmentSetupResp := func() *colibri_mgmt.SegmentSetupRes {
+		return &colibri_mgmt.SegmentSetupRes{
+			Which: proto.SegmentSetupResData_Which_token,
 			Token: xtest.MustParseHexString("0000"),
+		}
+	}
+	newE2ESetupResp := func() *colibri_mgmt.E2ESetup {
+		return &colibri_mgmt.E2ESetup{
+			Which: proto.E2ESetupData_Which_success,
+			Success: &colibri_mgmt.E2ESetupSuccess{
+				ReservationID: &colibri_mgmt.E2EReservationID{
+					ASID:   xtest.MustParseHexString("ff00cafe0001"),
+					Suffix: xtest.MustParseHexString("0123456789abcdef0123456789abcdef"),
+				},
+				Token: xtest.MustParseHexString("0000"),
+			},
+		}
+	}
+	testCases := map[string]struct {
+		Response *colibri_mgmt.Response
+	}{
+		"setup failed": {
+			Response: &colibri_mgmt.Response{
+				Which: proto.Response_Which_segmentSetup,
+				SegmentSetup: &colibri_mgmt.SegmentSetupRes{
+					Which: proto.SegmentSetupResData_Which_failure,
+					Failure: &colibri_mgmt.SegmentSetup{
+						MinBW:    1,
+						MaxBW:    2,
+						SplitCls: 3,
+						StartProps: colibri_mgmt.PathEndProps{
+							Local:    true,
+							Transfer: false,
+						},
+						EndProps: colibri_mgmt.PathEndProps{
+							Local:    false,
+							Transfer: true,
+						},
+						AllocationTrail: []*colibri_mgmt.AllocationBeads{
+							{
+								AllocBW: 5,
+								MaxBW:   6,
+							},
+						},
+					},
+				},
+				Accepted:  false,
+				FailedHop: 3,
+			},
+		},
+		"setup success": {
+			Response: &colibri_mgmt.Response{
+				Which:        proto.Response_Which_segmentSetup,
+				SegmentSetup: newSegmentSetupResp(),
+				Accepted:     true,
+			},
+		},
+		"renewal": {
+			Response: &colibri_mgmt.Response{
+				Which:          proto.Response_Which_segmentRenewal,
+				SegmentRenewal: newSegmentSetupResp(),
+				Accepted:       true,
+			},
+		},
+		"teles setup": {
+			Response: &colibri_mgmt.Response{
+				Which:             proto.Response_Which_segmentTelesSetup,
+				SegmentTelesSetup: newSegmentSetupResp(),
+				Accepted:          true,
+			},
+		},
+		"teles renewal": {
+			Response: &colibri_mgmt.Response{
+				Which:               proto.Response_Which_segmentTelesRenewal,
+				SegmentTelesRenewal: newSegmentSetupResp(),
+				Accepted:            true,
+			},
+		},
+		"teardown": {
+			Response: &colibri_mgmt.Response{
+				Which:           proto.Response_Which_segmentTeardown,
+				SegmentTeardown: &colibri_mgmt.SegmentTeardownRes{ErrorCode: 123},
+				Accepted:        false,
+				FailedHop:       2,
+			},
+		},
+		"index confirmation": {
+			Response: &colibri_mgmt.Response{
+				Which: proto.Response_Which_segmentIndexConfirmation,
+				SegmentIndexConfirmation: &colibri_mgmt.SegmentIndexConfirmation{
+					Index: 111,
+					State: proto.ReservationIndexState_active,
+				},
+				Accepted: true,
+			},
+		},
+		"segment cleanup": {
+			Response: &colibri_mgmt.Response{
+				Which: proto.Response_Which_segmentCleanup,
+				SegmentCleanup: &colibri_mgmt.SegmentCleanup{
+					ID: &colibri_mgmt.SegmentReservationID{
+						ASID:   xtest.MustParseHexString("ff00cafe0001"),
+						Suffix: xtest.MustParseHexString("deadbeef"),
+					},
+					Index: 17,
+				},
+				Accepted: true,
+			},
+		},
+		"e2e setup": {
+			Response: &colibri_mgmt.Response{
+				Which:    proto.Response_Which_e2eSetup,
+				E2ESetup: newE2ESetupResp(),
+				Accepted: true,
+			},
+		},
+		"e2e renewal": {
+			Response: &colibri_mgmt.Response{
+				Which:      proto.Response_Which_e2eRenewal,
+				E2ERenewal: newE2ESetupResp(),
+				Accepted:   true,
+			},
+		},
+		"e2e cleanup": {
+			Response: &colibri_mgmt.Response{
+				Which: proto.Response_Which_e2eCleanup,
+				E2ECleanup: &colibri_mgmt.E2ECleanup{
+					ReservationID: &colibri_mgmt.E2EReservationID{
+						ASID:   xtest.MustParseHexString("ff00cafe0001"),
+						Suffix: xtest.MustParseHexString("0123456789abcdef0123456789abcdef"),
+					},
+				},
+				Accepted: true,
+			},
 		},
 	}
-	response = &colibri_mgmt.Response{
-		Which:    proto.Response_Which_e2eSetup,
-		E2ESetup: e2eSetup,
-		Accepted: true,
-	}
-	buildResponseAndCheck(t, response)
-
-	response = &colibri_mgmt.Response{
-		Which:      proto.Response_Which_e2eRenewal,
-		E2ERenewal: e2eSetup,
-		Accepted:   true,
-	}
-	buildResponseAndCheck(t, response)
-
-	e2eCleanup := &colibri_mgmt.E2ECleanup{
-		ReservationID: &colibri_mgmt.E2EReservationID{
-			ASID:   xtest.MustParseHexString("ff00cafe0001"),
-			Suffix: xtest.MustParseHexString("0123456789abcdef0123456789abcdef"),
-		},
-	}
-	response = &colibri_mgmt.Response{
-		Which:      proto.Response_Which_e2eCleanup,
-		E2ECleanup: e2eCleanup,
-		Accepted:   true,
-	}
-	buildResponseAndCheck(t, response)
-}
-
-func buildResponseAndCheck(t *testing.T, response *colibri_mgmt.Response) {
-	root := &colibri_mgmt.ColibriRequestPayload{
-		Which:    proto.ColibriRequestPayload_Which_response,
-		Response: response,
-	}
-	b, _ := root.PackRoot()
-	t.Logf("b=%s", hex.EncodeToString(b))
-	serializeAndCompareRoot(t, root)
-}
-
-func serializeAndCompareRoot(t *testing.T, root *colibri_mgmt.ColibriRequestPayload) {
-	buffer, err := root.PackRoot()
-	if err != nil {
-		t.Fatalf("Error serializing root: %v", err)
-	}
-	copy, err := colibri_mgmt.NewFromRaw(buffer)
-	if err != nil {
-		t.Fatalf("Error deserializing root: %v", err)
-	}
-	copyBuffer, err := copy.PackRoot()
-	if err != nil {
-		t.Fatalf("Error serializing copy: %v", err)
-	}
-	if bytes.Compare(buffer, copyBuffer) != 0 {
-		t.Fatalf("The colibri message is different after (de)serialization.\nOriginal: %v\n"+
-			"Recreated one: %v", root, copy)
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			root := &colibri_mgmt.ColibriRequestPayload{
+				Which:    proto.ColibriRequestPayload_Which_response,
+				Response: tc.Response,
+			}
+			buffer, err := root.PackRoot()
+			require.NoError(t, err)
+			copy, err := colibri_mgmt.NewFromRaw(buffer)
+			require.NoError(t, err)
+			copyBuffer, err := copy.PackRoot()
+			require.NoError(t, err)
+			require.Equal(t, buffer, copyBuffer)
+		})
 	}
 }
