@@ -16,7 +16,7 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -27,10 +27,10 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -52,67 +52,23 @@ func main() {
 	filename := copyDBToTemp(origFilename)
 	defer removeAllDir(filepath.Dir(filename))
 
-	db, err := sql.Open("sqlite3", filename+"?mode=ro")
+	db, err := sqlite.New(filename)
 	if err != nil {
 		errorAndQuit(err.Error())
 	}
-	sqlstmt := `SELECT SegRowID, Type from SegTypes`
-	rows, err := db.Query(sqlstmt)
-	if err != nil {
-		errorAndQuit(err.Error())
-	}
-	var segRowID int64
-	var segType proto.PathSegType
-	segTypes := map[int64]proto.PathSegType{}
-	for rows.Next() {
-		err = rows.Scan(&segRowID, &segType)
-		if err != nil {
-			errorAndQuit(err.Error())
-		}
-		segTypes[segRowID] = segType
-	}
-	rows.Close()
+	defer db.Close()
 
-	sqlstmt = `SELECT IsdID, AsID, IntfID, SegRowID FROM IntfToSeg`
-	rows, err = db.Query(sqlstmt)
+	ch, err := db.GetAll(context.Background())
 	if err != nil {
 		errorAndQuit(err.Error())
 	}
-	var isd addr.ISD
-	var as addr.AS
-	var ifaceID common.IFIDType
-	segInterfaces := map[int64][]asIface{}
-	for rows.Next() {
-		err = rows.Scan(&isd, &as, &ifaceID, &segRowID)
-		if err != nil {
+	var segments []segment
+	for res := range ch {
+		if res.Err != nil {
 			errorAndQuit(err.Error())
 		}
-		segInterfaces[segRowID] = append(segInterfaces[segRowID], newASIface(isd, as, ifaceID))
+		segments = append(segments, newSegment(res.Result))
 	}
-	rows.Close()
-
-	sqlstmt = `SELECT RowID, LastUpdated, Segment, MaxExpiry,
-    StartIsdID, StartAsID, EndIsdID, EndAsID FROM Segments`
-	rows, err = db.Query(sqlstmt)
-	if err != nil {
-		errorAndQuit(err.Error())
-	}
-	var packedSeg []byte
-	var lastUpdated, maxExpiry int64
-	var startISD, endISD addr.ISD
-	var startAS, endAS addr.AS
-	segments := []segment{}
-	for rows.Next() {
-		err = rows.Scan(&segRowID, &lastUpdated, &packedSeg, &maxExpiry,
-			&startISD, &startAS, &endISD, &endAS)
-		if err != nil {
-			errorAndQuit(err.Error())
-		}
-		segmt := newSegment(segTypes[segRowID], startISD, startAS, endISD, endAS,
-			segInterfaces[segRowID], lastUpdated, maxExpiry)
-		segments = append(segments, segmt)
-	}
-	rows.Close()
 	sort.Slice(segments, func(i, j int) bool {
 		return segments[i].lessThan(&segments[j])
 	})
@@ -131,10 +87,6 @@ type asIface struct {
 	ifNum common.IFIDType
 }
 
-func newASIface(isd addr.ISD, as addr.AS, ifNum common.IFIDType) asIface {
-	return asIface{IA: addr.IA{I: isd, A: as}, ifNum: ifNum}
-}
-
 func ifsArrayToString(ifs []asIface) string {
 	if len(ifs) == 0 {
 		return ""
@@ -149,18 +101,39 @@ func ifsArrayToString(ifs []asIface) string {
 
 type segment struct {
 	SegType    proto.PathSegType
-	Src        addr.IA
-	Dst        addr.IA
 	interfaces []asIface
 	Updated    time.Time
 	Expiry     time.Time
 }
 
-func newSegment(segType proto.PathSegType, srcI addr.ISD, srcA addr.AS, dstI addr.ISD, dstA addr.AS,
-	interfaces []asIface, updateTime, expiryTime int64) segment {
-
-	return segment{SegType: segType, Src: addr.IA{I: srcI, A: srcA}, Dst: addr.IA{I: dstI, A: dstA},
-		interfaces: interfaces, Updated: time.Unix(0, updateTime), Expiry: time.Unix(expiryTime, 0)}
+func newSegment(res *query.Result) segment {
+	ifs := make([]asIface, 0, len(res.Seg.ASEntries))
+	for _, ase := range res.Seg.ASEntries {
+		hop, err := ase.HopEntries[0].HopField()
+		if err != nil {
+			errorAndQuit(err.Error())
+		}
+		if hop.ConsIngress > 0 {
+			iface := asIface{
+				IA:    ase.IA(),
+				ifNum: hop.ConsIngress,
+			}
+			ifs = append(ifs, iface)
+		}
+		if hop.ConsEgress > 0 {
+			iface := asIface{
+				IA:    ase.IA(),
+				ifNum: hop.ConsEgress,
+			}
+			ifs = append(ifs, iface)
+		}
+	}
+	return segment{
+		SegType:    res.Type,
+		Updated:    res.LastUpdate,
+		Expiry:     res.Seg.MinExpiry(),
+		interfaces: ifs,
+	}
 }
 
 func (s segment) toString(showTimestamps bool) string {
