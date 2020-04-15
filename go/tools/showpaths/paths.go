@@ -37,6 +37,7 @@ var (
 	maxPaths   = flag.Int("maxpaths", 10, "Maximum number of paths")
 	expiration = flag.Bool("expiration", false, "Show path expiration timestamps")
 	refresh    = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
+	json       = flag.Bool("json", false, "Write output as machine readable json")
 	status     = flag.Bool("p", false, "Probe the paths and print out the statuses")
 	localIPStr = flag.String("local", "", "(Optional) local IP address to use for health checks")
 	version    = flag.Bool("version", false, "Output version information and exit.")
@@ -66,19 +67,17 @@ func main() {
 
 	ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
 	defer cancelF()
-
-	opts := []showpaths.Option{
-		showpaths.SCIOND(*sciondAddr),
-		showpaths.MaxPaths(*maxPaths),
-		showpaths.ShowExpiration(*expiration),
-		showpaths.Refresh(*refresh),
-		showpaths.Probe(*status),
+	cfg := showpaths.Config{
+		Local:          localIP,
+		SCIOND:         *sciondAddr,
+		MaxPaths:       *maxPaths,
+		ShowExpiration: *expiration,
+		Refresh:        *refresh,
+		Probe:          *status,
+		JSON:           *json,
 	}
-	if localIP != nil {
-		opts = append(opts, showpaths.Local(localIP))
-	}
-	if err := showpaths.Run(ctx, dstIA, opts...); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s", err)
+	if err := showpaths.Run(ctx, dstIA, cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}
 }

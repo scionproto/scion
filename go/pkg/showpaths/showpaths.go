@@ -16,22 +16,25 @@ package showpaths
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sciond/pathprobe"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 )
 
 // Run lists the paths to the specified ISD-AS to stdout.
-func Run(ctx context.Context, dst addr.IA, options ...Option) error {
-	opts := invokeOptions(options)
-
-	sdConn, err := sciond.NewService(opts.sciond).Connect(ctx)
+func Run(ctx context.Context, dst addr.IA, cfg Config) error {
+	sdConn, err := sciond.NewService(cfg.SCIOND).Connect(ctx)
 	if err != nil {
 		return serrors.WrapStr("error connecting to SCIOND", err)
 	}
@@ -44,22 +47,21 @@ func Run(ctx context.Context, dst addr.IA, options ...Option) error {
 	// possibility to have the same functionality, i.e. refresh, fetch all paths.
 	// https://github.com/scionproto/scion/issues/3348
 	paths, err := sdConn.Paths(ctx, dst, addr.IA{},
-		sciond.PathReqFlags{Refresh: opts.refresh, PathCount: uint16(opts.maxPaths)})
+		sciond.PathReqFlags{Refresh: cfg.Refresh, PathCount: uint16(cfg.MaxPaths)})
 	if err != nil {
 		return serrors.WrapStr("failed to retrieve paths from SCIOND", err)
 	}
 
-	fmt.Println("Available paths to", dst)
-	var pathStatuses map[string]pathprobe.Status
-	if opts.probe {
-		localIP := opts.local
+	var statuses map[string]pathprobe.Status
+	if cfg.Probe {
+		localIP := cfg.Local
 		if localIP == nil {
 			localIP, err = findDefaultLocalIP(ctx, sdConn)
 			if err != nil {
 				return serrors.WrapStr("failed to determine local IP", err)
 			}
 		}
-		pathStatuses, err = pathprobe.Prober{
+		statuses, err = pathprobe.Prober{
 			DstIA:   dst,
 			LocalIA: localIA,
 			LocalIP: localIP,
@@ -68,18 +70,62 @@ func Run(ctx context.Context, dst addr.IA, options ...Option) error {
 			serrors.WrapStr("failed to get status", err)
 		}
 	}
+	if cfg.JSON {
+		return machine(paths, statuses, cfg.ShowExpiration)
+	}
+	fmt.Println("Available paths to", dst)
+	human(paths, statuses, cfg.ShowExpiration)
+	return nil
+}
+
+func human(paths []snet.Path, statuses map[string]pathprobe.Status, showExpiration bool) {
 	for i, path := range paths {
 		fmt.Printf("[%2d] %s", i, fmt.Sprintf("%s", path))
-		if opts.expiration {
+		if showExpiration {
 			fmt.Printf(" Expires: %s (%s)", path.Expiry(),
 				time.Until(path.Expiry()).Truncate(time.Second))
 		}
-		if pathStatuses != nil {
-			fmt.Printf(" Status: %s", pathStatuses[pathprobe.PathKey(path)])
+		if statuses != nil {
+			fmt.Printf(" Status: %s", statuses[pathprobe.PathKey(path)])
 		}
 		fmt.Printf("\n")
 	}
-	return nil
+}
+
+func machine(paths []snet.Path, statuses map[string]pathprobe.Status, showExpiration bool) error {
+	type Hop struct {
+		IfID common.IFIDType `json:"ifid"`
+		IA   addr.IA         `json:"isd_as"`
+	}
+	type Path struct {
+		Fingerprint string    `json:"fingerprint"`
+		Hops        []Hop     `json:"hops"`
+		NextHop     string    `json:"next_hop"`
+		Expiry      time.Time `json:"expiry"`
+		MTU         uint16    `json:"mtu"`
+		Status      string    `json:"status,omitempty"`
+		StatusInfo  string    `json:"status_info,omitempty"`
+	}
+	jpaths := make([]Path, 0, len(paths))
+	for _, path := range paths {
+		jpath := Path{
+			Fingerprint: path.Fingerprint().String()[:16],
+			NextHop:     path.OverlayNextHop().String(),
+			Expiry:      path.Expiry(),
+			MTU:         path.MTU(),
+		}
+		for _, hop := range path.Interfaces() {
+			jpath.Hops = append(jpath.Hops, Hop{IA: hop.IA(), IfID: hop.ID()})
+		}
+		if status, ok := statuses[pathprobe.PathKey(path)]; ok {
+			jpath.Status = strings.ToLower(string(status.Status))
+			jpath.StatusInfo = status.AdditionalInfo
+		}
+		jpaths = append(jpaths, jpath)
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(jpaths)
 }
 
 // TODO(matzf): this is a simple, hopefully temporary, workaround to not having
