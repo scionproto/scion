@@ -24,6 +24,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/opentracing/opentracing-go/ext"
+
 	"github.com/scionproto/scion/go/integration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -184,11 +186,13 @@ func (c client) attemptRequest(n int) bool {
 	// Send ping
 	if err := c.ping(ctx, n); err != nil {
 		logger.Error("Could not send packet", "err", err)
+		ext.Error.Set(span, true)
 		return false
 	}
 	// Receive pong
 	if err := c.pong(ctx); err != nil {
 		logger.Debug("Error receiving pong", "err", err)
+		ext.Error.Set(span, true)
 		return false
 	}
 	logger.Info("Received pong")

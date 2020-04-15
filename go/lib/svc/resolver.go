@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -72,6 +73,7 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 
 	conn, port, err := r.ConnFactory.Register(ctx, r.LocalIA, u, addr.SvcNone)
 	if err != nil {
+		ext.Error.Set(span, true)
 		return nil, common.NewBasicError(errRegistration, err)
 	}
 
@@ -92,7 +94,12 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 			Payload: common.RawBytes(r.Payload),
 		},
 	}
-	return r.getRoundTripper().RoundTrip(ctx, conn, requestPacket, p.OverlayNextHop())
+	reply, err := r.getRoundTripper().RoundTrip(ctx, conn, requestPacket, p.OverlayNextHop())
+	if err != nil {
+		ext.Error.Set(span, true)
+		return nil, err
+	}
+	return reply, nil
 }
 
 func (r *Resolver) getRoundTripper() RoundTripper {

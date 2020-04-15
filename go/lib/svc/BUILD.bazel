@@ -18,6 +18,7 @@ go_library(
         "//go/lib/svc/internal/ctxconn:go_default_library",
         "//go/lib/svc/internal/proto:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
+        "@com_github_opentracing_opentracing_go//ext:go_default_library",
     ],
 )
 

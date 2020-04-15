@@ -18,6 +18,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic/internal/metrics"
 )
@@ -133,6 +135,8 @@ func (r *Runner) onTick() {
 		return
 	default:
 		ctx, cancelF := context.WithTimeout(r.ctx, r.timeout)
+		span, ctx := opentracing.StartSpanFromContext(ctx, "periodic."+r.task.Name())
+		defer span.Finish()
 		start := time.Now()
 		r.task.Run(ctx)
 		r.metric.Runtime(time.Since(start))
