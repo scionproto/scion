@@ -17,6 +17,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -42,10 +43,6 @@ func NewSqlite(path string, schema string, schemaVersion int) (*sql.DB, error) {
 	}()
 	// prevent weird errors. (see https://stackoverflow.com/a/35805826)
 	db.SetMaxOpenConns(1)
-	if _, err = db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		return nil, common.NewBasicError("Unable to set WAL journal mode", err,
-			"path", path)
-	}
 	// Check the schema version and set up new DB if necessary.
 	var existingVersion int
 	err = db.QueryRow("PRAGMA user_version;").Scan(&existingVersion)
@@ -66,9 +63,20 @@ func NewSqlite(path string, schema string, schemaVersion int) (*sql.DB, error) {
 
 func open(path string) (*sql.DB, error) {
 	var err error
-	// Add foreign_key parameter to path to enable foreign key support.
-	uri := fmt.Sprintf("%s?_foreign_keys=1", path)
-	db, err := sql.Open("sqlite3", uri)
+	u, err := url.Parse(path)
+	if err != nil {
+		// may not be a URL e.g. :memory: Just go on
+		path = fmt.Sprintf("%s?_foreign_keys=1&_journal_mode=WAL", path)
+	} else {
+		q := u.Query()
+		// Add foreign_key parameter to path to enable foreign key support.
+		q.Set("_foreign_keys", "1")
+		// prevent weird errors. (see https://stackoverflow.com/a/35805826)
+		q.Set("_journal_mode", "WAL")
+		u.RawQuery = q.Encode()
+		path = u.String()
+	}
+	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, common.NewBasicError("Couldn't open SQLite database", err, "path", path)
 	}
