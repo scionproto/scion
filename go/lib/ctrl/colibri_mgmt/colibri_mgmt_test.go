@@ -348,11 +348,11 @@ func TestSerializeResponse(t *testing.T) {
 			}
 			buffer, err := root.PackRoot()
 			require.NoError(t, err)
-			copy, err := colibri_mgmt.NewFromRaw(buffer)
+			otherRoot, err := colibri_mgmt.NewFromRaw(buffer)
 			require.NoError(t, err)
-			copyBuffer, err := copy.PackRoot()
+			otherBuffer, err := otherRoot.PackRoot()
 			require.NoError(t, err)
-			require.Equal(t, buffer, copyBuffer)
+			require.Equal(t, buffer, otherBuffer)
 		})
 	}
 }
