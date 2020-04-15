@@ -35,39 +35,57 @@ import (
 )
 
 func main() {
+	if err := realMain(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error while executing: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func realMain() error {
 	var origFilename string
 	var showTimestamps bool
 	flag.StringVar(&origFilename, "db", "", "Sqlite DB file (optional)")
 	flag.BoolVar(&showTimestamps, "t", false, "Show update and expiration times")
 	flag.Parse()
+	var err error
 
 	if origFilename == "" {
-		origFilename = defaultDBfilename()
+		origFilename, err = defaultDBfilename()
+		if err != nil {
+			return err
+		}
 	}
 	// TODO(juagargi) it would be ideal to open the DB file in place instead of copying it,
 	// but we always get a "database is locked" error. Tried with a combination of
 	// ?mode=ro&_journal=OFF&_mutex=no&_txlock=immediate&journal=wal&_query_only=yes
 	// ?_locking=normal&immutable=true . It fails because of setting journal
 	// (vendor/.../mattn/.../sqlite3.go:1480), for all journal modes)
-	filename := copyDBToTemp(origFilename)
+	filename, err := copyDBToTemp(origFilename)
+	if err != nil {
+		return err
+	}
 	defer removeAllDir(filepath.Dir(filename))
 
 	db, err := sqlite.New(filename)
 	if err != nil {
-		errorAndQuit(err.Error())
+		return err
 	}
 	defer db.Close()
 
 	ch, err := db.GetAll(context.Background())
 	if err != nil {
-		errorAndQuit(err.Error())
+		return err
 	}
 	var segments []segment
 	for res := range ch {
 		if res.Err != nil {
-			errorAndQuit(err.Error())
+			return err
 		}
-		segments = append(segments, newSegment(res.Result))
+		seg, err := newSegment(res.Result)
+		if err != nil {
+			return err
+		}
+		segments = append(segments, seg)
 	}
 	sort.Slice(segments, func(i, j int) bool {
 		return segments[i].lessThan(&segments[j])
@@ -75,11 +93,7 @@ func main() {
 	for _, seg := range segments {
 		fmt.Println(seg.toString(showTimestamps))
 	}
-}
-
-func errorAndQuit(msg string, params ...interface{}) {
-	fmt.Fprintf(os.Stderr, msg+"\n", params...)
-	os.Exit(1)
+	return nil
 }
 
 type asIface struct {
@@ -107,12 +121,12 @@ type segment struct {
 	Expiry     time.Time
 }
 
-func newSegment(res *query.Result) segment {
+func newSegment(res *query.Result) (segment, error) {
 	ifs := make([]asIface, 0, len(res.Seg.ASEntries))
 	for _, ase := range res.Seg.ASEntries {
 		hop, err := ase.HopEntries[0].HopField()
 		if err != nil {
-			errorAndQuit(err.Error())
+			return segment{}, err
 		}
 		if hop.ConsIngress > 0 {
 			iface := asIface{
@@ -135,7 +149,7 @@ func newSegment(res *query.Result) segment {
 		Updated:    res.LastUpdate,
 		Expiry:     res.Seg.MinExpiry(),
 		interfaces: ifs,
-	}
+	}, nil
 }
 
 func (s segment) toString(showTimestamps bool) string {
@@ -173,27 +187,26 @@ func (s *segment) lessThan(o *segment) bool {
 	}
 }
 
-func defaultDBfilename() string {
+func defaultDBfilename() (string, error) {
 	searchPath := "/etc/scion/gen-cache/"
 	glob := filepath.Join(searchPath, "ps*path.db")
 	filenames, err := filepath.Glob(glob)
 	if err != nil {
-		errorAndQuit("Error while listing files: %v", err)
+		return "", fmt.Errorf("Error while listing files: %v", err)
 	}
 	if len(filenames) == 1 {
-		return filenames[0]
+		return filenames[0], nil
 	}
 	reason := "no"
 	if len(filenames) > 1 {
 		reason = "more than one"
 	}
-	errorAndQuit("Found %s files matching '%s'. "+
+	return "", fmt.Errorf("Found %s files matching '%s'. "+
 		"Please specify the path to a DB file using the -db flag.", reason, glob)
-	return ""
 }
 
 // returns the name of the created file
-func copyDBToTemp(filename string) string {
+func copyDBToTemp(filename string) (string, error) {
 	copyOneFile := func(dstDir, srcFileName string) error {
 		src, err := os.Open(srcFileName)
 		if err != nil {
@@ -214,15 +227,15 @@ func copyDBToTemp(filename string) string {
 	}
 	dirName, err := ioutil.TempDir("/tmp", "pathserver_dump")
 	if err != nil {
-		errorAndQuit("Error creating temporary dir: %v", err)
+		return "", fmt.Errorf("Error creating temporary dir: %v", err)
 	}
 
 	err = copyOneFile(dirName, filename)
 	if err != nil {
-		errorAndQuit(err.Error())
+		return "", err
 	}
 	_ = copyOneFile(dirName, filename+"-wal") // Fails when DB not open (i.e. SCION is not running)
-	return filepath.Join(dirName, filepath.Base(filename))
+	return filepath.Join(dirName, filepath.Base(filename)), nil
 }
 
 func removeAllDir(dirName string) {
