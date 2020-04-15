@@ -100,6 +100,7 @@ func ifsArrayToString(ifs []asIface) string {
 }
 
 type segment struct {
+	LoggingID  string
 	SegType    proto.PathSegType
 	interfaces []asIface
 	Updated    time.Time
@@ -129,6 +130,7 @@ func newSegment(res *query.Result) segment {
 		}
 	}
 	return segment{
+		LoggingID:  res.Seg.GetLoggingID(),
 		SegType:    res.Type,
 		Updated:    res.LastUpdate,
 		Expiry:     res.Seg.MinExpiry(),
@@ -137,24 +139,18 @@ func newSegment(res *query.Result) segment {
 }
 
 func (s segment) toString(showTimestamps bool) string {
-	toRet := s.SegType.String() + "\t"
-	now := time.Now()
-	updatedStr := now.Sub(s.Updated).String()
-	expiryStr := s.Expiry.Sub(now).String()
-	toRet += ifsArrayToString(s.interfaces)
+	str := fmt.Sprintf("%s\t%s\t%s", s.LoggingID, s.SegType, ifsArrayToString(s.interfaces))
 	if showTimestamps {
-		toRet += "\tUpdated: " + updatedStr + "\t: Expires in: " + expiryStr
+		now := time.Now()
+		updatedStr := now.Sub(s.Updated).String()
+		expiryStr := s.Expiry.Sub(now).String()
+		str += fmt.Sprintf("\tUpdated: %s\tExpires in: %s", updatedStr, expiryStr)
 	}
-	return toRet
+	return str
 }
 
-func (s segment) String() string {
-	return s.toString(true)
-}
-
-// returns if this segment is < the other segment. It relies on the
-// short circuit of the OR op. E.g. (for two dimensions):
-// a.T < b.T || ( a.T == b.T && a.L < b.L )
+// lessThan returns if this segment is < the other segment. It uses the segment type,
+// then the number of interfaces and then finally the ID of the interfaces to sort.
 func (s *segment) lessThan(o *segment) bool {
 	segsLessThan := func(lhs, rhs *segment) bool {
 		for i := 0; i < len(lhs.interfaces); i++ {
@@ -166,10 +162,15 @@ func (s *segment) lessThan(o *segment) bool {
 		}
 		return false
 	}
-	// reversed Type comparison so core < down < up
-	return s.SegType > o.SegType || (s.SegType == o.SegType &&
-		(len(s.interfaces) < len(o.interfaces) ||
-			(len(s.interfaces) == len(o.interfaces) && (segsLessThan(s, o)))))
+	switch {
+	case s.SegType != o.SegType:
+		// reversed Type comparison so core < down < up
+		return s.SegType > o.SegType
+	case len(s.interfaces) != len(o.interfaces):
+		return len(s.interfaces) < len(o.interfaces)
+	default:
+		return segsLessThan(s, o)
+	}
 }
 
 func defaultDBfilename() string {
