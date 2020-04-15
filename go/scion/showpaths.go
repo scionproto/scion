@@ -34,19 +34,25 @@ var showpathsFlags struct {
 	expiration bool
 	refresh    bool
 	probe      bool
+	json       bool
 	local      net.IP
 }
 
 var showpathsCmd = &cobra.Command{
 	Use:   "showpaths",
-	Short: "A clean-slate internet architecture",
+	Short: "Display paths to a SCION AS",
 	Args:  cobra.ExactArgs(1),
+	Example: `  scion showpaths 1-ff00:0:110 --probe --expiration
+  scion showpaths 1-ff00:0:110 --probe --json
+  scion showpaths 1-ff00:0:110 --local 127.0.0.55`,
 	Long: `'showpaths' lists available paths between the local and the specified SCION ASe a.
 
 By default, the paths are not probed. As paths might be served from the SCION Deamon's
 cache, they might not forward traffic successfully (e.g. if a network link went down).
 To list the paths with their health statuses, specify that the paths should be probed
 through the flag.
+
+'showpaths' can be instructed to output the paths as json using the the --json flag.
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dst, err := addr.IAFromString(args[0])
@@ -62,17 +68,16 @@ through the flag.
 
 		ctx, cancel := context.WithTimeout(context.Background(), showpathsFlags.timeout)
 		defer cancel()
-		opts := []showpaths.Option{
-			showpaths.SCIOND(showpathsFlags.sciond),
-			showpaths.MaxPaths(showpathsFlags.maxPaths),
-			showpaths.ShowExpiration(showpathsFlags.expiration),
-			showpaths.Refresh(showpathsFlags.refresh),
-			showpaths.Probe(showpathsFlags.probe),
+		cfg := showpaths.Config{
+			Local:          showpathsFlags.local,
+			SCIOND:         showpathsFlags.sciond,
+			MaxPaths:       showpathsFlags.maxPaths,
+			ShowExpiration: showpathsFlags.expiration,
+			Refresh:        showpathsFlags.refresh,
+			Probe:          showpathsFlags.probe,
+			JSON:           showpathsFlags.json,
 		}
-		if showpathsFlags.local != nil {
-			opts = append(opts, showpaths.Local(showpathsFlags.local))
-		}
-		if err := showpaths.Run(ctx, dst, opts...); err != nil {
+		if err := showpaths.Run(ctx, dst, cfg); err != nil {
 			return err
 		}
 		return nil
@@ -92,6 +97,8 @@ func init() {
 		"Set refresh flag for SCION Deamon path request")
 	showpathsCmd.Flags().BoolVarP(&showpathsFlags.probe, "probe", "p", false,
 		"Probe the paths and print the health status")
+	showpathsCmd.Flags().BoolVarP(&showpathsFlags.probe, "json", "j", false,
+		"Write the output as machine readable json")
 	showpathsCmd.Flags().IPVarP(&showpathsFlags.local, "local", "l", nil,
 		"Optional local IP address to use for probing health checks")
 }
