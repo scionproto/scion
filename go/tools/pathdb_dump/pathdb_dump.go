@@ -19,8 +19,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -42,30 +40,19 @@ func main() {
 }
 
 func realMain() error {
-	var origFilename string
+	var filename string
 	var showTimestamps bool
-	flag.StringVar(&origFilename, "db", "", "Sqlite DB file (optional)")
+	flag.StringVar(&filename, "db", "", "Sqlite DB file (optional)")
 	flag.BoolVar(&showTimestamps, "t", false, "Show update and expiration times")
 	flag.Parse()
 	var err error
 
-	if origFilename == "" {
-		origFilename, err = defaultDBfilename()
+	if filename == "" {
+		filename, err = defaultDBfilename()
 		if err != nil {
 			return err
 		}
 	}
-	// TODO(juagargi) it would be ideal to open the DB file in place instead of copying it,
-	// but we always get a "database is locked" error. Tried with a combination of
-	// ?mode=ro&_journal=OFF&_mutex=no&_txlock=immediate&journal=wal&_query_only=yes
-	// ?_locking=normal&immutable=true . It fails because of setting journal
-	// (vendor/.../mattn/.../sqlite3.go:1480), for all journal modes)
-	filename, err := copyDBToTemp(origFilename)
-	if err != nil {
-		return err
-	}
-	defer removeAllDir(filepath.Dir(filename))
-
 	db, err := sqlite.New(filename)
 	if err != nil {
 		return err
@@ -203,44 +190,4 @@ func defaultDBfilename() (string, error) {
 	}
 	return "", fmt.Errorf("Found %s files matching '%s'. "+
 		"Please specify the path to a DB file using the -db flag.", reason, glob)
-}
-
-// returns the name of the created file
-func copyDBToTemp(filename string) (string, error) {
-	copyOneFile := func(dstDir, srcFileName string) error {
-		src, err := os.Open(srcFileName)
-		if err != nil {
-			return fmt.Errorf("cannot open %s: %v", srcFileName, err)
-		}
-		defer src.Close()
-		dstFilename := filepath.Join(dstDir, filepath.Base(srcFileName))
-		dst, err := os.Create(dstFilename)
-		if err != nil {
-			return fmt.Errorf("cannot open %s: %v", dstFilename, err)
-		}
-		defer dst.Close()
-		_, err = io.Copy(dst, src)
-		if err != nil {
-			return fmt.Errorf("cannot copy %s to %s: %v", srcFileName, dstFilename, err.Error())
-		}
-		return nil
-	}
-	dirName, err := ioutil.TempDir("/tmp", "pathserver_dump")
-	if err != nil {
-		return "", fmt.Errorf("Error creating temporary dir: %v", err)
-	}
-
-	err = copyOneFile(dirName, filename)
-	if err != nil {
-		return "", err
-	}
-	_ = copyOneFile(dirName, filename+"-wal") // Fails when DB not open (i.e. SCION is not running)
-	return filepath.Join(dirName, filepath.Base(filename)), nil
-}
-
-func removeAllDir(dirName string) {
-	err := os.RemoveAll(dirName)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error when removing temp dir %s: %v\n", dirName, err)
-	}
 }
