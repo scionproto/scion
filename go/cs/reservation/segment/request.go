@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // SetupReq is a segment reservation setup request. It contains a reference to the reservation
@@ -41,7 +40,7 @@ type SetupTelesReq struct {
 	BaseID reservation.SegmentID
 }
 
-func SetupReqFromWireMsg(wired proto.SegmentSetupReqData) (*SetupReq, error) {
+func SetupReqFromBuffer(raw []byte) (*SetupReq, error) {
 	// TODO(juagargi)
 	return nil, nil
 }
