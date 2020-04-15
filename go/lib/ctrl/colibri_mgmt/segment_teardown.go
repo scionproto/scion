@@ -23,3 +23,11 @@ type SegmentTeardownReq struct{}
 func (s *SegmentTeardownReq) ProtoId() proto.ProtoIdType {
 	return proto.SegmentTeardownReqData_TypeID
 }
+
+type SegmentTeardownRes struct {
+	ErrorCode uint8 // relevant only if Response.Accepted == false
+}
+
+func (r *SegmentTeardownRes) ProtoId() proto.ProtoIdType {
+	return proto.SegmentTeardownResData_TypeID
+}
