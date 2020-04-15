@@ -84,7 +84,8 @@ check_change_remote_ip() {
     # Connectivity is broken at this point
     change_remote_ip $SRC_TOPO $SRC_IA_FILE $dummy_dst
     change_remote_ip $DST_TOPO $DST_IA_FILE $dummy_src
-    sleep 3
+    # make sure revocation is expired
+    sleep 10
     check_connectivity "End check_change_remote_ip"
 }
 

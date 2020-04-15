@@ -50,7 +50,8 @@ check_change_remote_port() {
     # Connectivity is broken at this point
     jq '.BorderRouters[].Interfaces[].RemoteOverlay.OverlayPort = 42424' $DST_TOPO | sponge $DST_TOPO
     ./tools/dc scion kill -s HUP scion_br"$DST_IA_FILE"-1
-    sleep 5
+    # make sure revocation is expired
+    sleep 10
     check_logs "Remote:$addr_src:42424" $DST_IA_FILE
     check_connectivity "End check_change_remote_port"
 }
