@@ -1,0 +1,23 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["pathdb_dump.go"],
+    importpath = "github.com/scionproto/scion/go/tools/pathdb_dump",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/common:go_default_library",
+        "//go/lib/env:go_default_library",
+        "//go/lib/pathdb/query:go_default_library",
+        "//go/lib/pathdb/sqlite:go_default_library",
+        "//go/proto:go_default_library",
+    ],
+)
+
+scion_go_binary(
+    name = "pathdb_dump",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
