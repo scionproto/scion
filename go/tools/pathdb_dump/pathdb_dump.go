@@ -96,11 +96,11 @@ func ifsArrayToString(ifs []asIface) string {
 	if len(ifs) == 0 {
 		return ""
 	}
-	strs := []string{fmt.Sprintf("%s %d", ifs[0].IA, ifs[0].ifNum)}
+	strs := []string{fmt.Sprintf("%s %4d", ifs[0].IA, ifs[0].ifNum)}
 	for i := 1; i < len(ifs)-1; i += 2 {
-		strs = append(strs, fmt.Sprintf("%d %s %d", ifs[i].ifNum, ifs[i].IA, ifs[i+1].ifNum))
+		strs = append(strs, fmt.Sprintf("%4d %s %4d", ifs[i].ifNum, ifs[i].IA, ifs[i+1].ifNum))
 	}
-	strs = append(strs, fmt.Sprintf("%d %s", ifs[len(ifs)-1].ifNum, ifs[len(ifs)-1].IA))
+	strs = append(strs, fmt.Sprintf("%4d %s", ifs[len(ifs)-1].ifNum, ifs[len(ifs)-1].IA))
 	return strings.Join(strs, ">")
 }
 
@@ -144,12 +144,12 @@ func newSegment(res *query.Result) (segment, error) {
 }
 
 func (s segment) toString(showTimestamps bool) string {
-	str := fmt.Sprintf("%s\t%s\t%s", s.LoggingID, s.SegType, ifsArrayToString(s.interfaces))
+	str := fmt.Sprintf("%s %4s %s", s.LoggingID, s.SegType, ifsArrayToString(s.interfaces))
 	if showTimestamps {
 		now := time.Now()
 		updatedStr := now.Sub(s.Updated).String()
 		expiryStr := s.Expiry.Sub(now).String()
-		str += fmt.Sprintf("\tUpdated: %s\tExpires in: %s", updatedStr, expiryStr)
+		str += fmt.Sprintf(" | Updated: %s Expires in: %s", updatedStr, expiryStr)
 	}
 	return str
 }
@@ -171,8 +171,14 @@ func (s *segment) lessThan(o *segment) bool {
 	case s.SegType != o.SegType:
 		// reversed Type comparison so core < down < up
 		return s.SegType > o.SegType
-	case len(s.interfaces) != len(o.interfaces):
+	case len(s.interfaces) == 0 || len(o.interfaces) == 0:
 		return len(s.interfaces) < len(o.interfaces)
+	case s.interfaces[0].IA.IAInt() != o.interfaces[0].IA.IAInt():
+		return s.interfaces[0].IA.IAInt() < o.interfaces[0].IA.IAInt()
+	case s.interfaces[len(s.interfaces)-1].IA.IAInt() !=
+		o.interfaces[len(o.interfaces)-1].IA.IAInt():
+		return s.interfaces[len(s.interfaces)-1].IA.IAInt() <
+			o.interfaces[len(o.interfaces)-1].IA.IAInt()
 	default:
 		return segsLessThan(s, o)
 	}
