@@ -92,18 +92,6 @@ type asIface struct {
 	ifNum common.IFIDType
 }
 
-func ifsArrayToString(ifs []asIface) string {
-	if len(ifs) == 0 {
-		return ""
-	}
-	strs := []string{fmt.Sprintf("%s %4d", ifs[0].IA, ifs[0].ifNum)}
-	for i := 1; i < len(ifs)-1; i += 2 {
-		strs = append(strs, fmt.Sprintf("%4d %s %4d", ifs[i].ifNum, ifs[i].IA, ifs[i+1].ifNum))
-	}
-	strs = append(strs, fmt.Sprintf("%4d %s", ifs[len(ifs)-1].ifNum, ifs[len(ifs)-1].IA))
-	return strings.Join(strs, ">")
-}
-
 type segment struct {
 	LoggingID  string
 	SegType    proto.PathSegType
@@ -152,6 +140,18 @@ func (s segment) toString(showTimestamps bool) string {
 		str += fmt.Sprintf(" | Updated: %s Expires in: %s", updatedStr, expiryStr)
 	}
 	return str
+}
+
+func ifsArrayToString(ifs []asIface) string {
+	if len(ifs) == 0 {
+		return ""
+	}
+	strs := []string{fmt.Sprintf("%s %4d", ifs[0].IA, ifs[0].ifNum)}
+	for i := 1; i < len(ifs)-1; i += 2 {
+		strs = append(strs, fmt.Sprintf("%4d %s %4d", ifs[i].ifNum, ifs[i].IA, ifs[i+1].ifNum))
+	}
+	strs = append(strs, fmt.Sprintf("%4d %s", ifs[len(ifs)-1].ifNum, ifs[len(ifs)-1].IA))
+	return strings.Join(strs, ">")
 }
 
 // lessThan returns if this segment is < the other segment. It uses the segment type,
