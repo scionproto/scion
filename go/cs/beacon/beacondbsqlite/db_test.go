@@ -43,7 +43,7 @@ type TestBackend struct {
 }
 
 func (b *TestBackend) Prepare(t *testing.T, _ context.Context) {
-	db, err := New(":memory:", testIA)
+	db, err := New("file::memory:", testIA)
 	require.NoError(t, err)
 	b.Backend = db
 }

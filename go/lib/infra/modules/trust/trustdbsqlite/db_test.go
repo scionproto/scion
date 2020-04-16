@@ -38,7 +38,7 @@ func TestTrustDBSuite(t *testing.T) {
 }
 
 func newDatabase(t *testing.T) *Backend {
-	db, err := New(":memory:")
+	db, err := New("file::memory:")
 	require.NoError(t, err)
 	return db
 }

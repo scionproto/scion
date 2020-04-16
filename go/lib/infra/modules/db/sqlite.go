@@ -65,17 +65,16 @@ func open(path string) (*sql.DB, error) {
 	var err error
 	u, err := url.Parse(path)
 	if err != nil {
-		// may not be a URL e.g. :memory: Just go on
-		path = fmt.Sprintf("%s?_foreign_keys=1&_journal_mode=WAL", path)
-	} else {
-		q := u.Query()
-		// Add foreign_key parameter to path to enable foreign key support.
-		q.Set("_foreign_keys", "1")
-		// prevent weird errors. (see https://stackoverflow.com/a/35805826)
-		q.Set("_journal_mode", "WAL")
-		u.RawQuery = q.Encode()
-		path = u.String()
+		return nil, common.NewBasicError("invalid connection path", err, "path", path)
+
 	}
+	q := u.Query()
+	// Add foreign_key parameter to path to enable foreign key support.
+	q.Set("_foreign_keys", "1")
+	// prevent weird errors. (see https://stackoverflow.com/a/35805826)
+	q.Set("_journal_mode", "WAL")
+	u.RawQuery = q.Encode()
+	path = u.String()
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, common.NewBasicError("Couldn't open SQLite database", err, "path", path)
