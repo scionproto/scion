@@ -53,7 +53,7 @@ type TestPathDB struct {
 }
 
 func (b *TestPathDB) Prepare(t *testing.T, _ context.Context) {
-	db, err := New(":memory:")
+	db, err := New("file::memory:")
 	require.NoError(t, err)
 	b.Backend = db
 }

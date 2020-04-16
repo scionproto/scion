@@ -41,7 +41,7 @@ func TestMetricWrapperFunctionality(t *testing.T) {
 }
 
 func setupDB(t *testing.T) pathdb.PathDB {
-	db, err := sqlite.New(":memory:")
+	db, err := sqlite.New("file::memory:")
 	require.NoError(t, err)
 	return pathdb.WithMetrics("testdb", db)
 }

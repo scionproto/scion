@@ -40,7 +40,7 @@ func TestTrustDBSuite(t *testing.T) {
 }
 
 func newDatabase(t *testing.T) trust.DB {
-	db, err := trustdbsqlite.New(":memory:")
+	db, err := trustdbsqlite.New("file::memory:")
 	require.NoError(t, err)
 	return WithMetrics("mem-sqlite", db)
 }
