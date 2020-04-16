@@ -27,6 +27,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/proto"
@@ -40,20 +41,23 @@ func main() {
 }
 
 func realMain() error {
-	var filename string
-	var showTimestamps bool
-	flag.StringVar(&filename, "db", "", "Sqlite DB file (optional)")
-	flag.BoolVar(&showTimestamps, "t", false, "Show update and expiration times")
+	filename := flag.String("db", "", "Sqlite DB file (optional)")
+	showTimestamps := flag.Bool("t", false, "Show update and expiration times")
+	version := flag.Bool("version", false, "Output version information and exit.")
 	flag.Parse()
 	var err error
 
-	if filename == "" {
-		filename, err = defaultDBfilename()
+	if *version {
+		fmt.Print(env.VersionInfo())
+		os.Exit(0)
+	}
+	if *filename == "" {
+		*filename, err = defaultDBfilename()
 		if err != nil {
 			return err
 		}
 	}
-	db, err := sqlite.New(filename)
+	db, err := sqlite.New(*filename)
 	if err != nil {
 		return err
 	}
@@ -78,7 +82,7 @@ func realMain() error {
 		return segments[i].lessThan(&segments[j])
 	})
 	for _, seg := range segments {
-		fmt.Println(seg.toString(showTimestamps))
+		fmt.Println(seg.toString(*showTimestamps))
 	}
 	return nil
 }
