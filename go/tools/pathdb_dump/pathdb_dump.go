@@ -179,6 +179,8 @@ func (s *segment) lessThan(o *segment) bool {
 		o.interfaces[len(o.interfaces)-1].IA.IAInt():
 		return s.interfaces[len(s.interfaces)-1].IA.IAInt() <
 			o.interfaces[len(o.interfaces)-1].IA.IAInt()
+	case len(s.interfaces) != len(o.interfaces):
+		return len(s.interfaces) < len(o.interfaces)
 	default:
 		return segsLessThan(s, o)
 	}
