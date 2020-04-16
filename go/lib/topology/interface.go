@@ -173,7 +173,7 @@ func (t *topologyS) OverlayNextHop(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	if !ok {
 		return nil, false
 	}
-	return copyUDP(ifInfo.InternalAddr), true
+	return copyUDPAddr(ifInfo.InternalAddr), true
 }
 
 func (t *topologyS) OverlayNextHop2(ifid common.IFIDType) (*net.UDPAddr, bool) {
@@ -181,7 +181,7 @@ func (t *topologyS) OverlayNextHop2(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	if !ok {
 		return nil, false
 	}
-	return copyUDP(ifInfo.InternalAddr), true
+	return copyUDPAddr(ifInfo.InternalAddr), true
 }
 
 func (t *topologyS) MakeHostInfos(st proto.ServiceType) []net.UDPAddr {
@@ -389,18 +389,4 @@ func (t *topologyS) SVCNames(svc addr.HostSVC) ServiceNames {
 
 func (t *topologyS) Writable() *RWTopology {
 	return t.Topology
-}
-
-func copyIP(ip net.IP) net.IP {
-	return append(ip[:0:0], ip...)
-}
-
-func copyUDP(a *net.UDPAddr) *net.UDPAddr {
-	if a == nil {
-		return nil
-	}
-	return &net.UDPAddr{
-		IP:   copyIP(a.IP),
-		Port: a.Port,
-	}
 }

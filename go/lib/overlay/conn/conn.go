@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -287,6 +288,7 @@ func (c *connUDPBase) Read(b common.RawBytes) (int, *ReadMeta, error) {
 		c.readMeta.Src = &net.UDPAddr{
 			IP:   src.IP,
 			Port: src.Port,
+			Zone: src.Zone,
 		}
 	}
 	return n, &c.readMeta, err
@@ -388,6 +390,7 @@ func (m *ReadMeta) setSrc(a *net.UDPAddr, raddr *net.UDPAddr, ot overlay.Type) {
 		m.Src = &net.UDPAddr{
 			IP:   raddr.IP,
 			Port: raddr.Port,
+			Zone: raddr.Zone,
 		}
 	}
 }

@@ -321,10 +321,8 @@ func realMain() int {
 	}
 	// We do not need to drain the connection, since the src address is spoofed
 	// to contain the topo address.
-	a := topo.PublicAddress(addr.SvcBS, cfg.General.ID)
-	ohpAddress := &net.UDPAddr{
-		IP: append(a.IP[:0:0], a.IP...), Port: 0,
-	}
+	ohpAddress := snet.CopyUDPAddr(topo.PublicAddress(addr.SvcBS, cfg.General.ID))
+	ohpAddress.Port = 0
 	conn, _, err := pktDisp.Register(context.Background(), topo.IA(), ohpAddress, addr.SvcNone)
 	if err != nil {
 		log.Crit("Unable to create SCION packet conn", "err", err)

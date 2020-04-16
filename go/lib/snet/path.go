@@ -120,17 +120,7 @@ func (p *partialPath) Copy() Path {
 	}
 	return &partialPath{
 		spath:       p.spath.Copy(),
-		overlay:     copyUDP(p.overlay),
+		overlay:     CopyUDPAddr(p.overlay),
 		destination: p.destination,
-	}
-}
-
-func copyUDP(udp *net.UDPAddr) *net.UDPAddr {
-	if udp == nil {
-		return nil
-	}
-	return &net.UDPAddr{
-		IP:   append(udp.IP[:0:0], udp.IP...),
-		Port: udp.Port,
 	}
 }

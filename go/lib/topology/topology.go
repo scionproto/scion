@@ -412,10 +412,7 @@ func (a *TopoAddr) copy() *TopoAddr {
 		return nil
 	}
 	return &TopoAddr{
-		SCIONAddress: &net.UDPAddr{
-			IP:   append(a.SCIONAddress.IP[:0:0], a.SCIONAddress.IP...),
-			Port: a.SCIONAddress.Port,
-		},
+		SCIONAddress:    copyUDPAddr(a.SCIONAddress),
 		UnderlayAddress: toUDPAddr(a.UnderlayAddress),
 	}
 }
@@ -428,10 +425,7 @@ func toUDPAddr(a net.Addr) *net.UDPAddr {
 	if !ok {
 		return nil
 	}
-	return &net.UDPAddr{
-		IP:   append(udpAddr.IP[:0:0], udpAddr.IP...),
-		Port: udpAddr.Port,
-	}
+	return copyUDPAddr(udpAddr)
 }
 
 // ServiceNames is a slice of process names (e.g., "bs-1", "bs-2").
@@ -453,5 +447,6 @@ func copyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
 	return &net.UDPAddr{
 		IP:   append(a.IP[:0:0], a.IP...),
 		Port: a.Port,
+		Zone: a.Zone,
 	}
 }

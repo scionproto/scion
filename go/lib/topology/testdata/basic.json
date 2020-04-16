@@ -90,6 +90,43 @@
                     "MTU": 1480
                 }
             }
+        },
+        "br1-ff00:0:311-2": {
+            "InternalAddrs": {
+                "IPv6": {
+                    "PublicOverlay": {
+                        "Addr": "2001:db8:a0b:12f0::1%some-internal-zone"
+                    }
+                }
+            },
+            "CtrlAddr": {
+                "IPv6": {
+                    "Public": {
+                        "Addr": "2001:db8:a0b:12f0::1%some-ctrl-zone",
+                        "L4Port": 30098
+                    }
+                }
+            },
+            "Interfaces": {
+                "11": {
+                    "Overlay": "UDP/IPv6",
+                    "PublicOverlay": {
+                        "Addr": "2001:db8:a0b:12f0::1%some-public-zone",
+                        "OverlayPort": 44897
+                    },
+                    "RemoteOverlay": {
+                        "Addr": "2001:db8:a0b:12f0::2%some-remote-zone",
+                        "OverlayPort": 44898
+                    },
+                    "BindOverlay": {
+                        "Addr": "2001:db8:a0b:12f0::8%some-bind-zone"
+                    },
+                    "Bandwidth": 5000,
+                    "ISD_AS": "1-ff00:0:314",
+                    "LinkTo": "CHILD",
+                    "MTU": 4430
+                }
+            }
         }
     },
     "ControlService": {
@@ -109,6 +146,16 @@
                     "Public": {
                         "Addr": "2001:db8:f00:b43::1",
                         "L4Port": 23421
+                    }
+                }
+            }
+        },
+        "cs1-ff00:0:311-4": {
+            "Addrs": {
+                "IPv6": {
+                    "Public": {
+                        "Addr": "2001:db8:f00:b43::1%some-zone",
+                        "L4Port": 23425
                     }
                 }
             }

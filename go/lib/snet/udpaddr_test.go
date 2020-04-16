@@ -58,11 +58,18 @@ func TestUDPAddrString(t *testing.T) {
 			},
 			want: "1-ff00:0:320,[2001::1]:20000",
 		},
+		"ipv6-zone": {
+			input: &snet.UDPAddr{
+				IA:   xtest.MustParseIA("1-ff00:0:320"),
+				Host: &net.UDPAddr{IP: net.ParseIP("2001::1"), Port: 20000, Zone: "some-zone"},
+			},
+			want: "1-ff00:0:320,[2001::1%some-zone]:20000",
+		},
 	}
 	for n, tc := range tests {
 		t.Run(n, func(t *testing.T) {
 			a := tc.input.String()
-			assert.Equal(t, a, tc.want)
+			assert.Equal(t, tc.want, a)
 		})
 	}
 }
@@ -104,6 +111,18 @@ func TestUDPAddrSet(t *testing.T) {
 				},
 			},
 		},
+		"ipv6-zone": {
+			Input: "1-ff00:0:1,[dead::beef%some-zone]:80",
+			Error: assert.NoError,
+			Want: &snet.UDPAddr{
+				IA: xtest.MustParseIA("1-ff00:0:1"),
+				Host: &net.UDPAddr{
+					IP:   net.ParseIP("dead::beef"),
+					Port: 80,
+					Zone: "some-zone",
+				},
+			},
+		},
 	}
 	for n, tc := range testCases {
 		t.Run(n, func(t *testing.T) {
@@ -124,6 +143,7 @@ func TestParseUDPAddr(t *testing.T) {
 		ia      string
 		host    string
 		port    int
+		zone    string
 	}{
 		{address: "foo", isError: true},
 		{address: "5-", isError: true},
@@ -132,7 +152,7 @@ func TestParseUDPAddr(t *testing.T) {
 		{address: "5-ff00:0:300,[127.0.0.1]:", isError: true},
 		{address: "40-ff00:0:300,[]:19", isError: true},
 		{address: "1-ff00:0:300,[]:13,[f", isError: true},
-		{address: "1-ff00:0:300,[abc]:12", isError: true},
+		{address: "1-ff00:0:300,[hostthatdoesnotexistforsure]:12", isError: true},
 		{address: "1-ff00:0:300]:14,[1.2.3.4]", isError: true},
 		{address: "1-ff00:0:300,[1.2.3.4]:70000", isError: true},
 		{address: "1-ff00:0:300,[1.2.3.4]]", isError: true},
@@ -163,6 +183,12 @@ func TestParseUDPAddr(t *testing.T) {
 			host: "::1",
 			port: 60000,
 		},
+		{address: "1-ff00:0:302,[::1%some-zone]:60000",
+			ia:   "1-ff00:0:302",
+			host: "::1",
+			port: 60000,
+			zone: "some-zone",
+		},
 		{address: "1-ff00:0:301,1.2.3.4",
 			ia:   "1-ff00:0:301",
 			host: "1.2.3.4",
@@ -183,6 +209,18 @@ func TestParseUDPAddr(t *testing.T) {
 			host: "::1",
 			port: 0,
 		},
+		{address: "1-ff00:0:302,[::1%some-zone]",
+			ia:   "1-ff00:0:302",
+			host: "::1",
+			port: 0,
+			zone: "some-zone",
+		},
+		{address: "1-ff00:0:302,::1%some-zone",
+			ia:   "1-ff00:0:302",
+			host: "::1",
+			port: 0,
+			zone: "some-zone",
+		},
 	}
 	for _, test := range tests {
 		t.Log(fmt.Sprintf("given address %q", test.address))
@@ -194,6 +232,7 @@ func TestParseUDPAddr(t *testing.T) {
 			assert.Equal(t, test.ia, a.IA.String())
 			assert.Equal(t, net.ParseIP(test.host), a.Host.IP)
 			assert.Equal(t, test.port, a.Host.Port)
+			assert.Equal(t, test.zone, a.Host.Zone)
 		}
 	}
 }
