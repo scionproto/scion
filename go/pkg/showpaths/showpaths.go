@@ -18,8 +18,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
-	"os"
 	"strings"
 	"time"
 
@@ -32,15 +32,62 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 )
 
+// Result contains all the discovered paths.
+type Result struct {
+	Destination addr.IA `json:"destination"`
+	Paths       []Path  `json:"paths"`
+}
+
+// Path holds information about the discovered path.
+type Path struct {
+	FullPath    snet.Path `json:"-"`
+	Fingerprint string    `json:"fingerprint"`
+	Hops        []Hop     `json:"hops"`
+	NextHop     string    `json:"next_hop"`
+	Expiry      time.Time `json:"expiry"`
+	MTU         uint16    `json:"mtu"`
+	Status      string    `json:"status,omitempty"`
+	StatusInfo  string    `json:"status_info,omitempty"`
+}
+
+// Hop represents an hop on the path.
+type Hop struct {
+	IfID common.IFIDType `json:"ifid"`
+	IA   addr.IA         `json:"isd_as"`
+}
+
+// Human writes human readable output to the writer.
+func (r Result) Human(w io.Writer, showExpiration bool) {
+	fmt.Fprintln(w, "Available paths to", r.Destination)
+	for i, path := range r.Paths {
+		fmt.Fprintf(w, "[%2d] %s", i, fmt.Sprintf("%s", path.FullPath))
+		if showExpiration {
+			ttl := time.Until(path.Expiry).Truncate(time.Second)
+			fmt.Fprintf(w, " Expires: %s (%s)", path.Expiry, ttl)
+		}
+		if path.Status != "" {
+			fmt.Fprintf(w, " Status: %s", path.Status)
+		}
+		fmt.Fprintln(w)
+	}
+}
+
+// JSON writes the showpaths result as a json object to the writer.
+func (r Result) JSON(w io.Writer) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(r)
+}
+
 // Run lists the paths to the specified ISD-AS to stdout.
-func Run(ctx context.Context, dst addr.IA, cfg Config) error {
+func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	sdConn, err := sciond.NewService(cfg.SCIOND).Connect(ctx)
 	if err != nil {
-		return serrors.WrapStr("error connecting to SCIOND", err)
+		return nil, serrors.WrapStr("error connecting to SCIOND", err)
 	}
 	localIA, err := sdConn.LocalIA(ctx)
 	if err != nil {
-		return serrors.WrapStr("error determining local ISD-AS", err)
+		return nil, serrors.WrapStr("error determining local ISD-AS", err)
 	}
 
 	// TODO(lukedirtwalker): Replace this with snet.Router once we have the
@@ -49,7 +96,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) error {
 	paths, err := sdConn.Paths(ctx, dst, addr.IA{},
 		sciond.PathReqFlags{Refresh: cfg.Refresh, PathCount: uint16(cfg.MaxPaths)})
 	if err != nil {
-		return serrors.WrapStr("failed to retrieve paths from SCIOND", err)
+		return nil, serrors.WrapStr("failed to retrieve paths from SCIOND", err)
 	}
 
 	var statuses map[string]pathprobe.Status
@@ -58,7 +105,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) error {
 		if localIP == nil {
 			localIP, err = findDefaultLocalIP(ctx, sdConn)
 			if err != nil {
-				return serrors.WrapStr("failed to determine local IP", err)
+				return nil, serrors.WrapStr("failed to determine local IP", err)
 			}
 		}
 		statuses, err = pathprobe.Prober{
@@ -70,62 +117,26 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) error {
 			serrors.WrapStr("failed to get status", err)
 		}
 	}
-	if cfg.JSON {
-		return machine(paths, statuses, cfg.ShowExpiration)
-	}
-	fmt.Println("Available paths to", dst)
-	human(paths, statuses, cfg.ShowExpiration)
-	return nil
-}
 
-func human(paths []snet.Path, statuses map[string]pathprobe.Status, showExpiration bool) {
-	for i, path := range paths {
-		fmt.Printf("[%2d] %s", i, fmt.Sprintf("%s", path))
-		if showExpiration {
-			fmt.Printf(" Expires: %s (%s)", path.Expiry(),
-				time.Until(path.Expiry()).Truncate(time.Second))
-		}
-		if statuses != nil {
-			fmt.Printf(" Status: %s", statuses[pathprobe.PathKey(path)])
-		}
-		fmt.Printf("\n")
-	}
-}
-
-func machine(paths []snet.Path, statuses map[string]pathprobe.Status, showExpiration bool) error {
-	type Hop struct {
-		IfID common.IFIDType `json:"ifid"`
-		IA   addr.IA         `json:"isd_as"`
-	}
-	type Path struct {
-		Fingerprint string    `json:"fingerprint"`
-		Hops        []Hop     `json:"hops"`
-		NextHop     string    `json:"next_hop"`
-		Expiry      time.Time `json:"expiry"`
-		MTU         uint16    `json:"mtu"`
-		Status      string    `json:"status,omitempty"`
-		StatusInfo  string    `json:"status_info,omitempty"`
-	}
-	jpaths := make([]Path, 0, len(paths))
+	res := &Result{Destination: dst}
 	for _, path := range paths {
-		jpath := Path{
+		rpath := Path{
+			FullPath:    path,
 			Fingerprint: path.Fingerprint().String()[:16],
 			NextHop:     path.OverlayNextHop().String(),
 			Expiry:      path.Expiry(),
 			MTU:         path.MTU(),
 		}
 		for _, hop := range path.Interfaces() {
-			jpath.Hops = append(jpath.Hops, Hop{IA: hop.IA(), IfID: hop.ID()})
+			rpath.Hops = append(rpath.Hops, Hop{IA: hop.IA(), IfID: hop.ID()})
 		}
 		if status, ok := statuses[pathprobe.PathKey(path)]; ok {
-			jpath.Status = strings.ToLower(string(status.Status))
-			jpath.StatusInfo = status.AdditionalInfo
+			rpath.Status = strings.ToLower(string(status.Status))
+			rpath.StatusInfo = status.AdditionalInfo
 		}
-		jpaths = append(jpaths, jpath)
+		res.Paths = append(res.Paths, rpath)
 	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(jpaths)
+	return res, nil
 }
 
 // TODO(matzf): this is a simple, hopefully temporary, workaround to not having
