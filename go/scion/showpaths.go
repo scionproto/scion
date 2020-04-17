@@ -16,32 +16,30 @@ package main
 
 import (
 	"context"
-	"net"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/showpaths"
 )
 
 var showpathsFlags struct {
-	sciond     string
 	timeout    time.Duration
-	maxPaths   int
+	cfg        showpaths.Config
 	expiration bool
-	refresh    bool
-	probe      bool
 	json       bool
-	local      net.IP
 }
 
 var showpathsCmd = &cobra.Command{
-	Use:   "showpaths",
-	Short: "Display paths to a SCION AS",
-	Args:  cobra.ExactArgs(1),
+	Use:     "showpaths",
+	Short:   "Display paths to a SCION AS",
+	Aliases: []string{"sp"},
+	Args:    cobra.ExactArgs(1),
 	Example: `  scion showpaths 1-ff00:0:110 --probe --expiration
   scion showpaths 1-ff00:0:110 --probe --json
   scion showpaths 1-ff00:0:110 --local 127.0.0.55`,
@@ -66,39 +64,39 @@ through the flag.
 		// See https://github.com/spf13/cobra/issues/340
 		cmd.SilenceUsage = true
 
+		// FIXME(roosd): This practically turns of logging done in libraries. We
+		// should not have to do this.
+		log.Setup(log.Config{Console: log.ConsoleConfig{Level: "crit"}})
+
 		ctx, cancel := context.WithTimeout(context.Background(), showpathsFlags.timeout)
 		defer cancel()
-		cfg := showpaths.Config{
-			Local:          showpathsFlags.local,
-			SCIOND:         showpathsFlags.sciond,
-			MaxPaths:       showpathsFlags.maxPaths,
-			ShowExpiration: showpathsFlags.expiration,
-			Refresh:        showpathsFlags.refresh,
-			Probe:          showpathsFlags.probe,
-			JSON:           showpathsFlags.json,
-		}
-		if err := showpaths.Run(ctx, dst, cfg); err != nil {
+		res, err := showpaths.Run(ctx, dst, showpathsFlags.cfg)
+		if err != nil {
 			return err
 		}
+		if showpathsFlags.json {
+			return res.JSON(os.Stdout)
+		}
+		res.Human(os.Stdout, showpathsFlags.expiration)
 		return nil
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(showpathsCmd)
-	showpathsCmd.Flags().StringVar(&showpathsFlags.sciond, "sciond", sciond.DefaultSCIONDAddress,
-		"SCION Deamon address")
+	showpathsCmd.Flags().StringVar(&showpathsFlags.cfg.SCIOND, "sciond",
+		sciond.DefaultSCIONDAddress, "SCION Deamon address")
 	showpathsCmd.Flags().DurationVar(&showpathsFlags.timeout, "timeout", 5*time.Second, "Timeout")
-	showpathsCmd.Flags().IntVarP(&showpathsFlags.maxPaths, "maxpaths", "m", 10,
+	showpathsCmd.Flags().IntVarP(&showpathsFlags.cfg.MaxPaths, "maxpaths", "m", 10,
 		"Maximum number of paths that are displayed")
 	showpathsCmd.Flags().BoolVarP(&showpathsFlags.expiration, "expiration", "e", false,
 		"Show path expiration information")
-	showpathsCmd.Flags().BoolVarP(&showpathsFlags.refresh, "refresh", "r", false,
+	showpathsCmd.Flags().BoolVarP(&showpathsFlags.cfg.Refresh, "refresh", "r", false,
 		"Set refresh flag for SCION Deamon path request")
-	showpathsCmd.Flags().BoolVarP(&showpathsFlags.probe, "probe", "p", false,
+	showpathsCmd.Flags().BoolVarP(&showpathsFlags.cfg.Probe, "probe", "p", false,
 		"Probe the paths and print the health status")
-	showpathsCmd.Flags().BoolVarP(&showpathsFlags.probe, "json", "j", false,
+	showpathsCmd.Flags().BoolVarP(&showpathsFlags.json, "json", "j", false,
 		"Write the output as machine readable json")
-	showpathsCmd.Flags().IPVarP(&showpathsFlags.local, "local", "l", nil,
+	showpathsCmd.Flags().IPVarP(&showpathsFlags.cfg.Local, "local", "l", nil,
 		"Optional local IP address to use for probing health checks")
 }

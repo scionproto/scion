@@ -27,7 +27,10 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/pkg/showpaths"
+	"github.com/scionproto/scion/go/lib/sciond/pathprobe"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 )
 
 var (
@@ -37,7 +40,6 @@ var (
 	maxPaths   = flag.Int("maxpaths", 10, "Maximum number of paths")
 	expiration = flag.Bool("expiration", false, "Show path expiration timestamps")
 	refresh    = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
-	json       = flag.Bool("json", false, "Write output as machine readable json")
 	status     = flag.Bool("p", false, "Probe the paths and print out the statuses")
 	localIPStr = flag.String("local", "", "(Optional) local IP address to use for health checks")
 	version    = flag.Bool("version", false, "Output version information and exit.")
@@ -67,18 +69,47 @@ func main() {
 
 	ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
 	defer cancelF()
-	cfg := showpaths.Config{
-		Local:          localIP,
-		SCIOND:         *sciondAddr,
-		MaxPaths:       *maxPaths,
-		ShowExpiration: *expiration,
-		Refresh:        *refresh,
-		Probe:          *status,
-		JSON:           *json,
+	sdConn, err := sciond.NewService(*sciondAddr).Connect(ctx)
+	if err != nil {
+		LogFatal("Failed to connect to SCIOND", "err", err)
 	}
-	if err := showpaths.Run(ctx, dstIA, cfg); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
-		os.Exit(1)
+	localIA, err := sdConn.LocalIA(ctx)
+	if err != nil {
+		LogFatal("Failed to query local IA from SCIOND", "err", err)
+	}
+
+	paths, err := getPaths(sdConn, ctx)
+	if err != nil {
+		LogFatal("Failed to get paths", "err", err)
+	}
+	fmt.Println("Available paths to", dstIA)
+	var pathStatuses map[string]pathprobe.Status
+	if *status {
+		if localIP == nil {
+			localIP, err = findDefaultLocalIP(ctx, sdConn)
+			if err != nil {
+				LogFatal("Failed to determine local IP", "err", err)
+			}
+		}
+		pathStatuses, err = pathprobe.Prober{
+			DstIA:   dstIA,
+			LocalIA: localIA,
+			LocalIP: localIP,
+		}.GetStatuses(ctx, paths)
+		if err != nil {
+			LogFatal("Failed to get status", "err", err)
+		}
+	}
+	for i, path := range paths {
+		fmt.Printf("[%2d] %s", i, fmt.Sprintf("%s", path))
+		if *expiration {
+			fmt.Printf(" Expires: %s (%s)", path.Expiry(),
+				time.Until(path.Expiry()).Truncate(time.Second))
+		}
+		if *status {
+			fmt.Printf(" Status: %s", pathStatuses[pathprobe.PathKey(path)])
+		}
+		fmt.Printf("\n")
 	}
 }
 
@@ -103,6 +134,45 @@ func validateFlags() {
 			LogFatal("Invalid local address")
 		}
 	}
+}
+
+// TODO(lukedirtwalker): Replace this with snet.Router once we have the
+// possibility to have the same functionality, i.e. refresh, fetch all paths.
+// https://github.com/scionproto/scion/issues/3348
+func getPaths(sdConn sciond.Connector, ctx context.Context) ([]snet.Path, error) {
+	paths, err := sdConn.Paths(ctx, dstIA, addr.IA{},
+		sciond.PathReqFlags{Refresh: *refresh, PathCount: uint16(*maxPaths)})
+	if err != nil {
+		return nil, serrors.WrapStr("failed to retrieve paths from SCIOND", err)
+	}
+	return paths, nil
+}
+
+// TODO(matzf): this is a simple, hopefully temporary, workaround to not having
+// wildcard addresses in snet.
+// Here we just use a seemingly sensible default IP, but in the general case
+// the local IP would depend on the next hop of selected path. This approach
+// will not work in more complicated setups where e.g. different network
+// interface are used to talk to different AS interfaces.
+// Once a available, a wildcard address should be used and this should simply
+// be removed.
+//
+// findDefaultLocalIP returns _a_ IP of this host in the local AS.
+func findDefaultLocalIP(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
+	hostInLocalAS, err := findAnyHostInLocalAS(ctx, sciondConn)
+	if err != nil {
+		return nil, err
+	}
+	return addrutil.ResolveLocal(hostInLocalAS)
+}
+
+// findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
+func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
+	addr, err := sciond.TopoQuerier{Connector: sciondConn}.OverlayAnycast(ctx, addr.SvcBS)
+	if err != nil {
+		return nil, err
+	}
+	return addr.IP, nil
 }
 
 func flagUsage() {

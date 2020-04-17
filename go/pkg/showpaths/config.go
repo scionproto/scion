@@ -16,8 +16,6 @@ package showpaths
 
 import (
 	"net"
-
-	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 // DefaultMaxPaths is the maximum number of paths that are displayed by default.
@@ -33,22 +31,8 @@ type Config struct {
 	// MaxPaths configures the maximum number of displayed paths. If this option is
 	// not provided, the DefaultMaxPaths is used.
 	MaxPaths int
-	// ShowExpiration configures whether the expiration is displayed.
-	ShowExpiration bool
 	// Refresh configures whether sciond is queried with the refresh flag.
 	Refresh bool
 	// Probe configures whether the path status is probed and displayed.
 	Probe bool
-	// JSON configures whether the output is written as json.
-	JSON bool
-}
-
-// InitDefaults initializes the default values.
-func (cfg *Config) InitDefaults() {
-	if cfg.SCIOND == "" {
-		cfg.SCIOND = sciond.DefaultSCIONDAddress
-	}
-	if cfg.MaxPaths == 0 {
-		cfg.MaxPaths = DefaultMaxPaths
-	}
 }
