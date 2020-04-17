@@ -22,6 +22,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing/mock_beaconing"
@@ -139,7 +140,7 @@ func TestNewHandler(t *testing.T) {
 		asEntry := pseg.ASEntries[pseg.MaxAEIdx()]
 		asEntry.RawIA = xtest.MustParseIA("1-ff00:0:111").IAInt()
 		raw, err := asEntry.Pack()
-		xtest.FailOnErr(t, err)
+		require.NoError(t, err)
 		pseg.RawASEntries[pseg.MaxAEIdx()].Blob = raw
 		res := handler.Handle(defaultTestReq(rw, pseg))
 		assert.Equal(t, res, infra.MetricsErrInvalid)
@@ -150,7 +151,7 @@ func TestNewHandler(t *testing.T) {
 		asEntry := pseg.ASEntries[pseg.MaxAEIdx()]
 		asEntry.HopEntries[0].RawOutIA = xtest.MustParseIA("1-ff00:0:111").IAInt()
 		raw, err := asEntry.Pack()
-		xtest.FailOnErr(t, err)
+		require.NoError(t, err)
 		pseg.RawASEntries[pseg.MaxAEIdx()].Blob = raw
 		res := handler.Handle(defaultTestReq(rw, pseg))
 		assert.Equal(t, res, infra.MetricsErrInvalid)
@@ -160,7 +161,7 @@ func TestNewHandler(t *testing.T) {
 		asEntry := pseg.ASEntries[pseg.MaxAEIdx()]
 		asEntry.HopEntries[0].RemoteOutIF = 42
 		raw, err := asEntry.Pack()
-		xtest.FailOnErr(t, err)
+		require.NoError(t, err)
 		pseg.RawASEntries[pseg.MaxAEIdx()].Blob = raw
 		res := handler.Handle(defaultTestReq(rw, pseg))
 		assert.Equal(t, res, infra.MetricsErrInvalid)
