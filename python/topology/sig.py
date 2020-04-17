@@ -71,7 +71,7 @@ class SIGGenerator(object):
     def _dispatcher_conf(self, topo_id, base):
         # Create dispatcher config
         entry = {
-            'image': 'scion_dispatcher_go',
+            'image': 'scion_dispatcher',
             'container_name': 'scion_%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt()),
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,

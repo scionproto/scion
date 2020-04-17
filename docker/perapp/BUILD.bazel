@@ -21,11 +21,15 @@ scion_app_images(
 )
 
 scion_app_images(
-    name = "dispatcher_go",
-    binary = "//go/godispatcher:godispatcher",
+    name = "dispatcher",
     appdir = "/app",
+    binary = "//go/dispatcher:dispatcher",
+    entrypoint = [
+        "/app/dispatcher",
+        "-config",
+        "/share/conf/disp.toml",
+    ],
     workdir = "/share",
-    entrypoint = ["/app/godispatcher", "-config", "/share/conf/disp.toml"],
 )
 
 scion_app_images(
@@ -48,21 +52,21 @@ scion_app_images(
 container_bundle(
     name = "prod",
     images = {
-        "scion_border:latest":        ":border_prod",
-        "scion_cs:latest":            ":cs_prod",
-        "scion_dispatcher_go:latest": ":dispatcher_go_prod",
-        "scion_sciond:latest":        ":sciond_prod",
-        "scion_sig_nocap:latest":     ":sig_prod",
+        "scion_border:latest":     ":border_prod",
+        "scion_cs:latest":         ":cs_prod",
+        "scion_dispatcher:latest": ":dispatcher_prod",
+        "scion_sciond:latest":     ":sciond_prod",
+        "scion_sig_nocap:latest":  ":sig_prod",
     },
 )
 
 container_bundle(
     name = "debug",
     images = {
-        "scion_border_debug:latest":        ":border_debug",
-        "scion_cs_debug:latest":            ":cs_debug",
-        "scion_dispatcher_go_debug:latest": ":dispatcher_go_debug",
-        "scion_sciond_debug:latest":        ":sciond_debug",
-        "scion_sig_nocap_debug:latest":     ":sig_debug",
+        "scion_border_debug:latest":     ":border_debug",
+        "scion_cs_debug:latest":         ":cs_debug",
+        "scion_dispatcher_debug:latest": ":dispatcher_debug",
+        "scion_sciond_debug:latest":     ":sciond_debug",
+        "scion_sig_nocap_debug:latest":  ":sig_debug",
     },
 )

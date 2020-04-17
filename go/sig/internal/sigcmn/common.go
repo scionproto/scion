@@ -20,7 +20,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/godispatcher/dispatcher"
+	"github.com/scionproto/scion/go/dispatcher/dispatcher"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
@@ -137,7 +137,7 @@ func newDispatcher(cfg sigconfig.SigConf) (reliable.Dispatcher, error) {
 	}
 	// Initialize dispatcher bypass.
 	log.Info("Bypassing SCION dispatcher", "addr", cfg.DispatcherBypass)
-	dispServer, err := dispatcher.NewServer(cfg.DispatcherBypass)
+	dispServer, err := dispatcher.NewServer(cfg.DispatcherBypass, nil, nil)
 	if err != nil {
 		return nil, serrors.WrapStr("unable to initialize bypass dispatcher", err)
 	}

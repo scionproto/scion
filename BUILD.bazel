@@ -13,7 +13,7 @@ pkg_tar(
     srcs = [
         "//go/border:border",
         "//go/cs:cs",
-        "//go/godispatcher:godispatcher",
+        "//go/dispatcher:dispatcher",
         "//go/tools/logdog:logdog",
         "//go/sciond:sciond",
         "//go/tools/scion-pki:scion-pki",

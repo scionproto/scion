@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/metrics"
-	"github.com/scionproto/scion/go/godispatcher/internal/registration"
-	"github.com/scionproto/scion/go/godispatcher/internal/respool"
+	"github.com/scionproto/scion/go/dispatcher/internal/metrics"
+	"github.com/scionproto/scion/go/dispatcher/internal/registration"
+	"github.com/scionproto/scion/go/dispatcher/internal/respool"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
@@ -37,21 +37,26 @@ type Server struct {
 
 // NewServer creates new instance of Server. Internally, it opens the dispatcher ports
 // for both IPv4 and IPv6. Returns error if the ports can't be opened.
-func NewServer(address string) (*Server, error) {
+func NewServer(address string, ipv4Conn, ipv6Conn net.PacketConn) (*Server, error) {
 	metaLogger := &throttledMetaLogger{
 		Logger:      log.Root(),
 		MinInterval: OverflowLoggingInterval,
 	}
-	ipv4Conn, err := openConn("udp4", address, metaLogger)
-	if err != nil {
-		return nil, err
+	if ipv4Conn == nil {
+		var err error
+		ipv4Conn, err = openConn("udp4", address, metaLogger)
+		if err != nil {
+			return nil, err
+		}
 	}
-	ipv6Conn, err := openConn("udp6", address, metaLogger)
-	if err != nil {
-		ipv4Conn.Close()
-		return nil, err
+	if ipv6Conn == nil {
+		var err error
+		ipv6Conn, err = openConn("udp6", address, metaLogger)
+		if err != nil {
+			ipv4Conn.Close()
+			return nil, err
+		}
 	}
-
 	return &Server{
 		routingTable: NewIATable(1024, 65535),
 		ipv4Conn:     ipv4Conn,

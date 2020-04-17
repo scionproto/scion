@@ -115,7 +115,7 @@ class SupervisorGenerator(object):
         elem_dir = os.path.join(self.args.output_dir, elem)
         config_file_path = os.path.join(elem_dir, DISP_CONFIG_NAME)
         self._write_elem_conf(
-            elem, ["bin/godispatcher", "-config", config_file_path], elem_dir)
+            elem, ["bin/dispatcher", "-config", config_file_path], elem_dir)
 
     def _common_entry(self, name, cmd_args, elem_dir=None):
         entry = {
