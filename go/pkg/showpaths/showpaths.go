@@ -48,6 +48,7 @@ type Path struct {
 	MTU         uint16    `json:"mtu"`
 	Status      string    `json:"status,omitempty"`
 	StatusInfo  string    `json:"status_info,omitempty"`
+	Local       net.IP    `json:"local_ip,omitempty"`
 }
 
 // Hop represents an hop on the path.
@@ -66,7 +67,7 @@ func (r Result) Human(w io.Writer, showExpiration bool) {
 			fmt.Fprintf(w, " Expires: %s (%s)", path.Expiry, ttl)
 		}
 		if path.Status != "" {
-			fmt.Fprintf(w, " Status: %s", path.Status)
+			fmt.Fprintf(w, " Status: %s LocalIP: %s", path.Status, path.Local)
 		}
 		fmt.Fprintln(w)
 	}
@@ -100,9 +101,10 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	}
 
 	var statuses map[string]pathprobe.Status
+	var localIP net.IP
 	if cfg.Probe {
-		localIP := cfg.Local
-		if localIP == nil {
+		// Resolve local IP in case it is not configured.
+		if localIP = cfg.Local; localIP == nil {
 			localIP, err = findDefaultLocalIP(ctx, sdConn)
 			if err != nil {
 				return nil, serrors.WrapStr("failed to determine local IP", err)
@@ -126,6 +128,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			NextHop:     path.OverlayNextHop().String(),
 			Expiry:      path.Expiry(),
 			MTU:         path.MTU(),
+			Local:       localIP,
 		}
 		for _, hop := range path.Interfaces() {
 			rpath.Hops = append(rpath.Hops, Hop{IA: hop.IA(), IfID: hop.ID()})
