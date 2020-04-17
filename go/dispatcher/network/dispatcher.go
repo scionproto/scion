@@ -17,7 +17,7 @@ package network
 import (
 	"os"
 
-	"github.com/scionproto/scion/go/godispatcher/dispatcher"
+	"github.com/scionproto/scion/go/dispatcher/dispatcher"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -30,7 +30,7 @@ type Dispatcher struct {
 }
 
 func (d *Dispatcher) ListenAndServe() error {
-	dispServer, err := dispatcher.NewServer(d.OverlaySocket)
+	dispServer, err := dispatcher.NewServer(d.OverlaySocket, nil, nil)
 	if err != nil {
 		return err
 	}

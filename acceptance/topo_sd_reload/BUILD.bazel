@@ -21,10 +21,10 @@ go_test(
 
 container_image(
     name = "dispatcher",
-    base = "//docker/perapp:dispatcher_go_debug",
+    base = "//docker/perapp:dispatcher_debug",
     files = ["testdata/disp.toml"],
     entrypoint = [
-        "/app/godispatcher",
+        "/app/dispatcher",
         "-config",
         "/disp.toml",
     ],

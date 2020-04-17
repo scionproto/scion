@@ -22,7 +22,7 @@ Following the list of images built by Bazel:
 - border: Runs `/app/border`
 - beacon_srv: Runs `/app/beacon_srv`
 - cert_srv: Runs `/app/cert_srv`
-- dispatcher_go: Runs `/app/godispatcher`
+- dispatcher: Runs `/app/dispatcher`
 - path_srv: Runs `/app/path_srv`
 - sciond: Runs `/app/sciond`
 - sig: Runs `/app/sig`

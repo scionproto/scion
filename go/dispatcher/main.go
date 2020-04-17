@@ -26,8 +26,8 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/config"
-	"github.com/scionproto/scion/go/godispatcher/network"
+	"github.com/scionproto/scion/go/dispatcher/config"
+	"github.com/scionproto/scion/go/dispatcher/network"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
@@ -114,14 +114,14 @@ func realMain() int {
 func setupBasic() error {
 	md, err := toml.DecodeFile(env.ConfigFile(), &cfg)
 	if err != nil {
-		return serrors.WrapStr("Failed to load config", err, "file", env.ConfigFile())
+		return serrors.WrapStr("failed to load config", err, "file", env.ConfigFile())
 	}
 	if len(md.Undecoded()) > 0 {
-		return serrors.New("Failed to load config: undecoded keys", "undecoded", md.Undecoded())
+		return serrors.New("failed to load config: undecoded keys", "undecoded", md.Undecoded())
 	}
 	cfg.InitDefaults()
 	if err := log.Setup(cfg.Logging); err != nil {
-		return serrors.WrapStr("Failed to initialize logging", err)
+		return serrors.WrapStr("failed to initialize logging", err)
 	}
 	prom.ExportElementID(cfg.Dispatcher.ID)
 	return env.LogAppStarted("Dispatcher", cfg.Dispatcher.ID)

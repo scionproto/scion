@@ -18,7 +18,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/metrics"
+	"github.com/scionproto/scion/go/dispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/serrors"

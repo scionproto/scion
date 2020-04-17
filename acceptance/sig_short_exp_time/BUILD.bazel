@@ -16,10 +16,10 @@ sh_test(
 
 container_image(
     name = "dispatcher1",
-    base = "//docker/perapp:dispatcher_go_debug",
+    base = "//docker/perapp:dispatcher_debug",
     files = ["testdata/1-ff00_0_110/dispatcher/disp.toml"],
     entrypoint = [
-        "/app/godispatcher",
+        "/app/dispatcher",
         "-config",
         "/disp.toml",
     ],
@@ -28,10 +28,10 @@ container_image(
 
 container_image(
     name = "dispatcher2",
-    base = "//docker/perapp:dispatcher_go_debug",
+    base = "//docker/perapp:dispatcher_debug",
     files = ["testdata/1-ff00_0_111/dispatcher/disp.toml"],
     entrypoint = [
-        "/app/godispatcher",
+        "/app/dispatcher",
         "-config",
         "/disp.toml",
     ],

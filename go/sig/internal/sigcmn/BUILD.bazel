@@ -6,7 +6,7 @@ go_library(
     importpath = "github.com/scionproto/scion/go/sig/internal/sigcmn",
     visibility = ["//visibility:public"],
     deps = [
-        "//go/godispatcher/dispatcher:go_default_library",
+        "//go/dispatcher/dispatcher:go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl/sig_mgmt:go_default_library",

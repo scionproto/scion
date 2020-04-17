@@ -19,9 +19,9 @@ import (
 	"io"
 	"net"
 
-	"github.com/scionproto/scion/go/godispatcher/dispatcher"
-	"github.com/scionproto/scion/go/godispatcher/internal/metrics"
-	"github.com/scionproto/scion/go/godispatcher/internal/respool"
+	"github.com/scionproto/scion/go/dispatcher/dispatcher"
+	"github.com/scionproto/scion/go/dispatcher/internal/metrics"
+	"github.com/scionproto/scion/go/dispatcher/internal/respool"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"

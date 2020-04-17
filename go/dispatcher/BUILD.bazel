@@ -4,11 +4,11 @@ load("//:scion.bzl", "scion_go_binary")
 go_library(
     name = "go_default_library",
     srcs = ["main.go"],
-    importpath = "github.com/scionproto/scion/go/godispatcher",
+    importpath = "github.com/scionproto/scion/go/dispatcher",
     visibility = ["//visibility:private"],
     deps = [
-        "//go/godispatcher/internal/config:go_default_library",
-        "//go/godispatcher/network:go_default_library",
+        "//go/dispatcher/config:go_default_library",
+        "//go/dispatcher/network:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/env:go_default_library",
         "//go/lib/fatal:go_default_library",
@@ -21,7 +21,7 @@ go_library(
 )
 
 scion_go_binary(
-    name = "godispatcher",
+    name = "dispatcher",
     embed = [":go_default_library"],
     visibility = ["//visibility:public"],
 )

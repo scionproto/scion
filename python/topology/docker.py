@@ -178,7 +178,7 @@ class DockerGenerator(object):
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _dispatcher_conf(self, topo_id, topo, base):
-        image = 'dispatcher_go'
+        image = 'dispatcher'
         base_entry = {
             'image': docker_image(self.args, image),
             'environment': {

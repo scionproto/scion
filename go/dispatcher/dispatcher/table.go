@@ -17,7 +17,7 @@ package dispatcher
 import (
 	"net"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/registration"
+	"github.com/scionproto/scion/go/dispatcher/internal/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
