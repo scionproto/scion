@@ -76,8 +76,8 @@ func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDTy
 		IfIDSize:   s.cfg.IfidSize,
 		MTU:        s.cfg.MTU,
 		HopEntries: hopEntries,
-		Exts.Staticinfo: staticInfo,
 	}
+	asEntry.Exts.StaticInfo = &staticInfo
 	if err := pseg.AddASEntry(asEntry, s.cfg.Signer); err != nil {
 		return err
 	}
