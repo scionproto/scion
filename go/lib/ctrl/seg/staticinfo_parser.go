@@ -72,7 +72,7 @@ func parsenewlvl1(datafile string, topologyfile string) (MI2, map[uint16]bool) {
 	return res, peers
 }
 
-func parsenew(datafile string, topologyfile string, egint uint16, inIFID uint16) StaticInfoExtn {
+func generateStaticinfo(datafile string, topologyfile string, egint uint16, inIFID uint16) StaticInfoExtn {
 	var somedata, peers = parsenewlvl1(datafile, topologyfile)
 	var res StaticInfoExtn
 	res.LI.gatherlatency(somedata, peers, egint, inIFID)
