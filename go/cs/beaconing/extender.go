@@ -66,6 +66,9 @@ func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDTy
 		return err
 	}
 	meta := s.cfg.Signer.Meta()
+	rawdata := ""
+	topologyfile := ""
+	staticInfo := generateStaticinfo(rawdata, topologyfile, uint16(egIFID), uint16(inIFID))
 	asEntry := &seg.ASEntry{
 		RawIA:      meta.Src.IA.IAInt(),
 		CertVer:    meta.Src.ChainVer,
@@ -73,6 +76,7 @@ func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDTy
 		IfIDSize:   s.cfg.IfidSize,
 		MTU:        s.cfg.MTU,
 		HopEntries: hopEntries,
+		Exts.Staticinfo: staticInfo,
 	}
 	if err := pseg.AddASEntry(asEntry, s.cfg.Signer); err != nil {
 		return err
