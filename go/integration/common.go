@@ -24,8 +24,10 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/integration"
+	"github.com/scionproto/scion/go/lib/integration/progress"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -41,6 +43,7 @@ const (
 var (
 	Local        snet.UDPAddr
 	Mode         string
+	Progress     string
 	sciondAddr   string
 	networksFile string
 	Attempts     int
@@ -55,6 +58,7 @@ func Setup() {
 func addFlags() {
 	flag.Var((*snet.UDPAddr)(&Local), "local", "(Mandatory) address to listen on")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
+	flag.StringVar(&Progress, "progress", "", "Socket to write progress to")
 	flag.StringVar(&sciondAddr, "sciond", sciond.DefaultSCIONDAddress, "SCIOND address")
 	flag.StringVar(&networksFile, "networks", integration.SCIONDAddressesFile,
 		"File containing network definitions")
@@ -144,6 +148,16 @@ func AttemptRepeatedly(name string, attempt AttemptFunc) int {
 		break
 	}
 	return 1
+}
+
+// Done informs the integration test that a test binary has finished.
+func Done(src, dst addr.IA) {
+	if Progress == "" {
+		return
+	}
+	if doneErr := (progress.Client{Socket: Progress}).Done(src, dst); doneErr != nil {
+		log.Error("Unable to send done", "err", doneErr)
+	}
 }
 
 // LogFatal logs a critical error and exits with 1

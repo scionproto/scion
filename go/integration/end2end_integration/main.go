@@ -15,31 +15,39 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
 const (
-	name = "end2end_integration"
-	cmd  = "./bin/end2end"
+	nameE2E, cmdE2E = "end2end_integration", "./bin/end2end"
+	logDir          = "logs/end2end_integration"
 )
 
 var (
-	subset   string
-	attempts int
-	runAll   bool
-	timeout  = &util.DurWrap{Duration: 5 * time.Second}
+	subset      string
+	attempts    int
+	timeout     = &util.DurWrap{Duration: 10 * time.Second}
+	parallelism int
 )
+
+func getCmd() (string, bool) {
+	return cmdE2E, true
+}
 
 func main() {
 	os.Exit(realMain())
@@ -47,7 +55,7 @@ func main() {
 
 func realMain() int {
 	addFlags()
-	if err := integration.Init(name); err != nil {
+	if err := integration.Init(nameE2E); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
@@ -62,11 +70,18 @@ func realMain() int {
 		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
 	}
 	serverArgs := []string{
-		"-log.console", "debug",
 		"-mode", "server",
 		"-sciond", integration.SCIOND,
 		"-local", integration.DstAddrPattern + ":0",
 	}
+
+	cmd, name := cmdE2E, nameE2E
+
+	if err := os.MkdirAll(logDir, os.ModePerm); err != nil {
+		log.Error("Error creating logging directory", "err", err)
+		return 1
+	}
+
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
 	pairs, err := getPairs()
 	if err != nil {
@@ -83,42 +98,149 @@ func realMain() int {
 // addFlags adds the necessary flags.
 func addFlags() {
 	flag.IntVar(&attempts, "attempts", 1, "Number of attempts per client before giving up.")
-	flag.BoolVar(&runAll, "all", false, "Run all tests, instead of exiting on first error.")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
 	flag.StringVar(&subset, "subset", "all", "Subset of pairs to run (all|core-core|"+
 		"noncore-localcore|noncore-core|noncore-noncore)")
+	flag.IntVar(&parallelism, "parallelism", 1, "How many end2end tests run in parallel.")
 }
 
 // runTests runs the end2end tests for all pairs. In case of an error the
 // function is terminated immediately.
 func runTests(in integration.Integration, pairs []integration.IAPair) error {
 	return integration.ExecuteTimed(in.Name(), func() error {
+		// Make sure that all executed commands can write to the RPC server
+		// after shutdown.
+		defer time.Sleep(time.Second)
+
+		// Estimating the timeout we should have is hard. CI will abort after 10
+		// minutes anyway. Thus this value.
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+
 		// First run all servers
-		var lastErr error
-		dsts := integration.ExtractUniqueDsts(pairs)
-		for _, dst := range dsts {
-			s, err := integration.StartServer(in, dst)
+		type srvResult struct {
+			cleaner func()
+			err     error
+		}
+		// Start servers in parallel.
+		srvResults := make(chan srvResult)
+		for _, dst := range integration.ExtractUniqueDsts(pairs) {
+			go func(dst *snet.UDPAddr) {
+				defer log.HandlePanic()
+
+				srvCtx, cancel := context.WithCancel(ctx)
+				waiter, err := in.StartServer(srvCtx, dst)
+				if err != nil {
+					log.Error(fmt.Sprintf("Error in server: %s", dst.String()), "err", err)
+				}
+				cleaner := func() {
+					cancel()
+					if waiter != nil {
+						waiter.Wait()
+					}
+				}
+				srvResults <- srvResult{cleaner: cleaner, err: err}
+			}(dst)
+		}
+		// Wait for all servers being started.
+		var errs serrors.List
+		for range integration.ExtractUniqueDsts(pairs) {
+			res := <-srvResults
+			// We need to register a cleanup for all servers.
+			// Do not short-cut exit here.
+			if res.err != nil {
+				errs = append(errs, res.err)
+			}
+			defer res.cleaner()
+		}
+		if err := errs.ToError(); err != nil {
+			return err
+		}
+
+		// Start a done signal listener. This is how the end2end binary
+		// communicates with this integration test. This is solely used to print
+		// the progress of the test.
+		var ctrMtx sync.Mutex
+		var ctr int
+		socket, clean, err := integration.ListenDone(func(src, dst addr.IA) {
+			ctrMtx.Lock()
+			defer ctrMtx.Unlock()
+			ctr++
+			testInfo := fmt.Sprintf("%v -> %v (%v/%v)", src, dst, ctr, len(pairs))
+			log.Info(fmt.Sprintf("Test %v: %s", in.Name(), testInfo))
+		})
+		if err != nil {
+			return err
+		}
+		defer clean()
+
+		// CI collapses if parallelism is too high.
+		semaphore := make(chan struct{}, parallelism)
+
+		// Docker exec comes with a 1 second overhead. We group all the pairs by
+		// the clients. And run all pairs for a given client in one execution.
+		// Thus, reducing the overhead dramatically.
+		groups := integration.GroupBySource(pairs)
+		clientResults := make(chan error, len(groups))
+		for src, dsts := range groups {
+			go func(src *snet.UDPAddr, dsts []*snet.UDPAddr) {
+				defer log.HandlePanic()
+
+				semaphore <- struct{}{}
+				defer func() { <-semaphore }()
+				// Aggregate all the commands that need to be run.
+				cmds := make([]integration.Cmd, 0, len(dsts))
+				for _, dst := range dsts {
+					cmd, err := clientTemplate(socket).Template(src, dst)
+					if err != nil {
+						clientResults <- err
+						return
+					}
+					cmds = append(cmds, cmd)
+				}
+				var tester string
+				if *integration.Docker {
+					tester = integration.TesterID(src)
+				}
+				logFile := fmt.Sprintf("%s/client_%s.log", logDir, src.IA.FileFmt(false))
+				err := integration.Run(ctx, integration.RunConfig{
+					Commands: cmds,
+					LogFile:  logFile,
+					Tester:   tester,
+				})
+				if err != nil {
+					err = serrors.WithCtx(err, "file", logFile)
+				}
+				clientResults <- err
+			}(src, dsts)
+		}
+		for range groups {
+			err := <-clientResults
 			if err != nil {
-				log.Error(fmt.Sprintf("Error in server: %s", dst.String()), "err", err)
 				return err
 			}
-			defer s.Close()
 		}
-		// Now start the clients for srcDest pair
-		for i, conn := range pairs {
-			testInfo := fmt.Sprintf("%v -> %v (%v/%v)", conn.Src.IA, conn.Dst.IA, i+1, len(pairs))
-			log.Info(fmt.Sprintf("Test %v: %s", in.Name(), testInfo))
-			t := integration.DefaultRunTimeout + timeout.Duration*time.Duration(attempts)
-			if err := integration.RunClient(in, conn, t); err != nil {
-				log.Error(fmt.Sprintf("Error in client: %s", testInfo), "err", err)
-				lastErr = err
-				if !runAll {
-					return err
-				}
-			}
-		}
-		return lastErr
+		return nil
 	})
+}
+
+func clientTemplate(progressSock string) integration.Cmd {
+	bin, progress := getCmd()
+	cmd := integration.Cmd{
+		Binary: bin,
+		Args: []string{
+			"-log.console", "debug",
+			"-attempts", strconv.Itoa(attempts),
+			"-timeout", timeout.String(),
+			"-sciond", integration.SCIOND,
+			"-local", integration.SrcAddrPattern + ":0",
+			"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
+		},
+	}
+	if progress {
+		cmd.Args = append(cmd.Args)
+	}
+	return cmd
 }
 
 // getPairs returns the pairs to test according to the specified subset.

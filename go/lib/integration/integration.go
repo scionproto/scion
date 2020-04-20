@@ -40,7 +40,7 @@ import (
 
 const (
 	// StartServerTimeout is the timeout for starting a server.
-	StartServerTimeout = 6 * time.Second
+	StartServerTimeout = 20 * time.Second
 	// DefaultRunTimeout is the timeout when running a server or a client.
 	DefaultRunTimeout = 8 * time.Second
 	// CtxTimeout is the timeout a context waits before being killed
@@ -286,31 +286,13 @@ func ExtractUniqueDsts(pairs []IAPair) []*snet.UDPAddr {
 	return res
 }
 
-// RunBinaryTests runs the client and server for each IAPair. A number of tests are run in parallel
-// In case of an error the function is terminated immediately.
-func RunBinaryTests(in Integration, pairs []IAPair, timeout time.Duration) error {
-	if timeout == 0 {
-		timeout = DefaultRunTimeout
+// GroupBySource groups the ISD-AS pairs by source.
+func GroupBySource(pairs []IAPair) map[*snet.UDPAddr][]*snet.UDPAddr {
+	groups := make(map[*snet.UDPAddr][]*snet.UDPAddr)
+	for _, pair := range pairs {
+		groups[pair.Src] = append(groups[pair.Src], pair.Dst)
 	}
-	return runTests(in, pairs, 1, func(idx int, pair IAPair) error {
-		// Start server
-		s, err := StartServer(in, pair.Dst)
-		if err != nil {
-			log.Error(fmt.Sprintf("Error in server: %s", pair.Dst.String()), "err", err)
-			return err
-		}
-		defer s.Close()
-		// Start client
-		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src.IA, pair.Dst.IA,
-			idx+1, len(pairs)))
-		if err := RunClient(in, pair, timeout); err != nil {
-			msg := fmt.Sprintf("Error in client: %v -> %v (%v/%v)",
-				pair.Src.IA, pair.Dst.IA, idx+1, len(pairs))
-			log.Error(msg, "err", err)
-			return err
-		}
-		return nil
-	})
+	return groups
 }
 
 // RunUnaryTests runs the client for each IAPair.

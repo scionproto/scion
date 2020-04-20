@@ -59,24 +59,24 @@ ASes:
     underlay: UDP/IPv6
 links:
   - {a: "1-ff00:0:110#1",      b: "1-ff00:0:120-A#6",    linkAtoB: CORE}
-  - {a: "1-ff00:0:110#2",      b: "1-ff00:0:130-A#1004", linkAtoB: CORE, underlay: UDP/IPv6}
+  - {a: "1-ff00:0:110#2",      b: "1-ff00:0:130-A#104", linkAtoB: CORE, underlay: UDP/IPv6}
   - {a: "1-ff00:0:110#3",      b: "2-ff00:0:210#453",    linkAtoB: CORE}
-  - {a: "1-ff00:0:120-A#1",    b: "1-ff00:0:130-B#1005", linkAtoB: CORE}
+  - {a: "1-ff00:0:120-A#1",    b: "1-ff00:0:130-B#105", linkAtoB: CORE}
   - {a: "1-ff00:0:120-B#2",    b: "2-ff00:0:220#501",    linkAtoB: CORE, mtu: 1350}
   - {a: "1-ff00:0:120-B#3",    b: "2-ff00:0:220#502",    linkAtoB: CORE, mtu: 1400}
   - {a: "1-ff00:0:120-B#4",    b: "1-ff00:0:121#3",      linkAtoB: CHILD}
   - {a: "1-ff00:0:120#5",      b: "1-ff00:0:111-B#104",  linkAtoB: CHILD}
-  - {a: "1-ff00:0:130-A#1001", b: "1-ff00:0:131#4079",   linkAtoB: CHILD}
-  - {a: "1-ff00:0:130-B#1002", b: "1-ff00:0:111-A#105",  linkAtoB: CHILD, underlay: UDP/IPv6}
-  - {a: "1-ff00:0:130-A#1003", b: "1-ff00:0:112#4095",   linkAtoB: CHILD}
+  - {a: "1-ff00:0:130-A#111", b: "1-ff00:0:131#479",   linkAtoB: CHILD}
+  - {a: "1-ff00:0:130-B#112", b: "1-ff00:0:111-A#105",  linkAtoB: CHILD, underlay: UDP/IPv6}
+  - {a: "1-ff00:0:130-A#113", b: "1-ff00:0:112#495",   linkAtoB: CHILD}
   - {a: "1-ff00:0:111-C#100",  b: "1-ff00:0:121#4",      linkAtoB: PEER}
   - {a: "1-ff00:0:111-B#101",  b: "2-ff00:0:211-A#5",    linkAtoB: PEER, underlay: UDP/IPv6}
   - {a: "1-ff00:0:111-C#102",  b: "2-ff00:0:211-A#6",    linkAtoB: PEER}
-  - {a: "1-ff00:0:111-A#103",  b: "1-ff00:0:112#4094",   linkAtoB: CHILD}
-  - {a: "1-ff00:0:121#1",      b: "1-ff00:0:131#4080",   linkAtoB: PEER}
+  - {a: "1-ff00:0:111-A#103",  b: "1-ff00:0:112#494",   linkAtoB: CHILD}
+  - {a: "1-ff00:0:121#1",      b: "1-ff00:0:131#480",   linkAtoB: PEER}
   - {a: "1-ff00:0:121#2",      b: "1-ff00:0:122#2",      linkAtoB: CHILD, underlay: UDP/IPv6}
   - {a: "1-ff00:0:122#1",      b: "1-ff00:0:133#1",      linkAtoB: PEER}
-  - {a: "1-ff00:0:131#4078",   b: "1-ff00:0:132#2",      linkAtoB: CHILD}
+  - {a: "1-ff00:0:131#478",   b: "1-ff00:0:132#2",      linkAtoB: CHILD}
   - {a: "1-ff00:0:132#1",      b: "1-ff00:0:133#2",      linkAtoB: CHILD}
   - {a: "2-ff00:0:210#450",    b: "2-ff00:0:220#503",    linkAtoB: CORE, underlay: UDP/IPv6}
   - {a: "2-ff00:0:210#451",    b: "2-ff00:0:211-A#7",    linkAtoB: CHILD}

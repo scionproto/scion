@@ -72,7 +72,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		for i, conn := range pairs {
 			testInfo := fmt.Sprintf("%v -> %v (%v/%v)", conn.Src.IA, conn.Dst.IA, i+1, len(pairs))
 			log.Info(fmt.Sprintf("Test %v: %s", in.Name(), testInfo))
-			if err := integration.RunClient(in, conn, 5*time.Second); err != nil {
+			if err := integration.RunClient(in, conn, 10*time.Second); err != nil {
 				log.Error(fmt.Sprintf("Error in client: %s", testInfo), "err", err)
 				return err
 			}
