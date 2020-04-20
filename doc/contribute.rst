@@ -37,23 +37,18 @@ Cloning the repository
 
 Now that you have your own fork, follow the steps in the
 `README <https://github.com/scionproto/scion/blob/master/README.md>`_ to set up
-your Go workspace. When you get to the point of cloning the repository, use the
+your workspace. When you get to the point of cloning the repository, use the
 directory the README indicates, but clone your own fork into it instead:
 
 .. code-block:: bash
 
-  cd "$GOPATH/src/github.com/scionproto"
-  git clone --recursive git@github.com:<username>/scion
+  cd "<workspace>"
+  git clone git@github.com:<username>/scion
 
 (If you have authentication setup correctly, you won't be prompted for a password.)
 
 This will initialize a git repository on your local machine and pull everything
-from your forked personal repository in there. It's also highly recommended to
-configure the `git push` behaviour to the newer, more predictable setting:
-
-.. code-block:: bash
-
-    git config --global push.default simple
+from your forked personal repository in there.
 
 Keeping your personal fork up to date
 -------------------------------------
