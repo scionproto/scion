@@ -1,5 +1,1 @@
-filegroup(
-    name = "bin_wrapper_script",
-    srcs = ["bin_wrapper.sh"],
-    visibility = ["//visibility:public"],
-)
+exports_files(["bin_wrapper.sh"])
