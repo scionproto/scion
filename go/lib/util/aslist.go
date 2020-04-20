@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,50 +24,25 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-type asData struct {
-	Core    []string `yaml:"Core"`
-	NonCore []string `yaml:"Non-core"`
-}
-
+// ASList is a list of ISD-AS identifiers grouped by core and non-core.
 type ASList struct {
-	Core    []addr.IA
-	NonCore []addr.IA
+	Core    []addr.IA `yaml:"Core"`
+	NonCore []addr.IA `yaml:"Non-core"`
 }
 
 // LoadASList parses the yaml file fileName and returns a structure with
 // non-core and core ASes.
 func LoadASList(fileName string) (*ASList, error) {
-	asList := &ASList{}
 	buffer, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to read from file", err, "name", fileName)
 	}
-	var locations asData
-	err = yaml.Unmarshal(buffer, &locations)
+	var asList ASList
+	err = yaml.Unmarshal(buffer, &asList)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to parse YAML data", err)
 	}
-	asList.Core, err = parse(locations.Core)
-	if err != nil {
-		return nil, err
-	}
-	asList.NonCore, err = parse(locations.NonCore)
-	if err != nil {
-		return nil, err
-	}
-	return asList, nil
-}
-
-func parse(names []string) ([]addr.IA, error) {
-	var iaList []addr.IA
-	for _, name := range names {
-		ia, err := addr.IAFromString(name)
-		if err != nil {
-			return nil, common.NewBasicError("Unable to parse AS Name", err, "ISDAS", name)
-		}
-		iaList = append(iaList, ia)
-	}
-	return iaList, nil
+	return &asList, nil
 }
 
 // AllASes returns all ASes in the ASList as a slice.
