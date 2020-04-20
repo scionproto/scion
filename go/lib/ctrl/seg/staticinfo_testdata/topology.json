@@ -14,7 +14,7 @@
         }
       },
       "Interfaces": {
-        "2712": {
+        "1": {
           "Bandwidth": 1000,
           "LinkTo": "PARENT",
           "MTU": 1472,
@@ -29,9 +29,9 @@
           "Overlay": "UDP/IPv4",
           "ISD_AS": "1-ff00:0:120"
         },
-        "2815": {
+        "2": {
           "Bandwidth": 1000,
-          "LinkTo": "PEER",
+          "LinkTo": "PARENT",
           "MTU": 1472,
           "PublicOverlay": {
             "Addr": "127.0.0.18",
@@ -44,9 +44,9 @@
           "Overlay": "UDP/IPv4",
           "ISD_AS": "1-ff00:0:121"
         },
-        "2823": {
+        "3": {
           "Bandwidth": 1000,
-          "LinkTo": "PEER",
+          "LinkTo": "CHILD",
           "MTU": 1472,
           "PublicOverlay": {
             "Addr": "127.0.0.12",
@@ -59,7 +59,7 @@
           "Overlay": "UDP/IPv4",
           "ISD_AS": "2-ff00:0:211"
         },
-        "2723": {
+        "5": {
           "Bandwidth": 1000,
           "LinkTo": "PEER",
           "MTU": 1472,
@@ -74,7 +74,7 @@
           "Overlay": "UDP/IPv4",
           "ISD_AS": "2-ff00:0:211"
         },
-        "1417": {
+        "6": {
           "Bandwidth": 1000,
           "LinkTo": "CHILD",
           "MTU": 1472,
