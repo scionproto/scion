@@ -36,6 +36,18 @@ load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
 
 gazelle_dependencies()
 
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+http_archive(
+    name = "rules_pkg",
+    urls = [
+        "https://github.com/bazelbuild/rules_pkg/releases/download/0.2.5/rules_pkg-0.2.5.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_pkg/releases/download/0.2.5/rules_pkg-0.2.5.tar.gz",
+    ],
+    sha256 = "352c090cc3d3f9a6b4e676cf42a6047c16824959b438895a76c2989c6d7c246a",
+)
+load("@rules_pkg//:deps.bzl", "rules_pkg_dependencies")
+rules_pkg_dependencies()
+
 # Docker rules
 http_archive(
     name = "io_bazel_rules_docker",
@@ -43,6 +55,7 @@ http_archive(
     strip_prefix = "rules_docker-0.12.1",
     urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.12.1/rules_docker-v0.12.1.tar.gz"],
 )
+
 load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
 
 container_repositories()
@@ -170,6 +183,7 @@ container_pull(
     name = "ubuntu16",
     registry = "index.docker.io",
     repository = "library/ubuntu",
+    digest = "sha256:a98d9dcf3a34b2b78e78c61d003eb4d7a90d30fd54451686e2f0bd2ef5f602ac",
     tag = "16.04",
 )
 
