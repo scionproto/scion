@@ -7,7 +7,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/proto"
-  
+
   "encoding/json"
 	"io/ioutil"
 	"os"
@@ -259,10 +259,14 @@ func subtest(datafiles []string, topofiles []string, testdata string) (string, b
 }
 
 
-//TODO: Fix this 
 func test() (string, bool){
-	//define a bunch of arrays containing file paths here
-	//then call subtest using those arrays
-	return "",false
+
+	var datafiles []string
+	var topofiles []string
+	datafiles = append(datafiles, "testconfigfile.json")
+	topofiles = append(topofiles, "topology.json")
+
+	res1, res2 := subtest(datafiles, topofiles, "expected.json")
+	return res1, res2
 }
 
