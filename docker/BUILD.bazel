@@ -40,19 +40,27 @@ build_sigtester_image()
 
 scion_app_images(
     name = "border",
-    binary = "//go/border:border",
     appdir = "/app",
+    binary = "//go/border:border",
+    entrypoint = [
+        "/app/border",
+        "-config",
+        "/share/conf/br.toml",
+    ],
     workdir = "/share",
-    entrypoint = ["/app/border", "-config", "/share/conf/br.toml"],
 )
 
 
 scion_app_images(
     name = "cs",
-    binary = "//go/cs:cs",
     appdir = "/app",
+    binary = "//go/cs:cs",
+    entrypoint = [
+        "/app/cs",
+        "-config",
+        "/share/conf/cs.toml",
+    ],
     workdir = "/share",
-    entrypoint = ["/app/cs", "-config", "/share/conf/cs.toml"],
 )
 
 scion_app_images(
@@ -69,14 +77,19 @@ scion_app_images(
 
 scion_app_images(
     name = "sciond",
-    binary = "//go/sciond:sciond",
     appdir = "/app",
+    binary = "//go/sciond:sciond",
+    entrypoint = [
+        "/app/sciond",
+        "-config",
+        "/share/conf/sd.toml",
+    ],
     workdir = "/share",
-    entrypoint = ["/app/sciond", "-config", "/share/conf/sd.toml"],
 )
 
 scion_app_images(
     name = "sig",
+    appdir = "/app",
     binary = "//go/sig:sig",
     entrypoint = [
         "/app/sig",
