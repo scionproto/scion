@@ -18,7 +18,7 @@ struct HiddenPathSegExtn{
     set @0 :Bool;
 }
 
-struct StaticInfo {
+struct StaticInfoExtn {
     latency @0 :LatencyInfo;
     geo @1 :GeoInfo;
     linktype @2 :LinktypeInfo;
