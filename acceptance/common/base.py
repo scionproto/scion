@@ -16,7 +16,7 @@ import logging
 
 from plumbum import cli
 from plumbum import local
-from plumbum.cmd import docker, mkdir
+from plumbum.cmd import docker, mkdir, mktemp
 from plumbum.path.local import LocalPath
 
 from acceptance.common.log import LogExec
@@ -50,7 +50,7 @@ class TestState:
 
         self.scion = scion
         self.dc = dc
-        self.artifacts = local.path()  # Just init so mypy knows the type.
+        self.artifacts = local.path(mktemp('-d').strip())
         self.no_docker = False
         self.tools_dc = local['./tools/dc']
 
@@ -68,8 +68,7 @@ class TestBase(cli.Application):
         self.test_state.no_docker = True
         self.test_state.scion = SCIONSupervisor()
 
-    @cli.switch('artifacts', str, envname='ACCEPTANCE_ARTIFACTS',
-                mandatory=True)
+    @cli.switch('artifacts', str, envname='ACCEPTANCE_ARTIFACTS')
     def artifacts_dir(self, a_dir: str):
         self.test_state.artifacts = local.path('%s/%s/' % (a_dir, NAME))
 
@@ -103,8 +102,8 @@ class CmdBase(cli.Application):
             self.tools_dc(name, 'down')
 
     @staticmethod
-    def test_dir() -> LocalPath:
-        return local.path('acceptance') / DIR
+    def test_dir(prefix: str = '') -> LocalPath:
+        return local.path(prefix, 'acceptance') / DIR
 
     @staticmethod
     def docker_status():

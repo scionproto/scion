@@ -72,11 +72,11 @@ class SCION(ABC):
         self._send_signals(svc_names, "SIGHUP")
 
     @LogExec(logger, 'end2end test')
-    def run_end2end(self, expect_fail=False):
-        self._run_end2end(1 if expect_fail else 0)
+    def run_end2end(self, *args, expect_fail=False):
+        self._run_end2end(*args, code=1 if expect_fail else 0)
 
     @abstractmethod
-    def _run_end2end(self, code=0):
+    def _run_end2end(self, *args, code=0):
         """
         Run the end2end integration test.
         :param code: The expected return code.
@@ -117,8 +117,8 @@ class SCIONDocker(SCION):
         for svc_name in svc_names:
             self.tools_dc('scion', 'kill', '-s', sig, 'scion_%s' % svc_name)
 
-    def _run_end2end(self, code=0):
-        self.end2end('-d', retcode=code)
+    def _run_end2end(self, *args, code=0):
+        self.end2end('-d', *args, retcode=code)
 
 
 class SCIONSupervisor(SCION):
@@ -136,8 +136,8 @@ class SCIONSupervisor(SCION):
         for svc_name in svc_names:
             pkill('-f', '--signal', sig, 'bin/.*%s' % svc_name)
 
-    def _run_end2end(self, code=0):
-        self.end2end(retcode=code)
+    def _run_end2end(self, *args, code=0):
+        self.end2end(*args, retcode=code)
 
 
 def svc_names_from_path(files: LocalPath) -> List[str]:
