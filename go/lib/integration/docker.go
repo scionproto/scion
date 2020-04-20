@@ -26,8 +26,7 @@ import (
 )
 
 const (
-	dockerCmd = "./tools/dc"
-	dockerArg = "exec_tester"
+	dockerCmd = "docker-compose"
 )
 
 var (

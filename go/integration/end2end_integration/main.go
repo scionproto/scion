@@ -70,7 +70,6 @@ func realMain() int {
 		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
 	}
 	serverArgs := []string{
-		"-log.console", "debug",
 		"-mode", "server",
 		"-sciond", integration.SCIOND,
 		"-local", integration.DstAddrPattern + ":0",

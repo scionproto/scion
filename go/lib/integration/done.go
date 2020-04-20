@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/integration/progress"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 // ListenDone opens a RPC server to listen for done signals.
@@ -44,6 +45,9 @@ func ListenDone(onDone func(src, dst addr.IA)) (string, func(), error) {
 		return "", nil, err
 	}
 	srv := progress.Server{OnDone: onDone}
-	go srv.Serve(l)
+	go func() {
+		defer log.HandlePanic()
+		srv.Serve(l)
+	}()
 	return name, func() { os.Remove(name) }, nil
 }

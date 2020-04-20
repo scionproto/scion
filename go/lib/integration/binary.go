@@ -121,6 +121,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.cmd, args...),
 	}
+	log.Info(fmt.Sprintf("%v %v\n", bi.cmd, strings.Join(args, " ")))
 	r.Env = os.Environ()
 	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
 	ep, err := r.StderrPipe()
@@ -141,6 +142,10 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 		init := true
 		scanner := bufio.NewScanner(sp)
 		for scanner.Scan() {
+			if scanner.Err() != nil {
+				log.Error("Error during reading of stdout", "err", scanner.Err())
+				return
+			}
 			line := scanner.Text()
 			if strings.HasPrefix(line, portString) {
 				serverPortsMtx.Lock()
@@ -157,6 +162,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 		defer log.HandlePanic()
 		bi.writeLog("server", dst.IA.FileFmt(false), dst.IA.FileFmt(false), ep)
 	}()
+
 	if err = r.Start(); err != nil {
 		return nil, common.NewBasicError("Failed to start server", err, "dst", dst.IA)
 	}
@@ -186,15 +192,25 @@ func (bi *binaryIntegration) StartClient(ctx context.Context,
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.cmd, args...),
 	}
+	log.Info(fmt.Sprintf("%v %v\n", bi.cmd, strings.Join(args, " ")))
 	r.Env = os.Environ()
 	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
 	ep, err := r.StderrPipe()
 	if err != nil {
 		return nil, err
 	}
+	sp, err := r.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+
 	go func() {
 		defer log.HandlePanic()
 		bi.writeLog("client", clientId(src, dst), fmt.Sprintf("%s -> %s", src.IA, dst.IA), ep)
+	}()
+	go func() {
+		defer log.HandlePanic()
+		bi.writeLog("client", clientId(src, dst), fmt.Sprintf("%s -> %s", src.IA, dst.IA), sp)
 	}()
 	return r, r.Start()
 }

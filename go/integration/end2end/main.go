@@ -116,7 +116,7 @@ func (s server) run() {
 	if len(os.Getenv(libint.GoIntegrationEnv)) > 0 {
 		// Needed for integration test ready signal.
 		fmt.Printf("Port=%d\n", port)
-		fmt.Printf("%s%s\n", libint.ReadySignal, integration.Local.IA)
+		fmt.Printf("%s%s\n\n", libint.ReadySignal, integration.Local.IA)
 	}
 	log.Debug("Listening", "local", fmt.Sprintf("%v:%d", integration.Local.Host, port))
 	// Receive ping message
