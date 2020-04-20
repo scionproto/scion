@@ -20,7 +20,6 @@ from plumbum.cmd import docker, mkdir
 from plumbum.path.local import LocalPath
 
 from acceptance.common.log import LogExec
-from acceptance.common.consul import Consul
 from acceptance.common.scion import SCION, SCIONSupervisor
 from acceptance.common.tools import DC
 
@@ -93,6 +92,15 @@ class CmdBase(cli.Application):
         self.scion.stop()
         if not self.no_docker:
             self.dc.collect_logs(self.artifacts / 'logs' / 'docker')
+            self.tools_dc('down')
+
+    def _collect_logs(self, name: str):
+        if LocalPath('gen/%s-dc.yml' % name).exists():
+            self.tools_dc('collect_logs', name, self.artifacts / 'logs' / 'docker')
+
+    def _teardown(self, name: str):
+        if LocalPath('gen/%s-dc.yml' % name).exists():
+            self.tools_dc(name, 'down')
 
     @staticmethod
     def test_dir() -> LocalPath:

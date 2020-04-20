@@ -36,6 +36,27 @@ load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
 
 gazelle_dependencies()
 
+# XXX Needs to be before rules_docker
+# Python rules
+git_repository(
+    name = "rules_python",
+    remote = "https://github.com/bazelbuild/rules_python.git",
+    commit = "94677401bc56ed5d756f50b441a6a5c7f735a6d4",
+    shallow_since = "1573842889 -0500",
+)
+
+load("@rules_python//python:repositories.bzl", "py_repositories")
+py_repositories()
+
+load("@rules_python//python:pip.bzl", "pip3_import")
+pip3_import(
+   name = "pip3_deps",
+   requirements = "//env/pip3:requirements.txt",
+)
+
+load("@pip3_deps//:requirements.bzl", "pip_install")
+pip_install()
+
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 http_archive(
     name = "rules_pkg",
