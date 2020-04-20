@@ -1,0 +1,100 @@
+load("@io_bazel_rules_docker//container:container.bzl", "container_bundle")
+load(":scion_app.bzl", "scion_app_base", "scion_app_images")
+load(":tester.bzl", "build_tester_image")
+load(":sig_tester.bzl", "build_sigtester_image")
+
+container_bundle(
+    name = "prod",
+    images = {
+        "scion_border:latest": ":border_prod",
+        "scion_cs:latest": ":cs_prod",
+        "scion_dispatcher:latest": ":dispatcher_prod",
+        "scion_sciond:latest": ":sciond_prod",
+        "scion_sig_nocap:latest": ":sig_prod",
+    },
+)
+
+container_bundle(
+    name = "debug",
+    images = {
+        "scion_border_debug:latest": ":border_debug",
+        "scion_cs_debug:latest": ":cs_debug",
+        "scion_dispatcher_debug:latest": ":dispatcher_debug",
+        "scion_sciond_debug:latest": ":sciond_debug",
+        "scion_sig_nocap_debug:latest": ":sig_debug",
+    },
+)
+
+container_bundle(
+    name = "test",
+    images = {
+        "scion_sig_acceptance_nocap:latest": ":scion_sig_acceptance_nocap",
+        "scion_tester:latest": ":scion_tester",
+    },
+)
+
+
+scion_app_base()
+build_tester_image()
+build_sigtester_image()
+
+scion_app_images(
+    name = "border",
+    appdir = "/app",
+    binary = "//go/border:border",
+    entrypoint = [
+        "/app/border",
+        "-config",
+        "/share/conf/br.toml",
+    ],
+    workdir = "/share",
+)
+
+
+scion_app_images(
+    name = "cs",
+    appdir = "/app",
+    binary = "//go/cs:cs",
+    entrypoint = [
+        "/app/cs",
+        "-config",
+        "/share/conf/cs.toml",
+    ],
+    workdir = "/share",
+)
+
+scion_app_images(
+    name = "dispatcher",
+    appdir = "/app",
+    binary = "//go/dispatcher:dispatcher",
+    entrypoint = [
+        "/app/dispatcher",
+        "-config",
+        "/share/conf/disp.toml",
+    ],
+    workdir = "/share",
+)
+
+scion_app_images(
+    name = "sciond",
+    appdir = "/app",
+    binary = "//go/sciond:sciond",
+    entrypoint = [
+        "/app/sciond",
+        "-config",
+        "/share/conf/sd.toml",
+    ],
+    workdir = "/share",
+)
+
+scion_app_images(
+    name = "sig",
+    appdir = "/app",
+    binary = "//go/sig:sig",
+    entrypoint = [
+        "/app/sig",
+        "-config",
+        "/share/conf/sig.toml",
+    ],
+    workdir = "/share",
+)

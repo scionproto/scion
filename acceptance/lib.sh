@@ -27,11 +27,11 @@ stop_infra() {
 }
 
 build_docker_tester() {
-    ./docker.sh tester
+    make -C docker test
 }
 
 build_docker_perapp() {
-    make -C docker/perapp bazel
+    make -C docker prod debug
 }
 
 artifacts_dir() {

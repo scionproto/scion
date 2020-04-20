@@ -1,5 +1,5 @@
 #!/bin/bash
-set -ex
+set -e
 
 if [ -n "$REMOTE_NETS" ] && [ -n "$SIG_IP" ]; then
     for net in $(echo $REMOTE_NETS | tr , ' '); do

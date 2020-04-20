@@ -16,7 +16,7 @@ sh_test(
 
 container_image(
     name = "dispatcher1",
-    base = "//docker/perapp:dispatcher_debug",
+    base = "//docker:dispatcher_debug",
     files = ["testdata/1-ff00_0_110/dispatcher/disp.toml"],
     entrypoint = [
         "/app/dispatcher",
@@ -28,7 +28,7 @@ container_image(
 
 container_image(
     name = "dispatcher2",
-    base = "//docker/perapp:dispatcher_debug",
+    base = "//docker:dispatcher_debug",
     files = ["testdata/1-ff00_0_111/dispatcher/disp.toml"],
     entrypoint = [
         "/app/dispatcher",
@@ -40,7 +40,7 @@ container_image(
 
 container_image(
     name = "sig1",
-    base = "//docker/perapp:sig_debug",
+    base = "//docker:sig_debug",
     files = [
         "testdata/1-ff00_0_110/sig/cfg.json",
         "testdata/1-ff00_0_110/sig/sig.toml",
@@ -56,7 +56,7 @@ container_image(
 
 container_image(
     name = "sig2",
-    base = "//docker/perapp:sig_debug",
+    base = "//docker:sig_debug",
     files = [
         "testdata/1-ff00_0_111/sig/cfg.json",
         "testdata/1-ff00_0_111/sig/sig.toml",
