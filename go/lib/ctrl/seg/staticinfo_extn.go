@@ -17,81 +17,81 @@ import (
 
 
 type Latency_Info struct {
-	Egresslatency uint16 `capnp: "egresslatency"`
-	Intooutlatency uint16 `capnp: "intouutlatency"`
-	Childlatencies    []Latencychildpair
-	Peeringlatencies     []Latencypeeringtriplet
+	Egresslatency uint16 `capnp: "egressLatency"`
+	Intooutlatency uint16 `capnp: "ingressToEgressLatency"`
+	Childlatencies    []Latencychildpair `capnp: "childLatencies"`
+	Peeringlatencies     []Latencypeeringtriplet `capnp: "peeringLatencies"`
 }
 
 type Latencychildpair struct {
-	Intradelay uint16   `capnp:"clusterdelay"`
-	Interface  uint16 `capnp:"interfaces"`
+	Intradelay uint16   `capnp:"intraDelay"`
+	Interface  uint16 `capnp:"interface"`
 }
 
 type Latencypeeringtriplet struct {
-	Interdelay uint16 `capnp:"clusterdelay"`
-	IntraDelay uint16
-	IntfID uint16
+	Interdelay uint16 `capnp:"interDelay"`
+	IntraDelay uint16 `capnp: "intraDelay"`
+	IntfID uint16 `capnp: "interface"`
 }
 
 
 type Bandwidth_Info struct {
-	EgressBW uint32 `capnp:"egressbw"`
-	IntooutBW uint32 `capnp: "intooutBW"`
-	BWPairs []BWPair
+	EgressBW uint32 `capnp:"egressBW"`
+	IntooutBW uint32 `capnp: "ingressToEgressBW"`
+	BWPairs []BWPair `capnp: "bandwidthPairs"`
 }
 
 type BWPair struct {
-	BW  uint32   `capnp:"clusterbw"`
-	IntfID uint16 `capnp:"interfaces"`
+	BW  uint32   `capnp:"BW"`
+	IntfID uint16 `capnp:"interface"`
 }
 
 
 type Geo_Info struct {
-	Locations []Location
+	Locations []Location `capnp: "locations"`
 }
 
 type Location struct {
-	GPSData      Coordinates
+	GPSData      Coordinates `capnp: "gpsData"`
 	IntfIDs []uint16 `capnp:"interfaces"`
 }
 
 type Coordinates struct {
-	Latitude   float32 `capnp:"gps1"`
-	Longitude   float32 `capnp:"gps2"`
-	Address string  `capnp:"civadd"`
+	Latitude   float32 `capnp:"latitude"`
+	Longitude   float32 `capnp:"longitude"`
+	Address string  `capnp:"address"`
 }
 
 
 type Linktype_Info struct {
-	EgressLT   string `capnp: "egresslt"`
-	Peeringlinks  []LTPeeringpair
+	EgressLT   string `capnp: "egressLinkType"`
+	Peeringlinks  []LTPeeringpair `capnp: "peeringLinks"`
 }
 
 type LTPeeringpair struct {
 	IntfID uint16 `capnp:"interface"`
-	IntfLT string `capnp:"interlt"`
+	IntfLT string `capnp:"peeringLinkType"`
 }
 
 
 type InternalHops_Info struct {
-	Intououthops uint8 `capnp: "intoouthops"`
-	Hoppairs []Hoppair
+	Intououthops uint8 `capnp: "inToOutHops"`
+	Hoppairs []Hoppair `capnp: "hopPairs"`
 }
 
 type Hoppair struct {
-	Hops uint8    `capnp:"clusterhops"`
-	IntfID uint16 `capnp:"interfaces"`
+	Hops uint8    `capnp:"Hops"`
+	IntfID uint16 `capnp:"interface"`
 }
 
 
 type StaticInfoExtn struct {
-	LI Latency_Info      `capnp:"ei"`
-	GI Geo_Info          `capnp:"gi"`
-	LT Linktype_Info     `capnp:"lt"`
-	BW Bandwidth_Info    `capnp:"bw"`
-	IH InternalHops_Info `capnp:"ih"`
-	NI string            `capnp:"ni"`
+	LI Latency_Info      `capnp:"latency"`
+	GI Geo_Info          `capnp:"geo"`
+	LT Linktype_Info     `capnp:"linktype"`
+	BW Bandwidth_Info    `capnp:"bandwidth"`
+	IH InternalHops_Info `capnp:"internalHops"`
+	NI string            `capnp:"note"`
 }
 
 //use maps and for key,val := range mymap{}
