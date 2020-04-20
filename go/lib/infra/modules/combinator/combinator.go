@@ -87,6 +87,21 @@ func (p *Path) writeTestString(w io.Writer) {
 	for _, pi := range p.Interfaces {
 		fmt.Fprintf(w, "    %v\n", pi)
 	}
+	fmt.Println(p.StaticInfo.totaldelay)
+	fmt.Println(p.StaticInfo.maxbw)
+	fmt.Println(p.StaticInfo.totalhops)
+	for _,val := range p.StaticInfo.Notes{
+		fmt.Println(val)
+	}
+	for _,val := range p.StaticInfo.links{
+		fmt.Println(val)
+	}
+	for _,val := range p.StaticInfo.locations{
+		for _,loc := range val.locations{
+			fmt.Println(loc.Longitude)
+			fmt.Println(loc.Latitude)
+		}
+	}
 }
 
 func (p *Path) reverseDownSegment() {
