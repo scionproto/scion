@@ -60,6 +60,8 @@ var (
 	ErrBadHostAddrType = serrors.New("unsupported host address type")
 	// ErrMalformedHostAddrType indicates a malformed host address type.
 	ErrMalformedHostAddrType = serrors.New("malformed host address type")
+	// ErrUnsupportedSVCAddress indicates an unsupported SVC address.
+	ErrUnsupportedSVCAddress = serrors.New("unsupported SVC address")
 )
 
 const (

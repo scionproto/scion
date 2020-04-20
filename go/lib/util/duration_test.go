@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package util_test
 
 import (
 	"fmt"
@@ -21,9 +21,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/go/lib/util"
 )
 
-func Test_ParseDuration(t *testing.T) {
+func TestParseDuration(t *testing.T) {
 	tests := []struct {
 		input          string
 		output         time.Duration
@@ -45,14 +47,14 @@ func Test_ParseDuration(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("Input: %q", test.input), func(t *testing.T) {
-			ret, err := ParseDuration(test.input)
+			ret, err := util.ParseDuration(test.input)
 			test.errorAssertion(t, err)
 			assert.Equal(t, test.output, ret)
 		})
 	}
 }
 
-func Test_FmtDuration(t *testing.T) {
+func TestFmtDuration(t *testing.T) {
 	tests := []struct {
 		input  time.Duration
 		output string
@@ -64,13 +66,13 @@ func Test_FmtDuration(t *testing.T) {
 		{55 * time.Second, "55s"},
 		{66 * time.Hour, "66h"},
 		{48 * time.Hour, "2d"},
-		{30 * day, "30d"},
-		{35 * day, "5w"},
-		{101 * year, "101y"},
+		{30 * util.Day, "30d"},
+		{35 * util.Day, "5w"},
+		{101 * util.Year, "101y"},
 	}
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("Input: %v", test.output), func(t *testing.T) {
-			ret := FmtDuration(test.input)
+			ret := util.FmtDuration(test.input)
 			assert.Equal(t, test.output, ret)
 		})
 	}

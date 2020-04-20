@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -28,6 +30,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
 )
@@ -76,6 +79,14 @@ func MustTempDir(dir, prefix string) (string, func()) {
 	return name, func() {
 		os.RemoveAll(name)
 	}
+}
+
+// CopyDir copies "from" to "to", using the unix cp command.
+func CopyDir(t testing.TB, from, to string) {
+	t.Helper()
+	cmd := exec.Command("cp", "-rL", from, to)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(out))
 }
 
 // FailOnErr causes t to exit with a fatal error if err is non-nil.
@@ -153,6 +164,17 @@ func MustParseAS(s string) addr.AS {
 		panic(err)
 	}
 	return ia
+}
+
+// MustParseASes parses a list of comma separated AS strings. It panics in case
+// parsing fails.
+func MustParseASes(list string) []addr.AS {
+	l := strings.Split(list, ",")
+	var ases []addr.AS
+	for _, raw := range l {
+		ases = append(ases, MustParseAS(raw))
+	}
+	return ases
 }
 
 // MustParseHexString parses s and returns the corresponding byte slice.

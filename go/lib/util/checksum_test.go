@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package util_test
 
 import (
 	"encoding/binary"
@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 func TestChecksum(t *testing.T) {
@@ -43,7 +44,7 @@ func TestChecksum(t *testing.T) {
 	}
 	for _, test := range tests {
 		checksum := make([]byte, 2)
-		binary.BigEndian.PutUint16(checksum, Checksum(test.Input...))
+		binary.BigEndian.PutUint16(checksum, util.Checksum(test.Input...))
 		t.Run(fmt.Sprintf("Input %v", test.Input), func(t *testing.T) {
 			assert.Equal(t, test.Output[:], checksum)
 		})
@@ -57,6 +58,6 @@ func BenchmarkChecksum(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Checksum(data)
+		util.Checksum(data)
 	}
 }

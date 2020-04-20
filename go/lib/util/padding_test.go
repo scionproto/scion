@@ -13,16 +13,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package util_test
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/go/lib/util"
 )
 
-func Test_CalcPadding(t *testing.T) {
+func TestCalcPadding(t *testing.T) {
 	cases := map[int]int{
 		0: 0, 1: 7, 2: 6, 3: 5, 4: 4, 5: 3, 6: 2, 7: 1,
 		8: 0, 9: 7, 10: 6, 11: 5, 12: 4, 13: 3, 14: 2, 15: 1,
@@ -30,7 +32,7 @@ func Test_CalcPadding(t *testing.T) {
 	}
 	for input, expected := range cases {
 		t.Run(fmt.Sprintf("Padding for %v should be %v", input, expected), func(t *testing.T) {
-			assert.Equal(t, expected, CalcPadding(input, 8),
+			assert.Equal(t, expected, util.CalcPadding(input, 8),
 				"CalcPadding should calculate the correct padding (8B block size)")
 		})
 	}

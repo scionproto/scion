@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package util_test
 
 import (
 	"encoding/json"
@@ -21,6 +21,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 func TestUnixTimeUnmarshal(t *testing.T) {
@@ -51,23 +53,23 @@ func TestUnixTimeUnmarshal(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			var u UnixTime
+			var u util.UnixTime
 			err := json.Unmarshal([]byte(test.Input), &u)
 			test.Assert(t, err)
 			if err != nil {
 				return
 			}
-			assert.Equal(t, SecsToTime(1356091932), u.Time)
+			assert.Equal(t, util.SecsToTime(1356091932), u.Time)
 		})
 	}
 }
 
 func TestUnixTimeMarshal(t *testing.T) {
 	s := struct {
-		Unix UnixTime
+		Unix util.UnixTime
 	}{
-		Unix: UnixTime{
-			Time: SecsToTime(1356091932),
+		Unix: util.UnixTime{
+			Time: util.SecsToTime(1356091932),
 		},
 	}
 	raw, err := json.Marshal(s)

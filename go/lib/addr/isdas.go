@@ -306,3 +306,16 @@ func (iaI IAInt) IA() IA {
 func (iaI IAInt) String() string {
 	return iaI.IA().String()
 }
+
+func (ia IAInt) MarshalText() ([]byte, error) {
+	return []byte(IAInt(ia).String()), nil
+}
+
+func (ia *IAInt) UnmarshalText(b []byte) error {
+	tIA, err := IAFromString(string(b))
+	if err != nil {
+		return nil
+	}
+	*ia = tIA.IAInt()
+	return nil
+}
