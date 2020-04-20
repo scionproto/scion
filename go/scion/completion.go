@@ -43,6 +43,8 @@ To permanently add bash autocompletion, run:
 			return rootCmd.GenBashCompletion(os.Stdout)
 		case "zsh":
 			return rootCmd.GenZshCompletion(os.Stdout)
+		case "fish":
+			return rootCmd.GenFishCompletion(os.Stdout, true)
 		default:
 			return serrors.New("unknown shell", "input", completionShell)
 		}
@@ -52,5 +54,5 @@ To permanently add bash autocompletion, run:
 func init() {
 	rootCmd.AddCommand(completionCmd)
 	completionCmd.Flags().StringVar(&completionShell, "shell", "bash",
-		"Shell type (bash|zsh)")
+		"Shell type (bash|zsh|fish)")
 }

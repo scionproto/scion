@@ -102,7 +102,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 
 	var statuses map[string]pathprobe.Status
 	var localIP net.IP
-	if cfg.Probe {
+	if !cfg.NoProbe {
 		// Resolve local IP in case it is not configured.
 		if localIP = cfg.Local; localIP == nil {
 			localIP, err = findDefaultLocalIP(ctx, sdConn)

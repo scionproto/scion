@@ -33,6 +33,6 @@ type Config struct {
 	MaxPaths int
 	// Refresh configures whether sciond is queried with the refresh flag.
 	Refresh bool
-	// Probe configures whether the path status is probed and displayed.
-	Probe bool
+	// NoProbe configures whether the path status is probed or not.
+	NoProbe bool
 }

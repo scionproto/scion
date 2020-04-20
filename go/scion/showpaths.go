@@ -40,15 +40,14 @@ var showpathsCmd = &cobra.Command{
 	Short:   "Display paths to a SCION AS",
 	Aliases: []string{"sp"},
 	Args:    cobra.ExactArgs(1),
-	Example: `  scion showpaths 1-ff00:0:110 --probe --expiration
-  scion showpaths 1-ff00:0:110 --probe --json
-  scion showpaths 1-ff00:0:110 --local 127.0.0.55`,
+	Example: `  scion showpaths 1-ff00:0:110 --expiration
+  scion showpaths 1-ff00:0:110 --local 127.0.0.55 --json
+  scion showpaths 1-ff00:0:110 --no-probe`,
 	Long: `'showpaths' lists available paths between the local and the specified SCION ASe a.
 
-By default, the paths are not probed. As paths might be served from the SCION Deamon's
-cache, they might not forward traffic successfully (e.g. if a network link went down).
-To list the paths with their health statuses, specify that the paths should be probed
-through the flag.
+By default, the paths are probed. Paths served from the SCION Deamon's might not
+forward traffic successfully (e.g. if a network link went down, or there is a black
+hole on the path). To disable path probing, set the appropriate flag.
 
 'showpaths' can be instructed to output the paths as json using the the --json flag.
 `,
@@ -93,7 +92,7 @@ func init() {
 		"Show path expiration information")
 	showpathsCmd.Flags().BoolVarP(&showpathsFlags.cfg.Refresh, "refresh", "r", false,
 		"Set refresh flag for SCION Deamon path request")
-	showpathsCmd.Flags().BoolVarP(&showpathsFlags.cfg.Probe, "probe", "p", false,
+	showpathsCmd.Flags().BoolVarP(&showpathsFlags.cfg.NoProbe, "no-probe", "p", false,
 		"Probe the paths and print the health status")
 	showpathsCmd.Flags().BoolVarP(&showpathsFlags.json, "json", "j", false,
 		"Write the output as machine readable json")
