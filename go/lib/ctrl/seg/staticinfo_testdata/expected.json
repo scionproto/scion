@@ -1,0 +1,107 @@
+{
+  "Tests": [
+    {
+      "Egress": 2,
+      "Ingress": 3,
+      "ExpLatency" : {
+        "ExpEgress" : 40,
+        "ExpIO" : 70,
+        "ExpCL": [
+          {
+            "ExpIntra": 70,
+            "ExpIntf" : 3
+          }
+        ],
+        "ExpPT" : [
+          {
+            "ExpInter": 90,
+            "ExpIntra": 50,
+            "ExpIntf" : 5
+          }
+        ]
+      },
+      "ExpBW": {
+        "ExpEgress" : 4000000000,
+        "ExpIO" : 6555550,
+        "ExpBWP" : [
+          {
+            "ExpBWV" : 10444440,
+            "ExpIntf" : 3
+          },
+          {
+            "ExpBWV" : 120,
+            "ExpIntf" : 5
+          }
+        ]
+      },
+      "ExpGeo" : {
+        "ExpLocs" : [
+          {
+            "ExpGPS" : {
+              "ExpLatitude" : 47.2,
+              "ExpLongitude" : 62.2,
+              "ExpAddr" : "geo1"
+            },
+            "ExpIntfs" : [
+              1
+            ]
+          },
+          {
+            "ExpGPS" : {
+              "ExpLatitude" : 79.2,
+              "ExpLongitude" : 45.2,
+              "ExpAddr" : "geo2"
+            },
+            "ExpIntfs" : [
+              2,
+              6
+            ]
+          },
+          {
+            "ExpGPS" : {
+              "ExpLatitude" : 47.22,
+              "ExpLongitude" : 42.23,
+              "ExpAddr" : "geo3"
+            },
+            "ExpIntfs" : [
+              3
+            ]
+          },
+          {
+            "ExpGPS" : {
+              "ExpLatitude" : 48.2,
+              "ExpLongitude" : 46.2,
+              "ExpAddr" : "geo5"
+            },
+            "ExpIntfs" : [
+              5
+            ]
+          }
+        ]
+      },
+      "ExpLT" : {
+        "ExpEgress" : "opennet",
+        "ExpPL" : [
+          {
+            "ExpIntf" : 5,
+            "ExpLT" : "direct"
+          }
+        ]
+      },
+      "ExpIH" : {
+        "ExpIO" : 6,
+        "ExpHP" : [
+          {
+            "ExpHops" : 6,
+            "ExpIntf" : 3
+          },
+          {
+            "ExpHops" : 3,
+            "ExpIntf" : 5
+          }
+        ]
+      },
+      "ExpNI" : "asdf"
+    }
+  ]
+}
