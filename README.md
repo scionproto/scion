@@ -44,24 +44,10 @@ Necessary steps in order to run SCION:
    rm ./bazel-1.2.0-installer-linux-x86_64.sh
    ```
 
-1. Make sure that you have a
-   [Go workspace](https://golang.org/doc/code.html#GOPATH) setup, and that
-   `~/.local/bin`, and `$GOPATH/bin` can be found in your `$PATH` variable. For example:
+1. Check out scion into the appropriate directory inside your workspace:
 
    ```bash
-   echo 'export GOPATH="$HOME/go"' >> ~/.profile
-   echo 'export PATH="$HOME/.local/bin:$GOPATH/bin:$PATH"' >> ~/.profile
-   source ~/.profile
-   mkdir -p "$GOPATH"
-   ```
-
-1. Check out scion into the appropriate directory inside your go workspace (or
-   put a symlink into the go workspace to point to your existing scion
-   checkout):
-
-   ```bash
-   mkdir -p "$GOPATH/src/github.com/scionproto"
-   cd "$GOPATH/src/github.com/scionproto"
+   cd "<workspace>"
    git clone https://github.com/scionproto/scion
    cd scion
    ```
