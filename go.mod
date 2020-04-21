@@ -15,7 +15,6 @@ require (
 	github.com/google/gopacket v1.1.16-0.20190123011826-102d5ca2098c
 	github.com/iancoleman/strcase v0.0.0-20190422225806-e506e3ef7365
 	github.com/inconshreveable/log15 v0.0.0-20161013181240-944cbfb97b44
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656
 	github.com/lucas-clemente/quic-go v0.7.1-0.20190212114006-fd7246d7ed6e
 	github.com/marten-seemann/qtls v0.0.0-20190207043627-591c71538704 // indirect
@@ -32,8 +31,7 @@ require (
 	github.com/sergi/go-diff v1.0.1-0.20180205163309-da645544ed44
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/songgao/water v0.0.0-20190725173103-fd331bda3f4b
-	github.com/spf13/cobra v0.0.3-0.20180408161736-cd30c2a7e91a
-	github.com/spf13/pflag v1.0.1-0.20180403115518-1ce0cc6db402 // indirect
+	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.3.1-0.20190311161405-34c6fa2dc709
 	github.com/syndtr/gocapability v0.0.0-20160928074757-e7cb7fa329f4
 	github.com/uber/jaeger-client-go v2.20.1+incompatible

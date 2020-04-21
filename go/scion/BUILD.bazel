@@ -1,0 +1,29 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "completion.go",
+        "scion.go",
+        "showpaths.go",
+        "version.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/scion",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/env:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/sciond:go_default_library",
+        "//go/lib/serrors:go_default_library",
+        "//go/pkg/showpaths:go_default_library",
+        "@com_github_spf13_cobra//:go_default_library",
+    ],
+)
+
+scion_go_binary(
+    name = "scion",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
