@@ -333,6 +333,73 @@ func (t *RWTopology) getSvcInfo(svc proto.ServiceType) (*svcInfo, error) {
 	}
 }
 
+// Copy creates a deep copy of the object.
+func (t *RWTopology) Copy() *RWTopology {
+	if t == nil {
+		return nil
+	}
+	return &RWTopology{
+		Timestamp:  t.Timestamp,
+		TTL:        t.TTL,
+		IA:         t.IA,
+		MTU:        t.MTU,
+		Attributes: append(t.Attributes[:0:0], t.Attributes...),
+
+		BR:        copyBRMap(t.BR),
+		BRNames:   append(t.BRNames[:0:0], t.BRNames...),
+		IFInfoMap: t.IFInfoMap.copy(),
+
+		CS:  t.CS.copy(),
+		SIG: t.SIG.copy(),
+	}
+}
+
+func copyBRMap(m map[string]BRInfo) map[string]BRInfo {
+	if m == nil {
+		return nil
+	}
+	newM := make(map[string]BRInfo)
+	for k, v := range m {
+		newM[k] = *v.copy()
+	}
+	return newM
+}
+
+func (i *BRInfo) copy() *BRInfo {
+	if i == nil {
+		return nil
+	}
+	return &BRInfo{
+		Name:         i.Name,
+		CtrlAddrs:    i.CtrlAddrs.copy(),
+		InternalAddr: copyUDPAddr(i.InternalAddr),
+		IFIDs:        append(i.IFIDs[:0:0], i.IFIDs...),
+		IFs:          copyIFsMap(i.IFs),
+	}
+}
+
+func copyIFsMap(m map[common.IFIDType]*IFInfo) map[common.IFIDType]*IFInfo {
+	if m == nil {
+		return nil
+	}
+	newM := make(map[common.IFIDType]*IFInfo)
+	for k, v := range m {
+		newM[k] = v.copy()
+	}
+	return newM
+}
+
+func (m IfInfoMap) copy() IfInfoMap {
+	if m == nil {
+		return nil
+	}
+	newM := make(IfInfoMap)
+	for k, v := range m {
+		newM[k] = *v.copy()
+	}
+	return newM
+}
+
 // svcInfo contains topology information for a single SCION service
 type svcInfo struct {
 	idTopoAddrMap IDAddrMap
@@ -368,6 +435,19 @@ func (m IDAddrMap) GetByID(id string) *TopoAddr {
 	return nil
 }
 
+func (m IDAddrMap) copy() IDAddrMap {
+	if m == nil {
+		return nil
+	}
+	newM := make(IDAddrMap)
+	for k, v := range m {
+		// This has the potential of making a _lot_ of shallow copies, but we can't really avoid it
+		// due to the value type in the map.
+		newM[k] = *v.copy()
+	}
+	return newM
+}
+
 // CheckLinks checks whether the link types are compatible with whether the AS is core or not.
 func (i IFInfo) CheckLinks(isCore bool, brName string) error {
 	if isCore {
@@ -394,6 +474,26 @@ func (i IFInfo) String() string {
 		i.Local, i.Remote, i.Bandwidth, i.IA, i.LinkType, i.MTU)
 }
 
+func (i *IFInfo) copy() *IFInfo {
+	if i == nil {
+		return nil
+	}
+	return &IFInfo{
+		ID:           i.ID,
+		BRName:       i.BRName,
+		CtrlAddrs:    i.CtrlAddrs.copy(),
+		Underlay:     i.Underlay,
+		InternalAddr: copyUDPAddr(i.InternalAddr),
+		Local:        copyUDPAddr(i.Local),
+		Remote:       copyUDPAddr(i.Remote),
+		RemoteIFID:   i.RemoteIFID,
+		Bandwidth:    i.Bandwidth,
+		IA:           i.IA,
+		LinkType:     i.LinkType,
+		MTU:          i.MTU,
+	}
+}
+
 // UnderlayAddr returns the underlay address interpreted as a net.UDPAddr.
 //
 // FIXME(scrye): This should be removed; applications should not need to look into the underlay
@@ -412,10 +512,7 @@ func (a *TopoAddr) copy() *TopoAddr {
 		return nil
 	}
 	return &TopoAddr{
-		SCIONAddress: &net.UDPAddr{
-			IP:   append(a.SCIONAddress.IP[:0:0], a.SCIONAddress.IP...),
-			Port: a.SCIONAddress.Port,
-		},
+		SCIONAddress:    copyUDPAddr(a.SCIONAddress),
 		UnderlayAddress: toUDPAddr(a.UnderlayAddress),
 	}
 }
@@ -428,10 +525,7 @@ func toUDPAddr(a net.Addr) *net.UDPAddr {
 	if !ok {
 		return nil
 	}
-	return &net.UDPAddr{
-		IP:   append(udpAddr.IP[:0:0], udpAddr.IP...),
-		Port: udpAddr.Port,
-	}
+	return copyUDPAddr(udpAddr)
 }
 
 // ServiceNames is a slice of process names (e.g., "bs-1", "bs-2").
@@ -446,6 +540,10 @@ func (s ServiceNames) GetRandom() (string, error) {
 	return s[rand.Intn(numServers)], nil
 }
 
+func (s ServiceNames) copy() ServiceNames {
+	return append(s[:0:0], s...)
+}
+
 func copyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
 	if a == nil {
 		return nil
@@ -453,5 +551,6 @@ func copyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
 	return &net.UDPAddr{
 		IP:   append(a.IP[:0:0], a.IP...),
 		Port: a.Port,
+		Zone: a.Zone,
 	}
 }

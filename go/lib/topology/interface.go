@@ -15,6 +15,7 @@
 package topology
 
 import (
+	"math/rand"
 	"net"
 	"sort"
 
@@ -60,7 +61,9 @@ type Topology interface {
 	SBRAddress(name string) *snet.UDPAddr
 
 	// Anycast returns the address for an arbitrary server of the requested type.
-	Anycast(svc addr.HostSVC) (*net.TCPAddr, error)
+	Anycast(svc addr.HostSVC) (*net.UDPAddr, error)
+	// Multicast returns all addresses for the requested type.
+	Multicast(svc addr.HostSVC) ([]*net.UDPAddr, error)
 
 	// OverlayAnycast returns the overlay address for an arbitrary server of the requested type.
 	OverlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error)
@@ -173,7 +176,7 @@ func (t *topologyS) OverlayNextHop(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	if !ok {
 		return nil, false
 	}
-	return copyUDP(ifInfo.InternalAddr), true
+	return copyUDPAddr(ifInfo.InternalAddr), true
 }
 
 func (t *topologyS) OverlayNextHop2(ifid common.IFIDType) (*net.UDPAddr, bool) {
@@ -181,7 +184,7 @@ func (t *topologyS) OverlayNextHop2(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	if !ok {
 		return nil, false
 	}
-	return copyUDP(ifInfo.InternalAddr), true
+	return copyUDPAddr(ifInfo.InternalAddr), true
 }
 
 func (t *topologyS) MakeHostInfos(st proto.ServiceType) []net.UDPAddr {
@@ -235,25 +238,33 @@ func (t *topologyS) topoAddress(svc addr.HostSVC, name string) *TopoAddr {
 	return addresses.GetByID(name)
 }
 
-func (t *topologyS) Anycast(svc addr.HostSVC) (*net.TCPAddr, error) {
-	names := t.SVCNames(svc)
-	name, err := names.GetRandom()
+func (t *topologyS) Anycast(svc addr.HostSVC) (*net.UDPAddr, error) {
+	addrs, err := t.Multicast(svc)
 	if err != nil {
 		return nil, err
 	}
+	return addrs[rand.Intn(len(addrs))], nil
+}
+
+func (t *topologyS) Multicast(svc addr.HostSVC) ([]*net.UDPAddr, error) {
+	names := t.SVCNames(svc)
 	st, err := toProtoServiceType(svc)
 	if err != nil {
 		return nil, err
 	}
-	topoAddr, err := t.Topology.GetTopoAddr(name, st)
-	if err != nil {
-		return nil, serrors.WrapStr("SVC not supported", err, "svc", svc)
+	addrs := make([]*net.UDPAddr, 0, len(names))
+	for _, name := range names {
+		topoAddr, err := t.Topology.GetTopoAddr(name, st)
+		if err != nil {
+			return nil, serrors.Wrap(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
+		}
+		addrs = append(addrs, &net.UDPAddr{
+			IP:   topoAddr.SCIONAddress.IP,
+			Port: topoAddr.SCIONAddress.Port,
+			Zone: topoAddr.SCIONAddress.Zone,
+		})
 	}
-	return &net.TCPAddr{
-		IP:   topoAddr.SCIONAddress.IP,
-		Port: topoAddr.SCIONAddress.Port,
-		Zone: topoAddr.SCIONAddress.Zone,
-	}, nil
+	return addrs, nil
 }
 
 func (t *topologyS) OverlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error) {
@@ -263,12 +274,12 @@ func (t *topologyS) OverlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error) {
 		if supportedSVC(svc) {
 			// FIXME(scrye): Return this error because some calling code in the BR searches for it.
 			// Ideally, the error should be communicated in a more explicit way.
-			return nil, common.NewBasicError("No instances found for SVC address",
+			return nil, serrors.WrapStr("No instances found for SVC address",
 				scmp.NewError(scmp.C_Routing, scmp.T_R_UnreachHost, nil, nil), "svc", svc)
 		}
 		// FIXME(scrye): Return this error because some calling code in the BR searches for it.
 		// Ideally, the error should be communicated in a more explicit way.
-		return nil, common.NewBasicError("Unsupported SVC address",
+		return nil, serrors.Wrap(addr.ErrUnsupportedSVCAddress,
 			scmp.NewError(scmp.C_Routing, scmp.T_R_BadHost, nil, nil), "svc", svc)
 	}
 	underlay, err := t.OverlayByName(svc, name)
@@ -292,7 +303,7 @@ func (t *topologyS) OverlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error) {
 	}
 	topoAddrs, err := t.Topology.GetAllTopoAddrs(st)
 	if err != nil {
-		return nil, serrors.WrapStr("SVC not supported", err, "svc", svc)
+		return nil, serrors.Wrap(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
 	}
 
 	if len(topoAddrs) == 0 {
@@ -327,7 +338,7 @@ func (t *topologyS) OverlayByName(svc addr.HostSVC, name string) (*net.UDPAddr, 
 	}
 	topoAddr, err := t.Topology.GetTopoAddr(name, st)
 	if err != nil {
-		return nil, serrors.WrapStr("SVC not supported", err, "svc", svc)
+		return nil, serrors.Wrap(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
 	}
 	overlayAddr := topoAddr.UnderlayAddr()
 	if overlayAddr == nil {
@@ -345,7 +356,7 @@ func toProtoServiceType(svc addr.HostSVC) (proto.ServiceType, error) {
 	default:
 		// FIXME(scrye): Return this error because some calling code in the BR searches for it.
 		// Ideally, the error should be communicated in a more explicit way.
-		return 0, common.NewBasicError("Unsupported SVC address",
+		return 0, serrors.Wrap(addr.ErrUnsupportedSVCAddress,
 			scmp.NewError(scmp.C_Routing, scmp.T_R_BadHost, nil, nil), "svc", svc)
 	}
 }
@@ -389,18 +400,4 @@ func (t *topologyS) SVCNames(svc addr.HostSVC) ServiceNames {
 
 func (t *topologyS) Writable() *RWTopology {
 	return t.Topology
-}
-
-func copyIP(ip net.IP) net.IP {
-	return append(ip[:0:0], ip...)
-}
-
-func copyUDP(a *net.UDPAddr) *net.UDPAddr {
-	if a == nil {
-		return nil
-	}
-	return &net.UDPAddr{
-		IP:   copyIP(a.IP),
-		Port: a.Port,
-	}
 }

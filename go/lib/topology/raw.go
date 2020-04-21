@@ -18,8 +18,6 @@ package topology
 import (
 	"net"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
 	"github.com/scionproto/scion/go/lib/topology/overlay"
@@ -39,18 +37,21 @@ func rawAddrMapToTopoAddr(ram jsontopo.NATSCIONAddressMap) (*TopoAddr, error) {
 			"port", addressInfo.Public.UnderlayPort)
 	}
 
-	ip := net.ParseIP(addressInfo.Public.Address.Addr)
-	if ip == nil {
+	ipAddr, err := net.ResolveIPAddr("ip", addressInfo.Public.Address.Addr)
+	if err != nil {
+		return nil, serrors.Wrap(errInvalidPub, err, "address", addressInfo.Public.Address.Addr)
+	}
+	// This can happen if the address is empty.
+	if ipAddr.IP == nil {
 		return nil, serrors.WithCtx(errInvalidPub, "address", addressInfo.Public.Address.Addr)
 	}
 
-	if mustBeIPv6 && ip.To4() != nil {
+	if mustBeIPv6 && ipAddr.IP.To4() != nil {
 		return nil, serrors.WithCtx(errInvalidPub, "address", addressInfo.Public.Address.Addr)
 	}
 	if mustBeIPv4 {
 		// Convert to 4-byte format to simplify testing
-		ip = ip.To4()
-		if ip == nil {
+		if ipAddr.IP = ipAddr.IP.To4(); ipAddr.IP == nil {
 			return nil, serrors.WithCtx(errInvalidPub,
 				"address", addressInfo.Public.Address.Addr)
 		}
@@ -58,12 +59,14 @@ func rawAddrMapToTopoAddr(ram jsontopo.NATSCIONAddressMap) (*TopoAddr, error) {
 
 	return &TopoAddr{
 		SCIONAddress: &net.UDPAddr{
-			IP:   ip,
+			IP:   ipAddr.IP,
 			Port: addressInfo.Public.Address.L4Port,
+			Zone: ipAddr.Zone,
 		},
 		UnderlayAddress: &net.UDPAddr{
-			IP:   append(ip[:0:0], ip...),
+			IP:   append(ipAddr.IP[:0:0], ipAddr.IP...),
 			Port: EndhostPort,
+			Zone: ipAddr.Zone,
 		},
 	}, nil
 }
@@ -92,25 +95,29 @@ func rawBRAddrMapToUDPAddr(m jsontopo.UnderlayAddressMap) (*net.UDPAddr, error) 
 		return nil, serrors.WithCtx(errBindNotSupported, "address", addressInfo.BindUnderlay)
 	}
 
-	ip := net.ParseIP(addressInfo.PublicUnderlay.Addr)
-	if ip == nil {
+	ipAddr, err := net.ResolveIPAddr("ip", addressInfo.PublicUnderlay.Addr)
+	if err != nil {
+		return nil, serrors.Wrap(errInvalidPub, err, "address", addressInfo.PublicUnderlay.Addr)
+	}
+	// This can happen if the address is empty.
+	if ipAddr.IP == nil {
 		return nil, serrors.WithCtx(errInvalidPub, "address", addressInfo.PublicUnderlay.Addr)
 	}
 
-	if mustBeIPv6 && ip.To4() != nil {
+	if mustBeIPv6 && ipAddr.IP.To4() != nil {
 		return nil, serrors.WithCtx(errInvalidPub, "address", addressInfo.PublicUnderlay.Addr)
 	}
 	if mustBeIPv4 {
 		// Convert to 4-byte format to simplify testing
-		ip = ip.To4()
-		if ip == nil {
+		if ipAddr.IP = ipAddr.IP.To4(); ipAddr.IP == nil {
 			return nil, serrors.WithCtx(errInvalidPub, "address", addressInfo.PublicUnderlay.Addr)
 		}
 	}
 
 	return &net.UDPAddr{
-		IP:   append(ip[:0:0], ip...),
+		IP:   append(ipAddr.IP[:0:0], ipAddr.IP...),
 		Port: addressInfo.PublicUnderlay.UnderlayPort,
+		Zone: ipAddr.Zone,
 	}, nil
 }
 
@@ -129,15 +136,26 @@ func rawBRAddrMapExtractAddressInfo(
 }
 
 func rawBRIntfRemoteBRAddr(b *jsontopo.BRInterface, o overlay.Type) (*net.UDPAddr, error) {
-	l3 := addr.HostFromIPStr(b.RemoteUnderlay.Addr)
-	if l3 == nil {
-		return nil, common.NewBasicError("Could not parse remote IP from string", nil,
-			"ip", b.RemoteUnderlay.Addr)
+	l3, err := net.ResolveIPAddr("ip", b.RemoteUnderlay.Addr)
+	if err != nil {
+		return nil, serrors.WrapStr("could not parse remote IP from string", err,
+			"input", b.RemoteUnderlay.Addr)
+	}
+	if l3.IP == nil {
+		return nil, serrors.New("empty remote IP", "input", b.RemoteUnderlay.Addr)
 	}
 	if !o.IsUDP() && (b.RemoteUnderlay.UnderlayPort != 0) {
 		return nil, serrors.WithCtx(errUnderlayPort, "addr", b.RemoteUnderlay)
 	}
-	return &net.UDPAddr{IP: l3.IP(), Port: b.RemoteUnderlay.UnderlayPort}, nil
+	// Convert to 4-byte format to simplify testing
+	if ipv4 := l3.IP.To4(); ipv4 != nil {
+		l3.IP = ipv4
+	}
+	return &net.UDPAddr{
+		IP:   l3.IP,
+		Port: b.RemoteUnderlay.UnderlayPort,
+		Zone: l3.Zone,
+	}, nil
 }
 
 func rawBRIntfTopoBRAddr(i *jsontopo.BRInterface) (*net.UDPAddr, error) {
@@ -148,30 +166,37 @@ func rawBRIntfTopoBRAddr(i *jsontopo.BRInterface) (*net.UDPAddr, error) {
 	mustBeIPv4 := i.Underlay == "UDP/IPv4"
 	mustBeIPv6 := i.Underlay == "UDP/IPv6"
 
-	var udpAddr net.UDPAddr
+	var input string
 	if i.BindUnderlay != nil {
-		udpAddr.IP = net.ParseIP(i.BindUnderlay.Addr)
+		input = i.BindUnderlay.Addr
+	} else if i.PublicUnderlay != nil {
+		input = i.PublicUnderlay.Addr
 	} else {
-		if i.PublicUnderlay == nil {
-			return nil, serrors.WithCtx(errUnderlayAddrNotFound, "underlay", i.Underlay)
-		}
-		udpAddr.IP = net.ParseIP(i.PublicUnderlay.Addr)
+		return nil, serrors.WithCtx(errUnderlayAddrNotFound, "underlay", i.Underlay)
+	}
+
+	ipAddr, err := net.ResolveIPAddr("ip", input)
+	if err != nil {
+		return nil, serrors.WithCtx(err, "underlay", i.Underlay)
+	}
+	if ipAddr.IP == nil {
+		return nil, serrors.WithCtx(errInvalidPub, "address", i.PublicUnderlay.Addr)
+	}
+	udpAddr := &net.UDPAddr{
+		IP:   ipAddr.IP,
+		Zone: ipAddr.Zone,
 	}
 	if i.PublicUnderlay != nil {
 		udpAddr.Port = i.PublicUnderlay.UnderlayPort
 	}
-
-	if udpAddr.IP == nil {
-		return nil, serrors.WithCtx(errInvalidPub, "address", i.PublicUnderlay.Addr)
-	}
 	if mustBeIPv4 {
-		udpAddr.IP = udpAddr.IP.To4()
-		if udpAddr.IP == nil {
+		// Convert to 4-byte format to simplify testing
+		if udpAddr.IP = udpAddr.IP.To4(); udpAddr.IP == nil {
 			return nil, serrors.WithCtx(errExpectedIPv4FoundIPv6, "address", i.PublicUnderlay.Addr)
 		}
 	}
 	if mustBeIPv6 && udpAddr.IP.To4() != nil {
 		return nil, serrors.WithCtx(errExpectedIPv6FoundIPv4, "address", i.PublicUnderlay.Addr)
 	}
-	return &udpAddr, nil
+	return udpAddr, nil
 }
