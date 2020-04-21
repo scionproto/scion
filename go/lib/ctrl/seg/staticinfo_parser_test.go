@@ -3,31 +3,11 @@ package seg
 import (
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/proto"
-
-  "encoding/json"
+	"encoding/json"
 	"io/ioutil"
 	"os"
-	"math"
 	"strconv"
 )
-
-
-type Topointf struct {
-	LinkTo string `json:"LinkTo"`
-}
-
-type BR struct {
-	Intfs map[uint16]Topointf `json:"Interfaces"`
-}
-
-type Topo struct {
-	BRs map[string]BR `json:"BorderRouters"`
-}
-
 
 type Latency_Info_Test struct {
 	Egresslatency uint16 `json:"ExpEgress"`
@@ -93,6 +73,7 @@ type Hoppair_test struct {
 	IntfID uint16 `json:"ExpIntf"`
 }
 
+// Struct used to parse data from expected.json (json file containing expected results)
 type Test struct {
 	EgIFID uint16             `json:"Egress"`
 	InIFID uint16             `json:"Ingress"`
@@ -108,6 +89,10 @@ type Testdata struct {
 	Tests []Test `json:"Tests"`
 }
 
+// Takes a Test struct and a StaticInfoExtn to be tested.
+// Compares the values in the two structs (ignores order in arrays).
+// Returns a bool indicating whether the two structs contain the same data and a string. If they do,
+// the string is empty, otherwise it specifies where they differ.
 func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 	retstr := ""
 	res := true
@@ -118,7 +103,6 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 		for _, subpair := range test.LI.Childlatencies {
 			subtempres = subtempres || ((pair.Intradelay == subpair.Intradelay) && (pair.Interface == subpair.Interface))
 		}
-		//fmt.Println(subtempres)
 		if !subtempres {
 			retstr += ("Latency, IntfID: " + strconv.Itoa(int(pair.Interface)) + "\n")
 		}
@@ -126,7 +110,6 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 		subtempres = false
 	}
 	res = res && tempres
-	//fmt.Println(res)
 	tempres = true
 
 	for _, pair := range totest.LI.Peeringlatencies{
@@ -141,7 +124,6 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 	}
 	res = res && tempres
 	tempres = true
-	//fmt.Println(res)
 
 	res = res && (test.BW.IntooutBW == totest.BW.IntooutBW) && (test.BW.EgressBW == totest.BW.EgressBW)
 	for _, pair := range totest.BW.BWPairs{
@@ -156,7 +138,6 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 	}
 	res = res && tempres
 	tempres = true
-	//fmt.Println(res)
 
 	res = res && (test.LT.EgressLT == totest.LT.EgressLT)
 	for _, pair := range totest.LT.Peeringlinks {
@@ -171,7 +152,6 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 	}
 	res = res && tempres
 	tempres = true
-	//fmt.Println(res)
 
 	for _, loc := range totest.GI.Locations {
 		for _, subloc := range test.GI.Locations{
@@ -193,7 +173,6 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 	}
 	res = res && tempres
 	tempres = true
-	//fmt.Println(res)
 
 	res = res && (test.IH.Intououthops == totest.IH.Intououthops)
 	for _, pair := range totest.IH.Hoppairs{
@@ -207,7 +186,6 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 		subtempres = false
 	}
 	res = res && tempres
-	//fmt.Println(res)
 
 	res = res && (test.NI == totest.NI)
 
@@ -215,11 +193,12 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 		retstr += ("Note\n")
 	}
 
-
 	return res, retstr
 }
 
-
+// Takes an array of paths of config.json files, an array of paths of topologyfiles
+// and the expected result of the test.
+// Returns the test result.
 func subtest(datafiles []string, topofiles []string, testdata string) (string, bool){
 	if !(len(datafiles) == len(topofiles)){
 		return "Error: Length of input arrays must match", false
@@ -230,9 +209,7 @@ func subtest(datafiles []string, topofiles []string, testdata string) (string, b
 		return "Error: Failed to read testdata", false
 	}
 	defer jsonFile.Close()
-	//fmt.Print("Opened file: ", somefile, "\n")
 	rawfile, _ := ioutil.ReadAll(jsonFile)
-	//fmt.Print("Printing rawfile: ", rawfile, "\nRawfile OVER\n")
 	var TD Testdata
 	json.Unmarshal(rawfile, &TD)
 	if (len(TD.Tests)!= len(datafiles)){
@@ -242,8 +219,8 @@ func subtest(datafiles []string, topofiles []string, testdata string) (string, b
 	var errmsg string
 	for i,_ := range datafiles{
 		ExpRes := TD.Tests[i]
-		totest := parsenew(datafiles[i], topofiles[i], ExpRes.EgIFID, ExpRes.InIFID)
-		testpassed, specifics := dochecks(ExpRes, totest)
+		totest := generateStaticinfo(datafiles[i], topofiles[i], ExpRes.EgIFID, ExpRes.InIFID)
+		testpassed, specifics := dochecks(ExpRes, *totest)
 		if !testpassed {
 			errmsg = "Error: Test failed : " + strconv.Itoa(i+1) + " (indexed starting at 1)\n"
 			errmsg += "Test failed for following interfaces:\n"
@@ -258,7 +235,9 @@ func subtest(datafiles []string, topofiles []string, testdata string) (string, b
 	return "All tests successful", true
 }
 
-
+// Takes no arguments.
+// Does the test and returns the result.
+// Probably doesn't work since I'm not sure how to properly specify filepaths.
 func test() (string, bool){
 
 	var datafiles []string

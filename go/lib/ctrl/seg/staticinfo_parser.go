@@ -3,16 +3,9 @@ package seg
 import (
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/proto"
-  
-  "encoding/json"
+	"encoding/json"
 	"io/ioutil"
 	"os"
-	"math"
-	"strconv"
 )
 
 
@@ -36,7 +29,8 @@ type Hopintf struct {
 	Intra  map[uint16]uint8 `json:"Intra"`
 }
 
-type MI2 struct {
+// Struct used to parse data from config.json
+type Configdata struct {
 	Lat  map[uint16]Latintf `json:"Latency"`
 	BW   map[uint16]Bwintf  `json:"Bandwidth"`
 	LT   map[uint16]string  `json:"Linktype"`
@@ -45,15 +39,31 @@ type MI2 struct {
 	N    string             `json:"Note"`
 }
 
+type Topointf struct {
+	LinkTo string `json:"LinkTo"`
+}
 
-func parsenewlvl1(datafile string, topologyfile string) (MI2, map[uint16]bool) {
+type BR struct {
+	Intfs map[uint16]Topointf `json:"Interfaces"`
+}
+
+// Struct used to parse data from topology.json
+type Topo struct {
+	BRs map[string]BR `json:"BorderRouters"`
+}
+
+// Takes the path of a config.json and the path of a topologyfile, both in the form of a string.
+// Parses data from config json into a Configdata struct and uses data from a topologyfile to
+// create a map from interfaces to bools indicating whether or not the interface is used in peering.
+// Returns the Configdata struct as well as the map from intfIDs to bools.
+func parsenconfigdata(datafile string, topologyfile string) (Configdata, map[uint16]bool) {
 	jsonFile, err := os.Open(datafile)
 	if err != nil {
 		fmt.Println(err)
 	}
 	defer jsonFile.Close()
 	rawfile, _ := ioutil.ReadAll(jsonFile)
-	var res MI2
+	var res Configdata
 	json.Unmarshal(rawfile, &res)
 	var temp Topo
 	peers := make(map[uint16]bool)
@@ -72,14 +82,18 @@ func parsenewlvl1(datafile string, topologyfile string) (MI2, map[uint16]bool) {
 	return res, peers
 }
 
-func generateStaticinfo(datafile string, topologyfile string, egint uint16, inIFID uint16) *StaticInfoExtn {
-	var somedata, peers = parsenewlvl1(datafile, topologyfile)
+// Takes the path of a config.json and the path of a topologyfile, both in the form of a string, as well as
+// an egress and an ingress interface ID.
+// Fills a StaticinfoExtn struct with data extracted from a config.json and a topologyfile.
+// Returns a pointer to said StaticInfoExtn struct.
+func generateStaticinfo(datafile string, topologyfile string, egIFID uint16, inIFID uint16) *StaticInfoExtn {
+	var somedata, peers = parsenconfigdata(datafile, topologyfile)
 	var res StaticInfoExtn
-	res.LI.gatherlatency(somedata, peers, egint, inIFID)
-	res.BW.gatherbw(somedata, peers, egint, inIFID)
-	res.LT.gatherlinktype(somedata,peers, egint)
+	res.LI.gatherlatency(somedata, peers, egIFID, inIFID)
+	res.BW.gatherbw(somedata, peers, egIFID, inIFID)
+	res.LT.gatherlinktype(somedata,peers, egIFID)
 	res.GI.gathergeo(somedata)
 	res.NI = somedata.N
-	res.IH.gatherhops(somedata, egint, inIFID)
+	res.IH.gatherhops(somedata, egIFID, inIFID)
 	return &res
 }
