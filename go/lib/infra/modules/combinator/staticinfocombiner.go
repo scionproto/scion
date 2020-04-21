@@ -128,13 +128,10 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 	}
 	/*
 		Iterate over solutionEdges in solution, start in last ASEntry, go until entry with index "shortcut"
-		While not shortcut, simply assemble metadata normally by using inifid and outifid from the hf in the ASEntry
-		and searching for those ifids in the staticinfoextn.
-		If index == shortcut, check if "normal" shortcut or peering shortcut (if peer != 0).
-		If normal shortcut, do [something]
-		If peering shortcut, do [something else]
-		Also make sure to treat the first entry in the up and down segs specially, since there is no
-		metadata to collect on those ASes.
+		While not shortcut, simply assemble metadata normally by using intoout metrics in the ASEntry's staticinfoextn.
+		If index == shortcut, check if "normal" shortcut or peering shortcut (if peer != 0) and treat accordingly.
+		Also make sure to treat the first entry in the up and down segs (i.e. first and last ASes on the path)
+		specially, since there is no metadata to collect on those ASes.
 	*/
 	for _, solEdge := range solution.edges{
 		asEntries := solEdge.segment.ASEntries
@@ -186,34 +183,7 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 				// save the entry as overentry and set xover flag.
 				if (solEdge.segment.Type == iscoreseg) && (asEntryIdx==(len(asEntries)-1)){
 
-					/*
-					var oldSI *seg.StaticInfoExtn
-					IA := res.Overentry.IA()
-					oldSI = res.Overentry.Exts.StaticInfo
-					currdelay.Intradelay, currdelay.IA = gatherxoverlatency(oldSI, res.Overentry, inIFID)
-					currdelay.Interdelay = oldSI.LI.Egresslatency
-					currdelay.Peerdelay = 0
-					currlinks.IA = IA
-					currlinks.Interlink = oldSI.LT.EgressLT
-					currlinks.Peerlink = ""
-					currbw.IA = IA
-					currbw.Interbw = oldSI.BW.EgressBW
-					currbw.Intrabw = gatherxoverbw(oldSI, res.Overentry, inIFID)
-					currbw.Peerbw = 0
-					currhops.IA = IA
-					currhops.Hops = gatherxoverhops(oldSI, res.Overentry, inIFID)
-					currgeo.locations = gathergeo(oldSI, res.Overentry)
-					currnotes.Note = oldSI.NI
-					res.SingleDelays[IA] = currdelay
-					res.SingleHops[IA] = currhops
-					res.Singlebw[IA] = currbw
-					res.Links[IA] = currlinks
-					res.Geo[IA] = currgeo
-					res.Notes[IA] = currnotes
-					res.Xover = false
-					*/
 					res.Downover = true
-					//res.DownOverentry = asEntry
 					res.DownoverIFID = inIFID
 				}
 				// If we're in the first AS in an up or last AS in a down segment (i.e. first inspected entry),
@@ -261,6 +231,8 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 					var currgeo ASgeo
 					var currbw ASbw
 					IA := asEntry.IA()
+					// If res.Peerover is set, include the data about the peering connection, else ignore it
+					// (so it isn't included twice)
 					if res.Peerover {
 						currdelay.Intradelay, currdelay.Peerdelay, currdelay.IA = gatherpeeringlatencydata(SI, asEntry, res.PeeroverIFID)
 						currlinks.Peerlink = gatherpeeroverlink(SI, asEntry, res.PeeroverIFID)
@@ -288,7 +260,7 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 					res.Notes[IA] = currnotes
 					continue
 				} else {
-					// If we're in the AS where we cross over from an up to a core segment
+					// If we're in the AS where we cross over from an up to a core or down segment
 					// (i.e. res.Upover is set), fill pathmetadata using res.UpOverentry
 					if res.Upover {
 						var oldSI *seg.StaticInfoExtn
@@ -336,10 +308,7 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 						var currnotes ASnote
 						var currgeo ASgeo
 						var currbw ASbw
-						// oldSI = res.UpOverentry.Exts.StaticInfo
 						IA := asEntry.IA()
-						// HF,_ := hopEntry.HopField()
-						// egIFID := HF.ConsEgress
 						currdelay.Intradelay, currdelay.IA = gatherxoverlatency(SI, asEntry, res.DownoverIFID)
 						currdelay.Interdelay = SI.LI.Egresslatency
 						currdelay.Peerdelay = 0
@@ -367,72 +336,6 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 						res.UpOverentry = asEntry
 					}
 				}
-				/*
-				} else {
-					if(res.Peerover){
-						var currdelay ASdelay
-						var currhops AShops
-						var currlinks ASlink
-						var currnotes ASnote
-						var currgeo ASgeo
-						var currbw ASbw
-						IA := asEntry.IA()
-						currdelay.Intradelay, currdelay.IA = gatherxoverlatency(SI, asEntry, res.PeeroverIFID)
-						currdelay.Interdelay = SI.LI.Egresslatency
-						currlinks.IA = IA
-						currlinks.Interlink = SI.LT.EgressLT
-						currlinks.Peerlink = ""
-						currbw.IA = IA
-						currbw.Interbw = SI.BW.EgressBW
-						currbw.Intrabw = gatherxoverbw(SI, asEntry, res.PeeroverIFID)
-						currbw.Peerbw = 0
-						currhops.IA = IA
-						currhops.Hops = gatherxoverhops(SI, asEntry, res.PeeroverIFID)
-						currgeo.locations = gathergeo(SI, asEntry)
-						currnotes.Note = SI.NI
-						res.SingleDelays[IA] = currdelay
-						res.SingleHops[IA] = currhops
-						res.Singlebw[IA] = currbw
-						res.Links[IA] =  currlinks
-						res.Geo[IA] = currgeo
-						res.Notes[IA] = currnotes
-					}
-					if (!res.Peerover && res.Xover){
-						var oldSI *seg.StaticInfoExtn
-						var currdelay ASdelay
-						var currhops AShops
-						var currlinks ASlink
-						var currnotes ASnote
-						var currgeo ASgeo
-						var currbw ASbw
-						HF,_ := hopEntry.HopField()
-						inIFID := HF.ConsEgress
-						IA:= res.Overentry.IA()
-						oldSI = res.Overentry.Exts.StaticInfo
-						currdelay.Intradelay, currdelay.IA = gatherxoverlatency(oldSI, res.Overentry, inIFID)
-						currdelay.Interdelay = oldSI.LI.Egresslatency
-						currdelay.Peerdelay = SI.LI.Egresslatency
-						// we abuse peer delay here for something that isn't technically a peering
-						// link but it doesn't really matter
-						currlinks.IA = IA
-						currlinks.Interlink = oldSI.LT.EgressLT
-						currlinks.Peerlink = SI.LT.EgressLT
-						currbw.IA = IA
-						currbw.Interbw = oldSI.BW.EgressBW
-						currbw.Intrabw = gatherxoverbw(oldSI, res.Overentry, inIFID)
-						currbw.Peerbw = SI.BW.EgressBW
-						currhops.IA = IA
-						currhops.Hops = gatherxoverhops(oldSI, res.Overentry, inIFID)
-						currgeo.locations = gathergeo(SI, asEntry)
-						currnotes.Note = SI.NI
-						res.SingleDelays[IA] = currdelay
-						res.SingleHops[IA] = currhops
-						res.Singlebw[IA] = currbw
-						res.Links[IA] = currlinks
-						res.Geo[IA] = currgeo
-						res.Notes[IA] = currnotes
-					}
-				}*/
 			}
 		}
 	}
