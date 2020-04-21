@@ -39,10 +39,10 @@ func (m *MockTopology) EXPECT() *MockTopologyMockRecorder {
 }
 
 // Anycast mocks base method
-func (m *MockTopology) Anycast(arg0 addr.HostSVC) (*net.TCPAddr, error) {
+func (m *MockTopology) Anycast(arg0 addr.HostSVC) (*net.UDPAddr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Anycast", arg0)
-	ret0, _ := ret[0].(*net.TCPAddr)
+	ret0, _ := ret[0].(*net.UDPAddr)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -178,6 +178,21 @@ func (m *MockTopology) MakeHostInfos(arg0 proto.ServiceType) []net.UDPAddr {
 func (mr *MockTopologyMockRecorder) MakeHostInfos(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MakeHostInfos", reflect.TypeOf((*MockTopology)(nil).MakeHostInfos), arg0)
+}
+
+// Multicast mocks base method
+func (m *MockTopology) Multicast(arg0 addr.HostSVC) ([]*net.UDPAddr, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Multicast", arg0)
+	ret0, _ := ret[0].([]*net.UDPAddr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Multicast indicates an expected call of Multicast
+func (mr *MockTopologyMockRecorder) Multicast(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Multicast", reflect.TypeOf((*MockTopology)(nil).Multicast), arg0)
 }
 
 // OverlayAnycast mocks base method
