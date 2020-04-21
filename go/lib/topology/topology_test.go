@@ -348,6 +348,15 @@ func TestBRsCoreAS(t *testing.T) {
 	})
 }
 
+func TestCopy(t *testing.T) {
+	topo, err := RWTopologyFromJSONFile("testdata/core.json")
+	require.NoError(t, err)
+
+	newTopo := topo.Copy()
+	assert.Equal(t, topo.BR, newTopo.BR)
+	assert.Equal(t, topo, newTopo)
+}
+
 func TestInternalDataPlanePort(t *testing.T) {
 	testCases := []struct {
 		Name            string

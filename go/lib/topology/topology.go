@@ -333,6 +333,73 @@ func (t *RWTopology) getSvcInfo(svc proto.ServiceType) (*svcInfo, error) {
 	}
 }
 
+// Copy creates a deep copy of the object.
+func (t *RWTopology) Copy() *RWTopology {
+	if t == nil {
+		return nil
+	}
+	return &RWTopology{
+		Timestamp:  t.Timestamp,
+		TTL:        t.TTL,
+		IA:         t.IA,
+		MTU:        t.MTU,
+		Attributes: append(t.Attributes[:0:0], t.Attributes...),
+
+		BR:        copyBRMap(t.BR),
+		BRNames:   append(t.BRNames[:0:0], t.BRNames...),
+		IFInfoMap: t.IFInfoMap.copy(),
+
+		CS:  t.CS.copy(),
+		SIG: t.SIG.copy(),
+	}
+}
+
+func copyBRMap(m map[string]BRInfo) map[string]BRInfo {
+	if m == nil {
+		return nil
+	}
+	newM := make(map[string]BRInfo)
+	for k, v := range m {
+		newM[k] = *v.copy()
+	}
+	return newM
+}
+
+func (i *BRInfo) copy() *BRInfo {
+	if i == nil {
+		return nil
+	}
+	return &BRInfo{
+		Name:         i.Name,
+		CtrlAddrs:    i.CtrlAddrs.copy(),
+		InternalAddr: copyUDPAddr(i.InternalAddr),
+		IFIDs:        append(i.IFIDs[:0:0], i.IFIDs...),
+		IFs:          copyIFsMap(i.IFs),
+	}
+}
+
+func copyIFsMap(m map[common.IFIDType]*IFInfo) map[common.IFIDType]*IFInfo {
+	if m == nil {
+		return nil
+	}
+	newM := make(map[common.IFIDType]*IFInfo)
+	for k, v := range m {
+		newM[k] = v.copy()
+	}
+	return newM
+}
+
+func (m IfInfoMap) copy() IfInfoMap {
+	if m == nil {
+		return nil
+	}
+	newM := make(IfInfoMap)
+	for k, v := range m {
+		newM[k] = *v.copy()
+	}
+	return newM
+}
+
 // svcInfo contains topology information for a single SCION service
 type svcInfo struct {
 	idTopoAddrMap IDAddrMap
@@ -368,6 +435,19 @@ func (m IDAddrMap) GetByID(id string) *TopoAddr {
 	return nil
 }
 
+func (m IDAddrMap) copy() IDAddrMap {
+	if m == nil {
+		return nil
+	}
+	newM := make(IDAddrMap)
+	for k, v := range m {
+		// This has the potential of making a _lot_ of shallow copies, but we can't really avoid it
+		// due to the value type in the map.
+		newM[k] = *v.copy()
+	}
+	return newM
+}
+
 // CheckLinks checks whether the link types are compatible with whether the AS is core or not.
 func (i IFInfo) CheckLinks(isCore bool, brName string) error {
 	if isCore {
@@ -392,6 +472,26 @@ func (i IFInfo) String() string {
 	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] CtrlAddr[%+v] Overlay:%s Local:%+v "+
 		"Remote:%+v Bw:%d IA:%s Type:%v MTU:%d", i.BRName, i.InternalAddr, i.CtrlAddrs, i.Underlay,
 		i.Local, i.Remote, i.Bandwidth, i.IA, i.LinkType, i.MTU)
+}
+
+func (i *IFInfo) copy() *IFInfo {
+	if i == nil {
+		return nil
+	}
+	return &IFInfo{
+		ID:           i.ID,
+		BRName:       i.BRName,
+		CtrlAddrs:    i.CtrlAddrs.copy(),
+		Underlay:     i.Underlay,
+		InternalAddr: copyUDPAddr(i.InternalAddr),
+		Local:        copyUDPAddr(i.Local),
+		Remote:       copyUDPAddr(i.Remote),
+		RemoteIFID:   i.RemoteIFID,
+		Bandwidth:    i.Bandwidth,
+		IA:           i.IA,
+		LinkType:     i.LinkType,
+		MTU:          i.MTU,
+	}
 }
 
 // UnderlayAddr returns the underlay address interpreted as a net.UDPAddr.
@@ -438,6 +538,10 @@ func (s ServiceNames) GetRandom() (string, error) {
 		return "", serrors.New("No names present")
 	}
 	return s[rand.Intn(numServers)], nil
+}
+
+func (s ServiceNames) copy() ServiceNames {
+	return append(s[:0:0], s...)
 }
 
 func copyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
