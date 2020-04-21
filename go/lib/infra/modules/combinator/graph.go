@@ -361,6 +361,8 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 	}
 	path.reverseDownSegment()
 	path.aggregateInterfaces()
+	Static := solution.Assemblepcbmetadata()
+	path.StaticInfo = Static.Condensemetadata()
 	return path
 }
 
