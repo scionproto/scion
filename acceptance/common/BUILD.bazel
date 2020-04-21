@@ -1,0 +1,43 @@
+load("@rules_python//python:defs.bzl", "py_library")
+load("@pip3_deps//:requirements.bzl", "requirement")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "base",
+    srcs = ["base.py"],
+    deps = [
+        requirement("plumbum"),
+        "log",
+        "scion",
+        "tools",
+    ],
+)
+
+py_library(
+    name = "go",
+    srcs = ["go.py"],
+)
+
+py_library(
+    name = "log",
+    srcs = ["log.py"],
+)
+
+py_library(
+    name = "scion",
+    srcs = ["scion.py"],
+    deps = [
+        requirement("plumbum"),
+        requirement("toml"),
+        "log",
+    ],
+)
+
+py_library(
+    name = "tools",
+    srcs = ["tools.py"],
+    deps = [
+        requirement("plumbum"),
+    ],
+)

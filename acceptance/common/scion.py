@@ -26,8 +26,8 @@ from acceptance.common.log import LogExec
 logger = logging.getLogger(__name__)
 
 
-class Scion(ABC):
-    """ Scion is the base class for interacting with the infrastructure. """
+class SCION(ABC):
+    """ SCION is the base class for interacting with the infrastructure. """
     scion_sh = local['./scion.sh']
     end2end = local['./bin/end2end_integration']
 
@@ -72,11 +72,11 @@ class Scion(ABC):
         self._send_signals(svc_names, "SIGHUP")
 
     @LogExec(logger, 'end2end test')
-    def run_end2end(self, expect_fail=False):
-        self._run_end2end(1 if expect_fail else 0)
+    def run_end2end(self, *args, expect_fail=False):
+        self._run_end2end(*args, code=1 if expect_fail else 0)
 
     @abstractmethod
-    def _run_end2end(self, code=0):
+    def _run_end2end(self, *args, code=0):
         """
         Run the end2end integration test.
         :param code: The expected return code.
@@ -101,9 +101,9 @@ class Scion(ABC):
             toml.dump(t, f)
 
 
-class ScionDocker(Scion):
+class SCIONDocker(SCION):
     """
-    ScionDocker is used for interacting with the dockerized
+    SCIONDocker is used for interacting with the dockerized
     scion infrastructure.
     """
     tools_dc = local['./tools/dc']
@@ -117,14 +117,14 @@ class ScionDocker(Scion):
         for svc_name in svc_names:
             self.tools_dc('scion', 'kill', '-s', sig, 'scion_%s' % svc_name)
 
-    def _run_end2end(self, code=0):
-        self.end2end('-d', retcode=code)
+    def _run_end2end(self, *args, code=0):
+        self.end2end('-d', *args, retcode=code)
 
 
-class ScionSupervisor(Scion):
+class SCIONSupervisor(SCION):
     """
-    ScionSupervisor is used for interacting with the supervisor
-    scion infrastructure.
+    SCIONSupervisor is used for interacting with the supervisor
+    SCION infrastructure.
     """
 
     @LogExec(logger, "creating supervisor topology")
@@ -136,8 +136,8 @@ class ScionSupervisor(Scion):
         for svc_name in svc_names:
             pkill('-f', '--signal', sig, 'bin/.*%s' % svc_name)
 
-    def _run_end2end(self, code=0):
-        self.end2end(retcode=code)
+    def _run_end2end(self, *args, code=0):
+        self.end2end(*args, retcode=code)
 
 
 def svc_names_from_path(files: LocalPath) -> List[str]:

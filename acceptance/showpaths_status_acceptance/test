@@ -22,7 +22,9 @@ from plumbum import local
 
 
 from acceptance.common.log import LogExec, init_log
-from acceptance.common.base import CmdBase, TestBase, set_name
+from acceptance.common.base import CmdBase, TestBase, set_name, TestState
+from acceptance.common.scion import SCIONDocker
+from acceptance.common.tools import DC
 from lib.util import load_yaml_file, load_sciond_file
 
 set_name(__file__)
@@ -84,4 +86,5 @@ class TestRun(Base):
 
 if __name__ == '__main__':
     init_log()
+    Test.test_state = TestState(SCIONDocker(), DC(''))
     Test.run()

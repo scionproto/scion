@@ -16,11 +16,11 @@ import logging
 
 from plumbum import cli
 from plumbum import local
-from plumbum.cmd import docker, mkdir
+from plumbum.cmd import docker, mkdir, mktemp
 from plumbum.path.local import LocalPath
 
 from acceptance.common.log import LogExec
-from acceptance.common.scion import ScionDocker, ScionSupervisor
+from acceptance.common.scion import SCION, SCIONSupervisor
 from acceptance.common.tools import DC
 
 NAME = 'NOT_SET'  # must be set by users of the Base class.
@@ -40,11 +40,19 @@ class TestState:
     TestState is used to share state between the command
     and the sub-command.
     """
-    dc = DC('')  # Just init so mypy knows the type.
-    artifacts = local.path()  # Just init so mypy knows the type.
-    scion = ScionDocker()
-    no_docker = False
-    tools_dc = local['./tools/dc']
+
+    def __init__(self, scion: SCION, dc: DC):
+        """
+        Create new environment state for an execution of the acceptance
+        testing framework. Plumbum subcommands can access this state
+        via the parent to retrieve information about the test environment.
+        """
+
+        self.scion = scion
+        self.dc = dc
+        self.artifacts = local.path(mktemp('-d').strip())
+        self.no_docker = False
+        self.tools_dc = local['./tools/dc']
 
 
 class TestBase(cli.Application):
@@ -52,17 +60,17 @@ class TestBase(cli.Application):
     TestBase is used to implement the test entry point. Tests should
     sub-class it and only define the doc string.
     """
+    test_state = None
 
     @cli.switch('disable-docker', envname='DISABLE_DOCKER',
                 help='Run in supervisor environment.')
     def disable_docker(self):
-        TestState.no_docker = True
-        TestState.scion = ScionSupervisor()
+        self.test_state.no_docker = True
+        self.test_state.scion = SCIONSupervisor()
 
-    @cli.switch('artifacts', str, envname='ACCEPTANCE_ARTIFACTS',
-                mandatory=True)
+    @cli.switch('artifacts', str, envname='ACCEPTANCE_ARTIFACTS')
     def artifacts_dir(self, a_dir: str):
-        TestState.artifacts = local.path('%s/%s/' % (a_dir, NAME))
+        self.test_state.artifacts = local.path('%s/%s/' % (a_dir, NAME))
 
 
 class CmdBase(cli.Application):
@@ -83,10 +91,19 @@ class CmdBase(cli.Application):
         self.scion.stop()
         if not self.no_docker:
             self.dc.collect_logs(self.artifacts / 'logs' / 'docker')
+            self.tools_dc('down')
+
+    def _collect_logs(self, name: str):
+        if LocalPath('gen/%s-dc.yml' % name).exists():
+            self.tools_dc('collect_logs', name, self.artifacts / 'logs' / 'docker')
+
+    def _teardown(self, name: str):
+        if LocalPath('gen/%s-dc.yml' % name).exists():
+            self.tools_dc(name, 'down')
 
     @staticmethod
-    def test_dir() -> LocalPath:
-        return local.path('acceptance') / DIR
+    def test_dir(prefix: str = '') -> LocalPath:
+        return local.path(prefix, 'acceptance') / DIR
 
     @staticmethod
     def docker_status():
@@ -96,19 +113,19 @@ class CmdBase(cli.Application):
 
     @property
     def dc(self):
-        return TestState.dc
+        return self.parent.test_state.dc
 
     @property
     def artifacts(self):
-        return TestState.artifacts
+        return self.parent.test_state.artifacts
 
     @property
     def scion(self):
-        return TestState.scion
+        return self.parent.test_state.scion
 
     @property
     def no_docker(self):
-        return TestState.no_docker
+        return self.parent.test_state.no_docker
 
 
 @TestBase.subcommand('name')

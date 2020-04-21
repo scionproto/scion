@@ -27,8 +27,9 @@ from plumbum import local
 from plumbum.path.local import LocalPath
 
 from acceptance.common.log import LogExec, init_log
-from acceptance.common.base import CmdBase, set_name, TestBase
-from acceptance.common.scion import svc_names_from_path
+from acceptance.common.base import CmdBase, set_name, TestBase, TestState
+from acceptance.common.scion import svc_names_from_path, SCIONDocker
+from acceptance.common.tools import DC
 
 set_name(__file__)
 logger = logging.getLogger(__name__)
@@ -140,4 +141,5 @@ class TestRun(CmdBase):
 
 if __name__ == '__main__':
     init_log()
+    Test.test_state = TestState(SCIONDocker(), DC(''))
     Test.run()
