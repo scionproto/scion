@@ -58,6 +58,7 @@ func TestServer(t *testing.T) {
 			Certificates: []tls.Certificate{
 				MustLoadCertificate(defPemPath, defKeyPath),
 			},
+			NextProtos: []string{"SCION"},
 		},
 		Handler: &handler{t: t},
 	}
@@ -106,8 +107,11 @@ func getCliSrv(t testing.TB, cliPort, srvPort int) (*Client, *Server, func()) {
 		srvConn.Close()
 	}
 	client := &Client{
-		Conn:      cliConn,
-		TLSConfig: &tls.Config{InsecureSkipVerify: true},
+		Conn: cliConn,
+		TLSConfig: &tls.Config{
+			InsecureSkipVerify: true,
+			NextProtos:         []string{"SCION"},
+		},
 	}
 	server := &Server{
 		Conn: srvConn,
@@ -115,6 +119,7 @@ func getCliSrv(t testing.TB, cliPort, srvPort int) (*Client, *Server, func()) {
 			Certificates: []tls.Certificate{
 				MustLoadCertificate(defPemPath, defKeyPath),
 			},
+			NextProtos: []string{"SCION"},
 		},
 		Handler: &handler{t: t},
 	}
