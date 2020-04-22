@@ -83,7 +83,7 @@ type StaticInfoExtn struct {
 	Note string            `capnp:"note"`
 }
 
-// Takes an intermediate struct only used to parse data from a config.json file, a map of interface IDs to
+// gatherlatency takes an intermediate struct only used to parse data from a config.json file, a map of interface IDs to
 // booleans indicating whether the interface in question is used for peering, and egress interface ID and an
 // ingress interface ID.
 // Extracts latency values from that struct and inserts them into the latency portion of a StaticInfoExtn struct.
@@ -108,7 +108,7 @@ func (latinf *LatencyInfo) gatherlatency(somestruct Configdata, peers map[uint16
 	}
 }
 
-// Takes an intermediate struct only used to parse data from a config.json file, a map of interface IDs to
+// gatherbw takes an intermediate struct only used to parse data from a config.json file, a map of interface IDs to
 // booleans indicating whether the interface in question is used for peering, and egress interface ID and an
 // ingress interface ID.
 // Extracts bandwidth values from that struct and inserts them into the bandwidth portion of a StaticInfoExtn struct.
@@ -131,7 +131,7 @@ func (bwinf *BandwidthInfo) gatherbw(somestruct Configdata, peers map[uint16]boo
 	}
 }
 
-// Takes an intermediate struct only used to parse data from a config.json file, a map of interface IDs to
+// gatherlinktype takes an intermediate struct only used to parse data from a config.json file, a map of interface IDs to
 // booleans indicating whether the interface in question is used for peering, and egress interface ID.
 // Extracts linktype values from that struct and inserts them into the linktype portion of a StaticInfoExtn struct.
 func (ltinf *LinktypeInfo) gatherlinktype(somestruct Configdata, peers map[uint16]bool, egIFID uint16) {
@@ -146,7 +146,9 @@ func (ltinf *LinktypeInfo) gatherlinktype(somestruct Configdata, peers map[uint1
 	}
 }
 
-
+// gatherhops takes an intermediate struct only used to parse data from a config.json file, an egress and ingress
+// interface ID.
+// Extracts linktype values from that struct and inserts them into the linktype portion of a StaticInfoExtn struct.
 func (nhinf *InternalHopsInfo) gatherhops(somestruct Configdata, egIFID uint16, inIFID uint16){
 	nhinf.Intououthops = somestruct.Hops[egIFID].Intra[inIFID]
 	for subintfid, hops := range somestruct.Hops[egIFID].Intra {
@@ -159,7 +161,7 @@ func (nhinf *InternalHopsInfo) gatherhops(somestruct Configdata, egIFID uint16, 
 	}
 }
 
-// Takes an intermediate struct only used to parse data from a config.json file.
+// gathergeo takes an intermediate struct only used to parse data from a config.json file.
 // Extracts geo values from that struct and inserts them into the geo portion of a StaticInfoExtn struct.
 func (geoinf *GeoInfo) gathergeo(somestruct Configdata) {
 	for intfid, loc := range somestruct.Geo {

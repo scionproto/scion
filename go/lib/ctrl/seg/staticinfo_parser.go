@@ -29,7 +29,7 @@ type Hopintf struct {
 	Intra  map[uint16]uint8 `json:"Intra"`
 }
 
-// Struct used to parse data from config.json
+// Configdata is used to parse data from config.json
 type Configdata struct {
 	Latency  map[uint16]Latintf `json:"Latency"`
 	Bandwidth   map[uint16]Bwintf  `json:"Bandwidth"`
@@ -47,12 +47,12 @@ type BR struct {
 	Intfs map[uint16]Topointf `json:"Interfaces"`
 }
 
-// Struct used to parse data from topology.json
+// Topo is used to parse data from topology.json
 type Topo struct {
 	BRs map[string]BR `json:"BorderRouters"`
 }
 
-// Takes the path of a config.json and the path of a topologyfile, both in the form of a string.
+// parseconfigdata takes the path of a config.json and the path of a topologyfile, both in the form of a string.
 // Parses data from config json into a Configdata struct and uses data from a topologyfile to
 // create a map from interfaces to bools indicating whether or not the interface is used in peering.
 // Returns the Configdata struct as well as the map from intfIDs to bools.
@@ -82,18 +82,18 @@ func parsenconfigdata(datafile string, topologyfile string) (Configdata, map[uin
 	return res, peers
 }
 
-// Takes the path of a config.json and the path of a topologyfile, both in the form of a string, as well as
+// generateStaticinfo the path of a config.json and the path of a topologyfile, both in the form of a string, as well as
 // an egress and an ingress interface ID.
 // Fills a StaticinfoExtn struct with data extracted from a config.json and a topologyfile.
 // Returns a pointer to said StaticInfoExtn struct.
 func generateStaticinfo(datafile string, topologyfile string, egIFID uint16, inIFID uint16) *StaticInfoExtn {
 	var somedata, peers = parsenconfigdata(datafile, topologyfile)
 	var res StaticInfoExtn
-	res.LI.gatherlatency(somedata, peers, egIFID, inIFID)
-	res.BW.gatherbw(somedata, peers, egIFID, inIFID)
-	res.LT.gatherlinktype(somedata, peers, egIFID)
-	res.GI.gathergeo(somedata)
-	res.NI = somedata.Note
-	res.IH.gatherhops(somedata, egIFID, inIFID)
+	res.Latency.gatherlatency(somedata, peers, egIFID, inIFID)
+	res.Bandwidth.gatherbw(somedata, peers, egIFID, inIFID)
+	res.Linktype.gatherlinktype(somedata, peers, egIFID)
+	res.Geo.gathergeo(somedata)
+	res.Note = somedata.Note
+	res.Hops.gatherhops(somedata, egIFID, inIFID)
 	return &res
 }
