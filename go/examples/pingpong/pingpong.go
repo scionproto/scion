@@ -237,7 +237,7 @@ func (c *client) run() {
 		LogFatal("Unable to dial", "err", err)
 	}
 
-	qstream, err := c.qsess.OpenStreamSync()
+	qstream, err := c.qsess.OpenStreamSync(context.Background())
 	if err != nil {
 		LogFatal("quic OpenStream failed", "err", err)
 	}
@@ -261,7 +261,7 @@ func (c *client) Close() error {
 		// E.g. if you are just sending something to a server and closing the session immediately
 		// it might be that the server does not see the message.
 		// See also: https://github.com/lucas-clemente/quic-go/issues/464
-		err = c.qsess.Close()
+		err = c.qsess.CloseWithError(quic.ErrorCode(0), "")
 	}
 	return err
 }
@@ -363,7 +363,7 @@ func (s server) run() {
 	}
 	log.Info("Listening", "local", qsock.Addr())
 	for {
-		qsess, err := qsock.Accept()
+		qsess, err := qsock.Accept(context.Background())
 		if err != nil {
 			log.Error("Unable to accept quic session", "err", err)
 			// Accept failing means the socket is unusable.
@@ -378,8 +378,8 @@ func (s server) run() {
 }
 
 func (s server) handleClient(qsess quic.Session) {
-	defer qsess.Close()
-	qstream, err := qsess.AcceptStream()
+	defer qsess.CloseWithError(quic.ErrorCode(0), "")
+	qstream, err := qsess.AcceptStream(context.Background())
 	if err != nil {
 		log.Error("Unable to accept quic stream", "err", err)
 		return
