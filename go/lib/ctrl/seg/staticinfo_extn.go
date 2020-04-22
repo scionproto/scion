@@ -75,12 +75,12 @@ type Hoppair struct {
 
 
 type StaticInfoExtn struct {
-	LI LatencyInfo      `capnp:"latency"`
-	GI GeoInfo          `capnp:"geo"`
-	LT LinktypeInfo     `capnp:"linktype"`
-	BW BandwidthInfo    `capnp:"bandwidth"`
-	IH InternalHopsInfo `capnp:"internalHops"`
-	NI string            `capnp:"note"`
+	Latency LatencyInfo      `capnp:"latency"`
+	Geo GeoInfo          `capnp:"geo"`
+	Linktype LinktypeInfo     `capnp:"linktype"`
+	Bandwidth BandwidthInfo    `capnp:"bandwidth"`
+	Hops InternalHopsInfo `capnp:"internalHops"`
+	Note string            `capnp:"note"`
 }
 
 // Takes an intermediate struct only used to parse data from a config.json file, a map of interface IDs to
@@ -88,9 +88,9 @@ type StaticInfoExtn struct {
 // ingress interface ID.
 // Extracts latency values from that struct and inserts them into the latency portion of a StaticInfoExtn struct.
 func (latinf *LatencyInfo) gatherlatency(somestruct Configdata, peers map[uint16]bool, egIFID uint16, inIFID uint16) {
-	latinf.Egresslatency = somestruct.Lat[egIFID].Inter
-	latinf.Intooutlatency = somestruct.Lat[egIFID].Intra[inIFID]
-	for subintfid, intfdelay := range somestruct.Lat[egIFID].Intra{
+	latinf.Egresslatency = somestruct.Latency[egIFID].Inter
+	latinf.Intooutlatency = somestruct.Latency[egIFID].Intra[inIFID]
+	for subintfid, intfdelay := range somestruct.Latency[egIFID].Intra{
 		if !(peers[subintfid]) {
 			if subintfid > egIFID {
 				var asdf Latencychildpair
@@ -101,7 +101,7 @@ func (latinf *LatencyInfo) gatherlatency(somestruct Configdata, peers map[uint16
 		} else {
 			var asdf Latencypeeringtriplet
 			asdf.IntfID = subintfid
-			asdf.Interdelay = somestruct.Lat[subintfid].Inter
+			asdf.Interdelay = somestruct.Latency[subintfid].Inter
 			asdf.IntraDelay = intfdelay
 			latinf.Peeringlatencies = append(latinf.Peeringlatencies, asdf)
 		}
@@ -113,13 +113,13 @@ func (latinf *LatencyInfo) gatherlatency(somestruct Configdata, peers map[uint16
 // ingress interface ID.
 // Extracts bandwidth values from that struct and inserts them into the bandwidth portion of a StaticInfoExtn struct.
 func (bwinf *BandwidthInfo) gatherbw(somestruct Configdata, peers map[uint16]bool, egIFID uint16, inIFID uint16) {
-	bwinf.EgressBW = somestruct.BW[egIFID].Inter
-	bwinf.IntooutBW = somestruct.BW[egIFID].Intra[inIFID]
-	for subintfid, intfbw := range somestruct.BW[egIFID].Intra{
+	bwinf.EgressBW = somestruct.Bandwidth[egIFID].Inter
+	bwinf.IntooutBW = somestruct.Bandwidth[egIFID].Intra[inIFID]
+	for subintfid, intfbw := range somestruct.Bandwidth[egIFID].Intra{
 		var minbw uint32
 		if subintfid>egIFID{
 			if peers[subintfid]{
-				minbw = uint32(math.Min(float64(intfbw), float64(somestruct.BW[subintfid].Inter)))
+				minbw = uint32(math.Min(float64(intfbw), float64(somestruct.Bandwidth[subintfid].Inter)))
 			} else {
 				minbw = intfbw
 			}
@@ -135,8 +135,8 @@ func (bwinf *BandwidthInfo) gatherbw(somestruct Configdata, peers map[uint16]boo
 // booleans indicating whether the interface in question is used for peering, and egress interface ID.
 // Extracts linktype values from that struct and inserts them into the linktype portion of a StaticInfoExtn struct.
 func (ltinf *LinktypeInfo) gatherlinktype(somestruct Configdata, peers map[uint16]bool, egIFID uint16) {
-	ltinf.EgressLT = somestruct.LT[egIFID]
-	for intfid, intfLT := range somestruct.LT {
+	ltinf.EgressLT = somestruct.Linktype[egIFID]
+	for intfid, intfLT := range somestruct.Linktype {
 		if (peers[intfid]) {
 			var asdf LTPeeringpair
 			asdf.IntfLT = intfLT

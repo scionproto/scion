@@ -31,12 +31,12 @@ type Hopintf struct {
 
 // Struct used to parse data from config.json
 type Configdata struct {
-	Lat  map[uint16]Latintf `json:"Latency"`
-	BW   map[uint16]Bwintf  `json:"Bandwidth"`
-	LT   map[uint16]string  `json:"Linktype"`
+	Latency  map[uint16]Latintf `json:"Latency"`
+	Bandwidth   map[uint16]Bwintf  `json:"Bandwidth"`
+	Linktype   map[uint16]string  `json:"Linktype"`
 	Geo  map[uint16]Geointf `json:"Geo"`
 	Hops map[uint16]Hopintf `json:"Hops"`
-	N    string             `json:"Note"`
+	Note    string             `json:"Note"`
 }
 
 type Topointf struct {
@@ -91,9 +91,9 @@ func generateStaticinfo(datafile string, topologyfile string, egIFID uint16, inI
 	var res StaticInfoExtn
 	res.LI.gatherlatency(somedata, peers, egIFID, inIFID)
 	res.BW.gatherbw(somedata, peers, egIFID, inIFID)
-	res.LT.gatherlinktype(somedata,peers, egIFID)
+	res.LT.gatherlinktype(somedata, peers, egIFID)
 	res.GI.gathergeo(somedata)
-	res.NI = somedata.N
+	res.NI = somedata.Note
 	res.IH.gatherhops(somedata, egIFID, inIFID)
 	return &res
 }
