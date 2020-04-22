@@ -9,66 +9,66 @@ import (
 	"strconv"
 )
 
-type Latency_Info_Test struct {
+type LatencyInfoTest struct {
 	Egresslatency uint16 `json:"ExpEgress"`
 	Intooutlatency uint16 `json:"ExpIO"`
-	Childlatencies    []Latencychildpair_test `json:"ExpCL"`
-	Peeringlatencies     []Latencypeeringtriplet_test `json:"ExpPT"`
+	Childlatencies    []Latencychildpairtest `json:"ExpCL"`
+	Peeringlatencies     []Latencypeeringtriplettest `json:"ExpPT"`
 }
 
-type Latencychildpair_test struct {
+type Latencychildpairtest struct {
 	Intradelay uint16   `json:"ExpIntra"`
 	Interface  uint16 `json:"ExpIntf"`
 }
 
-type Latencypeeringtriplet_test struct {
+type Latencypeeringtriplettest struct {
 	Interdelay uint16 `json:"ExpInter"`
 	IntraDelay uint16 `json:"ExpIntra"`
 	IntfID uint16 `json:"ExpIntf"`
 }
 
-type Bandwidth_Info_Test struct {
+type BandwidthInfoTest struct {
 	EgressBW uint32 `json:"ExpEgress"`
 	IntooutBW uint32 `json:"ExpIO"`
-	BWPairs []BWPair_test `json:"ExpBWP"`
+	BWPairs []BWPairtest `json:"ExpBWP"`
 }
 
-type BWPair_test struct {
+type BWPairtest struct {
 	BW  uint32   `json:"ExpBWV"`
 	IntfID uint16 `json:"ExpIntf"`
 }
 
-type Geo_Info_Test struct {
-	Locations []Location_test `json:"ExpLocs"`
+type GeoInfoTest struct {
+	Locations []Locationtest `json:"ExpLocs"`
 }
 
-type Location_test struct {
-	GPSData      Coordinates_test `json:"ExpGPS"`
+type Locationtest struct {
+	GPSData      Coordinatestest `json:"ExpGPS"`
 	IntfIDs []uint16 `json:"ExpIntfs"`
 }
 
-type Coordinates_test struct {
+type Coordinatestest struct {
 	Latitude   float32 `json:"ExpLatitude"`
 	Longitude   float32 `json:"ExpLongitude"`
 	Address string  `json:"ExpAddr"`
 }
 
-type Linktype_Info_Test struct {
+type LinktypeInfoTest struct {
 	EgressLT   string `json:"ExpEgress"`
-	Peeringlinks  []LTPeeringpair_test `json:"ExpPL"`
+	Peeringlinks  []LTPeeringpairtest `json:"ExpPL"`
 }
 
-type LTPeeringpair_test struct {
+type LTPeeringpairtest struct {
 	IntfID uint16 `json:"ExpIntf"`
 	IntfLT string `json:"ExpLT"`
 }
 
-type InternalHops_Info_Test struct {
+type InternalHopsInfoTest struct {
 	Intououthops uint8 `json:"ExpIO"`
-	Hoppairs []Hoppair_test `json:"ExpHP"`
+	Hoppairs []Hoppairtest `json:"ExpHP"`
 }
 
-type Hoppair_test struct {
+type Hoppairtest struct {
 	Hops uint8    `json:"ExpHops"`
 	IntfID uint16 `json:"ExpIntf"`
 }
@@ -77,11 +77,11 @@ type Hoppair_test struct {
 type Test struct {
 	EgIFID uint16             `json:"Egress"`
 	InIFID uint16             `json:"Ingress"`
-	LI Latency_Info_Test      `json:"ExpLatency"`
-	GI Geo_Info_Test          `json:"ExpGeo"`
-	LT Linktype_Info_Test     `json:"ExpLT"`
-	BW Bandwidth_Info_Test    `json:"ExpBW"`
-	IH InternalHops_Info_Test `json:"ExpIH"`
+	LI LatencyInfoTest      `json:"ExpLatency"`
+	GI GeoInfoTest          `json:"ExpGeo"`
+	LT LinktypeInfoTest     `json:"ExpLT"`
+	BW BandwidthInfoTest    `json:"ExpBW"`
+	IH InternalHopsInfoTest `json:"ExpIH"`
 	NI string                 `json:"ExpNI"`
 }
 
@@ -209,7 +209,7 @@ func subtest(datafiles []string, topofiles []string, testdata string) (string, b
 		return "Error: Failed to read testdata", false
 	}
 	defer jsonFile.Close()
-	rawfile, _ := ioutil.ReadAll(jsonFile)
+	rawfile,_ := ioutil.ReadAll(jsonFile)
 	var TD Testdata
 	json.Unmarshal(rawfile, &TD)
 	if (len(TD.Tests)!= len(datafiles)){
