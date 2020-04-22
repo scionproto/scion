@@ -54,6 +54,8 @@ const (
 	TSLen           = 8
 	ModeServer      = "server"
 	ModeClient      = "client"
+
+	errorNoError quic.ErrorCode = 0x100
 )
 
 var (
@@ -73,6 +75,11 @@ var (
 	timeout     = flag.Duration("timeout", DefaultTimeout, "Timeout for the ping response")
 	verbose     = flag.Bool("v", false, "sets verbose output")
 	logConsole  string
+
+	// No way to extract error code from error returned after closing session in quic-go.
+	// c.f. https://github.com/lucas-clemente/quic-go/issues/2441
+	// Workaround by string comparison with known formated error string.
+	errorNoErrorString = fmt.Sprintf("Application error %#x", uint64(errorNoError))
 )
 
 func init() {
@@ -261,7 +268,7 @@ func (c *client) Close() error {
 		// E.g. if you are just sending something to a server and closing the session immediately
 		// it might be that the server does not see the message.
 		// See also: https://github.com/lucas-clemente/quic-go/issues/464
-		err = c.qsess.CloseWithError(quic.ErrorCode(0), "")
+		err = c.qsess.CloseWithError(errorNoError, "")
 	}
 	return err
 }
@@ -378,7 +385,7 @@ func (s server) run() {
 }
 
 func (s server) handleClient(qsess quic.Session) {
-	defer qsess.CloseWithError(quic.ErrorCode(0), "")
+	defer qsess.CloseWithError(errorNoError, "")
 	qstream, err := qsess.AcceptStream(context.Background())
 	if err != nil {
 		log.Error("Unable to accept quic stream", "err", err)
@@ -391,7 +398,11 @@ func (s server) handleClient(qsess quic.Session) {
 		// Receive ping message
 		msg, err := qs.ReadMsg()
 		if err != nil {
-			log.Error("Unable to read", "err", err)
+			if err == io.EOF || err.Error() == errorNoErrorString {
+				log.Info("Quic session ended", "src", qsess.RemoteAddr())
+			} else {
+				log.Error("Unable to read", "err", err)
+			}
 			break
 		}
 
