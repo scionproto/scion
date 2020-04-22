@@ -51,6 +51,7 @@ type ASbw struct {
 }
 
 type Pathmetadata struct {
+	ASes []addr.IA
 	SingleDelays map[addr.IA]ASdelay
 	Singlebw map[addr.IA]ASbw
 	SingleHops map[addr.IA]AShops
@@ -157,21 +158,21 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 				// the corresponding ASEntry and put it into res
 				if !(asEntryIdx==(len(asEntries)-1)){
 					IA := asEntry.IA()
-					currdelay.Intradelay = SI.LI.Intooutlatency
+					currdelay.Intradelay = SI.Latency.Intooutlatency
 					currdelay.IA = IA
-					currdelay.Interdelay = SI.LI.Egresslatency
+					currdelay.Interdelay = SI.Latency.Egresslatency
 					currdelay.Peerdelay = 0
 					currlinks.IA = IA
-					currlinks.Interlink = SI.LT.EgressLT
+					currlinks.Interlink = SI.Linktype.EgressLT
 					currlinks.Peerlink = ""
 					currbw.IA = IA
-					currbw.Interbw = SI.BW.EgressBW
-					currbw.Intrabw = SI.BW.IntooutBW
+					currbw.Interbw = SI.Bandwidth.EgressBW
+					currbw.Intrabw = SI.Bandwidth.IntooutBW
 					currbw.Peerbw = 0
 					currhops.IA = IA
-					currhops.Hops = SI.IH.Intououthops
+					currhops.Hops = SI.Hops.Intououthops
 					currgeo.locations = gathergeo(SI, asEntry)
-					currnotes.Note = SI.NI
+					currnotes.Note = SI.Note
 					res.SingleDelays[IA] = currdelay
 					res.SingleHops[IA] = currhops
 					res.Singlebw[IA] = currbw
@@ -204,7 +205,7 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 					currhops.IA = IA
 					currhops.Hops = 0
 					currgeo.locations = gathergeo(SI, asEntry)
-					currnotes.Note = SI.NI
+					currnotes.Note = SI.Note
 					res.SingleDelays[IA] = currdelay
 					res.SingleHops[IA] = currhops
 					res.Singlebw[IA] = currbw
@@ -241,17 +242,17 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 						currdelay.Intradelay, currdelay.IA = gatherxoverlatency(SI, asEntry, inIFID)
 						res.Peerover = true
 					}
-					currdelay.Interdelay = SI.LI.Egresslatency
+					currdelay.Interdelay = SI.Latency.Egresslatency
 					res.PeeroverIFID = peerEntry.RemoteInIF
 					currlinks.IA = IA
-					currlinks.Interlink = SI.LT.EgressLT
+					currlinks.Interlink = SI.Linktype.EgressLT
 					currbw.IA = IA
-					currbw.Interbw = SI.BW.EgressBW
+					currbw.Interbw = SI.Bandwidth.EgressBW
 					currbw.Intrabw = gatherxoverbw(SI, asEntry, inIFID)
 					currhops.IA = IA
 					currhops.Hops = gatherxoverhops(SI, asEntry, inIFID)
 					currgeo.locations = gathergeo(SI, asEntry)
-					currnotes.Note = SI.NI
+					currnotes.Note = SI.Note
 					res.SingleDelays[IA] = currdelay
 					res.SingleHops[IA] = currhops
 					res.Singlebw[IA] = currbw
@@ -275,21 +276,21 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 						HF,_ := hopEntry.HopField()
 						egIFID := HF.ConsEgress
 						currdelay.Intradelay, currdelay.IA = gatherxoverlatency(oldSI, res.UpOverentry, egIFID)
-						currdelay.Interdelay = SI.LI.Egresslatency
-						currdelay.Peerdelay = oldSI.LI.Egresslatency
+						currdelay.Interdelay = SI.Latency.Egresslatency
+						currdelay.Peerdelay = oldSI.Latency.Egresslatency
 						// we abuse peerdelay (as well as peerbw and peerlink) here for something that
 						// isn't technically a peering  link but it doesn't really matter
 						currlinks.IA = IA
-						currlinks.Interlink = SI.LT.EgressLT
-						currlinks.Peerlink = oldSI.LT.EgressLT
+						currlinks.Interlink = SI.Linktype.EgressLT
+						currlinks.Peerlink = oldSI.Linktype.EgressLT
 						currbw.IA = IA
-						currbw.Interbw = SI.BW.EgressBW
+						currbw.Interbw = SI.Bandwidth.EgressBW
 						currbw.Intrabw = gatherxoverbw(oldSI, res.UpOverentry, egIFID)
-						currbw.Peerbw = oldSI.BW.EgressBW
+						currbw.Peerbw = oldSI.Bandwidth.EgressBW
 						currhops.IA = IA
 						currhops.Hops = gatherxoverhops(oldSI, res.UpOverentry, egIFID)
 						currgeo.locations = gathergeo(oldSI, res.UpOverentry)
-						currnotes.Note = oldSI.NI
+						currnotes.Note = oldSI.Note
 						res.SingleDelays[IA] = currdelay
 						res.SingleHops[IA] = currhops
 						res.Singlebw[IA] = currbw
@@ -310,19 +311,19 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 						var currbw ASbw
 						IA := asEntry.IA()
 						currdelay.Intradelay, currdelay.IA = gatherxoverlatency(SI, asEntry, res.DownoverIFID)
-						currdelay.Interdelay = SI.LI.Egresslatency
+						currdelay.Interdelay = SI.Latency.Egresslatency
 						currdelay.Peerdelay = 0
 						currlinks.IA = IA
-						currlinks.Interlink = SI.LT.EgressLT
+						currlinks.Interlink = SI.Linktype.EgressLT
 						currlinks.Peerlink = ""
 						currbw.IA = IA
-						currbw.Interbw = SI.BW.EgressBW
+						currbw.Interbw = SI.Bandwidth.EgressBW
 						currbw.Intrabw = gatherxoverbw(SI, asEntry, res.DownoverIFID)
 						currbw.Peerbw = 0
 						currhops.IA = IA
 						currhops.Hops = gatherxoverhops(SI, asEntry, res.DownoverIFID)
 						currgeo.locations = gathergeo(SI, asEntry)
-						currnotes.Note = SI.NI
+						currnotes.Note = SI.Note
 						res.SingleDelays[IA] = currdelay
 						res.SingleHops[IA] = currhops
 						res.Singlebw[IA] = currbw
@@ -346,9 +347,9 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 func gatherxoverlatency(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIFID common.IFIDType) (uint16, addr.IA){
 	var ret1 uint16
 	var ret2 addr.IA
-	for i:=0;i< len(SI.LI.Childlatencies);i++{
-		if (common.IFIDType(SI.LI.Childlatencies[i].Interface)==inIFID){
-			ret1 = SI.LI.Childlatencies[i].Intradelay
+	for i:=0;i< len(SI.Latency.Childlatencies);i++{
+		if (common.IFIDType(SI.Latency.Childlatencies[i].Interface)==inIFID){
+			ret1 = SI.Latency.Childlatencies[i].Intradelay
 			ret2 = asEntry.IA()
 		}
 	}
@@ -359,10 +360,10 @@ func gatherxoverlatency(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIFID com
 func gatherpeeringlatencydata(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIFID common.IFIDType) (uint16, uint16, addr.IA){
 	var intradelay, peeringdelay uint16
 	var ret3 addr.IA
-	for i:=0;i< len(SI.LI.Peeringlatencies);i++{
-		if (common.IFIDType(SI.LI.Peeringlatencies[i].IntfID)==inIFID){
-			intradelay = SI.LI.Peeringlatencies[i].IntraDelay
-			peeringdelay = SI.LI.Peeringlatencies[i].Interdelay
+	for i:=0;i< len(SI.Latency.Peeringlatencies);i++{
+		if (common.IFIDType(SI.Latency.Peeringlatencies[i].IntfID)==inIFID){
+			intradelay = SI.Latency.Peeringlatencies[i].IntraDelay
+			peeringdelay = SI.Latency.Peeringlatencies[i].Interdelay
 			ret3 = asEntry.IA()
 		}
 	}
@@ -372,9 +373,9 @@ func gatherpeeringlatencydata(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIF
 
 func gatherpeeroverlink(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIFID common.IFIDType) (string){
 	var interLT string
-	for i:=0;i< len(SI.LT.Peeringlinks);i++{
-		if (common.IFIDType(SI.LT.Peeringlinks[i].IntfID)==inIFID){
-			interLT = SI.LT.Peeringlinks[i].IntfLT
+	for i:=0;i< len(SI.Linktype.Peeringlinks);i++{
+		if (common.IFIDType(SI.Linktype.Peeringlinks[i].IntfID)==inIFID){
+			interLT = SI.Linktype.Peeringlinks[i].IntfLT
 		}
 	}
 	return interLT
@@ -383,9 +384,9 @@ func gatherpeeroverlink(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIFID com
 
 func gatherxoverbw(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIFID common.IFIDType) uint32{
 	var ret1 uint32
-	for i:=0;i< len(SI.BW.BWPairs);i++ {
-		if (common.IFIDType(SI.BW.BWPairs[i].IntfID) == inIFID) {
-			ret1 = SI.BW.BWPairs[i].BW
+	for i:=0;i< len(SI.Bandwidth.BWPairs);i++ {
+		if (common.IFIDType(SI.Bandwidth.BWPairs[i].IntfID) == inIFID) {
+			ret1 = SI.Bandwidth.BWPairs[i].BW
 		}
 	}
 	return ret1
@@ -393,9 +394,9 @@ func gatherxoverbw(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIFID common.I
 
 func gatherxoverhops(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIFID common.IFIDType) uint8 {
 	var ret1 uint8
-	for i := 0; i < len(SI.IH.Hoppairs); i++ {
-		if (common.IFIDType(SI.IH.Hoppairs[i].IntfID) == inIFID) {
-			ret1 = SI.IH.Hoppairs[i].Hops
+	for i := 0; i < len(SI.Hops.Hoppairs); i++ {
+		if (common.IFIDType(SI.Hops.Hoppairs[i].IntfID) == inIFID) {
+			ret1 = SI.Hops.Hoppairs[i].Hops
 		}
 	}
 	return ret1
@@ -404,7 +405,7 @@ func gatherxoverhops(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIFID common
 
 func gathergeo(SI *seg.StaticInfoExtn, entry *seg.ASEntry) ([]geoloc){
 	var ret []geoloc
-	for _, geocluster := range SI.GI.Locations{
+	for _, geocluster := range SI.Geo.Locations{
 		var tempcluster geoloc
 		tempcluster.Latitude = geocluster.GPSData.Latitude
 		tempcluster.Longitude = geocluster.GPSData.Longitude

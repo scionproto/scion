@@ -98,8 +98,8 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 	res := true
 	tempres := true
 	subtempres := false
-	res = res && (test.LI.Intooutlatency == totest.LI.Intooutlatency) && (test.LI.Egresslatency == totest.LI.Egresslatency)
-	for _, pair := range totest.LI.Childlatencies{
+	res = res && (test.LI.Intooutlatency == totest.Latency.Intooutlatency) && (test.LI.Egresslatency == totest.Latency.Egresslatency)
+	for _, pair := range totest.Latency.Childlatencies{
 		for _, subpair := range test.LI.Childlatencies {
 			subtempres = subtempres || ((pair.Intradelay == subpair.Intradelay) && (pair.Interface == subpair.Interface))
 		}
@@ -112,7 +112,7 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 	res = res && tempres
 	tempres = true
 
-	for _, pair := range totest.LI.Peeringlatencies{
+	for _, pair := range totest.Latency.Peeringlatencies{
 		for _, subpair := range test.LI.Peeringlatencies{
 			subtempres = subtempres || ((pair.IntraDelay == subpair.IntraDelay) && (pair.Interdelay == subpair.Interdelay) && (pair.IntfID == subpair.IntfID))
 		}
@@ -125,8 +125,8 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 	res = res && tempres
 	tempres = true
 
-	res = res && (test.BW.IntooutBW == totest.BW.IntooutBW) && (test.BW.EgressBW == totest.BW.EgressBW)
-	for _, pair := range totest.BW.BWPairs{
+	res = res && (test.BW.IntooutBW == totest.Bandwidth.IntooutBW) && (test.BW.EgressBW == totest.Bandwidth.EgressBW)
+	for _, pair := range totest.Bandwidth.BWPairs{
 		for _, subpair := range test.BW.BWPairs{
 			subtempres = subtempres || ((pair.BW == subpair.BW) && (pair.IntfID == subpair.IntfID))
 		}
@@ -139,8 +139,8 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 	res = res && tempres
 	tempres = true
 
-	res = res && (test.LT.EgressLT == totest.LT.EgressLT)
-	for _, pair := range totest.LT.Peeringlinks {
+	res = res && (test.LT.EgressLT == totest.Linktype.EgressLT)
+	for _, pair := range totest.Linktype.Peeringlinks {
 		for _, subpair := range test.LT.Peeringlinks{
 			subtempres = subtempres || ((pair.IntfLT == subpair.IntfLT) && (pair.IntfID == subpair.IntfID))
 		}
@@ -153,7 +153,7 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 	res = res && tempres
 	tempres = true
 
-	for _, loc := range totest.GI.Locations {
+	for _, loc := range totest.Geo.Locations {
 		for _, subloc := range test.GI.Locations{
 			if (loc.GPSData.Longitude == subloc.GPSData.Longitude) && (loc.GPSData.Latitude == subloc.GPSData.Latitude) && (loc.GPSData.Address == subloc.GPSData.Address){
 				for _, intf := range loc.IntfIDs{
@@ -174,8 +174,8 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 	res = res && tempres
 	tempres = true
 
-	res = res && (test.IH.Intououthops == totest.IH.Intououthops)
-	for _, pair := range totest.IH.Hoppairs{
+	res = res && (test.IH.Intououthops == totest.Hops.Intououthops)
+	for _, pair := range totest.Hops.Hoppairs{
 		for _, subpair := range test.IH.Hoppairs{
 			subtempres = subtempres || ((pair.Hops == subpair.Hops) && (pair.IntfID == subpair.IntfID))
 		}
@@ -187,9 +187,9 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 	}
 	res = res && tempres
 
-	res = res && (test.NI == totest.NI)
+	res = res && (test.NI == totest.Note)
 
-	if !(test.NI == totest.NI) {
+	if !(test.NI == totest.Note) {
 		retstr += ("Note\n")
 	}
 
@@ -219,7 +219,8 @@ func subtest(datafiles []string, topofiles []string, testdata string) (string, b
 	var errmsg string
 	for i,_ := range datafiles{
 		ExpRes := TD.Tests[i]
-		totest := generateStaticinfo(datafiles[i], topofiles[i], ExpRes.EgIFID, ExpRes.InIFID)
+		configdata, _ := parsenconfigdata(datafiles[i])
+		totest := generateStaticinfo(configdata, ExpRes.EgIFID, ExpRes.InIFID)
 		testpassed, specifics := dochecks(ExpRes, *totest)
 		if !testpassed {
 			errmsg = "Error: Test failed : " + strconv.Itoa(i+1) + " (indexed starting at 1)\n"

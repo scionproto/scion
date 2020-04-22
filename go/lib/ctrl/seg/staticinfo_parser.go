@@ -1,9 +1,8 @@
 package seg
 
 import (
-	"fmt"
-
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"os"
 )
@@ -56,44 +55,34 @@ type Topo struct {
 // Parses data from config json into a Configdata struct and uses data from a topologyfile to
 // create a map from interfaces to bools indicating whether or not the interface is used in peering.
 // Returns the Configdata struct as well as the map from intfIDs to bools.
-func parsenconfigdata(datafile string, topologyfile string) (Configdata, map[uint16]bool) {
+func parsenconfigdata(datafile string) (Configdata, error) {
+	var myerror error
 	jsonFile, err := os.Open(datafile)
 	if err != nil {
-		fmt.Println(err)
+		myerror = errors.New("Failed to open config data file with error: " + err.Error())
 	}
 	defer jsonFile.Close()
-	rawfile, _ := ioutil.ReadAll(jsonFile)
+	rawfile, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		myerror = errors.New("Failed to read opened file with error: " + err.Error())
+	}
 	var res Configdata
 	json.Unmarshal(rawfile, &res)
-	var temp Topo
-	peers := make(map[uint16]bool)
-	topologyjson, err := os.Open(topologyfile)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer jsonFile.Close()
-	topologyraw,_ := ioutil.ReadAll(topologyjson)
-	json.Unmarshal(topologyraw, &temp)
-	for _,BR := range temp.BRs{
-		for intf, val := range BR.Intfs{
-			peers[intf] = (val.LinkTo == "PEER")
-		}
-	}
-	return res, peers
+	return res, myerror
 }
 
-// generateStaticinfo the path of a config.json and the path of a topologyfile, both in the form of a string, as well as
+
+// generateStaticinfo takes as input some Configdata as well as
 // an egress and an ingress interface ID.
 // Fills a StaticinfoExtn struct with data extracted from a config.json and a topologyfile.
 // Returns a pointer to said StaticInfoExtn struct.
-func generateStaticinfo(datafile string, topologyfile string, egIFID uint16, inIFID uint16) *StaticInfoExtn {
-	var somedata, peers = parsenconfigdata(datafile, topologyfile)
+func generateStaticinfo(configdata Configdata, egIFID uint16, inIFID uint16) *StaticInfoExtn {
 	var res StaticInfoExtn
-	res.Latency.gatherlatency(somedata, peers, egIFID, inIFID)
-	res.Bandwidth.gatherbw(somedata, peers, egIFID, inIFID)
-	res.Linktype.gatherlinktype(somedata, peers, egIFID)
-	res.Geo.gathergeo(somedata)
-	res.Note = somedata.Note
-	res.Hops.gatherhops(somedata, egIFID, inIFID)
+	res.Latency.gatherlatency(configdata, egIFID, inIFID)
+	res.Bandwidth.gatherbw(configdata, egIFID, inIFID)
+	res.Linktype.gatherlinktype(configdata, egIFID)
+	res.Geo.gathergeo(configdata)
+	res.Note = configdata.Note
+	res.Hops.gatherhops(configdata, egIFID, inIFID)
 	return &res
 }
