@@ -20,6 +20,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -266,4 +267,15 @@ func (pep PathEndProps) Validate() error {
 type AllocationBead struct {
 	AllocBW uint8
 	MaxBW   uint8
+}
+
+// Token is used in the data plane to forward COLIBRI packets.
+type Token struct {
+	InfoField
+	HopFields []spath.HopField
+}
+
+// Validate will return an error for invalid values. It will not check the hop fields' validity.
+func (t *Token) Validate() error {
+	return t.InfoField.Validate()
 }

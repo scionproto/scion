@@ -20,27 +20,20 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 )
 
-// SetupReq is a segment reservation setup request. It contains a reference to the reservation
-// it requests, or nil if not yet created.
-// This same type is used for renewal of the segment reservation.
-type SetupReq struct {
-	Reservation *Reservation // nil if no reservation yet
-	Timestamp   time.Time
-	MinBW       uint8
-	MaxBW       uint8
-	SplitCls    uint8
-	StartProps  reservation.PathEndProps
-	EndProps    reservation.PathEndProps
-	AllocTrail  []reservation.AllocationBead
-}
+type IndexState uint8
 
-// SetupTelesReq represents a telescopic segment setup.
-type SetupTelesReq struct {
-	SetupReq
-	BaseID reservation.SegmentID
-}
+const (
+	IndexTemporary IndexState = iota
+	IndexPending
+	IndexActive
+)
 
-func SetupReqFromWire(raw []byte) (*SetupReq, error) {
-	// TODO(juagargi)
-	return nil, nil
+type Index struct {
+	state      IndexState
+	Idx        reservation.Index
+	Expiration time.Time
+	MinBW      reservation.BWCls
+	MaxBW      reservation.BWCls
+	AllocBW    reservation.BWCls
+	Token      reservation.Token
 }
