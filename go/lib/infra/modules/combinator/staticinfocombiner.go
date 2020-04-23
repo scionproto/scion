@@ -74,7 +74,7 @@ type Densemetadata struct {
 	ASes []addr.IA
 	totaldelay uint16
 	totalhops uint8
-	maxbw uint32
+	minofmaxbws uint32
 	links map[addr.IA]ASlink
 	locations map[addr.IA]ASgeo
 	Notes map[addr.IA]string
@@ -85,7 +85,7 @@ func (data *Pathmetadata) Condensemetadata() *Densemetadata{
 	ret := &Densemetadata{
 		totaldelay: 0,
 		totalhops: 0,
-		maxbw: math.MaxUint32,
+		minofmaxbws: math.MaxUint32,
 	}
 
 	for _,val := range data.Singlebw{
@@ -101,12 +101,12 @@ func (data *Pathmetadata) Condensemetadata() *Densemetadata{
 			asmaxbw = uint32(math.Min(float64(val.Peerbw),float64(asmaxbw)))
 		}
 		if(asmaxbw<(math.MaxUint32)){
-			ret.maxbw = uint32(math.Min(float64(ret.maxbw),float64(asmaxbw)))
+			ret.minofmaxbws = uint32(math.Min(float64(ret.minofmaxbws),float64(asmaxbw)))
 		}
 	}
 
-	if !(ret.maxbw<math.MaxUint32){
-		ret.maxbw = 0
+	if !(ret.minofmaxbws<math.MaxUint32){
+		ret.minofmaxbws = 0
 	}
 
 	for _,val := range data.SingleDelays{
