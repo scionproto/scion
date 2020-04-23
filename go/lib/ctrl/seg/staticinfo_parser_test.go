@@ -411,8 +411,142 @@ func testparsing() (string, bool){
 }
 
 func compareStaticinfo(totest, expected StaticInfoExtn) (bool, string){
+	res := true
+	var info string
 
-	return false, ""
+	if totest.Latency.Egresslatency == expected.Latency.Egresslatency {
+		res = res && true
+	} else {
+		res = false
+		info += "Failed to get correct Egresslatency\n"
+	}
+	if totest.Latency.Intooutlatency == expected.Latency.Intooutlatency {
+		res = res && true
+	} else {
+		res = false
+		info += "Failed to get correct Intooutlatency\n"
+	}
+	for i:= 0; i<len(totest.Latency.Childlatencies); i++{
+		temp := false
+		for j:= 0; j<len(expected.Latency.Childlatencies); j++{
+			if (totest.Latency.Childlatencies[i].Interface == expected.Latency.Childlatencies[j].Interface) && (totest.Latency.Childlatencies[i].Intradelay == expected.Latency.Childlatencies[j].Intradelay){
+				temp = true
+			}
+		}
+		res = res && temp
+		if !temp{
+			info += "Failed to get correct Childlatency for interface " + strconv.Itoa(int(totest.Latency.Childlatencies[i].Interface)) + "\n"
+		}
+	}
+	for i:= 0; i<len(totest.Latency.Peeringlatencies); i++{
+		temp := false
+		for j:= 0; j<len(expected.Latency.Peeringlatencies); j++{
+			if (totest.Latency.Peeringlatencies[i].IntfID == expected.Latency.Peeringlatencies[j].IntfID) && (totest.Latency.Peeringlatencies[i].IntraDelay == expected.Latency.Peeringlatencies[j].IntraDelay) && (totest.Latency.Peeringlatencies[i].Interdelay == expected.Latency.Peeringlatencies[j].Interdelay){
+				temp = true
+			}
+		}
+		res = res && temp
+		if !temp{
+			info += "Failed to get correct Peeringlatencies for interface " + strconv.Itoa(int(totest.Latency.Peeringlatencies[i].IntfID)) + "\n"
+		}
+	}
+
+	if totest.Bandwidth.EgressBW == expected.Bandwidth.EgressBW {
+		res = res && true
+	} else {
+		res = false
+		info += "Failed to get correct EgressBW\n"
+	}
+	if totest.Bandwidth.IntooutBW == expected.Bandwidth.IntooutBW {
+		res = res && true
+	} else {
+		res = false
+		info += "Failed to get correct IntooutBW\n"
+	}
+	for i:= 0; i<len(totest.Bandwidth.BWPairs); i++{
+		temp := false
+		for j:= 0; j<len(expected.Bandwidth.BWPairs); j++{
+			if (totest.Bandwidth.BWPairs[i].IntfID == expected.Bandwidth.BWPairs[j].IntfID) && (totest.Bandwidth.BWPairs[i].BW == expected.Bandwidth.BWPairs[j].BW){
+				temp = true
+			}
+		}
+		res = res && temp
+		if !temp{
+			info += "Failed to get correct bandwidth for interface " + strconv.Itoa(int(totest.Bandwidth.BWPairs[i].IntfID)) + "\n"
+		}
+	}
+	
+	for i:= 0; i<len(totest.Geo.Locations); i++{
+		temp := false
+		for j:= 0; j<len(expected.Geo.Locations); j++{
+			if (totest.Geo.Locations[i].GPSData.Longitude == expected.Geo.Locations[j].GPSData.Longitude) && (totest.Geo.Locations[i].GPSData.Latitude == expected.Geo.Locations[j].GPSData.Latitude) && (totest.Geo.Locations[i].GPSData.Address == expected.Geo.Locations[j].GPSData.Address){
+				temp = true
+				for k:=0; k<len(totest.Geo.Locations[i].IntfIDs); k++{
+					subtemp := false
+					for l:=0; l<len(expected.Geo.Locations[i].IntfIDs); l++{
+						if totest.Geo.Locations[i].IntfIDs[k] == expected.Geo.Locations[j].IntfIDs[l] {
+							subtemp = true
+						}
+					}
+					if !subtemp{
+						info += "Failed to get correct Location assignment for interface " + strconv.Itoa(int(totest.Geo.Locations[i].IntfIDs[k])) + "\n"
+					}
+					temp = temp && subtemp
+				}
+			}
+		}
+		res = res && temp
+		if !temp{
+			info += "Failed to get correct Location for Location " + totest.Geo.Locations[i].GPSData.Address + "\n"
+		}
+	}
+
+	if totest.Linktype.EgressLT == expected.Linktype.EgressLT {
+		res = res && true
+	} else {
+		res = false
+		info += "Failed to get correct EgressLT\n"
+	}
+	for i:= 0; i<len(totest.Linktype.Peeringlinks); i++{
+		temp := false
+		for j:= 0; j<len(expected.Linktype.Peeringlinks); j++{
+			if (totest.Linktype.Peeringlinks[i].IntfID == expected.Linktype.Peeringlinks[j].IntfID) && (totest.Linktype.Peeringlinks[i].IntfLT == expected.Linktype.Peeringlinks[j].IntfLT){
+				temp = true
+			}
+		}
+		res = res && temp
+		if !temp{
+			info += "Failed to get correct linktype for interface " + strconv.Itoa(int(totest.Linktype.Peeringlinks[i].IntfID)) + "\n"
+		}
+	}
+
+	if totest.Hops.Intououthops == expected.Hops.Intououthops {
+		res = res && true
+	} else {
+		res = false
+		info += "Failed to get correct Intoouthops\n"
+	}
+	for i:= 0; i<len(totest.Hops.Hoppairs); i++{
+		temp := false
+		for j:= 0; j<len(expected.Hops.Hoppairs); j++{
+			if (totest.Hops.Hoppairs[i].IntfID == expected.Hops.Hoppairs[j].IntfID) && (totest.Hops.Hoppairs[i].Hops == expected.Hops.Hoppairs[j].Hops){
+				temp = true
+			}
+		}
+		res = res && temp
+		if !temp{
+			info += "Failed to get correct hops for interface " + strconv.Itoa(int(totest.Hops.Hoppairs[i].Hops)) + "\n"
+		}
+	}
+
+	if totest.Note == expected.Note {
+		res = res && true
+	} else {
+		res = false
+		info += "Failed to get correct Note\n"
+	}
+
+	return res, info
 }
 
 
@@ -599,4 +733,3 @@ func testGenerateStaticinfo() (bool, string) {
 	}
 	return res, info
 }
-
