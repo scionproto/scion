@@ -51,11 +51,11 @@ type Topo struct {
 	BRs map[string]BR `json:"BorderRouters"`
 }
 
-// parseconfigdata takes the path of a config.json and the path of a topologyfile, both in the form of a string.
+// Parseconfigdata takes the path of a config.json and the path of a topologyfile, both in the form of a string.
 // Parses data from config json into a Configdata struct and uses data from a topologyfile to
 // create a map from interfaces to bools indicating whether or not the interface is used in peering.
 // Returns the Configdata struct as well as the map from intfIDs to bools.
-func parsenconfigdata(datafile string) (Configdata, error) {
+func Parsenconfigdata(datafile string) (Configdata, error) {
 	var myerror error
 	jsonFile, err := os.Open(datafile)
 	if err != nil {
@@ -72,17 +72,17 @@ func parsenconfigdata(datafile string) (Configdata, error) {
 }
 
 
-// generateStaticinfo takes as input some Configdata as well as
+// GenerateStaticinfo takes as input some Configdata as well as
 // an egress and an ingress interface ID.
 // Fills a StaticinfoExtn struct with data extracted from a config.json and a topologyfile.
 // Returns a pointer to said StaticInfoExtn struct.
-func generateStaticinfo(configdata Configdata, egIFID uint16, inIFID uint16) *StaticInfoExtn {
+func GenerateStaticinfo(configdata Configdata, egifID uint16, inifID uint16) *StaticInfoExtn {
 	var res StaticInfoExtn
-	res.Latency.gatherlatency(configdata, egIFID, inIFID)
-	res.Bandwidth.gatherbw(configdata, egIFID, inIFID)
-	res.Linktype.gatherlinktype(configdata, egIFID)
+	res.Latency.gatherlatency(configdata, egifID, inifID)
+	res.Bandwidth.gatherbw(configdata, egifID, inifID)
+	res.Linktype.gatherlinktype(configdata, egifID)
 	res.Geo.gathergeo(configdata)
 	res.Note = configdata.Note
-	res.Hops.gatherhops(configdata, egIFID, inIFID)
+	res.Hops.gatherhops(configdata, egifID, inifID)
 	return &res
 }

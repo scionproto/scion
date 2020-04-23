@@ -1,14 +1,10 @@
 package seg
 
 import (
-	"fmt"
-
-	"encoding/json"
-	"io/ioutil"
-	"os"
 	"strconv"
 )
 
+/*
 type LatencyInfoTest struct {
 	Egresslatency uint16 `json:"ExpEgress"`
 	Intooutlatency uint16 `json:"ExpIO"`
@@ -75,19 +71,20 @@ type Hoppairtest struct {
 
 // Struct used to parse data from expected.json (json file containing expected results)
 type Test struct {
-	EgIFID uint16             `json:"Egress"`
-	InIFID uint16             `json:"Ingress"`
+	EgIFID uint16           `json:"Egress"`
+	InIFID uint16           `json:"Ingress"`
 	LI LatencyInfoTest      `json:"ExpLatency"`
 	GI GeoInfoTest          `json:"ExpGeo"`
 	LT LinktypeInfoTest     `json:"ExpLT"`
 	BW BandwidthInfoTest    `json:"ExpBW"`
 	IH InternalHopsInfoTest `json:"ExpIH"`
-	NI string                 `json:"ExpNI"`
+	NI string               `json:"ExpNI"`
 }
 
 type Testdata struct {
 	Tests []Test `json:"Tests"`
 }
+
 
 // Takes a Test struct and a StaticInfoExtn to be tested.
 // Compares the values in the two structs (ignores order in arrays).
@@ -196,6 +193,8 @@ func dochecks(test Test, totest StaticInfoExtn) (bool, string) {
 	return res, retstr
 }
 
+
+
 // Takes an array of paths of config.json files, an array of paths of topologyfiles
 // and the expected result of the test.
 // Returns the test result.
@@ -240,7 +239,6 @@ func subtest(datafiles []string, topofiles []string, testdata string) (string, b
 // Does the test and returns the result.
 // Probably doesn't work since I'm not sure how to properly specify filepaths.
 func test() (string, bool){
-
 	var datafiles []string
 	var topofiles []string
 	datafiles = append(datafiles, "testconfigfile.json")
@@ -249,4 +247,182 @@ func test() (string, bool){
 	res1, res2 := subtest(datafiles, topofiles, "expected.json")
 	return res1, res2
 }
+*/
 
+
+func configcompare(totest, expected Configdata)(bool, string){
+	passed := true
+	var issue string
+	for ifID, val := range totest.Latency{
+		if (val.Inter == expected.Latency[ifID].Inter){
+			for subifID, subval := range val.Intra{
+				if(subval == expected.Latency[ifID].Intra[subifID]){
+					passed = passed && true
+				} else {
+					passed = false
+					issue += "Failed to parse latency value (intra): Interface" + strconv.Itoa(int(ifID)) + ", subinterface" + strconv.Itoa(int(subifID)) + "\n"
+				}
+			}
+		} else {
+			passed = false
+			issue += "Failed to parse latency value (inter): Interface" + strconv.Itoa(int(ifID)) + "\n"
+		}
+	}
+	for ifID, val := range totest.Bandwidth{
+		if (val.Inter == expected.Bandwidth[ifID].Inter){
+			for subifID, subval := range val.Intra{
+				if(subval == expected.Bandwidth[ifID].Intra[subifID]){
+					passed = passed && true
+				} else {
+					passed = false
+					issue += "Failed to parse bandwidth value (intra): Interface" + strconv.Itoa(int(ifID)) + ", subinterface" + strconv.Itoa(int(subifID)) + "\n"
+				}
+			}
+		} else {
+			passed = false
+			issue += "Failed to parse bandwidth value (inter): Interface" + strconv.Itoa(int(ifID)) + "\n"
+		}
+	}
+	for ifID, val := range totest.Linktype{
+		if (val == expected.Linktype[ifID]){
+			passed = passed && true
+		} else {
+			passed = false
+			issue += "Failed to parse linktype value: Interface" + strconv.Itoa(int(ifID)) + "\n"
+		}
+	}
+	for ifID, val := range totest.Geo{
+		if (val.Longitude == expected.Geo[ifID].Longitude) && (val.Latitude == expected.Geo[ifID].Latitude) && (val.Address == expected.Geo[ifID].Address) {
+			passed = passed && true
+		} else {
+			passed = false
+			issue += "Failed to parse geo value: Interface" + strconv.Itoa(int(ifID)) + "\n"
+		}
+	}
+	for ifID, val := range totest.Hops{
+		for subifID, subval := range val.Intra{
+			if(subval == expected.Hops[ifID].Intra[subifID]){
+				passed = passed && true
+			} else {
+				passed = false
+				issue += "Failed to parse hops value: Interface" + strconv.Itoa(int(ifID)) + ", subinterface" + strconv.Itoa(int(subifID)) + "\n"
+			}
+		}
+	}
+	if (totest.Note == expected.Note){
+		passed = passed && true
+	} else {
+		passed = false
+		issue += "Failed to parse note\n"
+	}
+
+	return passed, issue
+}
+
+
+
+func testparsing() (string, bool){
+	var info string
+	var passed bool
+	totest,err := Parsenconfigdata("staticinfo_testdta/testconfigfile.json")
+	if err != nil {
+		info = "Error occured during parsing: " + err.Error()
+		return info, false
+	}
+	expected := Configdata{
+		Latency: map[uint16]Latintf{
+			1: {
+				Inter: 30,
+				Intra: map[uint16]uint16{2: 10, 3: 20, 5: 30},
+			},
+			2: {
+				Inter: 40,
+				Intra: map[uint16]uint16{1: 10, 3: 70, 5: 50},
+			},
+			3: {
+				Inter: 80,
+				Intra: map[uint16]uint16{1: 20, 2: 70, 5: 60},
+			},
+			5: {
+				Inter: 90,
+				Intra: map[uint16]uint16{1: 30, 2: 50, 3: 60},
+			},
+		},
+		Bandwidth:  map[uint16]Bwintf{
+			1: {
+				Inter: 400000000,
+				Intra: map[uint16]uint32{2: 100000000, 3: 200000000, 5: 300000000},
+			},
+			2: {
+				Inter: 5000000,
+				Intra: map[uint16]uint32{1: 5044444, 3: 6555550, 5: 75555550},
+			},
+			3: {
+				Inter: 80,
+				Intra: map[uint16]uint32{1: 9333330, 2: 1044440, 5: 1333310},
+			},
+			5: {
+				Inter: 120,
+				Intra: map[uint16]uint32{1: 1333330, 2: 1555540, 3: 15666660},
+			},
+		},
+		Linktype: map[uint16]string{1:"direct", 2:"opennet", 3:"multihop", 5:"direct"},
+		Geo: map[uint16]Geointf{
+			1: {
+				Longitude: 62.2,
+				Latitude:  47.2,
+				Address:   "geo1",
+			},
+			2: {
+				Longitude: 45.2,
+				Latitude:  79.2,
+				Address:   "geo2",
+			},
+			3: {
+				Longitude: 42.23,
+				Latitude:  47.22,
+				Address:   "geo3",
+			},
+			5: {
+				Longitude: 46.2,
+				Latitude:  48.2,
+				Address:   "geo5",
+			},
+		},
+		Hops: map[uint16]Hopintf{
+			1: {
+				Intra: map[uint16]uint8{2:2,3:3,5:0},
+			},
+			2: {
+				Intra: map[uint16]uint8{1:2,3:3,5:1},
+			},
+			3: {
+				Intra: map[uint16]uint8{1:4,2:6,5:3},
+			},
+			5: {
+				Intra: map[uint16]uint8{1:2,2:3,3:4},
+			},
+		},
+		Note:      "asdf",
+	}
+	passed, info = configcompare(totest,expected)
+
+	return info, passed
+}
+
+/*
+func testGenerateStaticinfo() (bool, string) {
+	var testcases []Configdata
+	var expected []StaticInfoExtn
+	var res bool
+	var info string
+	for idx,case := range testcases{
+		data := GenerateStaticinfo(case, 2, 3)
+		testres, testinfo := compareStaticinfo(data, expected[idx])
+		res = res && testres
+		info += "Test " + strconv.itoa
+		info += testinfo
+	}
+	return res, info
+}
+*/
