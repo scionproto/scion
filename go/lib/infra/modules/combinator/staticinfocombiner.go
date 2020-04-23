@@ -51,7 +51,9 @@ type ASbw struct {
 }
 
 type Pathmetadata struct {
-	ASes []addr.IA
+	UpASes []addr.IA
+	CoreASes []addr.IA
+	DownASes []addr.IA
 	SingleDelays map[addr.IA]ASdelay
 	Singlebw map[addr.IA]ASbw
 	SingleHops map[addr.IA]AShops
@@ -69,6 +71,7 @@ type Pathmetadata struct {
 
 // Condensed form of metadata retaining only most important values.
 type Densemetadata struct {
+	ASes []addr.IA
 	totaldelay uint16
 	totalhops uint8
 	maxbw uint32
@@ -102,6 +105,10 @@ func (data *Pathmetadata) Condensemetadata() *Densemetadata{
 		}
 	}
 
+	if !(ret.maxbw<math.MaxUint32){
+		ret.maxbw = 0
+	}
+
 	for _,val := range data.SingleDelays{
 		ret.totaldelay += val.Interdelay + val.Intradelay + val.Peerdelay
 	}
@@ -118,6 +125,17 @@ func (data *Pathmetadata) Condensemetadata() *Densemetadata{
 	for IA,link := range data.Links{
 		ret.links[IA] =  link
 	}
+
+	for i:=0;i<len(data.UpASes);i++  {
+		ret.ASes = append(ret.ASes, data.UpASes[i])
+	}
+	for i:=len(data.CoreASes)-1;i>=0;i--  {
+		ret.ASes = append(ret.ASes, data.CoreASes[i])
+	}
+	for i:=len(data.DownASes)-1;i>=0;i--  {
+		ret.ASes = append(ret.ASes, data.DownASes[i])
+	}
+
 	return ret
 }
 
@@ -139,6 +157,15 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 		var iscoreseg proto.PathSegType
 		iscoreseg = proto.PathSegType_core
 		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
+			if (solEdge.segment.Type == iscoreseg){
+				res.CoreASes = append(res.CoreASes, asEntries[asEntryIdx].IA())
+			}
+			if solEdge.segment.IsDownSeg(){
+				res.DownASes = append(res.DownASes, asEntries[asEntryIdx].IA())
+			}
+			if (!(solEdge.segment.Type == iscoreseg)) && (!(solEdge.segment.IsDownSeg())){
+				res.UpASes = append(res.UpASes, asEntries[asEntryIdx].IA())
+			}
 			if (asEntryIdx>solEdge.edge.Shortcut) {
 				asEntry := asEntries[asEntryIdx]
 				hopEntry := asEntry.HopEntries[0]
@@ -153,7 +180,6 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 				var currgeo ASgeo
 				var currbw ASbw
 
-				// isupseg = proto.PathSegType_up
 				// If we're in the middle of a segment, simply take data from staticinfoextn in
 				// the corresponding ASEntry and put it into res
 				if !(asEntryIdx==(len(asEntries)-1)){

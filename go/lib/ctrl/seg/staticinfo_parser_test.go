@@ -475,7 +475,7 @@ func compareStaticinfo(totest, expected StaticInfoExtn) (bool, string){
 			info += "Failed to get correct bandwidth for interface " + strconv.Itoa(int(totest.Bandwidth.BWPairs[i].IntfID)) + "\n"
 		}
 	}
-	
+
 	for i:= 0; i<len(totest.Geo.Locations); i++{
 		temp := false
 		for j:= 0; j<len(expected.Geo.Locations); j++{
