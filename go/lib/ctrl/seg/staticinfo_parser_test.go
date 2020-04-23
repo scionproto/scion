@@ -410,19 +410,193 @@ func testparsing() (string, bool){
 	return info, passed
 }
 
-/*
+func compareStaticinfo(totest, expected StaticInfoExtn) (bool, string){
+
+	return false, ""
+}
+
+
 func testGenerateStaticinfo() (bool, string) {
 	var testcases []Configdata
+	testcases = append(testcases, Configdata{
+		Latency: map[uint16]Latintf{
+			1: {
+				Inter: 30,
+				Intra: map[uint16]uint16{2: 10, 3: 20, 5: 30},
+			},
+			2: {
+				Inter: 40,
+				Intra: map[uint16]uint16{1: 10, 3: 70, 5: 50},
+			},
+			3: {
+				Inter: 80,
+				Intra: map[uint16]uint16{1: 20, 2: 70, 5: 60},
+			},
+			5: {
+				Inter: 90,
+				Intra: map[uint16]uint16{1: 30, 2: 50, 3: 60},
+			},
+		},
+		Bandwidth:  map[uint16]Bwintf{
+			1: {
+				Inter: 400000000,
+				Intra: map[uint16]uint32{2: 100000000, 3: 200000000, 5: 300000000},
+			},
+			2: {
+				Inter: 5000000,
+				Intra: map[uint16]uint32{1: 5044444, 3: 6555550, 5: 75555550},
+			},
+			3: {
+				Inter: 80,
+				Intra: map[uint16]uint32{1: 9333330, 2: 1044440, 5: 1333310},
+			},
+			5: {
+				Inter: 120,
+				Intra: map[uint16]uint32{1: 1333330, 2: 1555540, 3: 15666660},
+			},
+		},
+		Linktype: map[uint16]string{1:"direct", 2:"opennet", 3:"multihop", 5:"direct"},
+		Geo: map[uint16]Geointf{
+			1: {
+				Longitude: 62.2,
+				Latitude:  47.2,
+				Address:   "geo1",
+			},
+			2: {
+				Longitude: 45.2,
+				Latitude:  79.2,
+				Address:   "geo2",
+			},
+			3: {
+				Longitude: 42.23,
+				Latitude:  47.22,
+				Address:   "geo3",
+			},
+			5: {
+				Longitude: 46.2,
+				Latitude:  48.2,
+				Address:   "geo5",
+			},
+		},
+		Hops: map[uint16]Hopintf{
+			1: {
+				Intra: map[uint16]uint8{2:2,3:3,5:0},
+			},
+			2: {
+				Intra: map[uint16]uint8{1:2,3:3,5:1},
+			},
+			3: {
+				Intra: map[uint16]uint8{1:4,2:6,5:3},
+			},
+			5: {
+				Intra: map[uint16]uint8{1:2,2:3,3:4},
+			},
+		},
+		Note:      "asdf",
+	})
 	var expected []StaticInfoExtn
-	var res bool
+	expected = append(expected, StaticInfoExtn{
+		Latency:   LatencyInfo{
+			Egresslatency: 40,
+			Intooutlatency: 70,
+			Childlatencies: []Latencychildpair{
+				{
+					Intradelay: 70,
+					Interface: 3,
+				},
+			},
+			Peeringlatencies: []Latencypeeringtriplet{
+				{
+					Interdelay: 90,
+					IntraDelay: 50,
+					IntfID: 5,
+				},
+			},
+		},
+		Geo:       GeoInfo{
+			Locations: []Location{
+				{
+					GPSData: Coordinates{
+						Latitude:  47.2,
+						Longitude: 62.2,
+						Address:   "geo1",
+					},
+					IntfIDs: []uint16 {1},
+				},
+				{
+					GPSData: Coordinates{
+						Latitude:  79.2,
+						Longitude: 45.2,
+						Address:   "geo2",
+					},
+					IntfIDs: []uint16 {2},
+				},
+				{
+					GPSData: Coordinates{
+						Latitude:  47.22,
+						Longitude: 42.23,
+						Address:   "geo3",
+					},
+					IntfIDs: []uint16 {3},
+				},
+				{
+					GPSData: Coordinates{
+						Latitude:  48.2,
+						Longitude: 46.2,
+						Address:   "geo5",
+					},
+					IntfIDs: []uint16 {5},
+				},
+			},
+		},
+		Linktype:  LinktypeInfo{
+			EgressLT: "opennet",
+			Peeringlinks: []LTPeeringpair{
+				{
+					IntfID: 5,
+					IntfLT: "direct",
+				},
+			},
+		},
+		Bandwidth: BandwidthInfo{
+			EgressBW: 5000000,
+			IntooutBW: 6555550,
+			BWPairs: []BWPair{
+				{
+					IntfID: 3,
+					BW: 6555550,
+				},
+				{
+					IntfID: 5,
+					BW: 120,
+				},
+			},
+		},
+		Hops:      InternalHopsInfo{
+			Hoppairs: []Hoppair{
+				 {
+				 	IntfID: 3,
+				 	Hops: 3,
+				 },
+				{
+					IntfID: 5,
+					Hops: 1,
+				},
+			},
+		},
+		Note:      "asdf",
+	})
+	res := true
 	var info string
-	for idx,case := range testcases{
-		data := GenerateStaticinfo(case, 2, 3)
-		testres, testinfo := compareStaticinfo(data, expected[idx])
+	for i:=0; i< len(testcases); i++{
+		data := GenerateStaticinfo(testcases[i], 2, 3)
+		testres, testinfo := compareStaticinfo(*data, expected[i])
 		res = res && testres
-		info += "Test " + strconv.itoa
-		info += testinfo
+		info += "Testcase " + strconv.Itoa(i) + ":\n"
+		if !testres{
+			info += testinfo
+		}
 	}
 	return res, info
 }
-*/
+
