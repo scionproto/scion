@@ -105,7 +105,8 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.Conn, src ne
 	defer conn.Close()
 	metricsDone := metrics.ASInfos.Start()
 	logger := log.FromCtx(ctx)
-	logger.Debug("[ASInfoRequestHandler] Received request", "req", pld.AsInfoReq)
+	// FIXME(roosd): Promote to debug again.
+	logger.Trace("[ASInfoRequestHandler] Received request", "req", pld.AsInfoReq)
 	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
 	defer workCancelF()
 	// NOTE(scrye): Only support single-homed SCIONDs for now (returned slice

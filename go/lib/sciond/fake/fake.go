@@ -97,7 +97,7 @@ func (p Path) Path() *spath.Path {
 // DummyPath creates a path that is reversible.
 func DummyPath() *spath.Path {
 	return &spath.Path{
-		Raw:    make(common.RawBytes, spath.InfoFieldLength+spath.HopFieldLength),
+		Raw:    make(common.RawBytes, spath.InfoFieldLength+2*spath.HopFieldLength),
 		HopOff: spath.InfoFieldLength,
 	}
 }
