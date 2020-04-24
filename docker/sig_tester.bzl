@@ -1,9 +1,8 @@
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
-load("@io_bazel_rules_docker//container:container.bzl", "container_image", "container_bundle")
+load("@io_bazel_rules_docker//container:container.bzl", "container_bundle", "container_image")
 load("@package_bundle//file:packages.bzl", "packages")
 
 def build_sigtester_image():
-
     pkg_tar(
         name = "sig_entrypoint",
         srcs = ["files/sig.sh"],
@@ -33,7 +32,6 @@ def build_sigtester_image():
             ":app_base_files",
             ":sig_docker_files",
             ":sig_entrypoint",
-
         ],
         workdir = "/share",
         entrypoint = ["./sig.sh"],

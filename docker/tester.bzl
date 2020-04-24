@@ -1,9 +1,8 @@
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
-load("@io_bazel_rules_docker//container:container.bzl", "container_image", "container_bundle")
+load("@io_bazel_rules_docker//container:container.bzl", "container_bundle", "container_image")
 load("@package_bundle//file:packages.bzl", "packages")
 
 def build_tester_image():
-
     pkg_tar(
         name = "bin",
         srcs = [
@@ -13,7 +12,7 @@ def build_tester_image():
             "//go/tools/scmp:scmp",
             "//go/tools/showpaths:showpaths",
         ],
-        package_dir="bin",
+        package_dir = "bin",
     )
 
     pkg_tar(

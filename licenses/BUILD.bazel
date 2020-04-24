@@ -2,9 +2,8 @@ load("@bazel_tools//tools/build_defs/pkg:pkg.bzl", "pkg_tar")
 
 pkg_tar(
     name = "licenses",
-    strip_prefix = "data",
-    package_dir = "/licenses",
     srcs = ["data"],
+    package_dir = "/licenses",
+    strip_prefix = "data",
     visibility = ["//visibility:public"],
 )
-

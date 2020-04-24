@@ -5,14 +5,14 @@ go_test(
     name = "go_default_test",
     srcs = ["reload_test.go"],
     data = [
-        ":dispatcher",
-        ":cs",
         "docker-compose.yml",
-        "//acceptance/topo_common:topology",
-        "//acceptance/topo_common:invalid_reloads",
         "testdata/topology_reload.json",
+        ":cs",
+        ":dispatcher",
         ":invalid_changed_ip",
         ":invalid_changed_port",
+        "//acceptance/topo_common:invalid_reloads",
+        "//acceptance/topo_common:topology",
     ],
     deps = [
         "//go/lib/topology:go_default_library",
@@ -24,31 +24,31 @@ go_test(
 container_image(
     name = "dispatcher",
     base = "//docker:dispatcher_debug",
-    files = ["testdata/disp.toml"],
     entrypoint = [
         "/app/dispatcher",
         "-config",
         "/disp.toml",
     ],
+    files = ["testdata/disp.toml"],
 )
 
 container_image(
     name = "cs",
     base = "//docker:cs_debug",
-    files = [
-        "testdata/cs.toml",
-        "//acceptance/topo_common:topology",
-        "//acceptance/topo_common:invalid_reloads",
-        "testdata/topology_reload.json",
-        ":invalid_changed_ip",
-        ":invalid_changed_port",
-    ],
-    tars = [":gen_crypto_tar"],
     entrypoint = [
         "/app/cs",
         "-config",
         "/cs.toml",
     ],
+    files = [
+        "testdata/cs.toml",
+        "testdata/topology_reload.json",
+        ":invalid_changed_ip",
+        ":invalid_changed_port",
+        "//acceptance/topo_common:invalid_reloads",
+        "//acceptance/topo_common:topology",
+    ],
+    tars = [":gen_crypto_tar"],
 )
 
 genrule(
@@ -73,7 +73,7 @@ genrule(
     ],
     cmd = "$(location :testdata/gen_crypto.sh) $(location //go/tools/scion-pki:scion-pki) $@ $(location testdata/test.topo)",
     tools = [
-        "//go/tools/scion-pki:scion-pki",
         ":testdata/gen_crypto.sh",
+        "//go/tools/scion-pki",
     ],
 )

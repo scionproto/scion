@@ -33,9 +33,10 @@ container_bundle(
     },
 )
 
-
 scion_app_base()
+
 build_tester_image()
+
 build_sigtester_image()
 
 scion_app_images(
@@ -49,7 +50,6 @@ scion_app_images(
     ],
     workdir = "/share",
 )
-
 
 scion_app_images(
     name = "cs",

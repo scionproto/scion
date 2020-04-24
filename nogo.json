@@ -7,7 +7,8 @@
   "composites": {
     "exclude_files": {
       "gazelle/language/go/resolve.go": "",
-      "/io_bazel_rules_docker/": ""
+      "/io_bazel_rules_docker/": "",
+      "/com_github_bazelbuild_buildtools/": ""
     }
   },
   "nilness": {
