@@ -42,7 +42,7 @@ type AddressRewriter struct {
 	// Router obtains path information to fill in address paths, if they are
 	// required and missing.
 	Router snet.Router
-	// SVCRouter builds overlay addresses for intra-AS SVC traffic, based on
+	// SVCRouter builds underlay addresses for intra-AS SVC traffic, based on
 	// information found in the topology.
 	SVCRouter LocalSVCRouter
 	// Resolver performs SVC resolution if enabled.
@@ -133,7 +133,7 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 			NextHop: snet.CopyUDPAddr(s.NextHop),
 			SVC:     s.SVC,
 		}
-		log.Trace("[Acceptance]", "overlay", ret.NextHop)
+		log.Trace("[Acceptance]", "underlay", ret.NextHop)
 		return ret, nil
 	}
 
@@ -144,16 +144,16 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 	}
 
 	ret.Path = p.Path()
-	ret.NextHop = p.OverlayNextHop()
+	ret.NextHop = p.UnderlayNextHop()
 	defer func() {
-		log.Trace("[Acceptance]", "overlay", ret.NextHop)
+		log.Trace("[Acceptance]", "underlay", ret.NextHop)
 	}()
 
 	// SVC addresses in the local AS get resolved via topology lookup
 	if p.Fingerprint() == "" { //when local AS
-		ov, err := r.SVCRouter.GetOverlay(s.SVC)
+		ov, err := r.SVCRouter.GetUnderlay(s.SVC)
 		if err != nil {
-			return nil, common.NewBasicError("Unable to resolve overlay", err)
+			return nil, common.NewBasicError("Unable to resolve underlay", err)
 		}
 		ret.NextHop = ov
 	}
@@ -221,12 +221,12 @@ func parseReply(reply *svc.Reply) (*net.UDPAddr, error) {
 	return net.ResolveUDPAddr("udp", addressStr)
 }
 
-// LocalSVCRouter is used to construct overlay information for SVC servers
+// LocalSVCRouter is used to construct underlay information for SVC servers
 // running in the local AS.
 type LocalSVCRouter interface {
-	// GetOverlay returns the overlay address of a SVC server of the specified
+	// GetUnderlay returns the underlay address of a SVC server of the specified
 	// type. When multiple servers are available, the choice is random.
-	GetOverlay(svc addr.HostSVC) (*net.UDPAddr, error)
+	GetUnderlay(svc addr.HostSVC) (*net.UDPAddr, error)
 }
 
 // NewSVCRouter build a SVC router backed by topology information from the
@@ -241,6 +241,6 @@ type baseSVCRouter struct {
 	topology topology.Provider
 }
 
-func (r *baseSVCRouter) GetOverlay(svc addr.HostSVC) (*net.UDPAddr, error) {
-	return r.topology.Get().OverlayAnycast(svc)
+func (r *baseSVCRouter) GetUnderlay(svc addr.HostSVC) (*net.UDPAddr, error) {
+	return r.topology.Get().UnderlayAnycast(svc)
 }

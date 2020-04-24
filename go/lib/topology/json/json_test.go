@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
-	"github.com/scionproto/scion/go/lib/topology/overlay"
+	"github.com/scionproto/scion/go/lib/topology/underlay"
 )
 
 var (
@@ -42,7 +42,7 @@ func TestLoadRawFromFile(t *testing.T) {
 		IA:             "6-ff00:0:362",
 		MTU:            1472,
 		Attributes:     []trc.Attribute{trc.Authoritative, trc.Core, trc.Issuing, trc.Voting},
-		Overlay:        overlay.UDPIPv46Name,
+		Underlay:       underlay.UDPIPv46Name,
 		BorderRouters: map[string]*jsontopo.BRInfo{
 			"borderrouter6-f00:0:362-1": {
 				InternalAddrs: jsontopo.UnderlayAddressMap{

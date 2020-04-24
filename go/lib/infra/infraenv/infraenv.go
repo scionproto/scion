@@ -78,7 +78,7 @@ type NetworkConfig struct {
 	// Router is used by various infra modules for path-related operations. A
 	// nil router means only intra-AS traffic is supported.
 	Router snet.Router
-	// SVCRouter is used to discover the overlay addresses of intra-AS SVC
+	// SVCRouter is used to discover the underlay addresses of intra-AS SVC
 	// servers.
 	SVCRouter messenger.LocalSVCRouter
 }

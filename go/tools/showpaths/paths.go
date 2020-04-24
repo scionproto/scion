@@ -168,7 +168,7 @@ func findDefaultLocalIP(ctx context.Context, sciondConn sciond.Connector) (net.I
 
 // findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
 func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
-	addr, err := sciond.TopoQuerier{Connector: sciondConn}.OverlayAnycast(ctx, addr.SvcBS)
+	addr, err := sciond.TopoQuerier{Connector: sciondConn}.UnderlayAnycast(ctx, addr.SvcBS)
 	if err != nil {
 		return nil, err
 	}

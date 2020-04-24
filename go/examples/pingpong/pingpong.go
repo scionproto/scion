@@ -273,7 +273,7 @@ func (c client) setupPath() {
 			LogFatal("No paths available to remote destination")
 		}
 		remote.Path = path.Path()
-		remote.NextHop = path.OverlayNextHop()
+		remote.NextHop = path.UnderlayNextHop()
 	}
 }
 

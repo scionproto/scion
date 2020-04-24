@@ -88,13 +88,13 @@ func (ctx *Ctx) ResolveSVC(svc addr.HostSVC) ([]*net.UDPAddr, error) {
 // ResolveSVCAny resolves an anycast SVC address (i.e. a single instance of a local
 // infrastructure service).
 func (ctx *Ctx) ResolveSVCAny(svc addr.HostSVC) (*net.UDPAddr, error) {
-	return ctx.Conf.Topo.OverlayAnycast(svc)
+	return ctx.Conf.Topo.UnderlayAnycast(svc)
 }
 
 // ResolveSVCMulti resolves a multicast SVC address (i.e. one packet per machine hosting
 // instances for a local infrastructure service).
 func (ctx *Ctx) ResolveSVCMulti(svc addr.HostSVC) ([]*net.UDPAddr, error) {
-	return ctx.Conf.Topo.OverlayMulticast(svc)
+	return ctx.Conf.Topo.UnderlayMulticast(svc)
 }
 
 // Get returns a pointer to the current router context.

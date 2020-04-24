@@ -70,7 +70,7 @@ type RtrPkt struct {
 	TimeIn time.Time
 	// DirFrom is the direction from which the packet was received. (RECV)
 	DirFrom rcmn.Dir
-	// Ingress contains the incoming overlay metadata the packet arrived with, and the (list of)
+	// Ingress contains the incoming underlay metadata the packet arrived with, and the (list of)
 	// interface(s) it arrived on. (RECV)
 	Ingress addrIFPair
 	// Egress is a list of function & address pairs that determine how and where to the packet will
@@ -154,7 +154,7 @@ func (rp *RtrPkt) Release() {
 	}
 }
 
-// addrIFPair contains the overlay destination/source addresses, as well as the
+// addrIFPair contains the underlay destination/source addresses, as well as the
 // list of associated interface IDs.
 type addrIFPair struct {
 	Dst     *net.UDPAddr
@@ -164,7 +164,7 @@ type addrIFPair struct {
 }
 
 // EgressPair contains the output function to send a packet with, along with an
-// overlay destination address.
+// underlay destination address.
 type EgressPair struct {
 	S   *rctx.Sock
 	Dst *net.UDPAddr

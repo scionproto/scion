@@ -65,28 +65,28 @@ type Topology interface {
 	// Multicast returns all addresses for the requested type.
 	Multicast(svc addr.HostSVC) ([]*net.UDPAddr, error)
 
-	// OverlayAnycast returns the overlay address for an arbitrary server of the requested type.
-	OverlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error)
-	// OverlayMulticast returns all overlay addresses for the requested type.
-	OverlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error)
-	// OverlayByName returns the overlay address of the server name of the requested type.
+	// UnderlayAnycast returns the underlay address for an arbitrary server of the requested type.
+	UnderlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error)
+	// UnderlayMulticast returns all underlay addresses for the requested type.
+	UnderlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error)
+	// UnderlayByName returns the underlay address of the server name of the requested type.
 	//
 	// FIXME(scrye): This isn't really needed. We should also get rid of it.
-	OverlayByName(svc addr.HostSVC, name string) (*net.UDPAddr, error)
-	// OverlayNextHop2 returns the internal overlay address of the router containing the ID. The
-	// return value is encoded as an overlay address.
+	UnderlayByName(svc addr.HostSVC, name string) (*net.UDPAddr, error)
+	// UnderlayNextHop2 returns the internal underlay address of the router containing the ID. The
+	// return value is encoded as an underlay address.
 	//
 	// FIXME(scrye): Remove either this or the other method. A single return type should be
 	// supported.
-	OverlayNextHop2(ifID common.IFIDType) (*net.UDPAddr, bool)
+	UnderlayNextHop2(ifID common.IFIDType) (*net.UDPAddr, bool)
 
-	// OverlayNextHop returns the internal overlay address of the router
+	// UnderlayNextHop returns the internal underlay address of the router
 	// containing the interface ID.
 	//
 	// XXX(scrye): Return value is a shallow copy.
-	OverlayNextHop(ifID common.IFIDType) (*net.UDPAddr, bool)
+	UnderlayNextHop(ifID common.IFIDType) (*net.UDPAddr, bool)
 
-	// MakeHostInfos returns the overlay addresses of all services for the specified service type.
+	// MakeHostInfos returns the underlay addresses of all services for the specified service type.
 	MakeHostInfos(st proto.ServiceType) []net.UDPAddr
 
 	// BR returns information for a specific border router
@@ -171,7 +171,7 @@ func (t *topologyS) InterfaceIDs() []common.IFIDType {
 	return intfs
 }
 
-func (t *topologyS) OverlayNextHop(ifid common.IFIDType) (*net.UDPAddr, bool) {
+func (t *topologyS) UnderlayNextHop(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	ifInfo, ok := t.Topology.IFInfoMap[ifid]
 	if !ok {
 		return nil, false
@@ -179,7 +179,7 @@ func (t *topologyS) OverlayNextHop(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	return copyUDPAddr(ifInfo.InternalAddr), true
 }
 
-func (t *topologyS) OverlayNextHop2(ifid common.IFIDType) (*net.UDPAddr, bool) {
+func (t *topologyS) UnderlayNextHop2(ifid common.IFIDType) (*net.UDPAddr, bool) {
 	ifInfo, ok := t.Topology.IFInfoMap[ifid]
 	if !ok {
 		return nil, false
@@ -267,7 +267,7 @@ func (t *topologyS) Multicast(svc addr.HostSVC) ([]*net.UDPAddr, error) {
 	return addrs, nil
 }
 
-func (t *topologyS) OverlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error) {
+func (t *topologyS) UnderlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error) {
 	names := t.SVCNames(svc)
 	name, err := names.GetRandom()
 	if err != nil {
@@ -282,7 +282,7 @@ func (t *topologyS) OverlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error) {
 		return nil, serrors.Wrap(addr.ErrUnsupportedSVCAddress,
 			scmp.NewError(scmp.C_Routing, scmp.T_R_BadHost, nil, nil), "svc", svc)
 	}
-	underlay, err := t.OverlayByName(svc, name)
+	underlay, err := t.UnderlayByName(svc, name)
 	if err != nil {
 		return nil, serrors.WrapStr("BUG! Selected random service name, but service info not found",
 			err, "service_names", names, "selected_name", name)
@@ -296,7 +296,7 @@ func supportedSVC(svc addr.HostSVC) bool {
 	return b == addr.SvcBS || b == addr.SvcCS || b == addr.SvcPS || b == addr.SvcSIG
 }
 
-func (t *topologyS) OverlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error) {
+func (t *topologyS) UnderlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error) {
 	st, err := toProtoServiceType(svc)
 	if err != nil {
 		return nil, err
@@ -313,25 +313,25 @@ func (t *topologyS) OverlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error) {
 			scmp.NewError(scmp.C_Routing, scmp.T_R_UnreachHost, nil, nil), "svc", svc)
 	}
 
-	// Only select each IP:OverlayPort combination once, s.t. the same message isn't multicasted
+	// Only select each IP:UnderlayPort combination once, s.t. the same message isn't multicasted
 	// multiple times by the remote dispatcher.
-	uniqueOverlayAddrs := make(map[string]*net.UDPAddr)
+	uniqueUnderlayAddrs := make(map[string]*net.UDPAddr)
 	for _, topoAddr := range topoAddrs {
-		overlayAddr := topoAddr.UnderlayAddr()
-		if overlayAddr == nil {
+		underlayAddr := topoAddr.UnderlayAddr()
+		if underlayAddr == nil {
 			continue
 		}
-		uniqueOverlayAddrs[overlayAddr.String()] = overlayAddr
+		uniqueUnderlayAddrs[underlayAddr.String()] = underlayAddr
 	}
 
-	var overlayAddrs []*net.UDPAddr
-	for _, overlayAddr := range uniqueOverlayAddrs {
-		overlayAddrs = append(overlayAddrs, overlayAddr)
+	var underlayAddrs []*net.UDPAddr
+	for _, underlayAddr := range uniqueUnderlayAddrs {
+		underlayAddrs = append(underlayAddrs, underlayAddr)
 	}
-	return overlayAddrs, nil
+	return underlayAddrs, nil
 }
 
-func (t *topologyS) OverlayByName(svc addr.HostSVC, name string) (*net.UDPAddr, error) {
+func (t *topologyS) UnderlayByName(svc addr.HostSVC, name string) (*net.UDPAddr, error) {
 	st, err := toProtoServiceType(svc)
 	if err != nil {
 		return nil, err
@@ -340,11 +340,11 @@ func (t *topologyS) OverlayByName(svc addr.HostSVC, name string) (*net.UDPAddr, 
 	if err != nil {
 		return nil, serrors.Wrap(addr.ErrUnsupportedSVCAddress, err, "svc", svc)
 	}
-	overlayAddr := topoAddr.UnderlayAddr()
-	if overlayAddr == nil {
-		return nil, serrors.New("overlay address not found", "svc", svc)
+	underlayAddr := topoAddr.UnderlayAddr()
+	if underlayAddr == nil {
+		return nil, serrors.New("underlay address not found", "svc", svc)
 	}
-	return copyUDPAddr(overlayAddr), nil
+	return copyUDPAddr(underlayAddr), nil
 }
 
 func toProtoServiceType(svc addr.HostSVC) (proto.ServiceType, error) {

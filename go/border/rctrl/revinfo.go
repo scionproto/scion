@@ -88,5 +88,5 @@ func fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostSVC) {
 	}
 	cl.Result = metrics.Success
 	metrics.Control.SentRevInfos(cl).Inc()
-	logger.Debug("Sent RevInfo", "dst", dst, "overlayDst", dst.NextHop)
+	logger.Debug("Sent RevInfo", "dst", dst, "underlayDst", dst.NextHop)
 }

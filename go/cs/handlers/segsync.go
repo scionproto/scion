@@ -92,7 +92,7 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 	svcToQuery := &snet.SVCAddr{
 		IA:      snetPeer.IA,
 		Path:    peerPath.Path(),
-		NextHop: peerPath.OverlayNextHop(),
+		NextHop: peerPath.UnderlayNextHop(),
 		SVC:     addr.SvcPS,
 	}
 

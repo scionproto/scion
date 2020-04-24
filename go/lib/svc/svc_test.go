@@ -240,7 +240,7 @@ func TestDefaultHandler(t *testing.T) {
 		}
 	})
 
-	Convey("Overlay addresses are forwarded", t, func() {
+	Convey("Underlay addresses are forwarded", t, func() {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -251,10 +251,10 @@ func TestDefaultHandler(t *testing.T) {
 		sender := &svc.BaseHandler{}
 
 		request := &svc.Request{
-			Conn:    conn,
-			Source:  snet.SCIONAddress{},
-			Packet:  packet,
-			Overlay: ov,
+			Conn:     conn,
+			Source:   snet.SCIONAddress{},
+			Packet:   packet,
+			Underlay: ov,
 		}
 		_, err := sender.Handle(request)
 		So(err, ShouldBeNil)

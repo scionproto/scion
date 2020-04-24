@@ -264,7 +264,7 @@ func (c client) getRemote(ctx context.Context, n int) error {
 	path := paths[0]
 	// Extract forwarding path from sciond response
 	remote.Path = path.Path()
-	remote.NextHop = path.OverlayNextHop()
+	remote.NextHop = path.UnderlayNextHop()
 	return nil
 }
 

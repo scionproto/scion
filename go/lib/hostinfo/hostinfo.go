@@ -87,7 +87,7 @@ func (h *Host) UDP() *net.UDPAddr {
 	return nil
 }
 
-func (h *Host) Overlay() *net.UDPAddr {
+func (h *Host) Underlay() *net.UDPAddr {
 	return &net.UDPAddr{IP: h.Host().IP(), Port: int(h.Port)}
 }
 

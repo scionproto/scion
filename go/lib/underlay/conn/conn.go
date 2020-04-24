@@ -15,7 +15,7 @@
 
 // +build go1.9,linux
 
-// Package conn implements overlay sockets with additional metadata on reads.
+// Package conn implements underlay sockets with additional metadata on reads.
 package conn
 
 import (
@@ -33,7 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sockctrl"
-	"github.com/scionproto/scion/go/lib/topology/overlay"
+	"github.com/scionproto/scion/go/lib/topology/underlay"
 )
 
 // ReceiveBufferSize is the default size, in bytes, of receive buffers for
@@ -51,7 +51,7 @@ var sizeIgnore = flag.Bool("overlay.conn.sizeIgnore", true,
 // between ipv4.Message, ipv6.Message and socket.Message.
 type Messages []ipv4.Message
 
-// Conn describes the API for an overlay socket with additional metadata on
+// Conn describes the API for an underlay socket with additional metadata on
 // reads.
 type Conn interface {
 	Read(common.RawBytes) (int, *ReadMeta, error)
@@ -67,7 +67,7 @@ type Conn interface {
 	Close() error
 }
 
-// Config customizes the behavior of an overlay socket.
+// Config customizes the behavior of an underlay socket.
 type Config struct {
 	// ReceiveBufferSize is the size of the operating system receive buffer, in
 	// bytes. If 0, the package constant is used instead.
@@ -81,7 +81,7 @@ func (c *Config) getReceiveBufferSize() int {
 	return ReceiveBufferSize
 }
 
-// New opens a new overlay socket on the specified addresses.
+// New opens a new underlay socket on the specified addresses.
 //
 // The config can be used to customize socket behavior. If config is nil,
 // default values are used.
@@ -133,7 +133,7 @@ func (c *connUDPIPv4) ReadBatch(msgs Messages, metas []ReadMeta) (int, error) {
 		if msg.NN > 0 {
 			c.handleCmsg(msg.OOB[:msg.NN], meta, readTime)
 		}
-		meta.setSrc(c.Remote, msg.Addr.(*net.UDPAddr), overlay.UDPIPv4)
+		meta.setSrc(c.Remote, msg.Addr.(*net.UDPAddr), underlay.UDPIPv4)
 	}
 	return n, err
 }
@@ -186,7 +186,7 @@ func (c *connUDPIPv6) ReadBatch(msgs Messages, metas []ReadMeta) (int, error) {
 		if msg.NN > 0 {
 			c.handleCmsg(msg.OOB[:msg.NN], meta, readTime)
 		}
-		meta.setSrc(c.Remote, msg.Addr.(*net.UDPAddr), overlay.UDPIPv6)
+		meta.setSrc(c.Remote, msg.Addr.(*net.UDPAddr), underlay.UDPIPv6)
 	}
 	return n, err
 }
@@ -383,7 +383,7 @@ func (m *ReadMeta) reset() {
 	m.ReadDelay = 0
 }
 
-func (m *ReadMeta) setSrc(a *net.UDPAddr, raddr *net.UDPAddr, ot overlay.Type) {
+func (m *ReadMeta) setSrc(a *net.UDPAddr, raddr *net.UDPAddr, ot underlay.Type) {
 	if a != nil {
 		m.Src = a
 	} else {

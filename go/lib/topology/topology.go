@@ -29,12 +29,12 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/serrors"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
-	"github.com/scionproto/scion/go/lib/topology/overlay"
+	"github.com/scionproto/scion/go/lib/topology/underlay"
 	"github.com/scionproto/scion/go/proto"
 )
 
-// EndhostPort is the overlay port that the dispatcher binds to on non-routers.
-const EndhostPort = overlay.EndhostPort
+// EndhostPort is the underlay port that the dispatcher binds to on non-routers.
+const EndhostPort = underlay.EndhostPort
 
 type (
 	// RWTopology is the topology type for applications and libraries that need write
@@ -98,7 +98,7 @@ type (
 		ID           common.IFIDType
 		BRName       string
 		CtrlAddrs    *TopoAddr
-		Underlay     overlay.Type
+		Underlay     underlay.Type
 		InternalAddr *net.UDPAddr
 		Local        *net.UDPAddr
 		Remote       *net.UDPAddr
@@ -181,7 +181,7 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 	if t.IA.IsWildcard() {
 		return common.NewBasicError("IA contains wildcard", nil, "ia", t.IA)
 	}
-	if _, err = overlay.TypeFromString(raw.Overlay); err != nil {
+	if _, err = underlay.TypeFromString(raw.Underlay); err != nil {
 		return err
 	}
 	t.MTU = raw.MTU
@@ -241,7 +241,7 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				t.IFInfoMap[ifid] = ifinfo
 				continue
 			}
-			if ifinfo.Underlay, err = overlay.TypeFromString(rawIntf.Underlay); err != nil {
+			if ifinfo.Underlay, err = underlay.TypeFromString(rawIntf.Underlay); err != nil {
 				return serrors.WrapStr("unable to extract underlay type", err)
 			}
 			if ifinfo.Local, err = rawBRIntfTopoBRAddr(rawIntf); err != nil {
@@ -469,7 +469,7 @@ func (i IFInfo) CheckLinks(isCore bool, brName string) error {
 }
 
 func (i IFInfo) String() string {
-	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] CtrlAddr[%+v] Overlay:%s Local:%+v "+
+	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] CtrlAddr[%+v] Underlay:%s Local:%+v "+
 		"Remote:%+v Bw:%d IA:%s Type:%v MTU:%d", i.BRName, i.InternalAddr, i.CtrlAddrs, i.Underlay,
 		i.Local, i.Remote, i.Bandwidth, i.IA, i.LinkType, i.MTU)
 }

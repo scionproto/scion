@@ -20,7 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/serrors"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
-	"github.com/scionproto/scion/go/lib/topology/overlay"
+	"github.com/scionproto/scion/go/lib/topology/underlay"
 )
 
 func rawAddrMapToTopoAddr(ram jsontopo.NATSCIONAddressMap) (*TopoAddr, error) {
@@ -135,7 +135,7 @@ func rawBRAddrMapExtractAddressInfo(
 	return nil, false
 }
 
-func rawBRIntfRemoteBRAddr(b *jsontopo.BRInterface, o overlay.Type) (*net.UDPAddr, error) {
+func rawBRIntfRemoteBRAddr(b *jsontopo.BRInterface, o underlay.Type) (*net.UDPAddr, error) {
 	l3, err := net.ResolveIPAddr("ip", b.RemoteUnderlay.Addr)
 	if err != nil {
 		return nil, serrors.WrapStr("could not parse remote IP from string", err,

@@ -41,8 +41,8 @@ func GetPacket() *Packet {
 // (including hidden fields), so callers should only write to freshly created
 // packets, and readers should take care never to mutate data.
 type Packet struct {
-	Info          spkt.ScnPkt
-	OverlayRemote *net.UDPAddr
+	Info           spkt.ScnPkt
+	UnderlayRemote *net.UDPAddr
 
 	// buffer contains the raw slice that other fields reference
 	buffer common.RawBytes
@@ -113,7 +113,7 @@ func (pkt *Packet) DecodeFromConn(conn net.PacketConn) error {
 	pkt.buffer = pkt.buffer[:n]
 	metrics.M.NetReadBytes().Add(float64(n))
 
-	pkt.OverlayRemote = readExtra.(*net.UDPAddr)
+	pkt.UnderlayRemote = readExtra.(*net.UDPAddr)
 	if err = hpkt.ParseScnPkt(&pkt.Info, pkt.buffer); err != nil {
 		metrics.M.NetReadPkts(
 			metrics.IncomingPacket{
@@ -135,7 +135,7 @@ func (pkt *Packet) DecodeFromReliableConn(conn net.PacketConn) error {
 	if readExtra == nil {
 		return serrors.New("missing next-hop")
 	}
-	pkt.OverlayRemote = readExtra.(*net.UDPAddr)
+	pkt.UnderlayRemote = readExtra.(*net.UDPAddr)
 
 	// XXX(scrye): We ignore the return value of packet parsing on egress
 	// because some tests (e.g., the Python SCMP error test) rely on being able
@@ -153,5 +153,5 @@ func (pkt *Packet) SendOnConn(conn net.PacketConn, address net.Addr) (int, error
 func (pkt *Packet) reset() {
 	pkt.buffer = pkt.buffer[:cap(pkt.buffer)]
 	pkt.Info = spkt.ScnPkt{}
-	pkt.OverlayRemote = nil
+	pkt.UnderlayRemote = nil
 }

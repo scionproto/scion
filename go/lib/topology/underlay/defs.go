@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package overlay
+package underlay
 
 import (
 	"encoding/json"
@@ -39,7 +39,7 @@ const (
 )
 
 const (
-	// EndhostPort is the overlay port that the dispatcher binds to on non-routers. Subject to
+	// EndhostPort is the underlay port that the dispatcher binds to on non-routers. Subject to
 	// change during standardisation.
 	EndhostPort = 30041
 )
@@ -66,7 +66,7 @@ func TypeFromString(s string) (Type, error) {
 	case strings.ToLower(UDPIPv46Name):
 		return UDPIPv46, nil
 	default:
-		return Invalid, common.NewBasicError("Unknown overlay type", nil, "type", s)
+		return Invalid, common.NewBasicError("Unknown underlay type", nil, "type", s)
 	}
 }
 

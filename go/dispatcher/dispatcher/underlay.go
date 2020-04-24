@@ -38,13 +38,13 @@ const (
 	ErrMalformedL4Quote           common.ErrMsg = "malformed L4 quote"
 )
 
-// NetToRingDataplane reads SCION packets from the overlay socket, routes them
+// NetToRingDataplane reads SCION packets from the underlay socket, routes them
 // to determine the destination process, and then enqueues the packets on the
 // application's ingress ring.
 //
-// The rings are used to provide non-blocking IO for the overlay receiver.
+// The rings are used to provide non-blocking IO for the underlay receiver.
 type NetToRingDataplane struct {
-	OverlayConn  net.PacketConn
+	UnderlayConn net.PacketConn
 	RoutingTable *IATable
 }
 
@@ -55,8 +55,8 @@ func (dp *NetToRingDataplane) Run() error {
 		// let the GC take care of this situation as they should be fairly
 		// rare.
 
-		if err := pkt.DecodeFromConn(dp.OverlayConn); err != nil {
-			log.Warn("error receiving next packet from overlay conn", "err", err)
+		if err := pkt.DecodeFromConn(dp.UnderlayConn); err != nil {
+			log.Warn("error receiving next packet from underlay conn", "err", err)
 			continue
 		}
 
@@ -183,7 +183,7 @@ type SVCDestination addr.HostSVC
 
 func (d SVCDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 	// FIXME(scrye): This should deliver to the correct IP address, based on
-	// information found in the overlay IP header.
+	// information found in the underlay IP header.
 	routingEntries := dp.RoutingTable.LookupService(pkt.Info.DstIA, addr.HostSVC(d), nil)
 	if len(routingEntries) == 0 {
 		metrics.M.AppNotFoundErrors().Inc()
@@ -256,9 +256,9 @@ func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet
 		).Inc()
 	}
 
-	_, err = dp.OverlayConn.WriteTo(b[:n], pkt.OverlayRemote)
+	_, err = dp.UnderlayConn.WriteTo(b[:n], pkt.UnderlayRemote)
 	if err != nil {
-		log.Warn("Unable to write to overlay socket.", "err", err)
+		log.Warn("Unable to write to underlay socket.", "err", err)
 		return
 	}
 	respool.PutBuffer(b)

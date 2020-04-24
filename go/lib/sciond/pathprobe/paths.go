@@ -148,7 +148,7 @@ func (p Prober) send(scionConn *snet.Conn, path snet.Path) error {
 	addr := &snet.SVCAddr{
 		IA:      p.DstIA,
 		Path:    path.Path(),
-		NextHop: path.OverlayNextHop(),
+		NextHop: path.UnderlayNextHop(),
 		SVC:     addr.SvcNone,
 	}
 	log.Debug("Sending test packet.", "path", fmt.Sprintf("%s", path))

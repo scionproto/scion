@@ -52,6 +52,6 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	assert.Equal(t, id, cfg.Dispatcher.ID)
 	assert.Equal(t, reliable.DefaultDispPath, cfg.Dispatcher.ApplicationSocket)
 	assert.Equal(t, reliable.DefaultDispSocketFileMode, int(cfg.Dispatcher.SocketFileMode))
-	assert.Equal(t, topology.EndhostPort, cfg.Dispatcher.OverlayPort)
+	assert.Equal(t, topology.EndhostPort, cfg.Dispatcher.UnderlayPort)
 	assert.False(t, cfg.Dispatcher.DeleteSocket)
 }

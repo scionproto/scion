@@ -64,7 +64,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 			Expect: func(_ *mock_trust.MockDB, r *mock_snet.MockRouter, p *mock_snet.MockPath) {
 				p.EXPECT().Path().AnyTimes().Return(&spath.Path{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
-				p.EXPECT().OverlayNextHop().AnyTimes().Return(nil)
+				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
 				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(p, nil)
 			},
 		},
@@ -87,7 +87,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 				)
 				p.EXPECT().Path().AnyTimes().Return(&spath.Path{Raw: []byte("remote ISD path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia210)
-				p.EXPECT().OverlayNextHop().AnyTimes().Return(nil)
+				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
 				r.EXPECT().Route(gomock.Any(), addr.IA{I: 2}).Return(p, nil)
 			},
 		},
@@ -100,7 +100,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 				)
 				p.EXPECT().Path().AnyTimes().Return(&spath.Path{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
-				p.EXPECT().OverlayNextHop().AnyTimes().Return(nil)
+				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
 				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(p, nil)
 			},
 		},
@@ -114,7 +114,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 				)
 				p.EXPECT().Path().AnyTimes().Return(&spath.Path{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
-				p.EXPECT().OverlayNextHop().AnyTimes().Return(nil)
+				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
 				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(p, nil)
 			},
 		},
@@ -149,7 +149,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 				expected := &snet.SVCAddr{
 					IA:      p.Destination(),
 					Path:    p.Path(),
-					NextHop: p.OverlayNextHop(),
+					NextHop: p.UnderlayNextHop(),
 					SVC:     addr.SvcCS,
 				}
 				assert.Equal(t, expected, res)

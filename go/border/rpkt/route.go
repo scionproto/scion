@@ -81,7 +81,7 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, error) {
 		return HookError, err
 	}
 	for _, dst := range addrs {
-		// FIXME(sgmonroy) Choose LocSock based on overlay type for dual-stack support
+		// FIXME(sgmonroy) Choose LocSock based on underlay type for dual-stack support
 		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	}
 	return HookContinue, nil
@@ -116,8 +116,8 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 	if onLastSeg && rp.dstIA.Equal(rp.Ctx.Conf.IA) {
 		// Destination is a host in the local ISD-AS.
 		if rp.dstHost.IP() == nil {
-			// Not an IP address, cannot build an overlay with this
-			return HookError, common.NewBasicError("invalid overlay L3 address", nil,
+			// Not an IP address, cannot build an underlay with this
+			return HookError, common.NewBasicError("invalid underlay L3 address", nil,
 				"addr", rp.dstHost)
 		}
 		dst := &net.UDPAddr{

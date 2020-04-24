@@ -281,7 +281,7 @@ func (sm *sessMonitor) sendReq() {
 	}
 	raddr := sm.smRemote.Sig.CtrlSnetAddr(
 		sm.smRemote.SessPath.Path().Path(),
-		sm.smRemote.SessPath.Path().OverlayNextHop(),
+		sm.smRemote.SessPath.Path().UnderlayNextHop(),
 	)
 	// XXX(kormat): if this blocks, both the sessMon and egress worker
 	// goroutines will block. Can't just use SetWriteDeadline, as both

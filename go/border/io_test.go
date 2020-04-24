@@ -27,12 +27,12 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay/conn"
-	"github.com/scionproto/scion/go/lib/overlay/conn/mock_conn"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/underlay/conn"
+	"github.com/scionproto/scion/go/lib/underlay/conn/mock_conn"
 )
 
 func TestIsSyscallErrno(t *testing.T) {

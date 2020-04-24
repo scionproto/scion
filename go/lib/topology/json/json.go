@@ -34,7 +34,7 @@ type Topology struct {
 	TimestampHuman string `json:"TimestampHuman"`
 	TTL            uint32 `json:"TTL"`
 	IA             string `json:"ISD_AS"`
-	Overlay        string `json:"Overlay"`
+	Underlay       string `json:"Overlay"`
 	MTU            int    `json:"MTU"`
 	// Attributes are the primary AS attributes as described in
 	// https://github.com/scionproto/scion/blob/master/doc/ControlPlanePKI.md#primary-ases

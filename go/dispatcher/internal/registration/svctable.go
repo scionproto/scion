@@ -180,7 +180,7 @@ func (t *svcTable) anycast(svc addr.HostSVC, ip net.IP) (interface{}, bool) {
 	if !ok {
 		return nil, false
 	}
-	// XXX(scrye): This is a workaround s.t. a simple overlay socket
+	// XXX(scrye): This is a workaround s.t. a simple underlay socket
 	// that does not return IP-header information can still be used to
 	// deliver to SVC addresses. Once IP-header information is passed
 	// into the app, searching for nil should not return an entry.

@@ -235,5 +235,5 @@ func getRemote() error {
 func getSVCAddress() (*net.UDPAddr, error) {
 	ctx, cancelF := context.WithTimeout(context.Background(), integration.DefaultIOTimeout)
 	defer cancelF()
-	return sciond.TopoQuerier{Connector: integration.SDConn()}.OverlayAnycast(ctx, addr.SvcCS)
+	return sciond.TopoQuerier{Connector: integration.SDConn()}.UnderlayAnycast(ctx, addr.SvcCS)
 }

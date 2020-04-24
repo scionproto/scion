@@ -23,22 +23,22 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestOverlayPacketSerializeTo(t *testing.T) {
+func TestUnderlayPacketSerializeTo(t *testing.T) {
 	type TestCase struct {
 		Name          string
-		Packet        *OverlayPacket
+		Packet        *UnderlayPacket
 		ExpectedData  []byte
 		ExpectedError error
 	}
 	testCases := []TestCase{
 		{
 			Name:         "none type address, no data",
-			Packet:       &OverlayPacket{},
+			Packet:       &UnderlayPacket{},
 			ExpectedData: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 0},
 		},
 		{
 			Name: "empty IP address",
-			Packet: &OverlayPacket{
+			Packet: &UnderlayPacket{
 				Address: &net.UDPAddr{},
 			},
 			ExpectedError: ErrNoAddress,
@@ -46,7 +46,7 @@ func TestOverlayPacketSerializeTo(t *testing.T) {
 		},
 		{
 			Name: "IPv4 host, with address, no port, no data",
-			Packet: &OverlayPacket{
+			Packet: &UnderlayPacket{
 				Address: &net.UDPAddr{IP: net.ParseIP("1.2.3.4")},
 			},
 			ExpectedError: ErrNoPort,
@@ -54,7 +54,7 @@ func TestOverlayPacketSerializeTo(t *testing.T) {
 		},
 		{
 			Name: "IPv4 host, with address, with port, no data",
-			Packet: &OverlayPacket{
+			Packet: &UnderlayPacket{
 				Address: &net.UDPAddr{IP: net.ParseIP("10.2.3.4"), Port: 80},
 			},
 			ExpectedData: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 1, 0, 0, 0, 0,
@@ -62,7 +62,7 @@ func TestOverlayPacketSerializeTo(t *testing.T) {
 		},
 		{
 			Name: "IPv6 host, with address, with port, no data",
-			Packet: &OverlayPacket{
+			Packet: &UnderlayPacket{
 				Address: &net.UDPAddr{IP: net.ParseIP("2001:db8::1"), Port: 80},
 			},
 			ExpectedData: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 2, 0, 0, 0, 0,
@@ -71,7 +71,7 @@ func TestOverlayPacketSerializeTo(t *testing.T) {
 		},
 		{
 			Name: "IPv4 host, with address, big port, no data",
-			Packet: &OverlayPacket{
+			Packet: &UnderlayPacket{
 				Address: &net.UDPAddr{IP: net.ParseIP("10.2.3.4"), Port: 0x1234},
 			},
 			ExpectedData: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 1, 0, 0, 0, 0,
@@ -79,7 +79,7 @@ func TestOverlayPacketSerializeTo(t *testing.T) {
 		},
 		{
 			Name: "long payload",
-			Packet: &OverlayPacket{
+			Packet: &UnderlayPacket{
 				Address: &net.UDPAddr{IP: net.ParseIP("1.2.3.4"), Port: 80},
 				Payload: make([]byte, 2000),
 			},
@@ -88,7 +88,7 @@ func TestOverlayPacketSerializeTo(t *testing.T) {
 		},
 		{
 			Name: "good payload",
-			Packet: &OverlayPacket{
+			Packet: &UnderlayPacket{
 				Address: &net.UDPAddr{IP: net.ParseIP("10.2.3.4"), Port: 80},
 				Payload: []byte{10, 5, 6, 7},
 			},
@@ -108,11 +108,11 @@ func TestOverlayPacketSerializeTo(t *testing.T) {
 	})
 }
 
-func TestOverlayPacketDecodeFromBytes(t *testing.T) {
+func TestUnderlayPacketDecodeFromBytes(t *testing.T) {
 	type TestCase struct {
 		Name           string
 		Buffer         []byte
-		ExpectedPacket OverlayPacket
+		ExpectedPacket UnderlayPacket
 		ExpectedError  error
 	}
 	testCases := []TestCase{
@@ -158,7 +158,7 @@ func TestOverlayPacketDecodeFromBytes(t *testing.T) {
 		{
 			Name:   "good packet (none type address)",
 			Buffer: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 1, 42},
-			ExpectedPacket: OverlayPacket{
+			ExpectedPacket: UnderlayPacket{
 				Payload: []byte{42},
 			},
 		},
@@ -166,7 +166,7 @@ func TestOverlayPacketDecodeFromBytes(t *testing.T) {
 			Name: "good packet (IPv4)",
 			Buffer: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 1, 0, 0, 0, 1,
 				10, 2, 3, 4, 0, 80, 42},
-			ExpectedPacket: OverlayPacket{
+			ExpectedPacket: UnderlayPacket{
 				Address: &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 80},
 				Payload: []byte{42},
 			},
@@ -176,7 +176,7 @@ func TestOverlayPacketDecodeFromBytes(t *testing.T) {
 			Buffer: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 2, 0, 0, 0, 1,
 				0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 				0, 80, 42},
-			ExpectedPacket: OverlayPacket{
+			ExpectedPacket: UnderlayPacket{
 				Address: &net.UDPAddr{IP: net.ParseIP("2001:db8::1"), Port: 80},
 				Payload: []byte{42},
 			},
@@ -185,7 +185,7 @@ func TestOverlayPacketDecodeFromBytes(t *testing.T) {
 	t.Run("Different packets decode correctly", func(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.Name, func(t *testing.T) {
-				var p OverlayPacket
+				var p UnderlayPacket
 				err := p.DecodeFromBytes(tc.Buffer)
 				xtest.AssertErrorsIs(t, err, tc.ExpectedError)
 				assert.Equal(t, tc.ExpectedPacket, p)

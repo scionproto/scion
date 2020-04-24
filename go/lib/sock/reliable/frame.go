@@ -21,14 +21,14 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-// OverlayPacket contains metadata about a SCION packet going through the
+// UnderlayPacket contains metadata about a SCION packet going through the
 // reliable socket framing protocol.
-type OverlayPacket struct {
+type UnderlayPacket struct {
 	Address *net.UDPAddr
 	Payload []byte
 }
 
-func (p *OverlayPacket) SerializeTo(b []byte) (int, error) {
+func (p *UnderlayPacket) SerializeTo(b []byte) (int, error) {
 	var f frame
 	f.Cookie = expectedCookie
 	f.AddressType = byte(getAddressType(p.Address))
@@ -42,7 +42,7 @@ func (p *OverlayPacket) SerializeTo(b []byte) (int, error) {
 	return f.SerializeTo(b)
 }
 
-func (p *OverlayPacket) DecodeFromBytes(b []byte) error {
+func (p *UnderlayPacket) DecodeFromBytes(b []byte) error {
 	var f frame
 	if err := f.DecodeFromBytes(b); err != nil {
 		return err

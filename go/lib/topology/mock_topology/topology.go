@@ -195,81 +195,6 @@ func (mr *MockTopologyMockRecorder) Multicast(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Multicast", reflect.TypeOf((*MockTopology)(nil).Multicast), arg0)
 }
 
-// OverlayAnycast mocks base method
-func (m *MockTopology) OverlayAnycast(arg0 addr.HostSVC) (*net.UDPAddr, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OverlayAnycast", arg0)
-	ret0, _ := ret[0].(*net.UDPAddr)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// OverlayAnycast indicates an expected call of OverlayAnycast
-func (mr *MockTopologyMockRecorder) OverlayAnycast(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OverlayAnycast", reflect.TypeOf((*MockTopology)(nil).OverlayAnycast), arg0)
-}
-
-// OverlayByName mocks base method
-func (m *MockTopology) OverlayByName(arg0 addr.HostSVC, arg1 string) (*net.UDPAddr, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OverlayByName", arg0, arg1)
-	ret0, _ := ret[0].(*net.UDPAddr)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// OverlayByName indicates an expected call of OverlayByName
-func (mr *MockTopologyMockRecorder) OverlayByName(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OverlayByName", reflect.TypeOf((*MockTopology)(nil).OverlayByName), arg0, arg1)
-}
-
-// OverlayMulticast mocks base method
-func (m *MockTopology) OverlayMulticast(arg0 addr.HostSVC) ([]*net.UDPAddr, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OverlayMulticast", arg0)
-	ret0, _ := ret[0].([]*net.UDPAddr)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// OverlayMulticast indicates an expected call of OverlayMulticast
-func (mr *MockTopologyMockRecorder) OverlayMulticast(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OverlayMulticast", reflect.TypeOf((*MockTopology)(nil).OverlayMulticast), arg0)
-}
-
-// OverlayNextHop mocks base method
-func (m *MockTopology) OverlayNextHop(arg0 common.IFIDType) (*net.UDPAddr, bool) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OverlayNextHop", arg0)
-	ret0, _ := ret[0].(*net.UDPAddr)
-	ret1, _ := ret[1].(bool)
-	return ret0, ret1
-}
-
-// OverlayNextHop indicates an expected call of OverlayNextHop
-func (mr *MockTopologyMockRecorder) OverlayNextHop(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OverlayNextHop", reflect.TypeOf((*MockTopology)(nil).OverlayNextHop), arg0)
-}
-
-// OverlayNextHop2 mocks base method
-func (m *MockTopology) OverlayNextHop2(arg0 common.IFIDType) (*net.UDPAddr, bool) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OverlayNextHop2", arg0)
-	ret0, _ := ret[0].(*net.UDPAddr)
-	ret1, _ := ret[1].(bool)
-	return ret0, ret1
-}
-
-// OverlayNextHop2 indicates an expected call of OverlayNextHop2
-func (mr *MockTopologyMockRecorder) OverlayNextHop2(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OverlayNextHop2", reflect.TypeOf((*MockTopology)(nil).OverlayNextHop2), arg0)
-}
-
 // PublicAddress mocks base method
 func (m *MockTopology) PublicAddress(arg0 addr.HostSVC, arg1 string) *net.UDPAddr {
 	m.ctrl.T.Helper()
@@ -310,6 +235,81 @@ func (m *MockTopology) SVCNames(arg0 addr.HostSVC) topology.ServiceNames {
 func (mr *MockTopologyMockRecorder) SVCNames(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SVCNames", reflect.TypeOf((*MockTopology)(nil).SVCNames), arg0)
+}
+
+// UnderlayAnycast mocks base method
+func (m *MockTopology) UnderlayAnycast(arg0 addr.HostSVC) (*net.UDPAddr, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnderlayAnycast", arg0)
+	ret0, _ := ret[0].(*net.UDPAddr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UnderlayAnycast indicates an expected call of UnderlayAnycast
+func (mr *MockTopologyMockRecorder) UnderlayAnycast(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnderlayAnycast", reflect.TypeOf((*MockTopology)(nil).UnderlayAnycast), arg0)
+}
+
+// UnderlayByName mocks base method
+func (m *MockTopology) UnderlayByName(arg0 addr.HostSVC, arg1 string) (*net.UDPAddr, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnderlayByName", arg0, arg1)
+	ret0, _ := ret[0].(*net.UDPAddr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UnderlayByName indicates an expected call of UnderlayByName
+func (mr *MockTopologyMockRecorder) UnderlayByName(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnderlayByName", reflect.TypeOf((*MockTopology)(nil).UnderlayByName), arg0, arg1)
+}
+
+// UnderlayMulticast mocks base method
+func (m *MockTopology) UnderlayMulticast(arg0 addr.HostSVC) ([]*net.UDPAddr, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnderlayMulticast", arg0)
+	ret0, _ := ret[0].([]*net.UDPAddr)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UnderlayMulticast indicates an expected call of UnderlayMulticast
+func (mr *MockTopologyMockRecorder) UnderlayMulticast(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnderlayMulticast", reflect.TypeOf((*MockTopology)(nil).UnderlayMulticast), arg0)
+}
+
+// UnderlayNextHop mocks base method
+func (m *MockTopology) UnderlayNextHop(arg0 common.IFIDType) (*net.UDPAddr, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnderlayNextHop", arg0)
+	ret0, _ := ret[0].(*net.UDPAddr)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// UnderlayNextHop indicates an expected call of UnderlayNextHop
+func (mr *MockTopologyMockRecorder) UnderlayNextHop(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnderlayNextHop", reflect.TypeOf((*MockTopology)(nil).UnderlayNextHop), arg0)
+}
+
+// UnderlayNextHop2 mocks base method
+func (m *MockTopology) UnderlayNextHop2(arg0 common.IFIDType) (*net.UDPAddr, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnderlayNextHop2", arg0)
+	ret0, _ := ret[0].(*net.UDPAddr)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// UnderlayNextHop2 indicates an expected call of UnderlayNextHop2
+func (mr *MockTopologyMockRecorder) UnderlayNextHop2(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnderlayNextHop2", reflect.TypeOf((*MockTopology)(nil).UnderlayNextHop2), arg0)
 }
 
 // Writable mocks base method

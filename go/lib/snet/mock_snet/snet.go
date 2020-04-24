@@ -503,20 +503,6 @@ func (mr *MockPathMockRecorder) MTU() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MTU", reflect.TypeOf((*MockPath)(nil).MTU))
 }
 
-// OverlayNextHop mocks base method
-func (m *MockPath) OverlayNextHop() *net.UDPAddr {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OverlayNextHop")
-	ret0, _ := ret[0].(*net.UDPAddr)
-	return ret0
-}
-
-// OverlayNextHop indicates an expected call of OverlayNextHop
-func (mr *MockPathMockRecorder) OverlayNextHop() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OverlayNextHop", reflect.TypeOf((*MockPath)(nil).OverlayNextHop))
-}
-
 // Path mocks base method
 func (m *MockPath) Path() *spath.Path {
 	m.ctrl.T.Helper()
@@ -529,6 +515,20 @@ func (m *MockPath) Path() *spath.Path {
 func (mr *MockPathMockRecorder) Path() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Path", reflect.TypeOf((*MockPath)(nil).Path))
+}
+
+// UnderlayNextHop mocks base method
+func (m *MockPath) UnderlayNextHop() *net.UDPAddr {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnderlayNextHop")
+	ret0, _ := ret[0].(*net.UDPAddr)
+	return ret0
+}
+
+// UnderlayNextHop indicates an expected call of UnderlayNextHop
+func (mr *MockPathMockRecorder) UnderlayNextHop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnderlayNextHop", reflect.TypeOf((*MockPath)(nil).UnderlayNextHop))
 }
 
 // MockPathQuerier is a mock of PathQuerier interface

@@ -171,7 +171,7 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, conn net.Conn, src ne
 	if len(ifInfoRequest.IfIDs) == 0 {
 		// Reply with all the IFIDs we know
 		for _, ifid := range topo.InterfaceIDs() {
-			nextHop, ok := topo.OverlayNextHop(ifid)
+			nextHop, ok := topo.UnderlayNextHop(ifid)
 			if !ok {
 				logger.Info("Received IF Info Request, but IFID not found", "ifid", ifid)
 				continue
@@ -184,7 +184,7 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, conn net.Conn, src ne
 	} else {
 		// Reply with only the IFIDs the client requested
 		for _, ifid := range ifInfoRequest.IfIDs {
-			nextHop, ok := topo.OverlayNextHop(ifid)
+			nextHop, ok := topo.UnderlayNextHop(ifid)
 			if !ok {
 				logger.Info("Received IF Info Request, but IFID not found", "ifid", ifid)
 				continue

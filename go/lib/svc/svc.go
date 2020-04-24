@@ -124,10 +124,10 @@ func (c *resolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
 		// goroutine, but because UDP writes rarely block, the current
 		// solution should be good enough for now.
 		r := &Request{
-			Conn:    c.PacketConn,
-			Source:  c.source,
-			Packet:  pkt,
-			Overlay: ov,
+			Conn:     c.PacketConn,
+			Source:   c.source,
+			Packet:   pkt,
+			Underlay: ov,
 		}
 		switch result, err := c.handler.Handle(r); result {
 		case Error:
@@ -143,7 +143,7 @@ func (c *resolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
 // RequestHandler handles SCION packets with SVC destination addresses.
 type RequestHandler interface {
 	// Handle replies to SCION packets with SVC destinations coming from the
-	// specified overlay address.
+	// specified underlay address.
 	//
 	// Handle implementantions might panic if the destination is not an SVC
 	// address, so callers should perform the check beforehand.
@@ -154,9 +154,9 @@ type Request struct {
 	// Source is the override value for the source address of the reply packet.
 	Source snet.SCIONAddress
 	// Conn is the connection to send the reply on. Conn must not be nil.
-	Conn    snet.PacketConn
-	Packet  *snet.Packet
-	Overlay *net.UDPAddr
+	Conn     snet.PacketConn
+	Packet   *snet.Packet
+	Underlay *net.UDPAddr
 }
 
 var _ RequestHandler = (*BaseHandler)(nil)
@@ -184,7 +184,7 @@ func (h *BaseHandler) Handle(request *Request) (Result, error) {
 			Payload:     h.getPayload(),
 		},
 	}
-	err = request.Conn.WriteTo(replyPacket, request.Overlay)
+	err = request.Conn.WriteTo(replyPacket, request.Underlay)
 	if err != nil {
 		return Error, err
 	}
