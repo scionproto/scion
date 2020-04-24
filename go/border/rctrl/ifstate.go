@@ -88,7 +88,7 @@ func genIFStateReq() error {
 			errors = append(errors, common.NewBasicError("Writing IFStateReq", err, "dst", dst))
 			continue
 		}
-		logger.Debug("Sent IFStateReq", "dst", dst, "overlayDst", a)
+		logger.Debug("Sent IFStateReq", "dst", dst, "underlayDst", a)
 		cl.Result = metrics.Success
 		metrics.Control.SentIFStateReq(cl).Inc()
 	}

@@ -13,11 +13,11 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay/conn"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spkt"
+	"github.com/scionproto/scion/go/lib/underlay/conn"
 )
 
 // OverflowLoggingInterval is the minimum amount of time that needs to
@@ -71,7 +71,7 @@ func (as *Server) Serve() error {
 	go func() {
 		defer log.HandlePanic()
 		netToRingDataplane := &NetToRingDataplane{
-			OverlayConn:  as.ipv4Conn,
+			UnderlayConn: as.ipv4Conn,
 			RoutingTable: as.routingTable,
 		}
 		errChan <- netToRingDataplane.Run()
@@ -79,7 +79,7 @@ func (as *Server) Serve() error {
 	go func() {
 		defer log.HandlePanic()
 		netToRingDataplane := &NetToRingDataplane{
-			OverlayConn:  as.ipv6Conn,
+			UnderlayConn: as.ipv6Conn,
 			RoutingTable: as.routingTable,
 		}
 		errChan <- netToRingDataplane.Run()
@@ -139,7 +139,7 @@ func (ac *Conn) Write(pkt *respool.Packet) (int, error) {
 	if err := registerIfSCMPRequest(ac.regReference, &pkt.Info); err != nil {
 		log.Warn("SCMP Request ID error, packet still sent", "err", err)
 	}
-	return pkt.SendOnConn(ac.conn, pkt.OverlayRemote)
+	return pkt.SendOnConn(ac.conn, pkt.UnderlayRemote)
 }
 
 func (ac *Conn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
@@ -148,7 +148,7 @@ func (ac *Conn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 		return 0, nil, serrors.New("Connection closed")
 	}
 	n = pkt.CopyTo(p)
-	addr = pkt.OverlayRemote
+	addr = pkt.UnderlayRemote
 	pkt.Free()
 	return
 }
@@ -191,7 +191,7 @@ func (ac *Conn) SetWriteDeadline(t time.Time) error {
 	panic("not implemented")
 }
 
-// openConn opens an overlay socket that tracks additional socket information
+// openConn opens an underlay socket that tracks additional socket information
 // such as packets dropped due to buffer full.
 //
 // Note that Go-style dual-stacked IPv4/IPv6 connections are not supported. If
@@ -219,7 +219,7 @@ func openConn(network, address string, p SocketMetaHandler) (net.PacketConn, err
 		return nil, common.NewBasicError("unable to open conn", err)
 	}
 
-	return &overlayConnWrapper{Conn: c, Handler: p}, nil
+	return &underlayConnWrapper{Conn: c, Handler: p}, nil
 }
 
 // registerIfSCMPRequest registers the ID of the SCMP Request, if it is an
@@ -243,17 +243,17 @@ func registerIfSCMPRequest(ref registration.RegReference, packet *spkt.ScnPkt) e
 	return nil
 }
 
-// overlayConnWrapper wraps a specialized overlay conn into a net.PacketConn
+// underlayConnWrapper wraps a specialized underlay conn into a net.PacketConn
 // implementation. Only *net.UDPAddr addressing is supported.
-type overlayConnWrapper struct {
-	// Conn is the wrapped overlay connection object.
+type underlayConnWrapper struct {
+	// Conn is the wrapped underlay connection object.
 	conn.Conn
 	// Handler is used to customize how the connection treats socket
 	// metadata.
 	Handler SocketMetaHandler
 }
 
-func (o *overlayConnWrapper) ReadFrom(p []byte) (int, net.Addr, error) {
+func (o *underlayConnWrapper) ReadFrom(p []byte) (int, net.Addr, error) {
 	n, meta, err := o.Conn.Read(common.RawBytes(p))
 	if meta == nil {
 		return n, nil, err
@@ -262,7 +262,7 @@ func (o *overlayConnWrapper) ReadFrom(p []byte) (int, net.Addr, error) {
 	return n, meta.Src, err
 }
 
-func (o *overlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
+func (o *underlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
 	udpAddr, ok := a.(*net.UDPAddr)
 	if !ok {
 		return 0, common.NewBasicError("address is not UDP", nil, "addr", a)
@@ -270,23 +270,23 @@ func (o *overlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
 	return o.Conn.WriteTo(common.RawBytes(p), udpAddr)
 }
 
-func (o *overlayConnWrapper) Close() error {
+func (o *underlayConnWrapper) Close() error {
 	return o.Conn.Close()
 }
 
-func (o *overlayConnWrapper) LocalAddr() net.Addr {
+func (o *underlayConnWrapper) LocalAddr() net.Addr {
 	return o.Conn.LocalAddr()
 }
 
-func (o *overlayConnWrapper) SetDeadline(t time.Time) error {
+func (o *underlayConnWrapper) SetDeadline(t time.Time) error {
 	return o.Conn.SetDeadline(t)
 }
 
-func (o *overlayConnWrapper) SetReadDeadline(t time.Time) error {
+func (o *underlayConnWrapper) SetReadDeadline(t time.Time) error {
 	return o.Conn.SetReadDeadline(t)
 }
 
-func (o *overlayConnWrapper) SetWriteDeadline(t time.Time) error {
+func (o *underlayConnWrapper) SetWriteDeadline(t time.Time) error {
 	return o.Conn.SetWriteDeadline(t)
 }
 

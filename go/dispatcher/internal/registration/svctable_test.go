@@ -100,7 +100,7 @@ func TestSVCTableOneItem(t *testing.T) {
 		reference, err := table.Register(addr.SvcCS, address, value)
 		xtest.FailOnErr(t, err)
 		Convey("anycasting to nil finds the entry", func() {
-			// XXX(scrye): This is a workaround s.t. a simple overlay socket
+			// XXX(scrye): This is a workaround s.t. a simple underlay socket
 			// that does not return IP-header information can still be used to
 			// deliver to SVC addresses. Once IP-header information is passed
 			// into the app, searching for nil should not return an entry.

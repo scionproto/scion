@@ -151,7 +151,7 @@ func checkTestPkt(t *testing.T, s *Sender, msg *Msg, pkt *snet.Packet) {
 	SoMsg("path", pkt.Path, ShouldResemble, (*spath.Path)(path))
 }
 
-// testConn is a packet conn that returns an empty overlay address.
+// testConn is a packet conn that returns an empty underlay address.
 type testConn struct {
 	net.PacketConn
 }

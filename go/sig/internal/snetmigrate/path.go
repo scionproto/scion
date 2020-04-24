@@ -32,7 +32,7 @@ func (p *emptyPath) Fingerprint() snet.PathFingerprint {
 	return ""
 }
 
-func (p *emptyPath) OverlayNextHop() *net.UDPAddr {
+func (p *emptyPath) UnderlayNextHop() *net.UDPAddr {
 	return nil
 }
 

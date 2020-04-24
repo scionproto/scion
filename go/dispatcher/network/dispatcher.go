@@ -24,13 +24,13 @@ import (
 )
 
 type Dispatcher struct {
-	OverlaySocket     string
+	UnderlaySocket    string
 	ApplicationSocket string
 	SocketFileMode    os.FileMode
 }
 
 func (d *Dispatcher) ListenAndServe() error {
-	dispServer, err := dispatcher.NewServer(d.OverlaySocket, nil, nil)
+	dispServer, err := dispatcher.NewServer(d.UnderlaySocket, nil, nil)
 	if err != nil {
 		return err
 	}

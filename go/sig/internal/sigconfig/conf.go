@@ -99,7 +99,7 @@ type SigConf struct {
 	SrcIP4 net.IP `toml:"src_ipv4,omitempty"`
 	// IPv6 source address hint to put into routing table.
 	SrcIP6 net.IP `toml:"src_ipv6,omitempty"`
-	// DispatcherBypass is the overlay address (e.g. ":30041") to use when bypassing SCION
+	// DispatcherBypass is the underlay address (e.g. ":30041") to use when bypassing SCION
 	// dispatcher. If the field is empty bypass is not done and SCION dispatcher is used
 	// instead.
 	DispatcherBypass string `toml:"disaptcher_bypass,omitempty"`

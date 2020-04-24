@@ -269,11 +269,11 @@ func (conn *Conn) readFrom(buf []byte) (int, net.Addr, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-	var p OverlayPacket
+	var p UnderlayPacket
 	p.DecodeFromBytes(conn.readBuffer[:n])
-	var overlayAddr *net.UDPAddr
+	var underlayAddr *net.UDPAddr
 	if p.Address != nil {
-		overlayAddr = &net.UDPAddr{
+		underlayAddr = &net.UDPAddr{
 			IP:   append(p.Address.IP[:0:0], p.Address.IP...),
 			Port: p.Address.Port,
 		}
@@ -282,7 +282,7 @@ func (conn *Conn) readFrom(buf []byte) (int, net.Addr, error) {
 		return 0, nil, serrors.New("buffer too small")
 	}
 	copy(buf, p.Payload)
-	return len(p.Payload), overlayAddr, nil
+	return len(p.Payload), underlayAddr, nil
 }
 
 // WriteTo blocks until it sends buf as a single framed message through conn.
@@ -308,7 +308,7 @@ func (conn *Conn) writeTo(buf []byte, dst net.Addr) (int, error) {
 				"address", fmt.Sprintf("%#v", dst))
 		}
 	}
-	p := &OverlayPacket{Address: udpAddr, Payload: buf}
+	p := &UnderlayPacket{Address: udpAddr, Payload: buf}
 	n, err := p.SerializeTo(conn.writeBuffer)
 	if err != nil {
 		return 0, err

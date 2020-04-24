@@ -95,7 +95,7 @@ func (h *segRegHandler) Handle() *infra.HandlerResult {
 	svcToQuery := &snet.SVCAddr{
 		IA:      snetPeer.IA,
 		Path:    peerPath.Path(),
-		NextHop: peerPath.OverlayNextHop(),
+		NextHop: peerPath.UnderlayNextHop(),
 		SVC:     addr.SvcBS,
 	}
 	segs := seghandler.Segments{

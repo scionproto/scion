@@ -42,9 +42,9 @@ type Path interface {
 	// ASes and BRs. Other metadata, such as MTU or NextHop have no effect
 	// on the fingerprint. Empty string means unknown fingerprint.
 	Fingerprint() PathFingerprint
-	// OverlayNextHop returns the address:port pair of a local-AS overlay
+	// UnderlayNextHop returns the address:port pair of a local-AS underlay
 	// speaker. Usually, this is a border router that will forward the traffic.
-	OverlayNextHop() *net.UDPAddr
+	UnderlayNextHop() *net.UDPAddr
 	// Path returns a raw (data-plane compatible) representation of the path.
 	// The returned path is initialized and ready for use in snet calls that
 	// deal with raw paths.
@@ -79,7 +79,7 @@ type PathInterface interface {
 // objects, notably snet.UDPAddr and snet.SVCAddr.
 type partialPath struct {
 	spath       *spath.Path
-	overlay     *net.UDPAddr
+	underlay    *net.UDPAddr
 	destination addr.IA
 }
 
@@ -87,8 +87,8 @@ func (p *partialPath) Fingerprint() PathFingerprint {
 	return ""
 }
 
-func (p *partialPath) OverlayNextHop() *net.UDPAddr {
-	return p.overlay
+func (p *partialPath) UnderlayNextHop() *net.UDPAddr {
+	return p.underlay
 }
 
 func (p *partialPath) Path() *spath.Path {
@@ -120,7 +120,7 @@ func (p *partialPath) Copy() Path {
 	}
 	return &partialPath{
 		spath:       p.spath.Copy(),
-		overlay:     CopyUDPAddr(p.overlay),
+		underlay:    CopyUDPAddr(p.underlay),
 		destination: p.destination,
 	}
 }

@@ -31,7 +31,7 @@ go_library(
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/spath:go_default_library",
         "//go/lib/spkt:go_default_library",
-        "//go/lib/topology/overlay:go_default_library",
+        "//go/lib/topology/underlay:go_default_library",
     ],
 )
 

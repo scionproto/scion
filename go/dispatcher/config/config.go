@@ -46,8 +46,8 @@ type Dispatcher struct {
 	ApplicationSocket string `toml:"application_socket,omitempty"`
 	// Socket file permissions when created; read from octal. (default 0770)
 	SocketFileMode util.FileMode `toml:"socket_file_mode,omitempty"`
-	// OverlayPort is the native port opened by the dispatcher (default 30041)
-	OverlayPort int `toml:"underlay_port,omitempty"`
+	// UnderlayPort is the native port opened by the dispatcher (default 30041)
+	UnderlayPort int `toml:"underlay_port,omitempty"`
 	// DeleteSocket specifies whether the dispatcher should delete the
 	// socket file prior to attempting to create a new one.
 	DeleteSocket bool `toml:"delete_socket,omitempty"`
@@ -63,8 +63,8 @@ func (cfg *Config) Validate() error {
 	if cfg.Dispatcher.SocketFileMode == 0 {
 		cfg.Dispatcher.SocketFileMode = reliable.DefaultDispSocketFileMode
 	}
-	if cfg.Dispatcher.OverlayPort == 0 {
-		cfg.Dispatcher.OverlayPort = topology.EndhostPort
+	if cfg.Dispatcher.UnderlayPort == 0 {
+		cfg.Dispatcher.UnderlayPort = topology.EndhostPort
 	}
 	if cfg.Dispatcher.ID == "" {
 		return serrors.New("id must be set")

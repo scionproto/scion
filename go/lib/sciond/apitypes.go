@@ -59,8 +59,8 @@ type TopoQuerier struct {
 	Connector Connector
 }
 
-// OverlayAnycast provides any address for the given svc type.
-func (h TopoQuerier) OverlayAnycast(ctx context.Context, svc addr.HostSVC) (*net.UDPAddr, error) {
+// UnderlayAnycast provides any address for the given svc type.
+func (h TopoQuerier) UnderlayAnycast(ctx context.Context, svc addr.HostSVC) (*net.UDPAddr, error) {
 	psvc := svcAddrToProto(svc)
 	if psvc == proto.ServiceType_unset {
 		return nil, serrors.New("invalid svc type", "svc", svc)
@@ -99,7 +99,7 @@ func ifinfoReplyToMap(ifinfoReply *IFInfoReply) map[common.IFIDType]*net.UDPAddr
 
 type Path struct {
 	interfaces []pathInterface
-	overlay    *net.UDPAddr
+	underlay   *net.UDPAddr
 	spath      *spath.Path
 	mtu        uint16
 	expiry     time.Time
@@ -131,10 +131,10 @@ func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (Path, error) {
 	if err := sp.InitOffsets(); err != nil {
 		return Path{}, serrors.WrapStr("path error", err)
 	}
-	overlayAddr := pe.HostInfo.Overlay()
+	underlayAddr := pe.HostInfo.Underlay()
 	p := Path{
 		interfaces: make([]pathInterface, 0, len(pe.Path.Interfaces)),
-		overlay:    overlayAddr,
+		underlay:   underlayAddr,
 		spath:      sp,
 		mtu:        pe.Path.Mtu,
 		expiry:     pe.Path.Expiry(),
@@ -157,14 +157,14 @@ func (p Path) Fingerprint() snet.PathFingerprint {
 	return snet.PathFingerprint(h.Sum(nil))
 }
 
-func (p Path) OverlayNextHop() *net.UDPAddr {
-	if p.overlay == nil {
+func (p Path) UnderlayNextHop() *net.UDPAddr {
+	if p.underlay == nil {
 		return nil
 	}
 	return &net.UDPAddr{
-		IP:   append(p.overlay.IP[:0:0], p.overlay.IP...),
-		Port: p.overlay.Port,
-		Zone: p.overlay.Zone,
+		IP:   append(p.underlay.IP[:0:0], p.underlay.IP...),
+		Port: p.underlay.Port,
+		Zone: p.underlay.Zone,
 	}
 }
 
@@ -204,8 +204,8 @@ func (p Path) Expiry() time.Time {
 func (p Path) Copy() snet.Path {
 	return Path{
 		interfaces: append(p.interfaces[:0:0], p.interfaces...),
-		overlay:    p.OverlayNextHop(), // creates copy
-		spath:      p.Path(),           // creates copy
+		underlay:   p.UnderlayNextHop(), // creates copy
+		spath:      p.Path(),            // creates copy
 		mtu:        p.mtu,
 		expiry:     p.expiry,
 	}
@@ -214,7 +214,7 @@ func (p Path) Copy() snet.Path {
 func (p Path) String() string {
 	hops := p.fmtInterfaces()
 	return fmt.Sprintf("Hops: [%s] MTU: %d, NextHop: %s",
-		strings.Join(hops, ">"), p.mtu, p.overlay)
+		strings.Join(hops, ">"), p.mtu, p.underlay)
 }
 
 func (p Path) fmtInterfaces() []string {

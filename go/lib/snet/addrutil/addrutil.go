@@ -45,11 +45,11 @@ func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv topology.Provider) 
 	}
 	topo := topoProv.Get()
 	ifID := hopF.ConsIngress
-	overlayNextHop, ok := topo.OverlayNextHop2(ifID)
+	UnderlayNextHop, ok := topo.UnderlayNextHop2(ifID)
 	if !ok {
 		return nil, common.NewBasicError("unable to find first-hop BR for path", nil, "ifID", ifID)
 	}
-	return &snet.SVCAddr{IA: ps.FirstIA(), Path: p, NextHop: overlayNextHop, SVC: svc}, nil
+	return &snet.SVCAddr{IA: ps.FirstIA(), Path: p, NextHop: UnderlayNextHop, SVC: svc}, nil
 }
 
 // ResolveLocal returns the local IP address used for traffic destined to dst.

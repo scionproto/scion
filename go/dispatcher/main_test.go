@@ -44,7 +44,7 @@ const (
 
 type TestSettings struct {
 	ApplicationSocket string
-	OverlayPort       int
+	UnderlayPort      int
 }
 
 func InitTestSettings(t *testing.T) *TestSettings {
@@ -54,7 +54,7 @@ func InitTestSettings(t *testing.T) *TestSettings {
 	}
 	return &TestSettings{
 		ApplicationSocket: socketName,
-		OverlayPort:       int(dispatcherTestPort),
+		UnderlayPort:      int(dispatcherTestPort),
 	}
 }
 
@@ -67,41 +67,41 @@ func getSocketName(dir string) (string, error) {
 }
 
 type ClientAddress struct {
-	IA             addr.IA
-	PublicAddress  addr.HostAddr
-	PublicPort     uint16
-	ServiceAddress addr.HostSVC
-	OverlayAddress *net.UDPAddr
-	OverlayPort    uint16
+	IA              addr.IA
+	PublicAddress   addr.HostAddr
+	PublicPort      uint16
+	ServiceAddress  addr.HostSVC
+	UnderlayAddress *net.UDPAddr
+	UnderlayPort    uint16
 }
 
 // Addressing information
 var (
 	commonIA              = xtest.MustParseIA("1-ff00:0:1")
 	commonPublicL3Address = addr.HostFromIP(net.IP{127, 0, 0, 1})
-	commonOverlayAddress  = &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: dispatcherTestPort}
+	commonUnderlayAddress = &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: dispatcherTestPort}
 	clientXAddress        = &ClientAddress{
-		IA:             commonIA,
-		PublicAddress:  commonPublicL3Address,
-		PublicPort:     8080,
-		ServiceAddress: addr.SvcNone,
-		OverlayAddress: commonOverlayAddress,
+		IA:              commonIA,
+		PublicAddress:   commonPublicL3Address,
+		PublicPort:      8080,
+		ServiceAddress:  addr.SvcNone,
+		UnderlayAddress: commonUnderlayAddress,
 	}
 	clientYAddress = &ClientAddress{
-		IA:             commonIA,
-		PublicAddress:  commonPublicL3Address,
-		PublicPort:     8081,
-		ServiceAddress: addr.SvcPS,
-		OverlayAddress: commonOverlayAddress,
+		IA:              commonIA,
+		PublicAddress:   commonPublicL3Address,
+		PublicPort:      8081,
+		ServiceAddress:  addr.SvcPS,
+		UnderlayAddress: commonUnderlayAddress,
 	}
 )
 
 type TestCase struct {
-	Name           string
-	ClientAddress  *ClientAddress
-	TestPackets    []*spkt.ScnPkt
-	OverlayAddress *net.UDPAddr
-	ExpectedPacket *spkt.ScnPkt
+	Name            string
+	ClientAddress   *ClientAddress
+	TestPackets     []*spkt.ScnPkt
+	UnderlayAddress *net.UDPAddr
+	ExpectedPacket  *spkt.ScnPkt
 }
 
 var testCases = []*TestCase{
@@ -121,7 +121,7 @@ var testCases = []*TestCase{
 				Pld: common.RawBytes{1, 2, 3, 4},
 			},
 		},
-		OverlayAddress: clientXAddress.OverlayAddress,
+		UnderlayAddress: clientXAddress.UnderlayAddress,
 		ExpectedPacket: &spkt.ScnPkt{
 			SrcIA:   clientXAddress.IA,
 			DstIA:   clientXAddress.IA,
@@ -152,7 +152,7 @@ var testCases = []*TestCase{
 				Pld: common.RawBytes{5, 6, 7, 8},
 			},
 		},
-		OverlayAddress: clientXAddress.OverlayAddress,
+		UnderlayAddress: clientXAddress.UnderlayAddress,
 		ExpectedPacket: &spkt.ScnPkt{
 			SrcIA:   clientYAddress.IA,
 			DstIA:   clientYAddress.IA,
@@ -168,9 +168,9 @@ var testCases = []*TestCase{
 		},
 	},
 	{
-		Name:           "SCMP::Error, UDP quote",
-		ClientAddress:  clientXAddress,
-		OverlayAddress: clientXAddress.OverlayAddress,
+		Name:            "SCMP::Error, UDP quote",
+		ClientAddress:   clientXAddress,
+		UnderlayAddress: clientXAddress.UnderlayAddress,
 		TestPackets: []*spkt.ScnPkt{
 			{
 				SrcIA:   clientXAddress.IA,
@@ -207,9 +207,9 @@ var testCases = []*TestCase{
 		},
 	},
 	{
-		Name:           "SCMP::Error, SCMP quote",
-		ClientAddress:  clientXAddress,
-		OverlayAddress: clientXAddress.OverlayAddress,
+		Name:            "SCMP::Error, SCMP quote",
+		ClientAddress:   clientXAddress,
+		UnderlayAddress: clientXAddress.UnderlayAddress,
 		TestPackets: []*spkt.ScnPkt{
 			{
 				// Force a SCMP General ID registration to happen, but route it
@@ -289,9 +289,9 @@ var testCases = []*TestCase{
 		},
 	},
 	{
-		Name:           "SCMP::General::EchoRequest",
-		ClientAddress:  clientXAddress,
-		OverlayAddress: clientYAddress.OverlayAddress,
+		Name:            "SCMP::General::EchoRequest",
+		ClientAddress:   clientXAddress,
+		UnderlayAddress: clientYAddress.UnderlayAddress,
 		TestPackets: []*spkt.ScnPkt{
 			{
 				SrcIA:   clientXAddress.IA,
@@ -331,9 +331,9 @@ var testCases = []*TestCase{
 		},
 	},
 	{
-		Name:           "SCMP::General::TraceRouteRequest",
-		ClientAddress:  clientXAddress,
-		OverlayAddress: clientYAddress.OverlayAddress,
+		Name:            "SCMP::General::TraceRouteRequest",
+		ClientAddress:   clientXAddress,
+		UnderlayAddress: clientYAddress.UnderlayAddress,
 		TestPackets: []*spkt.ScnPkt{
 			{
 				SrcIA:   clientXAddress.IA,
@@ -373,9 +373,9 @@ var testCases = []*TestCase{
 		},
 	},
 	{
-		Name:           "SCMP::General::RecordPathRequest",
-		ClientAddress:  clientXAddress,
-		OverlayAddress: clientYAddress.OverlayAddress,
+		Name:            "SCMP::General::RecordPathRequest",
+		ClientAddress:   clientXAddress,
+		UnderlayAddress: clientYAddress.UnderlayAddress,
 		TestPackets: []*spkt.ScnPkt{
 			{
 				SrcIA:   clientXAddress.IA,
@@ -421,7 +421,7 @@ func TestDataplaneIntegration(t *testing.T) {
 
 	go func() {
 		err := RunDispatcher(false, settings.ApplicationSocket, reliable.DefaultDispSocketFileMode,
-			settings.OverlayPort)
+			settings.UnderlayPort)
 		xtest.FailOnErr(t, err, "dispatcher error")
 	}()
 	time.Sleep(defaultWaitDuration)
@@ -458,7 +458,7 @@ func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
 		xtest.FailOnErr(t, err, "unable to serialize packet for sending")
 		send_buffer = send_buffer[:n]
 
-		_, err = conn.WriteTo(send_buffer, tc.OverlayAddress)
+		_, err = conn.WriteTo(send_buffer, tc.UnderlayAddress)
 		xtest.FailOnErr(t, err, "unable to write message")
 	}
 

@@ -102,7 +102,7 @@ func (a *UDPAddr) GetPath() (Path, error) {
 	}
 	return &partialPath{
 		spath:       p,
-		overlay:     a.NextHop,
+		underlay:    a.NextHop,
 		destination: a.IA,
 	}, nil
 }

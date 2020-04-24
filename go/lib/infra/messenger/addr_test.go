@@ -97,7 +97,7 @@ func TestRedirectQUIC(t *testing.T) {
 		path := mock_snet.NewMockPath(ctrl)
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 		path.EXPECT().Path().Return(nil)
-		path.EXPECT().OverlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
+		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
 		path.EXPECT().Fingerprint().Return(snet.PathFingerprint("foo"))
 
 		aw := messenger.AddressRewriter{
@@ -131,7 +131,7 @@ func TestRedirectQUIC(t *testing.T) {
 		path := mock_snet.NewMockPath(ctrl)
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 		path.EXPECT().Path().Return(nil)
-		path.EXPECT().OverlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
+		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
 		path.EXPECT().Fingerprint().Return(snet.PathFingerprint("foo"))
 
 		aw := messenger.AddressRewriter{
@@ -161,10 +161,10 @@ func TestRedirectQUIC(t *testing.T) {
 		path := mock_snet.NewMockPath(ctrl)
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 		path.EXPECT().Path().Return(nil)
-		path.EXPECT().OverlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
+		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
 		path.EXPECT().Fingerprint().Return(snet.PathFingerprint(""))
 		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
-		svcRouter.EXPECT().GetOverlay(addr.SvcBS).Return(
+		svcRouter.EXPECT().GetUnderlay(addr.SvcBS).Return(
 			&net.UDPAddr{IP: net.ParseIP("10.1.1.1")}, nil,
 		)
 
@@ -233,7 +233,7 @@ func TestBuildFullAddress(t *testing.T) {
 
 		path := mock_snet.NewMockPath(ctrl)
 		path.EXPECT().Path().Return(&spath.Path{})
-		path.EXPECT().OverlayNextHop().Return(&net.UDPAddr{})
+		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{})
 		path.EXPECT().Fingerprint().Return(snet.PathFingerprint("foo"))
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 		input := &snet.SVCAddr{IA: remoteIA, SVC: addr.SvcBS}
@@ -248,7 +248,7 @@ func TestBuildFullAddress(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("snet address in local AS, overlay address extraction succeeds", func(t *testing.T) {
+	t.Run("snet address in local AS, underlay address extraction succeeds", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
@@ -259,27 +259,27 @@ func TestBuildFullAddress(t *testing.T) {
 			SVCRouter: svcRouter,
 		}
 
-		overlayAddr := &net.UDPAddr{
+		underlayAddr := &net.UDPAddr{
 			IP:   net.IP{192, 168, 0, 1},
 			Port: 10,
 		}
-		svcRouter.EXPECT().GetOverlay(addr.SvcBS).Return(overlayAddr, nil)
+		svcRouter.EXPECT().GetUnderlay(addr.SvcBS).Return(underlayAddr, nil)
 
 		path := mock_snet.NewMockPath(ctrl)
 		path.EXPECT().Fingerprint()
 		path.EXPECT().Path()
-		path.EXPECT().OverlayNextHop()
+		path.EXPECT().UnderlayNextHop()
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 
 		input := &snet.SVCAddr{IA: localIA, SVC: addr.SvcBS}
 		a, err := aw.BuildFullAddress(context.Background(), input)
 
-		want := &snet.SVCAddr{IA: localIA, NextHop: overlayAddr, SVC: addr.SvcBS}
+		want := &snet.SVCAddr{IA: localIA, NextHop: underlayAddr, SVC: addr.SvcBS}
 		assert.Equal(t, a, want)
 		assert.NoError(t, err)
 	})
 
-	t.Run("snet address in local AS, overlay address extraction fails", func(t *testing.T) {
+	t.Run("snet address in local AS, underlay address extraction fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		router := mock_snet.NewMockRouter(ctrl)
@@ -290,12 +290,12 @@ func TestBuildFullAddress(t *testing.T) {
 			SVCRouter: svcRouter,
 		}
 
-		svcRouter.EXPECT().GetOverlay(addr.SvcBS).Return(nil, errors.New("err"))
+		svcRouter.EXPECT().GetUnderlay(addr.SvcBS).Return(nil, errors.New("err"))
 
 		path := mock_snet.NewMockPath(ctrl)
 		path.EXPECT().Fingerprint()
 		path.EXPECT().Path()
-		path.EXPECT().OverlayNextHop()
+		path.EXPECT().UnderlayNextHop()
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 
 		input := &snet.SVCAddr{IA: localIA, SVC: addr.SvcBS}
@@ -454,7 +454,7 @@ func (t *testPath) Fingerprint() snet.PathFingerprint {
 	panic("not implemented")
 }
 
-func (t *testPath) OverlayNextHop() *net.UDPAddr {
+func (t *testPath) UnderlayNextHop() *net.UDPAddr {
 	panic("not implemented")
 }
 

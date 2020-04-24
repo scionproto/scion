@@ -160,7 +160,7 @@ func (h *AppConnHandler) sendConfirmation(b common.RawBytes, c *reliable.Confirm
 }
 
 // RunAppToNetDataplane moves packets from the application's socket to the
-// overlay socket.
+// underlay socket.
 func (h *AppConnHandler) RunAppToNetDataplane() {
 
 	for {
@@ -184,7 +184,7 @@ func (h *AppConnHandler) RunAppToNetDataplane() {
 		n, err := h.DispConn.Write(pkt)
 		if err != nil {
 			metrics.M.NetWriteErrors().Inc()
-			h.Logger.Error("[app->network] Overlay socket error", "err", err)
+			h.Logger.Error("[app->network] Underlay socket error", "err", err)
 		} else {
 			metrics.M.NetWriteBytes().Add(float64(n))
 			metrics.M.NetWritePkts().Inc()
@@ -202,7 +202,7 @@ func (h *AppConnHandler) RunRingToAppDataplane() {
 			// Ring was closed because app shut down its data socket
 			return
 		}
-		n, err := pkt.SendOnConn(h.Conn, pkt.OverlayRemote)
+		n, err := pkt.SendOnConn(h.Conn, pkt.UnderlayRemote)
 		if err != nil {
 			metrics.M.AppWriteErrors().Inc()
 			h.Logger.Error("[network->app] App connection error.", "err", err)

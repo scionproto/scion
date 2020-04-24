@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package overlay_test
+package underlay_test
 
 import (
 	"encoding/json"
@@ -21,14 +21,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/topology/overlay"
+	"github.com/scionproto/scion/go/lib/topology/underlay"
 )
 
 func TestTypeUnmarshalJSON(t *testing.T) {
 	type exampleStruct struct {
-		Type overlay.Type `json:"type"`
+		Type underlay.Type `json:"type"`
 	}
 	var e exampleStruct
 	require.NoError(t, json.Unmarshal([]byte(`{"type": "UDP/IPv4"}`), &e))
-	assert.Equal(t, exampleStruct{Type: overlay.UDPIPv4}, e)
+	assert.Equal(t, exampleStruct{Type: underlay.UDPIPv4}, e)
 }

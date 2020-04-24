@@ -202,7 +202,7 @@ func (h *handler) verifySegment(segment *seg.PathSegment) error {
 	svcToQuery := &snet.SVCAddr{
 		IA:      snetPeer.IA,
 		Path:    peerPath.Path(),
-		NextHop: peerPath.OverlayNextHop(),
+		NextHop: peerPath.UnderlayNextHop(),
 		SVC:     addr.SvcBS,
 	}
 	return segverifier.VerifySegment(h.request.Context(), h.verifier, svcToQuery, segment)

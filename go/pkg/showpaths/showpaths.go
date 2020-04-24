@@ -125,7 +125,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 		rpath := Path{
 			FullPath:    path,
 			Fingerprint: path.Fingerprint().String()[:16],
-			NextHop:     path.OverlayNextHop().String(),
+			NextHop:     path.UnderlayNextHop().String(),
 			Expiry:      path.Expiry(),
 			MTU:         path.MTU(),
 			Local:       localIP,
@@ -162,7 +162,7 @@ func findDefaultLocalIP(ctx context.Context, sciondConn sciond.Connector) (net.I
 
 // findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
 func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
-	addr, err := sciond.TopoQuerier{Connector: sciondConn}.OverlayAnycast(ctx, addr.SvcBS)
+	addr, err := sciond.TopoQuerier{Connector: sciondConn}.UnderlayAnycast(ctx, addr.SvcBS)
 	if err != nil {
 		return nil, err
 	}

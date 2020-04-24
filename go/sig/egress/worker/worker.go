@@ -201,7 +201,7 @@ func (w *worker) write(f *frame) error {
 		}
 		snetAddr = w.currSig.EncapSnetAddr()
 		snetAddr.Path = w.currPathEntry.Path()
-		snetAddr.NextHop = w.currPathEntry.OverlayNextHop()
+		snetAddr.NextHop = w.currPathEntry.UnderlayNextHop()
 	}
 
 	f.writeHdr(w.sess.ID(), w.epoch, seq)

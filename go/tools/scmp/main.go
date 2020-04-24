@@ -144,7 +144,7 @@ func setPathAndMtu() {
 	path := choosePath()
 	cmn.PathEntry = path
 	cmn.Remote.Path = path.Path()
-	cmn.Remote.NextHop = path.OverlayNextHop()
+	cmn.Remote.NextHop = path.UnderlayNextHop()
 	cmn.Mtu = path.MTU()
 }
 

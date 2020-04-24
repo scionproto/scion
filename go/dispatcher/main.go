@@ -80,7 +80,7 @@ func realMain() int {
 			cfg.Dispatcher.DeleteSocket,
 			cfg.Dispatcher.ApplicationSocket,
 			os.FileMode(cfg.Dispatcher.SocketFileMode),
-			cfg.Dispatcher.OverlayPort,
+			cfg.Dispatcher.UnderlayPort,
 		)
 		if err != nil {
 			fatal.Fatal(err)
@@ -128,7 +128,7 @@ func setupBasic() error {
 }
 
 func RunDispatcher(deleteSocketFlag bool, applicationSocket string, socketFileMode os.FileMode,
-	overlayPort int) error {
+	underlayPort int) error {
 
 	if deleteSocketFlag {
 		if err := deleteSocket(cfg.Dispatcher.ApplicationSocket); err != nil {
@@ -136,11 +136,11 @@ func RunDispatcher(deleteSocketFlag bool, applicationSocket string, socketFileMo
 		}
 	}
 	dispatcher := &network.Dispatcher{
-		OverlaySocket:     fmt.Sprintf(":%d", overlayPort),
+		UnderlaySocket:    fmt.Sprintf(":%d", underlayPort),
 		ApplicationSocket: applicationSocket,
 		SocketFileMode:    socketFileMode,
 	}
-	log.Debug("Dispatcher starting", "appSocket", applicationSocket, "overlayPort", overlayPort)
+	log.Debug("Dispatcher starting", "appSocket", applicationSocket, "underlayPort", underlayPort)
 	return dispatcher.ListenAndServe()
 }
 

@@ -16,8 +16,8 @@ go_library(
         "//go/lib/assert:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/log:go_default_library",
-        "//go/lib/overlay/conn:go_default_library",
         "//go/lib/ringbuf:go_default_library",
         "//go/lib/scrypto:go_default_library",
+        "//go/lib/underlay/conn:go_default_library",
     ],
 )

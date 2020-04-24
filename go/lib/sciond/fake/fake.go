@@ -86,7 +86,7 @@ func (p Path) Fingerprint() snet.PathFingerprint {
 	return snet.PathFingerprint(p.JSONFingerprint)
 }
 
-func (p Path) OverlayNextHop() *net.UDPAddr {
+func (p Path) UnderlayNextHop() *net.UDPAddr {
 	return (*net.UDPAddr)(p.JSONNextHop)
 }
 

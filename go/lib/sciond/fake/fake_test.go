@@ -107,7 +107,7 @@ func TestPaths(t *testing.T) {
 
 	require.Equal(t, 1, len(paths))
 	assert.Equal(t, "Foo", string(paths[0].Fingerprint()))
-	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 1}, Port: 80}, paths[0].OverlayNextHop())
+	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 1}, Port: 80}, paths[0].UnderlayNextHop())
 	assert.Equal(t, fake.DummyPath(), paths[0].Path())
 	assert.Equal(t, []snet.PathInterface{}, paths[0].Interfaces())
 	assert.Equal(t, xtest.MustParseIA("1-ff00:0:1"), paths[0].Destination())
@@ -128,7 +128,7 @@ func TestPaths(t *testing.T) {
 
 	require.Equal(t, 1, len(paths))
 	assert.Equal(t, "Foo2", string(paths[0].Fingerprint()))
-	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 2}, Port: 80}, paths[0].OverlayNextHop())
+	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 2}, Port: 80}, paths[0].UnderlayNextHop())
 	assert.Equal(t, fake.DummyPath(), paths[0].Path())
 	assert.Equal(t, []snet.PathInterface{}, paths[0].Interfaces())
 	assert.Equal(t, xtest.MustParseIA("2-ff00:0:2"), paths[0].Destination())

@@ -168,7 +168,7 @@ func (f *fetcher) translate(path *combinator.Path) (sciond.PathReplyEntry, error
 		// In-memory write should never fail
 		panic(err)
 	}
-	nextHop, ok := f.pather.TopoProvider.Get().OverlayNextHop(path.Interfaces[0].IfID)
+	nextHop, ok := f.pather.TopoProvider.Get().UnderlayNextHop(path.Interfaces[0].IfID)
 	if !ok {
 		return sciond.PathReplyEntry{}, serrors.New("unable to find first-hop BR for path",
 			"ifid", path.Interfaces[0].IfID)

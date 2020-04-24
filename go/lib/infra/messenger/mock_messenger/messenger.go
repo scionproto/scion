@@ -37,19 +37,19 @@ func (m *MockLocalSVCRouter) EXPECT() *MockLocalSVCRouterMockRecorder {
 	return m.recorder
 }
 
-// GetOverlay mocks base method
-func (m *MockLocalSVCRouter) GetOverlay(arg0 addr.HostSVC) (*net.UDPAddr, error) {
+// GetUnderlay mocks base method
+func (m *MockLocalSVCRouter) GetUnderlay(arg0 addr.HostSVC) (*net.UDPAddr, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOverlay", arg0)
+	ret := m.ctrl.Call(m, "GetUnderlay", arg0)
 	ret0, _ := ret[0].(*net.UDPAddr)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetOverlay indicates an expected call of GetOverlay
-func (mr *MockLocalSVCRouterMockRecorder) GetOverlay(arg0 interface{}) *gomock.Call {
+// GetUnderlay indicates an expected call of GetUnderlay
+func (mr *MockLocalSVCRouterMockRecorder) GetUnderlay(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOverlay", reflect.TypeOf((*MockLocalSVCRouter)(nil).GetOverlay), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUnderlay", reflect.TypeOf((*MockLocalSVCRouter)(nil).GetUnderlay), arg0)
 }
 
 // MockResolver is a mock of Resolver interface

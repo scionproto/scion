@@ -82,14 +82,14 @@ func (r *Router) translate(comb *combinator.Path, dst addr.IA) (path, error) {
 	if err := sp.InitOffsets(); err != nil {
 		return path{}, err
 	}
-	nextHop, ok := r.Pather.TopoProvider.Get().OverlayNextHop(comb.Interfaces[0].IfID)
+	nextHop, ok := r.Pather.TopoProvider.Get().UnderlayNextHop(comb.Interfaces[0].IfID)
 	if !ok {
 		return path{}, serrors.New("Unable to find first-hop BR for path",
 			"ifid", comb.Interfaces[0].IfID)
 	}
 	p := path{
 		interfaces: make([]pathInterface, 0, len(comb.Interfaces)),
-		overlay:    nextHop,
+		underlay:   nextHop,
 		spath:      sp,
 		mtu:        comb.Mtu,
 		expiry:     comb.ComputeExpTime(),
@@ -102,7 +102,7 @@ func (r *Router) translate(comb *combinator.Path, dst addr.IA) (path, error) {
 
 type path struct {
 	interfaces []pathInterface
-	overlay    *net.UDPAddr
+	underlay   *net.UDPAddr
 	spath      *spath.Path
 	mtu        uint16
 	expiry     time.Time
@@ -121,14 +121,14 @@ func (p path) Fingerprint() snet.PathFingerprint {
 	return snet.PathFingerprint(h.Sum(nil))
 }
 
-func (p path) OverlayNextHop() *net.UDPAddr {
-	if p.overlay == nil {
+func (p path) UnderlayNextHop() *net.UDPAddr {
+	if p.underlay == nil {
 		return nil
 	}
 	return &net.UDPAddr{
-		IP:   append(p.overlay.IP[:0:0], p.overlay.IP...),
-		Port: p.overlay.Port,
-		Zone: p.overlay.Zone,
+		IP:   append(p.underlay.IP[:0:0], p.underlay.IP...),
+		Port: p.underlay.Port,
+		Zone: p.underlay.Zone,
 	}
 }
 
@@ -168,8 +168,8 @@ func (p path) Expiry() time.Time {
 func (p path) Copy() snet.Path {
 	return path{
 		interfaces: append(p.interfaces[:0:0], p.interfaces...),
-		overlay:    p.OverlayNextHop(), // creates copy
-		spath:      p.Path(),           // creates copy
+		underlay:   p.UnderlayNextHop(), // creates copy
+		spath:      p.Path(),            // creates copy
 		mtu:        p.mtu,
 		expiry:     p.expiry,
 	}
@@ -178,7 +178,7 @@ func (p path) Copy() snet.Path {
 func (p path) String() string {
 	hops := p.fmtInterfaces()
 	return fmt.Sprintf("Hops: [%s] MTU: %d, NextHop: %s",
-		strings.Join(hops, ">"), p.mtu, p.overlay)
+		strings.Join(hops, ">"), p.mtu, p.underlay)
 }
 
 func (p path) fmtInterfaces() []string {

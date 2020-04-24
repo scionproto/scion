@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
-	"github.com/scionproto/scion/go/lib/topology/overlay"
+	"github.com/scionproto/scion/go/lib/topology/underlay"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -148,7 +148,7 @@ func TestIFInfoMap(t *testing.T) {
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::1"), Port: 30041},
 			},
-			Underlay: overlay.UDPIPv4,
+			Underlay: underlay.UDPIPv4,
 			Local: &net.UDPAddr{
 				IP:   net.IP{10, 0, 0, 1},
 				Port: 44997,
@@ -176,7 +176,7 @@ func TestIFInfoMap(t *testing.T) {
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::1"), Port: 30041},
 			},
-			Underlay: overlay.UDPIPv6,
+			Underlay: underlay.UDPIPv6,
 			Local: &net.UDPAddr{
 				IP:   net.ParseIP("2001:db8:a0b:12f0::8"),
 				Port: 44997,
@@ -204,7 +204,7 @@ func TestIFInfoMap(t *testing.T) {
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::1"), Port: 30041},
 			},
-			Underlay: overlay.UDPIPv4,
+			Underlay: underlay.UDPIPv4,
 			Local: &net.UDPAddr{
 				IP:   net.IP{10, 0, 0, 2},
 				Port: 44997,
@@ -238,7 +238,7 @@ func TestIFInfoMap(t *testing.T) {
 					Zone: "some-ctrl-zone",
 				},
 			},
-			Underlay: overlay.UDPIPv6,
+			Underlay: underlay.UDPIPv6,
 			Local: &net.UDPAddr{
 				IP:   net.ParseIP("2001:db8:a0b:12f0::8"),
 				Port: 44897,
@@ -275,7 +275,7 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::1"), Port: 30041},
 			},
-			Underlay: overlay.UDPIPv4,
+			Underlay: underlay.UDPIPv4,
 			Local: &net.UDPAddr{
 				IP:   net.IP{10, 0, 0, 1},
 				Port: 4997,
@@ -303,7 +303,7 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 				},
 				UnderlayAddress: &net.UDPAddr{IP: net.ParseIP("2001:db8:a0b:12f0::2"), Port: 30041},
 			},
-			Underlay: overlay.UDPIPv6,
+			Underlay: underlay.UDPIPv6,
 			Local: &net.UDPAddr{
 				IP:   net.ParseIP("2001:db8:a0b:12f0::8"),
 				Port: 4997,
@@ -541,7 +541,7 @@ func TestExternalDataPlanePort(t *testing.T) {
 			ExpectedError: assert.Error,
 		},
 		{
-			Name: "Empty with overlay",
+			Name: "Empty with underlay",
 			Raw: &jsontopo.BRInterface{
 				Underlay: "UDP/IPv4",
 			},
