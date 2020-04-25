@@ -76,8 +76,8 @@ tags
 
 # local buildkite run
 /artifacts.out
-.idea/misc.xml
-.idea/modules.xml
-.idea/scion.iml
-.idea/vcs.xml
-.idea/workspace.xml
+
+# IntelliJ folder
+#########################
+.idea/
+
