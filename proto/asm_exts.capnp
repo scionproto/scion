@@ -21,38 +21,38 @@ struct HiddenPathSegExtn{
 struct StaticInfoExtn {
     latency @0 :LatencyInfo;
     geo @1 :GeoInfo;
-    linktype @2 :LinktypeInfo;
+    linktype @2 :LinkTypeInfo;
     bandwidth @3 :BandwidthInfo;
     internalHops @4 :InternalHopsInfo;
     note @5 :Text;
-   
+
 
     struct LatencyInfo {
-        childLatencies @0 :List(LCPair);
-        peeringLatencies @1 :List(LPTriplet);
+        childLatencies @0 :List(ChildLatency);
+        peeringLatencies @1 :List(PeerLatency);
         egressLatency @2 :UInt16;
         ingressToEgressLatency @3 :UInt16;
 
-        struct LCPair {
-            intraDelay @0 :UInt16;
-            interface @1 :UInt16;
+        struct ChildLatency {
+            intra @0 :UInt16;
+            ifID @1 :UInt16;
         }
 
-        struct LPTriplet {
-            intraDelay @0 :UInt16;
-            interDelay @1 :UInt16;
-            interface @2 :UInt16;
+        struct PeerLatency {
+            intra @0 :UInt16;
+            inter @1 :UInt16;
+            ifID @2 :UInt16;
         }
     }
 
     struct BandwidthInfo {
-        bandwidthPairs @0 :List(BWPair);
+        bandwidths @0 :List(InterfaceBandwidth);
         egressBW @1 :UInt32;
         ingressToEgressBW @2 :UInt32;
 
-        struct BWPair {
-            BW @0 :UInt32;
-            interface @1 :UInt16;
+        struct InterfaceBandwidth {
+            bw @0 :UInt32;
+            ifID @1 :UInt16;
         }
     }
 
@@ -72,7 +72,7 @@ struct StaticInfoExtn {
     }
 
     struct LinkTypeInfo {
-        peeringLinks @0 :List(PeeringPair);
+        peeringLinks @0 :List(InterfaceLinkType);
         egressLinkType @1 :LinkType;
 
         enum LinkType{
@@ -81,19 +81,19 @@ struct StaticInfoExtn {
             openNet @2;
         }
 
-        struct PeeringPair {
-            interface @0 :UInt16;
-            peeringLinkType @1 :LinkType;
+        struct InterfaceLinkType {
+            ifID @0 :UInt16;
+            linkType @1 :LinkType;
         }
     }
 
     struct InternalHopsInfo {
-        hopPairs @0 :List(HopPair);
+        interfaceHops @0 :List(InterfaceHops);
         inToOutHops @1 :UInt8;
 
-        struct HopPair {
-            Hops @0 :UInt8;
-            interface @1 :UInt16;
+        struct InterfaceHops {
+            hops @0 :UInt8;
+            ifID @1 :UInt16;
         }
     }
 }
