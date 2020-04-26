@@ -1,6 +1,7 @@
 package seg
 
 import (
+	"github.com/scionproto/scion/go/cs/beaconing"
 	"github.com/scionproto/scion/go/lib/topology"
 	"math"
 )
@@ -84,21 +85,21 @@ type StaticInfoExtn struct {
 	Note string            `capnp:"note"`
 }
 
+// CreatePeerMap creates a map from interface IDs to booleans indicating whether the respective interface is used for
+// peering or not.
+func CreatePeerMap(cfg beaconing.ExtenderConf) map[uint16]bool{
+	var peers map[uint16]bool
+	for ifID, ifInfo := range cfg.Intfs.All(){
+		peers[uint16(ifID)] = (ifInfo.TopoInfo().LinkType) == topology.Peer
+	}
+	return peers
+}
+
 // gatherlatency takes an intermediate struct only used to parse data from a config.json file, a map of interface IDs to
 // booleans indicating whether the interface in question is used for peering, and egress interface ID and an
 // ingress interface ID.
 // Extracts latency values from that struct and inserts them into the latency portion of a StaticInfoExtn struct.
-func (latinf *LatencyInfo) gatherlatency(somestruct Configdata, egifID uint16, inifID uint16) {
-	var peers map[uint16]bool
-	var topogetter topology.Provider
-	mytopo := topogetter.Get()
-	names := mytopo.BRNames()
-	for _, BR := range names{
-		currBR, _ := mytopo.BR(BR)
-		for ifID, info := range currBR.IFs{
-			peers[uint16(ifID)] = (info.LinkType.String()=="PEER")
-		}
-	}
+func (latinf *LatencyInfo) gatherlatency(somestruct Configdata, peers map[uint16]bool, egifID uint16, inifID uint16) {
 	latinf.Egresslatency = somestruct.Latency[egifID].Inter
 	latinf.Intooutlatency = somestruct.Latency[egifID].Intra[inifID]
 	for subintfid, intfdelay := range somestruct.Latency[egifID].Intra{
@@ -123,17 +124,7 @@ func (latinf *LatencyInfo) gatherlatency(somestruct Configdata, egifID uint16, i
 // booleans indicating whether the interface in question is used for peering, and egress interface ID and an
 // ingress interface ID.
 // Extracts bandwidth values from that struct and inserts them into the bandwidth portion of a StaticInfoExtn struct.
-func (bwinf *BandwidthInfo) gatherbw(somestruct Configdata, egifID uint16, inifID uint16) {
-	var peers map[uint16]bool
-	var topogetter topology.Provider
-	mytopo := topogetter.Get()
-	names := mytopo.BRNames()
-	for _, BR := range names{
-		currBR, _ := mytopo.BR(BR)
-		for ifID, info := range currBR.IFs{
-			peers[uint16(ifID)] = (info.LinkType.String()=="PEER")
-		}
-	}
+func (bwinf *BandwidthInfo) gatherbw(somestruct Configdata, peers map[uint16]bool, egifID uint16, inifID uint16) {
 	bwinf.EgressBW = somestruct.Bandwidth[egifID].Inter
 	bwinf.IntooutBW = somestruct.Bandwidth[egifID].Intra[inifID]
 	for subintfid, intfbw := range somestruct.Bandwidth[egifID].Intra{
@@ -155,17 +146,7 @@ func (bwinf *BandwidthInfo) gatherbw(somestruct Configdata, egifID uint16, inifI
 // gatherlinktype takes an intermediate struct only used to parse data from a config.json file, a map of interface IDs to
 // booleans indicating whether the interface in question is used for peering, and egress interface ID.
 // Extracts linktype values from that struct and inserts them into the linktype portion of a StaticInfoExtn struct.
-func (ltinf *LinktypeInfo) gatherlinktype(somestruct Configdata, egifID uint16) {
-	var peers map[uint16]bool
-	var topogetter topology.Provider
-	mytopo := topogetter.Get()
-	names := mytopo.BRNames()
-	for _, BR := range names{
-		currBR, _ := mytopo.BR(BR)
-		for ifID, info := range currBR.IFs{
-			peers[uint16(ifID)] = (info.LinkType.String()=="PEER")
-		}
-	}
+func (ltinf *LinktypeInfo) gatherlinktype(somestruct Configdata, peers map[uint16]bool, egifID uint16) {
 	ltinf.EgressLT = somestruct.Linktype[egifID]
 	for intfid, intfLT := range somestruct.Linktype {
 		if (peers[intfid]) {

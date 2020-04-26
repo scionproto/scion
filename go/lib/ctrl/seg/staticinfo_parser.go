@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+
+	"github.com/scionproto/scion/go/cs/beaconing"
 )
 
 
@@ -38,23 +40,7 @@ type Configdata struct {
 	Note    string             `json:"Note"`
 }
 
-type Topointf struct {
-	LinkTo string `json:"LinkTo"`
-}
-
-type BR struct {
-	Intfs map[uint16]Topointf `json:"Interfaces"`
-}
-
-// Topo is used to parse data from topology.json
-type Topo struct {
-	BRs map[string]BR `json:"BorderRouters"`
-}
-
-// Parseconfigdata takes the path of a config.json and the path of a topologyfile, both in the form of a string.
-// Parses data from config json into a Configdata struct and uses data from a topologyfile to
-// create a map from interfaces to bools indicating whether or not the interface is used in peering.
-// Returns the Configdata struct as well as the map from intfIDs to bools.
+// Parseconfigdata parses data from a config file into a Configdata struct.
 func Parsenconfigdata(datafile string) (Configdata, error) {
 	var myerror error
 	jsonFile, err := os.Open(datafile)
@@ -72,17 +58,15 @@ func Parsenconfigdata(datafile string) (Configdata, error) {
 }
 
 
-// GenerateStaticinfo takes as input some Configdata as well as
-// an egress and an ingress interface ID.
-// Fills a StaticinfoExtn struct with data extracted from a config.json and a topologyfile.
-// Returns a pointer to said StaticInfoExtn struct.
-func GenerateStaticinfo(configdata Configdata, egifID uint16, inifID uint16) *StaticInfoExtn {
+
+// GenerateStaticinfo creates a StaticinfoExtn struct and populates it with data extracted from configdata.
+func GenerateStaticinfo(configdata Configdata, peers map[uint16]bool, egifID uint16, inifID uint16) StaticInfoExtn {
 	var res StaticInfoExtn
-	res.Latency.gatherlatency(configdata, egifID, inifID)
-	res.Bandwidth.gatherbw(configdata, egifID, inifID)
-	res.Linktype.gatherlinktype(configdata, egifID)
+	res.Latency.gatherlatency(configdata, peers, egifID, inifID)
+	res.Bandwidth.gatherbw(configdata, peers, egifID, inifID)
+	res.Linktype.gatherlinktype(configdata, peers, egifID)
 	res.Geo.gathergeo(configdata)
 	res.Note = configdata.Note
 	res.Hops.gatherhops(configdata, egifID, inifID)
-	return &res
+	return res
 }
