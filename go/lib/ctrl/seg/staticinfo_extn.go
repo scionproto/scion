@@ -1,11 +1,11 @@
 package seg
 
 import (
+	"math"
+
 	"github.com/scionproto/scion/go/cs/beaconing"
 	"github.com/scionproto/scion/go/lib/topology"
-	"math"
 )
-
 
 type LatencyInfo struct {
 	Egresslatency uint16 `capnp:"egressLatency"`
@@ -15,26 +15,26 @@ type LatencyInfo struct {
 }
 
 type Latencychildpair struct {
-	Intradelay uint16   `capnp:"intraDelay"`
-	Interface  uint16 `capnp:"interface"`
+	Intradelay uint16   `capnp:"intra"`
+	Interface  uint16 `capnp:"ifID"`
 }
 
 type Latencypeeringtriplet struct {
-	Interdelay uint16 `capnp:"interDelay"`
-	IntraDelay uint16 `capnp:"intraDelay"`
-	IntfID uint16 `capnp:"interface"`
+	Interdelay uint16 `capnp:"inter"`
+	IntraDelay uint16 `capnp:"intra"`
+	IntfID uint16 `capnp:"ifID"`
 }
 
 
 type BandwidthInfo struct {
 	EgressBW uint32 `capnp:"egressBW"`
 	IntooutBW uint32 `capnp:"ingressToEgressBW"`
-	BWPairs []BWPair `capnp:"bandwidthPairs"`
+	BWPairs []BWPair `capnp:"bandwidths"`
 }
 
 type BWPair struct {
-	BW  uint32   `capnp:"BW"`
-	IntfID uint16 `capnp:"interface"`
+	BW  uint32   `capnp:"bw"`
+	IntfID uint16 `capnp:"ifID"`
 }
 
 
@@ -60,19 +60,19 @@ type LinktypeInfo struct {
 }
 
 type LTPeeringpair struct {
-	IntfID uint16 `capnp:"interface"`
-	IntfLT string `capnp:"peeringLinkType"`
+	IntfID uint16 `capnp:"ifID"`
+	IntfLT string `capnp:"linkType"`
 }
 
 
 type InternalHopsInfo struct {
 	Intououthops uint8 `capnp:"inToOutHops"`
-	Hoppairs []Hoppair `capnp:"hopPairs"`
+	Hoppairs []Hoppair `capnp:"interfaceHops"`
 }
 
 type Hoppair struct {
-	Hops uint8    `capnp:"Hops"`
-	IntfID uint16 `capnp:"interface"`
+	Hops uint8    `capnp:"hops"`
+	IntfID uint16 `capnp:"ifID"`
 }
 
 

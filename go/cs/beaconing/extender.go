@@ -66,13 +66,6 @@ func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDTy
 		return err
 	}
 	meta := s.cfg.Signer.Meta()
-	//TODO: Fix this thing. Where do I get the path of the datafile from?
-	staticInfoConfigData, parseErr := seg.Parsenconfigdata("somepath.json")
-	if parseErr != nil {
-		//TODO: Handle error somehow?
-	}
-	staticInfoPeers := seg.CreatePeerMap(s.cfg)
-	staticInfo := seg.GenerateStaticinfo(staticInfoConfigData, staticInfoPeers, uint16(egIfid), uint16(inIfid))
 	asEntry := &seg.ASEntry{
 		RawIA:      meta.Src.IA.IAInt(),
 		CertVer:    meta.Src.ChainVer,
@@ -81,7 +74,6 @@ func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDTy
 		MTU:        s.cfg.MTU,
 		HopEntries: hopEntries,
 	}
-	asEntry.Exts.StaticInfo = &staticInfo
 	if err := pseg.AddASEntry(asEntry, s.cfg.Signer); err != nil {
 		return err
 	}

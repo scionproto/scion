@@ -38,7 +38,7 @@ type ASEntry struct {
 		RoutingPolicy common.RawBytes    `capnp:"-"` // Not supported yet
 		Sibra         common.RawBytes    `capnp:"-"` // Not supported yet
 		HiddenPathSeg *HiddenPathSegExtn `capnp:"hiddenPathSeg"`
-		StaticInfo    *StaticInfoExtn    `capnp:"-"` //Not supported yet
+		StaticInfo    *StaticInfoExtn    `capnp:"staticInfo"` //Not supported yet
 	}
 }
 

@@ -5,8 +5,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
-
-	"github.com/scionproto/scion/go/cs/beaconing"
 )
 
 
@@ -56,8 +54,6 @@ func Parsenconfigdata(datafile string) (Configdata, error) {
 	json.Unmarshal(rawfile, &res)
 	return res, myerror
 }
-
-
 
 // GenerateStaticinfo creates a StaticinfoExtn struct and populates it with data extracted from configdata.
 func GenerateStaticinfo(configdata Configdata, peers map[uint16]bool, egifID uint16, inifID uint16) StaticInfoExtn {

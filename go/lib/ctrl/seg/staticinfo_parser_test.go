@@ -98,7 +98,6 @@ func compareConfigHops(totest map[uint16]Hopintf, expected map[uint16]Hopintf) (
 	return passed, info
 }
 
-
 // configcompare compares two Configdata, one under test (totest) and one with the expected result,
 // and reports any deviations from the expected result in totest.
 func configcompare(totest Configdata, expected Configdata)(bool, string){
@@ -132,7 +131,6 @@ func configcompare(totest Configdata, expected Configdata)(bool, string){
 
 	return passed, info
 }
-
 
 // testparsing tests whether or not Parseconfigdata works properly.
 func testparsing() (string, bool){
@@ -223,7 +221,6 @@ func testparsing() (string, bool){
 
 	return info, passed
 }
-
 
 func compareLatencyInfo(totest LatencyInfo, expected LatencyInfo) (bool, string){
 	passed := true
