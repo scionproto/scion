@@ -371,29 +371,29 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 
 
 func gatherxoverlatency(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIFID common.IFIDType) (uint16, addr.IA){
-	var ret1 uint16
-	var ret2 addr.IA
+	var latency uint16
+	var IA addr.IA
 	for i:=0;i< len(SI.Latency.Childlatencies);i++{
 		if (common.IFIDType(SI.Latency.Childlatencies[i].Interface)==inIFID){
-			ret1 = SI.Latency.Childlatencies[i].Intradelay
-			ret2 = asEntry.IA()
+			latency = SI.Latency.Childlatencies[i].Intradelay
+			IA = asEntry.IA()
 		}
 	}
-	return ret1, ret2
+	return latency, IA
 }
 
 
 func gatherpeeringlatencydata(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIFID common.IFIDType) (uint16, uint16, addr.IA){
 	var intradelay, peeringdelay uint16
-	var ret3 addr.IA
+	var IA addr.IA
 	for i:=0;i< len(SI.Latency.Peeringlatencies);i++{
 		if (common.IFIDType(SI.Latency.Peeringlatencies[i].IntfID)==inIFID){
 			intradelay = SI.Latency.Peeringlatencies[i].IntraDelay
 			peeringdelay = SI.Latency.Peeringlatencies[i].Interdelay
-			ret3 = asEntry.IA()
+			IA = asEntry.IA()
 		}
 	}
-	return intradelay, peeringdelay, ret3
+	return intradelay, peeringdelay, IA
 }
 
 
@@ -409,34 +409,34 @@ func gatherpeeroverlink(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIFID com
 
 
 func gatherxoverbw(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIFID common.IFIDType) uint32{
-	var ret1 uint32
+	var bw uint32
 	for i:=0;i< len(SI.Bandwidth.BWPairs);i++ {
 		if (common.IFIDType(SI.Bandwidth.BWPairs[i].IntfID) == inIFID) {
-			ret1 = SI.Bandwidth.BWPairs[i].BW
+			bw = SI.Bandwidth.BWPairs[i].BW
 		}
 	}
-	return ret1
+	return bw
 }
 
 func gatherxoverhops(SI *seg.StaticInfoExtn, asEntry *seg.ASEntry, inIFID common.IFIDType) uint8 {
-	var ret1 uint8
+	var hops uint8
 	for i := 0; i < len(SI.Hops.Hoppairs); i++ {
 		if (common.IFIDType(SI.Hops.Hoppairs[i].IntfID) == inIFID) {
-			ret1 = SI.Hops.Hoppairs[i].Hops
+			hops = SI.Hops.Hoppairs[i].Hops
 		}
 	}
-	return ret1
+	return hops
 }
 
 
 func gathergeo(SI *seg.StaticInfoExtn, entry *seg.ASEntry) ([]geoloc){
-	var ret []geoloc
+	var loc []geoloc
 	for _, geocluster := range SI.Geo.Locations{
 		var tempcluster geoloc
 		tempcluster.Latitude = geocluster.GPSData.Latitude
 		tempcluster.Longitude = geocluster.GPSData.Longitude
 		tempcluster.CivAddr = geocluster.GPSData.Address
-		ret = append(ret, tempcluster)
+		loc = append(loc, tempcluster)
 	}
-	return ret
+	return loc
 }
