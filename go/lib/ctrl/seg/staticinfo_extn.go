@@ -95,88 +95,82 @@ func CreatePeerMap(cfg beaconing.ExtenderConf) map[uint16]bool{
 	return peers
 }
 
-// gatherlatency takes an intermediate struct only used to parse data from a config.json file, a map of interface IDs to
-// booleans indicating whether the interface in question is used for peering, and egress interface ID and an
-// ingress interface ID.
-// Extracts latency values from that struct and inserts them into the latency portion of a StaticInfoExtn struct.
-func (latinf *LatencyInfo) gatherlatency(somestruct Configdata, peers map[uint16]bool, egifID uint16, inifID uint16) {
-	latinf.Egresslatency = somestruct.Latency[egifID].Inter
-	latinf.Intooutlatency = somestruct.Latency[egifID].Intra[inifID]
-	for subintfid, intfdelay := range somestruct.Latency[egifID].Intra{
+// gatherlatency extracts latency values from a Configdata struct and
+// inserts them into the LatencyInfo portion of a StaticInfoExtn struct.
+func (latinf *LatencyInfo) gatherlatency(cfgdata Configdata, peers map[uint16]bool, egifID uint16, inifID uint16) {
+	latinf.Egresslatency = cfgdata.Latency[egifID].Inter
+	latinf.Intooutlatency = cfgdata.Latency[egifID].Intra[inifID]
+	for subintfid, intfdelay := range cfgdata.Latency[egifID].Intra{
 		if !(peers[subintfid]) {
 			if subintfid > egifID {
-				var asdf Latencychildpair
-				asdf.Intradelay = intfdelay
-				asdf.Interface = subintfid
-				latinf.Childlatencies = append(latinf.Childlatencies, asdf)
+				var latpair Latencychildpair
+				latpair.Intradelay = intfdelay
+				latpair.Interface = subintfid
+				latinf.Childlatencies = append(latinf.Childlatencies, latpair)
 			}
 		} else {
-			var asdf Latencypeeringtriplet
-			asdf.IntfID = subintfid
-			asdf.Interdelay = somestruct.Latency[subintfid].Inter
-			asdf.IntraDelay = intfdelay
-			latinf.Peeringlatencies = append(latinf.Peeringlatencies, asdf)
+			var lattriple Latencypeeringtriplet
+			lattriple.IntfID = subintfid
+			lattriple.Interdelay = cfgdata.Latency[subintfid].Inter
+			lattriple.IntraDelay = intfdelay
+			latinf.Peeringlatencies = append(latinf.Peeringlatencies, lattriple)
 		}
 	}
 }
 
-// gatherbw takes an intermediate struct only used to parse data from a config.json file, a map of interface IDs to
-// booleans indicating whether the interface in question is used for peering, and egress interface ID and an
-// ingress interface ID.
-// Extracts bandwidth values from that struct and inserts them into the bandwidth portion of a StaticInfoExtn struct.
-func (bwinf *BandwidthInfo) gatherbw(somestruct Configdata, peers map[uint16]bool, egifID uint16, inifID uint16) {
-	bwinf.EgressBW = somestruct.Bandwidth[egifID].Inter
-	bwinf.IntooutBW = somestruct.Bandwidth[egifID].Intra[inifID]
-	for subintfid, intfbw := range somestruct.Bandwidth[egifID].Intra{
+// gatherbw e xtracts bandwidth values from a Configdata struct and
+// inserts them into the BandwidthInfo portion of a StaticInfoExtn struct.
+func (bwinf *BandwidthInfo) gatherbw(cfgdata Configdata, peers map[uint16]bool, egifID uint16, inifID uint16) {
+	bwinf.EgressBW = cfgdata.Bandwidth[egifID].Inter
+	bwinf.IntooutBW = cfgdata.Bandwidth[egifID].Intra[inifID]
+	for subintfid, intfbw := range cfgdata.Bandwidth[egifID].Intra{
 		var minbw uint32
 		if subintfid>egifID{
 			if peers[subintfid]{
-				minbw = uint32(math.Min(float64(intfbw), float64(somestruct.Bandwidth[subintfid].Inter)))
+				minbw = uint32(math.Min(float64(intfbw), float64(cfgdata.Bandwidth[subintfid].Inter)))
 			} else {
 				minbw = intfbw
 			}
-			var asdf BWPair
-			asdf.BW = minbw
-			asdf.IntfID = subintfid
-			bwinf.BWPairs = append(bwinf.BWPairs, asdf)
+			var bwpair BWPair
+			bwpair.BW = minbw
+			bwpair.IntfID = subintfid
+			bwinf.BWPairs = append(bwinf.BWPairs, bwpair)
 		}
 	}
 }
 
-// gatherlinktype takes an intermediate struct only used to parse data from a config.json file, a map of interface IDs to
-// booleans indicating whether the interface in question is used for peering, and egress interface ID.
-// Extracts linktype values from that struct and inserts them into the linktype portion of a StaticInfoExtn struct.
-func (ltinf *LinktypeInfo) gatherlinktype(somestruct Configdata, peers map[uint16]bool, egifID uint16) {
-	ltinf.EgressLT = somestruct.Linktype[egifID]
-	for intfid, intfLT := range somestruct.Linktype {
+// gatherlinktype extracts linktype values from a Configdata struct and
+// inserts them into the LinktypeInfo portion of a StaticInfoExtn struct.
+func (ltinf *LinktypeInfo) gatherlinktype(cfgdata  Configdata, peers map[uint16]bool, egifID uint16) {
+	ltinf.EgressLT = cfgdata .Linktype[egifID]
+	for intfid, intfLT := range cfgdata .Linktype {
 		if (peers[intfid]) {
-			var asdf LTPeeringpair
-			asdf.IntfLT = intfLT
-			asdf.IntfID = intfid
-			ltinf.Peeringlinks = append(ltinf.Peeringlinks, asdf)
+			var ltpair LTPeeringpair
+			ltpair.IntfLT = intfLT
+			ltpair.IntfID = intfid
+			ltinf.Peeringlinks = append(ltinf.Peeringlinks, ltpair)
 		}
 	}
 }
 
-// gatherhops takes an intermediate struct only used to parse data from a config.json file, an egress and ingress
-// interface ID.
-// Extracts linktype values from that struct and inserts them into the linktype portion of a StaticInfoExtn struct.
-func (nhinf *InternalHopsInfo) gatherhops(somestruct Configdata, egifID uint16, inifID uint16){
-	nhinf.Intououthops = somestruct.Hops[egifID].Intra[inifID]
-	for subintfid, hops := range somestruct.Hops[egifID].Intra {
+// gatherhops extracts hop values from a Configdata struct and
+// inserts them into the InternalHopsinfo portion of a StaticInfoExtn struct.
+func (nhinf *InternalHopsInfo) gatherhops(cfgdata  Configdata, egifID uint16, inifID uint16){
+	nhinf.Intououthops = cfgdata .Hops[egifID].Intra[inifID]
+	for subintfid, hops := range cfgdata .Hops[egifID].Intra {
 		if (subintfid>egifID) {
-			var asdf Hoppair
-			asdf.Hops = hops
-			asdf.IntfID = subintfid
-			nhinf.Hoppairs = append(nhinf.Hoppairs, asdf)
+			var hoppair Hoppair
+			hoppair.Hops = hops
+			hoppair.IntfID = subintfid
+			nhinf.Hoppairs = append(nhinf.Hoppairs, hoppair)
 		}
 	}
 }
 
-// gathergeo takes an intermediate struct only used to parse data from a config.json file.
-// Extracts geo values from that struct and inserts them into the geo portion of a StaticInfoExtn struct.
-func (geoinf *GeoInfo) gathergeo(somestruct Configdata) {
-	for intfid, loc := range somestruct.Geo {
+// gathergeo extracts geo values from a Configdata struct and
+// inserts them into the GeoInfo portion of a StaticInfoExtn struct.
+func (geoinf *GeoInfo) gathergeo(cfgdata  Configdata) {
+	for intfid, loc := range cfgdata .Geo {
 		var assigned = false
 		for k := 0; k < len(geoinf.Locations); k++ {
 			if (loc.Longitude == geoinf.Locations[k].GPSData.Longitude) && (loc.Latitude == geoinf.Locations[k].GPSData.Latitude) && (loc.Address == geoinf.Locations[k].GPSData.Address) && (!assigned) {
@@ -185,12 +179,12 @@ func (geoinf *GeoInfo) gathergeo(somestruct Configdata) {
 			}
 		}
 		if !assigned {
-			var asdf Location
-			asdf.GPSData.Longitude = loc.Longitude
-			asdf.GPSData.Latitude = loc.Latitude
-			asdf.GPSData.Address = loc.Address
-			asdf.IntfIDs = append(asdf.IntfIDs, intfid)
-			geoinf.Locations = append(geoinf.Locations, asdf)
+			var locaction Location
+			locaction.GPSData.Longitude = loc.Longitude
+			locaction.GPSData.Latitude = loc.Latitude
+			locaction.GPSData.Address = loc.Address
+			locaction.IntfIDs = append(locaction.IntfIDs, intfid)
+			geoinf.Locations = append(geoinf.Locations, locaction)
 			assigned = true
 		}
 	}
