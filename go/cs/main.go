@@ -731,6 +731,10 @@ func setup() error {
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
 	}
+	tempcfg, cfgerr := seg.Parsenconfigdata(cfg.General.StaticInfoConfig())
+	if cfgerr == nil {
+		staticInfoCfg = tempcfg
+	}
 	// Use CS for monolith for now
 	itopo.Init(
 		&itopo.Config{
