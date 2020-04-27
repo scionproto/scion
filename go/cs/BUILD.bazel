@@ -21,6 +21,7 @@ go_library(
         "//go/cs/segutil:go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
+        "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/env:go_default_library",
         "//go/lib/fatal:go_default_library",
         "//go/lib/infra:go_default_library",
