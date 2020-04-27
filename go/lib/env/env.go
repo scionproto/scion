@@ -49,6 +49,9 @@ const (
 	// TopologyFile is the file name for the topology file.
 	TopologyFile = "topology.json"
 
+	// StaticinfoConfigFile is the file name for the configuration file used for the StaticInfo beacon extension.
+	StaticInfoConfigFile = "staticInfoConfig.json"
+
 	// SciondInitConnectPeriod is the default total amount of time spent
 	// attempting to connect to sciond on start.
 	SciondInitConnectPeriod = 20 * time.Second
@@ -72,7 +75,7 @@ type General struct {
 	// ID is the SCION element ID. This is used to choose the relevant
 	// portion of the topology file for some services.
 	ID string `toml:"id,omitempty"`
-	// ConfigDir for loading extra files (currently, only topology.json)
+	// ConfigDir for loading extra files (currently, only topology.json and staticInfoConfig.json)
 	ConfigDir string `toml:"config_dir,omitempty"`
 	// ReconnectToDispatcher can be set to true to enable transparent dispatcher
 	// reconnects.
@@ -115,6 +118,11 @@ func (cfg *General) ConfigName() string {
 // Topology returns the path to the topology file
 func (cfg *General) Topology() string {
 	return filepath.Join(cfg.ConfigDir, TopologyFile)
+}
+
+// StaticInfoConfig return the path to the configuration file for the StaticInfo beacon extension.
+func (cfg *General) StaticInfoConfig() string {
+	return filepath.Join(cfg.ConfigDir, StaticInfoConfigFile)
 }
 
 var _ config.Config = (*SCIONDClient)(nil)

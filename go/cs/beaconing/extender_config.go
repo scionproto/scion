@@ -15,6 +15,7 @@
 package beaconing
 
 import (
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"hash"
 
 	"github.com/scionproto/scion/go/cs/ifstate"
@@ -44,6 +45,8 @@ type ExtenderConf struct {
 	GetMaxExpTime func() spath.ExpTimeType
 	// task contains an identifier specific to the task that uses the extender.
 	task string
+	// StaticInfoCfg contains the Configdata used for the StaticInfo Extension.
+	StaticInfoCfg seg.Configdata
 }
 
 // InitDefaults initializes the default values, if not set.
