@@ -97,7 +97,7 @@ func CreatePeerMap(cfg beaconing.ExtenderConf) map[uint16]bool{
 
 // gatherlatency extracts latency values from a Configdata struct and
 // inserts them into the LatencyInfo portion of a StaticInfoExtn struct.
-func (latinf *LatencyInfo) gatherlatency(cfgdata Configdata, peers map[uint16]bool, egifID uint16, inifID uint16) {
+func (latinf *LatencyInfo) Gatherlatency(cfgdata Configdata, peers map[uint16]bool, egifID uint16, inifID uint16) {
 	latinf.Egresslatency = cfgdata.Latency[egifID].Inter
 	latinf.Intooutlatency = cfgdata.Latency[egifID].Intra[inifID]
 	for subintfid, intfdelay := range cfgdata.Latency[egifID].Intra{
@@ -120,7 +120,7 @@ func (latinf *LatencyInfo) gatherlatency(cfgdata Configdata, peers map[uint16]bo
 
 // gatherbw e xtracts bandwidth values from a Configdata struct and
 // inserts them into the BandwidthInfo portion of a StaticInfoExtn struct.
-func (bwinf *BandwidthInfo) gatherbw(cfgdata Configdata, peers map[uint16]bool, egifID uint16, inifID uint16) {
+func (bwinf *BandwidthInfo) Gatherbw(cfgdata Configdata, peers map[uint16]bool, egifID uint16, inifID uint16) {
 	bwinf.EgressBW = cfgdata.Bandwidth[egifID].Inter
 	bwinf.IntooutBW = cfgdata.Bandwidth[egifID].Intra[inifID]
 	for subintfid, intfbw := range cfgdata.Bandwidth[egifID].Intra{
@@ -141,7 +141,7 @@ func (bwinf *BandwidthInfo) gatherbw(cfgdata Configdata, peers map[uint16]bool, 
 
 // gatherlinktype extracts linktype values from a Configdata struct and
 // inserts them into the LinktypeInfo portion of a StaticInfoExtn struct.
-func (ltinf *LinktypeInfo) gatherlinktype(cfgdata  Configdata, peers map[uint16]bool, egifID uint16) {
+func (ltinf *LinktypeInfo) Gatherlinktype(cfgdata  Configdata, peers map[uint16]bool, egifID uint16) {
 	ltinf.EgressLT = cfgdata .Linktype[egifID]
 	for intfid, intfLT := range cfgdata .Linktype {
 		if (peers[intfid]) {
@@ -155,7 +155,7 @@ func (ltinf *LinktypeInfo) gatherlinktype(cfgdata  Configdata, peers map[uint16]
 
 // gatherhops extracts hop values from a Configdata struct and
 // inserts them into the InternalHopsinfo portion of a StaticInfoExtn struct.
-func (nhinf *InternalHopsInfo) gatherhops(cfgdata  Configdata, egifID uint16, inifID uint16){
+func (nhinf *InternalHopsInfo) Gatherhops(cfgdata  Configdata, egifID uint16, inifID uint16){
 	nhinf.Intououthops = cfgdata .Hops[egifID].Intra[inifID]
 	for subintfid, hops := range cfgdata .Hops[egifID].Intra {
 		if (subintfid>egifID) {
@@ -169,7 +169,7 @@ func (nhinf *InternalHopsInfo) gatherhops(cfgdata  Configdata, egifID uint16, in
 
 // gathergeo extracts geo values from a Configdata struct and
 // inserts them into the GeoInfo portion of a StaticInfoExtn struct.
-func (geoinf *GeoInfo) gathergeo(cfgdata  Configdata) {
+func (geoinf *GeoInfo) Gathergeo(cfgdata  Configdata) {
 	for intfid, loc := range cfgdata .Geo {
 		var assigned = false
 		for k := 0; k < len(geoinf.Locations); k++ {
