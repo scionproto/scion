@@ -49,12 +49,11 @@
 
 run_test() {(set -e
     # Register with the docker daemon the docker images bazel created
-    # (--norun is used for docker images created via go_image because the script runs them by default)
-    bash go/tools/udpproxy/udpproxy --norun
-    bash acceptance/sig_short_exp_time/dispatcher1
-    bash acceptance/sig_short_exp_time/dispatcher2
-    bash acceptance/sig_short_exp_time/sig1
-    bash acceptance/sig_short_exp_time/sig2
+    docker image load -i acceptance/sig_short_exp_time/udpproxy.tar
+    docker image load -i acceptance/sig_short_exp_time/dispatcher1.tar
+    docker image load -i acceptance/sig_short_exp_time/dispatcher2.tar
+    docker image load -i acceptance/sig_short_exp_time/sig1.tar
+    docker image load -i acceptance/sig_short_exp_time/sig2.tar
 
     docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml up -d dispatcher1 dispatcher2 sig1 sig2 patha pathb
 
