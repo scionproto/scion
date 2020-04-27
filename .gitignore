@@ -79,3 +79,7 @@ tags
 
 # documentation builds
 _build
+
+# IntelliJ folder
+#########################
+.idea/
