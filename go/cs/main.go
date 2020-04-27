@@ -20,6 +20,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"hash"
 	"net"
 	"net/http"
@@ -78,6 +79,8 @@ import (
 
 var (
 	cfg config.Config
+
+	staticInfoCfg seg.Configdata
 
 	intfs *ifstate.Interfaces
 	tasks *periodicTasks
@@ -583,6 +586,7 @@ func (t *periodicTasks) startPropagator(a *net.UDPAddr) (*periodic.Runner, error
 			MTU:           topo.MTU(),
 			Signer:        signer,
 			GetMaxExpTime: maxExpTimeFactory(t.store, beacon.PropPolicy),
+			StaticInfoCfg: staticInfoCfg,
 		},
 		Period: cfg.BS.PropagationInterval.Duration,
 	}.New()
