@@ -3,6 +3,7 @@
 package proto
 
 import (
+	math "math"
 	capnp "zombiezen.com/go/capnproto2"
 	text "zombiezen.com/go/capnproto2/encoding/text"
 	schemas "zombiezen.com/go/capnproto2/schemas"
@@ -236,32 +237,1438 @@ func (p HiddenPathSegExtn_Promise) Struct() (HiddenPathSegExtn, error) {
 	return HiddenPathSegExtn{s}, err
 }
 
-const schema_e6c88f91b6a1209e = "x\xda\x8c\xce?\x8b\x13A\x1c\xc6\xf1\xe7\x99\xd9d\x8d" +
-	"h\x925\xfb\x02\xc4RD\x08\"\x88\x8d\x7fH\xc0t" +
-	";\xc6F\x10t\xc9\x8e\xc9Bvva'\xb0[\x05" +
-	"A\xad\x04I\xa1b#\xe45\x08bk\xa1\xf8\x1a\xae" +
-	";\xb8?/\xe0\xaa\xab\xf6\xd8\x14w\x1c\x97\xe2\xda\x1f" +
-	"\x9fy\xe6\xdb\xfd\xf6X\xf4\x1b\x1d\x02\xeaZ\xa3Y\x1d" +
-	"\xef\xdd\x7f\xf0{\xe7\xcfW\xa8\x0eE\xf5\xe3\xe6\xfa\xd7" +
-	"\xea\xf3\xff\x034\xe8\x02\xfdD\xd0+]\xc0[\x1c\x82" +
-	"\xd5\xfa\xdf\x9dwm\xfd\xf1oMyF\x1d\x17\xb8\xf7" +
-	"\x927\xd8\x8b\xebG=\xcdG`u\xf4i\x7f\xf7\xfb" +
-	"\xcf\xb2\xda\x86?\xf0*{_6x\xb5\xc1a\x9e\xbc" +
-	"\xd6\x85\xcd\xe5\xddI\x98\x99\xec\xe1\xf3tac3\x0d" +
-	"\xd2y<)\x87\x85E@\xaa\xaet\x00\x87\x80\x17\xde" +
-	"\x02\xd4+I5\x13\xf4H\x9f\xf5Q?\x05\xd4\x1bI" +
-	"5\x17\xf4\x04}\x0a\xc0\x8bo\x03*\x92T\x99 \xa5" +
-	"O\x09xI\x0dg\x92\xea\xbd\xa0\x9bkKB\x90\xe0" +
-	"2K\xe7/\xcaL\xb3\x09\xc1&\xd8\x89\xdf\x8e\x06l" +
-	"A\xb0\x05.\xe3<\x0as\x9d\xb3\x0d\x06\x92\x9bs{" +
-	"K\xf9h<xbL\xba0\x13\x9dhc\x87\x05m" +
-	"\xdd\xee\x9c\xb6_\xaf\xdb\xafH*\xff\xfc\xef\x17\x96\x9e" +
-	"\xc5Q\xa4M\x10\xda\xd9XO\x87\x855\xc0\xe5\x96N" +
-	"\x02\x00\x00\xff\xff#\x1dpa"
+type StaticInfoExtn struct{ capnp.Struct }
+
+// StaticInfoExtn_TypeID is the unique identifier for the type StaticInfoExtn.
+const StaticInfoExtn_TypeID = 0xdb505e3694652d57
+
+func NewStaticInfoExtn(s *capnp.Segment) (StaticInfoExtn, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 6})
+	return StaticInfoExtn{st}, err
+}
+
+func NewRootStaticInfoExtn(s *capnp.Segment) (StaticInfoExtn, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 6})
+	return StaticInfoExtn{st}, err
+}
+
+func ReadRootStaticInfoExtn(msg *capnp.Message) (StaticInfoExtn, error) {
+	root, err := msg.RootPtr()
+	return StaticInfoExtn{root.Struct()}, err
+}
+
+func (s StaticInfoExtn) String() string {
+	str, _ := text.Marshal(0xdb505e3694652d57, s.Struct)
+	return str
+}
+
+func (s StaticInfoExtn) Latency() (StaticInfoExtn_LatencyInfo, error) {
+	p, err := s.Struct.Ptr(0)
+	return StaticInfoExtn_LatencyInfo{Struct: p.Struct()}, err
+}
+
+func (s StaticInfoExtn) HasLatency() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn) SetLatency(v StaticInfoExtn_LatencyInfo) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewLatency sets the latency field to a newly
+// allocated StaticInfoExtn_LatencyInfo struct, preferring placement in s's segment.
+func (s StaticInfoExtn) NewLatency() (StaticInfoExtn_LatencyInfo, error) {
+	ss, err := NewStaticInfoExtn_LatencyInfo(s.Struct.Segment())
+	if err != nil {
+		return StaticInfoExtn_LatencyInfo{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s StaticInfoExtn) Geo() (StaticInfoExtn_GeoInfo, error) {
+	p, err := s.Struct.Ptr(1)
+	return StaticInfoExtn_GeoInfo{Struct: p.Struct()}, err
+}
+
+func (s StaticInfoExtn) HasGeo() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn) SetGeo(v StaticInfoExtn_GeoInfo) error {
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+}
+
+// NewGeo sets the geo field to a newly
+// allocated StaticInfoExtn_GeoInfo struct, preferring placement in s's segment.
+func (s StaticInfoExtn) NewGeo() (StaticInfoExtn_GeoInfo, error) {
+	ss, err := NewStaticInfoExtn_GeoInfo(s.Struct.Segment())
+	if err != nil {
+		return StaticInfoExtn_GeoInfo{}, err
+	}
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s StaticInfoExtn) Linktype() (StaticInfoExtn_LinkTypeInfo, error) {
+	p, err := s.Struct.Ptr(2)
+	return StaticInfoExtn_LinkTypeInfo{Struct: p.Struct()}, err
+}
+
+func (s StaticInfoExtn) HasLinktype() bool {
+	p, err := s.Struct.Ptr(2)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn) SetLinktype(v StaticInfoExtn_LinkTypeInfo) error {
+	return s.Struct.SetPtr(2, v.Struct.ToPtr())
+}
+
+// NewLinktype sets the linktype field to a newly
+// allocated StaticInfoExtn_LinkTypeInfo struct, preferring placement in s's segment.
+func (s StaticInfoExtn) NewLinktype() (StaticInfoExtn_LinkTypeInfo, error) {
+	ss, err := NewStaticInfoExtn_LinkTypeInfo(s.Struct.Segment())
+	if err != nil {
+		return StaticInfoExtn_LinkTypeInfo{}, err
+	}
+	err = s.Struct.SetPtr(2, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s StaticInfoExtn) Bandwidth() (StaticInfoExtn_BandwidthInfo, error) {
+	p, err := s.Struct.Ptr(3)
+	return StaticInfoExtn_BandwidthInfo{Struct: p.Struct()}, err
+}
+
+func (s StaticInfoExtn) HasBandwidth() bool {
+	p, err := s.Struct.Ptr(3)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn) SetBandwidth(v StaticInfoExtn_BandwidthInfo) error {
+	return s.Struct.SetPtr(3, v.Struct.ToPtr())
+}
+
+// NewBandwidth sets the bandwidth field to a newly
+// allocated StaticInfoExtn_BandwidthInfo struct, preferring placement in s's segment.
+func (s StaticInfoExtn) NewBandwidth() (StaticInfoExtn_BandwidthInfo, error) {
+	ss, err := NewStaticInfoExtn_BandwidthInfo(s.Struct.Segment())
+	if err != nil {
+		return StaticInfoExtn_BandwidthInfo{}, err
+	}
+	err = s.Struct.SetPtr(3, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s StaticInfoExtn) InternalHops() (StaticInfoExtn_InternalHopsInfo, error) {
+	p, err := s.Struct.Ptr(4)
+	return StaticInfoExtn_InternalHopsInfo{Struct: p.Struct()}, err
+}
+
+func (s StaticInfoExtn) HasInternalHops() bool {
+	p, err := s.Struct.Ptr(4)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn) SetInternalHops(v StaticInfoExtn_InternalHopsInfo) error {
+	return s.Struct.SetPtr(4, v.Struct.ToPtr())
+}
+
+// NewInternalHops sets the internalHops field to a newly
+// allocated StaticInfoExtn_InternalHopsInfo struct, preferring placement in s's segment.
+func (s StaticInfoExtn) NewInternalHops() (StaticInfoExtn_InternalHopsInfo, error) {
+	ss, err := NewStaticInfoExtn_InternalHopsInfo(s.Struct.Segment())
+	if err != nil {
+		return StaticInfoExtn_InternalHopsInfo{}, err
+	}
+	err = s.Struct.SetPtr(4, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s StaticInfoExtn) Note() (string, error) {
+	p, err := s.Struct.Ptr(5)
+	return p.Text(), err
+}
+
+func (s StaticInfoExtn) HasNote() bool {
+	p, err := s.Struct.Ptr(5)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn) NoteBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(5)
+	return p.TextBytes(), err
+}
+
+func (s StaticInfoExtn) SetNote(v string) error {
+	return s.Struct.SetText(5, v)
+}
+
+// StaticInfoExtn_List is a list of StaticInfoExtn.
+type StaticInfoExtn_List struct{ capnp.List }
+
+// NewStaticInfoExtn creates a new list of StaticInfoExtn.
+func NewStaticInfoExtn_List(s *capnp.Segment, sz int32) (StaticInfoExtn_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 6}, sz)
+	return StaticInfoExtn_List{l}, err
+}
+
+func (s StaticInfoExtn_List) At(i int) StaticInfoExtn { return StaticInfoExtn{s.List.Struct(i)} }
+
+func (s StaticInfoExtn_List) Set(i int, v StaticInfoExtn) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s StaticInfoExtn_List) String() string {
+	str, _ := text.MarshalList(0xdb505e3694652d57, s.List)
+	return str
+}
+
+// StaticInfoExtn_Promise is a wrapper for a StaticInfoExtn promised by a client call.
+type StaticInfoExtn_Promise struct{ *capnp.Pipeline }
+
+func (p StaticInfoExtn_Promise) Struct() (StaticInfoExtn, error) {
+	s, err := p.Pipeline.Struct()
+	return StaticInfoExtn{s}, err
+}
+
+func (p StaticInfoExtn_Promise) Latency() StaticInfoExtn_LatencyInfo_Promise {
+	return StaticInfoExtn_LatencyInfo_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+func (p StaticInfoExtn_Promise) Geo() StaticInfoExtn_GeoInfo_Promise {
+	return StaticInfoExtn_GeoInfo_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
+}
+
+func (p StaticInfoExtn_Promise) Linktype() StaticInfoExtn_LinkTypeInfo_Promise {
+	return StaticInfoExtn_LinkTypeInfo_Promise{Pipeline: p.Pipeline.GetPipeline(2)}
+}
+
+func (p StaticInfoExtn_Promise) Bandwidth() StaticInfoExtn_BandwidthInfo_Promise {
+	return StaticInfoExtn_BandwidthInfo_Promise{Pipeline: p.Pipeline.GetPipeline(3)}
+}
+
+func (p StaticInfoExtn_Promise) InternalHops() StaticInfoExtn_InternalHopsInfo_Promise {
+	return StaticInfoExtn_InternalHopsInfo_Promise{Pipeline: p.Pipeline.GetPipeline(4)}
+}
+
+type StaticInfoExtn_LatencyInfo struct{ capnp.Struct }
+
+// StaticInfoExtn_LatencyInfo_TypeID is the unique identifier for the type StaticInfoExtn_LatencyInfo.
+const StaticInfoExtn_LatencyInfo_TypeID = 0x92ae8103dd768751
+
+func NewStaticInfoExtn_LatencyInfo(s *capnp.Segment) (StaticInfoExtn_LatencyInfo, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
+	return StaticInfoExtn_LatencyInfo{st}, err
+}
+
+func NewRootStaticInfoExtn_LatencyInfo(s *capnp.Segment) (StaticInfoExtn_LatencyInfo, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
+	return StaticInfoExtn_LatencyInfo{st}, err
+}
+
+func ReadRootStaticInfoExtn_LatencyInfo(msg *capnp.Message) (StaticInfoExtn_LatencyInfo, error) {
+	root, err := msg.RootPtr()
+	return StaticInfoExtn_LatencyInfo{root.Struct()}, err
+}
+
+func (s StaticInfoExtn_LatencyInfo) String() string {
+	str, _ := text.Marshal(0x92ae8103dd768751, s.Struct)
+	return str
+}
+
+func (s StaticInfoExtn_LatencyInfo) ChildLatencies() (StaticInfoExtn_LatencyInfo_ChildLatency_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return StaticInfoExtn_LatencyInfo_ChildLatency_List{List: p.List()}, err
+}
+
+func (s StaticInfoExtn_LatencyInfo) HasChildLatencies() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn_LatencyInfo) SetChildLatencies(v StaticInfoExtn_LatencyInfo_ChildLatency_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewChildLatencies sets the childLatencies field to a newly
+// allocated StaticInfoExtn_LatencyInfo_ChildLatency_List, preferring placement in s's segment.
+func (s StaticInfoExtn_LatencyInfo) NewChildLatencies(n int32) (StaticInfoExtn_LatencyInfo_ChildLatency_List, error) {
+	l, err := NewStaticInfoExtn_LatencyInfo_ChildLatency_List(s.Struct.Segment(), n)
+	if err != nil {
+		return StaticInfoExtn_LatencyInfo_ChildLatency_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+func (s StaticInfoExtn_LatencyInfo) PeeringLatencies() (StaticInfoExtn_LatencyInfo_PeerLatency_List, error) {
+	p, err := s.Struct.Ptr(1)
+	return StaticInfoExtn_LatencyInfo_PeerLatency_List{List: p.List()}, err
+}
+
+func (s StaticInfoExtn_LatencyInfo) HasPeeringLatencies() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn_LatencyInfo) SetPeeringLatencies(v StaticInfoExtn_LatencyInfo_PeerLatency_List) error {
+	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewPeeringLatencies sets the peeringLatencies field to a newly
+// allocated StaticInfoExtn_LatencyInfo_PeerLatency_List, preferring placement in s's segment.
+func (s StaticInfoExtn_LatencyInfo) NewPeeringLatencies(n int32) (StaticInfoExtn_LatencyInfo_PeerLatency_List, error) {
+	l, err := NewStaticInfoExtn_LatencyInfo_PeerLatency_List(s.Struct.Segment(), n)
+	if err != nil {
+		return StaticInfoExtn_LatencyInfo_PeerLatency_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
+func (s StaticInfoExtn_LatencyInfo) EgressLatency() uint16 {
+	return s.Struct.Uint16(0)
+}
+
+func (s StaticInfoExtn_LatencyInfo) SetEgressLatency(v uint16) {
+	s.Struct.SetUint16(0, v)
+}
+
+func (s StaticInfoExtn_LatencyInfo) IngressToEgressLatency() uint16 {
+	return s.Struct.Uint16(2)
+}
+
+func (s StaticInfoExtn_LatencyInfo) SetIngressToEgressLatency(v uint16) {
+	s.Struct.SetUint16(2, v)
+}
+
+// StaticInfoExtn_LatencyInfo_List is a list of StaticInfoExtn_LatencyInfo.
+type StaticInfoExtn_LatencyInfo_List struct{ capnp.List }
+
+// NewStaticInfoExtn_LatencyInfo creates a new list of StaticInfoExtn_LatencyInfo.
+func NewStaticInfoExtn_LatencyInfo_List(s *capnp.Segment, sz int32) (StaticInfoExtn_LatencyInfo_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
+	return StaticInfoExtn_LatencyInfo_List{l}, err
+}
+
+func (s StaticInfoExtn_LatencyInfo_List) At(i int) StaticInfoExtn_LatencyInfo {
+	return StaticInfoExtn_LatencyInfo{s.List.Struct(i)}
+}
+
+func (s StaticInfoExtn_LatencyInfo_List) Set(i int, v StaticInfoExtn_LatencyInfo) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s StaticInfoExtn_LatencyInfo_List) String() string {
+	str, _ := text.MarshalList(0x92ae8103dd768751, s.List)
+	return str
+}
+
+// StaticInfoExtn_LatencyInfo_Promise is a wrapper for a StaticInfoExtn_LatencyInfo promised by a client call.
+type StaticInfoExtn_LatencyInfo_Promise struct{ *capnp.Pipeline }
+
+func (p StaticInfoExtn_LatencyInfo_Promise) Struct() (StaticInfoExtn_LatencyInfo, error) {
+	s, err := p.Pipeline.Struct()
+	return StaticInfoExtn_LatencyInfo{s}, err
+}
+
+type StaticInfoExtn_LatencyInfo_ChildLatency struct{ capnp.Struct }
+
+// StaticInfoExtn_LatencyInfo_ChildLatency_TypeID is the unique identifier for the type StaticInfoExtn_LatencyInfo_ChildLatency.
+const StaticInfoExtn_LatencyInfo_ChildLatency_TypeID = 0x885e742db1fb5301
+
+func NewStaticInfoExtn_LatencyInfo_ChildLatency(s *capnp.Segment) (StaticInfoExtn_LatencyInfo_ChildLatency, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return StaticInfoExtn_LatencyInfo_ChildLatency{st}, err
+}
+
+func NewRootStaticInfoExtn_LatencyInfo_ChildLatency(s *capnp.Segment) (StaticInfoExtn_LatencyInfo_ChildLatency, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return StaticInfoExtn_LatencyInfo_ChildLatency{st}, err
+}
+
+func ReadRootStaticInfoExtn_LatencyInfo_ChildLatency(msg *capnp.Message) (StaticInfoExtn_LatencyInfo_ChildLatency, error) {
+	root, err := msg.RootPtr()
+	return StaticInfoExtn_LatencyInfo_ChildLatency{root.Struct()}, err
+}
+
+func (s StaticInfoExtn_LatencyInfo_ChildLatency) String() string {
+	str, _ := text.Marshal(0x885e742db1fb5301, s.Struct)
+	return str
+}
+
+func (s StaticInfoExtn_LatencyInfo_ChildLatency) Intra() uint16 {
+	return s.Struct.Uint16(0)
+}
+
+func (s StaticInfoExtn_LatencyInfo_ChildLatency) SetIntra(v uint16) {
+	s.Struct.SetUint16(0, v)
+}
+
+func (s StaticInfoExtn_LatencyInfo_ChildLatency) IfID() uint16 {
+	return s.Struct.Uint16(2)
+}
+
+func (s StaticInfoExtn_LatencyInfo_ChildLatency) SetIfID(v uint16) {
+	s.Struct.SetUint16(2, v)
+}
+
+// StaticInfoExtn_LatencyInfo_ChildLatency_List is a list of StaticInfoExtn_LatencyInfo_ChildLatency.
+type StaticInfoExtn_LatencyInfo_ChildLatency_List struct{ capnp.List }
+
+// NewStaticInfoExtn_LatencyInfo_ChildLatency creates a new list of StaticInfoExtn_LatencyInfo_ChildLatency.
+func NewStaticInfoExtn_LatencyInfo_ChildLatency_List(s *capnp.Segment, sz int32) (StaticInfoExtn_LatencyInfo_ChildLatency_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return StaticInfoExtn_LatencyInfo_ChildLatency_List{l}, err
+}
+
+func (s StaticInfoExtn_LatencyInfo_ChildLatency_List) At(i int) StaticInfoExtn_LatencyInfo_ChildLatency {
+	return StaticInfoExtn_LatencyInfo_ChildLatency{s.List.Struct(i)}
+}
+
+func (s StaticInfoExtn_LatencyInfo_ChildLatency_List) Set(i int, v StaticInfoExtn_LatencyInfo_ChildLatency) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s StaticInfoExtn_LatencyInfo_ChildLatency_List) String() string {
+	str, _ := text.MarshalList(0x885e742db1fb5301, s.List)
+	return str
+}
+
+// StaticInfoExtn_LatencyInfo_ChildLatency_Promise is a wrapper for a StaticInfoExtn_LatencyInfo_ChildLatency promised by a client call.
+type StaticInfoExtn_LatencyInfo_ChildLatency_Promise struct{ *capnp.Pipeline }
+
+func (p StaticInfoExtn_LatencyInfo_ChildLatency_Promise) Struct() (StaticInfoExtn_LatencyInfo_ChildLatency, error) {
+	s, err := p.Pipeline.Struct()
+	return StaticInfoExtn_LatencyInfo_ChildLatency{s}, err
+}
+
+type StaticInfoExtn_LatencyInfo_PeerLatency struct{ capnp.Struct }
+
+// StaticInfoExtn_LatencyInfo_PeerLatency_TypeID is the unique identifier for the type StaticInfoExtn_LatencyInfo_PeerLatency.
+const StaticInfoExtn_LatencyInfo_PeerLatency_TypeID = 0xea318fecf64edd5a
+
+func NewStaticInfoExtn_LatencyInfo_PeerLatency(s *capnp.Segment) (StaticInfoExtn_LatencyInfo_PeerLatency, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return StaticInfoExtn_LatencyInfo_PeerLatency{st}, err
+}
+
+func NewRootStaticInfoExtn_LatencyInfo_PeerLatency(s *capnp.Segment) (StaticInfoExtn_LatencyInfo_PeerLatency, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return StaticInfoExtn_LatencyInfo_PeerLatency{st}, err
+}
+
+func ReadRootStaticInfoExtn_LatencyInfo_PeerLatency(msg *capnp.Message) (StaticInfoExtn_LatencyInfo_PeerLatency, error) {
+	root, err := msg.RootPtr()
+	return StaticInfoExtn_LatencyInfo_PeerLatency{root.Struct()}, err
+}
+
+func (s StaticInfoExtn_LatencyInfo_PeerLatency) String() string {
+	str, _ := text.Marshal(0xea318fecf64edd5a, s.Struct)
+	return str
+}
+
+func (s StaticInfoExtn_LatencyInfo_PeerLatency) Intra() uint16 {
+	return s.Struct.Uint16(0)
+}
+
+func (s StaticInfoExtn_LatencyInfo_PeerLatency) SetIntra(v uint16) {
+	s.Struct.SetUint16(0, v)
+}
+
+func (s StaticInfoExtn_LatencyInfo_PeerLatency) Inter() uint16 {
+	return s.Struct.Uint16(2)
+}
+
+func (s StaticInfoExtn_LatencyInfo_PeerLatency) SetInter(v uint16) {
+	s.Struct.SetUint16(2, v)
+}
+
+func (s StaticInfoExtn_LatencyInfo_PeerLatency) IfID() uint16 {
+	return s.Struct.Uint16(4)
+}
+
+func (s StaticInfoExtn_LatencyInfo_PeerLatency) SetIfID(v uint16) {
+	s.Struct.SetUint16(4, v)
+}
+
+// StaticInfoExtn_LatencyInfo_PeerLatency_List is a list of StaticInfoExtn_LatencyInfo_PeerLatency.
+type StaticInfoExtn_LatencyInfo_PeerLatency_List struct{ capnp.List }
+
+// NewStaticInfoExtn_LatencyInfo_PeerLatency creates a new list of StaticInfoExtn_LatencyInfo_PeerLatency.
+func NewStaticInfoExtn_LatencyInfo_PeerLatency_List(s *capnp.Segment, sz int32) (StaticInfoExtn_LatencyInfo_PeerLatency_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return StaticInfoExtn_LatencyInfo_PeerLatency_List{l}, err
+}
+
+func (s StaticInfoExtn_LatencyInfo_PeerLatency_List) At(i int) StaticInfoExtn_LatencyInfo_PeerLatency {
+	return StaticInfoExtn_LatencyInfo_PeerLatency{s.List.Struct(i)}
+}
+
+func (s StaticInfoExtn_LatencyInfo_PeerLatency_List) Set(i int, v StaticInfoExtn_LatencyInfo_PeerLatency) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s StaticInfoExtn_LatencyInfo_PeerLatency_List) String() string {
+	str, _ := text.MarshalList(0xea318fecf64edd5a, s.List)
+	return str
+}
+
+// StaticInfoExtn_LatencyInfo_PeerLatency_Promise is a wrapper for a StaticInfoExtn_LatencyInfo_PeerLatency promised by a client call.
+type StaticInfoExtn_LatencyInfo_PeerLatency_Promise struct{ *capnp.Pipeline }
+
+func (p StaticInfoExtn_LatencyInfo_PeerLatency_Promise) Struct() (StaticInfoExtn_LatencyInfo_PeerLatency, error) {
+	s, err := p.Pipeline.Struct()
+	return StaticInfoExtn_LatencyInfo_PeerLatency{s}, err
+}
+
+type StaticInfoExtn_BandwidthInfo struct{ capnp.Struct }
+
+// StaticInfoExtn_BandwidthInfo_TypeID is the unique identifier for the type StaticInfoExtn_BandwidthInfo.
+const StaticInfoExtn_BandwidthInfo_TypeID = 0xc6ff25e3b262348a
+
+func NewStaticInfoExtn_BandwidthInfo(s *capnp.Segment) (StaticInfoExtn_BandwidthInfo, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return StaticInfoExtn_BandwidthInfo{st}, err
+}
+
+func NewRootStaticInfoExtn_BandwidthInfo(s *capnp.Segment) (StaticInfoExtn_BandwidthInfo, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return StaticInfoExtn_BandwidthInfo{st}, err
+}
+
+func ReadRootStaticInfoExtn_BandwidthInfo(msg *capnp.Message) (StaticInfoExtn_BandwidthInfo, error) {
+	root, err := msg.RootPtr()
+	return StaticInfoExtn_BandwidthInfo{root.Struct()}, err
+}
+
+func (s StaticInfoExtn_BandwidthInfo) String() string {
+	str, _ := text.Marshal(0xc6ff25e3b262348a, s.Struct)
+	return str
+}
+
+func (s StaticInfoExtn_BandwidthInfo) Bandwidths() (StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List{List: p.List()}, err
+}
+
+func (s StaticInfoExtn_BandwidthInfo) HasBandwidths() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn_BandwidthInfo) SetBandwidths(v StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewBandwidths sets the bandwidths field to a newly
+// allocated StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List, preferring placement in s's segment.
+func (s StaticInfoExtn_BandwidthInfo) NewBandwidths(n int32) (StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List, error) {
+	l, err := NewStaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List(s.Struct.Segment(), n)
+	if err != nil {
+		return StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+func (s StaticInfoExtn_BandwidthInfo) EgressBW() uint32 {
+	return s.Struct.Uint32(0)
+}
+
+func (s StaticInfoExtn_BandwidthInfo) SetEgressBW(v uint32) {
+	s.Struct.SetUint32(0, v)
+}
+
+func (s StaticInfoExtn_BandwidthInfo) IngressToEgressBW() uint32 {
+	return s.Struct.Uint32(4)
+}
+
+func (s StaticInfoExtn_BandwidthInfo) SetIngressToEgressBW(v uint32) {
+	s.Struct.SetUint32(4, v)
+}
+
+// StaticInfoExtn_BandwidthInfo_List is a list of StaticInfoExtn_BandwidthInfo.
+type StaticInfoExtn_BandwidthInfo_List struct{ capnp.List }
+
+// NewStaticInfoExtn_BandwidthInfo creates a new list of StaticInfoExtn_BandwidthInfo.
+func NewStaticInfoExtn_BandwidthInfo_List(s *capnp.Segment, sz int32) (StaticInfoExtn_BandwidthInfo_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	return StaticInfoExtn_BandwidthInfo_List{l}, err
+}
+
+func (s StaticInfoExtn_BandwidthInfo_List) At(i int) StaticInfoExtn_BandwidthInfo {
+	return StaticInfoExtn_BandwidthInfo{s.List.Struct(i)}
+}
+
+func (s StaticInfoExtn_BandwidthInfo_List) Set(i int, v StaticInfoExtn_BandwidthInfo) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s StaticInfoExtn_BandwidthInfo_List) String() string {
+	str, _ := text.MarshalList(0xc6ff25e3b262348a, s.List)
+	return str
+}
+
+// StaticInfoExtn_BandwidthInfo_Promise is a wrapper for a StaticInfoExtn_BandwidthInfo promised by a client call.
+type StaticInfoExtn_BandwidthInfo_Promise struct{ *capnp.Pipeline }
+
+func (p StaticInfoExtn_BandwidthInfo_Promise) Struct() (StaticInfoExtn_BandwidthInfo, error) {
+	s, err := p.Pipeline.Struct()
+	return StaticInfoExtn_BandwidthInfo{s}, err
+}
+
+type StaticInfoExtn_BandwidthInfo_InterfaceBandwidth struct{ capnp.Struct }
+
+// StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_TypeID is the unique identifier for the type StaticInfoExtn_BandwidthInfo_InterfaceBandwidth.
+const StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_TypeID = 0xd0676003f5393449
+
+func NewStaticInfoExtn_BandwidthInfo_InterfaceBandwidth(s *capnp.Segment) (StaticInfoExtn_BandwidthInfo_InterfaceBandwidth, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return StaticInfoExtn_BandwidthInfo_InterfaceBandwidth{st}, err
+}
+
+func NewRootStaticInfoExtn_BandwidthInfo_InterfaceBandwidth(s *capnp.Segment) (StaticInfoExtn_BandwidthInfo_InterfaceBandwidth, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return StaticInfoExtn_BandwidthInfo_InterfaceBandwidth{st}, err
+}
+
+func ReadRootStaticInfoExtn_BandwidthInfo_InterfaceBandwidth(msg *capnp.Message) (StaticInfoExtn_BandwidthInfo_InterfaceBandwidth, error) {
+	root, err := msg.RootPtr()
+	return StaticInfoExtn_BandwidthInfo_InterfaceBandwidth{root.Struct()}, err
+}
+
+func (s StaticInfoExtn_BandwidthInfo_InterfaceBandwidth) String() string {
+	str, _ := text.Marshal(0xd0676003f5393449, s.Struct)
+	return str
+}
+
+func (s StaticInfoExtn_BandwidthInfo_InterfaceBandwidth) Bw() uint32 {
+	return s.Struct.Uint32(0)
+}
+
+func (s StaticInfoExtn_BandwidthInfo_InterfaceBandwidth) SetBw(v uint32) {
+	s.Struct.SetUint32(0, v)
+}
+
+func (s StaticInfoExtn_BandwidthInfo_InterfaceBandwidth) IfID() uint16 {
+	return s.Struct.Uint16(4)
+}
+
+func (s StaticInfoExtn_BandwidthInfo_InterfaceBandwidth) SetIfID(v uint16) {
+	s.Struct.SetUint16(4, v)
+}
+
+// StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List is a list of StaticInfoExtn_BandwidthInfo_InterfaceBandwidth.
+type StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List struct{ capnp.List }
+
+// NewStaticInfoExtn_BandwidthInfo_InterfaceBandwidth creates a new list of StaticInfoExtn_BandwidthInfo_InterfaceBandwidth.
+func NewStaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List(s *capnp.Segment, sz int32) (StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List{l}, err
+}
+
+func (s StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List) At(i int) StaticInfoExtn_BandwidthInfo_InterfaceBandwidth {
+	return StaticInfoExtn_BandwidthInfo_InterfaceBandwidth{s.List.Struct(i)}
+}
+
+func (s StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List) Set(i int, v StaticInfoExtn_BandwidthInfo_InterfaceBandwidth) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List) String() string {
+	str, _ := text.MarshalList(0xd0676003f5393449, s.List)
+	return str
+}
+
+// StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_Promise is a wrapper for a StaticInfoExtn_BandwidthInfo_InterfaceBandwidth promised by a client call.
+type StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_Promise struct{ *capnp.Pipeline }
+
+func (p StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_Promise) Struct() (StaticInfoExtn_BandwidthInfo_InterfaceBandwidth, error) {
+	s, err := p.Pipeline.Struct()
+	return StaticInfoExtn_BandwidthInfo_InterfaceBandwidth{s}, err
+}
+
+type StaticInfoExtn_GeoInfo struct{ capnp.Struct }
+
+// StaticInfoExtn_GeoInfo_TypeID is the unique identifier for the type StaticInfoExtn_GeoInfo.
+const StaticInfoExtn_GeoInfo_TypeID = 0xd8c2ba2779275a74
+
+func NewStaticInfoExtn_GeoInfo(s *capnp.Segment) (StaticInfoExtn_GeoInfo, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return StaticInfoExtn_GeoInfo{st}, err
+}
+
+func NewRootStaticInfoExtn_GeoInfo(s *capnp.Segment) (StaticInfoExtn_GeoInfo, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
+	return StaticInfoExtn_GeoInfo{st}, err
+}
+
+func ReadRootStaticInfoExtn_GeoInfo(msg *capnp.Message) (StaticInfoExtn_GeoInfo, error) {
+	root, err := msg.RootPtr()
+	return StaticInfoExtn_GeoInfo{root.Struct()}, err
+}
+
+func (s StaticInfoExtn_GeoInfo) String() string {
+	str, _ := text.Marshal(0xd8c2ba2779275a74, s.Struct)
+	return str
+}
+
+func (s StaticInfoExtn_GeoInfo) Locations() (StaticInfoExtn_GeoInfo_Location_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return StaticInfoExtn_GeoInfo_Location_List{List: p.List()}, err
+}
+
+func (s StaticInfoExtn_GeoInfo) HasLocations() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn_GeoInfo) SetLocations(v StaticInfoExtn_GeoInfo_Location_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewLocations sets the locations field to a newly
+// allocated StaticInfoExtn_GeoInfo_Location_List, preferring placement in s's segment.
+func (s StaticInfoExtn_GeoInfo) NewLocations(n int32) (StaticInfoExtn_GeoInfo_Location_List, error) {
+	l, err := NewStaticInfoExtn_GeoInfo_Location_List(s.Struct.Segment(), n)
+	if err != nil {
+		return StaticInfoExtn_GeoInfo_Location_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+// StaticInfoExtn_GeoInfo_List is a list of StaticInfoExtn_GeoInfo.
+type StaticInfoExtn_GeoInfo_List struct{ capnp.List }
+
+// NewStaticInfoExtn_GeoInfo creates a new list of StaticInfoExtn_GeoInfo.
+func NewStaticInfoExtn_GeoInfo_List(s *capnp.Segment, sz int32) (StaticInfoExtn_GeoInfo_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
+	return StaticInfoExtn_GeoInfo_List{l}, err
+}
+
+func (s StaticInfoExtn_GeoInfo_List) At(i int) StaticInfoExtn_GeoInfo {
+	return StaticInfoExtn_GeoInfo{s.List.Struct(i)}
+}
+
+func (s StaticInfoExtn_GeoInfo_List) Set(i int, v StaticInfoExtn_GeoInfo) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s StaticInfoExtn_GeoInfo_List) String() string {
+	str, _ := text.MarshalList(0xd8c2ba2779275a74, s.List)
+	return str
+}
+
+// StaticInfoExtn_GeoInfo_Promise is a wrapper for a StaticInfoExtn_GeoInfo promised by a client call.
+type StaticInfoExtn_GeoInfo_Promise struct{ *capnp.Pipeline }
+
+func (p StaticInfoExtn_GeoInfo_Promise) Struct() (StaticInfoExtn_GeoInfo, error) {
+	s, err := p.Pipeline.Struct()
+	return StaticInfoExtn_GeoInfo{s}, err
+}
+
+type StaticInfoExtn_GeoInfo_Location struct{ capnp.Struct }
+
+// StaticInfoExtn_GeoInfo_Location_TypeID is the unique identifier for the type StaticInfoExtn_GeoInfo_Location.
+const StaticInfoExtn_GeoInfo_Location_TypeID = 0xddd46d94d5f5ee47
+
+func NewStaticInfoExtn_GeoInfo_Location(s *capnp.Segment) (StaticInfoExtn_GeoInfo_Location, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return StaticInfoExtn_GeoInfo_Location{st}, err
+}
+
+func NewRootStaticInfoExtn_GeoInfo_Location(s *capnp.Segment) (StaticInfoExtn_GeoInfo_Location, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return StaticInfoExtn_GeoInfo_Location{st}, err
+}
+
+func ReadRootStaticInfoExtn_GeoInfo_Location(msg *capnp.Message) (StaticInfoExtn_GeoInfo_Location, error) {
+	root, err := msg.RootPtr()
+	return StaticInfoExtn_GeoInfo_Location{root.Struct()}, err
+}
+
+func (s StaticInfoExtn_GeoInfo_Location) String() string {
+	str, _ := text.Marshal(0xddd46d94d5f5ee47, s.Struct)
+	return str
+}
+
+func (s StaticInfoExtn_GeoInfo_Location) GpsData() (StaticInfoExtn_GeoInfo_Location_Coordinates, error) {
+	p, err := s.Struct.Ptr(0)
+	return StaticInfoExtn_GeoInfo_Location_Coordinates{Struct: p.Struct()}, err
+}
+
+func (s StaticInfoExtn_GeoInfo_Location) HasGpsData() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn_GeoInfo_Location) SetGpsData(v StaticInfoExtn_GeoInfo_Location_Coordinates) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewGpsData sets the gpsData field to a newly
+// allocated StaticInfoExtn_GeoInfo_Location_Coordinates struct, preferring placement in s's segment.
+func (s StaticInfoExtn_GeoInfo_Location) NewGpsData() (StaticInfoExtn_GeoInfo_Location_Coordinates, error) {
+	ss, err := NewStaticInfoExtn_GeoInfo_Location_Coordinates(s.Struct.Segment())
+	if err != nil {
+		return StaticInfoExtn_GeoInfo_Location_Coordinates{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s StaticInfoExtn_GeoInfo_Location) Interfaces() (capnp.UInt16List, error) {
+	p, err := s.Struct.Ptr(1)
+	return capnp.UInt16List{List: p.List()}, err
+}
+
+func (s StaticInfoExtn_GeoInfo_Location) HasInterfaces() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn_GeoInfo_Location) SetInterfaces(v capnp.UInt16List) error {
+	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewInterfaces sets the interfaces field to a newly
+// allocated capnp.UInt16List, preferring placement in s's segment.
+func (s StaticInfoExtn_GeoInfo_Location) NewInterfaces(n int32) (capnp.UInt16List, error) {
+	l, err := capnp.NewUInt16List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.UInt16List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
+// StaticInfoExtn_GeoInfo_Location_List is a list of StaticInfoExtn_GeoInfo_Location.
+type StaticInfoExtn_GeoInfo_Location_List struct{ capnp.List }
+
+// NewStaticInfoExtn_GeoInfo_Location creates a new list of StaticInfoExtn_GeoInfo_Location.
+func NewStaticInfoExtn_GeoInfo_Location_List(s *capnp.Segment, sz int32) (StaticInfoExtn_GeoInfo_Location_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	return StaticInfoExtn_GeoInfo_Location_List{l}, err
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_List) At(i int) StaticInfoExtn_GeoInfo_Location {
+	return StaticInfoExtn_GeoInfo_Location{s.List.Struct(i)}
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_List) Set(i int, v StaticInfoExtn_GeoInfo_Location) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_List) String() string {
+	str, _ := text.MarshalList(0xddd46d94d5f5ee47, s.List)
+	return str
+}
+
+// StaticInfoExtn_GeoInfo_Location_Promise is a wrapper for a StaticInfoExtn_GeoInfo_Location promised by a client call.
+type StaticInfoExtn_GeoInfo_Location_Promise struct{ *capnp.Pipeline }
+
+func (p StaticInfoExtn_GeoInfo_Location_Promise) Struct() (StaticInfoExtn_GeoInfo_Location, error) {
+	s, err := p.Pipeline.Struct()
+	return StaticInfoExtn_GeoInfo_Location{s}, err
+}
+
+func (p StaticInfoExtn_GeoInfo_Location_Promise) GpsData() StaticInfoExtn_GeoInfo_Location_Coordinates_Promise {
+	return StaticInfoExtn_GeoInfo_Location_Coordinates_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+type StaticInfoExtn_GeoInfo_Location_Coordinates struct{ capnp.Struct }
+
+// StaticInfoExtn_GeoInfo_Location_Coordinates_TypeID is the unique identifier for the type StaticInfoExtn_GeoInfo_Location_Coordinates.
+const StaticInfoExtn_GeoInfo_Location_Coordinates_TypeID = 0xc7a6dc5be99844b2
+
+func NewStaticInfoExtn_GeoInfo_Location_Coordinates(s *capnp.Segment) (StaticInfoExtn_GeoInfo_Location_Coordinates, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return StaticInfoExtn_GeoInfo_Location_Coordinates{st}, err
+}
+
+func NewRootStaticInfoExtn_GeoInfo_Location_Coordinates(s *capnp.Segment) (StaticInfoExtn_GeoInfo_Location_Coordinates, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return StaticInfoExtn_GeoInfo_Location_Coordinates{st}, err
+}
+
+func ReadRootStaticInfoExtn_GeoInfo_Location_Coordinates(msg *capnp.Message) (StaticInfoExtn_GeoInfo_Location_Coordinates, error) {
+	root, err := msg.RootPtr()
+	return StaticInfoExtn_GeoInfo_Location_Coordinates{root.Struct()}, err
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_Coordinates) String() string {
+	str, _ := text.Marshal(0xc7a6dc5be99844b2, s.Struct)
+	return str
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_Coordinates) Latitude() float32 {
+	return math.Float32frombits(s.Struct.Uint32(0))
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_Coordinates) SetLatitude(v float32) {
+	s.Struct.SetUint32(0, math.Float32bits(v))
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_Coordinates) Longitude() float32 {
+	return math.Float32frombits(s.Struct.Uint32(4))
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_Coordinates) SetLongitude(v float32) {
+	s.Struct.SetUint32(4, math.Float32bits(v))
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_Coordinates) Address() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return []byte(p.Data()), err
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_Coordinates) HasAddress() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_Coordinates) SetAddress(v []byte) error {
+	return s.Struct.SetData(0, v)
+}
+
+// StaticInfoExtn_GeoInfo_Location_Coordinates_List is a list of StaticInfoExtn_GeoInfo_Location_Coordinates.
+type StaticInfoExtn_GeoInfo_Location_Coordinates_List struct{ capnp.List }
+
+// NewStaticInfoExtn_GeoInfo_Location_Coordinates creates a new list of StaticInfoExtn_GeoInfo_Location_Coordinates.
+func NewStaticInfoExtn_GeoInfo_Location_Coordinates_List(s *capnp.Segment, sz int32) (StaticInfoExtn_GeoInfo_Location_Coordinates_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	return StaticInfoExtn_GeoInfo_Location_Coordinates_List{l}, err
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_Coordinates_List) At(i int) StaticInfoExtn_GeoInfo_Location_Coordinates {
+	return StaticInfoExtn_GeoInfo_Location_Coordinates{s.List.Struct(i)}
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_Coordinates_List) Set(i int, v StaticInfoExtn_GeoInfo_Location_Coordinates) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_Coordinates_List) String() string {
+	str, _ := text.MarshalList(0xc7a6dc5be99844b2, s.List)
+	return str
+}
+
+// StaticInfoExtn_GeoInfo_Location_Coordinates_Promise is a wrapper for a StaticInfoExtn_GeoInfo_Location_Coordinates promised by a client call.
+type StaticInfoExtn_GeoInfo_Location_Coordinates_Promise struct{ *capnp.Pipeline }
+
+func (p StaticInfoExtn_GeoInfo_Location_Coordinates_Promise) Struct() (StaticInfoExtn_GeoInfo_Location_Coordinates, error) {
+	s, err := p.Pipeline.Struct()
+	return StaticInfoExtn_GeoInfo_Location_Coordinates{s}, err
+}
+
+type StaticInfoExtn_LinkTypeInfo struct{ capnp.Struct }
+
+// StaticInfoExtn_LinkTypeInfo_TypeID is the unique identifier for the type StaticInfoExtn_LinkTypeInfo.
+const StaticInfoExtn_LinkTypeInfo_TypeID = 0xb4b9b8f861554bad
+
+func NewStaticInfoExtn_LinkTypeInfo(s *capnp.Segment) (StaticInfoExtn_LinkTypeInfo, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return StaticInfoExtn_LinkTypeInfo{st}, err
+}
+
+func NewRootStaticInfoExtn_LinkTypeInfo(s *capnp.Segment) (StaticInfoExtn_LinkTypeInfo, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return StaticInfoExtn_LinkTypeInfo{st}, err
+}
+
+func ReadRootStaticInfoExtn_LinkTypeInfo(msg *capnp.Message) (StaticInfoExtn_LinkTypeInfo, error) {
+	root, err := msg.RootPtr()
+	return StaticInfoExtn_LinkTypeInfo{root.Struct()}, err
+}
+
+func (s StaticInfoExtn_LinkTypeInfo) String() string {
+	str, _ := text.Marshal(0xb4b9b8f861554bad, s.Struct)
+	return str
+}
+
+func (s StaticInfoExtn_LinkTypeInfo) PeeringLinks() (StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List{List: p.List()}, err
+}
+
+func (s StaticInfoExtn_LinkTypeInfo) HasPeeringLinks() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn_LinkTypeInfo) SetPeeringLinks(v StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewPeeringLinks sets the peeringLinks field to a newly
+// allocated StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List, preferring placement in s's segment.
+func (s StaticInfoExtn_LinkTypeInfo) NewPeeringLinks(n int32) (StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List, error) {
+	l, err := NewStaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List(s.Struct.Segment(), n)
+	if err != nil {
+		return StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+func (s StaticInfoExtn_LinkTypeInfo) EgressLinkType() StaticInfoExtn_LinkTypeInfo_LinkType {
+	return StaticInfoExtn_LinkTypeInfo_LinkType(s.Struct.Uint16(0))
+}
+
+func (s StaticInfoExtn_LinkTypeInfo) SetEgressLinkType(v StaticInfoExtn_LinkTypeInfo_LinkType) {
+	s.Struct.SetUint16(0, uint16(v))
+}
+
+// StaticInfoExtn_LinkTypeInfo_List is a list of StaticInfoExtn_LinkTypeInfo.
+type StaticInfoExtn_LinkTypeInfo_List struct{ capnp.List }
+
+// NewStaticInfoExtn_LinkTypeInfo creates a new list of StaticInfoExtn_LinkTypeInfo.
+func NewStaticInfoExtn_LinkTypeInfo_List(s *capnp.Segment, sz int32) (StaticInfoExtn_LinkTypeInfo_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	return StaticInfoExtn_LinkTypeInfo_List{l}, err
+}
+
+func (s StaticInfoExtn_LinkTypeInfo_List) At(i int) StaticInfoExtn_LinkTypeInfo {
+	return StaticInfoExtn_LinkTypeInfo{s.List.Struct(i)}
+}
+
+func (s StaticInfoExtn_LinkTypeInfo_List) Set(i int, v StaticInfoExtn_LinkTypeInfo) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s StaticInfoExtn_LinkTypeInfo_List) String() string {
+	str, _ := text.MarshalList(0xb4b9b8f861554bad, s.List)
+	return str
+}
+
+// StaticInfoExtn_LinkTypeInfo_Promise is a wrapper for a StaticInfoExtn_LinkTypeInfo promised by a client call.
+type StaticInfoExtn_LinkTypeInfo_Promise struct{ *capnp.Pipeline }
+
+func (p StaticInfoExtn_LinkTypeInfo_Promise) Struct() (StaticInfoExtn_LinkTypeInfo, error) {
+	s, err := p.Pipeline.Struct()
+	return StaticInfoExtn_LinkTypeInfo{s}, err
+}
+
+type StaticInfoExtn_LinkTypeInfo_LinkType uint16
+
+// StaticInfoExtn_LinkTypeInfo_LinkType_TypeID is the unique identifier for the type StaticInfoExtn_LinkTypeInfo_LinkType.
+const StaticInfoExtn_LinkTypeInfo_LinkType_TypeID = 0xb83b1b1b174f8aec
+
+// Values of StaticInfoExtn_LinkTypeInfo_LinkType.
+const (
+	StaticInfoExtn_LinkTypeInfo_LinkType_direct   StaticInfoExtn_LinkTypeInfo_LinkType = 0
+	StaticInfoExtn_LinkTypeInfo_LinkType_multiHop StaticInfoExtn_LinkTypeInfo_LinkType = 1
+	StaticInfoExtn_LinkTypeInfo_LinkType_openNet  StaticInfoExtn_LinkTypeInfo_LinkType = 2
+)
+
+// String returns the enum's constant name.
+func (c StaticInfoExtn_LinkTypeInfo_LinkType) String() string {
+	switch c {
+	case StaticInfoExtn_LinkTypeInfo_LinkType_direct:
+		return "direct"
+	case StaticInfoExtn_LinkTypeInfo_LinkType_multiHop:
+		return "multiHop"
+	case StaticInfoExtn_LinkTypeInfo_LinkType_openNet:
+		return "openNet"
+
+	default:
+		return ""
+	}
+}
+
+// StaticInfoExtn_LinkTypeInfo_LinkTypeFromString returns the enum value with a name,
+// or the zero value if there's no such value.
+func StaticInfoExtn_LinkTypeInfo_LinkTypeFromString(c string) StaticInfoExtn_LinkTypeInfo_LinkType {
+	switch c {
+	case "direct":
+		return StaticInfoExtn_LinkTypeInfo_LinkType_direct
+	case "multiHop":
+		return StaticInfoExtn_LinkTypeInfo_LinkType_multiHop
+	case "openNet":
+		return StaticInfoExtn_LinkTypeInfo_LinkType_openNet
+
+	default:
+		return 0
+	}
+}
+
+type StaticInfoExtn_LinkTypeInfo_LinkType_List struct{ capnp.List }
+
+func NewStaticInfoExtn_LinkTypeInfo_LinkType_List(s *capnp.Segment, sz int32) (StaticInfoExtn_LinkTypeInfo_LinkType_List, error) {
+	l, err := capnp.NewUInt16List(s, sz)
+	return StaticInfoExtn_LinkTypeInfo_LinkType_List{l.List}, err
+}
+
+func (l StaticInfoExtn_LinkTypeInfo_LinkType_List) At(i int) StaticInfoExtn_LinkTypeInfo_LinkType {
+	ul := capnp.UInt16List{List: l.List}
+	return StaticInfoExtn_LinkTypeInfo_LinkType(ul.At(i))
+}
+
+func (l StaticInfoExtn_LinkTypeInfo_LinkType_List) Set(i int, v StaticInfoExtn_LinkTypeInfo_LinkType) {
+	ul := capnp.UInt16List{List: l.List}
+	ul.Set(i, uint16(v))
+}
+
+type StaticInfoExtn_LinkTypeInfo_InterfaceLinkType struct{ capnp.Struct }
+
+// StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_TypeID is the unique identifier for the type StaticInfoExtn_LinkTypeInfo_InterfaceLinkType.
+const StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_TypeID = 0x9ab6cd3b4d0d17c7
+
+func NewStaticInfoExtn_LinkTypeInfo_InterfaceLinkType(s *capnp.Segment) (StaticInfoExtn_LinkTypeInfo_InterfaceLinkType, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return StaticInfoExtn_LinkTypeInfo_InterfaceLinkType{st}, err
+}
+
+func NewRootStaticInfoExtn_LinkTypeInfo_InterfaceLinkType(s *capnp.Segment) (StaticInfoExtn_LinkTypeInfo_InterfaceLinkType, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return StaticInfoExtn_LinkTypeInfo_InterfaceLinkType{st}, err
+}
+
+func ReadRootStaticInfoExtn_LinkTypeInfo_InterfaceLinkType(msg *capnp.Message) (StaticInfoExtn_LinkTypeInfo_InterfaceLinkType, error) {
+	root, err := msg.RootPtr()
+	return StaticInfoExtn_LinkTypeInfo_InterfaceLinkType{root.Struct()}, err
+}
+
+func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType) String() string {
+	str, _ := text.Marshal(0x9ab6cd3b4d0d17c7, s.Struct)
+	return str
+}
+
+func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType) IfID() uint16 {
+	return s.Struct.Uint16(0)
+}
+
+func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType) SetIfID(v uint16) {
+	s.Struct.SetUint16(0, v)
+}
+
+func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType) LinkType() StaticInfoExtn_LinkTypeInfo_LinkType {
+	return StaticInfoExtn_LinkTypeInfo_LinkType(s.Struct.Uint16(2))
+}
+
+func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType) SetLinkType(v StaticInfoExtn_LinkTypeInfo_LinkType) {
+	s.Struct.SetUint16(2, uint16(v))
+}
+
+// StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List is a list of StaticInfoExtn_LinkTypeInfo_InterfaceLinkType.
+type StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List struct{ capnp.List }
+
+// NewStaticInfoExtn_LinkTypeInfo_InterfaceLinkType creates a new list of StaticInfoExtn_LinkTypeInfo_InterfaceLinkType.
+func NewStaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List(s *capnp.Segment, sz int32) (StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List{l}, err
+}
+
+func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List) At(i int) StaticInfoExtn_LinkTypeInfo_InterfaceLinkType {
+	return StaticInfoExtn_LinkTypeInfo_InterfaceLinkType{s.List.Struct(i)}
+}
+
+func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List) Set(i int, v StaticInfoExtn_LinkTypeInfo_InterfaceLinkType) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List) String() string {
+	str, _ := text.MarshalList(0x9ab6cd3b4d0d17c7, s.List)
+	return str
+}
+
+// StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_Promise is a wrapper for a StaticInfoExtn_LinkTypeInfo_InterfaceLinkType promised by a client call.
+type StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_Promise struct{ *capnp.Pipeline }
+
+func (p StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_Promise) Struct() (StaticInfoExtn_LinkTypeInfo_InterfaceLinkType, error) {
+	s, err := p.Pipeline.Struct()
+	return StaticInfoExtn_LinkTypeInfo_InterfaceLinkType{s}, err
+}
+
+type StaticInfoExtn_InternalHopsInfo struct{ capnp.Struct }
+
+// StaticInfoExtn_InternalHopsInfo_TypeID is the unique identifier for the type StaticInfoExtn_InternalHopsInfo.
+const StaticInfoExtn_InternalHopsInfo_TypeID = 0xeb06bcceba87669a
+
+func NewStaticInfoExtn_InternalHopsInfo(s *capnp.Segment) (StaticInfoExtn_InternalHopsInfo, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return StaticInfoExtn_InternalHopsInfo{st}, err
+}
+
+func NewRootStaticInfoExtn_InternalHopsInfo(s *capnp.Segment) (StaticInfoExtn_InternalHopsInfo, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return StaticInfoExtn_InternalHopsInfo{st}, err
+}
+
+func ReadRootStaticInfoExtn_InternalHopsInfo(msg *capnp.Message) (StaticInfoExtn_InternalHopsInfo, error) {
+	root, err := msg.RootPtr()
+	return StaticInfoExtn_InternalHopsInfo{root.Struct()}, err
+}
+
+func (s StaticInfoExtn_InternalHopsInfo) String() string {
+	str, _ := text.Marshal(0xeb06bcceba87669a, s.Struct)
+	return str
+}
+
+func (s StaticInfoExtn_InternalHopsInfo) InterfaceHops() (StaticInfoExtn_InternalHopsInfo_InterfaceHops_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return StaticInfoExtn_InternalHopsInfo_InterfaceHops_List{List: p.List()}, err
+}
+
+func (s StaticInfoExtn_InternalHopsInfo) HasInterfaceHops() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s StaticInfoExtn_InternalHopsInfo) SetInterfaceHops(v StaticInfoExtn_InternalHopsInfo_InterfaceHops_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewInterfaceHops sets the interfaceHops field to a newly
+// allocated StaticInfoExtn_InternalHopsInfo_InterfaceHops_List, preferring placement in s's segment.
+func (s StaticInfoExtn_InternalHopsInfo) NewInterfaceHops(n int32) (StaticInfoExtn_InternalHopsInfo_InterfaceHops_List, error) {
+	l, err := NewStaticInfoExtn_InternalHopsInfo_InterfaceHops_List(s.Struct.Segment(), n)
+	if err != nil {
+		return StaticInfoExtn_InternalHopsInfo_InterfaceHops_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+func (s StaticInfoExtn_InternalHopsInfo) InToOutHops() uint8 {
+	return s.Struct.Uint8(0)
+}
+
+func (s StaticInfoExtn_InternalHopsInfo) SetInToOutHops(v uint8) {
+	s.Struct.SetUint8(0, v)
+}
+
+// StaticInfoExtn_InternalHopsInfo_List is a list of StaticInfoExtn_InternalHopsInfo.
+type StaticInfoExtn_InternalHopsInfo_List struct{ capnp.List }
+
+// NewStaticInfoExtn_InternalHopsInfo creates a new list of StaticInfoExtn_InternalHopsInfo.
+func NewStaticInfoExtn_InternalHopsInfo_List(s *capnp.Segment, sz int32) (StaticInfoExtn_InternalHopsInfo_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	return StaticInfoExtn_InternalHopsInfo_List{l}, err
+}
+
+func (s StaticInfoExtn_InternalHopsInfo_List) At(i int) StaticInfoExtn_InternalHopsInfo {
+	return StaticInfoExtn_InternalHopsInfo{s.List.Struct(i)}
+}
+
+func (s StaticInfoExtn_InternalHopsInfo_List) Set(i int, v StaticInfoExtn_InternalHopsInfo) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s StaticInfoExtn_InternalHopsInfo_List) String() string {
+	str, _ := text.MarshalList(0xeb06bcceba87669a, s.List)
+	return str
+}
+
+// StaticInfoExtn_InternalHopsInfo_Promise is a wrapper for a StaticInfoExtn_InternalHopsInfo promised by a client call.
+type StaticInfoExtn_InternalHopsInfo_Promise struct{ *capnp.Pipeline }
+
+func (p StaticInfoExtn_InternalHopsInfo_Promise) Struct() (StaticInfoExtn_InternalHopsInfo, error) {
+	s, err := p.Pipeline.Struct()
+	return StaticInfoExtn_InternalHopsInfo{s}, err
+}
+
+type StaticInfoExtn_InternalHopsInfo_InterfaceHops struct{ capnp.Struct }
+
+// StaticInfoExtn_InternalHopsInfo_InterfaceHops_TypeID is the unique identifier for the type StaticInfoExtn_InternalHopsInfo_InterfaceHops.
+const StaticInfoExtn_InternalHopsInfo_InterfaceHops_TypeID = 0xcd7606ede67cf290
+
+func NewStaticInfoExtn_InternalHopsInfo_InterfaceHops(s *capnp.Segment) (StaticInfoExtn_InternalHopsInfo_InterfaceHops, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return StaticInfoExtn_InternalHopsInfo_InterfaceHops{st}, err
+}
+
+func NewRootStaticInfoExtn_InternalHopsInfo_InterfaceHops(s *capnp.Segment) (StaticInfoExtn_InternalHopsInfo_InterfaceHops, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return StaticInfoExtn_InternalHopsInfo_InterfaceHops{st}, err
+}
+
+func ReadRootStaticInfoExtn_InternalHopsInfo_InterfaceHops(msg *capnp.Message) (StaticInfoExtn_InternalHopsInfo_InterfaceHops, error) {
+	root, err := msg.RootPtr()
+	return StaticInfoExtn_InternalHopsInfo_InterfaceHops{root.Struct()}, err
+}
+
+func (s StaticInfoExtn_InternalHopsInfo_InterfaceHops) String() string {
+	str, _ := text.Marshal(0xcd7606ede67cf290, s.Struct)
+	return str
+}
+
+func (s StaticInfoExtn_InternalHopsInfo_InterfaceHops) Hops() uint8 {
+	return s.Struct.Uint8(0)
+}
+
+func (s StaticInfoExtn_InternalHopsInfo_InterfaceHops) SetHops(v uint8) {
+	s.Struct.SetUint8(0, v)
+}
+
+func (s StaticInfoExtn_InternalHopsInfo_InterfaceHops) IfID() uint16 {
+	return s.Struct.Uint16(2)
+}
+
+func (s StaticInfoExtn_InternalHopsInfo_InterfaceHops) SetIfID(v uint16) {
+	s.Struct.SetUint16(2, v)
+}
+
+// StaticInfoExtn_InternalHopsInfo_InterfaceHops_List is a list of StaticInfoExtn_InternalHopsInfo_InterfaceHops.
+type StaticInfoExtn_InternalHopsInfo_InterfaceHops_List struct{ capnp.List }
+
+// NewStaticInfoExtn_InternalHopsInfo_InterfaceHops creates a new list of StaticInfoExtn_InternalHopsInfo_InterfaceHops.
+func NewStaticInfoExtn_InternalHopsInfo_InterfaceHops_List(s *capnp.Segment, sz int32) (StaticInfoExtn_InternalHopsInfo_InterfaceHops_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return StaticInfoExtn_InternalHopsInfo_InterfaceHops_List{l}, err
+}
+
+func (s StaticInfoExtn_InternalHopsInfo_InterfaceHops_List) At(i int) StaticInfoExtn_InternalHopsInfo_InterfaceHops {
+	return StaticInfoExtn_InternalHopsInfo_InterfaceHops{s.List.Struct(i)}
+}
+
+func (s StaticInfoExtn_InternalHopsInfo_InterfaceHops_List) Set(i int, v StaticInfoExtn_InternalHopsInfo_InterfaceHops) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s StaticInfoExtn_InternalHopsInfo_InterfaceHops_List) String() string {
+	str, _ := text.MarshalList(0xcd7606ede67cf290, s.List)
+	return str
+}
+
+// StaticInfoExtn_InternalHopsInfo_InterfaceHops_Promise is a wrapper for a StaticInfoExtn_InternalHopsInfo_InterfaceHops promised by a client call.
+type StaticInfoExtn_InternalHopsInfo_InterfaceHops_Promise struct{ *capnp.Pipeline }
+
+func (p StaticInfoExtn_InternalHopsInfo_InterfaceHops_Promise) Struct() (StaticInfoExtn_InternalHopsInfo_InterfaceHops, error) {
+	s, err := p.Pipeline.Struct()
+	return StaticInfoExtn_InternalHopsInfo_InterfaceHops{s}, err
+}
+
+const schema_e6c88f91b6a1209e = "x\xda\x9cW]l\x1cW\x15>\xdf\xbd;\xbb;\xc9" +
+	":\xbb\xc3\x18\x05(\xa9\x09\x02R\xd2$4?\xa0\xd2" +
+	"\x0a\xb9\xd9\xda\xaam\x9c\xc67Ie0\xa5d\xbc{" +
+	"\xed\x9dt=\xb3\xec\x8e\x9b8\x0a\xb2\"\x01\xa5\x11U" +
+	"i\x94\xa24RP\x83\x00\x81\xc4_BT%Q+" +
+	"Q\xa4\xb6\xf0P\xc4\x03\x95\xa0\x10!\x04-jh\x90" +
+	"(*\"\xf00\xe8\xce\xbf\xd7[l\xf1\xb8\xf7\x9e9" +
+	"\xf7;\xdf\xf9\xce\xcf\xde\xf6\xde\xdc]l\xbb\xf6\x07\x8d" +
+	"H\x0ciy\x1f\xfb\xffs~\xab\xf7\xc0WHl\x06" +
+	"|\xf1\xf0CW\xf9\xf1\x1f\x9e\xa4\\\x81h\xe7\xcb\xec" +
+	"\x0a\xcc\xeb\xac@d\xbe\xce\x0eS\xe6Z\xdc\x0c\xf8\x93" +
+	"[\xe5\xa9\x8f=0\xf1;\xd2\x94\xc9\xcea\xbe\x0f\xe6" +
+	"\xa7\xf9&\"s\x9e\xff\x85\xe0\xdf\xf8\xf3Go\xbf\xf4" +
+	"\xcas_'Q\x06\xf3\xbf\xf1\xbesO?\xfe\xd8\xcf" +
+	"_#\x0d\xca\xfax\x8e\xc1|T=c>\x92S\xd6" +
+	"/\xae\xef\xdbs\xe7KO\x9f!q+\xe0\xff\xe0\x93" +
+	"\xf7Y\xff\xbat\xf9b\x08dN\xbb\x06\xf3\x11M\x19" +
+	"\x7fIS@\x92\xeb. \x81\xebW\xb5)\x9874" +
+	"\x05\xe4\xddye\xfd\xc6\x89\xbd\xebo\xba\xe9\xceKd" +
+	"\xdc\xca\xd2O\x09;\x1f\xcd\x7f\x13\xe6\xb7\xf3\xca\xef\xb9" +
+	"\xfc^\x82\x7f\xee\x85-\xc7\xd7\xc9/?\xaf #\x85" +
+	"\x1c\x80\xb8\x9c\x7f\x07\xcc_\x04\xc6\xcf\xe7\x07\x09\xfe\x89" +
+	"]\xd3\x17\xfe\xf4A\xff\x85\xde \xf2\xd30o\xe4\xd7" +
+	"\x13\x99z\xe1G\x04\xff\xc2\xd0\xe9\xd7?\xf3\xfb\xef\xbc" +
+	"H\xe2#\x80\x7f\xcf\xdf\xdez\xf9\xd4\xdc\xaf\xafF\xd6" +
+	"\xcf\x15^\x81y\xb5\xa0|\xff6\xb0\xfe\xda\x9b\xc7^" +
+	"\xbb\x9e\x7f\xe8\xa5\xd0\xfa\xcc\xcc\xc3W~\xf9L\xfe\xaf" +
+	"!\x90\x85\xe25\x98O\x14\x95\xf1\xe3E\x15\xdf\xe8\xae" +
+	"\x8f\xbf\xc5\x0f\xce\xfe\x8a\xc4\x16d`\x05\xc6\xd7\x8b\xff" +
+	"\x86\xa9\xeb\xcaX\xd3\x95\xb17\xb5ia\xd3\x95\x9f\xfd" +
+	"\x86\x8c\x9b\x97\x81\xb6\xf4\x1d0?\xaf+\xd0_\xd0U" +
+	"\x88\xc9\xbdQ\xce\xd0\xa1\x05$\x9c\xd7\xdf4\x9f\xd5'" +
+	"\x89v\xeak&A\x99\x98\x8c\x0fe\x9e\x09\xc5a\xad" +
+	"=\x0as~\xad\xf2||\xad\x821u\xf5\xde\x7f\xbe" +
+	"\xf1\xd8\xf6k\xbdt\xf7\xf7\xb5\x17`\xea\xa5\x00sI" +
+	"\xb1\x91\xc4\xdf\x8b\xe9\xb3\xa5\xa30\xcf\x97\x94\xebgK" +
+	"\xca\xf5?\xbe\xfa\xea\x1f\x9f\xfc\xc9\x82\xdf+\x89\xdb\xfb" +
+	"\xd6\xc0\xdc\xdd\xa7\\\x7f\xa2OEhu\xe6>'\x8f" +
+	"x\x1dm[\xcdj9\xad;\xf6{\x96g\xd7F\x9d" +
+	"\x19w\xf8\x88\xe7l\x1b\xb7<\xe9\xd4\x16\xd4\xefmw" +
+	"7\xecf}|0<\x99\x00D\x91\xe7\x88r 2" +
+	">\xbc\x83H|\x80C\xdc\xc6`\x00\xfdP\x87[7" +
+	"\x13\x89[8\xc4.\x86\x01\xdb\xf1\xda\x16\x0a\xc4P " +
+	"\x94\xed\x99\xd1\xa1\xf8G\x02!\xb7\x12\x04\xb8\xa2\x08\xa4" +
+	"%k\xe8\x87R\x1e\x0d}\xda\x0f\x11Z\x1e\x95\xd5\x17" +
+	"\xfe\x84\x94m\xf55\x15\x9c\xda\x82\xa8$h\xad\xa3D" +
+	"\xe2 \x878\x96A\xbbp\x82H\x1c\xe3\x10\xa7\x19\xc0" +
+	"\xfa\xc1\x88\x8c'\xdaD\xe2\x14\x87x\x8a\xc1\xe0\xe8\x07" +
+	"'2\xce^!\x12Oq\x88\xef3\xf8\xb5\xf8\xc5A" +
+	"\xe9\xd4l\xd9\xc1:\xc2\x04\x07*)J\x82:\xf4[" +
+	"R\xb6mgv\x1cA8\xb6\xec\x10\xa5\xc6I\x14\x91" +
+	"\xb1\x9cm\xcbNg\xdc\xa2\x81 \xf6\x84*\xdb\x09." +
+	"\x0e\xc0\x1d\x0e-\xa2l,\xe3\x92G\\\xees\xe7=" +
+	"\xdb\x99\x9dp\x9bvma\xf8\x88G*o\x19&\xde" +
+	"O$\xee\xe7\x10\x8d\x0c\x13\xb2\x1a\xd1\xd3d0\x18B" +
+	"*l\x95\xcc:\x87h1\x80\x87L\xcc)\xc3\x06\x87" +
+	"\xf8\"C\xa1#=\x80\x18@Xl\xb9\xcd\x03\x0b-" +
+	"\x89<1\xe4\xe3t\xeb\xc4\xa0\x13\x16\xedN\xdd\xea\xa4" +
+	"L\xa9\xe3u\x19\xe4\xf9\xb7Q\x81\xed<\xa8|\x06J" +
+	"\x1cu<\xd9\x9e\xb1jR\x9d\x96\xd5q\x97\x1c7\xf7" +
+	"\x92\xe3\x18\x91\xd8\xc2!ng]\x02lF\xbe\x89\x08" +
+	"\xe5\xb4[\x12P^\x85<\x13`|&\xd4g\xdan" +
+	"\xf5\xb1\xb4\xad\x1b\xfaI\x7f<}\xc8\x8fc\x80\x8cN" +
+	"!\xb3\x11\x1c\x8ajg\x88!\x0e`\xb7\x92\xed]\x1c" +
+	"b\x9c\xa5r\xa2\xb2\xed<\x98\x91]\xf2\xdeR%\xd9" +
+	"4\x18>\xfd?\x02\xd4V\xc1|\xf0\xa3\x10\x11^\x0a" +
+	"\x94\xb1\xe1\x0e\xe5\xc8x\xe7\x18\x11\x98aT\x89\x06\xeb" +
+	"v[\xd6<\x7fn\xbe\xe9\xd9#n\x8b\x88\x16\xdd\x96" +
+	"t\xee\x95\xde2\x81\x8e\xee\x1f\xda\xed8\xee\xbcS\x93" +
+	"s\xd2\xf1\x86\x8f\xc0S\xaes\x09\x13}J\xa2E\x0e" +
+	"\xd1\xbfTd+\xe5\xa5j9\xf5\xc3v\xddk\x8c\x16" +
+	"\x9c\x19W\xe4\x90\x99\x13\x06\xced\xf8\x8f,\xb9\xd7\x10" +
+	"\xa5\xe4\xd9\xe1)\xb5 p\x88\x83i\x02>;\x96\xa9" +
+	"\x96\xb80\xe4\xc9\xa8\x08<\x06\x7f:z\x94x#\x93" +
+	"\x93\xe4\xdd%9\xa9N*\xbd\x15\x89\xa1\xd8\xa3\xb2\xab" +
+	"\x98L\xeeV(\x8d{\xa4\x1b\xe6\xc6\xadY\x9e\xed:" +
+	"\xdb\xeev\xddv\xddv,\x8f\xcbN\x90\xa74\xaa\xb1" +
+	"(\xaa\x89La\xec\xd9G$\xc69\xc4\xa7\xd2\xcew" +
+	"\x9f*\xed\x09\x0eq?\x83\xdf\xb4<\xdb\x9b\xaf\x07\xf5" +
+	"\xb1\x86\x18\xd6\xa8\x9aq\x9dYuH\x90\xf1\xd9\xa2U" +
+	"\xaf+\xe8\xe8#\x86\xbe\x95q\x07\x19p\xac\xe6\x88\xdb" +
+	"\xea,-\xeb\xb2:ZMIg&L\xb9\xe1\xb6:" +
+	"K;NwS\xcc\xaf\xa4\x94% \xaa\x963\x18\x9e" +
+	"w!yO\x16\x09[\x8e\x84O\x1f\x8eS\xd7\x1b\x07" +
+	"\x7f\xbb<\x0e\x04\x89\x0c\xb4\x9a.\x13\x18\xf3\xe3\xcc\x12" +
+	"Q\xb62T\xdeJ\x1c\xe2\x16\x95\xa3\xd8\x04\x19\xe1%" +
+	"N\"\xe1\xc5\x00X7\x80\x81\x00\x81\xe8\xcf\xae\"\xc6" +
+	"\xc6\xe9t\x9726\xb63\x9b\xd3\xc6j\xbaF\x1a\x1b" +
+	"\x0e\xa5\xfb\x89\xb1\xe1\x84\x1f\xcfkRu\xe7\xc7\xe4\xd2" +
+	"@@\xefb$\xd6\xb4\x15\x96\x83\x9f\xb1\x16\x10\x8b\x81" +
+	"H\xbc+\x89\xf4\xc9jf\x0e\xc7\xc9?\xab\x1a\xc3i" +
+	"\x0e\xf1-U\x8d\x91n\xcf\x8d\xa5\xc3\xd9\xe0\xd1\x9c\xfa" +
+	"\x9e\"\xea\xbb\x1c\xe2\"\x83\x91\xcb\xf5#Gd\x9cW" +
+	"\x1d\xf6\xc7\x1c\xe2\x19\x06C\xd3\xfa\xa1\x11\x19\x97U\x1a" +
+	"/r\x88\x9f2,6\xa3\xd9ZI9!\xa0B(" +
+	"\xccJ\x17\x95\x94\x8f\xf04\x18#^4F*\xd9=" +
+	";\xb8MZ\x03\x1a\xa8\xa4\xc4F\xb7v\x14?\x05\xd2" +
+	"G%\xa544(;\xae'Q\"\x86\xd2\xca\xad/" +
+	"m\x08\x83\xa1(\x02E%\x0b\xb8\x81i?n\x11T" +
+	"\xf0d'+\xeej\xaf2\x9b\x8a&\xe7\x08\xc3\xe2l" +
+	"\xab3dy\x16*\xa9\xc3l\x0c3V\x8dx:\xdd" +
+	"\x0b]\xd3}\x15kf\xb8\xb5\x0d$[f\xa6{\xed" +
+	"H\x07`\x02ntG\xa6\xa5\xc52\xd8\xa3\xf28\xc2" +
+	"!\x0et\xaf\x9e\x03\x01\xca\xffk\x11M\xfb\xd5`\xa8" +
+	"\xd1\x80\xd6\xe4\x9f\x8a\x81v2Th@\xaa<f\x89" +
+	"m\xf7\x18\xe8\xd3\x99\x81n/\xfd4-\xe2\xe4\x81\xa8" +
+	"\x88m\xe7\x80\xbbw\xde\x1b\xa1B\xa6\xe1-\xeb-#" +
+	"v\xbd.\x9d\x09\xcbk\xec\x97\xb3\x0a>\xd1\xea\xe6\xea" +
+	"\x7f\x03\x00\x00\xff\xff\x17\xc7#\xbf"
 
 func init() {
 	schemas.Register(schema_e6c88f91b6a1209e,
+		0x885e742db1fb5301,
+		0x92ae8103dd768751,
 		0x96c1dab83835e4f9,
+		0x9ab6cd3b4d0d17c7,
+		0xb4b9b8f861554bad,
+		0xb83b1b1b174f8aec,
 		0xc586650e812cc6a1,
+		0xc6ff25e3b262348a,
+		0xc7a6dc5be99844b2,
+		0xcd7606ede67cf290,
+		0xd0676003f5393449,
+		0xd8c2ba2779275a74,
+		0xdb505e3694652d57,
+		0xddd46d94d5f5ee47,
+		0xea318fecf64edd5a,
+		0xeb06bcceba87669a,
 		0xff79b399e1e58cf3)
 }
