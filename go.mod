@@ -8,7 +8,8 @@ require (
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/dchest/cmac v0.0.0-20150527144652-62ff55a1048c
 	github.com/golang/mock v1.4.0
-	github.com/google/go-cmp v0.3.0
+	github.com/golang/protobuf v1.4.0
+	github.com/google/go-cmp v0.4.0
 	github.com/google/go-querystring v1.0.1-0.20190318165438-c8c88dbee036 // indirect
 	github.com/google/gopacket v1.1.16-0.20190123011826-102d5ca2098c
 	github.com/iancoleman/strcase v0.0.0-20190422225806-e506e3ef7365
@@ -22,7 +23,6 @@ require (
 	github.com/patrickmn/go-cache v2.1.1-0.20180815053127-5633e0862627+incompatible
 	github.com/pkg/errors v0.8.2-0.20190227000051-27936f6d90f9 // indirect
 	github.com/prometheus/client_golang v1.1.0
-	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4 // indirect
 	github.com/sergi/go-diff v1.0.1-0.20180205163309-da645544ed44
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/songgao/water v0.0.0-20190725173103-fd331bda3f4b
@@ -37,6 +37,7 @@ require (
 	golang.org/x/crypto v0.0.0-20200423211502-4bdfaf469ed5
 	golang.org/x/net v0.0.0-20191105084925-a882066a44e0
 	golang.org/x/tools v0.0.0-20191029041327-9cc4af7d6b2c
+	google.golang.org/grpc v1.29.1
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/restruct.v1 v1.0.0-20151213023948-80ede2e57cc2
 	gopkg.in/yaml.v2 v2.2.4

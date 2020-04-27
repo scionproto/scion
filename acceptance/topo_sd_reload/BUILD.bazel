@@ -6,9 +6,9 @@ go_test(
     srcs = ["reload_test.go"],
     data = [
         "testdata/topology_reload.json",
-        ":dispatcher",
+        ":dispatcher.tar",
         ":docker-compose.yml",
-        ":sciond",
+        ":sciond.tar",
         "//acceptance/topo_common:invalid_reloads",
         "//acceptance/topo_common:topology",
     ],

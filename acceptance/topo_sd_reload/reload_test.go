@@ -62,9 +62,9 @@ func TestSDTopoReload(t *testing.T) {
 
 func setupTest(t *testing.T) {
 	// first load the docker images from bazel into the docker deamon, the
-	// scripts are in the same folder as this test runs in bazel.
-	mustExec(t, "dispatcher")
-	mustExec(t, "sciond")
+	// tars are in the same folder as this test runs in bazel.
+	mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar")
+	mustExec(t, "docker", "image", "load", "-i", "sciond.tar")
 	// now start the docker containers
 	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "up",
 		"-d", "topo_sd_reload_dispatcher", "topo_sd_reload_sciond")

@@ -64,9 +64,9 @@ func TestPSTopoReload(t *testing.T) {
 
 func setupTest(t *testing.T) {
 	// first load the docker images from bazel into the docker deamon, the
-	// scripts are in the same folder as this test runs in bazel.
-	mustExec(t, "dispatcher")
-	mustExec(t, "cs")
+	// tars are in the same folder as this test runs in bazel.
+	mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar")
+	mustExec(t, "docker", "image", "load", "-i", "cs.tar")
 	// now start the docker containers
 	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "up", "-d")
 	// wait a bit to make sure the containers are ready.
