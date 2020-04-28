@@ -7,35 +7,34 @@ import (
 	"os"
 )
 
-
 type Latintf struct {
-	Inter  uint16     `json:"Inter"`
-	Intra  map[uint16]uint16 `json:"Intra"`
+	Inter uint16            `json:"Inter"`
+	Intra map[uint16]uint16 `json:"Intra"`
 }
 
 type Bwintf struct {
-	Inter  uint32    `json:"Inter"`
-	Intra  map[uint16]uint32 `json:"Intra"`
+	Inter uint32            `json:"Inter"`
+	Intra map[uint16]uint32 `json:"Intra"`
 }
 
 type Geointf struct {
-	Longitude      float32 `json:"Longitude"`
-	Latitude      float32 `json:"Latitude"`
-	Address string  `json:"Address"`
+	Longitude float32 `json:"Longitude"`
+	Latitude  float32 `json:"Latitude"`
+	Address   string  `json:"Address"`
 }
 
 type Hopintf struct {
-	Intra  map[uint16]uint8 `json:"Intra"`
+	Intra map[uint16]uint8 `json:"Intra"`
 }
 
 // Configdata is used to parse data from config.json.
 type Configdata struct {
-	Latency  map[uint16]Latintf `json:"Latency"`
-	Bandwidth   map[uint16]Bwintf  `json:"Bandwidth"`
-	Linktype   map[uint16]string  `json:"Linktype"`
-	Geo  map[uint16]Geointf `json:"Geo"`
-	Hops map[uint16]Hopintf `json:"Hops"`
-	Note    string             `json:"Note"`
+	Latency   map[uint16]Latintf `json:"Latency"`
+	Bandwidth map[uint16]Bwintf  `json:"Bandwidth"`
+	Linktype  map[uint16]string  `json:"Linktype"`
+	Geo       map[uint16]Geointf `json:"Geo"`
+	Hops      map[uint16]Hopintf `json:"Hops"`
+	Note      string             `json:"Note"`
 }
 
 // Parseconfigdata parses data from a config file into a Configdata struct.
