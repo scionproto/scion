@@ -34,6 +34,7 @@ go_test(
         "staticinfo_parser_test.go",
     ],
     embed = [":go_default_library"],
+    data = glob(["testdata/**"]),
     deps = [
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
