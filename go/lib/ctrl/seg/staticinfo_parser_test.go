@@ -564,6 +564,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 				},
 			},
 			Hops: InternalHopsInfo{
+				Intououthops: 3,
 				Hoppairs: []Hoppair{
 					{
 						IntfID: 3,
