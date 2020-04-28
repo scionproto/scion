@@ -133,15 +133,8 @@ func configcompare(totest Configdata, expected Configdata) (bool, string) {
 	return passed, info
 }
 
-// testparsing tests whether or not Parseconfigdata works properly.
-func TestParsing(t *testing.T) {
-	var info string
-	var passed bool
-	totest, err := Parsenconfigdata("testdata/testconfigfile.json")
-	if err != nil {
-		t.Error("Error occured during parsing: " + err.Error())
-	}
-	expected := Configdata{
+func getTestConfigData() Configdata {
+	return Configdata{
 		Latency: map[uint16]Latintf{
 			1: {
 				Inter: 30,
@@ -217,6 +210,17 @@ func TestParsing(t *testing.T) {
 		},
 		Note: "asdf",
 	}
+}
+
+// testparsing tests whether or not Parseconfigdata works properly.
+func TestParsing(t *testing.T) {
+	var info string
+	var passed bool
+	totest, err := Parsenconfigdata("testdata/testconfigfile.json")
+	if err != nil {
+		t.Error("Error occured during parsing: " + err.Error())
+	}
+	expected := getTestConfigData()
 	passed, info = configcompare(totest, expected)
 	if !passed {
 		t.Error(info)
@@ -418,85 +422,10 @@ func compareStaticinfo(totest, expected StaticInfoExtn) (bool, string) {
 func TestGenerateStaticinfo(t *testing.T) {
 	var testcases []ConfigTest
 	testcases = append(testcases, ConfigTest{
-		configData: Configdata{
-			Latency: map[uint16]Latintf{
-				1: {
-					Inter: 30,
-					Intra: map[uint16]uint16{2: 10, 3: 20, 5: 30},
-				},
-				2: {
-					Inter: 40,
-					Intra: map[uint16]uint16{1: 10, 3: 70, 5: 50},
-				},
-				3: {
-					Inter: 80,
-					Intra: map[uint16]uint16{1: 20, 2: 70, 5: 60},
-				},
-				5: {
-					Inter: 90,
-					Intra: map[uint16]uint16{1: 30, 2: 50, 3: 60},
-				},
-			},
-			Bandwidth: map[uint16]Bwintf{
-				1: {
-					Inter: 400000000,
-					Intra: map[uint16]uint32{2: 100000000, 3: 200000000, 5: 300000000},
-				},
-				2: {
-					Inter: 5000000,
-					Intra: map[uint16]uint32{1: 5044444, 3: 6555550, 5: 75555550},
-				},
-				3: {
-					Inter: 80,
-					Intra: map[uint16]uint32{1: 9333330, 2: 1044440, 5: 1333310},
-				},
-				5: {
-					Inter: 120,
-					Intra: map[uint16]uint32{1: 1333330, 2: 1555540, 3: 15666660},
-				},
-			},
-			Linktype: map[uint16]string{1: "direct", 2: "opennet", 3: "multihop", 5: "direct"},
-			Geo: map[uint16]Geointf{
-				1: {
-					Longitude: 62.2,
-					Latitude:  47.2,
-					Address:   "geo1",
-				},
-				2: {
-					Longitude: 45.2,
-					Latitude:  79.2,
-					Address:   "geo2",
-				},
-				3: {
-					Longitude: 42.23,
-					Latitude:  47.22,
-					Address:   "geo3",
-				},
-				5: {
-					Longitude: 46.2,
-					Latitude:  48.2,
-					Address:   "geo5",
-				},
-			},
-			Hops: map[uint16]Hopintf{
-				1: {
-					Intra: map[uint16]uint8{2: 2, 3: 3, 5: 0},
-				},
-				2: {
-					Intra: map[uint16]uint8{1: 2, 3: 3, 5: 1},
-				},
-				3: {
-					Intra: map[uint16]uint8{1: 4, 2: 6, 5: 3},
-				},
-				5: {
-					Intra: map[uint16]uint8{1: 2, 2: 3, 3: 4},
-				},
-			},
-			Note: "asdf",
-		},
-		peers:  map[uint16]bool{1: false, 2: false, 3: false, 5: true},
-		egIfid: 2,
-		inIfid: 3,
+		configData: getTestConfigData(),
+		peers:      map[uint16]bool{1: false, 2: false, 3: false, 5: true},
+		egIfid:     2,
+		inIfid:     3,
 		expected: StaticInfoExtn{
 			Latency: LatencyInfo{
 				Egresslatency:  40,
