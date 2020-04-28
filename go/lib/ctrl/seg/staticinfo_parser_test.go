@@ -137,7 +137,7 @@ func configcompare(totest Configdata, expected Configdata) (bool, string) {
 func TestParsing(t *testing.T) {
 	var info string
 	var passed bool
-	totest, err := Parsenconfigdata("testconfigfile.json")
+	totest, err := Parsenconfigdata("testdata/testconfigfile.json")
 	if err != nil {
 		t.Error("Error occured during parsing: " + err.Error())
 	}
