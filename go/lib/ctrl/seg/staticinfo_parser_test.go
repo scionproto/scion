@@ -495,11 +495,11 @@ func TestGenerateStaticinfo(t *testing.T) {
 			Note: "asdf",
 		},
 		peers:  map[uint16]bool{1: false, 2: false, 3: false, 5: true},
-		egIfid: 3,
-		inIfid: 2,
+		egIfid: 2,
+		inIfid: 3,
 		expected: StaticInfoExtn{
 			Latency: LatencyInfo{
-				Egresslatency:  80,
+				Egresslatency:  40,
 				Intooutlatency: 70,
 				Childlatencies: []Latencychildpair{
 					{
@@ -575,15 +575,15 @@ func TestGenerateStaticinfo(t *testing.T) {
 				},
 			},
 			Hops: InternalHopsInfo{
-				Intououthops: 3,
+				Intououthops: 6,
 				Hoppairs: []Hoppair{
 					{
 						IntfID: 3,
-						Hops:   3,
+						Hops:   6,
 					},
 					{
 						IntfID: 5,
-						Hops:   1,
+						Hops:   3,
 					},
 				},
 			},
