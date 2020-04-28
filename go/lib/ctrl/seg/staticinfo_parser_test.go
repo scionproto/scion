@@ -581,7 +581,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 	passed := true
 	for i := 0; i < len(testcases); i++ {
 
-		data := GenerateStaticinfo(testcases[i].configData, testcases[i].peers, testcases[i].inIfid, testcases[i].egIfid)
+		data := GenerateStaticinfo(testcases[i].configData, testcases[i].peers, testcases[i].egIfid, testcases[i].inIfid)
 		testres, testinfo := compareStaticinfo(data, testcases[i].expected)
 		passed = passed && testres
 		if !testres {
