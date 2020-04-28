@@ -254,20 +254,20 @@ The format for latency information, specified in terms of its capnp encoding, lo
 
 ```CAPNP
 struct LatencyInfo {
-  childLatencies @0 :List(LCPair);
-  peeringLatencies @1 :List(LPTriplet);
+  childLatencies @0 :List(ChildLatency);
+  peeringLatencies @1 :List(PeerLatency);
   egressLatency @2 :UInt16;
   ingressToEgressLatency @3 :UInt16;
 
-  struct LCPair {
-     intraDelay @0 :UInt16;
-     interface @1 :UInt16;
+  struct ChildLatency {
+    intra @0 :UInt16;
+    ifID @1 :UInt16;
   }
 
-  struct LPTriplet {
-     intraDelay @0 :UInt16;
-     interDelay @1 :UInt16;
-     interface @2 :UInt16;
+  struct PeerLatency {
+    intra @0 :UInt16;
+    inter @1 :UInt16;
+    ifID @2 :UInt16;
   }
 }
 ```
@@ -314,13 +314,13 @@ encoding, looks like this:
 
 ```CAPNP
 struct BandwidthInfo {
-  bandwidthPairs @0 :List(BWPair);
+  bandwidths @0 :List(InterfaceBandwidth);
   egressBW @1 :UInt32;
   ingressToEgressBW @2 :UInt32;
 
-  struct BWPair {
-     BW @0 :UInt32;
-     interface @1 :UInt16;
+  struct InterfaceBandwidth {
+    bw @0 :UInt32;
+    ifID @1 :UInt16;
   }
 }
 ```
@@ -369,14 +369,14 @@ struct GeoInfo {
   locations @0 :List(Location);
 
   struct Location {
-     gpsData @0 :Coordinates;
-     interfaces @1 :List(UInt16);
+    gpsData @0 :Coordinates;
+    interfaces @1 :List(UInt16);
 
-     struct Coordinates {
-        latitude @0 :Float32;
-        longitude @1 :Float32;
-        address @2 :Data;
-     }
+    struct Coordinates {
+      latitude @0 :Float32;
+      longitude @1 :Float32;
+      address @2 :Data;
+    }
   }
 }
 ```
@@ -417,18 +417,18 @@ The format for the link type looks like this:
 
 ```CAPNP
 struct LinkTypeInfo {
-  peeringLinks @0 :List(PeeringPair);
+  peeringLinks @0 :List(InterfaceLinkType);
   egressLinkType @1 :LinkType;
 
   enum LinkType{
-     direct @0;
-     multiHop @1;
-     openNet @2;
+    direct @0;
+    multiHop @1;
+    openNet @2;
   }
 
-  struct PeeringPair {
-     interface @0 :UInt16;
-     peeringLinkType @1 :LinkType;
+  struct InterfaceLinkType {
+    ifID @0 :UInt16;
+    linkType @1 :LinkType;
   }
 }
 ```
@@ -460,12 +460,12 @@ The format for the number of internal hops looks like this:
 
 ```CAPNP
 struct InternalHopsInfo {
-  hopPairs @0 :List(HopPair);
+  interfaceHops @0 :List(InterfaceHops);
   inToOutHops @1 :UInt8;
 
-  struct HopPair {
-     Hops @0 :UInt8;
-     interface @1 :UInt16;
+  struct InterfaceHops {
+    hops @0 :UInt8;
+    ifID @1 :UInt16;
   }
 }
 ```
