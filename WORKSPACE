@@ -9,7 +9,7 @@ git_repository(
     tag = "v0.20.2",
 )
 
-load("@io_bazel_rules_go//go:deps.bzl", "go_download_sdk", "go_rules_dependencies", "go_register_toolchains")
+load("@io_bazel_rules_go//go:deps.bzl", "go_download_sdk", "go_register_toolchains", "go_rules_dependencies")
 
 go_rules_dependencies()
 
@@ -25,11 +25,11 @@ go_register_toolchains(nogo = "@//:nogo")
 # Gazelle
 http_archive(
     name = "bazel_gazelle",
+    sha256 = "86c6d481b3f7aedc1d60c1c211c6f76da282ae197c3b3160f54bd3a8f847896f",
     urls = [
         "https://storage.googleapis.com/bazel-mirror/github.com/bazelbuild/bazel-gazelle/releases/download/v0.19.1/bazel-gazelle-v0.19.1.tar.gz",
         "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.19.1/bazel-gazelle-v0.19.1.tar.gz",
     ],
-    sha256 = "86c6d481b3f7aedc1d60c1c211c6f76da282ae197c3b3160f54bd3a8f847896f",
 )
 
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
@@ -40,33 +40,39 @@ gazelle_dependencies()
 # Python rules
 git_repository(
     name = "rules_python",
-    remote = "https://github.com/bazelbuild/rules_python.git",
     commit = "94677401bc56ed5d756f50b441a6a5c7f735a6d4",
+    remote = "https://github.com/bazelbuild/rules_python.git",
     shallow_since = "1573842889 -0500",
 )
 
 load("@rules_python//python:repositories.bzl", "py_repositories")
+
 py_repositories()
 
 load("@rules_python//python:pip.bzl", "pip3_import")
+
 pip3_import(
-   name = "pip3_deps",
-   requirements = "//env/pip3:requirements.txt",
+    name = "pip3_deps",
+    requirements = "//env/pip3:requirements.txt",
 )
 
 load("@pip3_deps//:requirements.bzl", "pip_install")
+
 pip_install()
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
 http_archive(
     name = "rules_pkg",
+    sha256 = "352c090cc3d3f9a6b4e676cf42a6047c16824959b438895a76c2989c6d7c246a",
     urls = [
         "https://github.com/bazelbuild/rules_pkg/releases/download/0.2.5/rules_pkg-0.2.5.tar.gz",
         "https://mirror.bazel.build/github.com/bazelbuild/rules_pkg/releases/download/0.2.5/rules_pkg-0.2.5.tar.gz",
     ],
-    sha256 = "352c090cc3d3f9a6b4e676cf42a6047c16824959b438895a76c2989c6d7c246a",
 )
+
 load("@rules_pkg//:deps.bzl", "rules_pkg_dependencies")
+
 rules_pkg_dependencies()
 
 # Docker rules
@@ -99,7 +105,7 @@ git_repository(
 
 # Debian packages to install in containers
 load("@distroless//package_manager:package_manager.bzl", "package_manager_repositories")
-load("@distroless//package_manager:dpkg.bzl", "dpkg_src", "dpkg_list")
+load("@distroless//package_manager:dpkg.bzl", "dpkg_list", "dpkg_src")
 
 package_manager_repositories()
 
@@ -202,9 +208,9 @@ load("@io_bazel_rules_docker//container:container.bzl", "container_pull")
 
 container_pull(
     name = "ubuntu16",
+    digest = "sha256:a98d9dcf3a34b2b78e78c61d003eb4d7a90d30fd54451686e2f0bd2ef5f602ac",
     registry = "index.docker.io",
     repository = "library/ubuntu",
-    digest = "sha256:a98d9dcf3a34b2b78e78c61d003eb4d7a90d30fd54451686e2f0bd2ef5f602ac",
     tag = "16.04",
 )
 
@@ -234,6 +240,12 @@ git_repository(
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 
 protobuf_deps()
+
+http_archive(
+    name = "com_github_bazelbuild_buildtools",
+    strip_prefix = "buildtools-master",
+    url = "https://github.com/bazelbuild/buildtools/archive/2.2.1.zip",
+)
 
 load("//:tool_deps.bzl", "tool_deps")
 

@@ -9,83 +9,84 @@ gazelle(name = "gazelle")
 # and the required tools.
 pkg_tar(
     name = "scion",
-    package_dir = "",
     srcs = [
-        "//go/border:border",
-        "//go/cs:cs",
-        "//go/dispatcher:dispatcher",
-        "//go/tools/logdog:logdog",
-        "//go/sciond:sciond",
-        "//go/scion:scion",
-        "//go/tools/scion-pki:scion-pki",
-        "//go/tools/scmp:scmp",
-        "//go/tools/showpaths:showpaths",
-        "//go/tools/pathdb_dump:pathdb_dump",
-        "//go/sig:sig",
+        "//go/border",
+        "//go/cs",
+        "//go/dispatcher",
+        "//go/scion",
+        "//go/sciond",
+        "//go/sig",
+        "//go/tools/logdog",
+        "//go/tools/pathdb_dump",
+        "//go/tools/scion-pki",
+        "//go/tools/scmp",
+        "//go/tools/showpaths",
     ],
     mode = "0755",
+    package_dir = "",
 )
 
 # This contains all of the binaries needed to run CI (integration & acceptance
 # tests)
 pkg_tar(
     name = "scion-ci",
-    package_dir = "",
     srcs = [
-        "//go/border/braccept:braccept",
-        "//go/integration/cert_req:cert_req",
-        "//go/integration/cert_req_integration:cert_req_integration",
-        "//go/integration/end2end:end2end",
-        "//go/integration/end2end_integration:end2end_integration",
-        "//go/lib/xtest/graphupdater:graphupdater",
-        "//go/examples/pingpong:pingpong",
-        "//go/examples/pingpong/pp_integration:pp_integration",
-        "//go/tools/buildkite_log_downloader:buildkite_log_downloader",
-        "//go/tools/scmp/scmp_integration:scmp_integration",
-        "//go/tools/udpproxy:udpproxy",
-        "//go/acceptance/sig_ping_acceptance:sig_ping_acceptance",
+        "//go/acceptance/sig_ping_acceptance",
+        "//go/border/braccept",
+        "//go/examples/pingpong",
+        "//go/examples/pingpong/pp_integration",
+        "//go/integration/cert_req",
+        "//go/integration/cert_req_integration",
+        "//go/integration/end2end",
+        "//go/integration/end2end_integration",
+        "//go/lib/xtest/graphupdater",
+        "//go/tools/buildkite_log_downloader",
+        "//go/tools/scmp/scmp_integration",
+        "//go/tools/udpproxy",
     ],
     mode = "0755",
+    package_dir = "",
 )
 
 # This contains all of the binaries needed to run the topology generator.
 pkg_tar(
     name = "scion-topo",
-    package_dir = "",
     srcs = [
-        "//go/tools/scion-pki:scion-pki",
+        "//go/tools/scion-pki",
     ],
     mode = "0755",
+    package_dir = "",
 )
 
 # This is a package of tools used for linting the source code.
 pkg_tar(
     name = "lint",
-    package_dir = "",
     srcs = [
-        "@com_github_client9_misspell//cmd/misspell:misspell",
-        "@com_github_jeanmertz_lll//cmd/lll:lll",
-        "@com_github_pavius_impi//cmd/impi:impi",
+        "@com_github_client9_misspell//cmd/misspell",
+        "@com_github_jeanmertz_lll//cmd/lll",
         "@com_github_oncilla_ineffassign//:ineffassign",
+        "@com_github_pavius_impi//cmd/impi",
     ],
     mode = "0755",
+    package_dir = "",
 )
 
 # This is a package of tools used for generating code that is checked in
 # to git (i.e. outside of bazels reach).
 pkg_tar(
     name = "build-tools",
-    package_dir = "",
     srcs = [
-        "@com_zombiezen_go_capnproto2//capnpc-go:capnpc-go",
+        "@com_zombiezen_go_capnproto2//capnpc-go",
     ],
     mode = "0755",
+    package_dir = "",
 )
 
 # Nogo - Go code analysis tool
 nogo(
     name = "nogo",
     config = "nogo.json",
+    visibility = ["//visibility:public"],
     deps = [
         "//go/lint:log",
         "@com_github_oncilla_gochecks//logcheck:go_tool_library",
@@ -114,5 +115,15 @@ nogo(
         "@org_golang_x_tools//go/analysis/passes/unsafeptr:go_tool_library",
         "@org_golang_x_tools//go/analysis/passes/unusedresult:go_tool_library",
     ],
-    visibility = ["//visibility:public"],
+)
+
+load("@com_github_bazelbuild_buildtools//buildifier:def.bzl", "buildifier")
+
+buildifier(
+    name = "buildifier",
+)
+
+buildifier(
+    name = "buildifier_check",
+    mode = "check",
 )

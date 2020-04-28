@@ -4,7 +4,6 @@ load("@package_bundle//file:packages.bzl", "packages")
 
 # Defines a common base image for all app images.
 def scion_app_base():
-
     # Debian packages to install.
     debs = [
         packages["libc6"],
@@ -65,7 +64,7 @@ def scion_app_base():
 #   workdir - working directory
 #   entrypoint - a list of strings that add up to the command line
 #   stamp - whether to stamp the created images (default=True).
-def scion_app_images(name, binary, appdir, workdir, entrypoint, stamp=True):
+def scion_app_images(name, binary, appdir, workdir, entrypoint, stamp = True):
     pkg_tar(
         name = name + "_docker_files",
         srcs = [binary],

@@ -4,6 +4,6 @@ load("@io_bazel_rules_go//go:def.bzl", "go_binary")
 def scion_go_binary(*args, **kwargs):
     x_defs = kwargs.get("x_defs", {})
     x_defs.update({
-        "github.com/scionproto/scion/go/lib/env.StartupVersion": "{STABLE_GIT_VERSION}"
+        "github.com/scionproto/scion/go/lib/env.StartupVersion": "{STABLE_GIT_VERSION}",
     })
-    go_binary(x_defs=x_defs, *args, **kwargs)
+    go_binary(x_defs = x_defs, *args, **kwargs)

@@ -10,8 +10,8 @@ genrule(
     outs = ["crypto.tar"],
     cmd = "$(location :gen_crypto_tar.sh) $(location //go/tools/scion-pki:scion-pki) $@",
     tools = [
-        "//go/tools/scion-pki:scion-pki",
         ":gen_crypto_tar.sh",
+        "//go/tools/scion-pki",
     ],
     visibility = ["//visibility:public"],
 )

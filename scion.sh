@@ -270,6 +270,7 @@ cmd_lint() {
     local ret=0
     py_lint || ret=1
     go_lint || ret=1
+    bazel_lint || ret=1
     md_lint || ret=1
     return $ret
 }
@@ -324,6 +325,16 @@ go_lint() {
     make gazelle GAZELLE_MODE=diff || ret=1
     # Clean up the binaries
     rm -rf $TMPDIR
+    return $ret
+}
+
+bazel_lint() {
+    lint_header "bazel"
+    local ret=0
+    bazel run //:buildifier_check || ret=1
+    if [ $ret -ne 0 ]; then
+        printf "\nto fix run:\nbazel run //:buildifier\n"
+    fi
     return $ret
 }
 

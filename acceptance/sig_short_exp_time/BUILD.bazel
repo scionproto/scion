@@ -5,51 +5,51 @@ sh_test(
     size = "small",
     srcs = ["test"],
     data = [
-        "//go/tools/udpproxy:udpproxy",
+        "docker-compose.yml",
         ":dispatcher1",
         ":dispatcher2",
         ":sig1",
         ":sig2",
-        "docker-compose.yml",
+        "//go/tools/udpproxy",
     ],
 )
 
 container_image(
     name = "dispatcher1",
     base = "//docker:dispatcher_debug",
-    files = ["testdata/1-ff00_0_110/dispatcher/disp.toml"],
     entrypoint = [
         "/app/dispatcher",
         "-config",
         "/disp.toml",
     ],
+    files = ["testdata/1-ff00_0_110/dispatcher/disp.toml"],
     stamp = True,
 )
 
 container_image(
     name = "dispatcher2",
     base = "//docker:dispatcher_debug",
-    files = ["testdata/1-ff00_0_111/dispatcher/disp.toml"],
     entrypoint = [
         "/app/dispatcher",
         "-config",
         "/disp.toml",
     ],
+    files = ["testdata/1-ff00_0_111/dispatcher/disp.toml"],
     stamp = True,
 )
 
 container_image(
     name = "sig1",
     base = "//docker:sig_debug",
-    files = [
-        "testdata/1-ff00_0_110/sig/cfg.json",
-        "testdata/1-ff00_0_110/sig/sig.toml",
-        "testdata/1-ff00_0_110/sig/fake_sciond.json",
-    ],
     entrypoint = [
         "/app/sig",
         "-config",
         "/sig.toml",
+    ],
+    files = [
+        "testdata/1-ff00_0_110/sig/cfg.json",
+        "testdata/1-ff00_0_110/sig/fake_sciond.json",
+        "testdata/1-ff00_0_110/sig/sig.toml",
     ],
     stamp = True,
 )
@@ -57,15 +57,15 @@ container_image(
 container_image(
     name = "sig2",
     base = "//docker:sig_debug",
-    files = [
-        "testdata/1-ff00_0_111/sig/cfg.json",
-        "testdata/1-ff00_0_111/sig/sig.toml",
-        "testdata/1-ff00_0_111/sig/fake_sciond.json",
-    ],
     entrypoint = [
         "/app/sig",
         "-config",
         "/sig.toml",
+    ],
+    files = [
+        "testdata/1-ff00_0_111/sig/cfg.json",
+        "testdata/1-ff00_0_111/sig/fake_sciond.json",
+        "testdata/1-ff00_0_111/sig/sig.toml",
     ],
     stamp = True,
 )

@@ -7,8 +7,8 @@ filegroup(
 filegroup(
     name = "invalid_reloads",
     srcs = [
-        ":topology_invalid_ia",
         ":topology_invalid_attributes",
+        ":topology_invalid_ia",
         ":topology_invalid_mtu",
     ],
     visibility = ["//visibility:public"],
