@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -65,7 +66,7 @@ func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDTy
 	if err != nil {
 		return err
 	}
-	staticInfoPeers := seg.CreatePeerMap(s.cfg)
+	staticInfoPeers := CreatePeerMap(s.cfg)
 	staticInfo := seg.GenerateStaticinfo(s.cfg.StaticInfoCfg, staticInfoPeers, uint16(egIfid), uint16(inIfid))
 	meta := s.cfg.Signer.Meta()
 	asEntry := &seg.ASEntry{
@@ -199,4 +200,14 @@ func min(a, b spath.ExpTimeType) spath.ExpTimeType {
 		return b
 	}
 	return a
+}
+
+// CreatePeerMap creates a map from interface IDs to booleans indicating whether the respective interface is used for
+// peering or not.
+func CreatePeerMap(cfg ExtenderConf) map[uint16]bool {
+	var peers map[uint16]bool
+	for ifID, ifInfo := range cfg.Intfs.All() {
+		peers[uint16(ifID)] = (ifInfo.TopoInfo().LinkType) == topology.Peer
+	}
+	return peers
 }
