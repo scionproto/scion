@@ -229,10 +229,12 @@ func compareLatencyInfo(totest LatencyInfo, expected LatencyInfo) (bool, string)
 	if !(totest.Egresslatency == expected.Egresslatency) {
 		passed = false
 		info += "Failed to get correct Egresslatency\n"
+		info += "Expected: " + strconv.Itoa(int(expected.Egresslatency)) + ", got: " + strconv.Itoa(int(totest.Egresslatency)) + "\n"
 	}
 	if !(totest.Intooutlatency == expected.Intooutlatency) {
 		passed = false
 		info += "Failed to get correct Intooutlatency\n"
+		info += "Expected: " + strconv.Itoa(int(expected.Intooutlatency)) + ", got: " + strconv.Itoa(int(totest.Intooutlatency)) + "\n"
 	}
 	for i := 0; i < len(totest.Childlatencies); i++ {
 		temp := false
@@ -244,6 +246,7 @@ func compareLatencyInfo(totest LatencyInfo, expected LatencyInfo) (bool, string)
 		passed = passed && temp
 		if !temp {
 			info += "Failed to get correct Childlatency for interface " + strconv.Itoa(int(totest.Childlatencies[i].Interface)) + "\n"
+			info += "Expected: " + strconv.Itoa(int(expected.Childlatencies[i].Intradelay)) + ", got: " + strconv.Itoa(int(totest.Childlatencies[i].Intradelay)) + "\n"
 		}
 	}
 	for i := 0; i < len(totest.Peeringlatencies); i++ {
@@ -256,6 +259,7 @@ func compareLatencyInfo(totest LatencyInfo, expected LatencyInfo) (bool, string)
 		passed = passed && temp
 		if !temp {
 			info += "Failed to get correct Peeringlatencies for interface " + strconv.Itoa(int(totest.Peeringlatencies[i].IntfID)) + "\n"
+			info += "Expected: " + strconv.Itoa(int(expected.Peeringlatencies[i].Interdelay)) + " " + strconv.Itoa(int(expected.Peeringlatencies[i].IntraDelay)) + ", got: " + strconv.Itoa(int(totest.Peeringlatencies[i].Interdelay)) + " " + strconv.Itoa(int(totest.Peeringlatencies[i].IntraDelay)) + "\n"
 		}
 	}
 	return passed, info
@@ -268,10 +272,12 @@ func compareBWInfo(totest BandwidthInfo, expected BandwidthInfo) (bool, string) 
 	if !(totest.EgressBW == expected.EgressBW) {
 		passed = false
 		info += "Failed to get correct EgressBW\n"
+		info += "Expected: " + strconv.Itoa(int(expected.EgressBW)) + ", got: " + strconv.Itoa(int(totest.EgressBW)) + "\n"
 	}
 	if !(totest.IntooutBW == expected.IntooutBW) {
 		passed = false
 		info += "Failed to get correct IntooutBW\n"
+		info += "Expected: " + strconv.Itoa(int(expected.IntooutBW)) + ", got: " + strconv.Itoa(int(totest.IntooutBW)) + "\n"
 	}
 	for i := 0; i < len(totest.BWPairs); i++ {
 		temp := false
@@ -283,6 +289,7 @@ func compareBWInfo(totest BandwidthInfo, expected BandwidthInfo) (bool, string) 
 		passed = passed && temp
 		if !temp {
 			info += "Failed to get correct bandwidth for interface " + strconv.Itoa(int(totest.BWPairs[i].IntfID)) + "\n"
+			info += "Expected: " + strconv.Itoa(int(expected.BWPairs[i].BW)) + ", got: " + strconv.Itoa(int(totest.BWPairs[i].BW)) + "\n"
 		}
 	}
 
@@ -328,6 +335,7 @@ func compareLinktypeInfo(totest LinktypeInfo, expected LinktypeInfo) (bool, stri
 	if !(totest.EgressLT == expected.EgressLT) {
 		passed = false
 		info += "Failed to get correct EgressLT\n"
+		info += "Expected: " + expected.EgressLT + ", got: " + totest.EgressLT + "\n"
 	}
 	for i := 0; i < len(totest.Peeringlinks); i++ {
 		temp := false
@@ -339,6 +347,7 @@ func compareLinktypeInfo(totest LinktypeInfo, expected LinktypeInfo) (bool, stri
 		passed = passed && temp
 		if !temp {
 			info += "Failed to get correct linktype for interface " + strconv.Itoa(int(totest.Peeringlinks[i].IntfID)) + "\n"
+			info += "Expected: " + expected.Peeringlinks[i].IntfLT + ", got: " + totest.Peeringlinks[i].IntfLT + "\n"
 		}
 	}
 
@@ -352,6 +361,7 @@ func compareHopsInfo(totest InternalHopsInfo, expected InternalHopsInfo) (bool, 
 	if !(totest.Intououthops == expected.Intououthops) {
 		passed = false
 		info += "Failed to get correct Intoouthops\n"
+		info += "Expected: " + strconv.Itoa(int(expected.Intououthops)) + ", got: " + strconv.Itoa(int(totest.Intououthops)) + "\n"
 	}
 	for i := 0; i < len(totest.Hoppairs); i++ {
 		temp := false
@@ -362,7 +372,8 @@ func compareHopsInfo(totest InternalHopsInfo, expected InternalHopsInfo) (bool, 
 		}
 		passed = passed && temp
 		if !temp {
-			info += "Failed to get correct hops for interface " + strconv.Itoa(int(totest.Hoppairs[i].Hops)) + "\n"
+			info += "Failed to get correct hops for interface " + strconv.Itoa(int(totest.Hoppairs[i].IntfID)) + "\n"
+			info += "Expected: " + strconv.Itoa(int(expected.Hoppairs[i].Hops)) + ", got: " + strconv.Itoa(int(totest.Hoppairs[i].Hops)) + "\n"
 		}
 	}
 
@@ -488,7 +499,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 		inIfid: 2,
 		expected: StaticInfoExtn{
 			Latency: LatencyInfo{
-				Egresslatency:  40,
+				Egresslatency:  80,
 				Intooutlatency: 70,
 				Childlatencies: []Latencychildpair{
 					{
