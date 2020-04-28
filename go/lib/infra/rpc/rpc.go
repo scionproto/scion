@@ -37,6 +37,8 @@ const (
 	// CtxTimedOutError is a custom QUIC error code that is used when canceling
 	// writes due to context expiration.
 	CtxTimedOutError = iota + 1
+
+	errorNoError quic.ErrorCode = 0x100
 )
 
 // Server is the configuration for a QUIC RPC server. Messages are SCION Infra
@@ -63,7 +65,7 @@ func (s *Server) ListenAndServe() error {
 		return err
 	}
 	for {
-		session, err := s.listener.Accept()
+		session, err := s.listener.Accept(context.Background())
 		if err != nil {
 			if strings.Contains(err.Error(), "server closed") {
 				return err
@@ -105,7 +107,7 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) handleQUICSession(session quic.Session) error {
-	stream, err := session.AcceptStream()
+	stream, err := session.AcceptStream(context.Background())
 	if err != nil {
 		return err
 	}
@@ -175,7 +177,7 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 	if err := stream.Close(); err != nil {
 		return nil, err
 	}
-	if err := session.Close(); err != nil {
+	if err := session.CloseWithError(errorNoError, ""); err != nil {
 		return nil, err
 	}
 	return &Reply{Message: msg}, nil

@@ -236,6 +236,7 @@ func (nc *NetworkConfig) buildQUICConfig(conn net.PacketConn) (*messenger.QUICCo
 		TLSConfig: &tls.Config{
 			Certificates:       []tls.Certificate{cert},
 			InsecureSkipVerify: true,
+			NextProtos:         []string{"SCION"},
 		},
 	}, nil
 }
