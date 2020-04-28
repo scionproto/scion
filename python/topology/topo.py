@@ -109,20 +109,60 @@ class TopoGenerator(object):
 
     def generate(self):
         self._read_links()
-        self._iterate(self._generate_as_topo)
-        self._iterate(self._generate_as_list)
-        if self.args.sig:
-            self._iterate(self._register_sig)
-        self._iterate(self._register_sciond)
+        # in a first step we allocate all networks, so that we can later use
+        # the IPs in the generate functions.
+        self._iterate(self._register_addrs)
         networks = {}
         for k, v in self.args.subnet_gen[ADDR_TYPE_4].alloc_subnets().items():
             networks[k] = v
         for k, v in self.args.subnet_gen[ADDR_TYPE_6].alloc_subnets().items():
             networks[k] = v
+        self._iterate(self._generate_as_topo)
+        self._iterate(self._generate_as_list)
         self._write_as_topos()
         self._write_as_list()
         self._write_ifids()
         return self.topo_dicts, networks
+
+    def _register_addrs(self, topo_id, as_conf):
+        self._register_srv_entries(topo_id, as_conf)
+        self._register_br_entries(topo_id, as_conf)
+        if self.args.sig:
+            self._register_sig(topo_id, as_conf)
+        self._register_sciond(topo_id, as_conf)
+
+    def _register_srv_entries(self, topo_id, as_conf):
+        srvs = [("control_servers", DEFAULT_CONTROL_SERVERS, "cs")]
+        if self.args.colibri:
+            srvs.append(("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co"))
+        for conf_key, def_num, nick in srvs:
+            self._register_srv_entry(topo_id, as_conf, conf_key, def_num, nick)
+
+    def _register_srv_entry(self, topo_id, as_conf, conf_key, def_num, nick):
+        addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
+        count = self._srv_count(as_conf, conf_key, def_num)
+        for i in range(1, count + 1):
+            elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
+            if not self.args.docker:
+                self.args.port_gen.register(elem_id)
+            self._reg_addr(topo_id, elem_id, addr_type)
+
+    def _register_br_entries(self, topo_id, as_conf):
+        addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
+        for (linkto, remote, attrs, l_br, r_br, l_ifid, r_ifid) in self.links[topo_id]:
+            self._register_br_entry(topo_id, l_ifid, remote, r_ifid,
+                                    linkto, attrs, l_br, r_br, addr_type)
+
+    def _register_br_entry(self, local, l_ifid, remote, r_ifid, remote_type, attrs,
+                           local_br, remote_br, addr_type):
+        link_addr_type = addr_type_from_underlay(attrs.get('underlay', DEFAULT_UNDERLAY))
+        self._reg_link_addrs(local_br, remote_br, l_ifid, r_ifid, link_addr_type)
+        self._reg_addr(local, local_br + "_ctrl", addr_type)
+        if self.args.docker:
+            self._reg_addr(local, local_br + "_internal", addr_type)
+        if not self.args.docker:
+            self.args.port_gen.register(local_br + "_ctrl")
+            self.args.port_gen.register(local_br + "_internal")
 
     def _register_sig(self, topo_id, as_conf):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
@@ -216,8 +256,6 @@ class TopoGenerator(object):
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
 
-            reg_id = elem_id
-
             port = self._default_ctrl_port(nick)
             if not self.args.docker:
                 port = self.args.port_gen.register(elem_id)
@@ -226,7 +264,7 @@ class TopoGenerator(object):
                 'Addrs': {
                     addr_type: {
                         'Public': {
-                            'Addr': self._reg_addr(topo_id, reg_id, addr_type),
+                            'Addr': self._reg_addr(topo_id, elem_id, addr_type),
                             'L4Port': port,
                         }
                     }
