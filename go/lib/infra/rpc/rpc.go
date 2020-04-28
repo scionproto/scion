@@ -148,13 +148,11 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 	if err != nil {
 		return nil, err
 	}
-	// XXX(matzf): defer session.Close()?
 
 	stream, err := session.OpenStream()
 	if err != nil {
 		return nil, err
 	}
-	// XXX(matzf): defer stream.Close()?
 	go func() {
 		defer log.HandlePanic()
 		<-ctx.Done()
