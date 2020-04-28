@@ -3,7 +3,6 @@ package seg
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 )
@@ -42,7 +41,6 @@ type Configdata struct {
 func Parsenconfigdata(datafile string) (Configdata, error) {
 	var Myerror error
 	jsonFile, err := os.Open(datafile)
-	fmt.Println(jsonFile)
 	if err != nil {
 		Myerror = errors.New("Failed to open config data file with error: " + err.Error())
 	}
