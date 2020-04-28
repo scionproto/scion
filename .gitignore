@@ -76,3 +76,6 @@ tags
 
 # local buildkite run
 /artifacts.out
+
+# documentation builds
+_build
