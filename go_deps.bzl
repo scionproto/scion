@@ -479,8 +479,8 @@ def go_deps():
     go_repository(
         name = "com_github_lucas_clemente_quic_go",
         importpath = "github.com/lucas-clemente/quic-go",
-        sum = "h1:2dK8LiQz0xMJd//Jeev0EkdoGNwv48AVW0yoIj99Waw=",
-        version = "v0.15.4",
+        sum = "h1:2DR5qCVt4k1qnDmknf+idj1FDJIrkiDyS6a0uIR+UJY=",
+        version = "v0.15.5",
     )
     go_repository(
         name = "com_github_lunixbochs_vtclean",
@@ -509,8 +509,8 @@ def go_deps():
     go_repository(
         name = "com_github_marten_seemann_qtls",
         importpath = "github.com/marten-seemann/qtls",
-        sum = "h1:8Zguhc72eS+DH5EAb0BpAPIy3HDXYcihQi4xoDZOnjQ=",
-        version = "v0.9.0",
+        sum = "h1:O0YKQxNVPaiFgMng0suWEOY2Sb4LT2sRn9Qimq3Z1IQ=",
+        version = "v0.9.1",
     )
     go_repository(
         name = "com_github_mattn_go_colorable",
@@ -1188,8 +1188,8 @@ def go_deps():
     go_repository(
         name = "org_golang_x_crypto",
         importpath = "golang.org/x/crypto",
-        sum = "h1:1ZiEyfaQIg3Qh0EoqpwAakHVhecoE5wlSg5GjnafJGw=",
-        version = "v0.0.0-20200221231518-2aa609cf4a9d",
+        sum = "h1:Q7tZBpemrlsc2I7IyODzhtallWRSm4Q0d09pL6XbQtU=",
+        version = "v0.0.0-20200423211502-4bdfaf469ed5",
     )
     go_repository(
         name = "org_golang_x_exp",
