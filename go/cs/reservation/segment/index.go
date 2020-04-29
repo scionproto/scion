@@ -31,7 +31,7 @@ const (
 // IndexID identifies an index inside a reservation.
 type IndexID struct {
 	Expiration time.Time
-	Idx        reservation.Index
+	Idx        reservation.IndexNumber
 }
 
 func (id *IndexID) Equal(other *IndexID) bool {
