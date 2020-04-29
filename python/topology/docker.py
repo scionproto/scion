@@ -117,7 +117,7 @@ class DockerGenerator(object):
                 self.dc_conf['networks'][net_name]['enable_ipv6'] = True
 
     def _br_conf(self, topo_id, topo, base):
-        for k, _ in topo.get("BorderRouters", {}).items():
+        for k, _ in topo.get("border_routers", {}).items():
             disp_id = k
             entry = {
                 'image': docker_image(self.args, 'border'),
@@ -156,7 +156,7 @@ class DockerGenerator(object):
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _control_service_conf(self, topo_id, topo, base):
-        for k, v in topo.get("ControlService", {}).items():
+        for k, v in topo.get("control_service", {}).items():
             entry = {
                 'image': docker_image(self.args, 'cs'),
                 'container_name': self.prefix + k,
@@ -190,7 +190,7 @@ class DockerGenerator(object):
                 self._logs_vol()
             ]
         }
-        keys = list(topo.get("BorderRouters", {})) + list(topo.get("ControlService", {}))
+        keys = list(topo.get("border_routers", {})) + list(topo.get("control_service", {}))
         for disp_id in keys:
             entry = copy.deepcopy(base_entry)
             net_key = disp_id

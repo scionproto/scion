@@ -1,88 +1,56 @@
 {
-  "Overlay": "UDP/IPv4",
-  "MTU": 1472,
-  "ISD_AS": "1-ff00:0:110",
-  "Attributes": ["authoritative", "core", "issuing", "voting"],
-  "BorderRouters": {
+  "isd_as": "1-ff00:0:110",
+  "mtu": 1472,
+  "attributes": [
+    "authoritative",
+    "core",
+    "issuing",
+    "voting"
+  ],
+  "border_routers": {
     "br1-ff00_0_111-1": {
-      "InternalAddrs": {
-        "IPv4": {
-          "PublicOverlay": {
-            "Addr": "127.0.0.17"
-          }
-        }
-      },
-      "CtrlAddr": {
-        "IPv4": {
-          "Public": {
-            "Addr": "127.0.0.17"
-          }
-        }
-      },
-      "Interfaces": {
-        "1129": {
-          "RemoteOverlay": {
-            "Addr": "127.0.0.4"
-          },
-          "MTU": 1280,
-          "PublicOverlay": {
-            "Addr": "127.0.0.5"
-          },
-          "Overlay": "UDP/IPv4",
-          "Bandwidth": 1000,
-          "ISD_AS": "1-ff00:0:120",
-          "LinkTo": "CORE"
-        },
+      "internal_addr": "127.0.0.17:0",
+      "ctrl_addr": "127.0.0.17:0",
+      "interfaces": {
         "1113": {
-          "RemoteOverlay": {
-            "Addr": "127.0.0.4"
+          "underlay": {
+            "public": "127.0.0.5:0",
+            "remote": "127.0.0.4:0"
           },
-          "MTU": 1280,
-          "PublicOverlay": {
-            "Addr": "127.0.0.5"
-          },
-          "Overlay": "UDP/IPv4",
-          "Bandwidth": 1000,
-          "ISD_AS": "1-ff00:0:130",
-          "LinkTo": "CORE"
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:130",
+          "link_to": "CORE",
+          "mtu": 1280
         },
         "1121": {
-          "RemoteOverlay": {
-            "Addr": "127.0.0.4"
+          "underlay": {
+            "public": "127.0.0.5:0",
+            "remote": "127.0.0.4:0"
           },
-          "MTU": 1280,
-          "PublicOverlay": {
-            "Addr": "127.0.0.5"
+          "bandwidth": 1000,
+          "isd_as": "2-ff00:0:210",
+          "link_to": "CORE",
+          "mtu": 1280
+        },
+        "1129": {
+          "underlay": {
+            "public": "127.0.0.5:0",
+            "remote": "127.0.0.4:0"
           },
-          "Overlay": "UDP/IPv4",
-          "Bandwidth": 1000,
-          "ISD_AS": "2-ff00:0:210",
-          "LinkTo": "CORE"
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:120",
+          "link_to": "CORE",
+          "mtu": 1280
         },
         "42": {
-            "RemoteOverlay": {
-              "Addr": "127.0.0.4"
-            },
-            "MTU": 1280,
-            "PublicOverlay": {
-              "Addr": "127.0.0.5"
-            },
-            "Overlay": "UDP/IPv4",
-            "Bandwidth": 1000,
-            "ISD_AS": "1-ff00:0:111",
-            "LinkTo": "CHILD"
-          }
-      }
-    }
-  },
-  "PathService": {
-    "ps1-ff00_0_110-1": {
-      "Addrs": {
-        "IPv4": {
-          "Public": {
-            "L4Port": 31045,
-            "Addr": "127.0.0.86"
-          }
+          "underlay": {
+            "public": "127.0.0.5:0",
+            "remote": "127.0.0.4:0"
+          },
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:111",
+          "link_to": "CHILD",
+          "mtu": 1280
         }
       }
     }

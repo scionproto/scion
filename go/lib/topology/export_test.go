@@ -1,4 +1,5 @@
 // Copyright 2019 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,10 +16,6 @@
 package topology
 
 var (
-	RawAddrMapToTopoAddr           = rawAddrMapToTopoAddr
-	RawAddrMapExtractAddressInfo   = rawAddrMapExtractAddressInfo
-	RawBRAddrMapToUDPAddr          = rawBRAddrMapToUDPAddr
-	RawBRAddrMapExtractAddressInfo = rawBRAddrMapExtractAddressInfo
-	RawBRIntfRemoteBRAddr          = rawBRIntfRemoteBRAddr
-	RawBRIntfTopoBRAddr            = rawBRIntfTopoBRAddr
+	RawAddrToTopoAddr   = rawAddrToTopoAddr
+	RawBRIntfTopoBRAddr = rawBRIntfTopoBRAddr
 )

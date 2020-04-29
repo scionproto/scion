@@ -196,15 +196,15 @@ func testNoModified(update updateTestFunc, prevTopo *topology.RWTopology,
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeFalse)
 		})
-		Convey("No update if expires earlier", func() {
-			topo.TTL -= 2 * time.Second
+		Convey("No update if topo older", func() {
+			topo.Timestamp = topo.Timestamp.Add(-2 * time.Second)
 			_, updated, err := update(topo)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("updated", updated, ShouldBeFalse)
 		})
-		Convey("Update if expires later", func() {
+		Convey("Update if topo is newer", func() {
 			var wg xtest.Waiter
-			topo.TTL += 2 * time.Second
+			topo.Timestamp = topo.Timestamp.Add(2 * time.Second)
 			if updateCalled {
 				wg.Add(1)
 				clbks.onUpdate.EXPECT().Call().Do(wg.Done)

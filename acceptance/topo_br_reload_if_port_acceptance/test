@@ -21,11 +21,11 @@ test_setup() {
 
 test_run() {
     set -e
-    local orig_src=$(jq '.BorderRouters[].Interfaces[].PublicOverlay' $SRC_TOPO)
-    local addr_src=$(jq -r '.Addr' <(echo $orig_src))
+    local orig_src=$(jq '.border_routers[].interfaces[].underlay.public' $SRC_TOPO)
+    local addr_src=$(jq '.border_routers[].interfaces[].underlay.public | split(":")[0]' -r $SRC_TOPO)
 
-    local orig_dst=$(jq '.BorderRouters[].Interfaces[].PublicOverlay' $DST_TOPO)
-    local addr_dst=$(jq -r '.Addr' <(echo $orig_dst))
+    local orig_dst=$(jq '.border_routers[].interfaces[].underlay.public' $DST_TOPO)
+    local addr_dst=$(jq '.border_routers[].interfaces[].underlay.public | split(":")[0]' -r $DST_TOPO)
 
     check_change_local_port
     check_change_remote_port
@@ -34,7 +34,7 @@ test_run() {
 
 check_change_local_port() {
     check_connectivity "Start check_change_local_port"
-    jq '.BorderRouters[].Interfaces[].PublicOverlay.OverlayPort = 42424' $SRC_TOPO | sponge $SRC_TOPO
+    jq ".border_routers[].interfaces[].underlay.public = \"$addr_src:42424\"" $SRC_TOPO | sponge $SRC_TOPO
     ./tools/dc scion kill -s HUP scion_br"$SRC_IA_FILE"-1
     sleep 2
     check_logs "posixOutput starting addr=$addr_src:42424" $SRC_IA_FILE
@@ -48,7 +48,7 @@ check_change_local_port() {
 
 check_change_remote_port() {
     # Connectivity is broken at this point
-    jq '.BorderRouters[].Interfaces[].RemoteOverlay.OverlayPort = 42424' $DST_TOPO | sponge $DST_TOPO
+    jq ".border_routers[].interfaces[].underlay.remote = \"$addr_src:42424\"" $DST_TOPO | sponge $DST_TOPO
     ./tools/dc scion kill -s HUP scion_br"$DST_IA_FILE"-1
     # make sure revocation is expired
     sleep 10
@@ -58,8 +58,8 @@ check_change_remote_port() {
 
 check_change_initial_port() {
     check_connectivity "Start check_change_initial_port"
-    jq ".BorderRouters[].Interfaces[].PublicOverlay = $orig_src" $SRC_TOPO | sponge $SRC_TOPO
-    jq ".BorderRouters[].Interfaces[].RemoteOverlay = $orig_src" $DST_TOPO | sponge $DST_TOPO
+    jq ".border_routers[].interfaces[].underlay.public = $orig_src" $SRC_TOPO | sponge $SRC_TOPO
+    jq ".border_routers[].interfaces[].underlay.remote = $orig_src" $DST_TOPO | sponge $DST_TOPO
     ./tools/dc scion kill -s HUP scion_br"$SRC_IA_FILE"-1
     ./tools/dc scion kill -s HUP scion_br"$DST_IA_FILE"-1
     check_connectivity "End check_change_initial_port"

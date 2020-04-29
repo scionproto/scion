@@ -1,97 +1,49 @@
 {
-  "MTU": 1400,
-  "BorderRouters": {
-    "br1-ff00_0_110-1": {
-      "Interfaces": {
-        "1": {
-          "MTU": 1280,
-          "RemoteOverlay": {
-            "Addr": "127.0.0.5",
-            "OverlayPort": 50000
-          },
-          "Bandwidth": 1000,
-          "ISD_AS": "1-ff00:0:111",
-          "PublicOverlay": {
-            "Addr": "127.0.0.4",
-            "OverlayPort": 50000
-          },
-          "LinkTo": "CHILD",
-          "Overlay": "UDP/IPv4"
-        }
-      },
-      "InternalAddrs": {
-        "IPv4": {
-          "PublicOverlay": {
-            "Addr": "127.0.0.9",
-            "OverlayPort": 31008
-          }
-        }
-      },
-      "CtrlAddr": {
-        "IPv4": {
-          "Public": {
-            "Addr": "127.0.0.9",
-            "L4Port": 31006
-          }
-        }
-      }
-    },
-    "br1-ff00_0_110-2": {
-      "Interfaces": {
-        "2": {
-          "MTU": 1472,
-          "RemoteOverlay": {
-            "Addr": "127.0.0.7",
-            "OverlayPort": 50000
-          },
-          "Bandwidth": 500,
-          "ISD_AS": "1-ff00:0:112",
-          "PublicOverlay": {
-            "Addr": "127.0.0.6",
-            "OverlayPort": 50000
-          },
-          "LinkTo": "CHILD",
-          "Overlay": "UDP/IPv4"
-        }
-      },
-      "InternalAddrs": {
-        "IPv4": {
-          "PublicOverlay": {
-            "Addr": "127.0.0.10",
-            "OverlayPort": 31012
-          }
-        }
-      },
-      "CtrlAddr": {
-        "IPv4": {
-          "Public": {
-            "Addr": "127.0.0.10",
-            "L4Port": 31010
-          }
-        }
-      }
-    }
-  },
-  "ColibriService": {},
-  "DiscoveryService": {},
-  "Attributes": [
+  "isd_as": "1-ff00:0:110",
+  "mtu": 1400,
+  "attributes": [
     "authoritative",
     "core",
     "issuing",
     "voting"
   ],
-  "ISD_AS": "1-ff00:0:110",
-  "ControlService": {
-    "cs1-ff00_0_110-1": {
-      "Addrs": {
-        "IPv4": {
-          "Public": {
-            "Addr": "127.0.0.12",
-            "L4Port": 31002
-          }
+  "border_routers": {
+    "br1-ff00_0_110-1": {
+      "internal_addr": "127.0.0.9:31008",
+      "ctrl_addr": "127.0.0.9:31006",
+      "interfaces": {
+        "1": {
+          "underlay": {
+            "public": "127.0.0.4:50000",
+            "remote": "127.0.0.5:50000"
+          },
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:111",
+          "link_to": "CHILD",
+          "mtu": 1280
+        }
+      }
+    },
+    "br1-ff00_0_110-2": {
+      "internal_addr": "127.0.0.10:31012",
+      "ctrl_addr": "127.0.0.10:31010",
+      "interfaces": {
+        "2": {
+          "underlay": {
+            "public": "127.0.0.6:50000",
+            "remote": "127.0.0.7:50000"
+          },
+          "bandwidth": 500,
+          "isd_as": "1-ff00:0:112",
+          "link_to": "CHILD",
+          "mtu": 1472
         }
       }
     }
   },
-  "Overlay": "UDP/IPv4"
+  "control_service": {
+    "cs1-ff00_0_110-1": {
+      "addr": "127.0.0.12:31002"
+    }
+  }
 }

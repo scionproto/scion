@@ -30,15 +30,15 @@ test_run() {
 
 check_internal_fail() {
     check_connectivity "Start check_internal_fail"
-    jq '.BorderRouters[].InternalAddrs.IPv4.PublicOverlay.Addr = "172.220.42.42"' $SRC_TOPO | sponge $SRC_TOPO
+    jq '.border_routers[].internal_addr = "172.220.42.42:42424"' $SRC_TOPO | sponge $SRC_TOPO
     ./tools/dc scion kill -s HUP scion_br"$SRC_IA_FILE"-1
     check_connectivity "End check_internal_fail"
 }
 
 check_if_local_fail() {
     check_connectivity "Start check_if_local_fail"
-    jq '.BorderRouters[].InternalAddrs.IPv4.PublicOverlay.OverlayPort = 42424' $SRC_TOPO | sponge $SRC_TOPO
-    jq '.BorderRouters[].Interfaces[].PublicOverlay.Addr = "172.220.42.42"' $SRC_TOPO | sponge $SRC_TOPO
+    jq '.border_routers[].internal_addr = "172.220.42.42:42424"' $SRC_TOPO | sponge $SRC_TOPO
+    jq '.border_routers[].interfaces[].underlay.public = "172.220.42.42:42424"' $SRC_TOPO | sponge $SRC_TOPO
     ./tools/dc scion kill -s HUP scion_br"$SRC_IA_FILE"-1
     check_connectivity "End check_if_local_fail"
 }

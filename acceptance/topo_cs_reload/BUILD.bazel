@@ -55,14 +55,14 @@ genrule(
     name = "invalid_changed_ip",
     srcs = ["//acceptance/topo_common:topology"],
     outs = ["topology_invalid_changed_ip.json"],
-    cmd = "jq '.ControlService[].Addrs.IPv4.Public.Addr = \"242.42.42.2\"' $(location //acceptance/topo_common:topology) > $@",
+    cmd = "jq '.control_service[].addr = \"242.42.42.2:31002\"' $(location //acceptance/topo_common:topology) > $@",
 )
 
 genrule(
     name = "invalid_changed_port",
     srcs = ["//acceptance/topo_common:topology"],
     outs = ["topology_invalid_changed_port.json"],
-    cmd = "jq '.ControlService[].Addrs.IPv4.Public.L4Port = 42424' $(location //acceptance/topo_common:topology) > $@",
+    cmd = "jq '.control_service[].addr = \"127.0.0.12:42424\"' $(location //acceptance/topo_common:topology) > $@",
 )
 
 genrule(

@@ -1,230 +1,84 @@
 {
-    "Timestamp": 168570123,
-    "TimestampHuman": "1975-05-06 01:02:03.000000+0000",
-    "TTL": 3600,
-    "ISD_AS": "1-ff00:0:311",
-    "MTU": 1472,
-    "Overlay": "UDP/IPv4+6",
-    "Attributes": [],
-    "BorderRouters": {
-        "br1-ff00:0:311-1": {
-            "InternalAddrs": {
-                "IPv4": {
-                    "PublicOverlay": {
-                        "Addr": "10.1.0.1"
-                    }
-                },
-                "IPv6": {
-                    "PublicOverlay": {
-                        "Addr": "2001:db8:a0b:12f0::1"
-                    }
-                }
-            },
-            "CtrlAddr": {
-                "IPv4": {
-                    "Public": {
-                        "Addr": "10.1.0.1",
-                        "L4Port": 30098
-                    }
-                },
-                "IPv6": {
-                    "Public": {
-                        "Addr": "2001:db8:a0b:12f0::1",
-                        "L4Port": 30098
-                    }
-                }
-            },
-            "Interfaces": {
-                "1": {
-                    "Overlay": "UDP/IPv4",
-                    "BindOverlay": {
-                        "Addr": "10.0.0.1"
-                    },
-                    "PublicOverlay": {
-                        "Addr": "192.0.2.1",
-                        "OverlayPort": 44997
-                    },
-                    "RemoteOverlay": {
-                        "Addr": "192.0.2.2",
-                        "OverlayPort": 44998
-                    },
-                    "Bandwidth": 1000,
-                    "ISD_AS": "1-ff00:0:312",
-                    "LinkTo": "PARENT",
-                    "MTU": 1472
-                },
-                "3": {
-                    "Overlay": "UDP/IPv6",
-                    "PublicOverlay": {
-                        "Addr": "2001:db8:a0b:12f0::1",
-                        "OverlayPort": 44997
-                    },
-                    "RemoteOverlay": {
-                        "Addr": "2001:db8:a0b:12f0::2",
-                        "OverlayPort": 44998
-                    },
-                    "BindOverlay": {
-                        "Addr": "2001:db8:a0b:12f0::8"
-                    },
-                    "Bandwidth": 5000,
-                    "ISD_AS": "1-ff00:0:314",
-                    "LinkTo": "CHILD",
-                    "MTU": 4430
-                },
-                "8": {
-                    "Overlay": "UDP/IPv4",
-                    "BindOverlay": {
-                        "Addr": "10.0.0.2"
-                    },
-                    "PublicOverlay": {
-                        "Addr": "192.0.2.2",
-                        "OverlayPort": 44997
-                    },
-                    "RemoteOverlay": {
-                        "Addr": "192.0.2.3",
-                        "OverlayPort": 44998
-                    },
-                    "Bandwidth": 2000,
-                    "ISD_AS": "1-ff00:0:313",
-                    "LinkTo": "PEER",
-                    "MTU": 1480
-                }
-            }
+  "timestamp": 168570123,
+  "timestamp_human": "1975-05-06 01:02:03.000000+0000",
+  "isd_as": "1-ff00:0:311",
+  "mtu": 1472,
+  "attributes": [],
+  "border_routers": {
+    "br1-ff00:0:311-1": {
+      "internal_addr": "10.1.0.1:0",
+      "ctrl_addr": "10.1.0.1:30098",
+      "interfaces": {
+        "1": {
+          "underlay": {
+            "public": "192.0.2.1:44997",
+            "remote": "192.0.2.2:44998",
+            "bind": "10.0.0.1"
+          },
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:312",
+          "link_to": "PARENT",
+          "mtu": 1472
         },
-        "br1-ff00:0:311-2": {
-            "InternalAddrs": {
-                "IPv6": {
-                    "PublicOverlay": {
-                        "Addr": "2001:db8:a0b:12f0::1%some-internal-zone"
-                    }
-                }
-            },
-            "CtrlAddr": {
-                "IPv6": {
-                    "Public": {
-                        "Addr": "2001:db8:a0b:12f0::1%some-ctrl-zone",
-                        "L4Port": 30098
-                    }
-                }
-            },
-            "Interfaces": {
-                "11": {
-                    "Overlay": "UDP/IPv6",
-                    "PublicOverlay": {
-                        "Addr": "2001:db8:a0b:12f0::1%some-public-zone",
-                        "OverlayPort": 44897
-                    },
-                    "RemoteOverlay": {
-                        "Addr": "2001:db8:a0b:12f0::2%some-remote-zone",
-                        "OverlayPort": 44898
-                    },
-                    "BindOverlay": {
-                        "Addr": "2001:db8:a0b:12f0::8%some-bind-zone"
-                    },
-                    "Bandwidth": 5000,
-                    "ISD_AS": "1-ff00:0:314",
-                    "LinkTo": "CHILD",
-                    "MTU": 4430
-                }
-            }
+        "3": {
+          "underlay": {
+            "public": "[2001:db8:a0b:12f0::1]:44997",
+            "remote": "[2001:db8:a0b:12f0::2]:44998",
+            "bind": "2001:db8:a0b:12f0::8"
+          },
+          "bandwidth": 5000,
+          "isd_as": "1-ff00:0:314",
+          "link_to": "CHILD",
+          "mtu": 4430
+        },
+        "8": {
+          "underlay": {
+            "public": "192.0.2.2:44997",
+            "remote": "192.0.2.3:44998",
+            "bind": "10.0.0.2"
+          },
+          "bandwidth": 2000,
+          "isd_as": "1-ff00:0:313",
+          "link_to": "PEER",
+          "mtu": 1480
         }
+      }
     },
-    "ControlService": {
-        "cs1-ff00:0:311-2": {
-            "Addrs": {
-                "IPv4": {
-                    "Public": {
-                        "Addr": "127.0.0.67",
-                        "L4Port": 30073
-                    }
-                }
-            }
-        },
-        "cs1-ff00:0:311-3": {
-            "Addrs": {
-                "IPv6": {
-                    "Public": {
-                        "Addr": "2001:db8:f00:b43::1",
-                        "L4Port": 23421
-                    }
-                }
-            }
-        },
-        "cs1-ff00:0:311-4": {
-            "Addrs": {
-                "IPv6": {
-                    "Public": {
-                        "Addr": "2001:db8:f00:b43::1%some-zone",
-                        "L4Port": 23425
-                    }
-                }
-            }
+    "br1-ff00:0:311-2": {
+      "internal_addr": "[2001:db8:a0b:12f0::1%some-internal-zone]:0",
+      "ctrl_addr": "[2001:db8:a0b:12f0::1%some-ctrl-zone]:30098",
+      "interfaces": {
+        "11": {
+          "underlay": {
+            "public": "[2001:db8:a0b:12f0::1%some-public-zone]:44897",
+            "remote": "[2001:db8:a0b:12f0::2%some-remote-zone]:44898",
+            "bind": "2001:db8:a0b:12f0::8%some-bind-zone"
+          },
+          "bandwidth": 5000,
+          "isd_as": "1-ff00:0:314",
+          "link_to": "CHILD",
+          "mtu": 4430
         }
-    },
-    "SibraService": {
-        "sb1-ff00:0:311-1": {
-            "Addrs": {
-                "IPv4": {
-                    "Public": {
-                        "Addr": "127.0.0.76",
-                        "L4Port": 30058
-                    }
-                }
-            }
-        },
-        "sb1-ff00:0:311-2": {
-            "Addrs": {
-                "IPv6": {
-                    "Public": {
-                        "Addr": "2001:db8:f00:b43::76",
-                        "L4Port": 30058
-                    }
-                }
-            }
-        }
-    },
-    "RainsService": {
-        "rs1-ff00:0:311-1": {
-            "Addrs": {
-                "IPv4": {
-                    "Public": {
-                        "Addr": "127.0.0.78",
-                        "L4Port": 30098
-                    }
-                }
-            }
-        },
-        "rs1-ff00:0:311-2": {
-            "Addrs": {
-                "IPv6": {
-                    "Public": {
-                        "Addr": "2001:db8:f00:b43::78",
-                        "L4Port": 30098
-                    }
-                }
-            }
-        }
-    },
-    "SIG": {
-        "sig1-ff00:0:311-1": {
-            "Addrs": {
-                "IPv4": {
-                    "Public": {
-                        "Addr": "127.0.0.82",
-                        "L4Port": 30100
-                    }
-                }
-            }
-        },
-        "sig1-ff00:0:311-2": {
-            "Addrs": {
-                "IPv6": {
-                    "Public": {
-                        "Addr": "2001:db8:f00:b43::82",
-                        "L4Port": 30100
-                    }
-                }
-            }
-        }
+      }
     }
+  },
+  "control_service": {
+    "cs1-ff00:0:311-2": {
+      "addr": "127.0.0.67:30073"
+    },
+    "cs1-ff00:0:311-3": {
+      "addr": "[2001:db8:f00:b43::1]:23421"
+    },
+    "cs1-ff00:0:311-4": {
+      "addr": "[2001:db8:f00:b43::1%some-zone]:23425"
+    }
+  },
+  "sigs": {
+    "sig1-ff00:0:311-1": {
+      "addr": "127.0.0.82:30100"
+    },
+    "sig1-ff00:0:311-2": {
+      "addr": "[2001:db8:f00:b43::82]:30100"
+    }
+  }
 }

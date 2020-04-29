@@ -13,9 +13,11 @@
 # limitations under the License.
 
 # Stdlib
+import ipaddress
 import os
 import subprocess
 import sys
+from urllib.parse import urlsplit
 
 # SCION
 from lib.scion_addr import ISD_AS
@@ -24,9 +26,9 @@ from topology.net import AddressProxy
 COMMON_DIR = 'endhost'
 
 SCION_SERVICE_NAMES = (
-    "ControlService",
-    "BorderRouters",
-    "ColibriService",
+    "control_service",
+    "border_routers",
+    "colibri_service",
 )
 
 BR_CONFIG_NAME = 'br.toml'
@@ -92,16 +94,25 @@ class TopoID(ISD_AS):
         return "<TopoID: %s>" % self
 
 
-def prom_addr_br(br_id, br_ele, port):
-    """Get the prometheus address for a border router"""
-    pub = get_pub(br_ele['InternalAddrs'])
-    return "[%s]:%s" % (pub['PublicOverlay']['Addr'].ip, port)
+def prom_addr(addr: str, port: int) -> str:
+    ip, _ = split_host_port(addr)
+    return join_host_port(ip, port)
 
 
-def prom_addr_infra(docker, infra_id, infra_ele, port):
-    """Get the prometheus address for an infrastructure element."""
-    pub = get_pub(infra_ele['Addrs'])
-    return "[%s]:%s" % (pub['Public']['Addr'].ip, port)
+def split_host_port(addr: str) -> (str, int):
+    parts = urlsplit('//' + addr)
+    if parts.port is None:
+        raise ValueError("missing port in addr: {}".format(addr))
+    # first remove the port, and strip ipv6 brackets:
+    ip = parts.netloc.rsplit(sep=':{}'.format(parts.port), maxsplit=1)[0].strip('[]')
+    return (ip, parts.port)
+
+
+def join_host_port(host: str, port: int) -> str:
+    ip = ipaddress.ip_address(host)
+    if ip.version == 4:
+        return '{}:{}'.format(host, port)
+    return '[{}]:{}'.format(host, port)
 
 
 def sciond_ip(docker, topo_id, networks):
@@ -126,21 +137,6 @@ def prom_addr_dispatcher(docker, topo_id, networks, port, name):
         if target_name in networks[net]:
             return '[%s]:%s' % (networks[net][target_name].ip, port)
     return None
-
-
-def get_pub(topo_addr):
-    pub = topo_addr.get('IPv6')
-    if pub is not None:
-        return pub
-    return topo_addr['IPv4']
-
-
-def get_pub_ip(topo_addr):
-    return get_pub(topo_addr)["Public"]["Addr"].ip
-
-
-def get_l4_port(topo_addr):
-    return get_pub(topo_addr)["Public"]["L4Port"]
 
 
 def srv_iter(topo_dicts, out_dir, common=False):

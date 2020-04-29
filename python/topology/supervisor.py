@@ -62,14 +62,14 @@ class SupervisorGenerator(object):
 
     def _br_entries(self, topo, cmd, base):
         entries = []
-        for k, v in topo.get("BorderRouters", {}).items():
+        for k, v in topo.get("border_routers", {}).items():
             conf = os.path.join(base, k, BR_CONFIG_NAME)
             entries.append((k, [cmd, "-config", conf]))
         return entries
 
     def _control_service_entries(self, topo, base):
         entries = []
-        for k, v in topo.get("ControlService", {}).items():
+        for k, v in topo.get("control_service", {}).items():
             # only a single control service instance per AS is currently supported
             if k.endswith("-1"):
                 conf = os.path.join(base, k, CS_CONFIG_NAME)

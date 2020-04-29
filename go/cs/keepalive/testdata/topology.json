@@ -1,51 +1,32 @@
 {
-  "Overlay": "UDP/IPv4",
-  "MTU": 1472,
-  "ISD_AS": "1-ff00:0:111",
-  "Attributes": [],
-  "BorderRouters": {
+  "isd_as": "1-ff00:0:111",
+  "mtu": 1472,
+  "attributes": [],
+  "border_routers": {
     "br1-ff00_0_111-1": {
-      "InternalAddrs": {
-        "IPv4": {
-          "PublicOverlay": {
-            "Addr": "127.0.0.17"
-          }
-        }
-      },
-      "CtrlAddr": {
-        "IPv4": {
-          "Public": {
-            "Addr": "127.0.0.17"
-          }
-        }
-      },
-      "Interfaces": {
+      "internal_addr": "127.0.0.17:0",
+      "ctrl_addr": "127.0.0.17:0",
+      "interfaces": {
         "41": {
-          "RemoteOverlay": {
-            "Addr": "127.0.0.4"
+          "underlay": {
+            "public": "127.0.0.5:0",
+            "remote": "127.0.0.4:0"
           },
-          "MTU": 1280,
-          "PublicOverlay": {
-            "Addr": "127.0.0.5"
-          },
-          "Overlay": "UDP/IPv4",
-          "Bandwidth": 1000,
-          "ISD_AS": "1-ff00:0:110",
-          "LinkTo": "PARENT"
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:110",
+          "link_to": "PARENT",
+          "mtu": 1280
         },
         "42": {
-            "RemoteOverlay": {
-              "Addr": "127.0.0.4"
-            },
-            "MTU": 1280,
-            "PublicOverlay": {
-              "Addr": "127.0.0.5"
-            },
-            "Overlay": "UDP/IPv4",
-            "Bandwidth": 1000,
-            "ISD_AS": "1-ff00:0:110",
-            "LinkTo": "PARENT"
-          }
+          "underlay": {
+            "public": "127.0.0.5:0",
+            "remote": "127.0.0.4:0"
+          },
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:110",
+          "link_to": "PARENT",
+          "mtu": 1280
+        }
       }
     }
   }

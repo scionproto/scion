@@ -30,13 +30,12 @@ from topology.common import (
     CS_CONFIG_NAME,
     DISP_CONFIG_NAME,
     docker_host,
-    get_pub,
-    get_pub_ip,
-    prom_addr_br,
-    prom_addr_infra,
+    join_host_port,
+    prom_addr,
     prom_addr_dispatcher,
     sciond_ip,
     sciond_name,
+    split_host_port,
     SD_API_PORT,
     SD_CONFIG_NAME,
     CO_CONFIG_NAME,
@@ -76,9 +75,9 @@ class GoGenerator(object):
 
     def generate_br(self):
         for topo_id, topo in self.args.topo_dicts.items():
-            for k, v in topo.get("BorderRouters", {}).items():
+            for k, v in topo.get("border_routers", {}).items():
                 base = topo_id.base_dir(self.args.output_dir)
-                br_conf = self._build_br_conf(topo_id, topo["ISD_AS"], base, k, v)
+                br_conf = self._build_br_conf(topo_id, topo["isd_as"], base, k, v)
                 write_file(os.path.join(base, k, BR_CONFIG_NAME), toml.dumps(br_conf))
 
     def _build_br_conf(self, topo_id, ia, base, name, v):
@@ -90,19 +89,19 @@ class GoGenerator(object):
             },
             'log': self._log_entry(name),
             'metrics': {
-                'prometheus': prom_addr_br(name, v, DEFAULT_BR_PROM_PORT),
+                'prometheus': prom_addr(v['internal_addr'], DEFAULT_BR_PROM_PORT),
             },
         }
         return raw_entry
 
     def generate_control_service(self):
         for topo_id, topo in self.args.topo_dicts.items():
-            for elem_id, elem in topo.get("ControlService", {}).items():
+            for elem_id, elem in topo.get("control_service", {}).items():
                 # only a single Go-BS per AS is currently supported
                 if elem_id.endswith("-1"):
                     base = topo_id.base_dir(self.args.output_dir)
                     bs_conf = self._build_control_service_conf(
-                        topo_id, topo["ISD_AS"], base, elem_id, elem)
+                        topo_id, topo["isd_as"], base, elem_id, elem)
                     write_file(os.path.join(base, elem_id,
                                             CS_CONFIG_NAME), toml.dumps(bs_conf))
 
@@ -129,7 +128,7 @@ class GoGenerator(object):
                 'connection': os.path.join(self.db_dir, '%s.path.db' % name),
             },
             'tracing': self._tracing_entry(),
-            'metrics': self._metrics_entry(name, infra_elem, CS_PROM_PORT),
+            'metrics': self._metrics_entry(infra_elem, CS_PROM_PORT),
             'quic': self._quic_conf_entry(CS_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
         return raw_entry
@@ -138,11 +137,11 @@ class GoGenerator(object):
         if not self.args.colibri:
             return
         for topo_id, topo in self.args.topo_dicts.items():
-            for elem_id, elem in topo.get("ColibriService", {}).items():
+            for elem_id, elem in topo.get("colibri_service", {}).items():
                 # only a single Go-CO per AS is currently supported
                 if elem_id.endswith("-1"):
                     base = topo_id.base_dir(self.args.output_dir)
-                    co_conf = self._build_co_conf(topo_id, topo["ISD_AS"], base, elem_id, elem)
+                    co_conf = self._build_co_conf(topo_id, topo["isd_as"], base, elem_id, elem)
                     write_file(os.path.join(base, elem_id, CO_CONFIG_NAME), toml.dumps(co_conf))
                     traffic_matrix = self._build_co_traffic_matrix(topo_id)
                     write_file(os.path.join(base, elem_id, 'matrix.yml'),
@@ -165,7 +164,7 @@ class GoGenerator(object):
                 'connection': os.path.join(self.db_dir, '%s.trust.db' % name),
             },
             'tracing': self._tracing_entry(),
-            'metrics': self._metrics_entry(name, infra_elem, CO_PROM_PORT),
+            'metrics': self._metrics_entry(infra_elem, CO_PROM_PORT),
             'quic': self._quic_conf_entry(CO_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
         return raw_entry
@@ -175,7 +174,7 @@ class GoGenerator(object):
         Creates a NxN traffic matrix for colibri with N = len(interfaces)
         """
         topo = self.args.topo_dicts[ia]
-        if_ids = {iface for br in topo['BorderRouters'].values() for iface in br['Interfaces']}
+        if_ids = {iface for br in topo['border_routers'].values() for iface in br['interfaces']}
         if_ids.add(0)
         bw = int(DEFAULT_LINK_BW / (len(if_ids) - 1))
         traffic_matrix = {}
@@ -228,7 +227,7 @@ class GoGenerator(object):
     def generate_sciond(self):
         for topo_id, topo in self.args.topo_dicts.items():
             base = topo_id.base_dir(self.args.output_dir)
-            sciond_conf = self._build_sciond_conf(topo_id, topo["ISD_AS"], base)
+            sciond_conf = self._build_sciond_conf(topo_id, topo["isd_as"], base)
             write_file(os.path.join(base, COMMON_DIR, SD_CONFIG_NAME), toml.dumps(sciond_conf))
 
     def _build_sciond_conf(self, topo_id, ia, base):
@@ -273,7 +272,7 @@ class GoGenerator(object):
             elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), elem)
             disp_conf = self._build_disp_conf(elem, topo_id)
             write_file(os.path.join(elem_dir, DISP_CONFIG_NAME), toml.dumps(disp_conf))
-            for k in list(topo.get("BorderRouters", {})) + list(topo.get("ControlService", {})):
+            for k in list(topo.get("border_routers", {})) + list(topo.get("control_service", {})):
                 disp_id = 'disp_%s' % k
                 elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), disp_id)
                 disp_conf = self._build_disp_conf(disp_id, topo_id)
@@ -310,19 +309,19 @@ class GoGenerator(object):
         }
         return entry
 
-    def _metrics_entry(self, name, infra_elem, base_port):
-        prom_addr = prom_addr_infra(self.args.docker, name, infra_elem, base_port)
+    def _metrics_entry(self, infra_elem, base_port):
+        a = prom_addr(infra_elem['addr'], base_port)
         return {
-            'prometheus': prom_addr
+            'prometheus': a,
         }
 
     def _quic_conf_entry(self, port, svcfrac, elem=None):
-        addr = "127.0.0.1" if elem is None else get_pub_ip(elem["Addrs"])
+        addr = '127.0.0.1' if elem is None else split_host_port(elem['addr'])[0]
         if self.args.docker and elem is not None:
-            pub = get_pub(elem['Addrs'])
-            port = pub['Public']['L4Port']+1
+            _, port = split_host_port(elem['addr'])
+            port += 1
         return {
-            'address':  '[%s]:%s' % (addr, port),
+            'address':  join_host_port(addr, port),
             'cert_file': os.path.join(self.certs_dir, 'tls.pem'),
             'key_file': os.path.join(self.certs_dir, 'tls.key'),
             'resolution_fraction': svcfrac,

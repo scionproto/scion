@@ -1,118 +1,51 @@
 {
-    "Timestamp": 168570123,
-    "TimestampHuman": "1975-05-06 01:02:03.000000+0000",
-    "TTL": 3600,
-    "ISD_AS": "1-ff00:0:311",
-    "MTU": 1472,
-    "Overlay": "UDP/IPv4+6",
-    "Attributes": [],
-    "BorderRouters": {
-        "br1-ff00:0:311-1": {
-            "InternalAddrs": {
-                "IPv4": {
-                    "PublicOverlay": {
-                        "Addr": "10.1.0.1"
-                    }
-                },
-                "IPv6": {
-                    "PublicOverlay": {
-                        "Addr": "2001:db8:a0b:12f0::1"
-                    }
-                }
-            },
-            "CtrlAddr": {
-                "IPv4": {
-                    "Public": {
-                        "Addr": "10.1.0.1",
-                        "L4Port": 30098
-                    }
-                },
-                "IPv6": {
-                    "Public": {
-                        "Addr": "2001:db8:a0b:12f0::1",
-                        "L4Port": 30098
-                    }
-                }
-            },
-            "Interfaces": {
-                "1": {
-                    "Overlay": "UDP/IPv4",
-                    "BindOverlay": {
-                        "Addr": "10.0.0.1"
-                    },
-                    "PublicOverlay": {
-                        "Addr": "192.0.2.1",
-                        "OverlayPort": 44997
-                    },
-                    "RemoteOverlay": {
-                        "Addr": "192.0.2.2",
-                        "OverlayPort": 44998
-                    },
-                    "Bandwidth": 1000,
-                    "ISD_AS": "1-ff00:0:312",
-                    "LinkTo": "PARENT",
-                    "MTU": 1472
-                }
-            }
-        },
-        "br1-ff00:0:311-2": {
-            "InternalAddrs": {
-                "IPv4": {
-                    "PublicOverlay": {
-                        "Addr": "10.1.0.2"
-                    }
-                }
-            },
-            "CtrlAddr": {
-                "IPv4": {
-                    "Public": {
-                        "Addr": "10.1.0.2",
-                        "L4Port": 30098
-                    }
-                }
-            },
-            "Interfaces": {
-                "2": {
-                    "Overlay": "UDP/IPv4",
-                    "BindOverlay": {
-                        "Addr": "10.0.0.2"
-                    },
-                    "PublicOverlay": {
-                        "Addr": "192.0.2.11",
-                        "OverlayPort": 44997
-                    },
-                    "RemoteOverlay": {
-                        "Addr": "192.0.2.12",
-                        "OverlayPort": 44998
-                    },
-                    "Bandwidth": 1000,
-                    "ISD_AS": "1-ff00:0:312",
-                    "LinkTo": "PARENT",
-                    "MTU": 1472
-                }
-            }
+  "timestamp": 168570123,
+  "timestamp_human": "1975-05-06 01:02:03.000000+0000",
+  "isd_as": "1-ff00:0:311",
+  "mtu": 1472,
+  "attributes": [],
+  "border_routers": {
+    "br1-ff00:0:311-1": {
+      "internal_addr": "10.1.0.1:0",
+      "ctrl_addr": "10.1.0.1:30098",
+      "interfaces": {
+        "1": {
+          "underlay": {
+            "public": "192.0.2.1:44997",
+            "remote": "192.0.2.2:44998",
+            "bind": "10.0.0.1"
+          },
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:312",
+          "link_to": "PARENT",
+          "mtu": 1472
         }
+      }
     },
-    "ControlService": {
-        "cs1-ff00:0:311-1": {
-            "Addrs": {
-                "IPv4": {
-                    "Public": {
-                        "Addr": "127.0.0.66",
-                        "L4Port": 30081
-                    }
-                }
-            }
-        },
-        "cs1-ff00:0:311-2": {
-            "Addrs": {
-                "IPv4": {
-                    "Public": {
-                        "Addr": "127.0.0.67",
-                        "L4Port": 30073
-                    }
-                }
-            }
+    "br1-ff00:0:311-2": {
+      "internal_addr": "10.1.0.2:0",
+      "ctrl_addr": "10.1.0.2:30098",
+      "interfaces": {
+        "2": {
+          "underlay": {
+            "public": "192.0.2.11:44997",
+            "remote": "192.0.2.12:44998",
+            "bind": "10.0.0.2"
+          },
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:312",
+          "link_to": "PARENT",
+          "mtu": 1472
         }
+      }
     }
+  },
+  "control_service": {
+    "cs1-ff00:0:311-1": {
+      "addr": "127.0.0.66:30081"
+    },
+    "cs1-ff00:0:311-2": {
+      "addr": "127.0.0.67:30073"
+    }
+  }
 }

@@ -225,7 +225,6 @@ func (s *state) updateStatic(static *topology.RWTopology) {
 	call(s.config.Callbacks.OnUpdate)
 	cl := metrics.CurrentLabels{Type: metrics.Static}
 	metrics.Current.Timestamp(cl).Set(metrics.Timestamp(static.Timestamp))
-	metrics.Current.Expiry(cl).Set(metrics.Expiry(static.Expiry()))
 }
 
 func keepOld(newTopo, oldTopo *topology.RWTopology) bool {
@@ -234,16 +233,16 @@ func keepOld(newTopo, oldTopo *topology.RWTopology) bool {
 
 func topoEq(newTopo, oldTopo *topology.RWTopology) bool {
 	return cmp.Equal(newTopo, oldTopo, cmpopts.IgnoreFields(
-		topology.RWTopology{}, "Timestamp", "TTL"))
+		topology.RWTopology{}, "Timestamp"))
 }
 
 func expiresLater(newTopo, oldTopo *topology.RWTopology) bool {
 	if oldTopo == nil {
 		return true
 	}
-	newExpiry := newTopo.Expiry()
-	oldExpiry := oldTopo.Expiry()
-	return !oldExpiry.IsZero() && (newExpiry.IsZero() || newExpiry.After(oldExpiry))
+	newTS := newTopo.Timestamp
+	oldTS := oldTopo.Timestamp
+	return !oldTS.IsZero() && (newTS.IsZero() || newTS.After(oldTS))
 }
 
 func call(clbk func()) {

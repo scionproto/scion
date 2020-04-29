@@ -102,11 +102,11 @@ class TestSetup(CmdBase):
         """ Filter all interfaces in all topologies that link to an interface in ia. """
         t = deepcopy(topos)
         for fn, topo in topos.items():
-            for br_name, br_dict in topo['BorderRouters'].items():
-                for intf_id, intf_dict in br_dict['Interfaces'].items():
-                    if intf_dict['ISD_AS'] in ia:
+            for br_name, br_dict in topo['border_routers'].items():
+                for intf_id, intf_dict in br_dict['interfaces'].items():
+                    if intf_dict['isd_as'] in ia:
                         logging.debug('filtering interface %s:%s' % (br_name, intf_id))
-                        del t[fn]['BorderRouters'][br_name]['Interfaces'][intf_id]
+                        del t[fn]['border_routers'][br_name]['interfaces'][intf_id]
         return t
 
     @staticmethod
