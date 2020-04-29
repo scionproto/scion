@@ -1,19 +1,21 @@
-package seg
+package beaconing
 
 import (
 	"strconv"
 	"testing"
+
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 )
 
 type ConfigTest struct {
-	configData Configdata
+	configData seg.Configdata
 	peers      map[uint16]bool
 	egIfid     uint16
 	inIfid     uint16
-	expected   StaticInfoExtn
+	expected   seg.StaticInfoExtn
 }
 
-func compareConfigLatency(totest map[uint16]Latintf, expected map[uint16]Latintf) (bool, string) {
+func compareConfigLatency(totest map[uint16]seg.Latintf, expected map[uint16]seg.Latintf) (bool, string) {
 	passed := true
 	info := ""
 
@@ -34,7 +36,7 @@ func compareConfigLatency(totest map[uint16]Latintf, expected map[uint16]Latintf
 	return passed, info
 }
 
-func compareConfigBW(totest map[uint16]Bwintf, expected map[uint16]Bwintf) (bool, string) {
+func compareConfigBW(totest map[uint16]seg.Bwintf, expected map[uint16]seg.Bwintf) (bool, string) {
 	passed := true
 	info := ""
 
@@ -69,7 +71,7 @@ func compareConfigLinktype(totest map[uint16]string, expected map[uint16]string)
 	return passed, info
 }
 
-func compareConfigGeo(totest map[uint16]Geointf, expected map[uint16]Geointf) (bool, string) {
+func compareConfigGeo(totest map[uint16]seg.Geointf, expected map[uint16]seg.Geointf) (bool, string) {
 	passed := true
 	info := ""
 
@@ -83,7 +85,7 @@ func compareConfigGeo(totest map[uint16]Geointf, expected map[uint16]Geointf) (b
 	return passed, info
 }
 
-func compareConfigHops(totest map[uint16]Hopintf, expected map[uint16]Hopintf) (bool, string) {
+func compareConfigHops(totest map[uint16]seg.Hopintf, expected map[uint16]seg.Hopintf) (bool, string) {
 	passed := true
 	info := ""
 
@@ -101,7 +103,7 @@ func compareConfigHops(totest map[uint16]Hopintf, expected map[uint16]Hopintf) (
 
 // configcompare compares two Configdata, one under test (totest) and one with the expected result,
 // and reports any deviations from the expected result in totest.
-func configcompare(totest Configdata, expected Configdata) (bool, string) {
+func configcompare(totest seg.Configdata, expected seg.Configdata) (bool, string) {
 	passed := true
 	var info string
 
@@ -133,9 +135,9 @@ func configcompare(totest Configdata, expected Configdata) (bool, string) {
 	return passed, info
 }
 
-func getTestConfigData() Configdata {
-	return Configdata{
-		Latency: map[uint16]Latintf{
+func getTestConfigData() seg.Configdata {
+	return seg.Configdata{
+		Latency: map[uint16]seg.Latintf{
 			1: {
 				Inter: 30,
 				Intra: map[uint16]uint16{2: 10, 3: 20, 5: 30},
@@ -153,7 +155,7 @@ func getTestConfigData() Configdata {
 				Intra: map[uint16]uint16{1: 30, 2: 50, 3: 60},
 			},
 		},
-		Bandwidth: map[uint16]Bwintf{
+		Bandwidth: map[uint16]seg.Bwintf{
 			1: {
 				Inter: 400000000,
 				Intra: map[uint16]uint32{2: 100000000, 3: 200000000, 5: 300000000},
@@ -172,7 +174,7 @@ func getTestConfigData() Configdata {
 			},
 		},
 		Linktype: map[uint16]string{1: "direct", 2: "opennet", 3: "multihop", 5: "direct"},
-		Geo: map[uint16]Geointf{
+		Geo: map[uint16]seg.Geointf{
 			1: {
 				Longitude: 62.2,
 				Latitude:  47.2,
@@ -194,7 +196,7 @@ func getTestConfigData() Configdata {
 				Address:   "geo5",
 			},
 		},
-		Hops: map[uint16]Hopintf{
+		Hops: map[uint16]seg.Hopintf{
 			1: {
 				Intra: map[uint16]uint8{2: 2, 3: 3, 5: 0},
 			},
@@ -227,7 +229,7 @@ func TestParsing(t *testing.T) {
 	}
 }
 
-func compareLatencyInfo(totest LatencyInfo, expected LatencyInfo) (bool, string) {
+func compareLatencyInfo(totest seg.LatencyInfo, expected seg.LatencyInfo) (bool, string) {
 	passed := true
 	info := ""
 	if !(totest.Egresslatency == expected.Egresslatency) {
@@ -269,7 +271,7 @@ func compareLatencyInfo(totest LatencyInfo, expected LatencyInfo) (bool, string)
 	return passed, info
 }
 
-func compareBWInfo(totest BandwidthInfo, expected BandwidthInfo) (bool, string) {
+func compareBWInfo(totest seg.BandwidthInfo, expected seg.BandwidthInfo) (bool, string) {
 	passed := true
 	info := ""
 
@@ -300,7 +302,7 @@ func compareBWInfo(totest BandwidthInfo, expected BandwidthInfo) (bool, string) 
 	return passed, info
 }
 
-func compareGeoInfo(totest GeoInfo, expected GeoInfo) (bool, string) {
+func compareGeoInfo(totest seg.GeoInfo, expected seg.GeoInfo) (bool, string) {
 	passed := true
 	info := ""
 
@@ -332,7 +334,7 @@ func compareGeoInfo(totest GeoInfo, expected GeoInfo) (bool, string) {
 	return passed, info
 }
 
-func compareLinktypeInfo(totest LinktypeInfo, expected LinktypeInfo) (bool, string) {
+func compareLinktypeInfo(totest seg.LinktypeInfo, expected seg.LinktypeInfo) (bool, string) {
 	passed := true
 	info := ""
 
@@ -358,7 +360,7 @@ func compareLinktypeInfo(totest LinktypeInfo, expected LinktypeInfo) (bool, stri
 	return passed, info
 }
 
-func compareHopsInfo(totest InternalHopsInfo, expected InternalHopsInfo) (bool, string) {
+func compareHopsInfo(totest seg.InternalHopsInfo, expected seg.InternalHopsInfo) (bool, string) {
 	passed := true
 	info := ""
 
@@ -386,7 +388,7 @@ func compareHopsInfo(totest InternalHopsInfo, expected InternalHopsInfo) (bool, 
 
 // compareStaticinfo compares two StaticInfoExtns, one under test (totest) and one with the expected result,
 // and reports any deviations from the expected result in totest.
-func compareStaticinfo(totest, expected StaticInfoExtn) (bool, string) {
+func compareStaticinfo(totest, expected seg.StaticInfoExtn) (bool, string) {
 	passed := true
 	var info string
 
@@ -426,17 +428,17 @@ func TestGenerateStaticinfo(t *testing.T) {
 		peers:      map[uint16]bool{1: false, 2: false, 3: false, 5: true},
 		egIfid:     2,
 		inIfid:     3,
-		expected: StaticInfoExtn{
-			Latency: LatencyInfo{
+		expected: seg.StaticInfoExtn{
+			Latency: seg.LatencyInfo{
 				Egresslatency:  40,
 				Intooutlatency: 70,
-				Childlatencies: []Latencychildpair{
+				Childlatencies: []seg.Latencychildpair{
 					{
 						Intradelay: 70,
 						Interface:  3,
 					},
 				},
-				Peeringlatencies: []Latencypeeringtriplet{
+				Peeringlatencies: []seg.Latencypeeringtriplet{
 					{
 						Interdelay: 90,
 						IntraDelay: 50,
@@ -444,10 +446,10 @@ func TestGenerateStaticinfo(t *testing.T) {
 					},
 				},
 			},
-			Geo: GeoInfo{
-				Locations: []Location{
+			Geo: seg.GeoInfo{
+				Locations: []seg.Location{
 					{
-						GPSData: Coordinates{
+						GPSData: seg.Coordinates{
 							Latitude:  47.2,
 							Longitude: 62.2,
 							Address:   "geo1",
@@ -455,7 +457,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 						IntfIDs: []uint16{1},
 					},
 					{
-						GPSData: Coordinates{
+						GPSData: seg.Coordinates{
 							Latitude:  79.2,
 							Longitude: 45.2,
 							Address:   "geo2",
@@ -463,7 +465,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 						IntfIDs: []uint16{2},
 					},
 					{
-						GPSData: Coordinates{
+						GPSData: seg.Coordinates{
 							Latitude:  47.22,
 							Longitude: 42.23,
 							Address:   "geo3",
@@ -471,7 +473,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 						IntfIDs: []uint16{3},
 					},
 					{
-						GPSData: Coordinates{
+						GPSData: seg.Coordinates{
 							Latitude:  48.2,
 							Longitude: 46.2,
 							Address:   "geo5",
@@ -480,19 +482,19 @@ func TestGenerateStaticinfo(t *testing.T) {
 					},
 				},
 			},
-			Linktype: LinktypeInfo{
+			Linktype: seg.LinktypeInfo{
 				EgressLT: "opennet",
-				Peeringlinks: []LTPeeringpair{
+				Peeringlinks: []seg.LTPeeringpair{
 					{
 						IntfID: 5,
 						IntfLT: "direct",
 					},
 				},
 			},
-			Bandwidth: BandwidthInfo{
+			Bandwidth: seg.BandwidthInfo{
 				EgressBW:  5000000,
 				IntooutBW: 6555550,
-				BWPairs: []BWPair{
+				BWPairs: []seg.BWPair{
 					{
 						IntfID: 3,
 						BW:     6555550,
@@ -503,9 +505,9 @@ func TestGenerateStaticinfo(t *testing.T) {
 					},
 				},
 			},
-			Hops: InternalHopsInfo{
+			Hops: seg.InternalHopsInfo{
 				Intououthops: 3,
-				Hoppairs: []Hoppair{
+				Hoppairs: []seg.Hoppair{
 					{
 						IntfID: 3,
 						Hops:   3,

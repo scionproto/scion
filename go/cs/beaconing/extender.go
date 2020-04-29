@@ -67,7 +67,7 @@ func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDTy
 		return err
 	}
 	staticInfoPeers := CreatePeerMap(s.cfg)
-	staticInfo := seg.GenerateStaticinfo(s.cfg.StaticInfoCfg, staticInfoPeers, uint16(egIfid), uint16(inIfid))
+	staticInfo := GenerateStaticinfo(s.cfg.StaticInfoCfg, staticInfoPeers, uint16(egIfid), uint16(inIfid))
 	meta := s.cfg.Signer.Meta()
 	asEntry := &seg.ASEntry{
 		RawIA:      meta.Src.IA.IAInt(),
