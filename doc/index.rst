@@ -13,14 +13,9 @@ is a good place to start.
    BeaconExtensions
    PathService
    PathPolicy
-   PathReversal
    HiddenPaths
    ColibriService
-   CertificateRenewal
-   ControlPlanePKI
    DRKeyInfra
-   RevocationAuthentication
-   Environments
    Metrics
 
 
