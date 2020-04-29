@@ -289,7 +289,7 @@ func (pep PathEndProps) Validate() error {
 }
 
 // AllocationBead represents an allocation resolved in an AS for a given reservation.
-// It is used in an array to represent the allocation trail that happenend for a reservation.
+// It is used in an array to represent the allocation trail that happened for a reservation.
 type AllocationBead struct {
 	AllocBW uint8
 	MaxBW   uint8
