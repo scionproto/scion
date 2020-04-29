@@ -87,7 +87,7 @@ func TestNewIndex(t *testing.T) {
 	require.Len(t, r.Indices, 1)
 	require.Equal(t, r.Indices[0].IndexID, *id)
 	require.Equal(t, id.Expiration, expTime)
-	require.Equal(t, id.Idx, reservation.Index(0))
+	require.Equal(t, id.Idx, reservation.IndexNumber(0))
 
 	// exp time is less
 	_, err = r.NewIndex(expTime.Add(-1 * time.Millisecond))
@@ -100,14 +100,14 @@ func TestNewIndex(t *testing.T) {
 	require.Len(t, r.Indices, 2)
 	require.Equal(t, r.Indices[1].IndexID, *id)
 	require.Equal(t, id.Expiration, expTime)
-	require.Equal(t, id.Idx, reservation.Index(1))
+	require.Equal(t, id.Idx, reservation.IndexNumber(1))
 
 	id, err = r.NewIndex(expTime)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 3)
 	require.Equal(t, r.Indices[2].IndexID, *id)
 	require.Equal(t, id.Expiration, expTime)
-	require.Equal(t, id.Idx, reservation.Index(2))
+	require.Equal(t, id.Idx, reservation.IndexNumber(2))
 
 	// too many indices for the same exp time
 	id, err = r.NewIndex(expTime)
@@ -121,7 +121,7 @@ func TestNewIndex(t *testing.T) {
 	require.Len(t, r.Indices, 4)
 	require.Equal(t, r.Indices[3].IndexID, *id)
 	require.Equal(t, id.Expiration, expTime)
-	require.Equal(t, id.Idx, reservation.Index(0))
+	require.Equal(t, id.Idx, reservation.IndexNumber(0))
 
 	// add when index numbers start at greater than 0
 	r = newReservation()
@@ -132,7 +132,7 @@ func TestNewIndex(t *testing.T) {
 	id, err = r.NewIndex(expTime)
 	require.NoError(t, err)
 	require.Equal(t, r.Indices[1].IndexID, *id)
-	require.Equal(t, id.Idx, reservation.Index(2))
+	require.Equal(t, id.Idx, reservation.IndexNumber(2))
 }
 
 func TestSetIndexConfirmed(t *testing.T) {

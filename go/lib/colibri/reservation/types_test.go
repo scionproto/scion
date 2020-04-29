@@ -135,14 +135,14 @@ func TestValidateRLC(t *testing.T) {
 	}
 }
 
-func TestValidateIndex(t *testing.T) {
+func TestValidateIndexNumber(t *testing.T) {
 	for i := 0; i < 16; i++ {
-		idx := Index(i)
+		idx := IndexNumber(i)
 		if err := idx.Validate(); err != nil {
 			t.Fatalf("Unexpected error at i = %d: %v", i, err)
 		}
 	}
-	idx := Index(16)
+	idx := IndexNumber(16)
 	if err := idx.Validate(); err == nil {
 		t.Fatal("Expected validation error but did not get one")
 	}
