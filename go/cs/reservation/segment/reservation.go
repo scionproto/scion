@@ -116,8 +116,11 @@ func (r *Reservation) NewIndex(expTime time.Time) (*reservation.IndexID, error) 
 		indexNumber = int(r.Indices[len(r.Indices)-1].Idx) + 1
 	}
 	index := Index{
-		IndexID: reservation.IndexID{Expiration: expTime, Idx: reservation.IndexNumber(indexNumber)},
-		state:   IndexTemporary,
+		IndexID: reservation.IndexID{
+			Expiration: expTime,
+			Idx:        reservation.IndexNumber(indexNumber),
+		},
+		state: IndexTemporary,
 	}
 	r.Indices = append(r.Indices, index)
 	return &index.IndexID, nil
