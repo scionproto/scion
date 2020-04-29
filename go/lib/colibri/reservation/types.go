@@ -135,13 +135,13 @@ func (c RLC) Validate() error {
 	return nil
 }
 
-// Index is a 4 bit index for a reservation.
-type Index uint8
+// IndexNumber is a 4 bit index for a reservation.
+type IndexNumber uint8
 
 // Validate will return an error for invalid values.
-func (i Index) Validate() error {
+func (i IndexNumber) Validate() error {
 	if i >= 1<<4 {
-		return serrors.New("Invalid Index", "Index", i)
+		return serrors.New("Invalid IndexNumber", "value", i)
 	}
 	return nil
 }
@@ -191,7 +191,7 @@ type InfoField struct {
 	ExpirationTick Tick
 	BWCls          BWCls
 	RLC            RLC
-	Idx            Index
+	Idx            IndexNumber
 	PathType       PathType
 }
 
@@ -226,7 +226,7 @@ func InfoFieldFromRaw(raw []byte) (*InfoField, error) {
 		ExpirationTick: Tick(common.Order.Uint32(raw[:4])),
 		BWCls:          BWCls(raw[4]),
 		RLC:            RLC(raw[5]),
-		Idx:            Index(raw[6]) >> 4,
+		Idx:            IndexNumber(raw[6]) >> 4,
 		PathType:       PathType(raw[6]) & 0x7,
 	}
 	if err := info.Validate(); err != nil {
