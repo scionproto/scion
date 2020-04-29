@@ -21,7 +21,7 @@ func Parsenconfigdata(datafile string) (seg.Configdata, error) {
 	if err2 != nil {
 		Myerror = errors.New("Failed to read opened file with error: " + err2.Error())
 	}
-	var Cfgdata Configdata
+	var Cfgdata seg.Configdata
 	json.Unmarshal(rawfile, &Cfgdata)
 	return Cfgdata, Myerror
 }
