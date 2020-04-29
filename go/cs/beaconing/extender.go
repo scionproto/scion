@@ -205,7 +205,7 @@ func min(a, b spath.ExpTimeType) spath.ExpTimeType {
 // CreatePeerMap creates a map from interface IDs to booleans indicating whether the respective interface is used for
 // peering or not.
 func CreatePeerMap(cfg ExtenderConf) map[uint16]bool {
-	var peers map[uint16]bool
+	peers := make(map[uint16]bool)
 	for ifID, ifInfo := range cfg.Intfs.All() {
 		peers[uint16(ifID)] = (ifInfo.TopoInfo().LinkType) == topology.Peer
 	}
