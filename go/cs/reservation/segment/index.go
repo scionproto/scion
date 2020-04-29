@@ -24,16 +24,31 @@ type IndexState uint8
 
 const (
 	IndexTemporary IndexState = iota
-	IndexPending
+	IndexPending              // the index is confirmed, but not yet activated.
 	IndexActive
 )
 
-type Index struct {
-	state      IndexState
-	Idx        reservation.Index
+// IndexID identifies an index inside a reservation.
+type IndexID struct {
 	Expiration time.Time
-	MinBW      reservation.BWCls
-	MaxBW      reservation.BWCls
-	AllocBW    reservation.BWCls
-	Token      reservation.Token
+	Idx        reservation.Index
+}
+
+func (id *IndexID) Equal(other *IndexID) bool {
+	if id == nil && other == nil {
+		return true
+	}
+	if id == nil || other == nil {
+		return false
+	}
+	return id.Expiration == other.Expiration && id.Idx == other.Idx
+}
+
+type Index struct {
+	IndexID
+	state   IndexState
+	MinBW   reservation.BWCls
+	MaxBW   reservation.BWCls
+	AllocBW reservation.BWCls
+	Token   reservation.Token
 }

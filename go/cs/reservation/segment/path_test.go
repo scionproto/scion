@@ -18,9 +18,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestValidatePath(t *testing.T) {
@@ -100,19 +97,4 @@ func TestEqualPath(t *testing.T) {
 			require.Equal(t, tc.IsEqual, eq)
 		})
 	}
-}
-
-func newPathFromComponents(chain ...interface{}) Path {
-	if len(chain)%3 != 0 {
-		panic("wrong number of arguments")
-	}
-	p := Path{}
-	for i := 0; i < len(chain); i += 3 {
-		p = append(p, PathStep{
-			Ingress: common.IFIDType(chain[i].(int)),
-			AS:      xtest.MustParseAS(chain[i+1].(string)),
-			Egress:  common.IFIDType(chain[i+2].(int)),
-		})
-	}
-	return p
 }
