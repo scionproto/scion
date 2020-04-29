@@ -33,6 +33,16 @@ type SegmentID struct {
 
 const SegmentIDLen = 10
 
+// NewSegmentID returns a new SegmentID
+func NewSegmentID(AS addr.AS, suffix []byte) (*SegmentID, error) {
+	if len(suffix) != 4 {
+		return nil, serrors.New("Wrong suffix length, should be 4", "actual len", len(suffix))
+	}
+	id := SegmentID{ASID: AS}
+	copy(id.Suffix[:], suffix)
+	return &id, nil
+}
+
 // SegmentIDFromRaw constructs a SegmentID parsing a raw buffer.
 func SegmentIDFromRaw(raw []byte) (
 	*SegmentID, error) {
