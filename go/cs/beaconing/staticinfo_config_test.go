@@ -8,14 +8,14 @@ import (
 )
 
 type ConfigTest struct {
-	configData seg.Configdata
+	configData Configdata
 	peers      map[uint16]bool
 	egIfid     uint16
 	inIfid     uint16
 	expected   seg.StaticInfoExtn
 }
 
-func compareConfigLatency(totest map[uint16]seg.Latintf, expected map[uint16]seg.Latintf) (bool, string) {
+func compareConfigLatency(totest map[uint16]Latintf, expected map[uint16]Latintf) (bool, string) {
 	passed := true
 	info := ""
 
@@ -36,7 +36,7 @@ func compareConfigLatency(totest map[uint16]seg.Latintf, expected map[uint16]seg
 	return passed, info
 }
 
-func compareConfigBW(totest map[uint16]seg.Bwintf, expected map[uint16]seg.Bwintf) (bool, string) {
+func compareConfigBW(totest map[uint16]Bwintf, expected map[uint16]Bwintf) (bool, string) {
 	passed := true
 	info := ""
 
@@ -71,7 +71,7 @@ func compareConfigLinktype(totest map[uint16]string, expected map[uint16]string)
 	return passed, info
 }
 
-func compareConfigGeo(totest map[uint16]seg.Geointf, expected map[uint16]seg.Geointf) (bool, string) {
+func compareConfigGeo(totest map[uint16]Geointf, expected map[uint16]Geointf) (bool, string) {
 	passed := true
 	info := ""
 
@@ -85,7 +85,7 @@ func compareConfigGeo(totest map[uint16]seg.Geointf, expected map[uint16]seg.Geo
 	return passed, info
 }
 
-func compareConfigHops(totest map[uint16]seg.Hopintf, expected map[uint16]seg.Hopintf) (bool, string) {
+func compareConfigHops(totest map[uint16]Hopintf, expected map[uint16]Hopintf) (bool, string) {
 	passed := true
 	info := ""
 
@@ -103,7 +103,7 @@ func compareConfigHops(totest map[uint16]seg.Hopintf, expected map[uint16]seg.Ho
 
 // configcompare compares two Configdata, one under test (totest) and one with the expected result,
 // and reports any deviations from the expected result in totest.
-func configcompare(totest seg.Configdata, expected seg.Configdata) (bool, string) {
+func configcompare(totest Configdata, expected Configdata) (bool, string) {
 	passed := true
 	var info string
 
@@ -135,9 +135,9 @@ func configcompare(totest seg.Configdata, expected seg.Configdata) (bool, string
 	return passed, info
 }
 
-func getTestConfigData() seg.Configdata {
-	return seg.Configdata{
-		Latency: map[uint16]seg.Latintf{
+func getTestConfigData() Configdata {
+	return Configdata{
+		Latency: map[uint16]Latintf{
 			1: {
 				Inter: 30,
 				Intra: map[uint16]uint16{2: 10, 3: 20, 5: 30},
@@ -155,7 +155,7 @@ func getTestConfigData() seg.Configdata {
 				Intra: map[uint16]uint16{1: 30, 2: 50, 3: 60},
 			},
 		},
-		Bandwidth: map[uint16]seg.Bwintf{
+		Bandwidth: map[uint16]Bwintf{
 			1: {
 				Inter: 400000000,
 				Intra: map[uint16]uint32{2: 100000000, 3: 200000000, 5: 300000000},
@@ -174,7 +174,7 @@ func getTestConfigData() seg.Configdata {
 			},
 		},
 		Linktype: map[uint16]string{1: "direct", 2: "opennet", 3: "multihop", 5: "direct"},
-		Geo: map[uint16]seg.Geointf{
+		Geo: map[uint16]Geointf{
 			1: {
 				Longitude: 62.2,
 				Latitude:  47.2,
@@ -196,7 +196,7 @@ func getTestConfigData() seg.Configdata {
 				Address:   "geo5",
 			},
 		},
-		Hops: map[uint16]seg.Hopintf{
+		Hops: map[uint16]Hopintf{
 			1: {
 				Intra: map[uint16]uint8{2: 2, 3: 3, 5: 0},
 			},
