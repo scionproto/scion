@@ -29,6 +29,7 @@ struct ASEntry {
         routingPolicy @6 :Exts.RoutingPolicyExt;
         sibra @7 :Sibra.SibraPCBExt;
         hiddenPathSeg @8 :Exts.HiddenPathSegExtn;
+        staticInfo @9 :Exts.StaticInfoExtn;
     }
 }
 
