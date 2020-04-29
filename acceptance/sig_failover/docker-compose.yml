@@ -22,7 +22,7 @@ services:
       "-remote_y", "242.254.200.2:30041",
       ]
     container_name: patha
-    image: bazel/go/tools/udpproxy:udpproxy
+    image: bazel/acceptance/sig_failover:udpproxy
     networks:
       bridge1:
         ipv4_address: 242.254.100.3
@@ -36,7 +36,7 @@ services:
       "-remote_y", "242.254.200.2:30041",
       ]
     container_name: pathb
-    image: bazel/go/tools/udpproxy:udpproxy
+    image: bazel/acceptance/sig_failover:udpproxy
     networks:
       bridge1:
         ipv4_address: 242.254.100.4

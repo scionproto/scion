@@ -8,7 +8,8 @@ require (
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/dchest/cmac v0.0.0-20150527144652-62ff55a1048c
 	github.com/golang/mock v1.4.0
-	github.com/google/go-cmp v0.3.0
+	github.com/golang/protobuf v1.4.0 // indirect
+	github.com/google/go-cmp v0.4.0
 	github.com/google/go-querystring v1.0.1-0.20190318165438-c8c88dbee036 // indirect
 	github.com/google/gopacket v1.1.16-0.20190123011826-102d5ca2098c
 	github.com/iancoleman/strcase v0.0.0-20190422225806-e506e3ef7365
