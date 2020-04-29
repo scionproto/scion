@@ -82,7 +82,7 @@ func (r *Reservation) ActiveIndex() *Index {
 
 // NewIndex creates a new index in this reservation and returns a pointer to it.
 // Parameters of this index can be changed using the pointer, except for the state.
-func (r *Reservation) NewIndex(expTime time.Time) (*IndexID, error) {
+func (r *Reservation) NewIndex(expTime time.Time) (*reservation.IndexID, error) {
 	lastExpTime := time.Unix(0, 0)
 	if len(r.Indices) > 0 {
 		lastExpTime = r.Indices[len(r.Indices)-1].Expiration
@@ -116,7 +116,7 @@ func (r *Reservation) NewIndex(expTime time.Time) (*IndexID, error) {
 		indexNumber = int(r.Indices[len(r.Indices)-1].Idx) + 1
 	}
 	index := Index{
-		IndexID: IndexID{Expiration: expTime, Idx: reservation.IndexNumber(indexNumber)},
+		IndexID: reservation.IndexID{Expiration: expTime, Idx: reservation.IndexNumber(indexNumber)},
 		state:   IndexTemporary,
 	}
 	r.Indices = append(r.Indices, index)
@@ -125,7 +125,7 @@ func (r *Reservation) NewIndex(expTime time.Time) (*IndexID, error) {
 
 // SetIndexConfirmed sets the index as IndexPending (confirmed but not active). If the requested
 // index has state active, it will emit an error.
-func (r *Reservation) SetIndexConfirmed(id *IndexID) error {
+func (r *Reservation) SetIndexConfirmed(id *reservation.IndexID) error {
 	sliceIndex := r.findIndex(id)
 	if sliceIndex < 0 {
 		return serrors.New("index does not belong to this reservation", "id", id,
@@ -140,7 +140,7 @@ func (r *Reservation) SetIndexConfirmed(id *IndexID) error {
 
 // SetIndexActive sets the index as active. If the reservation had already an active state,
 // it will remove all previous indices.
-func (r *Reservation) SetIndexActive(id *IndexID) error {
+func (r *Reservation) SetIndexActive(id *reservation.IndexID) error {
 	sliceIndex := r.findIndex(id)
 	if sliceIndex < 0 {
 		return serrors.New("index does not belong to this reservation", "id", id,
@@ -168,7 +168,7 @@ func (r *Reservation) SetIndexActive(id *IndexID) error {
 }
 
 // RemoveIndex removes all indices from the beginning until this one, inclusive.
-func (r *Reservation) RemoveIndex(id *IndexID) error {
+func (r *Reservation) RemoveIndex(id *reservation.IndexID) error {
 	sliceIndex := r.findIndex(id)
 	if sliceIndex < 0 {
 		return serrors.New("index does not belong to this reservation", "id", id,
@@ -182,7 +182,7 @@ func (r *Reservation) RemoveIndex(id *IndexID) error {
 	return nil
 }
 
-func (r *Reservation) findIndex(id *IndexID) int {
+func (r *Reservation) findIndex(id *reservation.IndexID) int {
 	for i, idx := range r.Indices {
 		if idx.IndexID.Equal(id) {
 			return i
