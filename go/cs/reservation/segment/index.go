@@ -15,8 +15,6 @@
 package segment
 
 import (
-	"time"
-
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 )
 
@@ -28,24 +26,8 @@ const (
 	IndexActive
 )
 
-// IndexID identifies an index inside a reservation.
-type IndexID struct {
-	Expiration time.Time
-	Idx        reservation.IndexNumber
-}
-
-func (id *IndexID) Equal(other *IndexID) bool {
-	if id == nil && other == nil {
-		return true
-	}
-	if id == nil || other == nil {
-		return false
-	}
-	return id.Expiration == other.Expiration && id.Idx == other.Idx
-}
-
 type Index struct {
-	IndexID
+	reservation.IndexID
 	state   IndexState
 	MinBW   reservation.BWCls
 	MaxBW   reservation.BWCls
