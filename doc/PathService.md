@@ -10,51 +10,10 @@ handlers. The following requests need to be handled:
 * __Path Registration:__ A handler for the existing path-registration request should be implemented.
 * __Path Requests:__ A handler for the existing `SegReq` should be implemented.
 * __Path Revocation:__ A handler for the existing path-revocation message should be implemented.
-* __Path Synchronization:__ Currently. the python PS uses a push model. A PS that receives a
-  down-segment propagates this to the other PSes in the ISD core. To support a smooth migration path
-  we should also implement this in the go PS. Note that we should add a flag to disable this (for CI
-  builds and for a future go-only env)
 * __Path Changes Since:__ Used for the new replication of down-segments. The service should return
   all the ids of changed segments since a certain point in time. The requesting PS can then request
   the affected segments. The python server will not support this mechanism but we will receive the
   old path sync message from it, so this is not a big problem.
-
-## Replication of Down-Segments
-
-In the ISD-core the ASes must have the same set of down-segments. A core PS in an AS should
-periodically request path changes (since last query) at the PSes in all other core ASes. Once the PS
-knows what changed, it should fetch the locally missing down-segments.
-
-Message Types:
-
-```go
-type SegChangesIDReq struct {
-  LastCheck uint32
-}
-
-type SegIDs struct {
-  SegID common.RawBytes
-  FullID common.RawBytes
-}
-
-type SegChangesIDReply struct {
-  IDs []SegIDs
-}
-
-type SegChangesReq struct {
-  SegIDs []common.RawBytes
-}
-
-type SegChangesReply struct {
-  *SegRecs
-}
-```
-
-`FullID` is an ID that also considers peer fields and not only the hop fields as in the normal ID.
-Both sides should store the `SegID` and the `FullID` in their PathDB. The `SegChangesReq` will only
-contain the `ID` since it could be that the `FullID` has changed between the `SegChangesIDReply` and
-the `SegChangesReq`. If a `SegChangesReq` for an unknown `ID` is received an empty reply has to be
-sent back. The client can assume that this segment no longer exists.
 
 ## Deletion of Expired Path Segments and Revocations
 
