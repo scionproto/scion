@@ -1,0 +1,10 @@
+openssl_conf = openssl_conf_section
+
+[openssl_conf_section]
+oid_section = new_oids
+
+[new_oids]
+isd_as = SCION ISD-AS number, 1.3.6.1.4.1.55324.1.2.1
+trc_sensitive = SCION sensitive voting key, 1.3.6.1.4.1.55324.1.3.1
+trc_regular = SCION regular voting key, 1.3.6.1.4.1.55324.1.3.2
+trc_root = SCION CP root key, 1.3.6.1.4.1.55324.1.3.3

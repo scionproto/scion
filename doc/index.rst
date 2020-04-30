@@ -9,13 +9,13 @@ is a good place to start.
    :caption: Documentation pages:
 
    contribute
+   cryptography/index
    BeaconService
    BeaconExtensions
    PathService
    PathPolicy
    HiddenPaths
    ColibriService
-   DRKeyInfra
    Metrics
 
 

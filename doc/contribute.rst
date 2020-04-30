@@ -17,13 +17,13 @@ Setting up github auth
 Interacting with github using git will require you to authenticate every time.
 In order to make your life easier, we strongly suggest setting up automated
 authentication using an ssh-key. Github has a nice `doc on how to set it
-up <https://help.github.com/articles/generating-ssh-keys/>`_.
+up <https://help.github.com/articles/generating-ssh-keys/>`__.
 
 Forking the repository
 ----------------------
 
 The first step is to make your own personal fork of the main repository. You can
-do this by going to the `SCION repo <https://github.com/scionproto/scion/>`_, and
+do this by going to the `SCION repo <https://github.com/scionproto/scion/>`__, and
 clicking the 'Fork' button on the top right, and then choosing your own personal
 repository.
 
@@ -36,7 +36,7 @@ Cloning the repository
 ----------------------
 
 Now that you have your own fork, follow the steps in the
-`README <https://github.com/scionproto/scion/blob/master/README.md>`_ to set up
+`README <https://github.com/scionproto/scion/blob/master/README.md>`__ to set up
 your workspace. When you get to the point of cloning the repository, use the
 directory the README indicates, but clone your own fork into it instead:
 
@@ -55,7 +55,7 @@ Keeping your personal fork up to date
 
 In order to keep your personal fork in sync with the main repository, you need
 to add the main repo as new remote repo in your local clone. Github's `guide
-for this <https://help.github.com/articles/configuring-a-remote-for-a-fork/>`_ is
+for this <https://help.github.com/articles/configuring-a-remote-for-a-fork/>`__ is
 pretty straightforward, but can be summarised as:
 
 .. code-block:: bash
@@ -63,7 +63,7 @@ pretty straightforward, but can be summarised as:
     git remote add upstream git@github.com:scionproto/scion.git
 
 Now that you have this setup, the `procedure for doing the
-sync <https://help.github.com/articles/syncing-a-fork/>`_ is pretty
+sync <https://help.github.com/articles/syncing-a-fork/>`__ is pretty
 straight-forward:
 
 1. Fetch the changes from the main repo: ``git fetch upstream``
@@ -139,7 +139,7 @@ Good commit messages
 --------------------
 
 We adhere to the rules in the `Go Contribution
-Guide <https://golang.org/doc/contribute.html#commit_messages>`_.
+Guide <https://golang.org/doc/contribute.html#commit_messages>`__.
 
 Similarly to the contribution guide above, the first commit line should complete
 the sentence "This change modifies SCION to ...". This means it should start
@@ -193,13 +193,13 @@ Final comments
 Git is a very powerful tool and this tutorial barely scratches the surface. It
 just presents the most common use case, but it should get you started. Please
 use the vast amount of really good git and `github resources on the
-web  <http://git-scm.com/book>`_.
+web  <http://git-scm.com/book>`__.
 
 Go style guide
 ==============
 
 Unless specified otherwise below, stick to golang's
-`CodeReviewComments <https://github.com/golang/go/wiki/CodeReviewComments>`_.
+`CodeReviewComments <https://github.com/golang/go/wiki/CodeReviewComments>`__.
 
 Generally the code should be formatted with ``gofmt`` (checked by CI).
 
@@ -209,7 +209,7 @@ Naming
 ------
 
 We use mixedCaps notation as recommended by `Effective Go
-<https://golang.org/doc/effective_go.html>`_. The following rules apply (note
+<https://golang.org/doc/effective_go.html>`__. The following rules apply (note
 that a significant part of the code base uses other notations; these should be
 refactored, however):
 
@@ -280,12 +280,12 @@ Metrics
 -------
 
 For metrics implementation, see
-`here <https://github.com/scionproto/scion/blob/master/doc/Metrics.md>`_.
+`here <https://github.com/scionproto/scion/blob/master/doc/Metrics.md>`__.
 
 Python style guide
 ==================
 
-We follow the `Google Style Guide for Python <https://google.github.io/styleguide/pyguide.html>`_.
+We follow the `Google Style Guide for Python <https://google.github.io/styleguide/pyguide.html>`__.
 
 JSON style guide
 ================
@@ -296,7 +296,7 @@ Bazel style guide
 =================
 
 Bazel code must follow the official rules as defined in `the Bazel project
-<https://docs.bazel.build/versions/master/skylark/build-style.html>`_.
+<https://docs.bazel.build/versions/master/skylark/build-style.html>`__.
 
 TOML style guide
 ================
@@ -491,5 +491,5 @@ Admonitions
 
 We use the Read the Docs theme to display documentation, so Admonitions (Hint
 blocks, Warnings, Errors, etc.) are supported. See `here
-<https://sphinx-rtd-theme.readthedocs.io/en/stable/demo/demo.html#admonitions>`_
+<https://sphinx-rtd-theme.readthedocs.io/en/stable/demo/demo.html#admonitions>`__
 for documentation about how to use them.
