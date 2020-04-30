@@ -219,7 +219,7 @@ func getTestConfigData() StaticInfoCfg {
 func TestParsing(t *testing.T) {
 	var info string
 	var passed bool
-	totest, err := Parsenconfigdata("testdata/testconfigfile.json")
+	totest, err := ParseStaticInfoCfg("testdata/testconfigfile.json")
 	if err != nil {
 		t.Error("Error occured during parsing: " + err.Error())
 	}
@@ -238,35 +238,35 @@ func compareLatencyInfo(totest seg.LatencyInfo, expected seg.LatencyInfo) (bool,
 		info += "Failed to get correct Egresslatency\n"
 		info += "Expected: " + strconv.Itoa(int(expected.Egresslatency)) + ", got: " + strconv.Itoa(int(totest.Egresslatency)) + "\n"
 	}
-	if !(totest.Intooutlatency == expected.Intooutlatency) {
+	if !(totest.IngressToEgressLatency == expected.IngressToEgressLatency) {
 		passed = false
-		info += "Failed to get correct Intooutlatency\n"
-		info += "Expected: " + strconv.Itoa(int(expected.Intooutlatency)) + ", got: " + strconv.Itoa(int(totest.Intooutlatency)) + "\n"
+		info += "Failed to get correct IngressToEgressLatency\n"
+		info += "Expected: " + strconv.Itoa(int(expected.IngressToEgressLatency)) + ", got: " + strconv.Itoa(int(totest.IngressToEgressLatency)) + "\n"
 	}
 	for i := 0; i < len(totest.Childlatencies); i++ {
 		temp := false
 		for j := 0; j < len(expected.Childlatencies); j++ {
-			if (totest.Childlatencies[i].Interface == expected.Childlatencies[j].Interface) && (totest.Childlatencies[i].Intradelay == expected.Childlatencies[j].Intradelay) {
+			if (totest.Childlatencies[i].IfID == expected.Childlatencies[j].IfID) && (totest.Childlatencies[i].Intradelay == expected.Childlatencies[j].Intradelay) {
 				temp = true
 			}
 		}
 		passed = passed && temp
 		if !temp {
-			info += "Failed to get correct Childlatency for interface " + strconv.Itoa(int(totest.Childlatencies[i].Interface)) + "\n"
+			info += "Failed to get correct Childlatency for interface " + strconv.Itoa(int(totest.Childlatencies[i].IfID)) + "\n"
 			info += "Expected: " + strconv.Itoa(int(expected.Childlatencies[i].Intradelay)) + ", got: " + strconv.Itoa(int(totest.Childlatencies[i].Intradelay)) + "\n"
 		}
 	}
-	for i := 0; i < len(totest.Peeringlatencies); i++ {
+	for i := 0; i < len(totest.Peerlatencies); i++ {
 		temp := false
-		for j := 0; j < len(expected.Peeringlatencies); j++ {
-			if (totest.Peeringlatencies[i].IntfID == expected.Peeringlatencies[j].IntfID) && (totest.Peeringlatencies[i].IntraDelay == expected.Peeringlatencies[j].IntraDelay) && (totest.Peeringlatencies[i].Interdelay == expected.Peeringlatencies[j].Interdelay) {
+		for j := 0; j < len(expected.Peerlatencies); j++ {
+			if (totest.Peerlatencies[i].IfID == expected.Peerlatencies[j].IfID) && (totest.Peerlatencies[i].IntraDelay == expected.Peerlatencies[j].IntraDelay) && (totest.Peerlatencies[i].Interdelay == expected.Peerlatencies[j].Interdelay) {
 				temp = true
 			}
 		}
 		passed = passed && temp
 		if !temp {
-			info += "Failed to get correct Peeringlatencies for interface " + strconv.Itoa(int(totest.Peeringlatencies[i].IntfID)) + "\n"
-			info += "Expected: " + strconv.Itoa(int(expected.Peeringlatencies[i].Interdelay)) + " " + strconv.Itoa(int(expected.Peeringlatencies[i].IntraDelay)) + ", got: " + strconv.Itoa(int(totest.Peeringlatencies[i].Interdelay)) + " " + strconv.Itoa(int(totest.Peeringlatencies[i].IntraDelay)) + "\n"
+			info += "Failed to get correct Peeringlatencies for interface " + strconv.Itoa(int(totest.Peerlatencies[i].IfID)) + "\n"
+			info += "Expected: " + strconv.Itoa(int(expected.Peerlatencies[i].Interdelay)) + " " + strconv.Itoa(int(expected.Peerlatencies[i].IntraDelay)) + ", got: " + strconv.Itoa(int(totest.Peerlatencies[i].Interdelay)) + " " + strconv.Itoa(int(totest.Peerlatencies[i].IntraDelay)) + "\n"
 		}
 	}
 	return passed, info
@@ -281,22 +281,22 @@ func compareBWInfo(totest seg.BandwidthInfo, expected seg.BandwidthInfo) (bool, 
 		info += "Failed to get correct EgressBW\n"
 		info += "Expected: " + strconv.Itoa(int(expected.EgressBW)) + ", got: " + strconv.Itoa(int(totest.EgressBW)) + "\n"
 	}
-	if !(totest.IntooutBW == expected.IntooutBW) {
+	if !(totest.IngressToEgressBW == expected.IngressToEgressBW) {
 		passed = false
 		info += "Failed to get correct IntooutBW\n"
-		info += "Expected: " + strconv.Itoa(int(expected.IntooutBW)) + ", got: " + strconv.Itoa(int(totest.IntooutBW)) + "\n"
+		info += "Expected: " + strconv.Itoa(int(expected.IngressToEgressBW)) + ", got: " + strconv.Itoa(int(totest.IngressToEgressBW)) + "\n"
 	}
-	for i := 0; i < len(totest.BWPairs); i++ {
+	for i := 0; i < len(totest.Bandwidths); i++ {
 		temp := false
-		for j := 0; j < len(expected.BWPairs); j++ {
-			if (totest.BWPairs[i].IntfID == expected.BWPairs[j].IntfID) && (totest.BWPairs[i].BW == expected.BWPairs[j].BW) {
+		for j := 0; j < len(expected.Bandwidths); j++ {
+			if (totest.Bandwidths[i].IfID == expected.Bandwidths[j].IfID) && (totest.Bandwidths[i].BW == expected.Bandwidths[j].BW) {
 				temp = true
 			}
 		}
 		passed = passed && temp
 		if !temp {
-			info += "Failed to get correct bandwidth for interface " + strconv.Itoa(int(totest.BWPairs[i].IntfID)) + "\n"
-			info += "Expected: " + strconv.Itoa(int(expected.BWPairs[i].BW)) + ", got: " + strconv.Itoa(int(totest.BWPairs[i].BW)) + "\n"
+			info += "Failed to get correct bandwidth for interface " + strconv.Itoa(int(totest.Bandwidths[i].IfID)) + "\n"
+			info += "Expected: " + strconv.Itoa(int(expected.Bandwidths[i].BW)) + ", got: " + strconv.Itoa(int(totest.Bandwidths[i].BW)) + "\n"
 		}
 	}
 
@@ -312,15 +312,15 @@ func compareGeoInfo(totest seg.GeoInfo, expected seg.GeoInfo) (bool, string) {
 		for j := 0; j < len(expected.Locations); j++ {
 			if (totest.Locations[i].GPSData.Longitude == expected.Locations[j].GPSData.Longitude) && (totest.Locations[i].GPSData.Latitude == expected.Locations[j].GPSData.Latitude) && (totest.Locations[i].GPSData.Address == expected.Locations[j].GPSData.Address) {
 				temp = true
-				for k := 0; k < len(totest.Locations[i].IntfIDs); k++ {
+				for k := 0; k < len(totest.Locations[i].IfIDs); k++ {
 					subtemp := false
-					for l := 0; l < len(expected.Locations[i].IntfIDs); l++ {
-						if totest.Locations[i].IntfIDs[k] == expected.Locations[j].IntfIDs[l] {
+					for l := 0; l < len(expected.Locations[i].IfIDs); l++ {
+						if totest.Locations[i].IfIDs[k] == expected.Locations[j].IfIDs[l] {
 							subtemp = true
 						}
 					}
 					if !subtemp {
-						info += "Failed to get correct Location assignment for interface " + strconv.Itoa(int(totest.Locations[i].IntfIDs[k])) + "\n"
+						info += "Failed to get correct Location assignment for interface " + strconv.Itoa(int(totest.Locations[i].IfIDs[k])) + "\n"
 					}
 					temp = temp && subtemp
 				}
@@ -339,22 +339,22 @@ func compareLinktypeInfo(totest seg.LinktypeInfo, expected seg.LinktypeInfo) (bo
 	passed := true
 	info := ""
 
-	if !(totest.EgressLT == expected.EgressLT) {
+	if !(totest.EgressLinkType == expected.EgressLinkType) {
 		passed = false
 		info += "Failed to get correct EgressLT\n"
-		info += "Expected: " + expected.EgressLT + ", got: " + totest.EgressLT + "\n"
+		info += "Expected: " + expected.EgressLinkType + ", got: " + totest.EgressLinkType + "\n"
 	}
-	for i := 0; i < len(totest.Peeringlinks); i++ {
+	for i := 0; i < len(totest.Peerlinks); i++ {
 		temp := false
-		for j := 0; j < len(expected.Peeringlinks); j++ {
-			if (totest.Peeringlinks[i].IntfID == expected.Peeringlinks[j].IntfID) && (totest.Peeringlinks[i].IntfLT == expected.Peeringlinks[j].IntfLT) {
+		for j := 0; j < len(expected.Peerlinks); j++ {
+			if (totest.Peerlinks[i].IfID == expected.Peerlinks[j].IfID) && (totest.Peerlinks[i].LinkType == expected.Peerlinks[j].LinkType) {
 				temp = true
 			}
 		}
 		passed = passed && temp
 		if !temp {
-			info += "Failed to get correct linktype for interface " + strconv.Itoa(int(totest.Peeringlinks[i].IntfID)) + "\n"
-			info += "Expected: " + expected.Peeringlinks[i].IntfLT + ", got: " + totest.Peeringlinks[i].IntfLT + "\n"
+			info += "Failed to get correct linktype for interface " + strconv.Itoa(int(totest.Peerlinks[i].IfID)) + "\n"
+			info += "Expected: " + expected.Peerlinks[i].LinkType + ", got: " + totest.Peerlinks[i].LinkType + "\n"
 		}
 	}
 
@@ -365,22 +365,22 @@ func compareHopsInfo(totest seg.InternalHopsInfo, expected seg.InternalHopsInfo)
 	passed := true
 	info := ""
 
-	if !(totest.Intououthops == expected.Intououthops) {
+	if !(totest.InToOutHops == expected.InToOutHops) {
 		passed = false
 		info += "Failed to get correct Intoouthops\n"
-		info += "Expected: " + strconv.Itoa(int(expected.Intououthops)) + ", got: " + strconv.Itoa(int(totest.Intououthops)) + "\n"
+		info += "Expected: " + strconv.Itoa(int(expected.InToOutHops)) + ", got: " + strconv.Itoa(int(totest.InToOutHops)) + "\n"
 	}
-	for i := 0; i < len(totest.Hoppairs); i++ {
+	for i := 0; i < len(totest.InterfaceHops); i++ {
 		temp := false
-		for j := 0; j < len(expected.Hoppairs); j++ {
-			if (totest.Hoppairs[i].IntfID == expected.Hoppairs[j].IntfID) && (totest.Hoppairs[i].Hops == expected.Hoppairs[j].Hops) {
+		for j := 0; j < len(expected.InterfaceHops); j++ {
+			if (totest.InterfaceHops[i].IfID == expected.InterfaceHops[j].IfID) && (totest.InterfaceHops[i].Hops == expected.InterfaceHops[j].Hops) {
 				temp = true
 			}
 		}
 		passed = passed && temp
 		if !temp {
-			info += "Failed to get correct hops for interface " + strconv.Itoa(int(totest.Hoppairs[i].IntfID)) + "\n"
-			info += "Expected: " + strconv.Itoa(int(expected.Hoppairs[i].Hops)) + ", got: " + strconv.Itoa(int(totest.Hoppairs[i].Hops)) + "\n"
+			info += "Failed to get correct hops for interface " + strconv.Itoa(int(totest.InterfaceHops[i].IfID)) + "\n"
+			info += "Expected: " + strconv.Itoa(int(expected.InterfaceHops[i].Hops)) + ", got: " + strconv.Itoa(int(totest.InterfaceHops[i].Hops)) + "\n"
 		}
 	}
 
@@ -431,19 +431,19 @@ func TestGenerateStaticinfo(t *testing.T) {
 		inIfid:     3,
 		expected: seg.StaticInfoExtn{
 			Latency: seg.LatencyInfo{
-				Egresslatency:  40,
-				Intooutlatency: 70,
-				Childlatencies: []seg.Latencychildpair{
+				Egresslatency:          40,
+				IngressToEgressLatency: 70,
+				Childlatencies: []seg.ChildLatency{
 					{
 						Intradelay: 70,
-						Interface:  3,
+						IfID:       3,
 					},
 				},
-				Peeringlatencies: []seg.Latencypeeringtriplet{
+				Peerlatencies: []seg.PeerLatency{
 					{
 						Interdelay: 90,
 						IntraDelay: 50,
-						IntfID:     5,
+						IfID:       5,
 					},
 				},
 			},
@@ -455,7 +455,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 							Longitude: 62.2,
 							Address:   "geo1",
 						},
-						IntfIDs: []common.IFIDType{1},
+						IfIDs: []common.IFIDType{1},
 					},
 					{
 						GPSData: seg.Coordinates{
@@ -463,7 +463,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 							Longitude: 45.2,
 							Address:   "geo2",
 						},
-						IntfIDs: []common.IFIDType{2},
+						IfIDs: []common.IFIDType{2},
 					},
 					{
 						GPSData: seg.Coordinates{
@@ -471,7 +471,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 							Longitude: 42.23,
 							Address:   "geo3",
 						},
-						IntfIDs: []common.IFIDType{3},
+						IfIDs: []common.IFIDType{3},
 					},
 					{
 						GPSData: seg.Coordinates{
@@ -479,43 +479,43 @@ func TestGenerateStaticinfo(t *testing.T) {
 							Longitude: 46.2,
 							Address:   "geo5",
 						},
-						IntfIDs: []common.IFIDType{5},
+						IfIDs: []common.IFIDType{5},
 					},
 				},
 			},
 			Linktype: seg.LinktypeInfo{
-				EgressLT: "opennet",
-				Peeringlinks: []seg.LTPeeringpair{
+				EgressLinkType: "opennet",
+				Peerlinks: []seg.InterfaceLinkType{
 					{
-						IntfID: 5,
-						IntfLT: "direct",
+						IfID:     5,
+						LinkType: "direct",
 					},
 				},
 			},
 			Bandwidth: seg.BandwidthInfo{
-				EgressBW:  5000000,
-				IntooutBW: 6555550,
-				BWPairs: []seg.BWPair{
+				EgressBW:          5000000,
+				IngressToEgressBW: 6555550,
+				Bandwidths: []seg.InterfaceBandwidth{
 					{
-						IntfID: 3,
-						BW:     6555550,
+						IfID: 3,
+						BW:   6555550,
 					},
 					{
-						IntfID: 5,
-						BW:     120,
+						IfID: 5,
+						BW:   120,
 					},
 				},
 			},
 			Hops: seg.InternalHopsInfo{
-				Intououthops: 3,
-				Hoppairs: []seg.Hoppair{
+				InToOutHops: 3,
+				InterfaceHops: []seg.InterfaceHops{
 					{
-						IntfID: 3,
-						Hops:   3,
+						IfID: 3,
+						Hops: 3,
 					},
 					{
-						IntfID: 5,
-						Hops:   1,
+						IfID: 5,
+						Hops: 1,
 					},
 				},
 			},
