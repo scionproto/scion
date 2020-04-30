@@ -9,14 +9,14 @@ import (
 )
 
 type ConfigTest struct {
-	configData Configdata
+	configData StaticInfoCfg
 	peers      map[common.IFIDType]bool
 	egIfid     common.IFIDType
 	inIfid     common.IFIDType
 	expected   seg.StaticInfoExtn
 }
 
-func compareConfigLatency(totest map[common.IFIDType]Latintf, expected map[common.IFIDType]Latintf) (bool, string) {
+func compareConfigLatency(totest map[common.IFIDType]InterfaceLatencies, expected map[common.IFIDType]InterfaceLatencies) (bool, string) {
 	passed := true
 	info := ""
 
@@ -37,7 +37,7 @@ func compareConfigLatency(totest map[common.IFIDType]Latintf, expected map[commo
 	return passed, info
 }
 
-func compareConfigBW(totest map[common.IFIDType]Bwintf, expected map[common.IFIDType]Bwintf) (bool, string) {
+func compareConfigBW(totest map[common.IFIDType]InterfaceBandwidths, expected map[common.IFIDType]InterfaceBandwidths) (bool, string) {
 	passed := true
 	info := ""
 
@@ -72,7 +72,7 @@ func compareConfigLinktype(totest map[common.IFIDType]string, expected map[commo
 	return passed, info
 }
 
-func compareConfigGeo(totest map[common.IFIDType]Geointf, expected map[common.IFIDType]Geointf) (bool, string) {
+func compareConfigGeo(totest map[common.IFIDType]InterfaceGeodata, expected map[common.IFIDType]InterfaceGeodata) (bool, string) {
 	passed := true
 	info := ""
 
@@ -86,7 +86,7 @@ func compareConfigGeo(totest map[common.IFIDType]Geointf, expected map[common.IF
 	return passed, info
 }
 
-func compareConfigHops(totest map[common.IFIDType]Hopintf, expected map[common.IFIDType]Hopintf) (bool, string) {
+func compareConfigHops(totest map[common.IFIDType]InterfaceHops, expected map[common.IFIDType]InterfaceHops) (bool, string) {
 	passed := true
 	info := ""
 
@@ -102,9 +102,9 @@ func compareConfigHops(totest map[common.IFIDType]Hopintf, expected map[common.I
 	return passed, info
 }
 
-// configcompare compares two Configdata, one under test (totest) and one with the expected result,
+// configcompare compares two StaticInfoCfg, one under test (totest) and one with the expected result,
 // and reports any deviations from the expected result in totest.
-func configcompare(totest Configdata, expected Configdata) (bool, string) {
+func configcompare(totest StaticInfoCfg, expected StaticInfoCfg) (bool, string) {
 	passed := true
 	var info string
 
@@ -136,9 +136,9 @@ func configcompare(totest Configdata, expected Configdata) (bool, string) {
 	return passed, info
 }
 
-func getTestConfigData() Configdata {
-	return Configdata{
-		Latency: map[common.IFIDType]Latintf{
+func getTestConfigData() StaticInfoCfg {
+	return StaticInfoCfg{
+		Latency: map[common.IFIDType]InterfaceLatencies{
 			1: {
 				Inter: 30,
 				Intra: map[common.IFIDType]uint16{2: 10, 3: 20, 5: 30},
@@ -156,7 +156,7 @@ func getTestConfigData() Configdata {
 				Intra: map[common.IFIDType]uint16{1: 30, 2: 50, 3: 60},
 			},
 		},
-		Bandwidth: map[common.IFIDType]Bwintf{
+		Bandwidth: map[common.IFIDType]InterfaceBandwidths{
 			1: {
 				Inter: 400000000,
 				Intra: map[common.IFIDType]uint32{2: 100000000, 3: 200000000, 5: 300000000},
@@ -175,7 +175,7 @@ func getTestConfigData() Configdata {
 			},
 		},
 		Linktype: map[common.IFIDType]string{1: "direct", 2: "opennet", 3: "multihop", 5: "direct"},
-		Geo: map[common.IFIDType]Geointf{
+		Geo: map[common.IFIDType]InterfaceGeodata{
 			1: {
 				Longitude: 62.2,
 				Latitude:  47.2,
@@ -197,7 +197,7 @@ func getTestConfigData() Configdata {
 				Address:   "geo5",
 			},
 		},
-		Hops: map[common.IFIDType]Hopintf{
+		Hops: map[common.IFIDType]InterfaceHops{
 			1: {
 				Intra: map[common.IFIDType]uint8{2: 2, 3: 3, 5: 0},
 			},

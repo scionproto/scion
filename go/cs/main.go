@@ -20,7 +20,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"hash"
 	"net"
 	"net/http"
@@ -80,7 +79,7 @@ import (
 var (
 	cfg config.Config
 
-	staticInfoCfg seg.Configdata
+	staticInfoCfg beaconing.StaticInfoCfg
 
 	intfs *ifstate.Interfaces
 	tasks *periodicTasks
@@ -731,7 +730,7 @@ func setup() error {
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
 	}
-	tempcfg, cfgerr := seg.Parsenconfigdata(cfg.General.StaticInfoConfig())
+	tempcfg, cfgerr := beaconing.ParseStaticInfoCfg(cfg.General.StaticInfoConfig())
 	if cfgerr == nil {
 		staticInfoCfg = tempcfg
 	}
