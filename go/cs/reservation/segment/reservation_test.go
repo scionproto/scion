@@ -64,7 +64,7 @@ func TestNewIndex(t *testing.T) {
 	require.Equal(t, reservation.IndexNumber(2), idx)
 
 	// too many indices for the same exp time
-	idx, err = r.NewIndex(expTime)
+	_, err = r.NewIndex(expTime)
 	require.Error(t, err)
 	require.Len(t, r.Indices, 3)
 
