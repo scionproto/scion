@@ -34,7 +34,7 @@ func (r *Reservation) Validate() error {
 	if r.activeIndex < -1 || r.activeIndex >= len(r.Indices) {
 		// TODO(juagargi) according to Reservation.SetState, when we activate an index,
 		// all previous indices are removed. Thus activeIndex can only be -1 or 0 ?
-		return serrors.New("Invalid active index", "activeIndex", r.activeIndex)
+		return serrors.New("invalid active index", "active_index", r.activeIndex)
 	}
 	if len(r.Indices) > 16 {
 		// with only 4 bits to represent the index number, we cannot have more than 16 indices
@@ -48,13 +48,13 @@ func (r *Reservation) Validate() error {
 		activeIndex := -1
 		for i, idx := range r.Indices {
 			if idx.Expiration.Before(lastExpiration) {
-				return serrors.New("Invalid Index: expires before than a previous one",
-					"idx", idx.Idx, "expiration", idx.Expiration, "previous exp.", lastExpiration)
+				return serrors.New("invalid Index: expires before than a previous one",
+					"idx", idx.Idx, "expiration", idx.Expiration, "previous_exp", lastExpiration)
 			}
 			if idx.Expiration.Equal(lastExpiration) {
 				indicesPerExpTime++
 				if indicesPerExpTime > 3 {
-					return serrors.New("More than one index for expiration time",
+					return serrors.New("more than one index for expiration time",
 						"expiration", idx.Expiration)
 				}
 			} else {
@@ -66,8 +66,8 @@ func (r *Reservation) Validate() error {
 			}
 			if idx.state == IndexActive {
 				if activeIndex >= 0 {
-					return serrors.New("More than one active index",
-						"first active", r.Indices[activeIndex].Idx, "another active", idx.Idx)
+					return serrors.New("more than one active index",
+						"first_active", r.Indices[activeIndex].Idx, "another_active", idx.Idx)
 				}
 				activeIndex = i
 			}

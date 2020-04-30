@@ -36,7 +36,7 @@ const SegmentIDLen = 10
 // NewSegmentID returns a new SegmentID
 func NewSegmentID(AS addr.AS, suffix []byte) (*SegmentID, error) {
 	if len(suffix) != 4 {
-		return nil, serrors.New("Wrong suffix length, should be 4", "actual len", len(suffix))
+		return nil, serrors.New("wrong suffix length, should be 4", "actual_len", len(suffix))
 	}
 	id := SegmentID{ASID: AS}
 	copy(id.Suffix[:], suffix)
@@ -48,7 +48,7 @@ func SegmentIDFromRaw(raw []byte) (
 	*SegmentID, error) {
 
 	if len(raw) < SegmentIDLen {
-		return nil, serrors.New("Buffer too small", "actual", len(raw),
+		return nil, serrors.New("buffer too small", "actual", len(raw),
 			"min", SegmentIDLen)
 	}
 	id := SegmentID{
@@ -60,7 +60,7 @@ func SegmentIDFromRaw(raw []byte) (
 
 func (id *SegmentID) Read(raw []byte) (int, error) {
 	if len(raw) < SegmentIDLen {
-		return 0, serrors.New("Buffer too small", "actual", len(raw), "min", SegmentIDLen)
+		return 0, serrors.New("buffer too small", "actual", len(raw), "min", SegmentIDLen)
 	}
 	auxBuff := make([]byte, 8)
 	common.Order.PutUint64(auxBuff, uint64(id.ASID))
@@ -81,7 +81,7 @@ const E2EIDLen = 16
 // E2EIDFromRaw constructs an E2EID parsing a buffer.
 func E2EIDFromRaw(raw []byte) (*E2EID, error) {
 	if len(raw) < E2EIDLen {
-		return nil, serrors.New("Buffer too small", "actual", len(raw), "min", E2EIDLen)
+		return nil, serrors.New("buffer too small", "actual", len(raw), "min", E2EIDLen)
 	}
 	id := E2EID{
 		ASID: addr.AS(common.Order.Uint64(append([]byte{0, 0}, raw[0:6]...))),
@@ -92,7 +92,7 @@ func E2EIDFromRaw(raw []byte) (*E2EID, error) {
 
 func (id *E2EID) Read(raw []byte) (int, error) {
 	if len(raw) < E2EIDLen {
-		return 0, serrors.New("Buffer too small", "actual", len(raw), "min", E2EIDLen)
+		return 0, serrors.New("buffer too small", "actual", len(raw), "min", E2EIDLen)
 	}
 	auxBuff := make([]byte, 8)
 	common.Order.PutUint64(auxBuff, uint64(id.ASID))
@@ -115,7 +115,7 @@ type BWCls uint8
 // Validate will return an error for invalid values.
 func (b BWCls) Validate() error {
 	if b > 63 {
-		return serrors.New("Invalid BWClass value", "BWCls", b)
+		return serrors.New("invalid BWClass value", "bw_cls", b)
 	}
 	return nil
 }
@@ -130,7 +130,7 @@ type RLC uint8
 // Validate will return an error for invalid values.
 func (c RLC) Validate() error {
 	if c > 63 {
-		return serrors.New("Invalid BWClass", "BWCls", c)
+		return serrors.New("invalid BWClass", "bw_cls", c)
 	}
 	return nil
 }
@@ -141,7 +141,7 @@ type IndexNumber uint8
 // Validate will return an error for invalid values.
 func (i IndexNumber) Validate() error {
 	if i >= 1<<4 {
-		return serrors.New("Invalid IndexNumber", "value", i)
+		return serrors.New("invalid IndexNumber", "value", i)
 	}
 	return nil
 }
@@ -171,7 +171,7 @@ const (
 // Validate will return an error for invalid values.
 func (pt PathType) Validate() error {
 	if pt == UnknownPath || pt > CorePath {
-		return serrors.New("Invalid path type", "PathType", pt)
+		return serrors.New("invalid path type", "path_type", pt)
 	}
 	return nil
 }
@@ -227,8 +227,8 @@ func (f *InfoField) Validate() error {
 // InfoFieldFromRaw builds an InfoField from the InfoFieldLen bytes buffer.
 func InfoFieldFromRaw(raw []byte) (*InfoField, error) {
 	if len(raw) < InfoFieldLen {
-		return nil, serrors.New("Buffer too small", "min size", InfoFieldLen,
-			"current size", len(raw))
+		return nil, serrors.New("buffer too small", "min_size", InfoFieldLen,
+			"current_size", len(raw))
 	}
 	info := InfoField{
 		ExpirationTick: Tick(common.Order.Uint32(raw[:4])),
@@ -246,7 +246,7 @@ func InfoFieldFromRaw(raw []byte) (*InfoField, error) {
 // Read serializes this InfoField into an array of InfoFieldLen bytes.
 func (f *InfoField) Read(b []byte) (int, error) {
 	if len(b) < InfoFieldLen {
-		return 0, serrors.New("Buffer too short", "size", len(b))
+		return 0, serrors.New("buffer too short", "size", len(b))
 	}
 	common.Order.PutUint32(b[:4], uint32(f.ExpirationTick))
 	b[4] = byte(f.BWCls)
@@ -272,10 +272,10 @@ const (
 // Validate will return an error for invalid values.
 func (pep PathEndProps) Validate() error {
 	if pep&0x0F > 0x03 {
-		return serrors.New("Invalid path end properties (@End)", "PathEndProps", pep)
+		return serrors.New("invalid path end properties (@End)", "path_end_props", pep)
 	}
 	if pep>>4 > 0x03 {
-		return serrors.New("Invalid path end properties (@Start)", "PathEndProps", pep)
+		return serrors.New("invalid path end properties (@Start)", "path_end_props", pep)
 	}
 	return nil
 }
