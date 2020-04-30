@@ -25,13 +25,13 @@ type Path []PathStep
 
 func (p Path) Validate() error {
 	if len(p) < 2 {
-		return serrors.New("Reservation path without source or destination", "len", len(p))
+		return serrors.New("invalid path length", "len", len(p))
 	}
 	if p[0].Ingress != 0 {
-		return serrors.New("Wrong ingress interface for source", "ingress ID", p[0].Ingress)
+		return serrors.New("wrong ingress interface for source", "ingress", p[0].Ingress)
 	}
 	if p[len(p)-1].Egress != 0 {
-		return serrors.New("Wrong egress interface for destination",
+		return serrors.New("wrong egress interface for destination",
 			"egress ID", p[len(p)-1].Ingress)
 	}
 	return nil
