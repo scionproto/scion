@@ -1,5 +1,7 @@
 package seg
 
+import "github.com/scionproto/scion/go/lib/common"
+
 type LatencyInfo struct {
 	Egresslatency    uint16                  `capnp:"egressLatency"`
 	Intooutlatency   uint16                  `capnp:"ingressToEgressLatency"`
@@ -8,14 +10,14 @@ type LatencyInfo struct {
 }
 
 type Latencychildpair struct {
-	Intradelay uint16 `capnp:"intra"`
-	Interface  uint16 `capnp:"ifID"`
+	Intradelay uint16          `capnp:"intra"`
+	Interface  common.IFIDType `capnp:"ifID"`
 }
 
 type Latencypeeringtriplet struct {
-	Interdelay uint16 `capnp:"inter"`
-	IntraDelay uint16 `capnp:"intra"`
-	IntfID     uint16 `capnp:"ifID"`
+	Interdelay uint16          `capnp:"inter"`
+	IntraDelay uint16          `capnp:"intra"`
+	IntfID     common.IFIDType `capnp:"ifID"`
 }
 
 type BandwidthInfo struct {
@@ -25,8 +27,8 @@ type BandwidthInfo struct {
 }
 
 type BWPair struct {
-	BW     uint32 `capnp:"bw"`
-	IntfID uint16 `capnp:"ifID"`
+	BW     uint32          `capnp:"bw"`
+	IntfID common.IFIDType `capnp:"ifID"`
 }
 
 type GeoInfo struct {
@@ -34,8 +36,8 @@ type GeoInfo struct {
 }
 
 type Location struct {
-	GPSData Coordinates `capnp:"gpsData"`
-	IntfIDs []uint16    `capnp:"interfaces"`
+	GPSData Coordinates       `capnp:"gpsData"`
+	IntfIDs []common.IFIDType `capnp:"interfaces"`
 }
 
 type Coordinates struct {
@@ -50,8 +52,8 @@ type LinktypeInfo struct {
 }
 
 type LTPeeringpair struct {
-	IntfID uint16 `capnp:"ifID"`
-	IntfLT string `capnp:"linkType"`
+	IntfID common.IFIDType `capnp:"ifID"`
+	IntfLT string          `capnp:"linkType"`
 }
 
 type InternalHopsInfo struct {
@@ -60,8 +62,8 @@ type InternalHopsInfo struct {
 }
 
 type Hoppair struct {
-	Hops   uint8  `capnp:"hops"`
-	IntfID uint16 `capnp:"ifID"`
+	Hops   uint8           `capnp:"hops"`
+	IntfID common.IFIDType `capnp:"ifID"`
 }
 
 type StaticInfoExtn struct {
