@@ -34,3 +34,8 @@ type Index struct {
 	AllocBW reservation.BWCls
 	Token   reservation.Token
 }
+
+// State returns the read-only state.
+func (idx *Index) State() IndexState {
+	return idx.state
+}
