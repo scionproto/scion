@@ -3,6 +3,7 @@ package beaconing
 import (
 	"encoding/json"
 	"errors"
+	"github.com/scionproto/scion/go/lib/common"
 	"io/ioutil"
 	"math"
 	"os"
@@ -11,13 +12,13 @@ import (
 )
 
 type Latintf struct {
-	Inter uint16            `json:"Inter"`
-	Intra map[uint16]uint16 `json:"Intra"`
+	Inter uint16                     `json:"Inter"`
+	Intra map[common.IFIDType]uint16 `json:"Intra"`
 }
 
 type Bwintf struct {
-	Inter uint32            `json:"Inter"`
-	Intra map[uint16]uint32 `json:"Intra"`
+	Inter uint32                     `json:"Inter"`
+	Intra map[common.IFIDType]uint32 `json:"Intra"`
 }
 
 type Geointf struct {
@@ -27,22 +28,22 @@ type Geointf struct {
 }
 
 type Hopintf struct {
-	Intra map[uint16]uint8 `json:"Intra"`
+	Intra map[common.IFIDType]uint8 `json:"Intra"`
 }
 
 // Configdata is used to parse data from config.json.
 type Configdata struct {
-	Latency   map[uint16]Latintf `json:"Latency"`
-	Bandwidth map[uint16]Bwintf  `json:"Bandwidth"`
-	Linktype  map[uint16]string  `json:"Linktype"`
-	Geo       map[uint16]Geointf `json:"Geo"`
-	Hops      map[uint16]Hopintf `json:"Hops"`
-	Note      string             `json:"Note"`
+	Latency   map[common.IFIDType]Latintf `json:"Latency"`
+	Bandwidth map[common.IFIDType]Bwintf  `json:"Bandwidth"`
+	Linktype  map[common.IFIDType]string  `json:"Linktype"`
+	Geo       map[common.IFIDType]Geointf `json:"Geo"`
+	Hops      map[common.IFIDType]Hopintf `json:"Hops"`
+	Note      string                      `json:"Note"`
 }
 
 // gatherlatency extracts latency values from a Configdata struct and
 // inserts them into the LatencyInfo portion of a StaticInfoExtn struct.
-func (cfgdata Configdata) Gatherlatency(peers map[uint16]bool, egifID uint16, inifID uint16) seg.LatencyInfo {
+func (cfgdata Configdata) Gatherlatency(peers map[common.IFIDType]bool, egifID common.IFIDType, inifID common.IFIDType) seg.LatencyInfo {
 	var latinf seg.LatencyInfo
 	latinf.Egresslatency = cfgdata.Latency[egifID].Inter
 	latinf.Intooutlatency = cfgdata.Latency[egifID].Intra[inifID]
@@ -67,7 +68,7 @@ func (cfgdata Configdata) Gatherlatency(peers map[uint16]bool, egifID uint16, in
 
 // gatherbw extracts bandwidth values from a Configdata struct and
 // inserts them into the BandwidthInfo portion of a StaticInfoExtn struct.
-func (cfgdata Configdata) Gatherbw(peers map[uint16]bool, egifID uint16, inifID uint16) seg.BandwidthInfo {
+func (cfgdata Configdata) Gatherbw(peers map[common.IFIDType]bool, egifID common.IFIDType, inifID common.IFIDType) seg.BandwidthInfo {
 	var bwinf seg.BandwidthInfo
 	bwinf.EgressBW = cfgdata.Bandwidth[egifID].Inter
 	bwinf.IntooutBW = cfgdata.Bandwidth[egifID].Intra[inifID]
@@ -90,7 +91,7 @@ func (cfgdata Configdata) Gatherbw(peers map[uint16]bool, egifID uint16, inifID 
 
 // gatherlinktype extracts linktype values from a Configdata struct and
 // inserts them into the LinktypeInfo portion of a StaticInfoExtn struct.
-func (cfgdata Configdata) Gatherlinktype(peers map[uint16]bool, egifID uint16) seg.LinktypeInfo {
+func (cfgdata Configdata) Gatherlinktype(peers map[common.IFIDType]bool, egifID common.IFIDType) seg.LinktypeInfo {
 	var ltinf seg.LinktypeInfo
 	ltinf.EgressLT = cfgdata.Linktype[egifID]
 	for intfid, intfLT := range cfgdata.Linktype {
@@ -106,7 +107,7 @@ func (cfgdata Configdata) Gatherlinktype(peers map[uint16]bool, egifID uint16) s
 
 // gatherhops extracts hop values from a Configdata struct and
 // inserts them into the InternalHopsinfo portion of a StaticInfoExtn struct.
-func (cfgdata Configdata) Gatherhops(egifID uint16, inifID uint16) seg.InternalHopsInfo {
+func (cfgdata Configdata) Gatherhops(egifID common.IFIDType, inifID common.IFIDType) seg.InternalHopsInfo {
 	var nhinf seg.InternalHopsInfo
 	nhinf.Intououthops = cfgdata.Hops[egifID].Intra[inifID]
 	for subintfid, hops := range cfgdata.Hops[egifID].Intra {
@@ -163,7 +164,7 @@ func Parsenconfigdata(datafile string) (Configdata, error) {
 }
 
 // GenerateStaticinfo creates a StaticinfoExtn struct and populates it with data extracted from configdata.
-func GenerateStaticinfo(configdata Configdata, peers map[uint16]bool, egifID uint16, inifID uint16) seg.StaticInfoExtn {
+func GenerateStaticinfo(configdata Configdata, peers map[common.IFIDType]bool, egifID common.IFIDType, inifID common.IFIDType) seg.StaticInfoExtn {
 	var StaticInfo seg.StaticInfoExtn
 	StaticInfo.Latency = configdata.Gatherlatency(peers, egifID, inifID)
 	StaticInfo.Bandwidth = configdata.Gatherbw(peers, egifID, inifID)

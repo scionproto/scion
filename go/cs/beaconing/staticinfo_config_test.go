@@ -1,6 +1,7 @@
 package beaconing
 
 import (
+	"github.com/scionproto/scion/go/lib/common"
 	"strconv"
 	"testing"
 
@@ -9,13 +10,13 @@ import (
 
 type ConfigTest struct {
 	configData Configdata
-	peers      map[uint16]bool
-	egIfid     uint16
-	inIfid     uint16
+	peers      map[common.IFIDType]bool
+	egIfid     common.IFIDType
+	inIfid     common.IFIDType
 	expected   seg.StaticInfoExtn
 }
 
-func compareConfigLatency(totest map[uint16]Latintf, expected map[uint16]Latintf) (bool, string) {
+func compareConfigLatency(totest map[common.IFIDType]Latintf, expected map[common.IFIDType]Latintf) (bool, string) {
 	passed := true
 	info := ""
 
@@ -36,7 +37,7 @@ func compareConfigLatency(totest map[uint16]Latintf, expected map[uint16]Latintf
 	return passed, info
 }
 
-func compareConfigBW(totest map[uint16]Bwintf, expected map[uint16]Bwintf) (bool, string) {
+func compareConfigBW(totest map[common.IFIDType]Bwintf, expected map[common.IFIDType]Bwintf) (bool, string) {
 	passed := true
 	info := ""
 
@@ -57,7 +58,7 @@ func compareConfigBW(totest map[uint16]Bwintf, expected map[uint16]Bwintf) (bool
 	return passed, info
 }
 
-func compareConfigLinktype(totest map[uint16]string, expected map[uint16]string) (bool, string) {
+func compareConfigLinktype(totest map[common.IFIDType]string, expected map[common.IFIDType]string) (bool, string) {
 	passed := true
 	info := ""
 
@@ -71,7 +72,7 @@ func compareConfigLinktype(totest map[uint16]string, expected map[uint16]string)
 	return passed, info
 }
 
-func compareConfigGeo(totest map[uint16]Geointf, expected map[uint16]Geointf) (bool, string) {
+func compareConfigGeo(totest map[common.IFIDType]Geointf, expected map[common.IFIDType]Geointf) (bool, string) {
 	passed := true
 	info := ""
 
@@ -85,7 +86,7 @@ func compareConfigGeo(totest map[uint16]Geointf, expected map[uint16]Geointf) (b
 	return passed, info
 }
 
-func compareConfigHops(totest map[uint16]Hopintf, expected map[uint16]Hopintf) (bool, string) {
+func compareConfigHops(totest map[common.IFIDType]Hopintf, expected map[common.IFIDType]Hopintf) (bool, string) {
 	passed := true
 	info := ""
 
@@ -137,44 +138,44 @@ func configcompare(totest Configdata, expected Configdata) (bool, string) {
 
 func getTestConfigData() Configdata {
 	return Configdata{
-		Latency: map[uint16]Latintf{
+		Latency: map[common.IFIDType]Latintf{
 			1: {
 				Inter: 30,
-				Intra: map[uint16]uint16{2: 10, 3: 20, 5: 30},
+				Intra: map[common.IFIDType]uint16{2: 10, 3: 20, 5: 30},
 			},
 			2: {
 				Inter: 40,
-				Intra: map[uint16]uint16{1: 10, 3: 70, 5: 50},
+				Intra: map[common.IFIDType]uint16{1: 10, 3: 70, 5: 50},
 			},
 			3: {
 				Inter: 80,
-				Intra: map[uint16]uint16{1: 20, 2: 70, 5: 60},
+				Intra: map[common.IFIDType]uint16{1: 20, 2: 70, 5: 60},
 			},
 			5: {
 				Inter: 90,
-				Intra: map[uint16]uint16{1: 30, 2: 50, 3: 60},
+				Intra: map[common.IFIDType]uint16{1: 30, 2: 50, 3: 60},
 			},
 		},
-		Bandwidth: map[uint16]Bwintf{
+		Bandwidth: map[common.IFIDType]Bwintf{
 			1: {
 				Inter: 400000000,
-				Intra: map[uint16]uint32{2: 100000000, 3: 200000000, 5: 300000000},
+				Intra: map[common.IFIDType]uint32{2: 100000000, 3: 200000000, 5: 300000000},
 			},
 			2: {
 				Inter: 5000000,
-				Intra: map[uint16]uint32{1: 5044444, 3: 6555550, 5: 75555550},
+				Intra: map[common.IFIDType]uint32{1: 5044444, 3: 6555550, 5: 75555550},
 			},
 			3: {
 				Inter: 80,
-				Intra: map[uint16]uint32{1: 9333330, 2: 1044440, 5: 1333310},
+				Intra: map[common.IFIDType]uint32{1: 9333330, 2: 1044440, 5: 1333310},
 			},
 			5: {
 				Inter: 120,
-				Intra: map[uint16]uint32{1: 1333330, 2: 1555540, 3: 15666660},
+				Intra: map[common.IFIDType]uint32{1: 1333330, 2: 1555540, 3: 15666660},
 			},
 		},
-		Linktype: map[uint16]string{1: "direct", 2: "opennet", 3: "multihop", 5: "direct"},
-		Geo: map[uint16]Geointf{
+		Linktype: map[common.IFIDType]string{1: "direct", 2: "opennet", 3: "multihop", 5: "direct"},
+		Geo: map[common.IFIDType]Geointf{
 			1: {
 				Longitude: 62.2,
 				Latitude:  47.2,
@@ -196,18 +197,18 @@ func getTestConfigData() Configdata {
 				Address:   "geo5",
 			},
 		},
-		Hops: map[uint16]Hopintf{
+		Hops: map[common.IFIDType]Hopintf{
 			1: {
-				Intra: map[uint16]uint8{2: 2, 3: 3, 5: 0},
+				Intra: map[common.IFIDType]uint8{2: 2, 3: 3, 5: 0},
 			},
 			2: {
-				Intra: map[uint16]uint8{1: 2, 3: 3, 5: 1},
+				Intra: map[common.IFIDType]uint8{1: 2, 3: 3, 5: 1},
 			},
 			3: {
-				Intra: map[uint16]uint8{1: 4, 2: 6, 5: 3},
+				Intra: map[common.IFIDType]uint8{1: 4, 2: 6, 5: 3},
 			},
 			5: {
-				Intra: map[uint16]uint8{1: 2, 2: 3, 3: 4},
+				Intra: map[common.IFIDType]uint8{1: 2, 2: 3, 3: 4},
 			},
 		},
 		Note: "asdf",
@@ -425,7 +426,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 	var testcases []ConfigTest
 	testcases = append(testcases, ConfigTest{
 		configData: getTestConfigData(),
-		peers:      map[uint16]bool{1: false, 2: false, 3: false, 5: true},
+		peers:      map[common.IFIDType]bool{1: false, 2: false, 3: false, 5: true},
 		egIfid:     2,
 		inIfid:     3,
 		expected: seg.StaticInfoExtn{
@@ -454,7 +455,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 							Longitude: 62.2,
 							Address:   "geo1",
 						},
-						IntfIDs: []uint16{1},
+						IntfIDs: []common.IFIDType{1},
 					},
 					{
 						GPSData: seg.Coordinates{
@@ -462,7 +463,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 							Longitude: 45.2,
 							Address:   "geo2",
 						},
-						IntfIDs: []uint16{2},
+						IntfIDs: []common.IFIDType{2},
 					},
 					{
 						GPSData: seg.Coordinates{
@@ -470,7 +471,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 							Longitude: 42.23,
 							Address:   "geo3",
 						},
-						IntfIDs: []uint16{3},
+						IntfIDs: []common.IFIDType{3},
 					},
 					{
 						GPSData: seg.Coordinates{
@@ -478,7 +479,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 							Longitude: 46.2,
 							Address:   "geo5",
 						},
-						IntfIDs: []uint16{5},
+						IntfIDs: []common.IFIDType{5},
 					},
 				},
 			},
