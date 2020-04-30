@@ -146,20 +146,12 @@ func (i IndexNumber) Validate() error {
 	return nil
 }
 
-// IndexID identifies an index inside a reservation.
-type IndexID struct {
-	Expiration time.Time
-	Idx        IndexNumber
+func (i IndexNumber) Add(other IndexNumber) IndexNumber {
+	return (i + other) % 16
 }
 
-func (id *IndexID) Equal(other *IndexID) bool {
-	if id == nil && other == nil {
-		return true
-	}
-	if id == nil || other == nil {
-		return false
-	}
-	return id.Expiration == other.Expiration && id.Idx == other.Idx
+func (i IndexNumber) Sub(other IndexNumber) IndexNumber {
+	return (i - other) % 16
 }
 
 // PathType specifies which type of COLIBRI path this segment reservation or request refers to.

@@ -29,6 +29,19 @@ func TestReservationValidate(t *testing.T) {
 	err := r.Validate()
 	require.NoError(t, err)
 
+	// more than 16 indices
+	for i := 0; i < 16; i++ {
+		expTime := time.Unix(int64(i), 0)
+		r.NewIndex(expTime)
+	}
+	err = r.Validate()
+	require.NoError(t, err)
+	r.Indices = append(r.Indices, r.Indices[15])
+	r.Indices[16].Idx.Add(1) // rollover
+	err = r.Validate()
+	require.Error(t, err)
+
+	// wrong path
 	r.Path = Path{}
 	err = r.Validate()
 	require.Error(t, err)
@@ -82,12 +95,21 @@ func TestNewIndex(t *testing.T) {
 	r := newReservation()
 	require.Len(t, r.Indices, 0)
 	expTime := time.Unix(1, 0)
-	id, err := r.NewIndex(expTime)
+	idx, err := r.NewIndex(expTime)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 1)
-	require.Equal(t, r.Indices[0].IndexID, *id)
-	require.Equal(t, id.Expiration, expTime)
-	require.Equal(t, id.Idx, reservation.IndexNumber(0))
+	require.Equal(t, r.Indices[0].Idx, idx)
+	require.Equal(t, r.Indices[0].Expiration, expTime)
+	require.Equal(t, idx, reservation.IndexNumber(0))
+
+	// up to 3 indices per expiration time
+	idx, err = r.NewIndex(expTime)
+	require.NoError(t, err)
+	require.Equal(t, idx, reservation.IndexNumber(1))
+	idx, err = r.NewIndex(expTime)
+	require.NoError(t, err)
+	require.Equal(t, idx, reservation.IndexNumber(2))
+	r.Indices = r.Indices[:1]
 
 	// exp time is less
 	_, err = r.NewIndex(expTime.Add(-1 * time.Millisecond))
@@ -95,44 +117,44 @@ func TestNewIndex(t *testing.T) {
 	require.Len(t, r.Indices, 1)
 
 	// exp time is same
-	id, err = r.NewIndex(expTime)
+	idx, err = r.NewIndex(expTime)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 2)
-	require.Equal(t, r.Indices[1].IndexID, *id)
-	require.Equal(t, id.Expiration, expTime)
-	require.Equal(t, id.Idx, reservation.IndexNumber(1))
+	require.Equal(t, r.Indices[1].Idx, idx)
+	require.Equal(t, r.Indices[1].Expiration, expTime)
+	require.Equal(t, idx, reservation.IndexNumber(1))
 
-	id, err = r.NewIndex(expTime)
+	idx, err = r.NewIndex(expTime)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 3)
-	require.Equal(t, r.Indices[2].IndexID, *id)
-	require.Equal(t, id.Expiration, expTime)
-	require.Equal(t, id.Idx, reservation.IndexNumber(2))
+	require.Equal(t, r.Indices[2].Idx, idx)
+	require.Equal(t, r.Indices[2].Expiration, expTime)
+	require.Equal(t, idx, reservation.IndexNumber(2))
 
 	// too many indices for the same exp time
-	id, err = r.NewIndex(expTime)
+	idx, err = r.NewIndex(expTime)
 	require.Error(t, err)
 	require.Len(t, r.Indices, 3)
 
 	// exp time is greater
 	expTime = expTime.Add(time.Second)
-	id, err = r.NewIndex(expTime)
+	idx, err = r.NewIndex(expTime)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 4)
-	require.Equal(t, r.Indices[3].IndexID, *id)
-	require.Equal(t, id.Expiration, expTime)
-	require.Equal(t, id.Idx, reservation.IndexNumber(0))
+	require.Equal(t, r.Indices[3].Idx, idx)
+	require.Equal(t, r.Indices[3].Expiration, expTime)
+	require.Equal(t, idx, reservation.IndexNumber(3))
 
-	// add when index numbers start at greater than 0
+	// index number rollover
 	r = newReservation()
 	r.NewIndex(expTime)
-	r.NewIndex(expTime)
-	require.Len(t, r.Indices, 2)
-	r.Indices = r.Indices[1:]
-	id, err = r.NewIndex(expTime)
+	require.Len(t, r.Indices, 1)
+	r.Indices[0].Idx = r.Indices[0].Idx.Sub(1)
+	idx, err = r.NewIndex(expTime)
 	require.NoError(t, err)
-	require.Equal(t, r.Indices[1].IndexID, *id)
-	require.Equal(t, id.Idx, reservation.IndexNumber(2))
+	require.Equal(t, r.Indices[1].Idx, idx)
+	require.Equal(t, r.Indices[1].Expiration, expTime)
+	require.Equal(t, idx, reservation.IndexNumber(0))
 }
 
 func TestSetIndexConfirmed(t *testing.T) {
@@ -155,58 +177,58 @@ func TestSetIndexActive(t *testing.T) {
 	expTime := time.Unix(1, 0)
 
 	// index not confirmed
-	id, _ := r.NewIndex(expTime)
-	err := r.SetIndexActive(id)
+	idx, _ := r.NewIndex(expTime)
+	err := r.SetIndexActive(idx)
 	require.Error(t, err)
 
 	// normal activation
-	r.SetIndexConfirmed(id)
-	err = r.SetIndexActive(id)
+	r.SetIndexConfirmed(idx)
+	err = r.SetIndexActive(idx)
 	require.NoError(t, err)
 	require.Equal(t, r.Indices[0].state, IndexActive)
 	require.Equal(t, r.activeIndex, 0)
 
 	// already active
-	err = r.SetIndexActive(id)
+	err = r.SetIndexActive(idx)
 	require.NoError(t, err)
 
 	// remove previous indices
 	r.NewIndex(expTime)
-	id, _ = r.NewIndex(expTime)
+	idx, _ = r.NewIndex(expTime)
 	require.Len(t, r.Indices, 3)
 	require.Equal(t, r.activeIndex, 0)
-	r.SetIndexConfirmed(id)
-	err = r.SetIndexActive(id)
+	r.SetIndexConfirmed(idx)
+	err = r.SetIndexActive(idx)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 1)
 	require.Equal(t, r.activeIndex, 0)
-	require.Equal(t, r.Indices[0].IndexID, *id)
+	require.Equal(t, r.Indices[0].Idx, idx)
 }
 
 func TestRemoveIndex(t *testing.T) {
 	r := newReservation()
 	expTime := time.Unix(1, 0)
-	id, _ := r.NewIndex(expTime)
-	err := r.RemoveIndex(id)
+	idx, _ := r.NewIndex(expTime)
+	err := r.RemoveIndex(idx)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 0)
 
-	id, _ = r.NewIndex(expTime)
-	id2, _ := r.NewIndex(expTime)
-	err = r.RemoveIndex(id)
+	idx, _ = r.NewIndex(expTime)
+	idx2, _ := r.NewIndex(expTime)
+	err = r.RemoveIndex(idx)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 1)
-	require.Equal(t, r.Indices[0].IndexID, *id2)
+	require.Equal(t, r.Indices[0].Idx, idx2)
 
 	expTime = expTime.Add(time.Second)
 	r.NewIndex(expTime)
-	id, _ = r.NewIndex(expTime)
-	id2, _ = r.NewIndex(expTime)
+	idx, _ = r.NewIndex(expTime)
+	idx2, _ = r.NewIndex(expTime)
 	require.Len(t, r.Indices, 4)
-	err = r.RemoveIndex(id)
+	err = r.RemoveIndex(idx)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 1)
-	require.Equal(t, r.Indices[0].Idx, id2.Idx)
+	require.Equal(t, r.Indices[0].Idx, idx2)
 }
 
 func newReservation() *Reservation {

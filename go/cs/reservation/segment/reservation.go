@@ -36,9 +36,14 @@ func (r *Reservation) Validate() error {
 		// all previous indices are removed. Thus activeIndex can only be -1 or 0 ?
 		return serrors.New("Invalid active index", "activeIndex", r.activeIndex)
 	}
+	if len(r.Indices) > 16 {
+		// with only 4 bits to represent the index number, we cannot have more than 16 indices
+		return serrors.New("invalid number of indices", "index_count", len(r.Indices))
+	}
 	// check indices: ascending order and only three per expiration time
 	if len(r.Indices) > 0 {
 		lastExpiration := time.Unix(0, 0)
+		var lastIndexNumber reservation.IndexNumber = reservation.IndexNumber(0).Sub(1)
 		indicesPerExpTime := 0
 		activeIndex := -1
 		for i, idx := range r.Indices {
@@ -52,12 +57,12 @@ func (r *Reservation) Validate() error {
 					return serrors.New("More than one index for expiration time",
 						"expiration", idx.Expiration)
 				}
-				if int(idx.Idx) != indicesPerExpTime-1 {
-					return serrors.New("non consecutive indices", "index", idx.Idx,
-						"exp. time", lastExpiration)
-				}
 			} else {
 				indicesPerExpTime = 1
+			}
+			if idx.Idx.Sub(lastIndexNumber) != reservation.IndexNumber(1) {
+				return serrors.New("non consecutive indices", "prev_index_number", lastIndexNumber,
+					"index_number", idx.Idx)
 			}
 			if idx.state == IndexActive {
 				if activeIndex >= 0 {
@@ -67,6 +72,7 @@ func (r *Reservation) Validate() error {
 				activeIndex = i
 			}
 			lastExpiration = idx.Expiration
+			lastIndexNumber = idx.Idx
 		}
 	}
 	return r.Path.Validate()
@@ -82,60 +88,48 @@ func (r *Reservation) ActiveIndex() *Index {
 
 // NewIndex creates a new index in this reservation and returns a pointer to it.
 // Parameters of this index can be changed using the pointer, except for the state.
-func (r *Reservation) NewIndex(expTime time.Time) (*reservation.IndexID, error) {
+func (r *Reservation) NewIndex(expTime time.Time) (reservation.IndexNumber, error) {
 	lastExpTime := time.Unix(0, 0)
+	var indexNumber reservation.IndexNumber = 0
 	if len(r.Indices) > 0 {
 		lastExpTime = r.Indices[len(r.Indices)-1].Expiration
+		indexNumber = r.Indices[len(r.Indices)-1].Idx.Add(1)
 	}
 	if expTime.Before(lastExpTime) {
-		return nil, serrors.New("new index attempt on a too old expiration time",
+		return 0, serrors.New("new index attempt on a too old expiration time",
 			"exp time", expTime, "last recorded exp time", lastExpTime)
 	}
-	indexNumber := 0
-	if expTime.Equal(lastExpTime) {
-		// no more than 3 per exp time
-		indexNumber++
-		for i := len(r.Indices) - 2; i >= 0 && indexNumber < 3; i-- {
-			if r.Indices[i].Expiration.Equal(lastExpTime) {
-				indexNumber++
-			} else {
-				break
-			}
+	numberOfIndicesPerExpTime := 1
+	for i := len(r.Indices) - 1; i >= 0 && numberOfIndicesPerExpTime <= 3; i-- {
+		if !expTime.Equal(r.Indices[i].Expiration) {
+			break
 		}
-		if indexNumber > 2 {
-			return nil, serrors.New("only 3 indices allowed per expiration time",
-				"exp. time", expTime)
-		}
-		if r.Indices[len(r.Indices)-1].Idx == 2 {
-			// even though we currently don't have more than 3 indices, the index number of the
-			// last one is "2" and forces this index number to be 3, which is too big to be
-			// represented with 2 bits later on.
-			return nil, serrors.New("index number too big", "number of indices", len(r.Indices))
-		}
-		// if from 0,1 we had removed 0, the nextIndex should be 2
-		indexNumber = int(r.Indices[len(r.Indices)-1].Idx) + 1
+		numberOfIndicesPerExpTime++
 	}
+	if numberOfIndicesPerExpTime > 3 {
+		return 0, serrors.New("only 3 indices allowed per expiration time",
+			"exp. time", expTime)
+	}
+
 	index := Index{
-		IndexID: reservation.IndexID{
-			Expiration: expTime,
-			Idx:        reservation.IndexNumber(indexNumber),
-		},
-		state: IndexTemporary,
+		Expiration: expTime,
+		Idx:        reservation.IndexNumber(indexNumber).Add(0),
+		state:      IndexTemporary,
 	}
 	r.Indices = append(r.Indices, index)
-	return &index.IndexID, nil
+	return index.Idx, nil
 }
 
 // SetIndexConfirmed sets the index as IndexPending (confirmed but not active). If the requested
 // index has state active, it will emit an error.
-func (r *Reservation) SetIndexConfirmed(id *reservation.IndexID) error {
-	sliceIndex := r.findIndex(id)
+func (r *Reservation) SetIndexConfirmed(idx reservation.IndexNumber) error {
+	sliceIndex := r.findIndex(idx)
 	if sliceIndex < 0 {
-		return serrors.New("index does not belong to this reservation", "id", id,
+		return serrors.New("index does not belong to this reservation", "index_number", idx,
 			"indices length", len(r.Indices))
 	}
 	if r.Indices[sliceIndex].state == IndexActive {
-		return serrors.New("cannot confirm an already active index", "id", id)
+		return serrors.New("cannot confirm an already active index", "index_number", idx)
 	}
 	r.Indices[sliceIndex].state = IndexPending
 	return nil
@@ -143,24 +137,23 @@ func (r *Reservation) SetIndexConfirmed(id *reservation.IndexID) error {
 
 // SetIndexActive sets the index as active. If the reservation had already an active state,
 // it will remove all previous indices.
-func (r *Reservation) SetIndexActive(id *reservation.IndexID) error {
-	sliceIndex := r.findIndex(id)
+func (r *Reservation) SetIndexActive(idx reservation.IndexNumber) error {
+	sliceIndex := r.findIndex(idx)
 	if sliceIndex < 0 {
-		return serrors.New("index does not belong to this reservation", "id", id,
+		return serrors.New("index does not belong to this reservation", "index_number", idx,
 			"indices length", len(r.Indices))
 	}
 	if r.activeIndex == sliceIndex {
 		return nil // already active
 	}
 	if r.Indices[sliceIndex].state != IndexPending {
-		return serrors.New("attempt to activate a non confirmed index", "id", id,
+		return serrors.New("attempt to activate a non confirmed index", "index_number", idx,
 			"state", r.Indices[sliceIndex].state)
 	}
 	if r.activeIndex > -1 {
-
 		if r.activeIndex > sliceIndex {
 			return serrors.New("activating a past index",
-				"last active", r.Indices[r.activeIndex].Idx, "current", id)
+				"last active", r.Indices[r.activeIndex].Idx, "current", idx)
 		}
 	}
 	// remove indices [lastActive,currActive) so that currActive is at position 0
@@ -171,10 +164,10 @@ func (r *Reservation) SetIndexActive(id *reservation.IndexID) error {
 }
 
 // RemoveIndex removes all indices from the beginning until this one, inclusive.
-func (r *Reservation) RemoveIndex(id *reservation.IndexID) error {
-	sliceIndex := r.findIndex(id)
+func (r *Reservation) RemoveIndex(idx reservation.IndexNumber) error {
+	sliceIndex := r.findIndex(idx)
 	if sliceIndex < 0 {
-		return serrors.New("index does not belong to this reservation", "id", id,
+		return serrors.New("index does not belong to this reservation", "index_number", idx,
 			"indices length", len(r.Indices))
 	}
 	r.Indices = r.Indices[sliceIndex+1:]
@@ -185,11 +178,14 @@ func (r *Reservation) RemoveIndex(id *reservation.IndexID) error {
 	return nil
 }
 
-func (r *Reservation) findIndex(id *reservation.IndexID) int {
-	for i, idx := range r.Indices {
-		if idx.IndexID.Equal(id) {
-			return i
-		}
+func (r *Reservation) findIndex(idx reservation.IndexNumber) int {
+	var firstIdx reservation.IndexNumber = 0
+	if len(r.Indices) > 0 {
+		firstIdx = r.Indices[0].Idx
 	}
-	return -1
+	sliceIndex := int(idx.Sub(firstIdx))
+	if sliceIndex > len(r.Indices)-1 {
+		return -1
+	}
+	return sliceIndex
 }
