@@ -3,32 +3,32 @@ package seg
 import "github.com/scionproto/scion/go/lib/common"
 
 type LatencyInfo struct {
-	Egresslatency    uint16                  `capnp:"egressLatency"`
-	Intooutlatency   uint16                  `capnp:"ingressToEgressLatency"`
-	Childlatencies   []Latencychildpair      `capnp:"childLatencies"`
-	Peeringlatencies []Latencypeeringtriplet `capnp:"peeringLatencies"`
+	Egresslatency          uint16         `capnp:"egressLatency"`
+	IngressToEgressLatency uint16         `capnp:"ingressToEgressLatency"`
+	Childlatencies         []ChildLatency `capnp:"childLatencies"`
+	Peerlatencies          []PeerLatency  `capnp:"peeringLatencies"`
 }
 
-type Latencychildpair struct {
+type ChildLatency struct {
 	Intradelay uint16          `capnp:"intra"`
-	Interface  common.IFIDType `capnp:"ifID"`
+	IfID       common.IFIDType `capnp:"ifID"`
 }
 
-type Latencypeeringtriplet struct {
+type PeerLatency struct {
 	Interdelay uint16          `capnp:"inter"`
 	IntraDelay uint16          `capnp:"intra"`
-	IntfID     common.IFIDType `capnp:"ifID"`
+	IfID       common.IFIDType `capnp:"ifID"`
 }
 
 type BandwidthInfo struct {
-	EgressBW  uint32   `capnp:"egressBW"`
-	IntooutBW uint32   `capnp:"ingressToEgressBW"`
-	BWPairs   []BWPair `capnp:"bandwidths"`
+	EgressBW          uint32               `capnp:"egressBW"`
+	IngressToEgressBW uint32               `capnp:"ingressToEgressBW"`
+	Bandwidths        []InterfaceBandwidth `capnp:"bandwidths"`
 }
 
-type BWPair struct {
-	BW     uint32          `capnp:"bw"`
-	IntfID common.IFIDType `capnp:"ifID"`
+type InterfaceBandwidth struct {
+	BW   uint32          `capnp:"bw"`
+	IfID common.IFIDType `capnp:"ifID"`
 }
 
 type GeoInfo struct {
@@ -37,7 +37,7 @@ type GeoInfo struct {
 
 type Location struct {
 	GPSData Coordinates       `capnp:"gpsData"`
-	IntfIDs []common.IFIDType `capnp:"interfaces"`
+	IfIDs   []common.IFIDType `capnp:"interfaces"`
 }
 
 type Coordinates struct {
@@ -47,23 +47,23 @@ type Coordinates struct {
 }
 
 type LinktypeInfo struct {
-	EgressLT     string          `capnp:"egressLinkType"`
-	Peeringlinks []LTPeeringpair `capnp:"peeringLinks"`
+	EgressLinkType string              `capnp:"egressLinkType"`
+	Peerlinks      []InterfaceLinkType `capnp:"peeringLinks"`
 }
 
-type LTPeeringpair struct {
-	IntfID common.IFIDType `capnp:"ifID"`
-	IntfLT string          `capnp:"linkType"`
+type InterfaceLinkType struct {
+	IfID     common.IFIDType `capnp:"ifID"`
+	LinkType string          `capnp:"linkType"`
 }
 
 type InternalHopsInfo struct {
-	Intououthops uint8     `capnp:"inToOutHops"`
-	Hoppairs     []Hoppair `capnp:"interfaceHops"`
+	InToOutHops   uint8           `capnp:"inToOutHops"`
+	InterfaceHops []InterfaceHops `capnp:"interfaceHops"`
 }
 
-type Hoppair struct {
-	Hops   uint8           `capnp:"hops"`
-	IntfID common.IFIDType `capnp:"ifID"`
+type InterfaceHops struct {
+	Hops uint8           `capnp:"hops"`
+	IfID common.IFIDType `capnp:"ifID"`
 }
 
 type StaticInfoExtn struct {

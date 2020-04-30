@@ -46,14 +46,14 @@ type StaticInfoCfg struct {
 // inserts them into the LatencyInfo portion of a StaticInfoExtn struct.
 func (cfgdata StaticInfoCfg) gatherlatency(peers map[common.IFIDType]bool, egifID common.IFIDType, inifID common.IFIDType) seg.LatencyInfo {
 	l := seg.LatencyInfo{
-		Egresslatency:  cfgdata.Latency[egifID].Inter,
-		Intooutlatency: cfgdata.Latency[egifID].Intra[inifID],
+		Egresslatency:          cfgdata.Latency[egifID].Inter,
+		IngressToEgressLatency: cfgdata.Latency[egifID].Intra[inifID],
 	}
 	for subintfid, intfdelay := range cfgdata.Latency[egifID].Intra {
 		//If we're looking at a peering interface, always include the data
 		if peers[subintfid] {
-			l.Peeringlatencies = append(l.Peeringlatencies, seg.Latencypeeringtriplet{
-				IntfID:     subintfid,
+			l.Peerlatencies = append(l.Peerlatencies, seg.PeerLatency{
+				IfID:       subintfid,
 				Interdelay: cfgdata.Latency[subintfid].Inter,
 				IntraDelay: intfdelay,
 			})
@@ -62,9 +62,9 @@ func (cfgdata StaticInfoCfg) gatherlatency(peers map[common.IFIDType]bool, egifI
 		// If we're looking at a NON-peering interface, only include the data if subintfid>egifID so as to not
 		// store redundant information
 		if subintfid > egifID {
-			l.Childlatencies = append(l.Childlatencies, seg.Latencychildpair{
+			l.Childlatencies = append(l.Childlatencies, seg.ChildLatency{
 				Intradelay: intfdelay,
-				Interface:  subintfid,
+				IfID:       subintfid,
 			})
 		}
 	}
@@ -75,24 +75,24 @@ func (cfgdata StaticInfoCfg) gatherlatency(peers map[common.IFIDType]bool, egifI
 // inserts them into the BandwidthInfo portion of a StaticInfoExtn struct.
 func (cfgdata StaticInfoCfg) gatherbw(peers map[common.IFIDType]bool, egifID common.IFIDType, inifID common.IFIDType) seg.BandwidthInfo {
 	l := seg.BandwidthInfo{
-		EgressBW:  cfgdata.Bandwidth[egifID].Inter,
-		IntooutBW: cfgdata.Bandwidth[egifID].Intra[inifID],
+		EgressBW:          cfgdata.Bandwidth[egifID].Inter,
+		IngressToEgressBW: cfgdata.Bandwidth[egifID].Intra[inifID],
 	}
 	for subintfid, intfbw := range cfgdata.Bandwidth[egifID].Intra {
 		//If we're looking at a peering interface, always include the data
 		if peers[subintfid] {
-			l.BWPairs = append(l.BWPairs, seg.BWPair{
-				IntfID: subintfid,
-				BW:     uint32(math.Min(float64(intfbw), float64(cfgdata.Bandwidth[subintfid].Inter))),
+			l.Bandwidths = append(l.Bandwidths, seg.InterfaceBandwidth{
+				IfID: subintfid,
+				BW:   uint32(math.Min(float64(intfbw), float64(cfgdata.Bandwidth[subintfid].Inter))),
 			})
 			continue
 		}
 		// If we're looking at a NON-peering interface, only include the data if subintfid>egifID so as to not
 		// store redundant information
 		if subintfid > egifID {
-			l.BWPairs = append(l.BWPairs, seg.BWPair{
-				BW:     intfbw,
-				IntfID: subintfid,
+			l.Bandwidths = append(l.Bandwidths, seg.InterfaceBandwidth{
+				BW:   intfbw,
+				IfID: subintfid,
 			})
 		}
 	}
@@ -104,14 +104,14 @@ func (cfgdata StaticInfoCfg) gatherbw(peers map[common.IFIDType]bool, egifID com
 func (cfgdata StaticInfoCfg) gatherlinktype(peers map[common.IFIDType]bool, egifID common.IFIDType) seg.LinktypeInfo {
 
 	l := seg.LinktypeInfo{
-		EgressLT: cfgdata.Linktype[egifID],
+		EgressLinkType: cfgdata.Linktype[egifID],
 	}
 	for intfid, intfLT := range cfgdata.Linktype {
 		//If we're looking at a peering interface, include the data for the peering link, otherwise drop it
 		if peers[intfid] {
-			l.Peeringlinks = append(l.Peeringlinks, seg.LTPeeringpair{
-				IntfLT: intfLT,
-				IntfID: intfid,
+			l.Peerlinks = append(l.Peerlinks, seg.InterfaceLinkType{
+				LinkType: intfLT,
+				IfID:     intfid,
 			})
 		}
 	}
@@ -122,15 +122,15 @@ func (cfgdata StaticInfoCfg) gatherlinktype(peers map[common.IFIDType]bool, egif
 // inserts them into the InternalHopsinfo portion of a StaticInfoExtn struct.
 func (cfgdata StaticInfoCfg) gatherhops(peers map[common.IFIDType]bool, egifID common.IFIDType, inifID common.IFIDType) seg.InternalHopsInfo {
 	l := seg.InternalHopsInfo{
-		Intououthops: cfgdata.Hops[egifID].Intra[inifID],
+		InToOutHops: cfgdata.Hops[egifID].Intra[inifID],
 	}
 	for intfid, intfHops := range cfgdata.Hops[egifID].Intra {
 		// If we're looking at a peering interface or intfid>egifID, include the data, otherwise drop it
 		// so as to not store redundant information
 		if (intfid > egifID) || peers[intfid] {
-			l.Hoppairs = append(l.Hoppairs, seg.Hoppair{
-				Hops:   intfHops,
-				IntfID: intfid,
+			l.InterfaceHops = append(l.InterfaceHops, seg.InterfaceHops{
+				Hops: intfHops,
+				IfID: intfid,
 			})
 		}
 	}
@@ -145,7 +145,7 @@ func (cfgdata StaticInfoCfg) gathergeo() seg.GeoInfo {
 		var assigned = false
 		for k := 0; k < len(l.Locations); k++ {
 			if (loc.Longitude == l.Locations[k].GPSData.Longitude) && (loc.Latitude == l.Locations[k].GPSData.Latitude) && (loc.Address == l.Locations[k].GPSData.Address) && (!assigned) {
-				l.Locations[k].IntfIDs = append(l.Locations[k].IntfIDs, intfid)
+				l.Locations[k].IfIDs = append(l.Locations[k].IfIDs, intfid)
 				assigned = true
 			}
 		}
@@ -156,7 +156,7 @@ func (cfgdata StaticInfoCfg) gathergeo() seg.GeoInfo {
 					Latitude:  loc.Latitude,
 					Address:   loc.Address,
 				},
-				IntfIDs: []common.IFIDType{intfid},
+				IfIDs: []common.IFIDType{intfid},
 			})
 			assigned = true
 		}
