@@ -73,9 +73,6 @@ func newCurrent() current {
 		timestamp: prom.NewGaugeVecWithLabels(Namespace, "", "creation_time_seconds",
 			"The creation time specified in the current topology."+
 				"Remains set for dynamic topology, even when inactive.", CurrentLabels{}),
-		expiry: prom.NewGaugeVecWithLabels(Namespace, "", "expiry_time_seconds",
-			"The expiry time specified in the current topology. Set to +Inf, if TTL is zero."+
-				"Remains set for dynamic topology, even when inactive.", CurrentLabels{}),
 		active: prom.NewGauge(Namespace, "", "dynamic_active",
 			"Indicate whether the dynamic topology is set and active. 0=inactive, 1=active."),
 	}
@@ -84,11 +81,6 @@ func newCurrent() current {
 // Timestamp returns the prometheus gauge.
 func (c current) Timestamp(l CurrentLabels) prometheus.Gauge {
 	return c.timestamp.WithLabelValues(l.Values()...)
-}
-
-// Expiry returns the prometheus gauge.
-func (c current) Expiry(l CurrentLabels) prometheus.Gauge {
-	return c.expiry.WithLabelValues(l.Values()...)
 }
 
 // Active returns the prometheus gauge.

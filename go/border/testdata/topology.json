@@ -1,57 +1,33 @@
 {
-    "Overlay": "UDP/IPv4",
-    "BorderRouters": {
-      "br1-ff00_0_111-1": {
-        "Interfaces": {
-          "11": {
-            "Overlay": "UDP/IPv4",
-            "RemoteOverlay": {
-              "OverlayPort": 50110,
-              "Addr": "127.0.0.110"
-            },
-            "PublicOverlay": {
-              "OverlayPort": 50011,
-              "Addr": "127.0.0.11"
-            },
-            "LinkTo": "PARENT",
-            "ISD_AS": "1-ff00:0:110",
-            "MTU": 1280,
-            "Bandwidth": 1000
+  "isd_as": "1-ff00:0:111",
+  "mtu": 1472,
+  "attributes": null,
+  "border_routers": {
+    "br1-ff00_0_111-1": {
+      "internal_addr": "127.0.0.1:41009",
+      "ctrl_addr": "127.0.0.2:41008",
+      "interfaces": {
+        "11": {
+          "underlay": {
+            "public": "127.0.0.11:50011",
+            "remote": "127.0.0.110:50110"
           },
-          "12": {
-            "Overlay": "UDP/IPv4",
-            "RemoteOverlay": {
-              "OverlayPort": 50120,
-              "Addr": "127.0.0.120"
-            },
-            "PublicOverlay": {
-              "OverlayPort": 50012,
-              "Addr": "127.0.0.12"
-            },
-            "LinkTo": "PARENT",
-            "ISD_AS": "1-ff00:0:120",
-            "MTU": 1280,
-            "Bandwidth": 1000
-          }
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:110",
+          "link_to": "PARENT",
+          "mtu": 1280
         },
-        "InternalAddrs": {
-          "IPv4": {
-            "PublicOverlay": {
-              "OverlayPort": 41009,
-              "Addr": "127.0.0.1"
-            }
-          }
-        },
-        "CtrlAddr": {
-          "IPv4": {
-            "Public": {
-              "Addr": "127.0.0.2",
-              "L4Port": 41008
-            }
-          }
+        "12": {
+          "underlay": {
+            "public": "127.0.0.12:50012",
+            "remote": "127.0.0.120:50120"
+          },
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:120",
+          "link_to": "PARENT",
+          "mtu": 1280
         }
       }
-    },
-    "ISD_AS": "1-ff00:0:111",
-    "MTU": 1472
+    }
   }
+}

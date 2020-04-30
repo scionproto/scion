@@ -143,7 +143,7 @@ func testGenImmutable(v internalValidator, topo, oldTopo *topology.RWTopology, t
 		SoMsg("err", v.Immutable(topo, oldTopo), ShouldNotBeNil)
 	})
 	Convey("Changing a mutable field is allowed", func() {
-		topo.TTL = time.Second
+		topo.Timestamp = oldTopo.Timestamp.Add(time.Hour)
 	})
 }
 

@@ -1,53 +1,33 @@
 {
-  "ISD_AS": "1-ff00:0:132",
-  "Overlay": "UDP/IPv4",
-  "BorderRouters": {
+  "isd_as": "1-ff00:0:132",
+  "mtu": 1472,
+  "attributes": [],
+  "border_routers": {
     "br1-ff00_0_132-1": {
-      "InternalAddrs": {
-        "IPv4": {"PublicOverlay": {"Addr": "127.0.0.161", "OverlayPort": 50000}}
-      },
-      "CtrlAddr": {
-        "IPv4": {"Public": {"Addr": "10.1.0.1", "L4Port": 30052}}
-      },
-      "Interfaces": {
-        "1916": {
-          "LinkTo": "PARENT",
-          "Overlay": "UDP/IPv4",
-          "ISD_AS": "1-ff00:0:131",
-          "MTU": 1472,
-          "Bandwidth": 1000,
-          "RemoteOverlay": {
-            "Addr": "127.0.0.30",
-            "OverlayPort": 50000
-          },
-          "PublicOverlay": {
-            "Addr": "127.0.0.31",
-            "OverlayPort": 50000
-          }
-        },
+      "internal_addr": "127.0.0.161:50000",
+      "ctrl_addr": "10.1.0.1:30052",
+      "interfaces": {
         "1910": {
-          "LinkTo": "CHILD",
-          "Overlay": "UDP/IPv4",
-          "ISD_AS": "1-ff00:0:133",
-          "MTU": 1472,
-          "Bandwidth": 1000,
-          "RemoteOverlay": {
-            "Addr": "127.0.0.33",
-            "OverlayPort": 50000
+          "underlay": {
+            "public": "127.0.0.32:50000",
+            "remote": "127.0.0.33:50000"
           },
-          "PublicOverlay": {
-            "Addr": "127.0.0.32",
-            "OverlayPort": 50000
-          }
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:133",
+          "link_to": "CHILD",
+          "mtu": 1472
+        },
+        "1916": {
+          "underlay": {
+            "public": "127.0.0.31:50000",
+            "remote": "127.0.0.30:50000"
+          },
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:131",
+          "link_to": "PARENT",
+          "mtu": 1472
         }
       }
     }
-  },
-  "Attributes": [],
-  "MTU": 1472,
-  "PathService": {
-    "ps1-ff00_0_132-1": {"Addrs": {
-      "IPv4": {"Public": {"Addr": "127.0.0.165", "L4Port": 30066}}
-    }}
   }
 }

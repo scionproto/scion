@@ -33,18 +33,18 @@ test_setup() {
     # Remove dummy link from the topology
     cp $SRC_TOPO $FULL_TOPO
     for topo in gen/ISD1/*/*/topology.json; do
-        jq "del(.BorderRouters[].Interfaces[$DUMMY_IFID_SRC]) | del(.BorderRouters[].Interfaces[$DUMMY_IFID_DST])" $topo | sponge $topo
+        jq "del(.border_routers[].interfaces[$DUMMY_IFID_SRC]) | del(.border_routers[].interfaces[$DUMMY_IFID_DST])" $topo | sponge $topo
     done
     base_run_topo
 }
 
 test_run() {
     set -e
-    local orig_src=$(jq ".BorderRouters[].Interfaces[].PublicOverlay" $SRC_TOPO)
-    local dummy_src=$(jq ".BorderRouters[].Interfaces[$DUMMY_IFID_SRC].PublicOverlay.Addr" $FULL_TOPO)
+    local orig_src=$(jq ".border_routers[].interfaces[].underlay.public" $SRC_TOPO)
+    local dummy_src=$(jq ".border_routers[].interfaces[$DUMMY_IFID_SRC].underlay.public" $FULL_TOPO)
 
-    local orig_dst=$(jq ".BorderRouters[].Interfaces[$IFID_DST].PublicOverlay" $DST_TOPO)
-    local dummy_dst=$(jq ".BorderRouters[].Interfaces[$DUMMY_IFID_SRC].RemoteOverlay.Addr" $FULL_TOPO)
+    local orig_dst=$(jq ".border_routers[].interfaces[$IFID_DST].underlay.public" $DST_TOPO)
+    local dummy_dst=$(jq ".border_routers[].interfaces[$DUMMY_IFID_SRC].underlay.remote" $FULL_TOPO)
 
     check_change_invalid_local_ip
     check_change_local_ip
@@ -54,7 +54,7 @@ test_run() {
 
 check_change_invalid_local_ip() {
     check_connectivity "Start check_change_invalid_local_ip"
-    jq '.BorderRouters[].Interfaces[].PublicOverlay.Addr = "172.20.255.0"' $SRC_TOPO | sponge $SRC_TOPO
+    jq '.border_routers[].interfaces[].underlay.public = "172.20.255.0:0"' $SRC_TOPO | sponge $SRC_TOPO
     ./tools/dc scion kill -s HUP scion_br"$SRC_IA_FILE"-1
     sleep 2
     check_logs "Unable to reload config" $SRC_IA_FILE
@@ -73,7 +73,7 @@ check_change_local_ip() {
 }
 
 change_local_ip() {
-    jq ".BorderRouters[].Interfaces[].PublicOverlay.Addr = $3" $1 | sponge $1
+    jq ".border_routers[].interfaces[].underlay.public = $3" $1 | sponge $1
     ./tools/dc scion kill -s HUP scion_br"$2"-1
     sleep 2
     check_logs "posixOutput starting addr=$(unqoute $3)" $2
@@ -91,7 +91,7 @@ check_change_remote_ip() {
 
 change_remote_ip() {
     # Connectivity is broken at this point
-    jq ".BorderRouters[].Interfaces[].RemoteOverlay.Addr = $3" $1 | sponge $1
+    jq ".border_routers[].interfaces[].underlay.remote = $3" $1 | sponge $1
     ./tools/dc scion kill -s HUP scion_br"$2"-1
     sleep 2
     check_logs "Remote:$(unqoute $3)" $2
@@ -99,9 +99,9 @@ change_remote_ip() {
 
 check_change_initial_ip() {
     check_connectivity "Start check_change_initial_ip"
-    local pre=".BorderRouters[].Interfaces[]"
-    jq "$pre.PublicOverlay = $orig_src | $pre.RemoteOverlay = $orig_dst" $SRC_TOPO | sponge $SRC_TOPO
-    jq "$pre.PublicOverlay = $orig_dst | $pre.RemoteOverlay = $orig_src" $DST_TOPO | sponge $DST_TOPO
+    local pre=".border_routers[].interfaces[]"
+    jq "$pre.underlay.public = $orig_src | $pre.underlay.remote = $orig_dst" $SRC_TOPO | sponge $SRC_TOPO
+    jq "$pre.underlay.public = $orig_dst | $pre.underlay.remote = $orig_src" $DST_TOPO | sponge $DST_TOPO
     ./tools/dc scion kill -s HUP scion_br"$SRC_IA_FILE"-1 scion_br"$DST_IA_FILE"-1
     check_connectivity "End check_change_initial_ip"
 }

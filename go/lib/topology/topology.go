@@ -58,7 +58,6 @@ type (
 	// Additionally, there is a map from those names to TopoAddr structs.
 	RWTopology struct {
 		Timestamp  time.Time
-		TTL        time.Duration
 		IA         addr.IA
 		Attributes trc.Attributes
 		MTU        int
@@ -173,16 +172,12 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 	// These fields can be simply copied
 	var err error
 	t.Timestamp = time.Unix(raw.Timestamp, 0)
-	t.TTL = time.Duration(raw.TTL) * time.Second
 
 	if t.IA, err = addr.IAFromString(raw.IA); err != nil {
 		return err
 	}
 	if t.IA.IsWildcard() {
 		return common.NewBasicError("IA contains wildcard", nil, "ia", t.IA)
-	}
-	if _, err = underlay.TypeFromString(raw.Underlay); err != nil {
-		return err
 	}
 	t.MTU = raw.MTU
 	t.Attributes = raw.Attributes
@@ -191,17 +186,17 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 
 func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 	for name, rawBr := range raw.BorderRouters {
-		if rawBr.CtrlAddr == nil {
+		if rawBr.CtrlAddr == "" {
 			return common.NewBasicError("Missing Control Address", nil, "br", name)
 		}
-		if rawBr.InternalAddrs == nil {
+		if rawBr.InternalAddr == "" {
 			return common.NewBasicError("Missing Internal Address", nil, "br", name)
 		}
-		ctrlAddr, err := rawAddrMapToTopoAddr(rawBr.CtrlAddr)
+		ctrlAddr, err := rawAddrToTopoAddr(rawBr.CtrlAddr)
 		if err != nil {
 			return serrors.WrapStr("unable to extract SCION control-plane address", err)
 		}
-		intAddr, err := rawBRAddrMapToUDPAddr(rawBr.InternalAddrs)
+		intAddr, err := rawAddrToUDPAddr(rawBr.InternalAddr)
 		if err != nil {
 			return serrors.WrapStr("unable to extract underlay internal data-plane address", err)
 		}
@@ -235,22 +230,22 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 			}
 			// These fields are only necessary for the border router.
 			// Parsing should not fail if they are missing.
-			if rawIntf.Underlay == "" && rawIntf.BindUnderlay == nil &&
-				rawIntf.RemoteUnderlay == nil {
+			if rawIntf.Underlay.Bind == "" && rawIntf.Underlay.Remote == "" {
 				brInfo.IFs[ifid] = &ifinfo
 				t.IFInfoMap[ifid] = ifinfo
 				continue
-			}
-			if ifinfo.Underlay, err = underlay.TypeFromString(rawIntf.Underlay); err != nil {
-				return serrors.WrapStr("unable to extract underlay type", err)
 			}
 			if ifinfo.Local, err = rawBRIntfTopoBRAddr(rawIntf); err != nil {
 				return serrors.WrapStr("unable to extract "+
 					"underlay external data-plane local address", err)
 			}
-			if ifinfo.Remote, err = rawBRIntfRemoteBRAddr(rawIntf, ifinfo.Underlay); err != nil {
+			if ifinfo.Remote, err = rawAddrToUDPAddr(rawIntf.Underlay.Remote); err != nil {
 				return serrors.WrapStr("unable to extract "+
 					"underlay external data-plane remote address", err)
+			}
+			ifinfo.Underlay = underlay.UDPIPv6
+			if ifinfo.Local.IP.To4() != nil && ifinfo.Remote.IP.To4() != nil {
+				ifinfo.Underlay = underlay.UDPIPv4
 			}
 			brInfo.IFs[ifid] = &ifinfo
 			t.IFInfoMap[ifid] = ifinfo
@@ -279,18 +274,9 @@ func (t *RWTopology) populateServices(raw *jsontopo.Topology) error {
 }
 
 // Active returns whether the topology is active at the point in time specified by the argument.
-// A topology is active if it is within a TTL window after the timestamp.
+// A topology is active if now is after the timestamp.
 func (t *RWTopology) Active(now time.Time) bool {
-	return !now.Before(t.Timestamp) && (t.TTL == 0 ||
-		now.Before(t.Timestamp.Add(t.TTL)))
-}
-
-// Expiry returns the expiration time of the topology. If TTL is zero, the zero value is returned.
-func (t *RWTopology) Expiry() time.Time {
-	if t.TTL == 0 {
-		return time.Time{}
-	}
-	return t.Timestamp.Add(t.TTL)
+	return !now.Before(t.Timestamp)
 }
 
 // GetTopoAddr returns the address information for the process of the requested type with the
@@ -340,7 +326,6 @@ func (t *RWTopology) Copy() *RWTopology {
 	}
 	return &RWTopology{
 		Timestamp:  t.Timestamp,
-		TTL:        t.TTL,
 		IA:         t.IA,
 		MTU:        t.MTU,
 		Attributes: append(t.Attributes[:0:0], t.Attributes...),
@@ -416,10 +401,10 @@ func (svc *svcInfo) getAllTopoAddrs() []TopoAddr {
 func svcMapFromRaw(ras map[string]*jsontopo.ServerInfo) (IDAddrMap, error) {
 	svcMap := make(IDAddrMap)
 	for name, svc := range ras {
-		svcTopoAddr, err := rawAddrMapToTopoAddr(svc.Addrs)
+		svcTopoAddr, err := rawAddrToTopoAddr(svc.Addr)
 		if err != nil {
-			return nil, serrors.WrapStr("could not extract address from address_map", err,
-				"address_map", svc.Addrs, "process_name", name)
+			return nil, serrors.WrapStr("could not parse address", err,
+				"address", svc.Addr, "process_name", name)
 		}
 		svcMap[name] = *svcTopoAddr
 	}

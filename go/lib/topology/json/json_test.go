@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
-	"github.com/scionproto/scion/go/lib/topology/underlay"
 )
 
 var (
@@ -42,52 +41,16 @@ func TestLoadRawFromFile(t *testing.T) {
 		IA:             "6-ff00:0:362",
 		MTU:            1472,
 		Attributes:     []trc.Attribute{trc.Authoritative, trc.Core, trc.Issuing, trc.Voting},
-		Underlay:       underlay.UDPIPv46Name,
 		BorderRouters: map[string]*jsontopo.BRInfo{
 			"borderrouter6-f00:0:362-1": {
-				InternalAddrs: jsontopo.UnderlayAddressMap{
-					"IPv4": {
-						PublicUnderlay: jsontopo.UnderlayAddress{
-							Addr: "10.1.0.1",
-						},
-					},
-					"IPv6": {
-						PublicUnderlay: jsontopo.UnderlayAddress{
-							Addr: "2001:db8:a0b:12f0::1",
-						},
-					},
-				},
-				CtrlAddr: jsontopo.NATSCIONAddressMap{
-					"IPv4": &jsontopo.NATSCIONAddress{
-						Public: jsontopo.FullSCIONAddress{
-							Address: jsontopo.Address{
-								Addr:   "10.1.0.1",
-								L4Port: 30098,
-							},
-						},
-					},
-					"IPv6": &jsontopo.NATSCIONAddress{
-						Public: jsontopo.FullSCIONAddress{
-							Address: jsontopo.Address{
-								Addr:   "2001:db8:a0b:12f0::1",
-								L4Port: 30098,
-							},
-						},
-					},
-				},
+				InternalAddr: "10.1.0.1:0",
+				CtrlAddr:     "10.1.0.1:30098",
 				Interfaces: map[common.IFIDType]*jsontopo.BRInterface{
 					91: {
-						Underlay: "UDP/IPv4",
-						BindUnderlay: &jsontopo.L3Address{
-							Addr: "10.0.0.1",
-						},
-						PublicUnderlay: &jsontopo.UnderlayAddress{
-							Addr:         "192.0.2.1",
-							UnderlayPort: 4997,
-						},
-						RemoteUnderlay: &jsontopo.UnderlayAddress{
-							Addr:         "192.0.2.2",
-							UnderlayPort: 4998,
+						Underlay: jsontopo.Underlay{
+							Public: "192.0.2.1:4997",
+							Remote: "192.0.2.2:4998",
+							Bind:   "10.0.0.1",
 						},
 						Bandwidth: 100000,
 						IA:        "6-ff00:0:363",
@@ -97,49 +60,14 @@ func TestLoadRawFromFile(t *testing.T) {
 				},
 			},
 			"borderrouter6-f00:0:362-9": {
-				InternalAddrs: jsontopo.UnderlayAddressMap{
-					"IPv4": {
-						PublicUnderlay: jsontopo.UnderlayAddress{
-							Addr: "10.1.0.2",
-						},
-					},
-					"IPv6": {
-						PublicUnderlay: jsontopo.UnderlayAddress{
-							Addr: "2001:db8:a0b:12f0::2",
-						},
-					},
-				},
-				CtrlAddr: jsontopo.NATSCIONAddressMap{
-					"IPv4": &jsontopo.NATSCIONAddress{
-						Public: jsontopo.FullSCIONAddress{
-							Address: jsontopo.Address{
-								Addr:   "10.1.0.2",
-								L4Port: 30098,
-							},
-						},
-					},
-					"IPv6": &jsontopo.NATSCIONAddress{
-						Public: jsontopo.FullSCIONAddress{
-							Address: jsontopo.Address{
-								Addr:   "2001:db8:a0b:12f0::2",
-								L4Port: 30098,
-							},
-						},
-					},
-				},
+				InternalAddr: "[2001:db8:a0b:12f0::2]:0",
+				CtrlAddr:     "[2001:db8:a0b:12f0::2300]:30098",
 				Interfaces: map[common.IFIDType]*jsontopo.BRInterface{
 					32: {
-						Underlay: "UDP/IPv6",
-						BindUnderlay: &jsontopo.L3Address{
-							Addr: "2001:db8:a0b:12f0::8",
-						},
-						PublicUnderlay: &jsontopo.UnderlayAddress{
-							Addr:         "2001:db8:a0b:12f0::1",
-							UnderlayPort: 4997,
-						},
-						RemoteUnderlay: &jsontopo.UnderlayAddress{
-							Addr:         "2001:db8:a0b:12f0::2",
-							UnderlayPort: 4998,
+						Underlay: jsontopo.Underlay{
+							Public: "[2001:db8:a0b:12f0::1]:4997",
+							Remote: "[2001:db8:a0b:12f0::2]:4998",
+							Bind:   "2001:db8:a0b:12f0::8",
 						},
 						Bandwidth: 5000,
 						IA:        "6-ff00:0:364",
@@ -152,7 +80,7 @@ func TestLoadRawFromFile(t *testing.T) {
 	}
 
 	if *update {
-		b, err := json.MarshalIndent(referenceTopology, "", "    ")
+		b, err := json.MarshalIndent(referenceTopology, "", "  ")
 		require.NoError(t, err)
 		b = append(b, []byte("\n")...)
 		err = ioutil.WriteFile("testdata/topology.json", b, 0644)
@@ -167,7 +95,7 @@ func TestLoadRawFromFile(t *testing.T) {
 	t.Run("marshaled bytes match", func(t *testing.T) {
 		referenceTopologyBytes, err := ioutil.ReadFile("testdata/topology.json")
 		require.NoError(t, err)
-		topologyBytes, err := json.MarshalIndent(referenceTopology, "", "    ")
+		topologyBytes, err := json.MarshalIndent(referenceTopology, "", "  ")
 		require.NoError(t, err)
 		assert.Equal(t,
 			strings.TrimSpace(string(referenceTopologyBytes)),

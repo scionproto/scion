@@ -40,6 +40,7 @@ from lib.types import LinkType
 from lib.util import write_file
 from topology.common import (
     ArgsBase,
+    join_host_port,
     json_default,
     SCION_SERVICE_NAMES,
     srv_iter,
@@ -109,20 +110,60 @@ class TopoGenerator(object):
 
     def generate(self):
         self._read_links()
-        self._iterate(self._generate_as_topo)
-        self._iterate(self._generate_as_list)
-        if self.args.sig:
-            self._iterate(self._register_sig)
-        self._iterate(self._register_sciond)
+        # in a first step we allocate all networks, so that we can later use
+        # the IPs in the generate functions.
+        self._iterate(self._register_addrs)
         networks = {}
         for k, v in self.args.subnet_gen[ADDR_TYPE_4].alloc_subnets().items():
             networks[k] = v
         for k, v in self.args.subnet_gen[ADDR_TYPE_6].alloc_subnets().items():
             networks[k] = v
+        self._iterate(self._generate_as_topo)
+        self._iterate(self._generate_as_list)
         self._write_as_topos()
         self._write_as_list()
         self._write_ifids()
         return self.topo_dicts, networks
+
+    def _register_addrs(self, topo_id, as_conf):
+        self._register_srv_entries(topo_id, as_conf)
+        self._register_br_entries(topo_id, as_conf)
+        if self.args.sig:
+            self._register_sig(topo_id, as_conf)
+        self._register_sciond(topo_id, as_conf)
+
+    def _register_srv_entries(self, topo_id, as_conf):
+        srvs = [("control_servers", DEFAULT_CONTROL_SERVERS, "cs")]
+        if self.args.colibri:
+            srvs.append(("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co"))
+        for conf_key, def_num, nick in srvs:
+            self._register_srv_entry(topo_id, as_conf, conf_key, def_num, nick)
+
+    def _register_srv_entry(self, topo_id, as_conf, conf_key, def_num, nick):
+        addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
+        count = self._srv_count(as_conf, conf_key, def_num)
+        for i in range(1, count + 1):
+            elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
+            if not self.args.docker:
+                self.args.port_gen.register(elem_id)
+            self._reg_addr(topo_id, elem_id, addr_type)
+
+    def _register_br_entries(self, topo_id, as_conf):
+        addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
+        for (linkto, remote, attrs, l_br, r_br, l_ifid, r_ifid) in self.links[topo_id]:
+            self._register_br_entry(topo_id, l_ifid, remote, r_ifid,
+                                    linkto, attrs, l_br, r_br, addr_type)
+
+    def _register_br_entry(self, local, l_ifid, remote, r_ifid, remote_type, attrs,
+                           local_br, remote_br, addr_type):
+        link_addr_type = addr_type_from_underlay(attrs.get('underlay', DEFAULT_UNDERLAY))
+        self._reg_link_addrs(local_br, remote_br, l_ifid, r_ifid, link_addr_type)
+        self._reg_addr(local, local_br + "_ctrl", addr_type)
+        if self.args.docker:
+            self._reg_addr(local, local_br + "_internal", addr_type)
+        if not self.args.docker:
+            self.args.port_gen.register(local_br + "_ctrl")
+            self.args.port_gen.register(local_br + "_internal")
 
     def _register_sig(self, topo_id, as_conf):
         addr_type = addr_type_from_underlay(as_conf.get('underlay', DEFAULT_UNDERLAY))
@@ -189,23 +230,22 @@ class TopoGenerator(object):
             if as_conf.get(attr, False):
                 attributes.append(attr)
         self.topo_dicts[topo_id] = {
-            'Attributes': attributes,
-            'ISD_AS': str(topo_id),
-            'MTU': mtu,
-            'Overlay': as_conf.get('underlay', DEFAULT_UNDERLAY),
+            'attributes': attributes,
+            'isd_as': str(topo_id),
+            'mtu': mtu,
         }
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
         self._gen_srv_entries(topo_id, as_conf)
         self._gen_br_entries(topo_id, as_conf)
         if self.args.sig:
-            self.topo_dicts[topo_id]['SIG'] = {}
+            self.topo_dicts[topo_id]['sigs'] = {}
             self._gen_sig_entries(topo_id, as_conf)
 
     def _gen_srv_entries(self, topo_id, as_conf):
-        srvs = [("control_servers", DEFAULT_CONTROL_SERVERS, "cs", "ControlService")]
+        srvs = [("control_servers", DEFAULT_CONTROL_SERVERS, "cs", "control_service")]
         if self.args.colibri:
-            srvs.append(("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co", "ColibriService"))
+            srvs.append(("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co", "colibri_service"))
         for conf_key, def_num, nick, topo_key in srvs:
             self._gen_srv_entry(topo_id, as_conf, conf_key, def_num, nick, topo_key)
 
@@ -216,21 +256,12 @@ class TopoGenerator(object):
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
 
-            reg_id = elem_id
-
             port = self._default_ctrl_port(nick)
             if not self.args.docker:
                 port = self.args.port_gen.register(elem_id)
 
             d = {
-                'Addrs': {
-                    addr_type: {
-                        'Public': {
-                            'Addr': self._reg_addr(topo_id, reg_id, addr_type),
-                            'L4Port': port,
-                        }
-                    }
-                }
+                'addr': join_host_port(self._reg_addr(topo_id, elem_id, addr_type).ip, port),
             }
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
@@ -264,54 +295,35 @@ class TopoGenerator(object):
         if self.args.docker:
             int_addr = self._reg_addr(local, local_br + "_internal", addr_type)
 
-        if self.topo_dicts[local]["BorderRouters"].get(local_br) is None:
+        if self.topo_dicts[local]["border_routers"].get(local_br) is None:
             ctrl_port = 30242
             intl_port = 30042
             if not self.args.docker:
                 ctrl_port = self.args.port_gen.register(local_br + "_ctrl")
                 intl_port = self.args.port_gen.register(local_br + "_internal")
 
-            self.topo_dicts[local]["BorderRouters"][local_br] = {
-                'CtrlAddr': {
-                    addr_type: {
-                        'Public': {
-                            'Addr': ctrl_addr,
-                            'L4Port': ctrl_port,
-                        }
-                    }
-                },
-                'InternalAddrs': {
-                    addr_type: {
-                        'PublicOverlay': {
-                            'Addr': int_addr,
-                            'OverlayPort': intl_port,
-                        }
-                    }
-                },
-                'Interfaces': {
+            self.topo_dicts[local]["border_routers"][local_br] = {
+                'ctrl_addr': join_host_port(ctrl_addr.ip, ctrl_port),
+                'internal_addr': join_host_port(int_addr.ip, intl_port),
+                'interfaces': {
                     l_ifid: self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
                 }
             }
         else:
             # There is already a BR entry, add interface
             intf = self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
-            self.topo_dicts[local]["BorderRouters"][local_br]['Interfaces'][l_ifid] = intf
+            self.topo_dicts[local]["border_routers"][local_br]['interfaces'][l_ifid] = intf
 
     def _gen_br_intf(self, remote, public_addr, remote_addr, attrs, remote_type):
         return {
-            'Overlay': attrs.get('underlay', DEFAULT_UNDERLAY),
-            'PublicOverlay': {
-                'Addr': public_addr,
-                'OverlayPort': SCION_ROUTER_PORT
+            'underlay': {
+                'public': join_host_port(public_addr.ip, SCION_ROUTER_PORT),
+                'remote': join_host_port(remote_addr.ip, SCION_ROUTER_PORT),
             },
-            'RemoteOverlay': {
-                'Addr': remote_addr,
-                'OverlayPort': SCION_ROUTER_PORT
-            },
-            'Bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
-            'ISD_AS': str(remote),
-            'LinkTo': LinkType.to_str(remote_type.lower()),
-            'MTU': attrs.get('mtu', DEFAULT_MTU)
+            'bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
+            'isd_as': str(remote),
+            'link_to': LinkType.to_str(remote_type.lower()),
+            'mtu': attrs.get('mtu', DEFAULT_MTU)
         }
 
     def _gen_sig_entries(self, topo_id, as_conf):
@@ -322,16 +334,9 @@ class TopoGenerator(object):
         if not self.args.docker:
             port = self.args.port_gen.register(elem_id)
         d = {
-            'Addrs': {
-                addr_type: {
-                    'Public': {
-                        'Addr': self._reg_addr(topo_id, reg_id, addr_type),
-                        'L4Port': port,
-                    }
-                }
-            }
+            'Addr': join_host_port(self._reg_addr(topo_id, reg_id, addr_type).ip, port),
         }
-        self.topo_dicts[topo_id]['SIG'][elem_id] = d
+        self.topo_dicts[topo_id]['sigs'][elem_id] = d
 
     def _generate_as_list(self, topo_id, as_conf):
         if as_conf.get('core', False):

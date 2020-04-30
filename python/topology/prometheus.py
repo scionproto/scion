@@ -28,8 +28,7 @@ from lib.defines import DOCKER_COMPOSE_CONFIG_VERSION, PROM_FILE
 from lib.util import write_file
 from topology.common import (
     ArgsTopoDicts,
-    prom_addr_br,
-    prom_addr_infra,
+    prom_addr,
     prom_addr_dispatcher,
     sciond_ip,
 )
@@ -76,11 +75,12 @@ class PrometheusGenerator(object):
         config_dict = {}
         for topo_id, as_topo in self.args.topo_dicts.items():
             ele_dict = defaultdict(list)
-            for br_id, br_ele in as_topo["BorderRouters"].items():
-                ele_dict["BorderRouters"].append(prom_addr_br(br_id, br_ele, DEFAULT_BR_PROM_PORT))
-            for elem_id, elem in as_topo["ControlService"].items():
-                prom_addr = prom_addr_infra(self.args.docker, elem_id, elem, CS_PROM_PORT)
-                ele_dict["ControlService"].append(prom_addr)
+            for br_id, br_ele in as_topo["border_routers"].items():
+                a = prom_addr(br_ele["internal_addr"], DEFAULT_BR_PROM_PORT)
+                ele_dict["BorderRouters"].append(a)
+            for elem_id, elem in as_topo["control_service"].items():
+                a = prom_addr(elem["addr"], CS_PROM_PORT)
+                ele_dict["ControlService"].append(a)
             if self.args.docker:
                 host_dispatcher = prom_addr_dispatcher(self.args.docker, topo_id,
                                                        self.args.networks, DISP_PROM_PORT, "")
