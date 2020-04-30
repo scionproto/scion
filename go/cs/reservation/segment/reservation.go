@@ -31,9 +31,9 @@ type Reservation struct {
 
 // Validate will return an error for invalid values.
 func (r *Reservation) Validate() error {
-	if r.activeIndex < -1 || r.activeIndex >= len(r.Indices) {
-		// TODO(juagargi) according to Reservation.SetState, when we activate an index,
-		// all previous indices are removed. Thus activeIndex can only be -1 or 0 ?
+	if r.activeIndex < -1 || r.activeIndex > 0 || r.activeIndex >= len(r.Indices) {
+		// when we activate an index all previous indices are removed.
+		// Thus activeIndex can only be -1 or 0
 		return serrors.New("invalid active index", "active_index", r.activeIndex)
 	}
 	if len(r.Indices) > 16 {
