@@ -15,6 +15,8 @@
 package segment
 
 import (
+	"time"
+
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 )
 
@@ -27,12 +29,13 @@ const (
 )
 
 type Index struct {
-	reservation.IndexID
-	state   IndexState
-	MinBW   reservation.BWCls
-	MaxBW   reservation.BWCls
-	AllocBW reservation.BWCls
-	Token   reservation.Token
+	Idx        reservation.IndexNumber
+	Expiration time.Time
+	state      IndexState
+	MinBW      reservation.BWCls
+	MaxBW      reservation.BWCls
+	AllocBW    reservation.BWCls
+	Token      reservation.Token
 }
 
 // State returns the read-only state.

@@ -148,6 +148,18 @@ func TestValidateIndexNumber(t *testing.T) {
 	}
 }
 
+func TestIndexNumberArithmetic(t *testing.T) {
+	var idx IndexNumber = 1
+	x := idx.Add(IndexNumber(15))
+	if x != IndexNumber(0) {
+		t.Fatalf("Unexpected result %v", x)
+	}
+	x = idx.Sub(IndexNumber(2))
+	if x != IndexNumber(15) {
+		t.Fatalf("Unexpected result %v", x)
+	}
+}
+
 func TestValidatePathType(t *testing.T) {
 	validTypes := []PathType{
 		DownPath,

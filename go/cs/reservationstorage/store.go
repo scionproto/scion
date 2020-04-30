@@ -25,9 +25,9 @@ import (
 // Store is the interface to interact with the reservation store.
 type Store interface {
 	AdmitSegmentReservation(ctx context.Context, req sgt.SetupReq) error
-	ConfirmSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexID) error
-	CleanupSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexID) error
-	TearDownSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexID) error
+	ConfirmSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexNumber) error
+	CleanupSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexNumber) error
+	TearDownSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexNumber) error
 	AdmitE2EReservation(ctx context.Context, req e2e.SetupReq) error
-	CleanupE2EReservation(ctx context.Context, id rsv.E2EID, idx rsv.IndexID) error
+	CleanupE2EReservation(ctx context.Context, id rsv.E2EID, idx rsv.IndexNumber) error
 }
