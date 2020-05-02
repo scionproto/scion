@@ -17,17 +17,20 @@ package segment
 import (
 	"time"
 
+	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 )
 
 type IndexState uint8
 
+// possible states of a segment reservation index.
 const (
 	IndexTemporary IndexState = iota
 	IndexPending              // the index is confirmed, but not yet activated.
 	IndexActive
 )
 
+// Index is a segment reservation index.
 type Index struct {
 	Idx        reservation.IndexNumber
 	Expiration time.Time
@@ -39,6 +42,15 @@ type Index struct {
 }
 
 // State returns the read-only state.
-func (idx *Index) State() IndexState {
-	return idx.state
+func (index *Index) State() IndexState {
+	return index.state
 }
+
+// Indices is a collection of Index that implements IndicesInterface.
+type Indices []Index
+
+var _ base.IndicesInterface = (*Indices)(nil)
+
+func (idxs Indices) Len() int                                     { return len(idxs) }
+func (idxs Indices) GetIndexNumber(i int) reservation.IndexNumber { return idxs[i].Idx }
+func (idxs Indices) GetExpiration(i int) time.Time                { return idxs[i].Expiration }

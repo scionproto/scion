@@ -98,6 +98,7 @@ func TestReservationValidate(t *testing.T) {
 		expTime := time.Unix(int64(i), 0)
 		r.NewIndex(expTime)
 	}
+	require.Len(t, r.Indices, 16)
 	err = r.Validate()
 	require.NoError(t, err)
 	r.Indices = append(r.Indices, r.Indices[15])

@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["index.go"],
+    importpath = "github.com/scionproto/scion/go/cs/reservation",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/colibri/reservation:go_default_library",
+        "//go/lib/serrors:go_default_library",
+    ],
+)
