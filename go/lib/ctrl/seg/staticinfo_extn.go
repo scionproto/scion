@@ -47,13 +47,13 @@ type Coordinates struct {
 }
 
 type LinktypeInfo struct {
-	EgressLinkType string              `capnp:"egressLinkType"`
+	EgressLinkType uint8               `capnp:"egressLinkType"`
 	Peerlinks      []InterfaceLinkType `capnp:"peeringLinks"`
 }
 
 type InterfaceLinkType struct {
 	IfID     common.IFIDType `capnp:"ifID"`
-	LinkType string          `capnp:"linkType"`
+	LinkType uint8           `capnp:"linkType"`
 }
 
 type InternalHopsInfo struct {
