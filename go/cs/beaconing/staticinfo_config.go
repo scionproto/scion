@@ -99,18 +99,33 @@ func (cfgdata StaticInfoCfg) gatherbw(peers map[common.IFIDType]bool, egifID com
 	return l
 }
 
+// transformlinktype transforms the linktype from a string into a value that can be automatically parsed into a
+// capnp enum.
+func transformlinktype(linktype string) uint8 {
+	if linktype == "direct" {
+		return 0
+	}
+	if linktype == "multihop" {
+		return 1
+	}
+	if linktype == "opennet" {
+		return 2
+	}
+	//return opennet as the default
+	return 2
+}
+
 // gatherlinktype extracts linktype values from a StaticInfoCfg struct and
 // inserts them into the LinktypeInfo portion of a StaticInfoExtn struct.
 func (cfgdata StaticInfoCfg) gatherlinktype(peers map[common.IFIDType]bool, egifID common.IFIDType) seg.LinktypeInfo {
-
 	l := seg.LinktypeInfo{
-		EgressLinkType: cfgdata.Linktype[egifID],
+		EgressLinkType: transformlinktype(cfgdata.Linktype[egifID]),
 	}
 	for intfid, intfLT := range cfgdata.Linktype {
 		//If we're looking at a peering interface, include the data for the peering link, otherwise drop it
 		if peers[intfid] {
 			l.Peerlinks = append(l.Peerlinks, seg.InterfaceLinkType{
-				LinkType: intfLT,
+				LinkType: transformlinktype(intfLT),
 				IfID:     intfid,
 			})
 		}
