@@ -101,7 +101,7 @@ func (cfgdata StaticInfoCfg) gatherbw(peers map[common.IFIDType]bool, egifID com
 
 // transformlinktype transforms the linktype from a string into a value that can be automatically parsed into a
 // capnp enum.
-func transformlinktype(linktype string) uint8 {
+func transformlinktype(linktype string) uint16 {
 	if linktype == "direct" {
 		return 0
 	}
