@@ -342,7 +342,7 @@ func compareLinktypeInfo(totest seg.LinktypeInfo, expected seg.LinktypeInfo) (bo
 	if !(totest.EgressLinkType == expected.EgressLinkType) {
 		passed = false
 		info += "Failed to get correct EgressLT\n"
-		info += "Expected: " + expected.EgressLinkType + ", got: " + totest.EgressLinkType + "\n"
+		info += "Expected: " + strconv.Itoa(int(expected.EgressLinkType)) + ", got: " + strconv.Itoa(int(totest.EgressLinkType)) + "\n"
 	}
 	for i := 0; i < len(totest.Peerlinks); i++ {
 		temp := false
@@ -354,7 +354,7 @@ func compareLinktypeInfo(totest seg.LinktypeInfo, expected seg.LinktypeInfo) (bo
 		passed = passed && temp
 		if !temp {
 			info += "Failed to get correct linktype for interface " + strconv.Itoa(int(totest.Peerlinks[i].IfID)) + "\n"
-			info += "Expected: " + expected.Peerlinks[i].LinkType + ", got: " + totest.Peerlinks[i].LinkType + "\n"
+			info += "Expected: " + strconv.Itoa(int(expected.Peerlinks[i].LinkType)) + ", got: " + strconv.Itoa(int(totest.Peerlinks[i].LinkType)) + "\n"
 		}
 	}
 
@@ -484,11 +484,11 @@ func TestGenerateStaticinfo(t *testing.T) {
 				},
 			},
 			Linktype: seg.LinktypeInfo{
-				EgressLinkType: "opennet",
+				EgressLinkType: 2,
 				Peerlinks: []seg.InterfaceLinkType{
 					{
 						IfID:     5,
-						LinkType: "direct",
+						LinkType: 0,
 					},
 				},
 			},
