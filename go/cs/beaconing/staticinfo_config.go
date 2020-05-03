@@ -61,8 +61,8 @@ func (cfgdata StaticInfoCfg) gatherlatency(peers map[common.IFIDType]bool, egifI
 			})
 			continue
 		}
-		// If we're looking at a NON-peering interface, only include the data if subintfid>egifID so as to not
-		// store redundant information
+		// If we're looking at a NON-peering interface, only include the data
+		// if subintfid>egifID so as to not store redundant information
 		if subintfid > egifID {
 			l.Childlatencies = append(l.Childlatencies, seg.ChildLatency{
 				Intradelay: intfdelay,
@@ -87,12 +87,13 @@ func (cfgdata StaticInfoCfg) gatherbw(peers map[common.IFIDType]bool, egifID com
 		if peers[subintfid] {
 			l.Bandwidths = append(l.Bandwidths, seg.InterfaceBandwidth{
 				IfID: subintfid,
-				BW:   uint32(math.Min(float64(intfbw), float64(cfgdata.Bandwidth[subintfid].Inter))),
+				BW: uint32(math.Min(float64(intfbw),
+					float64(cfgdata.Bandwidth[subintfid].Inter))),
 			})
 			continue
 		}
-		// If we're looking at a NON-peering interface, only include the data if subintfid>egifID so as to not
-		// store redundant information
+		// If we're looking at a NON-peering interface, only include the
+		// data if subintfid>egifID so as to not store redundant information
 		if subintfid > egifID {
 			l.Bandwidths = append(l.Bandwidths, seg.InterfaceBandwidth{
 				BW:   intfbw,
@@ -103,8 +104,8 @@ func (cfgdata StaticInfoCfg) gatherbw(peers map[common.IFIDType]bool, egifID com
 	return l
 }
 
-// transformlinktype transforms the linktype from a string into a value that can be automatically parsed into a
-// capnp enum.
+// transformlinktype transforms the linktype from a string into a
+// value that can be automatically parsed into a capnp enum.
 func transformlinktype(linktype string) uint16 {
 	if linktype == "direct" {
 		return 0
@@ -121,12 +122,15 @@ func transformlinktype(linktype string) uint16 {
 
 // gatherlinktype extracts linktype values from a StaticInfoCfg struct and
 // inserts them into the LinktypeInfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherlinktype(peers map[common.IFIDType]bool, egifID common.IFIDType) seg.LinktypeInfo {
+func (cfgdata StaticInfoCfg) gatherlinktype(peers map[common.IFIDType]bool,
+	egifID common.IFIDType) seg.LinktypeInfo {
+
 	l := seg.LinktypeInfo{
 		EgressLinkType: transformlinktype(cfgdata.Linktype[egifID]),
 	}
 	for intfid, intfLT := range cfgdata.Linktype {
-		//If we're looking at a peering interface, include the data for the peering link, otherwise drop it
+		//If we're looking at a peering interface, include the data for
+		// the peering link, otherwise drop it
 		if peers[intfid] {
 			l.Peerlinks = append(l.Peerlinks, seg.InterfaceLinkType{
 				LinkType: transformlinktype(intfLT),
@@ -146,8 +150,8 @@ func (cfgdata StaticInfoCfg) gatherhops(peers map[common.IFIDType]bool, egifID c
 		InToOutHops: cfgdata.Hops[egifID].Intra[inifID],
 	}
 	for intfid, intfHops := range cfgdata.Hops[egifID].Intra {
-		// If we're looking at a peering interface or intfid>egifID, include the data, otherwise drop it
-		// so as to not store redundant information
+		// If we're looking at a peering interface or intfid>egifID, include
+		// the data, otherwise drop it so as to not store redundant information
 		if (intfid > egifID) || peers[intfid] {
 			l.InterfaceHops = append(l.InterfaceHops, seg.InterfaceHops{
 				Hops: intfHops,
@@ -191,7 +195,8 @@ func (cfgdata StaticInfoCfg) gathergeo() seg.GeoInfo {
 func ParseStaticInfoCfg(file string) (StaticInfoCfg, error) {
 	jsonFile, err := os.Open(file)
 	if err != nil {
-		return StaticInfoCfg{}, errors.New("Failed to open config data file with error: " + err.Error() + "\n")
+		return StaticInfoCfg{}, errors.New("Failed to open config data file with error: " +
+			err.Error() + "\n")
 	}
 	defer jsonFile.Close()
 	raw, err := ioutil.ReadFile(file)
@@ -207,9 +212,10 @@ func ParseStaticInfoCfg(file string) (StaticInfoCfg, error) {
 	return cfg, nil
 }
 
-// GenerateStaticinfo creates a StaticinfoExtn struct and populates it with data extracted from configdata.
-func GenerateStaticinfo(configdata StaticInfoCfg, peers map[common.IFIDType]bool, egifID common.IFIDType,
-	inifID common.IFIDType) seg.StaticInfoExtn {
+// GenerateStaticinfo creates a StaticinfoExtn struct and
+// populates it with data extracted from configdata.
+func GenerateStaticinfo(configdata StaticInfoCfg, peers map[common.IFIDType]bool,
+	egifID common.IFIDType, inifID common.IFIDType) seg.StaticInfoExtn {
 
 	var StaticInfo seg.StaticInfoExtn
 	StaticInfo.Latency = configdata.gatherlatency(peers, egifID, inifID)
