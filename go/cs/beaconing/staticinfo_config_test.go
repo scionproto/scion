@@ -1,7 +1,6 @@
 package beaconing
 
 import (
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
