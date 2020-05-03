@@ -1,6 +1,7 @@
 package beaconing
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -542,6 +543,8 @@ func TestGenerateStaticinfo(t *testing.T) {
 	}
 	if !passed {
 		t.Error("Test failed.")
+	} else {
+		fmt.Println("All clear.")
 	}
 
 }
