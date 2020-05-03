@@ -18,126 +18,6 @@ type ConfigTest struct {
 	expected   seg.StaticInfoExtn
 }
 
-func compareConfigLatency(totest map[common.IFIDType]InterfaceLatencies, expected map[common.IFIDType]InterfaceLatencies) (bool, string) {
-	passed := true
-	info := ""
-
-	for ifID, val := range totest {
-		if val.Inter == expected[ifID].Inter {
-			for subifID, subval := range val.Intra {
-				if !(subval == expected[ifID].Intra[subifID]) {
-					passed = false
-					info += "Failed to parse latency value (intra): Interface" + strconv.Itoa(int(ifID)) + ", subinterface" + strconv.Itoa(int(subifID)) + "\n"
-				}
-			}
-		} else {
-			passed = false
-			info += "Failed to parse latency value (inter): Interface" + strconv.Itoa(int(ifID)) + "\n"
-		}
-	}
-
-	return passed, info
-}
-
-func compareConfigBW(totest map[common.IFIDType]InterfaceBandwidths, expected map[common.IFIDType]InterfaceBandwidths) (bool, string) {
-	passed := true
-	info := ""
-
-	for ifID, val := range totest {
-		if val.Inter == expected[ifID].Inter {
-			for subifID, subval := range val.Intra {
-				if !(subval == expected[ifID].Intra[subifID]) {
-					passed = false
-					info += "Failed to parse bandwidth value (intra): Interface" + strconv.Itoa(int(ifID)) + ", subinterface" + strconv.Itoa(int(subifID)) + "\n"
-				}
-			}
-		} else {
-			passed = false
-			info += "Failed to parse bandwidth value (inter): Interface" + strconv.Itoa(int(ifID)) + "\n"
-		}
-	}
-
-	return passed, info
-}
-
-func compareConfigLinktype(totest map[common.IFIDType]string, expected map[common.IFIDType]string) (bool, string) {
-	passed := true
-	info := ""
-
-	for ifID, val := range totest {
-		if !(val == expected[ifID]) {
-			passed = false
-			info += "Failed to parse linktype value: Interface" + strconv.Itoa(int(ifID)) + "\n"
-		}
-	}
-
-	return passed, info
-}
-
-func compareConfigGeo(totest map[common.IFIDType]InterfaceGeodata, expected map[common.IFIDType]InterfaceGeodata) (bool, string) {
-	passed := true
-	info := ""
-
-	for ifID, val := range totest {
-		if !((val.Longitude == expected[ifID].Longitude) && (val.Latitude == expected[ifID].Latitude) && (val.Address == expected[ifID].Address)) {
-			passed = false
-			info += "Failed to parse geo value: Interface" + strconv.Itoa(int(ifID)) + "\n"
-		}
-	}
-
-	return passed, info
-}
-
-func compareConfigHops(totest map[common.IFIDType]InterfaceHops, expected map[common.IFIDType]InterfaceHops) (bool, string) {
-	passed := true
-	info := ""
-
-	for ifID, val := range totest {
-		for subifID, subval := range val.Intra {
-			if !(subval == expected[ifID].Intra[subifID]) {
-				passed = false
-				info += "Failed to parse hops value: Interface" + strconv.Itoa(int(ifID)) + ", subinterface" + strconv.Itoa(int(subifID)) + "\n"
-			}
-		}
-	}
-
-	return passed, info
-}
-
-// configcompare compares two StaticInfoCfg, one under test (totest) and one with the expected result,
-// and reports any deviations from the expected result in totest.
-func configcompare(totest StaticInfoCfg, expected StaticInfoCfg) (bool, string) {
-	passed := true
-	var info string
-
-	latencyres, latencyreport := compareConfigLatency(totest.Latency, expected.Latency)
-	passed = passed && latencyres
-	info += latencyreport
-
-	bwres, bwreport := compareConfigBW(totest.Bandwidth, expected.Bandwidth)
-	passed = passed && bwres
-	info += bwreport
-
-	geores, georeport := compareConfigGeo(totest.Geo, expected.Geo)
-	passed = passed && geores
-	info += georeport
-
-	linktyperes, linktypereport := compareConfigLinktype(totest.Linktype, expected.Linktype)
-	passed = passed && linktyperes
-	info += linktypereport
-
-	hopres, hopreport := compareConfigHops(totest.Hops, expected.Hops)
-	passed = passed && hopres
-	info += hopreport
-
-	if !(totest.Note == expected.Note) {
-		passed = false
-		info += "Failed to parse note\n"
-	}
-
-	return passed, info
-}
-
 func getTestConfigData() StaticInfoCfg {
 	return StaticInfoCfg{
 		Latency: map[common.IFIDType]InterfaceLatencies{
@@ -228,9 +108,6 @@ func TestParsing(t *testing.T) {
 	expected := getTestConfigData()
 	// passed, info = configcompare(totest, expected)
 	passed = assert.Equal(t, totest, expected)
-	a := []int{1, 2, 3}
-	b := []int{3, 2, 1}
-	assert.Equal(t, a, b)
 	if !passed {
 		t.Error("StaticInfoConfigData does not match")
 	}
@@ -532,13 +409,14 @@ func TestGenerateStaticinfo(t *testing.T) {
 	for i := 0; i < len(testcases); i++ {
 
 		totest := GenerateStaticinfo(testcases[i].configData, testcases[i].peers, testcases[i].egIfid, testcases[i].inIfid)
-		// testres, testinfo := compareStaticinfo(data, testcases[i].expected)
-		testres := assert.Equal(t, totest, testcases[i].expected)
-		//testres1, testinfo := compareStaticinfo(totest, testcases[i].expected)
+		testres, testinfo := compareStaticinfo(totest, testcases[i].expected)
 		if !testres {
-			t.Error("StaticInfo does not match for testcase " + strconv.Itoa(i))
+			t.Error(testinfo)
 		}
 		passed = passed && testres
+	}
+	if !passed {
+		t.Error("GenerateStaticInfo test failed.")
 	}
 
 }
