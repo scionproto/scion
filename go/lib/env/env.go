@@ -49,7 +49,8 @@ const (
 	// TopologyFile is the file name for the topology file.
 	TopologyFile = "topology.json"
 
-	// StaticinfoConfigFile is the file name for the configuration file used for the StaticInfo beacon extension.
+	// StaticinfoConfigFile is the file name for the configuration file
+	// used for the StaticInfo beacon extension.
 	StaticInfoConfigFile = "staticInfoConfig.json"
 
 	// SciondInitConnectPeriod is the default total amount of time spent
