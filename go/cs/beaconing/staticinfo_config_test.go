@@ -440,6 +440,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 		totest := GenerateStaticinfo(testcases[i].configData, testcases[i].peers,
 			testcases[i].egIfid, testcases[i].inIfid)
 		testres, testinfo := compareStaticinfo(totest, testcases[i].expected)
+		assert.ElementsMatch(t, totest, testcases[i].expected)
 		if !testres {
 			t.Error(testinfo)
 		}
