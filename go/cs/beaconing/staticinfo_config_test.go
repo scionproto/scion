@@ -103,7 +103,7 @@ func TestParsing(t *testing.T) {
 	var passed bool
 	totest, err := ParseStaticInfoCfg("testdata/testconfigfile.json")
 	if err != nil {
-		t.Error("Error occured during parsing: " + err.Error())
+		t.Error("Error occurred during parsing: " + err.Error())
 	}
 	expected := getTestConfigData()
 	// passed, info = configcompare(totest, expected)
@@ -119,37 +119,47 @@ func compareLatencyInfo(totest seg.LatencyInfo, expected seg.LatencyInfo) (bool,
 	if !(totest.Egresslatency == expected.Egresslatency) {
 		passed = false
 		info += "Failed to get correct Egresslatency\n"
-		info += "Expected: " + strconv.Itoa(int(expected.Egresslatency)) + ", got: " + strconv.Itoa(int(totest.Egresslatency)) + "\n"
+		info += "Expected: " + strconv.Itoa(int(expected.Egresslatency)) + ", got: " +
+			strconv.Itoa(int(totest.Egresslatency)) + "\n"
 	}
 	if !(totest.IngressToEgressLatency == expected.IngressToEgressLatency) {
 		passed = false
 		info += "Failed to get correct IngressToEgressLatency\n"
-		info += "Expected: " + strconv.Itoa(int(expected.IngressToEgressLatency)) + ", got: " + strconv.Itoa(int(totest.IngressToEgressLatency)) + "\n"
+		info += "Expected: " + strconv.Itoa(int(expected.IngressToEgressLatency)) + ", got: " +
+			strconv.Itoa(int(totest.IngressToEgressLatency)) + "\n"
 	}
 	for i := 0; i < len(totest.Childlatencies); i++ {
 		temp := false
 		for j := 0; j < len(expected.Childlatencies); j++ {
-			if (totest.Childlatencies[i].IfID == expected.Childlatencies[j].IfID) && (totest.Childlatencies[i].Intradelay == expected.Childlatencies[j].Intradelay) {
+			if (totest.Childlatencies[i].IfID == expected.Childlatencies[j].IfID) &&
+				(totest.Childlatencies[i].Intradelay == expected.Childlatencies[j].Intradelay) {
 				temp = true
 			}
 		}
 		passed = passed && temp
 		if !temp {
-			info += "Failed to get correct Childlatency for interface " + strconv.Itoa(int(totest.Childlatencies[i].IfID)) + "\n"
-			info += "Expected: " + strconv.Itoa(int(expected.Childlatencies[i].Intradelay)) + ", got: " + strconv.Itoa(int(totest.Childlatencies[i].Intradelay)) + "\n"
+			info += "Failed to get correct Childlatency for interface " +
+				strconv.Itoa(int(totest.Childlatencies[i].IfID)) + "\n"
+			info += "Expected: " + strconv.Itoa(int(expected.Childlatencies[i].Intradelay)) +
+				", got: " + strconv.Itoa(int(totest.Childlatencies[i].Intradelay)) + "\n"
 		}
 	}
 	for i := 0; i < len(totest.Peerlatencies); i++ {
 		temp := false
 		for j := 0; j < len(expected.Peerlatencies); j++ {
-			if (totest.Peerlatencies[i].IfID == expected.Peerlatencies[j].IfID) && (totest.Peerlatencies[i].IntraDelay == expected.Peerlatencies[j].IntraDelay) && (totest.Peerlatencies[i].Interdelay == expected.Peerlatencies[j].Interdelay) {
+			if (totest.Peerlatencies[i].IfID == expected.Peerlatencies[j].IfID) &&
+				(totest.Peerlatencies[i].IntraDelay == expected.Peerlatencies[j].IntraDelay) &&
+				(totest.Peerlatencies[i].Interdelay == expected.Peerlatencies[j].Interdelay) {
 				temp = true
 			}
 		}
 		passed = passed && temp
 		if !temp {
 			info += "Failed to get correct Peeringlatencies for interface " + strconv.Itoa(int(totest.Peerlatencies[i].IfID)) + "\n"
-			info += "Expected: " + strconv.Itoa(int(expected.Peerlatencies[i].Interdelay)) + " " + strconv.Itoa(int(expected.Peerlatencies[i].IntraDelay)) + ", got: " + strconv.Itoa(int(totest.Peerlatencies[i].Interdelay)) + " " + strconv.Itoa(int(totest.Peerlatencies[i].IntraDelay)) + "\n"
+			info += "Expected: " + strconv.Itoa(int(expected.Peerlatencies[i].Interdelay)) + " " +
+				strconv.Itoa(int(expected.Peerlatencies[i].IntraDelay)) + ", got: " +
+				strconv.Itoa(int(totest.Peerlatencies[i].Interdelay)) + " " +
+				strconv.Itoa(int(totest.Peerlatencies[i].IntraDelay)) + "\n"
 		}
 	}
 	return passed, info
@@ -162,24 +172,29 @@ func compareBWInfo(totest seg.BandwidthInfo, expected seg.BandwidthInfo) (bool, 
 	if !(totest.EgressBW == expected.EgressBW) {
 		passed = false
 		info += "Failed to get correct EgressBW\n"
-		info += "Expected: " + strconv.Itoa(int(expected.EgressBW)) + ", got: " + strconv.Itoa(int(totest.EgressBW)) + "\n"
+		info += "Expected: " + strconv.Itoa(int(expected.EgressBW)) +
+			", got: " + strconv.Itoa(int(totest.EgressBW)) + "\n"
 	}
 	if !(totest.IngressToEgressBW == expected.IngressToEgressBW) {
 		passed = false
 		info += "Failed to get correct IntooutBW\n"
-		info += "Expected: " + strconv.Itoa(int(expected.IngressToEgressBW)) + ", got: " + strconv.Itoa(int(totest.IngressToEgressBW)) + "\n"
+		info += "Expected: " + strconv.Itoa(int(expected.IngressToEgressBW)) +
+			", got: " + strconv.Itoa(int(totest.IngressToEgressBW)) + "\n"
 	}
 	for i := 0; i < len(totest.Bandwidths); i++ {
 		temp := false
 		for j := 0; j < len(expected.Bandwidths); j++ {
-			if (totest.Bandwidths[i].IfID == expected.Bandwidths[j].IfID) && (totest.Bandwidths[i].BW == expected.Bandwidths[j].BW) {
+			if (totest.Bandwidths[i].IfID == expected.Bandwidths[j].IfID) &&
+				(totest.Bandwidths[i].BW == expected.Bandwidths[j].BW) {
 				temp = true
 			}
 		}
 		passed = passed && temp
 		if !temp {
-			info += "Failed to get correct bandwidth for interface " + strconv.Itoa(int(totest.Bandwidths[i].IfID)) + "\n"
-			info += "Expected: " + strconv.Itoa(int(expected.Bandwidths[i].BW)) + ", got: " + strconv.Itoa(int(totest.Bandwidths[i].BW)) + "\n"
+			info += "Failed to get correct bandwidth for interface " +
+				strconv.Itoa(int(totest.Bandwidths[i].IfID)) + "\n"
+			info += "Expected: " + strconv.Itoa(int(expected.Bandwidths[i].BW)) +
+				", got: " + strconv.Itoa(int(totest.Bandwidths[i].BW)) + "\n"
 		}
 	}
 
@@ -193,7 +208,9 @@ func compareGeoInfo(totest seg.GeoInfo, expected seg.GeoInfo) (bool, string) {
 	for i := 0; i < len(totest.Locations); i++ {
 		temp := false
 		for j := 0; j < len(expected.Locations); j++ {
-			if (totest.Locations[i].GPSData.Longitude == expected.Locations[j].GPSData.Longitude) && (totest.Locations[i].GPSData.Latitude == expected.Locations[j].GPSData.Latitude) && (totest.Locations[i].GPSData.Address == expected.Locations[j].GPSData.Address) {
+			if (totest.Locations[i].GPSData.Longitude == expected.Locations[j].GPSData.Longitude) &&
+				(totest.Locations[i].GPSData.Latitude == expected.Locations[j].GPSData.Latitude) &&
+				(totest.Locations[i].GPSData.Address == expected.Locations[j].GPSData.Address) {
 				temp = true
 				for k := 0; k < len(totest.Locations[i].IfIDs); k++ {
 					subtemp := false
@@ -203,7 +220,8 @@ func compareGeoInfo(totest seg.GeoInfo, expected seg.GeoInfo) (bool, string) {
 						}
 					}
 					if !subtemp {
-						info += "Failed to get correct Location assignment for interface " + strconv.Itoa(int(totest.Locations[i].IfIDs[k])) + "\n"
+						info += "Failed to get correct Location assignment for interface " +
+							strconv.Itoa(int(totest.Locations[i].IfIDs[k])) + "\n"
 					}
 					temp = temp && subtemp
 				}
@@ -225,19 +243,22 @@ func compareLinktypeInfo(totest seg.LinktypeInfo, expected seg.LinktypeInfo) (bo
 	if !(totest.EgressLinkType == expected.EgressLinkType) {
 		passed = false
 		info += "Failed to get correct EgressLT\n"
-		info += "Expected: " + strconv.Itoa(int(expected.EgressLinkType)) + ", got: " + strconv.Itoa(int(totest.EgressLinkType)) + "\n"
+		info += "Expected: " + strconv.Itoa(int(expected.EgressLinkType)) +
+			", got: " + strconv.Itoa(int(totest.EgressLinkType)) + "\n"
 	}
 	for i := 0; i < len(totest.Peerlinks); i++ {
 		temp := false
 		for j := 0; j < len(expected.Peerlinks); j++ {
-			if (totest.Peerlinks[i].IfID == expected.Peerlinks[j].IfID) && (totest.Peerlinks[i].LinkType == expected.Peerlinks[j].LinkType) {
+			if (totest.Peerlinks[i].IfID == expected.Peerlinks[j].IfID) &&
+				(totest.Peerlinks[i].LinkType == expected.Peerlinks[j].LinkType) {
 				temp = true
 			}
 		}
 		passed = passed && temp
 		if !temp {
 			info += "Failed to get correct linktype for interface " + strconv.Itoa(int(totest.Peerlinks[i].IfID)) + "\n"
-			info += "Expected: " + strconv.Itoa(int(expected.Peerlinks[i].LinkType)) + ", got: " + strconv.Itoa(int(totest.Peerlinks[i].LinkType)) + "\n"
+			info += "Expected: " + strconv.Itoa(int(expected.Peerlinks[i].LinkType)) +
+				", got: " + strconv.Itoa(int(totest.Peerlinks[i].LinkType)) + "\n"
 		}
 	}
 
@@ -251,19 +272,23 @@ func compareHopsInfo(totest seg.InternalHopsInfo, expected seg.InternalHopsInfo)
 	if !(totest.InToOutHops == expected.InToOutHops) {
 		passed = false
 		info += "Failed to get correct Intoouthops\n"
-		info += "Expected: " + strconv.Itoa(int(expected.InToOutHops)) + ", got: " + strconv.Itoa(int(totest.InToOutHops)) + "\n"
+		info += "Expected: " + strconv.Itoa(int(expected.InToOutHops)) +
+			", got: " + strconv.Itoa(int(totest.InToOutHops)) + "\n"
 	}
 	for i := 0; i < len(totest.InterfaceHops); i++ {
 		temp := false
 		for j := 0; j < len(expected.InterfaceHops); j++ {
-			if (totest.InterfaceHops[i].IfID == expected.InterfaceHops[j].IfID) && (totest.InterfaceHops[i].Hops == expected.InterfaceHops[j].Hops) {
+			if (totest.InterfaceHops[i].IfID == expected.InterfaceHops[j].IfID) &&
+				(totest.InterfaceHops[i].Hops == expected.InterfaceHops[j].Hops) {
 				temp = true
 			}
 		}
 		passed = passed && temp
 		if !temp {
-			info += "Failed to get correct hops for interface " + strconv.Itoa(int(totest.InterfaceHops[i].IfID)) + "\n"
-			info += "Expected: " + strconv.Itoa(int(expected.InterfaceHops[i].Hops)) + ", got: " + strconv.Itoa(int(totest.InterfaceHops[i].Hops)) + "\n"
+			info += "Failed to get correct hops for interface " +
+				strconv.Itoa(int(totest.InterfaceHops[i].IfID)) + "\n"
+			info += "Expected: " + strconv.Itoa(int(expected.InterfaceHops[i].Hops)) +
+				", got: " + strconv.Itoa(int(totest.InterfaceHops[i].Hops)) + "\n"
 		}
 	}
 
@@ -408,7 +433,8 @@ func TestGenerateStaticinfo(t *testing.T) {
 	passed := true
 	for i := 0; i < len(testcases); i++ {
 
-		totest := GenerateStaticinfo(testcases[i].configData, testcases[i].peers, testcases[i].egIfid, testcases[i].inIfid)
+		totest := GenerateStaticinfo(testcases[i].configData, testcases[i].peers,
+			testcases[i].egIfid, testcases[i].inIfid)
 		testres, testinfo := compareStaticinfo(totest, testcases[i].expected)
 		if !testres {
 			t.Error(testinfo)

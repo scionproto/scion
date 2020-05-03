@@ -202,8 +202,8 @@ func min(a, b spath.ExpTimeType) spath.ExpTimeType {
 	return a
 }
 
-// CreatePeerMap creates a map from interface IDs to booleans indicating whether the respective interface is used for
-// peering or not.
+// CreatePeerMap creates a map from interface IDs to booleans
+// indicating whether the respective interface is used for peering or not.
 func CreatePeerMap(cfg ExtenderConf) map[common.IFIDType]bool {
 	peers := make(map[common.IFIDType]bool)
 	for ifID, ifInfo := range cfg.Intfs.All() {
