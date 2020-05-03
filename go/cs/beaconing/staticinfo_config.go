@@ -185,7 +185,6 @@ func (cfgdata StaticInfoCfg) gathergeo() seg.GeoInfo {
 				},
 				IfIDs: []common.IFIDType{intfid},
 			})
-			assigned = true
 		}
 	}
 	return l
