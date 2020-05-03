@@ -434,20 +434,38 @@ func TestGenerateStaticinfo(t *testing.T) {
 			Note: "asdf",
 		},
 	})
-	passed := true
 	for i := 0; i < len(testcases); i++ {
-
 		totest := GenerateStaticinfo(testcases[i].configData, testcases[i].peers,
 			testcases[i].egIfid, testcases[i].inIfid)
-		testres, testinfo := compareStaticinfo(totest, testcases[i].expected)
-		assert.ElementsMatch(t, totest, testcases[i].expected)
-		if !testres {
-			t.Error(testinfo)
-		}
-		passed = passed && testres
-	}
-	if !passed {
-		t.Error("GenerateStaticInfo test failed.")
-	}
+		assert.Equal(t, totest.Latency.Egresslatency,
+			testcases[i].expected.Latency.Egresslatency)
+		assert.Equal(t, totest.Latency.IngressToEgressLatency,
+			testcases[i].expected.Latency.IngressToEgressLatency)
+		assert.ElementsMatch(t, totest.Latency.Childlatencies,
+			testcases[i].expected.Latency.Childlatencies)
+		assert.ElementsMatch(t, totest.Latency.Peerlatencies,
+			testcases[i].expected.Latency.Peerlatencies)
 
+		assert.Equal(t, totest.Bandwidth.IngressToEgressBW,
+			testcases[i].expected.Bandwidth.IngressToEgressBW)
+		assert.Equal(t, totest.Bandwidth.EgressBW, testcases[i].expected.Bandwidth.EgressBW)
+		assert.ElementsMatch(t, totest.Bandwidth.Bandwidths,
+			testcases[i].expected.Bandwidth.Bandwidths)
+
+		assert.Equal(t, totest.Linktype.EgressLinkType,
+			testcases[i].expected.Linktype.EgressLinkType)
+		assert.ElementsMatch(t, totest.Linktype.Peerlinks,
+			testcases[i].expected.Linktype.Peerlinks)
+
+		assert.Equal(t, totest.Hops.InToOutHops,
+			testcases[i].expected.Hops.InToOutHops)
+		assert.ElementsMatch(t, totest.Hops.InterfaceHops,
+			testcases[i].expected.Hops.InterfaceHops)
+
+		assert.ElementsMatch(t, totest.Geo.Locations,
+			testcases[i].expected.Geo.Locations)
+
+		assert.Equal(t, totest.Note, testcases[i].expected.Note)
+
+	}
 }
