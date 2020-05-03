@@ -229,6 +229,9 @@ func TestParsing(t *testing.T) {
 	expected := getTestConfigData()
 	// passed, info = configcompare(totest, expected)
 	passed = assert.Equal(t, totest, expected)
+	a := []int{1, 2, 3}
+	b := []int{3, 2, 1}
+	assert.Equal(t, a, b)
 	if !passed {
 		t.Error("StaticInfoConfigData does not match")
 	}
@@ -531,20 +534,12 @@ func TestGenerateStaticinfo(t *testing.T) {
 
 		totest := GenerateStaticinfo(testcases[i].configData, testcases[i].peers, testcases[i].egIfid, testcases[i].inIfid)
 		// testres, testinfo := compareStaticinfo(data, testcases[i].expected)
-		testres2 := assert.Equal(t, totest, testcases[i].expected)
-		testres1, testinfo := compareStaticinfo(totest, testcases[i].expected)
-		if !testres2 {
+		testres := assert.Equal(t, totest, testcases[i].expected)
+		//testres1, testinfo := compareStaticinfo(totest, testcases[i].expected)
+		if !testres {
 			t.Error("StaticInfo does not match for testcase " + strconv.Itoa(i))
 		}
-		passed = passed && testres1
-		if !testres1 {
-			t.Error(testinfo)
-		}
-	}
-	if !passed {
-		t.Error("Test failed.")
-	} else {
-		fmt.Println("All clear1.")
+		passed = passed && testres
 	}
 
 }
