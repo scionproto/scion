@@ -1,7 +1,6 @@
 package beaconing
 
 import (
-	"fmt"
 	"strconv"
 	"testing"
 
