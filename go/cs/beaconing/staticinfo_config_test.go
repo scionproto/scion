@@ -218,7 +218,7 @@ func getTestConfigData() StaticInfoCfg {
 	}
 }
 
-// testparsing tests whether or not Parseconfigdata works properly.
+// TestParsing tests whether or not Parseconfigdata works properly.
 func TestParsing(t *testing.T) {
 	// var info string
 	var passed bool
