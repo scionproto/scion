@@ -44,7 +44,9 @@ type StaticInfoCfg struct {
 
 // gatherlatency extracts latency values from a StaticInfoCfg struct and
 // inserts them into the LatencyInfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherlatency(peers map[common.IFIDType]bool, egifID common.IFIDType, inifID common.IFIDType) seg.LatencyInfo {
+func (cfgdata StaticInfoCfg) gatherlatency(peers map[common.IFIDType]bool, egifID common.IFIDType,
+	inifID common.IFIDType) seg.LatencyInfo {
+
 	l := seg.LatencyInfo{
 		Egresslatency:          cfgdata.Latency[egifID].Inter,
 		IngressToEgressLatency: cfgdata.Latency[egifID].Intra[inifID],
@@ -73,7 +75,9 @@ func (cfgdata StaticInfoCfg) gatherlatency(peers map[common.IFIDType]bool, egifI
 
 // gatherbw extracts bandwidth values from a StaticInfoCfg struct and
 // inserts them into the BandwidthInfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherbw(peers map[common.IFIDType]bool, egifID common.IFIDType, inifID common.IFIDType) seg.BandwidthInfo {
+func (cfgdata StaticInfoCfg) gatherbw(peers map[common.IFIDType]bool, egifID common.IFIDType,
+	inifID common.IFIDType) seg.BandwidthInfo {
+
 	l := seg.BandwidthInfo{
 		EgressBW:          cfgdata.Bandwidth[egifID].Inter,
 		IngressToEgressBW: cfgdata.Bandwidth[egifID].Intra[inifID],
@@ -135,7 +139,9 @@ func (cfgdata StaticInfoCfg) gatherlinktype(peers map[common.IFIDType]bool, egif
 
 // gatherhops extracts hop values from a StaticInfoCfg struct and
 // inserts them into the InternalHopsinfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherhops(peers map[common.IFIDType]bool, egifID common.IFIDType, inifID common.IFIDType) seg.InternalHopsInfo {
+func (cfgdata StaticInfoCfg) gatherhops(peers map[common.IFIDType]bool, egifID common.IFIDType,
+	inifID common.IFIDType) seg.InternalHopsInfo {
+
 	l := seg.InternalHopsInfo{
 		InToOutHops: cfgdata.Hops[egifID].Intra[inifID],
 	}
@@ -159,7 +165,9 @@ func (cfgdata StaticInfoCfg) gathergeo() seg.GeoInfo {
 	for intfid, loc := range cfgdata.Geo {
 		var assigned = false
 		for k := 0; k < len(l.Locations); k++ {
-			if (loc.Longitude == l.Locations[k].GPSData.Longitude) && (loc.Latitude == l.Locations[k].GPSData.Latitude) && (loc.Address == l.Locations[k].GPSData.Address) && (!assigned) {
+			if (loc.Longitude == l.Locations[k].GPSData.Longitude) &&
+				(loc.Latitude == l.Locations[k].GPSData.Latitude) &&
+				(loc.Address == l.Locations[k].GPSData.Address) && (!assigned) {
 				l.Locations[k].IfIDs = append(l.Locations[k].IfIDs, intfid)
 				assigned = true
 			}
@@ -188,17 +196,21 @@ func ParseStaticInfoCfg(file string) (StaticInfoCfg, error) {
 	defer jsonFile.Close()
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
-		return StaticInfoCfg{}, serrors.WrapStr("Failed to read static info config file: ", err, "; file: ", file+"\n")
+		return StaticInfoCfg{}, serrors.WrapStr("Failed to read static info config file: ",
+			err, "; file: ", file+"\n")
 	}
 	var cfg StaticInfoCfg
 	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return StaticInfoCfg{}, serrors.WrapStr("Failed to parse static info config: ", err, "; file: ", file+"\n")
+		return StaticInfoCfg{}, serrors.WrapStr("Failed to parse static info config: ",
+			err, "; file: ", file+"\n")
 	}
 	return cfg, nil
 }
 
 // GenerateStaticinfo creates a StaticinfoExtn struct and populates it with data extracted from configdata.
-func GenerateStaticinfo(configdata StaticInfoCfg, peers map[common.IFIDType]bool, egifID common.IFIDType, inifID common.IFIDType) seg.StaticInfoExtn {
+func GenerateStaticinfo(configdata StaticInfoCfg, peers map[common.IFIDType]bool, egifID common.IFIDType,
+	inifID common.IFIDType) seg.StaticInfoExtn {
+
 	var StaticInfo seg.StaticInfoExtn
 	StaticInfo.Latency = configdata.gatherlatency(peers, egifID, inifID)
 	StaticInfo.Bandwidth = configdata.gatherbw(peers, egifID, inifID)
