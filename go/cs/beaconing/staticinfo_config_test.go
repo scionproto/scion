@@ -4,10 +4,10 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-
-	"github.com/stretchr/testify/assert"
 )
 
 type ConfigTest struct {

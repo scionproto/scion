@@ -3,13 +3,13 @@ package beaconing
 import (
 	"encoding/json"
 	"errors"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/serrors"
 	"io/ioutil"
 	"math"
 	"os"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 type InterfaceLatencies struct {
