@@ -155,7 +155,8 @@ func compareLatencyInfo(totest seg.LatencyInfo, expected seg.LatencyInfo) (bool,
 		}
 		passed = passed && temp
 		if !temp {
-			info += "Failed to get correct Peeringlatencies for interface " + strconv.Itoa(int(totest.Peerlatencies[i].IfID)) + "\n"
+			info += "Failed to get correct Peeringlatencies for interface " +
+				strconv.Itoa(int(totest.Peerlatencies[i].IfID)) + "\n"
 			info += "Expected: " + strconv.Itoa(int(expected.Peerlatencies[i].Interdelay)) + " " +
 				strconv.Itoa(int(expected.Peerlatencies[i].IntraDelay)) + ", got: " +
 				strconv.Itoa(int(totest.Peerlatencies[i].Interdelay)) + " " +
@@ -229,7 +230,8 @@ func compareGeoInfo(totest seg.GeoInfo, expected seg.GeoInfo) (bool, string) {
 		}
 		passed = passed && temp
 		if !temp {
-			info += "Failed to get correct Location for Location " + totest.Locations[i].GPSData.Address + "\n"
+			info += "Failed to get correct Location for Location " +
+				totest.Locations[i].GPSData.Address + "\n"
 		}
 	}
 
@@ -256,7 +258,8 @@ func compareLinktypeInfo(totest seg.LinktypeInfo, expected seg.LinktypeInfo) (bo
 		}
 		passed = passed && temp
 		if !temp {
-			info += "Failed to get correct linktype for interface " + strconv.Itoa(int(totest.Peerlinks[i].IfID)) + "\n"
+			info += "Failed to get correct linktype for interface " +
+				strconv.Itoa(int(totest.Peerlinks[i].IfID)) + "\n"
 			info += "Expected: " + strconv.Itoa(int(expected.Peerlinks[i].LinkType)) +
 				", got: " + strconv.Itoa(int(totest.Peerlinks[i].LinkType)) + "\n"
 		}
@@ -295,7 +298,8 @@ func compareHopsInfo(totest seg.InternalHopsInfo, expected seg.InternalHopsInfo)
 	return passed, info
 }
 
-// compareStaticinfo compares two StaticInfoExtns, one under test (totest) and one with the expected result,
+// compareStaticinfo compares two StaticInfoExtns,
+// one under test (totest) and one with the expected result,
 // and reports any deviations from the expected result in totest.
 func compareStaticinfo(totest, expected seg.StaticInfoExtn) (bool, string) {
 	passed := true
