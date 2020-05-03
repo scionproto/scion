@@ -1,7 +1,6 @@
 package beaconing
 
 import (
-	"github.com/uber/jaeger-lib/metrics/metricstest"
 	"strconv"
 	"testing"
 
