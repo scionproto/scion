@@ -1,11 +1,14 @@
 package beaconing
 
 import (
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/uber/jaeger-lib/metrics/metricstest"
 	"strconv"
 	"testing"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type ConfigTest struct {
@@ -217,16 +220,17 @@ func getTestConfigData() StaticInfoCfg {
 
 // testparsing tests whether or not Parseconfigdata works properly.
 func TestParsing(t *testing.T) {
-	var info string
+	// var info string
 	var passed bool
 	totest, err := ParseStaticInfoCfg("testdata/testconfigfile.json")
 	if err != nil {
 		t.Error("Error occured during parsing: " + err.Error())
 	}
 	expected := getTestConfigData()
-	passed, info = configcompare(totest, expected)
+	// passed, info = configcompare(totest, expected)
+	passed = assert.Equal(t, totest, expected)
 	if !passed {
-		t.Error(info)
+		t.Error("StaticInfoConfigData does not match")
 	}
 }
 
@@ -525,11 +529,11 @@ func TestGenerateStaticinfo(t *testing.T) {
 	passed := true
 	for i := 0; i < len(testcases); i++ {
 
-		data := GenerateStaticinfo(testcases[i].configData, testcases[i].peers, testcases[i].egIfid, testcases[i].inIfid)
-		testres, testinfo := compareStaticinfo(data, testcases[i].expected)
-		passed = passed && testres
-		if !testres {
-			t.Error(testinfo)
-		}
+		totest := GenerateStaticinfo(testcases[i].configData, testcases[i].peers, testcases[i].egIfid, testcases[i].inIfid)
+		// testres, testinfo := compareStaticinfo(data, testcases[i].expected)
+		passed = passed && assert.Equal(t, totest, testcases[i].expected)
+	}
+	if !passed {
+		t.Error("StaticInfo does not match")
 	}
 }
