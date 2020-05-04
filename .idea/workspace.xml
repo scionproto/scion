@@ -2,7 +2,12 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="81d31683-8d2a-4ce9-9598-77c4d256ee14" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/watcherTasks.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go/cs/beaconing/statinfo_config.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/go/cs/beaconing/statinfo_config_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/go/lib/ctrl/seg/BUILD.bazel" beforeDir="false" afterPath="$PROJECT_DIR$/go/lib/ctrl/seg/BUILD.bazel" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

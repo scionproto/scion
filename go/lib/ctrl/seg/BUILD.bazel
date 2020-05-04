@@ -31,7 +31,6 @@ go_test(
         "seg_test.go",
         "segs_test.go",
     ],
-    data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
         "//go/lib/addr:go_default_library",
