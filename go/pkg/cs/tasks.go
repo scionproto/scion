@@ -27,17 +27,14 @@ import (
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/cs/keepalive"
 	"github.com/scionproto/scion/go/cs/onehop"
-	"github.com/scionproto/scion/go/cs/segsyncer"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -70,22 +67,6 @@ type TasksConfig struct {
 
 	AllowIsdLoop bool
 	HeaderV2     bool
-}
-
-// SegSyncers creates a segment syncer tasks for every other core AS in the
-// local ISD if the local AS is a core AS.
-func (t *TasksConfig) SegSyncers() ([]*periodic.Runner, error) {
-	if !itopo.Get().Core() {
-		return nil, nil
-	}
-	return segsyncer.StartAll(segsyncer.Config{
-		IA:        itopo.Get().IA(),
-		Inspector: t.Inspector,
-		PathDB:    t.PathDB,
-		RevCache:  t.RevCache,
-		Msgr:      t.Msgr,
-		Pather:    NewPather(t.TopoProvider, t.HeaderV2),
-	})
 }
 
 // Originator starts a periodic beacon origination task. For non-core ASes, no
@@ -213,25 +194,17 @@ type Tasks struct {
 	Propagator *periodic.Runner
 	Registrars []*periodic.Runner
 
-	SegSyncers []*periodic.Runner
-
 	BeaconCleaner *periodic.Runner
 	PathCleaner   *periodic.Runner
 }
 
 func StartTasks(cfg TasksConfig) (*Tasks, error) {
-	segSyncers, err := cfg.SegSyncers()
-	if err != nil {
-		return nil, serrors.WrapStr("starting segment syncers", err)
-	}
-
 	beaconCleaner := beaconstorage.NewBeaconCleaner(cfg.BeaconStore)
 	revCleaner := beaconstorage.NewRevocationCleaner(cfg.BeaconStore)
 
 	segCleaner := pathdb.NewCleaner(cfg.PathDB, "ps_segments")
 	segRevCleaner := revcache.NewCleaner(cfg.RevCache, "ps_revocation")
 	return &Tasks{
-		SegSyncers: segSyncers,
 		Originator: cfg.Originator(),
 		Propagator: cfg.Propagator(),
 		Registrars: cfg.Registrars(),
@@ -271,13 +244,11 @@ func (t *Tasks) Kill() {
 		t.BeaconCleaner,
 		t.PathCleaner,
 	})
-	killRunners(t.SegSyncers)
 	killRunners(t.Registrars)
 	t.Originator = nil
 	t.Propagator = nil
 	t.BeaconCleaner = nil
 	t.PathCleaner = nil
-	t.SegSyncers = nil
 	t.Registrars = nil
 }
 

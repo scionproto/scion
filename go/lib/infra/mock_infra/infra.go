@@ -397,20 +397,6 @@ func (mr *MockMessengerMockRecorder) SendSegReply(arg0, arg1, arg2, arg3 interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSegReply", reflect.TypeOf((*MockMessenger)(nil).SendSegReply), arg0, arg1, arg2, arg3)
 }
 
-// SendSegSync mocks base method
-func (m *MockMessenger) SendSegSync(arg0 context.Context, arg1 *path_mgmt.SegSync, arg2 net.Addr, arg3 uint64) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendSegSync", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SendSegSync indicates an expected call of SendSegSync
-func (mr *MockMessengerMockRecorder) SendSegSync(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSegSync", reflect.TypeOf((*MockMessenger)(nil).SendSegSync), arg0, arg1, arg2, arg3)
-}
-
 // SendTRC mocks base method
 func (m *MockMessenger) SendTRC(arg0 context.Context, arg1 *cert_mgmt.TRC, arg2 net.Addr, arg3 uint64) error {
 	m.ctrl.T.Helper()

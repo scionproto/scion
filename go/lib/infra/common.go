@@ -140,7 +140,6 @@ const (
 	SegRequest
 	SegReply
 	SignedRev
-	SegSync
 	ChainRenewalRequest
 	ChainRenewalReply
 	Ack
@@ -187,8 +186,6 @@ func (mt MessageType) String() string {
 		return "SegReply"
 	case SignedRev:
 		return "SignedRev"
-	case SegSync:
-		return "SegSync"
 	case ChainRenewalRequest:
 		return "ChainRenewalRequest"
 	case ChainRenewalReply:
@@ -248,8 +245,6 @@ func (mt MessageType) MetricLabel() string {
 		return "seg_push"
 	case SignedRev:
 		return "revoction_push"
-	case SegSync:
-		return "seg_sync_push"
 	case ChainRenewalRequest:
 		return "chain_issue_req"
 	case ChainRenewalReply:
@@ -336,8 +331,6 @@ type Messenger interface {
 		id uint64) (*path_mgmt.SegReply, error)
 	// SendSegReply sends a reliable path_mgmt.SegReply to address a.
 	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply, a net.Addr, id uint64) error
-	// SendSegSync sends a reliable path_mgmt.SegSync to address a.
-	SendSegSync(ctx context.Context, msg *path_mgmt.SegSync, a net.Addr, id uint64) error
 	GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
 		a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error)
 	SendSegChangesIdReply(ctx context.Context,

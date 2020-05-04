@@ -231,8 +231,6 @@ func run(file string) error {
 			},
 		}
 		msgr.AddHandler(infra.SegReg, &handlers.SegReg{SegHandler: segHandler})
-		// Legacy down segment synchronization mechanism.
-		msgr.AddHandler(infra.SegSync, &handlers.SegSync{SegHandler: segHandler})
 	}
 
 	// Keepalive mechanism is deprecated and will be removed with change to
