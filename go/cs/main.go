@@ -730,8 +730,8 @@ func setup() error {
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
 	}
-	tempcfg, cfgerr := beaconing.ParseStaticInfoCfg(cfg.General.StaticInfoConfig())
-	if cfgerr == nil {
+	tempcfg, err := beaconing.ParseStaticInfoCfg(cfg.General.StaticInfoConfig())
+	if err == nil {
 		staticInfoCfg = tempcfg
 	}
 	// Use CS for monolith for now

@@ -11,7 +11,7 @@ import (
 
 type ConfigTest struct {
 	configData StaticInfoCfg
-	peers      map[common.IFIDType]bool
+	peers      map[common.IFIDType]struct{}
 	egIfid     common.IFIDType
 	inIfid     common.IFIDType
 	expected   seg.StaticInfoExtn
@@ -96,13 +96,13 @@ func getTestConfigData() StaticInfoCfg {
 	}
 }
 
-// TestParsing tests whether or not Parseconfigdata works properly.
+// TestParsing tests whether or not ParseStaticInfoCfg works properly.
 func TestParsing(t *testing.T) {
 	// var info string
 	var passed bool
 	totest, err := ParseStaticInfoCfg("testdata/testconfigfile.json")
 	if err != nil {
-		t.Error("Error occurred during parsing: " + err.Error())
+		t.Error("error occurred during parsing: " + err.Error())
 	}
 	expected := getTestConfigData()
 	// passed, info = configcompare(totest, expected)
@@ -117,7 +117,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 	var testcases []ConfigTest
 	testcases = append(testcases, ConfigTest{
 		configData: getTestConfigData(),
-		peers:      map[common.IFIDType]bool{1: false, 2: false, 3: false, 5: true},
+		peers:      map[common.IFIDType]struct{}{5: struct{}{}},
 		egIfid:     2,
 		inIfid:     3,
 		expected: seg.StaticInfoExtn{

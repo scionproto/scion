@@ -66,7 +66,7 @@ func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDTy
 	if err != nil {
 		return err
 	}
-	staticInfoPeers := CreatePeerMap(s.cfg)
+	staticInfoPeers := createPeerMap(s.cfg)
 	staticInfo := GenerateStaticinfo(s.cfg.StaticInfoCfg, staticInfoPeers, egIfid, inIfid)
 	meta := s.cfg.Signer.Meta()
 	asEntry := &seg.ASEntry{
@@ -202,12 +202,14 @@ func min(a, b spath.ExpTimeType) spath.ExpTimeType {
 	return a
 }
 
-// CreatePeerMap creates a map from interface IDs to booleans
-// indicating whether the respective interface is used for peering or not.
-func CreatePeerMap(cfg ExtenderConf) map[common.IFIDType]bool {
-	peers := make(map[common.IFIDType]bool)
+// createPeerMap creates a set of peers indicating whether the
+// interface identified by the key is used for peering or not.
+func createPeerMap(cfg ExtenderConf) map[common.IFIDType]struct{} {
+	peers := make(map[common.IFIDType]struct{})
 	for ifID, ifInfo := range cfg.Intfs.All() {
-		peers[ifID] = (ifInfo.TopoInfo().LinkType) == topology.Peer
+		if ifInfo.TopoInfo().LinkType == topology.Peer {
+			peers[ifID] = struct{}{}
+		}
 	}
 	return peers
 }
