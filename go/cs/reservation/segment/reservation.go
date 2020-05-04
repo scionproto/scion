@@ -30,6 +30,12 @@ type Reservation struct {
 	activeIndex int // -1 <= activeIndex < len(Indices)
 }
 
+func NewReservation() *Reservation {
+	return &Reservation{
+		activeIndex: -1,
+	}
+}
+
 // Validate will return an error for invalid values.
 func (r *Reservation) Validate() error {
 	if err := base.ValidateIndices(r.Indices); err != nil {

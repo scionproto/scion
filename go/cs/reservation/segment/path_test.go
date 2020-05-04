@@ -12,32 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package segment
+package segment_test
 
 import (
 	"testing"
 
+	"github.com/scionproto/scion/go/cs/reservation/segment"
+	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
 	"github.com/stretchr/testify/require"
-
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestValidatePath(t *testing.T) {
 	tc := map[string]struct {
-		Path    Path
+		Path    segment.Path
 		IsValid bool
 	}{
 		"src-dst": {
-			Path:    newPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
+			Path:    segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
 			IsValid: true,
 		},
 		"invalid dst": {
-			Path:    newPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 2),
+			Path:    segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 2),
 			IsValid: false,
 		},
 		"invalid src": {
-			Path:    newPathFromComponents(2, "ff00:0:1", 1, 1, "ff00:0:2", 0),
+			Path:    segmenttest.NewPathFromComponents(2, "ff00:0:1", 1, 1, "ff00:0:2", 0),
 			IsValid: false,
 		},
 	}
@@ -57,38 +56,38 @@ func TestValidatePath(t *testing.T) {
 
 func TestEqualPath(t *testing.T) {
 	tc := map[string]struct {
-		Path1   Path
-		Path2   Path
+		Path1   segment.Path
+		Path2   segment.Path
 		IsEqual bool
 	}{
 		"eq1": {
-			Path1:   newPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
-			Path2:   newPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
+			Path1:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
+			Path2:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
 			IsEqual: true,
 		},
 		"eq2": {
-			Path1:   newPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3, 1, "ff00:0:2", 0),
-			Path2:   newPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3, 1, "ff00:0:2", 0),
+			Path1:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3, 1, "ff00:0:2", 0),
+			Path2:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3, 1, "ff00:0:2", 0),
 			IsEqual: true,
 		},
 		"neq1": {
-			Path1:   newPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
-			Path2:   newPathFromComponents(1, "ff00:0:1", 1, 1, "ff00:0:2", 0),
+			Path1:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
+			Path2:   segmenttest.NewPathFromComponents(1, "ff00:0:1", 1, 1, "ff00:0:2", 0),
 			IsEqual: false,
 		},
 		"neq2": {
-			Path1:   newPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
-			Path2:   newPathFromComponents(0, "ff00:0:3", 1, 1, "ff00:0:2", 0),
+			Path1:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
+			Path2:   segmenttest.NewPathFromComponents(0, "ff00:0:3", 1, 1, "ff00:0:2", 0),
 			IsEqual: false,
 		},
 		"neq3": {
-			Path1:   newPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
-			Path2:   newPathFromComponents(0, "ff00:0:1", 2, 1, "ff00:0:2", 0),
+			Path1:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
+			Path2:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 2, 1, "ff00:0:2", 0),
 			IsEqual: false,
 		},
 		"neq4": {
-			Path1:   newPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3, 1, "ff00:0:2", 0),
-			Path2:   newPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3),
+			Path1:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3, 1, "ff00:0:2", 0),
+			Path2:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3),
 			IsEqual: false,
 		},
 	}
@@ -100,19 +99,4 @@ func TestEqualPath(t *testing.T) {
 			require.Equal(t, tc.IsEqual, eq)
 		})
 	}
-}
-
-func newPathFromComponents(chain ...interface{}) Path {
-	if len(chain)%3 != 0 {
-		panic("wrong number of arguments")
-	}
-	p := Path{}
-	for i := 0; i < len(chain); i += 3 {
-		p = append(p, PathStep{
-			Ingress: common.IFIDType(chain[i].(int)),
-			AS:      xtest.MustParseAS(chain[i+1].(string)),
-			Egress:  common.IFIDType(chain[i+2].(int)),
-		})
-	}
-	return p
 }
