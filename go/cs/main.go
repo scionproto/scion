@@ -730,9 +730,9 @@ func setup() error {
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
 	}
-	tempcfg, err := beaconing.ParseStaticInfoCfg(cfg.General.StaticInfoConfig())
-	if err == nil {
-		staticInfoCfg = tempcfg
+	staticInfoCfg, err = beaconing.ParseStaticInfoCfg(cfg.General.StaticInfoConfig())
+	if err != nil {
+		log.Warn("Failed to read static info", "err", err)
 	}
 	// Use CS for monolith for now
 	itopo.Init(

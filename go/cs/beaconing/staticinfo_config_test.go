@@ -9,14 +9,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 )
 
-type ConfigTest struct {
-	configData StaticInfoCfg
-	peers      map[common.IFIDType]struct{}
-	egIfid     common.IFIDType
-	inIfid     common.IFIDType
-	expected   seg.StaticInfoExtn
-}
-
 func getTestConfigData() StaticInfoCfg {
 	return StaticInfoCfg{
 		Latency: map[common.IFIDType]InterfaceLatencies{
@@ -98,24 +90,21 @@ func getTestConfigData() StaticInfoCfg {
 
 // TestParsing tests whether or not ParseStaticInfoCfg works properly.
 func TestParsing(t *testing.T) {
-	// var info string
-	var passed bool
-	totest, err := ParseStaticInfoCfg("testdata/testconfigfile.json")
-	if err != nil {
-		t.Error("error occurred during parsing: " + err.Error())
-	}
 	expected := getTestConfigData()
-	// passed, info = configcompare(totest, expected)
-	passed = assert.Equal(t, totest, expected)
-	if !passed {
-		t.Error("StaticInfoConfigData does not match")
-	}
+	actual, err := ParseStaticInfoCfg("testdata/testconfigfile.json")
+	assert.NoError(t, err, "error occurred during parsing")
+	assert.Equal(t, expected, actual)
 }
 
 // TestGenerateStaticinfo tests whether or not GenerateStaticinfo works properly.
 func TestGenerateStaticinfo(t *testing.T) {
-	var testcases []ConfigTest
-	testcases = append(testcases, ConfigTest{
+	test := struct {
+		configData StaticInfoCfg
+		peers      map[common.IFIDType]struct{}
+		egIfid     common.IFIDType
+		inIfid     common.IFIDType
+		expected   seg.StaticInfoExtn
+	}{
 		configData: getTestConfigData(),
 		peers:      map[common.IFIDType]struct{}{5: {}},
 		egIfid:     2,
@@ -212,39 +201,37 @@ func TestGenerateStaticinfo(t *testing.T) {
 			},
 			Note: "asdf",
 		},
-	})
-	for i := 0; i < len(testcases); i++ {
-		totest := GenerateStaticinfo(testcases[i].configData, testcases[i].peers,
-			testcases[i].egIfid, testcases[i].inIfid)
-		assert.Equal(t, totest.Latency.Egresslatency,
-			testcases[i].expected.Latency.Egresslatency)
-		assert.Equal(t, totest.Latency.IngressToEgressLatency,
-			testcases[i].expected.Latency.IngressToEgressLatency)
-		assert.ElementsMatch(t, totest.Latency.Childlatencies,
-			testcases[i].expected.Latency.Childlatencies)
-		assert.ElementsMatch(t, totest.Latency.Peerlatencies,
-			testcases[i].expected.Latency.Peerlatencies)
-
-		assert.Equal(t, totest.Bandwidth.IngressToEgressBW,
-			testcases[i].expected.Bandwidth.IngressToEgressBW)
-		assert.Equal(t, totest.Bandwidth.EgressBW, testcases[i].expected.Bandwidth.EgressBW)
-		assert.ElementsMatch(t, totest.Bandwidth.Bandwidths,
-			testcases[i].expected.Bandwidth.Bandwidths)
-
-		assert.Equal(t, totest.Linktype.EgressLinkType,
-			testcases[i].expected.Linktype.EgressLinkType)
-		assert.ElementsMatch(t, totest.Linktype.Peerlinks,
-			testcases[i].expected.Linktype.Peerlinks)
-
-		assert.Equal(t, totest.Hops.InToOutHops,
-			testcases[i].expected.Hops.InToOutHops)
-		assert.ElementsMatch(t, totest.Hops.InterfaceHops,
-			testcases[i].expected.Hops.InterfaceHops)
-
-		assert.ElementsMatch(t, totest.Geo.Locations,
-			testcases[i].expected.Geo.Locations)
-
-		assert.Equal(t, totest.Note, testcases[i].expected.Note)
-
 	}
+	actual := GenerateStaticinfo(test.configData,
+		test.peers, test.egIfid, test.inIfid)
+	assert.Equal(t, test.expected.Latency.Egresslatency,
+		actual.Latency.Egresslatency)
+	assert.Equal(t, test.expected.Latency.IngressToEgressLatency,
+		actual.Latency.IngressToEgressLatency)
+	assert.ElementsMatch(t, test.expected.Latency.Childlatencies,
+		actual.Latency.Childlatencies)
+	assert.ElementsMatch(t, test.expected.Latency.Peerlatencies,
+		actual.Latency.Peerlatencies)
+
+	assert.Equal(t, test.expected.Bandwidth.IngressToEgressBW,
+		actual.Bandwidth.IngressToEgressBW)
+	assert.Equal(t, test.expected.Bandwidth.EgressBW,
+		actual.Bandwidth.EgressBW)
+	assert.ElementsMatch(t, test.expected.Bandwidth.Bandwidths,
+		actual.Bandwidth.Bandwidths)
+
+	assert.Equal(t, test.expected.Linktype.EgressLinkType,
+		actual.Linktype.EgressLinkType)
+	assert.ElementsMatch(t, test.expected.Linktype.Peerlinks,
+		actual.Linktype.Peerlinks)
+
+	assert.Equal(t, test.expected.Hops.InToOutHops,
+		actual.Hops.InToOutHops)
+	assert.ElementsMatch(t, test.expected.Hops.InterfaceHops,
+		actual.Hops.InterfaceHops)
+
+	assert.ElementsMatch(t, test.expected.Geo.Locations,
+		actual.Geo.Locations)
+
+	assert.Equal(t, test.expected.Note, actual.Note)
 }
