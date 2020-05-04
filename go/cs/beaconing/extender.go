@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -65,6 +66,8 @@ func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDTy
 	if err != nil {
 		return err
 	}
+	staticInfoPeers := createPeerMap(s.cfg)
+	staticInfo := GenerateStaticinfo(s.cfg.StaticInfoCfg, staticInfoPeers, egIfid, inIfid)
 	meta := s.cfg.Signer.Meta()
 	asEntry := &seg.ASEntry{
 		RawIA:      meta.Src.IA.IAInt(),
@@ -74,6 +77,7 @@ func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDTy
 		MTU:        s.cfg.MTU,
 		HopEntries: hopEntries,
 	}
+	asEntry.Exts.StaticInfo = &staticInfo
 	if err := pseg.AddASEntry(asEntry, s.cfg.Signer); err != nil {
 		return err
 	}
@@ -196,4 +200,16 @@ func min(a, b spath.ExpTimeType) spath.ExpTimeType {
 		return b
 	}
 	return a
+}
+
+// createPeerMap creates a set of peers indicating whether the
+// interface identified by the key is used for peering or not.
+func createPeerMap(cfg ExtenderConf) map[common.IFIDType]struct{} {
+	peers := make(map[common.IFIDType]struct{})
+	for ifID, ifInfo := range cfg.Intfs.All() {
+		if ifInfo.TopoInfo().LinkType == topology.Peer {
+			peers[ifID] = struct{}{}
+		}
+	}
+	return peers
 }

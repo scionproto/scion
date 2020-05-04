@@ -44,6 +44,8 @@ type ExtenderConf struct {
 	GetMaxExpTime func() spath.ExpTimeType
 	// task contains an identifier specific to the task that uses the extender.
 	task string
+	// StaticInfoCfg contains the Configdata used for the StaticInfo Extension.
+	StaticInfoCfg StaticInfoCfg
 }
 
 // InitDefaults initializes the default values, if not set.

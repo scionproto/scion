@@ -10,6 +10,7 @@ go_library(
         "seg.go",
         "segs.go",
         "signed.go",
+        "staticinfo_extn.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/ctrl/seg",
     visibility = ["//visibility:public"],

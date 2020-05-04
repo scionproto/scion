@@ -79,6 +79,8 @@ import (
 var (
 	cfg config.Config
 
+	staticInfoCfg beaconing.StaticInfoCfg
+
 	intfs *ifstate.Interfaces
 	tasks *periodicTasks
 
@@ -583,6 +585,7 @@ func (t *periodicTasks) startPropagator(a *net.UDPAddr) (*periodic.Runner, error
 			MTU:           topo.MTU(),
 			Signer:        signer,
 			GetMaxExpTime: maxExpTimeFactory(t.store, beacon.PropPolicy),
+			StaticInfoCfg: staticInfoCfg,
 		},
 		Period: cfg.BS.PropagationInterval.Duration,
 	}.New()
@@ -726,6 +729,10 @@ func setup() error {
 	topo, err := topology.FromJSONFile(cfg.General.Topology())
 	if err != nil {
 		return common.NewBasicError("Unable to load topology", err)
+	}
+	staticInfoCfg, err = beaconing.ParseStaticInfoCfg(cfg.General.StaticInfoConfig())
+	if err != nil {
+		log.Warn("Failed to read static info", "err", err)
 	}
 	// Use CS for monolith for now
 	itopo.Init(
