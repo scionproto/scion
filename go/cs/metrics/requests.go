@@ -108,14 +108,8 @@ func (r Request) RepliedRevs(l RequestOkLabels) prometheus.Counter {
 // DetermineReplyType determines which type of segments is in the reply. The
 // method assumes that segs only contains one type of segments.
 func DetermineReplyType(segs segfetcher.Segments) proto.PathSegType {
-	switch {
-	case len(segs.Up) > 0:
-		return proto.PathSegType_up
-	case len(segs.Core) > 0:
-		return proto.PathSegType_core
-	case len(segs.Down) > 0:
-		return proto.PathSegType_down
-	default:
-		return proto.PathSegType_unset
+	if len(segs) > 0 {
+		return segs[0].Type
 	}
+	return proto.PathSegType_unset
 }

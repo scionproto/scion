@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -143,7 +144,6 @@ func (t *TasksConfig) Registrars() []*periodic.Runner {
 func (t *TasksConfig) registrar(topo topology.Topology, segType proto.PathSegType,
 	policyType beacon.PolicyType) *periodic.Runner {
 
-	pather := NewPather(t.TopoProvider, t.HeaderV2)
 	r := &beaconing.Registrar{
 		Extender: t.extender("registrar", topo.IA(), topo.MTU(), func() spath.ExpTimeType {
 			return t.BeaconStore.MaxExpTime(policyType)
@@ -155,7 +155,7 @@ func (t *TasksConfig) registrar(topo topology.Topology, segType proto.PathSegTyp
 		Signer:   t.Signer,
 		Intfs:    t.Intfs,
 		Type:     segType,
-		Pather:   pather,
+		Pather:   addrutil.NewPather(t.TopoProvider, t.HeaderV2),
 		Tick:     beaconing.NewTick(t.RegistrationInterval),
 	}
 	return periodic.Start(r, 500*time.Millisecond, t.RegistrationInterval)

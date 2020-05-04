@@ -30,13 +30,32 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
-type Pather struct {
+// Pather computes the remote address with a path based on the provided segment.
+type Pather interface {
+	GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, error)
+}
+
+// NewPather is a temporary helper until header v2 is complete.
+func NewPather(provider topology.Provider, headerV2 bool) Pather {
+	var pather Pather = LegacyPather{TopoProvider: provider}
+	if headerV2 {
+		pather = PatherV2{
+			UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+				return provider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+			},
+		}
+	}
+	return pather
+}
+
+// PatherV2 creates paths in the V2 header format
+type PatherV2 struct {
 	// UnderlayNextHop determines the next hop underlay address for the
 	// specified interface id.
 	UnderlayNextHop func(ifID uint16) (*net.UDPAddr, bool)
 }
 
-func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (net.Addr, error) {
+func (p PatherV2) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, error) {
 	if len(ps.ASEntries) == 0 {
 		return nil, serrors.New("empty path")
 	}
@@ -93,16 +112,19 @@ func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (net.Addr, error)
 
 }
 
+// LegacyPather creates paths in the legacy V1 header format
 type LegacyPather struct {
 	TopoProvider topology.Provider
 }
 
-func (p LegacyPather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (net.Addr, error) {
+func (p LegacyPather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, error) {
 	return getPath(svc, ps, p.TopoProvider)
 }
 
-// GetPath creates a path from the given segment and then creates a snet.SVCAddr.
-func getPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv topology.Provider) (net.Addr, error) {
+// getPath creates a path from the given segment and then creates a snet.SVCAddr.
+func getPath(svc addr.HostSVC, ps *seg.PathSegment,
+	topoProv topology.Provider) (*snet.SVCAddr, error) {
+
 	p, err := legacyPath(ps)
 	if err != nil {
 		return nil, serrors.WrapStr("constructing path from segment", err)

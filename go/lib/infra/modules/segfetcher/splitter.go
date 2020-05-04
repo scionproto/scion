@@ -19,68 +19,58 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/pkg/trust"
+	"github.com/scionproto/scion/go/proto"
 )
 
-// Splitter splits a single request into a request set.
+// Splitter splits a path request into set of segment requests.
 type Splitter interface {
-	// Split splits the request into a request set. Assumes that the request
-	// has been validated for the local IA.
-	Split(ctx context.Context, r Request) (RequestSet, error)
+	// Split splits a path request from the local AS to dst into a set of segment requests.
+	Split(ctx context.Context, dst addr.IA) (Requests, error)
 }
 
 // MultiSegmentSplitter splits requests consisting of one or multiple segments.
 // The AS inspector is used to check whether an IA is core or not.
 type MultiSegmentSplitter struct {
-	Local     addr.IA
+	LocalIA   addr.IA
+	Core      bool
 	Inspector trust.Inspector
 }
 
-// Split splits the request consisting of one or multiple segments.
-func (s *MultiSegmentSplitter) Split(ctx context.Context,
-	r Request) (RequestSet, error) {
+// Split splits a path request from the local AS to dst into a set of segment requests.
+func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests, error) {
 
-	if r.Src.IsZero() {
-		r.Src = s.Local
-	}
-	srcCore, err := s.isCore(ctx, r.Src)
+	const Up = proto.PathSegType_up
+	const Down = proto.PathSegType_down
+	const Core = proto.PathSegType_core
+
+	src := s.LocalIA
+	srcCore := s.Core
+	dstCore, err := s.isCore(ctx, dst)
 	if err != nil {
-		return RequestSet{}, err
-	}
-	dstCore, err := s.isCore(ctx, r.Dst)
-	if err != nil {
-		return RequestSet{}, err
+		return Requests{}, err
 	}
 	switch {
 	case !srcCore && !dstCore:
-		return RequestSet{
-			Up:    Request{Src: r.Src, Dst: toWildCard(r.Src)},
-			Cores: []Request{{Src: toWildCard(r.Src), Dst: toWildCard(r.Dst)}},
-			Down:  Request{Src: toWildCard(r.Dst), Dst: r.Dst},
-			Fetch: r.State == Fetch,
+		return Requests{
+			{Src: src, Dst: toWildCard(src), SegType: Up},
+			{Src: toWildCard(src), Dst: toWildCard(dst), SegType: Core},
+			{Src: toWildCard(dst), Dst: dst, SegType: Down},
 		}, nil
 	case !srcCore && dstCore:
-		if s.isISDLocal(r.Dst) && r.Dst.IsWildcard() {
-			return RequestSet{
-				Up:    r,
-				Fetch: r.State == Fetch,
-			}, nil
+		if src.I == dst.I && dst.IsWildcard() {
+			return Requests{{Src: src, Dst: dst, SegType: Up}}, nil
 		}
-		return RequestSet{
-			Up:    Request{Src: r.Src, Dst: toWildCard(r.Src)},
-			Cores: []Request{{Src: toWildCard(r.Src), Dst: r.Dst}},
-			Fetch: r.State == Fetch,
+		return Requests{
+			{Src: src, Dst: toWildCard(src), SegType: Up},
+			{Src: toWildCard(src), Dst: dst, SegType: Core},
 		}, nil
 	case srcCore && !dstCore:
-		return RequestSet{
-			Cores: []Request{{Src: r.Src, Dst: toWildCard(r.Dst)}},
-			Down:  Request{Src: toWildCard(r.Dst), Dst: r.Dst},
-			Fetch: r.State == Fetch,
+		return Requests{
+			{Src: src, Dst: toWildCard(dst), SegType: Core},
+			{Src: toWildCard(dst), Dst: dst, SegType: Down},
 		}, nil
 	default:
-		return RequestSet{
-			Cores: []Request{r},
-			Fetch: r.State == Fetch,
-		}, nil
+		return Requests{{Src: src, Dst: dst, SegType: Core}}, nil
 	}
 }
 
@@ -93,10 +83,6 @@ func (s *MultiSegmentSplitter) isCore(ctx context.Context, dst addr.IA) (bool, e
 		return false, err
 	}
 	return isCore, nil
-}
-
-func (s *MultiSegmentSplitter) isISDLocal(dst addr.IA) bool {
-	return s.Local.I == dst.I
 }
 
 func toWildCard(ia addr.IA) addr.IA {

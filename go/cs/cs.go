@@ -41,7 +41,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
-	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -166,36 +165,33 @@ func run(file string) error {
 	}
 	defer beaconStore.Close()
 
-	pather := cs.NewPather(itopo.Provider(), cfg.Features.HeaderV2)
 	inspector := trust.DBInspector{DB: trustDB}
-	var dstProvider segfetcher.DstProvider
-	if topo.Core() {
-		dstProvider = segreq.CreateCoreDstProvider(topo.IA(), pather, pathDB, revCache)
-	} else {
-		dstProvider = segreq.CreateNonCoreDstProvider(topo.IA(), pather, pathDB, revCache,
-			inspector)
+	verifier := compat.Verifier{
+		Verifier: trust.Verifier{
+			Engine: nil, // needs provider, see below
+		},
+	}
+	fetcherCfg := segreq.FetcherConfig{
+		IA:           topo.IA(),
+		PathDB:       pathDB,
+		RevCache:     revCache,
+		RequestAPI:   msgr,
+		Inspector:    inspector,
+		TopoProvider: itopo.Provider(),
+		Verifier:     verifier,
+		HeaderV2:     cfg.Features.HeaderV2,
 	}
 	provider := cs.NewTrustProvider(
 		cs.TrustProviderConfig{
-			IA:            topo.IA(),
-			PathDB:        pathDB,
-			RevCache:      revCache,
-			TrustDB:       trustDB,
-			RPC:           msgr,
-			Pather:        pather,
-			Inspector:     inspector,
-			Provider:      itopo.Provider(),
-			DstProvider:   dstProvider,
-			QueryInterval: cfg.PS.QueryInterval.Duration,
-			Core:          topo.Core(),
-			HeaderV2:      cfg.Features.HeaderV2,
+			IA:       topo.IA(),
+			TrustDB:  trustDB,
+			RPC:      msgr,
+			Router:   segreq.NewRouter(fetcherCfg),
+			HeaderV2: cfg.Features.HeaderV2,
 		},
 	)
-	verifier := compat.Verifier{
-		Verifier: trust.Verifier{
-			Engine: provider,
-		},
-	}
+	// now set the provider in the
+	verifier.Verifier.Engine = provider
 
 	// Register trust material related handlers.
 	trcHandler := trusthandler.TRCReq{Provider: provider, IA: topo.IA()}
@@ -205,22 +201,24 @@ func run(file string) error {
 
 	// Register pathing related handlers
 	msgr.AddHandler(infra.Seg, beaconing.NewHandler(topo.IA(), intfs, beaconStore, verifier))
-	cs.MultiRegister(infra.SegRequest, &segreq.Handler{
-		Fetcher: segfetcher.FetcherConfig{
-			QueryInterval:    cfg.PS.QueryInterval.Duration,
-			LocalIA:          topo.IA(),
-			Verifier:         verifier,
-			PathDB:           pathDB,
-			RevCache:         revCache,
-			RequestAPI:       msgr,
-			DstProvider:      dstProvider,
-			Splitter:         &segreq.Splitter{ASInspector: inspector},
-			MetricsNamespace: metrics.PSNamespace,
-			LocalInfo:        segreq.CreateLocalInfo(topo.Core(), topo.IA(), inspector),
-		}.New(),
-		RevCache: revCache,
-	}, msgr, tcpMsgr)
+
+	tcpMsgr.AddHandler(infra.SegRequest, segreq.NewForwardingHandler(
+		topo.IA(),
+		topo.Core(),
+		inspector,
+		pathDB,
+		revCache,
+		segreq.NewFetcher(fetcherCfg),
+	))
+
 	if topo.Core() {
+		msgr.AddHandler(infra.SegRequest, segreq.NewAuthoritativeHandler(
+			topo.IA(),
+			inspector,
+			pathDB,
+			revCache,
+		))
+
 		segHandler := seghandler.Handler{
 			Verifier: &seghandler.DefaultVerifier{
 				Verifier: verifier,
