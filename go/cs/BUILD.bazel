@@ -30,7 +30,6 @@ go_library(
         "//go/lib/infra/infraenv:go_default_library",
         "//go/lib/infra/messenger:go_default_library",
         "//go/lib/infra/modules/itopo:go_default_library",
-        "//go/lib/infra/modules/segfetcher:go_default_library",
         "//go/lib/infra/modules/seghandler:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/pathdb:go_default_library",

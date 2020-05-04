@@ -16,16 +16,12 @@ package segfetcher
 
 import "github.com/scionproto/scion/go/lib/ctrl/seg"
 
-// Segments is a set of up, core, and down segments.
-type Segments struct {
-	Up   seg.Segments
-	Core seg.Segments
-	Down seg.Segments
-}
+type Segments []*seg.Meta
 
-// Add adds the other segments to the current segments.
-func (s *Segments) Add(other Segments) {
-	s.Up = append(s.Up, other.Up...)
-	s.Core = append(s.Core, other.Core...)
-	s.Down = append(s.Down, other.Down...)
+func (s Segments) Segs() []*seg.PathSegment {
+	segs := make([]*seg.PathSegment, 0, len(s))
+	for _, seg := range s {
+		segs = append(segs, seg.Segment)
+	}
+	return segs
 }
