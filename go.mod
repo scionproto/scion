@@ -28,7 +28,7 @@ require (
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/songgao/water v0.0.0-20190725173103-fd331bda3f4b
 	github.com/spf13/cobra v1.0.0
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.3.1-0.20190311161405-34c6fa2dc709
 	github.com/syndtr/gocapability v0.0.0-20160928074757-e7cb7fa329f4
 	github.com/uber/jaeger-client-go v2.20.1+incompatible
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
