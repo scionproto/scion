@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
@@ -251,11 +252,17 @@ func (r *remoteRegistrar) start(ctx context.Context, bseg beacon.Beacon) {
 			},
 		},
 	}
-	addr, err := addrutil.GetPath(addr.SvcPS, bseg.Segment, r.topoProvider)
+	path, err := addrutil.GetPath(bseg.Segment, r.topoProvider)
 	if err != nil {
 		metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
 		logger.Error("[beaconing.Registrar] Unable to choose server", "err", err)
 		return
+	}
+	addr := &snet.SVCAddr{
+		IA:      path.Destination(),
+		Path:    path.Path(),
+		NextHop: path.UnderlayNextHop(),
+		SVC:     addr.SvcPS,
 	}
 	r.startSendSegReg(ctx, bseg, reg, addr)
 }

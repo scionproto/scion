@@ -49,7 +49,7 @@ type ReplyOrErr struct {
 
 // Requester requests segments.
 type Requester interface {
-	Request(ctx context.Context, req RequestSet) <-chan ReplyOrErr
+	Request(ctx context.Context, req Requests) <-chan ReplyOrErr
 }
 
 // DefaultRequester requests all segments that can be requested from a request set.
@@ -59,15 +59,14 @@ type DefaultRequester struct {
 }
 
 // Request all requests in the request set that are in fetch state.
-func (r *DefaultRequester) Request(ctx context.Context, req RequestSet) <-chan ReplyOrErr {
-	var reqs Requests
-	allReqs := append(Requests{req.Up, req.Down}, req.Cores...)
-	for _, req := range allReqs {
+func (r *DefaultRequester) Request(ctx context.Context, reqs Requests) <-chan ReplyOrErr {
+	var toFetch Requests
+	for _, req := range reqs {
 		if req.State == Fetch {
-			reqs = append(reqs, req)
+			toFetch = append(toFetch, req)
 		}
 	}
-	return r.fetchReqs(ctx, reqs)
+	return r.fetchReqs(ctx, toFetch)
 }
 
 func (r *DefaultRequester) fetchReqs(ctx context.Context, reqs Requests) <-chan ReplyOrErr {

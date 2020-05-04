@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"net"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -26,8 +25,8 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
-// GetPath creates a path from the given segment and then creates a snet.SVCAddr.
-func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv topology.Provider) (net.Addr, error) {
+// GetPath creates a path from the given segment
+func GetPath(ps *seg.PathSegment, topoProv topology.Provider) (snet.Path, error) {
 	x := &bytes.Buffer{}
 	if _, err := ps.RawWriteTo(x); err != nil {
 		return nil, common.NewBasicError("failed to write segment to buffer", err)
@@ -49,7 +48,10 @@ func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv topology.Provider) 
 	if !ok {
 		return nil, common.NewBasicError("unable to find first-hop BR for path", nil, "ifID", ifID)
 	}
-	return &snet.SVCAddr{IA: ps.FirstIA(), Path: p, NextHop: UnderlayNextHop, SVC: svc}, nil
+
+	// (ab-)use UDPAddr.GetPath to create an snet.partialPath
+	tmpAddr := &snet.UDPAddr{IA: ps.FirstIA(), Path: p, NextHop: UnderlayNextHop}
+	return tmpAddr.GetPath()
 }
 
 // ResolveLocal returns the local IP address used for traffic destined to dst.

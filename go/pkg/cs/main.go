@@ -279,7 +279,7 @@ func (app *App) Run() int {
 			PathDB:       pathDB,
 			RevCache:     revCache,
 			TopoProvider: itopo.Provider(),
-			// Fetcher needs to be initialized with a provider.
+			// Splitter/Fetcher need to be initialized with a provider.
 		},
 	}
 	provider := trust.FetchingProvider{
@@ -308,21 +308,9 @@ func (app *App) Run() int {
 		SegRequestAPI: msgr,
 	}
 
-	trustRouter.Pather.Fetcher = segfetcher.FetcherConfig{
-		QueryInterval: Cfg.PS.QueryInterval.Duration,
-		LocalIA:       topo.IA(),
-		Verifier:      compat.Verifier{Verifier: trust.Verifier{Engine: provider}},
-		PathDB:        pathDB,
-		RevCache:      revCache,
-		RequestAPI:    msgr,
-		DstProvider:   segreq.CreateDstProvider(args, topo.Core()),
-		Splitter: &segfetcher.MultiSegmentSplitter{
-			Local:     topo.IA(),
-			Inspector: inspector,
-		},
-		MetricsNamespace: metrics.PSNamespace,
-		LocalInfo:        segreq.CreateLocalInfo(args, topo.Core()),
-	}.New()
+	fetcher := segreq.NewFetcher(args)
+	trustRouter.Pather.Fetcher = fetcher
+	trustRouter.Pather.Splitter = segreq.NewSplitter(topo.IA(), topo.Core(), inspector, pathDB)
 
 	beaconStore, err := app.runBeaconStoreConstructor(topo.Core(), topo.IA(), Cfg)
 	if err != nil {
@@ -335,7 +323,6 @@ func (app *App) Run() int {
 
 	trcReqHandler := trusthandler.TRCReq{Provider: provider, IA: topo.IA()}
 	chainReqHandler := trusthandler.ChainReq{Provider: provider, IA: topo.IA()}
-	segReqHandler := segreq.NewHandler(args)
 
 	msgr.AddHandler(infra.TRCRequest,
 		app.runHandlerWrapper(infra.TRCRequest, trcReqHandler))
@@ -358,7 +345,10 @@ func (app *App) Run() int {
 			}),
 		),
 	)
-	msgr.AddHandler(infra.SegRequest, app.runHandlerWrapper(infra.SegRequest, segReqHandler))
+	if topo.Core() {
+		msgr.AddHandler(infra.SegRequest,
+			app.runHandlerWrapper(infra.SegRequest, segreq.NewAuthoritativeHandler(args)))
+	}
 	msgr.AddHandler(infra.SegReg,
 		app.runHandlerWrapper(infra.SegReg, handlers.NewSegRegHandler(args)))
 	msgr.AddHandler(infra.SignedRev, app.runHandlerWrapper(infra.SignedRev, &chainedHandler{
@@ -375,7 +365,8 @@ func (app *App) Run() int {
 		app.runHandlerWrapper(infra.TRCRequest, trcReqHandler))
 	tcpMsgr.AddHandler(infra.ChainRequest,
 		app.runHandlerWrapper(infra.ChainRequest, chainReqHandler))
-	tcpMsgr.AddHandler(infra.SegRequest, app.runHandlerWrapper(infra.SegRequest, segReqHandler))
+	tcpMsgr.AddHandler(infra.SegRequest,
+		app.runHandlerWrapper(infra.SegRequest, segreq.NewForwardingHandler(args, fetcher)))
 
 	signer, err := createSigner(topo.IA(), trustDB)
 	if err != nil {
