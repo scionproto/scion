@@ -10,6 +10,7 @@ is a good place to start.
 
    contribute
    cryptography/index
+   DRKeyInfra
    BeaconService
    BeaconExtensions
    PathService

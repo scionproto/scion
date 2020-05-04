@@ -15,4 +15,3 @@ This page contains information about SCION cryptography.
    ca-operations
    interactions
    standards
-   DRKeyInfra
