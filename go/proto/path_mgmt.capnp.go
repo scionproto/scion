@@ -1276,23 +1276,22 @@ const (
 	PathMgmt_Which_segReq            PathMgmt_Which = 1
 	PathMgmt_Which_segReply          PathMgmt_Which = 2
 	PathMgmt_Which_segReg            PathMgmt_Which = 3
-	PathMgmt_Which_segSync           PathMgmt_Which = 4
-	PathMgmt_Which_sRevInfo          PathMgmt_Which = 5
-	PathMgmt_Which_ifStateReq        PathMgmt_Which = 6
-	PathMgmt_Which_ifStateInfos      PathMgmt_Which = 7
-	PathMgmt_Which_segChangesIdReq   PathMgmt_Which = 8
-	PathMgmt_Which_segChangesIdReply PathMgmt_Which = 9
-	PathMgmt_Which_segChangesReq     PathMgmt_Which = 10
-	PathMgmt_Which_segChangesReply   PathMgmt_Which = 11
-	PathMgmt_Which_hpSegReq          PathMgmt_Which = 12
-	PathMgmt_Which_hpSegReply        PathMgmt_Which = 13
-	PathMgmt_Which_hpSegReg          PathMgmt_Which = 14
-	PathMgmt_Which_hpCfgReq          PathMgmt_Which = 15
-	PathMgmt_Which_hpCfgReply        PathMgmt_Which = 16
+	PathMgmt_Which_sRevInfo          PathMgmt_Which = 4
+	PathMgmt_Which_ifStateReq        PathMgmt_Which = 5
+	PathMgmt_Which_ifStateInfos      PathMgmt_Which = 6
+	PathMgmt_Which_segChangesIdReq   PathMgmt_Which = 7
+	PathMgmt_Which_segChangesIdReply PathMgmt_Which = 8
+	PathMgmt_Which_segChangesReq     PathMgmt_Which = 9
+	PathMgmt_Which_segChangesReply   PathMgmt_Which = 10
+	PathMgmt_Which_hpSegReq          PathMgmt_Which = 11
+	PathMgmt_Which_hpSegReply        PathMgmt_Which = 12
+	PathMgmt_Which_hpSegReg          PathMgmt_Which = 13
+	PathMgmt_Which_hpCfgReq          PathMgmt_Which = 14
+	PathMgmt_Which_hpCfgReply        PathMgmt_Which = 15
 )
 
 func (w PathMgmt_Which) String() string {
-	const s = "unsetsegReqsegReplysegRegsegSyncsRevInfoifStateReqifStateInfossegChangesIdReqsegChangesIdReplysegChangesReqsegChangesReplyhpSegReqhpSegReplyhpSegReghpCfgReqhpCfgReply"
+	const s = "unsetsegReqsegReplysegRegsRevInfoifStateReqifStateInfossegChangesIdReqsegChangesIdReplysegChangesReqsegChangesReplyhpSegReqhpSegReplyhpSegReghpCfgReqhpCfgReply"
 	switch w {
 	case PathMgmt_Which_unset:
 		return s[0:5]
@@ -1302,32 +1301,30 @@ func (w PathMgmt_Which) String() string {
 		return s[11:19]
 	case PathMgmt_Which_segReg:
 		return s[19:25]
-	case PathMgmt_Which_segSync:
-		return s[25:32]
 	case PathMgmt_Which_sRevInfo:
-		return s[32:40]
+		return s[25:33]
 	case PathMgmt_Which_ifStateReq:
-		return s[40:50]
+		return s[33:43]
 	case PathMgmt_Which_ifStateInfos:
-		return s[50:62]
+		return s[43:55]
 	case PathMgmt_Which_segChangesIdReq:
-		return s[62:77]
+		return s[55:70]
 	case PathMgmt_Which_segChangesIdReply:
-		return s[77:94]
+		return s[70:87]
 	case PathMgmt_Which_segChangesReq:
-		return s[94:107]
+		return s[87:100]
 	case PathMgmt_Which_segChangesReply:
-		return s[107:122]
+		return s[100:115]
 	case PathMgmt_Which_hpSegReq:
-		return s[122:130]
+		return s[115:123]
 	case PathMgmt_Which_hpSegReply:
-		return s[130:140]
+		return s[123:133]
 	case PathMgmt_Which_hpSegReg:
-		return s[140:148]
+		return s[133:141]
 	case PathMgmt_Which_hpCfgReq:
-		return s[148:156]
+		return s[141:149]
 	case PathMgmt_Which_hpCfgReply:
-		return s[156:166]
+		return s[149:159]
 
 	}
 	return "PathMgmt_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -1463,41 +1460,8 @@ func (s PathMgmt) NewSegReg() (SegRecs, error) {
 	return ss, err
 }
 
-func (s PathMgmt) SegSync() (SegRecs, error) {
-	if s.Struct.Uint16(0) != 4 {
-		panic("Which() != segSync")
-	}
-	p, err := s.Struct.Ptr(0)
-	return SegRecs{Struct: p.Struct()}, err
-}
-
-func (s PathMgmt) HasSegSync() bool {
-	if s.Struct.Uint16(0) != 4 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s PathMgmt) SetSegSync(v SegRecs) error {
-	s.Struct.SetUint16(0, 4)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
-
-// NewSegSync sets the segSync field to a newly
-// allocated SegRecs struct, preferring placement in s's segment.
-func (s PathMgmt) NewSegSync() (SegRecs, error) {
-	s.Struct.SetUint16(0, 4)
-	ss, err := NewSegRecs(s.Struct.Segment())
-	if err != nil {
-		return SegRecs{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
 func (s PathMgmt) SRevInfo() (SignedBlob, error) {
-	if s.Struct.Uint16(0) != 5 {
+	if s.Struct.Uint16(0) != 4 {
 		panic("Which() != sRevInfo")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1505,7 +1469,7 @@ func (s PathMgmt) SRevInfo() (SignedBlob, error) {
 }
 
 func (s PathMgmt) HasSRevInfo() bool {
-	if s.Struct.Uint16(0) != 5 {
+	if s.Struct.Uint16(0) != 4 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1513,14 +1477,14 @@ func (s PathMgmt) HasSRevInfo() bool {
 }
 
 func (s PathMgmt) SetSRevInfo(v SignedBlob) error {
-	s.Struct.SetUint16(0, 5)
+	s.Struct.SetUint16(0, 4)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSRevInfo sets the sRevInfo field to a newly
 // allocated SignedBlob struct, preferring placement in s's segment.
 func (s PathMgmt) NewSRevInfo() (SignedBlob, error) {
-	s.Struct.SetUint16(0, 5)
+	s.Struct.SetUint16(0, 4)
 	ss, err := NewSignedBlob(s.Struct.Segment())
 	if err != nil {
 		return SignedBlob{}, err
@@ -1530,7 +1494,7 @@ func (s PathMgmt) NewSRevInfo() (SignedBlob, error) {
 }
 
 func (s PathMgmt) IfStateReq() (IFStateReq, error) {
-	if s.Struct.Uint16(0) != 6 {
+	if s.Struct.Uint16(0) != 5 {
 		panic("Which() != ifStateReq")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1538,7 +1502,7 @@ func (s PathMgmt) IfStateReq() (IFStateReq, error) {
 }
 
 func (s PathMgmt) HasIfStateReq() bool {
-	if s.Struct.Uint16(0) != 6 {
+	if s.Struct.Uint16(0) != 5 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1546,14 +1510,14 @@ func (s PathMgmt) HasIfStateReq() bool {
 }
 
 func (s PathMgmt) SetIfStateReq(v IFStateReq) error {
-	s.Struct.SetUint16(0, 6)
+	s.Struct.SetUint16(0, 5)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewIfStateReq sets the ifStateReq field to a newly
 // allocated IFStateReq struct, preferring placement in s's segment.
 func (s PathMgmt) NewIfStateReq() (IFStateReq, error) {
-	s.Struct.SetUint16(0, 6)
+	s.Struct.SetUint16(0, 5)
 	ss, err := NewIFStateReq(s.Struct.Segment())
 	if err != nil {
 		return IFStateReq{}, err
@@ -1563,7 +1527,7 @@ func (s PathMgmt) NewIfStateReq() (IFStateReq, error) {
 }
 
 func (s PathMgmt) IfStateInfos() (IFStateInfos, error) {
-	if s.Struct.Uint16(0) != 7 {
+	if s.Struct.Uint16(0) != 6 {
 		panic("Which() != ifStateInfos")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1571,7 +1535,7 @@ func (s PathMgmt) IfStateInfos() (IFStateInfos, error) {
 }
 
 func (s PathMgmt) HasIfStateInfos() bool {
-	if s.Struct.Uint16(0) != 7 {
+	if s.Struct.Uint16(0) != 6 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1579,14 +1543,14 @@ func (s PathMgmt) HasIfStateInfos() bool {
 }
 
 func (s PathMgmt) SetIfStateInfos(v IFStateInfos) error {
-	s.Struct.SetUint16(0, 7)
+	s.Struct.SetUint16(0, 6)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewIfStateInfos sets the ifStateInfos field to a newly
 // allocated IFStateInfos struct, preferring placement in s's segment.
 func (s PathMgmt) NewIfStateInfos() (IFStateInfos, error) {
-	s.Struct.SetUint16(0, 7)
+	s.Struct.SetUint16(0, 6)
 	ss, err := NewIFStateInfos(s.Struct.Segment())
 	if err != nil {
 		return IFStateInfos{}, err
@@ -1596,7 +1560,7 @@ func (s PathMgmt) NewIfStateInfos() (IFStateInfos, error) {
 }
 
 func (s PathMgmt) SegChangesIdReq() (SegChangesIdReq, error) {
-	if s.Struct.Uint16(0) != 8 {
+	if s.Struct.Uint16(0) != 7 {
 		panic("Which() != segChangesIdReq")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1604,7 +1568,7 @@ func (s PathMgmt) SegChangesIdReq() (SegChangesIdReq, error) {
 }
 
 func (s PathMgmt) HasSegChangesIdReq() bool {
-	if s.Struct.Uint16(0) != 8 {
+	if s.Struct.Uint16(0) != 7 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1612,14 +1576,14 @@ func (s PathMgmt) HasSegChangesIdReq() bool {
 }
 
 func (s PathMgmt) SetSegChangesIdReq(v SegChangesIdReq) error {
-	s.Struct.SetUint16(0, 8)
+	s.Struct.SetUint16(0, 7)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSegChangesIdReq sets the segChangesIdReq field to a newly
 // allocated SegChangesIdReq struct, preferring placement in s's segment.
 func (s PathMgmt) NewSegChangesIdReq() (SegChangesIdReq, error) {
-	s.Struct.SetUint16(0, 8)
+	s.Struct.SetUint16(0, 7)
 	ss, err := NewSegChangesIdReq(s.Struct.Segment())
 	if err != nil {
 		return SegChangesIdReq{}, err
@@ -1629,7 +1593,7 @@ func (s PathMgmt) NewSegChangesIdReq() (SegChangesIdReq, error) {
 }
 
 func (s PathMgmt) SegChangesIdReply() (SegChangesIdReply, error) {
-	if s.Struct.Uint16(0) != 9 {
+	if s.Struct.Uint16(0) != 8 {
 		panic("Which() != segChangesIdReply")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1637,7 +1601,7 @@ func (s PathMgmt) SegChangesIdReply() (SegChangesIdReply, error) {
 }
 
 func (s PathMgmt) HasSegChangesIdReply() bool {
-	if s.Struct.Uint16(0) != 9 {
+	if s.Struct.Uint16(0) != 8 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1645,14 +1609,14 @@ func (s PathMgmt) HasSegChangesIdReply() bool {
 }
 
 func (s PathMgmt) SetSegChangesIdReply(v SegChangesIdReply) error {
-	s.Struct.SetUint16(0, 9)
+	s.Struct.SetUint16(0, 8)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSegChangesIdReply sets the segChangesIdReply field to a newly
 // allocated SegChangesIdReply struct, preferring placement in s's segment.
 func (s PathMgmt) NewSegChangesIdReply() (SegChangesIdReply, error) {
-	s.Struct.SetUint16(0, 9)
+	s.Struct.SetUint16(0, 8)
 	ss, err := NewSegChangesIdReply(s.Struct.Segment())
 	if err != nil {
 		return SegChangesIdReply{}, err
@@ -1662,7 +1626,7 @@ func (s PathMgmt) NewSegChangesIdReply() (SegChangesIdReply, error) {
 }
 
 func (s PathMgmt) SegChangesReq() (SegChangesReq, error) {
-	if s.Struct.Uint16(0) != 10 {
+	if s.Struct.Uint16(0) != 9 {
 		panic("Which() != segChangesReq")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1670,7 +1634,7 @@ func (s PathMgmt) SegChangesReq() (SegChangesReq, error) {
 }
 
 func (s PathMgmt) HasSegChangesReq() bool {
-	if s.Struct.Uint16(0) != 10 {
+	if s.Struct.Uint16(0) != 9 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1678,14 +1642,14 @@ func (s PathMgmt) HasSegChangesReq() bool {
 }
 
 func (s PathMgmt) SetSegChangesReq(v SegChangesReq) error {
-	s.Struct.SetUint16(0, 10)
+	s.Struct.SetUint16(0, 9)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSegChangesReq sets the segChangesReq field to a newly
 // allocated SegChangesReq struct, preferring placement in s's segment.
 func (s PathMgmt) NewSegChangesReq() (SegChangesReq, error) {
-	s.Struct.SetUint16(0, 10)
+	s.Struct.SetUint16(0, 9)
 	ss, err := NewSegChangesReq(s.Struct.Segment())
 	if err != nil {
 		return SegChangesReq{}, err
@@ -1695,7 +1659,7 @@ func (s PathMgmt) NewSegChangesReq() (SegChangesReq, error) {
 }
 
 func (s PathMgmt) SegChangesReply() (SegRecs, error) {
-	if s.Struct.Uint16(0) != 11 {
+	if s.Struct.Uint16(0) != 10 {
 		panic("Which() != segChangesReply")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1703,7 +1667,7 @@ func (s PathMgmt) SegChangesReply() (SegRecs, error) {
 }
 
 func (s PathMgmt) HasSegChangesReply() bool {
-	if s.Struct.Uint16(0) != 11 {
+	if s.Struct.Uint16(0) != 10 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1711,14 +1675,14 @@ func (s PathMgmt) HasSegChangesReply() bool {
 }
 
 func (s PathMgmt) SetSegChangesReply(v SegRecs) error {
-	s.Struct.SetUint16(0, 11)
+	s.Struct.SetUint16(0, 10)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSegChangesReply sets the segChangesReply field to a newly
 // allocated SegRecs struct, preferring placement in s's segment.
 func (s PathMgmt) NewSegChangesReply() (SegRecs, error) {
-	s.Struct.SetUint16(0, 11)
+	s.Struct.SetUint16(0, 10)
 	ss, err := NewSegRecs(s.Struct.Segment())
 	if err != nil {
 		return SegRecs{}, err
@@ -1728,7 +1692,7 @@ func (s PathMgmt) NewSegChangesReply() (SegRecs, error) {
 }
 
 func (s PathMgmt) HpSegReq() (HPSegReq, error) {
-	if s.Struct.Uint16(0) != 12 {
+	if s.Struct.Uint16(0) != 11 {
 		panic("Which() != hpSegReq")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1736,7 +1700,7 @@ func (s PathMgmt) HpSegReq() (HPSegReq, error) {
 }
 
 func (s PathMgmt) HasHpSegReq() bool {
-	if s.Struct.Uint16(0) != 12 {
+	if s.Struct.Uint16(0) != 11 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1744,14 +1708,14 @@ func (s PathMgmt) HasHpSegReq() bool {
 }
 
 func (s PathMgmt) SetHpSegReq(v HPSegReq) error {
-	s.Struct.SetUint16(0, 12)
+	s.Struct.SetUint16(0, 11)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewHpSegReq sets the hpSegReq field to a newly
 // allocated HPSegReq struct, preferring placement in s's segment.
 func (s PathMgmt) NewHpSegReq() (HPSegReq, error) {
-	s.Struct.SetUint16(0, 12)
+	s.Struct.SetUint16(0, 11)
 	ss, err := NewHPSegReq(s.Struct.Segment())
 	if err != nil {
 		return HPSegReq{}, err
@@ -1761,7 +1725,7 @@ func (s PathMgmt) NewHpSegReq() (HPSegReq, error) {
 }
 
 func (s PathMgmt) HpSegReply() (HPSegReply, error) {
-	if s.Struct.Uint16(0) != 13 {
+	if s.Struct.Uint16(0) != 12 {
 		panic("Which() != hpSegReply")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1769,7 +1733,7 @@ func (s PathMgmt) HpSegReply() (HPSegReply, error) {
 }
 
 func (s PathMgmt) HasHpSegReply() bool {
-	if s.Struct.Uint16(0) != 13 {
+	if s.Struct.Uint16(0) != 12 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1777,14 +1741,14 @@ func (s PathMgmt) HasHpSegReply() bool {
 }
 
 func (s PathMgmt) SetHpSegReply(v HPSegReply) error {
-	s.Struct.SetUint16(0, 13)
+	s.Struct.SetUint16(0, 12)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewHpSegReply sets the hpSegReply field to a newly
 // allocated HPSegReply struct, preferring placement in s's segment.
 func (s PathMgmt) NewHpSegReply() (HPSegReply, error) {
-	s.Struct.SetUint16(0, 13)
+	s.Struct.SetUint16(0, 12)
 	ss, err := NewHPSegReply(s.Struct.Segment())
 	if err != nil {
 		return HPSegReply{}, err
@@ -1794,7 +1758,7 @@ func (s PathMgmt) NewHpSegReply() (HPSegReply, error) {
 }
 
 func (s PathMgmt) HpSegReg() (HPSegRecs, error) {
-	if s.Struct.Uint16(0) != 14 {
+	if s.Struct.Uint16(0) != 13 {
 		panic("Which() != hpSegReg")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1802,7 +1766,7 @@ func (s PathMgmt) HpSegReg() (HPSegRecs, error) {
 }
 
 func (s PathMgmt) HasHpSegReg() bool {
-	if s.Struct.Uint16(0) != 14 {
+	if s.Struct.Uint16(0) != 13 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1810,14 +1774,14 @@ func (s PathMgmt) HasHpSegReg() bool {
 }
 
 func (s PathMgmt) SetHpSegReg(v HPSegRecs) error {
-	s.Struct.SetUint16(0, 14)
+	s.Struct.SetUint16(0, 13)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewHpSegReg sets the hpSegReg field to a newly
 // allocated HPSegRecs struct, preferring placement in s's segment.
 func (s PathMgmt) NewHpSegReg() (HPSegRecs, error) {
-	s.Struct.SetUint16(0, 14)
+	s.Struct.SetUint16(0, 13)
 	ss, err := NewHPSegRecs(s.Struct.Segment())
 	if err != nil {
 		return HPSegRecs{}, err
@@ -1827,7 +1791,7 @@ func (s PathMgmt) NewHpSegReg() (HPSegRecs, error) {
 }
 
 func (s PathMgmt) HpCfgReq() (HPCfgReq, error) {
-	if s.Struct.Uint16(0) != 15 {
+	if s.Struct.Uint16(0) != 14 {
 		panic("Which() != hpCfgReq")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1835,7 +1799,7 @@ func (s PathMgmt) HpCfgReq() (HPCfgReq, error) {
 }
 
 func (s PathMgmt) HasHpCfgReq() bool {
-	if s.Struct.Uint16(0) != 15 {
+	if s.Struct.Uint16(0) != 14 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1843,14 +1807,14 @@ func (s PathMgmt) HasHpCfgReq() bool {
 }
 
 func (s PathMgmt) SetHpCfgReq(v HPCfgReq) error {
-	s.Struct.SetUint16(0, 15)
+	s.Struct.SetUint16(0, 14)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewHpCfgReq sets the hpCfgReq field to a newly
 // allocated HPCfgReq struct, preferring placement in s's segment.
 func (s PathMgmt) NewHpCfgReq() (HPCfgReq, error) {
-	s.Struct.SetUint16(0, 15)
+	s.Struct.SetUint16(0, 14)
 	ss, err := NewHPCfgReq(s.Struct.Segment())
 	if err != nil {
 		return HPCfgReq{}, err
@@ -1860,7 +1824,7 @@ func (s PathMgmt) NewHpCfgReq() (HPCfgReq, error) {
 }
 
 func (s PathMgmt) HpCfgReply() (HPCfgReply, error) {
-	if s.Struct.Uint16(0) != 16 {
+	if s.Struct.Uint16(0) != 15 {
 		panic("Which() != hpCfgReply")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1868,7 +1832,7 @@ func (s PathMgmt) HpCfgReply() (HPCfgReply, error) {
 }
 
 func (s PathMgmt) HasHpCfgReply() bool {
-	if s.Struct.Uint16(0) != 16 {
+	if s.Struct.Uint16(0) != 15 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1876,14 +1840,14 @@ func (s PathMgmt) HasHpCfgReply() bool {
 }
 
 func (s PathMgmt) SetHpCfgReply(v HPCfgReply) error {
-	s.Struct.SetUint16(0, 16)
+	s.Struct.SetUint16(0, 15)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewHpCfgReply sets the hpCfgReply field to a newly
 // allocated HPCfgReply struct, preferring placement in s's segment.
 func (s PathMgmt) NewHpCfgReply() (HPCfgReply, error) {
-	s.Struct.SetUint16(0, 16)
+	s.Struct.SetUint16(0, 15)
 	ss, err := NewHPCfgReply(s.Struct.Segment())
 	if err != nil {
 		return HPCfgReply{}, err
@@ -1927,10 +1891,6 @@ func (p PathMgmt_Promise) SegReply() SegReply_Promise {
 }
 
 func (p PathMgmt_Promise) SegReg() SegRecs_Promise {
-	return SegRecs_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p PathMgmt_Promise) SegSync() SegRecs_Promise {
 	return SegRecs_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
@@ -1982,107 +1942,106 @@ func (p PathMgmt_Promise) HpCfgReply() HPCfgReply_Promise {
 	return HPCfgReply_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-const schema_8fcd13516850d142 = "x\xda|V\x7flTY\x15>\xe7\xde\x99\xce\xefv" +
-	"\xc6\xfb\x8c\xdd\xb8\xb1\xbb\x1bL\xb6H7l\x81\xecn" +
-	"\x83\xf6\x07%\xcb,\x8b\xf6\xf5%\xeb\xee\xc6U\x87\x99" +
-	"7\xd3\xa1\xd3\xe9t\xde@S\x89\xa9\x9a\xa81\x8a\x04" +
-	"D\x03F\x02\x18\x08)\x88\x86&$\xa4\xa4(\x1a\x10" +
-	"\x1b!\x14\xc1\x10Pc\x11#!\x10\x91\xdf\x14\xea\xdb" +
-	"\x9c;\xd3\xf7\xa6o\xa6\xfdo\xe6~\xdf;\xe7\xbb\xe7" +
-	"\x9e\xfb\x9d\xbb4\xe0jc\xaf\xbb\xbf\xef\x06P\xdb\xdc" +
-	"5\xe6\x8b'[7\x0f\xdcT\xb7\x82\x1aF4;&" +
-	"\xbbzTqn+\xb8\xd1\x03 F\xd8\x848\xc6\xe8" +
-	"\xd7Q6\x08h\x8e\x7fQ\x99\x09\x1c\\\xfb\x13\x88\x84" +
-	"\xcb\xb9\x92\xf12\xff\xbdh\xe4\xf4\xeb\xb3\x9c\xb8'\xae" +
-	"\xbdqmt\xea\x83\xaa\xdc\x03|B\x1c\x95\xdc#\x92" +
-	"\xfb\x99\xef\xb9\xbe\xc9V\xe0n\x12\xc1m\xb2\x8b\x18>" +
-	"\xd7\x98\x88\xc8_!\xd7o\x00\xcd\x89\x0b?\x0fvL" +
-	"/\xd9\xe7\x10\xbc\x1a=\x11\x00\xf1\x03\xd7\x84\xf8)\xb1" +
-	"\x97ms\xfd\x96\x03\x9aS\xd7\xbf2z\xf6g\xbd\x07" +
-	"\x1c2d\xf2\x11\xefEq\xcc+\xb7\xe7\xa5\xd0?<" +
-	"\xb3\xfc\x97\xeb\x83G\x0e:\xb8\xb2\x14\x1f\xf8\xee\x09\xdd" +
-	"G\xbfb\xbeV@\xf3\xaf?N\xb6o\x9fy|\xa8" +
-	"\x1aw\x9b\xef\xaa\xd8-\xb9\xbb$w\xed\xaf\xb7<\xfa" +
-	"\xc3\xd0\xd3\xc3\xd5J\xf1'\xdf\x98\x98\x94\xdcs>*" +
-	"\xc5\x8f\x0e]\x0fM=\xda<Z-n\xa3\xff\xaaX" +
-	"\xe1\xa7_\xaf\xfb)n\xfd\xea\x1b_\x10\x7f|y\x8c" +
-	"J\xc1\x1ce\x8b\xf9/\x8a>\xc9M\xfb)n\x9bz" +
-	"\xe6\xc9\xad\xf3\xef\x8dW\x89\xbb\xec\xb4\xff\x13(.K" +
-	"\xf2\xa4\x0c\xbc\xed\xc2\xbe\xff\xf4No9\xeb\xa8\xb1\xac" +
-	"+\x06\x18\x8aP@\x1eM\x80\xc8_=\xfc\xb9\x13\x9f" +
-	"<\xb2\xf6b\x15\xb2h\x0aL\x88\xb7$w\x85\xe4n" +
-	"\xfat\xe7\xb3u\x8d;\xfe\x01\xea\xa7\x90\xdb\xc7\xaex" +
-	"\x90J\x1c\xb8\x05(>\x0a\x90\xdc\xf8\x0b\xdf8\xee\x0f" +
-	"{\xee;\xdbRF\x1d\x0f\x8c\x8a\xd3\x14u\xd9\xa9\xc0" +
-	"\x97\x11\xd0\xcc\xc5\x0a=_\xebK\xf5\xb1\xc2k\xf1X" +
-	".\x9bkY\xd3\xa5\xe9\xa9n}\x00\xa0\x0bQ\xf5r" +
-	"\x17\x80\x0b\x01\"\x8d\xcd\x00\xea\"\x8e\xeaR\x86\x88\x0a" +
-	"\xd2Z\xd3;\x00\xea\x12\x8e\xea\x1a\x86\x0d\x09\xa3\x10m" +
-	"G\x1f0\xf4\x01\x9a\xa9|\xff\xc6\\4a\x00\x00\xd6" +
-	"\x02vq\xc4\xb0]u@Z\xacL.S\xc7\x0dg" +
-	"\xea\xc5\xa5\xd4m\x0c#\xb3\xb9?\xdf\x0d\xa0\xae\xe4\xa8" +
-	"\xbe\xcf\xb0.\xaf\xc7\x0d;M\xdd\x98\x7f\xe5\xe6\xf7v" +
-	"\xee\x99Mct\xeb\x9b\xa2\xd9d?`\x19\xa9\xfb_" +
-	"\xd3o|\xf7\xed\xe6=\x0bk\xc9e\x86*\x0a\xf1\x8a" +
-	"]\x08KM\x13I|\x95\xa3\xba\x9c\xa1'\xaf\x0f`" +
-	"\xd8>\"@\x0cCIc\xd86\x82\xe2\xb2\x95\x17g" +
-	"\xf3\xb6\x16\xebOI\x83V\xd2\xd5T\xfd6\x8e\xea\xbb" +
-	"eI\xa3\xb4\xd8\xc9Q\xedb\x88\x0c\xcbz$\xb2\xae" +
-	"\x19X\x83\x91\x8f\xdb'2\xf7|\x1a\x92\x99X\xca\xa8" +
-	"\xdctW\xac\xd0\xb3.\xd5W(n\xba\x93\xbb\x82\xa6" +
-	"I\x02\xc49l\x06\xd0\xce\"G\xed\x122\x0c\xe1\xff" +
-	"M)BLb\x0b\x80\xf6g\x02\xae\x10\xc0fL\x05" +
-	"\x19\x80\xb8\x8c\xef\x00h\x97\x08\xf8'\x01\xfc\xb9\xa9 " +
-	"\x07\x10\x7f\x97_\\!\xe0\x06\x01\xaeg\xa6\x82.\x00" +
-	"1\x85\x1d\x00\xda\xdf\x08\xb8I\x80{\xdaT\xd0\x0d " +
-	"\xfe-C\xdd \xe0.\x015OM\x05k\x00\xc4\x1d" +
-	"\xfc\x10@\xbbM\xc0\x13\x02<OLE\xde\xf7\x87\xb8" +
-	"\x01@{\x80\x1c\xbb\x19\xc3\x90\xf7\xb1\xa9\xa0\x17@\xcc" +
-	"\xe0w\x00\xb4\xe7\xf4\x81\x97\x00\xdf#SA\x1f\x80p" +
-	"\xb3\xed\x00\x9a\x97q\xd4\x14\x02\xfc\x0fM\x05\xfd\x00\"" +
-	"\xc2\xf2\x00Z\x98\x80\x17\x09\x08<0\x15\x0c\x00\x88\x17" +
-	"\x18\x85\xaa'`\x11\x01\xc1\xfb\xa6\x82A\xb2sFj" +
-	"_\"`\x09\x01\xa1{\xa6\x82!2!Fj_%" +
-	"`9\x01\xb5\xff3\x15\xac%O\x92_,%`%" +
-	"\x01uwM\x05\xeb\x00\xc4[\x12x\x93\x80N\x02\xc2" +
-	"\xff5\x15\x0c\x03\x88v\x19\xaa\x8d\x80w\x19\xc3\x86\x8d" +
-	"YC/@M\xab!{\xa7\xb2\xfbL\xc3\xeaf\xc0" +
-	"\xb0=a\x8ah\xf1\xb3Tew\x0e\x1bzJ\x1b\xca" +
-	"\xc6\xab\xf4\xadu\xa9d\xc0\xf2\xdbDh:\xa9\x15b" +
-	"\x05\xbd\x1b\xb8T3\x92\xfc\xc5\xa9\xde\xc1;7\x1dp" +
-	"\x14\xea\xb2\xc9~\xba\x15'\x03\xcf\x1f6\x9f\x7f\xe9/" +
-	"erW\xf5\xc4\xb2)\xd4\x8dh\x82\xdc\x08\xc3\xb6\xb5" +
-	"V\xe7\xe428\x84a\xdb\xad\x1d,h\xd0\x8dbi" +
-	"\xacYU\x19\xa7X\xa2*\xbb\xed\xc9\xcd\xba\"\xa1\xd6" +
-	"\xe4\x9f\x8b\xe6\x80gH\x825\xe0\xe6\xc2\xa9\xe2\xc7\xd6" +
-	"X\xb5\xd0UI;\xb45\x12\xe6\xa2\xb3\xa1\xad\x19\xe7" +
-	"p\x0f\xa7}\xc7\xd1p\x18HG5\x03Y\\2\x90" +
-	"\xaf3\x8c0&\xefm\xe4#\xf2\xb7\xf79\xaa\x09\x86" +
-	"\xc3%\x1bwx\xb7eg\xf3Y\xaeG\xcf\xe71\x08" +
-	"\x0c\x83\xf38\xab,x\xf1DH\xa7\xcb\xd2\x19j\x01" +
-	"P\xbd\x1c\xd5EL\xb6e4ae\x09\x01\xab\xee\xd4" +
-	"\xa5=\xe7xf\xc8\x11l\xb1\x1d\xcc!\xb8\xfc\x14j" +
-	"\xe7\xb3\xe1h\xc2\x98\x7f\x08\xda\xde\xdfb{\x7f\x83\x94" +
-	",\xa5\x86\x00[\x93\x1b3\x19\xfbo5\xe5\xc5\xd3]" +
-	"Xy<\x99*Sn\xcd\xf7\xf9\x06\xd7\x9a\xae\xb7\xe5" +
-	"\xa9a\xc2!\xbe\xa3\\\xbc\xab$\xbe\xc3\x16?\xdc?" +
-	"\x98\xd5\xf3\xed\xda\xec\x90\xb0N\xdf\x03\x0c=e\xa9\xb8" +
-	"\xf3$\xed\x1b\xe8\xd8\xc6+\xf66<\xe9D\xd9.\xac" +
-	"\x87\x9dc\x17\xf3\x84\x1e\x00G`\x9a\xfeA\x8ej=" +
-	"C3\x133\x0a\xabz\xf48`/z\x81\xa1w\x81" +
-	"R\x97\xde5e\x916\x94E\x8a\xcb\x8c\x09\x0d\xea\xd2" +
-	"\xd9\xb8>\x7f\xb0\xa2\x19\xbc\x96\xac\xa3)J%\x0e\x7f" +
-	"\xabxy\xe66\xc8\xb7\xe5\xc0\x8b4u\x97\x9eIo" +
-	"R\x83\xa4\xd7\xe7c\x88\xc0\x90\x9e_\xf1X\xbcG\xff" +
-	"R6\x038d\xadU\xb4b\x83\xd4N\xb2\xeb-\xd9" +
-	"\xbb\xe8\xdcvpT\xf7\xda\xcf\xb1\xdd\xb4\xb6\x93\xa3\xba" +
-	"\xbf\xec:\xef\xa37\xda^\x8e\xea\xaf\x18F8\x16\x15" +
-	"\x8d\x10s?G\xf5w\x0c#.&\xc7od\x9c\x16" +
-	"\x8fsT/1\x8c\xb8\xb9\x1c\xbd\x91\xc9\x0f\x01\xd4\x0b" +
-	"\x1c\xd5\xdb\x0b\xb9\xc1\xf0&=o\xa4\xfb\xb3V\xc5d" +
-	"'E\xb5N2\xb5R\xf7\x0c\x0f\xe6\xd3\x05=o\xf5" +
-	"\x80\xafx\x9d\x87\xf3z,Q\xb9l\xe6\xf5T\xda(" +
-	"\xe4\xd3\xc0u'\xf6q\x00\x00\x00\xff\xff4\x06O\xa2"
+const schema_8fcd13516850d142 = "x\xda|V}l\x14[\x15?\xe7\xdem\xf7\xbb\xdd" +
+	"u\xc6X\"Z \x90X\xa4\x04\x0a\x06\xd3\xa0-\x05" +
+	"\x02\x0b\xa2\x9dND$\xa2.\xbb\xb3\xdb\xa5\xdb\xedv" +
+	"gKS\x89\xa9\x98 !\x8a\x04\x04\x03F\x02\x18\x08" +
+	"\xe1K\xa5\x09I-\x1f\x11\x05$\x8d\x90\x82h\x0c\xe8" +
+	"\xcb\x83\xf7^^C\x1e\x09\xdf\xd0\xd2\xbey9w\xb7" +
+	"3\xdb\xe9\xb6\xff\xed\xde\xdfo\xce\xf9\xdds\xcf\xfd\x9d" +
+	"\xbb`\x84\xd7\xb3\x85%;K\x00\x94\xfa\x92Rc\xfa" +
+	"\x95\xbam\xed\x83\xca\x1eP\x02\x88F\xc3\x9d\xc6fE" +
+	"\xba\xb5\x07J\xd0\x09 \x9db\xfd\xd2\x05F\xbf\xce\xb3" +
+	"N@\xe3\xf2\xb7\xe5Q\xef\xc9\xb5\xbf\x81`\xa0\x90+" +
+	"\x183\xf9\xdf\xa4*N\xbf\xe6p\xe2^|\xb0\xe4A" +
+	"\xcf\xc3\xef\x17\xe5\x9e\xe0\xfd\xd2y\xc1='\xb8_\xfe" +
+	"\x85\xe3\xa7\xeckx\x98Dp\x8b\xec \x86\xdb\xd1'" +
+	"\x05\xc5/\xbf\xe3O\x80F\xff\xc0\xef|\x0d\xc3\xf3\x8e" +
+	"\xd9\x04\xafDg\x00@\xda\xe5\xe8\x97\x0e\x10{\xd1^" +
+	"\xc7N\x0eh<|\xf4\x83\x9e\x9b\xbfm9a\x93!" +
+	"\x92\xb7\xba\xeeJ].\xfa\xd5\xe1\xa2\xd0\xbf\xbc\xb1\xf8" +
+	"\x0f\x9b}\xe7N\xda\xb8\xa2\x14_r?\x97\xaa\xdcb" +
+	"{\xee:@\xe3?\xbf\x8e-\xdb7\xfa\xe6t1\xee" +
+	"w\xdd\xf7\xa5\xb0\xe0n\x12\xdc\xb5\x7f\xdc\xfd\xfa\xef]" +
+	"Cg\x8a\x95b\xb7\xbbO: \xb8{\xddT\x8a_" +
+	"\x9d~\xe4\x7f\xf8z[O\xb1\xb8O\xdc\xf7\xa5!\xc1" +
+	"}%\xe2V\xac\xfc\xf0\x9b\xd2?f\xf6Q)\x98\xad" +
+	"ls<w\xa5\x85\x1e\xfaU\xed\xa1\xb8\xf5\xca\x8d\xb7" +
+	"\x8fo\xaf\xbf\\$\xee\xa2]\x9e\xcf\xa1tH\x90\x0f" +
+	"x(\xf0\xde\x81c\x1f\xb7\x0c\xef\xbei\xab\xb1\xa8\xeb" +
+	"u\x0fC\xe9\x8e \xdf\x12\xe4\x1f\x9e\xf9\xea\xc5\xcf\x9f" +
+	"[{\xb7\x08Yz\xe6\xe9\x97F\x05wHp\xb7~" +
+	"q\xc5\xbbuU\xfb\xdf\x03\xe5\x0b\xc8\xadc\x97\x9dH" +
+	"%\xf6>\x06\x94fzInd\xdaOz=\x01\xe7" +
+	"\x0b{[\x8a\xa8\xdb\xbd=\xd2./\x89\xd9\xe1\xfd\x1e" +
+	"\x02\x1a\xe9p\xb6\xf9G\xad\xf1V\x96\x9d\x1f\x09\xa7S" +
+	"\xe9\xda\xd5\x8d\xaa\x16o\xd2\xda\x01\x1a\x11\x15\x17w\x00" +
+	"8\x10 XU\x03\xa0\xcc\xe6\xa8,`\x88(#\xad" +
+	"U\xaf\x01P\xe6qTV3\xac\x8c\xea\xd9\xd02t" +
+	"\x03C7\xa0\x11\xcf\xb4u\xa4CQ\x1d\x00\xb0\x0c\xb0" +
+	"\x91#\x06\xac\xaa\x03\xd2\xe2\xc4\xe4\"uD\xb7\xa7\x9e" +
+	"\x9bO]\xcf08\x96\xfb\x1bM\x00\xcaR\x8e\xca\x06" +
+	"\x86\xe5\x19-\xa2[i\xca\xfb<K\xb7\xad?xd" +
+	",\x8d\xde\xa4m\x0d\xa5bm\x80\x05\xa4\xa6\x0f\x86\x97" +
+	"\xecXUsdj-\xe9d\xd7\x84B\xcc\xb2\x0aa" +
+	"\xaa\xa9&\x89_\xe1\xa8,f\xe8\xcch\xed\x18\xb0\x8e" +
+	"\x08\x10\x03\x90\xd7\x18\xb0\x8c \xb7l\xe6\xc5\xb1\xbcu" +
+	"\xb9\xfaSR\x9f\x99t%U\xbf\x9e\xa3\xf2\xad\x82\xa4" +
+	"!Z\\\xc1Qid\x88\x0c\x0bz$\xb8\xae\x06X" +
+	"\xa5\x9e\x89X'2\xfe|*c\xc9p\\\x9f\xb8\xe9" +
+	"\xc6p\xb6y]\xbc5\x9b\xdbt=w\xf8\x0c\x83\x04" +
+	"H\xe7\xb1\x06@=\x8b\x1c\xd5^d\xe8\xc7O\x0d!" +
+	"B\xba\x80\xb5\x00\xea\x9f\x09\xb8D\x00\x1b5dd\x00" +
+	"\xd2_p\x0d\x80\xdaK\xc05\x02\xf8\x88!#\x07\x90" +
+	"\xae\x8a/.\x11p\x93\x00\xc7;CF\x07\x80t]" +
+	"|q\x8d\x80\x01\x02J\x86\x0d\x19K\xe8\xb6\xe0F\x00" +
+	"\xf5\x9f\x04\xfc\x97\x80\xd2!C\xc6R\x00\xe9\xdf\xb8\x05" +
+	"@\xbdG\xc0\xfb\x048\xdf\x1a\xb2\xb8\xef\xff\xc7\x9f\x03" +
+	"\xa8\xff#`\x90\x00\xd7\x1bCF\x17\x80\xf4\x11\xee\x03" +
+	"P\x07\x09xI\x80\xfb\xb5!\xa3\x9b\xee\x1bf\x00\xd4" +
+	"\xa7\x04\x8c\x10\xe0ye\xc8\xe8\xa1\xeb'B\xbd%\xc0" +
+	"\xc1\x18\xfa\xbd/\x0d\x19\xbd\x00\x12\xb25\x00M\x8c\xa3" +
+	"\xea\xa3u\xdf\x0bCF\x1f\xd9.#\xb5.\x02d\x02" +
+	"\xfc\xcf\x0d\x19\xfd\x00R\x90>P\x03\x04L'\xa0\xec" +
+	"\x99!c\x19\x804M\x00\x15\x04\xcc&\xa0\xfc\xa9!" +
+	"c9M\x06\x11j\x06\x01\xf3\x18\xc3\xca\x8e\x94\xaee" +
+	"\xa1\xb4N\x17-2\xb1\xc9\x0c\xddlZ\xc0\x805H" +
+	"rh\xee\xb3x\x91&4o\x88\xf8\xac\xf0j\x10\x9a" +
+	"\x88\xa9\xd9pVk\x02.r\x9e\x8a\xfd\xfejK\xe7" +
+	"\x93A\x1b\x1c\x82\xf2T\xac\x8dZ\xfc\x8aw\xe4U\xcd" +
+	"\xed\x19\xff*\x10\xb5\xbc9\x9c\x8a\xa3\xa6\x87\xa2d-" +
+	"\x18\xb0|\xb28'\x9d\xc4.\x0cX\xd6kcA\xa5" +
+	"\xa6\xe7\x0a`\x0e\x9e\x89qr\x85(\xb2\xdb\xe6\xf4\x98" +
+	"\xc5\x11j\x8e\xf1\xf1h\x1ax\x92$\x98\xd3j<\x1c" +
+	"\xcf}l\xceH\x13]\x1e\xb3B\x9b\xfe>\x1e\x1d\x0b" +
+	"m\x0e,\x9b\x15\xd8\xbd8\x82\xba\xcd\x0d\x1a\x8a\xb9\xc1" +
+	"\xdc\xbc\x1b\xfc\x98a\x901q\x09\x83\x9b\xc8\xac6p" +
+	"T\xa2\x0c\xbb\xf3\x9el3b\xd3\x9b&\xf3O\xa7\x96" +
+	"\xc9\xa0\x0f\x18\xfa&\xb1IQ\xf0\xdc\x89\x90N\x87\xa9" +
+	"\xd3_\x0b\xa0\xb88*\xb3\x99h\xbeP\xd4\xcc\xe2\x07" +
+	"V\xdcv\xf3{N\xf3d\x97-\xd8\\+\x98Mp" +
+	"\xe1)\x94M\xe6\xa9\xa1\xa8>\xf9D\xb3\x8c\xbc\xd62" +
+	"\xf2J!YH\xf5\x03\xd6\xc5:\x92I\xebo1\xe5" +
+	"\xb9\xd3\x9dZy$\x16/Pn\x0e\xeb\xc9\xa6\xd0\xea" +
+	"\xc6U\xe2\xd40j\x13\xdfP(\xde\x91\x17\xdf`\x89" +
+	"\xefn\xebLi\x99e\xea\x98\xe3\x9b\xa7\xef\x04\x86\xce" +
+	"\x82T\xdc~\x92\xd6\x0d\xb4mc\x96\xb5\x0dg\"Z" +
+	"\xb0\x0b\xf3\x95f\xdb\xc5$\xa1\xdb\xc1\x16\x98F\xb9\x8f" +
+	"\xa3R\xc1\xd0H\x86\xf5\xec\xf2f-\x02\xd8\x82.`" +
+	"\xe8\x9a\xa2\xd4\xf9GJA\xa4-\x05\x91\"\"cT" +
+	"\x85\xf2D*\xa2M\x1e,g\x06\xf3c\xe54\x12\xa9" +
+	"\xc4\x81\x9f\xe5.\xcf\xf8\x06\xd9.\xa6W\xb0\xba)\xff" +
+	"\xe6\xf9:5Hbs&\x8c\x08\x0c\xe9-\x15\x09G" +
+	"\x9a\xb5\xef\xa4\x92\x80]\xe6\xda\x84V\xac\x14\xdaIv" +
+	"\x85)\xfb\x10\x9d\xdb~\x8e\xcaQ\xebmu\x98\xd6\x0e" +
+	"rT\x8e\x17\\\xe7c\xf4\xe0:\xcaQ9\xcb0\xc8" +
+	"1\xa7\xe8\x141\x8fsT\xfe\xca0\xe8`b\x96\x06" +
+	"/\xd3b/G\xe5\x1e\xc3`\x09\x17s4xg#" +
+	"\x802\xc0Q\xf9d*7\xe8\xde\xaae\xf4D[\xca" +
+	"\xac\x98\xe8\xa4\x90\xba\x82L-\xdf=\xdd\x9d\x99DV" +
+	"\xcb\x98=\xe0\xce]\xe7\xee\x8c\x16\x8eN\\62Z" +
+	"<\xa1g3\x09\xe0\x9a\x1d\xfb,\x00\x00\xff\xffcw" +
+	"G\xee"
 
 func init() {
 	schemas.Register(schema_8fcd13516850d142,

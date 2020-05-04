@@ -31,7 +31,6 @@
 //  infra.SegRequest          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq
 //  infra.SegReply            -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReply
 //  infra.SignedRev           -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SignedRevInfo
-//  infra.SegSync             -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegSync
 //  infra.HPSegReg            -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPSegReg
 //  infra.HPSegRequest        -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPSegReq
 //  infra.HPSegReply          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPSegReply
@@ -411,16 +410,6 @@ func (m *Messenger) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply,
 	logger := log.FromCtx(ctx)
 	logger.Debug("[Messenger] Sending Notify", "type", infra.SegReply, "to", a, "id", id)
 	return m.getFallbackRequester(infra.SegReply).Notify(ctx, pld, a)
-}
-
-func (m *Messenger) SendSegSync(ctx context.Context, msg *path_mgmt.SegSync,
-	a net.Addr, id uint64) error {
-
-	pld, err := path_mgmt.NewPld(msg, nil)
-	if err != nil {
-		return err
-	}
-	return m.sendMessage(ctx, pld, a, id, infra.SegSync)
 }
 
 func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
@@ -1100,8 +1089,6 @@ func Validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
 			return infra.SegReply, pld.PathMgmt.SegReply, nil
 		case proto.PathMgmt_Which_segReg:
 			return infra.SegReg, pld.PathMgmt.SegReg, nil
-		case proto.PathMgmt_Which_segSync:
-			return infra.SegSync, pld.PathMgmt.SegSync, nil
 		case proto.PathMgmt_Which_sRevInfo:
 			return infra.SignedRev, pld.PathMgmt.SRevInfo, nil
 		case proto.PathMgmt_Which_ifStateReq:

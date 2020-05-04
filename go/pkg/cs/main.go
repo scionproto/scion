@@ -45,7 +45,6 @@ import (
 	"github.com/scionproto/scion/go/cs/onehop"
 	"github.com/scionproto/scion/go/cs/revocation"
 	"github.com/scionproto/scion/go/cs/segreq"
-	"github.com/scionproto/scion/go/cs/segsyncer"
 	"github.com/scionproto/scion/go/cs/segutil"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -362,11 +361,6 @@ func (app *App) Run() int {
 	msgr.AddHandler(infra.SegRequest, app.runHandlerWrapper(infra.SegRequest, segReqHandler))
 	msgr.AddHandler(infra.SegReg,
 		app.runHandlerWrapper(infra.SegReg, handlers.NewSegRegHandler(args)))
-	if topo.Core() {
-		// Old down segment sync mechanism
-		msgr.AddHandler(infra.SegSync,
-			app.runHandlerWrapper(infra.SegSync, handlers.NewSyncHandler(args)))
-	}
 	msgr.AddHandler(infra.SignedRev, app.runHandlerWrapper(infra.SignedRev, &chainedHandler{
 		handlers: []infra.Handler{
 			handlers.NewRevocHandler(args),
@@ -556,7 +550,6 @@ type PeriodicTasks struct {
 	beaconCleaner *periodic.Runner
 	revCleaner    *periodic.Runner
 
-	segSyncers    []*periodic.Runner
 	pathDBCleaner *periodic.Runner
 	cryptosyncer  *periodic.Runner
 	rcCleaner     *periodic.Runner
@@ -582,7 +575,6 @@ func (t *PeriodicTasks) nilTasks() {
 	t.revCleaner = nil
 	t.reissuance = nil
 	t.corePusher = nil
-	t.segSyncers = nil
 	t.pathDBCleaner = nil
 	t.cryptosyncer = nil
 	t.rcCleaner = nil
@@ -628,12 +620,6 @@ func (t *PeriodicTasks) Start() error {
 	// t.corePusher = t.startCorePusher()
 	// t.reissuance = t.startReissuance(t.corePusher)
 
-	if itopo.Get().Core() {
-		t.segSyncers, err = segsyncer.StartAll(t.args, t.msgr)
-		if err != nil {
-			return common.NewBasicError("Unable to start seg syncer", err)
-		}
-	}
 	t.pathDBCleaner = periodic.Start(pathdb.NewCleaner(t.args.PathDB, "ps_segments"),
 		300*time.Second, 295*time.Second)
 	// TODO(roosd): Re-enable
@@ -811,10 +797,6 @@ func (t *PeriodicTasks) Kill() {
 	t.revCleaner.Kill()
 	t.reissuance.Kill()
 	t.corePusher.Kill()
-	for i := range t.segSyncers {
-		syncer := t.segSyncers[i]
-		syncer.Kill()
-	}
 	t.pathDBCleaner.Kill()
 	t.cryptosyncer.Kill()
 	t.rcCleaner.Kill()
