@@ -67,9 +67,3 @@ var _ proto.Cerealizable = (*SegReg)(nil)
 type SegReg struct {
 	*SegRecs
 }
-
-var _ proto.Cerealizable = (*SegSync)(nil)
-
-type SegSync struct {
-	*SegRecs
-}

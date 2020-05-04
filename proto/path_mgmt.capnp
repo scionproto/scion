@@ -87,18 +87,17 @@ struct PathMgmt {
         segReq @1 :SegReq;
         segReply @2 :SegReply;
         segReg @3 :SegRecs;
-        segSync @4 :SegRecs;
-        sRevInfo @5 :Sign.SignedBlob;
-        ifStateReq @6 :IFState.IFStateReq;
-        ifStateInfos @7 :IFState.IFStateInfos;
-        segChangesIdReq @8 :SegChangesIdReq;
-        segChangesIdReply @9 :SegChangesIdReply;
-        segChangesReq @10 :SegChangesReq;
-        segChangesReply @11 :SegRecs;
-        hpSegReq @12 :HPSegReq;
-        hpSegReply @13 :HPSegReply;
-        hpSegReg @14 :HPSegRecs;
-        hpCfgReq @15 :HPCfgReq;
-        hpCfgReply @16 :HPCfgReply;
+        sRevInfo @4 :Sign.SignedBlob;
+        ifStateReq @5 :IFState.IFStateReq;
+        ifStateInfos @6 :IFState.IFStateInfos;
+        segChangesIdReq @7 :SegChangesIdReq;
+        segChangesIdReply @8 :SegChangesIdReply;
+        segChangesReq @9 :SegChangesReq;
+        segChangesReply @10 :SegRecs;
+        hpSegReq @11 :HPSegReq;
+        hpSegReply @12 :HPSegReply;
+        hpSegReg @13 :HPSegRecs;
+        hpCfgReq @14 :HPCfgReq;
+        hpCfgReply @15 :HPCfgReply;
     }
 }

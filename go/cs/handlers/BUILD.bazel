@@ -6,7 +6,6 @@ go_library(
         "log.go",
         "segreg.go",
         "segrevoc.go",
-        "segsync.go",
     ],
     importpath = "github.com/scionproto/scion/go/cs/handlers",
     visibility = ["//visibility:public"],
