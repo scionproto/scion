@@ -117,7 +117,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 	var testcases []ConfigTest
 	testcases = append(testcases, ConfigTest{
 		configData: getTestConfigData(),
-		peers:      map[common.IFIDType]struct{}{5: struct{}{}},
+		peers:      map[common.IFIDType]struct{}{5: {}},
 		egIfid:     2,
 		inIfid:     3,
 		expected: seg.StaticInfoExtn{

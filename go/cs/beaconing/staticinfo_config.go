@@ -42,8 +42,8 @@ type StaticInfoCfg struct {
 
 // gatherLatency extracts latency values from a StaticInfoCfg struct and
 // inserts them into the LatencyInfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherLatency(peers map[common.IFIDType]struct{}, egifID common.IFIDType,
-	inifID common.IFIDType) seg.LatencyInfo {
+func (cfgdata StaticInfoCfg) gatherLatency(peers map[common.IFIDType]struct{},
+	egifID common.IFIDType, inifID common.IFIDType) seg.LatencyInfo {
 
 	l := seg.LatencyInfo{
 		Egresslatency:          cfgdata.Latency[egifID].Inter,
