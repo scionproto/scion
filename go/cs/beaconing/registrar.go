@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -50,11 +51,6 @@ type RPC interface {
 	RegisterSegment(ctx context.Context, meta seg.Meta, remote net.Addr) error
 }
 
-// Pather computes the remote address with a path based on the provided segment.
-type Pather interface {
-	GetPath(svc addr.HostSVC, ps *seg.PathSegment) (net.Addr, error)
-}
-
 var _ periodic.Task = (*Registrar)(nil)
 
 // Registrar is used to periodically register path segments with the appropriate
@@ -65,7 +61,7 @@ type Registrar struct {
 	Provider SegmentProvider
 	Store    SegmentStore
 	RPC      RPC
-	Pather   Pather
+	Pather   addrutil.Pather
 	IA       addr.IA
 	Signer   ctrl.Signer
 	Intfs    *ifstate.Interfaces
@@ -215,7 +211,7 @@ func (r *Registrar) logSummary(logger log.Logger, s *summary) {
 type remoteRegistrar struct {
 	segType proto.PathSegType
 	rpc     RPC
-	pather  Pather
+	pather  addrutil.Pather
 	summary *summary
 	wg      *sync.WaitGroup
 }

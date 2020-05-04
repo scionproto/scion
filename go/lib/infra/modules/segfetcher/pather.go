@@ -23,10 +23,10 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // Pather errors.
@@ -38,10 +38,10 @@ var (
 // Pather is used to construct paths from the path database. If necessary, paths
 // are fetched over the network.
 type Pather struct {
-	PathDB       pathdb.PathDB
-	RevCache     revcache.RevCache
 	TopoProvider topology.Provider
+	RevCache     revcache.RevCache
 	Fetcher      *Fetcher
+	Splitter     Splitter
 	HeaderV2     bool
 }
 
@@ -60,11 +60,11 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 		// For AS local communication, an empty path is used.
 		return []*combinator.Path{{}}, nil
 	}
-	req := Request{Src: src, Dst: dst}
-	if refresh {
-		req.State = Fetch
+	reqs, err := p.Splitter.Split(ctx, dst)
+	if err != nil {
+		return nil, err
 	}
-	segs, err := p.Fetcher.FetchSegs(ctx, req)
+	segs, err := p.Fetcher.Fetch(ctx, reqs, refresh)
 	if err != nil {
 		return nil, err
 	}
@@ -80,10 +80,11 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 }
 
 func (p *Pather) buildAllPaths(src, dst addr.IA, segs Segments) []*combinator.Path {
-	destinations := p.findDestinations(dst, segs.Up, segs.Core)
+	up, core, down := categorizeSegs(segs)
+	destinations := p.findDestinations(dst, up, core)
 	var paths []*combinator.Path
 	for dst := range destinations {
-		paths = append(paths, combinator.Combine(src, dst, segs.Up, segs.Core, segs.Down)...)
+		paths = append(paths, combinator.Combine(src, dst, up, core, down)...)
 	}
 	// Filter expired paths
 	now := time.Now()
@@ -139,4 +140,20 @@ func (p *Pather) filterRevoked(ctx context.Context,
 			"all", len(paths), "revoked", len(paths)-len(newPaths))
 	}
 	return newPaths, nil
+}
+
+// categorizeSegs splits a flat list of segments with type info into one
+// separate list per segment type.
+func categorizeSegs(segs Segments) (up, core, down seg.Segments) {
+	for _, seg := range segs {
+		switch seg.Type {
+		case proto.PathSegType_up:
+			up = append(up, seg.Segment)
+		case proto.PathSegType_core:
+			core = append(core, seg.Segment)
+		case proto.PathSegType_down:
+			down = append(down, seg.Segment)
+		}
+	}
+	return
 }
