@@ -43,6 +43,16 @@ func NewSegmentID(AS addr.AS, suffix []byte) (*SegmentID, error) {
 	return &id, nil
 }
 
+func SegmentIDFromRawBuffers(ASID, suffix []byte) (
+	*SegmentID, error) {
+
+	if len(ASID) < 6 || len(suffix) < 4 {
+		return nil, serrors.New("buffers too small", "length_ASID", len(ASID),
+			"length_suffix", len(suffix))
+	}
+	return NewSegmentID(addr.AS(common.Order.Uint64(append([]byte{0, 0}, ASID[:6]...))), suffix[:4])
+}
+
 // SegmentIDFromRaw constructs a SegmentID parsing a raw buffer.
 func SegmentIDFromRaw(raw []byte) (
 	*SegmentID, error) {
@@ -51,11 +61,7 @@ func SegmentIDFromRaw(raw []byte) (
 		return nil, serrors.New("buffer too small", "actual", len(raw),
 			"min", SegmentIDLen)
 	}
-	id := SegmentID{
-		ASID: addr.AS(common.Order.Uint64(append([]byte{0, 0}, raw[0:6]...))),
-	}
-	copy(id.Suffix[:], raw[6:10])
-	return &id, nil
+	return SegmentIDFromRawBuffers(raw[:6], raw[6:])
 }
 
 func (id *SegmentID) Read(raw []byte) (int, error) {
@@ -288,6 +294,23 @@ func (pep PathEndProps) Validate() error {
 		return serrors.New("invalid path end properties (@Start)", "path_end_props", pep)
 	}
 	return nil
+}
+
+func NewPathEndProps(startLocal, startTransfer, endLocal, endTransfer bool) PathEndProps {
+	var props PathEndProps
+	if startLocal {
+		props |= StartLocal
+	}
+	if startTransfer {
+		props |= StartTransfer
+	}
+	if endLocal {
+		props |= EndLocal
+	}
+	if endTransfer {
+		props |= EndTransfer
+	}
+	return props
 }
 
 // AllocationBead represents an allocation resolved in an AS for a given reservation.
