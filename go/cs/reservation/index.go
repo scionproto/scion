@@ -65,3 +65,17 @@ func ValidateIndices(indices IndicesInterface) error {
 	}
 	return nil
 }
+
+// FindIndex returns the slice index for the passed IndexNumber.
+func FindIndex(indices IndicesInterface, idx reservation.IndexNumber) (int, error) {
+	var firstIdx reservation.IndexNumber = 0
+	if indices.Len() > 0 {
+		firstIdx = indices.GetIndexNumber(0)
+	}
+	sliceIndex := int(idx.Sub(firstIdx))
+	if sliceIndex > indices.Len()-1 {
+		return 0, serrors.New("index not found in this reservation", "index_number", idx,
+			"indices length", indices.Len())
+	}
+	return sliceIndex, nil
+}

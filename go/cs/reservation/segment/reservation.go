@@ -91,7 +91,7 @@ func (r *Reservation) NewIndex(expTime time.Time) (reservation.IndexNumber, erro
 // SetIndexConfirmed sets the index as IndexPending (confirmed but not active). If the requested
 // index has state active, it will emit an error.
 func (r *Reservation) SetIndexConfirmed(idx reservation.IndexNumber) error {
-	sliceIndex, err := r.findIndex(idx)
+	sliceIndex, err := base.FindIndex(r.Indices, idx)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (r *Reservation) SetIndexConfirmed(idx reservation.IndexNumber) error {
 // SetIndexActive sets the index as active. If the reservation had already an active state,
 // it will remove all previous indices.
 func (r *Reservation) SetIndexActive(idx reservation.IndexNumber) error {
-	sliceIndex, err := r.findIndex(idx)
+	sliceIndex, err := base.FindIndex(r.Indices, idx)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (r *Reservation) SetIndexActive(idx reservation.IndexNumber) error {
 
 // RemoveIndex removes all indices from the beginning until this one, inclusive.
 func (r *Reservation) RemoveIndex(idx reservation.IndexNumber) error {
-	sliceIndex, err := r.findIndex(idx)
+	sliceIndex, err := base.FindIndex(r.Indices, idx)
 	if err != nil {
 		return err
 	}
@@ -141,17 +141,4 @@ func (r *Reservation) RemoveIndex(idx reservation.IndexNumber) error {
 		r.activeIndex = -1
 	}
 	return nil
-}
-
-func (r *Reservation) findIndex(idx reservation.IndexNumber) (int, error) {
-	var firstIdx reservation.IndexNumber = 0
-	if len(r.Indices) > 0 {
-		firstIdx = r.Indices[0].Idx
-	}
-	sliceIndex := int(idx.Sub(firstIdx))
-	if sliceIndex > len(r.Indices)-1 {
-		return 0, serrors.New("index not found in this reservation", "index_number", idx,
-			"indices length", len(r.Indices))
-	}
-	return sliceIndex, nil
 }

@@ -26,6 +26,7 @@ import (
 )
 
 func TestNewIndex(t *testing.T) {
+	// TODO(juagargi) move out of segment and to cs/reservation test
 	r := segmenttest.NewReservation()
 	require.Len(t, r.Indices, 0)
 	expTime := time.Unix(1, 0)
@@ -213,13 +214,17 @@ func TestRemoveIndex(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 0)
 
+	// remove second index
 	idx, _ = r.NewIndex(expTime)
 	idx2, _ := r.NewIndex(expTime)
 	err = r.RemoveIndex(idx)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 1)
 	require.True(t, r.Indices[0].Idx == idx2)
+	err = r.Validate()
+	require.NoError(t, err)
 
+	// remove also removes older indices
 	expTime = expTime.Add(time.Second)
 	r.NewIndex(expTime)
 	idx, _ = r.NewIndex(expTime)
@@ -229,4 +234,6 @@ func TestRemoveIndex(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 1)
 	require.True(t, r.Indices[0].Idx == idx2)
+	err = r.Validate()
+	require.NoError(t, err)
 }
