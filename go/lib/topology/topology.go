@@ -59,7 +59,7 @@ type (
 	RWTopology struct {
 		Timestamp  time.Time
 		IA         addr.IA
-		Attributes trc.Attributes
+		Attributes []trc.Attribute
 		MTU        int
 
 		BR        map[string]BRInfo
@@ -225,7 +225,8 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				return err
 			}
 			ifinfo.LinkType = LinkTypeFromString(rawIntf.LinkTo)
-			if err = ifinfo.CheckLinks(t.Attributes.Contains(trc.Core), name); err != nil {
+			isCore := trc.Attributes(t.Attributes).Contains(trc.Core)
+			if err = ifinfo.CheckLinks(isCore, name); err != nil {
 				return err
 			}
 			// These fields are only necessary for the border router.
