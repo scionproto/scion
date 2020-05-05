@@ -204,7 +204,7 @@ func (t *topologyS) MakeHostInfos(st proto.ServiceType) []net.UDPAddr {
 }
 
 func (t *topologyS) Core() bool {
-	return t.Topology.Attributes.Contains(trc.Core)
+	return trc.Attributes(t.Topology.Attributes).Contains(trc.Core)
 }
 
 func (t *topologyS) BR(name string) (BRInfo, bool) {
