@@ -29,7 +29,7 @@ func (id *SegmentReservationID) ProtoId() proto.ProtoIdType {
 
 type E2EReservationID struct {
 	ASID   []byte `capnp:"asid"`
-	Suffix []byte // 16 bytes long
+	Suffix []byte // 10 bytes long
 }
 
 func (id *E2EReservationID) ProtoId() proto.ProtoIdType {
