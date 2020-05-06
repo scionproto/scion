@@ -35,7 +35,6 @@ cmd_topology() {
     if is_docker_be; then
         ./tools/quiet ./tools/dc run utils_chowner
     fi
-    run_jaeger
     #FIXME(lukedirtwalker): Re-enalbe for v2 trust: load_cust_keys
     if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
         local old=$(umask)
@@ -121,6 +120,8 @@ run_setup() {
     local sciond_dir="/run/shm/sciond"
     [ -d "$sciond_dir" ] || mkdir "$sciond_dir"
     [ $(stat -c "%U" "$sciond_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $sciond_dir - [sudo] password for %p: " chown $LOGNAME: "$sciond_dir"; }
+
+    run_jaeger
 }
 
 cmd_stop() {
@@ -130,6 +131,7 @@ cmd_stop() {
     else
         ./tools/quiet ./supervisor/supervisor.sh stop all
     fi
+    stop_jaeger
     if [ "$1" = "clean" ]; then
         python/integration/set_ipv6_addr.py -d
     fi
