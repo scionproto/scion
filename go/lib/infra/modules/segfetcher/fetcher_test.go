@@ -31,7 +31,6 @@ import (
 )
 
 type TestableFetcher struct {
-	Validator     *mock_segfetcher.MockValidator
 	Splitter      *mock_segfetcher.MockSplitter
 	Resolver      *mock_segfetcher.MockResolver
 	Requester     *mock_segfetcher.MockRequester
@@ -42,7 +41,6 @@ type TestableFetcher struct {
 
 func NewTestFetcher(ctrl *gomock.Controller) *TestableFetcher {
 	return &TestableFetcher{
-		Validator:     mock_segfetcher.NewMockValidator(ctrl),
 		Splitter:      mock_segfetcher.NewMockSplitter(ctrl),
 		Resolver:      mock_segfetcher.NewMockResolver(ctrl),
 		Requester:     mock_segfetcher.NewMockRequester(ctrl),
@@ -54,7 +52,6 @@ func NewTestFetcher(ctrl *gomock.Controller) *TestableFetcher {
 
 func (f *TestableFetcher) Fetcher() *segfetcher.Fetcher {
 	return &segfetcher.Fetcher{
-		Validator:     f.Validator,
 		Splitter:      f.Splitter,
 		Resolver:      f.Resolver,
 		Requester:     f.Requester,
@@ -76,15 +73,8 @@ func TestFetcher(t *testing.T) {
 		ErrorAssertion require.ErrorAssertionFunc
 		ExpectedSegs   segfetcher.Segments
 	}{
-		"Invalid request": {
-			PrepareFetcher: func(f *TestableFetcher) {
-				f.Validator.EXPECT().Validate(gomock.Any(), gomock.Any()).Return(testErr)
-			},
-			ErrorAssertion: require.Error,
-		},
 		"Splitter error": {
 			PrepareFetcher: func(f *TestableFetcher) {
-				f.Validator.EXPECT().Validate(gomock.Any(), gomock.Any())
 				f.Splitter.EXPECT().Split(gomock.Any(), gomock.Any()).
 					Return(segfetcher.RequestSet{}, testErr)
 			},
@@ -92,7 +82,6 @@ func TestFetcher(t *testing.T) {
 		},
 		"Resolver error": {
 			PrepareFetcher: func(f *TestableFetcher) {
-				f.Validator.EXPECT().Validate(gomock.Any(), gomock.Any())
 				f.Splitter.EXPECT().Split(gomock.Any(), gomock.Any())
 				f.Resolver.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(segfetcher.Segments{}, segfetcher.RequestSet{}, testErr)
@@ -101,7 +90,6 @@ func TestFetcher(t *testing.T) {
 		},
 		"Immediately resolved": {
 			PrepareFetcher: func(f *TestableFetcher) {
-				f.Validator.EXPECT().Validate(gomock.Any(), gomock.Any())
 				reqSet := segfetcher.RequestSet{
 					Up: segfetcher.Request{Src: non_core_111, Dst: core_130},
 				}
