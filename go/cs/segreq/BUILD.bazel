@@ -41,7 +41,6 @@ go_test(
         "helpers_test.go",
         "provider_test.go",
         "splitter_test.go",
-        "validator_test.go",
     ],
     embed = [":go_default_library"],
     deps = [

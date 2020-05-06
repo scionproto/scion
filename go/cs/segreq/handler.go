@@ -116,16 +116,6 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	return infra.MetricsResultOk
 }
 
-func createValidator(args handlers.HandlerArgs, core bool) segfetcher.Validator {
-	base := BaseValidator{
-		CoreChecker: CoreChecker{Inspector: args.ASInspector},
-	}
-	if !core {
-		return &base
-	}
-	return &CoreValidator{BaseValidator: base}
-}
-
 // CreateLocalInfo creates the local info oracle.
 func CreateLocalInfo(args handlers.HandlerArgs, core bool) LocalInfo {
 	if core {
