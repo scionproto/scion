@@ -46,8 +46,7 @@ MOCK_TARGETS = [
             "ASInspector,Messenger,ResponseWriter,TrustStore,Verifier"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra/messenger", "LocalSVCRouter,Resolver"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/segfetcher",
-            "DstProvider,ReplyHandler,Requester,RequestAPI,Resolver," +
-            "Splitter,Validator"),
+            "DstProvider,ReplyHandler,Requester,RequestAPI,Resolver,Splitter"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/seghandler", "Storage,Verifier"),
         (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/trust",
             "CryptoProvider,DB,KeyRing,Inserter,Recurser,Resolver,Router,RPC"),
