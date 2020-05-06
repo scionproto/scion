@@ -43,9 +43,8 @@ func NewSegmentID(AS addr.AS, suffix []byte) (*SegmentID, error) {
 	return &id, nil
 }
 
-func SegmentIDFromRawBuffers(ASID, suffix []byte) (
-	*SegmentID, error) {
-
+// SegmentIDFromRawBuffers constructs a SegmentID from two separate buffers.
+func SegmentIDFromRawBuffers(ASID, suffix []byte) (*SegmentID, error) {
 	if len(ASID) < 6 || len(suffix) < 4 {
 		return nil, serrors.New("buffers too small", "length_ASID", len(ASID),
 			"length_suffix", len(suffix))
@@ -84,7 +83,7 @@ type E2EID struct {
 
 const E2EIDLen = 16
 
-// NewSegmentID returns a new SegmentID
+// NewE2EID returns a new E2EID
 func NewE2EID(AS addr.AS, suffix []byte) (*E2EID, error) {
 	if len(suffix) != 10 {
 		return nil, serrors.New("wrong suffix length, should be 10", "actual_len", len(suffix))
@@ -94,16 +93,21 @@ func NewE2EID(AS addr.AS, suffix []byte) (*E2EID, error) {
 	return &id, nil
 }
 
+// E2EIDFromRawBuffers constructs a E2DID from two separate buffers.
+func E2EIDFromRawBuffers(ASID, suffix []byte) (*E2EID, error) {
+	if len(ASID) < 6 || len(suffix) < 10 {
+		return nil, serrors.New("buffers too small", "length_ASID", len(ASID),
+			"length_suffix", len(suffix))
+	}
+	return NewE2EID(addr.AS(common.Order.Uint64(append([]byte{0, 0}, ASID[:6]...))), suffix[:10])
+}
+
 // E2EIDFromRaw constructs an E2EID parsing a buffer.
 func E2EIDFromRaw(raw []byte) (*E2EID, error) {
 	if len(raw) < E2EIDLen {
 		return nil, serrors.New("buffer too small", "actual", len(raw), "min", E2EIDLen)
 	}
-	id := E2EID{
-		ASID: addr.AS(common.Order.Uint64(append([]byte{0, 0}, raw[0:6]...))),
-	}
-	copy(id.Suffix[:], raw[6:16])
-	return &id, nil
+	return E2EIDFromRawBuffers(raw[:6], raw[6:])
 }
 
 func (id *E2EID) Read(raw []byte) (int, error) {
