@@ -40,7 +40,7 @@ Cloning the repository
 ----------------------
 
 Now that you have your own fork, follow the steps in the
-`README <https://github.com/scionproto/scion/blob/master/README.md>`__ to set up
+:ref:`setting-up-the-development-environment` to set up
 your workspace. When you get to the point of cloning the repository, use the
 directory the README indicates, but clone your own fork into it instead:
 
@@ -78,66 +78,25 @@ straight-forward:
 A simple script to automate this can be found in the repo under
 ``/scripts/mastersync.sh``.
 
-Basic Git/Github Workflow
--------------------------
+Preparing your PR
+-----------------
 
-Git has many powerful features, but the one you will probably use most are
-branches. You can think of branches as a different version of your project,
-however, they are much more lightweight than their SVN counterparts and
-therefore heavily used in your everyday workflow.
+Before you create your PR, make sure your code passes the unit testing and linting checks.
 
-The main (default) branch is usually called _master_ and that is also the one
-currently active when you first clone the repository. The master branch holds
-the current snapshot of the project and should never be directly used for
-development. For each new feature or bugfix you create a new branch based on the
-current master branch, implement your changes, review them, commit them and in
-the end merge them back to the master branch.
-
-Example
-^^^^^^^
-
-Let's go through a simple example to illustrate this.
-
-First we create a new branch called 'bufferOverflowFix'.
+Run the tests using:
 
 .. code-block:: bash
 
-    git branch bufferOverflowFix
+   ./scion.sh test
 
-This will create a new branch with the given name based on the current master
-branch. The next step is to 'checkout' this branch, since we are still on the
-master branch:
+The above runs only the unit tests. As soon as you open your PR, some additional tests
+will run automatically.
 
-.. code-block:: bash
-
-    git checkout bufferOverflowFix
-
-These two steps can also be combined with:
+To lint the code, run:
 
 .. code-block:: bash
 
-    git checkout -b bufferOverflowFix
-
-Now we can edit any files we want without touching the code in the master
-branch. You can see the files changed with ``git status`` and ``git diff <file
-name>`` will show what exactly has changed since the last commit.
-
-When we are done editing files, we have to commit the changes to the (local)
-repository.
-
-.. code-block:: bash
-
-    git commit -am "Some meaningful comment about the changes."
-
-Note, so far the new branch we created exists only in the local repository. The
-remote repository doesn't know anything about it yet. To push it to the remote
-repository we use
-
-.. code-block:: bash
-
-    git push -u origin bufferOverflowFix
-
-*origin* is your fork of the main repository.
+   ./scion.sh lint
 
 Good commit messages
 --------------------

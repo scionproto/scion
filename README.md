@@ -7,9 +7,25 @@
 [![GitHub issues](https://img.shields.io/github/issues/scionproto/scion/help%20wanted.svg?label=help%20wanted&color=purple)](https://github.com/scionproto/scion/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
 [![GitHub issues](https://img.shields.io/github/issues/scionproto/scion/good%20first%20issue.svg?label=good%20first%20issue&color=purple)](https://github.com/scionproto/scion/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
 [![Release](https://img.shields.io/github/release-pre/scionproto/scion.svg)](https://github.com/scionproto/scion/releases)
-[![Release](https://img.shields.io/github/release-pre/scionproto/scion.svg)](https://github.com/scionproto/scion/releases)
-[![license](https://img.shields.io/github/license/scionproto/scion.svg?maxAge=2592000)](https://github.com/scionproto/scion/blob/master/LICENSE)
+[![License](https://img.shields.io/github/license/scionproto/scion.svg?maxAge=2592000)](https://github.com/scionproto/scion/blob/master/LICENSE)
 
-Welcome to an implementation of [SCION](http://www.scion-architecture.net), a future
-Internet architecture. To find out more about the project, please visit our
+Welcome to the open-source implementation of [SCION](http://www.scion-architecture.net) (Scalability, Control and Isolation On next-generation Networks), a future Internet architecture. SCION is the first clean-slate Internet architecture designed to provide route control, failure isolation, and explicit trust information for end-to-end communication.
+To find out more about the project, please visit our
 [documentation site](https://anapaya-scion.readthedocs-hosted.com/en/latest/).
+
+### Connecting to the SCION Test Network
+
+Join [SCIONLab](https://www.scionlab.org) if you're interested in playing with SCION in an operational global test deployment of SCION. As part of the SCIONLab project, we support [pre-built binaries as Debian packages](https://docs.scionlab.org/content/install/).
+
+### Building
+
+To find out how to work with SCION, please visit our [documentation site](https://anapaya-scion.readthedocs-hosted.com/en/latest/contribute.html#setting-up-the-development-environment) for instructions on how to install build dependencies, build and run SCION.
+
+## Contributing
+
+Interested in contribution to the SCION project? Please visit us at [contribute.rst](https://anapaya-scion.readthedocs-hosted.com/en/latest/contribute.html) for more information about how you can do so.
+
+## License
+
+[![License](https://img.shields.io/github/license/scionproto/scion.svg?maxAge=2592000)](https://github.com/scionproto/scion/blob/master/LICENSE)
+

@@ -9,6 +9,7 @@ is a good place to start.
    :caption: Documentation pages:
 
    contribute
+   build/setup
    cryptography/index
    DRKeyInfra
    BeaconService
