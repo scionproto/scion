@@ -57,7 +57,7 @@ they are clear from the context, or used across the codebase.
 Examples:
 
 - ``Seg`` instead of ``Segment``
-- ``Msger`` instead of ``Messenger``
+- ``Msgr`` instead of ``Messenger``
 - ``Sync`` instead of ``Synchronization``
 
 Specialities
