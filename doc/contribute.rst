@@ -81,7 +81,6 @@ Learning resources
 
 .. toctree::
    :maxdepth: 1
-   :caption: Learning resources:
 
    contribute/go-learn.rst
    contribute/git.rst
@@ -93,7 +92,6 @@ Language style guides
 
 .. toctree::
    :maxdepth: 1
-   :caption: Style guides:
 
    contribute/bazel-style
    contribute/go-style
