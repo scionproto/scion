@@ -66,8 +66,6 @@ type FetcherConfig struct {
 	RequestAPI RequestAPI
 	// DstProvider provides destinations to fetch segments from
 	DstProvider DstProvider
-	// Validator is used to validate requests.
-	Validator Validator
 	// Splitter is used to split requests.
 	Splitter Splitter
 	// SciondMode enables sciond mode, this means it uses the local CS to fetch
@@ -82,7 +80,6 @@ type FetcherConfig struct {
 // New creates a new fetcher from the configuration.
 func (cfg FetcherConfig) New() *Fetcher {
 	return &Fetcher{
-		Validator: cfg.Validator,
 		Splitter:  cfg.Splitter,
 		Resolver:  NewResolver(cfg.PathDB, cfg.RevCache, cfg.LocalInfo),
 		Requester: &DefaultRequester{API: cfg.RequestAPI, DstProvider: cfg.DstProvider},
@@ -100,7 +97,6 @@ func (cfg FetcherConfig) New() *Fetcher {
 
 // Fetcher fetches, verifies and stores segments for a given path request.
 type Fetcher struct {
-	Validator             Validator
 	Splitter              Splitter
 	Resolver              Resolver
 	Requester             Requester
@@ -116,11 +112,6 @@ type Fetcher struct {
 // of the request. First the request is validated and then depending on the
 // cache the segments are fetched from the remote server.
 func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) {
-	if f.Validator != nil {
-		if err := f.Validator.Validate(ctx, req); err != nil {
-			return Segments{}, serrors.Wrap(errValidate, err)
-		}
-	}
 	reqSet, err := f.Splitter.Split(ctx, req)
 	if err != nil {
 		return Segments{}, err
