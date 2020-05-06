@@ -19,23 +19,15 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/pathdb"
-	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/proto"
 )
 
-// LocalInfo indicates whether something is always local.
-type LocalInfo interface {
-	IsSegLocal(ctx context.Context, src, dst addr.IA) (bool, error)
-	IsParamsLocal(*query.Params) bool
-}
-
-// PathDB is a wrapper around the path db that handles retries and changes
-// GetNextQuery behavior for usage in segfetcher.
+// PathDB is a wrapper around the path db that changes GetNextQuery behavior
+// for usage in segfetcher.
 type PathDB struct {
 	pathdb.PathDB
-	LocalInfo  LocalInfo
-	RetrySleep time.Duration
+	LocalInfo segfetcher.LocalInfo
 }
 
 func (db *PathDB) GetNextQuery(ctx context.Context, src, dst addr.IA,
@@ -69,30 +61,6 @@ func (i *CoreLocalInfo) IsSegLocal(ctx context.Context, src, dst addr.IA) (bool,
 	return isCore, nil
 }
 
-// IsParamsLocal returns whether params is a core segment request.
-func (i *CoreLocalInfo) IsParamsLocal(params *query.Params) bool {
-	if len(params.SegTypes) != 1 {
-		return false
-	}
-	if params.SegTypes[0] == proto.PathSegType_core {
-		return true
-	}
-	if params.SegTypes[0] == proto.PathSegType_down {
-		for _, ia := range params.StartsAt {
-			if ia.I != i.LocalIA.I {
-				return false
-			}
-		}
-		for _, ia := range params.EndsAt {
-			if ia.I != i.LocalIA.I {
-				return false
-			}
-		}
-		return true
-	}
-	return false
-}
-
 // NonCoreLocalInfo is the local info for non core PSes.
 type NonCoreLocalInfo struct {
 	LocalIA addr.IA
@@ -104,9 +72,4 @@ func (i *NonCoreLocalInfo) IsSegLocal(ctx context.Context, src, dst addr.IA) (bo
 	// The validator should make sure that if we are at the source it can only
 	// be an up segment.
 	return i.LocalIA.Equal(src), nil
-}
-
-// IsParamsLocal returns whether params is a up segments request.
-func (i *NonCoreLocalInfo) IsParamsLocal(params *query.Params) bool {
-	return len(params.SegTypes) == 1 && params.SegTypes[0] == proto.PathSegType_up
 }
