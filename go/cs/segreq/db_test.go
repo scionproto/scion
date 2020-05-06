@@ -25,8 +25,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/segreq"
-	"github.com/scionproto/scion/go/cs/segreq/mock_segreq"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/mock_segfetcher"
 	"github.com/scionproto/scion/go/lib/pathdb/mock_pathdb"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -36,7 +36,7 @@ func TestPSPathDBGetNextQuery(t *testing.T) {
 		Src                     addr.IA
 		Dst                     addr.IA
 		PreparePathDB           func(db *mock_pathdb.MockPathDB, src, dst addr.IA)
-		PrepareLocalInfo        func(i *mock_segreq.MockLocalInfo, src, dst addr.IA)
+		PrepareLocalInfo        func(i *mock_segfetcher.MockLocalInfo, src, dst addr.IA)
 		ErrorAssertion          require.ErrorAssertionFunc
 		AssertNextQueryAfterNow assert.BoolAssertionFunc
 	}{
@@ -44,7 +44,7 @@ func TestPSPathDBGetNextQuery(t *testing.T) {
 			Src:           xtest.MustParseIA("1-ff00:0:111"),
 			Dst:           xtest.MustParseIA("1-ff00:0:120"),
 			PreparePathDB: func(db *mock_pathdb.MockPathDB, src, dst addr.IA) {},
-			PrepareLocalInfo: func(i *mock_segreq.MockLocalInfo, src, dst addr.IA) {
+			PrepareLocalInfo: func(i *mock_segfetcher.MockLocalInfo, src, dst addr.IA) {
 				i.EXPECT().IsSegLocal(gomock.Any(), src, dst).
 					Return(false, errors.New("test err"))
 			},
@@ -55,7 +55,7 @@ func TestPSPathDBGetNextQuery(t *testing.T) {
 			Src:           xtest.MustParseIA("1-ff00:0:111"),
 			Dst:           xtest.MustParseIA("1-ff00:0:120"),
 			PreparePathDB: func(db *mock_pathdb.MockPathDB, src, dst addr.IA) {},
-			PrepareLocalInfo: func(i *mock_segreq.MockLocalInfo, src, dst addr.IA) {
+			PrepareLocalInfo: func(i *mock_segfetcher.MockLocalInfo, src, dst addr.IA) {
 				i.EXPECT().IsSegLocal(gomock.Any(), src, dst).
 					Return(true, nil)
 			},
@@ -69,7 +69,7 @@ func TestPSPathDBGetNextQuery(t *testing.T) {
 				db.EXPECT().GetNextQuery(gomock.Any(), src, dst, gomock.Any()).
 					Return(time.Now().Add(time.Hour), nil)
 			},
-			PrepareLocalInfo: func(i *mock_segreq.MockLocalInfo, src, dst addr.IA) {
+			PrepareLocalInfo: func(i *mock_segfetcher.MockLocalInfo, src, dst addr.IA) {
 				i.EXPECT().IsSegLocal(gomock.Any(), src, dst).
 					Return(false, nil)
 			},
@@ -82,7 +82,7 @@ func TestPSPathDBGetNextQuery(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			pdb := mock_pathdb.NewMockPathDB(ctrl)
-			li := mock_segreq.NewMockLocalInfo(ctrl)
+			li := mock_segfetcher.NewMockLocalInfo(ctrl)
 			test.PreparePathDB(pdb, test.Src, test.Dst)
 			test.PrepareLocalInfo(li, test.Src, test.Dst)
 			db := &segreq.PathDB{
