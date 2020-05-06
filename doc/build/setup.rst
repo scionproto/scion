@@ -51,6 +51,12 @@ Setting up the development environment
 
       ./scion.sh run
 
+#. To verify that your topology is running correctly, you can run an end to end reachability test using:
+
+   .. code-block:: bash
+
+      ./bin/end2end_integration
+
 #. To stop the infrastructure, run:
 
    .. code-block:: bash
