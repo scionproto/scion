@@ -1,0 +1,4 @@
+[general]
+    id = "cs-1"
+[log.file]
+    path = "/share/logs/cs.log"

@@ -1,6 +1,9 @@
 steps:
   - label: ":bazel: Build scion code"
+    if: build.message !~ /\[doc\]/
     command:
+      # create version files so that deb and rpm release targets work.
+      - ./tools/package-version 0.1.0-citest
       - bazel build --announce_rc //:all
     key: build
     retry:
@@ -9,6 +12,7 @@ steps:
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
   - label: ":bazel: Go tests"
+    if: build.message !~ /\[doc\]/
     command:
       - bazel test //go/... --print_relative_test_log_paths
     key: go_tests
@@ -20,6 +24,7 @@ steps:
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
   - label: ":python: Python tests"
+    if: build.message !~ /\[doc\]/
     command: ./scion.sh test py
     key: py_tests
     retry:
@@ -37,6 +42,7 @@ steps:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
   - label: "Check generated go_deps.bzl file is up to date with go.mod"
+    if: build.message !~ /\[doc\]/
     command:
       - mkdir -p /tmp/test-artifacts
       - cp go.mod go.sum go_deps.bzl /tmp/test-artifacts/
@@ -51,6 +57,7 @@ steps:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
   - label: "Check generated go/proto files in git"
+    if: build.message !~ /\[doc\]/
     command:
       - mkdir -p /tmp/test-artifacts
       - cp -R go/proto/ /tmp/test-artifacts/
@@ -68,7 +75,19 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
+  - label: ":bazel: Integration tests"
+    if: build.message !~ /\[doc\]/
+    command:
+    - bazel test //integration/...
+    key: integration_tests
+    artifact_paths:
+      - "artifacts.out/**/*"
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
   - label: "Revocation tests"
+    if: build.message !~ /\[doc\]/
     command:
       - bazel build //:scion //:scion-ci >/dev/null 2>&1
       - tar -kxf bazel-bin/scion.tar -C bin --overwrite
@@ -90,14 +109,16 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: "Integration: {cert_req,pp,end2end,scmp}_integration"
+  - label: "E2E-Integration: {cert_req,pp,end2end,scmp}_integration"
+    if: build.message !~ /\[doc\]/
     command:
     - bazel build //:scion //:scion-ci >/dev/null 2>&1
     - tar -kxf bazel-bin/scion.tar -C bin --overwrite
     - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
     - ./scion.sh topology -t
     - ./scion.sh run && sleep 10
-    - ./bin/cert_req_integration -log.console warn
+    # FIXME(roosd): enable again
+    #- ./bin/cert_req_integration -log.console warn
     - ./bin/pp_integration -log.console warn
     - ./bin/scmp_integration -log.console warn
     - ./bin/end2end_integration -log.console warn
@@ -110,7 +131,7 @@ steps:
     artifact_paths:
       - "artifacts.out/**/*"
     timeout_in_minutes: 10
-    key: integration_tests
+    key: e2e_integration_tests
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
@@ -121,7 +142,7 @@ steps:
     - ./scion.sh run
     - docker-compose -f gen/scion-dc.yml -p scion up -d $(docker-compose -f gen/scion-dc.yml config --services | grep tester)
     - sleep 10
-    - ./bin/cert_req_integration -d -log.console warn
+    # - ./bin/cert_req_integration -d -log.console warn
     - ./bin/pp_integration -d -log.console warn
     - ./bin/scmp_integration -d -log.console warn
     - ./bin/end2end_integration -d -log.console warn
