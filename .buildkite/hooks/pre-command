@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-
 # ACCEPTANCE_ARTIFACTS is used for acceptance tests built with the "old"
 # acceptance framework
 export ACCEPTANCE_ARTIFACTS=/tmp/test-artifacts
@@ -16,7 +15,7 @@ if [ -z ${BAZEL_REMOTE_S3_ACCESS_KEY_ID+x} ]; then
 fi
 
 # Add bazelrc for CI to home directory, so that remote_cache is picked up.
-mv -f .bazelrc_ci $HOME/.bazelrc
+cp -f .bazelrc_ci $HOME/.bazelrc
 
 echo "Starting bazel remote cache proxy"
 

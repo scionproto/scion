@@ -2,6 +2,33 @@
 
 set -eo pipefail
 
+# Attempt to do clean docker topology shutdown.
+# This lets applications flush the logs to avoid cutting them off.
+if [ -f "gen/scion-dc.yml" ]; then
+    # This hook is global, therefore we need to disable fail on error because
+    # not all docker-compose tests are following the pattern
+    # COMPOSE_PROJECT_NAME=scion, COMPOSE_FILE=gen/scion-dc.yml
+    # and logs in stdout.
+    set +e
+    docker-compose -f gen/scion-dc.yml -p scion stop
+
+    docker-compose -f gen/scion-dc.yml -p scion logs --no-color > logs/scion-dc.log
+
+    for s in $(docker-compose -f gen/scion-dc.yml -p scion ps --services); do
+        cat logs/scion-dc.log | grep $s| cut -f2 -d"|" > logs/${s#"scion_"}.log
+    done
+
+    docker-compose -f gen/scion-dc.yml -p scion down -v
+
+    # a subset of tests are using testgen and they do a collect log and dc stop
+    # on their own. Therefore the above code produces empty files that are confusing.
+    # Given the limitation of buildkite that the hook is global we just cleanup
+    # the empty files.
+    find . -type f -empty -delete
+
+    set -e
+fi
+
 # Now we build the artifact name next, for this we first need TARGET and BUILD,
 # see below.
 #
@@ -21,6 +48,7 @@ echo "\$BUILD=$BUILD"
 ARTIFACTS="buildkite.${BUILDKITE_ORGANIZATION_SLUG}.${TARGET}.${BUILD}.${BUILDKITE_STEP_KEY:-unset}.${BUILDKITE_JOB_ID}"
 mkdir -p "artifacts/$ARTIFACTS" artifacts.out
 
+set -x
 function save {
     if [ -d "$1" ]; then
         echo Found artifacts: "$1"
