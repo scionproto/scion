@@ -6,7 +6,7 @@ steps:
       - ./tools/package-version 0.1.0-citest
       - bazel build --announce_rc //:all
     key: build
-    retry:
+    retry: &retry
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
@@ -19,18 +19,14 @@ steps:
     artifact_paths:
       - "artifacts.out/**/*"
     retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
+     << : *retry
     timeout_in_minutes: 10
   - label: ":python: Python tests"
     if: build.message !~ /\[doc\]/
     command: ./scion.sh test py
     key: py_tests
     retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
+     << : *retry
   - label: "Check licenses"
     command:
       - mkdir -p /tmp/test-artifacts/licenses
@@ -38,9 +34,7 @@ steps:
       - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
     key: licenses
     retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
+     << : *retry
   - label: "Check generated go_deps.bzl file is up to date with go.mod"
     if: build.message !~ /\[doc\]/
     command:
@@ -53,9 +47,7 @@ steps:
       - diff -u /tmp/test-artifacts/go_deps.bzl go_deps.bzl
     key: go_deps_lint
     retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
+     << : *retry
   - label: "Check generated go/proto files in git"
     if: build.message !~ /\[doc\]/
     command:
@@ -65,16 +57,12 @@ steps:
       - diff -ur /tmp/test-artifacts/proto/ go/proto/
     key: go_gen_lint
     retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
+     << : *retry
   - label: "Lint"
     command: ./scion.sh lint
     key: lint
     retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
+     << : *retry
   - label: ":bazel: Integration tests"
     if: build.message !~ /\[doc\]/
     command:
@@ -83,9 +71,7 @@ steps:
     artifact_paths:
       - "artifacts.out/**/*"
     retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
+     << : *retry
   - label: "Revocation tests"
     if: build.message !~ /\[doc\]/
     command:
@@ -106,9 +92,7 @@ steps:
     artifact_paths:
       - "artifacts.out/**/*"
     retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
+     << : *retry
   - label: "E2E-Integration: {cert_req,pp,end2end,scmp}_integration"
     if: build.message !~ /\[doc\]/
     command:
@@ -133,9 +117,7 @@ steps:
     timeout_in_minutes: 10
     key: e2e_integration_tests
     retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
+     << : *retry
   - label: ":docker: Integration: end2end_integration"
     command:
     - ./scion.sh topology -t -d -c topology/Tiny.topo
@@ -157,9 +139,7 @@ steps:
     timeout_in_minutes: 10
     key: docker_integration_tests
     retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
+     << : *retry
   - label: ":docker: Integration: end2end_integration full topology"
     if: build.message !~ /\[doc\]/
     command:
@@ -179,6 +159,4 @@ steps:
     timeout_in_minutes: 10
     key: docker_integration_e2e_default
     retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
+     << : *retry
