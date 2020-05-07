@@ -27,7 +27,7 @@ type IndicesInterface interface {
 	GetExpiration(i int) time.Time
 }
 
-// ValidateIndices checks that the indices follow consequtive index numbers, their expiration
+// ValidateIndices checks that the indices follow consecutive index numbers, their expiration
 // times are greater or equal, and no more than three indices per expiration time. Also no more
 // than 16 indices are allowed.
 func ValidateIndices(indices IndicesInterface) error {
