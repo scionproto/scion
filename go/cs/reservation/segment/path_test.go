@@ -17,9 +17,10 @@ package segment_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
-	"github.com/stretchr/testify/require"
 )
 
 func TestValidatePath(t *testing.T) {
@@ -66,8 +67,10 @@ func TestEqualPath(t *testing.T) {
 			IsEqual: true,
 		},
 		"eq2": {
-			Path1:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3, 1, "ff00:0:2", 0),
-			Path2:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3, 1, "ff00:0:2", 0),
+			Path1: segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3,
+				1, "ff00:0:2", 0),
+			Path2: segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3,
+				1, "ff00:0:2", 0),
 			IsEqual: true,
 		},
 		"neq1": {
@@ -86,7 +89,8 @@ func TestEqualPath(t *testing.T) {
 			IsEqual: false,
 		},
 		"neq4": {
-			Path1:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3, 1, "ff00:0:2", 0),
+			Path1: segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3,
+				1, "ff00:0:2", 0),
 			Path2:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3),
 			IsEqual: false,
 		},
