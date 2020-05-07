@@ -100,6 +100,7 @@ steps:
     - ./scion.sh run && sleep 10
     - ./bin/cert_req_integration -log.console warn
     - ./bin/pp_integration -log.console warn
+    - false
     - ./bin/scmp_integration -log.console warn
     - ./bin/end2end_integration -log.console warn
     plugins:
