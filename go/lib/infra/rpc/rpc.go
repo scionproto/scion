@@ -23,6 +23,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	quic "github.com/lucas-clemente/quic-go"
 	capnp "zombiezen.com/go/capnproto2"
@@ -143,10 +144,19 @@ type Client struct {
 func (c *Client) Request(ctx context.Context, request *Request, address net.Addr) (*Reply, error) {
 	addressStr := computeAddressStr(address)
 
-	session, err := quic.DialContext(ctx, c.Conn, address, addressStr,
-		c.TLSConfig, c.QUICConfig)
-	if err != nil {
-		return nil, err
+	var session quic.Session
+	for sleep := 2 * time.Millisecond; ctx.Err() == nil; sleep = sleep * 2 {
+		var err error
+		session, err = quic.DialContext(ctx, c.Conn, address, addressStr, c.TLSConfig, c.QUICConfig)
+		if err == nil {
+			break
+		}
+		log.FromCtx(ctx).Info("Received error", "err", err)
+		if err.Error() != "SERVER_BUSY" {
+			return nil, err
+		}
+		log.FromCtx(ctx).Info("Exponential back-off", "sleep", sleep)
+		time.Sleep(sleep)
 	}
 
 	stream, err := session.OpenStream()
