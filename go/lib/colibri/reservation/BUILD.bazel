@@ -18,5 +18,9 @@ go_test(
     name = "go_default_test",
     srcs = ["types_test.go"],
     embed = [":go_default_library"],
-    deps = ["//go/lib/xtest:go_default_library"],
+    deps = [
+        "//go/lib/spath:go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
 )

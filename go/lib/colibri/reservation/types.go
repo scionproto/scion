@@ -263,10 +263,11 @@ func InfoFieldFromRaw(raw []byte) (*InfoField, error) {
 	return &info, nil
 }
 
-// Read serializes this InfoField into an array of InfoFieldLen bytes.
+// Read serializes this InfoField into a sequence of InfoFieldLen bytes.
 func (f *InfoField) Read(b []byte) (int, error) {
 	if len(b) < InfoFieldLen {
-		return 0, serrors.New("buffer too short", "size", len(b))
+		return 0, serrors.New("buffer too small", "min_size", InfoFieldLen,
+			"current_size", len(b))
 	}
 	common.Order.PutUint32(b[:4], uint32(f.ExpirationTick))
 	b[4] = byte(f.BWCls)
@@ -332,5 +333,52 @@ type Token struct {
 
 // Validate will return an error for invalid values. It will not check the hop fields' validity.
 func (t *Token) Validate() error {
+	if len(t.HopFields) == 0 {
+		return serrors.New("token without hop fields")
+	}
 	return t.InfoField.Validate()
+}
+
+// TokenFromRaw builds a Token from the passed bytes buffer.
+func TokenFromRaw(raw []byte) (*Token, error) {
+	rawHFs := len(raw) - InfoFieldLen
+	if rawHFs < 0 || rawHFs%spath.HopFieldLength != 0 {
+		return nil, serrors.New("buffer too small", "min_size", InfoFieldLen,
+			"current_size", len(raw))
+	}
+	numHFs := rawHFs / spath.HopFieldLength
+	inf, err := InfoFieldFromRaw(raw[:InfoFieldLen])
+	if err != nil {
+		return nil, err
+	}
+	t := Token{
+		InfoField: *inf,
+		HopFields: make([]spath.HopField, numHFs),
+	}
+	for i := 0; i < numHFs; i++ {
+		offset := InfoFieldLen + i*spath.HopFieldLength
+		hf, err := spath.HopFFromRaw(raw[offset : offset+spath.HopFieldLength])
+		if err != nil {
+			return nil, err
+		}
+		t.HopFields[i] = *hf
+	}
+	return &t, nil
+}
+
+// Read serializes this Token to the passed buffer.
+func (t *Token) Read(b []byte) (int, error) {
+	length := InfoFieldLen + len(t.HopFields)*spath.HopFieldLength
+	if len(b) < length {
+		return 0, serrors.New("buffer too small", "min_size", length, "current_size", len(b))
+	}
+	offset, err := t.InfoField.Read(b[:InfoFieldLen])
+	if err != nil {
+		return 0, err
+	}
+	for i := 0; i < len(t.HopFields); i++ {
+		t.HopFields[i].Write(b[offset : offset+spath.HopFieldLength])
+		offset += spath.HopFieldLength
+	}
+	return offset, nil
 }

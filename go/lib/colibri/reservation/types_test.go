@@ -20,6 +20,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -218,16 +221,9 @@ func TestValidateInfoField(t *testing.T) {
 	}
 }
 
-var rawReference = xtest.MustParseHexString("16ebdb4f0d042500")
-var reference = InfoField{
-	ExpirationTick: 384555855,
-	BWCls:          13,
-	RLC:            4,
-	Idx:            2,
-	PathType:       E2EPath,
-}
-
 func TestInfoFieldFromRaw(t *testing.T) {
+	reference := newInfoField()
+	rawReference := newInfoFieldRaw()
 	info, err := InfoFieldFromRaw(rawReference)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -250,6 +246,8 @@ func TestInfoFieldFromRaw(t *testing.T) {
 }
 
 func TestInfoFieldRead(t *testing.T) {
+	reference := newInfoField()
+	rawReference := newInfoFieldRaw()
 	raw := make([]byte, InfoFieldLen)
 	// pollute the buffer with garbage
 	for i := 0; i < InfoFieldLen; i++ {
@@ -296,4 +294,81 @@ func TestValidatePathEndProperties(t *testing.T) {
 	if err := pep.Validate(); err == nil {
 		t.Fatal("Expected validation error but got none")
 	}
+}
+
+func TestValidateToken(t *testing.T) {
+	tok := newToken()
+	err := tok.Validate()
+	require.NoError(t, err)
+	tok.HopFields = []spath.HopField{}
+	err = tok.Validate()
+	require.Error(t, err)
+}
+func TestTokenFromRaw(t *testing.T) {
+	referenceRaw := newTokenRaw()
+	reference := newToken()
+	tok, err := TokenFromRaw(referenceRaw)
+	require.NoError(t, err)
+	require.Equal(t, reference, *tok)
+
+	// buffer too small
+	_, err = TokenFromRaw(referenceRaw[:3])
+	require.Error(t, err)
+
+	// one hop field less
+	tok, err = TokenFromRaw(referenceRaw[:len(referenceRaw)-spath.HopFieldLength])
+	require.NoError(t, err)
+	require.Len(t, tok.HopFields, len(reference.HopFields)-1)
+}
+func TestTokenRead(t *testing.T) {
+	tok := newToken()
+	rawReference := newTokenRaw()
+	buf := make([]byte, len(rawReference))
+	c, err := tok.Read(buf)
+	require.NoError(t, err)
+	require.Equal(t, len(buf), c)
+	require.Equal(t, rawReference, buf)
+
+	// buffer too small
+	_, err = tok.Read(buf[:len(rawReference)-1])
+	require.Error(t, err)
+}
+
+func newInfoField() InfoField {
+	return InfoField{
+		ExpirationTick: 384555855,
+		BWCls:          13,
+		RLC:            4,
+		Idx:            2,
+		PathType:       E2EPath,
+	}
+}
+
+func newInfoFieldRaw() []byte {
+	return xtest.MustParseHexString("16ebdb4f0d042500")
+}
+
+func newToken() Token {
+	return Token{
+		InfoField: newInfoField(),
+		HopFields: []spath.HopField{
+			{
+				Xover:       false,
+				ExpTime:     spath.DefaultHopFExpiry,
+				ConsIngress: 1,
+				ConsEgress:  2,
+				Mac:         xtest.MustParseHexString("bad1ce"),
+			},
+			{
+				Xover:       false,
+				ExpTime:     spath.DefaultHopFExpiry,
+				ConsIngress: 1,
+				ConsEgress:  2,
+				Mac:         xtest.MustParseHexString("facade"),
+			},
+		},
+	}
+}
+func newTokenRaw() []byte {
+	return xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade")
 }
