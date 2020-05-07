@@ -73,9 +73,12 @@ func (s *Server) ListenAndServe() error {
 			log.Warn("[quic] server accept error", "err", err)
 			continue
 		}
-		if err := s.handleQUICSession(session); err != nil {
-			log.Warn("[quic] server handler exited with error", "err", err)
-		}
+		go func() {
+			defer log.HandlePanic()
+			if err := s.handleQUICSession(session); err != nil {
+				log.Warn("[quic] server handler exited with error", "err", err)
+			}
+		}()
 	}
 }
 
@@ -120,10 +123,7 @@ func (s *Server) handleQUICSession(session quic.Session) error {
 		Message: msg,
 		Address: session.RemoteAddr(),
 	}
-	go func() {
-		defer log.HandlePanic()
-		s.Handler.ServeRPC(rw, request)
-	}()
+	s.Handler.ServeRPC(rw, request)
 	return nil
 }
 
