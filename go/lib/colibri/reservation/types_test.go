@@ -135,16 +135,28 @@ func TestValidateRLC(t *testing.T) {
 	}
 }
 
-func TestValidateIndex(t *testing.T) {
+func TestValidateIndexNumber(t *testing.T) {
 	for i := 0; i < 16; i++ {
-		idx := Index(i)
+		idx := IndexNumber(i)
 		if err := idx.Validate(); err != nil {
 			t.Fatalf("Unexpected error at i = %d: %v", i, err)
 		}
 	}
-	idx := Index(16)
+	idx := IndexNumber(16)
 	if err := idx.Validate(); err == nil {
 		t.Fatal("Expected validation error but did not get one")
+	}
+}
+
+func TestIndexNumberArithmetic(t *testing.T) {
+	var idx IndexNumber = 1
+	x := idx.Add(IndexNumber(15))
+	if x != IndexNumber(0) {
+		t.Fatalf("Unexpected result %v", x)
+	}
+	x = idx.Sub(IndexNumber(2))
+	if x != IndexNumber(15) {
+		t.Fatalf("Unexpected result %v", x)
 	}
 }
 
@@ -254,5 +266,34 @@ func TestInfoFieldRead(t *testing.T) {
 	if bytes.Compare(raw, rawReference) != 0 {
 		t.Fatalf("Fail to serialize InfoField. %v != %v",
 			hex.EncodeToString(raw), hex.EncodeToString(rawReference))
+	}
+}
+
+func TestValidatePathEndProperties(t *testing.T) {
+	for i := 0; i < 4; i++ {
+		pep := PathEndProps(i)
+		if err := pep.Validate(); err != nil {
+			t.Fatalf("Unexpected error at i = %d: %v", i, err)
+		}
+	}
+	pep := PathEndProps(4)
+	if err := pep.Validate(); err == nil {
+		t.Fatal("Expected validation error but got none")
+	}
+
+	for i := 0; i < 4; i++ {
+		pep := PathEndProps(i << 4)
+		if err := pep.Validate(); err != nil {
+			t.Fatalf("Unexpected error at i = %d: %v", i, err)
+		}
+	}
+	pep = PathEndProps(4 << 4)
+	if err := pep.Validate(); err == nil {
+		t.Fatal("Expected validation error but got none")
+	}
+
+	pep = PathEndProps(0x10 | 0x04)
+	if err := pep.Validate(); err == nil {
+		t.Fatal("Expected validation error but got none")
 	}
 }

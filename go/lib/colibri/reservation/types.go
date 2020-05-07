@@ -20,6 +20,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -32,12 +33,22 @@ type SegmentID struct {
 
 const SegmentIDLen = 10
 
+// NewSegmentID returns a new SegmentID
+func NewSegmentID(AS addr.AS, suffix []byte) (*SegmentID, error) {
+	if len(suffix) != 4 {
+		return nil, serrors.New("wrong suffix length, should be 4", "actual_len", len(suffix))
+	}
+	id := SegmentID{ASID: AS}
+	copy(id.Suffix[:], suffix)
+	return &id, nil
+}
+
 // SegmentIDFromRaw constructs a SegmentID parsing a raw buffer.
 func SegmentIDFromRaw(raw []byte) (
 	*SegmentID, error) {
 
 	if len(raw) < SegmentIDLen {
-		return nil, serrors.New("Buffer too small", "actual", len(raw),
+		return nil, serrors.New("buffer too small", "actual", len(raw),
 			"min", SegmentIDLen)
 	}
 	id := SegmentID{
@@ -49,7 +60,7 @@ func SegmentIDFromRaw(raw []byte) (
 
 func (id *SegmentID) Read(raw []byte) (int, error) {
 	if len(raw) < SegmentIDLen {
-		return 0, serrors.New("Buffer too small", "actual", len(raw), "min", SegmentIDLen)
+		return 0, serrors.New("buffer too small", "actual", len(raw), "min", SegmentIDLen)
 	}
 	auxBuff := make([]byte, 8)
 	common.Order.PutUint64(auxBuff, uint64(id.ASID))
@@ -70,7 +81,7 @@ const E2EIDLen = 16
 // E2EIDFromRaw constructs an E2EID parsing a buffer.
 func E2EIDFromRaw(raw []byte) (*E2EID, error) {
 	if len(raw) < E2EIDLen {
-		return nil, serrors.New("Buffer too small", "actual", len(raw), "min", E2EIDLen)
+		return nil, serrors.New("buffer too small", "actual", len(raw), "min", E2EIDLen)
 	}
 	id := E2EID{
 		ASID: addr.AS(common.Order.Uint64(append([]byte{0, 0}, raw[0:6]...))),
@@ -81,7 +92,7 @@ func E2EIDFromRaw(raw []byte) (*E2EID, error) {
 
 func (id *E2EID) Read(raw []byte) (int, error) {
 	if len(raw) < E2EIDLen {
-		return 0, serrors.New("Buffer too small", "actual", len(raw), "min", E2EIDLen)
+		return 0, serrors.New("buffer too small", "actual", len(raw), "min", E2EIDLen)
 	}
 	auxBuff := make([]byte, 8)
 	common.Order.PutUint64(auxBuff, uint64(id.ASID))
@@ -104,7 +115,7 @@ type BWCls uint8
 // Validate will return an error for invalid values.
 func (b BWCls) Validate() error {
 	if b > 63 {
-		return serrors.New("Invalid BWClass value", "BWCls", b)
+		return serrors.New("invalid BWClass value", "bw_cls", b)
 	}
 	return nil
 }
@@ -119,20 +130,28 @@ type RLC uint8
 // Validate will return an error for invalid values.
 func (c RLC) Validate() error {
 	if c > 63 {
-		return serrors.New("Invalid BWClass", "BWCls", c)
+		return serrors.New("invalid BWClass", "bw_cls", c)
 	}
 	return nil
 }
 
-// Index is a 4 bit index for a reservation.
-type Index uint8
+// IndexNumber is a 4 bit index for a reservation.
+type IndexNumber uint8
 
 // Validate will return an error for invalid values.
-func (i Index) Validate() error {
+func (i IndexNumber) Validate() error {
 	if i >= 1<<4 {
-		return serrors.New("Invalid Index", "Index", i)
+		return serrors.New("invalid IndexNumber", "value", i)
 	}
 	return nil
+}
+
+func (i IndexNumber) Add(other IndexNumber) IndexNumber {
+	return (i + other) % 16
+}
+
+func (i IndexNumber) Sub(other IndexNumber) IndexNumber {
+	return (i - other) % 16
 }
 
 // PathType specifies which type of COLIBRI path this segment reservation or request refers to.
@@ -152,7 +171,7 @@ const (
 // Validate will return an error for invalid values.
 func (pt PathType) Validate() error {
 	if pt == UnknownPath || pt > CorePath {
-		return serrors.New("Invalid path type", "PathType", pt)
+		return serrors.New("invalid path type", "path_type", pt)
 	}
 	return nil
 }
@@ -180,7 +199,7 @@ type InfoField struct {
 	ExpirationTick Tick
 	BWCls          BWCls
 	RLC            RLC
-	Idx            Index
+	Idx            IndexNumber
 	PathType       PathType
 }
 
@@ -208,14 +227,14 @@ func (f *InfoField) Validate() error {
 // InfoFieldFromRaw builds an InfoField from the InfoFieldLen bytes buffer.
 func InfoFieldFromRaw(raw []byte) (*InfoField, error) {
 	if len(raw) < InfoFieldLen {
-		return nil, serrors.New("Buffer too small", "min size", InfoFieldLen,
-			"current size", len(raw))
+		return nil, serrors.New("buffer too small", "min_size", InfoFieldLen,
+			"current_size", len(raw))
 	}
 	info := InfoField{
 		ExpirationTick: Tick(common.Order.Uint32(raw[:4])),
 		BWCls:          BWCls(raw[4]),
 		RLC:            RLC(raw[5]),
-		Idx:            Index(raw[6]) >> 4,
+		Idx:            IndexNumber(raw[6]) >> 4,
 		PathType:       PathType(raw[6]) & 0x7,
 	}
 	if err := info.Validate(); err != nil {
@@ -227,7 +246,7 @@ func InfoFieldFromRaw(raw []byte) (*InfoField, error) {
 // Read serializes this InfoField into an array of InfoFieldLen bytes.
 func (f *InfoField) Read(b []byte) (int, error) {
 	if len(b) < InfoFieldLen {
-		return 0, serrors.New("Buffer too short", "size", len(b))
+		return 0, serrors.New("buffer too short", "size", len(b))
 	}
 	common.Order.PutUint32(b[:4], uint32(f.ExpirationTick))
 	b[4] = byte(f.BWCls)
@@ -235,4 +254,46 @@ func (f *InfoField) Read(b []byte) (int, error) {
 	b[6] = byte(f.Idx<<4) | uint8(f.PathType)
 	b[7] = 0 // b[7] is padding
 	return 8, nil
+}
+
+// PathEndProps represent the zero or more properties a COLIBRI path can have at both ends.
+type PathEndProps uint8
+
+// The only current properties are "Local" (can be used to create e2e rsvs) and "Transfer" (can be
+// stiched together with another segment reservation). The first 4 bits encode the properties
+// of the "Start" AS, and the last 4 bits encode those of the "End" AS.
+const (
+	StartLocal    PathEndProps = 0x10
+	StartTransfer PathEndProps = 0x20
+	EndLocal      PathEndProps = 0x01
+	EndTransfer   PathEndProps = 0x02
+)
+
+// Validate will return an error for invalid values.
+func (pep PathEndProps) Validate() error {
+	if pep&0x0F > 0x03 {
+		return serrors.New("invalid path end properties (@End)", "path_end_props", pep)
+	}
+	if pep>>4 > 0x03 {
+		return serrors.New("invalid path end properties (@Start)", "path_end_props", pep)
+	}
+	return nil
+}
+
+// AllocationBead represents an allocation resolved in an AS for a given reservation.
+// It is used in an array to represent the allocation trail that happened for a reservation.
+type AllocationBead struct {
+	AllocBW uint8
+	MaxBW   uint8
+}
+
+// Token is used in the data plane to forward COLIBRI packets.
+type Token struct {
+	InfoField
+	HopFields []spath.HopField
+}
+
+// Validate will return an error for invalid values. It will not check the hop fields' validity.
+func (t *Token) Validate() error {
+	return t.InfoField.Validate()
 }
