@@ -32,9 +32,10 @@ class Test(cli.Application):
                 print('{} is empty'.format(logfile))
                 sys.exit(1)
         finally:
+            docker('logs', name)
             docker('rm', '-f', name)
+            docker('rmi', 'bazel/integration/service_filelog:cs')
             shutil.rmtree(tmpdir, ignore_errors=True)
-
 
 if __name__ == "__main__":
     Test.run()
