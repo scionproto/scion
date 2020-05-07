@@ -15,7 +15,7 @@ require (
 	github.com/iancoleman/strcase v0.0.0-20190422225806-e506e3ef7365
 	github.com/inconshreveable/log15 v0.0.0-20161013181240-944cbfb97b44
 	github.com/kormat/fmt15 v0.0.0-20181112140556-ee69fecb2656
-	github.com/lucas-clemente/quic-go v0.15.5
+	github.com/lucas-clemente/quic-go v0.15.7
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.8
 	github.com/mattn/go-sqlite3 v1.9.1-0.20180719091609-b3511bfdd742
