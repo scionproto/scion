@@ -15,8 +15,6 @@
 package reservation
 
 import (
-	"bytes"
-	"encoding/hex"
 	"testing"
 	"time"
 
@@ -27,20 +25,10 @@ import (
 )
 
 func TestSegmentIDFromRaw(t *testing.T) {
-	raw := xtest.MustParseHexString("ffaa00001101facecafe")
-	id, err := SegmentIDFromRaw(raw)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	refASID := xtest.MustParseAS("ffaa:0:1101")
-	if id.ASID != refASID {
-		t.Fatalf("Bad ASID. Got %x expected %x", id.ASID, refASID)
-	}
-	refSuffix := xtest.MustParseHexString("facecafe")
-	if bytes.Compare(id.Suffix[:], refSuffix) != 0 {
-		t.Fatalf("Bad Suffix. Got %s expected %s",
-			hex.EncodeToString(id.Suffix[:]), hex.EncodeToString(refSuffix))
-	}
+	id, err := SegmentIDFromRaw(xtest.MustParseHexString("ffaa00001101facecafe"))
+	require.NoError(t, err)
+	require.Equal(t, xtest.MustParseAS("ffaa:0:1101"), id.ASID)
+	require.Equal(t, xtest.MustParseHexString("facecafe"), id.Suffix[:])
 }
 
 func TestSegmentIDRead(t *testing.T) {
@@ -50,34 +38,17 @@ func TestSegmentIDRead(t *testing.T) {
 	copy(reference.Suffix[:], xtest.MustParseHexString("facecafe"))
 	raw := make([]byte, SegmentIDLen)
 	n, err := reference.Read(raw)
-	if err != nil {
-		t.Fatalf("Unexpect error: %v", err)
-	}
-	if n != SegmentIDLen {
-		t.Fatalf("Unexpected read size %d. Expected %d", n, SegmentIDLen)
-	}
-	rawReference := xtest.MustParseHexString("ffaa00001101facecafe")
-	if bytes.Compare(raw, rawReference) != 0 {
-		t.Fatalf("Serialized SegmentID is different: %s expected %s",
-			hex.EncodeToString(raw), hex.EncodeToString(rawReference))
-	}
+	require.NoError(t, err)
+	require.Equal(t, SegmentIDLen, n)
+	require.Equal(t, xtest.MustParseHexString("ffaa00001101facecafe"), raw)
 }
 
 func TestE2EIDFromRaw(t *testing.T) {
 	raw := xtest.MustParseHexString("ffaa00001101facecafedeadbeeff00d")
 	id, err := E2EIDFromRaw(raw)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	refASID := xtest.MustParseAS("ffaa:0:1101")
-	if id.ASID != refASID {
-		t.Fatalf("Bad ASID. Got %x expected %x", id.ASID, refASID)
-	}
-	refSuffix := xtest.MustParseHexString("facecafedeadbeeff00d")
-	if bytes.Compare(id.Suffix[:], refSuffix) != 0 {
-		t.Fatalf("Bad Suffix. Got %s expected %s",
-			hex.EncodeToString(id.Suffix[:]), hex.EncodeToString(refSuffix))
-	}
+	require.NoError(t, err)
+	require.Equal(t, xtest.MustParseAS("ffaa:0:1101"), id.ASID)
+	require.Equal(t, xtest.MustParseHexString("facecafedeadbeeff00d"), id.Suffix[:])
 }
 
 func TestE2EIDRead(t *testing.T) {
@@ -87,80 +58,56 @@ func TestE2EIDRead(t *testing.T) {
 	copy(reference.Suffix[:], xtest.MustParseHexString("facecafedeadbeeff00d"))
 	raw := make([]byte, E2EIDLen)
 	n, err := reference.Read(raw)
-	if err != nil {
-		t.Fatalf("Unexpect error: %v", err)
-	}
-	if n != E2EIDLen {
-		t.Fatalf("Unexpected read size %d. Expected %d", n, E2EIDLen)
-	}
-	rawReference := xtest.MustParseHexString("ffaa00001101facecafedeadbeeff00d")
-	if bytes.Compare(raw, rawReference) != 0 {
-		t.Fatalf("Serialized E2EID is different: %s expected %s",
-			hex.EncodeToString(raw), hex.EncodeToString(rawReference))
-	}
+	require.NoError(t, err)
+	require.Equal(t, E2EIDLen, n)
+	require.Equal(t, xtest.MustParseHexString("ffaa00001101facecafedeadbeeff00d"), raw)
 }
 
 func TestTickFromTime(t *testing.T) {
-	if tick := TickFromTime(time.Unix(0, 0)); tick != 0 {
-		t.Fatalf("Wrong tick %v, expected 0", tick)
-	}
-	if tick := TickFromTime(time.Unix(3, 999999)); tick != 0 {
-		t.Fatalf("Wrong tick %v, expected 0", tick)
-	}
-	if tick := TickFromTime(time.Unix(4, 0)); tick != 1 {
-		t.Fatalf("Wrong tick %v, expected 0", tick)
-	}
+	require.Equal(t, Tick(0), TickFromTime(time.Unix(0, 0)))
+	require.Equal(t, Tick(0), TickFromTime(time.Unix(3, 999999)))
+	require.Equal(t, Tick(1), TickFromTime(time.Unix(4, 0)))
 }
 
 func TestValidateBWCls(t *testing.T) {
 	for i := 0; i < 64; i++ {
 		c := BWCls(i)
-		if err := c.Validate(); err != nil {
-			t.Fatalf("Unexpected error at i = %d: %v", i, err)
-		}
+		err := c.Validate()
+		require.NoError(t, err)
 	}
 	c := BWCls(64)
-	if err := c.Validate(); err == nil {
-		t.Fatalf("Expected validation error but did not get one")
-	}
+	err := c.Validate()
+	require.Error(t, err)
 }
 
 func TestValidateRLC(t *testing.T) {
 	for i := 0; i < 64; i++ {
 		c := RLC(i)
-		if err := c.Validate(); err != nil {
-			t.Fatalf("Unexpected error at i = %d: %v", i, err)
-		}
+		err := c.Validate()
+		require.NoError(t, err)
 	}
 	c := RLC(64)
-	if err := c.Validate(); err == nil {
-		t.Fatalf("Expected validation error but did not get one")
-	}
+	err := c.Validate()
+	require.Error(t, err)
 }
 
 func TestValidateIndexNumber(t *testing.T) {
 	for i := 0; i < 16; i++ {
 		idx := IndexNumber(i)
-		if err := idx.Validate(); err != nil {
-			t.Fatalf("Unexpected error at i = %d: %v", i, err)
-		}
+		err := idx.Validate()
+		require.NoError(t, err)
 	}
 	idx := IndexNumber(16)
-	if err := idx.Validate(); err == nil {
-		t.Fatal("Expected validation error but did not get one")
-	}
+	err := idx.Validate()
+	require.Error(t, err)
 }
 
 func TestIndexNumberArithmetic(t *testing.T) {
 	var idx IndexNumber = 1
 	x := idx.Add(IndexNumber(15))
-	if x != IndexNumber(0) {
-		t.Fatalf("Unexpected result %v", x)
-	}
+	require.Equal(t, IndexNumber(0), x)
 	x = idx.Sub(IndexNumber(2))
-	if x != IndexNumber(15) {
-		t.Fatalf("Unexpected result %v", x)
-	}
+	require.Equal(t, IndexNumber(15), x)
 }
 
 func TestValidatePathType(t *testing.T) {
@@ -174,18 +121,16 @@ func TestValidatePathType(t *testing.T) {
 	}
 	for _, vt := range validTypes {
 		pt := PathType(vt)
-		if err := pt.Validate(); err != nil {
-			t.Fatalf("Unexpected error with type %v: %v", vt, err)
-		}
+		err := pt.Validate()
+		require.NoError(t, err)
 	}
 	pt := PathType(UnknownPath)
-	if err := pt.Validate(); err == nil {
-		t.Fatalf("Expected validation error but did not get one")
-	}
+	err := pt.Validate()
+	require.Error(t, err)
+
 	pt = PathType(CorePath + 1)
-	if err := pt.Validate(); err == nil {
-		t.Fatalf("Expected validation error but did not get one")
-	}
+	err = pt.Validate()
+	require.Error(t, err)
 }
 
 func TestValidateInfoField(t *testing.T) {
@@ -196,53 +141,36 @@ func TestValidateInfoField(t *testing.T) {
 		Idx:            0,
 		PathType:       CorePath,
 	}
-	if err := infoField.Validate(); err != nil {
-		t.Fatalf("Unexpected error %v", err)
-	}
+	err := infoField.Validate()
+	require.NoError(t, err)
+
 	otherIF := infoField
 	otherIF.BWCls = 64
-	if err := otherIF.Validate(); err == nil {
-		t.Fatalf("Expected validation error but did not get one")
-	}
+	err = otherIF.Validate()
+	require.Error(t, err)
+
 	otherIF = infoField
 	otherIF.RLC = 64
-	if err := otherIF.Validate(); err == nil {
-		t.Fatalf("Expected validation error but did not get one")
-	}
+	err = otherIF.Validate()
+	require.Error(t, err)
+
 	otherIF = infoField
 	otherIF.Idx = 16
-	if err := otherIF.Validate(); err == nil {
-		t.Fatalf("Expected validation error but did not get one")
-	}
+	err = otherIF.Validate()
+	require.Error(t, err)
+
 	otherIF = infoField
 	otherIF.PathType = CorePath + 1
-	if err := otherIF.Validate(); err == nil {
-		t.Fatalf("Expected validation error but did not get one")
-	}
+	err = otherIF.Validate()
+	require.Error(t, err)
 }
 
 func TestInfoFieldFromRaw(t *testing.T) {
 	reference := newInfoField()
 	rawReference := newInfoFieldRaw()
 	info, err := InfoFieldFromRaw(rawReference)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if info.ExpirationTick != reference.ExpirationTick {
-		t.Fatalf("Bad ExpirationTick %v != %v", info.ExpirationTick, reference.ExpirationTick)
-	}
-	if info.BWCls != reference.BWCls {
-		t.Fatalf("Bad BWCls %v != %v", info.BWCls, reference.BWCls)
-	}
-	if info.RLC != reference.RLC {
-		t.Fatalf("Bad RLC %v != %v", info.RLC, reference.RLC)
-	}
-	if info.Idx != reference.Idx {
-		t.Fatalf("Bad Idx %v != %v", info.Idx, reference.Idx)
-	}
-	if info.PathType != reference.PathType {
-		t.Fatalf("Bad PathType %v != %v", info.PathType, reference.PathType)
-	}
+	require.NoError(t, err)
+	require.Equal(t, reference, *info)
 }
 
 func TestInfoFieldRead(t *testing.T) {
@@ -254,46 +182,33 @@ func TestInfoFieldRead(t *testing.T) {
 		raw[i] = byte(i % 256)
 	}
 	n, err := reference.Read(raw)
-	if err != nil {
-		t.Fatalf("Unexpect error: %v", err)
-	}
-	if n != InfoFieldLen {
-		t.Fatalf("Unexpected read size %d. Expected %d", n, InfoFieldLen)
-	}
-
-	if bytes.Compare(raw, rawReference) != 0 {
-		t.Fatalf("Fail to serialize InfoField. %v != %v",
-			hex.EncodeToString(raw), hex.EncodeToString(rawReference))
-	}
+	require.NoError(t, err)
+	require.Equal(t, InfoFieldLen, n)
+	require.Equal(t, rawReference, raw)
 }
 
 func TestValidatePathEndProperties(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		pep := PathEndProps(i)
-		if err := pep.Validate(); err != nil {
-			t.Fatalf("Unexpected error at i = %d: %v", i, err)
-		}
+		err := pep.Validate()
+		require.NoError(t, err)
 	}
 	pep := PathEndProps(4)
-	if err := pep.Validate(); err == nil {
-		t.Fatal("Expected validation error but got none")
-	}
+	err := pep.Validate()
+	require.Error(t, err)
 
 	for i := 0; i < 4; i++ {
 		pep := PathEndProps(i << 4)
-		if err := pep.Validate(); err != nil {
-			t.Fatalf("Unexpected error at i = %d: %v", i, err)
-		}
+		err := pep.Validate()
+		require.NoError(t, err)
 	}
 	pep = PathEndProps(4 << 4)
-	if err := pep.Validate(); err == nil {
-		t.Fatal("Expected validation error but got none")
-	}
+	err = pep.Validate()
+	require.Error(t, err)
 
 	pep = PathEndProps(0x10 | 0x04)
-	if err := pep.Validate(); err == nil {
-		t.Fatal("Expected validation error but got none")
-	}
+	err = pep.Validate()
+	require.Error(t, err)
 }
 
 func TestValidateToken(t *testing.T) {
