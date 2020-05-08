@@ -307,6 +307,8 @@ class GoGenerator(object):
                 'level': self.log_level,
             },
         }
+        if self.args.docker:
+            entry['console'] = {'level': self.log_level}
         return entry
 
     def _metrics_entry(self, infra_elem, base_port):
