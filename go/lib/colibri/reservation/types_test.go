@@ -219,6 +219,12 @@ func TestValidateToken(t *testing.T) {
 	err = tok.Validate()
 	require.Error(t, err)
 }
+
+func TestTokenLen(t *testing.T) {
+	tok := newToken()
+	require.Equal(t, len(newTokenRaw()), tok.Len())
+}
+
 func TestTokenFromRaw(t *testing.T) {
 	referenceRaw := newTokenRaw()
 	reference := newToken()
