@@ -479,8 +479,8 @@ def go_deps():
     go_repository(
         name = "com_github_lucas_clemente_quic_go",
         importpath = "github.com/lucas-clemente/quic-go",
-        sum = "h1:2DR5qCVt4k1qnDmknf+idj1FDJIrkiDyS6a0uIR+UJY=",
-        version = "v0.15.5",
+        sum = "h1:Pu7To5/G9JoP1mwlrcIvfV8ByPBlCzif3MCl8+1W83I=",
+        version = "v0.15.7",
     )
     go_repository(
         name = "com_github_lunixbochs_vtclean",
