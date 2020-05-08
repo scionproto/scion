@@ -54,6 +54,31 @@ func NewRequestFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, timestamp time.Time
 	return &s
 }
 
+// ToCtrlMsg creates a new segment setup control message filled with the information from here.
+func (r *SetupReq) ToCtrlMsg() *colibri_mgmt.SegmentSetup {
+	msg := &colibri_mgmt.SegmentSetup{
+		MinBW:    r.MinBW,
+		MaxBW:    r.MaxBW,
+		SplitCls: r.SplitCls,
+		StartProps: colibri_mgmt.PathEndProps{
+			Local:    (r.PathProps & reservation.StartLocal) != 0,
+			Transfer: (r.PathProps & reservation.StartTransfer) != 0,
+		},
+		EndProps: colibri_mgmt.PathEndProps{
+			Local:    (r.PathProps & reservation.EndLocal) != 0,
+			Transfer: (r.PathProps & reservation.EndTransfer) != 0,
+		},
+		AllocationTrail: make([]*colibri_mgmt.AllocationBeads, len(r.AllocTrail)),
+	}
+	for i, bead := range r.AllocTrail {
+		msg.AllocationTrail[i] = &colibri_mgmt.AllocationBeads{
+			AllocBW: bead.AllocBW,
+			MaxBW:   bead.MaxBW,
+		}
+	}
+	return msg
+}
+
 // SetupTelesReq represents a telescopic segment setup.
 type SetupTelesReq struct {
 	SetupReq
