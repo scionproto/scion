@@ -154,10 +154,12 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 		if err.Error() != "SERVER_BUSY" {
 			return nil, err
 		}
+		log.FromCtx(ctx).Info("SERVER BUSY")
 		select {
 		case <-time.After(sleep):
 		case <-ctx.Done():
 		}
+		log.FromCtx(ctx).Info("SERVER BUSY: Done sleep")
 	}
 
 	stream, err := session.OpenStream()
