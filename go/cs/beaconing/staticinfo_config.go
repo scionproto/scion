@@ -1,3 +1,17 @@
+// Copyright 2020 ETH Zurich, Anapaya Systems
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package beaconing
 
 import (
@@ -188,31 +202,31 @@ func (cfgdata StaticInfoCfg) gatherGeo() seg.GeoInfo {
 }
 
 // ParseStaticInfoCfg parses data from a config file into a StaticInfoCfg struct.
-func ParseStaticInfoCfg(file string) (StaticInfoCfg, error) {
+func ParseStaticInfoCfg(file string) (*StaticInfoCfg, error) {
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
-		return StaticInfoCfg{}, serrors.WrapStr("failed to read static info config: ",
+		return nil, serrors.WrapStr("failed to read static info config: ",
 			err, "file", file)
 	}
 	var cfg StaticInfoCfg
 	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return StaticInfoCfg{}, serrors.WrapStr("failed to parse static info config: ",
+		return nil, serrors.WrapStr("failed to parse static info config: ",
 			err, "file ", file)
 	}
-	return cfg, nil
+	return &cfg, nil
 }
 
-// GenerateStaticinfo creates a StaticinfoExtn struct and
+// generateStaticinfo creates a StaticinfoExtn struct and
 // populates it with data extracted from configdata.
-func GenerateStaticinfo(configdata StaticInfoCfg, peers map[common.IFIDType]struct{},
+func (cfgdata StaticInfoCfg) generateStaticinfo(peers map[common.IFIDType]struct{},
 	egifID common.IFIDType, inifID common.IFIDType) seg.StaticInfoExtn {
 
 	return seg.StaticInfoExtn{
-		Latency:   configdata.gatherLatency(peers, egifID, inifID),
-		Bandwidth: configdata.gatherBW(peers, egifID, inifID),
-		Linktype:  configdata.gatherLinkType(peers, egifID),
-		Geo:       configdata.gatherGeo(),
-		Note:      configdata.Note,
-		Hops:      configdata.gatherHops(peers, egifID, inifID),
+		Latency:   cfgdata.gatherLatency(peers, egifID, inifID),
+		Bandwidth: cfgdata.gatherBW(peers, egifID, inifID),
+		Linktype:  cfgdata.gatherLinkType(peers, egifID),
+		Geo:       cfgdata.gatherGeo(),
+		Note:      cfgdata.Note,
+		Hops:      cfgdata.gatherHops(peers, egifID, inifID),
 	}
 }
