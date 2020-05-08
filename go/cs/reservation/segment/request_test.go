@@ -33,6 +33,14 @@ func TestNewRequestFromCtrlMsg(t *testing.T) {
 	checkRequest(t, segSetup, r, ts)
 }
 
+func TestRequestToCtrlMsg(t *testing.T) {
+	segSetup := newSegSetup()
+	ts := time.Unix(1, 0)
+	r := segment.NewRequestFromCtrlMsg(segSetup, ts)
+	anotherSegSetup := r.ToCtrlMsg()
+	require.Equal(t, segSetup, anotherSegSetup)
+}
+
 func TestNewTelesRequestFromCtrlMsg(t *testing.T) {
 	telesReq := &colibri_mgmt.SegmentTelesSetup{
 		Setup: newSegSetup(),
