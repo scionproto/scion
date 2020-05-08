@@ -20,6 +20,7 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // SetupReq is the interface for an e2e setup request.
@@ -27,6 +28,7 @@ import (
 type SetupReq interface {
 	Reservation() *Reservation
 	Timestamp() time.Time
+	ToCtrlMsg() (*colibri_mgmt.E2ESetup, error)
 }
 
 // BaseSetupReq is the common part of any e2e setup request.
@@ -35,8 +37,8 @@ type BaseSetupReq struct {
 	timestamp   time.Time
 }
 
-func (s *BaseSetupReq) Timestamp() time.Time      { return s.timestamp }
-func (s *BaseSetupReq) Reservation() *Reservation { return s.reservation }
+func (r *BaseSetupReq) Timestamp() time.Time      { return r.timestamp }
+func (r *BaseSetupReq) Reservation() *Reservation { return r.reservation }
 
 // SuccessSetupReq is a successful e2e resevation setup request.
 type SuccessSetupReq struct {
@@ -47,6 +49,30 @@ type SuccessSetupReq struct {
 
 var _ SetupReq = (*SuccessSetupReq)(nil)
 
+func (r *SuccessSetupReq) ToCtrlMsg() (*colibri_mgmt.E2ESetup, error) {
+	id := make([]byte, reservation.E2EIDLen)
+	_, err := r.ID.Read(id)
+	if err != nil {
+		return nil, err
+	}
+	token := make([]byte, r.Token.Len())
+	_, err = r.Token.Read(token)
+	if err != nil {
+		return nil, err
+	}
+	msg := &colibri_mgmt.E2ESetup{
+		Which: proto.E2ESetupData_Which_success,
+		Success: &colibri_mgmt.E2ESetupSuccess{
+			ReservationID: &colibri_mgmt.E2EReservationID{
+				ASID:   id[:6],
+				Suffix: id[6:],
+			},
+			Token: token,
+		},
+	}
+	return msg, nil
+}
+
 // FailureSetupReq is a failing e2e resevation setup request.
 type FailureSetupReq struct {
 	BaseSetupReq
@@ -56,6 +82,27 @@ type FailureSetupReq struct {
 }
 
 var _ SetupReq = (*FailureSetupReq)(nil)
+
+func (r *FailureSetupReq) ToCtrlMsg() (*colibri_mgmt.E2ESetup, error) {
+	inf := make([]byte, reservation.InfoFieldLen)
+	_, err := r.InfoField.Read(inf)
+	if err != nil {
+		return nil, err
+	}
+	trail := make([]uint8, len(r.MaxBWTrail))
+	for i, bw := range r.MaxBWTrail {
+		trail[i] = uint8(bw)
+	}
+	msg := &colibri_mgmt.E2ESetup{
+		Which: proto.E2ESetupData_Which_failure,
+		Failure: &colibri_mgmt.E2ESetupFailure{
+			ErrorCode: uint8(r.ErrorCode),
+			InfoField: inf,
+			MaxBWs:    trail,
+		},
+	}
+	return msg, nil
+}
 
 // NewRequestFromCtrlMsg will return a SuccessSetupReq or FailSetupReq depending on the
 // success flag of the ctrl message.

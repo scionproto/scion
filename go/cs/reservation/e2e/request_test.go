@@ -40,6 +40,21 @@ func TestNewRequestFromCtrlMsg(t *testing.T) {
 	checkRequest(t, setup, r, ts)
 }
 
+func TestRequestToCtrlMsg(t *testing.T) {
+	setup := newE2ESetupSuccess()
+	ts := time.Unix(1, 0)
+	r, _ := e2e.NewRequestFromCtrlMsg(setup, ts)
+	anotherSetup, err := r.ToCtrlMsg()
+	require.NoError(t, err)
+	require.Equal(t, setup, anotherSetup)
+
+	setup = newE2ESetupFailure()
+	r, _ = e2e.NewRequestFromCtrlMsg(setup, ts)
+	anotherSetup, err = r.ToCtrlMsg()
+	require.NoError(t, err)
+	require.Equal(t, setup, anotherSetup)
+}
+
 func newE2ESetupSuccess() *colibri_mgmt.E2ESetup {
 	return &colibri_mgmt.E2ESetup{
 		Which: proto.E2ESetupData_Which_success,
