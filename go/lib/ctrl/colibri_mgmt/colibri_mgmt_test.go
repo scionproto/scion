@@ -135,11 +135,8 @@ func TestSerializeRequest(t *testing.T) {
 				E2ESetup: &colibri_mgmt.E2ESetup{
 					Which: proto.E2ESetupData_Which_success,
 					Success: &colibri_mgmt.E2ESetupSuccess{
-						ReservationID: &colibri_mgmt.E2EReservationID{
-							ASID:   xtest.MustParseHexString("ff00cafe0001"),
-							Suffix: xtest.MustParseHexString("0123456789abcdef0123456789abcdef"),
-						},
-						Token: xtest.MustParseHexString("0000"),
+						ReservationID: newE2EReservationID(),
+						Token:         xtest.MustParseHexString("0000"),
 					},
 				},
 			},
@@ -174,10 +171,7 @@ func TestSerializeRequest(t *testing.T) {
 			Request: &colibri_mgmt.Request{
 				Which: proto.Request_Which_e2eCleanup,
 				E2ECleanup: &colibri_mgmt.E2ECleanup{
-					ReservationID: &colibri_mgmt.E2EReservationID{
-						ASID:   xtest.MustParseHexString("ff00cafe0001"),
-						Suffix: xtest.MustParseHexString("0123456789abcdef0123456789abcdef"),
-					},
+					ReservationID: newE2EReservationID(),
 				},
 			},
 		},
@@ -209,15 +203,12 @@ func TestSerializeResponse(t *testing.T) {
 			Token: xtest.MustParseHexString("0000"),
 		}
 	}
-	newE2ESetupResp := func() *colibri_mgmt.E2ESetup {
+	newE2ESetup := func() *colibri_mgmt.E2ESetup {
 		return &colibri_mgmt.E2ESetup{
 			Which: proto.E2ESetupData_Which_success,
 			Success: &colibri_mgmt.E2ESetupSuccess{
-				ReservationID: &colibri_mgmt.E2EReservationID{
-					ASID:   xtest.MustParseHexString("ff00cafe0001"),
-					Suffix: xtest.MustParseHexString("0123456789abcdef0123456789abcdef"),
-				},
-				Token: xtest.MustParseHexString("0000"),
+				ReservationID: newE2EReservationID(),
+				Token:         xtest.MustParseHexString("0000"),
 			},
 		}
 	}
@@ -315,14 +306,14 @@ func TestSerializeResponse(t *testing.T) {
 		"e2e setup": {
 			Response: &colibri_mgmt.Response{
 				Which:    proto.Response_Which_e2eSetup,
-				E2ESetup: newE2ESetupResp(),
+				E2ESetup: newE2ESetup(),
 				Accepted: true,
 			},
 		},
 		"e2e renewal": {
 			Response: &colibri_mgmt.Response{
 				Which:      proto.Response_Which_e2eRenewal,
-				E2ERenewal: newE2ESetupResp(),
+				E2ERenewal: newE2ESetup(),
 				Accepted:   true,
 			},
 		},
@@ -330,10 +321,7 @@ func TestSerializeResponse(t *testing.T) {
 			Response: &colibri_mgmt.Response{
 				Which: proto.Response_Which_e2eCleanup,
 				E2ECleanup: &colibri_mgmt.E2ECleanup{
-					ReservationID: &colibri_mgmt.E2EReservationID{
-						ASID:   xtest.MustParseHexString("ff00cafe0001"),
-						Suffix: xtest.MustParseHexString("0123456789abcdef0123456789abcdef"),
-					},
+					ReservationID: newE2EReservationID(),
 				},
 				Accepted: true,
 			},
@@ -354,5 +342,12 @@ func TestSerializeResponse(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, buffer, otherBuffer)
 		})
+	}
+}
+
+func newE2EReservationID() *colibri_mgmt.E2EReservationID {
+	return &colibri_mgmt.E2EReservationID{
+		ASID:   xtest.MustParseHexString("ff00cafe0001"),
+		Suffix: xtest.MustParseHexString("0123456789abcdef0123"),
 	}
 }
