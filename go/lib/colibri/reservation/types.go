@@ -366,9 +366,14 @@ func TokenFromRaw(raw []byte) (*Token, error) {
 	return &t, nil
 }
 
+// Len returns the number of bytes of this token if serialized.
+func (t *Token) Len() int {
+	return InfoFieldLen + len(t.HopFields)*spath.HopFieldLength
+}
+
 // Read serializes this Token to the passed buffer.
 func (t *Token) Read(b []byte) (int, error) {
-	length := InfoFieldLen + len(t.HopFields)*spath.HopFieldLength
+	length := t.Len()
 	if len(b) < length {
 		return 0, serrors.New("buffer too small", "min_size", length, "current_size", len(b))
 	}
