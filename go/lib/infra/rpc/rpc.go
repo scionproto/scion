@@ -151,12 +151,13 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 		if err == nil {
 			break
 		}
-		log.FromCtx(ctx).Info("Received error", "err", err)
 		if err.Error() != "SERVER_BUSY" {
 			return nil, err
 		}
-		log.FromCtx(ctx).Info("Exponential back-off", "sleep", sleep)
-		time.Sleep(sleep)
+		select {
+		case <-time.After(sleep):
+		case <-ctx.Done():
+		}
 	}
 
 	stream, err := session.OpenStream()
