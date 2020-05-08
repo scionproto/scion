@@ -45,7 +45,7 @@ type ExtenderConf struct {
 	// task contains an identifier specific to the task that uses the extender.
 	task string
 	// StaticInfoCfg contains the Configdata used for the StaticInfo Extension.
-	StaticInfoCfg StaticInfoCfg
+	StaticInfoCfg *StaticInfoCfg
 }
 
 // InitDefaults initializes the default values, if not set.

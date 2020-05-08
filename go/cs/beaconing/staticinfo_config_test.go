@@ -202,7 +202,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 			Note: "asdf",
 		},
 	}
-	actual := GenerateStaticinfo(test.configData,
+	actual := test.configData.generateStaticinfo(
 		test.peers, test.egIfid, test.inIfid)
 	assert.Equal(t, test.expected.Latency.Egresslatency,
 		actual.Latency.Egresslatency)

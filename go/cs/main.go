@@ -79,7 +79,7 @@ import (
 var (
 	cfg config.Config
 
-	staticInfoCfg beaconing.StaticInfoCfg
+	staticInfoCfg *beaconing.StaticInfoCfg
 
 	intfs *ifstate.Interfaces
 	tasks *periodicTasks
