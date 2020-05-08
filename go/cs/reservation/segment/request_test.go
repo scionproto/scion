@@ -42,13 +42,7 @@ func TestRequestToCtrlMsg(t *testing.T) {
 }
 
 func TestNewTelesRequestFromCtrlMsg(t *testing.T) {
-	telesReq := &colibri_mgmt.SegmentTelesSetup{
-		Setup: newSegSetup(),
-		BaseID: &colibri_mgmt.SegmentReservationID{
-			ASID:   xtest.MustParseHexString("ff00cafe0001"),
-			Suffix: xtest.MustParseHexString("deadbeef"),
-		},
-	}
+	telesReq := newSegTelesSetup()
 	ts := time.Unix(1, 0)
 	r, err := segment.NewTelesRequestFromCtrlMsg(telesReq, ts)
 	require.NoError(t, err)
@@ -56,6 +50,14 @@ func TestNewTelesRequestFromCtrlMsg(t *testing.T) {
 	checkRequest(t, telesReq.Setup, &r.SetupReq, ts)
 	require.Equal(t, xtest.MustParseAS("ff00:cafe:1"), r.BaseID.ASID)
 	require.Equal(t, xtest.MustParseHexString("deadbeef"), r.BaseID.Suffix[:])
+}
+
+func TestTelesRequestToCtrlMsg(t *testing.T) {
+	segSetup := newSegTelesSetup()
+	ts := time.Unix(1, 0)
+	r, _ := segment.NewTelesRequestFromCtrlMsg(segSetup, ts)
+	anotherSegSetup := r.ToCtrlMsg()
+	require.Equal(t, segSetup, anotherSegSetup)
 }
 
 func newSegSetup() *colibri_mgmt.SegmentSetup {
@@ -76,6 +78,16 @@ func newSegSetup() *colibri_mgmt.SegmentSetup {
 				AllocBW: 5,
 				MaxBW:   6,
 			},
+		},
+	}
+}
+
+func newSegTelesSetup() *colibri_mgmt.SegmentTelesSetup {
+	return &colibri_mgmt.SegmentTelesSetup{
+		Setup: newSegSetup(),
+		BaseID: &colibri_mgmt.SegmentReservationID{
+			ASID:   xtest.MustParseHexString("ff00cafe0001"),
+			Suffix: xtest.MustParseHexString("deadbeef"),
 		},
 	}
 }
