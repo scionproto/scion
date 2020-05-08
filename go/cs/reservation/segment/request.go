@@ -102,3 +102,16 @@ func NewTelesRequestFromCtrlMsg(setup *colibri_mgmt.SegmentTelesSetup, timestamp
 	s.BaseID = *id
 	return &s, nil
 }
+
+// ToCtrlMsg creates a new segment telescopic setup control message from this request.
+func (r *SetupTelesReq) ToCtrlMsg() *colibri_mgmt.SegmentTelesSetup {
+	buff := make([]byte, reservation.SegmentIDLen)
+	r.BaseID.Read(buff)
+	return &colibri_mgmt.SegmentTelesSetup{
+		Setup: r.SetupReq.ToCtrlMsg(),
+		BaseID: &colibri_mgmt.SegmentReservationID{
+			ASID:   buff[:6],
+			Suffix: buff[6:],
+		},
+	}
+}
