@@ -203,9 +203,12 @@ func (m *Messenger) ListenAndServe() {
 			log.Error("[tcp-msgr] Listen error", "err", err)
 			return
 		}
-		if err := m.handleConn(conn); err != nil {
-			log.Warn("[tcp-msgr] Server handler exited with error", "err", err)
-		}
+		go func() {
+			defer log.HandlePanic()
+			if err := m.handleConn(conn); err != nil {
+				log.Warn("[tcp-msgr] Server handler exited with error", "err", err)
+			}
+		}()
 	}
 }
 
@@ -223,10 +226,7 @@ func (m *Messenger) handleConn(conn net.Conn) error {
 		Message: msg,
 		Address: conn.RemoteAddr(),
 	}
-	go func() {
-		defer log.HandlePanic()
-		m.Handler.ServeRPC(rw, request)
-	}()
+	m.Handler.ServeRPC(rw, request)
 	return nil
 }
 

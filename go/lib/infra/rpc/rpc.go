@@ -20,9 +20,11 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	mrand "math/rand"
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	quic "github.com/lucas-clemente/quic-go"
 	capnp "zombiezen.com/go/capnproto2"
@@ -73,9 +75,12 @@ func (s *Server) ListenAndServe() error {
 			log.Warn("[quic] server accept error", "err", err)
 			continue
 		}
-		if err := s.handleQUICSession(session); err != nil {
-			log.Warn("[quic] server handler exited with error", "err", err)
-		}
+		go func() {
+			defer log.HandlePanic()
+			if err := s.handleQUICSession(session); err != nil {
+				log.Warn("[quic] server handler exited with error", "err", err)
+			}
+		}()
 	}
 }
 
@@ -120,10 +125,7 @@ func (s *Server) handleQUICSession(session quic.Session) error {
 		Message: msg,
 		Address: session.RemoteAddr(),
 	}
-	go func() {
-		defer log.HandlePanic()
-		s.Handler.ServeRPC(rw, request)
-	}()
+	s.Handler.ServeRPC(rw, request)
 	return nil
 }
 
@@ -143,10 +145,22 @@ type Client struct {
 func (c *Client) Request(ctx context.Context, request *Request, address net.Addr) (*Reply, error) {
 	addressStr := computeAddressStr(address)
 
-	session, err := quic.DialContext(ctx, c.Conn, address, addressStr,
-		c.TLSConfig, c.QUICConfig)
-	if err != nil {
-		return nil, err
+	var session quic.Session
+	for sleep := 2 * time.Millisecond; ctx.Err() == nil; sleep = sleep * 2 {
+		var err error
+		session, err = quic.DialContext(ctx, c.Conn, address, addressStr, c.TLSConfig, c.QUICConfig)
+		if err == nil {
+			break
+		}
+		// Unfortunately there is no better way to check the error.
+		// https://github.com/lucas-clemente/quic-go/issues/2441
+		if err.Error() != "SERVER_BUSY" {
+			return nil, err
+		}
+		select {
+		case <-time.After(sleep + time.Duration(mrand.Int()%5000)*time.Microsecond):
+		case <-ctx.Done():
+		}
 	}
 
 	stream, err := session.OpenStream()
