@@ -19,6 +19,8 @@ is a good place to start.
    HiddenPaths
    ColibriService
    Metrics
+   scion-header
+   extension-header
 
 
 Indices and tables
