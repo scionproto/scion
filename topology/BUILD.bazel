@@ -2,18 +2,18 @@
 
 filegroup(
     name = "default",
-    srcs = ["Default.topo"],
+    srcs = ["default.topo"],
     visibility = ["//visibility:public"],
 )
 
 filegroup(
     name = "tiny",
-    srcs = ["Tiny.topo"],
+    srcs = ["tiny.topo"],
     visibility = ["//visibility:public"],
 )
 
 filegroup(
     name = "wide",
-    srcs = ["Wide.topo"],
+    srcs = ["wide.topo"],
     visibility = ["//visibility:public"],
 )

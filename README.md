@@ -39,4 +39,3 @@ for more information about how you can do so.
 ## License
 
 [![License](https://img.shields.io/github/license/scionproto/scion.svg?maxAge=2592000)](https://github.com/scionproto/scion/blob/master/LICENSE)
-

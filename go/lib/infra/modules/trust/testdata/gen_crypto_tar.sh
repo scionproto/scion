@@ -20,7 +20,7 @@ OUTDIR=${2:-./go/lib/infra/modules/trust/testdata/crypto.tar}
 TMP=`mktemp -d`
 
 # Generate config files for the default topology.
-$PKIBIN tmpl topo -d $TMP ./topology/Default.topo > /dev/null
+$PKIBIN tmpl topo -d $TMP ./topology/default.topo > /dev/null
 # Generate the private keys for all ASes under $TMP/ISD*/AS*/keys.
 $PKIBIN keys private -d $TMP "*-*" > /dev/null
 

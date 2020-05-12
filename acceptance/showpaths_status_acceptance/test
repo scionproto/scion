@@ -46,7 +46,7 @@ class TestSetup(Base):
 
     @LogExec(logger, 'setup')
     def main(self):
-        self.scion.topology('topology/Tiny.topo')
+        self.scion.topology('topology/tiny.topo')
         self.scion.run()
         if not self.no_docker:
             self.tools_dc('start', 'tester*')

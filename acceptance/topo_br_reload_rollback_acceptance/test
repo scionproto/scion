@@ -10,7 +10,7 @@
 # 2. Invalid interface address (local) -> ignore changes; expect traffic to pass
 
 TEST_NAME="topo_br_reload_rollback"
-TEST_TOPOLOGY="acceptance/topo_br_reload_util/Tinier.topo"
+TEST_TOPOLOGY="acceptance/topo_br_reload_util/tinier.topo"
 
 TMP_TOPO="${SRC_TOPO}.tmp"
 
