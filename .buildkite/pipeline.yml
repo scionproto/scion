@@ -138,7 +138,7 @@ steps:
         - exit_status: 255 # Forced agent shutdown
   - label: ":docker: Integration: end2end_integration"
     command:
-    - ./scion.sh topology -t -d -c topology/Tiny.topo
+    - ./scion.sh topology -t -d -c topology/tiny.topo
     - ./scion.sh run
     - docker-compose -f gen/scion-dc.yml -p scion up -d $(docker-compose -f gen/scion-dc.yml config --services | grep tester)
     - sleep 10

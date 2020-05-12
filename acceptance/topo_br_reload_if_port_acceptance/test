@@ -11,7 +11,7 @@
 # 3. Change ports to original -> expect traffic to pass
 
 TEST_NAME="topo_br_reload_if_port"
-TEST_TOPOLOGY="acceptance/topo_br_reload_util/Tinier.topo"
+TEST_TOPOLOGY="acceptance/topo_br_reload_util/tinier.topo"
 
 . acceptance/topo_br_reload_util/util.sh
 

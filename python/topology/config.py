@@ -48,7 +48,7 @@ from topology.prometheus import PrometheusGenArgs, PrometheusGenerator
 from topology.supervisor import SupervisorGenArgs, SupervisorGenerator
 from topology.topo import TopoGenArgs, TopoGenerator
 
-DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
+DEFAULT_TOPOLOGY_FILE = "topology/default.topo"
 
 SCIOND_ADDRESSES_FILE = "sciond_addresses.json"
 

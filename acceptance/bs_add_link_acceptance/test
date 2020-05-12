@@ -65,7 +65,7 @@ class TestSetup(CmdBase):
     @LogExec(logger, 'setup')
     def main(self):
         self.cmd_setup()
-        self.scion.topology('topology/Tiny.topo')
+        self.scion.topology('topology/tiny.topo')
         self.modify_topologies()
         self.scion.set_configs({
             'log.file.flush_interval': 1,
