@@ -18,9 +18,9 @@ type ASGeo struct {
 }
 
 type GeoLoc struct {
-	Latitude  float32
-	Longitude float32
-	Address   string
+	Latitude  float32 `capnp:"latitude"`
+	Longitude float32 `capnp:"longitude"`
+	Address   string `capnp:"address"`
 }
 
 type ASDelay struct {
@@ -44,19 +44,22 @@ type ASBandwidth struct {
 }
 
 type DenseASLinkType struct {
-	InterLinkType uint16
-	PeerLinkType  uint16
-	IA            addr.IA
+	InterLinkType uint16 `capnp:"interLinkType"`
+	PeerLinkType  uint16 `capnp:"peerLinkType"`
+	ISD           addr.ISD `capnp:"isd"`
+	AS			  addr.AS `capnp:"as"`
 }
 
 type DenseGeo struct {
-	IA              addr.IA
-	RouterLocations []GeoLoc
+	RouterLocations []GeoLoc `capnp:"routerLocations"`
+	ISD             addr.ISD `capnp:"isd"`
+	AS			    addr.AS `capnp:"as"`
 }
 
 type DenseNote struct {
-	Note string
-	IA   addr.IA
+	Note string `capnp:"note"`
+	ISD  addr.ISD `capnp:"isd"`
+	AS	 addr.AS `capnp:"as"`
 }
 
 type Pathmetadata struct {
@@ -71,13 +74,15 @@ type Pathmetadata struct {
 
 // Densemetadata is the condensed form of metadata retaining only the most important values.
 type Densemetadata struct {
-	TotalDelay  uint16
-	TotalHops   uint8
-	MinOfMaxBWs uint32
-	LinkTypes   []DenseASLinkType
-	Locations   []DenseGeo
-	Notes       []DenseNote
+	TotalDelay  uint16 `capnp:"totalDelay"`
+	TotalHops   uint8 `capnp:"totalHops"`
+	MinOfMaxBWs uint32 `capnp:"bandwidthBottleneck"`
+	LinkTypes   []DenseASLinkType `capnp:"linkTypes"`
+	Locations   []DenseGeo `capnp:"asLocations"`
+	Notes       []DenseNote `capnp:"notes"`
 }
+
+// TODO: implement cerealizable interface for Densemetadata and all the others
 
 // Condensemetadata takes pathmetadata and extracts/condenses
 // the most important values to be transmitted to SCIOND
@@ -116,13 +121,15 @@ func (data *Pathmetadata) Condensemetadata() *Densemetadata {
 	for IA, note := range data.Notes {
 		ret.Notes = append(ret.Notes, DenseNote{
 			Note: note.Note,
-			IA:   IA,
+			ISD:   IA.I,
+			AS: IA.A,
 		})
 	}
 
 	for IA, loc := range data.Geo {
 		ret.Locations = append(ret.Locations, DenseGeo{
-			IA:              IA,
+			ISD:   IA.I,
+			AS: IA.A,
 			RouterLocations: loc.locations,
 		})
 	}
@@ -131,7 +138,8 @@ func (data *Pathmetadata) Condensemetadata() *Densemetadata {
 		ret.LinkTypes = append(ret.LinkTypes, DenseASLinkType{
 			InterLinkType: link.InterLinkType,
 			PeerLinkType:  link.PeerLinkType,
-			IA:            IA,
+			ISD:   IA.I,
+			AS: IA.A,
 		})
 	}
 
