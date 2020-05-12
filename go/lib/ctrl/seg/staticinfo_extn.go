@@ -14,7 +14,11 @@
 
 package seg
 
-import "github.com/scionproto/scion/go/lib/common"
+import (
+	"fmt"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/proto"
+)
 
 type LatencyInfo struct {
 	Egresslatency          uint16         `capnp:"egressLatency"`
@@ -23,9 +27,28 @@ type LatencyInfo struct {
 	Peerlatencies          []PeerLatency  `capnp:"peeringLatencies"`
 }
 
+func (s *LatencyInfo) ProtoId() proto.ProtoIdType {
+	return proto.StaticInfoExtn_LatencyInfo_TypeID
+}
+
+func (s *LatencyInfo) String() string {
+	return fmt.Sprintf("IngressToEgressLatency: %d\nEgressLatency: %d\n"+
+		"Childlatencies: %v\nPeerlatencies: %v\n", s.IngressToEgressLatency,
+		s.Egresslatency, s.Childlatencies, s.Peerlatencies)
+}
+
 type ChildLatency struct {
 	Intradelay uint16          `capnp:"intra"`
 	IfID       common.IFIDType `capnp:"ifID"`
+}
+
+func (s *ChildLatency) ProtoId() proto.ProtoIdType {
+	return proto.StaticInfoExtn_LatencyInfo_ChildLatency_TypeID
+}
+
+func (s *ChildLatency) String() string {
+	return fmt.Sprintf("Intralatency: %d\nIfID: %d\n",
+		s.Intradelay, s.IfID)
 }
 
 type PeerLatency struct {
@@ -34,10 +57,29 @@ type PeerLatency struct {
 	IfID       common.IFIDType `capnp:"ifID"`
 }
 
+func (s *PeerLatency) ProtoId() proto.ProtoIdType {
+	return proto.StaticInfoExtn_LatencyInfo_PeerLatency_TypeID
+}
+
+func (s *PeerLatency) String() string {
+	return fmt.Sprintf("Intralatency: %d\n"+
+		"Interlatency: %d\nIfID: %d\n", s.IntraDelay, s.Interdelay, s.IfID)
+}
+
 type BandwidthInfo struct {
 	EgressBW          uint32               `capnp:"egressBW"`
 	IngressToEgressBW uint32               `capnp:"ingressToEgressBW"`
 	Bandwidths        []InterfaceBandwidth `capnp:"bandwidths"`
+}
+
+func (s *BandwidthInfo) ProtoId() proto.ProtoIdType {
+	return proto.StaticInfoExtn_BandwidthInfo_TypeID
+}
+
+func (s *BandwidthInfo) String() string {
+	return fmt.Sprintf("IngressToEgressBW: %d\n"+
+		"EgressBW: %d\nInterfaceBandwidths: %v\n", s.IngressToEgressBW,
+		s.EgressBW, s.Bandwidths)
 }
 
 type InterfaceBandwidth struct {
@@ -45,13 +87,38 @@ type InterfaceBandwidth struct {
 	IfID common.IFIDType `capnp:"ifID"`
 }
 
+func (s *InterfaceBandwidth) ProtoId() proto.ProtoIdType {
+	return proto.StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_TypeID
+}
+
+func (s *InterfaceBandwidth) String() string {
+	return fmt.Sprintf("BW: %d\nIfID: %d\n", s.BW, s.IfID)
+}
+
 type GeoInfo struct {
 	Locations []Location `capnp:"locations"`
+}
+
+func (s *GeoInfo) ProtoId() proto.ProtoIdType {
+	return proto.StaticInfoExtn_GeoInfo_TypeID
+}
+
+func (s *GeoInfo) String() string {
+	return fmt.Sprintf("Locations: %v\n", s.Locations)
 }
 
 type Location struct {
 	GPSData Coordinates       `capnp:"gpsData"`
 	IfIDs   []common.IFIDType `capnp:"interfaces"`
+}
+
+func (s *Location) ProtoId() proto.ProtoIdType {
+	return proto.StaticInfoExtn_GeoInfo_Location_TypeID
+}
+
+func (s *Location) String() string {
+	return fmt.Sprintf("Location: %v\n"+
+		"IfIDs: %v\n", s.GPSData, s.IfIDs)
 }
 
 type Coordinates struct {
@@ -60,9 +127,28 @@ type Coordinates struct {
 	Address   string  `capnp:"address"`
 }
 
+func (s *Coordinates) ProtoId() proto.ProtoIdType {
+	return proto.StaticInfoExtn_GeoInfo_Location_Coordinates_TypeID
+}
+
+func (s *Coordinates) String() string {
+	return fmt.Sprintf("Latitude %f\n"+
+		"Longitude: %f\nAddress: %s\n", s.Latitude,
+		s.Longitude, s.Address)
+}
+
 type LinktypeInfo struct {
 	EgressLinkType uint16              `capnp:"egressLinkType"`
 	Peerlinks      []InterfaceLinkType `capnp:"peeringLinks"`
+}
+
+func (s *LinktypeInfo) ProtoId() proto.ProtoIdType {
+	return proto.StaticInfoExtn_LinkTypeInfo_TypeID
+}
+
+func (s *LinktypeInfo) String() string {
+	return fmt.Sprintf("EgressLinkType: %d\n"+
+		"PeerLinkTypes: %v\n", s.EgressLinkType, s.Peerlinks)
 }
 
 type InterfaceLinkType struct {
@@ -70,14 +156,40 @@ type InterfaceLinkType struct {
 	LinkType uint16          `capnp:"linkType"`
 }
 
+func (s *InterfaceLinkType) ProtoId() proto.ProtoIdType {
+	return proto.StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_TypeID
+}
+
+func (s *InterfaceLinkType) String() string {
+	return fmt.Sprintf("LinkType: %d\n"+
+		"IfID: %d\n", s.LinkType, s.IfID)
+}
+
 type InternalHopsInfo struct {
 	InToOutHops   uint8           `capnp:"inToOutHops"`
 	InterfaceHops []InterfaceHops `capnp:"interfaceHops"`
 }
 
+func (s *InternalHopsInfo) ProtoId() proto.ProtoIdType {
+	return proto.StaticInfoExtn_InternalHopsInfo_TypeID
+}
+
+func (s *InternalHopsInfo) String() string {
+	return fmt.Sprintf("InToOutHops: %d\n"+
+		"InterfaceHops: %v\n", s.InToOutHops, s.InterfaceHops)
+}
+
 type InterfaceHops struct {
 	Hops uint8           `capnp:"hops"`
 	IfID common.IFIDType `capnp:"ifID"`
+}
+
+func (s *InterfaceHops) ProtoId() proto.ProtoIdType {
+	return proto.StaticInfoExtn_InternalHopsInfo_InterfaceHops_TypeID
+}
+
+func (s *InterfaceHops) String() string {
+	return fmt.Sprintf("Hops: %d\nIfID: %d\n", s.Hops, s.IfID)
 }
 
 type StaticInfoExtn struct {
@@ -87,4 +199,14 @@ type StaticInfoExtn struct {
 	Bandwidth BandwidthInfo    `capnp:"bandwidth"`
 	Hops      InternalHopsInfo `capnp:"internalHops"`
 	Note      string           `capnp:"note"`
+}
+
+func (s *StaticInfoExtn) ProtoId() proto.ProtoIdType {
+	return proto.StaticInfoExtn_TypeID
+}
+
+func (s *StaticInfoExtn) String() string {
+	return fmt.Sprintf("Latency: %v\nGeo: %v\n"+
+		"Linktype: %v\nBandwidth: %v\nHops: %v\nNote: %v\n",
+		s.Latency, s.Geo, s.Linktype, s.Bandwidth, s.Hops, s.Note)
 }
