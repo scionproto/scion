@@ -549,6 +549,7 @@ func (t *periodicTasks) startOriginator(a *net.UDPAddr) (*periodic.Runner, error
 			MTU:           topo.MTU(),
 			Signer:        signer,
 			GetMaxExpTime: maxExpTimeFactory(t.store, beacon.PropPolicy),
+			StaticInfoCfg: staticInfoCfg,
 		},
 		Period: cfg.BS.OriginationInterval.Duration,
 	}.New()
