@@ -15,8 +15,6 @@
 package segreq
 
 import (
-	"time"
-
 	"github.com/scionproto/scion/go/cs/handlers"
 	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/common"
@@ -116,18 +114,8 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	return infra.MetricsResultOk
 }
 
-func createValidator(args handlers.HandlerArgs, core bool) segfetcher.Validator {
-	base := BaseValidator{
-		CoreChecker: CoreChecker{Inspector: args.ASInspector},
-	}
-	if !core {
-		return &base
-	}
-	return &CoreValidator{BaseValidator: base}
-}
-
 // CreateLocalInfo creates the local info oracle.
-func CreateLocalInfo(args handlers.HandlerArgs, core bool) LocalInfo {
+func CreateLocalInfo(args handlers.HandlerArgs, core bool) segfetcher.LocalInfo {
 	if core {
 		return &CoreLocalInfo{
 			CoreChecker: CoreChecker{Inspector: args.ASInspector},
@@ -139,11 +127,10 @@ func CreateLocalInfo(args handlers.HandlerArgs, core bool) LocalInfo {
 	}
 }
 
-func createPathDB(db pathdb.PathDB, localInfo LocalInfo) pathdb.PathDB {
+func createPathDB(db pathdb.PathDB, localInfo segfetcher.LocalInfo) pathdb.PathDB {
 	return &PathDB{
-		PathDB:     db,
-		LocalInfo:  localInfo,
-		RetrySleep: 500 * time.Millisecond,
+		PathDB:    db,
+		LocalInfo: localInfo,
 	}
 }
 
