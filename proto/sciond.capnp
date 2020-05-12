@@ -93,7 +93,7 @@ struct DenseStaticInfo {
         struct GPSData {
             latitude @0 :Float32;
             longitude @1 :Float32;
-            address @0 :Data;
+            address @2 :Data;
         }
     }
 
