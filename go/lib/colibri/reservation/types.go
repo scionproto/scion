@@ -78,6 +78,16 @@ type E2EID struct {
 
 const E2EIDLen = 16
 
+// NewSegmentID returns a new SegmentID
+func NewE2EID(AS addr.AS, suffix []byte) (*E2EID, error) {
+	if len(suffix) != 10 {
+		return nil, serrors.New("wrong suffix length, should be 10", "actual_len", len(suffix))
+	}
+	id := E2EID{ASID: AS}
+	copy(id.Suffix[:], suffix)
+	return &id, nil
+}
+
 // E2EIDFromRaw constructs an E2EID parsing a buffer.
 func E2EIDFromRaw(raw []byte) (*E2EID, error) {
 	if len(raw) < E2EIDLen {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package segment
+package segment_test
 
 import (
 	"testing"
@@ -20,12 +20,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/cs/reservation/segment"
+	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestNewIndex(t *testing.T) {
-	r := newReservation()
+	// TODO(juagargi) move out of segment and to cs/reservation test
+	r := segmenttest.NewReservation()
 	require.Len(t, r.Indices, 0)
 	expTime := time.Unix(1, 0)
 	idx, err := r.NewIndex(expTime)
@@ -78,7 +80,7 @@ func TestNewIndex(t *testing.T) {
 	require.Equal(t, reservation.IndexNumber(3), idx)
 
 	// index number rollover
-	r = newReservation()
+	r = segmenttest.NewReservation()
 	r.NewIndex(expTime)
 	require.Len(t, r.Indices, 1)
 	r.Indices[0].Idx = r.Indices[0].Idx.Sub(1)
@@ -89,7 +91,7 @@ func TestNewIndex(t *testing.T) {
 	require.Equal(t, reservation.IndexNumber(0), idx)
 }
 func TestReservationValidate(t *testing.T) {
-	r := newReservation()
+	r := segmenttest.NewReservation()
 	err := r.Validate()
 	require.NoError(t, err)
 
@@ -107,17 +109,17 @@ func TestReservationValidate(t *testing.T) {
 	require.Error(t, err)
 
 	// wrong path
-	r.Path = Path{}
+	r.Path = segment.Path{}
 	err = r.Validate()
 	require.Error(t, err)
 
-	r = newReservation()
-	r.activeIndex = 0
+	r = segmenttest.NewReservation()
+	r.SetActiveIndexForTesting(0)
 	err = r.Validate()
 	require.Error(t, err)
 
 	// exp time is before
-	r = newReservation()
+	r = segmenttest.NewReservation()
 	expTime := time.Unix(1, 0)
 	r.NewIndex(expTime)
 	r.NewIndex(expTime)
@@ -150,29 +152,29 @@ func TestReservationValidate(t *testing.T) {
 	// more than one active index
 	r.Indices = r.Indices[:1]
 	r.NewIndex(expTime)
-	r.Indices[0].state = IndexActive
-	r.Indices[1].state = IndexActive
+	r.Indices[0].SetStateForTesting(segment.IndexActive)
+	r.Indices[1].SetStateForTesting(segment.IndexActive)
 	err = r.Validate()
 	require.Error(t, err)
 }
 
 func TestSetIndexConfirmed(t *testing.T) {
-	r := newReservation()
+	r := segmenttest.NewReservation()
 	expTime := time.Unix(1, 0)
 	id, _ := r.NewIndex(expTime)
-	require.Equal(t, IndexTemporary, r.Indices[0].state)
+	require.Equal(t, segment.IndexTemporary, r.Indices[0].State())
 	err := r.SetIndexConfirmed(id)
 	require.NoError(t, err)
-	require.Equal(t, IndexPending, r.Indices[0].state)
+	require.Equal(t, segment.IndexPending, r.Indices[0].State())
 
 	// confirm already confirmed
 	err = r.SetIndexConfirmed(id)
 	require.NoError(t, err)
-	require.Equal(t, IndexPending, r.Indices[0].state)
+	require.Equal(t, segment.IndexPending, r.Indices[0].State())
 }
 
 func TestSetIndexActive(t *testing.T) {
-	r := newReservation()
+	r := segmenttest.NewReservation()
 	expTime := time.Unix(1, 0)
 
 	// index not confirmed
@@ -184,8 +186,8 @@ func TestSetIndexActive(t *testing.T) {
 	r.SetIndexConfirmed(idx)
 	err = r.SetIndexActive(idx)
 	require.NoError(t, err)
-	require.Equal(t, IndexActive, r.Indices[0].state)
-	require.Equal(t, 0, r.activeIndex)
+	require.Equal(t, segment.IndexActive, r.Indices[0].State())
+	require.Equal(t, 0, r.GetActiveIndexForTesting())
 
 	// already active
 	err = r.SetIndexActive(idx)
@@ -195,30 +197,34 @@ func TestSetIndexActive(t *testing.T) {
 	r.NewIndex(expTime)
 	idx, _ = r.NewIndex(expTime)
 	require.Len(t, r.Indices, 3)
-	require.Equal(t, 0, r.activeIndex)
+	require.Equal(t, 0, r.GetActiveIndexForTesting())
 	r.SetIndexConfirmed(idx)
 	err = r.SetIndexActive(idx)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 1)
-	require.Equal(t, 0, r.activeIndex)
+	require.Equal(t, 0, r.GetActiveIndexForTesting())
 	require.True(t, r.Indices[0].Idx == idx)
 }
 
 func TestRemoveIndex(t *testing.T) {
-	r := newReservation()
+	r := segmenttest.NewReservation()
 	expTime := time.Unix(1, 0)
 	idx, _ := r.NewIndex(expTime)
 	err := r.RemoveIndex(idx)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 0)
 
+	// remove second index
 	idx, _ = r.NewIndex(expTime)
 	idx2, _ := r.NewIndex(expTime)
 	err = r.RemoveIndex(idx)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 1)
 	require.True(t, r.Indices[0].Idx == idx2)
+	err = r.Validate()
+	require.NoError(t, err)
 
+	// remove also removes older indices
 	expTime = expTime.Add(time.Second)
 	r.NewIndex(expTime)
 	idx, _ = r.NewIndex(expTime)
@@ -228,19 +234,6 @@ func TestRemoveIndex(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 1)
 	require.True(t, r.Indices[0].Idx == idx2)
-}
-
-func newReservation() *Reservation {
-	segID, err := reservation.NewSegmentID(xtest.MustParseAS("ff00:0:1"),
-		xtest.MustParseHexString("beefcafe"))
-	if err != nil {
-		panic(err)
-	}
-	p := newPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0)
-	r := Reservation{
-		ID:          *segID,
-		Path:        p,
-		activeIndex: -1,
-	}
-	return &r
+	err = r.Validate()
+	require.NoError(t, err)
 }
