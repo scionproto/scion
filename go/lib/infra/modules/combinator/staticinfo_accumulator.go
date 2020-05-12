@@ -18,15 +18,15 @@ type ASGeo struct {
 }
 
 type GeoLoc struct {
-	Latitude float32
+	Latitude  float32
 	Longitude float32
-	Address string
+	Address   string
 }
 
 type ASDelay struct {
 	Intradelay uint16
 	Interdelay uint16
-	Peerdelay uint16
+	Peerdelay  uint16
 }
 
 type ASHops struct {
@@ -35,7 +35,7 @@ type ASHops struct {
 
 type ASLink struct {
 	InterLinkType uint16
-	PeerLinkType uint16
+	PeerLinkType  uint16
 }
 
 type ASBandwidth struct {
@@ -45,89 +45,89 @@ type ASBandwidth struct {
 
 type DenseASLinkType struct {
 	InterLinkType uint16
-	PeerLinkType uint16
-	IA addr.IA
+	PeerLinkType  uint16
+	IA            addr.IA
 }
 
 type DenseGeo struct {
-	IA addr.IA
+	IA              addr.IA
 	RouterLocations []GeoLoc
 }
 
 type DenseNote struct {
 	Note string
-	IA addr.IA
+	IA   addr.IA
 }
 
 type Pathmetadata struct {
 	SingleDelays map[addr.IA]ASDelay
-	Singlebw map[addr.IA]ASBandwidth
-	SingleHops map[addr.IA]ASHops
+	Singlebw     map[addr.IA]ASBandwidth
+	SingleHops   map[addr.IA]ASHops
 	Internalhops map[addr.IA]uint8
-	Geo map[addr.IA]ASGeo
-	Links map[addr.IA]ASLink
-	Notes map[addr.IA]ASnote
+	Geo          map[addr.IA]ASGeo
+	Links        map[addr.IA]ASLink
+	Notes        map[addr.IA]ASnote
 }
 
 // Densemetadata is the condensed form of metadata retaining only the most important values.
 type Densemetadata struct {
-	TotalDelay uint16
-	TotalHops uint8
+	TotalDelay  uint16
+	TotalHops   uint8
 	MinOfMaxBWs uint32
-	LinkTypes []DenseASLinkType
-	Locations []DenseGeo
-	Notes []DenseNote
+	LinkTypes   []DenseASLinkType
+	Locations   []DenseGeo
+	Notes       []DenseNote
 }
 
 // Condensemetadata takes pathmetadata and extracts/condenses
 // the most important values to be transmitted to SCIOND
-func (data *Pathmetadata) Condensemetadata() *Densemetadata{
+func (data *Pathmetadata) Condensemetadata() *Densemetadata {
 	ret := &Densemetadata{
-		TotalDelay: 0,
-		TotalHops: 0,
+		TotalDelay:  0,
+		TotalHops:   0,
 		MinOfMaxBWs: math.MaxUint32,
 	}
 
-	for _, val := range data.Singlebw{
+	for _, val := range data.Singlebw {
 		var asmaxbw uint32 = math.MaxUint32
-		if(val.IntraBW>0){
-			asmaxbw = uint32(math.Min(float64(val.IntraBW),float64(asmaxbw)))
+		if val.IntraBW > 0 {
+			asmaxbw = uint32(math.Min(float64(val.IntraBW), float64(asmaxbw)))
 		}
-		if(val.InterBW>0){
-			asmaxbw = uint32(math.Min(float64(val.InterBW),float64(asmaxbw)))
+		if val.InterBW > 0 {
+			asmaxbw = uint32(math.Min(float64(val.InterBW), float64(asmaxbw)))
 		}
-		if(asmaxbw<(math.MaxUint32)){
-			ret.MinOfMaxBWs = uint32(math.Min(float64(ret.MinOfMaxBWs),float64(asmaxbw)))
+		if asmaxbw < (math.MaxUint32) {
+			ret.MinOfMaxBWs = uint32(math.Min(float64(ret.MinOfMaxBWs), float64(asmaxbw)))
 		}
 	}
 
-	if !(ret.MinOfMaxBWs<math.MaxUint32){
+	if !(ret.MinOfMaxBWs < math.MaxUint32) {
 		ret.MinOfMaxBWs = 0
 	}
 
-	for _, val := range data.SingleDelays{
+	for _, val := range data.SingleDelays {
 		ret.TotalDelay += val.Interdelay + val.Intradelay + val.Peerdelay
 	}
 
-	for  _, val := range data.SingleHops{
+	for _, val := range data.SingleHops {
 		ret.TotalHops += val.Hops
 	}
 
-	for IA, note := range data.Notes{
+	for IA, note := range data.Notes {
 		ret.Notes = append(ret.Notes, DenseNote{
 			Note: note.Note,
 			IA:   IA,
 		})
 	}
 
-	for IA, loc := range data.Geo{
+	for IA, loc := range data.Geo {
 		ret.Locations = append(ret.Locations, DenseGeo{
-			IA:        IA,
+			IA:              IA,
 			RouterLocations: loc.locations,
 		})
 	}
 
-	for IA, link := range data.Links{
+	for IA, link := range data.Links {
 		ret.LinkTypes = append(ret.LinkTypes, DenseASLinkType{
 			InterLinkType: link.InterLinkType,
 			PeerLinkType:  link.PeerLinkType,
@@ -138,7 +138,7 @@ func (data *Pathmetadata) Condensemetadata() *Densemetadata{
 	return ret
 }
 
-func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
+func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata {
 	UpOver := false
 	DownOver := false
 	PeerOver := false
@@ -154,18 +154,18 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 		Also make sure to treat the first entry in the up and down segs (i.e. first and last ASes on the path)
 		specially, since (apart from geolocation data) there is no metadata to collect on those ASes.
 	*/
-	for _, solEdge := range solution.edges{
+	for _, solEdge := range solution.edges {
 		asEntries := solEdge.segment.ASEntries
 		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
-			if (asEntryIdx>solEdge.edge.Shortcut) {
+			if asEntryIdx > solEdge.edge.Shortcut {
 				asEntry := asEntries[asEntryIdx]
 				hopEntry := asEntry.HopEntries[0]
-				HF,_ := hopEntry.HopField()
+				HF, _ := hopEntry.HopField()
 				inIFID := HF.ConsIngress
 				SI := asEntry.Exts.StaticInfo
 				// If we're in the middle of a segment, simply take data from staticinfoextn in
 				// the corresponding ASEntry and put it into res
-				if !(asEntryIdx==(len(asEntries)-1)){
+				if !(asEntryIdx == (len(asEntries) - 1)) {
 					IA := asEntry.IA()
 					res.SingleDelays[IA] = ASDelay{
 						Intradelay: SI.Latency.IngressToEgressLatency,
@@ -191,13 +191,13 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 				}
 				// If we're in the last AS of a coresegment (i.e. the first inspected entry),
 				// set the DownOver flag and remember the ifID of the ingress interface.
-				if (solEdge.segment.Type == iscoreseg) && (asEntryIdx==(len(asEntries)-1)){
+				if (solEdge.segment.Type == iscoreseg) && (asEntryIdx == (len(asEntries) - 1)) {
 					DownOver = true
 					DownOverifID = inIFID
 				}
 				// If we're in the first AS in an up or last AS in a down segment (i.e. first
 				// inspected entry in both cases), leave all entries empty except for geo.
-				if (!(solEdge.segment.Type == iscoreseg)) && (asEntryIdx==(len(asEntries)-1)){
+				if (!(solEdge.segment.Type == iscoreseg)) && (asEntryIdx == (len(asEntries) - 1)) {
 					IA := asEntry.IA()
 					res.SingleDelays[IA] = ASDelay{}
 					res.SingleHops[IA] = ASHops{}
@@ -212,7 +212,7 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 				asEntry := asEntries[asEntryIdx]
 				hopEntry := asEntry.HopEntries[0]
 				SI := asEntry.Exts.StaticInfo
-				if (solEdge.edge.Peer != 0) {
+				if solEdge.edge.Peer != 0 {
 					peerEntry := asEntry.HopEntries[solEdge.edge.Peer]
 					PE, _ := peerEntry.HopField()
 					inIFID := PE.ConsIngress
@@ -228,10 +228,10 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 						intraDelay, peerDelay := gatherpeeringlatencydata(SI, PeerOverifID)
 						currDelay = ASDelay{
 							Intradelay: intraDelay,
-							Peerdelay: peerDelay,
+							Peerdelay:  peerDelay,
 						}
 						currLinks = ASLink{
-							PeerLinkType:  gatherpeeroverlink(SI, PeerOverifID),
+							PeerLinkType: gatherpeeroverlink(SI, PeerOverifID),
 						}
 						PeerOver = false
 					} else {
@@ -266,7 +266,7 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 					if UpOver {
 						oldSI := UpOverEntry.Exts.StaticInfo
 						IA := asEntry.IA()
-						HF,_ := hopEntry.HopField()
+						HF, _ := hopEntry.HopField()
 						egIFID := HF.ConsEgress
 						// We abuse Peerdelay and peerlink here to store an additional value for the AS
 						// in which the segment crossover happens
@@ -297,7 +297,7 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 					// If we're in the AS where we cross over from a core to a down segment
 					// (i.e. Downover is set), fill pathmetadata using current ASEntry with
 					// DownoverIFID as ingress interface
-					if DownOver{
+					if DownOver {
 						IA := asEntry.IA()
 						res.SingleDelays[IA] = ASDelay{
 							Intradelay: gatherxoverlatency(SI, DownOverifID),
@@ -322,7 +322,7 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 						DownOver = false
 					}
 					// If we're in the last inspected entry of the up segment, do nothing except set the UpOver flag
-					if !(solEdge.segment.Type == iscoreseg){
+					if !(solEdge.segment.Type == iscoreseg) {
 						UpOver = true
 						UpOverEntry = asEntry
 					}
@@ -333,20 +333,19 @@ func (solution *PathSolution) Assemblepcbmetadata() *Pathmetadata{
 	return &res
 }
 
-func gatherxoverlatency(SI *seg.StaticInfoExtn, inIFID common.IFIDType) uint16{
-	for i:=0;i< len(SI.Latency.Childlatencies);i++{
-		if (SI.Latency.Childlatencies[i].IfID==inIFID){
+func gatherxoverlatency(SI *seg.StaticInfoExtn, inIFID common.IFIDType) uint16 {
+	for i := 0; i < len(SI.Latency.Childlatencies); i++ {
+		if SI.Latency.Childlatencies[i].IfID == inIFID {
 			return SI.Latency.Childlatencies[i].Intradelay
 		}
 	}
 	return 0
 }
 
-
-func gatherpeeringlatencydata(SI *seg.StaticInfoExtn, inIFID common.IFIDType) (uint16, uint16){
+func gatherpeeringlatencydata(SI *seg.StaticInfoExtn, inIFID common.IFIDType) (uint16, uint16) {
 	var intradelay, peeringdelay uint16
-	for i:=0;i< len(SI.Latency.Peerlatencies);i++{
-		if (SI.Latency.Peerlatencies[i].IfID==inIFID){
+	for i := 0; i < len(SI.Latency.Peerlatencies); i++ {
+		if SI.Latency.Peerlatencies[i].IfID == inIFID {
 			intradelay = SI.Latency.Peerlatencies[i].IntraDelay
 			peeringdelay = SI.Latency.Peerlatencies[i].Interdelay
 		}
@@ -354,20 +353,18 @@ func gatherpeeringlatencydata(SI *seg.StaticInfoExtn, inIFID common.IFIDType) (u
 	return intradelay, peeringdelay
 }
 
-
-func gatherpeeroverlink(SI *seg.StaticInfoExtn, inIFID common.IFIDType) uint16{
-	for i:=0;i< len(SI.Linktype.Peerlinks);i++{
-		if (SI.Linktype.Peerlinks[i].IfID == inIFID){
+func gatherpeeroverlink(SI *seg.StaticInfoExtn, inIFID common.IFIDType) uint16 {
+	for i := 0; i < len(SI.Linktype.Peerlinks); i++ {
+		if SI.Linktype.Peerlinks[i].IfID == inIFID {
 			return SI.Linktype.Peerlinks[i].LinkType
 		}
 	}
 	return 0
 }
 
-
-func gatherxoverbw(SI *seg.StaticInfoExtn, inIFID common.IFIDType) uint32{
-	for i:=0;i< len(SI.Bandwidth.Bandwidths);i++ {
-		if (SI.Bandwidth.Bandwidths[i].IfID == inIFID) {
+func gatherxoverbw(SI *seg.StaticInfoExtn, inIFID common.IFIDType) uint32 {
+	for i := 0; i < len(SI.Bandwidth.Bandwidths); i++ {
+		if SI.Bandwidth.Bandwidths[i].IfID == inIFID {
 			return SI.Bandwidth.Bandwidths[i].BW
 		}
 	}
@@ -376,16 +373,16 @@ func gatherxoverbw(SI *seg.StaticInfoExtn, inIFID common.IFIDType) uint32{
 
 func gatherxoverhops(SI *seg.StaticInfoExtn, inIFID common.IFIDType) uint8 {
 	for i := 0; i < len(SI.Hops.InterfaceHops); i++ {
-		if (SI.Hops.InterfaceHops[i].IfID == inIFID) {
+		if SI.Hops.InterfaceHops[i].IfID == inIFID {
 			return SI.Hops.InterfaceHops[i].Hops
 		}
 	}
 	return 0
 }
 
-func gathergeo(SI *seg.StaticInfoExtn) ([]GeoLoc){
+func gathergeo(SI *seg.StaticInfoExtn) []GeoLoc {
 	var loc []GeoLoc
-	for _, geocluster := range SI.Geo.Locations{
+	for _, geocluster := range SI.Geo.Locations {
 		loc = append(loc, GeoLoc{
 			Latitude:  geocluster.GPSData.Latitude,
 			Longitude: geocluster.GPSData.Longitude,
