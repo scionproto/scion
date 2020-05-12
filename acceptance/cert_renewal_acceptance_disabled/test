@@ -12,7 +12,7 @@
 . acceptance/common.sh
 
 TEST_NAME="cert_renewal"
-TEST_TOPOLOGY="topology/Tiny.topo"
+TEST_TOPOLOGY="topology/tiny.topo"
 
 IA=${IA:-1-ff00:0:112}
 IA_FILE="$(ia_file $IA)"

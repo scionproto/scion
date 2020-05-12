@@ -75,7 +75,7 @@ class TestSetup(CmdBase):
         # Create test dir if it does not exist.
         self.cmd_setup()
         # Create the tiny topology/
-        self.scion.topology('topology/Tiny.topo')
+        self.scion.topology('topology/tiny.topo')
         # Modify the logging config for all beacon servers
         self.scion.set_configs({'log.file.level': 'trace'},
                                local.path('gen/ISD1') // '*/bs*/bs.toml')

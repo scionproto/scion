@@ -1,19 +1,16 @@
---- # Tiny Topology IPv4 only
+--- # Tiny Topology
 ASes:
-  "1-ff00:0:110": # old 1-11
+  "1-ff00:0:110":
     core: true
     voting: true
     authoritative: true
     issuing: true
     mtu: 1400
-  "1-ff00:0:111": # old 1-12
+  "1-ff00:0:111":
     cert_issuer: 1-ff00:0:110
-  "1-ff00:0:112": # old 1-13
+  "1-ff00:0:112":
     cert_issuer: 1-ff00:0:110
+    underlay: UDP/IPv6
 links:
   - {a: "1-ff00:0:110#1", b: "1-ff00:0:111#41", linkAtoB: CHILD, mtu: 1280}
-  - {a: "1-ff00:0:110#2", b: "1-ff00:0:112#1", linkAtoB: CHILD, bw: 500}
-CAs:
-  CA1-1:
-    ISD: 1
-    commonName: CA1-1
+  - {a: "1-ff00:0:110#2", b: "1-ff00:0:112#1", linkAtoB: CHILD, bw: 500, underlay: UDP/IPv6}

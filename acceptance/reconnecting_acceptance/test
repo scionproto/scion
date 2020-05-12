@@ -5,7 +5,7 @@
 # connectivity should still be available.
 
 TEST_NAME="reconnecting"
-TEST_TOPOLOGY="topology/Tiny.topo"
+TEST_TOPOLOGY="topology/tiny.topo"
 
 . acceptance/common.sh
 
