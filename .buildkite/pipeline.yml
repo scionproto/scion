@@ -137,6 +137,7 @@ steps:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
   - label: ":docker: Integration: end2end_integration"
+    if: build.message !~ /\[doc\]/
     command:
     - ./scion.sh topology -t -d -c topology/tiny.topo
     - ./scion.sh run
