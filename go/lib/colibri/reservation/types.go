@@ -43,6 +43,15 @@ func NewSegmentID(AS addr.AS, suffix []byte) (*SegmentID, error) {
 	return &id, nil
 }
 
+// SegmentIDFromRawBuffers constructs a SegmentID from two separate buffers.
+func SegmentIDFromRawBuffers(ASID, suffix []byte) (*SegmentID, error) {
+	if len(ASID) < 6 || len(suffix) < 4 {
+		return nil, serrors.New("buffers too small", "length_ASID", len(ASID),
+			"length_suffix", len(suffix))
+	}
+	return NewSegmentID(addr.AS(common.Order.Uint64(append([]byte{0, 0}, ASID[:6]...))), suffix[:4])
+}
+
 // SegmentIDFromRaw constructs a SegmentID parsing a raw buffer.
 func SegmentIDFromRaw(raw []byte) (
 	*SegmentID, error) {
@@ -51,11 +60,7 @@ func SegmentIDFromRaw(raw []byte) (
 		return nil, serrors.New("buffer too small", "actual", len(raw),
 			"min", SegmentIDLen)
 	}
-	id := SegmentID{
-		ASID: addr.AS(common.Order.Uint64(append([]byte{0, 0}, raw[0:6]...))),
-	}
-	copy(id.Suffix[:], raw[6:10])
-	return &id, nil
+	return SegmentIDFromRawBuffers(raw[:6], raw[6:])
 }
 
 func (id *SegmentID) Read(raw []byte) (int, error) {
@@ -78,7 +83,7 @@ type E2EID struct {
 
 const E2EIDLen = 16
 
-// NewSegmentID returns a new SegmentID
+// NewE2EID returns a new E2EID
 func NewE2EID(AS addr.AS, suffix []byte) (*E2EID, error) {
 	if len(suffix) != 10 {
 		return nil, serrors.New("wrong suffix length, should be 10", "actual_len", len(suffix))
@@ -88,16 +93,21 @@ func NewE2EID(AS addr.AS, suffix []byte) (*E2EID, error) {
 	return &id, nil
 }
 
+// E2EIDFromRawBuffers constructs a E2DID from two separate buffers.
+func E2EIDFromRawBuffers(ASID, suffix []byte) (*E2EID, error) {
+	if len(ASID) < 6 || len(suffix) < 10 {
+		return nil, serrors.New("buffers too small", "length_ASID", len(ASID),
+			"length_suffix", len(suffix))
+	}
+	return NewE2EID(addr.AS(common.Order.Uint64(append([]byte{0, 0}, ASID[:6]...))), suffix[:10])
+}
+
 // E2EIDFromRaw constructs an E2EID parsing a buffer.
 func E2EIDFromRaw(raw []byte) (*E2EID, error) {
 	if len(raw) < E2EIDLen {
 		return nil, serrors.New("buffer too small", "actual", len(raw), "min", E2EIDLen)
 	}
-	id := E2EID{
-		ASID: addr.AS(common.Order.Uint64(append([]byte{0, 0}, raw[0:6]...))),
-	}
-	copy(id.Suffix[:], raw[6:16])
-	return &id, nil
+	return E2EIDFromRawBuffers(raw[:6], raw[6:])
 }
 
 func (id *E2EID) Read(raw []byte) (int, error) {
@@ -253,10 +263,11 @@ func InfoFieldFromRaw(raw []byte) (*InfoField, error) {
 	return &info, nil
 }
 
-// Read serializes this InfoField into an array of InfoFieldLen bytes.
+// Read serializes this InfoField into a sequence of InfoFieldLen bytes.
 func (f *InfoField) Read(b []byte) (int, error) {
 	if len(b) < InfoFieldLen {
-		return 0, serrors.New("buffer too short", "size", len(b))
+		return 0, serrors.New("buffer too small", "min_size", InfoFieldLen,
+			"current_size", len(b))
 	}
 	common.Order.PutUint32(b[:4], uint32(f.ExpirationTick))
 	b[4] = byte(f.BWCls)
@@ -290,6 +301,23 @@ func (pep PathEndProps) Validate() error {
 	return nil
 }
 
+func NewPathEndProps(startLocal, startTransfer, endLocal, endTransfer bool) PathEndProps {
+	var props PathEndProps
+	if startLocal {
+		props |= StartLocal
+	}
+	if startTransfer {
+		props |= StartTransfer
+	}
+	if endLocal {
+		props |= EndLocal
+	}
+	if endTransfer {
+		props |= EndTransfer
+	}
+	return props
+}
+
 // AllocationBead represents an allocation resolved in an AS for a given reservation.
 // It is used in an array to represent the allocation trail that happened for a reservation.
 type AllocationBead struct {
@@ -305,5 +333,57 @@ type Token struct {
 
 // Validate will return an error for invalid values. It will not check the hop fields' validity.
 func (t *Token) Validate() error {
+	if len(t.HopFields) == 0 {
+		return serrors.New("token without hop fields")
+	}
 	return t.InfoField.Validate()
+}
+
+// TokenFromRaw builds a Token from the passed bytes buffer.
+func TokenFromRaw(raw []byte) (*Token, error) {
+	rawHFs := len(raw) - InfoFieldLen
+	if rawHFs < 0 || rawHFs%spath.HopFieldLength != 0 {
+		return nil, serrors.New("buffer too small", "min_size", InfoFieldLen,
+			"current_size", len(raw))
+	}
+	numHFs := rawHFs / spath.HopFieldLength
+	inf, err := InfoFieldFromRaw(raw[:InfoFieldLen])
+	if err != nil {
+		return nil, err
+	}
+	t := Token{
+		InfoField: *inf,
+		HopFields: make([]spath.HopField, numHFs),
+	}
+	for i := 0; i < numHFs; i++ {
+		offset := InfoFieldLen + i*spath.HopFieldLength
+		hf, err := spath.HopFFromRaw(raw[offset : offset+spath.HopFieldLength])
+		if err != nil {
+			return nil, err
+		}
+		t.HopFields[i] = *hf
+	}
+	return &t, nil
+}
+
+// Len returns the number of bytes of this token if serialized.
+func (t *Token) Len() int {
+	return InfoFieldLen + len(t.HopFields)*spath.HopFieldLength
+}
+
+// Read serializes this Token to the passed buffer.
+func (t *Token) Read(b []byte) (int, error) {
+	length := t.Len()
+	if len(b) < length {
+		return 0, serrors.New("buffer too small", "min_size", length, "current_size", len(b))
+	}
+	offset, err := t.InfoField.Read(b[:InfoFieldLen])
+	if err != nil {
+		return 0, err
+	}
+	for i := 0; i < len(t.HopFields); i++ {
+		t.HopFields[i].Write(b[offset : offset+spath.HopFieldLength])
+		offset += spath.HopFieldLength
+	}
+	return offset, nil
 }
