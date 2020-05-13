@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "combinator.go",
         "graph.go",
+        "staticinfo_accumulator.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/infra/modules/combinator",
     visibility = ["//visibility:public"],
