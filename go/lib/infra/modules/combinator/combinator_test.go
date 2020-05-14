@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"testing"
 
@@ -566,6 +567,12 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 		Ups      []*seg.PathSegment
 		Cores    []*seg.PathSegment
 		Downs    []*seg.PathSegment
+		expectedLatency uint16
+		expectedBW uint32
+		expectedHops uint8
+		expectedLinktypes []DenseASLinkType
+		expectedGeo []DenseGeo
+		expectedNotes []DenseNote
 	}{
 		{
 			Name:     "#6 simple long up-core-down",
@@ -581,11 +588,20 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_212_X}),
 			},
+			expectedLatency: 2*uint16(graph.If_131_X_132_X) + uint16(graph.If_130_A_131_X) +
+				uint16(graph.If_130_A_110_X) + 2*uint16(graph.If_110_X_130_A) +
+				2*uint16(graph.If_210_X_110_X) + uint16(graph.If_210_X_211_A) +
+				2*uint16(graph.If_211_A_212_X),
 		},
 	}
 
 	for _, tc := range testCases {
 		result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
-		result
+		assert.Equal(t, tc.expectedLatency, result[0].StaticInfo.TotalLatency)
+		// assert.Equal(t, tc.expectedBW, result[0].StaticInfo.MinOfMaxBWs)
+		// assert.Equal(t, tc.expectedHops, result[0].StaticInfo.TotalHops)
+		// assert.ElementsMatch(t, tc.expectedLinktypes, result[0].StaticInfo.LinkTypes)
+		// assert.ElementsMatch(t, tc.expectedGeo, result[0].StaticInfo.Locations)
+		// assert.ElementsMatch(t, tc.expectedNotes, result[0].StaticInfo.Notes)
 	}
 }
