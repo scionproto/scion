@@ -33,10 +33,10 @@ func (s *GeoLoc) String() string {
 		s.Latitude, s.Longitude, s.Address)
 }
 
-type ASDelay struct {
-	Intradelay uint16
-	Interdelay uint16
-	Peerdelay  uint16
+type ASLatency struct {
+	IntraLatency uint16
+	InterLatency uint16
+	PeerLatency  uint16
 }
 
 type ASHops struct {
@@ -56,8 +56,7 @@ type ASBandwidth struct {
 type DenseASLinkType struct {
 	InterLinkType uint16   `capnp:"interLinkType"`
 	PeerLinkType  uint16   `capnp:"peerLinkType"`
-	ISD           addr.ISD `capnp:"isd"`
-	AS            addr.AS  `capnp:"as"`
+	RawIA         addr.IAInt `capnp:"isdas"`
 }
 
 func (s *DenseASLinkType) ProtoId() proto.ProtoIdType {
@@ -66,13 +65,12 @@ func (s *DenseASLinkType) ProtoId() proto.ProtoIdType {
 
 func (s *DenseASLinkType) String() string {
 	return fmt.Sprintf("InterLinkType: %d\nPeerLinkType: %d\nISD: %d\nAS: %d\n",
-		s.InterLinkType, s.PeerLinkType, s.ISD, s.AS)
+		s.InterLinkType, s.PeerLinkType, s.RawIA.IA().I, s.RawIA.IA().A)
 }
 
 type DenseGeo struct {
 	RouterLocations []GeoLoc `capnp:"routerLocations"`
-	ISD             addr.ISD `capnp:"isd"`
-	AS              addr.AS  `capnp:"as"`
+	RawIA         addr.IAInt `capnp:"isdas"`
 }
 
 func (s *DenseGeo) ProtoId() proto.ProtoIdType {
@@ -81,13 +79,12 @@ func (s *DenseGeo) ProtoId() proto.ProtoIdType {
 
 func (s *DenseGeo) String() string {
 	return fmt.Sprintf("RouterLocations: %v\nISD: %d\nAS: %d\n",
-		s.RouterLocations, s.ISD, s.AS)
+		s.RouterLocations, s.RawIA.IA().I, s.RawIA.IA().A)
 }
 
 type DenseNote struct {
 	Note string   `capnp:"note"`
-	ISD  addr.ISD `capnp:"isd"`
-	AS   addr.AS  `capnp:"as"`
+	RawIA         addr.IAInt `capnp:"isdas"`
 }
 
 func (s *DenseNote) ProtoId() proto.ProtoIdType {
@@ -96,22 +93,21 @@ func (s *DenseNote) ProtoId() proto.ProtoIdType {
 
 func (s *DenseNote) String() string {
 	return fmt.Sprintf("Text: %s\nISD: %d\nAS: %d\n",
-		s.Note, s.ISD, s.AS)
+		s.Note, s.RawIA.IA().I, s.RawIA.IA().A)
 }
 
-type Pathmetadata struct {
-	SingleDelays map[addr.IA]ASDelay
-	Singlebw     map[addr.IA]ASBandwidth
-	SingleHops   map[addr.IA]ASHops
-	Internalhops map[addr.IA]uint8
+type RawPathMetadata struct {
+	ASLatencies map[addr.IA]ASLatency
+	ASBandwidths     map[addr.IA]ASBandwidth
+	ASHops   map[addr.IA]ASHops
 	Geo          map[addr.IA]ASGeo
 	Links        map[addr.IA]ASLink
 	Notes        map[addr.IA]ASnote
 }
 
-// Densemetadata is the condensed form of metadata retaining only the most important values.
-type Densemetadata struct {
-	TotalDelay  uint16            `capnp:"totalDelay"`
+// PathMetadata is the condensed form of metadata retaining only the most important values.
+type PathMetadata struct {
+	TotalLatency  uint16            `capnp:"totalLatency"`
 	TotalHops   uint8             `capnp:"totalHops"`
 	MinOfMaxBWs uint32            `capnp:"bandwidthBottleneck"`
 	LinkTypes   []DenseASLinkType `capnp:"linkTypes"`
@@ -119,27 +115,27 @@ type Densemetadata struct {
 	Notes       []DenseNote       `capnp:"notes"`
 }
 
-func (s *Densemetadata) ProtoId() proto.ProtoIdType {
+func (s *PathMetadata) ProtoId() proto.ProtoIdType {
 	return proto.DenseStaticInfo_TypeID
 }
 
-func (s *Densemetadata) String() string {
-	return fmt.Sprintf("TotalDelay: %v\nTotalHops: %v\n"+
+func (s *PathMetadata) String() string {
+	return fmt.Sprintf("TotalLatency: %v\nTotalHops: %v\n"+
 		"BandwidthBottleneck: %v\nLinkTypes: %v\nASLocations: %v\nNotes: %v\n",
-		s.TotalDelay, s.TotalHops, s.MinOfMaxBWs, s.LinkTypes, s.Locations,
+		s.TotalLatency, s.TotalHops, s.MinOfMaxBWs, s.LinkTypes, s.Locations,
 		s.Notes)
 }
 
-// Condensemetadata takes pathmetadata and extracts/condenses
+// Condensemetadata takes RawPathMetadata and extracts/condenses
 // the most important values to be transmitted to SCIOND
-func (data *Pathmetadata) Condensemetadata() *Densemetadata {
-	ret := &Densemetadata{
-		TotalDelay:  0,
+func (data *RawPathMetadata) Condensemetadata() *PathMetadata {
+	ret := &PathMetadata{
+		TotalLatency:  0,
 		TotalHops:   0,
 		MinOfMaxBWs: math.MaxUint32,
 	}
 
-	for _, val := range data.Singlebw {
+	for _, val := range data.ASBandwidths {
 		var asmaxbw uint32 = math.MaxUint32
 		if val.IntraBW > 0 {
 			asmaxbw = uint32(math.Min(float64(val.IntraBW), float64(asmaxbw)))
@@ -156,26 +152,24 @@ func (data *Pathmetadata) Condensemetadata() *Densemetadata {
 		ret.MinOfMaxBWs = 0
 	}
 
-	for _, val := range data.SingleDelays {
-		ret.TotalDelay += val.Interdelay + val.Intradelay + val.Peerdelay
+	for _, val := range data.ASLatencies {
+		ret.TotalLatency += val.InterLatency + val.IntraLatency + val.PeerLatency
 	}
 
-	for _, val := range data.SingleHops {
+	for _, val := range data.ASHops {
 		ret.TotalHops += val.Hops
 	}
 
 	for IA, note := range data.Notes {
 		ret.Notes = append(ret.Notes, DenseNote{
 			Note: note.Note,
-			ISD:  IA.I,
-			AS:   IA.A,
+			RawIA: IA.IAInt(),
 		})
 	}
 
 	for IA, loc := range data.Geo {
 		ret.Locations = append(ret.Locations, DenseGeo{
-			ISD:             IA.I,
-			AS:              IA.A,
+			RawIA: IA.IAInt(),
 			RouterLocations: loc.locations,
 		})
 	}
@@ -184,8 +178,7 @@ func (data *Pathmetadata) Condensemetadata() *Densemetadata {
 		ret.LinkTypes = append(ret.LinkTypes, DenseASLinkType{
 			InterLinkType: link.InterLinkType,
 			PeerLinkType:  link.PeerLinkType,
-			ISD:           IA.I,
-			AS:            IA.A,
+			RawIA: IA.IAInt(),
 		})
 	}
 
@@ -226,21 +219,21 @@ func (solution *PathSolution) GatherASEntries() *ASEntryList {
 	return &res
 }
 
-func (res *Pathmetadata) ExtractPeerdata(asEntry *seg.ASEntry, peerIfID common.IFIDType, includePeer bool) {
+func (res *RawPathMetadata) ExtractPeerdata(asEntry *seg.ASEntry, peerIfID common.IFIDType, includePeer bool) {
 	IA := asEntry.IA()
 	StaticInfo := asEntry.Exts.StaticInfo
 	for i := 0; i < len(StaticInfo.Latency.Peerlatencies); i++ {
 		if StaticInfo.Latency.Peerlatencies[i].IfID == peerIfID {
 			if includePeer {
-				res.SingleDelays[IA] = ASDelay{
-					Intradelay: StaticInfo.Latency.Peerlatencies[i].IntraDelay,
-					Interdelay: StaticInfo.Latency.Egresslatency,
-					Peerdelay:  StaticInfo.Latency.Peerlatencies[i].Interdelay,
+				res.ASLatencies[IA] = ASLatency{
+					IntraLatency: StaticInfo.Latency.Peerlatencies[i].IntraDelay,
+					InterLatency: StaticInfo.Latency.Egresslatency,
+					PeerLatency:  StaticInfo.Latency.Peerlatencies[i].Interdelay,
 				}
 			} else {
-				res.SingleDelays[IA] = ASDelay{
-					Intradelay: StaticInfo.Latency.Peerlatencies[i].IntraDelay,
-					Interdelay: StaticInfo.Latency.Egresslatency,
+				res.ASLatencies[IA] = ASLatency{
+					IntraLatency: StaticInfo.Latency.Peerlatencies[i].IntraDelay,
+					InterLatency: StaticInfo.Latency.Egresslatency,
 				}
 			}
 		}
@@ -261,7 +254,7 @@ func (res *Pathmetadata) ExtractPeerdata(asEntry *seg.ASEntry, peerIfID common.I
 	}
 	for i := 0; i < len(StaticInfo.Bandwidth.Bandwidths); i++ {
 		if StaticInfo.Bandwidth.Bandwidths[i].IfID == peerIfID {
-			res.Singlebw[IA] = ASBandwidth{
+			res.ASBandwidths[IA] = ASBandwidth{
 				IntraBW: StaticInfo.Bandwidth.Bandwidths[i].BW,
 				InterBW: StaticInfo.Bandwidth.EgressBW,
 			}
@@ -269,7 +262,7 @@ func (res *Pathmetadata) ExtractPeerdata(asEntry *seg.ASEntry, peerIfID common.I
 	}
 	for i := 0; i < len(StaticInfo.Hops.InterfaceHops); i++ {
 		if StaticInfo.Hops.InterfaceHops[i].IfID == peerIfID {
-			res.SingleHops[IA] = ASHops{
+			res.ASHops[IA] = ASHops{
 				Hops: StaticInfo.Hops.InterfaceHops[i].Hops,
 			}
 		}
@@ -280,22 +273,22 @@ func (res *Pathmetadata) ExtractPeerdata(asEntry *seg.ASEntry, peerIfID common.I
 	}
 }
 
-func (res *Pathmetadata) ExtractNormaldata(asEntry *seg.ASEntry) {
+func (res *RawPathMetadata) ExtractNormaldata(asEntry *seg.ASEntry) {
 	IA := asEntry.IA()
 	StaticInfo := asEntry.Exts.StaticInfo
-	res.SingleDelays[IA] = ASDelay{
-		Intradelay: StaticInfo.Latency.IngressToEgressLatency,
-		Interdelay: StaticInfo.Latency.Egresslatency,
-		Peerdelay:  0,
+	res.ASLatencies[IA] = ASLatency{
+		IntraLatency: StaticInfo.Latency.IngressToEgressLatency,
+		InterLatency: StaticInfo.Latency.Egresslatency,
+		PeerLatency:  0,
 	}
 	res.Links[IA] = ASLink{
 		InterLinkType: StaticInfo.Linktype.EgressLinkType,
 	}
-	res.Singlebw[IA] = ASBandwidth{
+	res.ASBandwidths[IA] = ASBandwidth{
 		IntraBW: StaticInfo.Bandwidth.IngressToEgressBW,
 		InterBW: StaticInfo.Bandwidth.EgressBW,
 	}
-	res.SingleHops[IA] = ASHops{
+	res.ASHops[IA] = ASHops{
 		Hops: StaticInfo.Hops.InToOutHops,
 	}
 	res.Geo[IA] = getGeo(asEntry)
@@ -304,7 +297,7 @@ func (res *Pathmetadata) ExtractNormaldata(asEntry *seg.ASEntry) {
 	}
 }
 
-func (res *Pathmetadata) ExtractUpOverdata(oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
+func (res *RawPathMetadata) ExtractUpOverdata(oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
 	IA := newASEntry.IA()
 	StaticInfo := newASEntry.Exts.StaticInfo
 	hopEntry := oldASEntry.HopEntries[0]
@@ -312,10 +305,10 @@ func (res *Pathmetadata) ExtractUpOverdata(oldASEntry *seg.ASEntry, newASEntry *
 	oldEgressIFID := HF.ConsEgress
 	for i := 0; i < len(StaticInfo.Latency.Childlatencies); i++ {
 		if StaticInfo.Latency.Childlatencies[i].IfID == oldEgressIFID {
-			res.SingleDelays[IA] = ASDelay{
-				Intradelay: StaticInfo.Latency.Childlatencies[i].Intradelay,
-				Interdelay: StaticInfo.Latency.Egresslatency,
-				Peerdelay:  oldASEntry.Exts.StaticInfo.Latency.Egresslatency,
+			res.ASLatencies[IA] = ASLatency{
+				IntraLatency: StaticInfo.Latency.Childlatencies[i].Intradelay,
+				InterLatency: StaticInfo.Latency.Egresslatency,
+				PeerLatency:  oldASEntry.Exts.StaticInfo.Latency.Egresslatency,
 			}
 		}
 	}
@@ -326,7 +319,7 @@ func (res *Pathmetadata) ExtractUpOverdata(oldASEntry *seg.ASEntry, newASEntry *
 
 	for i := 0; i < len(StaticInfo.Bandwidth.Bandwidths); i++ {
 		if StaticInfo.Bandwidth.Bandwidths[i].IfID == oldEgressIFID {
-			res.Singlebw[IA] = ASBandwidth{
+			res.ASBandwidths[IA] = ASBandwidth{
 				IntraBW: StaticInfo.Bandwidth.Bandwidths[i].BW,
 				InterBW: StaticInfo.Bandwidth.EgressBW,
 			}
@@ -334,7 +327,7 @@ func (res *Pathmetadata) ExtractUpOverdata(oldASEntry *seg.ASEntry, newASEntry *
 	}
 	for i := 0; i < len(StaticInfo.Hops.InterfaceHops); i++ {
 		if StaticInfo.Hops.InterfaceHops[i].IfID == oldEgressIFID {
-			res.SingleHops[IA] = ASHops{
+			res.ASHops[IA] = ASHops{
 				Hops: StaticInfo.Hops.InterfaceHops[i].Hops,
 			}
 		}
@@ -345,7 +338,7 @@ func (res *Pathmetadata) ExtractUpOverdata(oldASEntry *seg.ASEntry, newASEntry *
 	}
 }
 
-func (res *Pathmetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
+func (res *RawPathMetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
 	IA := newASEntry.IA()
 	StaticInfo := newASEntry.Exts.StaticInfo
 	hopEntry := oldASEntry.HopEntries[0]
@@ -353,9 +346,9 @@ func (res *Pathmetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEntry
 	oldIngressIfID := HF.ConsIngress
 	for i := 0; i < len(StaticInfo.Latency.Childlatencies); i++ {
 		if StaticInfo.Latency.Childlatencies[i].IfID == oldIngressIfID {
-			res.SingleDelays[IA] = ASDelay{
-				Intradelay: StaticInfo.Latency.Childlatencies[i].Intradelay,
-				Interdelay: StaticInfo.Latency.Egresslatency,
+			res.ASLatencies[IA] = ASLatency{
+				IntraLatency: StaticInfo.Latency.Childlatencies[i].Intradelay,
+				InterLatency: StaticInfo.Latency.Egresslatency,
 			}
 		}
 	}
@@ -365,7 +358,7 @@ func (res *Pathmetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEntry
 
 	for i := 0; i < len(StaticInfo.Bandwidth.Bandwidths); i++ {
 		if StaticInfo.Bandwidth.Bandwidths[i].IfID == oldIngressIfID {
-			res.Singlebw[IA] = ASBandwidth{
+			res.ASBandwidths[IA] = ASBandwidth{
 				IntraBW: StaticInfo.Bandwidth.Bandwidths[i].BW,
 				InterBW: StaticInfo.Bandwidth.EgressBW,
 			}
@@ -373,7 +366,7 @@ func (res *Pathmetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEntry
 	}
 	for i := 0; i < len(StaticInfo.Hops.InterfaceHops); i++ {
 		if StaticInfo.Hops.InterfaceHops[i].IfID == oldIngressIfID {
-			res.SingleHops[IA] = ASHops{
+			res.ASHops[IA] = ASHops{
 				Hops: StaticInfo.Hops.InterfaceHops[i].Hops,
 			}
 		}
@@ -384,8 +377,8 @@ func (res *Pathmetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEntry
 	}
 }
 
-func (ASes *ASEntryList) CombineSegments() *Pathmetadata {
-	var res Pathmetadata
+func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
+	var res RawPathMetadata
 	var LastUpASEntry *seg.ASEntry
 	var LastCoreASEntry *seg.ASEntry
 	// Go through ASEntries in the up segment (except for the first one)

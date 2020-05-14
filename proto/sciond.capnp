@@ -59,7 +59,7 @@ struct HostInfo {
 }
 
 struct DenseStaticInfo {
-    totalDelay @0 :UInt16;
+    totalLatency @0 :UInt16;
     totalHops @1 :UInt8;
     bandwidthBottleneck @2 :UInt32;
     linkTypes @3 :List(InterfaceLinkType);
@@ -69,14 +69,12 @@ struct DenseStaticInfo {
     struct InterfaceLinkType {
         interLinkType @0 :UInt16;
         peerLinkType @1 :UInt16;
-        isd @2 :UInt16;
-        as @3 :UInt64;
+        isdas @2 :UInt64;
     }
 
     struct Geo {
         routerLocations @0 :List(GPSData);
-        isd @1 :UInt16;
-        as @2 :UInt64;
+        isdas @1 :UInt64;
 
         struct GPSData {
             latitude @0 :Float32;
@@ -87,8 +85,7 @@ struct DenseStaticInfo {
 
     struct Note {
         note @0 :Text;
-        isd @1 :UInt16;
-        as @2 :UInt64;
+        isdas @1 :UInt64;
     }
 }
 
