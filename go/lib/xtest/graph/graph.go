@@ -24,6 +24,7 @@ package graph
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -276,6 +277,16 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 		}
 		sort.Ints(ifids)
 
+		s := asEntry.Exts.StaticInfo
+		s.Geo.Locations = append(s.Geo.Locations, seg.Location{
+			GPSData: seg.Coordinates{
+				Latitude:  1,
+				Longitude: 1,
+				Address:   "Züri",
+			},
+			IfIDs: []common.IFIDType{},
+		})
+
 		for _, intIFID := range ifids {
 			peeringLocalIF := common.IFIDType(intIFID)
 			if g.isPeer[peeringLocalIF] {
@@ -297,8 +308,12 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 					RawHopField: b,
 				}
 				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
+				s.AppendIfIDToSIForTesting(true, peeringLocalIF, outIF)
+			} else {
+				s.AppendIfIDToSIForTesting(false , peeringLocalIF, outIF)
 			}
 		}
+		s.Note = "ISDAS: " + strconv.Itoa(int(currIA.I)) + ", " + strconv.Itoa(int(currIA.A))
 		signer := mock_seg.NewMockSigner(g.ctrl)
 		signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 			&proto.SignS{}, nil).AnyTimes()

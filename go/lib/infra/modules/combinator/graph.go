@@ -361,6 +361,7 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 	}
 	path.reverseDownSegment()
 	path.aggregateInterfaces()
+	path.StaticInfo = solution.GatherASEntries().CombineSegments().Condensemetadata()
 	return path
 }
 

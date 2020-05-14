@@ -552,3 +552,40 @@ func writePaths(paths []*Path) *bytes.Buffer {
 	}
 	return buffer
 }
+
+func TestASEntryList_CombineSegments(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	g := graph.NewDefaultGraph(ctrl)
+
+	testCases := []struct {
+		Name     string
+		FileName string
+		SrcIA    addr.IA
+		DstIA    addr.IA
+		Ups      []*seg.PathSegment
+		Cores    []*seg.PathSegment
+		Downs    []*seg.PathSegment
+	}{
+		{
+			Name:     "#6 simple long up-core-down",
+			FileName: "06_compute_path.txt",
+			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
+			DstIA:    xtest.MustParseIA("2-ff00:0:212"),
+			Ups: []*seg.PathSegment{
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X}),
+			},
+			Cores: []*seg.PathSegment{
+				g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_130_A}),
+			},
+			Downs: []*seg.PathSegment{
+				g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_212_X}),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
+		result
+	}
+}

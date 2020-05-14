@@ -16,7 +16,6 @@ package seg
 
 import (
 	"fmt"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -210,4 +209,41 @@ func (s *StaticInfoExtn) String() string {
 	return fmt.Sprintf("Latency: %v\nGeo: %v\n"+
 		"Linktype: %v\nBandwidth: %v\nHops: %v\nNote: %v\n",
 		s.Latency, s.Geo, s.Linktype, s.Bandwidth, s.Hops, s.Note)
+}
+
+func (s *StaticInfoExtn) AppendIfIDToSIForTesting (peer bool, ifID, egifID common.IFIDType) {
+	if peer {
+		s.Latency.Peerlatencies = append(s.Latency.Peerlatencies, PeerLatency{
+			Interdelay: uint16(ifID),
+			IntraDelay: uint16(ifID),
+			IfID:       ifID,
+		})
+		s.Linktype.Peerlinks = append(s.Linktype.Peerlinks, InterfaceLinkType{
+			IfID:     ifID,
+			LinkType: uint16(ifID) % 3,
+		})
+	} else {
+		s.Latency.Childlatencies = append(s.Latency.Childlatencies, ChildLatency{
+				Intradelay: uint16(ifID),
+				IfID:       ifID,
+			})
+	}
+	s.Bandwidth.Bandwidths = append(s.Bandwidth.Bandwidths, InterfaceBandwidth{
+			BW: uint32(ifID),
+			IfID:       ifID,
+		})
+	s.Hops.InterfaceHops = append(s.Hops.InterfaceHops, InterfaceHops{
+			Hops: uint8(ifID),
+			IfID:       ifID,
+		})
+	s.Geo.Locations[0].IfIDs = append(s.Geo.Locations[0].IfIDs, ifID)
+
+	if (ifID == egifID){
+		s.Latency.IngressToEgressLatency = uint16(ifID)
+		s.Latency.Egresslatency = uint16(ifID)
+		s.Linktype.EgressLinkType = uint16(ifID) % 3
+		s.Bandwidth.EgressBW = uint32(ifID)
+		s.Bandwidth.IngressToEgressBW = uint32(ifID)
+		s.Hops.InToOutHops = uint8(ifID)
+	}
 }
