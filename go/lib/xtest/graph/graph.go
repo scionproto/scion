@@ -381,8 +381,10 @@ func (g *Graph) BeaconWithStaticInfo(ifids []common.IFIDType) *seg.PathSegment {
 		}
 		sort.Ints(ifids)
 
-		s := asEntry.Exts.StaticInfo
+		e := asEntry.Exts
+		var s *seg.StaticInfoExtn
 		s.InitializeStaticInfo()
+		e.StaticInfo = s
 		s.Geo.Locations = append(s.Geo.Locations, seg.Location{
 			GPSData: seg.Coordinates{
 				Latitude:  1,
