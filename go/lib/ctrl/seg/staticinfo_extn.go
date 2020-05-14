@@ -249,34 +249,29 @@ func (s *StaticInfoExtn) AppendIfIDToSIForTesting (peer bool, ifID, egifID commo
 }
 
 func InitializeStaticInfo() *StaticInfoExtn {
-	geo := GeoInfo{
-		Locations: []Location{{}},
-	}
-	latency := LatencyInfo{
-		Egresslatency:          0,
-		IngressToEgressLatency: 0,
-		Childlatencies:         []ChildLatency{{}},
-		Peerlatencies:          []PeerLatency{{}},
-	}
-	linktype := LinktypeInfo{
-		EgressLinkType: 0,
-		Peerlinks:      []InterfaceLinkType{{}},
-	}
-	bandwidth := BandwidthInfo{
-		EgressBW:          0,
-		IngressToEgressBW: 0,
-		Bandwidths:        []InterfaceBandwidth{{}},
-	}
-	hops :=  InternalHopsInfo{
-		InToOutHops:   0,
-		InterfaceHops: []InterfaceHops{{}},
-	}
-	s = &StaticInfoExtn{
-		Latency: latency,
-		Geo:       geo,
-		Linktype:  linktype,
-		Bandwidth: bandwidth,
-		Hops: hops,
+	s := &StaticInfoExtn{
+		Latency: LatencyInfo{
+			Egresslatency:          0,
+			IngressToEgressLatency: 0,
+			Childlatencies:         []ChildLatency{},
+			Peerlatencies:          []PeerLatency{},
+		},
+		Geo:       GeoInfo{
+			Locations: []Location{},
+		},
+		Linktype:  LinktypeInfo{
+			EgressLinkType: 0,
+			Peerlinks:      []InterfaceLinkType{},
+		},
+		Bandwidth: BandwidthInfo{
+			EgressBW:          0,
+			IngressToEgressBW: 0,
+			Bandwidths:        []InterfaceBandwidth{},
+		},
+		Hops: InternalHopsInfo{
+			InToOutHops:   0,
+			InterfaceHops: []InterfaceHops{},
+		},
 		Note:      "",
 	}
 	return s
