@@ -253,24 +253,24 @@ func (s *StaticInfoExtn) InitializeStaticInfo() {
 		Latency:   LatencyInfo{
 			Egresslatency:          0,
 			IngressToEgressLatency: 0,
-			Childlatencies:         []ChildLatency{},
-			Peerlatencies:          []PeerLatency{},
+			Childlatencies:         []ChildLatency{{}},
+			Peerlatencies:          []PeerLatency{{}},
 		},
 		Geo:       GeoInfo{
-			Locations: []Location{},
+			Locations: []Location{{}},
 		},
 		Linktype:  LinktypeInfo{
 			EgressLinkType: 0,
-			Peerlinks:      []InterfaceLinkType{},
+			Peerlinks:      []InterfaceLinkType{{}},
 		},
 		Bandwidth: BandwidthInfo{
 			EgressBW:          0,
 			IngressToEgressBW: 0,
-			Bandwidths:        []InterfaceBandwidth{},
+			Bandwidths:        []InterfaceBandwidth{{}},
 		},
 		Hops:      InternalHopsInfo{
 			InToOutHops:   0,
-			InterfaceHops: []InterfaceHops{},
+			InterfaceHops: []InterfaceHops{{}},
 		},
 		Note:      "",
 	}
