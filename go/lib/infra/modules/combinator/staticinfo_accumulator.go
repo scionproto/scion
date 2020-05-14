@@ -54,8 +54,8 @@ type ASBandwidth struct {
 }
 
 type DenseASLinkType struct {
-	InterLinkType uint16   `capnp:"interLinkType"`
-	PeerLinkType  uint16   `capnp:"peerLinkType"`
+	InterLinkType uint16     `capnp:"interLinkType"`
+	PeerLinkType  uint16     `capnp:"peerLinkType"`
 	RawIA         addr.IAInt `capnp:"isdas"`
 }
 
@@ -69,8 +69,8 @@ func (s *DenseASLinkType) String() string {
 }
 
 type DenseGeo struct {
-	RouterLocations []GeoLoc `capnp:"routerLocations"`
-	RawIA         addr.IAInt `capnp:"isdas"`
+	RouterLocations []GeoLoc   `capnp:"routerLocations"`
+	RawIA           addr.IAInt `capnp:"isdas"`
 }
 
 func (s *DenseGeo) ProtoId() proto.ProtoIdType {
@@ -83,8 +83,8 @@ func (s *DenseGeo) String() string {
 }
 
 type DenseNote struct {
-	Note string   `capnp:"note"`
-	RawIA         addr.IAInt `capnp:"isdas"`
+	Note  string     `capnp:"note"`
+	RawIA addr.IAInt `capnp:"isdas"`
 }
 
 func (s *DenseNote) ProtoId() proto.ProtoIdType {
@@ -97,9 +97,9 @@ func (s *DenseNote) String() string {
 }
 
 type RawPathMetadata struct {
-	ASLatencies map[addr.IA]ASLatency
-	ASBandwidths     map[addr.IA]ASBandwidth
-	ASHops   map[addr.IA]ASHops
+	ASLatencies  map[addr.IA]ASLatency
+	ASBandwidths map[addr.IA]ASBandwidth
+	ASHops       map[addr.IA]ASHops
 	Geo          map[addr.IA]ASGeo
 	Links        map[addr.IA]ASLink
 	Notes        map[addr.IA]ASnote
@@ -107,12 +107,12 @@ type RawPathMetadata struct {
 
 // PathMetadata is the condensed form of metadata retaining only the most important values.
 type PathMetadata struct {
-	TotalLatency  uint16            `capnp:"totalLatency"`
-	TotalHops   uint8             `capnp:"totalHops"`
-	MinOfMaxBWs uint32            `capnp:"bandwidthBottleneck"`
-	LinkTypes   []DenseASLinkType `capnp:"linkTypes"`
-	Locations   []DenseGeo        `capnp:"asLocations"`
-	Notes       []DenseNote       `capnp:"notes"`
+	TotalLatency uint16            `capnp:"totalLatency"`
+	TotalHops    uint8             `capnp:"totalHops"`
+	MinOfMaxBWs  uint32            `capnp:"bandwidthBottleneck"`
+	LinkTypes    []DenseASLinkType `capnp:"linkTypes"`
+	Locations    []DenseGeo        `capnp:"asLocations"`
+	Notes        []DenseNote       `capnp:"notes"`
 }
 
 func (s *PathMetadata) ProtoId() proto.ProtoIdType {
@@ -130,9 +130,9 @@ func (s *PathMetadata) String() string {
 // the most important values to be transmitted to SCIOND
 func (data *RawPathMetadata) Condensemetadata() *PathMetadata {
 	ret := &PathMetadata{
-		TotalLatency:  0,
-		TotalHops:   0,
-		MinOfMaxBWs: math.MaxUint32,
+		TotalLatency: 0,
+		TotalHops:    0,
+		MinOfMaxBWs:  math.MaxUint32,
 	}
 
 	for _, val := range data.ASBandwidths {
@@ -162,14 +162,14 @@ func (data *RawPathMetadata) Condensemetadata() *PathMetadata {
 
 	for IA, note := range data.Notes {
 		ret.Notes = append(ret.Notes, DenseNote{
-			Note: note.Note,
+			Note:  note.Note,
 			RawIA: IA.IAInt(),
 		})
 	}
 
 	for IA, loc := range data.Geo {
 		ret.Locations = append(ret.Locations, DenseGeo{
-			RawIA: IA.IAInt(),
+			RawIA:           IA.IAInt(),
 			RouterLocations: loc.locations,
 		})
 	}
@@ -178,7 +178,7 @@ func (data *RawPathMetadata) Condensemetadata() *PathMetadata {
 		ret.LinkTypes = append(ret.LinkTypes, DenseASLinkType{
 			InterLinkType: link.InterLinkType,
 			PeerLinkType:  link.PeerLinkType,
-			RawIA: IA.IAInt(),
+			RawIA:         IA.IAInt(),
 		})
 	}
 
