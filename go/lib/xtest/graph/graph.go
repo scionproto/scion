@@ -277,6 +277,110 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 		}
 		sort.Ints(ifids)
 
+		for _, intIFID := range ifids {
+			peeringLocalIF := common.IFIDType(intIFID)
+			if g.isPeer[peeringLocalIF] {
+				b := make(common.RawBytes, spath.HopFieldLength)
+				hf := spath.HopField{
+					ConsIngress: peeringLocalIF,
+					ConsEgress:  outIF,
+					ExpTime:     spath.DefaultHopFExpiry,
+				}
+				hf.Write(b)
+				peeringRemoteIF := g.links[peeringLocalIF]
+				peeringIA := g.parents[peeringRemoteIF]
+				peerHopEntry := &seg.HopEntry{
+					RawInIA:     peeringIA.IAInt(),
+					RemoteInIF:  peeringRemoteIF,
+					InMTU:       1280,
+					RawOutIA:    outIA.IAInt(),
+					RemoteOutIF: remoteOutIF,
+					RawHopField: b,
+				}
+				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
+			}
+		}
+		signer := mock_seg.NewMockSigner(g.ctrl)
+		signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
+			&proto.SignS{}, nil).AnyTimes()
+		segment.AddASEntry(asEntry, signer)
+		remoteInIF = outIF
+		inIF = remoteOutIF
+		inIA = currIA
+		currIA = g.parents[remoteOutIF]
+	}
+	return segment
+}
+
+// BeaconWithStaticInfo does mock beaconing, including StaticInfo.
+func (g *Graph) BeaconWithStaticInfo(ifids []common.IFIDType) *seg.PathSegment {
+	var remoteInIF, inIF, outIF, remoteOutIF common.IFIDType
+	var inIA, currIA, outIA addr.IA
+
+	var segment *seg.PathSegment
+	if len(ifids) == 0 {
+		return segment
+	}
+
+	if _, ok := g.parents[ifids[0]]; !ok {
+		panic(fmt.Sprintf("%d unknown ifid", ifids[0]))
+	}
+
+	segment, err := seg.NewSeg(
+		&spath.InfoField{
+			ISD:   uint16(g.parents[ifids[0]].I),
+			TsInt: util.TimeToSecs(time.Now()),
+		})
+	if err != nil {
+		panic(err)
+	}
+
+	currIA = g.parents[ifids[0]]
+	for i := 0; i <= len(ifids); i++ {
+		switch {
+		case i < len(ifids):
+			var ok bool
+			outIF = ifids[i]
+			if remoteOutIF, ok = g.links[outIF]; !ok {
+				panic(fmt.Sprintf("%d unknown ifid", outIF))
+			}
+			outIA = g.parents[remoteOutIF]
+		case i == len(ifids):
+			outIF = 0
+			remoteOutIF = 0
+			outIA = addr.IA{}
+		}
+
+		asEntry := &seg.ASEntry{
+			RawIA: currIA.IAInt(),
+		}
+
+		b := make(common.RawBytes, spath.HopFieldLength)
+		hf := spath.HopField{
+			ConsIngress: inIF,
+			ConsEgress:  outIF,
+			ExpTime:     spath.DefaultHopFExpiry,
+		}
+		hf.Write(b)
+		localHopEntry := &seg.HopEntry{
+			RawInIA:     inIA.IAInt(),
+			RemoteInIF:  remoteInIF,
+			InMTU:       1280,
+			RawOutIA:    outIA.IAInt(),
+			RemoteOutIF: remoteOutIF,
+			RawHopField: b,
+		}
+		asEntry.HopEntries = append(asEntry.HopEntries, localHopEntry)
+
+		as := g.ases[currIA]
+
+		// use int to avoid implementing sort.Interface
+		var ifids []int
+		for peeringLocalIF := range as.IFIDs {
+			ifids = append(ifids, int(peeringLocalIF))
+		}
+		sort.Ints(ifids)
+
 		s := asEntry.Exts.StaticInfo
 		s.Geo.Locations = append(s.Geo.Locations, seg.Location{
 			GPSData: seg.Coordinates{

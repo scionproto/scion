@@ -580,13 +580,13 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:212"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X}),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_130_A}),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_130_A}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_212_X}),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_212_X}),
 			},
 			expectedLatency: 2*uint16(graph.If_131_X_132_X) + uint16(graph.If_130_A_131_X) +
 				uint16(graph.If_130_A_110_X) + 2*uint16(graph.If_110_X_130_A) +
