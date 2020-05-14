@@ -248,7 +248,7 @@ func (s *StaticInfoExtn) AppendIfIDToSIForTesting (peer bool, ifID, egifID commo
 	}
 }
 
-func (s *StaticInfoExtn) InitializeStaticInfo() {
+func InitializeStaticInfo() *StaticInfoExtn {
 	geo := GeoInfo{
 		Locations: []Location{{}},
 	}
@@ -279,4 +279,5 @@ func (s *StaticInfoExtn) InitializeStaticInfo() {
 		Hops: hops,
 		Note:      "",
 	}
+	return s
 }
