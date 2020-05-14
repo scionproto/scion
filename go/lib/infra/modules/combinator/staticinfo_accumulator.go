@@ -385,22 +385,25 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 	// and extract the static info data from them
 	for idx := 0; idx < len(ASes.Ups); idx++ {
 		asEntry := ASes.Ups[idx]
-		if idx == 0 {
-			res.Geo[asEntry.IA()] = getGeo(asEntry)
-			continue
-		}
-		if (idx > 0) && (idx < (len(ASes.Ups) - 1)) {
-			res.ExtractNormaldata(asEntry)
-		} else {
-			if ASes.UpPeer != 0 {
-				peerEntry := asEntry.HopEntries[ASes.UpPeer]
-				PE, _ := peerEntry.HopField()
-				peerIfID := PE.ConsIngress
-				res.ExtractPeerdata(asEntry, peerIfID, true)
+		s := asEntry.Exts.StaticInfo
+		if s != nil {
+			if idx == 0 {
+				res.Geo[asEntry.IA()] = getGeo(asEntry)
+				continue
+			}
+			if (idx > 0) && (idx < (len(ASes.Ups) - 1)) {
+				res.ExtractNormaldata(asEntry)
 			} else {
-				// If the last up AS is not involved in peering,
-				// do nothing except store the as in LastUpASEntry
-				LastUpASEntry = asEntry
+				if ASes.UpPeer != 0 {
+					peerEntry := asEntry.HopEntries[ASes.UpPeer]
+					PE, _ := peerEntry.HopField()
+					peerIfID := PE.ConsIngress
+					res.ExtractPeerdata(asEntry, peerIfID, true)
+				} else {
+					// If the last up AS is not involved in peering,
+					// do nothing except store the as in LastUpASEntry
+					LastUpASEntry = asEntry
+				}
 			}
 		}
 	}
@@ -411,19 +414,22 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 		asEntry := ASes.Cores[idx]
 		// If we're in the first inspected AS (i.e the last AS of the segment)
 		// only set LastCoreASEntry
-		if idx == 0 {
-			LastCoreASEntry = asEntry
-			if len(ASes.Cores) == 0 {
-				res.Geo[asEntry.IA()] = getGeo(asEntry)
+		s := asEntry.Exts.StaticInfo
+		if s != nil {
+			if idx == 0 {
+				LastCoreASEntry = asEntry
+				if len(ASes.Cores) == 0 {
+					res.Geo[asEntry.IA()] = getGeo(asEntry)
+				}
+				continue
 			}
-			continue
-		}
-		if (idx > 0) && (idx < (len(ASes.Ups) - 1)) {
-			res.ExtractNormaldata(asEntry)
-		} else {
-			if len(ASes.Ups) > 0 {
-				// We're in the AS where we cross over from the up to the core segment
-				res.ExtractUpOverdata(asEntry, LastUpASEntry)
+			if (idx > 0) && (idx < (len(ASes.Ups) - 1)) {
+				res.ExtractNormaldata(asEntry)
+			} else {
+				if len(ASes.Ups) > 0 {
+					// We're in the AS where we cross over from the up to the core segment
+					res.ExtractUpOverdata(asEntry, LastUpASEntry)
+				}
 			}
 		}
 	}
@@ -432,27 +438,30 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 	// and extract the static info data from them
 	for idx := 0; idx < len(ASes.Cores); idx++ {
 		asEntry := ASes.Cores[idx]
-		if idx == 0 {
-			res.Geo[asEntry.IA()] = getGeo(asEntry)
-			continue
-		}
-		if (idx > 0) && (idx < (len(ASes.Ups) - 1)) {
-			res.ExtractNormaldata(asEntry)
-		} else {
-			if ASes.DownPeer != 0 {
-				// We're in the AS where we peered over from the up to the down segment
-				peerEntry := asEntry.HopEntries[ASes.UpPeer]
-				PE, _ := peerEntry.HopField()
-				peerIfID := PE.ConsIngress
-				res.ExtractPeerdata(asEntry, peerIfID, false)
+		s := asEntry.Exts.StaticInfo
+		if s != nil {
+			if idx == 0 {
+				res.Geo[asEntry.IA()] = getGeo(asEntry)
+				continue
+			}
+			if (idx > 0) && (idx < (len(ASes.Ups) - 1)) {
+				res.ExtractNormaldata(asEntry)
 			} else {
-				if len(ASes.Cores) > 0 {
-					// We're in the AS where we cross over from the core to the down segment
-					res.ExtractCoreOverdata(LastCoreASEntry, asEntry)
-				}
-				if (len(ASes.Ups) > 0) && (len(ASes.Cores) == 0) {
-					// We're in the AS where we cross over from the up to the down segment via a shortcut
-					res.ExtractUpOverdata(LastUpASEntry, asEntry)
+				if ASes.DownPeer != 0 {
+					// We're in the AS where we peered over from the up to the down segment
+					peerEntry := asEntry.HopEntries[ASes.UpPeer]
+					PE, _ := peerEntry.HopField()
+					peerIfID := PE.ConsIngress
+					res.ExtractPeerdata(asEntry, peerIfID, false)
+				} else {
+					if len(ASes.Cores) > 0 {
+						// We're in the AS where we cross over from the core to the down segment
+						res.ExtractCoreOverdata(LastCoreASEntry, asEntry)
+					}
+					if (len(ASes.Ups) > 0) && (len(ASes.Cores) == 0) {
+						// We're in the AS where we cross over from the up to the down segment via a shortcut
+						res.ExtractUpOverdata(LastUpASEntry, asEntry)
+					}
 				}
 			}
 		}
