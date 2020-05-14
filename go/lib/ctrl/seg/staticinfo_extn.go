@@ -247,3 +247,31 @@ func (s *StaticInfoExtn) AppendIfIDToSIForTesting (peer bool, ifID, egifID commo
 		s.Hops.InToOutHops = uint8(ifID)
 	}
 }
+
+func (s *StaticInfoExtn) InitializeStaticInfo() {
+	s = &StaticInfoExtn{
+		Latency:   LatencyInfo{
+			Egresslatency:          0,
+			IngressToEgressLatency: 0,
+			Childlatencies:         []ChildLatency{},
+			Peerlatencies:          []PeerLatency{},
+		},
+		Geo:       GeoInfo{
+			Locations: []Location{},
+		},
+		Linktype:  LinktypeInfo{
+			EgressLinkType: 0,
+			Peerlinks:      []InterfaceLinkType{},
+		},
+		Bandwidth: BandwidthInfo{
+			EgressBW:          0,
+			IngressToEgressBW: 0,
+			Bandwidths:        []InterfaceBandwidth{},
+		},
+		Hops:      InternalHopsInfo{
+			InToOutHops:   0,
+			InterfaceHops: []InterfaceHops{},
+		},
+		Note:      "",
+	}
+}
