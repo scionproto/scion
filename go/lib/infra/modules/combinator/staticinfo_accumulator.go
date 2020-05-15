@@ -473,6 +473,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 			}
 		}
 	}
+	fmt.Println(res)
 	return &res
 }
 
