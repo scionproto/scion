@@ -109,7 +109,6 @@ func realMain() int {
 	}
 
 	msger := tcp.NewClientMessenger(tcp.Client{TopologyProvider: itopo.Provider()})
-	defer msger.CloseServer()
 
 	trustDB, err := cfg.TrustDB.New()
 	if err != nil {

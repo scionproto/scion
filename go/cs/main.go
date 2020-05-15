@@ -168,7 +168,6 @@ func realMain() int {
 		Port: nc.Public.Port,
 		Zone: nc.Public.Zone,
 	})
-	defer tcpMsgr.CloseServer()
 
 	trustDB, err := cfg.TrustDB.New()
 	if err != nil {
@@ -313,6 +312,7 @@ func realMain() int {
 		defer log.HandlePanic()
 		tcpMsgr.ListenAndServe()
 	}()
+	defer tcpMsgr.CloseServer()
 
 	dispatcherService := reliable.NewDispatcher("")
 	if cfg.General.ReconnectToDispatcher {

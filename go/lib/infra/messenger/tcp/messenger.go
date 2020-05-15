@@ -213,6 +213,9 @@ func (m *Messenger) ListenAndServe() {
 }
 
 func (m *Messenger) CloseServer() error {
+	if m.listener == nil {
+		return nil
+	}
 	return m.listener.Close()
 }
 
