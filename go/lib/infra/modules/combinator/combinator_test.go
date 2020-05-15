@@ -609,56 +609,56 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 			expectedGeo: []DenseGeo{
 				{
 					RouterLocations: []GeoLoc{{
-						Latitude:  0,
-						Longitude: 0,
+						Latitude:  float32(xtest.MustParseIA("1-ff00:0:132").IAInt()),
+						Longitude: float32(xtest.MustParseIA("1-ff00:0:132").IAInt()),
 						Address:   "Züri",
 					}},
 					RawIA: xtest.MustParseIA("1-ff00:0:132").IAInt(),
 				},
 				{
 					RouterLocations: []GeoLoc{{
-						Latitude:  float32(graph.If_131_X_132_X),
-						Longitude: float32(graph.If_131_X_132_X),
+						Latitude:  float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
+						Longitude: float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
 						Address:   "Züri",
 					}},
 					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
 				},
 				{
 					RouterLocations: []GeoLoc{{
-						Latitude:  float32(graph.If_130_A_131_X),
-						Longitude: float32(graph.If_130_A_131_X),
+						Latitude:  float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
+						Longitude: float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
 						Address:   "Züri",
 					}},
 					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
 				},
 				{
 					RouterLocations: []GeoLoc{{
-						Latitude:  float32(graph.If_110_X_130_A),
-						Longitude: float32(graph.If_110_X_130_A),
+						Latitude:  float32(xtest.MustParseIA("1-ff00:0:110").IAInt()),
+						Longitude:float32(xtest.MustParseIA("1-ff00:0:110").IAInt()),
 						Address:   "Züri",
 					}},
 					RawIA: xtest.MustParseIA("1-ff00:0:110").IAInt(),
 				},
 				{
 					RouterLocations: []GeoLoc{{
-						Latitude:  float32(graph.If_210_X_211_A),
-						Longitude: float32(graph.If_210_X_211_A),
+						Latitude:  float32(xtest.MustParseIA("2-ff00:0:210").IAInt()),
+						Longitude: float32(xtest.MustParseIA("2-ff00:0:210").IAInt()),
 						Address:   "Züri",
 					}},
 					RawIA: xtest.MustParseIA("2-ff00:0:210").IAInt(),
 				},
 				{
 					RouterLocations: []GeoLoc{{
-						Latitude:  float32(graph.If_211_A_212_X),
-						Longitude: float32(graph.If_211_A_212_X),
+						Latitude:  float32(xtest.MustParseIA("2-ff00:0:211").IAInt()),
+						Longitude: float32(xtest.MustParseIA("2-ff00:0:211").IAInt()),
 						Address:   "Züri",
 					}},
 					RawIA: xtest.MustParseIA("2-ff00:0:211").IAInt(),
 				},
 				{
 					RouterLocations: []GeoLoc{{
-						Latitude:  0,
-						Longitude: 0,
+						Latitude:  float32(xtest.MustParseIA("2-ff00:0:212").IAInt()),
+						Longitude: float32(xtest.MustParseIA("2-ff00:0:212").IAInt()),
 						Address:   "Züri",
 					}},
 					RawIA: xtest.MustParseIA("2-ff00:0:212").IAInt(),
