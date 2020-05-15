@@ -239,12 +239,12 @@ func (s *StaticInfoExtn) AppendIfIDToSIForTesting (peer bool, ifID, egifID commo
 	s.Geo.Locations[0].IfIDs = append(s.Geo.Locations[0].IfIDs, ifID)
 
 	if (ifID == egifID){
-		s.Latency.IngressToEgressLatency = uint16(ifID)
+		s.Latency.IngressToEgressLatency = uint16(egifID)
 		s.Latency.Egresslatency = uint16(egifID)
 		s.Linktype.EgressLinkType = uint16(egifID) % 3
 		s.Bandwidth.EgressBW = uint32(egifID)
-		s.Bandwidth.IngressToEgressBW = uint32(ifID)
-		s.Hops.InToOutHops = uint8(ifID)
+		s.Bandwidth.IngressToEgressBW = uint32(egifID)
+		s.Hops.InToOutHops = uint8(egifID)
 	}
 }
 

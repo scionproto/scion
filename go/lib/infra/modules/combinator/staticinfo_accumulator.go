@@ -384,9 +384,9 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 	var LastUpASEntry *seg.ASEntry
 	var LastCoreASEntry *seg.ASEntry
 	res := initialize()
-	fmt.Println(ASes.Ups)
-	fmt.Println(ASes.Cores)
-	fmt.Println(ASes.Downs)
+	// fmt.Println(ASes.Ups)
+	// fmt.Println(ASes.Cores)
+	// fmt.Println(ASes.Downs)
 	// Go through ASEntries in the up segment (except for the first one)
 	// and extract the static info data from them
 	for idx := 0; idx < len(ASes.Ups); idx++ {
@@ -418,7 +418,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 			}
 		}
 	}
-	fmt.Println(LastUpASEntry)
+	// fmt.Println(LastUpASEntry)
 
 	// Go through ASEntries in the core segment
 	// and extract the static info data from them
