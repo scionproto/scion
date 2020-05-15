@@ -381,7 +381,7 @@ func (g *Graph) BeaconWithStaticInfo(ifids []common.IFIDType) *seg.PathSegment {
 		sort.Ints(ifids)
 
 		asEntry.Exts.StaticInfo = seg.InitializeStaticInfo()
-		s:= asEntry.Exts.StaticInfo
+		s := asEntry.Exts.StaticInfo
 		s.Geo.Locations = append(s.Geo.Locations, seg.Location{
 			GPSData: seg.Coordinates{
 				Latitude:  float32(currIA.IAInt()),
@@ -414,7 +414,7 @@ func (g *Graph) BeaconWithStaticInfo(ifids []common.IFIDType) *seg.PathSegment {
 				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
 				s.AppendIfIDToSIForTesting(true, peeringLocalIF, outIF)
 			} else {
-				s.AppendIfIDToSIForTesting(false , peeringLocalIF, outIF)
+				s.AppendIfIDToSIForTesting(false, peeringLocalIF, outIF)
 			}
 		}
 		s.Note = "asdf"

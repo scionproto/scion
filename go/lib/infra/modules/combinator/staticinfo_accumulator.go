@@ -312,7 +312,7 @@ func (res *RawPathMetadata) ExtractUpOverdata(oldASEntry *seg.ASEntry, newASEntr
 		}
 	}
 	res.Links[IA] = ASLink{
-		InterLinkType:  StaticInfo.Linktype.EgressLinkType,
+		InterLinkType: StaticInfo.Linktype.EgressLinkType,
 	}
 
 	for i := 0; i < len(StaticInfo.Bandwidth.Bandwidths); i++ {
@@ -348,13 +348,13 @@ func (res *RawPathMetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEn
 			res.ASLatencies[IA] = ASLatency{
 				IntraLatency: StaticInfo.Latency.Childlatencies[i].Intradelay,
 				InterLatency: StaticInfo.Latency.Egresslatency,
-				PeerLatency: oldSI.Latency.Egresslatency,
+				PeerLatency:  oldSI.Latency.Egresslatency,
 			}
 		}
 	}
 	res.Links[IA] = ASLink{
 		InterLinkType: StaticInfo.Linktype.EgressLinkType,
-		PeerLinkType: oldSI.Linktype.EgressLinkType,
+		PeerLinkType:  oldSI.Linktype.EgressLinkType,
 	}
 
 	for i := 0; i < len(StaticInfo.Bandwidth.Bandwidths); i++ {
@@ -377,8 +377,6 @@ func (res *RawPathMetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEn
 		Note: StaticInfo.Note,
 	}
 }
-
-
 
 func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 	var LastUpASEntry *seg.ASEntry
@@ -506,9 +504,9 @@ func getGeo(asEntry *seg.ASEntry) ASGeo {
 	return res
 }
 
-func initialize() *RawPathMetadata{
+func initialize() *RawPathMetadata {
 	return &RawPathMetadata{
-		ASLatencies:  make (map[addr.IA]ASLatency),
+		ASLatencies:  make(map[addr.IA]ASLatency),
 		ASBandwidths: make(map[addr.IA]ASBandwidth),
 		ASHops:       make(map[addr.IA]ASHops),
 		Geo:          make(map[addr.IA]ASGeo),
@@ -520,4 +518,4 @@ func initialize() *RawPathMetadata{
 /*
 	element {[{%!s(float32=1316) %!s(float32=1316) Züri}] 1-ff00:0:130} appears more times in [{[{%!s(float32=0) %!s(float32=0) Züri}] 1-ff00:0:132} {[{%!s(float32=1619) %!s(float32=1619) Züri}] 1-ff00:0:131} {[{%!s(float32=1316) %!s(float32=1316) Züri}] 1-ff00:0:130} {[{%!s(float32=1113) %!s(float32=1113) Züri}] 1-ff00:0:110} {[{%!s(float32=2123) %!s(float32=2123) Züri}] 2-ff00:0:210} {[{%!s(float32=2325) %!s(float32=2325) Züri}] 2-ff00:0:211} {[{%!s(float32=0) %!s(float32=0) Züri}] 2-ff00:0:212}] than in [{[{%!s(float32=0) %!s(float32=0) Züri}] 1-ff00:0:132} {[{%!s(float32=1619) %!s(float32=1619) Züri}] 1-ff00:0:131} {[{%!s(float32=0) %!s(float32=0) Züri}] 1-ff00:0:130} {[{%!s(float32=1113) %!s(float32=1113) Züri}] 1-ff00:0:110} {[{%!s(float32=0) %!s(float32=0) Züri}] 2-ff00:0:212} {[{%!s(float32=2325) %!s(float32=2325) Züri}] 2-ff00:0:211} {[{%!s(float32=2123) %!s(float32=2123) Züri}] 2-ff00:0:210}]
 
- */
+*/

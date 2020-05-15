@@ -561,19 +561,19 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 	g := graph.NewDefaultGraph(ctrl)
 
 	testCases := []struct {
-		Name     string
-		FileName string
-		SrcIA    addr.IA
-		DstIA    addr.IA
-		Ups      []*seg.PathSegment
-		Cores    []*seg.PathSegment
-		Downs    []*seg.PathSegment
-		expectedLatency uint16
-		expectedBW uint32
-		expectedHops uint8
+		Name              string
+		FileName          string
+		SrcIA             addr.IA
+		DstIA             addr.IA
+		Ups               []*seg.PathSegment
+		Cores             []*seg.PathSegment
+		Downs             []*seg.PathSegment
+		expectedLatency   uint16
+		expectedBW        uint32
+		expectedHops      uint8
 		expectedLinktypes []DenseASLinkType
-		expectedGeo []DenseGeo
-		expectedNotes []DenseNote
+		expectedGeo       []DenseGeo
+		expectedNotes     []DenseNote
 	}{
 		{
 			Name:     "#6 simple long up-core-down",
@@ -589,8 +589,7 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_212_X}),
 			},
-			expectedLatency:
-			uint16(graph.If_131_X_132_X) + uint16(graph.If_131_X_132_X) +
+			expectedLatency: uint16(graph.If_131_X_132_X) + uint16(graph.If_131_X_132_X) +
 				uint16(graph.If_130_A_131_X) + uint16(graph.If_130_A_110_X) +
 				uint16(graph.If_110_X_130_A) + uint16(graph.If_110_X_130_A) +
 				uint16(graph.If_210_X_110_X) + uint16(graph.If_210_X_110_X) +
@@ -600,8 +599,7 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 			expectedBW: calcBWmin([]common.IFIDType{graph.If_131_X_132_X, graph.If_130_A_131_X,
 				graph.If_130_A_110_X, graph.If_110_X_130_A, graph.If_210_X_110_X,
 				graph.If_210_X_211_A, graph.If_211_A_212_X}),
-			expectedHops:
-				uint8(graph.If_131_X_132_X) +
+			expectedHops: uint8(graph.If_131_X_132_X) +
 				uint8(graph.If_130_A_110_X) +
 				uint8(graph.If_110_X_130_A) +
 				uint8(graph.If_210_X_110_X) +
@@ -634,7 +632,7 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 				{
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:110").IAInt()),
-						Longitude:float32(xtest.MustParseIA("1-ff00:0:110").IAInt()),
+						Longitude: float32(xtest.MustParseIA("1-ff00:0:110").IAInt()),
 						Address:   "Züri",
 					}},
 					RawIA: xtest.MustParseIA("1-ff00:0:110").IAInt(),
@@ -667,50 +665,49 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 			expectedLinktypes: []DenseASLinkType{
 				{
 					InterLinkType: uint16(graph.If_131_X_132_X) % 3,
-					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
+					RawIA:         xtest.MustParseIA("1-ff00:0:131").IAInt(),
 				},
 				{
 					InterLinkType: uint16(graph.If_130_A_131_X) % 3,
-					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
+					RawIA:         xtest.MustParseIA("1-ff00:0:130").IAInt(),
 				},
 				{
 					InterLinkType: uint16(graph.If_110_X_130_A) % 3,
-					RawIA: xtest.MustParseIA("1-ff00:0:110").IAInt(),
+					RawIA:         xtest.MustParseIA("1-ff00:0:110").IAInt(),
 				},
 				{
 					InterLinkType: uint16(graph.If_210_X_211_A) % 3,
-					PeerLinkType: uint16(graph.If_210_X_110_X) % 3,
-					RawIA: xtest.MustParseIA("2-ff00:0:210").IAInt(),
+					PeerLinkType:  uint16(graph.If_210_X_110_X) % 3,
+					RawIA:         xtest.MustParseIA("2-ff00:0:210").IAInt(),
 				},
 				{
 					InterLinkType: uint16(graph.If_211_A_212_X) % 3,
-					RawIA: xtest.MustParseIA("2-ff00:0:211").IAInt(),
+					RawIA:         xtest.MustParseIA("2-ff00:0:211").IAInt(),
 				},
 			},
 			expectedNotes: []DenseNote{
 				{
-					Note: "asdf",
+					Note:  "asdf",
 					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
 				},
 				{
-					Note: "asdf",
+					Note:  "asdf",
 					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
 				},
 				{
-					Note: "asdf",
+					Note:  "asdf",
 					RawIA: xtest.MustParseIA("1-ff00:0:110").IAInt(),
 				},
 				{
-					Note: "asdf",
+					Note:  "asdf",
 					RawIA: xtest.MustParseIA("2-ff00:0:210").IAInt(),
 				},
 				{
-					Note: "asdf",
+					Note:  "asdf",
 					RawIA: xtest.MustParseIA("2-ff00:0:211").IAInt(),
 				},
 			},
 		},
-
 	}
 
 	for _, tc := range testCases {
@@ -724,7 +721,7 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 	}
 }
 
-func calcBWmin(ifids []common.IFIDType) uint32{
+func calcBWmin(ifids []common.IFIDType) uint32 {
 	var BW uint32 = math.MaxUint32
 	for _, val := range ifids {
 		BW = uint32(math.Min(float64(BW), float64(val)))
