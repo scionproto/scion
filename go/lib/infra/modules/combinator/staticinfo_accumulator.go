@@ -384,16 +384,16 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 	var LastUpASEntry *seg.ASEntry
 	var LastCoreASEntry *seg.ASEntry
 	res := initialize()
-	// fmt.Println(ASes.Ups)
-	// fmt.Println(ASes.Cores)
-	// fmt.Println(ASes.Downs)
+	fmt.Println(ASes.Ups)
+	fmt.Println(ASes.Cores)
+	fmt.Println(ASes.Downs)
 	// Go through ASEntries in the up segment (except for the first one)
 	// and extract the static info data from them
 	for idx := 0; idx < len(ASes.Ups); idx++ {
 		asEntry := ASes.Ups[idx]
 		s := asEntry.Exts.StaticInfo
 		if s != nil {
-			fmt.Println(s.Latency)
+			// fmt.Println(s.Latency)
 			if idx == 0 {
 				res.Geo[asEntry.IA()] = getGeo(asEntry)
 				continue
@@ -428,7 +428,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 		// only set LastCoreASEntry
 		s := asEntry.Exts.StaticInfo
 		if s != nil {
-			fmt.Println(s.Latency)
+			// fmt.Println(s.Latency)
 			if idx == 0 {
 				if len(ASes.Ups) > 0 {
 					// We're in the AS where we cross over from the up to the core segment
@@ -456,7 +456,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 		asEntry := ASes.Downs[idx]
 		s := asEntry.Exts.StaticInfo
 		if s != nil {
-			fmt.Println(s.Latency)
+			// fmt.Println(s.Latency)
 			if idx == 0 {
 				res.Geo[asEntry.IA()] = getGeo(asEntry)
 				continue
@@ -516,3 +516,8 @@ func initialize() *RawPathMetadata{
 		Notes:        make(map[addr.IA]ASnote),
 	}
 }
+
+/*
+	element {[{%!s(float32=1316) %!s(float32=1316) Züri}] 1-ff00:0:130} appears more times in [{[{%!s(float32=0) %!s(float32=0) Züri}] 1-ff00:0:132} {[{%!s(float32=1619) %!s(float32=1619) Züri}] 1-ff00:0:131} {[{%!s(float32=1316) %!s(float32=1316) Züri}] 1-ff00:0:130} {[{%!s(float32=1113) %!s(float32=1113) Züri}] 1-ff00:0:110} {[{%!s(float32=2123) %!s(float32=2123) Züri}] 2-ff00:0:210} {[{%!s(float32=2325) %!s(float32=2325) Züri}] 2-ff00:0:211} {[{%!s(float32=0) %!s(float32=0) Züri}] 2-ff00:0:212}] than in [{[{%!s(float32=0) %!s(float32=0) Züri}] 1-ff00:0:132} {[{%!s(float32=1619) %!s(float32=1619) Züri}] 1-ff00:0:131} {[{%!s(float32=0) %!s(float32=0) Züri}] 1-ff00:0:130} {[{%!s(float32=1113) %!s(float32=1113) Züri}] 1-ff00:0:110} {[{%!s(float32=0) %!s(float32=0) Züri}] 2-ff00:0:212} {[{%!s(float32=2325) %!s(float32=2325) Züri}] 2-ff00:0:211} {[{%!s(float32=2123) %!s(float32=2123) Züri}] 2-ff00:0:210}]
+
+ */
