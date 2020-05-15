@@ -381,6 +381,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 	var res RawPathMetadata
 	var LastUpASEntry *seg.ASEntry
 	var LastCoreASEntry *seg.ASEntry
+	res.initialize()
 	// Go through ASEntries in the up segment (except for the first one)
 	// and extract the static info data from them
 	for idx := 0; idx < len(ASes.Ups); idx++ {
@@ -482,4 +483,13 @@ func getGeo(asEntry *seg.ASEntry) ASGeo {
 		locations: locations,
 	}
 	return res
+}
+
+func (s *RawPathMetadata) initialize() {
+	s.Geo = make(map[addr.IA]ASGeo)
+	s.ASLatencies = make (map[addr.IA]ASLatency)
+	s.ASBandwidths = make(map[addr.IA]ASBandwidth)
+	s.ASHops = make(map[addr.IA]ASHops)
+	s.Links  = make(map[addr.IA]ASLink)
+	s.Notes = make(map[addr.IA]ASnote)
 }
