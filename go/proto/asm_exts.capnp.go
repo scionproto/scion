@@ -579,12 +579,12 @@ type StaticInfoExtn_LatencyInfo_ChildLatency struct{ capnp.Struct }
 const StaticInfoExtn_LatencyInfo_ChildLatency_TypeID = 0x885e742db1fb5301
 
 func NewStaticInfoExtn_LatencyInfo_ChildLatency(s *capnp.Segment) (StaticInfoExtn_LatencyInfo_ChildLatency, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
 	return StaticInfoExtn_LatencyInfo_ChildLatency{st}, err
 }
 
 func NewRootStaticInfoExtn_LatencyInfo_ChildLatency(s *capnp.Segment) (StaticInfoExtn_LatencyInfo_ChildLatency, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
 	return StaticInfoExtn_LatencyInfo_ChildLatency{st}, err
 }
 
@@ -606,12 +606,12 @@ func (s StaticInfoExtn_LatencyInfo_ChildLatency) SetIntra(v uint16) {
 	s.Struct.SetUint16(0, v)
 }
 
-func (s StaticInfoExtn_LatencyInfo_ChildLatency) IfID() uint16 {
-	return s.Struct.Uint16(2)
+func (s StaticInfoExtn_LatencyInfo_ChildLatency) IfID() uint64 {
+	return s.Struct.Uint64(8)
 }
 
-func (s StaticInfoExtn_LatencyInfo_ChildLatency) SetIfID(v uint16) {
-	s.Struct.SetUint16(2, v)
+func (s StaticInfoExtn_LatencyInfo_ChildLatency) SetIfID(v uint64) {
+	s.Struct.SetUint64(8, v)
 }
 
 // StaticInfoExtn_LatencyInfo_ChildLatency_List is a list of StaticInfoExtn_LatencyInfo_ChildLatency.
@@ -619,7 +619,7 @@ type StaticInfoExtn_LatencyInfo_ChildLatency_List struct{ capnp.List }
 
 // NewStaticInfoExtn_LatencyInfo_ChildLatency creates a new list of StaticInfoExtn_LatencyInfo_ChildLatency.
 func NewStaticInfoExtn_LatencyInfo_ChildLatency_List(s *capnp.Segment, sz int32) (StaticInfoExtn_LatencyInfo_ChildLatency_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
 	return StaticInfoExtn_LatencyInfo_ChildLatency_List{l}, err
 }
 
@@ -650,12 +650,12 @@ type StaticInfoExtn_LatencyInfo_PeerLatency struct{ capnp.Struct }
 const StaticInfoExtn_LatencyInfo_PeerLatency_TypeID = 0xea318fecf64edd5a
 
 func NewStaticInfoExtn_LatencyInfo_PeerLatency(s *capnp.Segment) (StaticInfoExtn_LatencyInfo_PeerLatency, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
 	return StaticInfoExtn_LatencyInfo_PeerLatency{st}, err
 }
 
 func NewRootStaticInfoExtn_LatencyInfo_PeerLatency(s *capnp.Segment) (StaticInfoExtn_LatencyInfo_PeerLatency, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
 	return StaticInfoExtn_LatencyInfo_PeerLatency{st}, err
 }
 
@@ -685,12 +685,12 @@ func (s StaticInfoExtn_LatencyInfo_PeerLatency) SetInter(v uint16) {
 	s.Struct.SetUint16(2, v)
 }
 
-func (s StaticInfoExtn_LatencyInfo_PeerLatency) IfID() uint16 {
-	return s.Struct.Uint16(4)
+func (s StaticInfoExtn_LatencyInfo_PeerLatency) IfID() uint64 {
+	return s.Struct.Uint64(8)
 }
 
-func (s StaticInfoExtn_LatencyInfo_PeerLatency) SetIfID(v uint16) {
-	s.Struct.SetUint16(4, v)
+func (s StaticInfoExtn_LatencyInfo_PeerLatency) SetIfID(v uint64) {
+	s.Struct.SetUint64(8, v)
 }
 
 // StaticInfoExtn_LatencyInfo_PeerLatency_List is a list of StaticInfoExtn_LatencyInfo_PeerLatency.
@@ -698,7 +698,7 @@ type StaticInfoExtn_LatencyInfo_PeerLatency_List struct{ capnp.List }
 
 // NewStaticInfoExtn_LatencyInfo_PeerLatency creates a new list of StaticInfoExtn_LatencyInfo_PeerLatency.
 func NewStaticInfoExtn_LatencyInfo_PeerLatency_List(s *capnp.Segment, sz int32) (StaticInfoExtn_LatencyInfo_PeerLatency_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
 	return StaticInfoExtn_LatencyInfo_PeerLatency_List{l}, err
 }
 
@@ -825,12 +825,12 @@ type StaticInfoExtn_BandwidthInfo_InterfaceBandwidth struct{ capnp.Struct }
 const StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_TypeID = 0xd0676003f5393449
 
 func NewStaticInfoExtn_BandwidthInfo_InterfaceBandwidth(s *capnp.Segment) (StaticInfoExtn_BandwidthInfo_InterfaceBandwidth, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
 	return StaticInfoExtn_BandwidthInfo_InterfaceBandwidth{st}, err
 }
 
 func NewRootStaticInfoExtn_BandwidthInfo_InterfaceBandwidth(s *capnp.Segment) (StaticInfoExtn_BandwidthInfo_InterfaceBandwidth, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
 	return StaticInfoExtn_BandwidthInfo_InterfaceBandwidth{st}, err
 }
 
@@ -852,12 +852,12 @@ func (s StaticInfoExtn_BandwidthInfo_InterfaceBandwidth) SetBw(v uint32) {
 	s.Struct.SetUint32(0, v)
 }
 
-func (s StaticInfoExtn_BandwidthInfo_InterfaceBandwidth) IfID() uint16 {
-	return s.Struct.Uint16(4)
+func (s StaticInfoExtn_BandwidthInfo_InterfaceBandwidth) IfID() uint64 {
+	return s.Struct.Uint64(8)
 }
 
-func (s StaticInfoExtn_BandwidthInfo_InterfaceBandwidth) SetIfID(v uint16) {
-	s.Struct.SetUint16(4, v)
+func (s StaticInfoExtn_BandwidthInfo_InterfaceBandwidth) SetIfID(v uint64) {
+	s.Struct.SetUint64(8, v)
 }
 
 // StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List is a list of StaticInfoExtn_BandwidthInfo_InterfaceBandwidth.
@@ -865,7 +865,7 @@ type StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List struct{ capnp.List }
 
 // NewStaticInfoExtn_BandwidthInfo_InterfaceBandwidth creates a new list of StaticInfoExtn_BandwidthInfo_InterfaceBandwidth.
 func NewStaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List(s *capnp.Segment, sz int32) (StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
 	return StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_List{l}, err
 }
 
@@ -1020,9 +1020,9 @@ func (s StaticInfoExtn_GeoInfo_Location) NewGpsData() (StaticInfoExtn_GeoInfo_Lo
 	return ss, err
 }
 
-func (s StaticInfoExtn_GeoInfo_Location) Interfaces() (capnp.UInt16List, error) {
+func (s StaticInfoExtn_GeoInfo_Location) Interfaces() (capnp.UInt64List, error) {
 	p, err := s.Struct.Ptr(1)
-	return capnp.UInt16List{List: p.List()}, err
+	return capnp.UInt64List{List: p.List()}, err
 }
 
 func (s StaticInfoExtn_GeoInfo_Location) HasInterfaces() bool {
@@ -1030,16 +1030,16 @@ func (s StaticInfoExtn_GeoInfo_Location) HasInterfaces() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s StaticInfoExtn_GeoInfo_Location) SetInterfaces(v capnp.UInt16List) error {
+func (s StaticInfoExtn_GeoInfo_Location) SetInterfaces(v capnp.UInt64List) error {
 	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
 // NewInterfaces sets the interfaces field to a newly
-// allocated capnp.UInt16List, preferring placement in s's segment.
-func (s StaticInfoExtn_GeoInfo_Location) NewInterfaces(n int32) (capnp.UInt16List, error) {
-	l, err := capnp.NewUInt16List(s.Struct.Segment(), n)
+// allocated capnp.UInt64List, preferring placement in s's segment.
+func (s StaticInfoExtn_GeoInfo_Location) NewInterfaces(n int32) (capnp.UInt64List, error) {
+	l, err := capnp.NewUInt64List(s.Struct.Segment(), n)
 	if err != nil {
-		return capnp.UInt16List{}, err
+		return capnp.UInt64List{}, err
 	}
 	err = s.Struct.SetPtr(1, l.List.ToPtr())
 	return l, err
@@ -1120,9 +1120,9 @@ func (s StaticInfoExtn_GeoInfo_Location_Coordinates) SetLongitude(v float32) {
 	s.Struct.SetUint32(4, math.Float32bits(v))
 }
 
-func (s StaticInfoExtn_GeoInfo_Location_Coordinates) Address() ([]byte, error) {
+func (s StaticInfoExtn_GeoInfo_Location_Coordinates) Address() (string, error) {
 	p, err := s.Struct.Ptr(0)
-	return []byte(p.Data()), err
+	return p.Text(), err
 }
 
 func (s StaticInfoExtn_GeoInfo_Location_Coordinates) HasAddress() bool {
@@ -1130,8 +1130,13 @@ func (s StaticInfoExtn_GeoInfo_Location_Coordinates) HasAddress() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s StaticInfoExtn_GeoInfo_Location_Coordinates) SetAddress(v []byte) error {
-	return s.Struct.SetData(0, v)
+func (s StaticInfoExtn_GeoInfo_Location_Coordinates) AddressBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.TextBytes(), err
+}
+
+func (s StaticInfoExtn_GeoInfo_Location_Coordinates) SetAddress(v string) error {
+	return s.Struct.SetText(0, v)
 }
 
 // StaticInfoExtn_GeoInfo_Location_Coordinates_List is a list of StaticInfoExtn_GeoInfo_Location_Coordinates.
@@ -1318,12 +1323,12 @@ type StaticInfoExtn_LinkTypeInfo_InterfaceLinkType struct{ capnp.Struct }
 const StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_TypeID = 0x9ab6cd3b4d0d17c7
 
 func NewStaticInfoExtn_LinkTypeInfo_InterfaceLinkType(s *capnp.Segment) (StaticInfoExtn_LinkTypeInfo_InterfaceLinkType, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
 	return StaticInfoExtn_LinkTypeInfo_InterfaceLinkType{st}, err
 }
 
 func NewRootStaticInfoExtn_LinkTypeInfo_InterfaceLinkType(s *capnp.Segment) (StaticInfoExtn_LinkTypeInfo_InterfaceLinkType, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
 	return StaticInfoExtn_LinkTypeInfo_InterfaceLinkType{st}, err
 }
 
@@ -1337,20 +1342,20 @@ func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType) String() string {
 	return str
 }
 
-func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType) IfID() uint16 {
-	return s.Struct.Uint16(0)
+func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType) IfID() uint64 {
+	return s.Struct.Uint64(0)
 }
 
-func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType) SetIfID(v uint16) {
-	s.Struct.SetUint16(0, v)
+func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType) SetIfID(v uint64) {
+	s.Struct.SetUint64(0, v)
 }
 
 func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType) LinkType() StaticInfoExtn_LinkTypeInfo_LinkType {
-	return StaticInfoExtn_LinkTypeInfo_LinkType(s.Struct.Uint16(2))
+	return StaticInfoExtn_LinkTypeInfo_LinkType(s.Struct.Uint16(8))
 }
 
 func (s StaticInfoExtn_LinkTypeInfo_InterfaceLinkType) SetLinkType(v StaticInfoExtn_LinkTypeInfo_LinkType) {
-	s.Struct.SetUint16(2, uint16(v))
+	s.Struct.SetUint16(8, uint16(v))
 }
 
 // StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List is a list of StaticInfoExtn_LinkTypeInfo_InterfaceLinkType.
@@ -1358,7 +1363,7 @@ type StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List struct{ capnp.List }
 
 // NewStaticInfoExtn_LinkTypeInfo_InterfaceLinkType creates a new list of StaticInfoExtn_LinkTypeInfo_InterfaceLinkType.
 func NewStaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List(s *capnp.Segment, sz int32) (StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
 	return StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_List{l}, err
 }
 
@@ -1477,12 +1482,12 @@ type StaticInfoExtn_InternalHopsInfo_InterfaceHops struct{ capnp.Struct }
 const StaticInfoExtn_InternalHopsInfo_InterfaceHops_TypeID = 0xcd7606ede67cf290
 
 func NewStaticInfoExtn_InternalHopsInfo_InterfaceHops(s *capnp.Segment) (StaticInfoExtn_InternalHopsInfo_InterfaceHops, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
 	return StaticInfoExtn_InternalHopsInfo_InterfaceHops{st}, err
 }
 
 func NewRootStaticInfoExtn_InternalHopsInfo_InterfaceHops(s *capnp.Segment) (StaticInfoExtn_InternalHopsInfo_InterfaceHops, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
 	return StaticInfoExtn_InternalHopsInfo_InterfaceHops{st}, err
 }
 
@@ -1504,12 +1509,12 @@ func (s StaticInfoExtn_InternalHopsInfo_InterfaceHops) SetHops(v uint8) {
 	s.Struct.SetUint8(0, v)
 }
 
-func (s StaticInfoExtn_InternalHopsInfo_InterfaceHops) IfID() uint16 {
-	return s.Struct.Uint16(2)
+func (s StaticInfoExtn_InternalHopsInfo_InterfaceHops) IfID() uint64 {
+	return s.Struct.Uint64(8)
 }
 
-func (s StaticInfoExtn_InternalHopsInfo_InterfaceHops) SetIfID(v uint16) {
-	s.Struct.SetUint16(2, v)
+func (s StaticInfoExtn_InternalHopsInfo_InterfaceHops) SetIfID(v uint64) {
+	s.Struct.SetUint64(8, v)
 }
 
 // StaticInfoExtn_InternalHopsInfo_InterfaceHops_List is a list of StaticInfoExtn_InternalHopsInfo_InterfaceHops.
@@ -1517,7 +1522,7 @@ type StaticInfoExtn_InternalHopsInfo_InterfaceHops_List struct{ capnp.List }
 
 // NewStaticInfoExtn_InternalHopsInfo_InterfaceHops creates a new list of StaticInfoExtn_InternalHopsInfo_InterfaceHops.
 func NewStaticInfoExtn_InternalHopsInfo_InterfaceHops_List(s *capnp.Segment, sz int32) (StaticInfoExtn_InternalHopsInfo_InterfaceHops_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
 	return StaticInfoExtn_InternalHopsInfo_InterfaceHops_List{l}, err
 }
 
@@ -1545,112 +1550,112 @@ func (p StaticInfoExtn_InternalHopsInfo_InterfaceHops_Promise) Struct() (StaticI
 const schema_e6c88f91b6a1209e = "x\xda\x9cW]l\x1cW\x15>\xdf\xbd;\xbb;\xc9" +
 	":\xbb\xc3\x18\x05(\xa9\x09\x02R\xd2$4?\xa0\xd2" +
 	"\x0a\xb9\xd9\xda\xaam\x9c\xc67Ie0\xa5d\xbc{" +
-	"\xed\x9dt=\xb3\xec\x8e\x9b8\x0a\xb2\"\x01\xa5\x11U" +
-	"i\x94\xa24RP\x83\x00\x81\xc4_BT%Q+" +
-	"Q\xa4\xb6\xf0P\xc4\x03\x95\xa0\x10!\x04-jh\x90" +
-	"(*\"\xf00\xe8\xce\xbf\xd7[l\xf1\xb8\xf7\x9e9" +
-	"\xf7;\xdf\xf9\xce\xcf\xde\xf6\xde\xdc]l\xbb\xf6\x07\x8d" +
-	"H\x0ciy\x1f\xfb\xffs~\xab\xf7\xc0WHl\x06" +
-	"|\xf1\xf0CW\xf9\xf1\x1f\x9e\xa4\\\x81h\xe7\xcb\xec" +
-	"\x0a\xcc\xeb\xac@d\xbe\xce\x0eS\xe6Z\xdc\x0c\xf8\x93" +
-	"[\xe5\xa9\x8f=0\xf1;\xd2\x94\xc9\xcea\xbe\x0f\xe6" +
-	"\xa7\xf9&\"s\x9e\xff\x85\xe0\xdf\xf8\xf3Go\xbf\xf4" +
-	"\xcas_'Q\x06\xf3\xbf\xf1\xbesO?\xfe\xd8\xcf" +
-	"_#\x0d\xca\xfax\x8e\xc1|T=c>\x92S\xd6" +
-	"/\xae\xef\xdbs\xe7KO\x9f!q+\xe0\xff\xe0\x93" +
-	"\xf7Y\xff\xbat\xf9b\x08dN\xbb\x06\xf3\x11M\x19" +
-	"\x7fIS@\x92\xeb. \x81\xebW\xb5)\x9874" +
-	"\x05\xe4\xddye\xfd\xc6\x89\xbd\xebo\xba\xe9\xceKd" +
-	"\xdc\xca\xd2O\x09;\x1f\xcd\x7f\x13\xe6\xb7\xf3\xca\xef\xb9" +
-	"\xfc^\x82\x7f\xee\x85-\xc7\xd7\xc9/?\xaf #\x85" +
-	"\x1c\x80\xb8\x9c\x7f\x07\xcc_\x04\xc6\xcf\xe7\x07\x09\xfe\x89" +
-	"]\xd3\x17\xfe\xf4A\xff\x85\xde \xf2\xd30o\xe4\xd7" +
-	"\x13\x99z\xe1G\x04\xff\xc2\xd0\xe9\xd7?\xf3\xfb\xef\xbc" +
-	"H\xe2#\x80\x7f\xcf\xdf\xdez\xf9\xd4\xdc\xaf\xafF\xd6" +
-	"\xcf\x15^\x81y\xb5\xa0|\xff6\xb0\xfe\xda\x9b\xc7^" +
-	"\xbb\x9e\x7f\xe8\xa5\xd0\xfa\xcc\xcc\xc3W~\xf9L\xfe\xaf" +
-	"!\x90\x85\xe25\x98O\x14\x95\xf1\xe3E\x15\xdf\xe8\xae" +
-	"\x8f\xbf\xc5\x0f\xce\xfe\x8a\xc4\x16d`\x05\xc6\xd7\x8b\xff" +
-	"\x86\xa9\xeb\xcaX\xd3\x95\xb17\xb5ia\xd3\x95\x9f\xfd" +
-	"\x86\x8c\x9b\x97\x81\xb6\xf4\x1d0?\xaf+\xd0_\xd0U" +
-	"\x88\xc9\xbdQ\xce\xd0\xa1\x05$\x9c\xd7\xdf4\x9f\xd5'" +
-	"\x89v\xeak&A\x99\x98\x8c\x0fe\x9e\x09\xc5a\xad" +
-	"=\x0as~\xad\xf2||\xad\x821u\xf5\xde\x7f\xbe" +
-	"\xf1\xd8\xf6k\xbdt\xf7\xf7\xb5\x17`\xea\xa5\x00sI" +
-	"\xb1\x91\xc4\xdf\x8b\xe9\xb3\xa5\xa30\xcf\x97\x94\xebgK" +
-	"\xca\xf5?\xbe\xfa\xea\x1f\x9f\xfc\xc9\x82\xdf+\x89\xdb\xfb" +
-	"\xd6\xc0\xdc\xdd\xa7\\\x7f\xa2OEhu\xe6>'\x8f" +
-	"x\x1dm[\xcdj9\xad;\xf6{\x96g\xd7F\x9d" +
-	"\x19w\xf8\x88\xe7l\x1b\xb7<\xe9\xd4\x16\xd4\xefmw" +
-	"7\xecf}|0<\x99\x00D\x91\xe7\x88r 2" +
-	">\xbc\x83H|\x80C\xdc\xc6`\x00\xfdP\x87[7" +
-	"\x13\x89[8\xc4.\x86\x01\xdb\xf1\xda\x16\x0a\xc4P " +
-	"\x94\xed\x99\xd1\xa1\xf8G\x02!\xb7\x12\x04\xb8\xa2\x08\xa4" +
-	"%k\xe8\x87R\x1e\x0d}\xda\x0f\x11Z\x1e\x95\xd5\x17" +
-	"\xfe\x84\x94m\xf55\x15\x9c\xda\x82\xa8$h\xad\xa3D" +
-	"\xe2 \x878\x96A\xbbp\x82H\x1c\xe3\x10\xa7\x19\xc0" +
-	"\xfa\xc1\x88\x8c'\xdaD\xe2\x14\x87x\x8a\xc1\xe0\xe8\x07" +
-	"'2\xce^!\x12Oq\x88\xef3\xf8\xb5\xf8\xc5A" +
-	"\xe9\xd4l\xd9\xc1:\xc2\x04\x07*)J\x82:\xf4[" +
-	"R\xb6mgv\x1cA8\xb6\xec\x10\xa5\xc6I\x14\x91" +
-	"\xb1\x9cm\xcbNg\xdc\xa2\x81 \xf6\x84*\xdb\x09." +
-	"\x0e\xc0\x1d\x0e-\xa2l,\xe3\x92G\\\xees\xe7=" +
-	"\xdb\x99\x9dp\x9bvma\xf8\x88G*o\x19&\xde" +
-	"O$\xee\xe7\x10\x8d\x0c\x13\xb2\x1a\xd1\xd3d0\x18B" +
-	"*l\x95\xcc:\x87h1\x80\x87L\xcc)\xc3\x06\x87" +
-	"\xf8\"C\xa1#=\x80\x18@Xl\xb9\xcd\x03\x0b-" +
-	"\x89<1\xe4\xe3t\xeb\xc4\xa0\x13\x16\xedN\xdd\xea\xa4" +
-	"L\xa9\xe3u\x19\xe4\xf9\xb7Q\x81\xed<\xa8|\x06J" +
-	"\x1cu<\xd9\x9e\xb1jR\x9d\x96\xd5q\x97\x1c7\xf7" +
-	"\x92\xe3\x18\x91\xd8\xc2!ng]\x02lF\xbe\x89\x08" +
-	"\xe5\xb4[\x12P^\x85<\x13`|&\xd4g\xdan" +
-	"\xf5\xb1\xb4\xad\x1b\xfaI\x7f<}\xc8\x8fc\x80\x8cN" +
-	"!\xb3\x11\x1c\x8ajg\x88!\x0e`\xb7\x92\xed]\x1c" +
-	"b\x9c\xa5r\xa2\xb2\xed<\x98\x91]\xf2\xdeR%\xd9" +
-	"4\x18>\xfd?\x02\xd4V\xc1|\xf0\xa3\x10\x11^\x0a" +
-	"\x94\xb1\xe1\x0e\xe5\xc8x\xe7\x18\x11\x98aT\x89\x06\xeb" +
-	"v[\xd6<\x7fn\xbe\xe9\xd9#n\x8b\x88\x16\xdd\x96" +
-	"t\xee\x95\xde2\x81\x8e\xee\x1f\xda\xed8\xee\xbcS\x93" +
-	"s\xd2\xf1\x86\x8f\xc0S\xaes\x09\x13}J\xa2E\x0e" +
-	"\xd1\xbfTd+\xe5\xa5j9\xf5\xc3v\xddk\x8c\x16" +
-	"\x9c\x19W\xe4\x90\x99\x13\x06\xced\xf8\x8f,\xb9\xd7\x10" +
-	"\xa5\xe4\xd9\xe1)\xb5 p\x88\x83i\x02>;\x96\xa9" +
-	"\x96\xb80\xe4\xc9\xa8\x08<\x06\x7f:z\x94x#\x93" +
-	"\x93\xe4\xdd%9\xa9N*\xbd\x15\x89\xa1\xd8\xa3\xb2\xab" +
-	"\x98L\xeeV(\x8d{\xa4\x1b\xe6\xc6\xadY\x9e\xed:" +
-	"\xdb\xeev\xddv\xddv,\x8f\xcbN\x90\xa74\xaa\xb1" +
-	"(\xaa\x89La\xec\xd9G$\xc69\xc4\xa7\xd2\xcew" +
-	"\x9f*\xed\x09\x0eq?\x83\xdf\xb4<\xdb\x9b\xaf\x07\xf5" +
-	"\xb1\x86\x18\xd6\xa8\x9aq\x9dYuH\x90\xf1\xd9\xa2U" +
-	"\xaf+\xe8\xe8#\x86\xbe\x95q\x07\x19p\xac\xe6\x88\xdb" +
-	"\xea,-\xeb\xb2:ZMIg&L\xb9\xe1\xb6:" +
-	"K;NwS\xcc\xaf\xa4\x94% \xaa\x963\x18\x9e" +
-	"w!yO\x16\x09[\x8e\x84O\x1f\x8eS\xd7\x1b\x07" +
-	"\x7f\xbb<\x0e\x04\x89\x0c\xb4\x9a.\x13\x18\xf3\xe3\xcc\x12" +
-	"Q\xb62T\xdeJ\x1c\xe2\x16\x95\xa3\xd8\x04\x19\xe1%" +
-	"N\"\xe1\xc5\x00X7\x80\x81\x00\x81\xe8\xcf\xae\"\xc6" +
-	"\xc6\xe9t\x9726\xb63\x9b\xd3\xc6j\xbaF\x1a\x1b" +
-	"\x0e\xa5\xfb\x89\xb1\xe1\x84\x1f\xcfkRu\xe7\xc7\xe4\xd2" +
-	"@@\xefb$\xd6\xb4\x15\x96\x83\x9f\xb1\x16\x10\x8b\x81" +
-	"H\xbc+\x89\xf4\xc9jf\x0e\xc7\xc9?\xab\x1a\xc3i" +
-	"\x0e\xf1-U\x8d\x91n\xcf\x8d\xa5\xc3\xd9\xe0\xd1\x9c\xfa" +
-	"\x9e\"\xea\xbb\x1c\xe2\"\x83\x91\xcb\xf5#Gd\x9cW" +
-	"\x1d\xf6\xc7\x1c\xe2\x19\x06C\xd3\xfa\xa1\x11\x19\x97U\x1a" +
-	"/r\x88\x9f2,6\xa3\xd9ZI9!\xa0B(" +
-	"\xccJ\x17\x95\x94\x8f\xf04\x18#^4F*\xd9=" +
-	";\xb8MZ\x03\x1a\xa8\xa4\xc4F\xb7v\x14?\x05\xd2" +
-	"G%\xa544(;\xae'Q\"\x86\xd2\xca\xad/" +
-	"m\x08\x83\xa1(\x02E%\x0b\xb8\x81i?n\x11T" +
-	"\xf0d'+\xeej\xaf2\x9b\x8a&\xe7\x08\xc3\xe2l" +
-	"\xab3dy\x16*\xa9\xc3l\x0c3V\x8dx:\xdd" +
-	"\x0b]\xd3}\x15kf\xb8\xb5\x0d$[f\xa6{\xed" +
-	"H\x07`\x02ntG\xa6\xa5\xc52\xd8\xa3\xf28\xc2" +
-	"!\x0et\xaf\x9e\x03\x01\xca\xffk\x11M\xfb\xd5`\xa8" +
-	"\xd1\x80\xd6\xe4\x9f\x8a\x81v2Th@\xaa<f\x89" +
-	"m\xf7\x18\xe8\xd3\x99\x81n/\xfd4-\xe2\xe4\x81\xa8" +
-	"\x88m\xe7\x80\xbbw\xde\x1b\xa1B\xa6\xe1-\xeb-#" +
-	"v\xbd.\x9d\x09\xcbk\xec\x97\xb3\x0a>\xd1\xea\xe6\xea" +
-	"\x7f\x03\x00\x00\xff\xff\x17\xc7#\xbf"
+	"\xed\x9dt=\xb3\xec\x8e\x9bl\x14dE\x02J#\xaa" +
+	"\xd2(Ei\xa4\xa0\x06\x01\x02\x89\xbf\x84\xa8J\xa2V" +
+	"\xa2Hm\xe1\xa1\x88\x07*A!B\x08Z\xd4\xd0 " +
+	"QTD\xe0a\xd0\x9d\x7f;\x9b\xda\xea\xe3\xde{\xe6" +
+	"\xdc\xef|\xe7;?{\xdb\xfbsw\xb1\xad\xda\x9f4" +
+	"\"1\xa4\xe5}\xec\xfd\xdf\xd9\xcd\xde\x03_#\xb1\x11" +
+	"\xcc\x17\x0f?t\x99\x1f\xfd\xf1q\xca\x15\x88\xb6\xbf\xcc" +
+	".\xc1\xbc\xca\x0aD\xe6\xeb\xec !\xbd\x167\x03\xfe" +
+	"\xe4fy\xe2\x13\x0fL\xfc\x814e\xb2}\x98\xef\x81" +
+	"\xf9Y\xbe\x81\xc8\x9c\xe7\x7f#\xf8\xd7\xfe\xfa\xf1\xdb/" +
+	"\xbc\xf2\xdc7I\x94\xc1\xfco}\xe0\xcc\xd3\x8f?\xf6" +
+	"\xcb\xd7H\x83\xb2>\x9ac0\x1fU\xcf\x98\x8f\xe4\x94" +
+	"\xf5\x8bk\xfbv\xdd\xf9\xd2\xd3\xa7H\xdc\x0a\xe6\xff\xe8" +
+	"\xd3\xf7Y\xff\xb9p\xf1|\x08dN\xbb\x02\xf3\x11M" +
+	"\x19\x7fES@\x92\xeb%@\x02\xd7\xafjS0\xaf" +
+	"i\x0a\xc8{\xf3\xca\xfa\x8dc\xbb\xd7\xdet\xd3\x9d\x17" +
+	"\xc8\xb85\xe3\x99\xb0\xfd\xd1\xfc\xb7a~7\xaf\xfc\x9e" +
+	"\xc9\xef&\xf8g^\xd8tt\x8d\xfc\xea\xf3\x0a2R" +
+	"\xc8\x01\x88\x8b\xf9w\xc1\xfcU`\xfc|~\x90\xe0\x1f" +
+	"\xdb1}\xee/\x1f\xf6_\xe8\x0d\"?\x0d\xf3Z~" +
+	"-\x91\xa9\x17~B\xf0\xcf\x0d\x9d|\xfds\x7f\xfc\xde" +
+	"\x8b$>\x06\xf8\xf7\xfc\xe3\xad\x97O\xcc\xfd\xf6rd" +
+	"\xfd\\\xe1\x15\x98\x97\x0b\xca\xf7\xef\x03\xebo\xbcy\xe4" +
+	"\xb5\xab\xf9\x87^R\xd6\xcc?5\xf3\xf0\xa5_?\x93" +
+	"\xff{\x08\xa4[\xbc\x02\xf3\x89\xa22~\xbc\xa8\xe2\x1b" +
+	"\xdd\xf1\xc9\xb7\xf8\xfe\xd9\xdf\x90\xd8\x04\x96\xc2\x0a\x8c\xaf" +
+	"\x16\xff\x0bS\xd7\x95\xb1\xa6+cojCw\xc3\xa5" +
+	"_\xfc\x8e\x8c\x9b\xaf\x03m\xe9\xdb`~QW\xa0\xbf" +
+	"\xa4\xab\x10\x93{\xa3\x9c\xa1C\x0bH8\xab\xbfi>" +
+	"\xabO\x12m\xd7WM\x8221\x19\x1f\xc9<\x13\x8a" +
+	"\xc3Z}\x18\xe6\xfcj\xe5\xf9\xe8j\x05c\xea\xf2\xbd" +
+	"\xff~\xe3\xb1\xadWz\xe9\xee\x9f\xab\xcf\xc1\xd4K\x01" +
+	"\xe6\x92b#\x89\xbf\x17\xd3\xa7K\x87a\x9e-)\xd7" +
+	"\xcf\x96\x94\xeb\x7f}\xfd\xd5??\xf9\xb3\xae\xdf+\x89" +
+	"[\xfbV\xc1\xdc\xd9\xa7\\\x7f\xaaOEhu\xe6\xbe" +
+	" \x0fy\x1dmK\xcdj9\xad;\xf6z\x96g\xd7" +
+	"F\x9d\x19w\xf8\x90\xe7l\x19\xb7<\xe9\xd4\xba\xea\xf7" +
+	"\x96\xbb\x1bv\xb3>>\x18\x9eL\x00\xa2\xc8sD9" +
+	"\x10\x19\x1f\xddF$>\xc4!nc0\x80~\xa8\xc3" +
+	"\xcd\x1b\x89\xc4-\x1cb\x07\xc3\x80\xedxm\x0b\x05b" +
+	"(\x10\xca\xf6\xcc\xe8\x10tb\xd03\x10r\xcbA\x80" +
+	"+\x8a@Z\xb2\x86~ \xe5\xd1\xd0\xa7\xfd\x10\xa1\xe5" +
+	"QY}\xe1OH\xd9V_S\xc1\xa9uE%A" +
+	"k\x1d&\x12\xfb9\xc4\x91\x0c\xda\xee1\"q\x84C" +
+	"\x9cd\x00\xeb\x07#2\x9eh\x13\x89\x13\x1c\xe2)\x06" +
+	"\x83\xa3\x1f\x9c\xc88}\x89H<\xc5!~\xc8\xe0\xd7" +
+	"\xe2\x17\x07\xa5S\xb3e\x07k\x08\x13\x1c\xa8\xa4(\x09" +
+	"\xea\xd0oI\xd9\xb6\x9d\xd9q\x04\xe1\xd8\xb2C\x94\x1a" +
+	"'QD\xc6r\xb6-;\x9dq\x8b\x06\x82\xd8c\xde" +
+	"|\xdb\x09.\xf6\xc1\x1d\x0e-\xa2l$\x061\x97<" +
+	"\xe2r\x8f;\xef\xd9\xce\xec\x84\xdb\xb4k\xdd\xe1C\x1e" +
+	"\xa9\xbce\x98\xf8 \x91\xb8\x9fC42L\xc8jD" +
+	"O\x93\xc1`\x08\xa9\xb0U2\xeb\x1c\xa2\xc5\x00\x1e2" +
+	"1\xa7\x0c\x1b\x1c\xe2\xcb\x0c\x85\x8e\xf4\x00b\x00a\xa1" +
+	"\xe56\xf7u[\x12yb\xc8/I\xf7\x82\xdd\xa9[" +
+	"\x9d\x94)u\xbc&\x83<\x7f\x03\x15\xd8\xce\x83\xcag" +
+	"\xa0\xc4Q\xc7\x93\xed\x19\xab&\xd5iY\x1d/\x91\xe3" +
+	"\xc6\xac\x1cs\x91\x1c\xc7\x88\xc4&\x0eq;[\"\xc0" +
+	"f\xe4\x9b\x88PN\xbb%\x01\xe5\x15\xc83\x01\xc6g" +
+	"B}\xa6\xedV\x1fK\xdb\xba\xa1\x1f\xf7\xc7\xd3\x87\xfc" +
+	"8\x06\xc8\xe8\x142\x1b\xc1\x81\xa8v\x86\x18\xe2\xbc\xec" +
+	"T\xb2\xbd\x8bC\x8c\xb3TNT\xb6\x9d\x073\xb2K" +
+	"\xde[\xac$\x9b\x06\xc3\xa7\xdf&@m\x05\xcc\x07?" +
+	"\x0a\x11\xe1\xa5@\x19\xeb\xeeP\x8e\x8cw\x8f\x11\x81\x19" +
+	"F\x95h\xb0n\xb7e\xcd\xf3\xe7\xe6\x9b\x9e=\xe2\xb6" +
+	"\x88h\xc1mI\xe7^\xe9]'\xd0\xd1\xbdC;\x1d" +
+	"\xc7\x9dwjrN:\xde\xf0!x\xcau.a\xa2" +
+	"OI\xb4\xc8!\xfa\x17\x8bl\xb9\xbcT-\xa7~\xd0" +
+	"\xae{\x8d\xd1\x823\xe3\x8a\x1c2s\xc2\xc0\xa9\x0c\xff" +
+	"\x91%\xf7\x1a\xa2\x94<;<\xa5\x16\x04\x0e\xb1?M" +
+	"\xc0\xe7\xc72\xd5\x12\x17\x86<\x1e\x15\x81\xc7\xe0OG" +
+	"\x8f\x12odr\x92\xbc\xbb('\xd5I\xa5\xb7\"1" +
+	"\x14{Tv\x15\x93\xc9\xdd2\xa5q\x8ft\xc3\xdc\xb8" +
+	"5\xcb\xb3]g\xcb\xdd\xae\xdb\xae\xdb\x8e\xe5q\xd9\x09" +
+	"\xf2\x94F5\x16E5\x91\xa9\xf7]{\x88\xc48\x87" +
+	"\xf8L\xda\xf9\xeeS\xa5=\xc1!\xeeg\xf0\x9b\x96g" +
+	"{\xf3\xf5\xa0>V\x11\xc3*U3\xae3\xab\x0e\x09" +
+	"2>[\xb0\xeau\x05\x1d%b(-\x8f;\xc8\x80" +
+	"c5G\xdcVgqY\x97\xd5\xd1\xdb\x95t\x8f\x09" +
+	"Sn\xb8\xadN\xcf\x8e\xb3\x1c\x8eT)\x8b@T-" +
+	"g0<_\x82\xe4}\xcb \xe1\xd3\x07\xe3\xd4\xf5\xc6" +
+	"\xc1o\x94\xc7\x81 \x91\x81V\xd3e\x02c~\x9cY" +
+	"\"\xcaV\x86\xca[\x89C\xdc\xa2r\x14\x9b #\xbc" +
+	"\xc4I$\xbc\x18\x00[\x0a` @ \xfa\x91\xd9q" +
+	"\x8d\xf5\xd3\xe9.e\xacog6\xa7\xf5\xd5t\x8d4" +
+	"\xd6\x1dH\xf7\x13c\xdd1?\x9e\xd7\xa4\xea\xce\x8f\xc9" +
+	"\xa5\x81\x80\xde\x85H\xaci+,\x07?c- \x16" +
+	"\x03\x91xO\x12\xe9\x93\xd5\xcc\x1c\x8e)?\xad\x1a\xc3" +
+	"I\x0e\xf1\x1dU\x8d\x91n\xcf\x8c\xa5\xc3\xd9\xe0\xd1\x9c" +
+	"\xfa\x81\"\xea\xfb\x1c\xe2<\x83\x91\xcb\xf5#Gd\x9c" +
+	"U\x1d\xf6\xa7\x1c\xe2\x19\x06C\xd3\xfa\xa1\x11\x19\x17U" +
+	"\x1a\xcfs\x88\x9f3,4\xa3\xd9ZI9!\xa0B" +
+	"(\xccJ\x17\x95\x94\x8f\xf04\x18#^4F*\xd9" +
+	"=;\xb8MZ\x03\x1a\xa8\xa4\xc4F\xb7v\x14?\x05" +
+	"\xd2G%\xa544(;\xae'\xaf+\xac\xdcr\x0d" +
+	"a0\x14E\xa0\xa8d\x0170\xed\xc7-\x82\x0a\x9e" +
+	"\xecd\xc5]\xed%\xee\xa9hr\x8e0,\xcc\xb6:" +
+	"C\x96g\xa1\x92:\xcc\xc60c\xd5\x88\xdfx\xba\xaf" +
+	"`\xcd\x0c\xb7\xb6\x81d\xcb\xcct\xafm\xe9\x00L\xc0" +
+	"\x8dn\xcb\xb4\xb4\xb8)\xefRy\x1c\xe1\x10\xfb\x96\xae" +
+	"\x9e\x03\x01\xcaw\xb4\x88\xa6\xfdj0\xd4h@k\xf2" +
+	"O\xc5@;\x19*4 U\x1e\xb3\xc4\xb6{\x0c\xf4" +
+	"\xe9\xcc@\xb7\x17\x7f\x9a\x16q\xf2@T\xc4\xb6\xb3\xcf" +
+	"\xdd=\xef\x8dP!\xd3\xf0\xae\xeb-#v\xbd.\x9d" +
+	"\x09\xcbk\xec\x95\xb3\x0a>\xd1\xca\xe6\xea\xff\x03\x00\x00" +
+	"\xff\xff\xe8)#\xd9"
 
 func init() {
 	schemas.Register(schema_e6c88f91b6a1209e,
