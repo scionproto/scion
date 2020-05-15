@@ -382,11 +382,15 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 	var LastUpASEntry *seg.ASEntry
 	var LastCoreASEntry *seg.ASEntry
 	res.initialize()
+	fmt.Println(ASes.Ups)
+	fmt.Println(ASes.Cores)
+	fmt.Println(ASes.Downs)
 	// Go through ASEntries in the up segment (except for the first one)
 	// and extract the static info data from them
 	for idx := 0; idx < len(ASes.Ups); idx++ {
 		asEntry := ASes.Ups[idx]
 		s := asEntry.Exts.StaticInfo
+		fmt.Println(s.Latency)
 		if s != nil {
 			if idx == 0 {
 				res.Geo[asEntry.IA()] = getGeo(asEntry)
