@@ -600,12 +600,12 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 			expectedBW: calcBWmin([]common.IFIDType{graph.If_131_X_132_X, graph.If_130_A_131_X,
 				graph.If_130_A_110_X, graph.If_110_X_130_A, graph.If_210_X_110_X,
 				graph.If_210_X_211_A, graph.If_211_A_212_X}),
-			expectedHops: uint8(graph.If_131_X_132_X) + uint8(graph.If_131_X_132_X) +
-				uint8(graph.If_130_A_131_X) + uint8(graph.If_130_A_110_X) +
-				uint8(graph.If_110_X_130_A) + uint8(graph.If_110_X_130_A) +
-				uint8(graph.If_210_X_110_X) + uint8(graph.If_210_X_110_X) +
-				uint8(graph.If_210_X_211_A) +
-				uint8(graph.If_211_A_212_X) + uint8(graph.If_211_A_212_X),
+			expectedHops:
+				uint8(graph.If_131_X_132_X) +
+				uint8(graph.If_130_A_110_X) +
+				uint8(graph.If_110_X_130_A) +
+				uint8(graph.If_210_X_110_X) +
+				uint8(graph.If_211_A_212_X),
 			expectedGeo: []DenseGeo{
 				{
 					RouterLocations: []GeoLoc{{
