@@ -378,10 +378,9 @@ func (res *RawPathMetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEn
 }
 
 func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
-	var res *RawPathMetadata
 	var LastUpASEntry *seg.ASEntry
 	var LastCoreASEntry *seg.ASEntry
-	res.initialize()
+	res := initialize()
 	fmt.Println(ASes.Ups)
 	fmt.Println(ASes.Cores)
 	fmt.Println(ASes.Downs)
@@ -492,11 +491,13 @@ func getGeo(asEntry *seg.ASEntry) ASGeo {
 	return res
 }
 
-func (s *RawPathMetadata) initialize() {
-	s.Geo = make(map[addr.IA]ASGeo)
-	s.ASLatencies = make (map[addr.IA]ASLatency)
-	s.ASBandwidths = make(map[addr.IA]ASBandwidth)
-	s.ASHops = make(map[addr.IA]ASHops)
-	s.Links  = make(map[addr.IA]ASLink)
-	s.Notes = make(map[addr.IA]ASnote)
+func initialize() *RawPathMetadata{
+	return &RawPathMetadata{
+		ASLatencies:  make (map[addr.IA]ASLatency),
+		ASBandwidths: make(map[addr.IA]ASBandwidth),
+		ASHops:       make(map[addr.IA]ASHops),
+		Geo:          make(map[addr.IA]ASGeo),
+		Links:        make(map[addr.IA]ASLink),
+		Notes:        make(map[addr.IA]ASnote),
+	}
 }
