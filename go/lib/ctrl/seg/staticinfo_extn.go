@@ -211,7 +211,7 @@ func (s *StaticInfoExtn) String() string {
 		s.Latency, s.Geo, s.Linktype, s.Bandwidth, s.Hops, s.Note)
 }
 
-func (s *StaticInfoExtn) AppendIfIDToSIForTesting (peer bool, ifID, egifID common.IFIDType) {
+func (s *StaticInfoExtn) AppendIfIDToSIForTesting(peer bool, ifID, egifID common.IFIDType) {
 	if peer {
 		s.Latency.Peerlatencies = append(s.Latency.Peerlatencies, PeerLatency{
 			Interdelay: uint16(ifID),
@@ -224,20 +224,20 @@ func (s *StaticInfoExtn) AppendIfIDToSIForTesting (peer bool, ifID, egifID commo
 		})
 	} else {
 		s.Latency.Childlatencies = append(s.Latency.Childlatencies, ChildLatency{
-				Intradelay: uint16(ifID),
-				IfID:       ifID,
-			})
+			Intradelay: uint16(ifID),
+			IfID:       ifID,
+		})
 	}
 	s.Bandwidth.Bandwidths = append(s.Bandwidth.Bandwidths, InterfaceBandwidth{
-			BW: uint32(ifID),
-			IfID:       ifID,
-		})
+		BW:   uint32(ifID),
+		IfID: ifID,
+	})
 	s.Hops.InterfaceHops = append(s.Hops.InterfaceHops, InterfaceHops{
-			Hops: uint8(ifID),
-			IfID:       ifID,
-		})
+		Hops: uint8(ifID),
+		IfID: ifID,
+	})
 
-	if (ifID == egifID){
+	if ifID == egifID {
 		s.Geo.Locations[0].IfIDs = append(s.Geo.Locations[0].IfIDs, ifID)
 		s.Latency.IngressToEgressLatency = uint16(egifID)
 		s.Latency.Egresslatency = uint16(egifID)
@@ -256,10 +256,10 @@ func InitializeStaticInfo() *StaticInfoExtn {
 			Childlatencies:         []ChildLatency{},
 			Peerlatencies:          []PeerLatency{},
 		},
-		Geo:       GeoInfo{
+		Geo: GeoInfo{
 			Locations: []Location{},
 		},
-		Linktype:  LinktypeInfo{
+		Linktype: LinktypeInfo{
 			EgressLinkType: 0,
 			Peerlinks:      []InterfaceLinkType{},
 		},
@@ -272,7 +272,7 @@ func InitializeStaticInfo() *StaticInfoExtn {
 			InToOutHops:   0,
 			InterfaceHops: []InterfaceHops{},
 		},
-		Note:      "",
+		Note: "",
 	}
 	return s
 }
