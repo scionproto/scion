@@ -35,13 +35,13 @@ struct StaticInfoExtn {
 
         struct ChildLatency {
             intra @0 :UInt16;
-            ifID @1 :UInt16;
+            ifID @1 :UInt64;
         }
 
         struct PeerLatency {
             intra @0 :UInt16;
             inter @1 :UInt16;
-            ifID @2 :UInt16;
+            ifID @2 :UInt64;
         }
     }
 
@@ -52,7 +52,7 @@ struct StaticInfoExtn {
 
         struct InterfaceBandwidth {
             bw @0 :UInt32;
-            ifID @1 :UInt16;
+            ifID @1 :UInt64;
         }
     }
 
@@ -61,7 +61,7 @@ struct StaticInfoExtn {
 
         struct Location {
             gpsData @0 :Coordinates;
-            interfaces @1 :List(UInt16);
+            interfaces @1 :List(UInt64);
 
             struct Coordinates {
                 latitude @0 :Float32;
@@ -82,7 +82,7 @@ struct StaticInfoExtn {
         }
 
         struct InterfaceLinkType {
-            ifID @0 :UInt16;
+            ifID @0 :UInt64;
             linkType @1 :LinkType;
         }
     }
@@ -93,7 +93,7 @@ struct StaticInfoExtn {
 
         struct InterfaceHops {
             hops @0 :UInt8;
-            ifID @1 :UInt16;
+            ifID @1 :UInt64;
         }
     }
 }
