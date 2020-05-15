@@ -204,9 +204,9 @@ func (solution *PathSolution) GatherASEntries() *ASEntryList {
 			case proto.PathSegType_up:
 				res.Ups = append(res.Ups, asEntry)
 			case proto.PathSegType_core:
-				res.Cores = append(res.Ups, asEntry)
+				res.Cores = append(res.Cores, asEntry)
 			case proto.PathSegType_down:
-				res.Downs = append(res.Ups, asEntry)
+				res.Downs = append(res.Downs, asEntry)
 			}
 		}
 		switch currType {
@@ -420,6 +420,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 		// If we're in the first inspected AS (i.e the last AS of the segment)
 		// only set LastCoreASEntry
 		s := asEntry.Exts.StaticInfo
+		fmt.Println(s.Latency)
 		if s != nil {
 			if idx == 0 {
 				LastCoreASEntry = asEntry
@@ -444,6 +445,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 	for idx := 0; idx < len(ASes.Cores); idx++ {
 		asEntry := ASes.Cores[idx]
 		s := asEntry.Exts.StaticInfo
+		fmt.Println(s.Latency)
 		if s != nil {
 			if idx == 0 {
 				res.Geo[asEntry.IA()] = getGeo(asEntry)
