@@ -219,7 +219,9 @@ func (solution *PathSolution) GatherASEntries() *ASEntryList {
 	return &res
 }
 
-func (res *RawPathMetadata) ExtractPeerdata(asEntry *seg.ASEntry, peerIfID common.IFIDType, includePeer bool) {
+func (res *RawPathMetadata) ExtractPeerdata(asEntry *seg.ASEntry,
+	peerIfID common.IFIDType, includePeer bool) {
+
 	IA := asEntry.IA()
 	StaticInfo := asEntry.Exts.StaticInfo
 	for i := 0; i < len(StaticInfo.Latency.Peerlatencies); i++ {
@@ -474,8 +476,9 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 						res.ExtractCoreOverdata(LastCoreASEntry, asEntry)
 					}
 					if (len(ASes.Ups) > 0) && (len(ASes.Cores) == 0) {
-						// We're in the AS where we cross over from the up to the down segment via a shortcut
-						// (analogous to crossing over from core to down, thus we use ExtractCoreOverdata())
+						// We're in the AS where we cross over from the up to
+						// the down segment via a shortcut (analogous to crossing
+						// over from core to down, thus we use ExtractCoreOverdata())
 						res.ExtractCoreOverdata(LastUpASEntry, asEntry)
 					}
 					if (len(ASes.Ups) == 0) && (len(ASes.Cores) == 0) {
@@ -514,8 +517,3 @@ func initialize() *RawPathMetadata {
 		Notes:        make(map[addr.IA]ASnote),
 	}
 }
-
-/*
-	element {[{%!s(float32=1316) %!s(float32=1316) Züri}] 1-ff00:0:130} appears more times in [{[{%!s(float32=0) %!s(float32=0) Züri}] 1-ff00:0:132} {[{%!s(float32=1619) %!s(float32=1619) Züri}] 1-ff00:0:131} {[{%!s(float32=1316) %!s(float32=1316) Züri}] 1-ff00:0:130} {[{%!s(float32=1113) %!s(float32=1113) Züri}] 1-ff00:0:110} {[{%!s(float32=2123) %!s(float32=2123) Züri}] 2-ff00:0:210} {[{%!s(float32=2325) %!s(float32=2325) Züri}] 2-ff00:0:211} {[{%!s(float32=0) %!s(float32=0) Züri}] 2-ff00:0:212}] than in [{[{%!s(float32=0) %!s(float32=0) Züri}] 1-ff00:0:132} {[{%!s(float32=1619) %!s(float32=1619) Züri}] 1-ff00:0:131} {[{%!s(float32=0) %!s(float32=0) Züri}] 1-ff00:0:130} {[{%!s(float32=1113) %!s(float32=1113) Züri}] 1-ff00:0:110} {[{%!s(float32=0) %!s(float32=0) Züri}] 2-ff00:0:212} {[{%!s(float32=2325) %!s(float32=2325) Züri}] 2-ff00:0:211} {[{%!s(float32=2123) %!s(float32=2123) Züri}] 2-ff00:0:210}]
-
-*/
