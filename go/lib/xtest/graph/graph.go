@@ -423,15 +423,14 @@ func (g *Graph) BeaconWithStaticInfo(ifids []common.IFIDType) *seg.PathSegment {
 		signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 			&proto.SignS{}, nil).AnyTimes()
 		err := segment.AddASEntry(asEntry, signer)
-		fmt.Println(err)
+		if err != nil {
+			fmt.Println(err)
+		}
 		remoteInIF = outIF
 		inIF = remoteOutIF
 		inIA = currIA
 		currIA = g.parents[remoteOutIF]
-		fmt.Println(asEntry)
 	}
-	fmt.Println(segment.ASEntries)
-	fmt.Println(len(segment.ASEntries))
 	return segment
 }
 
