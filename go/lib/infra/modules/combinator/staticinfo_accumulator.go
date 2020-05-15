@@ -339,23 +339,26 @@ func (res *RawPathMetadata) ExtractUpOverdata(oldASEntry *seg.ASEntry, newASEntr
 func (res *RawPathMetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
 	IA := newASEntry.IA()
 	StaticInfo := newASEntry.Exts.StaticInfo
+	oldSI := oldASEntry.Exts.StaticInfo
 	hopEntry := oldASEntry.HopEntries[0]
 	HF, _ := hopEntry.HopField()
-	oldIngressIfID := HF.ConsIngress
+	oldEgressIfID := HF.ConsEgress
 	for i := 0; i < len(StaticInfo.Latency.Childlatencies); i++ {
-		if StaticInfo.Latency.Childlatencies[i].IfID == oldIngressIfID {
+		if StaticInfo.Latency.Childlatencies[i].IfID == oldEgressIfID {
 			res.ASLatencies[IA] = ASLatency{
 				IntraLatency: StaticInfo.Latency.Childlatencies[i].Intradelay,
 				InterLatency: StaticInfo.Latency.Egresslatency,
+				PeerLatency: oldSI.Latency.Egresslatency,
 			}
 		}
 	}
 	res.Links[IA] = ASLink{
 		InterLinkType: StaticInfo.Linktype.EgressLinkType,
+		PeerLinkType: oldSI.Linktype.EgressLinkType,
 	}
 
 	for i := 0; i < len(StaticInfo.Bandwidth.Bandwidths); i++ {
-		if StaticInfo.Bandwidth.Bandwidths[i].IfID == oldIngressIfID {
+		if StaticInfo.Bandwidth.Bandwidths[i].IfID == oldEgressIfID {
 			res.ASBandwidths[IA] = ASBandwidth{
 				IntraBW: StaticInfo.Bandwidth.Bandwidths[i].BW,
 				InterBW: StaticInfo.Bandwidth.EgressBW,
@@ -363,7 +366,7 @@ func (res *RawPathMetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEn
 		}
 	}
 	for i := 0; i < len(StaticInfo.Hops.InterfaceHops); i++ {
-		if StaticInfo.Hops.InterfaceHops[i].IfID == oldIngressIfID {
+		if StaticInfo.Hops.InterfaceHops[i].IfID == oldEgressIfID {
 			res.ASHops[IA] = ASHops{
 				Hops: StaticInfo.Hops.InterfaceHops[i].Hops,
 			}
@@ -374,6 +377,9 @@ func (res *RawPathMetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEn
 		Note: StaticInfo.Note,
 	}
 }
+
+// TODO: Implement ShortcutOver()
+
 
 func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 	var LastUpASEntry *seg.ASEntry
@@ -473,6 +479,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 					if (len(ASes.Ups) > 0) && (len(ASes.Cores) == 0) {
 						// We're in the AS where we cross over from the up to the down segment via a shortcut
 						res.ExtractUpOverdata(LastUpASEntry, asEntry)
+						// TODO: use shortcutover() instead since the case is not quite analogous
 					}
 					if (len(ASes.Ups) == 0) && (len(ASes.Cores) == 0) {
 						res.ExtractNormaldata(asEntry)
