@@ -398,6 +398,10 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 			if (idx > 0) && (idx < (len(ASes.Ups) - 1)) {
 				res.ExtractNormaldata(asEntry)
 			} else {
+				if (len(ASes.Cores) == 0) && (len(ASes.Downs) == 0) {
+					res.ExtractNormaldata(asEntry)
+					continue
+				}
 				if ASes.UpPeer != 0 {
 					peerEntry := asEntry.HopEntries[ASes.UpPeer]
 					PE, _ := peerEntry.HopField()
@@ -422,18 +426,18 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 		if s != nil {
 			fmt.Println(s.Latency)
 			if idx == 0 {
-				LastCoreASEntry = asEntry
-				if len(ASes.Cores) == 0 {
-					res.Geo[asEntry.IA()] = getGeo(asEntry)
-				}
-				continue
-			}
-			if (idx > 0) && (idx < (len(ASes.Ups) - 1)) {
-				res.ExtractNormaldata(asEntry)
-			} else {
 				if len(ASes.Ups) > 0 {
 					// We're in the AS where we cross over from the up to the core segment
 					res.ExtractUpOverdata(asEntry, LastUpASEntry)
+				}
+				continue
+			}
+			if (idx > 0) && (idx < (len(ASes.Cores) - 1)) {
+				res.ExtractNormaldata(asEntry)
+			} else {
+				LastCoreASEntry = asEntry
+				if len(ASes.Downs) == 0 {
+					res.ExtractNormaldata(asEntry)
 				}
 			}
 		}
@@ -441,8 +445,8 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 
 	// Go through ASEntries in the down segment except for the first one
 	// and extract the static info data from them
-	for idx := 0; idx < len(ASes.Cores); idx++ {
-		asEntry := ASes.Cores[idx]
+	for idx := 0; idx < len(ASes.Downs); idx++ {
+		asEntry := ASes.Downs[idx]
 		s := asEntry.Exts.StaticInfo
 		if s != nil {
 			fmt.Println(s.Latency)
@@ -450,7 +454,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 				res.Geo[asEntry.IA()] = getGeo(asEntry)
 				continue
 			}
-			if (idx > 0) && (idx < (len(ASes.Ups) - 1)) {
+			if (idx > 0) && (idx < (len(ASes.Downs) - 1)) {
 				res.ExtractNormaldata(asEntry)
 			} else {
 				if ASes.DownPeer != 0 {
@@ -467,6 +471,9 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 					if (len(ASes.Ups) > 0) && (len(ASes.Cores) == 0) {
 						// We're in the AS where we cross over from the up to the down segment via a shortcut
 						res.ExtractUpOverdata(LastUpASEntry, asEntry)
+					}
+					if (len(ASes.Ups) == 0) && (len(ASes.Cores) == 0) {
+						res.ExtractNormaldata(asEntry)
 					}
 				}
 			}
