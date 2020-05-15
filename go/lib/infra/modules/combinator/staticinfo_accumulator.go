@@ -299,26 +299,24 @@ func (res *RawPathMetadata) ExtractNormaldata(asEntry *seg.ASEntry) {
 
 func (res *RawPathMetadata) ExtractUpOverdata(oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
 	IA := newASEntry.IA()
-	StaticInfo := newASEntry.Exts.StaticInfo
-	hopEntry := oldASEntry.HopEntries[0]
+	StaticInfo := oldASEntry.Exts.StaticInfo
+	hopEntry := newASEntry.HopEntries[0]
 	HF, _ := hopEntry.HopField()
-	oldEgressIFID := HF.ConsEgress
+	newIngressIfID := HF.ConsIngress
 	for i := 0; i < len(StaticInfo.Latency.Childlatencies); i++ {
-		if StaticInfo.Latency.Childlatencies[i].IfID == oldEgressIFID {
+		if StaticInfo.Latency.Childlatencies[i].IfID == newIngressIfID {
 			res.ASLatencies[IA] = ASLatency{
 				IntraLatency: StaticInfo.Latency.Childlatencies[i].Intradelay,
 				InterLatency: StaticInfo.Latency.Egresslatency,
-				PeerLatency:  oldASEntry.Exts.StaticInfo.Latency.Egresslatency,
 			}
 		}
 	}
 	res.Links[IA] = ASLink{
-		InterLinkType: StaticInfo.Linktype.EgressLinkType,
-		PeerLinkType:  oldASEntry.Exts.StaticInfo.Linktype.EgressLinkType,
+		InterLinkType:  StaticInfo.Linktype.EgressLinkType,
 	}
 
 	for i := 0; i < len(StaticInfo.Bandwidth.Bandwidths); i++ {
-		if StaticInfo.Bandwidth.Bandwidths[i].IfID == oldEgressIFID {
+		if StaticInfo.Bandwidth.Bandwidths[i].IfID == newIngressIfID {
 			res.ASBandwidths[IA] = ASBandwidth{
 				IntraBW: StaticInfo.Bandwidth.Bandwidths[i].BW,
 				InterBW: StaticInfo.Bandwidth.EgressBW,
@@ -326,7 +324,7 @@ func (res *RawPathMetadata) ExtractUpOverdata(oldASEntry *seg.ASEntry, newASEntr
 		}
 	}
 	for i := 0; i < len(StaticInfo.Hops.InterfaceHops); i++ {
-		if StaticInfo.Hops.InterfaceHops[i].IfID == oldEgressIFID {
+		if StaticInfo.Hops.InterfaceHops[i].IfID == newIngressIfID {
 			res.ASHops[IA] = ASHops{
 				Hops: StaticInfo.Hops.InterfaceHops[i].Hops,
 			}
@@ -415,6 +413,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 			}
 		}
 	}
+	fmt.Println(LastUpASEntry)
 
 	// Go through ASEntries in the core segment
 	// and extract the static info data from them
@@ -428,7 +427,10 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 			if idx == 0 {
 				if len(ASes.Ups) > 0 {
 					// We're in the AS where we cross over from the up to the core segment
-					res.ExtractUpOverdata(asEntry, LastUpASEntry)
+					res.ExtractUpOverdata(LastUpASEntry, asEntry)
+				} else {
+					// This is the first AS in the path, so we only extract its geodata
+					res.Geo[asEntry.IA()] = getGeo(asEntry)
 				}
 				continue
 			}
