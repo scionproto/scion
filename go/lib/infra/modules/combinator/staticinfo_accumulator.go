@@ -378,7 +378,6 @@ func (res *RawPathMetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEn
 	}
 }
 
-// TODO: Implement ShortcutOver()
 
 
 func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
@@ -478,8 +477,8 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 					}
 					if (len(ASes.Ups) > 0) && (len(ASes.Cores) == 0) {
 						// We're in the AS where we cross over from the up to the down segment via a shortcut
-						res.ExtractUpOverdata(LastUpASEntry, asEntry)
-						// TODO: use shortcutover() instead since the case is not quite analogous
+						// (analogous to crossing over from core to down, thus we use ExtractCoreOverdata())
+						res.ExtractCoreOverdata(LastUpASEntry, asEntry)
 					}
 					if (len(ASes.Ups) == 0) && (len(ASes.Cores) == 0) {
 						res.ExtractNormaldata(asEntry)
