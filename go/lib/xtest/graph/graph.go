@@ -24,7 +24,6 @@ package graph
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"sync"
 	"time"
 
@@ -418,7 +417,7 @@ func (g *Graph) BeaconWithStaticInfo(ifids []common.IFIDType) *seg.PathSegment {
 				s.AppendIfIDToSIForTesting(false , peeringLocalIF, outIF)
 			}
 		}
-		s.Note = "ISDAS: " + strconv.Itoa(int(currIA.I)) + ", " + strconv.Itoa(int(currIA.A))
+		s.Note = "asdf"
 		signer := mock_seg.NewMockSigner(g.ctrl)
 		signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 			&proto.SignS{}, nil).AnyTimes()

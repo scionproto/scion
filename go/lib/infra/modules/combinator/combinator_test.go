@@ -664,6 +664,51 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 					RawIA: xtest.MustParseIA("2-ff00:0:212").IAInt(),
 				},
 			},
+			expectedLinktypes: []DenseASLinkType{
+				{
+					InterLinkType: uint16(graph.If_131_X_132_X) % 3,
+					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
+				},
+				{
+					InterLinkType: uint16(graph.If_130_A_131_X) % 3,
+					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
+				},
+				{
+					InterLinkType: uint16(graph.If_110_X_130_A) % 3,
+					RawIA: xtest.MustParseIA("1-ff00:0:110").IAInt(),
+				},
+				{
+					InterLinkType: uint16(graph.If_210_X_211_A) % 3,
+					PeerLinkType: uint16(graph.If_210_X_110_X) % 3,
+					RawIA: xtest.MustParseIA("2-ff00:0:210").IAInt(),
+				},
+				{
+					InterLinkType: uint16(graph.If_211_A_212_X) % 3,
+					RawIA: xtest.MustParseIA("2-ff00:0:211").IAInt(),
+				},
+			},
+			expectedNotes: []DenseNote{
+				{
+					Note: "asdf",
+					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
+				},
+				{
+					Note: "asdf",
+					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
+				},
+				{
+					Note: "asdf",
+					RawIA: xtest.MustParseIA("1-ff00:0:110").IAInt(),
+				},
+				{
+					Note: "asdf",
+					RawIA: xtest.MustParseIA("2-ff00:0:210").IAInt(),
+				},
+				{
+					Note: "asdf",
+					RawIA: xtest.MustParseIA("2-ff00:0:211").IAInt(),
+				},
+			},
 		},
 
 	}
@@ -673,9 +718,9 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 		assert.Equal(t, tc.expectedLatency, result[0].StaticInfo.TotalLatency)
 		assert.Equal(t, tc.expectedBW, result[0].StaticInfo.MinOfMaxBWs)
 		assert.Equal(t, tc.expectedHops, result[0].StaticInfo.TotalHops)
-		// assert.ElementsMatch(t, tc.expectedLinktypes, result[0].StaticInfo.LinkTypes)
+		assert.ElementsMatch(t, tc.expectedLinktypes, result[0].StaticInfo.LinkTypes)
 		assert.ElementsMatch(t, tc.expectedGeo, result[0].StaticInfo.Locations)
-		// assert.ElementsMatch(t, tc.expectedNotes, result[0].StaticInfo.Notes)
+		assert.ElementsMatch(t, tc.expectedNotes, result[0].StaticInfo.Notes)
 	}
 }
 
