@@ -214,8 +214,8 @@ func (s *StaticInfoExtn) String() string {
 func (s *StaticInfoExtn) AppendIfIDToSIForTesting (peer bool, ifID, egifID common.IFIDType) {
 	if peer {
 		s.Latency.Peerlatencies = append(s.Latency.Peerlatencies, PeerLatency{
-			Interdelay: uint16(ifID),
-			IntraDelay: uint16(ifID),
+			Interdelay: 1,
+			IntraDelay: 1,
 			IfID:       ifID,
 		})
 		s.Linktype.Peerlinks = append(s.Linktype.Peerlinks, InterfaceLinkType{
@@ -224,7 +224,7 @@ func (s *StaticInfoExtn) AppendIfIDToSIForTesting (peer bool, ifID, egifID commo
 		})
 	} else {
 		s.Latency.Childlatencies = append(s.Latency.Childlatencies, ChildLatency{
-				Intradelay: uint16(ifID),
+				Intradelay: 1,
 				IfID:       ifID,
 			})
 	}
@@ -239,8 +239,8 @@ func (s *StaticInfoExtn) AppendIfIDToSIForTesting (peer bool, ifID, egifID commo
 	s.Geo.Locations[0].IfIDs = append(s.Geo.Locations[0].IfIDs, ifID)
 
 	if (ifID == egifID){
-		s.Latency.IngressToEgressLatency = uint16(ifID)
-		s.Latency.Egresslatency = uint16(ifID)
+		s.Latency.IngressToEgressLatency = 1
+		s.Latency.Egresslatency = 1
 		s.Linktype.EgressLinkType = uint16(ifID) % 3
 		s.Bandwidth.EgressBW = uint32(ifID)
 		s.Bandwidth.IngressToEgressBW = uint32(ifID)
