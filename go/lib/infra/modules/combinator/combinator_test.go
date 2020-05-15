@@ -18,13 +18,13 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"math"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
