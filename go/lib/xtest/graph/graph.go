@@ -427,9 +427,10 @@ func (g *Graph) BeaconWithStaticInfo(ifids []common.IFIDType) *seg.PathSegment {
 		inIF = remoteOutIF
 		inIA = currIA
 		currIA = g.parents[remoteOutIF]
-		fmt.Println(asEntry.Exts.StaticInfo.Latency)
+		//fmt.Println(asEntry.Exts.StaticInfo.Latency)
 	}
-	fmt.Println(segment.ASEntries[0].IA())
+	fmt.Println(segment.ASEntries)
+	fmt.Println(len(segment.ASEntries))
 	return segment
 }
 
