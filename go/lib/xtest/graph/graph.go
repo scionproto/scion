@@ -422,12 +422,13 @@ func (g *Graph) BeaconWithStaticInfo(ifids []common.IFIDType) *seg.PathSegment {
 		signer := mock_seg.NewMockSigner(g.ctrl)
 		signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 			&proto.SignS{}, nil).AnyTimes()
-		segment.AddASEntry(asEntry, signer)
+		err := segment.AddASEntry(asEntry, signer)
+		fmt.Println(err)
 		remoteInIF = outIF
 		inIF = remoteOutIF
 		inIA = currIA
 		currIA = g.parents[remoteOutIF]
-		//fmt.Println(asEntry.Exts.StaticInfo.Latency)
+		fmt.Println(asEntry)
 	}
 	fmt.Println(segment.ASEntries)
 	fmt.Println(len(segment.ASEntries))
