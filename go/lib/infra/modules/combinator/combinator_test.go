@@ -590,27 +590,91 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_212_X}),
 			},
 			expectedLatency:
-				uint16(graph.If_131_X_132_X) + uint16(graph.If_131_X_132_X) +
+			uint16(graph.If_131_X_132_X) + uint16(graph.If_131_X_132_X) +
 				uint16(graph.If_130_A_131_X) + uint16(graph.If_130_A_110_X) +
 				uint16(graph.If_110_X_130_A) + uint16(graph.If_110_X_130_A) +
-				uint16(graph.If_210_X_110_X) + uint16(graph.If_210_X_110_X)+
+				uint16(graph.If_210_X_110_X) + uint16(graph.If_210_X_110_X) +
 				uint16(graph.If_210_X_211_A) +
 				uint16(graph.If_211_A_212_X) + uint16(graph.If_211_A_212_X),
 
 			expectedBW: calcBWmin([]common.IFIDType{graph.If_131_X_132_X, graph.If_130_A_131_X,
 				graph.If_130_A_110_X, graph.If_110_X_130_A, graph.If_210_X_110_X,
 				graph.If_210_X_211_A, graph.If_211_A_212_X}),
-			// expectedHops:
+			expectedHops: uint8(graph.If_131_X_132_X) + uint8(graph.If_131_X_132_X) +
+				uint8(graph.If_130_A_131_X) + uint8(graph.If_130_A_110_X) +
+				uint8(graph.If_110_X_130_A) + uint8(graph.If_110_X_130_A) +
+				uint8(graph.If_210_X_110_X) + uint8(graph.If_210_X_110_X) +
+				uint8(graph.If_210_X_211_A) +
+				uint8(graph.If_211_A_212_X) + uint8(graph.If_211_A_212_X),
+			expectedGeo: []DenseGeo{
+				{
+					RouterLocations: []GeoLoc{{
+						Latitude:  0,
+						Longitude: 0,
+						Address:   "Züri",
+					}},
+					RawIA: xtest.MustParseIA("1-ff00:0:132").IAInt(),
+				},
+				{
+					RouterLocations: []GeoLoc{{
+						Latitude:  float32(graph.If_131_X_132_X),
+						Longitude: float32(graph.If_131_X_132_X),
+						Address:   "Züri",
+					}},
+					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
+				},
+				{
+					RouterLocations: []GeoLoc{{
+						Latitude:  float32(graph.If_130_A_131_X),
+						Longitude: float32(graph.If_130_A_131_X),
+						Address:   "Züri",
+					}},
+					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
+				},
+				{
+					RouterLocations: []GeoLoc{{
+						Latitude:  float32(graph.If_110_X_130_A),
+						Longitude: float32(graph.If_110_X_130_A),
+						Address:   "Züri",
+					}},
+					RawIA: xtest.MustParseIA("1-ff00:0:110").IAInt(),
+				},
+				{
+					RouterLocations: []GeoLoc{{
+						Latitude:  float32(graph.If_210_X_211_A),
+						Longitude: float32(graph.If_210_X_211_A),
+						Address:   "Züri",
+					}},
+					RawIA: xtest.MustParseIA("2-ff00:0:210").IAInt(),
+				},
+				{
+					RouterLocations: []GeoLoc{{
+						Latitude:  float32(graph.If_211_A_212_X),
+						Longitude: float32(graph.If_211_A_212_X),
+						Address:   "Züri",
+					}},
+					RawIA: xtest.MustParseIA("2-ff00:0:211").IAInt(),
+				},
+				{
+					RouterLocations: []GeoLoc{{
+						Latitude:  0,
+						Longitude: 0,
+						Address:   "Züri",
+					}},
+					RawIA: xtest.MustParseIA("2-ff00:0:212").IAInt(),
+				},
+			},
 		},
+
 	}
 
 	for _, tc := range testCases {
 		result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
 		assert.Equal(t, tc.expectedLatency, result[0].StaticInfo.TotalLatency)
 		assert.Equal(t, tc.expectedBW, result[0].StaticInfo.MinOfMaxBWs)
-		// assert.Equal(t, tc.expectedHops, result[0].StaticInfo.TotalHops)
+		assert.Equal(t, tc.expectedHops, result[0].StaticInfo.TotalHops)
 		// assert.ElementsMatch(t, tc.expectedLinktypes, result[0].StaticInfo.LinkTypes)
-		// assert.ElementsMatch(t, tc.expectedGeo, result[0].StaticInfo.Locations)
+		assert.ElementsMatch(t, tc.expectedGeo, result[0].StaticInfo.Locations)
 		// assert.ElementsMatch(t, tc.expectedNotes, result[0].StaticInfo.Notes)
 	}
 }
