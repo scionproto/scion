@@ -444,8 +444,8 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 	for idx := 0; idx < len(ASes.Cores); idx++ {
 		asEntry := ASes.Cores[idx]
 		s := asEntry.Exts.StaticInfo
-		fmt.Println(s.Latency)
 		if s != nil {
+			fmt.Println(s.Latency)
 			if idx == 0 {
 				res.Geo[asEntry.IA()] = getGeo(asEntry)
 				continue
