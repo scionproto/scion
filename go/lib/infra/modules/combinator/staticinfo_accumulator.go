@@ -378,7 +378,7 @@ func (res *RawPathMetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEn
 }
 
 func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
-	var res RawPathMetadata
+	var res *RawPathMetadata
 	var LastUpASEntry *seg.ASEntry
 	var LastCoreASEntry *seg.ASEntry
 	res.initialize()
@@ -474,7 +474,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 		}
 	}
 	fmt.Println(res.ASLatencies)
-	return &res
+	return res
 }
 
 func getGeo(asEntry *seg.ASEntry) ASGeo {
