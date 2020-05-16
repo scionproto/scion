@@ -193,6 +193,29 @@ type ASEntryList struct {
 	DownPeer int
 }
 
+func (s *ASEntryList) checkIfInvertedCore(){
+	if len(s.Cores)!=0{
+		if (len(s.Ups)!=0){
+			if !(s.Ups[len(s.Ups)-1].RawIA == s.Cores[0].RawIA){
+				s.Cores = reverseCores(s.Cores)
+			}
+		} else if (len(s.Downs)!=0){
+			if !(s.Downs[len(s.Downs)-1].RawIA == s.Cores[len(s.Cores)-1].RawIA){
+				s.Cores = reverseCores(s.Cores)
+			}
+		}
+	}
+}
+
+func reverseCores(cores []*seg.ASEntry) []*seg.ASEntry{
+	for i:=0; i<len(cores); i++{
+		temp := cores[len(cores)-(i+1)]
+		cores[len(cores)-(i+1)] = cores[i]
+		cores[i] = temp
+	}
+	return cores
+}
+
 func (solution *PathSolution) GatherASEntries() *ASEntryList {
 	var res ASEntryList
 	for _, solEdge := range solution.edges {
@@ -216,6 +239,7 @@ func (solution *PathSolution) GatherASEntries() *ASEntryList {
 			res.DownPeer = solEdge.edge.Peer
 		}
 	}
+	res.checkIfInvertedCore()
 	return &res
 }
 
@@ -396,9 +420,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 			// fmt.Println(s.Latency)
 			if idx == 0 {
 				res.Geo[asEntry.IA()] = getGeo(asEntry)
-				continue
-			}
-			if (idx > 0) && (idx < (len(ASes.Ups) - 1)) {
+			} else if (idx < (len(ASes.Ups) - 1)) {
 				res.ExtractNormaldata(asEntry)
 			} else {
 				if (len(ASes.Cores) == 0) && (len(ASes.Downs) == 0) {
@@ -424,8 +446,6 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 	// and extract the static info data from them
 	for idx := 0; idx < len(ASes.Cores); idx++ {
 		asEntry := ASes.Cores[idx]
-		// If we're in the first inspected AS (i.e the last AS of the segment)
-		// only set LastCoreASEntry
 		s := asEntry.Exts.StaticInfo
 		if s != nil {
 			// fmt.Println(s.Latency)
@@ -442,6 +462,8 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 			if (idx > 0) && (idx < (len(ASes.Cores) - 1)) {
 				res.ExtractNormaldata(asEntry)
 			} else {
+				// If we're in the last AS of the segment
+				// only set LastCoreASEntry
 				LastCoreASEntry = asEntry
 				if len(ASes.Downs) == 0 {
 					res.ExtractNormaldata(asEntry)
@@ -460,8 +482,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 			if idx == 0 {
 				res.Geo[asEntry.IA()] = getGeo(asEntry)
 				continue
-			}
-			if (idx > 0) && (idx < (len(ASes.Downs) - 1)) {
+			} else if (idx < (len(ASes.Downs) - 1)) {
 				res.ExtractNormaldata(asEntry)
 			} else {
 				if ASes.DownPeer != 0 {
