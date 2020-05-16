@@ -711,6 +711,21 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:     "#5 inverted core",
+			FileName: "05_compute_path.txt",
+			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
+			DstIA:    xtest.MustParseIA("1-ff00:0:111"),
+			Ups: []*seg.PathSegment{
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X}),
+			},
+			Cores: []*seg.PathSegment{
+				g.Beacon([]common.IFIDType{graph.If_130_B_120_A}),
+			},
+			Downs: []*seg.PathSegment{
+				g.Beacon([]common.IFIDType{graph.If_120_X_111_B}),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
