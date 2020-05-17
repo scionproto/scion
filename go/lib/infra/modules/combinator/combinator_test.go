@@ -865,10 +865,12 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("2-ff00:0:212"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:222"),
 			Ups: []*seg.PathSegment{
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A1_212_X}),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X1_211_A,
+					graph.If_211_A1_212_X}),
 			},
 			Downs: []*seg.PathSegment{
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A_222_X}),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X1_211_A,
+					graph.If_211_A_222_X}),
 			},
 			expectedLatency: uint16(graph.If_211_A1_212_X) +
 				uint16(graph.If_211_A1_212_X) + uint16(graph.If_211_A_222_X),
@@ -921,13 +923,15 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("2-ff00:0:212"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:222"),
 			Ups: []*seg.PathSegment{
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A1_212_X}),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X1_211_A,
+					graph.If_211_A1_212_X}),
 			},
 			Cores: []*seg.PathSegment{
 				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_220_X_210_X}),
 			},
 			Downs: []*seg.PathSegment{
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_220_X_221_X, graph.If_221_X_222_X}),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_220_X_221_X,
+					graph.If_221_X_222_X}),
 			},
 			expectedLatency: uint16(graph.If_211_A1_212_X) + uint16(graph.If_211_A_221_X) +
 				uint16(graph.If_221_X_211_A) + uint16(graph.If_221_X_211_A) +
