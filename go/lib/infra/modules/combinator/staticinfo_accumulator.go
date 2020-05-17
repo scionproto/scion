@@ -528,7 +528,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 			}
 		}
 	}
-	fmt.Println(res.ASLatencies)
+	// fmt.Println(res.ASLatencies)
 	return res
 }
 
