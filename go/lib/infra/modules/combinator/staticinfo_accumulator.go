@@ -412,7 +412,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 		if s != nil {
 			if idx == 0 {
 				res.Geo[asEntry.IA()] = getGeo(asEntry)
-			} else if (idx < (len(ASes.Ups) - 1)) {
+			} else if idx < (len(ASes.Ups) - 1) {
 				res.ExtractNormaldata(asEntry)
 			} else {
 				if (len(ASes.Cores) == 0) && (len(ASes.Downs) == 0) {
@@ -444,7 +444,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 					// This is the first AS in the path, so we only extract its geodata
 					res.Geo[asEntry.IA()] = getGeo(asEntry)
 				}
-			} else if  (idx < (len(ASes.Cores) - 1)) {
+			} else if idx < (len(ASes.Cores) - 1) {
 				res.ExtractNormaldata(asEntry)
 			} else {
 				// If we're in the last AS of the segment
@@ -465,7 +465,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 		if s != nil {
 			if idx == 0 {
 				res.Geo[asEntry.IA()] = getGeo(asEntry)
-			} else if (idx < (len(ASes.Downs) - 1)) {
+			} else if idx < (len(ASes.Downs) - 1) {
 				res.ExtractNormaldata(asEntry)
 			} else {
 				if ASes.DownPeer != 0 {

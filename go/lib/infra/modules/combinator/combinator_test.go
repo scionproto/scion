@@ -720,8 +720,8 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_A_131_X}),
 			},
 			expectedLatency: uint16(graph.If_130_A_131_X),
-			expectedBW: calcBWmin([]common.IFIDType{graph.If_130_A_131_X}),
-			expectedHops: 0,
+			expectedBW:      calcBWmin([]common.IFIDType{graph.If_130_A_131_X}),
+			expectedHops:    0,
 			expectedGeo: []DenseGeo{
 				{
 					RouterLocations: []GeoLoc{{
@@ -762,8 +762,8 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_B_111_A}),
 			},
 			expectedLatency: uint16(graph.If_130_B_111_A),
-			expectedBW: calcBWmin([]common.IFIDType{graph.If_130_B_111_A}),
-			expectedHops: 0,
+			expectedBW:      calcBWmin([]common.IFIDType{graph.If_130_B_111_A}),
+			expectedHops:    0,
 			expectedGeo: []DenseGeo{
 				{
 					RouterLocations: []GeoLoc{{
@@ -906,7 +906,7 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 			expectedLinktypes: []DenseASLinkType{
 				{
 					InterLinkType: uint16(graph.If_211_A_222_X) % 3,
-					PeerLinkType: uint16(graph.If_211_A1_212_X) % 3,
+					PeerLinkType:  uint16(graph.If_211_A1_212_X) % 3,
 					RawIA:         xtest.MustParseIA("2-ff00:0:211").IAInt(),
 				},
 			},
@@ -980,7 +980,7 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 				},
 				{
 					InterLinkType: uint16(graph.If_221_X_222_X) % 3,
-					PeerLinkType: uint16(graph.If_221_X_211_A) % 3,
+					PeerLinkType:  uint16(graph.If_221_X_211_A) % 3,
 					RawIA:         xtest.MustParseIA("2-ff00:0:221").IAInt(),
 				},
 			},
