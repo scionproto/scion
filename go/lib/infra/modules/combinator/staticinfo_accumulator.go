@@ -453,7 +453,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 					peerEntry := asEntry.HopEntries[ASes.UpPeer]
 					PE, _ := peerEntry.HopField()
 					peerIfID := PE.ConsIngress
-					res.ExtractPeerdata(asEntry, peerIfID, true)
+					res.ExtractPeerdata(asEntry, peerIfID, false)
 				} else {
 					// If the last up AS is not involved in peering,
 					// do nothing except store the as in LastUpASEntry
@@ -509,7 +509,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 					peerEntry := asEntry.HopEntries[ASes.UpPeer]
 					PE, _ := peerEntry.HopField()
 					peerIfID := PE.ConsIngress
-					res.ExtractPeerdata(asEntry, peerIfID, false)
+					res.ExtractPeerdata(asEntry, peerIfID, true)
 				} else {
 					if len(ASes.Cores) > 0 {
 						// We're in the AS where we cross over from the core to the down segment
