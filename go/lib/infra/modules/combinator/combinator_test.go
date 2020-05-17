@@ -712,6 +712,91 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 			},
 		},
 		{
+			Name:     "#2 simple up only",
+			FileName: "02_compute_path.txt",
+			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
+			DstIA:    xtest.MustParseIA("1-ff00:0:130"),
+			Ups: []*seg.PathSegment{
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_A_131_X}),
+			},
+			expectedLatency: uint16(graph.If_130_A_131_X),
+			expectedBW: calcBWmin([]common.IFIDType{graph.If_130_A_131_X}),
+			expectedHops: 0,
+			expectedGeo: []DenseGeo{
+				{
+					RouterLocations: []GeoLoc{{
+						Latitude:  float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
+						Longitude: float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
+						Address:   "Züri",
+					}},
+					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
+				},
+				{
+					RouterLocations: []GeoLoc{{
+						Latitude:  float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
+						Longitude: float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
+						Address:   "Züri",
+					}},
+					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
+				},
+			},
+			expectedLinktypes: []DenseASLinkType{
+				{
+					InterLinkType: uint16(graph.If_130_A_131_X) % 3,
+					RawIA:         xtest.MustParseIA("1-ff00:0:130").IAInt(),
+				},
+			},
+			expectedNotes: []DenseNote{
+				{
+					Note:  "asdf",
+					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
+				},
+			},
+		},
+		{
+			Name:     "#4 simple down only",
+			FileName: "04_compute_path.txt",
+			SrcIA:    xtest.MustParseIA("1-ff00:0:130"),
+			DstIA:    xtest.MustParseIA("1-ff00:0:111"),
+			Downs: []*seg.PathSegment{
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_B_111_A}),
+			},
+			expectedLatency: uint16(graph.If_130_B_111_A),
+			expectedBW: calcBWmin([]common.IFIDType{graph.If_130_B_111_A}),
+			expectedHops: 0,
+			expectedGeo: []DenseGeo{
+				{
+					RouterLocations: []GeoLoc{{
+						Latitude:  float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
+						Longitude: float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
+						Address:   "Züri",
+					}},
+					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
+				},
+				{
+					RouterLocations: []GeoLoc{{
+						Latitude:  float32(xtest.MustParseIA("1-ff00:0:111").IAInt()),
+						Longitude: float32(xtest.MustParseIA("1-ff00:0:111").IAInt()),
+						Address:   "Züri",
+					}},
+					RawIA: xtest.MustParseIA("1-ff00:0:111").IAInt(),
+				},
+			},
+			expectedLinktypes: []DenseASLinkType{
+				{
+					InterLinkType: uint16(graph.If_130_B_111_A) % 3,
+					RawIA:         xtest.MustParseIA("1-ff00:0:130").IAInt(),
+				},
+			},
+			expectedNotes: []DenseNote{
+				{
+					Note:  "asdf",
+					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
+				},
+			},
+		},
+		/*
+		{
 			Name:     "#5 inverted core",
 			FileName: "05_compute_path.txt",
 			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
@@ -795,7 +880,7 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 					RawIA: xtest.MustParseIA("1-ff00:0:111").IAInt(),
 				},
 			},
-		},
+		},*/
 	}
 
 	for _, tc := range testCases {

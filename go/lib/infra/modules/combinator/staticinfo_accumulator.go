@@ -191,9 +191,10 @@ type ASEntryList struct {
 	Downs    []*seg.ASEntry
 	UpPeer   int
 	DownPeer int
-	InvertedCore bool
+	// InvertedCore bool
 }
 
+/*
 func (s *ASEntryList) checkIfInvertedCore(){
 	s.InvertedCore = false
 	if len(s.Cores)!=0{
@@ -217,6 +218,7 @@ func reverseCores(cores []*seg.ASEntry) []*seg.ASEntry{
 	}
 	return cores
 }
+ */
 
 func (solution *PathSolution) GatherASEntries() *ASEntryList {
 	var res ASEntryList
@@ -241,7 +243,7 @@ func (solution *PathSolution) GatherASEntries() *ASEntryList {
 			res.DownPeer = solEdge.edge.Peer
 		}
 	}
-	res.checkIfInvertedCore()
+	// res.checkIfInvertedCore()
 	return &res
 }
 
@@ -295,6 +297,26 @@ func (res *RawPathMetadata) ExtractPeerdata(asEntry *seg.ASEntry,
 			}
 		}
 	}
+	res.Geo[IA] = getGeo(asEntry)
+	res.Notes[IA] = ASnote{
+		Note: StaticInfo.Note,
+	}
+}
+
+func (res *RawPathMetadata) ExtractSingleSegmentFinalASData(asEntry *seg.ASEntry) {
+	IA := asEntry.IA()
+	StaticInfo := asEntry.Exts.StaticInfo
+	res.ASLatencies[IA] = ASLatency{
+		InterLatency: StaticInfo.Latency.Egresslatency,
+		PeerLatency:  0,
+	}
+	res.Links[IA] = ASLink{
+		InterLinkType: StaticInfo.Linktype.EgressLinkType,
+	}
+	res.ASBandwidths[IA] = ASBandwidth{
+		InterBW: StaticInfo.Bandwidth.EgressBW,
+	}
+	res.ASHops[IA] = ASHops{}
 	res.Geo[IA] = getGeo(asEntry)
 	res.Notes[IA] = ASnote{
 		Note: StaticInfo.Note,
@@ -426,10 +448,8 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 				res.ExtractNormaldata(asEntry)
 			} else {
 				if (len(ASes.Cores) == 0) && (len(ASes.Downs) == 0) {
-					res.ExtractNormaldata(asEntry)
-					continue
-				}
-				if ASes.UpPeer != 0 {
+					res.ExtractSingleSegmentFinalASData(asEntry)
+				} else if ASes.UpPeer != 0 {
 					peerEntry := asEntry.HopEntries[ASes.UpPeer]
 					PE, _ := peerEntry.HopField()
 					peerIfID := PE.ConsIngress
@@ -502,7 +522,7 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 						res.ExtractCoreOverdata(LastUpASEntry, asEntry)
 					}
 					if (len(ASes.Ups) == 0) && (len(ASes.Cores) == 0) {
-						res.ExtractNormaldata(asEntry)
+						res.ExtractSingleSegmentFinalASData(asEntry)
 					}
 				}
 			}
