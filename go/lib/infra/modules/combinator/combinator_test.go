@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
-	"strconv"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -992,101 +991,10 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 				},
 			},
 		},
-		/*
-		{
-			Name:     "#5 inverted core",
-			FileName: "05_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:111"),
-			Ups: []*seg.PathSegment{
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_A_131_X}),
-			},
-			Cores: []*seg.PathSegment{
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_B_120_A}),
-			},
-			Downs: []*seg.PathSegment{
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_120_X_111_B}),
-			},
-			expectedLatency: uint16(graph.If_130_A_131_X) + uint16(graph.If_130_B_120_A) +
-				uint16(graph.If_120_A_130_B) + uint16(graph.If_120_A_130_B) +
-				uint16(graph.If_120_X_111_B),
-			expectedBW: calcBWmin([]common.IFIDType{graph.If_130_A_131_X,
-				graph.If_130_B_120_A, graph.If_120_A_130_B, graph.If_120_X_111_B}),
-			expectedHops: uint8(graph.If_130_B_120_A) +
-				uint8(graph.If_120_A_130_B),
-			expectedGeo: []DenseGeo{
-				{
-					RouterLocations: []GeoLoc{{
-						Latitude:  float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
-						Longitude: float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
-						Address:   "Züri",
-					}},
-					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
-				},
-				{
-					RouterLocations: []GeoLoc{{
-						Latitude:  float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
-						Longitude: float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
-						Address:   "Züri",
-					}},
-					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
-				},
-				{
-					RouterLocations: []GeoLoc{{
-						Latitude:  float32(xtest.MustParseIA("1-ff00:0:120").IAInt()),
-						Longitude: float32(xtest.MustParseIA("1-ff00:0:120").IAInt()),
-						Address:   "Züri",
-					}},
-					RawIA: xtest.MustParseIA("1-ff00:0:120").IAInt(),
-				},
-				{
-					RouterLocations: []GeoLoc{{
-						Latitude:  float32(xtest.MustParseIA("1-ff00:0:111").IAInt()),
-						Longitude: float32(xtest.MustParseIA("1-ff00:0:111").IAInt()),
-						Address:   "Züri",
-					}},
-					RawIA: xtest.MustParseIA("1-ff00:0:111").IAInt(),
-				},
-			},
-			expectedLinktypes: []DenseASLinkType{
-				{
-					InterLinkType: uint16(graph.If_130_A_131_X) % 3,
-					RawIA:         xtest.MustParseIA("1-ff00:0:130").IAInt(),
-				},
-				{
-					InterLinkType: uint16(graph.If_120_X_111_B) % 3,
-					PeerLinkType:  uint16(graph.If_120_A_130_B) % 3,
-					RawIA:         xtest.MustParseIA("1-ff00:0:120").IAInt(),
-				},
-			},
-			expectedNotes: []DenseNote{
-				{
-					Note:  "asdf",
-					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
-				},
-				{
-					Note:  "asdf",
-					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
-				},
-				{
-					Note:  "asdf",
-					RawIA: xtest.MustParseIA("1-ff00:0:120").IAInt(),
-				},
-				{
-					Note:  "asdf",
-					RawIA: xtest.MustParseIA("1-ff00:0:111").IAInt(),
-				},
-			},
-		},*/
 	}
 
-	for idx, tc := range testCases {
-		fmt.Println("TEST NUMBER: " + strconv.Itoa(idx) )
+	for _, tc := range testCases {
 		result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
-		for pathidx, res := range result  {
-			fmt.Println("Path: " + strconv.Itoa(pathidx))
-			fmt.Println(res.StaticInfo.Locations)
-		}
 		assert.Equal(t, tc.expectedLatency, result[0].StaticInfo.TotalLatency)
 		assert.Equal(t, tc.expectedBW, result[0].StaticInfo.MinOfMaxBWs)
 		assert.Equal(t, tc.expectedHops, result[0].StaticInfo.TotalHops)

@@ -191,34 +191,7 @@ type ASEntryList struct {
 	Downs    []*seg.ASEntry
 	UpPeer   int
 	DownPeer int
-	// InvertedCore bool
 }
-
-/*
-func (s *ASEntryList) checkIfInvertedCore(){
-	s.InvertedCore = false
-	if len(s.Cores)!=0{
-		if (len(s.Ups)!=0){
-			if !(s.Ups[len(s.Ups)-1].RawIA == s.Cores[0].RawIA){
-				s.InvertedCore = true
-			}
-		} else if (len(s.Downs)!=0){
-			if !(s.Downs[len(s.Downs)-1].RawIA == s.Cores[len(s.Cores)-1].RawIA){
-				s.InvertedCore = true
-			}
-		}
-	}
-}
-
-func reverseCores(cores []*seg.ASEntry) []*seg.ASEntry{
-	for i:=0; i<len(cores); i++{
-		temp := cores[len(cores)-(i+1)]
-		cores[len(cores)-(i+1)] = cores[i]
-		cores[i] = temp
-	}
-	return cores
-}
- */
 
 func (solution *PathSolution) GatherASEntries() *ASEntryList {
 	var res ASEntryList
@@ -243,7 +216,6 @@ func (solution *PathSolution) GatherASEntries() *ASEntryList {
 			res.DownPeer = solEdge.edge.Peer
 		}
 	}
-	// res.checkIfInvertedCore()
 	return &res
 }
 
@@ -432,16 +404,12 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 	var LastUpASEntry *seg.ASEntry
 	var LastCoreASEntry *seg.ASEntry
 	res := initialize()
-	fmt.Println(ASes.Ups)
-	fmt.Println(ASes.Cores)
-	fmt.Println(ASes.Downs)
 	// Go through ASEntries in the up segment (except for the first one)
 	// and extract the static info data from them
 	for idx := 0; idx < len(ASes.Ups); idx++ {
 		asEntry := ASes.Ups[idx]
 		s := asEntry.Exts.StaticInfo
 		if s != nil {
-			// fmt.Println(s.Latency)
 			if idx == 0 {
 				res.Geo[asEntry.IA()] = getGeo(asEntry)
 			} else if (idx < (len(ASes.Ups) - 1)) {
@@ -462,15 +430,12 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 			}
 		}
 	}
-	// fmt.Println(LastUpASEntry)
-
 	// Go through ASEntries in the core segment
 	// and extract the static info data from them
 	for idx := 0; idx < len(ASes.Cores); idx++ {
 		asEntry := ASes.Cores[idx]
 		s := asEntry.Exts.StaticInfo
 		if s != nil {
-			// fmt.Println(s.Latency)
 			if idx == 0 {
 				if len(ASes.Ups) > 0 {
 					// We're in the AS where we cross over from the up to the core segment
@@ -498,7 +463,6 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 		asEntry := ASes.Downs[idx]
 		s := asEntry.Exts.StaticInfo
 		if s != nil {
-			// fmt.Println(s.Latency)
 			if idx == 0 {
 				res.Geo[asEntry.IA()] = getGeo(asEntry)
 			} else if (idx < (len(ASes.Downs) - 1)) {
@@ -528,7 +492,6 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 			}
 		}
 	}
-	// fmt.Println(res.ASLatencies)
 	return res
 }
 
