@@ -809,8 +809,9 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_A_131_X}),
 			},
 			expectedLatency: uint16(graph.If_132_X_133_X) +
-				uint16(graph.If_132_X_131_X) + uint16(graph.If_131_X_132_X),
-			expectedBW: calcBWmin([]common.IFIDType{graph.If_130_B_111_A}),
+				uint16(graph.If_132_X_133_X) + uint16(graph.If_131_X_132_X),
+			expectedBW: calcBWmin([]common.IFIDType{graph.If_131_X_132_X,
+				graph.If_132_X_133_X}),
 			expectedHops: uint8(graph.If_132_X_133_X),
 			expectedGeo: []DenseGeo{
 				{
