@@ -795,6 +795,69 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:     "#11 shortcut, destination on path, going up, vonly hf is from core",
+			FileName: "11_compute_path.txt",
+			SrcIA:    xtest.MustParseIA("1-ff00:0:133"),
+			DstIA:    xtest.MustParseIA("1-ff00:0:131"),
+			Ups: []*seg.PathSegment{
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X,
+					graph.If_132_X_133_X}),
+			},
+			Downs: []*seg.PathSegment{
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X}),
+			},
+			expectedLatency: uint16(graph.If_132_X_133_X) +
+				uint16(graph.If_132_X_131_X) + uint16(graph.If_131_X_132_X),
+			expectedBW: calcBWmin([]common.IFIDType{graph.If_130_B_111_A}),
+			expectedHops: uint8(graph.If_132_X_133_X),
+			expectedGeo: []DenseGeo{
+				{
+					RouterLocations: []GeoLoc{{
+						Latitude:  float32(xtest.MustParseIA("1-ff00:0:133").IAInt()),
+						Longitude: float32(xtest.MustParseIA("1-ff00:0:133").IAInt()),
+						Address:   "Züri",
+					}},
+					RawIA: xtest.MustParseIA("1-ff00:0:133").IAInt(),
+				},
+				{
+					RouterLocations: []GeoLoc{{
+						Latitude:  float32(xtest.MustParseIA("1-ff00:0:132").IAInt()),
+						Longitude: float32(xtest.MustParseIA("1-ff00:0:132").IAInt()),
+						Address:   "Züri",
+					}},
+					RawIA: xtest.MustParseIA("1-ff00:0:132").IAInt(),
+				},
+				{
+					RouterLocations: []GeoLoc{{
+						Latitude:  float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
+						Longitude: float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
+						Address:   "Züri",
+					}},
+					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
+				},
+			},
+			expectedLinktypes: []DenseASLinkType{
+				{
+					InterLinkType: uint16(graph.If_132_X_133_X) % 3,
+					RawIA:         xtest.MustParseIA("1-ff00:0:132").IAInt(),
+				},
+				{
+					InterLinkType: uint16(graph.If_131_X_132_X) % 3,
+					RawIA:         xtest.MustParseIA("1-ff00:0:131").IAInt(),
+				},
+			},
+			expectedNotes: []DenseNote{
+				{
+					Note:  "asdf",
+					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
+				},
+				{
+					Note:  "asdf",
+					RawIA: xtest.MustParseIA("1-ff00:0:132").IAInt(),
+				},
+			},
+		},
 		/*
 		{
 			Name:     "#5 inverted core",
