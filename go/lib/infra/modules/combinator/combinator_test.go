@@ -950,7 +950,10 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 	for idx, tc := range testCases {
 		fmt.Println("TEST NUMBER: " + strconv.Itoa(idx) )
 		result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
-		fmt.Println(result)
+		for pathidx, res := range result  {
+			fmt.Println("Path: " + strconv.Itoa(pathidx))
+			fmt.Println(res.StaticInfo.Locations)
+		}
 		assert.Equal(t, tc.expectedLatency, result[0].StaticInfo.TotalLatency)
 		assert.Equal(t, tc.expectedBW, result[0].StaticInfo.MinOfMaxBWs)
 		assert.Equal(t, tc.expectedHops, result[0].StaticInfo.TotalHops)
