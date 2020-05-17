@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math"
+	"strconv"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -946,7 +947,8 @@ func TestASEntryList_CombineSegments(t *testing.T) {
 		},*/
 	}
 
-	for _, tc := range testCases {
+	for idx, tc := range testCases {
+		fmt.Println("TEST NUMBER: " + strconv.Itoa(idx) )
 		result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
 		assert.Equal(t, tc.expectedLatency, result[0].StaticInfo.TotalLatency)
 		assert.Equal(t, tc.expectedBW, result[0].StaticInfo.MinOfMaxBWs)
