@@ -47,7 +47,7 @@ struct PathReply {
 struct PathReplyEntry {
     path @0 :FwdPathMeta;  # End2end path
     hostInfo @1 :HostInfo;  # First hop host info.
-    pathStaticInfo @2 :DenseStaticInfo; # Static info describing the path
+    pathStaticInfo @2 :PathMetadata; # Static info describing the path
 }
 
 struct HostInfo {
@@ -58,7 +58,7 @@ struct HostInfo {
     }
 }
 
-struct DenseStaticInfo {
+struct PathMetadata {
     totalLatency @0 :UInt16;
     totalHops @1 :UInt8;
     bandwidthBottleneck @2 :UInt32;
