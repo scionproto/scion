@@ -560,8 +560,7 @@ func TestCombineSegments(t *testing.T) {
 	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
 
-	testCases := []struct {
-		Name              string
+	testCases := map[string]struct{
 		FileName          string
 		SrcIA             addr.IA
 		DstIA             addr.IA
@@ -575,8 +574,7 @@ func TestCombineSegments(t *testing.T) {
 		expectedGeo       []DenseGeo
 		expectedNotes     []DenseNote
 	}{
-		{
-			Name:     "#6 simple long up-core-down",
+		"#6 simple long up-core-down": {
 			FileName: "06_compute_path.txt",
 			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:212"),
@@ -711,8 +709,7 @@ func TestCombineSegments(t *testing.T) {
 				},
 			},
 		},
-		{
-			Name:     "#2 simple up only",
+		"#2 simple up only": {
 			FileName: "02_compute_path.txt",
 			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:130"),
@@ -753,8 +750,7 @@ func TestCombineSegments(t *testing.T) {
 				},
 			},
 		},
-		{
-			Name:     "#4 simple down only",
+		"#4 simple down only": {
 			FileName: "04_compute_path.txt",
 			SrcIA:    xtest.MustParseIA("1-ff00:0:130"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:111"),
@@ -795,8 +791,7 @@ func TestCombineSegments(t *testing.T) {
 				},
 			},
 		},
-		{
-			Name:     "#11 shortcut, destination on path, going up, vonly hf is from core",
+		"#11 shortcut, destination on path, going up, vonly hf is from core":{
 			FileName: "11_compute_path.txt",
 			SrcIA:    xtest.MustParseIA("1-ff00:0:133"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:131"),
@@ -859,8 +854,7 @@ func TestCombineSegments(t *testing.T) {
 				},
 			},
 		},
-		{
-			Name:     "#14 shortcut, common upstream",
+		"#14 shortcut, common upstream":{
 			FileName: "14_compute_path.txt",
 			SrcIA:    xtest.MustParseIA("2-ff00:0:212"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:222"),
@@ -917,8 +911,7 @@ func TestCombineSegments(t *testing.T) {
 				},
 			},
 		},
-		{
-			Name:     "#15 go through peer",
+		"#15 go through peer": {
 			FileName: "15_compute_path.txt",
 			SrcIA:    xtest.MustParseIA("2-ff00:0:212"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:222"),
