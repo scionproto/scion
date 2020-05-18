@@ -25,7 +25,7 @@ type GeoLoc struct {
 }
 
 func (s *GeoLoc) ProtoId() proto.ProtoIdType {
-	return proto.DenseStaticInfo_Geo_GPSData_TypeID
+	return proto.PathMetadata_Geo_GPSData_TypeID
 }
 
 func (s *GeoLoc) String() string {
@@ -60,7 +60,7 @@ type DenseASLinkType struct {
 }
 
 func (s *DenseASLinkType) ProtoId() proto.ProtoIdType {
-	return proto.DenseStaticInfo_InterfaceLinkType_TypeID
+	return proto.PathMetadata_InterfaceLinkType_TypeID
 }
 
 func (s *DenseASLinkType) String() string {
@@ -74,7 +74,7 @@ type DenseGeo struct {
 }
 
 func (s *DenseGeo) ProtoId() proto.ProtoIdType {
-	return proto.DenseStaticInfo_Geo_TypeID
+	return proto.PathMetadata_Geo_TypeID
 }
 
 func (s *DenseGeo) String() string {
@@ -88,7 +88,7 @@ type DenseNote struct {
 }
 
 func (s *DenseNote) ProtoId() proto.ProtoIdType {
-	return proto.DenseStaticInfo_Note_TypeID
+	return proto.PathMetadata_Note_TypeID
 }
 
 func (s *DenseNote) String() string {
@@ -116,7 +116,7 @@ type PathMetadata struct {
 }
 
 func (s *PathMetadata) ProtoId() proto.ProtoIdType {
-	return proto.DenseStaticInfo_TypeID
+	return proto.PathMetadata_TypeID
 }
 
 func (s *PathMetadata) String() string {
