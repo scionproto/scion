@@ -380,8 +380,8 @@ func (g *Graph) BeaconWithStaticInfo(ifids []common.IFIDType) *seg.PathSegment {
 		}
 		sort.Ints(ifids)
 
-		asEntry.Exts.StaticInfo = seg.InitializeStaticInfo()
-		s := asEntry.Exts.StaticInfo
+		s := &seg.StaticInfoExtn{}
+		asEntry.Exts.StaticInfo = s
 		s.Geo.Locations = append(s.Geo.Locations, seg.Location{
 			GPSData: seg.Coordinates{
 				Latitude:  float32(currIA.IAInt()),
@@ -412,9 +412,9 @@ func (g *Graph) BeaconWithStaticInfo(ifids []common.IFIDType) *seg.PathSegment {
 					RawHopField: b,
 				}
 				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
-				s.AppendIfIDToSIForTesting(true, peeringLocalIF, outIF)
+				AppendIfIDToSIForTesting(s,true, peeringLocalIF, outIF)
 			} else {
-				s.AppendIfIDToSIForTesting(false, peeringLocalIF, outIF)
+				AppendIfIDToSIForTesting(s, false, peeringLocalIF, outIF)
 			}
 		}
 		s.Note = "asdf"
@@ -525,4 +525,41 @@ type EdgeDesc struct {
 
 func NewDefaultGraph(ctrl *gomock.Controller) *Graph {
 	return NewFromDescription(ctrl, DefaultGraphDescription)
+}
+
+func AppendIfIDToSIForTesting(s *seg.StaticInfoExtn, peer bool, ifID, egifID common.IFIDType){
+	if peer {
+		s.Latency.Peerlatencies = append(s.Latency.Peerlatencies, seg.PeerLatency{
+			Interdelay: uint16(ifID),
+			IntraDelay: uint16(ifID),
+			IfID:       ifID,
+		})
+		s.Linktype.Peerlinks = append(s.Linktype.Peerlinks, seg.InterfaceLinkType{
+			IfID:     ifID,
+			LinkType: uint16(ifID) % 3,
+		})
+	} else {
+		s.Latency.Childlatencies = append(s.Latency.Childlatencies, seg.ChildLatency{
+			Intradelay: uint16(ifID),
+			IfID:       ifID,
+		})
+	}
+	s.Bandwidth.Bandwidths = append(s.Bandwidth.Bandwidths, seg.InterfaceBandwidth{
+		BW:   uint32(ifID),
+		IfID: ifID,
+	})
+	s.Hops.InterfaceHops = append(s.Hops.InterfaceHops, seg.InterfaceHops{
+		Hops: uint8(ifID),
+		IfID: ifID,
+	})
+
+	if ifID == egifID {
+		s.Geo.Locations[0].IfIDs = append(s.Geo.Locations[0].IfIDs, ifID)
+		s.Latency.IngressToEgressLatency = uint16(egifID)
+		s.Latency.Egresslatency = uint16(egifID)
+		s.Linktype.EgressLinkType = uint16(egifID) % 3
+		s.Bandwidth.EgressBW = uint32(egifID)
+		s.Bandwidth.IngressToEgressBW = uint32(egifID)
+		s.Hops.InToOutHops = uint8(egifID)
+	}
 }

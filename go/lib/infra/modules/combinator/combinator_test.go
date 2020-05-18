@@ -555,7 +555,7 @@ func writePaths(paths []*Path) *bytes.Buffer {
 	return buffer
 }
 
-func TestASEntryList_CombineSegments(t *testing.T) {
+func TestCombineSegments(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
