@@ -412,7 +412,7 @@ func (g *Graph) BeaconWithStaticInfo(ifids []common.IFIDType) *seg.PathSegment {
 					RawHopField: b,
 				}
 				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
-				AppendIfIDToSIForTesting(s,true, peeringLocalIF, outIF)
+				AppendIfIDToSIForTesting(s, true, peeringLocalIF, outIF)
 			} else {
 				AppendIfIDToSIForTesting(s, false, peeringLocalIF, outIF)
 			}
@@ -527,7 +527,7 @@ func NewDefaultGraph(ctrl *gomock.Controller) *Graph {
 	return NewFromDescription(ctrl, DefaultGraphDescription)
 }
 
-func AppendIfIDToSIForTesting(s *seg.StaticInfoExtn, peer bool, ifID, egifID common.IFIDType){
+func AppendIfIDToSIForTesting(s *seg.StaticInfoExtn, peer bool, ifID, egifID common.IFIDType) {
 	if peer {
 		s.Latency.Peerlatencies = append(s.Latency.Peerlatencies, seg.PeerLatency{
 			Interdelay: uint16(ifID),

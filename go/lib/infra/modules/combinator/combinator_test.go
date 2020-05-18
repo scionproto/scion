@@ -560,7 +560,7 @@ func TestCombineSegments(t *testing.T) {
 	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
 
-	testCases := map[string]struct{
+	testCases := map[string]struct {
 		FileName          string
 		SrcIA             addr.IA
 		DstIA             addr.IA
@@ -791,7 +791,7 @@ func TestCombineSegments(t *testing.T) {
 				},
 			},
 		},
-		"#11 shortcut, destination on path, going up, vonly hf is from core":{
+		"#11 shortcut, destination on path, going up, vonly hf is from core": {
 			FileName: "11_compute_path.txt",
 			SrcIA:    xtest.MustParseIA("1-ff00:0:133"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:131"),
@@ -854,7 +854,7 @@ func TestCombineSegments(t *testing.T) {
 				},
 			},
 		},
-		"#14 shortcut, common upstream":{
+		"#14 shortcut, common upstream": {
 			FileName: "14_compute_path.txt",
 			SrcIA:    xtest.MustParseIA("2-ff00:0:212"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:222"),
