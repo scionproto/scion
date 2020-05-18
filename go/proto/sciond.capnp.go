@@ -874,9 +874,9 @@ func (s PathReplyEntry) NewHostInfo() (HostInfo, error) {
 	return ss, err
 }
 
-func (s PathReplyEntry) PathStaticInfo() (DenseStaticInfo, error) {
+func (s PathReplyEntry) PathStaticInfo() (PathMetadata, error) {
 	p, err := s.Struct.Ptr(2)
-	return DenseStaticInfo{Struct: p.Struct()}, err
+	return PathMetadata{Struct: p.Struct()}, err
 }
 
 func (s PathReplyEntry) HasPathStaticInfo() bool {
@@ -884,16 +884,16 @@ func (s PathReplyEntry) HasPathStaticInfo() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s PathReplyEntry) SetPathStaticInfo(v DenseStaticInfo) error {
+func (s PathReplyEntry) SetPathStaticInfo(v PathMetadata) error {
 	return s.Struct.SetPtr(2, v.Struct.ToPtr())
 }
 
 // NewPathStaticInfo sets the pathStaticInfo field to a newly
-// allocated DenseStaticInfo struct, preferring placement in s's segment.
-func (s PathReplyEntry) NewPathStaticInfo() (DenseStaticInfo, error) {
-	ss, err := NewDenseStaticInfo(s.Struct.Segment())
+// allocated PathMetadata struct, preferring placement in s's segment.
+func (s PathReplyEntry) NewPathStaticInfo() (PathMetadata, error) {
+	ss, err := NewPathMetadata(s.Struct.Segment())
 	if err != nil {
-		return DenseStaticInfo{}, err
+		return PathMetadata{}, err
 	}
 	err = s.Struct.SetPtr(2, ss.Struct.ToPtr())
 	return ss, err
@@ -933,8 +933,8 @@ func (p PathReplyEntry_Promise) HostInfo() HostInfo_Promise {
 	return HostInfo_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
-func (p PathReplyEntry_Promise) PathStaticInfo() DenseStaticInfo_Promise {
-	return DenseStaticInfo_Promise{Pipeline: p.Pipeline.GetPipeline(2)}
+func (p PathReplyEntry_Promise) PathStaticInfo() PathMetadata_Promise {
+	return PathMetadata_Promise{Pipeline: p.Pipeline.GetPipeline(2)}
 }
 
 type HostInfo struct{ capnp.Struct }
@@ -1037,495 +1037,491 @@ func (p HostInfo_addrs_Promise) Struct() (HostInfo_addrs, error) {
 	return HostInfo_addrs{s}, err
 }
 
-type DenseStaticInfo struct{ capnp.Struct }
+type PathMetadata struct{ capnp.Struct }
 
-// DenseStaticInfo_TypeID is the unique identifier for the type DenseStaticInfo.
-const DenseStaticInfo_TypeID = 0xc45bc9086b311df8
+// PathMetadata_TypeID is the unique identifier for the type PathMetadata.
+const PathMetadata_TypeID = 0xa5cff7314a4335e5
 
-func NewDenseStaticInfo(s *capnp.Segment) (DenseStaticInfo, error) {
+func NewPathMetadata(s *capnp.Segment) (PathMetadata, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
-	return DenseStaticInfo{st}, err
+	return PathMetadata{st}, err
 }
 
-func NewRootDenseStaticInfo(s *capnp.Segment) (DenseStaticInfo, error) {
+func NewRootPathMetadata(s *capnp.Segment) (PathMetadata, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
-	return DenseStaticInfo{st}, err
+	return PathMetadata{st}, err
 }
 
-func ReadRootDenseStaticInfo(msg *capnp.Message) (DenseStaticInfo, error) {
+func ReadRootPathMetadata(msg *capnp.Message) (PathMetadata, error) {
 	root, err := msg.RootPtr()
-	return DenseStaticInfo{root.Struct()}, err
+	return PathMetadata{root.Struct()}, err
 }
 
-func (s DenseStaticInfo) String() string {
-	str, _ := text.Marshal(0xc45bc9086b311df8, s.Struct)
+func (s PathMetadata) String() string {
+	str, _ := text.Marshal(0xa5cff7314a4335e5, s.Struct)
 	return str
 }
 
-func (s DenseStaticInfo) TotalLatency() uint16 {
+func (s PathMetadata) TotalLatency() uint16 {
 	return s.Struct.Uint16(0)
 }
 
-func (s DenseStaticInfo) SetTotalLatency(v uint16) {
+func (s PathMetadata) SetTotalLatency(v uint16) {
 	s.Struct.SetUint16(0, v)
 }
 
-func (s DenseStaticInfo) TotalHops() uint8 {
+func (s PathMetadata) TotalHops() uint8 {
 	return s.Struct.Uint8(2)
 }
 
-func (s DenseStaticInfo) SetTotalHops(v uint8) {
+func (s PathMetadata) SetTotalHops(v uint8) {
 	s.Struct.SetUint8(2, v)
 }
 
-func (s DenseStaticInfo) BandwidthBottleneck() uint32 {
+func (s PathMetadata) BandwidthBottleneck() uint32 {
 	return s.Struct.Uint32(4)
 }
 
-func (s DenseStaticInfo) SetBandwidthBottleneck(v uint32) {
+func (s PathMetadata) SetBandwidthBottleneck(v uint32) {
 	s.Struct.SetUint32(4, v)
 }
 
-func (s DenseStaticInfo) LinkTypes() (DenseStaticInfo_InterfaceLinkType_List, error) {
+func (s PathMetadata) LinkTypes() (PathMetadata_InterfaceLinkType_List, error) {
 	p, err := s.Struct.Ptr(0)
-	return DenseStaticInfo_InterfaceLinkType_List{List: p.List()}, err
+	return PathMetadata_InterfaceLinkType_List{List: p.List()}, err
 }
 
-func (s DenseStaticInfo) HasLinkTypes() bool {
+func (s PathMetadata) HasLinkTypes() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s DenseStaticInfo) SetLinkTypes(v DenseStaticInfo_InterfaceLinkType_List) error {
+func (s PathMetadata) SetLinkTypes(v PathMetadata_InterfaceLinkType_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // NewLinkTypes sets the linkTypes field to a newly
-// allocated DenseStaticInfo_InterfaceLinkType_List, preferring placement in s's segment.
-func (s DenseStaticInfo) NewLinkTypes(n int32) (DenseStaticInfo_InterfaceLinkType_List, error) {
-	l, err := NewDenseStaticInfo_InterfaceLinkType_List(s.Struct.Segment(), n)
+// allocated PathMetadata_InterfaceLinkType_List, preferring placement in s's segment.
+func (s PathMetadata) NewLinkTypes(n int32) (PathMetadata_InterfaceLinkType_List, error) {
+	l, err := NewPathMetadata_InterfaceLinkType_List(s.Struct.Segment(), n)
 	if err != nil {
-		return DenseStaticInfo_InterfaceLinkType_List{}, err
+		return PathMetadata_InterfaceLinkType_List{}, err
 	}
 	err = s.Struct.SetPtr(0, l.List.ToPtr())
 	return l, err
 }
 
-func (s DenseStaticInfo) AsLocations() (DenseStaticInfo_Geo_List, error) {
+func (s PathMetadata) AsLocations() (PathMetadata_Geo_List, error) {
 	p, err := s.Struct.Ptr(1)
-	return DenseStaticInfo_Geo_List{List: p.List()}, err
+	return PathMetadata_Geo_List{List: p.List()}, err
 }
 
-func (s DenseStaticInfo) HasAsLocations() bool {
+func (s PathMetadata) HasAsLocations() bool {
 	p, err := s.Struct.Ptr(1)
 	return p.IsValid() || err != nil
 }
 
-func (s DenseStaticInfo) SetAsLocations(v DenseStaticInfo_Geo_List) error {
+func (s PathMetadata) SetAsLocations(v PathMetadata_Geo_List) error {
 	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
 // NewAsLocations sets the asLocations field to a newly
-// allocated DenseStaticInfo_Geo_List, preferring placement in s's segment.
-func (s DenseStaticInfo) NewAsLocations(n int32) (DenseStaticInfo_Geo_List, error) {
-	l, err := NewDenseStaticInfo_Geo_List(s.Struct.Segment(), n)
+// allocated PathMetadata_Geo_List, preferring placement in s's segment.
+func (s PathMetadata) NewAsLocations(n int32) (PathMetadata_Geo_List, error) {
+	l, err := NewPathMetadata_Geo_List(s.Struct.Segment(), n)
 	if err != nil {
-		return DenseStaticInfo_Geo_List{}, err
+		return PathMetadata_Geo_List{}, err
 	}
 	err = s.Struct.SetPtr(1, l.List.ToPtr())
 	return l, err
 }
 
-func (s DenseStaticInfo) Notes() (DenseStaticInfo_Note_List, error) {
+func (s PathMetadata) Notes() (PathMetadata_Note_List, error) {
 	p, err := s.Struct.Ptr(2)
-	return DenseStaticInfo_Note_List{List: p.List()}, err
+	return PathMetadata_Note_List{List: p.List()}, err
 }
 
-func (s DenseStaticInfo) HasNotes() bool {
+func (s PathMetadata) HasNotes() bool {
 	p, err := s.Struct.Ptr(2)
 	return p.IsValid() || err != nil
 }
 
-func (s DenseStaticInfo) SetNotes(v DenseStaticInfo_Note_List) error {
+func (s PathMetadata) SetNotes(v PathMetadata_Note_List) error {
 	return s.Struct.SetPtr(2, v.List.ToPtr())
 }
 
 // NewNotes sets the notes field to a newly
-// allocated DenseStaticInfo_Note_List, preferring placement in s's segment.
-func (s DenseStaticInfo) NewNotes(n int32) (DenseStaticInfo_Note_List, error) {
-	l, err := NewDenseStaticInfo_Note_List(s.Struct.Segment(), n)
+// allocated PathMetadata_Note_List, preferring placement in s's segment.
+func (s PathMetadata) NewNotes(n int32) (PathMetadata_Note_List, error) {
+	l, err := NewPathMetadata_Note_List(s.Struct.Segment(), n)
 	if err != nil {
-		return DenseStaticInfo_Note_List{}, err
+		return PathMetadata_Note_List{}, err
 	}
 	err = s.Struct.SetPtr(2, l.List.ToPtr())
 	return l, err
 }
 
-// DenseStaticInfo_List is a list of DenseStaticInfo.
-type DenseStaticInfo_List struct{ capnp.List }
+// PathMetadata_List is a list of PathMetadata.
+type PathMetadata_List struct{ capnp.List }
 
-// NewDenseStaticInfo creates a new list of DenseStaticInfo.
-func NewDenseStaticInfo_List(s *capnp.Segment, sz int32) (DenseStaticInfo_List, error) {
+// NewPathMetadata creates a new list of PathMetadata.
+func NewPathMetadata_List(s *capnp.Segment, sz int32) (PathMetadata_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3}, sz)
-	return DenseStaticInfo_List{l}, err
+	return PathMetadata_List{l}, err
 }
 
-func (s DenseStaticInfo_List) At(i int) DenseStaticInfo { return DenseStaticInfo{s.List.Struct(i)} }
+func (s PathMetadata_List) At(i int) PathMetadata { return PathMetadata{s.List.Struct(i)} }
 
-func (s DenseStaticInfo_List) Set(i int, v DenseStaticInfo) error {
-	return s.List.SetStruct(i, v.Struct)
-}
+func (s PathMetadata_List) Set(i int, v PathMetadata) error { return s.List.SetStruct(i, v.Struct) }
 
-func (s DenseStaticInfo_List) String() string {
-	str, _ := text.MarshalList(0xc45bc9086b311df8, s.List)
+func (s PathMetadata_List) String() string {
+	str, _ := text.MarshalList(0xa5cff7314a4335e5, s.List)
 	return str
 }
 
-// DenseStaticInfo_Promise is a wrapper for a DenseStaticInfo promised by a client call.
-type DenseStaticInfo_Promise struct{ *capnp.Pipeline }
+// PathMetadata_Promise is a wrapper for a PathMetadata promised by a client call.
+type PathMetadata_Promise struct{ *capnp.Pipeline }
 
-func (p DenseStaticInfo_Promise) Struct() (DenseStaticInfo, error) {
+func (p PathMetadata_Promise) Struct() (PathMetadata, error) {
 	s, err := p.Pipeline.Struct()
-	return DenseStaticInfo{s}, err
+	return PathMetadata{s}, err
 }
 
-type DenseStaticInfo_InterfaceLinkType struct{ capnp.Struct }
+type PathMetadata_InterfaceLinkType struct{ capnp.Struct }
 
-// DenseStaticInfo_InterfaceLinkType_TypeID is the unique identifier for the type DenseStaticInfo_InterfaceLinkType.
-const DenseStaticInfo_InterfaceLinkType_TypeID = 0xf7d46cc9041c4b68
+// PathMetadata_InterfaceLinkType_TypeID is the unique identifier for the type PathMetadata_InterfaceLinkType.
+const PathMetadata_InterfaceLinkType_TypeID = 0xd7c92876b75c115d
 
-func NewDenseStaticInfo_InterfaceLinkType(s *capnp.Segment) (DenseStaticInfo_InterfaceLinkType, error) {
+func NewPathMetadata_InterfaceLinkType(s *capnp.Segment) (PathMetadata_InterfaceLinkType, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
-	return DenseStaticInfo_InterfaceLinkType{st}, err
+	return PathMetadata_InterfaceLinkType{st}, err
 }
 
-func NewRootDenseStaticInfo_InterfaceLinkType(s *capnp.Segment) (DenseStaticInfo_InterfaceLinkType, error) {
+func NewRootPathMetadata_InterfaceLinkType(s *capnp.Segment) (PathMetadata_InterfaceLinkType, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
-	return DenseStaticInfo_InterfaceLinkType{st}, err
+	return PathMetadata_InterfaceLinkType{st}, err
 }
 
-func ReadRootDenseStaticInfo_InterfaceLinkType(msg *capnp.Message) (DenseStaticInfo_InterfaceLinkType, error) {
+func ReadRootPathMetadata_InterfaceLinkType(msg *capnp.Message) (PathMetadata_InterfaceLinkType, error) {
 	root, err := msg.RootPtr()
-	return DenseStaticInfo_InterfaceLinkType{root.Struct()}, err
+	return PathMetadata_InterfaceLinkType{root.Struct()}, err
 }
 
-func (s DenseStaticInfo_InterfaceLinkType) String() string {
-	str, _ := text.Marshal(0xf7d46cc9041c4b68, s.Struct)
+func (s PathMetadata_InterfaceLinkType) String() string {
+	str, _ := text.Marshal(0xd7c92876b75c115d, s.Struct)
 	return str
 }
 
-func (s DenseStaticInfo_InterfaceLinkType) InterLinkType() uint16 {
+func (s PathMetadata_InterfaceLinkType) InterLinkType() uint16 {
 	return s.Struct.Uint16(0)
 }
 
-func (s DenseStaticInfo_InterfaceLinkType) SetInterLinkType(v uint16) {
+func (s PathMetadata_InterfaceLinkType) SetInterLinkType(v uint16) {
 	s.Struct.SetUint16(0, v)
 }
 
-func (s DenseStaticInfo_InterfaceLinkType) PeerLinkType() uint16 {
+func (s PathMetadata_InterfaceLinkType) PeerLinkType() uint16 {
 	return s.Struct.Uint16(2)
 }
 
-func (s DenseStaticInfo_InterfaceLinkType) SetPeerLinkType(v uint16) {
+func (s PathMetadata_InterfaceLinkType) SetPeerLinkType(v uint16) {
 	s.Struct.SetUint16(2, v)
 }
 
-func (s DenseStaticInfo_InterfaceLinkType) Isdas() uint64 {
+func (s PathMetadata_InterfaceLinkType) Isdas() uint64 {
 	return s.Struct.Uint64(8)
 }
 
-func (s DenseStaticInfo_InterfaceLinkType) SetIsdas(v uint64) {
+func (s PathMetadata_InterfaceLinkType) SetIsdas(v uint64) {
 	s.Struct.SetUint64(8, v)
 }
 
-// DenseStaticInfo_InterfaceLinkType_List is a list of DenseStaticInfo_InterfaceLinkType.
-type DenseStaticInfo_InterfaceLinkType_List struct{ capnp.List }
+// PathMetadata_InterfaceLinkType_List is a list of PathMetadata_InterfaceLinkType.
+type PathMetadata_InterfaceLinkType_List struct{ capnp.List }
 
-// NewDenseStaticInfo_InterfaceLinkType creates a new list of DenseStaticInfo_InterfaceLinkType.
-func NewDenseStaticInfo_InterfaceLinkType_List(s *capnp.Segment, sz int32) (DenseStaticInfo_InterfaceLinkType_List, error) {
+// NewPathMetadata_InterfaceLinkType creates a new list of PathMetadata_InterfaceLinkType.
+func NewPathMetadata_InterfaceLinkType_List(s *capnp.Segment, sz int32) (PathMetadata_InterfaceLinkType_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
-	return DenseStaticInfo_InterfaceLinkType_List{l}, err
+	return PathMetadata_InterfaceLinkType_List{l}, err
 }
 
-func (s DenseStaticInfo_InterfaceLinkType_List) At(i int) DenseStaticInfo_InterfaceLinkType {
-	return DenseStaticInfo_InterfaceLinkType{s.List.Struct(i)}
+func (s PathMetadata_InterfaceLinkType_List) At(i int) PathMetadata_InterfaceLinkType {
+	return PathMetadata_InterfaceLinkType{s.List.Struct(i)}
 }
 
-func (s DenseStaticInfo_InterfaceLinkType_List) Set(i int, v DenseStaticInfo_InterfaceLinkType) error {
+func (s PathMetadata_InterfaceLinkType_List) Set(i int, v PathMetadata_InterfaceLinkType) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-func (s DenseStaticInfo_InterfaceLinkType_List) String() string {
-	str, _ := text.MarshalList(0xf7d46cc9041c4b68, s.List)
+func (s PathMetadata_InterfaceLinkType_List) String() string {
+	str, _ := text.MarshalList(0xd7c92876b75c115d, s.List)
 	return str
 }
 
-// DenseStaticInfo_InterfaceLinkType_Promise is a wrapper for a DenseStaticInfo_InterfaceLinkType promised by a client call.
-type DenseStaticInfo_InterfaceLinkType_Promise struct{ *capnp.Pipeline }
+// PathMetadata_InterfaceLinkType_Promise is a wrapper for a PathMetadata_InterfaceLinkType promised by a client call.
+type PathMetadata_InterfaceLinkType_Promise struct{ *capnp.Pipeline }
 
-func (p DenseStaticInfo_InterfaceLinkType_Promise) Struct() (DenseStaticInfo_InterfaceLinkType, error) {
+func (p PathMetadata_InterfaceLinkType_Promise) Struct() (PathMetadata_InterfaceLinkType, error) {
 	s, err := p.Pipeline.Struct()
-	return DenseStaticInfo_InterfaceLinkType{s}, err
+	return PathMetadata_InterfaceLinkType{s}, err
 }
 
-type DenseStaticInfo_Geo struct{ capnp.Struct }
+type PathMetadata_Geo struct{ capnp.Struct }
 
-// DenseStaticInfo_Geo_TypeID is the unique identifier for the type DenseStaticInfo_Geo.
-const DenseStaticInfo_Geo_TypeID = 0xea68d6bee0062b5f
+// PathMetadata_Geo_TypeID is the unique identifier for the type PathMetadata_Geo.
+const PathMetadata_Geo_TypeID = 0xb47c95e958cccfff
 
-func NewDenseStaticInfo_Geo(s *capnp.Segment) (DenseStaticInfo_Geo, error) {
+func NewPathMetadata_Geo(s *capnp.Segment) (PathMetadata_Geo, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	return DenseStaticInfo_Geo{st}, err
+	return PathMetadata_Geo{st}, err
 }
 
-func NewRootDenseStaticInfo_Geo(s *capnp.Segment) (DenseStaticInfo_Geo, error) {
+func NewRootPathMetadata_Geo(s *capnp.Segment) (PathMetadata_Geo, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	return DenseStaticInfo_Geo{st}, err
+	return PathMetadata_Geo{st}, err
 }
 
-func ReadRootDenseStaticInfo_Geo(msg *capnp.Message) (DenseStaticInfo_Geo, error) {
+func ReadRootPathMetadata_Geo(msg *capnp.Message) (PathMetadata_Geo, error) {
 	root, err := msg.RootPtr()
-	return DenseStaticInfo_Geo{root.Struct()}, err
+	return PathMetadata_Geo{root.Struct()}, err
 }
 
-func (s DenseStaticInfo_Geo) String() string {
-	str, _ := text.Marshal(0xea68d6bee0062b5f, s.Struct)
+func (s PathMetadata_Geo) String() string {
+	str, _ := text.Marshal(0xb47c95e958cccfff, s.Struct)
 	return str
 }
 
-func (s DenseStaticInfo_Geo) RouterLocations() (DenseStaticInfo_Geo_GPSData_List, error) {
+func (s PathMetadata_Geo) RouterLocations() (PathMetadata_Geo_GPSData_List, error) {
 	p, err := s.Struct.Ptr(0)
-	return DenseStaticInfo_Geo_GPSData_List{List: p.List()}, err
+	return PathMetadata_Geo_GPSData_List{List: p.List()}, err
 }
 
-func (s DenseStaticInfo_Geo) HasRouterLocations() bool {
+func (s PathMetadata_Geo) HasRouterLocations() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s DenseStaticInfo_Geo) SetRouterLocations(v DenseStaticInfo_Geo_GPSData_List) error {
+func (s PathMetadata_Geo) SetRouterLocations(v PathMetadata_Geo_GPSData_List) error {
 	return s.Struct.SetPtr(0, v.List.ToPtr())
 }
 
 // NewRouterLocations sets the routerLocations field to a newly
-// allocated DenseStaticInfo_Geo_GPSData_List, preferring placement in s's segment.
-func (s DenseStaticInfo_Geo) NewRouterLocations(n int32) (DenseStaticInfo_Geo_GPSData_List, error) {
-	l, err := NewDenseStaticInfo_Geo_GPSData_List(s.Struct.Segment(), n)
+// allocated PathMetadata_Geo_GPSData_List, preferring placement in s's segment.
+func (s PathMetadata_Geo) NewRouterLocations(n int32) (PathMetadata_Geo_GPSData_List, error) {
+	l, err := NewPathMetadata_Geo_GPSData_List(s.Struct.Segment(), n)
 	if err != nil {
-		return DenseStaticInfo_Geo_GPSData_List{}, err
+		return PathMetadata_Geo_GPSData_List{}, err
 	}
 	err = s.Struct.SetPtr(0, l.List.ToPtr())
 	return l, err
 }
 
-func (s DenseStaticInfo_Geo) Isdas() uint64 {
+func (s PathMetadata_Geo) Isdas() uint64 {
 	return s.Struct.Uint64(0)
 }
 
-func (s DenseStaticInfo_Geo) SetIsdas(v uint64) {
+func (s PathMetadata_Geo) SetIsdas(v uint64) {
 	s.Struct.SetUint64(0, v)
 }
 
-// DenseStaticInfo_Geo_List is a list of DenseStaticInfo_Geo.
-type DenseStaticInfo_Geo_List struct{ capnp.List }
+// PathMetadata_Geo_List is a list of PathMetadata_Geo.
+type PathMetadata_Geo_List struct{ capnp.List }
 
-// NewDenseStaticInfo_Geo creates a new list of DenseStaticInfo_Geo.
-func NewDenseStaticInfo_Geo_List(s *capnp.Segment, sz int32) (DenseStaticInfo_Geo_List, error) {
+// NewPathMetadata_Geo creates a new list of PathMetadata_Geo.
+func NewPathMetadata_Geo_List(s *capnp.Segment, sz int32) (PathMetadata_Geo_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return DenseStaticInfo_Geo_List{l}, err
+	return PathMetadata_Geo_List{l}, err
 }
 
-func (s DenseStaticInfo_Geo_List) At(i int) DenseStaticInfo_Geo {
-	return DenseStaticInfo_Geo{s.List.Struct(i)}
-}
+func (s PathMetadata_Geo_List) At(i int) PathMetadata_Geo { return PathMetadata_Geo{s.List.Struct(i)} }
 
-func (s DenseStaticInfo_Geo_List) Set(i int, v DenseStaticInfo_Geo) error {
+func (s PathMetadata_Geo_List) Set(i int, v PathMetadata_Geo) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-func (s DenseStaticInfo_Geo_List) String() string {
-	str, _ := text.MarshalList(0xea68d6bee0062b5f, s.List)
+func (s PathMetadata_Geo_List) String() string {
+	str, _ := text.MarshalList(0xb47c95e958cccfff, s.List)
 	return str
 }
 
-// DenseStaticInfo_Geo_Promise is a wrapper for a DenseStaticInfo_Geo promised by a client call.
-type DenseStaticInfo_Geo_Promise struct{ *capnp.Pipeline }
+// PathMetadata_Geo_Promise is a wrapper for a PathMetadata_Geo promised by a client call.
+type PathMetadata_Geo_Promise struct{ *capnp.Pipeline }
 
-func (p DenseStaticInfo_Geo_Promise) Struct() (DenseStaticInfo_Geo, error) {
+func (p PathMetadata_Geo_Promise) Struct() (PathMetadata_Geo, error) {
 	s, err := p.Pipeline.Struct()
-	return DenseStaticInfo_Geo{s}, err
+	return PathMetadata_Geo{s}, err
 }
 
-type DenseStaticInfo_Geo_GPSData struct{ capnp.Struct }
+type PathMetadata_Geo_GPSData struct{ capnp.Struct }
 
-// DenseStaticInfo_Geo_GPSData_TypeID is the unique identifier for the type DenseStaticInfo_Geo_GPSData.
-const DenseStaticInfo_Geo_GPSData_TypeID = 0xb1d0acf125e5aea8
+// PathMetadata_Geo_GPSData_TypeID is the unique identifier for the type PathMetadata_Geo_GPSData.
+const PathMetadata_Geo_GPSData_TypeID = 0xb7cede732308e432
 
-func NewDenseStaticInfo_Geo_GPSData(s *capnp.Segment) (DenseStaticInfo_Geo_GPSData, error) {
+func NewPathMetadata_Geo_GPSData(s *capnp.Segment) (PathMetadata_Geo_GPSData, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	return DenseStaticInfo_Geo_GPSData{st}, err
+	return PathMetadata_Geo_GPSData{st}, err
 }
 
-func NewRootDenseStaticInfo_Geo_GPSData(s *capnp.Segment) (DenseStaticInfo_Geo_GPSData, error) {
+func NewRootPathMetadata_Geo_GPSData(s *capnp.Segment) (PathMetadata_Geo_GPSData, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	return DenseStaticInfo_Geo_GPSData{st}, err
+	return PathMetadata_Geo_GPSData{st}, err
 }
 
-func ReadRootDenseStaticInfo_Geo_GPSData(msg *capnp.Message) (DenseStaticInfo_Geo_GPSData, error) {
+func ReadRootPathMetadata_Geo_GPSData(msg *capnp.Message) (PathMetadata_Geo_GPSData, error) {
 	root, err := msg.RootPtr()
-	return DenseStaticInfo_Geo_GPSData{root.Struct()}, err
+	return PathMetadata_Geo_GPSData{root.Struct()}, err
 }
 
-func (s DenseStaticInfo_Geo_GPSData) String() string {
-	str, _ := text.Marshal(0xb1d0acf125e5aea8, s.Struct)
+func (s PathMetadata_Geo_GPSData) String() string {
+	str, _ := text.Marshal(0xb7cede732308e432, s.Struct)
 	return str
 }
 
-func (s DenseStaticInfo_Geo_GPSData) Latitude() float32 {
+func (s PathMetadata_Geo_GPSData) Latitude() float32 {
 	return math.Float32frombits(s.Struct.Uint32(0))
 }
 
-func (s DenseStaticInfo_Geo_GPSData) SetLatitude(v float32) {
+func (s PathMetadata_Geo_GPSData) SetLatitude(v float32) {
 	s.Struct.SetUint32(0, math.Float32bits(v))
 }
 
-func (s DenseStaticInfo_Geo_GPSData) Longitude() float32 {
+func (s PathMetadata_Geo_GPSData) Longitude() float32 {
 	return math.Float32frombits(s.Struct.Uint32(4))
 }
 
-func (s DenseStaticInfo_Geo_GPSData) SetLongitude(v float32) {
+func (s PathMetadata_Geo_GPSData) SetLongitude(v float32) {
 	s.Struct.SetUint32(4, math.Float32bits(v))
 }
 
-func (s DenseStaticInfo_Geo_GPSData) Address() (string, error) {
+func (s PathMetadata_Geo_GPSData) Address() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
 }
 
-func (s DenseStaticInfo_Geo_GPSData) HasAddress() bool {
+func (s PathMetadata_Geo_GPSData) HasAddress() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s DenseStaticInfo_Geo_GPSData) AddressBytes() ([]byte, error) {
+func (s PathMetadata_Geo_GPSData) AddressBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.TextBytes(), err
 }
 
-func (s DenseStaticInfo_Geo_GPSData) SetAddress(v string) error {
+func (s PathMetadata_Geo_GPSData) SetAddress(v string) error {
 	return s.Struct.SetText(0, v)
 }
 
-// DenseStaticInfo_Geo_GPSData_List is a list of DenseStaticInfo_Geo_GPSData.
-type DenseStaticInfo_Geo_GPSData_List struct{ capnp.List }
+// PathMetadata_Geo_GPSData_List is a list of PathMetadata_Geo_GPSData.
+type PathMetadata_Geo_GPSData_List struct{ capnp.List }
 
-// NewDenseStaticInfo_Geo_GPSData creates a new list of DenseStaticInfo_Geo_GPSData.
-func NewDenseStaticInfo_Geo_GPSData_List(s *capnp.Segment, sz int32) (DenseStaticInfo_Geo_GPSData_List, error) {
+// NewPathMetadata_Geo_GPSData creates a new list of PathMetadata_Geo_GPSData.
+func NewPathMetadata_Geo_GPSData_List(s *capnp.Segment, sz int32) (PathMetadata_Geo_GPSData_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return DenseStaticInfo_Geo_GPSData_List{l}, err
+	return PathMetadata_Geo_GPSData_List{l}, err
 }
 
-func (s DenseStaticInfo_Geo_GPSData_List) At(i int) DenseStaticInfo_Geo_GPSData {
-	return DenseStaticInfo_Geo_GPSData{s.List.Struct(i)}
+func (s PathMetadata_Geo_GPSData_List) At(i int) PathMetadata_Geo_GPSData {
+	return PathMetadata_Geo_GPSData{s.List.Struct(i)}
 }
 
-func (s DenseStaticInfo_Geo_GPSData_List) Set(i int, v DenseStaticInfo_Geo_GPSData) error {
+func (s PathMetadata_Geo_GPSData_List) Set(i int, v PathMetadata_Geo_GPSData) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-func (s DenseStaticInfo_Geo_GPSData_List) String() string {
-	str, _ := text.MarshalList(0xb1d0acf125e5aea8, s.List)
+func (s PathMetadata_Geo_GPSData_List) String() string {
+	str, _ := text.MarshalList(0xb7cede732308e432, s.List)
 	return str
 }
 
-// DenseStaticInfo_Geo_GPSData_Promise is a wrapper for a DenseStaticInfo_Geo_GPSData promised by a client call.
-type DenseStaticInfo_Geo_GPSData_Promise struct{ *capnp.Pipeline }
+// PathMetadata_Geo_GPSData_Promise is a wrapper for a PathMetadata_Geo_GPSData promised by a client call.
+type PathMetadata_Geo_GPSData_Promise struct{ *capnp.Pipeline }
 
-func (p DenseStaticInfo_Geo_GPSData_Promise) Struct() (DenseStaticInfo_Geo_GPSData, error) {
+func (p PathMetadata_Geo_GPSData_Promise) Struct() (PathMetadata_Geo_GPSData, error) {
 	s, err := p.Pipeline.Struct()
-	return DenseStaticInfo_Geo_GPSData{s}, err
+	return PathMetadata_Geo_GPSData{s}, err
 }
 
-type DenseStaticInfo_Note struct{ capnp.Struct }
+type PathMetadata_Note struct{ capnp.Struct }
 
-// DenseStaticInfo_Note_TypeID is the unique identifier for the type DenseStaticInfo_Note.
-const DenseStaticInfo_Note_TypeID = 0xf268211f3beb07b6
+// PathMetadata_Note_TypeID is the unique identifier for the type PathMetadata_Note.
+const PathMetadata_Note_TypeID = 0x88b4277fa83dde2d
 
-func NewDenseStaticInfo_Note(s *capnp.Segment) (DenseStaticInfo_Note, error) {
+func NewPathMetadata_Note(s *capnp.Segment) (PathMetadata_Note, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	return DenseStaticInfo_Note{st}, err
+	return PathMetadata_Note{st}, err
 }
 
-func NewRootDenseStaticInfo_Note(s *capnp.Segment) (DenseStaticInfo_Note, error) {
+func NewRootPathMetadata_Note(s *capnp.Segment) (PathMetadata_Note, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
-	return DenseStaticInfo_Note{st}, err
+	return PathMetadata_Note{st}, err
 }
 
-func ReadRootDenseStaticInfo_Note(msg *capnp.Message) (DenseStaticInfo_Note, error) {
+func ReadRootPathMetadata_Note(msg *capnp.Message) (PathMetadata_Note, error) {
 	root, err := msg.RootPtr()
-	return DenseStaticInfo_Note{root.Struct()}, err
+	return PathMetadata_Note{root.Struct()}, err
 }
 
-func (s DenseStaticInfo_Note) String() string {
-	str, _ := text.Marshal(0xf268211f3beb07b6, s.Struct)
+func (s PathMetadata_Note) String() string {
+	str, _ := text.Marshal(0x88b4277fa83dde2d, s.Struct)
 	return str
 }
 
-func (s DenseStaticInfo_Note) Note() (string, error) {
+func (s PathMetadata_Note) Note() (string, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
 }
 
-func (s DenseStaticInfo_Note) HasNote() bool {
+func (s PathMetadata_Note) HasNote() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s DenseStaticInfo_Note) NoteBytes() ([]byte, error) {
+func (s PathMetadata_Note) NoteBytes() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	return p.TextBytes(), err
 }
 
-func (s DenseStaticInfo_Note) SetNote(v string) error {
+func (s PathMetadata_Note) SetNote(v string) error {
 	return s.Struct.SetText(0, v)
 }
 
-func (s DenseStaticInfo_Note) Isdas() uint64 {
+func (s PathMetadata_Note) Isdas() uint64 {
 	return s.Struct.Uint64(0)
 }
 
-func (s DenseStaticInfo_Note) SetIsdas(v uint64) {
+func (s PathMetadata_Note) SetIsdas(v uint64) {
 	s.Struct.SetUint64(0, v)
 }
 
-// DenseStaticInfo_Note_List is a list of DenseStaticInfo_Note.
-type DenseStaticInfo_Note_List struct{ capnp.List }
+// PathMetadata_Note_List is a list of PathMetadata_Note.
+type PathMetadata_Note_List struct{ capnp.List }
 
-// NewDenseStaticInfo_Note creates a new list of DenseStaticInfo_Note.
-func NewDenseStaticInfo_Note_List(s *capnp.Segment, sz int32) (DenseStaticInfo_Note_List, error) {
+// NewPathMetadata_Note creates a new list of PathMetadata_Note.
+func NewPathMetadata_Note_List(s *capnp.Segment, sz int32) (PathMetadata_Note_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
-	return DenseStaticInfo_Note_List{l}, err
+	return PathMetadata_Note_List{l}, err
 }
 
-func (s DenseStaticInfo_Note_List) At(i int) DenseStaticInfo_Note {
-	return DenseStaticInfo_Note{s.List.Struct(i)}
+func (s PathMetadata_Note_List) At(i int) PathMetadata_Note {
+	return PathMetadata_Note{s.List.Struct(i)}
 }
 
-func (s DenseStaticInfo_Note_List) Set(i int, v DenseStaticInfo_Note) error {
+func (s PathMetadata_Note_List) Set(i int, v PathMetadata_Note) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-func (s DenseStaticInfo_Note_List) String() string {
-	str, _ := text.MarshalList(0xf268211f3beb07b6, s.List)
+func (s PathMetadata_Note_List) String() string {
+	str, _ := text.MarshalList(0x88b4277fa83dde2d, s.List)
 	return str
 }
 
-// DenseStaticInfo_Note_Promise is a wrapper for a DenseStaticInfo_Note promised by a client call.
-type DenseStaticInfo_Note_Promise struct{ *capnp.Pipeline }
+// PathMetadata_Note_Promise is a wrapper for a PathMetadata_Note promised by a client call.
+type PathMetadata_Note_Promise struct{ *capnp.Pipeline }
 
-func (p DenseStaticInfo_Note_Promise) Struct() (DenseStaticInfo_Note, error) {
+func (p PathMetadata_Note_Promise) Struct() (PathMetadata_Note, error) {
 	s, err := p.Pipeline.Struct()
-	return DenseStaticInfo_Note{s}, err
+	return PathMetadata_Note{s}, err
 }
 
 type FwdPathMeta struct{ capnp.Struct }
@@ -2783,171 +2779,171 @@ func (p SegTypeHopReplyEntry_Promise) Struct() (SegTypeHopReplyEntry, error) {
 	return SegTypeHopReplyEntry{s}, err
 }
 
-const schema_8f4bd412642c9517 = "x\xda\x94X{\x90\x14\xd5\xd5?\xe7\xf6\xec\xce>f" +
-	"v\xa6\xf7\xce*\x1f_\xcc\x04JJ!B\xc9\xa2\xd1" +
-	"\"\xc6\x85\xe5\xb9\xb8\xe0\xf6\x0c&)cJ\x9b\x99\xbb" +
-	";#\xb3\xd3\xc3t\xef\xc2P!\x1b,\xc9\xc3$\xa5" +
-	"FI4J\x05|B\x82\x89\x18b)\x89V(\xd9" +
-	"$P\x92h\x15\xc6\x922\x11\x89(\xa0\xa9\x12$\x01" +
-	"\x0c\xa6S\xa7\xbb\xa7\xbb\xedm6f\xff\xba\xdb\xe7\xcc" +
-	"\xb9\xe7\xf9\xfb\x9d\xee\xcb\x7f\xd88\x87\xcdlx\xbc\x19" +
-	"@\xa944\x9a\x1f<\xf9\xc4c\xef\x9eZ\xfb-\x90" +
-	"\xe3h^\xb8\xf1\xb2|\xfb\x81\xeb\xee\x84\x06\x8c\x02\xf0" +
-	"g#\x07\xf9h\x84N\xbb#]\x80\xe6\xa9\x83go" +
-	"~~\xdf\x1bw\x80\x12G\xbf2#\x95\x13\x91}\xfc" +
-	"#K\xf9l\xe4\x1d@s\xa2\xfc\xe0\xc2\xb7\xaa\xeb\xef" +
-	"\x0c([\x1ao6<\xc5\x8f5\xd0\xe9H\x03\x19^" +
-	"\xf8\xc2\xc2\x91\x9d\x0f\x1c\xbf\x9bt\x99\xa7\xbb\x80E\xe3" +
-	"\x18\xe1\x0d\x8d\xbbx\xbc1\x0a0\xab\xb9\xf1z\x09\xd0" +
-	"\xdct4u\xf8\xd2\x09_\xbf7\xcc\xe7G\x9b\xf7\xf1" +
-	"\x1d\xcdtz\xa2\x99LoY\xd7\xba\xf5\xca9\xb5\x8d" +
-	"\x01\xd3\x96\x1b\x7fi>\xc8\x8fY\xbaG\x9aW\x03\x9a" +
-	"\xc7\xba\xdf\xd8\xf0\xf8\x86\xc6\x07\xc2\xec\xcem9\xce\x97" +
-	"\xb6\xd0\xa9\xa7\x85\xec\x1e|\xed\x8e\xa3o6\xfc\xf1\x01" +
-	"P:P2\xdf}x\xcf\xeb3;~\xb7\x07:0" +
-	"\x8a\x00|\xb0\xe5  _\xd5BV\xdbgn\x9ey" +
-	"S\xd3\xf5\xdbB\xac\xce\xda\xdf\xc2\x90\xbff\x99}\xc5" +
-	"2\xbb\xf3\xc46\xe5\xc6\x09g\xb6\x07Sli7\xb7" +
-	"\xb6#\xff\xbfV\xd2\xeeh\xfd\x05\xa0\xb9\xf5\xe7G\xa6" +
-	"\x9c\xd8\xfe\xd2\x0eP&!\x9a7\x7f\xb6\xf1\xd0\xf3\x7f" +
-	".\x1cw\xb4G[\x97 \x7f\xcd\xd2~\xc5\xd2\xfe\xcc" +
-	"\x94{V7\\2\xf1\xa9\xd0\xf2\x0d\xc5\x9e\xe2\xebb" +
-	"t\xaa\xc5\xc8\xeb\xa3'/\x18>\xf2\xf79/\x84\xf6" +
-	"E\xec8\x1f\xb5tw\xc7\xc8\xe93\x17\xcd\\\xd9\xb4" +
-	"\xf7+{\x82\x86%\xab/b\xc7\xf9G\xb1\xab\x00f" +
-	"M\x89\x7f\x09\x01\xbd\\)q\x94\xc6\x98n\xfb)\xdf" +
-	"\xddF\xee?\xd7\x96&\xed\xf7\x86\x7fTY>\xc3\x1c" +
-	"\x0d\xf8a\x99\x1eM\x1c\xe6/'\xe8\xb4?A\x01&" +
-	"\xc4\x9f\xe6v\xdf\xfe\xe9}a-7\x98<\xc8kI" +
-	"+\xd2$\xf9\xfc\xe8\xdb\x17?\xb8\xf5!\xf1b\x98\xee" +
-	"\xc6\xe4.\xbe\xc9\xd2\xbd\xdf\xd2}\xfd\xcd_?\xf6\x9d" +
-	"{.y'\xb4(\xcf&'\"\xdfki\x8f&\xc9" +
-	"\x8b\xd2\xa1\xcc\x17'\xbe|\xfa\x9d\xb0\xcc\x0d\xc9\xfb\xf8" +
-	"z\x99N\xebd\xb2\xec\x96L\xb9\x08}y\xb4-?" +
-	"!\xb7 \x7fN\xbe\x90,\xcbT\x93\xab/y\xf5\x9b" +
-	"\x03\x1d\xa3\xef\x87\xf9\xc1\xafl?\xc9\xe7\xb6\xd3\xe9\x0b" +
-	"\xed\xa4\xdc\xf5\xf6\xb5S\x9f>\x968\x11\xaa\xbc\xa9}" +
-	"\x17\x7f\xd4R\xdeb)?\x1d}\xf7\xf3\xe9I\x85\x93" +
-	"\xa1~\xc8\xbc\x1d\xf9$N\xda\x17q\xd2~\xf6\xf95" +
-	"\xdb\xbe\xfb\xeac\xa7\xc3\"\xac\xf1\x93|\x83\xa5\xbb\x9e" +
-	"S\x84\x85\xeb>\x15\xd9[:p\x9a,3\xcf2\xe5" +
-	"y\xd6\x0e\xbe\x16\xf9\xa8\xa5\xbc\x9bS\xeab\x13\xff\xfa" +
-	"\xb3\x81)G\xce\x82r\x01\xfa\xfa\xb5\x83YC\xa5\xa6" +
-	"\x0e\x03r\x91\"\x17~\xf9\xf4\xdaE;\x1f\xde\xf1a" +
-	"\xd8X\xefN\x9d\xe4\xfbSt\xda\x9b\"\xabz\xae\xa8" +
-	"\x95\xf33rL\xad\x94+\xb3{\x16\xf6\x94\xfb\xb5\x8c" +
-	"X5$$\xdd\xe8CT\"R\x04 \x82\x00r\xbc" +
-	"\x13@i\x92P\xb9\x98a\xba\xd8\xdf3_\xc76\xc0" +
-	">\x09\xb1\x19\x18\x1d\x03\xb6\x16\xae\xce\xf7\xa9Fa\xa9" +
-	"0T\x002\x95tM\xa9\xdd\x00\xcaM\x12*\x05\x86" +
-	"\x88)\xa4gb2\x80r\x8b\x84J\x89\xa1\xcc0\x85" +
-	"\x0c@.\xde\x08\xa0\x14$Tng(K\x98B\x09" +
-	"@^O\xbf\xfe\x9a\x84\xca\xb7\x19\x8e\xf4\xdb\xb7`\x1c" +
-	"\x18\xc6\x01\xa3\x83\xc6\x10F\x81a\x14\xd0,\x96\x0dQ" +
-	"\xedWs \x09\xd7\xd7\xa4\x07z\x80\xf4pD\xac\xa9" +
-	",/\x0e\x0al\x02\x86M\xbe(\xd0\x8a\"#\x86\xd3" +
-	"\x19Q)\xd5\x02\xc9\x98\xed$#\xc5\xb0\xab*\xf4\xa1" +
-	"\x92\xe1^\xfbq\x03\xd9y=]\xd7/\x9b\xbfT\x1f" +
-	" \x0b\xd7\xd4-\xf0\x8d8\x11 {\x17J\x98}\x10" +
-	"\x19\xc6\xd14\xadD\xf0\xfb\xb1\x13 {/\x096\x93" +
-	"\x80\xfd\xdb\xb4\x92\xc17a7@\xf6>\x12<B\x02" +
-	"\xe9#\xd3J\x08\xdf\x82\x19\x80\xecf\x12l'A\xe4" +
-	"\x9c\x99\xc2\x08\x00\xdff\x09\xb6\x92`'\x09\x1a\xfee" +
-	"\xa6\xb0\x01\x80\xef\xc0\x15\x00\xd9'I\xf0\x1b\x124~" +
-	"h\xa6\xb0\x91 \x06o\x03\xc8>C\x82=$\x88\x9e" +
-	"5SV\xeb\xee\xc6*@\xf6\xb7$x\x91\x04Mg" +
-	"\xcc\x146Q\x1bY\xa6\xfe@\x82\x03$h>m\xa6" +
-	"\xb0\x19\x80\xbf\x8c?\x06\xc8\x1e \xc1!\x12\xb4\xfc\xd3" +
-	"La\x0b1\x0b\xde\x01\x90=D\x82\xf7H\xd0\xfa\x0f" +
-	"3\x85\xad\x00\xfc\x18.\x01\xc8\x1e%\xc1)\x12\xc4N" +
-	"\x99)\x8c\x11LZ\x97\xbfO\x82s$\x88\x7f`\xa6" +
-	"0Nlj\xb9{\x86\x04\x11\xc6Pn\xc3\x14\xb6\x01" +
-	"pd\x94\xaas\xf4\xbc\x891\x94\x8ay\xabI\x9b\x01" +
-	"\xd3Ce]\x18\xd08RQ\x8dBF\xac\xc2\xa4\x87" +
-	"\xb9\x80\x98\x044mI\xa5\x04X\xc3\xa4\x07\x15\x8eT" +
-	"\xd5\xed\x11\x01\xa4\xdf\xbaH\x19\x94F+%\xfa\xb5\xcb" +
-	"\xc6\x8e\xbc*\x86\x97iF\xb1\x1f\x8b9\xd5(je" +
-	"\xc0\xa4\xc7\xac\x8eN\xb1\xdf\xb1\x91^5$t\x03\x93" +
-	"\xde\x1e\x12\xd4pnqQ\xd5\x91\xeb\xa2:\\\xcc\x89" +
-	"\x1e\xf4\x0d3&=\xb2\x0dU\xab\x94j@\xee\xb8\x00" +
-	"\xe6\xb9\xec\x08I\xean.\xae\x8d\x81\xe5\xb5\x8aX\x0c" +
-	"i\xadb\xa7\xd3%\x9a\x80\x06\x92\x02\xd9\xc1\xa4G\xa0" +
-	"\xb6\xce\x88QUs\xa2'_\x9f\xe2\x00\x92\xcc\xcd\xf6" +
-	"x\x1e\x06\xe6\xb0\xdb\x03\xa5\x11Q6\xaaE\xff\xa8\xbb" +
-	"@h\x8fz\xc0,\xe1F\x8f\x0d\x11RN\x90\xdd&" +
-	"\xd7\xeeT\x02\xbb\x8b%T.g(\xd7!j\xfa4" +
-	"\x00\xe5R\x09\x95+\x08\x01\xf5\xbc\xaa\xd7\xbb*Ax" +
-	"X\xff'pM\xc6)y1\xa7&\xa8\xe4\x81\x00\x96" +
-	"\x00(1\x09\x95\x09\x0cM=#\x86)T;\xd5\x99" +
-	"\xbf}x\xd5\x86E\x9d?q\x139\xc6\xfb\x8cX5" +
-	"\xa3\xbf\xa4J\x03:\xb9\x9e\xbc\xcb\xc6\xc7\xa9\xdd~\xdf" +
-	"\xef\xb6\xa0@\x9e>\xdb\xf3}\xa4*\xfa\xabB/ " +
-	"\x02C\x04\xec*\x14\xf3yQ\xae\xff\xeb^$\xd9\x00" +
-	"\xe6tI\xbd\x97t#X\x83[\x9d\x10.enO" +
-	"-\x87D\xad\xe2\x95\"a\x1a\x03/\xfd\xff\xd4\xe9\x99" +
-	"\xc3\xc1R\xd4\xef\xb0{\xc4i\x91\x05e\xa3\x8a\x16\xe2" +
-	"\xc6\xdc[\x16\x10\x15\xcc\x97P\xb9\xc5\xe3\x8c\xaff<" +
-	"\x1eq9Ct{D\xf2\xc9(\xc04\x8a\x83B7" +
-	"\xd4A\xc0J\x9d\x06\xceK\x0b\x11\xcb\xe1\xf9\xa2\xac\x8b" +
-	"\xac\xa1\x1a\xc5\x1c%f\xc6\"\xa1\xcdX\xd4\x97\x9d\xaf" +
-	"\xd6\xc9\xce\xe7\xf8\x12\xc7\xf1>_+-%\xcf{%" +
-	"T\xbe\xcc\x10\x99\xed\xf8\x0d\xe4x\x9f\x84\xcaM\x0c\xcd" +
-	"\x92j\x14\x8d\xa1\xbc\xa0Vh\x01\x86-\xb4<i\xe5" +
-	"\x01z\x08(\xea\xcfF\xd4|\xbe*t\x1dc\xc00" +
-	"6\x86|\x16kz\xda \x07\x03\xdd=\xcd\xeb\x10\xfa" +
-	"\xf3v\x0byz'\xb0DE\xab\xbat\x96\xa6\x1b\xf4" +
-	"@\xf3\xf9\xea\x95\x08!\xc7q\x87\xd2\xdd\xe2C\x87\xd2" +
-	"\x97\xd8\x049\xae\xc4\xd0\xb7'\xc9\xf2\x0f\xbc\xb5P\xee" +
-	"\x98\xec\xedf\xb2<\xcdt\x869\x87\xa2\xb7X^\xb9" +
-	"\xbcVA\x11]$\xb4\xc42\xcd\x10\xca\x04\xd7\xbd\xfb" +
-	"\xa9_\xef\x93Py\x84\x0a\xc2\xec\x82l\xa1\x82l\x96" +
-	"P\xd9\xeek\xa5m\x0f\x01(\xdb%T\x9ea\x88\x92" +
-	"=]\xbf\"\xc5\x9d\x12*/1\x94#hO\xd7\xfe" +
-	"\x15\x00\xca\x8b\x12*G\x19\xca\x0d\xcc\"Y\xf9\x08a" +
-	"\xc8!\x09\x95s\x0cMC3\xd4R\xafj@B\x94" +
-	"s5wW\xb0\x1e/\xd6*\x80:6\x02\xc3F@" +
-	"s\x85Z\xce\xaf.\xe6\x0d,tk\x86Q\x12\xe5\xa8" +
-	"\xc8\xadt\xfb\xb0d\x87&\xe8\x17nN\xdd\x0499" +
-	"U\xf5^\x8d\x08\x06\xa2Z\xd9\xa7\xe6\xa6\xceVK\x97" +
-	"5\xc3_\x197\x99\x81\xca`\x1dp\x12\x848T\xeb" +
-	"\x94\x9b\xccu\xb4\xb6\xadq6\xb4zw\xaf\x9f\xecm" +
-	"h2k\xb2\x93\xb9\x81\xe6\xe0v\x09\x95\xbb(\x99\xe8" +
-	"{K\x94\xbf\xdf\x09\x0c#v\xd6\x86\x08\xa8*\x12*" +
-	"\xdfc\x18\xcd\xebF\x1dU\xa3z5\xe7\"\xec\xa0\xba" +
-	"\x86\xf0O\xa7\xe9\xa8\xf7i\x7fI\x1d\xd0\xbb\x0a\x95y" +
-	"\xfd\x03\xbe\x98&,x\xebZ\xfe\xfbI\xbb\xceO\x01" +
-	"\x0e\xe2D\x8dj\x10qhJ\xe6H\xa8\xf4\xfaB\xeb" +
-	"\xa1(\x16K\xa8,\xa7\xd0\x9c\xc9U\xd6z\x93\x9b\xa0" +
-	"\xf5\x01\x93\xde\xf7\x00\x07\xbd\x0b\x9anx\xd8\xee\xae\xef" +
-	"\xbe\x9d\x83\xba\x1e\xbal@\xc1\xa4\xf7:\x10\x0a\xff\xbe" +
-	"\x09\x94\xec\x9a\xf8\xe6o\x9a\xb7\x9c&\x8cZE`\xc2" +
-	"\xfc\xc6\xd5\x0f\xb5\x88m\xa7\xb7\x90\xb5\xc4\x98\xda\xce\xcd" +
-	"\xf6t\xd9\xf8~\x9e\x9d?\x15d\xbc\xf1H\xc2Fp" +
-	"iL>W\x84\x01\xe1d/\x9fu T2N:" +
-	"K~B\x89\xda\x81\xf8\x89$\x01\x185\x8c\x92;\x1b" +
-	"n\x8e\xfd\xb3\xe1Ou\xdby\xdfx\xfe\xe7\xdd\xc2}" +
-	"\xdf\x0c%\xb4\x10~\x00P\"\xe8\xfb,!c\xf7\x88" +
-	"C\x19~h\xbe\xcd\xe1\xe9\xf9\x1e\xcd\xcd\xa5*\\#" +
-	"\xa1\xb2\x98\xa1Y\xd5\x86\x0cQ\xed\xd5\xd0^ u\xf0" +
-	"\\rM;\xe3\x1d^\xb01q\xa7\x89nk\xe31" +
-	"\x84\xb3\xfeP\xeb_&\xa1r5\x0b,<\xe3\xf7\xf6" +
-	"\x18\x18\xe9*\xb8oT\xbe\x1b3\xde\x82R\xbfqf" +
-	"\xb7s#\x05.\xaaU\xad:O\xb3\xd8\xcf\x99\xf9\xb1" +
-	"Uq\xbf\x88|\xa2\xaa,\xd3\x0c\x14\x9f \xf0N\xcf" +
-	"\xb5\x04af\x9dm\xc7\xcd\xb0o$B\xdf \xc7\xed" +
-	".\xf7\xabJ \x8e\xf0\xed\xa3N|\xa2\xb7\xd8e\xb3" +
-	"C`\xf2\xaaa\x93w\xab\xb7\x82\xb8\x8cwC\xa7o" +
-	"\x07\xb1\x96\xa7\xdeb\x19\xd2\x96M\x97\xb4*\xc2z\xbc" +
-	"\x12\x12\xfe\xc7\xe3&c\xb1\xd3!3\xd4|4_\xd5" +
-	"\xed\x84\xdb~\xf83n9\xc7\x02\xabv\xa2X\x19\xbe" +
-	"\xa2\xfej@\xff|\xee\xbf\xbf'x=\xed\xcbB\xa7" +
-	"\x1f\xcf#\x0e\x9eO\xf6\xa5\x86\xf5\xd9\xb7/\x9d\xed\x81" +
-	"\xd2\xc7\xc3\xf2\x7f_\xe8*\xea\xf3\xb4\xaa\xa8\xaf\xcd\xff" +
-	"\x09\x00\x00\xff\xff\x13\xe8\x91\xf7"
+const schema_8f4bd412642c9517 = "x\xda\x94X}l\x1c\xe5\xd1\x9fy\xf6|\xe78>" +
+	"\xdfmv\x0d\x91_\xbd\\\x9b\x82\xf2!ba\x87\x14" +
+	"\x14\x01\x8e\x9d\xcfKm\xf0s\x97\xb4\x80\x12\x95\xcd\xdd" +
+	"c\xfb\xe0|w\xb9];9\x04u\x83HKi+" +
+	"\xa0\x10\x15\x0aQ\x13 \x10\xb7\x89J\xa8\xf9J[T" +
+	"\x04iK\x94\xf2QQ\xa1F\x14BJ \x01*\x91" +
+	"\x10\x1a\x9c\x86n5\xbb{\xbb\x9b\xf59\xa1\xff\xed\xed" +
+	"\xcc\xce3\xf3\x9b\x99\xdf\xccs\x97\xdc\x1b^\xc8\xda\xea" +
+	"\x1e\x9f\x02\xc0Kua\xf3\xd3'v=\xf6\xd1\x89\x9b" +
+	"\xbf\x0fr\x14\xcd\xf37_\x9c\x9d\xf6\xc67\xee\x82:" +
+	"\x8c\x00(\xcf\x85\x0e({C\xf4\xf4B\xa8\x03\xd0\x9c" +
+	"\xfb\xf6\x95;Ff\x8e\xdd\x01\xbc\x05\xd1<<\x7f\xd1" +
+	"\x8a\xb6\x93\xafnw\x94\x8f\x85N)_X\xca\xe3\xa1" +
+	"\xf5\x80\xe6\x89\x03\xe3\xdf~~\xdf;w\x02\x8f\xa2\xdf" +
+	"2#\x95Uu\xfb\x14\xad\x8e\x9e\xd6\xd4}\x00h\xb6" +
+	"\xc8\x0f-}\xaf\xbc\xf1\xae\x80\xb2enI\xf8I\xa5" +
+	"'LO\xc90y\xb1\xf4\xc5\xa5#c\x0f~x\x0f" +
+	"\xe92Ow\x09\x8bD1\xa4\xe4\xc2{\x94u\xa4=" +
+	"o0|\x8d\x04hn9\xa2\x1e\x9a5\xfd;\xf7\xd5" +
+	"\x0apJ\xc3>\xa5\xb9\x81\x9e\xe4\x062\xbd\xed\xd6\xa9" +
+	";\xe6/\xacl\x0e\x98\xb6\xdc\xe8l8\xa0\xf4X\xba" +
+	"\xc9\x06\x8a\xefh\xd7;\x9b\x1e\xdf\x14~\xb0\x96\xdd\xed" +
+	"\x0d\x1f*\xbb-\xdd]\x96\xdd\x03\x7f\xbb\xf3\xc8\xbbu" +
+	"\xaf<\x08\xbc\x19%\xf3\xa3G^z\xab\xad\xf9\x0f/" +
+	"A3F\x10@y\xbd\xe1\x00\xa0\xf2W\xcb\xaa\x0bj" +
+	"\x005\x89\x8c\xb5M\xfd\x8br\xe5\xd4\xcb\x00\xe6\x89\xa9" +
+	"\xdfB@sZ\xdb\xd6\xb6\xd5\xf5\xd7\x8c\xd6\xf0a\xde" +
+	"x#C\xa5.J\xdfa\x94\x9c\x18;6\xca\xaf\x9f" +
+	"\xfe\xf9\xce\xa0iK{~t\x1a*K,\xed\xce\xe8" +
+	"\xaf\x00\xcd\xaf\\t\xef\xfa\xba\x99-O\xd6L\xdf\xb1" +
+	"\xe8\x93\xca\xb8\xa5\xfcY\x94\xbc6_\xdd\x7f\xed\xd1\xcd" +
+	"\xb7\x8c\xd5,\x8c\xf9M\xc7\x95\xce\xa6\xf3\x09\xb8&R" +
+	"n\x7f\xaf\xfek\xfa\xdb\xaf<\x03\xfc\x02\xf4}j\xfb" +
+	"\xf1\\S;*/7\xd1w{\x9b\xc8\x8f#\xc7\xcf" +
+	"\x1b>\xfc\xcf\x85/\xd6\x82Y\xc4>T\xd6\xc5\xe8i" +
+	"0F\x11\xba\xc0\xf2(JA\xe5-\xb1_(\xdbI" +
+	"y\xde\xb6X\x82\xc0\xfbx\xf8\xa7\xa5\x95\xad\xe6\xde\x80" +
+	"e\x0b\xe9\xd1\xf8!\xe5\xa98=\xed\x8e\x93\x171\xf1" +
+	"jg\xd7\xed\x17\xec\xabU\x9f\\>\xa0\xac\x91\xe9\xe9" +
+	":\x99\xbc\xd8\xfe\xfe\x85\x0f\xedxX\xec\xaf\xa5[\x91" +
+	"\xf7(\x1b-\xdd[-\xdd5\xf2\xeag\x86g\xbd\xfc" +
+	"&\x01\xc7<\xe0Hw\xde\x16y-*\xbb-\xe5]" +
+	"29\xf1\xd6\xbb\xbfy\xec\x07\xf7\xce\xfc\xa0f\x02{" +
+	"\xa6\xb5\xa0\xb2f\x9a\xe5\xc64\xd2\xce\x1fL}\xb3\xe5" +
+	"\xf5\x93\x1f\xd4\xac{e\x9f\xd2\xacXu\xaf\x90\x1b\x97" +
+	"\xcf|\xf3{\xfd\xcd{?\xa9eY\xe9T\x8e+=" +
+	"\x96rR\xa1\xfcu\xbc\x7f\xd5\xec\xa7\x8f\xc6\x8e\xd5T" +
+	"\x1eU\xf6(\xbb-\xe5]\x96\xf2s\xcfo\x18\xfd\xe1" +
+	"\x9b\x8f\x9d\xac\xe5\xc5\xff\xab\xc7\x95\xd9*=]\xa4\x92" +
+	"\x17\x8d-o\xff\xb2\xff\xa2\xc3\xe3\xc0\xcfC_\x016" +
+	"3\xabKV\xa9\x87\x00\x95\xebT\xb2\xfa\xeb\xa7o^" +
+	"6\xf6\xc8\xeeS\xb5\xfa\xf4)\xf5\xb8\xf2\x82e\xf5w" +
+	"*\xe1\xa0gr\xc5B\xb65\xc3\xb4R\xa1\xb4 \xb9" +
+	"4Y\xe8+\xa6\xc4\xba!!\xe9F/\"\x0fI!" +
+	"\x80\x10\x02\xc8\xd1v\x00^/!\xbf\x90a\"\xd7\x97" +
+	"\\\xacc\x13`\xaf\x848\x05\x18=\x06l\xf5j\xc6" +
+	"@\x8f0\xb4\xacfth\xadW\x17\x0dA\xf6\xea]" +
+	"{\xb3\xe7\x00\xf0\x0b%\xe4\x970DT\x91\xde\xcd\xa5" +
+	"3fI\xc8/e\x18+\x14\x0d\x81\x8d\xc0\xb0\x110" +
+	"\x91\xd3\xb3\x9an\x9d4e\xc2IK\xd7g\xab\x87\x01" +
+	"\xd0!q\xf7\x10\xad\x0b\x80\xaf\x96\x90\x0fx\x87\x88\x19" +
+	"\x00\xfc\x06\x09y\x9e\xa1\xccPE\x06 \xe7\xae\x07\xe0" +
+	"\x03\x12\xf2\xdb\x19\xca\x12\xaa(\x01\xc8\x1b\xe9\xeb[$" +
+	"\xe4w0\x1c\xe9\xb3O\xc1(0\x8c\x02F\x06\x8d!" +
+	"\x8c\x00\xc3\x08\xa0\x99+\x18\xa2\xdc\xa7e@\x12.*" +
+	"q\x8f/\x01\xe9\xe5\x88\xd8PZ\x99\x1b\x14X\x0f\x0c" +
+	"\xeb}Q\xa0\x15EJ\x0c'R\xa2\x94\xaf\x04`_" +
+	"\xe0\xc0\xae2\xec(\x0b}(o\xb8\xc7\x9ei \xbd" +
+	"(\xd9q\xcd\xd5\x8b{\xf4~\xb2pE\xd5\x82\xb2\x19" +
+	"[\x00\xd2w\xa3\x84\xe9\x87\x90a\x14M\xd3\x02By" +
+	"\x00\xdb\x01\xd2\xf7\x91`+\x09\xd8\x7fL\x0b\x0ce\x0b" +
+	"v\x01\xa4\xef'\xc1\xa3$\x90\xbe0-@\x94m\x98" +
+	"\x02Ho%\xc1N\x12\x84N\x9b*\x86\xa8\xb0-\xc1" +
+	"\x0e\x12\x8c\x91\xa0\xee\xdf\xa6\x8auD\x10\xb8\x16 \xfd" +
+	"\x04\x09~K\x82\xf0)S\xc50MO\xbc\x0d \xfd" +
+	",\x09^\"Ad\xdcT\xad\xba\x7f\x01\xcb\x00\xe9\xdf" +
+	"\x93`?\x09\xea?7U\xac\x07P^\xb6L\xfd\x89" +
+	"\x04o\x90`\xcaIS\xc5)4!\xf0g\x00\xe97" +
+	"Hp\x90\x04\x0d\xff2Ul\x00P\xfe\x8ew\x02\xa4" +
+	"\x0f\x92\xe0c\x12L\xfd\xccTq*\x80r\x14W\x00" +
+	"\xa4\x8f\x90\xe0\x04\x09\x1aO\x98*6\x12u[\x87\x7f" +
+	"B\x82\xd3$\x88~j\xaa\x18\xa5\xa9m\xb9\xfb9\x09" +
+	"B\x8c\xa1\xdc\x84*6\xd1\xf0`\x04\xd5iz_\xcf" +
+	"\x18J\xb9l\xb5H\x13C\x05]\x18\x10\x1e)i\xc6" +
+	"@J\xac\xc3\xb8\xc7\xc0\x80\x18\x074mI)\x0fX" +
+	"\xc1\xb8\xc7\x1c\x8eT\xd3\xedf\x04\xa4o]\xde\x0cJ" +
+	"#\xa5<}\xed\x0erG^\x16\xc3W\x17\x8d\\\x1f" +
+	"\xe62\x9a\x91+\x16\x00\xe3\xdePvtr}\x8e\x8d" +
+	"\xc4\xba!\xa1\x1b\x18\xf7\xf6\x9d\xa0\x86s\x8aK\x9b\x8e" +
+	"\\\x17\xe5\xe1\\F$\xd1G\x1b\x18\xf7&oM\xb5" +
+	"R\xbe\x02\xe4\x8e\xcb~\x9e\xcb\x8e\x90\xa4\xee\xd2\xe3\xda" +
+	"\xe8_Y)\x89\xe5\x90(\x96l8\xdd\xb1\x13\xd0@" +
+	"R ;\x18\xf7\x06\xa4\xad3b\x94\xb5\x8cHf\xab" +
+	"]\x1c`\x92\xcet\xd2\xf30\xd0\x87]\x1e\xfd\x8d\x88" +
+	"\x82Q\xce\xf9[\xdd\xa5\\\xbb\xd5kPa\xd2\xa6\x08" +
+	")\x13\xa4\xc1v\x8f\x06e\x97\x07\xe7x<x&\xf5" +
+	"\xc5\x88y'\xe1\xc1\x94\x93\xf2\\F\x8bQ\xca\x03\x01" +
+	"\xac\x00\xe0\x8d\x12\xf2\xe9\x0cM=%\x86)T\x1b\xea" +
+	"\xd4?N]\xb6iY\xfb\xcf] 'x\x9f\x12\xeb" +
+	"Z\xfb\xf2\x9a\xd4\xaf\x93\xeb\xf1\xbbm~\x9c\xdd\xe5\xf7" +
+	"\xfd\x1e\x8b\x0a\xe4\xb9\x0b<\xdfG\xca\xa2\xaf,\xf4\x01" +
+	"D`\x88\x80\x1d\x03\xb9lV\x14\xaa?'\x9f\x18\xa8" +
+	"\xf1F\xf4-\x00\xb2\xfc\x13o\x17\x92\x9bgx\xcb\xb6" +
+	",\xcf1\x1dl3(\xbas\x85\x9bVVJ(\"" +
+	"\xcbD1FC\x87Ow\x11x\xe0F\x00~\xbf\x84" +
+	"\xfcQr\x97\xd9PoK\x01\xf0\xad\x12\xf2\x9d\xbei" +
+	"0\xfa0\x00\xdf)!\x7f\x96!Jv\xb0O\x91\xe2" +
+	"\x98\x84\xfc5\x86r\x08\xed`\xff\xbc\x16\x80\xef\x97\x90" +
+	"\x1fa(\xd71\x8b\xf3\xe4\xc3\x94\xd2\x83\x12\xf2\xd3\x0c" +
+	"M\xa3hh\xf9n\xcd\x80\x98(d*.u[\xaf" +
+	"\x97\x17K\x80:\x86\x81a\x18\xd0\\\xab\x15\xb2\xebs" +
+	"Y\x03\x07\xba\x8a\x86\x91\x17\x85\x88\xc8\xdc\xe4N\x8b\xbc" +
+	"\x1d\x9a\xa0/\xdc\xbas\x01r\xeaN\xd3\xbb\x8b\xd4\xef" +
+	"\x10)\x16|j.t\xb6Z\x82F\xabO\xec\x82\x19" +
+	"\xa8^\xc9\x9e+N\xf3V[\\7\x82\xadq\xa3S" +
+	"Y\xb3\x98\xdb\xea+!V)yg\xc4L\xa3\xff\xb5" +
+	"\xff\x9b=7uh\xb23\xec\xd6u:wI\xc1(" +
+	"\xa35\x08\x1b\xddS\x96\xd0\x84^,!\xbf\xc1\x1b\xe5" +
+	"kR\xdexw\x93'\xba\xbc\xf9\xfe\xe5&\xb3i\xe4" +
+	"\x06\x85nh\x83\x80\xa5*\xde\xe7\x98\xd6\xcb\x8bz\xc2" +
+	" H\xce\xb6\xd4\xa0ok\xa3\xdd\x86\xc5J\xc5\xb2;" +
+	"\xbe\x13Z6[\xd6'\xef\x81\x84\xd6\xbaL\x14y\x08" +
+	"}\x97\x02\x19\xbbF\x96\xf5\xa6\x17k\x86\xe6?\xf56" +
+	"\xa7\xe5\x16{\xd0tR\x11^!!_\xce\xd0,\x17" +
+	"\x87\x0cQ\xee.\xa2=\x0bt\xf0\xa0pM;\xa5Q" +
+	"{\xd1\x92\x82\xceY\xbe\xb5.\xebMX\xbe\x042\xb5" +
+	"\xc2\xc9T\xaf\x8f\xd2z(U\xdd\x12\xf2k\x19R\xef" +
+	"Q\xa6VQ\xa6z%\xe4\xab\x19\x9ay\xcd\xc8\x19C" +
+	"YA\x94\xd4\x00\x0c\x1b\xa8\xe6\x8b\x85~z\x09(\xaa" +
+	"\xefF\x085\xa1\xeb\xd5\xcd0\x80\x9f\xaf\x90b5\x96" +
+	"\xa9\xb3\x92\xb8{\x05\x0c\x94(V\x83\x8f\x11\x0f\x92E" +
+	"\xd5\xb5x+-\x93\x1b\x9c\xbd\xb1\x1a\xeb\xc6\x19\xde\xde" +
+	"(\xb3z;\xd8M\x84\xca\xed\x12\xf2\xbb\x89S\xd0w" +
+	"\xed\x95\x7f\xdc\x0e\x0cC6y\x0c\x11}\x96$\xe4?" +
+	"b\x18\xc9\xeaF5\x15\x11\xbd\x9cq\xd32\xa8m\xa0" +
+	"\\\xe8\x84U\xb5\x9a\xfa\xf2Z\xbf\xde1PZ\xd4\xd7" +
+	"\xef\x8bi\xfa\x92\xf7\xaeR\xfe\xf8\xd5=\x93\x0f&\xa7" +
+	"\xe1\"F9\xd8pT\xcb\x0b%\xe4\xdd\xbe\xd0\x92\x14" +
+	"\xc5r\x09\xf9J\x0a\xcd\xc9#\xbf\xd9\xcbc\x8c\x96\x1a" +
+	"\x8c{\x7fp83e\xa0\xa8\x1b\xde\xc4q\xaf/\xbe" +
+	"M(mh\x06t\xe42\xa4\x85q\xef\xbaWs(" +
+	"\xf9\xf2,\xd99\xf1ey\x8e\xb72\xc7\x8cJI`" +
+	"\xcc\xfc\xee\xe5\x0f7\x88\xd1\x93\xdb\xc8ZlBn;" +
+	"\xd3\xc9\x0e\x9b\xde&\xb9\xf3\xa8l\xb2\xce\x08M\xec\x8c" +
+	"\xea8\xb2\xa7Q\xa4R\x12\x01`\xcb\xb5\xfa\xe3F\xaf" +
+	"?\\*[\xd5\xeek\x10\x8b\xca\xbas\x05HXs" +
+	"\xc0\x1d%%a\xbd\xbe\x09b\xfe\xd7gm\xe43(" +
+	"\xdd\xe6[iB\xfa\xd7\xd6\xf2r\x86\x97\xfej\x17\xf3" +
+	"\x94\xe3d\xdeO\xff\x11\x1bw?\xed\xc7\x00#\x86\x91" +
+	"w\x19\xd5-\x09\xffD\xf3WF\xd3\xa4\x17\xd4\xffy" +
+	"As\xef\xf0\xe72\x9b\xa0\xd9S\xf9\x12WUj\x84" +
+	"\x8b%\xe4\x97\xb3\xc0Rv\xf6J\x9f@*\x1d\x03\xee" +
+	"\xad\xcfwb\xca[\xa2\xaa'\xb6u9'\x12\xa3\x8b" +
+	"r\xb9X^T\xb4\x98\xd1\xc9\xf8\xc4\xa0\xdd\xffpj" +
+	"\x06\xed+\x82\x9a\x17\xcf\xb3\xe2\xe9\xfe\xdbR\xd3\xf4r" +
+	"\x07\x82V-\x1b\xc9\x96u;0;\x0a?\x96VY" +
+	"\xb1\xc0\xbe\x1b\xcb\x95\x86/\xad\xee\xe7\xf4\xe3\xeb\xe7^" +
+	"\xd6\xbd\xa4\xf9\xea\xb7\xddO_!\x87\xbef\xf8\x8a\x9a" +
+	"\xf5\xda\xa7\xf7,\xf0\x8a\xfa\xcc\xb6\xf1_\xf2;r\xfa" +
+	"\xa2bYTw\xd7\xff\x06\x00\x00\xff\xffe\xd5\x888"
 
 func init() {
 	schemas.Register(schema_8f4bd412642c9517,
 		0x877af4eba6adb0f3,
+		0x88b4277fa83dde2d,
 		0x8adfcabe5ff9daf4,
 		0x8f8172e4469c111a,
 		0x91ea9bb47f46c346,
@@ -2955,24 +2951,23 @@ func init() {
 		0x95794035a80b7da1,
 		0x9b0685a785df42e9,
 		0x9bce05e1e88ad9da,
+		0xa5cff7314a4335e5,
 		0xa94f085c31a03112,
 		0xacf8185a51a9f1b4,
-		0xb1d0acf125e5aea8,
 		0xb21a270577932520,
+		0xb47c95e958cccfff,
+		0xb7cede732308e432,
 		0xc340ede57616f2e8,
-		0xc45bc9086b311df8,
 		0xc4c61531dcc4a3eb,
 		0xc5ff2e54709776ec,
 		0xca1e844241cf650f,
 		0xcc65a2a89c24e6a5,
+		0xd7c92876b75c115d,
 		0xe7279389a6bbe1dc,
 		0xe7f7d11a5652e06c,
-		0xea68d6bee0062b5f,
 		0xf0c5156786d72738,
 		0xf10fe9b6293ee63f,
-		0xf268211f3beb07b6,
 		0xf7a6d78ba978beb9,
-		0xf7d46cc9041c4b68,
 		0xf9e52567abde1a0c,
 		0xfab1a3b4477ab6b3)
 }
