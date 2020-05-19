@@ -428,6 +428,7 @@ func CombineSegments(ASes *ASEntryList) *RawPathMetadata {
 		}
 		if idx == 0 {
 			res.Geo[asEntry.IA()] = getGeo(asEntry)
+			res.Notes[asEntry.IA()] = ASnote{Note:s.Note}
 		} else if idx < (len(ASes.Ups) - 1) {
 			ExtractNormaldata(res, asEntry)
 		} else {
@@ -458,8 +459,10 @@ func CombineSegments(ASes *ASEntryList) *RawPathMetadata {
 				// We're in the AS where we cross over from the up to the core segment
 				ExtractUpOverdata(res, lastUpASEntry, asEntry)
 			} else {
-				// This is the first AS in the path, so we only extract its geodata
+				// This is the first AS in the path, so we only extract
+				// its geodata and the note
 				res.Geo[asEntry.IA()] = getGeo(asEntry)
+				res.Notes[asEntry.IA()] = ASnote{Note:s.Note}
 			}
 		} else if idx < (len(ASes.Cores) - 1) {
 			ExtractNormaldata(res, asEntry)
@@ -473,7 +476,7 @@ func CombineSegments(ASes *ASEntryList) *RawPathMetadata {
 		}
 	}
 
-	// Go through ASEntries in the down segment except for the first one
+	// Go through ASEntries in the down segment
 	// and extract the static info data from them
 	for idx := 0; idx < len(ASes.Downs); idx++ {
 		asEntry := ASes.Downs[idx]
@@ -483,6 +486,7 @@ func CombineSegments(ASes *ASEntryList) *RawPathMetadata {
 		}
 		if idx == 0 {
 			res.Geo[asEntry.IA()] = getGeo(asEntry)
+			res.Notes[asEntry.IA()] = ASnote{Note:s.Note}
 		} else if idx < (len(ASes.Downs) - 1) {
 			ExtractNormaldata(res, asEntry)
 		} else {
