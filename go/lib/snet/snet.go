@@ -60,16 +60,12 @@ var _ Network = (*SCIONNetwork)(nil)
 // SCIOND, Dispatcher and Path resolver.
 type SCIONNetwork struct {
 	dispatcher PacketDispatcherService
-	// pathResolver references the default source of paths for a Network. This
-	// is set to nil when operating on a SCIOND-less Network.
-	querier PathQuerier
-	localIA addr.IA
+	localIA    addr.IA
 }
 
-// NewNetworkWithPR creates a new networking context with path resolver pr. A
-// nil path resolver means the Network will run without SCIOND.
-func NewNetworkWithPR(ia addr.IA, dispatcher reliable.Dispatcher,
-	querier PathQuerier, revHandler RevocationHandler) *SCIONNetwork {
+// NewNetwork creates a new networking context.
+func NewNetwork(ia addr.IA, dispatcher reliable.Dispatcher,
+	revHandler RevocationHandler) *SCIONNetwork {
 
 	return &SCIONNetwork{
 		dispatcher: &DefaultPacketDispatcherService{
@@ -78,14 +74,13 @@ func NewNetworkWithPR(ia addr.IA, dispatcher reliable.Dispatcher,
 				revocationHandler: revHandler,
 			},
 		},
-		querier: querier,
 		localIA: ia,
 	}
 }
 
-// NewCustomNetworkWithPR is similar to NewNetworkWithPR, while giving control
-// over packet processing via pktDispatcher.
-func NewCustomNetworkWithPR(ia addr.IA, pktDispatcher PacketDispatcherService) *SCIONNetwork {
+// NewCustomNetwork is similar to NewNetwork, while giving control over packet
+// processing via pktDispatcher.
+func NewCustomNetwork(ia addr.IA, pktDispatcher PacketDispatcherService) *SCIONNetwork {
 
 	return &SCIONNetwork{
 		dispatcher: pktDispatcher,
@@ -163,5 +158,5 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		conn.listen.Port = int(port)
 	}
 	log.Debug("Registered with dispatcher", "addr", &UDPAddr{IA: n.localIA, Host: conn.listen})
-	return newConn(conn, n.querier, packetConn), nil
+	return newConn(conn, packetConn), nil
 }
