@@ -36,8 +36,8 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 	defer rootCtrl.Finish()
 
 	tg := graph.NewDefaultGraph(rootCtrl)
-	seg110To130 := tg.Beacon([]common.IFIDType{graph.If_110_X_120_A, graph.If_120_A_130_B})
-	seg110To130Short := tg.Beacon([]common.IFIDType{graph.If_110_X_130_A})
+	seg110To130 := tg.Beacon([]common.IFIDType{graph.If_110_X_120_A, graph.If_120_A_130_B}, false)
+	seg110To130Short := tg.Beacon([]common.IFIDType{graph.If_110_X_130_A}, false)
 
 	tests := map[string]struct {
 		Segs           []*seghandler.SegWithHP

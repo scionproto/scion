@@ -186,5 +186,5 @@ func defaultRevInfo(ia addr.IA, ifId common.IFIDType, ts time.Time) *path_mgmt.R
 
 func createSeg(ctrl *gomock.Controller) *seg.PathSegment {
 	g := graph.NewDefaultGraph(ctrl)
-	return g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_222_X})
+	return g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_222_X}, false)
 }

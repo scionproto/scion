@@ -210,7 +210,7 @@ func defaultTestReq(rw infra.ResponseWriter, pseg *seg.PathSegment) *infra.Reque
 
 func testBeacon(g *graph.Graph, ifids []common.IFIDType) *seg.Beacon {
 	bseg := &seg.Beacon{
-		Segment: g.Beacon(ifids),
+		Segment: g.Beacon(ifids, false),
 	}
 	bseg.Segment.RawASEntries = bseg.Segment.RawASEntries[:len(bseg.Segment.RawASEntries)-1]
 	bseg.Segment.ASEntries = bseg.Segment.ASEntries[:len(bseg.Segment.ASEntries)-1]

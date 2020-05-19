@@ -59,17 +59,17 @@ func newTestGraph(ctrl *gomock.Controller) *testGraph {
 
 	return &testGraph{
 		g:          g,
-		seg110_120: g.Beacon([]common.IFIDType{graph.If_110_X_120_A}),
-		seg110_130: g.Beacon([]common.IFIDType{graph.If_110_X_130_A}),
-		seg120_111: g.Beacon([]common.IFIDType{graph.If_120_X_111_B}),
-		seg130_111: g.Beacon([]common.IFIDType{graph.If_130_B_111_A}),
+		seg110_120: g.Beacon([]common.IFIDType{graph.If_110_X_120_A}, false),
+		seg110_130: g.Beacon([]common.IFIDType{graph.If_110_X_130_A}, false),
+		seg120_111: g.Beacon([]common.IFIDType{graph.If_120_X_111_B}, false),
+		seg130_111: g.Beacon([]common.IFIDType{graph.If_130_B_111_A}, false),
 
-		seg210_120: g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_120_A}),
-		seg210_130: g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_130_A}),
+		seg210_120: g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_120_A}, false),
+		seg210_130: g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_130_A}, false),
 		seg210_130_2: g.Beacon([]common.IFIDType{graph.If_210_X_220_X,
-			graph.If_220_X_120_B, graph.If_120_A_130_B}),
-		seg210_211: g.Beacon([]common.IFIDType{graph.If_210_X_211_A}),
-		seg210_212: g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_212_X}),
+			graph.If_220_X_120_B, graph.If_120_A_130_B}, false),
+		seg210_211: g.Beacon([]common.IFIDType{graph.If_210_X_211_A}, false),
+		seg210_212: g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_212_X}, false),
 	}
 }
 

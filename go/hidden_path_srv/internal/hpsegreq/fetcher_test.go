@@ -105,21 +105,21 @@ func newTestGraph(t *testing.T, ctrl *gomock.Controller) {
 	seg130_112 = markHidden(t, seg.NewMeta(
 		g.Beacon([]common.IFIDType{
 			graph.If_130_A_112_X,
-		}),
+		}, false),
 		proto.PathSegType_down,
 	))
 	seg130_111_112 = markHidden(t, seg.NewMeta(
 		g.Beacon([]common.IFIDType{
 			graph.If_130_B_111_A,
 			graph.If_111_A_112_X,
-		}),
+		}, false),
 		proto.PathSegType_up,
 	))
 	seg120_111_112 = markHidden(t, seg.NewMeta(
 		g.Beacon([]common.IFIDType{
 			graph.If_120_X_111_B,
 			graph.If_111_A_112_X,
-		}),
+		}, false),
 		proto.PathSegType_core,
 	))
 }
