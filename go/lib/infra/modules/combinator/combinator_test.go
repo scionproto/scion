@@ -555,7 +555,7 @@ func writePaths(paths []*Path) *bytes.Buffer {
 	return buffer
 }
 
-func TestCombineSegments(t *testing.T) {
+func TestCollectMetadata(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
@@ -610,7 +610,7 @@ func TestCombineSegments(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:132").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:132").IAInt()),
-						Address:   "Züri",
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:132")),
 					}},
 					RawIA: xtest.MustParseIA("1-ff00:0:132").IAInt(),
 				},
@@ -618,7 +618,7 @@ func TestCombineSegments(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
-						Address:   "Züri",
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:131")),
 					}},
 					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
 				},
@@ -626,7 +626,7 @@ func TestCombineSegments(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
-						Address:   "Züri",
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:130")),
 					}},
 					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
 				},
@@ -634,7 +634,7 @@ func TestCombineSegments(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:110").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:110").IAInt()),
-						Address:   "Züri",
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:110")),
 					}},
 					RawIA: xtest.MustParseIA("1-ff00:0:110").IAInt(),
 				},
@@ -642,7 +642,7 @@ func TestCombineSegments(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:210").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:210").IAInt()),
-						Address:   "Züri",
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:210")),
 					}},
 					RawIA: xtest.MustParseIA("2-ff00:0:210").IAInt(),
 				},
@@ -650,7 +650,7 @@ func TestCombineSegments(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:211").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:211").IAInt()),
-						Address:   "Züri",
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:211")),
 					}},
 					RawIA: xtest.MustParseIA("2-ff00:0:211").IAInt(),
 				},
@@ -658,7 +658,7 @@ func TestCombineSegments(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:212").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:212").IAInt()),
-						Address:   "Züri",
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:212")),
 					}},
 					RawIA: xtest.MustParseIA("2-ff00:0:212").IAInt(),
 				},
@@ -689,6 +689,10 @@ func TestCombineSegments(t *testing.T) {
 			expectedNotes: []DenseNote{
 				{
 					Note:  "asdf",
+					RawIA: xtest.MustParseIA("1-ff00:0:132").IAInt(),
+				},
+				{
+					Note:  "asdf",
 					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
 				},
 				{
@@ -706,6 +710,10 @@ func TestCombineSegments(t *testing.T) {
 				{
 					Note:  "asdf",
 					RawIA: xtest.MustParseIA("2-ff00:0:211").IAInt(),
+				},
+				{
+					Note:  "asdf",
+					RawIA: xtest.MustParseIA("2-ff00:0:212").IAInt(),
 				},
 			},
 		},

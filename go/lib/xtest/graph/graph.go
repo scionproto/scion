@@ -208,7 +208,7 @@ func (g *Graph) GetPaths(xIA string, yIA string) [][]common.IFIDType {
 // down to the parent AS of the remote counterpart of the last IFID. The
 // constructed segment includes peering links. The hop fields in the returned
 // segment do not contain valid MACs.
-func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
+func (g *Graph) Beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSegment {
 	var remoteInIF, inIF, outIF, remoteOutIF common.IFIDType
 	var inIA, currIA, outIA addr.IA
 
@@ -275,6 +275,18 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 			ifids = append(ifids, int(peeringLocalIF))
 		}
 		sort.Ints(ifids)
+		s := &seg.StaticInfoExtn{}
+		if addStaticInfo {
+			asEntry.Exts.StaticInfo = s
+			s.Geo.Locations = append(s.Geo.Locations, seg.Location{
+				GPSData: seg.Coordinates{
+					Latitude:  float32(currIA.IAInt()),
+					Longitude: float32(currIA.IAInt()),
+					Address:   fmt.Sprintf("Location %s", currIA),
+				},
+				IfIDs: []common.IFIDType{},
+			})
+		}
 
 		for _, intIFID := range ifids {
 			peeringLocalIF := common.IFIDType(intIFID)
@@ -297,7 +309,17 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 					RawHopField: b,
 				}
 				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
+				if (addStaticInfo){
+					AppendIfIDToSIForTesting(s, true, peeringLocalIF, outIF)
+				}
+			} else {
+				if(addStaticInfo){
+					AppendIfIDToSIForTesting(s, false, peeringLocalIF, outIF)
+				}
 			}
+		}
+		if (addStaticInfo){
+			s.Note = "asdf"
 		}
 		signer := mock_seg.NewMockSigner(g.ctrl)
 		signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
@@ -386,7 +408,7 @@ func (g *Graph) BeaconWithStaticInfo(ifids []common.IFIDType) *seg.PathSegment {
 			GPSData: seg.Coordinates{
 				Latitude:  float32(currIA.IAInt()),
 				Longitude: float32(currIA.IAInt()),
-				Address:   "Züri",
+				Address:   fmt.Sprintf("Location %s", currIA),
 			},
 			IfIDs: []common.IFIDType{},
 		})
