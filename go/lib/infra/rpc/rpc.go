@@ -163,7 +163,7 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 		}
 	}
 	if ctx.Err() != nil {
-		return nil, err
+		return nil, ctx.Err()
 	}
 
 	stream, err := session.OpenStream()
