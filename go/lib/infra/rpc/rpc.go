@@ -160,8 +160,10 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 		select {
 		case <-time.After(sleep + time.Duration(mrand.Int()%5000)*time.Microsecond):
 		case <-ctx.Done():
-			return nil, ctx.Err()
 		}
+	}
+	if ctx.Err() != nil {
+		return nil, err
 	}
 
 	stream, err := session.OpenStream()
