@@ -61,7 +61,7 @@ struct HostInfo {
 struct PathMetadata {
     totalLatency @0 :UInt16;
     totalHops @1 :UInt8;
-    bandwidthBottleneck @2 :UInt32;
+    minimalBandwidth @2 :UInt32;
     linkTypes @3 :List(InterfaceLinkType);
     asLocations @4 :List(Geo);
     notes @5: List(Note);
