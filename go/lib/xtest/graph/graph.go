@@ -310,11 +310,11 @@ func (g *Graph) Beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 				}
 				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
 			}
-			if addStaticInfo{
+			if addStaticInfo {
 				generateStaticInfo(s, g.isPeer[peeringLocalIF], peeringLocalIF, outIF)
 			}
 		}
-		if (addStaticInfo){
+		if addStaticInfo {
 			s.Note = fmt.Sprintf("Note %s", currIA)
 		}
 		signer := mock_seg.NewMockSigner(g.ctrl)

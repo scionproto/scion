@@ -237,7 +237,7 @@ func TestCollectMetadata(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
-						Address: fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:130")),
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:130")),
 					}},
 					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
 				},
@@ -288,7 +288,7 @@ func TestCollectMetadata(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:133").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:133").IAInt()),
-						Address:    fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:133")),
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:133")),
 					}},
 					RawIA: xtest.MustParseIA("1-ff00:0:133").IAInt(),
 				},
@@ -296,7 +296,7 @@ func TestCollectMetadata(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:132").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:132").IAInt()),
-						Address:    fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:132")),
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:132")),
 					}},
 					RawIA: xtest.MustParseIA("1-ff00:0:132").IAInt(),
 				},
@@ -304,7 +304,7 @@ func TestCollectMetadata(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
-						Address:    fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:131")),
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:131")),
 					}},
 					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
 				},
@@ -425,7 +425,7 @@ func TestCollectMetadata(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:212").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:212").IAInt()),
-						Address:    fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:212")),
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:212")),
 					}},
 					RawIA: xtest.MustParseIA("2-ff00:0:212").IAInt(),
 				},
@@ -433,7 +433,7 @@ func TestCollectMetadata(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:211").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:211").IAInt()),
-						Address:    fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:211")),
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:211")),
 					}},
 					RawIA: xtest.MustParseIA("2-ff00:0:211").IAInt(),
 				},
@@ -441,7 +441,7 @@ func TestCollectMetadata(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:221").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:221").IAInt()),
-						Address:    fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:221")),
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:221")),
 					}},
 					RawIA: xtest.MustParseIA("2-ff00:0:221").IAInt(),
 				},
@@ -449,7 +449,7 @@ func TestCollectMetadata(t *testing.T) {
 					RouterLocations: []GeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:222").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:222").IAInt()),
-						Address:    fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:222")),
+						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:222")),
 					}},
 					RawIA: xtest.MustParseIA("2-ff00:0:222").IAInt(),
 				},

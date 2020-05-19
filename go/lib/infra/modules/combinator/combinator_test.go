@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
-
 )
 
 var (
@@ -553,4 +552,3 @@ func writePaths(paths []*Path) *bytes.Buffer {
 	}
 	return buffer
 }
-

@@ -195,7 +195,7 @@ type ASEntryList struct {
 
 // CollectMetadata is the function used to extract StaticInfo
 // from a *PathSolution.
-func (solution *PathSolution) CollectMetadata() *PathMetadata{
+func (solution *PathSolution) CollectMetadata() *PathMetadata {
 	asEntries := solution.GatherASEntries()
 	rawMeta := CombineSegments(asEntries)
 	res := rawMeta.Condensemetadata()
@@ -429,7 +429,6 @@ func ExtractCoreOverdata(res *RawPathMetadata, oldASEntry *seg.ASEntry, newASEnt
 	}
 }
 
-
 // CombineSegments is responsible for going through each list of ASEntries
 // representing a path segment and calling the extractor
 // functions from above that correspond to the
@@ -461,7 +460,7 @@ func CombineSegments(ASes *ASEntryList) *RawPathMetadata {
 			// between BRs (i.e. the "edges" of an AS) and a path could
 			// potentially originate somewhere in the "middle" of the AS.
 			res.Geo[asEntry.IA()] = getGeo(asEntry)
-			res.Notes[asEntry.IA()] = ASnote{Note:s.Note}
+			res.Notes[asEntry.IA()] = ASnote{Note: s.Note}
 		} else if idx < (len(ASes.Ups) - 1) {
 			// If the AS is in the middle of the segment, simply extract
 			// the egress and ingressToEgress metrics from the corresponding
@@ -507,7 +506,7 @@ func CombineSegments(ASes *ASEntryList) *RawPathMetadata {
 				// This is the first AS in the path, so we only extract
 				// its geodata and the note
 				res.Geo[asEntry.IA()] = getGeo(asEntry)
-				res.Notes[asEntry.IA()] = ASnote{Note:s.Note}
+				res.Notes[asEntry.IA()] = ASnote{Note: s.Note}
 			}
 		} else if idx < (len(ASes.Cores) - 1) {
 			// If the AS is in the middle of the segment, simply extract
@@ -539,7 +538,7 @@ func CombineSegments(ASes *ASEntryList) *RawPathMetadata {
 			// for the last AS on the path, only extract
 			// the note and the geodata (analogous to the first AS).
 			res.Geo[asEntry.IA()] = getGeo(asEntry)
-			res.Notes[asEntry.IA()] = ASnote{Note:s.Note}
+			res.Notes[asEntry.IA()] = ASnote{Note: s.Note}
 		} else if idx < (len(ASes.Downs) - 1) {
 			ExtractNormaldata(res, asEntry)
 		} else {
