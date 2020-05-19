@@ -193,7 +193,8 @@ type ASEntryList struct {
 	DownPeer int
 }
 
-func (solution *PathSolution) collectMetadata() *PathMetadata{
+// collectMetadata
+func (solution *PathSolution) CollectMetadata() *PathMetadata{
 	asEntries := solution.GatherASEntries()
 	rawMeta := CombineSegments(asEntries)
 	res := rawMeta.Condensemetadata()
