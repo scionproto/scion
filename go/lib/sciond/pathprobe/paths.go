@@ -110,7 +110,7 @@ func (p Prober) GetStatuses(ctx context.Context,
 	// the path is alive.
 	pathStatuses := make(map[string]Status, len(paths))
 	scmpH := &scmpHandler{statuses: pathStatuses}
-	network := snet.NewCustomNetworkWithPR(p.LocalIA,
+	network := snet.NewCustomNetwork(p.LocalIA,
 		&snet.DefaultPacketDispatcherService{
 			Dispatcher:  reliable.NewDispatcher(""),
 			SCMPHandler: scmpH,

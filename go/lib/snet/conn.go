@@ -62,12 +62,12 @@ type Conn struct {
 	scionConnReader
 }
 
-func newConn(base *scionConnBase, querier PathQuerier, conn PacketConn) *Conn {
+func newConn(base *scionConnBase, conn PacketConn) *Conn {
 	c := &Conn{
 		conn:          conn,
 		scionConnBase: *base,
 	}
-	c.scionConnWriter = *newScionConnWriter(&c.scionConnBase, querier, conn)
+	c.scionConnWriter = *newScionConnWriter(&c.scionConnBase, conn)
 	c.scionConnReader = *newScionConnReader(&c.scionConnBase, conn)
 	return c
 }
