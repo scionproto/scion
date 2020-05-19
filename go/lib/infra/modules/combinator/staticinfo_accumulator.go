@@ -109,7 +109,7 @@ type RawPathMetadata struct {
 type PathMetadata struct {
 	TotalLatency uint16            `capnp:"totalLatency"`
 	TotalHops    uint8             `capnp:"totalHops"`
-	MinOfMaxBWs  uint32            `capnp:"bandwidthBottleneck"`
+	MinOfMaxBWs  uint32            `capnp:"minimalBandwidth"`
 	LinkTypes    []DenseASLinkType `capnp:"linkTypes"`
 	Locations    []DenseGeo        `capnp:"asLocations"`
 	Notes        []DenseNote       `capnp:"notes"`
