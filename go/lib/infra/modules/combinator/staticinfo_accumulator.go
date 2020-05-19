@@ -160,25 +160,25 @@ func (data *RawPathMetadata) Condensemetadata() *PathMetadata {
 		ret.TotalHops += val.Hops
 	}
 
-	for IA, note := range data.Notes {
+	for ia, note := range data.Notes {
 		ret.Notes = append(ret.Notes, DenseNote{
 			Note:  note.Note,
-			RawIA: IA.IAInt(),
+			RawIA: ia.IAInt(),
 		})
 	}
 
-	for IA, loc := range data.Geo {
+	for ia, loc := range data.Geo {
 		ret.Locations = append(ret.Locations, DenseGeo{
-			RawIA:           IA.IAInt(),
+			RawIA:           ia.IAInt(),
 			RouterLocations: loc.locations,
 		})
 	}
 
-	for IA, link := range data.Links {
+	for ia, link := range data.Links {
 		ret.LinkTypes = append(ret.LinkTypes, DenseASLinkType{
 			InterLinkType: link.InterLinkType,
 			PeerLinkType:  link.PeerLinkType,
-			RawIA:         IA.IAInt(),
+			RawIA:         ia.IAInt(),
 		})
 	}
 
@@ -191,6 +191,13 @@ type ASEntryList struct {
 	Downs    []*seg.ASEntry
 	UpPeer   int
 	DownPeer int
+}
+
+func (solution *PathSolution) collectMetadata() *PathMetadata{
+	asEntries := solution.GatherASEntries()
+	rawMeta := CombineSegments(asEntries)
+	res := rawMeta.Condensemetadata()
+	return res
 }
 
 func (solution *PathSolution) GatherASEntries() *ASEntryList {
@@ -219,214 +226,222 @@ func (solution *PathSolution) GatherASEntries() *ASEntryList {
 	return &res
 }
 
-func (res *RawPathMetadata) ExtractPeerdata(asEntry *seg.ASEntry,
+func ExtractPeerdata(res *RawPathMetadata, asEntry *seg.ASEntry,
 	peerIfID common.IFIDType, includePeer bool) {
 
-	IA := asEntry.IA()
-	StaticInfo := asEntry.Exts.StaticInfo
-	for i := 0; i < len(StaticInfo.Latency.Peerlatencies); i++ {
-		if StaticInfo.Latency.Peerlatencies[i].IfID == peerIfID {
+	ia := asEntry.IA()
+	staticInfo := asEntry.Exts.StaticInfo
+	for i := 0; i < len(staticInfo.Latency.Peerlatencies); i++ {
+		if staticInfo.Latency.Peerlatencies[i].IfID == peerIfID {
 			if includePeer {
-				res.ASLatencies[IA] = ASLatency{
-					IntraLatency: StaticInfo.Latency.Peerlatencies[i].IntraDelay,
-					InterLatency: StaticInfo.Latency.Egresslatency,
-					PeerLatency:  StaticInfo.Latency.Peerlatencies[i].Interdelay,
+				res.ASLatencies[ia] = ASLatency{
+					IntraLatency: staticInfo.Latency.Peerlatencies[i].IntraDelay,
+					InterLatency: staticInfo.Latency.Egresslatency,
+					PeerLatency:  staticInfo.Latency.Peerlatencies[i].Interdelay,
 				}
 			} else {
-				res.ASLatencies[IA] = ASLatency{
-					IntraLatency: StaticInfo.Latency.Peerlatencies[i].IntraDelay,
-					InterLatency: StaticInfo.Latency.Egresslatency,
+				res.ASLatencies[ia] = ASLatency{
+					IntraLatency: staticInfo.Latency.Peerlatencies[i].IntraDelay,
+					InterLatency: staticInfo.Latency.Egresslatency,
 				}
 			}
 		}
 	}
-	for i := 0; i < len(StaticInfo.Linktype.Peerlinks); i++ {
-		if StaticInfo.Linktype.Peerlinks[i].IfID == peerIfID {
+	for i := 0; i < len(staticInfo.Linktype.Peerlinks); i++ {
+		if staticInfo.Linktype.Peerlinks[i].IfID == peerIfID {
 			if includePeer {
-				res.Links[IA] = ASLink{
-					InterLinkType: StaticInfo.Linktype.EgressLinkType,
-					PeerLinkType:  StaticInfo.Linktype.Peerlinks[i].LinkType,
+				res.Links[ia] = ASLink{
+					InterLinkType: staticInfo.Linktype.EgressLinkType,
+					PeerLinkType:  staticInfo.Linktype.Peerlinks[i].LinkType,
 				}
 			} else {
-				res.Links[IA] = ASLink{
-					InterLinkType: StaticInfo.Linktype.EgressLinkType,
+				res.Links[ia] = ASLink{
+					InterLinkType: staticInfo.Linktype.EgressLinkType,
 				}
 			}
 		}
 	}
-	for i := 0; i < len(StaticInfo.Bandwidth.Bandwidths); i++ {
-		if StaticInfo.Bandwidth.Bandwidths[i].IfID == peerIfID {
-			res.ASBandwidths[IA] = ASBandwidth{
-				IntraBW: StaticInfo.Bandwidth.Bandwidths[i].BW,
-				InterBW: StaticInfo.Bandwidth.EgressBW,
+	for i := 0; i < len(staticInfo.Bandwidth.Bandwidths); i++ {
+		if staticInfo.Bandwidth.Bandwidths[i].IfID == peerIfID {
+			res.ASBandwidths[ia] = ASBandwidth{
+				IntraBW: staticInfo.Bandwidth.Bandwidths[i].BW,
+				InterBW: staticInfo.Bandwidth.EgressBW,
 			}
 		}
 	}
-	for i := 0; i < len(StaticInfo.Hops.InterfaceHops); i++ {
-		if StaticInfo.Hops.InterfaceHops[i].IfID == peerIfID {
-			res.ASHops[IA] = ASHops{
-				Hops: StaticInfo.Hops.InterfaceHops[i].Hops,
+	for i := 0; i < len(staticInfo.Hops.InterfaceHops); i++ {
+		if staticInfo.Hops.InterfaceHops[i].IfID == peerIfID {
+			res.ASHops[ia] = ASHops{
+				Hops: staticInfo.Hops.InterfaceHops[i].Hops,
 			}
 		}
 	}
-	res.Geo[IA] = getGeo(asEntry)
-	res.Notes[IA] = ASnote{
-		Note: StaticInfo.Note,
+	res.Geo[ia] = getGeo(asEntry)
+	res.Notes[ia] = ASnote{
+		Note: staticInfo.Note,
 	}
 }
 
-func (res *RawPathMetadata) ExtractSingleSegmentFinalASData(asEntry *seg.ASEntry) {
-	IA := asEntry.IA()
-	StaticInfo := asEntry.Exts.StaticInfo
-	res.ASLatencies[IA] = ASLatency{
-		InterLatency: StaticInfo.Latency.Egresslatency,
+func ExtractSingleSegmentFinalASData(res *RawPathMetadata, asEntry *seg.ASEntry) {
+	ia := asEntry.IA()
+	staticInfo := asEntry.Exts.StaticInfo
+	res.ASLatencies[ia] = ASLatency{
+		InterLatency: staticInfo.Latency.Egresslatency,
 		PeerLatency:  0,
 	}
-	res.Links[IA] = ASLink{
-		InterLinkType: StaticInfo.Linktype.EgressLinkType,
+	res.Links[ia] = ASLink{
+		InterLinkType: staticInfo.Linktype.EgressLinkType,
 	}
-	res.ASBandwidths[IA] = ASBandwidth{
-		InterBW: StaticInfo.Bandwidth.EgressBW,
+	res.ASBandwidths[ia] = ASBandwidth{
+		InterBW: staticInfo.Bandwidth.EgressBW,
 	}
-	res.ASHops[IA] = ASHops{}
-	res.Geo[IA] = getGeo(asEntry)
-	res.Notes[IA] = ASnote{
-		Note: StaticInfo.Note,
+	res.ASHops[ia] = ASHops{}
+	res.Geo[ia] = getGeo(asEntry)
+	res.Notes[ia] = ASnote{
+		Note: staticInfo.Note,
 	}
 }
 
-func (res *RawPathMetadata) ExtractNormaldata(asEntry *seg.ASEntry) {
-	IA := asEntry.IA()
-	StaticInfo := asEntry.Exts.StaticInfo
-	res.ASLatencies[IA] = ASLatency{
-		IntraLatency: StaticInfo.Latency.IngressToEgressLatency,
-		InterLatency: StaticInfo.Latency.Egresslatency,
+func ExtractNormaldata(res *RawPathMetadata, asEntry *seg.ASEntry) {
+	ia := asEntry.IA()
+	staticInfo := asEntry.Exts.StaticInfo
+	res.ASLatencies[ia] = ASLatency{
+		IntraLatency: staticInfo.Latency.IngressToEgressLatency,
+		InterLatency: staticInfo.Latency.Egresslatency,
 		PeerLatency:  0,
 	}
-	res.Links[IA] = ASLink{
-		InterLinkType: StaticInfo.Linktype.EgressLinkType,
+	res.Links[ia] = ASLink{
+		InterLinkType: staticInfo.Linktype.EgressLinkType,
 	}
-	res.ASBandwidths[IA] = ASBandwidth{
-		IntraBW: StaticInfo.Bandwidth.IngressToEgressBW,
-		InterBW: StaticInfo.Bandwidth.EgressBW,
+	res.ASBandwidths[ia] = ASBandwidth{
+		IntraBW: staticInfo.Bandwidth.IngressToEgressBW,
+		InterBW: staticInfo.Bandwidth.EgressBW,
 	}
-	res.ASHops[IA] = ASHops{
-		Hops: StaticInfo.Hops.InToOutHops,
+	res.ASHops[ia] = ASHops{
+		Hops: staticInfo.Hops.InToOutHops,
 	}
-	res.Geo[IA] = getGeo(asEntry)
-	res.Notes[IA] = ASnote{
-		Note: StaticInfo.Note,
+	res.Geo[ia] = getGeo(asEntry)
+	res.Notes[ia] = ASnote{
+		Note: staticInfo.Note,
 	}
 }
 
-func (res *RawPathMetadata) ExtractUpOverdata(oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
-	IA := newASEntry.IA()
-	StaticInfo := oldASEntry.Exts.StaticInfo
+func ExtractUpOverdata(res *RawPathMetadata, oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
+	ia := newASEntry.IA()
+	staticInfo := oldASEntry.Exts.StaticInfo
 	hopEntry := newASEntry.HopEntries[0]
-	HF, _ := hopEntry.HopField()
-	newIngressIfID := HF.ConsIngress
-	for i := 0; i < len(StaticInfo.Latency.Childlatencies); i++ {
-		if StaticInfo.Latency.Childlatencies[i].IfID == newIngressIfID {
-			res.ASLatencies[IA] = ASLatency{
-				IntraLatency: StaticInfo.Latency.Childlatencies[i].Intradelay,
-				InterLatency: StaticInfo.Latency.Egresslatency,
+	hf, _ := hopEntry.HopField()
+	newIngressIfID := hf.ConsIngress
+	for i := 0; i < len(staticInfo.Latency.Childlatencies); i++ {
+		if staticInfo.Latency.Childlatencies[i].IfID == newIngressIfID {
+			res.ASLatencies[ia] = ASLatency{
+				IntraLatency: staticInfo.Latency.Childlatencies[i].Intradelay,
+				InterLatency: staticInfo.Latency.Egresslatency,
 			}
 		}
 	}
-	res.Links[IA] = ASLink{
-		InterLinkType: StaticInfo.Linktype.EgressLinkType,
+	res.Links[ia] = ASLink{
+		InterLinkType: staticInfo.Linktype.EgressLinkType,
 	}
 
-	for i := 0; i < len(StaticInfo.Bandwidth.Bandwidths); i++ {
-		if StaticInfo.Bandwidth.Bandwidths[i].IfID == newIngressIfID {
-			res.ASBandwidths[IA] = ASBandwidth{
-				IntraBW: StaticInfo.Bandwidth.Bandwidths[i].BW,
-				InterBW: StaticInfo.Bandwidth.EgressBW,
+	for i := 0; i < len(staticInfo.Bandwidth.Bandwidths); i++ {
+		if staticInfo.Bandwidth.Bandwidths[i].IfID == newIngressIfID {
+			res.ASBandwidths[ia] = ASBandwidth{
+				IntraBW: staticInfo.Bandwidth.Bandwidths[i].BW,
+				InterBW: staticInfo.Bandwidth.EgressBW,
 			}
 		}
 	}
-	for i := 0; i < len(StaticInfo.Hops.InterfaceHops); i++ {
-		if StaticInfo.Hops.InterfaceHops[i].IfID == newIngressIfID {
-			res.ASHops[IA] = ASHops{
-				Hops: StaticInfo.Hops.InterfaceHops[i].Hops,
+	for i := 0; i < len(staticInfo.Hops.InterfaceHops); i++ {
+		if staticInfo.Hops.InterfaceHops[i].IfID == newIngressIfID {
+			res.ASHops[ia] = ASHops{
+				Hops: staticInfo.Hops.InterfaceHops[i].Hops,
 			}
 		}
 	}
-	res.Geo[IA] = getGeo(newASEntry)
-	res.Notes[IA] = ASnote{
-		Note: StaticInfo.Note,
+	res.Geo[ia] = getGeo(newASEntry)
+	res.Notes[ia] = ASnote{
+		Note: staticInfo.Note,
 	}
 }
 
-func (res *RawPathMetadata) ExtractCoreOverdata(oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
-	IA := newASEntry.IA()
-	StaticInfo := newASEntry.Exts.StaticInfo
+func ExtractCoreOverdata(res *RawPathMetadata, oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
+	ia := newASEntry.IA()
+	staticInfo := newASEntry.Exts.StaticInfo
 	oldSI := oldASEntry.Exts.StaticInfo
 	hopEntry := oldASEntry.HopEntries[0]
-	HF, _ := hopEntry.HopField()
-	oldEgressIfID := HF.ConsEgress
-	for i := 0; i < len(StaticInfo.Latency.Childlatencies); i++ {
-		if StaticInfo.Latency.Childlatencies[i].IfID == oldEgressIfID {
-			res.ASLatencies[IA] = ASLatency{
-				IntraLatency: StaticInfo.Latency.Childlatencies[i].Intradelay,
-				InterLatency: StaticInfo.Latency.Egresslatency,
+	hf, _ := hopEntry.HopField()
+	oldEgressIfID := hf.ConsEgress
+	for i := 0; i < len(staticInfo.Latency.Childlatencies); i++ {
+		if staticInfo.Latency.Childlatencies[i].IfID == oldEgressIfID {
+			res.ASLatencies[ia] = ASLatency{
+				IntraLatency: staticInfo.Latency.Childlatencies[i].Intradelay,
+				InterLatency: staticInfo.Latency.Egresslatency,
 				PeerLatency:  oldSI.Latency.Egresslatency,
 			}
 		}
 	}
-	res.Links[IA] = ASLink{
-		InterLinkType: StaticInfo.Linktype.EgressLinkType,
+	res.Links[ia] = ASLink{
+		InterLinkType: staticInfo.Linktype.EgressLinkType,
 		PeerLinkType:  oldSI.Linktype.EgressLinkType,
 	}
 
-	for i := 0; i < len(StaticInfo.Bandwidth.Bandwidths); i++ {
-		if StaticInfo.Bandwidth.Bandwidths[i].IfID == oldEgressIfID {
-			res.ASBandwidths[IA] = ASBandwidth{
-				IntraBW: StaticInfo.Bandwidth.Bandwidths[i].BW,
-				InterBW: StaticInfo.Bandwidth.EgressBW,
+	for i := 0; i < len(staticInfo.Bandwidth.Bandwidths); i++ {
+		if staticInfo.Bandwidth.Bandwidths[i].IfID == oldEgressIfID {
+			res.ASBandwidths[ia] = ASBandwidth{
+				IntraBW: staticInfo.Bandwidth.Bandwidths[i].BW,
+				InterBW: staticInfo.Bandwidth.EgressBW,
 			}
 		}
 	}
-	for i := 0; i < len(StaticInfo.Hops.InterfaceHops); i++ {
-		if StaticInfo.Hops.InterfaceHops[i].IfID == oldEgressIfID {
-			res.ASHops[IA] = ASHops{
-				Hops: StaticInfo.Hops.InterfaceHops[i].Hops,
+	for i := 0; i < len(staticInfo.Hops.InterfaceHops); i++ {
+		if staticInfo.Hops.InterfaceHops[i].IfID == oldEgressIfID {
+			res.ASHops[ia] = ASHops{
+				Hops: staticInfo.Hops.InterfaceHops[i].Hops,
 			}
 		}
 	}
-	res.Geo[IA] = getGeo(newASEntry)
-	res.Notes[IA] = ASnote{
-		Note: StaticInfo.Note,
+	res.Geo[ia] = getGeo(newASEntry)
+	res.Notes[ia] = ASnote{
+		Note: staticInfo.Note,
 	}
 }
 
-func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
-	var LastUpASEntry *seg.ASEntry
-	var LastCoreASEntry *seg.ASEntry
-	res := initialize()
+func CombineSegments(ASes *ASEntryList) *RawPathMetadata {
+	var lastUpASEntry *seg.ASEntry
+	var lastCoreASEntry *seg.ASEntry
+	res := &RawPathMetadata{
+		ASLatencies:  make(map[addr.IA]ASLatency),
+		ASBandwidths: make(map[addr.IA]ASBandwidth),
+		ASHops:       make(map[addr.IA]ASHops),
+		Geo:          make(map[addr.IA]ASGeo),
+		Links:        make(map[addr.IA]ASLink),
+		Notes:        make(map[addr.IA]ASnote),
+	}
 	// Go through ASEntries in the up segment (except for the first one)
 	// and extract the static info data from them
 	for idx := 0; idx < len(ASes.Ups); idx++ {
 		asEntry := ASes.Ups[idx]
 		s := asEntry.Exts.StaticInfo
-		if s != nil {
-			if idx == 0 {
-				res.Geo[asEntry.IA()] = getGeo(asEntry)
-			} else if idx < (len(ASes.Ups) - 1) {
-				res.ExtractNormaldata(asEntry)
+		if s == nil {
+			continue
+		}
+		if idx == 0 {
+			res.Geo[asEntry.IA()] = getGeo(asEntry)
+		} else if idx < (len(ASes.Ups) - 1) {
+			ExtractNormaldata(res, asEntry)
+		} else {
+			if (len(ASes.Cores) == 0) && (len(ASes.Downs) == 0) {
+				ExtractSingleSegmentFinalASData(res, asEntry)
+			} else if ASes.UpPeer != 0 {
+				peerEntry := asEntry.HopEntries[ASes.UpPeer]
+				PE, _ := peerEntry.HopField()
+				peerIfID := PE.ConsIngress
+				ExtractPeerdata(res, asEntry, peerIfID, false)
 			} else {
-				if (len(ASes.Cores) == 0) && (len(ASes.Downs) == 0) {
-					res.ExtractSingleSegmentFinalASData(asEntry)
-				} else if ASes.UpPeer != 0 {
-					peerEntry := asEntry.HopEntries[ASes.UpPeer]
-					PE, _ := peerEntry.HopField()
-					peerIfID := PE.ConsIngress
-					res.ExtractPeerdata(asEntry, peerIfID, false)
-				} else {
-					// If the last up AS is not involved in peering,
-					// do nothing except store the as in LastUpASEntry
-					LastUpASEntry = asEntry
-				}
+				// If the last up AS is not involved in peering,
+				// do nothing except store the as in LastUpASEntry
+				lastUpASEntry = asEntry
 			}
 		}
 	}
@@ -435,24 +450,25 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 	for idx := 0; idx < len(ASes.Cores); idx++ {
 		asEntry := ASes.Cores[idx]
 		s := asEntry.Exts.StaticInfo
-		if s != nil {
-			if idx == 0 {
-				if len(ASes.Ups) > 0 {
-					// We're in the AS where we cross over from the up to the core segment
-					res.ExtractUpOverdata(LastUpASEntry, asEntry)
-				} else {
-					// This is the first AS in the path, so we only extract its geodata
-					res.Geo[asEntry.IA()] = getGeo(asEntry)
-				}
-			} else if idx < (len(ASes.Cores) - 1) {
-				res.ExtractNormaldata(asEntry)
+		if s == nil {
+			continue
+		}
+		if idx == 0 {
+			if len(ASes.Ups) > 0 {
+				// We're in the AS where we cross over from the up to the core segment
+				ExtractUpOverdata(res, lastUpASEntry, asEntry)
 			} else {
-				// If we're in the last AS of the segment
-				// only set LastCoreASEntry
-				LastCoreASEntry = asEntry
-				if len(ASes.Downs) == 0 {
-					res.ExtractNormaldata(asEntry)
-				}
+				// This is the first AS in the path, so we only extract its geodata
+				res.Geo[asEntry.IA()] = getGeo(asEntry)
+			}
+		} else if idx < (len(ASes.Cores) - 1) {
+			ExtractNormaldata(res, asEntry)
+		} else {
+			// If we're in the last AS of the segment
+			// only set LastCoreASEntry
+			lastCoreASEntry = asEntry
+			if len(ASes.Downs) == 0 {
+				ExtractNormaldata(res, asEntry)
 			}
 		}
 	}
@@ -462,32 +478,33 @@ func (ASes *ASEntryList) CombineSegments() *RawPathMetadata {
 	for idx := 0; idx < len(ASes.Downs); idx++ {
 		asEntry := ASes.Downs[idx]
 		s := asEntry.Exts.StaticInfo
-		if s != nil {
-			if idx == 0 {
-				res.Geo[asEntry.IA()] = getGeo(asEntry)
-			} else if idx < (len(ASes.Downs) - 1) {
-				res.ExtractNormaldata(asEntry)
+		if s == nil {
+			continue
+		}
+		if idx == 0 {
+			res.Geo[asEntry.IA()] = getGeo(asEntry)
+		} else if idx < (len(ASes.Downs) - 1) {
+			ExtractNormaldata(res, asEntry)
+		} else {
+			if ASes.DownPeer != 0 {
+				// We're in the AS where we peered over from the up to the down segment
+				peerEntry := asEntry.HopEntries[ASes.UpPeer]
+				PE, _ := peerEntry.HopField()
+				peerIfID := PE.ConsIngress
+				ExtractPeerdata(res, asEntry, peerIfID, true)
 			} else {
-				if ASes.DownPeer != 0 {
-					// We're in the AS where we peered over from the up to the down segment
-					peerEntry := asEntry.HopEntries[ASes.UpPeer]
-					PE, _ := peerEntry.HopField()
-					peerIfID := PE.ConsIngress
-					res.ExtractPeerdata(asEntry, peerIfID, true)
-				} else {
-					if len(ASes.Cores) > 0 {
-						// We're in the AS where we cross over from the core to the down segment
-						res.ExtractCoreOverdata(LastCoreASEntry, asEntry)
-					}
-					if (len(ASes.Ups) > 0) && (len(ASes.Cores) == 0) {
-						// We're in the AS where we cross over from the up to
-						// the down segment via a shortcut (analogous to crossing
-						// over from core to down, thus we use ExtractCoreOverdata())
-						res.ExtractCoreOverdata(LastUpASEntry, asEntry)
-					}
-					if (len(ASes.Ups) == 0) && (len(ASes.Cores) == 0) {
-						res.ExtractSingleSegmentFinalASData(asEntry)
-					}
+				if len(ASes.Cores) > 0 {
+					// We're in the AS where we cross over from the core to the down segment
+					ExtractCoreOverdata(res, lastCoreASEntry, asEntry)
+				}
+				if (len(ASes.Ups) > 0) && (len(ASes.Cores) == 0) {
+					// We're in the AS where we cross over from the up to
+					// the down segment via a shortcut (analogous to crossing
+					// over from core to down, thus we use ExtractCoreOverdata())
+					ExtractCoreOverdata(res, lastUpASEntry, asEntry)
+				}
+				if (len(ASes.Ups) == 0) && (len(ASes.Cores) == 0) {
+					ExtractSingleSegmentFinalASData(res, asEntry)
 				}
 			}
 		}
@@ -508,15 +525,4 @@ func getGeo(asEntry *seg.ASEntry) ASGeo {
 		locations: locations,
 	}
 	return res
-}
-
-func initialize() *RawPathMetadata {
-	return &RawPathMetadata{
-		ASLatencies:  make(map[addr.IA]ASLatency),
-		ASBandwidths: make(map[addr.IA]ASBandwidth),
-		ASHops:       make(map[addr.IA]ASHops),
-		Geo:          make(map[addr.IA]ASGeo),
-		Links:        make(map[addr.IA]ASLink),
-		Notes:        make(map[addr.IA]ASnote),
-	}
 }
