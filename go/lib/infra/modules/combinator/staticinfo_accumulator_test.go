@@ -231,7 +231,7 @@ func TestCollectMetadata(t *testing.T) {
 			},
 			expectedLatency: uint16(graph.If_130_B_111_A),
 			expectedBW:      calcBWmin([]common.IFIDType{graph.If_130_B_111_A}),
-			expectedHops:    0,
+			expectedHops:    1,
 			expectedGeo: []DenseGeo{
 				{
 					RouterLocations: []GeoLoc{{
