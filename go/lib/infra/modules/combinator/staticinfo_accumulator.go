@@ -193,7 +193,8 @@ type ASEntryList struct {
 	DownPeer int
 }
 
-// collectMetadata
+// CollectMetadata is the function used to extract StaticInfo
+// from a *PathSolution.
 func (solution *PathSolution) CollectMetadata() *PathMetadata{
 	asEntries := solution.GatherASEntries()
 	rawMeta := CombineSegments(asEntries)
@@ -201,6 +202,10 @@ func (solution *PathSolution) CollectMetadata() *PathMetadata{
 	return res
 }
 
+// GatherASEntries goes through the edges in the PathSolution found by GetPaths.
+// For each edge, it goes through each ASEntry and adds it to a list,
+// representing the up-, core-, and down segments respectively.
+// It also saves the Peer value of the up and down edges.
 func (solution *PathSolution) GatherASEntries() *ASEntryList {
 	var res ASEntryList
 	for _, solEdge := range solution.edges {
@@ -227,6 +232,9 @@ func (solution *PathSolution) GatherASEntries() *ASEntryList {
 	return &res
 }
 
+// ExtractPeerdata is used to treat ASEntries which are involved in peering.
+// It includes saves the metrics for the egress, intra-AS, and peering
+// connections in the respective fields in RawPathMetadata.
 func ExtractPeerdata(res *RawPathMetadata, asEntry *seg.ASEntry,
 	peerIfID common.IFIDType, includePeer bool) {
 
@@ -283,6 +291,8 @@ func ExtractPeerdata(res *RawPathMetadata, asEntry *seg.ASEntry,
 	}
 }
 
+// ExtractSingleSegmentFinalASData is used to extract StaticInfo from
+// the final AS in a path that does not contain all 3 segments.
 func ExtractSingleSegmentFinalASData(res *RawPathMetadata, asEntry *seg.ASEntry) {
 	ia := asEntry.IA()
 	staticInfo := asEntry.Exts.StaticInfo
@@ -302,6 +312,11 @@ func ExtractSingleSegmentFinalASData(res *RawPathMetadata, asEntry *seg.ASEntry)
 		Note: staticInfo.Note,
 	}
 }
+
+// EctractNormaldata is used to extract StaticInfo from an AS that is
+// "in the middle" of a path, i.e. it is neither the first nor last AS
+// in the segment. It only uses egress and ingress to egress values from
+// staticInfo.
 
 func ExtractNormaldata(res *RawPathMetadata, asEntry *seg.ASEntry) {
 	ia := asEntry.IA()
@@ -327,6 +342,9 @@ func ExtractNormaldata(res *RawPathMetadata, asEntry *seg.ASEntry) {
 	}
 }
 
+// ExtractUpOverdata is used to extract StaticInfo from the last AS in the up segment,
+// when the path crosses over into the core segment (i.e. the AS is also the first AS
+// in the core segment).
 func ExtractUpOverdata(res *RawPathMetadata, oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
 	ia := newASEntry.IA()
 	staticInfo := oldASEntry.Exts.StaticInfo
@@ -366,6 +384,9 @@ func ExtractUpOverdata(res *RawPathMetadata, oldASEntry *seg.ASEntry, newASEntry
 	}
 }
 
+// ExtractCoreOverdata is used to extract StaticInfo from the last AS in the core segment,
+// when the path crosses over into the down segment (i.e. the AS is also the last AS
+// in the down segment).
 func ExtractCoreOverdata(res *RawPathMetadata, oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
 	ia := newASEntry.IA()
 	staticInfo := newASEntry.Exts.StaticInfo
@@ -408,6 +429,11 @@ func ExtractCoreOverdata(res *RawPathMetadata, oldASEntry *seg.ASEntry, newASEnt
 	}
 }
 
+
+// CombineSegments is responsible for going through each list of ASEntries
+// representing a path segment and calling the extractor
+// functions from above that correspond to the
+// particular role/position of each ASEntry in the segment.
 func CombineSegments(ASes *ASEntryList) *RawPathMetadata {
 	var lastUpASEntry *seg.ASEntry
 	var lastCoreASEntry *seg.ASEntry
@@ -419,7 +445,7 @@ func CombineSegments(ASes *ASEntryList) *RawPathMetadata {
 		Links:        make(map[addr.IA]ASLink),
 		Notes:        make(map[addr.IA]ASnote),
 	}
-	// Go through ASEntries in the up segment (except for the first one)
+	// Go through ASEntries in the up segment
 	// and extract the static info data from them
 	for idx := 0; idx < len(ASes.Ups); idx++ {
 		asEntry := ASes.Ups[idx]
@@ -428,21 +454,39 @@ func CombineSegments(ASes *ASEntryList) *RawPathMetadata {
 			continue
 		}
 		if idx == 0 {
+			// For the first AS on the path, only extract
+			// the note and the geodata, since all other data
+			// is not available as part of the saved
+			// s as we only have metrics describing a connection
+			// between BRs (i.e. the "edges" of an AS) and a path could
+			// potentially originate somewhere in the "middle" of the AS.
 			res.Geo[asEntry.IA()] = getGeo(asEntry)
 			res.Notes[asEntry.IA()] = ASnote{Note:s.Note}
 		} else if idx < (len(ASes.Ups) - 1) {
+			// If the AS is in the middle of the segment, simply extract
+			// the egress and ingressToEgress metrics from the corresponding
+			// fields in s.
 			ExtractNormaldata(res, asEntry)
 		} else {
+			// We're in the last AS on the up segment, distinguish
+			// 3 cases:
 			if (len(ASes.Cores) == 0) && (len(ASes.Downs) == 0) {
+				// This is the only segment and thus the final
+				// AS on the path.
 				ExtractSingleSegmentFinalASData(res, asEntry)
 			} else if ASes.UpPeer != 0 {
+				// This is the last AS in the segment and it
+				// is connected to the down segment via a peering
+				// connection.
 				peerEntry := asEntry.HopEntries[ASes.UpPeer]
 				PE, _ := peerEntry.HopField()
 				peerIfID := PE.ConsIngress
 				ExtractPeerdata(res, asEntry, peerIfID, false)
 			} else {
 				// If the last up AS is not involved in peering,
-				// do nothing except store the as in LastUpASEntry
+				// do nothing except store the ASEntry in LastUpASEntry.
+				// The actual crossover will be treated as part of the core
+				// segment.
 				lastUpASEntry = asEntry
 			}
 		}
@@ -466,17 +510,23 @@ func CombineSegments(ASes *ASEntryList) *RawPathMetadata {
 				res.Notes[asEntry.IA()] = ASnote{Note:s.Note}
 			}
 		} else if idx < (len(ASes.Cores) - 1) {
+			// If the AS is in the middle of the segment, simply extract
+			// the egress and ingressToEgress metrics from the corresponding
+			// fields in s.
 			ExtractNormaldata(res, asEntry)
 		} else {
 			// If we're in the last AS of the segment
-			// only set LastCoreASEntry
+			// only set LastCoreASEntry.
+			// It will later be used to treat the crossover
+			// when we look at the down segment.
 			lastCoreASEntry = asEntry
 			if len(ASes.Downs) == 0 {
-				ExtractNormaldata(res, asEntry)
+				// If this is the last AS on the path (i.e. there is no
+				// down segment) extract data accordingly.
+				ExtractSingleSegmentFinalASData(res, asEntry)
 			}
 		}
 	}
-
 	// Go through ASEntries in the down segment
 	// and extract the static info data from them
 	for idx := 0; idx < len(ASes.Downs); idx++ {
@@ -486,6 +536,8 @@ func CombineSegments(ASes *ASEntryList) *RawPathMetadata {
 			continue
 		}
 		if idx == 0 {
+			// for the last AS on the path, only extract
+			// the note and the geodata (analogous to the first AS).
 			res.Geo[asEntry.IA()] = getGeo(asEntry)
 			res.Notes[asEntry.IA()] = ASnote{Note:s.Note}
 		} else if idx < (len(ASes.Downs) - 1) {
