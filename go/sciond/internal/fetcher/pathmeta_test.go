@@ -1,4 +1,4 @@
-package combinator
+package fetcher
 
 import (
 	"fmt"
@@ -11,6 +11,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -67,7 +68,7 @@ func TestCollectMetadata(t *testing.T) {
 				uint8(graph.If_211_A_212_X),
 			expectedGeo: []DenseGeo{
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:132").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:132").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:132")),
@@ -75,7 +76,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("1-ff00:0:132").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:131")),
@@ -83,7 +84,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:130")),
@@ -91,7 +92,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:110").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:110").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:110")),
@@ -99,7 +100,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("1-ff00:0:110").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:210").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:210").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:210")),
@@ -107,7 +108,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("2-ff00:0:210").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:211").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:211").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:211")),
@@ -115,7 +116,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("2-ff00:0:211").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:212").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:212").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:212")),
@@ -189,7 +190,7 @@ func TestCollectMetadata(t *testing.T) {
 			expectedHops:    0,
 			expectedGeo: []DenseGeo{
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:131")),
@@ -197,7 +198,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:130")),
@@ -234,7 +235,7 @@ func TestCollectMetadata(t *testing.T) {
 			expectedHops:    0,
 			expectedGeo: []DenseGeo{
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:130").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:130")),
@@ -242,7 +243,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:111").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:111").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:111")),
@@ -285,7 +286,7 @@ func TestCollectMetadata(t *testing.T) {
 			expectedHops: uint8(graph.If_132_X_133_X),
 			expectedGeo: []DenseGeo{
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:133").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:133").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:133")),
@@ -293,7 +294,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("1-ff00:0:133").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:132").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:132").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:132")),
@@ -301,7 +302,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("1-ff00:0:132").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
 						Longitude: float32(xtest.MustParseIA("1-ff00:0:131").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("1-ff00:0:131")),
@@ -353,7 +354,7 @@ func TestCollectMetadata(t *testing.T) {
 			expectedHops: uint8(graph.If_211_A1_212_X),
 			expectedGeo: []DenseGeo{
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:212").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:212").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:212")),
@@ -361,7 +362,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("2-ff00:0:212").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:211").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:211").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:211")),
@@ -369,7 +370,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("2-ff00:0:211").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:222").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:222").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:222")),
@@ -422,7 +423,7 @@ func TestCollectMetadata(t *testing.T) {
 			expectedHops: uint8(graph.If_211_A_221_X) + uint8(graph.If_221_X_211_A),
 			expectedGeo: []DenseGeo{
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:212").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:212").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:212")),
@@ -430,7 +431,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("2-ff00:0:212").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:211").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:211").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:211")),
@@ -438,7 +439,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("2-ff00:0:211").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:221").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:221").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:221")),
@@ -446,7 +447,7 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("2-ff00:0:221").IAInt(),
 				},
 				{
-					RouterLocations: []GeoLoc{{
+					RouterLocations: []DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("2-ff00:0:222").IAInt()),
 						Longitude: float32(xtest.MustParseIA("2-ff00:0:222").IAInt()),
 						Address:   fmt.Sprintf("Location %s", xtest.MustParseIA("2-ff00:0:222")),
@@ -487,13 +488,14 @@ func TestCollectMetadata(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
-		assert.Equal(t, tc.expectedLatency, result[0].StaticInfo.TotalLatency)
-		assert.Equal(t, tc.expectedBW, result[0].StaticInfo.MinOfMaxBWs)
-		assert.Equal(t, tc.expectedHops, result[0].StaticInfo.TotalHops)
-		assert.ElementsMatch(t, tc.expectedLinktypes, result[0].StaticInfo.LinkTypes)
-		assert.ElementsMatch(t, tc.expectedGeo, result[0].StaticInfo.Locations)
-		assert.ElementsMatch(t, tc.expectedNotes, result[0].StaticInfo.Notes)
+		rawdata := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
+		result := Condensemetadata(rawdata[0].StaticInfo)
+		assert.Equal(t, tc.expectedLatency, result.TotalLatency)
+		assert.Equal(t, tc.expectedBW, result.MinOfMaxBWs)
+		assert.Equal(t, tc.expectedHops, result.TotalHops)
+		assert.ElementsMatch(t, tc.expectedLinktypes, result.LinkTypes)
+		assert.ElementsMatch(t, tc.expectedGeo, result.Locations)
+		assert.ElementsMatch(t, tc.expectedNotes, result.Notes)
 	}
 }
 
@@ -504,3 +506,4 @@ func calcBWmin(ifids []common.IFIDType) uint32 {
 	}
 	return BW
 }
+
