@@ -506,4 +506,3 @@ func calcBWmin(ifids []common.IFIDType) uint32 {
 	}
 	return BW
 }
-

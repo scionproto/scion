@@ -340,8 +340,6 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 	return segment
 }
 
-
-
 // DeleteInterface removes ifid from the graph without deleting its remote
 // counterpart. This is useful for testing IFID misconfigurations.
 func (g *Graph) DeleteInterface(ifid common.IFIDType) {

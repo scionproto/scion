@@ -46,8 +46,8 @@ func (s *DenseASLinkType) String() string {
 }
 
 type DenseGeo struct {
-	RouterLocations []DenseGeoLoc   `capnp:"routerLocations"`
-	RawIA           addr.IAInt `capnp:"isdas"`
+	RouterLocations []DenseGeoLoc `capnp:"routerLocations"`
+	RawIA           addr.IAInt    `capnp:"isdas"`
 }
 
 func (s *DenseGeo) ProtoId() proto.ProtoIdType {
