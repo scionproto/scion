@@ -208,7 +208,20 @@ func (g *Graph) GetPaths(xIA string, yIA string) [][]common.IFIDType {
 // down to the parent AS of the remote counterpart of the last IFID. The
 // constructed segment includes peering links. The hop fields in the returned
 // segment do not contain valid MACs.
-func (g *Graph) Beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSegment {
+func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
+	return g.beacon(ifids, false)
+}
+
+func (g *Graph) BeaconWithStaticInfo(ifids []common.IFIDType) *seg.PathSegment {
+	return g.beacon(ifids, true)
+}
+
+// beacon constructs path segments across a series of egress ifids. The parent
+// AS of the first IFID is the origin of the beacon, and the beacon propagates
+// down to the parent AS of the remote counterpart of the last IFID. The
+// constructed segment includes peering links. The hop fields in the returned
+// segment do not contain valid MACs.
+func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSegment {
 	var remoteInIF, inIF, outIF, remoteOutIF common.IFIDType
 	var inIA, currIA, outIA addr.IA
 
@@ -286,6 +299,7 @@ func (g *Graph) Beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 				},
 				IfIDs: []common.IFIDType{},
 			})
+			s.Note = fmt.Sprintf("Note %s", currIA)
 		}
 
 		for _, intIFID := range ifids {
@@ -314,9 +328,6 @@ func (g *Graph) Beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 				generateStaticInfo(s, g.isPeer[peeringLocalIF], peeringLocalIF, outIF)
 			}
 		}
-		if addStaticInfo {
-			s.Note = fmt.Sprintf("Note %s", currIA)
-		}
 		signer := mock_seg.NewMockSigner(g.ctrl)
 		signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 			&proto.SignS{}, nil).AnyTimes()
@@ -328,6 +339,8 @@ func (g *Graph) Beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 	}
 	return segment
 }
+
+
 
 // DeleteInterface removes ifid from the graph without deleting its remote
 // counterpart. This is useful for testing IFID misconfigurations.
