@@ -245,3 +245,4 @@ func FilterLongPaths(paths []*Path) []*Path {
 	}
 	return newPaths
 }
+
