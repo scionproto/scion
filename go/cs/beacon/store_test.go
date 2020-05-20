@@ -381,7 +381,7 @@ func testBeaconOrErr(g *graph.Graph, desc ...common.IFIDType) beacon.BeaconOrErr
 }
 
 func testBeacon(g *graph.Graph, ifids []common.IFIDType) *seg.PathSegment {
-	pseg := g.Beacon(ifids, false)
+	pseg := g.Beacon(ifids)
 	pseg.RawASEntries = pseg.RawASEntries[:len(pseg.RawASEntries)-1]
 	pseg.ASEntries = pseg.ASEntries[:len(pseg.ASEntries)-1]
 	return pseg

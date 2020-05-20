@@ -37,10 +37,10 @@ func TestFilter(t *testing.T) {
 	g := graph.NewDefaultGraph(ctrl)
 	ia110 := xtest.MustParseIA("1-ff00:0:110")
 	ia111 := xtest.MustParseIA("1-ff00:0:111")
-	seg110To120 := g.Beacon([]common.IFIDType{graph.If_110_X_120_A}, false)
-	seg110To130 := g.Beacon([]common.IFIDType{graph.If_110_X_130_A}, false)
-	seg120To111 := g.Beacon([]common.IFIDType{graph.If_120_X_111_B}, false)
-	seg130To111 := g.Beacon([]common.IFIDType{graph.If_130_B_111_A}, false)
+	seg110To120 := g.Beacon([]common.IFIDType{graph.If_110_X_120_A})
+	seg110To130 := g.Beacon([]common.IFIDType{graph.If_110_X_130_A})
+	seg120To111 := g.Beacon([]common.IFIDType{graph.If_120_X_111_B})
+	seg130To111 := g.Beacon([]common.IFIDType{graph.If_130_B_111_A})
 
 	paths111To110 := combinator.Combine(ia111, ia110,
 		[]*seg.PathSegment{seg120To111, seg130To111},

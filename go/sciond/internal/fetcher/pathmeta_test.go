@@ -40,16 +40,16 @@ func TestCollectMetadata(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:212"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_A_131_X,
-					graph.If_131_X_132_X}, true),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_A_131_X,
+					graph.If_131_X_132_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_110_X,
-					graph.If_110_X_130_A}, true),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X_110_X,
+					graph.If_110_X_130_A}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_211_A,
-					graph.If_211_A_212_X}, true),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X_211_A,
+					graph.If_211_A_212_X}),
 			},
 			expectedLatency: uint16(graph.If_131_X_132_X) + uint16(graph.If_131_X_132_X) +
 				uint16(graph.If_130_A_131_X) + uint16(graph.If_130_A_110_X) +
@@ -183,7 +183,7 @@ func TestCollectMetadata(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:130"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_A_131_X}, true),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_A_131_X}),
 			},
 			expectedLatency: uint16(graph.If_130_A_131_X),
 			expectedBW:      calcBWmin([]common.IFIDType{graph.If_130_A_131_X}),
@@ -228,7 +228,7 @@ func TestCollectMetadata(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:130"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:111"),
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_B_111_A}, true),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_B_111_A}),
 			},
 			expectedLatency: uint16(graph.If_130_B_111_A),
 			expectedBW:      calcBWmin([]common.IFIDType{graph.If_130_B_111_A}),
@@ -273,11 +273,11 @@ func TestCollectMetadata(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:133"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:131"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X,
-					graph.If_132_X_133_X}, true),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X,
+					graph.If_132_X_133_X}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_A_131_X}, true),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_A_131_X}),
 			},
 			expectedLatency: uint16(graph.If_132_X_133_X) +
 				uint16(graph.If_132_X_133_X) + uint16(graph.If_131_X_132_X),
@@ -340,12 +340,12 @@ func TestCollectMetadata(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("2-ff00:0:212"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:222"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X1_211_A,
-					graph.If_211_A1_212_X}, true),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X1_211_A,
+					graph.If_211_A1_212_X}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X1_211_A,
-					graph.If_211_A_222_X}, true),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X1_211_A,
+					graph.If_211_A_222_X}),
 			},
 			expectedLatency: uint16(graph.If_211_A1_212_X) +
 				uint16(graph.If_211_A1_212_X) + uint16(graph.If_211_A_222_X),
@@ -405,15 +405,15 @@ func TestCollectMetadata(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("2-ff00:0:212"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:222"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X1_211_A,
-					graph.If_211_A1_212_X}, true),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X1_211_A,
+					graph.If_211_A1_212_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_220_X_210_X}, true),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_220_X_210_X}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_220_X_221_X,
-					graph.If_221_X_222_X}, true),
+				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_220_X_221_X,
+					graph.If_221_X_222_X}),
 			},
 			expectedLatency: uint16(graph.If_211_A1_212_X) + uint16(graph.If_211_A_221_X) +
 				uint16(graph.If_221_X_211_A) + uint16(graph.If_221_X_211_A) +

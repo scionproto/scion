@@ -76,14 +76,14 @@ func newTestGraph(t *testing.T, ctrl *gomock.Controller) {
 			graph.If_130_A_131_X,
 			graph.If_131_X_132_X,
 			graph.If_132_X_133_X,
-		}, false),
+		}),
 		proto.PathSegType_down,
 	))
 	// hidden up
 	seg120_121 = markHidden(t, seg.NewMeta(
 		g.Beacon([]common.IFIDType{
 			graph.If_120_B_121_X,
-		}, false),
+		}),
 		proto.PathSegType_up,
 	))
 	// missing hidden extn
@@ -91,14 +91,14 @@ func newTestGraph(t *testing.T, ctrl *gomock.Controller) {
 		g.Beacon([]common.IFIDType{
 			graph.If_210_X_211_A,
 			graph.If_211_A_212_X,
-		}, false),
+		}),
 		proto.PathSegType_down,
 	)
 	// core seg type
 	seg110_120 = markHidden(t, seg.NewMeta(
 		g.Beacon([]common.IFIDType{
 			graph.If_110_X_120_A,
-		}, false),
+		}),
 		proto.PathSegType_core,
 	))
 }

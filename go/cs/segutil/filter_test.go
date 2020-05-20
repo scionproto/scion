@@ -33,8 +33,8 @@ func TestFilter(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	g := graph.NewDefaultGraph(ctrl)
-	seg110To120 := g.Beacon([]common.IFIDType{graph.If_110_X_120_A}, false)
-	seg110To130 := g.Beacon([]common.IFIDType{graph.If_110_X_130_A}, false)
+	seg110To120 := g.Beacon([]common.IFIDType{graph.If_110_X_120_A})
+	seg110To130 := g.Beacon([]common.IFIDType{graph.If_110_X_130_A})
 
 	tests := map[string]struct {
 		Segs         seg.Segments
