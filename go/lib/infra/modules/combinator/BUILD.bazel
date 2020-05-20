@@ -24,7 +24,6 @@ go_test(
     srcs = [
         "combinator_test.go",
         "expiry_test.go",
-        "staticinfo_accumulator_test.go",
     ],
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
@@ -37,6 +36,5 @@ go_test(
         "//go/lib/xtest/graph:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_smartystreets_goconvey//convey:go_default_library",
-        "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )
