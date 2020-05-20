@@ -281,7 +281,7 @@ func ohp_internal_bs_to_parent() int {
 	return ExpectedPackets("one-hop-path internal/bs to parent", defaultTimeout, pkt1)
 }
 
-func parent_scmp_routing_bad_host() int {
+func parent_scmp_routing_bad_host_udp() int {
 	pkt0 := AllocatePacket()
 	pkt0.ParsePacket(`
 		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=f0:0d:ca:fe:00:13 EthernetType=IPv4
@@ -321,5 +321,50 @@ func parent_scmp_routing_bad_host() int {
 
 	SendPackets(pkt0)
 
-	return ExpectedPackets("parent scmp routing bad host", defaultTimeout, pkt1)
+	return ExpectedPackets("parent scmp routing bad host - udp pakcet", defaultTimeout, pkt1)
+}
+
+func parent_scmp_routing_bad_host_scmp() int {
+	pkt0 := AllocatePacket()
+	pkt0.ParsePacket(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:be:ef DstMAC=f0:0d:ca:fe:00:13 EthernetType=IPv4
+		IP4: Src=192.168.13.3 Dst=192.168.13.2 NextHdr=UDP Flags=DF
+		UDP: Src=40000 Dst=50000
+		SCION: NextHdr=SCMP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=SVC
+			ADDR: SrcIA=1-ff00:0:3 Src=172.16.3.1 DstIA=1-ff00:0:1 Dst=0009
+			IF_1: ISD=1 Hops=2 Flags=ConsDir
+				HF_1: ConsIngress=0   ConsEgress=311
+				HF_2: ConsIngress=131 ConsEgress=0
+		SCMP: Class=GENERAL Type=ECHO_REQUEST Timestamp=now
+			META: InfoLen=2
+			InfoEcho: Id=1234 Seq=5678
+	`)
+	pkt0.SetDev("veth_131")
+	pkt0.SetChecksum("UDP", "IP4")
+	pkt0.SetChecksum("SCMP", "SCION")
+	pkt0.GenerateMac("SCION", "IF_1", "HF_2", "HF_1")
+
+	pkt1 := AllocatePacket()
+	pkt1.ParsePacket(fmt.Sprintf(`
+		Ethernet: SrcMAC=f0:0d:ca:fe:00:13 DstMAC=f0:0d:ca:fe:be:ef EthernetType=IPv4
+		IP4: Src=192.168.13.2 Dst=192.168.13.3 NextHdr=UDP Flags=DF Checksum=0
+		UDP: Src=50000 Dst=40000 Checksum=0
+		SCION: NextHdr=HBH CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=IPv4
+			ADDR: SrcIA=1-ff00:0:1 Src=192.168.0.11 DstIA=1-ff00:0:3 Dst=172.16.3.1
+			IF_1: ISD=1 Hops=2
+				HF_1: ConsIngress=131 ConsEgress=0
+				HF_2: ConsIngress=0   ConsEgress=311
+		HBH: NextHdr=SCMP Type=SCMP
+			HBH.SCMP: Flags=Error,HBH
+		SCMP: Class=ROUTING Type=BAD_HOST Checksum=0
+			QUOTED: RawPkt=%s
+	`, pkt0.Serialize()))
+	pkt1.SetDev("veth_131")
+	pkt1.SetChecksum("UDP", "IP4")
+	pkt1.SetChecksum("SCMP", "SCION")
+	pkt1.GenerateMac("SCION", "IF_1", "HF_1", "HF_2")
+
+	SendPackets(pkt0)
+
+	return ExpectedPackets("parent scmp routing bad host - scmp packet", defaultTimeout, pkt1)
 }
