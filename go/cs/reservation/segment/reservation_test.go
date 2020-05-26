@@ -109,7 +109,7 @@ func TestReservationValidate(t *testing.T) {
 	require.Error(t, err)
 
 	// wrong path
-	r.Path = segment.Path{}
+	r.Path = &segment.Path{}
 	err = r.Validate()
 	require.Error(t, err)
 
