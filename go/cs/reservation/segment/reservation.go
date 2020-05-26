@@ -25,9 +25,9 @@ import (
 // Reservation represents a segment reservation.
 type Reservation struct {
 	ID          reservation.SegmentID
-	Path        Path
-	Indices     Indices
-	activeIndex int // -1 <= activeIndex < len(Indices)
+	Path        *Path   // nil if this AS is not the source of the reservation
+	Indices     Indices // existing indices in this reservation
+	activeIndex int     // -1 <= activeIndex < len(Indices)
 }
 
 func NewReservation() *Reservation {
@@ -56,7 +56,11 @@ func (r *Reservation) Validate() error {
 			activeIndex = i
 		}
 	}
-	return r.Path.Validate()
+	var err error
+	if r.Path != nil {
+		err = r.Path.Validate()
+	}
+	return err
 }
 
 // ActiveIndex returns the currently active Index for this reservation, or nil if none.
