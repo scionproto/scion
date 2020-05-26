@@ -36,8 +36,7 @@ type scionConnWriter struct {
 	buffer common.RawBytes
 }
 
-func newScionConnWriter(base *scionConnBase, querier PathQuerier,
-	conn PacketConn) *scionConnWriter {
+func newScionConnWriter(base *scionConnBase, conn PacketConn) *scionConnWriter {
 
 	return &scionConnWriter{
 		base:   base,

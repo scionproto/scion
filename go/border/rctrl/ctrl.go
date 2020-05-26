@@ -53,7 +53,7 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs, dispatcherReconnect bool) 
 	if dispatcherReconnect {
 		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}
-	scionNetwork := snet.NewCustomNetworkWithPR(ia,
+	scionNetwork := snet.NewCustomNetwork(ia,
 		&snet.DefaultPacketDispatcherService{
 			Dispatcher: dispatcherService,
 		},

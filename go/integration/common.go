@@ -109,10 +109,7 @@ func InitNetwork() *snet.SCIONNetwork {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	n := snet.NewNetworkWithPR(Local.IA, ds, sciond.Querier{
-		Connector: sciondConn,
-		IA:        Local.IA,
-	}, sciond.RevHandler{Connector: sciondConn})
+	n := snet.NewNetwork(Local.IA, ds, sciond.RevHandler{Connector: sciondConn})
 	log.Debug("SCION network successfully initialized")
 	return n
 }
