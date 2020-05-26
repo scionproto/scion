@@ -66,6 +66,14 @@ func StrToInt(s string) int {
 	return i
 }
 
+func StrToUint64(s string) uint64 {
+	u64, err := strconv.ParseUint(s, 10, 0)
+	if err != nil {
+		panic(fmt.Sprintf("StrToUint64 error converting '%s'\n", s))
+	}
+	return u64
+}
+
 func HexToInt(s string) uint {
 	i, err := strconv.ParseUint(s, 16, 64)
 	if err != nil {
