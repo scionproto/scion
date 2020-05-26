@@ -45,6 +45,6 @@ func NewReservation() *segment.Reservation {
 	p := NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0)
 	r := segment.NewReservation()
 	r.ID = *segID
-	r.Path = p
+	r.Path = &p
 	return r
 }
