@@ -165,9 +165,11 @@ func setupTun() (io.ReadWriteCloser, error) {
 	if len(src) == 0 && sigcmn.CtrlAddr.To16() != nil && sigcmn.CtrlAddr.To4() == nil {
 		src = sigcmn.CtrlAddr
 	}
-	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV6Net, src); err != nil {
-		return nil,
-			common.NewBasicError("Unable to add default IPv6 route to SIG routing table", err)
+	if len(src) != 0 {
+		if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV6Net, src); err != nil {
+			return nil,
+				common.NewBasicError("Unable to add default IPv6 route to SIG routing table", err)
+		}
 	}
 	// Now that everything is set up, drop CAP_NET_ADMIN
 	caps, err := capability.NewPid(0)
