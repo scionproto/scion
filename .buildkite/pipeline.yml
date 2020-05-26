@@ -90,8 +90,8 @@ steps:
     if: build.message !~ /\[doc\]/
     command:
       - bazel build //:scion //:scion-ci >/dev/null 2>&1
-      - tar -kxf bazel-bin/scion.tar -C bin --overwrite
-      - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
+      - tar -xf bazel-bin/scion.tar -C bin --overwrite
+      - tar -xf bazel-bin/scion-ci.tar -C bin --overwrite
       - ./scion.sh topology -t
       - ./scion.sh run && sleep 10
       - ./bin/end2end_integration -log.console warn
@@ -113,8 +113,8 @@ steps:
     if: build.message !~ /\[doc\]/
     command:
     - bazel build //:scion //:scion-ci >/dev/null 2>&1
-    - tar -kxf bazel-bin/scion.tar -C bin --overwrite
-    - tar -kxf bazel-bin/scion-ci.tar -C bin --overwrite
+    - tar -xf bazel-bin/scion.tar -C bin --overwrite
+    - tar -xf bazel-bin/scion-ci.tar -C bin --overwrite
     - ./scion.sh topology -t
     - ./scion.sh run && sleep 10
     # FIXME(roosd): enable again
