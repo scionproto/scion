@@ -16,6 +16,7 @@
 package ingress
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"time"
@@ -104,9 +105,9 @@ func (w *Worker) Run() {
 // packets to the wire and then adding the frame to the corresponding reassembly
 // list if needed.
 func (w *Worker) processFrame(frame *FrameBuf) {
-	epoch := int(common.Order.Uint16(frame.raw[1:3]))
-	seqNr := int(common.Order.UintN(frame.raw[3:6], 3))
-	index := int(common.Order.Uint16(frame.raw[6:8]))
+	epoch := int(binary.BigEndian.Uint16(frame.raw[1:3]))
+	seqNr := int(frame.raw[3])<<16 | int(frame.raw[4])<<8 | int(frame.raw[5])
+	index := int(binary.BigEndian.Uint16(frame.raw[6:8]))
 	frame.seqNr = seqNr
 	frame.index = index
 	frame.snd = w

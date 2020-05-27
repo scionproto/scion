@@ -16,6 +16,7 @@ package ctrl
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -54,7 +55,7 @@ func NewSignedPldFromRaw(b common.RawBytes) (*SignedPld, error) {
 		return nil, common.NewBasicError("Ctrl payload length field too short", nil,
 			"minimum", 4, "actual", len(b))
 	}
-	n := common.Order.Uint32(b)
+	n := binary.BigEndian.Uint32(b)
 	if int(n)+4 != len(b) {
 		return nil, common.NewBasicError("Invalid ctrl payload length", nil,
 			"expected", n+4, "actual", len(b))
@@ -87,7 +88,7 @@ func (sp *SignedPld) Copy() (common.Payload, error) {
 
 func (sp *SignedPld) WritePld(b common.RawBytes) (int, error) {
 	n, err := proto.WriteRoot(sp, b[4:])
-	common.Order.PutUint32(b, uint32(n))
+	binary.BigEndian.PutUint32(b, uint32(n))
 	return n + 4, err
 }
 
@@ -99,7 +100,7 @@ func (sp *SignedPld) PackPld() (common.RawBytes, error) {
 	// Make a larger buffer, to allow pre-pending of the length field.
 	full := make(common.RawBytes, LenSize+len(b))
 	// Write length field
-	common.Order.PutUint32(full, uint32(len(b)))
+	binary.BigEndian.PutUint32(full, uint32(len(b)))
 	// Copy the encoded proto into the full buffer
 	copy(full[LenSize:], b)
 	return full, err

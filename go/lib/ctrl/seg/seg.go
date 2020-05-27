@@ -178,14 +178,14 @@ func (ps *PathSegment) FullId() (common.RawBytes, error) {
 func (ps *PathSegment) calculateHash(hopOnly bool) (common.RawBytes, error) {
 	h := sha256.New()
 	for _, ase := range ps.ASEntries {
-		binary.Write(h, common.Order, ase.RawIA)
+		binary.Write(h, binary.BigEndian, ase.RawIA)
 		for _, hopE := range ase.HopEntries {
 			hopf, err := hopE.HopField()
 			if err != nil {
 				return nil, err
 			}
-			binary.Write(h, common.Order, hopf.ConsIngress)
-			binary.Write(h, common.Order, hopf.ConsEgress)
+			binary.Write(h, binary.BigEndian, hopf.ConsIngress)
+			binary.Write(h, binary.BigEndian, hopf.ConsEgress)
 			if hopOnly {
 				break
 			}

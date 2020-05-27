@@ -17,6 +17,7 @@
 package worker
 
 import (
+	"encoding/binary"
 	"net"
 	"time"
 
@@ -274,13 +275,15 @@ func (f *frame) startPkt(pktLen uint16) {
 		// This is the first start of a packet in this frame, so set the index
 		f.idx = uint16(f.offset / 8)
 	}
-	common.Order.PutUint16(f.b[f.offset:], pktLen)
+	binary.BigEndian.PutUint16(f.b[f.offset:], pktLen)
 	f.offset += PktLenSize
 }
 
 func (f *frame) writeHdr(sessId sig_mgmt.SessionType, epoch uint16, seq uint32) {
 	f.b[0] = uint8(sessId)
-	common.Order.PutUint16(f.b[1:3], epoch)
-	common.Order.PutUintN(f.b[3:6], uint64(seq), 3)
-	common.Order.PutUint16(f.b[6:8], f.idx)
+	binary.BigEndian.PutUint16(f.b[1:3], epoch)
+	f.b[3] = uint8((seq & 0xff0000) >> 16)
+	f.b[4] = uint8((seq & 0xff00) >> 8)
+	f.b[5] = uint8(seq & 0xff)
+	binary.BigEndian.PutUint16(f.b[6:8], f.idx)
 }

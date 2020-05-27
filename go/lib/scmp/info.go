@@ -15,6 +15,7 @@
 package scmp
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"gopkg.in/restruct.v1"
@@ -47,7 +48,7 @@ func (s InfoString) Len() int {
 }
 
 func (s InfoString) Write(b common.RawBytes) (int, error) {
-	common.Order.PutUint16(b, uint16(len(s)))
+	binary.BigEndian.PutUint16(b, uint16(len(s)))
 	copy(b[:2], s)
 	return util.FillPadding(b, 2+len(s), common.LineLen), nil
 }
@@ -69,7 +70,7 @@ func InfoEchoFromRaw(b common.RawBytes) (*InfoEcho, error) {
 		return nil, common.NewBasicError("Can't parse SCMP Info Echo, buffer is too short",
 			nil, "expected", e.Len(), "actual", len(b))
 	}
-	if err := restruct.Unpack(b, common.Order, e); err != nil {
+	if err := restruct.Unpack(b, binary.BigEndian, e); err != nil {
 		return nil, common.NewBasicError("Failed to unpack SCMP ECHO info", err)
 	}
 	return e, nil
@@ -88,8 +89,8 @@ func (e *InfoEcho) Len() int {
 }
 
 func (e *InfoEcho) Write(b common.RawBytes) (int, error) {
-	common.Order.PutUint64(b[0:], e.Id)
-	common.Order.PutUint16(b[8:], e.Seq)
+	binary.BigEndian.PutUint64(b[0:], e.Id)
+	binary.BigEndian.PutUint16(b[8:], e.Seq)
 	return util.FillPadding(b, 10, common.LineLen), nil
 }
 
@@ -106,7 +107,7 @@ type InfoPktSize struct {
 
 func InfoPktSizeFromRaw(b common.RawBytes) (*InfoPktSize, error) {
 	p := &InfoPktSize{}
-	if err := restruct.Unpack(b, common.Order, p); err != nil {
+	if err := restruct.Unpack(b, binary.BigEndian, p); err != nil {
 		return nil, common.NewBasicError("Failed to unpack SCMP Pkt Size info", err)
 	}
 	return p, nil
@@ -125,8 +126,8 @@ func (p *InfoPktSize) Len() int {
 }
 
 func (p *InfoPktSize) Write(b common.RawBytes) (int, error) {
-	common.Order.PutUint16(b[0:], p.Size)
-	common.Order.PutUint16(b[2:], p.MTU)
+	binary.BigEndian.PutUint16(b[0:], p.Size)
+	binary.BigEndian.PutUint16(b[2:], p.MTU)
 	return util.FillPadding(b, 4, common.LineLen), nil
 }
 
@@ -160,7 +161,7 @@ func InfoPathOffsetsFromRaw(b common.RawBytes) (*InfoPathOffsets, error) {
 	}
 	p.InfoF = b[0]
 	p.HopF = b[1]
-	p.IfID = common.IFIDType(common.Order.Uint64(b[2:]))
+	p.IfID = common.IFIDType(binary.BigEndian.Uint64(b[2:]))
 	p.Ingress = (b[10] & 0x01) == 0x01
 	return p, nil
 }
@@ -183,7 +184,7 @@ func (p *InfoPathOffsets) Write(b common.RawBytes) (int, error) {
 	}
 	b[0] = p.InfoF
 	b[1] = p.HopF
-	common.Order.PutUint64(b[2:], uint64(p.IfID))
+	binary.BigEndian.PutUint64(b[2:], uint64(p.IfID))
 	if p.Ingress {
 		b[10] = 1
 	} else {

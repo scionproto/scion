@@ -16,6 +16,7 @@
 package spkt
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -57,12 +58,12 @@ func (c *CmnHdr) Parse(b []byte) error {
 			"min", CmnHdrLen, "actual", len(b))
 	}
 	offset := 0
-	verDstSrc := common.Order.Uint16(b[offset:])
+	verDstSrc := binary.BigEndian.Uint16(b[offset:])
 	c.Ver = uint8(verDstSrc >> 12)
 	c.DstType = addr.HostAddrType(verDstSrc>>6) & 0x3F
 	c.SrcType = addr.HostAddrType(verDstSrc) & 0x3F
 	offset += 2
-	c.TotalLen = common.Order.Uint16(b[offset:])
+	c.TotalLen = binary.BigEndian.Uint16(b[offset:])
 	offset += 2
 	c.HdrLen = b[offset]
 	offset += 1
@@ -86,9 +87,9 @@ func (c *CmnHdr) Write(b []byte) {
 	offset := 0
 	var verDstSrc uint16
 	verDstSrc = uint16(c.Ver&0xF)<<12 | uint16(c.DstType&0x3F)<<6 | uint16(c.SrcType&0x3F)
-	common.Order.PutUint16(b[offset:], verDstSrc)
+	binary.BigEndian.PutUint16(b[offset:], verDstSrc)
 	offset += 2
-	common.Order.PutUint16(b[offset:], c.TotalLen)
+	binary.BigEndian.PutUint16(b[offset:], c.TotalLen)
 	offset += 2
 	b[offset] = c.HdrLen
 	offset += 1

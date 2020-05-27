@@ -15,6 +15,7 @@
 package proto
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -105,7 +106,7 @@ func (s *SignS) pack(msg common.RawBytes, inclSig bool) common.RawBytes {
 		msg = append(msg, s.Signature...)
 	}
 	t := make(common.RawBytes, 4)
-	common.Order.PutUint32(t, s.Timestamp)
+	binary.BigEndian.PutUint32(t, s.Timestamp)
 	return append(msg, t...)
 }
 
