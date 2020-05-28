@@ -100,17 +100,17 @@ func Condensemetadata(data *combinator.PathMetadata) *PathMetadata {
 	for _, val := range data.ASBandwidths {
 		var asmaxbw uint32 = math.MaxUint32
 		if val.IntraBW > 0 {
-			asmaxbw = uint32(math.Min(float64(val.IntraBW), float64(asmaxbw)))
+			asmaxbw = min(val.IntraBW, asmaxbw)
 		}
 		if val.InterBW > 0 {
-			asmaxbw = uint32(math.Min(float64(val.InterBW), float64(asmaxbw)))
+			asmaxbw = min(val.InterBW, asmaxbw)
 		}
-		if asmaxbw < (math.MaxUint32) {
-			ret.MinOfMaxBWs = uint32(math.Min(float64(ret.MinOfMaxBWs), float64(asmaxbw)))
+		if asmaxbw < math.MaxUint32 {
+			ret.MinOfMaxBWs = min(ret.MinOfMaxBWs, asmaxbw)
 		}
 	}
 
-	if !(ret.MinOfMaxBWs < math.MaxUint32) {
+	if ret.MinOfMaxBWs == math.MaxUint32 {
 		ret.MinOfMaxBWs = 0
 	}
 
@@ -154,4 +154,11 @@ func Condensemetadata(data *combinator.PathMetadata) *PathMetadata {
 	}
 
 	return ret
+}
+
+func min(a, b uint32) uint32 {
+	if a < b {
+		return a
+	}
+	return b
 }
