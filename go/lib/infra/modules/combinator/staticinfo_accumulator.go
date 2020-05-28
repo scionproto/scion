@@ -16,9 +16,9 @@ type ASGeo struct {
 }
 
 type GeoLoc struct {
-	Latitude  float32 `capnp:"latitude"`
-	Longitude float32 `capnp:"longitude"`
-	Address   string  `capnp:"address"`
+	Latitude  float32
+	Longitude float32
+	Address   string
 }
 
 type ASLatency struct {
