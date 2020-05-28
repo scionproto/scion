@@ -487,15 +487,17 @@ func TestCollectMetadata(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		rawdata := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
-		result := Condensemetadata(rawdata[0].StaticInfo)
-		assert.Equal(t, tc.expectedLatency, result.TotalLatency)
-		assert.Equal(t, tc.expectedBW, result.MinOfMaxBWs)
-		assert.Equal(t, tc.expectedHops, result.TotalHops)
-		assert.ElementsMatch(t, tc.expectedLinktypes, result.LinkTypes)
-		assert.ElementsMatch(t, tc.expectedGeo, result.Locations)
-		assert.ElementsMatch(t, tc.expectedNotes, result.Notes)
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			rawdata := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
+			result := Condensemetadata(rawdata[0].StaticInfo)
+			assert.Equal(t, tc.expectedLatency, result.TotalLatency)
+			assert.Equal(t, tc.expectedBW, result.MinOfMaxBWs)
+			assert.Equal(t, tc.expectedHops, result.TotalHops)
+			assert.ElementsMatch(t, tc.expectedLinktypes, result.LinkTypes)
+			assert.ElementsMatch(t, tc.expectedGeo, result.Locations)
+			assert.ElementsMatch(t, tc.expectedNotes, result.Notes)
+		})
 	}
 }
 
