@@ -58,7 +58,7 @@ type asEntryList struct {
 	DownPeer int
 }
 
-// CollectMetadata is the function used to extract StaticInfo
+// collectMetadata is the function used to extract StaticInfo
 // from a *PathSolution.
 func (solution *PathSolution) collectMetadata() *PathMetadata {
 	asEntries := solution.gatherASEntries()
