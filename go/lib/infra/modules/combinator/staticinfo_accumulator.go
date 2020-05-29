@@ -73,23 +73,20 @@ func (solution *PathSolution) gatherASEntries() *asEntryList {
 	var res asEntryList
 	for _, solEdge := range solution.edges {
 		asEntries := solEdge.segment.ASEntries
-		currType := solEdge.segment.Type
+		var entryContainer *[]*seg.ASEntry
+		switch solEdge.segment.Type {
+		case proto.PathSegType_up:
+			entryContainer = &res.Ups
+			res.UpPeer = solEdge.edge.Peer
+		case proto.PathSegType_core:
+			entryContainer = &res.Cores
+		case proto.PathSegType_down:
+			entryContainer = &res.Downs
+			res.DownPeer = solEdge.edge.Peer
+		}
 		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
 			asEntry := asEntries[asEntryIdx]
-			switch currType {
-			case proto.PathSegType_up:
-				res.Ups = append(res.Ups, asEntry)
-			case proto.PathSegType_core:
-				res.Cores = append(res.Cores, asEntry)
-			case proto.PathSegType_down:
-				res.Downs = append(res.Downs, asEntry)
-			}
-		}
-		switch currType {
-		case proto.PathSegType_up:
-			res.UpPeer = solEdge.edge.Peer
-		case proto.PathSegType_down:
-			res.DownPeer = solEdge.edge.Peer
+			*entryContainer = append(*entryContainer, asEntry)
 		}
 	}
 	return &res
@@ -117,6 +114,7 @@ func extractPeerdata(res *PathMetadata, asEntry *seg.ASEntry,
 					InterLatency: staticInfo.Latency.Egresslatency,
 				}
 			}
+			break
 		}
 	}
 	for i := 0; i < len(staticInfo.Linktype.Peerlinks); i++ {
@@ -131,6 +129,7 @@ func extractPeerdata(res *PathMetadata, asEntry *seg.ASEntry,
 					InterLinkType: staticInfo.Linktype.EgressLinkType,
 				}
 			}
+			break
 		}
 	}
 	for i := 0; i < len(staticInfo.Bandwidth.Bandwidths); i++ {
@@ -139,6 +138,7 @@ func extractPeerdata(res *PathMetadata, asEntry *seg.ASEntry,
 				IntraBW: staticInfo.Bandwidth.Bandwidths[i].BW,
 				InterBW: staticInfo.Bandwidth.EgressBW,
 			}
+			break
 		}
 	}
 	for i := 0; i < len(staticInfo.Hops.InterfaceHops); i++ {
@@ -146,6 +146,7 @@ func extractPeerdata(res *PathMetadata, asEntry *seg.ASEntry,
 			res.ASHops[ia] = ASHops{
 				Hops: staticInfo.Hops.InterfaceHops[i].Hops,
 			}
+			break
 		}
 	}
 	res.Geo[ia] = getGeo(asEntry)
@@ -220,6 +221,7 @@ func extractUpOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry *s
 				IntraLatency: staticInfo.Latency.Childlatencies[i].Intradelay,
 				InterLatency: staticInfo.Latency.Egresslatency,
 			}
+			break
 		}
 	}
 	res.Links[ia] = ASLink{
@@ -232,6 +234,7 @@ func extractUpOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry *s
 				IntraBW: staticInfo.Bandwidth.Bandwidths[i].BW,
 				InterBW: staticInfo.Bandwidth.EgressBW,
 			}
+			break
 		}
 	}
 	for i := 0; i < len(staticInfo.Hops.InterfaceHops); i++ {
@@ -239,6 +242,7 @@ func extractUpOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry *s
 			res.ASHops[ia] = ASHops{
 				Hops: staticInfo.Hops.InterfaceHops[i].Hops,
 			}
+			break
 		}
 	}
 	res.Geo[ia] = getGeo(newASEntry)
@@ -264,6 +268,7 @@ func extractCoreOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry 
 				InterLatency: staticInfo.Latency.Egresslatency,
 				PeerLatency:  oldSI.Latency.Egresslatency,
 			}
+			break
 		}
 	}
 	res.Links[ia] = ASLink{
@@ -277,6 +282,7 @@ func extractCoreOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry 
 				IntraBW: staticInfo.Bandwidth.Bandwidths[i].BW,
 				InterBW: staticInfo.Bandwidth.EgressBW,
 			}
+			break
 		}
 	}
 	for i := 0; i < len(staticInfo.Hops.InterfaceHops); i++ {
@@ -284,6 +290,7 @@ func extractCoreOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry 
 			res.ASHops[ia] = ASHops{
 				Hops: staticInfo.Hops.InterfaceHops[i].Hops,
 			}
+			break
 		}
 	}
 	res.Geo[ia] = getGeo(newASEntry)
@@ -297,9 +304,7 @@ func extractCoreOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry 
 // functions from above that correspond to the
 // particular role/position of each ASEntry in the segment.
 func combineSegments(ases *asEntryList) *PathMetadata {
-	var lastUpASEntry *seg.ASEntry
-	var lastCoreASEntry *seg.ASEntry
-	res := &PathMetadata{
+	meta := &PathMetadata{
 		ASLatencies:  make(map[addr.IA]ASLatency),
 		ASBandwidths: make(map[addr.IA]ASBandwidth),
 		ASHops:       make(map[addr.IA]ASHops),
@@ -307,128 +312,86 @@ func combineSegments(ases *asEntryList) *PathMetadata {
 		Links:        make(map[addr.IA]ASLink),
 		Notes:        make(map[addr.IA]ASnote),
 	}
-	// Go through ASEntries in the up segment
-	// and extract the static info data from them
-	for idx := 0; idx < len(ases.Ups); idx++ {
-		asEntry := ases.Ups[idx]
-		s := asEntry.Exts.StaticInfo
-		if s == nil {
+	// first insert the meta from the segments
+	lastUp := addMetaFromSegment(meta, ases.Ups)
+	lastCore := addMetaFromSegment(meta, ases.Cores)
+	lastDown := addMetaFromSegment(meta, ases.Downs)
+
+	// then stitch the segments metadata and insert them
+	if lastUp != nil && ases.UpPeer != 0 {
+		// This is the last AS in the segment and it is connected to the down segment via peering.
+		extractPeerdata(meta, lastUp, peerIfID(lastUp.HopEntries[ases.UpPeer]), false)
+		lastUp = nil
+	}
+	// if len(ases.Ups) > 0 && len(ases.Cores) > 0 && ases.Cores[0] != nil {
+	// TODO(juagargi): beware that here ^^, as well as in the original code, lastUp could be nil
+	if lastUp != nil && len(ases.Cores) > 0 && ases.Cores[0] != nil {
+		// We're in the AS where we cross over from the up to the core segment
+		extractUpOverdata(meta, lastUp, ases.Cores[0])
+	}
+
+	if lastDown != nil && ases.DownPeer != 0 {
+		// This is the last AS in the segment and it is connected to the down segment via peering.
+		extractPeerdata(meta, lastDown, peerIfID(lastDown.HopEntries[ases.DownPeer]), true)
+		lastDown = nil
+	}
+	if lastDown != nil && lastCore != nil {
+		extractCoreOverdata(meta, lastCore, lastDown)
+		lastDown, lastCore, lastUp = nil, nil, nil
+	} else if lastDown != nil && lastUp != nil {
+		extractCoreOverdata(meta, lastUp, lastDown)
+		lastDown, lastUp = nil, nil
+	}
+
+	// put a "stopper" at last entry for this cases: only up, only core, up-core, and only down.
+	var lastFinal *seg.ASEntry
+	if lastUp != nil {
+		lastFinal = lastUp
+	}
+	if lastCore != nil {
+		lastFinal = lastCore
+	}
+	if lastFinal == nil && lastDown != nil {
+		lastFinal = lastDown
+	}
+	if lastFinal != nil {
+		extractSingleSegmentFinalASData(meta, lastFinal)
+	}
+
+	return meta
+}
+
+// inclusion of info from segment. Returns the last ASEntry of the segment if len >1
+func addMetaFromSegment(meta *PathMetadata, segment []*seg.ASEntry) *seg.ASEntry {
+	if len(segment) == 0 {
+		return nil
+	}
+	asEntry := segment[0]
+	s := asEntry.Exts.StaticInfo
+	if s != nil {
+		// For the first AS on the path, only extract
+		// the note and the geodata, since all other data
+		// is not available as part of the saved
+		// s as we only have metrics describing a connection
+		// between BRs (i.e. the "edges" of an AS) and a path could
+		// potentially originate somewhere in the "middle" of the AS.
+		meta.Geo[asEntry.IA()] = getGeo(asEntry)
+		meta.Notes[asEntry.IA()] = ASnote{Note: s.Note}
+	}
+	for i := 1; i < len(segment)-1; i++ {
+		// If the AS is in the middle of the segment, simply extract
+		// the egress and ingressToEgress metrics from the corresponding
+		// fields in s.
+		if segment[i].Exts.StaticInfo == nil {
 			continue
 		}
-		if idx == 0 {
-			// For the first AS on the path, only extract
-			// the note and the geodata, since all other data
-			// is not available as part of the saved
-			// s as we only have metrics describing a connection
-			// between BRs (i.e. the "edges" of an AS) and a path could
-			// potentially originate somewhere in the "middle" of the AS.
-			res.Geo[asEntry.IA()] = getGeo(asEntry)
-			res.Notes[asEntry.IA()] = ASnote{Note: s.Note}
-		} else if idx < (len(ases.Ups) - 1) {
-			// If the AS is in the middle of the segment, simply extract
-			// the egress and ingressToEgress metrics from the corresponding
-			// fields in s.
-			extractNormaldata(res, asEntry)
-		} else {
-			// We're in the last AS on the up segment, distinguish
-			// 3 cases:
-			if (len(ases.Cores) == 0) && (len(ases.Downs) == 0) {
-				// This is the only segment and thus the final
-				// AS on the path.
-				extractSingleSegmentFinalASData(res, asEntry)
-			} else if ases.UpPeer != 0 {
-				// This is the last AS in the segment and it
-				// is connected to the down segment via a peering
-				// connection.
-				peerEntry := asEntry.HopEntries[ases.UpPeer]
-				PE, _ := peerEntry.HopField()
-				peerIfID := PE.ConsIngress
-				extractPeerdata(res, asEntry, peerIfID, false)
-			} else {
-				// If the last up AS is not involved in peering,
-				// do nothing except store the ASEntry in LastUpASEntry.
-				// The actual crossover will be treated as part of the core
-				// segment.
-				lastUpASEntry = asEntry
-			}
-		}
+		extractNormaldata(meta, segment[i])
 	}
-	// Go through ASEntries in the core segment
-	// and extract the static info data from them
-	for idx := 0; idx < len(ases.Cores); idx++ {
-		asEntry := ases.Cores[idx]
-		s := asEntry.Exts.StaticInfo
-		if s == nil {
-			continue
-		}
-		if idx == 0 {
-			if len(ases.Ups) > 0 {
-				// We're in the AS where we cross over from the up to the core segment
-				extractUpOverdata(res, lastUpASEntry, asEntry)
-			} else {
-				// This is the first AS in the path, so we only extract
-				// its geodata and the note
-				res.Geo[asEntry.IA()] = getGeo(asEntry)
-				res.Notes[asEntry.IA()] = ASnote{Note: s.Note}
-			}
-		} else if idx < (len(ases.Cores) - 1) {
-			// If the AS is in the middle of the segment, simply extract
-			// the egress and ingressToEgress metrics from the corresponding
-			// fields in s.
-			extractNormaldata(res, asEntry)
-		} else {
-			// If we're in the last AS of the segment
-			// only set LastCoreASEntry.
-			// It will later be used to treat the crossover
-			// when we look at the down segment.
-			lastCoreASEntry = asEntry
-			if len(ases.Downs) == 0 {
-				// If this is the last AS on the path (i.e. there is no
-				// down segment) extract data accordingly.
-				extractSingleSegmentFinalASData(res, asEntry)
-			}
-		}
+	if len(segment) > 1 && segment[len(segment)-1].Exts.StaticInfo != nil {
+		// the stitching is done later
+		return segment[len(segment)-1]
 	}
-	// Go through ASEntries in the down segment
-	// and extract the static info data from them
-	for idx := 0; idx < len(ases.Downs); idx++ {
-		asEntry := ases.Downs[idx]
-		s := asEntry.Exts.StaticInfo
-		if s == nil {
-			continue
-		}
-		if idx == 0 {
-			// for the last AS on the path, only extract
-			// the note and the geodata (analogous to the first AS).
-			res.Geo[asEntry.IA()] = getGeo(asEntry)
-			res.Notes[asEntry.IA()] = ASnote{Note: s.Note}
-		} else if idx < (len(ases.Downs) - 1) {
-			extractNormaldata(res, asEntry)
-		} else {
-			if ases.DownPeer != 0 {
-				// We're in the AS where we peered over from the up to the down segment
-				peerEntry := asEntry.HopEntries[ases.DownPeer]
-				PE, _ := peerEntry.HopField()
-				peerIfID := PE.ConsIngress
-				extractPeerdata(res, asEntry, peerIfID, true)
-			} else {
-				if len(ases.Cores) > 0 {
-					// We're in the AS where we cross over from the core to the down segment
-					extractCoreOverdata(res, lastCoreASEntry, asEntry)
-				}
-				if (len(ases.Ups) > 0) && (len(ases.Cores) == 0) {
-					// We're in the AS where we cross over from the up to
-					// the down segment via a shortcut (analogous to crossing
-					// over from core to down, thus we use ExtractCoreOverdata())
-					extractCoreOverdata(res, lastUpASEntry, asEntry)
-				}
-				if (len(ases.Ups) == 0) && (len(ases.Cores) == 0) {
-					extractSingleSegmentFinalASData(res, asEntry)
-				}
-			}
-		}
-	}
-	return res
+	return nil
 }
 
 func getGeo(asEntry *seg.ASEntry) ASGeo {
@@ -444,4 +407,9 @@ func getGeo(asEntry *seg.ASEntry) ASGeo {
 		Locations: locations,
 	}
 	return res
+}
+
+func peerIfID(he *seg.HopEntry) common.IFIDType {
+	PE, _ := he.HopField()
+	return PE.ConsIngress
 }
