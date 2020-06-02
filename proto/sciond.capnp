@@ -47,6 +47,7 @@ struct PathReply {
 struct PathReplyEntry {
     path @0 :FwdPathMeta;  # End2end path
     hostInfo @1 :HostInfo;  # First hop host info.
+    pathStaticInfo @2 :PathMetadata; # Static info describing the path
 }
 
 struct HostInfo {
@@ -54,6 +55,37 @@ struct HostInfo {
     addrs :group {  # Addresses of the host.
         ipv4 @1 :Data;
         ipv6 @2 :Data;
+    }
+}
+
+struct PathMetadata {
+    totalLatency @0 :UInt16;
+    totalHops @1 :UInt8;
+    minimalBandwidth @2 :UInt32;
+    linkTypes @3 :List(InterfaceLinkType);
+    asLocations @4 :List(Geo);
+    notes @5: List(Note);
+
+    struct InterfaceLinkType {
+        interLinkType @0 :UInt16;
+        peerLinkType @1 :UInt16;
+        isdas @2 :UInt64;
+    }
+
+    struct Geo {
+        routerLocations @0 :List(GPSData);
+        isdas @1 :UInt64;
+
+        struct GPSData {
+            latitude @0 :Float32;
+            longitude @1 :Float32;
+            address @2 :Text;
+        }
+    }
+
+    struct Note {
+        note @0 :Text;
+        isdas @1 :UInt64;
     }
 }
 

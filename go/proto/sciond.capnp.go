@@ -3,6 +3,7 @@
 package proto
 
 import (
+	math "math"
 	strconv "strconv"
 	capnp "zombiezen.com/go/capnproto2"
 	text "zombiezen.com/go/capnproto2/encoding/text"
@@ -804,12 +805,12 @@ type PathReplyEntry struct{ capnp.Struct }
 const PathReplyEntry_TypeID = 0xc5ff2e54709776ec
 
 func NewPathReplyEntry(s *capnp.Segment) (PathReplyEntry, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3})
 	return PathReplyEntry{st}, err
 }
 
 func NewRootPathReplyEntry(s *capnp.Segment) (PathReplyEntry, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3})
 	return PathReplyEntry{st}, err
 }
 
@@ -873,12 +874,37 @@ func (s PathReplyEntry) NewHostInfo() (HostInfo, error) {
 	return ss, err
 }
 
+func (s PathReplyEntry) PathStaticInfo() (PathMetadata, error) {
+	p, err := s.Struct.Ptr(2)
+	return PathMetadata{Struct: p.Struct()}, err
+}
+
+func (s PathReplyEntry) HasPathStaticInfo() bool {
+	p, err := s.Struct.Ptr(2)
+	return p.IsValid() || err != nil
+}
+
+func (s PathReplyEntry) SetPathStaticInfo(v PathMetadata) error {
+	return s.Struct.SetPtr(2, v.Struct.ToPtr())
+}
+
+// NewPathStaticInfo sets the pathStaticInfo field to a newly
+// allocated PathMetadata struct, preferring placement in s's segment.
+func (s PathReplyEntry) NewPathStaticInfo() (PathMetadata, error) {
+	ss, err := NewPathMetadata(s.Struct.Segment())
+	if err != nil {
+		return PathMetadata{}, err
+	}
+	err = s.Struct.SetPtr(2, ss.Struct.ToPtr())
+	return ss, err
+}
+
 // PathReplyEntry_List is a list of PathReplyEntry.
 type PathReplyEntry_List struct{ capnp.List }
 
 // NewPathReplyEntry creates a new list of PathReplyEntry.
 func NewPathReplyEntry_List(s *capnp.Segment, sz int32) (PathReplyEntry_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 3}, sz)
 	return PathReplyEntry_List{l}, err
 }
 
@@ -905,6 +931,10 @@ func (p PathReplyEntry_Promise) Path() FwdPathMeta_Promise {
 
 func (p PathReplyEntry_Promise) HostInfo() HostInfo_Promise {
 	return HostInfo_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
+}
+
+func (p PathReplyEntry_Promise) PathStaticInfo() PathMetadata_Promise {
+	return PathMetadata_Promise{Pipeline: p.Pipeline.GetPipeline(2)}
 }
 
 type HostInfo struct{ capnp.Struct }
@@ -1005,6 +1035,493 @@ type HostInfo_addrs_Promise struct{ *capnp.Pipeline }
 func (p HostInfo_addrs_Promise) Struct() (HostInfo_addrs, error) {
 	s, err := p.Pipeline.Struct()
 	return HostInfo_addrs{s}, err
+}
+
+type PathMetadata struct{ capnp.Struct }
+
+// PathMetadata_TypeID is the unique identifier for the type PathMetadata.
+const PathMetadata_TypeID = 0xa5cff7314a4335e5
+
+func NewPathMetadata(s *capnp.Segment) (PathMetadata, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
+	return PathMetadata{st}, err
+}
+
+func NewRootPathMetadata(s *capnp.Segment) (PathMetadata, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
+	return PathMetadata{st}, err
+}
+
+func ReadRootPathMetadata(msg *capnp.Message) (PathMetadata, error) {
+	root, err := msg.RootPtr()
+	return PathMetadata{root.Struct()}, err
+}
+
+func (s PathMetadata) String() string {
+	str, _ := text.Marshal(0xa5cff7314a4335e5, s.Struct)
+	return str
+}
+
+func (s PathMetadata) TotalLatency() uint16 {
+	return s.Struct.Uint16(0)
+}
+
+func (s PathMetadata) SetTotalLatency(v uint16) {
+	s.Struct.SetUint16(0, v)
+}
+
+func (s PathMetadata) TotalHops() uint8 {
+	return s.Struct.Uint8(2)
+}
+
+func (s PathMetadata) SetTotalHops(v uint8) {
+	s.Struct.SetUint8(2, v)
+}
+
+func (s PathMetadata) MinimalBandwidth() uint32 {
+	return s.Struct.Uint32(4)
+}
+
+func (s PathMetadata) SetMinimalBandwidth(v uint32) {
+	s.Struct.SetUint32(4, v)
+}
+
+func (s PathMetadata) LinkTypes() (PathMetadata_InterfaceLinkType_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return PathMetadata_InterfaceLinkType_List{List: p.List()}, err
+}
+
+func (s PathMetadata) HasLinkTypes() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s PathMetadata) SetLinkTypes(v PathMetadata_InterfaceLinkType_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewLinkTypes sets the linkTypes field to a newly
+// allocated PathMetadata_InterfaceLinkType_List, preferring placement in s's segment.
+func (s PathMetadata) NewLinkTypes(n int32) (PathMetadata_InterfaceLinkType_List, error) {
+	l, err := NewPathMetadata_InterfaceLinkType_List(s.Struct.Segment(), n)
+	if err != nil {
+		return PathMetadata_InterfaceLinkType_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+func (s PathMetadata) AsLocations() (PathMetadata_Geo_List, error) {
+	p, err := s.Struct.Ptr(1)
+	return PathMetadata_Geo_List{List: p.List()}, err
+}
+
+func (s PathMetadata) HasAsLocations() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s PathMetadata) SetAsLocations(v PathMetadata_Geo_List) error {
+	return s.Struct.SetPtr(1, v.List.ToPtr())
+}
+
+// NewAsLocations sets the asLocations field to a newly
+// allocated PathMetadata_Geo_List, preferring placement in s's segment.
+func (s PathMetadata) NewAsLocations(n int32) (PathMetadata_Geo_List, error) {
+	l, err := NewPathMetadata_Geo_List(s.Struct.Segment(), n)
+	if err != nil {
+		return PathMetadata_Geo_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
+}
+
+func (s PathMetadata) Notes() (PathMetadata_Note_List, error) {
+	p, err := s.Struct.Ptr(2)
+	return PathMetadata_Note_List{List: p.List()}, err
+}
+
+func (s PathMetadata) HasNotes() bool {
+	p, err := s.Struct.Ptr(2)
+	return p.IsValid() || err != nil
+}
+
+func (s PathMetadata) SetNotes(v PathMetadata_Note_List) error {
+	return s.Struct.SetPtr(2, v.List.ToPtr())
+}
+
+// NewNotes sets the notes field to a newly
+// allocated PathMetadata_Note_List, preferring placement in s's segment.
+func (s PathMetadata) NewNotes(n int32) (PathMetadata_Note_List, error) {
+	l, err := NewPathMetadata_Note_List(s.Struct.Segment(), n)
+	if err != nil {
+		return PathMetadata_Note_List{}, err
+	}
+	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	return l, err
+}
+
+// PathMetadata_List is a list of PathMetadata.
+type PathMetadata_List struct{ capnp.List }
+
+// NewPathMetadata creates a new list of PathMetadata.
+func NewPathMetadata_List(s *capnp.Segment, sz int32) (PathMetadata_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3}, sz)
+	return PathMetadata_List{l}, err
+}
+
+func (s PathMetadata_List) At(i int) PathMetadata { return PathMetadata{s.List.Struct(i)} }
+
+func (s PathMetadata_List) Set(i int, v PathMetadata) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s PathMetadata_List) String() string {
+	str, _ := text.MarshalList(0xa5cff7314a4335e5, s.List)
+	return str
+}
+
+// PathMetadata_Promise is a wrapper for a PathMetadata promised by a client call.
+type PathMetadata_Promise struct{ *capnp.Pipeline }
+
+func (p PathMetadata_Promise) Struct() (PathMetadata, error) {
+	s, err := p.Pipeline.Struct()
+	return PathMetadata{s}, err
+}
+
+type PathMetadata_InterfaceLinkType struct{ capnp.Struct }
+
+// PathMetadata_InterfaceLinkType_TypeID is the unique identifier for the type PathMetadata_InterfaceLinkType.
+const PathMetadata_InterfaceLinkType_TypeID = 0xd7c92876b75c115d
+
+func NewPathMetadata_InterfaceLinkType(s *capnp.Segment) (PathMetadata_InterfaceLinkType, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	return PathMetadata_InterfaceLinkType{st}, err
+}
+
+func NewRootPathMetadata_InterfaceLinkType(s *capnp.Segment) (PathMetadata_InterfaceLinkType, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	return PathMetadata_InterfaceLinkType{st}, err
+}
+
+func ReadRootPathMetadata_InterfaceLinkType(msg *capnp.Message) (PathMetadata_InterfaceLinkType, error) {
+	root, err := msg.RootPtr()
+	return PathMetadata_InterfaceLinkType{root.Struct()}, err
+}
+
+func (s PathMetadata_InterfaceLinkType) String() string {
+	str, _ := text.Marshal(0xd7c92876b75c115d, s.Struct)
+	return str
+}
+
+func (s PathMetadata_InterfaceLinkType) InterLinkType() uint16 {
+	return s.Struct.Uint16(0)
+}
+
+func (s PathMetadata_InterfaceLinkType) SetInterLinkType(v uint16) {
+	s.Struct.SetUint16(0, v)
+}
+
+func (s PathMetadata_InterfaceLinkType) PeerLinkType() uint16 {
+	return s.Struct.Uint16(2)
+}
+
+func (s PathMetadata_InterfaceLinkType) SetPeerLinkType(v uint16) {
+	s.Struct.SetUint16(2, v)
+}
+
+func (s PathMetadata_InterfaceLinkType) Isdas() uint64 {
+	return s.Struct.Uint64(8)
+}
+
+func (s PathMetadata_InterfaceLinkType) SetIsdas(v uint64) {
+	s.Struct.SetUint64(8, v)
+}
+
+// PathMetadata_InterfaceLinkType_List is a list of PathMetadata_InterfaceLinkType.
+type PathMetadata_InterfaceLinkType_List struct{ capnp.List }
+
+// NewPathMetadata_InterfaceLinkType creates a new list of PathMetadata_InterfaceLinkType.
+func NewPathMetadata_InterfaceLinkType_List(s *capnp.Segment, sz int32) (PathMetadata_InterfaceLinkType_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
+	return PathMetadata_InterfaceLinkType_List{l}, err
+}
+
+func (s PathMetadata_InterfaceLinkType_List) At(i int) PathMetadata_InterfaceLinkType {
+	return PathMetadata_InterfaceLinkType{s.List.Struct(i)}
+}
+
+func (s PathMetadata_InterfaceLinkType_List) Set(i int, v PathMetadata_InterfaceLinkType) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s PathMetadata_InterfaceLinkType_List) String() string {
+	str, _ := text.MarshalList(0xd7c92876b75c115d, s.List)
+	return str
+}
+
+// PathMetadata_InterfaceLinkType_Promise is a wrapper for a PathMetadata_InterfaceLinkType promised by a client call.
+type PathMetadata_InterfaceLinkType_Promise struct{ *capnp.Pipeline }
+
+func (p PathMetadata_InterfaceLinkType_Promise) Struct() (PathMetadata_InterfaceLinkType, error) {
+	s, err := p.Pipeline.Struct()
+	return PathMetadata_InterfaceLinkType{s}, err
+}
+
+type PathMetadata_Geo struct{ capnp.Struct }
+
+// PathMetadata_Geo_TypeID is the unique identifier for the type PathMetadata_Geo.
+const PathMetadata_Geo_TypeID = 0xb47c95e958cccfff
+
+func NewPathMetadata_Geo(s *capnp.Segment) (PathMetadata_Geo, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return PathMetadata_Geo{st}, err
+}
+
+func NewRootPathMetadata_Geo(s *capnp.Segment) (PathMetadata_Geo, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return PathMetadata_Geo{st}, err
+}
+
+func ReadRootPathMetadata_Geo(msg *capnp.Message) (PathMetadata_Geo, error) {
+	root, err := msg.RootPtr()
+	return PathMetadata_Geo{root.Struct()}, err
+}
+
+func (s PathMetadata_Geo) String() string {
+	str, _ := text.Marshal(0xb47c95e958cccfff, s.Struct)
+	return str
+}
+
+func (s PathMetadata_Geo) RouterLocations() (PathMetadata_Geo_GPSData_List, error) {
+	p, err := s.Struct.Ptr(0)
+	return PathMetadata_Geo_GPSData_List{List: p.List()}, err
+}
+
+func (s PathMetadata_Geo) HasRouterLocations() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s PathMetadata_Geo) SetRouterLocations(v PathMetadata_Geo_GPSData_List) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewRouterLocations sets the routerLocations field to a newly
+// allocated PathMetadata_Geo_GPSData_List, preferring placement in s's segment.
+func (s PathMetadata_Geo) NewRouterLocations(n int32) (PathMetadata_Geo_GPSData_List, error) {
+	l, err := NewPathMetadata_Geo_GPSData_List(s.Struct.Segment(), n)
+	if err != nil {
+		return PathMetadata_Geo_GPSData_List{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
+}
+
+func (s PathMetadata_Geo) Isdas() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s PathMetadata_Geo) SetIsdas(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+// PathMetadata_Geo_List is a list of PathMetadata_Geo.
+type PathMetadata_Geo_List struct{ capnp.List }
+
+// NewPathMetadata_Geo creates a new list of PathMetadata_Geo.
+func NewPathMetadata_Geo_List(s *capnp.Segment, sz int32) (PathMetadata_Geo_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	return PathMetadata_Geo_List{l}, err
+}
+
+func (s PathMetadata_Geo_List) At(i int) PathMetadata_Geo { return PathMetadata_Geo{s.List.Struct(i)} }
+
+func (s PathMetadata_Geo_List) Set(i int, v PathMetadata_Geo) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s PathMetadata_Geo_List) String() string {
+	str, _ := text.MarshalList(0xb47c95e958cccfff, s.List)
+	return str
+}
+
+// PathMetadata_Geo_Promise is a wrapper for a PathMetadata_Geo promised by a client call.
+type PathMetadata_Geo_Promise struct{ *capnp.Pipeline }
+
+func (p PathMetadata_Geo_Promise) Struct() (PathMetadata_Geo, error) {
+	s, err := p.Pipeline.Struct()
+	return PathMetadata_Geo{s}, err
+}
+
+type PathMetadata_Geo_GPSData struct{ capnp.Struct }
+
+// PathMetadata_Geo_GPSData_TypeID is the unique identifier for the type PathMetadata_Geo_GPSData.
+const PathMetadata_Geo_GPSData_TypeID = 0xb7cede732308e432
+
+func NewPathMetadata_Geo_GPSData(s *capnp.Segment) (PathMetadata_Geo_GPSData, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return PathMetadata_Geo_GPSData{st}, err
+}
+
+func NewRootPathMetadata_Geo_GPSData(s *capnp.Segment) (PathMetadata_Geo_GPSData, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return PathMetadata_Geo_GPSData{st}, err
+}
+
+func ReadRootPathMetadata_Geo_GPSData(msg *capnp.Message) (PathMetadata_Geo_GPSData, error) {
+	root, err := msg.RootPtr()
+	return PathMetadata_Geo_GPSData{root.Struct()}, err
+}
+
+func (s PathMetadata_Geo_GPSData) String() string {
+	str, _ := text.Marshal(0xb7cede732308e432, s.Struct)
+	return str
+}
+
+func (s PathMetadata_Geo_GPSData) Latitude() float32 {
+	return math.Float32frombits(s.Struct.Uint32(0))
+}
+
+func (s PathMetadata_Geo_GPSData) SetLatitude(v float32) {
+	s.Struct.SetUint32(0, math.Float32bits(v))
+}
+
+func (s PathMetadata_Geo_GPSData) Longitude() float32 {
+	return math.Float32frombits(s.Struct.Uint32(4))
+}
+
+func (s PathMetadata_Geo_GPSData) SetLongitude(v float32) {
+	s.Struct.SetUint32(4, math.Float32bits(v))
+}
+
+func (s PathMetadata_Geo_GPSData) Address() (string, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.Text(), err
+}
+
+func (s PathMetadata_Geo_GPSData) HasAddress() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s PathMetadata_Geo_GPSData) AddressBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.TextBytes(), err
+}
+
+func (s PathMetadata_Geo_GPSData) SetAddress(v string) error {
+	return s.Struct.SetText(0, v)
+}
+
+// PathMetadata_Geo_GPSData_List is a list of PathMetadata_Geo_GPSData.
+type PathMetadata_Geo_GPSData_List struct{ capnp.List }
+
+// NewPathMetadata_Geo_GPSData creates a new list of PathMetadata_Geo_GPSData.
+func NewPathMetadata_Geo_GPSData_List(s *capnp.Segment, sz int32) (PathMetadata_Geo_GPSData_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	return PathMetadata_Geo_GPSData_List{l}, err
+}
+
+func (s PathMetadata_Geo_GPSData_List) At(i int) PathMetadata_Geo_GPSData {
+	return PathMetadata_Geo_GPSData{s.List.Struct(i)}
+}
+
+func (s PathMetadata_Geo_GPSData_List) Set(i int, v PathMetadata_Geo_GPSData) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s PathMetadata_Geo_GPSData_List) String() string {
+	str, _ := text.MarshalList(0xb7cede732308e432, s.List)
+	return str
+}
+
+// PathMetadata_Geo_GPSData_Promise is a wrapper for a PathMetadata_Geo_GPSData promised by a client call.
+type PathMetadata_Geo_GPSData_Promise struct{ *capnp.Pipeline }
+
+func (p PathMetadata_Geo_GPSData_Promise) Struct() (PathMetadata_Geo_GPSData, error) {
+	s, err := p.Pipeline.Struct()
+	return PathMetadata_Geo_GPSData{s}, err
+}
+
+type PathMetadata_Note struct{ capnp.Struct }
+
+// PathMetadata_Note_TypeID is the unique identifier for the type PathMetadata_Note.
+const PathMetadata_Note_TypeID = 0x88b4277fa83dde2d
+
+func NewPathMetadata_Note(s *capnp.Segment) (PathMetadata_Note, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return PathMetadata_Note{st}, err
+}
+
+func NewRootPathMetadata_Note(s *capnp.Segment) (PathMetadata_Note, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return PathMetadata_Note{st}, err
+}
+
+func ReadRootPathMetadata_Note(msg *capnp.Message) (PathMetadata_Note, error) {
+	root, err := msg.RootPtr()
+	return PathMetadata_Note{root.Struct()}, err
+}
+
+func (s PathMetadata_Note) String() string {
+	str, _ := text.Marshal(0x88b4277fa83dde2d, s.Struct)
+	return str
+}
+
+func (s PathMetadata_Note) Note() (string, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.Text(), err
+}
+
+func (s PathMetadata_Note) HasNote() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s PathMetadata_Note) NoteBytes() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return p.TextBytes(), err
+}
+
+func (s PathMetadata_Note) SetNote(v string) error {
+	return s.Struct.SetText(0, v)
+}
+
+func (s PathMetadata_Note) Isdas() uint64 {
+	return s.Struct.Uint64(0)
+}
+
+func (s PathMetadata_Note) SetIsdas(v uint64) {
+	s.Struct.SetUint64(0, v)
+}
+
+// PathMetadata_Note_List is a list of PathMetadata_Note.
+type PathMetadata_Note_List struct{ capnp.List }
+
+// NewPathMetadata_Note creates a new list of PathMetadata_Note.
+func NewPathMetadata_Note_List(s *capnp.Segment, sz int32) (PathMetadata_Note_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	return PathMetadata_Note_List{l}, err
+}
+
+func (s PathMetadata_Note_List) At(i int) PathMetadata_Note {
+	return PathMetadata_Note{s.List.Struct(i)}
+}
+
+func (s PathMetadata_Note_List) Set(i int, v PathMetadata_Note) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s PathMetadata_Note_List) String() string {
+	str, _ := text.MarshalList(0x88b4277fa83dde2d, s.List)
+	return str
+}
+
+// PathMetadata_Note_Promise is a wrapper for a PathMetadata_Note promised by a client call.
+type PathMetadata_Note_Promise struct{ *capnp.Pipeline }
+
+func (p PathMetadata_Note_Promise) Struct() (PathMetadata_Note, error) {
+	s, err := p.Pipeline.Struct()
+	return PathMetadata_Note{s}, err
 }
 
 type FwdPathMeta struct{ capnp.Struct }
@@ -2262,135 +2779,171 @@ func (p SegTypeHopReplyEntry_Promise) Struct() (SegTypeHopReplyEntry, error) {
 	return SegTypeHopReplyEntry{s}, err
 }
 
-const schema_8f4bd412642c9517 = "x\xda\x94W}l\x1bg\x19\x7f\x9e\xf7\xec\xd8Nl" +
-	"\x9f\xddsF\x09\x82\xd0\xaaU\x9bj\xa9\x96t\x85\xae" +
-	"\x82\xa5M\xdb,\x1et\xcd\xd9\x11\x7fLC\xcc\x8b_" +
-	"'FN\xec\xdc]\xd2z\xa2\x84\xa2\x06XaZ\xab" +
-	"-\x82\xd1N\xb4\x1b\x94\x06\x86\xd8J5\xb1\x82&\xd0" +
-	":>\xa2\x09\x98T4-\x1a\xac-\xeb\xdat\xabX" +
-	"\xba\x8e~\xd0r\xe8\xb9;\xdf]/\xd7\x8f\xe5\xaf7" +
-	"\xfe=\xfe\xbd\xcf\xd7\xefy^\xdf1/\xb8\x86\xb5\x05" +
-	"\xff\x1d\x02\x90\x1f\x08\xd6\xe9\x1f<\xf7\x8b\xfd\xef\x9e\x7f" +
-	"\xf8\xdb\x90\x8c\xa1\xfe\xb1\x89\xdb\xf3\xf3\x8e~\xe11\x08" +
-	"b\x08@\xfa\x870-\xcd\x08t:)t\x00\xea\xe7" +
-	"\xa7/}\xe5\xa5\xa9\xb7v\x80\x1cC\xb71#\x93\xc6" +
-	"\xc0\x94\xb4 @\xa7O\x06N\x01\xeaM\xc9=]o" +
-	"+\xdb\x1e\xf3\x18\x1b\x16\xc1\xe0A)\x16\xa4S$H" +
-	"\xc4]/w\x8d\x1d\xda}f\x17\xd92\xc7v\x03\x0b" +
-	"\xc50 \xb5\x04\x0fKmd\xbd\xa25\xb8I\x00\xd4" +
-	"\x9f:\x9d:\xb1t\xfe\xd7\x9f\xf0\xf3\xf9\xcf\xe1)\xe9" +
-	"\xefa:\xbd\x16&\xea}[\x1b\x0e\xac\\S\x9d\xf0" +
-	"P\x1bn`dZ\x8aE\x0c7\"\x9b\x01\xf5\x99\xce" +
-	"\xb7\xc6\x7f:^\xb7\xdb\x8f\x97G\xceH\xc3\x86\xed`" +
-	"\x84x\xa7\xdf\xd8q\xfax\xf0/\xbbAnDA\x7f" +
-	"\xf7\x99#o\xb65\xfe\xe1\x084b\x08\x01\xa4]\x91" +
-	"i@i\xc2`\x9d\xd7\xb6\xb7\xed\x81\xf0\xa6I\x1f\xd6" +
-	"\x15\xb3\x11\x86\xd2U\x83\xf6\x92A{hvR\xbe\x7f" +
-	"\xfe\xc5g\xbd)6\xac[\xeb\xe7\xa1\xf4\xf9z\xb2\xbe" +
-	"\xab\xfe\x97\x80\xfa\xa7\x17?\xbe9\xb8\xa4\xe9\xa0oA" +
-	"f\xea\x0fJ\xb3\x86\xf1\xd9z\xf2\xe3\xf4\xb9\xdbFO" +
-	"\x9e]\xf3\xb2_t\xad\x0dg\xa4\xbb\x1a\xe8\xb4\xb2\x81" +
-	"\xdc\xb0\xe3\x91c(\xccIE\xc3\xcf\xa4A2^Q" +
-	"lhF@\xfd\xbd\xd1\xefWz\x97\xeb\xafx\x98\x0d" +
-	"/\x86\xa3'\xa4\xadQ:U\xa3\xe4\x85\xc8\xff\xba\xb6" +
-	"s\xfb\xa7\xa6\xfc\xda\xe2\x8d\xe8\xb4t\xd2\xb0=\x1e%" +
-	"/~\xf2\xce\xa2=\x07\x9e\xe6\xaf\xfa\xd9b\xec\xb0\x14" +
-	"\x89\x19\xcd\x14#\xdb7\x8f\xfff\xff#\x8f/9\xe5" +
-	"\x9b\xb8\xc5\xb1&\x94V\x1a\xd6m1J\\\xe9X\xe6" +
-	"KM\xaf]8\xe5\x97\x8b\xe3\xb1)\xe9\xaca;c" +
-	"0\xafZ\xf2\xfa\xb7\xfa\x1b_y\xdf\x8fY\xfax\xfc" +
-	"\x9c\xb48N\xa7\x05q\x0a\xaf\xe3\x9d\xbb[^\x98\x11" +
-	"g}\x8d\xb7\xc5\x0fK\x8f\x18\xc6\xe3\x86\xf1\x8b/m" +
-	"\x99\xfc\xee\xeb\xfb/\xf8y\xf1a\xfc\x9c\x84\"\x9d\xae" +
-	"\xc6\xc9\x8bh\xd3?\x7f\xde\xbf\xf8\xe4%\x90oCW" +
-	"\xe1\x1b\x99\xd1o\xad\xe2\x09@\xa9M$\xd6_\xbd\xf0" +
-	"\xf0=\x87\x9ey\xfe\xb2_\xc7?*\x9e\x93\x9e4X" +
-	"'D\xca\x83\xdaW,\x0f\xe5\x97\xf7\xb1\\e\xa8\xb2" +
-	":\xdd\x95\x1e*\x943|x\x84\x0b\xaa\xd6\x83(\x07" +
-	"\x84\x00@\x00\x01\x92\xb1v\x009,\xa0\xbc\x88as" +
-	"\xb1\x90^\xafb\x1c\xb0G@\x8c\x00\xa3\xa3\x87\xabk" +
-	"s\xbe'\xa7\x0dl\xe4Z\x0e\x80\xa8\x126U\xae\x93" +
-	"f\x8f\x80\xf2\x00C\xc4\x14\xd2g|!\x80\xfc\xa0\x80" +
-	"r\x89a\x92a\x0a\x19@\xb2x?\x80< \xa0\xbc" +
-	"\x9daR\xc0\x14\x0a\x00\xc9m\xf4\xed\xaf\x09(\x7f\x87" +
-	"\xe1X\xc1\xbc\x05c\xc00\x06\x18\x1a\xd4F0\x04\x0c" +
-	"C\x80zqH\xe3J!\xd7\x07\x02\xb7}M8\xf3" +
-	"\x00\x90>\x1c\xe3[*\xbd\xc5A\x8ea`\x18vE" +
-	"\x81F\x14\x19>\xda\x9c\xe1\x95R\xd5\x93\x8c\xd5V2" +
-	"R\x0c;\x14\xae\x8e\x944\xfb\xdak\x09\xb2\xeb\xd2\x1d" +
-	"\x9b\xee[\xbfQ\xed'\x86\xcf\xd5\x18\xa4\x09l\x02\xc8" +
-	"\xeeD\x01\xb3{\x90a\x0cu\xddH\x84\xf4$\xb6\x03" +
-	"d\x9f `/\x01\xec\x7f\xba\x91\x0c\xe9)\xec\x04\xc8" +
-	"\xfe\x80\x80\x1f\x13 \\\xd5\x8d\x84H\xfb0\x03\x90\xdd" +
-	"K\xc0\xb3\x04\x04\xae\xe8)\x0c\x00H\x93\x06p\x80\x80" +
-	"C\x04\x04\xff\xab\xa70\x08 =\x8f\x0f\x01d\x9f#" +
-	"\xe0\xb7\x04\xd4]\xd6SX\x07 \xbd\x88\xdf\x04\xc8\xfe" +
-	"\x9a\x80#\x04\x84.\xe9)\xa3\x1b\x7f\x8f\x0a@\xf6w" +
-	"\x04\xbcJ@\xf8\xa2\x9e\xc20\x8d[\x83\xeaO\x04\x1c" +
-	"% rAOa\x84\xa6/\xfe\x10 {\x94\x80c" +
-	"\x04\xd4\xffGOa=-\x15\xdc\x01\x90=F\xc0{" +
-	"\x044|\xa8\xa7\xb0\x81\xd4\x86\xf7\x02dO\x13p\x9e" +
-	"\x80\xe8y=\x85Q\x00i\xd6\xb8\xfc}\x02\xae\x10\x10" +
-	"\xfb@Oa\x8cF\xa6\xe1\xeeE\x02\x02\x8ca2\x8e" +
-	")\x8c\xd3l`\x94\xaa+\xf4y\x981\x14\x8ay\xa3" +
-	"I#\x80\xcd#C*\xd7\xa0n\xac\x92\xd3\x062|" +
-	"\x18\x13\xce\xa8\x03\xc4\x04\xa0n\"\x95\x12`\x15\x13\x8e" +
-	"\x9e-4\xa7\x9a\x12\x01\xa4\xef\xda\x03\xca\x8b\x86*%" +
-	"\xfa\xb6\xbd\xa8,\\\xe1\xa3\xf7\x95\xb5b\x01\x8b}9" +
-	"\xadX\x1e\x02L8K\xc7\xb2)\x16,\x8e\xe6\xe1\x11" +
-	"\xaej\x98pV\xb4\xd7\xc2\xba\xc5\x1ef\x16\xaere" +
-	"\xb4\xd8\xc7\xd3\xe8\x123&\x9c=\xe4kV)U\x81" +
-	"\xdc\xb1g\x92\xe3\xb2\x05\x12j/u\x9b\xa3\xbf\xb7Z" +
-	"\xe1\xdd\xd0\\\xae\x98\xe9\xb4\xe7\xbb\xc7\x02\xc9\x80x0" +
-	"\xe1l\"\xd3fLSr}<\x9d\xaf\xa9\xd83I" +
-	"\xd6f\xd3\x8e\x87\x1e\x1dv:Ci\x8c\x0fiJ\xd1" +
-	"-u{\x10\x9aR\xf7\xd0\xd2\xdcH\x9b#B\xe8\xe3" +
-	"\xc4\x1b\xb6y[h\xd8-\x12P\xbe\x83a\xb26\xa2" +
-	"Z\x97\x01\xc8K\x05\x94\xef\xa4\x09\xa8\xe6sj\xad\xab" +
-	"D\x9a\x87\xb5\x7f<\xd7d\xac\x92\x17\xfbr\"\x95\xdc" +
-	"\x13\xc0\xbd\x00rT@y>C]\xcd\xf0Q\x0a\xd5" +
-	"Lu\xe6_\x97?;~O\xfb\x8f\xecD\xce\xf1>" +
-	"\xc3\x87\x97\x17J9\xa1_%\xd7\x13;\xcd\xf9\xd8\xd2" +
-	"\xe9\xf6}\x971\x0a\x92\xad\xab\x1d\xdf\xc7\x14^P\xb8" +
-	":\x80\x08\x0c\x11\xb0c\xa0\x98\xcf\xf3\xa1\xda\xbf\xf6E" +
-	"\x829\xc0\xac.\xa9\xf5\x92\xaayk\xf0U+\x84\xa5" +
-	"\xcc\xee\xa9^\x10\xab\x15\xa7\x14\xa2\xae\xf5\xff\xed\x13-" +
-	"\xad\x99\x13\xdeR\xd4\xee0{\xc4j\x91\x0dC\x9a\x82" +
-	"\xc6\xc4\x8d\xda\xb7l\xa0U\xb0^@\xf9Agg|" +
-	"9\xe3\xec\x11{g\xf0Ng\x91\xdc\xda\x0a\xd0\xb5\xe2" +
-	" W\xb5\xdc `\xa5\xb6\x06n\xb2\x16\xba\xcbj\xb3" +
-	"F)\xf1\xb4\xcd2'\xf5\xf4\xe7,\xeddk;0" +
-	"\xb1RV\xec=\xd1\x9c\xcb\xe7\x15\xd5SUW\"D" +
-	"\x9f\xads\xc3n\xb7_\x8e\x9e\x14c\xad_Dj\x18" +
-	"bL\xd9\x8c[i\xebn\xb1\x16l-\xad\xdb\x16:" +
-	"\x0b6\xc9\xc2fZ\xc7\xa9Q\xb7\x0b(\xefd\x88\x02" +
-	"\xba\xde\xbf\xc9G\xdb\x81a\xc0\xd8,\xc9\x11\xea\xb3\x8a" +
-	"\x80\xf2\xf7\x18\x86\xf2\xaaV\x13EHU\xfal\x81\x0c" +
-	"\xe6\xb6P\xfb\xaa\xd4\xe7\xb5l\x14J\xb9~\xb5c\xa0" +
-	"\xb2\xae\xd0\xef\x8ai\xfe\x86\xb7\xef\x96\xfe\xb8\xe0\xf0\xf5" +
-	"\x15l5LHS\xaa\xd7\xaf\x85#a\x8a\xe2v\x01" +
-	"\xe5U\x0cE\x1a\xf4\x98p~\xd4X:\x1b(\xab\x9a" +
-	"\xa3B\xfb\xa1\xe5\xabBW\xbd\x043\xb7\xaej-s" +
-	"\xde\x08\xa2V\xadp\x14\xf5o\xacz\xba\x9eO^\xd8" +
-	"Gl\xe2\x9c\x1a\xad\xcd\xa6;L\x99]\xe7\xe9\x95\xf2" +
-	"\x0e\x9e\x1bi\xd5\x14\x92\xa0x\x85\xf4\x90%\xa4\x1eW" +
-	"^6R\xc9\xbb\x05\x94{\x19\"3+.\x93\xbaz" +
-	",!\xd9\xba\x0e\x99\x81\xb8\xf5,\x02\x864\xaddK" +
-	"\xc5N \xba*\xe9\xcec\xfc\xba\x0f\xcf\x8f<\xe2\xed" +
-	"\xb7\xf9\xcdh\x9bi\xa8To$W\x9f\x0e\xb9f\xac" +
-	"\xdfZ_\xd8j\xeb\x18\xb0\xdf\x8d\xae\x1b3\xce\x18\xae" +
-	"\xdd\xd8\xd6i\xdd\xd8\xcdP\xe7\x8aRV\xd6\x95\xf3\x80" +
-	"\xbc&\x8d\xb9A\xdb?\xb7|\x83v5\x81\xef\xd3\xf5" +
-	"\x86\xf9\xb4\x7fE\xf9Rw[)X\x9e\xcb\x87\xf2\x8a" +
-	"j\x06fF1Gn\xcc\xb31\xc5be\xf4\xce\xda" +
-	"\x86\xa7\x7f>s\xf3u\xef\x14\xcd\xd5\xbf$\x865\x02" +
-	"\xca_\xa4\x8b\x02\xe6\xed\xe9\x85\xae\xa6f=\xe6\xed\x1b" +
-	"W;M}\xadl\xdc?\x13:\x8a\xea\xba\xb2\xc2k" +
-	"\xdb\xef\xff\x01\x00\x00\xff\xff\x18V:\xa1"
+const schema_8f4bd412642c9517 = "x\xda\x94X}l\x1c\xe5\xd1\x9fy\xf6|\xe78>" +
+	"\xdfmv\x0d\x91_\xbd\\\x9b\x82\xf2!ba\x87\x14" +
+	"\x14\x01\x8e\x9d\xcfKm\xf0s\x97\xb4\x80\x12\x95\x8d\xef" +
+	"\xb1\xbdp\xbe\xbb\xdc\xae\x9d\x18A\xdd \xd2\xd2\xb4\x15" +
+	"P\x88\x0a\x85\xa8\x09\x10\x88\xdbD%\xd4|\xa5-*" +
+	"\x82\xb4%J\xf9\xa8\xa8P#\x0a!%\x90\x00\x95H" +
+	"\x08\x0dNC\xb7\x9a\xdd\xbd\xdd\xcd\xfa\x1c\xe8\x7f{;" +
+	"\xb3\xf3\xcc\xfcf\xe67\xf3\xdc%\xf7D\x17\xb2\x96\x9a" +
+	"\xc7\xa6\x00\xf0RM\xd4\xfa\xe4\xf1\xdd\x8f~x\xf2\xe6" +
+	"\xef\x83\x1cG\xeb\xfc-\x17\xe7\xa6\xbd\xfe\x8d;\xa1\x06" +
+	"c\x00\xca\xb3\x91\x83\xca\xbe\x08==\x1fi\x03\xb4\xe6" +
+	"\xbeu\xe5\xce\x91\x99cw\x00oB\xb4\x8e\xcc_\xb4" +
+	"\xa2\xe5\xd4+;\\\xe5\xe3\x91\xd3\xca\xe7\xb6\xf2xd" +
+	"=\xa0u\xf2\xe0\xf8\xb7\x9f\xdb\xff\xf6f\xe0q\x0cZ" +
+	"f\xa4\xb2\xaaf\xbf\xa2\xd5\xd0\xd3\x9a\x9a\xf7\x01\xad&" +
+	"\xf9\xc1\xa5\xef\x967\xde\x19R\xb6\xcd-\x89>\xa1t" +
+	"E\xe9)\x1d%/\x96\xbe\xb0td\xec\x81\x0f\xee&" +
+	"]\xe6\xeb.a\xb18F\x14=\xbaWYG\xda\xf3" +
+	"\x06\xa2\xd7H\x80\xd6\xd6\xa3\xea\xe1Y\xd3\xbfso\xb5" +
+	"\x00\xa7\xd4\xedW\x1a\xeb\xe8I\xae#\xd3\xdbo\x9d\xba" +
+	"s\xfe\xc2\xe1-!\xd3\xb6\x1b\xedu\x07\x95.[7" +
+	"]G\xf1\x1d\xebx{\xd3c\x9b\xa2\x0fT\xb3\xbb\xa3" +
+	"\xee\x03e\x8f\xad\xbb\xdb\xb6{\xf0o\x9b\x8f\xbeS\xf3" +
+	"\xf2\x03\xc0\x1bQ\xb2>|\xf8\xc57[\x1a\xff\xf0\"" +
+	"4b\x0c\x01\x94\xd7\xea\x0e\x02*\x7f\xb5\xadz\xa0\x86" +
+	"P\x93\xc8X\xcb\xd4\xbf(WN\xbd\x0c`\x9e\x98\xfa" +
+	"-\x04\xb4\xa6\xb5lkY]{\xcdh\x15\x1f\xe6\x8d" +
+	"\xd73Tj\xe2\xf4\x1d\xc6\xc9\x89\xb1\xe3\xa3\xfc\xfa\xe9" +
+	"\x9f\xed\x0a\x9b\xb6\xb5\xe7\xc7\xa7\xa1\xb2\xc4\xd6n\x8f\xff" +
+	"\x0a\xd0\xfa\xcaE\xf7\xac\xaf\x99\xd9\xf4D\xd5\xf4\x1d\x8f" +
+	"?\xa1\x8c\xdb\xca\x9f\xc6\xc9k\xeb\x95\x03\xd7\x1e\xdbr" +
+	"\xcbX\xd5\xc2\x98\xdfpBio8\x9f\x80k \xe5" +
+	"\xd6wk\xbff\xbc\xf5\xf2\xd3\xc0/\xc0\xc0\xa7\x8e\x1f" +
+	"\xcf6\xb4\xa2\xf2R\x03}\xb7\xaf\x81\xfc8z\xe2\xbc" +
+	"\xa1#\xff\\\xf8B5\x98E\xe2\x03e]\x82\x9e\x06" +
+	"\x12\x14\xa1\x07,\x8f\xa3\x14V\xde\x9a\xf8\x85\xb2\x83\x94" +
+	"\xe7mO\xa4\x08\xbc\x8f\x86~ZZ\xd9l\xed\x0bY" +
+	"\xb6\x91\x1eM\x1eV\x9eL\xd2\xd3\x9e$y\x91\x10\xaf" +
+	"\xb4w\xdc~\xc1\xfej\xf5\xc9\xe5\x83\xca\x1a\x99\x9e\xae" +
+	"\x93\xc9\x8b\x1d\xef]\xf8\xe0\xce\x87\xc4\x81j\xba\xc3\xf2" +
+	"^e\xa3\xad{\xab\xad\xbbF^\xfd\xf4\xd0\xac\x97\xde" +
+	" \xe0\x98\x0f\x1c\xe9\xce\xdb*\xafEe\x8f\xad\xbc[" +
+	"&'\xde|\xe77\x8f\xfe\xe0\x9e\x99\xefWM`\xd7" +
+	"\xb4&T\xd6L\xb3\xdd\x98F\xda\xf9C\x99o6\xbd" +
+	"v\xea\xfd\xaau\xaf\xecW\x1a\x15\xbb\xee\x15r\xe3\xf2" +
+	"\x99o|\xaf\xafq\xdf\xc7\xd5,+\xed\xca\x09\xa5\xcb" +
+	"VN+\x94\xbf\xb6\xf7\xae\x9a\xfd\xd4\xb1\xc4\xf1\xaa\xca" +
+	"\xa3\xca^e\x8f\xad\xbc\xdbV~\xf6\xb9\x0d\xa3?|" +
+	"\xe3\xd1S\xd5\xbc\xf8\x7f\xf5\x842[\xa5\xa7\x8bT\xf2" +
+	"\xa2\xbe\xe9\xad_\xf6]td\x1c\xf8y\x18(\xc0F" +
+	"fw\xc9*\xf50\xa0r\x9dJV\x7f\xfd\xd4\xcd\xcb" +
+	"\xc6\x1e\xdes\xbaZ\x9f>\xa9\x9eP\x9e\xb7\xad\xfeN" +
+	"%\x1c\x8c\x1e\xbdX\xc85\xf70\xadT(-H/" +
+	"M\x17z\x8b\x19\xb1nPH\x86\xd9\x8d\xc8#R\x04" +
+	" \x82\x00r\xbc\x15\x80\xd7J\xc8/d\x98\xd2{\xd3" +
+	"\x8b\x0dl\x00\xec\x96\x10\xa7\x00\xa3\xc7\x90\xadn\xcd\xec" +
+	"\xef\x12\xa6\x96\xd3\xcc6\xad\xf9\xea\xa2)\xc8^\xadg" +
+	"o\xf6\x1c\x00~\xa1\x84\xfc\x12\x86\x88*\xd2\xbb\xb9t" +
+	"\xc6,\x09\xf9\xa5\x0c\x13\x85\xa2)\xb0\x1e\x18\xd6\x03\xa6" +
+	"t#\xa7\x19\xf6IS&\x9c\xb4t}\xaer\x18\x00" +
+	"\x1d\x92\xf4\x0e\xd1:\x00\xf8j\x09y\xbf\x7f\x88\x98\x01" +
+	"\xc0o\x90\x90\xe7\x19\xca\x0cUd\x00\xb2~=\x00\xef" +
+	"\x97\x90\xdf\xceP\x96PE\x09@\xdeH_\xdf\"!" +
+	"\xbf\x83\xe1H\xafs\x0a\xc6\x81a\x1c06`\x0eb" +
+	"\x0c\x18\xc6\x00-\xbd`\x8ar\xaf\xd6\x03\x92\xf0PI" +
+	"\xfa|\x09H/G\xc4\x86\xd2J}@`-0\xac" +
+	"\x0dD\x81v\x14\x191\x94\xca\x88R~8\x04\xfb\x02" +
+	"\x17v\x95a[Y\x18\x83y\xd3;\xf6l\x03\xd9E" +
+	"\xe9\xb6k\xae^\xdce\xf4\x91\x85+*\x16\x94-\xd8" +
+	"\x04\x90\xbd\x0b%\xcc>\x88\x0c\xe3hY6\x10\xca\xfd" +
+	"\xd8\x0a\x90\xbd\x97\x04\xdbH\xc0\xfec\xd9`([\xb1" +
+	"\x03 {\x1f\x09\x1e!\x81\xf4\xb9e\x03\xa2l\xc7\x0c" +
+	"@v\x1b\x09v\x91 r\xc6R1B\x85m\x0bv" +
+	"\x92`\x8c\x045\xff\xb6T\xac!\x82\xc0\xb5\x00\xd9\xc7" +
+	"I\xf0[\x12DO[*Fiz\xe2m\x00\xd9g" +
+	"H\xf0\"\x09b\xe3\x96j\xd7\xfd\xf3X\x06\xc8\xfe\x9e" +
+	"\x04\x07HP\xfb\x99\xa5b-\x80\xf2\x92m\xeaO$" +
+	"x\x9d\x04SNY*N\xa1\x09\x81?\x03\xc8\xbeN" +
+	"\x82C$\xa8\xfb\x97\xa5b\x1d\x80\xf2w\xdc\x0c\x90=" +
+	"D\x82\x8fH0\xf5SK\xc5\xa9\x00\xca1\\\x01\x90" +
+	"=J\x82\x93$\xa8?i\xa9XO\xd4m\x1f\xfe1" +
+	"\x09\xce\x90 \xfe\x89\xa5b\x9c\xa6\xb6\xed\xeeg$\x88" +
+	"0\x86r\x03\xaa\xd8@\xc3\x83\x11Tg\xe8}-c" +
+	"(\xe9\xb9J\x91\xa6\x06\x0b\x860!:R\xd2\xcc\xfe" +
+	"\x8cX\x87I\x9f\x81\x011\x09h9\x92R\x1ep\x18" +
+	"\x93>s\xb8R\xcdp\x9a\x11\x90\xbe\xf5x3,\x8d" +
+	"\x95\xf2\xf4\xb57\xc8]yY\x0c]]4\xf5^\xd4" +
+	"{4S/\x16\x00\x93\xfePvu\xf4^\xd7Fj" +
+	"\xdd\xa00LL\xfa\xfbNX\xc3=\xc5\xa3MWn" +
+	"\x88\xf2\x90\xde#\xd2\x18\xa0\x0dL\xfa\x93\xb7\xaaZ)" +
+	"?\x0c\xe4\x8e\xc7~\xbe\xcb\xae\x90\xa4\xde\xd2\xe3\xd9\xe8" +
+	"[9\\\x12\xcb!U,9pzc'\xa4\x81\xa4" +
+	"@v0\xe9\x0fHGg\xc4,k=\"\x9d\xabt" +
+	"q\x88I\xda\xb3i\xdf\xc3P\x1fv\xf8\xf47\"\x0a" +
+	"fY\x0f\xb6\xbaG\xb9N\xabW\xa1\xc2\xb4C\x11R" +
+	"O\x98\x06[}\x1a\x94=\x1e\x9c\xe3\xf3\xe0\xd9\xd4\x97" +
+	" \xe6\x9d\x84\x073n\xca\xf5\x1e-A)\x0f\x05\xb0" +
+	"\x02\x80\xd7K\xc8\xa73\xb4\x8c\x8c\x18\xa2P\x1d\xa83" +
+	"\xff8}\xd9\xa6e\xad?\xf7\x80\x9c\xe0}F\xack" +
+	"\xee\xcdkR\x9fA\xae'\xefr\xf8qvG\xd0\xf7" +
+	"\xbbm*\x90\xe7.\xf0}\x1f)\x8b\xde\xb20\xfa\x11" +
+	"\x81!\x02\xb6\xf5\xeb\xb9\x9c(T~N>1P\xe3" +
+	"\xf5\x18X\x00d\xf9'\xfe.$7\xce\xf0\x97mY" +
+	"\x9ec\xb9\xd8\xf6\xa0\xe8\xd4\x0b7\xad\x1c.\xa1\x88-" +
+	"\x13\xc5\x04\x0d\x1d>\xddC\xe0\xfe\x1b\x01\xf8}\x12\xf2" +
+	"G\xc8]\xe6@\xbd=\x03\xc0\xb7I\xc8w\x05\xa6\xc1" +
+	"\xe8f\x00\xbeKB\xfe\x0cC\x94\x9c`\x9f$\xc51" +
+	"\x09\xf9\xab\x0c\xe5\x08:\xc1\xfey-\x00? !?" +
+	"\xcaP\xaea6\xe7\xc9G(\xa5\x87$\xe4g\x18Z" +
+	"f\xd1\xd4\xf2\x9d\x9a\x09\x09Q\xe8\x19\xf6\xa8\xdb~\xbd" +
+	"\xbcX\x0240\x0a\x0c\xa3\x80\xd6\x80^\xd0\x07\xb4|" +
+	"\x07j\x85\xdcz=g\xf6\x03x\xb3\"\xef\x04&H" +
+	"\xdf\xab:\x0f\x1e\xb7\xea4\xa3\xb3H\xdd\x0e\xb1b!" +
+	"\xa0\xe6\x01\xe7\xa8\xa5h\xb0\x06\xc4\x1e\x94\xa1\xda\x95\x9c" +
+	"\xa9\xe2\xb6n\xa5\xc1\x0d3\xdc\x187\xbau5\x8by" +
+	"\x8d\xbe\x12\x12\xc3%\xff\x8c\x84e\xf6\xbd\xfa\x7f\xb3\xe7" +
+	"f\x0eOv\x86\xd3\xb8n\xdf.)\x98e\xb4\xc7`" +
+	"\xbdw\xca\x12\x9a\xcf\x8b%\xe47\xf8\x83|M\xc6\x1f" +
+	"\xee^\xeaD\x87?\xdd\xbf\xdc\\\xb6L}@\x18\xa6" +
+	"6\x00X\xaa\xe0\xfd\x05\xb3zy\xd1H\x99\x04\xc9\xb9" +
+	"V\x1a\x0c\xecl\xb4\xd9\xb0D\xa9X\xf6\x86wJ\xcb" +
+	"\xe5\xca\xc6\xe4\x1d\x90\xd2\x9a\x97\x89\"\x8f`\xe0J " +
+	"c\xc7\xc8\xb2\xee\xecb\xcd\xd4\x82\xa7\xde\xe66\xdcb" +
+	"\x1f\x9av*\xc1+$\xe4\xcb\x19Z\xe5\xe2\xa0)\xca" +
+	"\x9dEt&\x81\x01>\x14\x9ei\xb74\xaa\xafYR" +
+	"\xd89\xdb\xb7\xe6e\xdd)\xdb\x97P\xa6V\xb8\x99\xea" +
+	"\x0e\x10Z\x17\xa5\xaaSB~-C\xea<\xca\xd4*" +
+	"\xcaT\xb7\x84|5C+\xaf\x99\xba9\x98\x13DH" +
+	"u\xc0\xb0\x8ej\xbeX\xe8\xa3\x97\x80\xa2\xf2n\x84P" +
+	"\x13\x86Q\xd9\x0bC\xf8\x05\x0a)Qe\x95:'\x85" +
+	"{\x17\xc0P\x89b%\xf8\x04\xb1 YT=\x8b\xb7" +
+	"\xd2*\xb9\xc1\xdd\x1a+\xb1n\x9c\xe1o\x8d2\xabu" +
+	"\x82\xddD\xa8\xdc.!\xbf\x8b\x18\x05\x03\x97^\xf9\xc7" +
+	"\xad\xc00\xe2P\xc7 \x91gIB\xfe#\x86\xb1\x9c" +
+	"aVR\x113\xca=^Z\x06\xb4\x0d\x94\x0b\x83\xb0" +
+	"\xaaTSo^\xeb3\xda\xfaK\x8bz\xfb\x021M" +
+	"_\xf2\xeeU\xca\x1f\xbf\xbaw\xf2\xb1\xe46\\\xcc," +
+	"\x87\x1b\x8ejy\xa1\x84\xbc3\x10Z\x9a\xa2X.!" +
+	"_I\xa1\xb9y\xe47\xfbyL\xd0J\x83I\xff\xef" +
+	"\x0dw\xa2\xf4\x17\x0d\xd3\x9f7\xde\xe5%\xb0\x07eM" +
+	"\xcd\x846\xbd\x87\xb40\xe9_\xf6\xaa\x8e\xa4@\x9e%" +
+	"''\x81,\xcf\xf1\x17\xe6\x849\\\x12\x98\xb0\xbe{" +
+	"\xf9Cub\xf4\xd4v\xb2\x96\x98\x90\xdb\xf6l\xba\xcd" +
+	"\xa1\xb7In<*\x9b\xac3\"\x13;\xa32\x8c\x9c" +
+	"Y\x14\x1b.\x89\x10\xb0\xe5j\xfdq\xa3\xdf\x1f\x1e\x95" +
+	"\xadj\x0d4\x88Me\x9dz\x01R\xf6\x1c\xf0\x06I" +
+	"I\xd8\xafo\x82D\xf0\xf59\x1b\xf9,Jw\xf8V" +
+	"\x9a\x90\xfe\xb5\xd5\xbc\x9c\xe1\xa7\xbf\xd2\xc5<\xe3:\x99" +
+	"\x0f\xd2\x7f\xcc\xc1=H\xfb\x09\xc0\x98i\xe6=F\xf5" +
+	"J\"8\xd1\x82\x95\xd10\xe9\xf5\xf4\x7f^\xcf\xbc\x1b" +
+	"\xfc\x17\x99M\xd1\xec\x19\xfe\x12\x17Uj\x84\x8b%\xe4" +
+	"\x97\xb3\xd0Jv\xeeJ\x9f@*m\xfd\xde\x9d/p" +
+	"b\xc6_\xa1*'\xb6t\xb8'\x12\xa3\x8br\xb9X" +
+	"^T\xb4\x99\xd1\xcd\xf8\xc4\xa0\xbd\x7fp\xaa\x06\x1d(" +
+	"\x82\xaa\xd7\xces\xe2\xe9\xfd\xd7R\xd5\xf4r\x17\x82f" +
+	"-\x17\xcb\x95\x0d'0'\x8a \x96vY\xb1\xd0\xb6" +
+	"\x9b\xd0KC\x97V\xb6s\xfa\xf1\xf5/^\xd5\xfd\xa4" +
+	"\x05\xea\xb75H_\x11\x97\xbef\x04\x8a\x9au;\xa7" +
+	"w-\xf0\x8b\xfa\xec\xb6\x09^\xf1\xdbtcQ\xb1," +
+	"*\x9b\xeb\x7f\x03\x00\x00\xff\xff`M\x86\xd5"
 
 func init() {
 	schemas.Register(schema_8f4bd412642c9517,
 		0x877af4eba6adb0f3,
+		0x88b4277fa83dde2d,
 		0x8adfcabe5ff9daf4,
 		0x8f8172e4469c111a,
 		0x91ea9bb47f46c346,
@@ -2398,14 +2951,18 @@ func init() {
 		0x95794035a80b7da1,
 		0x9b0685a785df42e9,
 		0x9bce05e1e88ad9da,
+		0xa5cff7314a4335e5,
 		0xa94f085c31a03112,
 		0xacf8185a51a9f1b4,
 		0xb21a270577932520,
+		0xb47c95e958cccfff,
+		0xb7cede732308e432,
 		0xc340ede57616f2e8,
 		0xc4c61531dcc4a3eb,
 		0xc5ff2e54709776ec,
 		0xca1e844241cf650f,
 		0xcc65a2a89c24e6a5,
+		0xd7c92876b75c115d,
 		0xe7279389a6bbe1dc,
 		0xe7f7d11a5652e06c,
 		0xf0c5156786d72738,
