@@ -236,6 +236,12 @@ func (h HostSVC) Pack() common.RawBytes {
 	return out
 }
 
+func (h HostSVC) PackWithPad(pad int) []byte {
+	out := make([]byte, HostLenSVC+pad)
+	binary.BigEndian.PutUint16(out, uint16(h))
+	return out
+}
+
 func (h HostSVC) IP() net.IP {
 	return nil
 }
@@ -289,6 +295,10 @@ func (h HostSVC) BaseString() string {
 	default:
 		return "UNKNOWN"
 	}
+}
+
+func (h HostSVC) Network() string {
+	return ""
 }
 
 func HostFromRaw(b common.RawBytes, htype HostAddrType) (HostAddr, error) {
