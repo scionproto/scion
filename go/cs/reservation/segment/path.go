@@ -21,7 +21,7 @@ import (
 )
 
 // Path represents a reservation path, in the reservation order.
-type Path []PathStep
+type Path []PathStepWithIA
 
 func (p Path) Validate() error {
 	if len(p) < 2 {
@@ -37,17 +37,6 @@ func (p Path) Validate() error {
 	return nil
 }
 
-// PathStep is one hop of the Path. For a source AS Ingress will be invalid. Conversely for dst.
-type PathStep struct {
-	IA      addr.IA
-	Ingress common.IFIDType
-	Egress  common.IFIDType
-}
-
-func (s *PathStep) Equal(o *PathStep) bool {
-	return s.IA == o.IA && s.Ingress == o.Ingress && s.Egress == o.Egress
-}
-
 func (p Path) Equal(o Path) bool {
 	if len(p) != len(o) {
 		return false
@@ -58,4 +47,25 @@ func (p Path) Equal(o Path) bool {
 		}
 	}
 	return true
+}
+
+// PathStep is one hop of the Path. For a source AS Ingress will be invalid. Conversely for dst.
+type PathStep struct {
+	// IA      addr.IA
+	Ingress common.IFIDType
+	Egress  common.IFIDType
+}
+
+func (s *PathStep) Equal(o *PathStep) bool {
+	// return s.IA == o.IA && s.Ingress == o.Ingress && s.Egress == o.Egress
+	return s.Ingress == o.Ingress && s.Egress == o.Egress
+}
+
+type PathStepWithIA struct {
+	PathStep
+	IA addr.IA
+}
+
+func (s *PathStepWithIA) Equal(o *PathStepWithIA) bool {
+	return s.PathStep.Equal(&o.PathStep) && s.IA == o.IA
 }

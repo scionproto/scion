@@ -27,10 +27,12 @@ func NewPathFromComponents(chain ...interface{}) segment.Path {
 	}
 	p := segment.Path{}
 	for i := 0; i < len(chain); i += 3 {
-		p = append(p, segment.PathStep{
-			Ingress: common.IFIDType(chain[i].(int)),
-			IA:      xtest.MustParseIA(chain[i+1].(string)),
-			Egress:  common.IFIDType(chain[i+2].(int)),
+		p = append(p, segment.PathStepWithIA{
+			PathStep: segment.PathStep{
+				Ingress: common.IFIDType(chain[i].(int)),
+				Egress:  common.IFIDType(chain[i+2].(int)),
+			},
+			IA: xtest.MustParseIA(chain[i+1].(string)),
 		})
 	}
 	return p

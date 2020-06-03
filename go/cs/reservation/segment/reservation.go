@@ -25,9 +25,10 @@ import (
 // Reservation represents a segment reservation.
 type Reservation struct {
 	ID          reservation.SegmentID
-	Path        *Path   // nil if this AS is not the source of the reservation
-	Indices     Indices // existing indices in this reservation
-	activeIndex int     // -1 <= activeIndex < len(Indices)
+	Indices     Indices  // existing indices in this reservation
+	activeIndex int      // -1 <= activeIndex < len(Indices)
+	PathStep    PathStep // Ingress and Egress interfaces
+	Path        *Path    // nil if this AS is not at the source of the reservation
 }
 
 func NewReservation() *Reservation {
@@ -61,7 +62,14 @@ func (r *Reservation) Validate() error {
 	}
 	var err error
 	if r.Path != nil {
+		if r.PathStep.Ingress != 0 {
+			return serrors.New("reservation starts in this AS but ingress interface is not zero",
+				"ingress_if", r.PathStep.Ingress)
+			// TODO(juagargi) test
+		}
 		err = r.Path.Validate()
+	} else if r.PathStep.Ingress == 0 {
+		return serrors.New("reservation does not start in this AS but ingress interface is zero")
 	}
 	return err
 }
