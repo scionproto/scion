@@ -53,10 +53,10 @@ func TestValidate(t *testing.T) {
 	// more than 3 segment reservations
 	r = newReservation()
 	r.SegmentReservations = []*segment.Reservation{
-		newSegmentReservation("ff00:0:111", "ff00:0:110"),
-		newSegmentReservation("ff00:0:111", "ff00:0:110"),
-		newSegmentReservation("ff00:0:111", "ff00:0:110"),
-		newSegmentReservation("ff00:0:111", "ff00:0:110"),
+		newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
+		newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
+		newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
+		newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
 	}
 	err = r.Validate()
 	require.Error(t, err)
@@ -107,7 +107,7 @@ func newReservation() *Reservation {
 	rsv := Reservation{
 		ID: *id,
 		SegmentReservations: []*segment.Reservation{
-			newSegmentReservation("ff00:0:111", "ff00:0:110"),
+			newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
 		},
 	}
 	return &rsv

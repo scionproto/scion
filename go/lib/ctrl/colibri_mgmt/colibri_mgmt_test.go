@@ -26,11 +26,12 @@ import (
 
 func TestSerializeRoot(t *testing.T) {
 	root := &colibri_mgmt.ColibriRequestPayload{
-		Which: proto.ColibriRequestPayload_Which_unset,
+		Timestamp: 42,
+		Which:     proto.ColibriRequestPayload_Which_unset,
 	}
 	buffer, err := root.PackRoot()
 	require.NoError(t, err)
-	require.Len(t, buffer, 7)
+	require.Len(t, buffer, 9)
 	otherRoot, err := colibri_mgmt.NewFromRaw(buffer)
 	require.NoError(t, err)
 	require.Equal(t, root.Which, otherRoot.Which)

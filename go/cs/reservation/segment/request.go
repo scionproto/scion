@@ -18,14 +18,20 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // SetupReq is a segment reservation setup request. It contains a reference to the reservation
 // it requests, or nil if not yet created.
 // This same type is used for renewal of the segment reservation.
 type SetupReq struct {
+	// TODO(juagargi) we need to store the path the packet is using,
+	// so that we can forward this packet to the next hop? Plus we need to know the ingress and
+	// egress interfaces of it. Is spath.Path a good type for this?
+	Path        spath.Path   // the path the packet came with
 	Reservation *Reservation // nil if no reservation yet
 	Timestamp   time.Time
 	MinBW       uint8
@@ -35,9 +41,18 @@ type SetupReq struct {
 	AllocTrail  []reservation.AllocationBead
 }
 
-func NewRequestFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, timestamp time.Time) *SetupReq {
+// NewRequestFromCtrlMsg constructs a SetupReq from its control message counterpart. The timestamp
+// comes from the wrapping ColibriRequestPayload, and the spath from the wrapping SCION packet.
+func NewRequestFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, timestamp time.Time,
+	path *spath.Path) (*SetupReq, error) {
+
+	if path == nil {
+		return nil, serrors.New("new request with nil path")
+	}
+
 	s := SetupReq{
 		Timestamp:  timestamp,
+		Path:       *path.Copy(),
 		MinBW:      setup.MinBW,
 		MaxBW:      setup.MaxBW,
 		SplitCls:   setup.SplitCls,
@@ -51,7 +66,7 @@ func NewRequestFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, timestamp time.Time
 			MaxBW:   ab.MaxBW,
 		}
 	}
-	return &s
+	return &s, nil
 }
 
 // ToCtrlMsg creates a new segment setup control message filled with the information from here.
@@ -79,21 +94,37 @@ func (r *SetupReq) ToCtrlMsg() *colibri_mgmt.SegmentSetup {
 	return msg
 }
 
+// IngressEgressIFIDs returns the ingress and egress interface IDs in this AS that a
+// packet using this reservation will traverse.
+func (r *SetupReq) IngressEgressIFIDs() (common.IFIDType, common.IFIDType, error) {
+	hf, err := r.Path.GetHopField(r.Path.HopOff)
+	if err != nil {
+		return 0, 0, serrors.WrapStr("Cannot get ingress and egress IF IDs from the setup request",
+			err, "hop_off", r.Path.HopOff)
+	}
+	return hf.ConsIngress, hf.ConsEgress, nil
+}
+
 // SetupTelesReq represents a telescopic segment setup.
 type SetupTelesReq struct {
 	SetupReq
 	BaseID reservation.SegmentID
 }
 
-func NewTelesRequestFromCtrlMsg(setup *colibri_mgmt.SegmentTelesSetup, timestamp time.Time) (
+func NewTelesRequestFromCtrlMsg(setup *colibri_mgmt.SegmentTelesSetup, timestamp time.Time,
+	path *spath.Path) (
 	*SetupTelesReq, error) {
 
 	if setup.BaseID == nil || setup.Setup == nil {
 		return nil, serrors.New("illegal ctrl telescopic setup received", "base_id", setup.BaseID,
 			"segment_setup", setup.Setup)
 	}
+	baseReq, err := NewRequestFromCtrlMsg(setup.Setup, timestamp, path)
+	if err != nil {
+		return nil, serrors.WrapStr("failed to construct base request", err)
+	}
 	s := SetupTelesReq{
-		SetupReq: *NewRequestFromCtrlMsg(setup.Setup, timestamp),
+		SetupReq: *baseReq,
 	}
 	id, err := reservation.SegmentIDFromRawBuffers(setup.BaseID.ASID, setup.BaseID.Suffix)
 	if err != nil {
