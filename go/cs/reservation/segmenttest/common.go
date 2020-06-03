@@ -29,7 +29,7 @@ func NewPathFromComponents(chain ...interface{}) segment.Path {
 	for i := 0; i < len(chain); i += 3 {
 		p = append(p, segment.PathStep{
 			Ingress: common.IFIDType(chain[i].(int)),
-			AS:      xtest.MustParseAS(chain[i+1].(string)),
+			IA:      xtest.MustParseIA(chain[i+1].(string)),
 			Egress:  common.IFIDType(chain[i+2].(int)),
 		})
 	}
@@ -42,7 +42,7 @@ func NewReservation() *segment.Reservation {
 	if err != nil {
 		panic(err)
 	}
-	p := NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0)
+	p := NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
 	r := segment.NewReservation()
 	r.ID = *segID
 	r.Path = &p

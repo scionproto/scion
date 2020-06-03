@@ -29,15 +29,15 @@ func TestValidatePath(t *testing.T) {
 		IsValid bool
 	}{
 		"src-dst": {
-			Path:    segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
+			Path:    segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
 			IsValid: true,
 		},
 		"invalid dst": {
-			Path:    segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 2),
+			Path:    segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 2),
 			IsValid: false,
 		},
 		"invalid src": {
-			Path:    segmenttest.NewPathFromComponents(2, "ff00:0:1", 1, 1, "ff00:0:2", 0),
+			Path:    segmenttest.NewPathFromComponents(2, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
 			IsValid: false,
 		},
 	}
@@ -62,36 +62,36 @@ func TestEqualPath(t *testing.T) {
 		IsEqual bool
 	}{
 		"eq1": {
-			Path1:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
-			Path2:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
+			Path1:   segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			Path2:   segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
 			IsEqual: true,
 		},
 		"eq2": {
-			Path1: segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3,
-				1, "ff00:0:2", 0),
-			Path2: segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3,
-				1, "ff00:0:2", 0),
+			Path1: segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 2, "1-ff00:1:10", 3,
+				1, "1-ff00:0:2", 0),
+			Path2: segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 2, "1-ff00:1:10", 3,
+				1, "1-ff00:0:2", 0),
 			IsEqual: true,
 		},
 		"neq1": {
-			Path1:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
-			Path2:   segmenttest.NewPathFromComponents(1, "ff00:0:1", 1, 1, "ff00:0:2", 0),
+			Path1:   segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			Path2:   segmenttest.NewPathFromComponents(1, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
 			IsEqual: false,
 		},
 		"neq2": {
-			Path1:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
-			Path2:   segmenttest.NewPathFromComponents(0, "ff00:0:3", 1, 1, "ff00:0:2", 0),
+			Path1:   segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			Path2:   segmenttest.NewPathFromComponents(0, "1-ff00:0:3", 1, 1, "1-ff00:0:2", 0),
 			IsEqual: false,
 		},
 		"neq3": {
-			Path1:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 1, "ff00:0:2", 0),
-			Path2:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 2, 1, "ff00:0:2", 0),
+			Path1:   segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
+			Path2:   segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 2, 1, "1-ff00:0:2", 0),
 			IsEqual: false,
 		},
 		"neq4": {
-			Path1: segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3,
-				1, "ff00:0:2", 0),
-			Path2:   segmenttest.NewPathFromComponents(0, "ff00:0:1", 1, 2, "ff00:1:10", 3),
+			Path1: segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 2, "1-ff00:1:10", 3,
+				1, "1-ff00:0:2", 0),
+			Path2:   segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 2, "1-ff00:1:10", 3),
 			IsEqual: false,
 		},
 	}

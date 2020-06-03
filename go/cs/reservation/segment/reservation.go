@@ -38,6 +38,9 @@ func NewReservation() *Reservation {
 
 // Validate will return an error for invalid values.
 func (r *Reservation) Validate() error {
+	if r.ID.ASID == 0 {
+		return serrors.New("Reservation ID not set")
+	}
 	if err := base.ValidateIndices(r.Indices); err != nil {
 		return err
 	}
