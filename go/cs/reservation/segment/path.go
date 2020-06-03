@@ -39,13 +39,13 @@ func (p Path) Validate() error {
 
 // PathStep is one hop of the Path. For a source AS Ingress will be invalid. Conversely for dst.
 type PathStep struct {
-	AS      addr.AS
+	IA      addr.IA
 	Ingress common.IFIDType
 	Egress  common.IFIDType
 }
 
 func (s *PathStep) Equal(o *PathStep) bool {
-	return s.AS == o.AS && s.Ingress == o.Ingress && s.Egress == o.Egress
+	return s.IA == o.IA && s.Ingress == o.Ingress && s.Egress == o.Egress
 }
 
 func (p Path) Equal(o Path) bool {

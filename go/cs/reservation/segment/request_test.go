@@ -22,29 +22,48 @@ import (
 
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestNewRequestFromCtrlMsg(t *testing.T) {
 	segSetup := newSegSetup()
 	ts := time.Unix(1, 0)
-	r := segment.NewRequestFromCtrlMsg(segSetup, ts)
+	r, err := segment.NewRequestFromCtrlMsg(segSetup, ts, nil)
+	require.Error(t, err)
+	p := newPath()
+	r, err = segment.NewRequestFromCtrlMsg(segSetup, ts, p)
+	require.NoError(t, err)
+	require.Equal(t, *p, r.Path)
 	checkRequest(t, segSetup, r, ts)
 }
 
 func TestRequestToCtrlMsg(t *testing.T) {
 	segSetup := newSegSetup()
 	ts := time.Unix(1, 0)
-	r := segment.NewRequestFromCtrlMsg(segSetup, ts)
+	r, err := segment.NewRequestFromCtrlMsg(segSetup, ts, newPath())
+	require.NoError(t, err)
 	anotherSegSetup := r.ToCtrlMsg()
 	require.Equal(t, segSetup, anotherSegSetup)
+}
+
+func TestRequestIngressEgressIFIDs(t *testing.T) {
+	segSetup := newSegSetup()
+	ts := time.Unix(1, 0)
+	p := newPath()
+	r, _ := segment.NewRequestFromCtrlMsg(segSetup, ts, p)
+	in, e, err := r.IngressEgressIFIDs()
+	require.NoError(t, err)
+	require.Equal(t, common.IFIDType(1), in)
+	require.Equal(t, common.IFIDType(2), e)
 }
 
 func TestNewTelesRequestFromCtrlMsg(t *testing.T) {
 	telesReq := newSegTelesSetup()
 	ts := time.Unix(1, 0)
-	r, err := segment.NewTelesRequestFromCtrlMsg(telesReq, ts)
+	r, err := segment.NewTelesRequestFromCtrlMsg(telesReq, ts, newPath())
 	require.NoError(t, err)
 
 	checkRequest(t, telesReq.Setup, &r.SetupReq, ts)
@@ -55,7 +74,7 @@ func TestNewTelesRequestFromCtrlMsg(t *testing.T) {
 func TestTelesRequestToCtrlMsg(t *testing.T) {
 	segSetup := newSegTelesSetup()
 	ts := time.Unix(1, 0)
-	r, _ := segment.NewTelesRequestFromCtrlMsg(segSetup, ts)
+	r, _ := segment.NewTelesRequestFromCtrlMsg(segSetup, ts, newPath())
 	anotherSegSetup := r.ToCtrlMsg()
 	require.Equal(t, segSetup, anotherSegSetup)
 }
@@ -80,6 +99,26 @@ func newSegSetup() *colibri_mgmt.SegmentSetup {
 			},
 		},
 	}
+}
+
+// new path with one segment consisting on 3 hopfields: (0,2)->(1,2)->(1,0)
+func newPath() *spath.Path {
+	path := &spath.Path{
+		InfOff: 0,
+		HopOff: spath.InfoFieldLength + spath.HopFieldLength, // second hop field
+		Raw:    make([]byte, spath.InfoFieldLength+3*spath.HopFieldLength),
+	}
+	inf := spath.InfoField{ConsDir: true, ISD: 1, Hops: 3}
+	inf.Write(path.Raw)
+
+	hf := &spath.HopField{ConsEgress: 2}
+	hf.Write(path.Raw[spath.InfoFieldLength:])
+	hf = &spath.HopField{ConsIngress: 1, ConsEgress: 2}
+	hf.Write(path.Raw[spath.InfoFieldLength+spath.HopFieldLength:])
+	hf = &spath.HopField{ConsIngress: 1}
+	hf.Write(path.Raw[spath.InfoFieldLength+spath.HopFieldLength*2:])
+
+	return path
 }
 
 func newSegTelesSetup() *colibri_mgmt.SegmentTelesSetup {
