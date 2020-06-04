@@ -16,6 +16,7 @@ package reservation
 
 import (
 	"encoding/binary"
+	"io"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -30,6 +31,8 @@ type SegmentID struct {
 	ASID   addr.AS
 	Suffix [4]byte
 }
+
+var _ io.Reader = (*SegmentID)(nil)
 
 const SegmentIDLen = 10
 
@@ -64,6 +67,7 @@ func SegmentIDFromRaw(raw []byte) (
 	return SegmentIDFromRawBuffers(raw[:6], raw[6:])
 }
 
+// Read serializes this SegmentID into the buffer.
 func (id *SegmentID) Read(raw []byte) (int, error) {
 	if len(raw) < SegmentIDLen {
 		return 0, serrors.New("buffer too small", "actual", len(raw), "min", SegmentIDLen)
