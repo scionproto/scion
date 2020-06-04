@@ -17,9 +17,11 @@ package e2e
 import (
 	"time"
 
+	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -33,12 +35,32 @@ type SetupReq interface {
 
 // BaseSetupReq is the common part of any e2e setup request.
 type BaseSetupReq struct {
-	reservation *Reservation
-	ID          reservation.E2EID
-	timestamp   time.Time
+	base.Request
+	ID          reservation.E2EID // the ID this request refers to
+	reservation *Reservation      // nil if no reservation yet
 }
 
-func (r *BaseSetupReq) Timestamp() time.Time      { return r.timestamp }
+func NewBaseSetupReq(path *spath.Path, ts time.Time,
+	ID *colibri_mgmt.E2EReservationID) (*BaseSetupReq, error) {
+
+	baseReq, err := base.NewRequest(ts, path)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct e2e setup", err)
+	}
+	if ID == nil {
+		return nil, serrors.New("new e2e request with nil ID")
+	}
+	e2eID, err := reservation.E2EIDFromRawBuffers(ID.ASID, ID.Suffix)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct e2e request", err)
+	}
+	return &BaseSetupReq{
+		Request: *baseReq,
+		ID:      *e2eID,
+	}, nil
+}
+
+func (r *BaseSetupReq) Timestamp() time.Time      { return r.Request.Timestamp }
 func (r *BaseSetupReq) Reservation() *Reservation { return r.reservation }
 
 func (r *BaseSetupReq) ToCtrlMsg() (*colibri_mgmt.E2ESetup, error) {
@@ -62,6 +84,24 @@ type SuccessSetupReq struct {
 }
 
 var _ SetupReq = (*SuccessSetupReq)(nil)
+
+// NewSuccessSetupReq constructs the app type from its control message.
+func NewSuccessSetupReq(path *spath.Path, ts time.Time, ID *colibri_mgmt.E2EReservationID,
+	ctrl *colibri_mgmt.E2ESetupSuccess) (*SuccessSetupReq, error) {
+
+	baseReq, err := NewBaseSetupReq(path, ts, ID)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct success e2e setup", err)
+	}
+	tok, err := reservation.TokenFromRaw(ctrl.Token)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct success e2e setup", err)
+	}
+	return &SuccessSetupReq{
+		BaseSetupReq: *baseReq,
+		Token:        *tok,
+	}, nil
+}
 
 func (r *SuccessSetupReq) ToCtrlMsg() (*colibri_mgmt.E2ESetup, error) {
 	ctrl, err := r.BaseSetupReq.ToCtrlMsg()
@@ -90,6 +130,29 @@ type FailureSetupReq struct {
 
 var _ SetupReq = (*FailureSetupReq)(nil)
 
+func NewFailureSetupReq(path *spath.Path, ts time.Time, ID *colibri_mgmt.E2EReservationID,
+	ctrl *colibri_mgmt.E2ESetupFailure) (*FailureSetupReq, error) {
+
+	baseReq, err := NewBaseSetupReq(path, ts, ID)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct failure e2e setup", err)
+	}
+	ifield, err := reservation.InfoFieldFromRaw(ctrl.InfoField)
+	if err != nil {
+		return nil, err
+	}
+	bwTrail := make([]reservation.BWCls, len(ctrl.MaxBWs))
+	for i, bw := range ctrl.MaxBWs {
+		bwTrail[i] = reservation.BWCls(bw)
+	}
+	return &FailureSetupReq{
+		BaseSetupReq: *baseReq,
+		ErrorCode:    int(ctrl.ErrorCode),
+		InfoField:    *ifield,
+		MaxBWTrail:   bwTrail,
+	}, nil
+}
+
 func (r *FailureSetupReq) ToCtrlMsg() (*colibri_mgmt.E2ESetup, error) {
 	ctrl, err := r.BaseSetupReq.ToCtrlMsg()
 	if err != nil {
@@ -115,40 +178,19 @@ func (r *FailureSetupReq) ToCtrlMsg() (*colibri_mgmt.E2ESetup, error) {
 
 // NewRequestFromCtrlMsg will return a SuccessSetupReq or FailSetupReq depending on the
 // success flag of the ctrl message.
-func NewRequestFromCtrlMsg(setup *colibri_mgmt.E2ESetup, ts time.Time) (SetupReq, error) {
+func NewRequestFromCtrlMsg(setup *colibri_mgmt.E2ESetup, ts time.Time,
+	path *spath.Path) (SetupReq, error) {
+
 	var s SetupReq
-	id, err := reservation.E2EIDFromRawBuffers(setup.ReservationID.ASID, setup.ReservationID.Suffix)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 	switch {
 	case setup.Success != nil:
-		tok, err := reservation.TokenFromRaw(setup.Success.Token)
-		if err != nil {
-			return nil, err
-		}
-		s = &SuccessSetupReq{
-			BaseSetupReq: BaseSetupReq{timestamp: ts, ID: *id},
-			Token:        *tok,
-		}
+		s, err = NewSuccessSetupReq(path, ts, setup.ReservationID, setup.Success)
 	case setup.Failure != nil:
-		ifield, err := reservation.InfoFieldFromRaw(setup.Failure.InfoField)
-		if err != nil {
-			return nil, err
-		}
-		bwTrail := make([]reservation.BWCls, len(setup.Failure.MaxBWs))
-		for i, bw := range setup.Failure.MaxBWs {
-			bwTrail[i] = reservation.BWCls(bw)
-		}
-		s = &FailureSetupReq{
-			BaseSetupReq: BaseSetupReq{timestamp: ts, ID: *id},
-			ErrorCode:    int(setup.Failure.ErrorCode),
-			InfoField:    *ifield,
-			MaxBWTrail:   bwTrail,
-		}
+		s, err = NewFailureSetupReq(path, ts, setup.ReservationID, setup.Failure)
 	default:
 		return nil, serrors.New("invalid E2E setup request received, neither successful or failed",
 			"success_ptr", setup.Success, "failure_ptr", setup.Failure)
 	}
-	return s, nil
+	return s, err
 }
