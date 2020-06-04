@@ -26,34 +26,38 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/proto"
 )
 
 func TestNewSetupReqFromCtrlMsg(t *testing.T) {
-	segSetup := newSegSetup()
+	ctrlMsg := newSetup()
 	ts := time.Unix(1, 0)
-	r, err := segment.NewSetupReqFromCtrlMsg(segSetup, ts, nil, nil)
-	require.Error(t, err)
+	r, err := segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, nil, nil)
+	require.Error(t, err) // missing both ID and path
 	p := newPath()
-	r, err = segment.NewSetupReqFromCtrlMsg(segSetup, ts, nil, p)
+	r, err = segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, nil, p)
+	require.Error(t, err) // missing ID
+	id := newID()
+	r, err = segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, id, p)
 	require.NoError(t, err)
 	require.Equal(t, *p, r.Path)
-	checkRequest(t, segSetup, r, ts)
+	checkRequest(t, ctrlMsg, r, ts)
 }
 
 func TestRequestToCtrlMsg(t *testing.T) {
-	segSetup := newSegSetup()
+	ctrlMsg := newSetup()
 	ts := time.Unix(1, 0)
-	r, err := segment.NewSetupReqFromCtrlMsg(segSetup, ts, nil, newPath())
+	r, err := segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
 	require.NoError(t, err)
-	anotherSegSetup := r.ToCtrlMsg()
-	require.Equal(t, segSetup, anotherSegSetup)
+	anotherCtrlMsg := r.ToCtrlMsg()
+	require.Equal(t, ctrlMsg, anotherCtrlMsg)
 }
 
 func TestRequestIngressEgressIFIDs(t *testing.T) {
-	segSetup := newSegSetup()
+	ctrlMsg := newSetup()
 	ts := time.Unix(1, 0)
 	p := newPath()
-	r, _ := segment.NewSetupReqFromCtrlMsg(segSetup, ts, nil, p)
+	r, _ := segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, newID(), p)
 	in, e, err := r.IngressEgressIFIDs()
 	require.NoError(t, err)
 	require.Equal(t, common.IFIDType(1), in)
@@ -61,25 +65,78 @@ func TestRequestIngressEgressIFIDs(t *testing.T) {
 }
 
 func TestNewTelesRequestFromCtrlMsg(t *testing.T) {
-	telesReq := newSegTelesSetup()
+	ctrlMsg := newTelesSetup()
 	ts := time.Unix(1, 0)
-	r, err := segment.NewTelesRequestFromCtrlMsg(telesReq, ts, nil, newPath())
+	r, err := segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, nil, nil)
+	require.Error(t, err) // both path and ID are nil
+	r, err = segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, nil, newPath())
+	require.Error(t, err) // ID is nil
+	r, err = segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
 	require.NoError(t, err)
-
-	checkRequest(t, telesReq.Setup, &r.SetupReq, ts)
+	checkRequest(t, ctrlMsg.Setup, &r.SetupReq, ts)
 	require.Equal(t, xtest.MustParseAS("ff00:cafe:1"), r.BaseID.ASID)
 	require.Equal(t, xtest.MustParseHexString("deadbeef"), r.BaseID.Suffix[:])
 }
 
 func TestTelesRequestToCtrlMsg(t *testing.T) {
-	segSetup := newSegTelesSetup()
+	ctrlMsg := newTelesSetup()
 	ts := time.Unix(1, 0)
-	r, _ := segment.NewTelesRequestFromCtrlMsg(segSetup, ts, nil, newPath())
-	anotherSegSetup := r.ToCtrlMsg()
-	require.Equal(t, segSetup, anotherSegSetup)
+	r, _ := segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
+	anotherCtrlMsg := r.ToCtrlMsg()
+	require.Equal(t, ctrlMsg, anotherCtrlMsg)
 }
 
-func newSegSetup() *colibri_mgmt.SegmentSetup {
+func TestNewIndexConfirmationReqFromCtrlMsg(t *testing.T) {
+	ctrlMsg := newIndexConfirmation()
+	ts := time.Unix(1, 0)
+	r, err := segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, nil, nil)
+	require.Error(t, err) // nil path and ID
+	r, err = segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, nil, newPath())
+	require.Error(t, err) // nil ID
+	r, err = segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
+	require.NoError(t, err)
+	require.Equal(t, reservation.IndexNumber(2), r.IndexNumber)
+	require.Equal(t, segment.IndexActive, r.State)
+}
+
+func TestIndexConfirmationReqToCtrlMsg(t *testing.T) {
+	ctrlMsg := newIndexConfirmation()
+	ts := time.Unix(1, 0)
+	r, _ := segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
+	r.State = segment.IndexTemporary
+	_, err := r.ToCtrlMsg()
+	require.Error(t, err)
+	r, _ = segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
+	anotherCtrlMsg, err := r.ToCtrlMsg()
+	require.NoError(t, err)
+	require.Equal(t, *ctrlMsg, *anotherCtrlMsg)
+}
+
+func TestNewCleanupReqFromCtrlMsg(t *testing.T) {
+	ctrlMsg := newCleanup()
+	ts := time.Unix(1, 0)
+	r, err := segment.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, nil)
+	require.Error(t, err) // no path
+	ctrlMsg.ID = nil
+	r, err = segment.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, newPath())
+	require.Error(t, err) // the ID inside the ctrl message is nil
+	ctrlMsg = newCleanup()
+	r, err = segment.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, newPath())
+	require.NoError(t, err)
+	require.Equal(t, reservation.IndexNumber(1), r.IndexNumber)
+	require.Equal(t, xtest.MustParseAS("ff00:3:1234"), r.ID.ASID)
+	require.Equal(t, ctrlMsg.ID.Suffix, r.ID.Suffix[:])
+}
+
+func TestCleanupReqToCtrlMsg(t *testing.T) {
+	ctrlMsg := newCleanup()
+	ts := time.Unix(1, 0)
+	r, _ := segment.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, newPath())
+	anotherCtrlMsg := r.ToCtrlMsg()
+	require.Equal(t, ctrlMsg, anotherCtrlMsg)
+}
+
+func newSetup() *colibri_mgmt.SegmentSetup {
 	return &colibri_mgmt.SegmentSetup{
 		MinBW:    1,
 		MaxBW:    2,
@@ -97,6 +154,30 @@ func newSegSetup() *colibri_mgmt.SegmentSetup {
 				AllocBW: 5,
 				MaxBW:   6,
 			},
+		},
+	}
+}
+
+func newTelesSetup() *colibri_mgmt.SegmentTelesSetup {
+	return &colibri_mgmt.SegmentTelesSetup{
+		Setup:  newSetup(),
+		BaseID: newID(),
+	}
+}
+
+func newIndexConfirmation() *colibri_mgmt.SegmentIndexConfirmation {
+	return &colibri_mgmt.SegmentIndexConfirmation{
+		Index: 2,
+		State: proto.ReservationIndexState_active,
+	}
+}
+
+func newCleanup() *colibri_mgmt.SegmentCleanup {
+	return &colibri_mgmt.SegmentCleanup{
+		Index: 1,
+		ID: &colibri_mgmt.SegmentReservationID{
+			ASID:   xtest.MustParseHexString("ff0000031234"),
+			Suffix: xtest.MustParseHexString("04030201"),
 		},
 	}
 }
@@ -121,13 +202,10 @@ func newPath() *spath.Path {
 	return path
 }
 
-func newSegTelesSetup() *colibri_mgmt.SegmentTelesSetup {
-	return &colibri_mgmt.SegmentTelesSetup{
-		Setup: newSegSetup(),
-		BaseID: &colibri_mgmt.SegmentReservationID{
-			ASID:   xtest.MustParseHexString("ff00cafe0001"),
-			Suffix: xtest.MustParseHexString("deadbeef"),
-		},
+func newID() *colibri_mgmt.SegmentReservationID {
+	return &colibri_mgmt.SegmentReservationID{
+		ASID:   xtest.MustParseHexString("ff00cafe0001"),
+		Suffix: xtest.MustParseHexString("deadbeef"),
 	}
 }
 
