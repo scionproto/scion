@@ -24,26 +24,37 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
-// ReqPayload is the base struct for any type of COLIBRI request.
+// Request is the base struct for any type of COLIBRI request.
 type Request struct {
 	// TODO(juagargi) we need to store the path the packet is using,
 	// so that we can forward this packet to the next hop? Plus we need to know the ingress and
 	// egress interfaces of it. Is spath.Path a good type for this?
 	// TODO(juagargi) move Path and Timestamp to a base struct common for E2E also.
-	Path        spath.Path            // the path the packet came with
-	Timestamp   time.Time             // the mandatory timestamp
-	ID          reservation.SegmentID // the ID the request refers to.
-	Reservation *Reservation          // nil if no reservation yet
+	Path        spath.Path             // the path the packet came with
+	Timestamp   time.Time              // the mandatory timestamp
+	ID          *reservation.SegmentID // the ID the request refers to. Can be nil for cleanup.
+	Reservation *Reservation           // nil if no reservation yet
 }
 
 // NewRequest constructs the base Request type.
-func NewRequest(timestamp time.Time, path *spath.Path) (*Request, error) {
+func NewRequest(timestamp time.Time, ID *colibri_mgmt.SegmentReservationID,
+	path *spath.Path) (*Request, error) {
+
 	if path == nil {
 		return nil, serrors.New("new request with nil path")
+	}
+	var segID *reservation.SegmentID
+	if ID != nil {
+		var err error
+		segID, err = reservation.SegmentIDFromRawBuffers(ID.ASID, ID.Suffix)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &Request{
 		Timestamp: timestamp,
 		Path:      *path.Copy(),
+		ID:        segID,
 	}, nil
 }
 
@@ -73,9 +84,9 @@ type SetupReq struct {
 // NewSetupReqFromCtrlMsg constructs a SetupReq from its control message counterpart. The timestamp
 // comes from the wrapping ColibriRequestPayload, and the spath from the wrapping SCION packet.
 func NewSetupReqFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, timestamp time.Time,
-	path *spath.Path) (*SetupReq, error) {
+	ID *colibri_mgmt.SegmentReservationID, path *spath.Path) (*SetupReq, error) {
 
-	r, err := NewRequest(timestamp, path)
+	r, err := NewRequest(timestamp, ID, path)
 	if err != nil {
 		return nil, err
 	}
@@ -128,14 +139,15 @@ type SetupTelesReq struct {
 	BaseID reservation.SegmentID
 }
 
+// NewTelesRequestFromCtrlMsg constucts the app type from its control message counterpart.
 func NewTelesRequestFromCtrlMsg(setup *colibri_mgmt.SegmentTelesSetup, timestamp time.Time,
-	path *spath.Path) (*SetupTelesReq, error) {
+	ID *colibri_mgmt.SegmentReservationID, path *spath.Path) (*SetupTelesReq, error) {
 
 	if setup.BaseID == nil || setup.Setup == nil {
 		return nil, serrors.New("illegal ctrl telescopic setup received", "base_id", setup.BaseID,
 			"segment_setup", setup.Setup)
 	}
-	baseReq, err := NewSetupReqFromCtrlMsg(setup.Setup, timestamp, path)
+	baseReq, err := NewSetupReqFromCtrlMsg(setup.Setup, timestamp, ID, path)
 	if err != nil {
 		return nil, serrors.WrapStr("failed to construct base request", err)
 	}
@@ -172,9 +184,9 @@ type IndexConfirmationReq struct {
 
 // NewIndexConfirmationReqFromCtrlMsg constructs the application type from its control counterpart.
 func NewIndexConfirmationReqFromCtrlMsg(ctrl *colibri_mgmt.SegmentIndexConfirmation, ts time.Time,
-	path *spath.Path) (*IndexConfirmationReq, error) {
+	ID *colibri_mgmt.SegmentReservationID, path *spath.Path) (*IndexConfirmationReq, error) {
 
-	r, err := NewRequest(ts, path)
+	r, err := NewRequest(ts, ID, path)
 	if err != nil {
 		return nil, err
 	}
@@ -209,10 +221,10 @@ type CleanupReq struct {
 
 // NewCleanupReqFromCtrlMsg contructs a cleanup request from its control message counterpart.
 func NewCleanupReqFromCtrlMsg(ctrl *colibri_mgmt.SegmentCleanup, ts time.Time,
-	path *spath.Path) (*CleanupReq, error) {
+	ID *colibri_mgmt.SegmentReservationID, path *spath.Path) (*CleanupReq, error) {
 
 	// TODO(juagargi) the ID must be passed to the Request
-	r, err := NewRequest(ts, path)
+	r, err := NewRequest(ts, ID, path)
 	if err != nil {
 		return nil, err
 	}
