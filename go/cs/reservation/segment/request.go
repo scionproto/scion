@@ -17,6 +17,7 @@ package segment
 import (
 	"time"
 
+	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
@@ -26,34 +27,29 @@ import (
 
 // Request is the base struct for any type of COLIBRI request.
 type Request struct {
-	// TODO(juagargi) we need to store the path the packet is using,
-	// so that we can forward this packet to the next hop? Plus we need to know the ingress and
-	// egress interfaces of it. Is spath.Path a good type for this?
-	// TODO(juagargi) move Path and Timestamp to a base struct common for E2E also.
-	Path        spath.Path            // the path the packet came with
-	Timestamp   time.Time             // the mandatory timestamp
+	base.Request
 	ID          reservation.SegmentID // the ID this request refers to
 	Reservation *Reservation          // nil if no reservation yet
 }
 
-// NewRequest constructs the base Request type.
-func NewRequest(timestamp time.Time, ID *colibri_mgmt.SegmentReservationID,
+// NewRequest constructs the segment Request type.
+func NewRequest(ts time.Time, ID *colibri_mgmt.SegmentReservationID,
 	path *spath.Path) (*Request, error) {
 
-	if ID == nil {
-		return nil, serrors.New("new request with nil ID")
+	baseReq, err := base.NewRequest(ts, path)
+	if err != nil {
+		return nil, serrors.WrapStr("new segment request", err)
 	}
-	if path == nil {
-		return nil, serrors.New("new request with nil path")
+	if ID == nil {
+		return nil, serrors.New("new segment request with nil ID")
 	}
 	segID, err := reservation.SegmentIDFromRawBuffers(ID.ASID, ID.Suffix)
 	if err != nil {
-		return nil, serrors.WrapStr("new request", err)
+		return nil, serrors.WrapStr("new segment request", err)
 	}
 	return &Request{
-		Timestamp: timestamp,
-		Path:      *path.Copy(),
-		ID:        *segID,
+		Request: *baseReq,
+		ID:      *segID,
 	}, nil
 }
 
@@ -82,12 +78,12 @@ type SetupReq struct {
 
 // NewSetupReqFromCtrlMsg constructs a SetupReq from its control message counterpart. The timestamp
 // comes from the wrapping ColibriRequestPayload, and the spath from the wrapping SCION packet.
-func NewSetupReqFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, timestamp time.Time,
+func NewSetupReqFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, ts time.Time,
 	ID *colibri_mgmt.SegmentReservationID, path *spath.Path) (*SetupReq, error) {
 
-	r, err := NewRequest(timestamp, ID, path)
+	r, err := NewRequest(ts, ID, path)
 	if err != nil {
-		return nil, serrors.WrapStr("setup request", err)
+		return nil, serrors.WrapStr("cannot construct segment setup request", err)
 	}
 	s := SetupReq{
 		Request:    *r,
@@ -139,14 +135,14 @@ type SetupTelesReq struct {
 }
 
 // NewTelesRequestFromCtrlMsg constucts the app type from its control message counterpart.
-func NewTelesRequestFromCtrlMsg(setup *colibri_mgmt.SegmentTelesSetup, timestamp time.Time,
+func NewTelesRequestFromCtrlMsg(setup *colibri_mgmt.SegmentTelesSetup, ts time.Time,
 	ID *colibri_mgmt.SegmentReservationID, path *spath.Path) (*SetupTelesReq, error) {
 
 	if setup.BaseID == nil || setup.Setup == nil {
 		return nil, serrors.New("illegal ctrl telescopic setup received", "base_id", setup.BaseID,
 			"segment_setup", setup.Setup)
 	}
-	baseReq, err := NewSetupReqFromCtrlMsg(setup.Setup, timestamp, ID, path)
+	baseReq, err := NewSetupReqFromCtrlMsg(setup.Setup, ts, ID, path)
 	if err != nil {
 		return nil, serrors.WrapStr("failed to construct base request", err)
 	}
@@ -187,7 +183,7 @@ func NewIndexConfirmationReqFromCtrlMsg(ctrl *colibri_mgmt.SegmentIndexConfirmat
 
 	r, err := NewRequest(ts, ID, path)
 	if err != nil {
-		return nil, serrors.WrapStr("index confirmation request", err)
+		return nil, serrors.WrapStr("cannot construct index confirmation request", err)
 	}
 	st, err := NewIndexStateFromCtrlMsg(ctrl.State)
 	if err != nil {
@@ -225,7 +221,7 @@ func NewCleanupReqFromCtrlMsg(ctrl *colibri_mgmt.SegmentCleanup, ts time.Time,
 	// we use the ID inside the control message, as the request could have come without COLIBRI
 	r, err := NewRequest(ts, ctrl.ID, path)
 	if err != nil {
-		return nil, serrors.WrapStr("index cleanup request", err)
+		return nil, serrors.WrapStr("cannot construct index cleanup request", err)
 	}
 	return &CleanupReq{
 		Request:     *r,
