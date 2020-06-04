@@ -31,10 +31,10 @@ import (
 func TestNewSetupReqFromCtrlMsg(t *testing.T) {
 	segSetup := newSegSetup()
 	ts := time.Unix(1, 0)
-	r, err := segment.NewSetupReqFromCtrlMsg(segSetup, ts, nil)
+	r, err := segment.NewSetupReqFromCtrlMsg(segSetup, ts, nil, nil)
 	require.Error(t, err)
 	p := newPath()
-	r, err = segment.NewSetupReqFromCtrlMsg(segSetup, ts, p)
+	r, err = segment.NewSetupReqFromCtrlMsg(segSetup, ts, nil, p)
 	require.NoError(t, err)
 	require.Equal(t, *p, r.Path)
 	checkRequest(t, segSetup, r, ts)
@@ -43,7 +43,7 @@ func TestNewSetupReqFromCtrlMsg(t *testing.T) {
 func TestRequestToCtrlMsg(t *testing.T) {
 	segSetup := newSegSetup()
 	ts := time.Unix(1, 0)
-	r, err := segment.NewSetupReqFromCtrlMsg(segSetup, ts, newPath())
+	r, err := segment.NewSetupReqFromCtrlMsg(segSetup, ts, nil, newPath())
 	require.NoError(t, err)
 	anotherSegSetup := r.ToCtrlMsg()
 	require.Equal(t, segSetup, anotherSegSetup)
@@ -53,7 +53,7 @@ func TestRequestIngressEgressIFIDs(t *testing.T) {
 	segSetup := newSegSetup()
 	ts := time.Unix(1, 0)
 	p := newPath()
-	r, _ := segment.NewSetupReqFromCtrlMsg(segSetup, ts, p)
+	r, _ := segment.NewSetupReqFromCtrlMsg(segSetup, ts, nil, p)
 	in, e, err := r.IngressEgressIFIDs()
 	require.NoError(t, err)
 	require.Equal(t, common.IFIDType(1), in)
@@ -63,7 +63,7 @@ func TestRequestIngressEgressIFIDs(t *testing.T) {
 func TestNewTelesRequestFromCtrlMsg(t *testing.T) {
 	telesReq := newSegTelesSetup()
 	ts := time.Unix(1, 0)
-	r, err := segment.NewTelesRequestFromCtrlMsg(telesReq, ts, newPath())
+	r, err := segment.NewTelesRequestFromCtrlMsg(telesReq, ts, nil, newPath())
 	require.NoError(t, err)
 
 	checkRequest(t, telesReq.Setup, &r.SetupReq, ts)
@@ -74,7 +74,7 @@ func TestNewTelesRequestFromCtrlMsg(t *testing.T) {
 func TestTelesRequestToCtrlMsg(t *testing.T) {
 	segSetup := newSegTelesSetup()
 	ts := time.Unix(1, 0)
-	r, _ := segment.NewTelesRequestFromCtrlMsg(segSetup, ts, newPath())
+	r, _ := segment.NewTelesRequestFromCtrlMsg(segSetup, ts, nil, newPath())
 	anotherSegSetup := r.ToCtrlMsg()
 	require.Equal(t, segSetup, anotherSegSetup)
 }
