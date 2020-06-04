@@ -81,10 +81,10 @@ struct SegmentCleanupData {
 
 # Setup an E2E reservation. Sent in a hop by hop colibri extension through a stitched segment reservation.
 struct E2ESetupData {
+    reservationID @0 :E2EReservationID;     # 16 byte e2e reservation ID
     union {
-        unset @0 :Void;
+        unset @1 :Void;
         success :group {
-            reservationID @1 :E2EReservationID;     # 16 byte e2e reservation ID
             token @2 :Data;
         }
         failure :group {
