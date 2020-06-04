@@ -19,9 +19,10 @@ import (
 )
 
 type E2ESetup struct {
-	Which   proto.E2ESetupData_Which
-	Success *E2ESetupSuccess
-	Failure *E2ESetupFailure
+	ReservationID *E2EReservationID
+	Which         proto.E2ESetupData_Which
+	Success       *E2ESetupSuccess
+	Failure       *E2ESetupFailure
 }
 
 func (s *E2ESetup) ProtoId() proto.ProtoIdType {
@@ -29,8 +30,7 @@ func (s *E2ESetup) ProtoId() proto.ProtoIdType {
 }
 
 type E2ESetupSuccess struct {
-	ReservationID *E2EReservationID
-	Token         []byte
+	Token []byte
 }
 
 type E2ESetupFailure struct {
