@@ -30,31 +30,30 @@ type Request struct {
 	// so that we can forward this packet to the next hop? Plus we need to know the ingress and
 	// egress interfaces of it. Is spath.Path a good type for this?
 	// TODO(juagargi) move Path and Timestamp to a base struct common for E2E also.
-	Path        spath.Path             // the path the packet came with
-	Timestamp   time.Time              // the mandatory timestamp
-	ID          *reservation.SegmentID // the ID the request refers to. Can be nil for cleanup.
-	Reservation *Reservation           // nil if no reservation yet
+	Path        spath.Path            // the path the packet came with
+	Timestamp   time.Time             // the mandatory timestamp
+	ID          reservation.SegmentID // the ID this request refers to
+	Reservation *Reservation          // nil if no reservation yet
 }
 
 // NewRequest constructs the base Request type.
 func NewRequest(timestamp time.Time, ID *colibri_mgmt.SegmentReservationID,
 	path *spath.Path) (*Request, error) {
 
+	if ID == nil {
+		return nil, serrors.New("new request with nil ID")
+	}
 	if path == nil {
 		return nil, serrors.New("new request with nil path")
 	}
-	var segID *reservation.SegmentID
-	if ID != nil {
-		var err error
-		segID, err = reservation.SegmentIDFromRawBuffers(ID.ASID, ID.Suffix)
-		if err != nil {
-			return nil, err
-		}
+	segID, err := reservation.SegmentIDFromRawBuffers(ID.ASID, ID.Suffix)
+	if err != nil {
+		return nil, serrors.WrapStr("new request", err)
 	}
 	return &Request{
 		Timestamp: timestamp,
 		Path:      *path.Copy(),
-		ID:        segID,
+		ID:        *segID,
 	}, nil
 }
 
@@ -88,7 +87,7 @@ func NewSetupReqFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, timestamp time.Tim
 
 	r, err := NewRequest(timestamp, ID, path)
 	if err != nil {
-		return nil, err
+		return nil, serrors.WrapStr("setup request", err)
 	}
 	s := SetupReq{
 		Request:    *r,
@@ -188,7 +187,7 @@ func NewIndexConfirmationReqFromCtrlMsg(ctrl *colibri_mgmt.SegmentIndexConfirmat
 
 	r, err := NewRequest(ts, ID, path)
 	if err != nil {
-		return nil, err
+		return nil, serrors.WrapStr("index confirmation request", err)
 	}
 	st, err := NewIndexStateFromCtrlMsg(ctrl.State)
 	if err != nil {
@@ -221,12 +220,12 @@ type CleanupReq struct {
 
 // NewCleanupReqFromCtrlMsg contructs a cleanup request from its control message counterpart.
 func NewCleanupReqFromCtrlMsg(ctrl *colibri_mgmt.SegmentCleanup, ts time.Time,
-	ID *colibri_mgmt.SegmentReservationID, path *spath.Path) (*CleanupReq, error) {
+	path *spath.Path) (*CleanupReq, error) {
 
-	// TODO(juagargi) the ID must be passed to the Request
-	r, err := NewRequest(ts, ID, path)
+	// we use the ID inside the control message, as the request could have come without COLIBRI
+	r, err := NewRequest(ts, ctrl.ID, path)
 	if err != nil {
-		return nil, err
+		return nil, serrors.WrapStr("index cleanup request", err)
 	}
 	return &CleanupReq{
 		Request:     *r,
