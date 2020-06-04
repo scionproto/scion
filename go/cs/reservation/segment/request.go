@@ -163,14 +163,74 @@ func (r *SetupTelesReq) ToCtrlMsg() *colibri_mgmt.SegmentTelesSetup {
 	}
 }
 
-// empty:
-// TeardownReq
-
+// IndexConfirmationReq is used to change the state on an index (e.g. from temporary to pending).
 type IndexConfirmationReq struct {
+	Request
 	IndexNumber reservation.IndexNumber
 	State       IndexState
 }
 
+// NewIndexConfirmationReqFromCtrlMsg constructs the application type from its control counterpart.
+func NewIndexConfirmationReqFromCtrlMsg(ctrl *colibri_mgmt.SegmentIndexConfirmation, ts time.Time,
+	path *spath.Path) (*IndexConfirmationReq, error) {
+
+	r, err := NewRequest(ts, path)
+	if err != nil {
+		return nil, err
+	}
+	st, err := NewIndexStateFromCtrlMsg(ctrl.State)
+	if err != nil {
+		return nil, err
+	}
+	return &IndexConfirmationReq{
+		Request:     *r,
+		IndexNumber: reservation.IndexNumber(ctrl.Index),
+		State:       st,
+	}, nil
+}
+
+// ToCtrlMsg converts this application type to its control message counterpart.
+func (r *IndexConfirmationReq) ToCtrlMsg() (*colibri_mgmt.SegmentIndexConfirmation, error) {
+	st, err := r.State.ToCtrlMsg()
+	if err != nil {
+		return nil, err
+	}
+	return &colibri_mgmt.SegmentIndexConfirmation{
+		Index: uint8(r.IndexNumber),
+		State: st,
+	}, nil
+}
+
+// CleanupReq is used to clean an index.
 type CleanupReq struct {
+	Request
 	IndexNumber reservation.IndexNumber
+}
+
+// NewCleanupReqFromCtrlMsg contructs a cleanup request from its control message counterpart.
+func NewCleanupReqFromCtrlMsg(ctrl *colibri_mgmt.SegmentCleanup, ts time.Time,
+	path *spath.Path) (*CleanupReq, error) {
+
+	// TODO(juagargi) the ID must be passed to the Request
+	r, err := NewRequest(ts, path)
+	if err != nil {
+		return nil, err
+	}
+	return &CleanupReq{
+		Request:     *r,
+		IndexNumber: reservation.IndexNumber(ctrl.Index),
+	}, nil
+}
+
+// ToCtrlMsg converts this application type to its control message counterpart.
+func (r *CleanupReq) ToCtrlMsg() *colibri_mgmt.SegmentCleanup {
+	rawid := make([]byte, reservation.SegmentIDLen)
+	r.ID.Read(rawid)
+	return &colibri_mgmt.SegmentCleanup{
+		ID: &colibri_mgmt.SegmentReservationID{
+			ASID:   rawid[:6],
+			Suffix: rawid[6:],
+		},
+		Index: uint8(r.IndexNumber),
+	}
 }
