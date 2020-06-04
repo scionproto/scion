@@ -28,13 +28,13 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestNewRequestFromCtrlMsg(t *testing.T) {
+func TestNewSetupReqFromCtrlMsg(t *testing.T) {
 	segSetup := newSegSetup()
 	ts := time.Unix(1, 0)
-	r, err := segment.NewRequestFromCtrlMsg(segSetup, ts, nil)
+	r, err := segment.NewSetupReqFromCtrlMsg(segSetup, ts, nil)
 	require.Error(t, err)
 	p := newPath()
-	r, err = segment.NewRequestFromCtrlMsg(segSetup, ts, p)
+	r, err = segment.NewSetupReqFromCtrlMsg(segSetup, ts, p)
 	require.NoError(t, err)
 	require.Equal(t, *p, r.Path)
 	checkRequest(t, segSetup, r, ts)
@@ -43,7 +43,7 @@ func TestNewRequestFromCtrlMsg(t *testing.T) {
 func TestRequestToCtrlMsg(t *testing.T) {
 	segSetup := newSegSetup()
 	ts := time.Unix(1, 0)
-	r, err := segment.NewRequestFromCtrlMsg(segSetup, ts, newPath())
+	r, err := segment.NewSetupReqFromCtrlMsg(segSetup, ts, newPath())
 	require.NoError(t, err)
 	anotherSegSetup := r.ToCtrlMsg()
 	require.Equal(t, segSetup, anotherSegSetup)
@@ -53,7 +53,7 @@ func TestRequestIngressEgressIFIDs(t *testing.T) {
 	segSetup := newSegSetup()
 	ts := time.Unix(1, 0)
 	p := newPath()
-	r, _ := segment.NewRequestFromCtrlMsg(segSetup, ts, p)
+	r, _ := segment.NewSetupReqFromCtrlMsg(segSetup, ts, p)
 	in, e, err := r.IngressEgressIFIDs()
 	require.NoError(t, err)
 	require.Equal(t, common.IFIDType(1), in)
