@@ -133,10 +133,10 @@ func TestSerializeRequest(t *testing.T) {
 			Request: &colibri_mgmt.Request{
 				Which: proto.Request_Which_e2eSetup,
 				E2ESetup: &colibri_mgmt.E2ESetup{
-					Which: proto.E2ESetupData_Which_success,
+					ReservationID: newE2EReservationID(),
+					Which:         proto.E2ESetupData_Which_success,
 					Success: &colibri_mgmt.E2ESetupSuccess{
-						ReservationID: newE2EReservationID(),
-						Token:         xtest.MustParseHexString("0000"),
+						Token: xtest.MustParseHexString("0000"),
 					},
 				},
 			},
@@ -145,7 +145,8 @@ func TestSerializeRequest(t *testing.T) {
 			Request: &colibri_mgmt.Request{
 				Which: proto.Request_Which_e2eSetup,
 				E2ESetup: &colibri_mgmt.E2ESetup{
-					Which: proto.E2ESetupData_Which_failure,
+					ReservationID: newE2EReservationID(),
+					Which:         proto.E2ESetupData_Which_failure,
 					Failure: &colibri_mgmt.E2ESetupFailure{
 						ErrorCode: 1,
 						InfoField: xtest.MustParseHexString("fedcba9876543210"),
@@ -158,7 +159,8 @@ func TestSerializeRequest(t *testing.T) {
 			Request: &colibri_mgmt.Request{
 				Which: proto.Request_Which_e2eRenewal,
 				E2ERenewal: &colibri_mgmt.E2ESetup{
-					Which: proto.E2ESetupData_Which_failure,
+					ReservationID: newE2EReservationID(),
+					Which:         proto.E2ESetupData_Which_failure,
 					Failure: &colibri_mgmt.E2ESetupFailure{
 						ErrorCode: 1,
 						InfoField: xtest.MustParseHexString("fedcba9876543210"),
@@ -205,10 +207,10 @@ func TestSerializeResponse(t *testing.T) {
 	}
 	newE2ESetup := func() *colibri_mgmt.E2ESetup {
 		return &colibri_mgmt.E2ESetup{
-			Which: proto.E2ESetupData_Which_success,
+			ReservationID: newE2EReservationID(),
+			Which:         proto.E2ESetupData_Which_success,
 			Success: &colibri_mgmt.E2ESetupSuccess{
-				ReservationID: newE2EReservationID(),
-				Token:         xtest.MustParseHexString("0000"),
+				Token: xtest.MustParseHexString("0000"),
 			},
 		}
 	}

@@ -57,12 +57,12 @@ func TestRequestToCtrlMsg(t *testing.T) {
 
 func newE2ESetupSuccess() *colibri_mgmt.E2ESetup {
 	return &colibri_mgmt.E2ESetup{
+		ReservationID: &colibri_mgmt.E2EReservationID{
+			ASID:   xtest.MustParseHexString("ff00cafe0001"),
+			Suffix: xtest.MustParseHexString("0123456789abcdef0123"),
+		},
 		Which: proto.E2ESetupData_Which_success,
 		Success: &colibri_mgmt.E2ESetupSuccess{
-			ReservationID: &colibri_mgmt.E2EReservationID{
-				ASID:   xtest.MustParseHexString("ff00cafe0001"),
-				Suffix: xtest.MustParseHexString("0123456789abcdef0123"),
-			},
 			Token: xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade"),
 		},
 	}
@@ -70,6 +70,10 @@ func newE2ESetupSuccess() *colibri_mgmt.E2ESetup {
 
 func newE2ESetupFailure() *colibri_mgmt.E2ESetup {
 	return &colibri_mgmt.E2ESetup{
+		ReservationID: &colibri_mgmt.E2EReservationID{
+			ASID:   xtest.MustParseHexString("ff00cafe0001"),
+			Suffix: xtest.MustParseHexString("0123456789abcdef0123"),
+		},
 		Which: proto.E2ESetupData_Which_failure,
 		Failure: &colibri_mgmt.E2ESetupFailure{
 			ErrorCode: 42,
@@ -96,16 +100,17 @@ func checkRequest(t *testing.T, e2eSetup *colibri_mgmt.E2ESetup, r e2e.SetupReq,
 
 	require.Equal(t, (*e2e.Reservation)(nil), base.Reservation())
 	require.Equal(t, ts, base.Timestamp())
+	buff := make([]byte, reservation.E2EIDLen)
+	_, err := base.ID.Read(buff)
+	require.NoError(t, err) // tested in the E2EID UT, should not fail
+	require.Equal(t, e2eSetup.ReservationID.ASID, buff[:6])
+	require.Equal(t, e2eSetup.ReservationID.Suffix, buff[6:])
+
 	if successSetup != nil {
 		buff := make([]byte, len(e2eSetup.Success.Token))
 		_, err := successSetup.Token.Read(buff)
 		require.NoError(t, err) // tested in the Token UT, should not fail
 		require.Equal(t, e2eSetup.Success.Token, buff)
-		buff = make([]byte, reservation.E2EIDLen)
-		_, err = successSetup.ID.Read(buff)
-		require.NoError(t, err) // tested in the E2EID UT, should not fail
-		require.Equal(t, e2eSetup.Success.ReservationID.ASID, buff[:6])
-		require.Equal(t, e2eSetup.Success.ReservationID.Suffix, buff[6:])
 	}
 	if failureSetup != nil {
 		require.Equal(t, int(e2eSetup.Failure.ErrorCode), failureSetup.ErrorCode)
