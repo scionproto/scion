@@ -194,3 +194,33 @@ func NewRequestFromCtrlMsg(setup *colibri_mgmt.E2ESetup, ts time.Time,
 	}
 	return s, err
 }
+
+// CleanupReq is a cleaup request for an e2e index.
+type CleanupReq struct {
+	BaseSetupReq
+}
+
+// NewCleanupReqFromCtrlMsg contructs a cleanup request from its control message counterpart.
+func NewCleanupReqFromCtrlMsg(ctrl *colibri_mgmt.E2ECleanup, ts time.Time,
+	path *spath.Path) (*CleanupReq, error) {
+
+	baseReq, err := NewBaseSetupReq(path, ts, ctrl.ReservationID)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct cleanup request", err)
+	}
+	return &CleanupReq{
+		BaseSetupReq: *baseReq,
+	}, nil
+}
+
+// ToCtrlMsg converts this application type to its control message counterpart.
+func (r *CleanupReq) ToCtrlMsg() *colibri_mgmt.E2ECleanup {
+	rawid := make([]byte, reservation.E2EIDLen)
+	r.ID.Read(rawid)
+	return &colibri_mgmt.E2ECleanup{
+		ReservationID: &colibri_mgmt.E2EReservationID{
+			ASID:   rawid[:6],
+			Suffix: rawid[6:],
+		},
+	}
+}

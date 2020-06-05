@@ -61,13 +61,37 @@ func TestRequestToCtrlMsg(t *testing.T) {
 	require.Equal(t, setup, anotherSetup)
 }
 
+func TestNewCleanupReqFromCtrlMsg(t *testing.T) {
+	ctrlMsg := newCleanupReq()
+	ts := time.Unix(1, 0)
+	_, err := e2e.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, nil)
+	require.Error(t, err)
+	p := newPath()
+	r, err := e2e.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, p)
+	require.NoError(t, err)
+	require.Equal(t, *p, r.Path)
+	require.Equal(t, ts, r.Timestamp())
+
+	buff := make([]byte, reservation.E2EIDLen)
+	_, err = r.ID.Read(buff)
+	require.NoError(t, err)
+	require.Equal(t, ctrlMsg.ReservationID.ASID, buff[:6])
+	require.Equal(t, ctrlMsg.ReservationID.Suffix, buff[6:])
+}
+
+func TestCleanupToCtrlMsg(t *testing.T) {
+	ctrlMsg := newCleanupReq()
+	ts := time.Unix(1, 0)
+	p := newPath()
+	r, _ := e2e.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, p)
+	anotherCtrlMsg := r.ToCtrlMsg()
+	require.Equal(t, ctrlMsg, anotherCtrlMsg)
+}
+
 func newE2ESetupSuccess() *colibri_mgmt.E2ESetup {
 	return &colibri_mgmt.E2ESetup{
-		ReservationID: &colibri_mgmt.E2EReservationID{
-			ASID:   xtest.MustParseHexString("ff00cafe0001"),
-			Suffix: xtest.MustParseHexString("0123456789abcdef0123"),
-		},
-		Which: proto.E2ESetupData_Which_success,
+		ReservationID: newID(),
+		Which:         proto.E2ESetupData_Which_success,
 		Success: &colibri_mgmt.E2ESetupSuccess{
 			Token: xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade"),
 		},
@@ -76,17 +100,18 @@ func newE2ESetupSuccess() *colibri_mgmt.E2ESetup {
 
 func newE2ESetupFailure() *colibri_mgmt.E2ESetup {
 	return &colibri_mgmt.E2ESetup{
-		ReservationID: &colibri_mgmt.E2EReservationID{
-			ASID:   xtest.MustParseHexString("ff00cafe0001"),
-			Suffix: xtest.MustParseHexString("0123456789abcdef0123"),
-		},
-		Which: proto.E2ESetupData_Which_failure,
+		ReservationID: newID(),
+		Which:         proto.E2ESetupData_Which_failure,
 		Failure: &colibri_mgmt.E2ESetupFailure{
 			ErrorCode: 42,
 			InfoField: xtest.MustParseHexString("16ebdb4f0d042500"),
 			MaxBWs:    []uint8{1, 2},
 		},
 	}
+}
+
+func newCleanupReq() *colibri_mgmt.E2ECleanup {
+	return &colibri_mgmt.E2ECleanup{ReservationID: newID()}
 }
 
 // new path with one segment consisting on 3 hopfields: (0,2)->(1,2)->(1,0)
@@ -107,6 +132,13 @@ func newPath() *spath.Path {
 	hf.Write(path.Raw[spath.InfoFieldLength+spath.HopFieldLength*2:])
 
 	return path
+}
+
+func newID() *colibri_mgmt.E2EReservationID {
+	return &colibri_mgmt.E2EReservationID{
+		ASID:   xtest.MustParseHexString("ff00cafe0001"),
+		Suffix: xtest.MustParseHexString("0123456789abcdef0123"),
+	}
 }
 
 func checkRequest(t *testing.T, e2eSetup *colibri_mgmt.E2ESetup, r e2e.SetupReq, ts time.Time,
