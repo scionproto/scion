@@ -2,7 +2,6 @@ package fetcher
 
 import (
 	"fmt"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"math"
 	"testing"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
