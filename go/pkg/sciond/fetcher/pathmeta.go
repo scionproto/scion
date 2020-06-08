@@ -1,7 +1,6 @@
 package fetcher
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
@@ -44,7 +43,7 @@ func Condensemetadata(data *combinator.PathMetadata) *sciond.PathMetadata {
 	}
 
 	for ia, note := range data.Notes {
-		ret.Notes = append(ret.Notes, sciond.DenseNote{
+		ret.Notes = append(ret.Notes, &sciond.DenseNote{
 			Note:  note.Note,
 			RawIA: ia.IAInt(),
 		})
@@ -52,22 +51,22 @@ func Condensemetadata(data *combinator.PathMetadata) *sciond.PathMetadata {
 
 	for ia, loc := range data.Geo {
 		newloc := sciond.DenseGeo{
-			RouterLocations: []sciond.DenseGeoLoc{},
+			RouterLocations: []*sciond.DenseGeoLoc{},
 			RawIA:           ia.IAInt(),
 		}
 		for _, gpsdata := range loc.Locations {
 			newloc.RouterLocations = append(newloc.RouterLocations,
-				sciond.DenseGeoLoc{
+				&sciond.DenseGeoLoc{
 					Latitude:  gpsdata.Latitude,
 					Longitude: gpsdata.Longitude,
 					Address:   gpsdata.Address,
 				})
 		}
-		ret.Locations = append(ret.Locations, newloc)
+		ret.Locations = append(ret.Locations, &newloc)
 	}
 
 	for ia, link := range data.Links {
-		ret.LinkTypes = append(ret.LinkTypes, sciond.DenseASLinkType{
+		ret.LinkTypes = append(ret.LinkTypes, &sciond.DenseASLinkType{
 			InterLinkType: link.InterLinkType,
 			PeerLinkType:  link.PeerLinkType,
 			RawIA:         ia.IAInt(),
