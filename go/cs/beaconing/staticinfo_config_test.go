@@ -132,6 +132,10 @@ func TestGenerateStaticinfo(t *testing.T) {
 						Intradelay: 70,
 						IfID:       3,
 					},
+					{
+						Intradelay: 10,
+						IfID:       1,
+					},
 				},
 				Peerlatencies: []seg.PeerLatency{
 					{
@@ -182,7 +186,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 				Peerlinks: []seg.InterfaceLinkType{
 					{
 						IfID:     5,
-						LinkType: 0,
+						LinkType: 1,
 					},
 				},
 			},
@@ -190,6 +194,10 @@ func TestGenerateStaticinfo(t *testing.T) {
 				EgressBW:          5000000,
 				IngressToEgressBW: 6555550,
 				Bandwidths: []seg.InterfaceBandwidth{
+					{
+						IfID: 1,
+						BW:   5044444,
+					},
 					{
 						IfID: 3,
 						BW:   6555550,
@@ -203,6 +211,10 @@ func TestGenerateStaticinfo(t *testing.T) {
 			Hops: seg.InternalHopsInfo{
 				InToOutHops: 3,
 				InterfaceHops: []seg.InterfaceHops{
+					{
+						IfID: 1,
+						Hops: 2,
+					},
 					{
 						IfID: 3,
 						Hops: 3,
