@@ -181,6 +181,7 @@ func (f *fetcher) translate(path *combinator.Path) (sciond.PathReplyEntry, error
 			HeaderV2:   path.HeaderV2,
 		},
 		HostInfo: hostinfo.FromUDPAddr(*nextHop),
+		StaticInfo: Condensemetadata(path.StaticInfo),
 	}
 	return entry, nil
 }
