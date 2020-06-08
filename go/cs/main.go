@@ -639,6 +639,7 @@ func (t *periodicTasks) startRegistrar(topo topology.Topology, segType proto.Pat
 			MTU:           topo.MTU(),
 			Signer:        signer,
 			GetMaxExpTime: maxExpTimeFactory(t.store, policyType),
+			StaticInfoCfg: staticInfoCfg,
 		},
 	}.New()
 	if err != nil {
