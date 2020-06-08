@@ -27,55 +27,59 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
 
-type SegmentRead interface {
-	// GetSegmentRsvFromID will return the reservation with that ID.
-	// If an IndexNumber is specified it will populate its indices with that one.
-	// If the ID is not found, or the index (if specified) is not found, an error will be returned.
-	GetSegmentRsvFromID(ctx context.Context, ID reservation.SegmentID,
-		idx *reservation.IndexNumber) (*segment.Reservation, error)
+// ReserverOnly has the methods available to the AS that starts the reservation.
+type ReserverOnly interface {
 	// GetSegmentRsvFromSrcDstAS returns all reservations that start at src AS and end in dst AS.
 	GetSegmentRsvFromSrcDstAS(ctx context.Context, srcAS, dstAS addr.IA) (
 		[]*segment.Reservation, error)
 	// GetSegmentRsvFromPath searches for a segment reservation with the specified path.
 	GetSegmentRsvFromPath(ctx context.Context, path *segment.Path) (
 		*segment.Reservation, error)
+
+	// NewSegmentRsv creates a new segment reservation in the DB, with an unused reservation ID.
+	// The created ID is set in the reservation pointer argument. Used by setup req.
+	NewSegmentRsv(ctx context.Context, rsv *segment.Reservation) error
+}
+
+// TransitOnly represents an AS in-path of a reservation, not the one originating it.
+type TransitOnly interface {
 	// GetSegmentRsvsFromIFPair returns all segment reservations that enter this AS at
-	// the specified ingress and exit at that egress.
+	// the specified ingress and exit at that egress. Used by setup req.
 	GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress common.IFIDType) (
 		[]*segment.Reservation, error)
 }
 
-type SegmentWrite interface {
-	// NewSegmentRsv creates a new segment reservation in the DB, with an unused reservation ID.
-	// The created ID is set in the reservation pointer argument.
-	NewSegmentRsv(ctx context.Context, rsv *segment.Reservation) error
-	// SetActiveIndex updates the active index for the segment reservation.
+// ReserverAndTransit contains the functionallity for any AS that has a COLIBRI service.
+type ReserverAndTransit interface {
+	// GetSegmentRsvFromID will return the reservation with that ID.
+	// If an IndexNumber is specified it will populate its indices only with that one.
+	// If the ID is not found, or the index (if specified) is not found, an error will be returned.
+	// Used by setup/renew req/resp. and any request.
+	GetSegmentRsvFromID(ctx context.Context, ID reservation.SegmentID,
+		idx *reservation.IndexNumber) (*segment.Reservation, error)
+	// SetActiveIndex updates the active index. Used in index confirmation.
 	SetSegmentActiveIndex(ctx context.Context, rsv segment.Reservation,
 		idx reservation.IndexNumber) error
-	// NewSegmentRsvIndex stores a new index for a segment reservation.
+	// NewSegmentRsvIndex stores a new index for a segment reservation. Used in setup/renew.
 	NewSegmentIndex(ctx context.Context, rsv *segment.Reservation,
 		idx reservation.IndexNumber) error
-	// UpdateSegmentRsvIndex updates an index of a segment reservation.
+	// UpdateSegmentRsvIndex updates an index of a segment rsv. Used in setup/renew response.
 	UpdateSegmentIndex(ctx context.Context, rsv *segment.Reservation,
 		idx reservation.IndexNumber) error
-	// DeleteExpiredIndices removes the index from the DB. Used in cleanup.
+	// DeleteSegmentIndex removes the index from the DB. Used in cleanup.
 	DeleteSegmentIndex(ctx context.Context, rsv *segment.Reservation,
 		idx reservation.IndexNumber) error
+	// DeleteExpiredIndices removes the segment reservation. Used in teardown.
+	DeleteSegmentRsv(ctx context.Context, ID reservation.SegmentID) error
 
 	// DeleteExpiredIndices will remove expired indices from the DB. If a reservation is left
 	// without any index after removing the expired ones, it will also be removed.
+	// Used on schedule.
 	DeleteExpiredIndices(ctx context.Context) (int, error)
-	// DeleteExpiredIndices removes the segment reservation
-	DeleteSegmentRsv(ctx context.Context, ID reservation.SegmentID) error
-}
 
-type E2ERead interface {
 	// GetE2ERsvFromID finds the end to end resevation given its ID.
 	GetE2ERsvFromID(ctx context.Context, ID reservation.E2EID, idx reservation.IndexNumber) (
 		*e2e.Reservation, error)
-}
-
-type E2EWrite interface {
 	// NewE2EIndex stores a new index in the DB.
 	// If the e2e reservation does not exist, it is created.
 	NewE2EIndex(ctx context.Context, rsv *e2e.Reservation, idx reservation.IndexNumber) error
@@ -85,21 +89,10 @@ type E2EWrite interface {
 	DeleteE2EIndex(ctx context.Context, rsv *e2e.Reservation, idx reservation.IndexNumber) error
 }
 
-// DBRead specifies the read operations a reservation storage must have.
-type DBRead interface {
-	SegmentRead
-	E2ERead
-}
-
-// DBWrite specifies the write operations a reservation storage must have.
-type DBWrite interface {
-	SegmentWrite
-	E2EWrite
-}
-
 type Transaction interface {
-	DBRead
-	DBWrite
+	ReserverOnly
+	TransitOnly
+	ReserverAndTransit
 	Commit() error
 	Rollback() error
 }
@@ -107,6 +100,11 @@ type Transaction interface {
 // DB is the interface for any reservation backend.
 type DB interface {
 	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
+
+	ReserverOnly
+	TransitOnly
+	ReserverAndTransit
+
 	db.LimitSetter
 	io.Closer
 }
