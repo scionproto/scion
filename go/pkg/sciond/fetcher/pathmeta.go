@@ -7,7 +7,6 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 )
 
-
 // Condensemetadata takes RawPathMetadata and extracts/condenses
 // the most important values to be transmitted to SCIOND
 func Condensemetadata(data *combinator.PathMetadata) *sciond.PathMetadata {

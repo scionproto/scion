@@ -165,8 +165,8 @@ func (r *PathReply) String() string {
 }
 
 type PathReplyEntry struct {
-	Path     *FwdPathMeta
-	HostInfo hostinfo.Host
+	Path       *FwdPathMeta
+	HostInfo   hostinfo.Host
 	StaticInfo *PathMetadata `capnp:"pathStaticInfo"`
 }
 

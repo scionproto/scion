@@ -9,9 +9,9 @@ import (
 
 // PathMetadata is the condensed form of metadata retaining only the most important values.
 type PathMetadata struct {
-	TotalLatency uint16            `capnp:"totalLatency"`
-	TotalHops    uint8             `capnp:"totalHops"`
-	MinOfMaxBWs  uint32            `capnp:"minimalBandwidth"`
+	TotalLatency uint16             `capnp:"totalLatency"`
+	TotalHops    uint8              `capnp:"totalHops"`
+	MinOfMaxBWs  uint32             `capnp:"minimalBandwidth"`
 	LinkTypes    []*DenseASLinkType `capnp:"linkTypes"`
 	Locations    []*DenseGeo        `capnp:"asLocations"`
 	Notes        []*DenseNote       `capnp:"notes"`
@@ -28,7 +28,7 @@ func (s *PathMetadata) String() string {
 		s.Notes)
 }
 
-func reverseTransformLinkType(linktype uint16) string{
+func reverseTransformLinkType(linktype uint16) string {
 	switch linktype {
 	case 3:
 		return "opennet"
@@ -59,7 +59,7 @@ func (s *DenseASLinkType) String() string {
 
 type DenseGeo struct {
 	RouterLocations []*DenseGeoLoc `capnp:"routerLocations"`
-	RawIA           addr.IAInt    `capnp:"isdas"`
+	RawIA           addr.IAInt     `capnp:"isdas"`
 }
 
 func (s *DenseGeo) ProtoId() proto.ProtoIdType {
