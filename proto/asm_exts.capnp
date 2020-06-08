@@ -76,9 +76,10 @@ struct StaticInfoExtn {
         egressLinkType @1 :LinkType;
 
         enum LinkType{
-            direct @0;
-            multiHop @1;
-            openNet @2;
+            unset @0;
+            direct @1;
+            multiHop @2;
+            openNet @3;
         }
 
         struct InterfaceLinkType {

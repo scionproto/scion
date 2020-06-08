@@ -56,7 +56,7 @@ type StaticInfoCfg struct {
 
 // gatherLatency extracts latency values from a StaticInfoCfg struct and
 // inserts them into the LatencyInfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherLatency(peers map[common.IFIDType]struct{},
+func (cfgdata *StaticInfoCfg) gatherLatency(peers map[common.IFIDType]struct{},
 	egifID common.IFIDType, inifID common.IFIDType) seg.LatencyInfo {
 
 	l := seg.LatencyInfo{
@@ -73,21 +73,17 @@ func (cfgdata StaticInfoCfg) gatherLatency(peers map[common.IFIDType]struct{},
 			})
 			continue
 		}
-		// If we're looking at a NON-peering interface, only include the data
-		// if subintfid>egifID so as to not store redundant information
-		if subintfid > egifID {
-			l.Childlatencies = append(l.Childlatencies, seg.ChildLatency{
-				Intradelay: intfdelay,
-				IfID:       subintfid,
-			})
-		}
+		l.Childlatencies = append(l.Childlatencies, seg.ChildLatency{
+			Intradelay: intfdelay,
+			IfID:       subintfid,
+		})
 	}
 	return l
 }
 
 // gatherBW extracts bandwidth values from a StaticInfoCfg struct and
 // inserts them into the BandwidthInfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherBW(peers map[common.IFIDType]struct{}, egifID common.IFIDType,
+func (cfgdata *StaticInfoCfg) gatherBW(peers map[common.IFIDType]struct{}, egifID common.IFIDType,
 	inifID common.IFIDType) seg.BandwidthInfo {
 
 	l := seg.BandwidthInfo{
@@ -104,14 +100,10 @@ func (cfgdata StaticInfoCfg) gatherBW(peers map[common.IFIDType]struct{}, egifID
 			})
 			continue
 		}
-		// If we're looking at a NON-peering interface, only include the
-		// data if subintfid>egifID so as to not store redundant information
-		if subintfid > egifID {
-			l.Bandwidths = append(l.Bandwidths, seg.InterfaceBandwidth{
-				BW:   intfbw,
-				IfID: subintfid,
-			})
-		}
+		l.Bandwidths = append(l.Bandwidths, seg.InterfaceBandwidth{
+			BW:   intfbw,
+			IfID: subintfid,
+		})
 	}
 	return l
 }
@@ -121,19 +113,26 @@ func (cfgdata StaticInfoCfg) gatherBW(peers map[common.IFIDType]struct{}, egifID
 func transformLinkType(linktype string) uint16 {
 	switch linktype {
 	case "direct":
-		return 0
-	case "multihop":
 		return 1
+	case "multihop":
+		return 2
 	case "opennet":
-		return 2
+		return 3
 	default:
-		return 2
+		return 0
 	}
+}
+
+func truncateString(s string, num int) string{
+	if len(s)>num{
+		return s[:num]
+	}
+	return s
 }
 
 // gatherLinktype extracts linktype values from a StaticInfoCfg struct and
 // inserts them into the LinktypeInfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherLinkType(peers map[common.IFIDType]struct{},
+func (cfgdata *StaticInfoCfg) gatherLinkType(peers map[common.IFIDType]struct{},
 	egifID common.IFIDType) seg.LinktypeInfo {
 
 	l := seg.LinktypeInfo{
@@ -154,35 +153,31 @@ func (cfgdata StaticInfoCfg) gatherLinkType(peers map[common.IFIDType]struct{},
 
 // gatherHops extracts hop values from a StaticInfoCfg struct and
 // inserts them into the InternalHopsinfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherHops(peers map[common.IFIDType]struct{},
+func (cfgdata *StaticInfoCfg) gatherHops(peers map[common.IFIDType]struct{},
 	egifID common.IFIDType, inifID common.IFIDType) seg.InternalHopsInfo {
 
 	l := seg.InternalHopsInfo{
 		InToOutHops: cfgdata.Hops[egifID].Intra[inifID],
 	}
 	for intfid, intfHops := range cfgdata.Hops[egifID].Intra {
-		// If we're looking at a peering interface or intfid>egifID, include
-		// the data, otherwise drop it so as to not store redundant information
-		if _, peer := peers[intfid]; peer || (intfid > egifID) {
-			l.InterfaceHops = append(l.InterfaceHops, seg.InterfaceHops{
-				Hops: intfHops,
-				IfID: intfid,
-			})
-		}
+		l.InterfaceHops = append(l.InterfaceHops, seg.InterfaceHops{
+			Hops: intfHops,
+			IfID: intfid,
+		})
 	}
 	return l
 }
 
 // gatherGeo extracts geo values from a StaticInfoCfg struct and
 // inserts them into the GeoInfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherGeo() seg.GeoInfo {
+func (cfgdata *StaticInfoCfg) gatherGeo() seg.GeoInfo {
 	l := seg.GeoInfo{}
 	for intfid, loc := range cfgdata.Geo {
 		assigned := false
 		for k := 0; k < len(l.Locations); k++ {
 			if (loc.Longitude == l.Locations[k].GPSData.Longitude) &&
 				(loc.Latitude == l.Locations[k].GPSData.Latitude) &&
-				(loc.Address == l.Locations[k].GPSData.Address) && (!assigned) {
+				(truncateString(loc.Address,500) == l.Locations[k].GPSData.Address) && (!assigned) {
 				l.Locations[k].IfIDs = append(l.Locations[k].IfIDs, intfid)
 				assigned = true
 			}
@@ -192,7 +187,7 @@ func (cfgdata StaticInfoCfg) gatherGeo() seg.GeoInfo {
 				GPSData: seg.Coordinates{
 					Longitude: loc.Longitude,
 					Latitude:  loc.Latitude,
-					Address:   loc.Address,
+					Address:   truncateString(loc.Address,500),
 				},
 				IfIDs: []common.IFIDType{intfid},
 			})
@@ -218,7 +213,7 @@ func ParseStaticInfoCfg(file string) (*StaticInfoCfg, error) {
 
 // generateStaticinfo creates a StaticinfoExtn struct and
 // populates it with data extracted from configdata.
-func (cfgdata StaticInfoCfg) generateStaticinfo(peers map[common.IFIDType]struct{},
+func (cfgdata *StaticInfoCfg) generateStaticinfo(peers map[common.IFIDType]struct{},
 	egifID common.IFIDType, inifID common.IFIDType) seg.StaticInfoExtn {
 
 	return seg.StaticInfoExtn{
@@ -226,7 +221,7 @@ func (cfgdata StaticInfoCfg) generateStaticinfo(peers map[common.IFIDType]struct
 		Bandwidth: cfgdata.gatherBW(peers, egifID, inifID),
 		Linktype:  cfgdata.gatherLinkType(peers, egifID),
 		Geo:       cfgdata.gatherGeo(),
-		Note:      cfgdata.Note,
+		Note:      truncateString(cfgdata.Note, 2000),
 		Hops:      cfgdata.gatherHops(peers, egifID, inifID),
 	}
 }
