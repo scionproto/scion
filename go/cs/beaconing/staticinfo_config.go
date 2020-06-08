@@ -177,7 +177,8 @@ func (cfgdata *StaticInfoCfg) gatherGeo() seg.GeoInfo {
 		for k := 0; k < len(l.Locations); k++ {
 			if (loc.Longitude == l.Locations[k].GPSData.Longitude) &&
 				(loc.Latitude == l.Locations[k].GPSData.Latitude) &&
-				(truncateString(loc.Address, 500) == l.Locations[k].GPSData.Address) && (!assigned) {
+				(truncateString(loc.Address, 500) == l.Locations[k].GPSData.Address) &&
+				(!assigned) {
 				l.Locations[k].IfIDs = append(l.Locations[k].IfIDs, intfid)
 				assigned = true
 			}
