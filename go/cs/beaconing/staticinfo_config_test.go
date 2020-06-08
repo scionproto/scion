@@ -182,7 +182,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 				},
 			},
 			Linktype: seg.LinktypeInfo{
-				EgressLinkType: 2,
+				EgressLinkType: 3,
 				Peerlinks: []seg.InterfaceLinkType{
 					{
 						IfID:     5,
