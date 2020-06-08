@@ -67,7 +67,7 @@ func TestCollectMetadata(t *testing.T) {
 				uint8(graph.If_110_X_130_A) +
 				uint8(graph.If_210_X_110_X) +
 				uint8(graph.If_211_A_212_X),
-			expectedGeo: []sciond.DenseGeo{
+			expectedGeo: []*sciond.DenseGeo{
 				{
 					RouterLocations: []*sciond.DenseGeoLoc{{
 						Latitude:  float32(xtest.MustParseIA("1-ff00:0:132").IAInt()),
