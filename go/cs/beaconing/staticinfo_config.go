@@ -123,8 +123,8 @@ func transformLinkType(linktype string) uint16 {
 	}
 }
 
-func truncateString(s string, num int) string{
-	if len(s)>num{
+func truncateString(s string, num int) string {
+	if len(s) > num {
 		return s[:num]
 	}
 	return s
@@ -177,7 +177,7 @@ func (cfgdata *StaticInfoCfg) gatherGeo() seg.GeoInfo {
 		for k := 0; k < len(l.Locations); k++ {
 			if (loc.Longitude == l.Locations[k].GPSData.Longitude) &&
 				(loc.Latitude == l.Locations[k].GPSData.Latitude) &&
-				(truncateString(loc.Address,500) == l.Locations[k].GPSData.Address) && (!assigned) {
+				(truncateString(loc.Address, 500) == l.Locations[k].GPSData.Address) && (!assigned) {
 				l.Locations[k].IfIDs = append(l.Locations[k].IfIDs, intfid)
 				assigned = true
 			}
@@ -187,7 +187,7 @@ func (cfgdata *StaticInfoCfg) gatherGeo() seg.GeoInfo {
 				GPSData: seg.Coordinates{
 					Longitude: loc.Longitude,
 					Latitude:  loc.Latitude,
-					Address:   truncateString(loc.Address,500),
+					Address:   truncateString(loc.Address, 500),
 				},
 				IfIDs: []common.IFIDType{intfid},
 			})
