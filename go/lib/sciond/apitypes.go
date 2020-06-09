@@ -108,7 +108,7 @@ type Path struct {
 	mtu        uint16
 	expiry     time.Time
 	dst        addr.IA
-	staticInfo *PathMetadata
+	metadata *PathMetadata
 }
 
 func pathReplyToPaths(pathReply *PathReply, dst addr.IA) ([]snet.Path, error) {
@@ -152,7 +152,7 @@ func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (Path, error) {
 		spath:      sp,
 		mtu:        pe.Path.Mtu,
 		expiry:     pe.Path.Expiry(),
-		staticInfo: pe.StaticInfo,
+		metadata: pe.StaticInfo,
 	}
 	for _, intf := range pe.Path.Interfaces {
 		p.interfaces = append(p.interfaces, pathInterface{ia: intf.IA(), id: intf.ID()})
@@ -223,18 +223,32 @@ func (p Path) Copy() snet.Path {
 		spath:      p.Path(),            // creates copy
 		mtu:        p.mtu,
 		expiry:     p.expiry,
-		staticInfo: p.staticInfo,
+		metadata: p.metadata,
+	}
+}
+
+func (meta *PathMetadata) Copy() *PathMetadata{
+	if meta == nil {
+		return &PathMetadata{}
+	}
+	return &PathMetadata{
+		Latency: meta.Latency,
+		Hops:    meta.Hops,
+		Bandwidth:  meta.Bandwidth,
+		LinkTypes:    meta.LinkTypes,
+		Geos:    meta.Geos,
+		Notes:        meta.Notes,
 	}
 }
 
 func (p Path) String() string {
 	hops := p.fmtInterfaces()
 	return fmt.Sprintf("Hops: [%s] MTU: %d, NextHop: %s, StaticInfo: %v",
-		strings.Join(hops, ">"), p.mtu, p.underlay, p.staticInfo)
+		strings.Join(hops, ">"), p.mtu, p.underlay, p.metadata)
 }
 
-func (p Path) GetStaticInfo() *PathMetadata {
-	return p.staticInfo
+func (p Path) Metadata() *PathMetadata {
+	return p.metadata
 }
 
 func (p Path) fmtInterfaces() []string {

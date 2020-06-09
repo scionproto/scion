@@ -11,9 +11,9 @@ import (
 // the most important values to be transmitted to SCIOND
 func Condensemetadata(data *combinator.PathMetadata) *sciond.PathMetadata {
 	ret := &sciond.PathMetadata{
-		TotalLatency: 0,
-		TotalHops:    0,
-		MinOfMaxBWs:  math.MaxUint32,
+		Latency: 0,
+		Hops:    0,
+		Bandwidth:  math.MaxUint32,
 	}
 
 	for _, val := range data.ASBandwidths {
@@ -25,47 +25,47 @@ func Condensemetadata(data *combinator.PathMetadata) *sciond.PathMetadata {
 			asmaxbw = min(val.InterBW, asmaxbw)
 		}
 		if asmaxbw < math.MaxUint32 {
-			ret.MinOfMaxBWs = min(ret.MinOfMaxBWs, asmaxbw)
+			ret.Bandwidth = min(ret.Bandwidth, asmaxbw)
 		}
 	}
 
-	if ret.MinOfMaxBWs == math.MaxUint32 {
-		ret.MinOfMaxBWs = 0
+	if ret.Bandwidth == math.MaxUint32 {
+		ret.Bandwidth = 0
 	}
 
 	for _, val := range data.ASLatencies {
-		ret.TotalLatency += val.InterLatency + val.IntraLatency + val.PeerLatency
+		ret.Latency += val.InterLatency + val.IntraLatency + val.PeerLatency
 	}
 
 	for _, val := range data.ASHops {
-		ret.TotalHops += val.Hops
+		ret.Hops += val.Hops
 	}
 
 	for ia, note := range data.Notes {
-		ret.Notes = append(ret.Notes, &sciond.DenseNote{
+		ret.Notes = append(ret.Notes, &sciond.Note{
 			Note:  note.Note,
 			RawIA: ia.IAInt(),
 		})
 	}
 
 	for ia, loc := range data.Geo {
-		newloc := sciond.DenseGeo{
-			RouterLocations: []*sciond.DenseGeoLoc{},
+		newloc := sciond.Geo{
+			RouterLocations: []*sciond.GeoLoc{},
 			RawIA:           ia.IAInt(),
 		}
 		for _, gpsdata := range loc.Locations {
 			newloc.RouterLocations = append(newloc.RouterLocations,
-				&sciond.DenseGeoLoc{
+				&sciond.GeoLoc{
 					Latitude:  gpsdata.Latitude,
 					Longitude: gpsdata.Longitude,
 					Address:   gpsdata.Address,
 				})
 		}
-		ret.Locations = append(ret.Locations, &newloc)
+		ret.Geos = append(ret.Geos, &newloc)
 	}
 
 	for ia, link := range data.Links {
-		ret.LinkTypes = append(ret.LinkTypes, &sciond.DenseASLinkType{
+		ret.LinkTypes = append(ret.LinkTypes, &sciond.ASLinkType{
 			InterLinkType: link.InterLinkType,
 			PeerLinkType:  link.PeerLinkType,
 			RawIA:         ia.IAInt(),
