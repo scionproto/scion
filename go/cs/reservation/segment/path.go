@@ -15,6 +15,8 @@
 package segment
 
 import (
+	"io"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -23,6 +25,22 @@ import (
 // Path represents a reservation path, in the reservation order.
 type Path []PathStepWithIA
 
+var _ io.Reader = (*Path)(nil)
+
+// NewPathFromRaw constructs a new Path from the byte representation.
+func NewPathFromRaw(buff []byte) Path {
+	steps := len(buff) / PathStepWithIALen
+	p := make(Path, steps)
+	for i := 0; i < steps; i++ {
+		offset := i * PathStepWithIALen
+		p[i].Ingress = common.IFIDType(common.Order.Uint64(buff[offset:]))
+		p[i].Egress = common.IFIDType(common.Order.Uint64(buff[offset+8:]))
+		p[i].IA = addr.IAFromRaw(buff[offset+16:])
+	}
+	return p
+}
+
+// Validate returns an error if there is invalid data.
 func (p Path) Validate() error {
 	if len(p) < 2 {
 		return serrors.New("invalid path length", "len", len(p))
@@ -37,6 +55,7 @@ func (p Path) Validate() error {
 	return nil
 }
 
+// Equal returns true if both Path contain the same values.
 func (p Path) Equal(o Path) bool {
 	if len(p) != len(o) {
 		return false
@@ -49,23 +68,87 @@ func (p Path) Equal(o Path) bool {
 	return true
 }
 
+// GetSrcIA returns the source IA in the path or a zero IA if the path is nil (it's not the
+// source AS of the reservation and has no access to the Path of the reservation).
+// If the Path is not nil, it assumes is valid, i.e. it has at least length 2.
+func (p *Path) GetSrcIA() addr.IA {
+	if p == nil {
+		return addr.IA{I: 0, A: 0}
+	}
+	return (*p)[0].IA
+}
+
+// GetDstIA returns the source IA in the path or a zero IA if the path is nil (it's not the
+// source AS of the reservation and has no access to the Path of the reservation).
+// If the Path is not nil, it assumes is valid, i.e. it has at least length 2.
+func (p *Path) GetDstIA() addr.IA {
+	if p == nil {
+		return addr.IA{I: 0, A: 0}
+	}
+	return (*p)[len(*p)-1].IA
+}
+
+// Len returns the length of this Path in bytes, when serialized.
+func (p *Path) Len() int {
+	if p == nil {
+		return 0
+	}
+	return len(*p) * PathStepWithIALen
+}
+
+func (p *Path) Read(buff []byte) (int, error) {
+	if p == nil {
+		return 0, nil
+	}
+	if len(buff) < p.Len() {
+		return 0, serrors.New("buffer too small", "min_size", p.Len(), "actual_size", len(buff))
+	}
+	for i, s := range *p {
+		offset := i * PathStepWithIALen
+		common.Order.PutUint64(buff[offset:], uint64(s.Ingress))
+		common.Order.PutUint64(buff[offset+8:], uint64(s.Egress))
+		common.Order.PutUint64(buff[offset+16:], uint64(s.IA.IAInt()))
+	}
+	return p.Len(), nil
+}
+
+// ToRaw returns a buffer representing this Path.
+func (p *Path) ToRaw() []byte {
+	if p == nil {
+		return []byte{}
+	}
+	buff := make([]byte, p.Len())
+	p.Read(buff)
+	return buff
+}
+
 // PathStep is one hop of the Path. For a source AS Ingress will be invalid. Conversely for dst.
 type PathStep struct {
-	// IA      addr.IA
 	Ingress common.IFIDType
 	Egress  common.IFIDType
 }
 
+// Equal returns true if both PathStep variables contain the same values, or both nil.
 func (s *PathStep) Equal(o *PathStep) bool {
-	// return s.IA == o.IA && s.Ingress == o.Ingress && s.Egress == o.Egress
+	if s == o {
+		return true
+	}
 	return s.Ingress == o.Ingress && s.Egress == o.Egress
 }
 
+// PathStepWithIA is a step in a reservation path as seen from the source AS.
 type PathStepWithIA struct {
 	PathStep
 	IA addr.IA
 }
 
+// PathStepWithIALen amounts for Ingress+Egress+IA.
+const PathStepWithIALen = 8 + 8 + 8
+
+// Equal returns true if both PathStep variables contain the same values, or both nil.
 func (s *PathStepWithIA) Equal(o *PathStepWithIA) bool {
+	if s == o {
+		return true
+	}
 	return s.PathStep.Equal(&o.PathStep) && s.IA == o.IA
 }
