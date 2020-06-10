@@ -49,7 +49,7 @@ type TransitOnly interface {
 		[]*segment.Reservation, error)
 }
 
-// ReserverAndTransit contains the functionallity for any AS that has a COLIBRI service.
+// ReserverAndTransit contains the functionality for any AS that has a COLIBRI service.
 type ReserverAndTransit interface {
 	// GetSegmentRsvFromID will return the reservation with that ID.
 	// If an IndexNumber is specified it will populate its indices only with that one.
