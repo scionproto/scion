@@ -23,38 +23,37 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/proto"
 )
 
 type revocHandler struct {
-	*baseHandler
 	NextQueryCleaner segfetcher.NextQueryCleaner
+	revCache         revcache.RevCache
+	verifierFactory  infra.VerificationFactory
 }
 
 func NewRevocHandler(args HandlerArgs) infra.Handler {
-	f := func(r *infra.Request) *infra.HandlerResult {
-		handler := &revocHandler{
-			baseHandler: newBaseHandler(r, args),
-			NextQueryCleaner: segfetcher.NextQueryCleaner{
-				PathDB: args.PathDB,
-			},
-		}
-		return handler.Handle()
+	return &revocHandler{
+		NextQueryCleaner: segfetcher.NextQueryCleaner{
+			PathDB: args.PathDB,
+		},
+		revCache:        args.RevCache,
+		verifierFactory: args.VerifierFactory,
 	}
-	return infra.HandlerFunc(f)
 }
 
-func (h *revocHandler) Handle() *infra.HandlerResult {
-	ctx := h.request.Context()
-	logger := log.FromCtx(ctx).New("from", h.request.Peer)
+func (h *revocHandler) Handle(request *infra.Request) *infra.HandlerResult {
+	ctx := request.Context()
+	logger := log.FromCtx(ctx).New("from", request.Peer)
 	labels := metrics.PSRevocationLabels{
 		Result: metrics.ErrInternal,
 		Src:    metrics.RevSrcNotification,
 	}
-	revocation, ok := h.request.Message.(*path_mgmt.SignedRevInfo)
+	revocation, ok := request.Message.(*path_mgmt.SignedRevInfo)
 	if !ok {
 		logger.Error("[revocHandler] wrong message type, expected path_mgmt.SignedRevInfo",
-			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+			"msg", request.Message, "type", common.TypeOf(request.Message))
 		metrics.PSRevocation.Count(labels).Inc()
 		return infra.MetricsErrInternal
 	}
