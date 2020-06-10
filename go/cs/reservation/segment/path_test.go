@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestValidatePath(t *testing.T) {
@@ -103,4 +104,43 @@ func TestEqualPath(t *testing.T) {
 			require.Equal(t, tc.IsEqual, eq)
 		})
 	}
+}
+
+func TestGetIAs(t *testing.T) {
+
+	pValue := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
+	p := &pValue
+	require.Equal(t, xtest.MustParseIA("1-ff00:0:1"), p.GetSrcIA())
+	require.Equal(t, xtest.MustParseIA("1-ff00:0:2"), p.GetDstIA())
+	p = nil
+	require.Equal(t, xtest.MustParseIA("0-0"), p.GetSrcIA())
+	require.Equal(t, xtest.MustParseIA("0-0"), p.GetDstIA())
+}
+
+func TestPathLen(t *testing.T) {
+	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
+	require.Equal(t, 8*6, p.Len())
+	p = segment.Path{}
+	require.Equal(t, 0, p.Len())
+	p = nil
+	require.Equal(t, 0, p.Len())
+}
+
+func TestToFromBinary(t *testing.T) {
+	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
+	var buff []byte
+	_, err := p.Read(buff)
+	require.Error(t, err)
+	_, err = p.Read(buff)
+	require.Error(t, err)
+	buff = make([]byte, 2*3*8)
+	c, err := p.Read(buff)
+	require.NoError(t, err)
+	require.Equal(t, 2*3*8, c)
+
+	anotherP := segment.NewPathFromRaw(buff)
+	require.Equal(t, p, anotherP)
+
+	anotherBuff := p.ToRaw()
+	require.Equal(t, buff, anotherBuff)
 }
