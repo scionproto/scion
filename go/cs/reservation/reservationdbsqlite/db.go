@@ -105,12 +105,25 @@ func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID reservation.Segme
 }
 
 // GetSegmentRsvFromSrcDstAS returns all reservations that start at src AS and end in dst AS.
-func (x *executor) GetSegmentRsvFromSrcDstAS(ctx context.Context, srcAS, dstAS addr.IA) (
+func (x *executor) GetSegmentRsvFromSrcDstAS(ctx context.Context, srcIA, dstIA addr.IA) (
 	[]*segment.Reservation, error) {
 
 	x.Lock()
 	defer x.Unlock()
-	// query := "SELECT "
+
+	query := `SELECT r.reservation_id, r.inout_ingress, r.inout_egress
+	FROM seg_reservation r
+	WHERE r.src_as = ?1 AND r.dst_as = ?2`
+	rows, err := x.db.QueryContext(ctx, query, srcIA.IAInt(), dstIA.IAInt())
+	if err != nil {
+		return nil, db.NewReadError("error obtaining segment reservations", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		if err := rows.Scan(); err != nil {
+			return nil, db.NewReadError("error reading segment reservation", err)
+		}
+	}
 	return nil, nil
 }
 
