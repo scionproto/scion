@@ -22,55 +22,47 @@ const (
 	// Schema is the SQLite database layout.
 	// TODO(juagargi) explain the DB structure here or in the design markdown.
 	// TODO(juagargi) create appropriate SQL indices.
-	Schema = `
-	
-	CREATE TABLE "seg_reservation" (
-		"row_id"	INTEGER,
-		"reservation_id"	BLOB NOT NULL,
-		"inout_ingress"	INTEGER NOT NULL,
-		"inout_egress"	INTEGER NOT NULL,
-		"path"	BLOB NOT NULL,
-		"src_as" INTEGER NOT NULL,
-		"dst_as" INTEGER NOT NULL,
-		PRIMARY KEY("row_id")
+	Schema = `CREATE TABLE seg_reservation (
+		row_id	INTEGER,
+		id_as	INTEGER NOT NULL,
+		id_suffix	INTEGER NOT NULL,
+		inout_ingress	INTEGER NOT NULL,
+		inout_egress	INTEGER NOT NULL,
+		path	BLOB,
+		src_as INTEGER,
+		dst_as INTEGER,
+		PRIMARY KEY(row_id),
+		UNIQUE(id_as,id_suffix)
 	);
-	
-	CREATE TABLE "seg_index" (
-		"reservation"	INTEGER NOT NULL,
-		"index_number"	INTEGER NOT NULL,
-		"expiration"	INTEGER NOT NULL,
-		"state"	INTEGER NOT NULL,
-		"min_bw"	INTEGER NOT NULL,
-		"max_bw"	INTEGER NOT NULL,
-		"alloc_bw"	INTEGER NOT NULL,
-		"token"	BLOB,
-		PRIMARY KEY("Reservation","index_number"),
-		FOREIGN KEY("reservation") REFERENCES "seg_reservation"("row_id") ON DELETE CASCADE
+	CREATE TABLE seg_index (
+		reservation	INTEGER NOT NULL,
+		index_number	INTEGER NOT NULL,
+		expiration	INTEGER NOT NULL,
+		state	INTEGER NOT NULL,
+		min_bw	INTEGER NOT NULL,
+		max_bw	INTEGER NOT NULL,
+		alloc_bw	INTEGER NOT NULL,
+		token	BLOB,
+		PRIMARY KEY(Reservation,index_number),
+		FOREIGN KEY(reservation) REFERENCES seg_reservation(row_id) ON DELETE CASCADE
 	);
-	
-	CREATE TABLE "e2e_reservation" (
-		"row_id"	INTEGER,
-		"reservation_id"	BLOB NOT NULL,
-		PRIMARY KEY("row_id")
+	CREATE TABLE e2e_reservation (
+		row_id	INTEGER,
+		reservation_id	BLOB NOT NULL,
+		PRIMARY KEY(row_id)
 	);
-
-	CREATE TABLE "e2e_index" (
-		"reservation"	INTEGER NOT NULL,
-		"index_number"	INTEGER NOT NULL,
-		"expiration"	INTEGER NOT NULL,
-		"alloc_bw"	INTEGER NOT NULL,
-		"token"	BLOB NOT NULL,
-		FOREIGN KEY("reservation") REFERENCES "e2e_reservation"("row_id") ON DELETE CASCADE
+	CREATE TABLE e2e_index (
+		reservation	INTEGER NOT NULL,
+		index_number	INTEGER NOT NULL,
+		expiration	INTEGER NOT NULL,
+		alloc_bw	INTEGER NOT NULL,
+		token	BLOB NOT NULL,
+		FOREIGN KEY(reservation) REFERENCES e2e_reservation(row_id) ON DELETE CASCADE
 	);
-
-	CREATE TABLE "e2e_to_seg" (
-		"e2e"	INTEGER NOT NULL,
-		"seg"	INTEGER NOT NULL,
-		FOREIGN KEY("seg") REFERENCES "seg_reservation"("row_id") ON DELETE CASCADE,
-		FOREIGN KEY("e2e") REFERENCES "e2e_reservation"("row_id") ON DELETE CASCADE
-	);
-
-
-	
-	`
+	CREATE TABLE e2e_to_seg (
+		e2e	INTEGER NOT NULL,
+		seg	INTEGER NOT NULL,
+		FOREIGN KEY(seg) REFERENCES seg_reservation(row_id) ON DELETE CASCADE,
+		FOREIGN KEY(e2e) REFERENCES e2e_reservation(row_id) ON DELETE CASCADE
+	);`
 )
