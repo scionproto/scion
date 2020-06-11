@@ -45,7 +45,7 @@ func TestDB(t *testing.T, db TestableDB) {
 
 func testNewSegmentReservation(t *testing.T, db backend.DB) {
 	r := segment.NewReservation()
-	r.InOutIFIDs.Egress = 1
+	r.EgressIFID = 1
 	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
 	r.Path = &p
 	r.ID.ASID = xtest.MustParseAS("ff00:0:1")
