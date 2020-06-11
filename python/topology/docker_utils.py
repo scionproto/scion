@@ -16,8 +16,8 @@
 # Stdlib
 import os
 # SCION
-from lib.util import write_file
-from topology.common import ArgsBase, docker_image, remote_nets
+from python.lib.util import write_file
+from python.topology.common import ArgsBase, docker_image, remote_nets
 
 
 class DockerUtilsGenArgs(ArgsBase):
@@ -35,10 +35,10 @@ class DockerUtilsGenArgs(ArgsBase):
 
 
 class DockerUtilsGenerator(object):
-    """
-    :param UtilsGenArgs args: Contains the passed command line arguments.
-    """
     def __init__(self, args):
+        """
+        :param UtilsGenArgs args: Contains the passed command line arguments.
+        """
         self.args = args
         self.dc_conf = args.dc_conf
         self.user_spec = os.environ.get('SCION_USERSPEC', '$LOGNAME')
@@ -80,7 +80,7 @@ class DockerUtilsGenerator(object):
             'image': docker_image(self.args, 'tester'),
             'container_name': 'tester_%s%s' % (docker, topo_id.file_fmt()),
             'privileged': True,
-            'entrypoint': './tester.sh',
+            'entrypoint': 'sh tester.sh',
             'environment': {},
             'volumes': [
                 'vol_scion_%sdisp_cs%s-1:/run/shm/dispatcher:rw' % (docker, topo_id.file_fmt()),

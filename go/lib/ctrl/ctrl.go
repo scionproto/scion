@@ -17,6 +17,7 @@
 package ctrl
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -117,8 +118,8 @@ func (p *Pld) Write(b common.RawBytes) (int, error) {
 	return proto.WriteRoot(p, b)
 }
 
-func (p *Pld) SignedPld(signer Signer) (*SignedPld, error) {
-	return NewSignedPld(p, signer)
+func (p *Pld) SignedPld(ctx context.Context, signer Signer) (*SignedPld, error) {
+	return newSignedPld(ctx, p, signer)
 }
 
 func (p *Pld) ProtoId() proto.ProtoIdType {

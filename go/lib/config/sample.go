@@ -30,12 +30,16 @@ type CtxMap map[string]string
 func WriteSample(dst io.Writer, path Path, ctx CtxMap, samplers ...Sampler) {
 	var buf bytes.Buffer
 	for _, sampler := range samplers {
-		p := path.Extend(sampler.ConfigName())
-		writeHeader(dst, p)
-
-		sampler.Sample(&buf, p, ctx)
-		writeWithIndent(dst, &buf)
 		buf.Reset()
+		if ts, ok := sampler.(TableSampler); ok {
+			p := path.Extend(ts.ConfigName())
+			writeHeader(dst, p)
+			ts.Sample(&buf, p, ctx)
+			writeWithIndent(dst, &buf)
+			continue
+		}
+		sampler.Sample(&buf, path, ctx)
+		io.Copy(dst, &buf)
 	}
 }
 

@@ -16,7 +16,6 @@ package tcp
 
 import (
 	"context"
-	"fmt"
 	"net"
 
 	capnp "zombiezen.com/go/capnproto2"
@@ -25,24 +24,15 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/rpc"
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
-// Client is the client side of the messenger.
-type Client struct {
-	TopologyProvider topology.Provider
-}
+// client is the client side of the messenger.
+type client struct{}
 
 // Request sends the request pld to the given address and returns the reply.
-func (c Client) Request(ctx context.Context, pld *ctrl.Pld, address net.Addr) (*ctrl.Pld, error) {
-	address, err := c.resolveAddr(address)
-	if err != nil {
-		return nil, err
-	}
-	signedPld, err := pld.SignedPld(infra.NullSigner)
+func (c client) Request(ctx context.Context, pld *ctrl.Pld, address net.Addr) (*ctrl.Pld, error) {
+	signedPld, err := pld.SignedPld(ctx, infra.NullSigner)
 	if err != nil {
 		return nil, err
 	}
@@ -67,19 +57,7 @@ func (c Client) Request(ctx context.Context, pld *ctrl.Pld, address net.Addr) (*
 	return replyPld, nil
 }
 
-func (c Client) resolveAddr(address net.Addr) (net.Addr, error) {
-	switch a := address.(type) {
-	case *snet.UDPAddr:
-		return a.Host, nil
-	case *snet.SVCAddr:
-		return c.TopologyProvider.Get().Anycast(a.SVC)
-	default:
-		return nil, serrors.New("address type not supported",
-			"addr", address, "type", fmt.Sprintf("%T", address))
-	}
-}
-
-func (c Client) requestRPC(ctx context.Context, request *rpc.Request,
+func (c client) requestRPC(ctx context.Context, request *rpc.Request,
 	address net.Addr) (*rpc.Reply, error) {
 	dialer := net.Dialer{}
 

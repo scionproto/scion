@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package scrypto
+package scrypto_test
 
 import (
 	"testing"
@@ -21,6 +21,7 @@ import (
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -60,31 +61,31 @@ var (
 )
 
 func TestGenKeyPairs(t *testing.T) {
-	t.Run("GenKeyPairs should return a valid Curve25519xSalsa20Poly1305 key pair",
+	t.Run("GenKeyPairs should return a valid scrypto.Curve25519xSalsa20Poly1305 key pair",
 		func(t *testing.T) {
-			rawPubkey, rawPrivkey, err := GenKeyPair(Curve25519xSalsa20Poly1305)
+			rawPubkey, rawPrivkey, err := scrypto.GenKeyPair(scrypto.Curve25519xSalsa20Poly1305)
 			assert.NoError(t, err)
-			assert.Len(t, rawPubkey, NaClBoxKeySize)
-			assert.Len(t, rawPrivkey, NaClBoxKeySize)
-			newPubkey, newPrivkey, err := GenKeyPair(Curve25519xSalsa20Poly1305)
+			assert.Len(t, rawPubkey, scrypto.NaClBoxKeySize)
+			assert.Len(t, rawPrivkey, scrypto.NaClBoxKeySize)
+			newPubkey, newPrivkey, err := scrypto.GenKeyPair(scrypto.Curve25519xSalsa20Poly1305)
 			assert.NoError(t, err)
 			assert.NotEqual(t, newPubkey, rawPubkey)
 			assert.NotEqual(t, newPrivkey, rawPrivkey)
 		})
 
 	t.Run("GenKeyPairs should return a valid Ed25519 key pair", func(t *testing.T) {
-		rawPubkey, rawPrivkey, err := GenKeyPair(Ed25519)
+		rawPubkey, rawPrivkey, err := scrypto.GenKeyPair(scrypto.Ed25519)
 		assert.NoError(t, err)
 		assert.Len(t, rawPubkey, ed25519.PublicKeySize)
 		assert.Len(t, rawPrivkey, ed25519.PrivateKeySize)
-		newPubkey, newPrivkey, err := GenKeyPair(Ed25519)
+		newPubkey, newPrivkey, err := scrypto.GenKeyPair(scrypto.Ed25519)
 		assert.NoError(t, err)
 		assert.NotEqual(t, newPubkey, rawPubkey)
 		assert.NotEqual(t, newPrivkey, rawPrivkey)
 	})
 
 	t.Run("GenKeyPairs should throw error for unknown algo", func(t *testing.T) {
-		_, _, err := GenKeyPair("asdf")
+		_, _, err := scrypto.GenKeyPair("asdf")
 		assert.Error(t, err)
 	})
 }
@@ -95,79 +96,83 @@ func TestSign(t *testing.T) {
 	// multiple signing operations with the same key more efficient...""
 	privKey := common.RawBytes(ed25519.NewKeyFromSeed(Ed25519TestPrivateKey))
 	t.Run("Sign should sign message correctly", func(t *testing.T) {
-		sig, err := Sign(Ed25519TestMsg, privKey, Ed25519)
+		sig, err := scrypto.Sign(Ed25519TestMsg, privKey, scrypto.Ed25519)
 		assert.NoError(t, err)
 		assert.Equal(t, Ed25519TestSignature, sig)
 	})
 
 	t.Run("Sign should throw error for invalid key size", func(t *testing.T) {
-		_, err := Sign(Ed25519TestMsg, privKey[:63], Ed25519)
+		_, err := scrypto.Sign(Ed25519TestMsg, privKey[:63], scrypto.Ed25519)
 		assert.Error(t, err)
 	})
 
 	t.Run("Sign should throw error for unknown algo", func(t *testing.T) {
-		_, err := Sign(Ed25519TestMsg, privKey, "asdf")
+		_, err := scrypto.Sign(Ed25519TestMsg, privKey, "asdf")
 		assert.Error(t, err)
 	})
 }
 
 func TestVerify(t *testing.T) {
 	t.Run("Verify should verify signature correctly", func(t *testing.T) {
-		err := Verify(Ed25519TestMsg, Ed25519TestSignature, Ed25519TestPublicKey, Ed25519)
+		err := scrypto.Verify(Ed25519TestMsg, Ed25519TestSignature,
+			Ed25519TestPublicKey, scrypto.Ed25519)
 		assert.NoError(t, err)
 	})
 
 	t.Run("Verify should throw an error for an invalid signature length", func(t *testing.T) {
-		err := Verify(Ed25519TestMsg, Ed25519TestSignature[:63], Ed25519TestPublicKey, Ed25519)
+		err := scrypto.Verify(Ed25519TestMsg, Ed25519TestSignature[:63],
+			Ed25519TestPublicKey, scrypto.Ed25519)
 		assert.Error(t, err)
 	})
 
 	t.Run("Verify should throw an error for a mangled signature", func(t *testing.T) {
 		mangled := append(common.RawBytes{}, Ed25519TestSignature...)
 		mangled[0] ^= 0xFF
-		err := Verify(Ed25519TestMsg, mangled, Ed25519TestPublicKey, Ed25519)
+		err := scrypto.Verify(Ed25519TestMsg, mangled, Ed25519TestPublicKey, scrypto.Ed25519)
 		assert.Error(t, err)
 	})
 
 	t.Run("Verify should throw an error for an invalid key size", func(t *testing.T) {
-		err := Verify(Ed25519TestMsg, Ed25519TestSignature, Ed25519TestPublicKey[:31], Ed25519)
+		err := scrypto.Verify(Ed25519TestMsg, Ed25519TestSignature,
+			Ed25519TestPublicKey[:31], scrypto.Ed25519)
 		assert.Error(t, err)
 	})
 
 	t.Run("Verify should throw an error for unknown algo", func(t *testing.T) {
-		err := Verify(Ed25519TestMsg, Ed25519TestSignature, Ed25519TestPublicKey, "asdf")
+		err := scrypto.Verify(Ed25519TestMsg, Ed25519TestSignature,
+			Ed25519TestPublicKey, "asdf")
 		assert.Error(t, err)
 	})
 }
 
 func TestEncrypt(t *testing.T) {
 	t.Run("Encrypt should encrypt a plaintext correctly", func(t *testing.T) {
-		rawCipher, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey,
-			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
+		rawCipher, err := scrypto.Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey,
+			NaClBoxTestPrivateKey, scrypto.Curve25519xSalsa20Poly1305)
 		assert.NoError(t, err)
 		assert.Equal(t, NaClBoxTestCiphertext, rawCipher)
 	})
 
 	t.Run("Encrypt should throw error for invalid nonce size", func(t *testing.T) {
-		_, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce[:23], NaClBoxTestPublicKey,
-			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
+		_, err := scrypto.Encrypt(NaClBoxTestMsg, NaClBoxTestNonce[:23], NaClBoxTestPublicKey,
+			NaClBoxTestPrivateKey, scrypto.Curve25519xSalsa20Poly1305)
 		assert.Error(t, err)
 	})
 
 	t.Run("Encrypt should throw error for invalid public key size", func(t *testing.T) {
-		_, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey[:31],
-			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
+		_, err := scrypto.Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey[:31],
+			NaClBoxTestPrivateKey, scrypto.Curve25519xSalsa20Poly1305)
 		assert.Error(t, err)
 	})
 
 	t.Run("Encrypt should throw error for invalid private key size", func(t *testing.T) {
-		_, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey,
-			NaClBoxTestPrivateKey[:31], Curve25519xSalsa20Poly1305)
+		_, err := scrypto.Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey,
+			NaClBoxTestPrivateKey[:31], scrypto.Curve25519xSalsa20Poly1305)
 		assert.Error(t, err)
 	})
 
 	t.Run("Encrypt should throw an error for unknown algo", func(t *testing.T) {
-		_, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey,
+		_, err := scrypto.Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey,
 			NaClBoxTestPrivateKey, "asdf")
 		assert.Error(t, err)
 	})
@@ -175,32 +180,32 @@ func TestEncrypt(t *testing.T) {
 
 func TestDecrypt(t *testing.T) {
 	t.Run("Decrypt should decrypt a ciphertex correctly", func(t *testing.T) {
-		rawMsg, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce, NaClBoxTestPublicKey,
-			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
+		rawMsg, err := scrypto.Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce,
+			NaClBoxTestPublicKey, NaClBoxTestPrivateKey, scrypto.Curve25519xSalsa20Poly1305)
 		assert.NoError(t, err)
 		assert.Equal(t, NaClBoxTestMsg, rawMsg)
 	})
 
 	t.Run("Decrypt should throw error for invalid nonce size", func(t *testing.T) {
-		_, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce[:23], NaClBoxTestPublicKey,
-			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
+		_, err := scrypto.Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce[:23],
+			NaClBoxTestPublicKey, NaClBoxTestPrivateKey, scrypto.Curve25519xSalsa20Poly1305)
 		assert.Error(t, err)
 	})
 
 	t.Run("Decrypt should throw error for invalid public key size", func(t *testing.T) {
-		_, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce, NaClBoxTestPublicKey[:31],
-			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
+		_, err := scrypto.Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce,
+			NaClBoxTestPublicKey[:31], NaClBoxTestPrivateKey, scrypto.Curve25519xSalsa20Poly1305)
 		assert.Error(t, err)
 	})
 
 	t.Run("Decrypt should throw error for invalid private key size", func(t *testing.T) {
-		_, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce, NaClBoxTestPublicKey,
-			NaClBoxTestPrivateKey[:31], Curve25519xSalsa20Poly1305)
+		_, err := scrypto.Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce, NaClBoxTestPublicKey,
+			NaClBoxTestPrivateKey[:31], scrypto.Curve25519xSalsa20Poly1305)
 		assert.Error(t, err)
 	})
 
 	t.Run("Decrypt should throw an error for unknown algo", func(t *testing.T) {
-		_, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce, NaClBoxTestPublicKey,
+		_, err := scrypto.Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce, NaClBoxTestPublicKey,
 			NaClBoxTestPrivateKey, "asdf")
 		assert.Error(t, err)
 	})

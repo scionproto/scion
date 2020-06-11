@@ -34,14 +34,14 @@ type SignedPld struct {
 	pld  *Pld
 }
 
-func NewSignedPld(cpld *Pld, signer Signer) (*SignedPld, error) {
+func newSignedPld(ctx context.Context, cpld *Pld, signer Signer) (*SignedPld, error) {
 	// Make a copy of signer, so the caller can re-use it.
 	var err error
 	spld := &SignedPld{}
 	if spld.Blob, err = proto.PackRoot(cpld); err != nil {
 		return nil, err
 	}
-	sign, err := signer.Sign(spld.Blob)
+	sign, err := signer.Sign(ctx, spld.Blob)
 	if err != nil {
 		return nil, err
 	}

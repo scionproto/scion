@@ -15,7 +15,6 @@
 package reliable
 
 import (
-	"encoding/binary"
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -83,7 +82,7 @@ func (reader *ReadPacketizer) haveNextPacket(b []byte) []byte {
 		return nil
 	}
 	rcvdAddrType := b[8]
-	payloadLength := binary.BigEndian.Uint32(b[9:13])
+	payloadLength := common.Order.Uint32(b[9:13])
 	addressLength := getAddressLength(addr.HostAddrType(rcvdAddrType))
 	portLength := getPortLength(addr.HostAddrType(rcvdAddrType))
 	totalLength := 13 + addressLength + portLength + int(payloadLength)

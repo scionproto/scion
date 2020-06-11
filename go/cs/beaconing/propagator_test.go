@@ -15,6 +15,9 @@
 package beaconing
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"net"
@@ -42,8 +45,9 @@ func TestPropagatorRun(t *testing.T) {
 	require.NoError(t, err)
 	macSender, err := scrypto.InitMac(make(common.RawBytes, 16))
 	require.NoError(t, err)
-	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
+	pub := priv.Public()
 
 	type test struct {
 		name     string
@@ -145,6 +149,7 @@ func TestPropagatorRun(t *testing.T) {
 			conn := mock_snet.NewMockPacketConn(mctrl)
 			cfg := PropagatorConf{
 				Config: ExtenderConf{
+					IA:     topoProvider.Get().IA(),
 					Signer: testSigner(t, priv, topoProvider.Get().IA()),
 					Mac:    macProp,
 					Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
@@ -217,6 +222,7 @@ func TestPropagatorRun(t *testing.T) {
 		conn := mock_snet.NewMockPacketConn(mctrl)
 		cfg := PropagatorConf{
 			Config: ExtenderConf{
+				IA:     topoProvider.Get().IA(),
 				Signer: testSigner(t, priv, topoProvider.Get().IA()),
 				Mac:    macProp,
 				Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),

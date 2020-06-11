@@ -195,7 +195,7 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 			ExpectedPayload: resolutionRequestPayload,
 		},
 	)
-	network := snet.NewCustomNetwork(nc.IA, packetDispatcher)
+	network := &snet.SCIONNetwork{LocalIA: nc.IA, Dispatcher: packetDispatcher}
 	conn, err := network.Listen(context.Background(), "udp", nc.Public, nc.SVC)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to listen on SCION", err)
@@ -209,12 +209,13 @@ func (nc *NetworkConfig) initQUICSocket() (net.PacketConn, error) {
 		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}
 
-	network := snet.NewCustomNetwork(nc.IA,
-		&snet.DefaultPacketDispatcherService{
+	network := &snet.SCIONNetwork{
+		LocalIA: nc.IA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher:  dispatcherService,
 			SCMPHandler: ignoreSCMP{},
 		},
-	)
+	}
 	udpAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to parse address", err)

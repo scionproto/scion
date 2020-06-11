@@ -86,7 +86,7 @@ done
 
 # LITERALINCLUDE validate_certificate_type START
 for cert in {bern,geneva,zürich}/*.crt; do
-    scion-pki v2 certs validate --type $(basename $cert .crt) $cert
+    scion-pki certs validate --type $(basename $cert .crt) $cert
 done
 # LITERALINCLUDE validate_certificate_type END
 
@@ -149,7 +149,7 @@ cat ISD-B1-S1.toml
 echo "-------------------------------"
 
 # LITERALINCLUDE create_payload START
-scion-pki v2 trcs payload -t ISD-B1-S1.toml -o ISD-B1-S1.pld.der
+scion-pki trcs payload -t ISD-B1-S1.toml -o ISD-B1-S1.pld.der
 # LITERALINCLUDE create_payload END
 
 echo "Phase 2: display payload digest"
@@ -186,7 +186,7 @@ echo "Phase 4: combine TRC"
 cd $SAFEDIR/admin
 
 # LITERALINCLUDE combine_payload START
-scion-pki v2 trcs combine -p ISD-B1-S1.pld.der \
+scion-pki trcs combine -p ISD-B1-S1.pld.der \
     bern/ISD-B1-S1.sensitive.trc \
     bern/ISD-B1-S1.regular.trc \
     geneva/ISD-B1-S1.sensitive.trc \
@@ -197,7 +197,7 @@ scion-pki v2 trcs combine -p ISD-B1-S1.pld.der \
 # LITERALINCLUDE combine_payload END
 
 # LITERALINCLUDE verify_payload START
-scion-pki v2 trcs verify --anchor ISD-B1-S1.trc ISD-B1-S1.trc
+scion-pki trcs verify --anchor ISD-B1-S1.trc ISD-B1-S1.trc
 # LITERALINCLUDE verify_payload END
 in_docker "cd /workdir && verify_trc"
 
@@ -237,6 +237,8 @@ do
     echo "Phase 5: $loc generate AS certificate"
     in_docker "navigate_pubdir && gen_as && check_as"
     check_as_type
+    cat cp-as.crt cp-ca.crt > chain.pem
+    scion-pki certs verify --trc ../ISD-B1-S1.trc --currenttime 1593000000 chain.pem
 done
 
 echo "###########"

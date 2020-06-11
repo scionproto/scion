@@ -15,7 +15,6 @@
 package reliable
 
 import (
-	"encoding/binary"
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -71,9 +70,9 @@ func (f *frame) SerializeTo(b []byte) (int, error) {
 	if totalLength > len(b) {
 		return 0, common.NewBasicError(ErrBufferTooSmall, nil, "have", len(b), "want", totalLength)
 	}
-	binary.BigEndian.PutUint64(b, f.Cookie)
+	common.Order.PutUint64(b, f.Cookie)
 	b[8] = f.AddressType
-	binary.BigEndian.PutUint32(b[9:], uint32(f.Length))
+	common.Order.PutUint32(b[9:], uint32(f.Length))
 	copy(b[13:], f.Address)
 	copy(b[13+len(f.Address):], f.Port)
 	copy(b[13+len(f.Address)+len(f.Port):], f.Payload)
@@ -84,9 +83,9 @@ func (f *frame) DecodeFromBytes(data []byte) error {
 	if len(data) < f.headerLength() {
 		return common.NewBasicError(ErrIncompleteFrameHeader, nil)
 	}
-	f.Cookie = binary.BigEndian.Uint64(data)
+	f.Cookie = common.Order.Uint64(data)
 	f.AddressType = data[8]
-	f.Length = binary.BigEndian.Uint32(data[9:])
+	f.Length = common.Order.Uint32(data[9:])
 	offset := 13
 	addressType := addr.HostAddrType(f.AddressType)
 	if !isValidReliableSockDestination(addressType) {
@@ -131,7 +130,7 @@ func (f *frame) insertAddress(address *net.UDPAddr) error {
 	}
 	f.Address = []byte(normalizeIP(address.IP))
 	f.Port = make([]byte, 2)
-	binary.BigEndian.PutUint16(f.Port, uint16(address.Port))
+	common.Order.PutUint16(f.Port, uint16(address.Port))
 	return nil
 }
 
@@ -140,7 +139,7 @@ func (f *frame) extractAddress() *net.UDPAddr {
 	if t == addr.HostTypeIPv4 || t == addr.HostTypeIPv6 {
 		return &net.UDPAddr{
 			IP:   net.IP(f.Address),
-			Port: int(binary.BigEndian.Uint16(f.Port)),
+			Port: int(common.Order.Uint16(f.Port)),
 		}
 	}
 	return nil

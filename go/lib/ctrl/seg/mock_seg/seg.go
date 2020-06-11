@@ -5,6 +5,7 @@
 package mock_seg
 
 import (
+	context "context"
 	gomock "github.com/golang/mock/gomock"
 	proto "github.com/scionproto/scion/go/proto"
 	reflect "reflect"
@@ -34,16 +35,16 @@ func (m *MockSigner) EXPECT() *MockSignerMockRecorder {
 }
 
 // Sign mocks base method
-func (m *MockSigner) Sign(arg0 []byte) (*proto.SignS, error) {
+func (m *MockSigner) Sign(arg0 context.Context, arg1 []byte) (*proto.SignS, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Sign", arg0)
+	ret := m.ctrl.Call(m, "Sign", arg0, arg1)
 	ret0, _ := ret[0].(*proto.SignS)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Sign indicates an expected call of Sign
-func (mr *MockSignerMockRecorder) Sign(arg0 interface{}) *gomock.Call {
+func (mr *MockSignerMockRecorder) Sign(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sign", reflect.TypeOf((*MockSigner)(nil).Sign), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sign", reflect.TypeOf((*MockSigner)(nil).Sign), arg0, arg1)
 }

@@ -16,8 +16,14 @@ package beaconing
 
 import (
 	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/asn1"
 	"errors"
 	"fmt"
+	"math/big"
 	"net"
 	"sync"
 	"testing"
@@ -35,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -51,8 +58,9 @@ func TestOriginatorRun(t *testing.T) {
 	topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 	require.NoError(t, err)
-	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
+	pub := priv.Public()
 	signer := testSigner(t, priv, topoProvider.Get().IA())
 	t.Run("run originates ifid packets on all active interfaces", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
@@ -61,6 +69,7 @@ func TestOriginatorRun(t *testing.T) {
 		conn := mock_snet.NewMockPacketConn(mctrl)
 		o, err := OriginatorConf{
 			Config: ExtenderConf{
+				IA:            topoProvider.Get().IA(),
 				MTU:           topoProvider.Get().MTU(),
 				Signer:        signer,
 				Intfs:         intfs,
@@ -115,6 +124,7 @@ func TestOriginatorRun(t *testing.T) {
 		conn := mock_snet.NewMockPacketConn(mctrl)
 		o, err := OriginatorConf{
 			Config: ExtenderConf{
+				IA:            topoProvider.Get().IA(),
 				MTU:           topoProvider.Get().MTU(),
 				Signer:        signer,
 				Intfs:         intfs,
@@ -164,7 +174,7 @@ type msg struct {
 	ov  *net.UDPAddr
 }
 
-func checkMsg(t *testing.T, msg msg, pub common.RawBytes, infos topology.IfInfoMap) {
+func checkMsg(t *testing.T, msg msg, pub crypto.PublicKey, infos topology.IfInfoMap) {
 	// Extract segment from the payload
 	spld, err := ctrl.NewSignedPldFromRaw(msg.pkt.Payload.(common.RawBytes))
 	require.NoError(t, err)
@@ -176,7 +186,8 @@ func checkMsg(t *testing.T, msg msg, pub common.RawBytes, infos topology.IfInfoM
 	// Check the beacon is valid and verifiable.
 	pseg := pld.Beacon.Segment
 	assert.NoError(t, pseg.Validate(seg.ValidateBeacon))
-	assert.NoError(t, pseg.VerifyASEntry(context.Background(), segVerifier(pub), pseg.MaxAEIdx()))
+	assert.NoError(t, pseg.VerifyASEntry(context.Background(),
+		segVerifier{pubKey: pub}, pseg.MaxAEIdx()))
 
 	// Extract the the first hop field from the constructed one hop path the
 	// beacon is sent on. We want to make sure that the beacon is sent on the
@@ -192,8 +203,23 @@ func checkMsg(t *testing.T, msg msg, pub common.RawBytes, infos topology.IfInfoM
 	assert.Equal(t, infos[hopF.ConsEgress].InternalAddr, msg.ov)
 }
 
-type segVerifier []byte
+type segVerifier struct {
+	pubKey crypto.PublicKey
+}
 
 func (v segVerifier) Verify(_ context.Context, msg []byte, sign *proto.SignS) error {
-	return scrypto.Verify(sign.SigInput(msg, false), sign.Signature, []byte(v), scrypto.Ed25519)
+	return verifyecdsa(sign.SigInput(msg, false), sign.Signature, v.pubKey)
+}
+
+func verifyecdsa(input, signature []byte, pubKey crypto.PublicKey) error {
+	var ecdsaSig struct {
+		R, S *big.Int
+	}
+	if _, err := asn1.Unmarshal(signature, &ecdsaSig); err != nil {
+		return err
+	}
+	if !ecdsa.Verify(pubKey.(*ecdsa.PublicKey), input, ecdsaSig.R, ecdsaSig.S) {
+		return serrors.New("verification failure")
+	}
+	return nil
 }

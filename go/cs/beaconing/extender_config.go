@@ -18,7 +18,8 @@ import (
 	"hash"
 
 	"github.com/scionproto/scion/go/cs/ifstate"
-	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 )
@@ -30,8 +31,10 @@ const (
 
 // ExtenderConf is the configuration used when extending beacons.
 type ExtenderConf struct {
+	// IA is the local IA
+	IA addr.IA
 	// Signer is used to sign path segments.
-	Signer infra.Signer
+	Signer ctrl.Signer
 	// Mac is used to calculate the hop field MAC.
 	Mac hash.Hash
 	// Intfs holds all interfaces in the AS.

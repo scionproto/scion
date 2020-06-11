@@ -1,0 +1,42 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "config.go",
+        "testcrypto.go",
+        "update.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/scion-pki/testcrypto",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/scrypto/cms/protocol:go_default_library",
+        "//go/lib/scrypto/cppki:go_default_library",
+        "//go/lib/serrors:go_default_library",
+        "//go/lib/util:go_default_library",
+        "//go/scion-pki/conf:go_default_library",
+        "//go/scion-pki/trcs:go_default_library",
+        "@com_github_spf13_cobra//:go_default_library",
+        "@in_gopkg_yaml_v2//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "export_test.go",
+        "testcrypto_test.go",
+        "update_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/scrypto/cppki:go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "//go/scion-pki/trcs:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

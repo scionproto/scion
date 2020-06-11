@@ -35,3 +35,14 @@ func TestConfigSample(t *testing.T) {
 	assert.Empty(t, meta.Undecoded())
 	CheckTestConfig(t, &cfg, "test")
 }
+
+func TestRenewalConfigSample(t *testing.T) {
+	var sample bytes.Buffer
+	var cfg truststorage.RenewalDBConf
+	cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
+	InitRenewalTestConfig(&cfg)
+	meta, err := toml.Decode(sample.String(), &cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, meta.Undecoded())
+	CheckRenewalTestConfig(t, &cfg, "test")
+}

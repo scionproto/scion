@@ -27,7 +27,7 @@ func CtrlCapnpEnc(signer ctrl.Signer, instance proto.Cerealizable) (common.RawBy
 	if err != nil {
 		return nil, err
 	}
-	scpld, err := cpld.SignedPld(signer)
+	scpld, err := cpld.SignedPld(context.Background(), signer)
 	if err != nil {
 		return nil, err
 	}

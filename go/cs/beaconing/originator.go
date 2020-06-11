@@ -164,7 +164,7 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 		return serrors.New("Interface does not exist")
 	}
 	topoInfo := intf.TopoInfo()
-	bseg, err := o.createBeacon()
+	bseg, err := o.createBeacon(ctx)
 	if err != nil {
 		metrics.Originator.Beacons(labels.WithResult(metrics.ErrCreate)).Inc()
 		return common.NewBasicError("Unable to create beacon", err, "ifid", o.ifID)
@@ -187,12 +187,12 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 	return nil
 }
 
-func (o *beaconOriginator) createBeacon() (*seg.Beacon, error) {
+func (o *beaconOriginator) createBeacon(ctx context.Context) (*seg.Beacon, error) {
 	bseg, err := seg.NewSeg(&o.infoF)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create segment", err)
 	}
-	if err := o.extend(bseg, 0, o.ifID, nil); err != nil {
+	if err := o.extend(ctx, bseg, 0, o.ifID, nil); err != nil {
 		return nil, common.NewBasicError("Unable to extend segment", err)
 	}
 	return &seg.Beacon{Segment: bseg}, nil

@@ -16,6 +16,10 @@ package beaconing
 
 import (
 	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"sync"
@@ -31,26 +35,26 @@ import (
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
 
 func TestRegistrarRun(t *testing.T) {
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 	require.NoError(t, err)
-	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
+	pub := priv.Public()
 
 	testsLocal := []struct {
 		name          string
@@ -88,6 +92,7 @@ func TestRegistrarRun(t *testing.T) {
 			segStore := mock_beaconing.NewMockSegmentStore(mctrl)
 			cfg := RegistrarConf{
 				Config: ExtenderConf{
+					IA:     topoProvider.Get().IA(),
 					Signer: testSigner(t, priv, topoProvider.Get().IA()),
 					Mac:    mac,
 					Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
@@ -134,7 +139,7 @@ func TestRegistrarRun(t *testing.T) {
 			for _, s := range stored {
 				assert.NoError(t, s.Segment.Validate(seg.ValidateSegment))
 				assert.NoError(t, s.Segment.VerifyASEntry(context.Background(),
-					segVerifier(pub), s.Segment.MaxAEIdx()))
+					segVerifier{pubKey: pub}, s.Segment.MaxAEIdx()))
 				assert.Equal(t, test.segType, s.Type)
 			}
 			// The second run should not do anything, since the period has not passed.
@@ -170,6 +175,7 @@ func TestRegistrarRun(t *testing.T) {
 			msgr := mock_infra.NewMockMessenger(mctrl)
 			cfg := RegistrarConf{
 				Config: ExtenderConf{
+					IA:     topoProvider.Get().IA(),
 					Signer: testSigner(t, priv, topoProvider.Get().IA()),
 					Mac:    mac,
 					Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
@@ -229,7 +235,7 @@ func TestRegistrarRun(t *testing.T) {
 
 					assert.NoError(t, pseg.Validate(seg.ValidateSegment))
 					assert.NoError(t, pseg.VerifyASEntry(context.Background(),
-						segVerifier(pub), pseg.MaxAEIdx()))
+						segVerifier{pubKey: pub}, pseg.MaxAEIdx()))
 
 					if !test.remotePS {
 						assert.Equal(t, topoProvider.Get().IA(), s.Addr.IA)
@@ -258,6 +264,7 @@ func TestRegistrarRun(t *testing.T) {
 		msgr := mock_infra.NewMockMessenger(mctrl)
 		cfg := RegistrarConf{
 			Config: ExtenderConf{
+				IA:     topoProvider.Get().IA(),
 				Signer: testSigner(t, priv, topoProvider.Get().IA()),
 				Mac:    mac,
 				Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
@@ -338,20 +345,16 @@ func testBeaconOrErr(g *graph.Graph, desc []common.IFIDType) beacon.BeaconOrErr 
 	}
 }
 
-func testSigner(t *testing.T, priv common.RawBytes, ia addr.IA) infra.Signer {
-	signer, err := trust.NewSigner(
-		trust.SignerConf{
-			ChainVer: 42,
-			TRCVer:   84,
-			Validity: scrypto.Validity{NotAfter: util.UnixTime{Time: time.Now().Add(time.Hour)}},
-			Key: keyconf.Key{
-				Type:      keyconf.PrivateKey,
-				Algorithm: scrypto.Ed25519,
-				Bytes:     priv,
-				ID:        keyconf.ID{IA: ia},
-			},
+func testSigner(t *testing.T, priv crypto.Signer, ia addr.IA) ctrl.Signer {
+	return trust.Signer{
+		PrivateKey: priv,
+		IA:         ia,
+		TRCID: cppki.TRCID{
+			ISD:    ia.I,
+			Base:   1,
+			Serial: 21,
 		},
-	)
-	require.NoError(t, err)
-	return signer
+		SubjectKeyID: []byte("skid"),
+		Expiration:   time.Now().Add(time.Hour),
+	}
 }

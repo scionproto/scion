@@ -1,0 +1,13 @@
+isd                = 1
+description        = "Test ISD"
+serial_version     = 1
+base_version       = 1
+voting_quorum      = 2
+core_ases          = ["ff00:0:110", "ff00:0:111"]
+authoritative_ases = ["ff00:0:110", "ff00:0:111"]
+cert_files         = ["zürich/sensitive-voting.crt","zürich/regular-voting.crt","zürich/cp-root.crt","geneva/sensitive-voting.crt","geneva/regular-voting.crt","geneva/cp-root.crt","bern/sensitive-voting.crt","bern/regular-voting.crt","bern/cp-root.crt",]
+no_trust_reset     = false
+
+[validity]
+not_before = 1593000000
+validity   = "365d"

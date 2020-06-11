@@ -6,9 +6,9 @@ def build_tester_image():
     pkg_tar(
         name = "bin",
         srcs = [
-            "//go/integration/cert_req:cert_req",
             "//go/integration/end2end:end2end",
             "//go/examples/pingpong:pingpong",
+            "//go/scion-pki:scion-pki",
             "//go/tools/scmp:scmp",
             "//go/tools/showpaths:showpaths",
         ],

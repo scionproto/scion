@@ -16,9 +16,18 @@ package tracing
 
 import (
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 )
 
 // ResultLabel sets the operation result label on the span.
 func ResultLabel(span opentracing.Span, label string) {
 	span.SetTag("result.label", label)
+}
+
+// Error sets the 'error' and 'error.msg' tags according to the provided error.
+func Error(span opentracing.Span, err error) {
+	if err != nil {
+		ext.Error.Set(span, true)
+		span.SetTag("error.msg", err)
+	}
 }

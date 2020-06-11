@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,22 +19,26 @@ package cert_mgmt
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/proto"
 )
 
 var _ proto.Cerealizable = (*ChainReq)(nil)
 
 type ChainReq struct {
-	RawIA     addr.IAInt `capnp:"isdas"`
-	Version   scrypto.Version
-	CacheOnly bool
+	RawIA        addr.IAInt `capnp:"isdas"`
+	SubjectKeyID []byte
+	RawDate      int64 `capnp:"date"`
 }
 
 func (c *ChainReq) IA() addr.IA {
 	return c.RawIA.IA()
+}
+
+func (c *ChainReq) Date() time.Time {
+	return time.Unix(c.RawDate, 0)
 }
 
 func (c *ChainReq) ProtoId() proto.ProtoIdType {
@@ -41,5 +46,5 @@ func (c *ChainReq) ProtoId() proto.ProtoIdType {
 }
 
 func (c *ChainReq) String() string {
-	return fmt.Sprintf("ISD-AS: %s Version: %v CacheOnly: %v", c.IA(), c.Version, c.CacheOnly)
+	return fmt.Sprintf("ISD-AS: %s SubjectKeyID: %x Date: %v", c.IA(), c.SubjectKeyID, c.Date())
 }

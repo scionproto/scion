@@ -30,7 +30,7 @@ import (
 type revocHandler struct {
 	NextQueryCleaner segfetcher.NextQueryCleaner
 	revCache         revcache.RevCache
-	verifierFactory  infra.VerificationFactory
+	verifier         infra.Verifier
 }
 
 func NewRevocHandler(args HandlerArgs) infra.Handler {
@@ -38,8 +38,8 @@ func NewRevocHandler(args HandlerArgs) infra.Handler {
 		NextQueryCleaner: segfetcher.NextQueryCleaner{
 			PathDB: args.PathDB,
 		},
-		revCache:        args.RevCache,
-		verifierFactory: args.VerifierFactory,
+		revCache: args.RevCache,
+		verifier: args.Verifier,
 	}
 }
 
@@ -76,7 +76,7 @@ func (h *revocHandler) Handle(request *infra.Request) *infra.HandlerResult {
 	logger = logger.New("revInfo", revInfo)
 	logger.Debug("[revocHandler] Received revocation")
 
-	err = segverifier.VerifyRevInfo(ctx, h.verifierFactory.NewVerifier(), nil, revocation)
+	err = segverifier.VerifyRevInfo(ctx, h.verifier, nil, revocation)
 	if err != nil {
 		logger.Warn("Couldn't verify revocation", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)

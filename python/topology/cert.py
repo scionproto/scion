@@ -22,7 +22,7 @@ from collections import defaultdict
 
 from plumbum import local
 
-from topology.common import ArgsTopoConfig, srv_iter
+from python.topology.common import ArgsTopoConfig, srv_iter
 
 
 class CertGenArgs(ArgsTopoConfig):
@@ -40,12 +40,7 @@ class CertGenerator(object):
         self.core_count = defaultdict(int)
 
     def generate(self, topo_dicts):
-        self.pki('tmpl', 'topo', self.args.topo_config, '-d', self.args.output_dir)
-        self.pki('keys', 'private', '*', '-d', self.args.output_dir)
-        self.pki('keys', 'master', '*', '-d', self.args.output_dir)
-        self.pki('trcs', 'gen', '*', '-d', self.args.output_dir)
-        self.pki('certs', 'issuer', '*', '-d', self.args.output_dir)
-        self.pki('certs', 'chain', '*', '-d', self.args.output_dir)
+        self.pki('testcrypto', '-t', self.args.topo_config, '-o', self.args.output_dir)
         self._master_keys(topo_dicts)
         self._copy_files(topo_dicts)
 
@@ -64,6 +59,7 @@ class CertGenerator(object):
                 topo_dicts, self.args.output_dir, common=True):
             elem_dir = local.path(base)
             as_dir = elem_dir.dirname
+            cp('-r', as_dir / 'crypto', elem_dir / 'crypto')
             cp('-r', as_dir / 'certs', elem_dir / 'certs')
             cp('-r', as_dir / 'keys', elem_dir / 'keys')
             cp(as_dir.dirname.dirname // '*/trcs/*.trc', elem_dir / 'certs')

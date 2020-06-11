@@ -24,9 +24,40 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
+
+// Attribute indicates the capability of a primary AS.
+type Attribute string
+
+const (
+	// Authoritative indicates an authoritative AS.
+	Authoritative Attribute = "authoritative"
+	// AttrCore indicates a core AS.
+	AttrCore Attribute = "core"
+	// Issuing indicates an issuing AS.
+	Issuing Attribute = "issuing"
+	// Voting indicates a voting AS. A voting AS must also be a core AS.
+	Voting Attribute = "voting"
+)
+
+// UnmarshalText checks that the attribute is valid. It can either be
+// "authoritative", "core", "issuing", or "voting".
+func (t *Attribute) UnmarshalText(b []byte) error {
+	switch Attribute(b) {
+	case Authoritative:
+		*t = Authoritative
+	case Issuing:
+		*t = Issuing
+	case Voting:
+		*t = Voting
+	case AttrCore:
+		*t = AttrCore
+	default:
+		return serrors.New("invalid attribute", "input", string(b))
+	}
+	return nil
+}
 
 // Topology is the JSON type for the entire AS topology file.
 type Topology struct {
@@ -36,10 +67,7 @@ type Topology struct {
 	MTU            int    `json:"mtu"`
 	// Attributes are the primary AS attributes as described in
 	// https://github.com/scionproto/scion/blob/master/doc/ControlPlanePKI.md#primary-ases
-	// We use the []trc.Attribute type so that we don't validate according to
-	// trc.Attributes, because that contains a length 0 check which is not
-	// suitable for topology.
-	Attributes     []trc.Attribute        `json:"attributes"`
+	Attributes     []Attribute            `json:"attributes"`
 	BorderRouters  map[string]*BRInfo     `json:"border_routers,omitempty"`
 	ControlService map[string]*ServerInfo `json:"control_service,omitempty"`
 	SIG            map[string]*ServerInfo `json:"sigs,omitempty"`

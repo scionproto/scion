@@ -324,10 +324,10 @@ func testUpdateIntfToSeg(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.Re
 	asEntries[1].HopEntries = append(asEntries[1].HopEntries, he)
 
 	signer := mock_seg.NewMockSigner(ctrl)
-	signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
+	signer.EXPECT().Sign(gomock.Any(), gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 		&proto.SignS{}, nil).AnyTimes()
 	for _, asEntry := range asEntries {
-		err = newPs.AddASEntry(asEntry, signer)
+		err = newPs.AddASEntry(context.Background(), asEntry, signer)
 		require.NoError(t, err)
 	}
 	InsertSeg(t, ctx, pathDB, newPs, hpCfgIDs)
@@ -823,10 +823,10 @@ func AllocPathSegment(t *testing.T, ctrl *gomock.Controller, ifs []uint64,
 	pseg, err := seg.NewSeg(info)
 	require.NoError(t, err)
 	signer := mock_seg.NewMockSigner(ctrl)
-	signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
+	signer.EXPECT().Sign(gomock.Any(), gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 		&proto.SignS{}, nil).AnyTimes()
 	for _, ase := range ases {
-		err := pseg.AddASEntry(ase, signer)
+		err := pseg.AddASEntry(context.Background(), ase, signer)
 		require.NoError(t, err)
 	}
 	segID, err := pseg.ID()

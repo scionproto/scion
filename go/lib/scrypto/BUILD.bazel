@@ -4,12 +4,8 @@ go_library(
     name = "go_default_library",
     srcs = [
         "asym.go",
-        "crit.go",
-        "defs.go",
-        "keymeta.go",
         "mac.go",
         "rand.go",
-        "validity.go",
         "version.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/scrypto",
@@ -17,7 +13,6 @@ go_library(
     deps = [
         "//go/lib/common:go_default_library",
         "//go/lib/serrors:go_default_library",
-        "//go/lib/util:go_default_library",
         "@com_github_dchest_cmac//:go_default_library",
         "@org_golang_x_crypto//curve25519:go_default_library",
         "@org_golang_x_crypto//ed25519:go_default_library",
@@ -30,21 +25,15 @@ go_test(
     name = "go_default_test",
     srcs = [
         "asym_test.go",
-        "crit_test.go",
-        "defs_test.go",
-        "keymeta_test.go",
         "rand_test.go",
-        "validity_test.go",
         "version_test.go",
     ],
     embed = [":go_default_library"],
     deps = [
         "//go/lib/common:go_default_library",
-        "//go/lib/util:go_default_library",
         "//go/lib/xtest:go_default_library",
         "@com_github_smartystreets_goconvey//convey:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
-        "@com_github_stretchr_testify//require:go_default_library",
         "@org_golang_x_crypto//ed25519:go_default_library",
     ],
 )

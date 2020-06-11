@@ -25,26 +25,26 @@ import (
 
 	"github.com/scionproto/scion/go/cs/segreq"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/pkg/trust/mock_trust"
 )
 
 func TestCoreChecker(t *testing.T) {
 	tests := map[string]struct {
 		IA               addr.IA
-		PrepareInspector func(i *mock_infra.MockASInspector)
+		PrepareInspector func(i *mock_trust.MockInspector)
 		ErrorAssertion   require.ErrorAssertionFunc
 		ExpectedCore     bool
 	}{
 		"Wildcard": {
 			IA:               xtest.MustParseIA("1-0"),
-			PrepareInspector: func(i *mock_infra.MockASInspector) {},
+			PrepareInspector: func(i *mock_trust.MockInspector) {},
 			ErrorAssertion:   require.NoError,
 			ExpectedCore:     true,
 		},
 		"InspectorError": {
 			IA: xtest.MustParseIA("1-ff00:0:110"),
-			PrepareInspector: func(i *mock_infra.MockASInspector) {
+			PrepareInspector: func(i *mock_trust.MockInspector) {
 				i.EXPECT().HasAttributes(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(false, errors.New("test error"))
 			},
@@ -53,7 +53,7 @@ func TestCoreChecker(t *testing.T) {
 		},
 		"Core": {
 			IA: xtest.MustParseIA("1-ff00:0:110"),
-			PrepareInspector: func(i *mock_infra.MockASInspector) {
+			PrepareInspector: func(i *mock_trust.MockInspector) {
 				i.EXPECT().HasAttributes(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(true, nil)
 			},
@@ -62,7 +62,7 @@ func TestCoreChecker(t *testing.T) {
 		},
 		"Non-Core": {
 			IA: xtest.MustParseIA("1-ff00:0:110"),
-			PrepareInspector: func(i *mock_infra.MockASInspector) {
+			PrepareInspector: func(i *mock_trust.MockInspector) {
 				i.EXPECT().HasAttributes(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(false, nil)
 			},
@@ -74,7 +74,7 @@ func TestCoreChecker(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			i := mock_infra.NewMockASInspector(ctrl)
+			i := mock_trust.NewMockInspector(ctrl)
 			test.PrepareInspector(i)
 			c := segreq.CoreChecker{Inspector: i}
 			core, err := c.IsCore(context.Background(), test.IA)

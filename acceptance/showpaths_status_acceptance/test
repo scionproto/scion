@@ -25,7 +25,7 @@ from acceptance.common.log import LogExec, init_log
 from acceptance.common.base import CmdBase, TestBase, set_name, TestState
 from acceptance.common.scion import SCIONDocker
 from acceptance.common.tools import DC
-from lib.util import load_yaml_file, load_sciond_file
+from python.lib.util import load_yaml_file, load_sciond_file
 
 set_name(__file__)
 logger = logging.getLogger(__name__)

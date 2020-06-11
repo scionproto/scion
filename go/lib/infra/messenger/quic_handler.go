@@ -90,6 +90,10 @@ func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
 	defer servceCancelF()
 	defer span.Finish()
 
+	ia, peer := extractPeer(request.Address)
+	span.SetTag("peer.isd_as", ia)
+	span.SetTag("peer.address", peer)
+
 	if handler == nil {
 		log.Error("Message type not handled", "type", messageType)
 	} else {

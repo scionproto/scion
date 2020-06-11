@@ -56,11 +56,10 @@ import (
 
 var _ Network = (*SCIONNetwork)(nil)
 
-// SCIONNetwork is the SCION networking context, containing local ISD-AS,
-// SCIOND, Dispatcher and Path resolver.
+// SCIONNetwork is the SCION networking context.
 type SCIONNetwork struct {
-	dispatcher PacketDispatcherService
-	localIA    addr.IA
+	LocalIA    addr.IA
+	Dispatcher PacketDispatcherService
 }
 
 // NewNetwork creates a new networking context.
@@ -68,23 +67,13 @@ func NewNetwork(ia addr.IA, dispatcher reliable.Dispatcher,
 	revHandler RevocationHandler) *SCIONNetwork {
 
 	return &SCIONNetwork{
-		dispatcher: &DefaultPacketDispatcherService{
+		LocalIA: ia,
+		Dispatcher: &DefaultPacketDispatcherService{
 			Dispatcher: dispatcher,
 			SCMPHandler: &scmpHandler{
 				revocationHandler: revHandler,
 			},
 		},
-		localIA: ia,
-	}
-}
-
-// NewCustomNetwork is similar to NewNetwork, while giving control over packet
-// processing via pktDispatcher.
-func NewCustomNetwork(ia addr.IA, pktDispatcher PacketDispatcherService) *SCIONNetwork {
-
-	return &SCIONNetwork{
-		dispatcher: pktDispatcher,
-		localIA:    ia,
 	}
 }
 
@@ -149,7 +138,7 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		svc:      svc,
 		listen:   CopyUDPAddr(listen),
 	}
-	packetConn, port, err := conn.scionNet.dispatcher.Register(ctx, n.localIA, listen, svc)
+	packetConn, port, err := conn.scionNet.Dispatcher.Register(ctx, n.LocalIA, listen, svc)
 	if err != nil {
 		return nil, err
 	}
@@ -157,6 +146,6 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		// Update port
 		conn.listen.Port = int(port)
 	}
-	log.Debug("Registered with dispatcher", "addr", &UDPAddr{IA: n.localIA, Host: conn.listen})
+	log.Debug("Registered with dispatcher", "addr", &UDPAddr{IA: n.LocalIA, Host: conn.listen})
 	return newConn(conn, packetConn), nil
 }

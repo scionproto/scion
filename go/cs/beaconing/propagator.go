@@ -262,7 +262,7 @@ func (p *beaconPropagator) extendAndSend(ctx context.Context, bseg beacon.Beacon
 			metrics.Propagator.IntfTime(labels).Add(time.Since(now).Seconds())
 		}()
 
-		if err := p.extend(bseg.Segment, bseg.InIfId, egIfid, p.peers); err != nil {
+		if err := p.extend(ctx, bseg.Segment, bseg.InIfId, egIfid, p.peers); err != nil {
 			p.logger.Error("[beaconing.Propagator] Unable to extend beacon",
 				"beacon", bseg, "err", err)
 			labels.Result = metrics.ErrCreate

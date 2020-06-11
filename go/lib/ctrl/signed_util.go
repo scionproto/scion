@@ -15,19 +15,22 @@
 package ctrl
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"regexp"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/proto"
 )
 
 // Signer takes a message and signs it, producing the signature metadata.
 type Signer interface {
-	Sign(msg []byte) (*proto.SignS, error)
+	Sign(ctx context.Context, msg []byte) (*proto.SignS, error)
 }
 
 // Verifier verifies the signature of a signed payload.
@@ -98,4 +101,63 @@ func (s *SignSrcDef) Equal(t SignSrcDef) bool {
 		return false
 	}
 	return true
+}
+
+const (
+	// versionLen is the length of a the encoded scrypto.Version.
+	versionLen = 8
+	// prefixLen is the length of the IA, TRC base, and TRC serial of the
+	// encoded X509SignSrc.
+	prefixLen = addr.IABytes + 2*versionLen
+)
+
+// X509SignSrc identifes what x509 certificate can be used to verify the signature.
+type X509SignSrc struct {
+	IA           addr.IA
+	Base         scrypto.Version
+	Serial       scrypto.Version
+	SubjectKeyID []byte
+}
+
+// NewX509SignSrc creates a X509SignSrc from a raw buffer.
+func NewX509SignSrc(raw []byte) (X509SignSrc, error) {
+	if len(raw) <= prefixLen {
+		return X509SignSrc{}, serrors.New("buffer to small",
+			"len", len(raw), "expected >", prefixLen)
+	}
+	src := X509SignSrc{
+		IA:           addr.IAFromRaw(raw),
+		Base:         scrypto.Version(binary.BigEndian.Uint64(raw[addr.IABytes:])),
+		Serial:       scrypto.Version(binary.BigEndian.Uint64(raw[(addr.IABytes + versionLen):])),
+		SubjectKeyID: append([]byte{}, raw[prefixLen:]...),
+	}
+	return src, nil
+}
+
+// IsZero indicates whether the source is equal to the zero value.
+func (s X509SignSrc) IsZero() bool {
+	return s.IA.IsZero() && s.Base == 0 && s.Serial == 0 && len(s.SubjectKeyID) == 0
+}
+
+// Equal indicates whether the contents of the two sources are the same.
+func (s X509SignSrc) Equal(o X509SignSrc) bool {
+	return s.IA.Equal(o.IA) &&
+		s.Base == o.Base &&
+		s.Serial == o.Serial &&
+		bytes.Equal(s.SubjectKeyID, o.SubjectKeyID)
+}
+
+// Pack packs the source in a byte slice.
+func (s X509SignSrc) Pack() []byte {
+	buf := make([]byte, prefixLen+len(s.SubjectKeyID))
+	s.IA.Write(buf)
+	binary.BigEndian.PutUint64(buf[addr.IABytes:], uint64(s.Base))
+	binary.BigEndian.PutUint64(buf[(addr.IABytes+versionLen):], uint64(s.Serial))
+	copy(buf[prefixLen:], s.SubjectKeyID)
+	return buf
+}
+
+func (s X509SignSrc) String() string {
+	return fmt.Sprintf("ISD-AS: %s TRC: B%d-S%d SubjectKeyID: % X",
+		s.IA, s.Base, s.Serial, s.SubjectKeyID)
 }

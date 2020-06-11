@@ -35,7 +35,6 @@ cmd_topology() {
     if is_docker_be; then
         ./tools/quiet ./tools/dc run utils_chowner
     fi
-    #FIXME(lukedirtwalker): Re-enalbe for v2 trust: load_cust_keys
     if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
         local old=$(umask)
         echo "Generating TLS cert"
@@ -306,8 +305,12 @@ go_lint() {
     tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
     local ret=0
     lint_step "impi"
-    # Skip CGO (https://github.com/pavius/impi/issues/5) files.
-    $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal --skip '/c\.go$' --skip 'mock_' --skip 'go/proto/.*\.capnp\.go' --skip 'go/proto/structs.gen.go' ./go/... || ret=1
+    $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal \
+        --skip 'mock_' \
+        --skip 'go/proto/.*\.capnp\.go' \
+        --skip 'go/proto/structs.gen.go' \
+        --skip 'go/protobuf/.*\.pb\.go' \
+        ./go/... || ret=1
     $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal ./acceptance/... || ret=1
     lint_step "gofmt"
     # TODO(sustrik): At the moment there are no bazel rules for gofmt.
@@ -317,7 +320,7 @@ go_lint() {
     out=$($GOSDK/gofmt -d -s $LOCAL_DIRS ./acceptance);
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     lint_step "linelen (lll)"
-    out=$($TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:' < $TMPDIR/gofiles.list);
+    out=$($TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:|`sql:"|gorm:"|`json:"|`yaml:' < $TMPDIR/gofiles.list);
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     lint_step "misspell"
     xargs -a $TMPDIR/gofiles.list $TMPDIR/misspell -error || ret=1

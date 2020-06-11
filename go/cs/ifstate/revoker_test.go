@@ -16,7 +16,13 @@ package ifstate
 
 import (
 	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/asn1"
 	"fmt"
+	"math/big"
 	"net"
 	"os"
 	"sync"
@@ -31,19 +37,20 @@ import (
 	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/matchers"
+	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -70,8 +77,8 @@ func TestMain(m *testing.M) {
 // nothing.
 func TestNoRevocationIssued(t *testing.T) {
 	topoProvider := itopotest.TopoProviderFromFile(t, "testdata/topology.json")
-	_, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
-	xtest.FailOnErr(t, err)
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
 	signer := createTestSigner(t, priv)
 	Convey("TestNoRevocationIssued", t, func() {
 		mctrl := gomock.NewController(t)
@@ -101,8 +108,9 @@ func TestNoRevocationIssued(t *testing.T) {
 // revoked.
 func TestRevokeInterface(t *testing.T) {
 	topoProvider := itopotest.TopoProviderFromFile(t, "testdata/topology.json")
-	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
-	xtest.FailOnErr(t, err)
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	pub := priv.Public()
 	signer := createTestSigner(t, priv)
 	Convey("TestRevokeInterface", t, func() {
 		mctrl := gomock.NewController(t)
@@ -113,7 +121,7 @@ func TestRevokeInterface(t *testing.T) {
 		activateAll(intfs)
 		intfs.Get(101).lastActivate = time.Now().Add(-expireTime)
 		revInserter.EXPECT().InsertRevocations(gomock.Any(), &matchers.SignedRevs{
-			Verifier: revVerifier(pub),
+			Verifier: revVerifier{pubKey: pub},
 			MatchRevs: []path_mgmt.RevInfo{{
 				RawIsdas: ia.IAInt(), IfID: 101, LinkType: proto.LinkType_peer},
 			},
@@ -135,7 +143,7 @@ func TestRevokeInterface(t *testing.T) {
 		defer cancelF()
 		revoker.Run(ctx)
 		checkInterfaces(intfs, map[common.IFIDType]State{101: Revoked})
-		checkSentMessages(t, revVerifier(pub))
+		checkSentMessages(t, revVerifier{pubKey: pub})
 	})
 }
 
@@ -143,8 +151,8 @@ func TestRevokeInterface(t *testing.T) {
 // shouldn't be revoked again.
 func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 	topoProvider := itopotest.TopoProviderFromFile(t, "testdata/topology.json")
-	_, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
-	xtest.FailOnErr(t, err)
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
 	signer := createTestSigner(t, priv)
 	Convey("TestRevokedInterfaceNotRevokedImmediately", t, func() {
 		mctrl := gomock.NewController(t)
@@ -188,8 +196,9 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 // started it should be revoked again.
 func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 	topoProvider := itopotest.TopoProviderFromFile(t, "testdata/topology.json")
-	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
-	xtest.FailOnErr(t, err)
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	pub := priv.Public()
 	signer := createTestSigner(t, priv)
 	Convey("TestRevokedInterfaceRevokedAgain", t, func() {
 		mctrl := gomock.NewController(t)
@@ -209,7 +218,7 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 		xtest.FailOnErr(t, err)
 		intfs.Get(101).SetRevocation(srev)
 		revInserter.EXPECT().InsertRevocations(gomock.Any(), &matchers.SignedRevs{
-			Verifier: revVerifier(pub),
+			Verifier: revVerifier{pubKey: pub},
 			MatchRevs: []path_mgmt.RevInfo{{
 				RawIsdas: ia.IAInt(), IfID: 101, LinkType: proto.LinkType_peer},
 			},
@@ -233,7 +242,7 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 		// gomock tests that no calls to the messenger are made.
 		checkInterfaces(intfs, map[common.IFIDType]State{101: Revoked})
 		SoMsg("Revocation should be different", intfs.Get(101).Revocation(), ShouldNotEqual, srev)
-		checkSentMessages(t, revVerifier(pub))
+		checkSentMessages(t, revVerifier{pubKey: pub})
 	})
 }
 
@@ -350,26 +359,37 @@ func activateAll(intfs *Interfaces) {
 	}
 }
 
-func createTestSigner(t *testing.T, key common.RawBytes) infra.Signer {
-	signer, err := trust.NewSigner(
-		trust.SignerConf{
-			ChainVer: 42,
-			TRCVer:   21,
-			Validity: scrypto.Validity{NotAfter: util.UnixTime{Time: time.Now().Add(time.Hour)}},
-			Key: keyconf.Key{
-				Type:      keyconf.PrivateKey,
-				Algorithm: scrypto.Ed25519,
-				Bytes:     key,
-				ID:        keyconf.ID{IA: xtest.MustParseIA("1-ff00:0:84")},
-			},
+func createTestSigner(t *testing.T, key crypto.Signer) ctrl.Signer {
+	return trust.Signer{
+		PrivateKey: key,
+		IA:         xtest.MustParseIA("1-ff00:0:84"),
+		TRCID: cppki.TRCID{
+			ISD:    1,
+			Base:   1,
+			Serial: 21,
 		},
-	)
-	require.NoError(t, err)
-	return signer
+		SubjectKeyID: []byte("skid"),
+		Expiration:   time.Now().Add(time.Hour),
+	}
 }
 
-type revVerifier []byte
+type revVerifier struct {
+	pubKey crypto.PublicKey
+}
 
 func (v revVerifier) Verify(_ context.Context, msg []byte, sign *proto.SignS) error {
-	return scrypto.Verify(sign.SigInput(msg, false), sign.Signature, []byte(v), scrypto.Ed25519)
+	return verifyecdsa(sign.SigInput(msg, false), sign.Signature, v.pubKey)
+}
+
+func verifyecdsa(input, signature []byte, pubKey crypto.PublicKey) error {
+	var ecdsaSig struct {
+		R, S *big.Int
+	}
+	if _, err := asn1.Unmarshal(signature, &ecdsaSig); err != nil {
+		return err
+	}
+	if !ecdsa.Verify(pubKey.(*ecdsa.PublicKey), input, ecdsaSig.R, ecdsaSig.S) {
+		return serrors.New("verification failure")
+	}
+	return nil
 }

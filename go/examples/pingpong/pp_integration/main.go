@@ -33,7 +33,7 @@ func main() {
 }
 
 func realMain() int {
-	if err := integration.Init("pp_integration"); err != nil {
+	if err := integration.Init(); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}

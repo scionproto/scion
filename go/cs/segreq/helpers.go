@@ -20,24 +20,22 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
 
 // CoreChecker checks whether a given ia is core.
 type CoreChecker struct {
-	Inspector infra.ASInspector
+	Inspector trust.Inspector
 }
 
 func (c *CoreChecker) IsCore(ctx context.Context, ia addr.IA) (bool, error) {
 	if ia.IsWildcard() {
 		return true, nil
 	}
-	return c.Inspector.HasAttributes(ctx, ia, infra.ASInspectorOpts{
-		RequiredAttributes: []infra.Attribute{infra.Core},
-	})
+	return c.Inspector.HasAttributes(ctx, ia, trust.Core)
 }
 
 func segsToRecs(ctx context.Context, segs segfetcher.Segments) []*seg.Meta {

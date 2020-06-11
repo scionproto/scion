@@ -20,8 +20,8 @@ import sys
 from urllib.parse import urlsplit
 
 # SCION
-from lib.scion_addr import ISD_AS
-from topology.net import AddressProxy
+from python.lib.scion_addr import ISD_AS
+from python.topology.net import AddressProxy
 
 COMMON_DIR = 'endhost'
 

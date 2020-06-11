@@ -23,16 +23,17 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/pkg/trust"
 )
 
 // HandlerArgs are the values required to create the path server's handlers.
 type HandlerArgs struct {
-	PathDB          pathdb.PathDB
-	RevCache        revcache.RevCache
-	ASInspector     infra.ASInspector
-	VerifierFactory infra.VerificationFactory
-	QueryInterval   time.Duration
-	IA              addr.IA
-	TopoProvider    topology.Provider
-	SegRequestAPI   segfetcher.RequestAPI
+	PathDB        pathdb.PathDB
+	RevCache      revcache.RevCache
+	ASInspector   trust.Inspector
+	Verifier      infra.Verifier
+	QueryInterval time.Duration
+	IA            addr.IA
+	TopoProvider  topology.Provider
+	SegRequestAPI segfetcher.RequestAPI
 }

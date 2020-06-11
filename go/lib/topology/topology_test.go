@@ -559,6 +559,13 @@ func TestRawAddrMap_ToTopoAddr(t *testing.T) {
 	}
 }
 
+func TestServiceNamesGetRandom(t *testing.T) {
+	names := ServiceNames(nil)
+	name, err := names.GetRandom()
+	assert.Error(t, err)
+	assert.Empty(t, name)
+}
+
 func MustLoadTopo(t *testing.T, filename string) *RWTopology {
 	topo, err := RWTopologyFromJSONFile(filename)
 	require.NoError(t, err, "Error loading config from '%s': %v", filename, err)

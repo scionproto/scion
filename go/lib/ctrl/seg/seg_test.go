@@ -94,7 +94,7 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 		xtest.FailOnErr(t, err)
 		id, fullId := getIds(t, pseg)
 		for i, entry := range asEntries {
-			pseg.AddASEntry(entry, keyPairs[i])
+			pseg.AddASEntry(context.Background(), entry, keyPairs[i])
 
 			// Check that adding an AS entry modifies the segment id.
 			newId, newFullId := getIds(t, pseg)
@@ -126,14 +126,14 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 	Convey("When adding an AS entry fails, the segment is not affected", t, func() {
 		pseg, err := NewSeg(&spath.InfoField{ISD: 1, TsInt: 13})
 		xtest.FailOnErr(t, err)
-		err = pseg.AddASEntry(asEntries[0], keyPairs[0])
+		err = pseg.AddASEntry(context.Background(), asEntries[0], keyPairs[0])
 		SoMsg("AddASEntry err", err, ShouldBeNil)
 		raw, err := pseg.Pack()
 		SoMsg("Pack seg err", err, ShouldBeNil)
 		copySeg, err := NewBeaconFromRaw(raw)
 		SoMsg("Parse seg err", err, ShouldBeNil)
 		Convey("Invalid ASEntry causes an error", func() {
-			err := pseg.AddASEntry(nil, keyPairs[1])
+			err := pseg.AddASEntry(context.Background(), nil, keyPairs[1])
 			SoMsg("err", err, ShouldNotBeNil)
 			id, fullId := getIds(t, pseg)
 			copyId, copyFullId := getIds(t, copySeg)
@@ -145,8 +145,9 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			signer := mock_seg.NewMockSigner(ctrl)
-			signer.EXPECT().Sign(gomock.Any()).Times(1).Return(nil, errors.New("fail"))
-			err := pseg.AddASEntry(asEntries[1], signer)
+			signer.EXPECT().Sign(gomock.Any(), gomock.Any()).Times(1).
+				Return(nil, errors.New("fail"))
+			err := pseg.AddASEntry(context.Background(), asEntries[1], signer)
 			SoMsg("err", err, ShouldNotBeNil)
 			id, fullId := getIds(t, pseg)
 			copyId, copyFullId := getIds(t, copySeg)
@@ -180,7 +181,7 @@ func newKeyPair(t *testing.T) *keyPair {
 	}
 }
 
-func (t *keyPair) Sign(packedSegment []byte) (*proto.SignS, error) {
+func (t *keyPair) Sign(_ context.Context, packedSegment []byte) (*proto.SignS, error) {
 	sign := &proto.SignS{
 		Src: []byte{1, 4, 4, 2},
 	}

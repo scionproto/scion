@@ -16,6 +16,7 @@
 package session
 
 import (
+	"context"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -269,7 +270,7 @@ func (sm *sessMonitor) sendReq() {
 		sm.logger.Error("sessMonitor: Error creating Ctrl payload", "err", err)
 		return
 	}
-	scpld, err := cpld.SignedPld(infra.NullSigner)
+	scpld, err := cpld.SignedPld(context.TODO(), infra.NullSigner)
 	if err != nil {
 		sm.logger.Error("sessMonitor: Error creating signed Ctrl payload", "err", err)
 		return

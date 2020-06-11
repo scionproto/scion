@@ -29,9 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/scrypto/cert"
-	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -144,8 +141,8 @@ const (
 	SegReply
 	SignedRev
 	SegSync
-	ChainIssueRequest
-	ChainIssueReply
+	ChainRenewalRequest
+	ChainRenewalReply
 	Ack
 	HPSegReg
 	HPSegRequest
@@ -192,10 +189,10 @@ func (mt MessageType) String() string {
 		return "SignedRev"
 	case SegSync:
 		return "SegSync"
-	case ChainIssueRequest:
-		return "ChainIssueRequest"
-	case ChainIssueReply:
-		return "ChainIssueReply"
+	case ChainRenewalRequest:
+		return "ChainRenewalRequest"
+	case ChainRenewalReply:
+		return "ChainRenewalReply"
 	case Ack:
 		return "Ack"
 	case HPSegReg:
@@ -253,9 +250,9 @@ func (mt MessageType) MetricLabel() string {
 		return "revoction_push"
 	case SegSync:
 		return "seg_sync_push"
-	case ChainIssueRequest:
+	case ChainRenewalRequest:
 		return "chain_issue_req"
-	case ChainIssueReply:
+	case ChainRenewalReply:
 		return "chain_issue_push"
 	case Ack:
 		return "ack_push"
@@ -356,12 +353,12 @@ type Messenger interface {
 	GetHPCfgs(ctx context.Context, msg *path_mgmt.HPCfgReq, a net.Addr,
 		id uint64) (*path_mgmt.HPCfgReply, error)
 	SendHPCfgReply(ctx context.Context, msg *path_mgmt.HPCfgReply, a net.Addr, id uint64) error
-	RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
-		id uint64) (*cert_mgmt.ChainIssRep, error)
-	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep, a net.Addr,
+	RequestChainRenewal(ctx context.Context, msg *cert_mgmt.ChainRenewalRequest, a net.Addr,
+		id uint64) (*cert_mgmt.ChainRenewalReply, error)
+	SendChainRenewalReply(ctx context.Context, msg *cert_mgmt.ChainRenewalReply, a net.Addr,
 		id uint64) error
 	SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr, id uint64) error
-	UpdateSigner(signer Signer, types []MessageType)
+	UpdateSigner(signer ctrl.Signer, types []MessageType)
 	UpdateVerifier(verifier Verifier)
 	AddHandler(msgType MessageType, h Handler)
 	ListenAndServe()
@@ -372,7 +369,7 @@ type ResponseWriter interface {
 	SendAckReply(ctx context.Context, msg *ack.Ack) error
 	SendTRCReply(ctx context.Context, msg *cert_mgmt.TRC) error
 	SendCertChainReply(ctx context.Context, msg *cert_mgmt.Chain) error
-	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep) error
+	SendChainRenewalReply(ctx context.Context, msg *cert_mgmt.ChainRenewalReply) error
 	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply) error
 	SendIfStateInfoReply(ctx context.Context, msg *path_mgmt.IFStateInfos) error
 	SendHPSegReply(ctx context.Context, msg *path_mgmt.HPSegReply) error
@@ -395,23 +392,6 @@ type Error struct {
 
 func (e *Error) Error() string {
 	return fmt.Sprintf("rpc: error from remote: %q", e.Message.ErrDesc)
-}
-
-// SignerMeta indicates what signature metadata the signer uses as a basis
-// when creating signatures.
-type SignerMeta struct {
-	// Src is the signature source, containing the certificate chain version.
-	Src ctrl.SignSrcDef
-	// ExpTime indicates the expiration time of the certificate chain.
-	ExpTime time.Time
-	// Algo indicates the signing algorithm.
-	Algo string
-}
-
-// Signer is a signer leveraging the control-plane PKI certificates.
-type Signer interface {
-	ctrl.Signer
-	Meta() SignerMeta
 }
 
 // SignatureTimestampRange configures the range a signature timestamp is
@@ -443,128 +423,19 @@ type Verifier interface {
 	WithSignatureTimestampRange(timestampRange SignatureTimestampRange) Verifier
 }
 
-// TrustStore is the interface to interact with the control-plane PKI.
-type TrustStore interface {
-	ASInspector
-	CryptoHandlerFactory
-	VerificationFactory
-}
-
-// ExtendedTrustStore extends the TrustStore interface to allow for more interactions.
-// Regular infra services should use the TrustStore interface instead.
-type ExtendedTrustStore interface {
-	ASInspector
-	VerificationFactory
-	ExtendedCryptoHandlerFactory
-	CryptoMaterialProvider
-}
-
-// ASInspector provides information about primary ASes.
-type ASInspector interface {
-	// ByAttributes returns a list of primary ASes in the specified ISD that
-	// hold all the requested attributes.
-	ByAttributes(ctx context.Context, isd addr.ISD, args ASInspectorOpts) ([]addr.IA, error)
-	// HasAttributes indicates whether an AS holds all the specified attributes.
-	// The first return value is always false for non-primary ASes.
-	HasAttributes(ctx context.Context, ia addr.IA, args ASInspectorOpts) (bool, error)
-}
-
-// CryptoHandlerFactory provides handlers for incoming crypto material requests.
-type CryptoHandlerFactory interface {
-	NewTRCReqHandler(recurseAllowed bool) Handler
-	NewChainReqHandler(recurseAllowed bool) Handler
-}
-
-// VerificationFactory provides objects for message signing and verification
-// based on control-plane PKI certificates.
-type VerificationFactory interface {
-	NewSigner(key common.RawBytes, meta SignerMeta) (Signer, error)
-	NewVerifier() Verifier
-}
-
-// ExtendedCryptoHandlerFactory provides handlers for incoming crypto material
-// requests, and crypto material pushes.
-type ExtendedCryptoHandlerFactory interface {
-	CryptoHandlerFactory
-	NewChainPushHandler() Handler
-	NewTRCPushHandler() Handler
-}
-
-// CryptoMaterialProvider provides crypto material.
-type CryptoMaterialProvider interface {
-	// GetChain returns a valid certificate chain or an error. If the chain is
-	// not found locally, it is requested over the network unless LocalOnly is set.
-	GetChain(ctx context.Context, ia addr.IA, version scrypto.Version, opts ChainOpts) (
-		*cert.Chain, error)
-	// GetTRC returns a valid and active TRC or an error. If the TRC is not
-	// found locally, it is requested over the network unless LocalOnly is set.
-	GetTRC(ctx context.Context, isd addr.ISD, version scrypto.Version, opts TRCOpts) (
-		*trc.TRC, error)
-}
-
-// TrustStoreOpts contains the base options when interacting with the trust store.
-type TrustStoreOpts struct {
-	// Server provides an address where the store should send crypto material
-	// requests, if they are not available locally. If it is not set, the
-	// trust store does its own server resolution.
-	Server net.Addr
-	// Client indicates the peer who sent this request to the trust store, if
-	// applicable.
-	Client net.Addr
-	// LocalOnly indicates that the store should only check locally.
-	LocalOnly bool
-}
-
-// ASInspectorOpts contains the options for request about primary ASes.
-type ASInspectorOpts struct {
-	TrustStoreOpts
-	// RequiredAttributes is a list off all attributes the primary AS must have.
-	RequiredAttributes []Attribute
-}
-
-// ChainOpts contains the options when fetching certificate chains.
-type ChainOpts struct {
-	TrustStoreOpts
-	// AllowInactive allows retrieving chains authenticated by no longer
-	// active TRCs.
-	AllowInactive bool
-}
-
-// TRCOpts contains the options when fetching TRCs.
-type TRCOpts struct {
-	TrustStoreOpts
-	// AllowInactive allows retrieving verified TRCs that are no longer active.
-	AllowInactive bool
-}
-
-// Core is the place holder core attribute. TODO(roosd): remove
-const (
-	Authoritative Attribute = iota
-	Core
-	Issuing
-	Voting
-)
-
-// Attribute is a place holder for new the primary AS attributes. TODO(roosd): remove
-type Attribute int
-
 var (
 	// NullSigner is a Signer that creates SignedPld's with no signature.
-	NullSigner Signer = nullSigner{}
+	NullSigner ctrl.Signer = nullSigner{}
 	// NullSigVerifier ignores signatures on all messages.
 	NullSigVerifier Verifier = nullSigVerifier{}
 )
 
-var _ Signer = nullSigner{}
+var _ ctrl.Signer = nullSigner{}
 
 type nullSigner struct{}
 
-func (nullSigner) Sign(raw []byte) (*proto.SignS, error) {
+func (nullSigner) Sign(context.Context, []byte) (*proto.SignS, error) {
 	return &proto.SignS{}, nil
-}
-
-func (nullSigner) Meta() SignerMeta {
-	return SignerMeta{}
 }
 
 var _ Verifier = nullSigVerifier{}

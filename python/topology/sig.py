@@ -19,8 +19,8 @@ import os
 # External packages
 import toml
 # SCION
-from lib.util import write_file
-from topology.common import (
+from python.lib.util import write_file
+from python.topology.common import (
     ArgsBase,
     DOCKER_USR_VOL,
     json_default,
@@ -29,8 +29,8 @@ from topology.common import (
     SD_API_PORT,
     SIG_CONFIG_NAME
 )
-from topology.net import socket_address_str
-from topology.prometheus import SIG_PROM_PORT
+from python.topology.net import socket_address_str
+from python.topology.prometheus import SIG_PROM_PORT
 
 
 class SIGGenArgs(ArgsBase):
@@ -167,7 +167,10 @@ class SIGGenerator(object):
             },
             'metrics': {
                 'prometheus': '0.0.0.0:%s' % SIG_PROM_PORT
-            }
+            },
+            'features': {
+                'sig_egress_v2': True,
+            },
         }
         path = os.path.join(topo_id.base_dir(self.args.output_dir), name, SIG_CONFIG_NAME)
         write_file(path, toml.dumps(sig_conf))

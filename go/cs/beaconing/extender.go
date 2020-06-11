@@ -15,6 +15,7 @@
 package beaconing
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -47,8 +48,8 @@ func (cfg ExtenderConf) new() (*segExtender, error) {
 // if any, including the flags byte. A zero ingress interface indicates, that
 // the created AS entry is the initial entry. A zero egress interface indicates,
 // that the segment is terminated.
-func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDType,
-	peers []common.IFIDType) error {
+func (s *segExtender) extend(ctx context.Context, pseg *seg.PathSegment,
+	inIfid, egIfid common.IFIDType, peers []common.IFIDType) error {
 
 	if inIfid == 0 && egIfid == 0 {
 		return serrors.New("Ingress and egress must not be both 0")
@@ -66,11 +67,8 @@ func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDTy
 	if err != nil {
 		return err
 	}
-	meta := s.cfg.Signer.Meta()
 	asEntry := &seg.ASEntry{
-		RawIA:      meta.Src.IA.IAInt(),
-		CertVer:    meta.Src.ChainVer,
-		TrcVer:     meta.Src.TRCVer,
+		RawIA:      s.cfg.IA.IAInt(),
 		IfIDSize:   s.cfg.IfidSize,
 		MTU:        s.cfg.MTU,
 		HopEntries: hopEntries,
@@ -80,7 +78,7 @@ func (s *segExtender) extend(pseg *seg.PathSegment, inIfid, egIfid common.IFIDTy
 		staticInfo := s.cfg.StaticInfoCfg.generateStaticinfo(staticInfoPeers, egIfid, inIfid)
 		asEntry.Exts.StaticInfo = &staticInfo
 	}
-	if err := pseg.AddASEntry(asEntry, s.cfg.Signer); err != nil {
+	if err := pseg.AddASEntry(ctx, asEntry, s.cfg.Signer); err != nil {
 		return err
 	}
 	if egIfid == 0 {
@@ -163,23 +161,10 @@ func (s *segExtender) remoteInfo(ifid common.IFIDType) (
 func (s *segExtender) createHopF(inIfid, egIfid common.IFIDType, prev common.RawBytes,
 	ts time.Time) (*spath.HopField, error) {
 
-	meta := s.cfg.Signer.Meta()
-	diff := meta.ExpTime.Sub(ts)
-	if diff < 1*time.Hour {
-		log.Warn("Signer expiration time is near", "task", s.cfg.task, "ts", ts,
-			"chainExpiration", meta.ExpTime, "src", meta.Src)
-	}
-	expiry, err := spath.ExpTimeFromDuration(diff, false)
-	if err != nil {
-		min := ts.Add(spath.ExpTimeType(0).ToDuration())
-		return nil, common.NewBasicError("Chain does not cover minimum hop expiration time", nil,
-			"minimumExpiration", min, "chainExpiration", meta.ExpTime, "src", meta.Src)
-	}
-	expiry = min(expiry, s.cfg.GetMaxExpTime())
 	hop := &spath.HopField{
 		ConsIngress: inIfid,
 		ConsEgress:  egIfid,
-		ExpTime:     expiry,
+		ExpTime:     s.cfg.GetMaxExpTime(),
 	}
 	if prev != nil {
 		// Do not include the flags of the hop field in the mac input.

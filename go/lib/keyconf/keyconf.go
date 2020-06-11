@@ -21,28 +21,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"golang.org/x/crypto/ed25519"
-
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 const (
 	MasterKey0 = "master0.key"
 	MasterKey1 = "master1.key"
-
-	// FIXME(roosd): removed unused keys above.
-
-	ASSigKeyFile = "as-signing.key"
-	ASDecKeyFile = "as-decrypt.key"
-	ASRevKeyFile = "as-revocation.key"
-
-	IssuerRevKeyFile  = "issuer-revocation.key"
-	IssuerCertKeyFile = "issuer-cert-signing.key"
-
-	TRCOnlineKeyFile  = "trc-online.key"
-	TRCOfflineKeyFile = "trc-offline.key"
-	TRCIssuingKeyFile = "trc-issuing.key"
 
 	RawKey = "raw"
 )
@@ -54,7 +38,7 @@ const (
 	ErrUnknown common.ErrMsg = "Unknown algorithm"
 )
 
-// LoadKey decodes a base64 encoded key stored in file and returns the raw bytes.
+// loadKey decodes a base64 encoded key stored in file and returns the raw bytes.
 func loadKey(file string, algo string) (common.RawBytes, error) {
 	b, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -66,14 +50,10 @@ func loadKey(file string, algo string) (common.RawBytes, error) {
 		return nil, common.NewBasicError(ErrParse, err)
 	}
 	dbuf = dbuf[:n]
-	switch strings.ToLower(algo) {
-	case RawKey, scrypto.Curve25519xSalsa20Poly1305:
-		return dbuf, nil
-	case scrypto.Ed25519:
-		return common.RawBytes(ed25519.NewKeyFromSeed(dbuf)), nil
-	default:
+	if strings.ToLower(algo) != RawKey {
 		return nil, common.NewBasicError(ErrUnknown, nil, "algo", algo)
 	}
+	return dbuf, nil
 }
 
 type Master struct {

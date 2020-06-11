@@ -72,8 +72,8 @@ func fingerprint(interfaces []snet.PathInterface) snet.PathFingerprint {
 	}
 	h := sha256.New()
 	for _, intf := range interfaces {
-		binary.Write(h, binary.BigEndian, intf.IA().IAInt())
-		binary.Write(h, binary.BigEndian, intf.ID())
+		binary.Write(h, common.Order, intf.IA().IAInt())
+		binary.Write(h, common.Order, intf.ID())
 	}
 	return snet.PathFingerprint(h.Sum(nil))
 }

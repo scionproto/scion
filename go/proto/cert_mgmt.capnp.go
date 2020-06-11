@@ -15,12 +15,12 @@ type CertChainReq struct{ capnp.Struct }
 const CertChainReq_TypeID = 0xc464d1e0777e54d3
 
 func NewCertChainReq(s *capnp.Segment) (CertChainReq, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 0})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
 	return CertChainReq{st}, err
 }
 
 func NewRootCertChainReq(s *capnp.Segment) (CertChainReq, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 0})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1})
 	return CertChainReq{st}, err
 }
 
@@ -42,20 +42,26 @@ func (s CertChainReq) SetIsdas(v uint64) {
 	s.Struct.SetUint64(0, v)
 }
 
-func (s CertChainReq) Version() uint64 {
-	return s.Struct.Uint64(8)
+func (s CertChainReq) SubjectKeyID() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return []byte(p.Data()), err
 }
 
-func (s CertChainReq) SetVersion(v uint64) {
-	s.Struct.SetUint64(8, v)
+func (s CertChainReq) HasSubjectKeyID() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
 }
 
-func (s CertChainReq) CacheOnly() bool {
-	return s.Struct.Bit(128)
+func (s CertChainReq) SetSubjectKeyID(v []byte) error {
+	return s.Struct.SetData(0, v)
 }
 
-func (s CertChainReq) SetCacheOnly(v bool) {
-	s.Struct.SetBit(128, v)
+func (s CertChainReq) Date() int64 {
+	return int64(s.Struct.Uint64(8))
+}
+
+func (s CertChainReq) SetDate(v int64) {
+	s.Struct.SetUint64(8, uint64(v))
 }
 
 // CertChainReq_List is a list of CertChainReq.
@@ -63,7 +69,7 @@ type CertChainReq_List struct{ capnp.List }
 
 // NewCertChainReq creates a new list of CertChainReq.
 func NewCertChainReq_List(s *capnp.Segment, sz int32) (CertChainReq_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 0}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 1}, sz)
 	return CertChainReq_List{l}, err
 }
 
@@ -109,18 +115,29 @@ func (s CertChain) String() string {
 	return str
 }
 
-func (s CertChain) Chain() ([]byte, error) {
+func (s CertChain) Chains() (capnp.DataList, error) {
 	p, err := s.Struct.Ptr(0)
-	return []byte(p.Data()), err
+	return capnp.DataList{List: p.List()}, err
 }
 
-func (s CertChain) HasChain() bool {
+func (s CertChain) HasChains() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s CertChain) SetChain(v []byte) error {
-	return s.Struct.SetData(0, v)
+func (s CertChain) SetChains(v capnp.DataList) error {
+	return s.Struct.SetPtr(0, v.List.ToPtr())
+}
+
+// NewChains sets the chains field to a newly
+// allocated capnp.DataList, preferring placement in s's segment.
+func (s CertChain) NewChains(n int32) (capnp.DataList, error) {
+	l, err := capnp.NewDataList(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.DataList{}, err
+	}
+	err = s.Struct.SetPtr(0, l.List.ToPtr())
+	return l, err
 }
 
 // CertChain_List is a list of CertChain.
@@ -149,138 +166,200 @@ func (p CertChain_Promise) Struct() (CertChain, error) {
 	return CertChain{s}, err
 }
 
-type CertChainIssReq struct{ capnp.Struct }
+type CertChainRenewalRequest struct{ capnp.Struct }
 
-// CertChainIssReq_TypeID is the unique identifier for the type CertChainIssReq.
-const CertChainIssReq_TypeID = 0xb2de94224c009676
+// CertChainRenewalRequest_TypeID is the unique identifier for the type CertChainRenewalRequest.
+const CertChainRenewalRequest_TypeID = 0xea940d53315b1f26
 
-func NewCertChainIssReq(s *capnp.Segment) (CertChainIssReq, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return CertChainIssReq{st}, err
+func NewCertChainRenewalRequest(s *capnp.Segment) (CertChainRenewalRequest, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return CertChainRenewalRequest{st}, err
 }
 
-func NewRootCertChainIssReq(s *capnp.Segment) (CertChainIssReq, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return CertChainIssReq{st}, err
+func NewRootCertChainRenewalRequest(s *capnp.Segment) (CertChainRenewalRequest, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return CertChainRenewalRequest{st}, err
 }
 
-func ReadRootCertChainIssReq(msg *capnp.Message) (CertChainIssReq, error) {
+func ReadRootCertChainRenewalRequest(msg *capnp.Message) (CertChainRenewalRequest, error) {
 	root, err := msg.RootPtr()
-	return CertChainIssReq{root.Struct()}, err
+	return CertChainRenewalRequest{root.Struct()}, err
 }
 
-func (s CertChainIssReq) String() string {
-	str, _ := text.Marshal(0xb2de94224c009676, s.Struct)
+func (s CertChainRenewalRequest) String() string {
+	str, _ := text.Marshal(0xea940d53315b1f26, s.Struct)
 	return str
 }
 
-func (s CertChainIssReq) Cert() ([]byte, error) {
+func (s CertChainRenewalRequest) Csr() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	return []byte(p.Data()), err
 }
 
-func (s CertChainIssReq) HasCert() bool {
+func (s CertChainRenewalRequest) HasCsr() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s CertChainIssReq) SetCert(v []byte) error {
+func (s CertChainRenewalRequest) SetCsr(v []byte) error {
 	return s.Struct.SetData(0, v)
 }
 
-// CertChainIssReq_List is a list of CertChainIssReq.
-type CertChainIssReq_List struct{ capnp.List }
-
-// NewCertChainIssReq creates a new list of CertChainIssReq.
-func NewCertChainIssReq_List(s *capnp.Segment, sz int32) (CertChainIssReq_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return CertChainIssReq_List{l}, err
+func (s CertChainRenewalRequest) Sign() (Sign, error) {
+	p, err := s.Struct.Ptr(1)
+	return Sign{Struct: p.Struct()}, err
 }
 
-func (s CertChainIssReq_List) At(i int) CertChainIssReq { return CertChainIssReq{s.List.Struct(i)} }
+func (s CertChainRenewalRequest) HasSign() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
 
-func (s CertChainIssReq_List) Set(i int, v CertChainIssReq) error {
+func (s CertChainRenewalRequest) SetSign(v Sign) error {
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+}
+
+// NewSign sets the sign field to a newly
+// allocated Sign struct, preferring placement in s's segment.
+func (s CertChainRenewalRequest) NewSign() (Sign, error) {
+	ss, err := NewSign(s.Struct.Segment())
+	if err != nil {
+		return Sign{}, err
+	}
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	return ss, err
+}
+
+// CertChainRenewalRequest_List is a list of CertChainRenewalRequest.
+type CertChainRenewalRequest_List struct{ capnp.List }
+
+// NewCertChainRenewalRequest creates a new list of CertChainRenewalRequest.
+func NewCertChainRenewalRequest_List(s *capnp.Segment, sz int32) (CertChainRenewalRequest_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	return CertChainRenewalRequest_List{l}, err
+}
+
+func (s CertChainRenewalRequest_List) At(i int) CertChainRenewalRequest {
+	return CertChainRenewalRequest{s.List.Struct(i)}
+}
+
+func (s CertChainRenewalRequest_List) Set(i int, v CertChainRenewalRequest) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-func (s CertChainIssReq_List) String() string {
-	str, _ := text.MarshalList(0xb2de94224c009676, s.List)
+func (s CertChainRenewalRequest_List) String() string {
+	str, _ := text.MarshalList(0xea940d53315b1f26, s.List)
 	return str
 }
 
-// CertChainIssReq_Promise is a wrapper for a CertChainIssReq promised by a client call.
-type CertChainIssReq_Promise struct{ *capnp.Pipeline }
+// CertChainRenewalRequest_Promise is a wrapper for a CertChainRenewalRequest promised by a client call.
+type CertChainRenewalRequest_Promise struct{ *capnp.Pipeline }
 
-func (p CertChainIssReq_Promise) Struct() (CertChainIssReq, error) {
+func (p CertChainRenewalRequest_Promise) Struct() (CertChainRenewalRequest, error) {
 	s, err := p.Pipeline.Struct()
-	return CertChainIssReq{s}, err
+	return CertChainRenewalRequest{s}, err
 }
 
-type CertChainIssRep struct{ capnp.Struct }
-
-// CertChainIssRep_TypeID is the unique identifier for the type CertChainIssRep.
-const CertChainIssRep_TypeID = 0xc95b16276878cfc1
-
-func NewCertChainIssRep(s *capnp.Segment) (CertChainIssRep, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return CertChainIssRep{st}, err
+func (p CertChainRenewalRequest_Promise) Sign() Sign_Promise {
+	return Sign_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
-func NewRootCertChainIssRep(s *capnp.Segment) (CertChainIssRep, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return CertChainIssRep{st}, err
+type CertChainRenewalReply struct{ capnp.Struct }
+
+// CertChainRenewalReply_TypeID is the unique identifier for the type CertChainRenewalReply.
+const CertChainRenewalReply_TypeID = 0xdae1e8ddea5e99b5
+
+func NewCertChainRenewalReply(s *capnp.Segment) (CertChainRenewalReply, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return CertChainRenewalReply{st}, err
 }
 
-func ReadRootCertChainIssRep(msg *capnp.Message) (CertChainIssRep, error) {
+func NewRootCertChainRenewalReply(s *capnp.Segment) (CertChainRenewalReply, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return CertChainRenewalReply{st}, err
+}
+
+func ReadRootCertChainRenewalReply(msg *capnp.Message) (CertChainRenewalReply, error) {
 	root, err := msg.RootPtr()
-	return CertChainIssRep{root.Struct()}, err
+	return CertChainRenewalReply{root.Struct()}, err
 }
 
-func (s CertChainIssRep) String() string {
-	str, _ := text.Marshal(0xc95b16276878cfc1, s.Struct)
+func (s CertChainRenewalReply) String() string {
+	str, _ := text.Marshal(0xdae1e8ddea5e99b5, s.Struct)
 	return str
 }
 
-func (s CertChainIssRep) Chain() ([]byte, error) {
+func (s CertChainRenewalReply) Chain() ([]byte, error) {
 	p, err := s.Struct.Ptr(0)
 	return []byte(p.Data()), err
 }
 
-func (s CertChainIssRep) HasChain() bool {
+func (s CertChainRenewalReply) HasChain() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s CertChainIssRep) SetChain(v []byte) error {
+func (s CertChainRenewalReply) SetChain(v []byte) error {
 	return s.Struct.SetData(0, v)
 }
 
-// CertChainIssRep_List is a list of CertChainIssRep.
-type CertChainIssRep_List struct{ capnp.List }
-
-// NewCertChainIssRep creates a new list of CertChainIssRep.
-func NewCertChainIssRep_List(s *capnp.Segment, sz int32) (CertChainIssRep_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return CertChainIssRep_List{l}, err
+func (s CertChainRenewalReply) Sign() (Sign, error) {
+	p, err := s.Struct.Ptr(1)
+	return Sign{Struct: p.Struct()}, err
 }
 
-func (s CertChainIssRep_List) At(i int) CertChainIssRep { return CertChainIssRep{s.List.Struct(i)} }
+func (s CertChainRenewalReply) HasSign() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
 
-func (s CertChainIssRep_List) Set(i int, v CertChainIssRep) error {
+func (s CertChainRenewalReply) SetSign(v Sign) error {
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+}
+
+// NewSign sets the sign field to a newly
+// allocated Sign struct, preferring placement in s's segment.
+func (s CertChainRenewalReply) NewSign() (Sign, error) {
+	ss, err := NewSign(s.Struct.Segment())
+	if err != nil {
+		return Sign{}, err
+	}
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	return ss, err
+}
+
+// CertChainRenewalReply_List is a list of CertChainRenewalReply.
+type CertChainRenewalReply_List struct{ capnp.List }
+
+// NewCertChainRenewalReply creates a new list of CertChainRenewalReply.
+func NewCertChainRenewalReply_List(s *capnp.Segment, sz int32) (CertChainRenewalReply_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	return CertChainRenewalReply_List{l}, err
+}
+
+func (s CertChainRenewalReply_List) At(i int) CertChainRenewalReply {
+	return CertChainRenewalReply{s.List.Struct(i)}
+}
+
+func (s CertChainRenewalReply_List) Set(i int, v CertChainRenewalReply) error {
 	return s.List.SetStruct(i, v.Struct)
 }
 
-func (s CertChainIssRep_List) String() string {
-	str, _ := text.MarshalList(0xc95b16276878cfc1, s.List)
+func (s CertChainRenewalReply_List) String() string {
+	str, _ := text.MarshalList(0xdae1e8ddea5e99b5, s.List)
 	return str
 }
 
-// CertChainIssRep_Promise is a wrapper for a CertChainIssRep promised by a client call.
-type CertChainIssRep_Promise struct{ *capnp.Pipeline }
+// CertChainRenewalReply_Promise is a wrapper for a CertChainRenewalReply promised by a client call.
+type CertChainRenewalReply_Promise struct{ *capnp.Pipeline }
 
-func (p CertChainIssRep_Promise) Struct() (CertChainIssRep, error) {
+func (p CertChainRenewalReply_Promise) Struct() (CertChainRenewalReply, error) {
 	s, err := p.Pipeline.Struct()
-	return CertChainIssRep{s}, err
+	return CertChainRenewalReply{s}, err
+}
+
+func (p CertChainRenewalReply_Promise) Sign() Sign_Promise {
+	return Sign_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
 type TRCReq struct{ capnp.Struct }
@@ -289,12 +368,12 @@ type TRCReq struct{ capnp.Struct }
 const TRCReq_TypeID = 0xd4c43f7ac10a9dbc
 
 func NewTRCReq(s *capnp.Segment) (TRCReq, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 0})
 	return TRCReq{st}, err
 }
 
 func NewRootTRCReq(s *capnp.Segment) (TRCReq, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 24, PointerCount: 0})
 	return TRCReq{st}, err
 }
 
@@ -316,20 +395,20 @@ func (s TRCReq) SetIsd(v uint16) {
 	s.Struct.SetUint16(0, v)
 }
 
-func (s TRCReq) Version() uint64 {
+func (s TRCReq) Base() uint64 {
 	return s.Struct.Uint64(8)
 }
 
-func (s TRCReq) SetVersion(v uint64) {
+func (s TRCReq) SetBase(v uint64) {
 	s.Struct.SetUint64(8, v)
 }
 
-func (s TRCReq) CacheOnly() bool {
-	return s.Struct.Bit(16)
+func (s TRCReq) Serial() uint64 {
+	return s.Struct.Uint64(16)
 }
 
-func (s TRCReq) SetCacheOnly(v bool) {
-	s.Struct.SetBit(16, v)
+func (s TRCReq) SetSerial(v uint64) {
+	s.Struct.SetUint64(16, v)
 }
 
 // TRCReq_List is a list of TRCReq.
@@ -337,7 +416,7 @@ type TRCReq_List struct{ capnp.List }
 
 // NewTRCReq creates a new list of TRCReq.
 func NewTRCReq_List(s *capnp.Segment, sz int32) (TRCReq_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 0}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 24, PointerCount: 0}, sz)
 	return TRCReq_List{l}, err
 }
 
@@ -427,17 +506,17 @@ type CertMgmt struct{ capnp.Struct }
 type CertMgmt_Which uint16
 
 const (
-	CertMgmt_Which_unset           CertMgmt_Which = 0
-	CertMgmt_Which_certChainReq    CertMgmt_Which = 1
-	CertMgmt_Which_certChain       CertMgmt_Which = 2
-	CertMgmt_Which_trcReq          CertMgmt_Which = 3
-	CertMgmt_Which_trc             CertMgmt_Which = 4
-	CertMgmt_Which_certChainIssReq CertMgmt_Which = 5
-	CertMgmt_Which_certChainIssRep CertMgmt_Which = 6
+	CertMgmt_Which_unset                   CertMgmt_Which = 0
+	CertMgmt_Which_certChainReq            CertMgmt_Which = 1
+	CertMgmt_Which_certChain               CertMgmt_Which = 2
+	CertMgmt_Which_trcReq                  CertMgmt_Which = 3
+	CertMgmt_Which_trc                     CertMgmt_Which = 4
+	CertMgmt_Which_certChainRenewalRequest CertMgmt_Which = 5
+	CertMgmt_Which_certChainRenewalReply   CertMgmt_Which = 6
 )
 
 func (w CertMgmt_Which) String() string {
-	const s = "unsetcertChainReqcertChaintrcReqtrccertChainIssReqcertChainIssRep"
+	const s = "unsetcertChainReqcertChaintrcReqtrccertChainRenewalRequestcertChainRenewalReply"
 	switch w {
 	case CertMgmt_Which_unset:
 		return s[0:5]
@@ -449,10 +528,10 @@ func (w CertMgmt_Which) String() string {
 		return s[26:32]
 	case CertMgmt_Which_trc:
 		return s[32:35]
-	case CertMgmt_Which_certChainIssReq:
-		return s[35:50]
-	case CertMgmt_Which_certChainIssRep:
-		return s[50:65]
+	case CertMgmt_Which_certChainRenewalRequest:
+		return s[35:58]
+	case CertMgmt_Which_certChainRenewalReply:
+		return s[58:79]
 
 	}
 	return "CertMgmt_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -621,15 +700,15 @@ func (s CertMgmt) NewTrc() (TRC, error) {
 	return ss, err
 }
 
-func (s CertMgmt) CertChainIssReq() (CertChainIssReq, error) {
+func (s CertMgmt) CertChainRenewalRequest() (CertChainRenewalRequest, error) {
 	if s.Struct.Uint16(0) != 5 {
-		panic("Which() != certChainIssReq")
+		panic("Which() != certChainRenewalRequest")
 	}
 	p, err := s.Struct.Ptr(0)
-	return CertChainIssReq{Struct: p.Struct()}, err
+	return CertChainRenewalRequest{Struct: p.Struct()}, err
 }
 
-func (s CertMgmt) HasCertChainIssReq() bool {
+func (s CertMgmt) HasCertChainRenewalRequest() bool {
 	if s.Struct.Uint16(0) != 5 {
 		return false
 	}
@@ -637,32 +716,32 @@ func (s CertMgmt) HasCertChainIssReq() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s CertMgmt) SetCertChainIssReq(v CertChainIssReq) error {
+func (s CertMgmt) SetCertChainRenewalRequest(v CertChainRenewalRequest) error {
 	s.Struct.SetUint16(0, 5)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
-// NewCertChainIssReq sets the certChainIssReq field to a newly
-// allocated CertChainIssReq struct, preferring placement in s's segment.
-func (s CertMgmt) NewCertChainIssReq() (CertChainIssReq, error) {
+// NewCertChainRenewalRequest sets the certChainRenewalRequest field to a newly
+// allocated CertChainRenewalRequest struct, preferring placement in s's segment.
+func (s CertMgmt) NewCertChainRenewalRequest() (CertChainRenewalRequest, error) {
 	s.Struct.SetUint16(0, 5)
-	ss, err := NewCertChainIssReq(s.Struct.Segment())
+	ss, err := NewCertChainRenewalRequest(s.Struct.Segment())
 	if err != nil {
-		return CertChainIssReq{}, err
+		return CertChainRenewalRequest{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
-func (s CertMgmt) CertChainIssRep() (CertChainIssRep, error) {
+func (s CertMgmt) CertChainRenewalReply() (CertChainRenewalReply, error) {
 	if s.Struct.Uint16(0) != 6 {
-		panic("Which() != certChainIssRep")
+		panic("Which() != certChainRenewalReply")
 	}
 	p, err := s.Struct.Ptr(0)
-	return CertChainIssRep{Struct: p.Struct()}, err
+	return CertChainRenewalReply{Struct: p.Struct()}, err
 }
 
-func (s CertMgmt) HasCertChainIssRep() bool {
+func (s CertMgmt) HasCertChainRenewalReply() bool {
 	if s.Struct.Uint16(0) != 6 {
 		return false
 	}
@@ -670,18 +749,18 @@ func (s CertMgmt) HasCertChainIssRep() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s CertMgmt) SetCertChainIssRep(v CertChainIssRep) error {
+func (s CertMgmt) SetCertChainRenewalReply(v CertChainRenewalReply) error {
 	s.Struct.SetUint16(0, 6)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
-// NewCertChainIssRep sets the certChainIssRep field to a newly
-// allocated CertChainIssRep struct, preferring placement in s's segment.
-func (s CertMgmt) NewCertChainIssRep() (CertChainIssRep, error) {
+// NewCertChainRenewalReply sets the certChainRenewalReply field to a newly
+// allocated CertChainRenewalReply struct, preferring placement in s's segment.
+func (s CertMgmt) NewCertChainRenewalReply() (CertChainRenewalReply, error) {
 	s.Struct.SetUint16(0, 6)
-	ss, err := NewCertChainIssRep(s.Struct.Segment())
+	ss, err := NewCertChainRenewalReply(s.Struct.Segment())
 	if err != nil {
-		return CertChainIssRep{}, err
+		return CertChainRenewalReply{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
@@ -729,63 +808,69 @@ func (p CertMgmt_Promise) Trc() TRC_Promise {
 	return TRC_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p CertMgmt_Promise) CertChainIssReq() CertChainIssReq_Promise {
-	return CertChainIssReq_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p CertMgmt_Promise) CertChainRenewalRequest() CertChainRenewalRequest_Promise {
+	return CertChainRenewalRequest_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p CertMgmt_Promise) CertChainIssRep() CertChainIssRep_Promise {
-	return CertChainIssRep_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p CertMgmt_Promise) CertChainRenewalReply() CertChainRenewalReply_Promise {
+	return CertChainRenewalReply_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-const schema_ec3b2b10a5e23975 = "x\xda\x94\x93OH\x14o\x18\xc7\x9f\xef\xfb\xce\xee\xfe" +
-	"\xf6\x87\x833\xecT\x04\xc6\x92\x10\x81A\xa4\x9e4b" +
-	"\xad\xcd\x83\xa0\xe4\xbbx\x08:\xc42\x0e\xeeF\x8e\xeb" +
-	"\xceh\x7f\x0e\x16\x1d\xba\xd6!:\x04\x1d\x0a<J\x11" +
-	"\x05\x15\x1e\x12\x16\xca(\xd222\xa8\xc8\xe8RX\xd0" +
-	")\xca\xec\x8dw\xb6udW\xb2n\xef\xbc\xef\xf7\xf9" +
-	"\xf0|\x9f\xe7;\xbb\xc6\xd0\xc1\x9a#C\x8cH4D" +
-	"\xa2\xf2\xc5\xd7\xf1\xcc\x97\xa6\xcf\x97\xc84 G\xda\xde" +
-	"\x8d\x1b;v/R\x041\xa2\xc4\x16\\Ml\x0bN" +
-	"[\x91\"\xc8\xb6\xf9\xc5\xb37\x0b\xe7\xaf\x900\xb0J" +
-	"\xdc\x89\x98\xd2\xec\xc5\xc3D\x8fR\xb7v\xe1\x1c\x08r" +
-	"S|\xf3X\xf2\xfe\xc4\xc4Z\xe8\x05\xf64\xf1\x89\xa9" +
-	"\xd3\x07\x96\",\x8d^\xecn\xbc\xf0\xe6F\xad\xb25" +
-	"\xce\x19\x12\x1b\xb8\x92\x9a\\u\xf1\xaco\xec\xd8\xdb\xd9" +
-	"\xfe\x92\xea\x82\x87jM)\x9a\xf9\xc7\xc4\x9e@\xdb\xc6" +
-	"\xaf\x11\xe4\xd4\x93\xe3\xb9\xed\x1b\x0fM\xaf\xd1B\xebs" +
-	"\x05^\x08\xc4\xaf\x03\xf0\xe4\xe5\xff\xa7N\xa6Js\x0a" +
-	"\xcc\xaa\xc0\xcb\xfcn\"\x12\x9c\xa0)\xb0\xed\x14\xfd\xc3" +
-	"\x83\x03\x83\xf0w\xda\xd9\x82[h\x8f\xf5e\xd2\xbd\x80" +
-	"\xd0\xb8F\xa4\x81\xc8\xd4\x1b\x89\xc4\x7f\x1c\xc2b\x88\xf9" +
-	"E\x1b:1\xe8\xabjY\xa56\xed\x14\xfd\x9e\x81A" +
-	"\x9fH\x11\x1a\xb8V'e\x80\xb8\xd5B$\xaes\x88" +
-	"I\x06\x1d?\xa5\x05u{\xe7\x08\x91\xb8\xcd!J\x0c" +
-	":[\x96\x16\x18\x919\x95!\x12\xf78\xc4#\x06\x9d" +
-	"\xff\x90\x168\x919\xddN$J\x1cb\x86A\xd7\x96" +
-	"\xa4\x05\x8d\xc8|\xacZ{\xc0!\xe6\x18\xf4\xc8wi" +
-	"!Bd\xce\x9e!\x123\x1c\xe2\x15\x83\x1e\xfd&-" +
-	"D\x89\xcc\x97\xeav\x9eC\xbcgH\x8e\xb8\x9e\xe3S" +
-	"4\xb0\x90\xcee\xf3T\xeff\x9ca\x18\xe1R\x080" +
-	"~{\x0c\x04pa\x84I(\xbf\xa6\xfc\xa2].[" +
-	"\x19y\xf9!\x18\x93\x11f\xb2\x0a\x06\xb7\xcb\xf32\xce" +
-	"0\xc1\xa8\x04fmE\x81`\x84\xbb_\xa5\xa9\x19{" +
-	"\xb9\xa8jq-\xe1\xe2\x92v.\x9bwkV\xc7\xab" +
-	"\x19\x95\xce\xaaHM!\xa9^\xd5\xfe9\x03\x0a\x14\x0c" +
-	"TQ\xeaV(\x9d\xaa\x9f\x0e\x0e\xd1\xcd`\x02\xe5\x10" +
-	"t\xed#\x12\xfb9D/\x83\xc9N\x973\xd0\xa32" +
-	"\xd0\xcd!\x0e2$\xf3^\x7f\xd6C\x9c\x18\xe2\x84S" +
-	"\xa3N\xd1\xcb\x0f\xb9\x95oig\xed\x9cs\xc0=J" +
-	"8\x01\x10\x03\xd6wW\xa0\x7f\x9e\xd3\xca\xef\x91\xea\xcb" +
-	"\xa4k\x8d5\xaek\xcc\xa85\x16\xcb{\xfd\x88\x11C" +
-	"\xec\xefl\xfd\x0a\x00\x00\xff\xff\x02\xdd>\x87"
+const schema_ec3b2b10a5e23975 = "x\xda\x84\x92]H4U\x1c\xc6\xff\xcf9\xb3;*" +
+	"\x8e;\xc3,D`,\x8aE\x1a\x86\x1f\xdd\xb8]\xac" +
+	"\xb5\x0aInx\xa6\xbd\x08\x82b\xdc\x1dt\xc5\xdd\xd6" +
+	"\x9dY\xc4.\x84 \xba\xad\x0bo\x0a\xba\xa8\xf0R\x8a" +
+	"H\xa8\xf0\"c\xa3\x8c\x84,\xa3\x0f\x10\xac\xab\x12\x09" +
+	"\x84\"\xfa\x9c8\xb3\xee\xce\xbe\xa3\xef\xeb\xdda\xe6\xf7" +
+	"\x7f\xfe\xcf9\xcf3\xf6\x16\xa6\xd9x\xec9F$\xfa" +
+	"cq\xff\xdb?\xb6\xad\x8b\x91__#C\x87_\x9f" +
+	"\xfai[\x7f\xe0\xe1s\x8aA%2\xef\xc1\x9b\xe6\xbd" +
+	"\xc1i\x00\x19\x82?\xf5\xdd\xf9K\xefU_y\x83\x84" +
+	"\x8e\x0ex\x16\xaad\x1e\xc1\xe7fN\xd2\x93sx\x19" +
+	"\x04\xff\xae\xee\xbb7S\x9f\xee\xec\\'\xfd\x0b\xfb\xca" +
+	"\xfc\x9d\xc9\xd3\x05\x93\xd2_\xe77\xd7O\x8f\x8a\x0d)" +
+	"\xcd\xa2\xf0\x00?3G\xb9<\x0d\xf3\xb7\x09\xfe\xde\xeb" +
+	"=\xfb\xcfg\x1a\xc7\x12\xe6!\xacH\xe2\x13\xfe\xa1y" +
+	"\x18\xb0\x07\x01\xbb\xfb\xea3g'?\xff\xf8C\xc4\x84" +
+	"\\=i+\x130\xd7\x82\xb1\xb2\xb2N\xf0\xefK=" +
+	"=\xfe\xa4\xb6uv\x1d|\xa0<\x0a\xf3\xfb\x00\xfe&" +
+	"\x80\x0bN\xcd{\xb6\xbcT\x86\xf7`\xc1\xaeV\xaai" +
+	"5oe\x17\x00\xa1p\x85H\x01\x91\xa1\x0d\x12\x89." +
+	"\x0e\x91dP\xbdZ\x01\x1a1h\x1d\xb3\xac5\x9bu" +
+	"j^n\xa9\xec\x11I\x85~\xae\xf4\xfa~ \xb1;" +
+	"A$\xde\xe1\x10{\x0c\x1a\xfe\xf3\x93\x90_?X!" +
+	"\x12\xefs\x88\x06\x83\xc6\xfe\xf5\x93`D\xc6\xbeE$" +
+	">\xe2\x10_0h\xfc\x1f?\x09Nd\x1c\xa4\x89D" +
+	"\x83C|\xc9\xa0)\x7f\xfbI(D\xc6\xa1\xb4\xf6\x19" +
+	"\x878f\xd0b\x7f\xf9I\xc4\x88\x8c\xa3\x8f\x89\xc41" +
+	"\x878e\xd0\xe2\x7f\xfaI\xc4\x89\x8c\x93w\x89\xc4)" +
+	"\x878gH\xd5+\xae\xe3Q<\xb8Bv\xd9.Q" +
+	"\xa2b9k\xd0\xc3\x08\x09\xd0/\xef\x18\x00\xa8@\x0f" +
+	"\xcb\xd0\xfc\x9b\xf1j\x85\xe6X;\xcc\xe6\x8f\xe0\x99\xf4" +
+	"\xb0\x96\x111V\xb1\x9c\x8a\xb3n\xafZ\xceZ\xddq" +
+	"=\x82\x1e\xa6\x16a\xd1bS\x96S]\xdd\x80\x1e\x96" +
+	"\xa1\x83\xbc\x12Cs4\x12d\xfa2\xc8!\x86La" +
+	"\xd9.U\\\xf4\x11\x168\x82H\xfb\xee\xa4\x15\xbc\x8f" +
+	"\x94\xebm\xcb\xcd\xcaP\xa79\xc4<\x03\xd0\x8ctN" +
+	"F\xfa\x18\x87\xc83\x18\x0c\xcdD\xc5\x08\x91\x98\xe7\x10" +
+	"O1\xa4Jn\xd1v\xd1M\x0c\xdd\x04\xdf\xad/\xae" +
+	"8\x05\xefqJ8\x1bs3\xadf%\x8a\xb6\xe7 " +
+	"F\x0c\xb1\xeb*\x9a\xc9[\xd9\xabn\x06C7F\xdb" +
+	"\x8e\xdc<\xc3!\x16\xa4\x1d\xd6\xb4\x93K\x87\x1e\xd5\x92" +
+	"[\x84J\x0c*!\xb1h\xbbN\xcbY\xc6uj%" +
+	"{\xb5m\xb4e\x82G\x1f\xe6\xd6x\xa4\xa7\xae\xb6\xa7" +
+	"a\xf9BC\x1cb\xac\xc3\xd3\xa8\xf4t?\x87x\x88" +
+	"!\x15\xa4\xd0\xbe\xb6[Z\x92-\xeby\xe1\x89\xdf\x8a" +
+	"[\xb9\x17\xa3\x01+\xb7\xdb\xdd\xaaQd\xfb\xe0\x0d\xdb" +
+	"\xd5\x82[\xbba\xf7\xff\x01\x00\x00\xff\xff\xba\x0c]b"
 
 func init() {
 	schemas.Register(schema_ec3b2b10a5e23975,
 		0x9aee2af152a5f7d7,
 		0xa19070b486ecd839,
 		0xadadc71f7e190917,
-		0xb2de94224c009676,
 		0xc464d1e0777e54d3,
-		0xc95b16276878cfc1,
-		0xd4c43f7ac10a9dbc)
+		0xd4c43f7ac10a9dbc,
+		0xdae1e8ddea5e99b5,
+		0xea940d53315b1f26)
 }

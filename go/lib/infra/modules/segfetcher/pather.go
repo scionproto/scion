@@ -123,7 +123,7 @@ func (p *Pather) filterRevoked(ctx context.Context,
 			// so a cache hit implies revocation is still active.
 			revs, err := p.RevCache.Get(ctx, revcache.SingleKey(iface.IA(), iface.IfID))
 			if err != nil {
-				logger.Error("[segutil.Pather] Failed to get revocation", "err", err)
+				logger.Error("[segfetcher.Pather] Failed to get revocation", "err", err)
 				// continue, the client might still get some usable paths like this.
 			}
 			revoked = revoked || len(revs) > 0
@@ -133,8 +133,8 @@ func (p *Pather) filterRevoked(ctx context.Context,
 		}
 	}
 	if len(paths) != len(newPaths) {
-		logger.Trace("[segutil.Pather] Filtered paths with revocations",
-			"all", paths, "revoked", len(paths)-len(newPaths))
+		logger.Trace("[segfetcher.Pather] Filtered paths with revocations",
+			"all", len(paths), "revoked", len(paths)-len(newPaths))
 	}
 	return newPaths, nil
 }

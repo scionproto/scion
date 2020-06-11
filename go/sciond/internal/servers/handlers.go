@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
 	"github.com/scionproto/scion/go/sciond/internal/metrics"
@@ -96,7 +97,7 @@ func (h *PathRequestHandler) Handle(ctx context.Context, conn net.Conn, src net.
 // ASInfoRequest queries. The SCIOND API spawns a goroutine with method Handle
 // for each ASInfoRequest it receives.
 type ASInfoRequestHandler struct {
-	ASInspector infra.ASInspector
+	ASInspector trust.Inspector
 }
 
 func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.Conn, src net.Addr,
@@ -121,8 +122,7 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.Conn, src ne
 		mtu = uint16(topo.MTU())
 	}
 	var entries []sciond.ASInfoReplyEntry
-	opts := infra.ASInspectorOpts{RequiredAttributes: []infra.Attribute{infra.Core}}
-	if core, err := h.ASInspector.HasAttributes(workCtx, reqIA, opts); err != nil {
+	if core, err := h.ASInspector.HasAttributes(workCtx, reqIA, trust.Core); err != nil {
 		// FIXME(scrye): return a zero AS because the protocol doesn't
 		// support errors, but we probably want to return an error here in
 		// the future.
@@ -258,7 +258,7 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.Conn,
 // for each RevNotification it receives.
 type RevNotificationHandler struct {
 	RevCache         revcache.RevCache
-	VerifierFactory  infra.VerificationFactory
+	Verifier         infra.Verifier
 	NextQueryCleaner segfetcher.NextQueryCleaner
 }
 
@@ -323,7 +323,7 @@ func (h *RevNotificationHandler) verifySRevInfo(ctx context.Context,
 	if err != nil {
 		return nil, serrors.New("Unable to extract RevInfo")
 	}
-	err = segverifier.VerifyRevInfo(ctx, h.VerifierFactory.NewVerifier(), nil, sRevInfo)
+	err = segverifier.VerifyRevInfo(ctx, h.Verifier, nil, sRevInfo)
 	return info, err
 }
 

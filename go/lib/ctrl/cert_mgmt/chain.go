@@ -16,30 +16,73 @@
 package cert_mgmt
 
 import (
+	"crypto/x509"
 	"fmt"
+	"strings"
 
-	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/proto"
 )
 
 var _ proto.Cerealizable = (*Chain)(nil)
 
+// Chain is a message that contains certificate chains.
 type Chain struct {
-	RawChain []byte `capnp:"chain"`
+	RawChains [][]byte `capnp:"chains"`
 }
 
+// NewChain creates a new chain message containing the given chains.
+func NewChain(chains [][]*x509.Certificate) *Chain {
+	rawChains := make([][]byte, 0, len(chains))
+	for _, chain := range chains {
+		rawChain := make([]byte, 0, len(chain[0].Raw)+len(chain[1].Raw))
+		rawChain = append(rawChain, chain[0].Raw...)
+		rawChain = append(rawChain, chain[1].Raw...)
+		rawChains = append(rawChains, rawChain)
+	}
+	return &Chain{RawChains: rawChains}
+}
+
+// Chains parses and validates the raw chains encoded in this message.
+func (c *Chain) Chains() ([][]*x509.Certificate, error) {
+	chains := make([][]*x509.Certificate, 0, len(c.RawChains))
+	for i, rawChain := range c.RawChains {
+		chain, err := x509.ParseCertificates(rawChain)
+		if err != nil {
+			return nil, serrors.WrapStr("couldn't parse chain", err, "index", i)
+		}
+		if err := cppki.ValidateChain(chain); err != nil {
+			return nil, serrors.WrapStr("invalid chain", err, "index", i)
+		}
+		chains = append(chains, chain)
+	}
+	return chains, nil
+}
+
+// ProtoId returns the capnp type ID.
 func (c *Chain) ProtoId() proto.ProtoIdType {
 	return proto.CertChain_TypeID
 }
 
 func (c *Chain) String() string {
-	raw, err := cert.ParseChain(c.RawChain)
+	chains, err := c.Chains()
 	if err != nil {
-		return fmt.Sprintf("Invalid CertificateChain: %v", err)
+		return fmt.Sprintf("Invalid Chains: %v", err)
 	}
-	as, err := raw.AS.Encoded.Decode()
+	printableChains := make([]string, 0, len(chains))
+	for _, chain := range chains {
+		printableChains = append(printableChains, chainString(chain))
+	}
+	return fmt.Sprintf("chains:\n%s", strings.Join(printableChains, "\n"))
+}
+
+func chainString(chain []*x509.Certificate) string {
+	ia, err := cppki.ExtractIA(chain[0].Subject)
 	if err != nil {
-		return fmt.Sprintf("Invalid AS certificate: %v", err)
+		// should have been validated in c.Chains().
+		panic(err)
 	}
-	return fmt.Sprintf("ISD%d-AS%s-V%d", as.Subject.I, as.Subject.A, as.Version)
+	return fmt.Sprintf("IA: %s, SubjectKeyID: %x, Validity: [%s, %s]", *ia,
+		chain[0].SubjectKeyId, chain[0].NotBefore, chain[0].NotAfter)
 }

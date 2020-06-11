@@ -22,8 +22,8 @@ import os
 from io import StringIO
 
 # SCION
-from lib.util import write_file
-from topology.common import (
+from python.lib.util import write_file
+from python.topology.common import (
     ArgsTopoDicts,
     BR_CONFIG_NAME,
     COMMON_DIR,

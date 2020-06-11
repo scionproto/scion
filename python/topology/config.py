@@ -25,28 +25,28 @@ import sys
 from io import StringIO
 
 # SCION
-from lib.defines import (
+from python.lib.defines import (
     DEFAULT_MTU,
     DEFAULT6_NETWORK,
     NETWORKS_FILE,
 )
-from lib.scion_addr import ISD_AS
-from lib.util import (
+from python.lib.scion_addr import ISD_AS
+from python.lib.util import (
     load_yaml_file,
     write_file,
 )
-from topology.cert import CertGenArgs, CertGenerator
-from topology.common import ArgsBase
-from topology.docker import DockerGenArgs, DockerGenerator
-from topology.go import GoGenArgs, GoGenerator
-from topology.jaeger import JaegerGenArgs, JaegerGenerator
-from topology.net import (
+from python.topology.cert import CertGenArgs, CertGenerator
+from python.topology.common import ArgsBase
+from python.topology.docker import DockerGenArgs, DockerGenerator
+from python.topology.go import GoGenArgs, GoGenerator
+from python.topology.jaeger import JaegerGenArgs, JaegerGenerator
+from python.topology.net import (
     SubnetGenerator,
     DEFAULT_NETWORK,
 )
-from topology.prometheus import PrometheusGenArgs, PrometheusGenerator
-from topology.supervisor import SupervisorGenArgs, SupervisorGenerator
-from topology.topo import TopoGenArgs, TopoGenerator
+from python.topology.prometheus import PrometheusGenArgs, PrometheusGenerator
+from python.topology.supervisor import SupervisorGenArgs, SupervisorGenerator
+from python.topology.topo import TopoGenArgs, TopoGenerator
 
 DEFAULT_TOPOLOGY_FILE = "topology/default.topo"
 
