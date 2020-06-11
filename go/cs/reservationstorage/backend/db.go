@@ -100,11 +100,9 @@ type Transaction interface {
 // DB is the interface for any reservation backend.
 type DB interface {
 	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
-
 	ReserverOnly
 	TransitOnly
 	ReserverAndTransit
-
 	db.LimitSetter
 	io.Closer
 }
