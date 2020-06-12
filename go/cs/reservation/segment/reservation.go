@@ -114,6 +114,15 @@ func (r *Reservation) NewIndex(expTime time.Time) (reservation.IndexNumber, erro
 	return r.Indices[len(r.Indices)-1].Idx, nil
 }
 
+// Index finds the Index with that IndexNumber and returns a pointer to it.
+func (r *Reservation) Index(idx reservation.IndexNumber) (*Index, error) {
+	sliceIndex, err := base.FindIndex(r.Indices, idx)
+	if err != nil {
+		return nil, err
+	}
+	return &r.Indices[sliceIndex], nil
+}
+
 // SetIndexConfirmed sets the index as IndexPending (confirmed but not active). If the requested
 // index has state active, it will emit an error.
 func (r *Reservation) SetIndexConfirmed(idx reservation.IndexNumber) error {
