@@ -43,7 +43,7 @@ const (
 		max_bw	INTEGER NOT NULL,
 		alloc_bw	INTEGER NOT NULL,
 		token	BLOB,
-		PRIMARY KEY(Reservation,index_number),
+		PRIMARY KEY(reservation,index_number),
 		FOREIGN KEY(reservation) REFERENCES seg_reservation(row_id) ON DELETE CASCADE
 	);
 	CREATE TABLE e2e_reservation (
