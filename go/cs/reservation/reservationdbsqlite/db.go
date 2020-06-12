@@ -17,6 +17,7 @@ package reservationdbsqlite
 import (
 	"context"
 	"database/sql"
+	"encoding/binary"
 	"sync"
 
 	"github.com/mattn/go-sqlite3"
@@ -179,7 +180,7 @@ func (x *executor) NewSegmentRsv(ctx context.Context, rsv *segment.Reservation) 
 			if err := insertNewSegReservation(ctx, tx, rsv, suffix); err != nil {
 				return err
 			}
-			common.Order.PutUint32(rsv.ID.Suffix[:], suffix)
+			binary.BigEndian.PutUint32(rsv.ID.Suffix[:], suffix)
 			return nil
 		})
 		if err == nil {
