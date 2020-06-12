@@ -176,6 +176,25 @@ func TestReservationValidate(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestIndex(t *testing.T) {
+	r := segmenttest.NewReservation()
+	expTime := time.Unix(1, 0)
+	r.NewIndex(expTime)
+	idx, _ := r.NewIndex(expTime)
+	r.NewIndex(expTime)
+	require.Len(t, r.Indices, 3)
+	index, err := r.Index(idx)
+	require.NoError(t, err)
+	require.Equal(t, &r.Indices[1], index)
+	_, err = r.Index(reservation.IndexNumber(4))
+	require.Error(t, err)
+	r.SetIndexConfirmed(idx)
+	r.SetIndexActive(idx)
+	index, err = r.Index(idx)
+	require.NoError(t, err)
+	require.Equal(t, &r.Indices[0], index)
+}
+
 func TestSetIndexConfirmed(t *testing.T) {
 	r := segmenttest.NewReservation()
 	expTime := time.Unix(1, 0)
