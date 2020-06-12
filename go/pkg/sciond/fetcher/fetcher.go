@@ -36,9 +36,9 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/sciond/config"
+	"github.com/scionproto/scion/go/pkg/sciond/internal/metrics"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/sciond/config"
-	"github.com/scionproto/scion/go/sciond/internal/metrics"
 )
 
 const (

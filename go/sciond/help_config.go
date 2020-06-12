@@ -1,4 +1,4 @@
-// Copyright 2019 Anapaya Systems
+// Copyright 2020 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metrics_test
+package main
 
 import (
-	"testing"
+	"os"
 
-	"github.com/scionproto/scion/go/lib/prom/promtest"
-	"github.com/scionproto/scion/go/sciond/internal/metrics"
+	"github.com/spf13/cobra"
+
+	"github.com/scionproto/scion/go/pkg/sciond/config"
 )
 
-func TestLabels(t *testing.T) {
-	promtest.CheckLabelsStruct(t, metrics.PathRequestLabels{})
-	promtest.CheckLabelsStruct(t, metrics.RevocationLabels{})
+func newHelpConfig() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "help-config",
+		Short: "Display sample configuration file",
+		Run: func(cmd *cobra.Command, args []string) {
+			(&config.Config{}).Sample(os.Stdout, nil, nil)
+		},
+	}
+	return cmd
 }
