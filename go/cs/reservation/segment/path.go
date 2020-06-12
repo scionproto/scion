@@ -15,6 +15,7 @@
 package segment
 
 import (
+	"encoding/binary"
 	"io"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -33,8 +34,8 @@ func NewPathFromRaw(buff []byte) Path {
 	p := make(Path, steps)
 	for i := 0; i < steps; i++ {
 		offset := i * PathStepWithIALen
-		p[i].Ingress = common.IFIDType(common.Order.Uint64(buff[offset:]))
-		p[i].Egress = common.IFIDType(common.Order.Uint64(buff[offset+8:]))
+		p[i].Ingress = common.IFIDType(binary.BigEndian.Uint64(buff[offset:]))
+		p[i].Egress = common.IFIDType(binary.BigEndian.Uint64(buff[offset+8:]))
 		p[i].IA = addr.IAFromRaw(buff[offset+16:])
 	}
 	return p
@@ -105,9 +106,9 @@ func (p *Path) Read(buff []byte) (int, error) {
 	}
 	for i, s := range *p {
 		offset := i * PathStepWithIALen
-		common.Order.PutUint64(buff[offset:], uint64(s.Ingress))
-		common.Order.PutUint64(buff[offset+8:], uint64(s.Egress))
-		common.Order.PutUint64(buff[offset+16:], uint64(s.IA.IAInt()))
+		binary.BigEndian.PutUint64(buff[offset:], uint64(s.Ingress))
+		binary.BigEndian.PutUint64(buff[offset+8:], uint64(s.Egress))
+		binary.BigEndian.PutUint64(buff[offset+16:], uint64(s.IA.IAInt()))
 	}
 	return p.Len(), nil
 }
