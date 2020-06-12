@@ -35,23 +35,29 @@ navigate_pubdir() {
 ###############
 
 start_docker() {
-    docker run --name crypto_lib \
+    name=${CONTAINER_NAME:-crypto_lib}
+
+    docker run --name $name \
         -v $(pwd):/workdir \
         -v $PLAYGROUND:/scripts \
         -d emberstack/openssl tail -f /dev/null
 }
 
 stop_docker() {
-    docker rm -f crypto_lib
+    name=${CONTAINER_NAME:-crypto_lib}
+
+    docker rm -f $name
 }
 
 docker_exec() {
+    name=${CONTAINER_NAME:-crypto_lib}
+
     docker exec \
         -e KEYDIR=$KEYDIR \
         -e PUBDIR=$PUBDIR \
         -e STARTDATE=$STARTDATE \
         -e ENDDATE=$ENDDATE \
-        crypto_lib \
+        $name \
         sh -c "set -e && . /scripts/crypto_lib.sh && $@"
 }
 
@@ -313,7 +319,7 @@ check_sensitive() {
 
 check_sensitive_type() {
 # LITERALINCLUDE check_sensitive_type START
-    scion-pki v2 certs validate --type sensitive-voting sensitive-voting.crt
+    scion-pki certs validate --type sensitive-voting sensitive-voting.crt
 # LITERALINCLUDE check_sensitive_type END
 }
 
@@ -346,7 +352,7 @@ check_regular() {
 
 check_regular_type() {
 # LITERALINCLUDE check_regular_type START
-    scion-pki v2 certs validate --type regular-voting regular-voting.crt
+    scion-pki certs validate --type regular-voting regular-voting.crt
 # LITERALINCLUDE check_regular_type END
 }
 
@@ -379,7 +385,7 @@ check_root() {
 
 check_root_type() {
 # LITERALINCLUDE check_root_type START
-    scion-pki v2 certs validate --type cp-root cp-root.crt
+    scion-pki certs validate --type cp-root cp-root.crt
 # LITERALINCLUDE check_root_type END
 }
 
@@ -412,7 +418,7 @@ check_ca() {
 
 check_ca_type() {
 # LITERALINCLUDE check_ca_type START
-    scion-pki v2 certs validate --type cp-ca cp-ca.crt
+    scion-pki certs validate --type cp-ca cp-ca.crt
 # LITERALINCLUDE check_ca_type END
 }
 
@@ -454,7 +460,7 @@ check_as() {
 
 check_as_type() {
 # LITERALINCLUDE check_as_type START
-    scion-pki v2 certs validate --type cp-as cp-as.crt
+    scion-pki certs validate --type cp-as cp-as.crt
 # LITERALINCLUDE check_as_type END
 }
 

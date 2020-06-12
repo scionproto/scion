@@ -60,7 +60,7 @@ const (
 	ErrTimeout = "err_timeout"
 	// ErrValidate is used for validation related errors.
 	ErrValidate = "err_validate"
-	// ErrVerify is used for validation related errors.
+	// ErrVerify is used for verification related errors.
 	ErrVerify = "err_verify"
 	// ErrNetwork is used for errors when sending something over the network.
 	ErrNetwork = "err_network"

@@ -11,6 +11,7 @@ go_library(
     deps = [
         "//go/lib/log:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
+        "@com_github_opentracing_opentracing_go//ext:go_default_library",
         "@com_github_uber_jaeger_client_go//:go_default_library",
     ],
 )

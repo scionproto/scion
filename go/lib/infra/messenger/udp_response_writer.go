@@ -44,10 +44,10 @@ func (rw *UDPResponseWriter) SendCertChainReply(ctx context.Context, msg *cert_m
 	return rw.Messenger.SendCertChain(ctx, msg, rw.Remote, rw.ID)
 }
 
-func (rw *UDPResponseWriter) SendChainIssueReply(ctx context.Context,
-	msg *cert_mgmt.ChainIssRep) error {
+func (rw *UDPResponseWriter) SendChainRenewalReply(ctx context.Context,
+	msg *cert_mgmt.ChainRenewalReply) error {
 
-	return rw.Messenger.SendChainIssueReply(ctx, msg, rw.Remote, rw.ID)
+	return rw.Messenger.SendChainRenewalReply(ctx, msg, rw.Remote, rw.ID)
 }
 
 func (rw *UDPResponseWriter) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply) error {

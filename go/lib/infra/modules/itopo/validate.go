@@ -18,9 +18,9 @@ import (
 	"reflect"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
+	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -90,7 +90,7 @@ func (v *generalValidator) Immutable(topo, oldTopo *topology.RWTopology) error {
 		return common.NewBasicError("IA is immutable", nil,
 			"expected", oldTopo.IA, "actual", topo.IA)
 	}
-	if !trc.Attributes(topo.Attributes).Equal(trc.Attributes(oldTopo.Attributes)) {
+	if !attributesEqual(topo.Attributes, oldTopo.Attributes) {
 		return common.NewBasicError("Attributes are immutable", nil,
 			"expected", oldTopo.Attributes, "actual", topo.Attributes)
 	}
@@ -177,4 +177,16 @@ func (v *brValidator) Immutable(topo, oldTopo *topology.RWTopology) error {
 			oldTopo.BR[v.id].CtrlAddrs, "actual", topo.BR[v.id].CtrlAddrs)
 	}
 	return nil
+}
+
+func attributesEqual(a, b []jsontopo.Attribute) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

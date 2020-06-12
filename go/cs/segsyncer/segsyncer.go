@@ -38,6 +38,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -64,10 +65,7 @@ type SegSyncer struct {
 func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Runner, error) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	primaryArgs := infra.ASInspectorOpts{
-		RequiredAttributes: []infra.Attribute{infra.Core},
-	}
-	coreASes, err := args.ASInspector.ByAttributes(ctx, args.IA.I, primaryArgs)
+	coreASes, err := args.ASInspector.ByAttributes(ctx, args.IA.I, trust.Core)
 	if err != nil {
 		return nil, common.NewBasicError("Failed to get local core ASes", err)
 	}
@@ -131,7 +129,7 @@ func (s *SegSyncer) Run(ctx context.Context) {
 func (s *SegSyncer) getDstAddr(ctx context.Context) (net.Addr, error) {
 	coreSegs, err := s.fetchCoreSegsFromDB(ctx)
 	if err != nil {
-		return nil, serrors.WrapStr("Failed to get core segs", err)
+		return nil, serrors.WrapStr("failed to get core segs", err)
 	}
 	if len(coreSegs) < 1 {
 		return nil, serrors.Wrap(errNoPaths, serrors.New("No core segments found!"))
@@ -162,7 +160,7 @@ func (s *SegSyncer) fetchCoreSegsFromDB(ctx context.Context) ([]*seg.PathSegment
 		return revcache.NoRevokedHopIntf(ctx, s.revCache, ps)
 	})
 	if err != nil {
-		return nil, serrors.WrapStr("Failed to filter segments",
+		return nil, serrors.WrapStr("failed to filter segments",
 			serrors.Wrap(errRevcache, err))
 	}
 	// Sort by number of hops, i.e. AS entries.

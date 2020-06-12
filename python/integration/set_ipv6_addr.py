@@ -20,7 +20,7 @@ import argparse
 from ipaddress import IPv6Address, IPv6Network, AddressValueError
 
 # SCION
-from lib.defines import (
+from python.lib.defines import (
     GEN_PATH,
     DEFAULT6_CLIENT,
     DEFAULT6_MASK,

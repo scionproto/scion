@@ -34,7 +34,6 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -172,11 +171,7 @@ func VerifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr
 	for i, asEntry := range segment.ASEntries {
 		// Bind the verifier to the values specified in the AS Entry since
 		// the sign meta does not carry this information.
-		verifier := verifier.WithServer(server).WithSrc(ctrl.SignSrcDef{
-			IA:       asEntry.IA(),
-			ChainVer: asEntry.CertVer,
-			TRCVer:   asEntry.TrcVer,
-		})
+		verifier := verifier.WithServer(server).WithIA(asEntry.IA())
 		if err := segment.VerifyASEntry(ctx, verifier, i); err != nil {
 			return serrors.Wrap(ErrSegment, err, "seg", segment,
 				"asEntry", asEntry, "sign", segment.RawASEntries[i].Sign)

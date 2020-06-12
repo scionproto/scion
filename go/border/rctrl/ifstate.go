@@ -15,6 +15,7 @@
 package rctrl
 
 import (
+	"context"
 	"time"
 
 	"github.com/scionproto/scion/go/border/internal/metrics"
@@ -62,7 +63,7 @@ func genIFStateReq() error {
 		metrics.Control.SentIFStateReq(cl).Inc()
 		return common.NewBasicError("Generating IFStateReq Ctrl payload", err)
 	}
-	scpld, err := cpld.SignedPld(infra.NullSigner)
+	scpld, err := cpld.SignedPld(context.TODO(), infra.NullSigner)
 	if err != nil {
 		metrics.Control.SentIFStateReq(cl).Inc()
 		return common.NewBasicError("Generating IFStateReq signed Ctrl payload", err)

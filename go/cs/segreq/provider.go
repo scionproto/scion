@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
@@ -31,12 +30,9 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
-
-// ErrNoConnectivity indicates that connectivity to the remote PS is not
-// available.
-const ErrNoConnectivity common.ErrMsg = "no connectivity to remote PS"
 
 // SegSelector selects segments to use for a connection to a remote server.
 type SegSelector struct {
@@ -67,7 +63,7 @@ func (s *SegSelector) SelectSeg(ctx context.Context,
 
 type nonCoreDstProvider struct {
 	SegSelector
-	inspector    infra.ASInspector
+	inspector    trust.Inspector
 	coreChecker  CoreChecker
 	localIA      addr.IA
 	pathDB       pathdb.PathDB
@@ -92,9 +88,7 @@ func (p *nonCoreDstProvider) Dst(ctx context.Context, req segfetcher.Request) (n
 		return p.coreSvcAddr(ctx, addr.SvcPS, []addr.IA{req.Src})
 	}
 	// for all other requests, i.e. down requests we can ask any core.
-	cores, err := p.inspector.ByAttributes(ctx, p.localIA.I, infra.ASInspectorOpts{
-		RequiredAttributes: []infra.Attribute{infra.Core},
-	})
+	cores, err := p.inspector.ByAttributes(ctx, p.localIA.I, trust.Core)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +105,7 @@ func (p *nonCoreDstProvider) coreSvcAddr(ctx context.Context, svc addr.HostSVC,
 	}
 	seg, err := p.SelectSeg(ctx, params)
 	if err != nil {
-		return nil, common.NewBasicError(ErrNoConnectivity, err)
+		return nil, serrors.Wrap(segfetcher.ErrNotReachable, err)
 	}
 	return addrutil.GetPath(svc, seg, p.topoProvider)
 }
@@ -139,7 +133,7 @@ func (p *coreDstProvider) corePSAddr(ctx context.Context, destISD addr.ISD) (net
 	}
 	seg, err := p.SelectSeg(ctx, params)
 	if err != nil {
-		return nil, common.NewBasicError(ErrNoConnectivity, err)
+		return nil, serrors.Wrap(segfetcher.ErrNotReachable, err)
 	}
 	return addrutil.GetPath(addr.SvcPS, seg, p.topoProvider)
 }

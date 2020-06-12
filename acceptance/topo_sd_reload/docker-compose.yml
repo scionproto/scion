@@ -20,7 +20,9 @@ services:
     image: bazel/acceptance/topo_sd_reload:sciond
     volumes:
     - vol_topo_sd_reload_disp:/run/shm/dispatcher:ro
+    - vol_topo_sd_reload_certs:/certs:ro
     network_mode: service:topo_sd_reload_dispatcher
 version: '2.4'
 volumes:
   vol_topo_sd_reload_disp: null
+  vol_topo_sd_reload_certs: null

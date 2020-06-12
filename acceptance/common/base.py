@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import logging
+import os
 
 from plumbum import cli
 from plumbum import local
@@ -50,7 +51,10 @@ class TestState:
 
         self.scion = scion
         self.dc = dc
-        self.artifacts = local.path(mktemp('-d').strip())
+        if 'TEST_UNDECLARED_OUTPUTS_DIR' in os.environ:
+            self.artifacts = local.path(os.environ['TEST_UNDECLARED_OUTPUTS_DIR'])
+        else:
+            self.artifacts = local.path(mktemp('-d').strip())
         self.no_docker = False
         self.tools_dc = local['./tools/dc']
 

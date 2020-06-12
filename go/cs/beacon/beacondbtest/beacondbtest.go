@@ -775,10 +775,10 @@ func AllocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId co
 	pseg, err := seg.NewSeg(info)
 	require.NoError(t, err)
 	signer := mock_seg.NewMockSigner(ctrl)
-	signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
+	signer.EXPECT().Sign(gomock.Any(), gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 		&proto.SignS{}, nil).AnyTimes()
 	for _, entry := range entries {
-		err := pseg.AddASEntry(entry, signer)
+		err := pseg.AddASEntry(context.Background(), entry, signer)
 		require.NoError(t, err)
 	}
 	segID, err := pseg.ID()

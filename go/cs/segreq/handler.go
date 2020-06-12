@@ -39,16 +39,16 @@ func NewHandler(args handlers.HandlerArgs) infra.Handler {
 	args.PathDB = createPathDB(args.PathDB, localInfo)
 	return &handler{
 		fetcher: segfetcher.FetcherConfig{
-			QueryInterval:       args.QueryInterval,
-			LocalIA:             args.IA,
-			VerificationFactory: args.VerifierFactory,
-			PathDB:              args.PathDB,
-			RevCache:            args.RevCache,
-			RequestAPI:          args.SegRequestAPI,
-			DstProvider:         CreateDstProvider(args, core),
-			Splitter:            &Splitter{ASInspector: args.ASInspector},
-			MetricsNamespace:    metrics.PSNamespace,
-			LocalInfo:           localInfo,
+			QueryInterval:    args.QueryInterval,
+			LocalIA:          args.IA,
+			Verifier:         args.Verifier,
+			PathDB:           args.PathDB,
+			RevCache:         args.RevCache,
+			RequestAPI:       args.SegRequestAPI,
+			DstProvider:      CreateDstProvider(args, core),
+			Splitter:         &Splitter{ASInspector: args.ASInspector},
+			MetricsNamespace: metrics.PSNamespace,
+			LocalInfo:        localInfo,
 		}.New(),
 		revCache: args.RevCache,
 	}

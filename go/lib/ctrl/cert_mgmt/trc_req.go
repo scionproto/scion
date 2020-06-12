@@ -17,23 +17,37 @@
 package cert_mgmt
 
 import (
-	"fmt"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/proto"
 )
 
 var _ proto.Cerealizable = (*TRCReq)(nil)
 
+// TRCReq is the capnp encodable TRC request.
 type TRCReq struct {
-	ISD       addr.ISD `capnp:"isd"`
-	Version   scrypto.Version
-	CacheOnly bool
+	ISD    addr.ISD        `capnp:"isd"`
+	Base   scrypto.Version `capnp:"base"`
+	Serial scrypto.Version `capnp:"serial"`
 }
 
-func (t *TRCReq) IA() addr.IA {
-	return addr.IA{I: t.ISD, A: 0}
+// FromID creates a TRC request from the given ID.
+func FromID(id cppki.TRCID) *TRCReq {
+	return &TRCReq{
+		ISD:    id.ISD,
+		Base:   id.Base,
+		Serial: id.Serial,
+	}
+}
+
+// ID returns the TRC ID in this request.
+func (t *TRCReq) ID() cppki.TRCID {
+	return cppki.TRCID{
+		ISD:    t.ISD,
+		Base:   t.Base,
+		Serial: t.Serial,
+	}
 }
 
 func (t *TRCReq) ProtoId() proto.ProtoIdType {
@@ -41,5 +55,5 @@ func (t *TRCReq) ProtoId() proto.ProtoIdType {
 }
 
 func (t *TRCReq) String() string {
-	return fmt.Sprintf("ISD: %d Version: %d CacheOnly: %v", t.ISD, t.Version, t.CacheOnly)
+	return t.ID().String()
 }

@@ -23,17 +23,18 @@ cmd_help() {
 PROGRAM=`basename "$0"`
 COMMAND="$1"
 shift 1
+ACCEPTANCE_DIR="${ACCEPTANCE_DIR:-"acceptance"}"
 
 case "$COMMAND" in
     setup|run|teardown)
         TEST="$1"
         shift 1
-        "acceptance/${TEST}_acceptance/test" $COMMAND "$@";;
+        "$ACCEPTANCE_DIR/${TEST}_acceptance/test" $COMMAND "$@";;
     gsetup)
         global_setup ;;
     grun)
         artifacts_dir; stats_failed=0
-        global_run_single "acceptance/${1}_acceptance/test"
+        global_run_single "$ACCEPTANCE_DIR/${1}_acceptance/test"
         [ $stats_failed -eq 0 ] ;;
     gteardown)
         global_teardown ;;

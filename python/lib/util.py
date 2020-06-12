@@ -25,7 +25,7 @@ import json
 import yaml
 
 # SCION
-from lib.errors import (
+from python.lib.errors import (
     SCIONIOError,
     SCIONYAMLError,
 )

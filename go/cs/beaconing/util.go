@@ -15,6 +15,7 @@
 package beaconing
 
 import (
+	"context"
 	"sort"
 	"sync"
 	"time"
@@ -25,20 +26,19 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // packBeaconMsg packs the provided beacon and creates a one-hop message.
-func packBeaconMsg(bseg *seg.Beacon, ia addr.IA, egIfid common.IFIDType,
-	signer infra.Signer) (*onehop.Msg, error) {
+func packBeaconMsg(ctx context.Context, bseg *seg.Beacon, ia addr.IA, egIfid common.IFIDType,
+	signer ctrl.Signer) (*onehop.Msg, error) {
 
 	pld, err := ctrl.NewPld(bseg, nil)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create payload", err)
 	}
-	spld, err := pld.SignedPld(signer)
+	spld, err := pld.SignedPld(ctx, signer)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to sign payload", err)
 	}

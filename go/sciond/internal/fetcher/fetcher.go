@@ -33,11 +33,11 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/sciond/internal/config"
+	"github.com/scionproto/scion/go/pkg/trust"
+	"github.com/scionproto/scion/go/sciond/config"
 	"github.com/scionproto/scion/go/sciond/internal/metrics"
 )
 
@@ -46,8 +46,7 @@ const (
 )
 
 type TrustStore interface {
-	infra.VerificationFactory
-	infra.ASInspector
+	trust.Inspector
 }
 
 type Fetcher interface {
@@ -60,8 +59,8 @@ type fetcher struct {
 	config config.SDConfig
 }
 
-func NewFetcher(requestAPI segfetcher.RequestAPI, pathDB pathdb.PathDB, inspector infra.ASInspector,
-	verificationFactory infra.VerificationFactory, revCache revcache.RevCache, cfg config.SDConfig,
+func NewFetcher(requestAPI segfetcher.RequestAPI, pathDB pathdb.PathDB, inspector trust.Inspector,
+	verifier infra.Verifier, revCache revcache.RevCache, cfg config.SDConfig,
 	topoProvider topology.Provider) Fetcher {
 
 	localIA := topoProvider.Get().IA()
@@ -71,18 +70,17 @@ func NewFetcher(requestAPI segfetcher.RequestAPI, pathDB pathdb.PathDB, inspecto
 			RevCache:     revCache,
 			TopoProvider: topoProvider,
 			Fetcher: segfetcher.FetcherConfig{
-				QueryInterval:       cfg.QueryInterval.Duration,
-				LocalIA:             localIA,
-				VerificationFactory: verificationFactory,
-				PathDB:              pathDB,
-				RevCache:            revCache,
-				RequestAPI:          requestAPI,
-				DstProvider:         &dstProvider{IA: localIA},
+				QueryInterval: cfg.QueryInterval.Duration,
+				LocalIA:       localIA,
+				Verifier:      verifier,
+				PathDB:        pathDB,
+				RevCache:      revCache,
+				RequestAPI:    requestAPI,
+				DstProvider:   &dstProvider{TopologyProvider: topoProvider},
 				Splitter: &segfetcher.MultiSegmentSplitter{
 					Local:     localIA,
 					Inspector: inspector,
 				},
-				SciondMode:       true,
 				MetricsNamespace: metrics.Namespace,
 				LocalInfo:        neverLocal{},
 			}.New(),
@@ -186,11 +184,11 @@ func (f *fetcher) translate(path *combinator.Path) (sciond.PathReplyEntry, error
 }
 
 type dstProvider struct {
-	IA addr.IA
+	TopologyProvider topology.Provider
 }
 
 func (r *dstProvider) Dst(_ context.Context, _ segfetcher.Request) (net.Addr, error) {
-	return &snet.SVCAddr{IA: r.IA, SVC: addr.SvcPS}, nil
+	return r.TopologyProvider.Get().Anycast(addr.SvcPS)
 }
 
 type neverLocal struct{}

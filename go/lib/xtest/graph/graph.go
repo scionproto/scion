@@ -22,6 +22,7 @@
 package graph
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"sync"
@@ -329,9 +330,9 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 			}
 		}
 		signer := mock_seg.NewMockSigner(g.ctrl)
-		signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
+		signer.EXPECT().Sign(gomock.Any(), gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 			&proto.SignS{}, nil).AnyTimes()
-		segment.AddASEntry(asEntry, signer)
+		segment.AddASEntry(context.Background(), asEntry, signer)
 		remoteInIF = outIF
 		inIF = remoteOutIF
 		inIA = currIA

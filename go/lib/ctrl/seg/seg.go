@@ -37,7 +37,7 @@ import (
 // Signer signs path segments.
 type Signer interface {
 	// Sign signs the packed segment and returns the signature meta data.
-	Sign(packedSegment []byte) (*proto.SignS, error)
+	Sign(ctx context.Context, packedSegment []byte) (*proto.SignS, error)
 }
 
 // Verifier verifies path segments.
@@ -325,14 +325,15 @@ func (ps *PathSegment) WalkHopEntries() error {
 }
 
 // AddASEntry adds the AS entry and signs the resulting path segment.
-func (ps *PathSegment) AddASEntry(ase *ASEntry, signer Signer) error {
+func (ps *PathSegment) AddASEntry(ctx context.Context, ase *ASEntry, signer Signer) error {
 	rawASE, err := ase.Pack()
 	if err != nil {
 		return err
 	}
 	ps.RawASEntries = append(ps.RawASEntries, &proto.SignedBlobS{Blob: rawASE})
 	ps.ASEntries = append(ps.ASEntries, ase)
-	ps.RawASEntries[ps.MaxAEIdx()].Sign, err = signer.Sign(ps.sigPack(ps.MaxAEIdx()))
+	ps.RawASEntries[ps.MaxAEIdx()].Sign, err = signer.Sign(ctx,
+		ps.sigPack(ps.MaxAEIdx()))
 	if err != nil {
 		ps.popLastEntry()
 		return err

@@ -22,7 +22,11 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
+
+// ErrNotReachable indicates that the destination is not reachable from this process.
+var ErrNotReachable = serrors.New("remote not reachable")
 
 // RequestAPI is the API to get segments from the network.
 type RequestAPI interface {

@@ -69,7 +69,11 @@ func (s Status) String() string {
 // PathKey is the mapping of a path reply entry to a key that is returned in
 // GetStatuses.
 func PathKey(path snet.Path) string {
-	return string(path.Path().Raw)
+	spath := path.Path()
+	if spath == nil {
+		return ""
+	}
+	return string(spath.Raw)
 }
 
 // FilterEmptyPaths removes all empty paths from paths and returns a copy.
@@ -110,12 +114,13 @@ func (p Prober) GetStatuses(ctx context.Context,
 	// the path is alive.
 	pathStatuses := make(map[string]Status, len(paths))
 	scmpH := &scmpHandler{statuses: pathStatuses}
-	network := snet.NewCustomNetwork(p.LocalIA,
-		&snet.DefaultPacketDispatcherService{
+	network := &snet.SCIONNetwork{
+		LocalIA: p.LocalIA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher:  reliable.NewDispatcher(""),
 			SCMPHandler: scmpH,
 		},
-	)
+	}
 	snetConn, err := network.Listen(ctx, "udp", &net.UDPAddr{IP: p.LocalIP}, addr.SvcNone)
 	if err != nil {
 		return nil, common.NewBasicError("listening failed", err)

@@ -34,8 +34,12 @@ var (
 	Docker = flag.Bool("d", false, "Run tests in a docker container")
 )
 
-var dockerArgs = []string{"-f", "gen/scion-dc.yml", "-p", "scion", "exec", "-T", "-e",
-	fmt.Sprintf("%s=1", GoIntegrationEnv)}
+var dockerArgs []string
+
+func initDockerArgs() {
+	dockerArgs = []string{"-f", GenFile("scion-dc.yml"), "-p", "scion", "exec", "-T", "-e",
+		fmt.Sprintf("%s=1", GoIntegrationEnv)}
+}
 
 var _ Integration = (*dockerIntegration)(nil)
 

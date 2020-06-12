@@ -45,7 +45,7 @@ func (rw *QUICResponseWriter) SendAckReply(ctx context.Context, msg *ack.Ack) er
 	if err != nil {
 		return err
 	}
-	return rw.sendMessage(ctrlPld)
+	return rw.sendMessage(ctx, ctrlPld)
 }
 
 func (rw *QUICResponseWriter) SendTRCReply(ctx context.Context, msg *cert_mgmt.TRC) error {
@@ -58,7 +58,7 @@ func (rw *QUICResponseWriter) SendTRCReply(ctx context.Context, msg *cert_mgmt.T
 	if err != nil {
 		return err
 	}
-	return rw.sendMessage(ctrlPld)
+	return rw.sendMessage(ctx, ctrlPld)
 }
 
 func (rw *QUICResponseWriter) SendCertChainReply(ctx context.Context, msg *cert_mgmt.Chain) error {
@@ -71,11 +71,11 @@ func (rw *QUICResponseWriter) SendCertChainReply(ctx context.Context, msg *cert_
 	if err != nil {
 		return err
 	}
-	return rw.sendMessage(ctrlPld)
+	return rw.sendMessage(ctx, ctrlPld)
 }
 
-func (rw *QUICResponseWriter) SendChainIssueReply(ctx context.Context,
-	msg *cert_mgmt.ChainIssRep) error {
+func (rw *QUICResponseWriter) SendChainRenewalReply(ctx context.Context,
+	msg *cert_mgmt.ChainRenewalReply) error {
 
 	go func() {
 		defer log.HandlePanic()
@@ -86,7 +86,7 @@ func (rw *QUICResponseWriter) SendChainIssueReply(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	return rw.sendMessage(ctrlPld)
+	return rw.sendMessage(ctx, ctrlPld)
 }
 
 func (rw *QUICResponseWriter) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply) error {
@@ -99,7 +99,7 @@ func (rw *QUICResponseWriter) SendSegReply(ctx context.Context, msg *path_mgmt.S
 	if err != nil {
 		return err
 	}
-	return rw.sendMessage(ctrlPld)
+	return rw.sendMessage(ctx, ctrlPld)
 }
 
 func (rw *QUICResponseWriter) SendIfStateInfoReply(ctx context.Context,
@@ -119,7 +119,7 @@ func (rw *QUICResponseWriter) SendHPSegReply(ctx context.Context, msg *path_mgmt
 	if err != nil {
 		return err
 	}
-	return rw.sendMessage(ctrlPld)
+	return rw.sendMessage(ctx, ctrlPld)
 }
 
 func (rw *QUICResponseWriter) SendHPCfgReply(ctx context.Context, msg *path_mgmt.HPCfgReply) error {
@@ -132,11 +132,11 @@ func (rw *QUICResponseWriter) SendHPCfgReply(ctx context.Context, msg *path_mgmt
 	if err != nil {
 		return err
 	}
-	return rw.sendMessage(ctrlPld)
+	return rw.sendMessage(ctx, ctrlPld)
 }
 
-func (rw *QUICResponseWriter) sendMessage(ctrlPld *ctrl.Pld) error {
-	signedCtrlPld, err := ctrlPld.SignedPld(infra.NullSigner)
+func (rw *QUICResponseWriter) sendMessage(ctx context.Context, ctrlPld *ctrl.Pld) error {
+	signedCtrlPld, err := ctrlPld.SignedPld(ctx, infra.NullSigner)
 	if err != nil {
 		return err
 	}

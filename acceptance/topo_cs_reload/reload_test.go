@@ -114,7 +114,7 @@ func mustExec(t *testing.T, name string, arg ...string) {
 	t.Helper()
 
 	cmd := exec.Command(name, arg...)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	t.Logf("%s %v\n%s\n", name, arg, string(output))
 	require.NoError(t, err, "Failed to run %s %v: %v\n%s", name, arg, err, string(output))
 }

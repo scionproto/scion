@@ -1,0 +1,106 @@
+version: 1
+id:
+  isd: 1
+  base_number: 1
+  serial_number: 1
+validity:
+  not_before: 2020-06-24T12:00:00Z
+  not_after: 2021-06-24T12:00:00Z
+no_trust_reset: false
+voting_quorum: 2
+core_ases:
+- ff00:0:110
+- ff00:0:111
+authoritative_ases:
+- ff00:0:110
+- ff00:0:111
+description: Test ISD
+certificates:
+- type: sensitive-voting
+  common_name: zürich High Security Voting Certificate
+  isd_as: 1-ff00:0:130
+  serial_number: 15 B7 05 2A AB 32 6E 7D 79 2C 3E 5C CD 11 3A D1 F0 FB B9 DB
+  validity:
+    not_before: 2020-06-24T12:00:00Z
+    not_after: 2021-06-24T12:00:00Z
+- type: regular-voting
+  common_name: zürich Regular Voting Certificate
+  isd_as: 1-ff00:0:130
+  serial_number: 4B B8 60 83 47 DD BA 78 04 B7 F8 6C 98 88 68 77 B0 D3 D1 0A
+  validity:
+    not_before: 2020-06-24T12:00:00Z
+    not_after: 2021-06-24T12:00:00Z
+- type: cp-root
+  common_name: zürich High Security Root Certificate
+  isd_as: 1-ff00:0:130
+  serial_number: 76 48 41 59 58 68 62 14 39 49 DE D8 74 1B D1 2F FE 2E B0 49
+  validity:
+    not_before: 2020-06-24T12:00:00Z
+    not_after: 2021-06-24T12:00:00Z
+- type: sensitive-voting
+  common_name: geneva High Security Voting Certificate
+  isd_as: 1-ff00:0:120
+  serial_number: 08 71 4E 37 9B DF 3E 0C DB C2 98 E0 C1 DE 6B DB FB 28 72 56
+  validity:
+    not_before: 2020-06-24T12:00:00Z
+    not_after: 2021-06-24T12:00:00Z
+- type: regular-voting
+  common_name: geneva Regular Voting Certificate
+  isd_as: 1-ff00:0:120
+  serial_number: 58 54 66 44 DB D6 BF 68 AA 95 5E 18 91 03 8F 53 D1 A1 18 E8
+  validity:
+    not_before: 2020-06-24T12:00:00Z
+    not_after: 2021-06-24T12:00:00Z
+- type: cp-root
+  common_name: geneva High Security Root Certificate
+  isd_as: 1-ff00:0:120
+  serial_number: 0F 99 7F 95 BF 20 B0 11 7D A3 64 61 0B 68 1B 0D A1 72 04 C1
+  validity:
+    not_before: 2020-06-24T12:00:00Z
+    not_after: 2021-06-24T12:00:00Z
+- type: sensitive-voting
+  common_name: bern High Security Voting Certificate
+  isd_as: 1-ff00:0:110
+  serial_number: 23 73 B4 31 0F 40 F0 17 91 0D F1 F2 50 42 7C 26 47 EF D7 82
+  validity:
+    not_before: 2020-06-24T12:00:00Z
+    not_after: 2021-06-24T12:00:00Z
+- type: regular-voting
+  common_name: bern Regular Voting Certificate
+  isd_as: 1-ff00:0:110
+  serial_number: 01 2C 3D 15 2E 0B 6A 9E AA 26 5F 31 1D DC 52 BF 40 CD 8A 42
+  validity:
+    not_before: 2020-06-24T12:00:00Z
+    not_after: 2021-06-24T12:00:00Z
+- type: cp-root
+  common_name: bern High Security Root Certificate
+  isd_as: 1-ff00:0:110
+  serial_number: 1B A9 58 00 E3 1E CA 40 9E 1D 27 9C 8A 6A A1 C1 A0 A6 EE A6
+  validity:
+    not_before: 2020-06-24T12:00:00Z
+    not_after: 2021-06-24T12:00:00Z
+signatures:
+- common_name: bern Regular Voting Certificate
+  isd_as: 1-ff00:0:110
+  serial_number: 01 2C 3D 15 2E 0B 6A 9E AA 26 5F 31 1D DC 52 BF 40 CD 8A 42
+  signing_time: 2020-06-10T14:12:55Z
+- common_name: bern High Security Voting Certificate
+  isd_as: 1-ff00:0:110
+  serial_number: 23 73 B4 31 0F 40 F0 17 91 0D F1 F2 50 42 7C 26 47 EF D7 82
+  signing_time: 2020-06-10T14:12:55Z
+- common_name: geneva Regular Voting Certificate
+  isd_as: 1-ff00:0:120
+  serial_number: 58 54 66 44 DB D6 BF 68 AA 95 5E 18 91 03 8F 53 D1 A1 18 E8
+  signing_time: 2020-06-10T14:12:56Z
+- common_name: zürich Regular Voting Certificate
+  isd_as: 1-ff00:0:130
+  serial_number: 4B B8 60 83 47 DD BA 78 04 B7 F8 6C 98 88 68 77 B0 D3 D1 0A
+  signing_time: 2020-06-10T14:12:58Z
+- common_name: geneva High Security Voting Certificate
+  isd_as: 1-ff00:0:120
+  serial_number: 08 71 4E 37 9B DF 3E 0C DB C2 98 E0 C1 DE 6B DB FB 28 72 56
+  signing_time: 2020-06-10T14:12:56Z
+- common_name: zürich High Security Voting Certificate
+  isd_as: 1-ff00:0:130
+  serial_number: 15 B7 05 2A AB 32 6E 7D 79 2C 3E 5C CD 11 3A D1 F0 FB B9 DB
+  signing_time: 2020-06-10T14:12:58Z

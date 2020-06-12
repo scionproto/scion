@@ -15,6 +15,7 @@
 package registration_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -196,7 +197,7 @@ func markHidden(t *testing.T, m *seg.Meta) *seg.Meta {
 	}
 	s.ASEntries[s.MaxAEIdx()].Exts.HiddenPathSeg = seg.NewHiddenPathSegExtn()
 	for _, entry := range s.ASEntries {
-		newSeg.AddASEntry(entry, infra.NullSigner)
+		newSeg.AddASEntry(context.Background(), entry, infra.NullSigner)
 	}
 	return seg.NewMeta(newSeg, m.Type)
 }

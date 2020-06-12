@@ -26,7 +26,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/serrors"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
 	"github.com/scionproto/scion/go/lib/topology/underlay"
@@ -59,7 +58,7 @@ type (
 	RWTopology struct {
 		Timestamp  time.Time
 		IA         addr.IA
-		Attributes []trc.Attribute
+		Attributes []jsontopo.Attribute
 		MTU        int
 
 		BR        map[string]BRInfo
@@ -225,7 +224,13 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 				return err
 			}
 			ifinfo.LinkType = LinkTypeFromString(rawIntf.LinkTo)
-			isCore := trc.Attributes(t.Attributes).Contains(trc.Core)
+			isCore := false
+			for _, attr := range t.Attributes {
+				if attr == jsontopo.AttrCore {
+					isCore = true
+					break
+				}
+			}
 			if err = ifinfo.CheckLinks(isCore, name); err != nil {
 				return err
 			}

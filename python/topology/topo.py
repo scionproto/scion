@@ -28,7 +28,7 @@ from collections import defaultdict
 import yaml
 
 # SCION
-from lib.defines import (
+from python.lib.defines import (
     AS_LIST_FILE,
     DEFAULT_MTU,
     IFIDS_FILE,
@@ -36,9 +36,9 @@ from lib.defines import (
     SCION_ROUTER_PORT,
     TOPO_FILE,
 )
-from lib.types import LinkType
-from lib.util import write_file
-from topology.common import (
+from python.lib.types import LinkType
+from python.lib.util import write_file
+from python.topology.common import (
     ArgsBase,
     join_host_port,
     json_default,
@@ -46,7 +46,7 @@ from topology.common import (
     srv_iter,
     TopoID
 )
-from topology.net import PortGenerator
+from python.topology.net import PortGenerator
 
 DEFAULT_LINK_BW = 1000
 

@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
@@ -49,7 +50,7 @@ type RevConfig struct {
 type RevokerConf struct {
 	Intfs        *Interfaces
 	Msgr         infra.Messenger
-	Signer       infra.Signer
+	Signer       ctrl.Signer
 	TopoProvider topology.Provider
 	RevInserter  RevInserter
 	RevConfig    RevConfig

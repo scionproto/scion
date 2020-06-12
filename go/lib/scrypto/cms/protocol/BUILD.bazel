@@ -1,0 +1,25 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "any_set.go",
+        "protocol.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/scrypto/cms/protocol",
+    visibility = ["//visibility:public"],
+    deps = ["//go/lib/scrypto/cms/oid:go_default_library"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "any_set_test.go",
+        "protocol_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/scrypto/cms/oid:go_default_library",
+        "@org_golang_x_crypto//pkcs12:go_default_library",
+    ],
+)

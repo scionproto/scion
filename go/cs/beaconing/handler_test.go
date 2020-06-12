@@ -74,7 +74,7 @@ func TestNewHandler(t *testing.T) {
 
 		verifier := mock_infra.NewMockVerifier(mctrl)
 		verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
-		verifier.EXPECT().WithSrc(gomock.Any()).MaxTimes(2).Return(verifier)
+		verifier.EXPECT().WithIA(gomock.Any()).MaxTimes(2).Return(verifier)
 		verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
 			gomock.Any()).MaxTimes(2).Return(nil)
 
@@ -169,7 +169,7 @@ func TestNewHandler(t *testing.T) {
 
 	t.Run("Verification error", func(t *testing.T) {
 		verifier := mock_infra.NewMockVerifier(mctrl)
-		verifier.EXPECT().WithSrc(gomock.Any()).Return(verifier)
+		verifier.EXPECT().WithIA(gomock.Any()).Return(verifier)
 		verifier.EXPECT().WithServer(gomock.Any()).Return(verifier)
 		verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
 			gomock.Any()).MaxTimes(2).Return(serrors.New("failed"))
@@ -187,7 +187,7 @@ func TestNewHandler(t *testing.T) {
 
 		verifier := mock_infra.NewMockVerifier(mctrl)
 		verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
-		verifier.EXPECT().WithSrc(gomock.Any()).MaxTimes(2).Return(verifier)
+		verifier.EXPECT().WithIA(gomock.Any()).MaxTimes(2).Return(verifier)
 		verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
 			gomock.Any()).MaxTimes(2).Return(nil)
 

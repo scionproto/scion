@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -33,20 +34,17 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-const (
-	nameE2E, cmdE2E = "end2end_integration", "./bin/end2end"
-	logDir          = "logs/end2end_integration"
-)
-
 var (
 	subset      string
 	attempts    int
 	timeout     = &util.DurWrap{Duration: 10 * time.Second}
 	parallelism int
+	name        string
+	cmd         string
 )
 
 func getCmd() (string, bool) {
-	return cmdE2E, true
+	return cmd, strings.Contains(cmd, "end2end")
 }
 
 func main() {
@@ -55,7 +53,7 @@ func main() {
 
 func realMain() int {
 	addFlags()
-	if err := integration.Init(nameE2E); err != nil {
+	if err := integration.Init(); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
@@ -75,13 +73,6 @@ func realMain() int {
 		"-local", integration.DstAddrPattern + ":0",
 	}
 
-	cmd, name := cmdE2E, nameE2E
-
-	if err := os.MkdirAll(logDir, os.ModePerm); err != nil {
-		log.Error("Error creating logging directory", "err", err)
-		return 1
-	}
-
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
 	pairs, err := getPairs()
 	if err != nil {
@@ -98,6 +89,10 @@ func realMain() int {
 // addFlags adds the necessary flags.
 func addFlags() {
 	flag.IntVar(&attempts, "attempts", 1, "Number of attempts per client before giving up.")
+	flag.StringVar(&cmd, "cmd", "./bin/end2end",
+		"The end2end binary to run (default: ./bin/end2end)")
+	flag.StringVar(&name, "name", "end2end_integration",
+		"The name of the test that is running (default: end2end_integration)")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
 	flag.StringVar(&subset, "subset", "all", "Subset of pairs to run (all|core-core|"+
 		"noncore-localcore|noncore-core|noncore-noncore)")
@@ -202,7 +197,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 				if *integration.Docker {
 					tester = integration.TesterID(src)
 				}
-				logFile := fmt.Sprintf("%s/client_%s.log", logDir, src.IA.FileFmt(false))
+				logFile := fmt.Sprintf("%s/client_%s.log", logDir(), src.IA.FileFmt(false))
 				err := integration.Run(ctx, integration.RunConfig{
 					Commands: cmds,
 					LogFile:  logFile,
@@ -238,7 +233,7 @@ func clientTemplate(progressSock string) integration.Cmd {
 		},
 	}
 	if progress {
-		cmd.Args = append(cmd.Args)
+		cmd.Args = append(cmd.Args, "-progress", progressSock)
 	}
 	return cmd
 }
@@ -249,15 +244,11 @@ func getPairs() ([]integration.IAPair, error) {
 	if subset == "all" {
 		return pairs, nil
 	}
-	ases, err := util.LoadASList("gen/as_list.yml")
-	if err != nil {
-		return nil, err
-	}
 	parts := strings.Split(subset, "-")
 	if len(parts) != 2 {
 		return nil, common.NewBasicError("Invalid subset", nil, "subset", subset)
 	}
-	return filter(parts[0], parts[1], pairs, ases), nil
+	return filter(parts[0], parts[1], pairs, integration.ASList), nil
 }
 
 // filter returns the list of ASes that are part of the desired subset.
@@ -287,4 +278,8 @@ func contains(ases *util.ASList, core bool, ia addr.IA) bool {
 		}
 	}
 	return false
+}
+
+func logDir() string {
+	return filepath.Join(integration.LogDir(), name)
 }

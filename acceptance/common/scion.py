@@ -13,15 +13,17 @@
 # limitations under the License.
 
 import logging
+import json
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
 import toml
 from plumbum import local
-from plumbum.cmd import pkill
+from plumbum.cmd import docker, pkill
 from plumbum.path.local import LocalPath
 
 from acceptance.common.log import LogExec
+from python.lib.scion_addr import ISD_AS
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,15 @@ class SCION(ABC):
         """ Run the scion infrastructure. """
         args = ['nobuild'] if nobuild else []
         self.scion_sh('run', *args)
+
+    @abstractmethod
+    def execute(self, isd_as: ISD_AS, cmd: str, *args: str) -> str:
+        """ Execute command as host in specified AS
+        :param isd_as: The ISD-AS of the AS to run the command in.
+        :param cmd: The command to execute.
+        :param args: List of optional arguments.
+        """
+        pass
 
     def status(self):
         """ Print the scion infrastructure status. """
@@ -113,6 +124,14 @@ class SCIONDocker(SCION):
         """ Create the dockerized topology files. """
         self.scion_sh('topology', '-c', topo_file, '-t', '-d', *args)
 
+    def execute(self, isd_as: ISD_AS, cmd: str, *args: str) -> str:
+        expanded = []
+        for arg in args:
+            if str(arg).startswith('gen/'):
+                arg = '/share/' + arg
+            expanded.append(arg)
+        return docker('exec', 'tester_%s' % isd_as.file_fmt(), cmd, *expanded)
+
     def _send_signals(self, svc_names: List[str], sig: str):
         for svc_name in svc_names:
             self.tools_dc('scion', 'kill', '-s', sig, 'scion_%s' % svc_name)
@@ -131,6 +150,9 @@ class SCIONSupervisor(SCION):
     def topology(self, topo_file: str, *args: str):
         """ Create the topology files. """
         self.scion_sh('topology', '-c', topo_file, *args)
+
+    def execute(self, isd_as: ISD_AS, cmd: str, *args: str) -> str:
+        return local[cmd](*args)
 
     def _send_signals(self, svc_names: List[str], sig: str):
         for svc_name in svc_names:
@@ -153,6 +175,20 @@ def svc_names_from_path(files: LocalPath) -> List[str]:
         else:
             names.add(file.name)
     return list(names)
+
+
+def sciond_addr(isd_as: ISD_AS, port: bool = True):
+    """
+    Return the SCION Daemon address for the given AS.
+    """
+    with open('gen/sciond_addresses.json') as f:
+        addrs = json.load(f)
+        ip = addrs[str(isd_as)]
+        if not port:
+            return ip
+        if ':' in ip:
+            return '[%s]:30255' % ip
+        return '%s:30255' % ip
 
 
 def path_to_dict(path: str, val: Any) -> Dict:

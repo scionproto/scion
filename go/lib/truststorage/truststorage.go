@@ -20,15 +20,16 @@ package truststorage
 import (
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdbsqlite"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/trust"
+	"github.com/scionproto/scion/go/pkg/trust/sqlite"
 )
 
 type Backend string
@@ -41,6 +42,7 @@ const (
 const (
 	BackendKey    = "backend"
 	ConnectionKey = "connection"
+	CachedKey     = "cached"
 )
 
 var _ (config.Config) = (*TrustDBConf)(nil)
@@ -68,6 +70,11 @@ func (cfg *TrustDBConf) Connection() string {
 	return (*cfg)[ConnectionKey]
 }
 
+func (cfg *TrustDBConf) Cached() bool {
+	cached, _ := cfg.parsedBool(CachedKey)
+	return cached
+}
+
 func (cfg *TrustDBConf) MaxOpenConns() (int, bool) {
 	return db.ConfiguredMaxOpenConns(*cfg)
 }
@@ -91,6 +98,12 @@ func (cfg *TrustDBConf) Validate() error {
 	if err := cfg.validateBackend(); err != nil {
 		return err
 	}
+	if err := cfg.validateConnection(); err != nil {
+		return err
+	}
+	if _, err := cfg.parsedBool(CachedKey); err != nil {
+		return serrors.WrapStr("invalid 'cached' value", err)
+	}
 	return nil
 }
 
@@ -111,6 +124,14 @@ func (cfg *TrustDBConf) validateConnection() error {
 	return nil
 }
 
+func (cfg *TrustDBConf) parsedBool(key string) (bool, error) {
+	val, ok := (*cfg)[key]
+	if !ok || val == "" {
+		return true, nil
+	}
+	return strconv.ParseBool(val)
+}
+
 // New creates a trust database from the config.
 func (cfg *TrustDBConf) New() (trust.DB, error) {
 	log.Info("Connecting TrustDB", "backend", cfg.Backend(), "connection", cfg.Connection())
@@ -119,7 +140,7 @@ func (cfg *TrustDBConf) New() (trust.DB, error) {
 
 	switch cfg.Backend() {
 	case BackendSqlite:
-		tdb, err = trustdbsqlite.New(cfg.Connection())
+		tdb, err = sqlite.New(cfg.Connection())
 	default:
 		return nil, common.NewBasicError("Unsupported backend", nil, "backend", cfg.Backend())
 	}
@@ -127,6 +148,11 @@ func (cfg *TrustDBConf) New() (trust.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	if cfg.Cached() {
+		// FIXME(roosd): Enable again.
+		// tdb = trustdbcached.WithCache(tdb)
+	}
+
 	db.SetConnLimits(cfg, tdb)
 	return tdb, nil
 }

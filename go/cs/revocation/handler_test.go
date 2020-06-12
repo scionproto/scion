@@ -16,6 +16,12 @@ package revocation
 
 import (
 	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/asn1"
+	"math/big"
 	"os"
 	"testing"
 	"time"
@@ -26,18 +32,19 @@ import (
 	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/cs/revocation/mock_revocation"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/matchers"
+	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -52,9 +59,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestHandler(t *testing.T) {
-
-	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
-	xtest.FailOnErr(t, err)
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	pub := priv.Public()
 	signer := createTestSigner(t, priv)
 
 	rev := &path_mgmt.RevInfo{
@@ -106,8 +113,7 @@ func TestHandler(t *testing.T) {
 			verifier := mock_infra.NewMockVerifier(mctrl)
 			verifier.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
 				func(_ context.Context, msg common.RawBytes, sign *proto.SignS) error {
-					return scrypto.Verify(sign.SigInput(msg, false), sign.Signature,
-						pub, scrypto.Ed25519)
+					return verifyecdsa(sign.SigInput(msg, false), sign.Signature, pub)
 				},
 			)
 
@@ -121,7 +127,7 @@ func TestHandler(t *testing.T) {
 				rev, err := test.Rev.RevInfo()
 				xtest.FailOnErr(t, err)
 				revStore.EXPECT().InsertRevocations(gomock.Any(), &matchers.SignedRevs{
-					Verifier:  revVerifier(pub),
+					Verifier:  revVerifier{pubKey: pub},
 					MatchRevs: []path_mgmt.RevInfo{*rev},
 				})
 			}
@@ -137,26 +143,37 @@ func TestHandler(t *testing.T) {
 	}
 }
 
-func createTestSigner(t *testing.T, key common.RawBytes) infra.Signer {
-	signer, err := trust.NewSigner(
-		trust.SignerConf{
-			ChainVer: 42,
-			TRCVer:   21,
-			Validity: scrypto.Validity{NotAfter: util.UnixTime{Time: time.Now().Add(time.Hour)}},
-			Key: keyconf.Key{
-				Type:      keyconf.PrivateKey,
-				Algorithm: scrypto.Ed25519,
-				Bytes:     key,
-				ID:        keyconf.ID{IA: xtest.MustParseIA("1-ff00:0:84")},
-			},
+func createTestSigner(t *testing.T, key crypto.Signer) ctrl.Signer {
+	return trust.Signer{
+		PrivateKey: key,
+		IA:         xtest.MustParseIA("1-ff00:0:84"),
+		TRCID: cppki.TRCID{
+			ISD:    1,
+			Base:   1,
+			Serial: 21,
 		},
-	)
-	require.NoError(t, err)
-	return signer
+		SubjectKeyID: []byte("skid"),
+		Expiration:   time.Now().Add(time.Hour),
+	}
 }
 
-type revVerifier []byte
+type revVerifier struct {
+	pubKey crypto.PublicKey
+}
 
 func (v revVerifier) Verify(_ context.Context, msg []byte, sign *proto.SignS) error {
-	return scrypto.Verify(sign.SigInput(msg, false), sign.Signature, []byte(v), scrypto.Ed25519)
+	return verifyecdsa(sign.SigInput(msg, false), sign.Signature, v.pubKey)
+}
+
+func verifyecdsa(input, signature []byte, pubKey crypto.PublicKey) error {
+	var ecdsaSig struct {
+		R, S *big.Int
+	}
+	if _, err := asn1.Unmarshal(signature, &ecdsaSig); err != nil {
+		return err
+	}
+	if !ecdsa.Verify(pubKey.(*ecdsa.PublicKey), input, ecdsaSig.R, ecdsaSig.S) {
+		return serrors.New("verification failure")
+	}
+	return nil
 }

@@ -25,11 +25,11 @@ import nose.tools as ntools
 import yaml
 
 # SCION
-from lib.errors import (
+from python.lib.errors import (
     SCIONIOError,
     SCIONYAMLError,
 )
-from lib.util import (
+from python.lib.util import (
     load_yaml_file,
     write_file,
 )

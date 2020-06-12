@@ -21,6 +21,27 @@ backend = "sqlite"
 # Connection for the trust database. (required)
 connection = "/var/lib/scion/spki/%s.trust.db"
 
+# Add cache for database queries. This option is currently only supported
+# for sqlite backends. In case of the empty string, caching is set by
+# default to on ("true"|"false"|"") (default "")
+cached = ""
+
+# The maximum number of open connections to the database. In case of the
+# empty string, the limit is not set and uses the go default. (default "")
+max_open_conns = ""
+
+# The maximum number of idle connections to the database. In case of the
+# empty string, the limit is not set and uses the go default. (default "")
+max_idle_conns = ""
+`
+
+const renewalDbSample = `
+# The type of renewal database backend. (default sqlite)
+backend = "sqlite"
+
+# Connection for the renewal database. (required)
+connection = "/var/lib/scion/spki/%s.renewal.db"
+
 # The maximum number of open connections to the database. In case of the
 # empty string, the limit is not set and uses the go default. (default "")
 max_open_conns = ""

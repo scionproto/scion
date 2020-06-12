@@ -315,12 +315,15 @@ func (r *DefaultResolver) resolveCores(ctx context.Context,
 
 	needsFetching := make(map[Request]bool)
 	for i, coreReq := range req.Cores {
-		if coreReq.State == Fetched {
+		switch coreReq.State {
+		case Fetch:
+			continue
+		case Fetched:
 			req.Cores[i].State = Cached
 			continue
-		}
-		if coreReq.State == Fetch {
+		case Loaded:
 			continue
+		default:
 		}
 		coreFetch, ok := needsFetching[coreReq]
 		if !ok {

@@ -71,9 +71,10 @@ genrule(
     outs = [
         "crypto.tar",
     ],
-    cmd = "$(location :testdata/gen_crypto.sh) $(location //go/tools/scion-pki:scion-pki) $@ $(location testdata/test.topo)",
+    cmd = "$(location :testdata/gen_crypto.sh) $(location //go/scion-pki:scion-pki) $@ $(location testdata/test.topo) $(location //scripts/cryptoplayground:crypto_lib.sh)",
     tools = [
         ":testdata/gen_crypto.sh",
-        "//go/tools/scion-pki",
+        "//go/scion-pki",
+        "//scripts/cryptoplayground:crypto_lib.sh",
     ],
 )

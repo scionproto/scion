@@ -30,15 +30,13 @@ import (
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/lib/common"
+	libconfig "github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/messenger/tcp"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdbmetrics"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathstorage"
@@ -47,8 +45,11 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/pkg/trust"
+	"github.com/scionproto/scion/go/pkg/trust/compat"
+	trustmetrics "github.com/scionproto/scion/go/pkg/trust/metrics"
 	"github.com/scionproto/scion/go/proto"
-	"github.com/scionproto/scion/go/sciond/internal/config"
+	"github.com/scionproto/scion/go/sciond/config"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
 	"github.com/scionproto/scion/go/sciond/internal/servers"
 )
@@ -108,62 +109,71 @@ func realMain() int {
 		return 1
 	}
 
-	msger := tcp.NewClientMessenger(tcp.Client{TopologyProvider: itopo.Provider()})
-
+	msgr := tcp.NewClientMessenger()
 	trustDB, err := cfg.TrustDB.New()
 	if err != nil {
 		log.Crit("Error initializing trust database", "err", err)
 		return 1
 	}
-	trustDB = trustdbmetrics.WithMetrics(string(cfg.TrustDB.Backend()), trustDB)
+	trustDB = trustmetrics.WrapDB(string(cfg.TrustDB.Backend()), trustDB)
 	defer trustDB.Close()
-	inserter := trust.DefaultInserter{
-		BaseInserter: trust.BaseInserter{DB: trustDB},
-	}
-	provider := trust.Provider{
-		DB:       trustDB,
-		Recurser: trust.LocalOnlyRecurser{},
-		Resolver: trust.DefaultResolver{
-			DB:       trustDB,
-			Inserter: inserter,
-			RPC:      trust.DefaultRPC{Msgr: msger},
-			IA:       itopo.Get().IA(),
-		},
-		Router: trust.LocalRouter{IA: itopo.Get().IA()},
-	}
-	trustStore := trust.Store{
-		Inspector:      trust.DefaultInspector{Provider: provider},
-		CryptoProvider: provider,
-		Inserter:       inserter,
-		DB:             trustDB,
-	}
+
 	certsDir := filepath.Join(cfg.General.ConfigDir, "certs")
-	err = trustStore.LoadCryptoMaterial(context.Background(), certsDir)
+	loaded, err := trust.LoadTRCs(context.Background(), certsDir, trustDB)
 	if err != nil {
-		log.Crit("Error loading crypto material", "err", err)
+		log.Crit("Error loading TRCs from disk", "err", err)
 		return 1
 	}
+	log.Info("TRCs loaded", "files", loaded.Loaded)
+	for f, r := range loaded.Ignored {
+		log.Warn("Ignoring non-TRC", "file", f, "reason", r)
+	}
 
+	loaded, err = trust.LoadChains(context.Background(), certsDir, trustDB)
+	if err != nil {
+		log.Crit("Error loading certificate chains from disk", "err", err)
+		return 1
+	}
+	log.Info("Certificate chains loaded", "files", loaded.Loaded)
+	for f, r := range loaded.Ignored {
+		log.Warn("Ignoring non-certificate chain", "file", f, "reason", r)
+	}
+
+	engine := trust.Engine{
+		Inspector: trust.DBInspector{DB: trustDB},
+		Provider: trust.FetchingProvider{
+			DB: trustDB,
+			Fetcher: trust.DefaultFetcher{
+				RPC: msgr,
+				IA:  itopo.Get().IA(),
+			},
+			Recurser: trust.LocalOnlyRecurser{},
+			Router:   trust.LocalRouter{IA: itopo.Get().IA()},
+		},
+		DB: trustDB,
+	}
+
+	// Route messages to their correct handlers
 	handlers := servers.HandlerMap{
 		proto.SCIONDMsg_Which_pathReq: &servers.PathRequestHandler{
 			Fetcher: fetcher.NewFetcher(
-				msger,
+				msgr,
 				pathDB,
-				trustStore,
-				verificationFactory{Provider: trustStore},
+				engine,
+				compat.Verifier{Verifier: trust.Verifier{Engine: engine}},
 				revCache,
 				cfg.SD,
 				itopo.Provider(),
 			),
 		},
 		proto.SCIONDMsg_Which_asInfoReq: &servers.ASInfoRequestHandler{
-			ASInspector: trustStore,
+			ASInspector: engine,
 		},
 		proto.SCIONDMsg_Which_ifInfoRequest:      &servers.IFInfoRequestHandler{},
 		proto.SCIONDMsg_Which_serviceInfoRequest: &servers.SVCInfoRequestHandler{},
 		proto.SCIONDMsg_Which_revNotification: &servers.RevNotificationHandler{
 			RevCache:         revCache,
-			VerifierFactory:  verificationFactory{Provider: trustStore},
+			Verifier:         compat.Verifier{Verifier: trust.Verifier{Engine: engine}},
 			NextQueryCleaner: segfetcher.NextQueryCleaner{PathDB: pathDB},
 		},
 	}
@@ -190,29 +200,13 @@ func realMain() int {
 	}
 }
 
-type verificationFactory struct {
-	Provider trust.CryptoProvider
-}
-
-func (v verificationFactory) NewSigner(common.RawBytes, infra.SignerMeta) (infra.Signer, error) {
-	return nil, serrors.New("signer generation not supported")
-}
-
-func (v verificationFactory) NewVerifier() infra.Verifier {
-	return trust.NewVerifier(v.Provider)
-}
-
 func setupBasic() error {
-	md, err := toml.DecodeFile(env.ConfigFile(), &cfg)
-	if err != nil {
-		return serrors.WrapStr("Failed to load config", err, "file", env.ConfigFile())
-	}
-	if len(md.Undecoded()) > 0 {
-		return serrors.New("Failed to load config: undecoded keys", "undecoded", md.Undecoded())
+	if err := libconfig.LoadFile(env.ConfigFile(), &cfg); err != nil {
+		return serrors.WrapStr("failed to load config", err, "file", env.ConfigFile())
 	}
 	cfg.InitDefaults()
 	if err := log.Setup(cfg.Logging); err != nil {
-		return serrors.WrapStr("Failed to initialize logging", err)
+		return serrors.WrapStr("failed to initialize logging", err)
 	}
 	prom.ExportElementID(cfg.General.ID)
 	return env.LogAppStarted("SD", cfg.General.ID)

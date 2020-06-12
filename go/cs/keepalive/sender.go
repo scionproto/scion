@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -36,7 +35,7 @@ var _ periodic.Task = (*Sender)(nil)
 // Sender sends ifid keepalive messages on all border routers.
 type Sender struct {
 	*onehop.Sender
-	Signer       infra.Signer
+	Signer       ctrl.Signer
 	TopoProvider topology.Provider
 }
 
@@ -56,7 +55,7 @@ func (s *Sender) Run(ctx context.Context) {
 	var sentIfids []common.IFIDType
 	for ifid, intf := range topo.IFInfoMap() {
 		l := metrics.KeepaliveLabels{IfID: ifid, Result: metrics.ErrProcess}
-		pld, err := s.createPld(ifid)
+		pld, err := s.createPld(ctx, ifid)
 		if err != nil {
 			logger.Error("[keepalive.Sender] Unable to create payload", "err", err)
 			metrics.Keepalive.Transmits(l).Inc()
@@ -88,12 +87,12 @@ func (s *Sender) Run(ctx context.Context) {
 }
 
 // createPld creates a ifid keepalive payload that is signed and packed.
-func (s *Sender) createPld(origIfid common.IFIDType) (common.Payload, error) {
+func (s *Sender) createPld(ctx context.Context, origIfid common.IFIDType) (common.Payload, error) {
 	pld, err := ctrl.NewPld(&ifid.IFID{OrigIfID: origIfid}, nil)
 	if err != nil {
 		return nil, err
 	}
-	spld, err := pld.SignedPld(s.Signer)
+	spld, err := pld.SignedPld(ctx, s.Signer)
 	if err != nil {
 		return nil, err
 	}

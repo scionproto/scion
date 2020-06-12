@@ -35,7 +35,7 @@ func NewSegRegHandler(args HandlerArgs) infra.Handler {
 	return &segRegHandler{
 		handler: seghandler.Handler{
 			Verifier: &seghandler.DefaultVerifier{
-				Verifier: args.VerifierFactory.NewVerifier(),
+				Verifier: args.Verifier,
 			},
 			Storage: &seghandler.DefaultStorage{
 				PathDB:   args.PathDB,

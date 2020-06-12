@@ -22,8 +22,8 @@ import toml
 import yaml
 
 # SCION
-from lib.util import write_file
-from topology.common import (
+from python.lib.util import write_file
+from python.topology.common import (
     ArgsTopoDicts,
     BR_CONFIG_NAME,
     COMMON_DIR,
@@ -41,16 +41,16 @@ from topology.common import (
     CO_CONFIG_NAME,
 )
 
-from topology.net import socket_address_str
+from python.topology.net import socket_address_str
 
-from topology.prometheus import (
+from python.topology.prometheus import (
     CS_PROM_PORT,
     DEFAULT_BR_PROM_PORT,
     SCIOND_PROM_PORT,
     DISP_PROM_PORT,
     CO_PROM_PORT,
 )
-from topology.topo import DEFAULT_LINK_BW
+from python.topology.topo import DEFAULT_LINK_BW
 
 CS_QUIC_PORT = 30352
 CO_QUIC_PORT = 30357
@@ -96,16 +96,17 @@ class GoGenerator(object):
 
     def generate_control_service(self):
         for topo_id, topo in self.args.topo_dicts.items():
+            ca = 'issuing' in topo.get("attributes", [])
             for elem_id, elem in topo.get("control_service", {}).items():
                 # only a single Go-BS per AS is currently supported
                 if elem_id.endswith("-1"):
                     base = topo_id.base_dir(self.args.output_dir)
                     bs_conf = self._build_control_service_conf(
-                        topo_id, topo["isd_as"], base, elem_id, elem)
+                        topo_id, topo["isd_as"], base, elem_id, elem, ca)
                     write_file(os.path.join(base, elem_id,
                                             CS_CONFIG_NAME), toml.dumps(bs_conf))
 
-    def _build_control_service_conf(self, topo_id, ia, base, name, infra_elem):
+    def _build_control_service_conf(self, topo_id, ia, base, name, infra_elem, ca):
         config_dir = '/share/conf' if self.args.docker else os.path.join(
             base, name)
         raw_entry = {
@@ -131,6 +132,11 @@ class GoGenerator(object):
             'metrics': self._metrics_entry(infra_elem, CS_PROM_PORT),
             'quic': self._quic_conf_entry(CS_QUIC_PORT, self.args.svcfrac, infra_elem),
         }
+        if ca:
+            raw_entry['renewal_db'] = {
+                'backend': 'sqlite',
+                'connection': os.path.join(self.db_dir, '%s.renewal.db' % name),
+            }
         return raw_entry
 
     def generate_co(self):

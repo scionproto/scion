@@ -18,13 +18,16 @@ package cert_mgmt
 import (
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/proto"
 )
 
 var _ proto.Cerealizable = (*TRC)(nil)
 
+// TRC is a capnp message that contains a TRC.
 type TRC struct {
+	// RawTRC contains the raw signed TRC. The raw signed TRC should be
+	// decodable by cppki.DecodeSignedTRC.
 	RawTRC []byte `capnp:"trc"`
 }
 
@@ -33,13 +36,9 @@ func (t *TRC) ProtoId() proto.ProtoIdType {
 }
 
 func (t *TRC) String() string {
-	signed, err := trc.ParseSigned(t.RawTRC)
+	trc, err := cppki.DecodeSignedTRC(t.RawTRC)
 	if err != nil {
 		return fmt.Sprintf("Invalid signed TRC: %v", err)
 	}
-	pld, err := signed.EncodedTRC.Decode()
-	if err != nil {
-		return fmt.Sprintf("Invalid TRC payload: %v", err)
-	}
-	return fmt.Sprintf("ISD%d-V%d", pld.ISD, pld.Version)
+	return trc.TRC.ID.String()
 }

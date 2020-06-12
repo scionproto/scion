@@ -25,9 +25,9 @@ import (
 
 	"github.com/scionproto/scion/go/cs/segreq"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/pkg/trust/mock_trust"
 )
 
 func TestSplitter(t *testing.T) {
@@ -39,19 +39,19 @@ func TestSplitter(t *testing.T) {
 
 	tests := map[string]struct {
 		Req            segfetcher.Request
-		PrepareMock    func(i *mock_infra.MockASInspector)
+		PrepareMock    func(i *mock_trust.MockInspector)
 		ErrorAssertion require.ErrorAssertionFunc
 		ExpectedSet    segfetcher.RequestSet
 	}{
 		"Empty request": {
 			Req:            segfetcher.Request{},
-			PrepareMock:    func(i *mock_infra.MockASInspector) {},
+			PrepareMock:    func(i *mock_trust.MockInspector) {},
 			ErrorAssertion: require.Error,
 			ExpectedSet:    segfetcher.RequestSet{},
 		},
 		"Non-core to core": {
 			Req: segfetcher.Request{Src: ia111, Dst: isd1},
-			PrepareMock: func(i *mock_infra.MockASInspector) {
+			PrepareMock: func(i *mock_trust.MockInspector) {
 				i.EXPECT().HasAttributes(gomock.Any(), ia111, gomock.Any()).Return(false, nil)
 			},
 			ErrorAssertion: require.NoError,
@@ -61,7 +61,7 @@ func TestSplitter(t *testing.T) {
 		},
 		"Core to non-core": {
 			Req: segfetcher.Request{Src: ia120, Dst: ia111},
-			PrepareMock: func(i *mock_infra.MockASInspector) {
+			PrepareMock: func(i *mock_trust.MockInspector) {
 				i.EXPECT().HasAttributes(gomock.Any(), ia111, gomock.Any()).Return(false, nil)
 				i.EXPECT().HasAttributes(gomock.Any(), ia120, gomock.Any()).Return(true, nil)
 			},
@@ -72,7 +72,7 @@ func TestSplitter(t *testing.T) {
 		},
 		"Core to core": {
 			Req: segfetcher.Request{Src: ia110, Dst: ia120},
-			PrepareMock: func(i *mock_infra.MockASInspector) {
+			PrepareMock: func(i *mock_trust.MockInspector) {
 				i.EXPECT().HasAttributes(gomock.Any(), ia110, gomock.Any()).Return(true, nil)
 				i.EXPECT().HasAttributes(gomock.Any(), ia120, gomock.Any()).Return(true, nil)
 			},
@@ -83,7 +83,7 @@ func TestSplitter(t *testing.T) {
 		},
 		"Non-core to non-core": {
 			Req: segfetcher.Request{Src: ia111, Dst: ia112},
-			PrepareMock: func(i *mock_infra.MockASInspector) {
+			PrepareMock: func(i *mock_trust.MockInspector) {
 				i.EXPECT().HasAttributes(gomock.Any(), ia111, gomock.Any()).Return(false, nil)
 				i.EXPECT().HasAttributes(gomock.Any(), ia112, gomock.Any()).Return(false, nil)
 			},
@@ -92,7 +92,7 @@ func TestSplitter(t *testing.T) {
 		},
 		"Inspector error": {
 			Req: segfetcher.Request{Src: ia110, Dst: ia120},
-			PrepareMock: func(i *mock_infra.MockASInspector) {
+			PrepareMock: func(i *mock_trust.MockInspector) {
 				i.EXPECT().HasAttributes(gomock.Any(), ia110, gomock.Any()).Return(true, nil)
 				i.EXPECT().HasAttributes(gomock.Any(), ia120, gomock.Any()).
 					Return(false, errors.New("test error"))
@@ -105,7 +105,7 @@ func TestSplitter(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			i := mock_infra.NewMockASInspector(ctrl)
+			i := mock_trust.NewMockInspector(ctrl)
 			test.PrepareMock(i)
 			splitter := segreq.Splitter{ASInspector: i}
 			rs, err := splitter.Split(context.Background(), test.Req)

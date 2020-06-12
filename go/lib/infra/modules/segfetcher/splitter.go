@@ -18,7 +18,7 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/pkg/trust"
 )
 
 // Splitter splits a single request into a request set.
@@ -32,7 +32,7 @@ type Splitter interface {
 // The AS inspector is used to check whether an IA is core or not.
 type MultiSegmentSplitter struct {
 	Local     addr.IA
-	Inspector infra.ASInspector
+	Inspector trust.Inspector
 }
 
 // Split splits the request consisting of one or multiple segments.
@@ -88,10 +88,7 @@ func (s *MultiSegmentSplitter) isCore(ctx context.Context, dst addr.IA) (bool, e
 	if dst.IsWildcard() {
 		return true, nil
 	}
-	args := infra.ASInspectorOpts{
-		RequiredAttributes: []infra.Attribute{infra.Core},
-	}
-	isCore, err := s.Inspector.HasAttributes(ctx, dst, args)
+	isCore, err := s.Inspector.HasAttributes(ctx, dst, trust.Core)
 	if err != nil {
 		return false, err
 	}
