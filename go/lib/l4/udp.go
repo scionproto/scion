@@ -15,6 +15,7 @@
 package l4
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -55,11 +56,11 @@ func (u *UDP) Parse(b common.RawBytes) error {
 			"expected", UDPLen, "actual", len(b))
 	}
 	offset := 0
-	u.SrcPort = common.Order.Uint16(b[offset:])
+	u.SrcPort = binary.BigEndian.Uint16(b[offset:])
 	offset += 2
-	u.DstPort = common.Order.Uint16(b[offset:])
+	u.DstPort = binary.BigEndian.Uint16(b[offset:])
 	offset += 2
-	u.TotalLen = common.Order.Uint16(b[offset:])
+	u.TotalLen = binary.BigEndian.Uint16(b[offset:])
 	offset += 2
 	copy(u.Checksum, b[offset:])
 	return nil
@@ -80,11 +81,11 @@ func (u *UDP) Pack(csum bool) (common.RawBytes, error) {
 
 func (u *UDP) Write(b common.RawBytes) error {
 	offset := 0
-	common.Order.PutUint16(b[offset:], u.SrcPort)
+	binary.BigEndian.PutUint16(b[offset:], u.SrcPort)
 	offset += 2
-	common.Order.PutUint16(b[offset:], u.DstPort)
+	binary.BigEndian.PutUint16(b[offset:], u.DstPort)
 	offset += 2
-	common.Order.PutUint16(b[offset:], u.TotalLen)
+	binary.BigEndian.PutUint16(b[offset:], u.TotalLen)
 	offset += 2
 	copy(b[offset:], u.Checksum)
 	return nil

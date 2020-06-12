@@ -15,6 +15,7 @@
 package parser
 
 import (
+	"encoding/binary"
 	"fmt"
 	"strings"
 	"time"
@@ -255,7 +256,7 @@ func (s *SCMPTaggedLayer) updateHeaderFields(kvs propMap) {
 			s.opts.FixLengths = false
 		case "Checksum":
 			s.Checksum = make(common.RawBytes, 2)
-			common.Order.PutUint16(s.Checksum, uint16(HexToInt(v)))
+			binary.BigEndian.PutUint16(s.Checksum, uint16(HexToInt(v)))
 			s.opts.ComputeChecksums = false
 		case "Timestamp":
 			var err error

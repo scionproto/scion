@@ -15,6 +15,7 @@
 package scmp
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -61,9 +62,9 @@ func InfoTraceRouteFromRaw(b common.RawBytes) (*InfoTraceRoute, error) {
 		return nil, serrors.New("Unable to parse InfoTraceRoute, small buffer size")
 	}
 	e := &InfoTraceRoute{}
-	e.Id = common.Order.Uint64(b)
+	e.Id = binary.BigEndian.Uint64(b)
 	e.IA = addr.IAFromRaw(b[8:])
-	e.IfID = common.IFIDType(common.Order.Uint64(b[16:]))
+	e.IfID = common.IFIDType(binary.BigEndian.Uint64(b[16:]))
 	e.HopOff = b[24]
 	e.In = b[25] == 1
 	return e, nil
@@ -81,9 +82,9 @@ func (e *InfoTraceRoute) Len() int {
 }
 
 func (e *InfoTraceRoute) Write(b common.RawBytes) (int, error) {
-	common.Order.PutUint64(b, e.Id)
+	binary.BigEndian.PutUint64(b, e.Id)
 	e.IA.Write(b[8:])
-	common.Order.PutUint64(b[16:], uint64(e.IfID))
+	binary.BigEndian.PutUint64(b[16:], uint64(e.IfID))
 	b[24] = e.HopOff
 	if e.In {
 		b[25] = 1

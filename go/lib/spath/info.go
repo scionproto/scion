@@ -16,6 +16,7 @@
 package spath
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"time"
@@ -64,9 +65,9 @@ func InfoFFromRaw(b []byte) (*InfoField, error) {
 	inf.Shortcut = flags&0x2 != 0
 	inf.Peer = flags&0x4 != 0
 	offset := 1
-	inf.TsInt = common.Order.Uint32(b[offset:])
+	inf.TsInt = binary.BigEndian.Uint32(b[offset:])
 	offset += 4
-	inf.ISD = common.Order.Uint16(b[offset:])
+	inf.ISD = binary.BigEndian.Uint16(b[offset:])
 	offset += 2
 	inf.Hops = b[offset]
 	return inf, nil
@@ -84,9 +85,9 @@ func (inf *InfoField) Write(b common.RawBytes) {
 		b[0] |= 0x4
 	}
 	offset := 1
-	common.Order.PutUint32(b[offset:], inf.TsInt)
+	binary.BigEndian.PutUint32(b[offset:], inf.TsInt)
 	offset += 4
-	common.Order.PutUint16(b[offset:], inf.ISD)
+	binary.BigEndian.PutUint16(b[offset:], inf.ISD)
 	offset += 2
 	b[offset] = inf.Hops
 }

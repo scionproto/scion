@@ -334,7 +334,7 @@ func (scn *ScionTaggedLayer) GenerateMac(hMac hash.Hash, infTag, hfTag, hfMacTag
 	}
 	hMac.Reset()
 	/// CalcMac assumes TsInt in network order
-	//hf.Mac = hf.CalcMac(hMac, common.Order.PutUint32(inf.TsInt, buf))
+	//hf.Mac = hf.CalcMac(hMac, binary.BigEndian.PutUint32(inf.TsInt, buf))
 	hf.Mac = hf.CalcMac(hMac, inf.TsInt, buf[1:])
 }
 

@@ -16,6 +16,7 @@
 package reliable
 
 import (
+	"encoding/binary"
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -56,7 +57,7 @@ func (r *Registration) SerializeTo(b []byte) (int, error) {
 	}
 	if r.SVCAddress != addr.SvcNone {
 		buffer := make([]byte, 2)
-		common.Order.PutUint16(buffer, uint16(r.SVCAddress))
+		binary.BigEndian.PutUint16(buffer, uint16(r.SVCAddress))
 		msg.SVC = buffer
 	}
 	return msg.SerializeTo(b)
@@ -78,7 +79,7 @@ func (r *Registration) DecodeFromBytes(b []byte) error {
 	if len(msg.SVC) == 0 {
 		r.SVCAddress = addr.SvcNone
 	} else {
-		r.SVCAddress = addr.HostSVC(common.Order.Uint16(msg.SVC))
+		r.SVCAddress = addr.HostSVC(binary.BigEndian.Uint16(msg.SVC))
 	}
 	if (msg.Command & CmdBindAddress) != 0 {
 		r.BindAddress = &net.UDPAddr{
@@ -106,7 +107,7 @@ func (m *registrationMessage) SerializeTo(b []byte) (int, error) {
 	}
 	b[0] = byte(m.Command)
 	b[1] = m.L4Proto
-	common.Order.PutUint64(b[2:], m.IA)
+	binary.BigEndian.PutUint64(b[2:], m.IA)
 	offset := 10
 	if _, err := m.PublicData.SerializeTo(b[offset:]); err != nil {
 		return 0, err
@@ -129,7 +130,7 @@ func (l *registrationMessage) DecodeFromBytes(b []byte) error {
 	}
 	l.Command = CommandBitField(b[0])
 	l.L4Proto = b[1]
-	l.IA = common.Order.Uint64(b[2:])
+	l.IA = binary.BigEndian.Uint64(b[2:])
 	offset := 10
 	if err := l.PublicData.DecodeFromBytes(b[offset:]); err != nil {
 		return err
@@ -163,7 +164,7 @@ func (l *registrationAddressField) SerializeTo(b []byte) (int, error) {
 	if len(b) < l.length() {
 		return 0, common.NewBasicError(ErrBufferTooSmall, nil)
 	}
-	common.Order.PutUint16(b, l.Port)
+	binary.BigEndian.PutUint16(b, l.Port)
 	b[2] = l.AddressType
 	copy(b[3:], l.Address)
 	return l.length(), nil
@@ -173,7 +174,7 @@ func (l *registrationAddressField) DecodeFromBytes(b []byte) error {
 	if len(b) < 3 {
 		return common.NewBasicError(ErrIncompleteMessage, nil)
 	}
-	l.Port = common.Order.Uint16(b[:2])
+	l.Port = binary.BigEndian.Uint16(b[:2])
 	l.AddressType = b[2]
 	if !isValidReliableSockDestination(addr.HostAddrType(l.AddressType)) {
 		return common.NewBasicError(ErrBadAddressType, nil)
@@ -207,7 +208,7 @@ func (c *Confirmation) SerializeTo(b []byte) (int, error) {
 	if len(b) < 2 {
 		return 0, common.NewBasicError(ErrBufferTooSmall, nil)
 	}
-	common.Order.PutUint16(b, c.Port)
+	binary.BigEndian.PutUint16(b, c.Port)
 	return 2, nil
 }
 
@@ -215,6 +216,6 @@ func (c *Confirmation) DecodeFromBytes(b []byte) error {
 	if len(b) < 2 {
 		return common.NewBasicError(ErrIncompletePort, nil)
 	}
-	c.Port = common.Order.Uint16(b)
+	c.Port = binary.BigEndian.Uint16(b)
 	return nil
 }
