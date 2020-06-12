@@ -34,6 +34,7 @@ MOCK_TARGETS = [
     ("net", "Addr,Conn,PacketConn"),
     (SCION_PACKAGE_PREFIX + "/go/pkg/cs/trust/handler", "ChainBuilder,RenewalRequestVerifier"),
     (SCION_PACKAGE_PREFIX + "/go/pkg/cs/trust", "CACertProvider,PolicyGen,SignerGen"),
+    (SCION_PACKAGE_PREFIX + "/go/pkg/sciond/fetcher", "Fetcher,Policy"),
     (SCION_PACKAGE_PREFIX + "/go/pkg/trust", "DB,Fetcher,Inspector,KeyRing,Provider," +
         "Recurser,Router,RPC"),
     (SCION_PACKAGE_PREFIX + "/go/pkg/trust/renewal", "DB"),
@@ -68,7 +69,6 @@ MOCK_TARGETS = [
     (SCION_PACKAGE_PREFIX + "/go/lib/underlay/conn", "Conn"),
     (SCION_PACKAGE_PREFIX + "/go/lib/periodic/internal/metrics", "ExportMetric"),
     (SCION_PACKAGE_PREFIX + "/go/lib/xtest", "Callback"),
-    (SCION_PACKAGE_PREFIX + "/go/sciond/internal/fetcher", "Policy"),
     (SCION_PACKAGE_PREFIX + "/go/sig/egress/iface", "Session"),
     (SCION_PACKAGE_PREFIX + "/go/sig/egress/worker", "SCIONWriter"),
 ]

@@ -27,8 +27,8 @@ import (
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
-	"github.com/scionproto/scion/go/sciond/internal/fetcher"
-	"github.com/scionproto/scion/go/sciond/internal/fetcher/mock_fetcher"
+	"github.com/scionproto/scion/go/pkg/sciond/fetcher"
+	"github.com/scionproto/scion/go/pkg/sciond/fetcher/mock_fetcher"
 )
 
 func TestFilter(t *testing.T) {

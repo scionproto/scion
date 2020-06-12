@@ -45,7 +45,7 @@ scion_app_images(
     binary = "//go/border:border",
     entrypoint = [
         "/app/border",
-        "-config",
+        "--config",
         "/share/conf/br.toml",
     ],
     workdir = "/share",
@@ -57,7 +57,7 @@ scion_app_images(
     binary = "//go/cs:cs",
     entrypoint = [
         "/app/cs",
-        "-config",
+        "--config",
         "/share/conf/cs.toml",
     ],
     workdir = "/share",
@@ -69,7 +69,7 @@ scion_app_images(
     binary = "//go/dispatcher:dispatcher",
     entrypoint = [
         "/app/dispatcher",
-        "-config",
+        "--config",
         "/share/conf/disp.toml",
     ],
     workdir = "/share",
@@ -81,7 +81,7 @@ scion_app_images(
     binary = "//go/sciond:sciond",
     entrypoint = [
         "/app/sciond",
-        "-config",
+        "--config",
         "/share/conf/sd.toml",
     ],
     workdir = "/share",
@@ -93,7 +93,7 @@ scion_app_images(
     binary = "//go/sig:sig",
     entrypoint = [
         "/app/sig",
-        "-config",
+        "--config",
         "/share/conf/sig.toml",
     ],
     workdir = "/share",
