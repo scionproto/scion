@@ -393,3 +393,10 @@ func (t *Token) Read(b []byte) (int, error) {
 	}
 	return offset, nil
 }
+
+// ToRaw returns the serial representation of the Token.
+func (t *Token) ToRaw() []byte {
+	buff := make([]byte, t.Len())
+	t.Read(buff) // safely ignore errors as they can only come from buffer size
+	return buff
+}
