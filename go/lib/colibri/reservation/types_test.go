@@ -255,6 +255,12 @@ func TestTokenRead(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestTokenToRaw(t *testing.T) {
+	tok := newToken()
+	raw := newTokenRaw()
+	require.Equal(t, raw, tok.ToRaw())
+}
+
 func newInfoField() InfoField {
 	return InfoField{
 		ExpirationTick: 384555855,
