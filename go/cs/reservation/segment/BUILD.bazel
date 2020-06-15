@@ -26,6 +26,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "export_test.go",
+        "index_test.go",
         "path_test.go",
         "request_test.go",
         "reservation_test.go",
