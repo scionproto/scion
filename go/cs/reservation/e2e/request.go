@@ -35,15 +35,16 @@ type SetupReq interface {
 
 // BaseSetupReq is the common part of any e2e setup request.
 type BaseSetupReq struct {
-	base.Request
-	ID          reservation.E2EID // the ID this request refers to
-	reservation *Reservation      // nil if no reservation yet
+	Metadata     base.RequestMetadata // information about the request (forwarding path)
+	ID           reservation.E2EID    // the ID this request refers to
+	TheTimestamp time.Time            // the mandatory timestamp
+	reservation  *Reservation         // nil if no reservation yet
 }
 
 func NewBaseSetupReq(path *spath.Path, ts time.Time,
 	ID *colibri_mgmt.E2EReservationID) (*BaseSetupReq, error) {
 
-	baseReq, err := base.NewRequest(ts, path)
+	metadata, err := base.NewRequestMetadata(path)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct e2e setup", err)
 	}
@@ -55,12 +56,13 @@ func NewBaseSetupReq(path *spath.Path, ts time.Time,
 		return nil, serrors.WrapStr("cannot construct e2e request", err)
 	}
 	return &BaseSetupReq{
-		Request: *baseReq,
-		ID:      *e2eID,
+		Metadata:     *metadata,
+		ID:           *e2eID,
+		TheTimestamp: ts,
 	}, nil
 }
 
-func (r *BaseSetupReq) Timestamp() time.Time      { return r.Request.Timestamp }
+func (r *BaseSetupReq) Timestamp() time.Time      { return r.TheTimestamp }
 func (r *BaseSetupReq) Reservation() *Reservation { return r.reservation }
 
 func (r *BaseSetupReq) ToCtrlMsg() (*colibri_mgmt.E2ESetup, error) {

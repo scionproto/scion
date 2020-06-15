@@ -40,8 +40,10 @@ func TestNewSetupReqFromCtrlMsg(t *testing.T) {
 	id := newID()
 	r, err = segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, id, p)
 	require.NoError(t, err)
-	require.Equal(t, *p, r.Path)
+	require.Equal(t, *p, r.Metadata.Path)
 	checkRequest(t, ctrlMsg, r, ts)
+	require.Equal(t, common.IFIDType(1), r.IngressIFID)
+	require.Equal(t, common.IFIDType(2), r.EgressIFID)
 }
 
 func TestRequestToCtrlMsg(t *testing.T) {
@@ -51,17 +53,6 @@ func TestRequestToCtrlMsg(t *testing.T) {
 	require.NoError(t, err)
 	anotherCtrlMsg := r.ToCtrlMsg()
 	require.Equal(t, ctrlMsg, anotherCtrlMsg)
-}
-
-func TestRequestIngressEgressIFIDs(t *testing.T) {
-	ctrlMsg := newSetup()
-	ts := time.Unix(1, 0)
-	p := newPath()
-	r, _ := segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, newID(), p)
-	in, e, err := r.IngressEgressIFIDs()
-	require.NoError(t, err)
-	require.Equal(t, common.IFIDType(1), in)
-	require.Equal(t, common.IFIDType(2), e)
 }
 
 func TestNewTelesRequestFromCtrlMsg(t *testing.T) {

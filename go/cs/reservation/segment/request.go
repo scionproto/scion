@@ -27,8 +27,11 @@ import (
 
 // Request is the base struct for any type of COLIBRI request.
 type Request struct {
-	base.Request
+	Metadata    base.RequestMetadata  // information about the request (forwarding path)
 	ID          reservation.SegmentID // the ID this request refers to
+	Timestamp   time.Time             // the mandatory timestamp
+	IngressIFID common.IFIDType       // the interface the reservation traffic uses to enter the AS
+	EgressIFID  common.IFIDType       // the interface the reservation traffic uses to leave the AS
 	Reservation *Reservation          // nil if no reservation yet
 }
 
@@ -36,9 +39,19 @@ type Request struct {
 func NewRequest(ts time.Time, ID *colibri_mgmt.SegmentReservationID,
 	path *spath.Path) (*Request, error) {
 
-	baseReq, err := base.NewRequest(ts, path)
+	metadata, err := base.NewRequestMetadata(path)
 	if err != nil {
 		return nil, serrors.WrapStr("new segment request", err)
+	}
+	hf, err := path.GetHopField(path.HopOff)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot get ingress and egress IFIDs from the setup request",
+			err, "hop_off", path.HopOff)
+	}
+	ingressIFID, egressIFID := hf.ConsIngress, hf.ConsEgress
+	infField, err := path.GetInfoField(path.InfOff)
+	if !infField.ConsDir {
+		egressIFID, ingressIFID = ingressIFID, egressIFID
 	}
 	if ID == nil {
 		return nil, serrors.New("new segment request with nil ID")
@@ -48,20 +61,12 @@ func NewRequest(ts time.Time, ID *colibri_mgmt.SegmentReservationID,
 		return nil, serrors.WrapStr("new segment request", err)
 	}
 	return &Request{
-		Request: *baseReq,
-		ID:      *segID,
+		Timestamp:   ts,
+		Metadata:    *metadata,
+		ID:          *segID,
+		IngressIFID: ingressIFID,
+		EgressIFID:  egressIFID,
 	}, nil
-}
-
-// IngressEgressIFIDs returns the ingress and egress interface IDs in this AS that a
-// packet using this reservation will traverse.
-func (r *Request) IngressEgressIFIDs() (common.IFIDType, common.IFIDType, error) {
-	hf, err := r.Path.GetHopField(r.Path.HopOff)
-	if err != nil {
-		return 0, 0, serrors.WrapStr("Cannot get ingress and egress IF IDs from the setup request",
-			err, "hop_off", r.Path.HopOff)
-	}
-	return hf.ConsIngress, hf.ConsEgress, nil
 }
 
 // SetupReq is a segment reservation setup request. It contains a reference to the reservation
