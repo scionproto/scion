@@ -15,6 +15,7 @@
 package segment
 
 import (
+	"sort"
 	"time"
 
 	base "github.com/scionproto/scion/go/cs/reservation"
@@ -71,6 +72,20 @@ type Index struct {
 	Token      reservation.Token
 }
 
+// NewIndex creates a new Index without yet linking it to any reservation.
+func NewIndex(idx reservation.IndexNumber, expiration time.Time, state IndexState,
+	minBW, maxBW, allocBW reservation.BWCls, token *reservation.Token) *Index {
+	return &Index{
+		Idx:        idx,
+		Expiration: expiration,
+		state:      state,
+		MinBW:      minBW,
+		MaxBW:      maxBW,
+		AllocBW:    allocBW,
+		Token:      *token,
+	}
+}
+
 // State returns the read-only state.
 func (index *Index) State() IndexState {
 	return index.state
@@ -84,3 +99,21 @@ var _ base.IndicesInterface = (*Indices)(nil)
 func (idxs Indices) Len() int                                     { return len(idxs) }
 func (idxs Indices) GetIndexNumber(i int) reservation.IndexNumber { return idxs[i].Idx }
 func (idxs Indices) GetExpiration(i int) time.Time                { return idxs[i].Expiration }
+
+// Sort sorts these Indices.
+func (idxs *Indices) Sort() {
+	if len(*idxs) < 2 {
+		return
+	}
+	sort.Slice(*idxs, func(i, j int) bool {
+		return (*idxs)[i].Idx < (*idxs)[j].Idx
+	})
+	// find a discontinuity and rotate
+	i := 1
+	for ; i < len(*idxs); i++ {
+		if (*idxs)[i-1].Idx.Add(1) != (*idxs)[i].Idx.Add(0) {
+			break
+		}
+	}
+	*idxs = append((*idxs)[i:], (*idxs)[:i]...)
+}
