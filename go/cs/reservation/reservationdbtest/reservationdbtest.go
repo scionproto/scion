@@ -17,12 +17,14 @@ package reservationdbtest
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend"
+	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -34,6 +36,7 @@ type TestableDB interface {
 func TestDB(t *testing.T, db TestableDB) {
 	tests := map[string]func(context.Context, *testing.T, backend.DB){
 		"insert segment reservations create ID": testNewSegmentReservation,
+		"insert segment index":                  testNewSegmentIndex,
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -52,4 +55,37 @@ func testNewSegmentReservation(ctx context.Context, t *testing.T, db backend.DB)
 	err := db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	require.Equal(t, xtest.MustParseHexString("00000001"), r.ID.Suffix[:])
+}
+
+func testNewSegmentIndex(t *testing.T, db backend.DB) {
+	r := segment.NewReservation()
+	r.EgressIFID = 1
+	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
+	r.Path = &p
+	r.ID.ASID = xtest.MustParseAS("ff00:0:1")
+	ctx := context.Background()
+	db.NewSegmentRsv(ctx, r)
+	expTime := time.Unix(1, 0)
+	idx, err := r.NewIndex(expTime)
+	require.NoError(t, err)
+	err = db.NewSegmentIndex(ctx, r, idx, newToken())
+	require.NoError(t, err)
+
+	r2, err := db.GetSegmentRsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Equal(t, r, r2)
+}
+
+func testGetSegmentRsvFromID(t *testing.T, db backend.DB) {
+
+}
+
+// newToken just returns a token that can be serialized. This one has two HopFields.
+func newToken() *reservation.Token {
+	t, err := reservation.TokenFromRaw(xtest.MustParseHexString(
+		"16ebdb4f0d042500003f001002bad1ce003f001002facade"))
+	if err != nil {
+		panic("invalid serialized token")
+	}
+	return t
 }
