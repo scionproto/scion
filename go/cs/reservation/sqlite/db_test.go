@@ -87,15 +87,17 @@ func BenchmarkNewSuffix100K(b *testing.B) { benchmarkNewSuffix(b, 100000) }
 func BenchmarkNewSuffix1M(b *testing.B)   { benchmarkNewSuffix(b, 1000000) }
 
 func newDB(t testing.TB) *Backend {
+	t.Helper()
 	db, err := New("file::memory:")
 	require.NoError(t, err)
 	return db
 }
 
 func addSegRsvRows(t testing.TB, b *Backend, asid addr.AS, firstSuffix, lastSuffix uint32) {
+	t.Helper()
 	ctx := context.Background()
 	query := `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress, path,
-		src_as, dst_as) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+		src_as, dst_as, active_index) VALUES ($1, $2, $3, $4, $5, $6, $7, -1)`
 	for suffix := firstSuffix; suffix <= lastSuffix; suffix++ {
 		_, err := b.db.ExecContext(ctx, query, asid, suffix, 0, 0, nil, nil, nil)
 		require.NoError(t, err)
