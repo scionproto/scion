@@ -36,6 +36,7 @@ import (
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing"
+	beaconingcompat "github.com/scionproto/scion/go/cs/beaconing/compat"
 	"github.com/scionproto/scion/go/cs/beaconstorage"
 	"github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/cs/handlers"
@@ -684,7 +685,17 @@ func (t *PeriodicTasks) startOriginator(a *net.UDPAddr) (*periodic.Runner, error
 	if !topo.Core() {
 		return nil, nil
 	}
-	s, err := beaconing.OriginatorConf{
+	s := &beaconing.Originator{
+		Extender: &beaconing.LegacyExtender{
+			IA:         topo.IA(),
+			Signer:     t.signer,
+			MAC:        t.genMac,
+			Intfs:      t.intfs,
+			MTU:        topo.MTU(),
+			MaxExpTime: maxExpTimeFactory(t.store, beacon.PropPolicy),
+			StaticInfo: func() *beaconing.StaticInfoCfg { return staticInfoCfg },
+			Task:       "originator",
+		},
 		BeaconSender: &onehop.BeaconSender{
 			Sender: onehop.Sender{
 				Conn: t.conn,
@@ -695,29 +706,27 @@ func (t *PeriodicTasks) startOriginator(a *net.UDPAddr) (*periodic.Runner, error
 			AddressRewriter:  t.addressRewriter,
 			QUICBeaconSender: t.msgr,
 		},
-		Config: beaconing.ExtenderConf{
-			IA:            topo.IA(),
-			Intfs:         t.intfs,
-			Mac:           t.genMac(),
-			MTU:           topo.MTU(),
-			Signer:        t.signer,
-			GetMaxExpTime: maxExpTimeFactory(t.store, beacon.PropPolicy),
-		},
-		Period: Cfg.BS.OriginationInterval.Duration,
-	}.New()
-	if err != nil {
-		return nil, common.NewBasicError("Unable to start originator", err)
+		IA:     topo.IA(),
+		Intfs:  t.intfs,
+		Signer: t.signer,
+		Tick:   beaconing.NewTick(Cfg.BS.OriginationInterval.Duration),
 	}
-	return periodic.Start(s, 500*time.Millisecond,
-		Cfg.BS.OriginationInterval.Duration), nil
+	return periodic.Start(s, 500*time.Millisecond, Cfg.BS.OriginationInterval.Duration), nil
 }
 
 func (t *PeriodicTasks) startPropagator(a *net.UDPAddr) (*periodic.Runner, error) {
 	topo := t.TopoProvider.Get()
-	p, err := beaconing.PropagatorConf{
-		BeaconProvider: t.store,
-		AllowIsdLoop:   t.allowIsdLoop,
-		Core:           topo.Core(),
+	p := &beaconing.Propagator{
+		Extender: &beaconing.LegacyExtender{
+			IA:         topo.IA(),
+			Signer:     t.signer,
+			MAC:        t.genMac,
+			Intfs:      t.intfs,
+			MTU:        topo.MTU(),
+			MaxExpTime: maxExpTimeFactory(t.store, beacon.PropPolicy),
+			StaticInfo: func() *beaconing.StaticInfoCfg { return staticInfoCfg },
+			Task:       "propagator",
+		},
 		BeaconSender: &onehop.BeaconSender{
 			Sender: onehop.Sender{
 				Conn: t.conn,
@@ -728,22 +737,15 @@ func (t *PeriodicTasks) startPropagator(a *net.UDPAddr) (*periodic.Runner, error
 			AddressRewriter:  t.addressRewriter,
 			QUICBeaconSender: t.msgr,
 		},
-		Config: beaconing.ExtenderConf{
-			IA:            topo.IA(),
-			Intfs:         t.intfs,
-			Mac:           t.genMac(),
-			MTU:           topo.MTU(),
-			Signer:        t.signer,
-			GetMaxExpTime: maxExpTimeFactory(t.store, beacon.PropPolicy),
-			StaticInfoCfg: staticInfoCfg,
-		},
-		Period: Cfg.BS.PropagationInterval.Duration,
-	}.New()
-	if err != nil {
-		return nil, common.NewBasicError("Unable to start propagator", err)
+		Provider:     t.store,
+		IA:           topo.IA(),
+		Signer:       t.signer,
+		Intfs:        t.intfs,
+		AllowIsdLoop: t.allowIsdLoop,
+		Core:         topo.Core(),
+		Tick:         beaconing.NewTick(Cfg.BS.PropagationInterval.Duration),
 	}
-	return periodic.Start(p, 500*time.Millisecond,
-		Cfg.BS.PropagationInterval.Duration), nil
+	return periodic.Start(p, 500*time.Millisecond, Cfg.BS.PropagationInterval.Duration), nil
 }
 
 func (t *PeriodicTasks) startSegRegRunners() (segRegRunners, error) {
@@ -771,27 +773,28 @@ func (t *PeriodicTasks) startSegRegRunners() (segRegRunners, error) {
 func (t *PeriodicTasks) startRegistrar(topo topology.Topology, segType proto.PathSegType,
 	policyType beacon.PolicyType) (*periodic.Runner, error) {
 
-	r, err := beaconing.RegistrarConf{
-		Msgr:         t.msgr,
-		SegProvider:  t.store,
-		SegStore:     &seghandler.DefaultStorage{PathDB: t.pathDB},
-		SegType:      segType,
-		TopoProvider: t.TopoProvider,
-		Period:       Cfg.BS.RegistrationInterval.Duration,
-		Config: beaconing.ExtenderConf{
-			IA:            topo.IA(),
-			Intfs:         t.intfs,
-			Mac:           t.genMac(),
-			MTU:           topo.MTU(),
-			Signer:        t.signer,
-			GetMaxExpTime: maxExpTimeFactory(t.store, policyType),
+	r := &beaconing.Registrar{
+		Extender: &beaconing.LegacyExtender{
+			IA:         topo.IA(),
+			Signer:     t.signer,
+			MAC:        t.genMac,
+			Intfs:      t.intfs,
+			MTU:        topo.MTU(),
+			MaxExpTime: maxExpTimeFactory(t.store, policyType),
+			StaticInfo: func() *beaconing.StaticInfoCfg { return staticInfoCfg },
+			Task:       "registrar",
 		},
-	}.New()
-	if err != nil {
-		return nil, common.NewBasicError("unable to start registrar", err, "type", segType)
+		Provider:     t.store,
+		Store:        &seghandler.DefaultStorage{PathDB: t.pathDB},
+		RPC:          beaconingcompat.RPC{Messenger: t.msgr},
+		IA:           topo.IA(),
+		Signer:       t.signer,
+		Intfs:        t.intfs,
+		Type:         segType,
+		TopoProvider: t.TopoProvider,
+		Tick:         beaconing.NewTick(Cfg.BS.RegistrationInterval.Duration),
 	}
-	return periodic.Start(r, 500*time.Millisecond,
-		Cfg.BS.RegistrationInterval.Duration), nil
+	return periodic.Start(r, 500*time.Millisecond, Cfg.BS.RegistrationInterval.Duration), nil
 }
 
 func (t *PeriodicTasks) Kill() {
