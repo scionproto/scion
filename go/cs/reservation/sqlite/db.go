@@ -247,18 +247,14 @@ func (x *executor) SetSegmentActiveIndex(ctx context.Context, rsv *segment.Reser
 	return nil
 }
 
-// NewSegmentRsvIndex stores a new index for a segment reservation.
+// NewSegmentIndex stores a new index for a segment reservation.
 func (x *executor) NewSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-	idx reservation.IndexNumber, tok *reservation.Token) error {
+	idx reservation.IndexNumber) error {
 
 	index, err := rsv.Index(idx)
 	if err != nil {
 		return db.NewInputDataError("invalid index number", err)
 	}
-	if tok == nil {
-		return db.NewInputDataError("token argument is nil", nil)
-	}
-	index.Token = *tok
 	return insertNewIndex(ctx, x.db, &rsv.ID, index)
 }
 

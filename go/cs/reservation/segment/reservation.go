@@ -95,7 +95,9 @@ func (r *Reservation) ActiveIndex() *Index {
 
 // NewIndex creates a new index in this reservation and returns a pointer to it.
 // Parameters of this index can be changed using the pointer, except for the state.
-func (r *Reservation) NewIndex(expTime time.Time) (reservation.IndexNumber, error) {
+func (r *Reservation) NewIndex(expTime time.Time, token reservation.Token) (
+	reservation.IndexNumber, error) {
+
 	idx := reservation.IndexNumber(0)
 	if len(r.Indices) > 0 {
 		idx = r.Indices[len(r.Indices)-1].Idx.Add(1)
@@ -106,6 +108,7 @@ func (r *Reservation) NewIndex(expTime time.Time) (reservation.IndexNumber, erro
 		Expiration: expTime,
 		Idx:        idx,
 		state:      IndexTemporary,
+		Token:      token,
 	}
 	if err := base.ValidateIndices(newIndices); err != nil {
 		return 0, err

@@ -59,10 +59,9 @@ type ReserverAndTransit interface {
 	// SetSegmentActiveIndex updates the active index. Used in index confirmation.
 	SetSegmentActiveIndex(ctx context.Context, rsv *segment.Reservation,
 		idx reservation.IndexNumber) error
-	// NewSegmentIndex stores a new index for a segment reservation. The token must not be nil.
-	// Used in setup/renew.
+	// NewSegmentIndex stores a new index for a segment reservation. Used in setup/renew.
 	NewSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-		idx reservation.IndexNumber, tok *reservation.Token) error
+		idx reservation.IndexNumber) error
 	// UpdateSegmentIndex updates an index of a segment rsv. Used in setup/renew response.
 	UpdateSegmentIndex(ctx context.Context, rsv *segment.Reservation,
 		idx reservation.IndexNumber) error
