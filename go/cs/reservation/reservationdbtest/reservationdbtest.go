@@ -35,7 +35,7 @@ type TestableDB interface {
 
 func TestDB(t *testing.T, db TestableDB) {
 	tests := map[string]func(context.Context, *testing.T, backend.DB){
-		"insert segment reservations create ID": testNewSegmentReservation,
+		"insert segment reservations create ID": testNewSegmentRsv,
 		"insert segment index":                  testNewSegmentIndex,
 	}
 	for name, test := range tests {
@@ -47,30 +47,32 @@ func TestDB(t *testing.T, db TestableDB) {
 	}
 }
 
-func testNewSegmentReservation(ctx context.Context, t *testing.T, db backend.DB) {
+func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	r := segment.NewReservation()
 	r.Egress = 1
 	r.Path = segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
 	r.ID.ASID = xtest.MustParseAS("ff00:0:1")
+	expTime := time.Unix(1, 0)
+	token := newToken()
+	r.NewIndex(expTime, *token)
 	err := db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	require.Equal(t, xtest.MustParseHexString("00000001"), r.ID.Suffix[:])
 }
 
-func testNewSegmentIndex(t *testing.T, db backend.DB) {
+func testNewSegmentIndex(ctx context.Context, t *testing.T, db backend.DB) {
 	r := segment.NewReservation()
 	r.EgressIFID = 1
 	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
 	r.Path = &p
 	r.ID.ASID = xtest.MustParseAS("ff00:0:1")
-	ctx := context.Background()
 	db.NewSegmentRsv(ctx, r)
 	expTime := time.Unix(1, 0)
-	idx, err := r.NewIndex(expTime)
-	require.NoError(t, err)
-	err = db.NewSegmentIndex(ctx, r, idx, newToken())
+	idx, err := r.NewIndex(expTime, *newToken())
 	require.NoError(t, err)
 
+	err = db.NewSegmentIndex(ctx, r, idx)
+	require.NoError(t, err)
 	r2, err := db.GetSegmentRsvFromID(ctx, &r.ID)
 	require.NoError(t, err)
 	require.Equal(t, r, r2)
