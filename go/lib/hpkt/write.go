@@ -20,13 +20,19 @@
 package hpkt
 
 import (
+	"net"
+
 	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/layers"
+	deprecatedlayers "github.com/scionproto/scion/go/lib/layers"
+	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -85,9 +91,9 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	buffer := gopacket.NewSerializeBuffer()
 	switch s.L4.L4Type() {
 	case common.L4UDP:
-		buffer.PushLayer(layers.LayerTypeSCIONUDP)
+		buffer.PushLayer(deprecatedlayers.LayerTypeSCIONUDP)
 	case common.L4SCMP:
-		buffer.PushLayer(layers.LayerTypeSCMP)
+		buffer.PushLayer(deprecatedlayers.LayerTypeSCMP)
 	default:
 		return 0, common.NewBasicError("Unsupported L4", nil, "type", s.L4.L4Type())
 	}
@@ -138,7 +144,7 @@ func writeExtensions(extensions []common.Extension, buffer gopacket.SerializeBuf
 		if err != nil {
 			return err
 		}
-		extn, err := layers.ExtensionDataToExtensionLayer(nextHeaderType, extensions[i])
+		extn, err := deprecatedlayers.ExtensionDataToExtensionLayer(nextHeaderType, extensions[i])
 		if err != nil {
 			return err
 		}
@@ -148,9 +154,9 @@ func writeExtensions(extensions []common.Extension, buffer gopacket.SerializeBuf
 		}
 		switch extensions[i].Class() {
 		case common.HopByHopClass:
-			buffer.PushLayer(layers.LayerTypeHopByHopExtension)
+			buffer.PushLayer(deprecatedlayers.LayerTypeHopByHopExtension)
 		case common.End2EndClass:
-			buffer.PushLayer(layers.LayerTypeEndToEndExtension)
+			buffer.PushLayer(deprecatedlayers.LayerTypeEndToEndExtension)
 		default:
 			return serrors.New("cannot push unknown layer")
 		}
@@ -161,7 +167,7 @@ func writeExtensions(extensions []common.Extension, buffer gopacket.SerializeBuf
 func getNextHeaderType(buffer gopacket.SerializeBuffer) (common.L4ProtocolType, error) {
 	serializedLayers := buffer.Layers()
 	lastLayer := serializedLayers[len(serializedLayers)-1]
-	nextHdr, ok := layers.LayerToHeaderMap[lastLayer]
+	nextHdr, ok := deprecatedlayers.LayerToHeaderMap[lastLayer]
 	if !ok {
 		return 0, common.NewBasicError("unknown header", nil, "gopacket_type", lastLayer)
 	}
@@ -180,5 +186,107 @@ func isZeroMemory(b common.RawBytes) (int, bool) {
 func zeroMemory(b common.RawBytes) {
 	for i := range b {
 		b[i] = 0
+	}
+}
+
+// WriteScnPkt converts ScnPkt data into a raw SCION v2 header packet.
+func WriteScnPkt2(s *spkt.ScnPkt, b []byte) (int, error) {
+	var packetLayers []gopacket.SerializableLayer
+
+	var scionLayer slayers.SCION
+	// XXX(scrye): Do not set TrafficClass and FlowID, even though the latter is mandatory,
+	// to keep things simple while we transition to HeaderV2. These should be added once
+	// the transition is complete.
+	scionLayer.DstIA = s.DstIA
+	scionLayer.SrcIA = s.SrcIA
+	netDstAddr, err := hostAddrToNetAddr(s.DstHost)
+	if err != nil {
+		return 0, serrors.WrapStr("unable to convert destination addr.HostAddr to net.Addr", err,
+			"address", s.DstHost)
+	}
+	if err := scionLayer.SetDstAddr(netDstAddr); err != nil {
+		return 0, serrors.WrapStr("unable to set destination address", err)
+	}
+	netSrcAddr, err := hostAddrToNetAddr(s.SrcHost)
+	if err != nil {
+		return 0, serrors.WrapStr("unable to convert source addr.HostAddr to net.Addr", err,
+			"address", s.SrcHost)
+	}
+	if err := scionLayer.SetSrcAddr(netSrcAddr); err != nil {
+		return 0, serrors.WrapStr("unable to set source address", err)
+	}
+	scionLayer.PathType = slayers.PathTypeSCION
+
+	// Use decoded for simplicity, easier to work with when debugging with delve.
+	var decodedPath scion.Decoded
+	if err := decodedPath.DecodeFromBytes(s.Path.Raw); err != nil {
+		return 0, nil
+	}
+	scionLayer.Path = &decodedPath
+	packetLayers = append(packetLayers, &scionLayer)
+
+	// XXX(scrye): No extensions are defined for the V2 header format. However,
+	// application code uses some V1 extensions like the One-Hop Path, and these
+	// will need to be converted for V2 to the new One-Hop path type.
+	if len(s.HBHExt) != 0 {
+		return 0, serrors.New("HBH extensions are not supported for Header V2")
+	}
+	if len(s.E2EExt) != 0 {
+		return 0, serrors.New("E2E extensions are not supported for Header V2")
+	}
+
+	switch layer := s.L4.(type) {
+	case *l4.UDP:
+		scionLayer.NextHdr = common.L4UDP
+		var udpLayer slayers.UDP
+		udpLayer.SrcPort = layers.UDPPort(layer.SrcPort)
+		udpLayer.DstPort = layers.UDPPort(layer.DstPort)
+		udpLayer.SetNetworkLayerForChecksum(&scionLayer)
+		packetLayers = append(packetLayers, &udpLayer)
+	case *scmp.Hdr:
+		scionLayer.NextHdr = common.L4SCMP
+		var scmpLayer slayers.SCMP
+		scmpLayer.Class = layer.Class
+		scmpLayer.Type = layer.Type
+		scmpLayer.TotalLen = layer.TotalLen
+		scmpLayer.SetNetworkLayerForChecksum(&scionLayer)
+		scmpLayer.Timestamp = layer.Timestamp
+		scmpLayer.Payload = []byte(s.Pld.(common.RawBytes))
+		packetLayers = append(packetLayers, &scmpLayer)
+	}
+	payloadLayer := gopacket.Payload(s.Pld.(common.RawBytes))
+	packetLayers = append(packetLayers, &payloadLayer)
+
+	buffer := gopacket.NewSerializeBuffer()
+	options := gopacket.SerializeOptions{
+		ComputeChecksums: true,
+		FixLengths:       true,
+	}
+	if err := gopacket.SerializeLayers(buffer, options, packetLayers...); err != nil {
+		return 0, err
+	}
+
+	return copy(b, buffer.Bytes()), nil
+}
+
+func netAddrToHostAddr(a net.Addr) (addr.HostAddr, error) {
+	switch aImpl := a.(type) {
+	case *net.IPAddr:
+		return addr.HostFromIP(aImpl.IP), nil
+	case addr.HostSVC:
+		return aImpl, nil
+	default:
+		return nil, serrors.New("address not supported", "a", a)
+	}
+}
+
+func hostAddrToNetAddr(a addr.HostAddr) (net.Addr, error) {
+	switch aImpl := a.(type) {
+	case addr.HostSVC:
+		return aImpl, nil
+	case addr.HostIPv4, addr.HostIPv6:
+		return &net.IPAddr{IP: aImpl.IP()}, nil
+	default:
+		return nil, serrors.New("address not supported", "a", a)
 	}
 }

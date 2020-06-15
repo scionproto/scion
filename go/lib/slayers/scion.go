@@ -345,14 +345,14 @@ func parseAddr(addrType AddrType, addrLen AddrLen, raw []byte) (net.Addr, error)
 	case AddrLen4:
 		switch addrType {
 		case T4Ip:
-			return &net.IPAddr{IP: net.IP(raw), Zone: ""}, nil
+			return &net.IPAddr{IP: net.IP(raw)}, nil
 		case T4Svc:
 			return addr.HostSVC(binary.BigEndian.Uint16(raw[:addr.HostLenSVC])), nil
 		}
 	case AddrLen16:
 		switch addrType {
 		case T16Ip:
-			return &net.IPAddr{IP: net.IP(raw), Zone: ""}, nil
+			return &net.IPAddr{IP: net.IP(raw)}, nil
 		}
 	}
 	return nil, serrors.New("unsupported address type/length combination",

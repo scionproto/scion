@@ -27,6 +27,7 @@ var _ config.Config = (*Features)(nil)
 type Features struct {
 	AllowRunAsRoot bool `toml:"allow_run_as_root,omitempty"`
 	UseSIGEgress2  bool `toml:"sig_egress_v2,omitempty"`
+	HeaderV2       bool `toml:"header_v2,omitempty"`
 }
 
 func (cfg *Features) InitDefaults() {
