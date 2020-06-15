@@ -53,18 +53,17 @@ type TransitOnly interface {
 // ReserverAndTransit contains the functionality for any AS that has a COLIBRI service.
 type ReserverAndTransit interface {
 	// GetSegmentRsvFromID will return the reservation with that ID.
-	// If an IndexNumber is specified it will populate its indices only with that one.
-	// If the ID is not found, or the index (if specified) is not found, an error will be returned.
 	// Used by setup/renew req/resp. and any request.
-	GetSegmentRsvFromID(ctx context.Context, ID reservation.SegmentID,
-		idx *reservation.IndexNumber) (*segment.Reservation, error)
-	// SetActiveIndex updates the active index. Used in index confirmation.
-	SetSegmentActiveIndex(ctx context.Context, rsv segment.Reservation,
+	GetSegmentRsvFromID(ctx context.Context, ID *reservation.SegmentID) (
+		*segment.Reservation, error)
+	// SetSegmentActiveIndex updates the active index. Used in index confirmation.
+	SetSegmentActiveIndex(ctx context.Context, rsv *segment.Reservation,
 		idx reservation.IndexNumber) error
-	// NewSegmentRsvIndex stores a new index for a segment reservation. Used in setup/renew.
+	// NewSegmentIndex stores a new index for a segment reservation. The token must not be nil.
+	// Used in setup/renew.
 	NewSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-		idx reservation.IndexNumber) error
-	// UpdateSegmentRsvIndex updates an index of a segment rsv. Used in setup/renew response.
+		idx reservation.IndexNumber, tok *reservation.Token) error
+	// UpdateSegmentIndex updates an index of a segment rsv. Used in setup/renew response.
 	UpdateSegmentIndex(ctx context.Context, rsv *segment.Reservation,
 		idx reservation.IndexNumber) error
 	// DeleteSegmentIndex removes the index from the DB. Used in cleanup.

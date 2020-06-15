@@ -22,6 +22,7 @@ const (
 	// Schema is the SQLite database layout.
 	// TODO(juagargi) explain the DB structure here or in the design markdown.
 	// TODO(juagargi) create appropriate SQL indices.
+	// TODO(juagargi) path should be unique if not null
 	Schema = `CREATE TABLE seg_reservation (
 		row_id	INTEGER,
 		id_as	INTEGER NOT NULL,
@@ -31,6 +32,7 @@ const (
 		path	BLOB,
 		src_as INTEGER,
 		dst_as INTEGER,
+		active_index	INTEGER NOT NULL,
 		PRIMARY KEY(row_id),
 		UNIQUE(id_as,id_suffix)
 	);

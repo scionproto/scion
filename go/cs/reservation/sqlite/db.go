@@ -114,10 +114,65 @@ type executor struct {
 	db db.Sqler
 }
 
-func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID reservation.SegmentID,
-	idx *reservation.IndexNumber) (*segment.Reservation, error) {
+func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID *reservation.SegmentID) (
+	*segment.Reservation, error) {
 
-	return nil, nil
+	const query = `SELECT rsv.inout_ingress,rsv.inout_egress,rsv.path,rsv.active_index,
+		idx.index_number,idx.expiration,idx.state,idx.min_bw,idx.max_bw,idx.alloc_bw,idx.token
+		FROM seg_reservation as rsv
+		INNER JOIN seg_index AS idx ON rsv.row_id = idx.reservation
+		WHERE rsv.id_as = $1 AND rsv.id_suffix = $2;`
+	rows, err := x.db.QueryContext(ctx, query, ID.ASID, binary.BigEndian.Uint32(ID.Suffix[:]))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	indices := segment.Indices{}
+	var ingressIFID, egressIFID common.IFIDType
+	var activeIdx int
+	var idx, expiration, state, minBW, maxBW, allocBW int32
+	var path, token []byte
+	if rows.Next() {
+		if err := rows.Scan(&ingressIFID, &egressIFID, &path, &activeIdx,
+			&idx, &expiration, &state, &minBW, &maxBW, &allocBW, &token); err != nil {
+			return nil, err
+		}
+		tok, err := reservation.TokenFromRaw(token)
+		if err != nil {
+			return nil, db.NewDataError("invalid stored token", err)
+		}
+		index := segment.NewIndex(reservation.IndexNumber(idx),
+			time.Unix(int64(expiration), 0), segment.IndexState(state), reservation.BWCls(minBW),
+			reservation.BWCls(maxBW), reservation.BWCls(allocBW), tok)
+		indices = append(indices, *index)
+	}
+	for rows.Next() {
+		err := rows.Scan(nil, nil, nil,
+			&idx, &expiration, &state, &minBW, &maxBW, &allocBW, &token)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// sort indices so they are consecutive modulo 16
+	indices.Sort()
+	// setup reservation
+	rsv := segment.NewReservation()
+	rsv.ID = *ID
+	rsv.Ingress = ingressIFID
+	rsv.Egress = egressIFID
+	p, err := segment.NewPathFromRaw(path)
+	if err != nil {
+		return nil, err
+	}
+	rsv.Path = p
+	rsv.Indices = indices
+	if activeIdx != -1 {
+		if err := rsv.SetIndexActive(reservation.IndexNumber(activeIdx)); err != nil {
+			return nil, err
+		}
+	}
+	return rsv, nil
 }
 
 // GetSegmentRsvFromSrcDstAS returns all reservations that start at src AS and end in dst AS.
@@ -186,7 +241,7 @@ func (x *executor) NewSegmentRsv(ctx context.Context, rsv *segment.Reservation) 
 }
 
 // SetActiveIndex updates the active index for the segment reservation.
-func (x *executor) SetSegmentActiveIndex(ctx context.Context, rsv segment.Reservation,
+func (x *executor) SetSegmentActiveIndex(ctx context.Context, rsv *segment.Reservation,
 	idx reservation.IndexNumber) error {
 
 	return nil
@@ -194,9 +249,17 @@ func (x *executor) SetSegmentActiveIndex(ctx context.Context, rsv segment.Reserv
 
 // NewSegmentRsvIndex stores a new index for a segment reservation.
 func (x *executor) NewSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-	idx reservation.IndexNumber) error {
+	idx reservation.IndexNumber, tok *reservation.Token) error {
 
-	return nil
+	index, err := rsv.Index(idx)
+	if err != nil {
+		return db.NewInputDataError("invalid index number", err)
+	}
+	if tok == nil {
+		return db.NewInputDataError("token argument is nil", nil)
+	}
+	index.Token = *tok
+	return insertNewIndex(ctx, x.db, &rsv.ID, index)
 }
 
 // UpdateSegmentRsvIndex updates an index of a segment reservation.
@@ -274,10 +337,24 @@ func newSuffix(ctx context.Context, x db.Sqler, ASID addr.AS) (uint32, error) {
 
 func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reservation,
 	suffix uint32) error {
-	const query = `INSERT INTO seg_reservation (id_as, id_suffix, ingress ,egress,
-		path, src_as, dst_as) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+
+	const query = `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress,
+		path, src_as, dst_as,active_index) VALUES ($1, $2, $3, $4, $5, $6, $7, -1)`
 	_, err := x.ExecContext(ctx, query, rsv.Path.GetSrcIA().A, suffix,
 		rsv.Ingress, rsv.Egress,
 		rsv.Path.ToRaw(), rsv.Path.GetSrcIA().IAInt(), rsv.Path.GetDstIA().IAInt())
+	return err
+}
+
+func insertNewIndex(ctx context.Context, x db.Sqler, segID *reservation.SegmentID,
+	index *segment.Index) error {
+
+	const query = `INSERT INTO seg_index (reservation,
+		index_number,expiration,state,min_bw,max_bw,alloc_bw,token) VALUES (
+		(SELECT row_id FROM seg_reservation WHERE id_as=$1 AND id_suffix=$2),
+		$3,$4,$5,$6,$7,$8,$9)`
+	suffix := binary.BigEndian.Uint32(segID.Suffix[:])
+	_, err := x.ExecContext(ctx, query, segID.ASID, suffix, index.Idx, uint32(index.Expiration.Unix()),
+		index.State(), index.MinBW, index.MaxBW, index.AllocBW, index.Token.ToRaw())
 	return err
 }
