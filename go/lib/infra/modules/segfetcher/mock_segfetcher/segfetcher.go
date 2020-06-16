@@ -11,6 +11,7 @@ import (
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	segfetcher "github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	seghandler "github.com/scionproto/scion/go/lib/infra/modules/seghandler"
+	proto "github.com/scionproto/scion/go/proto"
 	net "net"
 	reflect "reflect"
 )
@@ -114,7 +115,7 @@ func (m *MockRequester) EXPECT() *MockRequesterMockRecorder {
 }
 
 // Request mocks base method
-func (m *MockRequester) Request(arg0 context.Context, arg1 segfetcher.RequestSet) <-chan segfetcher.ReplyOrErr {
+func (m *MockRequester) Request(arg0 context.Context, arg1 segfetcher.Requests) <-chan segfetcher.ReplyOrErr {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Request", arg0, arg1)
 	ret0, _ := ret[0].(<-chan segfetcher.ReplyOrErr)
@@ -189,11 +190,11 @@ func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
 }
 
 // Resolve mocks base method
-func (m *MockResolver) Resolve(arg0 context.Context, arg1 segfetcher.Segments, arg2 segfetcher.RequestSet) (segfetcher.Segments, segfetcher.RequestSet, error) {
+func (m *MockResolver) Resolve(arg0 context.Context, arg1 segfetcher.Requests, arg2 bool) (segfetcher.Segments, segfetcher.Requests, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", arg0, arg1, arg2)
 	ret0, _ := ret[0].(segfetcher.Segments)
-	ret1, _ := ret[1].(segfetcher.RequestSet)
+	ret1, _ := ret[1].(segfetcher.Requests)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
@@ -228,10 +229,10 @@ func (m *MockSplitter) EXPECT() *MockSplitterMockRecorder {
 }
 
 // Split mocks base method
-func (m *MockSplitter) Split(arg0 context.Context, arg1 segfetcher.Request) (segfetcher.RequestSet, error) {
+func (m *MockSplitter) Split(arg0 context.Context, arg1 addr.IA) (segfetcher.Requests, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Split", arg0, arg1)
-	ret0, _ := ret[0].(segfetcher.RequestSet)
+	ret0, _ := ret[0].(segfetcher.Requests)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -266,16 +267,16 @@ func (m *MockLocalInfo) EXPECT() *MockLocalInfoMockRecorder {
 }
 
 // IsSegLocal mocks base method
-func (m *MockLocalInfo) IsSegLocal(arg0 context.Context, arg1, arg2 addr.IA) (bool, error) {
+func (m *MockLocalInfo) IsSegLocal(arg0 context.Context, arg1, arg2 addr.IA, arg3 proto.PathSegType) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsSegLocal", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "IsSegLocal", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // IsSegLocal indicates an expected call of IsSegLocal
-func (mr *MockLocalInfoMockRecorder) IsSegLocal(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockLocalInfoMockRecorder) IsSegLocal(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSegLocal", reflect.TypeOf((*MockLocalInfo)(nil).IsSegLocal), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSegLocal", reflect.TypeOf((*MockLocalInfo)(nil).IsSegLocal), arg0, arg1, arg2, arg3)
 }

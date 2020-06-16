@@ -19,10 +19,11 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/proto"
 )
 
 func TestAuthoritativeClassify(t *testing.T) {
@@ -102,7 +103,7 @@ func TestAuthoritativeClassify(t *testing.T) {
 				Src: core_110,
 				Dst: non_core_211,
 			},
-			// core/non-core dst in remote ISD unchecked! Could also be an error...
+			// core/non-core dst in remote ISD unchecked! Returning an error would be ok too...
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_core,
 		},
@@ -121,7 +122,10 @@ func TestAuthoritativeClassify(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			p := &authoritativeProcessor{localIA: test.LocalIA, coreChecker: newMockCoreChecker(ctrl)}
+			p := &authoritativeProcessor{
+				localIA:     test.LocalIA,
+				coreChecker: newMockCoreChecker(ctrl),
+			}
 			segType, err := p.classify(context.Background(), test.Request.Src, test.Request.Dst)
 			test.ErrorAssertion(t, err)
 			assert.Equal(t, test.ExpectedSegType, segType)

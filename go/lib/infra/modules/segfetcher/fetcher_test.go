@@ -24,14 +24,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/mock_segfetcher"
 	"github.com/scionproto/scion/go/lib/pathdb/mock_pathdb"
 )
 
 type TestableFetcher struct {
-	Splitter      *mock_segfetcher.MockSplitter
 	Resolver      *mock_segfetcher.MockResolver
 	Requester     *mock_segfetcher.MockRequester
 	ReplyHandler  *mock_segfetcher.MockReplyHandler
@@ -41,7 +39,6 @@ type TestableFetcher struct {
 
 func NewTestFetcher(ctrl *gomock.Controller) *TestableFetcher {
 	return &TestableFetcher{
-		Splitter:      mock_segfetcher.NewMockSplitter(ctrl),
 		Resolver:      mock_segfetcher.NewMockResolver(ctrl),
 		Requester:     mock_segfetcher.NewMockRequester(ctrl),
 		ReplyHandler:  mock_segfetcher.NewMockReplyHandler(ctrl),
@@ -52,7 +49,6 @@ func NewTestFetcher(ctrl *gomock.Controller) *TestableFetcher {
 
 func (f *TestableFetcher) Fetcher() *segfetcher.Fetcher {
 	return &segfetcher.Fetcher{
-		Splitter:      f.Splitter,
 		Resolver:      f.Resolver,
 		Requester:     f.Requester,
 		ReplyHandler:  f.ReplyHandler,
@@ -69,41 +65,30 @@ func TestFetcher(t *testing.T) {
 
 	tests := map[string]struct {
 		PrepareFetcher func(*TestableFetcher)
-		Request        segfetcher.Request
+		Requests       segfetcher.Requests
 		ErrorAssertion require.ErrorAssertionFunc
 		ExpectedSegs   segfetcher.Segments
 	}{
-		"Splitter error": {
-			PrepareFetcher: func(f *TestableFetcher) {
-				f.Splitter.EXPECT().Split(gomock.Any(), gomock.Any()).
-					Return(segfetcher.RequestSet{}, testErr)
-			},
-			ErrorAssertion: require.Error,
-		},
 		"Resolver error": {
 			PrepareFetcher: func(f *TestableFetcher) {
-				f.Splitter.EXPECT().Split(gomock.Any(), gomock.Any())
 				f.Resolver.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(segfetcher.Segments{}, segfetcher.RequestSet{}, testErr)
+					Return(segfetcher.Segments{}, segfetcher.Requests{}, testErr)
 			},
 			ErrorAssertion: require.Error,
+			ExpectedSegs:   segfetcher.Segments{},
 		},
 		"Immediately resolved": {
+			Requests: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: core_130},
+			},
 			PrepareFetcher: func(f *TestableFetcher) {
-				reqSet := segfetcher.RequestSet{
-					Up: segfetcher.Request{Src: non_core_111, Dst: core_130},
-				}
-				f.Splitter.EXPECT().Split(gomock.Any(), gomock.Any()).
-					Return(reqSet, nil)
-				f.Resolver.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Eq(reqSet)).
-					Return(segfetcher.Segments{Up: seg.Segments{tg.seg130_111}},
-						segfetcher.RequestSet{}, nil)
+				f.Resolver.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(segfetcher.Segments{tg.seg130_111_up},
+						segfetcher.Requests{}, nil)
 			},
 			ErrorAssertion: require.NoError,
-			ExpectedSegs:   segfetcher.Segments{Up: seg.Segments{tg.seg130_111}},
+			ExpectedSegs:   segfetcher.Segments{tg.seg130_111_up},
 		},
-		// XXX(lukedirtwalker): testing the full loop is quite involved, and is
-		// therefore currently omitted.
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -113,7 +98,7 @@ func TestFetcher(t *testing.T) {
 			defer cancelF()
 			f := NewTestFetcher(ctrl)
 			test.PrepareFetcher(f)
-			segs, err := f.Fetcher().FetchSegs(ctx, test.Request)
+			segs, err := f.Fetcher().Fetch(ctx, test.Requests, false)
 			test.ErrorAssertion(t, err)
 			assert.Equal(t, test.ExpectedSegs, segs)
 		})
