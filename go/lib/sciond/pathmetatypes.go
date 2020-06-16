@@ -51,23 +51,6 @@ func (t LinkType) String() string {
 }
 
 
-
-type ASLinkType struct {
-	Inter LinkType     `capnp:"interLinkType"`
-	Peer LinkType     `capnp:"peerLinkType"`
-	RawIA         addr.IAInt `capnp:"isdas"`
-}
-
-func (s *ASLinkType) ProtoId() proto.ProtoIdType {
-	return proto.PathMetadata_InterfaceLinkType_TypeID
-}
-
-func (s *ASLinkType) String() string {
-	return fmt.Sprintf("\nInterLinkType: %s\nPeerLinkType: %s\nISD: %d\nAS: %d\nRawIA: %v\n",
-		s.Inter.String(), s.Peer.String(),
-		s.RawIA.IA().I, s.RawIA.IA().A, s.RawIA.IA())
-}
-
 type Geo struct {
 	RouterLocations []*GeoLoc `capnp:"routerLocations"`
 	RawIA           addr.IAInt     `capnp:"isdas"`

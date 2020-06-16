@@ -64,12 +64,17 @@ func Condensemetadata(data *combinator.PathMetadata) *sciond.PathMetadata {
 		ret.Geos = append(ret.Geos, &newloc)
 	}
 
-	for ia, link := range data.Links {
-		ret.LinkTypes = append(ret.LinkTypes, &sciond.ASLinkType{
-			Inter: sciond.LinkType(link.InterLinkType),
-			Peer:  sciond.LinkType(link.PeerLinkType),
-			RawIA:         ia.IAInt(),
-		})
+	for _, link := range data.Links {
+		if sciond.LinkType(link.InterLinkType) != sciond.LinkTypeUnset{
+			ret.LinkTypes = append(ret.LinkTypes, sciond.LinkType(link.InterLinkType))
+		}
+		if sciond.LinkType(link.PeerLinkType) != sciond.LinkTypeUnset{
+			ret.LinkTypes = append(ret.LinkTypes, sciond.LinkType(link.InterLinkType))
+		}
+		if (sciond.LinkType(link.InterLinkType) == sciond.LinkTypeUnset) &&
+			(sciond.LinkType(link.PeerLinkType) == sciond.LinkTypeUnset){
+			ret.LinkTypes = append(ret.LinkTypes, sciond.LinkTypeUnset)
+		}
 	}
 
 	return ret
