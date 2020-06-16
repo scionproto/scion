@@ -181,7 +181,7 @@ func (f *fetcher) translate(path *combinator.Path) (sciond.PathReplyEntry, error
 			ExpTime:    uint32(path.ComputeExpTime().Unix()),
 		},
 		HostInfo:   hostinfo.FromUDPAddr(*nextHop),
-		StaticInfo: Condensemetadata(path.StaticInfo),
+		StaticInfo: CondenseMetadata(path.StaticInfo),
 	}
 	return entry, nil
 }
