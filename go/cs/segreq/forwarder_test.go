@@ -23,9 +23,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/pkg/trust"
+	"github.com/scionproto/scion/go/pkg/trust/mock_trust"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -55,12 +55,9 @@ var (
 // in the cores map above.
 func newMockCoreChecker(ctrl *gomock.Controller) CoreChecker {
 
-	inspector := mock_infra.NewMockASInspector(ctrl)
-	opts := infra.ASInspectorOpts{
-		RequiredAttributes: []infra.Attribute{infra.Core},
-	}
-	inspector.EXPECT().HasAttributes(gomock.Any(), gomock.Any(), opts).DoAndReturn(
-		func(_ context.Context, ia addr.IA, _ infra.ASInspectorOpts) (bool, error) {
+	inspector := mock_trust.NewMockInspector(ctrl)
+	inspector.EXPECT().HasAttributes(gomock.Any(), gomock.Any(), trust.Core).DoAndReturn(
+		func(_ context.Context, ia addr.IA, _ trust.Attribute) (bool, error) {
 			_, ok := cores[ia]
 			return ok, nil
 		},
