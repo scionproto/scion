@@ -108,12 +108,12 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 	// Interface is revoked.
 	sRevInfo := state.SRevInfo
 	if sRevInfo == nil {
-		rp.Warn("No SRevInfo for revoked interface", "ifid", *ifid)
+		rp.Info("No SRevInfo for revoked interface", "ifid", *ifid)
 		return nil
 	}
 	revInfo, err := sRevInfo.RevInfo()
 	if err != nil {
-		rp.Warn("Could not parse RevInfo for interface", "ifid", *ifid, "err", err)
+		rp.Info("Could not parse RevInfo for interface", "ifid", *ifid, "err", err)
 		return nil
 	}
 	err = revInfo.Active()

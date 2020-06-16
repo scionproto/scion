@@ -105,7 +105,7 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
 				// SVC resolution failed but we allow legacy behavior and have some
 				// fraction of the timeout left for data transfers, so return
 				// address with SVC destination still set
-				logger.Trace("Falling back to legacy mode, ignore error", "err", err)
+				logger.Debug("Falling back to legacy mode, ignore error", "err", err)
 				return fa, false, nil
 			}
 			return a, false, err
@@ -133,7 +133,7 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 			NextHop: snet.CopyUDPAddr(s.NextHop),
 			SVC:     s.SVC,
 		}
-		log.Trace("[Acceptance]", "underlay", ret.NextHop)
+		log.Debug("[Acceptance]", "underlay", ret.NextHop)
 		return ret, nil
 	}
 
@@ -146,7 +146,7 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 	ret.Path = p.Path()
 	ret.NextHop = p.UnderlayNextHop()
 	defer func() {
-		log.Trace("[Acceptance]", "underlay", ret.NextHop)
+		log.Debug("[Acceptance]", "underlay", ret.NextHop)
 	}()
 
 	// SVC addresses in the local AS get resolved via topology lookup
@@ -177,16 +177,16 @@ func (r AddressRewriter) resolveSVC(ctx context.Context, p snet.Path,
 		defer cancelF()
 	}
 
-	logger.Trace("Sending SVC resolution request", "ia", p.Destination(), "svc", s,
+	logger.Debug("Sending SVC resolution request", "ia", p.Destination(), "svc", s,
 		"svcResFraction", r.SVCResolutionFraction)
 
 	reply, err := r.Resolver.LookupSVC(ctx, p, s)
 	if err != nil {
-		logger.Trace("SVC resolution failed", "err", err)
+		logger.Debug("SVC resolution failed", "err", err)
 		return nil, nil, false, err
 	}
 
-	logger.Trace("SVC resolution successful", "reply", reply)
+	logger.Debug("SVC resolution successful", "reply", reply)
 	u, err := parseReply(reply)
 	if err != nil {
 		return nil, nil, false, err

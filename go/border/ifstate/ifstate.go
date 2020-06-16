@@ -111,7 +111,7 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 		}
 		intf, ok := ctx.Conf.Topo.IFInfoMap()[ifid]
 		if !ok {
-			log.Warn("Interface ID does not exist", "ifid", ifid)
+			log.Info("Interface ID does not exist", "ifid", ifid)
 			continue
 		}
 		stateInfo := NewInfo(ifid, intf.IA, info.Active, info.SRevInfo, rawSRev)

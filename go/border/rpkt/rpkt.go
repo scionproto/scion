@@ -344,7 +344,7 @@ func (rp *RtrPkt) GetRaw(blk scmp.RawBlock) common.RawBytes {
 		}
 		return rp.Raw[rp.idxs.l4:end]
 	}
-	rp.Crit("Invalid raw block requested", "blk", blk)
+	rp.Error("Invalid raw block requested", "blk", blk)
 	return nil
 }
 

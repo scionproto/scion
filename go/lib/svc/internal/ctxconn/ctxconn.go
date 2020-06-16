@@ -50,7 +50,7 @@ func CloseConnOnDone(ctx context.Context, conn DeadlineCloser) CancelFunc {
 		select {
 		case <-ctx.Done():
 			if err := conn.Close(); err != nil {
-				log.Warn("Error closing conn when ctx canceled", "err", err)
+				log.Info("Error closing conn when ctx canceled", "err", err)
 			}
 		case <-cancelSignal:
 			// shut down goroutine, free up resources

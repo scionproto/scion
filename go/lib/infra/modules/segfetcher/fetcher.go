@@ -85,23 +85,21 @@ func (cfg FetcherConfig) New() *Fetcher {
 			Verifier: &seghandler.DefaultVerifier{Verifier: cfg.Verifier},
 			Storage:  &seghandler.DefaultStorage{PathDB: cfg.PathDB, RevCache: cfg.RevCache},
 		},
-		PathDB:           cfg.PathDB,
-		QueryInterval:    cfg.QueryInterval,
-		NextQueryCleaner: NextQueryCleaner{PathDB: cfg.PathDB},
-		metrics:          metrics.NewFetcher(cfg.MetricsNamespace),
+		PathDB:        cfg.PathDB,
+		QueryInterval: cfg.QueryInterval,
+		metrics:       metrics.NewFetcher(cfg.MetricsNamespace),
 	}
 }
 
 // Fetcher fetches, verifies and stores segments for a given path request.
 type Fetcher struct {
-	Splitter         Splitter
-	Resolver         Resolver
-	Requester        Requester
-	ReplyHandler     ReplyHandler
-	PathDB           pathdb.PathDB
-	QueryInterval    time.Duration
-	NextQueryCleaner NextQueryCleaner
-	metrics          metrics.Fetcher
+	Splitter      Splitter
+	Resolver      Resolver
+	Requester     Requester
+	ReplyHandler  ReplyHandler
+	PathDB        pathdb.PathDB
+	QueryInterval time.Duration
+	metrics       metrics.Fetcher
 }
 
 // FetchSegs fetches the required segments to build a path between src and dst
@@ -114,14 +112,12 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 	}
 	var segs Segments
 	for i := 0; i < 3; i++ {
-		log.FromCtx(ctx).Trace("Request to process",
-			"req", reqSet, "segs", segs, "iteration", i+1)
+		log.FromCtx(ctx).Debug("Request to process", "req", reqSet, "segs", segs, "iteration", i+1)
 		segs, reqSet, err = f.Resolver.Resolve(ctx, segs, reqSet)
 		if err != nil {
 			return Segments{}, serrors.Wrap(errDB, err)
 		}
-		log.FromCtx(ctx).Trace("After resolving",
-			"req", reqSet, "segs", segs, "iteration", i+1)
+		log.FromCtx(ctx).Debug("After resolving", "req", reqSet, "segs", segs, "iteration", i+1)
 		if reqSet.IsLoaded() {
 			break
 		}
@@ -187,14 +183,14 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 				return reqSet, err
 			}
 			if len(r.VerificationErrors()) > 0 {
-				log.FromCtx(ctx).Warn("Error during verification of segments/revocations",
+				log.FromCtx(ctx).Info("Error during verification of segments/revocations",
 					"errors", r.VerificationErrors().ToError())
 			}
 			reqSet = updateRequestState(reqSet, reply.Req, Fetched)
 			nextQuery := f.nextQuery(r.Stats().VerifiedSegs)
 			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil, nextQuery)
 			if err != nil {
-				logger.Warn("Failed to insert next query", "err", err)
+				logger.Info("NextQuery insertion failed", "err", err)
 			}
 			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
 		case <-ctx.Done():

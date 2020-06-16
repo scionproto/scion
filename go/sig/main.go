@@ -73,17 +73,17 @@ func realMain() int {
 	defer env.LogAppStopped("SIG", cfg.Sig.ID)
 	defer log.HandlePanic()
 	if err := validateConfig(); err != nil {
-		log.Crit("Validation of config failed", "err", err)
+		log.Error("Configuration validation failed", "err", err)
 		return 1
 	}
 	// Setup tun early so that we can drop capabilities before interacting with network etc.
 	tunIO, err := setupTun()
 	if err != nil {
-		log.Crit("Unable to create & configure TUN device", "err", err)
+		log.Error("TUN device initialization failed", "err", err)
 		return 1
 	}
 	if err := sigcmn.Init(cfg.Sig, cfg.Sciond); err != nil {
-		log.Crit("Error during initialization", "err", err)
+		log.Error("SIG common initialization failed", "err", err)
 		return 1
 	}
 	env.SetupEnv(
@@ -96,7 +96,7 @@ func realMain() int {
 	sigdisp.Init(sigcmn.CtrlConn, false)
 	// Parse sig config
 	if loadConfig(cfg.Sig.SIGConfig) != true {
-		log.Crit("Unable to load sig config on startup")
+		log.Error("SIG configuration loading failed")
 		return 1
 	}
 	// Reply to probes from other SIGs.

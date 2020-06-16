@@ -98,7 +98,7 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 			"Wrong message type, expected ifid.IFID", nil,
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 	}
-	logger.Trace("[KeepaliveHandler] Received", "ifidKeepalive", keepalive)
+	logger.Debug("[KeepaliveHandler] Received", "ifidKeepalive", keepalive)
 	ifid, info, err := h.getIntfInfo()
 	if err != nil {
 		metrics.Keepalive.Receives(labels).Inc()
@@ -113,7 +113,7 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 			return infra.MetricsErrInternal, common.NewBasicError("Unable to drop revocations", err)
 		}
 	}
-	logger.Trace("[KeepaliveHandler] Successfully handled", "keepalive", keepalive)
+	logger.Debug("[KeepaliveHandler] Successfully handled", "keepalive", keepalive)
 	labels.Result = metrics.Success
 	metrics.Keepalive.Receives(labels).Inc()
 	return infra.MetricsResultOk, nil

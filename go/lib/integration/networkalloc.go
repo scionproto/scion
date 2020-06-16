@@ -21,7 +21,6 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -32,8 +31,6 @@ type networkAllocs struct {
 func LoadNetworkAllocs() (map[addr.IA]*snet.UDPAddr, error) {
 	raw, err := ioutil.ReadFile(GenFile("network-allocations.yml"))
 	if err != nil {
-		// just warn, if the file isn't there we can ignore it.
-		log.Warn("Could not load network-allocations", "err", err)
 		return nil, nil
 	}
 	var allocs networkAllocs

@@ -54,7 +54,6 @@ MOCK_TARGETS = [
         "DstProvider,ReplyHandler,Requester,RequestAPI,Resolver,Splitter,LocalInfo"),
     (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/seghandler", "Storage,Verifier"),
     (SCION_PACKAGE_PREFIX + "/go/lib/l4", "L4Header"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/log", "Handler,Logger"),
     (SCION_PACKAGE_PREFIX + "/go/lib/pathdb", "PathDB,Transaction,ReadWrite"),
     (SCION_PACKAGE_PREFIX + "/go/lib/pathmgr", "Policy,Querier,Resolver"),
     (SCION_PACKAGE_PREFIX + "/go/lib/revcache", "RevCache"),

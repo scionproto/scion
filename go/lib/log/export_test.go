@@ -14,10 +14,6 @@
 
 package log
 
-func SetHandler(logger Logger, h Handler) {
-	logger.(*loggerWithTrace).Logger.SetHandler(h)
-}
-
-func FilterTraceHandler(h Handler) Handler {
-	return &filterTraceHandler{Handler: h}
+func SetHandler(l Logger, h Handler) {
+	l.(*logger).Logger.SetHandler(h)
 }

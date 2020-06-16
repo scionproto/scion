@@ -63,8 +63,7 @@ func addFlags() {
 	flag.StringVar(&networksFile, "networks", integration.SCIONDAddressesFile,
 		"File containing network definitions")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
-	flag.StringVar(&logConsole, "log.console", "info",
-		"Console logging level: trace|debug|info|warn|error|crit")
+	flag.StringVar(&logConsole, "log.console", "info", "Console logging level: debug|info|error")
 }
 
 // InitTracer initializes the global tracer and returns a closer function.
@@ -159,6 +158,6 @@ func Done(src, dst addr.IA) {
 
 // LogFatal logs a critical error and exits with 1
 func LogFatal(msg string, a ...interface{}) {
-	log.Crit(msg, a...)
+	log.Error(msg, a...)
 	os.Exit(1)
 }

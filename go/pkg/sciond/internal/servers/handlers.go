@@ -82,14 +82,11 @@ func (h *PathRequestHandler) Handle(ctx context.Context, conn net.Conn, src net.
 	}
 	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
 	if err := sciond.Send(reply, conn); err != nil {
-		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		logger.Info("Unable to reply to client", "client", src, "err", err)
 		metricsDone(labels.WithResult(metrics.ErrNetwork))
 		return
 	}
-	logger.Debug("Replied with paths",
-		"num_paths", len(getPathsReply.Entries),
-		"err_code", getPathsReply.ErrorCode)
-	logger.Trace("Full reply", "paths", getPathsReply)
+	logger.Debug("Sent reply", "paths", getPathsReply)
 	metricsDone(labels)
 }
 
@@ -106,8 +103,7 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.Conn, src ne
 	defer conn.Close()
 	metricsDone := metrics.ASInfos.Start()
 	logger := log.FromCtx(ctx)
-	// FIXME(roosd): Promote to debug again.
-	logger.Trace("[ASInfoRequestHandler] Received request", "req", pld.AsInfoReq)
+	logger.Debug("[ASInfoRequestHandler] Received request", "req", pld.AsInfoReq)
 	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
 	defer workCancelF()
 	// NOTE(scrye): Only support single-homed SCIONDs for now (returned slice
@@ -145,11 +141,11 @@ func (h *ASInfoRequestHandler) Handle(ctx context.Context, conn net.Conn, src ne
 	}
 	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
 	if err := sciond.Send(reply, conn); err != nil {
-		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		logger.Info("Unable to reply to client", "client", src, "err", err)
 		metricsDone(metrics.ErrNetwork)
 		return
 	}
-	logger.Trace("Sent reply", "asInfo", reply.AsInfoReply)
+	logger.Debug("Sent reply", "asInfo", reply.AsInfoReply)
 	metricsDone(metrics.OkSuccess)
 }
 
@@ -202,11 +198,11 @@ func (h *IFInfoRequestHandler) Handle(ctx context.Context, conn net.Conn, src ne
 	}
 	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
 	if err := sciond.Send(reply, conn); err != nil {
-		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		logger.Info("Unable to reply to client", "client", src, "err", err)
 		metricsDone(metrics.ErrNetwork)
 		return
 	}
-	logger.Trace("Sent reply", "ifInfo", ifInfoReply)
+	logger.Debug("Sent reply", "ifInfo", ifInfoReply)
 	metricsDone(metrics.OkSuccess)
 }
 
@@ -245,11 +241,11 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.Conn,
 	}
 	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
 	if err := sciond.Send(reply, conn); err != nil {
-		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		logger.Info("Unable to reply to client", "client", src, "err", err)
 		metricsDone(metrics.ErrNetwork)
 		return
 	}
-	logger.Trace("Sent reply", "svcInfo", svcInfoReply)
+	logger.Debug("Sent reply", "svcInfo", svcInfoReply)
 	metricsDone(metrics.OkSuccess)
 }
 
@@ -257,9 +253,8 @@ func (h *SVCInfoRequestHandler) Handle(ctx context.Context, conn net.Conn,
 // RevNotification announcements. The SCIOND API spawns a goroutine with method Handle
 // for each RevNotification it receives.
 type RevNotificationHandler struct {
-	RevCache         revcache.RevCache
-	Verifier         infra.Verifier
-	NextQueryCleaner segfetcher.NextQueryCleaner
+	RevCache revcache.RevCache
+	Verifier infra.Verifier
 }
 
 func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.Conn,
@@ -304,11 +299,11 @@ func (h *RevNotificationHandler) Handle(ctx context.Context, conn net.Conn,
 	}
 	conn.SetWriteDeadline(time.Now().Add(DefaultReplyTimeout))
 	if err := sciond.Send(reply, conn); err != nil {
-		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		logger.Info("Unable to reply to client", "client", src, "err", err)
 		metricsDone(labels.WithResult(metrics.ErrNetwork))
 		return
 	}
-	logger.Trace("Sent reply", "revInfo", revInfo)
+	logger.Debug("Sent reply", "revInfo", revInfo)
 	metricsDone(labels.WithResult(metrics.OkSuccess))
 }
 

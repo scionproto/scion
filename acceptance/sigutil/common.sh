@@ -8,7 +8,7 @@ DST_IA=${DST_IA:-1-ff00:0:112}
 
 test_setup() {
     set -e
-    ./scion.sh topology -c $TEST_TOPOLOGY -d -t --sig -n 242.254.0.0/16
+    ./scion.sh topology -c $TEST_TOPOLOGY -d --sig -n 242.254.0.0/16
     for sig in gen/ISD1/*/sig*/sig.toml; do
         sed -i '/\[log\.file\]/a flush_interval = 1' "$sig"
     done

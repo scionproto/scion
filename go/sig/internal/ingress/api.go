@@ -31,14 +31,14 @@ func Init(tunIO io.ReadWriteCloser) {
 	conn, err := sigcmn.Network.Listen(context.Background(), "udp",
 		&net.UDPAddr{IP: sigcmn.DataAddr, Port: sigcmn.DataPort}, addr.SvcNone)
 	if err != nil {
-		log.Crit("Unable to initialize ingress connection", "err", err)
+		log.Error("Ingress connection initialization failed", "err", err)
 		fatal.Fatal(err)
 	}
 	d := NewDispatcher(tunIO, conn)
 	go func() {
 		defer log.HandlePanic()
 		if err := d.Run(); err != nil {
-			log.Crit("Ingress dispatcher error", "err", err)
+			log.Error("Ingress dispatcher error", "err", err)
 			fatal.Fatal(err)
 		}
 	}()

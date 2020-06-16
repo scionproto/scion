@@ -101,7 +101,7 @@ func (h *syncHandler) Handle(request *infra.Request) *infra.HandlerResult {
 		return infra.MetricsErrInvalid
 	}
 	if len(res.VerificationErrors()) > 0 {
-		log.FromCtx(ctx).Warn("[syncHandler] Error during verification of segments/revocations",
+		log.FromCtx(ctx).Info("[syncHandler] Error during verification of segments/revocations",
 			"errors", res.VerificationErrors().ToError())
 	}
 	metrics.Sync.RegistrationSuccess(labels,

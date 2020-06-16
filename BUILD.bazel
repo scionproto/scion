@@ -17,7 +17,6 @@ pkg_tar(
         "//go/scion-pki",
         "//go/sciond",
         "//go/sig",
-        "//go/tools/logdog",
         "//go/tools/pathdb_dump",
         "//go/tools/scmp",
         "//go/tools/showpaths",

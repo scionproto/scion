@@ -72,7 +72,7 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	labels.CacheOnly = segReq.Flags.CacheOnly
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
-		logger.Warn("[segReqHandler] Unable to reply to client, no response writer found")
+		logger.Error("[segReqHandler] Response writer missing, unable to reply to client")
 		metrics.Requests.Count(labels).Inc()
 		return infra.MetricsErrInternal
 	}
@@ -91,7 +91,7 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	labels.SegType = metrics.DetermineReplyType(segs)
 	revs, err := revcache.RelevantRevInfos(ctx, h.revCache, segs.Up, segs.Core, segs.Down)
 	if err != nil {
-		logger.Warn("[segReqHandler] Failed to find relevant revocations for reply", "err", err)
+		logger.Info("[segReqHandler] Failed to find relevant revocations for reply", "err", err)
 		// the client might still be able to use the segments so continue here.
 	}
 	reply := &path_mgmt.SegReply{

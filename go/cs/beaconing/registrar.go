@@ -285,7 +285,7 @@ func (r *remoteRegistrar) startSendSegReg(ctx context.Context, bseg beacon.Beaco
 			Result:  metrics.Success,
 		}
 		metrics.Registrar.Beacons(l).Inc()
-		logger.Trace("[beaconing.Registrar] Successfully registered segment", "type", r.segType,
+		logger.Debug("[beaconing.Registrar] Successfully registered segment", "type", r.segType,
 			"addr", addr, "seg", bseg.Segment)
 	}()
 }

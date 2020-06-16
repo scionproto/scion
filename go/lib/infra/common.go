@@ -295,7 +295,7 @@ func NewResourceAwareHandler(handler Handler, resources ...ResourceHealth) Handl
 					logger.Error("No response writer found")
 					return MetricsErrInternal
 				}
-				logger.Warn("Resource not healthy, can't handle request",
+				logger.Info("Resource not healthy, can't handle request",
 					"resource", resource.Name())
 				rwriter.SendAckReply(ctx, &ack.Ack{
 					Err:     proto.Ack_ErrCode_reject,

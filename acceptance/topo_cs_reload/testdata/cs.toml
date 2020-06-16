@@ -10,7 +10,7 @@ connection = "cs1-ff00_0_110-1.trust.db"
 connection = "cs1-ff00_0_110-1.renewal.db"
 
 [log.console]
-level = "trace"
+level = "debug"
 
 [path_db]
 connection = "cs1-ff00_0_110-1.path.db"

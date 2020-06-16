@@ -65,7 +65,7 @@ func realMain() int {
 
 	closeTracer, err := integration.InitTracer("end_2_end")
 	if err != nil {
-		log.Crit("Unable to create tracer", "err", err)
+		log.Error("Tracer initialization failed", "err", err)
 		return 1
 	}
 	defer closeTracer()
