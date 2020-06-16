@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/reservation/segment"
-	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -49,28 +48,34 @@ func TestDB(t *testing.T, db TestableDB) {
 
 func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	r := segment.NewReservation()
-	r.Egress = 1
-	r.Path = segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
-	r.ID.ASID = xtest.MustParseAS("ff00:0:1")
-	expTime := time.Unix(1, 0)
-	token := newToken()
-	r.NewIndex(expTime, *token)
+	ctx := context.Background()
+	// no indices
 	err := db.NewSegmentRsv(ctx, r)
+	require.Error(t, err)
+	// at least one index
+	token := newToken()
+	expTime := time.Unix(1, 0)
+	r.NewIndex(expTime, *token)
+	err = db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	require.Equal(t, xtest.MustParseHexString("00000001"), r.ID.Suffix[:])
+	require.Len(t, r.Indices, 1)
+	require.Equal(t, *token, r.Indices[0].Token)
 }
 
 func testNewSegmentIndex(ctx context.Context, t *testing.T, db backend.DB) {
 	r := segment.NewReservation()
-	r.EgressIFID = 1
-	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
-	r.Path = &p
-	r.ID.ASID = xtest.MustParseAS("ff00:0:1")
 	db.NewSegmentRsv(ctx, r)
 	expTime := time.Unix(1, 0)
-	idx, err := r.NewIndex(expTime, *newToken())
+	_, err := r.NewIndex(expTime, *newToken())
+	r.Indices[0].Token.BWCls = 2
+	ctx := context.Background()
+	err = db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
-
+	// create new index
+	idx, err := r.NewIndex(expTime, *newToken())
+	r.Indices[1].Token.BWCls = 3
+	require.NoError(t, err)
 	err = db.NewSegmentIndex(ctx, r, idx)
 	require.NoError(t, err)
 	r2, err := db.GetSegmentRsvFromID(ctx, &r.ID)
