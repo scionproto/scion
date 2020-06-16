@@ -116,10 +116,6 @@ func (g *DMG) traverseSegment(segment *InputSegment) {
 		// Construct edges for each hop in the current ASEntry.
 		for hopEntryIndex, hop := range asEntries[asEntryIndex].HopEntries {
 			weight := len(asEntries) - 1 - asEntryIndex
-			he, err := hop.HopField()
-			if err != nil {
-				panic(err)
-			}
 
 			// build new edge
 			var srcVertex, dstVertex Vertex
@@ -132,7 +128,8 @@ func (g *DMG) traverseSegment(segment *InputSegment) {
 				}
 				dstVertex = VertexFromIA(currentIA)
 			} else {
-				dstVertex = VertexFromPeering(currentIA, he.ConsIngress, hop.InIA(), hop.RemoteInIF)
+				ingress := common.IFIDType(hop.HopField.ConsIngress)
+				dstVertex = VertexFromPeering(currentIA, ingress, hop.InIA(), hop.RemoteInIF)
 			}
 
 			if segment.Type == proto.PathSegType_down {
@@ -389,14 +386,8 @@ func (sl PathSolutionList) Less(i, j int) bool {
 	}
 
 	for ki := range trailI {
-		idI, err := trailI[ki].segment.ID()
-		if err != nil {
-			panic(err)
-		}
-		idJ, err := trailJ[ki].segment.ID()
-		if err != nil {
-			panic(err)
-		}
+		idI := trailI[ki].segment.ID()
+		idJ := trailJ[ki].segment.ID()
 		idcmp := bytes.Compare(idI, idJ)
 		if idcmp != 0 {
 			return idcmp == -1

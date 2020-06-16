@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -44,7 +45,23 @@ type ASEntry struct {
 
 func NewASEntryFromRaw(b common.RawBytes) (*ASEntry, error) {
 	ase := &ASEntry{}
-	return ase, proto.ParseFromRaw(ase, b)
+	if err := proto.ParseFromRaw(ase, b); err != nil {
+		return nil, err
+	}
+	// FIXME(roosd): Remove when we switch to new header format completely.
+	for _, entry := range ase.HopEntries {
+		if len(entry.RawHopField) != 0 {
+			hopF, err := spath.HopFFromRaw(entry.RawHopField)
+			if err != nil {
+				return nil, err
+			}
+			entry.HopField.ExpTime = uint8(hopF.ExpTime)
+			entry.HopField.ConsIngress = uint16(hopF.ConsIngress)
+			entry.HopField.ConsEgress = uint16(hopF.ConsEgress)
+			entry.HopField.MAC = hopF.Mac
+		}
+	}
+	return ase, nil
 }
 
 func (ase *ASEntry) IA() addr.IA {

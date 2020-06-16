@@ -188,9 +188,7 @@ func TestValidator(t *testing.T) {
 func markHidden(t *testing.T, m *seg.Meta) *seg.Meta {
 	t.Helper()
 	s := m.Segment
-	infoF, err := s.SData.InfoF()
-	require.NoError(t, err)
-	newSeg, err := seg.NewSeg(infoF)
+	newSeg, err := seg.NewSeg(s.SData)
 	require.NoError(t, err)
 	if s.MaxAEIdx() < 0 {
 		panic("Segment has no AS entries")

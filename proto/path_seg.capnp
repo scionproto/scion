@@ -16,6 +16,8 @@ struct PathSegment {
 # Contains all top-level signed data for PathSegment
 struct PathSegmentSignedData {
     infoF @0 :Data; # Raw InfoField
+    timestamp @1 :UInt32; # Timestamp in seconds since epoch.
+    segID @2 :UInt16;
 }
 
 struct ASEntry {
@@ -34,12 +36,18 @@ struct ASEntry {
 }
 
 struct HopEntry {
-    inIA @0 :UInt64;  # Ingress (incl peer) ISD-AS
-    remoteInIF @1 :UInt64; # Interface ID on far end of ingress link
-    inMTU @2 :UInt16;  # Ingress Link MTU
-    outIA @3 :UInt64;  # Downstream ISD-AS
+    inIA        @0 :UInt64;  # Ingress (incl peer) ISD-AS
+    remoteInIF  @1 :UInt64;  # Interface ID on far end of ingress link
+    inMTU       @2 :UInt16;  # Ingress Link MTU
+    outIA       @3 :UInt64;  # Downstream ISD-AS
     remoteOutIF @4 :UInt64;  # Interface ID on far end of egress link
-    hopF @5 :Data;  # Raw HopField
+    hopF        @5 :Data;    # Raw HopField (deprecated)
+    hopField :group {
+        expTime     @6 :UInt8;   # Relative expiry time.
+        consIngress @7 :UInt16;  # Interface ID of the ingress link.
+        consEgress  @8 :UInt16;   # Interface ID of the egress link.
+        mac         @9 :Data;
+    }
 }
 
 # PathSegment Construction Beacon - used during path beaconing.

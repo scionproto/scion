@@ -83,14 +83,13 @@ func wrap(seg *seg.PathSegment, dir Direction) segWrap {
 	keyParts := make([]string, 0, len(seg.ASEntries))
 	for _, asEntry := range seg.ASEntries {
 		for _, hopEntry := range asEntry.HopEntries {
-			hopField, err := hopEntry.HopField()
-			// This library expects the segments to be verified first.
-			if err != nil {
-				panic(err)
-			}
-			for _, ifid := range []common.IFIDType{hopField.ConsIngress, hopField.ConsEgress} {
+			hopField := hopEntry.HopField
+			for _, ifid := range []uint16{hopField.ConsIngress, hopField.ConsEgress} {
 				if ifid != 0 {
-					intfs = append(intfs, pathInterface{ia: asEntry.IA(), ifid: ifid})
+					intfs = append(intfs, pathInterface{
+						ia:   asEntry.IA(),
+						ifid: common.IFIDType(ifid),
+					})
 					keyParts = append(keyParts, fmt.Sprintf("%s#%d", asEntry.IA(), ifid))
 				}
 			}

@@ -252,27 +252,17 @@ func (e *executor) InsertBeacon(ctx context.Context, b beacon.Beacon,
 
 	ret := beacon.InsertStats{}
 	// Compute ids outside of the lock.
-	segId, err := b.Segment.ID()
-	if err != nil {
-		return ret, db.NewInputDataError("extract id", err)
-	}
-	if _, err := b.Segment.FullId(); err != nil {
-		return ret, db.NewInputDataError("extract full id", err)
-	}
-	info, err := b.Segment.InfoF()
-	if err != nil {
-		return ret, db.NewInputDataError("extract infof", err)
-	}
+	segID := b.Segment.ID()
 
 	e.Lock()
 	defer e.Unlock()
-	meta, err := e.getBeaconMeta(ctx, segId)
+	meta, err := e.getBeaconMeta(ctx, segID)
 	if err != nil {
 		return ret, err
 	}
 	if meta != nil {
 		// Update the beacon data if it is newer.
-		if info.Timestamp().After(meta.InfoTime) {
+		if b.Segment.Timestamp().After(meta.InfoTime) {
 			meta.LastUpdated = time.Now()
 			if err := e.updateExistingBeacon(ctx, b, usage, meta.RowID, time.Now()); err != nil {
 				return ret, err
@@ -297,9 +287,9 @@ func (e *executor) InsertBeacon(ctx context.Context, b beacon.Beacon,
 
 // getBeaconMeta gets the metadata for existing beacons.
 func (e *executor) getBeaconMeta(ctx context.Context, segID common.RawBytes) (*beaconMeta, error) {
-	var rowId, infoTime, lastUpdated int64
+	var rowID, infoTime, lastUpdated int64
 	query := "SELECT RowID, InfoTime, LastUpdated FROM Beacons WHERE SegID=?"
-	err := e.db.QueryRowContext(ctx, query, segID).Scan(&rowId, &infoTime, &lastUpdated)
+	err := e.db.QueryRowContext(ctx, query, segID).Scan(&rowID, &infoTime, &lastUpdated)
 	// New beacons are not in the table.
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -308,7 +298,7 @@ func (e *executor) getBeaconMeta(ctx context.Context, segID common.RawBytes) (*b
 		return nil, db.NewReadError("Failed to lookup beacon", err)
 	}
 	meta := &beaconMeta{
-		RowID:       rowId,
+		RowID:       rowID,
 		InfoTime:    time.Unix(infoTime, 0),
 		LastUpdated: time.Unix(0, lastUpdated),
 	}
@@ -317,28 +307,21 @@ func (e *executor) getBeaconMeta(ctx context.Context, segID common.RawBytes) (*b
 
 // updateExistingBeacon updates the changeable data for an existing beacon
 func (e *executor) updateExistingBeacon(ctx context.Context, b beacon.Beacon,
-	usage beacon.Usage, rowId int64, now time.Time) error {
+	usage beacon.Usage, rowID int64, now time.Time) error {
 
-	fullId, err := b.Segment.FullId()
-	if err != nil {
-		return err
-	}
+	fullID := b.Segment.FullID()
 	packedSeg, err := b.Segment.Pack()
 	if err != nil {
 		return err
 	}
-	info, err := b.Segment.InfoF()
-	if err != nil {
-		return err
-	}
-	infoTime := info.Timestamp().Unix()
+	infoTime := b.Segment.Timestamp().Unix()
 	lastUpdated := now.UnixNano()
 	expTime := b.Segment.MaxExpiry().Unix()
 	inst := `UPDATE Beacons SET FullID=?, InIntfID=?, HopsLength=?, InfoTime=?,
 			ExpirationTime=?, LastUpdated=?, Usage=?, Beacon=?
 			WHERE RowID=?`
-	_, err = e.db.ExecContext(ctx, inst, fullId, b.InIfId, len(b.Segment.ASEntries), infoTime,
-		expTime, lastUpdated, usage, packedSeg, rowId)
+	_, err = e.db.ExecContext(ctx, inst, fullID, b.InIfId, len(b.Segment.ASEntries), infoTime,
+		expTime, lastUpdated, usage, packedSeg, rowID)
 	if err != nil {
 		return db.NewWriteError("update segment", err)
 	}
@@ -348,24 +331,14 @@ func (e *executor) updateExistingBeacon(ctx context.Context, b beacon.Beacon,
 func insertNewBeacon(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 	usage beacon.Usage, localIA addr.IA, now time.Time) error {
 
-	segId, err := b.Segment.ID()
-	if err != nil {
-		return db.NewInputDataError("extract id", err)
-	}
-	fullId, err := b.Segment.FullId()
-	if err != nil {
-		return db.NewInputDataError("extract full id", err)
-	}
+	segID := b.Segment.ID()
+	fullID := b.Segment.FullID()
 	packed, err := b.Segment.Pack()
 	if err != nil {
 		return db.NewInputDataError("pack segment", err)
 	}
-	info, err := b.Segment.InfoF()
-	if err != nil {
-		return db.NewInputDataError("extract infof", err)
-	}
 	start := b.Segment.FirstIA()
-	infoTime := info.Timestamp().Unix()
+	infoTime := b.Segment.Timestamp().Unix()
 	lastUpdated := now.UnixNano()
 	expTime := b.Segment.MaxExpiry().Unix()
 
@@ -375,24 +348,24 @@ func insertNewBeacon(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 		ExpirationTime, LastUpdated, Usage, Beacon)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	res, err := tx.ExecContext(ctx, inst, segId, fullId, start.I, start.A, b.InIfId,
+	res, err := tx.ExecContext(ctx, inst, segID, fullID, start.I, start.A, b.InIfId,
 		len(b.Segment.ASEntries), infoTime, expTime, lastUpdated, usage, packed)
 	if err != nil {
 		return db.NewWriteError("insert beacon", err)
 	}
-	rowId, err := res.LastInsertId()
+	rowID, err := res.LastInsertId()
 	if err != nil {
 		return db.NewWriteError("retrieve RowID of inserted beacon", err)
 	}
 	// Insert all interfaces.
-	if err = insertInterfaces(ctx, tx, b, rowId, localIA); err != nil {
+	if err = insertInterfaces(ctx, tx, b, rowID, localIA); err != nil {
 		return err
 	}
 	return nil
 }
 
 func insertInterfaces(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
-	rowId int64, localIA addr.IA) error {
+	rowID int64, localIA addr.IA) error {
 
 	stmtStr := `INSERT INTO IntfToBeacon (IsdID, AsID, IntfID, BeaconRowID)
 				VALUES (?, ?, ?, ?)`
@@ -404,13 +377,13 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 	for _, as := range b.Segment.ASEntries {
 		ia := as.IA()
 		// Do not insert peering interfaces.
-		hof, err := as.HopEntries[0].HopField()
+		hof := as.HopEntries[0].HopField
 		if err != nil {
 			return db.NewInputDataError("extract hop field", err)
 		}
 		// Ignore the null interface of the first hop.
 		if hof.ConsIngress != 0 {
-			_, err = stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsIngress, rowId)
+			_, err = stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsIngress, rowID)
 			if err != nil {
 				return db.NewWriteError("insert Ingress into IntfToSeg", err,
 					"ia", ia, "hof", hof)
@@ -418,14 +391,14 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 		}
 		// Ignore the null interface of the last hop
 		if hof.ConsEgress != 0 {
-			_, err := stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsEgress, rowId)
+			_, err := stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsEgress, rowID)
 			if err != nil {
 				return db.NewWriteError("insert Egress into IntfToSeg", err,
 					"ia", ia, "hof", hof)
 			}
 		}
 	}
-	_, err = stmt.ExecContext(ctx, localIA.I, localIA.A, b.InIfId, rowId)
+	_, err = stmt.ExecContext(ctx, localIA.I, localIA.A, b.InIfId, rowID)
 	if err != nil {
 		return db.NewWriteError("insert Ingress into IntfToSeg", err,
 			"ia", localIA, "inIfId", b.InIfId)

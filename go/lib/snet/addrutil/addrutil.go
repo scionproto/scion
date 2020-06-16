@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -28,26 +29,25 @@ import (
 
 // GetPath creates a path from the given segment and then creates a snet.SVCAddr.
 func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv topology.Provider) (net.Addr, error) {
-	x := &bytes.Buffer{}
-	if _, err := ps.RawWriteTo(x); err != nil {
-		return nil, common.NewBasicError("failed to write segment to buffer", err)
+	p, err := legacyPath(ps)
+	if err != nil {
+		return nil, serrors.WrapStr("constructing path from segment", err)
 	}
-	p := spath.New(x.Bytes())
 	if err := p.Reverse(); err != nil {
-		return nil, common.NewBasicError("failed to reverse path", err)
+		return nil, serrors.WrapStr("reversing path", err)
 	}
 	if err := p.InitOffsets(); err != nil {
-		return nil, common.NewBasicError("failed to init offsets", err)
+		return nil, serrors.WrapStr("initializing offsets", err)
 	}
 	hopF, err := p.GetHopField(p.HopOff)
 	if err != nil {
-		return nil, common.NewBasicError("failed to extract first HopField", err, "p", p)
+		return nil, serrors.WrapStr("extracting first hop field", err)
 	}
 	topo := topoProv.Get()
 	ifID := hopF.ConsIngress
 	UnderlayNextHop, ok := topo.UnderlayNextHop2(ifID)
 	if !ok {
-		return nil, common.NewBasicError("unable to find first-hop BR for path", nil, "ifID", ifID)
+		return nil, serrors.New("first-hop border router not found", "intf_id", ifID)
 	}
 	return &snet.SVCAddr{IA: ps.FirstIA(), Path: p, NextHop: UnderlayNextHop, SVC: svc}, nil
 }
@@ -62,4 +62,38 @@ func ResolveLocal(dst net.IP) (net.IP, error) {
 	defer udpConn.Close()
 	srcIP := udpConn.LocalAddr().(*net.UDPAddr).IP
 	return srcIP, nil
+}
+
+// legacyPath constructs a spath.Path from the path segment in construction direction.
+func legacyPath(ps *seg.PathSegment) (*spath.Path, error) {
+	info, err := spath.InfoFFromRaw(ps.SData.RawInfo)
+	if err != nil {
+		return nil, err
+	}
+	inf := spath.InfoField{
+		ConsDir: true,
+		Hops:    uint8(len(ps.ASEntries)),
+		TsInt:   info.TsInt,
+		ISD:     info.ISD,
+	}
+
+	buf := bytes.Buffer{}
+	if _, err = inf.WriteTo(&buf); err != nil {
+		return nil, err
+	}
+	for _, asEntry := range ps.ASEntries {
+		if len(asEntry.HopEntries) == 0 {
+			return nil, serrors.New("ASEntry has no HopEntry", "asEntry", asEntry)
+		}
+		hf := spath.HopField{
+			ExpTime:     spath.ExpTimeType(asEntry.HopEntries[0].HopField.ExpTime),
+			ConsIngress: common.IFIDType(asEntry.HopEntries[0].HopField.ConsIngress),
+			ConsEgress:  common.IFIDType(asEntry.HopEntries[0].HopField.ConsEgress),
+			Mac:         asEntry.HopEntries[0].HopField.MAC,
+		}
+		if _, err = hf.WriteTo(&buf); err != nil {
+			return nil, err
+		}
+	}
+	return &spath.Path{Raw: buf.Bytes()}, nil
 }

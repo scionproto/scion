@@ -63,11 +63,13 @@ func allocPathSegment(ctrl *gomock.Controller, ias []addr.IA) *PathSegment {
 			HopEntries: []*HopEntry{allocHopEntry(inIA, outIA, rawHops[i])},
 		}
 	}
-	info := &spath.InfoField{
-		TsInt: uint32(time.Now().Unix()),
-		ISD:   uint16(ias[0].I),
-	}
-	pseg, _ := NewSeg(info)
+	rawInfo := make([]byte, spath.InfoFieldLength)
+	(&spath.InfoField{ISD: uint16(ias[0].I), TsInt: uint32(time.Now().Unix())}).Write(rawInfo)
+	pseg, _ := NewSeg(&PathSegmentSignedData{
+		RawInfo:      make([]byte, spath.InfoFieldLength),
+		RawTimestamp: uint32(time.Now().Unix()),
+		SegID:        1337,
+	})
 	signer := mock_seg.NewMockSigner(ctrl)
 	signer.EXPECT().Sign(gomock.Any(), gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 		&proto.SignS{}, nil).AnyTimes()

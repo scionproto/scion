@@ -51,6 +51,9 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 					RemoteOutIF: 23,
 					RawOutIA:    as111.IAInt(),
 					RawHopField: make(common.RawBytes, spath.HopFieldLength),
+					HopField: HopField{
+						MAC: make([]byte, 3),
+					},
 				},
 			},
 		},
@@ -67,6 +70,9 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 					RemoteOutIF: 24,
 					RawOutIA:    as112.IAInt(),
 					RawHopField: make(common.RawBytes, spath.HopFieldLength),
+					HopField: HopField{
+						MAC: make([]byte, 3),
+					},
 				},
 			},
 		},
@@ -81,6 +87,9 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 					RemoteInIF:  19,
 					RawInIA:     as111.IAInt(),
 					RawHopField: make(common.RawBytes, spath.HopFieldLength),
+					HopField: HopField{
+						MAC: make([]byte, 3),
+					},
 				},
 			},
 		},
@@ -90,7 +99,13 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 		keyPairs = append(keyPairs, newKeyPair(t))
 	}
 	Convey("When constructing a path segment by adding multiple AS entries", t, func() {
-		pseg, err := NewSeg(&spath.InfoField{ISD: 1, TsInt: 13})
+		rawInfo := make([]byte, spath.InfoFieldLength)
+		(&spath.InfoField{ISD: 1, TsInt: 13}).Write(rawInfo)
+		pseg, err := NewSeg(&PathSegmentSignedData{
+			RawInfo:      make([]byte, spath.InfoFieldLength),
+			RawTimestamp: 13,
+			SegID:        1337,
+		})
 		xtest.FailOnErr(t, err)
 		id, fullId := getIds(t, pseg)
 		for i, entry := range asEntries {
@@ -124,7 +139,13 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 		})
 	})
 	Convey("When adding an AS entry fails, the segment is not affected", t, func() {
-		pseg, err := NewSeg(&spath.InfoField{ISD: 1, TsInt: 13})
+		rawInfo := make([]byte, spath.InfoFieldLength)
+		(&spath.InfoField{ISD: 1, TsInt: 13}).Write(rawInfo)
+		pseg, err := NewSeg(&PathSegmentSignedData{
+			RawInfo:      make([]byte, spath.InfoFieldLength),
+			RawTimestamp: 0,
+			SegID:        1337,
+		})
 		xtest.FailOnErr(t, err)
 		err = pseg.AddASEntry(context.Background(), asEntries[0], keyPairs[0])
 		SoMsg("AddASEntry err", err, ShouldBeNil)
@@ -160,11 +181,7 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 
 func getIds(t *testing.T, seg *PathSegment) (common.RawBytes, common.RawBytes) {
 	t.Helper()
-	id, err := seg.ID()
-	xtest.FailOnErr(t, err)
-	full, err := seg.ID()
-	xtest.FailOnErr(t, err)
-	return id, full
+	return seg.ID(), seg.FullID()
 }
 
 type keyPair struct {
