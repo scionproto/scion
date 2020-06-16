@@ -12,7 +12,7 @@ type PathMetadata struct {
 	Latency uint16             `capnp:"totalLatency"`
 	Hops    uint8              `capnp:"totalHops"`
 	Bandwidth  uint32             `capnp:"minimalBandwidth"`
-	LinkTypes    []*ASLinkType `capnp:"linkTypes"`
+	LinkTypes    []LinkType `capnp:"linkTypes"`
 	Geos    []*Geo        `capnp:"asLocations"`
 	Notes        []*Note       `capnp:"notes"`
 }
@@ -28,22 +28,33 @@ func (s *PathMetadata) String() string {
 		s.Notes)
 }
 
-func reverseTransformLinkType(linktype uint16) string {
-	switch linktype {
-	case 3:
-		return "opennet"
-	case 2:
-		return "multihop"
-	case 1:
+type LinkType uint16
+
+const (
+	LinkTypeUnset LinkType = iota
+	LinkTypeDirect
+	LinkTypeMultihop
+	LinkTypeOpennet
+)
+
+func (t LinkType) String() string {
+	switch t {
+	case LinkTypeDirect:
 		return "direct"
+	case LinkTypeMultihop:
+		return "multihop"
+	case LinkTypeOpennet:
+		return "opennet"
 	default:
 		return "unset"
 	}
 }
 
+
+
 type ASLinkType struct {
-	InterLinkType uint16     `capnp:"interLinkType"`
-	PeerLinkType  uint16     `capnp:"peerLinkType"`
+	Inter LinkType     `capnp:"interLinkType"`
+	Peer LinkType     `capnp:"peerLinkType"`
 	RawIA         addr.IAInt `capnp:"isdas"`
 }
 
@@ -53,7 +64,7 @@ func (s *ASLinkType) ProtoId() proto.ProtoIdType {
 
 func (s *ASLinkType) String() string {
 	return fmt.Sprintf("\nInterLinkType: %s\nPeerLinkType: %s\nISD: %d\nAS: %d\nRawIA: %v\n",
-		reverseTransformLinkType(s.InterLinkType), reverseTransformLinkType(s.PeerLinkType),
+		s.Inter.String(), s.Peer.String(),
 		s.RawIA.IA().I, s.RawIA.IA().A, s.RawIA.IA())
 }
 
