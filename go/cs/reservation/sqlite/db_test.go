@@ -97,9 +97,10 @@ func addSegRsvRows(t testing.TB, b *Backend, asid addr.AS, firstSuffix, lastSuff
 	t.Helper()
 	ctx := context.Background()
 	query := `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress, path,
-		src_as, dst_as, active_index) VALUES ($1, $2, $3, $4, $5, $6, $7, -1)`
+		end_props, traffic_split, src_as, dst_as, active_index)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, -1)`
 	for suffix := firstSuffix; suffix <= lastSuffix; suffix++ {
-		_, err := b.db.ExecContext(ctx, query, asid, suffix, 0, 0, nil, nil, nil)
+		_, err := b.db.ExecContext(ctx, query, asid, suffix, 0, 0, nil, 0, 0, nil, nil)
 		require.NoError(t, err)
 	}
 }
