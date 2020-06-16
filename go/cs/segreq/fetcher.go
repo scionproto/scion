@@ -148,7 +148,7 @@ type dstProvider struct {
 // Dsts provides the address of and the path to the authoritative server for
 // this request.
 func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr, error) {
-	if true {
+	if assert.On {
 		assert.Must(!p.localIA.Equal(req.Src),
 			"segments starting here should have been resolved locally. req: %v", req)
 		assert.Must(req.SegType != proto.PathSegType_up,
