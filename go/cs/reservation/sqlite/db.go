@@ -117,7 +117,8 @@ type executor struct {
 func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID *reservation.SegmentID) (
 	*segment.Reservation, error) {
 
-	const query = `SELECT rsv.inout_ingress,rsv.inout_egress,rsv.path,rsv.active_index,
+	const query = `SELECT rsv.inout_ingress,rsv.inout_egress,rsv.path,rsv.end_props,
+		rsv.traffic_split,rsv.active_index,
 		idx.index_number,idx.expiration,idx.state,idx.min_bw,idx.max_bw,idx.alloc_bw,idx.token
 		FROM seg_reservation as rsv
 		INNER JOIN seg_index AS idx ON rsv.row_id = idx.reservation
@@ -130,7 +131,7 @@ func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID *reservation.Segm
 
 	indices := segment.Indices{}
 	var ingressIFID, egressIFID common.IFIDType
-	var activeIdx int
+	var activeIdx, endProps, trafficSplit int
 	var idx, expiration, state, minBW, maxBW, allocBW int32
 	var path, token []byte
 	insertIndex := func() error {
@@ -145,7 +146,7 @@ func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID *reservation.Segm
 		return nil
 	}
 	if rows.Next() {
-		if err := rows.Scan(&ingressIFID, &egressIFID, &path, &activeIdx,
+		if err := rows.Scan(&ingressIFID, &egressIFID, &path, &endProps, &trafficSplit, &activeIdx,
 			&idx, &expiration, &state, &minBW, &maxBW, &allocBW, &token); err != nil {
 			return nil, err
 		}
@@ -156,7 +157,7 @@ func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID *reservation.Segm
 	}
 	for rows.Next() {
 		var dummy []byte
-		err := rows.Scan(&dummy, &dummy, &dummy, &dummy,
+		err := rows.Scan(&dummy, &dummy, &dummy, &dummy, &dummy, &dummy,
 			&idx, &expiration, &state, &minBW, &maxBW, &allocBW, &token)
 		if err != nil {
 			return nil, db.NewTxError("cannot read index row", err)
@@ -175,6 +176,8 @@ func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID *reservation.Segm
 		return nil, err
 	}
 	rsv.Path = p
+	rsv.PathEndProps = reservation.PathEndProps(endProps)
+	rsv.TrafficSplit = reservation.SplitCls(trafficSplit)
 	rsv.Indices = indices
 	if activeIdx != -1 {
 		if err := rsv.SetIndexActive(reservation.IndexNumber(activeIdx)); err != nil {
@@ -352,6 +355,12 @@ func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 	res, err := x.ExecContext(ctx, query, rsv.Path.GetSrcIA().A, suffix,
 		rsv.Ingress, rsv.Egress,
 		rsv.Path.ToRaw(), rsv.Path.GetSrcIA().IAInt(), rsv.Path.GetDstIA().IAInt())
+	const query = `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress,
+		path, end_props, traffic_split, src_as, dst_as,active_index)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, -1)`
+	res, err := x.ExecContext(ctx, query, rsv.Path.GetSrcIA().A, suffix,
+		rsv.Ingress, rsv.Egress, rsv.Path.ToRaw(), rsv.PathEndProps,
+		rsv.TrafficSplit, rsv.Path.GetSrcIA().IAInt(), rsv.Path.GetDstIA().IAInt())
 	if err != nil {
 		return err
 	}

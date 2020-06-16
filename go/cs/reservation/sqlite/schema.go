@@ -30,6 +30,8 @@ const (
 		ingress	INTEGER NOT NULL,
 		egress	INTEGER NOT NULL,
 		path	BLOB,
+		end_props	INTEGER NOT NULL,
+		traffic_split	INTEGER NOT NULL,
 		src_as INTEGER,
 		dst_as INTEGER,
 		active_index	INTEGER NOT NULL,
