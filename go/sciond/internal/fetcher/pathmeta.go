@@ -66,8 +66,8 @@ func Condensemetadata(data *combinator.PathMetadata) *sciond.PathMetadata {
 
 	for ia, link := range data.Links {
 		ret.LinkTypes = append(ret.LinkTypes, &sciond.ASLinkType{
-			InterLinkType: link.InterLinkType,
-			PeerLinkType:  link.PeerLinkType,
+			Inter: sciond.LinkType(link.InterLinkType),
+			Peer:  sciond.LinkType(link.PeerLinkType),
 			RawIA:         ia.IAInt(),
 		})
 	}

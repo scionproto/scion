@@ -210,7 +210,7 @@ func (p Path) Copy() snet.Path {
 		spath:      p.Path(),            // creates copy
 		mtu:        p.mtu,
 		expiry:     p.expiry,
-		metadata: p.metadata,
+		metadata: p.metadata.Copy(),
 	}
 }
 
