@@ -45,6 +45,9 @@ type DefaultPacketDispatcherService struct {
 	// handler is nil, errors are returned back to applications every time an
 	// SCMP message is received.
 	SCMPHandler SCMPHandler
+
+	// Version2 switches packets to SCION header format version 2.
+	Version2 bool
 }
 
 func (s *DefaultPacketDispatcherService) Register(ctx context.Context, ia addr.IA,
@@ -54,7 +57,11 @@ func (s *DefaultPacketDispatcherService) Register(ctx context.Context, ia addr.I
 	if err != nil {
 		return nil, 0, err
 	}
-	return &SCIONPacketConn{conn: rconn, scmpHandler: s.SCMPHandler}, port, nil
+	return &SCIONPacketConn{
+		conn:        rconn,
+		scmpHandler: s.SCMPHandler,
+		version2:    s.Version2,
+	}, port, nil
 }
 
 // RevocationHandler is called by the default SCMP Handler whenever revocations are encountered.

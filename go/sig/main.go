@@ -83,7 +83,7 @@ func realMain() int {
 		log.Error("TUN device initialization failed", "err", err)
 		return 1
 	}
-	if err := sigcmn.Init(cfg.Sig, cfg.Sciond); err != nil {
+	if err := sigcmn.Init(cfg.Sig, cfg.Sciond, cfg.Features); err != nil {
 		log.Error("SIG common initialization failed", "err", err)
 		return 1
 	}

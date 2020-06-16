@@ -107,6 +107,8 @@ func (s server) run() {
 		SCMPHandler: snet.NewSCMPHandler(
 			sciond.RevHandler{Connector: integration.SDConn()},
 		),
+		// TODO(scrye): set this when we have CLI support for features
+		Version2: false,
 	}
 	conn, port, err := connFactory.Register(context.Background(), integration.Local.IA,
 		integration.Local.Host, addr.SvcNone)
@@ -165,6 +167,8 @@ func (c client) run() int {
 		SCMPHandler: snet.NewSCMPHandler(
 			sciond.RevHandler{Connector: integration.SDConn()},
 		),
+		// TODO(scrye): set this when we have CLI support for features
+		Version2: false,
 	}
 
 	var err error

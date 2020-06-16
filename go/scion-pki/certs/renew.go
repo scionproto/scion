@@ -389,6 +389,7 @@ func buildMsgr(ctx context.Context, ds reliable.Dispatcher, sds sciond.Service,
 			SCMPHandler: snet.NewSCMPHandler(
 				sciond.RevHandler{Connector: sdConn},
 			),
+			Version2: false, // TODO(scrye): set this to true when we have CLI support for features
 		},
 	}
 	conn, err := sn.Dial(ctx, "udp", local.Host, remote, addr.SvcNone)
@@ -408,6 +409,8 @@ func buildMsgr(ctx context.Context, ds reliable.Dispatcher, sds sciond.Service,
 					LocalIA: local.IA,
 					ConnFactory: &snet.DefaultPacketDispatcherService{
 						Dispatcher: ds,
+						// TODO(scrye): set this to true when we have CLI support for features
+						Version2: false,
 					},
 					LocalIP: local.Host.IP,
 					Payload: []byte{0x00, 0x00, 0x00, 0x00},

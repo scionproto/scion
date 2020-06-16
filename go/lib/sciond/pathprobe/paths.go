@@ -95,6 +95,9 @@ type Prober struct {
 	DstIA   addr.IA
 	LocalIA addr.IA
 	LocalIP net.IP
+
+	// Version2 switches packets to SCION header format version 2.
+	Version2 bool
 }
 
 // GetStatuses probes the paths and returns the statuses of the paths. The
@@ -119,6 +122,7 @@ func (p Prober) GetStatuses(ctx context.Context,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher:  reliable.NewDispatcher(""),
 			SCMPHandler: scmpH,
+			Version2:    p.Version2,
 		},
 	}
 	snetConn, err := network.Listen(ctx, "udp", &net.UDPAddr{IP: p.LocalIP}, addr.SvcNone)

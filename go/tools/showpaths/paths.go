@@ -94,6 +94,8 @@ func main() {
 			DstIA:   dstIA,
 			LocalIA: localIA,
 			LocalIP: localIP,
+			// TODO(scrye): set this when we have CLI support for features
+			Version2: false,
 		}.GetStatuses(ctx, paths)
 		if err != nil {
 			LogFatal("Failed to get status", "err", err)
