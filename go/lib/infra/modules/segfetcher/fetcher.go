@@ -101,6 +101,9 @@ func (f *Fetcher) Fetch(ctx context.Context, reqs Requests, refresh bool) (Segme
 	if err != nil {
 		return Segments{}, serrors.WrapStr("failed to resolve request set", err)
 	}
+	if fetchReqs.AllLoaded() {
+		return loadedSegs, nil
+	}
 	// Forward and cache any requests that were not local / cached
 	fetchedSegs, _, err := f.Request(ctx, fetchReqs)
 	if err != nil {

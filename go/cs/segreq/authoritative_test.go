@@ -103,7 +103,7 @@ func TestAuthoritativeClassify(t *testing.T) {
 				Src: core_110,
 				Dst: non_core_211,
 			},
-			// core/non-core dst in remote ISD unchecked! Could also be an error...
+			// core/non-core dst in remote ISD unchecked! Returning an error would be ok too...
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_core,
 		},
