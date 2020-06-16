@@ -35,10 +35,10 @@ type SetupReq interface {
 
 // BaseSetupReq is the common part of any e2e setup request.
 type BaseSetupReq struct {
-	Metadata     base.RequestMetadata // information about the request (forwarding path)
-	ID           reservation.E2EID    // the ID this request refers to
-	TheTimestamp time.Time            // the mandatory timestamp
-	reservation  *Reservation         // nil if no reservation yet
+	Metadata    base.RequestMetadata // information about the request (forwarding path)
+	ID          reservation.E2EID    // the ID this request refers to
+	timestamp   time.Time            // the mandatory timestamp
+	reservation *Reservation         // nil if no reservation yet
 }
 
 func NewBaseSetupReq(path *spath.Path, ts time.Time,
@@ -56,13 +56,13 @@ func NewBaseSetupReq(path *spath.Path, ts time.Time,
 		return nil, serrors.WrapStr("cannot construct e2e request", err)
 	}
 	return &BaseSetupReq{
-		Metadata:     *metadata,
-		ID:           *e2eID,
-		TheTimestamp: ts,
+		Metadata:  *metadata,
+		ID:        *e2eID,
+		timestamp: ts,
 	}, nil
 }
 
-func (r *BaseSetupReq) Timestamp() time.Time      { return r.TheTimestamp }
+func (r *BaseSetupReq) Timestamp() time.Time      { return r.timestamp }
 func (r *BaseSetupReq) Reservation() *Reservation { return r.reservation }
 
 func (r *BaseSetupReq) ToCtrlMsg() (*colibri_mgmt.E2ESetup, error) {
