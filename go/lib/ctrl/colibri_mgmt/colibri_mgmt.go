@@ -21,9 +21,10 @@ import (
 )
 
 type ColibriRequestPayload struct {
-	Which    proto.ColibriRequestPayload_Which
-	Request  *Request
-	Response *Response
+	Timestamp uint32
+	Which     proto.ColibriRequestPayload_Which
+	Request   *Request
+	Response  *Response
 }
 
 var _ proto.Cerealizable = (*ColibriRequestPayload)(nil)

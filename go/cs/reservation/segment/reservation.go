@@ -25,9 +25,10 @@ import (
 // Reservation represents a segment reservation.
 type Reservation struct {
 	ID          reservation.SegmentID
-	Path        Path
-	Indices     Indices
-	activeIndex int // -1 <= activeIndex < len(Indices)
+	Indices     Indices  // existing indices in this reservation
+	activeIndex int      // -1 <= activeIndex < len(Indices)
+	PathStep    PathStep // Ingress and Egress interfaces
+	Path        *Path    // nil if this AS is not at the source of the reservation
 }
 
 func NewReservation() *Reservation {
@@ -38,6 +39,9 @@ func NewReservation() *Reservation {
 
 // Validate will return an error for invalid values.
 func (r *Reservation) Validate() error {
+	if r.ID.ASID == 0 {
+		return serrors.New("Reservation ID not set")
+	}
 	if err := base.ValidateIndices(r.Indices); err != nil {
 		return err
 	}
@@ -56,7 +60,18 @@ func (r *Reservation) Validate() error {
 			activeIndex = i
 		}
 	}
-	return r.Path.Validate()
+	var err error
+	if r.Path != nil {
+		if r.PathStep.Ingress != 0 {
+			return serrors.New("reservation starts in this AS but ingress interface is not zero",
+				"ingress_if", r.PathStep.Ingress)
+			// TODO(juagargi) test
+		}
+		err = r.Path.Validate()
+	} else if r.PathStep.Ingress == 0 {
+		return serrors.New("reservation does not start in this AS but ingress interface is zero")
+	}
+	return err
 }
 
 // ActiveIndex returns the currently active Index for this reservation, or nil if none.

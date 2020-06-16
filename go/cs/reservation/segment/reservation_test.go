@@ -109,7 +109,7 @@ func TestReservationValidate(t *testing.T) {
 	require.Error(t, err)
 
 	// wrong path
-	r.Path = segment.Path{}
+	r.Path = &segment.Path{}
 	err = r.Validate()
 	require.Error(t, err)
 
@@ -154,6 +154,24 @@ func TestReservationValidate(t *testing.T) {
 	r.NewIndex(expTime)
 	r.Indices[0].SetStateForTesting(segment.IndexActive)
 	r.Indices[1].SetStateForTesting(segment.IndexActive)
+	err = r.Validate()
+	require.Error(t, err)
+
+	// ID not set
+	r = segmenttest.NewReservation()
+	r.ID = reservation.SegmentID{}
+	err = r.Validate()
+	require.Error(t, err)
+
+	// starts in this AS but ingress nonzero
+	r = segmenttest.NewReservation()
+	r.PathStep.Ingress = 1
+	err = r.Validate()
+	require.Error(t, err)
+
+	// Does not start in this AS but ingress empty
+	r = segmenttest.NewReservation()
+	r.Path = nil
 	err = r.Validate()
 	require.Error(t, err)
 }

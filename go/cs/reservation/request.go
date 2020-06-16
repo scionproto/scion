@@ -12,29 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package colibri_mgmt
+package reservation
 
 import (
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
-type E2ESetup struct {
-	ReservationID *E2EReservationID
-	Which         proto.E2ESetupData_Which
-	Success       *E2ESetupSuccess
-	Failure       *E2ESetupFailure
+// RequestMetadata contains information about the request, such as its forwarding path.
+type RequestMetadata struct {
+	Path spath.Path // the path the packet came with
 }
 
-func (s *E2ESetup) ProtoId() proto.ProtoIdType {
-	return proto.E2ESetupData_TypeID
-}
-
-type E2ESetupSuccess struct {
-	Token []byte
-}
-
-type E2ESetupFailure struct {
-	ErrorCode uint8
-	InfoField []byte
-	MaxBWs    []uint8
+// NewRequestMetadata constructs the base Request type.
+func NewRequestMetadata(path *spath.Path) (*RequestMetadata, error) {
+	if path == nil {
+		return nil, serrors.New("new request with nil path")
+	}
+	return &RequestMetadata{
+		Path: *path.Copy(),
+	}, nil
 }

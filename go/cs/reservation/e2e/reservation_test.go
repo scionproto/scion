@@ -46,17 +46,17 @@ func TestValidate(t *testing.T) {
 
 	// invalid segment reservation
 	r = newReservation()
-	r.SegmentReservations[0].Path = segment.Path{}
+	r.SegmentReservations[0].Path = &segment.Path{}
 	err = r.Validate()
 	require.Error(t, err)
 
 	// more than 3 segment reservations
 	r = newReservation()
 	r.SegmentReservations = []*segment.Reservation{
-		newSegmentReservation("ff00:0:111", "ff00:0:110"),
-		newSegmentReservation("ff00:0:111", "ff00:0:110"),
-		newSegmentReservation("ff00:0:111", "ff00:0:110"),
-		newSegmentReservation("ff00:0:111", "ff00:0:110"),
+		newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
+		newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
+		newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
+		newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
 	}
 	err = r.Validate()
 	require.Error(t, err)
@@ -93,7 +93,8 @@ func newSegmentReservation(asidPath ...string) *segment.Reservation {
 		pathComponents[i*3+2] = i*2 + 1
 	}
 	pathComponents[len(pathComponents)-1] = 0
-	r.Path = segmenttest.NewPathFromComponents(pathComponents...)
+	p := segmenttest.NewPathFromComponents(pathComponents...)
+	r.Path = &p
 	return r
 }
 
@@ -106,7 +107,7 @@ func newReservation() *Reservation {
 	rsv := Reservation{
 		ID: *id,
 		SegmentReservations: []*segment.Reservation{
-			newSegmentReservation("ff00:0:111", "ff00:0:110"),
+			newSegmentReservation("1-ff00:0:111", "1-ff00:0:110"),
 		},
 	}
 	return &rsv
