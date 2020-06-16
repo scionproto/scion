@@ -133,30 +133,39 @@ func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID *reservation.Segm
 	var activeIdx int
 	var idx, expiration, state, minBW, maxBW, allocBW int32
 	var path, token []byte
-	if rows.Next() {
-		if err := rows.Scan(&ingressIFID, &egressIFID, &path, &activeIdx,
-			&idx, &expiration, &state, &minBW, &maxBW, &allocBW, &token); err != nil {
-			return nil, err
-		}
+	insertIndex := func() error {
 		tok, err := reservation.TokenFromRaw(token)
 		if err != nil {
-			return nil, db.NewDataError("invalid stored token", err)
+			return db.NewDataError("invalid stored token", err)
 		}
 		index := segment.NewIndex(reservation.IndexNumber(idx),
 			time.Unix(int64(expiration), 0), segment.IndexState(state), reservation.BWCls(minBW),
 			reservation.BWCls(maxBW), reservation.BWCls(allocBW), tok)
 		indices = append(indices, *index)
+		return nil
 	}
-	for rows.Next() {
-		err := rows.Scan(nil, nil, nil,
-			&idx, &expiration, &state, &minBW, &maxBW, &allocBW, &token)
-		if err != nil {
+	if rows.Next() {
+		if err := rows.Scan(&ingressIFID, &egressIFID, &path, &activeIdx,
+			&idx, &expiration, &state, &minBW, &maxBW, &allocBW, &token); err != nil {
 			return nil, err
 		}
+		if err != nil {
+			return nil, db.NewTxError("cannot read index row", err)
+		}
+		insertIndex()
+	}
+	for rows.Next() {
+		var dummy []byte
+		err := rows.Scan(&dummy, &dummy, &dummy, &dummy,
+			&idx, &expiration, &state, &minBW, &maxBW, &allocBW, &token)
+		if err != nil {
+			return nil, db.NewTxError("cannot read index row", err)
+		}
+		insertIndex()
 	}
 	// sort indices so they are consecutive modulo 16
 	indices.Sort()
-	// setup reservation
+	// reconstruct reservation
 	rsv := segment.NewReservation()
 	rsv.ID = *ID
 	rsv.Ingress = ingressIFID
@@ -214,8 +223,12 @@ func (x *executor) GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress
 }
 
 // NewSegmentRsv creates a new segment reservation in the DB, with an unused reservation ID.
+// The reservation must contain at least one index.
 // The created ID is set in the reservation pointer argument.
 func (x *executor) NewSegmentRsv(ctx context.Context, rsv *segment.Reservation) error {
+	if len(rsv.Indices) == 0 {
+		return db.NewInputDataError("no indices", nil)
+	}
 	var err error
 	for retries := 0; retries < 3; retries++ {
 		err = db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
@@ -336,10 +349,27 @@ func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 
 	const query = `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress,
 		path, src_as, dst_as,active_index) VALUES ($1, $2, $3, $4, $5, $6, $7, -1)`
-	_, err := x.ExecContext(ctx, query, rsv.Path.GetSrcIA().A, suffix,
+	res, err := x.ExecContext(ctx, query, rsv.Path.GetSrcIA().A, suffix,
 		rsv.Ingress, rsv.Egress,
 		rsv.Path.ToRaw(), rsv.Path.GetSrcIA().IAInt(), rsv.Path.GetDstIA().IAInt())
-	return err
+	if err != nil {
+		return err
+	}
+	rsvRowID, err := res.LastInsertId()
+	if err != nil {
+		return db.NewTxError("cannot obtain last insertion row id", err)
+	}
+	const queryIndex = `INSERT INTO seg_index (reservation, index_number, expiration, state,
+		min_bw, max_bw, alloc_bw, token) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
+
+	for _, index := range rsv.Indices {
+		_, err := x.ExecContext(ctx, queryIndex, rsvRowID, index.Idx, uint32(index.Expiration.Unix()),
+			index.State(), index.MinBW, index.MaxBW, index.AllocBW, index.Token.ToRaw())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func insertNewIndex(ctx context.Context, x db.Sqler, segID *reservation.SegmentID,
