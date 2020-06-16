@@ -30,10 +30,10 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/sciond/fetcher"
+	"github.com/scionproto/scion/go/pkg/sciond/internal/metrics"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
-	"github.com/scionproto/scion/go/sciond/internal/fetcher"
-	"github.com/scionproto/scion/go/sciond/internal/metrics"
 )
 
 const (

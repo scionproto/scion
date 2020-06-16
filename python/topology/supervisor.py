@@ -64,7 +64,7 @@ class SupervisorGenerator(object):
         entries = []
         for k, v in topo.get("border_routers", {}).items():
             conf = os.path.join(base, k, BR_CONFIG_NAME)
-            entries.append((k, [cmd, "-config", conf]))
+            entries.append((k, [cmd, "--config", conf]))
         return entries
 
     def _control_service_entries(self, topo, base):
@@ -73,12 +73,12 @@ class SupervisorGenerator(object):
             # only a single control service instance per AS is currently supported
             if k.endswith("-1"):
                 conf = os.path.join(base, k, CS_CONFIG_NAME)
-                entries.append((k, ["bin/cs", "-config", conf]))
+                entries.append((k, ["bin/cs", "--config", conf]))
         return entries
 
     def _sciond_entry(self, name, conf_dir):
         return self._common_entry(
-            name, ["bin/sciond", "-config", os.path.join(conf_dir, SD_CONFIG_NAME)])
+            name, ["bin/sciond", "--config", os.path.join(conf_dir, SD_CONFIG_NAME)])
 
     def _write_as_conf(self, topo_id, entries):
         config = configparser.ConfigParser(interpolation=None)
@@ -115,7 +115,7 @@ class SupervisorGenerator(object):
         elem_dir = os.path.join(self.args.output_dir, elem)
         config_file_path = os.path.join(elem_dir, DISP_CONFIG_NAME)
         self._write_elem_conf(
-            elem, ["bin/dispatcher", "-config", config_file_path], elem_dir)
+            elem, ["bin/dispatcher", "--config", config_file_path], elem_dir)
 
     def _common_entry(self, name, cmd_args, elem_dir=None):
         entry = {

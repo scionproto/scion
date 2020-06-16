@@ -6,7 +6,7 @@ go_library(
         "config.go",
         "sample.go",
     ],
-    importpath = "github.com/scionproto/scion/go/sciond/config",
+    importpath = "github.com/scionproto/scion/go/pkg/sciond/config",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/config:go_default_library",
