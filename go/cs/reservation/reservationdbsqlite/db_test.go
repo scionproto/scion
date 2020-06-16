@@ -19,12 +19,13 @@ import (
 	"testing"
 
 	"github.com/mattn/go-sqlite3"
+	"github.com/stretchr/testify/require"
+
 	"github.com/scionproto/scion/go/cs/reservation/reservationdbtest"
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/stretchr/testify/require"
 )
 
 type TestDB struct {
