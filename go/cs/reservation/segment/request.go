@@ -50,6 +50,9 @@ func NewRequest(ts time.Time, ID *colibri_mgmt.SegmentReservationID,
 	}
 	ingressIFID, egressIFID := hf.ConsIngress, hf.ConsEgress
 	infField, err := path.GetInfoField(path.InfOff)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot obtain infofield from spath", err)
+	}
 	if !infField.ConsDir {
 		egressIFID, ingressIFID = ingressIFID, egressIFID
 	}
