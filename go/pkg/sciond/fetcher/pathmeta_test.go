@@ -32,7 +32,7 @@ func TestCollectMetadata(t *testing.T) {
 		expectedLatency   uint16
 		expectedBW        uint32
 		expectedHops      uint8
-		expectedLinktypes []*sciond.ASLinkType
+		expectedLinktypes []sciond.LinkType
 		expectedGeo       []*sciond.Geo
 		expectedNotes     []*sciond.Note
 	}{
@@ -125,28 +125,11 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("2-ff00:0:212").IAInt(),
 				},
 			},
-			expectedLinktypes: []*sciond.ASLinkType{
-				{
-					InterLinkType: uint16(graph.If_131_X_132_X) % 3,
-					RawIA:         xtest.MustParseIA("1-ff00:0:131").IAInt(),
-				},
-				{
-					InterLinkType: uint16(graph.If_130_A_131_X) % 3,
-					RawIA:         xtest.MustParseIA("1-ff00:0:130").IAInt(),
-				},
-				{
-					InterLinkType: uint16(graph.If_110_X_130_A) % 3,
-					RawIA:         xtest.MustParseIA("1-ff00:0:110").IAInt(),
-				},
-				{
-					InterLinkType: uint16(graph.If_210_X_211_A) % 3,
-					PeerLinkType:  uint16(graph.If_210_X_110_X) % 3,
-					RawIA:         xtest.MustParseIA("2-ff00:0:210").IAInt(),
-				},
-				{
-					InterLinkType: uint16(graph.If_211_A_212_X) % 3,
-					RawIA:         xtest.MustParseIA("2-ff00:0:211").IAInt(),
-				},
+			expectedLinktypes: []sciond.LinkType{
+				sciond.LinkType(graph.If_131_X_132_X) % 3, sciond.LinkType(graph.If_130_A_131_X) % 3,
+				sciond.LinkType(graph.If_110_X_130_A) % 3, sciond.LinkType(graph.If_210_X_211_A) % 3,
+				sciond.LinkType(graph.If_210_X_110_X) % 3, sciond.LinkType(graph.If_211_A_212_X) % 3,
+
 			},
 			expectedNotes: []*sciond.Note{
 				{
@@ -207,11 +190,8 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("1-ff00:0:130").IAInt(),
 				},
 			},
-			expectedLinktypes: []*sciond.ASLinkType{
-				{
-					InterLinkType: uint16(graph.If_130_A_131_X) % 3,
-					RawIA:         xtest.MustParseIA("1-ff00:0:130").IAInt(),
-				},
+			expectedLinktypes: []sciond.LinkType{
+				sciond.LinkType(graph.If_130_A_131_X) % 3,
 			},
 			expectedNotes: []*sciond.Note{
 				{
@@ -252,11 +232,9 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("1-ff00:0:111").IAInt(),
 				},
 			},
-			expectedLinktypes: []*sciond.ASLinkType{
-				{
-					InterLinkType: uint16(graph.If_130_B_111_A) % 3,
-					RawIA:         xtest.MustParseIA("1-ff00:0:130").IAInt(),
-				},
+			expectedLinktypes: []sciond.LinkType{
+				sciond.LinkType(graph.If_130_B_111_A) % 3,
+
 			},
 			expectedNotes: []*sciond.Note{
 				{
@@ -311,15 +289,8 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("1-ff00:0:131").IAInt(),
 				},
 			},
-			expectedLinktypes: []*sciond.ASLinkType{
-				{
-					InterLinkType: uint16(graph.If_132_X_133_X) % 3,
-					RawIA:         xtest.MustParseIA("1-ff00:0:132").IAInt(),
-				},
-				{
-					InterLinkType: uint16(graph.If_131_X_132_X) % 3,
-					RawIA:         xtest.MustParseIA("1-ff00:0:131").IAInt(),
-				},
+			expectedLinktypes: []sciond.LinkType{
+				sciond.LinkType(graph.If_132_X_133_X) % 3, sciond.LinkType(graph.If_131_X_132_X) % 3,
 			},
 			expectedNotes: []*sciond.Note{
 				{
@@ -379,12 +350,8 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("2-ff00:0:222").IAInt(),
 				},
 			},
-			expectedLinktypes: []*sciond.ASLinkType{
-				{
-					InterLinkType: uint16(graph.If_211_A_222_X) % 3,
-					PeerLinkType:  uint16(graph.If_211_A1_212_X) % 3,
-					RawIA:         xtest.MustParseIA("2-ff00:0:211").IAInt(),
-				},
+			expectedLinktypes: []sciond.LinkType{
+				sciond.LinkType(graph.If_211_A_222_X) % 3, sciond.LinkType(graph.If_211_A1_212_X) % 3,
 			},
 			expectedNotes: []*sciond.Note{
 				{
@@ -456,16 +423,9 @@ func TestCollectMetadata(t *testing.T) {
 					RawIA: xtest.MustParseIA("2-ff00:0:222").IAInt(),
 				},
 			},
-			expectedLinktypes: []*sciond.ASLinkType{
-				{
-					InterLinkType: uint16(graph.If_211_A1_212_X) % 3,
-					RawIA:         xtest.MustParseIA("2-ff00:0:211").IAInt(),
-				},
-				{
-					InterLinkType: uint16(graph.If_221_X_222_X) % 3,
-					PeerLinkType:  uint16(graph.If_221_X_211_A) % 3,
-					RawIA:         xtest.MustParseIA("2-ff00:0:221").IAInt(),
-				},
+			expectedLinktypes: []sciond.LinkType{
+				sciond.LinkType(graph.If_211_A1_212_X) % 3, sciond.LinkType(graph.If_221_X_222_X) % 3,
+				sciond.LinkType(graph.If_221_X_211_A) % 3,
 			},
 			expectedNotes: []*sciond.Note{
 				{
@@ -491,7 +451,7 @@ func TestCollectMetadata(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			rawdata := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
-			result := Condensemetadata(rawdata[0].StaticInfo)
+			result := CondenseMetadata(rawdata[0].StaticInfo)
 			assert.Equal(t, tc.expectedLatency, result.Latency)
 			assert.Equal(t, tc.expectedBW, result.Bandwidth)
 			assert.Equal(t, tc.expectedHops, result.Hops)

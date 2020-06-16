@@ -9,7 +9,7 @@ import (
 
 // Condensemetadata takes RawPathMetadata and extracts/condenses
 // the most important values to be transmitted to SCIOND
-func Condensemetadata(data *combinator.PathMetadata) *sciond.PathMetadata {
+func CondenseMetadata(data *combinator.PathMetadata) *sciond.PathMetadata {
 	ret := &sciond.PathMetadata{
 		Latency: 0,
 		Hops:    0,
