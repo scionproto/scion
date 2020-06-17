@@ -42,8 +42,8 @@ func TestNewSetupReqFromCtrlMsg(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, *p, r.Metadata.Path)
 	checkRequest(t, ctrlMsg, r, ts)
-	require.Equal(t, common.IFIDType(1), r.IngressIFID)
-	require.Equal(t, common.IFIDType(2), r.EgressIFID)
+	require.Equal(t, common.IFIDType(1), r.Ingress)
+	require.Equal(t, common.IFIDType(2), r.Egress)
 }
 
 func TestRequestToCtrlMsg(t *testing.T) {

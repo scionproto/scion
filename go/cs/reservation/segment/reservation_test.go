@@ -165,7 +165,7 @@ func TestReservationValidate(t *testing.T) {
 
 	// starts in this AS but ingress nonzero
 	r = segmenttest.NewReservation()
-	r.IngressIFID = 1
+	r.Ingress = 1
 	err = r.Validate()
 	require.Error(t, err)
 

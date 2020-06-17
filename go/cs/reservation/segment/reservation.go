@@ -28,8 +28,8 @@ type Reservation struct {
 	ID           reservation.SegmentID
 	Indices      Indices                  // existing indices in this reservation
 	activeIndex  int                      // -1 <= activeIndex < len(Indices)
-	IngressIFID  common.IFIDType          // igress interface ID: reservation packets enter
-	EgressIFID   common.IFIDType          // egress interface ID: reservation packets leave
+	Ingress      common.IFIDType          // igress interface ID: reservation packets enter
+	Egress       common.IFIDType          // egress interface ID: reservation packets leave
 	Path         *Path                    // nil if this AS is not at the source of the reservation
 	PathEndProps reservation.PathEndProps // the properties for stitching and start/end
 	TrafficSplit reservation.SplitCls     // the traffic split between control and data planes
@@ -66,13 +66,13 @@ func (r *Reservation) Validate() error {
 	}
 	var err error
 	if r.Path != nil {
-		if r.IngressIFID != 0 {
+		if r.Ingress != 0 {
 			return serrors.New("reservation starts in this AS but ingress interface is not zero",
-				"ingress_if", r.IngressIFID)
+				"ingress_if", r.Ingress)
 			// TODO(juagargi) test
 		}
 		err = r.Path.Validate()
-	} else if r.IngressIFID == 0 {
+	} else if r.Ingress == 0 {
 		return serrors.New("reservation does not start in this AS but ingress interface is zero")
 	}
 	if err != nil {
