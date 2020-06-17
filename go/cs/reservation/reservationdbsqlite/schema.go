@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package reservationdbsqlite
+package sqlite
 
 const (
 	// SchemaVersion is the version of the SQLite schema understood by this backend.
@@ -26,8 +26,8 @@ const (
 		row_id	INTEGER,
 		id_as	INTEGER NOT NULL,
 		id_suffix	INTEGER NOT NULL,
-		inout_ingress	INTEGER NOT NULL,
-		inout_egress	INTEGER NOT NULL,
+		ingress	INTEGER NOT NULL,
+		egress	INTEGER NOT NULL,
 		path	BLOB,
 		src_as INTEGER,
 		dst_as INTEGER,
