@@ -139,8 +139,8 @@ func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID *reservation.Segm
 	}
 }
 
-// GetSegmentRsvFromSrcDstAS returns all reservations that start at src AS and end in dst AS.
-func (x *executor) GetSegmentRsvFromSrcDstAS(ctx context.Context, srcIA, dstIA addr.IA) (
+// GetSegmentRsvsFromSrcDstIA returns all reservations that start at src AS and end in dst AS.
+func (x *executor) GetSegmentRsvsFromSrcDstIA(ctx context.Context, srcIA, dstIA addr.IA) (
 	[]*segment.Reservation, error) {
 
 	conditions := make([]string, 0, 2)
