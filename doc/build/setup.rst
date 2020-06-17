@@ -6,14 +6,14 @@ Setting up the development environment
 #. Make sure that you are using a clean and recently updated **Ubuntu 18.04**.
    This environment assumes you're running as a non-root user with ``sudo`` access.
 #. We use `Bazel <https://bazel.build>`__ for both building and testing. To set up the
-   development environment, please install Bazel version 1.2.0:
+   development environment, please install Bazel version 3.2.0:
 
    .. code-block:: bash
 
       sudo apt-get install g++ unzip zip
-      wget https://github.com/bazelbuild/bazel/releases/download/1.2.0/bazel-1.2.0-installer-linux-x86_64.sh
-      bash ./bazel-1.2.0-installer-linux-x86_64.sh --user
-      rm ./bazel-1.2.0-installer-linux-x86_64.sh
+      wget https://github.com/bazelbuild/bazel/releases/download/3.2.0/bazel-3.2.0-installer-linux-x86_64.sh
+      bash ./bazel-3.2.0-installer-linux-x86_64.sh --user
+      rm ./bazel-3.2.0-installer-linux-x86_64.sh
 
 #. Next, clone the SCION repository into the appropriate directory inside your workspace. In the commands below,
    replace ``${WORKSPACE}`` with the directory in which you want to set up the project:
