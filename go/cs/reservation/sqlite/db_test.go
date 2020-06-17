@@ -71,7 +71,8 @@ func TestRaceForSuffix(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint32(3), suffix2)
 	rsv := &segment.Reservation{
-		ID: reservation.SegmentID{ASID: asid},
+		ID:      reservation.SegmentID{ASID: asid},
+		Indices: segment.Indices{segment.Index{}},
 	}
 	err = insertNewSegReservation(ctx, db.db, rsv, suffix1)
 	require.NoError(t, err)

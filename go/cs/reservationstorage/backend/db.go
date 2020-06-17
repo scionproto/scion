@@ -48,7 +48,10 @@ type TransitOnly interface {
 	// the specified ingress and exit at that egress. Used by setup req.
 	GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress common.IFIDType) (
 		[]*segment.Reservation, error)
-	// TODO(juagargi) function to store a reservation with a provided ID
+
+	// NewSegmentRsvWithID creates a new segment reservation in the DB, storing it with the
+	// provided ID. It the ID was used already an error will be returned. Used by setup req.
+	NewSegmentRsvWithID(ctx context.Context, rsv *segment.Reservation) error
 }
 
 // ReserverAndTransit contains the functionality for any AS that has a COLIBRI service.
