@@ -30,11 +30,16 @@ Setting up the development environment
 
       ./env/deps
 
-#. (Optional) If you want to run applications via docker, install ``docker`` and ``docker-compose``.
-   Please follow the instructions for `docker-ce <https://docs.docker.com/install/linux/docker-ce/ubuntu/>` and
-   `docker-compose <https://docs.docker.com/compose/install/>`. Then, add your user to the ``docker`` group:
+#. Install ``docker``.
+   Please follow the instructions for `docker-ce <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`_.
+   Then, add your user to the ``docker`` group:
    ``sudo usermod -a -G docker ${LOGNAME}``, where ``${LOGNAME}`` is replaced with your user name. Log out
    and log back in so that your membership of the ``docker`` group is seen by the shell session.
+
+   Optionally install ``docker-compose``. This is needed if you want to run the
+   ``docker-compose`` based test topology setup instead of the default setup based on ``supervisord``.
+   Please follow the instructions for `docker-compose <https://docs.docker.com/compose/install/>`_.
+
 #. SCION networks are composed of many different applications. To simplify testing, we provide a
    tool that generates test topologies. To generate the files required by the default topology (see
    ``doc/fig/default_topo.png`` for a diagram of this topology), run:
