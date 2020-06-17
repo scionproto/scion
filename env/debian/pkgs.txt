@@ -3,6 +3,7 @@ capnproto
 cgroup-tools
 curl
 gcc
+g++
 git
 jq
 make
