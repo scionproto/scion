@@ -192,9 +192,6 @@ func (x *executor) GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress
 // The reservation must contain at least one index.
 // The created ID is set in the reservation pointer argument.
 func (x *executor) NewSegmentRsv(ctx context.Context, rsv *segment.Reservation) error {
-	if len(rsv.Indices) == 0 {
-		return db.NewInputDataError("no indices", nil)
-	}
 	var err error
 	for retries := 0; retries < 3; retries++ {
 		err = db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
@@ -217,6 +214,11 @@ func (x *executor) NewSegmentRsv(ctx context.Context, rsv *segment.Reservation) 
 		}
 	}
 	return db.NewTxError("error inserting segment reservation after 3 retries", err)
+}
+
+func (x *executor) NewSegmentRsvWithID(ctx context.Context, rsv *segment.Reservation) error {
+	suffix := binary.BigEndian.Uint32(rsv.ID.Suffix[:])
+	return insertNewSegReservation(ctx, x.db, rsv, suffix)
 }
 
 // SetActiveIndex updates the active index for the segment reservation.
@@ -313,6 +315,9 @@ func newSuffix(ctx context.Context, x db.Sqler, ASID addr.AS) (uint32, error) {
 func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reservation,
 	suffix uint32) error {
 
+	if len(rsv.Indices) == 0 {
+		return db.NewInputDataError("no indices", nil)
+	}
 	const query = `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress,
 		path, end_props, traffic_split, src_ia, dst_ia,active_index)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, -1)`
