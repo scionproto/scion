@@ -130,8 +130,6 @@ func (h *scmpHandler) handleSCMPRev(hdr *scmp.Hdr, pkt *Packet) error {
 		return common.NewBasicError("Unable to type assert SCMP Info to SCMP Revocation Info", nil,
 			"type", common.TypeOf(scmpPayload.Info))
 	}
-	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String(),
-		"src", pkt.Source)
 	if h.revocationHandler != nil {
 		h.revocationHandler.RevokeRaw(context.TODO(), info.RawSRev)
 	}

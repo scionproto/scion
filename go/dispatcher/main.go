@@ -60,17 +60,17 @@ func realMain() int {
 	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
 	defer log.HandlePanic()
 	if err := cfg.Validate(); err != nil {
-		log.Crit("Unable to validate config", "err", err)
+		log.Error("Configuration validation failed", "err", err)
 		return 1
 	}
 
 	if err := checkPerms(); err != nil {
-		log.Crit("Permissions checks failed", "err", err)
+		log.Error("Permissions checks failed", "err", err)
 		return 1
 	}
 
 	if err := util.CreateParentDirs(cfg.Dispatcher.ApplicationSocket); err != nil {
-		log.Crit("Unable to create directory tree for socket", "err", err)
+		log.Error("Creating directory tree for socket failed", "err", err)
 		return 1
 	}
 
@@ -99,7 +99,7 @@ func realMain() int {
 	// up the sockets and let the application close.
 	errDelete := deleteSocket(cfg.Dispatcher.ApplicationSocket)
 	if errDelete != nil {
-		log.Warn("Unable to delete socket when shutting down", "err", errDelete)
+		log.Info("Unable to delete socket when shutting down", "err", errDelete)
 	}
 	switch {
 	case returnCode != 0:

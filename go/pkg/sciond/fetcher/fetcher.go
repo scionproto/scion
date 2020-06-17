@@ -134,7 +134,7 @@ func (f *fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 		}
 	}
 	if len(errs) > 0 {
-		log.FromCtx(ctx).Warn("Errors while translating paths", "errs", errs.ToError())
+		log.FromCtx(ctx).Info("Errors while translating paths", "errs", errs.ToError())
 	}
 	if len(paths) == 0 {
 		return nil, serrors.New("no paths after translation", "errs", errs.ToError())

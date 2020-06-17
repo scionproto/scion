@@ -74,7 +74,7 @@ func (srv *ConnHandler) Serve(address net.Addr) {
 		spanCtx, err = opentracing.GlobalTracer().Extract(opentracing.Binary,
 			bytes.NewReader(p.TraceId))
 		if err != nil {
-			log.Error("Failed to extract span", "err", err)
+			log.Info("Failed to extract span", "err", err)
 		}
 	}
 

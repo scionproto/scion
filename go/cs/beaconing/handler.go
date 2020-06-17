@@ -95,15 +95,15 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 		metrics.Beaconing.Received(labels.WithResult(metrics.ErrParse)).Inc()
 		return res, err
 	}
-	logger.Trace("[BeaconHandler] Received", "beacon", b)
+	logger.Debug("[BeaconHandler] Received", "beacon", b)
 	if err := h.inserter.PreFilter(b); err != nil {
-		logger.Trace("[BeaconHandler] Beacon pre-filtered", "err", err)
+		logger.Debug("[BeaconHandler] Beacon pre-filtered", "err", err)
 		metrics.Beaconing.Received(labels.WithResult(metrics.ErrPrefilter)).Inc()
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectPolicyError)
 		return infra.MetricsErrInvalid, nil
 	}
 	if err := h.verifyBeacon(b); err != nil {
-		logger.Trace("[BeaconHandler] Beacon verification", "err", err)
+		logger.Debug("[BeaconHandler] Beacon verification", "err", err)
 		metrics.Beaconing.Received(labels.WithResult(metrics.ErrVerify)).Inc()
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
 		return infra.MetricsErrInvalid, err
@@ -114,7 +114,7 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRetryDBError)
 		return infra.MetricsErrInternal, common.NewBasicError("Unable to insert beacon", err)
 	}
-	logger.Trace("[BeaconHandler] Successfully inserted", "beacon", b)
+	logger.Debug("[BeaconHandler] Successfully inserted", "beacon", b)
 	metrics.Beaconing.Received(labels.WithResult(
 		metrics.GetResultValue(stat.Inserted, stat.Updated, stat.Filtered))).Inc()
 	sendAck(proto.Ack_ErrCode_ok, "")

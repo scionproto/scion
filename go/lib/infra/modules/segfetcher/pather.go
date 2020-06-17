@@ -133,7 +133,7 @@ func (p *Pather) filterRevoked(ctx context.Context,
 		}
 	}
 	if len(paths) != len(newPaths) {
-		logger.Trace("[segfetcher.Pather] Filtered paths with revocations",
+		logger.Debug("[segfetcher.Pather] Filtered paths with revocations",
 			"all", len(paths), "revoked", len(paths)-len(newPaths))
 	}
 	return newPaths, nil

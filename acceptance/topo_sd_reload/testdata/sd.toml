@@ -7,7 +7,7 @@ id = "sd1-ff00_0_110"
 connection = "sd1-ff00_0_110.trust.db"
 
 [log.console]
-level = "trace"
+level = "debug"
 
 [sd]
 address = "[242.254.100.2]:0"

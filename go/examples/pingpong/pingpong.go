@@ -85,8 +85,7 @@ var (
 func init() {
 	flag.Var(&local, "local", "(Mandatory) address to listen on")
 	flag.Var(&remote, "remote", "(Mandatory for clients) address to connect to")
-	flag.StringVar(&logConsole, "log.console", "info",
-		"Console logging level: trace|debug|info|warn|error|crit")
+	flag.StringVar(&logConsole, "log.console", "info", "Console logging level: debug|info|error")
 }
 
 func main() {
@@ -143,7 +142,7 @@ func validateFlags() {
 }
 
 func LogFatal(msg string, a ...interface{}) {
-	log.Crit(msg, a...)
+	log.Error(msg, a...)
 	os.Exit(1)
 }
 

@@ -74,16 +74,16 @@ func realMain() int {
 	http.HandleFunc("/status", statusHandler)
 	http.HandleFunc("/topology", itopo.TopologyHandler)
 	if err := setup(); err != nil {
-		log.Crit("Setup failed", "err", err)
+		log.Error("Setup failed", "err", err)
 		return 1
 	}
 	if err := checkPerms(); err != nil {
-		log.Crit("Permissions checks failed", "err", err)
+		log.Error("Permissions checks failed", "err", err)
 		return 1
 	}
 	var err error
 	if r, err = NewRouter(cfg.General.ID, cfg.General.ConfigDir); err != nil {
-		log.Crit("Startup failed", "err", err)
+		log.Error("Startup failed", "err", err)
 		return 1
 	}
 	if assert.On {

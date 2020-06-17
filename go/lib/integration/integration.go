@@ -238,7 +238,7 @@ func initAddrs() {
 	var err error
 	addrs, err = LoadNetworkAllocs()
 	if err != nil {
-		log.Crit("Failed to load network allocations", "err", err)
+		log.Error("Loading network allocations failed", "err", err)
 		os.Exit(1)
 	}
 }
@@ -306,14 +306,12 @@ func RunClient(in Integration, pair IAPair, timeout time.Duration) error {
 func ExecuteTimed(name string, f func() error) error {
 	start := time.Now()
 	err := f()
-	level := log.LevelInfo
-	result := "successful"
-	if err != nil {
-		result = "failed"
-		level = log.LevelError
-	}
 	elapsed := time.Since(start)
-	log.Log(level, fmt.Sprintf("Test %s %s, used %v\n", name, result, elapsed))
+	if err != nil {
+		log.Error("Test failed", "name", name, "elapsed", elapsed)
+		return err
+	}
+	log.Info("Test successful", "name", name, "elapsed", elapsed)
 	return err
 }
 

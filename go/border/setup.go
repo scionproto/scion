@@ -156,7 +156,7 @@ func (r *Router) setupCtxFromTopoUpdate(tx itopo.Transaction, err error) (bool, 
 	if !tx.IsUpdate() {
 		return false, nil
 	}
-	log.Trace("====> Setting up new context from topology update")
+	log.Debug("====> Setting up new context from topology update")
 	newConf, err := brconf.WithNewTopo(r.Id, tx.Get(), rctx.Get().Conf)
 	if err != nil {
 		return false, err
@@ -273,7 +273,7 @@ func handleRollbackErr(err error) {
 	if cfg.BR.RollbackFailAction != brconf.FailActionContinue {
 		fatal.Fatal(err)
 	}
-	log.Crit("Error in rollback", "err", err)
+	log.Error("Rollback failed", "err", err)
 }
 
 // validateCtx ensures that the socket type of existing sockets does not change

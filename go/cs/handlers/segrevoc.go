@@ -20,7 +20,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -28,16 +27,12 @@ import (
 )
 
 type revocHandler struct {
-	NextQueryCleaner segfetcher.NextQueryCleaner
-	revCache         revcache.RevCache
-	verifier         infra.Verifier
+	revCache revcache.RevCache
+	verifier infra.Verifier
 }
 
 func NewRevocHandler(args HandlerArgs) infra.Handler {
 	return &revocHandler{
-		NextQueryCleaner: segfetcher.NextQueryCleaner{
-			PathDB: args.PathDB,
-		},
 		revCache: args.RevCache,
 		verifier: args.Verifier,
 	}
@@ -68,7 +63,7 @@ func (h *revocHandler) Handle(request *infra.Request) *infra.HandlerResult {
 	sendAck := messenger.SendAckHelper(ctx, rw)
 	revInfo, err := revocation.RevInfo()
 	if err != nil {
-		logger.Warn("[revocHandler] Couldn't parse revocation", "err", err)
+		logger.Info("[revocHandler] Revocation parsing failed", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		metrics.PSRevocation.Count(labels.WithResult(metrics.ErrParse)).Inc()
 		return infra.MetricsErrInvalid
@@ -78,14 +73,14 @@ func (h *revocHandler) Handle(request *infra.Request) *infra.HandlerResult {
 
 	err = segverifier.VerifyRevInfo(ctx, h.verifier, nil, revocation)
 	if err != nil {
-		logger.Warn("Couldn't verify revocation", "err", err)
+		logger.Info("Revocation verification failed", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
 		metrics.PSRevocation.Count(labels.WithResult(metrics.ErrCrypto)).Inc()
 		return infra.MetricsErrInvalid
 	}
 	_, err = h.revCache.Insert(ctx, revocation)
 	if err != nil {
-		logger.Error("Failed to insert revInfo", "err", err)
+		logger.Error("Revocation storing failed", "err", err)
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)
 		metrics.PSRevocation.Count(labels.WithResult(metrics.ErrDB)).Inc()
 		return infra.MetricsErrRevCache(err)

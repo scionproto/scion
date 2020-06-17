@@ -75,7 +75,7 @@ func (hs *HPSegReply) Sanitize(logger log.Logger) *HPSegReply {
 			err := segment.Segment.WalkHopEntries()
 			if err != nil {
 				if logger != nil {
-					logger.Warn("Discarding bad segment", err, "ID", r.GroupId, "segment", segment)
+					logger.Info("Discarding bad segment", err, "ID", r.GroupId, "segment", segment)
 				}
 			} else {
 				temp.Recs = append(temp.Recs, segment)

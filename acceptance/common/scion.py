@@ -99,11 +99,11 @@ class SCION(ABC):
         """
         Overwrite or set the values in the toml files with the specified
         changes. The key in the change dictionary is a dot separated path
-        to the toml value. E.g. {'log.file.level': 'trace'} result in the
+        to the toml value. E.g. {'log.file.level': 'debug'} result in the
         toml file with the following set:
 
         [log.file]
-          level = "trace"
+          level = "debug"
         """
         for f in files:
             t = toml.load(f)
@@ -122,7 +122,7 @@ class SCIONDocker(SCION):
     @LogExec(logger, "creating dockerized topology")
     def topology(self, topo_file: str, *args: str):
         """ Create the dockerized topology files. """
-        self.scion_sh('topology', '-c', topo_file, '-t', '-d', *args)
+        self.scion_sh('topology', '-c', topo_file, '-d', *args)
 
     def execute(self, isd_as: ISD_AS, cmd: str, *args: str) -> str:
         expanded = []

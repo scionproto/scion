@@ -43,7 +43,7 @@ func realMain() int {
 	}
 
 	if err := InitConfiguration(); err != nil {
-		log.Crit("Unable to initialize configuration", "err", err)
+		log.Error("Configuration initialization failed", "err", err)
 		return 1
 	}
 

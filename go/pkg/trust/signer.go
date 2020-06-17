@@ -62,7 +62,7 @@ func (s Signer) Sign(ctx context.Context, msg []byte) (*proto.SignS, error) {
 			"expiration", s.Expiration)
 	}
 	if expDiff < time.Hour {
-		log.FromCtx(ctx).Warn("Signer expiration time is near",
+		log.FromCtx(ctx).Info("Signer expiration time is near",
 			"subject_key_id", fmt.Sprintf("%x", s.SubjectKeyID),
 			"expiration", s.Expiration)
 	}

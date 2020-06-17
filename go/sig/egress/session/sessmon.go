@@ -131,7 +131,7 @@ func (sm *sessMonitor) updatePaths() {
 	// Expiration or MTU of the current path may have changed during the update.
 	// In such a case we want to push the updated path to the Session.
 	if currPath.Path().Expiry() != expTime || currPath.Path().MTU() != mtu {
-		sm.logger.Trace("sessMonitor: Path metadata changed",
+		sm.logger.Debug("sessMonitor: Path metadata changed",
 			"oldExpiration", expTime,
 			"newExpiration", currPath.Path().Expiry(),
 			"oldMTU", mtu,

@@ -53,7 +53,7 @@ func (a *Adapter) MsgKey(msg proto.Cerealizable) string {
 		// FIXME(scrye): Change interface to handle key errors instead of
 		// logging it here
 		metrics.Adapter.Errors(metrics.ResultLabels{Result: metrics.ErrInvalidReq})
-		log.Warn("Unable to type assert disp.Message to ctrl.SignedPld", "msg", msg,
+		log.Info("Unable to type assert disp.Message to ctrl.SignedPld", "msg", msg,
 			"type", common.TypeOf(msg))
 		return ""
 	}
@@ -64,7 +64,7 @@ func (a *Adapter) MsgKey(msg proto.Cerealizable) string {
 	ctrlPld, err := signedCtrlPld.UnsafePld()
 	if err != nil {
 		metrics.Adapter.Errors(metrics.ResultLabels{Result: metrics.ErrParse})
-		log.Warn("Unable to extract CtrlPld from SignedCtrlPld", "err", err)
+		log.Info("Unable to extract CtrlPld from SignedCtrlPld", "err", err)
 		return ""
 	}
 	return strconv.FormatUint(ctrlPld.ReqId, 10)

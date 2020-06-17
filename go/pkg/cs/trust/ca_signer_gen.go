@@ -84,7 +84,7 @@ func (s *CachingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error)
 	policy, err := s.PolicyGen.Generate(ctx)
 	if err != nil {
 		s.ok = false
-		log.FromCtx(ctx).Warn("Failed to generate a new CA policy, "+
+		log.FromCtx(ctx).Info("Failed to generate a new CA policy, "+
 			"AS certificate signing not possible", "err", err)
 		return cppki.CAPolicy{}, err
 	}

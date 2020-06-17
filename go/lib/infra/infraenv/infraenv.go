@@ -95,7 +95,7 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 			return nil, err
 		}
 		quicAddress = fmt.Sprintf("%s", quicConn.LocalAddr()) // assuming net.UDPAddr.
-		log.Trace("QUIC conn initialized", "local_addr", quicAddress)
+		log.Info("QUIC conn initialized", "local_addr", quicAddress)
 	}
 
 	conn, err := nc.initUDPSocket(quicAddress)
@@ -266,7 +266,7 @@ func (h *LegacyForwardingHandler) Handle(request *svc.Request) (svc.Result, erro
 	if bytes.Compare(h.ExpectedPayload, []byte(p)) == 0 {
 		return h.BaseHandler.Handle(request)
 	}
-	log.Trace("Received control payload with SVC destination", "from", request.Packet.Source)
+	log.Debug("Received control payload with SVC destination", "from", request.Packet.Source)
 	return svc.Forward, nil
 }
 

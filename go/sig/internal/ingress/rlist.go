@@ -94,7 +94,7 @@ func (l *ReassemblyList) Insert(frame *FrameBuf) {
 	}
 	// Check if we have capacity.
 	if l.entries.Len() == l.capacity {
-		log.Warn("Reassembly list reached maximum capacity", "epoch", l.epoch, "cap", l.capacity)
+		log.Info("Reassembly list reached maximum capacity", "epoch", l.epoch, "cap", l.capacity)
 		l.removeAll()
 		l.insertFirst(frame)
 		return

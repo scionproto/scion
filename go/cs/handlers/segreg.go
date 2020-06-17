@@ -105,7 +105,7 @@ func (h *segRegHandler) Handle(request *infra.Request) *infra.HandlerResult {
 		return infra.MetricsErrInvalid
 	}
 	if len(res.VerificationErrors()) > 0 {
-		log.FromCtx(ctx).Warn("[segRegHandler] Error during verification of segments/revocations",
+		log.FromCtx(ctx).Info("[segRegHandler] Error during verification of segments/revocations",
 			"errors", res.VerificationErrors().ToError())
 	}
 	h.incMetrics(labels, res.Stats())
@@ -131,7 +131,7 @@ func classifySegs(logger log.Logger, segReg *path_mgmt.SegReg) proto.PathSegType
 		segTypes[segMeta.Type] = struct{}{}
 	}
 	if len(segTypes) > 1 {
-		logger.Warn("SegReg contained multiple types, reporting unset in metrics",
+		logger.Info("SegReg contained multiple types, reporting unset in metrics",
 			"types", segTypes)
 		return proto.PathSegType_unset
 	}

@@ -56,7 +56,7 @@ func (dp *NetToRingDataplane) Run() error {
 		// rare.
 
 		if err := pkt.DecodeFromConn(dp.UnderlayConn); err != nil {
-			log.Warn("error receiving next packet from underlay conn", "err", err)
+			log.Debug("error receiving next packet from underlay conn", "err", err)
 			continue
 		}
 
@@ -64,7 +64,7 @@ func (dp *NetToRingDataplane) Run() error {
 
 		dst, err := ComputeDestination(&pkt.Info)
 		if err != nil {
-			log.Warn("unable to route packet", "err", err)
+			log.Debug("unable to route packet", "err", err)
 			metrics.M.NetReadPkts(
 				metrics.IncomingPacket{Result: metrics.PacketResultRouteNotFound},
 			).Inc()
@@ -170,7 +170,7 @@ func (d *UDPDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 	routingEntry, ok := dp.RoutingTable.LookupPublic(pkt.Info.DstIA, (*net.UDPAddr)(d))
 	if !ok {
 		metrics.M.AppNotFoundErrors().Inc()
-		log.Warn("destination address not found", "ia", pkt.Info.DstIA,
+		log.Debug("destination address not found", "ia", pkt.Info.DstIA,
 			"udpAddr", (*net.UDPAddr)(d))
 		return
 	}
@@ -187,7 +187,7 @@ func (d SVCDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 	routingEntries := dp.RoutingTable.LookupService(pkt.Info.DstIA, addr.HostSVC(d), nil)
 	if len(routingEntries) == 0 {
 		metrics.M.AppNotFoundErrors().Inc()
-		log.Warn("destination address not found", "ia", pkt.Info.DstIA, "svc", addr.HostSVC(d))
+		log.Debug("destination address not found", "ia", pkt.Info.DstIA, "svc", addr.HostSVC(d))
 		return
 	}
 	// Increase reference count for all extra copies
@@ -210,7 +210,7 @@ func (d *SCMPAppDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 	routingEntry, ok := dp.RoutingTable.LookupID(pkt.Info.DstIA, d.ID)
 	if !ok {
 		metrics.M.AppNotFoundErrors().Inc()
-		log.Warn("destination address not found", "SCMP", d.ID)
+		log.Debug("destination address not found", "SCMP", d.ID)
 		return
 	}
 	sendPacket(routingEntry, pkt)
@@ -233,7 +233,7 @@ type SCMPHandlerDestination struct{}
 
 func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 	if err := pkt.Info.Reverse(); err != nil {
-		log.Warn("Unable to reverse SCMP packet.", "err", err)
+		log.Info("Unable to reverse SCMP packet.", "err", err)
 		return
 	}
 
@@ -241,7 +241,7 @@ func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet
 	pkt.Info.HBHExt = removeSCMPHBH(pkt.Info.HBHExt)
 	n, err := hpkt.WriteScnPkt(&pkt.Info, b)
 	if err != nil {
-		log.Warn("Unable to create reply SCMP packet", "err", err)
+		log.Info("Unable to create reply SCMP packet", "err", err)
 		return
 	}
 
@@ -258,7 +258,7 @@ func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet
 
 	_, err = dp.UnderlayConn.WriteTo(b[:n], pkt.UnderlayRemote)
 	if err != nil {
-		log.Warn("Unable to write to underlay socket.", "err", err)
+		log.Info("Unable to write to underlay socket.", "err", err)
 		return
 	}
 	respool.PutBuffer(b)
@@ -268,7 +268,7 @@ func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet
 func logDebugE2E(pkt *spkt.ScnPkt) {
 	for _, e := range pkt.E2EExt {
 		if extnData, ok := e.(*layers.ExtnE2EDebug); ok {
-			log.Trace("Recv'd packet with debug extension", "debug_id", extnData.ID, "pkt", pkt)
+			log.Debug("Recv'd packet with debug extension", "debug_id", extnData.ID, "pkt", pkt)
 		}
 	}
 }

@@ -135,7 +135,7 @@ class SIGGenerator(object):
     def _sig_toml(self, topo_id, topo):
         name = 'sig%s' % topo_id.file_fmt()
         net = self.args.networks[name][0]
-        log_level = 'trace' if self.args.trace else 'debug'
+        log_level = 'debug'
         ipv = 'ipv4'
         if ipv not in net:
             ipv = 'ipv6'

@@ -5,4 +5,4 @@ id = "disp_1-ff00_0_110"
 allow_run_as_root = true
 
 [log.console]
-level = "trace"
+level = "debug"

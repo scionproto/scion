@@ -72,13 +72,13 @@ func (s *Server) ListenAndServe() error {
 			if strings.Contains(err.Error(), "server closed") {
 				return err
 			}
-			log.Warn("[quic] server accept error", "err", err)
+			log.Info("[quic] server accept error", "err", err)
 			continue
 		}
 		go func() {
 			defer log.HandlePanic()
 			if err := s.handleQUICSession(session); err != nil {
-				log.Warn("[quic] server handler exited with error", "err", err)
+				log.Info("[quic] server handler exited with error", "err", err)
 			}
 		}()
 	}

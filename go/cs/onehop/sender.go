@@ -175,10 +175,10 @@ func (s *BeaconSender) attemptQUIC(ctx context.Context, ia addr.IA, path *spath.
 	newAddr, redirect, err := s.AddressRewriter.RedirectToQUIC(ctx, t)
 
 	if err != nil || !redirect {
-		log.Trace("Beaconing could not be upgraded to QUIC, using UDP", "remote", newAddr)
+		log.Debug("Beaconing could not be upgraded to QUIC, using UDP", "remote", newAddr)
 		return false, nil
 	}
-	log.Trace("Beaconing upgraded to QUIC", "remote", newAddr)
+	log.Debug("Beaconing upgraded to QUIC", "remote", newAddr)
 
 	err = s.QUICBeaconSender.SendBeacon(ctx, bseg, newAddr, messenger.NextId())
 	return true, err

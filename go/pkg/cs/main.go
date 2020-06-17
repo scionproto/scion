@@ -188,7 +188,7 @@ func (app *App) Run() int {
 	defer env.LogAppStopped(common.CPService, Cfg.General.ID)
 	defer log.HandlePanic()
 	if err := app.setup(); err != nil {
-		log.Crit("Setup failed", "err", err)
+		log.Error("Setup failed", "err", err)
 		return 1
 	}
 	metrics.InitBSMetrics()
@@ -196,7 +196,7 @@ func (app *App) Run() int {
 
 	pathDB, revCache, err := app.runPathDBConstructor(Cfg.PathDB)
 	if err != nil {
-		log.Crit("Unable to initialize path storage", "err", err)
+		log.Error("Path storage initialization failed", "err", err)
 		return 1
 	}
 	defer revCache.Close()
@@ -206,13 +206,13 @@ func (app *App) Run() int {
 	topo := itopo.Get()
 	// Check that this process ID is present.
 	if !topo.Exists(addr.SvcCS, Cfg.General.ID) {
-		log.Crit("Unable to find topo address for CS module")
+		log.Error("CS ID not found in topology file", "id", Cfg.General.ID)
 		return 1
 	}
 
 	tracer, trCloser, err := Cfg.Tracing.NewTracer(Cfg.General.ID)
 	if err != nil {
-		log.Crit("Unable to create tracer", "err", err)
+		log.Error("Tracer initialization failed", "err", err)
 		return 1
 	}
 	defer trCloser.Close()
@@ -235,7 +235,7 @@ func (app *App) Run() int {
 	}
 	msgr, err := nc.Messenger()
 	if err != nil {
-		log.Crit(infraenv.ErrAppUnableToInitMessenger.Error(), "err", err)
+		log.Error(infraenv.ErrAppUnableToInitMessenger.Error(), "err", err)
 		return 1
 	}
 
@@ -247,7 +247,7 @@ func (app *App) Run() int {
 
 	trustDB, err := app.runTrustDBConstructor()
 	if err != nil {
-		log.Crit("Error initializing trust database", "err", err)
+		log.Error("Trust database initialization failed", "err", err)
 		return 1
 	}
 	trustDB = trustmetrics.WrapDB(string(Cfg.TrustDB.Backend()), trustDB)
@@ -256,23 +256,23 @@ func (app *App) Run() int {
 	certsDir := filepath.Join(Cfg.General.ConfigDir, "certs")
 	loaded, err := trust.LoadTRCs(context.Background(), certsDir, trustDB)
 	if err != nil {
-		log.Crit("Error loading TRCs from disk", "err", err)
+		log.Error("Loading TRCs from disk failed", "err", err)
 		return 1
 	}
 	log.Info("TRCs loaded", "files", loaded.Loaded)
 	for f, r := range loaded.Ignored {
-		log.Warn("Ignoring non-TRC", "file", f, "reason", r)
+		log.Info("Ignoring non-TRC", "file", f, "reason", r)
 	}
 
 	localCertsDir := filepath.Join(Cfg.General.ConfigDir, "crypto/as")
 	loaded, err = trust.LoadChains(context.Background(), localCertsDir, trustDB)
 	if err != nil {
-		log.Crit("Error loading certificate chains from disk", "err", err)
+		log.Error("Loading certificate chains from disk failed", "err", err)
 		return 1
 	}
 	log.Info("Certificate chains loaded", "files", loaded.Loaded)
 	for f, r := range loaded.Ignored {
-		log.Warn("Ignoring non-certificate chain", "file", f, "reason", r)
+		log.Info("Ignoring non-certificate chain", "file", f, "reason", r)
 	}
 
 	trustRouter := &segutil.Router{
@@ -327,7 +327,7 @@ func (app *App) Run() int {
 
 	beaconStore, err := app.runBeaconStoreConstructor(topo.Core(), topo.IA(), Cfg)
 	if err != nil {
-		log.Crit("Unable to open beacon store", "err", err)
+		log.Error("Beacon store initialization failed", "err", err)
 		return 1
 	}
 	defer beaconStore.Close()
@@ -385,13 +385,13 @@ func (app *App) Run() int {
 
 	signer, err := createSigner(topo.IA(), trustDB)
 	if err != nil {
-		log.Crit("Failed to initialize signer", "err", err)
+		log.Error("Signer initialization failed", "err", err)
 		return 1
 	}
 	if topo.CA() {
 		renewalDB, err := app.runRenewalDBConstructor()
 		if err != nil {
-			log.Crit("Unable to open renewal database", "err", err)
+			log.Error("Renewal database initialization failed", "err", err)
 			return 1
 		}
 		defer renewalDB.Close()
@@ -402,7 +402,7 @@ func (app *App) Run() int {
 			ClientDB: renewalDB,
 		}.LoadClientChains(ctx)
 		if err != nil {
-			log.Crit("Unable to load client certificate chains", "err", err)
+			log.Error("Loading client certificate chains failed", "err", err)
 			return 1
 		}
 		renewalHandler := trusthandler.ChainRenewalRequest{
@@ -465,12 +465,12 @@ func (app *App) Run() int {
 	ohpAddress.Port = 0
 	conn, _, err := pktDisp.Register(context.Background(), topo.IA(), ohpAddress, addr.SvcNone)
 	if err != nil {
-		log.Crit("Unable to create SCION packet conn", "err", err)
+		log.Error("SCION packet conn initialization failed", "err", err)
 		return 1
 	}
 	propPolicy, err := loadPolicy(Cfg.BS.Policies.Propagation, beacon.PropPolicy)
 	if err != nil {
-		log.Crit("Unable to load propagation policy", "err", err)
+		log.Error("Loading propagation policy failed", "err", err)
 		return 1
 	}
 	Tasks = &PeriodicTasks{
@@ -497,13 +497,13 @@ func (app *App) Run() int {
 	// msgr.UpdateVerifier(trust.NewVerifier(trustStore))
 
 	if Tasks.genMac, err = macGenFactory(); err != nil {
-		log.Crit("Unable to initialize MAC generator", "err", err)
+		log.Error("MAC generator initialization failed", "err", err)
 		return 1
 	}
 
 	cleanupF, err := app.runTaskConstructor()
 	if err != nil {
-		log.Crit("Unable to run task hooks", "err", err)
+		log.Error("Run task hooks failed", "err", err)
 		return 1
 	}
 	defer cleanupF()
@@ -592,7 +592,7 @@ func (t *PeriodicTasks) Start() error {
 	t.Mtx.Lock()
 	defer t.Mtx.Unlock()
 	if t.Running {
-		log.Warn("Trying to start tasks, but they are running! Ignored.")
+		log.Info("Trying to start tasks, but they are running! Ignored.")
 		return nil
 	}
 	t.Running = true
@@ -799,7 +799,7 @@ func (t *PeriodicTasks) Kill() {
 	t.Mtx.Lock()
 	defer t.Mtx.Unlock()
 	if !t.Running {
-		log.Warn("Trying to stop tasks, but they are not running! Ignored.")
+		log.Info("Trying to stop tasks, but they are not running! Ignored.")
 		return
 	}
 	t.registrars.Kill()
@@ -877,7 +877,7 @@ func (app *App) setup() error {
 	}
 	staticInfoCfg, err = beaconing.ParseStaticInfoCfg(Cfg.General.StaticInfoConfig())
 	if err != nil {
-		log.Warn("Failed to read static info", "err", err)
+		log.Info("Failed to read static info", "err", err)
 	}
 	// Use CS for monolith for now
 	itopo.Init(

@@ -49,11 +49,11 @@ func realMain() int {
 	defer log.HandlePanic()
 	defer log.Flush()
 	if !*integration.Docker {
-		log.Crit(fmt.Sprintf("Can only run %s test with docker!", name))
+		log.Error(fmt.Sprintf("Can only run %s test with docker!", name))
 		return 1
 	}
 	if err := acceptance.ReadTestingConf(); err != nil {
-		log.Crit(fmt.Sprintf("Error reading testing conf: %s", err))
+		log.Error("Testing conf reading failed", "err", err)
 		return 1
 	}
 	args := []string{cmd, "-c", strconv.Itoa(*attempts), "-O", integration.DstHostReplace}

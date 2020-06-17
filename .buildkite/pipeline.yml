@@ -92,7 +92,7 @@ steps:
       - bazel build //:scion //:scion-ci >/dev/null 2>&1
       - tar -xf bazel-bin/scion.tar -C bin --overwrite
       - tar -xf bazel-bin/scion-ci.tar -C bin --overwrite
-      - ./scion.sh topology -t
+      - ./scion.sh topology
       - ./scion.sh run && sleep 10
       - ./bin/end2end_integration -log.console warn
       - ./integration/revocation_test.sh
@@ -115,7 +115,7 @@ steps:
     - bazel build //:scion //:scion-ci >/dev/null 2>&1
     - tar -xf bazel-bin/scion.tar -C bin --overwrite
     - tar -xf bazel-bin/scion-ci.tar -C bin --overwrite
-    - ./scion.sh topology -t
+    - ./scion.sh topology
     - ./scion.sh run && sleep 10
     - ./bin/pp_integration -log.console warn
     - ./bin/scmp_integration -log.console warn
@@ -137,7 +137,7 @@ steps:
   - label: ":docker: Integration: end2end_integration"
     if: build.message !~ /\[doc\]/
     command:
-    - ./scion.sh topology -t -d -c topology/tiny.topo
+    - ./scion.sh topology -d -c topology/tiny.topo
     - ./scion.sh run
     - docker-compose -f gen/scion-dc.yml -p scion up -d $(docker-compose -f gen/scion-dc.yml config --services | grep tester)
     - sleep 10
@@ -161,7 +161,7 @@ steps:
   - label: ":docker: Integration: end2end_integration full topology"
     if: build.message !~ /\[doc\]/
     command:
-    - ./scion.sh topology -t -d
+    - ./scion.sh topology -d
     - ./scion.sh run
     - docker-compose -f gen/scion-dc.yml -p scion up -d $(docker-compose -f gen/scion-dc.yml config --services | grep tester)
     - sleep 10

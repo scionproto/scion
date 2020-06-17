@@ -27,7 +27,7 @@ func main() {
 	flag.Parse()
 
 	if err := Proxy(*localX, *remoteX, *localY, *remoteY); err != nil {
-		log.Crit("Fatal proxy error", "err", err)
+		log.Error("Fatal proxy error", "err", err)
 		os.Exit(1)
 	}
 }

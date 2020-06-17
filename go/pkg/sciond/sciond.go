@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/messenger/tcp"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
-	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -107,9 +106,8 @@ func Server(listen string, cfg ServerCfg) *servers.Server {
 		proto.SCIONDMsg_Which_ifInfoRequest:      &servers.IFInfoRequestHandler{},
 		proto.SCIONDMsg_Which_serviceInfoRequest: &servers.SVCInfoRequestHandler{},
 		proto.SCIONDMsg_Which_revNotification: &servers.RevNotificationHandler{
-			RevCache:         cfg.RevCache,
-			Verifier:         compat.Verifier{Verifier: trust.Verifier{Engine: cfg.Engine}},
-			NextQueryCleaner: segfetcher.NextQueryCleaner{PathDB: cfg.PathDB},
+			RevCache: cfg.RevCache,
+			Verifier: compat.Verifier{Verifier: trust.Verifier{Engine: cfg.Engine}},
 		},
 	}
 	return servers.NewServer("tcp", listen, handlers)

@@ -80,7 +80,7 @@ func (srv *Server) ListenAndServe() error {
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				return err
 			}
-			log.Warn("unable to accept conn", "err", err)
+			log.Info("unable to accept conn", "err", err)
 			continue
 		}
 

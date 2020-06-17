@@ -71,7 +71,7 @@ class GoGenerator(object):
         self.log_dir = '/share/logs' if args.docker else 'logs'
         self.db_dir = '/share/cache' if args.docker else 'gen-cache'
         self.certs_dir = '/share/crypto' if args.docker else 'gen-certs'
-        self.log_level = 'trace' if args.trace else 'debug'
+        self.log_level = 'debug'
 
     def generate_br(self):
         for topo_id, topo in self.args.topo_dicts.items():

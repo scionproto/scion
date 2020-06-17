@@ -82,7 +82,7 @@ func (s *Sender) Run(ctx context.Context) {
 		metrics.Keepalive.Transmits(l).Inc()
 	}
 	if len(sentIfids) > 0 {
-		logger.Trace("[keepalive.Sender] Sent keepalives", "ifids", sentIfids)
+		logger.Debug("[keepalive.Sender] Sent keepalives", "ifids", sentIfids)
 	}
 }
 
