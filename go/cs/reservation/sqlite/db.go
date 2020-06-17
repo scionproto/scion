@@ -147,11 +147,11 @@ func (x *executor) GetSegmentRsvsFromSrcDstIA(ctx context.Context, srcIA, dstIA 
 	params := make([]interface{}, 0, 2)
 	if !srcIA.IsZero() {
 		conditions = append(conditions, "src_ia = $1")
-		params = append(params, srcIA)
+		params = append(params, srcIA.IAInt())
 	}
 	if !dstIA.IsZero() {
 		conditions = append(conditions, fmt.Sprintf("dst_ia = $%d", len(conditions)+1))
-		params = append(params, dstIA)
+		params = append(params, dstIA.IAInt())
 	}
 	if len(conditions) == 0 {
 		return nil, serrors.New("no src or dst ia provided")

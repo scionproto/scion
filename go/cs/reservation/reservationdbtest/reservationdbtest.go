@@ -38,6 +38,7 @@ func TestDB(t *testing.T, db TestableDB) {
 		"insert segment reservations create ID": testNewSegmentRsv,
 		"insert segment index":                  testNewSegmentIndex,
 		"get segment reservation from ID":       testGetSegmentRsvFromID,
+		"get segment reservations from src/dst": testGetSegmentRsvsFromSrcDstIA,
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -49,7 +50,8 @@ func TestDB(t *testing.T, db TestableDB) {
 }
 
 func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
-	r := segment.NewReservation()
+	r := newTestReservation(t)
+	r.Indices = segment.Indices{}
 	ctx := context.Background()
 	// no indices
 	err := db.NewSegmentRsv(ctx, r)
@@ -65,16 +67,9 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	require.Equal(t, *token, r.Indices[0].Token)
 }
 
-func testNewSegmentIndex(ctx context.Context, t *testing.T, db backend.DB) {
-	r := segment.NewReservation()
-
-	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
-	r.Path = &p
-	r.ID.ASID = xtest.MustParseAS("ff00:0:1")
-	r.IngressIFID = 1
-	r.EgressIFID = 2
-	r.TrafficSplit = 3
-	r.PathEndProps = reservation.EndLocal | reservation.EndTransfer | reservation.StartLocal
+func testNewSegmentIndex(t *testing.T, db backend.DB) {
+	r := newTestReservation(t)
+	r.Indices = segment.Indices{}
 	ctx := context.Background()
 	// no index
 	err := db.NewSegmentRsv(ctx, r)
@@ -106,24 +101,12 @@ func testNewSegmentIndex(ctx context.Context, t *testing.T, db backend.DB) {
 }
 
 func testGetSegmentRsvFromID(t *testing.T, db backend.DB) {
-	r := segment.NewReservation()
-	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
-	r.Path = &p
-	r.ID.ASID = xtest.MustParseAS("ff00:0:1")
-	r.IngressIFID = 1
-	r.EgressIFID = 2
-	r.TrafficSplit = 3
-	r.PathEndProps = reservation.EndLocal | reservation.StartLocal
-	expTime := time.Unix(1, 0)
-	_, err := r.NewIndex(expTime, *newToken())
-	require.NoError(t, err)
-	r.Indices[0].Token.BWCls = 2
-	err = r.SetIndexConfirmed(0)
-	require.NoError(t, err)
+	r := newTestReservation(t)
 	ctx := context.Background()
-	err = db.NewSegmentRsv(ctx, r)
+	err := db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	// create new index
+	expTime := time.Unix(1, 0)
 	idx, err := r.NewIndex(expTime, *newToken())
 	require.NoError(t, err)
 	r.Indices[1].Token.BWCls = 3
@@ -151,6 +134,26 @@ func testGetSegmentRsvFromID(t *testing.T, db backend.DB) {
 	require.Equal(t, r, r2)
 }
 
+func testGetSegmentRsvsFromSrcDstIA(t *testing.T, db backend.DB) {
+	r := newTestReservation(t)
+	ctx := context.Background()
+	err := db.NewSegmentRsv(ctx, r)
+	require.NoError(t, err)
+	rsvs, err := db.GetSegmentRsvsFromSrcDstIA(ctx, r.Path.GetSrcIA(), r.Path.GetDstIA())
+	require.NoError(t, err)
+	require.Len(t, rsvs, 1)
+	require.Equal(t, r, rsvs[0])
+	// another reservation with same source and destination
+	r2 := newTestReservation(t)
+	err = db.NewSegmentRsv(ctx, r2)
+	require.NoError(t, err)
+	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, r.Path.GetSrcIA(), r.Path.GetDstIA())
+	require.NoError(t, err)
+	require.Len(t, rsvs, 2)
+	// compare without order
+	require.ElementsMatch(t, rsvs, []*segment.Reservation{r, r2})
+}
+
 // newToken just returns a token that can be serialized. This one has two HopFields.
 func newToken() *reservation.Token {
 	t, err := reservation.TokenFromRaw(xtest.MustParseHexString(
@@ -159,4 +162,23 @@ func newToken() *reservation.Token {
 		panic("invalid serialized token")
 	}
 	return t
+}
+
+func newTestReservation(t *testing.T) *segment.Reservation {
+	t.Helper()
+	r := segment.NewReservation()
+	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
+	r.Path = &p
+	r.ID.ASID = xtest.MustParseAS("ff00:0:1")
+	r.IngressIFID = 0
+	r.EgressIFID = 1
+	r.TrafficSplit = 3
+	r.PathEndProps = reservation.EndLocal | reservation.StartLocal
+	expTime := time.Unix(1, 0)
+	_, err := r.NewIndex(expTime, *newToken())
+	require.NoError(t, err)
+	r.Indices[0].Token.BWCls = 2
+	err = r.SetIndexConfirmed(0)
+	require.NoError(t, err)
+	return r
 }
