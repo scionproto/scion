@@ -32,25 +32,24 @@ type TestableDB interface {
 }
 
 func TestDB(t *testing.T, db TestableDB) {
-	tests := map[string]func(*testing.T, backend.DB){
+	tests := map[string]func(context.Context, *testing.T, backend.DB){
 		"insert segment reservations create ID": testNewSegmentReservation,
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ctx := context.Background()
 			db.Prepare(t, ctx)
-			test(t, db)
+			test(ctx, t, db)
 		})
 	}
 }
 
-func testNewSegmentReservation(t *testing.T, db backend.DB) {
+func testNewSegmentReservation(ctx context.Context, t *testing.T, db backend.DB) {
 	r := segment.NewReservation()
 	r.EgressIFID = 1
 	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
 	r.Path = &p
 	r.ID.ASID = xtest.MustParseAS("ff00:0:1")
-	ctx := context.Background()
 	err := db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	require.Equal(t, xtest.MustParseHexString("00000001"), r.ID.Suffix[:])
