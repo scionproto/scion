@@ -174,3 +174,8 @@ func TestToFromBinary(t *testing.T) {
 	p = make(segment.Path, 0)
 	require.Empty(t, p.ToRaw())
 }
+
+func TestString(t *testing.T) {
+	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
+	require.Equal(t, "0 1-ff00:0:1 1>1 1-ff00:0:2 0", p.String())
+}
