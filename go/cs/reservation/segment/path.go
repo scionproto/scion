@@ -74,7 +74,7 @@ func (p Path) Equal(o Path) bool {
 // If the Path is not nil, it assumes is valid, i.e. it has at least length 2.
 func (p *Path) GetSrcIA() addr.IA {
 	if p == nil {
-		return addr.IA{I: 0, A: 0}
+		return addr.IA{}
 	}
 	return (*p)[0].IA
 }
@@ -84,7 +84,7 @@ func (p *Path) GetSrcIA() addr.IA {
 // If the Path is not nil, it assumes is valid, i.e. it has at least length 2.
 func (p *Path) GetDstIA() addr.IA {
 	if p == nil {
-		return addr.IA{I: 0, A: 0}
+		return addr.IA{}
 	}
 	return (*p)[len(*p)-1].IA
 }
