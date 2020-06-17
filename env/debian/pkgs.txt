@@ -2,8 +2,8 @@ bridge-utils
 capnproto
 cgroup-tools
 curl
-gcc
 g++
+gcc
 git
 jq
 make
