@@ -29,7 +29,10 @@ type Path []PathStepWithIA
 var _ io.Reader = (*Path)(nil)
 
 // NewPathFromRaw constructs a new Path from the byte representation.
-func NewPathFromRaw(buff []byte) Path {
+func NewPathFromRaw(buff []byte) (Path, error) {
+	if len(buff)%PathStepWithIALen != 0 {
+		return nil, serrors.New("buffer input is not a multiple of a path step", "len", len(buff))
+	}
 	steps := len(buff) / PathStepWithIALen
 	p := make(Path, steps)
 	for i := 0; i < steps; i++ {
@@ -38,7 +41,7 @@ func NewPathFromRaw(buff []byte) Path {
 		p[i].Egress = common.IFIDType(binary.BigEndian.Uint64(buff[offset+8:]))
 		p[i].IA = addr.IAFromRaw(buff[offset+16:])
 	}
-	return p
+	return p, nil
 }
 
 // Validate returns an error if there is invalid data.

@@ -138,9 +138,22 @@ func TestToFromBinary(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2*3*8, c)
 
-	anotherP := segment.NewPathFromRaw(buff)
+	anotherP, err := segment.NewPathFromRaw(buff)
+	require.NoError(t, err)
 	require.Equal(t, p, anotherP)
 
 	anotherBuff := p.ToRaw()
 	require.Equal(t, buff, anotherBuff)
+	// wrong buffer
+	buff = buff[:len(buff)-1]
+	_, err = segment.NewPathFromRaw(buff)
+	require.Error(t, err)
+	// empty and nil buffer
+	p, err = segment.NewPathFromRaw(nil)
+	require.NoError(t, err)
+	require.Empty(t, p)
+	p, err = segment.NewPathFromRaw([]byte{})
+	require.NoError(t, err)
+	require.Empty(t, p)
+
 }
