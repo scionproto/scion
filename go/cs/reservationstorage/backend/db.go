@@ -30,8 +30,8 @@ import (
 
 // ReserverOnly has the methods available to the AS that starts the reservation.
 type ReserverOnly interface {
-	// GetSegmentRsvFromSrcDstAS returns all reservations that start at src AS and end in dst AS.
-	GetSegmentRsvFromSrcDstAS(ctx context.Context, srcIA, dstIA addr.IA) (
+	// GetSegmentRsvsFromSrcDstIA returns all reservations that start at src AS and end in dst AS.
+	GetSegmentRsvsFromSrcDstIA(ctx context.Context, srcIA, dstIA addr.IA) (
 		[]*segment.Reservation, error)
 	// GetSegmentRsvFromPath searches for a segment reservation with the specified path.
 	GetSegmentRsvFromPath(ctx context.Context, path *segment.Path) (
@@ -48,6 +48,7 @@ type TransitOnly interface {
 	// the specified ingress and exit at that egress. Used by setup req.
 	GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress common.IFIDType) (
 		[]*segment.Reservation, error)
+	// TODO(juagargi) function to store a reservation with a provided ID
 }
 
 // ReserverAndTransit contains the functionality for any AS that has a COLIBRI service.
