@@ -62,7 +62,7 @@ func (p Path) Equal(o Path) bool {
 		return false
 	}
 	for i := 0; i < len(p); i++ {
-		if !p[i].Equal(&o[i]) {
+		if p[i] != o[i] {
 			return false
 		}
 	}
@@ -129,14 +129,6 @@ type PathStep struct {
 	Egress  common.IFIDType
 }
 
-// Equal returns true if both PathStep variables contain the same values, or both nil.
-func (s *PathStep) Equal(o *PathStep) bool {
-	if s == o {
-		return true
-	}
-	return s.Ingress == o.Ingress && s.Egress == o.Egress
-}
-
 // PathStepWithIA is a step in a reservation path as seen from the source AS.
 type PathStepWithIA struct {
 	PathStep
@@ -145,11 +137,3 @@ type PathStepWithIA struct {
 
 // PathStepWithIALen amounts for Ingress+Egress+IA.
 const PathStepWithIALen = 8 + 8 + 8
-
-// Equal returns true if both PathStep variables contain the same values, or both nil.
-func (s *PathStepWithIA) Equal(o *PathStepWithIA) bool {
-	if s == o {
-		return true
-	}
-	return s.PathStep.Equal(&o.PathStep) && s.IA == o.IA
-}
