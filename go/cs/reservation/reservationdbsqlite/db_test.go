@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package reservationdbsqlite
+package sqlite
 
 import (
 	"context"
@@ -94,7 +94,7 @@ func newDB(t testing.TB) *Backend {
 
 func addSegRsvRows(t testing.TB, b *Backend, asid addr.AS, firstSuffix, lastSuffix uint32) {
 	ctx := context.Background()
-	query := `INSERT INTO seg_reservation (id_as, id_suffix, inout_ingress, inout_egress, path,
+	query := `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress, path,
 		src_as, dst_as) VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	for suffix := firstSuffix; suffix <= lastSuffix; suffix++ {
 		_, err := b.db.ExecContext(ctx, query, asid, suffix, 0, 0, nil, nil, nil)

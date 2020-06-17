@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package reservationdbsqlite
+package sqlite
 
 import (
 	"context"
@@ -126,7 +126,7 @@ func (x *executor) GetSegmentRsvFromSrcDstAS(ctx context.Context, srcIA, dstIA a
 	x.Lock()
 	defer x.Unlock()
 
-	query := `SELECT r.reservation_id, r.inout_ingress, r.inout_egress
+	query := `SELECT r.reservation_id, r.ingress, r.egress
 	FROM seg_reservation r
 	WHERE r.src_as = ?1 AND r.dst_as = ?2`
 	rows, err := x.db.QueryContext(ctx, query, srcIA.IAInt(), dstIA.IAInt())
@@ -159,7 +159,7 @@ func (x *executor) GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress
 
 func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reservation,
 	suffix uint32) error {
-	const query = `INSERT INTO seg_reservation (id_as, id_suffix, inout_ingress ,inout_egress,
+	const query = `INSERT INTO seg_reservation (id_as, id_suffix, ingress ,egress,
 		path, src_as, dst_as) VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	_, err := x.ExecContext(ctx, query, rsv.Path.GetSrcIA().A, suffix,
 		rsv.IngressIFID, rsv.EgressIFID,
