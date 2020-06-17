@@ -32,8 +32,8 @@ const (
 		path	BLOB,
 		end_props	INTEGER NOT NULL,
 		traffic_split	INTEGER NOT NULL,
-		src_as INTEGER,
-		dst_as INTEGER,
+		src_ia INTEGER,
+		dst_ia INTEGER,
 		active_index	INTEGER NOT NULL,
 		PRIMARY KEY(row_id),
 		UNIQUE(id_as,id_suffix)
