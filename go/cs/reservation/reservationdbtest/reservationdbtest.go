@@ -36,6 +36,7 @@ type TestableDB interface {
 func TestDB(t *testing.T, db TestableDB) {
 	tests := map[string]func(context.Context, *testing.T, backend.DB){
 		"insert segment reservations create ID": testNewSegmentRsv,
+		"insert segment reservation with ID":    testNewSegmentRsvWithID,
 		"insert segment index":                  testNewSegmentIndex,
 		"get segment reservation from ID":       testGetSegmentRsvFromID,
 		"get segment reservations from src/dst": testGetSegmentRsvsFromSrcDstIA,
@@ -65,6 +66,26 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	require.Equal(t, xtest.MustParseHexString("00000001"), r.ID.Suffix[:])
 	require.Len(t, r.Indices, 1)
 	require.Equal(t, *token, r.Indices[0].Token)
+}
+
+func testNewSegmentRsvWithID(t *testing.T, db backend.DB) {
+	r := newTestReservation(t)
+	copy(r.ID.Suffix[:], xtest.MustParseHexString("beefcafe"))
+	r.Indices = segment.Indices{}
+	ctx := context.Background()
+	// no indices
+	err := db.NewSegmentRsvWithID(ctx, r)
+	require.Error(t, err)
+	// at least one index
+	token := newToken()
+	expTime := time.Unix(1, 0)
+	r.NewIndex(expTime, *token)
+	err = db.NewSegmentRsvWithID(ctx, r)
+	require.NoError(t, err)
+
+	r2, err := db.GetSegmentRsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Equal(t, r, r2)
 }
 
 func testNewSegmentIndex(t *testing.T, db backend.DB) {
