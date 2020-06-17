@@ -19,6 +19,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"sync"
+	"time"
 
 	"github.com/mattn/go-sqlite3"
 	_ "github.com/mattn/go-sqlite3"
@@ -215,7 +216,7 @@ func (x *executor) UpdateSegmentIndex(ctx context.Context, rsv *segment.Reservat
 	return nil
 }
 
-// DeleteExpiredIndices removes the index from the DB. Used in cleanup.
+// DeleteSegmentIndex removes the index from the DB. Used in cleanup.
 func (x *executor) DeleteSegmentIndex(ctx context.Context, rsv *segment.Reservation,
 	idx reservation.IndexNumber) error {
 
@@ -224,11 +225,11 @@ func (x *executor) DeleteSegmentIndex(ctx context.Context, rsv *segment.Reservat
 
 // DeleteExpiredIndices will remove expired indices from the DB. If a reservation is left
 // without any index after removing the expired ones, it will also be removed.
-func (x *executor) DeleteExpiredIndices(ctx context.Context) (int, error) {
+func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int, error) {
 	return 0, nil
 }
 
-// DeleteExpiredIndices removes the segment reservation
+// DeleteSegmentRsv removes the segment reservation
 func (x *executor) DeleteSegmentRsv(ctx context.Context, ID reservation.SegmentID) error {
 	return nil
 }

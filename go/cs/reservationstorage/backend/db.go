@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"io"
+	"time"
 
 	"github.com/scionproto/scion/go/cs/reservation/e2e"
 	"github.com/scionproto/scion/go/cs/reservation/segment"
@@ -69,13 +70,13 @@ type ReserverAndTransit interface {
 	// DeleteSegmentIndex removes the index from the DB. Used in cleanup.
 	DeleteSegmentIndex(ctx context.Context, rsv *segment.Reservation,
 		idx reservation.IndexNumber) error
-	// DeleteExpiredIndices removes the segment reservation. Used in teardown.
+	// DeleteSegmentRsv removes the segment reservation. Used in teardown.
 	DeleteSegmentRsv(ctx context.Context, ID reservation.SegmentID) error
 
 	// DeleteExpiredIndices will remove expired indices from the DB. If a reservation is left
 	// without any index after removing the expired ones, it will also be removed.
 	// Used on schedule.
-	DeleteExpiredIndices(ctx context.Context) (int, error)
+	DeleteExpiredIndices(ctx context.Context, now time.Time) (int, error)
 
 	// GetE2ERsvFromID finds the end to end resevation given its ID.
 	GetE2ERsvFromID(ctx context.Context, ID reservation.E2EID, idx reservation.IndexNumber) (
