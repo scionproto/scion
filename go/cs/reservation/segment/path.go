@@ -76,7 +76,7 @@ func (p Path) Equal(o Path) bool {
 // source AS of the reservation and has no access to the Path of the reservation).
 // If the Path is not nil, it assumes is valid, i.e. it has at least length 2.
 func (p Path) GetSrcIA() addr.IA {
-	if p == nil {
+	if len(p) == 0 {
 		return addr.IA{}
 	}
 	return p[0].IA
@@ -86,7 +86,7 @@ func (p Path) GetSrcIA() addr.IA {
 // source AS of the reservation and has no access to the Path of the reservation).
 // If the Path is not nil, it assumes is valid, i.e. it has at least length 2.
 func (p Path) GetDstIA() addr.IA {
-	if p == nil {
+	if len(p) == 0 {
 		return addr.IA{}
 	}
 	return p[len(p)-1].IA
@@ -94,14 +94,14 @@ func (p Path) GetDstIA() addr.IA {
 
 // Len returns the length of this Path in bytes, when serialized.
 func (p Path) Len() int {
-	if p == nil {
+	if len(p) == 0 {
 		return 0
 	}
 	return len(p) * PathStepWithIALen
 }
 
 func (p Path) Read(buff []byte) (int, error) {
-	if p == nil {
+	if len(p) == 0 {
 		return 0, nil
 	}
 	if len(buff) < p.Len() {
@@ -118,7 +118,7 @@ func (p Path) Read(buff []byte) (int, error) {
 
 // ToRaw returns a buffer representing this Path.
 func (p Path) ToRaw() []byte {
-	if p == nil {
+	if len(p) == 0 {
 		return []byte{}
 	}
 	buff := make([]byte, p.Len())

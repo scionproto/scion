@@ -74,6 +74,16 @@ func TestEqualPath(t *testing.T) {
 				1, "1-ff00:0:2", 0),
 			IsEqual: true,
 		},
+		"eq3": {
+			Path1:   nil,
+			Path2:   nil,
+			IsEqual: true,
+		},
+		"eq4": {
+			Path1:   nil,
+			Path2:   make(segment.Path, 0),
+			IsEqual: true,
+		},
 		"neq1": {
 			Path1:   segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
 			Path2:   segmenttest.NewPathFromComponents(1, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0),
@@ -107,11 +117,13 @@ func TestEqualPath(t *testing.T) {
 }
 
 func TestGetIAs(t *testing.T) {
-
 	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
 	require.Equal(t, xtest.MustParseIA("1-ff00:0:1"), p.GetSrcIA())
 	require.Equal(t, xtest.MustParseIA("1-ff00:0:2"), p.GetDstIA())
 	p = nil
+	require.Equal(t, xtest.MustParseIA("0-0"), p.GetSrcIA())
+	require.Equal(t, xtest.MustParseIA("0-0"), p.GetDstIA())
+	p = make(segment.Path, 0)
 	require.Equal(t, xtest.MustParseIA("0-0"), p.GetSrcIA())
 	require.Equal(t, xtest.MustParseIA("0-0"), p.GetDstIA())
 }
@@ -122,6 +134,8 @@ func TestPathLen(t *testing.T) {
 	p = segment.Path{}
 	require.Equal(t, 0, p.Len())
 	p = nil
+	require.Equal(t, 0, p.Len())
+	p = make(segment.Path, 0)
 	require.Equal(t, 0, p.Len())
 }
 
@@ -154,5 +168,9 @@ func TestToFromBinary(t *testing.T) {
 	p, err = segment.NewPathFromRaw([]byte{})
 	require.NoError(t, err)
 	require.Empty(t, p)
-
+	// empty and nil path
+	p = nil
+	require.Empty(t, p.ToRaw())
+	p = make(segment.Path, 0)
+	require.Empty(t, p.ToRaw())
 }
