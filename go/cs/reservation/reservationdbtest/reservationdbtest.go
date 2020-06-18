@@ -53,7 +53,6 @@ func TestDB(t *testing.T, db TestableDB) {
 func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	r := newTestReservation(t)
 	r.Indices = segment.Indices{}
-	ctx := context.Background()
 	// no indices
 	err := db.NewSegmentRsv(ctx, r)
 	require.Error(t, err)
@@ -68,11 +67,10 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	require.Equal(t, *token, r.Indices[0].Token)
 }
 
-func testNewSegmentRsvWithID(t *testing.T, db backend.DB) {
+func testNewSegmentRsvWithID(ctx context.Context, t *testing.T, db backend.DB) {
 	r := newTestReservation(t)
 	copy(r.ID.Suffix[:], xtest.MustParseHexString("beefcafe"))
 	r.Indices = segment.Indices{}
-	ctx := context.Background()
 	// no indices
 	err := db.NewSegmentRsvWithID(ctx, r)
 	require.Error(t, err)
@@ -88,10 +86,9 @@ func testNewSegmentRsvWithID(t *testing.T, db backend.DB) {
 	require.Equal(t, r, r2)
 }
 
-func testNewSegmentIndex(t *testing.T, db backend.DB) {
+func testNewSegmentIndex(ctx context.Context, t *testing.T, db backend.DB) {
 	r := newTestReservation(t)
 	r.Indices = segment.Indices{}
-	ctx := context.Background()
 	// no index
 	err := db.NewSegmentRsv(ctx, r)
 	require.Error(t, err)
@@ -121,9 +118,8 @@ func testNewSegmentIndex(t *testing.T, db backend.DB) {
 	require.Equal(t, r, r2)
 }
 
-func testGetSegmentRsvFromID(t *testing.T, db backend.DB) {
+func testGetSegmentRsvFromID(ctx context.Context, t *testing.T, db backend.DB) {
 	r := newTestReservation(t)
-	ctx := context.Background()
 	err := db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	// create new index
@@ -155,9 +151,8 @@ func testGetSegmentRsvFromID(t *testing.T, db backend.DB) {
 	require.Equal(t, r, r2)
 }
 
-func testGetSegmentRsvsFromSrcDstIA(t *testing.T, db backend.DB) {
+func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, db backend.DB) {
 	r := newTestReservation(t)
-	ctx := context.Background()
 	err := db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	rsvs, err := db.GetSegmentRsvsFromSrcDstIA(ctx, r.Path.GetSrcIA(), r.Path.GetDstIA())
@@ -188,11 +183,10 @@ func newToken() *reservation.Token {
 func newTestReservation(t *testing.T) *segment.Reservation {
 	t.Helper()
 	r := segment.NewReservation()
-	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
-	r.Path = &p
+	r.Path = segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
 	r.ID.ASID = xtest.MustParseAS("ff00:0:1")
-	r.IngressIFID = 0
-	r.EgressIFID = 1
+	r.Ingress = 0
+	r.Egress = 1
 	r.TrafficSplit = 3
 	r.PathEndProps = reservation.EndLocal | reservation.StartLocal
 	expTime := time.Unix(1, 0)

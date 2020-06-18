@@ -184,7 +184,7 @@ func (x *executor) GetSegmentRsvFromPath(ctx context.Context, path *segment.Path
 func (x *executor) GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress common.IFIDType) (
 	[]*segment.Reservation, error) {
 
-	return getSegReservations(ctx, x.db, "WHERE inout_ingress = $1 AND inout_egress = $2",
+	return getSegReservations(ctx, x.db, "WHERE ingress = $1 AND egress = $2",
 		[]interface{}{ingress, egress})
 }
 
@@ -378,7 +378,7 @@ func insertNewIndex(ctx context.Context, x db.Sqler, segID *reservation.SegmentI
 func getSegReservations(ctx context.Context, x db.Sqler, condition string, params []interface{}) (
 	[]*segment.Reservation, error) {
 
-	const queryTmpl = `SELECT row_id,id_as,id_suffix,inout_ingress,inout_egress,path,
+	const queryTmpl = `SELECT row_id,id_as,id_suffix,ingress,egress,path,
 		end_props,traffic_split,active_index
 		FROM seg_reservation %s`
 	query := fmt.Sprintf(queryTmpl, condition)
@@ -420,10 +420,13 @@ func getSegReservations(ctx context.Context, x db.Sqler, condition string, param
 		rsv := segment.NewReservation()
 		rsv.ID.ASID = addr.AS(rf.AsID)
 		binary.BigEndian.PutUint32(rsv.ID.Suffix[:], rf.Suffix)
-		rsv.IngressIFID = rf.Ingress
-		rsv.EgressIFID = rf.Egress
-		p := segment.NewPathFromRaw(rf.Path)
-		rsv.Path = &p
+		rsv.Ingress = rf.Ingress
+		rsv.Egress = rf.Egress
+		p, err := segment.NewPathFromRaw(rf.Path)
+		if err != nil {
+			return nil, err
+		}
+		rsv.Path = p
 		rsv.PathEndProps = reservation.PathEndProps(rf.EndProps)
 		rsv.TrafficSplit = reservation.SplitCls(rf.TrafficSplit)
 		rsv.Indices = *indices
