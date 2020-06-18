@@ -339,7 +339,7 @@ func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 	const query = `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress,
 		path, end_props, traffic_split, src_ia, dst_ia,active_index)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, -1)`
-	res, err := x.ExecContext(ctx, query, rsv.Path.GetSrcIA().A, suffix,
+	res, err := x.ExecContext(ctx, query, rsv.ID.ASID, suffix,
 		rsv.Ingress, rsv.Egress, rsv.Path.ToRaw(), rsv.PathEndProps,
 		rsv.TrafficSplit, rsv.Path.GetSrcIA().IAInt(), rsv.Path.GetDstIA().IAInt())
 	if err != nil {

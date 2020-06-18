@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -168,6 +169,40 @@ func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, db backen
 	require.Len(t, rsvs, 2)
 	// compare without order
 	require.ElementsMatch(t, rsvs, []*segment.Reservation{r, r2})
+	// one more with same source different destination
+	r3 := newTestReservation(t)
+	r3.Path = segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:3", 0)
+	err = db.NewSegmentRsv(ctx, r3)
+	require.NoError(t, err)
+	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, r.Path.GetSrcIA(), r.Path.GetDstIA())
+	require.NoError(t, err)
+	require.Len(t, rsvs, 2)
+	require.ElementsMatch(t, rsvs, []*segment.Reservation{r, r2})
+	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, r.Path.GetSrcIA(), addr.IA{})
+	require.NoError(t, err)
+	require.Len(t, rsvs, 3)
+	require.ElementsMatch(t, rsvs, []*segment.Reservation{r, r2, r3})
+	// another reservation with unique source but same destination as r3
+	r4 := newTestReservation(t)
+	r4.Path = segmenttest.NewPathFromComponents(0, "1-ff00:0:4", 1, 1, "1-ff00:0:3", 0)
+	err = db.NewSegmentRsv(ctx, r4)
+	require.NoError(t, err)
+	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, r.Path.GetSrcIA(), r.Path.GetDstIA())
+	require.NoError(t, err)
+	require.Len(t, rsvs, 2)
+	require.ElementsMatch(t, rsvs, []*segment.Reservation{r, r2})
+	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, r.Path.GetSrcIA(), addr.IA{})
+	require.NoError(t, err)
+	require.Len(t, rsvs, 3)
+	require.ElementsMatch(t, rsvs, []*segment.Reservation{r, r2, r3})
+	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, addr.IA{}, r.Path.GetDstIA())
+	require.NoError(t, err)
+	require.Len(t, rsvs, 2)
+	require.ElementsMatch(t, rsvs, []*segment.Reservation{r, r2})
+	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, addr.IA{}, r3.Path.GetDstIA())
+	require.NoError(t, err)
+	require.Len(t, rsvs, 2)
+	require.ElementsMatch(t, rsvs, []*segment.Reservation{r3, r4})
 }
 
 // newToken just returns a token that can be serialized. This one has two HopFields.
