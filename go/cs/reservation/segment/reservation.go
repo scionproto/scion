@@ -30,7 +30,7 @@ type Reservation struct {
 	activeIndex  int                      // -1 <= activeIndex < len(Indices)
 	Ingress      common.IFIDType          // igress interface ID: reservation packets enter
 	Egress       common.IFIDType          // egress interface ID: reservation packets leave
-	Path         *Path                    // nil if this AS is not at the source of the reservation
+	Path         Path                     // empty if this AS is not at the source of the reservation
 	PathEndProps reservation.PathEndProps // the properties for stitching and start/end
 	TrafficSplit reservation.SplitCls     // the traffic split between control and data planes
 }

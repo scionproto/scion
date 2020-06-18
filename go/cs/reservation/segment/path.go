@@ -75,39 +75,39 @@ func (p Path) Equal(o Path) bool {
 // GetSrcIA returns the source IA in the path or a zero IA if the path is nil (it's not the
 // source AS of the reservation and has no access to the Path of the reservation).
 // If the Path is not nil, it assumes is valid, i.e. it has at least length 2.
-func (p *Path) GetSrcIA() addr.IA {
+func (p Path) GetSrcIA() addr.IA {
 	if p == nil {
 		return addr.IA{}
 	}
-	return (*p)[0].IA
+	return p[0].IA
 }
 
 // GetDstIA returns the source IA in the path or a zero IA if the path is nil (it's not the
 // source AS of the reservation and has no access to the Path of the reservation).
 // If the Path is not nil, it assumes is valid, i.e. it has at least length 2.
-func (p *Path) GetDstIA() addr.IA {
+func (p Path) GetDstIA() addr.IA {
 	if p == nil {
 		return addr.IA{}
 	}
-	return (*p)[len(*p)-1].IA
+	return p[len(p)-1].IA
 }
 
 // Len returns the length of this Path in bytes, when serialized.
-func (p *Path) Len() int {
+func (p Path) Len() int {
 	if p == nil {
 		return 0
 	}
-	return len(*p) * PathStepWithIALen
+	return len(p) * PathStepWithIALen
 }
 
-func (p *Path) Read(buff []byte) (int, error) {
+func (p Path) Read(buff []byte) (int, error) {
 	if p == nil {
 		return 0, nil
 	}
 	if len(buff) < p.Len() {
 		return 0, serrors.New("buffer too small", "min_size", p.Len(), "actual_size", len(buff))
 	}
-	for i, s := range *p {
+	for i, s := range p {
 		offset := i * PathStepWithIALen
 		binary.BigEndian.PutUint64(buff[offset:], uint64(s.Ingress))
 		binary.BigEndian.PutUint64(buff[offset+8:], uint64(s.Egress))
@@ -117,7 +117,7 @@ func (p *Path) Read(buff []byte) (int, error) {
 }
 
 // ToRaw returns a buffer representing this Path.
-func (p *Path) ToRaw() []byte {
+func (p Path) ToRaw() []byte {
 	if p == nil {
 		return []byte{}
 	}

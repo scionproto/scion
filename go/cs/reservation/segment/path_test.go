@@ -108,8 +108,7 @@ func TestEqualPath(t *testing.T) {
 
 func TestGetIAs(t *testing.T) {
 
-	pValue := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
-	p := &pValue
+	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
 	require.Equal(t, xtest.MustParseIA("1-ff00:0:1"), p.GetSrcIA())
 	require.Equal(t, xtest.MustParseIA("1-ff00:0:2"), p.GetDstIA())
 	p = nil
