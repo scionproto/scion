@@ -178,10 +178,10 @@ func (f *fetcher) translate(path *combinator.Path) (sciond.PathReplyEntry, error
 			Mtu:        path.Mtu,
 			Interfaces: path.Interfaces,
 			ExpTime:    uint32(path.ComputeExpTime().Unix()),
+			Metadata:   CondenseMetadata(path.Metadata),
 			HeaderV2:   path.HeaderV2,
 		},
-		HostInfo:   hostinfo.FromUDPAddr(*nextHop),
-		Metadata: CondenseMetadata(path.Metadata),
+		HostInfo: hostinfo.FromUDPAddr(*nextHop),
 	}
 	return entry, nil
 }
