@@ -243,7 +243,7 @@ func (meta *PathMetadata) Copy() *PathMetadata{
 
 func (p Path) String() string {
 	hops := p.fmtInterfaces()
-	return fmt.Sprintf("Hops: [%s] MTU: %d, NextHop: %s, StaticInfo: %v",
+	return fmt.Sprintf("Hops: [%s] MTU: %d, NextHop: %s, Metadata: %v",
 		strings.Join(hops, ">"), p.mtu, p.underlay, p.metadata)
 }
 

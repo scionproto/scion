@@ -188,7 +188,7 @@ type FwdPathMeta struct {
 	Mtu        uint16
 	Interfaces []PathInterface
 	ExpTime    uint32
-	Metadata   *PathMetadata `capnp:"metadata"`
+	Metadata   *PathMetadata
 
 	HeaderV2 bool
 }

@@ -50,7 +50,6 @@ func (t LinkType) String() string {
 	}
 }
 
-
 type Geo struct {
 	RouterLocations []*GeoLoc `capnp:"routerLocations"`
 	RawIA           addr.IAInt     `capnp:"isdas"`
