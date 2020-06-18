@@ -18,7 +18,7 @@ type PathMetadata struct {
 }
 
 func (s *PathMetadata) ProtoId() proto.ProtoIdType {
-	return proto.PathMetadata_TypeID
+	return proto.FwdPathMeta_PathMetadata_TypeID
 }
 
 func (s *PathMetadata) String() string {
@@ -57,7 +57,7 @@ type Geo struct {
 }
 
 func (s *Geo) ProtoId() proto.ProtoIdType {
-	return proto.PathMetadata_Geo_TypeID
+	return proto.FwdPathMeta_PathMetadata_Geo_TypeID
 }
 
 func (s *Geo) String() string {
@@ -72,7 +72,7 @@ type GeoLoc struct {
 }
 
 func (s *GeoLoc) ProtoId() proto.ProtoIdType {
-	return proto.PathMetadata_Geo_GPSData_TypeID
+	return proto.FwdPathMeta_PathMetadata_Geo_GPSData_TypeID
 }
 
 func (s *GeoLoc) String() string {
@@ -86,7 +86,7 @@ type Note struct {
 }
 
 func (s *Note) ProtoId() proto.ProtoIdType {
-	return proto.PathMetadata_Note_TypeID
+	return proto.FwdPathMeta_PathMetadata_Note_TypeID
 }
 
 func (s *Note) String() string {
