@@ -6,7 +6,7 @@ go_library(
         "db.go",
         "schema.go",
     ],
-    importpath = "github.com/scionproto/scion/go/cs/reservation/reservationdbsqlite",
+    importpath = "github.com/scionproto/scion/go/cs/reservation/sqlite",
     visibility = ["//visibility:public"],
     deps = [
         "//go/cs/reservation/e2e:go_default_library",
