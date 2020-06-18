@@ -225,7 +225,21 @@ func (x *executor) NewSegmentRsvWithID(ctx context.Context, rsv *segment.Reserva
 func (x *executor) SetSegmentActiveIndex(ctx context.Context, rsv *segment.Reservation,
 	idx reservation.IndexNumber) error {
 
-	return nil
+	index, err := rsv.Index(idx)
+	if err != nil {
+		return db.NewInputDataError("invalid index number", err)
+	}
+	suffix := binary.BigEndian.Uint32(rsv.ID.Suffix[:])
+	err = db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
+		const query = `UPDATE seg_reservation SET active_index = $3 WHERE
+			id_as = $1 AND id_suffix = $2`
+		_, err := tx.ExecContext(ctx, query, rsv.ID.ASID, suffix, idx)
+		if err != nil {
+			return err
+		}
+		return updateIndex(ctx, tx, &rsv.ID, index)
+	})
+	return err
 }
 
 // NewSegmentIndex stores a new index for a segment reservation.
@@ -243,7 +257,11 @@ func (x *executor) NewSegmentIndex(ctx context.Context, rsv *segment.Reservation
 func (x *executor) UpdateSegmentIndex(ctx context.Context, rsv *segment.Reservation,
 	idx reservation.IndexNumber) error {
 
-	return nil
+	index, err := rsv.Index(idx)
+	if err != nil {
+		return err
+	}
+	return updateIndex(ctx, x.db, &rsv.ID, index)
 }
 
 // DeleteSegmentIndex removes the index from the DB. Used in cleanup.
@@ -300,7 +318,7 @@ func newSuffix(ctx context.Context, x db.Sqler, ASID addr.AS) (uint32, error) {
 	query := `SELECT MIN(id_suffix)+1 FROM (
 		SELECT 0 AS id_suffix UNION ALL
 		SELECT id_suffix FROM seg_reservation WHERE id_as = $1
-		) WHERE id_suffix+1 NOT IN (SELECT id_suffix FROM seg_reservation WHERE id_as = $1);`
+		) WHERE id_suffix+1 NOT IN (SELECT id_suffix FROM seg_reservation WHERE id_as = $1)`
 	var suffix uint32
 	err := x.QueryRowContext(ctx, query, uint64(ASID)).Scan(&suffix)
 	switch {
@@ -362,7 +380,7 @@ func getSegReservations(ctx context.Context, x db.Sqler, condition string, param
 
 	const queryTmpl = `SELECT row_id,id_as,id_suffix,inout_ingress,inout_egress,path,
 		end_props,traffic_split,active_index
-		FROM seg_reservation %s;`
+		FROM seg_reservation %s`
 	query := fmt.Sprintf(queryTmpl, condition)
 
 	rows, err := x.QueryContext(ctx, query, params...)
@@ -422,7 +440,7 @@ func getSegReservations(ctx context.Context, x db.Sqler, condition string, param
 // the rowID argument is the reservation row ID the indices belong to.
 func getSegIndices(ctx context.Context, x db.Sqler, rowID int) (*segment.Indices, error) {
 	const query = `SELECT index_number,expiration,state,min_bw,max_bw,alloc_bw,token
-		FROM seg_index WHERE reservation=$1;`
+		FROM seg_index WHERE reservation=$1`
 	rows, err := x.QueryContext(ctx, query, rowID)
 	if err != nil {
 		return nil, db.NewReadError("cannot list indices", err)
@@ -448,4 +466,18 @@ func getSegIndices(ctx context.Context, x db.Sqler, rowID int) (*segment.Indices
 	// sort indices so they are consecutive modulo 16
 	indices.Sort()
 	return &indices, nil
+}
+
+func updateIndex(ctx context.Context, x db.Sqler, rsvID *reservation.SegmentID,
+	index *segment.Index) error {
+
+	suffix := binary.BigEndian.Uint32(rsvID.Suffix[:])
+	token := index.Token.ToRaw()
+	const query = `UPDATE seg_index SET expiration = $4, state = $5, min_bw = $6, max_bw = $7,
+			alloc_bw = $8,token = $9 WHERE index_number = $1 AND reservation = (
+				SELECT row_id FROM seg_reservation WHERE id_as = $2 AND id_suffix = $3
+			);`
+	_, err := x.ExecContext(ctx, query, index.Idx, rsvID.ASID, suffix,
+		index.Expiration.Unix(), index.State, index.MinBW, index.MaxBW, index.AllocBW, token)
+	return err
 }
