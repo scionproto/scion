@@ -69,15 +69,9 @@ struct FwdPathMeta {
         totalLatency @0 :UInt16;
         totalHops @1 :UInt8;
         minimalBandwidth @2 :UInt32;
-        linkTypes @3 :List(InterfaceLinkType);
+        linkTypes @3 :List(UInt16);
         asLocations @4 :List(Geo);
         notes @5: List(Note);
-
-        struct InterfaceLinkType {
-            interLinkType @0 :UInt16;
-            peerLinkType @1 :UInt16;
-            isdas @2 :UInt64;
-        }
 
         struct Geo {
             routerLocations @0 :List(GPSData);
