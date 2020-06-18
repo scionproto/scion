@@ -152,7 +152,7 @@ func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (Path, error) {
 		spath:      sp,
 		mtu:        pe.Path.Mtu,
 		expiry:     pe.Path.Expiry(),
-		metadata: pe.Metadata,
+		metadata: pe.Path.Metadata,
 	}
 	for _, intf := range pe.Path.Interfaces {
 		p.interfaces = append(p.interfaces, pathInterface{ia: intf.IA(), id: intf.ID()})

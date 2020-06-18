@@ -165,9 +165,8 @@ func (r *PathReply) String() string {
 }
 
 type PathReplyEntry struct {
-	Path       *FwdPathMeta
-	HostInfo   hostinfo.Host
-	Metadata *PathMetadata `capnp:"pathStaticInfo"`
+	Path     *FwdPathMeta
+	HostInfo hostinfo.Host
 }
 
 func (e *PathReplyEntry) Copy() *PathReplyEntry {
@@ -189,6 +188,7 @@ type FwdPathMeta struct {
 	Mtu        uint16
 	Interfaces []PathInterface
 	ExpTime    uint32
+	Metadata   *PathMetadata `capnp:"metadata"`
 
 	HeaderV2 bool
 }
@@ -223,12 +223,25 @@ func (fpm *FwdPathMeta) Copy() *FwdPathMeta {
 		res.Interfaces = make([]PathInterface, len(fpm.Interfaces))
 		copy(res.Interfaces, fpm.Interfaces)
 	}
+	if fpm.Metadata == nil {
+		res.Metadata = nil
+	} else {
+		res.Metadata = &PathMetadata{
+			Latency:   fpm.Metadata.Latency,
+			Hops:      fpm.Metadata.Hops,
+			Bandwidth: fpm.Metadata.Bandwidth,
+			LinkTypes: fpm.Metadata.LinkTypes,
+			Geos:      fpm.Metadata.Geos,
+			Notes:     fpm.Metadata.Notes,
+		}
+	}
 	return res
 }
 
 func (fpm *FwdPathMeta) String() string {
 	hops := fpm.fmtIfaces()
-	return fmt.Sprintf("Hops: [%s] Mtu: %d", strings.Join(hops, ">"), fpm.Mtu)
+	return fmt.Sprintf("Hops: [%s] Mtu: %d, Metadata: %v", strings.Join(hops, ">"),
+		fpm.Mtu, fpm.Metadata)
 }
 
 func (fpm *FwdPathMeta) fmtIfaces() []string {
