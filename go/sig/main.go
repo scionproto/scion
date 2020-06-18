@@ -140,7 +140,7 @@ func validateConfig() error {
 		return err
 	}
 	if cfg.Metrics.Prometheus == "" {
-		cfg.Metrics.Prometheus = "127.0.0.1:1281"
+		cfg.Metrics.Prometheus = "127.0.0.1:30456"
 	}
 	return nil
 }
