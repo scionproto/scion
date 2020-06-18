@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/mock_trust"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var (
