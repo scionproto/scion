@@ -45,6 +45,7 @@ func TestDB(t *testing.T, db TestableDB) {
 		"get segment reservation from path":     testGetSegmentRsvFromPath,
 		"get segment reservation from IF pair":  testGetSegmentRsvsFromIFPair,
 		"update segment index":                  testUpdateSegmentIndex,
+		"set segment index active":              testSetSegmentIndexActive,
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -313,6 +314,45 @@ func testUpdateSegmentIndex(ctx context.Context, t *testing.T, db backend.DB) {
 	require.Equal(t, r, rsv)
 }
 
+func testSetSegmentIndexActive(ctx context.Context, t *testing.T, db backend.DB) {
+	r := newTestReservation(t)
+	err := db.NewSegmentRsv(ctx, r)
+	require.NoError(t, err)
+	err = r.SetIndexActive(0)
+	require.NoError(t, err)
+	err = db.SetSegmentIndexActive(ctx, r, 0)
+	require.NoError(t, err)
+	rsv, err := db.GetSegmentRsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Equal(t, r, rsv)
+	// two more indices
+	token := r.Indices[0].Token
+	idx, err := r.NewIndex(time.Unix(1, 0), token)
+	require.NoError(t, err)
+	err = db.NewSegmentIndex(ctx, r, idx)
+	require.NoError(t, err)
+	idx2, err := r.NewIndex(time.Unix(2, 0), token)
+	require.NoError(t, err)
+	require.Len(t, r.Indices, 3)
+	err = db.NewSegmentIndex(ctx, r, idx2)
+	require.NoError(t, err)
+	err = r.SetIndexConfirmed(idx)
+	require.NoError(t, err)
+	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Len(t, rsv.Indices, 3)
+	// activate it
+	err = r.SetIndexActive(idx)
+	require.NoError(t, err)
+	require.Len(t, r.Indices, 2)
+	err = db.SetSegmentIndexActive(ctx, r, idx)
+	require.NoError(t, err)
+	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Equal(t, r, rsv)
+	require.Len(t, rsv.Indices, 2)
+}
+
 // newToken just returns a token that can be serialized. This one has two HopFields.
 func newToken() *reservation.Token {
 	t, err := reservation.TokenFromRaw(xtest.MustParseHexString(
@@ -340,3 +380,5 @@ func newTestReservation(t *testing.T) *segment.Reservation {
 	require.NoError(t, err)
 	return r
 }
+
+// TODO(juagargi) test the transactions
