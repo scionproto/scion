@@ -18,7 +18,6 @@ package matchers
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"reflect"
 	"sort"
@@ -92,7 +91,7 @@ func (m *SignedRevs) Matches(x interface{}) bool {
 	}
 	revInfos := make(map[path_mgmt.RevInfo]*path_mgmt.RevInfo)
 	for _, rev := range sRevs {
-		revInfo, err := rev.VerifiedRevInfo(context.Background(), m.Verifier)
+		revInfo, err := rev.RevInfo()
 		if err != nil {
 			return false
 		}

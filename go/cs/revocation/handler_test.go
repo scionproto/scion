@@ -31,12 +31,10 @@ import (
 
 	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/cs/revocation/mock_revocation"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
@@ -74,26 +72,12 @@ func TestHandler(t *testing.T) {
 	sRev, err := path_mgmt.NewSignedRevInfo(rev, signer)
 	xtest.FailOnErr(t, err)
 
-	sRevInvalid, err := path_mgmt.NewSignedRevInfo(rev, signer)
-	xtest.FailOnErr(t, err)
-	// flip a bit
-	sRevInvalid.Blob[0] ^= 0xFF
-
 	tests := []struct {
 		Name   string
 		Rev    *path_mgmt.SignedRevInfo
 		Ack    *ack.Ack
 		Result *infra.HandlerResult
 	}{
-		{
-			Name: "Unverifiable revocation is rejected",
-			Rev:  sRevInvalid,
-			Ack: &ack.Ack{
-				Err:     proto.Ack_ErrCode_reject,
-				ErrDesc: messenger.AckRejectFailedToVerify,
-			},
-			Result: infra.MetricsErrInvalid,
-		},
 		{
 			Name: "Verifiable rev is stored and acked",
 			Rev:  sRev,
@@ -111,11 +95,6 @@ func TestHandler(t *testing.T) {
 			defer mctrl.Finish()
 
 			verifier := mock_infra.NewMockVerifier(mctrl)
-			verifier.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-				func(_ context.Context, msg common.RawBytes, sign *proto.SignS) error {
-					return verifyecdsa(sign.SigInput(msg, false), sign.Signature, pub)
-				},
-			)
 
 			rw := mock_infra.NewMockResponseWriter(mctrl)
 			if test.Ack != nil {

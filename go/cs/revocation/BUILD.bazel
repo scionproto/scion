@@ -27,12 +27,10 @@ go_test(
     deps = [
         "//go/cs/metrics:go_default_library",
         "//go/cs/revocation/mock_revocation:go_default_library",
-        "//go/lib/common:go_default_library",
         "//go/lib/ctrl:go_default_library",
         "//go/lib/ctrl/ack:go_default_library",
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/infra:go_default_library",
-        "//go/lib/infra/messenger:go_default_library",
         "//go/lib/infra/mock_infra:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
