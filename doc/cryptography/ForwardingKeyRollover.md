@@ -86,8 +86,7 @@ valid for both. The question the BS must ask itself is: what is the remaining
 lifetime of this path going to be, according to my security policy?
 `OriginationTime` is irrelevant to the answer, which leads to the next property.
 
-![Origination time far in the
-past](fig/ForwardingKeyRollover/rollover-origination-time.png).
+![Origination time far in the past](fig/ForwardingKeyRollover/rollover-origination-time.png).
 
 **Property 4**: `OriginationTime` must not be used directly for key selection;
 `ExpirationTime` should be used instead.
