@@ -150,7 +150,7 @@ func (r *Reservation) SetIndexActive(idx reservation.IndexNumber) error {
 	if r.activeIndex == sliceIndex {
 		return nil // already active
 	}
-	if r.Indices[sliceIndex].state != IndexPending {
+	if r.Indices[sliceIndex].state != IndexPending && r.Indices[sliceIndex].state != IndexActive {
 		return serrors.New("attempt to activate a non confirmed index", "index_number", idx,
 			"state", r.Indices[sliceIndex].state)
 	}
