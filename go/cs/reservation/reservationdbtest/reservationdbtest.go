@@ -164,6 +164,7 @@ func testGetSegmentRsvFromID(ctx context.Context, t *testing.T, db backend.DB) {
 
 func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, db backend.DB) {
 	r := newTestReservation(t)
+	r.Path = segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
 	err := db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	rsvs, err := db.GetSegmentRsvsFromSrcDstIA(ctx, r.Path.GetSrcIA(), r.Path.GetDstIA())
@@ -172,6 +173,7 @@ func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, db backen
 	require.Equal(t, r, rsvs[0])
 	// another reservation with same source and destination
 	r2 := newTestReservation(t)
+	r2.Path = segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 2, "1-ff00:0:2", 0)
 	err = db.NewSegmentRsv(ctx, r2)
 	require.NoError(t, err)
 	rsvs, err = db.GetSegmentRsvsFromSrcDstIA(ctx, r.Path.GetSrcIA(), r.Path.GetDstIA())
@@ -246,7 +248,7 @@ func newToken() *reservation.Token {
 func newTestReservation(t *testing.T) *segment.Reservation {
 	t.Helper()
 	r := segment.NewReservation()
-	r.Path = segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
+	r.Path = segment.Path{}
 	r.ID.ASID = xtest.MustParseAS("ff00:0:1")
 	r.Ingress = 0
 	r.Egress = 1
