@@ -36,7 +36,8 @@ const (
 		dst_ia INTEGER,
 		active_index	INTEGER NOT NULL,
 		PRIMARY KEY(row_id),
-		UNIQUE(id_as,id_suffix)
+		UNIQUE(id_as,id_suffix),
+		UNIQUE(path)
 	);
 	CREATE TABLE seg_index (
 		reservation	INTEGER NOT NULL,
