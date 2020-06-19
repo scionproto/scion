@@ -121,7 +121,7 @@ func (p Path) Read(buff []byte) (int, error) {
 // ToRaw returns a buffer representing this Path.
 func (p Path) ToRaw() []byte {
 	if len(p) == 0 {
-		return []byte{}
+		return nil
 	}
 	buff := make([]byte, p.Len())
 	p.Read(buff)
