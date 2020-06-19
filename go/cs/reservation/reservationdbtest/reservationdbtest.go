@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -42,6 +43,7 @@ func TestDB(t *testing.T, db TestableDB) {
 		"get segment reservation from ID":       testGetSegmentRsvFromID,
 		"get segment reservations from src/dst": testGetSegmentRsvsFromSrcDstIA,
 		"get segment reservation from path":     testGetSegmentRsvFromPath,
+		"get segment reservation from IF pair":  testGetSegmentRsvsFromIFPair,
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -233,6 +235,51 @@ func testGetSegmentRsvFromPath(ctx context.Context, t *testing.T, db backend.DB)
 	r, err = db.GetSegmentRsvFromPath(ctx, r2.Path)
 	require.NoError(t, err)
 	require.Equal(t, r2, r)
+}
+
+func testGetSegmentRsvsFromIFPair(ctx context.Context, t *testing.T, db backend.DB) {
+	// insert in1,e1 ; in2,e1 ; in1,e2
+	r1 := newTestReservation(t)
+	r1.Ingress = 11
+	r1.Egress = 12
+	err := db.NewSegmentRsv(ctx, r1)
+	require.NoError(t, err)
+	r2 := newTestReservation(t)
+	r2.Ingress = 21
+	r2.Egress = 12
+	err = db.NewSegmentRsv(ctx, r2)
+	require.NoError(t, err)
+	r3 := newTestReservation(t)
+	r3.Ingress = 11
+	r3.Egress = 22
+	err = db.NewSegmentRsv(ctx, r3)
+	require.NoError(t, err)
+	// query with a specific pair
+	rsvs, err := db.GetSegmentRsvsFromIFPair(ctx, &r1.Ingress, &r1.Egress)
+	require.NoError(t, err)
+	require.Len(t, rsvs, 1)
+	expected := []*segment.Reservation{r1}
+	require.ElementsMatch(t, expected, rsvs)
+	// any ingress
+	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, nil, &r1.Egress)
+	require.NoError(t, err)
+	require.Len(t, rsvs, 2)
+	expected = []*segment.Reservation{r1, r2}
+	require.ElementsMatch(t, expected, rsvs)
+	// any egress
+	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r1.Ingress, nil)
+	require.NoError(t, err)
+	require.Len(t, rsvs, 2)
+	expected = []*segment.Reservation{r1, r3}
+	require.ElementsMatch(t, expected, rsvs)
+	// no matches
+	var inexistentIngress common.IFIDType = 222
+	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &inexistentIngress, nil)
+	require.NoError(t, err)
+	require.Len(t, rsvs, 0)
+	// bad query
+	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, nil, nil)
+	require.Error(t, err)
 }
 
 // newToken just returns a token that can be serialized. This one has two HopFields.
