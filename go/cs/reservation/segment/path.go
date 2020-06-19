@@ -15,6 +15,9 @@
 package segment
 
 import (
+	"encoding/binary"
+	"io"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -23,6 +26,25 @@ import (
 // Path represents a reservation path, in the reservation order.
 type Path []PathStepWithIA
 
+var _ io.Reader = (*Path)(nil)
+
+// NewPathFromRaw constructs a new Path from the byte representation.
+func NewPathFromRaw(buff []byte) (Path, error) {
+	if len(buff)%PathStepWithIALen != 0 {
+		return nil, serrors.New("buffer input is not a multiple of a path step", "len", len(buff))
+	}
+	steps := len(buff) / PathStepWithIALen
+	p := make(Path, steps)
+	for i := 0; i < steps; i++ {
+		offset := i * PathStepWithIALen
+		p[i].Ingress = common.IFIDType(binary.BigEndian.Uint64(buff[offset:]))
+		p[i].Egress = common.IFIDType(binary.BigEndian.Uint64(buff[offset+8:]))
+		p[i].IA = addr.IAFromRaw(buff[offset+16:])
+	}
+	return p, nil
+}
+
+// Validate returns an error if there is invalid data.
 func (p Path) Validate() error {
 	if len(p) < 2 {
 		return serrors.New("invalid path length", "len", len(p))
@@ -37,35 +59,84 @@ func (p Path) Validate() error {
 	return nil
 }
 
+// Equal returns true if both Path contain the same values.
 func (p Path) Equal(o Path) bool {
 	if len(p) != len(o) {
 		return false
 	}
 	for i := 0; i < len(p); i++ {
-		if !p[i].Equal(&o[i]) {
+		if p[i] != o[i] {
 			return false
 		}
 	}
 	return true
 }
 
+// GetSrcIA returns the source IA in the path or a zero IA if the path is nil (it's not the
+// source AS of the reservation and has no access to the Path of the reservation).
+// If the Path is not nil, it assumes is valid, i.e. it has at least length 2.
+func (p Path) GetSrcIA() addr.IA {
+	if len(p) == 0 {
+		return addr.IA{}
+	}
+	return p[0].IA
+}
+
+// GetDstIA returns the source IA in the path or a zero IA if the path is nil (it's not the
+// source AS of the reservation and has no access to the Path of the reservation).
+// If the Path is not nil, it assumes is valid, i.e. it has at least length 2.
+func (p Path) GetDstIA() addr.IA {
+	if len(p) == 0 {
+		return addr.IA{}
+	}
+	return p[len(p)-1].IA
+}
+
+// Len returns the length of this Path in bytes, when serialized.
+func (p Path) Len() int {
+	if len(p) == 0 {
+		return 0
+	}
+	return len(p) * PathStepWithIALen
+}
+
+func (p Path) Read(buff []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+	if len(buff) < p.Len() {
+		return 0, serrors.New("buffer too small", "min_size", p.Len(), "actual_size", len(buff))
+	}
+	for i, s := range p {
+		offset := i * PathStepWithIALen
+		binary.BigEndian.PutUint64(buff[offset:], uint64(s.Ingress))
+		binary.BigEndian.PutUint64(buff[offset+8:], uint64(s.Egress))
+		binary.BigEndian.PutUint64(buff[offset+16:], uint64(s.IA.IAInt()))
+	}
+	return p.Len(), nil
+}
+
+// ToRaw returns a buffer representing this Path.
+func (p Path) ToRaw() []byte {
+	if len(p) == 0 {
+		return []byte{}
+	}
+	buff := make([]byte, p.Len())
+	p.Read(buff)
+	return buff
+}
+
 // PathStep is one hop of the Path. For a source AS Ingress will be invalid. Conversely for dst.
 type PathStep struct {
-	// IA      addr.IA
 	Ingress common.IFIDType
 	Egress  common.IFIDType
 }
 
-func (s *PathStep) Equal(o *PathStep) bool {
-	// return s.IA == o.IA && s.Ingress == o.Ingress && s.Egress == o.Egress
-	return s.Ingress == o.Ingress && s.Egress == o.Egress
-}
-
+// PathStepWithIA is a step in a reservation path as seen from the source AS.
 type PathStepWithIA struct {
 	PathStep
 	IA addr.IA
 }
 
-func (s *PathStepWithIA) Equal(o *PathStepWithIA) bool {
-	return s.PathStep.Equal(&o.PathStep) && s.IA == o.IA
-}
+// PathStepWithIALen amounts for Ingress+Egress+IA.
+const PathStepWithIALen = 8 + 8 + 8
