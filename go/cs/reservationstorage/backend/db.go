@@ -60,8 +60,8 @@ type ReserverAndTransit interface {
 	// Used by setup/renew req/resp. and any request.
 	GetSegmentRsvFromID(ctx context.Context, ID *reservation.SegmentID) (
 		*segment.Reservation, error)
-	// SetSegmentActiveIndex updates the active index. Used in index confirmation.
-	SetSegmentActiveIndex(ctx context.Context, rsv *segment.Reservation,
+	// SetSegmentIndexActive updates the active index. Used in index confirmation.
+	SetSegmentIndexActive(ctx context.Context, rsv *segment.Reservation,
 		idx reservation.IndexNumber) error
 	// NewSegmentIndex stores a new index for a segment reservation. Used in setup/renew.
 	NewSegmentIndex(ctx context.Context, rsv *segment.Reservation,
