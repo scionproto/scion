@@ -278,7 +278,7 @@ func testGetSegmentRsvsFromIFPair(ctx context.Context, t *testing.T, db backend.
 	require.NoError(t, err)
 	require.Len(t, rsvs, 0)
 	// bad query
-	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, nil, nil)
+	_, err = db.GetSegmentRsvsFromIFPair(ctx, nil, nil)
 	require.Error(t, err)
 }
 
