@@ -161,10 +161,10 @@ func (x *executor) GetSegmentRsvsFromSrcDstIA(ctx context.Context, srcIA, dstIA 
 }
 
 // GetSegmentRsvFromPath searches for a segment reservation with the specified path.
-func (x *executor) GetSegmentRsvFromPath(ctx context.Context, path *segment.Path) (
+func (x *executor) GetSegmentRsvFromPath(ctx context.Context, path segment.Path) (
 	*segment.Reservation, error) {
 
-	rsvs, err := getSegReservations(ctx, x.db, "WHERE path = $1", []interface{}{path})
+	rsvs, err := getSegReservations(ctx, x.db, "WHERE path = $1", []interface{}{path.ToRaw()})
 	if err != nil {
 		return nil, err
 	}

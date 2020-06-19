@@ -41,6 +41,7 @@ func TestDB(t *testing.T, db TestableDB) {
 		"insert segment index":                  testNewSegmentIndex,
 		"get segment reservation from ID":       testGetSegmentRsvFromID,
 		"get segment reservations from src/dst": testGetSegmentRsvsFromSrcDstIA,
+		"get segment reservation from path":     testGetSegmentRsvFromPath,
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -71,20 +72,23 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 func testNewSegmentRsvWithID(ctx context.Context, t *testing.T, db backend.DB) {
 	r := newTestReservation(t)
 	copy(r.ID.Suffix[:], xtest.MustParseHexString("beefcafe"))
+	indices := r.Indices
 	r.Indices = segment.Indices{}
 	// no indices
 	err := db.NewSegmentRsvWithID(ctx, r)
 	require.Error(t, err)
 	// at least one index
-	token := newToken()
-	expTime := time.Unix(1, 0)
-	r.NewIndex(expTime, *token)
+	r.Indices = indices
 	err = db.NewSegmentRsvWithID(ctx, r)
 	require.NoError(t, err)
-
 	r2, err := db.GetSegmentRsvFromID(ctx, &r.ID)
 	require.NoError(t, err)
 	require.Equal(t, r, r2)
+	// same ID
+	r2 = newTestReservation(t)
+	copy(r2.ID.Suffix[:], xtest.MustParseHexString("beefcafe"))
+	err = db.NewSegmentRsvWithID(ctx, r2)
+	require.Error(t, err)
 }
 
 func testNewSegmentIndex(ctx context.Context, t *testing.T, db backend.DB) {
@@ -150,6 +154,12 @@ func testGetSegmentRsvFromID(ctx context.Context, t *testing.T, db backend.DB) {
 	r2, err = db.GetSegmentRsvFromID(ctx, &r.ID)
 	require.NoError(t, err)
 	require.Equal(t, r, r2)
+	// wrong ID
+	ID := r.ID
+	ID.ASID++
+	r2, err = db.GetSegmentRsvFromID(ctx, &ID)
+	require.NoError(t, err)
+	require.Nil(t, r2)
 }
 
 func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, db backend.DB) {
@@ -203,6 +213,24 @@ func testGetSegmentRsvsFromSrcDstIA(ctx context.Context, t *testing.T, db backen
 	require.NoError(t, err)
 	require.Len(t, rsvs, 2)
 	require.ElementsMatch(t, rsvs, []*segment.Reservation{r3, r4})
+}
+
+func testGetSegmentRsvFromPath(ctx context.Context, t *testing.T, db backend.DB) {
+	r1 := newTestReservation(t)
+	r1.Path = segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
+	err := db.NewSegmentRsv(ctx, r1)
+	require.NoError(t, err)
+	r2 := newTestReservation(t)
+	r2.Path = segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:3", 0)
+	err = db.NewSegmentRsv(ctx, r2)
+	require.NoError(t, err)
+	// retrieve
+	r, err := db.GetSegmentRsvFromPath(ctx, r1.Path)
+	require.NoError(t, err)
+	require.Equal(t, r1, r)
+	r, err = db.GetSegmentRsvFromPath(ctx, r2.Path)
+	require.NoError(t, err)
+	require.Equal(t, r2, r)
 }
 
 // newToken just returns a token that can be serialized. This one has two HopFields.
