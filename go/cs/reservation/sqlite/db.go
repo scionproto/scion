@@ -235,7 +235,7 @@ func (x *executor) NewSegmentRsvWithID(ctx context.Context, rsv *segment.Reserva
 }
 
 // SetActiveIndex updates the active index for the segment reservation.
-func (x *executor) SetSegmentActiveIndex(ctx context.Context, rsv *segment.Reservation,
+func (x *executor) SetSegmentIndexActive(ctx context.Context, rsv *segment.Reservation,
 	idx reservation.IndexNumber) error {
 
 	index, err := rsv.Index(idx)
