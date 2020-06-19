@@ -366,8 +366,9 @@ func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 		min_bw, max_bw, alloc_bw, token) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
 
 	for _, index := range rsv.Indices {
-		_, err := x.ExecContext(ctx, queryIndex, rsvRowID, index.Idx, uint32(index.Expiration.Unix()),
-			index.State(), index.MinBW, index.MaxBW, index.AllocBW, index.Token.ToRaw())
+		_, err := x.ExecContext(ctx, queryIndex, rsvRowID, index.Idx,
+			uint32(index.Expiration.Unix()), index.State(), index.MinBW, index.MaxBW,
+			index.AllocBW, index.Token.ToRaw())
 		if err != nil {
 			return err
 		}
@@ -383,8 +384,9 @@ func insertNewIndex(ctx context.Context, x db.Sqler, segID *reservation.SegmentI
 		(SELECT row_id FROM seg_reservation WHERE id_as=$1 AND id_suffix=$2),
 		$3,$4,$5,$6,$7,$8,$9)`
 	suffix := binary.BigEndian.Uint32(segID.Suffix[:])
-	_, err := x.ExecContext(ctx, query, segID.ASID, suffix, index.Idx, uint32(index.Expiration.Unix()),
-		index.State(), index.MinBW, index.MaxBW, index.AllocBW, index.Token.ToRaw())
+	_, err := x.ExecContext(ctx, query, segID.ASID, suffix, index.Idx,
+		uint32(index.Expiration.Unix()), index.State(), index.MinBW, index.MaxBW,
+		index.AllocBW, index.Token.ToRaw())
 	return err
 }
 
