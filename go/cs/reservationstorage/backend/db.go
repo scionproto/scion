@@ -46,7 +46,7 @@ type ReserverOnly interface {
 type TransitOnly interface {
 	// GetSegmentRsvsFromIFPair returns all segment reservations that enter this AS at
 	// the specified ingress and exit at that egress. Used by setup req.
-	GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress common.IFIDType) (
+	GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress *common.IFIDType) (
 		[]*segment.Reservation, error)
 
 	// NewSegmentRsvWithID creates a new segment reservation in the DB, storing it with the

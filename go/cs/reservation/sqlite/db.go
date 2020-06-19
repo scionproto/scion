@@ -181,11 +181,24 @@ func (x *executor) GetSegmentRsvFromPath(ctx context.Context, path segment.Path)
 
 // GetSegmentRsvsFromIFPair returns all segment reservations that enter this AS at
 // the specified ingress and exit at that egress.
-func (x *executor) GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress common.IFIDType) (
+func (x *executor) GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress *common.IFIDType) (
 	[]*segment.Reservation, error) {
 
-	return getSegReservations(ctx, x.db, "WHERE ingress = $1 AND egress = $2",
-		[]interface{}{ingress, egress})
+	conditions := make([]string, 0, 2)
+	params := make([]interface{}, 0, 2)
+	if ingress != nil {
+		conditions = append(conditions, "ingress = $1")
+		params = append(params, *ingress)
+	}
+	if egress != nil {
+		conditions = append(conditions, fmt.Sprintf("egress = $%d", len(conditions)+1))
+		params = append(params, *egress)
+	}
+	if len(conditions) == 0 {
+		return nil, serrors.New("no ingress or egress provided")
+	}
+	condition := fmt.Sprintf("WHERE %s", strings.Join(conditions, " AND "))
+	return getSegReservations(ctx, x.db, condition, params)
 }
 
 // NewSegmentRsv creates a new segment reservation in the DB, with an unused reservation ID.
