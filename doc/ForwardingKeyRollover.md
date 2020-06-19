@@ -131,14 +131,14 @@ remaining lifetime is greater than key lifetime), or no valid key might exist at
 current time.
 
 The latter situation is described in the diagram below. Desired remaining
-lifetime is 3/4 of `keyLifetime`. Thus, no valid key can be found.
+lifetime is 3/4 of `KeyLifetime`. Thus, no valid key can be found.
 
 ![Invalid lifetime](fig/ForwardingKeyRollover/rollover-invalid-lifetime.png).
 
 To avoid this, we add the constraint that desired remaining lifetime be at
-smaller or equal to 1/2 of `keyLifetime`. If an AS wants paths to have maximum
+smaller or equal to 1/2 of `KeyLifetime`. If an AS wants paths to have maximum
 lifetime while having constant remaining lifetime, then desired remaining
-lifetime can be set to 1/2 `keyLifetime`.
+lifetime can be set to 1/2 `KeyLifetime`.
 
 ### Implementing the BS
 
@@ -151,7 +151,7 @@ The BS needs to compute two values:
 
 The `ExpirationField` depends on the policy of desired remaining HF lifetime.
 Taking into account **Property 5**, we select a constant desired remaining HF
-lifetime of half of `keyLifetime`.
+lifetime of half of `KeyLifetime`.
 
 Let `DesiredRemainingLifetime` be the time the HF is going to be valid for,
 relative to current time. This is a value chosen by AS security policy; the
@@ -189,10 +189,10 @@ First, the secret key needs to be computed from the `MasterKey`. The function we
 recommend is:
 
 ```text
-Key = HKDF(pad128(2*ExpirationTime//KeyLifetime) - 1) || MasterKey
+Key = HKDF(pad128(2*ExpirationTime//KeyLifetime - 1) || MasterKey)
 ```
 
-where `pad128` is a padding function to a bit-length of 128, `||` is the bit
+where `pad128` is a left padding function to a bit-length of 128, `||` is the bit
 concatentation operator, `//` is integer division with integer quotient, and
 `MasterKey` is a shared secret of the AS. How to disseminate `MasterKey` is up
 for discussion, with the solution of storing it in a file on-disk being the
@@ -218,7 +218,7 @@ such. If the check is successful, then the same function as in the BS can be
 used to compute the key:
 
 ```text
-Key = HKDF(pad128(2*ExpirationTime//KeyLifetime) - 1) || MasterKey
+Key = HKDF(pad128(2*ExpirationTime//KeyLifetime - 1) || MasterKey)
 ```
 
 If `Key` is not valid at `CurrentTime`, then HF verification MUST fail.
