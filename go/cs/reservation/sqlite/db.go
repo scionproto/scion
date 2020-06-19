@@ -244,13 +244,18 @@ func (x *executor) SetSegmentIndexActive(ctx context.Context, rsv *segment.Reser
 	}
 	suffix := binary.BigEndian.Uint32(rsv.ID.Suffix[:])
 	err = db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
-		const query = `UPDATE seg_reservation SET active_index = $3 WHERE
-			id_as = $1 AND id_suffix = $2`
-		_, err := tx.ExecContext(ctx, query, rsv.ID.ASID, suffix, idx)
+		const query = `UPDATE seg_reservation SET active_index = $1 WHERE
+			id_as = $2 AND id_suffix = $3`
+		_, err := tx.ExecContext(ctx, query, idx, rsv.ID.ASID, suffix)
 		if err != nil {
 			return err
 		}
-		return updateIndex(ctx, tx, &rsv.ID, index)
+		err = updateIndex(ctx, tx, &rsv.ID, index)
+		if err != nil {
+			return err
+		}
+		preserveIDs := getIdxsFromRsv(rsv)
+		return removeSegIndicesExcept(ctx, tx, &rsv.ID, preserveIDs)
 	})
 	return err
 }
@@ -510,3 +515,36 @@ func updateIndex(ctx context.Context, x db.Sqler, rsvID *reservation.SegmentID,
 	}
 	return err
 }
+
+func getIdxsFromRsv(rsv *segment.Reservation) []reservation.IndexNumber {
+	idxs := make([]reservation.IndexNumber, len(rsv.Indices))
+	for i := range rsv.Indices {
+		idxs[i] = rsv.Indices[i].Idx
+	}
+	return idxs
+}
+
+func removeSegIndicesExcept(ctx context.Context, x db.Sqler, rsvID *reservation.SegmentID,
+	preserveIDs []reservation.IndexNumber) error {
+
+	params := make([]interface{}, len(preserveIDs)+1+2)
+	suffix := binary.BigEndian.Uint32(rsvID.Suffix[:])
+	params[0] = rsvID.ASID
+	params[1] = suffix
+	params[2] = 255 // add an inexistent one so len>0
+	for i := 3; i < len(params); i++ {
+		params[i] = preserveIDs[i-3]
+	}
+	const queryTmpl = `DELETE FROM seg_index WHERE reservation = (
+		SELECT row_id FROM seg_reservation WHERE id_as = ? AND id_suffix = ?
+		) AND index_number NOT IN (?%s);`
+	query := fmt.Sprintf(queryTmpl, strings.Repeat(",?", len(preserveIDs)))
+	res, err := x.ExecContext(ctx, query, params...)
+	if err != nil {
+		return err
+	}
+	_, err = res.RowsAffected()
+	return err
+}
+
+// TODO(juagargi) consider removing all update/create methods and leave just a StoreRsv(Reservation)
