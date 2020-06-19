@@ -44,6 +44,7 @@ func TestDB(t *testing.T, db TestableDB) {
 		"get segment reservations from src/dst": testGetSegmentRsvsFromSrcDstIA,
 		"get segment reservation from path":     testGetSegmentRsvFromPath,
 		"get segment reservation from IF pair":  testGetSegmentRsvsFromIFPair,
+		"update segment index":                  testUpdateSegmentIndex,
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -56,6 +57,7 @@ func TestDB(t *testing.T, db TestableDB) {
 
 func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	r := newTestReservation(t)
+	r.Path = segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
 	r.Indices = segment.Indices{}
 	// no indices
 	err := db.NewSegmentRsv(ctx, r)
@@ -69,6 +71,9 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	require.Equal(t, xtest.MustParseHexString("00000001"), r.ID.Suffix[:])
 	require.Len(t, r.Indices, 1)
 	require.Equal(t, *token, r.Indices[0].Token)
+	// same path should fail
+	err = db.NewSegmentRsv(ctx, r)
+	require.Error(t, err)
 }
 
 func testNewSegmentRsvWithID(ctx context.Context, t *testing.T, db backend.DB) {
@@ -280,6 +285,32 @@ func testGetSegmentRsvsFromIFPair(ctx context.Context, t *testing.T, db backend.
 	// bad query
 	_, err = db.GetSegmentRsvsFromIFPair(ctx, nil, nil)
 	require.Error(t, err)
+}
+
+func testUpdateSegmentIndex(ctx context.Context, t *testing.T, db backend.DB) {
+	r := newTestReservation(t)
+	idx, err := r.NewIndex(time.Unix(1, 0), r.Indices[0].Token)
+	require.NoError(t, err)
+	err = db.NewSegmentRsv(ctx, r)
+	require.NoError(t, err)
+	rsv, err := db.GetSegmentRsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	index, err := r.Index(idx)
+	require.NoError(t, err)
+	// change the last index
+	index.Expiration = time.Unix(123, 0)
+	err = r.SetIndexConfirmed(idx)
+	require.NoError(t, err)
+	index.MinBW = 10
+	index.MaxBW = 11
+	index.AllocBW = 12
+	index.Token.BWCls = 8
+	require.NotEqual(t, r, rsv) // obvious
+	err = db.UpdateSegmentIndex(ctx, r, idx)
+	require.NoError(t, err)
+	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Equal(t, r, rsv)
 }
 
 // newToken just returns a token that can be serialized. This one has two HopFields.

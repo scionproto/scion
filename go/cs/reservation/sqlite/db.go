@@ -491,11 +491,22 @@ func updateIndex(ctx context.Context, x db.Sqler, rsvID *reservation.SegmentID,
 
 	suffix := binary.BigEndian.Uint32(rsvID.Suffix[:])
 	token := index.Token.ToRaw()
-	const query = `UPDATE seg_index SET expiration = $4, state = $5, min_bw = $6, max_bw = $7,
-			alloc_bw = $8,token = $9 WHERE index_number = $1 AND reservation = (
-				SELECT row_id FROM seg_reservation WHERE id_as = $2 AND id_suffix = $3
+	const query = `UPDATE seg_index SET expiration = $1, state = $2, min_bw = $3, max_bw = $4,
+			alloc_bw = $5,token = $6 WHERE index_number = $7 AND reservation = (
+				SELECT row_id FROM seg_reservation WHERE id_as = $8 AND id_suffix = $9
 			);`
-	_, err := x.ExecContext(ctx, query, index.Idx, rsvID.ASID, suffix,
-		index.Expiration.Unix(), index.State, index.MinBW, index.MaxBW, index.AllocBW, token)
+	res, err := x.ExecContext(ctx, query, index.Expiration.Unix(), index.State(), index.MinBW,
+		index.MaxBW, index.AllocBW, token, index.Idx, rsvID.ASID, suffix)
+	if err != nil {
+		return err
+	}
+	nr, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if nr != 1 {
+		return serrors.New("index for reservation not found in db", "idx", index.Idx,
+			"asid", rsvID.ASID.String(), "suffix", suffix)
+	}
 	return err
 }
