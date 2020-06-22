@@ -23,9 +23,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
-	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -43,65 +41,57 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/proto"
 )
 
-func TestCreateCSR(t *testing.T) {
-	input := `
-{
-	"common_name": "bern",
-	"country": "CH",
-	"organization": "bern",
-	"organizational_unit": "bern InfoSec Squad",
-	"locality": "bern",
-	"isd_as": "1-ff00:0:110"
-}
-`
+func TestCSRTemplate(t *testing.T) {
 	wantSubject := pkix.Name{
-		CommonName:         "bern",
+		CommonName:         "1-ff00:0:111 AS Certificate",
 		Country:            []string{"CH"},
-		Locality:           []string{"bern"},
-		Organization:       []string{"bern"},
-		OrganizationalUnit: []string{"bern InfoSec Squad"},
+		Organization:       []string{"1-ff00:0:111"},
+		OrganizationalUnit: []string{"1-ff00:0:111 InfoSec Squad"},
+		Locality:           []string{"Zürich"},
+		Province:           []string{"Zürich"},
 		ExtraNames: []pkix.AttributeTypeAndValue{
 			{
 				Type:  asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 55324, 1, 2, 1},
-				Value: "1-ff00:0:110",
+				Value: "1-ff00:0:111",
 			},
 		},
 	}
-
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	chain, err := cppki.ReadPEMCerts("testdata/renew/ISD1-ASff00_0_111.pem")
 	require.NoError(t, err)
 
 	testCases := map[string]struct {
-		input []byte
-		want  pkix.Name
+		File         string
+		Expected     pkix.Name
+		ErrAssertion assert.ErrorAssertionFunc
 	}{
 		"valid": {
-			input: []byte(input),
-			want:  wantSubject,
+			File:         "testdata/renew/ISD1-ASff00_0_111.csr.json",
+			Expected:     wantSubject,
+			ErrAssertion: assert.NoError,
+		},
+		"from chain": {
+			File:         "",
+			Expected:     wantSubject,
+			ErrAssertion: assert.NoError,
+		},
+		"no ISD-AS": {
+			File:         "testdata/renew/no_isd_as.json",
+			ErrAssertion: assert.Error,
 		},
 	}
-
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			n := subjectVars{}
-			require.NoError(t, json.Unmarshal(tc.input, &n))
-
-			csr, err := buildCSR(n, key)
-			require.NoError(t, err)
-
-			got, err := x509.ParseCertificateRequest(csr)
-			require.NoError(t, err)
-			ia, err := cppki.ExtractIA(got.Subject)
-			require.NoError(t, err)
-			assert.Equal(t, "1-ff00:0:110", ia.String())
-			assert.Equal(t, x509.ECDSAWithSHA512, got.SignatureAlgorithm)
-			// TODO(karampok). compare pkixName
-			// assert.Equal(t, tc.want, got.Subject)
+			csr, err := csrTemplate(chain, tc.File)
+			tc.ErrAssertion(t, err)
+			if err != nil {
+				return
+			}
+			assert.Equal(t, x509.ECDSAWithSHA512, csr.SignatureAlgorithm)
+			assert.Equal(t, tc.Expected.String(), csr.Subject.String())
 		})
 	}
 }
@@ -134,59 +124,45 @@ func TestBuildMsgr(t *testing.T) {
 	}
 }
 
-func TestRunRenew(t *testing.T) {
-	goldenDir := "testdata/renew"
-
+func TestRenew(t *testing.T) {
+	trc := xtest.LoadTRC(t, "testdata/renew/ISD1-B1-S1.trc")
 	key, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	require.NoError(t, err)
-	trc := xtest.LoadTRC(t, filepath.Join(goldenDir, "ISD1-B1-S1.trc"))
-	validSignS := func(msg []byte, rawIA string) *proto.SignS {
-		ia, _ := addr.IAFromString(rawIA)
-		signer := trust.Signer{
-			PrivateKey:   key,
-			Hash:         crypto.SHA512,
-			IA:           ia,
-			TRCID:        trc.TRC.ID,
-			SubjectKeyID: []byte("subject-key-id"),
-			Expiration:   time.Now().Add(20 * time.Hour),
-		}
-		meta, err := signer.Sign(context.Background(), msg)
-		require.NoError(t, err)
-		return meta
-	}
-
-	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
+	csr := []byte("dummy")
 
 	testCases := map[string]struct {
-		csr                         []byte
-		input                       string
-		localIA, remoteIA           addr.IA
-		msgr                        func() infra.Messenger
-		transportCert, transportKey string
+		Remote addr.IA
+		Msgr   func(t *testing.T, mctrl *gomock.Controller) infra.Messenger
 	}{
 		"valid": {
-			csr:           []byte("dummy"),
-			localIA:       xtest.MustParseIA("1-ff00:0:111"),
-			remoteIA:      xtest.MustParseIA("1-ff00:0:110"),
-			transportCert: "testdata/renew/ISD1-ASff00_0_111.pem",
-			transportKey:  "testdata/renew/cp-as.key",
-			msgr: func() infra.Messenger {
-				c := [][]*x509.Certificate{xtest.LoadChain(t,
-					filepath.Join(goldenDir, "ISD1-ASff00_0_111.pem"))}
+			Remote: xtest.MustParseIA("1-ff00:0:110"),
+			Msgr: func(t *testing.T, mctrl *gomock.Controller) infra.Messenger {
+				c := xtest.LoadChain(t, "testdata/renew/ISD1-ASff00_0_111.pem")
 				raw := []byte{}
-				raw = append(raw, c[0][0].Raw...)
-				raw = append(raw, c[0][1].Raw...)
-				sign := validSignS(raw, "1-ff00:0:111")
+				raw = append(raw, c[0].Raw...)
+				raw = append(raw, c[1].Raw...)
+
+				signer := trust.Signer{
+					PrivateKey:   key,
+					Hash:         crypto.SHA512,
+					IA:           xtest.MustParseIA("1-ff00:0:110"),
+					TRCID:        trc.TRC.ID,
+					SubjectKeyID: []byte("subject-key-id"),
+					Expiration:   time.Now().Add(20 * time.Hour),
+				}
+				meta, err := signer.Sign(context.Background(), raw)
+				require.NoError(t, err)
+
 				rep := &cert_mgmt.ChainRenewalReply{
 					RawChain:  raw,
-					Signature: sign,
+					Signature: meta,
 				}
+
 				// TODO(karampok). Build matchers instead of gomock.Any()
 				// we have to verify that the req is valid signature wise.
 				m := mock_infra.NewMockMessenger(mctrl)
-				m.EXPECT().RequestChainRenewal(ctxMatcher{},
-					gomock.Any(), gomock.Any(), gomock.Any()).Return(rep, nil).Times(1)
+				m.EXPECT().RequestChainRenewal(ctxMatcher{}, gomock.Any(), gomock.Any(),
+					gomock.Any()).Return(rep, nil)
 				return m
 			},
 		},
@@ -196,13 +172,22 @@ func TestRunRenew(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+			mctrl := gomock.NewController(t)
+			defer mctrl.Finish()
 
-			chain, err := runRenew(context.Background(), tc.csr, tc.localIA, tc.remoteIA,
-				trc, tc.transportCert, tc.transportKey, tc.msgr())
+			signer := trust.Signer{
+				PrivateKey:   key,
+				Hash:         crypto.SHA512,
+				IA:           xtest.MustParseIA("1-ff00:0:111"),
+				TRCID:        trc.TRC.ID,
+				SubjectKeyID: []byte("subject-key-id"),
+				Expiration:   time.Now().Add(20 * time.Hour),
+			}
+
+			chain, err := renew(context.Background(), csr, tc.Remote, signer, tc.Msgr(t, mctrl))
 			require.NoError(t, err)
 			err = cppki.ValidateChain(chain)
 			require.NoError(t, err)
-
 		})
 	}
 }

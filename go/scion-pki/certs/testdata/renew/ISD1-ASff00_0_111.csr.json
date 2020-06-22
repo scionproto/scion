@@ -1,0 +1,9 @@
+{
+    "common_name": "1-ff00:0:111 AS Certificate",
+    "country": "CH",
+    "organization": "1-ff00:0:111",
+    "organizational_unit": "1-ff00:0:111 InfoSec Squad",
+    "locality": "Zürich",
+    "province": "Zürich",
+    "isd_as": "1-ff00:0:111"
+}

@@ -28,7 +28,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"strings"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -50,16 +50,16 @@ import (
 )
 
 type subjectVars struct {
-	CommonName         string `json:"common_name,omitempty"`
-	Country            string `json:"country,omitempty"`
-	ISDAS              string `json:"isd_as,omitempty"`
-	Locality           string `json:"locality,omitempty"`
-	Organization       string `json:"organization,omitempty"`
-	OrganizationalUnit string `json:"organizational_unit,omitempty"`
-	PostalCode         string `json:"postal_code,omitempty"`
-	Province           string `json:"province,omitempty"`
-	SerialNumber       string `json:"serial_number,omitempty"`
-	StreetAddress      string `json:"street_address,omitempty"`
+	CommonName         string  `json:"common_name,omitempty"`
+	Country            string  `json:"country,omitempty"`
+	ISDAS              addr.IA `json:"isd_as,omitempty"`
+	Locality           string  `json:"locality,omitempty"`
+	Organization       string  `json:"organization,omitempty"`
+	OrganizationalUnit string  `json:"organizational_unit,omitempty"`
+	PostalCode         string  `json:"postal_code,omitempty"`
+	Province           string  `json:"province,omitempty"`
+	SerialNumber       string  `json:"serial_number,omitempty"`
+	StreetAddress      string  `json:"street_address,omitempty"`
 }
 
 func newRenewCmd() *cobra.Command {
@@ -80,41 +80,109 @@ func newRenewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "renew",
 		Short: "Renew AS certificate",
-		Args:  cobra.MinimumNArgs(1),
-		Example: strings.Join([]string{
-			"scion-pki certs renew",
-			"--template vars.json",
-			"--key /path/to/cp-as.key",
-			"--transportcert /path/to/ISD1-ASff00_0_112.pem",
-			"--transportkey /path/tocp-as.key",
-			"--trc /path/to/ISD1-B1-S1.trc",
-			"--timeout 5s",
-			"--out ISD1-ASff00_0_110.new.pem",
-			"1-ff00:0:110"}, " \\\n\t"),
+		Args:  cobra.MaximumNArgs(1),
+		Example: `  scion-pki certs renew
+	--key cp-as.key \
+	--transportcert ISD1-ASff00_0_112.pem \
+	--transportkey cp-as.key \
+	--trc ISD1-B1-S1.trc
+
+  scion-pki certs renew
+	--key fresh.key \
+	--transportcert ISD1-ASff00_0_112.pem \
+	--transportkey cp-as.key \
+	--trc ISD1-B1-S1.trc \
+	--template csr.json \
+	  1-ff00:0:110
+		`,
+		Long: `'renew' sends a certificate chain renewal request to the CA control service.
+
+The transport certificate chain and key are used to sign the renewal requests.
+In order for the CA to be able to verify the request, the chain must already
+be known to the CA. Either through an out-of-bound bootstrapping mechanism where
+the CA preloads it, or from a previous certificate chain renewal.
+
+The TRC is used to validate and verify the renewed certificate chain. Ensure
+that it contains the root certificate that the CA is using.
+
+The renewed certificate chain is written to the file system, if it is verifiable
+with the supplied TRC. In case the out flag is not specified, the chain is
+written to 'ISDx-ASy.s.pem' in the same directory as the transport certificate
+chain, where x is the ISD number, y is the AS number, and s is the hex encoded
+serial number of the AS certificate in the renewed certificate chain. If the
+chain verification against the TRC fails, the renewed certificate chain is
+written to the out file with the suffix '.unverified' and the command fails.
+
+The positional argument is the ISD-AS of the CA where the renewal request is
+sent to. If it is not set, the ISD-AS is extracted from the transport
+certificate chain.
+
+Unless a template is specified, the subject of the transport certificate chain
+is used as the subject for the renewal request.
+
+The template is expressed in JSON. A valid example:
+
+  {
+    "common_name": "1-ff00:0:110 AS certificate",
+    "country": "CH",
+    "isd_as": "1-ff00:0:110"
+  }
+
+All configurable fields with their type are defined by the following JSON
+schema. For more information on JSON schemas, see https://json-schema.org/.
+
+  {
+    "type": "object",
+    "properties": {
+      "isd_as":              { "type": "string" },
+      "common_name":         { "type": "string" },
+      "country":             { "type": "string" },
+      "locality":            { "type": "string" },
+      "organization":        { "type": "string" },
+      "organizational_unit": { "type": "string" },
+      "postal_code":         { "type": "string" },
+      "province":            { "type": "string" },
+      "serial_number":       { "type": "string" },
+      "street_address":      { "type": "string" },
+    },
+    "required": ["isd_as"]
+  }
+		`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			remoteIA, err := addr.IAFromString(args[0])
-			if err != nil {
-				return err
+			var ca addr.IA
+			if len(args) != 0 {
+				var err error
+				if ca, err = addr.IAFromString(args[0]); err != nil {
+					return err
+				}
 			}
 			cmd.SilenceUsage = true
+
 			log.Setup(log.Config{Console: log.ConsoleConfig{Level: "crit"}})
 
 			trc, err := loadTRC(flags.trcFilePath)
 			if err != nil {
 				return err
 			}
-
-			// Step 1. create CSR.
-			vars, err := readVars(flags.templateFile)
+			chain, transportCA, err := loadChain(trc, flags.transportCertFile)
 			if err != nil {
 				return err
 			}
+			if ca.IsZero() {
+				ca = transportCA
+				fmt.Println("Extracted remote from transport certificate chain: ", ca)
+			}
 
+			// Step 1. create CSR.
+			tmpl, err := csrTemplate(chain, flags.templateFile)
+			if err != nil {
+				return err
+			}
 			key, err := readECKey(flags.keyFile)
 			if err != nil {
 				return err
 			}
-			csr, err := buildCSR(vars, key)
+			csr, err := x509.CreateCertificateRequest(rand.Reader, tmpl, key)
 			if err != nil {
 				return err
 			}
@@ -133,7 +201,7 @@ func newRenewCmd() *cobra.Command {
 			}
 
 			remote := &snet.UDPAddr{
-				IA: remoteIA,
+				IA: ca,
 			}
 			disp := reliable.NewDispatcher(flags.dispatcherPath)
 			msgr, err := buildMsgr(ctx, disp, sds, local, remote)
@@ -142,30 +210,42 @@ func newRenewCmd() *cobra.Command {
 			}
 
 			// Step 3. renewal scion call.
-			chain, err := runRenew(ctx, csr, local.IA, remote.IA, trc,
-				flags.transportCertFile, flags.transportKeyFile, msgr)
+			signer, err := createSigner(local.IA, trc, chain, flags.transportKeyFile)
+			if err != nil {
+				return err
+			}
+			renewed, err := renew(ctx, csr, remote.IA, signer, msgr)
 			if err != nil {
 				return err
 			}
 
+			out := flags.outFile
+			if out == "" {
+				out = outFileFromSubject(renewed, filepath.Dir(flags.transportCertFile))
+			}
+
 			// Step 4. verify with trc.
-			if err := cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: &trc.TRC}); err != nil {
+			if err := cppki.VerifyChain(renewed, cppki.VerifyOptions{TRC: &trc.TRC}); err != nil {
+				out += ".unverified"
+				fmt.Println("Verification failed, writing chain: ", out)
+				if err := writeChain(renewed, out); err != nil {
+					fmt.Println("Failed to write unverified chain: ", err)
+				}
 				return serrors.WrapStr("verification failed", err)
 			}
 
 			// Step 5. write to disk.
-			if err := writeChain(chain, flags.outFile); err != nil {
+			if err := writeChain(renewed, out); err != nil {
 				return err
 			}
 
-			fmt.Printf("Successfully wrote new chain at %s\n", flags.outFile)
+			fmt.Printf("Successfully wrote new chain at %s\n", out)
 			return nil
 		},
 	}
 
 	cmd.Flags().StringVar(&flags.templateFile, "template", "",
-		"File with data for the CSR in json format (required)")
-	cmd.MarkFlagRequired("template")
+		"File with data for the CSR in json format")
 	cmd.Flags().StringVar(&flags.keyFile, "key", "",
 		"Private key file to sign the CSR (required)")
 	cmd.MarkFlagRequired("key")
@@ -186,29 +266,35 @@ func newRenewCmd() *cobra.Command {
 	cmd.Flags().IPVarP(&flags.listen, "local", "l", nil,
 		"Optional local IP address")
 	cmd.Flags().StringVar(&flags.outFile, "out", "",
-		"File where renewed certificate chain is written (required)")
-	cmd.MarkFlagRequired("out")
+		"File where renewed certificate chain is written")
 
 	return cmd
 }
 
-func runRenew(ctx context.Context, csr []byte, srcIA, dstIA addr.IA, trc cppki.SignedTRC,
-	TransportCertFile, TransportKeyFile string, msgr infra.Messenger) ([]*x509.Certificate, error) {
-	chain, err := cppki.ReadPEMCerts(TransportCertFile)
+func loadChain(trc cppki.SignedTRC, file string) ([]*x509.Certificate, addr.IA, error) {
+	chain, err := cppki.ReadPEMCerts(file)
 	if err != nil {
-		return nil, err
-	}
-	if len(chain) == 0 {
-		return nil, serrors.New("no transport certificate was found")
+		return nil, addr.IA{}, err
 	}
 	if err := cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: &trc.TRC}); err != nil {
-		return nil, serrors.WrapStr("verification of transport cert failed with provided TRC", err)
+		return nil, addr.IA{}, serrors.WrapStr(
+			"verification of transport cert failed with provided TRC", err)
 	}
-	key, err := readECKey(TransportKeyFile)
+	ia, err := cppki.ExtractIA(chain[0].Issuer)
+	if err != nil || ia == nil {
+		panic("chain is already validated")
+	}
+	return chain, *ia, nil
+}
+
+func createSigner(srcIA addr.IA, trc cppki.SignedTRC, chain []*x509.Certificate,
+	keyFile string) (trust.Signer, error) {
+
+	key, err := readECKey(keyFile)
 	if err != nil {
-		return nil, err
+		return trust.Signer{}, err
 	}
-	req, err := renewal.NewChainRenewalRequest(ctx, csr, trust.Signer{
+	signer := trust.Signer{
 		PrivateKey:   key,
 		Hash:         crypto.SHA512,
 		IA:           srcIA,
@@ -219,7 +305,14 @@ func runRenew(ctx context.Context, csr []byte, srcIA, dstIA addr.IA, trc cppki.S
 			NotBefore: chain[0].NotBefore,
 			NotAfter:  chain[0].NotAfter,
 		},
-	})
+	}
+	return signer, nil
+}
+
+func renew(ctx context.Context, csr []byte, dstIA addr.IA, signer trust.Signer,
+	msgr infra.Messenger) ([]*x509.Certificate, error) {
+
+	req, err := renewal.NewChainRenewalRequest(ctx, csr, signer)
 	if err != nil {
 		return nil, err
 	}
@@ -238,29 +331,49 @@ func runRenew(ctx context.Context, csr []byte, srcIA, dstIA addr.IA, trc cppki.S
 	return rep.Chain()
 }
 
-func buildCSR(c subjectVars, key *ecdsa.PrivateKey) ([]byte, error) {
+func csrTemplate(chain []*x509.Certificate, tmpl string) (*x509.CertificateRequest, error) {
+	if tmpl == "" {
+		s := chain[0].Subject
+		s.ExtraNames = s.Names
+		return &x509.CertificateRequest{
+			Subject:            s,
+			SignatureAlgorithm: x509.ECDSAWithSHA512,
+		}, nil
+	}
+	vars, err := readVars(tmpl)
+	if err != nil {
+		return nil, serrors.WrapStr("reading template", err)
+	}
+	if vars.ISDAS.IsZero() {
+		return nil, serrors.New("isd_as required in template")
+	}
 	s := pkix.Name{
-		CommonName:         c.CommonName,
-		Country:            []string{c.Country},
-		Organization:       []string{c.Organization},
-		OrganizationalUnit: []string{c.OrganizationalUnit},
-		Locality:           []string{c.Locality},
-		Province:           []string{c.Province},
-		StreetAddress:      []string{c.StreetAddress},
-		PostalCode:         []string{c.PostalCode},
-		SerialNumber:       c.SerialNumber,
+		CommonName:   vars.CommonName,
+		SerialNumber: vars.SerialNumber,
 		ExtraNames: []pkix.AttributeTypeAndValue{
 			{
 				Type:  cppki.OIDNameIA,
-				Value: c.ISDAS,
+				Value: vars.ISDAS.String(),
 			},
 		},
 	}
-	csrTemplate := x509.CertificateRequest{
+	for field, value := range map[*[]string]string{
+		&s.Country:            vars.Country,
+		&s.Organization:       vars.Organization,
+		&s.OrganizationalUnit: vars.OrganizationalUnit,
+		&s.Locality:           vars.Locality,
+		&s.Province:           vars.Province,
+		&s.StreetAddress:      vars.StreetAddress,
+		&s.PostalCode:         vars.PostalCode,
+	} {
+		if value != "" {
+			*field = []string{value}
+		}
+	}
+	return &x509.CertificateRequest{
 		Subject:            s,
 		SignatureAlgorithm: x509.ECDSAWithSHA512,
-	}
-	return x509.CreateCertificateRequest(rand.Reader, &csrTemplate, key)
+	}, nil
 }
 
 func buildMsgr(ctx context.Context, ds reliable.Dispatcher, sds sciond.Service,
@@ -269,7 +382,15 @@ func buildMsgr(ctx context.Context, ds reliable.Dispatcher, sds sciond.Service,
 	if err != nil {
 		return nil, serrors.WrapStr("connecting to SCION Daemon", err)
 	}
-	sn := snet.NewNetwork(local.IA, ds, sciond.RevHandler{Connector: sdConn})
+	sn := &snet.SCIONNetwork{
+		LocalIA: local.IA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
+			Dispatcher: ds,
+			SCMPHandler: snet.NewSCMPHandler(
+				sciond.RevHandler{Connector: sdConn},
+			),
+		},
+	}
 	conn, err := sn.Dial(ctx, "udp", local.Host, remote, addr.SvcNone)
 	if err != nil {
 		return nil, serrors.WrapStr("dialing", err)
@@ -368,6 +489,15 @@ func findLocalAddr(ctx context.Context, sds sciond.Service) (*snet.UDPAddr, erro
 		IA:   localIA,
 		Host: &net.UDPAddr{IP: localIP},
 	}, nil
+}
+
+func outFileFromSubject(renewed []*x509.Certificate, dir string) string {
+	subject, err := cppki.ExtractIA(renewed[0].Subject)
+	if err != nil || subject == nil {
+		panic("chain is already validated")
+	}
+	return filepath.Join(dir, fmt.Sprintf("ISD%d-AS%s.%x.pem", subject.I, subject.A.FileFmt(),
+		renewed[0].SerialNumber.Bytes()))
 }
 
 type svcRouter struct {

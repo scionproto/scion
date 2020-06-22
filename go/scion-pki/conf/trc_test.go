@@ -40,7 +40,11 @@ func TestUpdateCerts(t *testing.T) {
 	defer cleanF()
 
 	cmd := exec.Command("sh", "-c", "./testdata/update_certs.sh")
-	cmd.Env = []string{"SAFEDIR=" + dir}
+	cmd.Env = []string{
+		"SAFEDIR=" + dir,
+		"STARTDATE=20200624120000Z",
+		"ENDDATE=20250624120000Z",
+	}
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, string(out))
 
@@ -52,6 +56,10 @@ func TestUpdateCerts(t *testing.T) {
 }
 
 func TestLoadTRC(t *testing.T) {
+	if *update {
+		t.Skip("test crypto is being updated")
+	}
+
 	testCases := map[string]struct {
 		file      string
 		cfg       conf.TRC
@@ -77,6 +85,10 @@ func TestLoadTRC(t *testing.T) {
 }
 
 func TestTRCCertificates(t *testing.T) {
+	if *update {
+		t.Skip("test crypto is being updated")
+	}
+
 	rVoting := loadCert(t, "testdata/regular-voting.crt")
 	sVoting := loadCert(t, "testdata/sensitive-voting.crt")
 	testCases := map[string]struct {

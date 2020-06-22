@@ -132,7 +132,6 @@ class TestRun(CmdBase):
 
         chain = cs_dir / 'crypto/as/renewed.pem'
         args = [
-            '--template', cs_dir / 'crypto/as/csr.json',
             '--key', cs_dir / 'crypto/as/renewed.key',
             '--transportkey', cs_dir / 'crypto/as/cp-as.key',
             '--transportcert', cs_dir / ('crypto/as/ISD%s-AS%s.pem' % (
@@ -140,7 +139,6 @@ class TestRun(CmdBase):
             '--trc', cs_dir / 'certs/ISD1-B1-S1.trc',
             '--out', chain,
             '--sciond', sciond_addr(isd_as),
-            '1-ff00:0:110',
         ]
         if not self.no_docker:
             chain.touch()
