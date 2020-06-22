@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
-	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -51,6 +50,11 @@ type RPC interface {
 	RegisterSegment(ctx context.Context, meta seg.Meta, remote net.Addr) error
 }
 
+// Pather computes the remote address with a path based on the provided segment.
+type Pather interface {
+	GetPath(svc addr.HostSVC, ps *seg.PathSegment) (net.Addr, error)
+}
+
 var _ periodic.Task = (*Registrar)(nil)
 
 // Registrar is used to periodically register path segments with the appropriate
@@ -61,12 +65,11 @@ type Registrar struct {
 	Provider SegmentProvider
 	Store    SegmentStore
 	RPC      RPC
+	Pather   Pather
 	IA       addr.IA
 	Signer   ctrl.Signer
 	Intfs    *ifstate.Interfaces
 	Type     proto.PathSegType
-
-	TopoProvider topology.Provider // FIXME(roosd): reduce this to the minimal required interface.
 
 	// tick is mutable.
 	Tick     Tick
@@ -134,11 +137,11 @@ func (r *Registrar) registerRemote(ctx context.Context, segments <-chan beacon.B
 		}
 		expected++
 		s := remoteRegistrar{
-			segType:      r.Type,
-			rpc:          r.RPC,
-			topoProvider: r.TopoProvider,
-			summary:      s,
-			wg:           &wg,
+			segType: r.Type,
+			rpc:     r.RPC,
+			pather:  r.Pather,
+			summary: s,
+			wg:      &wg,
 		}
 
 		// Avoid head-of-line blocking when sending message to slow servers.
@@ -210,18 +213,18 @@ func (r *Registrar) logSummary(logger log.Logger, s *summary) {
 
 // remoteRegistrar registers one segment with the path server.
 type remoteRegistrar struct {
-	segType      proto.PathSegType
-	rpc          RPC
-	topoProvider topology.Provider
-	summary      *summary
-	wg           *sync.WaitGroup
+	segType proto.PathSegType
+	rpc     RPC
+	pather  Pather
+	summary *summary
+	wg      *sync.WaitGroup
 }
 
 // start extends the beacon and starts a go routine that registers the beacon
 // with the path server.
 func (r *remoteRegistrar) start(ctx context.Context, bseg beacon.Beacon) {
 	logger := log.FromCtx(ctx)
-	addr, err := addrutil.GetPath(addr.SvcPS, bseg.Segment, r.topoProvider)
+	addr, err := r.pather.GetPath(addr.SvcPS, bseg.Segment)
 	if err != nil {
 		metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
 		logger.Error("[beaconing.Registrar] Unable to choose server", "err", err)

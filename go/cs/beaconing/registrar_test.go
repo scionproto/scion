@@ -44,6 +44,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
@@ -102,14 +103,14 @@ func TestRegistrarRun(t *testing.T) {
 					MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 					StaticInfo: func() *StaticInfoCfg { return nil },
 				},
-				IA:           topoProvider.Get().IA(),
-				Signer:       testSigner(t, priv, topoProvider.Get().IA()),
-				Intfs:        intfs,
-				Tick:         NewTick(time.Hour),
-				Provider:     segProvider,
-				Store:        segStore,
-				TopoProvider: topoProvider,
-				Type:         test.segType,
+				IA:       topoProvider.Get().IA(),
+				Signer:   testSigner(t, priv, topoProvider.Get().IA()),
+				Intfs:    intfs,
+				Tick:     NewTick(time.Hour),
+				Provider: segProvider,
+				Store:    segStore,
+				Pather:   addrutil.LegacyPather{TopoProvider: topoProvider},
+				Type:     test.segType,
 			}
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
@@ -188,14 +189,14 @@ func TestRegistrarRun(t *testing.T) {
 					MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 					StaticInfo: func() *StaticInfoCfg { return nil },
 				},
-				IA:           topoProvider.Get().IA(),
-				Signer:       testSigner(t, priv, topoProvider.Get().IA()),
-				Intfs:        intfs,
-				Tick:         NewTick(time.Hour),
-				Provider:     segProvider,
-				TopoProvider: topoProvider,
-				Type:         test.segType,
-				RPC:          rpc,
+				IA:       topoProvider.Get().IA(),
+				Signer:   testSigner(t, priv, topoProvider.Get().IA()),
+				Intfs:    intfs,
+				Tick:     NewTick(time.Hour),
+				Provider: segProvider,
+				Pather:   addrutil.LegacyPather{TopoProvider: topoProvider},
+				Type:     test.segType,
+				RPC:      rpc,
 			}
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
@@ -279,13 +280,13 @@ func TestRegistrarRun(t *testing.T) {
 				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
-			IA:           topoProvider.Get().IA(),
-			Signer:       testSigner(t, priv, topoProvider.Get().IA()),
-			Intfs:        intfs,
-			Tick:         NewTick(time.Hour),
-			Provider:     segProvider,
-			TopoProvider: topoProvider,
-			Type:         proto.PathSegType_core,
+			IA:       topoProvider.Get().IA(),
+			Signer:   testSigner(t, priv, topoProvider.Get().IA()),
+			Intfs:    intfs,
+			Tick:     NewTick(time.Hour),
+			Provider: segProvider,
+			Pather:   addrutil.LegacyPather{TopoProvider: topoProvider},
+			Type:     proto.PathSegType_core,
 		}
 		res := make(chan beacon.BeaconOrErr, 3)
 		segProvider.EXPECT().SegmentsToRegister(gomock.Any(), proto.PathSegType_core).DoAndReturn(
@@ -322,14 +323,14 @@ func TestRegistrarRun(t *testing.T) {
 				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
-			IA:           topoProvider.Get().IA(),
-			Signer:       testSigner(t, priv, topoProvider.Get().IA()),
-			Intfs:        intfs,
-			Tick:         NewTick(time.Hour),
-			Provider:     segProvider,
-			TopoProvider: topoProvider,
-			Type:         proto.PathSegType_down,
-			RPC:          rpc,
+			IA:       topoProvider.Get().IA(),
+			Signer:   testSigner(t, priv, topoProvider.Get().IA()),
+			Intfs:    intfs,
+			Tick:     NewTick(time.Hour),
+			Provider: segProvider,
+			Pather:   addrutil.LegacyPather{TopoProvider: topoProvider},
+			Type:     proto.PathSegType_down,
+			RPC:      rpc,
 		}
 		g := graph.NewDefaultGraph(mctrl)
 		require.NoError(t, err)

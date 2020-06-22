@@ -16,16 +16,90 @@ package addrutil
 
 import (
 	"bytes"
+	"encoding/binary"
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 )
+
+type Pather struct {
+	// UnderlayNextHop determines the next hop underlay address for the
+	// specified interface id.
+	UnderlayNextHop func(ifID uint16) (*net.UDPAddr, bool)
+}
+
+func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (net.Addr, error) {
+	if len(ps.ASEntries) == 0 {
+		return nil, serrors.New("empty path")
+	}
+
+	beta := ps.SData.SegID
+	// The hop fields need to be in reversed order.
+	hopFields := make([]*path.HopField, len(ps.ASEntries))
+	for i, entry := range ps.ASEntries {
+		if len(entry.HopEntries) == 0 {
+			return nil, serrors.New("hop with no entry", "index", i)
+		}
+		hopFields[len(hopFields)-1-i] = &path.HopField{
+			ConsIngress: entry.HopEntries[0].HopField.ConsIngress,
+			ConsEgress:  entry.HopEntries[0].HopField.ConsEgress,
+			ExpTime:     entry.HopEntries[0].HopField.ExpTime,
+			Mac:         entry.HopEntries[0].HopField.MAC,
+		}
+		beta = beta ^ binary.BigEndian.Uint16(entry.HopEntries[0].HopField.MAC[:2])
+	}
+
+	hops := len(hopFields) - 1
+	dec := scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				CurrHF:  0,
+				CurrINF: 0,
+				SegLen:  [3]uint8{uint8(hops), 0, 0},
+			},
+			NumHops: hops,
+			NumINF:  1,
+		},
+		InfoFields: []*path.InfoField{{
+			Timestamp: ps.SData.RawTimestamp,
+			ConsDir:   false,
+			SegID:     beta,
+		}},
+		HopFields: hopFields,
+	}
+	raw := make([]byte, dec.Len())
+	if err := dec.SerializeTo(raw); err != nil {
+		return nil, serrors.WrapStr("serializing path", err)
+	}
+	ifID := dec.HopFields[0].ConsIngress
+	nextHop, ok := p.UnderlayNextHop(ifID)
+	if !ok {
+		return nil, serrors.New("first-hop border router not found", "intf_id", ifID)
+	}
+	return &snet.SVCAddr{
+		IA:      ps.FirstIA(),
+		Path:    spath.NewV2(raw),
+		NextHop: nextHop,
+		SVC:     svc,
+	}, nil
+
+}
+
+type LegacyPather struct {
+	TopoProvider topology.Provider
+}
+
+func (p LegacyPather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (net.Addr, error) {
+	return GetPath(svc, ps, p.TopoProvider)
+}
 
 // GetPath creates a path from the given segment and then creates a snet.SVCAddr.
 func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv topology.Provider) (net.Addr, error) {
