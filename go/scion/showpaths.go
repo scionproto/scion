@@ -28,22 +28,23 @@ import (
 	"github.com/scionproto/scion/go/pkg/showpaths"
 )
 
-var showpathsFlags struct {
-	timeout    time.Duration
-	cfg        showpaths.Config
-	expiration bool
-	json       bool
-}
+func newShowpaths() *cobra.Command {
+	var flags struct {
+		timeout    time.Duration
+		cfg        showpaths.Config
+		expiration bool
+		json       bool
+	}
 
-var showpathsCmd = &cobra.Command{
-	Use:     "showpaths",
-	Short:   "Display paths to a SCION AS",
-	Aliases: []string{"sp"},
-	Args:    cobra.ExactArgs(1),
-	Example: `  scion showpaths 1-ff00:0:110 --expiration
+	var cmd = &cobra.Command{
+		Use:     "showpaths",
+		Short:   "Display paths to a SCION AS",
+		Aliases: []string{"sp"},
+		Args:    cobra.ExactArgs(1),
+		Example: `  scion showpaths 1-ff00:0:110 --expiration
   scion showpaths 1-ff00:0:110 --local 127.0.0.55 --json
   scion showpaths 1-ff00:0:110 --no-probe`,
-	Long: `'showpaths' lists available paths between the local and the specified SCION ASe a.
+		Long: `'showpaths' lists available paths between the local and the specified SCION ASe a.
 
 By default, the paths are probed. Paths served from the SCION Deamon's might not
 forward traffic successfully (e.g. if a network link went down, or there is a black
@@ -51,51 +52,51 @@ hole on the path). To disable path probing, set the appropriate flag.
 
 'showpaths' can be instructed to output the paths as json using the the --json flag.
 `,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		dst, err := addr.IAFromString(args[0])
-		if err != nil {
-			return serrors.WrapStr("invalid destination ISD-AS", err)
-		}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dst, err := addr.IAFromString(args[0])
+			if err != nil {
+				return serrors.WrapStr("invalid destination ISD-AS", err)
+			}
 
-		// At this point it is reasonable to assume that the caller knows how to
-		// call the command. Silence the usage help output on error, because subsequent
-		// errors are likely not caused malformed CLI arguments.
-		// See https://github.com/spf13/cobra/issues/340
-		cmd.SilenceUsage = true
+			// At this point it is reasonable to assume that the caller knows how to
+			// call the command. Silence the usage help output on error, because subsequent
+			// errors are likely not caused malformed CLI arguments.
+			// See https://github.com/spf13/cobra/issues/340
+			cmd.SilenceUsage = true
 
-		// FIXME(roosd): This practically turns of logging done in libraries. We
-		// should not have to do this.
-		log.Setup(log.Config{Console: log.ConsoleConfig{Level: "crit"}})
+			// FIXME(roosd): This practically turns of logging done in libraries. We
+			// should not have to do this.
+			log.Setup(log.Config{Console: log.ConsoleConfig{Level: "crit"}})
 
-		ctx, cancel := context.WithTimeout(context.Background(), showpathsFlags.timeout)
-		defer cancel()
-		res, err := showpaths.Run(ctx, dst, showpathsFlags.cfg)
-		if err != nil {
-			return err
-		}
-		if showpathsFlags.json {
-			return res.JSON(os.Stdout)
-		}
-		res.Human(os.Stdout, showpathsFlags.expiration)
-		return nil
-	},
-}
+			ctx, cancel := context.WithTimeout(context.Background(), flags.timeout)
+			defer cancel()
+			res, err := showpaths.Run(ctx, dst, flags.cfg)
+			if err != nil {
+				return err
+			}
+			if flags.json {
+				return res.JSON(os.Stdout)
+			}
+			res.Human(os.Stdout, flags.expiration)
+			return nil
+		},
+	}
 
-func init() {
-	rootCmd.AddCommand(showpathsCmd)
-	showpathsCmd.Flags().StringVar(&showpathsFlags.cfg.SCIOND, "sciond",
+	cmd.Flags().StringVar(&flags.cfg.SCIOND, "sciond",
 		sciond.DefaultSCIONDAddress, "SCION Deamon address")
-	showpathsCmd.Flags().DurationVar(&showpathsFlags.timeout, "timeout", 5*time.Second, "Timeout")
-	showpathsCmd.Flags().IntVarP(&showpathsFlags.cfg.MaxPaths, "maxpaths", "m", 10,
+	cmd.Flags().DurationVar(&flags.timeout, "timeout", 5*time.Second, "Timeout")
+	cmd.Flags().IntVarP(&flags.cfg.MaxPaths, "maxpaths", "m", 10,
 		"Maximum number of paths that are displayed")
-	showpathsCmd.Flags().BoolVarP(&showpathsFlags.expiration, "expiration", "e", false,
+	cmd.Flags().BoolVarP(&flags.expiration, "expiration", "e", false,
 		"Show path expiration information")
-	showpathsCmd.Flags().BoolVarP(&showpathsFlags.cfg.Refresh, "refresh", "r", false,
+	cmd.Flags().BoolVarP(&flags.cfg.Refresh, "refresh", "r", false,
 		"Set refresh flag for SCION Deamon path request")
-	showpathsCmd.Flags().BoolVarP(&showpathsFlags.cfg.NoProbe, "no-probe", "p", false,
-		"Probe the paths and print the health status")
-	showpathsCmd.Flags().BoolVarP(&showpathsFlags.json, "json", "j", false,
+	cmd.Flags().BoolVar(&flags.cfg.NoProbe, "no-probe", false,
+		"Do not probe the paths and print the health status")
+	cmd.Flags().BoolVarP(&flags.json, "json", "j", false,
 		"Write the output as machine readable json")
-	showpathsCmd.Flags().IPVarP(&showpathsFlags.cfg.Local, "local", "l", nil,
+	cmd.Flags().IPVarP(&flags.cfg.Local, "local", "l", nil,
 		"Optional local IP address to use for probing health checks")
+
+	return cmd
 }
