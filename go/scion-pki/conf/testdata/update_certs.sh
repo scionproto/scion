@@ -2,7 +2,7 @@
 
 set -ueo pipefail
 
-PLAYGROUND=$(pwd)/../../../../../../scripts/cryptoplayground
+PLAYGROUND=$(pwd)/../../../scripts/cryptoplayground
 PUBDIR="$SAFEDIR"
 KEYDIR="$SAFEDIR"
 
@@ -20,7 +20,7 @@ sed -i \
     -e "s/{{.Location}}/$loc/g" \
     -e "s/{{.Organization}}/$loc/g" \
     -e "s/{{.OrganizationalUnit}}/$loc InfoSec Test Squad/g" \
-    -e "s/{{.ISD-AS}}/$IA/g" \
+    -e "s/{{.ISDAS}}/$IA/g" \
     basic.cnf
 for cnf in *.cnf
 do
