@@ -75,7 +75,7 @@ func sendPkts() {
 		}
 		cmn.Stats.Sent += 1
 		// More packets?
-		if cmn.Count != 0 && cmn.Stats.Sent == cmn.Count {
+		if cmn.Count != 0 && cmn.Stats.Sent == uint(cmn.Count) {
 			break
 		}
 		// Update packet fields

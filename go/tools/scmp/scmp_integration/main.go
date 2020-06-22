@@ -35,15 +35,15 @@ func realMain() int {
 	defer log.Flush()
 
 	cmnArgs := []string{
-		"-timeout", "4s",
-		"-sciond", integration.SCIOND,
-		"-remote", integration.DstAddrPattern,
+		"--timeout", "4s",
+		"--sciond", integration.SCIOND,
 	}
 	if *integration.Docker {
 		cmnArgs = append(cmnArgs,
-			"-local", integration.SrcHostReplace,
+			"--local", integration.SrcHostReplace,
 		)
 	}
+	cmnArgs = append(cmnArgs, integration.DstAddrPattern)
 
 	testCases := []struct {
 		Name string
