@@ -22,13 +22,15 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-var completionShell string
+func newCompletion() *cobra.Command {
+	var flags struct {
+		shell string
+	}
 
-// completionCmd represents the completion command
-var completionCmd = &cobra.Command{
-	Use:   "completion",
-	Short: "Generates bash completion scripts",
-	Long: `'completion' outputs the autocomplete configuration for some shells.
+	var cmd = &cobra.Command{
+		Use:   "completion",
+		Short: "Generates bash completion scripts",
+		Long: `'completion' outputs the autocomplete configuration for some shells.
 For example, you can add autocompletion for your current bash session using:
 
     . <( scion completion )
@@ -37,22 +39,20 @@ To permanently add bash autocompletion, run:
 
     scion completion > /etc/bash_completion.d/scion
 `,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		switch completionShell {
-		case "bash":
-			return rootCmd.GenBashCompletion(os.Stdout)
-		case "zsh":
-			return rootCmd.GenZshCompletion(os.Stdout)
-		case "fish":
-			return rootCmd.GenFishCompletion(os.Stdout, true)
-		default:
-			return serrors.New("unknown shell", "input", completionShell)
-		}
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(completionCmd)
-	completionCmd.Flags().StringVar(&completionShell, "shell", "bash",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			switch flags.shell {
+			case "bash":
+				return cmd.Root().GenBashCompletion(os.Stdout)
+			case "zsh":
+				return cmd.Root().GenZshCompletion(os.Stdout)
+			case "fish":
+				return cmd.Root().GenFishCompletion(os.Stdout, true)
+			default:
+				return serrors.New("unknown shell", "input", flags.shell)
+			}
+		},
+	}
+	cmd.Flags().StringVar(&flags.shell, "shell", "bash",
 		"Shell type (bash|zsh|fish)")
+	return cmd
 }

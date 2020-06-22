@@ -22,14 +22,13 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 )
 
-var versionCmd = &cobra.Command{
-	Use:   "version",
-	Short: "Show the SCION version information",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(env.VersionInfo())
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(versionCmd)
+func newVersion() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:   "version",
+		Short: "Show the SCION version information",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(env.VersionInfo())
+		},
+	}
+	return cmd
 }
