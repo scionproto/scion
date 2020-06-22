@@ -18,15 +18,17 @@ package main
 import (
 	"bufio"
 	"context"
-	"flag"
 	"fmt"
 	"net"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -36,23 +38,119 @@ import (
 	"github.com/scionproto/scion/go/tools/scmp/traceroute"
 )
 
+func init() {
+	RootCmd.PersistentFlags().BoolVarP(&cmn.Interactive, "interactive", "i", false,
+		"interactive mode")
+	RootCmd.PersistentFlags().DurationVar(&cmn.Timeout, "timeout", cmn.DefaultTimeout,
+		"timeout per packet")
+	RootCmd.PersistentFlags().StringVar(&cmn.LocalIPString, "local", "", "IP address to listen on")
+	RootCmd.PersistentFlags().StringVar(&sciondAddr, "sciond", sciond.DefaultSCIONDAddress,
+		"SCIOND address")
+	RootCmd.PersistentFlags().StringVar(&dispatcher, "dispatcher", reliable.DefaultDispPath,
+		"path to dispatcher socket")
+	RootCmd.PersistentFlags().BoolVar(&refresh, "refresh", false,
+		"set refresh flag for SCIOND path request")
+	RootCmd.PersistentFlags().BoolVar(&version, "version", false,
+		"output version information and exit")
+
+	EchoCmd.Flags().DurationVar(&cmn.Interval, "interval", cmn.DefaultInterval,
+		"time between packets")
+	EchoCmd.Flags().Uint16VarP(&cmn.Count, "count", "c", 0,
+		"total number of packets to send")
+	EchoCmd.Flags().UintVarP(&cmn.PayloadSize, "payload_size", "s", 0,
+		`number of bytes to be sent in addition to the SCION Header and SCMP echo header;
+the total size of the packet is still variable size due to the variable size of
+the SCION path.`,
+	)
+
+	RootCmd.AddCommand(
+		EchoCmd,
+		TracerouteCmd,
+		RecordpathCmd,
+	)
+
+	cmn.Stats = &cmn.ScmpStats{}
+	cmn.Start = time.Now()
+}
+
 var (
-	sciondAddr = flag.String("sciond", sciond.DefaultSCIONDAddress, "SCIOND address")
-	dispatcher = flag.String("dispatcher", reliable.DefaultDispPath, "Path to dispatcher socket")
-	refresh    = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
-	version    = flag.Bool("version", false, "Output version information and exit.")
+	sciondAddr string
+	dispatcher string
+	refresh    bool
+	version    bool
 	sdConn     sciond.Connector
 	localMtu   uint16
 )
 
 func main() {
+	if err := RootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+var (
+	RootCmd = &cobra.Command{
+		Use:   "scmp",
+		Short: "SCION Control Message Protocol network tool",
+		Long: "scmp is a tool for testing SCION networks. It is similar " +
+			"to the ping and traceroute utilities of IP networks.",
+		PersistentPostRunE: Cleanup,
+		SilenceErrors:      true,
+		Example:            "  scmp echo 1-ff00:0:1,[10.0.0.1]",
+	}
+
+	EchoCmd = &cobra.Command{
+		Use:   "echo [flags] <remote>",
+		Short: "Test connectivity to a remote SCION host using SCMP echo packets",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			cmd.SilenceUsage = true
+			Base(args[0])
+			echo.Run()
+		},
+		Example: "  scmp echo 1-ff00:0:1,[10.0.0.1]",
+	}
+
+	TracerouteCmd = &cobra.Command{
+		Use:     "traceroute [flags] <remote>",
+		Aliases: []string{"tr"},
+		Short:   "Trace the SCION route to a remote SCION AS using SCMP traceroute packets",
+		Args:    cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			cmd.SilenceUsage = true
+			Base(args[0])
+			traceroute.Run()
+		},
+		Example: "  scmp traceroute 1-ff00:0:1,[10.0.0.1]",
+	}
+
+	RecordpathCmd = &cobra.Command{
+		Use:     "recordpath [flags] <remote>",
+		Aliases: []string{"rp"},
+		Short:   "Record the SCION path to a remote SCION AS using SCMP recordpath packets",
+		Args:    cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			cmd.SilenceUsage = true
+			Base(args[0])
+			recordpath.Run()
+		},
+		Example: "  scmp recordpath 1-ff00:0:1,[10.0.0.1]",
+	}
+)
+
+func Base(remote string) {
 	var err error
-	cmd := cmn.ParseFlags(version)
 	cmn.ValidateFlags()
+
+	if err := cmn.Remote.Set(remote); err != nil {
+		cmn.Fatal("Failed to parse remote %v, error: %v\n", err)
+	}
+
 	// Connect to sciond
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	sd := sciond.NewService(*sciondAddr)
+	sd := sciond.NewService(sciondAddr)
 	sdConn, err = sd.Connect(ctx)
 	if err != nil {
 		cmn.Fatal("Failed to connect to SCIOND: %v\n", err)
@@ -77,41 +175,27 @@ func main() {
 	fmt.Printf("Using path:\n  %s\n", pathStr)
 
 	// Connect to the dispatcher
-	dispatcherService := reliable.NewDispatcher(*dispatcher)
+	dispatcherService := reliable.NewDispatcher(dispatcher)
 	cmn.Conn, _, err = dispatcherService.Register(context.Background(), cmn.LocalIA,
 		&net.UDPAddr{IP: cmn.LocalIP}, addr.SvcNone)
 	if err != nil {
 		cmn.Fatal("Unable to register with the dispatcher addr=%s\nerr=%v", cmn.LocalIP, err)
 	}
-	defer cmn.Conn.Close()
-
-	ret := doCommand(cmd)
-	os.Exit(ret)
 }
 
-func doCommand(cmd string) int {
-	switch cmd {
-	case "echo":
-		echo.Run()
-	case "tr", "traceroute":
-		traceroute.Run()
-	case "rp", "recordpath":
-		recordpath.Run()
-	default:
-		fmt.Fprintf(os.Stderr, "ERROR: Invalid command %s\n", cmd)
-		flag.Usage()
-		os.Exit(1)
-	}
-
+func Cleanup(cmd *cobra.Command, _ []string) error {
 	if cmn.Stats.Sent != cmn.Stats.Recv {
-		return 1
+		return serrors.New("packets were lost")
 	}
-	return 0
+	if cmn.Conn != nil {
+		return cmn.Conn.Close()
+	}
+	return nil
 }
 
 func choosePath() snet.Path {
 	paths, err := sdConn.Paths(context.Background(), cmn.Remote.IA, cmn.LocalIA,
-		sciond.PathReqFlags{Refresh: *refresh})
+		sciond.PathReqFlags{Refresh: refresh})
 	if err != nil {
 		cmn.Fatal("Failed to retrieve paths from SCIOND: %v\n", err)
 	}
