@@ -22,22 +22,28 @@ import (
 )
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
+	root := &cobra.Command{
+		Use:   "scion",
+		Short: "A clean-slate Internet architecture",
+		Args:  cobra.NoArgs,
+		// Silence the errors, since we print them in main. Otherwise, cobra
+		// will print any non-nil errors returned by a RunE function.
+		// See https://github.com/spf13/cobra/issues/340.
+		// Commands should turn off the usage help message, if they deem the arguments
+		// to be reasonable well-formed. This avoids outputing help message on errors
+		// that are not caused by malformed input.
+		// See https://github.com/spf13/cobra/issues/340#issuecomment-374617413.
+		SilenceErrors: true,
+	}
+	root.AddCommand(
+		newCompletion(),
+		newPing(),
+		newShowpaths(),
+		newVersion(),
+	)
+
+	if err := root.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}
-}
-
-var rootCmd = &cobra.Command{
-	Use:   "scion",
-	Short: "A clean-slate internet architecture",
-	Args:  cobra.NoArgs,
-	// Silence the errors, since we print them in main. Otherwise, cobra
-	// will print any non-nil errors returned by a RunE function.
-	// See https://github.com/spf13/cobra/issues/340.
-	// Commands should turn off the usage help message, if they deem the arguments
-	// to be reasonable well-formed. This avoids outputing help message on errors
-	// that are not caused by malformed input.
-	// See https://github.com/spf13/cobra/issues/340#issuecomment-374617413.
-	SilenceErrors: true,
 }
