@@ -18,6 +18,7 @@
 package main
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/scionproto/scion/go/border/brconf"
@@ -26,10 +27,12 @@ import (
 	"github.com/scionproto/scion/go/border/rctrl"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/scmp"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 )
 
@@ -171,7 +174,15 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	// Forward the packet. Packets destined to self are forwarded to the local dispatcher.
 	if err := rp.Route(); err != nil {
 		r.handlePktError(rp, err, "Error routing packet")
-		l.Result = metrics.ErrRoute
-		metrics.Process.Pkts(l).Inc()
+		// FIXME(shitz): Do not increase error counters for SVC_NONE dst address.
+		// This hack should be removed once https://github.com/scionproto/scion/issues/1801
+		// is implemented and pathmon is not "abusing" SVC_NONE anymore for path probes.
+		var serr *scmp.Error
+		isSCMPErr := errors.As(err, &serr)
+		if !isSCMPErr || serr.CT.Class != scmp.C_Routing || serr.CT.Type != scmp.T_R_BadHost ||
+			!errors.Is(err, addr.ErrUnsupportedSVCAddress) {
+			l.Result = metrics.ErrRoute
+			metrics.Process.Pkts(l).Inc()
+		}
 	}
 }
