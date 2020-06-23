@@ -251,8 +251,8 @@ func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int
 }
 
 // DeleteSegmentRsv removes the segment reservation
-func (x *executor) DeleteSegmentRsv(ctx context.Context, ID reservation.SegmentID) error {
-	return nil
+func (x *executor) DeleteSegmentRsv(ctx context.Context, ID *reservation.SegmentID) error {
+	return deleteSegmentRsv(ctx, x.db, ID)
 }
 
 // GetE2ERsvFromID finds the end to end resevation given its ID.
