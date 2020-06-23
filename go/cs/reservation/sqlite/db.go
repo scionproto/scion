@@ -229,6 +229,21 @@ func (x *executor) NewSegmentRsv(ctx context.Context, rsv *segment.Reservation) 
 	return db.NewTxError("error inserting segment reservation after 3 retries", err)
 }
 
+func (x *executor) PersistSegmentRsv(ctx context.Context, rsv *segment.Reservation) error {
+	err := db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
+		err := deleteSegmentRsv(ctx, tx, &rsv.ID)
+		if err != nil {
+			return err
+		}
+		suffix := binary.BigEndian.Uint32(rsv.ID.Suffix[:])
+		return insertNewSegReservation(ctx, tx, rsv, suffix)
+	})
+	if err != nil {
+		return db.NewTxError("error persisting reservation", err)
+	}
+	return nil
+}
+
 func (x *executor) NewSegmentRsvWithID(ctx context.Context, rsv *segment.Reservation) error {
 	suffix := binary.BigEndian.Uint32(rsv.ID.Suffix[:])
 	return insertNewSegReservation(ctx, x.db, rsv, suffix)
@@ -286,7 +301,12 @@ func (x *executor) UpdateSegmentIndex(ctx context.Context, rsv *segment.Reservat
 func (x *executor) DeleteSegmentIndex(ctx context.Context, rsv *segment.Reservation,
 	idx reservation.IndexNumber) error {
 
-	return nil
+	suffix := binary.BigEndian.Uint32(rsv.ID.Suffix[:])
+	const query = `DELETE FROM seg_index WHERE index_number = $1 AND reservation=(
+		SELECT row_id FROM seg_reservation WHERE id_as = $2 AND id_suffix = $3
+	);`
+	_, err := x.db.ExecContext(ctx, query, idx, rsv.ID.ASID, suffix)
+	return err
 }
 
 // DeleteExpiredIndices will remove expired indices from the DB. If a reservation is left
@@ -333,9 +353,9 @@ func (x *executor) DeleteE2EIndex(ctx context.Context, rsv *e2e.Reservation,
 // newSuffix finds a segment reservation ID suffix not being used at the moment. Should be called
 // inside a transaction so the suffix is not used in the meantime, or fail.
 func newSuffix(ctx context.Context, x db.Sqler, ASID addr.AS) (uint32, error) {
-	query := `SELECT MIN(id_suffix)+1 FROM (
-		SELECT 0 AS id_suffix UNION ALL
-		SELECT id_suffix FROM seg_reservation WHERE id_as = $1
+	const query = `SELECT MIN(id_suffix)+1 FROM (
+			SELECT 0 AS id_suffix UNION ALL
+			SELECT id_suffix FROM seg_reservation WHERE id_as = $1
 		) WHERE id_suffix+1 NOT IN (SELECT id_suffix FROM seg_reservation WHERE id_as = $1)`
 	var suffix uint32
 	err := x.QueryRowContext(ctx, query, uint64(ASID)).Scan(&suffix)
@@ -354,12 +374,16 @@ func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 	if len(rsv.Indices) == 0 {
 		return db.NewInputDataError("no indices", nil)
 	}
+	activeIndex := -1
+	if rsv.ActiveIndex() != nil {
+		activeIndex = int(rsv.ActiveIndex().Idx)
+	}
 	const query = `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress,
 		path, end_props, traffic_split, src_ia, dst_ia,active_index)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, -1)`
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	res, err := x.ExecContext(ctx, query, rsv.ID.ASID, suffix,
-		rsv.Ingress, rsv.Egress, rsv.Path.ToRaw(), rsv.PathEndProps,
-		rsv.TrafficSplit, rsv.Path.GetSrcIA().IAInt(), rsv.Path.GetDstIA().IAInt())
+		rsv.Ingress, rsv.Egress, rsv.Path.ToRaw(), rsv.PathEndProps, rsv.TrafficSplit,
+		rsv.Path.GetSrcIA().IAInt(), rsv.Path.GetDstIA().IAInt(), activeIndex)
 	if err != nil {
 		return err
 	}
@@ -539,12 +563,13 @@ func removeSegIndicesExcept(ctx context.Context, x db.Sqler, rsvID *reservation.
 		SELECT row_id FROM seg_reservation WHERE id_as = ? AND id_suffix = ?
 		) AND index_number NOT IN (?%s);`
 	query := fmt.Sprintf(queryTmpl, strings.Repeat(",?", len(preserveIDs)))
-	res, err := x.ExecContext(ctx, query, params...)
-	if err != nil {
-		return err
-	}
-	_, err = res.RowsAffected()
+	_, err := x.ExecContext(ctx, query, params...)
 	return err
 }
 
-// TODO(juagargi) consider removing all update/create methods and leave just a StoreRsv(Reservation)
+func deleteSegmentRsv(ctx context.Context, x db.Sqler, rsvID *reservation.SegmentID) error {
+	const query = `DELETE FROM seg_reservation WHERE id_as = $1 AND id_suffix = $2`
+	suffix := binary.BigEndian.Uint32(rsvID.Suffix[:])
+	_, err := x.ExecContext(ctx, query, rsvID.ASID, suffix)
+	return err
+}

@@ -60,16 +60,18 @@ type ReserverAndTransit interface {
 	// Used by setup/renew req/resp. and any request.
 	GetSegmentRsvFromID(ctx context.Context, ID *reservation.SegmentID) (
 		*segment.Reservation, error)
-	// SetSegmentIndexActive updates the active index. Used in index confirmation.
+	// PersistSegmentRsv ensures the DB contains the reservation as represented in rsv.
+	PersistSegmentRsv(ctx context.Context, rsv *segment.Reservation) error
+	// TODO(juagargi) remove
 	SetSegmentIndexActive(ctx context.Context, rsv *segment.Reservation,
 		idx reservation.IndexNumber) error
-	// NewSegmentIndex stores a new index for a segment reservation. Used in setup/renew.
+	// TODO(juagargi) remove
 	NewSegmentIndex(ctx context.Context, rsv *segment.Reservation,
 		idx reservation.IndexNumber) error
-	// UpdateSegmentIndex updates an index of a segment rsv. Used in setup/renew response.
+	// TODO(juagargi) remove
 	UpdateSegmentIndex(ctx context.Context, rsv *segment.Reservation,
 		idx reservation.IndexNumber) error
-	// DeleteSegmentIndex removes the index from the DB. Used in cleanup.
+	// TODO(juagargi) remove
 	DeleteSegmentIndex(ctx context.Context, rsv *segment.Reservation,
 		idx reservation.IndexNumber) error
 	// DeleteSegmentRsv removes the segment reservation. Used in teardown.
