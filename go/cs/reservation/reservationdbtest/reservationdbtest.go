@@ -43,6 +43,7 @@ func TestDB(t *testing.T, db TestableDB) {
 		"get segment reservations from src/dst": testGetSegmentRsvsFromSrcDstIA,
 		"get segment reservation from path":     testGetSegmentRsvFromPath,
 		"get segment reservation from IF pair":  testGetSegmentRsvsFromIFPair,
+		"delete segment reservation":            testDeleteSegmentRsv,
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -309,6 +310,27 @@ func testGetSegmentRsvsFromIFPair(ctx context.Context, t *testing.T, db backend.
 	require.Error(t, err)
 }
 
+func testDeleteSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
+	r := newTestReservation(t)
+	err := db.NewSegmentRsv(ctx, r)
+	require.NoError(t, err)
+	err = db.DeleteSegmentRsv(ctx, &r.ID)
+	require.NoError(t, err)
+	rsv, err := db.GetSegmentRsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Nil(t, rsv)
+	// with no indices
+	r = newTestReservation(t)
+	r.Indices = segment.Indices{}
+	err = db.NewSegmentRsv(ctx, r)
+	require.NoError(t, err)
+	err = db.DeleteSegmentRsv(ctx, &r.ID)
+	require.NoError(t, err)
+	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Nil(t, rsv)
+}
+
 // newToken just returns a token that can be serialized. This one has two HopFields.
 func newToken() *reservation.Token {
 	t, err := reservation.TokenFromRaw(xtest.MustParseHexString(
@@ -336,5 +358,3 @@ func newTestReservation(t *testing.T) *segment.Reservation {
 	require.NoError(t, err)
 	return r
 }
-
-// TODO(juagargi) test the transactions

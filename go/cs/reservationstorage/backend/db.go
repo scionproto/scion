@@ -59,7 +59,7 @@ type ReserverAndTransit interface {
 	// PersistSegmentRsv ensures the DB contains the reservation as represented in rsv.
 	PersistSegmentRsv(ctx context.Context, rsv *segment.Reservation) error
 	// DeleteSegmentRsv removes the segment reservation. Used in teardown.
-	DeleteSegmentRsv(ctx context.Context, ID reservation.SegmentID) error
+	DeleteSegmentRsv(ctx context.Context, ID *reservation.SegmentID) error
 
 	// DeleteExpiredIndices will remove expired indices from the DB. If a reservation is left
 	// without any index after removing the expired ones, it will also be removed.

@@ -20,9 +20,7 @@ const (
 	// to prevent data corruption between incompatible database schemas.
 	SchemaVersion = 1
 	// Schema is the SQLite database layout.
-	// TODO(juagargi) explain the DB structure here or in the design markdown.
 	// TODO(juagargi) create appropriate SQL indices.
-	// TODO(juagargi) path should be unique if not null
 	Schema = `CREATE TABLE seg_reservation (
 		row_id	INTEGER,
 		id_as	INTEGER NOT NULL,
