@@ -244,71 +244,6 @@ func (x *executor) PersistSegmentRsv(ctx context.Context, rsv *segment.Reservati
 	return nil
 }
 
-func (x *executor) NewSegmentRsvWithID(ctx context.Context, rsv *segment.Reservation) error {
-	suffix := binary.BigEndian.Uint32(rsv.ID.Suffix[:])
-	return insertNewSegReservation(ctx, x.db, rsv, suffix)
-}
-
-// SetActiveIndex updates the active index for the segment reservation.
-func (x *executor) SetSegmentIndexActive(ctx context.Context, rsv *segment.Reservation,
-	idx reservation.IndexNumber) error {
-
-	index, err := rsv.Index(idx)
-	if err != nil {
-		return db.NewInputDataError("invalid index number", err)
-	}
-	suffix := binary.BigEndian.Uint32(rsv.ID.Suffix[:])
-	err = db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
-		const query = `UPDATE seg_reservation SET active_index = $1 WHERE
-			id_as = $2 AND id_suffix = $3`
-		_, err := tx.ExecContext(ctx, query, idx, rsv.ID.ASID, suffix)
-		if err != nil {
-			return err
-		}
-		err = updateIndex(ctx, tx, &rsv.ID, index)
-		if err != nil {
-			return err
-		}
-		preserveIDs := getIdxsFromRsv(rsv)
-		return removeSegIndicesExcept(ctx, tx, &rsv.ID, preserveIDs)
-	})
-	return err
-}
-
-// NewSegmentIndex stores a new index for a segment reservation.
-func (x *executor) NewSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-	idx reservation.IndexNumber) error {
-
-	index, err := rsv.Index(idx)
-	if err != nil {
-		return db.NewInputDataError("invalid index number", err)
-	}
-	return insertNewIndex(ctx, x.db, &rsv.ID, index)
-}
-
-// UpdateSegmentRsvIndex updates an index of a segment reservation.
-func (x *executor) UpdateSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-	idx reservation.IndexNumber) error {
-
-	index, err := rsv.Index(idx)
-	if err != nil {
-		return err
-	}
-	return updateIndex(ctx, x.db, &rsv.ID, index)
-}
-
-// DeleteSegmentIndex removes the index from the DB. Used in cleanup.
-func (x *executor) DeleteSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-	idx reservation.IndexNumber) error {
-
-	suffix := binary.BigEndian.Uint32(rsv.ID.Suffix[:])
-	const query = `DELETE FROM seg_index WHERE index_number = $1 AND reservation=(
-		SELECT row_id FROM seg_reservation WHERE id_as = $2 AND id_suffix = $3
-	);`
-	_, err := x.db.ExecContext(ctx, query, idx, rsv.ID.ASID, suffix)
-	return err
-}
-
 // DeleteExpiredIndices will remove expired indices from the DB. If a reservation is left
 // without any index after removing the expired ones, it will also be removed.
 func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int, error) {
@@ -405,20 +340,6 @@ func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 	return nil
 }
 
-func insertNewIndex(ctx context.Context, x db.Sqler, segID *reservation.SegmentID,
-	index *segment.Index) error {
-
-	const query = `INSERT INTO seg_index (reservation,
-		index_number,expiration,state,min_bw,max_bw,alloc_bw,token) VALUES (
-		(SELECT row_id FROM seg_reservation WHERE id_as=$1 AND id_suffix=$2),
-		$3,$4,$5,$6,$7,$8,$9)`
-	suffix := binary.BigEndian.Uint32(segID.Suffix[:])
-	_, err := x.ExecContext(ctx, query, segID.ASID, suffix, index.Idx,
-		uint32(index.Expiration.Unix()), index.State(), index.MinBW, index.MaxBW,
-		index.AllocBW, index.Token.ToRaw())
-	return err
-}
-
 func getSegReservations(ctx context.Context, x db.Sqler, condition string, params []interface{}) (
 	[]*segment.Reservation, error) {
 
@@ -513,58 +434,6 @@ func getSegIndices(ctx context.Context, x db.Sqler, rowID int) (*segment.Indices
 	// sort indices so they are consecutive modulo 16
 	indices.Sort()
 	return &indices, nil
-}
-
-func updateIndex(ctx context.Context, x db.Sqler, rsvID *reservation.SegmentID,
-	index *segment.Index) error {
-
-	suffix := binary.BigEndian.Uint32(rsvID.Suffix[:])
-	token := index.Token.ToRaw()
-	const query = `UPDATE seg_index SET expiration = $1, state = $2, min_bw = $3, max_bw = $4,
-			alloc_bw = $5,token = $6 WHERE index_number = $7 AND reservation = (
-				SELECT row_id FROM seg_reservation WHERE id_as = $8 AND id_suffix = $9
-			);`
-	res, err := x.ExecContext(ctx, query, index.Expiration.Unix(), index.State(), index.MinBW,
-		index.MaxBW, index.AllocBW, token, index.Idx, rsvID.ASID, suffix)
-	if err != nil {
-		return err
-	}
-	nr, err := res.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if nr != 1 {
-		return serrors.New("index for reservation not found in db", "idx", index.Idx,
-			"asid", rsvID.ASID.String(), "suffix", suffix)
-	}
-	return err
-}
-
-func getIdxsFromRsv(rsv *segment.Reservation) []reservation.IndexNumber {
-	idxs := make([]reservation.IndexNumber, len(rsv.Indices))
-	for i := range rsv.Indices {
-		idxs[i] = rsv.Indices[i].Idx
-	}
-	return idxs
-}
-
-func removeSegIndicesExcept(ctx context.Context, x db.Sqler, rsvID *reservation.SegmentID,
-	preserveIDs []reservation.IndexNumber) error {
-
-	params := make([]interface{}, len(preserveIDs)+1+2)
-	suffix := binary.BigEndian.Uint32(rsvID.Suffix[:])
-	params[0] = rsvID.ASID
-	params[1] = suffix
-	params[2] = 255 // add an inexistent one so len>0
-	for i := 3; i < len(params); i++ {
-		params[i] = preserveIDs[i-3]
-	}
-	const queryTmpl = `DELETE FROM seg_index WHERE reservation = (
-		SELECT row_id FROM seg_reservation WHERE id_as = ? AND id_suffix = ?
-		) AND index_number NOT IN (?%s);`
-	query := fmt.Sprintf(queryTmpl, strings.Repeat(",?", len(preserveIDs)))
-	_, err := x.ExecContext(ctx, query, params...)
-	return err
 }
 
 func deleteSegmentRsv(ctx context.Context, x db.Sqler, rsvID *reservation.SegmentID) error {

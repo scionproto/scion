@@ -143,10 +143,10 @@ func testGetSegmentRsvFromID(ctx context.Context, t *testing.T, db backend.DB) {
 	require.NoError(t, err)
 	// create new index
 	expTime := time.Unix(1, 0)
-	idx, err := r.NewIndex(expTime, *newToken())
+	_, err = r.NewIndex(expTime, *newToken())
 	require.NoError(t, err)
 	r.Indices[1].Token.BWCls = 3
-	err = db.NewSegmentIndex(ctx, r, idx)
+	err = db.PersistSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	r2, err := db.GetSegmentRsvFromID(ctx, &r.ID)
 	require.NoError(t, err)
@@ -155,16 +155,16 @@ func testGetSegmentRsvFromID(ctx context.Context, t *testing.T, db backend.DB) {
 	require.Len(t, r.Indices, 2)
 	for i := 2; i < 16; i++ {
 		expTime = time.Unix(int64(i), 0)
-		idx, err = r.NewIndex(expTime, *newToken())
+		_, err = r.NewIndex(expTime, *newToken())
 		require.NoError(t, err)
 		r.Indices[i].MinBW = reservation.BWCls(i)
 		r.Indices[i].MaxBW = reservation.BWCls(i)
 		r.Indices[i].AllocBW = reservation.BWCls(i)
 		r.Indices[i].Token.BWCls = reservation.BWCls(i)
-		err = db.NewSegmentIndex(ctx, r, idx)
-		require.NoError(t, err)
 	}
 	require.Len(t, r.Indices, 16)
+	err = db.PersistSegmentRsv(ctx, r)
+	require.NoError(t, err)
 	r2, err = db.GetSegmentRsvFromID(ctx, &r.ID)
 	require.NoError(t, err)
 	require.Equal(t, r, r2)
