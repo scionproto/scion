@@ -48,10 +48,6 @@ type TransitOnly interface {
 	// the specified ingress and exit at that egress. Used by setup req.
 	GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress *common.IFIDType) (
 		[]*segment.Reservation, error)
-
-	// NewSegmentRsvWithID creates a new segment reservation in the DB, storing it with the
-	// provided ID. It the ID was used already an error will be returned. Used by setup req.
-	NewSegmentRsvWithID(ctx context.Context, rsv *segment.Reservation) error
 }
 
 // ReserverAndTransit contains the functionality for any AS that has a COLIBRI service.
@@ -62,18 +58,6 @@ type ReserverAndTransit interface {
 		*segment.Reservation, error)
 	// PersistSegmentRsv ensures the DB contains the reservation as represented in rsv.
 	PersistSegmentRsv(ctx context.Context, rsv *segment.Reservation) error
-	// TODO(juagargi) remove
-	SetSegmentIndexActive(ctx context.Context, rsv *segment.Reservation,
-		idx reservation.IndexNumber) error
-	// TODO(juagargi) remove
-	NewSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-		idx reservation.IndexNumber) error
-	// TODO(juagargi) remove
-	UpdateSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-		idx reservation.IndexNumber) error
-	// TODO(juagargi) remove
-	DeleteSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-		idx reservation.IndexNumber) error
 	// DeleteSegmentRsv removes the segment reservation. Used in teardown.
 	DeleteSegmentRsv(ctx context.Context, ID reservation.SegmentID) error
 
