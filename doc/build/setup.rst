@@ -10,7 +10,7 @@ Setting up the development environment
 
    .. code-block:: bash
 
-      sudo apt-get install g++ unzip zip
+      sudo apt-get install g++ unzip zip git python
       wget https://github.com/bazelbuild/bazel/releases/download/3.2.0/bazel-3.2.0-installer-linux-x86_64.sh
       bash ./bazel-3.2.0-installer-linux-x86_64.sh --user
       rm ./bazel-3.2.0-installer-linux-x86_64.sh
