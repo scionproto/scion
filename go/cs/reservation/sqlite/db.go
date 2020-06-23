@@ -333,13 +333,24 @@ func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 				index.AllocBW, index.Token.ToRaw())
 		}
 		q := queryIndexTmpl + strings.Repeat(",(?,?,?,?,?,?,?,?)", len(rsv.Indices)-1)
-		fmt.Println("query", q)
 		_, err = x.ExecContext(ctx, q, params...)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+type rsvFields struct {
+	RowID        int
+	AsID         uint64
+	Suffix       uint32
+	Ingress      common.IFIDType
+	Egress       common.IFIDType
+	Path         []byte
+	EndProps     int
+	TrafficSplit int
+	ActiveIndex  int
 }
 
 func getSegReservations(ctx context.Context, x db.Sqler, condition string, params []interface{}) (
@@ -356,17 +367,6 @@ func getSegReservations(ctx context.Context, x db.Sqler, condition string, param
 	}
 	defer rows.Close()
 
-	type rsvFields struct {
-		RowID        int
-		AsID         uint64
-		Suffix       uint32
-		Ingress      common.IFIDType
-		Egress       common.IFIDType
-		Path         []byte
-		EndProps     int
-		TrafficSplit int
-		ActiveIndex  int
-	}
 	reservationFields := []*rsvFields{}
 	for rows.Next() {
 		var f rsvFields
@@ -379,32 +379,42 @@ func getSegReservations(ctx context.Context, x db.Sqler, condition string, param
 	}
 	reservations := []*segment.Reservation{}
 	for _, rf := range reservationFields {
-		indices, err := getSegIndices(ctx, x, rf.RowID)
+		rsv, err := buildSegRsvFromFields(ctx, x, rf)
 		if err != nil {
 			return nil, err
-		}
-
-		rsv := segment.NewReservation()
-		rsv.ID.ASID = addr.AS(rf.AsID)
-		binary.BigEndian.PutUint32(rsv.ID.Suffix[:], rf.Suffix)
-		rsv.Ingress = rf.Ingress
-		rsv.Egress = rf.Egress
-		p, err := segment.NewPathFromRaw(rf.Path)
-		if err != nil {
-			return nil, err
-		}
-		rsv.Path = p
-		rsv.PathEndProps = reservation.PathEndProps(rf.EndProps)
-		rsv.TrafficSplit = reservation.SplitCls(rf.TrafficSplit)
-		rsv.Indices = *indices
-		if rf.ActiveIndex != -1 {
-			if err := rsv.SetIndexActive(reservation.IndexNumber(rf.ActiveIndex)); err != nil {
-				return nil, err
-			}
 		}
 		reservations = append(reservations, rsv)
 	}
 	return reservations, nil
+}
+
+// builds a segment.Reservation in memory from the fields and indices.
+func buildSegRsvFromFields(ctx context.Context, x db.Sqler, fields *rsvFields) (
+	*segment.Reservation, error) {
+
+	indices, err := getSegIndices(ctx, x, fields.RowID)
+	if err != nil {
+		return nil, err
+	}
+	rsv := segment.NewReservation()
+	rsv.ID.ASID = addr.AS(fields.AsID)
+	binary.BigEndian.PutUint32(rsv.ID.Suffix[:], fields.Suffix)
+	rsv.Ingress = fields.Ingress
+	rsv.Egress = fields.Egress
+	p, err := segment.NewPathFromRaw(fields.Path)
+	if err != nil {
+		return nil, err
+	}
+	rsv.Path = p
+	rsv.PathEndProps = reservation.PathEndProps(fields.EndProps)
+	rsv.TrafficSplit = reservation.SplitCls(fields.TrafficSplit)
+	rsv.Indices = *indices
+	if fields.ActiveIndex != -1 {
+		if err := rsv.SetIndexActive(reservation.IndexNumber(fields.ActiveIndex)); err != nil {
+			return nil, err
+		}
+	}
+	return rsv, nil
 }
 
 // the rowID argument is the reservation row ID the indices belong to.
