@@ -94,6 +94,7 @@ struct FwdPathMeta {
     mtu @1 :UInt16;
     interfaces @2 :List(PathInterface);
     expTime @3 :UInt32; # expiration time in seconds since epoch.
+    headerV2 @4 :Bool;
 }
 
 struct PathInterface {
