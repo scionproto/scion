@@ -124,7 +124,7 @@ func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID *reservation.Segm
 		ID.ASID,
 		binary.BigEndian.Uint32(ID.Suffix[:]),
 	}
-	rsvs, err := getSegReservations(ctx, x.db, "WHERE id_as = $1 AND id_suffix = $2", params)
+	rsvs, err := getSegReservations(ctx, x.db, "WHERE id_as = ? AND id_suffix = ?", params)
 	if err != nil {
 		return nil, err
 	}
@@ -146,11 +146,11 @@ func (x *executor) GetSegmentRsvsFromSrcDstIA(ctx context.Context, srcIA, dstIA 
 	conditions := make([]string, 0, 2)
 	params := make([]interface{}, 0, 2)
 	if !srcIA.IsZero() {
-		conditions = append(conditions, "src_ia = $1")
+		conditions = append(conditions, "src_ia = ?")
 		params = append(params, srcIA.IAInt())
 	}
 	if !dstIA.IsZero() {
-		conditions = append(conditions, fmt.Sprintf("dst_ia = $%d", len(conditions)+1))
+		conditions = append(conditions, "dst_ia = ?")
 		params = append(params, dstIA.IAInt())
 	}
 	if len(conditions) == 0 {
@@ -164,7 +164,7 @@ func (x *executor) GetSegmentRsvsFromSrcDstIA(ctx context.Context, srcIA, dstIA 
 func (x *executor) GetSegmentRsvFromPath(ctx context.Context, path segment.Path) (
 	*segment.Reservation, error) {
 
-	rsvs, err := getSegReservations(ctx, x.db, "WHERE path = $1", []interface{}{path.ToRaw()})
+	rsvs, err := getSegReservations(ctx, x.db, "WHERE path = ?", []interface{}{path.ToRaw()})
 	if err != nil {
 		return nil, err
 	}
@@ -187,11 +187,11 @@ func (x *executor) GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress
 	conditions := make([]string, 0, 2)
 	params := make([]interface{}, 0, 2)
 	if ingress != nil {
-		conditions = append(conditions, "ingress = $1")
+		conditions = append(conditions, "ingress = ?")
 		params = append(params, *ingress)
 	}
 	if egress != nil {
-		conditions = append(conditions, fmt.Sprintf("egress = $%d", len(conditions)+1))
+		conditions = append(conditions, "egress = ?")
 		params = append(params, *egress)
 	}
 	if len(conditions) == 0 {
@@ -306,16 +306,13 @@ func newSuffix(ctx context.Context, x db.Sqler, ASID addr.AS) (uint32, error) {
 func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reservation,
 	suffix uint32) error {
 
-	if len(rsv.Indices) == 0 {
-		return db.NewInputDataError("no indices", nil)
-	}
 	activeIndex := -1
 	if rsv.ActiveIndex() != nil {
 		activeIndex = int(rsv.ActiveIndex().Idx)
 	}
 	const query = `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress,
 		path, end_props, traffic_split, src_ia, dst_ia,active_index)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+		VALUES (?, ?,?,?,?,?,?,?,?,?)`
 	res, err := x.ExecContext(ctx, query, rsv.ID.ASID, suffix,
 		rsv.Ingress, rsv.Egress, rsv.Path.ToRaw(), rsv.PathEndProps, rsv.TrafficSplit,
 		rsv.Path.GetSrcIA().IAInt(), rsv.Path.GetDstIA().IAInt(), activeIndex)
@@ -327,8 +324,7 @@ func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 		return db.NewTxError("cannot obtain last insertion row id", err)
 	}
 	const queryIndex = `INSERT INTO seg_index (reservation, index_number, expiration, state,
-		min_bw, max_bw, alloc_bw, token) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`
-
+		min_bw, max_bw, alloc_bw, token) VALUES (?,?,?,?,?,?,?,?)`
 	for _, index := range rsv.Indices {
 		_, err := x.ExecContext(ctx, queryIndex, rsvRowID, index.Idx,
 			uint32(index.Expiration.Unix()), index.State(), index.MinBW, index.MaxBW,
@@ -408,7 +404,7 @@ func getSegReservations(ctx context.Context, x db.Sqler, condition string, param
 // the rowID argument is the reservation row ID the indices belong to.
 func getSegIndices(ctx context.Context, x db.Sqler, rowID int) (*segment.Indices, error) {
 	const query = `SELECT index_number,expiration,state,min_bw,max_bw,alloc_bw,token
-		FROM seg_index WHERE reservation=$1`
+		FROM seg_index WHERE reservation=?`
 	rows, err := x.QueryContext(ctx, query, rowID)
 	if err != nil {
 		return nil, db.NewReadError("cannot list indices", err)
@@ -437,7 +433,7 @@ func getSegIndices(ctx context.Context, x db.Sqler, rowID int) (*segment.Indices
 }
 
 func deleteSegmentRsv(ctx context.Context, x db.Sqler, rsvID *reservation.SegmentID) error {
-	const query = `DELETE FROM seg_reservation WHERE id_as = $1 AND id_suffix = $2`
+	const query = `DELETE FROM seg_reservation WHERE id_as = ? AND id_suffix = ?`
 	suffix := binary.BigEndian.Uint32(rsvID.Suffix[:])
 	_, err := x.ExecContext(ctx, query, rsvID.ASID, suffix)
 	return err

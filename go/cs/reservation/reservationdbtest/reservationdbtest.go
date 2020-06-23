@@ -78,6 +78,15 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	// same path should fail
 	err = db.NewSegmentRsv(ctx, r)
 	require.Error(t, err)
+	// different ASID should start with the lowest suffix
+	r = newTestReservation(t)
+	r.ID.ASID = xtest.MustParseAS("ff00:1234:1")
+	err = db.NewSegmentRsv(ctx, r)
+	require.NoError(t, err)
+	require.Equal(t, xtest.MustParseHexString("00000001"), r.ID.Suffix[:])
+	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Equal(t, r, rsv)
 }
 
 func testPersistSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
