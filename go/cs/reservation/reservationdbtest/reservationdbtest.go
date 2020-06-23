@@ -38,14 +38,11 @@ type TestableDB interface {
 func TestDB(t *testing.T, db TestableDB) {
 	tests := map[string]func(context.Context, *testing.T, backend.DB){
 		"insert segment reservations create ID": testNewSegmentRsv,
-		"insert segment reservation with ID":    testNewSegmentRsvWithID,
-		"insert segment index":                  testNewSegmentIndex,
+		"persist segment reservation":           testPersistSegmentRsv,
 		"get segment reservation from ID":       testGetSegmentRsvFromID,
 		"get segment reservations from src/dst": testGetSegmentRsvsFromSrcDstIA,
 		"get segment reservation from path":     testGetSegmentRsvFromPath,
 		"get segment reservation from IF pair":  testGetSegmentRsvsFromIFPair,
-		"update segment index":                  testUpdateSegmentIndex,
-		"set segment index active":              testSetSegmentIndexActive,
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -77,58 +74,67 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	require.Error(t, err)
 }
 
-func testNewSegmentRsvWithID(ctx context.Context, t *testing.T, db backend.DB) {
+func testPersistSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	r := newTestReservation(t)
-	copy(r.ID.Suffix[:], xtest.MustParseHexString("beefcafe"))
-	indices := r.Indices
-	r.Indices = segment.Indices{}
-	// no indices
-	err := db.NewSegmentRsvWithID(ctx, r)
-	require.Error(t, err)
-	// at least one index
-	r.Indices = indices
-	err = db.NewSegmentRsvWithID(ctx, r)
-	require.NoError(t, err)
-	r2, err := db.GetSegmentRsvFromID(ctx, &r.ID)
-	require.NoError(t, err)
-	require.Equal(t, r, r2)
-	// same ID
-	r2 = newTestReservation(t)
-	copy(r2.ID.Suffix[:], xtest.MustParseHexString("beefcafe"))
-	err = db.NewSegmentRsvWithID(ctx, r2)
-	require.Error(t, err)
-}
-
-func testNewSegmentIndex(ctx context.Context, t *testing.T, db backend.DB) {
-	r := newTestReservation(t)
-	r.Indices = segment.Indices{}
-	// no index
+	token := r.Indices[0].Token
+	r.NewIndex(time.Unix(1, 0), token)
+	r.NewIndex(time.Unix(2, 0), token)
+	r.NewIndex(time.Unix(3, 0), token)
+	r.NewIndex(time.Unix(4, 0), token)
+	r.NewIndex(time.Unix(5, 0), token)
+	r.NewIndex(time.Unix(6, 0), token)
+	r.NewIndex(time.Unix(7, 0), token)
+	r.NewIndex(time.Unix(8, 0), token)
+	r.NewIndex(time.Unix(9, 0), token)
+	require.Len(t, r.Indices, 10)
 	err := db.NewSegmentRsv(ctx, r)
-	require.Error(t, err)
-	// one index (add 3, remove 2 to change its IndexNumber)
-	expTime := time.Unix(1, 0)
-	_, err = r.NewIndex(expTime, *newToken())
 	require.NoError(t, err)
-	_, err = r.NewIndex(expTime, *newToken())
+	rsv, err := db.GetSegmentRsvFromID(ctx, &r.ID)
 	require.NoError(t, err)
-	_, err = r.NewIndex(expTime, *newToken())
+	require.Equal(t, r, rsv)
+	// now remove one index
+	err = r.RemoveIndex(0)
 	require.NoError(t, err)
-	err = r.RemoveIndex(1)
+	err = db.PersistSegmentRsv(ctx, r)
 	require.NoError(t, err)
-	require.Len(t, r.Indices, 1)
-	r.SetIndexConfirmed(reservation.IndexNumber(2))
-	err = r.SetIndexConfirmed(2)
+	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
 	require.NoError(t, err)
-	r.Indices[0].MinBW = 3
-	r.Indices[0].MaxBW = 4
-	r.Indices[0].AllocBW = 5
-	r.Indices[0].Token.BWCls = 2
-	err = db.NewSegmentRsv(ctx, r)
+	require.Equal(t, r, rsv)
+
+	// change ID
+	r.ID.ASID = xtest.MustParseAS("ff00:1:12")
+	copy(r.ID.Suffix[:], xtest.MustParseHexString("beefcafe"))
+	err = db.PersistSegmentRsv(ctx, r)
 	require.NoError(t, err)
-	// read the reservation
-	r2, err := db.GetSegmentRsvFromID(ctx, &r.ID)
+	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
 	require.NoError(t, err)
-	require.Equal(t, r, r2)
+	require.Equal(t, r, rsv)
+	// change attributes
+	r.Ingress = 3
+	r.Egress = 4
+	r.Path = segmenttest.NewPathFromComponents(3, "1-ff00:0:1", 11, 1, "1-ff00:0:2", 0)
+	err = db.PersistSegmentRsv(ctx, r)
+	require.NoError(t, err)
+	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Equal(t, r, rsv)
+	// remove 7 more indices, remains 1 index
+	err = r.RemoveIndex(8)
+	require.NoError(t, err)
+	r.Indices[0].Expiration = time.Unix(12345, 0)
+	r.Indices[0].MinBW = 10
+	r.Indices[0].MaxBW = 11
+	r.Indices[0].AllocBW = 12
+	r.Indices[0].Token.BWCls = 8
+	err = r.SetIndexConfirmed(r.Indices[0].Idx)
+	require.NoError(t, err)
+	err = r.SetIndexActive(r.Indices[0].Idx)
+	require.NoError(t, err)
+	err = db.PersistSegmentRsv(ctx, r)
+	require.NoError(t, err)
+	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Equal(t, r, rsv)
 }
 
 func testGetSegmentRsvFromID(ctx context.Context, t *testing.T, db backend.DB) {
@@ -286,71 +292,6 @@ func testGetSegmentRsvsFromIFPair(ctx context.Context, t *testing.T, db backend.
 	// bad query
 	_, err = db.GetSegmentRsvsFromIFPair(ctx, nil, nil)
 	require.Error(t, err)
-}
-
-func testUpdateSegmentIndex(ctx context.Context, t *testing.T, db backend.DB) {
-	r := newTestReservation(t)
-	idx, err := r.NewIndex(time.Unix(1, 0), r.Indices[0].Token)
-	require.NoError(t, err)
-	err = db.NewSegmentRsv(ctx, r)
-	require.NoError(t, err)
-	rsv, err := db.GetSegmentRsvFromID(ctx, &r.ID)
-	require.NoError(t, err)
-	index, err := r.Index(idx)
-	require.NoError(t, err)
-	// change the last index
-	index.Expiration = time.Unix(123, 0)
-	err = r.SetIndexConfirmed(idx)
-	require.NoError(t, err)
-	index.MinBW = 10
-	index.MaxBW = 11
-	index.AllocBW = 12
-	index.Token.BWCls = 8
-	require.NotEqual(t, r, rsv) // obvious
-	err = db.UpdateSegmentIndex(ctx, r, idx)
-	require.NoError(t, err)
-	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
-	require.NoError(t, err)
-	require.Equal(t, r, rsv)
-}
-
-func testSetSegmentIndexActive(ctx context.Context, t *testing.T, db backend.DB) {
-	r := newTestReservation(t)
-	err := db.NewSegmentRsv(ctx, r)
-	require.NoError(t, err)
-	err = r.SetIndexActive(0)
-	require.NoError(t, err)
-	err = db.SetSegmentIndexActive(ctx, r, 0)
-	require.NoError(t, err)
-	rsv, err := db.GetSegmentRsvFromID(ctx, &r.ID)
-	require.NoError(t, err)
-	require.Equal(t, r, rsv)
-	// two more indices
-	token := r.Indices[0].Token
-	idx, err := r.NewIndex(time.Unix(1, 0), token)
-	require.NoError(t, err)
-	err = db.NewSegmentIndex(ctx, r, idx)
-	require.NoError(t, err)
-	idx2, err := r.NewIndex(time.Unix(2, 0), token)
-	require.NoError(t, err)
-	require.Len(t, r.Indices, 3)
-	err = db.NewSegmentIndex(ctx, r, idx2)
-	require.NoError(t, err)
-	err = r.SetIndexConfirmed(idx)
-	require.NoError(t, err)
-	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
-	require.NoError(t, err)
-	require.Len(t, rsv.Indices, 3)
-	// activate it
-	err = r.SetIndexActive(idx)
-	require.NoError(t, err)
-	require.Len(t, r.Indices, 2)
-	err = db.SetSegmentIndexActive(ctx, r, idx)
-	require.NoError(t, err)
-	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
-	require.NoError(t, err)
-	require.Equal(t, r, rsv)
-	require.Len(t, rsv.Indices, 2)
 }
 
 // newToken just returns a token that can be serialized. This one has two HopFields.
