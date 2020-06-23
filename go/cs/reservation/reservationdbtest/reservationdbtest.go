@@ -59,16 +59,22 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	r.Indices = segment.Indices{}
 	// no indices
 	err := db.NewSegmentRsv(ctx, r)
-	require.Error(t, err)
-	// at least one index
+	require.NoError(t, err)
+	require.Equal(t, xtest.MustParseHexString("00000001"), r.ID.Suffix[:])
+	rsv, err := db.GetSegmentRsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Equal(t, r, rsv)
+	// at least one index, and change path
 	token := newToken()
 	expTime := time.Unix(1, 0)
 	r.NewIndex(expTime, *token)
+	r.Path = segmenttest.NewPathFromComponents(1, "1-ff00:0:1", 2, 1, "1-ff00:0:2", 0)
 	err = db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
-	require.Equal(t, xtest.MustParseHexString("00000001"), r.ID.Suffix[:])
-	require.Len(t, r.Indices, 1)
-	require.Equal(t, *token, r.Indices[0].Token)
+	require.Equal(t, xtest.MustParseHexString("00000002"), r.ID.Suffix[:])
+	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Equal(t, r, rsv)
 	// same path should fail
 	err = db.NewSegmentRsv(ctx, r)
 	require.Error(t, err)
