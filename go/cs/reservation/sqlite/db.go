@@ -319,16 +319,22 @@ func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reser
 	if err != nil {
 		return err
 	}
-	rsvRowID, err := res.LastInsertId()
-	if err != nil {
-		return db.NewTxError("cannot obtain last insertion row id", err)
-	}
-	const queryIndex = `INSERT INTO seg_index (reservation, index_number, expiration, state,
+	if len(rsv.Indices) > 0 {
+		rsvRowID, err := res.LastInsertId()
+		if err != nil {
+			return db.NewTxError("cannot obtain last insertion row id", err)
+		}
+		const queryIndexTmpl = `INSERT INTO seg_index (reservation, index_number, expiration, state,
 		min_bw, max_bw, alloc_bw, token) VALUES (?,?,?,?,?,?,?,?)`
-	for _, index := range rsv.Indices {
-		_, err := x.ExecContext(ctx, queryIndex, rsvRowID, index.Idx,
-			uint32(index.Expiration.Unix()), index.State(), index.MinBW, index.MaxBW,
-			index.AllocBW, index.Token.ToRaw())
+		params := make([]interface{}, 0, 8*len(rsv.Indices))
+		for _, index := range rsv.Indices {
+			params = append(params, rsvRowID, index.Idx,
+				uint32(index.Expiration.Unix()), index.State(), index.MinBW, index.MaxBW,
+				index.AllocBW, index.Token.ToRaw())
+		}
+		q := queryIndexTmpl + strings.Repeat(",(?,?,?,?,?,?,?,?)", len(rsv.Indices)-1)
+		fmt.Println("query", q)
+		_, err = x.ExecContext(ctx, q, params...)
 		if err != nil {
 			return err
 		}
