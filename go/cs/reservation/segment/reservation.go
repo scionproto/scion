@@ -95,6 +95,8 @@ func (r *Reservation) ActiveIndex() *Index {
 
 // NewIndex creates a new index in this reservation and returns a pointer to it.
 // Parameters of this index can be changed using the pointer, except for the state.
+// The expiration times must always be greater or equal than those in previous indices.
+// TODO(juagargi) we need two ways of creating an index: from the source AS or from transit AS.
 func (r *Reservation) NewIndex(expTime time.Time, token reservation.Token) (
 	reservation.IndexNumber, error) {
 
@@ -150,6 +152,7 @@ func (r *Reservation) SetIndexActive(idx reservation.IndexNumber) error {
 	if r.activeIndex == sliceIndex {
 		return nil // already active
 	}
+	// valid states are Pending (nominal) and Active (reconstructing from DB needs this)
 	if r.Indices[sliceIndex].state != IndexPending && r.Indices[sliceIndex].state != IndexActive {
 		return serrors.New("attempt to activate a non confirmed index", "index_number", idx,
 			"state", r.Indices[sliceIndex].state)
