@@ -17,6 +17,7 @@ package log
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/config"
 )
@@ -92,6 +93,8 @@ type FileConfig struct {
 	FlushInterval *uint `toml:"flush_interval,omitempty"`
 	// Compress can be set to enable rotated file compression.
 	Compress bool `toml:"compress,omitempty"`
+	// Format of the file logging. (human|json)
+	Format string `toml:"format,omitempty"`
 }
 
 // InitDefaults populates unset fields in cfg to their default values (if they
@@ -113,12 +116,17 @@ func (c *FileConfig) InitDefaults() {
 		s := DefaultFileFlushSeconds
 		c.FlushInterval = &s
 	}
+	if !strings.EqualFold(c.Format, "json") {
+		c.Format = "human"
+	}
 }
 
 // ConsoleConfig is the config for the console logger.
 type ConsoleConfig struct {
 	// Level of console logging (defaults to DefaultConsoleLevel).
 	Level string `toml:"level,omitempty"`
+	// Format of the console logging. (human|json)
+	Format string `toml:"format,omitempty"`
 }
 
 // InitDefaults populates unset fields in cfg to their default values (if they
@@ -126,5 +134,8 @@ type ConsoleConfig struct {
 func (c *ConsoleConfig) InitDefaults() {
 	if c.Level == "" {
 		c.Level = DefaultConsoleLevel
+	}
+	if !strings.EqualFold(c.Format, "json") {
+		c.Format = "human"
 	}
 }

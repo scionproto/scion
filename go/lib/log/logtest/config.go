@@ -35,4 +35,6 @@ func CheckTestLogging(t *testing.T, cfg *log.Config, id string) {
 	assert.Equal(t, log.DefaultFileMaxBackups, int(cfg.File.MaxBackups))
 	assert.Equal(t, log.DefaultFileFlushSeconds, *cfg.File.FlushInterval)
 	assert.Equal(t, log.DefaultConsoleLevel, cfg.Console.Level)
+	assert.Equal(t, "human", cfg.File.Format)
+	assert.Equal(t, "human", cfg.Console.Format)
 }

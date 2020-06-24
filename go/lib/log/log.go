@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/inconshreveable/log15"
@@ -81,8 +82,11 @@ func setupFile(cfg FileConfig) (log15.Handler, error) {
 		logBuf = newSyncBuf(logger)
 		logger = logBuf
 	}
-
-	handler := log15.LvlFilterHandler(logLvl, log15.StreamHandler(logger, fmt15.Fmt15Format(nil)))
+	format := fmt15.Fmt15Format(nil)
+	if strings.EqualFold(cfg.Format, "json") {
+		format = log15.JsonFormat()
+	}
+	handler := log15.LvlFilterHandler(logLvl, log15.StreamHandler(logger, format))
 
 	if cfg.FlushInterval != nil && *cfg.FlushInterval > 0 {
 		go func() {
@@ -104,7 +108,11 @@ func setupConsole(cfg ConsoleConfig) (log15.Handler, error) {
 	if isatty.IsTerminal(os.Stderr.Fd()) {
 		cMap = fmt15.ColorMap
 	}
-	handler := log15.LvlFilterHandler(lvl, log15.StreamHandler(os.Stderr, fmt15.Fmt15Format(cMap)))
+	format := fmt15.Fmt15Format(cMap)
+	if strings.EqualFold(cfg.Format, "json") {
+		format = log15.JsonFormat()
+	}
+	handler := log15.LvlFilterHandler(lvl, log15.StreamHandler(os.Stderr, format))
 	return handler, nil
 }
 
