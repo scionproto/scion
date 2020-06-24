@@ -1,7 +1,6 @@
 module github.com/scionproto/scion
 
 require (
-	github.com/BurntSushi/toml v0.3.1
 	github.com/antlr/antlr4 v0.0.0-20181218183524-be58ebffde8e
 	github.com/buildkite/go-buildkite v2.2.1-0.20190413010238-568b6651b687+incompatible
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
@@ -21,6 +20,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.9.1-0.20180719091609-b3511bfdd742
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/patrickmn/go-cache v2.1.1-0.20180815053127-5633e0862627+incompatible
+	github.com/pelletier/go-toml v1.8.0
 	github.com/pkg/errors v0.8.2-0.20190227000051-27936f6d90f9 // indirect
 	github.com/prometheus/client_golang v1.1.0
 	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4 // indirect
@@ -40,7 +40,7 @@ require (
 	golang.org/x/tools v0.0.0-20191029041327-9cc4af7d6b2c
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/restruct.v1 v1.0.0-20151213023948-80ede2e57cc2
-	gopkg.in/yaml.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.3.0
 	zombiezen.com/go/capnproto2 v0.0.0-20190813022230-ddfb9bb855fa
 )
 

@@ -19,9 +19,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/BurntSushi/toml"
-
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -49,14 +48,10 @@ type TRC struct {
 // LoadTRC loads the TRC configuration from the provided file. The contents are already validated.
 func LoadTRC(file string) (TRC, error) {
 	var cfg TRC
-	meta, err := toml.DecodeFile(file, &cfg)
-	if err != nil {
+	if err := config.LoadFile(file, &cfg); err != nil {
 		return TRC{}, serrors.WrapStr("unable to load TRC config from file", err, "file", file)
 	}
 	cfg.relPath = filepath.Dir(file)
-	if len(meta.Undecoded()) > 0 {
-		return TRC{}, serrors.New("unknown configuration values", "keys", meta.Undecoded)
-	}
 	return cfg, nil
 }
 

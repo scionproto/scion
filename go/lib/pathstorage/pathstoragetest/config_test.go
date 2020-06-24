@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/config"
@@ -30,9 +30,8 @@ func TestPathDBConfSample(t *testing.T) {
 	var cfg pathstorage.PathDBConf
 	cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
 	InitTestPathDBConf(&cfg)
-	meta, err := toml.Decode(sample.String(), &cfg)
+	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
 	assert.NoError(t, err)
-	assert.Empty(t, meta.Undecoded())
 	CheckTestPathDBConf(t, &cfg, "test")
 }
 
@@ -41,8 +40,7 @@ func TestRevCacheConfSample(t *testing.T) {
 	var cfg pathstorage.RevCacheConf
 	cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
 	InitTestRevCacheConf(&cfg)
-	meta, err := toml.Decode(sample.String(), &cfg)
+	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
 	assert.NoError(t, err)
-	assert.Empty(t, meta.Undecoded())
 	CheckTestRevCacheConf(t, &cfg)
 }

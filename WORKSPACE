@@ -35,7 +35,15 @@ http_archive(
     ],
 )
 
-load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
+load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
+load("//:tool_deps.bzl", "tool_deps")
+
+tool_deps()
+
+# gazelle:repository_macro go_deps.bzl%go_deps
+load("//:go_deps.bzl", "go_deps")
+
+go_deps()
 
 gazelle_dependencies()
 
@@ -249,12 +257,3 @@ http_archive(
     strip_prefix = "buildtools-master",
     url = "https://github.com/bazelbuild/buildtools/archive/2.2.1.zip",
 )
-
-load("//:tool_deps.bzl", "tool_deps")
-
-tool_deps()
-
-# gazelle:repository_macro go_deps.bzl%go_deps
-load("//:go_deps.bzl", "go_deps")
-
-go_deps()

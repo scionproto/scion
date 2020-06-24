@@ -10,13 +10,14 @@ go_library(
         "//go/dispatcher/config:go_default_library",
         "//go/dispatcher/network:go_default_library",
         "//go/lib/common:go_default_library",
+        "//go/lib/config:go_default_library",
         "//go/lib/env:go_default_library",
         "//go/lib/fatal:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/prom:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/util:go_default_library",
-        "@com_github_burntsushi_toml//:go_default_library",
+        "@com_github_pelletier_go_toml//:go_default_library",
     ],
 )
 

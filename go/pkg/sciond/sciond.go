@@ -22,8 +22,8 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/BurntSushi/toml"
 	"github.com/opentracing/opentracing-go"
+	"github.com/pelletier/go-toml"
 
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/messenger/tcp"
@@ -118,7 +118,7 @@ func StartHTTPEndpoints(cfg interface{}, metrics env.Metrics) {
 	http.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		var buf bytes.Buffer
-		toml.NewEncoder(&buf).Encode(cfg)
+		toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(cfg)
 		fmt.Fprint(w, buf.String())
 	})
 	http.HandleFunc("/info", env.InfoHandler)

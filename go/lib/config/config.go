@@ -45,14 +45,14 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const ID = "id"
@@ -162,12 +162,8 @@ func LoadFile(file string, cfg interface{}) error {
 	if err != nil {
 		return err
 	}
-	m, err := toml.Decode(string(raw), cfg)
-	if err != nil {
+	if err := toml.NewDecoder(bytes.NewReader(raw)).Strict(true).Decode(cfg); err != nil {
 		return err
-	}
-	if len(m.Undecoded()) > 0 {
-		return serrors.New("undecoded keys in configuration", "keys", m.Undecoded())
 	}
 	return nil
 }

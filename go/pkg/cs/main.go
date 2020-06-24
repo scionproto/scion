@@ -29,8 +29,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/opentracing/opentracing-go"
+	"github.com/pelletier/go-toml"
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/yaml.v2"
 
@@ -115,8 +115,7 @@ func (app *App) runConfigLoader() error {
 	if app.ConfigLoader != nil {
 		return app.ConfigLoader()
 	}
-	_, err := toml.DecodeFile(env.ConfigFile(), &Cfg)
-	return err
+	return libconfig.LoadFile(env.ConfigFile(), &Cfg)
 }
 
 func (app *App) runPathDBConstructor(
@@ -994,7 +993,7 @@ func (h *chainedHandler) Handle(r *infra.Request) *infra.HandlerResult {
 func configHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	var buf bytes.Buffer
-	toml.NewEncoder(&buf).Encode(Cfg)
+	toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(Cfg)
 	fmt.Fprint(w, buf.String())
 }
 

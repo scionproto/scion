@@ -8,6 +8,7 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//go/lib/common:go_default_library",
+        "//go/lib/config:go_default_library",
         "//go/lib/env:go_default_library",
         "//go/lib/fatal:go_default_library",
         "//go/lib/log:go_default_library",
@@ -22,7 +23,7 @@ go_library(
         "//go/sig/internal/sigcmn:go_default_library",
         "//go/sig/internal/sigconfig:go_default_library",
         "//go/sig/internal/xnet:go_default_library",
-        "@com_github_burntsushi_toml//:go_default_library",
+        "@com_github_pelletier_go_toml//:go_default_library",
         "@com_github_syndtr_gocapability//capability:go_default_library",
     ],
 )

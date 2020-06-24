@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/cs/beaconstorage/beaconstoragetest"
@@ -37,9 +37,8 @@ func TestConfigSample(t *testing.T) {
 	cfg.Sample(&sample, nil, nil)
 
 	InitTestConfig(&cfg)
-	meta, err := toml.Decode(sample.String(), &cfg)
+	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
 	assert.NoError(t, err)
-	assert.Empty(t, meta.Undecoded())
 	CheckTestConfig(t, &cfg, idSample)
 }
 
