@@ -60,11 +60,13 @@ const (
 		expiration	INTEGER NOT NULL,
 		alloc_bw	INTEGER NOT NULL,
 		token	BLOB NOT NULL,
+		PRIMARY KEY(reservation,index_number),
 		FOREIGN KEY(reservation) REFERENCES e2e_reservation(row_id) ON DELETE CASCADE
 	);
 	CREATE TABLE e2e_to_seg (
 		e2e	INTEGER NOT NULL,
 		seg	INTEGER NOT NULL,
+		PRIMARY KEY(e2e,seg),
 		FOREIGN KEY(seg) REFERENCES seg_reservation(row_id) ON DELETE CASCADE,
 		FOREIGN KEY(e2e) REFERENCES e2e_reservation(row_id) ON DELETE CASCADE
 	);`
