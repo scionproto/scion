@@ -44,6 +44,7 @@ func TestDB(t *testing.T, db TestableDB) {
 		"get segment reservation from path":     testGetSegmentRsvFromPath,
 		"get segment reservation from IF pair":  testGetSegmentRsvsFromIFPair,
 		"delete segment reservation":            testDeleteSegmentRsv,
+		"delete expired indices":                testDeleteExpiredIndices,
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -52,6 +53,10 @@ func TestDB(t *testing.T, db TestableDB) {
 			test(ctx, t, db)
 		})
 	}
+}
+
+func TestDeleteme(t *testing.T, db backend.DB) {
+	testDeleteExpiredIndices(context.Background(), t, db)
 }
 
 func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
@@ -319,6 +324,55 @@ func testDeleteSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	rsv, err = db.GetSegmentRsvFromID(ctx, &r.ID)
 	require.NoError(t, err)
 	require.Nil(t, rsv)
+}
+
+func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) {
+	// r1 rsv expires at second 1, r2 and r3 expire at second 2, r3 and r4 expires at second 3
+	expTime := time.Unix(1, 0)
+	r := newTestReservation(t)
+	r.Indices[0].Expiration = expTime
+	err := db.NewSegmentRsv(ctx, r) // save r1
+	require.NoError(t, err)
+	r.Indices[0].Expiration = expTime.Add(time.Second)
+	err = db.NewSegmentRsv(ctx, r) // save r2
+	require.NoError(t, err)
+	r.Indices[0].Expiration = expTime.Add(time.Second)
+	r.NewIndex(expTime.Add(2*time.Second), r.Indices[0].Token)
+	err = db.NewSegmentRsv(ctx, r) // save r3
+	require.NoError(t, err)
+	r.Indices = r.Indices[:1]
+	r.Indices[0].Expiration = expTime.Add(2 * time.Second)
+	err = db.NewSegmentRsv(ctx, r) // save r4
+	require.NoError(t, err)
+	// delete everything before second 1 (nothing)
+	c, err := db.DeleteExpiredIndices(ctx, time.Unix(1, 0))
+	require.NoError(t, err)
+	require.Equal(t, 0, c)
+
+	rsvs, err := db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
+	require.NoError(t, err)
+	require.Len(t, rsvs, 4)
+	// delete before second 2 (1 index, 1 reservation)
+	c, err = db.DeleteExpiredIndices(ctx, time.Unix(2, 0))
+	require.NoError(t, err)
+	require.Equal(t, 1, c)
+	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
+	require.NoError(t, err)
+	require.Len(t, rsvs, 3)
+	// delete before second 3 (2 indices, 1 reservation)
+	c, err = db.DeleteExpiredIndices(ctx, time.Unix(3, 0))
+	require.NoError(t, err)
+	require.Equal(t, 2, c)
+	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
+	require.NoError(t, err)
+	require.Len(t, rsvs, 2)
+	// delete before second 4 (2 indices, 2 reservations)
+	c, err = db.DeleteExpiredIndices(ctx, time.Unix(4, 0))
+	require.NoError(t, err)
+	require.Equal(t, 2, c)
+	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
+	require.NoError(t, err)
+	require.Len(t, rsvs, 0)
 }
 
 // newToken just returns a token that can be serialized. This one has two HopFields.

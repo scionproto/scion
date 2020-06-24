@@ -247,7 +247,60 @@ func (x *executor) PersistSegmentRsv(ctx context.Context, rsv *segment.Reservati
 // DeleteExpiredIndices will remove expired indices from the DB. If a reservation is left
 // without any index after removing the expired ones, it will also be removed.
 func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int, error) {
-	return 0, nil
+	deletedRows := 0
+	err := db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
+		const queryGet = `SELECT rowID, reservation FROM seg_index WHERE expiration < ?`
+		expTime := uint32(now.Unix())
+		rows, err := tx.QueryContext(ctx, queryGet, expTime)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		rowIDs := make([]interface{}, 0)
+		rsvSet := make(map[int]struct{}, 0)
+		for rows.Next() {
+			var indexID, rsvRowID int
+			err := rows.Scan(&indexID, &rsvRowID)
+			if err != nil {
+				return err
+			}
+			rowIDs = append(rowIDs, indexID)
+			rsvSet[rsvRowID] = struct{}{}
+		}
+		if len(rowIDs) == 0 {
+			return nil
+		}
+		// delete them indices
+		const queryDelTmpl = `DELETE FROM seg_index WHERE rowID IN (?%s)`
+		queryDel := fmt.Sprintf(queryDelTmpl, strings.Repeat(",?", len(rowIDs)-1))
+		res, err := tx.ExecContext(ctx, queryDel, rowIDs...)
+		if err != nil {
+			return err
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		deletedRows = int(n)
+		// delete empty reservations touched by previous removal
+		rowIDs = rowIDs[:0]
+		for id := range rsvSet {
+			rowIDs = append(rowIDs, id)
+		}
+		const queryDelRsvTmpl = `DELETE FROM seg_reservation  WHERE NOT EXISTS (
+			SELECT NULL FROM seg_index idx WHERE idx.reservation=row_id
+		) AND row_id IN (?%s);`
+		queryDelRsv := fmt.Sprintf(queryDelRsvTmpl, strings.Repeat(",?", len(rsvSet)-1))
+		_, err = tx.ExecContext(ctx, queryDelRsv, rowIDs...)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return deletedRows, nil
 }
 
 // DeleteSegmentRsv removes the segment reservation
