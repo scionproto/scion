@@ -21,6 +21,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 )
@@ -54,8 +55,10 @@ func TestIndicesSort(t *testing.T) {
 func newIndices(idxs ...int) segment.Indices {
 	indices := make(segment.Indices, len(idxs))
 	for i, idx := range idxs {
-		idx := segment.NewIndex(reservation.IndexNumber(idx), time.Unix(1, 0), segment.IndexPending,
-			reservation.BWCls(1), reservation.BWCls(1), reservation.BWCls(1), &reservation.Token{})
+		expTime := time.Unix(int64(i/3+1), 0)
+		idx := segment.NewIndex(reservation.IndexNumber(idx), expTime,
+			segment.IndexPending, reservation.BWCls(1), reservation.BWCls(1), reservation.BWCls(1),
+			&reservation.Token{})
 		indices[i] = *idx
 	}
 	return indices
@@ -63,10 +66,7 @@ func newIndices(idxs ...int) segment.Indices {
 
 func checkIndicesSorted(t *testing.T, idxs segment.Indices) {
 	t.Helper()
-	if len(idxs) < 2 {
-		return
-	}
-	for i := 1; i < len(idxs); i++ {
-		require.Equal(t, idxs[i-1].Idx.Add(1), idxs[i].Idx)
-	}
+	// validate according to valid indices criteria
+	err := base.ValidateIndices(idxs)
+	require.NoError(t, err)
 }

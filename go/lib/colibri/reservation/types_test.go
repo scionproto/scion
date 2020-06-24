@@ -108,6 +108,13 @@ func TestIndexNumberArithmetic(t *testing.T) {
 	require.Equal(t, IndexNumber(0), x)
 	x = idx.Sub(IndexNumber(2))
 	require.Equal(t, IndexNumber(15), x)
+	// distance from 2 to 0 = 0 - 2 = 14 mod 16
+	x = IndexNumber(2)
+	distance := IndexNumber(0).Sub(x)
+	require.Equal(t, IndexNumber(14), distance)
+	// distance from 2 to 4
+	distance = IndexNumber(4).Sub(x)
+	require.Equal(t, IndexNumber(2), distance)
 }
 
 func TestValidatePathType(t *testing.T) {
