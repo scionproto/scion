@@ -100,13 +100,16 @@ func (idxs Indices) Len() int                                     { return len(i
 func (idxs Indices) GetIndexNumber(i int) reservation.IndexNumber { return idxs[i].Idx }
 func (idxs Indices) GetExpiration(i int) time.Time                { return idxs[i].Expiration }
 
-// Sort sorts these Indices.
+// Sort sorts these Indices according to their index number modulo 16, e.g. [14, 15, 0, 1].
 func (idxs *Indices) Sort() {
 	if len(*idxs) < 2 {
 		return
 	}
 	sort.Slice(*idxs, func(i, j int) bool {
-		return (*idxs)[i].Idx < (*idxs)[j].Idx
+		a, b := (*idxs)[i], (*idxs)[j]
+		distance := b.Idx.Sub(a.Idx)
+		return a.Expiration.Before(b.Expiration) ||
+			(a.Expiration.Equal(b.Expiration) && distance < 3)
 	})
 	// find a discontinuity and rotate
 	i := 1
