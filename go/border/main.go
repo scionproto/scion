@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/border/ifstate"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
+	libconfig "github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
@@ -102,12 +103,8 @@ func realMain() int {
 }
 
 func setupBasic() error {
-	md, err := toml.DecodeFile(env.ConfigFile(), &cfg)
-	if err != nil {
+	if err := libconfig.LoadFile(env.ConfigFile(), &cfg); err != nil {
 		return serrors.WrapStr("Failed to load config", err, "file", env.ConfigFile())
-	}
-	if len(md.Undecoded()) > 0 {
-		return serrors.New("Failed to load config: undecoded keys", "undecoded", md.Undecoded())
 	}
 	cfg.InitDefaults()
 	if err := log.Setup(cfg.Logging); err != nil {
