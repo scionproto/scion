@@ -24,7 +24,7 @@ import (
 	"os"
 	"os/user"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml"
 
 	"github.com/scionproto/scion/go/dispatcher/config"
 	"github.com/scionproto/scion/go/dispatcher/network"
@@ -178,6 +178,6 @@ func checkPerms() error {
 func configHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	var buf bytes.Buffer
-	toml.NewEncoder(&buf).Encode(cfg)
+	toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(cfg)
 	fmt.Fprint(w, buf.String())
 }

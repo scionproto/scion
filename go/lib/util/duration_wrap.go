@@ -15,14 +15,13 @@
 package util
 
 import (
+	"encoding"
 	"flag"
 	"time"
-
-	"github.com/BurntSushi/toml"
 )
 
-var _ (toml.TextUnmarshaler) = (*DurWrap)(nil)
-var _ (toml.TextMarshaler) = DurWrap{}
+var _ (encoding.TextUnmarshaler) = (*DurWrap)(nil)
+var _ (encoding.TextMarshaler) = DurWrap{}
 var _ (flag.Value) = (*DurWrap)(nil)
 
 // DurWrap is a wrapper to enable marshalling and unmarshalling of durations

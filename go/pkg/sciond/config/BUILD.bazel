@@ -30,7 +30,7 @@ go_test(
         "//go/lib/pathstorage/pathstoragetest:go_default_library",
         "//go/lib/sciond:go_default_library",
         "//go/lib/truststorage/truststoragetest:go_default_library",
-        "@com_github_burntsushi_toml//:go_default_library",
+        "@com_github_pelletier_go_toml//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )

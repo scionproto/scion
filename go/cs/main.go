@@ -18,8 +18,7 @@ import (
 	"flag"
 	"os"
 
-	"github.com/BurntSushi/toml"
-
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
@@ -55,7 +54,7 @@ func realMain() int {
 // on environment variables, command line arguments and the configuration
 // files.
 func InitConfiguration() error {
-	if _, err := toml.DecodeFile(env.ConfigFile(), &cs.Cfg); err != nil {
+	if err := config.LoadFile(env.ConfigFile(), &cs.Cfg); err != nil {
 		return serrors.WrapStr("failed to load config", err, "file", env.ConfigFile())
 	}
 	cs.Cfg.InitDefaults()

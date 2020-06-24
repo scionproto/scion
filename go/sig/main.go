@@ -26,7 +26,7 @@ import (
 	"os/user"
 	"sync/atomic"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml"
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -217,6 +217,6 @@ func loadConfig(path string) bool {
 func configHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	var buf bytes.Buffer
-	toml.NewEncoder(&buf).Encode(cfg)
+	toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(cfg)
 	fmt.Fprint(w, buf.String())
 }
