@@ -16,13 +16,13 @@ package segment_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
 	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 func TestIndicesSort(t *testing.T) {
@@ -54,7 +54,7 @@ func TestIndicesSort(t *testing.T) {
 func newIndices(idxs ...int) segment.Indices {
 	indices := make(segment.Indices, len(idxs))
 	for i, idx := range idxs {
-		expTime := time.Unix(int64(i/3+1), 0)
+		expTime := util.SecsToTime(uint32(i/3 + 1))
 		idx := segment.NewIndex(reservation.IndexNumber(idx), expTime,
 			segment.IndexPending, reservation.BWCls(1), reservation.BWCls(1), reservation.BWCls(1),
 			nil)

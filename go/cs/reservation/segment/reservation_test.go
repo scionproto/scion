@@ -23,12 +23,13 @@ import (
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 func TestNewIndexAtSource(t *testing.T) {
 	r := segmenttest.NewReservation()
 	require.Len(t, r.Indices, 0)
-	expTime := time.Unix(1, 0)
+	expTime := util.SecsToTime(1)
 	idx, err := r.NewIndexAtSource(expTime, 1, 3, 2, 5, reservation.CorePath)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 1)
@@ -101,7 +102,7 @@ func TestReservationValidate(t *testing.T) {
 	err = r.Validate()
 	require.Error(t, err)
 	// more than one active index
-	expTime := time.Unix(1, 0)
+	expTime := util.SecsToTime(1)
 	r = segmenttest.NewReservation()
 	r.NewIndexAtSource(expTime, 0, 0, 0, 0, reservation.CorePath)
 	r.NewIndexAtSource(expTime, 0, 0, 0, 0, reservation.CorePath)
@@ -129,7 +130,7 @@ func TestReservationValidate(t *testing.T) {
 
 func TestIndex(t *testing.T) {
 	r := segmenttest.NewReservation()
-	expTime := time.Unix(1, 0)
+	expTime := util.SecsToTime(1)
 	r.NewIndexAtSource(expTime, 0, 0, 0, 0, reservation.CorePath)
 	idx, _ := r.NewIndexAtSource(expTime, 0, 0, 0, 0, reservation.CorePath)
 	r.NewIndexAtSource(expTime, 0, 0, 0, 0, reservation.CorePath)
@@ -148,7 +149,7 @@ func TestIndex(t *testing.T) {
 
 func TestSetIndexConfirmed(t *testing.T) {
 	r := segmenttest.NewReservation()
-	expTime := time.Unix(1, 0)
+	expTime := util.SecsToTime(1)
 	id, _ := r.NewIndexAtSource(expTime, 0, 0, 0, 0, reservation.CorePath)
 	require.Equal(t, segment.IndexTemporary, r.Indices[0].State())
 	err := r.SetIndexConfirmed(id)
@@ -163,7 +164,7 @@ func TestSetIndexConfirmed(t *testing.T) {
 
 func TestSetIndexActive(t *testing.T) {
 	r := segmenttest.NewReservation()
-	expTime := time.Unix(1, 0)
+	expTime := util.SecsToTime(1)
 
 	// index not confirmed
 	idx, _ := r.NewIndexAtSource(expTime, 0, 0, 0, 0, reservation.CorePath)
@@ -196,7 +197,7 @@ func TestSetIndexActive(t *testing.T) {
 
 func TestRemoveIndex(t *testing.T) {
 	r := segmenttest.NewReservation()
-	expTime := time.Unix(1, 0)
+	expTime := util.SecsToTime(1)
 	idx, _ := r.NewIndexAtSource(expTime, 0, 0, 0, 0, reservation.CorePath)
 	err := r.RemoveIndex(idx)
 	require.NoError(t, err)

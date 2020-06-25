@@ -16,13 +16,13 @@ package e2e
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -64,7 +64,7 @@ func TestValidate(t *testing.T) {
 
 func TestNewIndex(t *testing.T) {
 	r := newReservation()
-	expTime := time.Unix(1, 0)
+	expTime := util.SecsToTime(1)
 	index, err := r.NewIndex(expTime)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 1)
@@ -73,7 +73,7 @@ func TestNewIndex(t *testing.T) {
 
 func TestRemoveIndex(t *testing.T) {
 	r := newReservation()
-	expTime := time.Unix(1, 0)
+	expTime := util.SecsToTime(1)
 	idx, _ := r.NewIndex(expTime)
 	err := r.RemoveIndex(idx)
 	require.NoError(t, err)
