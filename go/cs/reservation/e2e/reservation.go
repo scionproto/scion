@@ -69,7 +69,7 @@ func (r *Reservation) NewIndex(expTime time.Time) (reservation.IndexNumber, erro
 		return 0, err
 	}
 	r.Indices = newIndices
-	return r.Indices[len(r.Indices)-1].Idx, nil
+	return idx, nil
 }
 
 // RemoveIndex removes all indices from the beginning until this one, inclusive.
