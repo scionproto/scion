@@ -27,7 +27,7 @@ type Index struct {
 	Idx        reservation.IndexNumber
 	Expiration time.Time
 	AllocBW    reservation.BWCls // also present in the token
-	Token      reservation.Token
+	Token      *reservation.Token
 }
 
 type Indices []Index
@@ -37,3 +37,5 @@ var _ base.IndicesInterface = (*Indices)(nil)
 func (idxs Indices) Len() int                                     { return len(idxs) }
 func (idxs Indices) GetIndexNumber(i int) reservation.IndexNumber { return idxs[i].Idx }
 func (idxs Indices) GetExpiration(i int) time.Time                { return idxs[i].Expiration }
+func (idxs Indices) GetAllocBW(i int) reservation.BWCls           { return idxs[i].AllocBW }
+func (idxs Indices) GetToken(i int) *reservation.Token            { return idxs[i].Token }

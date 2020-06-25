@@ -68,7 +68,7 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	// at least one index, and change path
 	token := newToken()
 	expTime := time.Unix(1, 0)
-	r.NewIndex(expTime, *token)
+	r.NewIndex(expTime, token)
 	r.Path = segmenttest.NewPathFromComponents(1, "1-ff00:0:1", 2, 1, "1-ff00:0:2", 0)
 	err = db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
@@ -92,18 +92,26 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 
 func testPersistSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	r := newTestReservation(t)
-	token := r.Indices[0].Token
-	r.NewIndex(time.Unix(1, 0), token)
-	r.NewIndex(time.Unix(2, 0), token)
-	r.NewIndex(time.Unix(3, 0), token)
-	r.NewIndex(time.Unix(4, 0), token)
-	r.NewIndex(time.Unix(5, 0), token)
-	r.NewIndex(time.Unix(6, 0), token)
-	r.NewIndex(time.Unix(7, 0), token)
-	r.NewIndex(time.Unix(8, 0), token)
-	r.NewIndex(time.Unix(9, 0), token)
+	_, err := r.NewIndex(time.Unix(1, 0), nil)
+	require.NoError(t, err)
+	_, err = r.NewIndex(time.Unix(2, 0), nil)
+	require.NoError(t, err)
+	_, err = r.NewIndex(time.Unix(3, 0), nil)
+	require.NoError(t, err)
+	_, err = r.NewIndex(time.Unix(4, 0), nil)
+	require.NoError(t, err)
+	_, err = r.NewIndex(time.Unix(5, 0), nil)
+	require.NoError(t, err)
+	_, err = r.NewIndex(time.Unix(6, 0), nil)
+	require.NoError(t, err)
+	_, err = r.NewIndex(time.Unix(7, 0), nil)
+	require.NoError(t, err)
+	_, err = r.NewIndex(time.Unix(8, 0), nil)
+	require.NoError(t, err)
+	_, err = r.NewIndex(time.Unix(9, 0), nil)
+	require.NoError(t, err)
 	require.Len(t, r.Indices, 10)
-	err := db.NewSegmentRsv(ctx, r)
+	err = db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	rsv, err := db.GetSegmentRsvFromID(ctx, &r.ID)
 	require.NoError(t, err)
@@ -141,6 +149,7 @@ func testPersistSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	r.Indices[0].MinBW = 10
 	r.Indices[0].MaxBW = 11
 	r.Indices[0].AllocBW = 12
+	r.Indices[0].Token = newToken() // change the token
 	r.Indices[0].Token.BWCls = 8
 	err = r.SetIndexConfirmed(r.Indices[0].Idx)
 	require.NoError(t, err)
@@ -159,9 +168,11 @@ func testGetSegmentRsvFromID(ctx context.Context, t *testing.T, db backend.DB) {
 	require.NoError(t, err)
 	// create new index
 	expTime := time.Unix(1, 0)
-	_, err = r.NewIndex(expTime, *newToken())
+	tok := newToken()
+	tok.Idx = 1
+	_, err = r.NewIndex(expTime, tok)
 	require.NoError(t, err)
-	r.Indices[1].Token.BWCls = 3
+	// r.Indices[1].Token.BWCls = 3
 	err = db.PersistSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	r2, err := db.GetSegmentRsvFromID(ctx, &r.ID)
@@ -171,12 +182,17 @@ func testGetSegmentRsvFromID(ctx context.Context, t *testing.T, db backend.DB) {
 	require.Len(t, r.Indices, 2)
 	for i := 2; i < 16; i++ {
 		expTime = time.Unix(int64(i), 0)
-		_, err = r.NewIndex(expTime, *newToken())
+		tok = newToken()
+		// tok.BWCls = 0
+		tok.Idx = reservation.IndexNumber(i)
+		tok.ExpirationTick = reservation.TickFromTime(expTime)
+		_, err = r.NewIndex(expTime, tok)
 		require.NoError(t, err)
-		r.Indices[i].MinBW = reservation.BWCls(i)
-		r.Indices[i].MaxBW = reservation.BWCls(i)
-		r.Indices[i].AllocBW = reservation.BWCls(i)
-		r.Indices[i].Token.BWCls = reservation.BWCls(i)
+		// TODO(juagargi) apply modifications to the indices below, after having two NewIndex fcns
+		// r.Indices[i].MinBW = reservation.BWCls(i)
+		// r.Indices[i].MaxBW = reservation.BWCls(i)
+		// r.Indices[i].AllocBW = reservation.BWCls(i)
+		// r.Indices[i].Token.BWCls = reservation.BWCls(i)
 	}
 	require.Len(t, r.Indices, 16)
 	err = db.PersistSegmentRsv(ctx, r)
@@ -334,7 +350,7 @@ func testDeleteSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 // newToken just returns a token that can be serialized. This one has two HopFields.
 func newToken() *reservation.Token {
 	t, err := reservation.TokenFromRaw(xtest.MustParseHexString(
-		"16ebdb4f0d042500003f001002bad1ce003f001002facade"))
+		"0000000000040500003f001002bad1ce003f001002facade"))
 	if err != nil {
 		panic("invalid serialized token")
 	}
@@ -351,9 +367,8 @@ func newTestReservation(t *testing.T) *segment.Reservation {
 	r.TrafficSplit = 3
 	r.PathEndProps = reservation.EndLocal | reservation.StartLocal
 	expTime := time.Unix(1, 0)
-	_, err := r.NewIndex(expTime, *newToken())
+	_, err := r.NewIndex(expTime, newToken())
 	require.NoError(t, err)
-	r.Indices[0].Token.BWCls = 2
 	err = r.SetIndexConfirmed(0)
 	require.NoError(t, err)
 	return r

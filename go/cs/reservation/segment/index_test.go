@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package segment_test
 package segment_test
 
 import (
@@ -58,7 +57,7 @@ func newIndices(idxs ...int) segment.Indices {
 		expTime := time.Unix(int64(i/3+1), 0)
 		idx := segment.NewIndex(reservation.IndexNumber(idx), expTime,
 			segment.IndexPending, reservation.BWCls(1), reservation.BWCls(1), reservation.BWCls(1),
-			&reservation.Token{})
+			nil)
 		indices[i] = *idx
 	}
 	return indices

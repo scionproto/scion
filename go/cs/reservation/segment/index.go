@@ -69,7 +69,7 @@ type Index struct {
 	MinBW      reservation.BWCls
 	MaxBW      reservation.BWCls
 	AllocBW    reservation.BWCls
-	Token      reservation.Token
+	Token      *reservation.Token
 }
 
 // NewIndex creates a new Index without yet linking it to any reservation.
@@ -82,7 +82,7 @@ func NewIndex(idx reservation.IndexNumber, expiration time.Time, state IndexStat
 		MinBW:      minBW,
 		MaxBW:      maxBW,
 		AllocBW:    allocBW,
-		Token:      *token,
+		Token:      token,
 	}
 }
 
@@ -99,6 +99,8 @@ var _ base.IndicesInterface = (*Indices)(nil)
 func (idxs Indices) Len() int                                     { return len(idxs) }
 func (idxs Indices) GetIndexNumber(i int) reservation.IndexNumber { return idxs[i].Idx }
 func (idxs Indices) GetExpiration(i int) time.Time                { return idxs[i].Expiration }
+func (idxs Indices) GetAllocBW(i int) reservation.BWCls           { return idxs[i].AllocBW }
+func (idxs Indices) GetToken(i int) *reservation.Token            { return idxs[i].Token }
 
 // Sort sorts these Indices according to their index number modulo 16, e.g. [14, 15, 0, 1].
 func (idxs *Indices) Sort() {

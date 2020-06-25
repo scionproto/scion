@@ -347,6 +347,9 @@ func (t *Token) Validate() error {
 
 // TokenFromRaw builds a Token from the passed bytes buffer.
 func TokenFromRaw(raw []byte) (*Token, error) {
+	if raw == nil {
+		return nil, nil
+	}
 	rawHFs := len(raw) - InfoFieldLen
 	if rawHFs < 0 || rawHFs%spath.HopFieldLength != 0 {
 		return nil, serrors.New("buffer too small", "min_size", InfoFieldLen,
@@ -374,6 +377,9 @@ func TokenFromRaw(raw []byte) (*Token, error) {
 
 // Len returns the number of bytes of this token if serialized.
 func (t *Token) Len() int {
+	if t == nil {
+		return 0
+	}
 	return InfoFieldLen + len(t.HopFields)*spath.HopFieldLength
 }
 
@@ -397,6 +403,8 @@ func (t *Token) Read(b []byte) (int, error) {
 // ToRaw returns the serial representation of the Token.
 func (t *Token) ToRaw() []byte {
 	buff := make([]byte, t.Len())
-	t.Read(buff) // safely ignore errors as they can only come from buffer size
+	if t != nil {
+		t.Read(buff) // safely ignore errors as they can only come from buffer size
+	}
 	return buff
 }
