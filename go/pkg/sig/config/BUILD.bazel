@@ -3,10 +3,10 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
-        "conf.go",
+        "config.go",
         "sample.go",
     ],
-    importpath = "github.com/scionproto/scion/go/pkg/sig/sigconfig",
+    importpath = "github.com/scionproto/scion/go/pkg/sig/config",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
@@ -19,7 +19,7 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["conf_test.go"],
+    srcs = ["config_test.go"],
     embed = [":go_default_library"],
     deps = [
         "//go/lib/env/envtest:go_default_library",
