@@ -93,30 +93,56 @@ func (r *Reservation) ActiveIndex() *Index {
 	return &r.Indices[r.activeIndex]
 }
 
-// NewIndex creates a new index in this reservation and returns a pointer to it.
-// Parameters of this index can be changed using the pointer, except for the state.
-// The expiration times must always be greater or equal than those in previous indices.
 // TODO(juagargi) we need two ways of creating an index: from the source AS or from transit AS.
-func (r *Reservation) NewIndex(expTime time.Time, token *reservation.Token) (
-	reservation.IndexNumber, error) {
+
+// NewIndexAtSource creates a new index. The associated token is created from the arguments, and
+// automatically linked to the index. This function should be called only from the
+// AS originating the reservation.
+// The expiration times must always be greater or equal than those in previous indices.
+func (r *Reservation) NewIndexAtSource(expTime time.Time, minBW, maxBW, allocBW reservation.BWCls,
+	rlc reservation.RLC, pathType reservation.PathType) (reservation.IndexNumber, error) {
 
 	idx := reservation.IndexNumber(0)
 	if len(r.Indices) > 0 {
 		idx = r.Indices[len(r.Indices)-1].Idx.Add(1)
 	}
+	tok := &reservation.Token{
+		InfoField: reservation.InfoField{
+			Idx:            idx,
+			ExpirationTick: reservation.TickFromTime(expTime),
+			BWCls:          allocBW,
+			RLC:            rlc,
+			PathType:       pathType,
+		},
+	}
+	index := NewIndex(idx, expTime, IndexTemporary, minBW, maxBW, allocBW, tok)
+	return r.addIndex(index)
+}
+
+// NewIndexFromToken creates a new index. The token argument is used to populate several
+// fields of the index. The token is not stored (on-path ASes don't need the token).
+// This function should be called from an AS that is on the reservation path
+// but not the originating one.
+func (r *Reservation) NewIndexFromToken(tok *reservation.Token, minBW, maxBW reservation.BWCls) (
+	reservation.IndexNumber, error) {
+
+	if tok == nil {
+		return 0, serrors.New("token is nil")
+	}
+	index := NewIndex(tok.Idx, tok.ExpirationTick.ToTime(), IndexTemporary, minBW, maxBW,
+		tok.BWCls, nil)
+	return r.addIndex(index)
+}
+
+func (r *Reservation) addIndex(index *Index) (reservation.IndexNumber, error) {
 	newIndices := make(Indices, len(r.Indices)+1)
 	copy(newIndices, r.Indices)
-	newIndices[len(newIndices)-1] = Index{
-		Expiration: expTime,
-		Idx:        idx,
-		state:      IndexTemporary,
-		Token:      token,
-	}
+	newIndices[len(newIndices)-1] = *index
 	if err := base.ValidateIndices(newIndices); err != nil {
 		return 0, err
 	}
 	r.Indices = newIndices
-	return r.Indices[len(r.Indices)-1].Idx, nil
+	return index.Idx, nil
 }
 
 // Index finds the Index with that IndexNumber and returns a pointer to it.

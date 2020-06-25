@@ -135,6 +135,10 @@ func TickFromTime(t time.Time) Tick {
 	return Tick(util.TimeToSecs(t) / 4)
 }
 
+func (t Tick) ToTime() time.Time {
+	return util.SecsToTime(uint32(t) * 4)
+}
+
 // BWCls is the bandwidth class. bandwidth = 16 * sqrt(2^(BWCls - 1)). 0 <= bwcls <= 63 .
 type BWCls uint8
 
@@ -362,7 +366,9 @@ func TokenFromRaw(raw []byte) (*Token, error) {
 	}
 	t := Token{
 		InfoField: *inf,
-		HopFields: make([]spath.HopField, numHFs),
+	}
+	if numHFs > 0 {
+		t.HopFields = make([]spath.HopField, numHFs)
 	}
 	for i := 0; i < numHFs; i++ {
 		offset := InfoFieldLen + i*spath.HopFieldLength
