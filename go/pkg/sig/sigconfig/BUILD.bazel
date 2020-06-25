@@ -6,8 +6,8 @@ go_library(
         "conf.go",
         "sample.go",
     ],
-    importpath = "github.com/scionproto/scion/go/sig/internal/sigconfig",
-    visibility = ["//go/sig:__subpackages__"],
+    importpath = "github.com/scionproto/scion/go/pkg/sig/sigconfig",
+    visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
         "//go/lib/config:go_default_library",
