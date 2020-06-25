@@ -16,6 +16,7 @@ package sqlite
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/mattn/go-sqlite3"
@@ -74,9 +75,9 @@ func TestRaceForSuffix(t *testing.T) {
 		ID:      reservation.SegmentID{ASID: asid},
 		Indices: segment.Indices{segment.Index{}},
 	}
-	err = insertNewSegReservation(ctx, db.db, rsv, suffix1)
+	err = testInsertNewSegReservation(ctx, t, db.db, rsv, suffix1)
 	require.NoError(t, err)
-	err = insertNewSegReservation(ctx, db.db, rsv, suffix2)
+	err = testInsertNewSegReservation(ctx, t, db.db, rsv, suffix2)
 	require.Error(t, err)
 	sqliteError, ok := err.(sqlite3.Error)
 	require.True(t, ok)
@@ -104,6 +105,19 @@ func addSegRsvRows(t testing.TB, b *Backend, asid addr.AS, firstSuffix, lastSuff
 		_, err := b.db.ExecContext(ctx, query, asid, suffix, 0, 0, nil, 0, 0, nil, nil)
 		require.NoError(t, err)
 	}
+}
+
+func testInsertNewSegReservation(ctx context.Context, t *testing.T, db *sql.DB,
+	rsv *segment.Reservation, suffix uint32) error {
+
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	defer tx.Rollback()
+	err = insertNewSegReservation(ctx, tx, rsv, suffix)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func benchmarkNewSuffix(b *testing.B, entries uint32) {
