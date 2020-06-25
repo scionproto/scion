@@ -312,7 +312,24 @@ func (x *executor) DeleteSegmentRsv(ctx context.Context, ID *reservation.Segment
 func (x *executor) GetE2ERsvFromID(ctx context.Context, ID reservation.E2EID,
 	idx reservation.IndexNumber) (*e2e.Reservation, error) {
 
+	// read reservation
+	// read indices
+	// read assoc segment reservations
 	return nil, nil
+}
+
+func (x *executor) PersistE2ERsv(ctx context.Context, rsv *e2e.Reservation) error {
+	err := db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
+		err := deleteE2ERsv(ctx, tx, &rsv.ID)
+		if err != nil {
+			return err
+		}
+		return insertNewE2EReservation(ctx, tx, rsv)
+	})
+	if err != nil {
+		return db.NewTxError("error persisting e2e reservation", err)
+	}
+	return nil
 }
 
 // NewE2EIndex stores a new index in the DB.
@@ -356,7 +373,7 @@ func newSuffix(ctx context.Context, x db.Sqler, ASID addr.AS) (uint32, error) {
 	return suffix, nil
 }
 
-func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reservation,
+func insertNewSegReservation(ctx context.Context, x *sql.Tx, rsv *segment.Reservation,
 	suffix uint32) error {
 
 	activeIndex := -1
@@ -506,4 +523,54 @@ func deleteSegmentRsv(ctx context.Context, x db.Sqler, rsvID *reservation.Segmen
 	suffix := binary.BigEndian.Uint32(rsvID.Suffix[:])
 	_, err := x.ExecContext(ctx, query, rsvID.ASID, suffix)
 	return err
+}
+
+func deleteE2ERsv(ctx context.Context, x db.Sqler, rsvID *reservation.E2EID) error {
+	const query = `DELETE FROM e2e_reservation WHERE reservation_id = ?`
+	_, err := x.ExecContext(ctx, query, rsvID.ToRaw())
+	return err
+}
+
+// TODO(juagargi) change time.Unix calls with util.SecsToTime... etc
+
+func insertNewE2EReservation(ctx context.Context, x *sql.Tx, rsv *e2e.Reservation) error {
+	const query = `INSERT INTO e2e_reservation (reservation_id) VALUES (?)`
+	res, err := x.ExecContext(ctx, query, rsv.ID.ToRaw())
+	if err != nil {
+		return err
+	}
+	rowID, err := res.LastInsertId()
+	if err != nil {
+		return err
+	}
+	if len(rsv.Indices) > 0 {
+		const queryTmpl = `INSERT INTO e2e_index (reservation, index_number, expiration, 
+			alloc_bw, token) VALUES (?,?,?,?,?,?,?,?)`
+		params := make([]interface{}, 0, len(rsv.Indices))
+		for _, index := range rsv.Indices {
+			params = append(params, rowID, index.Idx, uint32(index.Expiration.Unix()),
+				index.AllocBW, index.Token.ToRaw())
+		}
+		query := queryTmpl + strings.Repeat(",(?,?,?,?,?,?,?,?)", len(params)-1)
+		_, err := x.ExecContext(ctx, query, params...)
+		if err != nil {
+			return err
+		}
+	}
+	if len(rsv.SegmentReservations) > 0 {
+		const valuesPlaceholder = `(?,	SELECT row_id FROM seg_reservation WHERE 
+			id_as = ? AND id_suffix = ?)`
+		const queryTmpl = `INSERT INTO e2e_to_seg (e2e, seg) VALUES `
+		params := make([]interface{}, 0, len(rsv.SegmentReservations))
+		for _, segRsv := range rsv.SegmentReservations {
+			params = append(params, rowID, segRsv.ID.ASID, binary.BigEndian.Uint32(segRsv.ID.Suffix[:]))
+		}
+		query := queryTmpl + valuesPlaceholder +
+			strings.Repeat(","+valuesPlaceholder, len(params)-1)
+		_, err := x.ExecContext(ctx, query, params...)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

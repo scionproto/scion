@@ -127,6 +127,13 @@ func (id *E2EID) Read(raw []byte) (int, error) {
 	return E2EIDLen, nil
 }
 
+// ToRaw calls Read and returns a new allocated buffer with the ID serialized.
+func (id *E2EID) ToRaw() []byte {
+	buff := make([]byte, E2EIDLen)
+	id.Read(buff) // safely ignore errors as they can only come from buffer size
+	return buff
+}
+
 // Tick represents a slice of time of 4 seconds.
 type Tick uint32
 
