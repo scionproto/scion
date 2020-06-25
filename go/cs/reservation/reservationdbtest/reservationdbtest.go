@@ -21,6 +21,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/cs/reservation/e2e"
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend"
@@ -46,6 +47,7 @@ func TestDB(t *testing.T, db TestableDB) {
 		"get segment reservation from IF pair":  testGetSegmentRsvsFromIFPair,
 		"delete segment reservation":            testDeleteSegmentRsv,
 		"delete expired indices":                testDeleteExpiredIndices,
+		"persist e2e reservation":               testPersistE2ERsv,
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -54,10 +56,6 @@ func TestDB(t *testing.T, db TestableDB) {
 			test(ctx, t, db)
 		})
 	}
-}
-
-func TestDeleteme(t *testing.T, db backend.DB) {
-	testDeleteExpiredIndices(context.Background(), t, db)
 }
 
 func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
@@ -376,6 +374,20 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	require.Len(t, rsvs, 0)
 }
 
+func testPersistE2ERsv(ctx context.Context, t *testing.T, db backend.DB) {
+	r := newTestE2EReservation(t)
+	for _, seg := range r.SegmentReservations {
+		err := db.PersistSegmentRsv(ctx, seg)
+		require.NoError(t, err)
+	}
+	err := db.PersistE2ERsv(ctx, r)
+	require.NoError(t, err)
+	// TODO(juagargi) test with:
+	// - Many seg reservations
+	// - Many indices
+	// - Unrelated seg. reservations, indices, e2e reservations etc already in DB
+}
+
 // newToken just returns a token that can be serialized. This one has two HopFields.
 func newToken() *reservation.Token {
 	t, err := reservation.TokenFromRaw(xtest.MustParseHexString(
@@ -401,4 +413,19 @@ func newTestReservation(t *testing.T) *segment.Reservation {
 	err = r.SetIndexConfirmed(0)
 	require.NoError(t, err)
 	return r
+}
+
+func newTestE2EReservation(t *testing.T) *e2e.Reservation {
+	rsv := &e2e.Reservation{
+		ID: reservation.E2EID{
+			ASID: xtest.MustParseAS("ff00:0:1"),
+		},
+		SegmentReservations: []*segment.Reservation{
+			newTestReservation(t),
+		},
+	}
+	expTime := util.SecsToTime(1)
+	_, err := rsv.NewIndex(expTime)
+	require.NoError(t, err)
+	return rsv
 }
