@@ -21,6 +21,7 @@ const (
 	SchemaVersion = 1
 	// Schema is the SQLite database layout.
 	// TODO(juagargi) create appropriate SQL indices.
+	// TODO(juagargi) remove the explicit row_id and just use the rowID from sqlite.
 	Schema = `CREATE TABLE seg_reservation (
 		row_id	INTEGER,
 		id_as	INTEGER NOT NULL,
@@ -52,6 +53,7 @@ const (
 	CREATE TABLE e2e_reservation (
 		row_id	INTEGER,
 		reservation_id	BLOB NOT NULL,
+		UNIQUE(reservation_id),
 		PRIMARY KEY(row_id)
 	);
 	CREATE TABLE e2e_index (

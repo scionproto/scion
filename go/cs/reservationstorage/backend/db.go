@@ -69,6 +69,9 @@ type ReserverAndTransit interface {
 	// GetE2ERsvFromID finds the end to end resevation given its ID.
 	GetE2ERsvFromID(ctx context.Context, ID reservation.E2EID, idx reservation.IndexNumber) (
 		*e2e.Reservation, error)
+	// PersistE2ERsv makes the DB reflect the same contents as the rsv parameter.
+	PersistE2ERsv(ctx context.Context, rsv *e2e.Reservation) error
+
 	// NewE2EIndex stores a new index in the DB.
 	// If the e2e reservation does not exist, it is created.
 	NewE2EIndex(ctx context.Context, rsv *e2e.Reservation, idx reservation.IndexNumber) error
