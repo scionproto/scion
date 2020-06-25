@@ -67,8 +67,7 @@ type ReserverAndTransit interface {
 	DeleteExpiredIndices(ctx context.Context, now time.Time) (int, error)
 
 	// GetE2ERsvFromID finds the end to end resevation given its ID.
-	GetE2ERsvFromID(ctx context.Context, ID reservation.E2EID, idx reservation.IndexNumber) (
-		*e2e.Reservation, error)
+	GetE2ERsvFromID(ctx context.Context, ID *reservation.E2EID) (*e2e.Reservation, error)
 	// PersistE2ERsv makes the DB reflect the same contents as the rsv parameter.
 	PersistE2ERsv(ctx context.Context, rsv *e2e.Reservation) error
 
