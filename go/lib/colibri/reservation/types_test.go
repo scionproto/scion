@@ -69,6 +69,14 @@ func TestTickFromTime(t *testing.T) {
 	require.Equal(t, Tick(1), TickFromTime(time.Unix(4, 0)))
 }
 
+func TestTickToTime(t *testing.T) {
+	require.Equal(t, time.Unix(0, 0), Tick(0).ToTime())
+	require.Equal(t, time.Unix(4, 0), Tick(1).ToTime())
+	require.Equal(t, time.Unix(0, 0), TickFromTime(time.Unix(0, 0)).ToTime())
+	require.Equal(t, time.Unix(0, 0), TickFromTime(time.Unix(3, 999999)).ToTime())
+	require.Equal(t, time.Unix(4, 0), TickFromTime(time.Unix(4, 0)).ToTime())
+}
+
 func TestValidateBWCls(t *testing.T) {
 	for i := 0; i < 64; i++ {
 		c := BWCls(i)
