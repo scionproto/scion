@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -97,8 +98,8 @@ func testNewSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 
 func testPersistSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	r := newTestReservation(t)
-	for i := int64(1); i < 10; i++ {
-		_, err := r.NewIndexAtSource(time.Unix(i, 0), 0, 0, 0, 0, reservation.CorePath)
+	for i := uint32(1); i < 10; i++ {
+		_, err := r.NewIndexAtSource(util.SecsToTime(i), 0, 0, 0, 0, reservation.CorePath)
 		require.NoError(t, err)
 	}
 	require.Len(t, r.Indices, 10)
@@ -135,7 +136,7 @@ func testPersistSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 	// remove 7 more indices, remains 1 index
 	err = r.RemoveIndex(8)
 	require.NoError(t, err)
-	r.Indices[0].Expiration = time.Unix(12345, 0)
+	r.Indices[0].Expiration = util.SecsToTime(12345)
 	r.Indices[0].MinBW = 10
 	r.Indices[0].MaxBW = 11
 	r.Indices[0].AllocBW = 12
@@ -157,7 +158,7 @@ func testGetSegmentRsvFromID(ctx context.Context, t *testing.T, db backend.DB) {
 	err := db.NewSegmentRsv(ctx, r)
 	require.NoError(t, err)
 	// create new index
-	expTime := time.Unix(1, 0)
+	expTime := util.SecsToTime(1)
 	_, err = r.NewIndexAtSource(expTime, 0, 0, 0, 0, reservation.CorePath)
 	require.NoError(t, err)
 	err = db.PersistSegmentRsv(ctx, r)
@@ -168,7 +169,7 @@ func testGetSegmentRsvFromID(ctx context.Context, t *testing.T, db backend.DB) {
 	// 14 more indices for a total of 16
 	require.Len(t, r.Indices, 2)
 	for i := 2; i < 16; i++ {
-		expTime = time.Unix(int64(i), 0)
+		expTime = util.SecsToTime(uint32(i))
 		_, err = r.NewIndexAtSource(expTime, reservation.BWCls(i), reservation.BWCls(i),
 			reservation.BWCls(i), 0, reservation.CorePath)
 		require.NoError(t, err)
@@ -328,7 +329,7 @@ func testDeleteSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 
 func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) {
 	// r1 rsv expires at second 1, r2 and r3 expire at second 2, r3 and r4 expires at second 3
-	expTime := time.Unix(1, 0)
+	expTime := util.SecsToTime(1)
 	r := newTestReservation(t)
 	r.Indices[0].Expiration = expTime
 	err := db.NewSegmentRsv(ctx, r) // save r1
@@ -345,7 +346,7 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	err = db.NewSegmentRsv(ctx, r) // save r4
 	require.NoError(t, err)
 	// delete everything before second 1 (nothing)
-	c, err := db.DeleteExpiredIndices(ctx, time.Unix(1, 0))
+	c, err := db.DeleteExpiredIndices(ctx, util.SecsToTime(1))
 	require.NoError(t, err)
 	require.Equal(t, 0, c)
 
@@ -353,21 +354,21 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	require.NoError(t, err)
 	require.Len(t, rsvs, 4)
 	// delete before second 2 (1 index, 1 reservation)
-	c, err = db.DeleteExpiredIndices(ctx, time.Unix(2, 0))
+	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(2))
 	require.NoError(t, err)
 	require.Equal(t, 1, c)
 	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
 	require.NoError(t, err)
 	require.Len(t, rsvs, 3)
 	// delete before second 3 (2 indices, 1 reservation)
-	c, err = db.DeleteExpiredIndices(ctx, time.Unix(3, 0))
+	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(3))
 	require.NoError(t, err)
 	require.Equal(t, 2, c)
 	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
 	require.NoError(t, err)
 	require.Len(t, rsvs, 2)
 	// delete before second 4 (2 indices, 2 reservations)
-	c, err = db.DeleteExpiredIndices(ctx, time.Unix(4, 0))
+	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(4))
 	require.NoError(t, err)
 	require.Equal(t, 2, c)
 	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
@@ -394,7 +395,7 @@ func newTestReservation(t *testing.T) *segment.Reservation {
 	r.Egress = 1
 	r.TrafficSplit = 3
 	r.PathEndProps = reservation.EndLocal | reservation.StartLocal
-	expTime := time.Unix(1, 0)
+	expTime := util.SecsToTime(1)
 	_, err := r.NewIndexAtSource(expTime, 1, 3, 2, 5, reservation.CorePath)
 	require.NoError(t, err)
 	err = r.SetIndexConfirmed(0)

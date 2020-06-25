@@ -19,6 +19,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 type IndicesInterface interface {
@@ -33,7 +34,7 @@ type IndicesInterface interface {
 // times are greater or equal, and no more than three indices per expiration time. Also no more
 // than 16 indices are allowed.
 func ValidateIndices(indices IndicesInterface) error {
-	lastExpiration := time.Unix(0, 0)
+	lastExpiration := util.SecsToTime(0)
 	lastIndexNumber := reservation.IndexNumber(0).Sub(1)
 	if indices.Len() > 0 {
 		lastIndexNumber = indices.GetIndexNumber(0).Sub(1)

@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 type Backend struct {
@@ -250,7 +251,7 @@ func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int
 	deletedRows := 0
 	err := db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
 		const queryGet = `SELECT rowID, reservation FROM seg_index WHERE expiration < ?`
-		expTime := uint32(now.Unix())
+		expTime := util.TimeToSecs(now)
 		rows, err := tx.QueryContext(ctx, queryGet, expTime)
 		if err != nil {
 			return err
@@ -399,7 +400,7 @@ func insertNewSegReservation(ctx context.Context, x *sql.Tx, rsv *segment.Reserv
 		params := make([]interface{}, 0, 8*len(rsv.Indices))
 		for _, index := range rsv.Indices {
 			params = append(params, rsvRowID, index.Idx,
-				uint32(index.Expiration.Unix()), index.State(), index.MinBW, index.MaxBW,
+				util.TimeToSecs(index.Expiration), index.State(), index.MinBW, index.MaxBW,
 				index.AllocBW, index.Token.ToRaw())
 		}
 		q := queryIndexTmpl + strings.Repeat(",(?,?,?,?,?,?,?,?)", len(rsv.Indices)-1)
@@ -497,7 +498,7 @@ func getSegIndices(ctx context.Context, x db.Sqler, rowID int) (*segment.Indices
 	}
 
 	indices := segment.Indices{}
-	var idx, expiration, state, minBW, maxBW, allocBW int32
+	var idx, expiration, state, minBW, maxBW, allocBW uint32
 	var token []byte
 	for rows.Next() {
 		err := rows.Scan(&idx, &expiration, &state, &minBW, &maxBW, &allocBW, &token)
@@ -509,7 +510,7 @@ func getSegIndices(ctx context.Context, x db.Sqler, rowID int) (*segment.Indices
 			return nil, db.NewReadError("invalid stored token", err)
 		}
 		index := segment.NewIndex(reservation.IndexNumber(idx),
-			time.Unix(int64(expiration), 0), segment.IndexState(state), reservation.BWCls(minBW),
+			util.SecsToTime(expiration), segment.IndexState(state), reservation.BWCls(minBW),
 			reservation.BWCls(maxBW), reservation.BWCls(allocBW), tok)
 		indices = append(indices, *index)
 	}
@@ -531,8 +532,6 @@ func deleteE2ERsv(ctx context.Context, x db.Sqler, rsvID *reservation.E2EID) err
 	return err
 }
 
-// TODO(juagargi) change time.Unix calls with util.SecsToTime... etc
-
 func insertNewE2EReservation(ctx context.Context, x *sql.Tx, rsv *e2e.Reservation) error {
 	const query = `INSERT INTO e2e_reservation (reservation_id) VALUES (?)`
 	res, err := x.ExecContext(ctx, query, rsv.ID.ToRaw())
@@ -548,7 +547,7 @@ func insertNewE2EReservation(ctx context.Context, x *sql.Tx, rsv *e2e.Reservatio
 			alloc_bw, token) VALUES (?,?,?,?,?,?,?,?)`
 		params := make([]interface{}, 0, len(rsv.Indices))
 		for _, index := range rsv.Indices {
-			params = append(params, rowID, index.Idx, uint32(index.Expiration.Unix()),
+			params = append(params, rowID, index.Idx, util.TimeToSecs(index.Expiration),
 				index.AllocBW, index.Token.ToRaw())
 		}
 		query := queryTmpl + strings.Repeat(",(?,?,?,?,?,?,?,?)", len(params)-1)
