@@ -97,7 +97,7 @@ func (r *Reservation) ActiveIndex() *Index {
 // Parameters of this index can be changed using the pointer, except for the state.
 // The expiration times must always be greater or equal than those in previous indices.
 // TODO(juagargi) we need two ways of creating an index: from the source AS or from transit AS.
-func (r *Reservation) NewIndex(expTime time.Time, token reservation.Token) (
+func (r *Reservation) NewIndex(expTime time.Time, token *reservation.Token) (
 	reservation.IndexNumber, error) {
 
 	idx := reservation.IndexNumber(0)
