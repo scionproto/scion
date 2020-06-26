@@ -553,8 +553,13 @@ func insertNewE2EReservation(ctx context.Context, x *sql.Tx, rsv *e2e.Reservatio
 			alloc_bw, token) VALUES (?,?,?,?,?)`
 		params := make([]interface{}, 0, 5*len(rsv.Indices))
 		for _, index := range rsv.Indices {
+			// TODO(juagargi) refactor after rebase
+			var token []byte
+			if index.Token != nil {
+				token = index.Token.ToRaw()
+			}
 			params = append(params, rowID, index.Idx, util.TimeToSecs(index.Expiration),
-				index.AllocBW, index.Token.ToRaw())
+				index.AllocBW, token)
 		}
 		query := queryTmpl + strings.Repeat(",(?,?,?,?,?)", len(rsv.Indices)-1)
 		_, err := x.ExecContext(ctx, query, params...)
@@ -573,7 +578,6 @@ func insertNewE2EReservation(ctx context.Context, x *sql.Tx, rsv *e2e.Reservatio
 		}
 		query := queryTmpl + valuesPlaceholder +
 			strings.Repeat(" OR "+valuesPlaceholder, len(rsv.SegmentReservations)-1)
-		fmt.Println("query", query)
 		res, err := x.ExecContext(ctx, query, params...)
 		if err != nil {
 			return err
@@ -595,7 +599,7 @@ func getE2ERsvFromID(ctx context.Context, x *sql.Tx, ID *reservation.E2EID) (
 
 	// read reservation
 	var rowID int
-	const query = `SELECT id_row FROM e2e_reservation WHERE reservation_id = ?`
+	const query = `SELECT row_id FROM e2e_reservation WHERE reservation_id = ?`
 	err := x.QueryRowContext(ctx, query, ID.ToRaw()).Scan(&rowID)
 	if err != nil {
 		return nil, err
@@ -605,17 +609,21 @@ func getE2ERsvFromID(ctx context.Context, x *sql.Tx, ID *reservation.E2EID) (
 	if err != nil {
 		return nil, err
 	}
+	// read assoc segment reservations
+	segRsvs, err := getE2EAssocSegRsvs(ctx, x, rowID)
+	if err != nil {
+		return nil, err
+	}
 	rsv := &e2e.Reservation{
 		ID:                  *ID,
 		Indices:             indices,
-		SegmentReservations: nil,
+		SegmentReservations: segRsvs,
 	}
-	// read assoc segment reservations
 	return rsv, nil
 }
 
 func getE2EIndices(ctx context.Context, x db.Sqler, rowID int) (e2e.Indices, error) {
-	const query = `SELECT (index_number, expiration, alloc_bw, token) FROM e2e_index
+	const query = `SELECT index_number, expiration, alloc_bw, token FROM e2e_index
 		WHERE reservation = ?`
 	rows, err := x.QueryContext(ctx, query, rowID)
 	if err != nil {
@@ -629,16 +637,28 @@ func getE2EIndices(ctx context.Context, x db.Sqler, rowID int) (e2e.Indices, err
 		if err != nil {
 			return nil, err
 		}
-		tok, err := reservation.TokenFromRaw(token)
-		if err != nil {
-			return nil, err
+		// TODO(juagargi) refactor after rebase
+		var tok *reservation.Token
+		if len(token) > 0 {
+			tok, err = reservation.TokenFromRaw(token)
+			if err != nil {
+				return nil, err
+			}
 		}
 		indices = append(indices, e2e.Index{
 			Idx:        reservation.IndexNumber(idx),
 			Expiration: util.SecsToTime(expiration),
 			AllocBW:    reservation.BWCls(allocBW),
-			Token:      *tok,
+			Token:      tok,
 		})
 	}
 	return indices, nil
+}
+
+// rowID is the row ID of the E2E reservation
+func getE2EAssocSegRsvs(ctx context.Context, x db.Sqler, rowID int) (
+	[]*segment.Reservation, error) {
+
+	condition := "WHERE rowID IN (SELECT seg FROM e2e_to_seg WHERE e2e = ?)"
+	return getSegReservations(ctx, x, condition, []interface{}{rowID})
 }

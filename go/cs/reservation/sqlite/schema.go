@@ -61,7 +61,7 @@ const (
 		index_number	INTEGER NOT NULL,
 		expiration	INTEGER NOT NULL,
 		alloc_bw	INTEGER NOT NULL,
-		token	BLOB NOT NULL,
+		token	BLOB,
 		PRIMARY KEY(reservation,index_number),
 		FOREIGN KEY(reservation) REFERENCES e2e_reservation(row_id) ON DELETE CASCADE
 	);
