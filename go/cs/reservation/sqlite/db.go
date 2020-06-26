@@ -258,7 +258,7 @@ func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int
 		}
 		defer rows.Close()
 		rowIDs := make([]interface{}, 0)
-		rsvSet := make(map[int]struct{}, 0)
+		rsvRowIDs := make([]interface{}, 0)
 		for rows.Next() {
 			var indexID, rsvRowID int
 			err := rows.Scan(&indexID, &rsvRowID)
@@ -266,7 +266,7 @@ func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int
 				return err
 			}
 			rowIDs = append(rowIDs, indexID)
-			rsvSet[rsvRowID] = struct{}{}
+			rsvRowIDs = append(rsvRowIDs, rsvRowID)
 		}
 		if len(rowIDs) == 0 {
 			return nil
@@ -284,15 +284,11 @@ func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int
 		}
 		deletedRows = int(n)
 		// delete empty reservations touched by previous removal
-		rowIDs = rowIDs[:0]
-		for id := range rsvSet {
-			rowIDs = append(rowIDs, id)
-		}
 		const queryDelRsvTmpl = `DELETE FROM seg_reservation  WHERE NOT EXISTS (
 			SELECT NULL FROM seg_index idx WHERE idx.reservation=row_id
 		) AND row_id IN (?%s);`
-		queryDelRsv := fmt.Sprintf(queryDelRsvTmpl, strings.Repeat(",?", len(rsvSet)-1))
-		_, err = tx.ExecContext(ctx, queryDelRsv, rowIDs...)
+		queryDelRsv := fmt.Sprintf(queryDelRsvTmpl, strings.Repeat(",?", len(rsvRowIDs)-1))
+		_, err = tx.ExecContext(ctx, queryDelRsv, rsvRowIDs...)
 		if err != nil {
 			return err
 		}
@@ -333,29 +329,6 @@ func (x *executor) PersistE2ERsv(ctx context.Context, rsv *e2e.Reservation) erro
 	if err != nil {
 		return db.NewTxError("error persisting e2e reservation", err)
 	}
-	return nil
-}
-
-// NewE2EIndex stores a new index in the DB.
-// If the e2e reservation does not exist, it is created.
-func (x *executor) NewE2EIndex(ctx context.Context, rsv *e2e.Reservation,
-	idx reservation.IndexNumber) error {
-
-	return nil
-}
-
-// UpdateE2EIndex updates the token in an index of the e2e reservation.
-func (x *executor) UpdateE2EIndex(ctx context.Context, rsv *e2e.Reservation,
-	idx reservation.IndexNumber) error {
-
-	return nil
-
-}
-
-// DeleteE2EIndex removes an e2e index. It is used in the cleanup process.
-func (x *executor) DeleteE2EIndex(ctx context.Context, rsv *e2e.Reservation,
-	idx reservation.IndexNumber) error {
-
 	return nil
 }
 
