@@ -70,14 +70,6 @@ type ReserverAndTransit interface {
 	GetE2ERsvFromID(ctx context.Context, ID *reservation.E2EID) (*e2e.Reservation, error)
 	// PersistE2ERsv makes the DB reflect the same contents as the rsv parameter.
 	PersistE2ERsv(ctx context.Context, rsv *e2e.Reservation) error
-
-	// NewE2EIndex stores a new index in the DB.
-	// If the e2e reservation does not exist, it is created.
-	NewE2EIndex(ctx context.Context, rsv *e2e.Reservation, idx reservation.IndexNumber) error
-	// UpdateE2EIndex updates the token in an index of the e2e reservation.
-	UpdateE2EIndex(ctx context.Context, rsv *e2e.Reservation, idx reservation.IndexNumber) error
-	// DeleteE2EIndex removes an e2e index. It is used in the cleanup process.
-	DeleteE2EIndex(ctx context.Context, rsv *e2e.Reservation, idx reservation.IndexNumber) error
 }
 
 type Transaction interface {
