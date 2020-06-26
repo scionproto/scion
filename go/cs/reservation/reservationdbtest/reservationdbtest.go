@@ -19,7 +19,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -329,47 +328,107 @@ func testDeleteSegmentRsv(ctx context.Context, t *testing.T, db backend.DB) {
 }
 
 func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) {
-	// r1 rsv expires at second 1, r2 and r3 expire at second 2, r3 and r4 expires at second 3
-	expTime := util.SecsToTime(1)
+	// create seg. and e2e reservations that have indices expiring at different times.
+	// rX stands for segment rsv. and eX for an e2e. Twice the same symbol means another index.
+	// timeline: e1...r1...r2,r3...e2,e3...e3,e4...r3,r4...e5
+	//            1    2       3       4       5       6    1000
+	// Each eX is linked to a rX, being X the same for both. But e5 is linked to r4.
+
+	// r1, e1
+	// expTime := util.SecsToTime(1)
 	r := newTestReservation(t)
-	r.Indices[0].Expiration = expTime
+	r.Indices[0].Expiration = util.SecsToTime(2)
 	err := db.NewSegmentRsv(ctx, r) // save r1
 	require.NoError(t, err)
-	r.Indices[0].Expiration = expTime.Add(time.Second)
+	e := newTestE2EReservation(t)
+	e.ID.ASID = xtest.MustParseAS("ff00:0:1")
+	e.SegmentReservations = []*segment.Reservation{r}
+	e.Indices[0].Expiration = util.SecsToTime(1)
+	err = db.PersistE2ERsv(ctx, e) // save e1
+	require.NoError(t, err)
+	// r2, e2
+	r.Indices[0].Expiration = util.SecsToTime(3)
 	err = db.NewSegmentRsv(ctx, r) // save r2
 	require.NoError(t, err)
-	r.Indices[0].Expiration = expTime.Add(time.Second)
-	r.NewIndex(expTime.Add(2*time.Second), r.Indices[0].Token)
+	e.ID.ASID = xtest.MustParseAS("ff00:0:2")
+	e.SegmentReservations = []*segment.Reservation{r}
+	e.Indices[0].Expiration = util.SecsToTime(4)
+	err = db.PersistE2ERsv(ctx, e) // save e2
+	require.NoError(t, err)
+	// r3, e3
+	r.Indices[0].Expiration = util.SecsToTime(3)
+	r.NewIndex(util.SecsToTime(6), r.Indices[0].Token)
 	err = db.NewSegmentRsv(ctx, r) // save r3
 	require.NoError(t, err)
+	e.ID.ASID = xtest.MustParseAS("ff00:0:3")
+	e.SegmentReservations = []*segment.Reservation{r}
+	e.Indices[0].Expiration = util.SecsToTime(4)
+	_, err = e.NewIndex(util.SecsToTime(5))
+	require.NoError(t, err)
+	err = db.PersistE2ERsv(ctx, e) // save e3
+	require.NoError(t, err)
+	// r4, e4
 	r.Indices = r.Indices[:1]
-	r.Indices[0].Expiration = expTime.Add(2 * time.Second)
+	r.Indices[0].Expiration = util.SecsToTime(6)
 	err = db.NewSegmentRsv(ctx, r) // save r4
 	require.NoError(t, err)
-	// delete everything before second 1 (nothing)
+	e.Indices = e.Indices[:1]
+	e.Indices[0].Expiration = util.SecsToTime(5)
+	e.ID.ASID = xtest.MustParseAS("ff00:0:4")
+	e.SegmentReservations = []*segment.Reservation{r}
+	err = db.PersistE2ERsv(ctx, e) // save e4
+	require.NoError(t, err)
+	// e5
+	e.ID.ASID = xtest.MustParseAS("ff00:0:5")
+	e.SegmentReservations = []*segment.Reservation{r}
+	e.Indices[0].Expiration = util.SecsToTime(1000)
+	err = db.PersistE2ERsv(ctx, e) // save e5
+	require.NoError(t, err)
+
+	// second 1: nothing deleted
 	c, err := db.DeleteExpiredIndices(ctx, util.SecsToTime(1))
 	require.NoError(t, err)
 	require.Equal(t, 0, c)
-
-	rsvs, err := db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
+	rsvs, err := db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress) // get all seg rsvs
 	require.NoError(t, err)
 	require.Len(t, rsvs, 4)
-	// delete before second 2 (1 index, 1 reservation)
+	// second 2, in DB: r1...r2,r3...e2,e3...e3,e4...r3,r4...e5
 	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(2))
 	require.NoError(t, err)
 	require.Equal(t, 1, c)
 	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
 	require.NoError(t, err)
-	require.Len(t, rsvs, 3)
-	// delete before second 3 (2 indices, 1 reservation)
+	require.Len(t, rsvs, 4)
+	// second 3: in DB: r2,r3...e2,e3...e3,e4...r3,r4...e5
 	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(3))
+	require.NoError(t, err)
+	require.Equal(t, 1, c)
+	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
+	require.NoError(t, err)
+	require.Len(t, rsvs, 3)
+	// second 4: in DB: e2,e3...e3,e4...r3,r4...e5
+	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(4))
 	require.NoError(t, err)
 	require.Equal(t, 2, c)
 	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
 	require.NoError(t, err)
 	require.Len(t, rsvs, 2)
-	// delete before second 4 (2 indices, 2 reservations)
-	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(4))
+	// second 5: in DB: e3,e4...r3,r4...e5
+	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(5))
+	require.NoError(t, err)
+	require.Equal(t, 2, c)
+	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
+	require.NoError(t, err)
+	require.Len(t, rsvs, 2)
+	// second 6: in DB: r3,r4...e5
+	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(6))
+	require.NoError(t, err)
+	require.Equal(t, 2, c)
+	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
+	require.NoError(t, err)
+	require.Len(t, rsvs, 2)
+	// second 7, in DB: nothing
+	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(7))
 	require.NoError(t, err)
 	require.Equal(t, 2, c)
 	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
