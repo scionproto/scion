@@ -62,7 +62,8 @@ type ReserverAndTransit interface {
 	DeleteSegmentRsv(ctx context.Context, ID *reservation.SegmentID) error
 
 	// DeleteExpiredIndices will remove expired indices from the DB. If a reservation is left
-	// without any index after removing the expired ones, it will also be removed.
+	// without any index after removing the expired ones, it will also be removed. This applies to
+	// both segment and e2e reservations.
 	// Used on schedule.
 	DeleteExpiredIndices(ctx context.Context, now time.Time) (int, error)
 
