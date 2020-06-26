@@ -250,49 +250,22 @@ func (x *executor) PersistSegmentRsv(ctx context.Context, rsv *segment.Reservati
 func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int, error) {
 	deletedRows := 0
 	err := db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
-		const queryGet = `SELECT rowID, reservation FROM seg_index WHERE expiration < ?`
-		expTime := util.TimeToSecs(now)
-		rows, err := tx.QueryContext(ctx, queryGet, expTime)
+		rowIDs, rsvRowIDs, err := getExpiredSegIndexRowIDs(ctx, tx, now)
 		if err != nil {
 			return err
-		}
-		defer rows.Close()
-		rowIDs := make([]interface{}, 0)
-		rsvRowIDs := make([]interface{}, 0)
-		for rows.Next() {
-			var indexID, rsvRowID int
-			err := rows.Scan(&indexID, &rsvRowID)
-			if err != nil {
-				return err
-			}
-			rowIDs = append(rowIDs, indexID)
-			rsvRowIDs = append(rsvRowIDs, rsvRowID)
 		}
 		if len(rowIDs) == 0 {
+			// if no index was deleted, nothing else to do
 			return nil
 		}
-		// delete them indices
-		const queryDelTmpl = `DELETE FROM seg_index WHERE rowID IN (?%s)`
-		queryDel := fmt.Sprintf(queryDelTmpl, strings.Repeat(",?", len(rowIDs)-1))
-		res, err := tx.ExecContext(ctx, queryDel, rowIDs...)
+		// delete the segment indices pointed by rowIDs
+		n, err := deleteSegIndicesFromRowIDs(ctx, tx, rowIDs)
 		if err != nil {
 			return err
 		}
-		n, err := res.RowsAffected()
-		if err != nil {
-			return err
-		}
-		deletedRows = int(n)
+		deletedRows = n
 		// delete empty reservations touched by previous removal
-		const queryDelRsvTmpl = `DELETE FROM seg_reservation  WHERE NOT EXISTS (
-			SELECT NULL FROM seg_index idx WHERE idx.reservation=row_id
-		) AND row_id IN (?%s);`
-		queryDelRsv := fmt.Sprintf(queryDelRsvTmpl, strings.Repeat(",?", len(rsvRowIDs)-1))
-		_, err = tx.ExecContext(ctx, queryDelRsv, rsvRowIDs...)
-		if err != nil {
-			return err
-		}
-		return nil
+		return deleteEmptySegReservations(ctx, tx, rsvRowIDs)
 	})
 	if err != nil {
 		return 0, err
@@ -631,4 +604,53 @@ func getE2EAssocSegRsvs(ctx context.Context, x db.Sqler, rowID int) (
 
 	condition := "WHERE rowID IN (SELECT seg FROM e2e_to_seg WHERE e2e = ?)"
 	return getSegReservations(ctx, x, condition, []interface{}{rowID})
+}
+
+// returns the rowIDs of the indices and their associated segment reservation rowID
+func getExpiredSegIndexRowIDs(ctx context.Context, x db.Sqler, now time.Time) ([]interface{}, []interface{}, error) {
+	const query = `SELECT rowID, reservation FROM seg_index WHERE expiration < ?`
+	expTime := util.TimeToSecs(now)
+	rows, err := x.QueryContext(ctx, query, expTime)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	rowIDs := make([]interface{}, 0)
+	rsvRowIDs := make([]interface{}, 0)
+	for rows.Next() {
+		var indexID, rsvRowID int
+		err := rows.Scan(&indexID, &rsvRowID)
+		if err != nil {
+			return nil, nil, err
+		}
+		rowIDs = append(rowIDs, indexID)
+		rsvRowIDs = append(rsvRowIDs, rsvRowID)
+	}
+	return rowIDs, rsvRowIDs, nil
+}
+
+func deleteSegIndicesFromRowIDs(ctx context.Context, x db.Sqler, rowIDs []interface{}) (
+	int, error) {
+
+	const queryTmpl = `DELETE FROM seg_index WHERE ROWID IN (?%s)`
+	query := fmt.Sprintf(queryTmpl, strings.Repeat(",?", len(rowIDs)-1))
+	res, err := x.ExecContext(ctx, query, rowIDs...)
+	if err != nil {
+		return 0, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return int(n), nil
+}
+
+// deletes segment reservations from the rowIDs if they have no indices
+func deleteEmptySegReservations(ctx context.Context, x db.Sqler, rowIDs []interface{}) error {
+	const queryTmpl = `DELETE FROM seg_reservation  WHERE NOT EXISTS (
+		SELECT NULL FROM seg_index idx WHERE idx.reservation=row_id
+	) AND row_id IN (?%s);`
+	queryDelRsv := fmt.Sprintf(queryTmpl, strings.Repeat(",?", len(rowIDs)-1))
+	_, err := x.ExecContext(ctx, queryDelRsv, rowIDs...)
+	return err
 }
