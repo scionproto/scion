@@ -319,10 +319,7 @@ func (x *executor) GetE2ERsvFromID(ctx context.Context, ID *reservation.E2EID) (
 		rsv, err = getE2ERsvFromID(ctx, tx, ID)
 		return err
 	})
-	if err != nil {
-		return nil, err
-	}
-	return rsv, nil
+	return rsv, err
 }
 
 func (x *executor) PersistE2ERsv(ctx context.Context, rsv *e2e.Reservation) error {
