@@ -16,6 +16,8 @@ package reservationdbtest
 
 import (
 	"context"
+	"encoding/binary"
+	"fmt"
 	"testing"
 	"time"
 
@@ -48,6 +50,7 @@ func TestDB(t *testing.T, db TestableDB) {
 		"delete segment reservation":            testDeleteSegmentRsv,
 		"delete expired indices":                testDeleteExpiredIndices,
 		"persist e2e reservation":               testPersistE2ERsv,
+		"get e2e reservation from ID":           testGetE2ERsvFromID,
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -375,21 +378,94 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 }
 
 func testPersistE2ERsv(ctx context.Context, t *testing.T, db backend.DB) {
-	r := newTestE2EReservation(t)
-	for _, seg := range r.SegmentReservations {
+	r1 := newTestE2EReservation(t)
+	for _, seg := range r1.SegmentReservations {
 		err := db.PersistSegmentRsv(ctx, seg)
 		require.NoError(t, err)
 	}
-	err := db.PersistE2ERsv(ctx, r)
+	err := db.PersistE2ERsv(ctx, r1)
 	require.NoError(t, err)
 	// get it back
-	rsv, err := db.GetE2ERsvFromID(ctx, &r.ID)
+	rsv, err := db.GetE2ERsvFromID(ctx, &r1.ID)
 	require.NoError(t, err)
-	require.Equal(t, r, rsv)
-	// TODO(juagargi) test with:
-	// - Many seg reservations
-	// - Many indices
-	// - Unrelated seg. reservations, indices, e2e reservations etc already in DB
+	require.Equal(t, r1, rsv)
+	// modify
+	r2 := rsv
+	for i := range r2.ID.Suffix {
+		r2.ID.Suffix[i] = byte(i)
+	}
+	for i := uint32(2); i < 16; i++ { // add 14 more indices
+		_, err = r2.NewIndex(util.SecsToTime(i))
+		require.NoError(t, err)
+	}
+	for i := 0; i < 2; i++ {
+		seg := newTestReservation(t)
+		seg.ID.ASID = xtest.MustParseAS(fmt.Sprintf("ff00:2:%d", i+1))
+		for j := uint32(1); j < 16; j++ {
+			// TODO(juagargi) refactor after rebase
+			_, err := seg.NewIndex(util.SecsToTime(j), *newToken())
+			require.NoError(t, err)
+		}
+		err := db.PersistSegmentRsv(ctx, seg)
+		require.NoError(t, err)
+		r2.SegmentReservations = append(r2.SegmentReservations, seg)
+	}
+	err = db.PersistE2ERsv(ctx, r2)
+	require.NoError(t, err)
+	rsv, err = db.GetE2ERsvFromID(ctx, &r2.ID)
+	require.NoError(t, err)
+	require.Equal(t, r2, rsv)
+	// check the other reservation was left intact
+	rsv, err = db.GetE2ERsvFromID(ctx, &r1.ID)
+	require.NoError(t, err)
+	require.Equal(t, r1, rsv)
+	// try to persist an e2e reservation without persisting its associated segment reservation
+	r := newTestE2EReservation(t)
+	r.SegmentReservations[0].ID.ASID = xtest.MustParseAS("ff00:3:1")
+	err = db.PersistE2ERsv(ctx, r)
+	require.Error(t, err)
+	// after persisting the segment one, it will work
+	err = db.PersistSegmentRsv(ctx, r.SegmentReservations[0])
+	require.NoError(t, err)
+	err = db.PersistE2ERsv(ctx, r)
+	require.NoError(t, err)
+}
+
+func testGetE2ERsvFromID(ctx context.Context, t *testing.T, db backend.DB) {
+	// create several e2e reservations, with one segment reservations in common, and two not
+	checkThisRsvs := map[int]*e2e.Reservation{1: nil, 16: nil, 50: nil, 100: nil}
+	for i := 1; i <= 100; i++ {
+		r := newTestE2EReservation(t)
+		binary.BigEndian.PutUint32(r.ID.Suffix[:], uint32(i))
+		_, found := checkThisRsvs[i]
+		if found {
+			checkThisRsvs[i] = r
+		}
+		for j := 0; j < 2; j++ {
+			seg := newTestReservation(t)
+			seg.ID.ASID = xtest.MustParseAS(fmt.Sprintf("ff00:%d:%d", i, j+1))
+			err := db.PersistSegmentRsv(ctx, seg)
+			require.NoError(t, err)
+		}
+		for _, seg := range r.SegmentReservations {
+			segRsv, err := db.GetSegmentRsvFromID(ctx, &seg.ID)
+			require.NoError(t, err)
+			if segRsv == nil {
+				err := db.PersistSegmentRsv(ctx, seg)
+				require.NoError(t, err)
+			}
+		}
+		err := db.PersistE2ERsv(ctx, r)
+		require.NoError(t, err)
+	}
+	// now check
+	for i, r := range checkThisRsvs {
+		ID := reservation.E2EID{ASID: xtest.MustParseAS("ff00:0:1")}
+		binary.BigEndian.PutUint32(ID.Suffix[:], uint32(i))
+		rsv, err := db.GetE2ERsvFromID(ctx, &ID)
+		require.NoError(t, err)
+		require.Equal(t, r, rsv)
+	}
 }
 
 // newToken just returns a token that can be serialized. This one has two HopFields.
