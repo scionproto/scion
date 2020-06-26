@@ -382,6 +382,10 @@ func testPersistE2ERsv(ctx context.Context, t *testing.T, db backend.DB) {
 	}
 	err := db.PersistE2ERsv(ctx, r)
 	require.NoError(t, err)
+	// get it back
+	rsv, err := db.GetE2ERsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Equal(t, r, rsv)
 	// TODO(juagargi) test with:
 	// - Many seg reservations
 	// - Many indices
