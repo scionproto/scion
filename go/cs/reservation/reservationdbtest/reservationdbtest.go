@@ -17,6 +17,7 @@ package reservationdbtest
 import (
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -336,10 +337,12 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 
 	// r1, e1
 	// expTime := util.SecsToTime(1)
+	segIds := make([]reservation.SegmentID, 0)
 	r := newTestReservation(t)
 	r.Indices[0].Expiration = util.SecsToTime(2)
 	err := db.NewSegmentRsv(ctx, r) // save r1
 	require.NoError(t, err)
+	segIds = append(segIds, r.ID)
 	e := newTestE2EReservation(t)
 	e.ID.ASID = xtest.MustParseAS("ff00:0:1")
 	e.SegmentReservations = []*segment.Reservation{r}
@@ -350,6 +353,7 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	r.Indices[0].Expiration = util.SecsToTime(3)
 	err = db.NewSegmentRsv(ctx, r) // save r2
 	require.NoError(t, err)
+	segIds = append(segIds, r.ID)
 	e.ID.ASID = xtest.MustParseAS("ff00:0:2")
 	e.SegmentReservations = []*segment.Reservation{r}
 	e.Indices[0].Expiration = util.SecsToTime(4)
@@ -360,6 +364,7 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	r.NewIndex(util.SecsToTime(6), r.Indices[0].Token)
 	err = db.NewSegmentRsv(ctx, r) // save r3
 	require.NoError(t, err)
+	segIds = append(segIds, r.ID)
 	e.ID.ASID = xtest.MustParseAS("ff00:0:3")
 	e.SegmentReservations = []*segment.Reservation{r}
 	e.Indices[0].Expiration = util.SecsToTime(4)
@@ -372,6 +377,7 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	r.Indices[0].Expiration = util.SecsToTime(6)
 	err = db.NewSegmentRsv(ctx, r) // save r4
 	require.NoError(t, err)
+	segIds = append(segIds, r.ID)
 	e.Indices = e.Indices[:1]
 	e.Indices[0].Expiration = util.SecsToTime(5)
 	e.ID.ASID = xtest.MustParseAS("ff00:0:4")
@@ -392,6 +398,8 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	rsvs, err := db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress) // get all seg rsvs
 	require.NoError(t, err)
 	require.Len(t, rsvs, 4)
+	e2es := getAllE2ERsvsOnSegmentRsvs(ctx, t, db, segIds)
+	require.Len(t, e2es, 5)
 	// second 2, in DB: r1...r2,r3...e2,e3...e3,e4...r3,r4...e5
 	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(2))
 	require.NoError(t, err)
@@ -399,6 +407,8 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
 	require.NoError(t, err)
 	require.Len(t, rsvs, 4)
+	e2es = getAllE2ERsvsOnSegmentRsvs(ctx, t, db, segIds)
+	require.Len(t, e2es, 4)
 	// second 3: in DB: r2,r3...e2,e3...e3,e4...r3,r4...e5
 	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(3))
 	require.NoError(t, err)
@@ -406,6 +416,8 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
 	require.NoError(t, err)
 	require.Len(t, rsvs, 3)
+	e2es = getAllE2ERsvsOnSegmentRsvs(ctx, t, db, segIds)
+	require.Len(t, e2es, 4)
 	// second 4: in DB: e2,e3...e3,e4...r3,r4...e5
 	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(4))
 	require.NoError(t, err)
@@ -413,6 +425,8 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
 	require.NoError(t, err)
 	require.Len(t, rsvs, 2)
+	e2es = getAllE2ERsvsOnSegmentRsvs(ctx, t, db, segIds)
+	require.Len(t, e2es, 3) // r2 is gone, cascades for e2
 	// second 5: in DB: e3,e4...r3,r4...e5
 	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(5))
 	require.NoError(t, err)
@@ -420,6 +434,8 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
 	require.NoError(t, err)
 	require.Len(t, rsvs, 2)
+	e2es = getAllE2ERsvsOnSegmentRsvs(ctx, t, db, segIds)
+	require.Len(t, e2es, 3)
 	// second 6: in DB: r3,r4...e5
 	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(6))
 	require.NoError(t, err)
@@ -427,6 +443,8 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
 	require.NoError(t, err)
 	require.Len(t, rsvs, 2)
+	e2es = getAllE2ERsvsOnSegmentRsvs(ctx, t, db, segIds)
+	require.Len(t, e2es, 1)
 	// second 7, in DB: nothing
 	c, err = db.DeleteExpiredIndices(ctx, util.SecsToTime(7))
 	require.NoError(t, err)
@@ -434,6 +452,8 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &r.Ingress, &r.Egress)
 	require.NoError(t, err)
 	require.Len(t, rsvs, 0)
+	e2es = getAllE2ERsvsOnSegmentRsvs(ctx, t, db, segIds)
+	require.Len(t, e2es, 0) // r4 is gone, cascades for e5
 }
 
 func testPersistE2ERsv(ctx context.Context, t *testing.T, db backend.DB) {
@@ -567,4 +587,25 @@ func newTestE2EReservation(t *testing.T) *e2e.Reservation {
 	_, err := rsv.NewIndex(expTime)
 	require.NoError(t, err)
 	return rsv
+}
+
+func getAllE2ERsvsOnSegmentRsvs(ctx context.Context, t *testing.T, db backend.DB,
+	ids []reservation.SegmentID) []*e2e.Reservation {
+
+	set := make(map[string]struct{})
+	rsvs := make([]*e2e.Reservation, 0)
+	for _, id := range ids {
+		rs, err := db.GetE2ERsvsOnSegRsv(ctx, &id)
+		require.NoError(t, err)
+		for _, r := range rs {
+			s := hex.EncodeToString(r.ID.ToRaw())
+			_, found := set[s]
+			if !found {
+				rsvs = append(rsvs, r)
+				set[s] = struct{}{}
+			}
+		}
+		// rsvs = append(rsvs, rs...)
+	}
+	return rsvs
 }

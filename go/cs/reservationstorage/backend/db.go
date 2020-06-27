@@ -69,6 +69,8 @@ type ReserverAndTransit interface {
 
 	// GetE2ERsvFromID finds the end to end resevation given its ID.
 	GetE2ERsvFromID(ctx context.Context, ID *reservation.E2EID) (*e2e.Reservation, error)
+	// GetE2ERsvsOnSegRsv returns the e2e reservations running on top of a given segment one.
+	GetE2ERsvsOnSegRsv(ctx context.Context, ID *reservation.SegmentID) ([]*e2e.Reservation, error)
 	// PersistE2ERsv makes the DB reflect the same contents as the rsv parameter.
 	PersistE2ERsv(ctx context.Context, rsv *e2e.Reservation) error
 }
