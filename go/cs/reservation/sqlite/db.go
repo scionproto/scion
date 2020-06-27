@@ -480,6 +480,7 @@ func getSegIndices(ctx context.Context, x db.Sqler, rowID int) (segment.Indices,
 	if err != nil {
 		return nil, db.NewReadError("cannot list indices", err)
 	}
+	defer rows.Close()
 
 	indices := segment.Indices{}
 	var idx, expiration, state, minBW, maxBW, allocBW uint32
@@ -656,6 +657,7 @@ func getE2EIndices(ctx context.Context, x db.Sqler, rowID int) (e2e.Indices, err
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	indices := e2e.Indices{}
 	for rows.Next() {
 		var idx, expiration, allocBW uint32
