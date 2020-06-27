@@ -17,6 +17,7 @@ package spath
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"hash"
 	"io"
@@ -86,7 +87,7 @@ func HopFFromRaw(b []byte) (*HopField, error) {
 	h.VerifyOnly = flags&VerifyOnlyMask != 0
 	h.ExpTime = ExpTimeType(b[1])
 	// Interface IDs are 12b each, encoded into 3B
-	ifids := common.Order.Uint32(b[1:5])
+	ifids := binary.BigEndian.Uint32(b[1:5])
 	h.ConsIngress = common.IFIDType((ifids >> 12) & 0xFFF)
 	h.ConsEgress = common.IFIDType(ifids & 0xFFF)
 	h.Mac = make([]byte, MacLen)
@@ -103,7 +104,7 @@ func (h *HopField) Write(b common.RawBytes) {
 		flags |= VerifyOnlyMask
 	}
 	b[0] = flags
-	common.Order.PutUint32(b[1:5], h.expTimeIfIdsPack())
+	binary.BigEndian.PutUint32(b[1:5], h.expTimeIfIdsPack())
 	copy(b[5:], h.Mac)
 }
 
@@ -148,9 +149,9 @@ func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32, prev common.RawBytes) co
 		panic(fmt.Sprintf("Bad previous hop field length len=%d", len(prev)))
 	}
 	all := make(common.RawBytes, macInputLen)
-	common.Order.PutUint32(all, tsInt)
+	binary.BigEndian.PutUint32(all, tsInt)
 	all[4] = 0 // Ignore flags
-	common.Order.PutUint32(all[5:], h.expTimeIfIdsPack())
+	binary.BigEndian.PutUint32(all[5:], h.expTimeIfIdsPack())
 	copy(all[9:], prev)
 
 	mac.Reset()

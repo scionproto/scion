@@ -15,6 +15,8 @@
 package layers
 
 import (
+	"encoding/binary"
+
 	"github.com/google/gopacket"
 	golayers "github.com/google/gopacket/layers"
 
@@ -38,13 +40,13 @@ func (udp *UDP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeO
 		// header and we do not do that for SCION, so we would need to offset that value for
 		// gopacket to generate the correct checksum.
 		pseudo := make(common.RawBytes, udp.scn.AddrHdr.Len()+2+6)
-		common.Order.PutUint16(pseudo[0:], uint16(common.L4UDP))
-		common.Order.PutUint16(pseudo[2:], uint16(udp.SrcPort))
-		common.Order.PutUint16(pseudo[4:], uint16(udp.DstPort))
+		binary.BigEndian.PutUint16(pseudo[0:], uint16(common.L4UDP))
+		binary.BigEndian.PutUint16(pseudo[2:], uint16(udp.SrcPort))
+		binary.BigEndian.PutUint16(pseudo[4:], uint16(udp.DstPort))
 		if opts.FixLengths {
-			common.Order.PutUint16(pseudo[6:], uint16(len(b.Bytes())+8))
+			binary.BigEndian.PutUint16(pseudo[6:], uint16(len(b.Bytes())+8))
 		} else {
-			common.Order.PutUint16(pseudo[6:], udp.Length)
+			binary.BigEndian.PutUint16(pseudo[6:], udp.Length)
 		}
 
 		udp.scn.AddrHdr.Write(pseudo[8:])

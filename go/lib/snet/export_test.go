@@ -25,6 +25,6 @@ var NewScionConnWriter = newScionConnWriter
 func NewScionConnBase(localIA addr.IA, listen *net.UDPAddr) *scionConnBase {
 	return &scionConnBase{
 		listen:   listen,
-		scionNet: &SCIONNetwork{localIA: localIA},
+		scionNet: &SCIONNetwork{LocalIA: localIA},
 	}
 }

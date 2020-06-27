@@ -41,7 +41,7 @@ func (c Cmd) Template(src, dst *snet.UDPAddr) (Cmd, error) {
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
 	args = replacePattern(ServerPortReplace, serverPorts[dst.IA], args)
 	if needSCIOND(args) {
-		sciond, err := GetSCIONDAddress(SCIONDAddressesFile, src.IA)
+		sciond, err := GetSCIONDAddress(GenFile(SCIONDAddressesFile), src.IA)
 		if err != nil {
 			return Cmd{}, serrors.WrapStr("unable to determine SCIOND address", err)
 		}

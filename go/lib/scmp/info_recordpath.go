@@ -16,6 +16,7 @@ package scmp
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -49,17 +50,17 @@ type RecordPathEntry struct {
 func (entry *RecordPathEntry) write(b common.RawBytes) {
 	entry.IA.Write(b)
 	offset := addr.IABytes
-	common.Order.PutUint64(b[offset:], uint64(entry.IfID))
+	binary.BigEndian.PutUint64(b[offset:], uint64(entry.IfID))
 	offset += 8
-	common.Order.PutUint32(b[offset:], entry.TS)
+	binary.BigEndian.PutUint32(b[offset:], entry.TS)
 }
 
 func (entry *RecordPathEntry) read(b common.RawBytes) {
 	entry.IA = addr.IAFromRaw(b)
 	offset := addr.IABytes
-	entry.IfID = common.IFIDType(common.Order.Uint64(b[offset:]))
+	entry.IfID = common.IFIDType(binary.BigEndian.Uint64(b[offset:]))
 	offset += 8
-	entry.TS = common.Order.Uint32(b[offset:])
+	entry.TS = binary.BigEndian.Uint32(b[offset:])
 }
 
 func (entry *RecordPathEntry) String() string {
@@ -101,7 +102,7 @@ func InfoRecordPathFromRaw(b common.RawBytes) (*InfoRecordPath, error) {
 			"min", recordPathHdrLen, "actual", len(b))
 	}
 	rec := &InfoRecordPath{}
-	rec.Id = common.Order.Uint64(b[:8])
+	rec.Id = binary.BigEndian.Uint64(b[:8])
 	numHops := int(b[8])
 	// Skip header
 	if len(b[recordPathHdrLen:])%recordPathEntryLen != 0 {
@@ -153,7 +154,7 @@ func (rec *InfoRecordPath) Write(b common.RawBytes) (int, error) {
 		return 0, common.NewBasicError("Not enough space in buffer", nil,
 			"Expected", rec.Len(), "Actual", len(b))
 	}
-	common.Order.PutUint64(b[0:8], rec.Id)
+	binary.BigEndian.PutUint64(b[0:8], rec.Id)
 	b[8] = uint8(rec.NumHops())
 	offset := recordPathHdrLen
 	for _, e := range rec.Entries {

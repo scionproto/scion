@@ -16,6 +16,7 @@ package segfetcher
 
 import (
 	"context"
+	"errors"
 	"net"
 	"time"
 
@@ -56,8 +57,8 @@ type FetcherConfig struct {
 	QueryInterval time.Duration
 	// LocalIA is the IA this process is in.
 	LocalIA addr.IA
-	// VerificationFactory is the verification factory to use.
-	VerificationFactory infra.VerificationFactory
+	// Verifier is the verifier to use.
+	Verifier infra.Verifier
 	// PathDB is the path db to use.
 	PathDB pathdb.PathDB
 	// RevCache is the revocation cache to use.
@@ -68,9 +69,6 @@ type FetcherConfig struct {
 	DstProvider DstProvider
 	// Splitter is used to split requests.
 	Splitter Splitter
-	// SciondMode enables sciond mode, this means it uses the local CS to fetch
-	// crypto material and considers revocations in the path lookup.
-	SciondMode bool
 	// MetricsNamespace is the namespace used for metrics.
 	MetricsNamespace string
 	// LocalInfo provides information about local segments.
@@ -84,28 +82,24 @@ func (cfg FetcherConfig) New() *Fetcher {
 		Resolver:  NewResolver(cfg.PathDB, cfg.RevCache, cfg.LocalInfo),
 		Requester: &DefaultRequester{API: cfg.RequestAPI, DstProvider: cfg.DstProvider},
 		ReplyHandler: &seghandler.Handler{
-			Verifier: &seghandler.DefaultVerifier{Verifier: cfg.VerificationFactory.NewVerifier()},
+			Verifier: &seghandler.DefaultVerifier{Verifier: cfg.Verifier},
 			Storage:  &seghandler.DefaultStorage{PathDB: cfg.PathDB, RevCache: cfg.RevCache},
 		},
-		PathDB:                cfg.PathDB,
-		QueryInterval:         cfg.QueryInterval,
-		NextQueryCleaner:      NextQueryCleaner{PathDB: cfg.PathDB},
-		CryptoLookupAtLocalCS: cfg.SciondMode,
-		metrics:               metrics.NewFetcher(cfg.MetricsNamespace),
+		PathDB:        cfg.PathDB,
+		QueryInterval: cfg.QueryInterval,
+		metrics:       metrics.NewFetcher(cfg.MetricsNamespace),
 	}
 }
 
 // Fetcher fetches, verifies and stores segments for a given path request.
 type Fetcher struct {
-	Splitter              Splitter
-	Resolver              Resolver
-	Requester             Requester
-	ReplyHandler          ReplyHandler
-	PathDB                pathdb.PathDB
-	QueryInterval         time.Duration
-	NextQueryCleaner      NextQueryCleaner
-	CryptoLookupAtLocalCS bool
-	metrics               metrics.Fetcher
+	Splitter      Splitter
+	Resolver      Resolver
+	Requester     Requester
+	ReplyHandler  ReplyHandler
+	PathDB        pathdb.PathDB
+	QueryInterval time.Duration
+	metrics       metrics.Fetcher
 }
 
 // FetchSegs fetches the required segments to build a path between src and dst
@@ -118,14 +112,12 @@ func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) 
 	}
 	var segs Segments
 	for i := 0; i < 3; i++ {
-		log.FromCtx(ctx).Trace("Request to process",
-			"req", reqSet, "segs", segs, "iteration", i+1)
+		log.FromCtx(ctx).Debug("Request to process", "req", reqSet, "segs", segs, "iteration", i+1)
 		segs, reqSet, err = f.Resolver.Resolve(ctx, segs, reqSet)
 		if err != nil {
 			return Segments{}, serrors.Wrap(errDB, err)
 		}
-		log.FromCtx(ctx).Trace("After resolving",
-			"req", reqSet, "segs", segs, "iteration", i+1)
+		log.FromCtx(ctx).Debug("After resolving", "req", reqSet, "segs", segs, "iteration", i+1)
 		if reqSet.IsLoaded() {
 			break
 		}
@@ -162,6 +154,13 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 	for reply := range replies {
 		// TODO(lukedirtwalker): Should we do this in go routines?
 		labels := metrics.RequestLabels{Result: metrics.ErrNotClassified}
+		if errors.Is(reply.Err, ErrNotReachable) {
+			log.FromCtx(ctx).Info("Request for unreachable dest ignored",
+				"req", reply.Req, "err", reply.Err)
+			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
+			reqSet = updateRequestState(reqSet, reply.Req, Loaded)
+			continue
+		}
 		if reply.Err != nil {
 			if serrors.IsTimeout(reply.Err) {
 				labels.Result = metrics.ErrTimeout
@@ -174,7 +173,7 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 			reqSet = updateRequestState(reqSet, reply.Req, Fetched)
 			continue
 		}
-		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Reply), f.verifyServer(reply), nil)
+		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Reply), reply.Peer, nil)
 		select {
 		case <-r.FullReplyProcessed():
 			defer f.metrics.UpdateRevocation(r.Stats().RevStored(),
@@ -184,14 +183,14 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 				return reqSet, err
 			}
 			if len(r.VerificationErrors()) > 0 {
-				log.FromCtx(ctx).Warn("Error during verification of segments/revocations",
+				log.FromCtx(ctx).Info("Error during verification of segments/revocations",
 					"errors", r.VerificationErrors().ToError())
 			}
 			reqSet = updateRequestState(reqSet, reply.Req, Fetched)
 			nextQuery := f.nextQuery(r.Stats().VerifiedSegs)
 			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil, nextQuery)
 			if err != nil {
-				logger.Warn("Failed to insert next query", "err", err)
+				logger.Info("NextQuery insertion failed", "err", err)
 			}
 			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
 		case <-ctx.Done():
@@ -200,13 +199,6 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 		}
 	}
 	return reqSet, nil
-}
-
-func (f *Fetcher) verifyServer(reply ReplyOrErr) net.Addr {
-	if f.CryptoLookupAtLocalCS {
-		return nil
-	}
-	return reply.Peer
 }
 
 // nextQuery decides the next time a query should be issued based on the

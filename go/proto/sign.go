@@ -15,6 +15,7 @@
 package proto
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -27,7 +28,12 @@ var _ Cerealizable = (*SignS)(nil)
 
 type SignS struct {
 	Timestamp uint32
-	Type      SignType
+	// Type indicates the signature algorithm
+	//
+	// Deprecated: This is redundant information and only exists for historic
+	// reasons. Signautres based on X.509 should neither set nor read this
+	// value.
+	Type SignType
 	// Src holds the required metadata to verify the signature. The format is "STRING: METADATA".
 	// The prefix consists of "STRING: " and is required to match the regex "^\w+\: ".
 	// There are no format restrictions on the metadata.
@@ -105,7 +111,7 @@ func (s *SignS) pack(msg common.RawBytes, inclSig bool) common.RawBytes {
 		msg = append(msg, s.Signature...)
 	}
 	t := make(common.RawBytes, 4)
-	common.Order.PutUint32(t, s.Timestamp)
+	binary.BigEndian.PutUint32(t, s.Timestamp)
 	return append(msg, t...)
 }
 

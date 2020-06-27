@@ -15,6 +15,7 @@
 package parser
 
 import (
+	"encoding/binary"
 	"fmt"
 	"strings"
 	"time"
@@ -105,6 +106,10 @@ func (s *SCMPTaggedLayer) Update(lines []string) {
 			s.Info = info
 		case "InfoExtIdx":
 			info := &InfoExtIdx{}
+			skip = info.parse(lines[i:])
+			s.Info = info
+		case "InfoEcho":
+			info := &InfoEcho{}
 			skip = info.parse(lines[i:])
 			s.Info = info
 		default:
@@ -217,6 +222,28 @@ func (i *InfoExtIdx) parse(lines []string) int {
 	return 0
 }
 
+type InfoEcho struct {
+	scmp.InfoEcho
+}
+
+func (i *InfoEcho) parse(lines []string) int {
+	if len(lines) < 1 {
+		panic(fmt.Sprintf("Bad InfoEcho layer!\n%s\n", lines))
+	}
+	_, _, kvStr := decodeLayerLine(lines[0])
+	for k, v := range getKeyValueMap(kvStr) {
+		switch k {
+		case "Id":
+			i.Id = uint64(StrToUint64(v))
+		case "Seq":
+			i.Seq = uint16(StrToInt(v))
+		default:
+			panic(fmt.Sprintf("Invalid InfoEcho field: %s=%v", k, v))
+		}
+	}
+	return 0
+}
+
 func (s *SCMPTaggedLayer) updateHeaderFields(kvs propMap) {
 	for k, v := range kvs {
 		switch k {
@@ -229,7 +256,7 @@ func (s *SCMPTaggedLayer) updateHeaderFields(kvs propMap) {
 			s.opts.FixLengths = false
 		case "Checksum":
 			s.Checksum = make(common.RawBytes, 2)
-			common.Order.PutUint16(s.Checksum, uint16(HexToInt(v)))
+			binary.BigEndian.PutUint16(s.Checksum, uint16(HexToInt(v)))
 			s.opts.ComputeChecksums = false
 		case "Timestamp":
 			var err error
@@ -454,7 +481,7 @@ func (qr *quoteRaw) getRaw(blk scmp.RawBlock) common.RawBytes {
 		return scnPld[:extLen]
 	case scmp.RawL4Hdr:
 		if s, ok := qr.l4.(*layers.SCMP); ok {
-			return qr.l4.LayerContents()[:scmp.HdrLen+s.Meta.InfoLen*common.LineLen]
+			return qr.l4.LayerContents()[:scmp.HdrLen+scmp.MetaLen+s.Meta.InfoLen*common.LineLen]
 		}
 		return qr.l4.LayerContents()
 	}

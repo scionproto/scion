@@ -18,8 +18,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/BurntSushi/toml"
-	"github.com/stretchr/testify/assert"
+	"github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beaconstorage"
@@ -31,8 +30,7 @@ func TestBeaconDBConfSample(t *testing.T) {
 	var cfg beaconstorage.BeaconDBConf
 	cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
 	InitTestBeaconDBConf(&cfg)
-	meta, err := toml.Decode(sample.String(), &cfg)
+	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
 	require.NoError(t, err)
-	assert.Empty(t, meta.Undecoded())
 	CheckTestBeaconDBConf(t, &cfg, "test")
 }

@@ -45,8 +45,12 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
+
+	"github.com/pelletier/go-toml"
 
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -80,6 +84,11 @@ type Sampler interface {
 	// additional information. Sample is allowed to panic if an error
 	// occurs.
 	Sample(dst io.Writer, path Path, ctx CtxMap)
+}
+
+// TableSampler is used to write a table to the sample.
+type TableSampler interface {
+	Sampler
 	// ConfigName returns the name of the config block. This forces
 	// consistency between samples for different services for the same
 	// config block.
@@ -145,4 +154,16 @@ func InitAll(defaulters ...Defaulter) {
 	for _, v := range defaulters {
 		v.InitDefaults()
 	}
+}
+
+// LoadFile loads the config from file.
+func LoadFile(file string, cfg interface{}) error {
+	raw, err := ioutil.ReadFile(file)
+	if err != nil {
+		return err
+	}
+	if err := toml.NewDecoder(bytes.NewReader(raw)).Strict(true).Decode(cfg); err != nil {
+		return err
+	}
+	return nil
 }

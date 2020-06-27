@@ -17,6 +17,7 @@ package addr
 
 import (
 	"encoding"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"strconv"
@@ -247,11 +248,11 @@ func (ia *IA) UnmarshalText(text []byte) error {
 }
 
 func (ia *IA) Parse(b common.RawBytes) {
-	*ia = IAInt(common.Order.Uint64(b)).IA()
+	*ia = IAInt(binary.BigEndian.Uint64(b)).IA()
 }
 
 func (ia IA) Write(b common.RawBytes) {
-	common.Order.PutUint64(b, uint64(ia.IAInt()))
+	binary.BigEndian.PutUint64(b, uint64(ia.IAInt()))
 }
 
 func (ia IA) IAInt() IAInt {

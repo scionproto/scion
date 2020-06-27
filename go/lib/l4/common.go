@@ -16,6 +16,7 @@ package l4
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -45,7 +46,7 @@ func CalcCSum(h L4Header, addr, pld common.RawBytes) (common.RawBytes, error) {
 	}
 	sum := util.Checksum(addr, []uint8{0, uint8(h.L4Type())}, rawh, pld)
 	out := make(common.RawBytes, 2)
-	common.Order.PutUint16(out, sum)
+	binary.BigEndian.PutUint16(out, sum)
 	return out, nil
 }
 

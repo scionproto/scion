@@ -56,40 +56,24 @@ import (
 
 var _ Network = (*SCIONNetwork)(nil)
 
-// SCIONNetwork is the SCION networking context, containing local ISD-AS,
-// SCIOND, Dispatcher and Path resolver.
+// SCIONNetwork is the SCION networking context.
 type SCIONNetwork struct {
-	dispatcher PacketDispatcherService
-	// pathResolver references the default source of paths for a Network. This
-	// is set to nil when operating on a SCIOND-less Network.
-	querier PathQuerier
-	localIA addr.IA
+	LocalIA    addr.IA
+	Dispatcher PacketDispatcherService
 }
 
-// NewNetworkWithPR creates a new networking context with path resolver pr. A
-// nil path resolver means the Network will run without SCIOND.
-func NewNetworkWithPR(ia addr.IA, dispatcher reliable.Dispatcher,
-	querier PathQuerier, revHandler RevocationHandler) *SCIONNetwork {
+// NewNetwork creates a new networking context.
+func NewNetwork(ia addr.IA, dispatcher reliable.Dispatcher,
+	revHandler RevocationHandler) *SCIONNetwork {
 
 	return &SCIONNetwork{
-		dispatcher: &DefaultPacketDispatcherService{
+		LocalIA: ia,
+		Dispatcher: &DefaultPacketDispatcherService{
 			Dispatcher: dispatcher,
 			SCMPHandler: &scmpHandler{
 				revocationHandler: revHandler,
 			},
 		},
-		querier: querier,
-		localIA: ia,
-	}
-}
-
-// NewCustomNetworkWithPR is similar to NewNetworkWithPR, while giving control
-// over packet processing via pktDispatcher.
-func NewCustomNetworkWithPR(ia addr.IA, pktDispatcher PacketDispatcherService) *SCIONNetwork {
-
-	return &SCIONNetwork{
-		dispatcher: pktDispatcher,
-		localIA:    ia,
 	}
 }
 
@@ -154,7 +138,7 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		svc:      svc,
 		listen:   CopyUDPAddr(listen),
 	}
-	packetConn, port, err := conn.scionNet.dispatcher.Register(ctx, n.localIA, listen, svc)
+	packetConn, port, err := conn.scionNet.Dispatcher.Register(ctx, n.LocalIA, listen, svc)
 	if err != nil {
 		return nil, err
 	}
@@ -162,6 +146,6 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		// Update port
 		conn.listen.Port = int(port)
 	}
-	log.Debug("Registered with dispatcher", "addr", &UDPAddr{IA: n.localIA, Host: conn.listen})
-	return newConn(conn, n.querier, packetConn), nil
+	log.Debug("Registered with dispatcher", "addr", &UDPAddr{IA: n.LocalIA, Host: conn.listen})
+	return newConn(conn, packetConn), nil
 }

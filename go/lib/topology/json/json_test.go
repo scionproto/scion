@@ -26,7 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
 )
 
@@ -40,7 +39,8 @@ func TestLoadRawFromFile(t *testing.T) {
 		TimestampHuman: "May  6 00:00:00 CET 1975",
 		IA:             "6-ff00:0:362",
 		MTU:            1472,
-		Attributes:     []trc.Attribute{trc.Authoritative, trc.Core, trc.Issuing, trc.Voting},
+		Attributes: []jsontopo.Attribute{jsontopo.Authoritative, jsontopo.AttrCore,
+			jsontopo.Issuing, jsontopo.Voting},
 		BorderRouters: map[string]*jsontopo.BRInfo{
 			"borderrouter6-f00:0:362-1": {
 				InternalAddr: "10.1.0.1:0",

@@ -56,8 +56,7 @@ func init() {
 }
 
 func main() {
-	flag.StringVar(&logConsole, "log.console", "info",
-		"Console logging level: trace|debug|info|warn|error|crit")
+	flag.StringVar(&logConsole, "log.console", "info", "Console logging level: debug|info|error")
 	validateFlags()
 	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
 	if err := log.Setup(logCfg); err != nil {
@@ -189,6 +188,6 @@ flags:
 }
 
 func LogFatal(msg string, a ...interface{}) {
-	log.Crit(msg, a...)
+	log.Error(msg, a...)
 	os.Exit(1)
 }

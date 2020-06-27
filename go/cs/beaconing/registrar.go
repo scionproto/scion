@@ -147,7 +147,7 @@ func (r *Registrar) registerRemote(ctx context.Context, segments <-chan beacon.B
 		if !r.IntfActive(bOrErr.Beacon.InIfId) {
 			continue
 		}
-		if err := r.extend(bOrErr.Beacon.Segment, bOrErr.Beacon.InIfId, 0, peers); err != nil {
+		if err := r.extend(ctx, bOrErr.Beacon.Segment, bOrErr.Beacon.InIfId, 0, peers); err != nil {
 			metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
 			logger.Error("[beaconing.Registrar] Unable to terminate beacon",
 				"beacon", bOrErr.Beacon, "err", err)
@@ -191,7 +191,7 @@ func (r *Registrar) registerLocal(ctx context.Context, segments <-chan beacon.Be
 		if !r.IntfActive(bOrErr.Beacon.InIfId) {
 			continue
 		}
-		if err := r.extend(bOrErr.Beacon.Segment, bOrErr.Beacon.InIfId, 0, peers); err != nil {
+		if err := r.extend(ctx, bOrErr.Beacon.Segment, bOrErr.Beacon.InIfId, 0, peers); err != nil {
 			metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
 			logger.Error("[beaconing.Registrar] Unable to terminate beacon",
 				"beacon", bOrErr.Beacon, "err", err)
@@ -206,10 +206,11 @@ func (r *Registrar) registerLocal(ctx context.Context, segments <-chan beacon.Be
 		return nil
 	}
 	stats, err := r.segStore.StoreSegs(ctx, toRegister)
-	updateMetricsFromStat(stats, beacons, r.segType.String())
 	if err != nil {
+		metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
 		return err
 	}
+	updateMetricsFromStat(stats, beacons, r.segType.String())
 	r.lastSucc = r.tick.now
 	r.logSummary(logger, summarizeStats(stats, beacons))
 	return nil
@@ -284,7 +285,7 @@ func (r *remoteRegistrar) startSendSegReg(ctx context.Context, bseg beacon.Beaco
 			Result:  metrics.Success,
 		}
 		metrics.Registrar.Beacons(l).Inc()
-		logger.Trace("[beaconing.Registrar] Successfully registered segment", "type", r.segType,
+		logger.Debug("[beaconing.Registrar] Successfully registered segment", "type", r.segType,
 			"addr", addr, "seg", bseg.Segment)
 	}()
 }
@@ -305,9 +306,6 @@ func updateMetricsFromStat(s seghandler.SegStats, b map[string]beacon.Beacon, se
 			Result:  metrics.OkUpdated,
 			SegType: segType,
 		}).Inc()
-	}
-	if c := len(b) - s.Total(); c > 0 {
-		metrics.Registrar.InternalErrorsWithType(segType).Add(float64(c))
 	}
 }
 

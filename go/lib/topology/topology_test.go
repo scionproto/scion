@@ -377,7 +377,7 @@ func TestExternalDataPlanePort(t *testing.T) {
 			Name: "Bad invalid public",
 			Raw: &jsontopo.BRInterface{
 				Underlay: jsontopo.Underlay{
-					Public: "foo:42",
+					Public: "thishostdoesnotexist:42",
 				},
 			},
 			ExpectedError: assert.Error,
@@ -414,7 +414,7 @@ func TestExternalDataPlanePort(t *testing.T) {
 			Raw: &jsontopo.BRInterface{
 				Underlay: jsontopo.Underlay{
 					Public: "127.0.0.1:42",
-					Bind:   "foo",
+					Bind:   "thishostdoesnotexist",
 				},
 			},
 			ExpectedError: assert.Error,
@@ -465,7 +465,7 @@ func TestExternalDataPlanePort(t *testing.T) {
 			Raw: &jsontopo.BRInterface{
 				Underlay: jsontopo.Underlay{
 					Public: "[::1]:42",
-					Bind:   "foo",
+					Bind:   "thishostdoesnotexist",
 				},
 			},
 			ExpectedError: assert.Error,
@@ -495,7 +495,7 @@ func TestRawAddrMap_ToTopoAddr(t *testing.T) {
 		{
 			name:        "IPvX invalid address",
 			assertError: assert.Error,
-			raw:         "foo:42",
+			raw:         "thishostdoesnotexist:42",
 		},
 		{
 			name:        "IPv4 invalid port",
@@ -557,6 +557,13 @@ func TestRawAddrMap_ToTopoAddr(t *testing.T) {
 			assert.Equal(t, tc.addr, topoAddr)
 		})
 	}
+}
+
+func TestServiceNamesGetRandom(t *testing.T) {
+	names := ServiceNames(nil)
+	name, err := names.GetRandom()
+	assert.Error(t, err)
+	assert.Empty(t, name)
 }
 
 func MustLoadTopo(t *testing.T, filename string) *RWTopology {

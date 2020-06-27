@@ -15,6 +15,7 @@
 package seg
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -68,10 +69,10 @@ func allocPathSegment(ctrl *gomock.Controller, ias []addr.IA) *PathSegment {
 	}
 	pseg, _ := NewSeg(info)
 	signer := mock_seg.NewMockSigner(ctrl)
-	signer.EXPECT().Sign(gomock.AssignableToTypeOf(common.RawBytes{})).Return(
+	signer.EXPECT().Sign(gomock.Any(), gomock.AssignableToTypeOf(common.RawBytes{})).Return(
 		&proto.SignS{}, nil).AnyTimes()
 	for _, ase := range ases {
-		if err := pseg.AddASEntry(ase, signer); err != nil {
+		if err := pseg.AddASEntry(context.Background(), ase, signer); err != nil {
 			fmt.Printf("Error adding ASEntry: %v", err)
 		}
 	}

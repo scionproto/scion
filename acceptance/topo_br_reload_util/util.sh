@@ -31,7 +31,7 @@ base_setup() {
 }
 
 base_gen_topo() {
-    ./scion.sh topology -c $TEST_TOPOLOGY -d -t
+    ./scion.sh topology -c $TEST_TOPOLOGY -d
     sed -i '/\[log\.file\]/a flush_interval = 1' gen/ISD1/*/br*/br.toml
 }
 

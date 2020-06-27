@@ -156,6 +156,24 @@ func TestReservationValidate(t *testing.T) {
 	r.Indices[1].SetStateForTesting(segment.IndexActive)
 	err = r.Validate()
 	require.Error(t, err)
+
+	// ID not set
+	r = segmenttest.NewReservation()
+	r.ID = reservation.SegmentID{}
+	err = r.Validate()
+	require.Error(t, err)
+
+	// starts in this AS but ingress nonzero
+	r = segmenttest.NewReservation()
+	r.Ingress = 1
+	err = r.Validate()
+	require.Error(t, err)
+
+	// Does not start in this AS but ingress empty
+	r = segmenttest.NewReservation()
+	r.Path = nil
+	err = r.Validate()
+	require.Error(t, err)
 }
 
 func TestSetIndexConfirmed(t *testing.T) {

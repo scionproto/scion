@@ -20,41 +20,35 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/proto"
 )
 
 type revocHandler struct {
-	*baseHandler
-	NextQueryCleaner segfetcher.NextQueryCleaner
+	revCache revcache.RevCache
+	verifier infra.Verifier
 }
 
 func NewRevocHandler(args HandlerArgs) infra.Handler {
-	f := func(r *infra.Request) *infra.HandlerResult {
-		handler := &revocHandler{
-			baseHandler: newBaseHandler(r, args),
-			NextQueryCleaner: segfetcher.NextQueryCleaner{
-				PathDB: args.PathDB,
-			},
-		}
-		return handler.Handle()
+	return &revocHandler{
+		revCache: args.RevCache,
+		verifier: args.Verifier,
 	}
-	return infra.HandlerFunc(f)
 }
 
-func (h *revocHandler) Handle() *infra.HandlerResult {
-	ctx := h.request.Context()
-	logger := log.FromCtx(ctx).New("from", h.request.Peer)
+func (h *revocHandler) Handle(request *infra.Request) *infra.HandlerResult {
+	ctx := request.Context()
+	logger := log.FromCtx(ctx).New("from", request.Peer)
 	labels := metrics.PSRevocationLabels{
 		Result: metrics.ErrInternal,
 		Src:    metrics.RevSrcNotification,
 	}
-	revocation, ok := h.request.Message.(*path_mgmt.SignedRevInfo)
+	revocation, ok := request.Message.(*path_mgmt.SignedRevInfo)
 	if !ok {
 		logger.Error("[revocHandler] wrong message type, expected path_mgmt.SignedRevInfo",
-			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+			"msg", request.Message, "type", common.TypeOf(request.Message))
 		metrics.PSRevocation.Count(labels).Inc()
 		return infra.MetricsErrInternal
 	}
@@ -69,7 +63,7 @@ func (h *revocHandler) Handle() *infra.HandlerResult {
 	sendAck := messenger.SendAckHelper(ctx, rw)
 	revInfo, err := revocation.RevInfo()
 	if err != nil {
-		logger.Warn("[revocHandler] Couldn't parse revocation", "err", err)
+		logger.Info("[revocHandler] Revocation parsing failed", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		metrics.PSRevocation.Count(labels.WithResult(metrics.ErrParse)).Inc()
 		return infra.MetricsErrInvalid
@@ -77,16 +71,16 @@ func (h *revocHandler) Handle() *infra.HandlerResult {
 	logger = logger.New("revInfo", revInfo)
 	logger.Debug("[revocHandler] Received revocation")
 
-	err = segverifier.VerifyRevInfo(ctx, h.verifierFactory.NewVerifier(), nil, revocation)
+	err = segverifier.VerifyRevInfo(ctx, h.verifier, nil, revocation)
 	if err != nil {
-		logger.Warn("Couldn't verify revocation", "err", err)
+		logger.Info("Revocation verification failed", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
 		metrics.PSRevocation.Count(labels.WithResult(metrics.ErrCrypto)).Inc()
 		return infra.MetricsErrInvalid
 	}
 	_, err = h.revCache.Insert(ctx, revocation)
 	if err != nil {
-		logger.Error("Failed to insert revInfo", "err", err)
+		logger.Error("Revocation storing failed", "err", err)
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)
 		metrics.PSRevocation.Count(labels.WithResult(metrics.ErrDB)).Inc()
 		return infra.MetricsErrRevCache(err)

@@ -95,7 +95,7 @@ func (nc *NetworkConfig) Messenger() (infra.Messenger, error) {
 			return nil, err
 		}
 		quicAddress = fmt.Sprintf("%s", quicConn.LocalAddr()) // assuming net.UDPAddr.
-		log.Trace("QUIC conn initialized", "local_addr", quicAddress)
+		log.Info("QUIC conn initialized", "local_addr", quicAddress)
 	}
 
 	conn, err := nc.initUDPSocket(quicAddress)
@@ -195,7 +195,7 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 			ExpectedPayload: resolutionRequestPayload,
 		},
 	)
-	network := snet.NewCustomNetworkWithPR(nc.IA, packetDispatcher)
+	network := &snet.SCIONNetwork{LocalIA: nc.IA, Dispatcher: packetDispatcher}
 	conn, err := network.Listen(context.Background(), "udp", nc.Public, nc.SVC)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to listen on SCION", err)
@@ -209,12 +209,13 @@ func (nc *NetworkConfig) initQUICSocket() (net.PacketConn, error) {
 		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}
 
-	network := snet.NewCustomNetworkWithPR(nc.IA,
-		&snet.DefaultPacketDispatcherService{
+	network := &snet.SCIONNetwork{
+		LocalIA: nc.IA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher:  dispatcherService,
 			SCMPHandler: ignoreSCMP{},
 		},
-	)
+	}
 	udpAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to parse address", err)
@@ -265,7 +266,7 @@ func (h *LegacyForwardingHandler) Handle(request *svc.Request) (svc.Result, erro
 	if bytes.Compare(h.ExpectedPayload, []byte(p)) == 0 {
 		return h.BaseHandler.Handle(request)
 	}
-	log.Trace("Received control payload with SVC destination", "from", request.Packet.Source)
+	log.Debug("Received control payload with SVC destination", "from", request.Packet.Source)
 	return svc.Forward, nil
 }
 

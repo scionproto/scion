@@ -72,13 +72,13 @@ func (s *Server) ListenAndServe() error {
 			if strings.Contains(err.Error(), "server closed") {
 				return err
 			}
-			log.Warn("[quic] server accept error", "err", err)
+			log.Info("[quic] server accept error", "err", err)
 			continue
 		}
 		go func() {
 			defer log.HandlePanic()
 			if err := s.handleQUICSession(session); err != nil {
-				log.Warn("[quic] server handler exited with error", "err", err)
+				log.Info("[quic] server handler exited with error", "err", err)
 			}
 		}()
 	}
@@ -161,6 +161,9 @@ func (c *Client) Request(ctx context.Context, request *Request, address net.Addr
 		case <-time.After(sleep + time.Duration(mrand.Int()%5000)*time.Microsecond):
 		case <-ctx.Done():
 		}
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
 	stream, err := session.OpenStream()

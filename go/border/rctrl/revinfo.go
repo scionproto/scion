@@ -15,6 +15,8 @@
 package rctrl
 
 import (
+	"context"
+
 	"github.com/scionproto/scion/go/border/internal/metrics"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
@@ -61,7 +63,7 @@ func fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostSVC) {
 		log.Error("Error generating RevInfo Ctrl payload", "err", err)
 		return
 	}
-	scpld, err := cpld.SignedPld(infra.NullSigner)
+	scpld, err := cpld.SignedPld(context.TODO(), infra.NullSigner)
 	if err != nil {
 		metrics.Control.SentRevInfos(cl).Inc()
 		log.Error("Error generating RevInfo signed Ctrl payload", "err", err)

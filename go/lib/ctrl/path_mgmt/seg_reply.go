@@ -77,7 +77,7 @@ func (s *SegReply) Sanitize(logger log.Logger) *SegReply {
 		err := segment.Segment.WalkHopEntries()
 		if err != nil {
 			if logger != nil {
-				logger.Warn("Discarding bad segment", err, "segment", segment)
+				logger.Info("Discarding bad segment", err, "segment", segment)
 			}
 		} else {
 			newReply.Recs.Recs = append(newReply.Recs.Recs, segment)
@@ -87,7 +87,7 @@ func (s *SegReply) Sanitize(logger log.Logger) *SegReply {
 		_, err := revocation.RevInfo()
 		if err != nil {
 			if logger != nil {
-				logger.Warn("Discarding bad revocation", "revocation", revocation, "err", err)
+				logger.Info("Discarding bad revocation", "revocation", revocation, "err", err)
 			}
 		} else {
 			newReply.Recs.SRevInfos = append(newReply.Recs.SRevInfos, revocation)

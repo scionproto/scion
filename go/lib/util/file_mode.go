@@ -15,13 +15,12 @@
 package util
 
 import (
+	"encoding"
 	"os"
 	"strconv"
-
-	"github.com/BurntSushi/toml"
 )
 
-var _ (toml.TextUnmarshaler) = (*FileMode)(nil)
+var _ (encoding.TextUnmarshaler) = (*FileMode)(nil)
 
 type FileMode os.FileMode
 

@@ -202,7 +202,7 @@ func (d *Dispatcher) recvNext() bool {
 		if isCleanShutdownError(err) {
 			return true
 		} else {
-			d.log.Warn("error", "err",
+			d.log.Info("error", "err",
 				common.NewBasicError(infra.ErrTransport, err, "op", "RecvFrom"))
 		}
 		return false
@@ -210,14 +210,14 @@ func (d *Dispatcher) recvNext() bool {
 
 	msg, err := d.adapter.RawToMsg(b)
 	if err != nil {
-		d.log.Warn("error", "err",
+		d.log.Info("error", "err",
 			common.NewBasicError(infra.ErrAdapter, err, "op", "RawToMsg"))
 		return false
 	}
 
 	found, err := d.waitTable.reply(msg)
 	if err != nil {
-		d.log.Warn("error", "err",
+		d.log.Info("error", "err",
 			common.NewBasicError(infra.ErrInternal, err, "op", "waitTable.Reply"))
 		return false
 	}
@@ -231,7 +231,7 @@ func (d *Dispatcher) recvNext() bool {
 	case d.readEvents <- event:
 		// Do nothing
 	default:
-		d.log.Warn("Internal queue full, dropped message", "msg", msg)
+		d.log.Info("Internal queue full, dropped message", "msg", msg)
 	}
 	return false
 }

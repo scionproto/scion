@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -87,7 +88,7 @@ type binaryIntegration struct {
 // When starting a client/server the placeholders will be replaced with the actual values.
 // The server should output the ReadySignal to Stdout once it is ready to accept clients.
 func NewBinaryIntegration(name string, cmd string, clientArgs, serverArgs []string) Integration {
-	logDir := fmt.Sprintf("logs/%s", name)
+	logDir := filepath.Join(LogDir(), name)
 	err := os.Mkdir(logDir, os.ModePerm)
 	if err != nil && !os.IsExist(err) {
 		log.Error("Failed to create log folder for testrun", "dir", name, "err", err)
@@ -112,7 +113,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 	args := replacePattern(DstIAReplace, dst.IA.String(), bi.serverArgs)
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
 	if needSCIOND(args) {
-		sciond, err := GetSCIONDAddress(SCIONDAddressesFile, dst.IA)
+		sciond, err := GetSCIONDAddress(GenFile(SCIONDAddressesFile), dst.IA)
 		if err != nil {
 			return nil, serrors.WrapStr("unable to determine SCIOND address", err)
 		}
@@ -183,7 +184,7 @@ func (bi *binaryIntegration) StartClient(ctx context.Context,
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
 	args = replacePattern(ServerPortReplace, serverPorts[dst.IA], args)
 	if needSCIOND(args) {
-		sciond, err := GetSCIONDAddress(SCIONDAddressesFile, src.IA)
+		sciond, err := GetSCIONDAddress(GenFile(SCIONDAddressesFile), src.IA)
 		if err != nil {
 			return nil, serrors.WrapStr("unable to determine SCIOND address", err)
 		}

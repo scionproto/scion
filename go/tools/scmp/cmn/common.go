@@ -16,7 +16,6 @@
 package cmn
 
 import (
-	"flag"
 	"fmt"
 	"math/rand"
 	"net"
@@ -28,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scmp"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
@@ -52,13 +50,13 @@ type ScmpStats struct {
 }
 
 var (
-	// Flag vars
-	Count       uint
-	Interactive bool
-	Interval    time.Duration
-	Timeout     time.Duration
-	Remote      snet.UDPAddr
-	localIP     string
+	Count         uint16
+	PayloadSize   uint
+	Interactive   bool
+	Interval      time.Duration
+	Timeout       time.Duration
+	LocalIPString string
+	Remote        snet.UDPAddr
 )
 
 var (
@@ -71,83 +69,23 @@ var (
 	Start     time.Time
 )
 
-func init() {
-	// Set up flag vars
-	flag.BoolVar(&Interactive, "i", false, "Interactive mode")
-	flag.DurationVar(&Interval, "interval", DefaultInterval, "time between packets (echo only)")
-	flag.DurationVar(&Timeout, "timeout", DefaultTimeout, "timeout per packet")
-	flag.UintVar(&Count, "c", 0, "Total number of packet to send (echo only). Maximum value 65535")
-	flag.StringVar(&localIP, "local", "", "(Optional) IP address to listen on")
-	flag.Var(&Remote, "remote", "(Mandatory for clients) address to connect to")
-	flag.Usage = scmpUsage
-	Stats = &ScmpStats{}
-	Start = time.Now()
-}
-
-func scmpUsage() {
-	fmt.Fprintf(os.Stderr, `
-Usage: scmp <command> [flags]
-
-command:
-   echo
-   tr | traceroute
-   rp | recordpath
-
-flags:
-`)
-	flag.PrintDefaults()
-}
-
-func ParseFlags(version *bool) string {
-	var args []string
-	flag.Parse()
-	if *version {
-		fmt.Print(env.VersionInfo())
-		os.Exit(0)
-	}
-	args = flag.Args()
-	if len(args) < 1 {
-		fmt.Fprintf(os.Stderr, "ERROR: Missing command\n")
-		flag.Usage()
-		os.Exit(1)
-	} else if len(args) == 1 {
-		return args[0]
-	}
-	// Parse more flags after command
-	cmd := args[0]
-	flag.CommandLine.Parse(args[1:])
-	args = flag.Args()
-	if len(args) != 0 {
-		flag.Usage()
-		os.Exit(1)
-	}
-	return cmd
-}
-
 func ValidateFlags() {
-	if localIP != "" {
-		LocalIP = net.ParseIP(localIP)
+	if LocalIPString != "" {
+		LocalIP = net.ParseIP(LocalIPString)
 		if LocalIP == nil {
 			Fatal("Invalid local address")
 		}
 	}
-	if Remote.Host == nil {
-		Fatal("Invalid remote address")
-	}
 	// scmp-tool does not use ports, so we ignore them
 	if Interval == 0 {
 		Interval = 1
-	}
-	var zero uint16
-	if Count > uint(zero-1) {
-		Fatal("Maximum count value is %d", zero-1)
 	}
 }
 
 func NewSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt {
 	var exts []common.Extension
 	scmpMeta := scmp.Meta{InfoLen: uint8(info.Len() / common.LineLen)}
-	pld := make(common.RawBytes, scmp.MetaLen+info.Len())
+	pld := make(common.RawBytes, scmp.MetaLen+uint(info.Len())+PayloadSize)
 	scmpMeta.Write(pld)
 	info.Write(pld[scmp.MetaLen:])
 	scmpHdr := scmp.NewHdr(scmp.ClassType{Class: scmp.C_General, Type: t}, len(pld))

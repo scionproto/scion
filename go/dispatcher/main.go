@@ -24,11 +24,12 @@ import (
 	"os"
 	"os/user"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml"
 
 	"github.com/scionproto/scion/go/dispatcher/config"
 	"github.com/scionproto/scion/go/dispatcher/network"
 	"github.com/scionproto/scion/go/lib/common"
+	libconfig "github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
@@ -60,17 +61,17 @@ func realMain() int {
 	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
 	defer log.HandlePanic()
 	if err := cfg.Validate(); err != nil {
-		log.Crit("Unable to validate config", "err", err)
+		log.Error("Configuration validation failed", "err", err)
 		return 1
 	}
 
 	if err := checkPerms(); err != nil {
-		log.Crit("Permissions checks failed", "err", err)
+		log.Error("Permissions checks failed", "err", err)
 		return 1
 	}
 
 	if err := util.CreateParentDirs(cfg.Dispatcher.ApplicationSocket); err != nil {
-		log.Crit("Unable to create directory tree for socket", "err", err)
+		log.Error("Creating directory tree for socket failed", "err", err)
 		return 1
 	}
 
@@ -99,7 +100,7 @@ func realMain() int {
 	// up the sockets and let the application close.
 	errDelete := deleteSocket(cfg.Dispatcher.ApplicationSocket)
 	if errDelete != nil {
-		log.Warn("Unable to delete socket when shutting down", "err", errDelete)
+		log.Info("Unable to delete socket when shutting down", "err", errDelete)
 	}
 	switch {
 	case returnCode != 0:
@@ -112,12 +113,8 @@ func realMain() int {
 }
 
 func setupBasic() error {
-	md, err := toml.DecodeFile(env.ConfigFile(), &cfg)
-	if err != nil {
+	if err := libconfig.LoadFile(env.ConfigFile(), &cfg); err != nil {
 		return serrors.WrapStr("failed to load config", err, "file", env.ConfigFile())
-	}
-	if len(md.Undecoded()) > 0 {
-		return serrors.New("failed to load config: undecoded keys", "undecoded", md.Undecoded())
 	}
 	cfg.InitDefaults()
 	if err := log.Setup(cfg.Logging); err != nil {
@@ -178,6 +175,6 @@ func checkPerms() error {
 func configHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	var buf bytes.Buffer
-	toml.NewEncoder(&buf).Encode(cfg)
+	toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(cfg)
 	fmt.Fprint(w, buf.String())
 }

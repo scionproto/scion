@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/layers"
@@ -125,7 +124,7 @@ type BeaconSender struct {
 // Send packs and sends out the beacon. QUIC is first attempted, and if that
 // fails the method falls back on UDP.
 func (s *BeaconSender) Send(ctx context.Context, bseg *seg.Beacon, ia addr.IA,
-	egIfid common.IFIDType, signer infra.Signer, ov *net.UDPAddr) error {
+	egIfid common.IFIDType, signer ctrl.Signer, ov *net.UDPAddr) error {
 
 	path, err := s.CreatePath(egIfid, time.Now())
 	if err != nil {
@@ -145,7 +144,7 @@ func (s *BeaconSender) Send(ctx context.Context, bseg *seg.Beacon, ia addr.IA,
 	if err != nil {
 		return common.NewBasicError("Unable to create payload", err)
 	}
-	spld, err := pld.SignedPld(signer)
+	spld, err := pld.SignedPld(ctx, signer)
 	if err != nil {
 		return common.NewBasicError("Unable to sign payload", err)
 	}
@@ -176,10 +175,10 @@ func (s *BeaconSender) attemptQUIC(ctx context.Context, ia addr.IA, path *spath.
 	newAddr, redirect, err := s.AddressRewriter.RedirectToQUIC(ctx, t)
 
 	if err != nil || !redirect {
-		log.Trace("Beaconing could not be upgraded to QUIC, using UDP", "remote", newAddr)
+		log.Debug("Beaconing could not be upgraded to QUIC, using UDP", "remote", newAddr)
 		return false, nil
 	}
-	log.Trace("Beaconing upgraded to QUIC", "remote", newAddr)
+	log.Debug("Beaconing upgraded to QUIC", "remote", newAddr)
 
 	err = s.QUICBeaconSender.SendBeacon(ctx, bseg, newAddr, messenger.NextId())
 	return true, err

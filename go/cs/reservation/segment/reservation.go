@@ -19,15 +19,20 @@ import (
 
 	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // Reservation represents a segment reservation.
 type Reservation struct {
-	ID          reservation.SegmentID
-	Path        Path
-	Indices     Indices
-	activeIndex int // -1 <= activeIndex < len(Indices)
+	ID           reservation.SegmentID
+	Indices      Indices                  // existing indices in this reservation
+	activeIndex  int                      // -1 <= activeIndex < len(Indices)
+	Ingress      common.IFIDType          // igress interface ID: reservation packets enter
+	Egress       common.IFIDType          // egress interface ID: reservation packets leave
+	Path         Path                     // empty if not at the source of the reservation
+	PathEndProps reservation.PathEndProps // the properties for stitching and start/end
+	TrafficSplit reservation.SplitCls     // the traffic split between control and data planes
 }
 
 func NewReservation() *Reservation {
@@ -38,6 +43,9 @@ func NewReservation() *Reservation {
 
 // Validate will return an error for invalid values.
 func (r *Reservation) Validate() error {
+	if r.ID.ASID == 0 {
+		return serrors.New("Reservation ID not set")
+	}
 	if err := base.ValidateIndices(r.Indices); err != nil {
 		return err
 	}
@@ -56,7 +64,25 @@ func (r *Reservation) Validate() error {
 			activeIndex = i
 		}
 	}
-	return r.Path.Validate()
+	var err error
+	if r.Path != nil {
+		if r.Ingress != 0 {
+			return serrors.New("reservation starts in this AS but ingress interface is not zero",
+				"ingress_if", r.Ingress)
+			// TODO(juagargi) test
+		}
+		err = r.Path.Validate()
+	} else if r.Ingress == 0 {
+		return serrors.New("reservation does not start in this AS but ingress interface is zero")
+	}
+	if err != nil {
+		return serrors.WrapStr("validating reservation, path failed", err)
+	}
+	err = r.PathEndProps.Validate()
+	if err != nil {
+		return serrors.WrapStr("validating reservation, end properties failed", err)
+	}
+	return nil
 }
 
 // ActiveIndex returns the currently active Index for this reservation, or nil if none.

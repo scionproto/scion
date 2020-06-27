@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,18 +42,18 @@ func main() {
 }
 
 func realMain() int {
-	if err := integration.Init(name); err != nil {
+	if err := integration.Init(); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
 	defer log.HandlePanic()
 	defer log.Flush()
 	if !*integration.Docker {
-		log.Crit(fmt.Sprintf("Can only run %s test with docker!", name))
+		log.Error(fmt.Sprintf("Can only run %s test with docker!", name))
 		return 1
 	}
 	if err := acceptance.ReadTestingConf(); err != nil {
-		log.Crit(fmt.Sprintf("Error reading testing conf: %s", err))
+		log.Error("Testing conf reading failed", "err", err)
 		return 1
 	}
 	args := []string{cmd, "-c", strconv.Itoa(*attempts), "-O", integration.DstHostReplace}

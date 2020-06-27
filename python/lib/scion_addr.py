@@ -17,7 +17,7 @@
 """
 
 # SCION
-from lib.errors import SCIONParseError
+from python.lib.errors import SCIONParseError
 
 
 class ISD_AS:

@@ -36,8 +36,7 @@ type scionConnWriter struct {
 	buffer common.RawBytes
 }
 
-func newScionConnWriter(base *scionConnBase, querier PathQuerier,
-	conn PacketConn) *scionConnWriter {
+func newScionConnWriter(base *scionConnBase, conn PacketConn) *scionConnWriter {
 
 	return &scionConnWriter{
 		base:   base,
@@ -62,7 +61,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		dst, port, path = SCIONAddress{IA: a.IA, Host: addr.HostFromIP(a.Host.IP)},
 			a.Host.Port, a.Path
 		nextHop = a.NextHop
-		if nextHop == nil && c.base.scionNet.localIA.Equal(a.IA) {
+		if nextHop == nil && c.base.scionNet.LocalIA.Equal(a.IA) {
 			nextHop = &net.UDPAddr{
 				IP:   a.Host.IP,
 				Port: underlay.EndhostPort,
@@ -82,7 +81,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		Bytes: Bytes(c.buffer),
 		PacketInfo: PacketInfo{
 			Destination: dst,
-			Source: SCIONAddress{IA: c.base.scionNet.localIA,
+			Source: SCIONAddress{IA: c.base.scionNet.LocalIA,
 				Host: addr.HostFromIP(c.base.listen.IP)},
 			Path: path,
 			L4Header: &l4.UDP{

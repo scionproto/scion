@@ -236,7 +236,7 @@ func (p *beaconPropagator) propagate(ctx context.Context) error {
 	}
 	p.summary.AddSrc(p.beacon.Segment.FirstIA())
 	p.summary.Inc()
-	p.logger.Trace("[beaconing.Propagator] Successfully propagated", "beacon", p.beacon,
+	p.logger.Debug("[beaconing.Propagator] Successfully propagated", "beacon", p.beacon,
 		"expected", expected, "count", p.success.c)
 	return nil
 }
@@ -262,7 +262,7 @@ func (p *beaconPropagator) extendAndSend(ctx context.Context, bseg beacon.Beacon
 			metrics.Propagator.IntfTime(labels).Add(time.Since(now).Seconds())
 		}()
 
-		if err := p.extend(bseg.Segment, bseg.InIfId, egIfid, p.peers); err != nil {
+		if err := p.extend(ctx, bseg.Segment, bseg.InIfId, egIfid, p.peers); err != nil {
 			p.logger.Error("[beaconing.Propagator] Unable to extend beacon",
 				"beacon", bseg, "err", err)
 			labels.Result = metrics.ErrCreate
@@ -306,7 +306,7 @@ func (p *beaconPropagator) shouldIgnore(bseg beacon.Beacon, egIfid common.IFIDTy
 		return true
 	}
 	if err := beacon.FilterLoop(bseg, intf.TopoInfo().IA, p.allowIsdLoop); err != nil {
-		p.logger.Trace("[beaconing.Propagator] Ignoring beacon on loop", "ifid", egIfid, "err", err)
+		p.logger.Debug("[beaconing.Propagator] Ignoring beacon on loop", "ifid", egIfid, "err", err)
 		return true
 	}
 	return false

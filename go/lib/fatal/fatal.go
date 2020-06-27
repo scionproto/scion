@@ -78,7 +78,7 @@ func Check() {
 
 // Fatal produces a fatal error. This function never exits.
 func Fatal(err error) {
-	log.Crit("Fatal error", "err", err)
+	log.Error("Fatal error", "err", err)
 	// Grace period to gather more logs in case that
 	// the first fatal error wasn't the most informative one.
 	time.Sleep(FatalDelayInterval)

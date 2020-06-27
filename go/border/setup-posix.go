@@ -46,7 +46,7 @@ func (p posixLoc) Setup(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 	if oldCtx != nil {
 		// The socket can be reused if the local address does not change.
 		if ctx.Conf.BR.InternalAddr.String() == oldCtx.Conf.BR.InternalAddr.String() {
-			log.Trace("No change detected for local socket.")
+			log.Debug("No change detected for local socket.")
 			// Nothing changed. Copy I/O functions from old context.
 			ctx.LocSockIn = oldCtx.LocSockIn
 			ctx.LocSockOut = oldCtx.LocSockOut
@@ -112,7 +112,7 @@ func (p posixExt) Setup(r *Router, ctx *rctx.Ctx, intf *topology.IFInfo, oldCtx 
 	if oldIntf, ok := oldCtx.Conf.BR.IFs[intf.ID]; ok {
 		// Reuse socket if the interface has not changed.
 		if !interfaceChanged(intf, oldIntf) {
-			log.Trace("No change detected for external socket.", "conn", intf.Local)
+			log.Debug("No change detected for external socket.", "conn", intf.Local)
 			ctx.ExtSockIn[intf.ID] = oldCtx.ExtSockIn[intf.ID]
 			ctx.ExtSockOut[intf.ID] = oldCtx.ExtSockOut[intf.ID]
 			return nil

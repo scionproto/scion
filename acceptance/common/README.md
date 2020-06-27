@@ -77,7 +77,7 @@ class TestSetup(CmdBase):
         # Create the tiny topology/
         self.scion.topology('topology/tiny.topo')
         # Modify the logging config for all beacon servers
-        self.scion.set_configs({'log.file.level': 'trace'},
+        self.scion.set_configs({'log.file.level': 'debug'},
                                local.path('gen/ISD1') // '*/bs*/bs.toml')
         # Run the scion topology.
         self.scion.run()

@@ -16,6 +16,7 @@
 package ingress
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -117,7 +118,7 @@ func (fb *FrameBuf) ProcessCompletePkts() {
 	offset := fb.index * 8
 	var pktLen int
 	for offset < fb.frameLen {
-		pktLen = int(common.Order.Uint16(fb.raw[offset : offset+2]))
+		pktLen = int(binary.BigEndian.Uint16(fb.raw[offset : offset+2]))
 		offset += 2
 		rawPkt := fb.raw[offset:fb.frameLen]
 		if len(rawPkt) < pktLen {

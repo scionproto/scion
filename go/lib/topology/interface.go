@@ -22,9 +22,9 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
-	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -47,6 +47,8 @@ type Topology interface {
 	MTU() uint16
 	// Core returns whether the local AS is core.
 	Core() bool
+	// CA returns whether the local AS is a CA.
+	CA() bool
 	// InterfaceIDs returns all interface IDS from the local AS.
 	InterfaceIDs() []common.IFIDType
 
@@ -204,7 +206,21 @@ func (t *topologyS) MakeHostInfos(st proto.ServiceType) []net.UDPAddr {
 }
 
 func (t *topologyS) Core() bool {
-	return trc.Attributes(t.Topology.Attributes).Contains(trc.Core)
+	for _, attr := range t.Topology.Attributes {
+		if attr == jsontopo.AttrCore {
+			return true
+		}
+	}
+	return false
+}
+
+func (t *topologyS) CA() bool {
+	for _, attr := range t.Topology.Attributes {
+		if attr == jsontopo.Issuing {
+			return true
+		}
+	}
+	return false
 }
 
 func (t *topologyS) BR(name string) (BRInfo, bool) {
@@ -247,10 +263,13 @@ func (t *topologyS) Anycast(svc addr.HostSVC) (*net.UDPAddr, error) {
 }
 
 func (t *topologyS) Multicast(svc addr.HostSVC) ([]*net.UDPAddr, error) {
-	names := t.SVCNames(svc)
 	st, err := toProtoServiceType(svc)
 	if err != nil {
 		return nil, err
+	}
+	names := t.SVCNames(svc)
+	if len(names) == 0 {
+		return nil, serrors.New("no address found")
 	}
 	addrs := make([]*net.UDPAddr, 0, len(names))
 	for _, name := range names {

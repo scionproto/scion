@@ -40,8 +40,6 @@ def add_arguments(parser):
                         help='Network to create subnets in (E.g. "127.0.0.0/8"')
     parser.add_argument('-o', '--output-dir', default=GEN_PATH,
                         help='Output directory')
-    parser.add_argument('-t', '--trace', action='store_true',
-                        help='Enable TRACE level file logging in Go services')
     parser.add_argument('-f', '--svcfrac', type=float, default=0.4,
                         help='Attempt SVC resolution in RPC calls for a fraction of\
                         available timeout')

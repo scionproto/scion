@@ -50,7 +50,7 @@ func (s *AppSocketServer) Serve() error {
 func (h *AppSocketServer) Handle(conn net.PacketConn) {
 	ch := &AppConnHandler{
 		Conn:   conn,
-		Logger: log.Root().New("clientID", fmt.Sprintf("%p", conn)),
+		Logger: log.New("clientID", fmt.Sprintf("%p", conn)),
 	}
 	go func() {
 		defer log.HandlePanic()
@@ -74,7 +74,7 @@ func (h *AppConnHandler) Handle(appServer *dispatcher.Server) {
 	dispConn, err := h.doRegExchange(appServer)
 	if err != nil {
 		metrics.M.AppConnErrors().Inc()
-		h.Logger.Warn("registration error", "err", err)
+		h.Logger.Info("Registration error", "err", err)
 		return
 	}
 	h.DispConn = dispConn.(*dispatcher.Conn)

@@ -49,8 +49,7 @@ var (
 func init() {
 	flag.StringVar(&testName, "testName", "", "Test to run")
 	flag.StringVar(&keysDirPath, "keysDirPath", "", "AS keys directory path")
-	flag.StringVar(&logConsole, "log.console", "info",
-		"Console logging level: trace|debug|info|warn|error|crit")
+	flag.StringVar(&logConsole, "log.console", "info", "Console logging level: debug|info|error")
 }
 
 var (
@@ -77,7 +76,7 @@ func realMain() int {
 	}
 	defer log.HandlePanic()
 	if err := shared.Init(keysDirPath); err != nil {
-		log.Crit("Initialization failed", "err", err)
+		log.Error("Initialization failed", "err", err)
 		return 1
 	}
 	// We setup the select cases in main so we can easily defer device handle close on exit
@@ -87,7 +86,7 @@ func realMain() int {
 		var err error
 		di.Handle, err = afpacket.NewTPacket(afpacket.OptInterface(di.Host.Name))
 		if err != nil {
-			log.Crit("Error creating packet", "err", err)
+			log.Error("Packet creation failed", "err", err)
 			return 1
 		}
 		packetSource := gopacket.NewPacketSource(di.Handle, golayers.LinkTypeEthernet)
@@ -98,7 +97,7 @@ func realMain() int {
 	// Now that everything is set up, drop CAP_NET_ADMIN
 	caps, err := capability.NewPid(0)
 	if err != nil {
-		log.Crit("Error retrieving capabilities", "err", err)
+		log.Error("Retrieving capabilities failed", "err", err)
 		return 1
 	}
 	caps.Clear(capability.CAPS)
@@ -126,7 +125,7 @@ func realMain() int {
 	case "br_core_childIf":
 		failures += br_core_childIf()
 	default:
-		log.Crit("Wrong BR acceptance test name", "testName", testName)
+		log.Error("Wrong BR acceptance test name", "testName", testName)
 		return 1
 	}
 	return failures

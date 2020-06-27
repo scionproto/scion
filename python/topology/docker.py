@@ -18,18 +18,18 @@ import os
 # External packages
 import yaml
 # SCION
-from lib.defines import DOCKER_COMPOSE_CONFIG_VERSION
-from lib.util import (
+from python.lib.defines import DOCKER_COMPOSE_CONFIG_VERSION
+from python.lib.util import (
     write_file,
 )
-from topology.common import (
+from python.topology.common import (
     ArgsTopoDicts,
     docker_image,
     DOCKER_USR_VOL,
     sciond_svc_name
 )
-from topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
-from topology.sig import SIGGenArgs, SIGGenerator
+from python.topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
+from python.topology.sig import SIGGenArgs, SIGGenerator
 
 DOCKER_CONF = 'scion-dc.yml'
 

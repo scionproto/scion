@@ -24,9 +24,9 @@ from collections import defaultdict
 import yaml
 
 # SCION
-from lib.defines import DOCKER_COMPOSE_CONFIG_VERSION, PROM_FILE
-from lib.util import write_file
-from topology.common import (
+from python.lib.defines import DOCKER_COMPOSE_CONFIG_VERSION, PROM_FILE
+from python.lib.util import write_file
+from python.topology.common import (
     ArgsTopoDicts,
     prom_addr,
     prom_addr_dispatcher,
@@ -120,8 +120,8 @@ class PrometheusGenerator(object):
             })
         config = {
             'global': {
-                'scrape_interval': '5s',
-                'evaluation_interval': '15s',
+                'scrape_interval': '1s',
+                'evaluation_interval': '1s',
                 'external_labels': {
                     'monitor': 'scion-monitor'
                 }

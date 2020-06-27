@@ -15,10 +15,11 @@
 package reservation
 
 import (
+	"encoding/binary"
+	"io"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
@@ -30,6 +31,8 @@ type SegmentID struct {
 	ASID   addr.AS
 	Suffix [4]byte
 }
+
+var _ io.Reader = (*SegmentID)(nil)
 
 const SegmentIDLen = 10
 
@@ -49,7 +52,8 @@ func SegmentIDFromRawBuffers(ASID, suffix []byte) (*SegmentID, error) {
 		return nil, serrors.New("buffers too small", "length_ASID", len(ASID),
 			"length_suffix", len(suffix))
 	}
-	return NewSegmentID(addr.AS(common.Order.Uint64(append([]byte{0, 0}, ASID[:6]...))), suffix[:4])
+	return NewSegmentID(addr.AS(binary.BigEndian.Uint64(append([]byte{0, 0}, ASID[:6]...))),
+		suffix[:4])
 }
 
 // SegmentIDFromRaw constructs a SegmentID parsing a raw buffer.
@@ -63,12 +67,13 @@ func SegmentIDFromRaw(raw []byte) (
 	return SegmentIDFromRawBuffers(raw[:6], raw[6:])
 }
 
+// Read serializes this SegmentID into the buffer.
 func (id *SegmentID) Read(raw []byte) (int, error) {
 	if len(raw) < SegmentIDLen {
 		return 0, serrors.New("buffer too small", "actual", len(raw), "min", SegmentIDLen)
 	}
 	auxBuff := make([]byte, 8)
-	common.Order.PutUint64(auxBuff, uint64(id.ASID))
+	binary.BigEndian.PutUint64(auxBuff, uint64(id.ASID))
 	copy(raw, auxBuff[2:8])
 	copy(raw[6:], id.Suffix[:])
 	return SegmentIDLen, nil
@@ -99,7 +104,8 @@ func E2EIDFromRawBuffers(ASID, suffix []byte) (*E2EID, error) {
 		return nil, serrors.New("buffers too small", "length_ASID", len(ASID),
 			"length_suffix", len(suffix))
 	}
-	return NewE2EID(addr.AS(common.Order.Uint64(append([]byte{0, 0}, ASID[:6]...))), suffix[:10])
+	return NewE2EID(addr.AS(binary.BigEndian.Uint64(append([]byte{0, 0}, ASID[:6]...))),
+		suffix[:10])
 }
 
 // E2EIDFromRaw constructs an E2EID parsing a buffer.
@@ -115,7 +121,7 @@ func (id *E2EID) Read(raw []byte) (int, error) {
 		return 0, serrors.New("buffer too small", "actual", len(raw), "min", E2EIDLen)
 	}
 	auxBuff := make([]byte, 8)
-	common.Order.PutUint64(auxBuff, uint64(id.ASID))
+	binary.BigEndian.PutUint64(auxBuff, uint64(id.ASID))
 	copy(raw, auxBuff[2:8])
 	copy(raw[6:], id.Suffix[:])
 	return E2EIDLen, nil
@@ -251,7 +257,7 @@ func InfoFieldFromRaw(raw []byte) (*InfoField, error) {
 			"current_size", len(raw))
 	}
 	info := InfoField{
-		ExpirationTick: Tick(common.Order.Uint32(raw[:4])),
+		ExpirationTick: Tick(binary.BigEndian.Uint32(raw[:4])),
 		BWCls:          BWCls(raw[4]),
 		RLC:            RLC(raw[5]),
 		Idx:            IndexNumber(raw[6]) >> 4,
@@ -269,7 +275,7 @@ func (f *InfoField) Read(b []byte) (int, error) {
 		return 0, serrors.New("buffer too small", "min_size", InfoFieldLen,
 			"current_size", len(b))
 	}
-	common.Order.PutUint32(b[:4], uint32(f.ExpirationTick))
+	binary.BigEndian.PutUint32(b[:4], uint32(f.ExpirationTick))
 	b[4] = byte(f.BWCls)
 	b[5] = byte(f.RLC)
 	b[6] = byte(f.Idx<<4) | uint8(f.PathType)

@@ -33,7 +33,7 @@ func TestLoggerCtxEmbedding(t *testing.T) {
 		})
 	})
 	t.Run("Given a context with a logger attached", func(t *testing.T) {
-		logger := log.Root().New()
+		logger := log.New()
 		ctx := log.CtxWith(context.Background(), logger)
 		t.Run("Extracting the logger returns the correct object", func(t *testing.T) {
 			extractedLogger := log.FromCtx(ctx)

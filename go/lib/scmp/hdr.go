@@ -15,6 +15,7 @@
 package scmp
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -52,7 +53,7 @@ func NewHdr(ct ClassType, len int) *Hdr {
 
 func HdrFromRaw(b common.RawBytes) (*Hdr, error) {
 	h := &Hdr{}
-	if err := restruct.Unpack(b, common.Order, h); err != nil {
+	if err := restruct.Unpack(b, binary.BigEndian, h); err != nil {
 		return nil, common.NewBasicError(ErrSCMPHdrUnpack, err)
 	}
 	return h, nil
@@ -71,7 +72,7 @@ func (h *Hdr) SetPldLen(l int) {
 }
 
 func (h *Hdr) Write(b common.RawBytes) error {
-	out, err := restruct.Pack(common.Order, h)
+	out, err := restruct.Pack(binary.BigEndian, h)
 	if err != nil {
 		return common.NewBasicError("Error packing SCMP header", err)
 	}

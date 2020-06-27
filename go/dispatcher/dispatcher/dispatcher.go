@@ -129,7 +129,7 @@ func (ac *Conn) WriteTo(p []byte, addr net.Addr) (int, error) {
 	var info spkt.ScnPkt
 	hpkt.ParseScnPkt(&info, p)
 	if err := registerIfSCMPRequest(ac.regReference, &info); err != nil {
-		log.Warn("SCMP Request ID error, packet still sent", "err", err)
+		log.Info("SCMP Request ID error, packet still sent", "err", err)
 	}
 	return ac.conn.WriteTo(p, addr)
 }
@@ -137,7 +137,7 @@ func (ac *Conn) WriteTo(p []byte, addr net.Addr) (int, error) {
 // Write is optimized for the use by ConnHandler (avoids reparsing the packet).
 func (ac *Conn) Write(pkt *respool.Packet) (int, error) {
 	if err := registerIfSCMPRequest(ac.regReference, &pkt.Info); err != nil {
-		log.Warn("SCMP Request ID error, packet still sent", "err", err)
+		log.Info("SCMP Request ID error, packet still sent", "err", err)
 	}
 	return pkt.SendOnConn(ac.conn, pkt.UnderlayRemote)
 }

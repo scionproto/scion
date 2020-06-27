@@ -63,7 +63,7 @@ func setupFile(cfg FileConfig) (log15.Handler, error) {
 			"dir", filepath.Dir(cfg.Path))
 	}
 
-	logLvl, err := log15.LvlFromString(changeTraceToDebug(cfg.Level))
+	logLvl, err := log15.LvlFromString(cfg.Level)
 	if err != nil {
 		return nil, serrors.WrapStr("unable to parse log.file.level", err, "level", cfg.Level)
 	}
@@ -83,10 +83,6 @@ func setupFile(cfg FileConfig) (log15.Handler, error) {
 	}
 
 	handler := log15.LvlFilterHandler(logLvl, log15.StreamHandler(logger, fmt15.Fmt15Format(nil)))
-	if cfg.Level != LevelTraceStr {
-		// Discard trace messages
-		handler = &filterTraceHandler{Handler: handler}
-	}
 
 	if cfg.FlushInterval != nil && *cfg.FlushInterval > 0 {
 		go func() {
@@ -100,7 +96,7 @@ func setupFile(cfg FileConfig) (log15.Handler, error) {
 }
 
 func setupConsole(cfg ConsoleConfig) (log15.Handler, error) {
-	lvl, err := log15.LvlFromString(changeTraceToDebug(cfg.Level))
+	lvl, err := log15.LvlFromString(cfg.Level)
 	if err != nil {
 		return nil, serrors.WrapStr("unable to parse log.console.level", err, "level", cfg.Level)
 	}
@@ -109,18 +105,7 @@ func setupConsole(cfg ConsoleConfig) (log15.Handler, error) {
 		cMap = fmt15.ColorMap
 	}
 	handler := log15.LvlFilterHandler(lvl, log15.StreamHandler(os.Stderr, fmt15.Fmt15Format(cMap)))
-	if cfg.Level != LevelTraceStr {
-		// Discard trace messages
-		handler = &filterTraceHandler{Handler: handler}
-	}
 	return handler, nil
-}
-
-func changeTraceToDebug(logLevel string) string {
-	if logLevel == LevelTraceStr {
-		return "debug"
-	}
-	return logLevel
 }
 
 func setHandlers(logFileHandler, logConsHandler log15.Handler) {

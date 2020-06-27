@@ -28,45 +28,37 @@ import (
 )
 
 type syncHandler struct {
-	*baseHandler
-	localIA addr.IA
 	handler seghandler.Handler
 }
 
 func NewSyncHandler(args HandlerArgs) infra.Handler {
-	f := func(r *infra.Request) *infra.HandlerResult {
-		handler := &syncHandler{
-			baseHandler: newBaseHandler(r, args),
-			localIA:     args.IA,
-			handler: seghandler.Handler{
-				Verifier: &seghandler.DefaultVerifier{
-					Verifier: args.VerifierFactory.NewVerifier(),
-				},
-				Storage: &seghandler.DefaultStorage{
-					PathDB:   args.PathDB,
-					RevCache: args.RevCache,
-				},
+	return &syncHandler{
+		handler: seghandler.Handler{
+			Verifier: &seghandler.DefaultVerifier{
+				Verifier: args.Verifier,
 			},
-		}
-		return handler.Handle()
+			Storage: &seghandler.DefaultStorage{
+				PathDB:   args.PathDB,
+				RevCache: args.RevCache,
+			},
+		},
 	}
-	return infra.HandlerFunc(f)
 }
 
-func (h *syncHandler) Handle() *infra.HandlerResult {
-	ctx := h.request.Context()
+func (h *syncHandler) Handle(request *infra.Request) *infra.HandlerResult {
+	ctx := request.Context()
 	logger := log.FromCtx(ctx)
 	labels := metrics.SyncRegLabels{
 		Result: metrics.ErrInternal,
 	}
-	segSync, ok := h.request.Message.(*path_mgmt.SegSync)
+	segSync, ok := request.Message.(*path_mgmt.SegSync)
 	if !ok {
 		logger.Error("[syncHandler] wrong message type, expected path_mgmt.SegSync",
-			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+			"msg", request.Message, "type", common.TypeOf(request.Message))
 		metrics.Sync.Registrations(labels).Inc()
 		return infra.MetricsErrInternal
 	}
-	snetPeer := h.request.Peer.(*snet.UDPAddr)
+	snetPeer := request.Peer.(*snet.UDPAddr)
 	labels.Src = snetPeer.IA
 	rw, ok := infra.ResponseWriterFromContext(ctx)
 	if !ok {
@@ -81,7 +73,7 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 		metrics.Sync.Registrations(labels.WithResult(metrics.ErrParse)).Inc()
 		return infra.MetricsErrInvalid
 	}
-	logSegRecs(logger, "[syncHandler]", h.request.Peer, segSync.SegRecs)
+	logSegRecs(logger, "[syncHandler]", request.Peer, segSync.SegRecs)
 	peerPath, err := snetPeer.GetPath()
 	if err != nil {
 		logger.Error("[syncHandler] Failed to initialize path", "err", err)
@@ -109,7 +101,7 @@ func (h *syncHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInvalid
 	}
 	if len(res.VerificationErrors()) > 0 {
-		log.FromCtx(ctx).Warn("[syncHandler] Error during verification of segments/revocations",
+		log.FromCtx(ctx).Info("[syncHandler] Error during verification of segments/revocations",
 			"errors", res.VerificationErrors().ToError())
 	}
 	metrics.Sync.RegistrationSuccess(labels,

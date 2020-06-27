@@ -28,45 +28,37 @@ import (
 )
 
 type segRegHandler struct {
-	*baseHandler
-	localIA addr.IA
 	handler seghandler.Handler
 }
 
 func NewSegRegHandler(args HandlerArgs) infra.Handler {
-	f := func(r *infra.Request) *infra.HandlerResult {
-		handler := &segRegHandler{
-			baseHandler: newBaseHandler(r, args),
-			localIA:     args.IA,
-			handler: seghandler.Handler{
-				Verifier: &seghandler.DefaultVerifier{
-					Verifier: args.VerifierFactory.NewVerifier(),
-				},
-				Storage: &seghandler.DefaultStorage{
-					PathDB:   args.PathDB,
-					RevCache: args.RevCache,
-				},
+	return &segRegHandler{
+		handler: seghandler.Handler{
+			Verifier: &seghandler.DefaultVerifier{
+				Verifier: args.Verifier,
 			},
-		}
-		return handler.Handle()
+			Storage: &seghandler.DefaultStorage{
+				PathDB:   args.PathDB,
+				RevCache: args.RevCache,
+			},
+		},
 	}
-	return infra.HandlerFunc(f)
 }
 
-func (h *segRegHandler) Handle() *infra.HandlerResult {
-	ctx := h.request.Context()
+func (h *segRegHandler) Handle(request *infra.Request) *infra.HandlerResult {
+	ctx := request.Context()
 	logger := log.FromCtx(ctx)
 	labels := metrics.RegistrationLabels{
 		Result: metrics.ErrInternal,
 	}
-	segReg, ok := h.request.Message.(*path_mgmt.SegReg)
+	segReg, ok := request.Message.(*path_mgmt.SegReg)
 	if !ok {
 		logger.Error("[segRegHandler] wrong message type, expected path_mgmt.SegReg",
-			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+			"msg", request.Message, "type", common.TypeOf(request.Message))
 		metrics.Registrations.ResultsTotal(labels).Inc()
 		return infra.MetricsErrInternal
 	}
-	snetPeer := h.request.Peer.(*snet.UDPAddr)
+	snetPeer := request.Peer.(*snet.UDPAddr)
 	labels.Type = classifySegs(logger, segReg)
 	labels.Src = snetPeer.IA
 	rw, ok := infra.ResponseWriterFromContext(ctx)
@@ -83,7 +75,7 @@ func (h *segRegHandler) Handle() *infra.HandlerResult {
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return infra.MetricsErrInvalid
 	}
-	logSegRecs(logger, "[segRegHandler]", h.request.Peer, segReg.SegRecs)
+	logSegRecs(logger, "[segRegHandler]", request.Peer, segReg.SegRecs)
 
 	peerPath, err := snetPeer.GetPath()
 	if err != nil {
@@ -113,7 +105,7 @@ func (h *segRegHandler) Handle() *infra.HandlerResult {
 		return infra.MetricsErrInvalid
 	}
 	if len(res.VerificationErrors()) > 0 {
-		log.FromCtx(ctx).Warn("[segRegHandler] Error during verification of segments/revocations",
+		log.FromCtx(ctx).Info("[segRegHandler] Error during verification of segments/revocations",
 			"errors", res.VerificationErrors().ToError())
 	}
 	h.incMetrics(labels, res.Stats())
@@ -139,7 +131,7 @@ func classifySegs(logger log.Logger, segReg *path_mgmt.SegReg) proto.PathSegType
 		segTypes[segMeta.Type] = struct{}{}
 	}
 	if len(segTypes) > 1 {
-		logger.Warn("SegReg contained multiple types, reporting unset in metrics",
+		logger.Info("SegReg contained multiple types, reporting unset in metrics",
 			"types", segTypes)
 		return proto.PathSegType_unset
 	}

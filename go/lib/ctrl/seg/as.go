@@ -68,7 +68,7 @@ func (ase *ASEntry) Validate(prevIA addr.IA, nextIA addr.IA, ignoreNext bool) er
 		}
 		if !ignoreNext && !nextIA.Equal(h.OutIA()) {
 			return common.NewBasicError("HopEntry OutIA mismatch", nil,
-				"hopIdx", i, "expected", h.OutIA(), "actual", prevIA)
+				"hopIdx", i, "expected", h.OutIA(), "actual", nextIA)
 		}
 	}
 	return nil

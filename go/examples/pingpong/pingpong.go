@@ -85,8 +85,7 @@ var (
 func init() {
 	flag.Var(&local, "local", "(Mandatory) address to listen on")
 	flag.Var(&remote, "remote", "(Mandatory for clients) address to connect to")
-	flag.StringVar(&logConsole, "log.console", "info",
-		"Console logging level: trace|debug|info|warn|error|crit")
+	flag.StringVar(&logConsole, "log.console", "info", "Console logging level: debug|info|error")
 }
 
 func main() {
@@ -143,7 +142,7 @@ func validateFlags() {
 }
 
 func LogFatal(msg string, a ...interface{}) {
-	log.Crit(msg, a...)
+	log.Error(msg, a...)
 	os.Exit(1)
 }
 
@@ -229,10 +228,7 @@ func (c *client) run() {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	network := snet.NewNetworkWithPR(local.IA, ds, sd.Querier{
-		Connector: sciondConn,
-		IA:        local.IA,
-	}, sd.RevHandler{Connector: sciondConn})
+	network := snet.NewNetwork(local.IA, ds, sd.RevHandler{Connector: sciondConn})
 
 	// Connect to remote address. Note that currently the SCION library
 	// does not support automatic binding to local addresses, so the local
@@ -352,10 +348,7 @@ func (s server) run() {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	network := snet.NewNetworkWithPR(local.IA, ds, &sd.Querier{
-		Connector: sciondConn,
-		IA:        local.IA,
-	}, sd.RevHandler{Connector: sciondConn})
+	network := snet.NewNetwork(local.IA, ds, sd.RevHandler{Connector: sciondConn})
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}

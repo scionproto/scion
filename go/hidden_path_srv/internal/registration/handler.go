@@ -107,7 +107,7 @@ func (h *hpSegRegHandler) handle(logger log.Logger) (*infra.HandlerResult, error
 		return infra.MetricsErrInvalid, nil
 	}
 	if len(res.VerificationErrors()) > 0 {
-		log.FromCtx(ctx).Warn("[hpSegRegHandler] Error during verification of segments/revocations",
+		log.FromCtx(ctx).Info("[hpSegRegHandler] Error during verification of segments/revocations",
 			"errors", res.VerificationErrors().ToError())
 	}
 	sendAck(proto.Ack_ErrCode_ok, "")

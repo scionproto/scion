@@ -103,7 +103,7 @@ func (h *Handler) verifyAndStore(ctx context.Context,
 			} else {
 				// reset stats
 				result.stats = Stats{}
-				log.FromCtx(ctx).Warn("Storing on early trigger failed, continue processing",
+				log.FromCtx(ctx).Info("Storing on early trigger failed, continue processing",
 					"err", err)
 			}
 			// Make sure we do not select from this channel again

@@ -24,12 +24,6 @@ type Span struct {
 	Span opentracing.Span
 }
 
-// Trace logs to the logger and span.
-func (s Span) Trace(msg string, ctx ...interface{}) {
-	s.Logger.Debug(TraceMsgPrefix+msg, ctx...)
-	s.spanLog("trace", msg, ctx...)
-}
-
 // Debug logs to the logger and span.
 func (s Span) Debug(msg string, ctx ...interface{}) {
 	s.Logger.Debug(msg, ctx...)
@@ -42,22 +36,10 @@ func (s Span) Info(msg string, ctx ...interface{}) {
 	s.spanLog("info", msg, ctx...)
 }
 
-// Warn logs to the logger and span.
-func (s Span) Warn(msg string, ctx ...interface{}) {
-	s.Logger.Warn(msg, ctx...)
-	s.spanLog("warn", msg, ctx...)
-}
-
 // Error logs to the logger and span.
 func (s Span) Error(msg string, ctx ...interface{}) {
 	s.Logger.Error(msg, ctx...)
 	s.spanLog("error", msg, ctx...)
-}
-
-// Crit logs to the logger and span.
-func (s Span) Crit(msg string, ctx ...interface{}) {
-	s.Logger.Crit(msg, ctx...)
-	s.spanLog("crit", msg, ctx...)
 }
 
 func (s Span) spanLog(lvl, msg string, ctx ...interface{}) {

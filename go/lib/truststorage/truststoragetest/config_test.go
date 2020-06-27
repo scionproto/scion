@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/config"
@@ -30,8 +30,17 @@ func TestConfigSample(t *testing.T) {
 	var cfg truststorage.TrustDBConf
 	cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
 	InitTestConfig(&cfg)
-	meta, err := toml.Decode(sample.String(), &cfg)
+	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
 	assert.NoError(t, err)
-	assert.Empty(t, meta.Undecoded())
 	CheckTestConfig(t, &cfg, "test")
+}
+
+func TestRenewalConfigSample(t *testing.T) {
+	var sample bytes.Buffer
+	var cfg truststorage.RenewalDBConf
+	cfg.Sample(&sample, nil, map[string]string{config.ID: "test"})
+	InitRenewalTestConfig(&cfg)
+	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
+	assert.NoError(t, err)
+	CheckRenewalTestConfig(t, &cfg, "test")
 }

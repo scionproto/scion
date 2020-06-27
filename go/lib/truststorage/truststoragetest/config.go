@@ -31,16 +31,34 @@ func InitTestConfig(cfg *truststorage.TrustDBConf) {
 	}
 	(*cfg)[db.MaxOpenConnsKey] = "maxOpenConns"
 	(*cfg)[db.MaxIdleConnsKey] = "maxIdleConns"
+	(*cfg)[truststorage.CachedKey] = "set"
 }
 
 func CheckTestConfig(t *testing.T, cfg *truststorage.TrustDBConf, id string) {
 	util.LowerKeys(*cfg)
 	assert.False(t, isSet(cfg.MaxOpenConns()))
 	assert.False(t, isSet(cfg.MaxIdleConns()))
+	assert.True(t, cfg.Cached())
 	assert.Equal(t, truststorage.BackendSqlite, cfg.Backend())
 	assert.Equal(t, fmt.Sprintf("/var/lib/scion/spki/%s.trust.db", id), cfg.Connection())
 }
 
 func isSet(_ int, set bool) bool {
 	return set
+}
+
+func InitRenewalTestConfig(cfg *truststorage.RenewalDBConf) {
+	if *cfg == nil {
+		*cfg = make(truststorage.RenewalDBConf)
+	}
+	(*cfg)[db.MaxOpenConnsKey] = "maxOpenConns"
+	(*cfg)[db.MaxIdleConnsKey] = "maxIdleConns"
+}
+
+func CheckRenewalTestConfig(t *testing.T, cfg *truststorage.RenewalDBConf, id string) {
+	util.LowerKeys(*cfg)
+	assert.False(t, isSet(cfg.MaxOpenConns()))
+	assert.False(t, isSet(cfg.MaxIdleConns()))
+	assert.Equal(t, truststorage.BackendSqlite, cfg.Backend())
+	assert.Equal(t, fmt.Sprintf("/var/lib/scion/spki/%s.renewal.db", id), cfg.Connection())
 }

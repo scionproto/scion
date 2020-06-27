@@ -19,12 +19,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/golang/mock/gomock"
-	"github.com/inconshreveable/log15"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/log/mock_log"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -65,45 +62,4 @@ func TestSetup(t *testing.T) {
 			test.assertErr(t, err)
 		})
 	}
-}
-
-func TestTraceFilterHandler(t *testing.T) {
-	t.Log("Given a base handler...")
-
-	t.Run("by default...", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		mockHandler := mock_log.NewMockHandler(ctrl)
-		logger := log.Root()
-		log.SetHandler(logger, mockHandler)
-		var msgSeenByMockHandler string
-		mockHandler.EXPECT().Log(gomock.Any()).Do(func(record *log15.Record) {
-			msgSeenByMockHandler = record.Msg
-		}).AnyTimes()
-		t.Log("debug messages are printed")
-		logger.Debug("foo")
-		assert.Equal(t, msgSeenByMockHandler, "foo")
-		t.Log("trace messages are printed")
-		logger.Trace("foo")
-		assert.Equal(t, msgSeenByMockHandler, log.TraceMsgPrefix+"foo")
-	})
-
-	t.Run("if wrapped by a trace filter handler...", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		mockHandler := mock_log.NewMockHandler(ctrl)
-		logger := log.Root()
-		handler := log.FilterTraceHandler(mockHandler)
-		log.SetHandler(logger, handler)
-		t.Log("debug messages are printed")
-		var msgSeenByMockHandler string
-		mockHandler.EXPECT().Log(gomock.Any()).Do(func(record *log15.Record) {
-			msgSeenByMockHandler = record.Msg
-		}).AnyTimes()
-		logger.Debug("foo")
-		assert.Equal(t, msgSeenByMockHandler, "foo")
-		t.Log("trace messages are not printed")
-		logger.Trace("foo")
-	})
-
 }

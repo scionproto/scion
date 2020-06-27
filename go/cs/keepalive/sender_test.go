@@ -15,7 +15,14 @@
 package keepalive
 
 import (
+	"bytes"
 	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/asn1"
+	"math/big"
 	"net"
 	"testing"
 	"time"
@@ -27,15 +34,14 @@ import (
 	"github.com/scionproto/scion/go/cs/onehop"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
-	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/pkg/trust"
 )
 
 func TestSenderRun(t *testing.T) {
@@ -45,8 +51,9 @@ func TestSenderRun(t *testing.T) {
 	topoProvider := itopotest.TopoProviderFromFile(t, "testdata/topology.json")
 	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 	require.NoError(t, err)
-	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
+	pub := priv.Public()
 	conn := mock_snet.NewMockPacketConn(mctrl)
 	s := Sender{
 		Sender: &onehop.Sender{
@@ -74,50 +81,64 @@ func TestSenderRun(t *testing.T) {
 	for _, pkt := range pkts {
 		spld, err := ctrl.NewSignedPldFromRaw(pkt.Payload.(common.RawBytes))
 		assert.NoError(t, err, "SPldErr")
-		pld, err := spld.GetVerifiedPld(nil, testVerifier(pub))
+		pld, err := spld.GetVerifiedPld(nil, testVerifier{pubKey: pub})
 		assert.NoError(t, err, "PldErr")
 		_, ok := topoProvider.Get().IFInfoMap()[pld.IfID.OrigIfID]
 		assert.True(t, ok)
 	}
 }
 
-func createTestSigner(t *testing.T, key common.RawBytes) infra.Signer {
-	signer, err := trust.NewSigner(
-		trust.SignerConf{
-			ChainVer: 42,
-			TRCVer:   21,
-			Validity: scrypto.Validity{NotAfter: util.UnixTime{Time: time.Now().Add(time.Hour)}},
-			Key: keyconf.Key{
-				Type:      keyconf.PrivateKey,
-				Algorithm: scrypto.Ed25519,
-				Bytes:     key,
-				ID:        keyconf.ID{IA: xtest.MustParseIA("1-ff00:0:84")},
-			},
+func createTestSigner(t *testing.T, key crypto.Signer) ctrl.Signer {
+	return trust.Signer{
+		PrivateKey: key,
+		IA:         xtest.MustParseIA("1-ff00:0:84"),
+		TRCID: cppki.TRCID{
+			ISD:    1,
+			Base:   1,
+			Serial: 21,
 		},
-	)
-	require.NoError(t, err)
-	return signer
+		SubjectKeyID: []byte("skid"),
+		Expiration:   time.Now().Add(time.Hour),
+	}
 }
 
-var _ ctrl.Verifier = testVerifier{}
-
-type testVerifier common.RawBytes
+type testVerifier struct {
+	pubKey crypto.PublicKey
+}
 
 func (t testVerifier) VerifyPld(_ context.Context, spld *ctrl.SignedPld) (*ctrl.Pld, error) {
-	src, err := ctrl.NewSignSrcDefFromRaw(spld.Sign.Src)
+	src, err := ctrl.NewX509SignSrc(spld.Sign.Src)
 	if err != nil {
-		return nil, common.NewBasicError("Cannot parse payload", err)
+		return nil, serrors.WrapStr("cannot parse payload", err)
 	}
 	if src.IA != xtest.MustParseIA("1-ff00:0:84") {
-		return nil, common.NewBasicError("Wrong src.IA", err)
+		return nil, serrors.New("wrong src.IA")
 	}
-	if src.TRCVer != 21 {
-		return nil, common.NewBasicError("Wrong src.TRCVer", err)
+	if src.Base != 1 {
+		return nil, serrors.New("wrong src.Base")
+	}
+	if src.Serial != 21 {
+		return nil, serrors.New("wrong src.Serial")
+	}
+	if !bytes.Equal(src.SubjectKeyID, []byte("skid")) {
+		return nil, serrors.New("wrong src.SKID")
 	}
 	pld, err := ctrl.NewPldFromRaw(spld.Blob)
 	if err != nil {
-		return nil, common.NewBasicError("Cannot parse payload", err)
+		return nil, serrors.WrapStr("Cannot parse payload", err)
 	}
-	return pld, scrypto.Verify(spld.Sign.SigInput(spld.Blob, false), spld.Sign.Signature,
-		common.RawBytes(t), scrypto.Ed25519)
+	return pld, verifyecdsa(spld.Sign.SigInput(spld.Blob, false), spld.Sign.Signature, t.pubKey)
+}
+
+func verifyecdsa(input, signature []byte, pubKey crypto.PublicKey) error {
+	var ecdsaSig struct {
+		R, S *big.Int
+	}
+	if _, err := asn1.Unmarshal(signature, &ecdsaSig); err != nil {
+		return err
+	}
+	if !ecdsa.Verify(pubKey.(*ecdsa.PublicKey), input, ecdsaSig.R, ecdsaSig.S) {
+		return serrors.New("verification failure")
+	}
+	return nil
 }

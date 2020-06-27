@@ -22,7 +22,7 @@ from unittest.mock import MagicMock
 import nose.tools as ntools
 
 # SCION
-from lib.errors import SCIONBaseError
+from python.lib.errors import SCIONBaseError
 
 
 class SCIONTestError(SCIONBaseError):

@@ -16,6 +16,8 @@
 package base
 
 import (
+	"context"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -48,7 +50,7 @@ func PollReqHdlr() {
 			log.Error("PollReqHdlr: Error creating Ctrl payload", "err", err)
 			break
 		}
-		scpld, err := cpld.SignedPld(infra.NullSigner)
+		scpld, err := cpld.SignedPld(context.TODO(), infra.NullSigner)
 		if err != nil {
 			log.Error("PollReqHdlr: Error creating signed Ctrl payload", "err", err)
 			break

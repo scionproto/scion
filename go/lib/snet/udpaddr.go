@@ -117,20 +117,6 @@ func (a *UDPAddr) Set(s string) error {
 	return nil
 }
 
-// Copy creates a deep copy of the address.
-func (a *UDPAddr) Copy() *UDPAddr {
-	if a == nil {
-		return nil
-	}
-	return &UDPAddr{
-		IA:      a.IA,
-		Path:    a.Path.Copy(),
-		NextHop: CopyUDPAddr(a.NextHop),
-		Host:    CopyUDPAddr(a.Host),
-	}
-}
-
-// CopyUDPAddr creates a deep copy of the net.UDPAddr.
 func CopyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
 	if a == nil {
 		return nil
@@ -161,4 +147,17 @@ func ipOnly(s string) bool {
 	ipv4NoPort := strings.Contains(s, ".") && !strings.Contains(s, ":")
 	inBracketsWithNoPort := !strings.Contains(s, "]:")
 	return ipv4NoPort || inBracketsWithNoPort
+}
+
+// Copy creates a deep copy of the address.
+func (a *UDPAddr) Copy() *UDPAddr {
+	if a == nil {
+		return nil
+	}
+	return &UDPAddr{
+		IA:      a.IA,
+		Path:    a.Path.Copy(),
+		NextHop: CopyUDPAddr(a.NextHop),
+		Host:    CopyUDPAddr(a.Host),
+	}
 }

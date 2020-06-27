@@ -36,10 +36,8 @@ import (
 )
 
 // NewClientMessenger creates a client messenger.
-func NewClientMessenger(client Client) *Messenger {
-	return &Messenger{
-		Client: &client,
-	}
+func NewClientMessenger() *Messenger {
+	return &Messenger{}
 }
 
 // NewServerMessenger creates a TCP messenger with the given listen address.
@@ -60,10 +58,9 @@ type Messenger struct {
 	Addr *net.TCPAddr
 	// Handler is used to handle RPCs.
 	Handler *messenger.QUICHandler
-	// Client is used to request data from a remote.
-	Client *Client
 
 	listener net.Listener
+	client   client
 }
 
 func (m *Messenger) SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id uint64) error {
@@ -81,9 +78,9 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Add
 		return nil, err
 	}
 	logger := log.FromCtx(ctx)
-	logger.Trace("[tcp-msger] Sending request", "req_type", infra.TRCRequest,
+	logger.Debug("[tcp-msger] Sending request", "req_type", infra.TRCRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.Client.Request(ctx, pld, a)
+	replyCtrlPld, err := m.client.Request(ctx, pld, a)
 	if err != nil {
 		return nil, serrors.WrapStr("[tcp-msger] request error", err, "req_type", infra.TRCRequest)
 	}
@@ -93,7 +90,7 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Add
 	}
 	switch reply := replyMsg.(type) {
 	case *cert_mgmt.TRC:
-		logger.Trace("[tcp-msger] Received reply", "req_id", id, "reply", reply)
+		logger.Debug("[tcp-msger] Received reply", "req_id", id, "reply", reply)
 		return reply, nil
 	case *ack.Ack:
 		return nil, &infra.Error{Message: reply}
@@ -119,9 +116,9 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a
 	if err != nil {
 		return nil, err
 	}
-	logger.Trace("[tcp-msger] Sending request", "req_type", infra.ChainRequest,
+	logger.Debug("[tcp-msger] Sending request", "req_type", infra.ChainRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.Client.Request(ctx, pld, a)
+	replyCtrlPld, err := m.client.Request(ctx, pld, a)
 	if err != nil {
 		return nil, serrors.WrapStr("[tcp-msger] request error", err,
 			"req_type", infra.ChainRequest)
@@ -132,7 +129,7 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a
 	}
 	switch reply := replyMsg.(type) {
 	case *cert_mgmt.Chain:
-		logger.Trace("[tcp-msger] Received reply", "req_id", id, "reply", reply)
+		logger.Debug("[tcp-msger] Received reply", "req_id", id, "reply", reply)
 		return reply, nil
 	case *ack.Ack:
 		return nil, &infra.Error{Message: reply}
@@ -160,9 +157,9 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Ad
 	if err != nil {
 		return nil, err
 	}
-	logger.Trace("[tcp-msger] Sending request", "req_type", infra.SegRequest,
+	logger.Debug("[tcp-msger] Sending request", "req_type", infra.SegRequest,
 		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.Client.Request(ctx, pld, a)
+	replyCtrlPld, err := m.client.Request(ctx, pld, a)
 	if err != nil {
 		return nil, serrors.WrapStr("[tcp-msger] request error", err, "req_type", infra.SegRequest)
 	}
@@ -175,7 +172,7 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Ad
 		if err := reply.ParseRaw(); err != nil {
 			return nil, serrors.WrapStr("[tcp-msger] failed to parse reply", err)
 		}
-		logger.Trace("[tcp-msger] Received reply", "req_id", id)
+		logger.Debug("[tcp-msger] Received reply", "req_id", id)
 		return reply, nil
 	case *ack.Ack:
 		return nil, &infra.Error{Message: reply}
@@ -206,7 +203,7 @@ func (m *Messenger) ListenAndServe() {
 		go func() {
 			defer log.HandlePanic()
 			if err := m.handleConn(conn); err != nil {
-				log.Warn("[tcp-msgr] Server handler exited with error", "err", err)
+				log.Info("[tcp-msgr] Server handler exited with error", "err", err)
 			}
 		}()
 	}

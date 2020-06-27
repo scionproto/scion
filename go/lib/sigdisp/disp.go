@@ -120,7 +120,7 @@ func (dm *dispRegistry) sigCtrl(pld *sig_mgmt.Pld, addr *snet.UDPAddr) {
 		}
 		entry, ok := dm.pollRep[MkRegPollKey(addr.IA, pld.Session, msgId)]
 		if !ok {
-			log.Warn("Unexpected SIG PollRep received", "src", addr, "pld", pld)
+			log.Info("Unexpected SIG PollRep received", "src", addr, "pld", pld)
 			return
 		}
 		entry <- regPld

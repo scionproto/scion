@@ -1,5 +1,5 @@
 load("@bazel_gazelle//:def.bzl", "gazelle")
-load("@bazel_tools//tools/build_defs/pkg:pkg.bzl", "pkg_tar")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_go//go:def.bzl", "nogo")
 
 # gazelle:prefix github.com/scionproto/scion
@@ -14,11 +14,10 @@ pkg_tar(
         "//go/cs",
         "//go/dispatcher",
         "//go/scion",
+        "//go/scion-pki",
         "//go/sciond",
         "//go/sig",
-        "//go/tools/logdog",
         "//go/tools/pathdb_dump",
-        "//go/tools/scion-pki",
         "//go/tools/scmp",
         "//go/tools/showpaths",
     ],
@@ -35,8 +34,6 @@ pkg_tar(
         "//go/border/braccept",
         "//go/examples/pingpong",
         "//go/examples/pingpong/pp_integration",
-        "//go/integration/cert_req",
-        "//go/integration/cert_req_integration",
         "//go/integration/end2end",
         "//go/integration/end2end_integration",
         "//go/lib/xtest/graphupdater",
@@ -52,7 +49,7 @@ pkg_tar(
 pkg_tar(
     name = "scion-topo",
     srcs = [
-        "//go/tools/scion-pki",
+        "//go/scion-pki",
     ],
     mode = "0755",
     package_dir = "",

@@ -66,19 +66,20 @@ const (
 
 var _ config.Config = (*Config)(nil)
 
-// Config is the beacon server configuration.
+// Config is the control server configuration.
 type Config struct {
-	General  env.General                `toml:"general,omitempty"`
-	Features env.Features               `toml:"features,omitempty"`
-	Logging  log.Config                 `toml:"log,omitempty"`
-	Metrics  env.Metrics                `toml:"metrics,omitempty"`
-	Tracing  env.Tracing                `toml:"tracing,omitempty"`
-	QUIC     env.QUIC                   `toml:"quic,omitempty"`
-	BeaconDB beaconstorage.BeaconDBConf `toml:"beacon_db,omitempty"`
-	TrustDB  truststorage.TrustDBConf   `toml:"trust_db,omitempty"`
-	PathDB   pathstorage.PathDBConf     `toml:"path_db,omitempty"`
-	BS       BSConfig                   `toml:"beaconing,omitempty"`
-	PS       PSConfig                   `toml:"path,omitempty"`
+	General   env.General                `toml:"general,omitempty"`
+	Features  env.Features               `toml:"features,omitempty"`
+	Logging   log.Config                 `toml:"log,omitempty"`
+	Metrics   env.Metrics                `toml:"metrics,omitempty"`
+	Tracing   env.Tracing                `toml:"tracing,omitempty"`
+	QUIC      env.QUIC                   `toml:"quic,omitempty"`
+	BeaconDB  beaconstorage.BeaconDBConf `toml:"beacon_db,omitempty"`
+	TrustDB   truststorage.TrustDBConf   `toml:"trust_db,omitempty"`
+	RenewalDB truststorage.RenewalDBConf `toml:"renewal_db,omitempty"`
+	PathDB    pathstorage.PathDBConf     `toml:"path_db,omitempty"`
+	BS        BSConfig                   `toml:"beaconing,omitempty"`
+	PS        PSConfig                   `toml:"path,omitempty"`
 }
 
 // InitDefaults initializes the default values for all parts of the config.
@@ -91,6 +92,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Tracing,
 		&cfg.BeaconDB,
 		&cfg.TrustDB,
+		&cfg.RenewalDB,
 		&cfg.PathDB,
 		&cfg.BS,
 		&cfg.PS,
@@ -106,6 +108,7 @@ func (cfg *Config) Validate() error {
 		&cfg.Metrics,
 		&cfg.BeaconDB,
 		&cfg.TrustDB,
+		&cfg.RenewalDB,
 		&cfg.PathDB,
 		&cfg.BS,
 		&cfg.PS,
@@ -123,15 +126,11 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.QUIC,
 		&cfg.BeaconDB,
 		&cfg.TrustDB,
+		&cfg.RenewalDB,
 		&cfg.PathDB,
 		&cfg.BS,
 		&cfg.PS,
 	)
-}
-
-// ConfigName is the toml key.
-func (cfg *Config) ConfigName() string {
-	return "cs_config"
 }
 
 var _ config.Config = (*BSConfig)(nil)

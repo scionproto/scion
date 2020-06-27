@@ -117,7 +117,8 @@ func br_parent() int {
 	failures += ohp_udp_internal_bs_to_parent()
 	failures += ohp_internal_bs_to_parent()
 
-	failures += parent_scmp_routing_bad_host()
+	failures += parent_scmp_routing_bad_host_udp()
+	failures += parent_scmp_routing_bad_host_scmp()
 
 	return failures
 }

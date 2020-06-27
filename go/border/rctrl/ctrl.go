@@ -53,11 +53,12 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs, dispatcherReconnect bool) 
 	if dispatcherReconnect {
 		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
 	}
-	scionNetwork := snet.NewCustomNetworkWithPR(ia,
-		&snet.DefaultPacketDispatcherService{
+	scionNetwork := &snet.SCIONNetwork{
+		LocalIA: ia,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher: dispatcherService,
 		},
-	)
+	}
 	ctrlAddr := ctx.Conf.BR.CtrlAddrs
 	snetConn, err = scionNetwork.Listen(context.Background(), "udp", ctrlAddr.SCIONAddress,
 		addr.SvcNone)

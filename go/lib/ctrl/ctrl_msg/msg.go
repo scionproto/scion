@@ -41,7 +41,7 @@ func NewRequester(signer ctrl.Signer, sigv ctrl.Verifier, d *disp.Dispatcher) *R
 
 func (r *Requester) Request(ctx context.Context, pld *ctrl.Pld,
 	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
-	spld, err := pld.SignedPld(r.signer)
+	spld, err := pld.SignedPld(ctx, r.signer)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -70,7 +70,7 @@ func (r *Requester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.A
 }
 
 func (r *Requester) notify(ctx context.Context, pld *ctrl.Pld, a net.Addr, f notifyF) error {
-	spld, err := pld.SignedPld(r.signer)
+	spld, err := pld.SignedPld(ctx, r.signer)
 	if err != nil {
 		return err
 	}

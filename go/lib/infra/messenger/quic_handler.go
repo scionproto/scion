@@ -90,6 +90,10 @@ func (h *QUICHandler) ServeRPC(rw rpc.ReplyWriter, request *rpc.Request) {
 	defer servceCancelF()
 	defer span.Finish()
 
+	ia, peer := extractPeer(request.Address)
+	span.SetTag("peer.isd_as", ia)
+	span.SetTag("peer.address", peer)
+
 	if handler == nil {
 		log.Error("Message type not handled", "type", messageType)
 	} else {
@@ -124,7 +128,7 @@ func (h *QUICHandler) prepareServeCtx(pld *ctrl.Pld, messageType infra.MessageTy
 		spanCtx, err = opentracing.GlobalTracer().Extract(opentracing.Binary,
 			bytes.NewReader(pld.Data.TraceId))
 		if err != nil {
-			log.Error("Failed to extract span", "err", err)
+			log.Info("Failed to extract span", "err", err)
 		}
 	}
 

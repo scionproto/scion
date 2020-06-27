@@ -265,7 +265,7 @@ func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cf
 		if !*sizeIgnore {
 			return common.NewBasicError(common.ErrMsg(msg), nil, ctx...)
 		}
-		log.Warn(msg, ctx...)
+		log.Info(msg, ctx...)
 	}
 	oob := make(common.RawBytes, oobSize)
 	cc.conn = c

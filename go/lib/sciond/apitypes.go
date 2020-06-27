@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -69,7 +70,10 @@ func (h TopoQuerier) UnderlayAnycast(ctx context.Context, svc addr.HostSVC) (*ne
 	if err != nil {
 		return nil, err
 	}
-	return r.Entries[0].HostInfos[0].UDP(), nil
+	return &net.UDPAddr{
+		IP:   r.Entries[0].HostInfos[0].Host().IP(),
+		Port: topology.EndhostPort,
+	}, nil
 }
 
 func svcAddrToProto(svc addr.HostSVC) proto.ServiceType {
@@ -124,7 +128,9 @@ func pathReplyToPaths(pathReply *PathReply, dst addr.IA) ([]snet.Path, error) {
 func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (Path, error) {
 	if len(pe.Path.Interfaces) == 0 {
 		return Path{
-			dst: dst,
+			dst:    dst,
+			mtu:    pe.Path.Mtu,
+			expiry: pe.Path.Expiry(),
 		}, nil
 	}
 	sp := spath.New(pe.Path.FwdPath)
@@ -151,8 +157,8 @@ func (p Path) Fingerprint() snet.PathFingerprint {
 	}
 	h := sha256.New()
 	for _, intf := range p.interfaces {
-		binary.Write(h, common.Order, intf.IA().IAInt())
-		binary.Write(h, common.Order, intf.ID())
+		binary.Write(h, binary.BigEndian, intf.IA().IAInt())
+		binary.Write(h, binary.BigEndian, intf.ID())
 	}
 	return snet.PathFingerprint(h.Sum(nil))
 }

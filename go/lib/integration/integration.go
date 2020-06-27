@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -49,11 +50,12 @@ const (
 	RetryTimeout = time.Second / 2
 	// SCIONDAddressesFile is the default file for SCIOND addresses in a topology created
 	// with the topology generator.
-	SCIONDAddressesFile = "gen/sciond_addresses.json"
+	SCIONDAddressesFile = "sciond_addresses.json"
 )
 
 var (
-	logConsole string
+	// ASList exposes the loaded ASList.
+	ASList *util.ASList
 )
 
 type iaArgs []addr.IA
@@ -79,9 +81,12 @@ func (a *iaArgs) Set(value string) error {
 	return nil
 }
 
+// Flags.
 var (
-	srcIAs iaArgs
-	dstIAs iaArgs
+	logConsole string
+	srcIAs     iaArgs
+	dstIAs     iaArgs
+	outDir     string
 )
 
 // Integration can be used to run integration tests.
@@ -107,9 +112,24 @@ type Waiter interface {
 
 // Init initializes the integration test, it adds and validates the command line flags,
 // and initializes logging.
-func Init(name string) error {
+func Init() error {
 	addTestFlags()
-	return validateFlags(name)
+	if err := validateFlags(); err != nil {
+		return err
+	}
+	initAddrs()
+	initDockerArgs()
+	return nil
+}
+
+// GenFile returns the path for the given file in the gen folder.
+func GenFile(file string) string {
+	return filepath.Join(outDir, "gen", file)
+}
+
+// LogDir returns the path for logs.
+func LogDir() string {
+	return filepath.Join(outDir, "logs")
 }
 
 func addTestFlags() {
@@ -117,9 +137,11 @@ func addTestFlags() {
 		"Console logging level: trace|debug|info|warn|error|crit")
 	flag.Var(&srcIAs, "src", "Source ISD-ASes (comma separated list)")
 	flag.Var(&dstIAs, "dst", "Destination ISD-ASes (comma separated list)")
+	flag.StringVar(&outDir, "outDir", ".",
+		"path to the output directory that contains gen and logs folders (default: .).")
 }
 
-func validateFlags(name string) error {
+func validateFlags() error {
 	flag.Parse()
 	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
 	if err := log.Setup(logCfg); err != nil {
@@ -127,15 +149,16 @@ func validateFlags(name string) error {
 		flag.Usage()
 		return err
 	}
-	asList, err := util.LoadASList("gen/as_list.yml")
+	var err error
+	ASList, err = util.LoadASList(GenFile("as_list.yml"))
 	if err != nil {
 		return err
 	}
 	if len(srcIAs) == 0 {
-		srcIAs = asList.AllASes()
+		srcIAs = ASList.AllASes()
 	}
 	if len(dstIAs) == 0 {
-		dstIAs = asList.AllASes()
+		dstIAs = ASList.AllASes()
 	}
 	return nil
 }
@@ -196,7 +219,10 @@ type HostAddr func(ia addr.IA) *snet.UDPAddr
 // The host IP is used as client or server address in the tests because the testing container is
 // connecting to the dispatcher of the services.
 var DispAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
-	path := fmt.Sprintf("gen/ISD%d/AS%s/endhost/topology.json", ia.I, ia.A.FileFmt())
+	if a := loadAddr(ia); a != nil {
+		return a
+	}
+	path := GenFile(fmt.Sprintf("ISD%d/AS%s/endhost/topology.json", ia.I, ia.A.FileFmt()))
 	topo, err := topology.RWTopologyFromJSONFile(path)
 	if err != nil {
 		log.Error("Error loading topology", "err", err)
@@ -204,6 +230,24 @@ var DispAddr HostAddr = func(ia addr.IA) *snet.UDPAddr {
 	}
 	cs := topo.CS["cs"+ia.FileFmt(false)+"-1"]
 	return &snet.UDPAddr{IA: ia, Host: cs.SCIONAddress}
+}
+
+var addrs map[addr.IA]*snet.UDPAddr
+
+func initAddrs() {
+	var err error
+	addrs, err = LoadNetworkAllocs()
+	if err != nil {
+		log.Error("Loading network allocations failed", "err", err)
+		os.Exit(1)
+	}
+}
+
+func loadAddr(ia addr.IA) *snet.UDPAddr {
+	if addrs == nil {
+		return nil
+	}
+	return addrs[ia]
 }
 
 // interface kept similar to go 1.10
@@ -262,14 +306,12 @@ func RunClient(in Integration, pair IAPair, timeout time.Duration) error {
 func ExecuteTimed(name string, f func() error) error {
 	start := time.Now()
 	err := f()
-	level := log.LevelInfo
-	result := "successful"
-	if err != nil {
-		result = "failed"
-		level = log.LevelError
-	}
 	elapsed := time.Since(start)
-	log.Log(level, fmt.Sprintf("Test %s %s, used %v\n", name, result, elapsed))
+	if err != nil {
+		log.Error("Test failed", "name", name, "elapsed", elapsed)
+		return err
+	}
+	log.Info("Test successful", "name", name, "elapsed", elapsed)
 	return err
 }
 

@@ -247,9 +247,9 @@ func (r *resolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo
 		}
 		r.watchFactory.apply(f)
 	case sciond.RevStale:
-		logger.Warn("Found stale revocation notification", "revInfo", revInfo)
+		logger.Info("Found stale revocation notification", "revInfo", revInfo)
 	case sciond.RevInvalid:
-		logger.Warn("Found invalid revocation notification", "revInfo", revInfo)
+		logger.Info("Found invalid revocation notification", "revInfo", revInfo)
 	}
 }
 

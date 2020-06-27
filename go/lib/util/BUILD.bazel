@@ -23,7 +23,6 @@ go_library(
     deps = [
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
-        "@com_github_burntsushi_toml//:go_default_library",
         "@in_gopkg_yaml_v2//:go_default_library",
     ],
 )

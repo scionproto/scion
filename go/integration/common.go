@@ -63,8 +63,7 @@ func addFlags() {
 	flag.StringVar(&networksFile, "networks", integration.SCIONDAddressesFile,
 		"File containing network definitions")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
-	flag.StringVar(&logConsole, "log.console", "info",
-		"Console logging level: trace|debug|info|warn|error|crit")
+	flag.StringVar(&logConsole, "log.console", "info", "Console logging level: debug|info|error")
 }
 
 // InitTracer initializes the global tracer and returns a closer function.
@@ -109,10 +108,7 @@ func InitNetwork() *snet.SCIONNetwork {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	n := snet.NewNetworkWithPR(Local.IA, ds, sciond.Querier{
-		Connector: sciondConn,
-		IA:        Local.IA,
-	}, sciond.RevHandler{Connector: sciondConn})
+	n := snet.NewNetwork(Local.IA, ds, sciond.RevHandler{Connector: sciondConn})
 	log.Debug("SCION network successfully initialized")
 	return n
 }
@@ -162,6 +158,6 @@ func Done(src, dst addr.IA) {
 
 // LogFatal logs a critical error and exits with 1
 func LogFatal(msg string, a ...interface{}) {
-	log.Crit(msg, a...)
+	log.Error(msg, a...)
 	os.Exit(1)
 }

@@ -18,14 +18,14 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/trust"
 )
 
 // Splitter splits requests for the PS.
 type Splitter struct {
-	ASInspector infra.ASInspector
+	ASInspector trust.Inspector
 }
 
 func (s *Splitter) Split(ctx context.Context,
@@ -58,10 +58,7 @@ func (s *Splitter) isCore(ctx context.Context, ia addr.IA) (bool, error) {
 	if ia.IsWildcard() {
 		return true, nil
 	}
-	args := infra.ASInspectorOpts{
-		RequiredAttributes: []infra.Attribute{infra.Core},
-	}
-	isCore, err := s.ASInspector.HasAttributes(ctx, ia, args)
+	isCore, err := s.ASInspector.HasAttributes(ctx, ia, trust.Core)
 	if err != nil {
 		return false, err
 	}

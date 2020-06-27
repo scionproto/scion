@@ -16,7 +16,8 @@ Hop-by-Hop Options Header
 The Hop-by-Hop Options header is used to carry optional information that may be
 examined and processed by every node along a packet's delivery path. The
 Hop-by-Hop Options header is identified by a Next Header value of ``0`` in the
-SCION common header and has the following format: ::
+SCION common header and has the following format::
+
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -45,7 +46,8 @@ End-to-End Options Header
 The End-to-end  Options header is used to carry optional information that may be
 examined and processed by sender and/or receiver of the packet.  The End-to-end
 Options header is identified by a Next Header value of ``0xfd`` in the SCION
-common header and has the following format: ::
+common header and has the following format::
+
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -72,8 +74,8 @@ TLV-encoded Options
 ===================
 
 The hbh and e2e options headers carry a variable number of options that are
-type-length-value (TLV) encoded in the following format: 
-::
+type-length-value (TLV) encoded in the following format::
+
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -99,9 +101,9 @@ Individual options may have specific alignment requirements, to ensure that
 multi-byte values within ``OptData`` fields fall on natural boundaries.  The
 alignment requirement of an option is specified using the notation xn+y, meaning
 the ``OptType`` must appear at an integer multiple of x bytes from the start of
-the header, plus y bytes.  For example:
-::
-    2n     means any 2-bytes offset from the start of the header. 
+the header, plus y bytes.  For example::
+
+    2n     means any 2-bytes offset from the start of the header.
     4n+2   means any 4-bytes offset from the start of the header, plus 2
            bytes.
 
@@ -111,12 +113,12 @@ These padding options must be recognized by all SCION implementations:
 
 Pad1 Option
 -----------
-Alignment requirement: none
-::
+Alignment requirement: none::
+
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+
-    |       0       | 
+    |       0       |
     +-+-+-+-+-+-+-+-+
 
 .. Note::
@@ -129,8 +131,8 @@ described next, should be used, rather han multiple Pad1 options.
 
 PadN Option
 -----------
-Alignment requirement: none
-::
+Alignment requirement: none::
+
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+

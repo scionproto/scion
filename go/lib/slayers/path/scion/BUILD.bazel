@@ -1,0 +1,31 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "base.go",
+        "decoded.go",
+        "raw.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/slayers/path/scion",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/serrors:go_default_library",
+        "//go/lib/slayers/path:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "base_test.go",
+        "decoded_test.go",
+        "raw_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/slayers/path:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

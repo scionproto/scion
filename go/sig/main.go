@@ -26,10 +26,11 @@ import (
 	"os/user"
 	"sync/atomic"
 
-	"github.com/BurntSushi/toml"
+	toml "github.com/pelletier/go-toml"
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/scionproto/scion/go/lib/common"
+	libconfig "github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
@@ -37,12 +38,12 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sigdisp"
 	"github.com/scionproto/scion/go/lib/sigjson"
+	"github.com/scionproto/scion/go/pkg/sig/sigconfig"
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/internal/base"
 	"github.com/scionproto/scion/go/sig/internal/ingress"
 	"github.com/scionproto/scion/go/sig/internal/metrics"
 	"github.com/scionproto/scion/go/sig/internal/sigcmn"
-	"github.com/scionproto/scion/go/sig/internal/sigconfig"
 	"github.com/scionproto/scion/go/sig/internal/xnet"
 )
 
@@ -73,17 +74,17 @@ func realMain() int {
 	defer env.LogAppStopped("SIG", cfg.Sig.ID)
 	defer log.HandlePanic()
 	if err := validateConfig(); err != nil {
-		log.Crit("Validation of config failed", "err", err)
+		log.Error("Configuration validation failed", "err", err)
 		return 1
 	}
 	// Setup tun early so that we can drop capabilities before interacting with network etc.
 	tunIO, err := setupTun()
 	if err != nil {
-		log.Crit("Unable to create & configure TUN device", "err", err)
+		log.Error("TUN device initialization failed", "err", err)
 		return 1
 	}
 	if err := sigcmn.Init(cfg.Sig, cfg.Sciond); err != nil {
-		log.Crit("Error during initialization", "err", err)
+		log.Error("SIG common initialization failed", "err", err)
 		return 1
 	}
 	env.SetupEnv(
@@ -96,7 +97,7 @@ func realMain() int {
 	sigdisp.Init(sigcmn.CtrlConn, false)
 	// Parse sig config
 	if loadConfig(cfg.Sig.SIGConfig) != true {
-		log.Crit("Unable to load sig config on startup")
+		log.Error("SIG configuration loading failed")
 		return 1
 	}
 	// Reply to probes from other SIGs.
@@ -120,12 +121,8 @@ func realMain() int {
 // setupBasic loads the config from file and initializes logging.
 func setupBasic() error {
 	// Load and initialize config.
-	md, err := toml.DecodeFile(env.ConfigFile(), &cfg)
-	if err != nil {
+	if err := libconfig.LoadFile(env.ConfigFile(), &cfg); err != nil {
 		return serrors.WrapStr("Failed to load config", err, "file", env.ConfigFile())
-	}
-	if len(md.Undecoded()) > 0 {
-		return serrors.New("Failed to load config: undecoded keys", "undecoded", md.Undecoded())
 	}
 	cfg.InitDefaults()
 	if err := log.Setup(cfg.Logging); err != nil {
@@ -140,7 +137,7 @@ func validateConfig() error {
 		return err
 	}
 	if cfg.Metrics.Prometheus == "" {
-		cfg.Metrics.Prometheus = "127.0.0.1:1281"
+		cfg.Metrics.Prometheus = "127.0.0.1:30456"
 	}
 	return nil
 }
@@ -165,9 +162,11 @@ func setupTun() (io.ReadWriteCloser, error) {
 	if len(src) == 0 && sigcmn.CtrlAddr.To16() != nil && sigcmn.CtrlAddr.To4() == nil {
 		src = sigcmn.CtrlAddr
 	}
-	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV6Net, src); err != nil {
-		return nil,
-			common.NewBasicError("Unable to add default IPv6 route to SIG routing table", err)
+	if len(src) != 0 {
+		if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV6Net, src); err != nil {
+			return nil,
+				common.NewBasicError("Unable to add default IPv6 route to SIG routing table", err)
+		}
 	}
 	// Now that everything is set up, drop CAP_NET_ADMIN
 	caps, err := capability.NewPid(0)
@@ -215,6 +214,6 @@ func loadConfig(path string) bool {
 func configHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	var buf bytes.Buffer
-	toml.NewEncoder(&buf).Encode(cfg)
+	toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(cfg)
 	fmt.Fprint(w, buf.String())
 }

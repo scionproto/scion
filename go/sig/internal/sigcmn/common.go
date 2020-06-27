@@ -31,7 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/sig/internal/sigconfig"
+	"github.com/scionproto/scion/go/pkg/sig/sigconfig"
 	"github.com/scionproto/scion/go/sig/internal/snetmigrate"
 )
 
@@ -102,10 +102,7 @@ func initNetworkWithFakeSCIOND(cfg sigconfig.SigConf,
 		return nil, nil, serrors.WrapStr("unable to initialize fake SCIOND service", err)
 	}
 	pathResolver := pathmgr.New(sciondConn, pathmgr.Timers{}, sdCfg.PathCount)
-	network := snet.NewNetworkWithPR(cfg.IA, Dispatcher, &snetmigrate.PathQuerier{
-		Resolver: pathResolver,
-		IA:       cfg.IA,
-	}, pathResolver)
+	network := snet.NewNetwork(cfg.IA, Dispatcher, pathResolver)
 	return network, pathResolver, nil
 }
 
@@ -118,10 +115,7 @@ func initNetworkWithRealSCIOND(cfg sigconfig.SigConf,
 	for tries := 0; time.Now().Before(deadline); tries++ {
 		resolver, err := snetmigrate.ResolverFromSD(sdCfg.Address, sdCfg.PathCount)
 		if err == nil {
-			return snet.NewNetworkWithPR(cfg.IA, Dispatcher, &snetmigrate.PathQuerier{
-				Resolver: resolver,
-				IA:       cfg.IA,
-			}, resolver), resolver, nil
+			return snet.NewNetwork(cfg.IA, Dispatcher, resolver), resolver, nil
 		}
 		log.Debug("SIG is retrying to get NewNetwork", "err", err)
 		retErr = err

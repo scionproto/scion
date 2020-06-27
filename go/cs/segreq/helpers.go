@@ -20,41 +20,39 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
 
 // CoreChecker checks whether a given ia is core.
 type CoreChecker struct {
-	Inspector infra.ASInspector
+	Inspector trust.Inspector
 }
 
 func (c *CoreChecker) IsCore(ctx context.Context, ia addr.IA) (bool, error) {
 	if ia.IsWildcard() {
 		return true, nil
 	}
-	return c.Inspector.HasAttributes(ctx, ia, infra.ASInspectorOpts{
-		RequiredAttributes: []infra.Attribute{infra.Core},
-	})
+	return c.Inspector.HasAttributes(ctx, ia, trust.Core)
 }
 
 func segsToRecs(ctx context.Context, segs segfetcher.Segments) []*seg.Meta {
 	logger := log.FromCtx(ctx)
 	recs := make([]*seg.Meta, 0, len(segs.Up)+len(segs.Core)+len(segs.Down))
 	for _, s := range segs.Up {
-		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] up %v -> %v",
+		logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] up %v -> %v",
 			s.FirstIA(), s.LastIA()), "seg", s.GetLoggingID())
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_up))
 	}
 	for _, s := range segs.Core {
-		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] core %v -> %v",
+		logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] core %v -> %v",
 			s.FirstIA(), s.LastIA()), "seg", s.GetLoggingID())
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_core))
 	}
 	for _, s := range segs.Down {
-		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] down %v -> %v",
+		logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] down %v -> %v",
 			s.FirstIA(), s.LastIA()), "seg", s.GetLoggingID())
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_down))
 	}
