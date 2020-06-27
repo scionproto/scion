@@ -313,6 +313,19 @@ func (x *executor) GetE2ERsvFromID(ctx context.Context, ID *reservation.E2EID) (
 	return rsv, err
 }
 
+// GetE2ERsvsOnSegRsv returns the e2e reservations running on top of a given segment one.
+func (x *executor) GetE2ERsvsOnSegRsv(ctx context.Context, ID *reservation.SegmentID) (
+	[]*e2e.Reservation, error) {
+
+	var rsvs []*e2e.Reservation
+	err := db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
+		var err error
+		rsvs, err = getE2ERsvsFromSegment(ctx, tx, ID)
+		return err
+	})
+	return rsvs, err
+}
+
 func (x *executor) PersistE2ERsv(ctx context.Context, rsv *e2e.Reservation) error {
 	err := db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
 		err := deleteE2ERsv(ctx, tx, &rsv.ID)
@@ -585,6 +598,55 @@ func getE2ERsvFromID(ctx context.Context, x *sql.Tx, ID *reservation.E2EID) (
 		SegmentReservations: segRsvs,
 	}
 	return rsv, nil
+}
+
+func getE2ERsvsFromSegment(ctx context.Context, x *sql.Tx, ID *reservation.SegmentID) (
+	[]*e2e.Reservation, error) {
+
+	rowID2e2eIDs := make(map[int]*reservation.E2EID)
+	const query = `SELECT ROWID,reservation_id FROM e2e_reservation WHERE ROWID IN (
+		SELECT e2e FROM e2e_to_seg WHERE seg =  (
+			SELECT ROWID FROM seg_reservation WHERE id_as = ? AND id_suffix = ?
+		))`
+	suffix := binary.BigEndian.Uint32(ID.Suffix[:])
+	rows, err := x.QueryContext(ctx, query, ID.ASID, suffix)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var rowID int
+		var rsvID []byte
+		err := rows.Scan(&rowID, &rsvID)
+		if err != nil {
+			return nil, err
+		}
+		id, err := reservation.E2EIDFromRaw(rsvID)
+		if err != nil {
+			return nil, err
+		}
+		rowID2e2eIDs[rowID] = id
+	}
+	rsvs := make([]*e2e.Reservation, 0, len(rowID2e2eIDs))
+	for rowID, e2eID := range rowID2e2eIDs {
+		// read indices
+		indices, err := getE2EIndices(ctx, x, rowID)
+		if err != nil {
+			return nil, err
+		}
+		// read assoc segment reservations
+		segRsvs, err := getE2EAssocSegRsvs(ctx, x, rowID)
+		if err != nil {
+			return nil, err
+		}
+		rsv := &e2e.Reservation{
+			ID:                  *e2eID,
+			Indices:             indices,
+			SegmentReservations: segRsvs,
+		}
+		rsvs = append(rsvs, rsv)
+	}
+	return rsvs, nil
 }
 
 func getE2EIndices(ctx context.Context, x db.Sqler, rowID int) (e2e.Indices, error) {
