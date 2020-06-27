@@ -41,16 +41,17 @@ type TestableDB interface {
 
 func TestDB(t *testing.T, db TestableDB) {
 	tests := map[string]func(context.Context, *testing.T, backend.DB){
-		"insert segment reservations create ID": testNewSegmentRsv,
-		"persist segment reservation":           testPersistSegmentRsv,
-		"get segment reservation from ID":       testGetSegmentRsvFromID,
-		"get segment reservations from src/dst": testGetSegmentRsvsFromSrcDstIA,
-		"get segment reservation from path":     testGetSegmentRsvFromPath,
-		"get segment reservation from IF pair":  testGetSegmentRsvsFromIFPair,
-		"delete segment reservation":            testDeleteSegmentRsv,
-		"delete expired indices":                testDeleteExpiredIndices,
-		"persist e2e reservation":               testPersistE2ERsv,
-		"get e2e reservation from ID":           testGetE2ERsvFromID,
+		"insert segment reservations create ID":  testNewSegmentRsv,
+		"persist segment reservation":            testPersistSegmentRsv,
+		"get segment reservation from ID":        testGetSegmentRsvFromID,
+		"get segment reservations from src/dst":  testGetSegmentRsvsFromSrcDstIA,
+		"get segment reservation from path":      testGetSegmentRsvFromPath,
+		"get segment reservation from IF pair":   testGetSegmentRsvsFromIFPair,
+		"delete segment reservation":             testDeleteSegmentRsv,
+		"delete expired indices":                 testDeleteExpiredIndices,
+		"persist e2e reservation":                testPersistE2ERsv,
+		"get e2e reservation from ID":            testGetE2ERsvFromID,
+		"get e2e reservations from segment ones": testGetE2ERsvsOnSegRsv,
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -545,6 +546,38 @@ func testGetE2ERsvFromID(ctx context.Context, t *testing.T, db backend.DB) {
 		require.NoError(t, err)
 		require.Equal(t, r, rsv)
 	}
+}
+
+func testGetE2ERsvsOnSegRsv(ctx context.Context, t *testing.T, db backend.DB) {
+	s1 := newTestReservation(t)
+	err := db.NewSegmentRsv(ctx, s1)
+	require.NoError(t, err)
+	s2 := newTestReservation(t)
+	err = db.NewSegmentRsv(ctx, s2)
+	require.NoError(t, err)
+	// e2e reservations
+	e1 := newTestE2EReservation(t)
+	e1.ID.ASID = xtest.MustParseAS("ff00:0:1")
+	e1.SegmentReservations = []*segment.Reservation{s1}
+	err = db.PersistE2ERsv(ctx, e1)
+	require.NoError(t, err)
+	e2 := newTestE2EReservation(t)
+	e2.ID.ASID = xtest.MustParseAS("ff00:0:2")
+	e2.SegmentReservations = []*segment.Reservation{s2}
+	err = db.PersistE2ERsv(ctx, e2)
+	require.NoError(t, err)
+	e3 := newTestE2EReservation(t)
+	e3.ID.ASID = xtest.MustParseAS("ff00:0:3")
+	e3.SegmentReservations = []*segment.Reservation{s1, s2}
+	err = db.PersistE2ERsv(ctx, e3)
+	require.NoError(t, err)
+	// test
+	rsvs, err := db.GetE2ERsvsOnSegRsv(ctx, &s1.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, rsvs, []*e2e.Reservation{e1, e3})
+	rsvs, err = db.GetE2ERsvsOnSegRsv(ctx, &s2.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, rsvs, []*e2e.Reservation{e2, e3})
 }
 
 // newToken just returns a token that can be serialized. This one has two HopFields.
