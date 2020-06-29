@@ -69,7 +69,6 @@ func (r *Reservation) Validate() error {
 		if r.Ingress != 0 {
 			return serrors.New("reservation starts in this AS but ingress interface is not zero",
 				"ingress_if", r.Ingress)
-			// TODO(juagargi) test
 		}
 		err = r.Path.Validate()
 	} else if r.Ingress == 0 {

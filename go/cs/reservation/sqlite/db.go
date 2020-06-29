@@ -252,7 +252,8 @@ func (x *executor) PersistSegmentRsv(ctx context.Context, rsv *segment.Reservati
 func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int, error) {
 	deletedIndices := 0
 	// TODO(juagargi) refactor this function
-	// TODO(juagargi) what happens if a seg reservation expires all its indices but still has some e2e reservation linked to it?
+	// TODO(juagargi) what happens if a seg reservation expires all its indices but
+	// still has some e2e reservation linked to it?
 	err := db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
 		rowIDs, rsvRowIDs, err := getExpiredE2EIndexRowIDs(ctx, tx, now)
 		if err != nil {
@@ -412,7 +413,7 @@ type rsvFields struct {
 func getSegReservations(ctx context.Context, x db.Sqler, condition string, params []interface{}) (
 	[]*segment.Reservation, error) {
 
-	const queryTmpl = `SELECT row_id,id_as,id_suffix,ingress,egress,path,
+	const queryTmpl = `SELECT ROWID,id_as,id_suffix,ingress,egress,path,
 		end_props,traffic_split,active_index
 		FROM seg_reservation %s`
 	query := fmt.Sprintf(queryTmpl, condition)
@@ -550,7 +551,7 @@ func insertNewE2EReservation(ctx context.Context, x *sql.Tx, rsv *e2e.Reservatio
 	if len(rsv.SegmentReservations) > 0 {
 		const valuesPlaceholder = `(id_as = ? AND id_suffix = ?)`
 		const queryTmpl = `INSERT INTO e2e_to_seg (e2e, seg) 
-		SELECT ?, row_id FROM seg_reservation WHERE `
+		SELECT ?, ROWID FROM seg_reservation WHERE `
 		params := make([]interface{}, 1, 1+2*len(rsv.SegmentReservations))
 		params[0] = rowID
 		for _, segRsv := range rsv.SegmentReservations {
@@ -579,7 +580,7 @@ func getE2ERsvFromID(ctx context.Context, x *sql.Tx, ID *reservation.E2EID) (
 
 	// read reservation
 	var rowID int
-	const query = `SELECT row_id FROM e2e_reservation WHERE reservation_id = ?`
+	const query = `SELECT ROWID FROM e2e_reservation WHERE reservation_id = ?`
 	err := x.QueryRowContext(ctx, query, ID.ToRaw()).Scan(&rowID)
 	if err != nil {
 		return nil, err
@@ -696,7 +697,9 @@ func getE2EAssocSegRsvs(ctx context.Context, x db.Sqler, rowID int) (
 }
 
 // returns the rowIDs of the indices and their associated segment reservation rowID
-func getExpiredSegIndexRowIDs(ctx context.Context, x db.Sqler, now time.Time) ([]interface{}, []interface{}, error) {
+func getExpiredSegIndexRowIDs(ctx context.Context, x db.Sqler, now time.Time) (
+	[]interface{}, []interface{}, error) {
+
 	const query = `SELECT rowID, reservation FROM seg_index WHERE expiration < ?`
 	expTime := util.TimeToSecs(now)
 	rows, err := x.QueryContext(ctx, query, expTime)
@@ -736,9 +739,9 @@ func deleteSegIndicesFromRowIDs(ctx context.Context, x db.Sqler, rowIDs []interf
 
 // deletes segment reservations from the rowIDs if they have no indices
 func deleteEmptySegReservations(ctx context.Context, x db.Sqler, rowIDs []interface{}) error {
-	const queryTmpl = `DELETE FROM seg_reservation  WHERE NOT EXISTS (
-		SELECT NULL FROM seg_index idx WHERE idx.reservation=row_id
-	) AND row_id IN (?%s);`
+	const queryTmpl = `DELETE FROM seg_reservation AS r WHERE NOT EXISTS (
+		SELECT NULL FROM seg_index AS idx WHERE idx.reservation=r.ROWID
+	) AND r.ROWID IN (?%s);`
 	query := fmt.Sprintf(queryTmpl, strings.Repeat(",?", len(rowIDs)-1))
 	_, err := x.ExecContext(ctx, query, rowIDs...)
 	return err
@@ -786,9 +789,9 @@ func deleteE2EIndicesFromRowIDs(ctx context.Context, x db.Sqler, rowIDs []interf
 
 // deletes e2e reservations from the rowIDs if they have no indices
 func deleteEmptyE2EReservations(ctx context.Context, x db.Sqler, rowIDs []interface{}) error {
-	const queryTmpl = `DELETE FROM e2e_reservation WHERE NOT EXISTS (
-		SELECT NULL FROM e2e_index idx WHERE idx.reservation=row_id
-	) AND row_id IN (?%s);`
+	const queryTmpl = `DELETE FROM e2e_reservation AS r WHERE NOT EXISTS (
+		SELECT NULL FROM e2e_index AS idx WHERE idx.reservation=r.ROWID
+	) AND r.ROWID IN (?%s);`
 	query := fmt.Sprintf(queryTmpl, strings.Repeat(",?", len(rowIDs)-1))
 	_, err := x.ExecContext(ctx, query, rowIDs...)
 	return err
