@@ -15,6 +15,7 @@
 package reservation
 
 import (
+	"sort"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
@@ -28,6 +29,7 @@ type IndicesInterface interface {
 	GetExpiration(i int) time.Time
 	GetAllocBW(i int) reservation.BWCls
 	GetToken(i int) *reservation.Token
+	Rotate(i int) IndicesInterface
 }
 
 // ValidateIndices checks that the indices follow consecutive index numbers, their expiration
@@ -96,4 +98,28 @@ func FindIndex(indices IndicesInterface, idx reservation.IndexNumber) (int, erro
 			"indices length", indices.Len())
 	}
 	return sliceIndex, nil
+}
+
+// TODO(juagargi) after rebasing, use the implementation coming from the previous branch, and
+// remove implementation from the segment and e2e Indices and leave this only only
+
+// SortIndices sorts these Indices according to their index number modulo 16, e.g. [14, 15, 0, 1].
+func SortIndices(idxs IndicesInterface) {
+	if idxs.Len() < 2 {
+		return
+	}
+	sort.Slice(idxs, func(i, j int) bool {
+		ae, be := idxs.GetExpiration(i), idxs.GetExpiration(j)
+		ai, bi := idxs.GetIndexNumber(i), idxs.GetIndexNumber(j)
+		distance := bi.Sub(ai)
+		return ae.Before(be) || (ae.Equal(be) && distance < 3)
+	})
+	// find a discontinuity and rotate
+	i := 1
+	for ; i < idxs.Len(); i++ {
+		if idxs.GetIndexNumber(i-1).Add(1) != idxs.GetIndexNumber(i).Add(0) {
+			break
+		}
+	}
+	idxs = idxs.Rotate(i)
 }

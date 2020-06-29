@@ -122,3 +122,7 @@ func (idxs *Indices) Sort() {
 	}
 	*idxs = append((*idxs)[i:], (*idxs)[:i]...)
 }
+
+func (idxs Indices) Rotate(i int) base.IndicesInterface {
+	return append(idxs[i:], idxs[:i]...)
+}

@@ -27,6 +27,7 @@ import (
 	"github.com/mattn/go-sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 
+	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/cs/reservation/e2e"
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend"
@@ -500,7 +501,7 @@ func getSegIndices(ctx context.Context, x db.Sqler, rowID int) (segment.Indices,
 		indices = append(indices, *index)
 	}
 	// sort indices so they are consecutive modulo 16
-	indices.Sort()
+	base.SortIndices(indices)
 	return indices, nil
 }
 
@@ -588,6 +589,8 @@ func getE2ERsvFromID(ctx context.Context, x *sql.Tx, ID *reservation.E2EID) (
 	if err != nil {
 		return nil, err
 	}
+	// sort indices so they are consecutive modulo 16
+	base.SortIndices(indices)
 	// read assoc segment reservations
 	segRsvs, err := getE2EAssocSegRsvs(ctx, x, rowID)
 	if err != nil {

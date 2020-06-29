@@ -546,6 +546,35 @@ func testGetE2ERsvFromID(ctx context.Context, t *testing.T, db backend.DB) {
 		require.NoError(t, err)
 		require.Equal(t, r, rsv)
 	}
+	// with 8 indices starting at index number 14
+	r := newTestE2EReservation(t)
+	r.Indices = e2e.Indices{}
+	for i := uint32(2); i < 18; i++ {
+		_, err := r.NewIndex(util.SecsToTime(i / 2))
+		require.NoError(t, err)
+	}
+	r.Indices = r.Indices[14:]
+	for i := uint32(18); i < 20; i++ {
+		_, err := r.NewIndex(util.SecsToTime(i / 2))
+		require.NoError(t, err)
+	}
+	err := db.PersistE2ERsv(ctx, r)
+	require.NoError(t, err)
+	rsv, err := db.GetE2ERsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Equal(t, r, rsv)
+	// 16 indices
+	require.Len(t, r.Indices, 4)
+	for i := uint32(20); i < 32; i++ {
+		_, err := r.NewIndex(util.SecsToTime(i / 2))
+		require.NoError(t, err)
+	}
+	require.Len(t, r.Indices, 16)
+	err = db.PersistE2ERsv(ctx, r)
+	require.NoError(t, err)
+	rsv, err = db.GetE2ERsvFromID(ctx, &r.ID)
+	require.NoError(t, err)
+	require.Equal(t, r, rsv)
 }
 
 func testGetE2ERsvsOnSegRsv(ctx context.Context, t *testing.T, db backend.DB) {
