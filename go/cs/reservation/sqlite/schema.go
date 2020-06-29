@@ -21,9 +21,8 @@ const (
 	SchemaVersion = 1
 	// Schema is the SQLite database layout.
 	// TODO(juagargi) create appropriate SQL indices.
-	// TODO(juagargi) remove the explicit row_id and just use the rowID from sqlite.
 	Schema = `CREATE TABLE seg_reservation (
-		row_id	INTEGER,
+		ROWID	INTEGER,
 		id_as	INTEGER NOT NULL,
 		id_suffix	INTEGER NOT NULL,
 		ingress	INTEGER NOT NULL,
@@ -34,7 +33,7 @@ const (
 		src_ia INTEGER,
 		dst_ia INTEGER,
 		active_index	INTEGER NOT NULL,
-		PRIMARY KEY(row_id),
+		PRIMARY KEY(ROWID),
 		UNIQUE(id_as,id_suffix),
 		UNIQUE(path)
 	);
@@ -48,13 +47,13 @@ const (
 		alloc_bw	INTEGER NOT NULL,
 		token	BLOB,
 		PRIMARY KEY(reservation,index_number),
-		FOREIGN KEY(reservation) REFERENCES seg_reservation(row_id) ON DELETE CASCADE
+		FOREIGN KEY(reservation) REFERENCES seg_reservation(ROWID) ON DELETE CASCADE
 	);
 	CREATE TABLE e2e_reservation (
-		row_id	INTEGER,
+		ROWID	INTEGER,
 		reservation_id	BLOB NOT NULL,
 		UNIQUE(reservation_id),
-		PRIMARY KEY(row_id)
+		PRIMARY KEY(ROWID)
 	);
 	CREATE TABLE e2e_index (
 		reservation	INTEGER NOT NULL,
@@ -63,13 +62,13 @@ const (
 		alloc_bw	INTEGER NOT NULL,
 		token	BLOB,
 		PRIMARY KEY(reservation,index_number),
-		FOREIGN KEY(reservation) REFERENCES e2e_reservation(row_id) ON DELETE CASCADE
+		FOREIGN KEY(reservation) REFERENCES e2e_reservation(ROWID) ON DELETE CASCADE
 	);
 	CREATE TABLE e2e_to_seg (
 		e2e	INTEGER NOT NULL,
 		seg	INTEGER NOT NULL,
 		PRIMARY KEY(e2e,seg),
-		FOREIGN KEY(seg) REFERENCES seg_reservation(row_id) ON DELETE CASCADE,
-		FOREIGN KEY(e2e) REFERENCES e2e_reservation(row_id) ON DELETE CASCADE
+		FOREIGN KEY(seg) REFERENCES seg_reservation(ROWID) ON DELETE CASCADE,
+		FOREIGN KEY(e2e) REFERENCES e2e_reservation(ROWID) ON DELETE CASCADE
 	);`
 )
