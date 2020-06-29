@@ -251,50 +251,21 @@ func (x *executor) PersistSegmentRsv(ctx context.Context, rsv *segment.Reservati
 // both segment and e2e reservations.
 func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int, error) {
 	deletedIndices := 0
-	// TODO(juagargi) refactor this function
-	// TODO(juagargi) what happens if a seg reservation expires all its indices but
-	// still has some e2e reservation linked to it?
-	err := db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
-		rowIDs, rsvRowIDs, err := getExpiredE2EIndexRowIDs(ctx, tx, now)
-		if err != nil {
-			return err
-		}
-		if len(rowIDs) == 0 {
-			return nil
-		}
-		n, err := deleteE2EIndicesFromRowIDs(ctx, tx, rowIDs)
-		if err != nil {
-			// if no index was deleted, nothing else to do
-			return err
-		}
-		deletedIndices = n
-		return deleteEmptyE2EReservations(ctx, tx, rsvRowIDs)
-	})
+
+	n, err := deleteExpiredIndices(ctx, x.db, now,
+		getExpiredE2EIndexRowIDs,
+		deleteE2EIndicesFromRowIDs,
+		deleteEmptyE2EReservations)
 	if err != nil {
 		return 0, err
 	}
-	err = db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
-		rowIDs, rsvRowIDs, err := getExpiredSegIndexRowIDs(ctx, tx, now)
-		if err != nil {
-			return err
-		}
-		if len(rowIDs) == 0 {
-			// if no index was deleted, nothing else to do
-			return nil
-		}
-		// delete the segment indices pointed by rowIDs
-		n, err := deleteSegIndicesFromRowIDs(ctx, tx, rowIDs)
-		if err != nil {
-			return err
-		}
-		deletedIndices += n
-		// delete empty reservations touched by previous removal
-		return deleteEmptySegReservations(ctx, tx, rsvRowIDs)
-	})
-	if err != nil {
-		return 0, err
-	}
-	return deletedIndices, nil
+	deletedIndices = n
+	n, err = deleteExpiredIndices(ctx, x.db, now,
+		getExpiredSegIndexRowIDs,
+		deleteSegIndicesFromRowIDs,
+		deleteEmptySegReservations)
+	deletedIndices += n
+	return deletedIndices, err
 }
 
 // DeleteSegmentRsv removes the segment reservation
@@ -795,4 +766,32 @@ func deleteEmptyE2EReservations(ctx context.Context, x db.Sqler, rowIDs []interf
 	query := fmt.Sprintf(queryTmpl, strings.Repeat(",?", len(rowIDs)-1))
 	_, err := x.ExecContext(ctx, query, rowIDs...)
 	return err
+}
+
+func deleteExpiredIndices(ctx context.Context, x db.Sqler, now time.Time,
+	fcnGetExpired func(context.Context, db.Sqler, time.Time) ([]interface{}, []interface{}, error),
+	fcnDeleteIndices func(context.Context, db.Sqler, []interface{}) (int, error),
+	fcnDeleteEmptyReservations func(context.Context, db.Sqler, []interface{}) error) (
+	int, error) {
+
+	deletedIndices := 0
+	err := db.DoInTx(ctx, x, func(ctx context.Context, tx *sql.Tx) error {
+		rowIDs, rsvRowIDs, err := fcnGetExpired(ctx, tx, now)
+		if err != nil {
+			return err
+		}
+		if len(rowIDs) == 0 {
+			// if no index was deleted, nothing else to do
+			return nil
+		}
+		// delete the segment indices pointed by rowIDs
+		n, err := fcnDeleteIndices(ctx, tx, rowIDs)
+		if err != nil {
+			return err
+		}
+		deletedIndices = n
+		// delete empty reservations touched by previous removal
+		return fcnDeleteEmptyReservations(ctx, tx, rsvRowIDs)
+	})
+	return deletedIndices, err
 }
