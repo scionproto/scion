@@ -20,7 +20,6 @@ const (
 	// to prevent data corruption between incompatible database schemas.
 	SchemaVersion = 1
 	// Schema is the SQLite database layout.
-	// TODO(juagargi) create appropriate SQL indices.
 	Schema = `CREATE TABLE seg_reservation (
 		ROWID	INTEGER,
 		id_as	INTEGER NOT NULL,
@@ -70,5 +69,35 @@ const (
 		PRIMARY KEY(e2e,seg),
 		FOREIGN KEY(seg) REFERENCES seg_reservation(ROWID) ON DELETE CASCADE,
 		FOREIGN KEY(e2e) REFERENCES e2e_reservation(ROWID) ON DELETE CASCADE
+	);
+	CREATE INDEX "index_seg_reservation" ON "seg_reservation" (
+		"id_as",
+		"id_suffix"
+	);
+	CREATE INDEX "index2_seg_reservation" ON "seg_reservation" (
+		"ingress"
+	);
+	CREATE INDEX "index3_seg_reservation" ON "seg_reservation" (
+		"egress"
+	);
+	CREATE UNIQUE INDEX "index4_seg_reservation" ON "seg_reservation" (
+		"path"
+	);
+	CREATE UNIQUE INDEX "index_seg_index" ON "seg_index" (
+		"reservation",
+		"index_number"
+	);
+	CREATE UNIQUE INDEX "index_e2e_reservation" ON "e2e_reservation" (
+		"reservation_id"
+	);
+	CREATE UNIQUE INDEX "index_e2e_index" ON "e2e_index" (
+		"reservation",
+		"index_number"
+	);
+	CREATE INDEX "index_e2e_to_seg" ON "e2e_to_seg" (
+		"e2e"
+	);
+	CREATE INDEX "index2_e2e_to_seg" ON "e2e_to_seg" (
+		"seg"
 	);`
 )
