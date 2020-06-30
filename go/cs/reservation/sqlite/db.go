@@ -505,13 +505,8 @@ func insertNewE2EReservation(ctx context.Context, x *sql.Tx, rsv *e2e.Reservatio
 			alloc_bw, token) VALUES (?,?,?,?,?)`
 		params := make([]interface{}, 0, 5*len(rsv.Indices))
 		for _, index := range rsv.Indices {
-			// TODO(juagargi) refactor after rebase
-			var token []byte
-			if index.Token != nil {
-				token = index.Token.ToRaw()
-			}
 			params = append(params, rowID, index.Idx, util.TimeToSecs(index.Expiration),
-				index.AllocBW, token)
+				index.AllocBW, index.Token.ToRaw())
 		}
 		query := queryTmpl + strings.Repeat(",(?,?,?,?,?)", len(rsv.Indices)-1)
 		_, err := x.ExecContext(ctx, query, params...)
@@ -641,13 +636,9 @@ func getE2EIndices(ctx context.Context, x db.Sqler, rowID int) (e2e.Indices, err
 		if err != nil {
 			return nil, err
 		}
-		// TODO(juagargi) refactor after rebase
-		var tok *reservation.Token
-		if len(token) > 0 {
-			tok, err = reservation.TokenFromRaw(token)
-			if err != nil {
-				return nil, err
-			}
+		tok, err := reservation.TokenFromRaw(token)
+		if err != nil {
+			return nil, err
 		}
 		indices = append(indices, e2e.Index{
 			Idx:        reservation.IndexNumber(idx),

@@ -53,9 +53,8 @@ func (r *Reservation) Validate() error {
 	return nil
 }
 
-// NewIndex creates a new index in this reservation.
+// NewIndex creates a new index in this reservation. The token needs to be created manually.
 func (r *Reservation) NewIndex(expTime time.Time) (reservation.IndexNumber, error) {
-	// TODO(juagargi) this probably needs to be changed to two functions FromSrc and OnPath
 	idx := reservation.IndexNumber(0)
 	if len(r.Indices) > 0 {
 		idx = r.Indices[len(r.Indices)-1].Idx.Add(1)
