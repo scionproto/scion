@@ -26,27 +26,35 @@ import (
 var _ proto.Cerealizable = (*PathSegmentSignedData)(nil)
 
 type PathSegmentSignedData struct {
+	RawTimestamp uint32 `capnp:"timestamp"`
+	SegID        uint16 `capnp:"segID"`
+
+	// TODO(roosd): Remove when completely switching to v2.
 	RawInfo common.RawBytes `capnp:"infoF"`
 }
 
-func newPathSegmentSignedData(infoF *spath.InfoField) *PathSegmentSignedData {
-	pss := &PathSegmentSignedData{RawInfo: make(common.RawBytes, spath.InfoFieldLength)}
-	infoF.Write(pss.RawInfo)
-	return pss
-}
-
-func NewPathSegmentSignedDataFromRaw(b common.RawBytes) (*PathSegmentSignedData, error) {
+func NewPathSegmentSignedDataFromRaw(b []byte) (*PathSegmentSignedData, error) {
 	pss := &PathSegmentSignedData{}
-	return pss, proto.ParseFromRaw(pss, b)
-}
-
-func (pss *PathSegmentSignedData) InfoF() (*spath.InfoField, error) {
-	return spath.InfoFFromRaw(pss.RawInfo)
+	if err := proto.ParseFromRaw(pss, b); err != nil {
+		return nil, err
+	}
+	if len(pss.RawInfo) == 0 {
+		return pss, nil
+	}
+	info, err := spath.InfoFFromRaw(pss.RawInfo)
+	if err != nil {
+		return nil, err
+	}
+	pss.RawTimestamp = info.TsInt
+	return pss, nil
 }
 
 func (pss *PathSegmentSignedData) Validate() error {
-	_, err := pss.InfoF()
-	return err
+	if len(pss.RawInfo) > 0 {
+		_, err := spath.InfoFFromRaw(pss.RawInfo)
+		return err
+	}
+	return nil
 }
 
 func (pss *PathSegmentSignedData) ProtoId() proto.ProtoIdType {
@@ -54,7 +62,7 @@ func (pss *PathSegmentSignedData) ProtoId() proto.ProtoIdType {
 }
 
 func (pss *PathSegmentSignedData) String() string {
-	info, err := pss.InfoF()
+	info, err := spath.InfoFFromRaw(pss.RawInfo)
 	if err != nil {
 		return fmt.Sprintf("InfoF: %s (parse err: %s)", pss.RawInfo, err)
 	}

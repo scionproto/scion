@@ -22,7 +22,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
@@ -93,20 +92,17 @@ const (
 var _ proto.Cerealizable = (*PathSegment)(nil)
 
 type PathSegment struct {
-	RawSData     common.RawBytes        `capnp:"sdata"`
+	RawSData     []byte                 `capnp:"sdata"`
 	SData        *PathSegmentSignedData `capnp:"-"`
 	RawASEntries []*proto.SignedBlobS   `capnp:"asEntries"`
 	// ASEntries contains the AS entries.
 	// WARNING: Should never be modified! Use AddASEntry or create a new Segment instead.
 	ASEntries []*ASEntry `capnp:"-"`
-	id        common.RawBytes
-	fullId    common.RawBytes
 }
 
 // NewSeg creates a new path segment with the specified info field. The AS
 // entries are empty and should be added using AddASEntry.
-func NewSeg(infoF *spath.InfoField) (*PathSegment, error) {
-	pss := newPathSegmentSignedData(infoF)
+func NewSeg(pss *PathSegmentSignedData) (*PathSegment, error) {
 	rawPss, err := proto.PackRoot(pss)
 	if err != nil {
 		return nil, err
@@ -116,17 +112,17 @@ func NewSeg(infoF *spath.InfoField) (*PathSegment, error) {
 }
 
 // NewSegFromRaw creates a segment from raw data.
-func NewSegFromRaw(b common.RawBytes) (*PathSegment, error) {
+func NewSegFromRaw(b []byte) (*PathSegment, error) {
 	return newSegFromRaw(b, ValidateSegment)
 }
 
 // NewBeaconFromRaw creates a segment from raw data. The last AS entry is
 // not assumed to terminate the path segment.
-func NewBeaconFromRaw(b common.RawBytes) (*PathSegment, error) {
+func NewBeaconFromRaw(b []byte) (*PathSegment, error) {
 	return newSegFromRaw(b, ValidateBeacon)
 }
 
-func newSegFromRaw(b common.RawBytes, validationMethod ValidationMethod) (*PathSegment, error) {
+func newSegFromRaw(b []byte, validationMethod ValidationMethod) (*PathSegment, error) {
 	ps := &PathSegment{}
 	err := proto.ParseFromRaw(ps, b)
 	if err != nil {
@@ -141,6 +137,7 @@ func (ps *PathSegment) ParseRaw(validationMethod ValidationMethod) error {
 	if err != nil {
 		return err
 	}
+
 	ps.ASEntries = make([]*ASEntry, len(ps.RawASEntries))
 	for i, rawASEntry := range ps.RawASEntries {
 		ps.ASEntries[i], err = NewASEntryFromRaw(rawASEntry.Blob)
@@ -152,50 +149,32 @@ func (ps *PathSegment) ParseRaw(validationMethod ValidationMethod) error {
 }
 
 // ID returns a hash of the segment covering all hops, except for peerings.
-func (ps *PathSegment) ID() (common.RawBytes, error) {
-	if ps.id == nil {
-		id, err := ps.calculateHash(true)
-		if err != nil {
-			return nil, err
-		}
-		ps.id = id
-	}
-	return ps.id, nil
+func (ps *PathSegment) ID() []byte {
+	return ps.calculateHash(true)
 }
 
-// FullId returns a hash of the segment covering all hops including peerings.
-func (ps *PathSegment) FullId() (common.RawBytes, error) {
-	if ps.fullId == nil {
-		fullId, err := ps.calculateHash(false)
-		if err != nil {
-			return nil, err
-		}
-		ps.fullId = fullId
-	}
-	return ps.fullId, nil
+// FullID returns a hash of the segment covering all hops including peerings.
+func (ps *PathSegment) FullID() []byte {
+	return ps.calculateHash(false)
 }
 
-func (ps *PathSegment) calculateHash(hopOnly bool) (common.RawBytes, error) {
+func (ps *PathSegment) calculateHash(hopOnly bool) []byte {
 	h := sha256.New()
 	for _, ase := range ps.ASEntries {
 		binary.Write(h, binary.BigEndian, ase.RawIA)
 		for _, hopE := range ase.HopEntries {
-			hopf, err := hopE.HopField()
-			if err != nil {
-				return nil, err
-			}
-			binary.Write(h, binary.BigEndian, hopf.ConsIngress)
-			binary.Write(h, binary.BigEndian, hopf.ConsEgress)
+			binary.Write(h, binary.BigEndian, hopE.HopField.ConsIngress)
+			binary.Write(h, binary.BigEndian, hopE.HopField.ConsEgress)
 			if hopOnly {
 				break
 			}
 		}
 	}
-	return h.Sum(nil), nil
+	return h.Sum(nil)
 }
 
-func (ps *PathSegment) InfoF() (*spath.InfoField, error) {
-	return ps.SData.InfoF()
+func (ps *PathSegment) Timestamp() time.Time {
+	return util.SecsToTime(ps.SData.RawTimestamp)
 }
 
 // Validate validates that remote ingress and egress ISD-AS for each AS
@@ -230,22 +209,13 @@ func (ps *PathSegment) Validate(validationMethod ValidationMethod) error {
 			return common.NewBasicError("Unable to validate AS entry", err, "ASEntryIdx", i)
 		}
 	}
-	// Check that all hop fields can be extracted
-	if err := ps.WalkHopEntries(); err != nil {
-		return err
-	}
 	return nil
 }
 
 func (ps *PathSegment) ContainsInterface(ia addr.IA, ifid common.IFIDType) bool {
 	for _, asEntry := range ps.ASEntries {
 		for _, entry := range asEntry.HopEntries {
-			hf, err := entry.HopField()
-			if err != nil {
-				// This should not happen, as Validate already checks that it
-				// is possible to extract the hop field.
-				panic(err)
-			}
+			hf, ifid := entry.HopField, uint16(ifid)
 			if asEntry.IA().Equal(ia) && (hf.ConsEgress == ifid || hf.ConsIngress == ifid) {
 				return true
 			}
@@ -273,27 +243,16 @@ func (ps *PathSegment) MinExpiry() time.Time {
 func (ps *PathSegment) expiry(initTtl time.Duration,
 	compare func(time.Duration, time.Duration) bool) time.Time {
 
-	info, err := ps.InfoF()
-	if err != nil {
-		// This should not happen, as Validate already checks that infoF can be parsed.
-		panic(err)
-	}
 	ttl := initTtl
 	for _, asEntry := range ps.ASEntries {
 		for _, he := range asEntry.HopEntries {
-			hf, err := he.HopField()
-			if err != nil {
-				// This should not happen, as Validate already checks that it
-				// is possible to extract the hop field.
-				panic(err)
-			}
-			hfTtl := hf.ExpTime.ToDuration()
-			if compare(hfTtl, ttl) {
-				ttl = hfTtl
+			hfTTL := spath.ExpTimeType(he.HopField.ExpTime).ToDuration()
+			if compare(hfTTL, ttl) {
+				ttl = hfTTL
 			}
 		}
 	}
-	return info.Timestamp().Add(ttl)
+	return ps.Timestamp().Add(ttl)
 }
 
 // FirstIA returns the IA of the first ASEntry.
@@ -311,13 +270,17 @@ func (ps *PathSegment) LastIA() addr.IA {
 // WalkHopEntries iterates through the hop entries of asEntries, checking that
 // the hop fields within can be parsed. If an parse error is found, the
 // function immediately returns with an error.
+//
+// Deprecated: This will no longer be needed with the header redesign.
 func (ps *PathSegment) WalkHopEntries() error {
 	for _, asEntry := range ps.ASEntries {
 		for _, hopEntry := range asEntry.HopEntries {
-			_, err := hopEntry.HopField()
-			if err != nil {
-				return common.NewBasicError("invalid hop field found in ASEntry",
-					err, "asEntry", asEntry)
+			if len(hopEntry.RawHopField) != 0 {
+				_, err := spath.HopFFromRaw(hopEntry.RawHopField)
+				if err != nil {
+					return common.NewBasicError("invalid hop field found in ASEntry",
+						err, "asEntry", asEntry)
+				}
 			}
 		}
 	}
@@ -338,18 +301,12 @@ func (ps *PathSegment) AddASEntry(ctx context.Context, ase *ASEntry, signer Sign
 		ps.popLastEntry()
 		return err
 	}
-	ps.invalidateIds()
 	return nil
 }
 
 func (ps *PathSegment) popLastEntry() {
 	ps.RawASEntries = ps.RawASEntries[:len(ps.RawASEntries)-1]
 	ps.ASEntries = ps.ASEntries[:len(ps.ASEntries)-1]
-}
-
-func (ps *PathSegment) invalidateIds() {
-	ps.id = nil
-	ps.fullId = nil
 }
 
 // VerifyASEntry verifies the AS Entry at the specified index.
@@ -395,43 +352,11 @@ func (ps *PathSegment) ShallowCopy() *PathSegment {
 		SData:        ps.SData,
 		RawASEntries: rawEntries,
 		ASEntries:    entries,
-		id:           ps.id,
-		fullId:       ps.fullId,
 	}
 }
 
 func (ps *PathSegment) Write(b common.RawBytes) (int, error) {
 	return proto.WriteRoot(ps, b)
-}
-
-// RawWriteTo writes the PathSegment to the writer in a form that is understood by spath/Path.
-func (ps *PathSegment) RawWriteTo(w io.Writer) (int64, error) {
-	var total int64
-	inf, err := ps.InfoF()
-	if err != nil {
-		return total, err
-	}
-	inf.Hops = uint8(len(ps.ASEntries))
-	n, err := inf.WriteTo(w)
-	total += n
-	if err != nil {
-		return total, err
-	}
-	for _, asEntry := range ps.ASEntries {
-		if len(asEntry.HopEntries) == 0 {
-			return total, common.NewBasicError("ASEntry has no HopEntry", nil, "asEntry", asEntry)
-		}
-		hf, err := asEntry.HopEntries[0].HopField()
-		if err != nil {
-			return total, err
-		}
-		n, err = hf.WriteTo(w)
-		total += n
-		if err != nil {
-			return total, err
-		}
-	}
-	return total, nil
 }
 
 func (ps *PathSegment) Pack() (common.RawBytes, error) {
@@ -446,21 +371,16 @@ func (ps *PathSegment) String() string {
 	if ps == nil {
 		return "<nil>"
 	}
-	info, _ := ps.InfoF()
 	desc := []string{
 		ps.GetLoggingID(),
-		util.TimeToCompact(info.Timestamp()),
+		util.TimeToCompact(ps.Timestamp()),
 		ps.getHopsDescription(),
 	}
 	return strings.Join(desc, " ")
 }
 
 func (ps *PathSegment) GetLoggingID() string {
-	id, err := ps.ID()
-	if err != nil {
-		return fmt.Sprintf("ID error: %s", err)
-	}
-	return id.String()[:12]
+	return fmt.Sprintf("%x", ps.ID()[:12])
 }
 
 func (ps *PathSegment) getHopsDescription() string {
@@ -474,10 +394,7 @@ func (ps *PathSegment) getHopsDescription() string {
 }
 
 func getHopDescription(ia addr.IA, hopEntry *HopEntry) string {
-	hop, err := hopEntry.HopField()
-	if err != nil {
-		return err.Error()
-	}
+	hop := hopEntry.HopField
 	hop_desc := []string{}
 	if hop.ConsIngress > 0 {
 		hop_desc = append(hop_desc, fmt.Sprintf("%v ", hop.ConsIngress))

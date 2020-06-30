@@ -199,13 +199,13 @@ func TestPropagatorRun(t *testing.T) {
 						segVerifier{pubKey: pub}, pseg.MaxAEIdx()))
 
 					// Extract the hop field from the current AS entry to compare.
-					hopF, err := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField()
+					hopF := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField
 					require.NoError(t, err)
 					// Check the interface matches.
-					assert.Equal(t, hopF.ConsEgress, egress)
+					assert.Equal(t, hopF.ConsEgress, uint16(egress))
 					// Check that the beacon is sent to the correct border router.
-					brAddress := topoProvider.Get().IFInfoMap()[hopF.ConsEgress].InternalAddr
-					assert.Equal(t, brAddress, nextHop)
+					br := topoProvider.Get().IFInfoMap()[egress].InternalAddr
+					assert.Equal(t, br, nextHop)
 					return nil
 				},
 			)

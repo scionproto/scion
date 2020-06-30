@@ -140,26 +140,15 @@ func (e *executor) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
 	}
 	pseg := segMeta.Segment
 	// Check if we already have a path segment.
-	segID, err := pseg.ID()
-	if err != nil {
-		return noInsertion, err
-	}
-	newFullId, err := pseg.FullId()
-	if err != nil {
-		return noInsertion, err
-	}
-	newInfo, err := pseg.InfoF()
-	if err != nil {
-		return noInsertion, err
-	}
+	segID := pseg.ID()
+	newFullId := pseg.FullID()
 	meta, err := e.get(ctx, segID)
 	if err != nil {
 		return noInsertion, err
 	}
 	if meta != nil {
 		// Check if the new segment is more recent.
-		curInfo, _ := meta.Seg.InfoF()
-		if newInfo.Timestamp().After(curInfo.Timestamp()) {
+		if pseg.Timestamp().After(meta.Seg.Timestamp()) {
 			// Update existing path segment.
 			meta.Seg = pseg
 			meta.LastUpdated = time.Now()
@@ -241,19 +230,12 @@ func updateSeg(ctx context.Context, tx *sql.Tx, meta *segMeta) error {
 	if err != nil {
 		return err
 	}
-	info, err := meta.Seg.InfoF()
-	if err != nil {
-		return err
-	}
 	exp := meta.Seg.MaxExpiry().Unix()
-	fullID, err := meta.Seg.FullId()
-	if err != nil {
-		return err
-	}
+	fullID := meta.Seg.FullID()
 	stmtStr := `UPDATE Segments SET FullID=?, LastUpdated=?, InfoTs=?, Segment=?, MaxExpiry=?
 				WHERE RowID=?`
 	_, err = tx.ExecContext(ctx, stmtStr,
-		fullID, meta.LastUpdated.UnixNano(), info.Timestamp(), packedSeg, exp, meta.RowID)
+		fullID, meta.LastUpdated.UnixNano(), meta.Seg.Timestamp(), packedSeg, exp, meta.RowID)
 	if err != nil {
 		return common.NewBasicError("Failed to update segment", err)
 	}
@@ -287,19 +269,9 @@ func insertFull(ctx context.Context, tx *sql.Tx, segMeta *seg.Meta,
 	hpCfgIDs []*query.HPCfgID) error {
 
 	pseg := segMeta.Segment
-	segID, err := pseg.ID()
-	if err != nil {
-		return err
-	}
-	fullID, err := pseg.FullId()
-	if err != nil {
-		return err
-	}
+	segID := pseg.ID()
+	fullID := pseg.FullID()
 	packedSeg, err := pseg.Pack()
-	if err != nil {
-		return err
-	}
-	info, err := pseg.InfoF()
 	if err != nil {
 		return err
 	}
@@ -311,7 +283,7 @@ func insertFull(ctx context.Context, tx *sql.Tx, segMeta *seg.Meta,
 			StartIsdID, StartAsID, EndIsdID, EndAsID)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	res, err := tx.ExecContext(ctx, inst, segID, fullID, time.Now().UnixNano(),
-		info.Timestamp().UnixNano(), packedSeg, exp, st.I, st.A, end.I, end.A)
+		pseg.Timestamp().UnixNano(), packedSeg, exp, st.I, st.A, end.I, end.A)
 	if err != nil {
 		return common.NewBasicError("Failed to insert path segment", err)
 	}
@@ -348,10 +320,7 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx,
 	for _, as := range ases {
 		ia := as.IA()
 		for idx, hop := range as.HopEntries {
-			hof, err := hop.HopField()
-			if err != nil {
-				return common.NewBasicError("Failed to extract hop field", err)
-			}
+			hof := hop.HopField
 			if hof.ConsIngress != 0 {
 				_, err = stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsIngress, segRowID)
 				if err != nil {

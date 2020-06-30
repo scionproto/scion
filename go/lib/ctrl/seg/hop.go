@@ -19,7 +19,6 @@ package seg
 import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 type HopEntry struct {
@@ -28,6 +27,9 @@ type HopEntry struct {
 	InMTU       uint16     `capnp:"inMTU"`
 	RawOutIA    addr.IAInt `capnp:"outIA"`
 	RemoteOutIF common.IFIDType
+	HopField    HopField `capnp:"hopField"`
+
+	// Deprecated: This is only used for legacy path header
 	RawHopField []byte `capnp:"hopF"`
 }
 
@@ -39,6 +41,9 @@ func (e *HopEntry) OutIA() addr.IA {
 	return e.RawOutIA.IA()
 }
 
-func (e *HopEntry) HopField() (*spath.HopField, error) {
-	return spath.HopFFromRaw(e.RawHopField)
+type HopField struct {
+	ExpTime     uint8  `capnp:"expTime"`
+	ConsIngress uint16 `capnp:"consIngress"`
+	ConsEgress  uint16 `capnp:"consEgress"`
+	MAC         []byte `capnp:"mac"`
 }

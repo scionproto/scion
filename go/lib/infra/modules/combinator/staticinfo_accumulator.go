@@ -213,8 +213,7 @@ func extractUpOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry *s
 	ia := newASEntry.IA()
 	staticInfo := oldASEntry.Exts.StaticInfo
 	hopEntry := newASEntry.HopEntries[0]
-	hf, _ := hopEntry.HopField()
-	newIngressIfID := hf.ConsIngress
+	newIngressIfID := common.IFIDType(hopEntry.HopField.ConsIngress)
 	for i := 0; i < len(staticInfo.Latency.Childlatencies); i++ {
 		if staticInfo.Latency.Childlatencies[i].IfID == newIngressIfID {
 			res.ASLatencies[ia] = ASLatency{
@@ -259,8 +258,7 @@ func extractCoreOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry 
 	staticInfo := newASEntry.Exts.StaticInfo
 	oldSI := oldASEntry.Exts.StaticInfo
 	hopEntry := oldASEntry.HopEntries[0]
-	hf, _ := hopEntry.HopField()
-	oldEgressIfID := hf.ConsEgress
+	oldEgressIfID := common.IFIDType(hopEntry.HopField.ConsEgress)
 	for i := 0; i < len(staticInfo.Latency.Childlatencies); i++ {
 		if staticInfo.Latency.Childlatencies[i].IfID == oldEgressIfID {
 			res.ASLatencies[ia] = ASLatency{
@@ -410,6 +408,5 @@ func getGeo(asEntry *seg.ASEntry) ASGeo {
 }
 
 func peerIfID(he *seg.HopEntry) common.IFIDType {
-	PE, _ := he.HopField()
-	return PE.ConsIngress
+	return common.IFIDType(he.HopField.ConsIngress)
 }

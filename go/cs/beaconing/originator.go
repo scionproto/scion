@@ -16,6 +16,8 @@ package beaconing
 
 import (
 	"context"
+	"crypto/rand"
+	"math/big"
 	"net"
 	"time"
 
@@ -177,7 +179,20 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 }
 
 func (o *beaconOriginator) createBeacon(ctx context.Context) (*seg.Beacon, error) {
-	bseg, err := seg.NewSeg(&o.infoF)
+	rawInfo := make([]byte, spath.InfoFieldLength)
+	o.infoF.Write(rawInfo)
+
+	segID, err := rand.Int(rand.Reader, big.NewInt(1<<16))
+	if err != nil {
+		return nil, err
+	}
+	bseg, err := seg.NewSeg(
+		&seg.PathSegmentSignedData{
+			RawInfo:      rawInfo,
+			RawTimestamp: o.infoF.TsInt,
+			SegID:        uint16(segID.Uint64()),
+		},
+	)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create segment", err)
 	}

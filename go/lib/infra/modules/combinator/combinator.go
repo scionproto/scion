@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -143,7 +144,7 @@ type Segment struct {
 // initInfoFieldFrom copies the info field in pathSegment, and sets it as the
 // info field of segment.
 func (segment *Segment) initInfoFieldFrom(pathSegment *seg.PathSegment) {
-	infoField, err := pathSegment.InfoF()
+	infoField, err := spath.InfoFFromRaw(pathSegment.SData.RawInfo)
 	if err != nil {
 		panic(err)
 	}
@@ -154,12 +155,13 @@ func (segment *Segment) initInfoFieldFrom(pathSegment *seg.PathSegment) {
 
 // appendHopFieldFrom copies the Hop Field in entry, and appends it to segment.
 func (segment *Segment) appendHopFieldFrom(entry *seg.HopEntry) *HopField {
-	inputHopField, err := entry.HopField()
-	if err != nil {
-		panic(err)
-	}
 	hopField := &HopField{
-		HopField: inputHopField,
+		HopField: &spath.HopField{
+			ExpTime:     spath.ExpTimeType(entry.HopField.ExpTime),
+			ConsIngress: common.IFIDType(entry.HopField.ConsIngress),
+			ConsEgress:  common.IFIDType(entry.HopField.ConsEgress),
+			Mac:         append([]byte(nil), entry.HopField.MAC...),
+		},
 	}
 	segment.HopFields = append(segment.HopFields, hopField)
 	if segment.InfoField.Hops == 0xff {
