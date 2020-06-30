@@ -187,10 +187,15 @@ func BenchmarkDecodeLayerParser(b *testing.B) {
 	var e2e slayers.EndToEndExtn
 	var udp slayers.UDP
 	var scmp slayers.SCMP
-	parser := gopacket.NewDecodingLayerParser(slayers.LayerTypeSCION, &scn, &hbh, &e2e, &udp, &scmp)
+	var pld gopacket.Payload
+	parser := gopacket.NewDecodingLayerParser(
+		slayers.LayerTypeSCION, &scn, &hbh, &e2e, &udp, &scmp, &pld,
+	)
 	decoded := []gopacket.LayerType{}
 	for i := 0; i < b.N; i++ {
-		parser.DecodeLayers(raw, &decoded)
+		if err := parser.DecodeLayers(raw, &decoded); err != nil {
+			b.Fatalf("error: %v\n", err)
+		}
 	}
 }
 
@@ -201,10 +206,15 @@ func BenchmarkDecodeLayerParserExtn(b *testing.B) {
 	var e2e slayers.EndToEndExtn
 	var udp slayers.UDP
 	var scmp slayers.SCMP
-	parser := gopacket.NewDecodingLayerParser(slayers.LayerTypeSCION, &scn, &hbh, &e2e, &udp, &scmp)
+	var pld gopacket.Payload
+	parser := gopacket.NewDecodingLayerParser(
+		slayers.LayerTypeSCION, &scn, &hbh, &e2e, &udp, &scmp, &pld,
+	)
 	decoded := []gopacket.LayerType{}
 	for i := 0; i < b.N; i++ {
-		parser.DecodeLayers(raw, &decoded)
+		if err := parser.DecodeLayers(raw, &decoded); err != nil {
+			b.Fatalf("error: %v\n", err)
+		}
 	}
 }
 

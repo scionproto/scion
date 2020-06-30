@@ -37,6 +37,10 @@ func (u *UDP) LayerType() gopacket.LayerType {
 	return LayerTypeSCIONUDP
 }
 
+func (u *UDP) CanDecode() gopacket.LayerClass {
+	return LayerTypeSCIONUDP
+}
+
 func (u *UDP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
 	if !opts.ComputeChecksums || u.scn == nil {
 		return u.UDP.SerializeTo(b, opts)

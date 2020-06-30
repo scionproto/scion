@@ -20,8 +20,10 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/layers"
+	deprecatedlayers "github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
@@ -137,13 +139,13 @@ func (p *parseCtx) parse() error {
 func (p *parseCtx) parseExtensions() ([]common.Extension, []common.Extension, error) {
 	var extns []common.Extension
 	for p.nextHdr == common.HopByHopClass || p.nextHdr == common.End2EndClass {
-		var extn layers.Extension
+		var extn deprecatedlayers.Extension
 		err := extn.DecodeFromBytes(p.b[p.offset:], gopacket.NilDecodeFeedback)
 		if err != nil {
 			return nil, nil, common.NewBasicError("Unable to parse extensions", err)
 		}
 
-		extnData, err := layers.ExtensionFactory(p.nextHdr, &extn)
+		extnData, err := deprecatedlayers.ExtensionFactory(p.nextHdr, &extn)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -272,6 +274,76 @@ func (p *parseCtx) DefaultL4Parser() error {
 		p.b[p.pldOffsets.start:p.pldOffsets.end])
 	if err != nil {
 		return common.NewBasicError("Checksum failed", err)
+	}
+	return nil
+}
+
+// ParseScnPkt2 converts a raw SCION v2 header packet into ScnPkt data.
+func ParseScnPkt2(s *spkt.ScnPkt, b []byte) error {
+	// XXX(scrye): Put these on the stack here, although this negates the gopacket speedups and puts
+	// pressure on the garbage collector.
+	var (
+		scionLayer slayers.SCION
+		udpLayer   slayers.UDP
+		scmpLayer  slayers.SCMP
+		// XXX(scrye): HBH and E2E are not needed yet, so we silently ignore them.
+		payloadLayer gopacket.Payload
+	)
+
+	parser := gopacket.NewDecodingLayerParser(
+		slayers.LayerTypeSCION, &scionLayer, &udpLayer, &scmpLayer, &payloadLayer,
+	)
+
+	decoded := []gopacket.LayerType{}
+	if err := parser.DecodeLayers(b, &decoded); err != nil {
+		return err
+	}
+
+	for _, layerType := range decoded {
+		switch layerType {
+		case slayers.LayerTypeSCION:
+			s.DstIA = scionLayer.DstIA
+			s.SrcIA = scionLayer.SrcIA
+			dstAddr, err := scionLayer.DstAddr()
+			if err != nil {
+				return serrors.WrapStr("unable to extract destination address", err)
+			}
+			s.DstHost, err = netAddrToHostAddr(dstAddr)
+			if err != nil {
+				return serrors.WrapStr("unable to convert address to HostAddr", err)
+			}
+			srcAddr, err := scionLayer.SrcAddr()
+			if err != nil {
+				return serrors.WrapStr("unable to extract source address", err)
+			}
+			s.SrcHost, err = netAddrToHostAddr(srcAddr)
+			if err != nil {
+				return serrors.WrapStr("unable to convert address to HostAddr", err)
+			}
+
+			pathCopy := make([]byte, scionLayer.Path.Len())
+			if err := scionLayer.Path.SerializeTo(pathCopy); err != nil {
+				return serrors.WrapStr("unable to extract path", err)
+			}
+			s.Path = spath.NewV2(pathCopy)
+		case slayers.LayerTypeSCIONUDP:
+			s.L4 = &l4.UDP{
+				SrcPort:  uint16(udpLayer.SrcPort),
+				DstPort:  uint16(udpLayer.DstPort),
+				TotalLen: udpLayer.Length,
+				Checksum: []byte{byte(udpLayer.Checksum % 256), byte(udpLayer.Checksum / 256)},
+			}
+			s.Pld = common.RawBytes(payloadLayer.Payload())
+		case slayers.LayerTypeSCMP:
+			s.L4 = &scmp.Hdr{
+				Class:     scmpLayer.Class,
+				Type:      scmpLayer.Type,
+				TotalLen:  scmpLayer.TotalLen,
+				Checksum:  scmpLayer.Checksum,
+				Timestamp: scmpLayer.Timestamp,
+			}
+			s.Pld = common.RawBytes(scmpLayer.Payload)
+		}
 	}
 	return nil
 }
