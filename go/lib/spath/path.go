@@ -171,6 +171,9 @@ func (p *Path) Reverse() error {
 // InitOffsets computes the initial Hop Field offset (in bytes) for a newly
 // created packet.
 func (path *Path) InitOffsets() error {
+	if path.version == 2 {
+		return nil
+	}
 	var err error
 	var infoF *InfoField
 	var hopF *HopField
@@ -205,6 +208,9 @@ func (path *Path) InitOffsets() error {
 // IncOffsets updates the info and hop indices to the next routing field, while skipping
 // verify only fields.
 func (path *Path) IncOffsets() error {
+	if path.version == 2 {
+		panic("not supported")
+	}
 	var err error
 	if path.HopOff == 0 {
 		// Path not initialized yet

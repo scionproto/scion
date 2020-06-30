@@ -775,6 +775,7 @@ func AllocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId co
 			RawInfo:      rawInfo,
 			RawTimestamp: infoTS,
 			SegID:        10, // XXX(roosd): deterministic beacon needed.
+			ISD:          1,
 		},
 	)
 	require.NoError(t, err)

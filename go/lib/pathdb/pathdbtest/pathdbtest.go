@@ -319,6 +319,7 @@ func testUpdateIntfToSeg(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.Re
 			RawInfo:      rawInfo,
 			RawTimestamp: 30,
 			SegID:        uint16(mrand.Int()),
+			ISD:          1,
 		},
 	)
 	require.NoError(t, err)
@@ -833,6 +834,7 @@ func AllocPathSegment(t *testing.T, ctrl *gomock.Controller, ifs []uint64,
 			RawInfo:      rawInfo,
 			RawTimestamp: expiration,
 			SegID:        uint16(mrand.Int()),
+			ISD:          1,
 		},
 	)
 	require.NoError(t, err)

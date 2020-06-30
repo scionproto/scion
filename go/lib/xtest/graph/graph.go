@@ -248,6 +248,7 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 			RawInfo:      rawInfo,
 			RawTimestamp: ts,
 			SegID:        uint16(rand.Int()),
+			ISD:          g.parents[ifids[0]].I,
 		},
 	)
 	if err != nil {

@@ -146,6 +146,7 @@ func TestLegacyExtenderExtend(t *testing.T) {
 					RawInfo:      rawInfo,
 					RawTimestamp: ts,
 					SegID:        uint16(mrand.Int()),
+					ISD:          1,
 				},
 			)
 			require.NoError(t, err)

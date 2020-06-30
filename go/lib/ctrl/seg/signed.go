@@ -18,6 +18,7 @@ package seg
 import (
 	"fmt"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/proto"
@@ -31,6 +32,7 @@ type PathSegmentSignedData struct {
 
 	// TODO(roosd): Remove when completely switching to v2.
 	RawInfo common.RawBytes `capnp:"infoF"`
+	ISD     addr.ISD        `capnp:"-"`
 }
 
 func NewPathSegmentSignedDataFromRaw(b []byte) (*PathSegmentSignedData, error) {
@@ -46,6 +48,7 @@ func NewPathSegmentSignedDataFromRaw(b []byte) (*PathSegmentSignedData, error) {
 		return nil, err
 	}
 	pss.RawTimestamp = info.TsInt
+	pss.ISD = addr.ISD(info.ISD)
 	return pss, nil
 }
 
