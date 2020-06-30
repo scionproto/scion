@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sigconfig
+package config
 
 import (
 	"bytes"
 	"net"
 	"testing"
 
-	"github.com/pelletier/go-toml"
+	toml "github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
