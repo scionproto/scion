@@ -92,8 +92,6 @@ func (r *Reservation) ActiveIndex() *Index {
 	return &r.Indices[r.activeIndex]
 }
 
-// TODO(juagargi) we need two ways of creating an index: from the source AS or from transit AS.
-
 // NewIndexAtSource creates a new index. The associated token is created from the arguments, and
 // automatically linked to the index. This function should be called only from the
 // AS originating the reservation.

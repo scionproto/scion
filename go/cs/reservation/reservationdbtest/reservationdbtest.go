@@ -481,7 +481,6 @@ func testPersistE2ERsv(ctx context.Context, t *testing.T, db backend.DB) {
 		seg := newTestReservation(t)
 		seg.ID.ASID = xtest.MustParseAS(fmt.Sprintf("ff00:2:%d", i+1))
 		for j := uint32(1); j < 16; j++ {
-			// TODO(juagargi) refactor after rebase
 			_, err := seg.NewIndexAtSource(util.SecsToTime(j), 1, 3, 2, 5, reservation.CorePath)
 			require.NoError(t, err)
 		}

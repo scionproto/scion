@@ -100,9 +100,6 @@ func FindIndex(indices IndicesInterface, idx reservation.IndexNumber) (int, erro
 	return sliceIndex, nil
 }
 
-// TODO(juagargi) after rebasing, use the implementation coming from the previous branch, and
-// remove implementation from the segment and e2e Indices and leave this only only
-
 // SortIndices sorts these Indices according to their index number modulo 16, e.g. [14, 15, 0, 1].
 func SortIndices(idxs IndicesInterface) {
 	if idxs.Len() < 2 {
