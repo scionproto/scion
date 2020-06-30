@@ -337,7 +337,6 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	// Each eX is linked to a rX, being X the same for both. But e5 is linked to r4.
 
 	// r1, e1
-	// expTime := util.SecsToTime(1)
 	segIds := make([]reservation.SegmentID, 0)
 	r := newTestReservation(t)
 	r.Indices[0].Expiration = util.SecsToTime(2)
@@ -362,7 +361,7 @@ func testDeleteExpiredIndices(ctx context.Context, t *testing.T, db backend.DB) 
 	require.NoError(t, err)
 	// r3, e3
 	r.Indices[0].Expiration = util.SecsToTime(3)
-	r.NewIndex(util.SecsToTime(6), r.Indices[0].Token)
+	r.NewIndexAtSource(util.SecsToTime(6), 1, 3, 2, 5, reservation.CorePath)
 	err = db.NewSegmentRsv(ctx, r) // save r3
 	require.NoError(t, err)
 	segIds = append(segIds, r.ID)
@@ -483,7 +482,7 @@ func testPersistE2ERsv(ctx context.Context, t *testing.T, db backend.DB) {
 		seg.ID.ASID = xtest.MustParseAS(fmt.Sprintf("ff00:2:%d", i+1))
 		for j := uint32(1); j < 16; j++ {
 			// TODO(juagargi) refactor after rebase
-			_, err := seg.NewIndex(util.SecsToTime(j), *newToken())
+			_, err := seg.NewIndexAtSource(util.SecsToTime(j), 1, 3, 2, 5, reservation.CorePath)
 			require.NoError(t, err)
 		}
 		err := db.PersistSegmentRsv(ctx, seg)
