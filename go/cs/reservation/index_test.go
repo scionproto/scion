@@ -128,6 +128,7 @@ func (idxs Indices) GetIndexNumber(i int) reservation.IndexNumber { return idxs[
 func (idxs Indices) GetExpiration(i int) time.Time                { return idxs[i].Expiration }
 func (idxs Indices) GetAllocBW(i int) reservation.BWCls           { return reservation.BWCls(0) }
 func (idxs Indices) GetToken(i int) *reservation.Token            { return nil }
+func (idxs Indices) Rotate(i int) IndicesInterface                { panic("return idxs") }
 
 func (idxs *Indices) NewIndex(expTime time.Time) (reservation.IndexNumber, error) {
 	idx := reservation.IndexNumber(0)
