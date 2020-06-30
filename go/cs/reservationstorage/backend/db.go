@@ -30,11 +30,11 @@ import (
 
 // ReserverOnly has the methods available to the AS that starts the reservation.
 type ReserverOnly interface {
-	// GetSegmentRsvFromSrcDstAS returns all reservations that start at src AS and end in dst AS.
-	GetSegmentRsvFromSrcDstAS(ctx context.Context, srcIA, dstIA addr.IA) (
+	// GetSegmentRsvsFromSrcDstIA returns all reservations that start at src AS and end in dst AS.
+	GetSegmentRsvsFromSrcDstIA(ctx context.Context, srcIA, dstIA addr.IA) (
 		[]*segment.Reservation, error)
 	// GetSegmentRsvFromPath searches for a segment reservation with the specified path.
-	GetSegmentRsvFromPath(ctx context.Context, path *segment.Path) (
+	GetSegmentRsvFromPath(ctx context.Context, path segment.Path) (
 		*segment.Reservation, error)
 
 	// NewSegmentRsv creates a new segment reservation in the DB, with an unused reservation ID.
@@ -46,32 +46,20 @@ type ReserverOnly interface {
 type TransitOnly interface {
 	// GetSegmentRsvsFromIFPair returns all segment reservations that enter this AS at
 	// the specified ingress and exit at that egress. Used by setup req.
-	GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress common.IFIDType) (
+	GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress *common.IFIDType) (
 		[]*segment.Reservation, error)
 }
 
 // ReserverAndTransit contains the functionality for any AS that has a COLIBRI service.
 type ReserverAndTransit interface {
 	// GetSegmentRsvFromID will return the reservation with that ID.
-	// If an IndexNumber is specified it will populate its indices only with that one.
-	// If the ID is not found, or the index (if specified) is not found, an error will be returned.
 	// Used by setup/renew req/resp. and any request.
-	GetSegmentRsvFromID(ctx context.Context, ID reservation.SegmentID,
-		idx *reservation.IndexNumber) (*segment.Reservation, error)
-	// SetActiveIndex updates the active index. Used in index confirmation.
-	SetSegmentActiveIndex(ctx context.Context, rsv segment.Reservation,
-		idx reservation.IndexNumber) error
-	// NewSegmentRsvIndex stores a new index for a segment reservation. Used in setup/renew.
-	NewSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-		idx reservation.IndexNumber) error
-	// UpdateSegmentRsvIndex updates an index of a segment rsv. Used in setup/renew response.
-	UpdateSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-		idx reservation.IndexNumber) error
-	// DeleteSegmentIndex removes the index from the DB. Used in cleanup.
-	DeleteSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-		idx reservation.IndexNumber) error
+	GetSegmentRsvFromID(ctx context.Context, ID *reservation.SegmentID) (
+		*segment.Reservation, error)
+	// PersistSegmentRsv ensures the DB contains the reservation as represented in rsv.
+	PersistSegmentRsv(ctx context.Context, rsv *segment.Reservation) error
 	// DeleteSegmentRsv removes the segment reservation. Used in teardown.
-	DeleteSegmentRsv(ctx context.Context, ID reservation.SegmentID) error
+	DeleteSegmentRsv(ctx context.Context, ID *reservation.SegmentID) error
 
 	// DeleteExpiredIndices will remove expired indices from the DB. If a reservation is left
 	// without any index after removing the expired ones, it will also be removed.

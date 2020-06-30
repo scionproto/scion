@@ -18,6 +18,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/binary"
+	"encoding/hex"
+	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -114,61 +117,92 @@ type executor struct {
 	db db.Sqler
 }
 
-func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID reservation.SegmentID,
-	idx *reservation.IndexNumber) (*segment.Reservation, error) {
+func (x *executor) GetSegmentRsvFromID(ctx context.Context, ID *reservation.SegmentID) (
+	*segment.Reservation, error) {
 
-	return nil, nil
+	params := []interface{}{
+		ID.ASID,
+		binary.BigEndian.Uint32(ID.Suffix[:]),
+	}
+	rsvs, err := getSegReservations(ctx, x.db, "WHERE id_as = ? AND id_suffix = ?", params)
+	if err != nil {
+		return nil, err
+	}
+	switch len(rsvs) {
+	case 0:
+		return nil, nil
+	case 1:
+		return rsvs[0], nil
+	default:
+		return nil, db.NewDataError("more than 1 segment reservation found for an ID", nil,
+			"count", len(rsvs), "id.asid", ID.ASID, "id.suffix", hex.EncodeToString(ID.Suffix[:]))
+	}
 }
 
-// GetSegmentRsvFromSrcDstAS returns all reservations that start at src AS and end in dst AS.
-func (x *executor) GetSegmentRsvFromSrcDstAS(ctx context.Context, srcIA, dstIA addr.IA) (
+// GetSegmentRsvsFromSrcDstIA returns all reservations that start at src AS and end in dst AS.
+func (x *executor) GetSegmentRsvsFromSrcDstIA(ctx context.Context, srcIA, dstIA addr.IA) (
 	[]*segment.Reservation, error) {
 
-	x.Lock()
-	defer x.Unlock()
-
-	query := `SELECT r.reservation_id, r.ingress, r.egress
-	FROM seg_reservation r
-	WHERE r.src_as = ?1 AND r.dst_as = ?2`
-	rows, err := x.db.QueryContext(ctx, query, srcIA.IAInt(), dstIA.IAInt())
-	if err != nil {
-		return nil, db.NewReadError("error obtaining segment reservations", err)
+	conditions := make([]string, 0, 2)
+	params := make([]interface{}, 0, 2)
+	if !srcIA.IsZero() {
+		conditions = append(conditions, "src_ia = ?")
+		params = append(params, srcIA.IAInt())
 	}
-	defer rows.Close()
-	for rows.Next() {
-		if err := rows.Scan(); err != nil {
-			return nil, db.NewReadError("error reading segment reservation", err)
-		}
+	if !dstIA.IsZero() {
+		conditions = append(conditions, "dst_ia = ?")
+		params = append(params, dstIA.IAInt())
 	}
-	return nil, nil
+	if len(conditions) == 0 {
+		return nil, serrors.New("no src or dst ia provided")
+	}
+	condition := fmt.Sprintf("WHERE %s", strings.Join(conditions, " AND "))
+	return getSegReservations(ctx, x.db, condition, params)
 }
 
 // GetSegmentRsvFromPath searches for a segment reservation with the specified path.
-func (x *executor) GetSegmentRsvFromPath(ctx context.Context, path *segment.Path) (
+func (x *executor) GetSegmentRsvFromPath(ctx context.Context, path segment.Path) (
 	*segment.Reservation, error) {
 
-	return nil, nil
+	rsvs, err := getSegReservations(ctx, x.db, "WHERE path = ?", []interface{}{path.ToRaw()})
+	if err != nil {
+		return nil, err
+	}
+	switch len(rsvs) {
+	case 0:
+		return nil, nil
+	case 1:
+		return rsvs[0], nil
+	default:
+		return nil, db.NewDataError("more than 1 segment reservation found for a path", nil,
+			"path", path.String())
+	}
 }
 
 // GetSegmentRsvsFromIFPair returns all segment reservations that enter this AS at
 // the specified ingress and exit at that egress.
-func (x *executor) GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress common.IFIDType) (
+func (x *executor) GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress *common.IFIDType) (
 	[]*segment.Reservation, error) {
 
-	return nil, nil
-}
-
-func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reservation,
-	suffix uint32) error {
-	const query = `INSERT INTO seg_reservation (id_as, id_suffix, ingress ,egress,
-		path, src_as, dst_as) VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	_, err := x.ExecContext(ctx, query, rsv.Path.GetSrcIA().A, suffix,
-		rsv.Ingress, rsv.Egress,
-		rsv.Path.ToRaw(), rsv.Path.GetSrcIA().IAInt(), rsv.Path.GetDstIA().IAInt())
-	return err
+	conditions := make([]string, 0, 2)
+	params := make([]interface{}, 0, 2)
+	if ingress != nil {
+		conditions = append(conditions, "ingress = ?")
+		params = append(params, *ingress)
+	}
+	if egress != nil {
+		conditions = append(conditions, "egress = ?")
+		params = append(params, *egress)
+	}
+	if len(conditions) == 0 {
+		return nil, serrors.New("no ingress or egress provided")
+	}
+	condition := fmt.Sprintf("WHERE %s", strings.Join(conditions, " AND "))
+	return getSegReservations(ctx, x.db, condition, params)
 }
 
 // NewSegmentRsv creates a new segment reservation in the DB, with an unused reservation ID.
+// The reservation must contain at least one index.
 // The created ID is set in the reservation pointer argument.
 func (x *executor) NewSegmentRsv(ctx context.Context, rsv *segment.Reservation) error {
 	var err error
@@ -195,31 +229,18 @@ func (x *executor) NewSegmentRsv(ctx context.Context, rsv *segment.Reservation) 
 	return db.NewTxError("error inserting segment reservation after 3 retries", err)
 }
 
-// SetActiveIndex updates the active index for the segment reservation.
-func (x *executor) SetSegmentActiveIndex(ctx context.Context, rsv segment.Reservation,
-	idx reservation.IndexNumber) error {
-
-	return nil
-}
-
-// NewSegmentRsvIndex stores a new index for a segment reservation.
-func (x *executor) NewSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-	idx reservation.IndexNumber) error {
-
-	return nil
-}
-
-// UpdateSegmentRsvIndex updates an index of a segment reservation.
-func (x *executor) UpdateSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-	idx reservation.IndexNumber) error {
-
-	return nil
-}
-
-// DeleteSegmentIndex removes the index from the DB. Used in cleanup.
-func (x *executor) DeleteSegmentIndex(ctx context.Context, rsv *segment.Reservation,
-	idx reservation.IndexNumber) error {
-
+func (x *executor) PersistSegmentRsv(ctx context.Context, rsv *segment.Reservation) error {
+	err := db.DoInTx(ctx, x.db, func(ctx context.Context, tx *sql.Tx) error {
+		err := deleteSegmentRsv(ctx, tx, &rsv.ID)
+		if err != nil {
+			return err
+		}
+		suffix := binary.BigEndian.Uint32(rsv.ID.Suffix[:])
+		return insertNewSegReservation(ctx, tx, rsv, suffix)
+	})
+	if err != nil {
+		return db.NewTxError("error persisting reservation", err)
+	}
 	return nil
 }
 
@@ -230,8 +251,8 @@ func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int
 }
 
 // DeleteSegmentRsv removes the segment reservation
-func (x *executor) DeleteSegmentRsv(ctx context.Context, ID reservation.SegmentID) error {
-	return nil
+func (x *executor) DeleteSegmentRsv(ctx context.Context, ID *reservation.SegmentID) error {
+	return deleteSegmentRsv(ctx, x.db, ID)
 }
 
 // GetE2ERsvFromID finds the end to end resevation given its ID.
@@ -267,10 +288,10 @@ func (x *executor) DeleteE2EIndex(ctx context.Context, rsv *e2e.Reservation,
 // newSuffix finds a segment reservation ID suffix not being used at the moment. Should be called
 // inside a transaction so the suffix is not used in the meantime, or fail.
 func newSuffix(ctx context.Context, x db.Sqler, ASID addr.AS) (uint32, error) {
-	query := `SELECT MIN(id_suffix)+1 FROM (
-		SELECT 0 AS id_suffix UNION ALL
-		SELECT id_suffix FROM seg_reservation WHERE id_as = $1
-		) WHERE id_suffix+1 NOT IN (SELECT id_suffix FROM seg_reservation WHERE id_as = $1);`
+	const query = `SELECT MIN(id_suffix)+1 FROM (
+			SELECT 0 AS id_suffix UNION ALL
+			SELECT id_suffix FROM seg_reservation WHERE id_as = $1
+		) WHERE id_suffix+1 NOT IN (SELECT id_suffix FROM seg_reservation WHERE id_as = $1)`
 	var suffix uint32
 	err := x.QueryRowContext(ctx, query, uint64(ASID)).Scan(&suffix)
 	switch {
@@ -280,4 +301,156 @@ func newSuffix(ctx context.Context, x db.Sqler, ASID addr.AS) (uint32, error) {
 		return 0, serrors.WrapStr("unexpected error getting new suffix", err)
 	}
 	return suffix, nil
+}
+
+func insertNewSegReservation(ctx context.Context, x db.Sqler, rsv *segment.Reservation,
+	suffix uint32) error {
+
+	activeIndex := -1
+	if rsv.ActiveIndex() != nil {
+		activeIndex = int(rsv.ActiveIndex().Idx)
+	}
+	const query = `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress,
+		path, end_props, traffic_split, src_ia, dst_ia,active_index)
+		VALUES (?, ?,?,?,?,?,?,?,?,?)`
+	res, err := x.ExecContext(ctx, query, rsv.ID.ASID, suffix,
+		rsv.Ingress, rsv.Egress, rsv.Path.ToRaw(), rsv.PathEndProps, rsv.TrafficSplit,
+		rsv.Path.GetSrcIA().IAInt(), rsv.Path.GetDstIA().IAInt(), activeIndex)
+	if err != nil {
+		return err
+	}
+	if len(rsv.Indices) > 0 {
+		rsvRowID, err := res.LastInsertId()
+		if err != nil {
+			return db.NewTxError("cannot obtain last insertion row id", err)
+		}
+		const queryIndexTmpl = `INSERT INTO seg_index (reservation, index_number, expiration, state,
+		min_bw, max_bw, alloc_bw, token) VALUES (?,?,?,?,?,?,?,?)`
+		params := make([]interface{}, 0, 8*len(rsv.Indices))
+		for _, index := range rsv.Indices {
+			params = append(params, rsvRowID, index.Idx,
+				uint32(index.Expiration.Unix()), index.State(), index.MinBW, index.MaxBW,
+				index.AllocBW, index.Token.ToRaw())
+		}
+		q := queryIndexTmpl + strings.Repeat(",(?,?,?,?,?,?,?,?)", len(rsv.Indices)-1)
+		_, err = x.ExecContext(ctx, q, params...)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type rsvFields struct {
+	RowID        int
+	AsID         uint64
+	Suffix       uint32
+	Ingress      common.IFIDType
+	Egress       common.IFIDType
+	Path         []byte
+	EndProps     int
+	TrafficSplit int
+	ActiveIndex  int
+}
+
+func getSegReservations(ctx context.Context, x db.Sqler, condition string, params []interface{}) (
+	[]*segment.Reservation, error) {
+
+	const queryTmpl = `SELECT row_id,id_as,id_suffix,ingress,egress,path,
+		end_props,traffic_split,active_index
+		FROM seg_reservation %s`
+	query := fmt.Sprintf(queryTmpl, condition)
+
+	rows, err := x.QueryContext(ctx, query, params...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	reservationFields := []*rsvFields{}
+	for rows.Next() {
+		var f rsvFields
+		err := rows.Scan(&f.RowID, &f.AsID, &f.Suffix, &f.Ingress, &f.Egress, &f.Path,
+			&f.EndProps, &f.TrafficSplit, &f.ActiveIndex)
+		if err != nil {
+			return nil, err
+		}
+		reservationFields = append(reservationFields, &f)
+	}
+	reservations := []*segment.Reservation{}
+	for _, rf := range reservationFields {
+		rsv, err := buildSegRsvFromFields(ctx, x, rf)
+		if err != nil {
+			return nil, err
+		}
+		reservations = append(reservations, rsv)
+	}
+	return reservations, nil
+}
+
+// builds a segment.Reservation in memory from the fields and indices.
+func buildSegRsvFromFields(ctx context.Context, x db.Sqler, fields *rsvFields) (
+	*segment.Reservation, error) {
+
+	indices, err := getSegIndices(ctx, x, fields.RowID)
+	if err != nil {
+		return nil, err
+	}
+	rsv := segment.NewReservation()
+	rsv.ID.ASID = addr.AS(fields.AsID)
+	binary.BigEndian.PutUint32(rsv.ID.Suffix[:], fields.Suffix)
+	rsv.Ingress = fields.Ingress
+	rsv.Egress = fields.Egress
+	p, err := segment.NewPathFromRaw(fields.Path)
+	if err != nil {
+		return nil, err
+	}
+	rsv.Path = p
+	rsv.PathEndProps = reservation.PathEndProps(fields.EndProps)
+	rsv.TrafficSplit = reservation.SplitCls(fields.TrafficSplit)
+	rsv.Indices = *indices
+	if fields.ActiveIndex != -1 {
+		if err := rsv.SetIndexActive(reservation.IndexNumber(fields.ActiveIndex)); err != nil {
+			return nil, err
+		}
+	}
+	return rsv, nil
+}
+
+// the rowID argument is the reservation row ID the indices belong to.
+func getSegIndices(ctx context.Context, x db.Sqler, rowID int) (*segment.Indices, error) {
+	const query = `SELECT index_number,expiration,state,min_bw,max_bw,alloc_bw,token
+		FROM seg_index WHERE reservation=?`
+	rows, err := x.QueryContext(ctx, query, rowID)
+	if err != nil {
+		return nil, db.NewReadError("cannot list indices", err)
+	}
+
+	indices := segment.Indices{}
+	var idx, expiration, state, minBW, maxBW, allocBW int32
+	var token []byte
+	for rows.Next() {
+		err := rows.Scan(&idx, &expiration, &state, &minBW, &maxBW, &allocBW, &token)
+		if err != nil {
+			return nil, db.NewReadError("could not get index values", err)
+		}
+		tok, err := reservation.TokenFromRaw(token)
+		if err != nil {
+			return nil, db.NewReadError("invalid stored token", err)
+		}
+		index := segment.NewIndex(reservation.IndexNumber(idx),
+			time.Unix(int64(expiration), 0), segment.IndexState(state), reservation.BWCls(minBW),
+			reservation.BWCls(maxBW), reservation.BWCls(allocBW), tok)
+		indices = append(indices, *index)
+	}
+	// sort indices so they are consecutive modulo 16
+	indices.Sort()
+	return &indices, nil
+}
+
+func deleteSegmentRsv(ctx context.Context, x db.Sqler, rsvID *reservation.SegmentID) error {
+	const query = `DELETE FROM seg_reservation WHERE id_as = ? AND id_suffix = ?`
+	suffix := binary.BigEndian.Uint32(rsvID.Suffix[:])
+	_, err := x.ExecContext(ctx, query, rsvID.ASID, suffix)
+	return err
 }

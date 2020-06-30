@@ -25,6 +25,8 @@ type IndicesInterface interface {
 	Len() int
 	GetIndexNumber(i int) reservation.IndexNumber
 	GetExpiration(i int) time.Time
+	GetAllocBW(i int) reservation.BWCls
+	GetToken(i int) *reservation.Token
 }
 
 // ValidateIndices checks that the indices follow consecutive index numbers, their expiration
@@ -62,6 +64,21 @@ func ValidateIndices(indices IndicesInterface) error {
 		}
 		lastExpiration = indices.GetExpiration(i)
 		lastIndexNumber = indices.GetIndexNumber(i)
+		token := indices.GetToken(i)
+		if token != nil {
+			if token.Idx != lastIndexNumber {
+				return serrors.New("inconsistent token", "token_index_number", token.Idx,
+					"expected", lastIndexNumber)
+			}
+			if token.ExpirationTick != reservation.TickFromTime(lastExpiration) {
+				return serrors.New("inconsistent token", "token_expiration_tick",
+					token.ExpirationTick, "expected", reservation.TickFromTime(lastExpiration))
+			}
+			if token.BWCls != indices.GetAllocBW(i) {
+				return serrors.New("inconsistent token", "token_bw_class", token.BWCls,
+					"expected", indices.GetAllocBW(i))
+			}
+		}
 	}
 	return nil
 }

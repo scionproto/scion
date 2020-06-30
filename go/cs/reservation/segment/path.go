@@ -16,7 +16,9 @@ package segment
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -119,11 +121,19 @@ func (p Path) Read(buff []byte) (int, error) {
 // ToRaw returns a buffer representing this Path.
 func (p Path) ToRaw() []byte {
 	if len(p) == 0 {
-		return []byte{}
+		return nil
 	}
 	buff := make([]byte, p.Len())
 	p.Read(buff)
 	return buff
+}
+
+func (p Path) String() string {
+	strs := make([]string, len(p))
+	for i, s := range p {
+		strs[i] = s.String()
+	}
+	return strings.Join(strs, ">")
 }
 
 // PathStep is one hop of the Path. For a source AS Ingress will be invalid. Conversely for dst.
@@ -140,3 +150,7 @@ type PathStepWithIA struct {
 
 // PathStepWithIALen amounts for Ingress+Egress+IA.
 const PathStepWithIALen = 8 + 8 + 8
+
+func (s *PathStepWithIA) String() string {
+	return fmt.Sprintf("%d %s %d", s.Ingress, s.IA.String(), s.Egress)
+}
