@@ -16,12 +16,13 @@ package beaconing
 
 import (
 	"context"
-	"sync"
+	"hash"
 	"time"
 
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -30,28 +31,47 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-// segExtender appends AS entries to provided path segments.
-type segExtender struct {
-	cfg    ExtenderConf
-	macMtx sync.Mutex
+// legacyIfIDSize is the default bit-size for ifids in the hop-fields.
+const legacyIfIDSize = 12
+
+// Extender extends path segments.
+type Extender interface {
+	// Extend extends the path segment. The zero value for ingress indicates
+	// that the created AS entry is the initial entry in a path. The zero value
+	// for egress indicates that the created AS entry is the last entry in the
+	// path, and the beacon is terminated.
+	Extend(ctx context.Context, seg *seg.PathSegment, ingress, egress common.IFIDType,
+		peers []common.IFIDType) error
 }
 
-func (cfg ExtenderConf) new() (*segExtender, error) {
-	cfg.InitDefaults()
-	if err := cfg.Validate(); err != nil {
-		return nil, err
+// LegacyExtender appends AS entries to provided path segments.
+type LegacyExtender struct {
+	// IA is the local IA
+	IA addr.IA
+	// Signer is used to sign path segments.
+	Signer ctrl.Signer
+	// MAC is used to calculate the hop field MAC.
+	MAC func() hash.Hash
+	// Intfs holds all interfaces in the AS.
+	Intfs *ifstate.Interfaces
+	// MTU is the MTU value set in the AS entries.
+	MTU uint16
+	// GetMaxExpTime returns the maximum relative expiration time.
+	MaxExpTime func() spath.ExpTimeType
+	// Task contains an identifier specific to the task that uses the extender.
+	Task string
+	// StaticInfo contains the configuration used for the StaticInfo Extension.
+	StaticInfo func() *StaticInfoCfg
+}
+
+// Extend extends the beacon with hop fields of the old format.
+func (s *LegacyExtender) Extend(ctx context.Context, pseg *seg.PathSegment,
+	ingress, egress common.IFIDType, peers []common.IFIDType) error {
+
+	if s.MTU == 0 {
+		return serrors.New("MTU not set")
 	}
-	return &segExtender{cfg: cfg}, nil
-}
-
-// extend extends the path segment. Prev should include the full raw hop field,
-// if any, including the flags byte. A zero ingress interface indicates, that
-// the created AS entry is the initial entry. A zero egress interface indicates,
-// that the segment is terminated.
-func (s *segExtender) extend(ctx context.Context, pseg *seg.PathSegment,
-	inIfid, egIfid common.IFIDType, peers []common.IFIDType) error {
-
-	if inIfid == 0 && egIfid == 0 {
+	if ingress == 0 && egress == 0 {
 		return serrors.New("Ingress and egress must not be both 0")
 	}
 	infoF, err := pseg.InfoF()
@@ -63,42 +83,42 @@ func (s *segExtender) extend(ctx context.Context, pseg *seg.PathSegment,
 		// Validated segments are guaranteed to have at least one hop entry.
 		prev = pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].RawHopField
 	}
-	hopEntries, err := s.createHopEntries(inIfid, egIfid, peers, prev, infoF.Timestamp())
+	hopEntries, err := s.createHopEntries(ingress, egress, peers, prev, infoF.Timestamp())
 	if err != nil {
 		return err
 	}
 	asEntry := &seg.ASEntry{
-		RawIA:      s.cfg.IA.IAInt(),
-		IfIDSize:   s.cfg.IfidSize,
-		MTU:        s.cfg.MTU,
+		RawIA:      s.IA.IAInt(),
+		IfIDSize:   legacyIfIDSize,
+		MTU:        s.MTU,
 		HopEntries: hopEntries,
 	}
-	if s.cfg.StaticInfoCfg != nil {
-		staticInfoPeers := createPeerMap(s.cfg)
-		staticInfo := s.cfg.StaticInfoCfg.generateStaticinfo(staticInfoPeers, egIfid, inIfid)
+	if static := s.StaticInfo(); static != nil {
+		staticInfoPeers := createPeerMap(s.Intfs)
+		staticInfo := static.generateStaticinfo(staticInfoPeers, egress, ingress)
 		asEntry.Exts.StaticInfo = &staticInfo
 	}
-	if err := pseg.AddASEntry(ctx, asEntry, s.cfg.Signer); err != nil {
+	if err := pseg.AddASEntry(ctx, asEntry, s.Signer); err != nil {
 		return err
 	}
-	if egIfid == 0 {
+	if egress == 0 {
 		return pseg.Validate(seg.ValidateSegment)
 	}
 	return pseg.Validate(seg.ValidateBeacon)
 }
 
-func (s *segExtender) createHopEntries(inIfid, egIfid common.IFIDType, peers []common.IFIDType,
+func (s *LegacyExtender) createHopEntries(ingress, egress common.IFIDType, peers []common.IFIDType,
 	prev common.RawBytes, ts time.Time) ([]*seg.HopEntry, error) {
 
-	hopEntry, err := s.createHopEntry(inIfid, egIfid, prev, ts)
+	hopEntry, err := s.createHopEntry(ingress, egress, prev, ts)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create first hop entry", err)
 	}
 	hopEntries := []*seg.HopEntry{hopEntry}
 	for _, ifid := range peers {
-		hopEntry, err := s.createHopEntry(ifid, egIfid, hopEntries[0].RawHopField, ts)
+		hopEntry, err := s.createHopEntry(ifid, egress, hopEntries[0].RawHopField, ts)
 		if err != nil {
-			log.Debug("Ignoring peer link upon error", "task", s.cfg.task, "ifid", ifid, "err", err)
+			log.Debug("Ignoring peer link upon error", "task", s.Task, "ifid", ifid, "err", err)
 			continue
 		}
 		hopEntries = append(hopEntries, hopEntry)
@@ -106,25 +126,25 @@ func (s *segExtender) createHopEntries(inIfid, egIfid common.IFIDType, peers []c
 	return hopEntries, nil
 }
 
-func (s *segExtender) createHopEntry(inIfid, egIfid common.IFIDType, prev common.RawBytes,
+func (s *LegacyExtender) createHopEntry(ingress, egress common.IFIDType, prev common.RawBytes,
 	ts time.Time) (*seg.HopEntry, error) {
 
-	remoteInIA, remoteInIfid, remoteInMtu, err := s.remoteInfo(inIfid)
+	remoteInIA, remoteInIfID, remoteInMtu, err := s.remoteInfo(ingress)
 	if err != nil {
-		return nil, common.NewBasicError("Invalid remote ingress interface", err, "ifid", inIfid)
+		return nil, common.NewBasicError("Invalid remote ingress interface", err, "ifid", ingress)
 	}
-	remoteOutIA, remoteOutIfid, _, err := s.remoteInfo(egIfid)
+	remoteOutIA, remoteOutIfid, _, err := s.remoteInfo(egress)
 	if err != nil {
-		return nil, common.NewBasicError("Invalid remote egress interface", err, "ifid", egIfid)
+		return nil, common.NewBasicError("Invalid remote egress interface", err, "ifid", egress)
 	}
-	hopF, err := s.createHopF(inIfid, egIfid, prev, ts)
+	hopF, err := s.createHopF(ingress, egress, prev, ts)
 	if err != nil {
 		return nil, err
 	}
 	hop := &seg.HopEntry{
 		RawHopField: hopF.Pack(),
 		RawInIA:     remoteInIA,
-		RemoteInIF:  remoteInIfid,
+		RemoteInIF:  remoteInIfID,
 		InMTU:       uint16(remoteInMtu),
 		RawOutIA:    remoteOutIA,
 		RemoteOutIF: remoteOutIfid,
@@ -132,13 +152,13 @@ func (s *segExtender) createHopEntry(inIfid, egIfid common.IFIDType, prev common
 	return hop, nil
 }
 
-func (s *segExtender) remoteInfo(ifid common.IFIDType) (
+func (s *LegacyExtender) remoteInfo(ifid common.IFIDType) (
 	addr.IAInt, common.IFIDType, uint16, error) {
 
 	if ifid == 0 {
 		return 0, 0, 0, nil
 	}
-	intf := s.cfg.Intfs.Get(ifid)
+	intf := s.Intfs.Get(ifid)
 	if intf == nil {
 		return 0, 0, 0, serrors.New("Interface not found")
 	}
@@ -158,27 +178,24 @@ func (s *segExtender) remoteInfo(ifid common.IFIDType) (
 
 // createHopF creates a hop field with the provided parameters. The previous hop
 // field, if any, must contain all raw bytes including the flags.
-func (s *segExtender) createHopF(inIfid, egIfid common.IFIDType, prev common.RawBytes,
+func (s *LegacyExtender) createHopF(ingress, egress common.IFIDType, prev common.RawBytes,
 	ts time.Time) (*spath.HopField, error) {
 
 	hop := &spath.HopField{
-		ConsIngress: inIfid,
-		ConsEgress:  egIfid,
-		ExpTime:     s.cfg.GetMaxExpTime(),
+		ConsIngress: ingress,
+		ConsEgress:  egress,
+		ExpTime:     s.MaxExpTime(),
 	}
 	if prev != nil {
 		// Do not include the flags of the hop field in the mac input.
 		prev = prev[1:]
 	}
-	s.macMtx.Lock()
-	defer s.macMtx.Unlock()
-	hop.Mac = hop.CalcMac(s.cfg.Mac, util.TimeToSecs(ts), prev)
+	hop.Mac = hop.CalcMac(s.MAC(), util.TimeToSecs(ts), prev)
 	return hop, nil
 }
 
-// IntfActive returns whether the interface is active.
-func (s *segExtender) IntfActive(ifid common.IFIDType) bool {
-	intf := s.cfg.Intfs.Get(ifid)
+func intfActive(intfs *ifstate.Interfaces, ifid common.IFIDType) bool {
+	intf := intfs.Get(ifid)
 	return intf != nil && intf.State() == ifstate.Active
 }
 
@@ -191,9 +208,9 @@ func min(a, b spath.ExpTimeType) spath.ExpTimeType {
 
 // createPeerMap creates a set of peers indicating whether the
 // interface identified by the key is used for peering or not.
-func createPeerMap(cfg ExtenderConf) map[common.IFIDType]struct{} {
+func createPeerMap(intfs *ifstate.Interfaces) map[common.IFIDType]struct{} {
 	peers := make(map[common.IFIDType]struct{})
-	for ifID, ifInfo := range cfg.Intfs.All() {
+	for ifID, ifInfo := range intfs.All() {
 		if ifInfo.TopoInfo().LinkType == topology.Peer {
 			peers[ifID] = struct{}{}
 		}

@@ -40,7 +40,7 @@ MOCK_TARGETS = [
     (SCION_PACKAGE_PREFIX + "/go/pkg/trust/renewal", "DB"),
     (SCION_PACKAGE_PREFIX + "/go/cs/beacon", "DB,Transaction"),
     (SCION_PACKAGE_PREFIX + "/go/cs/beaconing",
-        "BeaconInserter,BeaconProvider,SegmentProvider,SegmentStore"),
+        "BeaconInserter,BeaconProvider,BeaconSender,RPC,SegmentProvider,SegmentStore"),
     (SCION_PACKAGE_PREFIX + "/go/cs/keepalive", "IfStatePusher,RevDropper"),
     (SCION_PACKAGE_PREFIX + "/go/cs/revocation", "Store"),
     (SCION_PACKAGE_PREFIX + "/go/cs/segutil", "Policy"),

@@ -42,7 +42,7 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-func TestExtenderExtend(t *testing.T) {
+func TestLegacyExtenderExtend(t *testing.T) {
 	topoProvider := itopotest.TopoProviderFromFile(t, topoNonCore)
 	mac, err := scrypto.InitMac(make([]byte, 16))
 	require.NoError(t, err)
@@ -123,15 +123,15 @@ func TestExtenderExtend(t *testing.T) {
 			intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
 			intfs.Get(graph.If_111_A_112_X).Activate(graph.If_112_X_111_A)
 			intfs.Get(peer).Activate(graph.If_121_X_111_C)
-			ext, err := ExtenderConf{
-				IA:            topoProvider.Get().IA(),
-				MTU:           1337,
-				Signer:        testSigner(t, priv, topoProvider.Get().IA()),
-				Mac:           mac,
-				Intfs:         intfs,
-				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
-			}.new()
-			require.NoError(t, err)
+			ext := &LegacyExtender{
+				IA:         topoProvider.Get().IA(),
+				Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+				MAC:        func() hash.Hash { return mac },
+				Intfs:      intfs,
+				MTU:        1337,
+				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				StaticInfo: func() *StaticInfoCfg { return nil },
+			}
 			// Create path segment from description, if available.
 			pseg, err := seg.NewSeg(&spath.InfoField{ISD: 1, TsInt: util.TimeToSecs(time.Now())})
 			if len(test.seg) > 0 {
@@ -139,7 +139,7 @@ func TestExtenderExtend(t *testing.T) {
 			}
 			require.NoError(t, err)
 			// Extend the segment.
-			err = ext.extend(context.Background(), pseg,
+			err = ext.Extend(context.Background(), pseg,
 				test.inIfid, test.egIfid, append(test.inactivePeers, peer))
 			test.errAssertion(t, err)
 			if err != nil {
@@ -158,7 +158,7 @@ func TestExtenderExtend(t *testing.T) {
 
 			entry := pseg.ASEntries[pseg.MaxAEIdx()]
 			t.Run("AS entry", func(t *testing.T) {
-				assert.Equal(t, uint8(DefaultIfidSize), entry.IfIDSize)
+				assert.Equal(t, uint8(legacyIfIDSize), entry.IfIDSize)
 				assert.Equal(t, uint16(1337), entry.MTU)
 				assert.Equal(t, topoProvider.Get().IA(), entry.IA())
 				// Checks that inactive peers are ignored, even when provided.
@@ -174,13 +174,13 @@ func TestExtenderExtend(t *testing.T) {
 					prev = pseg.ASEntries[pseg.MaxAEIdx()-1].HopEntries[0].RawHopField
 				}
 				testHopEntry(t, entry.HopEntries[0], intfs, test.inIfid, test.egIfid)
-				testHopF(t, entry.HopEntries[0], mac, infoF.TsInt, ext.cfg.GetMaxExpTime(),
+				testHopF(t, entry.HopEntries[0], mac, infoF.TsInt, ext.MaxExpTime(),
 					test.inIfid, test.egIfid, prev)
 			})
 
 			t.Run("peer entry is correct", func(t *testing.T) {
 				testHopEntry(t, entry.HopEntries[1], intfs, peer, test.egIfid)
-				testHopF(t, entry.HopEntries[1], mac, infoF.TsInt, ext.cfg.GetMaxExpTime(),
+				testHopF(t, entry.HopEntries[1], mac, infoF.TsInt, ext.MaxExpTime(),
 					peer, test.egIfid, entry.HopEntries[0].RawHopField)
 			})
 		})
@@ -192,17 +192,18 @@ func TestExtenderExtend(t *testing.T) {
 		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		require.NoError(t, err)
 		intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
-		ext, err := ExtenderConf{
-			IA:            topoProvider.Get().IA(),
-			MTU:           1337,
-			Signer:        testSigner(t, priv, topoProvider.Get().IA()),
-			Mac:           mac,
-			GetMaxExpTime: maxExpTimeFactory(1),
-			Intfs:         intfs,
-		}.new()
+		ext := &LegacyExtender{
+			IA:         topoProvider.Get().IA(),
+			Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+			MAC:        func() hash.Hash { return mac },
+			Intfs:      intfs,
+			MTU:        1337,
+			MaxExpTime: maxExpTimeFactory(1),
+			StaticInfo: func() *StaticInfoCfg { return nil },
+		}
 		require.NoError(t, err)
 		pseg := testBeacon(g, segDesc).Segment
-		err = ext.extend(context.Background(), pseg, graph.If_111_B_120_X, 0, []common.IFIDType{})
+		err = ext.Extend(context.Background(), pseg, graph.If_111_B_120_X, 0, []common.IFIDType{})
 		require.NoError(t, err)
 		hopF, err := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField()
 		require.NoError(t, err)
@@ -274,20 +275,19 @@ func TestExtenderExtend(t *testing.T) {
 				defer mctrl.Finish()
 				g := graph.NewDefaultGraph(mctrl)
 				intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
-				require.NoError(t, err)
 				test.Activate(intfs)
 
-				ext, err := ExtenderConf{
-					IA:            topoProvider.Get().IA(),
-					MTU:           1337,
-					Signer:        test.Signer(t),
-					Mac:           mac,
-					Intfs:         intfs,
-					GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
-				}.new()
-				require.NoError(t, err)
+				ext := &LegacyExtender{
+					IA:         topoProvider.Get().IA(),
+					Signer:     test.Signer(t),
+					MAC:        func() hash.Hash { return mac },
+					Intfs:      intfs,
+					MTU:        1337,
+					MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+					StaticInfo: func() *StaticInfoCfg { return nil },
+				}
 				pseg := testBeacon(g, segDesc).Segment
-				err = ext.extend(context.Background(), pseg,
+				err = ext.Extend(context.Background(), pseg,
 					test.InIfID, test.EgIfID, []common.IFIDType{})
 				assert.Error(t, err)
 			})

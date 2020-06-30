@@ -8,6 +8,7 @@ go_library(
     deps = [
         "//go/cs/beacon:go_default_library",
         "//go/cs/beaconing:go_default_library",
+        "//go/cs/beaconing/compat:go_default_library",
         "//go/cs/beaconstorage:go_default_library",
         "//go/cs/config:go_default_library",
         "//go/cs/handlers:go_default_library",
