@@ -114,6 +114,8 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			DstIA:   dst,
 			LocalIA: localIA,
 			LocalIP: localIP,
+			// TODO(scrye): set this when we have CLI support for features
+			Version2: false,
 		}.GetStatuses(ctx, paths)
 		if err != nil {
 			serrors.WrapStr("failed to get status", err)

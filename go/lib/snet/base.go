@@ -34,6 +34,9 @@ type scionConnBase struct {
 
 	// Describes L4 protocol; currently only udp is implemented
 	net string
+
+	// version2 switches packets to SCION header format version 2.
+	version2 bool
 }
 
 func (c *scionConnBase) LocalAddr() net.Addr {

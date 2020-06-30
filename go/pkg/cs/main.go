@@ -232,6 +232,7 @@ func (app *App) Run() int {
 		},
 		SVCResolutionFraction: Cfg.QUIC.ResolutionFraction,
 		SVCRouter:             messenger.NewSVCRouter(itopo.Provider()),
+		Version2:              Cfg.Features.HeaderV2,
 	}
 	msgr, err := nc.Messenger()
 	if err != nil {
@@ -458,6 +459,7 @@ func (app *App) Run() int {
 	}
 	pktDisp := &snet.DefaultPacketDispatcherService{
 		Dispatcher: dispatcherService,
+		Version2:   Cfg.Features.HeaderV2,
 	}
 	// We do not need to drain the connection, since the src address is spoofed
 	// to contain the topo address.
@@ -488,6 +490,7 @@ func (app *App) Run() int {
 			&onehop.OHPPacketDispatcherService{
 				PacketDispatcherService: &snet.DefaultPacketDispatcherService{
 					Dispatcher: reliable.NewDispatcher(""),
+					Version2:   Cfg.Features.HeaderV2,
 				},
 			},
 		),
