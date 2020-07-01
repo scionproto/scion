@@ -18,16 +18,19 @@ import (
 	"context"
 	"time"
 
+	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/cs/reservation/e2e"
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/cs/reservationstorage"
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // Store is the reservation store.
 type Store struct {
-	db backend.DB
+	db         backend.DB
+	capacities base.Capacities
 }
 
 var _ reservationstorage.Store = (*Store)(nil)
@@ -40,7 +43,42 @@ func NewStore(db backend.DB) *Store {
 }
 
 // AdmitSegmentReservation receives a setup/renewal request to admit a segment reservation.
+// It is expected to call this fcn when this AS is not the source of the reservation.
 func (s *Store) AdmitSegmentReservation(ctx context.Context, req segment.SetupReq) error {
+
+	// validate request:
+	// DRKey authentication of request (will be left undone for later)
+	// this AS is not the source
+	rsv, err := s.db.GetSegmentRsvFromID(ctx, &req.ID)
+	if err != nil {
+		return serrors.WrapStr("cannot obtain segment reservation", err)
+	}
+	if rsv != nil {
+		// renewal, ensure index is not used
+		// TODO
+	} else {
+		rsv = segment.NewReservation()
+		rsv.ID = req.ID
+		// rsv.AddExistingIndex(index)
+		// s.db.NewSegmentRsv(ctx)
+	}
+
+	// persist reservation and index before leaving, if all is good
+	defer func() { // nonono, gotta do it and check errors before sending reply
+		// TODO
+	}()
+
+	// - index doesn't exist
+	// - path type compatible with ingress & egress
+
+	// compute admission max BW
+
+	// if success:
+	// - create index
+	// - send request to next hop, or create reply
+
+	// if failure:
+	// - create failed reply
 	return nil
 }
 
