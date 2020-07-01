@@ -1,8 +1,8 @@
-==================
-SCION Cryptography
-==================
+===============
+SCION Protocols
+===============
 
-This page contains information about SCION cryptography.
+This page contains SCION control and data plane protocols and specifications.
 
 .. toctree::
    :maxdepth: 2
