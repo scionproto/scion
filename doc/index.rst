@@ -11,7 +11,8 @@ is a good place to start.
    contribute
    build/setup
    cryptography/index
-   DRKeyInfra
+   protocols/index
+   testing/index
    BeaconService
    BeaconExtensions
    PathService
@@ -19,8 +20,6 @@ is a good place to start.
    HiddenPaths
    ColibriService
    Metrics
-   scion-header
-   extension-header
 
 
 Indices and tables

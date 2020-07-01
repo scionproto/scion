@@ -2,7 +2,7 @@
 SCION Cryptography
 ==================
 
-This page contains information about SCION cryptography.
+Open source cryptography documentation:
 
 .. toctree::
    :maxdepth: 2
@@ -15,4 +15,5 @@ This page contains information about SCION cryptography.
    ca-operations
    interactions
    standards
+   DRKeyInfra
    ForwardingKeyRollover
