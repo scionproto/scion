@@ -19,7 +19,7 @@ The BS is structured similar to the existing go infra services.
 It reuses the existing building blocks for go services:
 
 * [go/lib/env](../go/lib/env): Is used for configuration and setup of the service.
-* [go/lib/infra/modules/trust](../go/lib/infra/modules/trust): Is used for TRCs and other crypto material.
+* [go/pkg/trust](../go/pkg/trust): Is used for TRCs and other crypto material.
 * [go/lib/infra](../go/lib/infra): Is used for the messenger to send and receive messages.
 * [go/lib/periodic](../go/lib/periodic): Is used for periodic tasks.
 * etc. ...

@@ -32,7 +32,7 @@ The COS is structured similarly to other existing Go infrastructure services. It
 following:
 
 * [go/lib/env](../go/lib/env): Is used for configuration and setup of the service.
-* [go/lib/infra/modules/trust](../go/lib/infra/modules/trust): Is used for crypto material.
+* [go/pkg/trust](../go/pkg/trust): Is used for crypto material.
 * [go/lib/infra](../go/lib/infra): Is used for the messenger to send and receive messages.
 * [go/lib/periodic](../go/lib/periodic): Is used for periodic tasks.
 
