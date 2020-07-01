@@ -35,6 +35,8 @@ type Store interface {
 	DeleteExpiredIndices(ctx context.Context) (int, error)
 }
 
+// TODO(juagargi) there is a number of functions missing: all regarding responses.
+
 // NewIndexCleaner creates a cleaner removing expired indices and reservations.
 func NewIndexCleaner(s Store) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
