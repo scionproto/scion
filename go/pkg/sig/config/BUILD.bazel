@@ -24,7 +24,7 @@ go_test(
     deps = [
         "//go/lib/env/envtest:go_default_library",
         "//go/lib/log/logtest:go_default_library",
-        "//go/lib/xtest:go_default_library",
+        "//go/pkg/sig/config/configtest:go_default_library",
         "@com_github_pelletier_go_toml//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],
