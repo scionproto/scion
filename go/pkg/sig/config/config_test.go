@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package config_test
 
 import (
 	"bytes"
-	"net"
 	"testing"
 
 	toml "github.com/pelletier/go-toml"
@@ -24,43 +23,28 @@ import (
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/log/logtest"
-	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/pkg/sig/config"
+	"github.com/scionproto/scion/go/pkg/sig/config/configtest"
 )
 
 func TestConfigSample(t *testing.T) {
 	var sample bytes.Buffer
-	var cfg Config
+	var cfg config.Config
 	cfg.Sample(&sample, nil, nil)
 
 	InitTestConfig(&cfg)
 	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
 	assert.NoError(t, err)
-	CheckTestConfig(t, &cfg, idSample)
+	CheckTestConfig(t, &cfg, "sig4")
 }
 
-func InitTestConfig(cfg *Config) {
+func InitTestConfig(cfg *config.Config) {
 	envtest.InitTest(nil, &cfg.Metrics, nil, &cfg.Sciond)
 	logtest.InitTestLogging(&cfg.Logging)
-	InitTestSigConf(&cfg.Sig)
 }
 
-func InitTestSigConf(cfg *SigConf) {
-
-}
-
-func CheckTestConfig(t *testing.T, cfg *Config, id string) {
+func CheckTestConfig(t *testing.T, cfg *config.Config, id string) {
 	envtest.CheckTest(t, nil, &cfg.Metrics, nil, &cfg.Sciond, id)
 	logtest.CheckTestLogging(t, &cfg.Logging, id)
-	CheckTestSigConf(t, &cfg.Sig, id)
-}
-
-func CheckTestSigConf(t *testing.T, cfg *SigConf, id string) {
-	assert.Equal(t, "sig4", cfg.ID)
-	assert.Equal(t, "/etc/scion/sig/sig.json", cfg.SIGConfig)
-	assert.Equal(t, xtest.MustParseIA("1-ff00:0:113"), cfg.IA)
-	assert.Equal(t, net.ParseIP("192.0.2.100"), cfg.IP)
-	assert.Equal(t, DefaultCtrlPort, int(cfg.CtrlPort))
-	assert.Equal(t, DefaultEncapPort, int(cfg.EncapPort))
-	assert.Equal(t, DefaultTunName, cfg.Tun)
-	assert.Equal(t, DefaultTunRTableId, cfg.TunRTableId)
+	configtest.CheckTestSIG(t, &cfg.Sig, id)
 }
