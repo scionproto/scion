@@ -177,3 +177,84 @@ func TestParseMalformedPkts(t *testing.T) {
 		})
 	}
 }
+
+func TestParseScnPkt2(t *testing.T) {
+	raw := xtest.MustReadFromFile(t, "udp-scion-v2.bin")
+
+	s := &spkt.ScnPkt{}
+	require.NoError(t, ParseScnPkt2(s, raw), "Should parse without error")
+
+	assert.Equal(t, addr.ISD(2), s.SrcIA.I, "SrcIA.I")
+	assert.Equal(t, xtest.MustParseAS("ff00:0:222"), s.SrcIA.A, "SrcIA.A")
+
+	assert.Equal(t, addr.ISD(1), s.DstIA.I, "DstIA.I")
+	assert.Equal(t, xtest.MustParseAS("ff00:0:111"), s.DstIA.A, "DstIA.A")
+
+	assert.Equal(t, net.IP{10, 0, 0, 100}, s.SrcHost.IP(), "SrcHostAddr")
+	assert.Equal(t, net.ParseIP("2001:db8::68"), s.DstHost.IP(), "DstHostAddr")
+
+	assert.Equal(
+		t,
+		common.RawBytes(generatePath()),
+		s.Path.Raw,
+		"Path",
+	)
+	udpHdr, ok := s.L4.(*l4.UDP)
+	require.True(t, ok, "L4Hdr - Bad header")
+	assert.Equal(t, uint16(1280), udpHdr.SrcPort, "UDP.SrcPort")
+	assert.Equal(t, uint16(80), udpHdr.DstPort, "UDP.DstPort")
+	assert.Equal(t, uint16(0x408), udpHdr.TotalLen, "UDP.TotalLen")
+
+	assert.Equal(
+		t,
+		common.RawBytes(generatePayload()),
+		s.Pld,
+		"Payload",
+	)
+}
+
+func TestScnPktWrite2(t *testing.T) {
+	expectedPacket := &spkt.ScnPkt{
+		SrcIA:   xtest.MustParseIA("2-ff00:0:222"),
+		DstIA:   xtest.MustParseIA("1-ff00:0:111"),
+		SrcHost: addr.HostFromIP(net.IP{10, 0, 0, 100}),
+		DstHost: addr.HostFromIP(net.IP{0x20, 0x1, 0xd, 0xb8, 0x0, 0x0, 0x0, 0x0,
+			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x68}),
+		Path: spath.NewV2(generatePath()),
+		L4:   &l4.UDP{SrcPort: 1280, DstPort: 80, TotalLen: 1032, Checksum: []byte{0xda, 0xbb}},
+		Pld:  common.RawBytes(generatePayload()),
+	}
+
+	b := make(common.RawBytes, common.MaxMTU)
+	n, err := WriteScnPkt2(expectedPacket, b)
+	fmt.Println(b[:n])
+	assert.NoError(t, err, "Write error")
+
+	parsedPacket := &spkt.ScnPkt{}
+	err = ParseScnPkt2(parsedPacket, b[:n])
+	require.NoError(t, err, "Read error")
+
+	assert.Equal(t, expectedPacket, parsedPacket)
+}
+
+func generatePayload() []byte {
+	b := make([]byte, 4*256)
+	for i := 0; i < 4*256; i++ {
+		b[i] = byte(i)
+	}
+	return b
+}
+
+func generatePath() []byte {
+	return []byte{
+		0x0, 0x0, 0x20, 0x80, 0x0, 0x0, 0x1, 0x11,
+		0x0, 0x0, 0x1, 0x0, 0x1, 0x0, 0x2, 0x22,
+		0x0, 0x0, 0x1, 0x0, 0x0, 0x3f, 0x0, 0x1,
+		0x0, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x0,
+		0x3f, 0x0, 0x3, 0x0, 0x2, 0x1, 0x2, 0x3,
+		0x4, 0x5, 0x6, 0x0, 0x3f, 0x0, 0x0, 0x0,
+		0x2, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x0,
+		0x3f, 0x0, 0x1, 0x0, 0x0, 0x1, 0x2, 0x3,
+		0x4, 0x5, 0x6,
+	}
+}

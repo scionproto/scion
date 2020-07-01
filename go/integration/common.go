@@ -108,7 +108,17 @@ func InitNetwork() *snet.SCIONNetwork {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	n := snet.NewNetwork(Local.IA, ds, sciond.RevHandler{Connector: sciondConn})
+	n := &snet.SCIONNetwork{
+		LocalIA: Local.IA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
+			Dispatcher: ds,
+			SCMPHandler: snet.NewSCMPHandler(
+				sciond.RevHandler{Connector: sciondConn},
+			),
+			// TODO(scrye): set this when we have CLI support for features
+			Version2: false,
+		},
+	}
 	log.Debug("SCION network successfully initialized")
 	return n
 }

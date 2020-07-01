@@ -17,6 +17,7 @@ package revcache
 import (
 	"context"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
@@ -87,17 +88,12 @@ func addRevKeys(segs []*seg.PathSegment, keys KeySet, hopOnly bool) {
 	for _, s := range segs {
 		for _, asEntry := range s.ASEntries {
 			for _, entry := range asEntry.HopEntries {
-				hf, err := entry.HopField()
-				if err != nil {
-					// This should not happen, as Validate already checks that it
-					// is possible to extract the hop field.
-					panic(err)
-				}
+				hf := entry.HopField
 				if hf.ConsIngress != 0 {
-					keys[*NewKey(asEntry.IA(), hf.ConsIngress)] = struct{}{}
+					keys[*NewKey(asEntry.IA(), common.IFIDType(hf.ConsIngress))] = struct{}{}
 				}
 				if hf.ConsEgress != 0 {
-					keys[*NewKey(asEntry.IA(), hf.ConsEgress)] = struct{}{}
+					keys[*NewKey(asEntry.IA(), common.IFIDType(hf.ConsEgress))] = struct{}{}
 				}
 				if hopOnly {
 					break

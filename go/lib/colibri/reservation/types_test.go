@@ -69,6 +69,14 @@ func TestTickFromTime(t *testing.T) {
 	require.Equal(t, Tick(1), TickFromTime(time.Unix(4, 0)))
 }
 
+func TestTickToTime(t *testing.T) {
+	require.Equal(t, time.Unix(0, 0), Tick(0).ToTime())
+	require.Equal(t, time.Unix(4, 0), Tick(1).ToTime())
+	require.Equal(t, time.Unix(0, 0), TickFromTime(time.Unix(0, 0)).ToTime())
+	require.Equal(t, time.Unix(0, 0), TickFromTime(time.Unix(3, 999999)).ToTime())
+	require.Equal(t, time.Unix(4, 0), TickFromTime(time.Unix(4, 0)).ToTime())
+}
+
 func TestValidateBWCls(t *testing.T) {
 	for i := 0; i < 64; i++ {
 		c := BWCls(i)
@@ -108,6 +116,13 @@ func TestIndexNumberArithmetic(t *testing.T) {
 	require.Equal(t, IndexNumber(0), x)
 	x = idx.Sub(IndexNumber(2))
 	require.Equal(t, IndexNumber(15), x)
+	// distance from 2 to 0 = 0 - 2 = 14 mod 16
+	x = IndexNumber(2)
+	distance := IndexNumber(0).Sub(x)
+	require.Equal(t, IndexNumber(14), distance)
+	// distance from 2 to 4
+	distance = IndexNumber(4).Sub(x)
+	require.Equal(t, IndexNumber(2), distance)
 }
 
 func TestValidatePathType(t *testing.T) {
@@ -253,6 +268,12 @@ func TestTokenRead(t *testing.T) {
 	// buffer too small
 	_, err = tok.Read(buf[:len(rawReference)-1])
 	require.Error(t, err)
+}
+
+func TestTokenToRaw(t *testing.T) {
+	tok := newToken()
+	raw := newTokenRaw()
+	require.Equal(t, raw, tok.ToRaw())
 }
 
 func newInfoField() InfoField {

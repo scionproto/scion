@@ -16,6 +16,7 @@ package combinator
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"sort"
 
@@ -116,10 +117,6 @@ func (g *DMG) traverseSegment(segment *InputSegment) {
 		// Construct edges for each hop in the current ASEntry.
 		for hopEntryIndex, hop := range asEntries[asEntryIndex].HopEntries {
 			weight := len(asEntries) - 1 - asEntryIndex
-			he, err := hop.HopField()
-			if err != nil {
-				panic(err)
-			}
 
 			// build new edge
 			var srcVertex, dstVertex Vertex
@@ -132,7 +129,8 @@ func (g *DMG) traverseSegment(segment *InputSegment) {
 				}
 				dstVertex = VertexFromIA(currentIA)
 			} else {
-				dstVertex = VertexFromPeering(currentIA, he.ConsIngress, hop.InIA(), hop.RemoteInIF)
+				ingress := common.IFIDType(hop.HopField.ConsIngress)
+				dstVertex = VertexFromPeering(currentIA, ingress, hop.InIA(), hop.RemoteInIF)
 			}
 
 			if segment.Type == proto.PathSegType_down {
@@ -273,6 +271,104 @@ type PathSolution struct {
 // GetFwdPathMetadata builds the complete metadata for a forwarding path by
 // extracting it from a path between source and destination in the DMG.
 func (solution *PathSolution) GetFwdPathMetadata() *Path {
+	var legacy bool
+	for _, edge := range solution.edges {
+		if edge.segment.PathSegment.SData.ISD != 0 {
+			legacy = true
+		} else if legacy {
+			panic("mixed segment types")
+		}
+	}
+	if legacy {
+		return solution.legacyFwdPathMetadata()
+	}
+	path := &Path{
+		Weight:   solution.cost,
+		Mtu:      ^uint16(0),
+		HeaderV2: true,
+	}
+	for _, solEdge := range solution.edges {
+		var hops []*HopField
+		var intfs []sciond.PathInterface
+
+		// Go through each ASEntry, starting from the last one, until we
+		// find a shortcut (which can be 0, meaning the end of the segment).
+		asEntries := solEdge.segment.ASEntries
+		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
+			isShortcut := asEntryIdx == solEdge.edge.Shortcut && solEdge.edge.Shortcut != 0
+			isPeer := asEntryIdx == solEdge.edge.Shortcut && solEdge.edge.Peer != 0
+			asEntry := asEntries[asEntryIdx]
+
+			// Regular hop field.
+			entry := asEntry.HopEntries[0]
+			hopField := &HopField{
+				ExpTime:     entry.HopField.ExpTime,
+				ConsIngress: entry.HopField.ConsIngress,
+				ConsEgress:  entry.HopField.ConsEgress,
+				MAC:         append([]byte(nil), entry.HopField.MAC...),
+			}
+
+			// We don't know if this hop entry is used for forwarding (a peer
+			// entry might be used instead, which would override mtu later)
+			forwardingLinkMtu := entry.InMTU
+
+			if isPeer {
+				// We've reached the ASEntry where we want to switch
+				// segments on a peering link.
+				peer := asEntry.HopEntries[solEdge.edge.Peer]
+				hopField = &HopField{
+					ExpTime:     peer.HopField.ExpTime,
+					ConsIngress: peer.HopField.ConsIngress,
+					ConsEgress:  peer.HopField.ConsEgress,
+					MAC:         append([]byte(nil), peer.HopField.MAC...),
+				}
+				forwardingLinkMtu = peer.InMTU
+			}
+
+			// Segment is traversed in reverse construction direction.
+			// Only include non-zero interfaces.
+			if hopField.ConsEgress != 0 {
+				intfs = append(intfs, sciond.PathInterface{
+					RawIsdas: asEntry.RawIA,
+					IfID:     common.IFIDType(hopField.ConsEgress),
+				})
+			}
+			// In a non-peer shortcut the AS is not traversed completely.
+			if hopField.ConsIngress != 0 && (!isShortcut || isPeer) {
+				intfs = append(intfs, sciond.PathInterface{
+					RawIsdas: asEntry.RawIA,
+					IfID:     common.IFIDType(hopField.ConsIngress),
+				})
+			}
+			hops = append(hops, hopField)
+
+			path.Mtu = minUint16(path.Mtu, asEntry.MTU)
+			if forwardingLinkMtu != 0 {
+				// The first HE in a segment has MTU 0, so we ignore those
+				path.Mtu = minUint16(path.Mtu, forwardingLinkMtu)
+			}
+		}
+		path.Segments = append(path.Segments, &Segment{
+			Type: solEdge.segment.Type,
+			InfoField: &InfoField{
+				Timestamp: solEdge.segment.Timestamp(),
+				SegID:     calculateBeta(solEdge),
+				ConsDir:   solEdge.segment.IsDownSeg(),
+				Peer:      solEdge.edge.Peer != 0,
+				Hops:      len(hops),
+			},
+			HopFields:  hops,
+			Interfaces: intfs,
+		})
+	}
+	path.reverseDownSegment()
+	path.aggregateInterfaces()
+	path.StaticInfo = solution.collectMetadata()
+	return path
+
+}
+
+func (solution *PathSolution) legacyFwdPathMetadata() *Path {
 	path := &Path{
 		Weight: solution.cost,
 		Mtu:    ^uint16(0),
@@ -300,7 +396,7 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 			// We don't know if this hop entry is used for forwarding (a peer
 			// entry might be used instead, which would override mtu later)
 			forwardingLinkMtu := hopEntry.InMTU
-			inIFID, outIFID = newHF.ConsEgress, newHF.ConsIngress
+			inIFID, outIFID = common.IFIDType(newHF.ConsEgress), common.IFIDType(newHF.ConsIngress)
 
 			// If we've transitioned from a previous segment, set Xover flag.
 			if edgeIdx > 0 {
@@ -339,7 +435,8 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 						pHF := currentSeg.appendHopFieldFrom(pHopEntry)
 						forwardingLinkMtu = pHopEntry.InMTU
 						pHF.Xover = true
-						inIFID, outIFID = pHF.ConsEgress, pHF.ConsIngress
+						inIFID, outIFID = common.IFIDType(pHF.ConsEgress),
+							common.IFIDType(pHF.ConsIngress)
 					} else {
 						// Normal shortcut, so only half of this HF is traversed by the packet
 						outIFID = 0
@@ -363,6 +460,24 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 	path.aggregateInterfaces()
 	path.StaticInfo = solution.collectMetadata()
 	return path
+}
+
+func calculateBeta(edge *solutionEdge) uint16 {
+	var index int
+	if edge.segment.IsDownSeg() {
+		index = edge.edge.Shortcut
+		if edge.edge.Peer != 0 {
+			index++
+		}
+	} else {
+		index = len(edge.segment.ASEntries)
+	}
+	beta := edge.segment.SData.SegID
+	for i := 0; i < index; i++ {
+		hop := edge.segment.ASEntries[i].HopEntries[0]
+		beta = beta ^ binary.BigEndian.Uint16(hop.HopField.MAC)
+	}
+	return beta
 }
 
 // PathSolutionList is a sort.Interface implementation for a slice of solutions.
@@ -389,14 +504,8 @@ func (sl PathSolutionList) Less(i, j int) bool {
 	}
 
 	for ki := range trailI {
-		idI, err := trailI[ki].segment.ID()
-		if err != nil {
-			panic(err)
-		}
-		idJ, err := trailJ[ki].segment.ID()
-		if err != nil {
-			panic(err)
-		}
+		idI := trailI[ki].segment.ID()
+		idJ := trailJ[ki].segment.ID()
 		idcmp := bytes.Compare(idI, idJ)
 		if idcmp != 0 {
 			return idcmp == -1

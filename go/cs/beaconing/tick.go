@@ -18,22 +18,26 @@ import (
 	"time"
 )
 
-// tick keeps track whether the period has passed compared to the last time.
-type tick struct {
+// Tick keeps track whether the period has passed compared to the last time.
+type Tick struct {
 	now    time.Time
 	last   time.Time
 	period time.Duration
 }
 
+func NewTick(period time.Duration) Tick {
+	return Tick{period: period}
+}
+
 // updateLast updates the last time to the current time, if the period has
 // passed since last.
-func (t *tick) updateLast() {
+func (t *Tick) updateLast() {
 	if t.passed() {
 		t.last = t.now
 	}
 }
 
 // passed returns whether the last timestamp is further away from now than the period
-func (t *tick) passed() bool {
+func (t *Tick) passed() bool {
 	return t.now.Sub(t.last) >= t.period
 }

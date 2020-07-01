@@ -188,6 +188,8 @@ type FwdPathMeta struct {
 	Mtu        uint16
 	Interfaces []PathInterface
 	ExpTime    uint32
+
+	HeaderV2 bool
 }
 
 func (fpm *FwdPathMeta) SrcIA() addr.IA {
@@ -214,7 +216,7 @@ func (fpm *FwdPathMeta) Copy() *FwdPathMeta {
 	if fpm == nil {
 		return nil
 	}
-	res := &FwdPathMeta{Mtu: fpm.Mtu, ExpTime: fpm.ExpTime}
+	res := &FwdPathMeta{Mtu: fpm.Mtu, ExpTime: fpm.ExpTime, HeaderV2: fpm.HeaderV2}
 	res.FwdPath = common.CloneByteSlice(fpm.FwdPath)
 	if fpm.Interfaces != nil {
 		res.Interfaces = make([]PathInterface, len(fpm.Interfaces))

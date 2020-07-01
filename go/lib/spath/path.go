@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -40,10 +41,17 @@ type Path struct {
 	Raw    common.RawBytes
 	InfOff int // Offset of current Info Field
 	HopOff int // Offset of current Hop Field
+
+	// version is a temporary solution for supporting V2 paths in method calls.
+	version int
 }
 
 func New(raw common.RawBytes) *Path {
 	return &Path{Raw: raw}
+}
+
+func NewV2(raw common.RawBytes) *Path {
+	return &Path{Raw: raw, version: 2}
 }
 
 // NewOneHop creates a new one hop path with. If necessary, the caller has
@@ -72,10 +80,33 @@ func (p *Path) Copy() *Path {
 	if p == nil {
 		return nil
 	}
-	return &Path{append(common.RawBytes(nil), p.Raw...), p.InfOff, p.HopOff}
+	return &Path{
+		Raw:     append(common.RawBytes(nil), p.Raw...),
+		InfOff:  p.InfOff,
+		HopOff:  p.HopOff,
+		version: p.version,
+	}
+}
+
+func (p *Path) reverse2() error {
+	var path scion.Decoded
+	if err := path.DecodeFromBytes(p.Raw); err != nil {
+		return err
+	}
+	if err := path.Reverse(); err != nil {
+		return err
+	}
+	// this clobbers paths, but anyway there's not much we can do with the path if reversal fails
+	if err := path.SerializeTo(p.Raw); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *Path) Reverse() error {
+	if p.version == 2 {
+		return p.reverse2()
+	}
 	if len(p.Raw) == 0 {
 		// Empty path doesn't need reversal.
 		return nil
@@ -140,6 +171,9 @@ func (p *Path) Reverse() error {
 // InitOffsets computes the initial Hop Field offset (in bytes) for a newly
 // created packet.
 func (path *Path) InitOffsets() error {
+	if path.version == 2 {
+		return nil
+	}
 	var err error
 	var infoF *InfoField
 	var hopF *HopField
@@ -174,6 +208,9 @@ func (path *Path) InitOffsets() error {
 // IncOffsets updates the info and hop indices to the next routing field, while skipping
 // verify only fields.
 func (path *Path) IncOffsets() error {
+	if path.version == 2 {
+		panic("not supported")
+	}
 	var err error
 	if path.HopOff == 0 {
 		// Path not initialized yet

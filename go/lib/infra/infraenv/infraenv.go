@@ -81,6 +81,9 @@ type NetworkConfig struct {
 	// SVCRouter is used to discover the underlay addresses of intra-AS SVC
 	// servers.
 	SVCRouter messenger.LocalSVCRouter
+
+	// Version2 switches packets to SCION header format version 2.
+	Version2 bool
 }
 
 // Messenger initializes a SCION control-plane RPC endpoint using the specified
@@ -138,6 +141,7 @@ func (nc *NetworkConfig) AddressRewriter(
 	if connFactory == nil {
 		connFactory = &snet.DefaultPacketDispatcherService{
 			Dispatcher: reliable.NewDispatcher(""),
+			Version2:   nc.Version2,
 		}
 	}
 
@@ -187,6 +191,7 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 	packetDispatcher := svc.NewResolverPacketDispatcher(
 		&snet.DefaultPacketDispatcherService{
 			Dispatcher: dispatcherService,
+			Version2:   nc.Version2,
 		},
 		&LegacyForwardingHandler{
 			BaseHandler: &svc.BaseHandler{
@@ -214,6 +219,7 @@ func (nc *NetworkConfig) initQUICSocket() (net.PacketConn, error) {
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher:  dispatcherService,
 			SCMPHandler: ignoreSCMP{},
+			Version2:    nc.Version2,
 		},
 	}
 	udpAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)

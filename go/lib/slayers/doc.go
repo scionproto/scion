@@ -47,7 +47,8 @@ that have either a SCION/UDP or SCMP payload:
 	var e2e slayers.EndToEndExtn
 	var udp slayers.UDP
 	var scmp slayers.SCMP
-	parser := gopacket.NewDecodingLayerParser(LayerTypeSCION, &scn, &hbh, &e2e, &udp, &scmp)
+	var pld gopacket.Payload
+	parser := gopacket.NewDecodingLayerParser(LayerTypeSCION, &scn, &hbh, &e2e, &udp, &scmp, &pld)
 	decoded := []gopacket.LayerType{}
 	if err := parser.DecodeLayers(packetData, &decoded); err != nil {
 		// Handle error

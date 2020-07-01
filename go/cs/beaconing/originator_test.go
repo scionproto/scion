@@ -21,11 +21,9 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/asn1"
-	"errors"
-	"fmt"
+	"hash"
 	"math/big"
 	"net"
-	"sync"
 	"testing"
 	"time"
 
@@ -34,18 +32,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
+	"github.com/scionproto/scion/go/cs/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
-	"github.com/scionproto/scion/go/cs/onehop"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/mock_snet"
-	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -66,54 +61,56 @@ func TestOriginatorRun(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
-		conn := mock_snet.NewMockPacketConn(mctrl)
-		o, err := OriginatorConf{
-			Config: ExtenderConf{
-				IA:            topoProvider.Get().IA(),
-				MTU:           topoProvider.Get().MTU(),
-				Signer:        signer,
-				Intfs:         intfs,
-				Mac:           mac,
-				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+		sender := mock_beaconing.NewMockBeaconSender(mctrl)
+		o := Originator{
+			Extender: &LegacyExtender{
+				IA:         topoProvider.Get().IA(),
+				MTU:        topoProvider.Get().MTU(),
+				Signer:     signer,
+				Intfs:      intfs,
+				MAC:        func() hash.Hash { return mac },
+				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
-			Period: time.Hour,
-			BeaconSender: &onehop.BeaconSender{
-				Sender: onehop.Sender{
-					IA:   xtest.MustParseIA("1-ff00:0:110"),
-					Conn: conn,
-					Addr: &net.UDPAddr{
-						IP:   net.ParseIP("127.0.0.1"),
-						Port: 4242,
-					},
-					MAC: mac,
-				},
-			},
-		}.New()
+			BeaconSender: sender,
+			IA:           topoProvider.Get().IA(),
+			Signer:       signer,
+			Intfs:        intfs,
+			Tick:         NewTick(time.Hour),
+		}
+
 		require.NoError(t, err)
 		// Activate interfaces
 		intfs.Get(42).Activate(84)
 		intfs.Get(1129).Activate(82)
 
-		msgsMtx := sync.Mutex{}
-		var msgs []msg
-		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Times(2).DoAndReturn(
-			func(ipkt, iov interface{}) error {
-				msgsMtx.Lock()
-				defer msgsMtx.Unlock()
-				msgs = append(msgs, msg{
-					pkt: ipkt.(*snet.Packet),
-					ov:  iov.(*net.UDPAddr),
-				})
+		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
+			gomock.Any()).Times(2).DoAndReturn(
+			func(_ context.Context, beacon *seg.Beacon, dst addr.IA, egress common.IFIDType,
+				_ ctrl.Signer, nextHop *net.UDPAddr) error {
+
+				err = beacon.Parse()
+				require.NoError(t, err)
+
+				// Check the beacon is valid and verifiable.
+				pseg := beacon.Segment
+				assert.NoError(t, pseg.Validate(seg.ValidateBeacon))
+				assert.NoError(t, pseg.VerifyASEntry(context.Background(),
+					segVerifier{pubKey: pub}, pseg.MaxAEIdx()))
+
+				// Extract the hop field from the current AS entry to compare.
+				hopF := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField
+				// Check the interface matches.
+				assert.Equal(t, hopF.ConsEgress, uint16(egress))
+				// Check that the beacon is sent to the correct border router.
+				br := topoProvider.Get().IFInfoMap()[egress].InternalAddr
+				assert.Equal(t, br, nextHop)
 				return nil
 			},
 		)
+
 		// Start beacon messages.
 		o.Run(nil)
-		for i, msg := range msgs {
-			t.Run(fmt.Sprintf("Packet %d is correct", i), func(t *testing.T) {
-				checkMsg(t, msg, pub, topoProvider.Get().IFInfoMap())
-			})
-		}
 		// The second run should not cause any beacons to originate.
 		o.Run(nil)
 	})
@@ -121,30 +118,25 @@ func TestOriginatorRun(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
-		conn := mock_snet.NewMockPacketConn(mctrl)
-		o, err := OriginatorConf{
-			Config: ExtenderConf{
-				IA:            topoProvider.Get().IA(),
-				MTU:           topoProvider.Get().MTU(),
-				Signer:        signer,
-				Intfs:         intfs,
-				Mac:           mac,
-				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+		sender := mock_beaconing.NewMockBeaconSender(mctrl)
+
+		o := Originator{
+			Extender: &LegacyExtender{
+				IA:         topoProvider.Get().IA(),
+				MTU:        topoProvider.Get().MTU(),
+				Signer:     signer,
+				Intfs:      intfs,
+				MAC:        func() hash.Hash { return mac },
+				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
-			Period: 2 * time.Second,
-			BeaconSender: &onehop.BeaconSender{
-				Sender: onehop.Sender{
-					IA:   xtest.MustParseIA("1-ff00:0:110"),
-					Conn: conn,
-					Addr: &net.UDPAddr{
-						IP:   net.ParseIP("127.0.0.1"),
-						Port: 4242,
-					},
-					MAC: mac,
-				},
-			},
-		}.New()
-		require.NoError(t, err)
+			BeaconSender: sender,
+			IA:           topoProvider.Get().IA(),
+			Signer:       signer,
+			Intfs:        intfs,
+			Tick:         NewTick(2 * time.Second),
+		}
+
 		// Activate interfaces
 		intfs.Get(42).Activate(84)
 		intfs.Get(1129).Activate(82)
@@ -153,9 +145,13 @@ func TestOriginatorRun(t *testing.T) {
 		// 2. Second run where the beacon is delivered. -> 1 call
 		// 3. Run where no beacon is sent. -> no call
 		// 4. Run where beacons are sent on all interfaces. -> 2 calls
-		first := conn.EXPECT().WriteTo(gomock.Any(), gomock.Any())
-		first.Return(errors.New("fail"))
-		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).After(first).Times(4).Return(nil)
+
+		first := sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
+			gomock.Any(), gomock.Any())
+		first.Return(serrors.New("fail"))
+
+		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
+			gomock.Any(), gomock.Any()).Times(4).Return(nil)
 		// Initial run. Two writes expected, one write will fail.
 		o.Run(nil)
 		time.Sleep(1 * time.Second)
@@ -167,40 +163,6 @@ func TestOriginatorRun(t *testing.T) {
 		// Fourth run. Since period has passed, two writes are expected.
 		o.Run(nil)
 	})
-}
-
-type msg struct {
-	pkt *snet.Packet
-	ov  *net.UDPAddr
-}
-
-func checkMsg(t *testing.T, msg msg, pub crypto.PublicKey, infos topology.IfInfoMap) {
-	// Extract segment from the payload
-	spld, err := ctrl.NewSignedPldFromRaw(msg.pkt.Payload.(common.RawBytes))
-	require.NoError(t, err)
-	pld, err := spld.UnsafePld()
-	require.NoError(t, err)
-	err = pld.Beacon.Parse()
-	require.NoError(t, err)
-
-	// Check the beacon is valid and verifiable.
-	pseg := pld.Beacon.Segment
-	assert.NoError(t, pseg.Validate(seg.ValidateBeacon))
-	assert.NoError(t, pseg.VerifyASEntry(context.Background(),
-		segVerifier{pubKey: pub}, pseg.MaxAEIdx()))
-
-	// Extract the the first hop field from the constructed one hop path the
-	// beacon is sent on. We want to make sure that the beacon is sent on the
-	// correct egress interface.
-	hopF, err := msg.pkt.Path.GetHopField(msg.pkt.Path.HopOff)
-	require.NoError(t, err)
-	// Extract the hop field from the current AS entry to compare.
-	bHopF, err := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField()
-	require.NoError(t, err)
-	// Check the interface matches.
-	assert.Equal(t, bHopF.ConsEgress, hopF.ConsEgress)
-	// Check that the beacon is sent to the correct border router.
-	assert.Equal(t, infos[hopF.ConsEgress].InternalAddr, msg.ov)
 }
 
 type segVerifier struct {

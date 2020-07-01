@@ -26,12 +26,14 @@ go_test(
     name = "go_default_test",
     srcs = [
         "export_test.go",
+        "index_test.go",
         "path_test.go",
         "request_test.go",
         "reservation_test.go",
     ],
     embed = [":go_default_library"],
     deps = [
+        "//go/cs/reservation:go_default_library",
         "//go/cs/reservation/segmenttest:go_default_library",
         "//go/lib/colibri/reservation:go_default_library",
         "//go/lib/common:go_default_library",

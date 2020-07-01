@@ -124,6 +124,9 @@ type SCIONPacketConn struct {
 	// handler is nil, errors are returned back to applications every time an
 	// SCMP message is received.
 	scmpHandler SCMPHandler
+
+	// version2 switches packets to SCION header format version 2.
+	version2 bool
 }
 
 // NewSCIONPacketConn creates a new conn with packet serialization/decoding
@@ -164,7 +167,12 @@ func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
 		Pld:     pkt.Payload,
 	}
 	pkt.Prepare()
-	n, err := hpkt.WriteScnPkt(scnPkt, common.RawBytes(pkt.Bytes))
+	var n int
+	if c.version2 {
+		n, err = hpkt.WriteScnPkt2(scnPkt, pkt.Bytes)
+	} else {
+		n, err = hpkt.WriteScnPkt(scnPkt, common.RawBytes(pkt.Bytes))
+	}
 	if err != nil {
 		return common.NewBasicError("Unable to serialize SCION packet", err)
 	}
@@ -230,11 +238,12 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 
 	// TODO(scrye): scnPkt is a temporary solution. Its functionality will be
 	// absorbed by the easier to use Packet structure in this package.
-	scnPkt := &spkt.ScnPkt{
-		DstIA: addr.IA{},
-		SrcIA: addr.IA{},
+	scnPkt := &spkt.ScnPkt{}
+	if c.version2 {
+		err = hpkt.ParseScnPkt2(scnPkt, common.RawBytes(pkt.Bytes))
+	} else {
+		err = hpkt.ParseScnPkt(scnPkt, common.RawBytes(pkt.Bytes))
 	}
-	err = hpkt.ParseScnPkt(scnPkt, common.RawBytes(pkt.Bytes))
 	if err != nil {
 		metrics.M.ParseErrors().Inc()
 		return common.NewBasicError("SCION packet parse error", err)

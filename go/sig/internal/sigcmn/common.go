@@ -57,13 +57,13 @@ var (
 	CtrlConn   *snet.Conn
 )
 
-func Init(cfg sigconfig.SigConf, sdCfg env.SCIONDClient) error {
+func Init(cfg sigconfig.SigConf, sdCfg env.SCIONDClient, features env.Features) error {
 	IA = cfg.IA
 	CtrlAddr = cfg.IP
 	CtrlPort = int(cfg.CtrlPort)
 	DataAddr = cfg.IP
 	DataPort = int(cfg.EncapPort)
-	network, resolver, err := initNetwork(cfg, sdCfg)
+	network, resolver, err := initNetwork(cfg, sdCfg, features)
 	if err != nil {
 		return common.NewBasicError("Error creating local SCION Network context", err)
 	}
@@ -81,7 +81,7 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SCIONDClient) error {
 }
 
 func initNetwork(cfg sigconfig.SigConf,
-	sdCfg env.SCIONDClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
+	sdCfg env.SCIONDClient, features env.Features) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
 
 	var err error
 	Dispatcher, err = newDispatcher(cfg)
@@ -89,25 +89,32 @@ func initNetwork(cfg sigconfig.SigConf,
 		return nil, nil, serrors.WrapStr("unable to initialize SCION dispatcher", err)
 	}
 	if sdCfg.FakeData != "" {
-		return initNetworkWithFakeSCIOND(cfg, sdCfg)
+		return initNetworkWithFakeSCIOND(cfg, sdCfg, features)
 	}
-	return initNetworkWithRealSCIOND(cfg, sdCfg)
+	return initNetworkWithRealSCIOND(cfg, sdCfg, features)
 }
 
 func initNetworkWithFakeSCIOND(cfg sigconfig.SigConf,
-	sdCfg env.SCIONDClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
+	sdCfg env.SCIONDClient, features env.Features) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
 
 	sciondConn, err := fake.NewFromFile(sdCfg.FakeData)
 	if err != nil {
 		return nil, nil, serrors.WrapStr("unable to initialize fake SCIOND service", err)
 	}
 	pathResolver := pathmgr.New(sciondConn, pathmgr.Timers{}, sdCfg.PathCount)
-	network := snet.NewNetwork(cfg.IA, Dispatcher, pathResolver)
+	network := &snet.SCIONNetwork{
+		LocalIA: cfg.IA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
+			Dispatcher:  Dispatcher,
+			SCMPHandler: snet.NewSCMPHandler(pathResolver),
+			Version2:    features.HeaderV2,
+		},
+	}
 	return network, pathResolver, nil
 }
 
 func initNetworkWithRealSCIOND(cfg sigconfig.SigConf,
-	sdCfg env.SCIONDClient) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
+	sdCfg env.SCIONDClient, features env.Features) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
 
 	// TODO(karampok). To be kept until https://github.com/scionproto/scion/issues/3377
 	deadline := time.Now().Add(sdCfg.InitialConnectPeriod.Duration)
@@ -115,7 +122,14 @@ func initNetworkWithRealSCIOND(cfg sigconfig.SigConf,
 	for tries := 0; time.Now().Before(deadline); tries++ {
 		resolver, err := snetmigrate.ResolverFromSD(sdCfg.Address, sdCfg.PathCount)
 		if err == nil {
-			return snet.NewNetwork(cfg.IA, Dispatcher, resolver), resolver, nil
+			return &snet.SCIONNetwork{
+				LocalIA: cfg.IA,
+				Dispatcher: &snet.DefaultPacketDispatcherService{
+					Dispatcher:  Dispatcher,
+					SCMPHandler: snet.NewSCMPHandler(resolver),
+					Version2:    features.HeaderV2,
+				},
+			}, resolver, nil
 		}
 		log.Debug("SIG is retrying to get NewNetwork", "err", err)
 		retErr = err

@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	mrand "math/rand"
 	"sort"
 	"testing"
 	"time"
@@ -306,12 +307,21 @@ func testUpdateIntfToSeg(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.Re
 	InsertSeg(t, ctx, pathDB, ps, hpCfgIDs)
 	checkInterfacesPresent(t, ctx, ps.ASEntries, pathDB)
 	// Create a new segment with an additional peer entry.
-	info := &spath.InfoField{
-		TsInt: uint32(30),
+
+	rawInfo := make([]byte, spath.InfoFieldLength)
+	(&spath.InfoField{
 		ISD:   1,
-		Hops:  3,
-	}
-	newPs, err := seg.NewSeg(info)
+		TsInt: 30,
+	}).Write(rawInfo)
+
+	newPs, err := seg.NewSeg(
+		&seg.PathSegmentSignedData{
+			RawInfo:      rawInfo,
+			RawTimestamp: 30,
+			SegID:        uint16(mrand.Int()),
+			ISD:          1,
+		},
+	)
 	require.NoError(t, err)
 	hfr := make([]byte, 8)
 	hf := spath.HopField{
@@ -336,7 +346,7 @@ func testUpdateIntfToSeg(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.Re
 	ps, _ = AllocPathSegment(t, ctrl, ifs1, uint32(40))
 	InsertSeg(t, ctx, pathDB, ps, hpCfgIDs)
 	checkInterfacesPresent(t, ctx, ps.ASEntries, pathDB)
-	checkInterface(t, ctx, newPs.ASEntries[1].IA(), hf.ConsIngress, pathDB, false)
+	checkInterface(t, ctx, newPs.ASEntries[1].IA(), uint16(hf.ConsIngress), pathDB, false)
 }
 
 func testDeleteExpired(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) {
@@ -377,9 +387,8 @@ func testGetMixed(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite
 	// Call
 	res, err := pathDB.Get(ctx, params)
 	require.NoError(t, err)
-	resSegID, _ := res[0].Seg.ID()
 	assert.Equal(t, 1, len(res), "Result count")
-	assert.Equal(t, segID1, resSegID, "SegIDs match")
+	assert.Equal(t, segID1, res[0].Seg.ID(), "SegIDs match")
 	assert.Equal(t, proto.PathSegType_up, res[0].Type)
 	checkSameHpCfgs(t, "HpCfgIDs match", res[0].HpCfgIDs, hpCfgIDs)
 }
@@ -399,7 +408,7 @@ func testGetNilParams(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadW
 	assert.Equal(t, 2, len(res), "Result count")
 	for _, r := range res {
 		assert.Equal(t, proto.PathSegType_up, r.Type)
-		resSegID, _ := r.Seg.ID()
+		resSegID := r.Seg.ID()
 		if bytes.Compare(resSegID, segID1) == 0 {
 			checkSameHpCfgs(t, "HpCfgIDs match", r.HpCfgIDs, hpCfgIDs)
 		} else if bytes.Compare(resSegID, segID2) == 0 {
@@ -433,7 +442,7 @@ func testGetAll(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) 
 	for r := range resChan {
 		assert.NoError(t, r.Err)
 		assert.Equal(t, proto.PathSegType_up, r.Result.Type)
-		resSegID, _ := r.Result.Seg.ID()
+		resSegID := r.Result.Seg.ID()
 		if bytes.Compare(resSegID, segID1) == 0 {
 			checkSameHpCfgs(t, "HpCfgIDs match", r.Result.HpCfgIDs, hpCfgIDs)
 		} else if bytes.Compare(resSegID, segID2) == 0 {
@@ -525,15 +534,13 @@ func testGetModifiedIDs(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.Rea
 	res, err = pathDB.Get(ctx, q)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(res), "Result count")
-	expectID1, err := pseg1.ID()
-	require.NoError(t, err)
-	id1, err := res[0].Seg.ID()
-	require.NoError(t, err)
+
+	expectID1 := pseg1.ID()
+	id1 := res[0].Seg.ID()
 	assert.Equal(t, id1, expectID1, "ID 1")
-	expectedID2, err := pseg2.ID()
-	require.NoError(t, err)
-	id2, err := res[1].Seg.ID()
-	require.NoError(t, err)
+
+	expectedID2 := pseg2.ID()
+	id2 := res[1].Seg.ID()
 	assert.Equal(t, id2, expectedID2, "ID 2")
 }
 
@@ -782,7 +789,7 @@ func testRollback(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.PathDB) {
 }
 
 func AllocPathSegment(t *testing.T, ctrl *gomock.Controller, ifs []uint64,
-	expiration uint32) (*seg.PathSegment, common.RawBytes) {
+	expiration uint32) (*seg.PathSegment, []byte) {
 
 	rawHops := make([][]byte, len(ifs)/2)
 	for i := 0; i < len(ifs)/2; i++ {
@@ -791,6 +798,7 @@ func AllocPathSegment(t *testing.T, ctrl *gomock.Controller, ifs []uint64,
 			ConsIngress: common.IFIDType(ifs[2*i]),
 			ConsEgress:  common.IFIDType(ifs[2*i+1]),
 			ExpTime:     spath.DefaultHopFExpiry,
+			Mac:         []byte{1, 2, 3},
 		}
 		hf.Write(rawHops[i])
 	}
@@ -815,12 +823,20 @@ func AllocPathSegment(t *testing.T, ctrl *gomock.Controller, ifs []uint64,
 			},
 		},
 	}
-	info := &spath.InfoField{
-		TsInt: expiration,
+
+	rawInfo := make([]byte, spath.InfoFieldLength)
+	(&spath.InfoField{
 		ISD:   1,
-		Hops:  3,
-	}
-	pseg, err := seg.NewSeg(info)
+		TsInt: expiration,
+	}).Write(rawInfo)
+	pseg, err := seg.NewSeg(
+		&seg.PathSegmentSignedData{
+			RawInfo:      rawInfo,
+			RawTimestamp: expiration,
+			SegID:        uint16(mrand.Int()),
+			ISD:          1,
+		},
+	)
 	require.NoError(t, err)
 	signer := mock_seg.NewMockSigner(ctrl)
 	signer.EXPECT().Sign(gomock.Any(), gomock.AssignableToTypeOf(common.RawBytes{})).Return(
@@ -829,18 +845,24 @@ func AllocPathSegment(t *testing.T, ctrl *gomock.Controller, ifs []uint64,
 		err := pseg.AddASEntry(context.Background(), ase, signer)
 		require.NoError(t, err)
 	}
-	segID, err := pseg.ID()
-	require.NoError(t, err)
-	_, err = pseg.FullId()
-	require.NoError(t, err)
-	return pseg, segID
+	return pseg, pseg.ID()
 }
 
 func allocHopEntry(inIA, outIA addr.IA, hopF common.RawBytes) *seg.HopEntry {
+	parsed, err := spath.HopFFromRaw(hopF)
+	if err != nil {
+		panic(err.Error())
+	}
 	return &seg.HopEntry{
 		RawInIA:     inIA.IAInt(),
 		RawOutIA:    outIA.IAInt(),
 		RawHopField: hopF,
+		HopField: seg.HopField{
+			ExpTime:     uint8(parsed.ExpTime),
+			ConsIngress: uint16(parsed.ConsIngress),
+			ConsEgress:  uint16(parsed.ConsEgress),
+			MAC:         parsed.Mac,
+		},
 	}
 }
 
@@ -856,11 +878,6 @@ func checkResult(t *testing.T, results []*query.Result, expectedSeg *seg.PathSeg
 	hpCfgsIds []*query.HPCfgID) {
 
 	assert.Equal(t, 1, len(results), "Expect one result")
-	// Make sure the segment is properly initialized.
-	_, err := results[0].Seg.ID()
-	require.NoError(t, err)
-	_, err = results[0].Seg.FullId()
-	require.NoError(t, err)
 	assert.Equal(t, expectedSeg, results[0].Seg, "Segment should match")
 	checkSameHpCfgs(t, "HiddenPath Ids should match", results[0].HpCfgIDs, hpCfgsIds)
 }
@@ -879,8 +896,7 @@ func checkInterfacesPresent(t *testing.T, ctx context.Context,
 
 	for _, asEntry := range expectedHopEntries {
 		for _, hopEntry := range asEntry.HopEntries {
-			hof, err := hopEntry.HopField()
-			require.NoError(t, err)
+			hof := hopEntry.HopField
 			if hof.ConsIngress != 0 {
 				checkInterface(t, ctx, asEntry.IA(), hof.ConsIngress, pathDB, true)
 			}
@@ -891,14 +907,14 @@ func checkInterfacesPresent(t *testing.T, ctx context.Context,
 	}
 }
 
-func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifId common.IFIDType,
+func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifId uint16,
 	pathDB pathdb.ReadWrite, present bool) {
 
 	r, err := pathDB.Get(ctx, &query.Params{
 		Intfs: []*query.IntfSpec{
 			{
 				IA:   ia,
-				IfID: ifId,
+				IfID: common.IFIDType(ifId),
 			},
 		},
 	})

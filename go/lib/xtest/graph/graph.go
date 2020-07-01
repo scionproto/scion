@@ -24,6 +24,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sort"
 	"sync"
 	"time"
@@ -235,11 +236,21 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 		panic(fmt.Sprintf("%d unknown ifid", ifids[0]))
 	}
 
+	ts := util.TimeToSecs(time.Now())
+	rawInfo := make([]byte, spath.InfoFieldLength)
+	(&spath.InfoField{
+		ISD:   uint16(g.parents[ifids[0]].I),
+		TsInt: ts,
+	}).Write(rawInfo)
+
 	segment, err := seg.NewSeg(
-		&spath.InfoField{
-			ISD:   uint16(g.parents[ifids[0]].I),
-			TsInt: util.TimeToSecs(time.Now()),
-		})
+		&seg.PathSegmentSignedData{
+			RawInfo:      rawInfo,
+			RawTimestamp: ts,
+			SegID:        uint16(rand.Int()),
+			ISD:          g.parents[ifids[0]].I,
+		},
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -269,6 +280,7 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 			ConsIngress: inIF,
 			ConsEgress:  outIF,
 			ExpTime:     spath.DefaultHopFExpiry,
+			Mac:         []byte{1, 2, 3},
 		}
 		hf.Write(b)
 		localHopEntry := &seg.HopEntry{
@@ -278,6 +290,12 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 			RawOutIA:    outIA.IAInt(),
 			RemoteOutIF: remoteOutIF,
 			RawHopField: b,
+			HopField: seg.HopField{
+				ExpTime:     uint8(spath.DefaultHopFExpiry),
+				ConsIngress: uint16(inIF),
+				ConsEgress:  uint16(outIF),
+				MAC:         []byte{1, 2, 3},
+			},
 		}
 		asEntry.HopEntries = append(asEntry.HopEntries, localHopEntry)
 
@@ -311,6 +329,7 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 					ConsIngress: peeringLocalIF,
 					ConsEgress:  outIF,
 					ExpTime:     spath.DefaultHopFExpiry,
+					Mac:         []byte{1, 2, 3},
 				}
 				hf.Write(b)
 				peeringRemoteIF := g.links[peeringLocalIF]
@@ -322,6 +341,13 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 					RawOutIA:    outIA.IAInt(),
 					RemoteOutIF: remoteOutIF,
 					RawHopField: b,
+
+					HopField: seg.HopField{
+						ExpTime:     uint8(spath.DefaultHopFExpiry),
+						ConsIngress: uint16(peeringLocalIF),
+						ConsEgress:  uint16(outIF),
+						MAC:         []byte{1, 2, 3},
+					},
 				}
 				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
 			}

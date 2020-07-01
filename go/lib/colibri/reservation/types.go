@@ -135,6 +135,10 @@ func TickFromTime(t time.Time) Tick {
 	return Tick(util.TimeToSecs(t) / 4)
 }
 
+func (t Tick) ToTime() time.Time {
+	return util.SecsToTime(uint32(t) * 4)
+}
+
 // BWCls is the bandwidth class. bandwidth = 16 * sqrt(2^(BWCls - 1)). 0 <= bwcls <= 63 .
 type BWCls uint8
 
@@ -347,6 +351,9 @@ func (t *Token) Validate() error {
 
 // TokenFromRaw builds a Token from the passed bytes buffer.
 func TokenFromRaw(raw []byte) (*Token, error) {
+	if raw == nil {
+		return nil, nil
+	}
 	rawHFs := len(raw) - InfoFieldLen
 	if rawHFs < 0 || rawHFs%spath.HopFieldLength != 0 {
 		return nil, serrors.New("buffer too small", "min_size", InfoFieldLen,
@@ -359,7 +366,9 @@ func TokenFromRaw(raw []byte) (*Token, error) {
 	}
 	t := Token{
 		InfoField: *inf,
-		HopFields: make([]spath.HopField, numHFs),
+	}
+	if numHFs > 0 {
+		t.HopFields = make([]spath.HopField, numHFs)
 	}
 	for i := 0; i < numHFs; i++ {
 		offset := InfoFieldLen + i*spath.HopFieldLength
@@ -374,6 +383,9 @@ func TokenFromRaw(raw []byte) (*Token, error) {
 
 // Len returns the number of bytes of this token if serialized.
 func (t *Token) Len() int {
+	if t == nil {
+		return 0
+	}
 	return InfoFieldLen + len(t.HopFields)*spath.HopFieldLength
 }
 
@@ -392,4 +404,13 @@ func (t *Token) Read(b []byte) (int, error) {
 		offset += spath.HopFieldLength
 	}
 	return offset, nil
+}
+
+// ToRaw returns the serial representation of the Token.
+func (t *Token) ToRaw() []byte {
+	buff := make([]byte, t.Len())
+	if t != nil {
+		t.Read(buff) // safely ignore errors as they can only come from buffer size
+	}
+	return buff
 }

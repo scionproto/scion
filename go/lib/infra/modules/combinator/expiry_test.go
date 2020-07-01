@@ -19,7 +19,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 // FIXME(scrye): when more unit tests get added to spath, these should probably
@@ -80,16 +80,12 @@ func TestComputeSegmentExpTime(t *testing.T) {
 func buildTestSegment(timestamp uint32, ttls ...uint8) *Segment {
 	segment := &Segment{}
 	segment.InfoField = &InfoField{
-		InfoField: &spath.InfoField{
-			TsInt: timestamp,
-		},
+		Timestamp: util.SecsToTime(timestamp),
 	}
 	for _, ttl := range ttls {
 		segment.HopFields = append(segment.HopFields,
 			&HopField{
-				HopField: &spath.HopField{
-					ExpTime: spath.ExpTimeType(ttl),
-				},
+				ExpTime: ttl,
 			},
 		)
 	}

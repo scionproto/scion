@@ -71,7 +71,8 @@ func TestRaceForSuffix(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint32(3), suffix2)
 	rsv := &segment.Reservation{
-		ID: reservation.SegmentID{ASID: asid},
+		ID:      reservation.SegmentID{ASID: asid},
+		Indices: segment.Indices{segment.Index{}},
 	}
 	err = insertNewSegReservation(ctx, db.db, rsv, suffix1)
 	require.NoError(t, err)
@@ -87,17 +88,20 @@ func BenchmarkNewSuffix100K(b *testing.B) { benchmarkNewSuffix(b, 100000) }
 func BenchmarkNewSuffix1M(b *testing.B)   { benchmarkNewSuffix(b, 1000000) }
 
 func newDB(t testing.TB) *Backend {
+	t.Helper()
 	db, err := New("file::memory:")
 	require.NoError(t, err)
 	return db
 }
 
 func addSegRsvRows(t testing.TB, b *Backend, asid addr.AS, firstSuffix, lastSuffix uint32) {
+	t.Helper()
 	ctx := context.Background()
 	query := `INSERT INTO seg_reservation (id_as, id_suffix, ingress, egress, path,
-		src_as, dst_as) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+		end_props, traffic_split, src_ia, dst_ia, active_index)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, -1)`
 	for suffix := firstSuffix; suffix <= lastSuffix; suffix++ {
-		_, err := b.db.ExecContext(ctx, query, asid, suffix, 0, 0, nil, nil, nil)
+		_, err := b.db.ExecContext(ctx, query, asid, suffix, 0, 0, nil, 0, 0, nil, nil)
 		require.NoError(t, err)
 	}
 }

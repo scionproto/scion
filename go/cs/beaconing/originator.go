@@ -16,12 +16,16 @@ package beaconing
 
 import (
 	"context"
+	"crypto/rand"
+	"math/big"
+	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/cs/metrics"
-	"github.com/scionproto/scion/go/cs/onehop"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
@@ -33,35 +37,22 @@ import (
 
 var _ periodic.Task = (*Originator)(nil)
 
-// OriginatorConf is the configuration to create a new originator.
-type OriginatorConf struct {
-	Config       ExtenderConf
-	BeaconSender *onehop.BeaconSender
-	Period       time.Duration
+// BeaconSender sends the beacon on the provided interface.
+type BeaconSender interface {
+	Send(ctx context.Context, beacon *seg.Beacon, dst addr.IA,
+		egress common.IFIDType, signer ctrl.Signer, nextHop *net.UDPAddr) error
 }
 
 // Originator originates beacons. It should only be used by core ASes.
 type Originator struct {
-	*segExtender
-	beaconSender *onehop.BeaconSender
+	Extender     Extender
+	BeaconSender BeaconSender
+	IA           addr.IA
+	Signer       ctrl.Signer
+	Intfs        *ifstate.Interfaces
 
 	// tick is mutable.
-	tick tick
-}
-
-// New creates a new originator.
-func (cfg OriginatorConf) New() (*Originator, error) {
-	cfg.Config.task = "originator"
-	extender, err := cfg.Config.new()
-	if err != nil {
-		return nil, err
-	}
-	o := &Originator{
-		beaconSender: cfg.BeaconSender,
-		segExtender:  extender,
-		tick:         tick{period: cfg.Period},
-	}
-	return o, nil
+	Tick Tick
 }
 
 // Name returns the tasks name.
@@ -71,26 +62,26 @@ func (o *Originator) Name() string {
 
 // Run originates core and downstream beacons.
 func (o *Originator) Run(ctx context.Context) {
-	o.tick.now = time.Now()
+	o.Tick.now = time.Now()
 	o.originateBeacons(ctx, topology.Core)
 	o.originateBeacons(ctx, topology.Child)
-	metrics.Originator.Runtime().Add(time.Since(o.tick.now).Seconds())
-	o.tick.updateLast()
+	metrics.Originator.Runtime().Add(time.Since(o.Tick.now).Seconds())
+	o.Tick.updateLast()
 }
 
 // originateBeacons creates and sends a beacon for each active interface of
 // the specified link type.
 func (o *Originator) originateBeacons(ctx context.Context, linkType topology.LinkType) {
 	logger := log.FromCtx(ctx)
-	active, nonActive := sortedIntfs(o.cfg.Intfs, linkType)
-	if len(nonActive) > 0 && o.tick.passed() {
+	active, nonActive := sortedIntfs(o.Intfs, linkType)
+	if len(nonActive) > 0 && o.Tick.passed() {
 		logger.Debug("[beaconing.Originator] Ignore non-active interfaces", "ifids", nonActive)
 	}
 	intfs := o.needBeacon(active)
 	if len(intfs) == 0 {
 		return
 	}
-	infoF := o.createInfoF(o.tick.now)
+	infoF := o.createInfoF(o.Tick.now)
 	s := newSummary()
 	for _, ifid := range intfs {
 		b := beaconOriginator{
@@ -111,7 +102,7 @@ func (o *Originator) originateBeacons(ctx context.Context, linkType topology.Lin
 func (o *Originator) createInfoF(now time.Time) spath.InfoField {
 	infoF := spath.InfoField{
 		ConsDir: true,
-		ISD:     uint16(o.beaconSender.IA.I),
+		ISD:     uint16(o.IA.I),
 		TsInt:   util.TimeToSecs(now),
 	}
 	return infoF
@@ -119,16 +110,16 @@ func (o *Originator) createInfoF(now time.Time) spath.InfoField {
 
 // needBeacon returns a list of interfaces that need a beacon.
 func (o *Originator) needBeacon(active []common.IFIDType) []common.IFIDType {
-	if o.tick.passed() {
+	if o.Tick.passed() {
 		return active
 	}
 	stale := make([]common.IFIDType, 0, len(active))
 	for _, ifid := range active {
-		intf := o.cfg.Intfs.Get(ifid)
+		intf := o.Intfs.Get(ifid)
 		if intf == nil {
 			continue
 		}
-		if o.tick.now.Sub(intf.LastOriginate()) > o.tick.period {
+		if o.Tick.now.Sub(intf.LastOriginate()) > o.Tick.period {
 			stale = append(stale, ifid)
 		}
 	}
@@ -136,7 +127,7 @@ func (o *Originator) needBeacon(active []common.IFIDType) []common.IFIDType {
 }
 
 func (o *Originator) logSummary(logger log.Logger, s *summary, linkType topology.LinkType) {
-	if o.tick.passed() {
+	if o.Tick.passed() {
 		logger.Info("[beaconing.Originator] Originated beacons",
 			"type", linkType.String(), "egIfIds", s.IfIds())
 		return
@@ -158,7 +149,7 @@ type beaconOriginator struct {
 // originateBeacon originates a beacon on the given ifid.
 func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 	labels := metrics.OriginatorLabels{EgIfID: o.ifID, Result: metrics.Success}
-	intf := o.cfg.Intfs.Get(o.ifID)
+	intf := o.Intfs.Get(o.ifID)
 	if intf == nil {
 		metrics.Originator.Beacons(labels.WithResult(metrics.ErrVerify)).Inc()
 		return serrors.New("Interface does not exist")
@@ -170,12 +161,12 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 		return common.NewBasicError("Unable to create beacon", err, "ifid", o.ifID)
 	}
 
-	err = o.beaconSender.Send(
+	err = o.BeaconSender.Send(
 		ctx,
 		bseg,
 		topoInfo.IA,
 		o.ifID,
-		o.cfg.Signer,
+		o.Signer,
 		topoInfo.InternalAddr,
 	)
 	if err != nil {
@@ -188,18 +179,31 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 }
 
 func (o *beaconOriginator) createBeacon(ctx context.Context) (*seg.Beacon, error) {
-	bseg, err := seg.NewSeg(&o.infoF)
+	rawInfo := make([]byte, spath.InfoFieldLength)
+	o.infoF.Write(rawInfo)
+
+	segID, err := rand.Int(rand.Reader, big.NewInt(1<<16))
+	if err != nil {
+		return nil, err
+	}
+	bseg, err := seg.NewSeg(
+		&seg.PathSegmentSignedData{
+			RawInfo:      rawInfo,
+			RawTimestamp: o.infoF.TsInt,
+			SegID:        uint16(segID.Uint64()),
+		},
+	)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create segment", err)
 	}
-	if err := o.extend(ctx, bseg, 0, o.ifID, nil); err != nil {
+	if err := o.Extender.Extend(ctx, bseg, 0, o.ifID, nil); err != nil {
 		return nil, common.NewBasicError("Unable to extend segment", err)
 	}
 	return &seg.Beacon{Segment: bseg}, nil
 }
 
 func (o *beaconOriginator) onSuccess(intf *ifstate.Interface) {
-	intf.Originate(o.tick.now)
+	intf.Originate(o.Tick.now)
 	o.summary.AddIfid(o.ifID)
 	o.summary.Inc()
 }

@@ -664,10 +664,6 @@ func CheckResults(t *testing.T, results <-chan beacon.BeaconOrErr,
 			assert.NoError(t, res.Err, "Beacon %d err", i)
 			require.NotNil(t, res.Beacon.Segment, "Beacon %d segment", i)
 			// Make sure the segment is properly initialized.
-			_, err := res.Beacon.Segment.ID()
-			require.NoError(t, err)
-			_, err = res.Beacon.Segment.FullId()
-			require.NoError(t, err)
 			assert.Equal(t, expected.Segment, res.Beacon.Segment, "Segment %d should match", i)
 			assert.Equal(t, expected.InIfId, res.Beacon.InIfId, "InIfId %d should match", i)
 		case <-time.After(timeout):
@@ -756,10 +752,10 @@ func AllocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId co
 			next = ases[i+1].IA
 		}
 		hops := []*seg.HopEntry{
-			allocHopEntry(prev, next, allocRawHop(as.Ingress, as.Egress)),
+			allocHopEntry(prev, next, as.Ingress, as.Egress),
 		}
 		for _, peer := range as.Peers {
-			hops = append(hops, allocHopEntry(peer.IA, next, allocRawHop(peer.Ingress, as.Egress)))
+			hops = append(hops, allocHopEntry(peer.IA, next, peer.Ingress, as.Egress))
 		}
 
 		entries[i] = &seg.ASEntry{
@@ -767,12 +763,21 @@ func AllocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId co
 			HopEntries: hops,
 		}
 	}
-	info := &spath.InfoField{
-		TsInt: infoTS,
+
+	rawInfo := make([]byte, spath.InfoFieldLength)
+	(&spath.InfoField{
 		ISD:   1,
-		Hops:  uint8(len(ases)),
-	}
-	pseg, err := seg.NewSeg(info)
+		TsInt: infoTS,
+	}).Write(rawInfo)
+
+	pseg, err := seg.NewSeg(
+		&seg.PathSegmentSignedData{
+			RawInfo:      rawInfo,
+			RawTimestamp: infoTS,
+			SegID:        10, // XXX(roosd): deterministic beacon needed.
+			ISD:          1,
+		},
+	)
 	require.NoError(t, err)
 	signer := mock_seg.NewMockSigner(ctrl)
 	signer.EXPECT().Sign(gomock.Any(), gomock.AssignableToTypeOf(common.RawBytes{})).Return(
@@ -781,28 +786,27 @@ func AllocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId co
 		err := pseg.AddASEntry(context.Background(), entry, signer)
 		require.NoError(t, err)
 	}
-	segID, err := pseg.ID()
-	require.NoError(t, err)
-	_, err = pseg.FullId()
-	require.NoError(t, err)
-	return beacon.Beacon{Segment: pseg, InIfId: inIfId}, segID
+	return beacon.Beacon{Segment: pseg, InIfId: inIfId}, pseg.ID()
 }
 
-func allocRawHop(ingress, egress common.IFIDType) common.RawBytes {
+func allocHopEntry(inIA, outIA addr.IA, ingress, egress common.IFIDType) *seg.HopEntry {
 	raw := make([]byte, 8)
-	hf := spath.HopField{
+	hopF := spath.HopField{
 		ConsIngress: ingress,
 		ConsEgress:  egress,
 		ExpTime:     spath.DefaultHopFExpiry,
+		Mac:         []byte{1, 2, 3},
 	}
-	hf.Write(raw)
-	return raw
-}
-
-func allocHopEntry(inIA, outIA addr.IA, hopF common.RawBytes) *seg.HopEntry {
+	hopF.Write(raw)
 	return &seg.HopEntry{
 		RawInIA:     inIA.IAInt(),
 		RawOutIA:    outIA.IAInt(),
-		RawHopField: hopF,
+		RawHopField: raw,
+		HopField: seg.HopField{
+			ExpTime:     uint8(hopF.ExpTime),
+			ConsIngress: uint16(hopF.ConsIngress),
+			ConsEgress:  uint16(hopF.ConsEgress),
+			MAC:         hopF.Mac,
+		},
 	}
 }

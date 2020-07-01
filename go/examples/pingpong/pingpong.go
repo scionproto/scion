@@ -228,7 +228,17 @@ func (c *client) run() {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	network := snet.NewNetwork(local.IA, ds, sd.RevHandler{Connector: sciondConn})
+	network := &snet.SCIONNetwork{
+		LocalIA: local.IA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
+			Dispatcher: ds,
+			SCMPHandler: snet.NewSCMPHandler(
+				sd.RevHandler{Connector: sciondConn},
+			),
+			// TODO(scrye): set this when we have CLI support for features
+			Version2: false,
+		},
+	}
 
 	// Connect to remote address. Note that currently the SCION library
 	// does not support automatic binding to local addresses, so the local
@@ -348,7 +358,18 @@ func (s server) run() {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	network := snet.NewNetwork(local.IA, ds, sd.RevHandler{Connector: sciondConn})
+	network := &snet.SCIONNetwork{
+		LocalIA: local.IA,
+		Dispatcher: &snet.DefaultPacketDispatcherService{
+			Dispatcher: ds,
+			SCMPHandler: snet.NewSCMPHandler(
+				sciond.RevHandler{Connector: sciondConn},
+			),
+			// TODO(scrye): set this when we have CLI support for features
+			Version2: false,
+		},
+	}
+
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}

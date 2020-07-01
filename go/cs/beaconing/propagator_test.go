@@ -15,35 +15,34 @@
 package beaconing
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"errors"
-	"fmt"
+	"hash"
 	"net"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
-	"github.com/scionproto/scion/go/cs/onehop"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/mock_snet"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
 func TestPropagatorRun(t *testing.T) {
-	macProp, err := scrypto.InitMac(make(common.RawBytes, 16))
-	require.NoError(t, err)
-	macSender, err := scrypto.InitMac(make(common.RawBytes, 16))
+	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
 	require.NoError(t, err)
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
@@ -145,40 +144,33 @@ func TestPropagatorRun(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
 			topoProvider := itopotest.TopoProviderFromFile(t, topoFile[test.core])
+			intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 			provider := mock_beaconing.NewMockBeaconProvider(mctrl)
-			conn := mock_snet.NewMockPacketConn(mctrl)
-			cfg := PropagatorConf{
-				Config: ExtenderConf{
-					IA:     topoProvider.Get().IA(),
-					Signer: testSigner(t, priv, topoProvider.Get().IA()),
-					Mac:    macProp,
-					Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
-						ifstate.Config{}),
-					MTU:           topoProvider.Get().MTU(),
-					GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+			sender := mock_beaconing.NewMockBeaconSender(mctrl)
+
+			p := Propagator{
+				Extender: &LegacyExtender{
+					IA:         topoProvider.Get().IA(),
+					MTU:        topoProvider.Get().MTU(),
+					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+					Intfs:      intfs,
+					MAC:        func() hash.Hash { return mac },
+					MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+					StaticInfo: func() *StaticInfoCfg { return nil },
 				},
-				Period:         time.Hour,
-				BeaconProvider: provider,
-				Core:           test.core,
-				BeaconSender: &onehop.BeaconSender{
-					Sender: onehop.Sender{
-						IA:   topoProvider.Get().IA(),
-						Conn: conn,
-						Addr: &net.UDPAddr{
-							IP:   net.ParseIP("127.0.0.1"),
-							Port: 4242,
-						},
-						MAC: macSender,
-					},
-				},
+				BeaconSender: sender,
+				IA:           topoProvider.Get().IA(),
+				Signer:       testSigner(t, priv, topoProvider.Get().IA()),
+				Intfs:        intfs,
+				Tick:         NewTick(time.Hour),
+				Core:         test.core,
+				Provider:     provider,
 			}
-			p, err := cfg.New()
-			require.NoError(t, err)
 			for ifid, remote := range allIntfs[test.core] {
 				if test.inactive[ifid] {
 					continue
 				}
-				cfg.Config.Intfs.Get(ifid).Activate(remote)
+				intfs.Get(ifid).Activate(remote)
 			}
 			g := graph.NewDefaultGraph(mctrl)
 			provider.EXPECT().BeaconsToPropagate(gomock.Any()).MaxTimes(2).DoAndReturn(
@@ -191,25 +183,33 @@ func TestPropagatorRun(t *testing.T) {
 					return res, nil
 				},
 			)
-			msgsMtx := sync.Mutex{}
-			var msgs []msg
-			conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Times(test.expected).DoAndReturn(
-				func(ipkt, iov interface{}) error {
-					msgsMtx.Lock()
-					defer msgsMtx.Unlock()
-					msgs = append(msgs, msg{
-						pkt: ipkt.(*snet.Packet),
-						ov:  iov.(*net.UDPAddr),
-					})
+
+			sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
+				gomock.Any(), gomock.Any()).Times(test.expected).DoAndReturn(
+				func(_ context.Context, beacon *seg.Beacon, dst addr.IA, egress common.IFIDType,
+					_ ctrl.Signer, nextHop *net.UDPAddr) error {
+
+					err = beacon.Parse()
+					require.NoError(t, err)
+
+					// Check the beacon is valid and verifiable.
+					pseg := beacon.Segment
+					assert.NoError(t, pseg.Validate(seg.ValidateBeacon))
+					assert.NoError(t, pseg.VerifyASEntry(context.Background(),
+						segVerifier{pubKey: pub}, pseg.MaxAEIdx()))
+
+					// Extract the hop field from the current AS entry to compare.
+					hopF := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField
+					require.NoError(t, err)
+					// Check the interface matches.
+					assert.Equal(t, hopF.ConsEgress, uint16(egress))
+					// Check that the beacon is sent to the correct border router.
+					br := topoProvider.Get().IFInfoMap()[egress].InternalAddr
+					assert.Equal(t, br, nextHop)
 					return nil
 				},
 			)
 			p.Run(nil)
-			for i, msg := range msgs {
-				t.Run(fmt.Sprintf("Packet %d is correct", i), func(t *testing.T) {
-					checkMsg(t, msg, pub, topoProvider.Get().IFInfoMap())
-				})
-			}
 			// Check that no beacons are sent, since the period has not passed yet.
 			p.Run(nil)
 		})
@@ -218,37 +218,31 @@ func TestPropagatorRun(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		provider := mock_beaconing.NewMockBeaconProvider(mctrl)
-		conn := mock_snet.NewMockPacketConn(mctrl)
-		cfg := PropagatorConf{
-			Config: ExtenderConf{
-				IA:     topoProvider.Get().IA(),
-				Signer: testSigner(t, priv, topoProvider.Get().IA()),
-				Mac:    macProp,
-				Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
-					ifstate.Config{}),
-				MTU:           uint16(topoProvider.Get().MTU()),
-				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+		sender := mock_beaconing.NewMockBeaconSender(mctrl)
+
+		p := Propagator{
+			Extender: &LegacyExtender{
+				IA:         topoProvider.Get().IA(),
+				MTU:        topoProvider.Get().MTU(),
+				Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+				Intfs:      intfs,
+				MAC:        func() hash.Hash { return mac },
+				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
-			Period:         2 * time.Second,
-			BeaconProvider: provider,
-			Core:           true,
-			BeaconSender: &onehop.BeaconSender{
-				Sender: onehop.Sender{
-					IA:   topoProvider.Get().IA(),
-					Conn: conn,
-					Addr: &net.UDPAddr{
-						IP:   net.ParseIP("127.0.0.1"),
-						Port: 4242,
-					},
-					MAC: macSender,
-				},
-			},
+			BeaconSender: sender,
+			IA:           topoProvider.Get().IA(),
+			Signer:       testSigner(t, priv, topoProvider.Get().IA()),
+			Intfs:        intfs,
+			Tick:         NewTick(2 * time.Second),
+			Core:         true,
+			Provider:     provider,
 		}
-		p, err := cfg.New()
-		require.NoError(t, err)
+
 		for ifid, remote := range allIntfs[true] {
-			cfg.Config.Intfs.Get(ifid).Activate(remote)
+			intfs.Get(ifid).Activate(remote)
 		}
 		g := graph.NewDefaultGraph(mctrl)
 		// We call run 4 times in this test, since the interface to 1-ff00:0:120
@@ -265,9 +259,12 @@ func TestPropagatorRun(t *testing.T) {
 		// 2. Second run where the beacon is delivered. -> 1 call
 		// 3. Run where no beacon is sent. -> no call
 		// 4. Run where beacons are sent on all interfaces. -> 2 calls
-		firstCall := conn.EXPECT().WriteTo(gomock.Any(), gomock.Any())
-		firstCall.Return(errors.New("fail"))
-		conn.EXPECT().WriteTo(gomock.Any(), gomock.Any()).After(firstCall).Times(4).Return(nil)
+		first := sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
+			gomock.Any(), gomock.Any())
+		first.Return(serrors.New("fail"))
+
+		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
+			gomock.Any(), gomock.Any()).Times(4).Return(nil)
 		// Initial run. Two writes expected, one write will fail.
 		p.Run(nil)
 		time.Sleep(1 * time.Second)

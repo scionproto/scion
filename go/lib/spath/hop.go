@@ -96,6 +96,7 @@ func HopFFromRaw(b []byte) (*HopField, error) {
 }
 
 func (h *HopField) Write(b common.RawBytes) {
+	_ = b[7]
 	var flags uint8
 	if h.Xover {
 		flags |= XoverMask

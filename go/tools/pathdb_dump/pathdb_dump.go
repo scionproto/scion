@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/pathdb/sqlite"
@@ -89,7 +88,7 @@ func realMain() error {
 
 type asIface struct {
 	IA    addr.IA
-	ifNum common.IFIDType
+	ifNum uint16
 }
 
 type segment struct {
@@ -103,10 +102,7 @@ type segment struct {
 func newSegment(res *query.Result) (segment, error) {
 	ifs := make([]asIface, 0, len(res.Seg.ASEntries))
 	for _, ase := range res.Seg.ASEntries {
-		hop, err := ase.HopEntries[0].HopField()
-		if err != nil {
-			return segment{}, err
-		}
+		hop := ase.HopEntries[0].HopField
 		if hop.ConsIngress > 0 {
 			iface := asIface{
 				IA:    ase.IA(),

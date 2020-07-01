@@ -30,9 +30,14 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -72,6 +77,8 @@ type Path struct {
 	Mtu        uint16
 	Interfaces []sciond.PathInterface
 	StaticInfo *PathMetadata
+
+	HeaderV2 bool
 }
 
 func (p *Path) writeTestString(w io.Writer) {
@@ -115,14 +122,78 @@ func (p *Path) ComputeExpTime() time.Time {
 }
 
 func (p *Path) WriteTo(w io.Writer) (int64, error) {
+	if !p.HeaderV2 {
+		return p.writeLegacy(w)
+	}
+	var meta scion.MetaHdr
+	var infos []*path.InfoField
+	var hops []*path.HopField
+
+	for i, segment := range p.Segments {
+		meta.SegLen[i] = uint8(len(segment.HopFields))
+		infos = append(infos, &path.InfoField{
+			ConsDir:   segment.InfoField.ConsDir,
+			Peer:      segment.InfoField.Peer,
+			SegID:     segment.InfoField.SegID,
+			Timestamp: util.TimeToSecs(segment.InfoField.Timestamp),
+		})
+		for _, hop := range segment.HopFields {
+			hops = append(hops, &path.HopField{
+				ExpTime:     hop.ExpTime,
+				ConsIngress: hop.ConsIngress,
+				ConsEgress:  hop.ConsEgress,
+				Mac:         hop.MAC,
+			})
+		}
+	}
+	sp := scion.Decoded{
+		Base: scion.Base{
+			PathMeta: meta,
+			NumHops:  len(hops),
+			NumINF:   len(p.Segments),
+		},
+		InfoFields: infos,
+		HopFields:  hops,
+	}
+	raw := make([]byte, sp.Len())
+	if err := sp.SerializeTo(raw); err != nil {
+		return 0, err
+	}
+	n, err := w.Write(raw)
+	if err != nil {
+		return int64(n), err
+	}
+	if n != len(raw) {
+		return int64(n), serrors.New("incomplete path written", "expected", len(raw), "actual", n)
+	}
+	return int64(n), nil
+}
+
+func (p *Path) writeLegacy(w io.Writer) (int64, error) {
 	var total int64
 	for _, segment := range p.Segments {
-		n, err := segment.InfoField.WriteTo(w)
+		info := spath.InfoField{
+			ConsDir:  segment.InfoField.ConsDir,
+			Shortcut: segment.InfoField.Shortcut,
+			Peer:     segment.InfoField.Peer,
+			Hops:     uint8(segment.InfoField.Hops),
+			ISD:      uint16(segment.InfoField.ISD),
+			TsInt:    util.TimeToSecs(segment.InfoField.Timestamp),
+		}
+		n, err := info.WriteTo(w)
 		total += n
 		if err != nil {
 			return total, err
 		}
 		for _, hopField := range segment.HopFields {
+			hopField := spath.HopField{
+				VerifyOnly:  hopField.VerifyOnly,
+				Xover:       hopField.Xover,
+				ExpTime:     spath.ExpTimeType(hopField.ExpTime),
+				ConsIngress: common.IFIDType(hopField.ConsIngress),
+				ConsEgress:  common.IFIDType(hopField.ConsEgress),
+				Mac:         hopField.MAC,
+			}
 			n, err := hopField.WriteTo(w)
 			total += n
 			if err != nil {
@@ -143,29 +214,26 @@ type Segment struct {
 // initInfoFieldFrom copies the info field in pathSegment, and sets it as the
 // info field of segment.
 func (segment *Segment) initInfoFieldFrom(pathSegment *seg.PathSegment) {
-	infoField, err := pathSegment.InfoF()
-	if err != nil {
-		panic(err)
-	}
 	segment.InfoField = &InfoField{
-		InfoField: infoField,
+		ISD:       pathSegment.SData.ISD,
+		SegID:     pathSegment.SData.SegID,
+		Timestamp: pathSegment.Timestamp(),
 	}
 }
 
 // appendHopFieldFrom copies the Hop Field in entry, and appends it to segment.
 func (segment *Segment) appendHopFieldFrom(entry *seg.HopEntry) *HopField {
-	inputHopField, err := entry.HopField()
-	if err != nil {
-		panic(err)
-	}
 	hopField := &HopField{
-		HopField: inputHopField,
+		ExpTime:     entry.HopField.ExpTime,
+		ConsIngress: entry.HopField.ConsIngress,
+		ConsEgress:  entry.HopField.ConsEgress,
+		MAC:         append([]byte(nil), entry.HopField.MAC...),
 	}
 	segment.HopFields = append(segment.HopFields, hopField)
 	if segment.InfoField.Hops == 0xff {
 		panic("too many hops")
 	}
-	segment.InfoField.Hops += 1
+	segment.InfoField.Hops++
 	return hopField
 }
 
@@ -179,13 +247,13 @@ func (segment *Segment) reverse() {
 }
 
 func (segment *Segment) ComputeExpTime() time.Time {
-	return segment.InfoField.Timestamp().Add(segment.computeHopFieldsTTL())
+	return segment.InfoField.Timestamp.Add(segment.computeHopFieldsTTL())
 }
 
 func (segment *Segment) computeHopFieldsTTL() time.Duration {
 	minTTL := time.Duration(spath.MaxTTL) * time.Second
 	for _, hf := range segment.HopFields {
-		offset := hf.ExpTime.ToDuration()
+		offset := spath.ExpTimeType(hf.ExpTime).ToDuration()
 		if minTTL > offset {
 			minTTL = offset
 		}
@@ -194,7 +262,15 @@ func (segment *Segment) computeHopFieldsTTL() time.Duration {
 }
 
 type InfoField struct {
-	*spath.InfoField
+	SegID     uint16
+	Timestamp time.Time
+	Peer      bool
+	ConsDir   bool
+
+	// legacy
+	Shortcut bool
+	ISD      addr.ISD
+	Hops     int // Not updated in v2 path. Use len()
 }
 
 func (field *InfoField) String() string {
@@ -206,7 +282,14 @@ func (field *InfoField) String() string {
 }
 
 type HopField struct {
-	*spath.HopField
+	ExpTime     uint8
+	ConsIngress uint16
+	ConsEgress  uint16
+	MAC         []byte
+
+	// legacy
+	Xover      bool
+	VerifyOnly bool
 }
 
 func (field *HopField) String() string {

@@ -22,6 +22,8 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"hash"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -36,14 +38,13 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
@@ -88,26 +89,29 @@ func TestRegistrarRun(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
 			topoProvider := itopotest.TopoProviderFromFile(t, test.fn)
+			intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			segStore := mock_beaconing.NewMockSegmentStore(mctrl)
-			cfg := RegistrarConf{
-				Config: ExtenderConf{
-					IA:     topoProvider.Get().IA(),
-					Signer: testSigner(t, priv, topoProvider.Get().IA()),
-					Mac:    mac,
-					Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
-						ifstate.Config{}),
-					MTU:           topoProvider.Get().MTU(),
-					GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+
+			r := Registrar{
+				Extender: &LegacyExtender{
+					IA:         topoProvider.Get().IA(),
+					MTU:        topoProvider.Get().MTU(),
+					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+					Intfs:      intfs,
+					MAC:        func() hash.Hash { return mac },
+					MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+					StaticInfo: func() *StaticInfoCfg { return nil },
 				},
-				Period:       time.Hour,
-				SegProvider:  segProvider,
-				SegStore:     segStore,
-				TopoProvider: topoProvider,
-				SegType:      test.segType,
+				IA:       topoProvider.Get().IA(),
+				Signer:   testSigner(t, priv, topoProvider.Get().IA()),
+				Intfs:    intfs,
+				Tick:     NewTick(time.Hour),
+				Provider: segProvider,
+				Store:    segStore,
+				Pather:   addrutil.LegacyPather{TopoProvider: topoProvider},
+				Type:     test.segType,
 			}
-			r, err := cfg.New()
-			require.NoError(t, err)
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
 				func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
@@ -128,7 +132,7 @@ func TestRegistrarRun(t *testing.T) {
 				},
 			)
 
-			for ifid, intf := range cfg.Config.Intfs.All() {
+			for ifid, intf := range intfs.All() {
 				if test.inactivePeers[ifid] {
 					continue
 				}
@@ -171,26 +175,29 @@ func TestRegistrarRun(t *testing.T) {
 			mctrl := gomock.NewController(t)
 			defer mctrl.Finish()
 			topoProvider := itopotest.TopoProviderFromFile(t, test.fn)
+			intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
-			msgr := mock_infra.NewMockMessenger(mctrl)
-			cfg := RegistrarConf{
-				Config: ExtenderConf{
-					IA:     topoProvider.Get().IA(),
-					Signer: testSigner(t, priv, topoProvider.Get().IA()),
-					Mac:    mac,
-					Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
-						ifstate.Config{}),
-					MTU:           topoProvider.Get().MTU(),
-					GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+			rpc := mock_beaconing.NewMockRPC(mctrl)
+
+			r := Registrar{
+				Extender: &LegacyExtender{
+					IA:         topoProvider.Get().IA(),
+					MTU:        topoProvider.Get().MTU(),
+					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+					Intfs:      intfs,
+					MAC:        func() hash.Hash { return mac },
+					MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+					StaticInfo: func() *StaticInfoCfg { return nil },
 				},
-				Period:       time.Hour,
-				Msgr:         msgr,
-				SegProvider:  segProvider,
-				TopoProvider: topoProvider,
-				SegType:      test.segType,
+				IA:       topoProvider.Get().IA(),
+				Signer:   testSigner(t, priv, topoProvider.Get().IA()),
+				Intfs:    intfs,
+				Tick:     NewTick(time.Hour),
+				Provider: segProvider,
+				Pather:   addrutil.LegacyPather{TopoProvider: topoProvider},
+				Type:     test.segType,
+				RPC:      rpc,
 			}
-			r, err := cfg.New()
-			require.NoError(t, err)
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
 				func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
@@ -202,25 +209,26 @@ func TestRegistrarRun(t *testing.T) {
 					return res, nil
 				})
 			type regMsg struct {
-				Reg  *path_mgmt.SegReg
+				Meta seg.Meta
 				Addr *snet.SVCAddr
 			}
 			segMu := sync.Mutex{}
 			var sent []regMsg
 			// Collect the segments that are sent on the messenger.
-			msgr.EXPECT().SendSegReg(gomock.Any(), gomock.Any(), gomock.Any(),
+
+			rpc.EXPECT().RegisterSegment(gomock.Any(), gomock.Any(),
 				gomock.Any()).Times(len(test.beacons)).DoAndReturn(
-				func(_, isegreg, iaddr, _ interface{}) error {
+				func(_ context.Context, meta seg.Meta, remote net.Addr) error {
 					segMu.Lock()
 					defer segMu.Unlock()
 					sent = append(sent, regMsg{
-						Reg:  isegreg.(*path_mgmt.SegReg),
-						Addr: iaddr.(*snet.SVCAddr),
+						Meta: meta,
+						Addr: remote.(*snet.SVCAddr),
 					})
 					return nil
 				},
 			)
-			for ifid, intf := range cfg.Config.Intfs.All() {
+			for ifid, intf := range intfs.All() {
 				if test.inactivePeers[ifid] {
 					continue
 				}
@@ -230,8 +238,7 @@ func TestRegistrarRun(t *testing.T) {
 			require.Len(t, sent, len(test.beacons))
 			for segIdx, s := range sent {
 				t.Run(fmt.Sprintf("seg idx %d", segIdx), func(t *testing.T) {
-					require.Len(t, s.Reg.Recs, 1)
-					pseg := s.Reg.Recs[0].Segment
+					pseg := s.Meta.Segment
 
 					assert.NoError(t, pseg.Validate(seg.ValidateSegment))
 					assert.NoError(t, pseg.VerifyASEntry(context.Background(),
@@ -260,25 +267,27 @@ func TestRegistrarRun(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
-		msgr := mock_infra.NewMockMessenger(mctrl)
-		cfg := RegistrarConf{
-			Config: ExtenderConf{
-				IA:     topoProvider.Get().IA(),
-				Signer: testSigner(t, priv, topoProvider.Get().IA()),
-				Mac:    mac,
-				Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
-					ifstate.Config{}),
-				MTU:           topoProvider.Get().MTU(),
-				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+
+		r := Registrar{
+			Extender: &LegacyExtender{
+				IA:         topoProvider.Get().IA(),
+				MTU:        topoProvider.Get().MTU(),
+				Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+				Intfs:      intfs,
+				MAC:        func() hash.Hash { return mac },
+				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
-			Msgr:         msgr,
-			SegProvider:  segProvider,
-			TopoProvider: topoProvider,
-			SegType:      proto.PathSegType_core,
+			IA:       topoProvider.Get().IA(),
+			Signer:   testSigner(t, priv, topoProvider.Get().IA()),
+			Intfs:    intfs,
+			Tick:     NewTick(time.Hour),
+			Provider: segProvider,
+			Pather:   addrutil.LegacyPather{TopoProvider: topoProvider},
+			Type:     proto.PathSegType_core,
 		}
-		r, err := cfg.New()
-		require.NoError(t, err)
 		res := make(chan beacon.BeaconOrErr, 3)
 		segProvider.EXPECT().SegmentsToRegister(gomock.Any(), proto.PathSegType_core).DoAndReturn(
 			func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
@@ -300,24 +309,29 @@ func TestRegistrarRun(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
 		topoProvider := itopotest.TopoProviderFromFile(t, topoNonCore)
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
-		msgr := mock_infra.NewMockMessenger(mctrl)
-		cfg := RegistrarConf{
-			Config: ExtenderConf{
-				Signer: testSigner(t, priv, topoProvider.Get().IA()),
-				Mac:    mac,
-				Intfs: ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(),
-					ifstate.Config{}),
-				MTU:           topoProvider.Get().MTU(),
-				GetMaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+		rpc := mock_beaconing.NewMockRPC(mctrl)
+
+		r := Registrar{
+			Extender: &LegacyExtender{
+				IA:         topoProvider.Get().IA(),
+				MTU:        topoProvider.Get().MTU(),
+				Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+				Intfs:      intfs,
+				MAC:        func() hash.Hash { return mac },
+				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
-			Msgr:         msgr,
-			SegProvider:  segProvider,
-			TopoProvider: topoProvider,
-			SegType:      proto.PathSegType_down,
+			IA:       topoProvider.Get().IA(),
+			Signer:   testSigner(t, priv, topoProvider.Get().IA()),
+			Intfs:    intfs,
+			Tick:     NewTick(time.Hour),
+			Provider: segProvider,
+			Pather:   addrutil.LegacyPather{TopoProvider: topoProvider},
+			Type:     proto.PathSegType_down,
+			RPC:      rpc,
 		}
-		r, err := cfg.New()
-		require.NoError(t, err)
 		g := graph.NewDefaultGraph(mctrl)
 		require.NoError(t, err)
 		segProvider.EXPECT().SegmentsToRegister(gomock.Any(),

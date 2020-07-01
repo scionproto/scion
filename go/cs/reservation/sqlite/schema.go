@@ -20,7 +20,6 @@ const (
 	// to prevent data corruption between incompatible database schemas.
 	SchemaVersion = 1
 	// Schema is the SQLite database layout.
-	// TODO(juagargi) explain the DB structure here or in the design markdown.
 	// TODO(juagargi) create appropriate SQL indices.
 	Schema = `CREATE TABLE seg_reservation (
 		row_id	INTEGER,
@@ -29,10 +28,14 @@ const (
 		ingress	INTEGER NOT NULL,
 		egress	INTEGER NOT NULL,
 		path	BLOB,
-		src_as INTEGER,
-		dst_as INTEGER,
+		end_props	INTEGER NOT NULL,
+		traffic_split	INTEGER NOT NULL,
+		src_ia INTEGER,
+		dst_ia INTEGER,
+		active_index	INTEGER NOT NULL,
 		PRIMARY KEY(row_id),
-		UNIQUE(id_as,id_suffix)
+		UNIQUE(id_as,id_suffix),
+		UNIQUE(path)
 	);
 	CREATE TABLE seg_index (
 		reservation	INTEGER NOT NULL,
@@ -43,7 +46,7 @@ const (
 		max_bw	INTEGER NOT NULL,
 		alloc_bw	INTEGER NOT NULL,
 		token	BLOB,
-		PRIMARY KEY(Reservation,index_number),
+		PRIMARY KEY(reservation,index_number),
 		FOREIGN KEY(reservation) REFERENCES seg_reservation(row_id) ON DELETE CASCADE
 	);
 	CREATE TABLE e2e_reservation (

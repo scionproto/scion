@@ -133,10 +133,17 @@ func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (Path, error) {
 			expiry: pe.Path.Expiry(),
 		}, nil
 	}
-	sp := spath.New(pe.Path.FwdPath)
-	if err := sp.InitOffsets(); err != nil {
-		return Path{}, serrors.WrapStr("path error", err)
+
+	var sp *spath.Path
+	if !pe.Path.HeaderV2 {
+		sp = spath.New(pe.Path.FwdPath)
+		if err := sp.InitOffsets(); err != nil {
+			return Path{}, serrors.WrapStr("path error", err)
+		}
+	} else {
+		sp = spath.NewV2(pe.Path.FwdPath)
 	}
+
 	underlayAddr := pe.HostInfo.Underlay()
 	p := Path{
 		interfaces: make([]pathInterface, 0, len(pe.Path.Interfaces)),
