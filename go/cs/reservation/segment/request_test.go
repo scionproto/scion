@@ -141,6 +141,7 @@ func newSetup() *colibri_mgmt.SegmentSetup {
 			Local:    false,
 			Transfer: true,
 		},
+		InfoField: xtest.MustParseHexString("16ebdb4f0d042500"),
 		AllocationTrail: []*colibri_mgmt.AllocationBeads{
 			{
 				AllocBW: 5,
@@ -204,11 +205,12 @@ func newID() *colibri_mgmt.SegmentReservationID {
 func checkRequest(t *testing.T, segSetup *colibri_mgmt.SegmentSetup, r *segment.SetupReq,
 	ts time.Time) {
 
+	t.Helper()
 	require.Equal(t, (*segment.Reservation)(nil), r.Reservation)
 	require.Equal(t, ts, r.Timestamp)
-	require.Equal(t, segSetup.MinBW, r.MinBW)
-	require.Equal(t, segSetup.MaxBW, r.MaxBW)
-	require.Equal(t, segSetup.SplitCls, r.SplitCls)
+	require.Equal(t, segSetup.MinBW, uint8(r.MinBW))
+	require.Equal(t, segSetup.MaxBW, uint8(r.MaxBW))
+	require.Equal(t, segSetup.SplitCls, uint8(r.SplitCls))
 	require.Equal(t, reservation.NewPathEndProps(
 		segSetup.StartProps.Local, segSetup.StartProps.Transfer,
 		segSetup.EndProps.Local, segSetup.EndProps.Transfer), r.PathProps)

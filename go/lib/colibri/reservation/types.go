@@ -294,6 +294,16 @@ func (f *InfoField) Read(b []byte) (int, error) {
 	return 8, nil
 }
 
+// ToRaw returns the serial representation of the InfoField.
+func (f *InfoField) ToRaw() []byte {
+	var buff []byte = nil
+	if f != nil {
+		buff = make([]byte, InfoFieldLen)
+		f.Read(buff) // safely ignore errors as they can only come from buffer size
+	}
+	return buff
+}
+
 // PathEndProps represent the zero or more properties a COLIBRI path can have at both ends.
 type PathEndProps uint8
 
@@ -415,8 +425,9 @@ func (t *Token) Read(b []byte) (int, error) {
 
 // ToRaw returns the serial representation of the Token.
 func (t *Token) ToRaw() []byte {
-	buff := make([]byte, t.Len())
+	var buff []byte = nil
 	if t != nil {
+		buff = make([]byte, t.Len())
 		t.Read(buff) // safely ignore errors as they can only come from buffer size
 	}
 	return buff
