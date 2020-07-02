@@ -202,6 +202,15 @@ func TestInfoFieldRead(t *testing.T) {
 	require.Equal(t, rawReference, raw)
 }
 
+func TestInfoFieldToRaw(t *testing.T) {
+	val := newInfoField()
+	reference := &val
+	rawReference := newInfoFieldRaw()
+	require.Equal(t, rawReference, reference.ToRaw())
+	reference = nil
+	require.Equal(t, ([]byte)(nil), reference.ToRaw())
+}
+
 func TestValidatePathEndProperties(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		pep := PathEndProps(i)

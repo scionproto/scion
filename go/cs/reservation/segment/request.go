@@ -15,6 +15,7 @@
 package segment
 
 import (
+	"encoding/hex"
 	"time"
 
 	base "github.com/scionproto/scion/go/cs/reservation"
@@ -77,9 +78,10 @@ func NewRequest(ts time.Time, ID *colibri_mgmt.SegmentReservationID,
 // This same type is used for renewal of the segment reservation.
 type SetupReq struct {
 	Request
-	MinBW      uint8
-	MaxBW      uint8
-	SplitCls   uint8
+	InfoField  reservation.InfoField
+	MinBW      reservation.BWCls
+	MaxBW      reservation.BWCls
+	SplitCls   reservation.SplitCls
 	PathProps  reservation.PathEndProps
 	AllocTrail []reservation.AllocationBead
 }
@@ -93,11 +95,19 @@ func NewSetupReqFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, ts time.Time,
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct segment setup request", err)
 	}
+	inF, err := reservation.InfoFieldFromRaw(setup.InfoField)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct info field from raw", err)
+	}
+	if inF == nil {
+		return nil, serrors.New("empty info field", "raw", hex.EncodeToString(setup.InfoField))
+	}
 	s := SetupReq{
 		Request:    *r,
-		MinBW:      setup.MinBW,
-		MaxBW:      setup.MaxBW,
-		SplitCls:   setup.SplitCls,
+		InfoField:  *inF,
+		MinBW:      reservation.BWCls(setup.MinBW),
+		MaxBW:      reservation.BWCls(setup.MaxBW),
+		SplitCls:   reservation.SplitCls(setup.SplitCls),
 		AllocTrail: make([]reservation.AllocationBead, len(setup.AllocationTrail)),
 		PathProps: reservation.NewPathEndProps(setup.StartProps.Local, setup.StartProps.Transfer,
 			setup.EndProps.Local, setup.EndProps.Transfer),
@@ -113,10 +123,11 @@ func NewSetupReqFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, ts time.Time,
 
 // ToCtrlMsg creates a new segment setup control message filled with the information from here.
 func (r *SetupReq) ToCtrlMsg() *colibri_mgmt.SegmentSetup {
+
 	msg := &colibri_mgmt.SegmentSetup{
-		MinBW:    r.MinBW,
-		MaxBW:    r.MaxBW,
-		SplitCls: r.SplitCls,
+		MinBW:    uint8(r.MinBW),
+		MaxBW:    uint8(r.MaxBW),
+		SplitCls: uint8(r.SplitCls),
 		StartProps: colibri_mgmt.PathEndProps{
 			Local:    (r.PathProps & reservation.StartLocal) != 0,
 			Transfer: (r.PathProps & reservation.StartTransfer) != 0,
@@ -125,6 +136,7 @@ func (r *SetupReq) ToCtrlMsg() *colibri_mgmt.SegmentSetup {
 			Local:    (r.PathProps & reservation.EndLocal) != 0,
 			Transfer: (r.PathProps & reservation.EndTransfer) != 0,
 		},
+		InfoField:       r.InfoField.ToRaw(),
 		AllocationTrail: make([]*colibri_mgmt.AllocationBeads, len(r.AllocTrail)),
 	}
 	for i, bead := range r.AllocTrail {
