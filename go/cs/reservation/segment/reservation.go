@@ -143,12 +143,12 @@ func (r *Reservation) addIndex(index *Index) (reservation.IndexNumber, error) {
 }
 
 // Index finds the Index with that IndexNumber and returns a pointer to it.
-func (r *Reservation) Index(idx reservation.IndexNumber) (*Index, error) {
+func (r *Reservation) Index(idx reservation.IndexNumber) *Index {
 	sliceIndex, err := base.FindIndex(r.Indices, idx)
 	if err != nil {
-		return nil, err
+		return nil
 	}
-	return &r.Indices[sliceIndex], nil
+	return &r.Indices[sliceIndex]
 }
 
 // SetIndexConfirmed sets the index as IndexPending (confirmed but not active). If the requested
