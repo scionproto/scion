@@ -24,6 +24,7 @@ type SegmentSetup struct {
 	SplitCls        uint8
 	StartProps      PathEndProps
 	EndProps        PathEndProps
+	InfoField       []byte
 	AllocationTrail []*AllocationBeads
 }
 

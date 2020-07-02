@@ -30,14 +30,15 @@ struct AllocationBeads {
 }
 
 # Request to setup a segment reservation.
-# Setups travel inside a hop by hop colibri extension and thus have a SegmentReservationID and index externally.
+# Setups travel inside a hop by hop colibri extension and thus have a SegmentReservationID externally.
 struct SegmentSetupReqData {
     minBW @0 :UInt8;
     maxBW @1 :UInt8;
     splitCls @2 :UInt8;
     startProps @3 :PathEndProps;
     endProps @4 :PathEndProps;
-    allocationTrail @5 :List(AllocationBeads);  # updated on each AS along the path
+    infoField @5 :Data; # ExpirationTick, Index, BWCls, RLC, and PathType; expected 8 bytes
+    allocationTrail @6 :List(AllocationBeads);  # updated on each AS along the path
 }
 
 # Response to a segment setup request.
@@ -95,9 +96,11 @@ struct E2ESetupData {
     }
 }
 
-# The reservation ID is needed because this request can be for a previously failed setup.
+# The reservation ID and index are needed because this request is for a different reservation than
+# the one referenced in the COLIBRI header.
 struct E2ECleanupData {
     reservationID @0 :E2EReservationID;
+    index @1 :UInt8;
 }
 
 # All possible requests between ASes.

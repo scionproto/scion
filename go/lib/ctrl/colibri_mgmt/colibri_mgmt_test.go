@@ -55,6 +55,7 @@ func TestSerializeRequest(t *testing.T) {
 				Local:    false,
 				Transfer: true,
 			},
+			InfoField: xtest.MustParseHexString("0123456789abcdef"),
 			AllocationTrail: []*colibri_mgmt.AllocationBeads{
 				{
 					AllocBW: 5,
