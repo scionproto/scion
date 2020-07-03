@@ -46,6 +46,7 @@ func (s SignerGen) Generate(ctx context.Context) (Signer, error) {
 	l := metrics.SignerLabels{}
 	keys, err := s.KeyRing.PrivateKeys(ctx)
 	if err != nil {
+		metrics.Signer.Generate(l.WithResult(metrics.ErrKey)).Inc()
 		return Signer{}, err
 	}
 	if len(keys) == 0 {
@@ -79,8 +80,6 @@ func (s SignerGen) Generate(ctx context.Context) (Signer, error) {
 		metrics.Signer.Generate(l.WithResult(metrics.ErrNotFound)).Inc()
 		return Signer{}, serrors.New("no certificate found", "num_private_keys", len(keys))
 	}
-
-	metrics.Signer.NotAfter().Set(metrics.Timestamp(best.Expiration))
 	metrics.Signer.Generate(l.WithResult(metrics.Success)).Inc()
 	return *best, nil
 }

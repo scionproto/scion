@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/cs/trust/internal/metrics"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
@@ -65,5 +66,7 @@ func (s *CachingSignerGen) Generate(ctx context.Context) (trust.Signer, error) {
 		"subject_key_id", fmt.Sprintf("%x", signer.SubjectKeyID),
 		"expiration", signer.Expiration,
 	)
+	metrics.Signer.LastGeneratedAS().SetToCurrentTime()
+	metrics.Signer.ExpirationAS().Set(metrics.Timestamp(signer.Expiration))
 	return s.cached, nil
 }

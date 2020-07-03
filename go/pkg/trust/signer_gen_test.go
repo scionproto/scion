@@ -383,14 +383,5 @@ trustengine_generated_signers_total{result="ok_success"} 4
 `, s, s)
 		err = testutil.CollectAndCompare(metrics.Signer.Signers, strings.NewReader(want))
 		require.NoError(t, err)
-
-		s1 := "trustengine_latest_generated_signer_expiration_time_second"
-		want1 := fmt.Sprintf(`
-# HELP %s The notafter time of the AS certificate of the latest signer
-# TYPE %s gauge
-%s %g
-`, s1, s1, s1, float64(chain[0].NotAfter.UnixNano())/1e9)
-		err = testutil.CollectAndCompare(metrics.Signer.ASNotAfter, strings.NewReader(want1))
-		require.NoError(t, err)
 	})
 }

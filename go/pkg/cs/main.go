@@ -18,7 +18,6 @@ package cs
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"hash"
@@ -409,27 +408,28 @@ func (app *App) Run() int {
 			log.Error("Loading client certificate chains failed", "err", err)
 			return 1
 		}
-		renewalHandler := trusthandler.ChainRenewalRequest{
-			Verifier: trusthandler.RenewalRequestVerifierFunc(
-				renewal.VerifyChainRenewalRequest),
-			ChainBuilder: cstrust.ChainBuilder{
-				PolicyGen: &cstrust.CachingPolicyGen{
-					PolicyGen: cstrust.LoadingPolicyGen{
-						Validity: 3 * 24 * time.Hour,
-						CertProvider: cstrust.CACertLoader{
-							IA:  topo.IA(),
-							DB:  trustDB,
-							Dir: filepath.Join(Cfg.General.ConfigDir, "crypto/ca"),
-						},
-						KeyRing: cstrust.LoadingRing{
-							Dir: filepath.Join(Cfg.General.ConfigDir, "crypto/ca"),
-						},
+		chainBuilder := cstrust.ChainBuilder{
+			PolicyGen: &cstrust.CachingPolicyGen{
+				PolicyGen: cstrust.LoadingPolicyGen{
+					Validity: Cfg.CA.MaxASValidity.Duration,
+					CertProvider: cstrust.CACertLoader{
+						IA:  topo.IA(),
+						DB:  trustDB,
+						Dir: filepath.Join(Cfg.General.ConfigDir, "crypto/ca"),
+					},
+					KeyRing: cstrust.LoadingRing{
+						Dir: filepath.Join(Cfg.General.ConfigDir, "crypto/ca"),
 					},
 				},
 			},
-			DB:     renewalDB,
-			IA:     topo.IA(),
-			Signer: signer,
+		}
+		renewalHandler := trusthandler.ChainRenewalRequest{
+			Verifier: trusthandler.RenewalRequestVerifierFunc(
+				renewal.VerifyChainRenewalRequest),
+			ChainBuilder: chainBuilder,
+			DB:           renewalDB,
+			IA:           topo.IA(),
+			Signer:       signer,
 		}
 
 		msgr.AddHandler(infra.ChainRenewalRequest,
@@ -437,6 +437,7 @@ func (app *App) Run() int {
 		tcpMsgr.AddHandler(infra.ChainRenewalRequest,
 			app.runHandlerWrapper(infra.ChainRenewalRequest, renewalHandler))
 
+		http.HandleFunc("/ca", caHandler(chainBuilder))
 	}
 
 	// Setup metrics and status pages
@@ -1016,56 +1017,4 @@ func configHandler(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(Cfg)
 	fmt.Fprint(w, buf.String())
-}
-
-func signerHandler(signer cstrust.RenewingSigner) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		s, err := signer.SignerGen.Generate(r.Context())
-		if err != nil {
-			http.Error(w, "Unable to get signer", http.StatusInternalServerError)
-			return
-		}
-
-		type Subject struct {
-			IA addr.IA `json:"isd_as"`
-		}
-		type TRCID struct {
-			ISD    addr.ISD        `json:"isd"`
-			Base   scrypto.Version `json:"base_number"`
-			Serial scrypto.Version `json:"serial_number"`
-		}
-		type Validity struct {
-			NotBefore time.Time `json:"not_before"`
-			NotAfter  time.Time `json:"not_after"`
-		}
-		rep := struct {
-			Subject       Subject   `json:"subject"`
-			SubjectKeyID  string    `json:"subject_key_id"`
-			Expiration    time.Time `json:"expiration"`
-			TRCID         TRCID     `json:"trc_id"`
-			ChainValidity Validity  `json:"chain_validity"`
-			InGrace       bool      `json:"in_grace_period"`
-		}{
-			Subject:      Subject{IA: s.IA},
-			SubjectKeyID: fmt.Sprintf("% X", s.SubjectKeyID),
-			Expiration:   s.Expiration,
-			TRCID: TRCID{
-				ISD:    s.TRCID.ISD,
-				Base:   s.TRCID.Base,
-				Serial: s.TRCID.Serial,
-			},
-			ChainValidity: Validity{
-				NotBefore: s.ChainValidity.NotBefore,
-				NotAfter:  s.ChainValidity.NotAfter,
-			},
-			InGrace: s.InGrace,
-		}
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "    ")
-		if err := enc.Encode(rep); err != nil {
-			http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
-			return
-		}
-	}
 }

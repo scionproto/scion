@@ -63,6 +63,7 @@ func InitTestConfig(cfg *Config) {
 	beaconstoragetest.InitTestBeaconDBConf(&cfg.BeaconDB)
 	pathstoragetest.InitTestPathDBConf(&cfg.PathDB)
 	InitTestBSConfig(&cfg.BS)
+	InitTestCA(&cfg.CA)
 }
 
 func InitTestBSConfig(cfg *BSConfig) {
@@ -84,6 +85,7 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	pathstoragetest.CheckTestPathDBConf(t, &cfg.PathDB, id)
 	CheckTestBSConfig(t, &cfg.BS)
 	CheckTestPSConfig(t, &cfg.PS, id)
+	CheckTestCA(t, &cfg.CA, id)
 }
 
 func CheckTestBSConfig(t *testing.T, cfg *BSConfig) {
@@ -105,9 +107,14 @@ func CheckTestPolicies(t *testing.T, cfg *Policies) {
 	assert.Empty(t, cfg.DownRegistration)
 }
 
-func InitTestPSConfig(cfg *PSConfig) {
-}
+func InitTestPSConfig(cfg *PSConfig) {}
 
 func CheckTestPSConfig(t *testing.T, cfg *PSConfig, id string) {
 	assert.Equal(t, DefaultQueryInterval, cfg.QueryInterval.Duration)
+}
+
+func InitTestCA(cfg *CA) {}
+
+func CheckTestCA(t *testing.T, cfg *CA, id string) {
+	assert.Equal(t, DefaultMaxASValidity, cfg.MaxASValidity.Duration)
 }

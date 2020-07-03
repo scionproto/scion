@@ -2,7 +2,10 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["main.go"],
+    srcs = [
+        "http.go",
+        "main.go",
+    ],
     importpath = "github.com/scionproto/scion/go/pkg/cs",
     visibility = ["//visibility:public"],
     deps = [
@@ -41,6 +44,7 @@ go_library(
         "//go/lib/prom:go_default_library",
         "//go/lib/revcache:go_default_library",
         "//go/lib/scrypto:go_default_library",
+        "//go/lib/scrypto/cppki:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/snet:go_default_library",
         "//go/lib/snet/addrutil:go_default_library",

@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "handler.go",
         "metrics.go",
+        "signer.go",
     ],
     importpath = "github.com/scionproto/scion/go/pkg/cs/trust/internal/metrics",
     visibility = ["//go/pkg/cs/trust:__subpackages__"],
