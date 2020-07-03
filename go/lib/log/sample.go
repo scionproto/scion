@@ -34,9 +34,15 @@ max_backups = 10
 # are immediately flushed. If negative, messages are never flushed
 # automatically. (default 5)
 flush_interval = 5
+
+# Logging fromat (human|json) (default human)
+format = "human"
 `
 
 const loggingConsoleSample = `
 # Console logging level (trace|debug|info|warn|error|crit) (default crit)
 level = "crit"
+
+# Logging fromat (human|json) (default human)
+format = "human"
 `
