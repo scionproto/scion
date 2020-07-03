@@ -77,6 +77,8 @@ type Config struct {
 	// Update handler is invoked for every ping reply. Execution time must be
 	// small, as it is run synchronous.
 	UpdateHandler func(Update)
+
+	HeaderV2 bool
 }
 
 // Run ping with the configuration. This blocks until the configured number
@@ -95,6 +97,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 			id:      id,
 			replies: replies,
 		},
+		Version2: cfg.HeaderV2,
 	}
 	conn, port, err := svc.Register(ctx, cfg.Local.IA, cfg.Local.Host, addr.SvcNone)
 	if err != nil {
@@ -178,34 +181,10 @@ func (p *pinger) Ping(ctx context.Context, remote *snet.UDPAddr) (Stats, error) 
 func (p *pinger) send(remote *snet.UDPAddr) error {
 	sequence := p.sentSequence + 1
 
-	info := &scmp.InfoEcho{Id: p.id, Seq: uint16(sequence)}
-	pld := make([]byte, scmp.MetaLen+info.Len()+p.pldSize)
-	meta := scmp.Meta{InfoLen: uint8(info.Len() / common.LineLen)}
-	meta.Write(pld)
-	info.Write(pld[scmp.MetaLen:])
-
-	pkt := &snet.Packet{
-		PacketInfo: snet.PacketInfo{
-			Destination: snet.SCIONAddress{
-				IA:   remote.IA,
-				Host: addr.HostFromIP(remote.Host.IP),
-			},
-			Source: snet.SCIONAddress{
-				IA:   p.local.IA,
-				Host: addr.HostFromIP(p.local.Host.IP),
-			},
-			Path: remote.Path,
-			L4Header: scmp.NewHdr(
-				scmp.ClassType{
-					Class: scmp.C_General,
-					Type:  scmp.T_G_EchoRequest,
-				},
-				len(pld),
-			),
-			Payload: common.RawBytes(pld),
-		},
+	pkt, err := newEcho(p.local, remote, p.pldSize, scmp.InfoEcho{Id: p.id, Seq: uint16(sequence)})
+	if err != nil {
+		return err
 	}
-
 	nextHop := remote.NextHop
 	if nextHop == nil && p.local.IA.Equal(remote.IA) {
 		nextHop = &net.UDPAddr{

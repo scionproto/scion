@@ -36,4 +36,5 @@ type HandlerArgs struct {
 	IA            addr.IA
 	TopoProvider  topology.Provider
 	SegRequestAPI segfetcher.RequestAPI
+	HeaderV2      bool
 }

@@ -28,7 +28,9 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -142,16 +144,16 @@ func (h *handler) getIFID() (common.IFIDType, addr.IA, error) {
 		return 0, ia, common.NewBasicError("Invalid peer address type, expected *snet.UDPAddr", nil,
 			"peer", h.request.Peer, "type", common.TypeOf(h.request.Peer))
 	}
-	hopF, err := peer.Path.GetHopField(peer.Path.HopOff)
+	ingressIfID, err := ingressIfID(peer.Path)
 	if err != nil {
-		return 0, ia, common.NewBasicError("Unable to extract hop field", err)
+		return 0, ia, err
 	}
-	intf := h.intfs.Get(hopF.ConsIngress)
+	intf := h.intfs.Get(ingressIfID)
 	if intf == nil {
 		return 0, ia, common.NewBasicError("Received beacon on non-existent ifid", nil,
-			"ifid", hopF.ConsIngress)
+			"ifid", ingressIfID)
 	}
-	return hopF.ConsIngress, intf.TopoInfo().IA, nil
+	return ingressIfID, intf.TopoInfo().IA, nil
 }
 
 func (h *handler) verifyBeacon(b beacon.Beacon) error {
@@ -206,4 +208,23 @@ func (h *handler) verifySegment(segment *seg.PathSegment) error {
 		SVC:     addr.SvcBS,
 	}
 	return segverifier.VerifySegment(h.request.Context(), h.verifier, svcToQuery, segment)
+}
+
+func ingressIfID(path *spath.Path) (common.IFIDType, error) {
+	if path.IsHeaderV2() {
+		var sp scion.Raw
+		if err := sp.DecodeFromBytes(path.Raw); err != nil {
+			return 0, serrors.WrapStr("decoding path (v2)", err)
+		}
+		hf, err := sp.GetCurrentHopField()
+		if err != nil {
+			return 0, serrors.WrapStr("getting current hop field", err)
+		}
+		return common.IFIDType(hf.ConsIngress), nil
+	}
+	hopF, err := path.GetHopField(path.HopOff)
+	if err != nil {
+		return 0, common.NewBasicError("Unable to extract hop field", err)
+	}
+	return hopF.ConsIngress, nil
 }

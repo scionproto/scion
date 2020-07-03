@@ -84,7 +84,7 @@ func (r *Router) translate(comb *combinator.Path, dst addr.IA) (path, error) {
 			return path{}, err
 		}
 	} else {
-		sp = spath.NewV2(buf.Bytes())
+		sp = spath.NewV2(buf.Bytes(), false)
 	}
 	nextHop, ok := r.Pather.TopoProvider.Get().UnderlayNextHop(comb.Interfaces[0].IfID)
 	if !ok {

@@ -41,6 +41,7 @@ var (
 	parallelism int
 	name        string
 	cmd         string
+	headerV2    bool
 )
 
 func getCmd() (string, bool) {
@@ -72,6 +73,10 @@ func realMain() int {
 		"-sciond", integration.SCIOND,
 		"-local", integration.DstAddrPattern + ":0",
 	}
+	if headerV2 {
+		clientArgs = append(clientArgs, "-header_v2")
+		serverArgs = append(serverArgs, "-header_v2")
+	}
 
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
 	pairs, err := getPairs()
@@ -97,6 +102,7 @@ func addFlags() {
 	flag.StringVar(&subset, "subset", "all", "Subset of pairs to run (all|core-core|"+
 		"noncore-localcore|noncore-core|noncore-noncore)")
 	flag.IntVar(&parallelism, "parallelism", 1, "How many end2end tests run in parallel.")
+	flag.BoolVar(&headerV2, "header_v2", false, "Use new header format")
 }
 
 // runTests runs the end2end tests for all pairs. In case of an error the
@@ -231,6 +237,9 @@ func clientTemplate(progressSock string) integration.Cmd {
 			"-local", integration.SrcAddrPattern + ":0",
 			"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
 		},
+	}
+	if headerV2 {
+		cmd.Args = append(cmd.Args, "-header_v2")
 	}
 	if progress {
 		cmd.Args = append(cmd.Args, "-progress", progressSock)

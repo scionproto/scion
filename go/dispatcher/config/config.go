@@ -86,5 +86,5 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 }
 
 func (cfg *Config) ConfigName() string {
-	return "godispatcher_config"
+	return "dispatcher_config"
 }

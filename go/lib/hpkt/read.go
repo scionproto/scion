@@ -296,7 +296,7 @@ func ParseScnPkt2(s *spkt.ScnPkt, b []byte) error {
 
 	decoded := []gopacket.LayerType{}
 	if err := parser.DecodeLayers(b, &decoded); err != nil {
-		return err
+		return serrors.WrapStr("decoding layers", err)
 	}
 
 	for _, layerType := range decoded {
@@ -306,32 +306,38 @@ func ParseScnPkt2(s *spkt.ScnPkt, b []byte) error {
 			s.SrcIA = scionLayer.SrcIA
 			dstAddr, err := scionLayer.DstAddr()
 			if err != nil {
-				return serrors.WrapStr("unable to extract destination address", err)
+				return serrors.WrapStr("extracting destination address", err)
 			}
 			s.DstHost, err = netAddrToHostAddr(dstAddr)
 			if err != nil {
-				return serrors.WrapStr("unable to convert address to HostAddr", err)
+				return serrors.WrapStr("converting dst address to HostAddr", err)
 			}
 			srcAddr, err := scionLayer.SrcAddr()
 			if err != nil {
-				return serrors.WrapStr("unable to extract source address", err)
+				return serrors.WrapStr("extracting source address", err)
 			}
 			s.SrcHost, err = netAddrToHostAddr(srcAddr)
 			if err != nil {
-				return serrors.WrapStr("unable to convert address to HostAddr", err)
+				return serrors.WrapStr("converting src address to HostAddr", err)
 			}
 
 			pathCopy := make([]byte, scionLayer.Path.Len())
-			if err := scionLayer.Path.SerializeTo(pathCopy); err != nil {
-				return serrors.WrapStr("unable to extract path", err)
+			// A path of length 4 is an empty path, because it only contains the mandatory
+			// minimal header. Applications model empty paths via nil, so we return nil here.
+			if len(pathCopy) != 4 {
+				if err := scionLayer.Path.SerializeTo(pathCopy); err != nil {
+					return serrors.WrapStr("extracting path", err)
+				}
+				s.Path = spath.NewV2(pathCopy, scionLayer.PathType == slayers.PathTypeOneHop)
+			} else {
+				s.Path = nil
 			}
-			s.Path = spath.NewV2(pathCopy)
 		case slayers.LayerTypeSCIONUDP:
 			s.L4 = &l4.UDP{
 				SrcPort:  uint16(udpLayer.SrcPort),
 				DstPort:  uint16(udpLayer.DstPort),
 				TotalLen: udpLayer.Length,
-				Checksum: []byte{byte(udpLayer.Checksum % 256), byte(udpLayer.Checksum / 256)},
+				Checksum: []byte{byte(udpLayer.Checksum / 256), byte(udpLayer.Checksum % 256)},
 			}
 			s.Pld = common.RawBytes(payloadLayer.Payload())
 		case slayers.LayerTypeSCMP:
@@ -342,7 +348,14 @@ func ParseScnPkt2(s *spkt.ScnPkt, b []byte) error {
 				Checksum:  scmpLayer.Checksum,
 				Timestamp: scmpLayer.Timestamp,
 			}
-			s.Pld = common.RawBytes(scmpLayer.Payload)
+			pld, err := scmp.PldFromRaw(scmpLayer.Payload, scmp.ClassType{
+				Class: scmpLayer.Class,
+				Type:  scmpLayer.Type,
+			})
+			if err != nil {
+				return err
+			}
+			s.Pld = pld
 		}
 	}
 	return nil

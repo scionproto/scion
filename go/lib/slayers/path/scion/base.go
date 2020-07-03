@@ -26,8 +26,8 @@ const MetaLen = 4
 
 // Base holds the basic information that is used by both raw and fully decoded paths.
 type Base struct {
-	// PathMeta is the SCION path meta header. It is always instantiated in when decoding a path
-	// from bytes.
+	// PathMeta is the SCION path meta header. It is always instantiated when
+	// decoding a path from bytes.
 	PathMeta MetaHdr
 	// NumINF is the number of InfoFields in the path.
 	NumINF int
@@ -64,20 +64,33 @@ func (s *Base) IncPath() error {
 	if s.NumINF == 0 {
 		return serrors.New("empty path cannot be increased")
 	}
-	if int(s.PathMeta.CurrHF) == s.NumHops-1 {
+	if int(s.PathMeta.CurrHF) >= s.NumHops-1 {
+		s.PathMeta.CurrHF = uint8(s.NumHops - 1)
 		return serrors.New("path already at end")
 	}
 	s.PathMeta.CurrHF++
 	// Update CurrINF
+	s.PathMeta.CurrINF = s.infIndexForHF(s.PathMeta.CurrHF)
+	return nil
+}
+
+// IsXover returns whether we are at a crossover point.
+func (s *Base) IsXover() bool {
+	return s.PathMeta.CurrINF != s.infIndexForHF(s.PathMeta.CurrHF+1)
+}
+
+func (s *Base) infIndexForHF(hf uint8) uint8 {
 	left := uint8(0)
-	for i := 0; i < int(s.NumINF); i++ {
-		if s.PathMeta.CurrHF >= left && s.PathMeta.CurrHF < left+s.PathMeta.SegLen[i] {
-			s.PathMeta.CurrINF = uint8(i)
-			break
+	for i := 0; i < s.NumINF; i++ {
+		if hf >= left {
+			if hf < left+s.PathMeta.SegLen[i] {
+				return uint8(i)
+			}
 		}
 		left += s.PathMeta.SegLen[i]
 	}
-	return nil
+	// at the end we just return the last index.
+	return uint8(s.NumINF - 1)
 }
 
 // MetaHdr is the PathMetaHdr of a SCION (data-plane) path type.
@@ -116,4 +129,8 @@ func (m *MetaHdr) SerializeTo(b []byte) error {
 	binary.BigEndian.PutUint32(b, line)
 
 	return nil
+}
+
+func (m MetaHdr) String() string {
+	return fmt.Sprintf("{CurrInf: %d, CurrHF: %d, SegLen: %v}", m.CurrINF, m.CurrHF, m.SegLen)
 }

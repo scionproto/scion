@@ -91,3 +91,63 @@ func TestIncPath(t *testing.T) {
 		}
 	}
 }
+
+func TestBaseIsXOver(t *testing.T) {
+	testCases := map[string]struct {
+		nsegs, nhops int
+		segLens      [3]uint8
+		inIdxs       [][2]int
+		xover        []bool
+	}{
+		"1 segment, 2 hops": {
+			nsegs:   1,
+			nhops:   2,
+			segLens: [3]uint8{2, 0, 0},
+			inIdxs:  [][2]int{{0, 0}, {0, 1}},
+			xover:   []bool{false, false},
+		},
+		"1 segment, 5 hops": {
+			nsegs:   1,
+			nhops:   5,
+			segLens: [3]uint8{5, 0, 0},
+			inIdxs:  [][2]int{{0, 0}, {0, 1}, {0, 2}, {0, 3}, {0, 4}},
+			xover:   []bool{false, false, false, false, false},
+		},
+		"2 segments, 5 hops": {
+			nsegs:   2,
+			nhops:   5,
+			segLens: [3]uint8{2, 3, 0},
+			inIdxs:  [][2]int{{0, 0}, {0, 1}, {1, 2}, {1, 3}, {1, 4}},
+			xover:   []bool{false, true, false, false, false},
+		},
+		"3 segments, 9 hops": {
+			nsegs:   3,
+			nhops:   9,
+			segLens: [3]uint8{2, 4, 3},
+			inIdxs: [][2]int{
+				{0, 0}, {0, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {2, 6}, {2, 7}, {2, 8},
+			},
+			xover: []bool{false, true, false, false, false, true, false, false, false},
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		for i := range tc.xover {
+			i := i
+			t.Run(fmt.Sprintf("%s case %d", name, i+1), func(t *testing.T) {
+				t.Parallel()
+				s := scion.Base{
+					PathMeta: scion.MetaHdr{
+						CurrINF: uint8(tc.inIdxs[i][0]),
+						CurrHF:  uint8(tc.inIdxs[i][1]),
+						SegLen:  tc.segLens,
+					},
+					NumINF:  tc.nsegs,
+					NumHops: tc.nhops,
+				}
+				assert.Equal(t, tc.xover[i], s.IsXover())
+			})
+		}
+	}
+}

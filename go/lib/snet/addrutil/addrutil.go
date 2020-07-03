@@ -57,7 +57,7 @@ func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (net.Addr, error)
 		beta = beta ^ binary.BigEndian.Uint16(entry.HopEntries[0].HopField.MAC[:2])
 	}
 
-	hops := len(hopFields) - 1
+	hops := len(hopFields)
 	dec := scion.Decoded{
 		Base: scion.Base{
 			PathMeta: scion.MetaHdr{
@@ -86,7 +86,7 @@ func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (net.Addr, error)
 	}
 	return &snet.SVCAddr{
 		IA:      ps.FirstIA(),
-		Path:    spath.NewV2(raw),
+		Path:    spath.NewV2(raw, false),
 		NextHop: nextHop,
 		SVC:     svc,
 	}, nil
@@ -98,11 +98,11 @@ type LegacyPather struct {
 }
 
 func (p LegacyPather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (net.Addr, error) {
-	return GetPath(svc, ps, p.TopoProvider)
+	return getPath(svc, ps, p.TopoProvider)
 }
 
 // GetPath creates a path from the given segment and then creates a snet.SVCAddr.
-func GetPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv topology.Provider) (net.Addr, error) {
+func getPath(svc addr.HostSVC, ps *seg.PathSegment, topoProv topology.Provider) (net.Addr, error) {
 	p, err := legacyPath(ps)
 	if err != nil {
 		return nil, serrors.WrapStr("constructing path from segment", err)

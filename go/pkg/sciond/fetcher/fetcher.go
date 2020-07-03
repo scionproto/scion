@@ -61,7 +61,7 @@ type fetcher struct {
 
 func NewFetcher(requestAPI segfetcher.RequestAPI, pathDB pathdb.PathDB, inspector trust.Inspector,
 	verifier infra.Verifier, revCache revcache.RevCache, cfg config.SDConfig,
-	topoProvider topology.Provider) Fetcher {
+	topoProvider topology.Provider, headerV2 bool) Fetcher {
 
 	localIA := topoProvider.Get().IA()
 	return &fetcher{
@@ -84,6 +84,7 @@ func NewFetcher(requestAPI segfetcher.RequestAPI, pathDB pathdb.PathDB, inspecto
 				MetricsNamespace: metrics.Namespace,
 				LocalInfo:        neverLocal{},
 			}.New(),
+			HeaderV2: headerV2,
 		},
 		config: cfg,
 	}
@@ -156,6 +157,7 @@ func (f *fetcher) translate(path *combinator.Path) (sciond.PathReplyEntry, error
 				Mtu:        f.pather.TopoProvider.Get().MTU(),
 				Interfaces: []sciond.PathInterface{},
 				ExpTime:    util.TimeToSecs(time.Now().Add(spath.MaxTTL * time.Second)),
+				HeaderV2:   path.HeaderV2,
 			},
 		}
 		return entry, nil

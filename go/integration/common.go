@@ -41,13 +41,13 @@ const (
 )
 
 var (
-	Local        snet.UDPAddr
-	Mode         string
-	Progress     string
-	sciondAddr   string
-	networksFile string
-	Attempts     int
-	logConsole   string
+	Local      snet.UDPAddr
+	Mode       string
+	Progress   string
+	sciondAddr string
+	Attempts   int
+	logConsole string
+	HeaderV2   bool
 )
 
 func Setup() {
@@ -60,10 +60,9 @@ func addFlags() {
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	flag.StringVar(&Progress, "progress", "", "Socket to write progress to")
 	flag.StringVar(&sciondAddr, "sciond", sciond.DefaultSCIONDAddress, "SCIOND address")
-	flag.StringVar(&networksFile, "networks", integration.SCIONDAddressesFile,
-		"File containing network definitions")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
 	flag.StringVar(&logConsole, "log.console", "info", "Console logging level: debug|info|error")
+	flag.BoolVar(&HeaderV2, "header_v2", false, "Use the new header format.")
 }
 
 // InitTracer initializes the global tracer and returns a closer function.
@@ -115,9 +114,9 @@ func InitNetwork() *snet.SCIONNetwork {
 			SCMPHandler: snet.NewSCMPHandler(
 				sciond.RevHandler{Connector: sciondConn},
 			),
-			// TODO(scrye): set this when we have CLI support for features
-			Version2: false,
+			Version2: HeaderV2,
 		},
+		Version2: HeaderV2,
 	}
 	log.Debug("SCION network successfully initialized")
 	return n

@@ -16,8 +16,10 @@ package path
 
 import (
 	"encoding/binary"
+	"fmt"
 
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 // InfoLen is the size of an InfoField in bytes.
@@ -83,4 +85,9 @@ func (inf *InfoField) SerializeTo(b []byte) error {
 	binary.BigEndian.PutUint32(b[4:8], inf.Timestamp)
 
 	return nil
+}
+
+func (inf *InfoField) String() string {
+	return fmt.Sprintf("{Peer: %t, ConsDir: %t, SegID: %d, Timestamp: %s}",
+		inf.Peer, inf.ConsDir, inf.SegID, util.SecsToCompact(inf.Timestamp))
 }

@@ -60,6 +60,7 @@ var _ Network = (*SCIONNetwork)(nil)
 type SCIONNetwork struct {
 	LocalIA    addr.IA
 	Dispatcher PacketDispatcherService
+	Version2   bool
 }
 
 // NewNetwork creates a new networking context.
@@ -137,6 +138,7 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		scionNet: n,
 		svc:      svc,
 		listen:   CopyUDPAddr(listen),
+		version2: n.Version2,
 	}
 	packetConn, port, err := conn.scionNet.Dispatcher.Register(ctx, n.LocalIA, listen, svc)
 	if err != nil {

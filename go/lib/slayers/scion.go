@@ -80,7 +80,7 @@ const (
 // four possible types per address length.
 type AddrType uint8
 
-// AddrLen4 types
+// AddrType constants
 const (
 	T4Ip AddrType = iota
 	T4Svc
@@ -252,6 +252,10 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	var err error
 	hdrBytes := int(s.HdrLen) * LineLen
 	pathLen := hdrBytes - CmnHdrLen - addrHdrLen
+	if pathLen < 0 {
+		return serrors.New("invalid header, negative pathLen",
+			"hdrBytes", hdrBytes, "addrHdrLen", addrHdrLen, "CmdHdrLen", CmnHdrLen)
+	}
 	switch s.PathType {
 	case PathTypeSCION:
 		// Only allocate a SCION path if necessary. This reduces memory allocation and GC overhead

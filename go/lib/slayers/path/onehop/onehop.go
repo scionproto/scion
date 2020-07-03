@@ -17,6 +17,7 @@ package onehop
 import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 )
 
 // PathLen is the length of a serialized one hop path in bytes
@@ -63,6 +64,49 @@ func (o *Path) SerializeTo(b []byte) error {
 	}
 	offset += path.HopLen
 	return o.SecondHop.SerializeTo(b[offset : offset+path.HopLen])
+}
+
+// ToSCIONDecoded converts the one hop path in to a normal SCION path in the
+// decoded format.
+func (o *Path) ToSCIONDecoded() (*scion.Decoded, error) {
+	if o.SecondHop.ConsIngress == 0 {
+		return nil, serrors.New("incomplete path can't be converted")
+	}
+	p := &scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				SegLen: [3]uint8{2, 0, 0},
+			},
+			NumHops: 2,
+			NumINF:  1,
+		},
+		InfoFields: []*path.InfoField{
+			{
+				ConsDir:   true,
+				SegID:     o.Info.SegID,
+				Timestamp: o.Info.Timestamp,
+			},
+		},
+		HopFields: []*path.HopField{
+			{
+				IngressRouterAlert: o.FirstHop.IngressRouterAlert,
+				EgressRouterAlert:  o.FirstHop.EgressRouterAlert,
+				ConsIngress:        o.FirstHop.ConsIngress,
+				ConsEgress:         o.FirstHop.ConsEgress,
+				ExpTime:            o.FirstHop.ExpTime,
+				Mac:                append([]byte(nil), o.FirstHop.Mac...),
+			},
+			{
+				IngressRouterAlert: o.SecondHop.IngressRouterAlert,
+				EgressRouterAlert:  o.SecondHop.EgressRouterAlert,
+				ConsIngress:        o.SecondHop.ConsIngress,
+				ConsEgress:         o.SecondHop.ConsEgress,
+				ExpTime:            o.SecondHop.ExpTime,
+				Mac:                append([]byte(nil), o.SecondHop.Mac...),
+			},
+		},
+	}
+	return p, nil
 }
 
 func (o *Path) Reverse() error {

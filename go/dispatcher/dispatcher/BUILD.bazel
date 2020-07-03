@@ -18,7 +18,6 @@ go_library(
         "//go/lib/common:go_default_library",
         "//go/lib/hpkt:go_default_library",
         "//go/lib/l4:go_default_library",
-        "//go/lib/layers:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/ringbuf:go_default_library",
         "//go/lib/scmp:go_default_library",

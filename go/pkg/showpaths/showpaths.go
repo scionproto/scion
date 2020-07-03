@@ -77,6 +77,7 @@ func (r Result) Human(w io.Writer, showExpiration bool) {
 func (r Result) JSON(w io.Writer) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
 	return enc.Encode(r)
 }
 
@@ -110,6 +111,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 				return nil, serrors.WrapStr("failed to determine local IP", err)
 			}
 		}
+		paths := pathprobe.FilterEmptyPaths(paths)
 		statuses, err = pathprobe.Prober{
 			DstIA:   dst,
 			LocalIA: localIA,
@@ -124,13 +126,22 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 
 	res := &Result{Destination: dst}
 	for _, path := range paths {
+		fingerprint := "local"
+		if fp := path.Fingerprint().String(); fp != "" {
+			fingerprint = fp[:16]
+		}
+		var nextHop string
+		if nh := path.UnderlayNextHop(); nh != nil {
+			nextHop = path.UnderlayNextHop().String()
+		}
 		rpath := Path{
 			FullPath:    path,
-			Fingerprint: path.Fingerprint().String()[:16],
-			NextHop:     path.UnderlayNextHop().String(),
+			Fingerprint: fingerprint,
+			NextHop:     nextHop,
 			Expiry:      path.Expiry(),
 			MTU:         path.MTU(),
 			Local:       localIP,
+			Hops:        []Hop{},
 		}
 		for _, hop := range path.Interfaces() {
 			rpath.Hops = append(rpath.Hops, Hop{IA: hop.IA(), IfID: hop.ID()})

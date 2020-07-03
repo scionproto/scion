@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/scmp"
@@ -46,11 +45,13 @@ const (
 type NetToRingDataplane struct {
 	UnderlayConn net.PacketConn
 	RoutingTable *IATable
+	// HeaderV2 indicates whether the new header format is used.
+	HeaderV2 bool
 }
 
 func (dp *NetToRingDataplane) Run() error {
 	for {
-		pkt := respool.GetPacket()
+		pkt := respool.GetPacket(dp.HeaderV2)
 		// XXX(scrye): we don't release the reference on error conditions, and
 		// let the GC take care of this situation as they should be fairly
 		// rare.
@@ -60,9 +61,7 @@ func (dp *NetToRingDataplane) Run() error {
 			continue
 		}
 
-		logDebugE2E(&pkt.Info)
-
-		dst, err := ComputeDestination(&pkt.Info)
+		dst, err := ComputeDestination(&pkt.Info, dp.HeaderV2)
 		if err != nil {
 			log.Debug("unable to route packet", "err", err)
 			metrics.M.NetReadPkts(
@@ -75,18 +74,20 @@ func (dp *NetToRingDataplane) Run() error {
 	}
 }
 
-func ComputeDestination(packet *spkt.ScnPkt) (Destination, error) {
+func ComputeDestination(packet *spkt.ScnPkt, headerV2 bool) (Destination, error) {
 	switch header := packet.L4.(type) {
 	case *l4.UDP:
-		return ComputeUDPDestination(packet, header)
+		return ComputeUDPDestination(packet, header, headerV2)
 	case *scmp.Hdr:
-		return ComputeSCMPDestination(packet, header)
+		return ComputeSCMPDestination(packet, header, headerV2)
 	default:
 		return nil, common.NewBasicError(ErrUnsupportedL4, nil, "type", header.L4Type())
 	}
 }
 
-func ComputeUDPDestination(packet *spkt.ScnPkt, header *l4.UDP) (Destination, error) {
+func ComputeUDPDestination(packet *spkt.ScnPkt, header *l4.UDP,
+	headerV2 bool) (Destination, error) {
+
 	switch packet.DstHost.Type() {
 	case addr.HostTypeIPv4, addr.HostTypeIPv6:
 		return &UDPDestination{IP: packet.DstHost.IP(), Port: int(header.DstPort)}, nil
@@ -100,7 +101,9 @@ func ComputeUDPDestination(packet *spkt.ScnPkt, header *l4.UDP) (Destination, er
 
 // ComputeSCMPDestination decides which application to send the SCMP packet to. It also increments
 // SCMP-related metrics.
-func ComputeSCMPDestination(packet *spkt.ScnPkt, header *scmp.Hdr) (Destination, error) {
+func ComputeSCMPDestination(packet *spkt.ScnPkt, header *scmp.Hdr,
+	headerV2 bool) (Destination, error) {
+
 	metrics.M.SCMPReadPkts(
 		metrics.SCMP{
 			Class: header.Class.String(),
@@ -112,13 +115,15 @@ func ComputeSCMPDestination(packet *spkt.ScnPkt, header *scmp.Hdr) (Destination,
 			"type", packet.DstHost.Type())
 	}
 	if header.Class == scmp.C_General {
-		return ComputeSCMPGeneralDestination(packet, header)
+		return ComputeSCMPGeneralDestination(packet, header, headerV2)
 	} else {
 		return ComputeSCMPErrorDestination(packet, header)
 	}
 }
 
-func ComputeSCMPGeneralDestination(s *spkt.ScnPkt, header *scmp.Hdr) (Destination, error) {
+func ComputeSCMPGeneralDestination(s *spkt.ScnPkt, header *scmp.Hdr,
+	headerV2 bool) (Destination, error) {
+
 	id := getSCMPGeneralID(s)
 	if id == 0 {
 		return nil, common.NewBasicError("Invalid SCMP ID", nil, "id", id)
@@ -126,7 +131,7 @@ func ComputeSCMPGeneralDestination(s *spkt.ScnPkt, header *scmp.Hdr) (Destinatio
 	switch {
 	case isSCMPGeneralRequest(header):
 		invertSCMPGeneralType(header)
-		return SCMPHandlerDestination{}, nil
+		return SCMPHandlerDestination{HeaderV2: headerV2}, nil
 	case isSCMPGeneralReply(header):
 		return &SCMPAppDestination{ID: id}, nil
 	default:
@@ -229,7 +234,10 @@ func sendPacket(routingEntry *TableEntry, pkt *respool.Packet) {
 
 var _ Destination = (*SCMPHandlerDestination)(nil)
 
-type SCMPHandlerDestination struct{}
+type SCMPHandlerDestination struct {
+	// HeaderV2 switches SCMP messages to the new SCION header format.
+	HeaderV2 bool
+}
 
 func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 	if err := pkt.Info.Reverse(); err != nil {
@@ -239,7 +247,13 @@ func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet
 
 	b := respool.GetBuffer()
 	pkt.Info.HBHExt = removeSCMPHBH(pkt.Info.HBHExt)
-	n, err := hpkt.WriteScnPkt(&pkt.Info, b)
+	var n int
+	var err error
+	if h.HeaderV2 {
+		n, err = hpkt.WriteScnPkt2(&pkt.Info, b)
+	} else {
+		n, err = hpkt.WriteScnPkt(&pkt.Info, b)
+	}
 	if err != nil {
 		log.Info("Unable to create reply SCMP packet", "err", err)
 		return
@@ -263,12 +277,4 @@ func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet
 	}
 	respool.PutBuffer(b)
 	pkt.Free()
-}
-
-func logDebugE2E(pkt *spkt.ScnPkt) {
-	for _, e := range pkt.E2EExt {
-		if extnData, ok := e.(*layers.ExtnE2EDebug); ok {
-			log.Debug("Recv'd packet with debug extension", "debug_id", extnData.ID, "pkt", pkt)
-		}
-	}
 }

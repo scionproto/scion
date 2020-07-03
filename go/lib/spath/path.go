@@ -16,6 +16,7 @@
 package spath
 
 import (
+	"fmt"
 	"hash"
 	"math"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -44,14 +46,15 @@ type Path struct {
 
 	// version is a temporary solution for supporting V2 paths in method calls.
 	version int
+	ohp     bool
 }
 
 func New(raw common.RawBytes) *Path {
 	return &Path{Raw: raw}
 }
 
-func NewV2(raw common.RawBytes) *Path {
-	return &Path{Raw: raw, version: 2}
+func NewV2(raw []byte, ohp bool) *Path {
+	return &Path{Raw: raw, version: 2, ohp: ohp}
 }
 
 // NewOneHop creates a new one hop path with. If necessary, the caller has
@@ -85,13 +88,34 @@ func (p *Path) Copy() *Path {
 		InfOff:  p.InfOff,
 		HopOff:  p.HopOff,
 		version: p.version,
+		ohp:     p.ohp,
 	}
 }
 
 func (p *Path) reverse2() error {
 	var path scion.Decoded
-	if err := path.DecodeFromBytes(p.Raw); err != nil {
-		return err
+	if p.ohp {
+		//  Since a OHP can't be reversed we create a proper SCION path instead,
+		//  and reverse that.
+		var ohp onehop.Path
+		if err := ohp.DecodeFromBytes(p.Raw); err != nil {
+			return serrors.WrapStr("decoding v2 OHP path", err)
+		}
+		sp, err := ohp.ToSCIONDecoded()
+		if err != nil {
+			return serrors.WrapStr("converting to scion path", err)
+		}
+		// increment the path, since we are at the receiver side.
+		if err := sp.IncPath(); err != nil {
+			return serrors.WrapStr("incrementing path", err)
+		}
+		path = *sp
+		p.Raw = make([]byte, sp.Len())
+		p.ohp = false
+	} else {
+		if err := path.DecodeFromBytes(p.Raw); err != nil {
+			return err
+		}
 	}
 	if err := path.Reverse(); err != nil {
 		return err
@@ -166,6 +190,15 @@ func (p *Path) Reverse() error {
 	// Update path with reversed copy.
 	p.Raw = revRaw
 	return nil
+}
+
+// IsHeaderV2 returns whether the path is in the new format.
+func (path *Path) IsHeaderV2() bool {
+	return path.version == 2
+}
+
+func (path *Path) IsOHP() bool {
+	return path.ohp
 }
 
 // InitOffsets computes the initial Hop Field offset (in bytes) for a newly
@@ -283,4 +316,28 @@ func (path *Path) GetHopField(offset int) (*HopField, error) {
 		return nil, common.NewBasicError("Unable to parse Hop Field", err, "offset", offset)
 	}
 	return hopF, nil
+}
+
+func (path *Path) String() string {
+	var p string
+	switch {
+	case path.version == 2 && path.ohp:
+		var op onehop.Path
+		if err := op.DecodeFromBytes(path.Raw); err != nil {
+			p = fmt.Sprintf("err decoding: %v", err)
+		} else {
+			p = fmt.Sprintf("{consdir: %t, 1st: %s, 2nd %s", op.Info.ConsDir,
+				fmt.Sprintf("I: %d, E: %d", op.FirstHop.ConsIngress, op.FirstHop.ConsEgress),
+				fmt.Sprintf("I: %d, E: %d", op.SecondHop.ConsIngress, op.SecondHop.ConsEgress))
+		}
+	case path.version == 2:
+		var sp scion.Decoded
+		if err := sp.DecodeFromBytes(path.Raw); err != nil {
+			p = fmt.Sprintf("err decoding: %v", err)
+		} else {
+			p = fmt.Sprintf("{Meta: %s, NumINF: %d, NumHops: %d}",
+				sp.PathMeta, sp.NumINF, sp.NumHops)
+		}
+	}
+	return fmt.Sprintf("{version: %d, ohp: %t, p: %s}", path.version, path.ohp, p)
 }
