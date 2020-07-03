@@ -40,7 +40,12 @@ func updateCert(goldenCert string) ([]byte, error) {
 	defer cleanF()
 
 	cmd := exec.Command("sh", "-c", "./testdata/update_certs.sh")
-	cmd.Env = []string{"SAFEDIR=" + dir}
+	cmd.Env = []string{
+		"SAFEDIR=" + dir,
+		"STARTDATE=20200624120000Z",
+		"ENDDATE=20250624120000Z",
+	}
+
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return out, err

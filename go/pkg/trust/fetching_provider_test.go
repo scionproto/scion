@@ -336,6 +336,36 @@ func TestFetchingProviderGetChains(t *testing.T) {
 			Options:      []trust.Option{trust.Server(&net.UDPAddr{Port: 90})},
 			ErrAssertion: assert.Error,
 		},
+		"reject forged chain": {
+			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
+				db := mock_trust.NewMockDB(ctrl)
+				db.EXPECT().Chains(gomock.Any(), chainQueryMatcher{
+					ia:   query.IA,
+					skid: query.SubjectKeyID}).Return(nil, nil)
+				db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).Return(trc, nil)
+				return db
+			},
+			Recurser: func(t *testing.T, ctrl *gomock.Controller) trust.Recurser {
+				r := mock_trust.NewMockRecurser(ctrl)
+				r.EXPECT().AllowRecursion(gomock.Any()).Return(nil)
+				return r
+			},
+			Router: func(t *testing.T, ctrl *gomock.Controller) trust.Router {
+				return mock_trust.NewMockRouter(ctrl)
+			},
+			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
+				f := mock_trust.NewMockFetcher(ctrl)
+				forged := xtest.LoadChain(t,
+					filepath.Join(goldenDir, "ISD1/ASff00_0_110/crypto/as/ISD1-ASff00_0_110.pem"))
+				forged[0].Signature[30] ^= 0xFF
+				f.EXPECT().Chains(gomock.Any(), query, &net.UDPAddr{Port: 90}).Return(
+					[][]*x509.Certificate{forged}, nil,
+				)
+				return f
+			},
+			Options:      []trust.Option{trust.Server(&net.UDPAddr{Port: 90})},
+			ErrAssertion: assert.NoError,
+		},
 	}
 	for name, tc := range testCases {
 		name, tc := name, tc
@@ -574,7 +604,7 @@ func TestFetchingProviderNotifyTRC(t *testing.T) {
 			Options:      []trust.Option{trust.Server(&net.UDPAddr{Port: 90})},
 			ErrAssertion: assert.Error,
 		},
-		"non-verifiable response": {
+		"reject forged TRC": {
 			ID: updated.TRC.ID,
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(ctrl)
@@ -595,12 +625,12 @@ func TestFetchingProviderNotifyTRC(t *testing.T) {
 			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
 				f := mock_trust.NewMockFetcher(ctrl)
 
-				invalid := xtest.LoadTRC(t, filepath.Join(goldenDir, "trcs/ISD1-B1-S2.trc"))
-				for i := range invalid.SignerInfos {
-					invalid.SignerInfos[i].Signature[0] ^= 0xFF
+				forged := xtest.LoadTRC(t, filepath.Join(goldenDir, "trcs/ISD1-B1-S2.trc"))
+				for i := range forged.SignerInfos {
+					forged.SignerInfos[i].Signature[0] ^= 0xFF
 				}
 				f.EXPECT().TRC(gomock.Any(), updated.TRC.ID, &net.UDPAddr{Port: 90}).Return(
-					invalid, nil,
+					forged, nil,
 				)
 				return f
 			},
