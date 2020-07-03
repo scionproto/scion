@@ -16,6 +16,7 @@ package reservation
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"io"
 	"time"
 
@@ -324,6 +325,43 @@ func (pep PathEndProps) Validate() error {
 	}
 	if pep>>4 > 0x03 {
 		return serrors.New("invalid path end properties (@Start)", "path_end_props", pep)
+	}
+	return nil
+}
+
+// ValidateWithPathType checks the validity of the properties when in a path of the specified type.
+func (pep PathEndProps) ValidateWithPathType(pt PathType) error {
+	if err := pep.Validate(); err != nil {
+		return err
+	}
+	var invalid bool
+	s := pep & 0xF0
+	e := pep & 0x0F
+	switch pt {
+	case CorePath:
+		if s == 0 {
+			invalid = true
+		}
+	case UpPath:
+		if s != StartLocal {
+			invalid = true
+		}
+	case DownPath:
+		if e != EndLocal {
+			invalid = true
+		}
+	case PeeringUpPath:
+		if s != StartLocal || e == 0 {
+			invalid = true
+		}
+	case PeeringDownPath:
+		if e != EndLocal || s == 0 {
+			invalid = true
+		}
+	}
+	if invalid {
+		return serrors.New("invalid combination of path end properties and path type",
+			"end_properties", hex.EncodeToString([]byte{byte(pep)}), "path_type", pt)
 	}
 	return nil
 }
