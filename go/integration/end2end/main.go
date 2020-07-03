@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	libint "github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -107,8 +106,7 @@ func (s server) run() {
 		SCMPHandler: snet.NewSCMPHandler(
 			sciond.RevHandler{Connector: integration.SDConn()},
 		),
-		// TODO(scrye): set this when we have CLI support for features
-		Version2: false,
+		Version2: integration.HeaderV2,
 	}
 	conn, port, err := connFactory.Register(context.Background(), integration.Local.IA,
 		integration.Local.Host, addr.SvcNone)
@@ -159,7 +157,7 @@ type client struct {
 
 func (c client) run() int {
 	pair := fmt.Sprintf("%s -> %s", integration.Local.IA, remote.IA)
-	log.Info("Starting", "pair", pair)
+	log.Info("Starting", "pair", pair, "header_v2", integration.HeaderV2)
 	defer log.Info("Finished", "pair", pair)
 	defer integration.Done(integration.Local.IA, remote.IA)
 	connFactory := &snet.DefaultPacketDispatcherService{
@@ -167,8 +165,7 @@ func (c client) run() int {
 		SCMPHandler: snet.NewSCMPHandler(
 			sciond.RevHandler{Connector: integration.SDConn()},
 		),
-		// TODO(scrye): set this when we have CLI support for features
-		Version2: false,
+		Version2: integration.HeaderV2,
 	}
 
 	var err error
@@ -234,11 +231,6 @@ func (c client) ping(ctx context.Context, n int) error {
 					Host: addr.HostFromIP(integration.Local.Host.IP),
 				},
 				Path: remote.Path,
-				Extensions: []common.Extension{
-					layers.ExtnE2EDebug{
-						ID: debugID,
-					},
-				},
 				L4Header: &l4.UDP{
 					SrcPort: c.port,
 					DstPort: uint16(remote.Host.Port),

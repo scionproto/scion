@@ -60,11 +60,15 @@ func SetCSum(h L4Header, addr, pld common.RawBytes) error {
 }
 
 func CheckCSum(h L4Header, addr, pld common.RawBytes) error {
+	exp := h.GetCSum()
+	// UDP allows zero check sums when used in tunnels.
+	if h.L4Type() == common.L4UDP && bytes.Compare(exp, []byte{0, 0}) == 0 {
+		return nil
+	}
 	calc, err := CalcCSum(h, addr, pld)
 	if err != nil {
 		return err
 	}
-	exp := h.GetCSum()
 	if bytes.Compare(exp, calc) != 0 {
 		return common.NewBasicError(ErrInvalidChksum, nil,
 			"expected", exp, "actual", calc, "proto", h.L4Type())

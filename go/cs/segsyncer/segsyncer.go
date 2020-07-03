@@ -37,7 +37,6 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -51,6 +50,10 @@ var (
 	errNet      = serrors.New("network error")
 )
 
+type pather interface {
+	GetPath(svc addr.HostSVC, ps *seg.PathSegment) (net.Addr, error)
+}
+
 type SegSyncer struct {
 	latestUpdate *time.Time
 	pathDB       pathdb.PathDB
@@ -58,7 +61,7 @@ type SegSyncer struct {
 	msger        infra.Messenger
 	dstIA        addr.IA
 	localIA      addr.IA
-	topoProvider topology.Provider
+	pather       pather
 	repErrCnt    int
 }
 
@@ -70,18 +73,27 @@ func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Run
 		return nil, common.NewBasicError("Failed to get local core ASes", err)
 	}
 
+	var pather pather = addrutil.LegacyPather{TopoProvider: args.TopoProvider}
+	if args.HeaderV2 {
+		pather = addrutil.Pather{
+			UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+				return args.TopoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+			},
+		}
+	}
+
 	segSyncers := make([]*periodic.Runner, 0, len(coreASes)-1)
 	for _, coreAS := range coreASes {
 		if coreAS.Equal(args.IA) {
 			continue
 		}
 		syncer := &SegSyncer{
-			pathDB:       args.PathDB,
-			revCache:     args.RevCache,
-			msger:        msger,
-			dstIA:        coreAS,
-			localIA:      args.IA,
-			topoProvider: args.TopoProvider,
+			pathDB:   args.PathDB,
+			revCache: args.RevCache,
+			msger:    msger,
+			dstIA:    coreAS,
+			localIA:  args.IA,
+			pather:   pather,
 		}
 		// TODO(lukedirtwalker): either log or add metric to indicate
 		// if task takes longer than ticker often.
@@ -137,7 +149,7 @@ func (s *SegSyncer) getDstAddr(ctx context.Context) (net.Addr, error) {
 	var cPs net.Addr
 	// select a seg to reach the dst
 	for _, ps := range coreSegs {
-		cPs, err = addrutil.GetPath(addr.SvcPS, ps, s.topoProvider)
+		cPs, err = s.pather.GetPath(addr.SvcPS, ps)
 		if err == nil {
 			return cPs, nil
 		}

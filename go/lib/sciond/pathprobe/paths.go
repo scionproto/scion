@@ -124,6 +124,7 @@ func (p Prober) GetStatuses(ctx context.Context,
 			SCMPHandler: scmpH,
 			Version2:    p.Version2,
 		},
+		Version2: p.Version2,
 	}
 	snetConn, err := network.Listen(ctx, "udp", &net.UDPAddr{IP: p.LocalIP}, addr.SvcNone)
 	if err != nil {

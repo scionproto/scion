@@ -128,6 +128,7 @@ func run(file string) error {
 			revCache,
 			cfg.SD,
 			itopo.Provider(),
+			cfg.Features.HeaderV2,
 		),
 		Engine:   engine,
 		PathDB:   pathDB,

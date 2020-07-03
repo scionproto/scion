@@ -33,6 +33,8 @@ import (
 type AppSocketServer struct {
 	Listener   *reliable.Listener
 	DispServer *dispatcher.Server
+	// HeaderV2 indicates whether the new header format is used.
+	HeaderV2 bool
 }
 
 func (s *AppSocketServer) Serve() error {
@@ -49,8 +51,9 @@ func (s *AppSocketServer) Serve() error {
 // Handle passes conn off to a per-connection state handler.
 func (h *AppSocketServer) Handle(conn net.PacketConn) {
 	ch := &AppConnHandler{
-		Conn:   conn,
-		Logger: log.New("clientID", fmt.Sprintf("%p", conn)),
+		Conn:     conn,
+		Logger:   log.New("clientID", fmt.Sprintf("%p", conn)),
+		HeaderV2: h.HeaderV2,
 	}
 	go func() {
 		defer log.HandlePanic()
@@ -64,6 +67,8 @@ type AppConnHandler struct {
 	Conn     net.PacketConn
 	DispConn *dispatcher.Conn
 	Logger   log.Logger
+	// HeaderV2 indicates whether the new header format is used.
+	HeaderV2 bool
 }
 
 func (h *AppConnHandler) Handle(appServer *dispatcher.Server) {
@@ -164,7 +169,7 @@ func (h *AppConnHandler) sendConfirmation(b common.RawBytes, c *reliable.Confirm
 func (h *AppConnHandler) RunAppToNetDataplane() {
 
 	for {
-		pkt := respool.GetPacket()
+		pkt := respool.GetPacket(h.HeaderV2)
 		// XXX(scrye): we don't release the reference on error conditions, and
 		// let the GC take care of this situation as they should be fairly
 		// rare.

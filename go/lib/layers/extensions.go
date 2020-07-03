@@ -33,8 +33,6 @@ func ExtensionFactory(class common.L4ProtocolType, extension *Extension) (common
 		}
 	case common.End2EndClass:
 		switch extension.Type {
-		case common.ExtnE2EDebugType.Type:
-			return NewExtnE2EDebugFromLayer(extension)
 		default:
 			return NewExtnUnknownFromLayer(common.End2EndClass, extension)
 		}

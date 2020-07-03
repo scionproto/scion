@@ -30,10 +30,6 @@ var (
 	ExtnPathTransType           = ExtnType{End2EndClass, 0}
 	ExtnPathProbeType           = ExtnType{End2EndClass, 1}
 	ExtnSCIONPacketSecurityType = ExtnType{End2EndClass, 2}
-	// ExtnE2EDebugType can be used to trace specific packets through the
-	// network. This is intended only for local use, and is not a recognized
-	// SCION extension.
-	ExtnE2EDebugType = ExtnType{End2EndClass, 254}
 )
 
 func (e ExtnType) String() string {
@@ -50,8 +46,6 @@ func (e ExtnType) String() string {
 		return "PathProbe"
 	case ExtnSCIONPacketSecurityType:
 		return "SCIONPacketSecurity"
-	case ExtnE2EDebugType:
-		return "E2EDebug"
 	}
 	return fmt.Sprintf("UNKNOWN (%d)", e)
 }

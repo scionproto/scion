@@ -27,6 +27,8 @@ type Dispatcher struct {
 	UnderlaySocket    string
 	ApplicationSocket string
 	SocketFileMode    os.FileMode
+	// HeaderV2 indicates whether the new header format is used.
+	HeaderV2 bool
 }
 
 func (d *Dispatcher) ListenAndServe() error {
@@ -35,6 +37,7 @@ func (d *Dispatcher) ListenAndServe() error {
 		return err
 	}
 	defer dispServer.Close()
+	dispServer.HeaderV2 = d.HeaderV2
 
 	dispServerConn, err := reliable.Listen(d.ApplicationSocket)
 	if err != nil {
@@ -56,6 +59,7 @@ func (d *Dispatcher) ListenAndServe() error {
 		dispServer := &AppSocketServer{
 			Listener:   dispServerConn,
 			DispServer: dispServer,
+			HeaderV2:   d.HeaderV2,
 		}
 		errChan <- dispServer.Serve()
 	}()

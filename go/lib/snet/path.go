@@ -15,6 +15,7 @@
 package snet
 
 import (
+	"fmt"
 	"net"
 	"time"
 
@@ -123,4 +124,8 @@ func (p *partialPath) Copy() Path {
 		underlay:    CopyUDPAddr(p.underlay),
 		destination: p.destination,
 	}
+}
+
+func (p *partialPath) String() string {
+	return fmt.Sprintf("{spath: %s, underlay: %s, dest: %s}", p.spath, p.underlay, p.destination)
 }

@@ -107,7 +107,7 @@ func (a *UDPAddr) GetPath() (Path, error) {
 	}, nil
 }
 
-// Set implements the flag.Value interface
+// Set is used to satisfy the flag.Value and pflag.Value interface.
 func (a *UDPAddr) Set(s string) error {
 	other, err := ParseUDPAddr(s)
 	if err != nil {
@@ -115,6 +115,11 @@ func (a *UDPAddr) Set(s string) error {
 	}
 	*a = *other
 	return nil
+}
+
+// Type is used to satisfy the pflag.Value interface.
+func (a *UDPAddr) Type() string {
+	return "SCION UDP Address"
 }
 
 func CopyUDPAddr(a *net.UDPAddr) *net.UDPAddr {

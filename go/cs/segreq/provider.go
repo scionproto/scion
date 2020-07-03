@@ -28,11 +28,13 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet/addrutil"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
+
+type pather interface {
+	GetPath(svc addr.HostSVC, ps *seg.PathSegment) (net.Addr, error)
+}
 
 // SegSelector selects segments to use for a connection to a remote server.
 type SegSelector struct {
@@ -63,11 +65,11 @@ func (s *SegSelector) SelectSeg(ctx context.Context,
 
 type nonCoreDstProvider struct {
 	SegSelector
-	inspector    trust.Inspector
-	coreChecker  CoreChecker
-	localIA      addr.IA
-	pathDB       pathdb.PathDB
-	topoProvider topology.Provider
+	inspector   trust.Inspector
+	coreChecker CoreChecker
+	localIA     addr.IA
+	pathDB      pathdb.PathDB
+	pather      pather
 }
 
 // Dst provides the server to lookup the segment for the given request.
@@ -107,14 +109,14 @@ func (p *nonCoreDstProvider) coreSvcAddr(ctx context.Context, svc addr.HostSVC,
 	if err != nil {
 		return nil, serrors.Wrap(segfetcher.ErrNotReachable, err)
 	}
-	return addrutil.GetPath(svc, seg, p.topoProvider)
+	return p.pather.GetPath(svc, seg)
 }
 
 type coreDstProvider struct {
 	SegSelector
-	localIA      addr.IA
-	pathDB       pathdb.PathDB
-	topoProvider topology.Provider
+	localIA addr.IA
+	pathDB  pathdb.PathDB
+	pather  pather
 }
 
 func (p *coreDstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr, error) {
@@ -135,5 +137,5 @@ func (p *coreDstProvider) corePSAddr(ctx context.Context, destISD addr.ISD) (net
 	if err != nil {
 		return nil, serrors.Wrap(segfetcher.ErrNotReachable, err)
 	}
-	return addrutil.GetPath(addr.SvcPS, seg, p.topoProvider)
+	return p.pather.GetPath(addr.SvcPS, seg)
 }

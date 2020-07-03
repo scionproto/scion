@@ -141,7 +141,7 @@ func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (Path, error) {
 			return Path{}, serrors.WrapStr("path error", err)
 		}
 	} else {
-		sp = spath.NewV2(pe.Path.FwdPath)
+		sp = spath.NewV2(pe.Path.FwdPath, false)
 	}
 
 	underlayAddr := pe.HostInfo.Underlay()

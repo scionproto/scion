@@ -282,6 +282,7 @@ func (app *App) Run() int {
 			PathDB:       pathDB,
 			RevCache:     revCache,
 			TopoProvider: itopo.Provider(),
+			HeaderV2:     Cfg.Features.HeaderV2,
 			// Fetcher needs to be initialized with a provider.
 		},
 	}
@@ -309,6 +310,7 @@ func (app *App) Run() int {
 		IA:            topo.IA(),
 		TopoProvider:  itopo.Provider(),
 		SegRequestAPI: msgr,
+		HeaderV2:      Cfg.Features.HeaderV2,
 	}
 
 	trustRouter.Pather.Fetcher = segfetcher.FetcherConfig{

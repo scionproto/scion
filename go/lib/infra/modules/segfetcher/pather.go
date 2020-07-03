@@ -42,6 +42,7 @@ type Pather struct {
 	RevCache     revcache.RevCache
 	TopoProvider topology.Provider
 	Fetcher      *Fetcher
+	HeaderV2     bool
 }
 
 // GetPaths returns all non-revoked and non-expired paths to the destination.
@@ -89,6 +90,7 @@ func (p *Pather) buildAllPaths(src, dst addr.IA, segs Segments) []*combinator.Pa
 	var validPaths []*combinator.Path
 	for _, path := range paths {
 		if path.ComputeExpTime().After(now) {
+			path.HeaderV2 = p.HeaderV2
 			validPaths = append(validPaths, path)
 		}
 	}

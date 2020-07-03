@@ -32,7 +32,10 @@ import (
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -194,6 +197,9 @@ func WriteScnPkt2(s *spkt.ScnPkt, b []byte) (int, error) {
 	var packetLayers []gopacket.SerializableLayer
 
 	var scionLayer slayers.SCION
+	// XXX(scrye): Set version 2 for debugging, although this is not part of the spec. This
+	// should be removed once the migration to the new SCION header is finished.
+	scionLayer.Version = 2
 	// XXX(scrye): Do not set TrafficClass and FlowID, even though the latter is mandatory,
 	// to keep things simple while we transition to HeaderV2. These should be added once
 	// the transition is complete.
@@ -201,34 +207,90 @@ func WriteScnPkt2(s *spkt.ScnPkt, b []byte) (int, error) {
 	scionLayer.SrcIA = s.SrcIA
 	netDstAddr, err := hostAddrToNetAddr(s.DstHost)
 	if err != nil {
-		return 0, serrors.WrapStr("unable to convert destination addr.HostAddr to net.Addr", err,
+		return 0, serrors.WrapStr("converting destination addr.HostAddr to net.Addr", err,
 			"address", s.DstHost)
 	}
 	if err := scionLayer.SetDstAddr(netDstAddr); err != nil {
-		return 0, serrors.WrapStr("unable to set destination address", err)
+		return 0, serrors.WrapStr("setting destination address", err)
 	}
 	netSrcAddr, err := hostAddrToNetAddr(s.SrcHost)
 	if err != nil {
-		return 0, serrors.WrapStr("unable to convert source addr.HostAddr to net.Addr", err,
+		return 0, serrors.WrapStr("converting source addr.HostAddr to net.Addr", err,
 			"address", s.SrcHost)
 	}
 	if err := scionLayer.SetSrcAddr(netSrcAddr); err != nil {
-		return 0, serrors.WrapStr("unable to set source address", err)
+		return 0, serrors.WrapStr("settting source address", err)
 	}
 	scionLayer.PathType = slayers.PathTypeSCION
 
-	// Use decoded for simplicity, easier to work with when debugging with delve.
-	var decodedPath scion.Decoded
-	if err := decodedPath.DecodeFromBytes(s.Path.Raw); err != nil {
-		return 0, nil
+	isOneHop := func() bool {
+		if len(s.HBHExt) != 0 {
+			_, ok := s.HBHExt[0].(*deprecatedlayers.ExtnOHP)
+			return ok
+		}
+		return false
 	}
-	scionLayer.Path = &decodedPath
+	if isOneHop() {
+		if !s.Path.IsHeaderV2() {
+			info, err := s.Path.GetInfoField(0)
+			if err != nil {
+				return 0, serrors.WrapStr("extracing one hop info field", err)
+			}
+			hf, err := s.Path.GetHopField(spath.InfoFieldLength)
+			if err != nil {
+				return 0, serrors.WrapStr("extracting one hop hop field", err)
+			}
+			scionLayer.PathType = slayers.PathTypeOneHop
+			scionLayer.Path = &onehop.Path{
+				Info: path.InfoField{
+					ConsDir:   true,
+					Timestamp: info.TsInt,
+				},
+				FirstHop: path.HopField{
+					ConsEgress: uint16(hf.ConsEgress),
+					ExpTime:    uint8(hf.ExpTime),
+				},
+			}
+		} else {
+			var path onehop.Path
+			if err := path.DecodeFromBytes(s.Path.Raw); err != nil {
+				return 0, serrors.WrapStr("decoding path", err)
+			}
+			scionLayer.PathType = slayers.PathTypeOneHop
+			scionLayer.Path = &path
+		}
+	} else {
+		switch {
+		case s.Path == nil:
+			// Default nil paths to an empty SCION path
+			decodedPath := scion.Decoded{
+				Base: scion.Base{
+					PathMeta: scion.MetaHdr{},
+				},
+			}
+			scionLayer.Path = &decodedPath
+		case s.Path.IsHeaderV2() && s.Path.IsOHP():
+			var path onehop.Path
+			if err := path.DecodeFromBytes(s.Path.Raw); err != nil {
+				return 0, serrors.WrapStr("decoding path", err)
+			}
+			scionLayer.PathType = slayers.PathTypeOneHop
+			scionLayer.Path = &path
+		default:
+			// Use decoded for simplicity, easier to work with when debugging with delve.
+			var decodedPath scion.Decoded
+			if err := decodedPath.DecodeFromBytes(s.Path.Raw); err != nil {
+				return 0, serrors.WrapStr("decoding path", err)
+			}
+			scionLayer.Path = &decodedPath
+		}
+	}
 	packetLayers = append(packetLayers, &scionLayer)
 
 	// XXX(scrye): No extensions are defined for the V2 header format. However,
 	// application code uses some V1 extensions like the One-Hop Path, and these
 	// will need to be converted for V2 to the new One-Hop path type.
-	if len(s.HBHExt) != 0 {
+	if len(s.HBHExt) != 0 && !isOneHop() {
 		return 0, serrors.New("HBH extensions are not supported for Header V2")
 	}
 	if len(s.E2EExt) != 0 {
@@ -248,14 +310,24 @@ func WriteScnPkt2(s *spkt.ScnPkt, b []byte) (int, error) {
 		var scmpLayer slayers.SCMP
 		scmpLayer.Class = layer.Class
 		scmpLayer.Type = layer.Type
-		scmpLayer.TotalLen = layer.TotalLen
+		if layer.TotalLen == 0 {
+			scmpLayer.TotalLen = uint16(scmp.HdrLen + s.Pld.Len())
+		} else {
+			scmpLayer.TotalLen = layer.TotalLen
+		}
 		scmpLayer.SetNetworkLayerForChecksum(&scionLayer)
 		scmpLayer.Timestamp = layer.Timestamp
-		scmpLayer.Payload = []byte(s.Pld.(common.RawBytes))
+		buf := make([]byte, s.Pld.Len())
+		if _, err := s.Pld.WritePld(buf); err != nil {
+			return 0, serrors.WrapStr("writing SCMP payload", err)
+		}
+		scmpLayer.Payload = buf
 		packetLayers = append(packetLayers, &scmpLayer)
 	}
-	payloadLayer := gopacket.Payload(s.Pld.(common.RawBytes))
-	packetLayers = append(packetLayers, &payloadLayer)
+	if _, ok := s.L4.(*scmp.Hdr); !ok {
+		payloadLayer := gopacket.Payload(s.Pld.(common.RawBytes))
+		packetLayers = append(packetLayers, &payloadLayer)
+	}
 
 	buffer := gopacket.NewSerializeBuffer()
 	options := gopacket.SerializeOptions{

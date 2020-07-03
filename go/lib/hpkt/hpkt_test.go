@@ -214,27 +214,92 @@ func TestParseScnPkt2(t *testing.T) {
 }
 
 func TestScnPktWrite2(t *testing.T) {
-	expectedPacket := &spkt.ScnPkt{
-		SrcIA:   xtest.MustParseIA("2-ff00:0:222"),
-		DstIA:   xtest.MustParseIA("1-ff00:0:111"),
-		SrcHost: addr.HostFromIP(net.IP{10, 0, 0, 100}),
-		DstHost: addr.HostFromIP(net.IP{0x20, 0x1, 0xd, 0xb8, 0x0, 0x0, 0x0, 0x0,
-			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x68}),
-		Path: spath.NewV2(generatePath()),
-		L4:   &l4.UDP{SrcPort: 1280, DstPort: 80, TotalLen: 1032, Checksum: []byte{0xda, 0xbb}},
-		Pld:  common.RawBytes(generatePayload()),
+	testCases := []struct {
+		Name           string
+		ExpectedPacket *spkt.ScnPkt
+	}{
+		{
+			Name: "udp",
+			ExpectedPacket: &spkt.ScnPkt{
+				SrcIA:   xtest.MustParseIA("2-ff00:0:222"),
+				DstIA:   xtest.MustParseIA("1-ff00:0:111"),
+				SrcHost: addr.HostFromIP(net.IP{10, 0, 0, 100}),
+				DstHost: addr.HostFromIP(net.IP{0x20, 0x1, 0xd, 0xb8, 0x0, 0x0, 0x0, 0x0,
+					0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x68}),
+				Path: spath.NewV2(generatePath(), false),
+				L4: &l4.UDP{
+					SrcPort:  1280,
+					DstPort:  80,
+					TotalLen: 1032,
+					Checksum: []byte{0xbb, 0xda},
+				},
+				Pld: common.RawBytes(generatePayload()),
+			},
+		},
+		{
+			Name: "EchoRequest",
+			ExpectedPacket: &spkt.ScnPkt{
+				SrcIA:   xtest.MustParseIA("1-ff00:0:1"),
+				DstIA:   xtest.MustParseIA("1-ff00:0:1"),
+				SrcHost: addr.HostFromIP(net.IP{127, 0, 0, 1}),
+				DstHost: addr.HostFromIP(net.IP{127, 0, 0, 1}),
+				L4: &scmp.Hdr{
+					Class: scmp.C_General, Type: scmp.T_G_EchoRequest,
+					TotalLen: 40,
+					Checksum: []byte{0x4a, 0x20},
+				},
+				Pld: &scmp.Payload{
+					Meta:    &scmp.Meta{InfoLen: uint8((&scmp.InfoEcho{}).Len())},
+					Info:    &scmp.InfoEcho{Id: 0xdeadcafe},
+					CmnHdr:  common.RawBytes{},
+					AddrHdr: common.RawBytes{},
+					PathHdr: common.RawBytes{},
+					ExtHdrs: common.RawBytes{},
+					L4Hdr:   common.RawBytes{},
+				},
+			},
+		},
+		{
+			Name: "EchoReply",
+			ExpectedPacket: &spkt.ScnPkt{
+				SrcIA:   xtest.MustParseIA("1-ff00:0:1"),
+				DstIA:   xtest.MustParseIA("1-ff00:0:1"),
+				SrcHost: addr.HostFromIP(net.IP{127, 0, 0, 1}),
+				DstHost: addr.HostFromIP(net.IP{127, 0, 0, 1}),
+				L4: &scmp.Hdr{
+					Class: scmp.C_General, Type: scmp.T_G_EchoReply,
+					TotalLen: 40,
+					Checksum: common.RawBytes{0x4a, 0x1f},
+				},
+				Pld: &scmp.Payload{
+					Meta: &scmp.Meta{
+						InfoLen: uint8((&scmp.InfoEcho{}).Len()),
+					},
+					Info:    &scmp.InfoEcho{Id: 0xdeadcafe},
+					CmnHdr:  common.RawBytes{},
+					AddrHdr: common.RawBytes{},
+					PathHdr: common.RawBytes{},
+					ExtHdrs: common.RawBytes{},
+					L4Hdr:   common.RawBytes{},
+				},
+			},
+		},
 	}
 
-	b := make(common.RawBytes, common.MaxMTU)
-	n, err := WriteScnPkt2(expectedPacket, b)
-	fmt.Println(b[:n])
-	assert.NoError(t, err, "Write error")
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			b := make(common.RawBytes, common.MaxMTU)
+			n, err := WriteScnPkt2(tc.ExpectedPacket, b)
+			fmt.Println(b[:n])
+			assert.NoError(t, err, "Write error")
 
-	parsedPacket := &spkt.ScnPkt{}
-	err = ParseScnPkt2(parsedPacket, b[:n])
-	require.NoError(t, err, "Read error")
+			parsedPacket := &spkt.ScnPkt{}
+			err = ParseScnPkt2(parsedPacket, b[:n])
+			require.NoError(t, err, "Read error")
 
-	assert.Equal(t, expectedPacket, parsedPacket)
+			assert.Equal(t, tc.ExpectedPacket, parsedPacket)
+		})
+	}
 }
 
 func generatePayload() []byte {

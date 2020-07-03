@@ -211,7 +211,7 @@ func TestComputeDestination(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.Description, func(t *testing.T) {
-			destination, err := ComputeDestination(test.Packet)
+			destination, err := ComputeDestination(test.Packet, false)
 			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 			assert.Equal(t, test.ExpectedDst, destination)
 		})

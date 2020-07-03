@@ -45,6 +45,9 @@ func newPing() *cobra.Command {
 		sciond      string
 		dispatcher  string
 		timeout     time.Duration
+		maxMTU      bool
+
+		features []string
 	}
 
 	var cmd = &cobra.Command{
@@ -56,6 +59,10 @@ func newPing() *cobra.Command {
 			remote, err := snet.ParseUDPAddr(args[0])
 			if err != nil {
 				return serrors.WrapStr("parsing remote", err)
+			}
+			features, err := parseFeatures(flags.features)
+			if err != nil {
+				return err
 			}
 			cmd.SilenceUsage = true
 
@@ -78,19 +85,35 @@ func newPing() *cobra.Command {
 			remote.Path = path.Path()
 			remote.NextHop = path.UnderlayNextHop()
 
-			local := flags.local
-			if local == nil {
+			localIP := flags.local
+			if localIP == nil {
 				target := remote.Host.IP
 				if remote.NextHop != nil {
 					target = remote.NextHop.IP
 				}
-				if local, err = addrutil.ResolveLocal(target); err != nil {
+				if localIP, err = addrutil.ResolveLocal(target); err != nil {
 					return serrors.WrapStr("resolving local address", err)
 
 				}
-				fmt.Printf("Resolved local address:\n  %s\n", local)
+				fmt.Printf("Resolved local address:\n  %s\n", localIP)
 			}
 			fmt.Printf("Using path:\n  %s\n\n", path)
+			local := &snet.UDPAddr{
+				IA:   info.IA,
+				Host: &net.UDPAddr{IP: localIP},
+			}
+			pldSize := int(flags.size)
+			if flags.maxMTU {
+				pldSize, err = calcMaxPldSize(local, remote, int(path.MTU()), features.HeaderV2)
+				if err != nil {
+					return err
+				}
+			}
+			pktSize, err := calcPktSize(local, remote, pldSize, features.HeaderV2)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("PING %s pld=%dB scion_pkt=%dB\n", remote, pldSize, pktSize)
 
 			start := time.Now()
 			ctx = app.WithSignal(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -99,14 +122,11 @@ func newPing() *cobra.Command {
 				count = math.MaxUint16
 			}
 			stats, err := ping.Run(ctx, ping.Config{
-				Dispatcher: reliable.NewDispatcher(flags.dispatcher),
-				Attempts:   count,
-				Interval:   flags.interval,
-				Timeout:    flags.timeout,
-				Local: &snet.UDPAddr{
-					IA:   info.IA,
-					Host: &net.UDPAddr{IP: local},
-				},
+				Dispatcher:  reliable.NewDispatcher(flags.dispatcher),
+				Attempts:    count,
+				Interval:    flags.interval,
+				Timeout:     flags.timeout,
+				Local:       local,
 				Remote:      remote,
 				PayloadSize: int(flags.size),
 				ErrHandler: func(err error) {
@@ -126,6 +146,7 @@ func newPing() *cobra.Command {
 						update.Size, update.Source.IA, update.Source.Host, update.Sequence,
 						update.RTT, additional)
 				},
+				HeaderV2: features.HeaderV2,
 			})
 			pingSummary(stats, remote, time.Since(start))
 			if err != nil {
@@ -149,8 +170,29 @@ func newPing() *cobra.Command {
 the total size of the packet is still variable size due to the variable size of
 the SCION path.`,
 	)
+	cmd.Flags().BoolVar(&flags.maxMTU, "max_mtu", false,
+		`choose the payload size such that the sent SCION packet including the SCION Header,
+SCMP echo header and payload are equal to the MTU of the path. This flag overrides the
+'payload_size' flag.`)
+	cmd.Flags().StringSliceVar(&flags.features, "features", nil,
+		"enable development features "+features{}.supported())
 
 	return cmd
+}
+
+func calcMaxPldSize(local, remote *snet.UDPAddr, mtu int, headerV2 bool) (int, error) {
+	overhead, err := calcPktSize(local, remote, 0, headerV2)
+	if err != nil {
+		return 0, err
+	}
+	return mtu - overhead, nil
+}
+
+func calcPktSize(local, remote *snet.UDPAddr, pldSize int, headerV2 bool) (int, error) {
+	if headerV2 {
+		return ping.Size(local, remote, pldSize)
+	}
+	return ping.SizeLegacy(local, remote, pldSize)
 }
 
 func pingSummary(stats ping.Stats, remote *snet.UDPAddr, run time.Duration) {

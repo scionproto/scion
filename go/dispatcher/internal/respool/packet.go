@@ -31,9 +31,10 @@ var packetPool = sync.Pool{
 	},
 }
 
-func GetPacket() *Packet {
+func GetPacket(headerV2 bool) *Packet {
 	pkt := packetPool.Get().(*Packet)
 	*pkt.refCount = 1
+	pkt.HeaderV2 = headerV2
 	return pkt
 }
 
@@ -43,6 +44,8 @@ func GetPacket() *Packet {
 type Packet struct {
 	Info           spkt.ScnPkt
 	UnderlayRemote *net.UDPAddr
+	// HeaderV2 indicates whether the new header format is used.
+	HeaderV2 bool
 
 	// buffer contains the raw slice that other fields reference
 	buffer common.RawBytes
@@ -114,6 +117,17 @@ func (pkt *Packet) DecodeFromConn(conn net.PacketConn) error {
 	metrics.M.NetReadBytes().Add(float64(n))
 
 	pkt.UnderlayRemote = readExtra.(*net.UDPAddr)
+	if pkt.HeaderV2 {
+		if err = hpkt.ParseScnPkt2(&pkt.Info, pkt.buffer); err != nil {
+			metrics.M.NetReadPkts(
+				metrics.IncomingPacket{
+					Result: metrics.PacketResultParseError,
+				},
+			).Inc()
+			return err
+		}
+		return nil
+	}
 	if err = hpkt.ParseScnPkt(&pkt.Info, pkt.buffer); err != nil {
 		metrics.M.NetReadPkts(
 			metrics.IncomingPacket{
@@ -137,13 +151,10 @@ func (pkt *Packet) DecodeFromReliableConn(conn net.PacketConn) error {
 	}
 	pkt.UnderlayRemote = readExtra.(*net.UDPAddr)
 
-	// XXX(scrye): We ignore the return value of packet parsing on egress
-	// because some tests (e.g., the Python SCMP error test) rely on being able
-	// to dump bad SCION packets on the network. If the error here is taken
-	// into account, the dispatcher drops the packet and the SCMP error reply
-	// never comes back from the BR.
-	_ = hpkt.ParseScnPkt(&pkt.Info, pkt.buffer)
-	return nil
+	if pkt.HeaderV2 {
+		return hpkt.ParseScnPkt2(&pkt.Info, pkt.buffer)
+	}
+	return hpkt.ParseScnPkt(&pkt.Info, pkt.buffer)
 }
 
 func (pkt *Packet) SendOnConn(conn net.PacketConn, address net.Addr) (int, error) {

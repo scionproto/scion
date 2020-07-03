@@ -221,6 +221,7 @@ func (nc *NetworkConfig) initQUICSocket() (net.PacketConn, error) {
 			SCMPHandler: ignoreSCMP{},
 			Version2:    nc.Version2,
 		},
+		Version2: nc.Version2,
 	}
 	udpAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)
 	if err != nil {

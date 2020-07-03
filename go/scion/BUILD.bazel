@@ -5,6 +5,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "completion.go",
+        "features.go",
         "ping.go",
         "scion.go",
         "showpaths.go",

@@ -15,6 +15,8 @@
 package segreq
 
 import (
+	"net"
+
 	"github.com/scionproto/scion/go/cs/handlers"
 	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/common"
@@ -25,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -140,20 +143,28 @@ func CreateDstProvider(args handlers.HandlerArgs, core bool) segfetcher.DstProvi
 		PathDB:   args.PathDB,
 		RevCache: args.RevCache,
 	}
+	var pather pather = addrutil.LegacyPather{TopoProvider: args.TopoProvider}
+	if args.HeaderV2 {
+		pather = addrutil.Pather{
+			UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+				return args.TopoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+			},
+		}
+	}
 	if core {
 		return &coreDstProvider{
-			SegSelector:  selector,
-			localIA:      args.IA,
-			pathDB:       args.PathDB,
-			topoProvider: args.TopoProvider,
+			SegSelector: selector,
+			localIA:     args.IA,
+			pathDB:      args.PathDB,
+			pather:      pather,
 		}
 	}
 	return &nonCoreDstProvider{
-		SegSelector:  selector,
-		inspector:    args.ASInspector,
-		coreChecker:  CoreChecker{Inspector: args.ASInspector},
-		localIA:      args.IA,
-		pathDB:       args.PathDB,
-		topoProvider: args.TopoProvider,
+		SegSelector: selector,
+		inspector:   args.ASInspector,
+		coreChecker: CoreChecker{Inspector: args.ASInspector},
+		localIA:     args.IA,
+		pathDB:      args.PathDB,
+		pather:      pather,
 	}
 }

@@ -17,6 +17,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -29,15 +30,14 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 const (
-	dispatcherTestPort  = 40031
 	defaultTimeout      = 2 * time.Second
 	defaultWaitDuration = 200 * time.Millisecond
 )
@@ -45,9 +45,10 @@ const (
 type TestSettings struct {
 	ApplicationSocket string
 	UnderlayPort      int
+	HeaderV2          bool
 }
 
-func InitTestSettings(t *testing.T) *TestSettings {
+func InitTestSettings(t *testing.T, dispatcherTestPort int) *TestSettings {
 	socketName, err := getSocketName("/tmp")
 	if err != nil {
 		t.Fatal(err)
@@ -75,27 +76,6 @@ type ClientAddress struct {
 	UnderlayPort    uint16
 }
 
-// Addressing information
-var (
-	commonIA              = xtest.MustParseIA("1-ff00:0:1")
-	commonPublicL3Address = addr.HostFromIP(net.IP{127, 0, 0, 1})
-	commonUnderlayAddress = &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: dispatcherTestPort}
-	clientXAddress        = &ClientAddress{
-		IA:              commonIA,
-		PublicAddress:   commonPublicL3Address,
-		PublicPort:      8080,
-		ServiceAddress:  addr.SvcNone,
-		UnderlayAddress: commonUnderlayAddress,
-	}
-	clientYAddress = &ClientAddress{
-		IA:              commonIA,
-		PublicAddress:   commonPublicL3Address,
-		PublicPort:      8081,
-		ServiceAddress:  addr.SvcPS,
-		UnderlayAddress: commonUnderlayAddress,
-	}
-)
-
 type TestCase struct {
 	Name            string
 	ClientAddress   *ClientAddress
@@ -104,141 +84,197 @@ type TestCase struct {
 	ExpectedPacket  *spkt.ScnPkt
 }
 
-var testCases = []*TestCase{
-	{
-		Name:          "UDP/IPv4 packet",
-		ClientAddress: clientXAddress,
-		TestPackets: []*spkt.ScnPkt{
-			{
+func genTestCases(dispatcherPort int) []*TestCase {
+	// Addressing information
+	var (
+		commonIA              = xtest.MustParseIA("1-ff00:0:1")
+		commonPublicL3Address = addr.HostFromIP(net.IP{127, 0, 0, 1})
+		commonUnderlayAddress = &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: dispatcherPort}
+		clientXAddress        = &ClientAddress{
+			IA:              commonIA,
+			PublicAddress:   commonPublicL3Address,
+			PublicPort:      8080,
+			ServiceAddress:  addr.SvcNone,
+			UnderlayAddress: commonUnderlayAddress,
+		}
+		clientYAddress = &ClientAddress{
+			IA:              commonIA,
+			PublicAddress:   commonPublicL3Address,
+			PublicPort:      8081,
+			ServiceAddress:  addr.SvcPS,
+			UnderlayAddress: commonUnderlayAddress,
+		}
+	)
+
+	var testCases = []*TestCase{
+		{
+			Name:          "UDP/IPv4 packet",
+			ClientAddress: clientXAddress,
+			TestPackets: []*spkt.ScnPkt{
+				{
+					SrcIA:   clientXAddress.IA,
+					DstIA:   clientXAddress.IA,
+					SrcHost: clientXAddress.PublicAddress,
+					DstHost: clientXAddress.PublicAddress,
+					L4: &l4.UDP{
+						SrcPort: clientXAddress.PublicPort,
+						DstPort: clientXAddress.PublicPort,
+					},
+					Pld: common.RawBytes{1, 2, 3, 4},
+				},
+			},
+			UnderlayAddress: clientXAddress.UnderlayAddress,
+			ExpectedPacket: &spkt.ScnPkt{
 				SrcIA:   clientXAddress.IA,
 				DstIA:   clientXAddress.IA,
 				SrcHost: clientXAddress.PublicAddress,
 				DstHost: clientXAddress.PublicAddress,
 				L4: &l4.UDP{
-					SrcPort: clientXAddress.PublicPort,
-					DstPort: clientXAddress.PublicPort,
+					SrcPort:  clientXAddress.PublicPort,
+					DstPort:  clientXAddress.PublicPort,
+					TotalLen: 12,
+					Checksum: common.RawBytes{0xc0, 0xb3},
 				},
 				Pld: common.RawBytes{1, 2, 3, 4},
 			},
 		},
-		UnderlayAddress: clientXAddress.UnderlayAddress,
-		ExpectedPacket: &spkt.ScnPkt{
-			SrcIA:   clientXAddress.IA,
-			DstIA:   clientXAddress.IA,
-			SrcHost: clientXAddress.PublicAddress,
-			DstHost: clientXAddress.PublicAddress,
-			L4: &l4.UDP{
-				SrcPort:  clientXAddress.PublicPort,
-				DstPort:  clientXAddress.PublicPort,
-				TotalLen: 12,
-				Checksum: common.RawBytes{0xc0, 0xb3},
+		{
+			Name:          "UDP/SVC packet",
+			ClientAddress: clientYAddress,
+			TestPackets: []*spkt.ScnPkt{
+				{
+					SrcIA:   clientYAddress.IA,
+					DstIA:   clientYAddress.IA,
+					SrcHost: clientYAddress.PublicAddress,
+					DstHost: clientYAddress.ServiceAddress,
+					L4: &l4.UDP{
+						SrcPort: clientYAddress.PublicPort,
+						DstPort: clientYAddress.PublicPort,
+					},
+					Pld: common.RawBytes{5, 6, 7, 8},
+				},
 			},
-			Pld: common.RawBytes{1, 2, 3, 4},
-		},
-	},
-	{
-		Name:          "UDP/SVC packet",
-		ClientAddress: clientYAddress,
-		TestPackets: []*spkt.ScnPkt{
-			{
+			UnderlayAddress: clientXAddress.UnderlayAddress,
+			ExpectedPacket: &spkt.ScnPkt{
 				SrcIA:   clientYAddress.IA,
 				DstIA:   clientYAddress.IA,
 				SrcHost: clientYAddress.PublicAddress,
 				DstHost: clientYAddress.ServiceAddress,
 				L4: &l4.UDP{
-					SrcPort: clientYAddress.PublicPort,
-					DstPort: clientYAddress.PublicPort,
+					SrcPort:  clientYAddress.PublicPort,
+					DstPort:  clientYAddress.PublicPort,
+					TotalLen: 12,
+					Checksum: common.RawBytes{0x37, 0xaa},
 				},
 				Pld: common.RawBytes{5, 6, 7, 8},
 			},
 		},
-		UnderlayAddress: clientXAddress.UnderlayAddress,
-		ExpectedPacket: &spkt.ScnPkt{
-			SrcIA:   clientYAddress.IA,
-			DstIA:   clientYAddress.IA,
-			SrcHost: clientYAddress.PublicAddress,
-			DstHost: clientYAddress.ServiceAddress,
-			L4: &l4.UDP{
-				SrcPort:  clientYAddress.PublicPort,
-				DstPort:  clientYAddress.PublicPort,
-				TotalLen: 12,
-				Checksum: common.RawBytes{0x37, 0xaa},
+		{
+			Name:            "SCMP::Error, UDP quote",
+			ClientAddress:   clientXAddress,
+			UnderlayAddress: clientXAddress.UnderlayAddress,
+			TestPackets: []*spkt.ScnPkt{
+				{
+					SrcIA:   clientXAddress.IA,
+					DstIA:   clientXAddress.IA,
+					SrcHost: clientXAddress.PublicAddress,
+					DstHost: clientXAddress.PublicAddress,
+					L4: &scmp.Hdr{
+						Class: scmp.C_Routing, Type: scmp.T_R_UnreachNet,
+					},
+					Pld: &scmp.Payload{
+						Meta:  &scmp.Meta{L4Proto: common.L4UDP, L4HdrLen: 1},
+						L4Hdr: MustPackL4Header(&l4.UDP{SrcPort: clientXAddress.PublicPort}),
+					},
+				},
 			},
-			Pld: common.RawBytes{5, 6, 7, 8},
-		},
-	},
-	{
-		Name:            "SCMP::Error, UDP quote",
-		ClientAddress:   clientXAddress,
-		UnderlayAddress: clientXAddress.UnderlayAddress,
-		TestPackets: []*spkt.ScnPkt{
-			{
+			ExpectedPacket: &spkt.ScnPkt{
 				SrcIA:   clientXAddress.IA,
 				DstIA:   clientXAddress.IA,
 				SrcHost: clientXAddress.PublicAddress,
 				DstHost: clientXAddress.PublicAddress,
 				L4: &scmp.Hdr{
 					Class: scmp.C_Routing, Type: scmp.T_R_UnreachNet,
+					TotalLen: 32,
+					Checksum: common.RawBytes{0xd3, 0x43},
 				},
 				Pld: &scmp.Payload{
-					Meta:  &scmp.Meta{L4Proto: common.L4UDP, L4HdrLen: 1},
-					L4Hdr: MustPackL4Header(&l4.UDP{SrcPort: clientXAddress.PublicPort}),
+					Meta:    &scmp.Meta{L4Proto: common.L4UDP, L4HdrLen: 1},
+					CmnHdr:  common.RawBytes{},
+					AddrHdr: common.RawBytes{},
+					PathHdr: common.RawBytes{},
+					ExtHdrs: common.RawBytes{},
+					L4Hdr:   MustPackL4Header(&l4.UDP{SrcPort: clientXAddress.PublicPort}),
 				},
 			},
 		},
-		ExpectedPacket: &spkt.ScnPkt{
-			SrcIA:   clientXAddress.IA,
-			DstIA:   clientXAddress.IA,
-			SrcHost: clientXAddress.PublicAddress,
-			DstHost: clientXAddress.PublicAddress,
-			L4: &scmp.Hdr{
-				Class: scmp.C_Routing, Type: scmp.T_R_UnreachNet,
-				TotalLen: 32,
-				Checksum: common.RawBytes{0xd3, 0x43},
-			},
-			Pld: &scmp.Payload{
-				Meta:    &scmp.Meta{L4Proto: common.L4UDP, L4HdrLen: 1},
-				CmnHdr:  common.RawBytes{},
-				AddrHdr: common.RawBytes{},
-				PathHdr: common.RawBytes{},
-				ExtHdrs: common.RawBytes{},
-				L4Hdr:   MustPackL4Header(&l4.UDP{SrcPort: clientXAddress.PublicPort}),
-			},
-		},
-	},
-	{
-		Name:            "SCMP::Error, SCMP quote",
-		ClientAddress:   clientXAddress,
-		UnderlayAddress: clientXAddress.UnderlayAddress,
-		TestPackets: []*spkt.ScnPkt{
-			{
-				// Force a SCMP General ID registration to happen, but route it
-				// from nowhere so we don't get it back
-				SrcIA:   xtest.MustParseIA("1-ff00:0:42"), // middle of nowhere
-				DstIA:   clientYAddress.IA,
-				SrcHost: clientXAddress.PublicAddress,
-				DstHost: clientYAddress.PublicAddress,
-				L4: &scmp.Hdr{
-					Class: scmp.C_General, Type: scmp.T_G_EchoRequest,
+		{
+			Name:            "SCMP::Error, SCMP quote",
+			ClientAddress:   clientXAddress,
+			UnderlayAddress: clientXAddress.UnderlayAddress,
+			TestPackets: []*spkt.ScnPkt{
+				{
+					// Force a SCMP General ID registration to happen, but route it
+					// from nowhere so we don't get it back
+					SrcIA:   xtest.MustParseIA("1-ff00:0:42"), // middle of nowhere
+					DstIA:   clientYAddress.IA,
+					SrcHost: clientXAddress.PublicAddress,
+					DstHost: clientYAddress.PublicAddress,
+					L4: &scmp.Hdr{
+						Class: scmp.C_General, Type: scmp.T_G_EchoRequest,
+					},
+					Pld: &scmp.Payload{
+						Meta: &scmp.Meta{InfoLen: uint8((&scmp.InfoEcho{}).Len()) / 8},
+						Info: &scmp.InfoEcho{Id: 0xabbacafe},
+					},
 				},
-				Pld: &scmp.Payload{
-					Meta: &scmp.Meta{InfoLen: uint8((&scmp.InfoEcho{}).Len()) / 8},
-					Info: &scmp.InfoEcho{Id: 0xabbacafe},
+				{
+					SrcIA:   clientXAddress.IA,
+					DstIA:   clientXAddress.IA,
+					SrcHost: clientXAddress.PublicAddress,
+					DstHost: clientXAddress.PublicAddress,
+					L4: &scmp.Hdr{
+						Class: scmp.C_Routing, Type: scmp.T_R_UnreachNet,
+					},
+					Pld: &scmp.Payload{
+						Meta: &scmp.Meta{
+							L4Proto:  common.L4SCMP,
+							L4HdrLen: 3 + uint8((&scmp.InfoEcho{}).Len()/common.LineLen),
+						},
+						L4Hdr: MustPackQuotedSCMPL4Header(
+							&scmp.Hdr{
+								Class: scmp.C_General,
+								Type:  scmp.T_G_EchoRequest,
+							},
+							&scmp.Meta{
+								InfoLen: uint8((&scmp.InfoEcho{}).Len()) / 8,
+							},
+							&scmp.InfoEcho{
+								Id: 0xabbacafe,
+							},
+						),
+					},
 				},
 			},
-			{
+			ExpectedPacket: &spkt.ScnPkt{
 				SrcIA:   clientXAddress.IA,
 				DstIA:   clientXAddress.IA,
 				SrcHost: clientXAddress.PublicAddress,
 				DstHost: clientXAddress.PublicAddress,
 				L4: &scmp.Hdr{
 					Class: scmp.C_Routing, Type: scmp.T_R_UnreachNet,
+					TotalLen: 64,
+					Checksum: common.RawBytes{0x89, 0xf5},
 				},
 				Pld: &scmp.Payload{
 					Meta: &scmp.Meta{
 						L4Proto:  common.L4SCMP,
 						L4HdrLen: 3 + uint8((&scmp.InfoEcho{}).Len()/common.LineLen),
 					},
+					CmnHdr:  common.RawBytes{},
+					AddrHdr: common.RawBytes{},
+					PathHdr: common.RawBytes{},
+					ExtHdrs: common.RawBytes{},
 					L4Hdr: MustPackQuotedSCMPL4Header(
 						&scmp.Hdr{
 							Class: scmp.C_General,
@@ -254,178 +290,172 @@ var testCases = []*TestCase{
 				},
 			},
 		},
-		ExpectedPacket: &spkt.ScnPkt{
-			SrcIA:   clientXAddress.IA,
-			DstIA:   clientXAddress.IA,
-			SrcHost: clientXAddress.PublicAddress,
-			DstHost: clientXAddress.PublicAddress,
-			L4: &scmp.Hdr{
-				Class: scmp.C_Routing, Type: scmp.T_R_UnreachNet,
-				TotalLen: 64,
-				Checksum: common.RawBytes{0x89, 0xf5},
-			},
-			Pld: &scmp.Payload{
-				Meta: &scmp.Meta{
-					L4Proto:  common.L4SCMP,
-					L4HdrLen: 3 + uint8((&scmp.InfoEcho{}).Len()/common.LineLen),
+		{
+			Name:            "SCMP::General::EchoRequest",
+			ClientAddress:   clientXAddress,
+			UnderlayAddress: clientYAddress.UnderlayAddress,
+			TestPackets: []*spkt.ScnPkt{
+				{
+					SrcIA:   clientXAddress.IA,
+					DstIA:   clientYAddress.IA,
+					SrcHost: clientXAddress.PublicAddress,
+					DstHost: clientYAddress.PublicAddress,
+					L4: &scmp.Hdr{
+						Class: scmp.C_General, Type: scmp.T_G_EchoRequest,
+					},
+					Pld: &scmp.Payload{
+						Meta: &scmp.Meta{InfoLen: uint8((&scmp.InfoEcho{}).Len())},
+						Info: &scmp.InfoEcho{Id: 0xdeadcafe},
+					},
 				},
-				CmnHdr:  common.RawBytes{},
-				AddrHdr: common.RawBytes{},
-				PathHdr: common.RawBytes{},
-				ExtHdrs: common.RawBytes{},
-				L4Hdr: MustPackQuotedSCMPL4Header(
-					&scmp.Hdr{
-						Class: scmp.C_General,
-						Type:  scmp.T_G_EchoRequest,
-					},
-					&scmp.Meta{
-						InfoLen: uint8((&scmp.InfoEcho{}).Len()) / 8,
-					},
-					&scmp.InfoEcho{
-						Id: 0xabbacafe,
-					},
-				),
 			},
-		},
-	},
-	{
-		Name:            "SCMP::General::EchoRequest",
-		ClientAddress:   clientXAddress,
-		UnderlayAddress: clientYAddress.UnderlayAddress,
-		TestPackets: []*spkt.ScnPkt{
-			{
-				SrcIA:   clientXAddress.IA,
-				DstIA:   clientYAddress.IA,
-				SrcHost: clientXAddress.PublicAddress,
-				DstHost: clientYAddress.PublicAddress,
+			ExpectedPacket: &spkt.ScnPkt{
+				SrcIA:   clientYAddress.IA,
+				DstIA:   clientXAddress.IA,
+				SrcHost: clientYAddress.PublicAddress,
+				DstHost: clientXAddress.PublicAddress,
 				L4: &scmp.Hdr{
-					Class: scmp.C_General, Type: scmp.T_G_EchoRequest,
+					Class: scmp.C_General, Type: scmp.T_G_EchoReply,
+					TotalLen: 40,
+					Checksum: common.RawBytes{0x4a, 0x1f},
 				},
 				Pld: &scmp.Payload{
-					Meta: &scmp.Meta{InfoLen: uint8((&scmp.InfoEcho{}).Len())},
-					Info: &scmp.InfoEcho{Id: 0xdeadcafe},
+					Meta: &scmp.Meta{
+						InfoLen: uint8((&scmp.InfoEcho{}).Len()),
+					},
+					Info:    &scmp.InfoEcho{Id: 0xdeadcafe},
+					CmnHdr:  common.RawBytes{},
+					AddrHdr: common.RawBytes{},
+					PathHdr: common.RawBytes{},
+					ExtHdrs: common.RawBytes{},
+					L4Hdr:   common.RawBytes{},
 				},
 			},
 		},
-		ExpectedPacket: &spkt.ScnPkt{
-			SrcIA:   clientYAddress.IA,
-			DstIA:   clientXAddress.IA,
-			SrcHost: clientYAddress.PublicAddress,
-			DstHost: clientXAddress.PublicAddress,
-			L4: &scmp.Hdr{
-				Class: scmp.C_General, Type: scmp.T_G_EchoReply,
-				TotalLen: 40,
-				Checksum: common.RawBytes{0x4a, 0x1f},
-			},
-			Pld: &scmp.Payload{
-				Meta: &scmp.Meta{
-					InfoLen: uint8((&scmp.InfoEcho{}).Len()),
+		{
+			Name:            "SCMP::General::TraceRouteRequest",
+			ClientAddress:   clientXAddress,
+			UnderlayAddress: clientYAddress.UnderlayAddress,
+			TestPackets: []*spkt.ScnPkt{
+				{
+					SrcIA:   clientXAddress.IA,
+					DstIA:   clientYAddress.IA,
+					SrcHost: clientXAddress.PublicAddress,
+					DstHost: clientYAddress.PublicAddress,
+					L4: &scmp.Hdr{
+						Class: scmp.C_General, Type: scmp.T_G_TraceRouteRequest,
+					},
+					Pld: &scmp.Payload{
+						Meta: &scmp.Meta{InfoLen: uint8((&scmp.InfoTraceRoute{}).Len()) / 8},
+						Info: &scmp.InfoTraceRoute{Id: 0xcafecafe},
+					},
 				},
-				Info:    &scmp.InfoEcho{Id: 0xdeadcafe},
-				CmnHdr:  common.RawBytes{},
-				AddrHdr: common.RawBytes{},
-				PathHdr: common.RawBytes{},
-				ExtHdrs: common.RawBytes{},
-				L4Hdr:   common.RawBytes{},
 			},
-		},
-	},
-	{
-		Name:            "SCMP::General::TraceRouteRequest",
-		ClientAddress:   clientXAddress,
-		UnderlayAddress: clientYAddress.UnderlayAddress,
-		TestPackets: []*spkt.ScnPkt{
-			{
-				SrcIA:   clientXAddress.IA,
-				DstIA:   clientYAddress.IA,
-				SrcHost: clientXAddress.PublicAddress,
-				DstHost: clientYAddress.PublicAddress,
+			ExpectedPacket: &spkt.ScnPkt{
+				SrcIA:   clientYAddress.IA,
+				DstIA:   clientXAddress.IA,
+				SrcHost: clientYAddress.PublicAddress,
+				DstHost: clientXAddress.PublicAddress,
 				L4: &scmp.Hdr{
-					Class: scmp.C_General, Type: scmp.T_G_TraceRouteRequest,
+					Class: scmp.C_General, Type: scmp.T_G_TraceRouteReply,
+					TotalLen: 56,
+					Checksum: common.RawBytes{0x69, 0xbc},
 				},
 				Pld: &scmp.Payload{
-					Meta: &scmp.Meta{InfoLen: uint8((&scmp.InfoTraceRoute{}).Len()) / 8},
-					Info: &scmp.InfoTraceRoute{Id: 0xcafecafe},
+					Meta: &scmp.Meta{
+						InfoLen: uint8((&scmp.InfoTraceRoute{}).Len()) / 8,
+					},
+					Info:    &scmp.InfoTraceRoute{Id: 0xcafecafe},
+					CmnHdr:  common.RawBytes{},
+					AddrHdr: common.RawBytes{},
+					PathHdr: common.RawBytes{},
+					ExtHdrs: common.RawBytes{},
+					L4Hdr:   common.RawBytes{},
 				},
 			},
 		},
-		ExpectedPacket: &spkt.ScnPkt{
-			SrcIA:   clientYAddress.IA,
-			DstIA:   clientXAddress.IA,
-			SrcHost: clientYAddress.PublicAddress,
-			DstHost: clientXAddress.PublicAddress,
-			L4: &scmp.Hdr{
-				Class: scmp.C_General, Type: scmp.T_G_TraceRouteReply,
-				TotalLen: 56,
-				Checksum: common.RawBytes{0x69, 0xbc},
-			},
-			Pld: &scmp.Payload{
-				Meta: &scmp.Meta{
-					InfoLen: uint8((&scmp.InfoTraceRoute{}).Len()) / 8,
+		{
+			Name:            "SCMP::General::RecordPathRequest",
+			ClientAddress:   clientXAddress,
+			UnderlayAddress: clientYAddress.UnderlayAddress,
+			TestPackets: []*spkt.ScnPkt{
+				{
+					SrcIA:   clientXAddress.IA,
+					DstIA:   clientYAddress.IA,
+					SrcHost: clientXAddress.PublicAddress,
+					DstHost: clientYAddress.PublicAddress,
+					L4: &scmp.Hdr{
+						Class: scmp.C_General, Type: scmp.T_G_RecordPathRequest,
+					},
+					Pld: &scmp.Payload{
+						Meta: &scmp.Meta{InfoLen: uint8((&scmp.InfoRecordPath{}).Len()) / 8},
+						Info: &scmp.InfoRecordPath{Id: 0xf00dcafe},
+					},
 				},
-				Info:    &scmp.InfoTraceRoute{Id: 0xcafecafe},
-				CmnHdr:  common.RawBytes{},
-				AddrHdr: common.RawBytes{},
-				PathHdr: common.RawBytes{},
-				ExtHdrs: common.RawBytes{},
-				L4Hdr:   common.RawBytes{},
 			},
-		},
-	},
-	{
-		Name:            "SCMP::General::RecordPathRequest",
-		ClientAddress:   clientXAddress,
-		UnderlayAddress: clientYAddress.UnderlayAddress,
-		TestPackets: []*spkt.ScnPkt{
-			{
-				SrcIA:   clientXAddress.IA,
-				DstIA:   clientYAddress.IA,
-				SrcHost: clientXAddress.PublicAddress,
-				DstHost: clientYAddress.PublicAddress,
+			ExpectedPacket: &spkt.ScnPkt{
+				SrcIA:   clientYAddress.IA,
+				DstIA:   clientXAddress.IA,
+				SrcHost: clientYAddress.PublicAddress,
+				DstHost: clientXAddress.PublicAddress,
 				L4: &scmp.Hdr{
-					Class: scmp.C_General, Type: scmp.T_G_RecordPathRequest,
+					Class: scmp.C_General, Type: scmp.T_G_RecordPathReply,
+					TotalLen: 40,
+					Checksum: common.RawBytes{0x46, 0xbb},
 				},
 				Pld: &scmp.Payload{
-					Meta: &scmp.Meta{InfoLen: uint8((&scmp.InfoRecordPath{}).Len()) / 8},
-					Info: &scmp.InfoRecordPath{Id: 0xf00dcafe},
+					Meta: &scmp.Meta{
+						InfoLen: uint8((&scmp.InfoRecordPath{}).Len()) / 8,
+					},
+					Info: &scmp.InfoRecordPath{
+						Id:      0xf00dcafe,
+						Entries: []*scmp.RecordPathEntry{},
+					},
+					CmnHdr:  common.RawBytes{},
+					AddrHdr: common.RawBytes{},
+					PathHdr: common.RawBytes{},
+					ExtHdrs: common.RawBytes{},
+					L4Hdr:   common.RawBytes{},
 				},
 			},
 		},
-		ExpectedPacket: &spkt.ScnPkt{
-			SrcIA:   clientYAddress.IA,
-			DstIA:   clientXAddress.IA,
-			SrcHost: clientYAddress.PublicAddress,
-			DstHost: clientXAddress.PublicAddress,
-			L4: &scmp.Hdr{
-				Class: scmp.C_General, Type: scmp.T_G_RecordPathReply,
-				TotalLen: 40,
-				Checksum: common.RawBytes{0x46, 0xbb},
-			},
-			Pld: &scmp.Payload{
-				Meta: &scmp.Meta{
-					InfoLen: uint8((&scmp.InfoRecordPath{}).Len()) / 8,
-				},
-				Info:    &scmp.InfoRecordPath{Id: 0xf00dcafe, Entries: []*scmp.RecordPathEntry{}},
-				CmnHdr:  common.RawBytes{},
-				AddrHdr: common.RawBytes{},
-				PathHdr: common.RawBytes{},
-				ExtHdrs: common.RawBytes{},
-				L4Hdr:   common.RawBytes{},
-			},
-		},
-	},
+	}
+	return testCases
 }
 
 func TestDataplaneIntegration(t *testing.T) {
-	settings := InitTestSettings(t)
+	dispatcherTestPort := 40031
+	settings := InitTestSettings(t, dispatcherTestPort)
 
 	go func() {
 		err := RunDispatcher(false, settings.ApplicationSocket, reliable.DefaultDispSocketFileMode,
-			settings.UnderlayPort)
+			settings.UnderlayPort, settings.HeaderV2)
 		xtest.FailOnErr(t, err, "dispatcher error")
 	}()
 	time.Sleep(defaultWaitDuration)
 
+	testCases := genTestCases(dispatcherTestPort)
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			RunTestCase(t, tc, settings)
+		})
+		time.Sleep(defaultWaitDuration)
+	}
+}
+
+func TestDataplaneIntegrationV2(t *testing.T) {
+	dispatcherTestPort := 40032
+	settings := InitTestSettings(t, dispatcherTestPort)
+	settings.HeaderV2 = true
+
+	go func() {
+		err := RunDispatcher(false, settings.ApplicationSocket, reliable.DefaultDispSocketFileMode,
+			settings.UnderlayPort, settings.HeaderV2)
+		xtest.FailOnErr(t, err, "dispatcher error")
+	}()
+	time.Sleep(defaultWaitDuration)
+
+	testCases := genTestCases(dispatcherTestPort)
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			RunTestCase(t, tc, settings)
@@ -453,25 +483,38 @@ func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
 	defer conn.Close()
 
 	for _, packet := range tc.TestPackets {
-		send_buffer := make([]byte, common.MaxMTU)
-		n, err := hpkt.WriteScnPkt(packet, send_buffer)
+		sendBuffer := make([]byte, common.MaxMTU)
+		var n int
+		var err error
+		if settings.HeaderV2 {
+			packet.Path = spath.NewV2(generatePath(), false)
+			n, err = hpkt.WriteScnPkt2(packet, sendBuffer)
+		} else {
+			n, err = hpkt.WriteScnPkt(packet, sendBuffer)
+		}
 		xtest.FailOnErr(t, err, "unable to serialize packet for sending")
-		send_buffer = send_buffer[:n]
+		sendBuffer = sendBuffer[:n]
 
-		_, err = conn.WriteTo(send_buffer, tc.UnderlayAddress)
+		fmt.Printf("sending packet: %x\n", sendBuffer)
+		_, err = conn.WriteTo(sendBuffer, tc.UnderlayAddress)
 		xtest.FailOnErr(t, err, "unable to write message")
 	}
 
 	err = conn.SetReadDeadline(time.Now().Add(defaultTimeout))
 	xtest.FailOnErr(t, err, "unable to set read deadline")
 
-	recv_buffer := make([]byte, common.MaxMTU)
-	n, _, err := conn.ReadFrom(recv_buffer)
+	recvBuffer := make([]byte, common.MaxMTU)
+	n, _, err := conn.ReadFrom(recvBuffer)
 	xtest.FailOnErr(t, err, "unable to read message")
-	recv_buffer = recv_buffer[:n]
+	recvBuffer = recvBuffer[:n]
 
 	var packet spkt.ScnPkt
-	err = hpkt.ParseScnPkt(&packet, recv_buffer)
+	if settings.HeaderV2 {
+		err = hpkt.ParseScnPkt2(&packet, recvBuffer)
+		packet.Path = nil
+	} else {
+		err = hpkt.ParseScnPkt(&packet, recvBuffer)
+	}
 	xtest.FailOnErr(t, err, "unable to parse received packet")
 
 	err = conn.Close()
@@ -512,6 +555,20 @@ func MustPackQuotedSCMPL4Header(header *scmp.Hdr, meta *scmp.Meta, info scmp.Inf
 }
 
 func TestMain(m *testing.M) {
-	log.Discard()
+	// log.Discard()
 	os.Exit(m.Run())
+}
+
+func generatePath() []byte {
+	return []byte{
+		0x0, 0x0, 0x20, 0x80, 0x0, 0x0, 0x1, 0x11,
+		0x0, 0x0, 0x1, 0x0, 0x1, 0x0, 0x2, 0x22,
+		0x0, 0x0, 0x1, 0x0, 0x0, 0x3f, 0x0, 0x1,
+		0x0, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x0,
+		0x3f, 0x0, 0x3, 0x0, 0x2, 0x1, 0x2, 0x3,
+		0x4, 0x5, 0x6, 0x0, 0x3f, 0x0, 0x0, 0x0,
+		0x2, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x0,
+		0x3f, 0x0, 0x1, 0x0, 0x0, 0x1, 0x2, 0x3,
+		0x4, 0x5, 0x6,
+	}
 }

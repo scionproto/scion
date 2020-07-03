@@ -25,7 +25,10 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
 const (
@@ -125,21 +128,21 @@ func (h *handler) getIntfInfo() (common.IFIDType, *ifstate.Interface, error) {
 		return 0, nil, common.NewBasicError("Invalid peer address type, expected *snet.UDPAddr",
 			nil, "peer", h.request.Peer, "type", common.TypeOf(h.request.Peer))
 	}
-	hopF, err := peer.Path.GetHopField(peer.Path.HopOff)
+	ingressIfID, err := ingressIfID(peer.Path)
 	if err != nil {
-		return 0, nil, common.NewBasicError("Unable to extract hop field", err)
+		return 0, nil, err
 	}
-	info := h.intfs.Get(hopF.ConsIngress)
+	info := h.intfs.Get(ingressIfID)
 	if info == nil {
 		return 0, nil, common.NewBasicError("Received keepalive for non-existent ifid", nil,
-			"ifid", hopF.ConsIngress)
+			"ifid", ingressIfID)
 	}
 	originIA := info.TopoInfo().IA
 	if !info.TopoInfo().IA.Equal(peer.IA) {
 		return 0, nil, common.NewBasicError("Keepalive origin IA does not match", nil,
-			"ifid", hopF.ConsIngress, "expected", originIA, "actual", peer.IA)
+			"ifid", ingressIfID, "expected", originIA, "actual", peer.IA)
 	}
-	return hopF.ConsIngress, info, nil
+	return ingressIfID, info, nil
 }
 
 func (h *handler) startPush(ifid common.IFIDType) {
@@ -158,4 +161,23 @@ func (h *handler) dropRevs(localIfid, originIfid common.IFIDType, originIA addr.
 		return err
 	}
 	return h.tasks.RevDropper.DeleteRevocation(subCtx, originIA, originIfid)
+}
+
+func ingressIfID(path *spath.Path) (common.IFIDType, error) {
+	if path.IsHeaderV2() {
+		var sp scion.Raw
+		if err := sp.DecodeFromBytes(path.Raw); err != nil {
+			return 0, serrors.WrapStr("decoding path (v2)", err)
+		}
+		hf, err := sp.GetCurrentHopField()
+		if err != nil {
+			return 0, serrors.WrapStr("getting current hop field", err)
+		}
+		return common.IFIDType(hf.ConsIngress), nil
+	}
+	hopF, err := path.GetHopField(path.HopOff)
+	if err != nil {
+		return 0, common.NewBasicError("Unable to extract hop field", err)
+	}
+	return hopF.ConsIngress, nil
 }

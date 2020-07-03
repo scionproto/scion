@@ -33,6 +33,8 @@ type Server struct {
 	routingTable *IATable
 	ipv4Conn     net.PacketConn
 	ipv6Conn     net.PacketConn
+	// HeaderV2 indicates whether the new header format is used.
+	HeaderV2 bool
 }
 
 // NewServer creates new instance of Server. Internally, it opens the dispatcher ports
@@ -73,6 +75,7 @@ func (as *Server) Serve() error {
 		netToRingDataplane := &NetToRingDataplane{
 			UnderlayConn: as.ipv4Conn,
 			RoutingTable: as.routingTable,
+			HeaderV2:     as.HeaderV2,
 		}
 		errChan <- netToRingDataplane.Run()
 	}()
@@ -81,6 +84,7 @@ func (as *Server) Serve() error {
 		netToRingDataplane := &NetToRingDataplane{
 			UnderlayConn: as.ipv6Conn,
 			RoutingTable: as.routingTable,
+			HeaderV2:     as.HeaderV2,
 		}
 		errChan <- netToRingDataplane.Run()
 	}()
@@ -123,11 +127,21 @@ type Conn struct {
 	ring *ringbuf.Ring
 	// regReference is the reference to the registration in the routing table.
 	regReference registration.RegReference
+	// HeaderV2 indicates whether the new header format is used.
+	HeaderV2 bool
 }
 
 func (ac *Conn) WriteTo(p []byte, addr net.Addr) (int, error) {
 	var info spkt.ScnPkt
-	hpkt.ParseScnPkt(&info, p)
+	if ac.HeaderV2 {
+		if err := hpkt.ParseScnPkt2(&info, p); err != nil {
+			return 0, err
+		}
+	} else {
+		if err := hpkt.ParseScnPkt(&info, p); err != nil {
+			return 0, err
+		}
+	}
 	if err := registerIfSCMPRequest(ac.regReference, &info); err != nil {
 		log.Info("SCMP Request ID error, packet still sent", "err", err)
 	}
