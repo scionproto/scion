@@ -37,19 +37,16 @@ func TestLoadChains(t *testing.T) {
 	}
 	trc := xtest.LoadTRC(t, filepath.Join(goldenDir, "ISD1/trcs/ISD1-B1-S1.trc"))
 
-	mctlr := gomock.NewController(t)
-	defer mctlr.Finish()
-
 	testCases := map[string]struct {
 		inputDir   string
-		setupDB    func() trust.DB
+		setupDB    func(*gomock.Controller) trust.DB
 		assertFunc assert.ErrorAssertionFunc
 		ignored    []string
 		loaded     []string
 	}{
 		"valid": {
 			inputDir: filepath.Join(goldenDir, "certs"),
-			setupDB: func() trust.DB {
+			setupDB: func(mctlr *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(mctlr)
 				db.EXPECT().SignedTRC(ctxMatcher{},
 					TRCIDMatcher{ISD: 1}).Return(trc, nil).AnyTimes()
@@ -68,35 +65,29 @@ func TestLoadChains(t *testing.T) {
 		},
 		"invalid dir": {
 			inputDir: "./path/to/nowhere",
-			setupDB: func() trust.DB {
+			setupDB: func(mctlr *gomock.Controller) trust.DB {
 				return mock_trust.NewMockDB(mctlr)
 			},
 			assertFunc: assert.Error,
 		},
 		"db.SignedTRC error": {
 			inputDir: filepath.Join(goldenDir, "certs"),
-			setupDB: func() trust.DB {
+			setupDB: func(mctlr *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(mctlr)
 				db.EXPECT().SignedTRC(ctxMatcher{},
 					TRCIDMatcher{ISD: 1}).Return(
 					cppki.SignedTRC{}, serrors.New("db failed")).AnyTimes()
-				db.EXPECT().InsertChain(ctxMatcher{}, gomock.Any()).Return(
-					false, nil,
-				)
 				return db
 			},
 			assertFunc: assert.Error,
 		},
 		"db.SignedTRC not found": {
 			inputDir: filepath.Join(goldenDir, "certs"),
-			setupDB: func() trust.DB {
+			setupDB: func(mctlr *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(mctlr)
 				db.EXPECT().SignedTRC(ctxMatcher{},
 					TRCIDMatcher{ISD: 1}).AnyTimes().Return(
 					cppki.SignedTRC{}, nil,
-				)
-				db.EXPECT().InsertChain(ctxMatcher{}, gomock.Any()).Return(
-					false, nil,
 				)
 				return db
 			},
@@ -110,7 +101,7 @@ func TestLoadChains(t *testing.T) {
 		},
 		"db.Chain error": {
 			inputDir: filepath.Join(goldenDir, "certs"),
-			setupDB: func() trust.DB {
+			setupDB: func(mctlr *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(mctlr)
 				db.EXPECT().SignedTRC(ctxMatcher{},
 					TRCIDMatcher{ISD: 1}).Return(trc, nil).AnyTimes()
@@ -123,7 +114,7 @@ func TestLoadChains(t *testing.T) {
 		},
 		"invalid TRC validation": {
 			inputDir: filepath.Join(goldenDir, "certs"),
-			setupDB: func() trust.DB {
+			setupDB: func(mctlr *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(mctlr)
 				db.EXPECT().SignedTRC(ctxMatcher{},
 					TRCIDMatcher{ISD: 1}).Return(
@@ -145,7 +136,9 @@ func TestLoadChains(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			db := tc.setupDB()
+			ctlr := gomock.NewController(t)
+			defer ctlr.Finish()
+			db := tc.setupDB(ctlr)
 			res, err := trust.LoadChains(context.Background(), tc.inputDir, db)
 			tc.assertFunc(t, err)
 			if err != nil {

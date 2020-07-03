@@ -29,7 +29,7 @@ go_test(
         "certs_test.go",
         "export_test.go",
         "id_test.go",
-        "singed_trc_test.go",
+        "signed_trc_test.go",
         "trc_asn1_test.go",
         "trc_test.go",
         "validity_test.go",

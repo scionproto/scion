@@ -48,6 +48,8 @@ func TestVerify(t *testing.T) {
 	key := loadKey(t, filepath.Join(goldenDir,
 		"ISD1/ASff00_0_110/crypto/as/cp-as.key"))
 	sign := validSignS(t, msg, "1-ff00:0:110", key)
+	forgedSign := validSignS(t, msg, "1-ff00:0:110", key)
+	forgedSign.Signature[30] ^= 0xFF
 
 	testCases := map[string]struct {
 		provider    func(mctrl *gomock.Controller) trust.Provider
@@ -165,6 +167,27 @@ func TestVerify(t *testing.T) {
 				return p
 			},
 			sign:       sign,
+			assertFunc: assert.Error,
+		},
+		"reject forged signature": {
+			provider: func(mctrl *gomock.Controller) trust.Provider {
+				p := mock_trust.NewMockProvider(mctrl)
+				p.EXPECT().NotifyTRC(
+					gomock.Any(),
+					cppki.TRCID{ISD: 1, Base: 1, Serial: 1},
+					trust.OptionsMatcher{},
+				).Return(nil)
+
+				p.EXPECT().GetChains(ctxMatcher{},
+					chainQueryMatcher{
+						ia:   xtest.MustParseIA("1-ff00:0:110"),
+						skid: []byte("subject-key-id"),
+					},
+					trust.OptionsMatcher{},
+				).Return(chains, nil).Times(1)
+				return p
+			},
+			sign:       forgedSign,
 			assertFunc: assert.Error,
 		},
 	}
