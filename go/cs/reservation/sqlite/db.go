@@ -284,9 +284,9 @@ func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int
 			}
 			deletedIndices += n
 			// delete empty reservations touched by previous removal
-			err = deleteEmptySegReservations(ctx, tx, rsvRowIDs)
+			return deleteEmptySegReservations(ctx, tx, rsvRowIDs)
 		}
-		return err
+		return nil
 	})
 	return deletedIndices, err
 }
