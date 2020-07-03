@@ -59,6 +59,7 @@ const (
 	ErrInactive   = "err_inactive"
 	ErrInternal   = prom.ErrInternal
 	ErrKey        = "err_key"
+	ErrCerts      = "err_certs"
 	ErrNotAllowed = "err_not_allowed"
 	ErrNotFound   = "err_not_found"
 	ErrParse      = prom.ErrParse
@@ -70,6 +71,8 @@ const (
 var (
 	// Handler exposes the handler metrics.
 	Handler = newHandler()
+	// Signer exposes the signer metrics.
+	Signer = newSigner()
 )
 
 // PeerToLabel converts the peer address to a peer metric label.

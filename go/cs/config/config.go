@@ -56,6 +56,8 @@ const (
 	// DefaultQueryInterval is the default interval after which the segment
 	// cache expires.
 	DefaultQueryInterval = 5 * time.Minute
+	// DefaultMaxASValidity is the default validity period for renewed AS certificates.
+	DefaultMaxASValidity = 3 * 24 * time.Hour
 )
 
 // Error values
@@ -80,6 +82,7 @@ type Config struct {
 	PathDB    pathstorage.PathDBConf     `toml:"path_db,omitempty"`
 	BS        BSConfig                   `toml:"beaconing,omitempty"`
 	PS        PSConfig                   `toml:"path,omitempty"`
+	CA        CA                         `toml:"ca,omitempty"`
 }
 
 // InitDefaults initializes the default values for all parts of the config.
@@ -96,6 +99,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.PathDB,
 		&cfg.BS,
 		&cfg.PS,
+		&cfg.CA,
 	)
 }
 
@@ -112,6 +116,7 @@ func (cfg *Config) Validate() error {
 		&cfg.PathDB,
 		&cfg.BS,
 		&cfg.PS,
+		&cfg.CA,
 	)
 }
 
@@ -130,6 +135,7 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.PathDB,
 		&cfg.BS,
 		&cfg.PS,
+		&cfg.CA,
 	)
 }
 
@@ -281,4 +287,26 @@ func (cfg *Policies) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
 // ConfigName is the toml key for the beacon server specific configuration.
 func (cfg *Policies) ConfigName() string {
 	return "policies"
+}
+
+// CA is the CA configuration.
+type CA struct {
+	config.NoDefaulter
+	// MaxASValidity is the maximum AS certificate lifetime.
+	MaxASValidity util.DurWrap `toml:"max_as_validity,omitempty"`
+}
+
+func (cfg *CA) Validate() error {
+	if cfg.MaxASValidity.Duration == 0 {
+		cfg.MaxASValidity.Duration = DefaultMaxASValidity
+	}
+	return nil
+}
+
+func (cfg *CA) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
+	config.WriteString(dst, caSample)
+}
+
+func (cfg *CA) ConfigName() string {
+	return "ca"
 }

@@ -55,9 +55,6 @@ func newSigner() signer {
 			SignerLabels{}),
 		Signers: *prom.NewCounterVecWithLabels(Namespace, "", "generated_signers_total",
 			"Number of generated signers backed by the trust engine", SignerLabels{}),
-		ASNotAfter: prom.NewGauge(Namespace, "",
-			"latest_generated_signer_expiration_time_second",
-			"The notafter time of the AS certificate of the latest signer"),
 	}
 }
 
@@ -67,9 +64,6 @@ func (s *signer) Sign(l SignerLabels) prometheus.Counter {
 
 func (s *signer) Generate(l SignerLabels) prometheus.Counter {
 	return s.Signers.WithLabelValues(l.Values()...)
-}
-func (s *signer) NotAfter() prometheus.Gauge {
-	return s.ASNotAfter
 }
 
 // Timestamp return the prometheus value for gauge.

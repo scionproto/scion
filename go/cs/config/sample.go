@@ -20,3 +20,13 @@ const psSample = `
 # The time after which segments for a destination are refetched. (default 5m)
 query_interval = "5m"
 `
+
+const caSample = `
+# The maximum validity time of a renewed AS certificate the control server
+# creates in a CA AS. The remaining validity of the locally available CA
+# certificate must be larger than the here configured value at every given point
+# in time. (i.e., ca.not_after - current_time >= max_as_validity) If that is not
+# the case, certificate renewal is not possible until a new CA certificate is
+# loaded that satisfies the condition. (default 3d)
+max_as_validity = "3d"
+`
