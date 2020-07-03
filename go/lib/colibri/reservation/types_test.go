@@ -15,6 +15,7 @@
 package reservation
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -233,6 +234,64 @@ func TestValidatePathEndProperties(t *testing.T) {
 	pep = PathEndProps(0x10 | 0x04)
 	err = pep.Validate()
 	require.Error(t, err)
+}
+
+func TestValidatePathEndPropsWithPathType(t *testing.T) {
+	cases := []struct {
+		PT    PathType
+		EP    PathEndProps
+		Valid bool
+	}{
+		// core path
+		{CorePath, StartLocal | EndLocal, true},
+		{CorePath, StartLocal | EndLocal | EndTransfer, true},
+		{CorePath, StartTransfer | EndTransfer, true},
+		{CorePath, StartLocal, true},
+		{CorePath, StartTransfer, true},
+		{CorePath, EndLocal, false},
+		{CorePath, 0, false},
+		// up path
+		{UpPath, StartLocal, true},
+		{UpPath, StartLocal | EndLocal | EndTransfer, true},
+		{UpPath, 0, false},
+		{UpPath, StartTransfer, false},
+		{UpPath, StartTransfer | StartLocal, false},
+		// down path
+		{DownPath, EndLocal, true},
+		{DownPath, EndLocal | StartLocal | StartTransfer, true},
+		{DownPath, 0, false},
+		{DownPath, EndTransfer, false},
+		{DownPath, EndTransfer | EndLocal, false},
+		// peering up path
+		{PeeringUpPath, StartLocal | EndLocal, true},
+		{PeeringUpPath, StartLocal | EndLocal | EndTransfer, true},
+		{PeeringUpPath, 0, false},
+		{PeeringUpPath, StartLocal, false},
+		{PeeringUpPath, StartLocal | StartTransfer | EndLocal, false},
+		{PeeringUpPath, StartTransfer | EndLocal, false},
+		{PeeringUpPath, EndLocal, false},
+		// peering down path
+		{PeeringDownPath, EndLocal | StartLocal, true},
+		{PeeringDownPath, EndLocal | StartLocal | StartTransfer, true},
+		{PeeringDownPath, 0, false},
+		{PeeringDownPath, EndLocal, false},
+		{PeeringDownPath, EndLocal | EndTransfer | StartLocal, false},
+		{PeeringDownPath, EndTransfer | StartLocal, false},
+		{PeeringDownPath, StartLocal, false},
+	}
+	for i, c := range cases {
+		name := fmt.Sprintf("iteration %d", i)
+		t.Run(name, func(t *testing.T) {
+			c := c
+			t.Parallel()
+			err := c.EP.ValidateWithPathType(c.PT)
+			if c.Valid {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
 }
 
 func TestValidateToken(t *testing.T) {
