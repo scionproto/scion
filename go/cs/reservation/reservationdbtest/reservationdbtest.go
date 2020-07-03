@@ -665,7 +665,6 @@ func getAllE2ERsvsOnSegmentRsvs(ctx context.Context, t *testing.T, db backend.DB
 				set[s] = struct{}{}
 			}
 		}
-		// rsvs = append(rsvs, rs...)
 	}
 	return rsvs
 }

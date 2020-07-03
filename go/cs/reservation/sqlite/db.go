@@ -252,6 +252,8 @@ func (x *executor) PersistSegmentRsv(ctx context.Context, rsv *segment.Reservati
 func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int, error) {
 	deletedIndices := 0
 
+	// delete the e2e expired indices, according to the e2e functions. Get the expired indices,
+	// delete them, and delete the reservations which are now empty because those indices.
 	n, err := deleteExpiredIndices(ctx, x.db, now,
 		getExpiredE2EIndexRowIDs,
 		deleteE2EIndicesFromRowIDs,
@@ -260,6 +262,7 @@ func (x *executor) DeleteExpiredIndices(ctx context.Context, now time.Time) (int
 		return 0, err
 	}
 	deletedIndices = n
+	// same for the segment reservations.
 	n, err = deleteExpiredIndices(ctx, x.db, now,
 		getExpiredSegIndexRowIDs,
 		deleteSegIndicesFromRowIDs,
