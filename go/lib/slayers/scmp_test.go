@@ -16,6 +16,7 @@ package slayers_test
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"testing"
 
@@ -132,7 +133,54 @@ func TestSCMP(t *testing.T) {
 		// "destination unreachable": {},
 		// "packet too big":          {},
 		// "parameter problem":       {},
-		// "internal connectivity down": {},
+		"internal connectivity down": {
+			raw: append([]byte{
+				0x6, 0x0, 0x49, 0x94, // header SCMP
+				0x0, 0x1, 0xff, 0x0, // start header SCMP msg
+				0x0, 0x0, 0x1, 0x11,
+				0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0x5,
+				0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0xf, // end  header SCMP msg
+			}, bytes.Repeat([]byte{0xff}, 15)...), // final payload
+			decodedLayers: []gopacket.SerializableLayer{
+				&slayers.SCMP{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x6, 0x0, 0x49, 0x94, // header SCMP
+						},
+						Payload: append([]byte{
+							0x0, 0x1, 0xff, 0x0,
+							0x0, 0x0, 0x1, 0x11,
+							0x0, 0x0, 0x0, 0x0,
+							0x0, 0x0, 0x0, 0x5,
+							0x0, 0x0, 0x0, 0x0,
+							0x0, 0x0, 0x0, 0xf,
+						}, bytes.Repeat([]byte{0xff}, 15)...),
+					},
+					TypeCode: slayers.CreateSCMPTypeCode(6, 0),
+					Checksum: 18836,
+				},
+				&slayers.SCMPInternalConnectivityDown{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x0, 0x1, 0xff, 0x0, // header SCMP msg
+							0x0, 0x0, 0x1, 0x11,
+							0x0, 0x0, 0x0, 0x0,
+							0x0, 0x0, 0x0, 0x5,
+							0x0, 0x0, 0x0, 0x0,
+							0x0, 0x0, 0x0, 0xf,
+						},
+						Payload: bytes.Repeat([]byte{0xff}, 15),
+					},
+					IA:      xtest.MustParseIA("1-ff00:0:111"),
+					Ingress: 5,
+					Egress:  15,
+				},
+				gopacket.Payload(bytes.Repeat([]byte{0xff}, 15)),
+			},
+			assertFunc: assert.NoError,
+		},
 		"external interface down": {
 			raw: append([]byte{
 				0x5, 0x0, 0x4a, 0xab, // header SCMP
@@ -177,10 +225,10 @@ func TestSCMP(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		t.Run("decode", func(t *testing.T) {
-			name, tc := name, tc
-			t.Run(name, func(t *testing.T) {
-				t.Parallel()
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			t.Run("decode", func(t *testing.T) {
 				packet := gopacket.NewPacket(tc.raw, slayers.LayerTypeSCMP, gopacket.Default)
 				pe := packet.ErrorLayer()
 				if pe != nil {
@@ -191,18 +239,13 @@ func TestSCMP(t *testing.T) {
 
 				for _, l := range tc.decodedLayers {
 					switch v := l.(type) {
-					case *slayers.SCMP:
-						sl := packet.Layer(slayers.LayerTypeSCMP)
-						require.NotNil(t, sl, "SCMP layer should exist")
-						s := sl.(*slayers.SCMP)
-						assert.Equal(t, v, s)
-					case *slayers.SCMPExternalInterfaceDown:
-						sl := packet.Layer(slayers.LayerTypeSCMPExternalInterfaceDown)
-						require.NotNil(t, sl, "SCMPExternalInterfaceDown layer should exist")
-						s := sl.(*slayers.SCMPExternalInterfaceDown)
-						assert.Equal(t, v, s)
+					case *slayers.SCMP,
+						*slayers.SCMPExternalInterfaceDown,
+						*slayers.SCMPInternalConnectivityDown:
+						assert.Equal(t, v, packet.Layer(v.LayerType()),
+							fmt.Sprintf("%s layer", v.LayerType()))
 					case gopacket.Payload:
-						sl := packet.Layer(gopacket.LayerTypePayload)
+						sl := packet.Layer(v.LayerType())
 						require.NotNil(t, sl, "Payload should exist")
 						s := sl.(*gopacket.Payload)
 						assert.Equal(t, v.GoString(), s.GoString())
@@ -213,33 +256,27 @@ func TestSCMP(t *testing.T) {
 				// TODO(karampok). it could give false positive if put SCMP/SCMP/PAYLOAD
 				// assert.Empty(t, tc.decodedLayers, "all layers should have been tested")
 			})
-		})
 
-		t.Run("serialize", func(t *testing.T) {
-			scnL := &slayers.SCION{
-				DstIA: xtest.MustParseIA("1-ff00:0:4"),
-			}
-			err := scnL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1").To4()})
-			assert.NoError(t, err)
+			t.Run("serialize", func(t *testing.T) {
+				scnL := &slayers.SCION{
+					DstIA: xtest.MustParseIA("1-ff00:0:4"),
+				}
+				err := scnL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1").To4()})
+				assert.NoError(t, err)
 
-			for name, tc := range testCases {
-				name, tc := name, tc
-				t.Run(name, func(t *testing.T) {
-					t.Parallel()
-					opts := gopacket.SerializeOptions{ComputeChecksums: true}
-					got := gopacket.NewSerializeBuffer()
-					for _, l := range tc.decodedLayers {
-						switch v := l.(type) {
-						case *slayers.SCMP:
-							require.NoError(t, v.SetNetworkLayerForChecksum(scnL))
-						}
+				opts := gopacket.SerializeOptions{ComputeChecksums: true}
+				got := gopacket.NewSerializeBuffer()
+				for _, l := range tc.decodedLayers {
+					switch v := l.(type) {
+					case *slayers.SCMP:
+						require.NoError(t, v.SetNetworkLayerForChecksum(scnL))
 					}
+				}
 
-					err := gopacket.SerializeLayers(got, opts, tc.decodedLayers...)
-					require.NoError(t, err)
-					assert.Equal(t, tc.raw, got.Bytes())
-				})
-			}
+				err = gopacket.SerializeLayers(got, opts, tc.decodedLayers...)
+				require.NoError(t, err)
+				assert.Equal(t, tc.raw, got.Bytes())
+			})
 		})
 	}
 }

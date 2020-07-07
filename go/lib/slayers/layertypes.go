@@ -57,6 +57,13 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeSCMPExternalInterfaceDown),
 		},
 	)
+	LayerTypeSCMPInternalConnectivityDown = gopacket.RegisterLayerType(
+		1006,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPInternalConnectivityDown",
+			Decoder: gopacket.DecodeFunc(decodeSCMPInternalConnectivityDown),
+		},
+	)
 )
 
 func init() {

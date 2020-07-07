@@ -48,7 +48,21 @@ func TestSCIONSCMP(t *testing.T) {
 		// "destination unreachable": {},
 		// "packet too big":          {},
 		// "parameter problem":       {},
-		// "internal connectivity down": {},
+		"internal connectivity down": {
+			rawFile: filepath.Join(goldenDir, "scion-scmp-int-conn-down.bin"),
+			decodedLayers: []gopacket.SerializableLayer{
+				prepPacket(t, common.L4SCMP),
+				&slayers.SCMP{
+					TypeCode: slayers.CreateSCMPTypeCode(6, 0),
+				},
+				&slayers.SCMPInternalConnectivityDown{
+					IA:      xtest.MustParseIA("1-ff00:0:111"),
+					Ingress: 5,
+					Egress:  15,
+				},
+				gopacket.Payload(bytes.Repeat([]byte{0xff}, 18)),
+			},
+		},
 		"external interface down": {
 			rawFile: filepath.Join(goldenDir, "scion-scmp-ext-int-down.bin"),
 			decodedLayers: []gopacket.SerializableLayer{
@@ -102,6 +116,12 @@ func TestSCIONSCMP(t *testing.T) {
 					sl := packet.Layer(slayers.LayerTypeSCMPExternalInterfaceDown)
 					require.NotNil(t, sl, "SCMPExternalInterfaceDown layer should exist")
 					s := sl.(*slayers.SCMPExternalInterfaceDown)
+					v.BaseLayer = s.BaseLayer
+					assert.Equal(t, v, s)
+				case *slayers.SCMPInternalConnectivityDown:
+					sl := packet.Layer(slayers.LayerTypeSCMPInternalConnectivityDown)
+					require.NotNil(t, sl, "SCMPInternalConnectivityDown layer should exist")
+					s := sl.(*slayers.SCMPInternalConnectivityDown)
 					v.BaseLayer = s.BaseLayer
 					assert.Equal(t, v, s)
 				case gopacket.Payload:
