@@ -14,7 +14,9 @@
 
 package slayers
 
-import "github.com/google/gopacket"
+import (
+	"github.com/google/gopacket"
+)
 
 var (
 	LayerTypeSCION = gopacket.RegisterLayerType(
@@ -38,8 +40,23 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeSCMP),
 		},
 	)
-	LayerTypeHopByHopExtn gopacket.LayerType
-	LayerTypeEndToEndExtn gopacket.LayerType
+	LayerTypeSCMPDummy = gopacket.RegisterLayerType(
+		2002,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPDummy",
+			Decoder: gopacket.DecodeFunc(decodeSCMP),
+		},
+	)
+
+	LayerTypeHopByHopExtn              gopacket.LayerType
+	LayerTypeEndToEndExtn              gopacket.LayerType
+	LayerTypeSCMPExternalInterfaceDown = gopacket.RegisterLayerType(
+		1005,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPExternalInterfaceDown",
+			Decoder: gopacket.DecodeFunc(decodeSCMPExternalInterfaceDown),
+		},
+	)
 )
 
 func init() {

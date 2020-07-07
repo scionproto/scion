@@ -285,7 +285,7 @@ func ParseScnPkt2(s *spkt.ScnPkt, b []byte) error {
 	var (
 		scionLayer slayers.SCION
 		udpLayer   slayers.UDP
-		scmpLayer  slayers.SCMP
+		scmpLayer  slayers.SCMPDummy
 		// XXX(scrye): HBH and E2E are not needed yet, so we silently ignore them.
 		payloadLayer gopacket.Payload
 	)
