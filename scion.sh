@@ -237,6 +237,7 @@ cmd_test(){
 }
 
 py_test() {
+    mkdir -p logs
     python3 -m unittest discover
     nosetests3 ${EXTRA_NOSE_ARGS} "$@"
 }
