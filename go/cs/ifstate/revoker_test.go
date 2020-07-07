@@ -306,8 +306,8 @@ func checkRevocation(t *testing.T, srev *path_mgmt.SignedRevInfo,
 	revokedIfId common.IFIDType, verifier revVerifier, topoProvider topology.Provider) {
 
 	Convey("Check revocation", func() {
-		revInfo, err := srev.VerifiedRevInfo(context.Background(), verifier)
-		SoMsg("No verification err expected", err, ShouldBeNil)
+		revInfo, err := srev.RevInfo()
+		SoMsg("No err expected", err, ShouldBeNil)
 		SoMsg("correct ifId", revInfo.IfID, ShouldEqual, revokedIfId)
 		SoMsg("correct IA", revInfo.RawIsdas, ShouldEqual, ia.IAInt())
 		SoMsg("correct linkType", revInfo.LinkType,

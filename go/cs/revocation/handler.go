@@ -73,7 +73,7 @@ func (h *handler) Handle(request *infra.Request) *infra.HandlerResult {
 	defer cancelF()
 
 	sendAck := messenger.SendAckHelper(subCtx, rw)
-	revInfo, err := revocation.VerifiedRevInfo(subCtx, h.verifier)
+	revInfo, err := revocation.RevInfo()
 	if err != nil {
 		logger.Info("[RevHandler] Parsing/Verifying failed",
 			"signer", revocation.Sign.Src, "err", err)
