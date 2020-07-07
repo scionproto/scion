@@ -19,15 +19,17 @@ import (
 	"fmt"
 )
 
+// SCMP error messages.
 const (
-	// SCMP error messages.
 	SCMPTypeDestinationUnreachable   = 1
 	SCMPTypePacketTooBig             = 2
 	SCMPTypeParameterProblem         = 4
 	SCMPTypeExternalInterfaceDown    = 5
 	SCMPTypeInternalConnectivityDown = 6
+)
 
-	// SCMP informational messages.
+// SCMP informational messages.
+const (
 	SCMPTypeEchoRequest       = 128
 	SCMPTypeEchoReply         = 129
 	SCMPTypeTracerouteRequest = 130

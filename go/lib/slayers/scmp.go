@@ -28,19 +28,19 @@ import (
 
 // SCMP is the SCMP header on top of SCION header.
 //
-//    0                   1                   2                   3
-//    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |     Type      |     Code      |           Checksum            |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                            InfoBlock                          |
-//   +                                                               +
-//   |                         (variable length)                     |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//   |                            DataBlock                          |
-//   +                                                               +
-//   |                         (variable length)                     |
-//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   0                   1                   2                   3
+//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |     Type      |     Code      |           Checksum            |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |                            InfoBlock                          |
+//  +                                                               +
+//  |                         (variable length)                     |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |                            DataBlock                          |
+//  +                                                               +
+//  |                         (variable length)                     |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 type SCMP struct {
 	layers.BaseLayer
@@ -65,6 +65,8 @@ func (s *SCMP) NextLayerType() gopacket.LayerType {
 	switch s.TypeCode.Type() {
 	case SCMPTypeExternalInterfaceDown:
 		return LayerTypeSCMPExternalInterfaceDown
+	case SCMPTypeInternalConnectivityDown:
+		return LayerTypeSCMPInternalConnectivityDown
 	}
 	return gopacket.LayerTypePayload
 }

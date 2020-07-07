@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestSCMPMsgExternalInterfaceDownDecodeFromBytes(t *testing.T) {
+func TestSCMPExternalInterfaceDownDecodeFromBytes(t *testing.T) {
 	testCases := map[string]struct {
 		raw        []byte
 		decoded    *slayers.SCMPExternalInterfaceDown
@@ -68,7 +68,7 @@ func TestSCMPMsgExternalInterfaceDownDecodeFromBytes(t *testing.T) {
 	}
 }
 
-func TestSCMPMsgExternalInterfaceDownSerializeTo(t *testing.T) {
+func TestSCMPExternalInterfaceDownSerializeTo(t *testing.T) {
 	testCases := map[string]struct {
 		raw        []byte
 		decoded    *slayers.SCMPExternalInterfaceDown
@@ -97,6 +97,96 @@ func TestSCMPMsgExternalInterfaceDownSerializeTo(t *testing.T) {
 			opts := gopacket.SerializeOptions{}
 			tc.decoded.Contents = tc.raw[:16]
 			tc.decoded.Payload = tc.raw[16:]
+			t.Parallel()
+			buffer := gopacket.NewSerializeBuffer()
+			err := tc.decoded.SerializeTo(buffer, opts)
+			tc.assertFunc(t, err)
+			if err != nil {
+				return
+			}
+			assert.Equal(t, tc.raw[:len(tc.decoded.Contents)], buffer.Bytes())
+		})
+	}
+}
+
+func TestSCMPInternalConnectivityDownDecodeFromBytes(t *testing.T) {
+	testCases := map[string]struct {
+		raw        []byte
+		decoded    *slayers.SCMPInternalConnectivityDown
+		assertFunc assert.ErrorAssertionFunc
+	}{
+		"valid": {
+			raw: append([]byte{
+				0x0, 0x1, 0xff, 0x0,
+				0x0, 0x0, 0x1, 0x11,
+				0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0x5,
+				0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0xf,
+			}, bytes.Repeat([]byte{0xff}, 10)...),
+			decoded: &slayers.SCMPInternalConnectivityDown{
+				IA:      xtest.MustParseIA("1-ff00:0:111"),
+				Ingress: 5,
+				Egress:  15,
+			},
+			assertFunc: assert.NoError,
+		},
+		"invalid": {
+			raw:        bytes.Repeat([]byte{0x0}, 15),
+			decoded:    &slayers.SCMPInternalConnectivityDown{},
+			assertFunc: assert.Error,
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got := &slayers.SCMPInternalConnectivityDown{}
+			err := got.DecodeFromBytes(tc.raw, gopacket.NilDecodeFeedback)
+			tc.assertFunc(t, err)
+			if err != nil {
+				return
+			}
+			tc.decoded.Contents = tc.raw[:24]
+			tc.decoded.Payload = tc.raw[24:]
+			assert.Equal(t, tc.decoded, got)
+		})
+	}
+}
+
+func TestSCMPInternalConnectivityDownSerializeTo(t *testing.T) {
+	testCases := map[string]struct {
+		raw        []byte
+		decoded    *slayers.SCMPInternalConnectivityDown
+		assertFunc assert.ErrorAssertionFunc
+	}{
+		"valid": {
+			raw: append([]byte{
+				0x0, 0x1, 0xff, 0x0,
+				0x0, 0x0, 0x1, 0x11,
+				0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0x5,
+				0x0, 0x0, 0x0, 0x0,
+				0x0, 0x0, 0x0, 0xf,
+			}, bytes.Repeat([]byte{0xff}, 10)...),
+			decoded: &slayers.SCMPInternalConnectivityDown{
+				IA:      xtest.MustParseIA("1-ff00:0:111"),
+				Ingress: 5,
+				Egress:  15,
+			},
+			assertFunc: assert.NoError,
+		},
+		//"invalid": { }, // not possible
+
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			opts := gopacket.SerializeOptions{}
+			tc.decoded.Contents = tc.raw[:24]
+			tc.decoded.Payload = tc.raw[24:]
 			t.Parallel()
 			buffer := gopacket.NewSerializeBuffer()
 			err := tc.decoded.SerializeTo(buffer, opts)
