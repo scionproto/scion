@@ -4,6 +4,6 @@ go_library(
     name = "go_default_library",
     srcs = ["metrics.go"],
     importpath = "github.com/scionproto/scion/go/lib/periodic/internal/metrics/mock_metrics",
-    visibility = ["//visibility:public"],
+    visibility = ["//go/lib/periodic:__subpackages__"],
     deps = ["@com_github_golang_mock//gomock:go_default_library"],
 )

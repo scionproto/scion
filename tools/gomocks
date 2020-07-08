@@ -1,119 +1,78 @@
-#!/usr/bin/python3
-# Copyright 2019 ETH Zurich
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""
-:mod: 'gomocks' --- Helper script to regenerate go mock files.
-==============================================================
-"""
+#!/usr/bin/env python3
 
-import argparse
-import os.path
-from typing import Tuple
-
+import os
+import sys
 from plumbum import local
-from plumbum.cmd import mkdir
-
-# Prefix of SCION packages
-SCION_PACKAGE_PREFIX = "github.com/scionproto/scion"
-
-# Directory for standard library mocks
-STD_LIB_MOCKS_DIRECTORY = os.path.join("go", "lib", "mocks")
+from plumbum.cmd import cp, mkdir, rm, chmod
 
 MOCK_TARGETS = [
-    ("net", "Addr,Conn,PacketConn"),
-    (SCION_PACKAGE_PREFIX + "/go/cs/beacon", "DB,Transaction"),
-    (SCION_PACKAGE_PREFIX + "/go/cs/beaconing",
-     "BeaconInserter,BeaconProvider,BeaconSender,RPC,SegmentProvider,SegmentStore"),
-    (SCION_PACKAGE_PREFIX + "/go/cs/keepalive", "IfStatePusher,RevDropper"),
-    (SCION_PACKAGE_PREFIX + "/go/cs/revocation", "Store"),
-    (SCION_PACKAGE_PREFIX + "/go/cs/segutil", "Policy"),
-    (SCION_PACKAGE_PREFIX + "/go/hidden_path_srv/internal/registration", "Validator"),
-    (SCION_PACKAGE_PREFIX + "/go/hidden_path_srv/internal/hpsegreq", "Fetcher"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/ctrl/seg", "Signer"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/infra",
-     "Messenger,ResponseWriter,Verifier,Handler"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/infra/messenger", "LocalSVCRouter,Resolver"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/segfetcher",
-     "DstProvider,ReplyHandler,Requester,RequestAPI,Resolver,Splitter,LocalInfo"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/infra/modules/seghandler", "Storage,Verifier"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/l4", "L4Header"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/pathdb", "PathDB,Transaction,ReadWrite"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/pathmgr", "Policy,Querier,Resolver"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/periodic/internal/metrics", "ExportMetric"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/revcache", "RevCache"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/sciond", "Service,Connector"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/snet", "PacketDispatcherService,Network,PacketConn," +
-     "Path,PathQuerier,Router"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/sock/reliable", "Dispatcher"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/sock/reliable/reconnect", "IOOperation,Reconnecter"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/svc", "RequestHandler,RoundTripper"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/svc/internal/ctxconn", "DeadlineCloser"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/topology", "Topology"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/underlay/conn", "Conn"),
-    (SCION_PACKAGE_PREFIX + "/go/lib/xtest", "Callback"),
-    (SCION_PACKAGE_PREFIX + "/go/pkg/cs/trust", "CACertProvider,PolicyGen,SignerGen"),
-    (SCION_PACKAGE_PREFIX + "/go/pkg/cs/trust/handler", "ChainBuilder,RenewalRequestVerifier"),
-    (SCION_PACKAGE_PREFIX + "/go/pkg/sciond/fetcher", "Fetcher,Policy"),
-    (SCION_PACKAGE_PREFIX + "/go/pkg/trust", "DB,Fetcher,Inspector,KeyRing,Provider," +
-     "Recurser,Router,RPC"),
-    (SCION_PACKAGE_PREFIX + "/go/pkg/trust/renewal", "DB"),
-    (SCION_PACKAGE_PREFIX + "/go/sig/egress/iface", "Session"),
-    (SCION_PACKAGE_PREFIX + "/go/sig/egress/worker", "SCIONWriter"),
+    ("go/cs/beacon", "DB,Transaction"),
+    ("go/cs/beaconing",
+        "BeaconInserter,BeaconProvider,BeaconSender,RPC,SegmentProvider,SegmentStore"),
+    ("go/cs/keepalive", "IfStatePusher,RevDropper"),
+    ("go/cs/revocation", "Store"),
+    ("go/cs/segutil", "Policy"),
+    ("go/hidden_path_srv/internal/registration", "Validator"),
+    ("go/hidden_path_srv/internal/hpsegreq", "Fetcher"),
+    ("go/lib/ctrl/seg", "Signer"),
+    ("go/lib/infra", "Messenger,ResponseWriter,Verifier,Handler"),
+    ("go/lib/infra/messenger", "LocalSVCRouter,Resolver"),
+    ("go/lib/infra/modules/segfetcher",
+        "DstProvider,ReplyHandler,Requester,RequestAPI,Resolver,Splitter,LocalInfo"),
+    ("go/lib/infra/modules/seghandler", "Storage,Verifier"),
+    ("go/lib/l4", "L4Header"),
+    ("go/lib/pathdb", "PathDB,Transaction,ReadWrite"),
+    ("go/lib/pathmgr", "Policy,Querier,Resolver"),
+    ("go/lib/periodic/internal/metrics", "ExportMetric"),
+    ("go/lib/revcache", "RevCache"),
+    ("go/lib/sciond", "Service,Connector"),
+    ("go/lib/snet",
+        "PacketDispatcherService,Network,PacketConn,Path,PathQuerier,Router,RevocationHandler"),
+    ("go/lib/sock/reliable", "Dispatcher"),
+    ("go/lib/sock/reliable/reconnect", "IOOperation,Reconnecter"),
+    ("go/lib/svc", "RequestHandler,RoundTripper"),
+    ("go/lib/svc/internal/ctxconn", "DeadlineCloser"),
+    ("go/lib/topology", "Topology"),
+    ("go/lib/underlay/conn", "Conn"),
+    ("go/lib/xtest", "Callback"),
+    ("go/pkg/cs/trust", "CACertProvider,PolicyGen,SignerGen"),
+    ("go/pkg/cs/trust/handler", "ChainBuilder,RenewalRequestVerifier"),
+    ("go/pkg/sciond/fetcher", "Fetcher,Policy"),
+    ("go/pkg/trust", "DB,Fetcher,Inspector,KeyRing,Provider,Recurser,Router,RPC"),
+    ("go/pkg/trust/renewal", "DB"),
+    ("go/sig/egress/iface", "Session"),
+    ("go/sig/egress/worker", "SCIONWriter"),
 ]
 
+rootpath = os.path.dirname(sys.path[0])
+bazel = local['bazel']
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--package-matcher", default=os.environ.get("PKG_MATCHER", ""),
-                        help="Generate mocks for all matched packages")
-    args = parser.parse_args()
-
-    mockgen = local[local.env["MOCKTOOL"]] if "MOCKTOOL" in local.env else local["mockgen"]
-    print("Generating mocks using tool", mockgen)
-
-    for (package, interfaces) in MOCK_TARGETS:
-        if args.package_matcher not in package:
-            continue
-        (mock_dir, mock_file) = get_mock_file_path(package)
-
-        mkdir("-p", mock_dir)
-        (mockgen[package, interfaces] > mock_file)()
-        print("Generated mocks for %s (%s)" % (package, interfaces))
-
-
-def get_mock_file_path(package: str) -> Tuple[str, str]:
-    mock_parent_dir = get_relative_path(package)
-    package_name = os.path.basename(mock_parent_dir)
-
-    mock_dir = os.path.join(mock_parent_dir, "mock_" + package_name)
-    mock_file = os.path.join(mock_dir, package_name + ".go")
-    return (mock_dir, mock_file)
-
-
-def get_relative_path(target_package: str) -> str:
-    if is_scion_package(target_package):
-        return strip_scion_package_prefix(target_package)
-    return os.path.join(STD_LIB_MOCKS_DIRECTORY, target_package)
-
-
-def is_scion_package(target_package: str) -> bool:
-    return os.path.commonpath([SCION_PACKAGE_PREFIX, target_package]) == SCION_PACKAGE_PREFIX
-
-
-def strip_scion_package_prefix(target_package: str) -> str:
-    return target_package[len(SCION_PACKAGE_PREFIX)+1:]
-
-
-if __name__ == "__main__":
-    main()
+for (package, interfaces) in MOCK_TARGETS:
+    print("Processing " + package)
+    name = os.path.split(package)[1]
+    mockdir = os.path.join(rootpath, package, "mock_" + name)
+    # Remove old mock code.
+    rm("-rf", mockdir)
+    mkdir("-p", mockdir)
+    # Generate the bazel rule to generate the mock.
+    buildscript = """
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+gomock(
+    name = "mock_%s",
+    library = "//%s:go_default_library",
+    package = "mock_%s",
+    interfaces = %s,
+    out = "%s.go",
+)
+""" % (name, package, name, interfaces.split(","), name)
+    with open(os.path.join(mockdir, 'BUILD.bazel'), 'x') as out:
+        out.write(buildscript + '\n')
+    # Execute the rule.
+    (bazel['build', '--incompatible_no_support_tools_in_action_inputs=false',
+           '//' + package + "/mock_" + name])()
+    filename = '%s.go' % name
+    # Remove the rule.
+    rm(os.path.join(mockdir, 'BUILD.bazel'))
+    # Move the generated code to the source tree.
+    cp(os.path.join(rootpath, 'bazel-bin', package, 'mock_' + name, filename), mockdir)
+    chmod("0644", os.path.join(mockdir, filename))

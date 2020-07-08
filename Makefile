@@ -3,6 +3,7 @@
 BRACCEPT = bin/braccept
 
 GAZELLE_MODE?=fix
+GAZELLE_DIRS=./go ./acceptance
 
 all: bazel
 
@@ -36,9 +37,10 @@ bazel: godeps gogen
 
 mocks:
 	./tools/gomocks
+	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build $(GAZELLE_DIRS)
 
 gazelle:
-	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build ./go ./acceptance
+	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build $(GAZELLE_DIRS)
 
 setcap:
 	tools/setcap cap_net_admin,cap_net_raw+ep $(BRACCEPT)
