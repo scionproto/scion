@@ -67,6 +67,8 @@ type Sender struct {
 	macMtx sync.Mutex
 	// MAC is the mac to issue hop fields.
 	MAC hash.Hash
+	// HeaderV2 indicates the new header format should be used.
+	HeaderV2 bool
 }
 
 // Send sends the payload on a one-hop path.
@@ -99,6 +101,10 @@ func (s *Sender) CreatePkt(msg *Msg) (*snet.Packet, error) {
 			Payload: msg.Pld,
 		},
 	}
+	// For v2 we don't need the OHP extension.
+	if s.HeaderV2 {
+		pkt.PacketInfo.Extensions = nil
+	}
 	return pkt, nil
 }
 
@@ -106,6 +112,13 @@ func (s *Sender) CreatePkt(msg *Msg) (*snet.Packet, error) {
 func (s *Sender) CreatePath(ifid common.IFIDType, now time.Time) (*Path, error) {
 	s.macMtx.Lock()
 	defer s.macMtx.Unlock()
+	if s.HeaderV2 {
+		path, err := spath.NewOneHopV2(s.IA.I, ifid, now, spath.DefaultHopFExpiry, s.MAC)
+		if err != nil {
+			return nil, err
+		}
+		return (*Path)(path), nil
+	}
 	path := spath.NewOneHop(s.IA.I, ifid, now, spath.DefaultHopFExpiry, s.MAC)
 	return (*Path)(path), path.InitOffsets()
 }

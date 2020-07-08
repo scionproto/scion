@@ -16,14 +16,18 @@
 package spath
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"hash"
 	"math"
+	"math/big"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/util"
@@ -77,6 +81,49 @@ func NewOneHop(isd addr.ISD, ifid common.IFIDType, ts time.Time, exp ExpTimeType
 	info.Write(raw[:InfoFieldLength])
 	hop.Write(raw[InfoFieldLength:])
 	return New(raw)
+}
+
+func NewOneHopV2(isd addr.ISD, ifid common.IFIDType, ts time.Time, exp ExpTimeType,
+	hfmac hash.Hash) (*Path, error) {
+
+	segID, err := rand.Int(rand.Reader, big.NewInt(1<<16))
+	if err != nil {
+		return nil, err
+	}
+	ohp := onehop.Path{
+		Info: path.InfoField{
+			ConsDir:   true,
+			Timestamp: util.TimeToSecs(ts),
+			SegID:     uint16(segID.Uint64()),
+		},
+		FirstHop: path.HopField{
+			ConsEgress: uint16(ifid),
+			ExpTime:    uint8(exp),
+		},
+	}
+
+	input := make([]byte, 16)
+	binary.BigEndian.PutUint32(input[:4], util.TimeToSecs(ts))
+	input[4] = uint8(exp)
+	binary.BigEndian.PutUint16(input[7:9], ohp.FirstHop.ConsEgress)
+	binary.BigEndian.PutUint16(input[9:11], ohp.Info.SegID)
+
+	// Write must not return an error: https://godoc.org/hash#Hash
+	if _, err := hfmac.Write(input); err != nil {
+		panic(err)
+	}
+	fullMAC := hfmac.Sum(nil)
+	ohp.FirstHop.Mac = fullMAC[:6]
+
+	raw := make([]byte, onehop.PathLen)
+	if err := ohp.SerializeTo(raw); err != nil {
+		return nil, err
+	}
+	return &Path{
+		Raw:     raw,
+		version: 2,
+		ohp:     true,
+	}, nil
 }
 
 func (p *Path) Copy() *Path {

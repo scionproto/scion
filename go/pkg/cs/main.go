@@ -677,10 +677,11 @@ func (t *PeriodicTasks) startRevoker() (*periodic.Runner, error) {
 func (t *PeriodicTasks) StartKeepaliveSender(a *net.UDPAddr) (*periodic.Runner, error) {
 	s := &keepalive.Sender{
 		Sender: &onehop.Sender{
-			Conn: t.conn,
-			IA:   t.TopoProvider.Get().IA(),
-			MAC:  t.genMac(),
-			Addr: a,
+			Conn:     t.conn,
+			IA:       t.TopoProvider.Get().IA(),
+			MAC:      t.genMac(),
+			Addr:     a,
+			HeaderV2: t.headerV2,
 		},
 		Signer:       infra.NullSigner,
 		TopoProvider: t.TopoProvider,
@@ -698,10 +699,11 @@ func (t *PeriodicTasks) startOriginator(a *net.UDPAddr) (*periodic.Runner, error
 		Extender: t.extender("propagator", topo, maxExpTimeFactory(t.store, beacon.PropPolicy)),
 		BeaconSender: &onehop.BeaconSender{
 			Sender: onehop.Sender{
-				Conn: t.conn,
-				IA:   topo.IA(),
-				MAC:  t.genMac(),
-				Addr: a,
+				Conn:     t.conn,
+				IA:       topo.IA(),
+				MAC:      t.genMac(),
+				Addr:     a,
+				HeaderV2: t.headerV2,
 			},
 			AddressRewriter:  t.addressRewriter,
 			QUICBeaconSender: t.msgr,
@@ -720,10 +722,11 @@ func (t *PeriodicTasks) startPropagator(a *net.UDPAddr) (*periodic.Runner, error
 		Extender: t.extender("propagator", topo, maxExpTimeFactory(t.store, beacon.PropPolicy)),
 		BeaconSender: &onehop.BeaconSender{
 			Sender: onehop.Sender{
-				Conn: t.conn,
-				IA:   topo.IA(),
-				MAC:  t.genMac(),
-				Addr: a,
+				Conn:     t.conn,
+				IA:       topo.IA(),
+				MAC:      t.genMac(),
+				Addr:     a,
+				HeaderV2: t.headerV2,
 			},
 			AddressRewriter:  t.addressRewriter,
 			QUICBeaconSender: t.msgr,
