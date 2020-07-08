@@ -69,7 +69,6 @@ func (r *Reservation) Validate() error {
 		if r.Ingress != 0 {
 			return serrors.New("reservation starts in this AS but ingress interface is not zero",
 				"ingress_if", r.Ingress)
-			// TODO(juagargi) test
 		}
 		err = r.Path.Validate()
 	} else if r.Ingress == 0 {
@@ -92,8 +91,6 @@ func (r *Reservation) ActiveIndex() *Index {
 	}
 	return &r.Indices[r.activeIndex]
 }
-
-// TODO(juagargi) we need two ways of creating an index: from the source AS or from transit AS.
 
 // NewIndexAtSource creates a new index. The associated token is created from the arguments, and
 // automatically linked to the index. This function should be called only from the

@@ -15,7 +15,6 @@
 package segment
 
 import (
-	"sort"
 	"time"
 
 	base "github.com/scionproto/scion/go/cs/reservation"
@@ -101,24 +100,6 @@ func (idxs Indices) GetIndexNumber(i int) reservation.IndexNumber { return idxs[
 func (idxs Indices) GetExpiration(i int) time.Time                { return idxs[i].Expiration }
 func (idxs Indices) GetAllocBW(i int) reservation.BWCls           { return idxs[i].AllocBW }
 func (idxs Indices) GetToken(i int) *reservation.Token            { return idxs[i].Token }
-
-// Sort sorts these Indices according to their index number modulo 16, e.g. [14, 15, 0, 1].
-func (idxs *Indices) Sort() {
-	if len(*idxs) < 2 {
-		return
-	}
-	sort.Slice(*idxs, func(i, j int) bool {
-		a, b := (*idxs)[i], (*idxs)[j]
-		distance := b.Idx.Sub(a.Idx)
-		return a.Expiration.Before(b.Expiration) ||
-			(a.Expiration.Equal(b.Expiration) && distance < 3)
-	})
-	// find a discontinuity and rotate
-	i := 1
-	for ; i < len(*idxs); i++ {
-		if (*idxs)[i-1].Idx.Add(1) != (*idxs)[i].Idx.Add(0) {
-			break
-		}
-	}
-	*idxs = append((*idxs)[i:], (*idxs)[:i]...)
+func (idxs Indices) Rotate(i int) base.IndicesInterface {
+	return append(idxs[i:], idxs[:i]...)
 }

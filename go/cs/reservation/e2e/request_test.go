@@ -24,13 +24,14 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
 )
 
 func TestNewRequestFromCtrlMsg(t *testing.T) {
 	setup := newE2ESetupSuccess()
-	ts := time.Unix(1, 0)
+	ts := util.SecsToTime(1)
 	_, err := e2e.NewRequestFromCtrlMsg(setup, ts, nil)
 	require.Error(t, err) // no path
 	p := newPath()
@@ -48,7 +49,7 @@ func TestNewRequestFromCtrlMsg(t *testing.T) {
 
 func TestRequestToCtrlMsg(t *testing.T) {
 	setup := newE2ESetupSuccess()
-	ts := time.Unix(1, 0)
+	ts := util.SecsToTime(1)
 	r, _ := e2e.NewRequestFromCtrlMsg(setup, ts, newPath())
 	anotherSetup, err := r.ToCtrlMsg()
 	require.NoError(t, err)
@@ -63,7 +64,7 @@ func TestRequestToCtrlMsg(t *testing.T) {
 
 func TestNewCleanupReqFromCtrlMsg(t *testing.T) {
 	ctrlMsg := newCleanupReq()
-	ts := time.Unix(1, 0)
+	ts := util.SecsToTime(1)
 	_, err := e2e.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, nil)
 	require.Error(t, err)
 	p := newPath()
@@ -81,7 +82,7 @@ func TestNewCleanupReqFromCtrlMsg(t *testing.T) {
 
 func TestCleanupToCtrlMsg(t *testing.T) {
 	ctrlMsg := newCleanupReq()
-	ts := time.Unix(1, 0)
+	ts := util.SecsToTime(1)
 	p := newPath()
 	r, _ := e2e.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, p)
 	anotherCtrlMsg := r.ToCtrlMsg()

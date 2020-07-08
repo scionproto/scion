@@ -31,6 +31,7 @@ type Reservation struct {
 }
 
 // Validate will return an error for invalid values.
+// It doesn not check for valid path properties and correct end/start AS ID when stiching.
 func (r *Reservation) Validate() error {
 	if err := base.ValidateIndices(r.Indices); err != nil {
 		return err
@@ -39,7 +40,6 @@ func (r *Reservation) Validate() error {
 		return serrors.New("wrong number of segment reservations referenced in E2E reservation",
 			"number", len(r.SegmentReservations))
 	}
-	// TODO(juagargi) check for valid stitching? path properties and correct end/start AS ID?
 	for i, rsv := range r.SegmentReservations {
 		if rsv == nil {
 			return serrors.New("invalid segment reservation referenced by e2e, is nil",
@@ -53,7 +53,7 @@ func (r *Reservation) Validate() error {
 	return nil
 }
 
-// NewIndex creates a new index in this reservation.
+// NewIndex creates a new index in this reservation. The token needs to be created manually.
 func (r *Reservation) NewIndex(expTime time.Time) (reservation.IndexNumber, error) {
 	idx := reservation.IndexNumber(0)
 	if len(r.Indices) > 0 {
@@ -69,7 +69,7 @@ func (r *Reservation) NewIndex(expTime time.Time) (reservation.IndexNumber, erro
 		return 0, err
 	}
 	r.Indices = newIndices
-	return r.Indices[len(r.Indices)-1].Idx, nil
+	return idx, nil
 }
 
 // RemoveIndex removes all indices from the beginning until this one, inclusive.

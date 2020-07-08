@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 func TestValidateIndices(t *testing.T) {
@@ -114,6 +115,48 @@ func TestValidateIndices(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestIndicesSort(t *testing.T) {
+	indices := newTestIndices(2, 3, 1)
+	SortIndices(indices)
+	require.Len(t, indices, 3)
+	checkIndicesSorted(t, indices)
+	// one element
+	indices = newTestIndices(2)
+	SortIndices(indices)
+	require.Len(t, indices, 1)
+	require.Equal(t, 2, int(indices[0].Idx))
+	// empty
+	indices = Indices{}
+	SortIndices(indices)
+	require.Len(t, indices, 0)
+	// wrap around
+	indices = newTestIndices(0, 1, 15)
+	SortIndices(indices)
+	require.Len(t, indices, 3)
+	checkIndicesSorted(t, indices)
+	// full 16 elements
+	indices = newTestIndices(14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
+	SortIndices(indices)
+	require.Len(t, indices, 16)
+	checkIndicesSorted(t, indices)
+}
+
+func newTestIndices(idxs ...int) Indices {
+	indices := make(Indices, len(idxs))
+	for i, idx := range idxs {
+		indices[i].Expiration = util.SecsToTime(uint32(i/3 + 1))
+		indices[i].Idx = reservation.IndexNumber(idx)
+	}
+	return indices
+}
+
+func checkIndicesSorted(t *testing.T, idxs Indices) {
+	t.Helper()
+	// validate according to valid indices criteria
+	err := ValidateIndices(idxs)
+	require.NoError(t, err)
+}
+
 type Index struct {
 	Idx        reservation.IndexNumber
 	Expiration time.Time
@@ -128,6 +171,9 @@ func (idxs Indices) GetIndexNumber(i int) reservation.IndexNumber { return idxs[
 func (idxs Indices) GetExpiration(i int) time.Time                { return idxs[i].Expiration }
 func (idxs Indices) GetAllocBW(i int) reservation.BWCls           { return reservation.BWCls(0) }
 func (idxs Indices) GetToken(i int) *reservation.Token            { return nil }
+func (idxs Indices) Rotate(i int) IndicesInterface {
+	return append(idxs[i:], idxs[:i]...)
+}
 
 func (idxs *Indices) NewIndex(expTime time.Time) (reservation.IndexNumber, error) {
 	idx := reservation.IndexNumber(0)

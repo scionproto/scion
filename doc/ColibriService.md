@@ -202,33 +202,28 @@ type E2EReservationID uint16
 
 ## ReservationDB
 
-```text
-Table SegmentResvBase
-------------------------------------------
-ResvID              integer     unique              index
-Path                blob        unique              index
-PathType            smallint
-```
+There are two main parts in the DB: the segment reservation entities, and the end to end entities.
+To link the end to end reservations to the appropriate segment ones, a table is used.
 
-```text
-Table SegmentResvs
-------------------------------------------
-ResvID              integer     FK, unique_together     index_multicol
-Index               smallint    unique_together         index_multicol
-ExpirationTick      integer
-BWClass             smallint
-RLC                 smallint
-Token               blob
-```
+There are no restrictions of cardinality other than uniqueness and non null-ness for some fields,
+but nothing like triggers on insertion are used. E.g. it is technically possible to link more than three
+segment reservations with a given end to end one. These cardinality restrictions are enforced by code.
 
-* Records can be found either by reservation ID or by path.
-* Path is a serialized byte array from the interface identifier pairs along the reservation path
-  (16 bytes per pair). The IA (64 bits) of the origin and destination ASes is prepended
-  and appended to the array. This builds a identifier which should be unique per path.
+![DB entities overview](fig/colibri_srv/DB.png).
 
-```text
-Table E2EResv
-------------------------------------------
-ResvID              integer     unique              index
-SegmentRsvID        integer     FK
-```
+Furthermore, there are some indices created to speed up lookups:
+
+* seg_reservation
+    * id_as,suffix
+    * ingress
+    * egress
+    * path
+* seg_index
+    * reservation,index_number
+* e2e_reservation
+    * reservation_id
+* e2e_index
+    * reservation,index_number
+* e2e_to_seg
+    * e2e
+    * seg

@@ -20,9 +20,8 @@ const (
 	// to prevent data corruption between incompatible database schemas.
 	SchemaVersion = 1
 	// Schema is the SQLite database layout.
-	// TODO(juagargi) create appropriate SQL indices.
 	Schema = `CREATE TABLE seg_reservation (
-		row_id	INTEGER,
+		ROWID	INTEGER,
 		id_as	INTEGER NOT NULL,
 		id_suffix	INTEGER NOT NULL,
 		ingress	INTEGER NOT NULL,
@@ -33,7 +32,7 @@ const (
 		src_ia INTEGER,
 		dst_ia INTEGER,
 		active_index	INTEGER NOT NULL,
-		PRIMARY KEY(row_id),
+		PRIMARY KEY(ROWID),
 		UNIQUE(id_as,id_suffix),
 		UNIQUE(path)
 	);
@@ -47,25 +46,58 @@ const (
 		alloc_bw	INTEGER NOT NULL,
 		token	BLOB,
 		PRIMARY KEY(reservation,index_number),
-		FOREIGN KEY(reservation) REFERENCES seg_reservation(row_id) ON DELETE CASCADE
+		FOREIGN KEY(reservation) REFERENCES seg_reservation(ROWID) ON DELETE CASCADE
 	);
 	CREATE TABLE e2e_reservation (
-		row_id	INTEGER,
+		ROWID	INTEGER,
 		reservation_id	BLOB NOT NULL,
-		PRIMARY KEY(row_id)
+		UNIQUE(reservation_id),
+		PRIMARY KEY(ROWID)
 	);
 	CREATE TABLE e2e_index (
 		reservation	INTEGER NOT NULL,
 		index_number	INTEGER NOT NULL,
 		expiration	INTEGER NOT NULL,
 		alloc_bw	INTEGER NOT NULL,
-		token	BLOB NOT NULL,
-		FOREIGN KEY(reservation) REFERENCES e2e_reservation(row_id) ON DELETE CASCADE
+		token	BLOB,
+		PRIMARY KEY(reservation,index_number),
+		FOREIGN KEY(reservation) REFERENCES e2e_reservation(ROWID) ON DELETE CASCADE
 	);
 	CREATE TABLE e2e_to_seg (
 		e2e	INTEGER NOT NULL,
 		seg	INTEGER NOT NULL,
-		FOREIGN KEY(seg) REFERENCES seg_reservation(row_id) ON DELETE CASCADE,
-		FOREIGN KEY(e2e) REFERENCES e2e_reservation(row_id) ON DELETE CASCADE
+		PRIMARY KEY(e2e,seg),
+		FOREIGN KEY(seg) REFERENCES seg_reservation(ROWID) ON DELETE CASCADE,
+		FOREIGN KEY(e2e) REFERENCES e2e_reservation(ROWID) ON DELETE CASCADE
+	);
+	CREATE INDEX "index_seg_reservation" ON "seg_reservation" (
+		"id_as",
+		"id_suffix"
+	);
+	CREATE INDEX "index2_seg_reservation" ON "seg_reservation" (
+		"ingress"
+	);
+	CREATE INDEX "index3_seg_reservation" ON "seg_reservation" (
+		"egress"
+	);
+	CREATE UNIQUE INDEX "index4_seg_reservation" ON "seg_reservation" (
+		"path"
+	);
+	CREATE UNIQUE INDEX "index_seg_index" ON "seg_index" (
+		"reservation",
+		"index_number"
+	);
+	CREATE UNIQUE INDEX "index_e2e_reservation" ON "e2e_reservation" (
+		"reservation_id"
+	);
+	CREATE UNIQUE INDEX "index_e2e_index" ON "e2e_index" (
+		"reservation",
+		"index_number"
+	);
+	CREATE INDEX "index_e2e_to_seg" ON "e2e_to_seg" (
+		"e2e"
+	);
+	CREATE INDEX "index2_e2e_to_seg" ON "e2e_to_seg" (
+		"seg"
 	);`
 )

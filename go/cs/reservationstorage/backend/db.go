@@ -62,20 +62,17 @@ type ReserverAndTransit interface {
 	DeleteSegmentRsv(ctx context.Context, ID *reservation.SegmentID) error
 
 	// DeleteExpiredIndices will remove expired indices from the DB. If a reservation is left
-	// without any index after removing the expired ones, it will also be removed.
+	// without any index after removing the expired ones, it will also be removed. This applies to
+	// both segment and e2e reservations.
 	// Used on schedule.
 	DeleteExpiredIndices(ctx context.Context, now time.Time) (int, error)
 
 	// GetE2ERsvFromID finds the end to end resevation given its ID.
-	GetE2ERsvFromID(ctx context.Context, ID reservation.E2EID, idx reservation.IndexNumber) (
-		*e2e.Reservation, error)
-	// NewE2EIndex stores a new index in the DB.
-	// If the e2e reservation does not exist, it is created.
-	NewE2EIndex(ctx context.Context, rsv *e2e.Reservation, idx reservation.IndexNumber) error
-	// UpdateE2EIndex updates the token in an index of the e2e reservation.
-	UpdateE2EIndex(ctx context.Context, rsv *e2e.Reservation, idx reservation.IndexNumber) error
-	// DeleteE2EIndex removes an e2e index. It is used in the cleanup process.
-	DeleteE2EIndex(ctx context.Context, rsv *e2e.Reservation, idx reservation.IndexNumber) error
+	GetE2ERsvFromID(ctx context.Context, ID *reservation.E2EID) (*e2e.Reservation, error)
+	// GetE2ERsvsOnSegRsv returns the e2e reservations running on top of a given segment one.
+	GetE2ERsvsOnSegRsv(ctx context.Context, ID *reservation.SegmentID) ([]*e2e.Reservation, error)
+	// PersistE2ERsv makes the DB reflect the same contents as the rsv parameter.
+	PersistE2ERsv(ctx context.Context, rsv *e2e.Reservation) error
 }
 
 type Transaction interface {

@@ -25,13 +25,14 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
 )
 
 func TestNewSetupReqFromCtrlMsg(t *testing.T) {
 	ctrlMsg := newSetup()
-	ts := time.Unix(1, 0)
+	ts := util.SecsToTime(1)
 	r, err := segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, nil, nil)
 	require.Error(t, err) // missing both ID and path
 	p := newPath()
@@ -48,7 +49,7 @@ func TestNewSetupReqFromCtrlMsg(t *testing.T) {
 
 func TestRequestToCtrlMsg(t *testing.T) {
 	ctrlMsg := newSetup()
-	ts := time.Unix(1, 0)
+	ts := util.SecsToTime(1)
 	r, err := segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
 	require.NoError(t, err)
 	anotherCtrlMsg := r.ToCtrlMsg()
@@ -57,7 +58,7 @@ func TestRequestToCtrlMsg(t *testing.T) {
 
 func TestNewTelesRequestFromCtrlMsg(t *testing.T) {
 	ctrlMsg := newTelesSetup()
-	ts := time.Unix(1, 0)
+	ts := util.SecsToTime(1)
 	r, err := segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, nil, nil)
 	require.Error(t, err) // both path and ID are nil
 	r, err = segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, nil, newPath())
@@ -71,7 +72,7 @@ func TestNewTelesRequestFromCtrlMsg(t *testing.T) {
 
 func TestTelesRequestToCtrlMsg(t *testing.T) {
 	ctrlMsg := newTelesSetup()
-	ts := time.Unix(1, 0)
+	ts := util.SecsToTime(1)
 	r, _ := segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
 	anotherCtrlMsg := r.ToCtrlMsg()
 	require.Equal(t, ctrlMsg, anotherCtrlMsg)
@@ -79,7 +80,7 @@ func TestTelesRequestToCtrlMsg(t *testing.T) {
 
 func TestNewIndexConfirmationReqFromCtrlMsg(t *testing.T) {
 	ctrlMsg := newIndexConfirmation()
-	ts := time.Unix(1, 0)
+	ts := util.SecsToTime(1)
 	r, err := segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, nil, nil)
 	require.Error(t, err) // nil path and ID
 	r, err = segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, nil, newPath())
@@ -92,7 +93,7 @@ func TestNewIndexConfirmationReqFromCtrlMsg(t *testing.T) {
 
 func TestIndexConfirmationReqToCtrlMsg(t *testing.T) {
 	ctrlMsg := newIndexConfirmation()
-	ts := time.Unix(1, 0)
+	ts := util.SecsToTime(1)
 	r, _ := segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
 	r.State = segment.IndexTemporary
 	_, err := r.ToCtrlMsg()
@@ -105,7 +106,7 @@ func TestIndexConfirmationReqToCtrlMsg(t *testing.T) {
 
 func TestNewCleanupReqFromCtrlMsg(t *testing.T) {
 	ctrlMsg := newCleanup()
-	ts := time.Unix(1, 0)
+	ts := util.SecsToTime(1)
 	r, err := segment.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, nil)
 	require.Error(t, err) // no path
 	ctrlMsg.ID = nil
@@ -121,7 +122,7 @@ func TestNewCleanupReqFromCtrlMsg(t *testing.T) {
 
 func TestCleanupReqToCtrlMsg(t *testing.T) {
 	ctrlMsg := newCleanup()
-	ts := time.Unix(1, 0)
+	ts := util.SecsToTime(1)
 	r, _ := segment.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, newPath())
 	anotherCtrlMsg := r.ToCtrlMsg()
 	require.Equal(t, ctrlMsg, anotherCtrlMsg)

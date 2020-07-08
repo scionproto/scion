@@ -15,10 +15,12 @@
 package reservation
 
 import (
+	"sort"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 type IndicesInterface interface {
@@ -27,13 +29,14 @@ type IndicesInterface interface {
 	GetExpiration(i int) time.Time
 	GetAllocBW(i int) reservation.BWCls
 	GetToken(i int) *reservation.Token
+	Rotate(i int) IndicesInterface
 }
 
 // ValidateIndices checks that the indices follow consecutive index numbers, their expiration
 // times are greater or equal, and no more than three indices per expiration time. Also no more
 // than 16 indices are allowed.
 func ValidateIndices(indices IndicesInterface) error {
-	lastExpiration := time.Unix(0, 0)
+	lastExpiration := util.SecsToTime(0)
 	lastIndexNumber := reservation.IndexNumber(0).Sub(1)
 	if indices.Len() > 0 {
 		lastIndexNumber = indices.GetIndexNumber(0).Sub(1)
@@ -95,4 +98,25 @@ func FindIndex(indices IndicesInterface, idx reservation.IndexNumber) (int, erro
 			"indices length", indices.Len())
 	}
 	return sliceIndex, nil
+}
+
+// SortIndices sorts these Indices according to their index number modulo 16, e.g. [14, 15, 0, 1].
+func SortIndices(idxs IndicesInterface) {
+	if idxs.Len() < 2 {
+		return
+	}
+	sort.Slice(idxs, func(i, j int) bool {
+		ae, be := idxs.GetExpiration(i), idxs.GetExpiration(j)
+		ai, bi := idxs.GetIndexNumber(i), idxs.GetIndexNumber(j)
+		distance := bi.Sub(ai)
+		return ae.Before(be) || (ae.Equal(be) && distance < 3)
+	})
+	// find a discontinuity and rotate
+	i := 1
+	for ; i < idxs.Len(); i++ {
+		if idxs.GetIndexNumber(i-1).Add(1) != idxs.GetIndexNumber(i).Add(0) {
+			break
+		}
+	}
+	idxs = idxs.Rotate(i)
 }
