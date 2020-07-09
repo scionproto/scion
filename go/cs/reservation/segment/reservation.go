@@ -31,6 +31,7 @@ type Reservation struct {
 	Ingress      common.IFIDType          // igress interface ID: reservation packets enter
 	Egress       common.IFIDType          // egress interface ID: reservation packets leave
 	Path         Path                     // empty if not at the source of the reservation
+	PathType     reservation.PathType     // the type of path (up,core,down)
 	PathEndProps reservation.PathEndProps // the properties for stitching and start/end
 	TrafficSplit reservation.SplitCls     // the traffic split between control and data planes
 }
