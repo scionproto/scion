@@ -7,7 +7,7 @@ gen_acceptance() {
     local no_setup_tests=${2:-""}
     for test in "$accept_dir"/*_acceptance; do
         name="$(basename ${test%_acceptance})"
-        echo "  - label: \"Acceptance: $name\""
+        echo "  - label: \"AT: $name\""
         echo "    if: build.message !~ /\[doc\]/"
         echo "    command:"
         if [[ ! "${no_setup_tests}" == *"${name}"* ]]; then
@@ -37,7 +37,7 @@ gen_bazel_test_steps() {
         # test has the format //acceptance/<name>:<name>_test
         name=$(echo $test | cut -d ':' -f 1)
         name=${name#"$1/"}
-        echo "  - label: \":bazel: Acceptance: $name\""
+        echo "  - label: \"AT: :bazel: $name\""
         echo "    if: build.message !~ /\[doc\]/"
         echo "    command:"
         if [[ "$test" =~ "go" ]]; then

@@ -11,11 +11,12 @@ steps:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
-  - label: ":bazel: Go tests"
+  - label: "UT: :bazel:/:bash: Unit tests & lint"
     if: build.message !~ /\[doc\]/
     command:
-      - bazel test //go/... --print_relative_test_log_paths
-    key: go_tests
+      - ./scion.sh test
+      - ./scion.sh lint
+    key: unit_tests
     artifact_paths:
       - "artifacts.out/**/*"
     retry:
@@ -23,25 +24,7 @@ steps:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
-  - label: ":python: Python tests"
-    if: build.message !~ /\[doc\]/
-    command: ./scion.sh test py
-    key: py_tests
-    retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: "Check licenses"
-    command:
-      - mkdir -p /tmp/test-artifacts/licenses
-      - ./tools/licenses.sh /tmp/test-artifacts/licenses $BUILDKITE_PIPELINE_SLUG
-      - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
-    key: licenses
-    retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: "Check generated go_deps.bzl file is up to date with go.mod"
+  - label: "Check generated"
     if: build.message !~ /\[doc\]/
     command:
       - mkdir -p /tmp/test-artifacts
@@ -51,31 +34,26 @@ steps:
       - diff -u /tmp/test-artifacts/go.mod go.mod
       - diff -u /tmp/test-artifacts/go.sum go.sum
       - diff -u /tmp/test-artifacts/go_deps.bzl go_deps.bzl
-    key: go_deps_lint
-    retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: "Check generated go/proto files in git"
-    if: build.message !~ /\[doc\]/
-    command:
-      - mkdir -p /tmp/test-artifacts
       - cp -R go/proto/ /tmp/test-artifacts/
       - make gogen
       - diff -ur /tmp/test-artifacts/proto/ go/proto/
-    key: go_gen_lint
+      - mkdir -p /tmp/test-artifacts/licenses
+      - ./tools/licenses.sh /tmp/test-artifacts/licenses $BUILDKITE_PIPELINE_SLUG
+      - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
+    key: check_generated
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
   - label: "Lint"
+    if: build.message =~ /\[doc\]/
     command: ./scion.sh lint
     key: lint
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: ":bazel: Integration tests"
+  - label: "IT: :bazel: "
     if: build.message !~ /\[doc\]/
     command:
     - bazel test //integration/...
@@ -86,7 +64,7 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: "Revocation tests"
+  - label: "IT: (svisor) Revocation tests"
     if: build.message !~ /\[doc\]/
     command:
       - bazel build //:scion //:scion-ci >/dev/null 2>&1
@@ -109,7 +87,7 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: "E2E-Integration: {pp,end2end,scmp}_integration"
+  - label: "IT: (svisor) {pp,end2end,scmp}"
     if: build.message !~ /\[doc\]/
     command:
     - bazel build //:scion //:scion-ci >/dev/null 2>&1
@@ -134,31 +112,7 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: ":docker: Integration: end2end_integration"
-    if: build.message !~ /\[doc\]/
-    command:
-    - ./scion.sh topology -d -c topology/tiny.topo
-    - ./scion.sh run
-    - docker-compose -f gen/scion-dc.yml -p scion up -d $(docker-compose -f gen/scion-dc.yml config --services | grep tester)
-    - sleep 10
-    - ./bin/pp_integration -d -log.console warn
-    - ./bin/scmp_integration -d -log.console warn
-    - ./bin/end2end_integration -d -log.console warn
-    plugins:
-      - scionproto/metahook#v0.3.0:
-          post-command: |
-            echo "--- Shutting down SCION topology"
-            ./scion.sh stop
-            echo "SCION topology successfully shut down"
-    artifact_paths:
-      - "artifacts.out/**/*"
-    timeout_in_minutes: 10
-    key: docker_integration_tests
-    retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
-  - label: ":docker: Integration: end2end_integration full topology"
+  - label: "IT: :docker:/topo E2E"
     if: build.message !~ /\[doc\]/
     command:
     - ./scion.sh topology -d
