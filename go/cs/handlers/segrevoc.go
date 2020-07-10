@@ -26,19 +26,12 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-type revocHandler struct {
-	revCache revcache.RevCache
-	verifier infra.Verifier
+type RevocHandler struct {
+	RevCache revcache.RevCache
+	Verifier infra.Verifier
 }
 
-func NewRevocHandler(args HandlerArgs) infra.Handler {
-	return &revocHandler{
-		revCache: args.RevCache,
-		verifier: args.Verifier,
-	}
-}
-
-func (h *revocHandler) Handle(request *infra.Request) *infra.HandlerResult {
+func (h *RevocHandler) Handle(request *infra.Request) *infra.HandlerResult {
 	ctx := request.Context()
 	logger := log.FromCtx(ctx).New("from", request.Peer)
 	labels := metrics.PSRevocationLabels{
@@ -71,14 +64,14 @@ func (h *revocHandler) Handle(request *infra.Request) *infra.HandlerResult {
 	logger = logger.New("revInfo", revInfo)
 	logger.Debug("[revocHandler] Received revocation")
 
-	err = segverifier.VerifyRevInfo(ctx, h.verifier, nil, revocation)
+	err = segverifier.VerifyRevInfo(ctx, h.Verifier, nil, revocation)
 	if err != nil {
 		logger.Info("Revocation verification failed", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
 		metrics.PSRevocation.Count(labels.WithResult(metrics.ErrCrypto)).Inc()
 		return infra.MetricsErrInvalid
 	}
-	_, err = h.revCache.Insert(ctx, revocation)
+	_, err = h.RevCache.Insert(ctx, revocation)
 	if err != nil {
 		logger.Error("Revocation storing failed", "err", err)
 		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)
