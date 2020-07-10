@@ -1,6 +1,8 @@
 [dispatcher]
 id = "dispatcher"
 
-[log.file]
+[log.console]
 level = "debug"
-path = "/share/logs/dispatcher.log"
+
+[features]
+allow_run_as_root = true

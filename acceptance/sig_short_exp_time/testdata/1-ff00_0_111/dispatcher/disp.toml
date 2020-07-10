@@ -4,6 +4,5 @@ id = "disp_1-ff00_0_111"
 [features]
 allow_run_as_root = true
 
-[log.file]
+[log.console]
 level = "debug"
-path = "/share/logs/disp_1-ff00_0_111.log"

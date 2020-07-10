@@ -307,15 +307,11 @@ class GoGenerator(object):
         return entry
 
     def _log_entry(self, name):
-        entry = {
-            'file': {
-                'path': os.path.join(self.log_dir, "%s.log" % name),
+        return {
+            'console': {
                 'level': self.log_level,
             },
         }
-        if self.args.docker:
-            entry['console'] = {'level': self.log_level}
-        return entry
 
     def _metrics_entry(self, infra_elem, base_port):
         a = prom_addr(infra_elem['addr'], base_port)

@@ -16,19 +16,14 @@
 package log_test
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestSetup(t *testing.T) {
-	tmpDir, cleanF := xtest.MustTempDir("", "test-folder")
-	defer cleanF()
-
 	tests := map[string]struct {
 		cfg       log.Config
 		assertErr assert.ErrorAssertionFunc
@@ -37,22 +32,9 @@ func TestSetup(t *testing.T) {
 			cfg:       log.Config{},
 			assertErr: assert.NoError,
 		},
-		"invalid file level": {
-			cfg:       log.Config{File: log.FileConfig{Path: "test/foo", Level: "invalid"}},
-			assertErr: assert.Error,
-		},
 		"invalid console level": {
 			cfg:       log.Config{Console: log.ConsoleConfig{Level: "invalid"}},
 			assertErr: assert.Error,
-		},
-		"cannot create, errors": {
-			cfg:       log.Config{File: log.FileConfig{Path: "/sys/aka/doesnt/exist"}},
-			assertErr: assert.Error,
-		},
-
-		"can create, nil": {
-			cfg:       log.Config{File: log.FileConfig{Path: filepath.Join(tmpDir, "new")}},
-			assertErr: assert.NoError,
 		},
 	}
 

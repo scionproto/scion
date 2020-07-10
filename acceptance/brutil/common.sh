@@ -58,7 +58,6 @@ test_config() {
 
     # Replace BR ID
     sed -i "s/id = .*$/id = \"${BRID}\"/g" "$BR_TOML"
-    sed -i "s/path = .*$/path = \"\/share\/logs\/${BRID}.log\"/g" "$BR_TOML"
 }
 
 test_run() {

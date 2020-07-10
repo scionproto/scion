@@ -96,8 +96,8 @@ RC=$?
 OUTPUT_DIR=$TEST_UNDECLARED_OUTPUTS_DIR
 mkdir -p $OUTPUT_DIR/logs
 
-for FILE in sig1-ff00_0_110.log sig1-ff00_0_111.log disp_1-ff00_0_110.log disp_1-ff00_0_111.log; do
-    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml run log_exporter cat /share/logs/$FILE > $OUTPUT_DIR/logs/$FILE
+for CNTR in sig1 sig2 dispatcher1 dispatcher2; do
+    docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml logs "$CNTR" > "$OUTPUT_DIR/logs/$CNTR.log"
 done
 
 docker-compose -f acceptance/sig_short_exp_time/docker-compose.yml down -v
