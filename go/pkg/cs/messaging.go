@@ -1,0 +1,102 @@
+// Copyright 2020 Anapaya Systems
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package cs
+
+import (
+	"context"
+	"hash"
+	"net"
+	"path/filepath"
+
+	"github.com/scionproto/scion/go/cs/segreq"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/infraenv"
+	"github.com/scionproto/scion/go/lib/infra/messenger/tcp"
+	"github.com/scionproto/scion/go/lib/keyconf"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
+	"github.com/scionproto/scion/go/lib/topology"
+)
+
+// NewMessenger constructs a infra and TCP messenger based on the network
+// configuration.
+func NewMessenger(nc infraenv.NetworkConfig) (infra.Messenger, *tcp.Messenger, error) {
+	msgr, err := nc.Messenger()
+	if err != nil {
+		return nil, nil, serrors.Wrap(infraenv.ErrAppUnableToInitMessenger, err)
+	}
+	tcpMsgr := tcp.NewServerMessenger(&net.TCPAddr{
+		IP:   nc.Public.IP,
+		Port: nc.Public.Port,
+		Zone: nc.Public.Zone,
+	})
+	return msgr, tcpMsgr, nil
+}
+
+// NewPather is a temporary helper until header v2 is complete.
+func NewPather(provider topology.Provider, headerV2 bool) segreq.Pather {
+	var pather segreq.Pather = addrutil.LegacyPather{TopoProvider: provider}
+	if headerV2 {
+		pather = addrutil.Pather{
+			UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+				return provider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+			},
+		}
+	}
+	return pather
+}
+
+// MACGenFactory creates a MAC factory
+func MACGenFactory(configDir string) (func() hash.Hash, error) {
+	mk, err := keyconf.LoadMaster(filepath.Join(configDir, "keys"))
+	if err != nil {
+		return nil, serrors.WrapStr("loading master key", err)
+	}
+	hfMacFactory, err := scrypto.HFMacFactory(mk.Key0)
+	if err != nil {
+		return nil, err
+	}
+	return hfMacFactory, nil
+}
+
+// NewOneHopConn registers a new connection that should be used with one hop
+// paths.
+func NewOneHopConn(ia addr.IA, pub *net.UDPAddr, disp string, reconnecting,
+	headerV2 bool) (*snet.SCIONPacketConn, error) {
+
+	dispatcherService := reliable.NewDispatcher(disp)
+	if reconnecting {
+		dispatcherService = reconnect.NewDispatcherService(dispatcherService)
+	}
+	pktDisp := &snet.DefaultPacketDispatcherService{
+		Dispatcher: dispatcherService,
+		Version2:   headerV2,
+	}
+	// We do not need to drain the connection, since the src address is spoofed
+	// to contain the topo address.
+	ohpAddress := snet.CopyUDPAddr(pub)
+	ohpAddress.Port = 0
+	conn, _, err := pktDisp.Register(context.Background(), ia, ohpAddress, addr.SvcNone)
+	if err != nil {
+		return nil, err
+	}
+	return conn.(*snet.SCIONPacketConn), nil
+}

@@ -27,25 +27,13 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-type syncHandler struct {
-	handler seghandler.Handler
+// SegSync handles down segment synchronization.
+type SegSync struct {
+	SegHandler seghandler.Handler
 }
 
-func NewSyncHandler(args HandlerArgs) infra.Handler {
-	return &syncHandler{
-		handler: seghandler.Handler{
-			Verifier: &seghandler.DefaultVerifier{
-				Verifier: args.Verifier,
-			},
-			Storage: &seghandler.DefaultStorage{
-				PathDB:   args.PathDB,
-				RevCache: args.RevCache,
-			},
-		},
-	}
-}
-
-func (h *syncHandler) Handle(request *infra.Request) *infra.HandlerResult {
+// Handle handles a down segment synchronization message.
+func (h *SegSync) Handle(request *infra.Request) *infra.HandlerResult {
 	ctx := request.Context()
 	logger := log.FromCtx(ctx)
 	labels := metrics.SyncRegLabels{
@@ -92,7 +80,7 @@ func (h *syncHandler) Handle(request *infra.Request) *infra.HandlerResult {
 		Segs:      segSync.Recs,
 		SRevInfos: segSync.SRevInfos,
 	}
-	res := h.handler.Handle(ctx, segs, svcToQuery, nil)
+	res := h.SegHandler.Handle(ctx, segs, svcToQuery, nil)
 	// wait until processing is done.
 	<-res.FullReplyProcessed()
 	if err := res.Err(); err != nil {

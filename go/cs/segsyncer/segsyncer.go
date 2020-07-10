@@ -22,7 +22,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/scionproto/scion/go/cs/handlers"
 	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -36,7 +35,6 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -50,50 +48,50 @@ var (
 	errNet      = serrors.New("network error")
 )
 
-type pather interface {
+type Pather interface {
 	GetPath(svc addr.HostSVC, ps *seg.PathSegment) (net.Addr, error)
+}
+
+type Config struct {
+	IA        addr.IA
+	Inspector trust.Inspector
+	Pather    Pather
+	Msgr      infra.Messenger
+	PathDB    pathdb.PathDB
+	RevCache  revcache.RevCache
 }
 
 type SegSyncer struct {
 	latestUpdate *time.Time
 	pathDB       pathdb.PathDB
 	revCache     revcache.RevCache
-	msger        infra.Messenger
+	msgr         infra.Messenger
 	dstIA        addr.IA
 	localIA      addr.IA
-	pather       pather
+	pather       Pather
 	repErrCnt    int
 }
 
-func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Runner, error) {
+func StartAll(cfg Config) ([]*periodic.Runner, error) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	coreASes, err := args.ASInspector.ByAttributes(ctx, args.IA.I, trust.Core)
+	coreASes, err := cfg.Inspector.ByAttributes(ctx, cfg.IA.I, trust.Core)
 	if err != nil {
 		return nil, common.NewBasicError("Failed to get local core ASes", err)
 	}
 
-	var pather pather = addrutil.LegacyPather{TopoProvider: args.TopoProvider}
-	if args.HeaderV2 {
-		pather = addrutil.Pather{
-			UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-				return args.TopoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
-			},
-		}
-	}
-
 	segSyncers := make([]*periodic.Runner, 0, len(coreASes)-1)
 	for _, coreAS := range coreASes {
-		if coreAS.Equal(args.IA) {
+		if coreAS.Equal(cfg.IA) {
 			continue
 		}
 		syncer := &SegSyncer{
-			pathDB:   args.PathDB,
-			revCache: args.RevCache,
-			msger:    msger,
+			pathDB:   cfg.PathDB,
+			revCache: cfg.RevCache,
+			msgr:     cfg.Msgr,
 			dstIA:    coreAS,
-			localIA:  args.IA,
-			pather:   pather,
+			localIA:  cfg.IA,
+			pather:   cfg.Pather,
 		}
 		// TODO(lukedirtwalker): either log or add metric to indicate
 		// if task takes longer than ticker often.
@@ -201,7 +199,7 @@ func (s *SegSyncer) runInternal(ctx context.Context, cPs net.Addr) (int, error) 
 	}
 	sent := 0
 	for _, msgT := range msgs {
-		err := s.msger.SendSegSync(ctx, msgT.msg, cPs, messenger.NextId())
+		err := s.msgr.SendSegSync(ctx, msgT.msg, cPs, messenger.NextId())
 		if err != nil {
 			return sent, serrors.Wrap(errNet, err)
 		}

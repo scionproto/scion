@@ -32,7 +32,7 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-type pather interface {
+type Pather interface {
 	GetPath(svc addr.HostSVC, ps *seg.PathSegment) (net.Addr, error)
 }
 
@@ -69,7 +69,7 @@ type nonCoreDstProvider struct {
 	coreChecker CoreChecker
 	localIA     addr.IA
 	pathDB      pathdb.PathDB
-	pather      pather
+	pather      Pather
 }
 
 // Dst provides the server to lookup the segment for the given request.
@@ -116,7 +116,7 @@ type coreDstProvider struct {
 	SegSelector
 	localIA addr.IA
 	pathDB  pathdb.PathDB
-	pather  pather
+	pather  Pather
 }
 
 func (p *coreDstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr, error) {

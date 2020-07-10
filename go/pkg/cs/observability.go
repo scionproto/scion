@@ -15,16 +15,53 @@
 package cs
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
+	"github.com/opentracing/opentracing-go"
+	"github.com/pelletier/go-toml"
+
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 )
+
+// InitTracer initializes the global tracer.
+func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
+	tracer, trCloser, err := tracing.NewTracer(id)
+	if err != nil {
+		return nil, err
+	}
+	opentracing.SetGlobalTracer(tracer)
+	return trCloser, nil
+}
+
+// StartHTTPEndpoints starts the HTTP endpoints that expose the metrics and
+// additional information.
+func StartHTTPEndpoints(cfg interface{}, signer cstrust.RenewingSigner, ca cstrust.ChainBuilder,
+	metrics env.Metrics) {
+
+	http.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		var buf bytes.Buffer
+		toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(cfg)
+		fmt.Fprint(w, buf.String())
+	})
+	http.HandleFunc("/info", env.InfoHandler)
+	http.HandleFunc("/topology", itopo.TopologyHandler)
+	http.HandleFunc("/signer", signerHandler(signer))
+	if ca != (cstrust.ChainBuilder{}) {
+		http.HandleFunc("/ca", caHandler(ca))
+	}
+	metrics.StartPrometheus()
+}
 
 func signerHandler(signer cstrust.RenewingSigner) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

@@ -26,7 +26,7 @@ container_image(
     base = "//docker:dispatcher_debug",
     entrypoint = [
         "/app/dispatcher",
-        "-config",
+        "--config",
         "/disp.toml",
     ],
     files = ["testdata/disp.toml"],
@@ -37,7 +37,7 @@ container_image(
     base = "//docker:cs_debug",
     entrypoint = [
         "/app/cs",
-        "-config",
+        "--config",
         "/cs.toml",
     ],
     files = [

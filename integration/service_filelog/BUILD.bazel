@@ -16,7 +16,7 @@ container_image(
     base = "//docker:cs_debug",
     entrypoint = [
         "/app/cs",
-        "-config",
+        "--config",
         "/cs.toml",
     ],
     files = ["testdata/cs.toml"],

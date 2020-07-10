@@ -27,25 +27,13 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-type segRegHandler struct {
-	handler seghandler.Handler
+// SegReg handles segment registrations.
+type SegReg struct {
+	SegHandler seghandler.Handler
 }
 
-func NewSegRegHandler(args HandlerArgs) infra.Handler {
-	return &segRegHandler{
-		handler: seghandler.Handler{
-			Verifier: &seghandler.DefaultVerifier{
-				Verifier: args.Verifier,
-			},
-			Storage: &seghandler.DefaultStorage{
-				PathDB:   args.PathDB,
-				RevCache: args.RevCache,
-			},
-		},
-	}
-}
-
-func (h *segRegHandler) Handle(request *infra.Request) *infra.HandlerResult {
+// Handle handles a segment registration.
+func (h *SegReg) Handle(request *infra.Request) *infra.HandlerResult {
 	ctx := request.Context()
 	logger := log.FromCtx(ctx)
 	labels := metrics.RegistrationLabels{
@@ -94,7 +82,7 @@ func (h *segRegHandler) Handle(request *infra.Request) *infra.HandlerResult {
 		Segs:      segReg.Recs,
 		SRevInfos: segReg.SRevInfos,
 	}
-	res := h.handler.Handle(ctx, segs, svcToQuery, nil)
+	res := h.SegHandler.Handle(ctx, segs, svcToQuery, nil)
 	// wait until processing is done.
 	<-res.FullReplyProcessed()
 	if err := res.Err(); err != nil {
@@ -113,7 +101,7 @@ func (h *segRegHandler) Handle(request *infra.Request) *infra.HandlerResult {
 	return infra.MetricsResultOk
 }
 
-func (h *segRegHandler) incMetrics(labels metrics.RegistrationLabels, stats seghandler.Stats) {
+func (h *SegReg) incMetrics(labels metrics.RegistrationLabels, stats seghandler.Stats) {
 	labels.Result = metrics.OkRegistrationNew
 	metrics.Registrations.ResultsTotal(labels).Add(float64(stats.SegsInserted()))
 	labels.Result = metrics.OkRegiststrationUpdated

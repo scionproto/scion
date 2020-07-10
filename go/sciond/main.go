@@ -54,6 +54,7 @@ func main() {
 		Use:           "sciond",
 		Short:         "SCION Daemon",
 		SilenceErrors: true,
+		SilenceUsage:  true,
 		Args:          cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(flags.config)

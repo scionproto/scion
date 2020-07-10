@@ -33,6 +33,24 @@ type Task interface {
 	Name() string
 }
 
+// Func implements the Task interface.
+type Func struct {
+	// Task is the function that is executed on Run.
+	Task func(context.Context)
+	// TaskName is the name returned by Name,
+	TaskName string
+}
+
+// Run runs the task function.
+func (f Func) Run(ctx context.Context) {
+	f.Task(ctx)
+}
+
+// Name returns the task name.
+func (f Func) Name() string {
+	return f.TaskName
+}
+
 // Runner runs a task periodically.
 type Runner struct {
 	task         Task
