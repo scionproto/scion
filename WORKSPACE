@@ -257,3 +257,13 @@ http_archive(
     strip_prefix = "buildtools-master",
     url = "https://github.com/bazelbuild/buildtools/archive/2.2.1.zip",
 )
+
+# Used for generating go mocks
+load("@bazel_gazelle//:deps.bzl", "go_repository")
+
+go_repository(
+    name = "com_github_jmhodges_bazel_gomock",
+    importpath = "github.com/jmhodges/bazel_gomock",
+    sum = "h1:eumRMfjSqbydOAh1rCp/MhtNRBP+GcOJ81IhBVTHAQc=",
+    version = "v0.0.0-20200110073353-ed0530bf40e4",
+)
