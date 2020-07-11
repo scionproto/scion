@@ -30,9 +30,10 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cms/protocol"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/command"
 )
 
-func newVerify() *cobra.Command {
+func newVerify(pather command.Pather) *cobra.Command {
 	var flags struct {
 		anchor string
 	}
@@ -40,9 +41,8 @@ func newVerify() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "verify",
 		Short: "Verify a TRC chain",
-		Example: `  scion-pki trcs verify --anchor bundle.pem ISD1-B1-S1.trc
-  scion-pki trcs verify --anchor ISD1-B1-S1.trc ISD1-B1-S2.trc ISD1-B1-S3.trc
-	`,
+		Example: fmt.Sprintf(`  %[1]s verify --anchor bundle.pem ISD1-B1-S1.trc
+  %[1]s verify --anchor ISD1-B1-S1.trc ISD1-B1-S2.trc ISD1-B1-S3.trc`, pather.CommandPath()),
 		Long: `'verify' verifies a TRC chain based on a trusted anchor point.
 
 The anchor can either be a collection of trusted certificates bundled in a PEM

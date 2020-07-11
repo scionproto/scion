@@ -19,10 +19,17 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/scionproto/scion/go/pkg/command"
 )
 
+// CommandPather returns the path to a command.
+type CommandPather interface {
+	CommandPath() string
+}
+
 func main() {
-	root := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "scion",
 		Short: "A clean-slate Internet architecture",
 		Args:  cobra.NoArgs,
@@ -35,14 +42,14 @@ func main() {
 		// See https://github.com/spf13/cobra/issues/340#issuecomment-374617413.
 		SilenceErrors: true,
 	}
-	root.AddCommand(
-		newCompletion(),
-		newPing(),
-		newShowpaths(),
-		newVersion(),
+	cmd.AddCommand(
+		command.NewCompletion(cmd),
+		command.NewVersion(cmd),
+		newPing(cmd),
+		newShowpaths(cmd),
 	)
 
-	if err := root.Execute(); err != nil {
+	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}

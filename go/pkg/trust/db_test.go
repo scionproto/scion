@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/scion-pki/testcrypto"
 )
@@ -48,7 +49,7 @@ func TestUpdateCerts(t *testing.T) {
 	dir, cleanF := xtest.MustTempDir("", "tmp")
 	defer cleanF()
 
-	cmd := testcrypto.Cmd()
+	cmd := testcrypto.Cmd(command.StringPather(""))
 	cmd.SetArgs([]string{
 		"-t", "testdata/golden.topo",
 		"-l", "../../../scripts/cryptoplayground/crypto_lib.sh",

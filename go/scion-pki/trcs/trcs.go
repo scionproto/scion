@@ -16,19 +16,22 @@ package trcs
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/scionproto/scion/go/pkg/command"
 )
 
-func Cmd() *cobra.Command {
+func Cmd(pather command.Pather) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "trcs",
 		Short: "Generate TRCs for the SCION control plane PKI",
 	}
+	joined := command.Join(pather, cmd)
 	cmd.AddCommand(
-		newCombine(),
-		newHuman(),
-		newExtract(),
-		newPayload(),
-		newVerify(),
+		newCombine(joined),
+		newHuman(joined),
+		newExtract(joined),
+		newPayload(joined),
+		newVerify(joined),
 	)
 	return cmd
 }

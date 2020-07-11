@@ -23,9 +23,10 @@ import (
 
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/command"
 )
 
-func newVerifyCmd() *cobra.Command {
+func newVerifyCmd(pather command.Pather) *cobra.Command {
 	var flags struct {
 		trcFile  string
 		unixTime int64
@@ -39,8 +40,9 @@ func newVerifyCmd() *cobra.Command {
 The chain must be a PEM bundle with the AS certificate first, and the CA
 certificate second.
 `,
-		Example: `  scion-pki certs verify --trc ISD1-B1-S1.trc ISD1-ASff00_0_110.pem`,
-		Args:    cobra.ExactArgs(1),
+		Example: fmt.Sprintf(`  %[1]s verify --trc ISD1-B1-S1.trc ISD1-ASff00_0_110.pem`,
+			pather.CommandPath()),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 			chain, err := cppki.ReadPEMCerts(args[0])
@@ -72,7 +74,6 @@ certificate second.
 	cmd.MarkFlagRequired("trc")
 
 	return cmd
-
 }
 
 func loadTRC(trcFile string) (cppki.SignedTRC, error) {

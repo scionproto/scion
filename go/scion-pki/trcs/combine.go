@@ -27,9 +27,10 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cms/protocol"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/command"
 )
 
-func newCombine() *cobra.Command {
+func newCombine(pather command.Pather) *cobra.Command {
 	var flags struct {
 		out     string
 		payload string
@@ -45,8 +46,8 @@ provided with the '--payload' flag.
 No further checks are made. Check that the TRC is valid and verifiable with the
 appropriate commands.
 `,
-		Example: `  scion-pki trcs combine --payload ISD1-B1-S1.pld -o ISD1-B1-S1.trc ` +
-			`ISD1-B1-S1.org1 ISD1-B1-S1.org2`,
+		Example: fmt.Sprintf(`  %[1]s combine --payload ISD1-B1-S1.pld -o ISD1-B1-S1.trc `+
+			`ISD1-B1-S1.org1 ISD1-B1-S1.org2`, pather.CommandPath()),
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true

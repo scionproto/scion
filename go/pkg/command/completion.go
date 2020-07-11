@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package command
 
 import (
 	"fmt"
@@ -21,7 +21,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newCompletion(pather CommandPather) *cobra.Command {
+// NewCompletion creates a command that provides bash completion.
+func NewCompletion(pather Pather) *cobra.Command {
 	var flags struct {
 		shell string
 	}

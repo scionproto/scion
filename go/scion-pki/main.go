@@ -20,13 +20,14 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/scion-pki/certs"
 	"github.com/scionproto/scion/go/scion-pki/testcrypto"
 	"github.com/scionproto/scion/go/scion-pki/trcs"
 )
 
 func main() {
-	root := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "scion-pki",
 		Short: "SCION Control Plane PKI Management Tool",
 		Args:  cobra.NoArgs,
@@ -40,15 +41,15 @@ func main() {
 		SilenceErrors: true,
 	}
 
-	root.AddCommand(
-		newCompletion(),
+	cmd.AddCommand(
+		command.NewCompletion(cmd),
 		newVersion(),
-		certs.Cmd(),
-		trcs.Cmd(),
-		testcrypto.Cmd(),
+		certs.Cmd(cmd),
+		trcs.Cmd(cmd),
+		testcrypto.Cmd(cmd),
 	)
 
-	if err := root.Execute(); err != nil {
+	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}

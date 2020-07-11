@@ -24,31 +24,32 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/command"
 )
 
-func newExtract() *cobra.Command {
+func newExtract(pather command.Pather) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "extract",
 		Short: "Exctract parts of a signed TRC",
-		Example: `  scion-pki trcs extract payload -o payload.der input.trc
-  scion-pki trcs extract certificates -o bundle.pem input.trc`,
 	}
+	joined := command.Join(pather, cmd)
 	cmd.AddCommand(
-		newExtractPayload(),
-		newExtractCertificates(),
+		newExtractPayload(joined),
+		newExtractCertificates(joined),
 	)
 	return cmd
 }
 
-func newExtractPayload() *cobra.Command {
+func newExtractPayload(pather command.Pather) *cobra.Command {
 	var flags struct {
 		out string
 	}
 
 	cmd := &cobra.Command{
 		Use:     "payload",
+		Aliases: []string{"pld"},
 		Short:   "Extract the TRC payload",
-		Example: `  scion-pki trcs extract payload -o payload.der input.trc`,
+		Example: fmt.Sprintf(`  %[1]s payload -o payload.der input.trc`, pather.CommandPath()),
 		Long: `'payload' extracts the asn.1 encoded DER TRC payload.
 
 To inspect the created asn.1 file you can use the openssl tool:
@@ -74,15 +75,16 @@ To inspect the created asn.1 file you can use the openssl tool:
 	return cmd
 }
 
-func newExtractCertificates() *cobra.Command {
+func newExtractCertificates(pather command.Pather) *cobra.Command {
 	var flags struct {
 		out string
 	}
 
 	cmd := &cobra.Command{
 		Use:     "certificates",
+		Aliases: []string{"certs"},
 		Short:   "Extract the bundled certificates",
-		Example: `  scion-pki trcs extract certificates -o bundle.pem input.trc`,
+		Example: fmt.Sprintf(`  %[1]s certificates -o bundle.pem input.trc`, pather.CommandPath()),
 		Long:    `'certificates' extracts the certificates into a bundeld PEM file.`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

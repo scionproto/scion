@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "completion.go",
+        "pather.go",
+        "sample.go",
+        "version.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/pkg/command",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/config:go_default_library",
+        "//go/lib/env:go_default_library",
+        "@com_github_spf13_cobra//:go_default_library",
+    ],
+)

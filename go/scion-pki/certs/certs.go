@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/command"
 )
 
 var certTypes = map[string]cppki.CertType{
@@ -43,20 +44,21 @@ func getTypes() []string {
 	return options
 }
 
-func Cmd() *cobra.Command {
-	root := &cobra.Command{
+func Cmd(pather command.Pather) *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "certs",
 		Short: "Interact with certificates for the SCION control plane PKI.",
 	}
-	root.AddCommand(
-		newValidateCmd(),
-		newVerifyCmd(),
-		newRenewCmd(),
+	joined := command.Join(pather, cmd)
+	cmd.AddCommand(
+		newValidateCmd(joined),
+		newVerifyCmd(joined),
+		newRenewCmd(joined),
 	)
-	return root
+	return cmd
 }
 
-func newValidateCmd() *cobra.Command {
+func newValidateCmd(pather command.Pather) *cobra.Command {
 	var flags struct {
 		certType string
 	}
@@ -70,8 +72,8 @@ In case the 'any' type is specified, this command attempts to identify what type
 a certificate is and validates it accordingly. The identified type is stated in
 the output.
 `,
-		Example: `  scion-pki certs validate --type cp-root /tmp/certs/cp-root.crt
-	  scion-pki certs validate --type any /tmp/certs/cp-root.crt`,
+		Example: fmt.Sprintf(`  %[1]s validate --type cp-root /tmp/certs/cp-root.crt
+  %[1]s validate --type any /tmp/certs/cp-root.crt`, pather.CommandPath()),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			expectedType, checkType := certTypes[flags.certType]

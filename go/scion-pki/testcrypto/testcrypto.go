@@ -32,13 +32,14 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/scion-pki/conf"
 	"github.com/scionproto/scion/go/scion-pki/trcs"
 )
 
 const defaultCryptoLib = "./scripts/cryptoplayground/crypto_lib.sh"
 
-func Cmd() *cobra.Command {
+func Cmd(pather command.Pather) *cobra.Command {
 	var flags struct {
 		topo      string
 		out       string
@@ -53,7 +54,7 @@ func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "testcrypto",
 		Short:   "Generate crypto material for test topology",
-		Example: `  scion-pki testcrypto -t testing.topo -o gen`,
+		Example: fmt.Sprintf(`  %[1]s testcrypto -t testing.topo -o gen`, pather.CommandPath()),
 		Hidden:  true,
 		Long: `'testcrypto' generates the crypto material for a test topology.
 
