@@ -26,6 +26,8 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
@@ -50,8 +52,11 @@ type NetToRingDataplane struct {
 }
 
 func (dp *NetToRingDataplane) Run() error {
+	if !dp.HeaderV2 {
+		return dp.runLegacy()
+	}
 	for {
-		pkt := respool.GetPacket(dp.HeaderV2)
+		pkt := respool.GetPacket(true)
 		// XXX(scrye): we don't release the reference on error conditions, and
 		// let the GC take care of this situation as they should be fairly
 		// rare.
@@ -60,8 +65,7 @@ func (dp *NetToRingDataplane) Run() error {
 			log.Debug("error receiving next packet from underlay conn", "err", err)
 			continue
 		}
-
-		dst, err := ComputeDestination(&pkt.Info, dp.HeaderV2)
+		dst, err := getDst(pkt)
 		if err != nil {
 			log.Debug("unable to route packet", "err", err)
 			metrics.M.NetReadPkts(
@@ -74,25 +78,126 @@ func (dp *NetToRingDataplane) Run() error {
 	}
 }
 
-func ComputeDestination(packet *spkt.ScnPkt, headerV2 bool) (Destination, error) {
+func (dp *NetToRingDataplane) runLegacy() error {
+	for {
+		pkt := respool.GetPacket(dp.HeaderV2)
+		// XXX(scrye): we don't release the reference on error conditions, and
+		// let the GC take care of this situation as they should be fairly
+		// rare.
+
+		if err := pkt.DecodeFromConn(dp.UnderlayConn); err != nil {
+			log.Debug("error receiving next packet from underlay conn", "err", err)
+			continue
+		}
+
+		dst, err := ComputeDestination(&pkt.Info)
+		if err != nil {
+			log.Debug("unable to route packet", "err", err)
+			metrics.M.NetReadPkts(
+				metrics.IncomingPacket{Result: metrics.PacketResultRouteNotFound},
+			).Inc()
+			continue
+		}
+		metrics.M.NetReadPkts(metrics.IncomingPacket{Result: metrics.PacketResultOk}).Inc()
+		dst.Send(dp, pkt)
+	}
+}
+
+func getDst(pkt *respool.Packet) (Destination, error) {
+	switch pkt.L4 {
+	case slayers.LayerTypeSCIONUDP:
+		return getDstUDP(pkt)
+	case slayers.LayerTypeSCMP:
+		return nil, serrors.New("SCMP not supported")
+	default:
+		return nil, serrors.WithCtx(ErrUnsupportedL4, "type", pkt.L4)
+	}
+}
+
+func getDstUDP(pkt *respool.Packet) (Destination, error) {
+	dst, err := pkt.SCION.DstAddr()
+	if err != nil {
+		return nil, err
+	}
+	switch d := dst.(type) {
+	case *net.IPAddr:
+		return UDPDestination{
+			IA: pkt.SCION.DstIA,
+			Public: &net.UDPAddr{
+				IP:   d.IP,
+				Port: int(pkt.UDP.DstPort),
+			},
+		}, nil
+	case addr.HostSVC:
+		return SVCDestination{
+			IA:  pkt.SCION.DstIA,
+			Svc: d,
+		}, nil
+	default:
+		return nil, serrors.WithCtx(ErrUnsupportedDestination, "type", common.TypeOf(dst))
+	}
+}
+
+// UDPDestination delivers packets to the app that registered for the configured
+// public address.
+type UDPDestination struct {
+	IA     addr.IA
+	Public *net.UDPAddr
+}
+
+func (d UDPDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
+	routingEntry, ok := dp.RoutingTable.LookupPublic(d.IA, d.Public)
+	if !ok {
+		metrics.M.AppNotFoundErrors().Inc()
+		log.Debug("destination address not found", "isd_as", d.IA, "udp_addr", d.Public)
+		return
+	}
+	sendPacket(routingEntry, pkt)
+}
+
+// SVCDestination delivers packets to apps that registered for the configured
+// service.
+type SVCDestination struct {
+	IA  addr.IA
+	Svc addr.HostSVC
+}
+
+func (d SVCDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
+	// FIXME(scrye): This should deliver to the correct IP address, based on
+	// information found in the underlay IP header.
+	routingEntries := dp.RoutingTable.LookupService(d.IA, d.Svc, nil)
+	if len(routingEntries) == 0 {
+		metrics.M.AppNotFoundErrors().Inc()
+		log.Debug("destination address not found", "isd_as", d.IA, "svc", d.Svc)
+		return
+	}
+	// Increase reference count for all extra copies
+	for i := 0; i < len(routingEntries)-1; i++ {
+		pkt.Dup()
+	}
+	for _, routingEntry := range routingEntries {
+		metrics.M.AppWriteSVCPkts(metrics.SVC{Type: d.Svc.String()}).Inc()
+		sendPacket(routingEntry, pkt)
+	}
+}
+
+func ComputeDestination(packet *spkt.ScnPkt) (Destination, error) {
 	switch header := packet.L4.(type) {
 	case *l4.UDP:
-		return ComputeUDPDestination(packet, header, headerV2)
+		return ComputeUDPDestination(packet, header)
 	case *scmp.Hdr:
-		return ComputeSCMPDestination(packet, header, headerV2)
+		return ComputeSCMPDestination(packet, header)
 	default:
 		return nil, common.NewBasicError(ErrUnsupportedL4, nil, "type", header.L4Type())
 	}
 }
 
-func ComputeUDPDestination(packet *spkt.ScnPkt, header *l4.UDP,
-	headerV2 bool) (Destination, error) {
-
+func ComputeUDPDestination(packet *spkt.ScnPkt, header *l4.UDP) (Destination, error) {
 	switch packet.DstHost.Type() {
 	case addr.HostTypeIPv4, addr.HostTypeIPv6:
-		return &UDPDestination{IP: packet.DstHost.IP(), Port: int(header.DstPort)}, nil
+		return &UDPDestinationLegacy{IP: packet.DstHost.IP(), Port: int(header.DstPort)}, nil
 	case addr.HostTypeSVC:
-		return SVCDestination(packet.DstHost.(addr.HostSVC)), nil
+		return SVCDestinationLegacy(packet.DstHost.(addr.HostSVC)), nil
 	default:
 		return nil, common.NewBasicError(ErrUnsupportedDestination, nil,
 			"type", packet.DstHost.Type())
@@ -101,9 +206,7 @@ func ComputeUDPDestination(packet *spkt.ScnPkt, header *l4.UDP,
 
 // ComputeSCMPDestination decides which application to send the SCMP packet to. It also increments
 // SCMP-related metrics.
-func ComputeSCMPDestination(packet *spkt.ScnPkt, header *scmp.Hdr,
-	headerV2 bool) (Destination, error) {
-
+func ComputeSCMPDestination(packet *spkt.ScnPkt, header *scmp.Hdr) (Destination, error) {
 	metrics.M.SCMPReadPkts(
 		metrics.SCMP{
 			Class: header.Class.String(),
@@ -115,15 +218,13 @@ func ComputeSCMPDestination(packet *spkt.ScnPkt, header *scmp.Hdr,
 			"type", packet.DstHost.Type())
 	}
 	if header.Class == scmp.C_General {
-		return ComputeSCMPGeneralDestination(packet, header, headerV2)
+		return ComputeSCMPGeneralDestination(packet, header)
 	} else {
 		return ComputeSCMPErrorDestination(packet, header)
 	}
 }
 
-func ComputeSCMPGeneralDestination(s *spkt.ScnPkt, header *scmp.Hdr,
-	headerV2 bool) (Destination, error) {
-
+func ComputeSCMPGeneralDestination(s *spkt.ScnPkt, header *scmp.Hdr) (Destination, error) {
 	id := getSCMPGeneralID(s)
 	if id == 0 {
 		return nil, common.NewBasicError("Invalid SCMP ID", nil, "id", id)
@@ -131,7 +232,7 @@ func ComputeSCMPGeneralDestination(s *spkt.ScnPkt, header *scmp.Hdr,
 	switch {
 	case isSCMPGeneralRequest(header):
 		invertSCMPGeneralType(header)
-		return SCMPHandlerDestination{HeaderV2: headerV2}, nil
+		return SCMPHandlerDestination{HeaderV2: false}, nil
 	case isSCMPGeneralReply(header):
 		return &SCMPAppDestination{ID: id}, nil
 	default:
@@ -147,7 +248,10 @@ func ComputeSCMPErrorDestination(packet *spkt.ScnPkt, header *scmp.Hdr) (Destina
 		if err != nil {
 			return nil, common.NewBasicError(ErrMalformedL4Quote, nil, "err", err)
 		}
-		return &UDPDestination{IP: packet.DstHost.IP(), Port: int(quotedUDPHeader.SrcPort)}, nil
+		return &UDPDestinationLegacy{
+			IP:   packet.DstHost.IP(),
+			Port: int(quotedUDPHeader.SrcPort),
+		}, nil
 	case common.L4SCMP:
 
 		id, err := getQuotedSCMPGeneralID(scmpPayload)
@@ -167,11 +271,11 @@ type Destination interface {
 	Send(dp *NetToRingDataplane, pkt *respool.Packet)
 }
 
-var _ Destination = (*UDPDestination)(nil)
+var _ Destination = (*UDPDestinationLegacy)(nil)
 
-type UDPDestination net.UDPAddr
+type UDPDestinationLegacy net.UDPAddr
 
-func (d *UDPDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
+func (d *UDPDestinationLegacy) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 	routingEntry, ok := dp.RoutingTable.LookupPublic(pkt.Info.DstIA, (*net.UDPAddr)(d))
 	if !ok {
 		metrics.M.AppNotFoundErrors().Inc()
@@ -182,11 +286,11 @@ func (d *UDPDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 	sendPacket(routingEntry, pkt)
 }
 
-var _ Destination = SVCDestination(addr.SvcNone)
+var _ Destination = SVCDestinationLegacy(addr.SvcNone)
 
-type SVCDestination addr.HostSVC
+type SVCDestinationLegacy addr.HostSVC
 
-func (d SVCDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
+func (d SVCDestinationLegacy) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 	// FIXME(scrye): This should deliver to the correct IP address, based on
 	// information found in the underlay IP header.
 	routingEntries := dp.RoutingTable.LookupService(pkt.Info.DstIA, addr.HostSVC(d), nil)

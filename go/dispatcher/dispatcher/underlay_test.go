@@ -19,17 +19,89 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/google/gopacket/layers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/dispatcher/internal/respool"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/l4/mock_l4"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
+
+func TestGetDst(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	testCases := map[string]struct {
+		Pkt         func(t *testing.T) *respool.Packet
+		ExpectedDst Destination
+		ExpectedErr error
+	}{
+		"unsupported L4": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				return &respool.Packet{
+					L4: 1337,
+				}
+			},
+			ExpectedErr: ErrUnsupportedL4,
+		},
+		"UDP/SCION with IP destination is delivered by IP": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				pkt := &respool.Packet{
+					SCION: slayers.SCION{
+						DstIA: xtest.MustParseIA("1-ff00:0:110"),
+					},
+					UDP: slayers.UDP{
+						UDP: layers.UDP{
+							DstPort: 1337,
+						},
+					},
+					L4: slayers.LayerTypeSCIONUDP,
+				}
+				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				return pkt
+			},
+			ExpectedDst: UDPDestination{
+				IA:     xtest.MustParseIA("1-ff00:0:110"),
+				Public: &net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 1337},
+			},
+		},
+		"UDP/SCION with SVC destination is delivered by SVC": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				pkt := &respool.Packet{
+					SCION: slayers.SCION{
+						DstIA: xtest.MustParseIA("1-ff00:0:110"),
+					},
+					UDP: slayers.UDP{
+						UDP: layers.UDP{
+							DstPort: 1337,
+						},
+					},
+					L4: slayers.LayerTypeSCIONUDP,
+				}
+				require.NoError(t, pkt.SCION.SetDstAddr(addr.SvcCS))
+				return pkt
+			},
+			ExpectedDst: SVCDestination{
+				IA:  xtest.MustParseIA("1-ff00:0:110"),
+				Svc: addr.SvcCS,
+			},
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			destination, err := getDst(tc.Pkt(t))
+			xtest.AssertErrorsIs(t, err, tc.ExpectedErr)
+			assert.Equal(t, tc.ExpectedDst, destination)
+		})
+	}
+}
 
 func TestComputeDestination(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -59,7 +131,7 @@ func TestComputeDestination(t *testing.T) {
 				DstHost: addr.HostFromIP(net.IP{192, 168, 0, 1}),
 				L4:      &l4.UDP{DstPort: 1002},
 			},
-			ExpectedDst: &UDPDestination{IP: net.IP{192, 168, 0, 1}, Port: 1002},
+			ExpectedDst: &UDPDestinationLegacy{IP: net.IP{192, 168, 0, 1}, Port: 1002},
 		},
 		{
 			Description: "SCION/UDP with SVC destination is delivered by SVC",
@@ -67,7 +139,7 @@ func TestComputeDestination(t *testing.T) {
 				DstHost: addr.SvcPS,
 				L4:      &l4.UDP{DstPort: 1002},
 			},
-			ExpectedDst: SVCDestination(addr.SvcPS),
+			ExpectedDst: SVCDestinationLegacy(addr.SvcPS),
 		},
 		{
 			Description: "SCION/UDP without SVC or IP destination returns error",
@@ -178,7 +250,7 @@ func TestComputeDestination(t *testing.T) {
 					}),
 				},
 			},
-			ExpectedDst: &UDPDestination{IP: net.IP{192, 168, 0, 1}, Port: 1002},
+			ExpectedDst: &UDPDestinationLegacy{IP: net.IP{192, 168, 0, 1}, Port: 1002},
 		},
 		{
 			Description: "SCION/SCMP with Non-General class and bad quoted L4 type returns error",
@@ -211,7 +283,7 @@ func TestComputeDestination(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.Description, func(t *testing.T) {
-			destination, err := ComputeDestination(test.Packet, false)
+			destination, err := ComputeDestination(test.Packet)
 			xtest.AssertErrorsIs(t, err, test.ExpectedErr)
 			assert.Equal(t, test.ExpectedDst, destination)
 		})
