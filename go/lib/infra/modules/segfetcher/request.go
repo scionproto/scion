@@ -33,7 +33,6 @@ func (r Request) IsZero() bool {
 }
 
 // ToSegReq returns the request as a path_mgmt segment request.
-// XXX(matzf): could/should we include SegType in the wire request?
 func (r Request) ToSegReq() *path_mgmt.SegReq {
 	return &path_mgmt.SegReq{
 		RawSrcIA: r.Src.IAInt(),
