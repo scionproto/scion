@@ -56,7 +56,6 @@ type TrustProviderConfig struct {
 	IA       addr.IA
 	TrustDB  trust.DB
 	RPC      trust.RPC
-	Router   snet.Router
 	HeaderV2 bool
 }
 
@@ -69,13 +68,19 @@ func NewTrustProvider(cfg TrustProviderConfig) trust.FetchingProvider {
 			IA:  cfg.IA,
 		},
 		Recurser: trust.ASLocalRecurser{IA: cfg.IA},
-		Router: trust.AuthRouter{
-			ISD:    cfg.IA.I,
-			DB:     cfg.TrustDB,
-			Router: cfg.Router,
-		},
 	}
 	return provider
+}
+
+// SetTrustRouter initializes the Router of the FetchingProvider.
+// This is separate from NewTrustProvider due to the mutual dependence of
+// the provider and the router.
+func SetTrustRouter(provider *trust.FetchingProvider, router snet.Router) {
+	provider.Router = trust.AuthRouter{
+		ISD:    provider.Fetcher.(trust.DefaultFetcher).IA.I,
+		DB:     provider.DB,
+		Router: router,
+	}
 }
 
 // NewSigner creates a renewing signer backed by a certificate chain..
