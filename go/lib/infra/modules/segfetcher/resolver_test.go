@@ -500,6 +500,6 @@ func (m keySetContains) String() string {
 
 type neverLocal struct{}
 
-func (neverLocal) IsSegLocal(_ context.Context, _, _ addr.IA, _ proto.PathSegType) (bool, error) {
-	return false, nil
+func (neverLocal) IsSegLocal(_ segfetcher.Request) bool {
+	return false
 }
