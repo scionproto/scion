@@ -68,47 +68,54 @@ func (r *DefaultResolver) Resolve(ctx context.Context,
 	reqs Requests, refresh bool) (Segments, Requests, error) {
 
 	var segs Segments
+	var fetchReqs Requests
 	for i := range reqs {
-		segsi, state, err := r.resolveSegment(ctx, reqs[i], refresh)
-		reqs[i].State = state
-		segs = append(segs, segsi...)
+		segsi, err := r.resolveSegment(ctx, reqs[i], refresh)
 		if err != nil {
-			return segs, reqs, err
+			return nil, nil, err
+		}
+		if segsi != nil {
+			segs = append(segs, segsi...)
+		} else {
+			fetchReqs = append(fetchReqs, reqs[i])
 		}
 	}
-	return segs, reqs, nil
+	return segs, fetchReqs, nil
 }
 
+// resolveSegment loads the segments for this request from the DB.
+// Returns nil if the segments are not local information and are not
+// available/up to date from the cache.
 func (r *DefaultResolver) resolveSegment(ctx context.Context,
-	req Request, refresh bool) (Segments, RequestState, error) {
+	req Request, refresh bool) (Segments, error) {
 
 	local, err := r.LocalInfo.IsSegLocal(ctx, req.Src, req.Dst, req.SegType)
 	if err != nil {
-		return nil, Unresolved, err
+		return nil, err
 	}
 	if !local {
 		if refresh {
-			return nil, Fetch, err
+			return nil, nil
 		}
 		fetch, err := r.needsFetching(ctx, req)
 		if err != nil || fetch {
-			return nil, Fetch, err
+			return nil, err
 		}
 	}
 	// The segment is local or cached
 	res, err := r.loadSegment(ctx, req)
 	if err != nil {
-		return nil, Unresolved, err
+		return nil, err
 	}
 	allRev, err := r.allRevoked(ctx, res)
 	if err != nil {
-		return res.SegMetas(), Unresolved, err
+		return nil, err
 	}
 	// because of revocations our cache is empty, so refetch
 	if allRev && !local {
-		return nil, Fetch, err
+		return nil, nil
 	}
-	return res.SegMetas(), Loaded, err
+	return res.SegMetas(), err
 }
 
 func (r *DefaultResolver) loadSegment(ctx context.Context, req Request) (query.Results, error) {

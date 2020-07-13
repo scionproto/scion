@@ -243,7 +243,7 @@ py_test() {
 }
 
 bazel_test() {
-    bazel test //go/... --print_relative_test_log_paths
+    bazel test //go/... --test_output=errors --print_relative_test_log_paths
 }
 
 cmd_coverage(){

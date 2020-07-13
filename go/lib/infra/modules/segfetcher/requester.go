@@ -58,18 +58,9 @@ type DefaultRequester struct {
 	DstProvider DstProvider
 }
 
-// Request all requests in the request set that are in fetch state.
+// Request all requests in the request set
 func (r *DefaultRequester) Request(ctx context.Context, reqs Requests) <-chan ReplyOrErr {
-	var toFetch Requests
-	for _, req := range reqs {
-		if req.State == Fetch {
-			toFetch = append(toFetch, req)
-		}
-	}
-	return r.fetchReqs(ctx, toFetch)
-}
 
-func (r *DefaultRequester) fetchReqs(ctx context.Context, reqs Requests) <-chan ReplyOrErr {
 	replies := make(chan ReplyOrErr, len(reqs))
 	var wg sync.WaitGroup
 	for i := range reqs {
