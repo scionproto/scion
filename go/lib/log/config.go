@@ -15,7 +15,6 @@
 package log
 
 import (
-	"fmt"
 	"io"
 	"strings"
 
@@ -24,24 +23,12 @@ import (
 
 const (
 	// DefaultConsoleLevel is the default log level for the console.
-	DefaultConsoleLevel = "crit"
-	// DefaultFileLevel is the defaul log level for files.
-	DefaultFileLevel = "debug"
-	// DefaultFileSizeMiB is the default rotation size in MiB.
-	DefaultFileSizeMiB = 50
-	// DefaultFileMaxAgeDays is the default rollover age in days.
-	DefaultFileMaxAgeDays = 7
-	// DefaultFileMaxBackups is the default maximum amount of file backups.
-	DefaultFileMaxBackups = 10
-	// DefaultFileFlushSeconds is the default amount of time between flushes.
-	DefaultFileFlushSeconds uint = 5
+	DefaultConsoleLevel = "info"
 )
 
 // Config is the configuration for the logger.
 type Config struct {
 	config.NoValidator
-	// File is the configuration for file logging.
-	File FileConfig `toml:"file,omitempty"`
 	// Console is the configuration for the console logging.
 	Console ConsoleConfig `toml:"console,omitempty"`
 }
@@ -49,17 +36,12 @@ type Config struct {
 // InitDefaults populates unset fields in cfg to their default values (if they
 // have one).
 func (c *Config) InitDefaults() {
-	c.File.InitDefaults()
 	c.Console.InitDefaults()
 }
 
 // Sample writes the sample configuration to the dst writer.
 func (c *Config) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
 	config.WriteSample(dst, path, nil,
-		config.StringSampler{
-			Text: fmt.Sprintf(loggingFileSample, ctx[config.ID]),
-			Name: "file",
-		},
 		config.StringSampler{
 			Text: loggingConsoleSample,
 			Name: "console",
@@ -71,54 +53,6 @@ func (c *Config) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
 // this.
 func (c *Config) ConfigName() string {
 	return "log"
-}
-
-// FileConfig is the configuration for the file logger.
-type FileConfig struct {
-	// Path is the location of the logging file. If unset, no file logging is
-	// performed.
-	Path string `toml:"path,omitempty"`
-	// Level of file logging (defaults to DefaultFileLevel).
-	Level string `toml:"level,omitempty"`
-	// Size is the max size of log file in MiB (defaults to DefaultFileSizeMiB).
-	Size uint `toml:"size,omitempty"`
-	// MaxAge is the max age of log file in days (defaults to
-	// DefaultFileMaxAgeDays).
-	MaxAge uint `toml:"max_age,omitempty"`
-	// MaxBackups is the max number of log files to retain (defaults to
-	// DefaultFileMaxBackups).
-	MaxBackups uint `toml:"max_backups,omitempty"`
-	// FlushInterval specifies how frequently to flush to the log file, in
-	// seconds (defaults to DefaultFileFlushSeconds).
-	FlushInterval *uint `toml:"flush_interval,omitempty"`
-	// Compress can be set to enable rotated file compression.
-	Compress bool `toml:"compress,omitempty"`
-	// Format of the file logging. (human|json)
-	Format string `toml:"format,omitempty"`
-}
-
-// InitDefaults populates unset fields in cfg to their default values (if they
-// have one).
-func (c *FileConfig) InitDefaults() {
-	if c.Level == "" {
-		c.Level = DefaultFileLevel
-	}
-	if c.Size == 0 {
-		c.Size = DefaultFileSizeMiB
-	}
-	if c.MaxAge == 0 {
-		c.MaxAge = DefaultFileMaxAgeDays
-	}
-	if c.MaxBackups == 0 {
-		c.MaxBackups = DefaultFileMaxBackups
-	}
-	if c.FlushInterval == nil {
-		s := DefaultFileFlushSeconds
-		c.FlushInterval = &s
-	}
-	if !strings.EqualFold(c.Format, "json") {
-		c.Format = "human"
-	}
 }
 
 // ConsoleConfig is the config for the console logger.

@@ -67,10 +67,6 @@ class TestSetup(CmdBase):
         self.cmd_setup()
         self.scion.topology('topology/tiny.topo')
         self.modify_topologies()
-        self.scion.set_configs({
-            'log.file.flush_interval': 1,
-            'log.file.level': 'debug',
-        }, local.path('gen/ISD1') // '*/cs*/cs.toml')
         self.scion.run()
         if not self.no_docker:
             self.tools_dc('start', 'tester*')

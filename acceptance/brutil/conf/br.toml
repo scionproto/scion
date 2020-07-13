@@ -2,6 +2,8 @@
 config_dir = "/share/conf"
 id = <AUTOFILLED>
 
-[log.file]
+[log.console]
 level = "debug"
-path = <AUTOFILLED>
+
+[features]
+allow_run_as_root = true

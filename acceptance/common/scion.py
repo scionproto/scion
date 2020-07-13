@@ -99,10 +99,10 @@ class SCION(ABC):
         """
         Overwrite or set the values in the toml files with the specified
         changes. The key in the change dictionary is a dot separated path
-        to the toml value. E.g. {'log.file.level': 'debug'} result in the
+        to the toml value. E.g. {'log.console.level': 'debug'} result in the
         toml file with the following set:
 
-        [log.file]
+        [log.console]
           level = "debug"
         """
         for f in files:

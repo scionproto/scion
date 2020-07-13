@@ -135,5 +135,5 @@ class SupervisorGenerator(object):
         return entry
 
     def _mk_cmd(self, name, cmd_args):
-        return "bash -c 'exec %s &>logs/%s.OUT'" % (
+        return "bash -c 'exec %s &>logs/%s.log'" % (
             " ".join(['"%s"' % arg for arg in cmd_args]), name)

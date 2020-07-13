@@ -79,7 +79,6 @@ class SIGGenerator(object):
             'networks': {},
             'volumes': [
                 *DOCKER_USR_VOL,
-                self._logs_vol(),
                 self._disp_vol(topo_id),
                 '%s:/share/conf:rw' % os.path.join(base, 'disp_sig_%s' % topo_id.file_fmt()),
             ]
@@ -112,7 +111,6 @@ class SIGGenerator(object):
                 self._disp_vol(topo_id),
                 '/dev/net/tun:/dev/net/tun',
                 '%s/sig%s:/share/conf' % (base, topo_id.file_fmt()),
-                self._logs_vol()
             ],
             'network_mode': 'service:scion_disp_sig_%s' % topo_id.file_fmt(),
             'command': [remote_nets(self.args.networks, topo_id)]
@@ -157,12 +155,8 @@ class SIGGenerator(object):
                 'address': socket_address_str(sciond_ip, SD_API_PORT),
             },
             'log': {
-                'file': {
-                    'level': log_level,
-                    'path': '/share/logs/%s.log' % name
-                },
                 'console': {
-                    'level': 'error',
+                    'level': log_level,
                 }
             },
             'metrics': {
@@ -177,6 +171,3 @@ class SIGGenerator(object):
 
     def _disp_vol(self, topo_id):
         return 'vol_scion_%sdisp_sig_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt())
-
-    def _logs_vol(self):
-        return self.output_base + '/logs:/share/logs:rw'

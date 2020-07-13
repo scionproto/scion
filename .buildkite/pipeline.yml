@@ -53,17 +53,6 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: "IT: :bazel: "
-    if: build.message !~ /\[doc\]/
-    command:
-    - bazel test //integration/...
-    key: integration_tests
-    artifact_paths:
-      - "artifacts.out/**/*"
-    retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
   - label: "IT: (svisor) Revocation tests"
     if: build.message !~ /\[doc\]/
     command:

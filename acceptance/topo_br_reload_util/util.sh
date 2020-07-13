@@ -13,7 +13,7 @@ DST_TOPO="gen/ISD1/AS$DST_AS_FILE/br$DST_IA_FILE-1/topology.json"
 . acceptance/common.sh
 
 check_logs() {
-    fgrep -q "$1" "logs/br$2-1.log" || fail "Not found: $1"
+    docker-compose -f gen/scion-dc.yml -p scion logs "scion_br$2-1" | fgrep -q "$1" || fail "Not found: $1"
 }
 
 check_connectivity() {
@@ -32,7 +32,6 @@ base_setup() {
 
 base_gen_topo() {
     ./scion.sh topology -c $TEST_TOPOLOGY -d
-    sed -i '/\[log\.file\]/a flush_interval = 1' gen/ISD1/*/br*/br.toml
 }
 
 base_run_topo() {

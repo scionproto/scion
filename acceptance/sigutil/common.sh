@@ -9,9 +9,6 @@ DST_IA=${DST_IA:-1-ff00:0:112}
 test_setup() {
     set -e
     ./scion.sh topology -c $TEST_TOPOLOGY -d --sig -n 242.254.0.0/16
-    for sig in gen/ISD1/*/sig*/sig.toml; do
-        sed -i '/\[log\.file\]/a flush_interval = 1' "$sig"
-    done
     ./scion.sh run nobuild
     ./tools/dc start 'tester*'
     sleep 7
@@ -56,7 +53,7 @@ reload_sig() {
     # Wait till the new config takes effect.
     sleep 3
     # Make sure that the reload actually happened.
-    COUNT=$(grep --text ".*Config reloaded.*" "logs/sig$1.log" | wc -l)
+    COUNT=$(./tools/dc scion logs scion_sig_$1 | grep --text ".*Config reloaded.*" | wc -l)
     if [ "$COUNT" != "$2" ]; then
             echo "Expected $2 config reloads, found $COUNT."
         exit 1

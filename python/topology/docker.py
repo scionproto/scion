@@ -132,7 +132,6 @@ class DockerGenerator(object):
                 'volumes': [
                     *DOCKER_USR_VOL,
                     self._disp_vol(disp_id),
-                    self._logs_vol(),
                     '%s:/share/conf:ro' % os.path.join(base, k)
                 ],
                 'command': []
@@ -168,7 +167,6 @@ class DockerGenerator(object):
                 'volumes': [
                     *DOCKER_USR_VOL,
                     self._cache_vol(),
-                    self._logs_vol(),
                     self._certs_vol(),
                     '%s:/share/conf:ro' % os.path.join(base, k),
                     self._disp_vol(k),
@@ -187,7 +185,6 @@ class DockerGenerator(object):
             'networks': {},
             'volumes': [
                 *DOCKER_USR_VOL,
-                self._logs_vol()
             ]
         }
         keys = list(topo.get("border_routers", {})) + list(topo.get("control_service", {}))
@@ -231,7 +228,6 @@ class DockerGenerator(object):
                 *DOCKER_USR_VOL,
                 self._disp_vol(disp_id),
                 self._cache_vol(),
-                self._logs_vol(),
                 self._certs_vol(),
                 '%s:/share/conf:ro' % os.path.join(base, 'endhost'),
             ],
@@ -243,9 +239,6 @@ class DockerGenerator(object):
 
     def _disp_vol(self, disp_id):
         return 'vol_%sdisp_%s:/run/shm/dispatcher:rw' % (self.prefix, disp_id)
-
-    def _logs_vol(self):
-        return self.output_base + '/logs:/share/logs:rw'
 
     def _cache_vol(self):
         return self.output_base + '/gen-cache:/share/cache:rw'
