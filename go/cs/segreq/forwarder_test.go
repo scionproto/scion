@@ -33,21 +33,21 @@ var (
 	isd1 = xtest.MustParseIA("1-0")
 	isd2 = xtest.MustParseIA("2-0")
 
-	core_110 = xtest.MustParseIA("1-ff00:0:110")
-	core_120 = xtest.MustParseIA("1-ff00:0:120")
-	core_130 = xtest.MustParseIA("1-ff00:0:130")
-	core_210 = xtest.MustParseIA("2-ff00:0:210")
+	core110 = xtest.MustParseIA("1-ff00:0:110")
+	core120 = xtest.MustParseIA("1-ff00:0:120")
+	core130 = xtest.MustParseIA("1-ff00:0:130")
+	core210 = xtest.MustParseIA("2-ff00:0:210")
 
-	non_core_111 = xtest.MustParseIA("1-ff00:0:111")
-	non_core_112 = xtest.MustParseIA("1-ff00:0:112")
-	non_core_211 = xtest.MustParseIA("2-ff00:0:211")
-	non_core_212 = xtest.MustParseIA("2-ff00:0:212")
+	nonCore111 = xtest.MustParseIA("1-ff00:0:111")
+	nonCore112 = xtest.MustParseIA("1-ff00:0:112")
+	nonCore211 = xtest.MustParseIA("2-ff00:0:211")
+	nonCore212 = xtest.MustParseIA("2-ff00:0:212")
 
 	cores = map[addr.IA]struct{}{
-		core_110: {},
-		core_120: {},
-		core_130: {},
-		core_210: {},
+		core110: {},
+		core120: {},
+		core130: {},
+		core210: {},
 	}
 )
 
@@ -77,23 +77,23 @@ func TestForwarderClassify(t *testing.T) {
 		ExpectedSegType proto.PathSegType
 	}{
 		"Invalid Src": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
-				Src: addr.IA{I: 0, A: non_core_111.A},
-				Dst: core_110,
+				Src: addr.IA{I: 0, A: nonCore111.A},
+				Dst: core110,
 			},
 			ErrorAssertion: require.Error,
 		},
 		"Invalid Dst": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
-				Src: non_core_111,
+				Src: nonCore111,
 				Dst: addr.IA{I: 0, A: 0},
 			},
 			ErrorAssertion: require.Error,
 		},
 		"Core Wildcards Src & Dst": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
 				Src: addr.IA{I: 1, A: 0},
 				Dst: addr.IA{I: 2, A: 0},
@@ -102,114 +102,114 @@ func TestForwarderClassify(t *testing.T) {
 			ExpectedSegType: proto.PathSegType_core,
 		},
 		"Core Wildcard Src": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
 				Src: addr.IA{I: 1, A: 0},
-				Dst: core_210,
+				Dst: core210,
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_core,
 		},
 		"Core Wildcard Dst": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
-				Src: core_110,
+				Src: core110,
 				Dst: addr.IA{I: 2, A: 0},
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_core,
 		},
 		"Core Invalid Src": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
-				Src: core_210, // Src not in local ISD
-				Dst: core_110,
+				Src: core210, // Src not in local ISD
+				Dst: core110,
 			},
 			ErrorAssertion: require.Error,
 		},
 		"Down": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
-				Src: core_110,
-				Dst: non_core_112,
+				Src: core110,
+				Dst: nonCore112,
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_down,
 		},
 		"Down Wildcard": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
 				Src: addr.IA{I: 1, A: 0},
-				Dst: non_core_112,
+				Dst: nonCore112,
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_down,
 		},
 		"Down Remote ISD": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
-				Src: core_210,
-				Dst: non_core_212,
+				Src: core210,
+				Dst: nonCore212,
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_down,
 		},
 		"Down Remote ISD Wildcard": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
 				Src: addr.IA{I: 2, A: 0},
-				Dst: non_core_212,
+				Dst: nonCore212,
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_down,
 		},
 		"Down wrong ISD": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
-				Src: core_110,
-				Dst: non_core_211,
+				Src: core110,
+				Dst: nonCore211,
 			},
 			ErrorAssertion: require.Error,
 		},
 		"Down Invalid Dst Local": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
-				Src: core_110,
-				Dst: non_core_111,
+				Src: core110,
+				Dst: nonCore111,
 			},
 			ErrorAssertion: require.Error,
 		},
 		"Up": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
-				Src: non_core_111,
-				Dst: core_110,
+				Src: nonCore111,
+				Dst: core110,
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_up,
 		},
 		"Up Wildcard": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
-				Src: non_core_111,
+				Src: nonCore111,
 				Dst: addr.IA{I: 1, A: 0},
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_up,
 		},
 		"Up Invalid Src": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
-				Src: non_core_112,
+				Src: nonCore112,
 				Dst: addr.IA{I: 1, A: 0},
 			},
 			ErrorAssertion: require.Error,
 		},
 		"Invalid Non-Core to Non-Core": {
-			LocalIA: non_core_111,
+			LocalIA: nonCore111,
 			Request: request{
-				Src: non_core_111,
-				Dst: non_core_112,
+				Src: nonCore111,
+				Dst: nonCore112,
 			},
 			ErrorAssertion: require.Error,
 		},

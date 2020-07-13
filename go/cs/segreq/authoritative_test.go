@@ -38,80 +38,80 @@ func TestAuthoritativeClassify(t *testing.T) {
 		ExpectedSegType proto.PathSegType
 	}{
 		"Invalid Src": {
-			LocalIA: core_110,
+			LocalIA: core110,
 			Request: request{
-				Src: core_210,
-				Dst: core_110,
+				Src: core210,
+				Dst: core110,
 			},
 			ErrorAssertion: require.Error,
 		},
 		"Invalid Src Wildcard": {
-			LocalIA: core_110,
+			LocalIA: core110,
 			Request: request{
 				Src: addr.IA{I: 1, A: 0},
-				Dst: core_210,
+				Dst: core210,
 			},
 			ErrorAssertion: require.Error,
 		},
 		"Invalid Dst": {
-			LocalIA: core_110,
+			LocalIA: core110,
 			Request: request{
-				Src: core_110,
+				Src: core110,
 				Dst: addr.IA{I: 0, A: 0},
 			},
 			ErrorAssertion: require.Error,
 		},
 		"Core Local ISD": {
-			LocalIA: core_110,
+			LocalIA: core110,
 			Request: request{
-				Src: core_110,
-				Dst: core_120,
+				Src: core110,
+				Dst: core120,
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_core,
 		},
 		"Core Remote ISD": {
-			LocalIA: core_110,
+			LocalIA: core110,
 			Request: request{
-				Src: core_110,
-				Dst: core_210,
+				Src: core110,
+				Dst: core210,
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_core,
 		},
 		"Core Wildcard Local ISD": {
-			LocalIA: core_110,
+			LocalIA: core110,
 			Request: request{
-				Src: core_110,
+				Src: core110,
 				Dst: addr.IA{I: 1, A: 0},
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_core,
 		},
 		"Core Wildcard Remote ISD": {
-			LocalIA: core_110,
+			LocalIA: core110,
 			Request: request{
-				Src: core_110,
+				Src: core110,
 				Dst: addr.IA{I: 2, A: 0},
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_core,
 		},
 		"Core Remote ISD Non-Core ": {
-			LocalIA: core_110,
+			LocalIA: core110,
 			Request: request{
-				Src: core_110,
-				Dst: non_core_211,
+				Src: core110,
+				Dst: nonCore211,
 			},
 			// core/non-core dst in remote ISD unchecked! Returning an error would be ok too...
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_core,
 		},
 		"Down": {
-			LocalIA: core_110,
+			LocalIA: core110,
 			Request: request{
-				Src: core_110,
-				Dst: non_core_111,
+				Src: core110,
+				Dst: nonCore111,
 			},
 			ErrorAssertion:  require.NoError,
 			ExpectedSegType: proto.PathSegType_down,
