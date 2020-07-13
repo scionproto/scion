@@ -166,9 +166,17 @@ func run(file string) error {
 	defer beaconStore.Close()
 
 	inspector := trust.DBInspector{DB: trustDB}
+	provider := cs.NewTrustProvider(
+		cs.TrustProviderConfig{
+			IA:       topo.IA(),
+			TrustDB:  trustDB,
+			RPC:      msgr,
+			HeaderV2: cfg.Features.HeaderV2,
+		},
+	)
 	verifier := compat.Verifier{
 		Verifier: trust.Verifier{
-			Engine: nil, // needs provider, see below
+			Engine: provider,
 		},
 	}
 	fetcherCfg := segreq.FetcherConfig{
@@ -181,17 +189,7 @@ func run(file string) error {
 		Verifier:     verifier,
 		HeaderV2:     cfg.Features.HeaderV2,
 	}
-	provider := cs.NewTrustProvider(
-		cs.TrustProviderConfig{
-			IA:       topo.IA(),
-			TrustDB:  trustDB,
-			RPC:      msgr,
-			Router:   segreq.NewRouter(fetcherCfg),
-			HeaderV2: cfg.Features.HeaderV2,
-		},
-	)
-	// now set the provider in the
-	verifier.Verifier.Engine = provider
+	cs.SetTrustRouter(&provider, segreq.NewRouter(fetcherCfg))
 
 	// Register trust material related handlers.
 	trcHandler := trusthandler.TRCReq{Provider: provider, IA: topo.IA()}
