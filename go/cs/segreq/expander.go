@@ -76,8 +76,6 @@ func (e *wildcardExpander) providerCoreASes(ctx context.Context) ([]addr.IA, err
 		return []addr.IA{e.localIA}, nil
 	}
 
-	// TODO: should or should this not filter revoked?
-	// TODO: could probably do a much more efficient query
 	params := &query.Params{
 		SegTypes: []proto.PathSegType{proto.PathSegType_up},
 	}

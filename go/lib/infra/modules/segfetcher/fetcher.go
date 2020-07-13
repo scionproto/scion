@@ -121,7 +121,6 @@ func (f *Fetcher) Request(ctx context.Context, reqs Requests) (Segments, Request
 	defer cancelF()
 	reqCtx = log.CtxWith(reqCtx, log.FromCtx(ctx))
 	replies := f.Requester.Request(reqCtx, reqs)
-	// TODO(lukedirtwalker): We need to have early trigger for the last request.
 	return f.waitOnProcessed(ctx, replies, reqs)
 }
 

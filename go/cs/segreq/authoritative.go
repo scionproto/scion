@@ -29,6 +29,9 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+// NewAuthoritativeHandler creates a segment request handler that returns down
+// and core segments starting at this core AS.
+// This handler is used exclusively in core ASes.
 func NewAuthoritativeHandler(ia addr.IA, inspector trust.Inspector, pathDB pathdb.PathDB,
 	revCache revcache.RevCache) infra.Handler {
 
@@ -42,6 +45,8 @@ func NewAuthoritativeHandler(ia addr.IA, inspector trust.Inspector, pathDB pathd
 	}
 }
 
+// authoritativeProcesser handles segment requests for down and core segents
+// starting at this core AS.
 type authoritativeProcessor struct {
 	localIA     addr.IA
 	coreChecker CoreChecker
@@ -72,18 +77,17 @@ func (h *authoritativeProcessor) process(ctx context.Context,
 func (h *authoritativeProcessor) classify(ctx context.Context,
 	src, dst addr.IA) (proto.PathSegType, error) {
 
-	unset := proto.PathSegType_unset // shorthand
 	switch {
 	case src != h.localIA:
-		return unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+		return proto.PathSegType_unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"src", src, "dst", dst, "reason", "src must be local AS")
 	case dst.I == 0:
-		return unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+		return proto.PathSegType_unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"src", src, "dst", dst, "reason", "zero ISD dst")
 	case dst.I == h.localIA.I:
 		dstCore, err := h.coreChecker.IsCore(ctx, dst)
 		if err != nil {
-			return unset, err
+			return proto.PathSegType_unset, err
 		}
 		if dstCore {
 			return proto.PathSegType_core, nil
