@@ -85,7 +85,8 @@ func (h *baseHandler) Handle(request *infra.Request) *infra.HandlerResult {
 		// the client might still be able to use the segments so continue here.
 	}
 	reply := &path_mgmt.SegReply{
-		Req: segReq, Recs: &path_mgmt.SegRecs{
+		Req: segReq,
+		Recs: &path_mgmt.SegRecs{
 			Recs:      segs,
 			SRevInfos: revs,
 		},
