@@ -101,18 +101,18 @@ func (f *Fetcher) Fetch(ctx context.Context, reqs Requests, refresh bool) (Segme
 	if err != nil {
 		return Segments{}, serrors.WrapStr("failed to resolve request set", err)
 	}
-	if fetchReqs.AllLoaded() {
+	if len(fetchReqs) == 0 {
 		return loadedSegs, nil
 	}
 	// Forward and cache any requests that were not local / cached
-	fetchedSegs, _, err := f.Request(ctx, fetchReqs)
+	fetchedSegs, err := f.Request(ctx, fetchReqs)
 	if err != nil {
 		return Segments{}, serrors.WrapStr("failed to forward requests", err)
 	}
 	return append(loadedSegs, fetchedSegs...), nil
 }
 
-func (f *Fetcher) Request(ctx context.Context, reqs Requests) (Segments, Requests, error) {
+func (f *Fetcher) Request(ctx context.Context, reqs Requests) (Segments, error) {
 	// XXX(lukedirtwalker): Optimally we wouldn't need a different timeout
 	// here. The problem is that revocations can't be differentiated from
 	// timeouts. And having 10s timeouts plays really bad together with
@@ -121,11 +121,11 @@ func (f *Fetcher) Request(ctx context.Context, reqs Requests) (Segments, Request
 	defer cancelF()
 	reqCtx = log.CtxWith(reqCtx, log.FromCtx(ctx))
 	replies := f.Requester.Request(reqCtx, reqs)
-	return f.waitOnProcessed(ctx, replies, reqs)
+	return f.waitOnProcessed(ctx, replies)
 }
 
-func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr,
-	reqs Requests) (Segments, Requests, error) {
+func (f *Fetcher) waitOnProcessed(ctx context.Context,
+	replies <-chan ReplyOrErr) (Segments, error) {
 
 	var segs Segments
 	logger := log.FromCtx(ctx)
@@ -136,7 +136,6 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 			log.FromCtx(ctx).Info("Request for unreachable dest ignored",
 				"req", reply.Req, "err", reply.Err)
 			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
-			reqs = updateRequestState(reqs, reply.Req, Loaded)
 			continue
 		}
 		if reply.Err != nil {
@@ -144,11 +143,10 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 				labels.Result = metrics.ErrTimeout
 			}
 			f.metrics.SegRequests(labels).Inc()
-			return segs, reqs, reply.Err
+			return segs, reply.Err
 		}
 		if reply.Reply == nil || reply.Reply.Recs == nil {
 			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
-			reqs = updateRequestState(reqs, reply.Req, Loaded)
 			continue
 		}
 		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Reply), reply.Peer, nil)
@@ -158,14 +156,12 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 				r.Stats().RevDBErrs(), r.Stats().RevVerifyErrors())
 			if err := r.Err(); err != nil {
 				f.metrics.SegRequests(labels.WithResult(metrics.ErrProcess)).Inc()
-				return segs, reqs, err
+				return segs, err
 			}
 			if len(r.VerificationErrors()) > 0 {
 				log.FromCtx(ctx).Info("Error during verification of segments/revocations",
 					"errors", r.VerificationErrors().ToError())
 			}
-			// XXX(matzf) nobody looks at this status anymore, just drop it?
-			reqs = updateRequestState(reqs, reply.Req, Loaded)
 			segs = append(segs, segsWithHPToSegs(r.Stats().VerifiedSegs)...)
 			nextQuery := f.nextQuery(segs)
 			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil, nextQuery)
@@ -175,10 +171,10 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
 		case <-ctx.Done():
 			f.metrics.SegRequests(labels.WithResult(metrics.ErrTimeout)).Inc()
-			return segs, reqs, ctx.Err()
+			return segs, ctx.Err()
 		}
 	}
-	return segs, reqs, nil
+	return segs, nil
 }
 
 // nextQuery decides the next time a query should be issued based on the
@@ -225,13 +221,4 @@ func segsWithHPToSegs(segsWithHP []*seghandler.SegWithHP) Segments {
 		segs = append(segs, seg.Seg)
 	}
 	return segs
-}
-
-func updateRequestState(reqs Requests, reqToUpdate Request, newState RequestState) Requests {
-	for i, req := range reqs {
-		if req.Equal(reqToUpdate) {
-			reqs[i].State = newState
-		}
-	}
-	return reqs
 }

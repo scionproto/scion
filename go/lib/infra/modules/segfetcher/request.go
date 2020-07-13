@@ -20,24 +20,11 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-// RequestState is the state the request is in.
-type RequestState int
-
-const (
-	// Unresolved means the request is not yet resolved.
-	Unresolved RequestState = iota
-	// Fetch means the request needs to be fetched.
-	Fetch
-	// Loaded means the request has been fetched or loaded from the DB.
-	Loaded
-)
-
 // Request represents a path or segment request.
 type Request struct {
 	Src     addr.IA
 	Dst     addr.IA
 	SegType proto.PathSegType
-	State   RequestState
 }
 
 // IsZero returns whether the request is empty.
@@ -76,16 +63,6 @@ func (r Requests) DstIAs() []addr.IA {
 // IsEmpty returns whether the list of requests is empty.
 func (r Requests) IsEmpty() bool {
 	return len(r) == 0
-}
-
-// AllLoaded returns whether all entries in request have state loaded.
-func (r Requests) AllLoaded() bool {
-	for _, req := range r {
-		if req.State != Loaded {
-			return false
-		}
-	}
-	return true
 }
 
 func (r Requests) extractIAs(extract func(Request) addr.IA) []addr.IA {
