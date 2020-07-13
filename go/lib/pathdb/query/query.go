@@ -79,7 +79,7 @@ func (r Results) Segs() seg.Segments {
 	return segs
 }
 
-// SegMEtas returns the segments in a seg.Meta slice, i.e. returns the segments
+// SegMetas returns the segments in a seg.Meta slice, i.e. returns the segments
 // with their PathSegTypes.
 func (r Results) SegMetas() []*seg.Meta {
 	segs := make([]*seg.Meta, len(r))

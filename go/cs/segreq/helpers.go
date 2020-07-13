@@ -72,7 +72,7 @@ func (s *SegSelector) SelectSeg(ctx context.Context,
 	seg := segs[rand.Intn(len(segs))]
 
 	svcaddr, err := s.Pather.GetPath(addr.SvcPS, seg)
-	// odd interface, builts address not path. Use GetPath to convert to snet.Path
+	// odd interface, builds address not path. Use GetPath to convert to snet.Path
 	if err != nil {
 		return nil, err
 	}
