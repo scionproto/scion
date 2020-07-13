@@ -41,8 +41,8 @@ type Resolver interface {
 // LocalInfo provides information about which segments are always locally
 // stored.
 type LocalInfo interface {
-	// IsSegLocal returns whether this segment is always locally stored.
-	IsSegLocal(ctx context.Context, src, dst addr.IA, segType proto.PathSegType) (bool, error)
+	// IsSegLocal returns whether the requested segment is always locally stored.
+	IsSegLocal(req Request) bool
 }
 
 // NewResolver creates a new resolver with the given DB.
@@ -89,10 +89,7 @@ func (r *DefaultResolver) Resolve(ctx context.Context,
 func (r *DefaultResolver) resolveSegment(ctx context.Context,
 	req Request, refresh bool) (Segments, error) {
 
-	local, err := r.LocalInfo.IsSegLocal(ctx, req.Src, req.Dst, req.SegType)
-	if err != nil {
-		return nil, err
-	}
+	local := r.LocalInfo.IsSegLocal(req)
 	if !local {
 		if refresh {
 			return nil, nil

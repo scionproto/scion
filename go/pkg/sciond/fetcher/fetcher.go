@@ -39,7 +39,6 @@ import (
 	"github.com/scionproto/scion/go/pkg/sciond/config"
 	"github.com/scionproto/scion/go/pkg/sciond/internal/metrics"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -196,6 +195,6 @@ func (r *dstProvider) Dst(_ context.Context, _ segfetcher.Request) (net.Addr, er
 
 type neverLocal struct{}
 
-func (neverLocal) IsSegLocal(_ context.Context, _, _ addr.IA, _ proto.PathSegType) (bool, error) {
-	return false, nil
+func (neverLocal) IsSegLocal(_ segfetcher.Request) bool {
+	return false
 }
