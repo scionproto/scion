@@ -11,7 +11,6 @@ import (
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	segfetcher "github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	seghandler "github.com/scionproto/scion/go/lib/infra/modules/seghandler"
-	proto "github.com/scionproto/scion/go/proto"
 	net "net"
 	reflect "reflect"
 )
@@ -267,16 +266,15 @@ func (m *MockLocalInfo) EXPECT() *MockLocalInfoMockRecorder {
 }
 
 // IsSegLocal mocks base method
-func (m *MockLocalInfo) IsSegLocal(arg0 context.Context, arg1, arg2 addr.IA, arg3 proto.PathSegType) (bool, error) {
+func (m *MockLocalInfo) IsSegLocal(arg0 segfetcher.Request) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsSegLocal", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "IsSegLocal", arg0)
 	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
 // IsSegLocal indicates an expected call of IsSegLocal
-func (mr *MockLocalInfoMockRecorder) IsSegLocal(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockLocalInfoMockRecorder) IsSegLocal(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSegLocal", reflect.TypeOf((*MockLocalInfo)(nil).IsSegLocal), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSegLocal", reflect.TypeOf((*MockLocalInfo)(nil).IsSegLocal), arg0)
 }

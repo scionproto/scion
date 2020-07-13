@@ -118,10 +118,8 @@ type localInfo struct {
 //  - down segment requests starting at this AS
 //  - core segment requests starting at this AS
 // In summary, these are exactly the segments starting at the local AS.
-func (l *localInfo) IsSegLocal(ctx context.Context, src, dst addr.IA,
-	segType proto.PathSegType) (bool, error) {
-
-	return src == l.localIA, nil
+func (l *localInfo) IsSegLocal(req segfetcher.Request) bool {
+	return req.Src == l.localIA
 }
 
 // dstProvider provides the address of and the path to the authoritative server
