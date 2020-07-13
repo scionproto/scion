@@ -104,14 +104,26 @@ Good commit messages
 We adhere to the rules in the `Go Contribution
 Guide <https://golang.org/doc/contribute.html#commit_messages>`__.
 
-Similarly to the contribution guide above, the first commit line should complete
-the sentence "This change modifies SCION to ...". This means it should start
-with a lower-case letter, and should not be a complete sentence.
+Here is an example of a good commit message:
 
-Do not use full URLs to reference issues, they are needlessly verbose. To
-reference an issue in the current repository, use the #12345 notation. To
-reference an issue in a different repository, use the Github fully-qualified
-syntax (e.g., scionproto/scion#12345).
+.. code-block::
+
+   sciond: do not panic on shutdown
+
+   SCIOND runs a tcp-messenger in client mode. There was a superfluous
+   deferred `CloseServer` call that panicked on shutdown.
+
+   Changes:
+   - Remove deferred `CloseServer` call on tcp-messenger in client mode
+   - Don't panic when calling `CloseServer` on a tcp-messenger with nil listener
+   - Move deferred `CloseServer` call in CS to the appropriate place
+
+   Fixes #3766
+
+- There is `<subsystem:>` at the beginning
+- All letters are lowercase
+- There is always a reference number to an issue
+
 
 Pull Requests
 -------------
