@@ -8,7 +8,6 @@ x-br: &br
     - "/etc/passwd:/etc/passwd:ro"
     - "/etc/group:/etc/group:ro"
     - "/run/shm/dispatcher:/run/shm/dispatcher"
-    - "../../logs:/share/logs"
     - "${TEST_ARTIFACTS_DIR}/conf:/share/conf"
 services:
   dispatcher:
@@ -20,7 +19,6 @@ services:
       - "/etc/passwd:/etc/passwd:ro"
       - "/etc/group:/etc/group:ro"
       - "/run/shm/dispatcher:/run/shm/dispatcher"
-      - "../../logs:/share/logs"
       - "${TEST_ARTIFACTS_DIR}/conf:/share/conf"
   core-brA:
     <<: *br
