@@ -34,7 +34,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/ping"
 )
 
-func newPing() *cobra.Command {
+func newPing(pather CommandPather) *cobra.Command {
 	var flags struct {
 		count       uint16
 		interval    time.Duration
@@ -53,7 +53,7 @@ func newPing() *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:     "ping [flags] <remote>",
 		Short:   "Test connectivity to a remote SCION host using SCMP echo packets",
-		Example: "  scion ping 1-ff00:0:110,10.0.0.1",
+		Example: fmt.Sprintf("  %[1]s ping 1-ff00:0:110,10.0.0.1", pather.CommandPath()),
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			remote, err := snet.ParseUDPAddr(args[0])

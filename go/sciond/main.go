@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/sciond"
 	"github.com/scionproto/scion/go/pkg/sciond/config"
 	"github.com/scionproto/scion/go/pkg/sciond/fetcher"
@@ -45,14 +46,19 @@ import (
 	trustmetrics "github.com/scionproto/scion/go/pkg/trust/metrics"
 )
 
+// CommandPather returns the path to a command.
+type CommandPather interface {
+	CommandPath() string
+}
+
 func main() {
 	var flags struct {
 		config string
 	}
-
-	root := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:           "sciond",
 		Short:         "SCION Daemon",
+		Example:       "  sciond --config sd.toml",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		Args:          cobra.NoArgs,
@@ -60,14 +66,14 @@ func main() {
 			return run(flags.config)
 		},
 	}
-	root.AddCommand(
-		newVersion(),
-		newHelpConfig(),
+	cmd.AddCommand(
+		command.NewCompletion(cmd),
+		command.NewSample(cmd, command.NewSampleConfig(&config.Config{})),
+		command.NewVersion(cmd),
 	)
-	root.Flags().StringVar(&flags.config, "config", "", "Configuration file (required)")
-	root.MarkFlagRequired("config")
-
-	if err := root.Execute(); err != nil {
+	cmd.Flags().StringVar(&flags.config, "config", "", "Configuration file (required)")
+	cmd.MarkFlagRequired("config")
+	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}

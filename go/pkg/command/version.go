@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//   http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,22 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package command
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
-	"github.com/scionproto/scion/go/pkg/sciond/config"
+	"github.com/scionproto/scion/go/lib/env"
 )
 
-func newHelpConfig() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "help-config",
-		Short: "Display sample configuration file",
+// NewVersion creates a command that displays the SCION version information.
+func NewVersion(pather Pather) *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:     "version",
+		Short:   "Show the SCION version information",
+		Example: fmt.Sprintf("  %[1]s version", pather.CommandPath()),
 		Run: func(cmd *cobra.Command, args []string) {
-			(&config.Config{}).Sample(os.Stdout, nil, nil)
+			fmt.Print(env.VersionInfo())
 		},
 	}
 	return cmd

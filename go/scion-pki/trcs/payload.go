@@ -26,10 +26,11 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/scion-pki/conf"
 )
 
-func newPayload() *cobra.Command {
+func newPayload(pather command.Pather) *cobra.Command {
 	var flags struct {
 		out  string
 		tmpl string
@@ -37,9 +38,10 @@ func newPayload() *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:     "payload",
-		Short:   "Generate new TRC payload",
-		Example: `  scion-pki trcs payload -t template.toml -o payload.der`,
+		Use:   "payload",
+		Short: "Generate new TRC payload",
+		Example: fmt.Sprintf(`  %[1]s payload -t template.toml -o payload.der`,
+			pather.CommandPath()),
 		Long: `'payload' creates the asn.1 encoded der file.
 
 To inspect the created asn.1 file you can use the openssl tool:

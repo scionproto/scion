@@ -45,6 +45,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/svc"
+	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/renewal"
 )
@@ -62,7 +63,7 @@ type subjectVars struct {
 	StreetAddress      string  `json:"street_address,omitempty"`
 }
 
-func newRenewCmd() *cobra.Command {
+func newRenewCmd(pather command.Pather) *cobra.Command {
 	var flags struct {
 		keyFile           string
 		outFile           string
@@ -81,20 +82,20 @@ func newRenewCmd() *cobra.Command {
 		Use:   "renew",
 		Short: "Renew AS certificate",
 		Args:  cobra.MaximumNArgs(1),
-		Example: `  scion-pki certs renew
+		Example: fmt.Sprintf(`  %[1]s renew
 	--key cp-as.key \
 	--transportcert ISD1-ASff00_0_112.pem \
 	--transportkey cp-as.key \
 	--trc ISD1-B1-S1.trc
 
-  scion-pki certs renew
+  %[1]s renew
 	--key fresh.key \
 	--transportcert ISD1-ASff00_0_112.pem \
 	--transportkey cp-as.key \
 	--trc ISD1-B1-S1.trc \
 	--template csr.json \
 	  1-ff00:0:110
-		`,
+		`, pather.CommandPath()),
 		Long: `'renew' sends a certificate chain renewal request to the CA control service.
 
 The transport certificate chain and key are used to sign the renewal requests.

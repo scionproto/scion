@@ -22,6 +22,7 @@ go_library(
         "//go/lib/snet/addrutil:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/svc:go_default_library",
+        "//go/pkg/command:go_default_library",
         "//go/pkg/trust:go_default_library",
         "//go/pkg/trust/renewal:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",

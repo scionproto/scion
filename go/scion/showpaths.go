@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -28,7 +29,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/showpaths"
 )
 
-func newShowpaths() *cobra.Command {
+func newShowpaths(pather CommandPather) *cobra.Command {
 	var flags struct {
 		timeout    time.Duration
 		cfg        showpaths.Config
@@ -41,9 +42,9 @@ func newShowpaths() *cobra.Command {
 		Short:   "Display paths to a SCION AS",
 		Aliases: []string{"sp"},
 		Args:    cobra.ExactArgs(1),
-		Example: `  scion showpaths 1-ff00:0:110 --expiration
-  scion showpaths 1-ff00:0:110 --local 127.0.0.55 --json
-  scion showpaths 1-ff00:0:110 --no-probe`,
+		Example: fmt.Sprintf(`  %[1]s showpaths 1-ff00:0:110 --expiration
+  %[1]s showpaths 1-ff00:0:110 --local 127.0.0.55 --json
+  %[1]s showpaths 1-ff00:0:110 --no-probe`, pather.CommandPath()),
 		Long: `'showpaths' lists available paths between the local and the specified SCION ASe a.
 
 By default, the paths are probed. Paths served from the SCION Deamon's might not

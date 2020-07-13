@@ -31,9 +31,10 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cms/protocol"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/command"
 )
 
-func newHuman() *cobra.Command {
+func newHuman(pather command.Pather) *cobra.Command {
 	var flags struct {
 		format string
 		strict bool
@@ -42,8 +43,8 @@ func newHuman() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "human",
 		Short: "Represent TRC in a human readable form",
-		Example: `  scion-pki trcs human ISD1-B1-S1.pld.der
-  scion-pki trcs human ISD1-B1-S1.trc`,
+		Example: fmt.Sprintf(`  %[1]s human ISD1-B1-S1.pld.der
+  %[1]s human ISD1-B1-S1.trc`, pather.CommandPath()),
 		Long: `'human' outputs the TRC contents in a human readable form.
 
 The input file can either be a TRC payload, or a signed TRC.

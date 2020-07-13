@@ -22,39 +22,15 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/go/cs/beacon"
-	"github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/command"
 )
 
-func newSample(pather CommandPather) *cobra.Command {
-	var cmd = &cobra.Command{
-		Use:   "sample",
-		Short: "Display sample files",
-	}
-	cmd.AddCommand(
-		newSampleConfig(cmd),
-		newSamplePolicy(cmd),
-	)
-	return cmd
-}
-
-func newSampleConfig(pather CommandPather) *cobra.Command {
-	var cmd = &cobra.Command{
-		Use:     "config",
-		Short:   "Display sample configuration file",
-		Example: fmt.Sprintf("  %[1]s config", pather.CommandPath()),
-		Run: func(cmd *cobra.Command, args []string) {
-			(&config.Config{}).Sample(os.Stdout, nil, nil)
-		},
-	}
-	return cmd
-}
-
-func newSamplePolicy(pather CommandPather) *cobra.Command {
+func newSamplePolicy(pather command.Pather) *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:     "policy",
 		Short:   "Display sample policy file",
-		Example: fmt.Sprintf("  %[1]s policy", pather.CommandPath()),
+		Example: fmt.Sprintf("  %[1]s policy > policy.yml", pather.CommandPath()),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var sample beacon.Policy
 			sample.InitDefaults()

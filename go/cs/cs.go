@@ -51,6 +51,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/cs"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	trusthandler "github.com/scionproto/scion/go/pkg/cs/trust/handler"
@@ -82,9 +83,12 @@ func main() {
 		},
 	}
 	cmd.AddCommand(
-		newCompletion(cmd),
-		newSample(cmd),
-		newVersion(cmd),
+		command.NewCompletion(cmd),
+		command.NewSample(cmd,
+			command.NewSampleConfig(&config.Config{}),
+			newSamplePolicy,
+		),
+		command.NewVersion(cmd),
 	)
 	cmd.Flags().StringVar(&flags.config, "config", "", "Configuration file (required)")
 	cmd.MarkFlagRequired("config")
