@@ -25,22 +25,18 @@ import (
 
 // union represents the contents of the unnamed capnp union.
 type union struct {
-	Which             proto.PathMgmt_Which
-	SegReq            *SegReq
-	SegReply          *SegReply
-	SegReg            *SegReg
-	SRevInfo          *SignedRevInfo
-	IFStateReq        *IFStateReq   `capnp:"ifStateReq"`
-	IFStateInfos      *IFStateInfos `capnp:"ifStateInfos"`
-	SegChangesIdReq   *SegChangesIdReq
-	SegChangesIdReply *SegChangesIdReply
-	SegChangesReq     *SegChangesReq
-	SegChangesReply   *SegChangesReply
-	HPSegReq          *HPSegReq   `capnp:"hpSegReq"`
-	HPSegReply        *HPSegReply `capnp:"hpSegReply"`
-	HPSegReg          *HPSegReg   `capnp:"hpSegReg"`
-	HPCfgReq          *HPCfgReq   `capnp:"hpCfgReq"`
-	HPCfgReply        *HPCfgReply `capnp:"hpCfgReply"`
+	Which        proto.PathMgmt_Which
+	SegReq       *SegReq
+	SegReply     *SegReply
+	SegReg       *SegReg
+	SRevInfo     *SignedRevInfo
+	IFStateReq   *IFStateReq   `capnp:"ifStateReq"`
+	IFStateInfos *IFStateInfos `capnp:"ifStateInfos"`
+	HPSegReq     *HPSegReq     `capnp:"hpSegReq"`
+	HPSegReply   *HPSegReply   `capnp:"hpSegReply"`
+	HPSegReg     *HPSegReg     `capnp:"hpSegReg"`
+	HPCfgReq     *HPCfgReq     `capnp:"hpCfgReq"`
+	HPCfgReply   *HPCfgReply   `capnp:"hpCfgReply"`
 }
 
 func (u *union) set(c proto.Cerealizable) error {
@@ -63,18 +59,6 @@ func (u *union) set(c proto.Cerealizable) error {
 	case *IFStateInfos:
 		u.Which = proto.PathMgmt_Which_ifStateInfos
 		u.IFStateInfos = p
-	case *SegChangesIdReq:
-		u.Which = proto.PathMgmt_Which_segChangesIdReq
-		u.SegChangesIdReq = p
-	case *SegChangesIdReply:
-		u.Which = proto.PathMgmt_Which_segChangesIdReply
-		u.SegChangesIdReply = p
-	case *SegChangesReq:
-		u.Which = proto.PathMgmt_Which_segChangesReq
-		u.SegChangesReq = p
-	case *SegChangesReply:
-		u.Which = proto.PathMgmt_Which_segChangesReply
-		u.SegChangesReply = p
 	case *HPSegReq:
 		u.Which = proto.PathMgmt_Which_hpSegReq
 		u.HPSegReq = p
@@ -111,14 +95,6 @@ func (u *union) get() (proto.Cerealizable, error) {
 		return u.IFStateReq, nil
 	case proto.PathMgmt_Which_ifStateInfos:
 		return u.IFStateInfos, nil
-	case proto.PathMgmt_Which_segChangesIdReq:
-		return u.SegChangesIdReq, nil
-	case proto.PathMgmt_Which_segChangesIdReply:
-		return u.SegChangesIdReply, nil
-	case proto.PathMgmt_Which_segChangesReq:
-		return u.SegChangesReq, nil
-	case proto.PathMgmt_Which_segChangesReply:
-		return u.SegChangesReply, nil
 	case proto.PathMgmt_Which_hpSegReq:
 		return u.HPSegReq, nil
 	case proto.PathMgmt_Which_hpSegReply:
