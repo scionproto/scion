@@ -16,13 +16,13 @@ package segreq
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/cs/segutil"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -146,21 +146,14 @@ type dstProvider struct {
 // Dsts provides the address of and the path to the authoritative server for
 // this request.
 func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr, error) {
-	if assert.On {
-		assert.Must(!p.localIA.Equal(req.Src),
-			"segments starting here should have been resolved locally. req: %v", req)
-		assert.Must(req.SegType != proto.PathSegType_up,
-			"up segments should have been resolved locally. req: %v", req)
-		assert.Must(!req.Src.IsWildcard(),
-			"wildcard Src must be resolved before forwarding. req: %v", req)
-	}
 
 	// The request is directed to the AS at the start of the requested segment:
 	dst := req.Src
 
 	var path snet.Path
 	var err error
-	if req.SegType == proto.PathSegType_core {
+	switch req.SegType {
+	case proto.PathSegType_core:
 		// fast/simple path for core segment requests (only up segment required).
 		// Must NOT use the router recursively here;
 		// as it tries to find all paths, including paths through other core ASes,
@@ -168,8 +161,11 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 		// requests (up localIA->*) and (core *->dst). Looking up the core segment
 		// would then lead to an infinite recursion.
 		path, err = p.upPath(ctx, dst)
-	} else {
+	case proto.PathSegType_down:
 		path, err = p.router.Route(ctx, dst)
+	default:
+		panic(fmt.Errorf("Unsupported segment type for request forwarding. "+
+			"Up segment should have been resolved locally. SegType: %s", req.SegType))
 	}
 	if err != nil {
 		return nil, err
