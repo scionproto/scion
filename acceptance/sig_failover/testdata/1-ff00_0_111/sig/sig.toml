@@ -10,7 +10,5 @@ allow_run_as_root = true
 [sciond_connection]
 fake_data = "/fake_sciond.json"
 
-[log.file]
-flush_interval = 1
+[log.console]
 level = "debug"
-path = "/share/logs/sig1-ff00_0_111.log"
