@@ -32,8 +32,6 @@ func ErrToMetricsLabel(err error) string {
 		return prom.ErrDB
 	case errors.Is(err, errFetch):
 		return prom.ErrNetwork
-	case errors.Is(err, errValidate):
-		return prom.ErrParse
 	case errors.Is(err, seghandler.ErrVerification):
 		return prom.ErrVerify
 	default:
