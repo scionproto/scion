@@ -198,3 +198,163 @@ func TestSCMPInternalConnectivityDownSerializeTo(t *testing.T) {
 		})
 	}
 }
+
+func TestSCMPEchoDecodeFromBytes(t *testing.T) {
+	testCases := map[string]struct {
+		raw        []byte
+		decoded    *slayers.SCMPEcho
+		assertFunc assert.ErrorAssertionFunc
+	}{
+		"valid": {
+			raw: append([]byte{
+				0x00, 0x2a, 0x05, 0x39,
+			}, bytes.Repeat([]byte{0xff}, 10)...),
+			decoded: &slayers.SCMPEcho{
+				Identifier: 42,
+				SeqNumber:  1337,
+			},
+			assertFunc: assert.NoError,
+		},
+		"invalid": {
+			raw:        []byte{0x00, 0x00, 0x00},
+			decoded:    &slayers.SCMPEcho{},
+			assertFunc: assert.Error,
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got := &slayers.SCMPEcho{}
+			err := got.DecodeFromBytes(tc.raw, gopacket.NilDecodeFeedback)
+			tc.assertFunc(t, err)
+			if err != nil {
+				return
+			}
+			tc.decoded.Contents = tc.raw[:4]
+			tc.decoded.Payload = tc.raw[4:]
+			assert.Equal(t, tc.decoded, got)
+		})
+	}
+}
+
+func TestSCMPEchoSerializeTo(t *testing.T) {
+	testCases := map[string]struct {
+		raw        []byte
+		decoded    *slayers.SCMPEcho
+		assertFunc assert.ErrorAssertionFunc
+	}{
+		"valid": {
+			raw: append([]byte{
+				0x00, 0x2a, 0x05, 0x39,
+			}, bytes.Repeat([]byte{0xff}, 10)...),
+			decoded: &slayers.SCMPEcho{
+				Identifier: 42,
+				SeqNumber:  1337,
+			},
+			assertFunc: assert.NoError,
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			opts := gopacket.SerializeOptions{}
+			tc.decoded.Contents = tc.raw[:4]
+			tc.decoded.Payload = tc.raw[4:]
+			t.Parallel()
+			buffer := gopacket.NewSerializeBuffer()
+			err := tc.decoded.SerializeTo(buffer, opts)
+			tc.assertFunc(t, err)
+			if err != nil {
+				return
+			}
+			assert.Equal(t, tc.raw[:len(tc.decoded.Contents)], buffer.Bytes())
+		})
+	}
+}
+
+func TestSCMPTracerouteDecodeFromBytes(t *testing.T) {
+	testCases := map[string]struct {
+		raw        []byte
+		decoded    *slayers.SCMPTraceroute
+		assertFunc assert.ErrorAssertionFunc
+	}{
+		"valid": {
+			raw: append([]byte{
+				0x00, 0x2a, 0x00, 0x00,
+				0x00, 0x01, 0xff, 0x00,
+				0x00, 0x00, 0x01, 0x11,
+				0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x05,
+			}, bytes.Repeat([]byte{0xff}, 10)...),
+			decoded: &slayers.SCMPTraceroute{
+				Identifier: 42,
+				IA:         xtest.MustParseIA("1-ff00:0:111"),
+				Interface:  5,
+			},
+			assertFunc: assert.NoError,
+		},
+		"invalid": {
+			raw:        bytes.Repeat([]byte{0x0}, 19),
+			decoded:    &slayers.SCMPTraceroute{},
+			assertFunc: assert.Error,
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got := &slayers.SCMPTraceroute{}
+			err := got.DecodeFromBytes(tc.raw, gopacket.NilDecodeFeedback)
+			tc.assertFunc(t, err)
+			if err != nil {
+				return
+			}
+			tc.decoded.Contents = tc.raw[:20]
+			tc.decoded.Payload = tc.raw[20:]
+			assert.Equal(t, tc.decoded, got)
+		})
+	}
+}
+
+func TestSCMPTracerouteSerializeTo(t *testing.T) {
+	testCases := map[string]struct {
+		raw        []byte
+		decoded    *slayers.SCMPTraceroute
+		assertFunc assert.ErrorAssertionFunc
+	}{
+		"valid": {
+			raw: append([]byte{
+				0x00, 0x2a, 0x00, 0x00,
+				0x00, 0x01, 0xff, 0x00,
+				0x00, 0x00, 0x01, 0x11,
+				0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x05,
+			}, bytes.Repeat([]byte{0xff}, 10)...),
+			decoded: &slayers.SCMPTraceroute{
+				Identifier: 42,
+				IA:         xtest.MustParseIA("1-ff00:0:111"),
+				Interface:  5,
+			},
+			assertFunc: assert.NoError,
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			opts := gopacket.SerializeOptions{}
+			tc.decoded.Contents = tc.raw[:20]
+			tc.decoded.Payload = tc.raw[20:]
+			t.Parallel()
+			buffer := gopacket.NewSerializeBuffer()
+			err := tc.decoded.SerializeTo(buffer, opts)
+			tc.assertFunc(t, err)
+			if err != nil {
+				return
+			}
+			assert.Equal(t, tc.raw[:len(tc.decoded.Contents)], buffer.Bytes())
+		})
+	}
+}

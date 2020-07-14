@@ -222,6 +222,160 @@ func TestSCMP(t *testing.T) {
 			},
 			assertFunc: assert.NoError,
 		},
+		"echo request": {
+			raw: append([]byte{
+				0x80, 0x00, 0xca, 0x6b, // header SCMP
+				0x00, 0x2a, 0x05, 0x39}, // start header SCMP msg
+				bytes.Repeat([]byte{0xff}, 15)...), // final payload
+			decodedLayers: []gopacket.SerializableLayer{
+				&slayers.SCMP{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x80, 0x0, 0xca, 0x6b,
+						},
+						Payload: append([]byte{
+							0x00, 0x2a, 0x05, 0x39},
+							bytes.Repeat([]byte{0xff}, 15)...),
+					},
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
+					Checksum: 51819,
+				},
+				&slayers.SCMPEcho{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x00, 0x2a, 0x05, 0x39,
+						},
+						Payload: bytes.Repeat([]byte{0xff}, 15),
+					},
+					Identifier: 42,
+					SeqNumber:  1337,
+				},
+				gopacket.Payload(bytes.Repeat([]byte{0xff}, 15)),
+			},
+			assertFunc: assert.NoError,
+		},
+		"echo reply": {
+			raw: append([]byte{
+				0x81, 0x00, 0xc9, 0x6b, // header SCMP
+				0x00, 0x2a, 0x05, 0x39}, // start header SCMP msg
+				bytes.Repeat([]byte{0xff}, 15)...), // final payload
+			decodedLayers: []gopacket.SerializableLayer{
+				&slayers.SCMP{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x81, 0x0, 0xc9, 0x6b,
+						},
+						Payload: append([]byte{
+							0x00, 0x2a, 0x05, 0x39},
+							bytes.Repeat([]byte{0xff}, 15)...),
+					},
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoReply, 0),
+					Checksum: 51563,
+				},
+				&slayers.SCMPEcho{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x00, 0x2a, 0x05, 0x39,
+						},
+						Payload: bytes.Repeat([]byte{0xff}, 15),
+					},
+					Identifier: 42,
+					SeqNumber:  1337,
+				},
+				gopacket.Payload(bytes.Repeat([]byte{0xff}, 15)),
+			},
+			assertFunc: assert.NoError,
+		},
+		"traceroute request": {
+			raw: append([]byte{
+				0x82, 0x00, 0xcd, 0x7c, // header SCMP
+				0x00, 0x2a, 0x00, 0x00, // start header SCMP msg
+				0x00, 0x01, 0xff, 0x00,
+				0x00, 0x00, 0x01, 0x11,
+				0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x05},
+				bytes.Repeat([]byte{0xff}, 15)...), // final payload
+			decodedLayers: []gopacket.SerializableLayer{
+				&slayers.SCMP{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x82, 0x0, 0xcd, 0x7c,
+						},
+						Payload: append([]byte{
+							0x00, 0x2a, 0x00, 0x00,
+							0x00, 0x01, 0xff, 0x00,
+							0x00, 0x00, 0x01, 0x11,
+							0x00, 0x00, 0x00, 0x00,
+							0x00, 0x00, 0x00, 0x05},
+							bytes.Repeat([]byte{0xff}, 15)...),
+					},
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0),
+					Checksum: 52604,
+				},
+				&slayers.SCMPTraceroute{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x00, 0x2a, 0x00, 0x00,
+							0x00, 0x01, 0xff, 0x00,
+							0x00, 0x00, 0x01, 0x11,
+							0x00, 0x00, 0x00, 0x00,
+							0x00, 0x00, 0x00, 0x05,
+						},
+						Payload: bytes.Repeat([]byte{0xff}, 15),
+					},
+					Identifier: 42,
+					IA:         xtest.MustParseIA("1-ff00:0:111"),
+					Interface:  5,
+				},
+				gopacket.Payload(bytes.Repeat([]byte{0xff}, 15)),
+			},
+			assertFunc: assert.NoError,
+		},
+		"traceroute reply": {
+			raw: append([]byte{
+				0x83, 0x00, 0xcc, 0x7c, // header SCMP
+				0x00, 0x2a, 0x00, 0x00, // start header SCMP msg
+				0x00, 0x01, 0xff, 0x00,
+				0x00, 0x00, 0x01, 0x11,
+				0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x05},
+				bytes.Repeat([]byte{0xff}, 15)...), // final payload
+			decodedLayers: []gopacket.SerializableLayer{
+				&slayers.SCMP{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x83, 0x0, 0xcc, 0x7c,
+						},
+						Payload: append([]byte{
+							0x00, 0x2a, 0x00, 0x00,
+							0x00, 0x01, 0xff, 0x00,
+							0x00, 0x00, 0x01, 0x11,
+							0x00, 0x00, 0x00, 0x00,
+							0x00, 0x00, 0x00, 0x05},
+							bytes.Repeat([]byte{0xff}, 15)...),
+					},
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
+					Checksum: 52348,
+				},
+				&slayers.SCMPTraceroute{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x00, 0x2a, 0x00, 0x00,
+							0x00, 0x01, 0xff, 0x00,
+							0x00, 0x00, 0x01, 0x11,
+							0x00, 0x00, 0x00, 0x00,
+							0x00, 0x00, 0x00, 0x05,
+						},
+						Payload: bytes.Repeat([]byte{0xff}, 15),
+					},
+					Identifier: 42,
+					IA:         xtest.MustParseIA("1-ff00:0:111"),
+					Interface:  5,
+				},
+				gopacket.Payload(bytes.Repeat([]byte{0xff}, 15)),
+			},
+			assertFunc: assert.NoError,
+		},
 	}
 
 	for name, tc := range testCases {
@@ -241,7 +395,9 @@ func TestSCMP(t *testing.T) {
 					switch v := l.(type) {
 					case *slayers.SCMP,
 						*slayers.SCMPExternalInterfaceDown,
-						*slayers.SCMPInternalConnectivityDown:
+						*slayers.SCMPInternalConnectivityDown,
+						*slayers.SCMPEcho,
+						*slayers.SCMPTraceroute:
 						assert.Equal(t, v, packet.Layer(v.LayerType()),
 							fmt.Sprintf("%s layer", v.LayerType()))
 					case gopacket.Payload:
