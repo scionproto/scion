@@ -42,6 +42,9 @@ func FromCtx(ctx context.Context) Logger {
 		return Root()
 	}
 	if logger := ctx.Value(loggerKey); logger != nil {
+		if _, ok := logger.(Span); ok {
+			return logger.(Logger)
+		}
 		return attachSpan(ctx, logger.(Logger))
 	}
 	// Logger not found in ctx, make sure we never return a nil root
