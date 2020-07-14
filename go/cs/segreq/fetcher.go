@@ -17,6 +17,7 @@ package segreq
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net"
 	"time"
 
@@ -162,7 +163,10 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 		// would then lead to an infinite recursion.
 		path, err = p.upPath(ctx, dst)
 	case proto.PathSegType_down:
-		path, err = p.router.Route(ctx, dst)
+		paths, err := p.router.AllRoutes(ctx, dst)
+		if err == nil {
+			path = paths[rand.Intn(len(paths))]
+		}
 	default:
 		panic(fmt.Errorf("Unsupported segment type for request forwarding. "+
 			"Up segment should have been resolved locally. SegType: %s", req.SegType))
