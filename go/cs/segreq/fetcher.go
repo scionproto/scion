@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -163,6 +164,9 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 		// would then lead to an infinite recursion.
 		path, err = p.upPath(ctx, dst)
 	case proto.PathSegType_down:
+		// Select a random path (just like we choose a random segment above)
+		// Avoids potentially being stuck with a broken but not revoked path;
+		// allows clients to retry with possibly different path in case of failure.
 		paths, err := p.router.AllRoutes(ctx, dst)
 		if err == nil {
 			path = paths[rand.Intn(len(paths))]
@@ -172,7 +176,7 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 			"Up segment should have been resolved locally. SegType: %s", req.SegType))
 	}
 	if err != nil {
-		return nil, segfetcher.ErrNotReachable
+		return nil, serrors.Wrap(segfetcher.ErrNotReachable, err)
 	}
 	addr := &snet.SVCAddr{
 		IA:      path.Destination(),
