@@ -188,3 +188,150 @@ func decodeSCMPInternalConnectivityDown(data []byte, pb gopacket.PacketBuilder) 
 	pb.AddLayer(s)
 	return pb.NextDecoder(s.NextLayerType())
 }
+
+// SCMPEcho represents the structure of a ping.
+//
+//   0                   1                   2                   3
+//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |           Identifier          |        Sequence Number        |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+type SCMPEcho struct {
+	layers.BaseLayer
+	Identifier uint16
+	SeqNumber  uint16
+}
+
+// LayerType returns LayerTypeSCMPEcho.
+func (*SCMPEcho) LayerType() gopacket.LayerType {
+	return LayerTypeSCMPEcho
+}
+
+// NextLayerType returns the layer type contained by this DecodingLayer.
+func (*SCMPEcho) NextLayerType() gopacket.LayerType {
+	return gopacket.LayerTypePayload
+}
+
+// DecodeFromBytes decodes the given bytes into this layer.
+func (i *SCMPEcho) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
+	minLength := 4
+	if size := len(data); size < minLength {
+		df.SetTruncated()
+		return serrors.New("buffer too short", "min", minLength, "actual", size)
+	}
+	offset := 0
+	i.Identifier = binary.BigEndian.Uint16(data[:2])
+	offset += 2
+	i.SeqNumber = binary.BigEndian.Uint16(data[offset : offset+2])
+	offset += 2
+	i.BaseLayer = layers.BaseLayer{
+		Contents: data[:offset],
+		Payload:  data[offset:],
+	}
+	return nil
+}
+
+// SerializeTo writes the serialized form of this layer into the
+// SerializationBuffer, implementing gopacket.SerializableLayer.
+func (i *SCMPEcho) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
+	buf, err := b.PrependBytes(4)
+	if err != nil {
+		return err
+	}
+	offset := 0
+	binary.BigEndian.PutUint16(buf[:2], i.Identifier)
+	offset += 2
+	binary.BigEndian.PutUint16(buf[offset:offset+2], i.SeqNumber)
+	return nil
+}
+
+func decodeSCMPEcho(data []byte, pb gopacket.PacketBuilder) error {
+	s := &SCMPEcho{}
+	if err := s.DecodeFromBytes(data, pb); err != nil {
+		return err
+	}
+	pb.AddLayer(s)
+	return pb.NextDecoder(s.NextLayerType())
+}
+
+// SCMPTraceroute represents the structure of a traceroute.
+//
+//   0                   1                   2                   3
+//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |           Identifier          |          reserved             |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |              ISD              |                               |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+         AS                    +
+//  |                                                               |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |                                                               |
+//  +                        Interface ID                           +
+//  |                                                               |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+type SCMPTraceroute struct {
+	layers.BaseLayer
+	Identifier uint16
+	IA         addr.IA
+	Interface  uint64
+}
+
+// LayerType returns LayerTypeSCMPTraceroute.
+func (*SCMPTraceroute) LayerType() gopacket.LayerType {
+	return LayerTypeSCMPTraceroute
+}
+
+// NextLayerType returns the layer type contained by this DecodingLayer.
+func (*SCMPTraceroute) NextLayerType() gopacket.LayerType {
+	return gopacket.LayerTypePayload
+}
+
+// DecodeFromBytes decodes the given bytes into this layer.
+func (i *SCMPTraceroute) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
+	minLength := 2 + 2 + addr.IABytes + scmpRawInterfaceLen
+	if size := len(data); size < minLength {
+		df.SetTruncated()
+		return serrors.New("buffer too short", "min", minLength, "actual", size)
+	}
+	offset := 0
+	i.Identifier = binary.BigEndian.Uint16(data[:2])
+	offset += 2 + 2
+	i.IA = addr.IAFromRaw(data[offset : offset+addr.IABytes])
+	offset += addr.IABytes
+	i.Interface = binary.BigEndian.Uint64(data[offset : offset+scmpRawInterfaceLen])
+	offset += scmpRawInterfaceLen
+	i.BaseLayer = layers.BaseLayer{
+		Contents: data[:offset],
+		Payload:  data[offset:],
+	}
+	return nil
+}
+
+// SerializeTo writes the serialized form of this layer into the
+// SerializationBuffer, implementing gopacket.SerializableLayer.
+func (i *SCMPTraceroute) SerializeTo(b gopacket.SerializeBuffer,
+	opts gopacket.SerializeOptions) error {
+
+	buf, err := b.PrependBytes(2 + 2 + addr.IABytes + scmpRawInterfaceLen)
+	if err != nil {
+		return err
+	}
+	offset := 0
+	binary.BigEndian.PutUint16(buf[:2], i.Identifier)
+	offset += 2 + 2
+	i.IA.Write(buf[offset : offset+addr.IABytes])
+	offset += addr.IABytes
+	binary.BigEndian.PutUint64(buf[offset:offset+scmpRawInterfaceLen], i.Interface)
+	return nil
+}
+
+func decodeSCMPTraceroute(data []byte, pb gopacket.PacketBuilder) error {
+	s := &SCMPTraceroute{}
+	if err := s.DecodeFromBytes(data, pb); err != nil {
+		return err
+	}
+	pb.AddLayer(s)
+	return pb.NextDecoder(s.NextLayerType())
+}

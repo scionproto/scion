@@ -64,6 +64,20 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeSCMPInternalConnectivityDown),
 		},
 	)
+	LayerTypeSCMPEcho = gopacket.RegisterLayerType(
+		1128,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPEcho",
+			Decoder: gopacket.DecodeFunc(decodeSCMPEcho),
+		},
+	)
+	LayerTypeSCMPTraceroute = gopacket.RegisterLayerType(
+		1130,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPTraceroute",
+			Decoder: gopacket.DecodeFunc(decodeSCMPTraceroute),
+		},
+	)
 )
 
 func init() {
