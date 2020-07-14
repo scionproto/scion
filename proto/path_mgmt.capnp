@@ -26,22 +26,9 @@ struct SegReply {
     recs @1 :SegRecs;
 }
 
-struct SegChangesIdReq {
-    # Timestamp of last check, seconds since Unix Epoch
-    lastCheck @0 :UInt32;
-}
-
 struct SegIds {
     segId @0 :Data;
     fullId @1 :Data;
-}
-
-struct SegChangesIdReply {
-    ids @0 :List(SegIds);
-}
-
-struct SegChangesReq {
-    segIds @0 :List(Data);
 }
 
 struct HPGroupId {
@@ -87,18 +74,13 @@ struct PathMgmt {
         segReq @1 :SegReq;
         segReply @2 :SegReply;
         segReg @3 :SegRecs;
-        segSync @4 :SegRecs;
-        sRevInfo @5 :Sign.SignedBlob;
-        ifStateReq @6 :IFState.IFStateReq;
-        ifStateInfos @7 :IFState.IFStateInfos;
-        segChangesIdReq @8 :SegChangesIdReq;
-        segChangesIdReply @9 :SegChangesIdReply;
-        segChangesReq @10 :SegChangesReq;
-        segChangesReply @11 :SegRecs;
-        hpSegReq @12 :HPSegReq;
-        hpSegReply @13 :HPSegReply;
-        hpSegReg @14 :HPSegRecs;
-        hpCfgReq @15 :HPCfgReq;
-        hpCfgReply @16 :HPCfgReply;
+        sRevInfo @4 :Sign.SignedBlob;
+        ifStateReq @5 :IFState.IFStateReq;
+        ifStateInfos @6 :IFState.IFStateInfos;
+        hpSegReq @7 :HPSegReq;
+        hpSegReply @8 :HPSegReply;
+        hpSegReg @9 :HPSegRecs;
+        hpCfgReq @10 :HPCfgReq;
+        hpCfgReply @11 :HPCfgReply;
     }
 }

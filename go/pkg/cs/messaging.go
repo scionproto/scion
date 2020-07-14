@@ -20,9 +20,7 @@ import (
 	"net"
 	"path/filepath"
 
-	"github.com/scionproto/scion/go/cs/segreq"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/messenger/tcp"
@@ -30,10 +28,8 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // NewMessenger constructs a infra and TCP messenger based on the network
@@ -49,19 +45,6 @@ func NewMessenger(nc infraenv.NetworkConfig) (infra.Messenger, *tcp.Messenger, e
 		Zone: nc.Public.Zone,
 	})
 	return msgr, tcpMsgr, nil
-}
-
-// NewPather is a temporary helper until header v2 is complete.
-func NewPather(provider topology.Provider, headerV2 bool) segreq.Pather {
-	var pather segreq.Pather = addrutil.LegacyPather{TopoProvider: provider}
-	if headerV2 {
-		pather = addrutil.Pather{
-			UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-				return provider.Get().UnderlayNextHop2(common.IFIDType(ifID))
-			},
-		}
-	}
-	return pather
 }
 
 // MACGenFactory creates a MAC factory

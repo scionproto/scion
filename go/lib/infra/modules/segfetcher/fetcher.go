@@ -20,8 +20,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/internal/metrics"
@@ -39,9 +37,8 @@ const (
 
 // errors for metrics classification.
 var (
-	errValidate = serrors.New("request validation failed")
-	errFetch    = serrors.New("fetching failed")
-	errDB       = serrors.New("error with the db")
+	errFetch = serrors.New("fetching failed")
+	errDB    = serrors.New("error with the db")
 )
 
 // ReplyHandler handles replies.
@@ -55,8 +52,6 @@ type FetcherConfig struct {
 	// QueryInterval specifies after how much time segments should be
 	// refetched at the remote server.
 	QueryInterval time.Duration
-	// LocalIA is the IA this process is in.
-	LocalIA addr.IA
 	// Verifier is the verifier to use.
 	Verifier infra.Verifier
 	// PathDB is the path db to use.
@@ -67,8 +62,6 @@ type FetcherConfig struct {
 	RequestAPI RequestAPI
 	// DstProvider provides destinations to fetch segments from
 	DstProvider DstProvider
-	// Splitter is used to split requests.
-	Splitter Splitter
 	// MetricsNamespace is the namespace used for metrics.
 	MetricsNamespace string
 	// LocalInfo provides information about local segments.
@@ -78,7 +71,6 @@ type FetcherConfig struct {
 // New creates a new fetcher from the configuration.
 func (cfg FetcherConfig) New() *Fetcher {
 	return &Fetcher{
-		Splitter:  cfg.Splitter,
 		Resolver:  NewResolver(cfg.PathDB, cfg.RevCache, cfg.LocalInfo),
 		Requester: &DefaultRequester{API: cfg.RequestAPI, DstProvider: cfg.DstProvider},
 		ReplyHandler: &seghandler.Handler{
@@ -91,9 +83,8 @@ func (cfg FetcherConfig) New() *Fetcher {
 	}
 }
 
-// Fetcher fetches, verifies and stores segments for a given path request.
+// Fetcher fetches, verifies and stores segments for a path segment request.
 type Fetcher struct {
-	Splitter      Splitter
 	Resolver      Resolver
 	Requester     Requester
 	ReplyHandler  ReplyHandler
@@ -102,54 +93,39 @@ type Fetcher struct {
 	metrics       metrics.Fetcher
 }
 
-// FetchSegs fetches the required segments to build a path between src and dst
-// of the request. First the request is validated and then depending on the
-// cache the segments are fetched from the remote server.
-func (f *Fetcher) FetchSegs(ctx context.Context, req Request) (Segments, error) {
-	reqSet, err := f.Splitter.Split(ctx, req)
+// Fetch loads the requested segments from the path DB or requests them from a remote path server.
+func (f *Fetcher) Fetch(ctx context.Context, reqs Requests, refresh bool) (Segments, error) {
+	// Load local and cached segments from DB
+	loadedSegs, fetchReqs, err := f.Resolver.Resolve(ctx, reqs, refresh)
 	if err != nil {
-		return Segments{}, err
+		return Segments{}, serrors.Wrap(errDB, err)
 	}
-	var segs Segments
-	for i := 0; i < 3; i++ {
-		log.FromCtx(ctx).Debug("Request to process", "req", reqSet, "segs", segs, "iteration", i+1)
-		segs, reqSet, err = f.Resolver.Resolve(ctx, segs, reqSet)
-		if err != nil {
-			return Segments{}, serrors.Wrap(errDB, err)
-		}
-		log.FromCtx(ctx).Debug("After resolving", "req", reqSet, "segs", segs, "iteration", i+1)
-		if reqSet.IsLoaded() {
-			break
-		}
-		// in 3 iteration (i==2) everything should be resolved, worst case:
-		// 1 iteration: up & down segment fetched.
-		// 2 iteration: up & down resolved, core fetched.
-		// 3 iteration: core resolved -> done.
-		if i >= 2 {
-			return segs, common.NewBasicError(
-				"Segment lookup not done in expected amount of iterations (implementation bug)",
-				nil, "iterations", i+1)
-		}
-		// XXX(lukedirtwalker): Optimally we wouldn't need a different timeout
-		// here. The problem is that revocations can't be differentiated from
-		// timeouts. And having 10s timeouts plays really bad together with
-		// revocations. See also: https://github.com/scionproto/scion/issues/3052
-		reqCtx, cancelF := context.WithTimeout(ctx, 3*time.Second)
-		reqCtx = log.CtxWith(reqCtx, log.FromCtx(ctx))
-		replies := f.Requester.Request(reqCtx, reqSet)
-		// TODO(lukedirtwalker): We need to have early trigger for the last request.
-		if reqSet, err = f.waitOnProcessed(ctx, replies, reqSet); err != nil {
-			cancelF()
-			return Segments{}, err
-		}
-		cancelF()
+	if len(fetchReqs) == 0 {
+		return loadedSegs, nil
 	}
-	return segs, nil
+	// Forward and cache any requests that were not local / cached
+	fetchedSegs, err := f.Request(ctx, fetchReqs)
+	if err != nil {
+		return Segments{}, serrors.Wrap(errFetch, err)
+	}
+	return append(loadedSegs, fetchedSegs...), nil
 }
 
-func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr,
-	reqSet RequestSet) (RequestSet, error) {
+func (f *Fetcher) Request(ctx context.Context, reqs Requests) (Segments, error) {
+	// XXX(lukedirtwalker): Optimally we wouldn't need a different timeout
+	// here. The problem is that revocations can't be differentiated from
+	// timeouts. And having 10s timeouts plays really bad together with
+	// revocations. See also: https://github.com/scionproto/scion/issues/3052
+	reqCtx, cancelF := context.WithTimeout(ctx, 3*time.Second)
+	defer cancelF()
+	replies := f.Requester.Request(reqCtx, reqs)
+	return f.waitOnProcessed(ctx, replies)
+}
 
+func (f *Fetcher) waitOnProcessed(ctx context.Context,
+	replies <-chan ReplyOrErr) (Segments, error) {
+
+	var segs Segments
 	logger := log.FromCtx(ctx)
 	for reply := range replies {
 		// TODO(lukedirtwalker): Should we do this in go routines?
@@ -158,7 +134,6 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 			log.FromCtx(ctx).Info("Request for unreachable dest ignored",
 				"req", reply.Req, "err", reply.Err)
 			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
-			reqSet = updateRequestState(reqSet, reply.Req, Loaded)
 			continue
 		}
 		if reply.Err != nil {
@@ -166,11 +141,10 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 				labels.Result = metrics.ErrTimeout
 			}
 			f.metrics.SegRequests(labels).Inc()
-			return reqSet, reply.Err
+			return segs, reply.Err
 		}
 		if reply.Reply == nil || reply.Reply.Recs == nil {
 			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
-			reqSet = updateRequestState(reqSet, reply.Req, Fetched)
 			continue
 		}
 		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Reply), reply.Peer, nil)
@@ -180,14 +154,14 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 				r.Stats().RevDBErrs(), r.Stats().RevVerifyErrors())
 			if err := r.Err(); err != nil {
 				f.metrics.SegRequests(labels.WithResult(metrics.ErrProcess)).Inc()
-				return reqSet, err
+				return segs, err
 			}
 			if len(r.VerificationErrors()) > 0 {
 				log.FromCtx(ctx).Info("Error during verification of segments/revocations",
 					"errors", r.VerificationErrors().ToError())
 			}
-			reqSet = updateRequestState(reqSet, reply.Req, Fetched)
-			nextQuery := f.nextQuery(r.Stats().VerifiedSegs)
+			segs = append(segs, segsWithHPToSegs(r.Stats().VerifiedSegs)...)
+			nextQuery := f.nextQuery(segs)
 			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil, nextQuery)
 			if err != nil {
 				logger.Info("NextQuery insertion failed", "err", err)
@@ -195,15 +169,15 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context, replies <-chan ReplyOrErr
 			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
 		case <-ctx.Done():
 			f.metrics.SegRequests(labels.WithResult(metrics.ErrTimeout)).Inc()
-			return reqSet, ctx.Err()
+			return segs, ctx.Err()
 		}
 	}
-	return reqSet, nil
+	return segs, nil
 }
 
 // nextQuery decides the next time a query should be issued based on the
 // received segments.
-func (f *Fetcher) nextQuery(segs []*seghandler.SegWithHP) time.Time {
+func (f *Fetcher) nextQuery(segs Segments) time.Time {
 	// Determine the lead time for the latest segment expiration.
 	// We want to request new segments before the last one has expired.
 	expirationLead := maxSegmentExpiry(segs).Add(-expirationLeadTime)
@@ -222,10 +196,10 @@ func (f *Fetcher) nearestNextQueryTime(now, nextQuery time.Time) time.Time {
 	return nextQuery
 }
 
-func maxSegmentExpiry(segs []*seghandler.SegWithHP) time.Time {
+func maxSegmentExpiry(segs Segments) time.Time {
 	var max time.Time
 	for _, seg := range segs {
-		if exp := seg.Seg.Segment.MinExpiry(); exp.After(max) {
+		if exp := seg.Segment.MinExpiry(); exp.After(max) {
 			max = exp
 		}
 	}
@@ -239,17 +213,10 @@ func replyToRecs(reply *path_mgmt.SegReply) seghandler.Segments {
 	}
 }
 
-func updateRequestState(reqSet RequestSet, reqToUpdate Request, newState RequestState) RequestSet {
-	if reqSet.Up.EqualAddr(reqToUpdate) {
-		reqSet.Up.State = newState
-	} else if reqSet.Down.EqualAddr(reqToUpdate) {
-		reqSet.Down.State = newState
-	} else {
-		for i, coreReq := range reqSet.Cores {
-			if coreReq.EqualAddr(reqToUpdate) {
-				reqSet.Cores[i].State = newState
-			}
-		}
+func segsWithHPToSegs(segsWithHP []*seghandler.SegWithHP) Segments {
+	segs := make(Segments, 0, len(segsWithHP))
+	for _, seg := range segsWithHP {
+		segs = append(segs, seg.Seg)
 	}
-	return reqSet
+	return segs
 }

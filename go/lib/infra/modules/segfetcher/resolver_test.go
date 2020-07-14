@@ -42,44 +42,64 @@ import (
 type testGraph struct {
 	g *graph.Graph
 
-	seg110_120 *seg.PathSegment
-	seg110_130 *seg.PathSegment
-	seg130_111 *seg.PathSegment
-	seg120_111 *seg.PathSegment
+	seg110_120_core *seg.Meta
+	seg110_130_core *seg.Meta
+	seg130_111_up   *seg.Meta
+	seg130_111_down *seg.Meta
+	seg120_111_up   *seg.Meta
+	seg120_111_down *seg.Meta
 
-	seg210_120   *seg.PathSegment
-	seg210_130   *seg.PathSegment
-	seg210_130_2 *seg.PathSegment
-	seg210_211   *seg.PathSegment
-	seg210_212   *seg.PathSegment
+	seg210_120_core   *seg.Meta
+	seg210_130_core   *seg.Meta
+	seg210_130_2_core *seg.Meta
+	seg210_211_up     *seg.Meta
+	seg210_211_down   *seg.Meta
+	seg210_212_up     *seg.Meta
+	seg210_212_down   *seg.Meta
 }
 
 func newTestGraph(ctrl *gomock.Controller) *testGraph {
 	g := graph.NewDefaultGraph(ctrl)
 
-	return &testGraph{
-		g:          g,
-		seg110_120: g.Beacon([]common.IFIDType{graph.If_110_X_120_A}),
-		seg110_130: g.Beacon([]common.IFIDType{graph.If_110_X_130_A}),
-		seg120_111: g.Beacon([]common.IFIDType{graph.If_120_X_111_B}),
-		seg130_111: g.Beacon([]common.IFIDType{graph.If_130_B_111_A}),
+	seg110_120 := g.Beacon([]common.IFIDType{graph.If_110_X_120_A})
+	seg110_130 := g.Beacon([]common.IFIDType{graph.If_110_X_130_A})
+	seg120_111 := g.Beacon([]common.IFIDType{graph.If_120_X_111_B})
+	seg130_111 := g.Beacon([]common.IFIDType{graph.If_130_B_111_A})
 
-		seg210_120: g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_120_A}),
-		seg210_130: g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_130_A}),
-		seg210_130_2: g.Beacon([]common.IFIDType{graph.If_210_X_220_X,
-			graph.If_220_X_120_B, graph.If_120_A_130_B}),
-		seg210_211: g.Beacon([]common.IFIDType{graph.If_210_X_211_A}),
-		seg210_212: g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_212_X}),
+	seg210_120 := g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_120_A})
+	seg210_130 := g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_130_A})
+	seg210_130_2 := g.Beacon([]common.IFIDType{graph.If_210_X_220_X,
+		graph.If_220_X_120_B, graph.If_120_A_130_B})
+	seg210_211 := g.Beacon([]common.IFIDType{graph.If_210_X_211_A})
+	seg210_212 := g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_212_X})
+
+	return &testGraph{
+		g:               g,
+		seg110_120_core: &seg.Meta{Type: Core, Segment: seg110_120},
+		seg110_130_core: &seg.Meta{Type: Core, Segment: seg110_130},
+		seg130_111_up:   &seg.Meta{Type: Up, Segment: seg130_111},
+		seg130_111_down: &seg.Meta{Type: Down, Segment: seg130_111},
+		seg120_111_up:   &seg.Meta{Type: Up, Segment: seg120_111},
+		seg120_111_down: &seg.Meta{Type: Down, Segment: seg120_111},
+
+		seg210_120_core:   &seg.Meta{Type: Core, Segment: seg210_120},
+		seg210_130_core:   &seg.Meta{Type: Core, Segment: seg210_130},
+		seg210_130_2_core: &seg.Meta{Type: Core, Segment: seg210_130_2},
+		seg210_211_up:     &seg.Meta{Type: Up, Segment: seg210_211},
+		seg210_211_down:   &seg.Meta{Type: Down, Segment: seg210_211},
+		seg210_212_up:     &seg.Meta{Type: Up, Segment: seg210_212},
+		seg210_212_down:   &seg.Meta{Type: Down, Segment: seg210_212},
 	}
 }
 
 type resolverTest struct {
-	Req              segfetcher.RequestSet
-	Segs             segfetcher.Segments
-	ExpectCalls      func(db *mock_pathdb.MockPathDB)
-	ExpectRevcache   func(t *testing.T, revCache *mock_revcache.MockRevCache)
-	ExpectedSegments segfetcher.Segments
-	ExpectedReqSet   segfetcher.RequestSet
+	Reqs              segfetcher.Requests
+	Refresh           bool
+	Segs              segfetcher.Segments
+	ExpectCalls       func(db *mock_pathdb.MockPathDB)
+	ExpectRevcache    func(t *testing.T, revCache *mock_revcache.MockRevCache)
+	ExpectedSegments  segfetcher.Segments
+	ExpectedFetchReqs segfetcher.Requests
 }
 
 func (rt resolverTest) run(t *testing.T) {
@@ -95,9 +115,9 @@ func (rt resolverTest) run(t *testing.T) {
 		revCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes()
 	}
 	resolver := segfetcher.NewResolver(db, revCache, neverLocal{})
-	segs, remainingReqs, err := resolver.Resolve(context.Background(), rt.Segs, rt.Req)
+	segs, fetchReqs, err := resolver.Resolve(context.Background(), rt.Reqs, rt.Refresh)
 	assert.Equal(t, rt.ExpectedSegments, segs)
-	assert.Equal(t, rt.ExpectedReqSet, remainingReqs)
+	assert.Equal(t, rt.ExpectedFetchReqs, fetchReqs)
 	assert.NoError(t, err)
 }
 
@@ -109,21 +129,21 @@ func TestResolver(t *testing.T) {
 
 	tests := map[string]resolverTest{
 		"Up wildcard": {
-			Req: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1},
+			Reqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 			},
 			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
 				// no cached up segments
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(non_core_111),
 					gomock.Eq(isd1), gomock.Any())
 			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Fetch},
+			ExpectedFetchReqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 			},
 		},
 		"Up wildcard (cached)": {
-			Req: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1},
+			Reqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 			},
 			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
 				// cached up segments
@@ -132,53 +152,37 @@ func TestResolver(t *testing.T) {
 				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					SegTypes: []proto.PathSegType{proto.PathSegType_up},
 					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
-				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
+				})).Return(resultsFromSegs(tg.seg120_111_up, tg.seg130_111_up), nil)
 			},
 			ExpectedSegments: segfetcher.Segments{
-				Up: seg.Segments{tg.seg120_111, tg.seg130_111},
+				tg.seg120_111_up,
+				tg.seg130_111_up,
 			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Loaded},
-			},
-		},
-		"Up wildcard (fetched)": {
-			Req: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Fetched},
-			},
-			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_up},
-					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
-				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
-			},
-			ExpectedSegments: segfetcher.Segments{
-				Up: seg.Segments{tg.seg120_111, tg.seg130_111},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Loaded},
-			},
+			ExpectedFetchReqs: nil,
 		},
 		"Up Core": {
-			Req: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1},
-				Cores: []segfetcher.Request{{Src: isd1, Dst: core_110}},
+			Reqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
+				segfetcher.Request{SegType: Core, Src: isd1, Dst: core_110},
 			},
 			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
 				// no cached up segments
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(non_core_111),
 					gomock.Eq(isd1), gomock.Any())
+				// no cached core segments
+				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(isd1),
+					gomock.Eq(core_110), gomock.Any())
 			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Fetch},
-				Cores: []segfetcher.Request{
-					{Src: isd1, Dst: core_110, State: segfetcher.Unresolved},
-				},
+			ExpectedFetchReqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
+				segfetcher.Request{SegType: Core, Src: isd1, Dst: core_110},
 			},
 		},
 		"Up(cached) Core": {
-			Req: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1},
-				Cores: []segfetcher.Request{{Src: isd1, Dst: core_110}},
+			Reqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
+				segfetcher.Request{SegType: Core, Src: core_120, Dst: core_110},
+				segfetcher.Request{SegType: Core, Src: core_130, Dst: core_110},
 			},
 			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
 				// cached up segments
@@ -187,26 +191,24 @@ func TestResolver(t *testing.T) {
 				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					SegTypes: []proto.PathSegType{proto.PathSegType_up},
 					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
-				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
+				})).Return(resultsFromSegs(tg.seg120_111_up, tg.seg130_111_up), nil)
 				// no cached core segments
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_120),
 					gomock.Eq(core_110), gomock.Any())
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_130),
 					gomock.Eq(core_110), gomock.Any())
 			},
-			ExpectedSegments: segfetcher.Segments{Up: seg.Segments{tg.seg120_111, tg.seg130_111}},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Loaded},
-				Cores: []segfetcher.Request{
-					{Src: core_120, Dst: core_110, State: segfetcher.Fetch},
-					{Src: core_130, Dst: core_110, State: segfetcher.Fetch},
-				},
+			ExpectedSegments: segfetcher.Segments{tg.seg120_111_up, tg.seg130_111_up},
+			ExpectedFetchReqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Core, Src: core_120, Dst: core_110},
+				segfetcher.Request{SegType: Core, Src: core_130, Dst: core_110},
 			},
 		},
 		"Up(cached) Core(cached)": {
-			Req: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1},
-				Cores: []segfetcher.Request{{Src: isd1, Dst: core_110}},
+			Reqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
+				segfetcher.Request{SegType: Core, Src: core_120, Dst: core_110},
+				segfetcher.Request{SegType: Core, Src: core_130, Dst: core_110},
 			},
 			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
 				// cached up segments
@@ -215,7 +217,7 @@ func TestResolver(t *testing.T) {
 				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					SegTypes: []proto.PathSegType{proto.PathSegType_up},
 					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
-				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
+				})).Return(resultsFromSegs(tg.seg120_111_up, tg.seg130_111_up), nil)
 				// cached core segments
 				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_120),
 					gomock.Eq(core_110), gomock.Any()).Return(futureT, nil)
@@ -224,467 +226,129 @@ func TestResolver(t *testing.T) {
 				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					SegTypes: []proto.PathSegType{proto.PathSegType_core},
 					StartsAt: []addr.IA{core_110}, EndsAt: []addr.IA{core_120},
-				})).Return(resultsFromSegs(tg.seg110_120), nil)
+				})).Return(resultsFromSegs(tg.seg110_120_core), nil)
 				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					SegTypes: []proto.PathSegType{proto.PathSegType_core},
 					StartsAt: []addr.IA{core_110}, EndsAt: []addr.IA{core_130},
-				})).Return(resultsFromSegs(tg.seg110_130), nil)
+				})).Return(resultsFromSegs(tg.seg110_130_core), nil)
 			},
-			ExpectedSegments: segfetcher.Segments{
-				Up:   seg.Segments{tg.seg120_111, tg.seg130_111},
-				Core: seg.Segments{tg.seg110_120, tg.seg110_130},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Loaded},
-				Cores: []segfetcher.Request{
-					{Src: core_120, Dst: core_110, State: segfetcher.Loaded},
-					{Src: core_130, Dst: core_110, State: segfetcher.Loaded},
-				},
-			},
-		},
-		"Up(fetched) Core(fetched)": {
-			Req: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Fetched},
-				Cores: []segfetcher.Request{
-					{Src: core_120, Dst: core_110, State: segfetcher.Fetched},
-					{Src: core_130, Dst: core_110, State: segfetcher.Fetched},
-				},
-			},
-			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_up},
-					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
-				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_core},
-					StartsAt: []addr.IA{core_110}, EndsAt: []addr.IA{core_120},
-				})).Return(resultsFromSegs(tg.seg110_120), nil)
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_core},
-					StartsAt: []addr.IA{core_110}, EndsAt: []addr.IA{core_130},
-				})).Return(resultsFromSegs(tg.seg110_130), nil)
-			},
-			ExpectedSegments: segfetcher.Segments{
-				Up:   seg.Segments{tg.seg120_111, tg.seg130_111},
-				Core: seg.Segments{tg.seg110_120, tg.seg110_130},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Loaded},
-				Cores: []segfetcher.Request{
-					{Src: core_120, Dst: core_110, State: segfetcher.Loaded},
-					{Src: core_130, Dst: core_110, State: segfetcher.Loaded},
-				},
-			},
-		},
-		"Up(passed) Core": {
-			Req: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Loaded},
-				Cores: []segfetcher.Request{{Src: core_120, Dst: core_110}},
-			},
-			Segs: segfetcher.Segments{
-				Up: seg.Segments{tg.seg120_111},
-			},
-			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_120),
-					gomock.Eq(core_110), gomock.Any())
-			},
-			ExpectedSegments: segfetcher.Segments{
-				Up: seg.Segments{tg.seg120_111},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Loaded},
-				Cores: []segfetcher.Request{
-					{Src: core_120, Dst: core_110, State: segfetcher.Fetch},
-				},
-			},
+			ExpectedSegments: segfetcher.Segments{tg.seg120_111_up, tg.seg130_111_up,
+				tg.seg110_120_core, tg.seg110_130_core},
+			ExpectedFetchReqs: nil,
 		},
 		"Up down": {
-			Req: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_211, Dst: isd2},
-				Cores: []segfetcher.Request{{Src: isd2, Dst: isd2}},
-				Down:  segfetcher.Request{Src: isd2, Dst: non_core_212},
+			Reqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_211, Dst: isd2},
+				segfetcher.Request{SegType: Core, Src: isd2, Dst: isd2},
+				segfetcher.Request{SegType: Down, Src: isd2, Dst: non_core_212},
 			},
 			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
 				db.EXPECT().GetNextQuery(gomock.Any(), non_core_211, isd2, gomock.Any())
+				db.EXPECT().GetNextQuery(gomock.Any(), isd2, isd2, gomock.Any())
 				db.EXPECT().GetNextQuery(gomock.Any(), isd2, non_core_212, gomock.Any())
 			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_211, Dst: isd2, State: segfetcher.Fetch},
-				Cores: []segfetcher.Request{{Src: isd2, Dst: isd2}},
-				Down:  segfetcher.Request{Src: isd2, Dst: non_core_212, State: segfetcher.Fetch},
+			ExpectedFetchReqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_211, Dst: isd2},
+				segfetcher.Request{SegType: Core, Src: isd2, Dst: isd2},
+				segfetcher.Request{SegType: Down, Src: isd2, Dst: non_core_212},
 			},
 		},
 		"Up(cached) down(cached)": {
-			Req: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_211, Dst: isd2},
-				Cores: []segfetcher.Request{{Src: isd2, Dst: isd2}},
-				Down:  segfetcher.Request{Src: isd2, Dst: non_core_212},
+			Reqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_211, Dst: isd2},
+				segfetcher.Request{SegType: Core, Src: isd2, Dst: isd2},
+				segfetcher.Request{SegType: Down, Src: isd2, Dst: non_core_212},
 			},
 			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
 				db.EXPECT().GetNextQuery(gomock.Any(), non_core_211, isd2, gomock.Any()).
+					Return(futureT, nil)
+				db.EXPECT().GetNextQuery(gomock.Any(), isd2, isd2, gomock.Any()).
 					Return(futureT, nil)
 				db.EXPECT().GetNextQuery(gomock.Any(), isd2, non_core_212, gomock.Any()).
 					Return(futureT, nil)
 				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					SegTypes: []proto.PathSegType{proto.PathSegType_up},
 					StartsAt: []addr.IA{isd2}, EndsAt: []addr.IA{non_core_211},
-				})).Return(resultsFromSegs(tg.seg210_211), nil)
+				})).Return(resultsFromSegs(tg.seg210_211_up), nil)
+				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
+					SegTypes: []proto.PathSegType{proto.PathSegType_core},
+					StartsAt: []addr.IA{isd2}, EndsAt: []addr.IA{isd2},
+				}))
 				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					SegTypes: []proto.PathSegType{proto.PathSegType_down},
 					StartsAt: []addr.IA{isd2}, EndsAt: []addr.IA{non_core_212},
-				})).Return(resultsFromSegs(tg.seg210_212), nil)
+				})).Return(resultsFromSegs(tg.seg210_212_down), nil)
 			},
-			ExpectedSegments: segfetcher.Segments{
-				Up:   seg.Segments{tg.seg210_211},
-				Down: seg.Segments{tg.seg210_212},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up:   segfetcher.Request{Src: non_core_211, Dst: isd2, State: segfetcher.Loaded},
-				Down: segfetcher.Request{Src: isd2, Dst: non_core_212, State: segfetcher.Loaded},
-			},
+			ExpectedSegments:  segfetcher.Segments{tg.seg210_211_up, tg.seg210_212_down},
+			ExpectedFetchReqs: nil,
 		},
 		"Up Core Down": {
-			Req: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1},
-				Cores: []segfetcher.Request{{Src: isd1, Dst: isd2}},
-				Down:  segfetcher.Request{Src: isd2, Dst: non_core_211},
+			Reqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
+				segfetcher.Request{SegType: Core, Src: isd1, Dst: isd2},
+				segfetcher.Request{SegType: Down, Src: isd2, Dst: non_core_211},
 			},
 			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				// no cached up segments
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(non_core_111),
-					gomock.Eq(isd1), gomock.Any())
-				// no cached down segments
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(isd2),
-					gomock.Eq(non_core_211), gomock.Any())
+				// no cached segments
+				db.EXPECT().GetNextQuery(gomock.Any(), non_core_111, isd1, gomock.Any())
+				db.EXPECT().GetNextQuery(gomock.Any(), isd1, isd2, gomock.Any())
+				db.EXPECT().GetNextQuery(gomock.Any(), isd2, non_core_211, gomock.Any())
 			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Fetch},
-				Cores: []segfetcher.Request{{Src: isd1, Dst: isd2}},
-				Down:  segfetcher.Request{Src: isd2, Dst: non_core_211, State: segfetcher.Fetch},
+			ExpectedFetchReqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
+				segfetcher.Request{SegType: Core, Src: isd1, Dst: isd2},
+				segfetcher.Request{SegType: Down, Src: isd2, Dst: non_core_211},
 			},
 		},
 		"Up(cached) Core Down": {
-			Req: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1},
-				Cores: []segfetcher.Request{{Src: isd1, Dst: isd2}},
-				Down:  segfetcher.Request{Src: isd2, Dst: non_core_211},
+			Reqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
+				segfetcher.Request{SegType: Core, Src: isd1, Dst: isd2},
+				segfetcher.Request{SegType: Down, Src: isd2, Dst: non_core_211},
 			},
 			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
 				// cached up segments
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(non_core_111),
-					gomock.Eq(isd1), gomock.Any()).Return(futureT, nil)
+				db.EXPECT().GetNextQuery(gomock.Any(), non_core_111, isd1, gomock.Any()).
+					Return(futureT, nil)
 				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					SegTypes: []proto.PathSegType{proto.PathSegType_up},
 					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
-				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(isd2),
-					gomock.Eq(non_core_211), gomock.Any())
+				})).Return(resultsFromSegs(tg.seg120_111_up, tg.seg130_111_up), nil)
+				db.EXPECT().GetNextQuery(gomock.Any(), isd1, isd2, gomock.Any())
+				db.EXPECT().GetNextQuery(gomock.Any(), isd2, non_core_211, gomock.Any())
 			},
-			ExpectedSegments: segfetcher.Segments{
-				Up: seg.Segments{tg.seg120_111, tg.seg130_111},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Loaded},
-				Cores: []segfetcher.Request{{Src: isd1, Dst: isd2}},
-				Down:  segfetcher.Request{Src: isd2, Dst: non_core_211, State: segfetcher.Fetch},
+			ExpectedSegments: segfetcher.Segments{tg.seg120_111_up, tg.seg130_111_up},
+			ExpectedFetchReqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Core, Src: isd1, Dst: isd2},
+				segfetcher.Request{SegType: Down, Src: isd2, Dst: non_core_211},
 			},
 		},
 		"Up(cached) Core Down(cached)": {
-			Req: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_211, Dst: isd2},
-				Cores: []segfetcher.Request{{Src: isd2, Dst: isd1}},
-				Down:  segfetcher.Request{Src: isd1, Dst: non_core_111},
+			Reqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_211, Dst: isd2},
+				segfetcher.Request{SegType: Core, Src: isd2, Dst: isd1},
+				segfetcher.Request{SegType: Down, Src: isd1, Dst: non_core_111},
 			},
 			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
 				// cached up segments
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(non_core_211),
-					gomock.Eq(isd2), gomock.Any()).
+				db.EXPECT().GetNextQuery(gomock.Any(), non_core_211, isd2, gomock.Any()).
 					Return(futureT, nil)
 				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					SegTypes: []proto.PathSegType{proto.PathSegType_up},
 					StartsAt: []addr.IA{isd2}, EndsAt: []addr.IA{non_core_211},
-				})).Return(resultsFromSegs(tg.seg210_211), nil)
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(isd1),
-					gomock.Eq(non_core_111), gomock.Any()).
+				})).Return(resultsFromSegs(tg.seg210_211_up), nil)
+				db.EXPECT().GetNextQuery(gomock.Any(), isd1, non_core_111, gomock.Any()).
 					Return(futureT, nil)
 				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					SegTypes: []proto.PathSegType{proto.PathSegType_down},
 					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
-				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210),
-					gomock.Eq(core_120), gomock.Any())
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210),
-					gomock.Eq(core_130), gomock.Any())
+				})).Return(resultsFromSegs(tg.seg120_111_down, tg.seg130_111_down), nil)
+				db.EXPECT().GetNextQuery(gomock.Any(), isd2, isd1, gomock.Any())
 			},
-			ExpectedSegments: segfetcher.Segments{
-				Up:   seg.Segments{tg.seg210_211},
-				Down: seg.Segments{tg.seg120_111, tg.seg130_111},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_211, Dst: isd2, State: segfetcher.Loaded},
-				Cores: []segfetcher.Request{
-					{Src: core_210, Dst: core_120, State: segfetcher.Fetch},
-					{Src: core_210, Dst: core_130, State: segfetcher.Fetch},
-				},
-				Down: segfetcher.Request{Src: isd1, Dst: non_core_111, State: segfetcher.Loaded},
-			},
-		},
-		"Up (0 cached) Core Down(cached)": {
-			Req: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_211, Dst: isd2},
-				Cores: []segfetcher.Request{{Src: isd2, Dst: isd1}},
-				Down:  segfetcher.Request{Src: isd1, Dst: non_core_111},
-			},
-			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(non_core_211),
-					gomock.Eq(isd2), gomock.Any()).
-					Return(futureT, nil)
-				// return no up segments
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_up},
-					StartsAt: []addr.IA{isd2}, EndsAt: []addr.IA{non_core_211},
-				}))
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(isd1),
-					gomock.Eq(non_core_111), gomock.Any()).
-					Return(futureT, nil)
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_down},
-					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
-				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
-			},
-			ExpectedSegments: segfetcher.Segments{
-				Up:   seg.Segments{},
-				Down: seg.Segments{tg.seg120_111, tg.seg130_111},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_211, Dst: isd2, State: segfetcher.Loaded},
-				Cores: []segfetcher.Request{
-					{Src: isd2, Dst: isd1, State: segfetcher.Loaded},
-				},
-				Down: segfetcher.Request{Src: isd1, Dst: non_core_111, State: segfetcher.Loaded},
-			},
-		},
-		"Up(passed) Core Down(passed)": {
-			Req: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_211, Dst: isd2, State: segfetcher.Loaded},
-				Cores: []segfetcher.Request{{Src: isd2, Dst: isd1}},
-				Down:  segfetcher.Request{Src: isd1, Dst: non_core_111, State: segfetcher.Loaded},
-			},
-			Segs: segfetcher.Segments{
-				Up:   seg.Segments{tg.seg210_211},
-				Down: seg.Segments{tg.seg120_111},
-			},
-			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210),
-					gomock.Eq(core_120), gomock.Any())
-			},
-			ExpectedSegments: segfetcher.Segments{
-				Up:   seg.Segments{tg.seg210_211},
-				Down: seg.Segments{tg.seg120_111},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_211, Dst: isd2, State: segfetcher.Loaded},
-				Cores: []segfetcher.Request{
-					{Src: core_210, Dst: core_120, State: segfetcher.Fetch},
-				},
-				Down: segfetcher.Request{Src: isd1, Dst: non_core_111, State: segfetcher.Loaded},
-			},
-		},
-		"Core(partial cached)": {
-			Req: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{
-					{Src: core_210, Dst: core_110},
-					{Src: core_210, Dst: core_120},
-					{Src: core_210, Dst: core_130},
-				},
-			},
-			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210),
-					gomock.Eq(core_110), gomock.Any())
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210),
-					gomock.Eq(core_120), gomock.Any())
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210),
-					gomock.Eq(core_130), gomock.Any()).Return(futureT, nil)
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_core},
-					StartsAt: []addr.IA{core_130}, EndsAt: []addr.IA{core_210},
-				})).Return(resultsFromSegs(tg.seg210_130), nil)
-			},
-			ExpectedSegments: segfetcher.Segments{
-				Core: seg.Segments{tg.seg210_130},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{
-					{Src: core_210, Dst: core_110, State: segfetcher.Fetch},
-					{Src: core_210, Dst: core_120, State: segfetcher.Fetch},
-					{Src: core_210, Dst: core_130, State: segfetcher.Loaded},
-				},
-			},
-		},
-		"Core(cached)": {
-			Req: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{
-					{Src: core_210, Dst: core_110},
-					{Src: core_210, Dst: core_120},
-					{Src: core_210, Dst: core_130},
-				},
-			},
-			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210),
-					gomock.Eq(core_110), gomock.Any()).Return(futureT, nil)
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210),
-					gomock.Eq(core_120), gomock.Any()).Return(futureT, nil)
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210),
-					gomock.Eq(core_130), gomock.Any()).Return(futureT, nil)
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_core},
-					StartsAt: []addr.IA{core_130}, EndsAt: []addr.IA{core_210},
-				})).Return(resultsFromSegs(tg.seg210_130), nil)
-				// no result cached for the others
-				db.EXPECT().Get(gomock.Any(), gomock.Any()).Times(2)
-			},
-			ExpectedSegments: segfetcher.Segments{
-				Core: seg.Segments{tg.seg210_130},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{
-					{Src: core_210, Dst: core_110, State: segfetcher.Loaded},
-					{Src: core_210, Dst: core_120, State: segfetcher.Loaded},
-					{Src: core_210, Dst: core_130, State: segfetcher.Loaded},
-				},
-			},
-		},
-		"Core Down": {
-			Req: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{{Src: core_110, Dst: isd2}},
-				Down:  segfetcher.Request{Src: isd2, Dst: non_core_211},
-			},
-			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(isd2),
-					gomock.Eq(non_core_211), gomock.Any())
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{{Src: core_110, Dst: isd2}},
-				Down:  segfetcher.Request{Src: isd2, Dst: non_core_211, State: segfetcher.Fetch},
-			},
-		},
-		"Core Down(cached)": {
-			Req: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{{Src: core_110, Dst: isd2}},
-				Down:  segfetcher.Request{Src: isd2, Dst: non_core_211},
-			},
-			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(isd2),
-					gomock.Eq(non_core_211), gomock.Any()).Return(futureT, nil)
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_down},
-					StartsAt: []addr.IA{isd2}, EndsAt: []addr.IA{non_core_211},
-				})).Return(resultsFromSegs(tg.seg210_211), nil)
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_110),
-					gomock.Eq(core_210), gomock.Any())
-			},
-			ExpectedSegments: segfetcher.Segments{
-				Down: seg.Segments{tg.seg210_211},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{
-					{Src: core_110, Dst: core_210, State: segfetcher.Fetch},
-				},
-				Down: segfetcher.Request{Src: isd2, Dst: non_core_211, State: segfetcher.Loaded},
-			},
-		},
-		"Core Down(passed)": {
-			Req: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{{Src: core_110, Dst: core_210}},
-				Down:  segfetcher.Request{Src: isd2, Dst: non_core_211, State: segfetcher.Loaded},
-			},
-			Segs: segfetcher.Segments{
-				Down: seg.Segments{tg.seg210_211},
-			},
-			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_110),
-					gomock.Eq(core_210), gomock.Any())
-			},
-			ExpectedSegments: segfetcher.Segments{
-				Down: seg.Segments{tg.seg210_211},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{
-					{Src: core_110, Dst: core_210, State: segfetcher.Fetch},
-				},
-				Down: segfetcher.Request{Src: isd2, Dst: non_core_211, State: segfetcher.Loaded},
-			},
-		},
-		"Core(cached) Down(cached)": {
-			Req: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{{Src: core_210, Dst: isd1}},
-				Down:  segfetcher.Request{Src: isd1, Dst: non_core_111},
-			},
-			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(isd1),
-					gomock.Eq(non_core_111), gomock.Any()).Return(futureT, nil)
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_down},
-					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
-				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210),
-					gomock.Eq(core_120), gomock.Any()).Return(futureT, nil)
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210),
-					gomock.Eq(core_130), gomock.Any()).Return(futureT, nil)
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_core},
-					StartsAt: []addr.IA{core_120}, EndsAt: []addr.IA{core_210},
-				})).Return(resultsFromSegs(tg.seg210_120), nil)
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_core},
-					StartsAt: []addr.IA{core_130}, EndsAt: []addr.IA{core_210},
-				})).Return(resultsFromSegs(tg.seg210_130), nil)
-			},
-			ExpectedSegments: segfetcher.Segments{
-				Down: seg.Segments{tg.seg120_111, tg.seg130_111},
-				Core: seg.Segments{tg.seg210_120, tg.seg210_130},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{
-					{Src: core_210, Dst: core_120, State: segfetcher.Loaded},
-					{Src: core_210, Dst: core_130, State: segfetcher.Loaded},
-				},
-				Down: segfetcher.Request{Src: isd1, Dst: non_core_111, State: segfetcher.Loaded},
-			},
-		},
-		"Down": {
-			Req: segfetcher.RequestSet{
-				Down: segfetcher.Request{Src: core_120, Dst: non_core_111},
-			},
-			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				// no cached up segments
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_120),
-					gomock.Eq(non_core_111), gomock.Any())
-
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Down: segfetcher.Request{Src: core_120, Dst: non_core_111, State: segfetcher.Fetch},
-			},
-		},
-		"Down(cached)": {
-			Req: segfetcher.RequestSet{
-				Down: segfetcher.Request{Src: core_120, Dst: non_core_111},
-			},
-			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				// no cached up segments
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_120),
-					gomock.Eq(non_core_111), gomock.Any()).Return(futureT, nil)
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_down},
-					StartsAt: []addr.IA{core_120}, EndsAt: []addr.IA{non_core_111},
-				})).Return(resultsFromSegs(tg.seg120_111), nil)
-			},
-			ExpectedSegments: segfetcher.Segments{
-				Down: seg.Segments{tg.seg120_111},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Down: segfetcher.Request{Src: core_120, Dst: non_core_111,
-					State: segfetcher.Loaded},
+			ExpectedSegments: segfetcher.Segments{tg.seg210_211_up,
+				tg.seg120_111_down, tg.seg130_111_down},
+			ExpectedFetchReqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Core, Src: isd2, Dst: isd1},
 			},
 		},
 	}
@@ -696,56 +360,23 @@ func TestResolver(t *testing.T) {
 func TestResolverCacheBypass(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
 	defer rootCtrl.Finish()
-	tg := newTestGraph(rootCtrl)
+	// tg := newTestGraph(rootCtrl)
 	// futureT := time.Now().Add(2 * time.Minute)
 
 	tests := map[string]resolverTest{
 		"Up(cache-bypass) Core Down(cache-bypass)": {
-			Req: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_211, Dst: isd2},
-				Cores: []segfetcher.Request{{Src: isd2, Dst: isd1}},
-				Down:  segfetcher.Request{Src: isd1, Dst: non_core_111},
-				Fetch: true,
+			Reqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_211, Dst: isd2},
+				segfetcher.Request{SegType: Core, Src: isd2, Dst: isd1},
+				segfetcher.Request{SegType: Down, Src: isd1, Dst: non_core_111},
 			},
+			Refresh:          true,
 			ExpectCalls:      func(db *mock_pathdb.MockPathDB) {},
-			ExpectedSegments: segfetcher.Segments{},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_211, Dst: isd2, State: segfetcher.Fetch},
-				Cores: []segfetcher.Request{{Src: isd2, Dst: isd1}},
-				Down:  segfetcher.Request{Src: isd1, Dst: non_core_111, State: segfetcher.Fetch},
-				Fetch: true,
-			},
-		},
-		"Up(fetched) Core Down(fetched)": {
-			Req: segfetcher.RequestSet{
-				Up:    segfetcher.Request{State: segfetcher.Fetched, Src: non_core_211, Dst: isd2},
-				Cores: []segfetcher.Request{{Src: isd2, Dst: isd1}},
-				Down:  segfetcher.Request{State: segfetcher.Fetched, Src: isd1, Dst: non_core_111},
-				Fetch: true,
-			},
-			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				// cached up segments
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_up},
-					StartsAt: []addr.IA{isd2}, EndsAt: []addr.IA{non_core_211},
-				})).Return(resultsFromSegs(tg.seg210_211), nil)
-				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
-					SegTypes: []proto.PathSegType{proto.PathSegType_down},
-					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
-				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
-			},
-			ExpectedSegments: segfetcher.Segments{
-				Up:   seg.Segments{tg.seg210_211},
-				Down: seg.Segments{tg.seg120_111, tg.seg130_111},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_211, Dst: isd2, State: segfetcher.Loaded},
-				Cores: []segfetcher.Request{
-					{Src: core_210, Dst: core_120, State: segfetcher.Fetch},
-					{Src: core_210, Dst: core_130, State: segfetcher.Fetch},
-				},
-				Down:  segfetcher.Request{Src: isd1, Dst: non_core_111, State: segfetcher.Loaded},
-				Fetch: true,
+			ExpectedSegments: nil,
+			ExpectedFetchReqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_211, Dst: isd2},
+				segfetcher.Request{SegType: Core, Src: isd2, Dst: isd1},
+				segfetcher.Request{SegType: Down, Src: isd1, Dst: non_core_111},
 			},
 		},
 	}
@@ -769,8 +400,8 @@ func TestResolverWithRevocations(t *testing.T) {
 	}
 	tests := map[string]resolverTest{
 		"Up wildcard (cached)": {
-			Req: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1},
+			Reqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 			},
 			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
 				// cached up segments
@@ -779,7 +410,7 @@ func TestResolverWithRevocations(t *testing.T) {
 				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					SegTypes: []proto.PathSegType{proto.PathSegType_up},
 					StartsAt: []addr.IA{isd1}, EndsAt: []addr.IA{non_core_111},
-				})).Return(resultsFromSegs(tg.seg120_111, tg.seg130_111), nil)
+				})).Return(resultsFromSegs(tg.seg120_111_up, tg.seg130_111_up), nil)
 			},
 			ExpectRevcache: func(t *testing.T, revCache *mock_revcache.MockRevCache) {
 				key111_120 := revcache.Key{IA: non_core_111, IfId: graph.If_111_B_120_X}
@@ -790,30 +421,28 @@ func TestResolverWithRevocations(t *testing.T) {
 			},
 			// On the initial fetch, if everything is revoked, just try again
 			// and fetch it.
-			ExpectedSegments: segfetcher.Segments{},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1, State: segfetcher.Fetch},
+			ExpectedSegments: nil,
+			ExpectedFetchReqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 			},
 		},
 		"Core (cached) with revocations returns full result": {
-			Req: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{
-					{Src: core_210, Dst: core_110},
-					{Src: core_210, Dst: core_120},
-					{Src: core_210, Dst: core_130},
-				},
+			Reqs: segfetcher.Requests{
+				segfetcher.Request{SegType: Core, Src: core_210, Dst: core_110},
+				segfetcher.Request{SegType: Core, Src: core_210, Dst: core_120},
+				segfetcher.Request{SegType: Core, Src: core_210, Dst: core_130},
 			},
 			ExpectCalls: func(db *mock_pathdb.MockPathDB) {
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210),
-					gomock.Eq(core_110), gomock.Any()).Return(futureT, nil)
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210),
-					gomock.Eq(core_120), gomock.Any()).Return(futureT, nil)
-				db.EXPECT().GetNextQuery(gomock.Any(), gomock.Eq(core_210),
-					gomock.Eq(core_130), gomock.Any()).Return(futureT, nil)
+				db.EXPECT().GetNextQuery(gomock.Any(), core_210, core_110, gomock.Any()).
+					Return(futureT, nil)
+				db.EXPECT().GetNextQuery(gomock.Any(), core_210, core_120, gomock.Any()).
+					Return(futureT, nil)
+				db.EXPECT().GetNextQuery(gomock.Any(), core_210, core_130, gomock.Any()).
+					Return(futureT, nil)
 				db.EXPECT().Get(gomock.Any(), matchers.EqParams(&query.Params{
 					SegTypes: []proto.PathSegType{proto.PathSegType_core},
 					StartsAt: []addr.IA{core_130}, EndsAt: []addr.IA{core_210},
-				})).Return(resultsFromSegs(tg.seg210_130, tg.seg210_130_2), nil)
+				})).Return(resultsFromSegs(tg.seg210_130_core, tg.seg210_130_2_core), nil)
 				// Other calls return 0
 				db.EXPECT().Get(gomock.Any(), gomock.Any()).Times(2)
 			},
@@ -827,16 +456,8 @@ func TestResolverWithRevocations(t *testing.T) {
 				}, nil)
 				revCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes()
 			},
-			ExpectedSegments: segfetcher.Segments{
-				Core: seg.Segments{tg.seg210_130, tg.seg210_130_2},
-			},
-			ExpectedReqSet: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{
-					{Src: core_210, Dst: core_110, State: segfetcher.Loaded},
-					{Src: core_210, Dst: core_120, State: segfetcher.Loaded},
-					{Src: core_210, Dst: core_130, State: segfetcher.Loaded},
-				},
-			},
+			ExpectedSegments:  segfetcher.Segments{tg.seg210_130_core, tg.seg210_130_2_core},
+			ExpectedFetchReqs: nil,
 		},
 	}
 	for name, test := range tests {
@@ -844,11 +465,12 @@ func TestResolverWithRevocations(t *testing.T) {
 	}
 }
 
-func resultsFromSegs(segs ...*seg.PathSegment) query.Results {
+func resultsFromSegs(segs ...*seg.Meta) query.Results {
 	results := make(query.Results, 0, len(segs))
 	for _, seg := range segs {
 		results = append(results, &query.Result{
-			Seg:        seg,
+			Type:       seg.Type,
+			Seg:        seg.Segment,
 			LastUpdate: time.Now().Add(-2 * time.Minute),
 		})
 	}
@@ -878,4 +500,6 @@ func (m keySetContains) String() string {
 
 type neverLocal struct{}
 
-func (neverLocal) IsSegLocal(_ context.Context, _, _ addr.IA) (bool, error) { return false, nil }
+func (neverLocal) IsSegLocal(_ segfetcher.Request) bool {
+	return false
+}

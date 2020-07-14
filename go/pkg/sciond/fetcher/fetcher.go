@@ -66,24 +66,23 @@ func NewFetcher(requestAPI segfetcher.RequestAPI, pathDB pathdb.PathDB, inspecto
 	localIA := topoProvider.Get().IA()
 	return &fetcher{
 		pather: segfetcher.Pather{
-			PathDB:       pathDB,
 			RevCache:     revCache,
 			TopoProvider: topoProvider,
 			Fetcher: segfetcher.FetcherConfig{
-				QueryInterval: cfg.QueryInterval.Duration,
-				LocalIA:       localIA,
-				Verifier:      verifier,
-				PathDB:        pathDB,
-				RevCache:      revCache,
-				RequestAPI:    requestAPI,
-				DstProvider:   &dstProvider{TopologyProvider: topoProvider},
-				Splitter: &segfetcher.MultiSegmentSplitter{
-					Local:     localIA,
-					Inspector: inspector,
-				},
+				QueryInterval:    cfg.QueryInterval.Duration,
+				Verifier:         verifier,
+				PathDB:           pathDB,
+				RevCache:         revCache,
+				RequestAPI:       requestAPI,
+				DstProvider:      &dstProvider{TopologyProvider: topoProvider},
 				MetricsNamespace: metrics.Namespace,
 				LocalInfo:        neverLocal{},
 			}.New(),
+			Splitter: &segfetcher.MultiSegmentSplitter{
+				LocalIA:   localIA,
+				Core:      topoProvider.Get().Core(),
+				Inspector: inspector,
+			},
 			HeaderV2: headerV2,
 		},
 		config: cfg,
@@ -196,4 +195,6 @@ func (r *dstProvider) Dst(_ context.Context, _ segfetcher.Request) (net.Addr, er
 
 type neverLocal struct{}
 
-func (neverLocal) IsSegLocal(_ context.Context, _, _ addr.IA) (bool, error) { return false, nil }
+func (neverLocal) IsSegLocal(_ segfetcher.Request) bool {
+	return false
+}

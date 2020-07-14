@@ -114,36 +114,6 @@ func (mr *MockMessengerMockRecorder) GetHPSegs(arg0, arg1, arg2, arg3 interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHPSegs", reflect.TypeOf((*MockMessenger)(nil).GetHPSegs), arg0, arg1, arg2, arg3)
 }
 
-// GetSegChanges mocks base method
-func (m *MockMessenger) GetSegChanges(arg0 context.Context, arg1 *path_mgmt.SegChangesReq, arg2 net.Addr, arg3 uint64) (*path_mgmt.SegChangesReply, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSegChanges", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(*path_mgmt.SegChangesReply)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSegChanges indicates an expected call of GetSegChanges
-func (mr *MockMessengerMockRecorder) GetSegChanges(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSegChanges", reflect.TypeOf((*MockMessenger)(nil).GetSegChanges), arg0, arg1, arg2, arg3)
-}
-
-// GetSegChangesIds mocks base method
-func (m *MockMessenger) GetSegChangesIds(arg0 context.Context, arg1 *path_mgmt.SegChangesIdReq, arg2 net.Addr, arg3 uint64) (*path_mgmt.SegChangesIdReply, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSegChangesIds", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(*path_mgmt.SegChangesIdReply)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSegChangesIds indicates an expected call of GetSegChangesIds
-func (mr *MockMessengerMockRecorder) GetSegChangesIds(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSegChangesIds", reflect.TypeOf((*MockMessenger)(nil).GetSegChangesIds), arg0, arg1, arg2, arg3)
-}
-
 // GetSegs mocks base method
 func (m *MockMessenger) GetSegs(arg0 context.Context, arg1 *path_mgmt.SegReq, arg2 net.Addr, arg3 uint64) (*path_mgmt.SegReply, error) {
 	m.ctrl.T.Helper()
@@ -341,34 +311,6 @@ func (mr *MockMessengerMockRecorder) SendRev(arg0, arg1, arg2, arg3 interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendRev", reflect.TypeOf((*MockMessenger)(nil).SendRev), arg0, arg1, arg2, arg3)
 }
 
-// SendSegChangesIdReply mocks base method
-func (m *MockMessenger) SendSegChangesIdReply(arg0 context.Context, arg1 *path_mgmt.SegChangesIdReply, arg2 net.Addr, arg3 uint64) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendSegChangesIdReply", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SendSegChangesIdReply indicates an expected call of SendSegChangesIdReply
-func (mr *MockMessengerMockRecorder) SendSegChangesIdReply(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSegChangesIdReply", reflect.TypeOf((*MockMessenger)(nil).SendSegChangesIdReply), arg0, arg1, arg2, arg3)
-}
-
-// SendSegChangesReply mocks base method
-func (m *MockMessenger) SendSegChangesReply(arg0 context.Context, arg1 *path_mgmt.SegChangesReply, arg2 net.Addr, arg3 uint64) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendSegChangesReply", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SendSegChangesReply indicates an expected call of SendSegChangesReply
-func (mr *MockMessengerMockRecorder) SendSegChangesReply(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSegChangesReply", reflect.TypeOf((*MockMessenger)(nil).SendSegChangesReply), arg0, arg1, arg2, arg3)
-}
-
 // SendSegReg mocks base method
 func (m *MockMessenger) SendSegReg(arg0 context.Context, arg1 *path_mgmt.SegReg, arg2 net.Addr, arg3 uint64) error {
 	m.ctrl.T.Helper()
@@ -395,20 +337,6 @@ func (m *MockMessenger) SendSegReply(arg0 context.Context, arg1 *path_mgmt.SegRe
 func (mr *MockMessengerMockRecorder) SendSegReply(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSegReply", reflect.TypeOf((*MockMessenger)(nil).SendSegReply), arg0, arg1, arg2, arg3)
-}
-
-// SendSegSync mocks base method
-func (m *MockMessenger) SendSegSync(arg0 context.Context, arg1 *path_mgmt.SegSync, arg2 net.Addr, arg3 uint64) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SendSegSync", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SendSegSync indicates an expected call of SendSegSync
-func (mr *MockMessengerMockRecorder) SendSegSync(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendSegSync", reflect.TypeOf((*MockMessenger)(nil).SendSegSync), arg0, arg1, arg2, arg3)
 }
 
 // SendTRC mocks base method

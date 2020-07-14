@@ -49,7 +49,7 @@ type ReplyOrErr struct {
 
 // Requester requests segments.
 type Requester interface {
-	Request(ctx context.Context, req RequestSet) <-chan ReplyOrErr
+	Request(ctx context.Context, req Requests) <-chan ReplyOrErr
 }
 
 // DefaultRequester requests all segments that can be requested from a request set.
@@ -58,19 +58,9 @@ type DefaultRequester struct {
 	DstProvider DstProvider
 }
 
-// Request all requests in the request set that are in fetch state.
-func (r *DefaultRequester) Request(ctx context.Context, req RequestSet) <-chan ReplyOrErr {
-	var reqs Requests
-	allReqs := append(Requests{req.Up, req.Down}, req.Cores...)
-	for _, req := range allReqs {
-		if req.State == Fetch {
-			reqs = append(reqs, req)
-		}
-	}
-	return r.fetchReqs(ctx, reqs)
-}
+// Request all requests in the request set
+func (r *DefaultRequester) Request(ctx context.Context, reqs Requests) <-chan ReplyOrErr {
 
-func (r *DefaultRequester) fetchReqs(ctx context.Context, reqs Requests) <-chan ReplyOrErr {
 	replies := make(chan ReplyOrErr, len(reqs))
 	var wg sync.WaitGroup
 	for i := range reqs {

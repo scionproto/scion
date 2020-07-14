@@ -23,15 +23,10 @@
 //  infra.IfStateInfos        -> ctrl.SignedPld/ctrl.Pld/path_mgmt.IFStateInfos
 //  infra.IfStateReq          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.IFStateReq
 //  infra.Seg                 -> ctrl.SignedPld/ctrl.Pld/seg.PathSegment
-//  infra.SegChangesReq       -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegChangesReq
-//  infra.SegChangesReply     -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegChangesReply
-//  infra.SegChangesIdReq     -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegChangesIdReq
-//  infra.SegChangesIdReply   -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegChangesIdReply
 //  infra.SegReg              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReg
 //  infra.SegRequest          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq
 //  infra.SegReply            -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReply
 //  infra.SignedRev           -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SignedRevInfo
-//  infra.SegSync             -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegSync
 //  infra.HPSegReg            -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPSegReg
 //  infra.HPSegRequest        -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPSegReq
 //  infra.HPSegReply          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPSegReply
@@ -411,109 +406,6 @@ func (m *Messenger) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply,
 	logger := log.FromCtx(ctx)
 	logger.Debug("[Messenger] Sending Notify", "type", infra.SegReply, "to", a, "id", id)
 	return m.getFallbackRequester(infra.SegReply).Notify(ctx, pld, a)
-}
-
-func (m *Messenger) SendSegSync(ctx context.Context, msg *path_mgmt.SegSync,
-	a net.Addr, id uint64) error {
-
-	pld, err := path_mgmt.NewPld(msg, nil)
-	if err != nil {
-		return err
-	}
-	return m.sendMessage(ctx, pld, a, id, infra.SegSync)
-}
-
-func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
-	a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error) {
-
-	logger := log.FromCtx(ctx)
-	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, data)
-	if err != nil {
-		return nil, err
-	}
-	logger.Debug("[Messenger] Sending request", "req_type", infra.SegChangesIdReq,
-		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.getFallbackRequester(infra.SegChangesIdReq).Request(ctx, pld, a, false)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err,
-			"req_type", infra.SegChangesIdReq)
-	}
-	_, replyMsg, err := Validate(replyCtrlPld)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
-	}
-	switch reply := replyMsg.(type) {
-	case *path_mgmt.SegChangesIdReply:
-		logger.Debug("[Messenger] Received reply", "req_id", id)
-		return reply, nil
-	case *ack.Ack:
-		return nil, &infra.Error{Message: reply}
-	default:
-		err := newTypeAssertErr("*path_mgmt.SegChangesIdReply", replyMsg)
-		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
-	}
-}
-
-func (m *Messenger) SendSegChangesIdReply(ctx context.Context, msg *path_mgmt.SegChangesIdReply,
-	a net.Addr, id uint64) error {
-
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
-	if err != nil {
-		return err
-	}
-	logger := log.FromCtx(ctx)
-	logger.Debug("[Messenger] Sending Notify",
-		"type", infra.SegChangesIdReply, "to", a, "id", id)
-	return m.getFallbackRequester(infra.SegChangesIdReply).Notify(ctx, pld, a)
-}
-
-func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChangesReq,
-	a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error) {
-
-	logger := log.FromCtx(ctx)
-	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, data)
-	if err != nil {
-		return nil, err
-	}
-	logger.Debug("[Messenger] Sending request", "req_type", infra.SegChangesReq,
-		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.getFallbackRequester(infra.SegChangesReq).Request(ctx, pld, a, false)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err,
-			"req_type", infra.SegChangesReq)
-	}
-	_, replyMsg, err := Validate(replyCtrlPld)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
-	}
-	switch reply := replyMsg.(type) {
-	case *path_mgmt.SegChangesReply:
-		if err := reply.ParseRaw(); err != nil {
-			return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
-		}
-		logger.Debug("[Messenger] Received reply", "req_id", id)
-		return reply, nil
-	case *ack.Ack:
-		return nil, &infra.Error{Message: reply}
-	default:
-		err := newTypeAssertErr("*path_mgmt.SegChangesReply", replyMsg)
-		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
-	}
-}
-
-func (m *Messenger) SendSegChangesReply(ctx context.Context, msg *path_mgmt.SegChangesReply,
-	a net.Addr, id uint64) error {
-
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
-	if err != nil {
-		return err
-	}
-	logger := log.FromCtx(ctx)
-	logger.Debug("[Messenger] Sending Notify",
-		"type", infra.SegChangesReply, "to", a, "id", id)
-	return m.getFallbackRequester(infra.SegChangesReply).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) SendHPSegReg(ctx context.Context, msg *path_mgmt.HPSegReg, a net.Addr,
@@ -1100,22 +992,12 @@ func Validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
 			return infra.SegReply, pld.PathMgmt.SegReply, nil
 		case proto.PathMgmt_Which_segReg:
 			return infra.SegReg, pld.PathMgmt.SegReg, nil
-		case proto.PathMgmt_Which_segSync:
-			return infra.SegSync, pld.PathMgmt.SegSync, nil
 		case proto.PathMgmt_Which_sRevInfo:
 			return infra.SignedRev, pld.PathMgmt.SRevInfo, nil
 		case proto.PathMgmt_Which_ifStateReq:
 			return infra.IfStateReq, pld.PathMgmt.IFStateReq, nil
 		case proto.PathMgmt_Which_ifStateInfos:
 			return infra.IfStateInfos, pld.PathMgmt.IFStateInfos, nil
-		case proto.PathMgmt_Which_segChangesIdReq:
-			return infra.SegChangesIdReq, pld.PathMgmt.SegChangesIdReq, nil
-		case proto.PathMgmt_Which_segChangesIdReply:
-			return infra.SegChangesIdReply, pld.PathMgmt.SegChangesIdReply, nil
-		case proto.PathMgmt_Which_segChangesReq:
-			return infra.SegChangesReq, pld.PathMgmt.SegChangesReq, nil
-		case proto.PathMgmt_Which_segChangesReply:
-			return infra.SegChangesReply, pld.PathMgmt.SegChangesReply, nil
 		case proto.PathMgmt_Which_hpSegReq:
 			return infra.HPSegRequest, pld.PathMgmt.HPSegReq, nil
 		case proto.PathMgmt_Which_hpSegReply:

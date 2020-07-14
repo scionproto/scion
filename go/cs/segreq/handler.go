@@ -15,28 +15,37 @@
 package segreq
 
 import (
+	"context"
+
 	"github.com/scionproto/scion/go/cs/metrics"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
 
-// Handler handles segment requests.
-type Handler struct {
-	Fetcher  *segfetcher.Fetcher
-	RevCache revcache.RevCache
+// baseHandler is an abstract handler for SegReq containing the common
+// boilerplate for the different, concrete processors.
+type baseHandler struct {
+	processor processor
+	revCache  revcache.RevCache
 }
 
-// Handle handles a segment request.
-func (h *Handler) Handle(request *infra.Request) *infra.HandlerResult {
+// processor is the interface for a SegReq processor. It defines the interfacs
+// of the core logic of a SegReq handler. This is called by the boilerplate
+// baseHandler.
+type processor interface {
+	process(context.Context, *path_mgmt.SegReq) (segfetcher.Segments, error)
+}
+
+// Handle handles SegReq messages and deals with all the common boilerplate of setting up loggers
+// and metrics, filtering revoked segments and sending the segment reply. It calls the "processor"
+// that actually finds the segments to return.
+func (h *baseHandler) Handle(request *infra.Request) *infra.HandlerResult {
 	ctx := request.Context()
 	logger := log.FromCtx(ctx)
 	labels := metrics.RequestLabels{
@@ -60,8 +69,7 @@ func (h *Handler) Handle(request *infra.Request) *infra.HandlerResult {
 	}
 	sendAck := messenger.SendAckHelper(ctx, rw)
 
-	segs, err := h.Fetcher.FetchSegs(ctx,
-		segfetcher.Request{Src: segReq.SrcIA(), Dst: segReq.DstIA()})
+	segs, err := h.processor.process(ctx, segReq)
 	if err != nil {
 		// TODO(lukedirtwalker): Define clearer the different errors that can
 		// occur and depending on them reply / return different error codes.
@@ -71,7 +79,7 @@ func (h *Handler) Handle(request *infra.Request) *infra.HandlerResult {
 		return infra.MetricsErrInternal
 	}
 	labels.SegType = metrics.DetermineReplyType(segs)
-	revs, err := revcache.RelevantRevInfos(ctx, h.RevCache, segs.Up, segs.Core, segs.Down)
+	revs, err := revcache.RelevantRevInfos(ctx, h.revCache, segs.Segs())
 	if err != nil {
 		logger.Info("[segReqHandler] Failed to find relevant revocations for reply", "err", err)
 		// the client might still be able to use the segments so continue here.
@@ -79,7 +87,7 @@ func (h *Handler) Handle(request *infra.Request) *infra.HandlerResult {
 	reply := &path_mgmt.SegReply{
 		Req: segReq,
 		Recs: &path_mgmt.SegRecs{
-			Recs:      segsToRecs(ctx, segs),
+			Recs:      segs,
 			SRevInfos: revs,
 		},
 	}
@@ -94,56 +102,4 @@ func (h *Handler) Handle(request *infra.Request) *infra.HandlerResult {
 	metrics.Requests.RepliedSegs(labels.RequestOkLabels).Add(float64(len(reply.Recs.Recs)))
 	metrics.Requests.RepliedRevs(labels.RequestOkLabels).Add(float64(len(reply.Recs.SRevInfos)))
 	return infra.MetricsResultOk
-}
-
-// CreateLocalInfo creates the local info oracle.
-func CreateLocalInfo(core bool, ia addr.IA, inspector trust.Inspector) segfetcher.LocalInfo {
-	if core {
-		return &CoreLocalInfo{
-			CoreChecker: CoreChecker{Inspector: inspector},
-			LocalIA:     ia,
-		}
-	}
-	return &NonCoreLocalInfo{
-		LocalIA: ia,
-	}
-}
-
-func createPathDB(db pathdb.PathDB, localInfo segfetcher.LocalInfo) pathdb.PathDB {
-	return &PathDB{
-		PathDB:    db,
-		LocalInfo: localInfo,
-	}
-}
-
-// CreateNonCoreDstProvider creates a destination provider for a non-core AS.
-func CreateNonCoreDstProvider(ia addr.IA, pather Pather, pathDB pathdb.PathDB,
-	revCache revcache.RevCache, inspector trust.Inspector) segfetcher.DstProvider {
-
-	return &nonCoreDstProvider{
-		SegSelector: SegSelector{
-			PathDB:   pathDB,
-			RevCache: revCache,
-		},
-		inspector:   inspector,
-		coreChecker: CoreChecker{Inspector: inspector},
-		localIA:     ia,
-		pathDB:      pathDB,
-		pather:      pather,
-	}
-}
-
-// CreateCoreDstProvider creates destination provider for a core AS.
-func CreateCoreDstProvider(ia addr.IA, pather Pather, pathDB pathdb.PathDB,
-	revCache revcache.RevCache) segfetcher.DstProvider {
-
-	return &coreDstProvider{
-		SegSelector: SegSelector{
-			PathDB:   pathDB,
-			RevCache: revCache,
-		},
-		localIA: ia,
-		pathDB:  pathDB,
-		pather:  pather,
-	}
 }

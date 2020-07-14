@@ -17,30 +17,14 @@ package segfetcher
 import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-)
-
-// RequestState is the state the request is in.
-type RequestState int
-
-const (
-	// Unresolved means the request is not yet resolved.
-	Unresolved RequestState = iota
-	// Fetch means the request needs to be fetched.
-	Fetch
-	// Cached means the request should be cached locally and can be loaded from
-	// DB.
-	Cached
-	// Fetched means the request has been fetched and should be in the DB.
-	Fetched
-	// Loaded means the request has been loaded from the DB.
-	Loaded
+	"github.com/scionproto/scion/go/proto"
 )
 
 // Request represents a path or segment request.
 type Request struct {
-	Src   addr.IA
-	Dst   addr.IA
-	State RequestState
+	Src     addr.IA
+	Dst     addr.IA
+	SegType proto.PathSegType
 }
 
 // IsZero returns whether the request is empty.
@@ -56,40 +40,9 @@ func (r Request) ToSegReq() *path_mgmt.SegReq {
 	}
 }
 
-// EqualAddr returns whether the two request refer to the same src/dst.
-func (r Request) EqualAddr(other Request) bool {
-	return r.Src.Equal(other.Src) && r.Dst.Equal(other.Dst)
-}
-
-// RequestSet is a set of requests.
-type RequestSet struct {
-	Up    Request
-	Cores Requests
-	Down  Request
-	// Fetch indicates the request should always be fetched from remote,
-	// regardless of whether is is cached.
-	Fetch bool
-}
-
-// IsLoaded returns true if all non-zero requests in the set are in state
-// loaded.
-func (r RequestSet) IsLoaded() bool {
-	return (r.Up.IsZero() || r.Up.State == Loaded) &&
-		(r.Down.IsZero() || r.Down.State == Loaded) &&
-		r.Cores.AllLoaded()
-}
-
-func (r RequestSet) resolveUp() bool {
-	return !r.Up.IsZero() && (r.Up.State == Unresolved || r.Up.State == Fetched)
-}
-
-func (r RequestSet) resolveDown() bool {
-	return !r.Down.IsZero() && (r.Down.State == Unresolved || r.Down.State == Fetched)
-}
-
-func (r RequestSet) upDownResolved() bool {
-	return (r.Up.IsZero() || r.Up.State == Loaded) &&
-		(r.Down.IsZero() || r.Down.State == Loaded)
+// Equal returns whether the two request refer to the same src/dst/type.
+func (r Request) Equal(other Request) bool {
+	return r.Src.Equal(other.Src) && r.Dst.Equal(other.Dst) && r.SegType == other.SegType
 }
 
 // Requests is a list of requests and provides some convenience methods on top
@@ -109,16 +62,6 @@ func (r Requests) DstIAs() []addr.IA {
 // IsEmpty returns whether the list of requests is empty.
 func (r Requests) IsEmpty() bool {
 	return len(r) == 0
-}
-
-// AllLoaded returns whether all entries in request have state loaded.
-func (r Requests) AllLoaded() bool {
-	for _, req := range r {
-		if req.State != Loaded {
-			return false
-		}
-	}
-	return true
 }
 
 func (r Requests) extractIAs(extract func(Request) addr.IA) []addr.IA {

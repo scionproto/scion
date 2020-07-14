@@ -16,14 +16,18 @@ package segreq
 
 import (
 	"context"
-	"fmt"
+	"math/rand"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
-	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/pathdb"
+	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // CoreChecker checks whether a given ia is core.
@@ -31,6 +35,7 @@ type CoreChecker struct {
 	Inspector trust.Inspector
 }
 
+// IsCore checks whether ia is a wildcard or core
 func (c *CoreChecker) IsCore(ctx context.Context, ia addr.IA) (bool, error) {
 	if ia.IsWildcard() {
 		return true, nil
@@ -38,23 +43,38 @@ func (c *CoreChecker) IsCore(ctx context.Context, ia addr.IA) (bool, error) {
 	return c.Inspector.HasAttributes(ctx, ia, trust.Core)
 }
 
-func segsToRecs(ctx context.Context, segs segfetcher.Segments) []*seg.Meta {
-	logger := log.FromCtx(ctx)
-	recs := make([]*seg.Meta, 0, len(segs.Up)+len(segs.Core)+len(segs.Down))
-	for _, s := range segs.Up {
-		logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] up %v -> %v",
-			s.FirstIA(), s.LastIA()), "seg", s.GetLoggingID())
-		recs = append(recs, seg.NewMeta(s, proto.PathSegType_up))
+// SegSelector selects segments to use for a connection to a remote server.
+type SegSelector struct {
+	PathDB       pathdb.PathDB
+	RevCache     revcache.RevCache
+	TopoProvider topology.Provider
+	Pather       addrutil.Pather
+}
+
+// SelectSeg selects a suitable segment for the given path db query.
+func (s *SegSelector) SelectSeg(ctx context.Context,
+	params *query.Params) (snet.Path, error) {
+
+	res, err := s.PathDB.Get(ctx, params)
+	if err != nil {
+		return nil, err
 	}
-	for _, s := range segs.Core {
-		logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] core %v -> %v",
-			s.FirstIA(), s.LastIA()), "seg", s.GetLoggingID())
-		recs = append(recs, seg.NewMeta(s, proto.PathSegType_core))
+	segs := query.Results(res).Segs()
+	_, err = segs.FilterSegsErr(func(ps *seg.PathSegment) (bool, error) {
+		return revcache.NoRevokedHopIntf(ctx, s.RevCache, ps)
+	})
+	if err != nil {
+		return nil, serrors.WrapStr("failed to filter segments", err)
 	}
-	for _, s := range segs.Down {
-		logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] down %v -> %v",
-			s.FirstIA(), s.LastIA()), "seg", s.GetLoggingID())
-		recs = append(recs, seg.NewMeta(s, proto.PathSegType_down))
+	if len(segs) < 1 {
+		return nil, serrors.New("no segments found")
 	}
-	return recs
+	seg := segs[rand.Intn(len(segs))]
+
+	svcaddr, err := s.Pather.GetPath(addr.SvcPS, seg)
+	// odd interface, builds address not path. Use GetPath to convert to snet.Path
+	if err != nil {
+		return nil, err
+	}
+	return svcaddr.GetPath()
 }

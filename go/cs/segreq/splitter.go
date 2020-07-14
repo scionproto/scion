@@ -1,4 +1,4 @@
-// Copyright 2019 Anapaya Systems
+// Copyright 2020 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,48 +19,56 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
-	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
-// Splitter splits requests for the PS.
-type Splitter struct {
-	ASInspector trust.Inspector
-}
+// NewSplitter creates a segfetcher.Splitter for a segfetcher.Pather used in the path service.
+func NewSplitter(ia addr.IA, core bool, inspector trust.Inspector,
+	pathDB pathdb.PathDB) segfetcher.Splitter {
 
-func (s *Splitter) Split(ctx context.Context,
-	r segfetcher.Request) (segfetcher.RequestSet, error) {
-
-	srcCore, err := s.isCore(ctx, r.Src)
-	if err != nil {
-		return segfetcher.RequestSet{}, err
-	}
-	dstCore, err := s.isCore(ctx, r.Dst)
-	if err != nil {
-		return segfetcher.RequestSet{}, err
-	}
-	switch {
-	case !srcCore && dstCore:
-		return segfetcher.RequestSet{Up: r}, nil
-	case srcCore && dstCore:
-		return segfetcher.RequestSet{Cores: segfetcher.Requests{r}}, nil
-	case srcCore && !dstCore:
-		return segfetcher.RequestSet{Down: r}, nil
-	default:
-		return segfetcher.RequestSet{}, segfetcher.ErrInvalidRequest
+	return &splitter{
+		Splitter: &segfetcher.MultiSegmentSplitter{
+			LocalIA:   ia,
+			Core:      core,
+			Inspector: inspector,
+		},
+		expander: &wildcardExpander{
+			localIA:   ia,
+			core:      core,
+			inspector: inspector,
+			pathDB:    pathDB,
+		},
 	}
 }
 
-func (s *Splitter) isCore(ctx context.Context, ia addr.IA) (bool, error) {
-	if ia.IsZero() {
-		return false, serrors.WithCtx(segfetcher.ErrInvalidRequest, "reason", "empty ia")
-	}
-	if ia.IsWildcard() {
-		return true, nil
-	}
-	isCore, err := s.ASInspector.HasAttributes(ctx, ia, trust.Core)
+// splitter is a segfetcher.Splitter for a segfetcher.Pather used in the path service.
+// The default splittler returns a list of (up to three) wildcard segment requests.
+// These wildcards are normally resolved by segreq.forwarder, the AS-local
+// segment request handler.
+// However, segment requests _by_ the control server itself don't pass through
+// this forwarding handler, so this custom splitter is used to expand wildcard
+// requests.
+type splitter struct {
+	segfetcher.Splitter
+	expander *wildcardExpander
+}
+
+// Split splits a path request from the local AS to dst into a set of segment
+// requests.
+func (s *splitter) Split(ctx context.Context, dst addr.IA) (segfetcher.Requests, error) {
+	wcReqs, err := s.Splitter.Split(ctx, dst)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	return isCore, nil
+
+	var reqs segfetcher.Requests
+	for _, req := range wcReqs {
+		expanded, err := s.expander.ExpandSrcWildcard(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		reqs = append(reqs, expanded...)
+	}
+	return reqs, nil
 }

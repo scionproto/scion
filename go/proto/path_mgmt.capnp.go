@@ -315,67 +315,6 @@ func (p SegReply_Promise) Recs() SegRecs_Promise {
 	return SegRecs_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
-type SegChangesIdReq struct{ capnp.Struct }
-
-// SegChangesIdReq_TypeID is the unique identifier for the type SegChangesIdReq.
-const SegChangesIdReq_TypeID = 0xc88dfa6be7a1d091
-
-func NewSegChangesIdReq(s *capnp.Segment) (SegChangesIdReq, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return SegChangesIdReq{st}, err
-}
-
-func NewRootSegChangesIdReq(s *capnp.Segment) (SegChangesIdReq, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return SegChangesIdReq{st}, err
-}
-
-func ReadRootSegChangesIdReq(msg *capnp.Message) (SegChangesIdReq, error) {
-	root, err := msg.RootPtr()
-	return SegChangesIdReq{root.Struct()}, err
-}
-
-func (s SegChangesIdReq) String() string {
-	str, _ := text.Marshal(0xc88dfa6be7a1d091, s.Struct)
-	return str
-}
-
-func (s SegChangesIdReq) LastCheck() uint32 {
-	return s.Struct.Uint32(0)
-}
-
-func (s SegChangesIdReq) SetLastCheck(v uint32) {
-	s.Struct.SetUint32(0, v)
-}
-
-// SegChangesIdReq_List is a list of SegChangesIdReq.
-type SegChangesIdReq_List struct{ capnp.List }
-
-// NewSegChangesIdReq creates a new list of SegChangesIdReq.
-func NewSegChangesIdReq_List(s *capnp.Segment, sz int32) (SegChangesIdReq_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return SegChangesIdReq_List{l}, err
-}
-
-func (s SegChangesIdReq_List) At(i int) SegChangesIdReq { return SegChangesIdReq{s.List.Struct(i)} }
-
-func (s SegChangesIdReq_List) Set(i int, v SegChangesIdReq) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s SegChangesIdReq_List) String() string {
-	str, _ := text.MarshalList(0xc88dfa6be7a1d091, s.List)
-	return str
-}
-
-// SegChangesIdReq_Promise is a wrapper for a SegChangesIdReq promised by a client call.
-type SegChangesIdReq_Promise struct{ *capnp.Pipeline }
-
-func (p SegChangesIdReq_Promise) Struct() (SegChangesIdReq, error) {
-	s, err := p.Pipeline.Struct()
-	return SegChangesIdReq{s}, err
-}
-
 type SegIds struct{ capnp.Struct }
 
 // SegIds_TypeID is the unique identifier for the type SegIds.
@@ -453,162 +392,6 @@ type SegIds_Promise struct{ *capnp.Pipeline }
 func (p SegIds_Promise) Struct() (SegIds, error) {
 	s, err := p.Pipeline.Struct()
 	return SegIds{s}, err
-}
-
-type SegChangesIdReply struct{ capnp.Struct }
-
-// SegChangesIdReply_TypeID is the unique identifier for the type SegChangesIdReply.
-const SegChangesIdReply_TypeID = 0xbd56ceeaf8c65140
-
-func NewSegChangesIdReply(s *capnp.Segment) (SegChangesIdReply, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return SegChangesIdReply{st}, err
-}
-
-func NewRootSegChangesIdReply(s *capnp.Segment) (SegChangesIdReply, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return SegChangesIdReply{st}, err
-}
-
-func ReadRootSegChangesIdReply(msg *capnp.Message) (SegChangesIdReply, error) {
-	root, err := msg.RootPtr()
-	return SegChangesIdReply{root.Struct()}, err
-}
-
-func (s SegChangesIdReply) String() string {
-	str, _ := text.Marshal(0xbd56ceeaf8c65140, s.Struct)
-	return str
-}
-
-func (s SegChangesIdReply) Ids() (SegIds_List, error) {
-	p, err := s.Struct.Ptr(0)
-	return SegIds_List{List: p.List()}, err
-}
-
-func (s SegChangesIdReply) HasIds() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s SegChangesIdReply) SetIds(v SegIds_List) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
-}
-
-// NewIds sets the ids field to a newly
-// allocated SegIds_List, preferring placement in s's segment.
-func (s SegChangesIdReply) NewIds(n int32) (SegIds_List, error) {
-	l, err := NewSegIds_List(s.Struct.Segment(), n)
-	if err != nil {
-		return SegIds_List{}, err
-	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
-	return l, err
-}
-
-// SegChangesIdReply_List is a list of SegChangesIdReply.
-type SegChangesIdReply_List struct{ capnp.List }
-
-// NewSegChangesIdReply creates a new list of SegChangesIdReply.
-func NewSegChangesIdReply_List(s *capnp.Segment, sz int32) (SegChangesIdReply_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return SegChangesIdReply_List{l}, err
-}
-
-func (s SegChangesIdReply_List) At(i int) SegChangesIdReply {
-	return SegChangesIdReply{s.List.Struct(i)}
-}
-
-func (s SegChangesIdReply_List) Set(i int, v SegChangesIdReply) error {
-	return s.List.SetStruct(i, v.Struct)
-}
-
-func (s SegChangesIdReply_List) String() string {
-	str, _ := text.MarshalList(0xbd56ceeaf8c65140, s.List)
-	return str
-}
-
-// SegChangesIdReply_Promise is a wrapper for a SegChangesIdReply promised by a client call.
-type SegChangesIdReply_Promise struct{ *capnp.Pipeline }
-
-func (p SegChangesIdReply_Promise) Struct() (SegChangesIdReply, error) {
-	s, err := p.Pipeline.Struct()
-	return SegChangesIdReply{s}, err
-}
-
-type SegChangesReq struct{ capnp.Struct }
-
-// SegChangesReq_TypeID is the unique identifier for the type SegChangesReq.
-const SegChangesReq_TypeID = 0xa7ad0c62a234c68b
-
-func NewSegChangesReq(s *capnp.Segment) (SegChangesReq, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return SegChangesReq{st}, err
-}
-
-func NewRootSegChangesReq(s *capnp.Segment) (SegChangesReq, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return SegChangesReq{st}, err
-}
-
-func ReadRootSegChangesReq(msg *capnp.Message) (SegChangesReq, error) {
-	root, err := msg.RootPtr()
-	return SegChangesReq{root.Struct()}, err
-}
-
-func (s SegChangesReq) String() string {
-	str, _ := text.Marshal(0xa7ad0c62a234c68b, s.Struct)
-	return str
-}
-
-func (s SegChangesReq) SegIds() (capnp.DataList, error) {
-	p, err := s.Struct.Ptr(0)
-	return capnp.DataList{List: p.List()}, err
-}
-
-func (s SegChangesReq) HasSegIds() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s SegChangesReq) SetSegIds(v capnp.DataList) error {
-	return s.Struct.SetPtr(0, v.List.ToPtr())
-}
-
-// NewSegIds sets the segIds field to a newly
-// allocated capnp.DataList, preferring placement in s's segment.
-func (s SegChangesReq) NewSegIds(n int32) (capnp.DataList, error) {
-	l, err := capnp.NewDataList(s.Struct.Segment(), n)
-	if err != nil {
-		return capnp.DataList{}, err
-	}
-	err = s.Struct.SetPtr(0, l.List.ToPtr())
-	return l, err
-}
-
-// SegChangesReq_List is a list of SegChangesReq.
-type SegChangesReq_List struct{ capnp.List }
-
-// NewSegChangesReq creates a new list of SegChangesReq.
-func NewSegChangesReq_List(s *capnp.Segment, sz int32) (SegChangesReq_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return SegChangesReq_List{l}, err
-}
-
-func (s SegChangesReq_List) At(i int) SegChangesReq { return SegChangesReq{s.List.Struct(i)} }
-
-func (s SegChangesReq_List) Set(i int, v SegChangesReq) error { return s.List.SetStruct(i, v.Struct) }
-
-func (s SegChangesReq_List) String() string {
-	str, _ := text.MarshalList(0xa7ad0c62a234c68b, s.List)
-	return str
-}
-
-// SegChangesReq_Promise is a wrapper for a SegChangesReq promised by a client call.
-type SegChangesReq_Promise struct{ *capnp.Pipeline }
-
-func (p SegChangesReq_Promise) Struct() (SegChangesReq, error) {
-	s, err := p.Pipeline.Struct()
-	return SegChangesReq{s}, err
 }
 
 type HPGroupId struct{ capnp.Struct }
@@ -1272,27 +1055,22 @@ type PathMgmt struct{ capnp.Struct }
 type PathMgmt_Which uint16
 
 const (
-	PathMgmt_Which_unset             PathMgmt_Which = 0
-	PathMgmt_Which_segReq            PathMgmt_Which = 1
-	PathMgmt_Which_segReply          PathMgmt_Which = 2
-	PathMgmt_Which_segReg            PathMgmt_Which = 3
-	PathMgmt_Which_segSync           PathMgmt_Which = 4
-	PathMgmt_Which_sRevInfo          PathMgmt_Which = 5
-	PathMgmt_Which_ifStateReq        PathMgmt_Which = 6
-	PathMgmt_Which_ifStateInfos      PathMgmt_Which = 7
-	PathMgmt_Which_segChangesIdReq   PathMgmt_Which = 8
-	PathMgmt_Which_segChangesIdReply PathMgmt_Which = 9
-	PathMgmt_Which_segChangesReq     PathMgmt_Which = 10
-	PathMgmt_Which_segChangesReply   PathMgmt_Which = 11
-	PathMgmt_Which_hpSegReq          PathMgmt_Which = 12
-	PathMgmt_Which_hpSegReply        PathMgmt_Which = 13
-	PathMgmt_Which_hpSegReg          PathMgmt_Which = 14
-	PathMgmt_Which_hpCfgReq          PathMgmt_Which = 15
-	PathMgmt_Which_hpCfgReply        PathMgmt_Which = 16
+	PathMgmt_Which_unset        PathMgmt_Which = 0
+	PathMgmt_Which_segReq       PathMgmt_Which = 1
+	PathMgmt_Which_segReply     PathMgmt_Which = 2
+	PathMgmt_Which_segReg       PathMgmt_Which = 3
+	PathMgmt_Which_sRevInfo     PathMgmt_Which = 4
+	PathMgmt_Which_ifStateReq   PathMgmt_Which = 5
+	PathMgmt_Which_ifStateInfos PathMgmt_Which = 6
+	PathMgmt_Which_hpSegReq     PathMgmt_Which = 7
+	PathMgmt_Which_hpSegReply   PathMgmt_Which = 8
+	PathMgmt_Which_hpSegReg     PathMgmt_Which = 9
+	PathMgmt_Which_hpCfgReq     PathMgmt_Which = 10
+	PathMgmt_Which_hpCfgReply   PathMgmt_Which = 11
 )
 
 func (w PathMgmt_Which) String() string {
-	const s = "unsetsegReqsegReplysegRegsegSyncsRevInfoifStateReqifStateInfossegChangesIdReqsegChangesIdReplysegChangesReqsegChangesReplyhpSegReqhpSegReplyhpSegReghpCfgReqhpCfgReply"
+	const s = "unsetsegReqsegReplysegRegsRevInfoifStateReqifStateInfoshpSegReqhpSegReplyhpSegReghpCfgReqhpCfgReply"
 	switch w {
 	case PathMgmt_Which_unset:
 		return s[0:5]
@@ -1302,32 +1080,22 @@ func (w PathMgmt_Which) String() string {
 		return s[11:19]
 	case PathMgmt_Which_segReg:
 		return s[19:25]
-	case PathMgmt_Which_segSync:
-		return s[25:32]
 	case PathMgmt_Which_sRevInfo:
-		return s[32:40]
+		return s[25:33]
 	case PathMgmt_Which_ifStateReq:
-		return s[40:50]
+		return s[33:43]
 	case PathMgmt_Which_ifStateInfos:
-		return s[50:62]
-	case PathMgmt_Which_segChangesIdReq:
-		return s[62:77]
-	case PathMgmt_Which_segChangesIdReply:
-		return s[77:94]
-	case PathMgmt_Which_segChangesReq:
-		return s[94:107]
-	case PathMgmt_Which_segChangesReply:
-		return s[107:122]
+		return s[43:55]
 	case PathMgmt_Which_hpSegReq:
-		return s[122:130]
+		return s[55:63]
 	case PathMgmt_Which_hpSegReply:
-		return s[130:140]
+		return s[63:73]
 	case PathMgmt_Which_hpSegReg:
-		return s[140:148]
+		return s[73:81]
 	case PathMgmt_Which_hpCfgReq:
-		return s[148:156]
+		return s[81:89]
 	case PathMgmt_Which_hpCfgReply:
-		return s[156:166]
+		return s[89:99]
 
 	}
 	return "PathMgmt_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -1463,41 +1231,8 @@ func (s PathMgmt) NewSegReg() (SegRecs, error) {
 	return ss, err
 }
 
-func (s PathMgmt) SegSync() (SegRecs, error) {
-	if s.Struct.Uint16(0) != 4 {
-		panic("Which() != segSync")
-	}
-	p, err := s.Struct.Ptr(0)
-	return SegRecs{Struct: p.Struct()}, err
-}
-
-func (s PathMgmt) HasSegSync() bool {
-	if s.Struct.Uint16(0) != 4 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s PathMgmt) SetSegSync(v SegRecs) error {
-	s.Struct.SetUint16(0, 4)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
-
-// NewSegSync sets the segSync field to a newly
-// allocated SegRecs struct, preferring placement in s's segment.
-func (s PathMgmt) NewSegSync() (SegRecs, error) {
-	s.Struct.SetUint16(0, 4)
-	ss, err := NewSegRecs(s.Struct.Segment())
-	if err != nil {
-		return SegRecs{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
 func (s PathMgmt) SRevInfo() (SignedBlob, error) {
-	if s.Struct.Uint16(0) != 5 {
+	if s.Struct.Uint16(0) != 4 {
 		panic("Which() != sRevInfo")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1505,7 +1240,7 @@ func (s PathMgmt) SRevInfo() (SignedBlob, error) {
 }
 
 func (s PathMgmt) HasSRevInfo() bool {
-	if s.Struct.Uint16(0) != 5 {
+	if s.Struct.Uint16(0) != 4 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1513,14 +1248,14 @@ func (s PathMgmt) HasSRevInfo() bool {
 }
 
 func (s PathMgmt) SetSRevInfo(v SignedBlob) error {
-	s.Struct.SetUint16(0, 5)
+	s.Struct.SetUint16(0, 4)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSRevInfo sets the sRevInfo field to a newly
 // allocated SignedBlob struct, preferring placement in s's segment.
 func (s PathMgmt) NewSRevInfo() (SignedBlob, error) {
-	s.Struct.SetUint16(0, 5)
+	s.Struct.SetUint16(0, 4)
 	ss, err := NewSignedBlob(s.Struct.Segment())
 	if err != nil {
 		return SignedBlob{}, err
@@ -1530,7 +1265,7 @@ func (s PathMgmt) NewSRevInfo() (SignedBlob, error) {
 }
 
 func (s PathMgmt) IfStateReq() (IFStateReq, error) {
-	if s.Struct.Uint16(0) != 6 {
+	if s.Struct.Uint16(0) != 5 {
 		panic("Which() != ifStateReq")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1538,7 +1273,7 @@ func (s PathMgmt) IfStateReq() (IFStateReq, error) {
 }
 
 func (s PathMgmt) HasIfStateReq() bool {
-	if s.Struct.Uint16(0) != 6 {
+	if s.Struct.Uint16(0) != 5 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1546,14 +1281,14 @@ func (s PathMgmt) HasIfStateReq() bool {
 }
 
 func (s PathMgmt) SetIfStateReq(v IFStateReq) error {
-	s.Struct.SetUint16(0, 6)
+	s.Struct.SetUint16(0, 5)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewIfStateReq sets the ifStateReq field to a newly
 // allocated IFStateReq struct, preferring placement in s's segment.
 func (s PathMgmt) NewIfStateReq() (IFStateReq, error) {
-	s.Struct.SetUint16(0, 6)
+	s.Struct.SetUint16(0, 5)
 	ss, err := NewIFStateReq(s.Struct.Segment())
 	if err != nil {
 		return IFStateReq{}, err
@@ -1563,7 +1298,7 @@ func (s PathMgmt) NewIfStateReq() (IFStateReq, error) {
 }
 
 func (s PathMgmt) IfStateInfos() (IFStateInfos, error) {
-	if s.Struct.Uint16(0) != 7 {
+	if s.Struct.Uint16(0) != 6 {
 		panic("Which() != ifStateInfos")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1571,7 +1306,7 @@ func (s PathMgmt) IfStateInfos() (IFStateInfos, error) {
 }
 
 func (s PathMgmt) HasIfStateInfos() bool {
-	if s.Struct.Uint16(0) != 7 {
+	if s.Struct.Uint16(0) != 6 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1579,14 +1314,14 @@ func (s PathMgmt) HasIfStateInfos() bool {
 }
 
 func (s PathMgmt) SetIfStateInfos(v IFStateInfos) error {
-	s.Struct.SetUint16(0, 7)
+	s.Struct.SetUint16(0, 6)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewIfStateInfos sets the ifStateInfos field to a newly
 // allocated IFStateInfos struct, preferring placement in s's segment.
 func (s PathMgmt) NewIfStateInfos() (IFStateInfos, error) {
-	s.Struct.SetUint16(0, 7)
+	s.Struct.SetUint16(0, 6)
 	ss, err := NewIFStateInfos(s.Struct.Segment())
 	if err != nil {
 		return IFStateInfos{}, err
@@ -1595,140 +1330,8 @@ func (s PathMgmt) NewIfStateInfos() (IFStateInfos, error) {
 	return ss, err
 }
 
-func (s PathMgmt) SegChangesIdReq() (SegChangesIdReq, error) {
-	if s.Struct.Uint16(0) != 8 {
-		panic("Which() != segChangesIdReq")
-	}
-	p, err := s.Struct.Ptr(0)
-	return SegChangesIdReq{Struct: p.Struct()}, err
-}
-
-func (s PathMgmt) HasSegChangesIdReq() bool {
-	if s.Struct.Uint16(0) != 8 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s PathMgmt) SetSegChangesIdReq(v SegChangesIdReq) error {
-	s.Struct.SetUint16(0, 8)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
-
-// NewSegChangesIdReq sets the segChangesIdReq field to a newly
-// allocated SegChangesIdReq struct, preferring placement in s's segment.
-func (s PathMgmt) NewSegChangesIdReq() (SegChangesIdReq, error) {
-	s.Struct.SetUint16(0, 8)
-	ss, err := NewSegChangesIdReq(s.Struct.Segment())
-	if err != nil {
-		return SegChangesIdReq{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
-func (s PathMgmt) SegChangesIdReply() (SegChangesIdReply, error) {
-	if s.Struct.Uint16(0) != 9 {
-		panic("Which() != segChangesIdReply")
-	}
-	p, err := s.Struct.Ptr(0)
-	return SegChangesIdReply{Struct: p.Struct()}, err
-}
-
-func (s PathMgmt) HasSegChangesIdReply() bool {
-	if s.Struct.Uint16(0) != 9 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s PathMgmt) SetSegChangesIdReply(v SegChangesIdReply) error {
-	s.Struct.SetUint16(0, 9)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
-
-// NewSegChangesIdReply sets the segChangesIdReply field to a newly
-// allocated SegChangesIdReply struct, preferring placement in s's segment.
-func (s PathMgmt) NewSegChangesIdReply() (SegChangesIdReply, error) {
-	s.Struct.SetUint16(0, 9)
-	ss, err := NewSegChangesIdReply(s.Struct.Segment())
-	if err != nil {
-		return SegChangesIdReply{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
-func (s PathMgmt) SegChangesReq() (SegChangesReq, error) {
-	if s.Struct.Uint16(0) != 10 {
-		panic("Which() != segChangesReq")
-	}
-	p, err := s.Struct.Ptr(0)
-	return SegChangesReq{Struct: p.Struct()}, err
-}
-
-func (s PathMgmt) HasSegChangesReq() bool {
-	if s.Struct.Uint16(0) != 10 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s PathMgmt) SetSegChangesReq(v SegChangesReq) error {
-	s.Struct.SetUint16(0, 10)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
-
-// NewSegChangesReq sets the segChangesReq field to a newly
-// allocated SegChangesReq struct, preferring placement in s's segment.
-func (s PathMgmt) NewSegChangesReq() (SegChangesReq, error) {
-	s.Struct.SetUint16(0, 10)
-	ss, err := NewSegChangesReq(s.Struct.Segment())
-	if err != nil {
-		return SegChangesReq{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
-func (s PathMgmt) SegChangesReply() (SegRecs, error) {
-	if s.Struct.Uint16(0) != 11 {
-		panic("Which() != segChangesReply")
-	}
-	p, err := s.Struct.Ptr(0)
-	return SegRecs{Struct: p.Struct()}, err
-}
-
-func (s PathMgmt) HasSegChangesReply() bool {
-	if s.Struct.Uint16(0) != 11 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s PathMgmt) SetSegChangesReply(v SegRecs) error {
-	s.Struct.SetUint16(0, 11)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
-
-// NewSegChangesReply sets the segChangesReply field to a newly
-// allocated SegRecs struct, preferring placement in s's segment.
-func (s PathMgmt) NewSegChangesReply() (SegRecs, error) {
-	s.Struct.SetUint16(0, 11)
-	ss, err := NewSegRecs(s.Struct.Segment())
-	if err != nil {
-		return SegRecs{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
 func (s PathMgmt) HpSegReq() (HPSegReq, error) {
-	if s.Struct.Uint16(0) != 12 {
+	if s.Struct.Uint16(0) != 7 {
 		panic("Which() != hpSegReq")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1736,7 +1339,7 @@ func (s PathMgmt) HpSegReq() (HPSegReq, error) {
 }
 
 func (s PathMgmt) HasHpSegReq() bool {
-	if s.Struct.Uint16(0) != 12 {
+	if s.Struct.Uint16(0) != 7 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1744,14 +1347,14 @@ func (s PathMgmt) HasHpSegReq() bool {
 }
 
 func (s PathMgmt) SetHpSegReq(v HPSegReq) error {
-	s.Struct.SetUint16(0, 12)
+	s.Struct.SetUint16(0, 7)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewHpSegReq sets the hpSegReq field to a newly
 // allocated HPSegReq struct, preferring placement in s's segment.
 func (s PathMgmt) NewHpSegReq() (HPSegReq, error) {
-	s.Struct.SetUint16(0, 12)
+	s.Struct.SetUint16(0, 7)
 	ss, err := NewHPSegReq(s.Struct.Segment())
 	if err != nil {
 		return HPSegReq{}, err
@@ -1761,7 +1364,7 @@ func (s PathMgmt) NewHpSegReq() (HPSegReq, error) {
 }
 
 func (s PathMgmt) HpSegReply() (HPSegReply, error) {
-	if s.Struct.Uint16(0) != 13 {
+	if s.Struct.Uint16(0) != 8 {
 		panic("Which() != hpSegReply")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1769,7 +1372,7 @@ func (s PathMgmt) HpSegReply() (HPSegReply, error) {
 }
 
 func (s PathMgmt) HasHpSegReply() bool {
-	if s.Struct.Uint16(0) != 13 {
+	if s.Struct.Uint16(0) != 8 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1777,14 +1380,14 @@ func (s PathMgmt) HasHpSegReply() bool {
 }
 
 func (s PathMgmt) SetHpSegReply(v HPSegReply) error {
-	s.Struct.SetUint16(0, 13)
+	s.Struct.SetUint16(0, 8)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewHpSegReply sets the hpSegReply field to a newly
 // allocated HPSegReply struct, preferring placement in s's segment.
 func (s PathMgmt) NewHpSegReply() (HPSegReply, error) {
-	s.Struct.SetUint16(0, 13)
+	s.Struct.SetUint16(0, 8)
 	ss, err := NewHPSegReply(s.Struct.Segment())
 	if err != nil {
 		return HPSegReply{}, err
@@ -1794,7 +1397,7 @@ func (s PathMgmt) NewHpSegReply() (HPSegReply, error) {
 }
 
 func (s PathMgmt) HpSegReg() (HPSegRecs, error) {
-	if s.Struct.Uint16(0) != 14 {
+	if s.Struct.Uint16(0) != 9 {
 		panic("Which() != hpSegReg")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1802,7 +1405,7 @@ func (s PathMgmt) HpSegReg() (HPSegRecs, error) {
 }
 
 func (s PathMgmt) HasHpSegReg() bool {
-	if s.Struct.Uint16(0) != 14 {
+	if s.Struct.Uint16(0) != 9 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1810,14 +1413,14 @@ func (s PathMgmt) HasHpSegReg() bool {
 }
 
 func (s PathMgmt) SetHpSegReg(v HPSegRecs) error {
-	s.Struct.SetUint16(0, 14)
+	s.Struct.SetUint16(0, 9)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewHpSegReg sets the hpSegReg field to a newly
 // allocated HPSegRecs struct, preferring placement in s's segment.
 func (s PathMgmt) NewHpSegReg() (HPSegRecs, error) {
-	s.Struct.SetUint16(0, 14)
+	s.Struct.SetUint16(0, 9)
 	ss, err := NewHPSegRecs(s.Struct.Segment())
 	if err != nil {
 		return HPSegRecs{}, err
@@ -1827,7 +1430,7 @@ func (s PathMgmt) NewHpSegReg() (HPSegRecs, error) {
 }
 
 func (s PathMgmt) HpCfgReq() (HPCfgReq, error) {
-	if s.Struct.Uint16(0) != 15 {
+	if s.Struct.Uint16(0) != 10 {
 		panic("Which() != hpCfgReq")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1835,7 +1438,7 @@ func (s PathMgmt) HpCfgReq() (HPCfgReq, error) {
 }
 
 func (s PathMgmt) HasHpCfgReq() bool {
-	if s.Struct.Uint16(0) != 15 {
+	if s.Struct.Uint16(0) != 10 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1843,14 +1446,14 @@ func (s PathMgmt) HasHpCfgReq() bool {
 }
 
 func (s PathMgmt) SetHpCfgReq(v HPCfgReq) error {
-	s.Struct.SetUint16(0, 15)
+	s.Struct.SetUint16(0, 10)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewHpCfgReq sets the hpCfgReq field to a newly
 // allocated HPCfgReq struct, preferring placement in s's segment.
 func (s PathMgmt) NewHpCfgReq() (HPCfgReq, error) {
-	s.Struct.SetUint16(0, 15)
+	s.Struct.SetUint16(0, 10)
 	ss, err := NewHPCfgReq(s.Struct.Segment())
 	if err != nil {
 		return HPCfgReq{}, err
@@ -1860,7 +1463,7 @@ func (s PathMgmt) NewHpCfgReq() (HPCfgReq, error) {
 }
 
 func (s PathMgmt) HpCfgReply() (HPCfgReply, error) {
-	if s.Struct.Uint16(0) != 16 {
+	if s.Struct.Uint16(0) != 11 {
 		panic("Which() != hpCfgReply")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1868,7 +1471,7 @@ func (s PathMgmt) HpCfgReply() (HPCfgReply, error) {
 }
 
 func (s PathMgmt) HasHpCfgReply() bool {
-	if s.Struct.Uint16(0) != 16 {
+	if s.Struct.Uint16(0) != 11 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -1876,14 +1479,14 @@ func (s PathMgmt) HasHpCfgReply() bool {
 }
 
 func (s PathMgmt) SetHpCfgReply(v HPCfgReply) error {
-	s.Struct.SetUint16(0, 16)
+	s.Struct.SetUint16(0, 11)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewHpCfgReply sets the hpCfgReply field to a newly
 // allocated HPCfgReply struct, preferring placement in s's segment.
 func (s PathMgmt) NewHpCfgReply() (HPCfgReply, error) {
-	s.Struct.SetUint16(0, 16)
+	s.Struct.SetUint16(0, 11)
 	ss, err := NewHPCfgReply(s.Struct.Segment())
 	if err != nil {
 		return HPCfgReply{}, err
@@ -1930,10 +1533,6 @@ func (p PathMgmt_Promise) SegReg() SegRecs_Promise {
 	return SegRecs_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p PathMgmt_Promise) SegSync() SegRecs_Promise {
-	return SegRecs_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
 func (p PathMgmt_Promise) SRevInfo() SignedBlob_Promise {
 	return SignedBlob_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
@@ -1944,22 +1543,6 @@ func (p PathMgmt_Promise) IfStateReq() IFStateReq_Promise {
 
 func (p PathMgmt_Promise) IfStateInfos() IFStateInfos_Promise {
 	return IFStateInfos_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p PathMgmt_Promise) SegChangesIdReq() SegChangesIdReq_Promise {
-	return SegChangesIdReq_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p PathMgmt_Promise) SegChangesIdReply() SegChangesIdReply_Promise {
-	return SegChangesIdReply_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p PathMgmt_Promise) SegChangesReq() SegChangesReq_Promise {
-	return SegChangesReq_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p PathMgmt_Promise) SegChangesReply() SegRecs_Promise {
-	return SegRecs_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
 func (p PathMgmt_Promise) HpSegReq() HPSegReq_Promise {
@@ -1982,107 +1565,90 @@ func (p PathMgmt_Promise) HpCfgReply() HPCfgReply_Promise {
 	return HPCfgReply_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-const schema_8fcd13516850d142 = "x\xda|V\x7flTY\x15>\xe7\xde\x99\xce\xefv" +
-	"\xc6\xfb\x8c\xdd\xb8\xb1\xbb\x1bL\xb6H7l\x81\xecn" +
-	"\x83\xf6\x07%\xcb,\x8b\xf6\xf5%\xeb\xee\xc6U\x87\x99" +
-	"7\xd3\xa1\xd3\xe9t\xde@S\x89\xa9\x9a\xa81\x8a\x04" +
-	"D\x03F\x02\x18\x08)\x88\x86&$\xa4\xa4(\x1a\x10" +
-	"\x1b!\x14\xc1\x10Pc\x11#!\x10\x91\xdf\x14\xea\xdb" +
-	"\x9c;\xd3\xf7\xa6o\xa6\xfdo\xe6~\xdf;\xe7\xbb\xe7" +
-	"\x9e\xfb\x9d\xbb4\xe0jc\xaf\xbb\xbf\xef\x06P\xdb\xdc" +
-	"5\xe6\x8b'[7\x0f\xdcT\xb7\x82\x1aF4;&" +
-	"\xbbzTqn+\xb8\xd1\x03 F\xd8\x848\xc6\xe8" +
-	"\xd7Q6\x08h\x8e\x7fQ\x99\x09\x1c\\\xfb\x13\x88\x84" +
-	"\xcb\xb9\x92\xf12\xff\xbdh\xe4\xf4\xeb\xb3\x9c\xb8'\xae" +
-	"\xbdqmt\xea\x83\xaa\xdc\x03|B\x1c\x95\xdc#\x92" +
-	"\xfb\x99\xef\xb9\xbe\xc9V\xe0n\x12\xc1m\xb2\x8b\x18>" +
-	"\xd7\x98\x88\xc8_!\xd7o\x00\xcd\x89\x0b?\x0fvL" +
-	"/\xd9\xe7\x10\xbc\x1a=\x11\x00\xf1\x03\xd7\x84\xf8)\xb1" +
-	"\x97ms\xfd\x96\x03\x9aS\xd7\xbf2z\xf6g\xbd\x07" +
-	"\x1c2d\xf2\x11\xefEq\xcc+\xb7\xe7\xa5\xd0?<" +
-	"\xb3\xfc\x97\xeb\x83G\x0e:\xb8\xb2\x14\x1f\xf8\xee\x09\xdd" +
-	"G\xbfb\xbeV@\xf3\xaf?N\xb6o\x9fy|\xa8" +
-	"\x1aw\x9b\xef\xaa\xd8-\xb9\xbb$w\xed\xaf\xb7<\xfa" +
-	"\xc3\xd0\xd3\xc3\xd5J\xf1'\xdf\x98\x98\x94\xdcs>*" +
-	"\xc5\x8f\x0e]\x0fM=\xda<Z-n\xa3\xff\xaaX" +
-	"\xe1\xa7_\xaf\xfb)n\xfd\xea\x1b_\x10\x7f|y\x8c" +
-	"J\xc1\x1ce\x8b\xf9/\x8a>\xc9M\xfb)n\x9bz" +
-	"\xe6\xc9\xad\xf3\xef\x8dW\x89\xbb\xec\xb4\xff\x13(.K" +
-	"\xf2\xa4\x0c\xbc\xed\xc2\xbe\xff\xf4No9\xeb\xa8\xb1\xac" +
-	"+\x06\x18\x8aP@\x1eM\x80\xc8_=\xfc\xb9\x13\x9f" +
-	"<\xb2\xf6b\x15\xb2h\x0aL\x88\xb7$w\x85\xe4n" +
-	"\xfat\xe7\xb3u\x8d;\xfe\x01\xea\xa7\x90\xdb\xc7\xaex" +
-	"\x90J\x1c\xb8\x05(>\x0a\x90\xdc\xf8\x0b\xdf8\xee\x0f" +
-	"{\xee;\xdbRF\x1d\x0f\x8c\x8a\xd3\x14u\xd9\xa9\xc0" +
-	"\x97\x11\xd0\xcc\xc5\x0a=_\xebK\xf5\xb1\xc2k\xf1X" +
-	".\x9bkY\xd3\xa5\xe9\xa9n}\x00\xa0\x0bQ\xf5r" +
-	"\x17\x80\x0b\x01\"\x8d\xcd\x00\xea\"\x8e\xeaR\x86\x88\x0a" +
-	"\xd2Z\xd3;\x00\xea\x12\x8e\xea\x1a\x86\x0d\x09\xa3\x10m" +
-	"G\x1f0\xf4\x01\x9a\xa9|\xff\xc6\\4a\x00\x00\xd6" +
-	"\x02vq\xc4\xb0]u@Z\xacL.S\xc7\x0dg" +
-	"\xea\xc5\xa5\xd4m\x0c#\xb3\xb9?\xdf\x0d\xa0\xae\xe4\xa8" +
-	"\xbe\xcf\xb0.\xaf\xc7\x0d;M\xdd\x98\x7f\xe5\xe6\xf7v" +
-	"\xee\x99Mct\xeb\x9b\xa2\xd9d?`\x19\xa9\xfb_" +
-	"\xd3o|\xf7\xed\xe6=\x0bk\xc9e\x86*\x0a\xf1\x8a" +
-	"]\x08KM\x13I|\x95\xa3\xba\x9c\xa1'\xaf\x0f`" +
-	"\xd8>\"@\x0cCIc\xd86\x82\xe2\xb2\x95\x17g" +
-	"\xf3\xb6\x16\xebOI\x83V\xd2\xd5T\xfd6\x8e\xea\xbb" +
-	"eI\xa3\xb4\xd8\xc9Q\xedb\x88\x0c\xcbz$\xb2\xae" +
-	"\x19X\x83\x91\x8f\xdb'2\xf7|\x1a\x92\x99X\xca\xa8" +
-	"\xdctW\xac\xd0\xb3.\xd5W(n\xba\x93\xbb\x82\xa6" +
-	"I\x02\xc49l\x06\xd0\xce\"G\xed\x122\x0c\xe1\xff" +
-	"M)BLb\x0b\x80\xf6g\x02\xae\x10\xc0fL\x05" +
-	"\x19\x80\xb8\x8c\xef\x00h\x97\x08\xf8'\x01\xfc\xb9\xa9 " +
-	"\x07\x10\x7f\x97_\\!\xe0\x06\x01\xaeg\xa6\x82.\x00" +
-	"1\x85\x1d\x00\xda\xdf\x08\xb8I\x80{\xdaT\xd0\x0d " +
-	"\xfe-C\xdd \xe0.\x015OM\x05k\x00\xc4\x1d" +
-	"\xfc\x10@\xbbM\xc0\x13\x02<OLE\xde\xf7\x87\xb8" +
-	"\x01@{\x80\x1c\xbb\x19\xc3\x90\xf7\xb1\xa9\xa0\x17@\xcc" +
-	"\xe0w\x00\xb4\xe7\xf4\x81\x97\x00\xdf#SA\x1f\x80p" +
-	"\xb3\xed\x00\x9a\x97q\xd4\x14\x02\xfc\x0fM\x05\xfd\x00\"" +
-	"\xc2\xf2\x00Z\x98\x80\x17\x09\x08<0\x15\x0c\x00\x88\x17" +
-	"\x18\x85\xaa'`\x11\x01\xc1\xfb\xa6\x82A\xb2sFj" +
-	"_\"`\x09\x01\xa1{\xa6\x82!2!Fj_%" +
-	"`9\x01\xb5\xff3\x15\xac%O\x92_,%`%" +
-	"\x01uwM\x05\xeb\x00\xc4[\x12x\x93\x80N\x02\xc2" +
-	"\xff5\x15\x0c\x03\x88v\x19\xaa\x8d\x80w\x19\xc3\x86\x8d" +
-	"YC/@M\xab!{\xa7\xb2\xfbL\xc3\xeaf\xc0" +
-	"\xb0=a\x8ah\xf1\xb3Tew\x0e\x1bzJ\x1b\xca" +
-	"\xc6\xab\xf4\xadu\xa9d\xc0\xf2\xdbDh:\xa9\x15b" +
-	"\x05\xbd\x1b\xb8T3\x92\xfc\xc5\xa9\xde\xc1;7\x1dp" +
-	"\x14\xea\xb2\xc9~\xba\x15'\x03\xcf\x1f6\x9f\x7f\xe9/" +
-	"erW\xf5\xc4\xb2)\xd4\x8dh\x82\xdc\x08\xc3\xb6\xb5" +
-	"V\xe7\xe428\x84a\xdb\xad\x1d,h\xd0\x8dbi" +
-	"\xacYU\x19\xa7X\xa2*\xbb\xed\xc9\xcd\xba\"\xa1\xd6" +
-	"\xe4\x9f\x8b\xe6\x80gH\x825\xe0\xe6\xc2\xa9\xe2\xc7\xd6" +
-	"X\xb5\xd0UI;\xb45\x12\xe6\xa2\xb3\xa1\xad\x19\xe7" +
-	"p\x0f\xa7}\xc7\xd1p\x18HG5\x03Y\\2\x90" +
-	"\xaf3\x8c0&\xefm\xe4#\xf2\xb7\xf79\xaa\x09\x86" +
-	"\xc3%\x1bwx\xb7eg\xf3Y\xaeG\xcf\xe71\x08" +
-	"\x0c\x83\xf38\xab,x\xf1DH\xa7\xcb\xd2\x19j\x01" +
-	"P\xbd\x1c\xd5EL\xb6e4ae\x09\x01\xab\xee\xd4" +
-	"\xa5=\xe7xf\xc8\x11l\xb1\x1d\xcc!\xb8\xfc\x14j" +
-	"\xe7\xb3\xe1h\xc2\x98\x7f\x08\xda\xde\xdfb{\x7f\x83\x94" +
-	",\xa5\x86\x00[\x93\x1b3\x19\xfbo5\xe5\xc5\xd3]" +
-	"Xy<\x99*Sn\xcd\xf7\xf9\x06\xd7\x9a\xae\xb7\xe5" +
-	"\xa9a\xc2!\xbe\xa3\\\xbc\xab$\xbe\xc3\x16?\xdc?" +
-	"\x98\xd5\xf3\xed\xda\xec\x90\xb0N\xdf\x03\x0c=e\xa9\xb8" +
-	"\xf3$\xed\x1b\xe8\xd8\xc6+\xf66<\xe9D\xd9.\xac" +
-	"\x87\x9dc\x17\xf3\x84\x1e\x00G`\x9a\xfeA\x8ej=" +
-	"C3\x133\x0a\xabz\xf48`/z\x81\xa1w\x81" +
-	"R\x97\xde5e\x916\x94E\x8a\xcb\x8c\x09\x0d\xea\xd2" +
-	"\xd9\xb8>\x7f\xb0\xa2\x19\xbc\x96\xac\xa3)J%\x0e\x7f" +
-	"\xabxy\xe66\xc8\xb7\xe5\xc0\x8b4u\x97\x9eIo" +
-	"R\x83\xa4\xd7\xe7c\x88\xc0\x90\x9e_\xf1X\xbcG\xff" +
-	"R6\x038d\xadU\xb4b\x83\xd4N\xb2\xeb-\xd9" +
-	"\xbb\xe8\xdcvpT\xf7\xda\xcf\xb1\xdd\xb4\xb6\x93\xa3\xba" +
-	"\xbf\xec:\xef\xa37\xda^\x8e\xea\xaf\x18F8\x16\x15" +
-	"\x8d\x10s?G\xf5w\x0c#.&\xc7od\x9c\x16" +
-	"\x8fsT/1\x8c\xb8\xb9\x1c\xbd\x91\xc9\x0f\x01\xd4\x0b" +
-	"\x1c\xd5\xdb\x0b\xb9\xc1\xf0&=o\xa4\xfb\xb3V\xc5d" +
-	"'E\xb5N2\xb5R\xf7\x0c\x0f\xe6\xd3\x05=o\xf5" +
-	"\x80\xafx\x9d\x87\xf3z,Q\xb9l\xe6\xf5T\xda(" +
-	"\xe4\xd3\xc0u'\xf6q\x00\x00\x00\xff\xff4\x06O\xa2"
+const schema_8fcd13516850d142 = "x\xda|U[lT\xd5\x1a\xfe\xff\xb5\xa6\xdd3\xed" +
+	"\x94\xced\xcd\xc9\xe1\xe4\x9c\x9c\x8a\xc1D\x90\x12\xa8\x10" +
+	"\x94\xa0\xbdHC\x87\x8b\xce\xea\xa0\x02\x01e\x9c\xd9s" +
+	"\x81\xe9t\xba\xf7\x94Z\x91\x14\x131\x9a\x80\x18E\x83" +
+	"F\x02M \x04\xf0\x92\xf4\x89\x94@\xbc<\xa8M0" +
+	"\x14\xc5\x07HL@M\x88\x91\x07\xa3\x80\xdc\xdc\xe6_" +
+	"3\xb3\xf7tO\xdb\xb7\xbd\xd7\xf7_\xbe\xf5_\xbe\xb5" +
+	"@\xf26\xb6\xb0f\xc8\x03 \x17\xd5\xd4Z\xff;\xd3" +
+	"\xba\xbd\xef\xaa\xdc\x0b2\x80hu\x8cG\xd2R\x9c\xdd" +
+	"\x0b5\xa8\x01\x88\x07\xd8\x98X\xc8\xe8\xab\x99\x0d\x00Z" +
+	"\xa7\x9f\x0c\xdd\xab?\xba\xea\x1d\x08\x06*m\x95\xc5\x01" +
+	"\xf6\x858\xa2\xbe\x86\x95\xed\xa9KK.\x8d\\^?" +
+	"\xa9\xed,>&\x9a9}\xcd\xe1d\xfb\xff\xd7<;" +
+	"\xd8b<@$\xb8c\xec!\x8b]|T\xecQ\xb6" +
+	"o\xf0O\x01\xad\xb1s\x1f\xf8;n\xcf\x1bv\x11\xee" +
+	"D\xcd\x0f j<c\"H~\x0f7x\x8e2@" +
+	"\xeb\xf2\x95\x8d#_\xbf\xb7\xf5\x88\x8b\x86\x0a\xf8K\xed" +
+	"y\xf1{-}]\xab\xa5\xd0?\xbc\x99l\x7f\xfb\xde" +
+	"\xcd\xe3.[U\x8aw\xb5\x8bbXS\x17\xd5Z\x01" +
+	"\xadU\x9f\xec\xb9\xf1\xe5\xe0\xad\x13\x93]\xef\xac6*" +
+	".(\xdbq\x8d\xae\xb7\xfb\xf8\x95\x86\xcb7\xb6\x8fL" +
+	"\x16\xb7\xd9{Q<\xea\xa5\xaf\xc5^\x8a;\xb3\xf3\xe7" +
+	"\xc7\xc5W\xb3F\xe9z\xccU\x0a\xdd{^\xf4)\xdb" +
+	"\x1e/\xc5}\xee\xc4C\xa7\xfe\xf5\xf1\xaa\xf3\xaeR(" +
+	"\xdbo\xbcc\xe2\x82\xb2\x1dWq\xb7\xfdw\xf9\x9d5" +
+	"s\xf6\xfd\x08\xf2\xdf\xc8\x9d\x82\x874\x04\x10\xd7\xbd\xbf" +
+	"\x02\x8a[*h\xfc?/\x9d\xac\x0bh\x7f\xb8\x07B" +
+	"E]\xef\x1b\x111\x1f\x95w\x93\xefY\x04\xb4\xf2\xb1" +
+	"B\xfa\xf9\x9eT\x0f+\xcc\x8f\xc7\xf2\xb9\xfc\xd2\xaeH" +
+	"TOu\xeb}\x00\x11D\xe9\xe5\x1e\x00\x0f\x02\x04\xe7" +
+	"\xb4\x00\xc8\xd9\x1c\xe5\x02\x86\x88!\xa4\xb3\xe6\x95\x00r" +
+	"\x1eG\xd9\xc5\xb0)a\x16\xc2\xed\xe8\x03\x86>@+" +
+	"e\xf4\xf6\xe7\xc3\x09\x13\x00p\x06`\x84#\x06\x9c\xda" +
+	"\x00\xd2aur\x95:n\xbaS\xcf-\xa5nc\x18" +
+	",\xe7~\xac\x1b@.\xe3(\xd71l4\xf4\xb8\xe9" +
+	"\xa4i\x1c\xad[\xb6\xfd\x99\xfd\x07\xcbi\xccn}[" +
+	"8\x97\xec\x05\xac0\xea\xfe\xe9\xf6\x92]+Z\x0eN" +
+	"\xcf%\x9f\x1d\xac*\xc4\xfdN!l6\xcdD\xf1A" +
+	"\x8er\x11C\xcd\xd0\xfb0\xe0\xb4\x08\x10\x03P\xe2\x18" +
+	"pV\xb0xl\xe7\xc5r\xde\xd6b\xfd)\xa9\xdfN" +
+	"\xdaI\xd5o\xe3(WW$\x0d\xd3\xe1r\x8e2\xc2" +
+	"\x10\x19V\xccHpM\x0b\xb0&\xd3\x88;\x1d\x99\xd8" +
+	"\x9f\xa6d6\x962\xab/\x1d\x89\x15\xd2kR=\x85" +
+	"\xe2\xa5\x17p\x8f\xdf\xb2\x88\x80h\xc7\x16\x80\xe82\xe4" +
+	"\x18\xedB\x86\x0d\xf8\xb7\xa5H\x88N\\\x0a\x10m#" +
+	"`5\x01\xec\x9e\x15B\x06 \xc2\xb8\x12 \xdaE\xc0" +
+	"Z\x02\xf8]+\x84\x1c@H\xe5\xb1\x9a\x80u\x04x" +
+	"\xeeX!\xf4\x00\x88\xa7\x95\xc7Z\x026\x13Ps\xdb" +
+	"\x0aa\x0d\x80\xd8\x84\x1b\x00\xa2\x1b\x09H\x13P{\xcb" +
+	"\x0aa--\x14n\x01\x88&\x08\xc8\x13\xa0\xfde\x85" +
+	"\xd4V\xf6\xa8PY\x02^$\xc0{\xd3\x0a\xa1\x17@" +
+	"\xf4\xabP\x05\x02v\x12\xe0\xbba\x85\xd0\x07 v(" +
+	"\x8f\x97\x09x\x9d\x80\xba\xebV\x08\xebH\xbf\x14\xf0*" +
+	"\x01o\x11P\xff\xa7\x15\xc2z\x00\xb1G\x85\xdaM\xc0" +
+	"~d\xd8\xd4\x9f3\xf5\x02\xd4\xb6\x9a\xaa\x7f\xd5\x13`" +
+	"\x99\xf6D\x01\x06\x1c}-\xa2E\xb7\xd4$\x13b\x8f" +
+	"\xafr\xab\x9c[B3\xc9h!V\xd0\xbb\x81\xab\x9c" +
+	"\xc7\x92\x1f~\xbeu\xe0\xdaU\x17\x1c\x86\xc6\\\xb2\x97" +
+	"\xe6\xefL\xfd\xdd\xeb-\xdf\xde\xf7]\xd9 \x9d/\xef" +
+	";E\xb7_\x93\x89h\x1exv\x10\x03\x8e\xc0N\x84" +
+	"SEg[\xaam\xf4\x89\xa4\x13\xda\x16\xbb\x89h9" +
+	"\xb4\xad\xb1\xae\xbdp\x0bS\x1cM\xd7jtL\xb6\x1a" +
+	"sK\xab\xb1\x99a\x9015\x91\xc1M\xb4\xb9\xeb8" +
+	"\xca\x04\xc3\xa1\x92@\xb9T\xc9^\xd4\xa9\xc4D\xd3\x0d" +
+	"\x03\xfd\xc0\xd0?\x0d\xc7<\xcf\x0e\x12I\x8fM\xb2\x81" +
+	"\xf8x9\xca\xd9UjUY\xb5\x19S\x09B8a" +
+	"N-\xc7\x8e\x0a-uT\xa8\xc9$/l\x00\x86\x0d" +
+	"\x80\xad\xc9\xfel\xd6\xf9\x9d\x8cy\xb1\x1b\xd33\x8f'" +
+	"S\x15\xcc\xed\x97f*\x09\xed\x8a\xacPU\xc6\x84\x8b" +
+	"|G%yO\x89|\x87C~\xa8w \xa7\x1b\xed" +
+	"\xd1\xb2\\\xd9\xdd\xd2\x80\xa16\x0d\xff\xd2\xb3UA\x7f" +
+	"\x0b\x80\xf4s\x943\x19Z\xf1t,\x97\xd2\x13Qh" +
+	"\xcc\xe4\xe2:z\x81\xa1wJ\xe9\xef\x9b\x9fl$\x91" +
+	"$\xde\x81\x9d\xc5\x09\x9aX\xf5W\x94\x9e\x05\x9b\xbbK" +
+	"\xaf\xe0#T\xf5\xcc\x0bF\x0c\x11\x18\xd2\xeb\x1a\x8f\xc5" +
+	"\xd3\xfaS\xb9,\xe0\xa0}V\xd5\xdf&\xc5\x9dh\xcf" +
+	"\xb4i\xbfO\xc5\xd8\xc7Q\x1er^\xdb\x03t\xb6\x9f" +
+	"\xa3<\\1\xd3\xc3\xf4\x04\x1f\xe2(?b\x18\xe4X" +
+	"dt\x8c,\x0fs\x94\x9f1\x0cz\x98R\xd7\xe0i" +
+	":<\xc9Q~\xcf0X\xc3\x95\xb2\x06\xc77\x00\xc8" +
+	"s\x1c\xe5o\xd3\xad\xc4\xd06\xdd03\xbd9\xbbb" +
+	"\xaa=\xe1\xe8r\xda\xecRK\x86\x06\x8cLA7\xec" +
+	"\xf1\xa0\xce\xcd\x00\x1c2\xf4X\xa2\xfa\xd82\xf4T\xc6" +
+	",\x18\x19\xe0\xba\x1b\xfb'\x00\x00\xff\xff\x16\xfe\x95\x8d"
 
 func init() {
 	schemas.Register(schema_8fcd13516850d142,
@@ -2092,13 +1658,10 @@ func init() {
 		0x9d0135027d04861e,
 		0xa12cfa420c9ad0ca,
 		0xa56b96c8b25ce2e1,
-		0xa7ad0c62a234c68b,
 		0xaaf7fd9241668ed6,
 		0xabf979c3f68dae4b,
 		0xb27bf6e10de2aa8c,
 		0xba21c7133ee44518,
-		0xbd56ceeaf8c65140,
-		0xc88dfa6be7a1d091,
 		0xd24bad15bb2bab5e,
 		0xde94294dfb441b76,
 		0xf307100ab87a1963)

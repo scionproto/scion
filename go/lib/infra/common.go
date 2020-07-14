@@ -132,15 +132,10 @@ const (
 	IfStateInfos
 	IfStateReq
 	Seg
-	SegChangesReq
-	SegChangesReply
-	SegChangesIdReq
-	SegChangesIdReply
 	SegReg
 	SegRequest
 	SegReply
 	SignedRev
-	SegSync
 	ChainRenewalRequest
 	ChainRenewalReply
 	Ack
@@ -171,14 +166,6 @@ func (mt MessageType) String() string {
 		return "IfStateReq"
 	case Seg:
 		return "Seg"
-	case SegChangesReq:
-		return "SegChangesReq"
-	case SegChangesReply:
-		return "SegChangesReply"
-	case SegChangesIdReq:
-		return "SegChangesIdReq"
-	case SegChangesIdReply:
-		return "SegChangesIdReply"
 	case SegReg:
 		return "SegReg"
 	case SegRequest:
@@ -187,8 +174,6 @@ func (mt MessageType) String() string {
 		return "SegReply"
 	case SignedRev:
 		return "SignedRev"
-	case SegSync:
-		return "SegSync"
 	case ChainRenewalRequest:
 		return "ChainRenewalRequest"
 	case ChainRenewalReply:
@@ -232,14 +217,6 @@ func (mt MessageType) MetricLabel() string {
 		return "if_info_req"
 	case Seg:
 		return "pathseg_push"
-	case SegChangesReq:
-		return "seg_changes_req"
-	case SegChangesReply:
-		return "seg_changes_push"
-	case SegChangesIdReq:
-		return "seg_changes_id_req"
-	case SegChangesIdReply:
-		return "seg_changes_id_push"
 	case SegReg:
 		return "seg_reg_push"
 	case SegRequest:
@@ -248,8 +225,6 @@ func (mt MessageType) MetricLabel() string {
 		return "seg_push"
 	case SignedRev:
 		return "revoction_push"
-	case SegSync:
-		return "seg_sync_push"
 	case ChainRenewalRequest:
 		return "chain_issue_req"
 	case ChainRenewalReply:
@@ -336,16 +311,6 @@ type Messenger interface {
 		id uint64) (*path_mgmt.SegReply, error)
 	// SendSegReply sends a reliable path_mgmt.SegReply to address a.
 	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply, a net.Addr, id uint64) error
-	// SendSegSync sends a reliable path_mgmt.SegSync to address a.
-	SendSegSync(ctx context.Context, msg *path_mgmt.SegSync, a net.Addr, id uint64) error
-	GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
-		a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error)
-	SendSegChangesIdReply(ctx context.Context,
-		msg *path_mgmt.SegChangesIdReply, a net.Addr, id uint64) error
-	GetSegChanges(ctx context.Context, msg *path_mgmt.SegChangesReq,
-		a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error)
-	SendSegChangesReply(ctx context.Context,
-		msg *path_mgmt.SegChangesReply, a net.Addr, id uint64) error
 	SendHPSegReg(ctx context.Context, msg *path_mgmt.HPSegReg, a net.Addr, id uint64) error
 	GetHPSegs(ctx context.Context, msg *path_mgmt.HPSegReq, a net.Addr,
 		id uint64) (*path_mgmt.HPSegReply, error)

@@ -49,118 +49,106 @@ func TestRequestSplitter(t *testing.T) {
 	).AnyTimes()
 	tests := map[string]struct {
 		LocalIA        addr.IA
-		Request        segfetcher.Request
-		ExpectedSet    segfetcher.RequestSet
+		Dst            addr.IA
+		ExpectedSet    segfetcher.Requests
 		ExpectedErrMsg string
 	}{
 		"Up": {
 			LocalIA: non_core_111,
-			Request: segfetcher.Request{Src: non_core_111, Dst: core_110},
-			ExpectedSet: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1},
-				Cores: []segfetcher.Request{{Src: isd1, Dst: core_110}},
+			Dst:     core_110,
+			ExpectedSet: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
+				segfetcher.Request{SegType: Core, Src: isd1, Dst: core_110},
 			},
 		},
 		"Up wildcard": {
 			LocalIA: non_core_111,
-			Request: segfetcher.Request{Src: non_core_111, Dst: isd1},
-			ExpectedSet: segfetcher.RequestSet{
-				Up: segfetcher.Request{Src: non_core_111, Dst: isd1},
+			Dst:     isd1,
+			ExpectedSet: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
 			},
 		},
 		"Up core non-local": {
 			LocalIA: non_core_111,
-			Request: segfetcher.Request{Src: non_core_111, Dst: core_210},
-			ExpectedSet: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1},
-				Cores: []segfetcher.Request{{Src: isd1, Dst: core_210}},
+			Dst:     core_210,
+			ExpectedSet: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
+				segfetcher.Request{SegType: Core, Src: isd1, Dst: core_210},
 			},
 		},
 		"Up Core non-local wildcard": {
 			LocalIA: non_core_111,
-			Request: segfetcher.Request{Src: non_core_111, Dst: isd2},
-			ExpectedSet: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1},
-				Cores: []segfetcher.Request{{Src: isd1, Dst: isd2}},
+			Dst:     isd2,
+			ExpectedSet: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
+				segfetcher.Request{SegType: Core, Src: isd1, Dst: isd2},
 			},
 		},
 		"Down local": {
 			LocalIA: core_110,
-			Request: segfetcher.Request{Dst: non_core_111},
-			ExpectedSet: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{{Src: core_110, Dst: isd1}},
-				Down:  segfetcher.Request{Src: isd1, Dst: non_core_111},
+			Dst:     non_core_111,
+			ExpectedSet: segfetcher.Requests{
+				segfetcher.Request{SegType: Core, Src: core_110, Dst: isd1},
+				segfetcher.Request{SegType: Down, Src: isd1, Dst: non_core_111},
 			},
 		},
 		"Down non-local": {
 			LocalIA: core_110,
-			Request: segfetcher.Request{Dst: non_core_211},
-			ExpectedSet: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{{Src: core_110, Dst: isd2}},
-				Down:  segfetcher.Request{Src: isd2, Dst: non_core_211},
+			Dst:     non_core_211,
+			ExpectedSet: segfetcher.Requests{
+				segfetcher.Request{SegType: Core, Src: core_110, Dst: isd2},
+				segfetcher.Request{SegType: Down, Src: isd2, Dst: non_core_211},
 			},
 		},
 		"Core local": {
 			LocalIA: core_110,
-			Request: segfetcher.Request{Dst: core_130},
-			ExpectedSet: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{{Src: core_110, Dst: core_130}},
+			Dst:     core_130,
+			ExpectedSet: segfetcher.Requests{
+				segfetcher.Request{SegType: Core, Src: core_110, Dst: core_130},
 			},
 		},
 		"Core non-local": {
 			LocalIA: core_110,
-			Request: segfetcher.Request{Dst: core_210},
-			ExpectedSet: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{{Src: core_110, Dst: core_210}},
+			Dst:     core_210,
+			ExpectedSet: segfetcher.Requests{
+				segfetcher.Request{SegType: Core, Src: core_110, Dst: core_210},
 			},
 		},
 		"Core non-local wildcard": {
 			LocalIA: core_110,
-			Request: segfetcher.Request{Dst: isd2},
-			ExpectedSet: segfetcher.RequestSet{
-				Cores: []segfetcher.Request{{Src: core_110, Dst: isd2}},
+			Dst:     isd2,
+			ExpectedSet: segfetcher.Requests{
+				segfetcher.Request{SegType: Core, Src: core_110, Dst: isd2},
 			},
 		},
 		"Up down local": {
 			LocalIA: non_core_111,
-			Request: segfetcher.Request{Src: non_core_111, Dst: non_core_112},
-			ExpectedSet: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1},
-				Cores: []segfetcher.Request{{Src: isd1, Dst: isd1}},
-				Down:  segfetcher.Request{Src: isd1, Dst: non_core_112},
+			Dst:     non_core_112,
+			ExpectedSet: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
+				segfetcher.Request{SegType: Core, Src: isd1, Dst: isd1},
+				segfetcher.Request{SegType: Down, Src: isd1, Dst: non_core_112},
 			},
 		},
 		"Up down non-local": {
 			LocalIA: non_core_111,
-			Request: segfetcher.Request{Src: non_core_111, Dst: non_core_211},
-			ExpectedSet: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1},
-				Cores: []segfetcher.Request{{Src: isd1, Dst: isd2}},
-				Down:  segfetcher.Request{Src: isd2, Dst: non_core_211},
-			},
-		},
-		"Up down non-local passes state": {
-			LocalIA: non_core_111,
-			Request: segfetcher.Request{
-				State: segfetcher.Fetch,
-				Src:   non_core_111,
-				Dst:   non_core_211,
-			},
-			ExpectedSet: segfetcher.RequestSet{
-				Up:    segfetcher.Request{Src: non_core_111, Dst: isd1},
-				Cores: []segfetcher.Request{{Src: isd1, Dst: isd2}},
-				Down:  segfetcher.Request{Src: isd2, Dst: non_core_211},
-				Fetch: true,
+			Dst:     non_core_211,
+			ExpectedSet: segfetcher.Requests{
+				segfetcher.Request{SegType: Up, Src: non_core_111, Dst: isd1},
+				segfetcher.Request{SegType: Core, Src: isd1, Dst: isd2},
+				segfetcher.Request{SegType: Down, Src: isd2, Dst: non_core_211},
 			},
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			_, core := cores[test.LocalIA]
 			splitter := segfetcher.MultiSegmentSplitter{
-				Local:     test.LocalIA,
+				LocalIA:   test.LocalIA,
 				Inspector: inspector,
+				Core:      core,
 			}
-			requests, err := splitter.Split(context.Background(), test.Request)
+			requests, err := splitter.Split(context.Background(), test.Dst)
 			if test.ExpectedErrMsg != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), test.ExpectedErrMsg)

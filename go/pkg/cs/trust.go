@@ -19,19 +19,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/scionproto/scion/go/cs/metrics"
-	"github.com/scionproto/scion/go/cs/segreq"
-	"github.com/scionproto/scion/go/cs/segutil"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathdb"
-	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/snet"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/pkg/trust/compat"
 	"github.com/scionproto/scion/go/pkg/trust/renewal"
 )
 
@@ -61,33 +54,13 @@ func LoadTrustMaterial(configDir string, db trust.DB, logger log.Logger) error {
 // TrustProviderConfig configures how the trust provider is created.
 type TrustProviderConfig struct {
 	IA       addr.IA
-	PathDB   pathdb.PathDB
-	RevCache revcache.RevCache
 	TrustDB  trust.DB
-	RPC      interface {
-		trust.RPC
-		segfetcher.RequestAPI
-	}
-	Pather        segreq.Pather
-	Inspector     trust.Inspector
-	Provider      topology.Provider
-	DstProvider   segfetcher.DstProvider
-	QueryInterval time.Duration
-	Core          bool
-	HeaderV2      bool
+	RPC      trust.RPC
+	HeaderV2 bool
 }
 
 // NewTrustProvider creates a trust material provider that uses paths from the path storage.
 func NewTrustProvider(cfg TrustProviderConfig) trust.FetchingProvider {
-	trustRouter := &segutil.Router{
-		Pather: segfetcher.Pather{
-			PathDB:       cfg.PathDB,
-			RevCache:     cfg.RevCache,
-			TopoProvider: cfg.Provider,
-			HeaderV2:     cfg.HeaderV2,
-			// Fetcher needs to be initialized with a provider.
-		},
-	}
 	provider := trust.FetchingProvider{
 		DB: cfg.TrustDB,
 		Fetcher: trust.DefaultFetcher{
@@ -95,28 +68,19 @@ func NewTrustProvider(cfg TrustProviderConfig) trust.FetchingProvider {
 			IA:  cfg.IA,
 		},
 		Recurser: trust.ASLocalRecurser{IA: cfg.IA},
-		Router: trust.AuthRouter{
-			ISD:    cfg.IA.I,
-			DB:     cfg.TrustDB,
-			Router: trustRouter,
-		},
 	}
-	trustRouter.Pather.Fetcher = segfetcher.FetcherConfig{
-		QueryInterval: cfg.QueryInterval,
-		LocalIA:       cfg.IA,
-		Verifier:      compat.Verifier{Verifier: trust.Verifier{Engine: provider}},
-		PathDB:        cfg.PathDB,
-		RevCache:      cfg.RevCache,
-		RequestAPI:    cfg.RPC,
-		DstProvider:   cfg.DstProvider,
-		Splitter: &segfetcher.MultiSegmentSplitter{
-			Local:     cfg.IA,
-			Inspector: cfg.Inspector,
-		},
-		MetricsNamespace: metrics.PSNamespace,
-		LocalInfo:        segreq.CreateLocalInfo(cfg.Core, cfg.IA, cfg.Inspector),
-	}.New()
 	return provider
+}
+
+// SetTrustRouter initializes the Router of the FetchingProvider.
+// This is separate from NewTrustProvider due to the mutual dependence of
+// the provider and the router.
+func SetTrustRouter(provider *trust.FetchingProvider, router snet.Router) {
+	provider.Router = trust.AuthRouter{
+		ISD:    provider.Fetcher.(trust.DefaultFetcher).IA.I,
+		DB:     provider.DB,
+		Router: router,
+	}
 }
 
 // NewSigner creates a renewing signer backed by a certificate chain..
