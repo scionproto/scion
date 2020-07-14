@@ -263,7 +263,7 @@ func (s *DefaultExtender) createHopEntries(ingress, egress common.IFIDType, peer
 	thisBeta := beta ^ binary.BigEndian.Uint16(hopEntry.HopField.MAC[:2])
 	hopEntries := []*seg.HopEntry{hopEntry}
 	for _, peer := range peers {
-		peerEntry, err := s.createHopEntry(peer, egress, ts, thisBeta)
+		peerEntry, err := s.createPeerEntry(peer, egress, ts, thisBeta)
 		if err != nil {
 			log.Debug("Ignoring peer link upon error", "task", s.Task, "ifid", peer, "err", err)
 			continue
@@ -276,11 +276,43 @@ func (s *DefaultExtender) createHopEntries(ingress, egress common.IFIDType, peer
 func (s *DefaultExtender) createHopEntry(ingress, egress common.IFIDType, ts time.Time,
 	beta uint16) (*seg.HopEntry, error) {
 
+	remoteInIA, err := s.remoteIA(ingress)
+	if err != nil {
+		return nil, serrors.WrapStr("checking remote ingress interface", err, "ifid", ingress)
+	}
+	remoteInMTU, err := s.remoteMTU(ingress)
+	if err != nil {
+		return nil, serrors.WrapStr("checking remote ingress interface (mtu)", err, "ifid", ingress)
+	}
+	remoteOutIA, err := s.remoteIA(egress)
+	if err != nil {
+		return nil, serrors.WrapStr("checking remote egress interface", err, "ifid", egress)
+	}
+	hopF := s.createHopF(uint16(ingress), uint16(egress), ts, beta)
+	hop := &seg.HopEntry{
+		RawInIA:     remoteInIA,
+		RemoteInIF:  0,
+		InMTU:       uint16(remoteInMTU),
+		RawOutIA:    remoteOutIA,
+		RemoteOutIF: 0,
+		HopField: seg.HopField{
+			ConsIngress: hopF.ConsIngress,
+			ConsEgress:  hopF.ConsEgress,
+			ExpTime:     hopF.ExpTime,
+			MAC:         hopF.Mac,
+		},
+	}
+	return hop, nil
+}
+
+func (s *DefaultExtender) createPeerEntry(ingress, egress common.IFIDType, ts time.Time,
+	beta uint16) (*seg.HopEntry, error) {
+
 	remoteInIA, remoteInIfID, remoteInMTU, err := s.remoteInfo(ingress)
 	if err != nil {
 		return nil, serrors.WrapStr("checking remote ingress interface", err, "ifid", ingress)
 	}
-	remoteOutIA, remoteOutIfid, _, err := s.remoteInfo(egress)
+	remoteOutIA, err := s.remoteIA(egress)
 	if err != nil {
 		return nil, serrors.WrapStr("checking remote egress interface", err, "ifid", egress)
 	}
@@ -290,7 +322,7 @@ func (s *DefaultExtender) createHopEntry(ingress, egress common.IFIDType, ts tim
 		RemoteInIF:  remoteInIfID,
 		InMTU:       uint16(remoteInMTU),
 		RawOutIA:    remoteOutIA,
-		RemoteOutIF: remoteOutIfid,
+		RemoteOutIF: 0,
 		HopField: seg.HopField{
 			ConsIngress: hopF.ConsIngress,
 			ConsEgress:  hopF.ConsEgress,
@@ -299,6 +331,33 @@ func (s *DefaultExtender) createHopEntry(ingress, egress common.IFIDType, ts tim
 		},
 	}
 	return hop, nil
+}
+
+func (s *DefaultExtender) remoteIA(ifID common.IFIDType) (addr.IAInt, error) {
+	if ifID == 0 {
+		return 0, nil
+	}
+	intf := s.Intfs.Get(ifID)
+	if intf == nil {
+		return 0, serrors.New("interface not found")
+	}
+	topoInfo := intf.TopoInfo()
+	if topoInfo.IA.IsWildcard() {
+		return 0, serrors.New("remote is wildcard", "isd_as", topoInfo.IA)
+	}
+	return topoInfo.IA.IAInt(), nil
+}
+
+func (s *DefaultExtender) remoteMTU(ifID common.IFIDType) (uint16, error) {
+	if ifID == 0 {
+		return 0, nil
+	}
+	intf := s.Intfs.Get(ifID)
+	if intf == nil {
+		return 0, serrors.New("interface not found")
+	}
+	topoInfo := intf.TopoInfo()
+	return uint16(topoInfo.MTU), nil
 }
 
 func (s *DefaultExtender) remoteInfo(ifid common.IFIDType) (

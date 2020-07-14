@@ -187,10 +187,6 @@ func (h *handler) validateASEntry(b beacon.Beacon) error {
 			return common.NewBasicError("Out IA of hop entry does not match local IA", nil,
 				"index", i, "expected", h.ia, "actual", hopEntry.OutIA())
 		}
-		if hopEntry.RemoteOutIF != b.InIfId {
-			return common.NewBasicError("RemoteOutIF of hop entry does not match ingress interface",
-				nil, "expected", b.InIfId, "actual", hopEntry.RemoteOutIF)
-		}
 	}
 	return nil
 }

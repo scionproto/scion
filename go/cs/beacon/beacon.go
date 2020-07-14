@@ -56,7 +56,7 @@ func (b Beacon) Diversity(other Beacon) int {
 }
 
 func link(entry *seg.ASEntry) (addr.IA, common.IFIDType) {
-	return entry.IA(), entry.HopEntries[0].RemoteOutIF
+	return entry.IA(), common.IFIDType(entry.HopEntries[0].HopField.ConsIngress)
 }
 
 // BeaconOrErr contains a read-only beacon or an error.
