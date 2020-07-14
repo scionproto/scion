@@ -119,7 +119,6 @@ func (f *Fetcher) Request(ctx context.Context, reqs Requests) (Segments, error) 
 	// revocations. See also: https://github.com/scionproto/scion/issues/3052
 	reqCtx, cancelF := context.WithTimeout(ctx, 3*time.Second)
 	defer cancelF()
-	reqCtx = log.CtxWith(reqCtx, log.FromCtx(ctx))
 	replies := f.Requester.Request(reqCtx, reqs)
 	return f.waitOnProcessed(ctx, replies)
 }
