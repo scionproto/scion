@@ -153,7 +153,6 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 	dst := req.Src
 
 	var path snet.Path
-	var err error
 	switch req.SegType {
 	case proto.PathSegType_core:
 		// fast/simple path for core segment requests (only up segment required).
@@ -162,21 +161,23 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 		// the router translates a path lookup to a core to the wildcard segment
 		// requests (up localIA->*) and (core *->dst). Looking up the core segment
 		// would then lead to an infinite recursion.
-		path, err = p.upPath(ctx, dst)
+		up, err := p.upPath(ctx, dst)
+		if err != nil {
+			return nil, serrors.Wrap(segfetcher.ErrNotReachable, err)
+		}
+		path = up
 	case proto.PathSegType_down:
 		// Select a random path (just like we choose a random segment above)
 		// Avoids potentially being stuck with a broken but not revoked path;
 		// allows clients to retry with possibly different path in case of failure.
 		paths, err := p.router.AllRoutes(ctx, dst)
-		if err == nil {
-			path = paths[rand.Intn(len(paths))]
+		if err != nil {
+			return nil, serrors.Wrap(segfetcher.ErrNotReachable, err)
 		}
+		path = paths[rand.Intn(len(paths))]
 	default:
 		panic(fmt.Errorf("Unsupported segment type for request forwarding. "+
 			"Up segment should have been resolved locally. SegType: %s", req.SegType))
-	}
-	if err != nil {
-		return nil, serrors.Wrap(segfetcher.ErrNotReachable, err)
 	}
 	addr := &snet.SVCAddr{
 		IA:      path.Destination(),
