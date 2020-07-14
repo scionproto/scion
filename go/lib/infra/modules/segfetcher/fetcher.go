@@ -37,9 +37,8 @@ const (
 
 // errors for metrics classification.
 var (
-	errValidate = serrors.New("request validation failed")
-	errFetch    = serrors.New("fetching failed")
-	errDB       = serrors.New("error with the db")
+	errFetch = serrors.New("fetching failed")
+	errDB    = serrors.New("error with the db")
 )
 
 // ReplyHandler handles replies.
@@ -99,7 +98,7 @@ func (f *Fetcher) Fetch(ctx context.Context, reqs Requests, refresh bool) (Segme
 	// Load local and cached segments from DB
 	loadedSegs, fetchReqs, err := f.Resolver.Resolve(ctx, reqs, refresh)
 	if err != nil {
-		return Segments{}, serrors.WrapStr("failed to resolve request set", err)
+		return Segments{}, serrors.Wrap(errDB, err)
 	}
 	if len(fetchReqs) == 0 {
 		return loadedSegs, nil
@@ -107,7 +106,7 @@ func (f *Fetcher) Fetch(ctx context.Context, reqs Requests, refresh bool) (Segme
 	// Forward and cache any requests that were not local / cached
 	fetchedSegs, err := f.Request(ctx, fetchReqs)
 	if err != nil {
-		return Segments{}, serrors.WrapStr("failed to forward requests", err)
+		return Segments{}, serrors.Wrap(errFetch, err)
 	}
 	return append(loadedSegs, fetchedSegs...), nil
 }

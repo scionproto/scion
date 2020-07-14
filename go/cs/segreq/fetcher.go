@@ -168,7 +168,7 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 			"Up segment should have been resolved locally. SegType: %s", req.SegType))
 	}
 	if err != nil {
-		return nil, err
+		return nil, segfetcher.ErrNotReachable
 	}
 	addr := &snet.SVCAddr{
 		IA:      path.Destination(),
