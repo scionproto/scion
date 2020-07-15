@@ -19,6 +19,8 @@ import (
 	"net"
 	"sync"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
@@ -65,15 +67,24 @@ func (r *DefaultRequester) Request(ctx context.Context, reqs Requests) <-chan Re
 	var wg sync.WaitGroup
 	for i := range reqs {
 		req := reqs[i]
-		dst, err := r.DstProvider.Dst(ctx, req)
-		if err != nil {
-			replies <- ReplyOrErr{Req: req, Err: err}
-			continue
-		}
+		span, ctx := opentracing.StartSpanFromContext(ctx, "segfetcher.requester",
+			opentracing.Tags{
+				"req.src":      req.Src.String(),
+				"req.dst":      req.Dst.String(),
+				"req.seg_type": req.SegType.String(),
+			},
+		)
 		wg.Add(1)
 		go func() {
 			defer log.HandlePanic()
 			defer wg.Done()
+			defer span.Finish()
+
+			dst, err := r.DstProvider.Dst(ctx, req)
+			if err != nil {
+				replies <- ReplyOrErr{Req: req, Err: err}
+				return
+			}
 			reply, err := r.API.GetSegs(ctx, req.ToSegReq(), dst, messenger.NextId())
 			replies <- ReplyOrErr{Req: req, Reply: reply, Peer: dst, Err: err}
 		}()
