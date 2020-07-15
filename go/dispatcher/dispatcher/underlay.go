@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +17,8 @@ package dispatcher
 
 import (
 	"net"
+
+	"github.com/google/gopacket"
 
 	"github.com/scionproto/scion/go/dispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/dispatcher/internal/respool"
@@ -108,7 +111,7 @@ func getDst(pkt *respool.Packet) (Destination, error) {
 	case slayers.LayerTypeSCIONUDP:
 		return getDstUDP(pkt)
 	case slayers.LayerTypeSCMP:
-		return nil, serrors.New("SCMP not supported")
+		return getDstSCMP(pkt)
 	default:
 		return nil, serrors.WithCtx(ErrUnsupportedL4, "type", pkt.L4)
 	}
@@ -136,6 +139,29 @@ func getDstUDP(pkt *respool.Packet) (Destination, error) {
 	default:
 		return nil, serrors.WithCtx(ErrUnsupportedDestination, "type", common.TypeOf(dst))
 	}
+}
+
+func getDstSCMP(pkt *respool.Packet) (Destination, error) {
+	if !pkt.SCMP.TypeCode.InfoMsg() {
+		// TODO(roosd): Implement SCMP error message handling.
+		return nil, serrors.New("not implemented")
+	}
+	return getDstSCMPInfo(pkt)
+}
+
+func getDstSCMPInfo(pkt *respool.Packet) (Destination, error) {
+	t := pkt.SCMP.TypeCode.Type()
+	if t == slayers.SCMPTypeEchoRequest || t == slayers.SCMPTypeTracerouteRequest {
+		return SCMPHandler{}, nil
+	}
+	if t == slayers.SCMPTypeEchoReply || t == slayers.SCMPTypeTracerouteReply {
+		id, err := extractSCMPIdentifier(&pkt.SCMP)
+		if err != nil {
+			return nil, err
+		}
+		return SCMPDestination{IA: pkt.SCION.DstIA, ID: id}, nil
+	}
+	return nil, serrors.New("unsupported SCMP info message", "type", t)
 }
 
 // UDPDestination delivers packets to the app that registered for the configured
@@ -179,6 +205,132 @@ func (d SVCDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 		metrics.M.AppWriteSVCPkts(metrics.SVC{Type: d.Svc.String()}).Inc()
 		sendPacket(routingEntry, pkt)
 	}
+}
+
+type SCMPDestination struct {
+	IA addr.IA
+	ID uint16
+}
+
+func (d SCMPDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
+	routingEntry, ok := dp.RoutingTable.LookupID(d.IA, uint64(d.ID))
+	if !ok {
+		metrics.M.AppNotFoundErrors().Inc()
+		log.Debug("destination address not found", "SCMP", d.ID)
+		return
+	}
+	sendPacket(routingEntry, pkt)
+}
+
+// SCMPHandler replies to SCMP echo and traceroute requests.
+type SCMPHandler struct{}
+
+func (h SCMPHandler) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
+	// FIXME(roosd): introduce metrics again.
+	raw, err := h.reverse(pkt)
+	if err != nil {
+		log.Info("Failed to reverse SCMP packet, dropping", "err", err)
+		return
+	}
+	_, err = dp.UnderlayConn.WriteTo(raw, pkt.UnderlayRemote)
+	if err != nil {
+		log.Info("Unable to write to underlay socket", "err", err)
+		return
+	}
+	pkt.Free()
+}
+
+func (h SCMPHandler) reverse(pkt *respool.Packet) ([]byte, error) {
+	l, err := decodeSCMP(&pkt.SCMP)
+	if err != nil {
+		return nil, err
+	}
+	// Translate request to a reply.
+	switch l[0].LayerType() {
+	case slayers.LayerTypeSCMPEcho:
+		pkt.SCMP.TypeCode = slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoReply, 0)
+	case slayers.LayerTypeSCMPTraceroute:
+		pkt.SCMP.TypeCode = slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0)
+	default:
+		return nil, serrors.New("unsupported SCMP informational message")
+	}
+	if err := h.reverseSCION(pkt); err != nil {
+		return nil, err
+	}
+	// FIXME(roosd): Consider moving this to a resource pool.
+	buf := gopacket.NewSerializeBuffer()
+	if err := pkt.SCMP.SetNetworkLayerForChecksum(&pkt.SCION); err != nil {
+		return nil, err
+	}
+	err = gopacket.SerializeLayers(
+		buf,
+		gopacket.SerializeOptions{
+			ComputeChecksums: true,
+			FixLengths:       true,
+		},
+		append([]gopacket.SerializableLayer{&pkt.SCION, &pkt.SCMP}, l...)...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (h SCMPHandler) reverseSCION(pkt *respool.Packet) error {
+	// Reverse the SCION packet.
+	pkt.SCION.DstIA, pkt.SCION.SrcIA = pkt.SCION.SrcIA, pkt.SCION.DstIA
+	src, err := pkt.SCION.SrcAddr()
+	if err != nil {
+		return serrors.WrapStr("parsing source address", err)
+	}
+	dst, err := pkt.SCION.DstAddr()
+	if err != nil {
+		return serrors.WrapStr("parsing destination address", err)
+	}
+	if err := pkt.SCION.SetSrcAddr(dst); err != nil {
+		return serrors.WrapStr("setting source address", err)
+	}
+	if err := pkt.SCION.SetDstAddr(src); err != nil {
+		return serrors.WrapStr("setting destination address", err)
+	}
+	if err := pkt.SCION.Path.Reverse(); err != nil {
+		return serrors.WrapStr("reversing path", err)
+	}
+	return nil
+}
+
+func extractSCMPIdentifier(scmp *slayers.SCMP) (uint16, error) {
+	l, err := decodeSCMP(scmp)
+	if err != nil {
+		return 0, err
+	}
+	switch info := l[0].(type) {
+	case *slayers.SCMPEcho:
+		return info.Identifier, nil
+	case *slayers.SCMPTraceroute:
+		return info.Identifier, nil
+	default:
+		return 0, serrors.New("invalid SCMP info message", "type_code", scmp.TypeCode)
+	}
+}
+
+// decodeSCMP decodes the SCMP payload. WARNING: Decoding is done with NoCopy set.
+func decodeSCMP(scmp *slayers.SCMP) ([]gopacket.SerializableLayer, error) {
+	gpkt := gopacket.NewPacket(scmp.Payload, scmp.NextLayerType(),
+		gopacket.DecodeOptions{NoCopy: true})
+	layers := gpkt.Layers()
+	if len(layers) == 0 || len(layers) > 2 {
+		return nil, serrors.New("invalid number of SCMP layers", "count", len(layers))
+	}
+	ret := make([]gopacket.SerializableLayer, len(layers))
+	for i, l := range layers {
+		s, ok := l.(gopacket.SerializableLayer)
+		if !ok {
+			return nil, serrors.New("invalid SCMP layer, not serializable", "index", i)
+		}
+		ret[i] = s
+	}
+	return ret, nil
 }
 
 func ComputeDestination(packet *spkt.ScnPkt) (Destination, error) {

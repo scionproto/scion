@@ -88,6 +88,11 @@ func (a SCMPTypeCode) Code() uint8 {
 	return uint8(a)
 }
 
+// InfoMsg indicates if the SCMP message is an SCMP informational message.
+func (a SCMPTypeCode) InfoMsg() bool {
+	return a.Type() > 127
+}
+
 func (a SCMPTypeCode) String() string {
 	t, c := a.Type(), a.Code()
 	info, ok := scmpTypeCodeInfo[t]

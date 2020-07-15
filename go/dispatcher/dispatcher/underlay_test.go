@@ -1,4 +1,5 @@
 // Copyright 2019 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,10 +16,12 @@
 package dispatcher
 
 import (
+	"bytes"
 	"net"
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,6 +33,8 @@ import (
 	"github.com/scionproto/scion/go/lib/l4/mock_l4"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -93,12 +98,388 @@ func TestGetDst(t *testing.T) {
 				Svc: addr.SvcCS,
 			},
 		},
+		"SCMP/SCION EchoRequest, is sent to SCMP handler": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPEcho{
+						Identifier: 42,
+						SeqNumber:  13,
+					},
+				)
+				require.NoError(t, err)
+				pkt := &respool.Packet{
+					SCION: slayers.SCION{
+						DstIA: xtest.MustParseIA("1-ff00:0:110"),
+					},
+					SCMP: slayers.SCMP{
+						TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
+						BaseLayer: layers.BaseLayer{
+							Payload: buf.Bytes(),
+						},
+					},
+					L4: slayers.LayerTypeSCMP,
+				}
+				return pkt
+			},
+			ExpectedDst: SCMPHandler{},
+		},
+		"SCMP/SCION EchoReply, is sent to SCMP destination": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPEcho{
+						Identifier: 42,
+						SeqNumber:  13,
+					},
+				)
+				require.NoError(t, err)
+				pkt := &respool.Packet{
+					SCION: slayers.SCION{
+						DstIA: xtest.MustParseIA("1-ff00:0:110"),
+					},
+					SCMP: slayers.SCMP{
+						TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoReply, 0),
+						BaseLayer: layers.BaseLayer{
+							Payload: buf.Bytes(),
+						},
+					},
+					L4: slayers.LayerTypeSCMP,
+				}
+				return pkt
+			},
+			ExpectedDst: SCMPDestination{
+				IA: xtest.MustParseIA("1-ff00:0:110"),
+				ID: 42,
+			},
+		},
+		"SCMP/SCION TracerouteRequest, is sent to SCMP handler": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPTraceroute{
+						Identifier: 42,
+					},
+				)
+				require.NoError(t, err)
+				pkt := &respool.Packet{
+					SCION: slayers.SCION{
+						DstIA: xtest.MustParseIA("1-ff00:0:110"),
+					},
+					SCMP: slayers.SCMP{
+						TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0),
+						BaseLayer: layers.BaseLayer{
+							Payload: buf.Bytes(),
+						},
+					},
+					L4: slayers.LayerTypeSCMP,
+				}
+				return pkt
+			},
+			ExpectedDst: SCMPHandler{},
+		},
+		"SCMP/SCION TracerouteReply, is sent to SCMP destination": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPTraceroute{
+						Identifier: 42,
+					},
+				)
+				require.NoError(t, err)
+				pkt := &respool.Packet{
+					SCION: slayers.SCION{
+						DstIA: xtest.MustParseIA("1-ff00:0:110"),
+					},
+					SCMP: slayers.SCMP{
+						TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
+						BaseLayer: layers.BaseLayer{
+							Payload: buf.Bytes(),
+						},
+					},
+					L4: slayers.LayerTypeSCMP,
+				}
+				return pkt
+			},
+			ExpectedDst: SCMPDestination{
+				IA: xtest.MustParseIA("1-ff00:0:110"),
+				ID: 42,
+			},
+		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			destination, err := getDst(tc.Pkt(t))
 			xtest.AssertErrorsIs(t, err, tc.ExpectedErr)
 			assert.Equal(t, tc.ExpectedDst, destination)
+		})
+	}
+}
+
+func TestSCMPHandlerReverse(t *testing.T) {
+	testCases := map[string]struct {
+		L4               func(t *testing.T) slayers.SCMP
+		ExpectedTypeCode slayers.SCMPTypeCode
+		ExpectedL4       func(t *testing.T) []gopacket.SerializableLayer
+	}{
+		"echo without data": {
+			L4: func(t *testing.T) slayers.SCMP {
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPEcho{
+						Identifier: 42,
+						SeqNumber:  12,
+					},
+				)
+				require.NoError(t, err)
+				return slayers.SCMP{
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
+					Checksum: 1337,
+					BaseLayer: layers.BaseLayer{
+						Payload: buf.Bytes(),
+					},
+				}
+			},
+			ExpectedTypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoReply, 0),
+			ExpectedL4: func(t *testing.T) []gopacket.SerializableLayer {
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPEcho{
+						Identifier: 42,
+						SeqNumber:  12,
+					},
+				)
+				require.NoError(t, err)
+				pkt := gopacket.NewPacket(buf.Bytes(), slayers.LayerTypeSCMPEcho,
+					gopacket.DecodeOptions{})
+				echo := pkt.Layer(slayers.LayerTypeSCMPEcho)
+				require.NotNil(t, echo)
+				return []gopacket.SerializableLayer{echo.(gopacket.SerializableLayer)}
+			},
+		},
+		"echo with data": {
+			L4: func(t *testing.T) slayers.SCMP {
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPEcho{
+						Identifier: 42,
+						SeqNumber:  12,
+					},
+					gopacket.Payload("I am the payload, please don't forget about me :)"),
+				)
+				require.NoError(t, err)
+				return slayers.SCMP{
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
+					Checksum: 1337,
+					BaseLayer: layers.BaseLayer{
+						Payload: buf.Bytes(),
+					},
+				}
+			},
+			ExpectedTypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoReply, 0),
+			ExpectedL4: func(t *testing.T) []gopacket.SerializableLayer {
+				pld := gopacket.Payload("I am the payload, please don't forget about me :)")
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPEcho{
+						Identifier: 42,
+						SeqNumber:  12,
+					},
+					pld,
+				)
+				require.NoError(t, err)
+				pkt := gopacket.NewPacket(buf.Bytes(), slayers.LayerTypeSCMPEcho,
+					gopacket.DecodeOptions{})
+				echo := pkt.Layer(slayers.LayerTypeSCMPEcho)
+				require.NotNil(t, echo)
+				return []gopacket.SerializableLayer{echo.(gopacket.SerializableLayer), &pld}
+			},
+		},
+		"traceroute without data": {
+			L4: func(t *testing.T) slayers.SCMP {
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPTraceroute{
+						Identifier: 42,
+						IA:         xtest.MustParseIA("1-ff00:0:110"),
+						Interface:  12,
+					},
+				)
+				require.NoError(t, err)
+				return slayers.SCMP{
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0),
+					Checksum: 1337,
+					BaseLayer: layers.BaseLayer{
+						Payload: buf.Bytes(),
+					},
+				}
+			},
+			ExpectedTypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
+			ExpectedL4: func(t *testing.T) []gopacket.SerializableLayer {
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPTraceroute{
+						Identifier: 42,
+						IA:         xtest.MustParseIA("1-ff00:0:110"),
+						Interface:  12,
+					},
+				)
+				require.NoError(t, err)
+				pkt := gopacket.NewPacket(buf.Bytes(), slayers.LayerTypeSCMPTraceroute,
+					gopacket.DecodeOptions{})
+				tr := pkt.Layer(slayers.LayerTypeSCMPTraceroute)
+				require.NotNil(t, tr)
+				return []gopacket.SerializableLayer{tr.(gopacket.SerializableLayer)}
+			},
+		},
+		"traceroute with data": {
+			L4: func(t *testing.T) slayers.SCMP {
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPTraceroute{
+						Identifier: 42,
+						IA:         xtest.MustParseIA("1-ff00:0:110"),
+						Interface:  12,
+					},
+					gopacket.Payload("I am the payload, please don't forget about me :)"),
+				)
+				require.NoError(t, err)
+				return slayers.SCMP{
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0),
+					Checksum: 1337,
+					BaseLayer: layers.BaseLayer{
+						Payload: buf.Bytes(),
+					},
+				}
+			},
+			ExpectedTypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
+			ExpectedL4: func(t *testing.T) []gopacket.SerializableLayer {
+				pld := gopacket.Payload("I am the payload, please don't forget about me :)")
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPTraceroute{
+						Identifier: 42,
+						IA:         xtest.MustParseIA("1-ff00:0:110"),
+						Interface:  12,
+					},
+					pld,
+				)
+				require.NoError(t, err)
+				pkt := gopacket.NewPacket(buf.Bytes(), slayers.LayerTypeSCMPTraceroute,
+					gopacket.DecodeOptions{})
+				tr := pkt.Layer(slayers.LayerTypeSCMPTraceroute)
+				require.NotNil(t, tr)
+				return []gopacket.SerializableLayer{tr.(gopacket.SerializableLayer), &pld}
+			},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			// Prepare original packet
+			pkt := &respool.Packet{
+				SCION: slayers.SCION{
+					Version:      0,
+					TrafficClass: 0xb8,
+					FlowID:       0xdead,
+					NextHdr:      common.L4SCMP,
+					PathType:     slayers.PathTypeSCION,
+					SrcIA:        xtest.MustParseIA("1-ff00:0:110"),
+					DstIA:        xtest.MustParseIA("1-ff00:0:112"),
+					Path: &scion.Decoded{
+						Base: scion.Base{
+							PathMeta: scion.MetaHdr{
+								CurrHF: 2,
+								SegLen: [3]uint8{3, 0, 0},
+							},
+							NumINF:  1,
+							NumHops: 3,
+						},
+						InfoFields: []*path.InfoField{
+							{SegID: 0x111, ConsDir: true, Timestamp: 0x100},
+						},
+						HopFields: []*path.HopField{
+							{ConsIngress: 0, ConsEgress: 311, Mac: bytes.Repeat([]byte{0x00}, 6)},
+							{ConsIngress: 131, ConsEgress: 141, Mac: bytes.Repeat([]byte{0x01}, 6)},
+							{ConsIngress: 411, ConsEgress: 0, Mac: bytes.Repeat([]byte{0x02}, 6)},
+						},
+					},
+				},
+				SCMP: tc.L4(t),
+				L4:   slayers.LayerTypeSCMP,
+			}
+			require.NoError(t, pkt.SCION.SetSrcAddr(&net.IPAddr{IP: net.IP{127, 0, 0, 1}}))
+			require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{127, 0, 0, 2}}))
+
+			// Reverse packet
+			raw, err := SCMPHandler{}.reverse(pkt)
+			require.NoError(t, err)
+
+			gpkt := gopacket.NewPacket(raw, slayers.LayerTypeSCION, gopacket.DecodeOptions{})
+
+			t.Run("check SCION header", func(t *testing.T) {
+				scionL := gpkt.Layer(slayers.LayerTypeSCION).(*slayers.SCION)
+				expected := &slayers.SCION{
+					Version:      0,
+					TrafficClass: 0xb8,
+					FlowID:       0xdead,
+					HdrLen:       21,
+					NextHdr:      common.L4SCMP,
+					PayloadLen:   uint16(4 + len(pkt.SCMP.Payload)),
+					PathType:     slayers.PathTypeSCION,
+					SrcIA:        xtest.MustParseIA("1-ff00:0:112"),
+					DstIA:        xtest.MustParseIA("1-ff00:0:110"),
+					Path: &scion.Decoded{
+						Base: scion.Base{
+							PathMeta: scion.MetaHdr{
+								CurrHF: 0,
+								SegLen: [3]uint8{3, 0, 0},
+							},
+							NumINF:  1,
+							NumHops: 3,
+						},
+						InfoFields: []*path.InfoField{
+							{SegID: 0x111, ConsDir: false, Timestamp: 0x100},
+						},
+						HopFields: []*path.HopField{
+							{ConsIngress: 411, ConsEgress: 0, Mac: bytes.Repeat([]byte{0x02}, 6)},
+							{ConsIngress: 131, ConsEgress: 141, Mac: bytes.Repeat([]byte{0x01}, 6)},
+							{ConsIngress: 0, ConsEgress: 311, Mac: bytes.Repeat([]byte{0x00}, 6)},
+						},
+					},
+				}
+				require.NoError(t, expected.SetSrcAddr(&net.IPAddr{IP: net.IP{127, 0, 0, 2}}))
+				require.NoError(t, expected.SetDstAddr(&net.IPAddr{IP: net.IP{127, 0, 0, 1}}))
+
+				scionL.BaseLayer = layers.BaseLayer{}
+				var decodedPath scion.Decoded
+				require.NoError(t, decodedPath.DecodeFromBytes(scionL.Path.(*scion.Raw).Raw))
+				scionL.Path = &decodedPath
+
+				assert.Equal(t, expected, scionL)
+			})
+			t.Run("check L4", func(t *testing.T) {
+				scmp := gpkt.Layer(slayers.LayerTypeSCMP)
+				require.NotNil(t, scmp)
+				assert.Equal(t, tc.ExpectedTypeCode, scmp.(*slayers.SCMP).TypeCode)
+				assert.NotZero(t, scmp.(*slayers.SCMP).Checksum)
+
+				for _, l := range tc.ExpectedL4(t) {
+					assert.Equal(t, l, gpkt.Layer(l.LayerType()), l.LayerType().String())
+				}
+			})
 		})
 	}
 }

@@ -191,4 +191,5 @@ func (pkt *Packet) reset() {
 	pkt.buffer = pkt.buffer[:cap(pkt.buffer)]
 	pkt.Info = spkt.ScnPkt{}
 	pkt.UnderlayRemote = nil
+	pkt.L4 = 0
 }
