@@ -104,7 +104,8 @@ func newRouter(cfg FetcherConfig, fetcher *segfetcher.Fetcher) snet.Router {
 				cfg.TopoProvider.Get().Core(),
 				cfg.Inspector,
 				cfg.PathDB),
-			Fetcher: fetcher,
+			Fetcher:  fetcher,
+			HeaderV2: cfg.HeaderV2,
 		},
 	}
 }
