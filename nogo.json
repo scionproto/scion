@@ -11,6 +11,11 @@
       "/com_github_bazelbuild_buildtools/": ""
     }
   },
+  "copylocks": {
+    "exclude_files": {
+      "/org_golang_google_protobuf": ""
+    }
+  },
   "nilness": {
     "only_files": {
       "/go/": "https://github.com/bazelbuild/rules_go/issues/2172"
@@ -35,7 +40,8 @@
       "gazelle/pathtools/path.go": "",
       "/com_github_antlr_antlr4/runtime/Go/antlr/": "",
       "/com_github_uber_jaeger_client_go": "",
-      "/com_github_marten_seemann_qtls/": ""
+      "/com_github_marten_seemann_qtls/": "",
+      "/org_golang_google_protobuf/":""
     }
   },
   "unsafeptr": {

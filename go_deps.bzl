@@ -9,12 +9,6 @@ def go_deps():
         version = "v0.0.0-20190106161140-3f1c8253044a",
     )
     go_repository(
-        name = "com_github_alangpierce_go_forceexport",
-        importpath = "github.com/alangpierce/go-forceexport",
-        sum = "h1:3ILjVyslFbc4jl1w5TWuvvslFD/nDfR2H8tVaMVLrEY=",
-        version = "v0.0.0-20160317203124-8f1d6941cd75",
-    )
-    go_repository(
         name = "com_github_alecthomas_template",
         importpath = "github.com/alecthomas/template",
         sum = "h1:cAKDfWh5VpdgMhJosfJnn5/FoN2SRZ4p7fJNX58YPaU=",
@@ -479,8 +473,8 @@ def go_deps():
     go_repository(
         name = "com_github_lucas_clemente_quic_go",
         importpath = "github.com/lucas-clemente/quic-go",
-        sum = "h1:Pu7To5/G9JoP1mwlrcIvfV8ByPBlCzif3MCl8+1W83I=",
-        version = "v0.15.7",
+        sum = "h1:jMX/MmDNCljfisgMmPGUcBJ+zUh9w3d3ia4YJjYS3TM=",
+        version = "v0.17.3",
     )
     go_repository(
         name = "com_github_lunixbochs_vtclean",
@@ -1176,8 +1170,8 @@ def go_deps():
     go_repository(
         name = "org_golang_google_protobuf",
         importpath = "google.golang.org/protobuf",
-        sum = "h1:qdOKuR/EIArgaWNjetjgTzgVTAZ+S/WXVrq9HW9zimw=",
-        version = "v1.21.0",
+        sum = "h1:4MY060fB1DLGMB/7MBTLnwQUY6+F09GEiz6SsrNqyzM=",
+        version = "v1.23.0",
     )
     go_repository(
         name = "org_golang_x_build",
