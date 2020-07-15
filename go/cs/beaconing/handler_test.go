@@ -156,17 +156,6 @@ func TestNewHandler(t *testing.T) {
 		res := handler.Handle(defaultTestReq(rw, pseg))
 		assert.Equal(t, res, infra.MetricsErrInvalid)
 	})
-	t.Run("Invalid remote out interface", func(t *testing.T) {
-		pseg := testBeacon(g, []common.IFIDType{graph.If_120_A_110_X}).Segment
-		asEntry := pseg.ASEntries[pseg.MaxAEIdx()]
-		asEntry.HopEntries[0].RemoteOutIF = 42
-		raw, err := asEntry.Pack()
-		require.NoError(t, err)
-		pseg.RawASEntries[pseg.MaxAEIdx()].Blob = raw
-		res := handler.Handle(defaultTestReq(rw, pseg))
-		assert.Equal(t, res, infra.MetricsErrInvalid)
-	})
-
 	t.Run("Verification error", func(t *testing.T) {
 		verifier := mock_infra.NewMockVerifier(mctrl)
 		verifier.EXPECT().WithIA(gomock.Any()).Return(verifier)

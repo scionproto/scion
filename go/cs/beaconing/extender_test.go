@@ -450,9 +450,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			t.Run("hop entry check", func(t *testing.T) {
 				intf := intfs.Get(tc.egress)
 				ia := intf.TopoInfo().IA
-				remote := intf.TopoInfo().RemoteIFID
 				assert.Equal(t, ia, entry.HopEntries[0].OutIA())
-				assert.Equal(t, remote, entry.HopEntries[0].RemoteOutIF)
 
 				assert.Equal(t, uint16(tc.ingress), entry.HopEntries[0].HopField.ConsIngress)
 				assert.Equal(t, uint16(tc.egress), entry.HopEntries[0].HopField.ConsEgress)
@@ -462,9 +460,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			t.Run("peer entry check", func(t *testing.T) {
 				intf := intfs.Get(tc.egress)
 				ia := intf.TopoInfo().IA
-				remote := intf.TopoInfo().RemoteIFID
 				assert.Equal(t, ia, entry.HopEntries[1].OutIA())
-				assert.Equal(t, remote, entry.HopEntries[1].RemoteOutIF)
 
 				assert.Equal(t, uint16(peer), entry.HopEntries[1].HopField.ConsIngress)
 				assert.Equal(t, uint16(tc.egress), entry.HopEntries[1].HopField.ConsEgress)
