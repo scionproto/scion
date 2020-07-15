@@ -14,10 +14,16 @@ go_library(
     ],
 )
 
+filegroup(
+    name = "testdata",
+    srcs = glob(["testdata/**"]),
+    visibility = ["//visibility:public"],
+)
+
 go_test(
     name = "go_default_test",
     srcs = ["config_test.go"],
-    data = glob(["testdata/**"]),
+    data = [":testdata"],
     embed = [":go_default_library"],
     deps = [
         "//go/lib/addr:go_default_library",

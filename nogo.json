@@ -13,7 +13,7 @@
   },
   "nilness": {
     "only_files": {
-      "//go/": "https://github.com/bazelbuild/rules_go/issues/2172"
+      "/go/": "https://github.com/bazelbuild/rules_go/issues/2172"
     },
     "exclude_files": {
       "gazelle/cmd/gazelle/diff.go": "",
@@ -40,7 +40,7 @@
   },
   "unsafeptr": {
     "only_files": {
-      "//go/": "https://github.com/bazelbuild/rules_go/issues/2172"
+      "/go/": "https://github.com/bazelbuild/rules_go/issues/2172"
     },
     "exclude_files": {
       "/com_github_mattn_go_sqlite3/": "",
@@ -64,7 +64,7 @@
   },
   "gocall": {
     "only_files": {
-      "//go/": "https://github.com/bazelbuild/rules_go/issues/2172"
+      "/go/": "https://github.com/bazelbuild/rules_go/issues/2172"
     },
     "exclude_files": {
       "(vendor|external)/*": "Only applies to internal files",

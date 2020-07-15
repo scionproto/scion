@@ -14,7 +14,6 @@
 
 // Package sigjson is responsible for parsing the SIG json config file into a
 // set of simple intermediate data-structures.
-
 package sigjson
 
 import (
