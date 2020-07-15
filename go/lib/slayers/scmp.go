@@ -61,6 +61,7 @@ func (s *SCMP) CanDecode() gopacket.LayerClass {
 }
 
 // NextLayerType use the typecode to select the right next decoder.
+// If the SCMP type is unknown, the next layer is gopacket.LayerTypePayload.
 func (s *SCMP) NextLayerType() gopacket.LayerType {
 	switch s.TypeCode.Type() {
 	case SCMPTypeDestinationUnreachable:

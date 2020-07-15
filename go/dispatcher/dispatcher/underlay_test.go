@@ -44,9 +44,9 @@ func TestGetDst(t *testing.T) {
 	defer ctrl.Finish()
 
 	testCases := map[string]struct {
-		Pkt         func(t *testing.T) *respool.Packet
-		ExpectedDst Destination
-		ExpectedErr error
+		Pkt          func(t *testing.T) *respool.Packet
+		ExpectedDst  Destination
+		ErrAssertion assert.ErrorAssertionFunc
 	}{
 		"unsupported L4": {
 			Pkt: func(t *testing.T) *respool.Packet {
@@ -54,7 +54,7 @@ func TestGetDst(t *testing.T) {
 					L4: 1337,
 				}
 			},
-			ExpectedErr: ErrUnsupportedL4,
+			ErrAssertion: assert.Error,
 		},
 		"UDP/SCION with IP destination is delivered by IP": {
 			Pkt: func(t *testing.T) *respool.Packet {
@@ -76,6 +76,7 @@ func TestGetDst(t *testing.T) {
 				IA:     xtest.MustParseIA("1-ff00:0:110"),
 				Public: &net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 1337},
 			},
+			ErrAssertion: assert.NoError,
 		},
 		"UDP/SCION with SVC destination is delivered by SVC": {
 			Pkt: func(t *testing.T) *respool.Packet {
@@ -97,6 +98,7 @@ func TestGetDst(t *testing.T) {
 				IA:  xtest.MustParseIA("1-ff00:0:110"),
 				Svc: addr.SvcCS,
 			},
+			ErrAssertion: assert.NoError,
 		},
 		"SCMP/SCION EchoRequest, is sent to SCMP handler": {
 			Pkt: func(t *testing.T) *respool.Packet {
@@ -123,7 +125,8 @@ func TestGetDst(t *testing.T) {
 				}
 				return pkt
 			},
-			ExpectedDst: SCMPHandler{},
+			ExpectedDst:  SCMPHandler{},
+			ErrAssertion: assert.NoError,
 		},
 		"SCMP/SCION EchoReply, is sent to SCMP destination": {
 			Pkt: func(t *testing.T) *respool.Packet {
@@ -154,6 +157,7 @@ func TestGetDst(t *testing.T) {
 				IA: xtest.MustParseIA("1-ff00:0:110"),
 				ID: 42,
 			},
+			ErrAssertion: assert.NoError,
 		},
 		"SCMP/SCION TracerouteRequest, is sent to SCMP handler": {
 			Pkt: func(t *testing.T) *respool.Packet {
@@ -179,7 +183,8 @@ func TestGetDst(t *testing.T) {
 				}
 				return pkt
 			},
-			ExpectedDst: SCMPHandler{},
+			ExpectedDst:  SCMPHandler{},
+			ErrAssertion: assert.NoError,
 		},
 		"SCMP/SCION TracerouteReply, is sent to SCMP destination": {
 			Pkt: func(t *testing.T) *respool.Packet {
@@ -209,12 +214,459 @@ func TestGetDst(t *testing.T) {
 				IA: xtest.MustParseIA("1-ff00:0:110"),
 				ID: 42,
 			},
+			ErrAssertion: assert.NoError,
+		},
+		"SCMP/SCION Error with offending UDP/SCION is delivered by IP": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				// Construct offending packet.
+				scion := newSCIONHdr(t, common.L4UDP)
+				udp := &slayers.UDP{
+					UDP: layers.UDP{
+						SrcPort: 1337,
+						DstPort: 42,
+					},
+				}
+				udp.SetNetworkLayerForChecksum(scion)
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{
+						FixLengths:       true,
+						ComputeChecksums: true,
+					},
+					scion,
+					udp,
+					gopacket.Payload(bytes.Repeat([]byte{0xff}, 20)),
+				)
+				require.NoError(t, err)
+
+				scmpPld := gopacket.NewSerializeBuffer()
+				err = gopacket.SerializeLayers(scmpPld,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPExternalInterfaceDown{
+						IA:   xtest.MustParseIA("1-ff00:0:111"),
+						IfID: 141,
+					},
+					gopacket.Payload(buf.Bytes()),
+				)
+				require.NoError(t, err)
+
+				// Construct packet received by dispatcher.
+				pkt := &respool.Packet{
+					SCION: slayers.SCION{
+						DstIA: xtest.MustParseIA("1-ff00:0:110"),
+					},
+					SCMP: slayers.SCMP{
+						TypeCode: slayers.CreateSCMPTypeCode(
+							slayers.SCMPTypeExternalInterfaceDown, 0),
+						BaseLayer: layers.BaseLayer{
+							Payload: scmpPld.Bytes(),
+						},
+					},
+					L4: slayers.LayerTypeSCMP,
+				}
+				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				return pkt
+			},
+			ExpectedDst: UDPDestination{
+				IA:     xtest.MustParseIA("1-ff00:0:110"),
+				Public: &net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 1337},
+			},
+			ErrAssertion: assert.NoError,
+		},
+		"SCMP/SCION Error with offending SCMP/SCION EchoRequest is delivered by ID": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				// Construct offending packet.
+				scion := newSCIONHdr(t, common.L4SCMP)
+				scmp := &slayers.SCMP{
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
+				}
+				scmp.SetNetworkLayerForChecksum(scion)
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{
+						FixLengths:       true,
+						ComputeChecksums: true,
+					},
+					scion,
+					scmp,
+					&slayers.SCMPEcho{Identifier: 42, SeqNumber: 16},
+					gopacket.Payload(bytes.Repeat([]byte{0xff}, 20)),
+				)
+				require.NoError(t, err)
+
+				scmpPld := gopacket.NewSerializeBuffer()
+				err = gopacket.SerializeLayers(scmpPld,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPInternalConnectivityDown{
+						IA:      xtest.MustParseIA("1-ff00:0:111"),
+						Ingress: 131,
+						Egress:  141,
+					},
+					gopacket.Payload(buf.Bytes()),
+				)
+				require.NoError(t, err)
+
+				// Construct packet received by dispatcher.
+				pkt := &respool.Packet{
+					SCION: slayers.SCION{
+						DstIA: xtest.MustParseIA("1-ff00:0:110"),
+					},
+					SCMP: slayers.SCMP{
+						TypeCode: slayers.CreateSCMPTypeCode(
+							slayers.SCMPTypeInternalConnectivityDown, 0),
+						BaseLayer: layers.BaseLayer{
+							Payload: scmpPld.Bytes(),
+						},
+					},
+					L4: slayers.LayerTypeSCMP,
+				}
+				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				return pkt
+			},
+			ExpectedDst: SCMPDestination{
+				IA: xtest.MustParseIA("1-ff00:0:110"),
+				ID: 42,
+			},
+			ErrAssertion: assert.NoError,
+		},
+		"SCMP/SCION Error with offending SCMP/SCION TracerouteRequest is delivered by ID": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				// Construct offending packet.
+				scion := newSCIONHdr(t, common.L4SCMP)
+				scmp := &slayers.SCMP{
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0),
+				}
+				scmp.SetNetworkLayerForChecksum(scion)
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{
+						FixLengths:       true,
+						ComputeChecksums: true,
+					},
+					scion,
+					scmp,
+					&slayers.SCMPTraceroute{Identifier: 42},
+					gopacket.Payload(bytes.Repeat([]byte{0xff}, 20)),
+				)
+				require.NoError(t, err)
+
+				scmpPld := gopacket.NewSerializeBuffer()
+				err = gopacket.SerializeLayers(scmpPld,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPInternalConnectivityDown{
+						IA:      xtest.MustParseIA("1-ff00:0:111"),
+						Ingress: 131,
+						Egress:  141,
+					},
+					gopacket.Payload(buf.Bytes()),
+				)
+				require.NoError(t, err)
+
+				// Construct packet received by dispatcher.
+				pkt := &respool.Packet{
+					SCION: slayers.SCION{
+						DstIA: xtest.MustParseIA("1-ff00:0:110"),
+					},
+					SCMP: slayers.SCMP{
+						TypeCode: slayers.CreateSCMPTypeCode(
+							slayers.SCMPTypeInternalConnectivityDown, 0),
+						BaseLayer: layers.BaseLayer{
+							Payload: scmpPld.Bytes(),
+						},
+					},
+					L4: slayers.LayerTypeSCMP,
+				}
+				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				return pkt
+			},
+			ExpectedDst: SCMPDestination{
+				IA: xtest.MustParseIA("1-ff00:0:110"),
+				ID: 42,
+			},
+			ErrAssertion: assert.NoError,
+		},
+		"SCMP/SCION Error with truncated UDP/SCION payload is delivered by IP": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				// Construct offending packet.
+				scion := newSCIONHdr(t, common.L4UDP)
+				udp := &slayers.UDP{
+					UDP: layers.UDP{
+						SrcPort: 1337,
+						DstPort: 42,
+					},
+				}
+				udp.SetNetworkLayerForChecksum(scion)
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{
+						FixLengths:       true,
+						ComputeChecksums: true,
+					},
+					scion,
+					udp,
+					gopacket.Payload(bytes.Repeat([]byte{0xff}, 20)),
+				)
+				require.NoError(t, err)
+
+				scmpPld := gopacket.NewSerializeBuffer()
+				err = gopacket.SerializeLayers(scmpPld,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPExternalInterfaceDown{
+						IA:   xtest.MustParseIA("1-ff00:0:111"),
+						IfID: 141,
+					},
+					gopacket.Payload(buf.Bytes()[:len(buf.Bytes())-20]),
+				)
+				require.NoError(t, err)
+
+				// Construct packet received by dispatcher.
+				pkt := &respool.Packet{
+					SCION: slayers.SCION{
+						DstIA: xtest.MustParseIA("1-ff00:0:110"),
+					},
+					SCMP: slayers.SCMP{
+						TypeCode: slayers.CreateSCMPTypeCode(
+							slayers.SCMPTypeExternalInterfaceDown, 0),
+						BaseLayer: layers.BaseLayer{
+							Payload: scmpPld.Bytes(),
+						},
+					},
+					L4: slayers.LayerTypeSCMP,
+				}
+				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				return pkt
+			},
+			ExpectedDst: UDPDestination{
+				IA:     xtest.MustParseIA("1-ff00:0:110"),
+				Public: &net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 1337},
+			},
+			ErrAssertion: assert.NoError,
+		},
+		"SCMP/SCION Error with offending truncated EchoRequest is delivered by ID": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				// Construct offending packet.
+				scion := newSCIONHdr(t, common.L4SCMP)
+				scmp := &slayers.SCMP{
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
+				}
+				scmp.SetNetworkLayerForChecksum(scion)
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{
+						FixLengths:       true,
+						ComputeChecksums: true,
+					},
+					scion,
+					scmp,
+					&slayers.SCMPEcho{Identifier: 42, SeqNumber: 16},
+					gopacket.Payload(bytes.Repeat([]byte{0xff}, 20)),
+				)
+				require.NoError(t, err)
+
+				scmpPld := gopacket.NewSerializeBuffer()
+				err = gopacket.SerializeLayers(scmpPld,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPInternalConnectivityDown{
+						IA:      xtest.MustParseIA("1-ff00:0:111"),
+						Ingress: 131,
+						Egress:  141,
+					},
+					// Truncate the SCMP Echo data.
+					gopacket.Payload(buf.Bytes()[:len(buf.Bytes())-20]),
+				)
+				require.NoError(t, err)
+
+				// Construct packet received by dispatcher.
+				pkt := &respool.Packet{
+					SCION: slayers.SCION{
+						DstIA: xtest.MustParseIA("1-ff00:0:110"),
+					},
+					SCMP: slayers.SCMP{
+						TypeCode: slayers.CreateSCMPTypeCode(
+							slayers.SCMPTypeInternalConnectivityDown, 0),
+						BaseLayer: layers.BaseLayer{
+							Payload: scmpPld.Bytes(),
+						},
+					},
+					L4: slayers.LayerTypeSCMP,
+				}
+				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				return pkt
+			},
+			ExpectedDst: SCMPDestination{
+				IA: xtest.MustParseIA("1-ff00:0:110"),
+				ID: 42,
+			},
+			ErrAssertion: assert.NoError,
+		},
+		"SCMP/SCION Error with offending truncated TracerouteRequest is delivered by ID": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				// Construct offending packet.
+				scion := newSCIONHdr(t, common.L4SCMP)
+				scmp := &slayers.SCMP{
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0),
+				}
+				scmp.SetNetworkLayerForChecksum(scion)
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{
+						FixLengths:       true,
+						ComputeChecksums: true,
+					},
+					scion,
+					scmp,
+					&slayers.SCMPTraceroute{Identifier: 42},
+					gopacket.Payload(bytes.Repeat([]byte{0xff}, 20)),
+				)
+				require.NoError(t, err)
+
+				scmpPld := gopacket.NewSerializeBuffer()
+				err = gopacket.SerializeLayers(scmpPld,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPInternalConnectivityDown{
+						IA:      xtest.MustParseIA("1-ff00:0:111"),
+						Ingress: 131,
+						Egress:  141,
+					},
+					// Truncate the SCMP Traceroute data.
+					gopacket.Payload(buf.Bytes()[:len(buf.Bytes())-20]),
+				)
+				require.NoError(t, err)
+
+				// Construct packet received by dispatcher.
+				pkt := &respool.Packet{
+					SCION: slayers.SCION{
+						DstIA: xtest.MustParseIA("1-ff00:0:110"),
+					},
+					SCMP: slayers.SCMP{
+						TypeCode: slayers.CreateSCMPTypeCode(
+							slayers.SCMPTypeInternalConnectivityDown, 0),
+						BaseLayer: layers.BaseLayer{
+							Payload: scmpPld.Bytes(),
+						},
+					},
+					L4: slayers.LayerTypeSCMP,
+				}
+				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				return pkt
+			},
+			ExpectedDst: SCMPDestination{
+				IA: xtest.MustParseIA("1-ff00:0:110"),
+				ID: 42,
+			},
+			ErrAssertion: assert.NoError,
+		},
+		"SCMP/SCION Error with partial UDP/SCION header is dropped": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				// Construct offending packet.
+				scion := newSCIONHdr(t, common.L4UDP)
+				udp := &slayers.UDP{
+					UDP: layers.UDP{
+						SrcPort: 1337,
+						DstPort: 42,
+					},
+				}
+				udp.SetNetworkLayerForChecksum(scion)
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{
+						FixLengths:       true,
+						ComputeChecksums: true,
+					},
+					scion,
+					udp,
+					gopacket.Payload(bytes.Repeat([]byte{0xff}, 20)),
+				)
+				require.NoError(t, err)
+
+				scmpPld := gopacket.NewSerializeBuffer()
+				err = gopacket.SerializeLayers(scmpPld,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPExternalInterfaceDown{
+						IA:   xtest.MustParseIA("1-ff00:0:111"),
+						IfID: 141,
+					},
+					gopacket.Payload(buf.Bytes()[:len(buf.Bytes())-21]),
+				)
+				require.NoError(t, err)
+
+				// Construct packet received by dispatcher.
+				pkt := &respool.Packet{
+					SCION: slayers.SCION{
+						DstIA: xtest.MustParseIA("1-ff00:0:110"),
+					},
+					SCMP: slayers.SCMP{
+						TypeCode: slayers.CreateSCMPTypeCode(
+							slayers.SCMPTypeExternalInterfaceDown, 0),
+						BaseLayer: layers.BaseLayer{
+							Payload: scmpPld.Bytes(),
+						},
+					},
+					L4: slayers.LayerTypeSCMP,
+				}
+				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				return pkt
+			},
+			ErrAssertion: assert.Error,
+		},
+		"SCMP/SCION Error with partial EchoRequest is dropped": {
+			Pkt: func(t *testing.T) *respool.Packet {
+				// Construct offending packet.
+				scion := newSCIONHdr(t, common.L4SCMP)
+				scmp := &slayers.SCMP{
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
+				}
+				scmp.SetNetworkLayerForChecksum(scion)
+				buf := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(buf,
+					gopacket.SerializeOptions{
+						FixLengths:       true,
+						ComputeChecksums: true,
+					},
+					scion,
+					scmp,
+					&slayers.SCMPEcho{Identifier: 42, SeqNumber: 16},
+					gopacket.Payload(bytes.Repeat([]byte{0xff}, 20)),
+				)
+				require.NoError(t, err)
+
+				scmpPld := gopacket.NewSerializeBuffer()
+				err = gopacket.SerializeLayers(scmpPld,
+					gopacket.SerializeOptions{},
+					&slayers.SCMPInternalConnectivityDown{
+						IA:      xtest.MustParseIA("1-ff00:0:111"),
+						Ingress: 131,
+						Egress:  141,
+					},
+					// Only partially include the echo request information.
+					gopacket.Payload(buf.Bytes()[:len(buf.Bytes())-21]),
+				)
+				require.NoError(t, err)
+
+				// Construct packet received by dispatcher.
+				pkt := &respool.Packet{
+					SCION: slayers.SCION{
+						DstIA: xtest.MustParseIA("1-ff00:0:110"),
+					},
+					SCMP: slayers.SCMP{
+						TypeCode: slayers.CreateSCMPTypeCode(
+							slayers.SCMPTypeInternalConnectivityDown, 0),
+						BaseLayer: layers.BaseLayer{
+							Payload: scmpPld.Bytes(),
+						},
+					},
+					L4: slayers.LayerTypeSCMP,
+				}
+				require.NoError(t, pkt.SCION.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+				return pkt
+			},
+			ErrAssertion: assert.Error,
 		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			destination, err := getDst(tc.Pkt(t))
-			xtest.AssertErrorsIs(t, err, tc.ExpectedErr)
+			tc.ErrAssertion(t, err)
 			assert.Equal(t, tc.ExpectedDst, destination)
 		})
 	}
@@ -675,4 +1127,34 @@ func MustPackL4Header(t *testing.T, header l4.L4Header) common.RawBytes {
 	b, err := header.Pack(false)
 	require.NoError(t, err)
 	return b
+}
+
+func newSCIONHdr(t *testing.T, l4 common.L4ProtocolType) *slayers.SCION {
+	scion := &slayers.SCION{
+		NextHdr:  l4,
+		PathType: slayers.PathTypeSCION,
+		SrcIA:    xtest.MustParseIA("1-ff00:0:110"),
+		DstIA:    xtest.MustParseIA("1-ff00:0:112"),
+		Path: &scion.Decoded{
+			Base: scion.Base{
+				PathMeta: scion.MetaHdr{
+					CurrHF: 2,
+					SegLen: [3]uint8{3, 0, 0},
+				},
+				NumINF:  1,
+				NumHops: 3,
+			},
+			InfoFields: []*path.InfoField{
+				{SegID: 0x111, ConsDir: true, Timestamp: 0x100},
+			},
+			HopFields: []*path.HopField{
+				{ConsIngress: 0, ConsEgress: 311},
+				{ConsIngress: 131, ConsEgress: 141},
+				{ConsIngress: 411, ConsEgress: 0},
+			},
+		},
+	}
+	require.NoError(t, scion.SetSrcAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 1}}))
+	require.NoError(t, scion.SetDstAddr(&net.IPAddr{IP: net.IP{192, 168, 0, 2}}))
+	return scion
 }

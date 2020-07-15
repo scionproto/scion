@@ -143,8 +143,11 @@ func getDstUDP(pkt *respool.Packet) (Destination, error) {
 
 func getDstSCMP(pkt *respool.Packet) (Destination, error) {
 	if !pkt.SCMP.TypeCode.InfoMsg() {
-		// TODO(roosd): Implement SCMP error message handling.
-		return nil, serrors.New("not implemented")
+		dst, err := getDstSCMPErr(pkt)
+		if err != nil {
+			return nil, serrors.WrapStr("delivering SCMP error message", err)
+		}
+		return dst, nil
 	}
 	return getDstSCMPInfo(pkt)
 }
@@ -162,6 +165,84 @@ func getDstSCMPInfo(pkt *respool.Packet) (Destination, error) {
 		return SCMPDestination{IA: pkt.SCION.DstIA, ID: id}, nil
 	}
 	return nil, serrors.New("unsupported SCMP info message", "type", t)
+}
+
+func getDstSCMPErr(pkt *respool.Packet) (Destination, error) {
+	// Drop unknown SCMP error messages.
+	if pkt.SCMP.NextLayerType() == gopacket.LayerTypePayload {
+		return nil, serrors.New("unsupported SCMP error message", "type", pkt.SCMP.TypeCode.Type())
+	}
+	l, err := decodeSCMP(&pkt.SCMP)
+	if err != nil {
+		return nil, err
+	}
+	if len(l) != 2 {
+		return nil, serrors.New("SCMP error message without payload")
+	}
+	gpkt := gopacket.NewPacket(*l[1].(*gopacket.Payload), slayers.LayerTypeSCION,
+		gopacket.DecodeOptions{
+			NoCopy: true,
+		},
+	)
+
+	// If the offending packet was UDP/SCION, use the source port to deliver.
+	if udp := gpkt.Layer(slayers.LayerTypeSCIONUDP); udp != nil {
+		port := int(udp.(*slayers.UDP).SrcPort)
+		// XXX(roosd): We assume that the zero value means the UDP header is
+		// truncated. This flags packets of misbehaving senders as truncated, if
+		// they set the source port to 0. But there is no harm, since those
+		// packets are destined to be dropped anyway.
+		if port == 0 {
+			return nil, serrors.New("SCMP error with truncated UDP header")
+		}
+		dst, err := pkt.SCION.DstAddr()
+		if err != nil {
+			return nil, err
+		}
+		ipAddr, ok := dst.(*net.IPAddr)
+		if !ok {
+			return nil, serrors.WithCtx(ErrUnsupportedDestination, "type", common.TypeOf(dst))
+		}
+		return UDPDestination{
+			IA: pkt.SCION.DstIA,
+			Public: &net.UDPAddr{
+				IP:   ipAddr.IP,
+				Port: port,
+			},
+		}, nil
+	}
+
+	// If the offending packet was SCMP/SCION, and it is an echo or traceroute,
+	// use the Identifier to deliver. In all other cases, the message is dropped.
+	if scmp := gpkt.Layer(slayers.LayerTypeSCMP); scmp != nil {
+
+		tc := scmp.(*slayers.SCMP).TypeCode
+		// SCMP Error messages in response to an SCMP error message are not allowed.
+		if !tc.InfoMsg() {
+			return nil, serrors.New("SCMP error message in response to SCMP error message",
+				"type", tc.Type())
+		}
+		// We only support echo and traceroute requests.
+		t := tc.Type()
+		if t != slayers.SCMPTypeEchoRequest && t != slayers.SCMPTypeTracerouteRequest {
+			return nil, serrors.New("unsupported SCMP info message", "type", t)
+		}
+
+		var id uint16
+		// Extract the ID from the echo or traceroute layer.
+		if echo := gpkt.Layer(slayers.LayerTypeSCMPEcho); echo != nil {
+			id = echo.(*slayers.SCMPEcho).Identifier
+		} else if tr := gpkt.Layer(slayers.LayerTypeSCMPTraceroute); tr != nil {
+			id = tr.(*slayers.SCMPTraceroute).Identifier
+		} else {
+			return nil, serrors.New("SCMP error with truncated payload")
+		}
+		return SCMPDestination{
+			IA: pkt.SCION.DstIA,
+			ID: id,
+		}, nil
+	}
+	return nil, ErrUnsupportedL4
 }
 
 // UDPDestination delivers packets to the app that registered for the configured
@@ -297,6 +378,17 @@ func (h SCMPHandler) reverseSCION(pkt *respool.Packet) error {
 		return serrors.WrapStr("reversing path", err)
 	}
 	return nil
+}
+
+func extractIP(dst net.Addr, err error) (net.IP, error) {
+	if err != nil {
+		return nil, err
+	}
+	ipAddr, ok := dst.(*net.IPAddr)
+	if !ok {
+		return nil, serrors.New("unsupported address", "type", common.TypeOf(dst))
+	}
+	return ipAddr.IP, nil
 }
 
 func extractSCMPIdentifier(scmp *slayers.SCMP) (uint16, error) {
