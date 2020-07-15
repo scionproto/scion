@@ -74,8 +74,14 @@ func Proxy(localX, remoteX, localY, remoteY string) error {
 		),
 	)
 
-	go redirect(xConn, yConn, ryAddr)
-	go redirect(yConn, xConn, rxAddr)
+	go func() {
+		defer log.HandlePanic()
+		redirect(xConn, yConn, ryAddr)
+	}()
+	go func() {
+		defer log.HandlePanic()
+		redirect(yConn, xConn, rxAddr)
+	}()
 	select {}
 }
 
