@@ -43,6 +43,11 @@ const (
 	errorNoError quic.ErrorCode = 0x100
 )
 
+// No way to extract error code from error returned after closing session in quic-go.
+// c.f. https://github.com/lucas-clemente/quic-go/issues/2441
+// Workaround by string comparison with known formated error string.
+var errorNoErrorString = fmt.Sprintf("Application error %#x", uint64(errorNoError))
+
 // Server is the configuration for a QUIC RPC server. Messages are SCION Infra
 // Signed Control Payloads. For each accepted connection, the server parses the
 // message from the client and passes it to the handler.
@@ -242,7 +247,7 @@ func (rw *replyWriter) WriteReply(reply *Reply) error {
 	if err := capnp.NewEncoder(rw.stream).Encode(reply.Message); err != nil {
 		return err
 	}
-	if err := rw.stream.Close(); err != nil {
+	if err := rw.stream.Close(); err != nil && err.Error() != errorNoErrorString {
 		return err
 	}
 	return nil
