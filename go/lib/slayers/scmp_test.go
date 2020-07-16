@@ -132,7 +132,37 @@ func TestSCMP(t *testing.T) {
 	}{
 		// "destination unreachable": {},
 		// "packet too big":          {},
-		// "parameter problem":       {},
+		"parameter problem": {
+			raw: append([]byte{
+				0x4, 0x0, 0x4b, 0x8d, // header SCMP
+				0x0, 0x0, 0x00, 0x42, // header SCMP msg
+			}, bytes.Repeat([]byte{0xff}, 15)...), // final payload
+			decodedLayers: []gopacket.SerializableLayer{
+				&slayers.SCMP{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x4, 0x0, 0x4b, 0x8d, // header SCMP
+						},
+						Payload: append([]byte{
+							0x0, 0x0, 0x00, 0x42,
+						}, bytes.Repeat([]byte{0xff}, 15)...),
+					},
+					TypeCode: slayers.CreateSCMPTypeCode(4, slayers.SCMPCodeErroneousHeaderField),
+					Checksum: 19341,
+				},
+				&slayers.SCMPParameterProblem{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x0, 0x0, 0x00, 0x42,
+						},
+						Payload: bytes.Repeat([]byte{0xff}, 15),
+					},
+					Pointer: 66,
+				},
+				gopacket.Payload(bytes.Repeat([]byte{0xff}, 15)),
+			},
+			assertFunc: assert.NoError,
+		},
 		"internal connectivity down": {
 			raw: append([]byte{
 				0x6, 0x0, 0x49, 0x94, // header SCMP
@@ -393,20 +423,14 @@ func TestSCMP(t *testing.T) {
 
 				for _, l := range tc.decodedLayers {
 					switch v := l.(type) {
-					case *slayers.SCMP,
-						*slayers.SCMPExternalInterfaceDown,
-						*slayers.SCMPInternalConnectivityDown,
-						*slayers.SCMPEcho,
-						*slayers.SCMPTraceroute:
-						assert.Equal(t, v, packet.Layer(v.LayerType()),
-							fmt.Sprintf("%s layer", v.LayerType()))
 					case gopacket.Payload:
 						sl := packet.Layer(v.LayerType())
 						require.NotNil(t, sl, "Payload should exist")
 						s := sl.(*gopacket.Payload)
 						assert.Equal(t, v.GoString(), s.GoString())
 					default:
-						assert.Fail(t, "all layers should match", "type %T", v)
+						assert.Equal(t, v, packet.Layer(v.LayerType()),
+							fmt.Sprintf("%s layer", v.LayerType()))
 					}
 				}
 				// TODO(karampok). it could give false positive if put SCMP/SCMP/PAYLOAD

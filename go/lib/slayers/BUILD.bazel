@@ -37,6 +37,7 @@ go_test(
         "scion_test.go",
         "scmp_msg_test.go",
         "scmp_test.go",
+        "scmp_typecode_test.go",
         "slayers_test.go",
     ],
     data = glob(["testdata/**"]),
