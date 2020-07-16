@@ -89,6 +89,41 @@ func TestValidateBWCls(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestBWClsToKBps(t *testing.T) {
+	cases := map[BWCls]uint64{
+		0:  11,
+		1:  16,
+		2:  22,
+		5:  64,
+		63: 32 * 1024 * 1024 * 1024, // 32 TBps
+	}
+	for cls, bw := range cases {
+		name := fmt.Sprintf("case for %d", cls)
+		t.Run(name, func(t *testing.T) {
+			cls := cls
+			bw := bw
+			t.Parallel()
+			require.Equal(t, bw, cls.ToKBps())
+		})
+	}
+}
+
+func TestMaxBWCls(t *testing.T) {
+	cases := []struct{ a, b, max BWCls }{
+		{a: 1, b: 1, max: 1},
+		{a: 0, b: 1, max: 1},
+		{a: 255, b: 1, max: 255},
+	}
+	for i, c := range cases {
+		name := fmt.Sprintf("case %d", i)
+		t.Run(name, func(t *testing.T) {
+			c := c
+			t.Parallel()
+			require.Equal(t, c.max, MaxBWCls(c.a, c.b))
+		})
+	}
+}
+
 func TestValidateRLC(t *testing.T) {
 	for i := 0; i < 64; i++ {
 		c := RLC(i)

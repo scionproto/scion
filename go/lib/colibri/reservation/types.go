@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"io"
+	"math"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -147,7 +148,7 @@ func (t Tick) ToTime() time.Time {
 	return util.SecsToTime(uint32(t) * 4)
 }
 
-// BWCls is the bandwidth class. bandwidth = 16 * sqrt(2^(BWCls - 1)). 0 <= bwcls <= 63 .
+// BWCls is the bandwidth class. bandwidth = 16 * sqrt(2^(BWCls - 1)). 0 <= bwcls <= 63 KBps.
 type BWCls uint8
 
 // Validate will return an error for invalid values.
@@ -156,6 +157,19 @@ func (b BWCls) Validate() error {
 		return serrors.New("invalid BWClass value", "bw_cls", b)
 	}
 	return nil
+}
+
+// ToKBps returns the kilobytes per second this BWCls represents.
+func (b BWCls) ToKBps() uint64 {
+	return uint64(16 * math.Sqrt(math.Pow(2, float64(b)-1)))
+}
+
+// MaxBWCls returns the maximum of two BWCls.
+func MaxBWCls(a, b BWCls) BWCls {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // SplitCls is the traffic split parameter. split = sqrt(2^c). The split divides the bandwidth
