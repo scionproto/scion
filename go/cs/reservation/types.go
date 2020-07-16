@@ -21,4 +21,6 @@ import (
 // Capacities describes what a capacity description must offer.
 type Capacities interface {
 	Capacity(from, to common.IFIDType) uint64
+	CapacityIngress(ingress common.IFIDType) uint64
+	CapacityEgress(egress common.IFIDType) uint64
 }
