@@ -7,6 +7,7 @@ go_library(
         "path.go",
         "request.go",
         "reservation.go",
+        "response.go",
     ],
     importpath = "github.com/scionproto/scion/go/cs/reservation/segment",
     visibility = ["//visibility:public"],
