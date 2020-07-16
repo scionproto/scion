@@ -106,7 +106,7 @@ Guide <https://golang.org/doc/contribute.html#commit_messages>`__.
 
 Here is an example of a good commit message:
 
-.. code-block::
+.. code-block:: txt
 
    sciond: do not panic on shutdown
 
