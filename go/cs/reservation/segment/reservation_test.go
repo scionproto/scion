@@ -224,3 +224,15 @@ func TestRemoveIndex(t *testing.T) {
 	err = r.Validate()
 	require.NoError(t, err)
 }
+
+func TestMaxBlockedBW(t *testing.T) {
+	r := segmenttest.NewReservation()
+	r.Indices = r.Indices[:0]
+	require.Equal(t, uint64(0), r.MaxBlockedBW())
+	r.NewIndexAtSource(util.SecsToTime(1), 1, 1, 1, 1, reservation.CorePath)
+	require.Equal(t, reservation.BWCls(1).ToKBps(), r.MaxBlockedBW())
+	r.NewIndexAtSource(util.SecsToTime(1), 1, 1, 1, 1, reservation.CorePath)
+	require.Equal(t, reservation.BWCls(1).ToKBps(), r.MaxBlockedBW())
+	r.Indices[0].AllocBW = 11
+	require.Equal(t, reservation.BWCls(11).ToKBps(), r.MaxBlockedBW())
+}

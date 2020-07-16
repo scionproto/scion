@@ -207,3 +207,16 @@ func (r *Reservation) RemoveIndex(idx reservation.IndexNumber) error {
 	}
 	return nil
 }
+
+// MaxBlockedBW returns the maximum bandwidth blocked by this reservation, which is
+// the same as the maximum bandwidth indicated by its indices.
+func (r *Reservation) MaxBlockedBW() uint64 {
+	if len(r.Indices) == 0 {
+		return 0
+	}
+	var max reservation.BWCls
+	for _, idx := range r.Indices {
+		max = reservation.MaxBWCls(max, idx.AllocBW)
+	}
+	return max.ToKBps()
+}
