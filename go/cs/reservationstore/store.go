@@ -29,8 +29,9 @@ import (
 
 // Store is the reservation store.
 type Store struct {
-	db         backend.DB
-	capacities base.Capacities
+	db         backend.DB      // aka reservation map
+	capacities base.Capacities // aka capacity matrix
+	delta      float64         // fraction of free BW that can be reserved in one request
 }
 
 var _ reservationstorage.Store = (*Store)(nil)
@@ -43,19 +44,23 @@ func NewStore(db backend.DB) *Store {
 }
 
 // AdmitSegmentReservation receives a setup/renewal request to admit a segment reservation.
-// It is expected to call this fcn when this AS is not the source of the reservation.
-func (s *Store) AdmitSegmentReservation(ctx context.Context, req segment.SetupReq) error {
-	// note: this AS is not the source of the reservation
+// It is expected that this AS is not the reservation initiator.
+func (s *Store) AdmitSegmentReservation(ctx context.Context, req segment.SetupReq) (
+	segment.Response, error) {
+
 	// validate request:
 	// DRKey authentication of request (will be left undone for later)
+	failedResponse := &segment.ResponseSetupFailure{
+		// TODO(juagargi) should we get the hop number from the spath instead?
+		FailedHop: uint8(len(req.AllocTrail)),
+	}
 	rsv, err := s.db.GetSegmentRsvFromID(ctx, &req.ID)
 	if err != nil {
-		return serrors.WrapStr("cannot obtain segment reservation", err)
+		return failedResponse, serrors.WrapStr("cannot obtain segment reservation", err)
 	}
-
 	tx, err := s.db.BeginTransaction(ctx, nil)
 	if err != nil {
-		return serrors.WrapStr("cannot create transaction", err)
+		return failedResponse, serrors.WrapStr("cannot create transaction", err)
 	}
 	defer tx.Rollback()
 
@@ -64,45 +69,48 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req segment.SetupRe
 		// renewal, ensure index is not used
 		index = rsv.Index(req.InfoField.Idx)
 		if index != nil {
-			return serrors.New("index from setup already in use", "idx", req.InfoField.Idx)
+			return failedResponse, serrors.New("index from setup already in use",
+				"idx", req.InfoField.Idx)
 		}
-
 	} else {
 		// setup, create reservation and an index
 		rsv = segment.NewReservation()
 		rsv.ID = req.ID
 		err = tx.NewSegmentRsv(ctx, rsv)
 		if err != nil {
-			return serrors.WrapStr("unable to create a new segment reservation in db", err)
+			return failedResponse, serrors.WrapStr(
+				"unable to create a new segment reservation in db", err)
 		}
 	}
 	req.Reservation = rsv
 	tok := &reservation.Token{InfoField: req.InfoField}
 	idx, err := rsv.NewIndexFromToken(tok, req.MinBW, req.MaxBW)
 	if err != nil {
-		return serrors.WrapStr("cannot create index from token", err)
+		return failedResponse, serrors.WrapStr("cannot create index from token", err)
 	}
 	index = rsv.Index(idx)
 
 	// checkpath type compatibility with end properties
 	if err := rsv.PathEndProps.ValidateWithPathType(rsv.PathType); err != nil {
-		return serrors.WrapStr("error validating end props and path type", err)
+		return failedResponse, serrors.WrapStr("error validating end props and path type", err)
 	}
 	// compute admission max BW
 
 	// if failure:
-	// - create failed reply
+	if 5%5 != 0 {
+		return failedResponse, nil
+	}
 
 	// if success:
 	err = tx.PersistSegmentRsv(ctx, rsv)
 	if err != nil {
-		return serrors.WrapStr("cannot persist segment reservation", err)
+		return failedResponse, serrors.WrapStr("cannot persist segment reservation", err)
 	}
 	if err := tx.Commit(); err != nil {
-		return serrors.WrapStr("cannot commit tranaction", err)
+		return failedResponse, serrors.WrapStr("cannot commit tranaction", err)
 	}
 	// - send request to next hop, or create reply
-	return nil
+	return nil, nil
 }
 
 // ConfirmSegmentReservation changes the state of an index from temporary to confirmed.
