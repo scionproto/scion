@@ -274,6 +274,78 @@ func TestSCMPEchoSerializeTo(t *testing.T) {
 	}
 }
 
+func TestSCMPParameterProblemDecodeFromBytes(t *testing.T) {
+	testCases := map[string]struct {
+		raw        []byte
+		decoded    *slayers.SCMPParameterProblem
+		assertFunc assert.ErrorAssertionFunc
+	}{
+		"valid": {
+			raw: append([]byte{
+				0x00, 0x00, 0x00, 0x42,
+			}, bytes.Repeat([]byte{0xff}, 10)...),
+			decoded: &slayers.SCMPParameterProblem{
+				Pointer: 66,
+			},
+			assertFunc: assert.NoError,
+		},
+		"invalid": {
+			raw:        bytes.Repeat([]byte{0x0}, 1),
+			decoded:    &slayers.SCMPParameterProblem{},
+			assertFunc: assert.Error,
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got := &slayers.SCMPParameterProblem{}
+			err := got.DecodeFromBytes(tc.raw, gopacket.NilDecodeFeedback)
+			tc.assertFunc(t, err)
+			if err != nil {
+				return
+			}
+			tc.decoded.Contents = tc.raw[:4]
+			tc.decoded.Payload = tc.raw[4:]
+			assert.Equal(t, tc.decoded, got)
+		})
+	}
+}
+
+func TestSCMPParameterProblemSerializeTo(t *testing.T) {
+	testCases := map[string]struct {
+		raw        []byte
+		decoded    *slayers.SCMPParameterProblem
+		assertFunc assert.ErrorAssertionFunc
+	}{
+		"valid": {
+			raw: append([]byte{
+				0x00, 0x00, 0x00, 0x42,
+			}, bytes.Repeat([]byte{0xff}, 10)...),
+			decoded: &slayers.SCMPParameterProblem{
+				Pointer: 66,
+			},
+			assertFunc: assert.NoError,
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			opts := gopacket.SerializeOptions{}
+			tc.decoded.Contents = tc.raw[:4]
+			tc.decoded.Payload = tc.raw[4:]
+			t.Parallel()
+			buffer := gopacket.NewSerializeBuffer()
+			err := tc.decoded.SerializeTo(buffer, opts)
+			tc.assertFunc(t, err)
+			if err != nil {
+				return
+			}
+			assert.Equal(t, tc.raw[:len(tc.decoded.Contents)], buffer.Bytes())
+		})
+	}
+}
 func TestSCMPTracerouteDecodeFromBytes(t *testing.T) {
 	testCases := map[string]struct {
 		raw        []byte

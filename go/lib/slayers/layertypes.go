@@ -64,6 +64,13 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeSCMPInternalConnectivityDown),
 		},
 	)
+	LayerTypeSCMPParameterProblem = gopacket.RegisterLayerType(
+		1007,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPParameterProblem",
+			Decoder: gopacket.DecodeFunc(decodeSCMPParameterProblem),
+		},
+	)
 	LayerTypeSCMPEcho = gopacket.RegisterLayerType(
 		1128,
 		gopacket.LayerTypeMetadata{

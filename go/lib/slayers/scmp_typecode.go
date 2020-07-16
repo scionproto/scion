@@ -28,6 +28,34 @@ const (
 	SCMPTypeInternalConnectivityDown = 6
 )
 
+// ParameterProblem
+const (
+	SCMPCodeErroneousHeaderField = 0
+	SCMPCodeUnknownNextHdrType   = 1
+
+	SCMPCodeInvalidCommonHeader  = 16
+	SCMPCodeUnknownSCIONVersion  = 17
+	SCMPCodeFlowIDRequired       = 18
+	SCMPCodeInvalidPacketSize    = 19
+	SCMPCodeUnknownPathType      = 20
+	SCMPCodeUnknownAddressFormat = 21
+
+	SCMPCodeInvalidAddressHeader      = 32
+	SCMPCodeInvalidSourceAddress      = 33
+	SCMPCodeInvalidDestinationAddress = 34
+	SCMPCodeNonLocalDelivery          = 35
+
+	SCMPCodeInvalidPath              = 48
+	SCMPCodeUnknownHopFieldInterface = 49
+	SCMPCodeInvalidHopFieldMAC       = 50
+	SCMPCodePathExpired              = 51
+	SCMPCodeInvalidSegmentChange     = 52
+
+	SCMPCodeInvalidExtensionHeader = 64
+	SCMPCodeUnknownHopByHopOption  = 65
+	SCMPCodeUnknownEndToEndOption  = 66
+)
+
 // SCMP informational messages.
 const (
 	SCMPTypeEchoRequest       = 128
@@ -51,7 +79,18 @@ func (a SCMPTypeCode) Code() uint8 {
 
 func (a SCMPTypeCode) String() string {
 	t, c := a.Type(), a.Code()
-	return fmt.Sprintf("%d(%d)", t, c)
+	info, ok := scmpTypeCodeInfo[t]
+	if !ok {
+		return fmt.Sprintf("%d(%d)", t, c)
+	}
+	if info.codes == nil && c == 0 {
+		return info.name
+	}
+	code, ok := info.codes[c]
+	if !ok {
+		return fmt.Sprintf("%s(Code: %d)", info.name, c)
+	}
+	return fmt.Sprintf("%s(%s)", info.name, code)
 }
 
 // SerializeTo writes the SCMPTypeCode value to the buffer.
@@ -64,5 +103,40 @@ func CreateSCMPTypeCode(typ uint8, code uint8) SCMPTypeCode {
 	return SCMPTypeCode(binary.BigEndian.Uint16([]byte{typ, code}))
 }
 
-// TODO(karampok). bring a better string representation
-// as in https://github.com/google/gopacket/blob/9f64f498dcfc67d74ca3eb8384ee77ff9f860d7e/layers/icmp6.go#L64-L120
+var scmpTypeCodeInfo = map[uint8]struct {
+	name  string
+	codes map[uint8]string
+}{
+	SCMPTypeDestinationUnreachable:   {name: "DestinationUnreachable"},
+	SCMPTypeExternalInterfaceDown:    {name: "ExternalInterfaceDown"},
+	SCMPTypeInternalConnectivityDown: {name: "InternalConnectivityDown"},
+	SCMPTypePacketTooBig:             {name: "PacketTooBig"},
+	SCMPTypeEchoRequest:              {name: "EchoRequest"},
+	SCMPTypeEchoReply:                {name: "EchoReply"},
+	SCMPTypeTracerouteRequest:        {name: "TracerouteRequest"},
+	SCMPTypeTracerouteReply:          {name: "TracerouteReply"},
+	SCMPTypeParameterProblem: {
+		"ParameterProblem", map[uint8]string{
+			SCMPCodeErroneousHeaderField:      "ErroneousHeaderField",
+			SCMPCodeUnknownNextHdrType:        "UnknownNextHdrType",
+			SCMPCodeInvalidCommonHeader:       "InvalidCommonHeader",
+			SCMPCodeUnknownSCIONVersion:       "UnknownSCIONVersion",
+			SCMPCodeFlowIDRequired:            "FlowIDRequired",
+			SCMPCodeInvalidPacketSize:         "InvalidPacketSize",
+			SCMPCodeUnknownPathType:           "UnknownPathType",
+			SCMPCodeUnknownAddressFormat:      "UnknownAddressFormat",
+			SCMPCodeInvalidAddressHeader:      "InvalidAddressHeader",
+			SCMPCodeInvalidSourceAddress:      "InvalidSourceAddress",
+			SCMPCodeInvalidDestinationAddress: "InvalidDestinationAddress",
+			SCMPCodeNonLocalDelivery:          "NonLocalDelivery",
+			SCMPCodeInvalidPath:               "InvalidPath",
+			SCMPCodeUnknownHopFieldInterface:  "UnknownHopFieldInterface",
+			SCMPCodeInvalidHopFieldMAC:        "InvalidHopFieldMAC",
+			SCMPCodePathExpired:               "PathExpired",
+			SCMPCodeInvalidSegmentChange:      "InvalidSegmentChange",
+			SCMPCodeInvalidExtensionHeader:    "InvalidExtensionHeader",
+			SCMPCodeUnknownHopByHopOption:     "UnknownHopByHopOption",
+			SCMPCodeUnknownEndToEndOption:     "UnknownEndToEndOption",
+		},
+	},
+}

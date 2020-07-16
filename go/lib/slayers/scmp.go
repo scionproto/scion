@@ -63,6 +63,8 @@ func (s *SCMP) CanDecode() gopacket.LayerClass {
 // NextLayerType use the typecode to select the right next decoder.
 func (s *SCMP) NextLayerType() gopacket.LayerType {
 	switch s.TypeCode.Type() {
+	case SCMPTypeParameterProblem:
+		return LayerTypeSCMPParameterProblem
 	case SCMPTypeExternalInterfaceDown:
 		return LayerTypeSCMPExternalInterfaceDown
 	case SCMPTypeInternalConnectivityDown:

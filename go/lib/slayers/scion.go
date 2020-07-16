@@ -202,18 +202,13 @@ func (s *SCION) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeO
 	binary.BigEndian.PutUint16(buf[10:12], 0)
 
 	// Serialize address header.
-	s.SerializeAddrHdr(buf[CmnHdrLen:])
+	if err := s.SerializeAddrHdr(buf[CmnHdrLen:]); err != nil {
+		return err
+	}
 	offset := CmnHdrLen + s.AddrHdrLen()
 
 	// Serialize path header.
-	if err := s.Path.SerializeTo(buf[offset:]); err != nil {
-		return err
-	}
-	hdrBytes := int(s.HdrLen) * LineLen
-	s.Contents = buf[:hdrBytes]
-	s.Payload = buf[hdrBytes:]
-
-	return nil
+	return s.Path.SerializeTo(buf[offset:])
 }
 
 // DecodeFromBytes decodes the SCION layer. DecodeFromBytes resets the internal state of this layer

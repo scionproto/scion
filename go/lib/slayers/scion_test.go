@@ -47,6 +47,10 @@ func TestSCIONSerializeDecode(t *testing.T) {
 	got := &slayers.SCION{}
 	assert.NoError(t, got.DecodeFromBytes(buffer.Bytes(), gopacket.NilDecodeFeedback),
 		"DecodeFromBytes")
+
+	// XXX(karampok). the serialize step above does not set the BaseLayer of the want struct.
+	// We need to split the serialize/decode case.
+	want.BaseLayer = got.BaseLayer
 	assert.Equal(t, want, got)
 }
 
