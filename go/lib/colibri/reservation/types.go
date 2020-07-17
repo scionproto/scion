@@ -155,6 +155,17 @@ func (t Tick) ToTime() time.Time {
 // BWCls is the bandwidth class. bandwidth = 16 * sqrt(2^(BWCls - 1)). 0 <= bwcls <= 63 KBps.
 type BWCls uint8
 
+// BWClsFromBW constructs a BWCls from the bandwidth. Given that
+// bandwidth = 16 * sqrt(2^(BWCls - 1))
+// where bandwidth is KBps. We then have
+// BWCls = 2 * log2( bandwidth/16 ) + 1
+// The value of BWCls will be the ceiling of the previous expression.
+func BWClsFromBW(bwKBps uint64) BWCls {
+	cls := 2*math.Log2(float64(bwKBps)/16) + 1
+	cls = math.Min(cls, 63)
+	return BWCls(math.Ceil(cls))
+}
+
 // Validate will return an error for invalid values.
 func (b BWCls) Validate() error {
 	if b > 63 {
