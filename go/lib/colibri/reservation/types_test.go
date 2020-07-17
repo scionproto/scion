@@ -44,6 +44,24 @@ func TestSegmentIDRead(t *testing.T) {
 	require.Equal(t, xtest.MustParseHexString("ffaa00001101facecafe"), raw)
 }
 
+func TestSegmentIDString(t *testing.T) {
+	cases := []struct {
+		ID  SegmentID
+		Str string
+	}{
+		{ID: mustParseSegmentID("ff0000001101facecafe"), Str: "ff00:0:1101-facecafe"},
+		{ID: mustParseSegmentID("ff000000110100000000"), Str: "ff00:0:1101-00000000"},
+	}
+	for i, c := range cases {
+		name := fmt.Sprintf("case %d", i)
+		t.Run(name, func(t *testing.T) {
+			c := c
+			t.Parallel()
+			require.Equal(t, c.Str, c.ID.String())
+		})
+	}
+}
+
 func TestE2EIDFromRaw(t *testing.T) {
 	raw := xtest.MustParseHexString("ffaa00001101facecafedeadbeeff00d")
 	id, err := E2EIDFromRaw(raw)
@@ -416,4 +434,12 @@ func newToken() Token {
 }
 func newTokenRaw() []byte {
 	return xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade")
+}
+
+func mustParseSegmentID(s string) SegmentID {
+	id, err := SegmentIDFromRaw(xtest.MustParseHexString(s))
+	if err != nil {
+		panic(err)
+	}
+	return *id
 }

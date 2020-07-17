@@ -81,6 +81,10 @@ func (id *SegmentID) Read(raw []byte) (int, error) {
 	return SegmentIDLen, nil
 }
 
+func (id *SegmentID) String() string {
+	return id.ASID.String() + "-" + hex.EncodeToString(id.Suffix[:])
+}
+
 // E2EID identifies a COLIBRI E2E reservation. The suffix is different for each
 // reservation for any given AS.
 type E2EID struct {
