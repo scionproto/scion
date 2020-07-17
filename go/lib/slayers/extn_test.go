@@ -179,13 +179,13 @@ func TestEndToEndExtnSerialize(t *testing.T) {
 }
 
 func TestEndToEndExtnDecode(t *testing.T) {
-	raw := append([]byte{0x11, 0x06}, rawTLVOptionsYX...)
+	raw := append([]byte{0x11, 0x07}, rawTLVOptionsYX...)
 	e2e := slayers.EndToEndExtn{}
 	assert.NoError(t, e2e.DecodeFromBytes(raw, gopacket.NilDecodeFeedback), "DecodeFromBytes")
 	assert.Equal(t, common.L4UDP, e2e.NextHdr, "NextHeader")
-	assert.Equal(t, uint8(6), e2e.ExtLen, "ExtLen")
-	assert.Equal(t, 4, len(e2e.Options), "len(hbh.Options)")
-	assert.Equal(t, 28, e2e.ActualLen, "ActualLength")
+	assert.Equal(t, uint8(7), e2e.ExtLen, "ExtLen")
+	assert.Equal(t, 4, len(e2e.Options), "len(e2e.Options)")
+	assert.Equal(t, 32, e2e.ActualLen, "ActualLength")
 	// First option: Pad1
 	opt := e2e.Options[0]
 	assert.Equal(t, slayers.OptTypePad1, opt.OptType, "OptType")

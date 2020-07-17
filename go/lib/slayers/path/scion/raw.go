@@ -30,9 +30,13 @@ type Raw struct {
 // as raw bytes.
 func (s *Raw) DecodeFromBytes(data []byte) error {
 	if err := s.Base.DecodeFromBytes(data); err != nil {
-		return nil
+		return err
 	}
-	s.Raw = data
+	pathLen := s.Len()
+	if len(data) < pathLen {
+		return serrors.New("RawPath raw too short", "expected", pathLen, "actual", len(data))
+	}
+	s.Raw = data[:pathLen]
 	return nil
 }
 
@@ -42,19 +46,16 @@ func (s *Raw) SerializeTo(b []byte) error {
 	if s.Raw == nil {
 		return serrors.New("raw is nil")
 	}
-	if len(b) < s.Len() {
-		return serrors.New("buffer too small", "expected", s.Len(), "actual", len(b))
+	if minLen := s.Len(); len(b) < minLen {
+		return serrors.New("buffer too small", "expected", minLen, "actual", len(b))
 	}
-	if err := s.Base.SerializeTo(s.Raw[:MetaLen]); err != nil {
+	// XXX(roosd): This modifies the underlying buffer. Consider writing to data
+	// directly.
+	if err := s.PathMeta.SerializeTo(s.Raw[:MetaLen]); err != nil {
 		return err
 	}
 	copy(b, s.Raw)
 	return nil
-}
-
-// Len returns the number of bytes of the SCION path.
-func (s *Raw) Len() int {
-	return len(s.Raw)
 }
 
 // Reverse reverses the path such that it can be used in the reverse direction.
