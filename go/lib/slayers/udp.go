@@ -46,8 +46,8 @@ func (u *UDP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOpt
 		return u.UDP.SerializeTo(b, opts)
 	}
 
-	dstAddrBytes := int(u.scn.DstAddrLen+1) * 4
-	srcAddrBytes := int(u.scn.SrcAddrLen+1) * 4
+	dstAddrBytes := addrBytes(u.scn.DstAddrLen)
+	srcAddrBytes := addrBytes(u.scn.SrcAddrLen)
 	addrHdrLen := 2*addr.IABytes + dstAddrBytes + srcAddrBytes
 	pseudo := make([]byte, addrHdrLen+2+6)
 	binary.BigEndian.PutUint16(pseudo[0:], uint16(common.L4UDP))

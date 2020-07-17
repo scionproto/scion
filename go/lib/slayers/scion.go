@@ -251,6 +251,7 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 		return serrors.New("invalid header, negative pathLen",
 			"hdrBytes", hdrBytes, "addrHdrLen", addrHdrLen, "CmdHdrLen", CmnHdrLen)
 	}
+
 	switch s.PathType {
 	case PathTypeSCION:
 		// Only allocate a SCION path if necessary. This reduces memory allocation and GC overhead
@@ -268,6 +269,11 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 		return serrors.New("unsupported path type", "type", s.PathType.String())
 	default:
 		return serrors.New("unknown path type", "type", s.PathType.String())
+	}
+
+	if minLen := offset + pathLen; len(data) < minLen {
+		df.SetTruncated()
+		return serrors.New("provided buffer is too small", "expected", minLen, "actual", len(data))
 	}
 	err = s.Path.DecodeFromBytes(data[offset : offset+pathLen])
 	if err != nil {
@@ -422,5 +428,5 @@ func (s *SCION) DecodeAddrHdr(data []byte) error {
 }
 
 func addrBytes(addrLen AddrLen) int {
-	return int(addrLen+1) * LineLen
+	return (int(addrLen) + 1) * LineLen
 }

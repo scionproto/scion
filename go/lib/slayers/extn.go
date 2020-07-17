@@ -69,16 +69,22 @@ func (o *tlvOption) serializeTo(data []byte, fixLengths bool) {
 	}
 }
 
-func decodeTLVOption(data []byte) *tlvOption {
+func decodeTLVOption(data []byte) (*tlvOption, error) {
 	o := &tlvOption{OptType: OptionType(data[0])}
 	if OptionType(data[0]) == OptTypePad1 {
 		o.ActualLength = 1
-		return o
+		return o, nil
+	}
+	if len(data) < 2 {
+		return nil, serrors.New("buffer too short", "expected", 2, "actual", len(data))
 	}
 	o.OptDataLen = data[1]
 	o.ActualLength = int(o.OptDataLen) + 2
+	if len(data) < o.ActualLength {
+		return nil, serrors.New("buffer too short", "expected", o.ActualLength, "actual", len(data))
+	}
 	o.OptData = data[2:o.ActualLength]
-	return o
+	return o, nil
 }
 
 // serializeTLVOptionPadding adds an appropriate PadN extension.
@@ -188,7 +194,7 @@ func decodeExtnBase(data []byte, df gopacket.DecodeFeedback) (extnBase, error) {
 	}
 	e.NextHdr = common.L4ProtocolType(data[0])
 	e.ExtLen = data[1]
-	e.ActualLen = int(e.ExtLen+1) * LineLen
+	e.ActualLen = (int(e.ExtLen) + 1) * LineLen
 	if len(data) < e.ActualLen {
 		return extnBase{}, serrors.New(fmt.Sprintf("invalid extension header. "+
 			"Length %d less than specified length %d", len(data), e.ActualLen))
@@ -244,7 +250,10 @@ func (h *HopByHopExtn) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) 
 	}
 	offset := 2
 	for offset < h.ActualLen {
-		opt := decodeTLVOption(data[offset:])
+		opt, err := decodeTLVOption(data[offset:h.ActualLen])
+		if err != nil {
+			return err
+		}
 		h.Options = append(h.Options, (*HopByHopOption)(opt))
 		offset += opt.ActualLength
 	}
@@ -298,7 +307,10 @@ func (e *EndToEndExtn) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) 
 	}
 	offset := 2
 	for offset < e.ActualLen {
-		opt := decodeTLVOption(data[offset:])
+		opt, err := decodeTLVOption(data[offset:e.ActualLen])
+		if err != nil {
+			return err
+		}
 		e.Options = append(e.Options, (*EndToEndOption)(opt))
 		offset += opt.ActualLength
 	}
