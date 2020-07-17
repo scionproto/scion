@@ -17,6 +17,7 @@ package reservationstorage
 import (
 	"context"
 
+	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/cs/reservation/e2e"
 	sgt "github.com/scionproto/scion/go/cs/reservation/segment"
 	rsv "github.com/scionproto/scion/go/lib/colibri/reservation"
@@ -25,7 +26,7 @@ import (
 
 // Store is the interface to interact with the reservation store.
 type Store interface {
-	AdmitSegmentReservation(ctx context.Context, req sgt.SetupReq) (sgt.Response, error)
+	AdmitSegmentReservation(ctx context.Context, req sgt.SetupReq) (base.MessageWithPath, error)
 	ConfirmSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexNumber) error
 	CleanupSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexNumber) error
 	TearDownSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexNumber) error

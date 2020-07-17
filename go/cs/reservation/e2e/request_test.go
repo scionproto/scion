@@ -70,7 +70,7 @@ func TestNewCleanupReqFromCtrlMsg(t *testing.T) {
 	p := newPath()
 	r, err := e2e.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, p)
 	require.NoError(t, err)
-	require.Equal(t, *p, r.Metadata.Path)
+	require.Equal(t, p, r.Path())
 	require.Equal(t, ts, r.Timestamp())
 
 	buff := make([]byte, reservation.E2EIDLen)
@@ -160,7 +160,7 @@ func checkRequest(t *testing.T, e2eSetup *colibri_mgmt.E2ESetup, r e2e.SetupReq,
 
 	require.Equal(t, (*e2e.Reservation)(nil), base.Reservation())
 	require.Equal(t, ts, base.Timestamp())
-	require.Equal(t, *p, base.Metadata.Path)
+	require.Equal(t, p, base.Path())
 	buff := make([]byte, reservation.E2EIDLen)
 	_, err := base.ID.Read(buff)
 	require.NoError(t, err) // tested in the E2EID UT, should not fail

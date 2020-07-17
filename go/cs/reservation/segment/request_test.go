@@ -41,7 +41,7 @@ func TestNewSetupReqFromCtrlMsg(t *testing.T) {
 	id := newID()
 	r, err = segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, id, p)
 	require.NoError(t, err)
-	require.Equal(t, *p, r.Metadata.Path)
+	require.Equal(t, p, r.Path())
 	checkRequest(t, ctrlMsg, r, ts)
 	require.Equal(t, common.IFIDType(1), r.Ingress)
 	require.Equal(t, common.IFIDType(2), r.Egress)

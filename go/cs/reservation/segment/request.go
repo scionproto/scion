@@ -28,12 +28,12 @@ import (
 
 // Request is the base struct for any type of COLIBRI request.
 type Request struct {
-	Metadata    base.RequestMetadata  // information about the request (forwarding path)
-	ID          reservation.SegmentID // the ID this request refers to
-	Timestamp   time.Time             // the mandatory timestamp
-	Ingress     common.IFIDType       // the interface the reservation traffic uses to enter the AS
-	Egress      common.IFIDType       // the interface the reservation traffic uses to leave the AS
-	Reservation *Reservation          // nil if no reservation yet
+	base.RequestMetadata                       // information about the request (forwarding path)
+	ID                   reservation.SegmentID // the ID this request refers to
+	Timestamp            time.Time             // the mandatory timestamp
+	Ingress              common.IFIDType       // the interface the reservation traffic uses to enter the AS
+	Egress               common.IFIDType       // the interface the reservation traffic uses to leave the AS
+	Reservation          *Reservation          // nil if no reservation yet
 }
 
 // NewRequest constructs the segment Request type.
@@ -65,11 +65,11 @@ func NewRequest(ts time.Time, ID *colibri_mgmt.SegmentReservationID,
 		return nil, serrors.WrapStr("new segment request", err)
 	}
 	return &Request{
-		Timestamp: ts,
-		Metadata:  *metadata,
-		ID:        *segID,
-		Ingress:   ingressIFID,
-		Egress:    egressIFID,
+		RequestMetadata: *metadata,
+		Timestamp:       ts,
+		ID:              *segID,
+		Ingress:         ingressIFID,
+		Egress:          egressIFID,
 	}, nil
 }
 
