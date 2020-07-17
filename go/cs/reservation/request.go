@@ -39,3 +39,18 @@ func NewRequestMetadata(path *spath.Path) (*RequestMetadata, error) {
 func (m *RequestMetadata) Path() *spath.Path {
 	return &m.path
 }
+
+// NumberOfHops returns the number of hops in this reservation.
+func (m *RequestMetadata) NumberOfHops() int {
+	return (len(m.path.Raw) - spath.InfoFieldLength) / spath.HopFieldLength
+}
+
+// IndexOfCurrentHop returns the 0-based index of the current hop.
+func (m *RequestMetadata) IndexOfCurrentHop() int {
+	return (m.path.HopOff - spath.InfoFieldLength) / spath.HopFieldLength
+}
+
+// IsLastAS returns true if this hop is the last one (this AS is the destination).
+func (m *RequestMetadata) IsLastAS() bool {
+	return m.IndexOfCurrentHop() == m.NumberOfHops()-1
+}
