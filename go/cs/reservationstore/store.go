@@ -56,15 +56,17 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req segment.SetupRe
 		return nil, serrors.WrapStr("while admitting a reservation, cannot reverse path", err,
 			"id", req.ID)
 	}
-	metadata, err := base.NewRequestMetadata(revPath)
+	revMetadata, err := base.NewRequestMetadata(revPath)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct metadata for reservation packet", err)
 	}
+	if req.IndexOfCurrentHop() != len(req.AllocTrail) {
+		return nil, serrors.New("inconsistent number of hops",
+			"len_alloctrail", len(req.AllocTrail), "hf_count", req.IndexOfCurrentHop())
+	}
 	failedResponse := &segment.ResponseSetupFailure{
-		// Metadata: base.RequestMetadata{Path: *revPath},
-		RequestMetadata: *metadata,
-		// TODO(juagargi) should we get the hop number from the spath instead?
-		FailedHop: uint8(len(req.AllocTrail)),
+		RequestMetadata: *revMetadata,
+		FailedHop:       uint8(len(req.AllocTrail)),
 	}
 	rsv, err := s.db.GetSegmentRsvFromID(ctx, &req.ID)
 	if err != nil {
@@ -117,7 +119,7 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req segment.SetupRe
 		// not admitted
 		return failedResponse, err
 	}
-	// admitted; the request contains already the value
+	// admitted; the request contains already the value inside the "allocation beads" of the rsv
 	index.AllocBW = alloc
 	err = tx.PersistSegmentRsv(ctx, rsv)
 	if err != nil {
@@ -128,11 +130,18 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req segment.SetupRe
 		return failedResponse, serrors.WrapStr("cannot commit transaction", err,
 			"id", req.ID)
 	}
-	// is this the destination AS?
-
-	resp := &segment.ResponseSetupSuccess{}
-	// - send request to next hop, or create reply
-	return resp, nil
+	var msg base.MessageWithPath
+	if req.IsLastAS() {
+		// TODO(juagargi) update token here
+		msg = &segment.ResponseSetupSuccess{
+			RequestMetadata: *revMetadata,
+			Token:           *index.Token,
+		}
+	} else {
+		msg = &req
+	}
+	// TODO(juagargi) refactor function
+	return msg, nil
 }
 
 // ConfirmSegmentReservation changes the state of an index from temporary to confirmed.
