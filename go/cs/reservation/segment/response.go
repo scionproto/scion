@@ -15,38 +15,19 @@
 package segment
 
 import (
-	"fmt"
-
 	base "github.com/scionproto/scion/go/cs/reservation"
+	"github.com/scionproto/scion/go/lib/colibri/reservation"
 )
 
-type Response interface {
-	// TODO(juagargi) we'll need a function to serialize the concrete type to a message
-}
-
+// ResponseSetupSuccess is the response to a success setup. It's sent on the reverse direction.
 type ResponseSetupSuccess struct {
-	Metadata      base.RequestMetadata // information about the request (forwarding path)
-	SuccessThings int
+	base.RequestMetadata // information about the request (forwarding path)
+	Token                reservation.Token
 }
 
-// type ResponseSetupFailure SetupReq
+// ResponseSetupFailure is the response to a failed setup. It's sent on the reverse direction.
 type ResponseSetupFailure struct {
-	FailedSetup SetupReq
-	FailedHop   uint8
-}
-
-//FailedHop() uint8
-
-// type ResponseFailure struct {
-// 	// Metadata      base.RequestMetadata // information about the request (forwarding path)
-// 	FailedData    SetupReq
-// 	FailureThings int
-// }
-
-func AA(i int) Response {
-	fmt.Println("i=", i)
-	if i%2 == 0 {
-		return &ResponseSetupSuccess{}
-	}
-	return &ResponseSetupFailure{}
+	base.RequestMetadata // information about the request (forwarding path)
+	FailedSetup          SetupReq
+	FailedHop            uint8
 }

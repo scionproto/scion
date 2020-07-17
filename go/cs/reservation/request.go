@@ -20,8 +20,9 @@ import (
 )
 
 // RequestMetadata contains information about the request, such as its forwarding path.
+// This base struct can be used by any request or response packets.
 type RequestMetadata struct {
-	Path spath.Path // the path the packet came with
+	path spath.Path // the path the packet came / will go with
 }
 
 // NewRequestMetadata constructs the base Request type.
@@ -30,6 +31,11 @@ func NewRequestMetadata(path *spath.Path) (*RequestMetadata, error) {
 		return nil, serrors.New("new request with nil path")
 	}
 	return &RequestMetadata{
-		Path: *path.Copy(),
+		path: *path.Copy(),
 	}, nil
+}
+
+// Path returns the spath.Path in this metadata.
+func (m *RequestMetadata) Path() *spath.Path {
+	return &m.path
 }

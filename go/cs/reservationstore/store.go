@@ -47,21 +47,34 @@ func NewStore(db backend.DB) *Store {
 // AdmitSegmentReservation receives a setup/renewal request to admit a segment reservation.
 // It is expected that this AS is not the reservation initiator.
 func (s *Store) AdmitSegmentReservation(ctx context.Context, req segment.SetupReq) (
-	segment.Response, error) {
+	base.MessageWithPath, error) {
 
 	// validate request:
 	// DRKey authentication of request (will be left undone for later)
+	revPath := req.Path().Copy()
+	if err := revPath.Reverse(); err != nil {
+		return nil, serrors.WrapStr("while admitting a reservation, cannot reverse path", err,
+			"id", req.ID)
+	}
+	metadata, err := base.NewRequestMetadata(revPath)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct metadata for reservation packet", err)
+	}
 	failedResponse := &segment.ResponseSetupFailure{
+		// Metadata: base.RequestMetadata{Path: *revPath},
+		RequestMetadata: *metadata,
 		// TODO(juagargi) should we get the hop number from the spath instead?
 		FailedHop: uint8(len(req.AllocTrail)),
 	}
 	rsv, err := s.db.GetSegmentRsvFromID(ctx, &req.ID)
 	if err != nil {
-		return failedResponse, serrors.WrapStr("cannot obtain segment reservation", err)
+		return failedResponse, serrors.WrapStr("cannot obtain segment reservation", err,
+			"id", req.ID)
 	}
 	tx, err := s.db.BeginTransaction(ctx, nil)
 	if err != nil {
-		return failedResponse, serrors.WrapStr("cannot create transaction", err)
+		return failedResponse, serrors.WrapStr("cannot create transaction", err,
+			"id", req.ID)
 	}
 	defer tx.Rollback()
 
@@ -71,7 +84,7 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req segment.SetupRe
 		index = rsv.Index(req.InfoField.Idx)
 		if index != nil {
 			return failedResponse, serrors.New("index from setup already in use",
-				"idx", req.InfoField.Idx)
+				"idx", req.InfoField.Idx, "id", req.ID)
 		}
 	} else {
 		// setup, create reservation and an index
@@ -80,38 +93,46 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req segment.SetupRe
 		err = tx.NewSegmentRsv(ctx, rsv)
 		if err != nil {
 			return failedResponse, serrors.WrapStr(
-				"unable to create a new segment reservation in db", err)
+				"unable to create a new segment reservation in db", err,
+				"id", req.ID)
 		}
 	}
 	req.Reservation = rsv
 	tok := &reservation.Token{InfoField: req.InfoField}
 	idx, err := rsv.NewIndexFromToken(tok, req.MinBW, req.MaxBW)
 	if err != nil {
-		return failedResponse, serrors.WrapStr("cannot create index from token", err)
+		return failedResponse, serrors.WrapStr("cannot create index from token", err,
+			"id", req.ID)
 	}
 	index = rsv.Index(idx)
 
 	// checkpath type compatibility with end properties
 	if err := rsv.PathEndProps.ValidateWithPathType(rsv.PathType); err != nil {
-		return failedResponse, serrors.WrapStr("error validating end props and path type", err)
+		return failedResponse, serrors.WrapStr("error validating end props and path type", err,
+			"id", req.ID)
 	}
 	// compute admission max BW
-
-	// if failure:
-	if 5%5 != 0 {
-		return failedResponse, nil
+	alloc, err := s.admitSegmentRsv(ctx, req)
+	if err != nil {
+		// not admitted
+		return failedResponse, err
 	}
-
-	// if success:
+	// admitted; the request contains already the value
+	index.AllocBW = alloc
 	err = tx.PersistSegmentRsv(ctx, rsv)
 	if err != nil {
-		return failedResponse, serrors.WrapStr("cannot persist segment reservation", err)
+		return failedResponse, serrors.WrapStr("cannot persist segment reservation", err,
+			"id", req.ID)
 	}
 	if err := tx.Commit(); err != nil {
-		return failedResponse, serrors.WrapStr("cannot commit tranaction", err)
+		return failedResponse, serrors.WrapStr("cannot commit transaction", err,
+			"id", req.ID)
 	}
+	// is this the destination AS?
+
+	resp := &segment.ResponseSetupSuccess{}
 	// - send request to next hop, or create reply
-	return nil, nil
+	return resp, nil
 }
 
 // ConfirmSegmentReservation changes the state of an index from temporary to confirmed.
@@ -152,6 +173,33 @@ func (s *Store) DeleteExpiredIndices(ctx context.Context) (int, error) {
 	return s.db.DeleteExpiredIndices(ctx, time.Now())
 }
 
+func (s *Store) admitSegmentRsv(ctx context.Context, req segment.SetupReq) (
+	reservation.BWCls, error) {
+
+	avail, err := s.availableBW(ctx, req.ID, req.Ingress, req.Egress)
+	if err != nil {
+		return 0, serrors.WrapStr("cannot compute available bandwidth", err, "segment_id", req.ID)
+	}
+	ideal, err := s.idealBW(ctx)
+	if err != nil {
+		return 0, serrors.WrapStr("cannot compute ideal bandwidth", err, "segment_id", req.ID)
+	}
+	bw := minBW(avail, ideal)
+
+	maxAlloc := reservation.BWClsFromBW(bw)
+	if maxAlloc < req.MinBW {
+		return 0, serrors.New("admission denied", "maxalloc", maxAlloc, "minbw", req.MinBW,
+			"segment_id", req.ID)
+	}
+	alloc := reservation.MinBWCls(maxAlloc, req.MaxBW)
+	bead := reservation.AllocationBead{
+		AllocBW: uint8(alloc),
+		MaxBW:   uint8(maxAlloc),
+	}
+	req.AllocTrail = append(req.AllocTrail, bead)
+	return alloc, nil
+}
+
 func (s *Store) availableBW(ctx context.Context, ID reservation.SegmentID,
 	ingress, egress common.IFIDType) (uint64, error) {
 
@@ -169,6 +217,22 @@ func (s *Store) availableBW(ctx context.Context, ID reservation.SegmentID,
 	freeEgress := s.capacities.CapacityEgress(egress) - bwEgress
 	free := float64(minBW(freeIngress, freeEgress))
 	return uint64(free * s.delta), nil
+}
+
+func (s *Store) idealBW(ctx context.Context) (uint64, error) {
+	tubeRatio := s.tubeRatio(ctx)
+	linkRatio := s.linkRatio(ctx)
+	_ = tubeRatio
+	_ = linkRatio
+	return 0, nil
+}
+
+func (s *Store) tubeRatio(ctx context.Context) uint64 {
+	return 0
+}
+
+func (s *Store) linkRatio(ctx context.Context) uint64 {
+	return 0
 }
 
 func sumAllRsvButThis(rsvs []*segment.Reservation, excludeRsv reservation.SegmentID) uint64 {

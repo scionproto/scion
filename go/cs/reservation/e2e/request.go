@@ -35,10 +35,10 @@ type SetupReq interface {
 
 // BaseSetupReq is the common part of any e2e setup request.
 type BaseSetupReq struct {
-	Metadata    base.RequestMetadata // information about the request (forwarding path)
-	ID          reservation.E2EID    // the ID this request refers to
-	timestamp   time.Time            // the mandatory timestamp
-	reservation *Reservation         // nil if no reservation yet
+	base.RequestMetadata                   // information about the request (forwarding path)
+	ID                   reservation.E2EID // the ID this request refers to
+	timestamp            time.Time         // the mandatory timestamp
+	reservation          *Reservation      // nil if no reservation yet
 }
 
 func NewBaseSetupReq(path *spath.Path, ts time.Time,
@@ -56,9 +56,9 @@ func NewBaseSetupReq(path *spath.Path, ts time.Time,
 		return nil, serrors.WrapStr("cannot construct e2e request", err)
 	}
 	return &BaseSetupReq{
-		Metadata:  *metadata,
-		ID:        *e2eID,
-		timestamp: ts,
+		RequestMetadata: *metadata,
+		ID:              *e2eID,
+		timestamp:       ts,
 	}, nil
 }
 
