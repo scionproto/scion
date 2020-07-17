@@ -32,8 +32,9 @@ import (
 
 func TestDecodeBuffer(t *testing.T) {
 	testCases := map[string]struct {
-		Layers func(t *testing.T) []gopacket.SerializableLayer
-		Check  func(t *testing.T, pkt *Packet)
+		Layers       func(t *testing.T) []gopacket.SerializableLayer
+		Check        func(t *testing.T, pkt *Packet)
+		ErrAssertion assert.ErrorAssertionFunc
 	}{
 		"UDP": {
 			Layers: func(t *testing.T) []gopacket.SerializableLayer {
@@ -53,6 +54,7 @@ func TestDecodeBuffer(t *testing.T) {
 				assert.Equal(t, 1337, int(pkt.UDP.SrcPort))
 				assert.Equal(t, slayers.LayerTypeSCIONUDP, pkt.L4)
 			},
+			ErrAssertion: assert.NoError,
 		},
 		"SCMP": {
 			Layers: func(t *testing.T) []gopacket.SerializableLayer {
@@ -74,6 +76,15 @@ func TestDecodeBuffer(t *testing.T) {
 					int(pkt.SCMP.TypeCode.Type()))
 				assert.Equal(t, slayers.LayerTypeSCMP, pkt.L4)
 			},
+			ErrAssertion: assert.NoError,
+		},
+		"TCP": {
+			Layers: func(t *testing.T) []gopacket.SerializableLayer {
+				scion := scionLayer(t, common.L4TCP)
+				pld := gopacket.Payload("offending packet")
+				return []gopacket.SerializableLayer{scion, pld}
+			},
+			ErrAssertion: assert.Error,
 		},
 	}
 	for name, tc := range testCases {
@@ -90,7 +101,10 @@ func TestDecodeBuffer(t *testing.T) {
 				buffer:   buf.Bytes(),
 			}
 			err := pkt.decodeBuffer()
-			require.NoError(t, err)
+			tc.ErrAssertion(t, err)
+			if err != nil {
+				return
+			}
 			tc.Check(t, pkt)
 		})
 	}

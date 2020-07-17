@@ -172,14 +172,14 @@ func (pkt *Packet) decodeBuffer() error {
 			return err
 		}
 	}
-	if len(decoded) == 0 {
-		return serrors.New("no layer decoded")
+	if len(decoded) < 2 {
+		return serrors.New("L4 not decoded")
 	}
-	if decoded[len(decoded)-1] == slayers.LayerTypeSCMP {
-		pkt.L4 = slayers.LayerTypeSCMP
-		return nil
+	l4 := decoded[1]
+	if l4 != slayers.LayerTypeSCMP && l4 != slayers.LayerTypeSCIONUDP {
+		return serrors.New("unknown L4 layer decoded", "type", common.TypeOf(l4))
 	}
-	pkt.L4 = slayers.LayerTypeSCIONUDP
+	pkt.L4 = l4
 	return nil
 }
 
