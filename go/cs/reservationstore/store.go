@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/cs/reservationstorage"
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -149,4 +150,40 @@ func (s *Store) CleanupE2EReservation(ctx context.Context, id reservation.E2EID,
 // DeleteExpiredIndices will just call the DB's method to delete the expired indices.
 func (s *Store) DeleteExpiredIndices(ctx context.Context) (int, error) {
 	return s.db.DeleteExpiredIndices(ctx, time.Now())
+}
+
+func (s *Store) availableBW(ctx context.Context, ID reservation.SegmentID,
+	ingress, egress common.IFIDType) (uint64, error) {
+
+	sameIngress, err := s.db.GetSegmentRsvsFromIFPair(ctx, &ingress, nil)
+	if err != nil {
+		return 0, serrors.WrapStr("cannot get reservations using ingress", err, "ingress", ingress)
+	}
+	sameEgress, err := s.db.GetSegmentRsvsFromIFPair(ctx, nil, &egress)
+	if err != nil {
+		return 0, serrors.WrapStr("cannot get reservations using egress", err, "egress", egress)
+	}
+	bwIngress := sumAllRsvButThis(sameIngress, ID)
+	freeIngress := s.capacities.CapacityIngress(ingress) - bwIngress
+	bwEgress := sumAllRsvButThis(sameEgress, ID)
+	freeEgress := s.capacities.CapacityEgress(egress) - bwEgress
+	free := float64(minBW(freeIngress, freeEgress))
+	return uint64(free * s.delta), nil
+}
+
+func sumAllRsvButThis(rsvs []*segment.Reservation, excludeRsv reservation.SegmentID) uint64 {
+	var total uint64
+	for _, r := range rsvs {
+		if r.ID != excludeRsv {
+			total += r.MaxBlockedBW()
+		}
+	}
+	return total
+}
+
+func minBW(a, b uint64) uint64 {
+	if a < b {
+		return a
+	}
+	return b
 }
