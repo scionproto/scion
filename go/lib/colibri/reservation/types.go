@@ -187,6 +187,14 @@ func MaxBWCls(a, b BWCls) BWCls {
 	return b
 }
 
+// MinBWCls returns the minimum of two BWCls.
+func MinBWCls(a, b BWCls) BWCls {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // SplitCls is the traffic split parameter. split = sqrt(2^c). The split divides the bandwidth
 // in control traffic (BW * split) and end to end traffic (BW * (1-s)). 0 <= splitCls <= 256 .
 type SplitCls uint8
