@@ -167,6 +167,22 @@ func TestMaxBWCls(t *testing.T) {
 	}
 }
 
+func TestMinBWCls(t *testing.T) {
+	cases := []struct{ a, b, min BWCls }{
+		{a: 1, b: 1, min: 1},
+		{a: 0, b: 1, min: 0},
+		{a: 255, b: 0, min: 0},
+	}
+	for i, c := range cases {
+		name := fmt.Sprintf("case %d", i)
+		t.Run(name, func(t *testing.T) {
+			c := c
+			t.Parallel()
+			require.Equal(t, c.min, MinBWCls(c.a, c.b))
+		})
+	}
+}
+
 func TestValidateRLC(t *testing.T) {
 	for i := 0; i < 64; i++ {
 		c := RLC(i)
