@@ -21,24 +21,26 @@ autoactivation on
 
 activate Client
 Client -> sciond: PathRequest (dstIA)
-sciond -> Local PS: SegRequest (up)
-sciond <-- Local PS: SegReply (up, [localIA->A]) 
 
-sciond -> Local PS: SegRequest (core, A, B)
-Local PS -> Core PS A: SegRequest (core, A, B)
+rbox right of sciond: SegReqs in parallel
+
+sciond -> Local PS: SegReq (up)
+sciond <-- Local PS: SegReply (up, [localIA->A])
+
+sciond -> Local PS: SegReq (core, *, *)
+Local PS -> Core PS A: SegReq (core, A, *)
 Local PS <-- Core PS A: SegReply (core, [A->B])
 sciond <-- Local PS: SegReply (core, [A->B])
 
-sciond -> Local PS: SegRequest (down, A, dstIA)
-Local PS -> Core PS A: SegRequest (down, A, dstIA)
-Local PS <-- Core PS A: SegReply (core, [A->dstIA])
-sciond <-- Local PS: SegReply (down, [A->dstIA])
+sciond -> Local PS: SegReq (down, *, dstIA)
+rbox right of Local PS: SegReqs in parallel
+Local PS -> Core PS A: SegReq (down, A, dstIA)
+Local PS <-- Core PS A: SegReply (down, [A->dstIA])
+Local PS -> Core PS B: SegReq (down, B, dstIA)
+Local PS <-- Core PS B: SegReply (down, [B->dstIA])
 
+sciond <-- Local PS: SegReply (down, [A->dstIA,\n                            B->dstIA])
 
-sciond -> Local PS: SegRequest (down, B, dstIA)
-Local PS -> Core PS B: SegRequest (down, B, dstIA)
-Local PS <-- Core PS B: SegReply (core, [B->dstIA])
-sciond <-- Local PS: SegReply (down, [B->dstIA])
 
 note over sciond: combine segments
 Client <-- sciond : PathReply
@@ -46,23 +48,24 @@ Client <-- sciond : PathReply
 ==Destination in remote ISD==
 
 Client -> sciond: PathRequest (dstIA)
-sciond -> Local PS: SegRequest (up)
+
+rbox right of sciond: SegReqs in parallel
+
+sciond -> Local PS: SegReq (up)
 sciond <-- Local PS: SegReply (up, [localIA->A]) 
 
-sciond -> Local PS: SegRequest (core, A, (dstIA.I,*))
-Local PS -> Core PS A: SegRequest (core, A, (dstIA.I,*))
+sciond -> Local PS: SegReq (core, *, (dstIA.I,*))
+Local PS -> Core PS A: SegReq (core, A, (dstIA.I,*))
 Local PS <-- Core PS A: SegReply (core, [A->Q, A->R])
 sciond <-- Local PS: SegReply (core, [A->Q, A->R])
 
-sciond -> Local PS: SegRequest (down, Q, dstIA)
-Local PS -> Core PS Q: SegRequest (down, Q, dstIA)
-Local PS <-- Core PS Q: SegReply (core, [Q->dstIA])
-sciond <-- Local PS: SegReply (down, [Q->dstIA])
-
-sciond -> Local PS: SegRequest (down, R, dstIA)
-Local PS -> Core PS R: SegRequest (down, R, dstIA)
-Local PS <-- Core PS R: SegReply (core, [R->dstIA])
-sciond <-- Local PS: SegReply (down, [R->dstIA])
+sciond -> Local PS: SegReq (down, (dstIA.I, *), dstIA)
+rbox right of Local PS: SegReqs in parallel
+Local PS -> Core PS Q: SegReq (down, Q, dstIA)
+Local PS <-- Core PS Q: SegReply (down, [Q->dstIA])
+Local PS -> Core PS R: SegReq (down, R, dstIA)
+Local PS <-- Core PS R: SegReply (down, [R->dstIA])
+sciond <-- Local PS: SegReply (down, [Q->dstIA,\n                             R->dstIA])
 
 note over sciond: combine segments
 Client <-- sciond : PathReply
