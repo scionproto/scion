@@ -1,19 +1,16 @@
-# Path Service Design (Go)
+# Path Service
+
+The path service is implemented as part of the control server.
 
 ## Request Handlers
 
-The path server (PS) needs to handle multiple requests. We use the messenger to register request
-handlers. The following requests need to be handled:
+We use the messenger to register request handlers. The following requests are handled:
 
-* __TRC Request:__ Use handler of existing truststore.
-* __Chain Request:__ Use handler of existing truststore.
-* __Path Registration:__ A handler for the existing path-registration request should be implemented.
-* __Path Requests:__ A handler for the existing `SegReq` should be implemented.
-* __Path Revocation:__ A handler for the existing path-revocation message should be implemented.
-* __Path Changes Since:__ Used for the new replication of down-segments. The service should return
-  all the ids of changed segments since a certain point in time. The requesting PS can then request
-  the affected segments. The python server will not support this mechanism but we will receive the
-  old path sync message from it, so this is not a big problem.
+* __Path Registration:__ A handler for the path-registration request, only in core ASes.
+* __Path Requests:__ Two different types of `SegReq` are handled by separate handlers:
+    * local requests, coming over TCP.
+    * requests from other path servers, over SCION/QUIC, only in core ASes.
+* __Path Revocation:__ A handler for the path-revocation message
 
 ## Deletion of Expired Path Segments and Revocations
 
@@ -21,57 +18,111 @@ The PS should periodically delete expired path segments and revocations in its D
 
 ## Path Lookup
 
-### Logic Flow
+### Overview
 
-Local means in the same ISD as the current PS, remote means in a different ISD.
+An application resolves paths with a sequence of segment requests (`SegReq`) to
+the AS-local path server. Typically this is orchestrated by sciond.
+The AS-local path server answers directly, or forwards these requests to the
+responsible core path servers. Replies of forwarded requests are cached in the
+local path server.
 
-#### Common Logic
+| SegReq segment type  | Responsible PS(s)            |
+| ---------------------| ---------------------------- |
+| up                   | Local PS                     |
+| core                 | Core PSs in local ISD        |
+| down                 | Core PSs in destination ISD  |
 
-* Receive path request R of type SegReq
-* For non-core PS: Check source (R.RawSrcIA): must either be unset, or set to the local IA otherwise
-  return an error/empty reply
-* Check destination (R.RawDstIA):
-    * If the R.RawDstIA is not set or invalid (i.e., ISD is 0) or represents the local IA,
+The overall sequence to resolve a path is:
+
+* request up segments
+* request core segments starting at core ASes reachable with up segments, to
+  the core ASes in the destination ISD.
+  If the destination ISD is the local ISD, this step requests segments to core
+  ASes that are not directly reachable with an up segment.
+* request down segments starting at (reachable) core ASes in the destination ISD
+
+Wildcard addresses (of the form `I-0` for some ISD `I`) for core ASes are
+expanded at the local path server:
+
+* destination in up-segment requests
+* source for core-segment requests: expands to all provider core ASes (i.e.
+  cores for to which an up segment exists)
+* source for down-segment requests: expands to all core ASes of the specified ISD
+
+In this process, the resolver (i.e. sciond) can employ different strategies:
+
+* Breadth-first search, attempt to resolve _all_ paths.
+  Request all up segments, then request all core segments, then request all down segments.
+
+  Using wildcards, the requests for all three segment types become independent
+  and can be queried concurrently.
+  This is the approach currently implemented in sciond (via
+  `segfetcher.MultiSegmentSplitter` and `segfetcher.Pather`).
+
+* Depth-first search, attempt to resolve _a_ path.
+  Pick a local core AS; see what remote core ASes are reachable; pick one; see if
+  the remote destination AS is reachable; if unreachable, track back and pick
+  another remote core-AS; see if the remote destination AS is reachable; etc.
+
+### Example sequence diagram
+
+In the diagram below, we show entities in five ASes; the local AS, and four
+core ASes; `A` and `B` are in the local ISD, `Q` and `R` are in a remote ISD.
+Core AS `A` is a provider of the local AS, but the core AS `B` is not, i.e.
+there is no up-segment from the local AS to `B`.
+
+![Path Lookup](fig/path_lookup.png)
+
+### Logic flow
+
+In the following pseudo code snippets, we use `HasCached(src, dst addr.IA)` to
+denote the check whether the path DB has a recently cached entry for a segment
+`src` to `dst`.
+In the source code, this is implemented in terms of `pathdb.Read.GetNextQuery()`.
+
+#### sciond/application
+
+* Application requests path from sciond, with a `PathReq` request `pathReq`.
+* Check destination IA `pathReq.Dst`:
+    * If the destination IA is not set or invalid (i.e., ISD is 0) or represents the local IA,
       immediately return an error/empty reply
-* Define `GetCached(Seg, cPS)` := if last lookup Seg.Dst is longer than a configured time ago (Note
-  comments on the cache refresh interval in chapter below), request at cPS and save result in cache,
-  then return cached version. If we currently do not have a path to cPS we should hold the request
-  until either we have a path or the request timed out.
-* Request Paths: Note that results should always be filtered, any segments with revoked on-path
-  interface should be dropped. See steps below.
+* Split the path request into segment requests; different strategies available, as described above.
+* For each `SegReq` request `segReq`:
+    * If `!pathReq.Refresh && HasCached(segReq.Src, segReq.Dst)`, return the cached segments.
+    * Else, request `segReq` from the local path service, (via TCP).
+      Validate retrieved segments and add to cache.
+* Combine all segments into a set of paths
+* Filter paths with revoked on-path interfaces
+* Return paths to application as a `PathReply`
 
-#### Non-core PS
+#### Local SegReq handler
 
-* If Dst == Core-AS:
-    * For each local core-AS x, for which an up-segment exists && isNot(dst):
-        * GetCached(coreSeg{dst->x}, x)
-    * Return up-segments, which have a connecting core-segment or which end in dst, and the
-        core-segments.
-* Else // Dst == Non-Core-AS:
-    * GetCached(downSeg{*->dst}, any local cPS)
-    * Filter down-segments, remove revoked ones.
-    * For each core AS x, that is at the start of a down-segment:
-        * For each local core AS y, for which an up-segment exists && x != y:
-          GetCached(coreSeg{x->y}, y)
-    * Filter down-segments, only keep reachable ones
-    * Return the down, core, and up-segments.
+* Determine requested segment type and validate request
+* If up segment request, load matching up segments from path DB and return
+* If core segment request:
+    * expand `Src` wildcard into separate requests for each reachable core AS in local ISD.
+    * for each `SegReq` request `segReq`:
+        * If `segReq.Src == localIA`, load matching core segments from path DB
+        * Else If `HasCached(segReq.Src, segReq.Dst)`, return cached segments
+        * Else, request `segReq` from the core path server at `segReq.Src`.
+          Validate retrieved segments and add to cache.
+* If down segment request:
+    * expand `Src` wildcard into separate request for every core AS in ISD `Src.I`
+    * for each `SegReq` request `segReq`:
+        * If `segReq.Src == localIA`, load matching down segments from path DB
+        * Else If `HasCached(segReq.Src, segReq.Dst)`, return cached segments
+        * Else, request `segReq` from the core path server at `segReq.Src`.
+          Sending the request may require looking up core segments to `segReq.Src`.
+          Validate retrieved segments and add to cache.
+* Filter revoked segments
 
-#### Core PS
+#### Core PS SegReq handler
 
-* If destination is local:
-    * If Dest is ISD-0: return empty
-    * Else if Dest is core AS: return coreSeg{dst->self}
-    * Else
-        * If request from different AS: return downSeg{*->dst} (from DB)
-        * Else return downSeg{*->dst} (from DB) and for each core AS x, that is at the start of a
-          down-segment return the coreSegs{x->self}
-* If destination is remote:
-    * If Dest is ISD-0 return any coreSeg{ISD-*->self}
-    * Else if Dest is core AS: return coreSeg{dst->self}
-    * Else
-        * If request from different AS: return GetCached(downSeg{*->dst}, any cPS in DestISD)
-        * Else return GetCached(downSeg{*->dst}, any cPS in DestISD) and for each core AS x, that is
-          at the start of a down-segment return the coreSegs{x->self}
+* Validate request:
+    * request source must be this core AS
+    * request must be for a core segment or a down segment to an AS in this ISD
+* If `isWildcard(segReq.Dst) || isCore(segReq.Dst)`, load matching core segments from path DB and return
+* Else, load matching down segments from path DB and return
 
 ### Cache Refresh Interval
 

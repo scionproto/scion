@@ -1,0 +1,71 @@
+# Generate .png on https://sequencediagram.org/
+
+title Path Lookup
+
+participantgroup #lightgreen **Local ISD**
+participant Client
+participant sciond
+participant Local PS
+participant Core PS A
+participant Core PS B
+end
+participantgroup #lightblue **Remote ISD**
+participant Core PS Q
+participant Core PS R
+end
+
+#note over Core PS A: Core AS A is a provider\nof the local AS
+#note over Core PS B: Core AS B is **not** a provider\nof the local AS.
+
+autoactivation on
+
+activate Client
+Client -> sciond: PathRequest (dstIA)
+
+rbox right of sciond: SegReqs in parallel
+
+sciond -> Local PS: SegReq (up)
+sciond <-- Local PS: SegReply (up, [localIA->A])
+
+sciond -> Local PS: SegReq (core, *, *)
+Local PS -> Core PS A: SegReq (core, A, *)
+Local PS <-- Core PS A: SegReply (core, [A->B])
+sciond <-- Local PS: SegReply (core, [A->B])
+
+sciond -> Local PS: SegReq (down, *, dstIA)
+rbox right of Local PS: SegReqs in parallel
+Local PS -> Core PS A: SegReq (down, A, dstIA)
+Local PS <-- Core PS A: SegReply (down, [A->dstIA])
+Local PS -> Core PS B: SegReq (down, B, dstIA)
+Local PS <-- Core PS B: SegReply (down, [B->dstIA])
+
+sciond <-- Local PS: SegReply (down, [A->dstIA,\n                            B->dstIA])
+
+
+note over sciond: combine segments
+Client <-- sciond : PathReply
+
+==Destination in remote ISD==
+
+Client -> sciond: PathRequest (dstIA)
+
+rbox right of sciond: SegReqs in parallel
+
+sciond -> Local PS: SegReq (up)
+sciond <-- Local PS: SegReply (up, [localIA->A]) 
+
+sciond -> Local PS: SegReq (core, *, (dstIA.I,*))
+Local PS -> Core PS A: SegReq (core, A, (dstIA.I,*))
+Local PS <-- Core PS A: SegReply (core, [A->Q, A->R])
+sciond <-- Local PS: SegReply (core, [A->Q, A->R])
+
+sciond -> Local PS: SegReq (down, (dstIA.I, *), dstIA)
+rbox right of Local PS: SegReqs in parallel
+Local PS -> Core PS Q: SegReq (down, Q, dstIA)
+Local PS <-- Core PS Q: SegReply (down, [Q->dstIA])
+Local PS -> Core PS R: SegReq (down, R, dstIA)
+Local PS <-- Core PS R: SegReply (down, [R->dstIA])
+sciond <-- Local PS: SegReply (down, [Q->dstIA,\n                             R->dstIA])
+
+note over sciond: combine segments
+Client <-- sciond : PathReply
