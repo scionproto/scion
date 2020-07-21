@@ -130,7 +130,36 @@ func TestSCMP(t *testing.T) {
 		opts          gopacket.SerializeOptions
 		assertFunc    assert.ErrorAssertionFunc
 	}{
-		// "destination unreachable": {},
+		"destination unreachable": {
+			raw: append([]byte{
+				0x1, 0x6, 0x4e, 0xc9, // header SCMP
+				0x0, 0x0, 0x00, 0x00, // header SCMP msg
+			}, bytes.Repeat([]byte{0xff}, 15)...), // final payload
+			decodedLayers: []gopacket.SerializableLayer{
+				&slayers.SCMP{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x1, 0x6, 0x4e, 0xc9, // header SCMP
+						},
+						Payload: append([]byte{
+							0x0, 0x0, 0x00, 0x00,
+						}, bytes.Repeat([]byte{0xff}, 15)...),
+					},
+					TypeCode: slayers.CreateSCMPTypeCode(1, slayers.SCMPCodeRejectRouteToDest),
+					Checksum: 20169,
+				},
+				&slayers.SCMPDestinationUnreachable{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x0, 0x0, 0x00, 0x00,
+						},
+						Payload: bytes.Repeat([]byte{0xff}, 15),
+					},
+				},
+				gopacket.Payload(bytes.Repeat([]byte{0xff}, 15)),
+			},
+			assertFunc: assert.NoError,
+		},
 		// "packet too big":          {},
 		"parameter problem": {
 			raw: append([]byte{

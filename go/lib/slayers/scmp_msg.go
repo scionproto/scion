@@ -255,7 +255,7 @@ func decodeSCMPEcho(data []byte, pb gopacket.PacketBuilder) error {
 	return pb.NextDecoder(s.NextLayerType())
 }
 
-// SCMPParameterProblem represents the structure of a traceroute.
+// SCMPParameterProblem represents the structure of a parameter problem message.
 //
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //  |            reserved           |           Pointer             |
@@ -388,6 +388,66 @@ func (i *SCMPTraceroute) SerializeTo(b gopacket.SerializeBuffer,
 
 func decodeSCMPTraceroute(data []byte, pb gopacket.PacketBuilder) error {
 	s := &SCMPTraceroute{}
+	if err := s.DecodeFromBytes(data, pb); err != nil {
+		return err
+	}
+	pb.AddLayer(s)
+	return pb.NextDecoder(s.NextLayerType())
+}
+
+// SCMPDestinationUnreachable represents the structure of a destination
+// unreachable message.
+//
+//   0                   1                   2                   3
+//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |                             Unused                            |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+type SCMPDestinationUnreachable struct {
+	layers.BaseLayer
+}
+
+// LayerType returns LayerTypeSCMPTraceroute.
+func (*SCMPDestinationUnreachable) LayerType() gopacket.LayerType {
+	return LayerTypeSCMPDestinationUnreachable
+}
+
+// NextLayerType returns the layer type contained by this DecodingLayer.
+func (*SCMPDestinationUnreachable) NextLayerType() gopacket.LayerType {
+	return gopacket.LayerTypePayload
+}
+
+// DecodeFromBytes decodes the given bytes into this layer.
+func (i *SCMPDestinationUnreachable) DecodeFromBytes(data []byte,
+	df gopacket.DecodeFeedback) error {
+
+	minLength := 4
+	if size := len(data); size < minLength {
+		df.SetTruncated()
+		return serrors.New("buffer too short", "min", minLength, "actual", size)
+	}
+	i.BaseLayer = layers.BaseLayer{
+		Contents: data[:minLength],
+		Payload:  data[minLength:],
+	}
+	return nil
+}
+
+// SerializeTo writes the serialized form of this layer into the
+// SerializationBuffer, implementing gopacket.SerializableLayer.
+func (i *SCMPDestinationUnreachable) SerializeTo(b gopacket.SerializeBuffer,
+	opts gopacket.SerializeOptions) error {
+
+	buf, err := b.PrependBytes(4)
+	if err != nil {
+		return err
+	}
+	copy(buf, make([]byte, 4))
+	return nil
+}
+
+func decodeSCMPDestinationUnreachable(data []byte, pb gopacket.PacketBuilder) error {
+	s := &SCMPDestinationUnreachable{}
 	if err := s.DecodeFromBytes(data, pb); err != nil {
 		return err
 	}

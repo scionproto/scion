@@ -28,6 +28,17 @@ const (
 	SCMPTypeInternalConnectivityDown = 6
 )
 
+// Destination unreachable codes
+const (
+	SCMPCodeNoRoute                   = 0
+	SCMPCodeAdminDeny                 = 1
+	SCMPCodeBeyondScopeOfSourceAddr   = 2
+	SCMPCodeAddressUnreachable        = 3
+	SCMPCodePortUnreachable           = 4
+	SCMPCodeSourceAddressFailedPolicy = 5
+	SCMPCodeRejectRouteToDest         = 6
+)
+
 // ParameterProblem
 const (
 	SCMPCodeErroneousHeaderField = 0

@@ -45,7 +45,18 @@ func TestSCIONSCMP(t *testing.T) {
 		decodedLayers []gopacket.SerializableLayer
 		opts          gopacket.SerializeOptions
 	}{
-		// "destination unreachable": {},
+		"destination unreachable": {
+			rawFile: filepath.Join(goldenDir, "scion-scmp-dest-unreachable.bin"),
+			decodedLayers: []gopacket.SerializableLayer{
+				prepPacket(t, common.L4SCMP),
+				&slayers.SCMP{
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeDestinationUnreachable,
+						slayers.SCMPCodeRejectRouteToDest),
+				},
+				&slayers.SCMPDestinationUnreachable{},
+				gopacket.Payload(bytes.Repeat([]byte{0xff}, 18)),
+			},
+		},
 		// "packet too big":          {},
 		// "parameter problem":       {},
 		"internal connectivity down": {
@@ -110,6 +121,12 @@ func TestSCIONSCMP(t *testing.T) {
 					sl := packet.Layer(slayers.LayerTypeSCMP)
 					require.NotNil(t, sl, "SCMP layer should exist")
 					s := sl.(*slayers.SCMP)
+					v.BaseLayer = s.BaseLayer
+					assert.Equal(t, v, s)
+				case *slayers.SCMPDestinationUnreachable:
+					sl := packet.Layer(slayers.LayerTypeSCMPDestinationUnreachable)
+					require.NotNil(t, sl, "SCMPDestinationUnreachable layer should exist")
+					s := sl.(*slayers.SCMPDestinationUnreachable)
 					v.BaseLayer = s.BaseLayer
 					assert.Equal(t, v, s)
 				case *slayers.SCMPExternalInterfaceDown:

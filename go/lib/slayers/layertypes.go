@@ -71,6 +71,13 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeSCMPParameterProblem),
 		},
 	)
+	LayerTypeSCMPDestinationUnreachable = gopacket.RegisterLayerType(
+		1008,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPDestinationUnreachable",
+			Decoder: gopacket.DecodeFunc(decodeSCMPDestinationUnreachable),
+		},
+	)
 	LayerTypeSCMPEcho = gopacket.RegisterLayerType(
 		1128,
 		gopacket.LayerTypeMetadata{
