@@ -43,7 +43,7 @@ class JaegerGenerator(object):
                    yaml.dump(dc_conf, default_flow_style=False))
 
     def _generate_dc(self):
-        name = 'jaeger-docker' if self.args.in_docker else 'jaeger'
+        name = 'jaeger'
         entry = {
             'version': '2',
             'services': {

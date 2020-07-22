@@ -30,7 +30,6 @@ cmd_topology() {
     tar --overwrite -xf bazel-bin/scion-topo.tar -C bin
 
     echo "Create topology, configuration, and execution files."
-    is_running_in_docker && set -- "$@" --in-docker
     python/topology/generator.py "$@"
     if is_docker_be; then
         ./tools/quiet ./tools/dc run utils_chowner
@@ -220,10 +219,6 @@ is_docker_be() {
 
 is_supervisor() {
    [ -f gen/dispatcher/supervisord.conf ]
-}
-
-is_running_in_docker() {
-    cut -d: -f 3 /proc/1/cgroup | grep -q '^/docker/'
 }
 
 cmd_test(){

@@ -19,6 +19,8 @@
 # Stdlib
 import os
 from collections import defaultdict
+from ipaddress import ip_network
+from typing import Mapping
 
 # External packages
 import yaml
@@ -32,6 +34,9 @@ from python.topology.common import (
     prom_addr_dispatcher,
     sciond_ip,
 )
+from python.topology.net import (
+    NetworkDescription
+)
 
 CS_PROM_PORT = 30452
 SCIOND_PROM_PORT = 30455
@@ -44,7 +49,7 @@ PROM_DC_FILE = "prom-dc.yml"
 
 
 class PrometheusGenArgs(ArgsTopoDicts):
-    def __init__(self, args, topo_dicts, networks):
+    def __init__(self, args, topo_dicts, networks: Mapping[ip_network, NetworkDescription]):
         super().__init__(args, topo_dicts)
         self.networks = networks
 
@@ -145,12 +150,11 @@ class PrometheusGenerator(object):
         write_file(targets_path, yaml.dump(target_config, default_flow_style=False))
 
     def _write_dc_file(self):
-        name_prefix = 'prometheus'
-        name = '%s_docker' % name_prefix if self.args.in_docker else name_prefix
+        name = 'prometheus'
         prom_dc = {
             'version': DOCKER_COMPOSE_CONFIG_VERSION,
             'services': {
-                name_prefix: {
+                name: {
                     'image': 'prom/prometheus:v2.6.0',
                     'container_name': name,
                     'network_mode': 'host',
