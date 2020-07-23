@@ -83,7 +83,7 @@ type SetupReq struct {
 	MaxBW      reservation.BWCls
 	SplitCls   reservation.SplitCls
 	PathProps  reservation.PathEndProps
-	AllocTrail []reservation.AllocationBead
+	AllocTrail reservation.AllocationBeads
 }
 
 // NewSetupReqFromCtrlMsg constructs a SetupReq from its control message counterpart. The timestamp
@@ -108,7 +108,7 @@ func NewSetupReqFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, ts time.Time,
 		MinBW:      reservation.BWCls(setup.MinBW),
 		MaxBW:      reservation.BWCls(setup.MaxBW),
 		SplitCls:   reservation.SplitCls(setup.SplitCls),
-		AllocTrail: make([]reservation.AllocationBead, len(setup.AllocationTrail)),
+		AllocTrail: make(reservation.AllocationBeads, len(setup.AllocationTrail)),
 		PathProps: reservation.NewPathEndProps(setup.StartProps.Local, setup.StartProps.Transfer,
 			setup.EndProps.Local, setup.EndProps.Transfer),
 	}

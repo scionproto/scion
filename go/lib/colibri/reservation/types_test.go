@@ -388,6 +388,26 @@ func TestValidatePathEndPropsWithPathType(t *testing.T) {
 	}
 }
 
+func TestAllocationBeadsMinMax(t *testing.T) {
+	cases := []struct {
+		Trail AllocationBeads
+		Min   uint8
+	}{
+		{newAllocationBeads(), 0},
+		{newAllocationBeads(0, 1), 1},
+		{newAllocationBeads(0, 3, 0, 1), 1},
+		{newAllocationBeads(0, 3, 0, 255), 3},
+	}
+	for i, c := range cases {
+		name := fmt.Sprintf("iteration %d", i)
+		t.Run(name, func(t *testing.T) {
+			c := c
+			t.Parallel()
+			require.Equal(t, c.Min, c.Trail.MinMax())
+		})
+	}
+}
+
 func TestValidateToken(t *testing.T) {
 	tok := newToken()
 	err := tok.Validate()
@@ -483,4 +503,16 @@ func mustParseSegmentID(s string) SegmentID {
 		panic(err)
 	}
 	return *id
+}
+
+// newAllocationBeads (1,2,3,4) returns two beads {alloc: 1, max: 2}, {alloc:3, max:4}
+func newAllocationBeads(beads ...uint8) AllocationBeads {
+	if len(beads)%2 != 0 {
+		panic("must have an even number of parameters")
+	}
+	ret := make(AllocationBeads, len(beads)/2)
+	for i := 0; i < len(beads); i += 2 {
+		ret[i/2] = AllocationBead{AllocBW: beads[i], MaxBW: beads[i+1]}
+	}
+	return ret
 }
