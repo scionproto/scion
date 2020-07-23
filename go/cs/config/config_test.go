@@ -22,13 +22,11 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/cs/beaconstorage/beaconstoragetest"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/log/logtest"
-	"github.com/scionproto/scion/go/lib/pathstorage/pathstoragetest"
-	"github.com/scionproto/scion/go/lib/truststorage/truststoragetest"
 	"github.com/scionproto/scion/go/lib/util"
+	storagetest "github.com/scionproto/scion/go/pkg/storage/test"
 )
 
 func TestConfigSample(t *testing.T) {
@@ -59,9 +57,6 @@ func TestInvalidTTL(t *testing.T) {
 func InitTestConfig(cfg *Config) {
 	envtest.InitTest(&cfg.General, &cfg.Metrics, &cfg.Tracing, nil)
 	logtest.InitTestLogging(&cfg.Logging)
-	truststoragetest.InitTestConfig(&cfg.TrustDB)
-	beaconstoragetest.InitTestBeaconDBConf(&cfg.BeaconDB)
-	pathstoragetest.InitTestPathDBConf(&cfg.PathDB)
 	InitTestBSConfig(&cfg.BS)
 	InitTestCA(&cfg.CA)
 }
@@ -80,9 +75,10 @@ func InitTestPolicies(cfg *Policies) {
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	envtest.CheckTest(t, &cfg.General, &cfg.Metrics, &cfg.Tracing, nil, id)
 	logtest.CheckTestLogging(t, &cfg.Logging, id)
-	truststoragetest.CheckTestConfig(t, &cfg.TrustDB, id)
-	beaconstoragetest.CheckTestBeaconDBConf(t, &cfg.BeaconDB, id)
-	pathstoragetest.CheckTestPathDBConf(t, &cfg.PathDB, id)
+	storagetest.CheckTestTrustDBConfig(t, &cfg.TrustDB, id)
+	storagetest.CheckTestBeaconDBConfig(t, &cfg.BeaconDB, id)
+	storagetest.CheckTestPathDBConfig(t, &cfg.PathDB, id)
+	storagetest.CheckTestRenewalDBConfig(t, &cfg.RenewalDB, id)
 	CheckTestBSConfig(t, &cfg.BS)
 	CheckTestPSConfig(t, &cfg.PS, id)
 	CheckTestCA(t, &cfg.CA, id)
