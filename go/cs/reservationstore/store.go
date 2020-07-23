@@ -189,7 +189,7 @@ func (s *Store) admitSegmentRsv(ctx context.Context, req segment.SetupReq) (
 	if err != nil {
 		return 0, serrors.WrapStr("cannot compute available bandwidth", err, "segment_id", req.ID)
 	}
-	ideal, err := s.idealBW(ctx)
+	ideal, err := s.idealBW(ctx, req.Ingress, req.Egress)
 	if err != nil {
 		return 0, serrors.WrapStr("cannot compute ideal bandwidth", err, "segment_id", req.ID)
 	}
@@ -228,20 +228,53 @@ func (s *Store) availableBW(ctx context.Context, ID reservation.SegmentID,
 	return uint64(free * s.delta), nil
 }
 
-func (s *Store) idealBW(ctx context.Context) (uint64, error) {
-	tubeRatio := s.tubeRatio(ctx)
+func (s *Store) idealBW(ctx context.Context, ingress, egress common.IFIDType) (uint64, error) {
+	tubeRatio, err := s.tubeRatio(ctx, ingress, egress)
+	if err != nil {
+		return 0, serrors.WrapStr("cannot compute tube ratio", err)
+	}
 	linkRatio := s.linkRatio(ctx)
-	_ = tubeRatio
-	_ = linkRatio
+	cap := float64(s.capacities.CapacityEgress(egress))
+	return uint64(cap * tubeRatio * linkRatio), nil
+}
+
+func (s *Store) tubeRatio(ctx context.Context, ingress, egress common.IFIDType) (float64, error) {
+	capIn := s.capacities.CapacityIngress(ingress)
+	transitDemand, err := s.transitDemand(ctx, ingress, egress)
+	if err != nil {
+		return 0, serrors.WrapStr("cannot compute transit demand", err)
+	}
+	numerator := minBW(capIn, transitDemand)
+	var sum uint64
+	for _, in := range s.capacities.IngressInterfaces() {
+		dem, err := s.transitDemand(ctx, in, egress)
+		if err != nil {
+			return 0, serrors.WrapStr("cannot compute transit demand", err)
+		}
+		sum += minBW(s.capacities.CapacityIngress(in), dem)
+	}
+	return float64(numerator) / float64(sum), nil
+}
+
+func (s *Store) linkRatio(ctx context.Context) float64 {
+	// TODO -------------------------------------------------------------------------
+	return 0
+}
+
+func (s *Store) transitDemand(ctx context.Context, ingress, egress common.IFIDType) (
+	uint64, error) {
+
+	rsvs, err := s.db.GetSegmentRsvsFromIFPair(ctx, &ingress, &egress)
+	if err != nil {
+		return 0, serrors.WrapStr("cannot obtain segment rsvs. from ingress/egress pair", err)
+	}
+	// TODO --------------------------------
+	for _, rsv := range rsvs {
+
+		max := rsv.MaxRequestedBW()
+		_ = max
+	}
 	return 0, nil
-}
-
-func (s *Store) tubeRatio(ctx context.Context) uint64 {
-	return 0
-}
-
-func (s *Store) linkRatio(ctx context.Context) uint64 {
-	return 0
 }
 
 func sumAllRsvButThis(rsvs []*segment.Reservation, excludeRsv reservation.SegmentID) uint64 {
