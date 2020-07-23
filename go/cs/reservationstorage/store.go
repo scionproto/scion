@@ -26,7 +26,7 @@ import (
 
 // Store is the interface to interact with the reservation store.
 type Store interface {
-	AdmitSegmentReservation(ctx context.Context, req sgt.SetupReq) (base.MessageWithPath, error)
+	AdmitSegmentReservation(ctx context.Context, req *sgt.SetupReq) (base.MessageWithPath, error)
 	ConfirmSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexNumber) error
 	CleanupSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexNumber) error
 	TearDownSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexNumber) error

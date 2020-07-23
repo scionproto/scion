@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -47,7 +48,7 @@ func NewStore(db backend.DB) *Store {
 
 // AdmitSegmentReservation receives a setup/renewal request to admit a segment reservation.
 // It is expected that this AS is not the reservation initiator.
-func (s *Store) AdmitSegmentReservation(ctx context.Context, req segment.SetupReq) (
+func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupReq) (
 	base.MessageWithPath, error) {
 
 	// validate request:
@@ -139,7 +140,7 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req segment.SetupRe
 			Token:           *index.Token,
 		}
 	} else {
-		msg = &req
+		msg = req
 	}
 	// TODO(juagargi) refactor function
 	return msg, nil
@@ -183,7 +184,7 @@ func (s *Store) DeleteExpiredIndices(ctx context.Context) (int, error) {
 	return s.db.DeleteExpiredIndices(ctx, time.Now())
 }
 
-func (s *Store) admitSegmentRsv(ctx context.Context, req segment.SetupReq) (
+func (s *Store) admitSegmentRsv(ctx context.Context, req *segment.SetupReq) (
 	reservation.BWCls, error) {
 
 	avail, err := s.availableBW(ctx, req)
@@ -210,7 +211,7 @@ func (s *Store) admitSegmentRsv(ctx context.Context, req segment.SetupReq) (
 	return alloc, nil
 }
 
-func (s *Store) availableBW(ctx context.Context, req segment.SetupReq) (uint64, error) {
+func (s *Store) availableBW(ctx context.Context, req *segment.SetupReq) (uint64, error) {
 	sameIngress, err := s.db.GetSegmentRsvsFromIFPair(ctx, &req.Ingress, nil)
 	if err != nil {
 		return 0, serrors.WrapStr("cannot get reservations using ingress", err,
@@ -229,26 +230,39 @@ func (s *Store) availableBW(ctx context.Context, req segment.SetupReq) (uint64, 
 	return uint64(free * s.delta), nil
 }
 
-func (s *Store) idealBW(ctx context.Context, req segment.SetupReq) (uint64, error) {
-	tubeRatio, err := s.tubeRatio(ctx, req)
+func (s *Store) idealBW(ctx context.Context, req *segment.SetupReq) (uint64, error) {
+	demsPerSrcRegIngress, err := s.computeTempDemands(ctx, req.Ingress, req)
+	if err != nil {
+		return 0, serrors.WrapStr("cannot compute temporary demands", err)
+	}
+	tubeRatio, err := s.tubeRatio(ctx, req, demsPerSrcRegIngress)
 	if err != nil {
 		return 0, serrors.WrapStr("cannot compute tube ratio", err)
 	}
-	linkRatio := s.linkRatio(ctx)
+	linkRatio := s.linkRatio(ctx, req, demsPerSrcRegIngress)
 	cap := float64(s.capacities.CapacityEgress(req.Egress))
 	return uint64(cap * tubeRatio * linkRatio), nil
 }
 
-func (s *Store) tubeRatio(ctx context.Context, req segment.SetupReq) (float64, error) {
-	capIn := s.capacities.CapacityIngress(req.Ingress)
-	transitDemand, err := s.transitDemand(ctx, req)
+func (s *Store) tubeRatio(ctx context.Context, req *segment.SetupReq, demsPerSrc demPerSource) (
+	float64, error) {
+
+	// TODO(juagargi) to avoid calling several times to computeTempDemands, refactor the
+	// type holding the results, so that it stores capReqDem per source per ingress interface.
+	// InScalFctr and EgScalFctr will be stores independently, per source per interface.
+	transitDemand, err := s.transitDemand(ctx, req, req.Ingress, demsPerSrc)
 	if err != nil {
 		return 0, serrors.WrapStr("cannot compute transit demand", err)
 	}
+	capIn := s.capacities.CapacityIngress(req.Ingress)
 	numerator := minBW(capIn, transitDemand)
 	var sum uint64
 	for _, in := range s.capacities.IngressInterfaces() {
-		dem, err := s.transitDemand(ctx, req)
+		demandsForThisIngress, err := s.computeTempDemands(ctx, in, req)
+		if err != nil {
+			return 0, serrors.WrapStr("cannot compute transit demand", err)
+		}
+		dem, err := s.transitDemand(ctx, req, in, demandsForThisIngress)
 		if err != nil {
 			return 0, serrors.WrapStr("cannot compute transit demand", err)
 		}
@@ -257,40 +271,76 @@ func (s *Store) tubeRatio(ctx context.Context, req segment.SetupReq) (float64, e
 	return float64(numerator) / float64(sum), nil
 }
 
-func (s *Store) linkRatio(ctx context.Context) float64 {
-	// TODO -------------------------------------------------------------------------
-	return 0
+func (s *Store) linkRatio(ctx context.Context, req *segment.SetupReq,
+	demsPerSrc demPerSource) float64 {
+
+	capEg := s.capacities.CapacityEgress(req.Egress)
+	demEg := demsPerSrc[req.ID.ASID].eg
+	egScalFctr := float64(minBW(capEg, demEg)) / float64(demEg)
+	prevBW := float64(req.AllocTrail.MinMax()) // min of maxBW in the trail
+	var denom float64
+	for id, val := range demsPerSrc {
+		egScalFctr := float64(minBW(capEg, val.eg)) / float64(val.eg)
+		srcAlloc := float64(req.Reservation.MaxBlockedBW())
+		if req.ID.ASID == id {
+			srcAlloc += prevBW
+		}
+		denom += egScalFctr * 1
+	}
+	return egScalFctr * prevBW / denom
 }
 
-func (s *Store) transitDemand(ctx context.Context, req segment.SetupReq) (uint64, error) {
+// demands represents the demands of a given source.
+type demands struct {
+	src, in, eg uint64
+}
+
+// demsPerSrc is used in the transit demand computation.
+type demPerSource map[addr.AS]demands
+
+// computeTempDemands will compute inDem, egDem and srcDem grouped by source, for all sources.
+func (s *Store) computeTempDemands(ctx context.Context, ingress common.IFIDType,
+	req *segment.SetupReq) (demPerSource, error) {
+
 	// TODO(juagargi) consider adding a call to db to get all srcDem,inDem,egDem grouped by source
 	rsvs, err := s.db.GetAllSegmentRsvs(ctx)
 	if err != nil {
-		return 0, serrors.WrapStr("cannot obtain segment rsvs. from ingress/egress pair", err)
+		return nil, serrors.WrapStr("cannot obtain segment rsvs. from ingress/egress pair", err)
 	}
-	capIn := s.capacities.CapacityIngress(req.Ingress)
+	capIn := s.capacities.CapacityIngress(ingress)
 	capEg := s.capacities.CapacityEgress(req.Egress)
-
 	// srcDem, inDem and egDem grouped by source
-	demsPerSrc := make(map[addr.AS]struct{ src, in, eg uint64 })
+	demsPerSrc := make(demPerSource)
 	for _, rsv := range rsvs {
-		var dem uint64
+		var dem uint64 // capReqDem
 		if rsv.ID == req.ID {
 			dem = min3BW(capIn, capEg, req.MaxBW.ToKBps())
 		} else {
 			dem = min3BW(capIn, capEg, rsv.MaxRequestedBW())
 		}
 		bucket := demsPerSrc[rsv.ID.ASID]
-		if rsv.Ingress == req.Ingress {
+		if rsv.Ingress == ingress {
 			bucket.in += dem
 		} else if rsv.Egress == req.Egress {
 			bucket.eg += dem
 		}
-		if rsv.Ingress == req.Ingress && rsv.Egress == req.Egress {
+		if rsv.Ingress == ingress && rsv.Egress == req.Egress {
 			bucket.src += dem
 		}
 		demsPerSrc[rsv.ID.ASID] = bucket
 	}
+	return demsPerSrc, nil
+}
+
+// transitDemand computes the transit demand from ingress to req.Egress. The parameter
+// demsPerSrc must hold the inDem, egDem and srcDem of all reservations, grouped by source, and
+// for an ingress interface = ingress parameter.
+func (s *Store) transitDemand(ctx context.Context, req *segment.SetupReq, ingress common.IFIDType,
+	demsPerSrc demPerSource) (
+	uint64, error) {
+
+	capIn := s.capacities.CapacityIngress(ingress)
+	capEg := s.capacities.CapacityEgress(req.Egress)
 	// TODO(juagargi) adjSrcDem is not needed, remove after finishing debugging the admission
 	adjSrcDem := make(map[addr.AS]uint64) // every adjSrcDem grouped by source
 	for src, dems := range demsPerSrc {
