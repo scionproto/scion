@@ -16,6 +16,7 @@ package reservationstore
 
 import (
 	"context"
+	"math"
 	"time"
 
 	base "github.com/scionproto/scion/go/cs/reservation"
@@ -23,8 +24,8 @@ import (
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/cs/reservationstorage"
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -185,11 +186,11 @@ func (s *Store) DeleteExpiredIndices(ctx context.Context) (int, error) {
 func (s *Store) admitSegmentRsv(ctx context.Context, req segment.SetupReq) (
 	reservation.BWCls, error) {
 
-	avail, err := s.availableBW(ctx, req.ID, req.Ingress, req.Egress)
+	avail, err := s.availableBW(ctx, req)
 	if err != nil {
 		return 0, serrors.WrapStr("cannot compute available bandwidth", err, "segment_id", req.ID)
 	}
-	ideal, err := s.idealBW(ctx, req.Ingress, req.Egress)
+	ideal, err := s.idealBW(ctx, req)
 	if err != nil {
 		return 0, serrors.WrapStr("cannot compute ideal bandwidth", err, "segment_id", req.ID)
 	}
@@ -209,45 +210,45 @@ func (s *Store) admitSegmentRsv(ctx context.Context, req segment.SetupReq) (
 	return alloc, nil
 }
 
-func (s *Store) availableBW(ctx context.Context, ID reservation.SegmentID,
-	ingress, egress common.IFIDType) (uint64, error) {
-
-	sameIngress, err := s.db.GetSegmentRsvsFromIFPair(ctx, &ingress, nil)
+func (s *Store) availableBW(ctx context.Context, req segment.SetupReq) (uint64, error) {
+	sameIngress, err := s.db.GetSegmentRsvsFromIFPair(ctx, &req.Ingress, nil)
 	if err != nil {
-		return 0, serrors.WrapStr("cannot get reservations using ingress", err, "ingress", ingress)
+		return 0, serrors.WrapStr("cannot get reservations using ingress", err,
+			"ingress", req.Ingress)
 	}
-	sameEgress, err := s.db.GetSegmentRsvsFromIFPair(ctx, nil, &egress)
+	sameEgress, err := s.db.GetSegmentRsvsFromIFPair(ctx, nil, &req.Egress)
 	if err != nil {
-		return 0, serrors.WrapStr("cannot get reservations using egress", err, "egress", egress)
+		return 0, serrors.WrapStr("cannot get reservations using egress", err,
+			"egress", req.Egress)
 	}
-	bwIngress := sumAllRsvButThis(sameIngress, ID)
-	freeIngress := s.capacities.CapacityIngress(ingress) - bwIngress
-	bwEgress := sumAllRsvButThis(sameEgress, ID)
-	freeEgress := s.capacities.CapacityEgress(egress) - bwEgress
+	bwIngress := sumAllRsvButThis(sameIngress, req.ID)
+	freeIngress := s.capacities.CapacityIngress(req.Ingress) - bwIngress
+	bwEgress := sumAllRsvButThis(sameEgress, req.ID)
+	freeEgress := s.capacities.CapacityEgress(req.Egress) - bwEgress
 	free := float64(minBW(freeIngress, freeEgress))
 	return uint64(free * s.delta), nil
 }
 
-func (s *Store) idealBW(ctx context.Context, ingress, egress common.IFIDType) (uint64, error) {
-	tubeRatio, err := s.tubeRatio(ctx, ingress, egress)
+func (s *Store) idealBW(ctx context.Context, req segment.SetupReq) (uint64, error) {
+	tubeRatio, err := s.tubeRatio(ctx, req)
 	if err != nil {
 		return 0, serrors.WrapStr("cannot compute tube ratio", err)
 	}
 	linkRatio := s.linkRatio(ctx)
-	cap := float64(s.capacities.CapacityEgress(egress))
+	cap := float64(s.capacities.CapacityEgress(req.Egress))
 	return uint64(cap * tubeRatio * linkRatio), nil
 }
 
-func (s *Store) tubeRatio(ctx context.Context, ingress, egress common.IFIDType) (float64, error) {
-	capIn := s.capacities.CapacityIngress(ingress)
-	transitDemand, err := s.transitDemand(ctx, ingress, egress)
+func (s *Store) tubeRatio(ctx context.Context, req segment.SetupReq) (float64, error) {
+	capIn := s.capacities.CapacityIngress(req.Ingress)
+	transitDemand, err := s.transitDemand(ctx, req)
 	if err != nil {
 		return 0, serrors.WrapStr("cannot compute transit demand", err)
 	}
 	numerator := minBW(capIn, transitDemand)
 	var sum uint64
 	for _, in := range s.capacities.IngressInterfaces() {
-		dem, err := s.transitDemand(ctx, in, egress)
+		dem, err := s.transitDemand(ctx, req)
 		if err != nil {
 			return 0, serrors.WrapStr("cannot compute transit demand", err)
 		}
@@ -261,20 +262,50 @@ func (s *Store) linkRatio(ctx context.Context) float64 {
 	return 0
 }
 
-func (s *Store) transitDemand(ctx context.Context, ingress, egress common.IFIDType) (
-	uint64, error) {
-
-	rsvs, err := s.db.GetSegmentRsvsFromIFPair(ctx, &ingress, &egress)
+func (s *Store) transitDemand(ctx context.Context, req segment.SetupReq) (uint64, error) {
+	// TODO(juagargi) consider adding a call to db to get all srcDem,inDem,egDem grouped by source
+	// TODO(juagargi) change GetRsvsFromIFPair to GetAllRsvs :
+	rsvs, err := s.db.GetSegmentRsvsFromIFPair(ctx, nil, nil)
 	if err != nil {
 		return 0, serrors.WrapStr("cannot obtain segment rsvs. from ingress/egress pair", err)
 	}
-	// TODO --------------------------------
-	for _, rsv := range rsvs {
+	capIn := s.capacities.CapacityIngress(req.Ingress)
+	capEg := s.capacities.CapacityEgress(req.Egress)
 
-		max := rsv.MaxRequestedBW()
-		_ = max
+	// srcDem, inDem and egDem grouped by source
+	demsPerSrc := make(map[addr.AS]struct{ src, in, eg uint64 })
+	for _, rsv := range rsvs {
+		var dem uint64
+		if rsv.ID == req.ID {
+			dem = min3BW(capIn, capEg, req.MaxBW.ToKBps())
+		} else {
+			dem = min3BW(capIn, capEg, rsv.MaxRequestedBW())
+		}
+		bucket := demsPerSrc[rsv.ID.ASID]
+		if rsv.Ingress == req.Ingress {
+			bucket.in += dem
+		} else if rsv.Egress == req.Egress {
+			bucket.eg += dem
+		}
+		if rsv.Ingress == req.Ingress && rsv.Egress == req.Egress {
+			bucket.src += dem
+		}
+		demsPerSrc[rsv.ID.ASID] = bucket
 	}
-	return 0, nil
+	// TODO(juagargi) adjSrcDem is not needed, remove after finishing debugging the admission
+	adjSrcDem := make(map[addr.AS]uint64) // every adjSrcDem grouped by source
+	for src, dems := range demsPerSrc {
+		inScalFctr := float64(minBW(capIn, dems.in)) / float64(dems.in)
+		egScalFctr := float64(minBW(capEg, dems.eg)) / float64(dems.eg)
+		adjSrcDem[src] = uint64(math.Min(inScalFctr, egScalFctr) * float64(dems.src))
+	}
+	// now reduce adjSrcDem
+	var transitDem uint64
+	for _, dem := range adjSrcDem {
+		transitDem += dem
+	}
+
+	return transitDem, nil
 }
 
 func sumAllRsvButThis(rsvs []*segment.Reservation, excludeRsv reservation.SegmentID) uint64 {
@@ -292,4 +323,8 @@ func minBW(a, b uint64) uint64 {
 		return a
 	}
 	return b
+}
+
+func min3BW(a, b, c uint64) uint64 {
+	return minBW(minBW(a, b), c)
 }
