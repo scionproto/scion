@@ -22,11 +22,10 @@ import (
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/storage"
 )
 
 var (
@@ -36,15 +35,14 @@ var (
 var _ config.Config = (*Config)(nil)
 
 type Config struct {
-	General  env.General              `toml:"general,omitempty"`
-	Features env.Features             `toml:"features,omitempty"`
-	Logging  log.Config               `toml:"log,omitempty"`
-	Metrics  env.Metrics              `toml:"metrics,omitempty"`
-	Tracing  env.Tracing              `toml:"tracing,omitempty"`
-	TrustDB  truststorage.TrustDBConf `toml:"trust_db,omitempty"`
-	// PathDB contains the configuration for the PathDB connection.
-	PathDB pathstorage.PathDBConf `toml:"path_db,omitempty"`
-	SD     SDConfig               `toml:"sd,omitempty"`
+	General  env.General      `toml:"general,omitempty"`
+	Features env.Features     `toml:"features,omitempty"`
+	Logging  log.Config       `toml:"log,omitempty"`
+	Metrics  env.Metrics      `toml:"metrics,omitempty"`
+	Tracing  env.Tracing      `toml:"tracing,omitempty"`
+	TrustDB  storage.DBConfig `toml:"trust_db,omitempty"`
+	PathDB   storage.DBConfig `toml:"path_db,omitempty"`
+	SD       SDConfig         `toml:"sd,omitempty"`
 }
 
 func (cfg *Config) InitDefaults() {
@@ -79,8 +77,20 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.Tracing,
-		&cfg.TrustDB,
-		&cfg.PathDB,
+		config.OverrideName(
+			config.FormatData(
+				&cfg.TrustDB,
+				storage.SetID(storage.SampleTrustDB, idSample).Connection,
+			),
+			"trust_db",
+		),
+		config.OverrideName(
+			config.FormatData(
+				&cfg.PathDB,
+				storage.SetID(storage.SamplePathDB, idSample).Connection,
+			),
+			"path_db",
+		),
 		&cfg.SD,
 	)
 }

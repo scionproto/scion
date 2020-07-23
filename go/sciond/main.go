@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
-	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -41,6 +40,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/sciond"
 	"github.com/scionproto/scion/go/pkg/sciond/config"
 	"github.com/scionproto/scion/go/pkg/sciond/fetcher"
+	"github.com/scionproto/scion/go/pkg/storage"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/compat"
 	trustmetrics "github.com/scionproto/scion/go/pkg/trust/metrics"
@@ -96,16 +96,18 @@ func run(file string) error {
 		return err
 	}
 
-	closer, err := sciond.InitTracer(cfg)
+	closer, err := sciond.InitTracer(cfg.Tracing, cfg.General.ID)
 	if err != nil {
 		return serrors.WrapStr("initializing tracer", err)
 	}
 	defer closer.Close()
 
-	pathDB, revCache, err := pathstorage.NewPathStorage(cfg.PathDB)
+	revCache := storage.NewRevocationStorage()
+	pathDB, err := storage.NewPathStorage(cfg.PathDB)
 	if err != nil {
 		return serrors.WrapStr("initializing path storage", err)
 	}
+	pathDB = pathdb.WithMetrics(string(storage.BackendSqlite), pathDB)
 	defer pathDB.Close()
 	defer revCache.Close()
 	cleaner := periodic.Start(pathdb.NewCleaner(pathDB, "sd_segments"),
@@ -115,11 +117,11 @@ func run(file string) error {
 		10*time.Second, 10*time.Second)
 	defer rcCleaner.Stop()
 
-	trustDB, err := cfg.TrustDB.New()
+	trustDB, err := storage.NewTrustStorage(cfg.TrustDB)
 	if err != nil {
 		return serrors.WrapStr("initializing trust database", err)
 	}
-	trustDB = trustmetrics.WrapDB(string(cfg.TrustDB.Backend()), trustDB)
+	trustDB = trustmetrics.WrapDB(string(storage.BackendSqlite), trustDB)
 	defer trustDB.Close()
 	engine, err := sciond.TrustEngine(cfg.General.ConfigDir, trustDB)
 	if err != nil {

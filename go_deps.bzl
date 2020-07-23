@@ -629,8 +629,8 @@ def go_deps():
     go_repository(
         name = "com_github_pelletier_go_toml",
         importpath = "github.com/pelletier/go-toml",
-        sum = "h1:Keo9qb7iRJs2voHvunFtuuYFsbWeOBh8/P9v/kVMFtw=",
-        version = "v1.8.0",
+        sum = "h1:0r6tAXtt8p5+IJtshL5f+5E/z0qH2aE89UmV4/tRF64=",
+        version = "v1.8.1-0.20200708110244-34de94e6a887",
     )
     go_repository(
         name = "com_github_philhofer_fwd",
