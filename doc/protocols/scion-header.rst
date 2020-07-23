@@ -266,14 +266,28 @@ We write the *i*-th  hop field in a path segment (in construction direction) as
 .. math::
     HF_i = \langle  Flags_i || ExpTime_i || InIF_i || EgIF_i || \sigma_i \rangle
 
-:math:`\sigma_i` is the hop field MAC calculate as
+:math:`\sigma_i` is the hop field MAC calculated from the following input data::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |               0               |            Beta_i             |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           Timestamp                           |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |       0       |    ExpTime    |          ConsIngress          |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |          ConsEgress           |               0               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 .. math::
-    \sigma_i = \text{MAC}_{K_i}(TS || ExpTime_i || InIF_i || EgIF_i || \beta_i)
+    \sigma_i = \text{MAC}_{K_i}(InputData)
 
-where *TS* is the `Timestamp` and :math:`\beta_i` is the current ``SegID`` of
-the info field. :math:`\beta_i` changes at each hop according to the following
-rules:
+where :math:`\beta_i` is the current ``SegID`` of the info field.
+The above input data layout comes from the 8 Bytes of the Info field and the
+first 8 Bytes of the Hop field with some fields zeroed out.
+
+:math:`\beta_i` changes at each hop according to the following rules:
 
 .. math::
     \begin{align}
