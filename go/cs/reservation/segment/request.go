@@ -137,10 +137,10 @@ func (r *SetupReq) ToCtrlMsg() *colibri_mgmt.SegmentSetup {
 			Transfer: (r.PathProps & reservation.EndTransfer) != 0,
 		},
 		InfoField:       r.InfoField.ToRaw(),
-		AllocationTrail: make([]*colibri_mgmt.AllocationBeads, len(r.AllocTrail)),
+		AllocationTrail: make([]*colibri_mgmt.AllocationBead, len(r.AllocTrail)),
 	}
 	for i, bead := range r.AllocTrail {
-		msg.AllocationTrail[i] = &colibri_mgmt.AllocationBeads{
+		msg.AllocationTrail[i] = &colibri_mgmt.AllocationBead{
 			AllocBW: bead.AllocBW,
 			MaxBW:   bead.MaxBW,
 		}

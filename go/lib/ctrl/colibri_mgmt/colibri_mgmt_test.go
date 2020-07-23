@@ -56,7 +56,7 @@ func TestSerializeRequest(t *testing.T) {
 				Transfer: true,
 			},
 			InfoField: xtest.MustParseHexString("0123456789abcdef"),
-			AllocationTrail: []*colibri_mgmt.AllocationBeads{
+			AllocationTrail: []*colibri_mgmt.AllocationBead{
 				{
 					AllocBW: 5,
 					MaxBW:   6,
@@ -236,7 +236,7 @@ func TestSerializeResponse(t *testing.T) {
 							Local:    false,
 							Transfer: true,
 						},
-						AllocationTrail: []*colibri_mgmt.AllocationBeads{
+						AllocationTrail: []*colibri_mgmt.AllocationBead{
 							{
 								AllocBW: 5,
 								MaxBW:   6,
