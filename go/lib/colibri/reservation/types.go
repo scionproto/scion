@@ -427,6 +427,22 @@ type AllocationBead struct {
 	MaxBW   uint8
 }
 
+type AllocationBeads []AllocationBead
+
+// MinMax returns the minimum of all the max BW in the AllocationBeads.
+func (bs AllocationBeads) MinMax() uint8 {
+	if len(bs) == 0 {
+		return 0
+	}
+	var min uint8 = math.MaxUint8
+	for _, b := range bs {
+		if b.MaxBW < min {
+			min = b.MaxBW
+		}
+	}
+	return min
+}
+
 // Token is used in the data plane to forward COLIBRI packets.
 type Token struct {
 	InfoField
