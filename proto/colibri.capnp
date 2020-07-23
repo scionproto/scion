@@ -24,7 +24,7 @@ struct PathEndProps {
     transfer @1 :Bool;  # allow stitching with another reservation
 }
 
-struct AllocationBeads {
+struct AllocationBead {
     allocBW @0 :UInt8;
     maxBW @1 :UInt8;
 }
@@ -38,7 +38,7 @@ struct SegmentSetupReqData {
     startProps @3 :PathEndProps;
     endProps @4 :PathEndProps;
     infoField @5 :Data; # ExpirationTick, Index, BWCls, RLC, and PathType; expected 8 bytes
-    allocationTrail @6 :List(AllocationBeads);  # updated on each AS along the path
+    allocationTrail @6 :List(AllocationBead);  # updated on each AS along the path
 }
 
 # Response to a segment setup request.

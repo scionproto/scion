@@ -142,7 +142,7 @@ func newSetup() *colibri_mgmt.SegmentSetup {
 			Transfer: true,
 		},
 		InfoField: xtest.MustParseHexString("16ebdb4f0d042500"),
-		AllocationTrail: []*colibri_mgmt.AllocationBeads{
+		AllocationTrail: []*colibri_mgmt.AllocationBead{
 			{
 				AllocBW: 5,
 				MaxBW:   6,
