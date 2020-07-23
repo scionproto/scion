@@ -264,8 +264,7 @@ func (s *Store) linkRatio(ctx context.Context) float64 {
 
 func (s *Store) transitDemand(ctx context.Context, req segment.SetupReq) (uint64, error) {
 	// TODO(juagargi) consider adding a call to db to get all srcDem,inDem,egDem grouped by source
-	// TODO(juagargi) change GetRsvsFromIFPair to GetAllRsvs :
-	rsvs, err := s.db.GetSegmentRsvsFromIFPair(ctx, nil, nil)
+	rsvs, err := s.db.GetAllSegmentRsvs(ctx)
 	if err != nil {
 		return 0, serrors.WrapStr("cannot obtain segment rsvs. from ingress/egress pair", err)
 	}
