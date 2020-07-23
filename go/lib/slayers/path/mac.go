@@ -28,7 +28,7 @@ import (
 // this method does not modify info or hf.
 func MAC(h hash.Hash, info *InfoField, hf *HopField) []byte {
 	h.Reset()
-	input := macInput(info, hf)
+	input := MACInput(info.SegID, info.Timestamp, hf.ExpTime, hf.ConsIngress, hf.ConsEgress)
 	// Write must not return an error: https://godoc.org/hash#Hash
 	if _, err := h.Write(input); err != nil {
 		panic(err)
@@ -49,12 +49,28 @@ func VerifyMAC(h hash.Hash, info *InfoField, hf *HopField) error {
 	return nil
 }
 
-func macInput(info *InfoField, hf *HopField) []byte {
+// MACInput returns the MAC input data block with the following layout:
+//
+//    0                   1                   2                   3
+//    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |               0               |             SegID             |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |                           Timestamp                           |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |       0       |    ExpTime    |          ConsIngress          |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |          ConsEgress           |               0               |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+func MACInput(segID uint16, timestamp uint32, expTime uint8,
+	consIngress, consEgress uint16) []byte {
+
 	input := make([]byte, 16)
-	binary.BigEndian.PutUint32(input[:4], info.Timestamp)
-	input[4] = hf.ExpTime
-	binary.BigEndian.PutUint16(input[5:7], hf.ConsIngress)
-	binary.BigEndian.PutUint16(input[7:9], hf.ConsEgress)
-	binary.BigEndian.PutUint16(input[9:11], info.SegID)
+	binary.BigEndian.PutUint16(input[2:4], segID)
+	binary.BigEndian.PutUint32(input[4:8], timestamp)
+	input[9] = expTime
+	binary.BigEndian.PutUint16(input[10:12], consIngress)
+	binary.BigEndian.PutUint16(input[12:14], consEgress)
 	return input
 }

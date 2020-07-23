@@ -384,12 +384,7 @@ func (s *DefaultExtender) createHopF(ingress, egress uint16, ts time.Time,
 	beta uint16) path.HopField {
 
 	expTime := s.MaxExpTime()
-	input := make([]byte, 16)
-	binary.BigEndian.PutUint32(input[:4], util.TimeToSecs(ts))
-	input[4] = expTime
-	binary.BigEndian.PutUint16(input[5:7], ingress)
-	binary.BigEndian.PutUint16(input[7:9], egress)
-	binary.BigEndian.PutUint16(input[9:11], beta)
+	input := path.MACInput(beta, util.TimeToSecs(ts), expTime, ingress, egress)
 
 	mac := s.MAC()
 	// Write must not return an error: https://godoc.org/hash#Hash
