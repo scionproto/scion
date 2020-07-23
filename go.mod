@@ -7,7 +7,6 @@ require (
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/dchest/cmac v0.0.0-20150527144652-62ff55a1048c
 	github.com/golang/mock v1.4.0
-	github.com/golang/protobuf v1.4.0 // indirect
 	github.com/google/go-cmp v0.4.0
 	github.com/google/go-querystring v1.0.1-0.20190318165438-c8c88dbee036 // indirect
 	github.com/google/gopacket v1.1.16-0.20190123011826-102d5ca2098c
@@ -20,15 +19,14 @@ require (
 	github.com/mattn/go-sqlite3 v1.9.1-0.20180719091609-b3511bfdd742
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/patrickmn/go-cache v2.1.1-0.20180815053127-5633e0862627+incompatible
-	github.com/pelletier/go-toml v1.8.0
+	github.com/pelletier/go-toml v1.8.1-0.20200708110244-34de94e6a887
 	github.com/pkg/errors v0.8.2-0.20190227000051-27936f6d90f9 // indirect
-	github.com/prometheus/client_golang v1.1.0
-	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4 // indirect
+	github.com/prometheus/client_golang v1.6.0
 	github.com/sergi/go-diff v1.0.1-0.20180205163309-da645544ed44
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/songgao/water v0.0.0-20190725173103-fd331bda3f4b
 	github.com/spf13/cobra v1.0.0
-	github.com/stretchr/testify v1.3.1-0.20190311161405-34c6fa2dc709
+	github.com/stretchr/testify v1.4.0
 	github.com/syndtr/gocapability v0.0.0-20160928074757-e7cb7fa329f4
 	github.com/uber/jaeger-client-go v2.20.1+incompatible
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect

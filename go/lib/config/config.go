@@ -167,3 +167,41 @@ func LoadFile(file string, cfg interface{}) error {
 	}
 	return nil
 }
+
+type nameOverrideSampler struct {
+	Sampler
+	name string
+}
+
+func (s nameOverrideSampler) ConfigName() string {
+	return s.name
+}
+
+// OverrideName creates a sampler that is identical to the one in the argument,
+// except it will use the desired config name instead of the original one.
+func OverrideName(s Sampler, name string) Sampler {
+	return nameOverrideSampler{
+		Sampler: s,
+		name:    name,
+	}
+}
+
+type formatDataSampler struct {
+	Sampler
+	data []interface{}
+}
+
+func (s formatDataSampler) Sample(dst io.Writer, path Path, ctx CtxMap) {
+	buf := &bytes.Buffer{}
+	s.Sampler.Sample(buf, path, ctx)
+	WriteString(dst, fmt.Sprintf(string(buf.Bytes()), s.data...))
+}
+
+// FormatData creates a sampler that will call fmt.Sprintf on the string returned
+// by s.Sample using the supplied argument information.
+func FormatData(s Sampler, a ...interface{}) Sampler {
+	return formatDataSampler{
+		Sampler: s,
+		data:    a,
+	}
+}

@@ -23,9 +23,8 @@ import (
 
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/log/logtest"
-	"github.com/scionproto/scion/go/lib/pathstorage/pathstoragetest"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/truststorage/truststoragetest"
+	storagetest "github.com/scionproto/scion/go/pkg/storage/test"
 )
 
 func TestConfigSample(t *testing.T) {
@@ -42,8 +41,6 @@ func TestConfigSample(t *testing.T) {
 func InitTestConfig(cfg *Config) {
 	envtest.InitTest(&cfg.General, &cfg.Metrics, &cfg.Tracing, nil)
 	logtest.InitTestLogging(&cfg.Logging)
-	truststoragetest.InitTestConfig(&cfg.TrustDB)
-	pathstoragetest.InitTestPathDBConf(&cfg.PathDB)
 	InitTestSDConfig(&cfg.SD)
 }
 
@@ -54,8 +51,8 @@ func InitTestSDConfig(cfg *SDConfig) {
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	envtest.CheckTest(t, &cfg.General, &cfg.Metrics, &cfg.Tracing, nil, id)
 	logtest.CheckTestLogging(t, &cfg.Logging, id)
-	truststoragetest.CheckTestConfig(t, &cfg.TrustDB, id)
-	pathstoragetest.CheckTestPathDBConf(t, &cfg.PathDB, id)
+	storagetest.CheckTestTrustDBConfig(t, &cfg.TrustDB, id)
+	storagetest.CheckTestPathDBConfig(t, &cfg.PathDB, id)
 	CheckTestSDConfig(t, &cfg.SD, id)
 }
 
