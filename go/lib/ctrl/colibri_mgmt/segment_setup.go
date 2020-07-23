@@ -25,7 +25,7 @@ type SegmentSetup struct {
 	StartProps      PathEndProps
 	EndProps        PathEndProps
 	InfoField       []byte
-	AllocationTrail []*AllocationBeads
+	AllocationTrail []*AllocationBead
 }
 
 func (s *SegmentSetup) ProtoId() proto.ProtoIdType {
@@ -51,11 +51,11 @@ func (pep *PathEndProps) ProtoId() proto.ProtoIdType {
 	return proto.PathEndProps_TypeID
 }
 
-type AllocationBeads struct {
+type AllocationBead struct {
 	AllocBW uint8
 	MaxBW   uint8
 }
 
-func (ab *AllocationBeads) ProtoId() proto.ProtoIdType {
-	return proto.AllocationBeads_TypeID
+func (ab *AllocationBead) ProtoId() proto.ProtoIdType {
+	return proto.AllocationBead_TypeID
 }
