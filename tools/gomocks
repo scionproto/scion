@@ -42,6 +42,7 @@ MOCK_TARGETS = [
     ("go/pkg/trust/renewal", "DB"),
     ("go/sig/egress/iface", "Session"),
     ("go/sig/egress/worker", "SCIONWriter"),
+    ("go/cs/reservationstorage/backend", "DB,Transaction"),
 ]
 
 rootpath = os.path.dirname(sys.path[0])
