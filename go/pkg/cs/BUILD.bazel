@@ -45,12 +45,12 @@ go_library(
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/sock/reliable/reconnect:go_default_library",
         "//go/lib/spath:go_default_library",
+        "//go/lib/statuspages:go_default_library",
         "//go/lib/topology:go_default_library",
         "//go/pkg/cs/trust:go_default_library",
         "//go/pkg/trust:go_default_library",
         "//go/pkg/trust/renewal:go_default_library",
         "//go/proto:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
-        "@com_github_pelletier_go_toml//:go_default_library",
     ],
 )

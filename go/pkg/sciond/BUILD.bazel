@@ -6,7 +6,6 @@ go_library(
     importpath = "github.com/scionproto/scion/go/pkg/sciond",
     visibility = ["//visibility:public"],
     deps = [
-        "//go/lib/env:go_default_library",
         "//go/lib/infra/messenger/tcp:go_default_library",
         "//go/lib/infra/modules/itopo:go_default_library",
         "//go/lib/log:go_default_library",
@@ -19,6 +18,5 @@ go_library(
         "//go/pkg/trust/compat:go_default_library",
         "//go/proto:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
-        "@com_github_pelletier_go_toml//:go_default_library",
     ],
 )

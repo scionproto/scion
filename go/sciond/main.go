@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/statuspages"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/sciond"
@@ -155,7 +156,11 @@ func run(file string) error {
 		srv.Shutdown(ctx)
 	}()
 
-	sciond.StartHTTPEndpoints(cfg, cfg.Metrics)
+	// Start HTTP endpoints.
+	statuspages.Init(cfg.General.ID, cfg)
+	statuspages.Add("topology", itopo.TopologyHandler)
+	cfg.Metrics.StartPrometheus()
+
 	select {
 	case <-fatal.ShutdownChan():
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.

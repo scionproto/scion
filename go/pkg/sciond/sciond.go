@@ -15,17 +15,12 @@
 package sciond
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"io"
-	"net/http"
 	"path/filepath"
 
-	"github.com/opentracing/opentracing-go"
-	"github.com/pelletier/go-toml"
+	opentracing "github.com/opentracing/opentracing-go"
 
-	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/messenger/tcp"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
@@ -110,17 +105,4 @@ func Server(listen string, cfg ServerCfg) *servers.Server {
 		},
 	}
 	return servers.NewServer("tcp", listen, handlers)
-}
-
-// StartHTTPEndpoints starts the HTTP endpoints.
-func StartHTTPEndpoints(cfg interface{}, metrics env.Metrics) {
-	http.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
-		var buf bytes.Buffer
-		toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(cfg)
-		fmt.Fprint(w, buf.String())
-	})
-	http.HandleFunc("/info", env.InfoHandler)
-	http.HandleFunc("/topology", itopo.TopologyHandler)
-	metrics.StartPrometheus()
 }

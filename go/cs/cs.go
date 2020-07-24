@@ -300,7 +300,7 @@ func run(file string) error {
 		tcpMsgr.ListenAndServe()
 	}()
 	defer tcpMsgr.CloseServer()
-	cs.StartHTTPEndpoints(cfg, signer, chainBuilder, cfg.Metrics)
+	cs.StartHTTPEndpoints(cfg.General.ID, cfg, signer, chainBuilder, cfg.Metrics)
 
 	ohpConn, err := cs.NewOneHopConn(topo.IA(), nc.Public, "", cfg.General.ReconnectToDispatcher,
 		cfg.Features.HeaderV2)
