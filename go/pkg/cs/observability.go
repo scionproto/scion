@@ -15,21 +15,20 @@
 package cs
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
-	"github.com/opentracing/opentracing-go"
-	"github.com/pelletier/go-toml"
+	opentracing "github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/statuspages"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 )
 
@@ -45,20 +44,15 @@ func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
 
 // StartHTTPEndpoints starts the HTTP endpoints that expose the metrics and
 // additional information.
-func StartHTTPEndpoints(cfg interface{}, signer cstrust.RenewingSigner, ca cstrust.ChainBuilder,
-	metrics env.Metrics) {
+func StartHTTPEndpoints(elemId string, cfg interface{}, signer cstrust.RenewingSigner,
+	ca cstrust.ChainBuilder, metrics env.Metrics) {
 
-	http.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
-		var buf bytes.Buffer
-		toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(cfg)
-		fmt.Fprint(w, buf.String())
-	})
-	http.HandleFunc("/info", env.InfoHandler)
-	http.HandleFunc("/topology", itopo.TopologyHandler)
-	http.HandleFunc("/signer", signerHandler(signer))
+	// TODO: Move this to CS main.
+	statuspages.Init(elemId, cfg)
+	statuspages.Add("topology", itopo.TopologyHandler)
+	statuspages.Add("signer", signerHandler(signer))
 	if ca != (cstrust.ChainBuilder{}) {
-		http.HandleFunc("/ca", caHandler(ca))
+		statuspages.Add("/ca", caHandler(ca))
 	}
 	metrics.StartPrometheus()
 }
