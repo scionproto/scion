@@ -48,8 +48,11 @@ type mainData struct {
 	Pages  []string
 }
 
+// StatusPages maps from a page name to the HTTP handler serving that page.
 type StatusPages map[string]http.HandlerFunc
 
+// Register registers the pages with the supplied HTTP server.
+// Additionally it registers the main page that links to all the other pages.
 func (s StatusPages) Register(serveMux *http.ServeMux, elemId string) error {
 	t, err := template.New("main").Parse(mainTmpl)
 	if err != nil {
@@ -70,6 +73,8 @@ func (s StatusPages) Register(serveMux *http.ServeMux, elemId string) error {
 	return nil
 }
 
+// NewConfigHandler returns an HTTP handler that serves a page with the
+// specified TOML config.
 func NewConfigHandler(config interface{}) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
@@ -79,6 +84,8 @@ func NewConfigHandler(config interface{}) func(http.ResponseWriter, *http.Reques
 	}
 }
 
+// NewInfoHandler returns an HTTP handler that serves a page with basic info
+// about the process.
 func NewInfoHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		info := env.VersionInfo()
