@@ -18,6 +18,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/user"
@@ -31,8 +32,8 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/statuspages"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/service"
 )
 
 var (
@@ -87,7 +88,14 @@ func realMain() int {
 	}()
 
 	env.SetupEnv(nil)
-	statuspages.Init(cfg.Dispatcher.ID, cfg)
+	statusPages := service.StatusPages{
+		"info":   service.NewInfoHandler(),
+		"config": service.NewConfigHandler(cfg),
+	}
+	if err := statusPages.Register(http.DefaultServeMux, cfg.Dispatcher.ID); err != nil {
+		log.Error("registering status pages", "err", err)
+		return 1
+	}
 	cfg.Metrics.StartPrometheus()
 
 	returnCode := waitForTeardown()

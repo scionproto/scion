@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"time"
@@ -35,12 +36,12 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/statuspages"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/sciond"
 	"github.com/scionproto/scion/go/pkg/sciond/config"
 	"github.com/scionproto/scion/go/pkg/sciond/fetcher"
+	"github.com/scionproto/scion/go/pkg/service"
 	"github.com/scionproto/scion/go/pkg/storage"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/compat"
@@ -157,8 +158,14 @@ func run(file string) error {
 	}()
 
 	// Start HTTP endpoints.
-	statuspages.Init(cfg.General.ID, cfg)
-	statuspages.Add("topology", itopo.TopologyHandler)
+	statusPages := service.StatusPages{
+		"info":     service.NewInfoHandler(),
+		"config":   service.NewConfigHandler(cfg),
+		"topology": itopo.TopologyHandler,
+	}
+	if err := statusPages.Register(http.DefaultServeMux, cfg.General.ID); err != nil {
+		return serrors.WrapStr("registering status pages", err)
+	}
 	cfg.Metrics.StartPrometheus()
 
 	select {

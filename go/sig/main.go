@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/user"
@@ -35,7 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sigdisp"
 	"github.com/scionproto/scion/go/lib/sigjson"
-	"github.com/scionproto/scion/go/lib/statuspages"
+	"github.com/scionproto/scion/go/pkg/service"
 	sigconfig "github.com/scionproto/scion/go/pkg/sig/config"
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/internal/base"
@@ -105,8 +106,18 @@ func realMain() int {
 	}()
 	egress.Init(tunIO)
 	ingress.Init(tunIO)
-	statuspages.Init(cfg.Sig.ID, cfg)
+
+	// Start HTTP endpoints.
+	statusPages := service.StatusPages{
+		"info":   service.NewInfoHandler(),
+		"config": service.NewConfigHandler(cfg),
+	}
+	if err := statusPages.Register(http.DefaultServeMux, cfg.Sig.ID); err != nil {
+		log.Error("registering status pages", "err", err)
+		return 1
+	}
 	cfg.Metrics.StartPrometheus()
+
 	select {
 	case <-fatal.ShutdownChan():
 		return 0

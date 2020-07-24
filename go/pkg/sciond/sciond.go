@@ -21,6 +21,7 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/messenger/tcp"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
