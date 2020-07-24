@@ -38,7 +38,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/statuspages"
+	"github.com/scionproto/scion/go/pkg/service"
 )
 
 var (
@@ -68,9 +68,19 @@ func realMain() int {
 	defer log.Flush()
 	defer env.LogAppStopped(common.BR, cfg.General.ID)
 	defer log.HandlePanic()
-	statuspages.Init(cfg.General.ID, cfg)
-	statuspages.Add("status", statusHandler)
-	statuspages.Add("topology", itopo.TopologyHandler)
+
+	// Start HTTP endpoints.
+	statusPages := service.StatusPages{
+		"info":     service.NewInfoHandler(),
+		"config":   service.NewConfigHandler(cfg),
+		"status":   statusHandler,
+		"topology": itopo.TopologyHandler,
+	}
+	if err := statusPages.Register(http.DefaultServeMux, cfg.General.ID); err != nil {
+		log.Error("registering status pages", "err", err)
+		return 1
+	}
+
 	if err := setup(); err != nil {
 		log.Error("Setup failed", "err", err)
 		return 1

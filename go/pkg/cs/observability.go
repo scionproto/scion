@@ -25,11 +25,11 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
-	"github.com/scionproto/scion/go/lib/statuspages"
+	"github.com/scionproto/scion/go/lib/serrors"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
+	"github.com/scionproto/scion/go/pkg/service"
 )
 
 // InitTracer initializes the global tracer.
@@ -45,16 +45,21 @@ func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
 // StartHTTPEndpoints starts the HTTP endpoints that expose the metrics and
 // additional information.
 func StartHTTPEndpoints(elemId string, cfg interface{}, signer cstrust.RenewingSigner,
-	ca cstrust.ChainBuilder, metrics env.Metrics) {
+	ca cstrust.ChainBuilder, metrics env.Metrics) error {
 
-	// TODO: Move this to CS main.
-	statuspages.Init(elemId, cfg)
-	statuspages.Add("topology", itopo.TopologyHandler)
-	statuspages.Add("signer", signerHandler(signer))
+	statusPages := service.StatusPages{
+		"info":   service.NewInfoHandler(),
+		"config": service.NewConfigHandler(cfg),
+		"signer": signerHandler(signer),
+	}
 	if ca != (cstrust.ChainBuilder{}) {
-		statuspages.Add("/ca", caHandler(ca))
+		statusPages["ca"] = caHandler(ca)
+	}
+	if err := statusPages.Register(http.DefaultServeMux, elemId); err != nil {
+		return serrors.WrapStr("registering status pages", err)
 	}
 	metrics.StartPrometheus()
+	return nil
 }
 
 func signerHandler(signer cstrust.RenewingSigner) http.HandlerFunc {
