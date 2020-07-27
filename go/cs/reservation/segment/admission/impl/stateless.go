@@ -77,9 +77,9 @@ func (a *StatelessAdmission) availableBW(ctx context.Context, req *segment.Setup
 		return 0, serrors.WrapStr("cannot get reservations using egress", err,
 			"egress", req.Egress)
 	}
-	bwIngress := sumMaxBlockedBW(sameIngress, req.ID)
+	bwIngress := sumMaxBlockedBW(sameIngress, &req.ID)
 	freeIngress := a.Capacities.CapacityIngress(req.Ingress) - bwIngress
-	bwEgress := sumMaxBlockedBW(sameEgress, req.ID)
+	bwEgress := sumMaxBlockedBW(sameEgress, &req.ID)
 	freeEgress := a.Capacities.CapacityEgress(req.Egress) - bwEgress
 	free := float64(minBW(freeIngress, freeEgress))
 	return uint64(free * a.Delta), nil
@@ -214,10 +214,10 @@ func (a *StatelessAdmission) transitDemand(ctx context.Context, req *segment.Set
 
 // ----------------------------------------------
 
-func sumMaxBlockedBW(rsvs []*segment.Reservation, excludeThisRsv reservation.SegmentID) uint64 {
+func sumMaxBlockedBW(rsvs []*segment.Reservation, excludeThisRsv *reservation.SegmentID) uint64 {
 	var total uint64
 	for _, r := range rsvs {
-		if r.ID != excludeThisRsv {
+		if r.ID != *excludeThisRsv {
 			total += r.MaxBlockedBW()
 		}
 	}
