@@ -16,7 +16,6 @@ package snetmigrate
 
 import (
 	"net"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -48,12 +47,8 @@ func (p *emptyPath) Destination() addr.IA {
 	return p.source
 }
 
-func (p *emptyPath) MTU() uint16 {
-	return 0
-}
-
-func (p *emptyPath) Expiry() time.Time {
-	return time.Time{}
+func (p *emptyPath) Metadata() snet.PathMetadata {
+	return nil
 }
 
 func (p *emptyPath) Copy() snet.Path {

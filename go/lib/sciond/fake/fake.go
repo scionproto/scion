@@ -30,9 +30,12 @@ func New(script *Script) sciond.Connector {
 	}
 	for _, entry := range script.Entries {
 		for _, path := range entry.Paths {
-			path.creationTime = c.creationTime
+			creationTime := c.creationTime
 			lifetime := time.Duration(path.JSONExpirationTimestamp) * time.Second
-			path.expirationTime = path.creationTime.Add(lifetime)
+			path.metadata = pathMetadata{
+				creationTime:   creationTime,
+				expirationTime: creationTime.Add(lifetime),
+			}
 		}
 	}
 	return c
@@ -76,10 +79,7 @@ type Path struct {
 	// would mean SCIOND served a path that expired in the past.
 	JSONExpirationTimestamp int `json:"expiration_timestamp"`
 
-	// creationTime contains the time when this object was constructed.
-	creationTime time.Time
-	// expirationTime contains the time when this path expires.
-	expirationTime time.Time
+	metadata pathMetadata
 }
 
 func (p Path) Fingerprint() snet.PathFingerprint {
@@ -110,12 +110,8 @@ func (p Path) Destination() addr.IA {
 	return p.JSONIA
 }
 
-func (p Path) MTU() uint16 {
-	return 1472
-}
-
-func (p Path) Expiry() time.Time {
-	return p.expirationTime
+func (p Path) Metadata() snet.PathMetadata {
+	return p.metadata
 }
 
 func (p Path) Copy() snet.Path {
@@ -128,14 +124,28 @@ func (p Path) Copy() snet.Path {
 		},
 		JSONIA:                  p.JSONIA,
 		JSONExpirationTimestamp: p.JSONExpirationTimestamp,
-		creationTime:            p.creationTime,
-		expirationTime:          p.expirationTime,
+		metadata:                p.metadata,
 	}
 }
 
 func (p Path) String() string {
 	return fmt.Sprintf("FakePath(IA: %v, NextHop: %v, Fingerprint: %v)",
 		p.JSONIA, p.JSONNextHop, p.JSONFingerprint)
+}
+
+type pathMetadata struct {
+	// creationTime contains the time when this object was constructed.
+	creationTime time.Time
+	// expirationTime contains the time when this path expires.
+	expirationTime time.Time
+}
+
+func (m pathMetadata) MTU() uint16 {
+	return 1472
+}
+
+func (m pathMetadata) Expiry() time.Time {
+	return m.expirationTime
 }
 
 // UDPAddr decorates net.UDPAddr with custom JSON marshaling logic.

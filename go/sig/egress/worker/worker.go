@@ -230,7 +230,9 @@ func (w *worker) resetFrame(f *frame) {
 			w.currPathEntry = remote.SessPath.Path()
 		}
 		if w.currPathEntry != nil {
-			mtu = w.currPathEntry.MTU()
+			if md := w.currPathEntry.Metadata(); md != nil {
+				mtu = md.MTU()
+			}
 			pathLen = uint16(len(w.currPathEntry.Path().Raw))
 		}
 	}
