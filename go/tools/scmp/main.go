@@ -229,7 +229,7 @@ func setPathAndMtu() {
 	cmn.PathEntry = path
 	cmn.Remote.Path = path.Path()
 	cmn.Remote.NextHop = path.UnderlayNextHop()
-	cmn.Mtu = path.MTU()
+	cmn.Mtu = path.Metadata().MTU()
 }
 
 // setLocalASInfo queries the local AS information from SCIOND; sets cmn.LocalIA and localMtu.

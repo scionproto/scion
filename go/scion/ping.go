@@ -104,7 +104,8 @@ func newPing(pather CommandPather) *cobra.Command {
 			}
 			pldSize := int(flags.size)
 			if flags.maxMTU {
-				pldSize, err = calcMaxPldSize(local, remote, int(path.MTU()), features.HeaderV2)
+				mtu := int(path.Metadata().MTU())
+				pldSize, err = calcMaxPldSize(local, remote, mtu, features.HeaderV2)
 				if err != nil {
 					return err
 				}

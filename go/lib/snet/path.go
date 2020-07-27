@@ -56,11 +56,9 @@ type Path interface {
 	// Destination is the AS the path points to. Empty paths return the local
 	// AS of the router that created them.
 	Destination() addr.IA
-	// MTU returns the MTU of the path. If the result is zero, MTU is unknown.
-	MTU() uint16
-	// Expiry returns the expiration time of the path. If the result is a zero
-	// value expiration time is unknown.
-	Expiry() time.Time
+	// Metadata returns supplementary information about this path.
+	// Returns nil if the metadata is not available.
+	Metadata() PathMetadata
 	// Copy create a copy of the path.
 	Copy() Path
 }
@@ -73,6 +71,14 @@ type PathInterface interface {
 	ID() common.IFIDType
 	// IA is the ISD AS identifier of the interface.
 	IA() addr.IA
+}
+
+// PathMetadata contains supplementary information about a path.
+type PathMetadata interface {
+	// MTU returns the MTU of the path.
+	MTU() uint16
+	// Expiry returns the expiration time of the path.
+	Expiry() time.Time
 }
 
 // partialPath is a path object with incomplete metadata. It is used as a
@@ -107,12 +113,8 @@ func (p *partialPath) Destination() addr.IA {
 	return p.destination
 }
 
-func (p *partialPath) MTU() uint16 {
-	return 0
-}
-
-func (p *partialPath) Expiry() time.Time {
-	return time.Time{}
+func (p *partialPath) Metadata() PathMetadata {
+	return nil
 }
 
 func (p *partialPath) Copy() Path {

@@ -104,8 +104,10 @@ func main() {
 	for i, path := range paths {
 		fmt.Printf("[%2d] %s", i, fmt.Sprintf("%s", path))
 		if *expiration {
-			fmt.Printf(" Expires: %s (%s)", path.Expiry(),
-				time.Until(path.Expiry()).Truncate(time.Second))
+			if md := path.Metadata(); md != nil {
+				fmt.Printf(" Expires: %s (%s)", md.Expiry(),
+					time.Until(md.Expiry()).Truncate(time.Second))
+			}
 		}
 		if *status {
 			fmt.Printf(" Status: %s", pathStatuses[pathprobe.PathKey(path)])

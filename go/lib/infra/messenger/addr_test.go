@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"net"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -470,11 +469,7 @@ func (t *testPath) Destination() addr.IA {
 	panic("not implemented")
 }
 
-func (t *testPath) MTU() uint16 {
-	panic("not implemented")
-}
-
-func (t *testPath) Expiry() time.Time {
+func (t *testPath) Metadata() snet.PathMetadata {
 	panic("not implemented")
 }
 
