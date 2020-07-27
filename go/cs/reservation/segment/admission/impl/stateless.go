@@ -30,9 +30,9 @@ import (
 
 // StatelessAdmission can admit a segment reservation without any state other than the DB.
 type StatelessAdmission struct {
-	db         backend.DB
-	capacities base.Capacities // aka capacity matrix
-	delta      float64         // fraction of free BW that can be reserved in one request
+	DB         backend.DB
+	Capacities base.Capacities // aka capacity matrix
+	Delta      float64         // fraction of free BW that can be reserved in one request
 }
 
 var _ admission.Admitter = (*StatelessAdmission)(nil)
@@ -67,22 +67,22 @@ func (a *StatelessAdmission) AdmitRsv(ctx context.Context, req *segment.SetupReq
 func (a *StatelessAdmission) availableBW(ctx context.Context, req *segment.SetupReq) (
 	uint64, error) {
 
-	sameIngress, err := a.db.GetSegmentRsvsFromIFPair(ctx, &req.Ingress, nil)
+	sameIngress, err := a.DB.GetSegmentRsvsFromIFPair(ctx, &req.Ingress, nil)
 	if err != nil {
 		return 0, serrors.WrapStr("cannot get reservations using ingress", err,
 			"ingress", req.Ingress)
 	}
-	sameEgress, err := a.db.GetSegmentRsvsFromIFPair(ctx, nil, &req.Egress)
+	sameEgress, err := a.DB.GetSegmentRsvsFromIFPair(ctx, nil, &req.Egress)
 	if err != nil {
 		return 0, serrors.WrapStr("cannot get reservations using egress", err,
 			"egress", req.Egress)
 	}
-	bwIngress := sumAllRsvButThis(sameIngress, req.ID)
-	freeIngress := a.capacities.CapacityIngress(req.Ingress) - bwIngress
-	bwEgress := sumAllRsvButThis(sameEgress, req.ID)
-	freeEgress := a.capacities.CapacityEgress(req.Egress) - bwEgress
+	bwIngress := sumMaxBlockedBW(sameIngress, req.ID)
+	freeIngress := a.Capacities.CapacityIngress(req.Ingress) - bwIngress
+	bwEgress := sumMaxBlockedBW(sameEgress, req.ID)
+	freeEgress := a.Capacities.CapacityEgress(req.Egress) - bwEgress
 	free := float64(minBW(freeIngress, freeEgress))
-	return uint64(free * a.delta), nil
+	return uint64(free * a.Delta), nil
 }
 
 func (a *StatelessAdmission) idealBW(ctx context.Context, req *segment.SetupReq) (uint64, error) {
@@ -95,12 +95,12 @@ func (a *StatelessAdmission) idealBW(ctx context.Context, req *segment.SetupReq)
 		return 0, serrors.WrapStr("cannot compute tube ratio", err)
 	}
 	linkRatio := a.linkRatio(ctx, req, demsPerSrcRegIngress)
-	cap := float64(a.capacities.CapacityEgress(req.Egress))
+	cap := float64(a.Capacities.CapacityEgress(req.Egress))
 	return uint64(cap * tubeRatio * linkRatio), nil
 }
 
-func (a *StatelessAdmission) tubeRatio(ctx context.Context, req *segment.SetupReq, demsPerSrc demPerSource) (
-	float64, error) {
+func (a *StatelessAdmission) tubeRatio(ctx context.Context, req *segment.SetupReq,
+	demsPerSrc demPerSource) (float64, error) {
 
 	// TODO(juagargi) to avoid calling several times to computeTempDemands, refactor the
 	// type holding the results, so that it stores capReqDem per source per ingress interface.
@@ -109,10 +109,10 @@ func (a *StatelessAdmission) tubeRatio(ctx context.Context, req *segment.SetupRe
 	if err != nil {
 		return 0, serrors.WrapStr("cannot compute transit demand", err)
 	}
-	capIn := a.capacities.CapacityIngress(req.Ingress)
+	capIn := a.Capacities.CapacityIngress(req.Ingress)
 	numerator := minBW(capIn, transitDemand)
 	var sum uint64
-	for _, in := range a.capacities.IngressInterfaces() {
+	for _, in := range a.Capacities.IngressInterfaces() {
 		demandsForThisIngress, err := a.computeTempDemands(ctx, in, req)
 		if err != nil {
 			return 0, serrors.WrapStr("cannot compute transit demand", err)
@@ -121,7 +121,7 @@ func (a *StatelessAdmission) tubeRatio(ctx context.Context, req *segment.SetupRe
 		if err != nil {
 			return 0, serrors.WrapStr("cannot compute transit demand", err)
 		}
-		sum += minBW(a.capacities.CapacityIngress(in), dem)
+		sum += minBW(a.Capacities.CapacityIngress(in), dem)
 	}
 	return float64(numerator) / float64(sum), nil
 }
@@ -129,7 +129,7 @@ func (a *StatelessAdmission) tubeRatio(ctx context.Context, req *segment.SetupRe
 func (a *StatelessAdmission) linkRatio(ctx context.Context, req *segment.SetupReq,
 	demsPerSrc demPerSource) float64 {
 
-	capEg := a.capacities.CapacityEgress(req.Egress)
+	capEg := a.Capacities.CapacityEgress(req.Egress)
 	demEg := demsPerSrc[req.ID.ASID].eg
 	egScalFctr := float64(minBW(capEg, demEg)) / float64(demEg)
 	prevBW := float64(req.AllocTrail.MinMax()) // min of maxBW in the trail
@@ -159,12 +159,12 @@ func (a *StatelessAdmission) computeTempDemands(ctx context.Context, ingress com
 	req *segment.SetupReq) (demPerSource, error) {
 
 	// TODO(juagargi) consider adding a call to db to get all srcDem,inDem,egDem grouped by source
-	rsvs, err := a.db.GetAllSegmentRsvs(ctx)
+	rsvs, err := a.DB.GetAllSegmentRsvs(ctx)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot obtain segment rsvs. from ingress/egress pair", err)
 	}
-	capIn := a.capacities.CapacityIngress(ingress)
-	capEg := a.capacities.CapacityEgress(req.Egress)
+	capIn := a.Capacities.CapacityIngress(ingress)
+	capEg := a.Capacities.CapacityEgress(req.Egress)
 	// srcDem, inDem and egDem grouped by source
 	demsPerSrc := make(demPerSource)
 	for _, rsv := range rsvs {
@@ -191,12 +191,11 @@ func (a *StatelessAdmission) computeTempDemands(ctx context.Context, ingress com
 // transitDemand computes the transit demand from ingress to req.Egress. The parameter
 // demsPerSrc must hold the inDem, egDem and srcDem of all reservations, grouped by source, and
 // for an ingress interface = ingress parameter.
-func (a *StatelessAdmission) transitDemand(ctx context.Context, req *segment.SetupReq, ingress common.IFIDType,
-	demsPerSrc demPerSource) (
-	uint64, error) {
+func (a *StatelessAdmission) transitDemand(ctx context.Context, req *segment.SetupReq,
+	ingress common.IFIDType, demsPerSrc demPerSource) (uint64, error) {
 
-	capIn := a.capacities.CapacityIngress(ingress)
-	capEg := a.capacities.CapacityEgress(req.Egress)
+	capIn := a.Capacities.CapacityIngress(ingress)
+	capEg := a.Capacities.CapacityEgress(req.Egress)
 	// TODO(juagargi) adjSrcDem is not needed, remove after finishing debugging the admission
 	adjSrcDem := make(map[addr.AS]uint64) // every adjSrcDem grouped by source
 	for src, dems := range demsPerSrc {
@@ -215,10 +214,10 @@ func (a *StatelessAdmission) transitDemand(ctx context.Context, req *segment.Set
 
 // ----------------------------------------------
 
-func sumAllRsvButThis(rsvs []*segment.Reservation, excludeRsv reservation.SegmentID) uint64 {
+func sumMaxBlockedBW(rsvs []*segment.Reservation, excludeThisRsv reservation.SegmentID) uint64 {
 	var total uint64
 	for _, r := range rsvs {
-		if r.ID != excludeRsv {
+		if r.ID != excludeThisRsv {
 			total += r.MaxBlockedBW()
 		}
 	}
