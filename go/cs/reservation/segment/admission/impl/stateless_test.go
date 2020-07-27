@@ -30,7 +30,78 @@ import (
 )
 
 func TestSumMaxBlockedBW(t *testing.T) {
-	//
+	cases := map[string]struct {
+		blockedBW uint64
+		rsvsFcn   func() []*segment.Reservation
+		excludeID string
+	}{
+		"empty": {
+			blockedBW: 0,
+			rsvsFcn: func() []*segment.Reservation {
+				return nil
+			},
+			excludeID: "ff0000010001beefcafe",
+		},
+		"one reservation": {
+			blockedBW: reservation.BWCls(5).ToKBps(),
+			rsvsFcn: func() []*segment.Reservation {
+				rsv := testNewRsv(t, "ff00:1:1", "01234567") // already contains an index w/ 64KBps
+				_, err := rsv.NewIndexAtSource(util.SecsToTime(3), 1, 1, 1, 1, reservation.CorePath)
+				require.NoError(t, err)
+				_, err = rsv.NewIndexAtSource(util.SecsToTime(3), 1, 1, 1, 1, reservation.CorePath)
+				require.NoError(t, err)
+				return []*segment.Reservation{rsv}
+			},
+			excludeID: "ff0000010001beefcafe",
+		},
+		"one reservation but excluded": {
+			blockedBW: 0,
+			rsvsFcn: func() []*segment.Reservation {
+				rsv := testNewRsv(t, "ff00:1:1", "beefcafe")
+				_, err := rsv.NewIndexAtSource(util.SecsToTime(3), 1, 1, 1, 1, reservation.CorePath)
+				require.NoError(t, err)
+				_, err = rsv.NewIndexAtSource(util.SecsToTime(3), 1, 1, 1, 1, reservation.CorePath)
+				require.NoError(t, err)
+				return []*segment.Reservation{rsv}
+			},
+			excludeID: "ff0000010001beefcafe",
+		},
+		"many reservations": {
+			blockedBW: 309, // 181 + 128
+			rsvsFcn: func() []*segment.Reservation {
+				rsv := testNewRsv(t, "ff00:1:1", "beefcafe")
+				_, err := rsv.NewIndexAtSource(util.SecsToTime(3), 1, 17, 7, 1, reservation.CorePath)
+				require.NoError(t, err)
+				rsvs := []*segment.Reservation{rsv}
+
+				rsv = testNewRsv(t, "ff00:1:1", "01234567")
+				_, err = rsv.NewIndexAtSource(util.SecsToTime(3), 1, 8, 8, 1, reservation.CorePath)
+				require.NoError(t, err)
+				_, err = rsv.NewIndexAtSource(util.SecsToTime(3), 1, 7, 7, 1, reservation.CorePath)
+				require.NoError(t, err)
+				rsvs = append(rsvs, rsv)
+
+				rsv = testNewRsv(t, "ff00:1:2", "01234567")
+				_, err = rsv.NewIndexAtSource(util.SecsToTime(2), 1, 7, 7, 1, reservation.CorePath)
+				require.NoError(t, err)
+				rsvs = append(rsvs, rsv)
+
+				return rsvs
+			},
+			excludeID: "ff0000010001beefcafe",
+		},
+	}
+
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			excludedID, err := reservation.SegmentIDFromRaw(xtest.MustParseHexString(tc.excludeID))
+			require.NoError(t, err)
+			sum := sumMaxBlockedBW(tc.rsvsFcn(), excludedID)
+			require.Equal(t, tc.blockedBW, sum)
+		})
+	}
 }
 
 func TestAvailableBW(t *testing.T) {
@@ -38,14 +109,12 @@ func TestAvailableBW(t *testing.T) {
 
 	cases := map[string]struct {
 		availBW uint64
-		success bool
 		delta   float64
 		req     *segment.SetupReq
 		setupDB func(db *mock_backend.MockDB)
 	}{
 		"empty DB": {
 			availBW: 1024,
-			success: true,
 			delta:   1,
 			req:     req,
 			setupDB: func(db *mock_backend.MockDB) {
@@ -57,7 +126,6 @@ func TestAvailableBW(t *testing.T) {
 		},
 		"this reservation in DB": {
 			availBW: 1024,
-			success: true,
 			delta:   1,
 			req:     req,
 			setupDB: func(db *mock_backend.MockDB) {
@@ -73,7 +141,6 @@ func TestAvailableBW(t *testing.T) {
 		},
 		"other reservation in DB": {
 			availBW: 1024 - 64,
-			success: true,
 			delta:   1,
 			req:     req,
 			setupDB: func(db *mock_backend.MockDB) {
@@ -91,7 +158,6 @@ func TestAvailableBW(t *testing.T) {
 		},
 		"change delta": {
 			availBW: (1024 - 64) / 2,
-			success: true,
 			delta:   .5,
 			req:     req,
 			setupDB: func(db *mock_backend.MockDB) {
@@ -120,12 +186,8 @@ func TestAvailableBW(t *testing.T) {
 			db := adm.DB.(*mock_backend.MockDB)
 			tc.setupDB(db)
 			avail, err := adm.availableBW(ctx, tc.req)
-			if tc.success {
-				require.NoError(t, err)
-				require.Equal(t, tc.availBW, avail)
-			} else {
-				require.Error(t, err)
-			}
+			require.NoError(t, err)
+			require.Equal(t, tc.availBW, avail)
 		})
 	}
 }
