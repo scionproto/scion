@@ -266,20 +266,6 @@ func (mr *MockPathMockRecorder) Destination() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Destination", reflect.TypeOf((*MockPath)(nil).Destination))
 }
 
-// Fingerprint mocks base method
-func (m *MockPath) Fingerprint() snet.PathFingerprint {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Fingerprint")
-	ret0, _ := ret[0].(snet.PathFingerprint)
-	return ret0
-}
-
-// Fingerprint indicates an expected call of Fingerprint
-func (mr *MockPathMockRecorder) Fingerprint() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fingerprint", reflect.TypeOf((*MockPath)(nil).Fingerprint))
-}
-
 // Interfaces mocks base method
 func (m *MockPath) Interfaces() []snet.PathInterface {
 	m.ctrl.T.Helper()

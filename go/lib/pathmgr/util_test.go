@@ -16,8 +16,6 @@
 package pathmgr_test
 
 import (
-	"crypto/sha256"
-	"encoding/binary"
 	"strconv"
 	"strings"
 	"testing"
@@ -54,7 +52,6 @@ func createPath(t testing.TB, ctrl *gomock.Controller, desc string) snet.Path {
 		})
 	}
 	path.EXPECT().Interfaces().Return(interfaces).AnyTimes()
-	path.EXPECT().Fingerprint().Return(fingerprint(interfaces)).AnyTimes()
 	return path
 }
 
@@ -64,18 +61,6 @@ func mustIfID(t testing.TB, s string) common.IFIDType {
 		t.Fatalf("Failed to parse interface: %s", s)
 	}
 	return common.IFIDType(ifID)
-}
-
-func fingerprint(interfaces []snet.PathInterface) snet.PathFingerprint {
-	if len(interfaces) == 0 {
-		return ""
-	}
-	h := sha256.New()
-	for _, intf := range interfaces {
-		binary.Write(h, binary.BigEndian, intf.IA().IAInt())
-		binary.Write(h, binary.BigEndian, intf.ID())
-	}
-	return snet.PathFingerprint(h.Sum(nil))
 }
 
 type intf struct {

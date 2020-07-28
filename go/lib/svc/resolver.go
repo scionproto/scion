@@ -179,10 +179,6 @@ type path struct {
 	destination addr.IA
 }
 
-func (p *path) Fingerprint() snet.PathFingerprint {
-	return ""
-}
-
 func (p *path) UnderlayNextHop() *net.UDPAddr {
 	return p.underlay
 }

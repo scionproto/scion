@@ -27,10 +27,6 @@ type emptyPath struct {
 	source addr.IA
 }
 
-func (p *emptyPath) Fingerprint() snet.PathFingerprint {
-	return ""
-}
-
 func (p *emptyPath) UnderlayNextHop() *net.UDPAddr {
 	return nil
 }

@@ -127,7 +127,8 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	res := &Result{Destination: dst}
 	for _, path := range paths {
 		fingerprint := "local"
-		if fp := path.Fingerprint().String(); fp != "" {
+		if len(path.Interfaces()) > 0 {
+			fp := snet.Fingerprint(path).String()
 			fingerprint = fp[:16]
 		}
 		var nextHop string

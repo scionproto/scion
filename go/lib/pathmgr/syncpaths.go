@@ -104,9 +104,9 @@ func (sp *SyncPaths) Destroy() {
 
 func setSubtract(x, y spathmeta.AppPathSet) spathmeta.AppPathSet {
 	result := make(spathmeta.AppPathSet)
-	for _, ap := range x {
-		if _, ok := y[ap.Fingerprint()]; !ok {
-			result.Add(ap)
+	for key, ap := range x {
+		if _, ok := y[key]; !ok {
+			result[key] = ap
 		}
 	}
 	return result
