@@ -104,7 +104,7 @@ func (a *StatelessAdmission) tubeRatio(ctx context.Context, req *segment.SetupRe
 
 	// TODO(juagargi) to avoid calling several times to computeTempDemands, refactor the
 	// type holding the results, so that it stores capReqDem per source per ingress interface.
-	// InScalFctr and EgScalFctr will be stores independently, per source per interface.
+	// InScalFctr and EgScalFctr will be stored independently, per source per interface.
 	transitDemand, err := a.transitDemand(ctx, req, req.Ingress, demsPerSrc)
 	if err != nil {
 		return 0, serrors.WrapStr("cannot compute transit demand", err)
@@ -155,6 +155,9 @@ type demands struct {
 type demPerSource map[addr.AS]demands
 
 // computeTempDemands will compute inDem, egDem and srcDem grouped by source, for all sources.
+// this is, all cap. requested demands from all reservations, grouped by source, that enter
+// the AS at "ingress" and exit at "egress". It also stores all the source demands that enter
+// the AS at "ingress", and the source demands that exit the AS at "egress".
 func (a *StatelessAdmission) computeTempDemands(ctx context.Context, ingress common.IFIDType,
 	req *segment.SetupReq) (demPerSource, error) {
 
@@ -169,15 +172,14 @@ func (a *StatelessAdmission) computeTempDemands(ctx context.Context, ingress com
 	demsPerSrc := make(demPerSource)
 	for _, rsv := range rsvs {
 		var dem uint64 // capReqDem
-		if rsv.ID == req.ID {
-			dem = min3BW(capIn, capEg, req.MaxBW.ToKBps())
-		} else {
+		if rsv.ID != req.ID {
 			dem = min3BW(capIn, capEg, rsv.MaxRequestedBW())
 		}
 		bucket := demsPerSrc[rsv.ID.ASID]
 		if rsv.Ingress == ingress {
 			bucket.in += dem
-		} else if rsv.Egress == req.Egress {
+		}
+		if rsv.Egress == req.Egress {
 			bucket.eg += dem
 		}
 		if rsv.Ingress == ingress && rsv.Egress == req.Egress {
@@ -185,6 +187,20 @@ func (a *StatelessAdmission) computeTempDemands(ctx context.Context, ingress com
 		}
 		demsPerSrc[rsv.ID.ASID] = bucket
 	}
+	// add the request itself
+	bucket := demsPerSrc[req.ID.ASID]
+	dem := req.MaxBW.ToKBps()
+	if req.Ingress == ingress {
+		bucket.in += dem
+	}
+	if req.Egress == req.Egress {
+		bucket.eg += dem
+	}
+	if req.Ingress == ingress && req.Egress == req.Egress {
+		bucket.src += dem
+	}
+	demsPerSrc[req.ID.ASID] = bucket
+
 	return demsPerSrc, nil
 }
 
@@ -199,8 +215,14 @@ func (a *StatelessAdmission) transitDemand(ctx context.Context, req *segment.Set
 	// TODO(juagargi) adjSrcDem is not needed, remove after finishing debugging the admission
 	adjSrcDem := make(map[addr.AS]uint64) // every adjSrcDem grouped by source
 	for src, dems := range demsPerSrc {
-		inScalFctr := float64(minBW(capIn, dems.in)) / float64(dems.in)
-		egScalFctr := float64(minBW(capEg, dems.eg)) / float64(dems.eg)
+		var inScalFctr float64
+		if dems.in != 0 {
+			inScalFctr = float64(minBW(capIn, dems.in)) / float64(dems.in)
+		}
+		var egScalFctr float64
+		if dems.eg != 0 {
+			egScalFctr = float64(minBW(capEg, dems.eg)) / float64(dems.eg)
+		}
 		adjSrcDem[src] = uint64(math.Min(inScalFctr, egScalFctr) * float64(dems.src))
 	}
 	// now reduce adjSrcDem

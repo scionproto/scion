@@ -45,7 +45,7 @@ func TestSumMaxBlockedBW(t *testing.T) {
 		"one reservation": {
 			blockedBW: reservation.BWCls(5).ToKBps(),
 			rsvsFcn: func() []*segment.Reservation {
-				rsv := testNewRsv(t, "ff00:1:1", "01234567") // already contains an index w/ 64KBps
+				rsv := testNewRsv(t, "ff00:1:1", "01234567", 1, 2, 5, 5, 5)
 				_, err := rsv.NewIndexAtSource(util.SecsToTime(3), 1, 1, 1, 1, reservation.CorePath)
 				require.NoError(t, err)
 				_, err = rsv.NewIndexAtSource(util.SecsToTime(3), 1, 1, 1, 1, reservation.CorePath)
@@ -57,7 +57,7 @@ func TestSumMaxBlockedBW(t *testing.T) {
 		"one reservation but excluded": {
 			blockedBW: 0,
 			rsvsFcn: func() []*segment.Reservation {
-				rsv := testNewRsv(t, "ff00:1:1", "beefcafe")
+				rsv := testNewRsv(t, "ff00:1:1", "beefcafe", 1, 2, 5, 5, 5)
 				_, err := rsv.NewIndexAtSource(util.SecsToTime(3), 1, 1, 1, 1, reservation.CorePath)
 				require.NoError(t, err)
 				_, err = rsv.NewIndexAtSource(util.SecsToTime(3), 1, 1, 1, 1, reservation.CorePath)
@@ -69,19 +69,19 @@ func TestSumMaxBlockedBW(t *testing.T) {
 		"many reservations": {
 			blockedBW: 309, // 181 + 128
 			rsvsFcn: func() []*segment.Reservation {
-				rsv := testNewRsv(t, "ff00:1:1", "beefcafe")
+				rsv := testNewRsv(t, "ff00:1:1", "beefcafe", 1, 2, 5, 5, 5)
 				_, err := rsv.NewIndexAtSource(util.SecsToTime(3), 1, 17, 7, 1, reservation.CorePath)
 				require.NoError(t, err)
 				rsvs := []*segment.Reservation{rsv}
 
-				rsv = testNewRsv(t, "ff00:1:1", "01234567")
+				rsv = testNewRsv(t, "ff00:1:1", "01234567", 1, 2, 5, 5, 5)
 				_, err = rsv.NewIndexAtSource(util.SecsToTime(3), 1, 8, 8, 1, reservation.CorePath)
 				require.NoError(t, err)
 				_, err = rsv.NewIndexAtSource(util.SecsToTime(3), 1, 7, 7, 1, reservation.CorePath)
 				require.NoError(t, err)
 				rsvs = append(rsvs, rsv)
 
-				rsv = testNewRsv(t, "ff00:1:2", "01234567")
+				rsv = testNewRsv(t, "ff00:1:2", "01234567", 1, 2, 5, 5, 5)
 				_, err = rsv.NewIndexAtSource(util.SecsToTime(2), 1, 7, 7, 1, reservation.CorePath)
 				require.NoError(t, err)
 				rsvs = append(rsvs, rsv)
@@ -105,7 +105,7 @@ func TestSumMaxBlockedBW(t *testing.T) {
 }
 
 func TestAvailableBW(t *testing.T) {
-	req := newTestRequest(t)
+	req := newTestRequest(t, 1, 2, 5, 7)
 
 	cases := map[string]struct {
 		availBW uint64
@@ -131,11 +131,11 @@ func TestAvailableBW(t *testing.T) {
 			setupDB: func(db *mock_backend.MockDB) {
 				db.EXPECT().GetSegmentRsvsFromIFPair(gomock.Any(), &req.Ingress, nil).Return(
 					[]*segment.Reservation{
-						testNewRsv(t, "ff00:1:1", "beefcafe"),
+						testNewRsv(t, "ff00:1:1", "beefcafe", 1, 2, 5, 5, 5),
 					}, nil)
 				db.EXPECT().GetSegmentRsvsFromIFPair(gomock.Any(), nil, &req.Egress).Return(
 					[]*segment.Reservation{
-						testNewRsv(t, "ff00:1:1", "beefcafe"),
+						testNewRsv(t, "ff00:1:1", "beefcafe", 1, 2, 5, 5, 5),
 					}, nil)
 			},
 		},
@@ -146,13 +146,13 @@ func TestAvailableBW(t *testing.T) {
 			setupDB: func(db *mock_backend.MockDB) {
 				db.EXPECT().GetSegmentRsvsFromIFPair(gomock.Any(), &req.Ingress, nil).Return(
 					[]*segment.Reservation{
-						testNewRsv(t, "ff00:1:1", "beefcafe"),
-						testNewRsv(t, "ff00:1:2", "beefcafe"),
+						testNewRsv(t, "ff00:1:1", "beefcafe", 1, 2, 5, 5, 5),
+						testNewRsv(t, "ff00:1:2", "beefcafe", 1, 2, 5, 5, 5),
 					}, nil)
 				db.EXPECT().GetSegmentRsvsFromIFPair(gomock.Any(), nil, &req.Egress).Return(
 					[]*segment.Reservation{
-						testNewRsv(t, "ff00:1:1", "beefcafe"),
-						testNewRsv(t, "ff00:1:2", "beefcafe"),
+						testNewRsv(t, "ff00:1:1", "beefcafe", 1, 2, 5, 5, 5),
+						testNewRsv(t, "ff00:1:2", "beefcafe", 1, 2, 5, 5, 5),
 					}, nil)
 			},
 		},
@@ -163,13 +163,13 @@ func TestAvailableBW(t *testing.T) {
 			setupDB: func(db *mock_backend.MockDB) {
 				db.EXPECT().GetSegmentRsvsFromIFPair(gomock.Any(), &req.Ingress, nil).Return(
 					[]*segment.Reservation{
-						testNewRsv(t, "ff00:1:1", "beefcafe"),
-						testNewRsv(t, "ff00:1:2", "beefcafe"),
+						testNewRsv(t, "ff00:1:1", "beefcafe", 1, 2, 5, 5, 5),
+						testNewRsv(t, "ff00:1:2", "beefcafe", 1, 2, 5, 5, 5),
 					}, nil)
 				db.EXPECT().GetSegmentRsvsFromIFPair(gomock.Any(), nil, &req.Egress).Return(
 					[]*segment.Reservation{
-						testNewRsv(t, "ff00:1:1", "beefcafe"),
-						testNewRsv(t, "ff00:1:2", "beefcafe"),
+						testNewRsv(t, "ff00:1:1", "beefcafe", 1, 2, 5, 5, 5),
+						testNewRsv(t, "ff00:1:2", "beefcafe", 1, 2, 5, 5, 5),
 					}, nil)
 			},
 		},
@@ -188,6 +188,67 @@ func TestAvailableBW(t *testing.T) {
 			avail, err := adm.availableBW(ctx, tc.req)
 			require.NoError(t, err)
 			require.Equal(t, tc.availBW, avail)
+		})
+	}
+}
+
+func TestTubeRatio(t *testing.T) {
+	cases := map[string]struct {
+		tubeRatio float64
+		req       *segment.SetupReq
+		setupDB   func(db *mock_backend.MockDB)
+	}{
+		"empty": {
+			tubeRatio: 1,
+			req:       newTestRequest(t, 1, 2, 5, 5),
+			setupDB: func(db *mock_backend.MockDB) {
+				rsvs := []*segment.Reservation{}
+				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
+			},
+		},
+		"one source, one ingress": {
+			tubeRatio: 1,
+			req:       newTestRequest(t, 1, 2, 5, 5),
+			setupDB: func(db *mock_backend.MockDB) {
+				rsvs := []*segment.Reservation{
+					testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 5, 5),
+				}
+				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
+			},
+		},
+		"one source, two ingress": {
+			tubeRatio: .5,
+			req:       newTestRequest(t, 1, 2, 3, 3),
+			setupDB: func(db *mock_backend.MockDB) {
+				rsvs := []*segment.Reservation{
+					testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 3, 3),
+					testNewRsv(t, "ff00:1:1", "00000002", 3, 2, 5, 5, 5),
+				}
+				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			adm, finish := newTestAdmitter(t)
+			defer finish()
+
+			adm.Capacities = &testCapacities{
+				Cap:    1024 * 1024, // 1 GBps
+				Ifaces: []common.IFIDType{1, 2, 3},
+			}
+			db := adm.DB.(*mock_backend.MockDB)
+			tc.setupDB(db)
+
+			ctx := context.Background()
+			demPerSrc, err := adm.computeTempDemands(ctx, tc.req.Ingress, tc.req)
+			require.NoError(t, err)
+			ratio, err := adm.tubeRatio(ctx, tc.req, demPerSrc)
+			require.NoError(t, err)
+			require.Equal(t, tc.tubeRatio, ratio)
 		})
 	}
 }
@@ -219,7 +280,10 @@ func newTestAdmitter(t *testing.T) (*StatelessAdmission, func()) {
 	}, mctlr.Finish
 }
 
-func newTestRequest(t *testing.T) *segment.SetupReq {
+// newTestRequest creates a request ID ff00:1:1 beefcafe
+func newTestRequest(t *testing.T, ingress, egress common.IFIDType,
+	minBW, maxBW reservation.BWCls) *segment.SetupReq {
+
 	ID, err := reservation.SegmentIDFromRaw(xtest.MustParseHexString("ff0000010001beefcafe"))
 	require.NoError(t, err)
 	return &segment.SetupReq{
@@ -227,17 +291,19 @@ func newTestRequest(t *testing.T) *segment.SetupReq {
 			RequestMetadata: base.RequestMetadata{},
 			ID:              *ID,
 			Timestamp:       util.SecsToTime(1),
-			Ingress:         1,
-			Egress:          2,
+			Ingress:         ingress,
+			Egress:          egress,
 		},
-		MinBW:     5, // 64KBps
-		MaxBW:     7, // 128
+		MinBW:     minBW,
+		MaxBW:     maxBW,
 		SplitCls:  2,
 		PathProps: reservation.StartLocal | reservation.EndLocal,
 	}
 }
 
-func testNewRsv(t *testing.T, srcAS string, suffix string) *segment.Reservation {
+func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress common.IFIDType,
+	minBW, maxBW, allocBW reservation.BWCls) *segment.Reservation {
+
 	ID, err := reservation.NewSegmentID(xtest.MustParseAS(srcAS),
 		xtest.MustParseHexString(suffix))
 	require.NoError(t, err)
@@ -247,13 +313,13 @@ func testNewRsv(t *testing.T, srcAS string, suffix string) *segment.Reservation 
 			segment.Index{
 				Idx:        10,
 				Expiration: util.SecsToTime(2),
-				MinBW:      5,
-				MaxBW:      7,
-				AllocBW:    5,
+				MinBW:      minBW,
+				MaxBW:      maxBW,
+				AllocBW:    allocBW,
 			},
 		},
-		Ingress:      1,
-		Egress:       2,
+		Ingress:      ingress,
+		Egress:       egress,
 		PathType:     reservation.UpPath,
 		PathEndProps: reservation.StartLocal | reservation.EndLocal | reservation.EndTransfer,
 		TrafficSplit: 2,
