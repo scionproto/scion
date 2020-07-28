@@ -13,15 +13,15 @@
 # limitations under the License.
 
 # Stdlib
-import ipaddress
+from ipaddress import ip_address, ip_network
 import os
 import subprocess
-import sys
 from urllib.parse import urlsplit
+from typing import Mapping
 
 # SCION
 from python.lib.scion_addr import ISD_AS
-from python.topology.net import AddressProxy
+from python.topology.net import AddressProxy, NetworkDescription
 
 COMMON_DIR = 'endhost'
 
@@ -109,21 +109,23 @@ def split_host_port(addr: str) -> (str, int):
 
 
 def join_host_port(host: str, port: int) -> str:
-    ip = ipaddress.ip_address(host)
+    ip = ip_address(host)
     if ip.version == 4:
         return '{}:{}'.format(host, port)
     return '[{}]:{}'.format(host, port)
 
 
-def sciond_ip(docker, topo_id, networks):
-    for i, net in enumerate(networks):
-        for prog, ip_net in networks[net].items():
+def sciond_ip(docker, topo_id, networks: Mapping[ip_network, NetworkDescription]):
+    for net_desc in networks.values():
+        for prog, ip_net in net_desc.ip_net.items():
             if prog == 'sd%s' % topo_id.file_fmt():
                 return ip_net.ip
     return None
 
 
-def prom_addr_dispatcher(docker, topo_id, networks, port, name):
+def prom_addr_dispatcher(docker, topo_id,
+                         networks: Mapping[ip_network, NetworkDescription],
+                         port, name):
     if not docker:
         return "[127.0.0.1]:%s" % port
     target_name = ''
@@ -133,9 +135,9 @@ def prom_addr_dispatcher(docker, topo_id, networks, port, name):
         target_name = 'sig%s' % topo_id.file_fmt()
     else:
         target_name = 'disp%s' % topo_id.file_fmt()
-    for _, net in enumerate(networks):
-        if target_name in networks[net]:
-            return '[%s]:%s' % (networks[net][target_name].ip, port)
+    for net_desc in networks.values():
+        if target_name in net_desc.ip_net:
+            return '[%s]:%s' % (net_desc.ip_net[target_name].ip, port)
     return None
 
 
@@ -159,14 +161,8 @@ def docker_image(args, image):
     return image
 
 
-def docker_host(in_docker, docker, addr=None):
-    if in_docker:
-        # If in-docker we need to know the DOCKER0 IP
-        addr = os.getenv('DOCKER0', None)
-        if not addr:
-            print('DOCKER0 env variable required! Exiting!')
-            sys.exit(1)
-    elif docker or not addr:
+def docker_host(docker, addr=None):
+    if docker or not addr:
         # Using docker topology or there is no default addr,
         # we directly get the DOCKER0 IP
         addr = docker_ip()
