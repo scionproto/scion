@@ -33,13 +33,9 @@ shutdown() {
     fi
 }
 
-if is_running_in_docker; then
-    log "Starting scion (without building)"
-    ./scion.sh run nobuild | grep -v "started" || exit 1
-else
-     log "Starting scion"
-    ./scion.sh run | grep -v "started" || exit 1
-fi
+log "Starting scion"
+./scion.sh run | grep -v "started" || exit 1
+
 log "Scion status:"
 ./scion.sh status || exit 1
 if is_docker_be; then

@@ -17,7 +17,12 @@
 import os
 # SCION
 from python.lib.util import write_file
-from python.topology.common import ArgsBase, docker_image, remote_nets
+from python.topology.common import (
+    ArgsBase,
+    docker_host,
+    docker_image,
+    remote_nets,
+)
 
 
 class DockerUtilsGenArgs(ArgsBase):
@@ -55,6 +60,7 @@ class DockerUtilsGenerator(object):
     def _utils_conf(self):
         entry_chown = {
             'image': 'busybox',
+            'network_mode': 'none',
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro'
@@ -63,6 +69,7 @@ class DockerUtilsGenerator(object):
         }
         entry_clean = {
             'image': 'busybox',
+            'network_mode': 'none',
             'volumes': [],
             'command': 'sh -c "find /mnt/volumes -type s -print0 | xargs -r0 rm -v"'
         }
@@ -73,17 +80,17 @@ class DockerUtilsGenerator(object):
         self.dc_conf['services']['utils_cleaner'] = entry_clean
 
     def _test_conf(self, topo_id):
-        docker = 'docker_' if self.args.in_docker else ''
         cntr_base = '/share'
         name = 'tester_%s' % topo_id.file_fmt()
         entry = {
+            'extra_hosts': ['jaeger:%s' % docker_host(self.args.docker)],
             'image': docker_image(self.args, 'tester'),
-            'container_name': 'tester_%s%s' % (docker, topo_id.file_fmt()),
+            'container_name': 'tester_%s' % topo_id.file_fmt(),
             'privileged': True,
             'entrypoint': 'sh tester.sh',
             'environment': {},
             'volumes': [
-                'vol_scion_%sdisp_cs%s-1:/run/shm/dispatcher:rw' % (docker, topo_id.file_fmt()),
+                'vol_scion_disp_cs%s-1:/run/shm/dispatcher:rw' % topo_id.file_fmt(),
                 self.output_base + '/logs:' + cntr_base + '/logs:rw',
                 self.output_base + '/gen:' + cntr_base + '/gen:rw',
                 self.output_base + '/gen-certs:' + cntr_base + '/gen-certs:rw'

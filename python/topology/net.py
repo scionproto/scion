@@ -22,6 +22,7 @@ import math
 import sys
 from collections import defaultdict
 from ipaddress import ip_interface, ip_network
+from typing import Mapping
 
 # External packages
 import yaml
@@ -32,17 +33,62 @@ from python.lib.defines import DEFAULT6_NETWORK_ADDR
 DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
 DEFAULT_SCN_DC_NETWORK = "172.20.0.0/20"
-DEFAULT_SCN_IN_D_NETWORK = "172.20.16.0/20"
+
+
+class NetworkDescription(object):
+    def __init__(self, name: str, ip_net: Mapping[str, ip_interface]):
+        self.name = name
+        self.ip_net = ip_net
+
+
+class AddressProxy(yaml.YAMLObject):
+    yaml_tag = ""
+
+    def __init__(self):
+        self._intf = None
+        self.ip = None
+
+    def set_intf(self, intf):
+        self._intf = intf
+        self.ip = self._intf.ip
+
+    def __str__(self):
+        return str(self._intf)
+
+    @classmethod
+    def to_yaml(cls, dumper, inst):
+        return dumper.represent_scalar('tag:yaml.org,2002:str', str(inst.ip))
+
+
+class AddressGenerator(object):
+    def __init__(self, docker):
+        self._addrs = defaultdict(lambda: AddressProxy())
+        self.docker = docker
+
+    def register(self, id_: str) -> AddressProxy:
+        return self._addrs[id_]
+
+    def alloc_addrs(self, subnet) -> Mapping[str, ip_interface]:
+        hosts = subnet.hosts()
+        interfaces = {}
+        # With the docker backend, docker itself claims the first ip of every network
+        if self.docker:
+            next(hosts)
+        for elem, proxy in sorted(self._addrs.items()):
+            intf = ip_interface("%s/%s" % (next(hosts), subnet.prefixlen))
+            interfaces[elem] = intf
+            proxy.set_intf(intf)
+        return interfaces
+
+    def __len__(self):
+        return len(self._addrs)
 
 
 class SubnetGenerator(object):
-    def __init__(self, network, docker, in_docker):
+    def __init__(self, network: str, docker: bool):
         self.docker = docker
         if self.docker and network == DEFAULT_NETWORK:
-            if in_docker:
-                network = DEFAULT_SCN_IN_D_NETWORK
-            else:
-                network = DEFAULT_SCN_DC_NETWORK
+            network = DEFAULT_SCN_DC_NETWORK
         if "/" not in network:
             logging.critical("No prefix length specified for network '%s'",
                              network)
@@ -70,10 +116,10 @@ class SubnetGenerator(object):
 
         self._allocations[self._net.prefixlen].append(self._net)
 
-    def register(self, location):
+    def register(self, location: str) -> AddressGenerator:
         return self._subnets[location]
 
-    def alloc_subnets(self):
+    def alloc_subnets(self) -> Mapping[ip_network, NetworkDescription]:
         max_prefix = self._net.max_prefixlen
         networks = {}
         for topo, subnet in sorted(self._subnets.items(), key=lambda x: str(x)):
@@ -101,7 +147,7 @@ class SubnetGenerator(object):
                 new_net = _workaround_ip_network_hosts_py35(new_net)
                 logging.debug("Allocating %s from %s for subnet size %d" %
                               (new_net, alloc, len(subnet)))
-                networks[new_net] = subnet.alloc_addrs(new_net)
+                networks[new_net] = NetworkDescription(topo, subnet.alloc_addrs(new_net))
                 # Repopulate the allocations list with the left-over space
                 self._exclude_net(alloc, new_net)
                 break
@@ -115,68 +161,25 @@ class SubnetGenerator(object):
             self._allocations[net.prefixlen].append(net)
 
 
-class AddressGenerator(object):
-    def __init__(self, docker):
-        self._addrs = defaultdict(lambda: AddressProxy())
-        self.docker = docker
-
-    def register(self, id_):
-        return self._addrs[id_]
-
-    def alloc_addrs(self, subnet):
-        hosts = subnet.hosts()
-        interfaces = {}
-        # With the docker backend, docker itself claims the first ip of every network
-        if self.docker:
-            next(hosts)
-        for elem, proxy in sorted(self._addrs.items()):
-            intf = ip_interface("%s/%s" % (next(hosts), subnet.prefixlen))
-            interfaces[elem] = intf
-            proxy.set_intf(intf)
-        return interfaces
-
-    def __len__(self):
-        return len(self._addrs)
-
-
-class AddressProxy(yaml.YAMLObject):
-    yaml_tag = ""
-
-    def __init__(self):
-        self._intf = None
-        self.ip = None
-
-    def set_intf(self, intf):
-        self._intf = intf
-        self.ip = self._intf.ip
-
-    def __str__(self):
-        return str(self._intf)
-
-    @classmethod
-    def to_yaml(cls, dumper, inst):
-        return dumper.represent_scalar('tag:yaml.org,2002:str', str(inst.ip))
-
-
 class PortGenerator(object):
     def __init__(self):
         self.iter = iter(range(31000, 35000))
         self._ports = defaultdict(lambda: next(self.iter))
 
-    def register(self, id_):
+    def register(self, id_: str) -> int:
         p = self._ports[id_]
         # reserve a quic port
         self._ports[id_+"quic"]
         return p
 
 
-def socket_address_str(ip, port):
+def socket_address_str(ip: str, port: int) -> str:
     if ip.version == 4:
         return "%s:%d" % (ip, port)
     return "[%s]:%d" % (ip, port)
 
 
-def _workaround_ip_network_hosts_py35(net):
+def _workaround_ip_network_hosts_py35(net: ip_network) -> ip_network:
     """
     Returns an _identical_ ipaddress.ip_network for which hosts() which will work as it should.
 

@@ -20,6 +20,8 @@
 import os
 import toml
 import yaml
+from ipaddress import ip_network
+from typing import Mapping
 
 # SCION
 from python.lib.util import write_file
@@ -41,7 +43,7 @@ from python.topology.common import (
     CO_CONFIG_NAME,
 )
 
-from python.topology.net import socket_address_str
+from python.topology.net import socket_address_str, NetworkDescription
 
 from python.topology.prometheus import (
     CS_PROM_PORT,
@@ -57,7 +59,7 @@ CO_QUIC_PORT = 30357
 
 
 class GoGenArgs(ArgsTopoDicts):
-    def __init__(self, args, topo_dicts, networks):
+    def __init__(self, args, topo_dicts, networks: Mapping[ip_network, NetworkDescription]):
         super().__init__(args, topo_dicts)
         self.networks = networks
 
@@ -298,7 +300,7 @@ class GoGenerator(object):
         }
 
     def _tracing_entry(self):
-        docker_ip = docker_host(self.args.in_docker, self.args.docker)
+        docker_ip = docker_host(self.args.docker)
         entry = {
             'enabled': True,
             'debug': True,

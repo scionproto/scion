@@ -56,7 +56,7 @@ class SIGGenerator(object):
         self.dc_conf = args.dc_conf
         self.user_spec = os.environ.get('SCION_USERSPEC', '$LOGNAME')
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
-        self.prefix = 'docker_' if self.args.in_docker else ''
+        self.prefix = ''
 
     def generate(self):
         for topo_id, topo in self.args.topo_dicts.items():

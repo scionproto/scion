@@ -30,7 +30,6 @@ import yaml
 # SCION
 from python.lib.defines import (
     AS_LIST_FILE,
-    DEFAULT_MTU,
     IFIDS_FILE,
     SCION_MIN_MTU,
     SCION_ROUTER_PORT,
@@ -46,7 +45,10 @@ from python.topology.common import (
     srv_iter,
     TopoID
 )
-from python.topology.net import PortGenerator
+from python.topology.net import (
+    PortGenerator,
+    SubnetGenerator
+)
 
 DEFAULT_LINK_BW = 1000
 
@@ -63,7 +65,12 @@ ADDR_TYPE_6 = 'IPv6'
 
 
 class TopoGenArgs(ArgsBase):
-    def __init__(self, args, topo_config, subnet_gen4, subnet_gen6, default_mtu):
+    def __init__(self,
+                 args: ArgsBase,
+                 topo_config,
+                 subnet_gen4: SubnetGenerator,
+                 subnet_gen6: SubnetGenerator,
+                 default_mtu: int):
         """
         :param ArgsBase args: Contains the passed command line arguments.
         :param dict topo_config: The parsed topology config.
@@ -94,14 +101,24 @@ class TopoGenerator(object):
         self.links = defaultdict(list)
         self.ifid_map = {}
 
-    def _reg_addr(self, topo_id, elem_id, addr_type):
-        subnet = self.args.subnet_gen[addr_type].register(topo_id)
+    def _reg_addr(self, topo_id: TopoID, elem_id, addr_type):
+        subnet = self.args.subnet_gen[addr_type].register(str(topo_id))
+        if self.args.docker and addr_type == ADDR_TYPE_6:
+            # for docker also allocate an IPv4 address so that we have ipv4
+            # range allocated for the network.
+            v4subnet = self.args.subnet_gen[ADDR_TYPE_4].register(str(topo_id) + '_v4')
+            v4subnet.register(elem_id + '_v4')
         return subnet.register(elem_id)
 
     def _reg_link_addrs(self, local_br, remote_br, local_ifid, remote_ifid, addr_type):
         link_name = str(sorted((local_br, remote_br)))
         link_name += str(sorted((local_ifid, remote_ifid)))
         subnet = self.args.subnet_gen[addr_type].register(link_name)
+        if self.args.docker and addr_type == ADDR_TYPE_6:
+            # for docker also allocate an IPv4 address so that we have ipv4
+            # range allocated for the network.
+            v4subnet = self.args.subnet_gen[ADDR_TYPE_4].register(link_name + '_v4')
+            v4subnet.register(local_br + '_v4')
         return subnet.register(local_br), subnet.register(remote_br)
 
     def _iterate(self, f):
@@ -323,7 +340,7 @@ class TopoGenerator(object):
             'bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
             'isd_as': str(remote),
             'link_to': LinkType.to_str(remote_type.lower()),
-            'mtu': attrs.get('mtu', DEFAULT_MTU)
+            'mtu': attrs.get('mtu', self.args.default_mtu)
         }
 
     def _gen_sig_entries(self, topo_id, as_conf):

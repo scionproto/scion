@@ -39,10 +39,6 @@ is_docker_be() {
     [ -f gen/scion-dc.yml ]
 }
 
-is_running_in_docker() {
-    cut -d: -f 3 /proc/1/cgroup | grep -q '^/docker/'
-}
-
 usage() {
     echo "Usage: $0: [-b brs]"
     exit 1
