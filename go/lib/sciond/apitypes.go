@@ -16,8 +16,6 @@ package sciond
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/binary"
 	"fmt"
 	"net"
 	"strings"
@@ -161,18 +159,6 @@ func pathReplyEntryToMetadata(pe PathReplyEntry) pathMetadata {
 		mtu:    pe.Path.Mtu,
 		expiry: pe.Path.Expiry(),
 	}
-}
-
-func (p path) Fingerprint() snet.PathFingerprint {
-	if len(p.interfaces) == 0 {
-		return ""
-	}
-	h := sha256.New()
-	for _, intf := range p.interfaces {
-		binary.Write(h, binary.BigEndian, intf.IA().IAInt())
-		binary.Write(h, binary.BigEndian, intf.ID())
-	}
-	return snet.PathFingerprint(h.Sum(nil))
 }
 
 func (p path) UnderlayNextHop() *net.UDPAddr {

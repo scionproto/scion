@@ -639,7 +639,6 @@ func (p PathProvider) GetPaths(src, dst addr.IA) PathSet {
 		}
 		result[snet.PathFingerprint(key.String())] = &testPath{
 			interfaces: pathIntfs,
-			key:        snet.PathFingerprint(key.String()),
 		}
 	}
 	return result
@@ -647,14 +646,11 @@ func (p PathProvider) GetPaths(src, dst addr.IA) PathSet {
 
 type testPath struct {
 	interfaces []snet.PathInterface
-	key        snet.PathFingerprint
 }
 
 func (p *testPath) Interfaces() []snet.PathInterface {
 	return p.interfaces
 }
-
-func (p *testPath) Fingerprint() snet.PathFingerprint { return p.key }
 
 type testPathIntf struct {
 	ia   addr.IA

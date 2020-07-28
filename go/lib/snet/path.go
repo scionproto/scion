@@ -15,6 +15,8 @@
 package snet
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"time"
@@ -23,12 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/spath"
 )
-
-type PathFingerprint string
-
-func (pf PathFingerprint) String() string {
-	return common.RawBytes(pf).String()
-}
 
 // Path is an abstract representation of a path. Most applications do not need
 // access to the raw internals.
@@ -39,10 +35,6 @@ func (pf PathFingerprint) String() string {
 // without a source of paths). An empty path only contains a Destination value,
 // all other values are zero values.
 type Path interface {
-	// Fingerprint uniquely identifies the path based on the sequence of
-	// ASes and BRs. Other metadata, such as MTU or NextHop have no effect
-	// on the fingerprint. Empty string means unknown fingerprint.
-	Fingerprint() PathFingerprint
 	// UnderlayNextHop returns the address:port pair of a local-AS underlay
 	// speaker. Usually, this is a border router that will forward the traffic.
 	UnderlayNextHop() *net.UDPAddr
@@ -81,6 +73,29 @@ type PathMetadata interface {
 	Expiry() time.Time
 }
 
+type PathFingerprint string
+
+func (pf PathFingerprint) String() string {
+	return common.RawBytes(pf).String()
+}
+
+// Fingerprint uniquely identifies the path based on the sequence of
+// ASes and BRs, i.e. by its PathInterfaces.
+// Other metadata, such as MTU or NextHop have no effect on the fingerprint.
+// Returns empty string for paths where the interfaces list is not available.
+func Fingerprint(path Path) PathFingerprint {
+	interfaces := path.Interfaces()
+	if len(interfaces) == 0 {
+		return ""
+	}
+	h := sha256.New()
+	for _, intf := range interfaces {
+		binary.Write(h, binary.BigEndian, intf.IA().IAInt())
+		binary.Write(h, binary.BigEndian, intf.ID())
+	}
+	return PathFingerprint(h.Sum(nil))
+}
+
 // partialPath is a path object with incomplete metadata. It is used as a
 // temporary solution where a full path cannot be reconstituted from other
 // objects, notably snet.UDPAddr and snet.SVCAddr.
@@ -88,10 +103,6 @@ type partialPath struct {
 	spath       *spath.Path
 	underlay    *net.UDPAddr
 	destination addr.IA
-}
-
-func (p *partialPath) Fingerprint() PathFingerprint {
-	return ""
 }
 
 func (p *partialPath) UnderlayNextHop() *net.UDPAddr {

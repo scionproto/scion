@@ -286,8 +286,8 @@ func apsToPs(aps spathmeta.AppPathSet) pathpol.PathSet {
 
 func psToAps(ps pathpol.PathSet) spathmeta.AppPathSet {
 	aps := make(spathmeta.AppPathSet)
-	for _, path := range ps {
-		aps[path.Fingerprint()] = path.(snet.Path)
+	for key, path := range ps {
+		aps[key] = path.(snet.Path)
 	}
 	return aps
 }

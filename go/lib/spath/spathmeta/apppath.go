@@ -40,7 +40,7 @@ func NewAppPathSet(paths []snet.Path) AppPathSet {
 
 // Add adds the given path to the path set.
 func (aps AppPathSet) Add(path snet.Path) {
-	aps[path.Fingerprint()] = path
+	aps[snet.Fingerprint(path)] = path
 }
 
 func (aps AppPathSet) Copy() AppPathSet {
