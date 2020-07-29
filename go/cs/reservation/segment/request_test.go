@@ -216,7 +216,7 @@ func checkRequest(t *testing.T, segSetup *colibri_mgmt.SegmentSetup, r *segment.
 		segSetup.EndProps.Local, segSetup.EndProps.Transfer), r.PathProps)
 	require.Len(t, r.AllocTrail, len(segSetup.AllocationTrail))
 	for i := range segSetup.AllocationTrail {
-		require.Equal(t, segSetup.AllocationTrail[i].AllocBW, r.AllocTrail[i].AllocBW)
-		require.Equal(t, segSetup.AllocationTrail[i].MaxBW, r.AllocTrail[i].MaxBW)
+		require.Equal(t, segSetup.AllocationTrail[i].AllocBW, uint8(r.AllocTrail[i].AllocBW))
+		require.Equal(t, segSetup.AllocationTrail[i].MaxBW, uint8(r.AllocTrail[i].MaxBW))
 	}
 }

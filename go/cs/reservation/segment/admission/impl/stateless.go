@@ -57,8 +57,8 @@ func (a *StatelessAdmission) AdmitRsv(ctx context.Context, req *segment.SetupReq
 	}
 	alloc := reservation.MinBWCls(maxAlloc, req.MaxBW)
 	bead := reservation.AllocationBead{
-		AllocBW: uint8(alloc),
-		MaxBW:   uint8(maxAlloc),
+		AllocBW: alloc,
+		MaxBW:   maxAlloc,
 	}
 	req.AllocTrail = append(req.AllocTrail, bead)
 	return alloc, nil

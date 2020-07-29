@@ -391,7 +391,7 @@ func TestValidatePathEndPropsWithPathType(t *testing.T) {
 func TestAllocationBeadsMinMax(t *testing.T) {
 	cases := []struct {
 		Trail AllocationBeads
-		Min   uint8
+		Min   BWCls
 	}{
 		{newAllocationBeads(), 0},
 		{newAllocationBeads(0, 1), 1},
@@ -506,7 +506,7 @@ func mustParseSegmentID(s string) SegmentID {
 }
 
 // newAllocationBeads (1,2,3,4) returns two beads {alloc: 1, max: 2}, {alloc:3, max:4}
-func newAllocationBeads(beads ...uint8) AllocationBeads {
+func newAllocationBeads(beads ...BWCls) AllocationBeads {
 	if len(beads)%2 != 0 {
 		panic("must have an even number of parameters")
 	}
