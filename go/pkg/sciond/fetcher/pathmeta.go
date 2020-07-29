@@ -69,7 +69,7 @@ func CondenseMetadata(data *combinator.PathMetadata) *sciond.PathMetadata {
 			ret.LinkTypes = append(ret.LinkTypes, sciond.LinkType(link.InterLinkType))
 		}
 		if sciond.LinkType(link.PeerLinkType) != sciond.LinkTypeUnset{
-			ret.LinkTypes = append(ret.LinkTypes, sciond.LinkType(link.InterLinkType))
+			ret.LinkTypes = append(ret.LinkTypes, sciond.LinkType(link.PeerLinkType))
 		}
 		if (sciond.LinkType(link.InterLinkType) == sciond.LinkTypeUnset) &&
 			(sciond.LinkType(link.PeerLinkType) == sciond.LinkTypeUnset){
