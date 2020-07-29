@@ -94,7 +94,10 @@ func (a *StatelessAdmission) idealBW(ctx context.Context, req *segment.SetupReq)
 	if err != nil {
 		return 0, serrors.WrapStr("cannot compute tube ratio", err)
 	}
-	linkRatio := a.linkRatio(ctx, req, demsPerSrcRegIngress)
+	linkRatio, err := a.linkRatio(ctx, req, demsPerSrcRegIngress)
+	if err != nil {
+		return 0, serrors.WrapStr("cannot compute link ratio", err)
+	}
 	cap := float64(a.Capacities.CapacityEgress(req.Egress))
 	return uint64(cap * tubeRatio * linkRatio), nil
 }
@@ -127,22 +130,57 @@ func (a *StatelessAdmission) tubeRatio(ctx context.Context, req *segment.SetupRe
 }
 
 func (a *StatelessAdmission) linkRatio(ctx context.Context, req *segment.SetupReq,
-	demsPerSrc demPerSource) float64 {
+	demsPerSrc demPerSource) (float64, error) {
 
 	capEg := a.Capacities.CapacityEgress(req.Egress)
 	demEg := demsPerSrc[req.ID.ASID].eg
-	egScalFctr := float64(minBW(capEg, demEg)) / float64(demEg)
-	prevBW := float64(req.AllocTrail.MinMax()) // min of maxBW in the trail
-	var denom float64
-	for id, val := range demsPerSrc {
-		egScalFctr := float64(minBW(capEg, val.eg)) / float64(val.eg)
-		srcAlloc := float64(req.Reservation.MaxBlockedBW())
-		if req.ID.ASID == id {
+
+	prevBW := req.AllocTrail.MinMax().ToKBps() // min of maxBW in the trail
+	var egScalFctr float64
+	if demEg != 0 {
+		egScalFctr = float64(minBW(capEg, demEg)) / float64(demEg)
+	}
+	numerator := egScalFctr * float64(prevBW)
+	egScalFctrs := make(map[addr.AS]float64)
+	for src, dem := range demsPerSrc {
+		var egScalFctr float64
+		if dem.eg != 0 {
+			egScalFctr = float64(minBW(capEg, dem.eg)) / float64(dem.eg)
+		}
+		egScalFctrs[src] = egScalFctr
+	}
+	rsvs, err := a.DB.GetAllSegmentRsvs(ctx)
+	if err != nil {
+		return 0, serrors.WrapStr("cannot list all reservations", err)
+	}
+	srcAllocPerSrc := make(map[addr.AS]uint64)
+	for _, rsv := range rsvs {
+		if rsv.ID == req.ID {
+			continue
+		}
+		src := rsv.ID.ASID
+		srcAlloc := rsv.MaxBlockedBW()
+		if src == req.ID.ASID {
 			srcAlloc += prevBW
 		}
-		denom += egScalFctr * 1
+		srcAllocPerSrc[src] += srcAlloc
 	}
-	return egScalFctr * prevBW / denom
+	if _, found := srcAllocPerSrc[req.ID.ASID]; !found {
+		// TODO(juagargi) @roosd should validate this:
+		// shortcut: no other appearances of the request's source in the DB. The ratio is 1
+		return 1, nil
+	}
+	// TODO(juagargi) after debugging, integrate this loop into the previous one:
+	var denom float64
+	for src, srcAlloc := range srcAllocPerSrc {
+		egScalFctr, found := egScalFctrs[src]
+		if !found {
+			return 0, serrors.New("cannot compute link ratio, internal error: "+
+				"source not found in the egress scale factors", "src", src)
+		}
+		denom += float64(srcAlloc) * egScalFctr
+	}
+	return numerator / denom, nil
 }
 
 // demands represents the demands of a given source.
