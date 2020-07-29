@@ -49,12 +49,8 @@ func NewStore(db backend.DB, admitter admission.Admitter) *Store {
 func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupReq) (
 	base.MessageWithPath, error) {
 
-	// validate request:
-	// DRKey authentication of request (will be left undone for later)
-	revPath := req.Path().Copy()
-	if err := revPath.Reverse(); err != nil {
-		return nil, serrors.WrapStr("while admitting a reservation, cannot reverse path", err,
-			"id", req.ID)
+	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
+		return nil, serrors.WrapStr("error admitting reservation", err, "id", req.ID)
 	}
 	if req.IndexOfCurrentHop() != len(req.AllocTrail) {
 		return nil, serrors.New("inconsistent number of hops",
@@ -80,6 +76,12 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 			"id", req.ID)
 	}
 	defer tx.Rollback()
+
+	rsv, err := tx.GetSegmentRsvFromID(ctx, &req.ID)
+	if err != nil {
+		return failedResponse, serrors.WrapStr("cannot obtain segment reservation", err,
+			"id", req.ID)
+	}
 
 	var index *segment.Index
 	if rsv != nil {
@@ -115,6 +117,7 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 			"id", req.ID)
 	}
 	// compute admission max BW
+	// TODO(juagargi) use the transaction also in the admitter
 	err = s.admitter.AdmitRsv(ctx, req)
 	if err != nil {
 		return failedResponse, serrors.WrapStr("not admitted", err)
@@ -127,8 +130,7 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 			"id", req.ID)
 	}
 	if err := tx.Commit(); err != nil {
-		return failedResponse, serrors.WrapStr("cannot commit transaction", err,
-			"id", req.ID)
+		return failedResponse, serrors.WrapStr("cannot commit transaction", err, "id", req.ID)
 	}
 	var msg base.MessageWithPath
 	if req.IsLastAS() {
@@ -147,39 +149,109 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 }
 
 // ConfirmSegmentReservation changes the state of an index from temporary to confirmed.
-func (s *Store) ConfirmSegmentReservation(ctx context.Context, id reservation.SegmentID,
-	idx reservation.IndexNumber) error {
+func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *segment.IndexConfirmationReq) (
+	base.MessageWithPath, error) {
 
-	return nil
+	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
+		return nil, serrors.WrapStr("error admitting reservation", err, "id", req.ID)
+	}
+	revMetadata, err := s.prepareFailureResp(&req.RequestMetadata)
+	if err != nil {
+		return nil, serrors.WrapStr("error admitting reservation", err, "id", req.ID)
+	}
+	failedResponse := &segment.ResponseSetupFailure{
+		Response: segment.Response{
+			RequestMetadata: *revMetadata,
+			Failed:          true,
+			FailedHop:       uint8(req.IndexOfCurrentHop()),
+		},
+	}
+	tx, err := s.db.BeginTransaction(ctx, nil)
+	if err != nil {
+		return failedResponse, serrors.WrapStr("cannot create transaction", err, "id", req.ID)
+	}
+	defer tx.Rollback()
+
+	rsv, err := tx.GetSegmentRsvFromID(ctx, &req.ID)
+	if err != nil {
+		return failedResponse, serrors.WrapStr("cannot obtain segment reservation", err,
+			"id", req.ID)
+	}
+	if err := rsv.SetIndexConfirmed(req.IndexNumber); err != nil {
+		return failedResponse, serrors.WrapStr("cannot set index to confirmed", err,
+			"id", req.ID)
+	}
+	err = tx.PersistSegmentRsv(ctx, rsv)
+	if err != nil {
+		return failedResponse, serrors.WrapStr("cannot persist segment reservation", err,
+			"id", req.ID)
+	}
+	if err := tx.Commit(); err != nil {
+		return failedResponse, serrors.WrapStr("cannot commit transaction", err,
+			"id", req.ID)
+	}
+	var msg base.MessageWithPath
+	if req.IsLastAS() {
+		msg = &segment.ResponseConfirmationIndex{
+			Response: segment.Response{
+				RequestMetadata: *revMetadata,
+			},
+		}
+	} else {
+		msg = req
+	}
+
+	return msg, nil
 }
 
 // CleanupSegmentReservation deletes an index from a segment reservation.
 func (s *Store) CleanupSegmentReservation(ctx context.Context, id reservation.SegmentID,
-	idx reservation.IndexNumber) error {
+	idx reservation.IndexNumber) (base.MessageWithPath, error) {
 
-	return nil
+	return nil, nil
 }
 
 // TearDownSegmentReservation removes a whole segment reservation.
 func (s *Store) TearDownSegmentReservation(ctx context.Context, id reservation.SegmentID,
-	idx reservation.IndexNumber) error {
+	idx reservation.IndexNumber) (base.MessageWithPath, error) {
 
-	return nil
+	return nil, nil
 }
 
 // AdmitE2EReservation will atempt to admit an e2e reservation.
-func (s *Store) AdmitE2EReservation(ctx context.Context, req e2e.SetupReq) error {
-	return nil
+func (s *Store) AdmitE2EReservation(ctx context.Context, req e2e.SetupReq) (base.MessageWithPath, error) {
+	return nil, nil
 }
 
 // CleanupE2EReservation will remove an index from an e2e reservation.
 func (s *Store) CleanupE2EReservation(ctx context.Context, id reservation.E2EID,
-	idx reservation.IndexNumber) error {
+	idx reservation.IndexNumber) (base.MessageWithPath, error) {
 
-	return nil
+	return nil, nil
 }
 
 // DeleteExpiredIndices will just call the DB's method to delete the expired indices.
 func (s *Store) DeleteExpiredIndices(ctx context.Context) (int, error) {
 	return s.db.DeleteExpiredIndices(ctx, time.Now())
+}
+
+// validateAuthenticators checks that the authenticators are correct.
+func (s *Store) validateAuthenticators(req *base.RequestMetadata) error {
+	// TODO(juagargi) validate request
+	// DRKey authentication of request (will be left undone for later)
+	return nil
+}
+
+// prepareFailureResp will create the metadata necessary to create any failure response, which
+// is sent in the reverse path that the request had.
+func (s *Store) prepareFailureResp(req *base.RequestMetadata) (*base.RequestMetadata, error) {
+	revPath := req.Path().Copy()
+	if err := revPath.Reverse(); err != nil {
+		return nil, err
+	}
+	revMetadata, err := base.NewRequestMetadata(revPath)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct metadata for reservation packet", err)
+	}
+	return revMetadata, nil
 }
