@@ -423,18 +423,18 @@ func NewPathEndProps(startLocal, startTransfer, endLocal, endTransfer bool) Path
 // AllocationBead represents an allocation resolved in an AS for a given reservation.
 // It is used in an array to represent the allocation trail that happened for a reservation.
 type AllocationBead struct {
-	AllocBW uint8
-	MaxBW   uint8
+	AllocBW BWCls
+	MaxBW   BWCls
 }
 
 type AllocationBeads []AllocationBead
 
 // MinMax returns the minimum of all the max BW in the AllocationBeads.
-func (bs AllocationBeads) MinMax() uint8 {
+func (bs AllocationBeads) MinMax() BWCls {
 	if len(bs) == 0 {
 		return 0
 	}
-	var min uint8 = math.MaxUint8
+	var min BWCls = math.MaxUint8
 	for _, b := range bs {
 		if b.MaxBW < min {
 			min = b.MaxBW
