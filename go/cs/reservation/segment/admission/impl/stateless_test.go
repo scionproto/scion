@@ -320,6 +320,101 @@ func TestTubeRatio(t *testing.T) {
 	}
 }
 
+func TestLinkRatio(t *testing.T) {
+	cases := map[string]struct {
+		linkRatio float64
+		req       *segment.SetupReq
+		setupDB   func(db *mock_backend.MockDB)
+	}{
+		"empty": {
+			linkRatio: 1.,
+			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 5, 5),
+			setupDB: func(db *mock_backend.MockDB) {
+				rsvs := []*segment.Reservation{}
+				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
+			},
+		},
+		"same request": {
+			linkRatio: 1.,
+			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 5, 5),
+			setupDB: func(db *mock_backend.MockDB) {
+				rsvs := []*segment.Reservation{
+					testNewRsv(t, "ff00:1:1", "beefcafe", 1, 2, 5, 5, 5),
+				}
+				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
+			},
+		},
+		"same source": {
+			linkRatio: .5,
+			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 5, 5),
+			setupDB: func(db *mock_backend.MockDB) {
+				rsvs := []*segment.Reservation{
+					testNewRsv(t, "ff00:1:1", "beefcafe", 1, 2, 5, 5, 5),
+					testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 5, 5),
+				}
+				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
+			},
+		},
+		"different sources": {
+			linkRatio: 1,
+			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 5, 5),
+			setupDB: func(db *mock_backend.MockDB) {
+				rsvs := []*segment.Reservation{
+					testNewRsv(t, "ff00:1:2", "00000001", 1, 2, 5, 5, 5),
+					testNewRsv(t, "ff00:1:3", "00000001", 1, 2, 5, 5, 5),
+				}
+				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
+			},
+		},
+		"different egress interface": {
+			linkRatio: .5,
+			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 5, 5),
+			setupDB: func(db *mock_backend.MockDB) {
+				rsvs := []*segment.Reservation{
+					testNewRsv(t, "ff00:1:1", "00000001", 1, 3, 5, 5, 5),
+					// testNewRsv(t, "ff00:1:3", "00000001", 1, 2, 5, 5, 5),
+				}
+				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
+			},
+		},
+		// TODO(juagargi) I fail to see how the link ratio changes with prevBW
+		// "smaller prevBW": {
+		// 	linkRatio: .5,
+		// 	req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 3, 3),
+		// 	setupDB: func(db *mock_backend.MockDB) {
+		// 		rsvs := []*segment.Reservation{
+		// 			testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 5, 5),
+		// 		}
+		// 		db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
+		// 	},
+		// },
+	}
+
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			adm, finish := newTestAdmitter(t)
+			defer finish()
+
+			adm.Capacities = &testCapacities{
+				Cap:    1024 * 1024,
+				Ifaces: []common.IFIDType{1, 2, 3},
+			}
+			db := adm.DB.(*mock_backend.MockDB)
+			tc.setupDB(db)
+
+			ctx := context.Background()
+			demsPerSrc, err := adm.computeTempDemands(ctx, tc.req.Ingress, tc.req)
+			require.NoError(t, err)
+			linkRatio, err := adm.linkRatio(ctx, tc.req, demsPerSrc)
+			require.NoError(t, err)
+			require.Equal(t, tc.linkRatio, linkRatio)
+		})
+	}
+
+}
+
 type testCapacities struct {
 	Cap    uint64
 	Ifaces []common.IFIDType
@@ -396,4 +491,20 @@ func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress commo
 	err = rsv.SetIndexActive(10)
 	require.NoError(t, err)
 	return rsv
+}
+
+// testAddAllocTrail adds an allocation trail to a reservation. The beads parameter represents
+// the trail like: alloc0,max0,alloc1,max1,...
+func testAddAllocTrail(req *segment.SetupReq, beads ...reservation.BWCls) *segment.SetupReq {
+	if len(beads)%2 != 0 {
+		panic("the beads must be even")
+	}
+	for i := 0; i < len(beads); i += 2 {
+		beads := reservation.AllocationBead{
+			AllocBW: beads[i],
+			MaxBW:   beads[i+1],
+		}
+		req.AllocTrail = append(req.AllocTrail, beads)
+	}
+	return req
 }
