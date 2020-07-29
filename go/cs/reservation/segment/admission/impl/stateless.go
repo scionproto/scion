@@ -189,7 +189,7 @@ func (a *StatelessAdmission) computeTempDemands(ctx context.Context, ingress com
 	}
 	// add the request itself
 	bucket := demsPerSrc[req.ID.ASID]
-	dem := req.MaxBW.ToKBps()
+	dem := min3BW(capIn, capEg, req.MaxBW.ToKBps())
 	if req.Ingress == ingress {
 		bucket.in += dem
 	}
