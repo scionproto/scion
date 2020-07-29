@@ -114,8 +114,8 @@ func NewSetupReqFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, ts time.Time,
 	}
 	for i, ab := range setup.AllocationTrail {
 		s.AllocTrail[i] = reservation.AllocationBead{
-			AllocBW: ab.AllocBW,
-			MaxBW:   ab.MaxBW,
+			AllocBW: reservation.BWCls(ab.AllocBW),
+			MaxBW:   reservation.BWCls(ab.MaxBW),
 		}
 	}
 	return &s, nil
@@ -141,8 +141,8 @@ func (r *SetupReq) ToCtrlMsg() *colibri_mgmt.SegmentSetup {
 	}
 	for i, bead := range r.AllocTrail {
 		msg.AllocationTrail[i] = &colibri_mgmt.AllocationBead{
-			AllocBW: bead.AllocBW,
-			MaxBW:   bead.MaxBW,
+			AllocBW: uint8(bead.AllocBW),
+			MaxBW:   uint8(bead.MaxBW),
 		}
 	}
 	return msg
