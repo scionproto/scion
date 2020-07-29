@@ -198,6 +198,7 @@ func TestTubeRatio(t *testing.T) {
 		req            *segment.SetupReq
 		setupDB        func(db *mock_backend.MockDB)
 		globalCapacity uint64
+		interfaces     []common.IFIDType
 	}{
 		"empty": {
 			tubeRatio: 1,
@@ -207,6 +208,7 @@ func TestTubeRatio(t *testing.T) {
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 			globalCapacity: 1024 * 1024,
+			interfaces:     []common.IFIDType{1, 2, 3},
 		},
 		"one source, one ingress": {
 			tubeRatio: 1,
@@ -218,6 +220,7 @@ func TestTubeRatio(t *testing.T) {
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 			globalCapacity: 1024 * 1024,
+			interfaces:     []common.IFIDType{1, 2, 3},
 		},
 		"one source, two ingress": {
 			tubeRatio: .5,
@@ -230,6 +233,7 @@ func TestTubeRatio(t *testing.T) {
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 			globalCapacity: 1024 * 1024,
+			interfaces:     []common.IFIDType{1, 2, 3},
 		},
 		"two sources, request already present": {
 			tubeRatio: .5,
@@ -242,6 +246,7 @@ func TestTubeRatio(t *testing.T) {
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 			globalCapacity: 1024 * 1024,
+			interfaces:     []common.IFIDType{1, 2, 3},
 		},
 		"multiple sources, multiple ingress": {
 			tubeRatio: .75,
@@ -255,6 +260,7 @@ func TestTubeRatio(t *testing.T) {
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 			globalCapacity: 1024 * 1024,
+			interfaces:     []common.IFIDType{1, 2, 3},
 		},
 		"exceeding ingress capacity": {
 			tubeRatio: 10. / 13., // 10 / (10 + 0 + 3)
@@ -268,6 +274,25 @@ func TestTubeRatio(t *testing.T) {
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 			globalCapacity: 10,
+			interfaces:     []common.IFIDType{1, 2, 3},
+		},
+		"with many other irrelevant reservations": {
+			tubeRatio: .75,
+			req:       newTestRequest(t, 1, 2, 5, 5),
+			setupDB: func(db *mock_backend.MockDB) {
+				rsvs := []*segment.Reservation{
+					testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 5, 5),
+					testNewRsv(t, "ff00:1:2", "00000001", 1, 2, 5, 5, 5),
+					testNewRsv(t, "ff00:1:1", "00000002", 3, 2, 5, 5, 5),
+					testNewRsv(t, "ff00:1:3", "00000001", 4, 5, 5, 9, 9),
+					testNewRsv(t, "ff00:1:3", "00000002", 4, 5, 5, 9, 9),
+					testNewRsv(t, "ff00:1:4", "00000001", 5, 4, 5, 9, 9),
+					testNewRsv(t, "ff00:1:4", "00000002", 5, 4, 5, 9, 9),
+				}
+				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
+			},
+			globalCapacity: 1024 * 1024,
+			interfaces:     []common.IFIDType{1, 2, 3, 4, 5},
 		},
 	}
 
@@ -280,7 +305,7 @@ func TestTubeRatio(t *testing.T) {
 
 			adm.Capacities = &testCapacities{
 				Cap:    tc.globalCapacity,
-				Ifaces: []common.IFIDType{1, 2, 3},
+				Ifaces: tc.interfaces,
 			}
 			db := adm.DB.(*mock_backend.MockDB)
 			tc.setupDB(db)
