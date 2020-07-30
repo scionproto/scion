@@ -44,6 +44,7 @@ func TestSerializeRoot(t *testing.T) {
 func TestSerializeRequest(t *testing.T) {
 	newSegmentSetup := func() *colibri_mgmt.SegmentSetup {
 		return &colibri_mgmt.SegmentSetup{
+			Base:     newSegmentBase(),
 			MinBW:    1,
 			MaxBW:    2,
 			SplitCls: 3,
@@ -106,15 +107,17 @@ func TestSerializeRequest(t *testing.T) {
 		},
 		"teardown": {
 			Request: &colibri_mgmt.Request{
-				Which:           proto.Request_Which_segmentTeardown,
-				SegmentTeardown: &colibri_mgmt.SegmentTeardownReq{},
+				Which: proto.Request_Which_segmentTeardown,
+				SegmentTeardown: &colibri_mgmt.SegmentTeardownReq{
+					Base: newSegmentBase(),
+				},
 			},
 		},
 		"index_confirmation": {
 			Request: &colibri_mgmt.Request{
 				Which: proto.Request_Which_segmentIndexConfirmation,
 				SegmentIndexConfirmation: &colibri_mgmt.SegmentIndexConfirmation{
-					Index: 111,
+					Base:  newSegmentBase(),
 					State: proto.ReservationIndexState_active,
 				},
 			},
@@ -123,11 +126,7 @@ func TestSerializeRequest(t *testing.T) {
 			Request: &colibri_mgmt.Request{
 				Which: proto.Request_Which_segmentCleanup,
 				SegmentCleanup: &colibri_mgmt.SegmentCleanup{
-					ID: &colibri_mgmt.SegmentReservationID{
-						ASID:   xtest.MustParseHexString("ff00cafe0001"),
-						Suffix: xtest.MustParseHexString("deadbeef"),
-					},
-					Index: 17,
+					Base: newSegmentBase(),
 				},
 			},
 		},
@@ -135,8 +134,8 @@ func TestSerializeRequest(t *testing.T) {
 			Request: &colibri_mgmt.Request{
 				Which: proto.Request_Which_e2eSetup,
 				E2ESetup: &colibri_mgmt.E2ESetup{
-					ReservationID: newE2EReservationID(),
-					Which:         proto.E2ESetupData_Which_success,
+					Base:  newE2EBase(),
+					Which: proto.E2ESetupData_Which_success,
 					Success: &colibri_mgmt.E2ESetupSuccess{
 						Token: xtest.MustParseHexString("0000"),
 					},
@@ -147,8 +146,8 @@ func TestSerializeRequest(t *testing.T) {
 			Request: &colibri_mgmt.Request{
 				Which: proto.Request_Which_e2eSetup,
 				E2ESetup: &colibri_mgmt.E2ESetup{
-					ReservationID: newE2EReservationID(),
-					Which:         proto.E2ESetupData_Which_failure,
+					Base:  newE2EBase(),
+					Which: proto.E2ESetupData_Which_failure,
 					Failure: &colibri_mgmt.E2ESetupFailure{
 						ErrorCode: 1,
 						InfoField: xtest.MustParseHexString("fedcba9876543210"),
@@ -161,8 +160,8 @@ func TestSerializeRequest(t *testing.T) {
 			Request: &colibri_mgmt.Request{
 				Which: proto.Request_Which_e2eRenewal,
 				E2ERenewal: &colibri_mgmt.E2ESetup{
-					ReservationID: newE2EReservationID(),
-					Which:         proto.E2ESetupData_Which_failure,
+					Base:  newE2EBase(),
+					Which: proto.E2ESetupData_Which_failure,
 					Failure: &colibri_mgmt.E2ESetupFailure{
 						ErrorCode: 1,
 						InfoField: xtest.MustParseHexString("fedcba9876543210"),
@@ -175,7 +174,7 @@ func TestSerializeRequest(t *testing.T) {
 			Request: &colibri_mgmt.Request{
 				Which: proto.Request_Which_e2eCleanup,
 				E2ECleanup: &colibri_mgmt.E2ECleanup{
-					ReservationID: newE2EReservationID(),
+					Base: newE2EBase(),
 				},
 			},
 		},
@@ -203,14 +202,15 @@ func TestSerializeRequest(t *testing.T) {
 func TestSerializeResponse(t *testing.T) {
 	newSegmentSetupResp := func() *colibri_mgmt.SegmentSetupRes {
 		return &colibri_mgmt.SegmentSetupRes{
+			Base:  newSegmentBase(),
 			Which: proto.SegmentSetupResData_Which_token,
 			Token: xtest.MustParseHexString("0000"),
 		}
 	}
 	newE2ESetup := func() *colibri_mgmt.E2ESetup {
 		return &colibri_mgmt.E2ESetup{
-			ReservationID: newE2EReservationID(),
-			Which:         proto.E2ESetupData_Which_success,
+			Base:  newE2EBase(),
+			Which: proto.E2ESetupData_Which_success,
 			Success: &colibri_mgmt.E2ESetupSuccess{
 				Token: xtest.MustParseHexString("0000"),
 			},
@@ -225,6 +225,7 @@ func TestSerializeResponse(t *testing.T) {
 				SegmentSetup: &colibri_mgmt.SegmentSetupRes{
 					Which: proto.SegmentSetupResData_Which_failure,
 					Failure: &colibri_mgmt.SegmentSetup{
+						Base:     newSegmentBase(),
 						MinBW:    1,
 						MaxBW:    2,
 						SplitCls: 3,
@@ -278,17 +279,20 @@ func TestSerializeResponse(t *testing.T) {
 		},
 		"teardown": {
 			Response: &colibri_mgmt.Response{
-				Which:           proto.Response_Which_segmentTeardown,
-				SegmentTeardown: &colibri_mgmt.SegmentTeardownRes{ErrorCode: 123},
-				Accepted:        false,
-				FailedHop:       2,
+				Which: proto.Response_Which_segmentTeardown,
+				SegmentTeardown: &colibri_mgmt.SegmentTeardownRes{
+					Base:      newSegmentBase(),
+					ErrorCode: 123,
+				},
+				Accepted:  false,
+				FailedHop: 2,
 			},
 		},
 		"index confirmation": {
 			Response: &colibri_mgmt.Response{
 				Which: proto.Response_Which_segmentIndexConfirmation,
 				SegmentIndexConfirmation: &colibri_mgmt.SegmentIndexConfirmation{
-					Index: 111,
+					Base:  newSegmentBase(),
 					State: proto.ReservationIndexState_active,
 				},
 				Accepted: true,
@@ -298,11 +302,7 @@ func TestSerializeResponse(t *testing.T) {
 			Response: &colibri_mgmt.Response{
 				Which: proto.Response_Which_segmentCleanup,
 				SegmentCleanup: &colibri_mgmt.SegmentCleanup{
-					ID: &colibri_mgmt.SegmentReservationID{
-						ASID:   xtest.MustParseHexString("ff00cafe0001"),
-						Suffix: xtest.MustParseHexString("deadbeef"),
-					},
-					Index: 17,
+					Base: newSegmentBase(),
 				},
 				Accepted: true,
 			},
@@ -325,7 +325,7 @@ func TestSerializeResponse(t *testing.T) {
 			Response: &colibri_mgmt.Response{
 				Which: proto.Response_Which_e2eCleanup,
 				E2ECleanup: &colibri_mgmt.E2ECleanup{
-					ReservationID: newE2EReservationID(),
+					Base: newE2EBase(),
 				},
 				Accepted: true,
 			},
@@ -349,9 +349,22 @@ func TestSerializeResponse(t *testing.T) {
 	}
 }
 
-func newE2EReservationID() *colibri_mgmt.E2EReservationID {
-	return &colibri_mgmt.E2EReservationID{
-		ASID:   xtest.MustParseHexString("ff00cafe0001"),
-		Suffix: xtest.MustParseHexString("0123456789abcdef0123"),
+func newSegmentBase() *colibri_mgmt.SegmentBase {
+	return &colibri_mgmt.SegmentBase{
+		ID: &colibri_mgmt.SegmentReservationID{
+			ASID:   xtest.MustParseHexString("ff00cafe0001"),
+			Suffix: xtest.MustParseHexString("deadbeef"),
+		},
+		Index: 10,
+	}
+}
+
+func newE2EBase() *colibri_mgmt.E2EBase {
+	return &colibri_mgmt.E2EBase{
+		ID: &colibri_mgmt.E2EReservationID{
+			ASID:   xtest.MustParseHexString("ff00cafe0001"),
+			Suffix: xtest.MustParseHexString("0123456789abcdef0123"),
+		},
+		Index: 11,
 	}
 }

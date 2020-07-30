@@ -19,10 +19,10 @@ import (
 )
 
 type E2ESetup struct {
-	ReservationID *E2EReservationID
-	Which         proto.E2ESetupData_Which
-	Success       *E2ESetupSuccess
-	Failure       *E2ESetupFailure
+	Base    *E2EBase
+	Which   proto.E2ESetupData_Which
+	Success *E2ESetupSuccess
+	Failure *E2ESetupFailure
 }
 
 func (s *E2ESetup) ProtoId() proto.ProtoIdType {
