@@ -35,14 +35,15 @@ type SetupReq interface {
 
 // BaseSetupReq is the common part of any e2e setup request.
 type BaseSetupReq struct {
-	base.RequestMetadata                   // information about the request (forwarding path)
-	ID                   reservation.E2EID // the ID this request refers to
-	timestamp            time.Time         // the mandatory timestamp
-	reservation          *Reservation      // nil if no reservation yet
+	base.RequestMetadata                         // information about the request (forwarding path)
+	ID                   reservation.E2EID       // the ID this request refers to
+	Index                reservation.IndexNumber // the index this request refers to
+	timestamp            time.Time               // the mandatory timestamp
+	reservation          *Reservation            // nil if no reservation yet
 }
 
 func NewBaseSetupReq(path *spath.Path, ts time.Time,
-	ID *colibri_mgmt.E2EReservationID) (*BaseSetupReq, error) {
+	ID *colibri_mgmt.E2EReservationID, index uint8) (*BaseSetupReq, error) {
 
 	metadata, err := base.NewRequestMetadata(path)
 	if err != nil {
@@ -58,6 +59,7 @@ func NewBaseSetupReq(path *spath.Path, ts time.Time,
 	return &BaseSetupReq{
 		RequestMetadata: *metadata,
 		ID:              *e2eID,
+		Index:           reservation.IndexNumber(index),
 		timestamp:       ts,
 	}, nil
 }
@@ -66,15 +68,14 @@ func (r *BaseSetupReq) Timestamp() time.Time      { return r.timestamp }
 func (r *BaseSetupReq) Reservation() *Reservation { return r.reservation }
 
 func (r *BaseSetupReq) ToCtrlMsg() (*colibri_mgmt.E2ESetup, error) {
-	id := make([]byte, reservation.E2EIDLen)
-	_, err := r.ID.Read(id)
-	if err != nil {
-		return nil, err
-	}
+	rawid := r.ID.ToRaw()
 	return &colibri_mgmt.E2ESetup{
-		ReservationID: &colibri_mgmt.E2EReservationID{
-			ASID:   id[:6],
-			Suffix: id[6:],
+		Base: &colibri_mgmt.E2EBase{
+			ID: &colibri_mgmt.E2EReservationID{
+				ASID:   rawid[:6],
+				Suffix: rawid[6:],
+			},
+			Index: uint8(r.Index),
 		},
 	}, nil
 }
@@ -89,9 +90,9 @@ var _ SetupReq = (*SuccessSetupReq)(nil)
 
 // NewSuccessSetupReq constructs the app type from its control message.
 func NewSuccessSetupReq(path *spath.Path, ts time.Time, ID *colibri_mgmt.E2EReservationID,
-	ctrl *colibri_mgmt.E2ESetupSuccess) (*SuccessSetupReq, error) {
+	index uint8, ctrl *colibri_mgmt.E2ESetupSuccess) (*SuccessSetupReq, error) {
 
-	baseReq, err := NewBaseSetupReq(path, ts, ID)
+	baseReq, err := NewBaseSetupReq(path, ts, ID, index)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct success e2e setup", err)
 	}
@@ -133,9 +134,9 @@ type FailureSetupReq struct {
 var _ SetupReq = (*FailureSetupReq)(nil)
 
 func NewFailureSetupReq(path *spath.Path, ts time.Time, ID *colibri_mgmt.E2EReservationID,
-	ctrl *colibri_mgmt.E2ESetupFailure) (*FailureSetupReq, error) {
+	index uint8, ctrl *colibri_mgmt.E2ESetupFailure) (*FailureSetupReq, error) {
 
-	baseReq, err := NewBaseSetupReq(path, ts, ID)
+	baseReq, err := NewBaseSetupReq(path, ts, ID, index)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct failure e2e setup", err)
 	}
@@ -187,9 +188,9 @@ func NewRequestFromCtrlMsg(setup *colibri_mgmt.E2ESetup, ts time.Time,
 	var err error
 	switch {
 	case setup.Success != nil:
-		s, err = NewSuccessSetupReq(path, ts, setup.ReservationID, setup.Success)
+		s, err = NewSuccessSetupReq(path, ts, setup.Base.ID, setup.Base.Index, setup.Success)
 	case setup.Failure != nil:
-		s, err = NewFailureSetupReq(path, ts, setup.ReservationID, setup.Failure)
+		s, err = NewFailureSetupReq(path, ts, setup.Base.ID, setup.Base.Index, setup.Failure)
 	default:
 		return nil, serrors.New("invalid E2E setup request received, neither successful or failed",
 			"success_ptr", setup.Success, "failure_ptr", setup.Failure)
@@ -206,7 +207,7 @@ type CleanupReq struct {
 func NewCleanupReqFromCtrlMsg(ctrl *colibri_mgmt.E2ECleanup, ts time.Time,
 	path *spath.Path) (*CleanupReq, error) {
 
-	baseReq, err := NewBaseSetupReq(path, ts, ctrl.ReservationID)
+	baseReq, err := NewBaseSetupReq(path, ts, ctrl.Base.ID, ctrl.Base.Index)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct cleanup request", err)
 	}
@@ -217,12 +218,14 @@ func NewCleanupReqFromCtrlMsg(ctrl *colibri_mgmt.E2ECleanup, ts time.Time,
 
 // ToCtrlMsg converts this application type to its control message counterpart.
 func (r *CleanupReq) ToCtrlMsg() *colibri_mgmt.E2ECleanup {
-	rawid := make([]byte, reservation.E2EIDLen)
-	r.ID.Read(rawid)
+	rawid := r.ID.ToRaw()
 	return &colibri_mgmt.E2ECleanup{
-		ReservationID: &colibri_mgmt.E2EReservationID{
-			ASID:   rawid[:6],
-			Suffix: rawid[6:],
+		Base: &colibri_mgmt.E2EBase{
+			ID: &colibri_mgmt.E2EReservationID{
+				ASID:   rawid[:6],
+				Suffix: rawid[6:],
+			},
+			Index: uint8(r.Index),
 		},
 	}
 }

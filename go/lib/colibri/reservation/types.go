@@ -82,6 +82,13 @@ func (id *SegmentID) Read(raw []byte) (int, error) {
 	return SegmentIDLen, nil
 }
 
+// ToRaw calls Read and returns a new allocated buffer with the ID serialized.
+func (id *SegmentID) ToRaw() []byte {
+	buf := make([]byte, SegmentIDLen)
+	id.Read(buf) // safely ignore errors as they can only come from buffer size
+	return buf
+}
+
 func (id *SegmentID) String() string {
 	return fmt.Sprintf("%s-%x", id.ASID, id.Suffix)
 }

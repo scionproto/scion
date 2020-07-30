@@ -28,16 +28,17 @@ import (
 
 // Request is the base struct for any type of COLIBRI request.
 type Request struct {
-	base.RequestMetadata                       // information about the request (forwarding path)
-	ID                   reservation.SegmentID // the ID this request refers to
-	Timestamp            time.Time             // the mandatory timestamp
-	Ingress              common.IFIDType       // the interface the traffic uses to enter the AS
-	Egress               common.IFIDType       // the interface the traffic uses to leave the AS
-	Reservation          *Reservation          // nil if no reservation yet
+	base.RequestMetadata                         // information about the request (forwarding path)
+	ID                   reservation.SegmentID   // the ID this request refers to
+	Index                reservation.IndexNumber // the index this request refers to
+	Timestamp            time.Time               // the mandatory timestamp
+	Ingress              common.IFIDType         // the interface the traffic uses to enter the AS
+	Egress               common.IFIDType         // the interface the traffic uses to leave the AS
+	Reservation          *Reservation            // nil if no reservation yet
 }
 
 // NewRequest constructs the segment Request type.
-func NewRequest(ts time.Time, ID *colibri_mgmt.SegmentReservationID,
+func NewRequest(ts time.Time, ID *colibri_mgmt.SegmentReservationID, idx uint8,
 	path *spath.Path) (*Request, error) {
 
 	metadata, err := base.NewRequestMetadata(path)
@@ -68,9 +69,22 @@ func NewRequest(ts time.Time, ID *colibri_mgmt.SegmentReservationID,
 		RequestMetadata: *metadata,
 		Timestamp:       ts,
 		ID:              *segID,
+		Index:           reservation.IndexNumber(idx),
 		Ingress:         ingressIFID,
 		Egress:          egressIFID,
 	}, nil
+}
+
+// NewCtrlSegmentBase constructs a colibri_mgmt.SegmentBase from the app types.
+func NewCtrlSegmentBase(ID *reservation.SegmentID, idx reservation.IndexNumber) *colibri_mgmt.SegmentBase {
+	idBuf := ID.ToRaw()
+	return &colibri_mgmt.SegmentBase{
+		ID: &colibri_mgmt.SegmentReservationID{
+			ASID:   idBuf[:6],
+			Suffix: idBuf[6:],
+		},
+		Index: uint8(idx),
+	}
 }
 
 // SetupReq is a segment reservation setup request. It contains a reference to the reservation
@@ -89,9 +103,9 @@ type SetupReq struct {
 // NewSetupReqFromCtrlMsg constructs a SetupReq from its control message counterpart. The timestamp
 // comes from the wrapping ColibriRequestPayload, and the spath from the wrapping SCION packet.
 func NewSetupReqFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, ts time.Time,
-	ID *colibri_mgmt.SegmentReservationID, path *spath.Path) (*SetupReq, error) {
+	path *spath.Path) (*SetupReq, error) {
 
-	r, err := NewRequest(ts, ID, path)
+	r, err := NewRequest(ts, setup.Base.ID, setup.Base.Index, path)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct segment setup request", err)
 	}
@@ -125,6 +139,7 @@ func NewSetupReqFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, ts time.Time,
 func (r *SetupReq) ToCtrlMsg() *colibri_mgmt.SegmentSetup {
 
 	msg := &colibri_mgmt.SegmentSetup{
+		Base:     NewCtrlSegmentBase(&r.ID, r.Index),
 		MinBW:    uint8(r.MinBW),
 		MaxBW:    uint8(r.MaxBW),
 		SplitCls: uint8(r.SplitCls),
@@ -156,13 +171,13 @@ type SetupTelesReq struct {
 
 // NewTelesRequestFromCtrlMsg constucts the app type from its control message counterpart.
 func NewTelesRequestFromCtrlMsg(setup *colibri_mgmt.SegmentTelesSetup, ts time.Time,
-	ID *colibri_mgmt.SegmentReservationID, path *spath.Path) (*SetupTelesReq, error) {
+	path *spath.Path) (*SetupTelesReq, error) {
 
 	if setup.BaseID == nil || setup.Setup == nil {
 		return nil, serrors.New("illegal ctrl telescopic setup received", "base_id", setup.BaseID,
 			"segment_setup", setup.Setup)
 	}
-	baseReq, err := NewSetupReqFromCtrlMsg(setup.Setup, ts, ID, path)
+	baseReq, err := NewSetupReqFromCtrlMsg(setup.Setup, ts, path)
 	if err != nil {
 		return nil, serrors.WrapStr("failed to construct base request", err)
 	}
@@ -179,8 +194,7 @@ func NewTelesRequestFromCtrlMsg(setup *colibri_mgmt.SegmentTelesSetup, ts time.T
 
 // ToCtrlMsg creates a new segment telescopic setup control message from this request.
 func (r *SetupTelesReq) ToCtrlMsg() *colibri_mgmt.SegmentTelesSetup {
-	buff := make([]byte, reservation.SegmentIDLen)
-	r.BaseID.Read(buff)
+	buff := r.BaseID.ToRaw()
 	return &colibri_mgmt.SegmentTelesSetup{
 		Setup: r.SetupReq.ToCtrlMsg(),
 		BaseID: &colibri_mgmt.SegmentReservationID{
@@ -193,15 +207,14 @@ func (r *SetupTelesReq) ToCtrlMsg() *colibri_mgmt.SegmentTelesSetup {
 // IndexConfirmationReq is used to change the state on an index (e.g. from temporary to pending).
 type IndexConfirmationReq struct {
 	Request
-	IndexNumber reservation.IndexNumber
-	State       IndexState
+	State IndexState
 }
 
 // NewIndexConfirmationReqFromCtrlMsg constructs the application type from its control counterpart.
 func NewIndexConfirmationReqFromCtrlMsg(ctrl *colibri_mgmt.SegmentIndexConfirmation, ts time.Time,
-	ID *colibri_mgmt.SegmentReservationID, path *spath.Path) (*IndexConfirmationReq, error) {
+	path *spath.Path) (*IndexConfirmationReq, error) {
 
-	r, err := NewRequest(ts, ID, path)
+	r, err := NewRequest(ts, ctrl.Base.ID, ctrl.Base.Index, path)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct index confirmation request", err)
 	}
@@ -210,9 +223,8 @@ func NewIndexConfirmationReqFromCtrlMsg(ctrl *colibri_mgmt.SegmentIndexConfirmat
 		return nil, err
 	}
 	return &IndexConfirmationReq{
-		Request:     *r,
-		IndexNumber: reservation.IndexNumber(ctrl.Index),
-		State:       st,
+		Request: *r,
+		State:   st,
 	}, nil
 }
 
@@ -223,7 +235,7 @@ func (r *IndexConfirmationReq) ToCtrlMsg() (*colibri_mgmt.SegmentIndexConfirmati
 		return nil, err
 	}
 	return &colibri_mgmt.SegmentIndexConfirmation{
-		Index: uint8(r.IndexNumber),
+		Base:  NewCtrlSegmentBase(&r.ID, r.Index),
 		State: st,
 	}, nil
 }
@@ -231,7 +243,6 @@ func (r *IndexConfirmationReq) ToCtrlMsg() (*colibri_mgmt.SegmentIndexConfirmati
 // CleanupReq is used to clean an index.
 type CleanupReq struct {
 	Request
-	IndexNumber reservation.IndexNumber
 }
 
 // NewCleanupReqFromCtrlMsg contructs a cleanup request from its control message counterpart.
@@ -239,13 +250,12 @@ func NewCleanupReqFromCtrlMsg(ctrl *colibri_mgmt.SegmentCleanup, ts time.Time,
 	path *spath.Path) (*CleanupReq, error) {
 
 	// we use the ID inside the control message, as the request could have come without COLIBRI
-	r, err := NewRequest(ts, ctrl.ID, path)
+	r, err := NewRequest(ts, ctrl.Base.ID, ctrl.Base.Index, path)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct index cleanup request", err)
 	}
 	return &CleanupReq{
-		Request:     *r,
-		IndexNumber: reservation.IndexNumber(ctrl.Index),
+		Request: *r,
 	}, nil
 }
 
@@ -254,10 +264,6 @@ func (r *CleanupReq) ToCtrlMsg() *colibri_mgmt.SegmentCleanup {
 	rawid := make([]byte, reservation.SegmentIDLen)
 	r.ID.Read(rawid)
 	return &colibri_mgmt.SegmentCleanup{
-		ID: &colibri_mgmt.SegmentReservationID{
-			ASID:   rawid[:6],
-			Suffix: rawid[6:],
-		},
-		Index: uint8(r.IndexNumber),
+		Base: NewCtrlSegmentBase(&r.ID, r.Index),
 	}
 }

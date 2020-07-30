@@ -33,13 +33,10 @@ import (
 func TestNewSetupReqFromCtrlMsg(t *testing.T) {
 	ctrlMsg := newSetup()
 	ts := util.SecsToTime(1)
-	r, err := segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, nil, nil)
-	require.Error(t, err) // missing both ID and path
+	r, err := segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, nil)
+	require.Error(t, err) // missing path
 	p := newPath()
-	r, err = segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, nil, p)
-	require.Error(t, err) // missing ID
-	id := newID()
-	r, err = segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, id, p)
+	r, err = segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, p)
 	require.NoError(t, err)
 	require.Equal(t, p, r.Path())
 	checkRequest(t, ctrlMsg, r, ts)
@@ -50,7 +47,7 @@ func TestNewSetupReqFromCtrlMsg(t *testing.T) {
 func TestRequestToCtrlMsg(t *testing.T) {
 	ctrlMsg := newSetup()
 	ts := util.SecsToTime(1)
-	r, err := segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
+	r, err := segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, newPath())
 	require.NoError(t, err)
 	anotherCtrlMsg := r.ToCtrlMsg()
 	require.Equal(t, ctrlMsg, anotherCtrlMsg)
@@ -59,11 +56,9 @@ func TestRequestToCtrlMsg(t *testing.T) {
 func TestNewTelesRequestFromCtrlMsg(t *testing.T) {
 	ctrlMsg := newTelesSetup()
 	ts := util.SecsToTime(1)
-	r, err := segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, nil, nil)
-	require.Error(t, err) // both path and ID are nil
-	r, err = segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, nil, newPath())
-	require.Error(t, err) // ID is nil
-	r, err = segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
+	r, err := segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, nil)
+	require.Error(t, err) // path is nil
+	r, err = segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, newPath())
 	require.NoError(t, err)
 	checkRequest(t, ctrlMsg.Setup, &r.SetupReq, ts)
 	require.Equal(t, xtest.MustParseAS("ff00:cafe:1"), r.BaseID.ASID)
@@ -73,7 +68,7 @@ func TestNewTelesRequestFromCtrlMsg(t *testing.T) {
 func TestTelesRequestToCtrlMsg(t *testing.T) {
 	ctrlMsg := newTelesSetup()
 	ts := util.SecsToTime(1)
-	r, _ := segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
+	r, _ := segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, newPath())
 	anotherCtrlMsg := r.ToCtrlMsg()
 	require.Equal(t, ctrlMsg, anotherCtrlMsg)
 }
@@ -81,24 +76,22 @@ func TestTelesRequestToCtrlMsg(t *testing.T) {
 func TestNewIndexConfirmationReqFromCtrlMsg(t *testing.T) {
 	ctrlMsg := newIndexConfirmation()
 	ts := util.SecsToTime(1)
-	r, err := segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, nil, nil)
-	require.Error(t, err) // nil path and ID
-	r, err = segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, nil, newPath())
-	require.Error(t, err) // nil ID
-	r, err = segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
+	r, err := segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, nil)
+	require.Error(t, err) // nil path
+	r, err = segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, newPath())
 	require.NoError(t, err)
-	require.Equal(t, reservation.IndexNumber(2), r.IndexNumber)
+	require.Equal(t, reservation.IndexNumber(ctrlMsg.Base.Index), r.Index)
 	require.Equal(t, segment.IndexActive, r.State)
 }
 
 func TestIndexConfirmationReqToCtrlMsg(t *testing.T) {
 	ctrlMsg := newIndexConfirmation()
 	ts := util.SecsToTime(1)
-	r, _ := segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
+	r, _ := segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, newPath())
 	r.State = segment.IndexTemporary
 	_, err := r.ToCtrlMsg()
 	require.Error(t, err)
-	r, _ = segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, newID(), newPath())
+	r, _ = segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, newPath())
 	anotherCtrlMsg, err := r.ToCtrlMsg()
 	require.NoError(t, err)
 	require.Equal(t, *ctrlMsg, *anotherCtrlMsg)
@@ -109,15 +102,11 @@ func TestNewCleanupReqFromCtrlMsg(t *testing.T) {
 	ts := util.SecsToTime(1)
 	r, err := segment.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, nil)
 	require.Error(t, err) // no path
-	ctrlMsg.ID = nil
-	r, err = segment.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, newPath())
-	require.Error(t, err) // the ID inside the ctrl message is nil
 	ctrlMsg = newCleanup()
 	r, err = segment.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, newPath())
 	require.NoError(t, err)
-	require.Equal(t, reservation.IndexNumber(1), r.IndexNumber)
-	require.Equal(t, xtest.MustParseAS("ff00:3:1234"), r.ID.ASID)
-	require.Equal(t, ctrlMsg.ID.Suffix, r.ID.Suffix[:])
+	require.Equal(t, reservation.IndexNumber(ctrlMsg.Base.Index), r.Index)
+	checkIDs(t, ctrlMsg.Base.ID, &r.ID)
 }
 
 func TestCleanupReqToCtrlMsg(t *testing.T) {
@@ -128,8 +117,16 @@ func TestCleanupReqToCtrlMsg(t *testing.T) {
 	require.Equal(t, ctrlMsg, anotherCtrlMsg)
 }
 
+func newBase(idx uint8) *colibri_mgmt.SegmentBase {
+	return &colibri_mgmt.SegmentBase{
+		ID:    newID(),
+		Index: idx,
+	}
+}
+
 func newSetup() *colibri_mgmt.SegmentSetup {
 	return &colibri_mgmt.SegmentSetup{
+		Base:     newBase(1),
 		MinBW:    1,
 		MaxBW:    2,
 		SplitCls: 3,
@@ -160,18 +157,14 @@ func newTelesSetup() *colibri_mgmt.SegmentTelesSetup {
 
 func newIndexConfirmation() *colibri_mgmt.SegmentIndexConfirmation {
 	return &colibri_mgmt.SegmentIndexConfirmation{
-		Index: 2,
+		Base:  newBase(2),
 		State: proto.ReservationIndexState_active,
 	}
 }
 
 func newCleanup() *colibri_mgmt.SegmentCleanup {
 	return &colibri_mgmt.SegmentCleanup{
-		Index: 1,
-		ID: &colibri_mgmt.SegmentReservationID{
-			ASID:   xtest.MustParseHexString("ff0000031234"),
-			Suffix: xtest.MustParseHexString("04030201"),
-		},
+		Base: newBase(1),
 	}
 }
 
@@ -208,6 +201,8 @@ func checkRequest(t *testing.T, segSetup *colibri_mgmt.SegmentSetup, r *segment.
 	t.Helper()
 	require.Equal(t, (*segment.Reservation)(nil), r.Reservation)
 	require.Equal(t, ts, r.Timestamp)
+	checkIDs(t, segSetup.Base.ID, &r.ID)
+	require.Equal(t, segSetup.Base.Index, uint8(r.Index))
 	require.Equal(t, segSetup.MinBW, uint8(r.MinBW))
 	require.Equal(t, segSetup.MaxBW, uint8(r.MaxBW))
 	require.Equal(t, segSetup.SplitCls, uint8(r.SplitCls))
@@ -219,4 +214,10 @@ func checkRequest(t *testing.T, segSetup *colibri_mgmt.SegmentSetup, r *segment.
 		require.Equal(t, segSetup.AllocationTrail[i].AllocBW, uint8(r.AllocTrail[i].AllocBW))
 		require.Equal(t, segSetup.AllocationTrail[i].MaxBW, uint8(r.AllocTrail[i].MaxBW))
 	}
+}
+
+func checkIDs(t *testing.T, ctrlID *colibri_mgmt.SegmentReservationID, id *reservation.SegmentID) {
+	t.Helper()
+	expectedID := append(ctrlID.ASID, ctrlID.Suffix...)
+	require.Equal(t, expectedID, id.ToRaw())
 }
