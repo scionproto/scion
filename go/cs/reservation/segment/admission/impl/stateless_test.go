@@ -19,6 +19,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/require"
+
 	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend/mock_backend"
@@ -26,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/stretchr/testify/require"
 )
 
 func TestSumMaxBlockedBW(t *testing.T) {
@@ -70,7 +71,8 @@ func TestSumMaxBlockedBW(t *testing.T) {
 			blockedBW: 309, // 181 + 128
 			rsvsFcn: func() []*segment.Reservation {
 				rsv := testNewRsv(t, "ff00:1:1", "beefcafe", 1, 2, 5, 5, 5)
-				_, err := rsv.NewIndexAtSource(util.SecsToTime(3), 1, 17, 7, 1, reservation.CorePath)
+				_, err := rsv.NewIndexAtSource(util.SecsToTime(3), 1, 17, 7, 1,
+					reservation.CorePath)
 				require.NoError(t, err)
 				rsvs := []*segment.Reservation{rsv}
 

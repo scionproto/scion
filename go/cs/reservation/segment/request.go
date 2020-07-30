@@ -31,8 +31,8 @@ type Request struct {
 	base.RequestMetadata                       // information about the request (forwarding path)
 	ID                   reservation.SegmentID // the ID this request refers to
 	Timestamp            time.Time             // the mandatory timestamp
-	Ingress              common.IFIDType       // the interface the reservation traffic uses to enter the AS
-	Egress               common.IFIDType       // the interface the reservation traffic uses to leave the AS
+	Ingress              common.IFIDType       // the interface the traffic uses to enter the AS
+	Egress               common.IFIDType       // the interface the traffic uses to leave the AS
 	Reservation          *Reservation          // nil if no reservation yet
 }
 
