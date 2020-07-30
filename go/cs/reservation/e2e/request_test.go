@@ -76,8 +76,8 @@ func TestNewCleanupReqFromCtrlMsg(t *testing.T) {
 	buff := make([]byte, reservation.E2EIDLen)
 	_, err = r.ID.Read(buff)
 	require.NoError(t, err)
-	require.Equal(t, ctrlMsg.ReservationID.ASID, buff[:6])
-	require.Equal(t, ctrlMsg.ReservationID.Suffix, buff[6:])
+	require.Equal(t, ctrlMsg.Base.ID.ASID, buff[:6])
+	require.Equal(t, ctrlMsg.Base.ID.Suffix, buff[6:])
 }
 
 func TestCleanupToCtrlMsg(t *testing.T) {
@@ -91,8 +91,11 @@ func TestCleanupToCtrlMsg(t *testing.T) {
 
 func newE2ESetupSuccess() *colibri_mgmt.E2ESetup {
 	return &colibri_mgmt.E2ESetup{
-		ReservationID: newID(),
-		Which:         proto.E2ESetupData_Which_success,
+		Base: &colibri_mgmt.E2EBase{
+			ID:    newID(),
+			Index: 11,
+		},
+		Which: proto.E2ESetupData_Which_success,
 		Success: &colibri_mgmt.E2ESetupSuccess{
 			Token: xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade"),
 		},
@@ -101,8 +104,11 @@ func newE2ESetupSuccess() *colibri_mgmt.E2ESetup {
 
 func newE2ESetupFailure() *colibri_mgmt.E2ESetup {
 	return &colibri_mgmt.E2ESetup{
-		ReservationID: newID(),
-		Which:         proto.E2ESetupData_Which_failure,
+		Base: &colibri_mgmt.E2EBase{
+			ID:    newID(),
+			Index: 11,
+		},
+		Which: proto.E2ESetupData_Which_failure,
 		Failure: &colibri_mgmt.E2ESetupFailure{
 			ErrorCode: 42,
 			InfoField: xtest.MustParseHexString("16ebdb4f0d042500"),
@@ -112,7 +118,12 @@ func newE2ESetupFailure() *colibri_mgmt.E2ESetup {
 }
 
 func newCleanupReq() *colibri_mgmt.E2ECleanup {
-	return &colibri_mgmt.E2ECleanup{ReservationID: newID()}
+	return &colibri_mgmt.E2ECleanup{
+		Base: &colibri_mgmt.E2EBase{
+			ID:    newID(),
+			Index: 11,
+		},
+	}
 }
 
 // new path with one segment consisting on 3 hopfields: (0,2)->(1,2)->(1,0)
@@ -161,11 +172,10 @@ func checkRequest(t *testing.T, e2eSetup *colibri_mgmt.E2ESetup, r e2e.SetupReq,
 	require.Equal(t, (*e2e.Reservation)(nil), base.Reservation())
 	require.Equal(t, ts, base.Timestamp())
 	require.Equal(t, p, base.Path())
-	buff := make([]byte, reservation.E2EIDLen)
-	_, err := base.ID.Read(buff)
-	require.NoError(t, err) // tested in the E2EID UT, should not fail
-	require.Equal(t, e2eSetup.ReservationID.ASID, buff[:6])
-	require.Equal(t, e2eSetup.ReservationID.Suffix, buff[6:])
+	rawid := base.ID.ToRaw()
+	require.Equal(t, e2eSetup.Base.ID.ASID, rawid[:6])
+	require.Equal(t, e2eSetup.Base.ID.Suffix, rawid[6:])
+	require.Equal(t, e2eSetup.Base.Index, uint8(base.Index))
 
 	if successSetup != nil {
 		buff := make([]byte, len(e2eSetup.Success.Token))
@@ -184,6 +194,5 @@ func checkRequest(t *testing.T, e2eSetup *colibri_mgmt.E2ESetup, r e2e.SetupReq,
 			trail[i] = uint8(failureSetup.MaxBWTrail[i])
 		}
 		require.Equal(t, e2eSetup.Failure.MaxBWs, trail)
-
 	}
 }
