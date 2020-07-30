@@ -29,60 +29,72 @@ struct AllocationBead {
     maxBW @1 :UInt8;
 }
 
+# All segment requests identify a single index of a segment reservation.
+# Even for setup it is useful to avoid creating a different index down the reservation path, as
+# the requester AS can cleanup an index and without waiting for success start already a new setup.
+struct SegmentBase {
+    id @0 :SegmentReservationID;
+    index @1 :UInt8;
+}
+
+struct E2EBase {
+    id @0 :E2EReservationID;
+    index @1 :UInt8;
+}
+
 # Request to setup a segment reservation.
-# Setups travel inside a hop by hop colibri extension and thus have a SegmentReservationID externally.
 struct SegmentSetupReqData {
-    minBW @0 :UInt8;
-    maxBW @1 :UInt8;
-    splitCls @2 :UInt8;
-    startProps @3 :PathEndProps;
-    endProps @4 :PathEndProps;
-    infoField @5 :Data; # ExpirationTick, Index, BWCls, RLC, and PathType; expected 8 bytes
-    allocationTrail @6 :List(AllocationBead);  # updated on each AS along the path
+    base @0 :SegmentBase;
+    minBW @1 :UInt8;
+    maxBW @2 :UInt8;
+    splitCls @3 :UInt8;
+    startProps @4 :PathEndProps;
+    endProps @5 :PathEndProps;
+    infoField @6 :Data; # ExpirationTick, Index, BWCls, RLC, and PathType; expected 8 bytes
+    allocationTrail @7 :List(AllocationBead);  # updated on each AS along the path
 }
 
 # Response to a segment setup request.
-# They travel inside a hop by hop colibri extension.
 struct SegmentSetupResData {
+    base @0 :SegmentBase;
     union{
-        unset @0 :Void;
-        failure @1 :SegmentSetupReqData; # sent along the path in the opposite direction in case of failure
-        token   @2 :Data;                # if successful
+        unset @1 :Void;
+        failure @2 :SegmentSetupReqData; # sent along the path in the opposite direction in case of failure
+        token   @3 :Data;                # if successful
     }
 }
 
 # Telescoped segment reservations. Their response is identical to a non telescoped setup.
-# They travel in a hop by hop colibri extension.
 struct SegmentTelesSetupData {
     setup @0 :SegmentSetupReqData;
     baseID @1 :SegmentReservationID;
 }
 
 # Request to tear down a segment reservation.
-struct SegmentTeardownReqData {}   # empty (SegmentReservationID and index from hop by hop extension)
+struct SegmentTeardownReqData {
+    base @0 :SegmentBase;
+}
 
 # Response to a tear down request.
 struct SegmentTeardownResData {
-    errorCode @0 :UInt8;    # only relevant if the response indicates failure
+    base @0 :SegmentBase;
+    errorCode @1 :UInt8;    # only relevant if the response indicates failure
 }
 
 # Segment reservation index confirmation request.
-# They travel inside hop by hop colibri extension.
 struct SegmentIndexConfirmationData {
-    index @0 :UInt8;
+    base @0 :SegmentBase;
     state @1 :ReservationIndexState;
 }
 
 # Removes a pending segment reservation.
-# These messages travel as payload of a hop by hop colibri extension packet.
 struct SegmentCleanupData {
-    id @0 :SegmentReservationID;
-    index @1 :UInt8;
+    base @0 :SegmentBase;
 }
 
 # Setup an E2E reservation. Sent in a hop by hop colibri extension through a stitched segment reservation.
 struct E2ESetupData {
-    reservationID @0 :E2EReservationID;     # 16 byte e2e reservation ID
+    base @0 :E2EBase;
     union {
         unset @1 :Void;
         success :group {
@@ -96,11 +108,9 @@ struct E2ESetupData {
     }
 }
 
-# The reservation ID and index are needed because this request is for a different reservation than
-# the one referenced in the COLIBRI header.
+# Removes a partially setup e2e index.
 struct E2ECleanupData {
-    reservationID @0 :E2EReservationID;
-    index @1 :UInt8;
+    base @0 :E2EBase;
 }
 
 # All possible requests between ASes.
@@ -147,5 +157,5 @@ struct ColibriRequestPayload {
         request @2 :Request;
         response @3 :Response;
     }
-    # TODO(juagargi) authenticators
+    # TODO(juagargi) DRKey authenticators
 }
