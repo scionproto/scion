@@ -59,3 +59,21 @@ func NewFromRaw(b []byte) (*ColibriRequestPayload, error) {
 	}
 	return pld, nil
 }
+
+type SegmentBase struct {
+	ID    *SegmentReservationID `capnp:"id"`
+	Index uint8
+}
+
+func (p *SegmentBase) ProtoId() proto.ProtoIdType {
+	return proto.SegmentBase_TypeID
+}
+
+type E2EBase struct {
+	ID    *E2EReservationID `capnp:"id"`
+	Index uint8
+}
+
+func (p *E2EBase) ProtoId() proto.ProtoIdType {
+	return proto.E2EBase_TypeID
+}

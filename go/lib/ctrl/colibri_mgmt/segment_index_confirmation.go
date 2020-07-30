@@ -19,7 +19,7 @@ import (
 )
 
 type SegmentIndexConfirmation struct {
-	Index uint8
+	Base  *SegmentBase
 	State proto.ReservationIndexState
 }
 

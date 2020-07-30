@@ -19,7 +19,7 @@ import (
 )
 
 type E2ECleanup struct {
-	ReservationID *E2EReservationID
+	Base *E2EBase
 }
 
 func (r *E2ECleanup) ProtoId() proto.ProtoIdType {

@@ -19,8 +19,7 @@ import (
 )
 
 type SegmentCleanup struct {
-	ID    *SegmentReservationID `capnp:"id"`
-	Index uint8
+	Base *SegmentBase
 }
 
 func (s *SegmentCleanup) ProtoId() proto.ProtoIdType {
