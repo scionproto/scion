@@ -15,18 +15,16 @@
 package segment
 
 import (
-	"encoding/hex"
 	"time"
 
 	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
-// Request is the base struct for any type of COLIBRI request.
+// Request is the base struct for any type of COLIBRI segment request.
 type Request struct {
 	base.RequestMetadata                         // information about the request (forwarding path)
 	ID                   reservation.SegmentID   // the ID this request refers to
@@ -38,8 +36,8 @@ type Request struct {
 }
 
 // NewRequest constructs the segment Request type.
-func NewRequest(ts time.Time, ID *colibri_mgmt.SegmentReservationID, idx uint8,
-	path *spath.Path) (*Request, error) {
+func NewRequest(ts time.Time, id *reservation.SegmentID, idx uint8, path *spath.Path) (
+	*Request, error) {
 
 	metadata, err := base.NewRequestMetadata(path)
 	if err != nil {
@@ -58,33 +56,17 @@ func NewRequest(ts time.Time, ID *colibri_mgmt.SegmentReservationID, idx uint8,
 	if !infField.ConsDir {
 		egressIFID, ingressIFID = ingressIFID, egressIFID
 	}
-	if ID == nil {
+	if id == nil {
 		return nil, serrors.New("new segment request with nil ID")
-	}
-	segID, err := reservation.SegmentIDFromRawBuffers(ID.ASID, ID.Suffix)
-	if err != nil {
-		return nil, serrors.WrapStr("new segment request", err)
 	}
 	return &Request{
 		RequestMetadata: *metadata,
 		Timestamp:       ts,
-		ID:              *segID,
+		ID:              *id,
 		Index:           reservation.IndexNumber(idx),
 		Ingress:         ingressIFID,
 		Egress:          egressIFID,
 	}, nil
-}
-
-// NewCtrlSegmentBase constructs a colibri_mgmt.SegmentBase from the app types.
-func NewCtrlSegmentBase(ID *reservation.SegmentID, idx reservation.IndexNumber) *colibri_mgmt.SegmentBase {
-	idBuf := ID.ToRaw()
-	return &colibri_mgmt.SegmentBase{
-		ID: &colibri_mgmt.SegmentReservationID{
-			ASID:   idBuf[:6],
-			Suffix: idBuf[6:],
-		},
-		Index: uint8(idx),
-	}
 }
 
 // SetupReq is a segment reservation setup request. It contains a reference to the reservation
@@ -100,108 +82,16 @@ type SetupReq struct {
 	AllocTrail reservation.AllocationBeads
 }
 
-// NewSetupReqFromCtrlMsg constructs a SetupReq from its control message counterpart. The timestamp
-// comes from the wrapping ColibriRequestPayload, and the spath from the wrapping SCION packet.
-func NewSetupReqFromCtrlMsg(setup *colibri_mgmt.SegmentSetup, ts time.Time,
-	path *spath.Path) (*SetupReq, error) {
-
-	r, err := NewRequest(ts, setup.Base.ID, setup.Base.Index, path)
-	if err != nil {
-		return nil, serrors.WrapStr("cannot construct segment setup request", err)
-	}
-	inF, err := reservation.InfoFieldFromRaw(setup.InfoField)
-	if err != nil {
-		return nil, serrors.WrapStr("cannot construct info field from raw", err)
-	}
-	if inF == nil {
-		return nil, serrors.New("empty info field", "raw", hex.EncodeToString(setup.InfoField))
-	}
-	s := SetupReq{
-		Request:    *r,
-		InfoField:  *inF,
-		MinBW:      reservation.BWCls(setup.MinBW),
-		MaxBW:      reservation.BWCls(setup.MaxBW),
-		SplitCls:   reservation.SplitCls(setup.SplitCls),
-		AllocTrail: make(reservation.AllocationBeads, len(setup.AllocationTrail)),
-		PathProps: reservation.NewPathEndProps(setup.StartProps.Local, setup.StartProps.Transfer,
-			setup.EndProps.Local, setup.EndProps.Transfer),
-	}
-	for i, ab := range setup.AllocationTrail {
-		s.AllocTrail[i] = reservation.AllocationBead{
-			AllocBW: reservation.BWCls(ab.AllocBW),
-			MaxBW:   reservation.BWCls(ab.MaxBW),
-		}
-	}
-	return &s, nil
-}
-
-// ToCtrlMsg creates a new segment setup control message filled with the information from here.
-func (r *SetupReq) ToCtrlMsg() *colibri_mgmt.SegmentSetup {
-
-	msg := &colibri_mgmt.SegmentSetup{
-		Base:     NewCtrlSegmentBase(&r.ID, r.Index),
-		MinBW:    uint8(r.MinBW),
-		MaxBW:    uint8(r.MaxBW),
-		SplitCls: uint8(r.SplitCls),
-		StartProps: colibri_mgmt.PathEndProps{
-			Local:    (r.PathProps & reservation.StartLocal) != 0,
-			Transfer: (r.PathProps & reservation.StartTransfer) != 0,
-		},
-		EndProps: colibri_mgmt.PathEndProps{
-			Local:    (r.PathProps & reservation.EndLocal) != 0,
-			Transfer: (r.PathProps & reservation.EndTransfer) != 0,
-		},
-		InfoField:       r.InfoField.ToRaw(),
-		AllocationTrail: make([]*colibri_mgmt.AllocationBead, len(r.AllocTrail)),
-	}
-	for i, bead := range r.AllocTrail {
-		msg.AllocationTrail[i] = &colibri_mgmt.AllocationBead{
-			AllocBW: uint8(bead.AllocBW),
-			MaxBW:   uint8(bead.MaxBW),
-		}
-	}
-	return msg
-}
-
 // SetupTelesReq represents a telescopic segment setup.
 type SetupTelesReq struct {
 	SetupReq
 	BaseID reservation.SegmentID
 }
 
-// NewTelesRequestFromCtrlMsg constucts the app type from its control message counterpart.
-func NewTelesRequestFromCtrlMsg(setup *colibri_mgmt.SegmentTelesSetup, ts time.Time,
-	path *spath.Path) (*SetupTelesReq, error) {
-
-	if setup.BaseID == nil || setup.Setup == nil {
-		return nil, serrors.New("illegal ctrl telescopic setup received", "base_id", setup.BaseID,
-			"segment_setup", setup.Setup)
-	}
-	baseReq, err := NewSetupReqFromCtrlMsg(setup.Setup, ts, path)
-	if err != nil {
-		return nil, serrors.WrapStr("failed to construct base request", err)
-	}
-	s := SetupTelesReq{
-		SetupReq: *baseReq,
-	}
-	id, err := reservation.SegmentIDFromRawBuffers(setup.BaseID.ASID, setup.BaseID.Suffix)
-	if err != nil {
-		return nil, err
-	}
-	s.BaseID = *id
-	return &s, nil
-}
-
-// ToCtrlMsg creates a new segment telescopic setup control message from this request.
-func (r *SetupTelesReq) ToCtrlMsg() *colibri_mgmt.SegmentTelesSetup {
-	buff := r.BaseID.ToRaw()
-	return &colibri_mgmt.SegmentTelesSetup{
-		Setup: r.SetupReq.ToCtrlMsg(),
-		BaseID: &colibri_mgmt.SegmentReservationID{
-			ASID:   buff[:6],
-			Suffix: buff[6:],
-		},
-	}
+// TeardownReq requests the AS to remove a given index from the DB. If this is the last index
+// in the reservation, the reservation will be completely removed.
+type TeardownReq struct {
+	Request
 }
 
 // IndexConfirmationReq is used to change the state on an index (e.g. from temporary to pending).
@@ -210,60 +100,7 @@ type IndexConfirmationReq struct {
 	State IndexState
 }
 
-// NewIndexConfirmationReqFromCtrlMsg constructs the application type from its control counterpart.
-func NewIndexConfirmationReqFromCtrlMsg(ctrl *colibri_mgmt.SegmentIndexConfirmation, ts time.Time,
-	path *spath.Path) (*IndexConfirmationReq, error) {
-
-	r, err := NewRequest(ts, ctrl.Base.ID, ctrl.Base.Index, path)
-	if err != nil {
-		return nil, serrors.WrapStr("cannot construct index confirmation request", err)
-	}
-	st, err := NewIndexStateFromCtrlMsg(ctrl.State)
-	if err != nil {
-		return nil, err
-	}
-	return &IndexConfirmationReq{
-		Request: *r,
-		State:   st,
-	}, nil
-}
-
-// ToCtrlMsg converts this application type to its control message counterpart.
-func (r *IndexConfirmationReq) ToCtrlMsg() (*colibri_mgmt.SegmentIndexConfirmation, error) {
-	st, err := r.State.ToCtrlMsg()
-	if err != nil {
-		return nil, err
-	}
-	return &colibri_mgmt.SegmentIndexConfirmation{
-		Base:  NewCtrlSegmentBase(&r.ID, r.Index),
-		State: st,
-	}, nil
-}
-
 // CleanupReq is used to clean an index.
 type CleanupReq struct {
 	Request
-}
-
-// NewCleanupReqFromCtrlMsg contructs a cleanup request from its control message counterpart.
-func NewCleanupReqFromCtrlMsg(ctrl *colibri_mgmt.SegmentCleanup, ts time.Time,
-	path *spath.Path) (*CleanupReq, error) {
-
-	// we use the ID inside the control message, as the request could have come without COLIBRI
-	r, err := NewRequest(ts, ctrl.Base.ID, ctrl.Base.Index, path)
-	if err != nil {
-		return nil, serrors.WrapStr("cannot construct index cleanup request", err)
-	}
-	return &CleanupReq{
-		Request: *r,
-	}, nil
-}
-
-// ToCtrlMsg converts this application type to its control message counterpart.
-func (r *CleanupReq) ToCtrlMsg() *colibri_mgmt.SegmentCleanup {
-	rawid := make([]byte, reservation.SegmentIDLen)
-	r.ID.Read(rawid)
-	return &colibri_mgmt.SegmentCleanup{
-		Base: NewCtrlSegmentBase(&r.ID, r.Index),
-	}
 }
