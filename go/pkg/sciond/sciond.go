@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/pkg/sciond/config"
 	"github.com/scionproto/scion/go/pkg/sciond/fetcher"
 	"github.com/scionproto/scion/go/pkg/sciond/internal/servers"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -41,8 +40,8 @@ import (
 )
 
 // InitTracer initializes the global tracer.
-func InitTracer(cfg config.Config) (io.Closer, error) {
-	tracer, trCloser, err := cfg.Tracing.NewTracer(cfg.General.ID)
+func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
+	tracer, trCloser, err := tracing.NewTracer(id)
 	if err != nil {
 		return nil, err
 	}

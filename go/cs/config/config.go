@@ -19,16 +19,14 @@ import (
 	"io"
 	"time"
 
-	"github.com/scionproto/scion/go/cs/beaconstorage"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/storage"
 )
 
 const (
@@ -70,19 +68,19 @@ var _ config.Config = (*Config)(nil)
 
 // Config is the control server configuration.
 type Config struct {
-	General   env.General                `toml:"general,omitempty"`
-	Features  env.Features               `toml:"features,omitempty"`
-	Logging   log.Config                 `toml:"log,omitempty"`
-	Metrics   env.Metrics                `toml:"metrics,omitempty"`
-	Tracing   env.Tracing                `toml:"tracing,omitempty"`
-	QUIC      env.QUIC                   `toml:"quic,omitempty"`
-	BeaconDB  beaconstorage.BeaconDBConf `toml:"beacon_db,omitempty"`
-	TrustDB   truststorage.TrustDBConf   `toml:"trust_db,omitempty"`
-	RenewalDB truststorage.RenewalDBConf `toml:"renewal_db,omitempty"`
-	PathDB    pathstorage.PathDBConf     `toml:"path_db,omitempty"`
-	BS        BSConfig                   `toml:"beaconing,omitempty"`
-	PS        PSConfig                   `toml:"path,omitempty"`
-	CA        CA                         `toml:"ca,omitempty"`
+	General   env.General      `toml:"general,omitempty"`
+	Features  env.Features     `toml:"features,omitempty"`
+	Logging   log.Config       `toml:"log,omitempty"`
+	Metrics   env.Metrics      `toml:"metrics,omitempty"`
+	Tracing   env.Tracing      `toml:"tracing,omitempty"`
+	QUIC      env.QUIC         `toml:"quic,omitempty"`
+	BeaconDB  storage.DBConfig `toml:"beacon_db,omitempty"`
+	TrustDB   storage.DBConfig `toml:"trust_db,omitempty"`
+	RenewalDB storage.DBConfig `toml:"renewal_db,omitempty"`
+	PathDB    storage.DBConfig `toml:"path_db,omitempty"`
+	BS        BSConfig         `toml:"beaconing,omitempty"`
+	PS        PSConfig         `toml:"path,omitempty"`
+	CA        CA               `toml:"ca,omitempty"`
 }
 
 // InitDefaults initializes the default values for all parts of the config.
@@ -129,10 +127,34 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Metrics,
 		&cfg.Tracing,
 		&cfg.QUIC,
-		&cfg.BeaconDB,
-		&cfg.TrustDB,
-		&cfg.RenewalDB,
-		&cfg.PathDB,
+		config.OverrideName(
+			config.FormatData(
+				&cfg.BeaconDB,
+				storage.SetID(storage.SampleBeaconDB, idSample).Connection,
+			),
+			"beacon_db",
+		),
+		config.OverrideName(
+			config.FormatData(
+				&cfg.TrustDB,
+				storage.SetID(storage.SampleTrustDB, idSample).Connection,
+			),
+			"trust_db",
+		),
+		config.OverrideName(
+			config.FormatData(
+				&cfg.RenewalDB,
+				storage.SetID(storage.SampleRenewalDB, idSample).Connection,
+			),
+			"renewal_db",
+		),
+		config.OverrideName(
+			config.FormatData(
+				&cfg.PathDB,
+				storage.SetID(storage.SamplePathDB, idSample).Connection,
+			),
+			"path_db",
+		),
 		&cfg.BS,
 		&cfg.PS,
 		&cfg.CA,

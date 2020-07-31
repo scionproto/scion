@@ -119,15 +119,12 @@ class GoGenerator(object):
             },
             'log': self._log_entry(name),
             'trust_db': {
-                'backend': 'sqlite',
                 'connection': os.path.join(self.db_dir, '%s.trust.db' % name),
             },
             'beacon_db':     {
-                'backend': 'sqlite',
                 'connection': os.path.join(self.db_dir, '%s.beacon.db' % name),
             },
             'path_db': {
-                'backend': 'sqlite',
                 'connection': os.path.join(self.db_dir, '%s.path.db' % name),
             },
             'tracing': self._tracing_entry(),
@@ -136,7 +133,6 @@ class GoGenerator(object):
         }
         if ca:
             raw_entry['renewal_db'] = {
-                'backend': 'sqlite',
                 'connection': os.path.join(self.db_dir, '%s.renewal.db' % name),
             }
         return raw_entry
@@ -168,7 +164,6 @@ class GoGenerator(object):
             },
             'log': self._log_entry(name),
             'trust_db': {
-                'backend': 'sqlite',
                 'connection': os.path.join(self.db_dir, '%s.trust.db' % name),
             },
             'tracing': self._tracing_entry(),
@@ -250,7 +245,6 @@ class GoGenerator(object):
             },
             'log': self._log_entry(name),
             'trust_db': {
-                'backend': 'sqlite',
                 'connection': os.path.join(self.db_dir, '%s.trust.db' % name),
             },
             'path_db': {
