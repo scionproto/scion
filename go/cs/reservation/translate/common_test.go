@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package segment_test
+package translate
 
 import (
 	"testing"
@@ -22,99 +22,24 @@ import (
 
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
 )
 
-func TestNewSetupReqFromCtrlMsg(t *testing.T) {
-	ctrlMsg := newSetup()
-	ts := util.SecsToTime(1)
-	r, err := segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, nil)
-	require.Error(t, err) // missing path
-	p := newPath()
-	r, err = segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, p)
-	require.NoError(t, err)
-	require.Equal(t, p, r.Path())
-	checkRequest(t, ctrlMsg, r, ts)
-	require.Equal(t, common.IFIDType(1), r.Ingress)
-	require.Equal(t, common.IFIDType(2), r.Egress)
+func newID() *colibri_mgmt.SegmentReservationID {
+	return &colibri_mgmt.SegmentReservationID{
+		ASID:   xtest.MustParseHexString("ff00cafe0001"),
+		Suffix: xtest.MustParseHexString("deadbeef"),
+	}
 }
 
-func TestRequestToCtrlMsg(t *testing.T) {
-	ctrlMsg := newSetup()
-	ts := util.SecsToTime(1)
-	r, err := segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, newPath())
-	require.NoError(t, err)
-	anotherCtrlMsg := r.ToCtrlMsg()
-	require.Equal(t, ctrlMsg, anotherCtrlMsg)
-}
-
-func TestNewTelesRequestFromCtrlMsg(t *testing.T) {
-	ctrlMsg := newTelesSetup()
-	ts := util.SecsToTime(1)
-	r, err := segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, nil)
-	require.Error(t, err) // path is nil
-	r, err = segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, newPath())
-	require.NoError(t, err)
-	checkRequest(t, ctrlMsg.Setup, &r.SetupReq, ts)
-	require.Equal(t, xtest.MustParseAS("ff00:cafe:1"), r.BaseID.ASID)
-	require.Equal(t, xtest.MustParseHexString("deadbeef"), r.BaseID.Suffix[:])
-}
-
-func TestTelesRequestToCtrlMsg(t *testing.T) {
-	ctrlMsg := newTelesSetup()
-	ts := util.SecsToTime(1)
-	r, _ := segment.NewTelesRequestFromCtrlMsg(ctrlMsg, ts, newPath())
-	anotherCtrlMsg := r.ToCtrlMsg()
-	require.Equal(t, ctrlMsg, anotherCtrlMsg)
-}
-
-func TestNewIndexConfirmationReqFromCtrlMsg(t *testing.T) {
-	ctrlMsg := newIndexConfirmation()
-	ts := util.SecsToTime(1)
-	r, err := segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, nil)
-	require.Error(t, err) // nil path
-	r, err = segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, newPath())
-	require.NoError(t, err)
-	require.Equal(t, reservation.IndexNumber(ctrlMsg.Base.Index), r.Index)
-	require.Equal(t, segment.IndexActive, r.State)
-}
-
-func TestIndexConfirmationReqToCtrlMsg(t *testing.T) {
-	ctrlMsg := newIndexConfirmation()
-	ts := util.SecsToTime(1)
-	r, _ := segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, newPath())
-	r.State = segment.IndexTemporary
-	_, err := r.ToCtrlMsg()
-	require.Error(t, err)
-	r, _ = segment.NewIndexConfirmationReqFromCtrlMsg(ctrlMsg, ts, newPath())
-	anotherCtrlMsg, err := r.ToCtrlMsg()
-	require.NoError(t, err)
-	require.Equal(t, *ctrlMsg, *anotherCtrlMsg)
-}
-
-func TestNewCleanupReqFromCtrlMsg(t *testing.T) {
-	ctrlMsg := newCleanup()
-	ts := util.SecsToTime(1)
-	r, err := segment.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, nil)
-	require.Error(t, err) // no path
-	ctrlMsg = newCleanup()
-	r, err = segment.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, newPath())
-	require.NoError(t, err)
-	require.Equal(t, reservation.IndexNumber(ctrlMsg.Base.Index), r.Index)
-	checkIDs(t, ctrlMsg.Base.ID, &r.ID)
-}
-
-func TestCleanupReqToCtrlMsg(t *testing.T) {
-	ctrlMsg := newCleanup()
-	ts := util.SecsToTime(1)
-	r, _ := segment.NewCleanupReqFromCtrlMsg(ctrlMsg, ts, newPath())
-	anotherCtrlMsg := r.ToCtrlMsg()
-	require.Equal(t, ctrlMsg, anotherCtrlMsg)
+func newE2EID() *colibri_mgmt.E2EReservationID {
+	return &colibri_mgmt.E2EReservationID{
+		ASID:   xtest.MustParseHexString("ff00cafe0001"),
+		Suffix: xtest.MustParseHexString("0123456789abcdef0123"),
+	}
 }
 
 func newBase(idx uint8) *colibri_mgmt.SegmentBase {
@@ -186,13 +111,6 @@ func newPath() *spath.Path {
 	hf.Write(path.Raw[spath.InfoFieldLength+spath.HopFieldLength*2:])
 
 	return path
-}
-
-func newID() *colibri_mgmt.SegmentReservationID {
-	return &colibri_mgmt.SegmentReservationID{
-		ASID:   xtest.MustParseHexString("ff00cafe0001"),
-		Suffix: xtest.MustParseHexString("deadbeef"),
-	}
 }
 
 func checkRequest(t *testing.T, segSetup *colibri_mgmt.SegmentSetup, r *segment.SetupReq,

@@ -25,6 +25,45 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+// Request is the base struct for any type of COLIBRI e2e request.
+type Request struct {
+	base.RequestMetadata                         // information about the request (forwarding path)
+	ID                   reservation.E2EID       // the ID this request refers to
+	Index                reservation.IndexNumber // the index this request refers to
+	Timestamp            time.Time               // the mandatory timestamp
+}
+
+// NewRequest constructs the e2e Request type.
+func NewRequest(ts time.Time, id *reservation.E2EID, idx uint8,
+	path *spath.Path) (*Request, error) {
+
+	metadata, err := base.NewRequestMetadata(path)
+	if err != nil {
+		return nil, serrors.WrapStr("new segment request", err)
+	}
+
+	if id == nil {
+		return nil, serrors.New("new e2e request with nil ID")
+	}
+
+	return &Request{
+		RequestMetadata: *metadata,
+		ID:              *id,
+		Index:           reservation.IndexNumber(idx),
+		Timestamp:       ts,
+	}, nil
+}
+
+// TODO(juagargi) it looks like we must change the capnp definition for e2e request.
+// SetupReqTODO will be the type that is left, and everything else will go.
+// There will be also response types.
+
+// SetupReqTODO is an e2e setup/renewal request, that has been so far accepted.
+type SetupReqTODO struct {
+	Request
+	Token reservation.Token
+}
+
 // SetupReq is the interface for an e2e setup request.
 // Currently it's implemented by either SuccessSetupReq or FailureSetupReq.
 type SetupReq interface {
