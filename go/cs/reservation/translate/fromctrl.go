@@ -95,7 +95,6 @@ func newRequestFromCtrl(ctrl *colibri_mgmt.Request, ts time.Time, path *spath.Pa
 	if ctrl == nil {
 		return nil, serrors.New("nil ctrl message", "type", "Request")
 	}
-
 	switch ctrl.Which {
 	case proto.Request_Which_segmentSetup:
 		return newRequestSegmentSetup(ctrl.SegmentSetup, ts, path)
@@ -128,11 +127,9 @@ func newResponseFromCtrl(ctrl *colibri_mgmt.Response, ts time.Time, path *spath.
 	if ctrl == nil {
 		return nil, serrors.New("nil ctrl message", "type", "Request")
 	}
-
 	switch ctrl.Which {
 	case proto.Response_Which_segmentSetup:
 		return newResponseSegmentSetup(ctrl, ts, path)
-
 	default:
 		return nil, serrors.New("invalid ctrl message", "ctrl", ctrl.Which.String())
 	}
@@ -148,7 +145,7 @@ func newRequestSegmentSetup(ctrl *colibri_mgmt.SegmentSetup, ts time.Time,
 	if err != nil {
 		return nil, serrors.WrapStr("cannot convert id", err)
 	}
-	r, err := segment.NewRequest(ts, id, ctrl.Base.Index, path)
+	r, err := segment.NewRequest(ts, id, reservation.IndexNumber(ctrl.Base.Index), path)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct segment setup request", err)
 	}
@@ -208,7 +205,7 @@ func newRequestSegmentTeardown(ctrl *colibri_mgmt.SegmentTeardownReq, ts time.Ti
 	if err != nil {
 		return nil, serrors.WrapStr("cannot convert id", err)
 	}
-	r, err := segment.NewRequest(ts, id, ctrl.Base.Index, path)
+	r, err := segment.NewRequest(ts, id, reservation.IndexNumber(ctrl.Base.Index), path)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct segment teardown request", err)
 	}
@@ -224,7 +221,7 @@ func newRequestSegmentIndexConfirmation(ctrl *colibri_mgmt.SegmentIndexConfirmat
 	if err != nil {
 		return nil, serrors.WrapStr("cannot convert id", err)
 	}
-	r, err := segment.NewRequest(ts, id, ctrl.Base.Index, path)
+	r, err := segment.NewRequest(ts, id, reservation.IndexNumber(ctrl.Base.Index), path)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct segment idx confirmation request", err)
 	}
@@ -245,7 +242,7 @@ func newRequestSegmentCleanup(ctrl *colibri_mgmt.SegmentCleanup, ts time.Time,
 	if err != nil {
 		return nil, serrors.WrapStr("cannot convert id", err)
 	}
-	r, err := segment.NewRequest(ts, id, ctrl.Base.Index, path)
+	r, err := segment.NewRequest(ts, id, reservation.IndexNumber(ctrl.Base.Index), path)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct segment cleanup request", err)
 	}
@@ -261,7 +258,7 @@ func newRequestE2ESetup(ctrl *colibri_mgmt.E2ESetup, ts time.Time,
 	if err != nil {
 		return nil, serrors.WrapStr("cannot convert id", err)
 	}
-	r, err := e2e.NewRequest(ts, id, ctrl.Base.Index, path)
+	r, err := e2e.NewRequest(ts, id, reservation.IndexNumber(ctrl.Base.Index), path)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct e2e setup request", err)
 	}
@@ -282,7 +279,7 @@ func newRequestE2ECleanup(ctrl *colibri_mgmt.E2ECleanup, ts time.Time,
 	if err != nil {
 		return nil, serrors.WrapStr("cannot convert id", err)
 	}
-	r, err := e2e.NewRequest(ts, id, ctrl.Base.Index, path)
+	r, err := e2e.NewRequest(ts, id, reservation.IndexNumber(ctrl.Base.Index), path)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct e2e cleanup request", err)
 	}
