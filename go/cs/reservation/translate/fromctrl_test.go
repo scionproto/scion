@@ -133,15 +133,16 @@ func TestNewRequestE2ECleanup(t *testing.T) {
 
 func TestNewResponseSegmentSetup(t *testing.T) {
 	cases := map[string]struct {
-		Ctrl    *colibri_mgmt.Response
+		// Ctrl    *colibri_mgmt.Response
+		Ctrl    *colibri_mgmt.SegmentSetupRes
 		Success bool
 	}{
 		"success": {
-			Ctrl:    newSegmentSuccessResponse(),
+			Ctrl:    newSegmentSuccessResponse().SegmentSetup,
 			Success: true,
 		},
 		"failure": {
-			Ctrl:    newSegmentFailureResponse(),
+			Ctrl:    newSegmentFailureResponse().SegmentSetup,
 			Success: false,
 		},
 	}
@@ -151,23 +152,29 @@ func TestNewResponseSegmentSetup(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ts := util.SecsToTime(1)
-			r, err := newResponseSegmentSetup(tc.Ctrl, ts, nil)
+			r, err := newResponseSegmentSetup(tc.Ctrl, 3, ts, nil)
 			require.Error(t, err)
-			r, err = newResponseSegmentSetup(tc.Ctrl, ts, newPath())
+			r, err = newResponseSegmentSetup(tc.Ctrl, 3, ts, newPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Success {
 				require.IsType(t, &segment.ResponseSetupSuccess{}, r)
 				rs := r.(*segment.ResponseSetupSuccess)
-				checkIDs(t, tc.Ctrl.SegmentSetup.Base.ID, &rs.ID)
-				require.Equal(t, tc.Ctrl.SegmentSetup.Base.Index, uint8(rs.Index))
-				require.Equal(t, tc.Ctrl.SegmentSetup.Token, rs.Token.ToRaw())
+				// checkIDs(t, tc.Ctrl.SegmentSetup.Base.ID, &rs.ID)
+				// require.Equal(t, tc.Ctrl.SegmentSetup.Base.Index, uint8(rs.Index))
+				// require.Equal(t, tc.Ctrl.SegmentSetup.Token, rs.Token.ToRaw())
+				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+				require.Equal(t, tc.Ctrl.Token, rs.Token.ToRaw())
 			} else {
 				require.IsType(t, &segment.ResponseSetupFailure{}, r)
 				rs := r.(*segment.ResponseSetupFailure)
-				checkIDs(t, tc.Ctrl.SegmentSetup.Base.ID, &rs.ID)
-				require.Equal(t, tc.Ctrl.SegmentSetup.Base.Index, uint8(rs.Index))
-				checkRequest(t, tc.Ctrl.SegmentSetup.Failure, &rs.FailedSetup, ts)
+				// checkIDs(t, tc.Ctrl.SegmentSetup.Base.ID, &rs.ID)
+				// require.Equal(t, tc.Ctrl.SegmentSetup.Base.Index, uint8(rs.Index))
+				// checkRequest(t, tc.Ctrl.SegmentSetup.Failure, &rs.FailedSetup, ts)
+				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+				checkRequest(t, tc.Ctrl.Failure, &rs.FailedSetup, ts)
 			}
 		})
 	}
