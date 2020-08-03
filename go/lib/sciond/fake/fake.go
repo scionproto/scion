@@ -71,19 +71,15 @@ type Entry struct {
 }
 
 type Path struct {
-	JSONFingerprint string   `json:"fingerprint"`
-	JSONNextHop     *UDPAddr `json:"next_hop,omitempty"`
-	JSONIA          addr.IA  `json:"ia"`
+	// JSONInterfaces encodes a list of interfaces
+	JSONInterfaces []PathInterface `json:"interfaces,omitempty"`
+	JSONNextHop    *UDPAddr        `json:"next_hop,omitempty"`
 	// JSONExpirationTimestamp contains the point in time when the path expires, in seconds,
 	// relative to the time of fake connector creation. Negative timestamps are also supported, and
 	// would mean SCIOND served a path that expired in the past.
 	JSONExpirationTimestamp int `json:"expiration_timestamp"`
 
 	metadata pathMetadata
-}
-
-func (p Path) Fingerprint() snet.PathFingerprint {
-	return snet.PathFingerprint(p.JSONFingerprint)
 }
 
 func (p Path) UnderlayNextHop() *net.UDPAddr {
@@ -103,11 +99,15 @@ func DummyPath() *spath.Path {
 }
 
 func (p Path) Interfaces() []snet.PathInterface {
-	return []snet.PathInterface{}
+	ifaces := make([]snet.PathInterface, len(p.JSONInterfaces))
+	for i := range p.JSONInterfaces {
+		ifaces[i] = p.JSONInterfaces[i]
+	}
+	return ifaces
 }
 
 func (p Path) Destination() addr.IA {
-	return p.JSONIA
+	return p.JSONInterfaces[len(p.JSONInterfaces)-1].JSONIA
 }
 
 func (p Path) Metadata() snet.PathMetadata {
@@ -116,21 +116,33 @@ func (p Path) Metadata() snet.PathMetadata {
 
 func (p Path) Copy() snet.Path {
 	return &Path{
-		JSONFingerprint: p.JSONFingerprint,
+		JSONInterfaces: p.JSONInterfaces,
 		JSONNextHop: &UDPAddr{
 			IP:   append(p.JSONNextHop.IP[:0:0], p.JSONNextHop.IP...),
 			Port: p.JSONNextHop.Port,
 			Zone: p.JSONNextHop.Zone,
 		},
-		JSONIA:                  p.JSONIA,
 		JSONExpirationTimestamp: p.JSONExpirationTimestamp,
 		metadata:                p.metadata,
 	}
 }
 
 func (p Path) String() string {
-	return fmt.Sprintf("FakePath(IA: %v, NextHop: %v, Fingerprint: %v)",
-		p.JSONIA, p.JSONNextHop, p.JSONFingerprint)
+	return fmt.Sprintf("FakePath(Dest: %v, NextHop: %v, Fingerprint: %v)",
+		p.Destination(), p.JSONNextHop, snet.Fingerprint(p))
+}
+
+type PathInterface struct {
+	JSONIA addr.IA         `json:"ia"`
+	JSONID common.IFIDType `json:"id"`
+}
+
+func (i PathInterface) ID() common.IFIDType {
+	return i.JSONID
+}
+
+func (i PathInterface) IA() addr.IA {
+	return i.JSONIA
 }
 
 type pathMetadata struct {

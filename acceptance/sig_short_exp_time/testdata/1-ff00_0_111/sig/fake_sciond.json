@@ -4,9 +4,17 @@
             "seconds": 0,
             "paths": [
                 {
-                    "fingerprint": "PathAAAAExpiresSoon",
+                    "interfaces": [
+                      {
+                        "ia": "1-ff00:0:111",
+                        "id": 1
+                      },
+                      {
+                        "ia": "1-ff00:0:110",
+                        "id": 1
+                      }
+                    ],
                     "next_hop": "242.254.200.3:50000",
-                    "ia": "1-ff00:0:110",
                     "expiry_seconds": 10
                 }
             ]
@@ -15,15 +23,31 @@
             "reply_start_timestamp": 5,
             "paths": [
                 {
-                    "fingerprint": "PathAAAAExpiresSoon",
+                    "interfaces": [
+                      {
+                        "ia": "1-ff00:0:111",
+                        "id": 1
+                      },
+                      {
+                        "ia": "1-ff00:0:110",
+                        "id": 1
+                      }
+                    ],
                     "next_hop": "242.254.200.3:50000",
-                    "ia": "1-ff00:0:110",
                     "expiration_timestamp": 10
                 },
                 {
-                    "fingerprint": "PathBBBBExpiresLate",
+                    "interfaces": [
+                      {
+                        "ia": "1-ff00:0:111",
+                        "id": 2
+                      },
+                      {
+                        "ia": "1-ff00:0:110",
+                        "id": 2
+                      }
+                    ],
                     "next_hop": "242.254.200.4:50000",
-                    "ia": "1-ff00:0:110",
                     "expiration_timestamp": 7200
                 }
             ]
