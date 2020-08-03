@@ -124,8 +124,18 @@ func newRequestFromCtrl(ctrl *colibri_mgmt.Request, ts time.Time, path *spath.Pa
 
 func newResponseFromCtrl(ctrl *colibri_mgmt.Response, ts time.Time, path *spath.Path) (
 	base.MessageWithPath, error) {
-	// TODO(juagargi)
-	return nil, nil
+
+	if ctrl == nil {
+		return nil, serrors.New("nil ctrl message", "type", "Request")
+	}
+
+	switch ctrl.Which {
+	case proto.Response_Which_segmentSetup:
+		return newResponseSegmentSetup(ctrl, ts, path)
+
+	default:
+		return nil, serrors.New("invalid ctrl message", "ctrl", ctrl.Which.String())
+	}
 }
 
 // newRequestSegmentSetup constructs a SetupReq from its control message counterpart.
@@ -200,7 +210,7 @@ func newRequestSegmentTeardown(ctrl *colibri_mgmt.SegmentTeardownReq, ts time.Ti
 	}
 	r, err := segment.NewRequest(ts, id, ctrl.Base.Index, path)
 	if err != nil {
-		return nil, serrors.WrapStr("cannot construct segment setup request", err)
+		return nil, serrors.WrapStr("cannot construct segment teardown request", err)
 	}
 	return &segment.TeardownReq{
 		Request: *r,
@@ -216,7 +226,7 @@ func newRequestSegmentIndexConfirmation(ctrl *colibri_mgmt.SegmentIndexConfirmat
 	}
 	r, err := segment.NewRequest(ts, id, ctrl.Base.Index, path)
 	if err != nil {
-		return nil, serrors.WrapStr("cannot construct segment setup request", err)
+		return nil, serrors.WrapStr("cannot construct segment idx confirmation request", err)
 	}
 	st, err := NewIndexStateFromCtrl(ctrl.State)
 	if err != nil {
@@ -237,7 +247,7 @@ func newRequestSegmentCleanup(ctrl *colibri_mgmt.SegmentCleanup, ts time.Time,
 	}
 	r, err := segment.NewRequest(ts, id, ctrl.Base.Index, path)
 	if err != nil {
-		return nil, serrors.WrapStr("cannot construct segment setup request", err)
+		return nil, serrors.WrapStr("cannot construct segment cleanup request", err)
 	}
 	return &segment.CleanupReq{
 		Request: *r,
@@ -274,9 +284,46 @@ func newRequestE2ECleanup(ctrl *colibri_mgmt.E2ECleanup, ts time.Time,
 	}
 	r, err := e2e.NewRequest(ts, id, ctrl.Base.Index, path)
 	if err != nil {
-		return nil, serrors.WrapStr("cannot construct e2e setup request", err)
+		return nil, serrors.WrapStr("cannot construct e2e cleanup request", err)
 	}
 	return &e2e.CleanupReq{
 		Request: *r,
 	}, nil
+}
+
+func newResponseSegmentSetup(ctrl *colibri_mgmt.Response, ts time.Time,
+	path *spath.Path) (base.MessageWithPath, error) {
+
+	id, err := NewSegmentIDFromCtrl(ctrl.SegmentSetup.Base.ID)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot convert id", err)
+	}
+	r, err := segment.NewResponse(ts, id,
+		reservation.IndexNumber(ctrl.SegmentSetup.Base.Index), path)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct segment setup response", err)
+	}
+	switch ctrl.SegmentSetup.Which {
+	case proto.SegmentSetupResData_Which_token:
+		tok, err := reservation.TokenFromRaw(ctrl.SegmentSetup.Token)
+		if err != nil {
+			return nil, serrors.WrapStr("cannot parse token", err)
+		}
+		return &segment.ResponseSetupSuccess{
+			Response: *r,
+			Token:    *tok,
+		}, nil
+	case proto.SegmentSetupResData_Which_failure:
+		failedSetup, err := newRequestSegmentSetup(ctrl.SegmentSetup.Failure, ts, path)
+		if err != nil {
+			return nil, serrors.WrapStr("cannot parse failed setup", err)
+		}
+		return &segment.ResponseSetupFailure{
+			Response:    *r,
+			FailedSetup: *failedSetup,
+			FailedHop:   ctrl.FailedHop,
+		}, nil
+	default:
+		return nil, serrors.New("invalid ctrl message", "ctrl", ctrl.SegmentSetup.Which.String())
+	}
 }

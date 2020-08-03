@@ -130,3 +130,17 @@ func TestNewRequestE2ECleanup(t *testing.T) {
 	checkE2EIDs(t, ctrlMsg.Base.ID, &r.ID)
 	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
 }
+
+func TestNewResponseSegmentSetup(t *testing.T) {
+	ctrlMsg := newSegmentSuccessResponse()
+	ts := util.SecsToTime(1)
+	r, err := newResponseSegmentSetup(ctrlMsg, ts, nil)
+	require.Error(t, err)
+	r, err = newResponseSegmentSetup(ctrlMsg, ts, newPath())
+	require.NoError(t, err)
+	require.NotNil(t, r)
+	require.IsType(t, &segment.ResponseSetupSuccess{}, r)
+	rs := r.(*segment.ResponseSetupSuccess)
+	checkIDs(t, ctrlMsg.SegmentSetup.Base.ID, &rs.ID)
+	require.Equal(t, ctrlMsg.SegmentSetup.Base.Index, uint8(rs.Index))
+}
