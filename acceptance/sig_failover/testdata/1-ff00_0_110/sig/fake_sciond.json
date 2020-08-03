@@ -4,15 +4,31 @@
             "reply_start_timestamp": 0,
             "paths": [
                 {
-                    "fingerprint": "PathAAAA",
+                    "interfaces": [
+                      {
+                        "ia": "1-ff00:0:110",
+                        "id": 1
+                      },
+                      {
+                        "ia": "1-ff00:0:111",
+                        "id": 1
+                      }
+                    ],
                     "next_hop": "242.254.100.3:50000",
-                    "ia": "1-ff00:0:111",
                     "expiration_timestamp": 7200
                 },
                 {
-                    "fingerprint": "PathBBBB",
+                    "interfaces": [
+                      {
+                        "ia": "1-ff00:0:110",
+                        "id": 2
+                      },
+                      {
+                        "ia": "1-ff00:0:111",
+                        "id": 2
+                      }
+                    ],
                     "next_hop": "242.254.100.4:50000",
-                    "ia": "1-ff00:0:111",
                     "expiration_timestamp": 7200
                 }
             ]
