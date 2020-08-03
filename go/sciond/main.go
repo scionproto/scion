@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"time"
@@ -40,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/sciond"
 	"github.com/scionproto/scion/go/pkg/sciond/config"
 	"github.com/scionproto/scion/go/pkg/sciond/fetcher"
+	"github.com/scionproto/scion/go/pkg/service"
 	"github.com/scionproto/scion/go/pkg/storage"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/compat"
@@ -155,7 +157,17 @@ func run(file string) error {
 		srv.Shutdown(ctx)
 	}()
 
-	sciond.StartHTTPEndpoints(cfg, cfg.Metrics)
+	// Start HTTP endpoints.
+	statusPages := service.StatusPages{
+		"info":     service.NewInfoHandler(),
+		"config":   service.NewConfigHandler(cfg),
+		"topology": itopo.TopologyHandler,
+	}
+	if err := statusPages.Register(http.DefaultServeMux, cfg.General.ID); err != nil {
+		return serrors.WrapStr("registering status pages", err)
+	}
+	cfg.Metrics.StartPrometheus()
+
 	select {
 	case <-fatal.ShutdownChan():
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.

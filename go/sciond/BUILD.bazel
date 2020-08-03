@@ -30,6 +30,7 @@ go_library(
         "//go/pkg/sciond:go_default_library",
         "//go/pkg/sciond/config:go_default_library",
         "//go/pkg/sciond/fetcher:go_default_library",
+        "//go/pkg/service:go_default_library",
         "//go/pkg/storage:go_default_library",
         "//go/pkg/trust:go_default_library",
         "//go/pkg/trust/compat:go_default_library",

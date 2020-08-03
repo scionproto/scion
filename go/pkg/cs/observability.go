@@ -15,22 +15,22 @@
 package cs
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
-	"github.com/opentracing/opentracing-go"
-	"github.com/pelletier/go-toml"
+	opentracing "github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/serrors"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
+	"github.com/scionproto/scion/go/pkg/service"
 )
 
 // InitTracer initializes the global tracer.
@@ -45,22 +45,23 @@ func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
 
 // StartHTTPEndpoints starts the HTTP endpoints that expose the metrics and
 // additional information.
-func StartHTTPEndpoints(cfg interface{}, signer cstrust.RenewingSigner, ca cstrust.ChainBuilder,
-	metrics env.Metrics) {
+func StartHTTPEndpoints(elemId string, cfg interface{}, signer cstrust.RenewingSigner,
+	ca cstrust.ChainBuilder, metrics env.Metrics) error {
 
-	http.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
-		var buf bytes.Buffer
-		toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(cfg)
-		fmt.Fprint(w, buf.String())
-	})
-	http.HandleFunc("/info", env.InfoHandler)
-	http.HandleFunc("/topology", itopo.TopologyHandler)
-	http.HandleFunc("/signer", signerHandler(signer))
+	statusPages := service.StatusPages{
+		"info":     service.NewInfoHandler(),
+		"config":   service.NewConfigHandler(cfg),
+		"topology": itopo.TopologyHandler,
+		"signer":   signerHandler(signer),
+	}
 	if ca != (cstrust.ChainBuilder{}) {
-		http.HandleFunc("/ca", caHandler(ca))
+		statusPages["ca"] = caHandler(ca)
+	}
+	if err := statusPages.Register(http.DefaultServeMux, elemId); err != nil {
+		return serrors.WrapStr("registering status pages", err)
 	}
 	metrics.StartPrometheus()
+	return nil
 }
 
 func signerHandler(signer cstrust.RenewingSigner) http.HandlerFunc {

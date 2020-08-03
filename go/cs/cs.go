@@ -300,8 +300,10 @@ func run(file string) error {
 		tcpMsgr.ListenAndServe()
 	}()
 	defer tcpMsgr.CloseServer()
-	cs.StartHTTPEndpoints(cfg, signer, chainBuilder, cfg.Metrics)
-
+	err = cs.StartHTTPEndpoints(cfg.General.ID, cfg, signer, chainBuilder, cfg.Metrics)
+	if err != nil {
+		return serrors.WrapStr("registering status pages", err)
+	}
 	ohpConn, err := cs.NewOneHopConn(topo.IA(), nc.Public, "", cfg.General.ReconnectToDispatcher,
 		cfg.Features.HeaderV2)
 	if err != nil {

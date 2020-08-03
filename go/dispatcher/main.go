@@ -16,15 +16,12 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/user"
-
-	"github.com/pelletier/go-toml"
 
 	"github.com/scionproto/scion/go/dispatcher/config"
 	"github.com/scionproto/scion/go/dispatcher/network"
@@ -36,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/service"
 )
 
 var (
@@ -90,8 +88,14 @@ func realMain() int {
 	}()
 
 	env.SetupEnv(nil)
-	http.HandleFunc("/config", configHandler)
-	http.HandleFunc("/info", env.InfoHandler)
+	statusPages := service.StatusPages{
+		"info":   service.NewInfoHandler(),
+		"config": service.NewConfigHandler(cfg),
+	}
+	if err := statusPages.Register(http.DefaultServeMux, cfg.Dispatcher.ID); err != nil {
+		log.Error("registering status pages", "err", err)
+		return 1
+	}
 	cfg.Metrics.StartPrometheus()
 
 	returnCode := waitForTeardown()
@@ -172,11 +176,4 @@ func checkPerms() error {
 		return serrors.New("Running as root is not allowed for security reasons")
 	}
 	return nil
-}
-
-func configHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	var buf bytes.Buffer
-	toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(cfg)
-	fmt.Fprint(w, buf.String())
 }
