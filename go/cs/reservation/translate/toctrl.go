@@ -15,7 +15,10 @@
 package translate
 
 import (
+	"fmt"
+
 	base "github.com/scionproto/scion/go/cs/reservation"
+	"github.com/scionproto/scion/go/cs/reservation/e2e"
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
@@ -49,12 +52,20 @@ func NewCtrlFromMsg(msg base.MessageWithPath, renewal bool) (
 		err = setSegmentIndexConfirmation(r, ctrl)
 	case *segment.CleanupReq:
 		err = setSegmentCleanup(r, ctrl)
-	// case *e2e.SetupReqTODO:
-	// 	if !renewal{}
-	// case *e2e.CleanupReq:
+	case *e2e.SetupReq:
+		if !renewal {
+			err = setE2ESetup(r, ctrl)
+		} else {
+			err = setE2ERenewal(r, ctrl)
+		}
+	case *e2e.CleanupReq:
+		err = setE2ECleanup(r, ctrl)
+
 	// responses (that move backwards in the reservation path):
 	case *segment.ResponseSetupSuccess:
 		err = nil
+	default:
+		err = serrors.New("unknown application type", "type", fmt.Sprintf("%T", msg))
 	}
 	return ctrl, err
 }
@@ -78,6 +89,13 @@ func NewCtrlE2EReservationID(ID *reservation.E2EID) *colibri_mgmt.E2EReservation
 func newSegmentBase(msg *segment.Request) *colibri_mgmt.SegmentBase {
 	return &colibri_mgmt.SegmentBase{
 		ID:    NewCtrlSegmentReservationID(&msg.ID),
+		Index: uint8(msg.Index),
+	}
+}
+
+func newE2EBase(msg *e2e.Request) *colibri_mgmt.E2EBase {
+	return &colibri_mgmt.E2EBase{
+		ID:    NewCtrlE2EReservationID(&msg.ID),
 		Index: uint8(msg.Index),
 	}
 }
@@ -191,5 +209,34 @@ func setSegmentCleanup(msg *segment.CleanupReq, ctrl *colibri_mgmt.ColibriReques
 		Base: newSegmentBase(&msg.Request),
 	}
 	ctrl.Request.Which = proto.Request_Which_segmentCleanup
+	return nil
+}
+
+func setE2ESetup(msg *e2e.SetupReq, ctrl *colibri_mgmt.ColibriRequestPayload) error {
+	thisIsARequest(ctrl)
+	ctrl.Request.E2ESetup = &colibri_mgmt.E2ESetup{
+		Base:  newE2EBase(&msg.Request),
+		Token: msg.Token.ToRaw(),
+	}
+	ctrl.Request.Which = proto.Request_Which_e2eSetup
+	return nil
+}
+
+func setE2ERenewal(msg *e2e.SetupReq, ctrl *colibri_mgmt.ColibriRequestPayload) error {
+	thisIsARequest(ctrl)
+	ctrl.Request.E2ERenewal = &colibri_mgmt.E2ESetup{
+		Base:  newE2EBase(&msg.Request),
+		Token: msg.Token.ToRaw(),
+	}
+	ctrl.Request.Which = proto.Request_Which_e2eRenewal
+	return nil
+}
+
+func setE2ECleanup(msg *e2e.CleanupReq, ctrl *colibri_mgmt.ColibriRequestPayload) error {
+	thisIsARequest(ctrl)
+	ctrl.Request.E2ECleanup = &colibri_mgmt.E2ECleanup{
+		Base: newE2EBase(&msg.Request),
+	}
+	ctrl.Request.Which = proto.Request_Which_e2eCleanup
 	return nil
 }

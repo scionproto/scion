@@ -25,6 +25,7 @@ import (
 )
 
 // Request is the base struct for any type of COLIBRI segment request.
+// It contains a reference to the reservation it requests, or nil if not yet created.
 type Request struct {
 	base.RequestMetadata                         // information about the request (forwarding path)
 	ID                   reservation.SegmentID   // the ID this request refers to
@@ -69,8 +70,7 @@ func NewRequest(ts time.Time, id *reservation.SegmentID, idx uint8, path *spath.
 	}, nil
 }
 
-// SetupReq is a segment reservation setup request. It contains a reference to the reservation
-// it requests, or nil if not yet created.
+// SetupReq is a segment reservation setup request.
 // This same type is used for renewal of the segment reservation.
 type SetupReq struct {
 	Request
