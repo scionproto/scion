@@ -92,8 +92,16 @@ struct SegmentCleanupData {
     base @0 :SegmentBase;
 }
 
+# TODO(juagargi) the e2e setup request travels forward only if successful, change the type down here:
+
 # Setup an E2E reservation. Sent in a hop by hop colibri extension through a stitched segment reservation.
-struct E2ESetupData {
+struct E2ESetupReqData {
+    base @0 :E2EBase;
+    token @1 :Data;
+}
+
+# Response to an E2E setup. Sent in a hop by hop colibry extension, in the reverse path.
+struct E2ESetupResData {
     base @0 :E2EBase;
     union {
         unset @1 :Void;
@@ -113,7 +121,7 @@ struct E2ECleanupData {
     base @0 :E2EBase;
 }
 
-# All possible requests between ASes.
+# All possible requests between ASes. A requests travels to the next AS.
 struct Request {
     union {
         unset @0 :Void;
@@ -124,12 +132,13 @@ struct Request {
         segmentTeardown @5 :SegmentTeardownReqData;
         segmentIndexConfirmation @6 :SegmentIndexConfirmationData;
         segmentCleanup @7 :SegmentCleanupData;
-        e2eSetup @8 :E2ESetupData;
-        e2eRenewal @9 :E2ESetupData;
+        e2eSetup @8 :E2ESetupReqData;
+        e2eRenewal @9 :E2ESetupReqData;
         e2eCleanup @10 :E2ECleanupData;
     }
 }
 # A Response can be negative (not accepted). In that case, failedHop indicates which hop along the path failed it.
+# Responses travel in the reverse direction as requests, whether successful or not.
 struct Response {
     union {
         unset @0 :Void;
@@ -140,8 +149,8 @@ struct Response {
         segmentTeardown @5 :SegmentTeardownResData;
         segmentIndexConfirmation @6 :SegmentIndexConfirmationData;
         segmentCleanup @7 :SegmentCleanupData;
-        e2eSetup @8 :E2ESetupData;
-        e2eRenewal @9 :E2ESetupData; # same response type as a setup
+        e2eSetup @8 :E2ESetupResData;
+        e2eRenewal @9 :E2ESetupResData;
         e2eCleanup @10 :E2ECleanupData;
     }
     accepted @11 :Bool;

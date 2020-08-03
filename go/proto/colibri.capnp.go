@@ -1379,74 +1379,48 @@ func (p SegmentCleanupData_Promise) Base() SegmentBase_Promise {
 	return SegmentBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-type E2ESetupData struct{ capnp.Struct }
-type E2ESetupData_success E2ESetupData
-type E2ESetupData_failure E2ESetupData
-type E2ESetupData_Which uint16
+type E2ESetupReqData struct{ capnp.Struct }
 
-const (
-	E2ESetupData_Which_unset   E2ESetupData_Which = 0
-	E2ESetupData_Which_success E2ESetupData_Which = 1
-	E2ESetupData_Which_failure E2ESetupData_Which = 2
-)
+// E2ESetupReqData_TypeID is the unique identifier for the type E2ESetupReqData.
+const E2ESetupReqData_TypeID = 0xfb1a873660b7e310
 
-func (w E2ESetupData_Which) String() string {
-	const s = "unsetsuccessfailure"
-	switch w {
-	case E2ESetupData_Which_unset:
-		return s[0:5]
-	case E2ESetupData_Which_success:
-		return s[5:12]
-	case E2ESetupData_Which_failure:
-		return s[12:19]
-
-	}
-	return "E2ESetupData_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+func NewE2ESetupReqData(s *capnp.Segment) (E2ESetupReqData, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return E2ESetupReqData{st}, err
 }
 
-// E2ESetupData_TypeID is the unique identifier for the type E2ESetupData.
-const E2ESetupData_TypeID = 0xeb535c83335d74cf
-
-func NewE2ESetupData(s *capnp.Segment) (E2ESetupData, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
-	return E2ESetupData{st}, err
+func NewRootE2ESetupReqData(s *capnp.Segment) (E2ESetupReqData, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
+	return E2ESetupReqData{st}, err
 }
 
-func NewRootE2ESetupData(s *capnp.Segment) (E2ESetupData, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
-	return E2ESetupData{st}, err
-}
-
-func ReadRootE2ESetupData(msg *capnp.Message) (E2ESetupData, error) {
+func ReadRootE2ESetupReqData(msg *capnp.Message) (E2ESetupReqData, error) {
 	root, err := msg.RootPtr()
-	return E2ESetupData{root.Struct()}, err
+	return E2ESetupReqData{root.Struct()}, err
 }
 
-func (s E2ESetupData) String() string {
-	str, _ := text.Marshal(0xeb535c83335d74cf, s.Struct)
+func (s E2ESetupReqData) String() string {
+	str, _ := text.Marshal(0xfb1a873660b7e310, s.Struct)
 	return str
 }
 
-func (s E2ESetupData) Which() E2ESetupData_Which {
-	return E2ESetupData_Which(s.Struct.Uint16(0))
-}
-func (s E2ESetupData) Base() (E2EBase, error) {
+func (s E2ESetupReqData) Base() (E2EBase, error) {
 	p, err := s.Struct.Ptr(0)
 	return E2EBase{Struct: p.Struct()}, err
 }
 
-func (s E2ESetupData) HasBase() bool {
+func (s E2ESetupReqData) HasBase() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s E2ESetupData) SetBase(v E2EBase) error {
+func (s E2ESetupReqData) SetBase(v E2EBase) error {
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewBase sets the base field to a newly
 // allocated E2EBase struct, preferring placement in s's segment.
-func (s E2ESetupData) NewBase() (E2EBase, error) {
+func (s E2ESetupReqData) NewBase() (E2EBase, error) {
 	ss, err := NewE2EBase(s.Struct.Segment())
 	if err != nil {
 		return E2EBase{}, err
@@ -1455,76 +1429,198 @@ func (s E2ESetupData) NewBase() (E2EBase, error) {
 	return ss, err
 }
 
-func (s E2ESetupData) SetUnset() {
+func (s E2ESetupReqData) Token() ([]byte, error) {
+	p, err := s.Struct.Ptr(1)
+	return []byte(p.Data()), err
+}
+
+func (s E2ESetupReqData) HasToken() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s E2ESetupReqData) SetToken(v []byte) error {
+	return s.Struct.SetData(1, v)
+}
+
+// E2ESetupReqData_List is a list of E2ESetupReqData.
+type E2ESetupReqData_List struct{ capnp.List }
+
+// NewE2ESetupReqData creates a new list of E2ESetupReqData.
+func NewE2ESetupReqData_List(s *capnp.Segment, sz int32) (E2ESetupReqData_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
+	return E2ESetupReqData_List{l}, err
+}
+
+func (s E2ESetupReqData_List) At(i int) E2ESetupReqData { return E2ESetupReqData{s.List.Struct(i)} }
+
+func (s E2ESetupReqData_List) Set(i int, v E2ESetupReqData) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s E2ESetupReqData_List) String() string {
+	str, _ := text.MarshalList(0xfb1a873660b7e310, s.List)
+	return str
+}
+
+// E2ESetupReqData_Promise is a wrapper for a E2ESetupReqData promised by a client call.
+type E2ESetupReqData_Promise struct{ *capnp.Pipeline }
+
+func (p E2ESetupReqData_Promise) Struct() (E2ESetupReqData, error) {
+	s, err := p.Pipeline.Struct()
+	return E2ESetupReqData{s}, err
+}
+
+func (p E2ESetupReqData_Promise) Base() E2EBase_Promise {
+	return E2EBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+type E2ESetupResData struct{ capnp.Struct }
+type E2ESetupResData_success E2ESetupResData
+type E2ESetupResData_failure E2ESetupResData
+type E2ESetupResData_Which uint16
+
+const (
+	E2ESetupResData_Which_unset   E2ESetupResData_Which = 0
+	E2ESetupResData_Which_success E2ESetupResData_Which = 1
+	E2ESetupResData_Which_failure E2ESetupResData_Which = 2
+)
+
+func (w E2ESetupResData_Which) String() string {
+	const s = "unsetsuccessfailure"
+	switch w {
+	case E2ESetupResData_Which_unset:
+		return s[0:5]
+	case E2ESetupResData_Which_success:
+		return s[5:12]
+	case E2ESetupResData_Which_failure:
+		return s[12:19]
+
+	}
+	return "E2ESetupResData_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
+
+// E2ESetupResData_TypeID is the unique identifier for the type E2ESetupResData.
+const E2ESetupResData_TypeID = 0xb65a7701e86386b2
+
+func NewE2ESetupResData(s *capnp.Segment) (E2ESetupResData, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
+	return E2ESetupResData{st}, err
+}
+
+func NewRootE2ESetupResData(s *capnp.Segment) (E2ESetupResData, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
+	return E2ESetupResData{st}, err
+}
+
+func ReadRootE2ESetupResData(msg *capnp.Message) (E2ESetupResData, error) {
+	root, err := msg.RootPtr()
+	return E2ESetupResData{root.Struct()}, err
+}
+
+func (s E2ESetupResData) String() string {
+	str, _ := text.Marshal(0xb65a7701e86386b2, s.Struct)
+	return str
+}
+
+func (s E2ESetupResData) Which() E2ESetupResData_Which {
+	return E2ESetupResData_Which(s.Struct.Uint16(0))
+}
+func (s E2ESetupResData) Base() (E2EBase, error) {
+	p, err := s.Struct.Ptr(0)
+	return E2EBase{Struct: p.Struct()}, err
+}
+
+func (s E2ESetupResData) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s E2ESetupResData) SetBase(v E2EBase) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewBase sets the base field to a newly
+// allocated E2EBase struct, preferring placement in s's segment.
+func (s E2ESetupResData) NewBase() (E2EBase, error) {
+	ss, err := NewE2EBase(s.Struct.Segment())
+	if err != nil {
+		return E2EBase{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s E2ESetupResData) SetUnset() {
 	s.Struct.SetUint16(0, 0)
 
 }
 
-func (s E2ESetupData) Success() E2ESetupData_success { return E2ESetupData_success(s) }
+func (s E2ESetupResData) Success() E2ESetupResData_success { return E2ESetupResData_success(s) }
 
-func (s E2ESetupData) SetSuccess() {
+func (s E2ESetupResData) SetSuccess() {
 	s.Struct.SetUint16(0, 1)
 }
 
-func (s E2ESetupData_success) Token() ([]byte, error) {
+func (s E2ESetupResData_success) Token() ([]byte, error) {
 	p, err := s.Struct.Ptr(1)
 	return []byte(p.Data()), err
 }
 
-func (s E2ESetupData_success) HasToken() bool {
+func (s E2ESetupResData_success) HasToken() bool {
 	p, err := s.Struct.Ptr(1)
 	return p.IsValid() || err != nil
 }
 
-func (s E2ESetupData_success) SetToken(v []byte) error {
+func (s E2ESetupResData_success) SetToken(v []byte) error {
 	return s.Struct.SetData(1, v)
 }
 
-func (s E2ESetupData) Failure() E2ESetupData_failure { return E2ESetupData_failure(s) }
+func (s E2ESetupResData) Failure() E2ESetupResData_failure { return E2ESetupResData_failure(s) }
 
-func (s E2ESetupData) SetFailure() {
+func (s E2ESetupResData) SetFailure() {
 	s.Struct.SetUint16(0, 2)
 }
 
-func (s E2ESetupData_failure) ErrorCode() uint8 {
+func (s E2ESetupResData_failure) ErrorCode() uint8 {
 	return s.Struct.Uint8(2)
 }
 
-func (s E2ESetupData_failure) SetErrorCode(v uint8) {
+func (s E2ESetupResData_failure) SetErrorCode(v uint8) {
 	s.Struct.SetUint8(2, v)
 }
 
-func (s E2ESetupData_failure) InfoField() ([]byte, error) {
+func (s E2ESetupResData_failure) InfoField() ([]byte, error) {
 	p, err := s.Struct.Ptr(1)
 	return []byte(p.Data()), err
 }
 
-func (s E2ESetupData_failure) HasInfoField() bool {
+func (s E2ESetupResData_failure) HasInfoField() bool {
 	p, err := s.Struct.Ptr(1)
 	return p.IsValid() || err != nil
 }
 
-func (s E2ESetupData_failure) SetInfoField(v []byte) error {
+func (s E2ESetupResData_failure) SetInfoField(v []byte) error {
 	return s.Struct.SetData(1, v)
 }
 
-func (s E2ESetupData_failure) MaxBWs() (capnp.UInt8List, error) {
+func (s E2ESetupResData_failure) MaxBWs() (capnp.UInt8List, error) {
 	p, err := s.Struct.Ptr(2)
 	return capnp.UInt8List{List: p.List()}, err
 }
 
-func (s E2ESetupData_failure) HasMaxBWs() bool {
+func (s E2ESetupResData_failure) HasMaxBWs() bool {
 	p, err := s.Struct.Ptr(2)
 	return p.IsValid() || err != nil
 }
 
-func (s E2ESetupData_failure) SetMaxBWs(v capnp.UInt8List) error {
+func (s E2ESetupResData_failure) SetMaxBWs(v capnp.UInt8List) error {
 	return s.Struct.SetPtr(2, v.List.ToPtr())
 }
 
 // NewMaxBWs sets the maxBWs field to a newly
 // allocated capnp.UInt8List, preferring placement in s's segment.
-func (s E2ESetupData_failure) NewMaxBWs(n int32) (capnp.UInt8List, error) {
+func (s E2ESetupResData_failure) NewMaxBWs(n int32) (capnp.UInt8List, error) {
 	l, err := capnp.NewUInt8List(s.Struct.Segment(), n)
 	if err != nil {
 		return capnp.UInt8List{}, err
@@ -1533,58 +1629,60 @@ func (s E2ESetupData_failure) NewMaxBWs(n int32) (capnp.UInt8List, error) {
 	return l, err
 }
 
-// E2ESetupData_List is a list of E2ESetupData.
-type E2ESetupData_List struct{ capnp.List }
+// E2ESetupResData_List is a list of E2ESetupResData.
+type E2ESetupResData_List struct{ capnp.List }
 
-// NewE2ESetupData creates a new list of E2ESetupData.
-func NewE2ESetupData_List(s *capnp.Segment, sz int32) (E2ESetupData_List, error) {
+// NewE2ESetupResData creates a new list of E2ESetupResData.
+func NewE2ESetupResData_List(s *capnp.Segment, sz int32) (E2ESetupResData_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3}, sz)
-	return E2ESetupData_List{l}, err
+	return E2ESetupResData_List{l}, err
 }
 
-func (s E2ESetupData_List) At(i int) E2ESetupData { return E2ESetupData{s.List.Struct(i)} }
+func (s E2ESetupResData_List) At(i int) E2ESetupResData { return E2ESetupResData{s.List.Struct(i)} }
 
-func (s E2ESetupData_List) Set(i int, v E2ESetupData) error { return s.List.SetStruct(i, v.Struct) }
+func (s E2ESetupResData_List) Set(i int, v E2ESetupResData) error {
+	return s.List.SetStruct(i, v.Struct)
+}
 
-func (s E2ESetupData_List) String() string {
-	str, _ := text.MarshalList(0xeb535c83335d74cf, s.List)
+func (s E2ESetupResData_List) String() string {
+	str, _ := text.MarshalList(0xb65a7701e86386b2, s.List)
 	return str
 }
 
-// E2ESetupData_Promise is a wrapper for a E2ESetupData promised by a client call.
-type E2ESetupData_Promise struct{ *capnp.Pipeline }
+// E2ESetupResData_Promise is a wrapper for a E2ESetupResData promised by a client call.
+type E2ESetupResData_Promise struct{ *capnp.Pipeline }
 
-func (p E2ESetupData_Promise) Struct() (E2ESetupData, error) {
+func (p E2ESetupResData_Promise) Struct() (E2ESetupResData, error) {
 	s, err := p.Pipeline.Struct()
-	return E2ESetupData{s}, err
+	return E2ESetupResData{s}, err
 }
 
-func (p E2ESetupData_Promise) Base() E2EBase_Promise {
+func (p E2ESetupResData_Promise) Base() E2EBase_Promise {
 	return E2EBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p E2ESetupData_Promise) Success() E2ESetupData_success_Promise {
-	return E2ESetupData_success_Promise{p.Pipeline}
+func (p E2ESetupResData_Promise) Success() E2ESetupResData_success_Promise {
+	return E2ESetupResData_success_Promise{p.Pipeline}
 }
 
-// E2ESetupData_success_Promise is a wrapper for a E2ESetupData_success promised by a client call.
-type E2ESetupData_success_Promise struct{ *capnp.Pipeline }
+// E2ESetupResData_success_Promise is a wrapper for a E2ESetupResData_success promised by a client call.
+type E2ESetupResData_success_Promise struct{ *capnp.Pipeline }
 
-func (p E2ESetupData_success_Promise) Struct() (E2ESetupData_success, error) {
+func (p E2ESetupResData_success_Promise) Struct() (E2ESetupResData_success, error) {
 	s, err := p.Pipeline.Struct()
-	return E2ESetupData_success{s}, err
+	return E2ESetupResData_success{s}, err
 }
 
-func (p E2ESetupData_Promise) Failure() E2ESetupData_failure_Promise {
-	return E2ESetupData_failure_Promise{p.Pipeline}
+func (p E2ESetupResData_Promise) Failure() E2ESetupResData_failure_Promise {
+	return E2ESetupResData_failure_Promise{p.Pipeline}
 }
 
-// E2ESetupData_failure_Promise is a wrapper for a E2ESetupData_failure promised by a client call.
-type E2ESetupData_failure_Promise struct{ *capnp.Pipeline }
+// E2ESetupResData_failure_Promise is a wrapper for a E2ESetupResData_failure promised by a client call.
+type E2ESetupResData_failure_Promise struct{ *capnp.Pipeline }
 
-func (p E2ESetupData_failure_Promise) Struct() (E2ESetupData_failure, error) {
+func (p E2ESetupResData_failure_Promise) Struct() (E2ESetupResData_failure, error) {
 	s, err := p.Pipeline.Struct()
-	return E2ESetupData_failure{s}, err
+	return E2ESetupResData_failure{s}, err
 }
 
 type E2ECleanupData struct{ capnp.Struct }
@@ -1976,12 +2074,12 @@ func (s Request) NewSegmentCleanup() (SegmentCleanupData, error) {
 	return ss, err
 }
 
-func (s Request) E2eSetup() (E2ESetupData, error) {
+func (s Request) E2eSetup() (E2ESetupReqData, error) {
 	if s.Struct.Uint16(0) != 8 {
 		panic("Which() != e2eSetup")
 	}
 	p, err := s.Struct.Ptr(0)
-	return E2ESetupData{Struct: p.Struct()}, err
+	return E2ESetupReqData{Struct: p.Struct()}, err
 }
 
 func (s Request) HasE2eSetup() bool {
@@ -1992,29 +2090,29 @@ func (s Request) HasE2eSetup() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Request) SetE2eSetup(v E2ESetupData) error {
+func (s Request) SetE2eSetup(v E2ESetupReqData) error {
 	s.Struct.SetUint16(0, 8)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewE2eSetup sets the e2eSetup field to a newly
-// allocated E2ESetupData struct, preferring placement in s's segment.
-func (s Request) NewE2eSetup() (E2ESetupData, error) {
+// allocated E2ESetupReqData struct, preferring placement in s's segment.
+func (s Request) NewE2eSetup() (E2ESetupReqData, error) {
 	s.Struct.SetUint16(0, 8)
-	ss, err := NewE2ESetupData(s.Struct.Segment())
+	ss, err := NewE2ESetupReqData(s.Struct.Segment())
 	if err != nil {
-		return E2ESetupData{}, err
+		return E2ESetupReqData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
-func (s Request) E2eRenewal() (E2ESetupData, error) {
+func (s Request) E2eRenewal() (E2ESetupReqData, error) {
 	if s.Struct.Uint16(0) != 9 {
 		panic("Which() != e2eRenewal")
 	}
 	p, err := s.Struct.Ptr(0)
-	return E2ESetupData{Struct: p.Struct()}, err
+	return E2ESetupReqData{Struct: p.Struct()}, err
 }
 
 func (s Request) HasE2eRenewal() bool {
@@ -2025,18 +2123,18 @@ func (s Request) HasE2eRenewal() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Request) SetE2eRenewal(v E2ESetupData) error {
+func (s Request) SetE2eRenewal(v E2ESetupReqData) error {
 	s.Struct.SetUint16(0, 9)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewE2eRenewal sets the e2eRenewal field to a newly
-// allocated E2ESetupData struct, preferring placement in s's segment.
-func (s Request) NewE2eRenewal() (E2ESetupData, error) {
+// allocated E2ESetupReqData struct, preferring placement in s's segment.
+func (s Request) NewE2eRenewal() (E2ESetupReqData, error) {
 	s.Struct.SetUint16(0, 9)
-	ss, err := NewE2ESetupData(s.Struct.Segment())
+	ss, err := NewE2ESetupReqData(s.Struct.Segment())
 	if err != nil {
-		return E2ESetupData{}, err
+		return E2ESetupReqData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
@@ -2129,12 +2227,12 @@ func (p Request_Promise) SegmentCleanup() SegmentCleanupData_Promise {
 	return SegmentCleanupData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Request_Promise) E2eSetup() E2ESetupData_Promise {
-	return E2ESetupData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Request_Promise) E2eSetup() E2ESetupReqData_Promise {
+	return E2ESetupReqData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Request_Promise) E2eRenewal() E2ESetupData_Promise {
-	return E2ESetupData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Request_Promise) E2eRenewal() E2ESetupReqData_Promise {
+	return E2ESetupReqData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
 func (p Request_Promise) E2eCleanup() E2ECleanupData_Promise {
@@ -2450,12 +2548,12 @@ func (s Response) NewSegmentCleanup() (SegmentCleanupData, error) {
 	return ss, err
 }
 
-func (s Response) E2eSetup() (E2ESetupData, error) {
+func (s Response) E2eSetup() (E2ESetupResData, error) {
 	if s.Struct.Uint16(0) != 8 {
 		panic("Which() != e2eSetup")
 	}
 	p, err := s.Struct.Ptr(0)
-	return E2ESetupData{Struct: p.Struct()}, err
+	return E2ESetupResData{Struct: p.Struct()}, err
 }
 
 func (s Response) HasE2eSetup() bool {
@@ -2466,29 +2564,29 @@ func (s Response) HasE2eSetup() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Response) SetE2eSetup(v E2ESetupData) error {
+func (s Response) SetE2eSetup(v E2ESetupResData) error {
 	s.Struct.SetUint16(0, 8)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewE2eSetup sets the e2eSetup field to a newly
-// allocated E2ESetupData struct, preferring placement in s's segment.
-func (s Response) NewE2eSetup() (E2ESetupData, error) {
+// allocated E2ESetupResData struct, preferring placement in s's segment.
+func (s Response) NewE2eSetup() (E2ESetupResData, error) {
 	s.Struct.SetUint16(0, 8)
-	ss, err := NewE2ESetupData(s.Struct.Segment())
+	ss, err := NewE2ESetupResData(s.Struct.Segment())
 	if err != nil {
-		return E2ESetupData{}, err
+		return E2ESetupResData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
-func (s Response) E2eRenewal() (E2ESetupData, error) {
+func (s Response) E2eRenewal() (E2ESetupResData, error) {
 	if s.Struct.Uint16(0) != 9 {
 		panic("Which() != e2eRenewal")
 	}
 	p, err := s.Struct.Ptr(0)
-	return E2ESetupData{Struct: p.Struct()}, err
+	return E2ESetupResData{Struct: p.Struct()}, err
 }
 
 func (s Response) HasE2eRenewal() bool {
@@ -2499,18 +2597,18 @@ func (s Response) HasE2eRenewal() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Response) SetE2eRenewal(v E2ESetupData) error {
+func (s Response) SetE2eRenewal(v E2ESetupResData) error {
 	s.Struct.SetUint16(0, 9)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewE2eRenewal sets the e2eRenewal field to a newly
-// allocated E2ESetupData struct, preferring placement in s's segment.
-func (s Response) NewE2eRenewal() (E2ESetupData, error) {
+// allocated E2ESetupResData struct, preferring placement in s's segment.
+func (s Response) NewE2eRenewal() (E2ESetupResData, error) {
 	s.Struct.SetUint16(0, 9)
-	ss, err := NewE2ESetupData(s.Struct.Segment())
+	ss, err := NewE2ESetupResData(s.Struct.Segment())
 	if err != nil {
-		return E2ESetupData{}, err
+		return E2ESetupResData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
@@ -2619,12 +2717,12 @@ func (p Response_Promise) SegmentCleanup() SegmentCleanupData_Promise {
 	return SegmentCleanupData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Response_Promise) E2eSetup() E2ESetupData_Promise {
-	return E2ESetupData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Response_Promise) E2eSetup() E2ESetupResData_Promise {
+	return E2ESetupResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Response_Promise) E2eRenewal() E2ESetupData_Promise {
-	return E2ESetupData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Response_Promise) E2eRenewal() E2ESetupResData_Promise {
+	return E2ESetupResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
 func (p Response_Promise) E2eCleanup() E2ECleanupData_Promise {
@@ -2797,134 +2895,136 @@ func (p ColibriRequestPayload_Promise) Response() Response_Promise {
 	return Response_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-const schema_a3bf9fed859570f0 = "x\xda\xd4Xo\x8c\\U\x15?\xe7\xde\x99\x9d\xd9\xd9" +
-	"\xee\xee\xbc}C\xc0\x9a\xba\xd0P\xd26\xb5\x7fv\xd7" +
-	"hkatwG\xdbJu\xdf\xcc\x1ak\xdd\x86\xbe" +
-	"\xee\xdce\x9f\xce\xbc\x99}\xefm\xb75\xd4\xd2\x16\x12" +
-	"\x09\"\x96(\xea\x07\xd0\"\xa4Vk\xd0F\x12i@" +
-	"\xc4\xd0\xb4B\x13\xff\x81\xfcI+\x10i0@I%" +
-	"\xb6Pd\xfb\xcc\xb9o\xe6\xbd\x99\xd97\xddJ\xfc\xc2" +
-	"\xb7\xd9\xfb\xfb\xcd=g\xce\xf9\x9ds\xee\xd9\xe5\xfb\xa3" +
-	"\x9fb+\xa2\xe9\x18\x806\x1cmq\xdf|q\xf3\x92" +
-	"E\xbb\x12{@\xeb@t\xcf\x94\xbfw\xeb\xe9\x1f=" +
-	"\xf6\x13\x88b\x0c@\xbd\x95\x1fR\xef\xe0\xf4\xe96>" +
-	"\x05\xe8\xder\xfe\xfa\x91\x9f\xff\xfeo\xb7\x87\x91{O" +
-	"\xf1\xc5\xa8\x9e\x95\xec\x7fI\xf6C\x17^}\xee\xadc" +
-	"o~\x1b\x94\x8eZ2#\xb2\x16\x99\x8b\xaa\x1e!\xf2" +
-	"\xa6\x08\x91E\xdfc{\xf6\x1f\x1a\xbf;\xd4\x8f\x87#" +
-	"\x7fQ\x8fH\xf2\xe3\x92\xfc\xec\xd8\xa3\x9f\xb76\xbfq" +
-	"w\xc3\xcd\x92;/\xfa\x9a\xba(J\x9f\x16D\xd3\x80" +
-	"\xee\x0d\xf3\xb7\xfc\xe3\xba\xa7\xce}\x1f\xb4\x0f#\xba\x7f" +
-	"t6\xf5\xee\x19\xc9\xbd\x0e\x97\xf1\x18\x02\xf4f\xa2s" +
-	"\x11P]/\xa9\xdfX\xf8\xfa\xfd\xbfu\x8a\xf75\xfa" +
-	"@\xb7\xf5\x16\xa3]\xa8\xee\x90\x1f\xb7G\x8f\"\xa0;" +
-	"~\xa4\xed+\xa7?\xf7\xc9\x07B\xbc\xe8\xd5c\x8bQ" +
-	"\x9d\x88\x91\x1b\xc5\x18\xdd}x\xe1+\xb7_\xfb`\xee" +
-	"@X0\xee\x88\xcdG\xf5\x1eI\xfea\x8c~\xdf\x03" +
-	"\xcb\x96\x1e\x1d\xd6\xfa~\xd6\xe0H\x86\xc58@\xef\xd9" +
-	"X\x17\xaa\xd18\xd11\xfe*\xa0{\xcd\xc9Mwv" +
-	"\xb9\x07\x1fi\xa0\xcb\x80=\x13\x7fA}YrO\xc6" +
-	"\xe9\xea\x83\xe7\x17\xbe=\xf2\x85k\x9e\x08M\xe1\xb5\xad" +
-	"\x1bQ\xd5Z\x89\xbd\xbeu\x0ap\xba\xf3\xae\xfd\x9f=" +
-	">q\xa4\xc1\x0d\x8cqd\xbd\x07Z\xe7\xa3\xfa\xb0$" +
-	"?\xd4Jn\xec;?|\xe6\xce\xcb\xbfs\x14\x94\x0e" +
-	"\x16\xb0\x01{\xf7&\xe6\xa3\xba/A\xcc{\x12\x1f\x07" +
-	"t\x17\x8f\xff}ob\xeb\xe1ca\x0e\xefK\xbc\xa6" +
-	"\xfeBr\x0f$\xc8\xe1\xd5O\xae\xfcH\xbax\xea\xaf" +
-	"aQ\x8e\xb6%P\xbd\xac\x8d\xc8J\x1bEy\xc7\x86" +
-	"\xd3\xcf/[v\xf4%\x98\xe1q\x1b\x80\xba\xa2\xed\xb0" +
-	"\xba\x92\xd8\xbd\x1fk{\x91\x01\xba\x83\xd6\xb1\x13\x07o" +
-	"(\xbe\x1cN\x17\x1d\x87\xd4b\x07\xd1\x8d\x8e\x12\xd1}" +
-	"\xf14\xd09\xa5E\xfd\x90\xf2\x82\xba@!_\xaeR" +
-	"(\x1c\xf7N\\\xb7\xe0j\xfe\xd4[\xe1\xc2{T\x91" +
-	"\xc2;\xa2<Huu\xc5\xe5\xf7\xee~\xf6\xaas!" +
-	"\xe2P'\xbb\xdeUwu\xd1\xa7\x1d]\x14\x8f\xd1R" +
-	"\xc1\xd8b\x19KqT/\x9b\xe5U\x99\x9e\xeeL\xbf" +
-	"n\x8b!D-\xce#\x00\x11\x04P\x16\xcd\x05\xd0\xae" +
-	"\xe6\xa8-g\x88\x98B:\xfbh\x0f\x80\xb6\x90\xa3\xd6" +
-	"\xc7\x90\x1byL\x06f\x011\x09\xd8m\x98y\xb1\x0d" +
-	"[\x80aK\x8d!\xee\x19\xca\x89\x1b\x8b\xc2t\x86\x85" +
-	"n\xe5KSfV\xd8\x9d\x83\xba\xa37\xd8]\x1cb" +
-	"7\x0b\xa0-\xe1\xa8}\x82a\xe7\x16\xdd\x16\x98\x0c\xaa" +
-	"\xdd\xb3\xec\x0a\xcb*Y\x03\xa5<\xa0\x98\xc5~V\xd8" +
-	"\xc2\xda\xaa;F\xc9\xe4k\x07\x9b[W|\xf3\xab\x82" +
-	"\x9f\xdd\xa9\xdbF\x1e\xdb\x81a;`\xda\x9e\x1c\x1b3" +
-	"\xb6U\xff\xf4\xed\xb1:{\xfd\xba\x8d\xef+\xb8~\xf7" +
-	"\xbbhpY5\x8b\x99\x81\x82\xd0\xcd\xc9\xb2\x1f\xd4\x88" +
-	"o\xaf\x9d~V\x9c\xa3\x96\x0a\x02\xe8\xb7\xedJ\x00\x1b" +
-	"\x82\x95\xe9\xc9\xe4\x843Y\xa6\xcb\x96\xda\x93\xa3\xa3\x82" +
-	"\xdb6]\x99\xc4\x142\xba\xb3'\xb8\xb3\xdb)}M" +
-	"\x983\xe2P\x1fwy]VL\x0c\xea\x0eJ\xff\xae" +
-	"\xf4\xfd\xfb3\xf9w\x9c\xa3\xf6\\\x10\x8fg\xe8\xfe?" +
-	"q\xd4N0TX\xc5\xe8\xf3t\xf84G\xed%\x86" +
-	"\x0ag)\xe4\x00\xca\xc9u\x00\xda\x09\x8e\xda?\x19*" +
-	"\x11La\x04@9\xb5\x11@{\x85\xa3v\x86\xa1\x12" +
-	"e)\x8c\x02(\xa7\x89\xf9\x06G\xed\x1d\x86J\x0bO" +
-	"a\x0b\x80r\x96\xd4\xf5o\x8eYd\xa8\xc4\")\xea" +
-	"\x0b\xca\xf4n\x00\xed=\x8e\xb9+\xb0\xa9\xe6\xba\x8b\x86" +
-	"\xd9\xff\xa5jB\xba\x8b\xfa\xb6\xe0/\xd7.\x17\x0cg" +
-	"\xa0`\x03@p\xe6\xe8\x963d\x95\x80\x97mL\x06" +
-	"M\xb7*a3?d\x95\xca\xf2+3Q\xc3\x1c+" +
-	"}\xc6\x10\x05@_\x7f\xae^(\x94Fu\xc7\xc0\x92" +
-	"9l\xe9F\x01\xb0\x03p\x88#&\x83\x06\x09H\x87" +
-	"\xb3\xd6\xe2\xc4%\xca\xa6\xb1\xee\x9a\xdd[\x10\xb6\xa7\x9f" +
-	"\xd8\xcc\x12\xef\x99\xa5\xc8\xbam\xfa&&\x83q\xea\x19" +
-	"K\x93\x0fk\x07g\x96\xc6\xc5\x15g\xfb\x8aK\xfa>" +
-	"\xe8\xf4\xd3F8j\xe3\x0c\xdb\xd1u='\x04y\xb6" +
-	"\x99\xa3V`8\x8f]p+\xaa3\xfa\x01\xb4<G" +
-	"\xad\xccp\x1e\x9f\xa6c\xd2]\x91\xd8\xe3\x1c5\xa7\xb9" +
-	"D&M[8\xd0\xb2sL7\x0a\x93\x96\x98\xf9\x9b" +
-	"\x9a\x94N\xa5\xaa\x87tg<#e\xc1\xcb\xf6\xa5D" +
-	"q]\xd0)\xbbI\x1b\x05D`Ho\x0d\xc7\xd2M" +
-	"{LX\xa4\xae\xeaY\xd5Z\xa4.lk\xa9\xcf\x0c" +
-	"\x94\xcc1\xc3*\xca69\xa8\xf3Kj\xd35\x1d\xac" +
-	"Y<lGw\x04v\x06\x93\x1e\x10;g&p\xc0" +
-	"\xfb3+&&\x85\xed\x0c\xe9\xdb\x0b\xb1\x92\x9eoH" +
-	"a6HV\x90B\xa3'\xc8U;\xbb\xe0z\x19," +
-	"\xf6\x07\xa9j\xe7\xd3\xae\x97\xc0\x09\x8aV\x99\xa3v\x13" +
-	"C\xd71\x8a\xc2v\xf4\"`\x19\xe3\xc00^\x93=" +
-	"\xcb\xf3\x03\x93\xc1\xbc\xaf\x08\xcf\x12v\xb9d\xda\xc2\xab" +
-	"Y\xff\xf1\x10.\xcb\x9a\xc9#c\x9csb\xba\xe3\x8d" +
-	"\x06\xe9\xa5\xd2O_TZW\x01\xec,\x0b3o\x98" +
-	"7\xa6\xf5Q\xc7\xd8*\x1au\xf1\xe9J\xe1\x97\xcc\xce" +
-	"~\xe1\x05\xa6&7\xfda\xca\xa8I\xceN\xd97\x9a" +
-	"\xb6\xae\xf0b\xaaL\x17\xea\x12\x00\xef\xbfO`5\x14" +
-	"i/ptS\x1f\x8f\xccq]\xbaJ\xdd\x84=\x00" +
-	"\xb9\x0d\xc81\x97G\xca\xeb\x05/\xaf\xaa\x8e_\x05\xc8" +
-	"m&\xa0@\x00\x9b\xf6R\xab\x1a\xf8u\x80\xdc8\x01" +
-	"\x0e\x01\xfc=/\xbb\xea\x04\xde\x05\x90s\x08\xb8\x99\x80" +
-	"\xc8\x7f\\9\x1a\xd4\x1dx\x1f@\xeef\x02\xbeE@" +
-	"\xf4]W\x8e\x07\xf56\xdc\x0d\x90\xfb&\x01\xdf%\xa0" +
-	"\xe5\xbc+G\x84\xba\x17\x9f\x04\xc8\xfd\x80\x80\xfb\x09\x88" +
-	"\xbd\xe3\xca1\xa1\xee\x93\xc6\x7fL\xc0A\x02\xe2o\xbb" +
-	")\x8c\xd3\xcb\x13\xd7\x01\xe4~J\xc0\xaf\x09h=\xe7" +
-	"\xa6\xb0\x15@\xfd\x15n\x04\xc8\xfd\x92\x80G\x08H\x9c" +
-	"uS\x98\xa0\x0dE\x02\xbf!\xe0\x09\x9aDm\xc9\x14" +
-	"\xd2\x1b\xf2qy\xd3\xef\xe8\xfc8\x9d\xcf\xe1)\x9c\x03" +
-	"\xa0\xfe\x01\xb3\x00\xb9ct\xfe42_\xab\xae]\xe9" +
-	"}\xd0Yi\xa2\xfe*P\xc9D\x85\x90\x85\xb40\xc5" +
-	"\x94^hN\x19\xc6j\x1b\xc7\xf2l\xac\xac0El" +
-	"\xb6\xdb\xbcaC\x95\xe2\xef\x81\xf5\x9c\xb5\xac\xb1\xf7\xc8" +
-	"\xba\xf2W\x8ez\xf6\x00\xa4=Qb2x\xe4W\x87" +
-	"i\x8f\x90\xed\xdf+L\xff\xed\x1c\xa0\xe4\xf0\x14p\xe9" +
-	"q\x08,\xe5\x0e\\\xde\xed/\x8b\x15X\x1f\x1d\x15e" +
-	"G\xe4k[)5x\x91_S\xa2\xf6\xd1XH\xbe" +
-	"\xe6\xbb\xbdv\x86\xa8-\x09$\xbf@J\xfeJJ\xe4" +
-	"\x92:\xc9/\x92\x92_H@_\x9d\xe4WH\xd5-" +
-	"'`u\x9d\xe4WJ\xc9\xaf&`M\x9d\xe43R" +
-	"\xf2k\x08\x18\xae\x93\xbc&%?D\xc0H\x9d\xe4\xbf" +
-	",%\x1f\xd4\x9b/\xf9\xc6z\xf3%?!\x85Z&" +
-	"\xe0\xa6:\xc9o\x97\xca\xdeF\xc0-u\x92\xdf%\x01" +
-	"\xbf\x10\x9bK\xb8af\x86I\xb8\x09\xa5A\xc2\xfe\x0e" +
-	"=\x8b\x84\x9b\xf3\x02\x09\xfb\xcb\xfb\x07Q\xc23\xb7\x87" +
-	"\xcak\xbf2\xe9\xff\x97\x97\x12\x8dY\xac\xf97\x09\xbd" +
-	"\x97\x18MY\xacYa\x15\xad\x1fX\x93\xdd\xc3\x9f\xb3" +
-	"r\xcf\xb0\xed\xeak\xe9\xa2;\x89\xe4pKhsx" +
-	"$Y\xd9\x042\xf4$\x18\xe4\xa8\x0dU&\x1fm\x02" +
-	"\xeb\xe9\xf0z\x8e\xda\x06Z$*\x9b\xc0\x17\xe9\xb99" +
-	"\xe4\xf9\x1f\xba;\x86<\xb7\xd3rL\xda\xd5761" +
-	";BCY\x99\xf3i9\xe8\xff\x9f\x1b\xe6\x7f\x03\x00" +
-	"\x00\xff\xff\xad\x02,F"
+const schema_a3bf9fed859570f0 = "x\xda\xbcX}\x8c\\U\xf9~\xdf{fvvf" +
+	"v:s\xf7\xce/\x90&eh\xf3\x93\xb4M\xe9\xc7" +
+	"n\xa3R\xab\xa3\xfb\xa1\xdd\x8a\xbawf\x89\xa5\xb6q" +
+	"/;g\xd9\xab3w>\xee\xddnkXKKQ" +
+	"+*\x16\x15\xf5\x1f\xb5H\x03hI\xa5\x11\xb5\x0d\x88" +
+	"\x18\x9a\x16\xd2\xc4/\xa0`\x8a@\xa4\x81@\x97\x94\xc6" +
+	"\x02\x05\xdak\xdesg\xee\x9d\x8f;\xbb\xd5\xa8\xff\xdd" +
+	"=\xcf3\xe7\xbc\xefy\x9f\xf7\xe3\xec\xca\xa7\x83\x1f\x95" +
+	"V\x05\xbf\x1f\x02P7\x04;\xec\xd7\x9f\x1f]\xb6d" +
+	"G\xe4\x16P\xe7!\xdagJ\xdf\xbbu\xe6\xc7\x8f\xfc" +
+	"\x14\x82\x18\x02P\x1e`\x07\x95C\x8c\xbe\x1edS\x80" +
+	"\xf6\xae\xf3\xd7n\xfa\xf9\xef\x9f\xbe\xcd\x8f\xdc+\x07\x96" +
+	"\xa2\xb20@\xec\x05\x01b?x\xf1\xe5g\xce\x1e{" +
+	"\xfd[ \xcf\xab'KD\x9e\x0e\xccG\xe5\x9b\x82\xbc" +
+	"[\x90\xf9\xeaGn\xb9\xe7\xe0\xc4\x9d\xbev\x9c\x0a\xfc" +
+	"YyC\x90g\x04\xf9\xc4\xf8\xc3\x9f\xae\x8c\x9e\xbe\xb3" +
+	"ig\xc1\x1d\x0a\xbe\xaa\\\x17\xa4/5\x98\x06\xb4\xbf" +
+	"\xbc\xf8\xb5\xbb\x7fk\x15\xeej\xde\x98(\xbd\xe5`7" +
+	"*;\xc4\xe7t\xf0(\x02\xda\x13G\xa2\x9f\x9b\xf9\xe4" +
+	"\x87\xf6\xf9l\xdd\xcbCKQ\x99\x0c\xd1\xde\xe5\x10\xed" +
+	"\xfd\x87\xcd{_\x0b\x9d\xbe\xfe^P\xaf@\xb4\x0f~" +
+	"e\xec\x15\x9c\xda\xf8+\xf8?\x16B\x80\xde=\xa1\x1e" +
+	"\x04T~(\xa8\x87\x17\xbft\xdb\x87\x0fd\xef\xf3\xbb" +
+	"\x8cC\xa1E\xa8<.\xf6=\x12\"\xff\xf6\xadX~" +
+	"tD]\xfd\xb3&\x9b\x07\xa5\x10\x03\xe8]\xd8\xd9\x8d" +
+	"\xca\xaaN\xa2_\xdd\xf92\xd4\x1d\xdcDgDW0" +
+	"|V\x89\x85\x89\x1d\x0e\x13\xfb\xaa\xe76\xdf\xdem\xef" +
+	"\x7f\xa8\x89-\xaew_\xf8\xaf\xca\x03\x82{\x7f\x98\x0c" +
+	"\xd9\x7f~\xf1[\x9b>s\xd5c\xbe\x01\x8fE6\xa2" +
+	"\xb20\"\x02\x1e\x99\x02\xbc\x10\xbf\xe3\x9eO\x1c/\x1f" +
+	"i\xb2\x02C\x0c\xa5\xdem\x91E\xa8\xec\x16\xe4[#" +
+	"d\xc6\xde\xf3#gn\xbf\xec\xdbGA\x9e'yl" +
+	"\xc0^-\xba\x08\x95r\x94\x98\x85\xe8\x07\x00\xed\xa5\x13" +
+	"\x7f\xdb\x13\xd9r\xf8\x98\x9f\xc1\xe5\xe8\xab\xca\xb4\xe0n" +
+	"\x8b\x92\xc1k\x9f\xb8\xe6\x8at\xe1\xd4_\xfc\xc2\xf7T" +
+	"4\x82\xca)A~1J1\xf9\xc8\xd7\x0f|'\x1b" +
+	"=~\xc2?|\xd8%\xc2\x17\xee:\x00hOo\x98" +
+	"yv\xc5\x8a\xa3/@\x8bsQ\x00\xe5P\xd7a\xe5" +
+	"\xd1.:\xe3\xe1\xae\xe7%@{\xa0r\xec\xe4\xfe\xcf" +
+	"\x17^\xf4\xa7\xcf\xc4\x0f*\xe7\xe2D\x7f#^$\xfa" +
+	"\xae\xcb/\xfb\xd1\xce\x13\x0b\xdf\xf4\x11\x87\xb2\xb7\xfb\x1d" +
+	"\xe5\xfen\xfa\xba\xaf\x9b<L\xfc\xfd\xd7\xa3\xef\xff\xea" +
+	"\xfcw\xfd\xb8A\xe5\xac\"+\xf4\x15S\x88;V\xcc" +
+	"\xeb7T\xf4\xe58\xa6\x95\x8c\xd2\x9a\xc1\x9e\xd4`\x9f" +
+	"f\xf2aD\xb5\x93\x05\x00\x02\x08 /\x99\x0f\xa0\xfe" +
+	"?Cu\xa5\x84\x88I\xa4\xb5\xab{\x00\xd4\xc5\x0c\xd5" +
+	"\xd5\x122=\x87\x09\xcfD@L\x00\xa6t#\xc7\xb7" +
+	"b\x07H\xd8Qw\x10s\x0e\xca\xf2\x1b\x0b\xdc\xb0F" +
+	"\xb8V\xc9\x15\xa7\x8c\x0c7\xe3\x03\x9a\xa55\x9d\xbb\xd4" +
+	"\xe7\xdc\x0c\x80\xba\x8c\xa1\xfaA\x09\xe37h&\xc7\x84" +
+	"W\x19\x9c\x93m^\xa9\x14+\xfd\xc5\x1c \x9f\xe3\xfc" +
+	"\x0c7ye\x8bf\xe9E\x83\x0d\x0d\xb4?]v\x8f" +
+	"_\xe3\xb9\x1d\xd7L=\x871\x900\x06\x986'\xc7" +
+	"\xc7\xf5\xad\xb5?\xdd\xf3\xa4\x86\xf3\xfa4\x13\xff\xad\xcb" +
+	"u+\xe5\xac\x97+\xd5\xa28\xd8\x9f\xe7\x9a1Yr" +
+	"/5\xe0\x9e\x17#\xb7:\x19\xaaI\xef\x02\xdd\x12_" +
+	"\xbd@\xff\xcb\xcark\xb2\x94\xe1\xe5\x01\xcdB\xb1\xe9" +
+	"\x95\xee\xa6\x7f\xa2M\x8f3T\x9f\xf1\x9cx\x8a\x9c\xf8" +
+	"#C\xf5\xa4\x84\xb2\x84I\x94\x00\xe4gi\xf1I\x86" +
+	"\xea\x0b\x12\xcaLJ\"\x03\x90\x9f[\x0f\xa0\x9ed\xa8" +
+	"\xbe\"\xa1\x1c\xc0$\x06\x00\xe4S\x1b\x01\xd4\x97\x18\xaa" +
+	"g$\x94\x83R\x12\x83\x00\xf2\x0c1O3T\xdf\x96" +
+	"P\xee`I\xec\x00\x90\xcf\x91$\xfe\xc10\x83\x12\xca" +
+	"\xa1@\x92RY\xbe\xb0\x13@}\x8fa\xf6rl+" +
+	"\x94TA7\xfa>[\xbb\xc5TA\xdb\xea\xfde\x9b" +
+	"\xa5\xbcn\xf5\xe7M\x00\xf0\xd6,\xadb\x0dW\x8a\xc0" +
+	"J&&\xbc:Y\xd3\x9d\x91\x1b\xae\x14K\xe2'\xad" +
+	"\xa8n\x8c\x17?\xae\xf3<\xa0+\x1a[\xcb\xe7\x8bc" +
+	"\x9a\xa5c\xd1\x18\xa9hz\x1ep\x1e\xe00CLx" +
+	"5\x0d\x90\x16\xe7L\xa0\xf2%\xc6\xba9Y\x9a\xf6\x1d" +
+	"\xec\x19\xac\xc6\xd9\xa4\xfd\x96\x9b\x93\xa9\xb11n\x9a\xb4" +
+	"k\xa2\x1a\xc4X\x8f\xb7m\xca*~\x91\x1b-\xb2o" +
+	"\xb62\xcfM\xb1\xed@\xa85\xcb{\xe6\xc8\xb3\x94I" +
+	"\xbf\xc4\x84\xd7\xa8\x1d\xd3\xd3\xe4\xd1\xd0@kv\xcc\xae" +
+	"_\xd3\xd5o\xc2\xb5A\xa3\x8b\xda\xc4P\x9d\x900\x86" +
+	"\xb6\xed\x18\xc1\xc9\xb2Q\x86j^\xc2\x05\xd2E\xbb\xea" +
+	"\xbe\xde\x07\xa0\xe6\x18\xaa%\x09\x17\xb0\x0b\xb4L*." +
+	"\x10{\x82\xa1j\xb5\x17\xdc\xa4ar\x0b:\xb6\x8fk" +
+	"z~\xb2\xc2[}js\x9dRspRf-\xda" +
+	"\xff\x8a\x131r\xa2n(!W\xa4\x18\xb9P\xd7\xea" +
+	"d\xb5\x0f\xa46\x95\xc1u\xc0\x9c\x14\xaa\xa89\xd2l" +
+	"\xe8\xb0fM\x0c\x8al`%\xf3R\xc2\xbd\xde\xab\xea" +
+	")J\x89<\"HH\xe3\x96U\xd1\x0cs\x9cW(" +
+	"\xa9jk\xb5\xd3\x02\x0d\xf1\x1d\xa2\x9a\xd8_4\xc6\xf5" +
+	"JA\x94\xf4\x01\x8d]RK\xa9\xab\xb6\xed\x02gZ" +
+	"\x9a\xc51\xee\xcd$\x80\x18oUZ\xbf\xf3g\x86\x97" +
+	"'\xb9i\x0dk\xdb\xf2\xa1\xa2\x96k\x0aS\xa6. " +
+	"n\x98\xf4\x1eOT\x14&Gj\x85>OS\x14'" +
+	"Gie\xba\xad\x12C\xf5&\x09mK/p\xd3\xd2" +
+	"\x0a\x80%\xec\x04\x09;\xeb\xa2Tq\xec\xc0\x847n" +
+	"T3\xa4\xc2\xcdR\xd10\xb9S\xaa\xdc\xd9\xc5?\x7f" +
+	"\xea\xba\xa4\xb8\xe3\xac\x15\xd2,\xa7\x8d\x09+\xe5>\xfa" +
+	"\xa1\x1c^\x03\xb0\xbd\xc4\x8d\x9cn\xdc\x98\xd6\xc6,}" +
+	"K\x8b.>V\xadwE#\xde\xc7\x9d\x8b\xa9\x8bM" +
+	"\x9f\x9f2\xea\x82\xb3]\x94\xcb\xb6\x15\xdb?\xeb\xab\x9d" +
+	"\x90\xd2\x05\xe0?^\x1e\xc7\xb5\x94H\x00\xb5\x8b\x05\x12" +
+	"\xd5v6H\x01\x1e`\xa8\x0eW\xfd\xa0v\xf6)Z" +
+	"\xbc\x96\xa1\xba\x81\xbaa\xb5\x9d]GUn\xd8\x91\x82" +
+	"\xef\xd4\xe2\xd33\xd2\xc2i\xb3\xd6(\x889\xafu\x90" +
+	"\xcb\xf0\xb4\x13`\xf2x5\x0bt\xd96\xb9\xacl\xc6" +
+	"\x1e\x80\xec\x06d\x98\xcd!\xe9\xef\xa2\xa3?E\xc3/" +
+	"\x00dG\x09\xc8\x13 ]p$\xa8\xe8\xf8%\x80\xec" +
+	"\x04\x01\x16\x01\xec=G\x85J\x19\xef\x00\xc8Z\x04\xdc" +
+	"L@\xe0][\xb8\xaaL\xe3]\x00\xd9\x9b\x09\xf8\x06" +
+	"\x01\xc1wl\xe1\xae\xb2\x1bw\x02d\xbfF\xc0w\x09" +
+	"\xe88o\x8b\x0e\xae\xec\xc1'\x00\xb2? \xe0n\x02" +
+	"Bo\xdb\xa2\x8b+{\xc5\xe1?!`?\x01\x9do" +
+	"\xd9I\xec\xa4I\x17\xd7\x03d\xef%\xe0\x97\x04\x84\xdf" +
+	"\xb4\x93\x18\xa6\x07)n\x04\xc8\xfe\x82\x80\x87\x08\x88\x9c" +
+	"\xb3\x93\x18\xa1\x09\\\x00\xbf!\xe01\x1a\x14\xa2\x89$" +
+	"\xd2\xa8\xfd\xa8\xd8\xe9w\xb4~\x9c\xd6\xbbX\x12\xbb\x00" +
+	"\x94\xc71\x03\x90=F\xebO\xa2\xe4\xe6\x94mV\x9b" +
+	"\x09\xc4\xab]\xc9}\x8aU\x15S%d \xcd\x0d>" +
+	"\xa5\xe5\xdbSF\xb0\xd6\x17\xb14\x17+\xc3\x0d\x1e\x9a" +
+	"k7g\x16\xa0\x8cv\xdf\xe1\x8d\x9c!\xa9\xb9F\x8a" +
+	"\xfcw\x1fq\x8d\xec~H;\xc9\x83\x09\xef\xd9T\x9b" +
+	"uz\xb8H\x04\xa7\x80\xb8/#\x0f%\x83\xa7\x80\x09" +
+	"\x8b}`\x91\x96\xc0\xc4\xde\xeec\xbd\x0akcc\xbc" +
+	"d\xf1\\}\xc9\xa7F\xc3s\xeb\x8aT\xe6\x9a\x13\xde" +
+	"\xd5|\xca)\xbb\x88\xea2O\xf2\xef\x13\x92\xbf\x92\x02" +
+	"\xb9\xacA\xf2K\x84\xe4\x17\x13\xb0\xbaA\xf2\xab\x84\xea" +
+	"V\x12\xb0\xb6A\xf2\xd7\x08\xc9\xaf%`]\x83\xe4\x07" +
+	"\x85\xe4\xd7\x110\xd2 yUH~\x98\x80M\x0d\x92" +
+	"\xbf^H\xde\xcb7W\xf2\xcd\xf9\xe6J\xbe,\x84Z" +
+	"\"\xe0\xa6\x06\xc9o\x13\xca\xdeJ\xc0\xae\x06\xc9\xef\x10" +
+	"\x80\x9b\x88\xed%\xdc4\x84\xf8I\xb8\x0d\xa5I\xc2\xee" +
+	"\xff0\xe6\x90p{\x9e'a\xf7\xff,\xff\x1b\x09\xbb" +
+	"\xaff\x7f\x09\xfb\xc0\xb3I\xb8up\xab6\xd1\xb4\xe8" +
+	"\xa2\xff\xcd\xa7f\xdd\x90X\x9e\xfdM-\xcf6\x015" +
+	"O~\x0d\x83\xe9?\x03\x00\x00\xff\xff\x88\xd4[\x0a"
 
 func init() {
 	schemas.Register(schema_a3bf9fed859570f0,
@@ -2933,20 +3033,21 @@ func init() {
 		0x8eeec8f2d8e7feb5,
 		0x9668b2a783bf3465,
 		0x96ec60724ebd66d7,
-		0x97f6cb3ee362225f,
 		0xa26d74bea4eb287e,
 		0xa53b4bed5b0bc568,
+		0xa859ec07eba15dcf,
 		0xa953af3d8be428ba,
 		0xaa345154c72e2fa5,
+		0xb65a7701e86386b2,
 		0xbcacff128f5ddd26,
 		0xc4264f5cf728f9ac,
 		0xc571cc47a792000f,
 		0xc790178ff054f9a1,
 		0xc8ba760a91de682a,
 		0xd3e56d3f1e39ca3c,
+		0xd7cc0b5393af8a3e,
 		0xe0c72f2fd9ed587d,
 		0xe16d5facdcc87244,
-		0xeb535c83335d74cf,
-		0xf2cb0324253e719e,
-		0xf621d7829e171884)
+		0xf621d7829e171884,
+		0xfb1a873660b7e310)
 }
