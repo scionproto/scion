@@ -135,24 +135,7 @@ func TestSerializeRequest(t *testing.T) {
 				Which: proto.Request_Which_e2eSetup,
 				E2ESetup: &colibri_mgmt.E2ESetup{
 					Base:  newE2EBase(),
-					Which: proto.E2ESetupData_Which_success,
-					Success: &colibri_mgmt.E2ESetupSuccess{
-						Token: xtest.MustParseHexString("0000"),
-					},
-				},
-			},
-		},
-		"e2esetup_failure": {
-			Request: &colibri_mgmt.Request{
-				Which: proto.Request_Which_e2eSetup,
-				E2ESetup: &colibri_mgmt.E2ESetup{
-					Base:  newE2EBase(),
-					Which: proto.E2ESetupData_Which_failure,
-					Failure: &colibri_mgmt.E2ESetupFailure{
-						ErrorCode: 1,
-						InfoField: xtest.MustParseHexString("fedcba9876543210"),
-						MaxBWs:    []uint8{1, 1, 2, 2},
-					},
+					Token: xtest.MustParseHexString("0000"),
 				},
 			},
 		},
@@ -161,12 +144,7 @@ func TestSerializeRequest(t *testing.T) {
 				Which: proto.Request_Which_e2eRenewal,
 				E2ERenewal: &colibri_mgmt.E2ESetup{
 					Base:  newE2EBase(),
-					Which: proto.E2ESetupData_Which_failure,
-					Failure: &colibri_mgmt.E2ESetupFailure{
-						ErrorCode: 1,
-						InfoField: xtest.MustParseHexString("fedcba9876543210"),
-						MaxBWs:    []uint8{1, 1, 2, 2},
-					},
+					Token: xtest.MustParseHexString("0000"),
 				},
 			},
 		},
@@ -207,12 +185,14 @@ func TestSerializeResponse(t *testing.T) {
 			Token: xtest.MustParseHexString("0000"),
 		}
 	}
-	newE2ESetup := func() *colibri_mgmt.E2ESetup {
-		return &colibri_mgmt.E2ESetup{
+	newE2ESetup := func() *colibri_mgmt.E2ESetupRes {
+		return &colibri_mgmt.E2ESetupRes{
 			Base:  newE2EBase(),
-			Which: proto.E2ESetupData_Which_success,
-			Success: &colibri_mgmt.E2ESetupSuccess{
-				Token: xtest.MustParseHexString("0000"),
+			Which: proto.E2ESetupResData_Which_failure,
+			Failure: &colibri_mgmt.E2ESetupFailure{
+				ErrorCode: 1,
+				InfoField: xtest.MustParseHexString("fedcba9876543210"),
+				MaxBWs:    []uint8{1, 1, 2, 2},
 			},
 		}
 	}
@@ -307,11 +287,30 @@ func TestSerializeResponse(t *testing.T) {
 				Accepted: true,
 			},
 		},
-		"e2e setup": {
+		"e2e setup success": {
 			Response: &colibri_mgmt.Response{
-				Which:    proto.Response_Which_e2eSetup,
-				E2ESetup: newE2ESetup(),
-				Accepted: true,
+				Which: proto.Response_Which_e2eSetup,
+				E2ESetup: &colibri_mgmt.E2ESetupRes{
+					Base:  newE2EBase(),
+					Which: proto.E2ESetupResData_Which_success,
+					Success: &colibri_mgmt.E2ESetupSuccess{
+						Token: xtest.MustParseHexString("0000"),
+					},
+				},
+			},
+		},
+		"e2e setup failure": {
+			Response: &colibri_mgmt.Response{
+				Which: proto.Response_Which_e2eSetup,
+				E2ESetup: &colibri_mgmt.E2ESetupRes{
+					Base:  newE2EBase(),
+					Which: proto.E2ESetupResData_Which_failure,
+					Failure: &colibri_mgmt.E2ESetupFailure{
+						ErrorCode: 1,
+						InfoField: xtest.MustParseHexString("fedcba9876543210"),
+						MaxBWs:    []uint8{1, 1, 2, 2},
+					},
+				},
 			},
 		},
 		"e2e renewal": {
