@@ -37,8 +37,8 @@ type Request struct {
 }
 
 // NewRequest constructs the segment Request type.
-func NewRequest(ts time.Time, id *reservation.SegmentID, idx uint8, path *spath.Path) (
-	*Request, error) {
+func NewRequest(ts time.Time, id *reservation.SegmentID, idx reservation.IndexNumber,
+	path *spath.Path) (*Request, error) {
 
 	metadata, err := base.NewRequestMetadata(path)
 	if err != nil {
@@ -64,7 +64,7 @@ func NewRequest(ts time.Time, id *reservation.SegmentID, idx uint8, path *spath.
 		RequestMetadata: *metadata,
 		Timestamp:       ts,
 		ID:              *id,
-		Index:           reservation.IndexNumber(idx),
+		Index:           idx,
 		Ingress:         ingressIFID,
 		Egress:          egressIFID,
 	}, nil

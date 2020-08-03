@@ -32,7 +32,7 @@ type Request struct {
 }
 
 // NewRequest constructs the e2e Request type.
-func NewRequest(ts time.Time, id *reservation.E2EID, idx uint8,
+func NewRequest(ts time.Time, id *reservation.E2EID, idx reservation.IndexNumber,
 	path *spath.Path) (*Request, error) {
 
 	metadata, err := base.NewRequestMetadata(path)
@@ -47,7 +47,7 @@ func NewRequest(ts time.Time, id *reservation.E2EID, idx uint8,
 	return &Request{
 		RequestMetadata: *metadata,
 		ID:              *id,
-		Index:           reservation.IndexNumber(idx),
+		Index:           idx,
 		Timestamp:       ts,
 	}, nil
 }
