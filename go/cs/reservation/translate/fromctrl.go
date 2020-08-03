@@ -129,10 +129,21 @@ func newResponseFromCtrl(ctrl *colibri_mgmt.Response, ts time.Time, path *spath.
 	}
 	switch ctrl.Which {
 	case proto.Response_Which_segmentSetup:
-		return newResponseSegmentSetup(ctrl, ts, path)
+		return newResponseSegmentSetup(ctrl.SegmentSetup, ctrl.FailedHop, ts, path)
+	case proto.Response_Which_segmentRenewal:
+		return newResponseSegmentSetup(ctrl.SegmentRenewal, ctrl.FailedHop, ts, path)
+	case proto.Response_Which_segmentTelesSetup:
+	case proto.Response_Which_segmentTelesRenewal:
+	case proto.Response_Which_segmentTeardown:
+	case proto.Response_Which_segmentIndexConfirmation:
+	case proto.Response_Which_segmentCleanup:
+	case proto.Response_Which_e2eSetup:
+	case proto.Response_Which_e2eRenewal:
+	case proto.Response_Which_e2eCleanup:
 	default:
 		return nil, serrors.New("invalid ctrl message", "ctrl", ctrl.Which.String())
 	}
+	return nil, nil
 }
 
 // newRequestSegmentSetup constructs a SetupReq from its control message counterpart.
@@ -288,21 +299,22 @@ func newRequestE2ECleanup(ctrl *colibri_mgmt.E2ECleanup, ts time.Time,
 	}, nil
 }
 
-func newResponseSegmentSetup(ctrl *colibri_mgmt.Response, ts time.Time,
+// the failedHop parameter won't be used if the response is successful.
+func newResponseSegmentSetup(ctrl *colibri_mgmt.SegmentSetupRes, failedHop uint8, ts time.Time,
 	path *spath.Path) (base.MessageWithPath, error) {
 
-	id, err := NewSegmentIDFromCtrl(ctrl.SegmentSetup.Base.ID)
+	id, err := NewSegmentIDFromCtrl(ctrl.Base.ID)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot convert id", err)
 	}
 	r, err := segment.NewResponse(ts, id,
-		reservation.IndexNumber(ctrl.SegmentSetup.Base.Index), path)
+		reservation.IndexNumber(ctrl.Base.Index), path)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct segment setup response", err)
 	}
-	switch ctrl.SegmentSetup.Which {
+	switch ctrl.Which {
 	case proto.SegmentSetupResData_Which_token:
-		tok, err := reservation.TokenFromRaw(ctrl.SegmentSetup.Token)
+		tok, err := reservation.TokenFromRaw(ctrl.Token)
 		if err != nil {
 			return nil, serrors.WrapStr("cannot parse token", err)
 		}
@@ -311,16 +323,16 @@ func newResponseSegmentSetup(ctrl *colibri_mgmt.Response, ts time.Time,
 			Token:    *tok,
 		}, nil
 	case proto.SegmentSetupResData_Which_failure:
-		failedSetup, err := newRequestSegmentSetup(ctrl.SegmentSetup.Failure, ts, path)
+		failedSetup, err := newRequestSegmentSetup(ctrl.Failure, ts, path)
 		if err != nil {
 			return nil, serrors.WrapStr("cannot parse failed setup", err)
 		}
 		return &segment.ResponseSetupFailure{
 			Response:    *r,
 			FailedSetup: *failedSetup,
-			FailedHop:   ctrl.FailedHop,
+			FailedHop:   failedHop,
 		}, nil
 	default:
-		return nil, serrors.New("invalid ctrl message", "ctrl", ctrl.SegmentSetup.Which.String())
+		return nil, serrors.New("invalid ctrl message", "ctrl", ctrl.Which.String())
 	}
 }

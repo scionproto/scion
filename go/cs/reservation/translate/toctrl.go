@@ -63,7 +63,9 @@ func NewCtrlFromMsg(msg base.MessageWithPath, renewal bool) (
 
 	// responses (that move backwards in the reservation path):
 	case *segment.ResponseSetupSuccess:
-		err = nil
+		if !renewal {
+			err = setSegmentSetupSuccessResponse(r, ctrl)
+		}
 	default:
 		err = serrors.New("unknown application type", "type", fmt.Sprintf("%T", msg))
 	}
@@ -141,8 +143,10 @@ func thisIsARequest(ctrl *colibri_mgmt.ColibriRequestPayload) {
 	ctrl.Request = &colibri_mgmt.Request{}
 	ctrl.Which = proto.ColibriRequestPayload_Which_request
 }
-func thisIsAResponse(ctrl *colibri_mgmt.ColibriRequestPayload) {
-	ctrl.Response = &colibri_mgmt.Response{}
+func thisIsAResponse(ctrl *colibri_mgmt.ColibriRequestPayload, accepted bool) {
+	ctrl.Response = &colibri_mgmt.Response{
+		Accepted: accepted,
+	}
 	ctrl.Which = proto.ColibriRequestPayload_Which_response
 }
 
@@ -189,7 +193,9 @@ func setSegmentTeardown(msg *segment.TeardownReq, ctrl *colibri_mgmt.ColibriRequ
 	return nil
 }
 
-func setSegmentIndexConfirmation(msg *segment.IndexConfirmationReq, ctrl *colibri_mgmt.ColibriRequestPayload) error {
+func setSegmentIndexConfirmation(msg *segment.IndexConfirmationReq,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
 	thisIsARequest(ctrl)
 	st, err := newIndexState(msg.State)
 	if err != nil {
@@ -238,5 +244,21 @@ func setE2ECleanup(msg *e2e.CleanupReq, ctrl *colibri_mgmt.ColibriRequestPayload
 		Base: newE2EBase(&msg.Request),
 	}
 	ctrl.Request.Which = proto.Request_Which_e2eCleanup
+	return nil
+}
+
+func setSegmentSetupSuccessResponse(msg *segment.ResponseSetupSuccess,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	thisIsAResponse(ctrl, true)
+	ctrl.Response.SegmentSetup = &colibri_mgmt.SegmentSetupRes{
+		Base: &colibri_mgmt.SegmentBase{
+			ID:    NewCtrlSegmentReservationID(&msg.ID),
+			Index: uint8(msg.Index),
+		},
+		Which: proto.SegmentSetupResData_Which_token,
+		Token: msg.Token.ToRaw(),
+	}
+	ctrl.Response.Which = proto.Response_Which_segmentSetup
 	return nil
 }
