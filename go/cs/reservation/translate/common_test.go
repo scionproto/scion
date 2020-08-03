@@ -42,16 +42,23 @@ func newE2EID() *colibri_mgmt.E2EReservationID {
 	}
 }
 
-func newBase(idx uint8) *colibri_mgmt.SegmentBase {
+func newTestBase(idx uint8) *colibri_mgmt.SegmentBase {
 	return &colibri_mgmt.SegmentBase{
 		ID:    newID(),
 		Index: idx,
 	}
 }
 
+func newTestE2EBase(idx uint8) *colibri_mgmt.E2EBase {
+	return &colibri_mgmt.E2EBase{
+		ID:    newE2EID(),
+		Index: idx,
+	}
+}
+
 func newSetup() *colibri_mgmt.SegmentSetup {
 	return &colibri_mgmt.SegmentSetup{
-		Base:     newBase(1),
+		Base:     newTestBase(1),
 		MinBW:    1,
 		MaxBW:    2,
 		SplitCls: 3,
@@ -82,14 +89,27 @@ func newTelesSetup() *colibri_mgmt.SegmentTelesSetup {
 
 func newIndexConfirmation() *colibri_mgmt.SegmentIndexConfirmation {
 	return &colibri_mgmt.SegmentIndexConfirmation{
-		Base:  newBase(2),
+		Base:  newTestBase(2),
 		State: proto.ReservationIndexState_active,
 	}
 }
 
 func newCleanup() *colibri_mgmt.SegmentCleanup {
 	return &colibri_mgmt.SegmentCleanup{
-		Base: newBase(1),
+		Base: newTestBase(1),
+	}
+}
+
+func newE2ESetup() *colibri_mgmt.E2ESetup {
+	return &colibri_mgmt.E2ESetup{
+		Base:  newTestE2EBase(1),
+		Token: xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade"),
+	}
+}
+
+func newE2ECleanup() *colibri_mgmt.E2ECleanup {
+	return &colibri_mgmt.E2ECleanup{
+		Base: newTestE2EBase(1),
 	}
 }
 
@@ -135,6 +155,12 @@ func checkRequest(t *testing.T, segSetup *colibri_mgmt.SegmentSetup, r *segment.
 }
 
 func checkIDs(t *testing.T, ctrlID *colibri_mgmt.SegmentReservationID, id *reservation.SegmentID) {
+	t.Helper()
+	expectedID := append(ctrlID.ASID, ctrlID.Suffix...)
+	require.Equal(t, expectedID, id.ToRaw())
+}
+
+func checkE2EIDs(t *testing.T, ctrlID *colibri_mgmt.E2EReservationID, id *reservation.E2EID) {
 	t.Helper()
 	expectedID := append(ctrlID.ASID, ctrlID.Suffix...)
 	require.Equal(t, expectedID, id.ToRaw())

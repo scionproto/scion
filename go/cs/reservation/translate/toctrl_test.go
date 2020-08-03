@@ -104,11 +104,10 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				Request: &colibri_mgmt.Request{
 					Which: proto.Request_Which_segmentTeardown,
 					SegmentTeardown: &colibri_mgmt.SegmentTeardownReq{
-						Base: newBase(1),
+						Base: newTestBase(1),
 					},
 				},
 			},
-			Renewal: false,
 		},
 		"segment index confirmation": {
 			Ctrl: &colibri_mgmt.ColibriRequestPayload{
@@ -118,7 +117,6 @@ func TestNewCtrlFromMsg(t *testing.T) {
 					SegmentIndexConfirmation: newIndexConfirmation(),
 				},
 			},
-			Renewal: true,
 		},
 		"segment cleanup": {
 			Ctrl: &colibri_mgmt.ColibriRequestPayload{
@@ -128,18 +126,36 @@ func TestNewCtrlFromMsg(t *testing.T) {
 					SegmentCleanup: newCleanup(),
 				},
 			},
+		},
+		"e2e setup": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_request,
+				Request: &colibri_mgmt.Request{
+					Which:    proto.Request_Which_e2eSetup,
+					E2ESetup: newE2ESetup(),
+				},
+			},
+			Renewal: false,
+		},
+		"e2e renewal": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_request,
+				Request: &colibri_mgmt.Request{
+					Which:      proto.Request_Which_e2eRenewal,
+					E2ERenewal: newE2ESetup(),
+				},
+			},
 			Renewal: true,
 		},
-		// "e2e setup": {
-		// 	Ctrl: &colibri_mgmt.ColibriRequestPayload{
-		// 		Which: proto.ColibriRequestPayload_Which_request,
-		// 		Request: &colibri_mgmt.Request{
-		// 			Which:    proto.Request_Which_e2eSetup,
-		// 			E2ESetup: newe(),
-		// 		},
-		// 	},
-		// 	Renewal: true,
-		// },
+		"e2e cleanup": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_request,
+				Request: &colibri_mgmt.Request{
+					Which:      proto.Request_Which_e2eCleanup,
+					E2ECleanup: newE2ECleanup(),
+				},
+			},
+		},
 	}
 	for name, tc := range cases {
 		name, tc := name, tc

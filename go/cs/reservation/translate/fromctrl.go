@@ -112,7 +112,11 @@ func newRequestFromCtrl(ctrl *colibri_mgmt.Request, ts time.Time, path *spath.Pa
 	case proto.Request_Which_segmentCleanup:
 		return newRequestSegmentCleanup(ctrl.SegmentCleanup, ts, path)
 	case proto.Request_Which_e2eSetup:
-		return newRequestE2eSetup(ctrl.E2ESetup, ts, path)
+		return newRequestE2ESetup(ctrl.E2ESetup, ts, path)
+	case proto.Request_Which_e2eRenewal:
+		return newRequestE2ESetup(ctrl.E2ERenewal, ts, path)
+	case proto.Request_Which_e2eCleanup:
+		return newRequestE2ECleanup(ctrl.E2ECleanup, ts, path)
 	default:
 		return nil, serrors.New("invalid ctrl message", "ctrl", ctrl.Which.String())
 	}
@@ -240,8 +244,8 @@ func newRequestSegmentCleanup(ctrl *colibri_mgmt.SegmentCleanup, ts time.Time,
 	}, nil
 }
 
-func newRequestE2eSetup(ctrl *colibri_mgmt.E2ESetup, ts time.Time,
-	path *spath.Path) (*e2e.SetupReqTODO, error) {
+func newRequestE2ESetup(ctrl *colibri_mgmt.E2ESetup, ts time.Time,
+	path *spath.Path) (*e2e.SetupReq, error) {
 
 	id, err := NewE2EIDFromCtrl(ctrl.Base.ID)
 	if err != nil {
@@ -251,12 +255,28 @@ func newRequestE2eSetup(ctrl *colibri_mgmt.E2ESetup, ts time.Time,
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct e2e setup request", err)
 	}
-	tok, err := reservation.TokenFromRaw(ctrl.Success.Token)
+	tok, err := reservation.TokenFromRaw(ctrl.Token)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct e2e setup request", err)
 	}
-	return &e2e.SetupReqTODO{
+	return &e2e.SetupReq{
 		Request: *r,
 		Token:   *tok,
+	}, nil
+}
+
+func newRequestE2ECleanup(ctrl *colibri_mgmt.E2ECleanup, ts time.Time,
+	path *spath.Path) (*e2e.CleanupReq, error) {
+
+	id, err := NewE2EIDFromCtrl(ctrl.Base.ID)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot convert id", err)
+	}
+	r, err := e2e.NewRequest(ts, id, ctrl.Base.Index, path)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct e2e setup request", err)
+	}
+	return &e2e.CleanupReq{
+		Request: *r,
 	}, nil
 }

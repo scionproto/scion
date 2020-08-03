@@ -72,7 +72,7 @@ func TestNewRequestSegmentTelesSetup(t *testing.T) {
 
 func TestNewRequestSegmentTeardown(t *testing.T) {
 	ctrlMsg := &colibri_mgmt.SegmentTeardownReq{
-		Base: newBase(1),
+		Base: newTestBase(1),
 	}
 	ts := util.SecsToTime(1)
 	r, err := newRequestSegmentTeardown(ctrlMsg, ts, nil)
@@ -97,7 +97,7 @@ func TestNewRequestSegmentIndexConfirmation(t *testing.T) {
 
 func TestNewRequestSegmentCleanup(t *testing.T) {
 	ctrlMsg := &colibri_mgmt.SegmentCleanup{
-		Base: newBase(1),
+		Base: newTestBase(1),
 	}
 	ts := util.SecsToTime(1)
 	r, err := newRequestSegmentCleanup(ctrlMsg, ts, nil)
@@ -105,5 +105,28 @@ func TestNewRequestSegmentCleanup(t *testing.T) {
 	r, err = newRequestSegmentCleanup(ctrlMsg, ts, newPath())
 	require.NoError(t, err)
 	checkIDs(t, ctrlMsg.Base.ID, &r.ID)
+	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
+}
+
+func TestNewRequestE2ESetup(t *testing.T) {
+	ctrlMsg := newE2ESetup()
+	ts := util.SecsToTime(1)
+	r, err := newRequestE2ESetup(ctrlMsg, ts, nil)
+	require.Error(t, err)
+	r, err = newRequestE2ESetup(ctrlMsg, ts, newPath())
+	require.NoError(t, err)
+	checkE2EIDs(t, ctrlMsg.Base.ID, &r.ID)
+	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
+	require.Equal(t, ctrlMsg.Token, r.Token.ToRaw())
+}
+
+func TestNewRequestE2ECleanup(t *testing.T) {
+	ctrlMsg := newE2ECleanup()
+	ts := util.SecsToTime(1)
+	r, err := newRequestE2ECleanup(ctrlMsg, ts, nil)
+	require.Error(t, err)
+	r, err = newRequestE2ECleanup(ctrlMsg, ts, newPath())
+	require.NoError(t, err)
+	checkE2EIDs(t, ctrlMsg.Base.ID, &r.ID)
 	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
 }
