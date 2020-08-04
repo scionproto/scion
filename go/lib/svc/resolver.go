@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"net"
-	"time"
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -180,10 +179,6 @@ type path struct {
 	destination addr.IA
 }
 
-func (p *path) Fingerprint() snet.PathFingerprint {
-	return ""
-}
-
 func (p *path) UnderlayNextHop() *net.UDPAddr {
 	return p.underlay
 }
@@ -200,12 +195,8 @@ func (p *path) Destination() addr.IA {
 	return p.destination
 }
 
-func (p *path) MTU() uint16 {
-	return 0
-}
-
-func (p *path) Expiry() time.Time {
-	return time.Time{}
+func (p *path) Metadata() snet.PathMetadata {
+	return nil
 }
 
 func (p *path) Copy() snet.Path {

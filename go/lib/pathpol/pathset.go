@@ -25,6 +25,4 @@ type PathSet map[snet.PathFingerprint]Path
 type Path interface {
 	// Interfaces returns all the interfaces of this path.
 	Interfaces() []snet.PathInterface
-	// Returns a string that uniquely identifies this path.
-	Fingerprint() snet.PathFingerprint
 }

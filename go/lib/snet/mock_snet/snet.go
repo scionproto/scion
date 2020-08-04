@@ -266,34 +266,6 @@ func (mr *MockPathMockRecorder) Destination() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Destination", reflect.TypeOf((*MockPath)(nil).Destination))
 }
 
-// Expiry mocks base method
-func (m *MockPath) Expiry() time.Time {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Expiry")
-	ret0, _ := ret[0].(time.Time)
-	return ret0
-}
-
-// Expiry indicates an expected call of Expiry
-func (mr *MockPathMockRecorder) Expiry() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Expiry", reflect.TypeOf((*MockPath)(nil).Expiry))
-}
-
-// Fingerprint mocks base method
-func (m *MockPath) Fingerprint() snet.PathFingerprint {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Fingerprint")
-	ret0, _ := ret[0].(snet.PathFingerprint)
-	return ret0
-}
-
-// Fingerprint indicates an expected call of Fingerprint
-func (mr *MockPathMockRecorder) Fingerprint() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fingerprint", reflect.TypeOf((*MockPath)(nil).Fingerprint))
-}
-
 // Interfaces mocks base method
 func (m *MockPath) Interfaces() []snet.PathInterface {
 	m.ctrl.T.Helper()
@@ -308,18 +280,18 @@ func (mr *MockPathMockRecorder) Interfaces() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Interfaces", reflect.TypeOf((*MockPath)(nil).Interfaces))
 }
 
-// MTU mocks base method
-func (m *MockPath) MTU() uint16 {
+// Metadata mocks base method
+func (m *MockPath) Metadata() snet.PathMetadata {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MTU")
-	ret0, _ := ret[0].(uint16)
+	ret := m.ctrl.Call(m, "Metadata")
+	ret0, _ := ret[0].(snet.PathMetadata)
 	return ret0
 }
 
-// MTU indicates an expected call of MTU
-func (mr *MockPathMockRecorder) MTU() *gomock.Call {
+// Metadata indicates an expected call of Metadata
+func (mr *MockPathMockRecorder) Metadata() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MTU", reflect.TypeOf((*MockPath)(nil).MTU))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Metadata", reflect.TypeOf((*MockPath)(nil).Metadata))
 }
 
 // Path mocks base method
