@@ -15,6 +15,8 @@
 # Stdlib
 import copy
 import os
+from ipaddress import ip_network
+from typing import Mapping
 # External packages
 import yaml
 # SCION
@@ -24,18 +26,20 @@ from python.lib.util import (
 )
 from python.topology.common import (
     ArgsTopoDicts,
+    docker_host,
     docker_image,
     DOCKER_USR_VOL,
     sciond_svc_name
 )
 from python.topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
+from python.topology.net import NetworkDescription
 from python.topology.sig import SIGGenArgs, SIGGenerator
 
 DOCKER_CONF = 'scion-dc.yml'
 
 
 class DockerGenArgs(ArgsTopoDicts):
-    def __init__(self, args, topo_dicts, networks):
+    def __init__(self, args, topo_dicts, networks: Mapping[ip_network, NetworkDescription]):
         """
         :param object args: Contains the passed command line arguments as named attributes.
         :param dict topo_dicts: The generated topo dicts from TopoGenerator.
@@ -57,7 +61,7 @@ class DockerGenerator(object):
         self.bridges = {}
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
         self.user_spec = os.environ.get('SCION_USERSPEC', '$LOGNAME')
-        self.prefix = 'scion_docker_' if self.args.in_docker else 'scion_'
+        self.prefix = 'scion_'
 
     def generate(self):
         self._create_networks()
@@ -89,19 +93,32 @@ class DockerGenerator(object):
         self.dc_conf = sig_gen.generate()
 
     def _create_networks(self):
-        for network in self.args.networks:
-            for elem in self.args.networks[network]:
+        # first find v4 allocations, those networks don't need to be generated.
+        v4nets = {}
+        ignore_nets = []
+        for network, net_desc in self.args.networks.items():
+            if network.version == 6:
+                continue
+            if net_desc.name.endswith('_v4'):
+                v4nets[net_desc.name[:-3]] = network
+                ignore_nets.append(network)
+
+        for network, net_desc in self.args.networks.items():
+            if network in ignore_nets:
+                continue
+            for elem in net_desc.ip_net:
                 if elem not in self.elem_networks:
                     self.elem_networks[elem] = []
                 ipv = 'ipv4'
-                if self.args.networks[network][elem].ip.version == 6:
+                ip = net_desc.ip_net[elem].ip
+                if ip.version == 6:
                     ipv = 'ipv6'
                 self.elem_networks[elem].append({
                     'net': str(network),
-                    ipv: self.args.networks[network][elem].ip
+                    ipv: ip
                 })
             # Create docker networks
-            prefix = 'scnd_' if self.args.in_docker else 'scn_'
+            prefix = 'scn_'
             net_name = "%s%03d" % (prefix, len(self.bridges))
             self.bridges[str(network)] = net_name
             self.dc_conf['networks'][net_name] = {
@@ -113,6 +130,9 @@ class DockerGenerator(object):
                     'com.docker.network.bridge.name': net_name
                 }
             }
+            if net_desc.name in v4nets:
+                v4_net = v4nets[net_desc.name]
+                self.dc_conf['networks'][net_name]['ipam']['config'].append({'subnet': str(v4_net)})
             if network.version == 6:
                 self.dc_conf['networks'][net_name]['enable_ipv6'] = True
 
@@ -178,6 +198,7 @@ class DockerGenerator(object):
     def _dispatcher_conf(self, topo_id, topo, base):
         image = 'dispatcher'
         base_entry = {
+            'extra_hosts': ['jaeger:%s' % docker_host(self.args.docker)],
             'image': docker_image(self.args, image),
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
@@ -216,6 +237,7 @@ class DockerGenerator(object):
         ip = str(net[ipv])
         disp_id = 'cs%s-1' % topo_id.file_fmt()
         entry = {
+            'extra_hosts': ['jaeger:%s' % docker_host(self.args.docker)],
             'image': docker_image(self.args, 'sciond'),
             'container_name': '%ssd%s' % (self.prefix, topo_id.file_fmt()),
             'depends_on': [

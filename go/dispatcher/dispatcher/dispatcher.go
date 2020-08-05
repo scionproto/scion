@@ -11,11 +11,11 @@ import (
 	"github.com/scionproto/scion/go/dispatcher/internal/respool"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/underlay/conn"
 )
@@ -127,30 +127,19 @@ type Conn struct {
 	ring *ringbuf.Ring
 	// regReference is the reference to the registration in the routing table.
 	regReference registration.RegReference
-	// HeaderV2 indicates whether the new header format is used.
-	HeaderV2 bool
 }
 
 func (ac *Conn) WriteTo(p []byte, addr net.Addr) (int, error) {
-	var info spkt.ScnPkt
-	if ac.HeaderV2 {
-		if err := hpkt.ParseScnPkt2(&info, p); err != nil {
-			return 0, err
-		}
-	} else {
-		if err := hpkt.ParseScnPkt(&info, p); err != nil {
-			return 0, err
-		}
-	}
-	if err := registerIfSCMPRequest(ac.regReference, &info); err != nil {
-		log.Info("SCMP Request ID error, packet still sent", "err", err)
-	}
-	return ac.conn.WriteTo(p, addr)
+	panic("not implemented")
 }
 
 // Write is optimized for the use by ConnHandler (avoids reparsing the packet).
 func (ac *Conn) Write(pkt *respool.Packet) (int, error) {
+	// FIXME(roosd): Drop this with header v1.
 	if err := registerIfSCMPRequest(ac.regReference, &pkt.Info); err != nil {
+		log.Info("SCMP Request ID error, packet still sent", "err", err)
+	}
+	if err := registerIfSCMPInfo(ac.regReference, pkt); err != nil {
 		log.Info("SCMP Request ID error, packet still sent", "err", err)
 	}
 	return pkt.SendOnConn(ac.conn, pkt.UnderlayRemote)
@@ -255,6 +244,24 @@ func registerIfSCMPRequest(ref registration.RegReference, packet *spkt.ScnPkt) e
 		}
 	}
 	return nil
+}
+
+// registerIfSCMPInfo registers the ID of the SCMP request if it is an echo or
+// traceroute message.
+func registerIfSCMPInfo(ref registration.RegReference, pkt *respool.Packet) error {
+	if pkt.L4 != slayers.LayerTypeSCMP {
+		return nil
+	}
+	t := pkt.SCMP.TypeCode.Type()
+	if t != slayers.SCMPTypeEchoRequest && t != slayers.SCMPTypeTracerouteRequest {
+		return nil
+	}
+	id, err := extractSCMPIdentifier(&pkt.SCMP)
+	if err != nil {
+		return err
+	}
+	// FIXME(roosd): add metrics again.
+	return ref.RegisterID(uint64(id))
 }
 
 // underlayConnWrapper wraps a specialized underlay conn into a net.PacketConn

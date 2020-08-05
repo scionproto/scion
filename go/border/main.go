@@ -20,15 +20,12 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/user"
-
-	"github.com/pelletier/go-toml"
 
 	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/ifstate"
@@ -41,6 +38,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/service"
 )
 
 var (
@@ -70,10 +68,19 @@ func realMain() int {
 	defer log.Flush()
 	defer env.LogAppStopped(common.BR, cfg.General.ID)
 	defer log.HandlePanic()
-	http.HandleFunc("/config", configHandler)
-	http.HandleFunc("/info", env.InfoHandler)
-	http.HandleFunc("/status", statusHandler)
-	http.HandleFunc("/topology", itopo.TopologyHandler)
+
+	// Start HTTP endpoints.
+	statusPages := service.StatusPages{
+		"info":     service.NewInfoHandler(),
+		"config":   service.NewConfigHandler(cfg),
+		"status":   statusHandler,
+		"topology": itopo.TopologyHandler,
+	}
+	if err := statusPages.Register(http.DefaultServeMux, cfg.General.ID); err != nil {
+		log.Error("registering status pages", "err", err)
+		return 1
+	}
+
 	if err := setup(); err != nil {
 		log.Error("Setup failed", "err", err)
 		return 1
@@ -141,13 +148,6 @@ func checkPerms() error {
 		return serrors.New("Running as root is not allowed for security reasons")
 	}
 	return nil
-}
-
-func configHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	var buf bytes.Buffer
-	toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(cfg)
-	fmt.Fprint(w, buf.String())
 }
 
 func statusHandler(w http.ResponseWriter, r *http.Request) {

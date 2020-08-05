@@ -17,8 +17,6 @@ package segutil
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/binary"
 	"fmt"
 	"net"
 	"strings"
@@ -95,8 +93,10 @@ func (r *Router) translate(comb *combinator.Path, dst addr.IA) (path, error) {
 		interfaces: make([]pathInterface, 0, len(comb.Interfaces)),
 		underlay:   nextHop,
 		spath:      sp,
-		mtu:        comb.Mtu,
-		expiry:     comb.ComputeExpTime(),
+		metadata: pathMetadata{
+			mtu:    comb.Mtu,
+			expiry: comb.ComputeExpTime(),
+		},
 	}
 	for _, intf := range comb.Interfaces {
 		p.interfaces = append(p.interfaces, pathInterface{ia: intf.IA(), ifid: intf.ID()})
@@ -108,21 +108,13 @@ type path struct {
 	interfaces []pathInterface
 	underlay   *net.UDPAddr
 	spath      *spath.Path
-	mtu        uint16
-	expiry     time.Time
 	dst        addr.IA
+	metadata   pathMetadata
 }
 
-func (p path) Fingerprint() snet.PathFingerprint {
-	if len(p.interfaces) == 0 {
-		return ""
-	}
-	h := sha256.New()
-	for _, intf := range p.interfaces {
-		binary.Write(h, binary.BigEndian, intf.IA().IAInt())
-		binary.Write(h, binary.BigEndian, intf.ID())
-	}
-	return snet.PathFingerprint(h.Sum(nil))
+type pathMetadata struct {
+	mtu    uint16
+	expiry time.Time
 }
 
 func (p path) UnderlayNextHop() *net.UDPAddr {
@@ -161,12 +153,8 @@ func (p path) Destination() addr.IA {
 	return p.interfaces[len(p.interfaces)-1].IA()
 }
 
-func (p path) MTU() uint16 {
-	return p.mtu
-}
-
-func (p path) Expiry() time.Time {
-	return p.expiry
+func (p path) Metadata() snet.PathMetadata {
+	return p.metadata
 }
 
 func (p path) Copy() snet.Path {
@@ -174,15 +162,14 @@ func (p path) Copy() snet.Path {
 		interfaces: append(p.interfaces[:0:0], p.interfaces...),
 		underlay:   p.UnderlayNextHop(), // creates copy
 		spath:      p.Path(),            // creates copy
-		mtu:        p.mtu,
-		expiry:     p.expiry,
+		metadata:   p.metadata,
 	}
 }
 
 func (p path) String() string {
 	hops := p.fmtInterfaces()
 	return fmt.Sprintf("Hops: [%s] MTU: %d, NextHop: %s",
-		strings.Join(hops, ">"), p.mtu, p.underlay)
+		strings.Join(hops, ">"), p.Metadata().MTU(), p.UnderlayNextHop())
 }
 
 func (p path) fmtInterfaces() []string {
@@ -200,4 +187,12 @@ func (p path) fmtInterfaces() []string {
 	intf = p.interfaces[len(p.interfaces)-1]
 	hops = append(hops, fmt.Sprintf("%d %s", intf.ID(), intf.IA()))
 	return hops
+}
+
+func (m pathMetadata) MTU() uint16 {
+	return m.mtu
+}
+
+func (m pathMetadata) Expiry() time.Time {
+	return m.expiry
 }

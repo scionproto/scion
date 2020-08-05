@@ -16,7 +16,6 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -26,7 +25,6 @@ import (
 	"os/user"
 	"sync/atomic"
 
-	toml "github.com/pelletier/go-toml"
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -38,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sigdisp"
 	"github.com/scionproto/scion/go/lib/sigjson"
+	"github.com/scionproto/scion/go/pkg/service"
 	sigconfig "github.com/scionproto/scion/go/pkg/sig/config"
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/internal/base"
@@ -107,9 +106,18 @@ func realMain() int {
 	}()
 	egress.Init(tunIO)
 	ingress.Init(tunIO)
-	http.HandleFunc("/config", configHandler)
-	http.HandleFunc("/info", env.InfoHandler)
+
+	// Start HTTP endpoints.
+	statusPages := service.StatusPages{
+		"info":   service.NewInfoHandler(),
+		"config": service.NewConfigHandler(cfg),
+	}
+	if err := statusPages.Register(http.DefaultServeMux, cfg.Sig.ID); err != nil {
+		log.Error("registering status pages", "err", err)
+		return 1
+	}
 	cfg.Metrics.StartPrometheus()
+
 	select {
 	case <-fatal.ShutdownChan():
 		return 0
@@ -209,11 +217,4 @@ func loadConfig(path string) bool {
 	}
 	atomic.StoreUint64(&metrics.ConfigVersion, cfg.ConfigVersion)
 	return true
-}
-
-func configHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	var buf bytes.Buffer
-	toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(cfg)
-	fmt.Fprint(w, buf.String())
 }

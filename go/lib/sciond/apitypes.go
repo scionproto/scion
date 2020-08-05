@@ -16,8 +16,6 @@ package sciond
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/binary"
 	"fmt"
 	"net"
 	"strings"
@@ -101,14 +99,13 @@ func ifinfoReplyToMap(ifinfoReply *IFInfoReply) map[common.IFIDType]*net.UDPAddr
 	return m
 }
 
-type Path struct {
+// path implements snet.Path for paths obtained from sciond
+type path struct {
 	interfaces []pathInterface
 	underlay   *net.UDPAddr
 	spath      *spath.Path
-	mtu        uint16
-	expiry     time.Time
 	dst        addr.IA
-	metadata *PathMetadata
+	metadata   pathMetadata
 }
 
 func pathReplyToPaths(pathReply *PathReply, dst addr.IA) ([]snet.Path, error) {
@@ -126,12 +123,11 @@ func pathReplyToPaths(pathReply *PathReply, dst addr.IA) ([]snet.Path, error) {
 	return paths, nil
 }
 
-func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (Path, error) {
+func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (path, error) {
 	if len(pe.Path.Interfaces) == 0 {
-		return Path{
-			dst:    dst,
-			mtu:    pe.Path.Mtu,
-			expiry: pe.Path.Expiry(),
+		return path{
+			dst:      dst,
+			metadata: pathReplyEntryToMetadata(pe),
 		}, nil
 	}
 
@@ -139,20 +135,18 @@ func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (Path, error) {
 	if !pe.Path.HeaderV2 {
 		sp = spath.New(pe.Path.FwdPath)
 		if err := sp.InitOffsets(); err != nil {
-			return Path{}, serrors.WrapStr("path error", err)
+			return path{}, serrors.WrapStr("path error", err)
 		}
 	} else {
 		sp = spath.NewV2(pe.Path.FwdPath, false)
 	}
 
 	underlayAddr := pe.HostInfo.Underlay()
-	p := Path{
+	p := path{
 		interfaces: make([]pathInterface, 0, len(pe.Path.Interfaces)),
 		underlay:   underlayAddr,
 		spath:      sp,
-		mtu:        pe.Path.Mtu,
-		expiry:     pe.Path.Expiry(),
-		metadata: pe.Path.Metadata,
+		metadata:   pathReplyEntryToMetadata(pe),
 	}
 	for _, intf := range pe.Path.Interfaces {
 		p.interfaces = append(p.interfaces, pathInterface{ia: intf.IA(), id: intf.ID()})
@@ -160,19 +154,14 @@ func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (Path, error) {
 	return p, nil
 }
 
-func (p Path) Fingerprint() snet.PathFingerprint {
-	if len(p.interfaces) == 0 {
-		return ""
+func pathReplyEntryToMetadata(pe PathReplyEntry) pathMetadata {
+	return pathMetadata{
+		mtu:    pe.Path.Mtu,
+		expiry: pe.Path.Expiry(),
 	}
-	h := sha256.New()
-	for _, intf := range p.interfaces {
-		binary.Write(h, binary.BigEndian, intf.IA().IAInt())
-		binary.Write(h, binary.BigEndian, intf.ID())
-	}
-	return snet.PathFingerprint(h.Sum(nil))
 }
 
-func (p Path) UnderlayNextHop() *net.UDPAddr {
+func (p path) UnderlayNextHop() *net.UDPAddr {
 	if p.underlay == nil {
 		return nil
 	}
@@ -183,14 +172,14 @@ func (p Path) UnderlayNextHop() *net.UDPAddr {
 	}
 }
 
-func (p Path) Path() *spath.Path {
+func (p path) Path() *spath.Path {
 	if p.spath == nil {
 		return nil
 	}
 	return p.spath.Copy()
 }
 
-func (p Path) Interfaces() []snet.PathInterface {
+func (p path) Interfaces() []snet.PathInterface {
 	if p.interfaces == nil {
 		return nil
 	}
@@ -201,57 +190,33 @@ func (p Path) Interfaces() []snet.PathInterface {
 	return intfs
 }
 
-func (p Path) Destination() addr.IA {
+func (p path) Destination() addr.IA {
 	if len(p.interfaces) == 0 {
 		return p.dst
 	}
 	return p.interfaces[len(p.interfaces)-1].IA()
 }
 
-func (p Path) MTU() uint16 {
-	return p.mtu
-}
-
-func (p Path) Expiry() time.Time {
-	return p.expiry
-}
-
-func (p Path) Copy() snet.Path {
-	return Path{
-		interfaces: append(p.interfaces[:0:0], p.interfaces...),
-		underlay:   p.UnderlayNextHop(), // creates copy
-		spath:      p.Path(),            // creates copy
-		mtu:        p.mtu,
-		expiry:     p.expiry,
-		metadata: p.metadata.Copy(),
-	}
-}
-
-func (meta *PathMetadata) Copy() *PathMetadata{
-	if meta == nil {
-		return &PathMetadata{}
-	}
-	return &PathMetadata{
-		Latency: meta.Latency,
-		Hops:    meta.Hops,
-		Bandwidth:  meta.Bandwidth,
-		LinkTypes:    meta.LinkTypes,
-		Geos:    meta.Geos,
-		Notes:        meta.Notes,
-	}
-}
-
-func (p Path) String() string {
-	hops := p.fmtInterfaces()
-	return fmt.Sprintf("Hops: [%s] MTU: %d, NextHop: %s, Metadata: %v",
-		strings.Join(hops, ">"), p.mtu, p.underlay, p.metadata)
-}
-
-func (p Path) Metadata() *PathMetadata {
+func (p path) Metadata() snet.PathMetadata {
 	return p.metadata
 }
 
-func (p Path) fmtInterfaces() []string {
+func (p path) Copy() snet.Path {
+	return path{
+		interfaces: append(p.interfaces[:0:0], p.interfaces...),
+		underlay:   p.UnderlayNextHop(), // creates copy
+		spath:      p.Path(),            // creates copy
+		metadata:   p.metadata,
+	}
+}
+
+func (p path) String() string {
+	hops := p.fmtInterfaces()
+	return fmt.Sprintf("Hops: [%s] MTU: %d, NextHop: %s",
+		strings.Join(hops, ">"), p.metadata.mtu, p.underlay)
+}
+
+func (p path) fmtInterfaces() []string {
 	var hops []string
 	if len(p.interfaces) == 0 {
 		return hops
@@ -275,3 +240,16 @@ type pathInterface struct {
 
 func (i pathInterface) ID() common.IFIDType { return i.id }
 func (i pathInterface) IA() addr.IA         { return i.ia }
+
+type pathMetadata struct {
+	mtu    uint16
+	expiry time.Time
+}
+
+func (m pathMetadata) MTU() uint16 {
+	return m.mtu
+}
+
+func (m pathMetadata) Expiry() time.Time {
+	return m.expiry
+}

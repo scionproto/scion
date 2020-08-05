@@ -4,9 +4,17 @@
         "reply_start_timestamp": 0,
         "paths": [
           {
-            "fingerprint": "Foo",
+            "interfaces": [
+              {
+                "ia": "1-ff00:0:ffff",
+                "id": 1
+              },
+              {
+                "ia": "1-ff00:0:1",
+                "id": 1
+              }
+            ],
             "next_hop": "192.168.0.1:80",
-            "ia": "1-ff00:0:1",
             "expiration_timestamp": 7200
           }
         ]

@@ -18,10 +18,13 @@ import (
 	"net"
 	"sync"
 
+	"github.com/google/gopacket"
+
 	"github.com/scionproto/scion/go/dispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
@@ -46,6 +49,15 @@ type Packet struct {
 	UnderlayRemote *net.UDPAddr
 	// HeaderV2 indicates whether the new header format is used.
 	HeaderV2 bool
+
+	SCION slayers.SCION
+	// FIXME(roosd): currently no support for extensions.
+	UDP  slayers.UDP
+	SCMP slayers.SCMP
+	Pld  gopacket.Payload
+
+	// L4 indicates what type is at layer 4.
+	L4 gopacket.LayerType
 
 	// buffer contains the raw slice that other fields reference
 	buffer common.RawBytes
@@ -117,18 +129,7 @@ func (pkt *Packet) DecodeFromConn(conn net.PacketConn) error {
 	metrics.M.NetReadBytes().Add(float64(n))
 
 	pkt.UnderlayRemote = readExtra.(*net.UDPAddr)
-	if pkt.HeaderV2 {
-		if err = hpkt.ParseScnPkt2(&pkt.Info, pkt.buffer); err != nil {
-			metrics.M.NetReadPkts(
-				metrics.IncomingPacket{
-					Result: metrics.PacketResultParseError,
-				},
-			).Inc()
-			return err
-		}
-		return nil
-	}
-	if err = hpkt.ParseScnPkt(&pkt.Info, pkt.buffer); err != nil {
+	if err := pkt.decodeBuffer(); err != nil {
 		metrics.M.NetReadPkts(
 			metrics.IncomingPacket{
 				Result: metrics.PacketResultParseError,
@@ -150,11 +151,36 @@ func (pkt *Packet) DecodeFromReliableConn(conn net.PacketConn) error {
 		return serrors.New("missing next-hop")
 	}
 	pkt.UnderlayRemote = readExtra.(*net.UDPAddr)
+	return pkt.decodeBuffer()
+}
 
-	if pkt.HeaderV2 {
-		return hpkt.ParseScnPkt2(&pkt.Info, pkt.buffer)
+func (pkt *Packet) decodeBuffer() error {
+	if !pkt.HeaderV2 {
+		return hpkt.ParseScnPkt(&pkt.Info, pkt.buffer)
 	}
-	return hpkt.ParseScnPkt(&pkt.Info, pkt.buffer)
+	parser := gopacket.NewDecodingLayerParser(slayers.LayerTypeSCION,
+		&pkt.SCION, &pkt.UDP, &pkt.SCMP, &pkt.Pld,
+	)
+	decoded := make([]gopacket.LayerType, 3)
+
+	// Only return the error if it is not caused by the unregistered SCMP layers.
+	if err := parser.DecodeLayers(pkt.buffer, &decoded); err != nil {
+		if _, ok := err.(gopacket.UnsupportedLayerType); !ok {
+			return err
+		}
+		if len(decoded) == 0 || decoded[len(decoded)-1] != slayers.LayerTypeSCMP {
+			return err
+		}
+	}
+	if len(decoded) < 2 {
+		return serrors.New("L4 not decoded")
+	}
+	l4 := decoded[1]
+	if l4 != slayers.LayerTypeSCMP && l4 != slayers.LayerTypeSCIONUDP {
+		return serrors.New("unknown L4 layer decoded", "type", common.TypeOf(l4))
+	}
+	pkt.L4 = l4
+	return nil
 }
 
 func (pkt *Packet) SendOnConn(conn net.PacketConn, address net.Addr) (int, error) {
@@ -165,4 +191,5 @@ func (pkt *Packet) reset() {
 	pkt.buffer = pkt.buffer[:cap(pkt.buffer)]
 	pkt.Info = spkt.ScnPkt{}
 	pkt.UnderlayRemote = nil
+	pkt.L4 = 0
 }

@@ -15,6 +15,8 @@
 package snet
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"time"
@@ -23,12 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/spath"
 )
-
-type PathFingerprint string
-
-func (pf PathFingerprint) String() string {
-	return common.RawBytes(pf).String()
-}
 
 // Path is an abstract representation of a path. Most applications do not need
 // access to the raw internals.
@@ -39,10 +35,6 @@ func (pf PathFingerprint) String() string {
 // without a source of paths). An empty path only contains a Destination value,
 // all other values are zero values.
 type Path interface {
-	// Fingerprint uniquely identifies the path based on the sequence of
-	// ASes and BRs. Other metadata, such as MTU or NextHop have no effect
-	// on the fingerprint. Empty string means unknown fingerprint.
-	Fingerprint() PathFingerprint
 	// UnderlayNextHop returns the address:port pair of a local-AS underlay
 	// speaker. Usually, this is a border router that will forward the traffic.
 	UnderlayNextHop() *net.UDPAddr
@@ -56,11 +48,9 @@ type Path interface {
 	// Destination is the AS the path points to. Empty paths return the local
 	// AS of the router that created them.
 	Destination() addr.IA
-	// MTU returns the MTU of the path. If the result is zero, MTU is unknown.
-	MTU() uint16
-	// Expiry returns the expiration time of the path. If the result is a zero
-	// value expiration time is unknown.
-	Expiry() time.Time
+	// Metadata returns supplementary information about this path.
+	// Returns nil if the metadata is not available.
+	Metadata() PathMetadata
 	// Copy create a copy of the path.
 	Copy() Path
 }
@@ -75,6 +65,37 @@ type PathInterface interface {
 	IA() addr.IA
 }
 
+// PathMetadata contains supplementary information about a path.
+type PathMetadata interface {
+	// MTU returns the MTU of the path.
+	MTU() uint16
+	// Expiry returns the expiration time of the path.
+	Expiry() time.Time
+}
+
+type PathFingerprint string
+
+func (pf PathFingerprint) String() string {
+	return common.RawBytes(pf).String()
+}
+
+// Fingerprint uniquely identifies the path based on the sequence of
+// ASes and BRs, i.e. by its PathInterfaces.
+// Other metadata, such as MTU or NextHop have no effect on the fingerprint.
+// Returns empty string for paths where the interfaces list is not available.
+func Fingerprint(path Path) PathFingerprint {
+	interfaces := path.Interfaces()
+	if len(interfaces) == 0 {
+		return ""
+	}
+	h := sha256.New()
+	for _, intf := range interfaces {
+		binary.Write(h, binary.BigEndian, intf.IA().IAInt())
+		binary.Write(h, binary.BigEndian, intf.ID())
+	}
+	return PathFingerprint(h.Sum(nil))
+}
+
 // partialPath is a path object with incomplete metadata. It is used as a
 // temporary solution where a full path cannot be reconstituted from other
 // objects, notably snet.UDPAddr and snet.SVCAddr.
@@ -82,10 +103,6 @@ type partialPath struct {
 	spath       *spath.Path
 	underlay    *net.UDPAddr
 	destination addr.IA
-}
-
-func (p *partialPath) Fingerprint() PathFingerprint {
-	return ""
 }
 
 func (p *partialPath) UnderlayNextHop() *net.UDPAddr {
@@ -107,12 +124,8 @@ func (p *partialPath) Destination() addr.IA {
 	return p.destination
 }
 
-func (p *partialPath) MTU() uint16 {
-	return 0
-}
-
-func (p *partialPath) Expiry() time.Time {
-	return time.Time{}
+func (p *partialPath) Metadata() PathMetadata {
+	return nil
 }
 
 func (p *partialPath) Copy() Path {

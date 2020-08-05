@@ -85,7 +85,6 @@ dc() {
     local project="$1"
     local dc_file="gen/$1-dc.yml"
     shift
-    is_running_in_docker && project="${project}_docker"
     COMPOSE_FILE="$dc_file" docker-compose -p "$project" --no-ansi "$@"
 }
 
@@ -131,10 +130,6 @@ glob_match() {
 service_running() {
     cntr="$(cmd_scion ps -q $1)"
     [ -n "$cntr" ] && [ -n "$(docker ps -q --no-trunc | grep $cntr)" ]
-}
-
-is_running_in_docker() {
-    cut -d: -f 3 /proc/1/cgroup | grep -q '^/docker/'
 }
 
 PROGRAM="${0##*/}"

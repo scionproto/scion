@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -483,6 +484,9 @@ func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
 	defer conn.Close()
 
 	for _, packet := range tc.TestPackets {
+		if settings.HeaderV2 && strings.Contains(tc.Name, "SCMP") {
+			t.Skip("Skipping SCMP test", tc.Name)
+		}
 		sendBuffer := make([]byte, common.MaxMTU)
 		var n int
 		var err error

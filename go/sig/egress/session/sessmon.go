@@ -123,19 +123,29 @@ func (sm *sessMonitor) updatePaths() {
 		return
 	}
 	currPath := sm.smRemote.SessPath
-	expTime := currPath.Path().Expiry()
-	mtu := currPath.Path().MTU()
+	var oldExpTime time.Time
+	var oldMtu uint16
+	if md := currPath.Path().Metadata(); md != nil {
+		oldExpTime = md.Expiry()
+		oldMtu = md.MTU()
+	}
 	sm.sessPathPool.Update(sm.pool.Paths())
 	metrics.SessionPaths.WithLabelValues(sm.sess.IA().String(),
 		sm.sess.SessId.String()).Set(float64(sm.sessPathPool.PathCount()))
 	// Expiration or MTU of the current path may have changed during the update.
 	// In such a case we want to push the updated path to the Session.
-	if currPath.Path().Expiry() != expTime || currPath.Path().MTU() != mtu {
+	var expTime time.Time
+	var mtu uint16
+	if md := currPath.Path().Metadata(); md != nil {
+		expTime = md.Expiry()
+		mtu = md.MTU()
+	}
+	if expTime != oldExpTime || mtu != oldMtu {
 		sm.logger.Debug("sessMonitor: Path metadata changed",
-			"oldExpiration", expTime,
-			"newExpiration", currPath.Path().Expiry(),
-			"oldMTU", mtu,
-			"newMTU", currPath.Path().MTU)
+			"oldExpiration", oldExpTime,
+			"newExpiration", expTime,
+			"oldMTU", oldMtu,
+			"newMTU", mtu)
 		sm.updateSessSnap()
 	}
 }
@@ -226,7 +236,10 @@ func (sm *sessMonitor) updateSessSnap() {
 	}
 	sm.sess.currRemote.Store(remote)
 	if remote.SessPath != nil {
-		mtu := remote.SessPath.Path().MTU()
+		var mtu uint16
+		if md := remote.SessPath.Path().Metadata(); md != nil {
+			mtu = md.MTU()
+		}
 		metrics.SessionMTU.WithLabelValues(sm.sess.IA().String(),
 			sm.sess.SessId.String()).Set(float64(mtu))
 	}

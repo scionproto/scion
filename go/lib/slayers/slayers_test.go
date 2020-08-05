@@ -15,6 +15,10 @@
 package slayers_test
 
 import (
+	"bytes"
+	"flag"
+	"io/ioutil"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/gopacket"
@@ -30,10 +34,151 @@ import (
 var (
 	rawUDPPktFilename  = "scion-udp.bin"
 	rawFullPktFilename = "scion-udp-extn.bin"
+	goldenDir          = "./testdata"
 )
 
-// TODO(shitz): Ideally, these would be table-driven tests.
+var update = flag.Bool("update", false, "set to true to regenerate files")
 
+func TestSCIONSCMP(t *testing.T) {
+	testCases := map[string]struct {
+		rawFile       string
+		decodedLayers []gopacket.SerializableLayer
+		opts          gopacket.SerializeOptions
+	}{
+		"destination unreachable": {
+			rawFile: filepath.Join(goldenDir, "scion-scmp-dest-unreachable.bin"),
+			decodedLayers: []gopacket.SerializableLayer{
+				prepPacket(t, common.L4SCMP),
+				&slayers.SCMP{
+					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeDestinationUnreachable,
+						slayers.SCMPCodeRejectRouteToDest),
+				},
+				&slayers.SCMPDestinationUnreachable{},
+				gopacket.Payload(bytes.Repeat([]byte{0xff}, 18)),
+			},
+		},
+		// "packet too big":          {},
+		// "parameter problem":       {},
+		"internal connectivity down": {
+			rawFile: filepath.Join(goldenDir, "scion-scmp-int-conn-down.bin"),
+			decodedLayers: []gopacket.SerializableLayer{
+				prepPacket(t, common.L4SCMP),
+				&slayers.SCMP{
+					TypeCode: slayers.CreateSCMPTypeCode(6, 0),
+				},
+				&slayers.SCMPInternalConnectivityDown{
+					IA:      xtest.MustParseIA("1-ff00:0:111"),
+					Ingress: 5,
+					Egress:  15,
+				},
+				gopacket.Payload(bytes.Repeat([]byte{0xff}, 18)),
+			},
+		},
+		"external interface down": {
+			rawFile: filepath.Join(goldenDir, "scion-scmp-ext-int-down.bin"),
+			decodedLayers: []gopacket.SerializableLayer{
+				prepPacket(t, common.L4SCMP),
+				&slayers.SCMP{
+					TypeCode: slayers.CreateSCMPTypeCode(5, 0),
+				},
+				&slayers.SCMPExternalInterfaceDown{
+					IA:   xtest.MustParseIA("1-ff00:0:111"),
+					IfID: uint64(5),
+				},
+				gopacket.Payload(bytes.Repeat([]byte{0xff}, 18)),
+			},
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run("decode", func(t *testing.T) {
+			t.Parallel()
+			if *update {
+				t.Skip("flag -update updates golden files")
+				return
+			}
+			raw, err := ioutil.ReadFile(tc.rawFile)
+			require.NoError(t, err)
+			packet := gopacket.NewPacket(raw, slayers.LayerTypeSCION, gopacket.Default)
+			pe := packet.ErrorLayer()
+			if pe != nil {
+				require.NoError(t, pe.Error())
+			}
+			// Check that there are exactly X layers, e.g SCMP, SCMPMSG & Payload.
+			require.Equal(t, len(tc.decodedLayers), len(packet.Layers()))
+
+			for _, l := range tc.decodedLayers {
+				switch v := l.(type) {
+				case *slayers.SCION:
+					sl := packet.Layer(slayers.LayerTypeSCION)
+					require.NotNil(t, sl, "SCION layer should exist")
+					s := sl.(*slayers.SCION)
+					// TODO(karampok). initialize expected BaseLayer from the raw file.
+					v.BaseLayer = s.BaseLayer
+					assert.Equal(t, v, s)
+				case *slayers.SCMP:
+					sl := packet.Layer(slayers.LayerTypeSCMP)
+					require.NotNil(t, sl, "SCMP layer should exist")
+					s := sl.(*slayers.SCMP)
+					v.BaseLayer = s.BaseLayer
+					assert.Equal(t, v, s)
+				case *slayers.SCMPDestinationUnreachable:
+					sl := packet.Layer(slayers.LayerTypeSCMPDestinationUnreachable)
+					require.NotNil(t, sl, "SCMPDestinationUnreachable layer should exist")
+					s := sl.(*slayers.SCMPDestinationUnreachable)
+					v.BaseLayer = s.BaseLayer
+					assert.Equal(t, v, s)
+				case *slayers.SCMPExternalInterfaceDown:
+					sl := packet.Layer(slayers.LayerTypeSCMPExternalInterfaceDown)
+					require.NotNil(t, sl, "SCMPExternalInterfaceDown layer should exist")
+					s := sl.(*slayers.SCMPExternalInterfaceDown)
+					v.BaseLayer = s.BaseLayer
+					assert.Equal(t, v, s)
+				case *slayers.SCMPInternalConnectivityDown:
+					sl := packet.Layer(slayers.LayerTypeSCMPInternalConnectivityDown)
+					require.NotNil(t, sl, "SCMPInternalConnectivityDown layer should exist")
+					s := sl.(*slayers.SCMPInternalConnectivityDown)
+					v.BaseLayer = s.BaseLayer
+					assert.Equal(t, v, s)
+				case gopacket.Payload:
+					sl := packet.Layer(gopacket.LayerTypePayload)
+					require.NotNil(t, sl, "Payload should exist")
+					s := sl.(*gopacket.Payload)
+					assert.Equal(t, v.GoString(), s.GoString())
+				default:
+					assert.Fail(t, "all layers should match", "type %T", v)
+				}
+			}
+		})
+
+		t.Run("serialize", func(t *testing.T) {
+			name, tc := name, tc
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				opts := gopacket.SerializeOptions{
+					FixLengths:       true,
+					ComputeChecksums: false,
+				}
+				// TODO(karampok). enable compute checksum, it requires refactor because
+				//  scmp.SetNetworkLayerForChecksum(scion) should take place.
+				got := gopacket.NewSerializeBuffer()
+				err := gopacket.SerializeLayers(got, opts, tc.decodedLayers...)
+				require.NoError(t, err)
+				if *update {
+					err := ioutil.WriteFile(tc.rawFile, got.Bytes(), 0644)
+					require.NoError(t, err)
+					return
+				}
+				raw, err := ioutil.ReadFile(tc.rawFile)
+				require.NoError(t, err)
+				assert.Equal(t, raw, got.Bytes())
+			})
+		})
+	}
+}
+
+// TODO(shitz): Ideally, these would be table-driven tests.
 func TestDecodeSCIONUDP(t *testing.T) {
 	raw := xtest.MustReadFromFile(t, rawUDPPktFilename)
 
@@ -69,12 +214,12 @@ func TestDecodeSCIONUDP(t *testing.T) {
 }
 
 func TestSerializeSCIONUPDExtn(t *testing.T) {
-	s := prepPacket(t)
+	s := prepPacket(t, common.L4UDP)
 	s.NextHdr = common.HopByHopClass
 	u := &slayers.UDP{}
 	u.SrcPort = layers.UDPPort(1280)
 	u.DstPort = layers.UDPPort(80)
-	u.SetNetworkLayerForChecksum(s)
+	require.NoError(t, u.SetNetworkLayerForChecksum(s))
 	hbh := &slayers.HopByHopExtn{}
 	hbh.NextHdr = common.End2EndClass
 	hbh.Options = []*slayers.HopByHopOption{

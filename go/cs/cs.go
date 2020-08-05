@@ -22,8 +22,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing"
-	"github.com/scionproto/scion/go/cs/beaconstorage"
 	"github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/cs/handlers"
 	"github.com/scionproto/scion/go/cs/ifstate"
@@ -44,7 +44,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
-	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -54,6 +53,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/cs"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	trusthandler "github.com/scionproto/scion/go/pkg/cs/trust/handler"
+	"github.com/scionproto/scion/go/pkg/storage"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/compat"
 	trustmetrics "github.com/scionproto/scion/go/pkg/trust/metrics"
@@ -141,19 +141,20 @@ func run(file string) error {
 		return err
 	}
 
-	pathDB, revCache, err := pathstorage.NewPathStorage(cfg.PathDB)
+	revCache := storage.NewRevocationStorage()
+	pathDB, err := storage.NewPathStorage(cfg.PathDB)
 	if err != nil {
 		return serrors.WrapStr("initializing path storage", err)
 	}
 	defer revCache.Close()
-	pathDB = pathdb.WithMetrics(string(cfg.PathDB.Backend()), pathDB)
+	pathDB = pathdb.WithMetrics(string(storage.BackendSqlite), pathDB)
 	defer pathDB.Close()
 
-	trustDB, err := cfg.TrustDB.New()
+	trustDB, err := storage.NewTrustStorage(cfg.TrustDB)
 	if err != nil {
 		return serrors.WrapStr("initializing trust storage", err)
 	}
-	trustDB = trustmetrics.WrapDB(string(cfg.TrustDB.Backend()), trustDB)
+	trustDB = trustmetrics.WrapDB(string(storage.BackendSqlite), trustDB)
 	defer trustDB.Close()
 	if err := cs.LoadTrustMaterial(cfg.General.ConfigDir, trustDB, log.Root()); err != nil {
 		return err
@@ -266,7 +267,7 @@ func run(file string) error {
 
 	var chainBuilder cstrust.ChainBuilder
 	if topo.CA() {
-		renewalDB, err := cfg.RenewalDB.New()
+		renewalDB, err := storage.NewRenewalStorage(cfg.RenewalDB)
 		if err != nil {
 			return serrors.WrapStr("initializing renewal database", err)
 		}
@@ -299,8 +300,10 @@ func run(file string) error {
 		tcpMsgr.ListenAndServe()
 	}()
 	defer tcpMsgr.CloseServer()
-	cs.StartHTTPEndpoints(cfg, signer, chainBuilder, cfg.Metrics)
-
+	err = cs.StartHTTPEndpoints(cfg.General.ID, cfg, signer, chainBuilder, cfg.Metrics)
+	if err != nil {
+		return serrors.WrapStr("registering status pages", err)
+	}
 	ohpConn, err := cs.NewOneHopConn(topo.IA(), nc.Public, "", cfg.General.ReconnectToDispatcher,
 		cfg.Features.HeaderV2)
 	if err != nil {
@@ -420,19 +423,24 @@ func setup(cfg *config.Config) (*ifstate.Interfaces, error) {
 	return intfs, nil
 }
 
-func loadBeaconStore(core bool, ia addr.IA, cfg config.Config) (beaconstorage.Store, bool, error) {
+func loadBeaconStore(core bool, ia addr.IA, cfg config.Config) (cs.Store, bool, error) {
+	db, err := storage.NewBeaconStorage(cfg.BeaconDB, ia)
+	if err != nil {
+		return nil, false, err
+	}
+	db = beacon.DBWithMetrics(string(storage.BackendSqlite), db)
 	if core {
 		policies, err := cs.LoadCorePolicies(cfg.BS.Policies)
 		if err != nil {
 			return nil, false, err
 		}
-		store, err := cfg.BeaconDB.NewCoreStore(ia, policies)
+		store, err := beacon.NewCoreBeaconStore(policies, db)
 		return store, *policies.Prop.Filter.AllowIsdLoop, err
 	}
 	policies, err := cs.LoadNonCorePolicies(cfg.BS.Policies)
 	if err != nil {
 		return nil, false, err
 	}
-	store, err := cfg.BeaconDB.NewStore(ia, policies)
+	store, err := beacon.NewBeaconStore(policies, db)
 	return store, *policies.Prop.Filter.AllowIsdLoop, err
 }

@@ -14,7 +14,9 @@
 
 package slayers
 
-import "github.com/google/gopacket"
+import (
+	"github.com/google/gopacket"
+)
 
 var (
 	LayerTypeSCION = gopacket.RegisterLayerType(
@@ -38,8 +40,58 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeSCMP),
 		},
 	)
-	LayerTypeHopByHopExtn gopacket.LayerType
-	LayerTypeEndToEndExtn gopacket.LayerType
+	LayerTypeSCMPDummy = gopacket.RegisterLayerType(
+		2002,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPDummy",
+			Decoder: gopacket.DecodeFunc(decodeSCMP),
+		},
+	)
+
+	LayerTypeHopByHopExtn              gopacket.LayerType
+	LayerTypeEndToEndExtn              gopacket.LayerType
+	LayerTypeSCMPExternalInterfaceDown = gopacket.RegisterLayerType(
+		1005,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPExternalInterfaceDown",
+			Decoder: gopacket.DecodeFunc(decodeSCMPExternalInterfaceDown),
+		},
+	)
+	LayerTypeSCMPInternalConnectivityDown = gopacket.RegisterLayerType(
+		1006,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPInternalConnectivityDown",
+			Decoder: gopacket.DecodeFunc(decodeSCMPInternalConnectivityDown),
+		},
+	)
+	LayerTypeSCMPParameterProblem = gopacket.RegisterLayerType(
+		1007,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPParameterProblem",
+			Decoder: gopacket.DecodeFunc(decodeSCMPParameterProblem),
+		},
+	)
+	LayerTypeSCMPDestinationUnreachable = gopacket.RegisterLayerType(
+		1008,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPDestinationUnreachable",
+			Decoder: gopacket.DecodeFunc(decodeSCMPDestinationUnreachable),
+		},
+	)
+	LayerTypeSCMPEcho = gopacket.RegisterLayerType(
+		1128,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPEcho",
+			Decoder: gopacket.DecodeFunc(decodeSCMPEcho),
+		},
+	)
+	LayerTypeSCMPTraceroute = gopacket.RegisterLayerType(
+		1130,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPTraceroute",
+			Decoder: gopacket.DecodeFunc(decodeSCMPTraceroute),
+		},
+	)
 )
 
 func init() {

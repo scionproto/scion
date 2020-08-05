@@ -41,7 +41,8 @@ func (sp *SessPath) Path() snet.Path {
 }
 
 func (sp *SessPath) IsCloseToExpiry() bool {
-	return sp.Path().Expiry().Before(time.Now().Add(SafetyInterval))
+	metadata := sp.Path().Metadata()
+	return metadata == nil || metadata.Expiry().Before(time.Now().Add(SafetyInterval))
 }
 
 func (sp *SessPath) Copy() *SessPath {

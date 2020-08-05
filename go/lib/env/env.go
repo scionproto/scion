@@ -29,9 +29,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/opentracing/opentracing-go"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/uber/jaeger-client-go"
+	jaeger "github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 
 	"github.com/scionproto/scion/go/lib/config"
@@ -305,17 +305,4 @@ func (cfg *QUIC) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 
 func (cfg *QUIC) ConfigName() string {
 	return "quic"
-}
-
-func InfoHandler(w http.ResponseWriter, r *http.Request) {
-	info := VersionInfo()
-	inDocker, err := util.RunsInDocker()
-	if err == nil {
-		info += fmt.Sprintf("  In docker:     %v\n", inDocker)
-	}
-	info += fmt.Sprintf("  pid:           %d\n", os.Getpid())
-	info += fmt.Sprintf("  euid/egid:     %d %d\n", os.Geteuid(), os.Getegid())
-	info += fmt.Sprintf("  cmd line:      %q\n", os.Args)
-	w.Header().Set("Content-Type", "text/plain")
-	fmt.Fprintf(w, info)
 }

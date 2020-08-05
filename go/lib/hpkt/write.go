@@ -265,7 +265,7 @@ func WriteScnPkt2(s *spkt.ScnPkt, b []byte) (int, error) {
 		packetLayers = append(packetLayers, &udpLayer)
 	case *scmp.Hdr:
 		scionLayer.NextHdr = common.L4SCMP
-		var scmpLayer slayers.SCMP
+		var scmpLayer slayers.SCMPDummy
 		scmpLayer.Class = layer.Class
 		scmpLayer.Type = layer.Type
 		if layer.TotalLen == 0 {

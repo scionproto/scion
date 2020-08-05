@@ -15,15 +15,11 @@
 package sciond
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"io"
-	"net/http"
 	"path/filepath"
 
-	"github.com/opentracing/opentracing-go"
-	"github.com/pelletier/go-toml"
+	opentracing "github.com/opentracing/opentracing-go"
 
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/messenger/tcp"
@@ -32,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/pkg/sciond/config"
 	"github.com/scionproto/scion/go/pkg/sciond/fetcher"
 	"github.com/scionproto/scion/go/pkg/sciond/internal/servers"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -41,8 +36,8 @@ import (
 )
 
 // InitTracer initializes the global tracer.
-func InitTracer(cfg config.Config) (io.Closer, error) {
-	tracer, trCloser, err := cfg.Tracing.NewTracer(cfg.General.ID)
+func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
+	tracer, trCloser, err := tracing.NewTracer(id)
 	if err != nil {
 		return nil, err
 	}
@@ -111,17 +106,4 @@ func Server(listen string, cfg ServerCfg) *servers.Server {
 		},
 	}
 	return servers.NewServer("tcp", listen, handlers)
-}
-
-// StartHTTPEndpoints starts the HTTP endpoints.
-func StartHTTPEndpoints(cfg interface{}, metrics env.Metrics) {
-	http.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
-		var buf bytes.Buffer
-		toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(cfg)
-		fmt.Fprint(w, buf.String())
-	})
-	http.HandleFunc("/info", env.InfoHandler)
-	http.HandleFunc("/topology", itopo.TopologyHandler)
-	metrics.StartPrometheus()
 }

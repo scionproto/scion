@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 )
 
 // MetaLen is the length of the PathMetaHeader.
@@ -36,7 +37,8 @@ type Base struct {
 }
 
 func (s *Base) DecodeFromBytes(data []byte) error {
-	err := s.PathMeta.DecodeFromBytes(data[:MetaLen])
+	// PathMeta takes care of bounds check.
+	err := s.PathMeta.DecodeFromBytes(data)
 	if err != nil {
 		return err
 	}
@@ -53,10 +55,6 @@ func (s *Base) DecodeFromBytes(data []byte) error {
 		s.NumHops += int(s.PathMeta.SegLen[i])
 	}
 	return nil
-}
-
-func (s *Base) SerializeTo(b []byte) error {
-	return s.PathMeta.SerializeTo(b[:MetaLen])
 }
 
 // IncPath increases the currHF index and currINF index if appropriate.
@@ -91,6 +89,11 @@ func (s *Base) infIndexForHF(hf uint8) uint8 {
 	}
 	// at the end we just return the last index.
 	return uint8(s.NumINF - 1)
+}
+
+// Len returns the length of the path in bytes.
+func (s *Base) Len() int {
+	return MetaLen + int(s.NumINF)*path.InfoLen + int(s.NumHops)*path.HopLen
 }
 
 // MetaHdr is the PathMetaHdr of a SCION (data-plane) path type.

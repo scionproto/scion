@@ -45,8 +45,6 @@ def add_arguments(parser):
                         available timeout')
     parser.add_argument('--random-ifids', action='store_true',
                         help='Generate random IFIDs')
-    parser.add_argument('--in-docker', action='store_true',
-                        help='Set if running in a docker container')
     parser.add_argument('--docker-registry', help='Specify docker registry to pull images from')
     parser.add_argument('--image-tag', help='Docker image tag')
     parser.add_argument('--sig', action='store_true',

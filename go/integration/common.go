@@ -19,10 +19,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/uber/jaeger-client-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/env"
@@ -67,9 +69,18 @@ func addFlags() {
 
 // InitTracer initializes the global tracer and returns a closer function.
 func InitTracer(name string) (func(), error) {
+	agent := fmt.Sprintf("jaeger:%d", jaeger.DefaultUDPSpanServerPort)
+	c, err := net.DialTimeout("udp", agent, 100*time.Millisecond)
+	if err != nil {
+		log.Debug("Jaeger tracer not found, using default", "err", err)
+		agent = ""
+	} else if c != nil {
+		c.Close()
+	}
 	cfg := &env.Tracing{
 		Enabled: true,
 		Debug:   true,
+		Agent:   agent,
 	}
 	cfg.InitDefaults()
 	tr, closer, err := cfg.NewTracer(name)

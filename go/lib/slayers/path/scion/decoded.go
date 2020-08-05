@@ -42,6 +42,10 @@ func (s *Decoded) DecodeFromBytes(data []byte) error {
 	if err := s.Base.DecodeFromBytes(data); err != nil {
 		return err
 	}
+	if minLen := s.Len(); len(data) < minLen {
+		return serrors.New("DecodedPath raw too short", "expected", minLen, "actual", len(data))
+	}
+
 	offset := MetaLen
 	s.InfoFields = make([]*path.InfoField, s.NumINF)
 	for i := 0; i < int(s.NumINF); i++ {
@@ -97,7 +101,7 @@ func (s *Decoded) Reverse() error {
 		return nil
 	}
 	// Reverse order of InfoFields and SegLens
-	for i, j := 0, int(s.NumINF-1); i < j; i, j = i+1, j-1 {
+	for i, j := 0, s.NumINF-1; i < j; i, j = i+1, j-1 {
 		s.InfoFields[i], s.InfoFields[j] = s.InfoFields[j], s.InfoFields[i]
 		s.PathMeta.SegLen[i], s.PathMeta.SegLen[j] = s.PathMeta.SegLen[j], s.PathMeta.SegLen[i]
 	}
@@ -107,7 +111,7 @@ func (s *Decoded) Reverse() error {
 		info.ConsDir = !info.ConsDir
 	}
 	// Reverse order of hop fields
-	for i, j := 0, int(s.NumHops-1); i < j; i, j = i+1, j-1 {
+	for i, j := 0, s.NumHops-1; i < j; i, j = i+1, j-1 {
 		s.HopFields[i], s.HopFields[j] = s.HopFields[j], s.HopFields[i]
 	}
 	// Update CurrINF and CurrHF and SegLens
@@ -115,11 +119,6 @@ func (s *Decoded) Reverse() error {
 	s.PathMeta.CurrHF = uint8(s.NumHops) - s.PathMeta.CurrHF - 1
 
 	return nil
-}
-
-// Len returns the length of the path in bytes.
-func (s *Decoded) Len() int {
-	return MetaLen + int(s.NumINF)*path.InfoLen + int(s.NumHops)*path.HopLen
 }
 
 // ToRaw tranforms scion.Decoded into scion.Raw

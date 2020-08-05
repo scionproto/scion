@@ -40,13 +40,17 @@ var (
 )
 
 func TestSCIONSerializeDecode(t *testing.T) {
-	want := prepPacket(t)
+	want := prepPacket(t, common.L4UDP)
 	buffer := gopacket.NewSerializeBuffer()
 	require.NoError(t, want.SerializeTo(buffer, gopacket.SerializeOptions{FixLengths: true}))
 
 	got := &slayers.SCION{}
 	assert.NoError(t, got.DecodeFromBytes(buffer.Bytes(), gopacket.NilDecodeFeedback),
 		"DecodeFromBytes")
+
+	// XXX(karampok). the serialize step above does not set the BaseLayer of the want struct.
+	// We need to split the serialize/decode case.
+	want.BaseLayer = got.BaseLayer
 	assert.Equal(t, want, got)
 }
 
@@ -225,7 +229,7 @@ func BenchmarkDecodePreallocFull(b *testing.B) {
 }
 
 func BenchmarkSerializeReuseBuffer(b *testing.B) {
-	s := prepPacket(b)
+	s := prepPacket(b, common.L4UDP)
 	buffer := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{FixLengths: true}
 	for i := 0; i < b.N; i++ {
@@ -235,7 +239,7 @@ func BenchmarkSerializeReuseBuffer(b *testing.B) {
 }
 
 func BenchmarkSerializeNoReuseBuffer(b *testing.B) {
-	s := prepPacket(b)
+	s := prepPacket(b, common.L4UDP)
 	opts := gopacket.SerializeOptions{FixLengths: true}
 	for i := 0; i < b.N; i++ {
 		buffer := gopacket.NewSerializeBuffer()
@@ -243,13 +247,13 @@ func BenchmarkSerializeNoReuseBuffer(b *testing.B) {
 	}
 }
 
-func prepPacket(t testing.TB) *slayers.SCION {
+func prepPacket(t testing.TB, c common.L4ProtocolType) *slayers.SCION {
 	t.Helper()
 	spkt := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
-		NextHdr:      common.L4UDP,
+		NextHdr:      c,
 		PathType:     slayers.PathTypeSCION,
 		DstAddrType:  slayers.T16Ip,
 		DstAddrLen:   slayers.AddrLen16,
@@ -267,7 +271,7 @@ func prepPacket(t testing.TB) *slayers.SCION {
 
 func prepRawPacket(t testing.TB) []byte {
 	t.Helper()
-	spkt := prepPacket(t)
+	spkt := prepPacket(t, common.L4UDP)
 	buffer := gopacket.NewSerializeBuffer()
 	spkt.SerializeTo(buffer, gopacket.SerializeOptions{FixLengths: true})
 	return buffer.Bytes()

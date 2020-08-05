@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"time"
@@ -31,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
-	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -41,6 +41,8 @@ import (
 	"github.com/scionproto/scion/go/pkg/sciond"
 	"github.com/scionproto/scion/go/pkg/sciond/config"
 	"github.com/scionproto/scion/go/pkg/sciond/fetcher"
+	"github.com/scionproto/scion/go/pkg/service"
+	"github.com/scionproto/scion/go/pkg/storage"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/compat"
 	trustmetrics "github.com/scionproto/scion/go/pkg/trust/metrics"
@@ -96,16 +98,18 @@ func run(file string) error {
 		return err
 	}
 
-	closer, err := sciond.InitTracer(cfg)
+	closer, err := sciond.InitTracer(cfg.Tracing, cfg.General.ID)
 	if err != nil {
 		return serrors.WrapStr("initializing tracer", err)
 	}
 	defer closer.Close()
 
-	pathDB, revCache, err := pathstorage.NewPathStorage(cfg.PathDB)
+	revCache := storage.NewRevocationStorage()
+	pathDB, err := storage.NewPathStorage(cfg.PathDB)
 	if err != nil {
 		return serrors.WrapStr("initializing path storage", err)
 	}
+	pathDB = pathdb.WithMetrics(string(storage.BackendSqlite), pathDB)
 	defer pathDB.Close()
 	defer revCache.Close()
 	cleaner := periodic.Start(pathdb.NewCleaner(pathDB, "sd_segments"),
@@ -115,11 +119,11 @@ func run(file string) error {
 		10*time.Second, 10*time.Second)
 	defer rcCleaner.Stop()
 
-	trustDB, err := cfg.TrustDB.New()
+	trustDB, err := storage.NewTrustStorage(cfg.TrustDB)
 	if err != nil {
 		return serrors.WrapStr("initializing trust database", err)
 	}
-	trustDB = trustmetrics.WrapDB(string(cfg.TrustDB.Backend()), trustDB)
+	trustDB = trustmetrics.WrapDB(string(storage.BackendSqlite), trustDB)
 	defer trustDB.Close()
 	engine, err := sciond.TrustEngine(cfg.General.ConfigDir, trustDB)
 	if err != nil {
@@ -153,7 +157,17 @@ func run(file string) error {
 		srv.Shutdown(ctx)
 	}()
 
-	sciond.StartHTTPEndpoints(cfg, cfg.Metrics)
+	// Start HTTP endpoints.
+	statusPages := service.StatusPages{
+		"info":     service.NewInfoHandler(),
+		"config":   service.NewConfigHandler(cfg),
+		"topology": itopo.TopologyHandler,
+	}
+	if err := statusPages.Register(http.DefaultServeMux, cfg.General.ID); err != nil {
+		return serrors.WrapStr("registering status pages", err)
+	}
+	cfg.Metrics.StartPrometheus()
+
 	select {
 	case <-fatal.ShutdownChan():
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.

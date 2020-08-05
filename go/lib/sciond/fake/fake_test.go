@@ -30,12 +30,14 @@ func TestJSONConversion(t *testing.T) {
 				ReplyStartTimestamp: 0,
 				Paths: []*fake.Path{
 					{
-						JSONFingerprint: "Foo",
+						JSONInterfaces: []fake.PathInterface{
+							{JSONIA: xtest.MustParseIA("1-ff00:0:ffff"), JSONID: 1},
+							{JSONIA: xtest.MustParseIA("1-ff00:0:1"), JSONID: 1},
+						},
 						JSONNextHop: &fake.UDPAddr{
 							IP:   net.IP{192, 168, 0, 1},
 							Port: 80,
 						},
-						JSONIA:                  xtest.MustParseIA("1-ff00:0:1"),
 						JSONExpirationTimestamp: 7200,
 					},
 				},
@@ -69,12 +71,14 @@ func TestPaths(t *testing.T) {
 				ReplyStartTimestamp: 0,
 				Paths: []*fake.Path{
 					{
-						JSONFingerprint: "Foo",
+						JSONInterfaces: []fake.PathInterface{
+							{JSONIA: xtest.MustParseIA("1-ff00:0:ffff"), JSONID: 1},
+							{JSONIA: xtest.MustParseIA("1-ff00:0:1"), JSONID: 1},
+						},
 						JSONNextHop: &fake.UDPAddr{
 							IP:   net.IP{10, 0, 0, 1},
 							Port: 80,
 						},
-						JSONIA:                  xtest.MustParseIA("1-ff00:0:1"),
 						JSONExpirationTimestamp: 7200,
 					},
 				},
@@ -83,12 +87,14 @@ func TestPaths(t *testing.T) {
 				ReplyStartTimestamp: 1,
 				Paths: []*fake.Path{
 					{
-						JSONFingerprint: "Foo2",
+						JSONInterfaces: []fake.PathInterface{
+							{JSONIA: xtest.MustParseIA("1-ff00:0:ffff"), JSONID: 1},
+							{JSONIA: xtest.MustParseIA("2-ff00:0:2"), JSONID: 1},
+						},
 						JSONNextHop: &fake.UDPAddr{
 							IP:   net.IP{10, 0, 0, 2},
 							Port: 80,
 						},
-						JSONIA:                  xtest.MustParseIA("2-ff00:0:2"),
 						JSONExpirationTimestamp: 10800,
 					},
 				},
@@ -106,15 +112,17 @@ func TestPaths(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, 1, len(paths))
-	assert.Equal(t, "Foo", string(paths[0].Fingerprint()))
+	assert.NotEqual(t, "", string(snet.Fingerprint(paths[0])))
+	assert.Equal(t, snet.Fingerprint(script.Entries[0].Paths[0]), snet.Fingerprint(paths[0]))
 	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 1}, Port: 80}, paths[0].UnderlayNextHop())
 	assert.Equal(t, fake.DummyPath(), paths[0].Path())
-	assert.Equal(t, []snet.PathInterface{}, paths[0].Interfaces())
+	assert.Equal(t, 2, len(paths[0].Interfaces()))
+	assert.Equal(t, paths[0].Destination(), paths[0].Interfaces()[1].IA())
 	assert.Equal(t, xtest.MustParseIA("1-ff00:0:1"), paths[0].Destination())
-	assert.Equal(t, uint16(1472), paths[0].MTU())
+	assert.Equal(t, uint16(1472), paths[0].Metadata().MTU())
 	// path valid for more than an hour, but less than three
-	assert.True(t, paths[0].Expiry().After(time.Now().Add(time.Hour)))
-	assert.True(t, paths[0].Expiry().Before(time.Now().Add(3*time.Hour)))
+	assert.True(t, paths[0].Metadata().Expiry().After(time.Now().Add(time.Hour)))
+	assert.True(t, paths[0].Metadata().Expiry().Before(time.Now().Add(3*time.Hour)))
 
 	time.Sleep(time.Second)
 
@@ -127,26 +135,30 @@ func TestPaths(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, 1, len(paths))
-	assert.Equal(t, "Foo2", string(paths[0].Fingerprint()))
+	assert.NotEqual(t, "", string(snet.Fingerprint(paths[0])))
+	assert.Equal(t, snet.Fingerprint(script.Entries[1].Paths[0]), snet.Fingerprint(paths[0]))
 	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 2}, Port: 80}, paths[0].UnderlayNextHop())
 	assert.Equal(t, fake.DummyPath(), paths[0].Path())
-	assert.Equal(t, []snet.PathInterface{}, paths[0].Interfaces())
+	assert.Equal(t, 2, len(paths[0].Interfaces()))
+	assert.Equal(t, paths[0].Destination(), paths[0].Interfaces()[1].IA())
 	assert.Equal(t, xtest.MustParseIA("2-ff00:0:2"), paths[0].Destination())
-	assert.Equal(t, uint16(1472), paths[0].MTU())
+	assert.Equal(t, uint16(1472), paths[0].Metadata().MTU())
 	// path valid for more than two hours, but less than four
-	assert.True(t, paths[0].Expiry().After(time.Now().Add(2*time.Hour)))
-	assert.True(t, paths[0].Expiry().Before(time.Now().Add(4*time.Hour)))
+	assert.True(t, paths[0].Metadata().Expiry().After(time.Now().Add(2*time.Hour)))
+	assert.True(t, paths[0].Metadata().Expiry().Before(time.Now().Add(4*time.Hour)))
 }
 
 func TestPathCopy(t *testing.T) {
 	path := fake.Path{
-		JSONFingerprint: "foo",
+		JSONInterfaces: []fake.PathInterface{
+			{JSONIA: xtest.MustParseIA("1-ff00:0:ffff"), JSONID: 1},
+			{JSONIA: xtest.MustParseIA("1-ff00:0:1"), JSONID: 1},
+		},
 		JSONNextHop: &fake.UDPAddr{
 			IP:   net.IP{192, 168, 0, 1},
 			Port: 80,
 			Zone: "abc",
 		},
-		JSONIA: xtest.MustParseIA("1-ff00:0:1"),
 	}
 
 	copyPath := path.Copy()
