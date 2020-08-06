@@ -79,9 +79,10 @@ type SigConf struct {
 	ID string `toml:"id,omitempty"`
 	// The SIG config json file. (required)
 	SIGConfig string `toml:"sig_config,omitempty"`
-	// IA the local IA (required)
-	IA addr.IA `toml:"isd_as,omitempty"`
-	// IP the bind IP address (required)
+	// _IA is _ignored_. Was the local IA, now automatically determined).
+	// Kept for backwards compatibility with strict toml parsing.
+	_IA addr.IA `toml:"isd_as,omitempty"`
+	// IP the bind IP address (optional, default determined based on route to control service)
 	IP net.IP `toml:"ip,omitempty"`
 	// Control data port, e.g. keepalives. (default DefaultCtrlPort)
 	CtrlPort uint16 `toml:"ctrl_port,omitempty"`
@@ -112,15 +113,6 @@ func (cfg *SigConf) Validate() error {
 	}
 	if cfg.SIGConfig == "" {
 		return serrors.New("sig_config must be set!")
-	}
-	if cfg.IA.IsZero() {
-		return serrors.New("isd_as must be set")
-	}
-	if cfg.IA.IsWildcard() {
-		return serrors.New("Wildcard isd_as not allowed")
-	}
-	if cfg.IP.IsUnspecified() {
-		return serrors.New("ip must be set")
 	}
 	if cfg.CtrlPort == 0 {
 		cfg.CtrlPort = DefaultCtrlPort

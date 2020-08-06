@@ -56,6 +56,7 @@ func NewFromFile(file string) (sciond.Connector, error) {
 
 // Script describes the path entries a fake SCIOND should respond with.
 type Script struct {
+	IA      addr.IA  `json:"ia"`
 	Entries []*Entry `json:"entries"`
 }
 
@@ -218,7 +219,7 @@ func (c connector) adapter(paths []*Path) []snet.Path {
 }
 
 func (c connector) LocalIA(ctx context.Context) (addr.IA, error) {
-	panic("not implemented")
+	return c.script.IA, nil
 }
 
 func (c connector) ASInfo(ctx context.Context, ia addr.IA) (*sciond.ASInfoReply, error) {
