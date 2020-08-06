@@ -1,7 +1,6 @@
 [sig]
 id = "sig1-ff00_0_110"
 sig_config = "/cfg.json"
-isd_as = "1-ff00:0:110"
 ip = "242.254.100.2"
 
 [features]

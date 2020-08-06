@@ -27,12 +27,13 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sciond/fake"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	sigconfig "github.com/scionproto/scion/go/pkg/sig/config"
-	"github.com/scionproto/scion/go/sig/internal/snetmigrate"
 )
 
 const (
@@ -46,7 +47,6 @@ var (
 )
 
 var (
-	IA         addr.IA
 	PathMgr    pathmgr.Resolver
 	Dispatcher reliable.Dispatcher
 	Network    *snet.SCIONNetwork
@@ -58,15 +58,23 @@ var (
 )
 
 func Init(cfg sigconfig.SigConf, sdCfg env.SCIONDClient, features env.Features) error {
-	IA = cfg.IA
-	CtrlAddr = cfg.IP
-	CtrlPort = int(cfg.CtrlPort)
-	DataAddr = cfg.IP
-	DataPort = int(cfg.EncapPort)
-	network, resolver, err := initNetwork(cfg, sdCfg, features)
+	network, sciondConn, resolver, err := initNetwork(cfg, sdCfg, features)
 	if err != nil {
 		return common.NewBasicError("Error creating local SCION Network context", err)
 	}
+
+	ip := cfg.IP
+	if len(ip) == 0 || ip.IsUnspecified() {
+		ip, err = findDefaultLocalIP(context.Background(), sciondConn)
+		if err != nil {
+			return serrors.WrapStr("unable to determine default local IP", err)
+		}
+	}
+
+	CtrlAddr = ip
+	CtrlPort = int(cfg.CtrlPort)
+	DataAddr = ip
+	DataPort = int(cfg.EncapPort)
 	conn, err := network.Listen(context.Background(), "udp",
 		&net.UDPAddr{IP: CtrlAddr, Port: CtrlPort}, addr.SvcSIG)
 	if err != nil {
@@ -80,62 +88,64 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SCIONDClient, features env.Features) 
 	return nil
 }
 
-func initNetwork(cfg sigconfig.SigConf,
-	sdCfg env.SCIONDClient, features env.Features) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
+func initNetwork(cfg sigconfig.SigConf, sdCfg env.SCIONDClient,
+	features env.Features) (*snet.SCIONNetwork, sciond.Connector, pathmgr.Resolver, error) {
 
 	var err error
 	Dispatcher, err = newDispatcher(cfg)
 	if err != nil {
-		return nil, nil, serrors.WrapStr("unable to initialize SCION dispatcher", err)
+		return nil, nil, nil, serrors.WrapStr("unable to initialize SCION dispatcher", err)
 	}
+	var sciondConn sciond.Connector
 	if sdCfg.FakeData != "" {
-		return initNetworkWithFakeSCIOND(cfg, sdCfg, features)
+		sciondConn, err = initFakeSCIOND(cfg, sdCfg, features)
+		if err != nil {
+			return nil, nil, nil, serrors.WrapStr("unable to initialize fake SCIOND service", err)
+		}
+	} else {
+		sciondConn, err = initRealSCIOND(cfg, sdCfg, features)
+		if err != nil {
+			return nil, nil, nil, serrors.WrapStr("unable to initialize SCIOND service", err)
+		}
 	}
-	return initNetworkWithRealSCIOND(cfg, sdCfg, features)
-}
 
-func initNetworkWithFakeSCIOND(cfg sigconfig.SigConf,
-	sdCfg env.SCIONDClient, features env.Features) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
-
-	sciondConn, err := fake.NewFromFile(sdCfg.FakeData)
-	if err != nil {
-		return nil, nil, serrors.WrapStr("unable to initialize fake SCIOND service", err)
-	}
+	ia, _ := sciondConn.LocalIA(context.Background())
 	pathResolver := pathmgr.New(sciondConn, pathmgr.Timers{}, sdCfg.PathCount)
 	network := &snet.SCIONNetwork{
-		LocalIA: cfg.IA,
+		LocalIA: ia,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher:  Dispatcher,
 			SCMPHandler: snet.NewSCMPHandler(pathResolver),
 			Version2:    features.HeaderV2,
 		},
 	}
-	return network, pathResolver, nil
+	return network, sciondConn, pathResolver, nil
 }
 
-func initNetworkWithRealSCIOND(cfg sigconfig.SigConf,
-	sdCfg env.SCIONDClient, features env.Features) (*snet.SCIONNetwork, pathmgr.Resolver, error) {
+func initFakeSCIOND(cfg sigconfig.SigConf,
+	sdCfg env.SCIONDClient, features env.Features) (sciond.Connector, error) {
+
+	return fake.NewFromFile(sdCfg.FakeData)
+}
+
+func initRealSCIOND(cfg sigconfig.SigConf,
+	sdCfg env.SCIONDClient, features env.Features) (sciond.Connector, error) {
 
 	// TODO(karampok). To be kept until https://github.com/scionproto/scion/issues/3377
 	deadline := time.Now().Add(sdCfg.InitialConnectPeriod.Duration)
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
 	var retErr error
 	for tries := 0; time.Now().Before(deadline); tries++ {
-		resolver, err := snetmigrate.ResolverFromSD(sdCfg.Address, sdCfg.PathCount)
+		sciondConn, err := sciond.NewService(sdCfg.Address).Connect(ctx)
 		if err == nil {
-			return &snet.SCIONNetwork{
-				LocalIA: cfg.IA,
-				Dispatcher: &snet.DefaultPacketDispatcherService{
-					Dispatcher:  Dispatcher,
-					SCMPHandler: snet.NewSCMPHandler(resolver),
-					Version2:    features.HeaderV2,
-				},
-			}, resolver, nil
+			return sciondConn, nil
 		}
 		log.Debug("SIG is retrying to get NewNetwork", "err", err)
 		retErr = err
 		time.Sleep(time.Second)
 	}
-	return nil, nil, retErr
+	return nil, retErr
 }
 
 func newDispatcher(cfg sigconfig.SigConf) (reliable.Dispatcher, error) {
@@ -170,4 +180,31 @@ func ValidatePort(desc string, port int) error {
 func GetMgmtAddr() sig_mgmt.Addr {
 	return *sig_mgmt.NewAddr(addr.HostFromIP(CtrlAddr), uint16(CtrlPort),
 		addr.HostFromIP(DataAddr), uint16(DataPort))
+}
+
+// TODO(matzf): this is a simple, hopefully temporary, workaround to not having
+// wildcard addresses in snet.
+// Here we just use a seemingly sensible default IP, but in the general case
+// the local IP would depend on the next hop of selected path. This approach
+// will not work in more complicated setups where e.g. different network
+// interface are used to talk to different AS interfaces.
+// Once a available, a wildcard address should be used and this should simply
+// be removed.
+//
+// findDefaultLocalIP returns _a_ IP of this host in the local AS.
+func findDefaultLocalIP(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
+	hostInLocalAS, err := findAnyHostInLocalAS(ctx, sciondConn)
+	if err != nil {
+		return nil, err
+	}
+	return addrutil.ResolveLocal(hostInLocalAS)
+}
+
+// findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
+func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
+	addr, err := sciond.TopoQuerier{Connector: sciondConn}.UnderlayAnycast(ctx, addr.SvcBS)
+	if err != nil {
+		return nil, err
+	}
+	return addr.IP, nil
 }
