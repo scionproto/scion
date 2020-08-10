@@ -200,6 +200,27 @@ func TestNewCtrlFromMsg(t *testing.T) {
 			},
 			Renewal: true,
 		},
+		"response segment teardown success": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					SegmentTeardown: newSegmentTeardownSuccessResponse(),
+					Which:           proto.Response_Which_segmentTeardown,
+					Accepted:        true,
+				},
+			},
+		},
+		"response segment teardown failure": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					SegmentTeardown: newSegmentTeardownFailureResponse(),
+					Which:           proto.Response_Which_segmentTeardown,
+					Accepted:        false,
+				},
+			},
+		},
+
 		// TODO(juagargi) responses
 	}
 	for name, tc := range cases {
