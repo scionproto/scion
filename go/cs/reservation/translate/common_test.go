@@ -128,6 +128,19 @@ func newTestIndexConfirmation() *colibri_mgmt.SegmentIndexConfirmation {
 	}
 }
 
+func newTestIndexConfirmationSuccessResponse() *colibri_mgmt.SegmentIndexConfirmationRes {
+	return &colibri_mgmt.SegmentIndexConfirmationRes{
+		Base: newTestBase(1),
+	}
+}
+
+func newTestIndexConfirmationFailureResponse() *colibri_mgmt.SegmentIndexConfirmationRes {
+	return &colibri_mgmt.SegmentIndexConfirmationRes{
+		Base:      newTestBase(1),
+		ErrorCode: 42,
+	}
+}
+
 func newTestCleanup() *colibri_mgmt.SegmentCleanup {
 	return &colibri_mgmt.SegmentCleanup{
 		Base: newTestBase(1),
