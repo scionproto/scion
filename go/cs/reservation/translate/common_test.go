@@ -28,14 +28,14 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-func newID() *colibri_mgmt.SegmentReservationID {
+func newTestID() *colibri_mgmt.SegmentReservationID {
 	return &colibri_mgmt.SegmentReservationID{
 		ASID:   xtest.MustParseHexString("ff00cafe0001"),
 		Suffix: xtest.MustParseHexString("deadbeef"),
 	}
 }
 
-func newE2EID() *colibri_mgmt.E2EReservationID {
+func newTestE2EID() *colibri_mgmt.E2EReservationID {
 	return &colibri_mgmt.E2EReservationID{
 		ASID:   xtest.MustParseHexString("ff00cafe0001"),
 		Suffix: xtest.MustParseHexString("0123456789abcdef0123"),
@@ -44,19 +44,19 @@ func newE2EID() *colibri_mgmt.E2EReservationID {
 
 func newTestBase(idx uint8) *colibri_mgmt.SegmentBase {
 	return &colibri_mgmt.SegmentBase{
-		ID:    newID(),
+		ID:    newTestID(),
 		Index: idx,
 	}
 }
 
 func newTestE2EBase(idx uint8) *colibri_mgmt.E2EBase {
 	return &colibri_mgmt.E2EBase{
-		ID:    newE2EID(),
+		ID:    newTestE2EID(),
 		Index: idx,
 	}
 }
 
-func newSetup() *colibri_mgmt.SegmentSetup {
+func newTestSetup() *colibri_mgmt.SegmentSetup {
 	return &colibri_mgmt.SegmentSetup{
 		Base:     newTestBase(1),
 		MinBW:    1,
@@ -79,7 +79,7 @@ func newSetup() *colibri_mgmt.SegmentSetup {
 		},
 	}
 }
-func newSegmentSetupSuccessResponse() *colibri_mgmt.SegmentSetupRes {
+func newTestSegmentSetupSuccessResponse() *colibri_mgmt.SegmentSetupRes {
 	return &colibri_mgmt.SegmentSetupRes{
 		Base:  newTestBase(1),
 		Which: proto.SegmentSetupResData_Which_token,
@@ -87,81 +87,68 @@ func newSegmentSetupSuccessResponse() *colibri_mgmt.SegmentSetupRes {
 	}
 }
 
-func newSegmentSetupFailureResponse() *colibri_mgmt.SegmentSetupRes {
+func newTestSegmentSetupFailureResponse() *colibri_mgmt.SegmentSetupRes {
 	return &colibri_mgmt.SegmentSetupRes{
 		Base:    newTestBase(1),
 		Which:   proto.SegmentSetupResData_Which_failure,
-		Failure: newSetup(),
+		Failure: newTestSetup(),
 	}
 }
 
-func newTelesSetup() *colibri_mgmt.SegmentTelesSetup {
+func newTestTelesSetup() *colibri_mgmt.SegmentTelesSetup {
 	return &colibri_mgmt.SegmentTelesSetup{
-		Setup:  newSetup(),
-		BaseID: newID(),
+		Setup:  newTestSetup(),
+		BaseID: newTestID(),
 	}
 }
 
-func newSegmentTeardown() *colibri_mgmt.SegmentTeardownReq {
+func newTestSegmentTeardown() *colibri_mgmt.SegmentTeardownReq {
 	return &colibri_mgmt.SegmentTeardownReq{
 		Base: newTestBase(1),
 	}
 }
 
-func newSegmentTeardownSuccessResponse() *colibri_mgmt.SegmentTeardownRes {
+func newTestSegmentTeardownSuccessResponse() *colibri_mgmt.SegmentTeardownRes {
 	return &colibri_mgmt.SegmentTeardownRes{
 		Base: newTestBase(1),
 	}
 }
 
-func newSegmentTeardownFailureResponse() *colibri_mgmt.SegmentTeardownRes {
+func newTestSegmentTeardownFailureResponse() *colibri_mgmt.SegmentTeardownRes {
 	return &colibri_mgmt.SegmentTeardownRes{
 		Base:      newTestBase(1),
 		ErrorCode: 42,
 	}
 }
 
-func newSegmentTeardownResponseSuccess() *colibri_mgmt.SegmentTeardownRes {
-	return &colibri_mgmt.SegmentTeardownRes{
-		Base: newTestBase(1),
-	}
-}
-
-func newSegmentTeardownResponseFailure() *colibri_mgmt.SegmentTeardownRes {
-	return &colibri_mgmt.SegmentTeardownRes{
-		Base:      newTestBase(1),
-		ErrorCode: 42,
-	}
-}
-
-func newIndexConfirmation() *colibri_mgmt.SegmentIndexConfirmation {
+func newTestIndexConfirmation() *colibri_mgmt.SegmentIndexConfirmation {
 	return &colibri_mgmt.SegmentIndexConfirmation{
 		Base:  newTestBase(2),
 		State: proto.ReservationIndexState_active,
 	}
 }
 
-func newCleanup() *colibri_mgmt.SegmentCleanup {
+func newTestCleanup() *colibri_mgmt.SegmentCleanup {
 	return &colibri_mgmt.SegmentCleanup{
 		Base: newTestBase(1),
 	}
 }
 
-func newE2ESetup() *colibri_mgmt.E2ESetup {
+func newTestE2ESetup() *colibri_mgmt.E2ESetup {
 	return &colibri_mgmt.E2ESetup{
 		Base:  newTestE2EBase(1),
 		Token: xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade"),
 	}
 }
 
-func newE2ECleanup() *colibri_mgmt.E2ECleanup {
+func newTestE2ECleanup() *colibri_mgmt.E2ECleanup {
 	return &colibri_mgmt.E2ECleanup{
 		Base: newTestE2EBase(1),
 	}
 }
 
 // new path with one segment consisting on 3 hopfields: (0,2)->(1,2)->(1,0)
-func newPath() *spath.Path {
+func newTestPath() *spath.Path {
 	path := &spath.Path{
 		InfOff: 0,
 		HopOff: spath.InfoFieldLength + spath.HopFieldLength, // second hop field
