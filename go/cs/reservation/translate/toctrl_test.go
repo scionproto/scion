@@ -218,6 +218,26 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				},
 			},
 		},
+		"response segment index confirmation success": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					SegmentIndexConfirmation: newTestIndexConfirmationSuccessResponse(),
+					Which:                    proto.Response_Which_segmentIndexConfirmation,
+					Accepted:                 true,
+				},
+			},
+		},
+		"response segment index confirmation failure": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					SegmentIndexConfirmation: newTestIndexConfirmationFailureResponse(),
+					Which:                    proto.Response_Which_segmentIndexConfirmation,
+					Accepted:                 false,
+				},
+			},
+		},
 
 		// TODO(juagargi) responses
 	}
