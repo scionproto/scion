@@ -243,20 +243,6 @@ func TestSerializeResponse(t *testing.T) {
 				Accepted:       true,
 			},
 		},
-		"teles setup": {
-			Response: &colibri_mgmt.Response{
-				Which:             proto.Response_Which_segmentTelesSetup,
-				SegmentTelesSetup: newSegmentSetupResp(),
-				Accepted:          true,
-			},
-		},
-		"teles renewal": {
-			Response: &colibri_mgmt.Response{
-				Which:               proto.Response_Which_segmentTelesRenewal,
-				SegmentTelesRenewal: newSegmentSetupResp(),
-				Accepted:            true,
-			},
-		},
 		"teardown": {
 			Response: &colibri_mgmt.Response{
 				Which: proto.Response_Which_segmentTeardown,

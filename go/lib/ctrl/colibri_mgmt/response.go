@@ -22,8 +22,6 @@ type Response struct {
 	Which                    proto.Response_Which
 	SegmentSetup             *SegmentSetupRes
 	SegmentRenewal           *SegmentSetupRes
-	SegmentTelesSetup        *SegmentSetupRes
-	SegmentTelesRenewal      *SegmentSetupRes
 	SegmentTeardown          *SegmentTeardownRes
 	SegmentIndexConfirmation *SegmentIndexConfirmation
 	SegmentCleanup           *SegmentCleanup

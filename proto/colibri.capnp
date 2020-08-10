@@ -142,19 +142,17 @@ struct Request {
 struct Response {
     union {
         unset @0 :Void;
-        segmentSetup @1 :SegmentSetupResData;
-        segmentRenewal @2 :SegmentSetupResData;
-        segmentTelesSetup @3 :SegmentSetupResData;  # same response type as a normal setup
-        segmentTelesRenewal @4 :SegmentSetupResData;
-        segmentTeardown @5 :SegmentTeardownResData;
-        segmentIndexConfirmation @6 :SegmentIndexConfirmationData;
-        segmentCleanup @7 :SegmentCleanupData;
-        e2eSetup @8 :E2ESetupResData;
-        e2eRenewal @9 :E2ESetupResData;
-        e2eCleanup @10 :E2ECleanupData;
+        segmentSetup @1 :SegmentSetupResData;   # also for teles. setup
+        segmentRenewal @2 :SegmentSetupResData; # also for teles. renewal
+        segmentTeardown @3 :SegmentTeardownResData;
+        segmentIndexConfirmation @4 :SegmentIndexConfirmationData;
+        segmentCleanup @5 :SegmentCleanupData;
+        e2eSetup @6 :E2ESetupResData;
+        e2eRenewal @7 :E2ESetupResData;
+        e2eCleanup @8 :E2ECleanupData;
     }
-    accepted @11 :Bool;
-    failedHop @12 :UInt8;    # which hop failed the request
+    accepted @9 :Bool;
+    failedHop @10 :UInt8;    # which hop failed the request
 }
 
 # This travels inside a payload of a hop by hop colibri extension packet.

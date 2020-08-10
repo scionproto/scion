@@ -132,10 +132,6 @@ func newResponseFromCtrl(ctrl *colibri_mgmt.Response, ts time.Time, path *spath.
 		return newResponseSegmentSetup(ctrl.SegmentSetup, ctrl.FailedHop, ts, path)
 	case proto.Response_Which_segmentRenewal:
 		return newResponseSegmentSetup(ctrl.SegmentRenewal, ctrl.FailedHop, ts, path)
-	case proto.Response_Which_segmentTelesSetup:
-		return newResponseSegmentSetup(ctrl.SegmentTelesSetup, ctrl.FailedHop, ts, path)
-	case proto.Response_Which_segmentTelesRenewal:
-		return newResponseSegmentSetup(ctrl.SegmentTelesRenewal, ctrl.FailedHop, ts, path)
 	case proto.Response_Which_segmentTeardown:
 		return newResponseSegmentTeardown(ctrl.SegmentTeardown, ctrl.Accepted, ts, path)
 	case proto.Response_Which_segmentIndexConfirmation:
