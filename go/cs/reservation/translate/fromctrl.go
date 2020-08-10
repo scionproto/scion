@@ -351,11 +351,11 @@ func newResponseSegmentTeardown(ctrl *colibri_mgmt.SegmentTeardownRes, accepted 
 		return nil, serrors.WrapStr("cannot construct segment setup response", err)
 	}
 	if accepted {
-		return &segment.TeardownResponseSuccess{
+		return &segment.ResponseTeardownSuccess{
 			Response: *r,
 		}, nil
 	} else {
-		return &segment.TeardownResponseFailure{
+		return &segment.ResponseTeardownFailure{
 			Response:  *r,
 			ErrorCode: ctrl.ErrorCode,
 		}, nil
