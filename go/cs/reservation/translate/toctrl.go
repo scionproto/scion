@@ -78,6 +78,10 @@ func NewCtrlFromMsg(msg base.MessageWithPath, renewal bool) (
 		err = setSegmentTeardownSuccessResponse(r, ctrl)
 	case *segment.ResponseTeardownFailure:
 		err = setSegmentTeardownFailureResponse(r, ctrl)
+	case *segment.ResponseIndexConfirmationSuccess:
+		err = setSegmentIndexConfirmationSuccessResponse(r, ctrl)
+	case *segment.ResponseIndexConfirmationFailure:
+		err = setSegmentIndexConfirmationFailureResponse(r, ctrl)
 	default:
 		err = serrors.New("unknown application type", "type", fmt.Sprintf("%T", msg))
 	}
@@ -331,12 +335,34 @@ func setSegmentTeardownSuccessResponse(msg *segment.ResponseTeardownSuccess,
 func setSegmentTeardownFailureResponse(msg *segment.ResponseTeardownFailure,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, true)
+	thisIsAResponse(ctrl, false)
 	ctrl.Response.SegmentTeardown = &colibri_mgmt.SegmentTeardownRes{
 		Base:      newSegmentBaseFromResponse(&msg.Response),
 		ErrorCode: msg.ErrorCode,
 	}
 	ctrl.Response.Which = proto.Response_Which_segmentTeardown
-	ctrl.Response.Accepted = false
+	return nil
+}
+
+func setSegmentIndexConfirmationSuccessResponse(msg *segment.ResponseIndexConfirmationSuccess,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	thisIsAResponse(ctrl, true)
+	ctrl.Response.SegmentIndexConfirmation = &colibri_mgmt.SegmentIndexConfirmationRes{
+		Base: newSegmentBaseFromResponse(&msg.Response),
+	}
+	ctrl.Response.Which = proto.Response_Which_segmentIndexConfirmation
+	return nil
+}
+
+func setSegmentIndexConfirmationFailureResponse(msg *segment.ResponseIndexConfirmationFailure,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	thisIsAResponse(ctrl, false)
+	ctrl.Response.SegmentIndexConfirmation = &colibri_mgmt.SegmentIndexConfirmationRes{
+		Base:      newSegmentBaseFromResponse(&msg.Response),
+		ErrorCode: msg.ErrorCode,
+	}
+	ctrl.Response.Which = proto.Response_Which_segmentIndexConfirmation
 	return nil
 }
