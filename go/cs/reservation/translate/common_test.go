@@ -79,28 +79,19 @@ func newSetup() *colibri_mgmt.SegmentSetup {
 		},
 	}
 }
-func newSegmentSuccessResponse() *colibri_mgmt.Response {
-	return &colibri_mgmt.Response{
-		Which: proto.Response_Which_segmentSetup,
-		SegmentSetup: &colibri_mgmt.SegmentSetupRes{
-			Base:  newTestBase(1),
-			Which: proto.SegmentSetupResData_Which_token,
-			Token: xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade"),
-		},
-		Accepted: true,
+func newSegmentSetupSuccessResponse() *colibri_mgmt.SegmentSetupRes {
+	return &colibri_mgmt.SegmentSetupRes{
+		Base:  newTestBase(1),
+		Which: proto.SegmentSetupResData_Which_token,
+		Token: xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade"),
 	}
 }
 
-func newSegmentFailureResponse() *colibri_mgmt.Response {
-	return &colibri_mgmt.Response{
-		Which: proto.Response_Which_segmentSetup,
-		SegmentSetup: &colibri_mgmt.SegmentSetupRes{
-			Base:    newTestBase(1),
-			Which:   proto.SegmentSetupResData_Which_failure,
-			Failure: newSetup(),
-		},
-		Accepted:  false,
-		FailedHop: 2,
+func newSegmentSetupFailureResponse() *colibri_mgmt.SegmentSetupRes {
+	return &colibri_mgmt.SegmentSetupRes{
+		Base:    newTestBase(1),
+		Which:   proto.SegmentSetupResData_Which_failure,
+		Failure: newSetup(),
 	}
 }
 
@@ -108,6 +99,25 @@ func newTelesSetup() *colibri_mgmt.SegmentTelesSetup {
 	return &colibri_mgmt.SegmentTelesSetup{
 		Setup:  newSetup(),
 		BaseID: newID(),
+	}
+}
+
+func newSegmentTeardown() *colibri_mgmt.SegmentTeardownReq {
+	return &colibri_mgmt.SegmentTeardownReq{
+		Base: newTestBase(1),
+	}
+}
+
+func newSegmentTeardownResponseSuccess() *colibri_mgmt.SegmentTeardownRes {
+	return &colibri_mgmt.SegmentTeardownRes{
+		Base: newTestBase(1),
+	}
+}
+
+func newSegmentTeardownResponseFailure() *colibri_mgmt.SegmentTeardownRes {
+	return &colibri_mgmt.SegmentTeardownRes{
+		Base:      newTestBase(1),
+		ErrorCode: 42,
 	}
 }
 

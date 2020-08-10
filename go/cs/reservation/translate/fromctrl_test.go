@@ -71,9 +71,7 @@ func TestNewRequestSegmentTelesSetup(t *testing.T) {
 }
 
 func TestNewRequestSegmentTeardown(t *testing.T) {
-	ctrlMsg := &colibri_mgmt.SegmentTeardownReq{
-		Base: newTestBase(1),
-	}
+	ctrlMsg := newSegmentTeardown()
 	ts := util.SecsToTime(1)
 	r, err := newRequestSegmentTeardown(ctrlMsg, ts, nil)
 	require.Error(t, err) // path is nil
@@ -133,16 +131,15 @@ func TestNewRequestE2ECleanup(t *testing.T) {
 
 func TestNewResponseSegmentSetup(t *testing.T) {
 	cases := map[string]struct {
-		// Ctrl    *colibri_mgmt.Response
 		Ctrl    *colibri_mgmt.SegmentSetupRes
 		Success bool
 	}{
 		"success": {
-			Ctrl:    newSegmentSuccessResponse().SegmentSetup,
+			Ctrl:    newSegmentSetupSuccessResponse(),
 			Success: true,
 		},
 		"failure": {
-			Ctrl:    newSegmentFailureResponse().SegmentSetup,
+			Ctrl:    newSegmentSetupFailureResponse(),
 			Success: false,
 		},
 	}
@@ -160,21 +157,55 @@ func TestNewResponseSegmentSetup(t *testing.T) {
 			if tc.Success {
 				require.IsType(t, &segment.ResponseSetupSuccess{}, r)
 				rs := r.(*segment.ResponseSetupSuccess)
-				// checkIDs(t, tc.Ctrl.SegmentSetup.Base.ID, &rs.ID)
-				// require.Equal(t, tc.Ctrl.SegmentSetup.Base.Index, uint8(rs.Index))
-				// require.Equal(t, tc.Ctrl.SegmentSetup.Token, rs.Token.ToRaw())
 				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
 				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
 				require.Equal(t, tc.Ctrl.Token, rs.Token.ToRaw())
 			} else {
 				require.IsType(t, &segment.ResponseSetupFailure{}, r)
 				rs := r.(*segment.ResponseSetupFailure)
-				// checkIDs(t, tc.Ctrl.SegmentSetup.Base.ID, &rs.ID)
-				// require.Equal(t, tc.Ctrl.SegmentSetup.Base.Index, uint8(rs.Index))
-				// checkRequest(t, tc.Ctrl.SegmentSetup.Failure, &rs.FailedSetup, ts)
 				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
 				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
 				checkRequest(t, tc.Ctrl.Failure, &rs.FailedSetup, ts)
+			}
+		})
+	}
+}
+
+func TestNewResponseSegmentTeardown(t *testing.T) {
+	cases := map[string]struct {
+		Ctrl    *colibri_mgmt.SegmentTeardownRes
+		Success bool
+	}{
+		"success": {
+			Ctrl:    newSegmentTeardownResponseSuccess(),
+			Success: true,
+		},
+		"failure": {
+			Ctrl:    newSegmentTeardownResponseFailure(),
+			Success: false,
+		},
+	}
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ts := util.SecsToTime(1)
+			r, err := newResponseSegmentTeardown(tc.Ctrl, tc.Success, ts, nil)
+			require.Error(t, err) // no path
+			r, err = newResponseSegmentTeardown(tc.Ctrl, tc.Success, ts, newPath())
+			require.NoError(t, err)
+			require.NotNil(t, r)
+			if tc.Success {
+				require.IsType(t, &segment.TeardownResponseSuccess{}, r)
+				rs := r.(*segment.TeardownResponseSuccess)
+				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+			} else {
+				require.IsType(t, &segment.TeardownResponseFailure{}, r)
+				rs := r.(*segment.TeardownResponseFailure)
+				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+				require.Equal(t, tc.Ctrl.ErrorCode, rs.ErrorCode)
 			}
 		})
 	}

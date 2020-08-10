@@ -65,7 +65,16 @@ func NewCtrlFromMsg(msg base.MessageWithPath, renewal bool) (
 	case *segment.ResponseSetupSuccess:
 		if !renewal {
 			err = setSegmentSetupSuccessResponse(r, ctrl)
+		} else {
+			setSegmentRenewalSuccessResponse(r, ctrl)
 		}
+	case *segment.ResponseSetupFailure:
+		if !renewal {
+			err = setSegmentSetupFailureResponse(r, ctrl)
+		} else {
+			err = setSegmentRenewalFailureResponse(r, ctrl)
+		}
+
 	default:
 		err = serrors.New("unknown application type", "type", fmt.Sprintf("%T", msg))
 	}
@@ -89,6 +98,13 @@ func NewCtrlE2EReservationID(ID *reservation.E2EID) *colibri_mgmt.E2EReservation
 }
 
 func newSegmentBase(msg *segment.Request) *colibri_mgmt.SegmentBase {
+	return &colibri_mgmt.SegmentBase{
+		ID:    NewCtrlSegmentReservationID(&msg.ID),
+		Index: uint8(msg.Index),
+	}
+}
+
+func newSegmentBaseFromResponse(msg *segment.Response) *colibri_mgmt.SegmentBase {
 	return &colibri_mgmt.SegmentBase{
 		ID:    NewCtrlSegmentReservationID(&msg.ID),
 		Index: uint8(msg.Index),
@@ -252,13 +268,49 @@ func setSegmentSetupSuccessResponse(msg *segment.ResponseSetupSuccess,
 
 	thisIsAResponse(ctrl, true)
 	ctrl.Response.SegmentSetup = &colibri_mgmt.SegmentSetupRes{
-		Base: &colibri_mgmt.SegmentBase{
-			ID:    NewCtrlSegmentReservationID(&msg.ID),
-			Index: uint8(msg.Index),
-		},
+		Base:  newSegmentBaseFromResponse(&msg.Response),
 		Which: proto.SegmentSetupResData_Which_token,
 		Token: msg.Token.ToRaw(),
 	}
 	ctrl.Response.Which = proto.Response_Which_segmentSetup
+	return nil
+}
+
+func setSegmentSetupFailureResponse(msg *segment.ResponseSetupFailure,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	thisIsAResponse(ctrl, false)
+	ctrl.Response.SegmentSetup = &colibri_mgmt.SegmentSetupRes{
+		Base:    newSegmentBaseFromResponse(&msg.Response),
+		Which:   proto.SegmentSetupResData_Which_failure,
+		Failure: newSegmentSetup(&msg.FailedSetup),
+	}
+	ctrl.Response.Which = proto.Response_Which_segmentSetup
+	return nil
+}
+
+func setSegmentRenewalSuccessResponse(msg *segment.ResponseSetupSuccess,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	thisIsAResponse(ctrl, true)
+	ctrl.Response.SegmentRenewal = &colibri_mgmt.SegmentSetupRes{
+		Base:  newSegmentBaseFromResponse(&msg.Response),
+		Which: proto.SegmentSetupResData_Which_token,
+		Token: msg.Token.ToRaw(),
+	}
+	ctrl.Response.Which = proto.Response_Which_segmentRenewal
+	return nil
+}
+
+func setSegmentRenewalFailureResponse(msg *segment.ResponseSetupFailure,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	thisIsAResponse(ctrl, false)
+	ctrl.Response.SegmentRenewal = &colibri_mgmt.SegmentSetupRes{
+		Base:    newSegmentBaseFromResponse(&msg.Response),
+		Which:   proto.SegmentSetupResData_Which_failure,
+		Failure: newSegmentSetup(&msg.FailedSetup),
+	}
+	ctrl.Response.Which = proto.Response_Which_segmentRenewal
 	return nil
 }

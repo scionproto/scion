@@ -133,8 +133,11 @@ func newResponseFromCtrl(ctrl *colibri_mgmt.Response, ts time.Time, path *spath.
 	case proto.Response_Which_segmentRenewal:
 		return newResponseSegmentSetup(ctrl.SegmentRenewal, ctrl.FailedHop, ts, path)
 	case proto.Response_Which_segmentTelesSetup:
+		return newResponseSegmentSetup(ctrl.SegmentTelesSetup, ctrl.FailedHop, ts, path)
 	case proto.Response_Which_segmentTelesRenewal:
+		return newResponseSegmentSetup(ctrl.SegmentTelesRenewal, ctrl.FailedHop, ts, path)
 	case proto.Response_Which_segmentTeardown:
+		return newResponseSegmentTeardown(ctrl.SegmentTeardown, ctrl.Accepted, ts, path)
 	case proto.Response_Which_segmentIndexConfirmation:
 	case proto.Response_Which_segmentCleanup:
 	case proto.Response_Which_e2eSetup:
@@ -334,5 +337,29 @@ func newResponseSegmentSetup(ctrl *colibri_mgmt.SegmentSetupRes, failedHop uint8
 		}, nil
 	default:
 		return nil, serrors.New("invalid ctrl message", "ctrl", ctrl.Which.String())
+	}
+}
+
+func newResponseSegmentTeardown(ctrl *colibri_mgmt.SegmentTeardownRes, accepted bool,
+	ts time.Time, path *spath.Path) (base.MessageWithPath, error) {
+
+	id, err := NewSegmentIDFromCtrl(ctrl.Base.ID)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot convert id", err)
+	}
+	r, err := segment.NewResponse(ts, id,
+		reservation.IndexNumber(ctrl.Base.Index), path)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct segment setup response", err)
+	}
+	if accepted {
+		return &segment.TeardownResponseSuccess{
+			Response: *r,
+		}, nil
+	} else {
+		return &segment.TeardownResponseFailure{
+			Response:  *r,
+			ErrorCode: ctrl.ErrorCode,
+		}, nil
 	}
 }
