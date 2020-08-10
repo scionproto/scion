@@ -108,6 +108,19 @@ func newSegmentTeardown() *colibri_mgmt.SegmentTeardownReq {
 	}
 }
 
+func newSegmentTeardownSuccessResponse() *colibri_mgmt.SegmentTeardownRes {
+	return &colibri_mgmt.SegmentTeardownRes{
+		Base: newTestBase(1),
+	}
+}
+
+func newSegmentTeardownFailureResponse() *colibri_mgmt.SegmentTeardownRes {
+	return &colibri_mgmt.SegmentTeardownRes{
+		Base:      newTestBase(1),
+		ErrorCode: 42,
+	}
+}
+
 func newSegmentTeardownResponseSuccess() *colibri_mgmt.SegmentTeardownRes {
 	return &colibri_mgmt.SegmentTeardownRes{
 		Base: newTestBase(1),
