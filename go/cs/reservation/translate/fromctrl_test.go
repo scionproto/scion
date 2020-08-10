@@ -27,7 +27,7 @@ import (
 )
 
 func TestNewSegmentIDFromCtrl(t *testing.T) {
-	ctrl := newID()
+	ctrl := newTestID()
 	id, err := NewSegmentIDFromCtrl(ctrl)
 	require.NoError(t, err)
 	rawid := id.ToRaw()
@@ -36,7 +36,7 @@ func TestNewSegmentIDFromCtrl(t *testing.T) {
 }
 
 func TestNewE2EIDFromCtrl(t *testing.T) {
-	ctrl := newE2EID()
+	ctrl := newTestE2EID()
 	id, err := NewE2EIDFromCtrl(ctrl)
 	require.NoError(t, err)
 	rawid := id.ToRaw()
@@ -45,11 +45,11 @@ func TestNewE2EIDFromCtrl(t *testing.T) {
 }
 
 func TestNewRequestSegmentSetupFromCtrl(t *testing.T) {
-	ctrlMsg := newSetup()
+	ctrlMsg := newTestSetup()
 	ts := util.SecsToTime(1)
 	r, err := newRequestSegmentSetup(ctrlMsg, ts, nil)
 	require.Error(t, err) // missing path
-	p := newPath()
+	p := newTestPath()
 	r, err = newRequestSegmentSetup(ctrlMsg, ts, p)
 	require.NoError(t, err)
 	require.Equal(t, p, r.Path())
@@ -59,11 +59,11 @@ func TestNewRequestSegmentSetupFromCtrl(t *testing.T) {
 }
 
 func TestNewRequestSegmentTelesSetup(t *testing.T) {
-	ctrlMsg := newTelesSetup()
+	ctrlMsg := newTestTelesSetup()
 	ts := util.SecsToTime(1)
 	r, err := newRequestSegmentTelesSetup(ctrlMsg, ts, nil)
 	require.Error(t, err) // path is nil
-	r, err = newRequestSegmentTelesSetup(ctrlMsg, ts, newPath())
+	r, err = newRequestSegmentTelesSetup(ctrlMsg, ts, newTestPath())
 	require.NoError(t, err)
 	checkRequest(t, ctrlMsg.Setup, &r.SetupReq, ts)
 	require.Equal(t, xtest.MustParseAS("ff00:cafe:1"), r.BaseID.ASID)
@@ -71,22 +71,22 @@ func TestNewRequestSegmentTelesSetup(t *testing.T) {
 }
 
 func TestNewRequestSegmentTeardown(t *testing.T) {
-	ctrlMsg := newSegmentTeardown()
+	ctrlMsg := newTestSegmentTeardown()
 	ts := util.SecsToTime(1)
 	r, err := newRequestSegmentTeardown(ctrlMsg, ts, nil)
 	require.Error(t, err) // path is nil
-	r, err = newRequestSegmentTeardown(ctrlMsg, ts, newPath())
+	r, err = newRequestSegmentTeardown(ctrlMsg, ts, newTestPath())
 	require.NoError(t, err)
 	checkIDs(t, ctrlMsg.Base.ID, &r.ID)
 	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
 }
 
 func TestNewRequestSegmentIndexConfirmation(t *testing.T) {
-	ctrlMsg := newIndexConfirmation()
+	ctrlMsg := newTestIndexConfirmation()
 	ts := util.SecsToTime(1)
 	r, err := newRequestSegmentIndexConfirmation(ctrlMsg, ts, nil)
 	require.Error(t, err) // nil path
-	r, err = newRequestSegmentIndexConfirmation(ctrlMsg, ts, newPath())
+	r, err = newRequestSegmentIndexConfirmation(ctrlMsg, ts, newTestPath())
 	require.NoError(t, err)
 	checkIDs(t, ctrlMsg.Base.ID, &r.ID)
 	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
@@ -94,24 +94,22 @@ func TestNewRequestSegmentIndexConfirmation(t *testing.T) {
 }
 
 func TestNewRequestSegmentCleanup(t *testing.T) {
-	ctrlMsg := &colibri_mgmt.SegmentCleanup{
-		Base: newTestBase(1),
-	}
+	ctrlMsg := newTestCleanup()
 	ts := util.SecsToTime(1)
 	r, err := newRequestSegmentCleanup(ctrlMsg, ts, nil)
 	require.Error(t, err) // nil path
-	r, err = newRequestSegmentCleanup(ctrlMsg, ts, newPath())
+	r, err = newRequestSegmentCleanup(ctrlMsg, ts, newTestPath())
 	require.NoError(t, err)
 	checkIDs(t, ctrlMsg.Base.ID, &r.ID)
 	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
 }
 
 func TestNewRequestE2ESetup(t *testing.T) {
-	ctrlMsg := newE2ESetup()
+	ctrlMsg := newTestE2ESetup()
 	ts := util.SecsToTime(1)
 	r, err := newRequestE2ESetup(ctrlMsg, ts, nil)
 	require.Error(t, err)
-	r, err = newRequestE2ESetup(ctrlMsg, ts, newPath())
+	r, err = newRequestE2ESetup(ctrlMsg, ts, newTestPath())
 	require.NoError(t, err)
 	checkE2EIDs(t, ctrlMsg.Base.ID, &r.ID)
 	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
@@ -119,11 +117,11 @@ func TestNewRequestE2ESetup(t *testing.T) {
 }
 
 func TestNewRequestE2ECleanup(t *testing.T) {
-	ctrlMsg := newE2ECleanup()
+	ctrlMsg := newTestE2ECleanup()
 	ts := util.SecsToTime(1)
 	r, err := newRequestE2ECleanup(ctrlMsg, ts, nil)
 	require.Error(t, err)
-	r, err = newRequestE2ECleanup(ctrlMsg, ts, newPath())
+	r, err = newRequestE2ECleanup(ctrlMsg, ts, newTestPath())
 	require.NoError(t, err)
 	checkE2EIDs(t, ctrlMsg.Base.ID, &r.ID)
 	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
@@ -135,11 +133,11 @@ func TestNewResponseSegmentSetup(t *testing.T) {
 		Success bool
 	}{
 		"success": {
-			Ctrl:    newSegmentSetupSuccessResponse(),
+			Ctrl:    newTestSegmentSetupSuccessResponse(),
 			Success: true,
 		},
 		"failure": {
-			Ctrl:    newSegmentSetupFailureResponse(),
+			Ctrl:    newTestSegmentSetupFailureResponse(),
 			Success: false,
 		},
 	}
@@ -151,7 +149,7 @@ func TestNewResponseSegmentSetup(t *testing.T) {
 			ts := util.SecsToTime(1)
 			r, err := newResponseSegmentSetup(tc.Ctrl, 3, ts, nil)
 			require.Error(t, err)
-			r, err = newResponseSegmentSetup(tc.Ctrl, 3, ts, newPath())
+			r, err = newResponseSegmentSetup(tc.Ctrl, 3, ts, newTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Success {
@@ -177,11 +175,11 @@ func TestNewResponseSegmentTeardown(t *testing.T) {
 		Success bool
 	}{
 		"success": {
-			Ctrl:    newSegmentTeardownResponseSuccess(),
+			Ctrl:    newTestSegmentTeardownSuccessResponse(),
 			Success: true,
 		},
 		"failure": {
-			Ctrl:    newSegmentTeardownResponseFailure(),
+			Ctrl:    newTestSegmentTeardownFailureResponse(),
 			Success: false,
 		},
 	}
@@ -192,7 +190,7 @@ func TestNewResponseSegmentTeardown(t *testing.T) {
 			ts := util.SecsToTime(1)
 			r, err := newResponseSegmentTeardown(tc.Ctrl, tc.Success, ts, nil)
 			require.Error(t, err) // no path
-			r, err = newResponseSegmentTeardown(tc.Ctrl, tc.Success, ts, newPath())
+			r, err = newResponseSegmentTeardown(tc.Ctrl, tc.Success, ts, newTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Success {

@@ -29,7 +29,7 @@ func TestSomething(t *testing.T) {
 }
 
 func TestNewCtrlSegmentReservationID(t *testing.T) {
-	ctrl := newID()
+	ctrl := newTestID()
 	id, err := NewSegmentIDFromCtrl(ctrl)
 	require.NoError(t, err)
 	newCtrl := NewCtrlSegmentReservationID(id)
@@ -37,7 +37,7 @@ func TestNewCtrlSegmentReservationID(t *testing.T) {
 }
 
 func TestNewCtrlE2EReservationID(t *testing.T) {
-	ctrl := newE2EID()
+	ctrl := newTestE2EID()
 	id, err := NewE2EIDFromCtrl(ctrl)
 	require.NoError(t, err)
 	newCtrl := NewCtrlE2EReservationID(id)
@@ -45,9 +45,9 @@ func TestNewCtrlE2EReservationID(t *testing.T) {
 }
 
 func TestNewSegmentSetup(t *testing.T) {
-	ctrl := newSetup()
+	ctrl := newTestSetup()
 	ts := util.SecsToTime(1)
-	r, err := newRequestSegmentSetup(ctrl, ts, newPath())
+	r, err := newRequestSegmentSetup(ctrl, ts, newTestPath())
 	require.NoError(t, err)
 	newCtrl := newSegmentSetup(r)
 	require.Equal(t, ctrl, newCtrl)
@@ -63,7 +63,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				Which: proto.ColibriRequestPayload_Which_request,
 				Request: &colibri_mgmt.Request{
 					Which:        proto.Request_Which_segmentSetup,
-					SegmentSetup: newSetup(),
+					SegmentSetup: newTestSetup(),
 				},
 			},
 			Renewal: false,
@@ -73,7 +73,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				Which: proto.ColibriRequestPayload_Which_request,
 				Request: &colibri_mgmt.Request{
 					Which:          proto.Request_Which_segmentRenewal,
-					SegmentRenewal: newSetup(),
+					SegmentRenewal: newTestSetup(),
 				},
 			},
 			Renewal: true,
@@ -83,7 +83,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				Which: proto.ColibriRequestPayload_Which_request,
 				Request: &colibri_mgmt.Request{
 					Which:             proto.Request_Which_segmentTelesSetup,
-					SegmentTelesSetup: newTelesSetup(),
+					SegmentTelesSetup: newTestTelesSetup(),
 				},
 			},
 			Renewal: false,
@@ -93,7 +93,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				Which: proto.ColibriRequestPayload_Which_request,
 				Request: &colibri_mgmt.Request{
 					Which:               proto.Request_Which_segmentTelesRenewal,
-					SegmentTelesRenewal: newTelesSetup(),
+					SegmentTelesRenewal: newTestTelesSetup(),
 				},
 			},
 			Renewal: true,
@@ -102,10 +102,8 @@ func TestNewCtrlFromMsg(t *testing.T) {
 			Ctrl: &colibri_mgmt.ColibriRequestPayload{
 				Which: proto.ColibriRequestPayload_Which_request,
 				Request: &colibri_mgmt.Request{
-					Which: proto.Request_Which_segmentTeardown,
-					SegmentTeardown: &colibri_mgmt.SegmentTeardownReq{
-						Base: newTestBase(1),
-					},
+					Which:           proto.Request_Which_segmentTeardown,
+					SegmentTeardown: newTestSegmentTeardown(),
 				},
 			},
 		},
@@ -114,7 +112,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				Which: proto.ColibriRequestPayload_Which_request,
 				Request: &colibri_mgmt.Request{
 					Which:                    proto.Request_Which_segmentIndexConfirmation,
-					SegmentIndexConfirmation: newIndexConfirmation(),
+					SegmentIndexConfirmation: newTestIndexConfirmation(),
 				},
 			},
 		},
@@ -123,7 +121,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				Which: proto.ColibriRequestPayload_Which_request,
 				Request: &colibri_mgmt.Request{
 					Which:          proto.Request_Which_segmentCleanup,
-					SegmentCleanup: newCleanup(),
+					SegmentCleanup: newTestCleanup(),
 				},
 			},
 		},
@@ -132,7 +130,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				Which: proto.ColibriRequestPayload_Which_request,
 				Request: &colibri_mgmt.Request{
 					Which:    proto.Request_Which_e2eSetup,
-					E2ESetup: newE2ESetup(),
+					E2ESetup: newTestE2ESetup(),
 				},
 			},
 			Renewal: false,
@@ -142,7 +140,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				Which: proto.ColibriRequestPayload_Which_request,
 				Request: &colibri_mgmt.Request{
 					Which:      proto.Request_Which_e2eRenewal,
-					E2ERenewal: newE2ESetup(),
+					E2ERenewal: newTestE2ESetup(),
 				},
 			},
 			Renewal: true,
@@ -152,7 +150,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				Which: proto.ColibriRequestPayload_Which_request,
 				Request: &colibri_mgmt.Request{
 					Which:      proto.Request_Which_e2eCleanup,
-					E2ECleanup: newE2ECleanup(),
+					E2ECleanup: newTestE2ECleanup(),
 				},
 			},
 		},
@@ -160,7 +158,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 			Ctrl: &colibri_mgmt.ColibriRequestPayload{
 				Which: proto.ColibriRequestPayload_Which_response,
 				Response: &colibri_mgmt.Response{
-					SegmentSetup: newSegmentSetupSuccessResponse(),
+					SegmentSetup: newTestSegmentSetupSuccessResponse(),
 					Which:        proto.Response_Which_segmentSetup,
 					Accepted:     true,
 				},
@@ -171,7 +169,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 			Ctrl: &colibri_mgmt.ColibriRequestPayload{
 				Which: proto.ColibriRequestPayload_Which_response,
 				Response: &colibri_mgmt.Response{
-					SegmentRenewal: newSegmentSetupSuccessResponse(),
+					SegmentRenewal: newTestSegmentSetupSuccessResponse(),
 					Which:          proto.Response_Which_segmentRenewal,
 					Accepted:       true,
 				},
@@ -182,7 +180,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 			Ctrl: &colibri_mgmt.ColibriRequestPayload{
 				Which: proto.ColibriRequestPayload_Which_response,
 				Response: &colibri_mgmt.Response{
-					SegmentSetup: newSegmentSetupFailureResponse(),
+					SegmentSetup: newTestSegmentSetupFailureResponse(),
 					Which:        proto.Response_Which_segmentSetup,
 					Accepted:     false,
 				},
@@ -193,7 +191,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 			Ctrl: &colibri_mgmt.ColibriRequestPayload{
 				Which: proto.ColibriRequestPayload_Which_response,
 				Response: &colibri_mgmt.Response{
-					SegmentRenewal: newSegmentSetupFailureResponse(),
+					SegmentRenewal: newTestSegmentSetupFailureResponse(),
 					Which:          proto.Response_Which_segmentRenewal,
 					Accepted:       false,
 				},
@@ -204,7 +202,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 			Ctrl: &colibri_mgmt.ColibriRequestPayload{
 				Which: proto.ColibriRequestPayload_Which_response,
 				Response: &colibri_mgmt.Response{
-					SegmentTeardown: newSegmentTeardownSuccessResponse(),
+					SegmentTeardown: newTestSegmentTeardownSuccessResponse(),
 					Which:           proto.Response_Which_segmentTeardown,
 					Accepted:        true,
 				},
@@ -214,7 +212,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 			Ctrl: &colibri_mgmt.ColibriRequestPayload{
 				Which: proto.ColibriRequestPayload_Which_response,
 				Response: &colibri_mgmt.Response{
-					SegmentTeardown: newSegmentTeardownFailureResponse(),
+					SegmentTeardown: newTestSegmentTeardownFailureResponse(),
 					Which:           proto.Response_Which_segmentTeardown,
 					Accepted:        false,
 				},
@@ -227,7 +225,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			msg, err := NewMsgFromCtrl(tc.Ctrl, newPath())
+			msg, err := NewMsgFromCtrl(tc.Ctrl, newTestPath())
 			require.NoError(t, err)
 			newCtrl, err := NewCtrlFromMsg(msg, tc.Renewal)
 			require.NoError(t, err)
