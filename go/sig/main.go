@@ -72,7 +72,7 @@ func realMain() int {
 	defer log.Flush()
 	defer env.LogAppStopped("SIG", cfg.Sig.ID)
 	defer log.HandlePanic()
-	if err := validateConfig(); err != nil {
+	if err := cfg.Validate(); err != nil {
 		log.Error("Configuration validation failed", "err", err)
 		return 1
 	}
@@ -138,16 +138,6 @@ func setupBasic() error {
 	}
 	prom.ExportElementID(cfg.Sig.ID)
 	return env.LogAppStarted("SIG", cfg.Sig.ID)
-}
-
-func validateConfig() error {
-	if err := cfg.Validate(); err != nil {
-		return err
-	}
-	if cfg.Metrics.Prometheus == "" {
-		cfg.Metrics.Prometheus = "127.0.0.1:30456"
-	}
-	return nil
 }
 
 func setupTun() (io.ReadWriteCloser, error) {
