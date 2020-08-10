@@ -156,6 +156,51 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				},
 			},
 		},
+		"response segment setup success": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					SegmentSetup: newSegmentSetupSuccessResponse(),
+					Which:        proto.Response_Which_segmentSetup,
+					Accepted:     true,
+				},
+			},
+			Renewal: false,
+		},
+		"response segment renewal success": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					SegmentRenewal: newSegmentSetupSuccessResponse(),
+					Which:          proto.Response_Which_segmentRenewal,
+					Accepted:       true,
+				},
+			},
+			Renewal: true,
+		},
+		"response segment setup failure": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					SegmentSetup: newSegmentSetupFailureResponse(),
+					Which:        proto.Response_Which_segmentSetup,
+					Accepted:     false,
+				},
+			},
+			Renewal: false,
+		},
+		"response segment renewal failure": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					SegmentRenewal: newSegmentSetupFailureResponse(),
+					Which:          proto.Response_Which_segmentRenewal,
+					Accepted:       false,
+				},
+			},
+			Renewal: true,
+		},
+		// TODO(juagargi) responses
 	}
 	for name, tc := range cases {
 		name, tc := name, tc
