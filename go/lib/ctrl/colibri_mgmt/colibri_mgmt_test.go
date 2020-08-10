@@ -257,9 +257,8 @@ func TestSerializeResponse(t *testing.T) {
 		"index confirmation": {
 			Response: &colibri_mgmt.Response{
 				Which: proto.Response_Which_segmentIndexConfirmation,
-				SegmentIndexConfirmation: &colibri_mgmt.SegmentIndexConfirmation{
-					Base:  newSegmentBase(),
-					State: proto.ReservationIndexState_active,
+				SegmentIndexConfirmation: &colibri_mgmt.SegmentIndexConfirmationRes{
+					Base: newSegmentBase(),
 				},
 				Accepted: true,
 			},

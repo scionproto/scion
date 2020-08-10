@@ -362,7 +362,7 @@ func newResponseSegmentTeardown(ctrl *colibri_mgmt.SegmentTeardownRes, accepted 
 	}
 }
 
-func newResponseSegmentIndexConfirmation(ctrl *colibri_mgmt.SegmentIndexConfirmation,
+func newResponseSegmentIndexConfirmation(ctrl *colibri_mgmt.SegmentIndexConfirmationRes,
 	accepted bool, ts time.Time, path *spath.Path) (base.MessageWithPath, error) {
 
 	id, err := NewSegmentIDFromCtrl(ctrl.Base.ID)

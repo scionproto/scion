@@ -26,3 +26,12 @@ type SegmentIndexConfirmation struct {
 func (s *SegmentIndexConfirmation) ProtoId() proto.ProtoIdType {
 	return proto.SegmentIndexConfirmationData_TypeID
 }
+
+type SegmentIndexConfirmationRes struct {
+	Base      *SegmentBase
+	ErrorCode uint8
+}
+
+func (s *SegmentIndexConfirmationRes) ProtoId() proto.ProtoIdType {
+	return proto.SegmentIndexConfirmationResData_TypeID
+}
