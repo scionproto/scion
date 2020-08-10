@@ -69,7 +69,7 @@ func realMain() error {
 	var segments []segment
 	for res := range ch {
 		if res.Err != nil {
-			return err
+			return res.Err
 		}
 		seg, err := newSegment(res.Result)
 		if err != nil {
