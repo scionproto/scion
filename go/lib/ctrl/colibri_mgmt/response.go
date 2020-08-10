@@ -23,7 +23,7 @@ type Response struct {
 	SegmentSetup             *SegmentSetupRes
 	SegmentRenewal           *SegmentSetupRes
 	SegmentTeardown          *SegmentTeardownRes
-	SegmentIndexConfirmation *SegmentIndexConfirmation
+	SegmentIndexConfirmation *SegmentIndexConfirmationRes
 	SegmentCleanup           *SegmentCleanup
 	E2ESetup                 *E2ESetupRes `capnp:"e2eSetup"`
 	E2ERenewal               *E2ESetupRes `capnp:"e2eRenewal"`

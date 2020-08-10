@@ -87,6 +87,12 @@ struct SegmentIndexConfirmationData {
     state @1 :ReservationIndexState;
 }
 
+# Response to a index confirmation request.
+struct SegmentIndexConfirmationResData {
+    base @0 :SegmentBase;
+    errorCode @1: UInt8;  # only relevant if the response indicates failure
+}
+
 # Removes a pending segment reservation.
 struct SegmentCleanupData {
     base @0 :SegmentBase;
@@ -145,7 +151,7 @@ struct Response {
         segmentSetup @1 :SegmentSetupResData;   # also for teles. setup
         segmentRenewal @2 :SegmentSetupResData; # also for teles. renewal
         segmentTeardown @3 :SegmentTeardownResData;
-        segmentIndexConfirmation @4 :SegmentIndexConfirmationData;
+        segmentIndexConfirmation @4 :SegmentIndexConfirmationResData;
         segmentCleanup @5 :SegmentCleanupData;
         e2eSetup @6 :E2ESetupResData;
         e2eRenewal @7 :E2ESetupResData;
