@@ -71,3 +71,16 @@ type TeardownResponseFailure struct {
 	Response
 	ErrorCode uint8
 }
+
+// ResponseIndexConfirmationSuccess is a successful index confirmation. The target state is
+// echoed in the response.
+type ResponseIndexConfirmationSuccess struct {
+	Response
+	State IndexState
+}
+
+// ResponseIndexConfirmationFailure is a failed index confirmation.
+type ResponseIndexConfirmationFailure struct {
+	Response
+	ErrorCode uint8
+}
