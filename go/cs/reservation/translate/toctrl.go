@@ -74,9 +74,9 @@ func NewCtrlFromMsg(msg base.MessageWithPath, renewal bool) (
 		} else {
 			err = setSegmentRenewalFailureResponse(r, ctrl)
 		}
-	case *segment.TeardownResponseSuccess:
+	case *segment.ResponseTeardownSuccess:
 		err = setSegmentTeardownSuccessResponse(r, ctrl)
-	case *segment.TeardownResponseFailure:
+	case *segment.ResponseTeardownFailure:
 		err = setSegmentTeardownFailureResponse(r, ctrl)
 	default:
 		err = serrors.New("unknown application type", "type", fmt.Sprintf("%T", msg))
@@ -317,7 +317,7 @@ func setSegmentRenewalFailureResponse(msg *segment.ResponseSetupFailure,
 	ctrl.Response.Which = proto.Response_Which_segmentRenewal
 	return nil
 }
-func setSegmentTeardownSuccessResponse(msg *segment.TeardownResponseSuccess,
+func setSegmentTeardownSuccessResponse(msg *segment.ResponseTeardownSuccess,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
 	thisIsAResponse(ctrl, true)
@@ -328,7 +328,7 @@ func setSegmentTeardownSuccessResponse(msg *segment.TeardownResponseSuccess,
 	return nil
 }
 
-func setSegmentTeardownFailureResponse(msg *segment.TeardownResponseFailure,
+func setSegmentTeardownFailureResponse(msg *segment.ResponseTeardownFailure,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
 	thisIsAResponse(ctrl, true)

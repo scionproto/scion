@@ -61,13 +61,13 @@ type ResponseSetupFailure struct {
 	FailedHop   uint8
 }
 
-// TeardownResponseSuccess is sent by the last AS in the reverse path.
-type TeardownResponseSuccess struct {
+// ResponseTeardownSuccess is sent by the last AS in the reverse path.
+type ResponseTeardownSuccess struct {
 	Response
 }
 
-// TeardownResponseFailure is sent in the reverse path.
-type TeardownResponseFailure struct {
+// ResponseTeardownFailure is sent in the reverse path.
+type ResponseTeardownFailure struct {
 	Response
 	ErrorCode uint8
 }

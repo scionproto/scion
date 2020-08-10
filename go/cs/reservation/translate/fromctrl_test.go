@@ -194,13 +194,13 @@ func TestNewResponseSegmentTeardown(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Success {
-				require.IsType(t, &segment.TeardownResponseSuccess{}, r)
-				rs := r.(*segment.TeardownResponseSuccess)
+				require.IsType(t, &segment.ResponseTeardownSuccess{}, r)
+				rs := r.(*segment.ResponseTeardownSuccess)
 				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
 				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
 			} else {
-				require.IsType(t, &segment.TeardownResponseFailure{}, r)
-				rs := r.(*segment.TeardownResponseFailure)
+				require.IsType(t, &segment.ResponseTeardownFailure{}, r)
+				rs := r.(*segment.ResponseTeardownFailure)
 				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
 				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
 				require.Equal(t, tc.Ctrl.ErrorCode, rs.ErrorCode)
