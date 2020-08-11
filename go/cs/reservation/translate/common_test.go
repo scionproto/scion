@@ -147,6 +147,19 @@ func newTestCleanup() *colibri_mgmt.SegmentCleanup {
 	}
 }
 
+func newTestCleanupSuccessResponse() *colibri_mgmt.SegmentCleanupRes {
+	return &colibri_mgmt.SegmentCleanupRes{
+		Base: newTestBase(1),
+	}
+}
+
+func newTestCleanupFailureResponse() *colibri_mgmt.SegmentCleanupRes {
+	return &colibri_mgmt.SegmentCleanupRes{
+		Base:      newTestBase(1),
+		ErrorCode: 42,
+	}
+}
+
 func newTestE2ESetup() *colibri_mgmt.E2ESetup {
 	return &colibri_mgmt.E2ESetup{
 		Base:  newTestE2EBase(1),

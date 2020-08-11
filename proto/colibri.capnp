@@ -98,6 +98,11 @@ struct SegmentCleanupData {
     base @0 :SegmentBase;
 }
 
+struct SegmentCleanupResData {
+    base @0 :SegmentBase;
+    errorCode @1: UInt8;  # only relevant if the response indicates failure
+}
+
 # TODO(juagargi) the e2e setup request travels forward only if successful, change the type down here:
 
 # Setup an E2E reservation. Sent in a hop by hop colibri extension through a stitched segment reservation.
@@ -152,7 +157,7 @@ struct Response {
         segmentRenewal @2 :SegmentSetupResData; # also for teles. renewal
         segmentTeardown @3 :SegmentTeardownResData;
         segmentIndexConfirmation @4 :SegmentIndexConfirmationResData;
-        segmentCleanup @5 :SegmentCleanupData;
+        segmentCleanup @5 :SegmentCleanupResData;
         e2eSetup @6 :E2ESetupResData;
         e2eRenewal @7 :E2ESetupResData;
         e2eCleanup @8 :E2ECleanupData;

@@ -248,3 +248,43 @@ func TestNewResponseSegmentIndexConfirmation(t *testing.T) {
 		})
 	}
 }
+
+func TestNewResponseSegmentCleanup(t *testing.T) {
+	cases := map[string]struct {
+		Ctrl    *colibri_mgmt.SegmentCleanupRes
+		Success bool
+	}{
+		"success": {
+			Ctrl:    newTestCleanupSuccessResponse(),
+			Success: true,
+		},
+		"failure": {
+			Ctrl:    newTestCleanupFailureResponse(),
+			Success: false,
+		},
+	}
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ts := util.SecsToTime(1)
+			r, err := newResponseSegmentCleanup(tc.Ctrl, tc.Success, ts, nil)
+			require.Error(t, err) // no path
+			r, err = newResponseSegmentCleanup(tc.Ctrl, tc.Success, ts, newTestPath())
+			require.NoError(t, err)
+			require.NotNil(t, r)
+			if tc.Success {
+				require.IsType(t, &segment.ResponseCleanupSuccess{}, r)
+				rs := r.(*segment.ResponseCleanupSuccess)
+				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+			} else {
+				require.IsType(t, &segment.ResponseCleanupFailure{}, r)
+				rs := r.(*segment.ResponseCleanupFailure)
+				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+				require.Equal(t, tc.Ctrl.ErrorCode, rs.ErrorCode)
+			}
+		})
+	}
+}
