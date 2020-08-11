@@ -84,3 +84,14 @@ type ResponseIndexConfirmationFailure struct {
 	Response
 	ErrorCode uint8
 }
+
+// ResponseCleanupSuccess is a response to a successful cleanup request.
+type ResponseCleanupSuccess struct {
+	Response
+}
+
+// ResponseCleanupFailure is a failed index cleanup.
+type ResponseCleanupFailure struct {
+	Response
+	ErrorCode uint8
+}

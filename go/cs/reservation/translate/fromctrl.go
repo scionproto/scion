@@ -138,6 +138,7 @@ func newResponseFromCtrl(ctrl *colibri_mgmt.Response, ts time.Time, path *spath.
 		return newResponseSegmentIndexConfirmation(ctrl.SegmentIndexConfirmation, ctrl.Accepted,
 			ts, path)
 	case proto.Response_Which_segmentCleanup:
+		return newResponseSegmentCleanup(ctrl.SegmentCleanup, ctrl.Accepted, ts, path)
 	case proto.Response_Which_e2eSetup:
 	case proto.Response_Which_e2eRenewal:
 	case proto.Response_Which_e2eCleanup:
@@ -381,7 +382,32 @@ func newResponseSegmentIndexConfirmation(ctrl *colibri_mgmt.SegmentIndexConfirma
 	} else {
 		return &segment.ResponseIndexConfirmationFailure{
 			Response:  *r,
-			ErrorCode: 42, // TODO(juagargi)
+			ErrorCode: ctrl.ErrorCode,
+		}, nil
+	}
+
+}
+
+func newResponseSegmentCleanup(ctrl *colibri_mgmt.SegmentCleanupRes, accepted bool, ts time.Time,
+	path *spath.Path) (base.MessageWithPath, error) {
+
+	id, err := NewSegmentIDFromCtrl(ctrl.Base.ID)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot convert id", err)
+	}
+	r, err := segment.NewResponse(ts, id,
+		reservation.IndexNumber(ctrl.Base.Index), path)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct segment setup response", err)
+	}
+	if accepted {
+		return &segment.ResponseCleanupSuccess{
+			Response: *r,
+		}, nil
+	} else {
+		return &segment.ResponseCleanupFailure{
+			Response:  *r,
+			ErrorCode: 42,
 		}, nil
 	}
 

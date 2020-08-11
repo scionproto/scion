@@ -266,10 +266,11 @@ func TestSerializeResponse(t *testing.T) {
 		"segment cleanup": {
 			Response: &colibri_mgmt.Response{
 				Which: proto.Response_Which_segmentCleanup,
-				SegmentCleanup: &colibri_mgmt.SegmentCleanup{
-					Base: newSegmentBase(),
+				SegmentCleanup: &colibri_mgmt.SegmentCleanupRes{
+					Base:      newSegmentBase(),
+					ErrorCode: 12,
 				},
-				Accepted: true,
+				Accepted: false,
 			},
 		},
 		"e2e setup success": {

@@ -82,6 +82,10 @@ func NewCtrlFromMsg(msg base.MessageWithPath, renewal bool) (
 		err = setSegmentIndexConfirmationSuccessResponse(r, ctrl)
 	case *segment.ResponseIndexConfirmationFailure:
 		err = setSegmentIndexConfirmationFailureResponse(r, ctrl)
+	case *segment.ResponseCleanupSuccess:
+		err = setSegmentCleanupSuccessResponse(r, ctrl)
+	case *segment.ResponseCleanupFailure:
+		err = setSegmentCleanupFailureResponse(r, ctrl)
 	default:
 		err = serrors.New("unknown application type", "type", fmt.Sprintf("%T", msg))
 	}
@@ -364,5 +368,28 @@ func setSegmentIndexConfirmationFailureResponse(msg *segment.ResponseIndexConfir
 		ErrorCode: msg.ErrorCode,
 	}
 	ctrl.Response.Which = proto.Response_Which_segmentIndexConfirmation
+	return nil
+}
+
+func setSegmentCleanupSuccessResponse(msg *segment.ResponseCleanupSuccess,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	thisIsAResponse(ctrl, true)
+	ctrl.Response.SegmentCleanup = &colibri_mgmt.SegmentCleanupRes{
+		Base: newSegmentBaseFromResponse(&msg.Response),
+	}
+	ctrl.Response.Which = proto.Response_Which_segmentCleanup
+	return nil
+}
+
+func setSegmentCleanupFailureResponse(msg *segment.ResponseCleanupFailure,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	thisIsAResponse(ctrl, false)
+	ctrl.Response.SegmentCleanup = &colibri_mgmt.SegmentCleanupRes{
+		Base:      newSegmentBaseFromResponse(&msg.Response),
+		ErrorCode: msg.ErrorCode,
+	}
+	ctrl.Response.Which = proto.Response_Which_segmentCleanup
 	return nil
 }

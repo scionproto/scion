@@ -238,8 +238,18 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				},
 			},
 		},
+		"response segment cleanup success": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					SegmentCleanup: newTestCleanupSuccessResponse(),
+					Which:          proto.Response_Which_segmentCleanup,
+					Accepted:       true,
+				},
+			},
+		},
 
-		// TODO(juagargi) responses
+		// TODO(juagargi) e2e responses
 	}
 	for name, tc := range cases {
 		name, tc := name, tc
