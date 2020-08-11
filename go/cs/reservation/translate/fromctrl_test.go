@@ -325,8 +325,49 @@ func TestNewResponseE2ESetup(t *testing.T) {
 				rs := r.(*e2e.ResponseSetupFailure)
 				checkE2EIDs(t, tc.Ctrl.Base.ID, &rs.ID)
 				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+				require.Equal(t, tc.Ctrl.Failure.ErrorCode, rs.ErrorCode)
 				require.Equal(t, tc.Ctrl.Failure.InfoField, rs.InfoField.ToRaw())
 				require.Len(t, rs.MaxBWs, len(tc.Ctrl.Failure.MaxBWs))
+			}
+		})
+	}
+}
+
+func TestNewResponseE2EClenaup(t *testing.T) {
+	cases := map[string]struct {
+		Ctrl    *colibri_mgmt.E2ECleanupRes
+		Success bool
+	}{
+		"success": {
+			Ctrl:    newTestE2ECleanupSuccessResponse(),
+			Success: true,
+		},
+		"failure": {
+			Ctrl:    newTestE2ECleanupFailureResponse(),
+			Success: false,
+		},
+	}
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ts := util.SecsToTime(1)
+			r, err := newResponseE2EClenaup(tc.Ctrl, tc.Success, ts, nil)
+			require.Error(t, err) // no path
+			r, err = newResponseE2EClenaup(tc.Ctrl, tc.Success, ts, newTestPath())
+			require.NoError(t, err)
+			require.NotNil(t, r)
+			if tc.Success {
+				require.IsType(t, &e2e.ResponseCleanupSuccess{}, r)
+				rs := r.(*e2e.ResponseCleanupSuccess)
+				checkE2EIDs(t, tc.Ctrl.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+			} else {
+				require.IsType(t, &e2e.ResponseCleanupFailure{}, r)
+				rs := r.(*e2e.ResponseCleanupFailure)
+				checkE2EIDs(t, tc.Ctrl.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+				require.Equal(t, tc.Ctrl.ErrorCode, rs.ErrorCode)
 			}
 		})
 	}

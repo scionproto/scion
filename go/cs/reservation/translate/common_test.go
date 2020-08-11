@@ -195,6 +195,19 @@ func newTestE2ECleanup() *colibri_mgmt.E2ECleanup {
 	}
 }
 
+func newTestE2ECleanupSuccessResponse() *colibri_mgmt.E2ECleanupRes {
+	return &colibri_mgmt.E2ECleanupRes{
+		Base: newTestE2EBase(1),
+	}
+}
+
+func newTestE2ECleanupFailureResponse() *colibri_mgmt.E2ECleanupRes {
+	return &colibri_mgmt.E2ECleanupRes{
+		Base:      newTestE2EBase(1),
+		ErrorCode: 42,
+	}
+}
+
 // new path with one segment consisting on 3 hopfields: (0,2)->(1,2)->(1,0)
 func newTestPath() *spath.Path {
 	path := &spath.Path{

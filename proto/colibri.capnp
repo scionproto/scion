@@ -132,6 +132,11 @@ struct E2ECleanupData {
     base @0 :E2EBase;
 }
 
+struct E2ECleanupResData {
+    base @0 :E2EBase;
+    errorCode @1 :UInt8;
+}
+
 # All possible requests between ASes. A requests travels to the next AS.
 struct Request {
     union {
@@ -160,7 +165,7 @@ struct Response {
         segmentCleanup @5 :SegmentCleanupResData;
         e2eSetup @6 :E2ESetupResData;
         e2eRenewal @7 :E2ESetupResData;
-        e2eCleanup @8 :E2ECleanupData;
+        e2eCleanup @8 :E2ECleanupResData;
     }
     accepted @9 :Bool;
     failedHop @10 :UInt8;    # which hop failed the request

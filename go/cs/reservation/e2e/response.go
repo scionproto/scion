@@ -58,6 +58,18 @@ type ResponseSetupSuccess struct {
 // The failed hop is the length of MaxBWs + 1.
 type ResponseSetupFailure struct {
 	Response
+	ErrorCode uint8
 	InfoField reservation.InfoField
 	MaxBWs    []reservation.BWCls // granted by ASes in the path until the failed hop
+}
+
+// ResponseCleanupSuccess is a response to a successful cleanup request.
+type ResponseCleanupSuccess struct {
+	Response
+}
+
+// ResponseCleanupFailure is a failed index cleanup.
+type ResponseCleanupFailure struct {
+	Response
+	ErrorCode uint8
 }

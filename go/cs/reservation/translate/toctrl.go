@@ -66,7 +66,7 @@ func NewCtrlFromMsg(msg base.MessageWithPath, renewal bool) (
 		if !renewal {
 			err = setSegmentSetupSuccessResponse(r, ctrl)
 		} else {
-			setSegmentRenewalSuccessResponse(r, ctrl)
+			err = setSegmentRenewalSuccessResponse(r, ctrl)
 		}
 	case *segment.ResponseSetupFailure:
 		if !renewal {
@@ -86,6 +86,22 @@ func NewCtrlFromMsg(msg base.MessageWithPath, renewal bool) (
 		err = setSegmentCleanupSuccessResponse(r, ctrl)
 	case *segment.ResponseCleanupFailure:
 		err = setSegmentCleanupFailureResponse(r, ctrl)
+	case *e2e.ResponseSetupSuccess:
+		if !renewal {
+			err = setE2ESetupSuccessResponse(r, ctrl)
+		} else {
+			err = setE2ERenewalSuccessResponse(r, ctrl)
+		}
+	case *e2e.ResponseSetupFailure:
+		if !renewal {
+			err = setE2ESetupFailureResponse(r, ctrl)
+		} else {
+			err = setE2ERenewalFailureResponse(r, ctrl)
+		}
+	case *e2e.ResponseCleanupSuccess:
+		err = setE2ECleanupSuccessResponse(r, ctrl)
+	case *e2e.ResponseCleanupFailure:
+		err = setE2ECleanupFailureResponse(r, ctrl)
 	default:
 		err = serrors.New("unknown application type", "type", fmt.Sprintf("%T", msg))
 	}
@@ -123,6 +139,13 @@ func newSegmentBaseFromResponse(msg *segment.Response) *colibri_mgmt.SegmentBase
 }
 
 func newE2EBase(msg *e2e.Request) *colibri_mgmt.E2EBase {
+	return &colibri_mgmt.E2EBase{
+		ID:    NewCtrlE2EReservationID(&msg.ID),
+		Index: uint8(msg.Index),
+	}
+}
+
+func newE2EBaseFromResponse(msg *e2e.Response) *colibri_mgmt.E2EBase {
 	return &colibri_mgmt.E2EBase{
 		ID:    NewCtrlE2EReservationID(&msg.ID),
 		Index: uint8(msg.Index),
@@ -391,5 +414,100 @@ func setSegmentCleanupFailureResponse(msg *segment.ResponseCleanupFailure,
 		ErrorCode: msg.ErrorCode,
 	}
 	ctrl.Response.Which = proto.Response_Which_segmentCleanup
+	return nil
+}
+
+func setE2ESetupSuccessResponse(msg *e2e.ResponseSetupSuccess,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	thisIsAResponse(ctrl, true)
+	ctrl.Response.E2ESetup = &colibri_mgmt.E2ESetupRes{
+		Base:  newE2EBaseFromResponse(&msg.Response),
+		Which: proto.E2ESetupResData_Which_success,
+		Success: &colibri_mgmt.E2ESetupSuccess{
+			Token: msg.Token.ToRaw(),
+		},
+	}
+	ctrl.Response.Which = proto.Response_Which_e2eSetup
+	return nil
+}
+
+func setE2ERenewalSuccessResponse(msg *e2e.ResponseSetupSuccess,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	thisIsAResponse(ctrl, true)
+	ctrl.Response.E2ERenewal = &colibri_mgmt.E2ESetupRes{
+		Base:  newE2EBaseFromResponse(&msg.Response),
+		Which: proto.E2ESetupResData_Which_success,
+		Success: &colibri_mgmt.E2ESetupSuccess{
+			Token: msg.Token.ToRaw(),
+		},
+	}
+	ctrl.Response.Which = proto.Response_Which_e2eRenewal
+	return nil
+}
+
+func setE2ESetupFailureResponse(msg *e2e.ResponseSetupFailure,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	maxBWs := make([]uint8, len(msg.MaxBWs))
+	for i := range msg.MaxBWs {
+		maxBWs[i] = uint8(msg.MaxBWs[i])
+	}
+	thisIsAResponse(ctrl, false)
+	ctrl.Response.E2ESetup = &colibri_mgmt.E2ESetupRes{
+		Base:  newE2EBaseFromResponse(&msg.Response),
+		Which: proto.E2ESetupResData_Which_failure,
+		Failure: &colibri_mgmt.E2ESetupFailure{
+			ErrorCode: msg.ErrorCode,
+			InfoField: msg.InfoField.ToRaw(),
+			MaxBWs:    maxBWs,
+		},
+	}
+	ctrl.Response.Which = proto.Response_Which_e2eSetup
+	return nil
+}
+
+func setE2ERenewalFailureResponse(msg *e2e.ResponseSetupFailure,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	maxBWs := make([]uint8, len(msg.MaxBWs))
+	for i := range msg.MaxBWs {
+		maxBWs[i] = uint8(msg.MaxBWs[i])
+	}
+	thisIsAResponse(ctrl, false)
+	ctrl.Response.E2ERenewal = &colibri_mgmt.E2ESetupRes{
+		Base:  newE2EBaseFromResponse(&msg.Response),
+		Which: proto.E2ESetupResData_Which_failure,
+		Failure: &colibri_mgmt.E2ESetupFailure{
+			ErrorCode: msg.ErrorCode,
+			InfoField: msg.InfoField.ToRaw(),
+			MaxBWs:    maxBWs,
+		},
+	}
+	ctrl.Response.Which = proto.Response_Which_e2eRenewal
+	return nil
+}
+
+func setE2ECleanupSuccessResponse(msg *e2e.ResponseCleanupSuccess,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	thisIsAResponse(ctrl, true)
+	ctrl.Response.E2ECleanup = &colibri_mgmt.E2ECleanupRes{
+		Base: newE2EBaseFromResponse(&msg.Response),
+	}
+	ctrl.Response.Which = proto.Response_Which_e2eCleanup
+	return nil
+}
+
+func setE2ECleanupFailureResponse(msg *e2e.ResponseCleanupFailure,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	thisIsAResponse(ctrl, false)
+	ctrl.Response.E2ECleanup = &colibri_mgmt.E2ECleanupRes{
+		Base:      newE2EBaseFromResponse(&msg.Response),
+		ErrorCode: msg.ErrorCode,
+	}
+	ctrl.Response.Which = proto.Response_Which_e2eCleanup
 	return nil
 }
