@@ -25,9 +25,9 @@ type Response struct {
 	SegmentTeardown          *SegmentTeardownRes
 	SegmentIndexConfirmation *SegmentIndexConfirmationRes
 	SegmentCleanup           *SegmentCleanupRes
-	E2ESetup                 *E2ESetupRes `capnp:"e2eSetup"`
-	E2ERenewal               *E2ESetupRes `capnp:"e2eRenewal"`
-	E2ECleanup               *E2ECleanup  `capnp:"e2eCleanup"`
+	E2ESetup                 *E2ESetupRes   `capnp:"e2eSetup"`
+	E2ERenewal               *E2ESetupRes   `capnp:"e2eRenewal"`
+	E2ECleanup               *E2ECleanupRes `capnp:"e2eCleanup"`
 	Accepted                 bool
 	FailedHop                uint8 // only relevant if Accepted == false
 }

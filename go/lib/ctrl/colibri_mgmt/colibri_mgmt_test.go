@@ -309,8 +309,9 @@ func TestSerializeResponse(t *testing.T) {
 		"e2e cleanup": {
 			Response: &colibri_mgmt.Response{
 				Which: proto.Response_Which_e2eCleanup,
-				E2ECleanup: &colibri_mgmt.E2ECleanup{
-					Base: newE2EBase(),
+				E2ECleanup: &colibri_mgmt.E2ECleanupRes{
+					Base:      newE2EBase(),
+					ErrorCode: 42,
 				},
 				Accepted: true,
 			},

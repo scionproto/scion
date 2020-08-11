@@ -248,8 +248,80 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				},
 			},
 		},
-
-		// TODO(juagargi) e2e responses
+		"response segment cleanup failure": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					SegmentCleanup: newTestCleanupFailureResponse(),
+					Which:          proto.Response_Which_segmentCleanup,
+					Accepted:       false,
+				},
+			},
+		},
+		"response e2e setup success": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					E2ESetup: newTestE2ESetupSuccessResponse(),
+					Which:    proto.Response_Which_e2eSetup,
+					Accepted: true,
+				},
+			},
+			Renewal: false,
+		},
+		"response e2e renewal success": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					E2ERenewal: newTestE2ESetupSuccessResponse(),
+					Which:      proto.Response_Which_e2eRenewal,
+					Accepted:   true,
+				},
+			},
+			Renewal: true,
+		},
+		"response e2e setup failure": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					E2ESetup: newTestE2ESetupFailureResponse(),
+					Which:    proto.Response_Which_e2eSetup,
+					Accepted: false,
+				},
+			},
+			Renewal: false,
+		},
+		"response e2e renewal failure": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					E2ERenewal: newTestE2ESetupFailureResponse(),
+					Which:      proto.Response_Which_e2eRenewal,
+					Accepted:   false,
+				},
+			},
+			Renewal: true,
+		},
+		"response e2e cleanup success": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					E2ECleanup: newTestE2ECleanupSuccessResponse(),
+					Which:      proto.Response_Which_e2eCleanup,
+					Accepted:   true,
+				},
+			},
+		},
+		"response e2e cleanup failure": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_response,
+				Response: &colibri_mgmt.Response{
+					E2ECleanup: newTestE2ECleanupFailureResponse(),
+					Which:      proto.Response_Which_e2eCleanup,
+					Accepted:   false,
+				},
+			},
+		},
 	}
 	for name, tc := range cases {
 		name, tc := name, tc

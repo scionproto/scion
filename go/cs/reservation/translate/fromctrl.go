@@ -142,11 +142,12 @@ func newResponseFromCtrl(ctrl *colibri_mgmt.Response, ts time.Time, path *spath.
 	case proto.Response_Which_e2eSetup:
 		return newResponseE2ESetup(ctrl.E2ESetup, ts, path)
 	case proto.Response_Which_e2eRenewal:
+		return newResponseE2ESetup(ctrl.E2ERenewal, ts, path)
 	case proto.Response_Which_e2eCleanup:
+		return newResponseE2EClenaup(ctrl.E2ECleanup, ctrl.Accepted, ts, path)
 	default:
 		return nil, serrors.New("invalid ctrl message", "ctrl", ctrl.Which.String())
 	}
-	return nil, nil
 }
 
 // newRequestSegmentSetup constructs a SetupReq from its control message counterpart.
@@ -407,7 +408,7 @@ func newResponseSegmentCleanup(ctrl *colibri_mgmt.SegmentCleanupRes, accepted bo
 	} else {
 		return &segment.ResponseCleanupFailure{
 			Response:  *r,
-			ErrorCode: 42,
+			ErrorCode: ctrl.ErrorCode,
 		}, nil
 	}
 }
@@ -444,12 +445,36 @@ func newResponseE2ESetup(ctrl *colibri_mgmt.E2ESetupRes, ts time.Time, path *spa
 			maxBWs[i] = reservation.BWCls(ctrl.Failure.MaxBWs[i])
 		}
 		return &e2e.ResponseSetupFailure{
-			Response: *r,
-
+			Response:  *r,
+			ErrorCode: ctrl.Failure.ErrorCode,
 			InfoField: *inf,
 			MaxBWs:    maxBWs,
 		}, nil
 	default:
 		return nil, serrors.New("invalid ctrl message", "ctrl", ctrl.Which.String())
+	}
+}
+
+func newResponseE2EClenaup(ctrl *colibri_mgmt.E2ECleanupRes, accepted bool, ts time.Time,
+	path *spath.Path) (base.MessageWithPath, error) {
+
+	id, err := NewE2EIDFromCtrl(ctrl.Base.ID)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot convert id", err)
+	}
+	r, err := e2e.NewResponse(ts, id,
+		reservation.IndexNumber(ctrl.Base.Index), path)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct segment setup response", err)
+	}
+	if accepted {
+		return &e2e.ResponseCleanupSuccess{
+			Response: *r,
+		}, nil
+	} else {
+		return &e2e.ResponseCleanupFailure{
+			Response:  *r,
+			ErrorCode: ctrl.ErrorCode,
+		}, nil
 	}
 }
