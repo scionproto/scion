@@ -140,6 +140,7 @@ func newResponseFromCtrl(ctrl *colibri_mgmt.Response, ts time.Time, path *spath.
 	case proto.Response_Which_segmentCleanup:
 		return newResponseSegmentCleanup(ctrl.SegmentCleanup, ctrl.Accepted, ts, path)
 	case proto.Response_Which_e2eSetup:
+		return newResponseE2ESetup(ctrl.E2ESetup, ts, path)
 	case proto.Response_Which_e2eRenewal:
 	case proto.Response_Which_e2eCleanup:
 	default:
@@ -385,7 +386,6 @@ func newResponseSegmentIndexConfirmation(ctrl *colibri_mgmt.SegmentIndexConfirma
 			ErrorCode: ctrl.ErrorCode,
 		}, nil
 	}
-
 }
 
 func newResponseSegmentCleanup(ctrl *colibri_mgmt.SegmentCleanupRes, accepted bool, ts time.Time,
@@ -410,5 +410,46 @@ func newResponseSegmentCleanup(ctrl *colibri_mgmt.SegmentCleanupRes, accepted bo
 			ErrorCode: 42,
 		}, nil
 	}
+}
 
+func newResponseE2ESetup(ctrl *colibri_mgmt.E2ESetupRes, ts time.Time, path *spath.Path) (
+	base.MessageWithPath, error) {
+
+	id, err := NewE2EIDFromCtrl(ctrl.Base.ID)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot convert id", err)
+	}
+	r, err := e2e.NewResponse(ts, id,
+		reservation.IndexNumber(ctrl.Base.Index), path)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct segment setup response", err)
+	}
+	switch ctrl.Which {
+	case proto.E2ESetupResData_Which_success:
+		tok, err := reservation.TokenFromRaw(ctrl.Success.Token)
+		if err != nil {
+			return nil, serrors.WrapStr("cannot parse token", err)
+		}
+		return &e2e.ResponseSetupSuccess{
+			Response: *r,
+			Token:    *tok,
+		}, nil
+	case proto.E2ESetupResData_Which_failure:
+		inf, err := reservation.InfoFieldFromRaw(ctrl.Failure.InfoField)
+		if err != nil {
+			return nil, serrors.WrapStr("cannot parse info field", err)
+		}
+		maxBWs := make([]reservation.BWCls, len(ctrl.Failure.MaxBWs))
+		for i := range ctrl.Failure.MaxBWs {
+			maxBWs[i] = reservation.BWCls(ctrl.Failure.MaxBWs[i])
+		}
+		return &e2e.ResponseSetupFailure{
+			Response: *r,
+
+			InfoField: *inf,
+			MaxBWs:    maxBWs,
+		}, nil
+	default:
+		return nil, serrors.New("invalid ctrl message", "ctrl", ctrl.Which.String())
+	}
 }
