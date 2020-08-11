@@ -167,6 +167,28 @@ func newTestE2ESetup() *colibri_mgmt.E2ESetup {
 	}
 }
 
+func newTestE2ESetupSuccessResponse() *colibri_mgmt.E2ESetupRes {
+	return &colibri_mgmt.E2ESetupRes{
+		Base:  newTestE2EBase(1),
+		Which: proto.E2ESetupResData_Which_success,
+		Success: &colibri_mgmt.E2ESetupSuccess{
+			Token: xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade"),
+		},
+	}
+}
+
+func newTestE2ESetupFailureResponse() *colibri_mgmt.E2ESetupRes {
+	return &colibri_mgmt.E2ESetupRes{
+		Base:  newTestE2EBase(1),
+		Which: proto.E2ESetupResData_Which_failure,
+		Failure: &colibri_mgmt.E2ESetupFailure{
+			ErrorCode: 42,
+			InfoField: xtest.MustParseHexString("16ebdb4f0d042500"),
+			MaxBWs:    []uint8{2, 3, 4},
+		},
+	}
+}
+
 func newTestE2ECleanup() *colibri_mgmt.E2ECleanup {
 	return &colibri_mgmt.E2ECleanup{
 		Base: newTestE2EBase(1),

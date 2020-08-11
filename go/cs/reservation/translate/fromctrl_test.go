@@ -19,6 +19,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/cs/reservation/e2e"
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
@@ -284,6 +285,48 @@ func TestNewResponseSegmentCleanup(t *testing.T) {
 				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
 				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
 				require.Equal(t, tc.Ctrl.ErrorCode, rs.ErrorCode)
+			}
+		})
+	}
+}
+
+func TestNewResponseE2ESetup(t *testing.T) {
+	cases := map[string]struct {
+		Ctrl    *colibri_mgmt.E2ESetupRes
+		Success bool
+	}{
+		"success": {
+			Ctrl:    newTestE2ESetupSuccessResponse(),
+			Success: true,
+		},
+		"failure": {
+			Ctrl:    newTestE2ESetupFailureResponse(),
+			Success: false,
+		},
+	}
+	for name, tc := range cases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ts := util.SecsToTime(1)
+			r, err := newResponseE2ESetup(tc.Ctrl, ts, nil)
+			require.Error(t, err) // no path
+			r, err = newResponseE2ESetup(tc.Ctrl, ts, newTestPath())
+			require.NoError(t, err)
+			require.NotNil(t, r)
+			if tc.Success {
+				require.IsType(t, &e2e.ResponseSetupSuccess{}, r)
+				rs := r.(*e2e.ResponseSetupSuccess)
+				checkE2EIDs(t, tc.Ctrl.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+				require.Equal(t, tc.Ctrl.Success.Token, rs.Token.ToRaw())
+			} else {
+				require.IsType(t, &e2e.ResponseSetupFailure{}, r)
+				rs := r.(*e2e.ResponseSetupFailure)
+				checkE2EIDs(t, tc.Ctrl.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+				require.Equal(t, tc.Ctrl.Failure.InfoField, rs.InfoField.ToRaw())
+				require.Len(t, rs.MaxBWs, len(tc.Ctrl.Failure.MaxBWs))
 			}
 		})
 	}
