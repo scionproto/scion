@@ -109,23 +109,20 @@ _go_image_repos()
 # Distroless
 git_repository(
     name = "distroless",
-    commit = "48dba0a4ace4fcb4fdd8d7e1f7dc1a9ed8b38f7c",
+    commit = "4a2e305ff74253042050b08f443a5964d4977d5c",
     remote = "https://github.com/GoogleContainerTools/distroless.git",
-    shallow_since = "1582150737 -0500",
+    shallow_since = "1597066421 -0400",
 )
 
 # Debian packages to install in containers
-load("@distroless//package_manager:package_manager.bzl", "package_manager_repositories")
 load("@distroless//package_manager:dpkg.bzl", "dpkg_list", "dpkg_src")
-
-package_manager_repositories()
 
 dpkg_src(
     name = "debian_stretch",
     arch = "amd64",
     distro = "stretch",
-    sha256 = "2b13362808b7bd90d24db2e0804c799288694ae44bd7e3d123becc191451fc67",
-    snapshot = "20191028T085816Z",
+    sha256 = "90ff32c8226b57b879bf6b8c3cfda15e24f2b8c22de28426872f162db4e8d444",
+    snapshot = "20200805T024503Z",
     url = "https://snapshot.debian.org/archive",
 )
 
@@ -133,16 +130,16 @@ dpkg_src(
     name = "debian_stretch_backports",
     arch = "amd64",
     distro = "stretch-backports",
-    sha256 = "e9170a8f37a1bbb8ce2df49e6ab557d65ef809d19bf607fd91bcf8ba6b85e3f6",
-    snapshot = "20191028T085816Z",
+    sha256 = "c6aa4e13236c86b3ab0e1714ff10f1d31e0533d7fb0d05cf64e12a02accd981c",
+    snapshot = "20200805T024503Z",
     url = "https://snapshot.debian.org/archive",
 )
 
 dpkg_src(
     name = "debian_stretch_security",
-    package_prefix = "https://snapshot.debian.org/archive/debian-security/20191028T085816Z/",
-    packages_gz_url = "https://snapshot.debian.org/archive/debian-security/20191028T085816Z/dists/stretch/updates/main/binary-amd64/Packages.gz",
-    sha256 = "acea7d952d8ab84de3cd2c26934a1bcf5ad244d344ecdb7b2d0173712bbd9d7b",
+    package_prefix = "https://snapshot.debian.org/archive/debian-security/20200804T162312Z/",
+    packages_gz_url = "https://snapshot.debian.org/archive/debian-security/20200804T162312Z/dists/stretch/updates/main/binary-amd64/Packages.gz",
+    sha256 = "03c2b87d786024b61cab2a63c10aa36929ca4d6468a0ec34435235476fdd2c90",
 )
 
 dpkg_list(
