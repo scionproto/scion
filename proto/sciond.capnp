@@ -31,8 +31,8 @@ struct SCIONDMsg {
 struct PathReq {
     dst @0 :UInt64;  # Destination ISD-AS
     src @1 :UInt64;  # Source ISD-AS
-    maxPaths @2: UInt16;  # Maximum number of paths requested
     flags :group {
+        maxPaths @2: UInt16;  # Maximum number of paths requested
         refresh @3 :Bool; # Fetch segments again for dst.
         hidden @4 :Bool; # Request hidden segments
     }

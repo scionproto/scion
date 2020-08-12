@@ -146,7 +146,7 @@ func (pathReq *PathReq) String() string {
 }
 
 type PathReqFlags struct {
-	PathCount uint16 `capnp:"-"`
+	PathCount uint16 `capnp:"maxPaths"`
 	Refresh   bool
 	Hidden    bool
 }
