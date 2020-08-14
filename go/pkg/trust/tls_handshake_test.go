@@ -16,6 +16,7 @@ package trust_test
 
 import (
 	"crypto/tls"
+	"net"
 	"testing"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/mock_trust"
@@ -62,54 +64,61 @@ func TestTLSCryptoManagerVerifyPeerCertificate(t *testing.T) {
 		})
 	}
 }
+
 func TestHandshake(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	trc := xtest.LoadTRC(t, "testdata/common/trcs/ISD1-B1-S1.trc")
 	crt111File := "testdata/common/ISD1/ASff00_0_111/crypto/as/ISD1-ASff00_0_111.pem"
 	key111File := "testdata/common/ISD1/ASff00_0_111/crypto/as/cp-as.key"
 	tlsCert, err := tls.LoadX509KeyPair(crt111File, key111File)
 	require.NoError(t, err)
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	chain, err := cppki.ReadPEMCerts(crt111File)
+	require.NoError(t, err)
 
 	db := mock_trust.NewMockDB(ctrl)
 	db.EXPECT().SignedTRC(gomock.Any(), gomock.Any()).MaxTimes(2).Return(trc, nil)
 	loader := mock_trust.NewMockX509KeyPairLoader(ctrl)
 	loader.EXPECT().LoadX509KeyPair().MaxTimes(2).Return(&tlsCert, nil)
 
-	serverMgr := trust.NewTLSCryptoManager(loader, db)
-	srvConfig := &tls.Config{
+	mgr := trust.NewTLSCryptoManager(loader, db)
+	clientConn, serverConn := net.Pipe()
+	defer clientConn.Close()
+	defer serverConn.Close()
+
+	client := tls.Client(clientConn, &tls.Config{
 		InsecureSkipVerify:    true,
-		GetCertificate:        serverMgr.GetCertificate,
-		VerifyPeerCertificate: serverMgr.VerifyPeerCertificate,
+		GetClientCertificate:  mgr.GetClientCertificate,
+		VerifyPeerCertificate: mgr.VerifyPeerCertificate,
+	})
+	server := tls.Server(serverConn, &tls.Config{
+		InsecureSkipVerify:    true,
+		GetCertificate:        mgr.GetCertificate,
+		VerifyPeerCertificate: mgr.VerifyPeerCertificate,
 		ClientAuth:            tls.RequireAnyClientCert,
+	})
+
+	connCheck := func(w, r net.Conn) {
+		msg := []byte("hello")
+
+		go func() {
+			_, err := w.Write(msg)
+			require.NoError(t, err)
+		}()
+
+		buf := make([]byte, 100)
+		n, err := r.Read(buf)
+		require.NoError(t, err)
+		require.Equal(t, msg, buf[:n])
 	}
-	listener, err := tls.Listen("tcp", "127.0.0.1:8884", srvConfig)
-	require.NoError(t, err)
 
-	clientMgr := trust.NewTLSCryptoManager(loader, db)
-	clientConfig := &tls.Config{
-		InsecureSkipVerify:    true,
-		GetClientCertificate:  clientMgr.GetClientCertificate,
-		VerifyPeerCertificate: clientMgr.VerifyPeerCertificate,
-	}
+	connCheck(server, client)
 
-	go func() {
-		clientConn, err := tls.Dial("tcp", "127.0.0.1:8884", clientConfig)
-		assert.NoError(t, err)
-		defer clientConn.Close()
-	}()
-
-	conn, err := listener.Accept()
-	require.NoError(t, err)
-	defer conn.Close()
-
-	tlsCon, _ := conn.(*tls.Conn)
-	err = tlsCon.Handshake()
-	assert.NoError(t, err)
-	assert.NotEmpty(t, tlsCon.ConnectionState().PeerCertificates)
-	assert.True(t, tlsCon.ConnectionState().HandshakeComplete)
-
+	assert.Equal(t, chain, client.ConnectionState().PeerCertificates)
+	assert.Equal(t, chain, server.ConnectionState().PeerCertificates)
+	assert.True(t, client.ConnectionState().HandshakeComplete)
+	assert.True(t, server.ConnectionState().HandshakeComplete)
 }
 
 func loadRawChain(t *testing.T, file string) [][]byte {
