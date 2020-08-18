@@ -193,9 +193,12 @@ func thisIsARequest(ctrl *colibri_mgmt.ColibriRequestPayload) {
 	ctrl.Request = &colibri_mgmt.Request{}
 	ctrl.Which = proto.ColibriRequestPayload_Which_request
 }
-func thisIsAResponse(ctrl *colibri_mgmt.ColibriRequestPayload, accepted bool) {
+
+// the response is accepted iff failedHop==0
+func thisIsAResponse(ctrl *colibri_mgmt.ColibriRequestPayload, failedHop uint8) {
 	ctrl.Response = &colibri_mgmt.Response{
-		Accepted: accepted,
+		Accepted:  failedHop == 0,
+		FailedHop: failedHop,
 	}
 	ctrl.Which = proto.ColibriRequestPayload_Which_response
 }
@@ -300,7 +303,7 @@ func setE2ECleanup(msg *e2e.CleanupReq, ctrl *colibri_mgmt.ColibriRequestPayload
 func setSegmentSetupSuccessResponse(msg *segment.ResponseSetupSuccess,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, true)
+	thisIsAResponse(ctrl, 0)
 	ctrl.Response.SegmentSetup = &colibri_mgmt.SegmentSetupRes{
 		Base:  newSegmentBaseFromResponse(&msg.Response),
 		Which: proto.SegmentSetupResData_Which_token,
@@ -313,7 +316,7 @@ func setSegmentSetupSuccessResponse(msg *segment.ResponseSetupSuccess,
 func setSegmentSetupFailureResponse(msg *segment.ResponseSetupFailure,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, false)
+	thisIsAResponse(ctrl, msg.FailedHop)
 	ctrl.Response.SegmentSetup = &colibri_mgmt.SegmentSetupRes{
 		Base:    newSegmentBaseFromResponse(&msg.Response),
 		Which:   proto.SegmentSetupResData_Which_failure,
@@ -326,7 +329,7 @@ func setSegmentSetupFailureResponse(msg *segment.ResponseSetupFailure,
 func setSegmentRenewalSuccessResponse(msg *segment.ResponseSetupSuccess,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, true)
+	thisIsAResponse(ctrl, 0)
 	ctrl.Response.SegmentRenewal = &colibri_mgmt.SegmentSetupRes{
 		Base:  newSegmentBaseFromResponse(&msg.Response),
 		Which: proto.SegmentSetupResData_Which_token,
@@ -339,7 +342,7 @@ func setSegmentRenewalSuccessResponse(msg *segment.ResponseSetupSuccess,
 func setSegmentRenewalFailureResponse(msg *segment.ResponseSetupFailure,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, false)
+	thisIsAResponse(ctrl, msg.FailedHop)
 	ctrl.Response.SegmentRenewal = &colibri_mgmt.SegmentSetupRes{
 		Base:    newSegmentBaseFromResponse(&msg.Response),
 		Which:   proto.SegmentSetupResData_Which_failure,
@@ -351,7 +354,7 @@ func setSegmentRenewalFailureResponse(msg *segment.ResponseSetupFailure,
 func setSegmentTeardownSuccessResponse(msg *segment.ResponseTeardownSuccess,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, true)
+	thisIsAResponse(ctrl, 0)
 	ctrl.Response.SegmentTeardown = &colibri_mgmt.SegmentTeardownRes{
 		Base: newSegmentBaseFromResponse(&msg.Response),
 	}
@@ -362,7 +365,7 @@ func setSegmentTeardownSuccessResponse(msg *segment.ResponseTeardownSuccess,
 func setSegmentTeardownFailureResponse(msg *segment.ResponseTeardownFailure,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, false)
+	thisIsAResponse(ctrl, msg.FailedHop)
 	ctrl.Response.SegmentTeardown = &colibri_mgmt.SegmentTeardownRes{
 		Base:      newSegmentBaseFromResponse(&msg.Response),
 		ErrorCode: msg.ErrorCode,
@@ -374,7 +377,7 @@ func setSegmentTeardownFailureResponse(msg *segment.ResponseTeardownFailure,
 func setSegmentIndexConfirmationSuccessResponse(msg *segment.ResponseIndexConfirmationSuccess,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, true)
+	thisIsAResponse(ctrl, 0)
 	ctrl.Response.SegmentIndexConfirmation = &colibri_mgmt.SegmentIndexConfirmationRes{
 		Base: newSegmentBaseFromResponse(&msg.Response),
 	}
@@ -385,7 +388,7 @@ func setSegmentIndexConfirmationSuccessResponse(msg *segment.ResponseIndexConfir
 func setSegmentIndexConfirmationFailureResponse(msg *segment.ResponseIndexConfirmationFailure,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, false)
+	thisIsAResponse(ctrl, msg.FailedHop)
 	ctrl.Response.SegmentIndexConfirmation = &colibri_mgmt.SegmentIndexConfirmationRes{
 		Base:      newSegmentBaseFromResponse(&msg.Response),
 		ErrorCode: msg.ErrorCode,
@@ -397,7 +400,7 @@ func setSegmentIndexConfirmationFailureResponse(msg *segment.ResponseIndexConfir
 func setSegmentCleanupSuccessResponse(msg *segment.ResponseCleanupSuccess,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, true)
+	thisIsAResponse(ctrl, 0)
 	ctrl.Response.SegmentCleanup = &colibri_mgmt.SegmentCleanupRes{
 		Base: newSegmentBaseFromResponse(&msg.Response),
 	}
@@ -408,7 +411,7 @@ func setSegmentCleanupSuccessResponse(msg *segment.ResponseCleanupSuccess,
 func setSegmentCleanupFailureResponse(msg *segment.ResponseCleanupFailure,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, false)
+	thisIsAResponse(ctrl, msg.FailedHop)
 	ctrl.Response.SegmentCleanup = &colibri_mgmt.SegmentCleanupRes{
 		Base:      newSegmentBaseFromResponse(&msg.Response),
 		ErrorCode: msg.ErrorCode,
@@ -420,7 +423,7 @@ func setSegmentCleanupFailureResponse(msg *segment.ResponseCleanupFailure,
 func setE2ESetupSuccessResponse(msg *e2e.ResponseSetupSuccess,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, true)
+	thisIsAResponse(ctrl, 0)
 	ctrl.Response.E2ESetup = &colibri_mgmt.E2ESetupRes{
 		Base:  newE2EBaseFromResponse(&msg.Response),
 		Which: proto.E2ESetupResData_Which_success,
@@ -435,7 +438,7 @@ func setE2ESetupSuccessResponse(msg *e2e.ResponseSetupSuccess,
 func setE2ERenewalSuccessResponse(msg *e2e.ResponseSetupSuccess,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, true)
+	thisIsAResponse(ctrl, 0)
 	ctrl.Response.E2ERenewal = &colibri_mgmt.E2ESetupRes{
 		Base:  newE2EBaseFromResponse(&msg.Response),
 		Which: proto.E2ESetupResData_Which_success,
@@ -454,7 +457,7 @@ func setE2ESetupFailureResponse(msg *e2e.ResponseSetupFailure,
 	for i := range msg.MaxBWs {
 		maxBWs[i] = uint8(msg.MaxBWs[i])
 	}
-	thisIsAResponse(ctrl, false)
+	thisIsAResponse(ctrl, msg.FailedHop)
 	ctrl.Response.E2ESetup = &colibri_mgmt.E2ESetupRes{
 		Base:  newE2EBaseFromResponse(&msg.Response),
 		Which: proto.E2ESetupResData_Which_failure,
@@ -475,7 +478,7 @@ func setE2ERenewalFailureResponse(msg *e2e.ResponseSetupFailure,
 	for i := range msg.MaxBWs {
 		maxBWs[i] = uint8(msg.MaxBWs[i])
 	}
-	thisIsAResponse(ctrl, false)
+	thisIsAResponse(ctrl, msg.FailedHop)
 	ctrl.Response.E2ERenewal = &colibri_mgmt.E2ESetupRes{
 		Base:  newE2EBaseFromResponse(&msg.Response),
 		Which: proto.E2ESetupResData_Which_failure,
@@ -492,7 +495,7 @@ func setE2ERenewalFailureResponse(msg *e2e.ResponseSetupFailure,
 func setE2ECleanupSuccessResponse(msg *e2e.ResponseCleanupSuccess,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, true)
+	thisIsAResponse(ctrl, 0)
 	ctrl.Response.E2ECleanup = &colibri_mgmt.E2ECleanupRes{
 		Base: newE2EBaseFromResponse(&msg.Response),
 	}
@@ -503,7 +506,7 @@ func setE2ECleanupSuccessResponse(msg *e2e.ResponseCleanupSuccess,
 func setE2ECleanupFailureResponse(msg *e2e.ResponseCleanupFailure,
 	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	thisIsAResponse(ctrl, false)
+	thisIsAResponse(ctrl, msg.FailedHop)
 	ctrl.Response.E2ECleanup = &colibri_mgmt.E2ECleanupRes{
 		Base:      newE2EBaseFromResponse(&msg.Response),
 		ErrorCode: msg.ErrorCode,

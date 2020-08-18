@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/proto"
 )
 
 func TestNewSegmentIDFromCtrl(t *testing.T) {
@@ -130,16 +131,22 @@ func TestNewRequestE2ECleanup(t *testing.T) {
 
 func TestNewResponseSegmentSetup(t *testing.T) {
 	cases := map[string]struct {
-		Ctrl    *colibri_mgmt.SegmentSetupRes
-		Success bool
+		Ctrl *colibri_mgmt.Response
 	}{
 		"success": {
-			Ctrl:    newTestSegmentSetupSuccessResponse(),
-			Success: true,
+			Ctrl: &colibri_mgmt.Response{
+				SegmentSetup: newTestSegmentSetupSuccessResponse(),
+				Which:        proto.Response_Which_segmentSetup,
+				Accepted:     true,
+			},
 		},
 		"failure": {
-			Ctrl:    newTestSegmentSetupFailureResponse(),
-			Success: false,
+			Ctrl: &colibri_mgmt.Response{
+				SegmentSetup: newTestSegmentSetupFailureResponse(),
+				Which:        proto.Response_Which_segmentSetup,
+				Accepted:     false,
+				FailedHop:    9,
+			},
 		},
 	}
 
@@ -148,23 +155,23 @@ func TestNewResponseSegmentSetup(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ts := util.SecsToTime(1)
-			r, err := newResponseSegmentSetup(tc.Ctrl, 3, ts, nil)
+			r, err := newResponseSegmentSetup(tc.Ctrl.SegmentSetup, tc.Ctrl, ts, nil)
 			require.Error(t, err)
-			r, err = newResponseSegmentSetup(tc.Ctrl, 3, ts, newTestPath())
+			r, err = newResponseSegmentSetup(tc.Ctrl.SegmentSetup, tc.Ctrl, ts, newTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
-			if tc.Success {
+			if tc.Ctrl.Accepted {
 				require.IsType(t, &segment.ResponseSetupSuccess{}, r)
 				rs := r.(*segment.ResponseSetupSuccess)
-				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
-				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
-				require.Equal(t, tc.Ctrl.Token, rs.Token.ToRaw())
+				checkIDs(t, tc.Ctrl.SegmentSetup.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.SegmentSetup.Base.Index, uint8(rs.Index))
+				require.Equal(t, tc.Ctrl.SegmentSetup.Token, rs.Token.ToRaw())
 			} else {
 				require.IsType(t, &segment.ResponseSetupFailure{}, r)
 				rs := r.(*segment.ResponseSetupFailure)
-				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
-				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
-				checkRequest(t, tc.Ctrl.Failure, &rs.FailedSetup, ts)
+				checkIDs(t, tc.Ctrl.SegmentSetup.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.SegmentSetup.Base.Index, uint8(rs.Index))
+				checkRequest(t, tc.Ctrl.SegmentSetup.Failure, &rs.FailedSetup, ts)
 			}
 		})
 	}
@@ -172,16 +179,22 @@ func TestNewResponseSegmentSetup(t *testing.T) {
 
 func TestNewResponseSegmentTeardown(t *testing.T) {
 	cases := map[string]struct {
-		Ctrl    *colibri_mgmt.SegmentTeardownRes
-		Success bool
+		Ctrl *colibri_mgmt.Response
 	}{
 		"success": {
-			Ctrl:    newTestSegmentTeardownSuccessResponse(),
-			Success: true,
+			Ctrl: &colibri_mgmt.Response{
+				SegmentTeardown: newTestSegmentTeardownSuccessResponse(),
+				Which:           proto.Response_Which_segmentTeardown,
+				Accepted:        true,
+			},
 		},
 		"failure": {
-			Ctrl:    newTestSegmentTeardownFailureResponse(),
-			Success: false,
+			Ctrl: &colibri_mgmt.Response{
+				SegmentTeardown: newTestSegmentTeardownFailureResponse(),
+				Which:           proto.Response_Which_segmentTeardown,
+				Accepted:        false,
+				FailedHop:       9,
+			},
 		},
 	}
 	for name, tc := range cases {
@@ -189,22 +202,22 @@ func TestNewResponseSegmentTeardown(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ts := util.SecsToTime(1)
-			r, err := newResponseSegmentTeardown(tc.Ctrl, tc.Success, ts, nil)
+			r, err := newResponseSegmentTeardown(tc.Ctrl.SegmentTeardown, tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
-			r, err = newResponseSegmentTeardown(tc.Ctrl, tc.Success, ts, newTestPath())
+			r, err = newResponseSegmentTeardown(tc.Ctrl.SegmentTeardown, tc.Ctrl, ts, newTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
-			if tc.Success {
+			if tc.Ctrl.Accepted {
 				require.IsType(t, &segment.ResponseTeardownSuccess{}, r)
 				rs := r.(*segment.ResponseTeardownSuccess)
-				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
-				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+				checkIDs(t, tc.Ctrl.SegmentTeardown.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.SegmentTeardown.Base.Index, uint8(rs.Index))
 			} else {
 				require.IsType(t, &segment.ResponseTeardownFailure{}, r)
 				rs := r.(*segment.ResponseTeardownFailure)
-				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
-				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
-				require.Equal(t, tc.Ctrl.ErrorCode, rs.ErrorCode)
+				checkIDs(t, tc.Ctrl.SegmentTeardown.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.SegmentTeardown.Base.Index, uint8(rs.Index))
+				require.Equal(t, tc.Ctrl.SegmentTeardown.ErrorCode, rs.ErrorCode)
 			}
 		})
 	}
@@ -212,16 +225,22 @@ func TestNewResponseSegmentTeardown(t *testing.T) {
 
 func TestNewResponseSegmentIndexConfirmation(t *testing.T) {
 	cases := map[string]struct {
-		Ctrl    *colibri_mgmt.SegmentIndexConfirmationRes
-		Success bool
+		Ctrl *colibri_mgmt.Response
 	}{
 		"success": {
-			Ctrl:    newTestIndexConfirmationSuccessResponse(),
-			Success: true,
+			Ctrl: &colibri_mgmt.Response{
+				SegmentIndexConfirmation: newTestIndexConfirmationSuccessResponse(),
+				Which:                    proto.Response_Which_segmentIndexConfirmation,
+				Accepted:                 true,
+			},
 		},
 		"failure": {
-			Ctrl:    newTestIndexConfirmationFailureResponse(),
-			Success: false,
+			Ctrl: &colibri_mgmt.Response{
+				SegmentIndexConfirmation: newTestIndexConfirmationFailureResponse(),
+				Which:                    proto.Response_Which_segmentIndexConfirmation,
+				Accepted:                 false,
+				FailedHop:                9,
+			},
 		},
 	}
 	for name, tc := range cases {
@@ -229,22 +248,24 @@ func TestNewResponseSegmentIndexConfirmation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ts := util.SecsToTime(1)
-			r, err := newResponseSegmentIndexConfirmation(tc.Ctrl, tc.Success, ts, nil)
+			r, err := newResponseSegmentIndexConfirmation(tc.Ctrl.SegmentIndexConfirmation,
+				tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
-			r, err = newResponseSegmentIndexConfirmation(tc.Ctrl, tc.Success, ts, newTestPath())
+			r, err = newResponseSegmentIndexConfirmation(tc.Ctrl.SegmentIndexConfirmation,
+				tc.Ctrl, ts, newTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
-			if tc.Success {
+			if tc.Ctrl.Accepted {
 				require.IsType(t, &segment.ResponseIndexConfirmationSuccess{}, r)
 				rs := r.(*segment.ResponseIndexConfirmationSuccess)
-				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
-				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+				checkIDs(t, tc.Ctrl.SegmentIndexConfirmation.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.SegmentIndexConfirmation.Base.Index, uint8(rs.Index))
 			} else {
 				require.IsType(t, &segment.ResponseIndexConfirmationFailure{}, r)
 				rs := r.(*segment.ResponseIndexConfirmationFailure)
-				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
-				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
-				require.Equal(t, tc.Ctrl.ErrorCode, rs.ErrorCode)
+				checkIDs(t, tc.Ctrl.SegmentIndexConfirmation.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.SegmentIndexConfirmation.Base.Index, uint8(rs.Index))
+				require.Equal(t, tc.Ctrl.SegmentIndexConfirmation.ErrorCode, rs.ErrorCode)
 			}
 		})
 	}
@@ -252,16 +273,22 @@ func TestNewResponseSegmentIndexConfirmation(t *testing.T) {
 
 func TestNewResponseSegmentCleanup(t *testing.T) {
 	cases := map[string]struct {
-		Ctrl    *colibri_mgmt.SegmentCleanupRes
-		Success bool
+		Ctrl *colibri_mgmt.Response
 	}{
 		"success": {
-			Ctrl:    newTestCleanupSuccessResponse(),
-			Success: true,
+			Ctrl: &colibri_mgmt.Response{
+				SegmentCleanup: newTestCleanupSuccessResponse(),
+				Which:          proto.Response_Which_segmentCleanup,
+				Accepted:       true,
+			},
 		},
 		"failure": {
-			Ctrl:    newTestCleanupFailureResponse(),
-			Success: false,
+			Ctrl: &colibri_mgmt.Response{
+				SegmentCleanup: newTestCleanupFailureResponse(),
+				Which:          proto.Response_Which_segmentCleanup,
+				Accepted:       false,
+				FailedHop:      9,
+			},
 		},
 	}
 	for name, tc := range cases {
@@ -269,22 +296,22 @@ func TestNewResponseSegmentCleanup(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ts := util.SecsToTime(1)
-			r, err := newResponseSegmentCleanup(tc.Ctrl, tc.Success, ts, nil)
+			r, err := newResponseSegmentCleanup(tc.Ctrl.SegmentCleanup, tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
-			r, err = newResponseSegmentCleanup(tc.Ctrl, tc.Success, ts, newTestPath())
+			r, err = newResponseSegmentCleanup(tc.Ctrl.SegmentCleanup, tc.Ctrl, ts, newTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
-			if tc.Success {
+			if tc.Ctrl.Accepted {
 				require.IsType(t, &segment.ResponseCleanupSuccess{}, r)
 				rs := r.(*segment.ResponseCleanupSuccess)
-				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
-				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+				checkIDs(t, tc.Ctrl.SegmentCleanup.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.SegmentCleanup.Base.Index, uint8(rs.Index))
 			} else {
 				require.IsType(t, &segment.ResponseCleanupFailure{}, r)
 				rs := r.(*segment.ResponseCleanupFailure)
-				checkIDs(t, tc.Ctrl.Base.ID, &rs.ID)
-				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
-				require.Equal(t, tc.Ctrl.ErrorCode, rs.ErrorCode)
+				checkIDs(t, tc.Ctrl.SegmentCleanup.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.SegmentCleanup.Base.Index, uint8(rs.Index))
+				require.Equal(t, tc.Ctrl.SegmentCleanup.ErrorCode, rs.ErrorCode)
 			}
 		})
 	}
@@ -292,16 +319,21 @@ func TestNewResponseSegmentCleanup(t *testing.T) {
 
 func TestNewResponseE2ESetup(t *testing.T) {
 	cases := map[string]struct {
-		Ctrl    *colibri_mgmt.E2ESetupRes
-		Success bool
+		Ctrl *colibri_mgmt.Response
 	}{
 		"success": {
-			Ctrl:    newTestE2ESetupSuccessResponse(),
-			Success: true,
+			Ctrl: &colibri_mgmt.Response{
+				E2ESetup: newTestE2ESetupSuccessResponse(),
+				Which:    proto.Response_Which_e2eSetup,
+				Accepted: true,
+			},
 		},
 		"failure": {
-			Ctrl:    newTestE2ESetupFailureResponse(),
-			Success: false,
+			Ctrl: &colibri_mgmt.Response{
+				E2ESetup: newTestE2ESetupFailureResponse(),
+				Which:    proto.Response_Which_e2eSetup,
+				Accepted: false,
+			},
 		},
 	}
 	for name, tc := range cases {
@@ -309,25 +341,25 @@ func TestNewResponseE2ESetup(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ts := util.SecsToTime(1)
-			r, err := newResponseE2ESetup(tc.Ctrl, ts, nil)
+			r, err := newResponseE2ESetup(tc.Ctrl.E2ESetup, tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
-			r, err = newResponseE2ESetup(tc.Ctrl, ts, newTestPath())
+			r, err = newResponseE2ESetup(tc.Ctrl.E2ESetup, tc.Ctrl, ts, newTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
-			if tc.Success {
+			if tc.Ctrl.Accepted {
 				require.IsType(t, &e2e.ResponseSetupSuccess{}, r)
 				rs := r.(*e2e.ResponseSetupSuccess)
-				checkE2EIDs(t, tc.Ctrl.Base.ID, &rs.ID)
-				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
-				require.Equal(t, tc.Ctrl.Success.Token, rs.Token.ToRaw())
+				checkE2EIDs(t, tc.Ctrl.E2ESetup.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.E2ESetup.Base.Index, uint8(rs.Index))
+				require.Equal(t, tc.Ctrl.E2ESetup.Success.Token, rs.Token.ToRaw())
 			} else {
 				require.IsType(t, &e2e.ResponseSetupFailure{}, r)
 				rs := r.(*e2e.ResponseSetupFailure)
-				checkE2EIDs(t, tc.Ctrl.Base.ID, &rs.ID)
-				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
-				require.Equal(t, tc.Ctrl.Failure.ErrorCode, rs.ErrorCode)
-				require.Equal(t, tc.Ctrl.Failure.InfoField, rs.InfoField.ToRaw())
-				require.Len(t, rs.MaxBWs, len(tc.Ctrl.Failure.MaxBWs))
+				checkE2EIDs(t, tc.Ctrl.E2ESetup.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.E2ESetup.Base.Index, uint8(rs.Index))
+				require.Equal(t, tc.Ctrl.E2ESetup.Failure.ErrorCode, rs.ErrorCode)
+				require.Equal(t, tc.Ctrl.E2ESetup.Failure.InfoField, rs.InfoField.ToRaw())
+				require.Len(t, rs.MaxBWs, len(tc.Ctrl.E2ESetup.Failure.MaxBWs))
 			}
 		})
 	}
@@ -335,16 +367,21 @@ func TestNewResponseE2ESetup(t *testing.T) {
 
 func TestNewResponseE2EClenaup(t *testing.T) {
 	cases := map[string]struct {
-		Ctrl    *colibri_mgmt.E2ECleanupRes
-		Success bool
+		Ctrl *colibri_mgmt.Response
 	}{
 		"success": {
-			Ctrl:    newTestE2ECleanupSuccessResponse(),
-			Success: true,
+			Ctrl: &colibri_mgmt.Response{
+				E2ECleanup: newTestE2ECleanupSuccessResponse(),
+				Which:      proto.Response_Which_e2eCleanup,
+				Accepted:   true,
+			},
 		},
 		"failure": {
-			Ctrl:    newTestE2ECleanupFailureResponse(),
-			Success: false,
+			Ctrl: &colibri_mgmt.Response{
+				E2ECleanup: newTestE2ECleanupFailureResponse(),
+				Which:      proto.Response_Which_e2eCleanup,
+				Accepted:   false,
+			},
 		},
 	}
 	for name, tc := range cases {
@@ -352,22 +389,22 @@ func TestNewResponseE2EClenaup(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ts := util.SecsToTime(1)
-			r, err := newResponseE2EClenaup(tc.Ctrl, tc.Success, ts, nil)
+			r, err := newResponseE2EClenaup(tc.Ctrl.E2ECleanup, tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
-			r, err = newResponseE2EClenaup(tc.Ctrl, tc.Success, ts, newTestPath())
+			r, err = newResponseE2EClenaup(tc.Ctrl.E2ECleanup, tc.Ctrl, ts, newTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
-			if tc.Success {
+			if tc.Ctrl.Accepted {
 				require.IsType(t, &e2e.ResponseCleanupSuccess{}, r)
 				rs := r.(*e2e.ResponseCleanupSuccess)
-				checkE2EIDs(t, tc.Ctrl.Base.ID, &rs.ID)
-				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
+				checkE2EIDs(t, tc.Ctrl.E2ECleanup.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.E2ECleanup.Base.Index, uint8(rs.Index))
 			} else {
 				require.IsType(t, &e2e.ResponseCleanupFailure{}, r)
 				rs := r.(*e2e.ResponseCleanupFailure)
-				checkE2EIDs(t, tc.Ctrl.Base.ID, &rs.ID)
-				require.Equal(t, tc.Ctrl.Base.Index, uint8(rs.Index))
-				require.Equal(t, tc.Ctrl.ErrorCode, rs.ErrorCode)
+				checkE2EIDs(t, tc.Ctrl.E2ECleanup.Base.ID, &rs.ID)
+				require.Equal(t, tc.Ctrl.E2ECleanup.Base.Index, uint8(rs.Index))
+				require.Equal(t, tc.Ctrl.E2ECleanup.ErrorCode, rs.ErrorCode)
 			}
 		})
 	}
