@@ -360,7 +360,7 @@ func TestLinkRatio(t *testing.T) {
 			},
 		},
 		"different sources": {
-			linkRatio: 1,
+			linkRatio: 1. / 3.,
 			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 5, 5),
 			setupDB: func(db *mock_backend.MockDB) {
 				rsvs := []*segment.Reservation{
