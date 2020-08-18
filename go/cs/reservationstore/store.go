@@ -115,13 +115,12 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 			"id", req.ID)
 	}
 	// compute admission max BW
-	alloc, err := s.admitter.AdmitRsv(ctx, req)
+	err = s.admitter.AdmitRsv(ctx, req)
 	if err != nil {
 		return failedResponse, serrors.WrapStr("not admitted", err)
 	}
-
 	// admitted; the request contains already the value inside the "allocation beads" of the rsv
-	index.AllocBW = alloc
+	index.AllocBW = req.AllocTrail[len(req.AllocTrail)-1].AllocBW
 	err = tx.PersistSegmentRsv(ctx, rsv)
 	if err != nil {
 		return failedResponse, serrors.WrapStr("cannot persist segment reservation", err,

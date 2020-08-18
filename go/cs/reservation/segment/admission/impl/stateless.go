@@ -37,31 +37,28 @@ type StatelessAdmission struct {
 
 var _ admission.Admitter = (*StatelessAdmission)(nil)
 
-// AdmitRsv admits a segment reservation.
-func (a *StatelessAdmission) AdmitRsv(ctx context.Context, req *segment.SetupReq) (
-	reservation.BWCls, error) {
-
+// AdmitRsv admits a segment reservation. The request will be modified with the allowed and
+// maximum bandwidths, also when returning error.
+func (a *StatelessAdmission) AdmitRsv(ctx context.Context, req *segment.SetupReq) error {
 	avail, err := a.availableBW(ctx, req)
 	if err != nil {
-		return 0, serrors.WrapStr("cannot compute available bandwidth", err, "segment_id", req.ID)
+		return serrors.WrapStr("cannot compute available bandwidth", err, "segment_id", req.ID)
 	}
 	ideal, err := a.idealBW(ctx, req)
 	if err != nil {
-		return 0, serrors.WrapStr("cannot compute ideal bandwidth", err, "segment_id", req.ID)
+		return serrors.WrapStr("cannot compute ideal bandwidth", err, "segment_id", req.ID)
 	}
-	bw := minBW(avail, ideal)
-	maxAlloc := reservation.BWClsFromBW(bw)
-	alloc := reservation.MinBWCls(maxAlloc, req.MaxBW)
+	maxAlloc := reservation.BWClsFromBW(minBW(avail, ideal))
 	bead := reservation.AllocationBead{
-		AllocBW: alloc,
+		AllocBW: reservation.MinBWCls(maxAlloc, req.MaxBW),
 		MaxBW:   maxAlloc,
 	}
 	req.AllocTrail = append(req.AllocTrail, bead)
 	if maxAlloc < req.MinBW {
-		return 0, serrors.New("admission denied", "maxalloc", maxAlloc, "minbw", req.MinBW,
+		return serrors.New("admission denied", "maxalloc", maxAlloc, "minbw", req.MinBW,
 			"segment_id", req.ID)
 	}
-	return alloc, nil
+	return nil
 }
 
 func (a *StatelessAdmission) availableBW(ctx context.Context, req *segment.SetupReq) (
