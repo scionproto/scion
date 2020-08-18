@@ -127,6 +127,8 @@ func TestAvailableBW(t *testing.T) {
 			},
 		},
 		"this reservation in DB": {
+			// as the only reservation in DB has the same ID as the request, the availableBW
+			// function should return the same value as with an empty DB.
 			availBW: 1024,
 			delta:   1,
 			req:     req,

@@ -78,6 +78,7 @@ func (a *StatelessAdmission) availableBW(ctx context.Context, req *segment.Setup
 	freeIngress := a.Capacities.CapacityIngress(req.Ingress) - bwIngress
 	bwEgress := sumMaxBlockedBW(sameEgress, &req.ID)
 	freeEgress := a.Capacities.CapacityEgress(req.Egress) - bwEgress
+	// `free` excludes the BW from an existing reservation if its ID equals the request's ID
 	free := float64(minBW(freeIngress, freeEgress))
 	return uint64(free * a.Delta), nil
 }
@@ -269,6 +270,8 @@ func (a *StatelessAdmission) transitDemand(ctx context.Context, req *segment.Set
 	return transitDem, nil
 }
 
+// sumMaxBlockedBW adds up all the max blocked bandwidth by the reservation, for all reservations,
+// iff they don't have the same ID as "excludeThisRsv".
 func sumMaxBlockedBW(rsvs []*segment.Reservation, excludeThisRsv *reservation.SegmentID) uint64 {
 	var total uint64
 	for _, r := range rsvs {
