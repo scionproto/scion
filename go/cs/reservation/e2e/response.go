@@ -28,11 +28,13 @@ type Response struct {
 	base.RequestMetadata                         // information about the request (forwarding path)
 	ID                   reservation.E2EID       // the ID this request refers to
 	Index                reservation.IndexNumber // the index this request refers to
+	Accepted             bool                    // success or failure type of response
+	FailedHop            uint8                   // if accepted is false, the AS that failed it
 }
 
 // NewResponse contructs the segment Response type.
 func NewResponse(ts time.Time, id *reservation.E2EID, idx reservation.IndexNumber,
-	path *spath.Path) (*Response, error) {
+	path *spath.Path, accepted bool, failedHop uint8) (*Response, error) {
 
 	metadata, err := base.NewRequestMetadata(path)
 	if err != nil {
@@ -45,6 +47,8 @@ func NewResponse(ts time.Time, id *reservation.E2EID, idx reservation.IndexNumbe
 		RequestMetadata: *metadata,
 		ID:              *id,
 		Index:           reservation.IndexNumber(idx),
+		Accepted:        accepted,
+		FailedHop:       failedHop,
 	}, nil
 }
 

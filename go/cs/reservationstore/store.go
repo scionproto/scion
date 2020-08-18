@@ -56,13 +56,14 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 		return nil, serrors.WrapStr("while admitting a reservation, cannot reverse path", err,
 			"id", req.ID)
 	}
-	response, err := segment.NewResponse(time.Now(), &req.ID, req.Index, revPath)
-	if err != nil {
-		return nil, serrors.WrapStr("cannot construct metadata for reservation packet", err)
-	}
 	if req.IndexOfCurrentHop() != len(req.AllocTrail) {
 		return nil, serrors.New("inconsistent number of hops",
 			"len_alloctrail", len(req.AllocTrail), "hf_count", req.IndexOfCurrentHop())
+	}
+	response, err := segment.NewResponse(time.Now(), &req.ID, req.Index, revPath,
+		false, uint8(len(req.AllocTrail)))
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct metadata for reservation packet", err)
 	}
 	failedResponse := &segment.ResponseSetupFailure{
 		Response:    *response,
@@ -133,6 +134,8 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 	var msg base.MessageWithPath
 	if req.IsLastAS() {
 		// TODO(juagargi) update token here
+		response.Accepted = true
+		response.FailedHop = 0
 		msg = &segment.ResponseSetupSuccess{
 			Response: *response,
 			Token:    *index.Token,
