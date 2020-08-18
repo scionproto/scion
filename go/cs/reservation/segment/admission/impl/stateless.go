@@ -183,7 +183,7 @@ func (a *StatelessAdmission) linkRatio(ctx context.Context, req *segment.SetupRe
 	return numerator / denom, nil
 }
 
-// demands represents the demands of a given source.
+// demands represents the demands for a given source, and a specific ingress-egress interface pair.
 // from the admission spec: srcDem, inDem and egDem for a given source.
 type demands struct {
 	src, in, eg uint64
@@ -209,10 +209,10 @@ func (a *StatelessAdmission) computeTempDemands(ctx context.Context, ingress com
 	// srcDem, inDem and egDem grouped by source
 	demsPerSrc := make(demPerSource)
 	for _, rsv := range rsvs {
-		var dem uint64 // capReqDem
-		if rsv.ID != req.ID {
-			dem = min3BW(capIn, capEg, rsv.MaxRequestedBW())
+		if rsv.ID == req.ID {
+			continue
 		}
+		dem := min3BW(capIn, capEg, rsv.MaxRequestedBW()) // capReqDem in the formulas
 		bucket := demsPerSrc[rsv.ID.ASID]
 		if rsv.Ingress == ingress {
 			bucket.in += dem
@@ -225,7 +225,7 @@ func (a *StatelessAdmission) computeTempDemands(ctx context.Context, ingress com
 		}
 		demsPerSrc[rsv.ID.ASID] = bucket
 	}
-	// add the request itself
+	// add the request itself to whatever we have for that source
 	bucket := demsPerSrc[req.ID.ASID]
 	dem := min3BW(capIn, capEg, req.MaxBW.ToKBps())
 	if req.Ingress == ingress {
@@ -253,11 +253,11 @@ func (a *StatelessAdmission) transitDemand(ctx context.Context, req *segment.Set
 	// TODO(juagargi) adjSrcDem is not needed, remove after finishing debugging the admission
 	adjSrcDem := make(map[addr.AS]uint64) // every adjSrcDem grouped by source
 	for src, dems := range demsPerSrc {
-		var inScalFctr float64
+		var inScalFctr float64 = 1.
 		if dems.in != 0 {
 			inScalFctr = float64(minBW(capIn, dems.in)) / float64(dems.in)
 		}
-		var egScalFctr float64
+		var egScalFctr float64 = 1.
 		if dems.eg != 0 {
 			egScalFctr = float64(minBW(capEg, dems.eg)) / float64(dems.eg)
 		}
@@ -271,8 +271,6 @@ func (a *StatelessAdmission) transitDemand(ctx context.Context, req *segment.Set
 
 	return transitDem, nil
 }
-
-// ----------------------------------------------
 
 func sumMaxBlockedBW(rsvs []*segment.Reservation, excludeThisRsv *reservation.SegmentID) uint64 {
 	var total uint64
