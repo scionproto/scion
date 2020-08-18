@@ -5,8 +5,5 @@ go_library(
     srcs = ["admitter.go"],
     importpath = "github.com/scionproto/scion/go/cs/reservation/segment/admission",
     visibility = ["//visibility:public"],
-    deps = [
-        "//go/cs/reservation/segment:go_default_library",
-        "//go/lib/colibri/reservation:go_default_library",
-    ],
+    deps = ["//go/cs/reservation/segment:go_default_library"],
 )
