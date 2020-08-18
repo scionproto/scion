@@ -51,16 +51,16 @@ func (a *StatelessAdmission) AdmitRsv(ctx context.Context, req *segment.SetupReq
 	}
 	bw := minBW(avail, ideal)
 	maxAlloc := reservation.BWClsFromBW(bw)
-	if maxAlloc < req.MinBW {
-		return 0, serrors.New("admission denied", "maxalloc", maxAlloc, "minbw", req.MinBW,
-			"segment_id", req.ID)
-	}
 	alloc := reservation.MinBWCls(maxAlloc, req.MaxBW)
 	bead := reservation.AllocationBead{
 		AllocBW: alloc,
 		MaxBW:   maxAlloc,
 	}
 	req.AllocTrail = append(req.AllocTrail, bead)
+	if maxAlloc < req.MinBW {
+		return 0, serrors.New("admission denied", "maxalloc", maxAlloc, "minbw", req.MinBW,
+			"segment_id", req.ID)
+	}
 	return alloc, nil
 }
 

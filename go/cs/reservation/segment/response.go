@@ -28,6 +28,6 @@ type ResponseSetupSuccess struct {
 // ResponseSetupFailure is the response to a failed setup. It's sent on the reverse direction.
 type ResponseSetupFailure struct {
 	base.RequestMetadata // information about the request (forwarding path)
-	FailedSetup          SetupReq
+	FailedSetup          *SetupReq
 	FailedHop            uint8
 }
