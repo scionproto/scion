@@ -158,19 +158,18 @@ func (a *StatelessAdmission) linkRatio(ctx context.Context, req *segment.SetupRe
 		}
 		src := rsv.ID.ASID
 		srcAlloc := rsv.MaxBlockedBW()
-		if src == req.ID.ASID {
-			srcAlloc += prevBW
-		}
 		srcAllocPerSrc[src] += srcAlloc
 	}
 	if _, found := srcAllocPerSrc[req.ID.ASID]; !found {
-		// TODO(juagargi) @roosd should validate this:
-		// shortcut: no other appearances of the request's source in the DB. The ratio is 1
-		return 1, nil
+		// add the source of the request, if not already present
+		srcAllocPerSrc[req.ID.ASID] = 0 // the value of the srcAlloc itself won't be used
 	}
 	// TODO(juagargi) after debugging, integrate this loop into the previous one:
 	var denom float64
 	for src, srcAlloc := range srcAllocPerSrc {
+		if src == req.ID.ASID {
+			srcAlloc += prevBW
+		}
 		egScalFctr, found := egScalFctrs[src]
 		if !found {
 			return 0, serrors.New("cannot compute link ratio, internal error: "+
