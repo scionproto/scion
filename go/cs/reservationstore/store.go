@@ -67,6 +67,7 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 	failedResponse := &segment.ResponseSetupFailure{
 		RequestMetadata: *revMetadata,
 		FailedHop:       uint8(len(req.AllocTrail)),
+		FailedSetup:     req,
 	}
 	rsv, err := s.db.GetSegmentRsvFromID(ctx, &req.ID)
 	if err != nil {
