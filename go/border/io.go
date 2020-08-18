@@ -232,7 +232,11 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 		var pktsWritten int
 		if pktsWritten, err = s.Conn.WriteBatch(msgs[:toWrite]); err != nil {
 			outputWriteErrs.Inc()
-			log.Error("Error sending packet(s)", "src", src, "err", err)
+			dsts := make([]net.Addr, toWrite)
+			for i := range msgs[:toWrite] {
+				dsts[i] = msgs[i].Addr
+			}
+			log.Error("Error sending packet(s)", "src", src, "dsts", dsts, "err", err)
 			// If some packets were still sent, continue processing. Otherwise:
 			if pktsWritten <= 0 {
 				// If we know the error is temporary, retry sending, otherwise drop
@@ -326,6 +330,8 @@ func isRecoverableErr(err error) bool {
 	case isSyscallErrno(err, syscall.ECONNREFUSED),
 		isSyscallErrno(err, syscall.ENETUNREACH),
 		isSyscallErrno(err, syscall.EHOSTUNREACH),
+		isSyscallErrno(err, syscall.EINVAL),
+		isSyscallErrno(err, syscall.EACCES),
 		isSyscallErrno(err, syscall.EPERM):
 		return true
 	default:
