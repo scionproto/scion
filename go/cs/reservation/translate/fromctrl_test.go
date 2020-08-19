@@ -171,7 +171,7 @@ func TestNewResponseSegmentSetup(t *testing.T) {
 				rs := r.(*segment.ResponseSetupFailure)
 				checkIDs(t, tc.Ctrl.SegmentSetup.Base.ID, &rs.ID)
 				require.Equal(t, tc.Ctrl.SegmentSetup.Base.Index, uint8(rs.Index))
-				checkRequest(t, tc.Ctrl.SegmentSetup.Failure, &rs.FailedSetup, ts)
+				checkRequest(t, tc.Ctrl.SegmentSetup.Failure, rs.FailedSetup, ts)
 			}
 		})
 	}
