@@ -50,7 +50,7 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 	base.MessageWithPath, error) {
 
 	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
-		return nil, serrors.WrapStr("error admitting reservation", err, "id", req.ID)
+		return nil, serrors.WrapStr("error validating request", err, "id", req.ID)
 	}
 	if req.IndexOfCurrentHop() != len(req.AllocTrail) {
 		return nil, serrors.New("inconsistent number of hops",
@@ -146,7 +146,7 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *segment.Inde
 	base.MessageWithPath, error) {
 
 	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
-		return nil, serrors.WrapStr("error admitting reservation", err, "id", req.ID)
+		return nil, serrors.WrapStr("error validating request", err, "id", req.ID)
 	}
 	response, err := s.prepareFailureResp(&req.Request)
 	if err != nil {
@@ -154,7 +154,7 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *segment.Inde
 	}
 	failedResponse := &segment.ResponseIndexConfirmationFailure{
 		Response:  *response,
-		ErrorCode: 1, // TODO(juagargi) specify error codes
+		ErrorCode: 1, // TODO(juagargi) specify error codes for every response
 	}
 	tx, err := s.db.BeginTransaction(ctx, nil)
 	if err != nil {
@@ -193,17 +193,95 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *segment.Inde
 }
 
 // CleanupSegmentReservation deletes an index from a segment reservation.
-func (s *Store) CleanupSegmentReservation(ctx context.Context, id reservation.SegmentID,
-	idx reservation.IndexNumber) (base.MessageWithPath, error) {
+func (s *Store) CleanupSegmentReservation(ctx context.Context, req *segment.CleanupReq) (
+	base.MessageWithPath, error) {
 
-	return nil, nil
+	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
+		return nil, serrors.WrapStr("error validating request", err, "id", req.ID)
+	}
+	response, err := s.prepareFailureResp(&req.Request)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct response", err, "id", req.ID)
+	}
+	failedResponse := &segment.ResponseCleanupFailure{
+		Response:  *response,
+		ErrorCode: 1,
+	}
+	tx, err := s.db.BeginTransaction(ctx, nil)
+	if err != nil {
+		return failedResponse, serrors.WrapStr("cannot create transaction", err, "id", req.ID)
+	}
+	defer tx.Rollback()
+
+	rsv, err := tx.GetSegmentRsvFromID(ctx, &req.ID)
+	if err != nil {
+		return failedResponse, serrors.WrapStr("cannot obtain segment reservation", err,
+			"id", req.ID)
+	}
+	if err := rsv.RemoveIndex(req.Index); err != nil {
+		return failedResponse, serrors.WrapStr("cannot delete reservation index", err,
+			"id", req.ID, "index", req.Index)
+	}
+	err = tx.PersistSegmentRsv(ctx, rsv)
+	if err != nil {
+		return failedResponse, serrors.WrapStr("cannot persist segment reservation", err,
+			"id", req.ID)
+	}
+	if err := tx.Commit(); err != nil {
+		return failedResponse, serrors.WrapStr("cannot commit transaction", err,
+			"id", req.ID)
+	}
+	var msg base.MessageWithPath
+	if req.IsLastAS() {
+		msg = &segment.ResponseCleanupSuccess{
+			Response: *morphResponseToSuccess(response),
+		}
+	} else {
+		msg = req
+	}
+
+	return msg, nil
 }
 
 // TearDownSegmentReservation removes a whole segment reservation.
-func (s *Store) TearDownSegmentReservation(ctx context.Context, id reservation.SegmentID,
-	idx reservation.IndexNumber) (base.MessageWithPath, error) {
+func (s *Store) TearDownSegmentReservation(ctx context.Context, req *segment.TeardownReq) (
+	base.MessageWithPath, error) {
 
-	return nil, nil
+	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
+		return nil, serrors.WrapStr("error validating request", err, "id", req.ID)
+	}
+	response, err := s.prepareFailureResp(&req.Request)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct response", err, "id", req.ID)
+	}
+	failedResponse := &segment.ResponseTeardownFailure{
+		Response:  *response,
+		ErrorCode: 1,
+	}
+	tx, err := s.db.BeginTransaction(ctx, nil)
+	if err != nil {
+		return failedResponse, serrors.WrapStr("cannot create transaction", err, "id", req.ID)
+	}
+	defer tx.Rollback()
+
+	if err := tx.DeleteSegmentRsv(ctx, &req.ID); err != nil {
+		return failedResponse, serrors.WrapStr("cannot teardown reservation", err,
+			"id", req.ID)
+	}
+	if err := tx.Commit(); err != nil {
+		return failedResponse, serrors.WrapStr("cannot commit transaction", err,
+			"id", req.ID)
+	}
+	var msg base.MessageWithPath
+	if req.IsLastAS() {
+		msg = &segment.ResponseTeardownSuccess{
+			Response: *morphResponseToSuccess(response),
+		}
+	} else {
+		msg = req
+	}
+
+	return msg, nil
 }
 
 // AdmitE2EReservation will atempt to admit an e2e reservation.
