@@ -61,7 +61,7 @@ type ResponseSetupSuccess struct {
 // ResponseSetupFailure is the response to a failed setup. It's sent on the reverse direction.
 type ResponseSetupFailure struct {
 	Response
-	FailedSetup SetupReq
+	FailedSetup *SetupReq
 }
 
 // ResponseTeardownSuccess is sent by the last AS in the reverse path.

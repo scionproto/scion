@@ -320,7 +320,7 @@ func setSegmentSetupFailureResponse(msg *segment.ResponseSetupFailure,
 	ctrl.Response.SegmentSetup = &colibri_mgmt.SegmentSetupRes{
 		Base:    newSegmentBaseFromResponse(&msg.Response),
 		Which:   proto.SegmentSetupResData_Which_failure,
-		Failure: newSegmentSetup(&msg.FailedSetup),
+		Failure: newSegmentSetup(msg.FailedSetup),
 	}
 	ctrl.Response.Which = proto.Response_Which_segmentSetup
 	return nil
@@ -346,7 +346,7 @@ func setSegmentRenewalFailureResponse(msg *segment.ResponseSetupFailure,
 	ctrl.Response.SegmentRenewal = &colibri_mgmt.SegmentSetupRes{
 		Base:    newSegmentBaseFromResponse(&msg.Response),
 		Which:   proto.SegmentSetupResData_Which_failure,
-		Failure: newSegmentSetup(&msg.FailedSetup),
+		Failure: newSegmentSetup(msg.FailedSetup),
 	}
 	ctrl.Response.Which = proto.Response_Which_segmentRenewal
 	return nil

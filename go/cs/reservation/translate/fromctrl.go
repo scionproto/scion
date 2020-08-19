@@ -332,7 +332,7 @@ func newResponseSegmentSetup(ctrl *colibri_mgmt.SegmentSetupRes, resp *colibri_m
 		}
 		return &segment.ResponseSetupFailure{
 			Response:    *r,
-			FailedSetup: *failedSetup,
+			FailedSetup: failedSetup,
 		}, nil
 	default:
 		return nil, serrors.New("invalid ctrl message", "ctrl", ctrl.Which.String())
