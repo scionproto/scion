@@ -20,14 +20,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/sig/config"
 )
 
 func CheckTestSIG(t *testing.T, cfg *config.SigConf, id string) {
 	assert.Equal(t, id, cfg.ID)
 	assert.Equal(t, "/etc/scion/sig/sig.json", cfg.SIGConfig)
-	assert.Equal(t, xtest.MustParseIA("1-ff00:0:113"), cfg.IA)
 	assert.Equal(t, net.ParseIP("192.0.2.100"), cfg.IP)
 	assert.Equal(t, config.DefaultCtrlPort, int(cfg.CtrlPort))
 	assert.Equal(t, config.DefaultEncapPort, int(cfg.EncapPort))
