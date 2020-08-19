@@ -100,8 +100,3 @@ type ResponseCleanupFailure struct {
 	Response
 	ErrorCode uint8
 }
-
-// ResponseConfirmationIndex changes the state of an index.
-type ResponseConfirmationIndex struct {
-	Response
-}

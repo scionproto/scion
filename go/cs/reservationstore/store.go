@@ -56,19 +56,13 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 		return nil, serrors.New("inconsistent number of hops",
 			"len_alloctrail", len(req.AllocTrail), "hf_count", req.IndexOfCurrentHop())
 	}
-	response, err := segment.NewResponse(time.Now(), &req.ID, req.Index, revPath,
-		false, uint8(len(req.AllocTrail)))
+	response, err := s.prepareFailureResp(&req.Request)
 	if err != nil {
-		return nil, serrors.WrapStr("cannot construct metadata for reservation packet", err)
+		return nil, serrors.WrapStr("cannot construct response", err, "id", req.ID)
 	}
 	failedResponse := &segment.ResponseSetupFailure{
 		Response:    *response,
 		FailedSetup: req,
-	}
-	rsv, err := s.db.GetSegmentRsvFromID(ctx, &req.ID)
-	if err != nil {
-		return failedResponse, serrors.WrapStr("cannot obtain segment reservation", err,
-			"id", req.ID)
 	}
 	tx, err := s.db.BeginTransaction(ctx, nil)
 	if err != nil {
@@ -135,10 +129,9 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 	var msg base.MessageWithPath
 	if req.IsLastAS() {
 		// TODO(juagargi) update token here
-		response.Accepted = true
-		response.FailedHop = 0
+		morphResponseToSuccess(response)
 		msg = &segment.ResponseSetupSuccess{
-			Response: *response,
+			Response: *morphResponseToSuccess(response),
 			Token:    *index.Token,
 		}
 	} else {
@@ -155,16 +148,13 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *segment.Inde
 	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
 		return nil, serrors.WrapStr("error admitting reservation", err, "id", req.ID)
 	}
-	revMetadata, err := s.prepareFailureResp(&req.RequestMetadata)
+	response, err := s.prepareFailureResp(&req.Request)
 	if err != nil {
-		return nil, serrors.WrapStr("error admitting reservation", err, "id", req.ID)
+		return nil, serrors.WrapStr("cannot construct response", err, "id", req.ID)
 	}
-	failedResponse := &segment.ResponseSetupFailure{
-		Response: segment.Response{
-			RequestMetadata: *revMetadata,
-			Failed:          true,
-			FailedHop:       uint8(req.IndexOfCurrentHop()),
-		},
+	failedResponse := &segment.ResponseIndexConfirmationFailure{
+		Response:  *response,
+		ErrorCode: 1, // TODO(juagargi) specify error codes
 	}
 	tx, err := s.db.BeginTransaction(ctx, nil)
 	if err != nil {
@@ -177,7 +167,7 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *segment.Inde
 		return failedResponse, serrors.WrapStr("cannot obtain segment reservation", err,
 			"id", req.ID)
 	}
-	if err := rsv.SetIndexConfirmed(req.IndexNumber); err != nil {
+	if err := rsv.SetIndexConfirmed(req.Index); err != nil {
 		return failedResponse, serrors.WrapStr("cannot set index to confirmed", err,
 			"id", req.ID)
 	}
@@ -192,10 +182,8 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *segment.Inde
 	}
 	var msg base.MessageWithPath
 	if req.IsLastAS() {
-		msg = &segment.ResponseConfirmationIndex{
-			Response: segment.Response{
-				RequestMetadata: *revMetadata,
-			},
+		msg = &segment.ResponseIndexConfirmationSuccess{
+			Response: *morphResponseToSuccess(response),
 		}
 	} else {
 		msg = req
@@ -244,14 +232,21 @@ func (s *Store) validateAuthenticators(req *base.RequestMetadata) error {
 
 // prepareFailureResp will create the metadata necessary to create any failure response, which
 // is sent in the reverse path that the request had.
-func (s *Store) prepareFailureResp(req *base.RequestMetadata) (*base.RequestMetadata, error) {
+func (s *Store) prepareFailureResp(req *segment.Request) (*segment.Response, error) {
 	revPath := req.Path().Copy()
 	if err := revPath.Reverse(); err != nil {
 		return nil, err
 	}
-	revMetadata, err := base.NewRequestMetadata(revPath)
+	response, err := segment.NewResponse(time.Now(), &req.ID, req.Index, revPath,
+		false, uint8(req.IndexOfCurrentHop()))
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct metadata for reservation packet", err)
 	}
-	return revMetadata, nil
+	return response, nil
+}
+
+func morphResponseToSuccess(resp *segment.Response) *segment.Response {
+	resp.Accepted = true
+	resp.FailedHop = 0
+	return resp
 }
