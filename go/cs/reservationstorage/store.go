@@ -20,7 +20,6 @@ import (
 	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/cs/reservation/e2e"
 	sgt "github.com/scionproto/scion/go/cs/reservation/segment"
-	rsv "github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 )
 
@@ -34,8 +33,10 @@ type Store interface {
 		base.MessageWithPath, error)
 	TearDownSegmentReservation(ctx context.Context, req *sgt.TeardownReq) (
 		base.MessageWithPath, error)
-	AdmitE2EReservation(ctx context.Context, req e2e.SetupReq) (base.MessageWithPath, error)
-	CleanupE2EReservation(ctx context.Context, id rsv.E2EID, idx rsv.IndexNumber) (base.MessageWithPath, error)
+	AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
+		base.MessageWithPath, error)
+	CleanupE2EReservation(ctx context.Context, req *e2e.CleanupReq) (
+		base.MessageWithPath, error)
 
 	DeleteExpiredIndices(ctx context.Context) (int, error)
 }
