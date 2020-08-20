@@ -10,7 +10,7 @@ container_bundle(
         "scion_cs:latest": ":cs_prod",
         "scion_dispatcher:latest": ":dispatcher_prod",
         "scion_sciond:latest": ":sciond_prod",
-        "scion_sig_nocap:latest": ":sig_prod",
+        "scion_sig:latest": ":sig_prod",
     },
 )
 
@@ -21,14 +21,14 @@ container_bundle(
         "scion_cs_debug:latest": ":cs_debug",
         "scion_dispatcher_debug:latest": ":dispatcher_debug",
         "scion_sciond_debug:latest": ":sciond_debug",
-        "scion_sig_nocap_debug:latest": ":sig_debug",
+        "scion_sig_debug:latest": ":sig_debug",
     },
 )
 
 container_bundle(
     name = "test",
     images = {
-        "scion_sig_acceptance_nocap:latest": ":scion_sig_acceptance_nocap",
+        "scion_sig_acceptance:latest": ":scion_sig_acceptance",
         "scion_tester:latest": ":scion_tester",
     },
 )
@@ -91,6 +91,7 @@ scion_app_images(
     name = "sig",
     appdir = "/app",
     binary = "//go/sig:sig",
+    caps = "cap_net_admin+ei",
     entrypoint = [
         "/app/sig",
         "--config",
