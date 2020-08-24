@@ -100,7 +100,7 @@ func TestSumMaxBlockedBW(t *testing.T) {
 			t.Parallel()
 			excludedID, err := reservation.SegmentIDFromRaw(xtest.MustParseHexString(tc.excludeID))
 			require.NoError(t, err)
-			sum := sumMaxBlockedBW(tc.rsvsFcn(), excludedID)
+			sum := sumMaxBlockedBW(tc.rsvsFcn(), *excludedID)
 			require.Equal(t, tc.blockedBW, sum)
 		})
 	}
