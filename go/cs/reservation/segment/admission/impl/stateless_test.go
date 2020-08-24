@@ -381,17 +381,26 @@ func TestLinkRatio(t *testing.T) {
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 		},
-		// TODO(juagargi) I fail to see how the link ratio changes with prevBW
-		// "smaller prevBW": {
-		// 	linkRatio: .5,
-		// 	req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 3, 3),
-		// 	setupDB: func(db *mock_backend.MockDB) {
-		// 		rsvs := []*segment.Reservation{
-		// 			testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 5, 5),
-		// 		}
-		// 		db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
-		// 	},
-		// },
+		"smaller prevBW": {
+			linkRatio: 1. / 3.,
+			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 3, 3), // 64 KBps
+			setupDB: func(db *mock_backend.MockDB) {
+				rsvs := []*segment.Reservation{
+					testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 5, 5), // 128 KBps
+				}
+				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
+			},
+		},
+		"bigger prevBW": {
+			linkRatio: 2. / 3.,
+			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 7, 7), // 256 KBps
+			setupDB: func(db *mock_backend.MockDB) {
+				rsvs := []*segment.Reservation{
+					testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 5, 5), // 128 KBps
+				}
+				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
+			},
+		},
 	}
 
 	for name, tc := range cases {
