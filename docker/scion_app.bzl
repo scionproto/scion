@@ -65,8 +65,7 @@ def scion_app_base():
 #   workdir - working directory
 #   entrypoint - a list of strings that add up to the command line
 #   caps - capabilities to set on the binary
-#   stamp - whether to stamp the created images (default=True).
-def scion_app_images(name, binary, appdir, workdir, entrypoint, caps = None, stamp = True):
+def scion_app_images(name, binary, appdir, workdir, entrypoint, caps = None):
     pkg_tar(
         name = "%s_docker_files" % name,
         srcs = [binary],
@@ -82,7 +81,6 @@ def scion_app_images(name, binary, appdir, workdir, entrypoint, caps = None, sta
         workdir,
         ["/sbin/su-exec"] + entrypoint,
         caps,
-        stamp,
     )
     scion_app_images_internal(
         "debug",
@@ -93,10 +91,9 @@ def scion_app_images(name, binary, appdir, workdir, entrypoint, caps = None, sta
         workdir,
         entrypoint,
         caps,
-        stamp,
     )
 
-def scion_app_images_internal(suffix, base, name, binary, appdir, workdir, entrypoint, caps, stamp):
+def scion_app_images_internal(suffix, base, name, binary, appdir, workdir, entrypoint, caps):
     if not caps:
         container_image(
             name = "%s_%s" % (name, suffix),
@@ -105,7 +102,6 @@ def scion_app_images_internal(suffix, base, name, binary, appdir, workdir, entry
             tars = [":%s_docker_files" % name],
             workdir = workdir,
             entrypoint = entrypoint,
-            stamp = stamp,
             visibility = ["//visibility:public"],
         )
     else:
@@ -125,6 +121,6 @@ def scion_app_images_internal(suffix, base, name, binary, appdir, workdir, entry
         )
         container_image(
             name = "%s_%s" % (name, suffix),
-            base = "%s_%s_nocap.tar" % (name, suffix),
+            base = "%s_%s_withcap.tar" % (name, suffix),
             visibility = ["//visibility:public"],
         )
