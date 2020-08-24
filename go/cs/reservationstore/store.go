@@ -281,6 +281,53 @@ func (s *Store) TearDownSegmentReservation(ctx context.Context, req *segment.Tea
 func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 	base.MessageWithPath, error) {
 
+	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
+		return nil, serrors.WrapStr("error validating e2e request", err, "id", req.ID)
+	}
+	response, err := s.prepareFailureE2EResp(&req.Request)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct e2e response", err, "id", req.ID)
+	}
+
+	failedResponse := &e2e.ResponseSetupFailure{
+		Response:  *response,
+		ErrorCode: 1,
+		// TODO(juagargi): how is a trail of so far granted bandwidths used here? all previous ASes did accept the request, and if this one fails it, it sends the failed request backwards.
+		// MaxBWs:    []reservation.BWCls{},
+	}
+	tx, err := s.db.BeginTransaction(ctx, nil)
+	if err != nil {
+		return failedResponse, serrors.WrapStr("cannot create transaction", err,
+			"id", req.ID)
+	}
+	defer tx.Rollback()
+
+	rsv, err := tx.GetE2ERsvFromID(ctx, &req.ID)
+	if err != nil {
+		return failedResponse, serrors.WrapStr("cannot obtain e2e reservation", err,
+			"id", req.ID)
+	}
+	if idx := rsv.Index(req.Index); idx != nil {
+		return failedResponse, serrors.New("already existing e2e index", "id", req.ID,
+			"idx", req.Index)
+	}
+	if len(rsv.SegmentReservations) == 0 {
+		return nil, serrors.New("there is no segment rsv. associated to this e2e rsv.",
+			"id", req.ID, "idx", req.Index)
+	}
+	if len(req.SegmentRsvs) == 0 || len(req.SegmentRsvs) > 3 {
+		return nil, serrors.New("invalid number of segment reservations for an e2e one",
+			"count", len(req.SegmentRsvs))
+	}
+	// find this AS along the path of the stitched reservation:
+	// TODO(juagargi) find an AS in a stitched segment reservation
+
+	// tx.GetE2ERsvsOnSegRsv(ctx, req.)
+	// TODO(juagargi) find the 1 or 2 segment reservations where this AS appears
+
+	// admission:
+	// - compute max BW
+
 	return nil, nil
 }
 
