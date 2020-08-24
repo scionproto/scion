@@ -61,7 +61,8 @@ func (c *Capacities) UnmarshalJSON(b []byte) error {
 
 // MarshalJSON serializes the internal json-friendly structure.
 func (c *Capacities) MarshalJSON() ([]byte, error) {
-	return json.MarshalIndent(c.c, "", "  ")
+	b, err := json.MarshalIndent(c.c, "", "  ")
+	return append(b, '\n'), err
 }
 
 func (c *Capacities) init() error {

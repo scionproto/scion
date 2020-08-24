@@ -112,7 +112,7 @@ func TestValidation(t *testing.T) {
 			},
 			},
 		},
-		"ingress to itself (reflexion not allowed)": {
+		"ingress to itself (reflection not allowed)": {
 			okay: false,
 			cap: Capacities{c: capacities{
 				CapIn: map[common.IFIDType]uint64{1: 100, 2: 100, 3: 100},
