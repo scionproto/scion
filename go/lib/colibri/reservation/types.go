@@ -152,16 +152,16 @@ func (t Tick) ToTime() time.Time {
 	return util.SecsToTime(uint32(t) * 4)
 }
 
-// BWCls is the bandwidth class. bandwidth = 16 * sqrt(2^(BWCls - 1)). 0 <= bwcls <= 63 KBps.
+// BWCls is the bandwidth class. bandwidth = 16 * sqrt(2^(BWCls - 1)). 0 <= bwcls <= 63 kbps.
 type BWCls uint8
 
 // BWClsFromBW constructs a BWCls from the bandwidth. Given that
 // bandwidth = 16 * sqrt(2^(BWCls - 1))
-// where bandwidth is KBps. We then have
+// where bandwidth is kbps. We then have
 // BWCls = 2 * log2( bandwidth/16 ) + 1
 // The value of BWCls will be the ceiling of the previous expression.
-func BWClsFromBW(bwKBps uint64) BWCls {
-	cls := 2*math.Log2(float64(bwKBps)/16) + 1
+func BWClsFromBW(bwKbps uint64) BWCls {
+	cls := 2*math.Log2(float64(bwKbps)/16) + 1
 	cls = math.Min(cls, 63)
 	return BWCls(math.Ceil(cls))
 }
@@ -174,8 +174,8 @@ func (b BWCls) Validate() error {
 	return nil
 }
 
-// ToKBps returns the kilobytes per second this BWCls represents.
-func (b BWCls) ToKBps() uint64 {
+// ToKbps returns the kilobits per second this BWCls represents.
+func (b BWCls) ToKbps() uint64 {
 	return uint64(16 * math.Sqrt(math.Pow(2, float64(b)-1)))
 }
 

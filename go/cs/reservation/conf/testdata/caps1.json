@@ -1,15 +1,15 @@
 {
-  "ingress_KBps": {
+  "ingress_kbps": {
     "1": 100,
     "2": 200,
     "3": 300
   },
-  "egress_KBps": {
+  "egress_kbps": {
     "1": 100,
     "2": 200,
     "3": 40
   },
-  "in_to_eg_KBps": {
+  "ingress_to_egress_kbps": {
     "1": {
       "2": 10,
       "3": 20

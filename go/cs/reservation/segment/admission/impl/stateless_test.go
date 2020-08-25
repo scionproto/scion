@@ -44,7 +44,7 @@ func TestSumMaxBlockedBW(t *testing.T) {
 			excludeID: "ff0000010001beefcafe",
 		},
 		"one reservation": {
-			blockedBW: reservation.BWCls(5).ToKBps(),
+			blockedBW: reservation.BWCls(5).ToKbps(),
 			rsvsFcn: func() []*segment.Reservation {
 				rsv := testNewRsv(t, "ff00:1:1", "01234567", 1, 2, 5, 5, 5)
 				_, err := rsv.NewIndexAtSource(util.SecsToTime(3), 1, 1, 1, 1, reservation.CorePath)
@@ -228,11 +228,11 @@ func TestTubeRatio(t *testing.T) {
 		},
 		"one source, two ingress": {
 			tubeRatio: .5,
-			req:       newTestRequest(t, 1, 2, 3, 3), // 64KBps
+			req:       newTestRequest(t, 1, 2, 3, 3), // 64Kbps
 			setupDB: func(db *mock_backend.MockDB) {
 				rsvs := []*segment.Reservation{
-					testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 3, 3), // 64KBps
-					testNewRsv(t, "ff00:1:1", "00000002", 3, 2, 5, 5, 5), // 128KBps
+					testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 3, 3), // 64Kbps
+					testNewRsv(t, "ff00:1:1", "00000002", 3, 2, 5, 5, 5), // 128Kbps
 				}
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
@@ -383,20 +383,20 @@ func TestLinkRatio(t *testing.T) {
 		},
 		"smaller prevBW": {
 			linkRatio: 1. / 3.,
-			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 3, 3), // 64 KBps
+			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 3, 3), // 64 Kbps
 			setupDB: func(db *mock_backend.MockDB) {
 				rsvs := []*segment.Reservation{
-					testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 5, 5), // 128 KBps
+					testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 5, 5), // 128 Kbps
 				}
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 		},
 		"bigger prevBW": {
 			linkRatio: 2. / 3.,
-			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 7, 7), // 256 KBps
+			req:       testAddAllocTrail(newTestRequest(t, 1, 2, 5, 5), 7, 7), // 256 Kbps
 			setupDB: func(db *mock_backend.MockDB) {
 				rsvs := []*segment.Reservation{
-					testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 5, 5), // 128 KBps
+					testNewRsv(t, "ff00:1:1", "00000001", 1, 2, 5, 5, 5), // 128 Kbps
 				}
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
