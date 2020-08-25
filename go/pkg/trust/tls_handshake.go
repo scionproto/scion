@@ -101,7 +101,9 @@ func verifyChain(chain []*x509.Certificate, trcs []cppki.SignedTRC) error {
 	for _, trc := range trcs {
 		if err := cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: &trc.TRC}); err != nil {
 			errs = append(errs, err)
+			continue
 		}
+		return nil
 	}
 	return errs.ToError()
 }
