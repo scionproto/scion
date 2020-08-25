@@ -230,9 +230,9 @@ func TestMaxBlockedBW(t *testing.T) {
 	r.Indices = r.Indices[:0]
 	require.Equal(t, uint64(0), r.MaxBlockedBW())
 	r.NewIndexAtSource(util.SecsToTime(1), 1, 1, 1, 1, reservation.CorePath)
-	require.Equal(t, reservation.BWCls(1).ToKBps(), r.MaxBlockedBW())
+	require.Equal(t, reservation.BWCls(1).ToKbps(), r.MaxBlockedBW())
 	r.NewIndexAtSource(util.SecsToTime(1), 1, 1, 1, 1, reservation.CorePath)
-	require.Equal(t, reservation.BWCls(1).ToKBps(), r.MaxBlockedBW())
+	require.Equal(t, reservation.BWCls(1).ToKbps(), r.MaxBlockedBW())
 	r.Indices[0].AllocBW = 11
-	require.Equal(t, reservation.BWCls(11).ToKBps(), r.MaxBlockedBW())
+	require.Equal(t, reservation.BWCls(11).ToKbps(), r.MaxBlockedBW())
 }

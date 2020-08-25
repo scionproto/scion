@@ -133,7 +133,7 @@ func (a *StatelessAdmission) linkRatio(ctx context.Context, req *segment.SetupRe
 	capEg := a.Capacities.CapacityEgress(req.Egress)
 	demEg := demsPerSrc[req.ID.ASID].eg
 
-	prevBW := req.AllocTrail.MinMax().ToKBps() // min of maxBW in the trail
+	prevBW := req.AllocTrail.MinMax().ToKbps() // min of maxBW in the trail
 	var egScalFctr float64
 	if demEg != 0 {
 		egScalFctr = float64(minBW(capEg, demEg)) / float64(demEg)
@@ -224,7 +224,7 @@ func (a *StatelessAdmission) computeTempDemands(ctx context.Context, ingress com
 	}
 	// add the request itself to whatever we have for that source
 	bucket := demsPerSrc[req.ID.ASID]
-	dem := min3BW(capIn, capEg, req.MaxBW.ToKBps())
+	dem := min3BW(capIn, capEg, req.MaxBW.ToKbps())
 	if req.Ingress == ingress {
 		bucket.in += dem
 	}

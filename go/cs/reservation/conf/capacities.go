@@ -26,11 +26,11 @@ import (
 // internal structure used to serialize to and from json.
 type capacities struct {
 	// ingress capacities
-	CapIn map[common.IFIDType]uint64 `json:"ingress_KBps"`
+	CapIn map[common.IFIDType]uint64 `json:"ingress_kbps"`
 	// egress capacities
-	CapEg map[common.IFIDType]uint64 `json:"egress_KBps"`
+	CapEg map[common.IFIDType]uint64 `json:"egress_kbps"`
 	// configured allowed transit
-	In2Eg map[common.IFIDType]map[common.IFIDType]uint64 `json:"in_to_eg_KBps"`
+	In2Eg map[common.IFIDType]map[common.IFIDType]uint64 `json:"ingress_to_egress_kbps"`
 }
 
 // Capacities aka capacity matrix.

@@ -218,7 +218,7 @@ func (r *Reservation) MaxBlockedBW() uint64 {
 	for _, idx := range r.Indices {
 		max = reservation.MaxBWCls(max, idx.AllocBW)
 	}
-	return max.ToKBps()
+	return max.ToKbps()
 }
 
 // MaxRequestedBW returns the maximum bandwidth requested by this reservation.
@@ -230,5 +230,5 @@ func (r *Reservation) MaxRequestedBW() uint64 {
 	for _, idx := range r.Indices {
 		max = reservation.MaxBWCls(max, idx.MaxBW)
 	}
-	return max.ToKBps()
+	return max.ToKbps()
 }

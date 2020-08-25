@@ -107,7 +107,7 @@ func TestValidateBWCls(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestBWClsToKBps(t *testing.T) {
+func TestBWClsToKbps(t *testing.T) {
 	cases := map[BWCls]uint64{
 		0:  11,
 		1:  16,
@@ -122,7 +122,7 @@ func TestBWClsToKBps(t *testing.T) {
 			cls := cls
 			bw := bw
 			t.Parallel()
-			require.Equal(t, bw, cls.ToKBps())
+			require.Equal(t, bw, cls.ToKbps())
 		})
 	}
 }
