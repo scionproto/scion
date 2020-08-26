@@ -54,7 +54,9 @@ func InitTestTracing(cfg *env.Tracing) {
 	cfg.Debug = true
 }
 
-func InitTestSCIOND(cfg *env.SCIONDClient) {}
+func InitTestSCIOND(cfg *env.SCIONDClient) {
+	cfg.Address = "garbage"
+}
 
 func CheckTest(t *testing.T, general *env.General, metrics *env.Metrics,
 	tracing *env.Tracing, sciond *env.SCIONDClient, id string) {
@@ -75,7 +77,7 @@ func CheckTest(t *testing.T, general *env.General, metrics *env.Metrics,
 
 func CheckTestGeneral(t *testing.T, cfg *env.General, id string) {
 	assert.Equal(t, id, cfg.ID)
-	assert.Equal(t, "/etc/scion", cfg.ConfigDir)
+	assert.Equal(t, "/share/conf", cfg.ConfigDir)
 	assert.Equal(t, filepath.Join(cfg.ConfigDir, env.TopologyFile), cfg.Topology())
 	assert.False(t, cfg.ReconnectToDispatcher)
 }

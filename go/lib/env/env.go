@@ -139,8 +139,6 @@ type SCIONDClient struct {
 	// FakeData can be used to replace the local SCIOND with a fake data source.
 	// It must point to a fake SCIOND configuration file.
 	FakeData string `toml:"fake_data,omitempty"`
-	// PathCount is the maximum number of paths returned to the user.
-	PathCount uint16 `toml:"path_count,omitempty"`
 }
 
 func (cfg *SCIONDClient) InitDefaults() {
@@ -205,7 +203,7 @@ func ReloadTopology(topologyPath string) {
 		return
 	}
 	if err := itopo.Update(topo); err != nil {
-		log.Error("Unable to set topology", "err", err)
+		log.Error("Unable to update topology", "err", err)
 		return
 	}
 	log.Info("Reloaded topology")
