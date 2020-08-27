@@ -124,6 +124,14 @@ func NewCtrlE2EReservationID(ID *reservation.E2EID) *colibri_mgmt.E2EReservation
 	}
 }
 
+func newSegmentIDs(ids []reservation.SegmentID) []colibri_mgmt.SegmentReservationID {
+	ctrlIDs := make([]colibri_mgmt.SegmentReservationID, len(ids))
+	for i := range ids {
+		ctrlIDs[i] = *NewCtrlSegmentReservationID(&ids[i])
+	}
+	return ctrlIDs
+}
+
 func newSegmentBase(msg *segment.Request) *colibri_mgmt.SegmentBase {
 	return &colibri_mgmt.SegmentBase{
 		ID:    NewCtrlSegmentReservationID(&msg.ID),
@@ -277,9 +285,11 @@ func setSegmentCleanup(msg *segment.CleanupReq, ctrl *colibri_mgmt.ColibriReques
 
 func setE2ESetup(msg *e2e.SetupReq, ctrl *colibri_mgmt.ColibriRequestPayload) error {
 	thisIsARequest(ctrl)
+
 	ctrl.Request.E2ESetup = &colibri_mgmt.E2ESetup{
-		Base:  newE2EBase(&msg.Request),
-		Token: msg.Token.ToRaw(),
+		Base:        newE2EBase(&msg.Request),
+		SegmentRsvs: newSegmentIDs(msg.SegmentRsvs),
+		Token:       msg.Token.ToRaw(),
 	}
 	ctrl.Request.Which = proto.Request_Which_e2eSetup
 	return nil
@@ -288,8 +298,9 @@ func setE2ESetup(msg *e2e.SetupReq, ctrl *colibri_mgmt.ColibriRequestPayload) er
 func setE2ERenewal(msg *e2e.SetupReq, ctrl *colibri_mgmt.ColibriRequestPayload) error {
 	thisIsARequest(ctrl)
 	ctrl.Request.E2ERenewal = &colibri_mgmt.E2ESetup{
-		Base:  newE2EBase(&msg.Request),
-		Token: msg.Token.ToRaw(),
+		Base:        newE2EBase(&msg.Request),
+		SegmentRsvs: newSegmentIDs(msg.SegmentRsvs),
+		Token:       msg.Token.ToRaw(),
 	}
 	ctrl.Request.Which = proto.Request_Which_e2eRenewal
 	return nil

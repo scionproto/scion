@@ -162,8 +162,9 @@ func newTestCleanupFailureResponse() *colibri_mgmt.SegmentCleanupRes {
 
 func newTestE2ESetup() *colibri_mgmt.E2ESetup {
 	return &colibri_mgmt.E2ESetup{
-		Base:  newTestE2EBase(1),
-		Token: xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade"),
+		Base:        newTestE2EBase(1),
+		SegmentRsvs: []colibri_mgmt.SegmentReservationID{*newTestID()},
+		Token:       xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade"),
 	}
 }
 

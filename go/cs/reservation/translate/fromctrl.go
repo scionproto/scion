@@ -280,9 +280,20 @@ func newRequestE2ESetup(ctrl *colibri_mgmt.E2ESetup, ts time.Time,
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct e2e setup request", err)
 	}
+	segmentIDs := make([]reservation.SegmentID, len(ctrl.SegmentRsvs))
+	for i := range ctrl.SegmentRsvs {
+		id, err := NewSegmentIDFromCtrl(&ctrl.SegmentRsvs[i])
+		if err != nil {
+			return nil, serrors.WrapStr("cannot translate segment id in e2e setup", err,
+				"asid", hex.EncodeToString(ctrl.SegmentRsvs[i].ASID),
+				"suffix", hex.EncodeToString(ctrl.SegmentRsvs[i].Suffix))
+		}
+		segmentIDs[i] = *id
+	}
 	return &e2e.SetupReq{
-		Request: *r,
-		Token:   *tok,
+		Request:     *r,
+		SegmentRsvs: segmentIDs,
+		Token:       *tok,
 	}, nil
 }
 
