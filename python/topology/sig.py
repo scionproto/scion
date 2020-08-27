@@ -161,9 +161,7 @@ class SIGGenerator(object):
             'metrics': {
                 'prometheus': '0.0.0.0:%s' % SIG_PROM_PORT
             },
-            'features': {
-                'sig_egress_v2': True,
-            },
+            'features': {},
         }
         path = os.path.join(topo_id.base_dir(self.args.output_dir), name, SIG_CONFIG_NAME)
         write_file(path, toml.dumps(sig_conf))
