@@ -15,6 +15,7 @@
 package conf
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -60,7 +61,8 @@ func TestJson(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			tc.cap.init()
-			buf, err := tc.cap.MarshalJSON()
+			buf, err := json.MarshalIndent(tc.cap, "", "  ")
+			buf = append(buf, '\n')
 			require.NoError(t, err)
 			expectedJSON := xtest.MustReadFromFile(t, tc.filename)
 			require.Equal(t, expectedJSON, buf)
