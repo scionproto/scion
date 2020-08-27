@@ -134,7 +134,13 @@ func TestSerializeRequest(t *testing.T) {
 			Request: &colibri_mgmt.Request{
 				Which: proto.Request_Which_e2eSetup,
 				E2ESetup: &colibri_mgmt.E2ESetup{
-					Base:  newE2EBase(),
+					Base: newE2EBase(),
+					SegmentRsvs: []colibri_mgmt.SegmentReservationID{
+						colibri_mgmt.SegmentReservationID{
+							ASID:   xtest.MustParseHexString("ff00cafe0001"),
+							Suffix: xtest.MustParseHexString("deadbeef"),
+						},
+					},
 					Token: xtest.MustParseHexString("0000"),
 				},
 			},
@@ -143,7 +149,17 @@ func TestSerializeRequest(t *testing.T) {
 			Request: &colibri_mgmt.Request{
 				Which: proto.Request_Which_e2eRenewal,
 				E2ERenewal: &colibri_mgmt.E2ESetup{
-					Base:  newE2EBase(),
+					Base: newE2EBase(),
+					SegmentRsvs: []colibri_mgmt.SegmentReservationID{
+						colibri_mgmt.SegmentReservationID{
+							ASID:   xtest.MustParseHexString("ff00cafe0001"),
+							Suffix: xtest.MustParseHexString("00000001"),
+						},
+						colibri_mgmt.SegmentReservationID{
+							ASID:   xtest.MustParseHexString("ff00cafe0002"),
+							Suffix: xtest.MustParseHexString("00000001"),
+						},
+					},
 					Token: xtest.MustParseHexString("0000"),
 				},
 			},

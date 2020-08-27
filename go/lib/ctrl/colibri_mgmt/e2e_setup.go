@@ -19,8 +19,9 @@ import (
 )
 
 type E2ESetup struct {
-	Base  *E2EBase
-	Token []byte
+	Base        *E2EBase
+	SegmentRsvs []SegmentReservationID
+	Token       []byte
 }
 
 func (s *E2ESetup) ProtoId() proto.ProtoIdType {

@@ -108,7 +108,8 @@ struct SegmentCleanupResData {
 # Setup an E2E reservation. Sent in a hop by hop colibri extension through a stitched segment reservation.
 struct E2ESetupReqData {
     base @0 :E2EBase;
-    token @1 :Data;
+    segmentRsvs @1 :List(SegmentReservationID);
+    token @2 :Data;
 }
 
 # Response to an E2E setup. Sent in a hop by hop colibry extension, in the reverse path.
