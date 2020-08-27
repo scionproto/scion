@@ -110,7 +110,7 @@ func initNetwork(cfg sigconfig.SigConf, sdCfg env.SCIONDClient,
 	}
 
 	ia, _ := sciondConn.LocalIA(context.Background())
-	pathResolver := pathmgr.New(sciondConn, pathmgr.Timers{}, sdCfg.PathCount)
+	pathResolver := pathmgr.New(sciondConn, pathmgr.Timers{}, 0)
 	network := &snet.SCIONNetwork{
 		LocalIA: ia,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
