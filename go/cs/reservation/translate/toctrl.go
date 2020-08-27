@@ -217,7 +217,9 @@ func setSegmentRenewal(msg *segment.SetupReq, ctrl *colibri_mgmt.ColibriRequestP
 	return nil
 }
 
-func setSegmentTelesSetup(msg *segment.SetupTelesReq, ctrl *colibri_mgmt.ColibriRequestPayload) error {
+func setSegmentTelesSetup(msg *segment.SetupTelesReq,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
 	thisIsARequest(ctrl)
 	ctrl.Request.SegmentTelesSetup = &colibri_mgmt.SegmentTelesSetup{
 		Setup:  newSegmentSetup(&msg.SetupReq),
@@ -227,7 +229,9 @@ func setSegmentTelesSetup(msg *segment.SetupTelesReq, ctrl *colibri_mgmt.Colibri
 	return nil
 }
 
-func setSegmentTelesRenewal(msg *segment.SetupTelesReq, ctrl *colibri_mgmt.ColibriRequestPayload) error {
+func setSegmentTelesRenewal(msg *segment.SetupTelesReq,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
 	thisIsARequest(ctrl)
 	ctrl.Request.SegmentTelesRenewal = &colibri_mgmt.SegmentTelesSetup{
 		Setup:  newSegmentSetup(&msg.SetupReq),
