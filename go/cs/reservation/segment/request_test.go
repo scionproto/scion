@@ -41,7 +41,7 @@ func TestNewSetupReqFromCtrlMsg(t *testing.T) {
 	id := newID()
 	r, err = segment.NewSetupReqFromCtrlMsg(ctrlMsg, ts, id, p)
 	require.NoError(t, err)
-	require.Equal(t, *p, r.Metadata.Path)
+	require.Equal(t, p, r.Path())
 	checkRequest(t, ctrlMsg, r, ts)
 	require.Equal(t, common.IFIDType(1), r.Ingress)
 	require.Equal(t, common.IFIDType(2), r.Egress)
@@ -141,7 +141,8 @@ func newSetup() *colibri_mgmt.SegmentSetup {
 			Local:    false,
 			Transfer: true,
 		},
-		AllocationTrail: []*colibri_mgmt.AllocationBeads{
+		InfoField: xtest.MustParseHexString("16ebdb4f0d042500"),
+		AllocationTrail: []*colibri_mgmt.AllocationBead{
 			{
 				AllocBW: 5,
 				MaxBW:   6,
@@ -204,17 +205,18 @@ func newID() *colibri_mgmt.SegmentReservationID {
 func checkRequest(t *testing.T, segSetup *colibri_mgmt.SegmentSetup, r *segment.SetupReq,
 	ts time.Time) {
 
+	t.Helper()
 	require.Equal(t, (*segment.Reservation)(nil), r.Reservation)
 	require.Equal(t, ts, r.Timestamp)
-	require.Equal(t, segSetup.MinBW, r.MinBW)
-	require.Equal(t, segSetup.MaxBW, r.MaxBW)
-	require.Equal(t, segSetup.SplitCls, r.SplitCls)
+	require.Equal(t, segSetup.MinBW, uint8(r.MinBW))
+	require.Equal(t, segSetup.MaxBW, uint8(r.MaxBW))
+	require.Equal(t, segSetup.SplitCls, uint8(r.SplitCls))
 	require.Equal(t, reservation.NewPathEndProps(
 		segSetup.StartProps.Local, segSetup.StartProps.Transfer,
 		segSetup.EndProps.Local, segSetup.EndProps.Transfer), r.PathProps)
 	require.Len(t, r.AllocTrail, len(segSetup.AllocationTrail))
 	for i := range segSetup.AllocationTrail {
-		require.Equal(t, segSetup.AllocationTrail[i].AllocBW, r.AllocTrail[i].AllocBW)
-		require.Equal(t, segSetup.AllocationTrail[i].MaxBW, r.AllocTrail[i].MaxBW)
+		require.Equal(t, segSetup.AllocationTrail[i].AllocBW, uint8(r.AllocTrail[i].AllocBW))
+		require.Equal(t, segSetup.AllocationTrail[i].MaxBW, uint8(r.AllocTrail[i].MaxBW))
 	}
 }

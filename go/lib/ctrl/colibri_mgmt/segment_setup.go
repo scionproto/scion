@@ -24,7 +24,8 @@ type SegmentSetup struct {
 	SplitCls        uint8
 	StartProps      PathEndProps
 	EndProps        PathEndProps
-	AllocationTrail []*AllocationBeads
+	InfoField       []byte
+	AllocationTrail []*AllocationBead
 }
 
 func (s *SegmentSetup) ProtoId() proto.ProtoIdType {
@@ -50,11 +51,11 @@ func (pep *PathEndProps) ProtoId() proto.ProtoIdType {
 	return proto.PathEndProps_TypeID
 }
 
-type AllocationBeads struct {
+type AllocationBead struct {
 	AllocBW uint8
 	MaxBW   uint8
 }
 
-func (ab *AllocationBeads) ProtoId() proto.ProtoIdType {
-	return proto.AllocationBeads_TypeID
+func (ab *AllocationBead) ProtoId() proto.ProtoIdType {
+	return proto.AllocationBead_TypeID
 }

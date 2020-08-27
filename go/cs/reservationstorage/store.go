@@ -17,17 +17,30 @@ package reservationstorage
 import (
 	"context"
 
+	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/cs/reservation/e2e"
 	sgt "github.com/scionproto/scion/go/cs/reservation/segment"
 	rsv "github.com/scionproto/scion/go/lib/colibri/reservation"
+	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 )
 
 // Store is the interface to interact with the reservation store.
 type Store interface {
-	AdmitSegmentReservation(ctx context.Context, req sgt.SetupReq) error
+	AdmitSegmentReservation(ctx context.Context, req *sgt.SetupReq) (base.MessageWithPath, error)
 	ConfirmSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexNumber) error
 	CleanupSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexNumber) error
 	TearDownSegmentReservation(ctx context.Context, id rsv.SegmentID, idx rsv.IndexNumber) error
 	AdmitE2EReservation(ctx context.Context, req e2e.SetupReq) error
 	CleanupE2EReservation(ctx context.Context, id rsv.E2EID, idx rsv.IndexNumber) error
+
+	DeleteExpiredIndices(ctx context.Context) (int, error)
+}
+
+// TODO(juagargi) there is a number of functions missing: all regarding responses.
+
+// NewIndexCleaner creates a cleaner removing expired indices and reservations.
+func NewIndexCleaner(s Store) *cleaner.Cleaner {
+	return cleaner.New(func(ctx context.Context) (int, error) {
+		return s.DeleteExpiredIndices(ctx)
+	}, "colibri")
 }

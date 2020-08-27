@@ -181,6 +181,11 @@ func (x *executor) GetSegmentRsvFromPath(ctx context.Context, path segment.Path)
 	}
 }
 
+// GetAllSegmentRsvs returns all segment reservations.
+func (x *executor) GetAllSegmentRsvs(ctx context.Context) ([]*segment.Reservation, error) {
+	return getSegReservations(ctx, x.db, "", nil)
+}
+
 // GetSegmentRsvsFromIFPair returns all segment reservations that enter this AS at
 // the specified ingress and exit at that egress.
 func (x *executor) GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress *common.IFIDType) (

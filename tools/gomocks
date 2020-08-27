@@ -10,6 +10,7 @@ MOCK_TARGETS = [
     ("go/cs/beaconing",
         "BeaconInserter,BeaconProvider,BeaconSender,RPC,SegmentProvider,SegmentStore"),
     ("go/cs/keepalive", "IfStatePusher,RevDropper"),
+    ("go/cs/reservationstorage/backend", "DB,Transaction"),
     ("go/cs/revocation", "Store"),
     ("go/cs/segutil", "Policy"),
     ("go/hidden_path_srv/internal/registration", "Validator"),

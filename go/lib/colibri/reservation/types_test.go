@@ -15,6 +15,7 @@
 package reservation
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -41,6 +42,24 @@ func TestSegmentIDRead(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, SegmentIDLen, n)
 	require.Equal(t, xtest.MustParseHexString("ffaa00001101facecafe"), raw)
+}
+
+func TestSegmentIDString(t *testing.T) {
+	cases := []struct {
+		ID  SegmentID
+		Str string
+	}{
+		{ID: mustParseSegmentID("ff0000001101facecafe"), Str: "ff00:0:1101-facecafe"},
+		{ID: mustParseSegmentID("ff000000110100000000"), Str: "ff00:0:1101-00000000"},
+	}
+	for i, c := range cases {
+		name := fmt.Sprintf("case %d", i)
+		t.Run(name, func(t *testing.T) {
+			c := c
+			t.Parallel()
+			require.Equal(t, c.Str, c.ID.String())
+		})
+	}
 }
 
 func TestE2EIDFromRaw(t *testing.T) {
@@ -86,6 +105,82 @@ func TestValidateBWCls(t *testing.T) {
 	c := BWCls(64)
 	err := c.Validate()
 	require.Error(t, err)
+}
+
+func TestBWClsToKbps(t *testing.T) {
+	cases := map[BWCls]uint64{
+		0:  11,
+		1:  16,
+		2:  22,
+		5:  64,
+		13: 1024,
+		63: 32 * 1024 * 1024 * 1024, // 32 TBps
+	}
+	for cls, bw := range cases {
+		name := fmt.Sprintf("case for %d", cls)
+		t.Run(name, func(t *testing.T) {
+			cls := cls
+			bw := bw
+			t.Parallel()
+			require.Equal(t, bw, cls.ToKbps())
+		})
+	}
+}
+
+func TestBWClsFromBW(t *testing.T) {
+	cases := map[uint64]BWCls{
+		0:                       0,
+		16:                      1,
+		22:                      2,
+		64:                      5,
+		1024:                    13,
+		32 * 1024 * 1024 * 1024: 63,
+		21:                      2,
+		4096:                    17,
+		4000:                    17,
+		4097:                    18,
+	}
+	for bw, cls := range cases {
+		name := fmt.Sprintf("case for %d", bw)
+		t.Run(name, func(t *testing.T) {
+			bw := bw
+			cls := cls
+			t.Parallel()
+			require.Equal(t, cls, BWClsFromBW(bw))
+		})
+	}
+}
+
+func TestMaxBWCls(t *testing.T) {
+	cases := []struct{ a, b, max BWCls }{
+		{a: 1, b: 1, max: 1},
+		{a: 0, b: 1, max: 1},
+		{a: 255, b: 1, max: 255},
+	}
+	for i, c := range cases {
+		name := fmt.Sprintf("case %d", i)
+		t.Run(name, func(t *testing.T) {
+			c := c
+			t.Parallel()
+			require.Equal(t, c.max, MaxBWCls(c.a, c.b))
+		})
+	}
+}
+
+func TestMinBWCls(t *testing.T) {
+	cases := []struct{ a, b, min BWCls }{
+		{a: 1, b: 1, min: 1},
+		{a: 0, b: 1, min: 0},
+		{a: 255, b: 0, min: 0},
+	}
+	for i, c := range cases {
+		name := fmt.Sprintf("case %d", i)
+		t.Run(name, func(t *testing.T) {
+			c := c
+			t.Parallel()
+			require.Equal(t, c.min, MinBWCls(c.a, c.b))
+		})
+	}
 }
 
 func TestValidateRLC(t *testing.T) {
@@ -202,6 +297,15 @@ func TestInfoFieldRead(t *testing.T) {
 	require.Equal(t, rawReference, raw)
 }
 
+func TestInfoFieldToRaw(t *testing.T) {
+	val := newInfoField()
+	reference := &val
+	rawReference := newInfoFieldRaw()
+	require.Equal(t, rawReference, reference.ToRaw())
+	reference = nil
+	require.Equal(t, ([]byte)(nil), reference.ToRaw())
+}
+
 func TestValidatePathEndProperties(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		pep := PathEndProps(i)
@@ -224,6 +328,84 @@ func TestValidatePathEndProperties(t *testing.T) {
 	pep = PathEndProps(0x10 | 0x04)
 	err = pep.Validate()
 	require.Error(t, err)
+}
+
+func TestValidatePathEndPropsWithPathType(t *testing.T) {
+	cases := []struct {
+		PT    PathType
+		EP    PathEndProps
+		Valid bool
+	}{
+		// core path
+		{CorePath, StartLocal | EndLocal, true},
+		{CorePath, StartLocal | EndLocal | EndTransfer, true},
+		{CorePath, StartTransfer | EndTransfer, true},
+		{CorePath, StartLocal, true},
+		{CorePath, StartTransfer, true},
+		{CorePath, EndLocal, false},
+		{CorePath, 0, false},
+		// up path
+		{UpPath, StartLocal, true},
+		{UpPath, StartLocal | EndLocal | EndTransfer, true},
+		{UpPath, 0, false},
+		{UpPath, StartTransfer, false},
+		{UpPath, StartTransfer | StartLocal, false},
+		// down path
+		{DownPath, EndLocal, true},
+		{DownPath, EndLocal | StartLocal | StartTransfer, true},
+		{DownPath, 0, false},
+		{DownPath, EndTransfer, false},
+		{DownPath, EndTransfer | EndLocal, false},
+		// peering up path
+		{PeeringUpPath, StartLocal | EndLocal, true},
+		{PeeringUpPath, StartLocal | EndLocal | EndTransfer, true},
+		{PeeringUpPath, 0, false},
+		{PeeringUpPath, StartLocal, false},
+		{PeeringUpPath, StartLocal | StartTransfer | EndLocal, false},
+		{PeeringUpPath, StartTransfer | EndLocal, false},
+		{PeeringUpPath, EndLocal, false},
+		// peering down path
+		{PeeringDownPath, EndLocal | StartLocal, true},
+		{PeeringDownPath, EndLocal | StartLocal | StartTransfer, true},
+		{PeeringDownPath, 0, false},
+		{PeeringDownPath, EndLocal, false},
+		{PeeringDownPath, EndLocal | EndTransfer | StartLocal, false},
+		{PeeringDownPath, EndTransfer | StartLocal, false},
+		{PeeringDownPath, StartLocal, false},
+	}
+	for i, c := range cases {
+		name := fmt.Sprintf("iteration %d", i)
+		t.Run(name, func(t *testing.T) {
+			c := c
+			t.Parallel()
+			err := c.EP.ValidateWithPathType(c.PT)
+			if c.Valid {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}
+
+func TestAllocationBeadsMinMax(t *testing.T) {
+	cases := []struct {
+		Trail AllocationBeads
+		Min   BWCls
+	}{
+		{newAllocationBeads(), 0},
+		{newAllocationBeads(0, 1), 1},
+		{newAllocationBeads(0, 3, 0, 1), 1},
+		{newAllocationBeads(0, 3, 0, 255), 3},
+	}
+	for i, c := range cases {
+		name := fmt.Sprintf("iteration %d", i)
+		t.Run(name, func(t *testing.T) {
+			c := c
+			t.Parallel()
+			require.Equal(t, c.Min, c.Trail.MinMax())
+		})
+	}
 }
 
 func TestValidateToken(t *testing.T) {
@@ -313,4 +495,24 @@ func newToken() Token {
 }
 func newTokenRaw() []byte {
 	return xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade")
+}
+
+func mustParseSegmentID(s string) SegmentID {
+	id, err := SegmentIDFromRaw(xtest.MustParseHexString(s))
+	if err != nil {
+		panic(err)
+	}
+	return *id
+}
+
+// newAllocationBeads (1,2,3,4) returns two beads {alloc: 1, max: 2}, {alloc:3, max:4}
+func newAllocationBeads(beads ...BWCls) AllocationBeads {
+	if len(beads)%2 != 0 {
+		panic("must have an even number of parameters")
+	}
+	ret := make(AllocationBeads, len(beads)/2)
+	for i := 0; i < len(beads); i += 2 {
+		ret[i/2] = AllocationBead{AllocBW: beads[i], MaxBW: beads[i+1]}
+	}
+	return ret
 }
