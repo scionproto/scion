@@ -22,6 +22,7 @@ import (
 
 // Admitter specifies what an admission entity has to implement to govern the segment admission.
 type Admitter interface {
-	// req will be modified with the allowed and maximum bandwidths, also when returning error.
+	// req will be modified with the allowed and maximum bandwidths if they were computed.
+	// It can also return an error.
 	AdmitRsv(ctx context.Context, req *segment.SetupReq) error
 }

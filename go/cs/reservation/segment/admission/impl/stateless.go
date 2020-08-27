@@ -38,7 +38,7 @@ type StatelessAdmission struct {
 var _ admission.Admitter = (*StatelessAdmission)(nil)
 
 // AdmitRsv admits a segment reservation. The request will be modified with the allowed and
-// maximum bandwidths, also when returning error.
+// maximum bandwidths if they were computed. It can also return an error that must be checked.
 func (a *StatelessAdmission) AdmitRsv(ctx context.Context, req *segment.SetupReq) error {
 	avail, err := a.availableBW(ctx, req)
 	if err != nil {

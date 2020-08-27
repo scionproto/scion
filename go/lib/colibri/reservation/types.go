@@ -17,6 +17,7 @@ package reservation
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"math"
 	"time"
@@ -82,7 +83,7 @@ func (id *SegmentID) Read(raw []byte) (int, error) {
 }
 
 func (id *SegmentID) String() string {
-	return id.ASID.String() + "-" + hex.EncodeToString(id.Suffix[:])
+	return fmt.Sprintf("%s-%x", id.ASID, id.Suffix)
 }
 
 // E2EID identifies a COLIBRI E2E reservation. The suffix is different for each
