@@ -17,10 +17,11 @@ package translate
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
-	"github.com/stretchr/testify/require"
 )
 
 func TestSomething(t *testing.T) {

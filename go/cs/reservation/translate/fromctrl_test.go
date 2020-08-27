@@ -155,9 +155,9 @@ func TestNewResponseSegmentSetup(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ts := util.SecsToTime(1)
-			r, err := newResponseSegmentSetup(tc.Ctrl.SegmentSetup, tc.Ctrl, ts, nil)
+			_, err := newResponseSegmentSetup(tc.Ctrl.SegmentSetup, tc.Ctrl, ts, nil)
 			require.Error(t, err)
-			r, err = newResponseSegmentSetup(tc.Ctrl.SegmentSetup, tc.Ctrl, ts, newTestPath())
+			r, err := newResponseSegmentSetup(tc.Ctrl.SegmentSetup, tc.Ctrl, ts, newTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Ctrl.Accepted {
@@ -202,9 +202,10 @@ func TestNewResponseSegmentTeardown(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ts := util.SecsToTime(1)
-			r, err := newResponseSegmentTeardown(tc.Ctrl.SegmentTeardown, tc.Ctrl, ts, nil)
+			_, err := newResponseSegmentTeardown(tc.Ctrl.SegmentTeardown, tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
-			r, err = newResponseSegmentTeardown(tc.Ctrl.SegmentTeardown, tc.Ctrl, ts, newTestPath())
+			r, err := newResponseSegmentTeardown(tc.Ctrl.SegmentTeardown, tc.Ctrl, ts,
+				newTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Ctrl.Accepted {
@@ -248,10 +249,10 @@ func TestNewResponseSegmentIndexConfirmation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ts := util.SecsToTime(1)
-			r, err := newResponseSegmentIndexConfirmation(tc.Ctrl.SegmentIndexConfirmation,
+			_, err := newResponseSegmentIndexConfirmation(tc.Ctrl.SegmentIndexConfirmation,
 				tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
-			r, err = newResponseSegmentIndexConfirmation(tc.Ctrl.SegmentIndexConfirmation,
+			r, err := newResponseSegmentIndexConfirmation(tc.Ctrl.SegmentIndexConfirmation,
 				tc.Ctrl, ts, newTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
@@ -296,9 +297,9 @@ func TestNewResponseSegmentCleanup(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ts := util.SecsToTime(1)
-			r, err := newResponseSegmentCleanup(tc.Ctrl.SegmentCleanup, tc.Ctrl, ts, nil)
+			_, err := newResponseSegmentCleanup(tc.Ctrl.SegmentCleanup, tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
-			r, err = newResponseSegmentCleanup(tc.Ctrl.SegmentCleanup, tc.Ctrl, ts, newTestPath())
+			r, err := newResponseSegmentCleanup(tc.Ctrl.SegmentCleanup, tc.Ctrl, ts, newTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Ctrl.Accepted {
@@ -341,9 +342,9 @@ func TestNewResponseE2ESetup(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ts := util.SecsToTime(1)
-			r, err := newResponseE2ESetup(tc.Ctrl.E2ESetup, tc.Ctrl, ts, nil)
+			_, err := newResponseE2ESetup(tc.Ctrl.E2ESetup, tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
-			r, err = newResponseE2ESetup(tc.Ctrl.E2ESetup, tc.Ctrl, ts, newTestPath())
+			r, err := newResponseE2ESetup(tc.Ctrl.E2ESetup, tc.Ctrl, ts, newTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Ctrl.Accepted {
@@ -389,9 +390,9 @@ func TestNewResponseE2EClenaup(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ts := util.SecsToTime(1)
-			r, err := newResponseE2EClenaup(tc.Ctrl.E2ECleanup, tc.Ctrl, ts, nil)
+			_, err := newResponseE2EClenaup(tc.Ctrl.E2ECleanup, tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
-			r, err = newResponseE2EClenaup(tc.Ctrl.E2ECleanup, tc.Ctrl, ts, newTestPath())
+			r, err := newResponseE2EClenaup(tc.Ctrl.E2ECleanup, tc.Ctrl, ts, newTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Ctrl.Accepted {
