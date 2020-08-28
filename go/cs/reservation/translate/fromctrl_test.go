@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/cs/reservation/e2e"
 	"github.com/scionproto/scion/go/cs/reservation/segment"
+	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/util"
@@ -106,16 +107,60 @@ func TestNewRequestSegmentCleanup(t *testing.T) {
 	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
 }
 
-func TestNewRequestE2ESetup(t *testing.T) {
-	ctrlMsg := newTestE2ESetup()
+func TestNewRequestE2ESetupSuccess(t *testing.T) {
+	ctrlMsg := newTestE2ESetupSuccess()
 	ts := util.SecsToTime(1)
-	r, err := newRequestE2ESetup(ctrlMsg, ts, nil)
+	_, err := newRequestE2ESetup(ctrlMsg, ts, nil)
 	require.Error(t, err)
-	r, err = newRequestE2ESetup(ctrlMsg, ts, newTestPath())
+	s, err := newRequestE2ESetup(ctrlMsg, ts, newTestPath())
 	require.NoError(t, err)
+	require.IsType(t, &e2e.SetupReqSuccess{}, s)
+	r := s.(*e2e.SetupReqSuccess)
 	checkE2EIDs(t, ctrlMsg.Base.ID, &r.ID)
 	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
-	require.Equal(t, ctrlMsg.Token, r.Token.ToRaw())
+	segmentRsvs := make([]reservation.SegmentID, len(ctrlMsg.SegmentRsvs))
+	for i := range ctrlMsg.SegmentRsvs {
+		id, err := reservation.SegmentIDFromRawBuffers(ctrlMsg.SegmentRsvs[i].ASID,
+			ctrlMsg.SegmentRsvs[i].Suffix)
+		require.NoError(t, err)
+		segmentRsvs[i] = *id
+	}
+	require.Equal(t, segmentRsvs, r.SegmentRsvs)
+	require.Equal(t, ctrlMsg.RequestedBW, uint8(r.RequestedBW))
+	allocTrail := make([]reservation.BWCls, len(ctrlMsg.AllocationTrail))
+	for i := range ctrlMsg.AllocationTrail {
+		allocTrail[i] = reservation.BWCls(ctrlMsg.AllocationTrail[i])
+	}
+	require.Equal(t, allocTrail, r.AllocationTrail)
+	require.Equal(t, ctrlMsg.Success.Token, r.Token.ToRaw())
+}
+
+func TestNewRequestE2ESetupFailure(t *testing.T) {
+	ctrlMsg := newTestE2ESetupFailure()
+	ts := util.SecsToTime(1)
+	_, err := newRequestE2ESetup(ctrlMsg, ts, nil)
+	require.Error(t, err)
+	s, err := newRequestE2ESetup(ctrlMsg, ts, newTestPath())
+	require.NoError(t, err)
+	require.IsType(t, &e2e.SetupReqFailure{}, s)
+	r := s.(*e2e.SetupReqFailure)
+	checkE2EIDs(t, ctrlMsg.Base.ID, &r.ID)
+	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
+	segmentRsvs := make([]reservation.SegmentID, len(ctrlMsg.SegmentRsvs))
+	for i := range ctrlMsg.SegmentRsvs {
+		id, err := reservation.SegmentIDFromRawBuffers(ctrlMsg.SegmentRsvs[i].ASID,
+			ctrlMsg.SegmentRsvs[i].Suffix)
+		require.NoError(t, err)
+		segmentRsvs[i] = *id
+	}
+	require.Equal(t, segmentRsvs, r.SegmentRsvs)
+	require.Equal(t, ctrlMsg.RequestedBW, uint8(r.RequestedBW))
+	allocTrail := make([]reservation.BWCls, len(ctrlMsg.AllocationTrail))
+	for i := range ctrlMsg.AllocationTrail {
+		allocTrail[i] = reservation.BWCls(ctrlMsg.AllocationTrail[i])
+	}
+	require.Equal(t, allocTrail, r.AllocationTrail)
+	require.Equal(t, ctrlMsg.Failure.ErrorCode, r.ErrorCode)
 }
 
 func TestNewRequestE2ECleanup(t *testing.T) {
@@ -360,7 +405,7 @@ func TestNewResponseE2ESetup(t *testing.T) {
 				require.Equal(t, tc.Ctrl.E2ESetup.Base.Index, uint8(rs.Index))
 				require.Equal(t, tc.Ctrl.E2ESetup.Failure.ErrorCode, rs.ErrorCode)
 				require.Equal(t, tc.Ctrl.E2ESetup.Failure.InfoField, rs.InfoField.ToRaw())
-				require.Len(t, rs.MaxBWs, len(tc.Ctrl.E2ESetup.Failure.MaxBWs))
+				require.Len(t, rs.MaxBWs, len(tc.Ctrl.E2ESetup.Failure.AllocationTrail))
 			}
 		})
 	}

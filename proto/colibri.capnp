@@ -105,11 +105,26 @@ struct SegmentCleanupResData {
 
 # TODO(juagargi) the e2e setup request travels forward only if successful, change the type down here:
 
-# Setup an E2E reservation. Sent in a hop by hop colibri extension through a stitched segment reservation.
+# Setup an E2E reservation. Sent in a hop by hop colibri extension through
+# a stitched segment reservation. Every AS adds to the allocation trail 
+# the minimum between what it is willing to grant and the value in the request.
+# The request is accepted if all the ASes granted the requested value and no less.
+# The request travels the full path up to the destination endhost, and only then
+# it is returned to the requester endhost.
 struct E2ESetupReqData {
     base @0 :E2EBase;
     segmentRsvs @1 :List(SegmentReservationID);
-    token @2 :Data;
+    requestedBW @2 :UInt8;
+    allocationTrail @3 :List(UInt8);
+    union {
+        unset @4 :Void;
+        success :group {
+            token @5 :Data;
+        }
+        failure :group {
+            errorCode @6 :UInt8;
+        }
+    }
 }
 
 # Response to an E2E setup. Sent in a hop by hop colibry extension, in the reverse path.
@@ -123,7 +138,7 @@ struct E2ESetupResData {
         failure :group {
             errorCode @3 :UInt8;
             infoField @4 :Data;
-            maxBWs @5 :List(UInt8);     # max bandwidths granted by the ASes along the path, until failure
+            allocationTrail @5 :List(UInt8);     # max bandwidths granted by all the ASes. See E2ESetupReqData
         }
     }
 }

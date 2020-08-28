@@ -160,11 +160,29 @@ func newTestCleanupFailureResponse() *colibri_mgmt.SegmentCleanupRes {
 	}
 }
 
-func newTestE2ESetup() *colibri_mgmt.E2ESetup {
+func newTestE2ESetupSuccess() *colibri_mgmt.E2ESetup {
 	return &colibri_mgmt.E2ESetup{
-		Base:        newTestE2EBase(1),
-		SegmentRsvs: []colibri_mgmt.SegmentReservationID{*newTestID()},
-		Token:       xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade"),
+		Base:            newTestE2EBase(1),
+		SegmentRsvs:     []colibri_mgmt.SegmentReservationID{*newTestID()},
+		RequestedBW:     5,
+		AllocationTrail: []uint8{5, 5},
+		Which:           proto.E2ESetupReqData_Which_success,
+		Success: &colibri_mgmt.E2ESetupReqSuccess{
+			Token: xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade"),
+		},
+	}
+}
+
+func newTestE2ESetupFailure() *colibri_mgmt.E2ESetup {
+	return &colibri_mgmt.E2ESetup{
+		Base:            newTestE2EBase(1),
+		SegmentRsvs:     []colibri_mgmt.SegmentReservationID{*newTestID()},
+		RequestedBW:     5,
+		AllocationTrail: []uint8{5, 5},
+		Which:           proto.E2ESetupReqData_Which_failure,
+		Failure: &colibri_mgmt.E2ESetupReqFailure{
+			ErrorCode: 66,
+		},
 	}
 }
 
@@ -183,9 +201,9 @@ func newTestE2ESetupFailureResponse() *colibri_mgmt.E2ESetupRes {
 		Base:  newTestE2EBase(1),
 		Which: proto.E2ESetupResData_Which_failure,
 		Failure: &colibri_mgmt.E2ESetupFailure{
-			ErrorCode: 42,
-			InfoField: xtest.MustParseHexString("16ebdb4f0d042500"),
-			MaxBWs:    []uint8{2, 3, 4},
+			ErrorCode:       42,
+			InfoField:       xtest.MustParseHexString("16ebdb4f0d042500"),
+			AllocationTrail: []uint8{2, 3, 4},
 		},
 	}
 }
