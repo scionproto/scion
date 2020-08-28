@@ -266,17 +266,13 @@ func newRequestSegmentCleanup(ctrl *colibri_mgmt.SegmentCleanup, ts time.Time,
 }
 
 func newRequestE2ESetup(ctrl *colibri_mgmt.E2ESetup, ts time.Time,
-	path *spath.Path) (*e2e.SetupReq, error) {
+	path *spath.Path) (base.MessageWithPath, error) {
 
 	id, err := NewE2EIDFromCtrl(ctrl.Base.ID)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot convert id", err)
 	}
 	r, err := e2e.NewRequest(ts, id, reservation.IndexNumber(ctrl.Base.Index), path)
-	if err != nil {
-		return nil, serrors.WrapStr("cannot construct e2e setup request", err)
-	}
-	tok, err := reservation.TokenFromRaw(ctrl.Token)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct e2e setup request", err)
 	}
@@ -290,11 +286,34 @@ func newRequestE2ESetup(ctrl *colibri_mgmt.E2ESetup, ts time.Time,
 		}
 		segmentIDs[i] = *id
 	}
-	return &e2e.SetupReq{
-		Request:     *r,
-		SegmentRsvs: segmentIDs,
-		Token:       *tok,
-	}, nil
+	allocTrail := make([]reservation.BWCls, len(ctrl.AllocationTrail))
+	for i := range ctrl.AllocationTrail {
+		allocTrail[i] = reservation.BWCls(ctrl.AllocationTrail[i])
+	}
+	setup := e2e.SetupReq{
+		Request:         *r,
+		SegmentRsvs:     segmentIDs,
+		RequestedBW:     reservation.BWCls(ctrl.RequestedBW),
+		AllocationTrail: allocTrail,
+	}
+	switch ctrl.Which {
+	case proto.E2ESetupReqData_Which_success:
+		tok, err := reservation.TokenFromRaw(ctrl.Success.Token)
+		if err != nil {
+			return nil, serrors.WrapStr("cannot construct e2e setup success request", err)
+		}
+		return &e2e.SetupReqSuccess{
+			SetupReq: setup,
+			Token:    *tok,
+		}, nil
+	case proto.E2ESetupReqData_Which_failure:
+		return &e2e.SetupReqFailure{
+			SetupReq:  setup,
+			ErrorCode: ctrl.Failure.ErrorCode,
+		}, nil
+	default:
+		return nil, serrors.New("invalid ctrl message", "ctrl", ctrl.Which.String())
+	}
 }
 
 func newRequestE2ECleanup(ctrl *colibri_mgmt.E2ECleanup, ts time.Time,
@@ -449,9 +468,9 @@ func newResponseE2ESetup(ctrl *colibri_mgmt.E2ESetupRes, resp *colibri_mgmt.Resp
 		if err != nil {
 			return nil, serrors.WrapStr("cannot parse info field", err)
 		}
-		maxBWs := make([]reservation.BWCls, len(ctrl.Failure.MaxBWs))
-		for i := range ctrl.Failure.MaxBWs {
-			maxBWs[i] = reservation.BWCls(ctrl.Failure.MaxBWs[i])
+		maxBWs := make([]reservation.BWCls, len(ctrl.Failure.AllocationTrail))
+		for i := range ctrl.Failure.AllocationTrail {
+			maxBWs[i] = reservation.BWCls(ctrl.Failure.AllocationTrail[i])
 		}
 		return &e2e.ResponseSetupFailure{
 			Response:  *r,

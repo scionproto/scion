@@ -55,8 +55,21 @@ func NewRequest(ts time.Time, id *reservation.E2EID, idx reservation.IndexNumber
 // SetupReq is an e2e setup/renewal request, that has been so far accepted.
 type SetupReq struct {
 	Request
-	SegmentRsvs []reservation.SegmentID
-	Token       reservation.Token
+	SegmentRsvs     []reservation.SegmentID
+	RequestedBW     reservation.BWCls
+	AllocationTrail []reservation.BWCls
+}
+
+// SetupReqSuccess is a successful e2e setup request traveling along the reservation path.
+type SetupReqSuccess struct {
+	SetupReq
+	Token reservation.Token
+}
+
+// SetupReqFailure is a failed e2e setup request also traveling along the reservation path.
+type SetupReqFailure struct {
+	SetupReq
+	ErrorCode uint8
 }
 
 // CleanupReq is a cleaup request for an e2e index.

@@ -52,11 +52,17 @@ func NewCtrlFromMsg(msg base.MessageWithPath, renewal bool) (
 		err = setSegmentIndexConfirmation(r, ctrl)
 	case *segment.CleanupReq:
 		err = setSegmentCleanup(r, ctrl)
-	case *e2e.SetupReq:
+	case *e2e.SetupReqSuccess:
 		if !renewal {
-			err = setE2ESetup(r, ctrl)
+			err = setE2ESetupReqSuccess(r, ctrl)
 		} else {
-			err = setE2ERenewal(r, ctrl)
+			err = setE2ERenewalReqSuccess(r, ctrl)
+		}
+	case *e2e.SetupReqFailure:
+		if !renewal {
+			err = setE2ESetupReqFailure(r, ctrl)
+		} else {
+			err = setE2ERenewalReqFailure(r, ctrl)
 		}
 	case *e2e.CleanupReq:
 		err = setE2ECleanup(r, ctrl)
@@ -197,6 +203,20 @@ func newSegmentSetup(msg *segment.SetupReq) *colibri_mgmt.SegmentSetup {
 	return c
 }
 
+// newE2ESetup returns the e2e setup ctrl message common to both success and failure.
+func newE2ESetup(msg *e2e.SetupReq) *colibri_mgmt.E2ESetup {
+	allocTrail := make([]uint8, len(msg.AllocationTrail))
+	for i := range msg.AllocationTrail {
+		allocTrail[i] = uint8(msg.AllocationTrail[i])
+	}
+	return &colibri_mgmt.E2ESetup{
+		Base:            newE2EBase(&msg.Request),
+		SegmentRsvs:     newSegmentIDs(msg.SegmentRsvs),
+		RequestedBW:     uint8(msg.RequestedBW),
+		AllocationTrail: allocTrail,
+	}
+}
+
 func thisIsARequest(ctrl *colibri_mgmt.ColibriRequestPayload) {
 	ctrl.Request = &colibri_mgmt.Request{}
 	ctrl.Which = proto.ColibriRequestPayload_Which_request
@@ -283,26 +303,56 @@ func setSegmentCleanup(msg *segment.CleanupReq, ctrl *colibri_mgmt.ColibriReques
 	return nil
 }
 
-func setE2ESetup(msg *e2e.SetupReq, ctrl *colibri_mgmt.ColibriRequestPayload) error {
-	thisIsARequest(ctrl)
+func setE2ESetupReqSuccess(msg *e2e.SetupReqSuccess,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
 
-	ctrl.Request.E2ESetup = &colibri_mgmt.E2ESetup{
-		Base:        newE2EBase(&msg.Request),
-		SegmentRsvs: newSegmentIDs(msg.SegmentRsvs),
-		Token:       msg.Token.ToRaw(),
-	}
+	thisIsARequest(ctrl)
 	ctrl.Request.Which = proto.Request_Which_e2eSetup
+	ctrl.Request.E2ESetup = newE2ESetup(&msg.SetupReq)
+	ctrl.Request.E2ESetup.Which = proto.E2ESetupReqData_Which_success
+	ctrl.Request.E2ESetup.Success = &colibri_mgmt.E2ESetupReqSuccess{
+		Token: msg.Token.ToRaw(),
+	}
 	return nil
 }
 
-func setE2ERenewal(msg *e2e.SetupReq, ctrl *colibri_mgmt.ColibriRequestPayload) error {
+func setE2ERenewalReqSuccess(msg *e2e.SetupReqSuccess,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
 	thisIsARequest(ctrl)
-	ctrl.Request.E2ERenewal = &colibri_mgmt.E2ESetup{
-		Base:        newE2EBase(&msg.Request),
-		SegmentRsvs: newSegmentIDs(msg.SegmentRsvs),
-		Token:       msg.Token.ToRaw(),
-	}
 	ctrl.Request.Which = proto.Request_Which_e2eRenewal
+	ctrl.Request.E2ERenewal = newE2ESetup(&msg.SetupReq)
+	ctrl.Request.E2ERenewal.Which = proto.E2ESetupReqData_Which_success
+	ctrl.Request.E2ERenewal.Success = &colibri_mgmt.E2ESetupReqSuccess{
+		Token: msg.Token.ToRaw(),
+	}
+	return nil
+}
+
+func setE2ESetupReqFailure(msg *e2e.SetupReqFailure,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	thisIsARequest(ctrl)
+	ctrl.Request.Which = proto.Request_Which_e2eSetup
+	ctrl.Request.E2ESetup = newE2ESetup(&msg.SetupReq)
+	ctrl.Request.E2ESetup.Which = proto.E2ESetupReqData_Which_failure
+	ctrl.Request.E2ESetup.Failure = &colibri_mgmt.E2ESetupReqFailure{
+		ErrorCode: msg.ErrorCode,
+	}
+
+	return nil
+}
+
+func setE2ERenewalReqFailure(msg *e2e.SetupReqFailure,
+	ctrl *colibri_mgmt.ColibriRequestPayload) error {
+
+	thisIsARequest(ctrl)
+	ctrl.Request.Which = proto.Request_Which_e2eRenewal
+	ctrl.Request.E2ERenewal = newE2ESetup(&msg.SetupReq)
+	ctrl.Request.E2ERenewal.Which = proto.E2ESetupReqData_Which_failure
+	ctrl.Request.E2ERenewal.Failure = &colibri_mgmt.E2ESetupReqFailure{
+		ErrorCode: msg.ErrorCode,
+	}
 	return nil
 }
 
@@ -477,9 +527,9 @@ func setE2ESetupFailureResponse(msg *e2e.ResponseSetupFailure,
 		Base:  newE2EBaseFromResponse(&msg.Response),
 		Which: proto.E2ESetupResData_Which_failure,
 		Failure: &colibri_mgmt.E2ESetupFailure{
-			ErrorCode: msg.ErrorCode,
-			InfoField: msg.InfoField.ToRaw(),
-			MaxBWs:    maxBWs,
+			ErrorCode:       msg.ErrorCode,
+			InfoField:       msg.InfoField.ToRaw(),
+			AllocationTrail: maxBWs,
 		},
 	}
 	ctrl.Response.Which = proto.Response_Which_e2eSetup
@@ -498,9 +548,9 @@ func setE2ERenewalFailureResponse(msg *e2e.ResponseSetupFailure,
 		Base:  newE2EBaseFromResponse(&msg.Response),
 		Which: proto.E2ESetupResData_Which_failure,
 		Failure: &colibri_mgmt.E2ESetupFailure{
-			ErrorCode: msg.ErrorCode,
-			InfoField: msg.InfoField.ToRaw(),
-			MaxBWs:    maxBWs,
+			ErrorCode:       msg.ErrorCode,
+			InfoField:       msg.InfoField.ToRaw(),
+			AllocationTrail: maxBWs,
 		},
 	}
 	ctrl.Response.Which = proto.Response_Which_e2eRenewal

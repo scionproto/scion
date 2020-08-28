@@ -126,22 +126,42 @@ func TestNewCtrlFromMsg(t *testing.T) {
 				},
 			},
 		},
-		"e2e setup": {
+		"e2e setup success": {
 			Ctrl: &colibri_mgmt.ColibriRequestPayload{
 				Which: proto.ColibriRequestPayload_Which_request,
 				Request: &colibri_mgmt.Request{
 					Which:    proto.Request_Which_e2eSetup,
-					E2ESetup: newTestE2ESetup(),
+					E2ESetup: newTestE2ESetupSuccess(),
 				},
 			},
 			Renewal: false,
 		},
-		"e2e renewal": {
+		"e2e setup failure": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_request,
+				Request: &colibri_mgmt.Request{
+					Which:    proto.Request_Which_e2eSetup,
+					E2ESetup: newTestE2ESetupFailure(),
+				},
+			},
+			Renewal: false,
+		},
+		"e2e renewal success": {
 			Ctrl: &colibri_mgmt.ColibriRequestPayload{
 				Which: proto.ColibriRequestPayload_Which_request,
 				Request: &colibri_mgmt.Request{
 					Which:      proto.Request_Which_e2eRenewal,
-					E2ERenewal: newTestE2ESetup(),
+					E2ERenewal: newTestE2ESetupSuccess(),
+				},
+			},
+			Renewal: true,
+		},
+		"e2e renewal failure": {
+			Ctrl: &colibri_mgmt.ColibriRequestPayload{
+				Which: proto.ColibriRequestPayload_Which_request,
+				Request: &colibri_mgmt.Request{
+					Which:      proto.Request_Which_e2eRenewal,
+					E2ERenewal: newTestE2ESetupFailure(),
 				},
 			},
 			Renewal: true,
