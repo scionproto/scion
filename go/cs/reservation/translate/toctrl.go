@@ -210,10 +210,11 @@ func newE2ESetup(msg *e2e.SetupReq) *colibri_mgmt.E2ESetup {
 		allocTrail[i] = uint8(msg.AllocationTrail[i])
 	}
 	return &colibri_mgmt.E2ESetup{
-		Base:            newE2EBase(&msg.Request),
-		SegmentRsvs:     newSegmentIDs(msg.SegmentRsvs),
-		RequestedBW:     uint8(msg.RequestedBW),
-		AllocationTrail: allocTrail,
+		Base:              newE2EBase(&msg.Request),
+		SegmentRsvs:       newSegmentIDs(msg.SegmentRsvs),
+		SegmentRsvASCount: msg.SegmentRsvASCount,
+		RequestedBW:       uint8(msg.RequestedBW),
+		AllocationTrail:   allocTrail,
 	}
 }
 

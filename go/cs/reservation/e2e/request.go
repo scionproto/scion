@@ -55,9 +55,10 @@ func NewRequest(ts time.Time, id *reservation.E2EID, idx reservation.IndexNumber
 // SetupReq is an e2e setup/renewal request, that has been so far accepted.
 type SetupReq struct {
 	Request
-	SegmentRsvs     []reservation.SegmentID
-	RequestedBW     reservation.BWCls
-	AllocationTrail []reservation.BWCls
+	SegmentRsvs       []reservation.SegmentID
+	SegmentRsvASCount []uint8 // how many ASes per segment reservation
+	RequestedBW       reservation.BWCls
+	AllocationTrail   []reservation.BWCls
 }
 
 // SetupReqSuccess is a successful e2e setup request traveling along the reservation path.
