@@ -291,10 +291,11 @@ func newRequestE2ESetup(ctrl *colibri_mgmt.E2ESetup, ts time.Time,
 		allocTrail[i] = reservation.BWCls(ctrl.AllocationTrail[i])
 	}
 	setup := e2e.SetupReq{
-		Request:         *r,
-		SegmentRsvs:     segmentIDs,
-		RequestedBW:     reservation.BWCls(ctrl.RequestedBW),
-		AllocationTrail: allocTrail,
+		Request:           *r,
+		SegmentRsvs:       segmentIDs,
+		SegmentRsvASCount: ctrl.SegmentRsvASCount,
+		RequestedBW:       reservation.BWCls(ctrl.RequestedBW),
+		AllocationTrail:   allocTrail,
 	}
 	switch ctrl.Which {
 	case proto.E2ESetupReqData_Which_success:
