@@ -19,6 +19,7 @@ import (
 )
 
 type SegmentSetup struct {
+	Base            *SegmentBase
 	MinBW           uint8
 	MaxBW           uint8
 	SplitCls        uint8
@@ -33,6 +34,7 @@ func (s *SegmentSetup) ProtoId() proto.ProtoIdType {
 }
 
 type SegmentSetupRes struct {
+	Base    *SegmentBase
 	Which   proto.SegmentSetupResData_Which
 	Failure *SegmentSetup
 	Token   []byte

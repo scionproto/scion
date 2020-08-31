@@ -19,10 +19,18 @@ import (
 )
 
 type SegmentCleanup struct {
-	ID    *SegmentReservationID `capnp:"id"`
-	Index uint8
+	Base *SegmentBase
 }
 
 func (s *SegmentCleanup) ProtoId() proto.ProtoIdType {
 	return proto.SegmentCleanupData_TypeID
+}
+
+type SegmentCleanupRes struct {
+	Base      *SegmentBase
+	ErrorCode uint8
+}
+
+func (s *SegmentCleanupRes) ProtoId() proto.ProtoIdType {
+	return proto.SegmentCleanupResData_TypeID
 }

@@ -19,8 +19,6 @@ import (
 
 	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/proto"
 )
 
 type IndexState uint8
@@ -31,34 +29,6 @@ const (
 	IndexPending              // the index is confirmed, but not yet activated.
 	IndexActive
 )
-
-// NewIndexStateFromCtrlMsg converts a proto reservation index state into its application type.
-func NewIndexStateFromCtrlMsg(st proto.ReservationIndexState) (IndexState, error) {
-	var state IndexState
-	switch st {
-	case proto.ReservationIndexState_pending:
-		state = IndexPending
-	case proto.ReservationIndexState_active:
-		state = IndexActive
-	default:
-		return 0, serrors.New("unknown index_state in ctrl variable", "index_state", st)
-	}
-	return state, nil
-}
-
-// ToCtrlMsg converts this IndexState to its control message counterpart.
-func (s IndexState) ToCtrlMsg() (proto.ReservationIndexState, error) {
-	var st proto.ReservationIndexState
-	switch s {
-	case IndexPending:
-		st = proto.ReservationIndexState_pending
-	case IndexActive:
-		st = proto.ReservationIndexState_active
-	default:
-		return 0, serrors.New("cannot convert index state to control message", "state", s)
-	}
-	return st, nil
-}
 
 // Index is a segment reservation index.
 type Index struct {

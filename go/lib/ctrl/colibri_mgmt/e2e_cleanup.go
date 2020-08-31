@@ -19,9 +19,18 @@ import (
 )
 
 type E2ECleanup struct {
-	ReservationID *E2EReservationID
+	Base *E2EBase
 }
 
 func (r *E2ECleanup) ProtoId() proto.ProtoIdType {
 	return proto.E2ECleanupData_TypeID
+}
+
+type E2ECleanupRes struct {
+	Base      *E2EBase
+	ErrorCode uint8
+}
+
+func (r *E2ECleanupRes) ProtoId() proto.ProtoIdType {
+	return proto.E2ECleanupResData_TypeID
 }

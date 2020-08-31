@@ -18,13 +18,16 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-type SegmentTeardownReq struct{}
+type SegmentTeardownReq struct {
+	Base *SegmentBase
+}
 
 func (s *SegmentTeardownReq) ProtoId() proto.ProtoIdType {
 	return proto.SegmentTeardownReqData_TypeID
 }
 
 type SegmentTeardownRes struct {
+	Base      *SegmentBase
 	ErrorCode uint8 // relevant only if Response.Accepted == false
 }
 
