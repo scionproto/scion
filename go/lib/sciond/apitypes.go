@@ -31,14 +31,19 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+// ASInfo provides information about the local AS.
+type ASInfo struct {
+	IA  addr.IA
+	MTU uint16
+}
+
 type Querier struct {
 	Connector Connector
 	IA        addr.IA
-	MaxPaths  uint16
 }
 
 func (q Querier) Query(ctx context.Context, dst addr.IA) ([]snet.Path, error) {
-	return q.Connector.Paths(ctx, dst, q.IA, PathReqFlags{PathCount: q.MaxPaths})
+	return q.Connector.Paths(ctx, dst, q.IA, PathReqFlags{})
 }
 
 // RevHandler is an adapter for sciond connector to implement snet.RevocationHandler.
@@ -47,7 +52,7 @@ type RevHandler struct {
 }
 
 func (h RevHandler) RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes) {
-	_, err := h.Connector.RevNotificationFromRaw(ctx, rawSRevInfo)
+	err := h.Connector.RevNotificationFromRaw(ctx, rawSRevInfo)
 	if err != nil {
 		log.FromCtx(ctx).Error("Revocation notification to sciond failed", "err", err)
 	}
@@ -64,14 +69,19 @@ func (h TopoQuerier) UnderlayAnycast(ctx context.Context, svc addr.HostSVC) (*ne
 	if psvc == proto.ServiceType_unset {
 		return nil, serrors.New("invalid svc type", "svc", svc)
 	}
-	r, err := h.Connector.SVCInfo(ctx, []proto.ServiceType{psvc})
+	r, err := h.Connector.SVCInfo(ctx, []addr.HostSVC{svc})
 	if err != nil {
 		return nil, err
 	}
-	return &net.UDPAddr{
-		IP:   r.Entries[0].HostInfos[0].Host().IP(),
-		Port: topology.EndhostPort,
-	}, nil
+	entry, ok := r[svc]
+	if !ok {
+		return nil, serrors.New("no entry found", "svc", svc, "services", r)
+	}
+	a, err := net.ResolveUDPAddr("udp", entry)
+	if err != nil {
+		return nil, err
+	}
+	return &net.UDPAddr{IP: a.IP, Port: topology.EndhostPort, Zone: a.Zone}, nil
 }
 
 func svcAddrToProto(svc addr.HostSVC) proto.ServiceType {
@@ -89,23 +99,30 @@ func svcAddrToProto(svc addr.HostSVC) proto.ServiceType {
 	}
 }
 
-func ifinfoReplyToMap(ifinfoReply *IFInfoReply) map[common.IFIDType]*net.UDPAddr {
-	m := make(map[common.IFIDType]*net.UDPAddr)
-
-	for _, entry := range ifinfoReply.RawEntries {
-		m[entry.IfID] = entry.HostInfo.UDP()
+func protoSVCToAddr(svc proto.ServiceType) addr.HostSVC {
+	switch svc {
+	case proto.ServiceType_br:
+		return addr.SvcBS
+	case proto.ServiceType_bs:
+		return addr.SvcBS
+	case proto.ServiceType_cs:
+		return addr.SvcCS
+	case proto.ServiceType_ps:
+		return addr.SvcPS
+	case proto.ServiceType_sig:
+		return addr.SvcSIG
+	default:
+		return addr.SvcNone
 	}
-
-	return m
 }
 
-// path implements snet.Path for paths obtained from sciond
-type path struct {
+type Path struct {
 	interfaces []pathInterface
 	underlay   *net.UDPAddr
 	spath      *spath.Path
+	mtu        uint16
+	expiry     time.Time
 	dst        addr.IA
-	metadata   pathMetadata
 }
 
 func pathReplyToPaths(pathReply *PathReply, dst addr.IA) ([]snet.Path, error) {
@@ -123,11 +140,12 @@ func pathReplyToPaths(pathReply *PathReply, dst addr.IA) ([]snet.Path, error) {
 	return paths, nil
 }
 
-func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (path, error) {
+func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (Path, error) {
 	if len(pe.Path.Interfaces) == 0 {
-		return path{
-			dst:      dst,
-			metadata: pathReplyEntryToMetadata(pe),
+		return Path{
+			dst:    dst,
+			mtu:    pe.Path.Mtu,
+			expiry: pe.Path.Expiry(),
 		}, nil
 	}
 
@@ -135,18 +153,19 @@ func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (path, error) {
 	if !pe.Path.HeaderV2 {
 		sp = spath.New(pe.Path.FwdPath)
 		if err := sp.InitOffsets(); err != nil {
-			return path{}, serrors.WrapStr("path error", err)
+			return Path{}, serrors.WrapStr("path error", err)
 		}
 	} else {
 		sp = spath.NewV2(pe.Path.FwdPath, false)
 	}
 
 	underlayAddr := pe.HostInfo.Underlay()
-	p := path{
+	p := Path{
 		interfaces: make([]pathInterface, 0, len(pe.Path.Interfaces)),
 		underlay:   underlayAddr,
 		spath:      sp,
-		metadata:   pathReplyEntryToMetadata(pe),
+		mtu:        pe.Path.Mtu,
+		expiry:     pe.Path.Expiry(),
 	}
 	for _, intf := range pe.Path.Interfaces {
 		p.interfaces = append(p.interfaces, pathInterface{ia: intf.IA(), id: intf.ID()})
@@ -154,14 +173,7 @@ func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (path, error) {
 	return p, nil
 }
 
-func pathReplyEntryToMetadata(pe PathReplyEntry) pathMetadata {
-	return pathMetadata{
-		mtu:    pe.Path.Mtu,
-		expiry: pe.Path.Expiry(),
-	}
-}
-
-func (p path) UnderlayNextHop() *net.UDPAddr {
+func (p Path) UnderlayNextHop() *net.UDPAddr {
 	if p.underlay == nil {
 		return nil
 	}
@@ -172,14 +184,14 @@ func (p path) UnderlayNextHop() *net.UDPAddr {
 	}
 }
 
-func (p path) Path() *spath.Path {
+func (p Path) Path() *spath.Path {
 	if p.spath == nil {
 		return nil
 	}
 	return p.spath.Copy()
 }
 
-func (p path) Interfaces() []snet.PathInterface {
+func (p Path) Interfaces() []snet.PathInterface {
 	if p.interfaces == nil {
 		return nil
 	}
@@ -190,33 +202,42 @@ func (p path) Interfaces() []snet.PathInterface {
 	return intfs
 }
 
-func (p path) Destination() addr.IA {
+func (p Path) Destination() addr.IA {
 	if len(p.interfaces) == 0 {
 		return p.dst
 	}
 	return p.interfaces[len(p.interfaces)-1].IA()
 }
 
-func (p path) Metadata() snet.PathMetadata {
-	return p.metadata
+func (p Path) Metadata() snet.PathMetadata {
+	return p
 }
 
-func (p path) Copy() snet.Path {
-	return path{
+func (p Path) MTU() uint16 {
+	return p.mtu
+}
+
+func (p Path) Expiry() time.Time {
+	return p.expiry
+}
+
+func (p Path) Copy() snet.Path {
+	return Path{
 		interfaces: append(p.interfaces[:0:0], p.interfaces...),
 		underlay:   p.UnderlayNextHop(), // creates copy
 		spath:      p.Path(),            // creates copy
-		metadata:   p.metadata,
+		mtu:        p.mtu,
+		expiry:     p.expiry,
 	}
 }
 
-func (p path) String() string {
+func (p Path) String() string {
 	hops := p.fmtInterfaces()
-	return fmt.Sprintf("Hops: [%s] MTU: %d, NextHop: %s",
-		strings.Join(hops, ">"), p.metadata.mtu, p.underlay)
+	return fmt.Sprintf("Hops: [%s] MTU: %d NextHop: %s",
+		strings.Join(hops, ">"), p.mtu, p.underlay)
 }
 
-func (p path) fmtInterfaces() []string {
+func (p Path) fmtInterfaces() []string {
 	var hops []string
 	if len(p.interfaces) == 0 {
 		return hops
@@ -240,16 +261,3 @@ type pathInterface struct {
 
 func (i pathInterface) ID() common.IFIDType { return i.id }
 func (i pathInterface) IA() addr.IA         { return i.ia }
-
-type pathMetadata struct {
-	mtu    uint16
-	expiry time.Time
-}
-
-func (m pathMetadata) MTU() uint16 {
-	return m.mtu
-}
-
-func (m pathMetadata) Expiry() time.Time {
-	return m.expiry
-}

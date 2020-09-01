@@ -66,130 +66,106 @@ func TestRequester(t *testing.T) {
 
 	tests := map[string]struct {
 		Reqs   segfetcher.Requests
-		Expect func(*mock_segfetcher.MockRequestAPI) []segfetcher.ReplyOrErr
+		Expect func(*mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr
 	}{
 		"Empty req": {
 			Reqs: segfetcher.Requests{},
-			Expect: func(api *mock_segfetcher.MockRequestAPI) []segfetcher.ReplyOrErr {
+			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
 				return nil
 			},
 		},
 		"Up only": {
 			Reqs: segfetcher.Requests{req_111_1},
-			Expect: func(api *mock_segfetcher.MockRequestAPI) []segfetcher.ReplyOrErr {
-				req := req_111_1.ToSegReq()
-				reply := &path_mgmt.SegReply{
-					Req: req,
-					Recs: &path_mgmt.SegRecs{
-						Recs: []*seg.Meta{tg.seg120_111_up},
-					},
+			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
+				req := req_111_1
+				reply := &path_mgmt.SegRecs{
+					Recs: []*seg.Meta{tg.seg120_111_up},
 				}
-				api.EXPECT().GetSegs(gomock.Any(), gomock.Eq(req), gomock.Any(), gomock.Any()).
+				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req), gomock.Any()).
 					Return(reply, nil)
-				return []segfetcher.ReplyOrErr{{Req: req_111_1, Reply: reply}}
+				return []segfetcher.ReplyOrErr{{Req: req_111_1, Segments: reply}}
 			},
 		},
 		"Down only": {
 			Reqs: segfetcher.Requests{req_1_111},
-			Expect: func(api *mock_segfetcher.MockRequestAPI) []segfetcher.ReplyOrErr {
-				req := req_1_111.ToSegReq()
-				reply := &path_mgmt.SegReply{
-					Req: req,
-					Recs: &path_mgmt.SegRecs{
-						Recs: []*seg.Meta{tg.seg120_111_down, tg.seg130_111_down},
-					},
+			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
+				req := req_1_111
+				reply := &path_mgmt.SegRecs{
+					Recs: []*seg.Meta{tg.seg120_111_down, tg.seg130_111_down},
 				}
-				api.EXPECT().GetSegs(gomock.Any(), gomock.Eq(req), gomock.Any(), gomock.Any()).
+				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req), gomock.Any()).
 					Return(reply, nil)
-				return []segfetcher.ReplyOrErr{{Req: req_1_111, Reply: reply}}
+				return []segfetcher.ReplyOrErr{{Req: req_1_111, Segments: reply}}
 			},
 		},
 		"Cores only": {
 			Reqs: segfetcher.Requests{req_210_110, req_210_120, req_210_130},
-			Expect: func(api *mock_segfetcher.MockRequestAPI) []segfetcher.ReplyOrErr {
-				req1 := req_210_110.ToSegReq()
-				testErr := errors.New("test error.")
-				api.EXPECT().GetSegs(gomock.Any(), gomock.Eq(req1), gomock.Any(), gomock.Any()).
+			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
+				req1 := req_210_110
+				testErr := errors.New("no attempts left")
+				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).Times(3).
 					Return(nil, testErr)
-				req2 := req_210_120.ToSegReq()
-				reply2 := &path_mgmt.SegReply{
-					Req: req2,
-					Recs: &path_mgmt.SegRecs{
-						Recs: []*seg.Meta{tg.seg210_120_core},
-					},
+				req2 := req_210_120
+				reply2 := &path_mgmt.SegRecs{
+					Recs: []*seg.Meta{tg.seg210_120_core},
 				}
-				api.EXPECT().GetSegs(gomock.Any(), gomock.Eq(req2), gomock.Any(), gomock.Any()).
+				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req2), gomock.Any()).
 					Return(reply2, nil)
-				req3 := req_210_130.ToSegReq()
-				reply3 := &path_mgmt.SegReply{
-					Req: req2,
-					Recs: &path_mgmt.SegRecs{
-						Recs: []*seg.Meta{tg.seg210_130_core},
-					},
+				req3 := req_210_130
+				reply3 := &path_mgmt.SegRecs{
+					Recs: []*seg.Meta{tg.seg210_130_core},
 				}
-				api.EXPECT().GetSegs(gomock.Any(), gomock.Eq(req3), gomock.Any(), gomock.Any()).
+				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req3), gomock.Any()).
 					Return(reply3, nil)
 				return []segfetcher.ReplyOrErr{
 					{Req: req_210_110, Err: testErr},
-					{Req: req_210_120, Reply: reply2},
-					{Req: req_210_130, Reply: reply3},
+					{Req: req_210_120, Segments: reply2},
+					{Req: req_210_130, Segments: reply3},
 				}
 			},
 		},
 		"Up cores": {
 			Reqs: segfetcher.Requests{req_111_1},
-			Expect: func(api *mock_segfetcher.MockRequestAPI) []segfetcher.ReplyOrErr {
-				req := req_111_1.ToSegReq()
-				reply := &path_mgmt.SegReply{
-					Req: req,
-					Recs: &path_mgmt.SegRecs{
-						Recs: []*seg.Meta{tg.seg120_111_up},
-					},
+			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
+				req := req_111_1
+				reply := &path_mgmt.SegRecs{
+					Recs: []*seg.Meta{tg.seg120_111_up},
 				}
-				api.EXPECT().GetSegs(gomock.Any(), gomock.Eq(req), gomock.Any(), gomock.Any()).
+				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req), gomock.Any()).
 					Return(reply, nil)
-				return []segfetcher.ReplyOrErr{{Req: req_111_1, Reply: reply}}
+				return []segfetcher.ReplyOrErr{{Req: req_111_1, Segments: reply}}
 			},
 		},
 		"Cores down": {
 			Reqs: segfetcher.Requests{req_1_111},
-			Expect: func(api *mock_segfetcher.MockRequestAPI) []segfetcher.ReplyOrErr {
-				req := req_1_111.ToSegReq()
-				reply := &path_mgmt.SegReply{
-					Req: req,
-					Recs: &path_mgmt.SegRecs{
-						Recs: []*seg.Meta{tg.seg120_111_down, tg.seg130_111_down},
-					},
+			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
+				req := req_1_111
+				reply := &path_mgmt.SegRecs{
+					Recs: []*seg.Meta{tg.seg120_111_down, tg.seg130_111_down},
 				}
-				api.EXPECT().GetSegs(gomock.Any(), gomock.Eq(req), gomock.Any(), gomock.Any()).
+				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req), gomock.Any()).
 					Return(reply, nil)
-				return []segfetcher.ReplyOrErr{{Req: req_1_111, Reply: reply}}
+				return []segfetcher.ReplyOrErr{{Req: req_1_111, Segments: reply}}
 			},
 		},
 		"Up cores down": {
 			Reqs: segfetcher.Requests{req_111_1, req_2_211},
-			Expect: func(api *mock_segfetcher.MockRequestAPI) []segfetcher.ReplyOrErr {
-				req1 := req_111_1.ToSegReq()
-				reply1 := &path_mgmt.SegReply{
-					Req: req1,
-					Recs: &path_mgmt.SegRecs{
-						Recs: []*seg.Meta{tg.seg120_111_up, tg.seg130_111_up},
-					},
+			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
+				req1 := req_111_1
+				reply1 := &path_mgmt.SegRecs{
+					Recs: []*seg.Meta{tg.seg120_111_up, tg.seg130_111_up},
 				}
-				api.EXPECT().GetSegs(gomock.Any(), gomock.Eq(req1), gomock.Any(), gomock.Any()).
+				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).
 					Return(reply1, nil)
-				req2 := req_2_211.ToSegReq()
-				reply2 := &path_mgmt.SegReply{
-					Req: req2,
-					Recs: &path_mgmt.SegRecs{
-						Recs: []*seg.Meta{tg.seg210_211_down},
-					},
+				req2 := req_2_211
+				reply2 := &path_mgmt.SegRecs{
+					Recs: []*seg.Meta{tg.seg210_211_down},
 				}
-				api.EXPECT().GetSegs(gomock.Any(), gomock.Eq(req2), gomock.Any(), gomock.Any()).
+				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req2), gomock.Any()).
 					Return(reply2, nil)
 				return []segfetcher.ReplyOrErr{
-					{Req: req_111_1, Reply: reply1},
-					{Req: req_2_211, Reply: reply2},
+					{Req: req_111_1, Segments: reply1},
+					{Req: req_2_211, Segments: reply2},
 				}
 			},
 		},
@@ -202,11 +178,11 @@ func TestRequester(t *testing.T) {
 			defer ctrl.Finish()
 			dstProvider := mock_segfetcher.NewMockDstProvider(ctrl)
 			dstProvider.EXPECT().Dst(gomock.Any(), gomock.Any()).AnyTimes()
-			api := mock_segfetcher.NewMockRequestAPI(ctrl)
-			expectedReplies := test.Expect(api)
+			rpc := mock_segfetcher.NewMockRPC(ctrl)
+			expectedReplies := test.Expect(rpc)
 
 			requester := segfetcher.DefaultRequester{
-				API:         api,
+				RPC:         rpc,
 				DstProvider: dstProvider,
 			}
 			var replies []segfetcher.ReplyOrErr

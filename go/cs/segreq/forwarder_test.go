@@ -219,7 +219,7 @@ func TestForwarderClassify(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			f := &forwarder{localIA: test.LocalIA, coreChecker: newMockCoreChecker(ctrl)}
+			f := ForwardingLookup{LocalIA: test.LocalIA, CoreChecker: newMockCoreChecker(ctrl)}
 			segType, err := f.classify(context.Background(), test.Request.Src, test.Request.Dst)
 			test.ErrorAssertion(t, err)
 			assert.Equal(t, test.ExpectedSegType, segType)

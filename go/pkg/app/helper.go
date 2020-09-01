@@ -23,6 +23,8 @@ import (
 	"os/signal"
 	"strconv"
 
+	"github.com/fatih/color"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -43,14 +45,14 @@ func QueryASInfo(ctx context.Context, conn sciond.Connector) (ASInfo, error) {
 		return ASInfo{}, err
 	}
 	return ASInfo{
-		IA:  asInfo.Entries[0].RawIsdas.IA(),
-		MTU: asInfo.Entries[0].Mtu,
+		IA:  asInfo.IA,
+		MTU: asInfo.MTU,
 	}, nil
 }
 
-// ChoosePath selects a path to the remote
+// ChoosePath selects a path to the remote.
 func ChoosePath(ctx context.Context, conn sciond.Connector, remote addr.IA,
-	interactive, refresh bool) (snet.Path, error) {
+	interactive, refresh bool, opts ...ColorOption) (snet.Path, error) {
 
 	paths, err := conn.Paths(ctx, remote, addr.IA{}, sciond.PathReqFlags{Refresh: refresh})
 	if err != nil {
@@ -63,9 +65,25 @@ func ChoosePath(ctx context.Context, conn sciond.Connector, remote addr.IA,
 		return paths[rand.Intn(len(paths))], nil
 	}
 
+	SortPaths(paths)
+	o := applyColorOptions(opts...)
+
+	sectionHeader := func(intfs int) {
+		header := fmt.Sprintf("%d Hops:", (intfs/2)+1)
+		if !o.disable {
+			color.New(color.FgHiBlack).Println(header)
+			return
+		}
+		fmt.Println(header)
+	}
+
 	fmt.Printf("Available paths to %s:\n", remote)
+	sectionHeader(len(paths[0].Interfaces()))
 	for i, path := range paths {
-		fmt.Printf("[%2d] %s\n", i, path)
+		if i != 0 && len(paths[i-1].Interfaces()) != len(path.Interfaces()) {
+			sectionHeader(len(path.Interfaces()))
+		}
+		fmt.Printf("[%2d] %s\n", i, ColorPath(path, opts...))
 	}
 	reader := bufio.NewReader(os.Stdin)
 	for {

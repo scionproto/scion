@@ -25,6 +25,7 @@ const (
 	L4SCMP L4ProtocolType = 1
 	L4TCP  L4ProtocolType = 6
 	L4UDP  L4ProtocolType = 17
+	L4BFD  L4ProtocolType = 18
 
 	HopByHopClass L4ProtocolType = 0
 	End2EndClass  L4ProtocolType = 222
@@ -44,6 +45,8 @@ func (p L4ProtocolType) String() string {
 		return "TCP"
 	case L4UDP:
 		return "UDP"
+	case L4BFD:
+		return "BFD"
 	case End2EndClass:
 		return "End2End"
 	}

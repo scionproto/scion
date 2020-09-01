@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package brconf
+package brconf_test
 
 import (
 	"bytes"
@@ -21,36 +21,37 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/log/logtest"
 )
 
 func TestConfigSample(t *testing.T) {
 	var sample bytes.Buffer
-	var cfg Config
+	var cfg brconf.Config
 	cfg.Sample(&sample, nil, nil)
 
 	InitTestConfig(&cfg)
 	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
 	assert.NoError(t, err)
-	CheckTestConfig(t, &cfg, idSample)
+	CheckTestConfig(t, &cfg, brconf.IDSample)
 }
 
-func InitTestConfig(cfg *Config) {
+func InitTestConfig(cfg *brconf.Config) {
 	envtest.InitTest(&cfg.General, &cfg.Metrics, nil, nil)
 	logtest.InitTestLogging(&cfg.Logging)
 	InitTestBRConfig(&cfg.BR)
 }
 
-func InitTestBRConfig(cfg *BR) {
+func InitTestBRConfig(cfg *brconf.BR) {
 }
 
-func CheckTestConfig(t *testing.T, cfg *Config, id string) {
+func CheckTestConfig(t *testing.T, cfg *brconf.Config, id string) {
 	envtest.CheckTest(t, &cfg.General, &cfg.Metrics, nil, nil, id)
 	logtest.CheckTestLogging(t, &cfg.Logging, id)
 	CheckTestBRConfig(t, &cfg.BR)
 }
 
-func CheckTestBRConfig(t *testing.T, cfg *BR) {
-	assert.Equal(t, FailActionFatal, cfg.RollbackFailAction)
+func CheckTestBRConfig(t *testing.T, cfg *brconf.BR) {
+	assert.Equal(t, brconf.FailActionFatal, cfg.RollbackFailAction)
 }

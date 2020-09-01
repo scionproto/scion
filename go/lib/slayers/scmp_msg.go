@@ -379,6 +379,8 @@ func (i *SCMPTraceroute) SerializeTo(b gopacket.SerializeBuffer,
 	}
 	offset := 0
 	binary.BigEndian.PutUint16(buf[:2], i.Identifier)
+	// zero out reserved spot, for consistent test results.
+	buf[2], buf[3] = 0, 0
 	offset += 2 + 2
 	i.IA.Write(buf[offset : offset+addr.IABytes])
 	offset += addr.IABytes

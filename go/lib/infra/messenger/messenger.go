@@ -15,25 +15,12 @@
 // Package messenger contains the default implementation for interface
 // infra.Messenger. Sent and received messages must be one of the supported
 // types below:
-//  infra.ChainRequest        -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainReq
-//  infra.Chain               -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.Chain
-//  infra.TRCRequest          -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRCReq
-//  infra.TRC                 -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRC
 //  infra.IfId                -> ctrl.SignedPld/ctrl.Pld/ifid.IFID
-//  infra.IfStateInfos        -> ctrl.SignedPld/ctrl.Pld/path_mgmt.IFStateInfos
-//  infra.IfStateReq          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.IFStateReq
-//  infra.Seg                 -> ctrl.SignedPld/ctrl.Pld/seg.PathSegment
-//  infra.SegReg              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReg
-//  infra.SegRequest          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq
-//  infra.SegReply            -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReply
-//  infra.SignedRev           -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SignedRevInfo
 //  infra.HPSegReg            -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPSegReg
 //  infra.HPSegRequest        -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPSegReq
 //  infra.HPSegReply          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPSegReply
 //  infra.HPCfgRequest        -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPCfgReq
 //  infra.HPCfgReply          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.HPCfgReply
-//  infra.ChainRenewalRequest   -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainRenewalRequest,
-//  infra.ChainRenewalReply     -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainRenewalReply,
 //
 // To start processing messages received via the Messenger, call
 // ListenAndServe. The method runs in the current goroutine, and spawns new
@@ -71,13 +58,11 @@ package messenger
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net"
 	"sync"
 	"time"
 
-	quic "github.com/lucas-clemente/quic-go"
 	"github.com/opentracing/opentracing-go"
 	opentracingext "github.com/opentracing/opentracing-go/ext"
 
@@ -85,15 +70,12 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
-	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/ctrl_msg"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger/internal/metrics"
-	"github.com/scionproto/scion/go/lib/infra/rpc"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/tracing"
@@ -122,15 +104,6 @@ type Config struct {
 	// verification of the top level signature in received signed control
 	// payloads.
 	DisableSignatureVerification bool
-	// QUIC defines whether the Messenger should also operate on top of QUIC
-	// instead of only on UDP.
-	QUIC *QUICConfig
-}
-
-type QUICConfig struct {
-	Conn       net.PacketConn
-	TLSConfig  *tls.Config
-	QUICConfig *quic.Config
 }
 
 func (c *Config) InitDefaults() {
@@ -150,14 +123,6 @@ type Messenger struct {
 	// addressRewriter is used to compute full remote addresses (path + server)
 	addressRewriter *AddressRewriter
 
-	cryptoLock sync.RWMutex
-	// signer is used to sign selected outgoing messages
-	signer ctrl.Signer
-	// signMask specifies which messages are signed when sent out
-	signMask map[infra.MessageType]struct{}
-	// verifier is used to verify selected incoming messages
-	verifier infra.Verifier
-
 	handlersLock sync.RWMutex
 	// Handlers for received messages processing
 	handlers map[infra.MessageType]infra.Handler
@@ -169,10 +134,6 @@ type Messenger struct {
 	cancelF context.CancelFunc
 
 	ia addr.IA
-
-	quicClient  *rpc.Client
-	quicServer  *rpc.Server
-	quicHandler *QUICHandler
 }
 
 // New creates a new Messenger based on config.
@@ -185,29 +146,6 @@ func New(config *Config) *Messenger {
 	// Parent context for all handlers
 	ctx, cancelF := context.WithCancel(context.Background())
 
-	var quicServer *rpc.Server
-	var quicClient *rpc.Client
-	var quicHandler *QUICHandler
-
-	if config.QUIC != nil {
-		quicClient = &rpc.Client{
-			Conn:       config.QUIC.Conn,
-			TLSConfig:  config.QUIC.TLSConfig,
-			QUICConfig: config.QUIC.QUICConfig,
-		}
-		quicHandler = &QUICHandler{
-			handlers:  make(map[infra.MessageType]infra.Handler),
-			timeout:   config.HandlerTimeout,
-			parentCtx: ctx,
-		}
-		quicServer = &rpc.Server{
-			Conn:       config.QUIC.Conn,
-			TLSConfig:  config.QUIC.TLSConfig,
-			QUICConfig: config.QUIC.QUICConfig,
-			Handler:    quicHandler,
-		}
-	}
-
 	// XXX(scrye): A trustStore object is passed to the Messenger as it is required
 	// to verify top-level signatures. This is never used right now since only
 	// unsigned messages are supported. The content of received messages is
@@ -218,15 +156,10 @@ func New(config *Config) *Messenger {
 		config:          config,
 		dispatcher:      config.Dispatcher,
 		addressRewriter: config.AddressRewriter,
-		signer:          infra.NullSigner,
-		verifier:        infra.NullSigVerifier,
 		handlers:        make(map[infra.MessageType]infra.Handler),
 		closeChan:       make(chan struct{}),
 		ctx:             ctx,
 		cancelF:         cancelF,
-		quicServer:      quicServer,
-		quicClient:      quicClient,
-		quicHandler:     quicHandler,
 	}
 }
 
@@ -240,172 +173,8 @@ func (m *Messenger) SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id ui
 	return m.getFallbackRequester(infra.Ack).Notify(ctx, pld, a)
 }
 
-func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
-	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
-
-	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, data)
-	if err != nil {
-		return nil, err
-	}
-	logger := log.FromCtx(ctx)
-	logger.Debug("[Messenger] Sending request", "req_type", infra.TRCRequest,
-		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.getFallbackRequester(infra.TRCRequest).Request(ctx, pld, a, false)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err,
-			"req_type", infra.TRCRequest)
-	}
-	_, replyMsg, err := Validate(replyCtrlPld)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
-	}
-	switch reply := replyMsg.(type) {
-	case *cert_mgmt.TRC:
-		logger.Debug("[Messenger] Received reply", "req_id", id, "reply", reply)
-		return reply, nil
-	case *ack.Ack:
-		return nil, &infra.Error{Message: reply}
-	default:
-		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
-		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
-	}
-}
-
-func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr, id uint64) error {
-	pld, err := cert_mgmt.NewPld(msg, nil)
-	if err != nil {
-		return err
-	}
-	return m.sendMessage(ctx, pld, a, id, infra.TRC)
-}
-
-func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
-	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
-
-	logger := log.FromCtx(ctx)
-	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, data)
-	if err != nil {
-		return nil, err
-	}
-	logger.Debug("[Messenger] Sending request", "req_type", infra.ChainRequest,
-		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.getFallbackRequester(infra.ChainRequest).Request(ctx, pld, a, false)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err,
-			"req_type", infra.ChainRequest)
-	}
-	_, replyMsg, err := Validate(replyCtrlPld)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
-	}
-	switch reply := replyMsg.(type) {
-	case *cert_mgmt.Chain:
-		logger.Debug("[Messenger] Received reply", "req_id", id, "reply", reply)
-		return reply, nil
-	case *ack.Ack:
-		return nil, &infra.Error{Message: reply}
-	default:
-		err := newTypeAssertErr("*cert_mgmt.Chain", replyMsg)
-		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
-	}
-}
-
-func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr,
-	id uint64) error {
-
-	pld, err := cert_mgmt.NewPld(msg, nil)
-	if err != nil {
-		return err
-	}
-	return m.sendMessage(ctx, pld, a, id, infra.Chain)
-}
-
 func (m *Messenger) SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id uint64) error {
 	return m.sendMessage(ctx, msg, a, id, infra.IfId)
-}
-
-func (m *Messenger) SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos,
-	a net.Addr, id uint64) error {
-
-	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, data)
-	if err != nil {
-		return err
-	}
-	// FIXME(scrye): Use only UDP because the BR doesn't support QUIC.
-	logger := log.FromCtx(ctx)
-	logger.Debug("[Messenger] Sending Notify", "type", infra.IfStateInfos,
-		"to", a, "id", id)
-	return m.getFallbackRequester(infra.SegReply).Notify(ctx, pld, a)
-}
-
-func (m *Messenger) SendRev(ctx context.Context, msg *path_mgmt.SignedRevInfo,
-	a net.Addr, id uint64) error {
-
-	pld, err := path_mgmt.NewPld(msg, nil)
-	if err != nil {
-		return err
-	}
-	return m.sendMessage(ctx, pld, a, id, infra.SignedRev)
-}
-
-func (m *Messenger) SendSegReg(ctx context.Context, msg *path_mgmt.SegReg,
-	a net.Addr, id uint64) error {
-
-	pld, err := path_mgmt.NewPld(msg, nil)
-	if err != nil {
-		return err
-	}
-	return m.sendMessage(ctx, pld, a, id, infra.SegReg)
-}
-
-func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
-	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
-
-	logger := log.FromCtx(ctx)
-	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, data)
-	if err != nil {
-		return nil, err
-	}
-	logger.Debug("[Messenger] Sending request", "req_type", infra.SegRequest,
-		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.getFallbackRequester(infra.SegRequest).Request(ctx, pld, a, false)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err,
-			"req_type", infra.SegRequest)
-	}
-	_, replyMsg, err := Validate(replyCtrlPld)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
-	}
-	switch reply := replyMsg.(type) {
-	case *path_mgmt.SegReply:
-		if err := reply.ParseRaw(); err != nil {
-			return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
-		}
-		logger.Debug("[Messenger] Received reply", "req_id", id)
-		return reply, nil
-	case *ack.Ack:
-		return nil, &infra.Error{Message: reply}
-	default:
-		err := newTypeAssertErr("*path_mgmt.SegReply", replyMsg)
-		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
-	}
-}
-
-func (m *Messenger) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply,
-	a net.Addr, id uint64) error {
-
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
-	if err != nil {
-		return err
-	}
-	logger := log.FromCtx(ctx)
-	logger.Debug("[Messenger] Sending Notify", "type", infra.SegReply, "to", a, "id", id)
-	return m.getFallbackRequester(infra.SegReply).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) SendHPSegReg(ctx context.Context, msg *path_mgmt.HPSegReg, a net.Addr,
@@ -509,88 +278,6 @@ func (m *Messenger) SendHPCfgReply(ctx context.Context, msg *path_mgmt.HPCfgRepl
 	return m.getFallbackRequester(infra.HPCfgReply).Notify(ctx, pld, a)
 }
 
-func (m *Messenger) RequestChainRenewal(ctx context.Context,
-	msg *cert_mgmt.ChainRenewalRequest, a net.Addr,
-	id uint64) (*cert_mgmt.ChainRenewalReply, error) {
-
-	logger := log.FromCtx(ctx)
-	data := &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)}
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, data)
-	if err != nil {
-		return nil, err
-	}
-	logger.Debug("[Messenger] Sending request", "req_type", infra.ChainRenewalRequest,
-		"msg_id", id, "request", msg, "peer", a)
-	replyCtrlPld, err := m.getFallbackRequester(infra.ChainRenewalRequest).Request(ctx,
-		pld, a, false)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err,
-			"req_type", infra.ChainRenewalRequest)
-	}
-	_, replyMsg, err := Validate(replyCtrlPld)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
-	}
-	switch reply := replyMsg.(type) {
-	case *cert_mgmt.ChainRenewalReply:
-		logger.Debug("[Messenger] Received reply", "req_id", id)
-		return reply, nil
-	case *ack.Ack:
-		return nil, &infra.Error{Message: reply}
-	default:
-		err := newTypeAssertErr("*cert_mgmt.ChainRenewalReply", replyMsg)
-		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
-	}
-}
-
-func (m *Messenger) SendChainRenewalReply(ctx context.Context, msg *cert_mgmt.ChainRenewalReply,
-	a net.Addr, id uint64) error {
-
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
-	if err != nil {
-		return err
-	}
-	logger := log.FromCtx(ctx)
-	logger.Debug("[Messenger] Sending Notify", "type", infra.ChainRenewalReply, "to", a, "id", id)
-	return m.getFallbackRequester(infra.ChainRenewalReply).Notify(ctx, pld, a)
-}
-
-func (m *Messenger) SendBeacon(ctx context.Context, msg *seg.Beacon, a net.Addr, id uint64) error {
-	logger := log.FromCtx(ctx)
-	switch a.(type) {
-	case *snet.UDPAddr:
-	case *snet.SVCAddr:
-		return common.NewBasicError("[Messenger] Cannot send to SVC address on QUIC-only RPC", nil,
-			"svc", a.(*snet.SVCAddr))
-	default:
-		return common.NewBasicError("[Messenger] Cannot send to unknown address", nil)
-	}
-
-	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id, TraceId: tracing.IDFromCtx(ctx)})
-	if err != nil {
-		return err
-	}
-	logger.Debug("[Messenger] Sending beacon", "req_type", infra.Seg,
-		"msg_id", id, "beacon", msg, "peer", a)
-
-	replyCtrlPld, err := m.getQUICRequester(m.getSigner(infra.Seg)).Request(ctx, pld, a)
-	if err != nil {
-		return common.NewBasicError("[Messenger] Beaconing error", err,
-			"req_type", infra.Seg)
-	}
-	_, replyMsg, err := Validate(replyCtrlPld)
-	if err != nil {
-		return common.NewBasicError("[Messenger] Reply validation failed", err)
-	}
-	switch replyMsg.(type) {
-	case *ack.Ack:
-		return nil
-	default:
-		err := newTypeAssertErr("*ack.Ack", replyMsg)
-		return common.NewBasicError("[Messenger] Type assertion failed", err)
-	}
-}
-
 // sendMessage sends payload msg of type expectedType to address a, using id.
 // If waiting for Acks is disabled, sendMessage returns immediately after
 // sending the message on the network. If waiting for Acks is enabled,
@@ -613,35 +300,15 @@ func (m *Messenger) sendMessage(ctx context.Context, msg proto.Cerealizable, a n
 // AddHandler registers a handler for msgType.
 func (m *Messenger) AddHandler(msgType infra.MessageType, handler infra.Handler) {
 	m.handlersLock.Lock()
+	defer m.handlersLock.Unlock()
 	m.handlers[msgType] = handler
-	if m.quicServer != nil {
-		m.quicHandler.Handle(msgType, handler)
-	}
-	m.handlersLock.Unlock()
 }
 
 // ListenAndServe starts listening and serving messages on srv's Messenger
 // interface. The function runs in the current goroutine. Multiple
 // ListenAndServe methods can run in parallel.
 func (m *Messenger) ListenAndServe() {
-	done := make(chan struct{})
-	if m.config.QUIC != nil {
-		go func() {
-			defer log.HandlePanic()
-			m.listenAndServeQUIC()
-			close(done)
-		}()
-	}
 	m.listenAndServeUDP()
-	<-done
-}
-
-func (m *Messenger) listenAndServeQUIC() {
-	log.Info("Started listening QUIC")
-	defer log.Info("Stopped listening QUIC")
-	if err := m.quicServer.ListenAndServe(); err != nil {
-		log.Error("QUIC server listen error", "err", err)
-	}
 }
 
 func (m *Messenger) listenAndServeUDP() {
@@ -678,10 +345,8 @@ func (m *Messenger) listenAndServeUDP() {
 		if !m.config.DisableSignatureVerification {
 			// FIXME(scrye): Always use default signature verifier here, as some
 			// functionality in the main ctrl libraries is still missing.
-			var ia addr.IA
-			switch v := address.(type) {
+			switch address.(type) {
 			case *snet.UDPAddr:
-				ia = v.IA
 			default:
 				metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrInvalidReq}).Inc()
 				log.Error("Type assertion failure", "from", address, "expected", "*snet.{,UDP}Addr",
@@ -690,8 +355,7 @@ func (m *Messenger) listenAndServeUDP() {
 				continue
 			}
 
-			verifier := m.verifier.WithIA(ia)
-			if pld, err = signedPld.GetVerifiedPld(serveCtx, verifier); err != nil {
+			if pld, err = signedPld.GetVerifiedPld(serveCtx, infra.NullSigVerifier); err != nil {
 				metrics.Dispatcher.Reads(metrics.ResultLabels{Result: metrics.ErrVerify}).Inc()
 				log.Error("Verification error", "from", address, "err", err)
 				serveCancelF()
@@ -788,37 +452,7 @@ func (m *Messenger) CloseServer() error {
 		close(m.closeChan)
 		m.cancelF()
 	}
-	if m.config.QUIC != nil {
-		return m.quicServer.Close()
-	}
 	return nil
-}
-
-// UpdateSigner enables signing of messages with signer. Only the messages in
-// types are signed, the rest are left with a null signature. If types is nil,
-// only the signer is updated and the existing internal list of types is
-// unchanged. An empty slice of types disables signing for all messages.
-func (m *Messenger) UpdateSigner(signer ctrl.Signer, types []infra.MessageType) {
-	m.cryptoLock.Lock()
-	defer m.cryptoLock.Unlock()
-	if types != nil {
-		m.signMask = make(map[infra.MessageType]struct{})
-		for _, t := range types {
-			m.signMask[t] = struct{}{}
-		}
-	}
-	m.signer = signer
-}
-
-// UpdateVerifier enables verifying of messages with verifier.
-//
-// FIXME(scrye): Verifiers are usually bound to a trust store to which the
-// messenger already holds a reference. We should decouple the trust store from
-// either one or the other.
-func (m *Messenger) UpdateVerifier(verifier infra.Verifier) {
-	m.cryptoLock.Lock()
-	defer m.cryptoLock.Unlock()
-	m.verifier = verifier
 }
 
 // getFallbackRequester returns a requester object with customized crypto keys.
@@ -829,33 +463,10 @@ func (m *Messenger) UpdateVerifier(verifier infra.Verifier) {
 // If message type reqT is to be signed, the key is initialized from m.signer.
 // Otherwise it is set to a null signer.
 func (m *Messenger) getFallbackRequester(reqT infra.MessageType) *pathingRequester {
-	signer := m.getSigner(reqT)
-	var quicRequester *QUICRequester
-	if m.config.QUIC != nil {
-		quicRequester = m.getQUICRequester(signer)
-	}
-	return &pathingRequester{
-		requester:       ctrl_msg.NewRequester(signer, m.verifier, m.dispatcher),
-		addressRewriter: m.addressRewriter,
-		quicRequester:   quicRequester,
-	}
-}
-
-func (m *Messenger) getSigner(reqT infra.MessageType) ctrl.Signer {
-	m.cryptoLock.RLock()
-	defer m.cryptoLock.RUnlock()
 	signer := infra.NullSigner
-	if _, ok := m.signMask[reqT]; ok {
-		signer = m.signer
-	}
-	return signer
-}
-
-func (m *Messenger) getQUICRequester(signer ctrl.Signer) *QUICRequester {
-	return &QUICRequester{
-		QUICClientConfig: m.quicClient,
-		AddressRewriter:  m.addressRewriter,
-		Signer:           signer,
+	return &pathingRequester{
+		requester:       ctrl_msg.NewRequester(signer, infra.NullSigVerifier, m.dispatcher),
+		addressRewriter: m.addressRewriter,
 	}
 }
 
@@ -869,21 +480,16 @@ func newTypeAssertErr(typeStr string, msg interface{}) error {
 type pathingRequester struct {
 	requester       *ctrl_msg.Requester
 	addressRewriter *AddressRewriter
-	quicRequester   *QUICRequester
 }
 
 func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
 	a net.Addr, downgradeToNotify bool) (*ctrl.Pld, error) {
 
-	newAddr, redirect, err := pr.addressRewriter.RedirectToQUIC(ctx, a)
+	newAddr, _, err := pr.addressRewriter.RedirectToQUIC(ctx, a)
 	if err != nil {
 		return nil, err
 	}
 	logger := log.FromCtx(ctx)
-	if redirect && pr.quicRequester != nil {
-		logger.Debug("Request upgraded to QUIC", "remote", newAddr)
-		return pr.quicRequester.Request(ctx, pld, newAddr)
-	}
 	logger.Debug("Request could not be upgraded to QUIC, using UDP", "remote", newAddr)
 	if downgradeToNotify {
 		return nil, pr.requester.Notify(ctx, pld, newAddr)
@@ -908,51 +514,6 @@ func (pr *pathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld,
 	return pr.requester.NotifyUnreliable(ctx, pld, newAddr)
 }
 
-type QUICRequester struct {
-	QUICClientConfig *rpc.Client
-	AddressRewriter  *AddressRewriter
-	Signer           ctrl.Signer
-}
-
-func (r *QUICRequester) Request(ctx context.Context, pld *ctrl.Pld,
-	a net.Addr) (*ctrl.Pld, error) {
-
-	// FIXME(scrye): Rely on QUIC for security for now. This needs to do
-	// additional verifications in the future.
-	newAddr, _, err := r.AddressRewriter.RedirectToQUIC(ctx, a)
-	if err != nil {
-		return nil, err
-	}
-
-	signedPld, err := pld.SignedPld(ctx, r.Signer)
-	if err != nil {
-		return nil, err
-	}
-
-	msg, err := SignedPldToMsg(signedPld)
-	if err != nil {
-		return nil, err
-	}
-
-	request := &rpc.Request{Message: msg}
-	reply, err := r.QUICClientConfig.Request(ctx, request, newAddr)
-	log.FromCtx(ctx).Debug("QUICRequester", "err", err)
-	if err != nil {
-		return nil, err
-	}
-
-	replySignedPld, err := MsgToSignedPld(reply.Message)
-	if err != nil {
-		return nil, err
-	}
-
-	replyPld, err := replySignedPld.UnsafePld()
-	if err != nil {
-		return nil, err
-	}
-	return replyPld, nil
-}
-
 // Validate checks that msg is one of the acceptable message types for SCION
 // infra communication (listed in package level documentation), and returns the
 // message type, the message (the inner proto.Cerealizable object), and an
@@ -961,24 +522,10 @@ func Validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
 	// XXX(scrye): For now, only the messages in the top comment of this
 	// package are supported.
 	switch pld.Which {
-	case proto.CtrlPld_Which_pcb:
-		return infra.Seg, pld.Beacon.Segment, nil
 	case proto.CtrlPld_Which_ifid:
 		return infra.IfId, pld.IfID, nil
 	case proto.CtrlPld_Which_certMgmt:
 		switch pld.CertMgmt.Which {
-		case proto.CertMgmt_Which_certChainReq:
-			return infra.ChainRequest, pld.CertMgmt.ChainReq, nil
-		case proto.CertMgmt_Which_certChain:
-			return infra.Chain, pld.CertMgmt.ChainRep, nil
-		case proto.CertMgmt_Which_trcReq:
-			return infra.TRCRequest, pld.CertMgmt.TRCReq, nil
-		case proto.CertMgmt_Which_trc:
-			return infra.TRC, pld.CertMgmt.TRCRep, nil
-		case proto.CertMgmt_Which_certChainRenewalRequest:
-			return infra.ChainRenewalRequest, pld.CertMgmt.ChainRenewalRequest, nil
-		case proto.CertMgmt_Which_certChainRenewalReply:
-			return infra.ChainRenewalReply, pld.CertMgmt.ChainRenewalReply, nil
 		default:
 			return infra.None, nil,
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.CertMgmt.Xxx message type",
@@ -986,18 +533,6 @@ func Validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
 		}
 	case proto.CtrlPld_Which_pathMgmt:
 		switch pld.PathMgmt.Which {
-		case proto.PathMgmt_Which_segReq:
-			return infra.SegRequest, pld.PathMgmt.SegReq, nil
-		case proto.PathMgmt_Which_segReply:
-			return infra.SegReply, pld.PathMgmt.SegReply, nil
-		case proto.PathMgmt_Which_segReg:
-			return infra.SegReg, pld.PathMgmt.SegReg, nil
-		case proto.PathMgmt_Which_sRevInfo:
-			return infra.SignedRev, pld.PathMgmt.SRevInfo, nil
-		case proto.PathMgmt_Which_ifStateReq:
-			return infra.IfStateReq, pld.PathMgmt.IFStateReq, nil
-		case proto.PathMgmt_Which_ifStateInfos:
-			return infra.IfStateInfos, pld.PathMgmt.IFStateInfos, nil
 		case proto.PathMgmt_Which_hpSegReq:
 			return infra.HPSegRequest, pld.PathMgmt.HPSegReq, nil
 		case proto.PathMgmt_Which_hpSegReply:

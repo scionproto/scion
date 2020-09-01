@@ -32,7 +32,9 @@ func br_multi() int {
 	failures += shortcut_peer_to_child()
 	failures += shortcut_child_to_child()
 
-	failures += revocation_parent_to_child()
+	// XXX revocation tests are disabled they would need gRPC support. But since
+	// they go away with header v2 we no longer add them.
+	// failures += revocation_parent_to_child()
 
 	scmpCfg := scmpTestCfg{
 		DstIA:          xtest.MustParseIA("2-ff00:0:3"),
@@ -69,7 +71,9 @@ func br_peer() int {
 	failures += shortcut_peer_to_internal_child()
 	failures += shortcut_internal_child_to_peer()
 
-	failures += revocation_owned_peer()
+	// XXX revocation tests are disabled they would need gRPC support. But since
+	// they go away with header v2 we no longer add them.
+	// failures += revocation_owned_peer()
 
 	return failures
 }
@@ -88,7 +92,9 @@ func br_child() int {
 	failures += shortcut_child_to_internal_child()
 	failures += shortcut_internal_child_to_child()
 
-	failures += revocation_child_to_internal_host()
+	// XXX revocation tests are disabled they would need gRPC support. But since
+	// they go away with header v2 we no longer add them.
+	// failures += revocation_child_to_internal_host()
 
 	return failures
 }
@@ -108,9 +114,11 @@ func br_parent() int {
 	failures += svc_multicast_parent_to_internal_host()
 	failures += svc_multicast_same_host_parent_to_internal_host()
 
-	failures += revocation_owned_parent()
-	failures += revocation_not_owned_child_link()
-	failures += revocation_expired_not_owned_child_link()
+	// XXX revocation tests are disabled they would need gRPC support. But since
+	// they go away with header v2 we no longer add them.
+	// failures += revocation_owned_parent()
+	// failures += revocation_not_owned_child_link()
+	// failures += revocation_expired_not_owned_child_link()
 
 	failures += ohp_parent_to_internal_bs()
 	failures += ohp_udp_parent_to_internal_bs()

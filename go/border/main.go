@@ -26,6 +26,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/user"
+	"sort"
 
 	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/ifstate"
@@ -71,10 +72,11 @@ func realMain() int {
 
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
-		"info":     service.NewInfoHandler(),
-		"config":   service.NewConfigHandler(cfg),
-		"status":   statusHandler,
-		"topology": itopo.TopologyHandler,
+		"info":      service.NewInfoHandler(),
+		"config":    service.NewConfigHandler(cfg),
+		"status":    statusHandler,
+		"topology":  itopo.TopologyHandler,
+		"log/level": log.ConsoleLevel.ServeHTTP,
 	}
 	if err := statusPages.Register(http.DefaultServeMux, cfg.General.ID); err != nil {
 		log.Error("registering status pages", "err", err)
@@ -111,11 +113,11 @@ func realMain() int {
 
 func setupBasic() error {
 	if err := libconfig.LoadFile(env.ConfigFile(), &cfg); err != nil {
-		return serrors.WrapStr("Failed to load config", err, "file", env.ConfigFile())
+		return serrors.WrapStr("failed to load config", err, "file", env.ConfigFile())
 	}
 	cfg.InitDefaults()
 	if err := log.Setup(cfg.Logging); err != nil {
-		return serrors.WrapStr("Failed to initialize logging", err)
+		return serrors.WrapStr("failed to initialize logging", err)
 	}
 	prom.ExportElementID(cfg.General.ID)
 	return env.LogAppStarted(common.BR, cfg.General.ID)
@@ -144,7 +146,7 @@ func checkPerms() error {
 	if err != nil {
 		return common.NewBasicError("Error retrieving user", err)
 	}
-	if u.Uid == "0" {
+	if u.Uid == "0" && !cfg.Features.AllowRunAsRoot {
 		return serrors.New("Running as root is not allowed for security reasons")
 	}
 	return nil
@@ -153,6 +155,9 @@ func checkPerms() error {
 func statusHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	states := ifstate.LoadStates()
+	sort.Slice(states, func(i, j int) bool {
+		return states[i].IfID < states[j].IfID
+	})
 	out := "Interfaces:\n"
 	for _, state := range states {
 		status := "active"

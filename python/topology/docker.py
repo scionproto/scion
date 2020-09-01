@@ -29,6 +29,7 @@ from python.topology.common import (
     docker_host,
     docker_image,
     DOCKER_USR_VOL,
+    FEATURE_HEADER_V2,
     sciond_svc_name
 )
 from python.topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
@@ -139,8 +140,11 @@ class DockerGenerator(object):
     def _br_conf(self, topo_id, topo, base):
         for k, _ in topo.get("border_routers", {}).items():
             disp_id = k
+            image = docker_image(self.args, 'border')
+            if FEATURE_HEADER_V2 in self.args.features:
+                image = docker_image(self.args, 'border-router')
             entry = {
-                'image': docker_image(self.args, 'border'),
+                'image': image,
                 'container_name': self.prefix + k,
                 'depends_on': [
                     'scion_disp_%s' % disp_id,
@@ -148,7 +152,7 @@ class DockerGenerator(object):
                 'environment': {
                     'SU_EXEC_USERSPEC': self.user_spec,
                 },
-                'networks': {},
+                'network_mode': 'service:scion_disp_%s' % disp_id,
                 'volumes': [
                     *DOCKER_USR_VOL,
                     self._disp_vol(disp_id),
@@ -156,22 +160,6 @@ class DockerGenerator(object):
                 ],
                 'command': []
             }
-
-            # Set BR IPs
-            in_net = self.elem_networks[k + "_internal"][0]
-            ipv = 'ipv4'
-            if ipv not in in_net:
-                ipv = 'ipv6'
-            entry['networks'][self.bridges[in_net['net']]] = {
-                '%s_address' % ipv: str(in_net[ipv])
-            }
-            for net in self.elem_networks[k]:
-                ipv = 'ipv4'
-                if ipv not in net:
-                    ipv = 'ipv6'
-                entry['networks'][self.bridges[net['net']]] = {
-                    '%s_address' % ipv: str(net[ipv])
-                }
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _control_service_conf(self, topo_id, topo, base):
@@ -213,7 +201,15 @@ class DockerGenerator(object):
             entry = copy.deepcopy(base_entry)
             net_key = disp_id
             if disp_id.startswith('br'):
-                net_key += '_ctrl'
+                net_key = disp_id + '_ctrl'
+                # add data networks:
+                for net in self.elem_networks[disp_id]:
+                    ipv = 'ipv4'
+                    if ipv not in net:
+                        ipv = 'ipv6'
+                    entry['networks'][self.bridges[net['net']]] = {
+                        '%s_address' % ipv: str(net[ipv])
+                    }
             net = self.elem_networks[net_key][0]
             ipv = 'ipv4'
             if ipv not in net:

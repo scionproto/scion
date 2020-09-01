@@ -50,7 +50,7 @@ func TestQuery(t *testing.T) {
 	defer ctrl.Finish()
 
 	sd := mock_sciond.NewMockConnector(ctrl)
-	pm := pathmgr.New(sd, pathmgr.Timers{}, 5)
+	pm := pathmgr.New(sd, pathmgr.Timers{})
 
 	srcIA, dstIA := xtest.MustParseIA("1-ff00:0:133"), xtest.MustParseIA("1-ff00:0:131")
 
@@ -87,7 +87,7 @@ func TestQueryFilter(t *testing.T) {
 	defer ctrl.Finish()
 
 	sd := mock_sciond.NewMockConnector(ctrl)
-	pm := pathmgr.New(sd, pathmgr.Timers{}, 5)
+	pm := pathmgr.New(sd, pathmgr.Timers{})
 
 	srcIA := xtest.MustParseIA("1-ff00:0:133")
 	dstIA := xtest.MustParseIA("1-ff00:0:131")
@@ -153,7 +153,7 @@ func TestWatchCount(t *testing.T) {
 	defer ctrl.Finish()
 
 	sd := mock_sciond.NewMockConnector(ctrl)
-	pr := pathmgr.New(sd, pathmgr.Timers{}, 5)
+	pr := pathmgr.New(sd, pathmgr.Timers{})
 
 	src := xtest.MustParseIA("1-ff00:0:111")
 	dst := xtest.MustParseIA("1-ff00:0:110")
@@ -175,7 +175,7 @@ func TestWatchPolling(t *testing.T) {
 	defer ctrl.Finish()
 
 	sd := mock_sciond.NewMockConnector(ctrl)
-	pr := pathmgr.New(sd, pathmgr.Timers{ErrorRefire: getDuration(1)}, 5)
+	pr := pathmgr.New(sd, pathmgr.Timers{ErrorRefire: getDuration(1)})
 
 	src := xtest.MustParseIA("1-ff00:0:111")
 	dst := xtest.MustParseIA("1-ff00:0:110")
@@ -201,7 +201,7 @@ func TestWatchFilter(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	sd := mock_sciond.NewMockConnector(ctrl)
-	pr := pathmgr.New(sd, pathmgr.Timers{ErrorRefire: getDuration(1)}, 5)
+	pr := pathmgr.New(sd, pathmgr.Timers{ErrorRefire: getDuration(1)})
 
 	src := xtest.MustParseIA("1-ff00:0:111")
 	dst := xtest.MustParseIA("1-ff00:0:110")
@@ -256,7 +256,7 @@ func TestRevokeFastRecovery(t *testing.T) {
 	pr := pathmgr.New(sd, pathmgr.Timers{
 		NormalRefire: getDuration(100),
 		ErrorRefire:  getDuration(1),
-	}, 5)
+	})
 
 	sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any()).Return(
 		buildSDAnswer(t, ctrl,
@@ -275,7 +275,7 @@ func TestRevokeFastRecovery(t *testing.T) {
 	// call(s)" error message
 	gomock.InOrder(
 		sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
-			&sciond.RevReply{Result: sciond.RevValid}, nil,
+			nil,
 		),
 		sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any()).MinTimes(2),
 	)
@@ -298,23 +298,14 @@ func TestRevoke(t *testing.T) {
 
 	tests := map[string]struct {
 		Paths         []string
-		RevReply      *sciond.RevReply
 		RevReplyError error
 		Revocation    *path_mgmt.SignedRevInfo
 		Remaining     int
 	}{
 		"retrieves one path, revokes an IFID that matches the path": {
 			Paths:      paths[:1],
-			RevReply:   &sciond.RevReply{Result: sciond.RevValid},
 			Revocation: NewTestRev(t, xtest.MustParseIA("1-ff00:0:130"), 1002),
 			Remaining:  0,
-		},
-
-		"retrieves one path, revokes an IFID that does not match the path": {
-			Paths:      paths[:1],
-			RevReply:   &sciond.RevReply{Result: sciond.RevValid},
-			Revocation: NewTestRev(t, xtest.MustParseIA("2-ff00:0:1"), 1),
-			Remaining:  1,
 		},
 		"tries to revoke an IFID, but SCIOND encounters an error": {
 			Paths:         paths[:1],
@@ -322,36 +313,12 @@ func TestRevoke(t *testing.T) {
 			Revocation:    NewTestRev(t, xtest.MustParseIA("1-ff00:0:130"), 1002),
 			Remaining:     1,
 		},
-		"tries to revoke an IFID, but the revocation is invalid": {
-			Paths:      paths[:1],
-			RevReply:   &sciond.RevReply{Result: sciond.RevInvalid},
-			Revocation: NewTestRev(t, xtest.MustParseIA("1-ff00:0:130"), 1002),
-			Remaining:  1,
-		},
-		"tries to revoke an IFID, but the revocation is stale": {
-			Paths:      paths[:1],
-			RevReply:   &sciond.RevReply{Result: sciond.RevStale},
-			Revocation: NewTestRev(t, xtest.MustParseIA("1-ff00:0:130"), 1002),
-			Remaining:  1,
-		},
-		"tries to revoke an IFID, but the revocation is unknown": {
-			Paths:      paths[:1],
-			RevReply:   &sciond.RevReply{Result: sciond.RevUnknown},
-			Revocation: NewTestRev(t, xtest.MustParseIA("1-ff00:0:130"), 1002),
-			Remaining:  0,
-		},
-		"retrieves two paths, revokes an IFID that matches one path": {
-			Paths:      paths,
-			RevReply:   &sciond.RevReply{Result: sciond.RevValid},
-			Revocation: NewTestRev(t, xtest.MustParseIA("1-ff00:0:130"), 1002),
-			Remaining:  1,
-		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			sd := mock_sciond.NewMockConnector(ctrl)
-			pr := pathmgr.New(sd, pathmgr.Timers{}, 5)
+			pr := pathmgr.New(sd, pathmgr.Timers{})
 
 			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any()).Return(
 				buildSDAnswer(t, ctrl, test.Paths...), nil,
@@ -360,7 +327,7 @@ func TestRevoke(t *testing.T) {
 			sp, err := pr.Watch(context.Background(), src, dst)
 			require.NoError(t, err)
 			sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
-				test.RevReply, test.RevReplyError,
+				test.RevReplyError,
 			)
 			pr.Revoke(context.Background(), test.Revocation)
 			assert.Len(t, sp.Load().APS, test.Remaining)

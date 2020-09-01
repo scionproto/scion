@@ -93,6 +93,7 @@ class GoGenerator(object):
             'metrics': {
                 'prometheus': prom_addr(v['internal_addr'], DEFAULT_BR_PROM_PORT),
             },
+            'features': self.args.features,
         }
         return raw_entry
 
@@ -130,6 +131,7 @@ class GoGenerator(object):
             'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(infra_elem, CS_PROM_PORT),
             'quic': self._quic_conf_entry(CS_QUIC_PORT, self.args.svcfrac, infra_elem),
+            'features': self.args.features,
         }
         if ca:
             raw_entry['renewal_db'] = {
@@ -169,6 +171,7 @@ class GoGenerator(object):
             'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(infra_elem, CO_PROM_PORT),
             'quic': self._quic_conf_entry(CO_QUIC_PORT, self.args.svcfrac, infra_elem),
+            'features': self.args.features,
         }
         return raw_entry
 
@@ -256,7 +259,8 @@ class GoGenerator(object):
             'tracing': self._tracing_entry(),
             'metrics': {
                 'prometheus': socket_address_str(ip, SCIOND_PROM_PORT)
-            }
+            },
+            'features': self.args.features,
         }
         return raw_entry
 
@@ -291,6 +295,7 @@ class GoGenerator(object):
             'metrics': {
                 'prometheus': prometheus_addr,
             },
+            'features': self.args.features,
         }
 
     def _tracing_entry(self):

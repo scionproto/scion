@@ -83,15 +83,18 @@ func (p *Pather) buildAllPaths(src, dst addr.IA, segs Segments) []*combinator.Pa
 	up, core, down := categorizeSegs(segs)
 	destinations := p.findDestinations(dst, up, core)
 	var paths []*combinator.Path
+	combine := combinator.Combine
+	if p.HeaderV2 {
+		combine = combinator.CombineV2
+	}
 	for dst := range destinations {
-		paths = append(paths, combinator.Combine(src, dst, up, core, down)...)
+		paths = append(paths, combine(src, dst, up, core, down)...)
 	}
 	// Filter expired paths
 	now := time.Now()
 	var validPaths []*combinator.Path
 	for _, path := range paths {
 		if path.ComputeExpTime().After(now) {
-			path.HeaderV2 = p.HeaderV2
 			validPaths = append(validPaths, path)
 		}
 	}

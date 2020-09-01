@@ -10,7 +10,7 @@ cmd_topo_clean() {
     set -e
     if is_docker_be; then
         echo "Shutting down dockerized topology..."
-        ./tools/quiet ./tools/dc down
+        ./tools/quiet ./tools/dc down || true
     else
         echo "Shutting down: $(./scion.sh stop)"
     fi
@@ -268,6 +268,7 @@ cmd_lint() {
     py_lint || ret=1
     go_lint || ret=1
     bazel_lint || ret=1
+    protobuf_lint || ret=1
     md_lint || ret=1
     return $ret
 }
@@ -291,6 +292,7 @@ go_lint() {
     local LOCAL_DIRS="$(find go/* -maxdepth 0 -type d | grep -v vendor)"
     # Find go files to lint, excluding generated code. For linelen and misspell.
     find go acceptance -type f -iname '*.go' \
+      -a '!' -ipath '*.pb.go' \
       -a '!' -ipath 'go/proto/structs.gen.go' \
       -a '!' -ipath 'go/proto/*.capnp.go' \
       -a '!' -ipath '*mock_*' \
@@ -305,7 +307,7 @@ go_lint() {
         --skip 'mock_' \
         --skip 'go/proto/.*\.capnp\.go' \
         --skip 'go/proto/structs.gen.go' \
-        --skip 'go/protobuf/.*\.pb\.go' \
+        --skip '.*\.pb\.go' \
         ./go/... || ret=1
     $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal ./acceptance/... || ret=1
     lint_step "gofmt"
@@ -327,6 +329,17 @@ go_lint() {
     # Clean up the binaries
     rm -rf $TMPDIR
     return $ret
+}
+
+protobuf_lint() {
+    lint_header "protobuf"
+    local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
+    lint_step "Building lint tools"
+    bazel build //:lint || return 1
+    tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
+    local ret=0
+    lint_step "check files"
+    $TMPDIR/buf check lint || return 1
 }
 
 bazel_lint() {

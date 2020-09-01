@@ -48,7 +48,7 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
 	isSCMPErr := errors.As(perr, &serr)
 	if !isSCMPErr || serr.CT.Class != scmp.C_Routing || serr.CT.Type != scmp.T_R_BadHost ||
 		!errors.Is(perr, addr.ErrUnsupportedSVCAddress) {
-		rp.Error(desc, "err", perr)
+		rp.Debug(desc, "err", perr)
 	}
 	rp.RefInc(1)
 	args := pktErrorArgs{rp: rp, perr: perr}

@@ -50,12 +50,12 @@ func (l RegistrationLabels) Values() []string {
 // following:
 // ps_registrations_total (total number of registrations)
 type Registration struct {
-	regsTotal *prometheus.CounterVec
+	Registrations *prometheus.CounterVec
 }
 
 func newRegistration() Registration {
 	return Registration{
-		regsTotal: prom.NewCounterVecWithLabels(PSNamespace, "", "registrations_total",
+		Registrations: prom.NewCounterVecWithLabels(PSNamespace, "", "registrations_total",
 			fmt.Sprintf("Number of path registrations. \"result\" can be one of: [%s]",
 				strings.Join(regResults, ",")),
 			RegistrationLabels{}),
@@ -64,5 +64,5 @@ func newRegistration() Registration {
 
 // ResultsTotal returns the counter for ResultsTotal for the given counter.
 func (r Registration) ResultsTotal(l RegistrationLabels) prometheus.Counter {
-	return r.regsTotal.WithLabelValues(l.Values()...)
+	return r.Registrations.WithLabelValues(l.Values()...)
 }

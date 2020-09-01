@@ -15,6 +15,7 @@
 package trust
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/rand"
@@ -82,4 +83,13 @@ func (s Signer) Sign(ctx context.Context, msg []byte) (*proto.SignS, error) {
 	}
 	metrics.Signer.Sign(l.WithResult(metrics.Success)).Inc()
 	return meta, nil
+}
+
+func (s Signer) Equal(o Signer) bool {
+	return s.IA.Equal(o.IA) &&
+		bytes.Equal(s.SubjectKeyID, o.SubjectKeyID) &&
+		s.Expiration.Equal(o.Expiration) &&
+		s.TRCID == o.TRCID &&
+		s.ChainValidity == o.ChainValidity &&
+		s.InGrace == o.InGrace
 }

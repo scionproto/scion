@@ -44,7 +44,6 @@ func TestReplyHandlerEmptyReply(t *testing.T) {
 	defer cancelF()
 
 	segs := seghandler.Segments{}
-	earlyTrigger := make(chan struct{})
 	verified := make(chan segverifier.UnitResult)
 	close(verified)
 
@@ -57,9 +56,7 @@ func TestReplyHandlerEmptyReply(t *testing.T) {
 		Verifier: verifier,
 	}
 
-	r := handler.Handle(ctx, segs, server, earlyTrigger)
-	AssertRead(t, r.EarlyTriggerProcessed(), 0, time.Second/2)
-	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
+	r := handler.Handle(ctx, segs, server)
 	assert.NoError(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
 	stats := r.Stats()
@@ -79,8 +76,7 @@ func TestHandleAllVerificationsFail(t *testing.T) {
 	defer cancelF()
 
 	segs := seghandler.Segments{}
-	earlyTrigger := make(chan struct{})
-	verified := make(chan segverifier.UnitResult)
+	verified := make(chan segverifier.UnitResult, 3)
 
 	verifyErrs := []error{
 		serrors.WrapStr("test err 1", segverifier.ErrSegment),
@@ -98,16 +94,12 @@ func TestHandleAllVerificationsFail(t *testing.T) {
 		Storage:  storage,
 		Verifier: verifier,
 	}
-	r := handler.Handle(ctx, segs, nil, earlyTrigger)
 	verified <- segverifier.UnitResult{
 		Unit: &segverifier.Unit{
 			SegMeta: &seg.Meta{},
 		},
 		Errors: map[int]error{-1: verifyErrs[0]},
 	}
-	close(earlyTrigger)
-	AssertRead(t, r.EarlyTriggerProcessed(), 0, time.Second/2)
-	AssertChanEmpty(t, r.FullReplyProcessed())
 	verified <- segverifier.UnitResult{
 		Unit: &segverifier.Unit{
 			SegMeta: &seg.Meta{},
@@ -121,7 +113,7 @@ func TestHandleAllVerificationsFail(t *testing.T) {
 		},
 		Errors: map[int]error{-1: verifyErrs[2], 0: verifyErrs[3]},
 	}
-	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
+	r := handler.Handle(ctx, segs, nil)
 	assert.Error(t, r.Err())
 	assert.Len(t, r.VerificationErrors(), len(verifyErrs))
 	stats := r.Stats()
@@ -152,8 +144,7 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 	rev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{}, infra.NullSigner)
 	xtest.FailOnErr(t, err)
 	segs := seghandler.Segments{}
-	earlyTrigger := make(chan struct{})
-	verified := make(chan segverifier.UnitResult)
+	verified := make(chan segverifier.UnitResult, 3)
 
 	storage := mock_seghandler.NewMockStorage(ctrl)
 	verifier := mock_seghandler.NewMockVerifier(ctrl)
@@ -162,24 +153,17 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 		Storage:  storage,
 		Verifier: verifier,
 	}
-	seg1Store := storage.EXPECT().StoreSegs(gomock.Any(),
-		gomock.Eq([]*seghandler.SegWithHP{seg1})).
-		Return(seghandler.SegStats{InsertedSegs: []string{"seg1"}}, nil)
 	storage.EXPECT().StoreSegs(gomock.Any(),
-		gomock.Eq([]*seghandler.SegWithHP{seg2, seg3})).
-		Return(seghandler.SegStats{InsertedSegs: []string{"seg2", "seg3"}}, nil).
-		After(seg1Store)
+		gomock.Eq([]*seghandler.SegWithHP{seg1, seg2, seg3})).
+		Return(seghandler.SegStats{InsertedSegs: []string{"seg1", "seg2", "seg3"}}, nil)
 	storage.EXPECT().StoreRevs(gomock.Any(),
-		gomock.Eq([]*path_mgmt.SignedRevInfo{rev1})).After(seg1Store)
+		gomock.Eq([]*path_mgmt.SignedRevInfo{rev1}))
 
-	r := handler.Handle(ctx, segs, nil, earlyTrigger)
 	verified <- segverifier.UnitResult{
 		Unit: &segverifier.Unit{
 			SegMeta: seg1.Seg,
 		},
 	}
-	close(earlyTrigger)
-	AssertRead(t, r.EarlyTriggerProcessed(), 1, time.Second/2)
 	verified <- segverifier.UnitResult{
 		Unit: &segverifier.Unit{
 			SegMeta: seg2.Seg,
@@ -191,130 +175,12 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 			SRevInfos: []*path_mgmt.SignedRevInfo{rev1},
 		},
 	}
-	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
+	r := handler.Handle(ctx, segs, nil)
 	assert.NoError(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
 	stats := r.Stats()
 	assert.Equal(t, 3, len(stats.VerifiedSegs))
 	assert.Equal(t, 3, stats.SegsInserted())
-	assert.Zero(t, stats.SegsUpdated())
-	expectedRevs := []*path_mgmt.SignedRevInfo{rev1}
-	assert.ElementsMatch(t, expectedRevs, stats.VerifiedRevs)
-	assert.ElementsMatch(t, expectedRevs, stats.StoredRevs)
-}
-
-func TestReplyHandlerAllVerifiedInEarlyInterval(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	ctx, cancelF := context.WithTimeout(context.Background(), TestTimeout)
-	defer cancelF()
-
-	seg1 := &seghandler.SegWithHP{
-		Seg: &seg.Meta{Type: proto.PathSegType_down},
-	}
-	seg2 := &seghandler.SegWithHP{
-		Seg: &seg.Meta{Type: proto.PathSegType_up},
-	}
-	rev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{}, infra.NullSigner)
-	xtest.FailOnErr(t, err)
-	segs := seghandler.Segments{}
-	earlyTrigger := make(chan struct{})
-	verified := make(chan segverifier.UnitResult)
-
-	storage := mock_seghandler.NewMockStorage(ctrl)
-	verifier := mock_seghandler.NewMockVerifier(ctrl)
-	verifier.EXPECT().Verify(ctx, segs, gomock.Any()).Return(verified, 2)
-	handler := seghandler.Handler{
-		Storage:  storage,
-		Verifier: verifier,
-	}
-	storage.EXPECT().StoreSegs(gomock.Any(),
-		gomock.Eq([]*seghandler.SegWithHP{seg1, seg2})).
-		Return(seghandler.SegStats{InsertedSegs: []string{"seg1", "seg2"}}, nil)
-	storage.EXPECT().StoreRevs(gomock.Any(),
-		gomock.Eq([]*path_mgmt.SignedRevInfo{rev1}))
-
-	r := handler.Handle(ctx, segs, nil, earlyTrigger)
-	verified <- segverifier.UnitResult{
-		Unit: &segverifier.Unit{
-			SegMeta: seg1.Seg,
-		},
-	}
-	verified <- segverifier.UnitResult{
-		Unit: &segverifier.Unit{
-			SegMeta:   seg2.Seg,
-			SRevInfos: []*path_mgmt.SignedRevInfo{rev1},
-		},
-	}
-	AssertRead(t, r.EarlyTriggerProcessed(), 2, time.Second/2)
-	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
-	assert.NoError(t, r.Err())
-	assert.Nil(t, r.VerificationErrors())
-	stats := r.Stats()
-	assert.Equal(t, 2, len(stats.VerifiedSegs))
-	assert.Equal(t, 2, stats.SegsInserted())
-	assert.Zero(t, stats.SegsUpdated())
-	expectedRevs := []*path_mgmt.SignedRevInfo{rev1}
-	assert.ElementsMatch(t, expectedRevs, stats.VerifiedRevs)
-	assert.ElementsMatch(t, expectedRevs, stats.StoredRevs)
-}
-
-func TestReplyHandlerEarlyTriggerStorageError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	ctx, cancelF := context.WithTimeout(context.Background(), TestTimeout)
-	defer cancelF()
-
-	seg1 := &seghandler.SegWithHP{
-		Seg: &seg.Meta{Type: proto.PathSegType_down},
-	}
-	seg2 := &seghandler.SegWithHP{
-		Seg: &seg.Meta{Type: proto.PathSegType_up},
-	}
-	rev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{}, infra.NullSigner)
-	xtest.FailOnErr(t, err)
-	segs := seghandler.Segments{}
-	earlyTrigger := make(chan struct{})
-	verified := make(chan segverifier.UnitResult)
-
-	storage := mock_seghandler.NewMockStorage(ctrl)
-	verifier := mock_seghandler.NewMockVerifier(ctrl)
-	verifier.EXPECT().Verify(ctx, segs, gomock.Any()).Return(verified, 2)
-	handler := seghandler.Handler{
-		Storage:  storage,
-		Verifier: verifier,
-	}
-	seg1Store := storage.EXPECT().StoreSegs(gomock.Any(),
-		gomock.Eq([]*seghandler.SegWithHP{seg1})).
-		Return(seghandler.SegStats{}, serrors.New("Test error"))
-	storage.EXPECT().StoreSegs(gomock.Any(),
-		gomock.Eq([]*seghandler.SegWithHP{seg1, seg2})).
-		Return(seghandler.SegStats{InsertedSegs: []string{"seg1", "seg2"}}, nil).
-		After(seg1Store)
-	storage.EXPECT().StoreRevs(gomock.Any(),
-		gomock.Eq([]*path_mgmt.SignedRevInfo{rev1}))
-
-	r := handler.Handle(ctx, segs, nil, earlyTrigger)
-	verified <- segverifier.UnitResult{
-		Unit: &segverifier.Unit{
-			SegMeta: seg1.Seg,
-		},
-	}
-	close(earlyTrigger)
-	AssertRead(t, r.EarlyTriggerProcessed(), 0, time.Second/2)
-	verified <- segverifier.UnitResult{
-		Unit: &segverifier.Unit{
-			SegMeta:   seg2.Seg,
-			SRevInfos: []*path_mgmt.SignedRevInfo{rev1},
-		},
-	}
-	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
-	assert.NoError(t, r.Err())
-	assert.Nil(t, r.VerificationErrors())
-
-	stats := r.Stats()
-	assert.Equal(t, 2, len(stats.VerifiedSegs))
-	assert.Equal(t, 2, stats.SegsInserted())
 	assert.Zero(t, stats.SegsUpdated())
 	expectedRevs := []*path_mgmt.SignedRevInfo{rev1}
 	assert.ElementsMatch(t, expectedRevs, stats.VerifiedRevs)
@@ -334,8 +200,7 @@ func TestReplyHandlerStorageError(t *testing.T) {
 		Seg: &seg.Meta{Type: proto.PathSegType_up},
 	}
 	segs := seghandler.Segments{}
-	earlyTrigger := make(chan struct{})
-	verified := make(chan segverifier.UnitResult)
+	verified := make(chan segverifier.UnitResult, 2)
 
 	storage := mock_seghandler.NewMockStorage(ctrl)
 	verifier := mock_seghandler.NewMockVerifier(ctrl)
@@ -349,9 +214,6 @@ func TestReplyHandlerStorageError(t *testing.T) {
 		gomock.Eq([]*seghandler.SegWithHP{seg1, seg2})).
 		Return(seghandler.SegStats{}, storageErr)
 
-	close(earlyTrigger)
-	r := handler.Handle(ctx, segs, nil, earlyTrigger)
-	AssertRead(t, r.EarlyTriggerProcessed(), 0, time.Second/2)
 	verified <- segverifier.UnitResult{
 		Unit: &segverifier.Unit{
 			SegMeta: seg1.Seg,
@@ -362,7 +224,7 @@ func TestReplyHandlerStorageError(t *testing.T) {
 			SegMeta: seg2.Seg,
 		},
 	}
-	xtest.AssertReadReturnsBefore(t, r.FullReplyProcessed(), time.Second/2)
+	r := handler.Handle(ctx, segs, nil)
 	assert.Error(t, r.Err())
 	assert.Nil(t, r.VerificationErrors())
 	stats := r.Stats()

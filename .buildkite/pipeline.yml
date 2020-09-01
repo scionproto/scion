@@ -37,6 +37,10 @@ steps:
       - cp -R go/proto/ /tmp/test-artifacts/
       - make gogen
       - diff -ur /tmp/test-artifacts/proto/ go/proto/
+      - rm -r /tmp/test-artifacts/proto/
+      - cp -R go/pkg/proto/ /tmp/test-artifacts
+      - make protobuf
+      - diff -ur /tmp/test-artifacts/proto/ go/pkg/proto/
       - mkdir -p /tmp/test-artifacts/licenses
       - ./tools/licenses.sh /tmp/test-artifacts/licenses $BUILDKITE_PIPELINE_SLUG
       - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data

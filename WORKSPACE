@@ -5,10 +5,10 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file"
 # Bazel rules for Golang
 http_archive(
     name = "io_bazel_rules_go",
-    sha256 = "7b9bbe3ea1fccb46dcfa6c3f3e29ba7ec740d8733370e21cdc8937467b4a4349",
+    sha256 = "2697f6bc7c529ee5e6a2d9799870b9ec9eaeb3ee7d70ed50b87a2c2c97e13d9e",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.22.4/rules_go-v0.22.4.tar.gz",
-        "https://github.com/bazelbuild/rules_go/releases/download/v0.22.4/rules_go-v0.22.4.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.23.8/rules_go-v0.23.8.tar.gz",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.23.8/rules_go-v0.23.8.tar.gz",
     ],
 )
 
@@ -266,4 +266,14 @@ go_repository(
     importpath = "github.com/jmhodges/bazel_gomock",
     sum = "h1:eumRMfjSqbydOAh1rCp/MhtNRBP+GcOJ81IhBVTHAQc=",
     version = "v0.0.0-20200110073353-ed0530bf40e4",
+)
+
+http_file(
+    name = "buf_bin",
+    downloaded_file_path = "buf",
+    executable = True,
+    sha256 = "5faf15ed0a3cd4bd0919ba5fcb95334c1fd2ba32770df289d615138fa188d36a",
+    urls = [
+        "https://github.com/bufbuild/buf/releases/download/v0.20.5/buf-Linux-x86_64",
+    ],
 )

@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -37,6 +38,14 @@ var (
 	errNotFound = serrors.New("not found")
 	errInactive = serrors.New("inactive")
 )
+
+// Fetcher fetches trust material from a remote.
+type Fetcher interface {
+	// Chains fetches certificate chains that match the query from the remote.
+	Chains(ctx context.Context, req ChainQuery, server net.Addr) ([][]*x509.Certificate, error)
+	// TRC fetches a specific TRC from the remote.
+	TRC(ctx context.Context, id cppki.TRCID, server net.Addr) (cppki.SignedTRC, error)
+}
 
 // FetchingProvider provides crypto material. The fetching provider is capable
 // of fetching missing crypto material over the network.

@@ -74,6 +74,10 @@ type Request struct {
 	count *prometheus.CounterVec
 }
 
+func (r *Request) CounterVec() *prometheus.CounterVec {
+	return r.count
+}
+
 // Inc increases the metric count. The result parameter is used to label the increment.
 func (r Request) Inc(result string) {
 	r.count.WithLabelValues(result).Inc()

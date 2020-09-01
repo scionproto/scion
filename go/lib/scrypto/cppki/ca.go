@@ -100,6 +100,18 @@ func (ca CAPolicy) CreateChain(csr *x509.CertificateRequest) ([]*x509.Certificat
 	return chain, nil
 }
 
+func (ca CAPolicy) Equal(o CAPolicy) bool {
+	var certEqual bool
+	if ca.Certificate == nil || o.Certificate == nil {
+		certEqual = ca.Certificate == o.Certificate
+	} else {
+		certEqual = ca.Certificate.Equal(o.Certificate)
+	}
+	return certEqual &&
+		ca.Validity == o.Validity &&
+		ca.CurrentTime == o.CurrentTime
+}
+
 // SubjectKeyID computes a subject key identifier for a given public key.
 // The computed ID is the SHA-1 hash of the marshaled public key according to
 // https://tools.ietf.org/html/rfc5280#section-4.2.1.2 (1)

@@ -85,7 +85,7 @@ func (h *hpSegRegHandler) handle(logger log.Logger) (*infra.HandlerResult, error
 
 	snetPeer, ok := h.request.Peer.(*snet.UDPAddr)
 	if !ok {
-		logger.Error("[hpSegRegHandler] Invalid peer address type, expected *snet.UDPAddr", nil,
+		logger.Error("[hpSegRegHandler] Invalid peer address type, expected *snet.UDPAddr",
 			"peer", h.request.Peer, "type", common.TypeOf(h.request.Peer))
 		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return infra.MetricsErrInvalid, nil
@@ -98,9 +98,7 @@ func (h *hpSegRegHandler) handle(logger log.Logger) (*infra.HandlerResult, error
 		Segs:      hpSegReg.Recs,
 		HPGroupID: hiddenpath.IdFromMsg(hpSegReg.GroupId),
 	}
-	res := h.segHandler.Handle(ctx, segRecs, snetPeer, nil)
-	// wait until processing is done.
-	<-res.FullReplyProcessed()
+	res := h.segHandler.Handle(ctx, segRecs, snetPeer)
 	if err := res.Err(); err != nil {
 		logger.Error("[hpSegRegHandler] Failed to handle path segments", "err", err)
 		sendAck(proto.Ack_ErrCode_reject, err.Error())

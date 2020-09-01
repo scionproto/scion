@@ -61,11 +61,15 @@ func (s *CachingSignerGen) Generate(ctx context.Context) (trust.Signer, error) {
 		log.FromCtx(ctx).Info("Failed to generate new signer, using previous signer", "err", err)
 		return s.cached, nil
 	}
+	if !s.cached.Equal(signer) {
+		log.FromCtx(ctx).Info("Generated new signer",
+			"subject_key_id", fmt.Sprintf("%x", signer.SubjectKeyID),
+			"expiration", signer.Expiration,
+		)
+	}
+
 	s.cached, s.ok = signer, true
-	log.FromCtx(ctx).Info("Generated new signer",
-		"subject_key_id", fmt.Sprintf("%x", signer.SubjectKeyID),
-		"expiration", signer.Expiration,
-	)
+
 	metrics.Signer.LastGeneratedAS().SetToCurrentTime()
 	metrics.Signer.ExpirationAS().Set(metrics.Timestamp(signer.Expiration))
 	return s.cached, nil

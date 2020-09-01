@@ -1,0 +1,59 @@
+// Copyright 2020 Anapaya Systems
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/scionproto/scion/go/pkg/proto/control_plane";
+
+package proto.control_plane.v1;
+
+service InterfaceStateService {
+    // SignedRevocation can be used to send a revocation to the server.
+    rpc SignedRevocation(SignedRevocationRequest) returns (SignedRevocationResponse) {}
+    // InterfaceState can be used to fetch interface state data.
+    rpc InterfaceState(InterfaceStateRequest) returns (InterfaceStateResponse) {}
+}
+
+service InterfaceStateConsumerService {
+    // SendRevocation can be used to send interface states to the server.
+    rpc InterfaceStateConsume(InterfaceStateConsumeRequest) returns (InterfaceStateConsumeResponse) {}
+}
+
+message SignedRevocationRequest {
+    // Raw is the raw capnp encoded signed revocation info.
+    bytes raw = 1;
+}
+
+message SignedRevocationResponse{}
+
+message InterfaceStateRequest {}
+
+message InterfaceStateResponse {
+    // States contains the interface state for all interfaces.
+    repeated InterfaceState states = 1;
+}
+
+message InterfaceStateConsumeRequest {
+    // States contains the interface state for all interfaces.
+    repeated InterfaceState states = 1;
+}
+
+message InterfaceStateConsumeResponse{}
+
+message InterfaceState {
+    // ID is the identifier of the interface.
+    uint64 id = 1;
+    // SignedRev is the signed revocation on this interface if there is any.
+    bytes signed_rev = 2;
+}

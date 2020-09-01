@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ifstate
+package ifstate_test
 
 import (
 	"context"
 	"fmt"
+	"net"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/infra/mock_infra"
+	"github.com/scionproto/scion/go/cs/ifstate"
+	"github.com/scionproto/scion/go/cs/ifstate/mock_ifstate"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 )
 
@@ -32,32 +33,28 @@ func TestPusherPush(t *testing.T) {
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
 	topoProvider := itopotest.TopoProviderFromFile(t, "testdata/topology.json")
-	msgr := mock_infra.NewMockMessenger(mctrl)
-	intfs := NewInterfaces(topoProvider.Get().IFInfoMap(), Config{})
-	p := PusherConf{
+	sender := mock_ifstate.NewMockInterfaceStateSender(mctrl)
+	intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
+	p := ifstate.PusherConf{
 		TopoProvider: topoProvider,
 		Intfs:        intfs,
-		Msgr:         msgr,
+		StateSender:  sender,
 	}.New()
-	expectedMsg := &path_mgmt.IFStateInfos{
-		Infos: []*path_mgmt.IFStateInfo{{
-			IfID:   101,
-			Active: true,
-		}},
-	}
+	expectedMsg := []ifstate.InterfaceState{{ID: 101}}
 	// When to expect a message being pushed.
-	tests := map[State]bool{
-		Active:  true,
-		Revoked: false,
+	tests := map[ifstate.State]bool{
+		ifstate.Active:  true,
+		ifstate.Revoked: false,
 	}
 	for state, expectMsg := range tests {
 		t.Run(fmt.Sprintf("Interface state: %s", state), func(t *testing.T) {
-			intfs.Get(101).state = state
+			intfs.Get(101).SetState(state)
 			if expectMsg {
 				for _, br := range topoProvider.Get().BRNames() {
-					a := topoProvider.Get().SBRAddress(br)
-					msgr.EXPECT().SendIfStateInfos(gomock.Any(), gomock.Eq(expectedMsg),
-						gomock.Eq(a), gomock.Any())
+					brInfo, _ := topoProvider.Get().BR(br)
+					a := brInfo.CtrlAddrs.SCIONAddress
+					tcpA := &net.TCPAddr{IP: a.IP, Port: a.Port, Zone: a.Zone}
+					sender.EXPECT().SendStateUpdate(gomock.Any(), expectedMsg, tcpA)
 				}
 			}
 			p.Push(context.Background(), 101)

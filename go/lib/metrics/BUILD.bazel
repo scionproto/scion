@@ -1,0 +1,31 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "fakes.go",
+        "metrics.go",
+        "prometheus.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/metrics",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_go_kit_kit//metrics:go_default_library",
+        "@com_github_go_kit_kit//metrics/prometheus:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "fakes_test.go",
+        "metrics_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "@com_github_go_kit_kit//metrics/prometheus:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+    ],
+)

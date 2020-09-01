@@ -18,6 +18,7 @@
 package brconf
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -67,6 +68,11 @@ func WithNewTopo(id string, topo topology.Topology, oldConf *BRConf) (*BRConf, e
 		return nil, common.NewBasicError("Unable to initialize topo", err)
 	}
 	return conf, nil
+}
+
+func (cfg *BRConf) String() string {
+	return fmt.Sprintf("{IA: %s, BR.Name: %s, Dir: %s",
+		cfg.IA, cfg.BR.Name, cfg.Dir)
 }
 
 // loadTopo loads the topology from the config directory and initializes the

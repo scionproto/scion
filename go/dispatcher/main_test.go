@@ -27,13 +27,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -83,6 +86,14 @@ type TestCase struct {
 	TestPackets     []*spkt.ScnPkt
 	UnderlayAddress *net.UDPAddr
 	ExpectedPacket  *spkt.ScnPkt
+}
+
+type TestCase2 struct {
+	Name            string
+	ClientAddress   *ClientAddress
+	TestPackets     []*snet.Packet
+	UnderlayAddress *net.UDPAddr
+	ExpectedPacket  *snet.Packet
 }
 
 func genTestCases(dispatcherPort int) []*TestCase {
@@ -424,6 +435,116 @@ func genTestCases(dispatcherPort int) []*TestCase {
 	return testCases
 }
 
+func genTestCases2(dispatcherPort int) []*TestCase2 {
+	// Addressing information
+	var (
+		commonIA              = xtest.MustParseIA("1-ff00:0:1")
+		commonPublicL3Address = addr.HostFromIP(net.IP{127, 0, 0, 1})
+		commonUnderlayAddress = &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: dispatcherPort}
+		clientXAddress        = &ClientAddress{
+			IA:              commonIA,
+			PublicAddress:   commonPublicL3Address,
+			PublicPort:      8080,
+			ServiceAddress:  addr.SvcNone,
+			UnderlayAddress: commonUnderlayAddress,
+		}
+		clientYAddress = &ClientAddress{
+			IA:              commonIA,
+			PublicAddress:   commonPublicL3Address,
+			PublicPort:      8081,
+			ServiceAddress:  addr.SvcPS,
+			UnderlayAddress: commonUnderlayAddress,
+		}
+	)
+
+	var testCases = []*TestCase2{
+		{
+			Name:          "UDP/IPv4 packet",
+			ClientAddress: clientXAddress,
+			TestPackets: []*snet.Packet{
+				{
+					PacketInfo: snet.PacketInfo{
+						Source: snet.SCIONAddress{
+							IA:   clientXAddress.IA,
+							Host: clientXAddress.PublicAddress,
+						},
+						Destination: snet.SCIONAddress{
+							IA:   clientXAddress.IA,
+							Host: clientXAddress.PublicAddress,
+						},
+						PayloadV2: snet.UDPPayload{
+							SrcPort: clientXAddress.PublicPort,
+							DstPort: clientXAddress.PublicPort,
+							Payload: []byte{1, 2, 3, 4},
+						},
+					},
+				},
+			},
+			UnderlayAddress: clientXAddress.UnderlayAddress,
+			ExpectedPacket: &snet.Packet{
+				PacketInfo: snet.PacketInfo{
+					Source: snet.SCIONAddress{
+						IA:   clientXAddress.IA,
+						Host: clientXAddress.PublicAddress,
+					},
+					Destination: snet.SCIONAddress{
+						IA:   clientXAddress.IA,
+						Host: clientXAddress.PublicAddress,
+					},
+					PayloadV2: snet.UDPPayload{
+						SrcPort: clientXAddress.PublicPort,
+						DstPort: clientXAddress.PublicPort,
+						Payload: []byte{1, 2, 3, 4},
+					},
+				},
+			},
+		},
+		{
+			Name:          "UDP/SVC packet",
+			ClientAddress: clientYAddress,
+			TestPackets: []*snet.Packet{
+				{
+					PacketInfo: snet.PacketInfo{
+						Source: snet.SCIONAddress{
+							IA:   clientYAddress.IA,
+							Host: clientYAddress.PublicAddress,
+						},
+						Destination: snet.SCIONAddress{
+							IA:   clientYAddress.IA,
+							Host: clientYAddress.ServiceAddress,
+						},
+						PayloadV2: snet.UDPPayload{
+							SrcPort: clientYAddress.PublicPort,
+							DstPort: clientYAddress.PublicPort,
+							Payload: []byte{5, 6, 7, 8},
+						},
+					},
+				},
+			},
+			UnderlayAddress: clientXAddress.UnderlayAddress,
+			ExpectedPacket: &snet.Packet{
+				PacketInfo: snet.PacketInfo{
+					Source: snet.SCIONAddress{
+						IA:   clientYAddress.IA,
+						Host: clientYAddress.PublicAddress,
+					},
+					Destination: snet.SCIONAddress{
+						IA:   clientYAddress.IA,
+						Host: clientYAddress.ServiceAddress,
+					},
+					PayloadV2: snet.UDPPayload{
+						SrcPort: clientYAddress.PublicPort,
+						DstPort: clientYAddress.PublicPort,
+						Payload: []byte{5, 6, 7, 8},
+					},
+				},
+			},
+		},
+	}
+	// TODO(lukedirtwalker): add v2 SCMP tests (https://github.com/Anapaya/scion/issues/3480)
+	return testCases
+}
+
 func TestDataplaneIntegration(t *testing.T) {
 	dispatcherTestPort := 40031
 	settings := InitTestSettings(t, dispatcherTestPort)
@@ -431,7 +552,7 @@ func TestDataplaneIntegration(t *testing.T) {
 	go func() {
 		err := RunDispatcher(false, settings.ApplicationSocket, reliable.DefaultDispSocketFileMode,
 			settings.UnderlayPort, settings.HeaderV2)
-		xtest.FailOnErr(t, err, "dispatcher error")
+		require.NoError(t, err, "dispatcher error")
 	}()
 	time.Sleep(defaultWaitDuration)
 
@@ -452,17 +573,59 @@ func TestDataplaneIntegrationV2(t *testing.T) {
 	go func() {
 		err := RunDispatcher(false, settings.ApplicationSocket, reliable.DefaultDispSocketFileMode,
 			settings.UnderlayPort, settings.HeaderV2)
-		xtest.FailOnErr(t, err, "dispatcher error")
+		require.NoError(t, err, "dispatcher error")
 	}()
 	time.Sleep(defaultWaitDuration)
 
-	testCases := genTestCases(dispatcherTestPort)
+	testCases := genTestCases2(dispatcherTestPort)
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			RunTestCase(t, tc, settings)
+			RunTestCase2(t, tc, settings)
 		})
 		time.Sleep(defaultWaitDuration)
 	}
+}
+
+func RunTestCase2(t *testing.T, tc *TestCase2, settings *TestSettings) {
+	dispatcherService := reliable.NewDispatcher(settings.ApplicationSocket)
+	ctx, cancelF := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancelF()
+	conn, _, err := dispatcherService.Register(
+		ctx,
+		tc.ClientAddress.IA,
+		&net.UDPAddr{
+			IP:   tc.ClientAddress.PublicAddress.IP(),
+			Port: int(tc.ClientAddress.PublicPort),
+		},
+		tc.ClientAddress.ServiceAddress,
+	)
+	require.NoError(t, err, "unable to open socket")
+	// Always destroy the connection s.t. future tests aren't compromised by a
+	// fatal in this subtest
+	defer conn.Close()
+
+	for _, packet := range tc.TestPackets {
+		require.NoError(t, packet.Serialize())
+		fmt.Printf("sending packet: %x\n", packet.Bytes)
+		_, err = conn.WriteTo(packet.Bytes, tc.UnderlayAddress)
+		require.NoError(t, err, "unable to write message")
+	}
+
+	err = conn.SetReadDeadline(time.Now().Add(defaultTimeout))
+	require.NoError(t, err, "unable to set read deadline")
+
+	rcvPkt := snet.Packet{}
+	rcvPkt.Prepare()
+	n, _, err := conn.ReadFrom(rcvPkt.Bytes)
+	require.NoError(t, err, "unable to read message")
+	rcvPkt.Bytes = rcvPkt.Bytes[:n]
+
+	require.NoError(t, rcvPkt.Decode())
+
+	err = conn.Close()
+	require.NoError(t, err, "unable to close conn")
+
+	assert.Equal(t, tc.ExpectedPacket.PacketInfo, rcvPkt.PacketInfo)
 }
 
 func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
@@ -478,7 +641,7 @@ func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
 		},
 		tc.ClientAddress.ServiceAddress,
 	)
-	xtest.FailOnErr(t, err, "unable to open socket")
+	require.NoError(t, err, "unable to open socket")
 	// Always destroy the connection s.t. future tests aren't compromised by a
 	// fatal in this subtest
 	defer conn.Close()
@@ -488,41 +651,29 @@ func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
 			t.Skip("Skipping SCMP test", tc.Name)
 		}
 		sendBuffer := make([]byte, common.MaxMTU)
-		var n int
-		var err error
-		if settings.HeaderV2 {
-			packet.Path = spath.NewV2(generatePath(), false)
-			n, err = hpkt.WriteScnPkt2(packet, sendBuffer)
-		} else {
-			n, err = hpkt.WriteScnPkt(packet, sendBuffer)
-		}
-		xtest.FailOnErr(t, err, "unable to serialize packet for sending")
+		n, err := hpkt.WriteScnPkt(packet, sendBuffer)
+		require.NoError(t, err, "unable to serialize packet for sending")
 		sendBuffer = sendBuffer[:n]
 
 		fmt.Printf("sending packet: %x\n", sendBuffer)
 		_, err = conn.WriteTo(sendBuffer, tc.UnderlayAddress)
-		xtest.FailOnErr(t, err, "unable to write message")
+		require.NoError(t, err, "unable to write message")
 	}
 
 	err = conn.SetReadDeadline(time.Now().Add(defaultTimeout))
-	xtest.FailOnErr(t, err, "unable to set read deadline")
+	require.NoError(t, err, "unable to set read deadline")
 
 	recvBuffer := make([]byte, common.MaxMTU)
 	n, _, err := conn.ReadFrom(recvBuffer)
-	xtest.FailOnErr(t, err, "unable to read message")
+	require.NoError(t, err, "unable to read message")
 	recvBuffer = recvBuffer[:n]
 
 	var packet spkt.ScnPkt
-	if settings.HeaderV2 {
-		err = hpkt.ParseScnPkt2(&packet, recvBuffer)
-		packet.Path = nil
-	} else {
-		err = hpkt.ParseScnPkt(&packet, recvBuffer)
-	}
-	xtest.FailOnErr(t, err, "unable to parse received packet")
+	err = hpkt.ParseScnPkt(&packet, recvBuffer)
+	require.NoError(t, err, "unable to parse received packet")
 
 	err = conn.Close()
-	xtest.FailOnErr(t, err, "unable to close conn")
+	require.NoError(t, err, "unable to close conn")
 
 	if !reflect.DeepEqual(&packet, tc.ExpectedPacket) {
 		t.Errorf("bad message received, have %#v, expect %#v", &packet, tc.ExpectedPacket)

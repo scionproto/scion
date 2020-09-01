@@ -1,0 +1,136 @@
+// Copyright 2020 Anapaya Systems
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/scionproto/scion/go/pkg/proto/daemon";
+
+package proto.daemon.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service DaemonService {
+    // Return a set of paths to the requested destination.
+    rpc Paths(PathsRequest) returns (PathsResponse) {}
+    // Return information about an AS.
+    rpc AS(ASRequest) returns (ASResponse) {}
+    // Return the underlay addresses associated with
+    // the specified interfaces.
+    rpc Interfaces(InterfacesRequest) returns (InterfacesResponse) {}
+    // Return the underlay addresses associated with the
+    // specified services.
+    rpc Services(ServicesRequest) returns (ServicesResponse) {}
+    // Inform the SCION Daemon of a revocation.
+    rpc NotifyInterfaceDown(NotifyInterfaceDownRequest) returns (NotifyInterfaceDownResponse) {}
+}
+
+message PathsRequest {
+    // ISD-AS of the source of the path request.
+    uint64 source_isd_as = 1;
+    // ISD-AS of the destination of the path request.
+    uint64 destination_isd_as = 2;
+    // Choose to fetch fresh paths for this request instead
+    // of having the server reply from its cache.
+    bool refresh = 3;
+    // Request hidden paths instead of standard paths.
+    bool hidden = 4;
+}
+
+message PathsResponse {
+    // List of paths found by the daemon.
+    repeated Path paths = 1;
+}
+
+message Path {
+    // The raw data-plane path.
+    bytes raw = 1;
+    // Interface for exiting the local AS using this path.
+    Interface interface = 2;
+    // The list of interfaces the path is composed of.
+    repeated PathInterface interfaces = 3;
+    // The maximum transmission unit (MTU) on the path.
+    uint32 mtu = 4;
+    // The point in time when this path expires. In seconds since UNIX epoch.
+    google.protobuf.Timestamp expiration = 5;
+
+    // Specify that this is a SCION header v2 path.
+    bool header_v2 = 1000;
+}
+
+message PathInterface {
+    // ISD-AS the interface belongs to.
+    uint64 isd_as = 1;
+    // ID of the interface in the AS.
+    uint64 id = 2;
+}
+
+message ASRequest {
+    // ISD-AS of the AS information is requested about. The 0 value
+    // can be used to discover the ISD-AS number of the local AS.
+    uint64 isd_as = 1;
+}
+
+message ASResponse {
+    // ISD-AS of the AS information was requested about.
+    uint64 isd_as = 1;
+    // Indicates whether the local AS is core.
+    bool core = 2;
+    // The maximum transmission unit (MTU) in the local AS.
+    uint32 mtu = 3;
+}
+
+message InterfacesRequest { }
+
+message InterfacesResponse {
+    // Map from SCION interface IDs in the local AS to interface details.
+    map<uint64, Interface> interfaces = 1;
+}
+
+message Interface {
+    // Underlay address to exit through the interface.
+    Underlay address = 1;
+}
+
+message ServicesRequest { }
+
+message ServicesResponse {
+    // Map from service names to known services.
+    map<string, ListService> services = 1;
+}
+
+message ListService {
+    // Services is the list of services.
+    repeated Service services = 1;
+}
+
+message Service {
+    // Address of the service instance, in RFC 3986 format.
+    string uri = 1;
+}
+
+// Address of an underlay socket.
+message Underlay {
+    // The underlay address in standard IP:port notation (e.g., 192.0.2.1:10000
+    // or [2001:db8::1]:10000). The underlay is UDP/IP.
+    string address = 1;
+}
+
+message NotifyInterfaceDownRequest {
+    // ISD-AS the failing interface belongs to.
+    uint64 isd_as = 1;
+    // ID of the failing interface.
+    uint64 id = 2;
+}
+
+message NotifyInterfaceDownResponse {};

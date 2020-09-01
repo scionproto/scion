@@ -125,7 +125,6 @@ type resolver struct {
 	sciondConn   sciond.Connector
 	timers       Timers
 	watchFactory *WatchFactory
-	pathCount    uint16
 }
 
 // New creates a new path management context.
@@ -135,16 +134,12 @@ type resolver struct {
 // (see package constants). When a query for a path older than maxAge reaches
 // the resolver, SCIOND is used to refresh the path. New returns with an error
 // if a connection to SCIOND could not be established.
-func New(conn sciond.Connector, timers Timers, pathCount uint16) Resolver {
+func New(conn sciond.Connector, timers Timers) Resolver {
 	timers.initDefaults()
-	if pathCount == 0 {
-		pathCount = DefaultPathCount
-	}
 	r := &resolver{
 		sciondConn:   conn,
 		timers:       timers,
 		watchFactory: NewWatchFactory(timers),
-		pathCount:    pathCount,
 	}
 	return r
 }
@@ -152,9 +147,6 @@ func New(conn sciond.Connector, timers Timers, pathCount uint16) Resolver {
 func (r *resolver) Query(ctx context.Context, src, dst addr.IA,
 	flags sciond.PathReqFlags) spathmeta.AppPathSet {
 
-	if flags.PathCount == 0 {
-		flags.PathCount = r.pathCount
-	}
 	paths, err := r.sciondConn.Paths(ctx, dst, src, flags)
 	if err != nil {
 		r.logger(ctx).Error("SCIOND network error", "err", err)
@@ -220,7 +212,7 @@ func (r *resolver) RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes) {
 
 func (r *resolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) {
 	logger := r.logger(ctx)
-	reply, err := r.sciondConn.RevNotification(context.Background(), sRevInfo)
+	err := r.sciondConn.RevNotification(context.Background(), sRevInfo)
 	if err != nil {
 		logger.Error("Revocation failed, unable to inform SCIOND about revocation", "err", err)
 		return
@@ -231,26 +223,19 @@ func (r *resolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo
 			"sRevInfo", sRevInfo, "err", err)
 		return
 	}
-	switch reply.Result {
-	case sciond.RevUnknown, sciond.RevValid:
-		// Each watcher contains a cache; purge paths matched by the revocation
-		// immediately from each cache.
-		pi := sciond.PathInterface{RawIsdas: revInfo.IA().IAInt(),
-			IfID: common.IFIDType(revInfo.IfID)}
-		f := func(w *WatchRunner) {
-			pathsBeforeRev := w.sp.Load().APS
-			pathsAfterRev := dropRevoked(pathsBeforeRev, pi)
-			w.sp.Update(pathsAfterRev)
-			if len(pathsAfterRev) == 0 && len(pathsBeforeRev) > 0 {
-				w.pp.PollNow()
-			}
+	// Each watcher contains a cache; purge paths matched by the revocation
+	// immediately from each cache.
+	pi := sciond.PathInterface{RawIsdas: revInfo.IA().IAInt(),
+		IfID: common.IFIDType(revInfo.IfID)}
+	f := func(w *WatchRunner) {
+		pathsBeforeRev := w.sp.Load().APS
+		pathsAfterRev := dropRevoked(pathsBeforeRev, pi)
+		w.sp.Update(pathsAfterRev)
+		if len(pathsAfterRev) == 0 && len(pathsBeforeRev) > 0 {
+			w.pp.PollNow()
 		}
-		r.watchFactory.apply(f)
-	case sciond.RevStale:
-		logger.Info("Found stale revocation notification", "revInfo", revInfo)
-	case sciond.RevInvalid:
-		logger.Info("Found invalid revocation notification", "revInfo", revInfo)
 	}
+	r.watchFactory.apply(f)
 }
 
 func (r *resolver) logger(ctx context.Context) log.Logger {

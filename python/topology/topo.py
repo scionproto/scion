@@ -176,8 +176,6 @@ class TopoGenerator(object):
         link_addr_type = addr_type_from_underlay(attrs.get('underlay', DEFAULT_UNDERLAY))
         self._reg_link_addrs(local_br, remote_br, l_ifid, r_ifid, link_addr_type)
         self._reg_addr(local, local_br + "_ctrl", addr_type)
-        if self.args.docker:
-            self._reg_addr(local, local_br + "_internal", addr_type)
         if not self.args.docker:
             self.args.port_gen.register(local_br + "_ctrl")
             self.args.port_gen.register(local_br + "_internal")
@@ -309,8 +307,9 @@ class TopoGenerator(object):
                                                         r_ifid, link_addr_type)
 
         ctrl_addr = int_addr = self._reg_addr(local, local_br + "_ctrl", addr_type)
+        # for docker we use the same internal and control address.
         if self.args.docker:
-            int_addr = self._reg_addr(local, local_br + "_internal", addr_type)
+            int_addr = ctrl_addr
 
         if self.topo_dicts[local]["border_routers"].get(local_br) is None:
             ctrl_port = 30242

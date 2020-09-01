@@ -109,13 +109,22 @@ func initNetwork(cfg sigconfig.SigConf, sdCfg env.SCIONDClient,
 		}
 	}
 
-	ia, _ := sciondConn.LocalIA(context.Background())
-	pathResolver := pathmgr.New(sciondConn, pathmgr.Timers{}, 0)
+	ia, err := sciondConn.LocalIA(context.Background())
+	if err != nil {
+		return nil, nil, nil, serrors.WrapStr("discovering local ISD-AS", err)
+	}
+	pathResolver := pathmgr.New(sciondConn, pathmgr.Timers{})
+	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
+		RevocationHandler: pathResolver,
+	}
+	if !features.HeaderV2 {
+		scmpHandler = snet.NewLegacySCMPHandler(pathResolver)
+	}
 	network := &snet.SCIONNetwork{
 		LocalIA: ia,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher:  Dispatcher,
-			SCMPHandler: snet.NewSCMPHandler(pathResolver),
+			SCMPHandler: scmpHandler,
 			Version2:    features.HeaderV2,
 		},
 	}
@@ -159,6 +168,8 @@ func newDispatcher(cfg sigconfig.SigConf) (reliable.Dispatcher, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("unable to initialize bypass dispatcher", err)
 	}
+	// TODO(lukedirtwalker): HeaderV2 set if feature flag is set.
+	// dispServer.HeaderV2 = TODO
 	go func() {
 		defer log.HandlePanic()
 		err := dispServer.Serve()

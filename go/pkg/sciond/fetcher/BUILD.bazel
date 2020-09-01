@@ -15,6 +15,7 @@ go_library(
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/modules/combinator:go_default_library",
         "//go/lib/infra/modules/segfetcher:go_default_library",
+        "//go/lib/infra/modules/seghandler:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/pathdb:go_default_library",
         "//go/lib/pathpol:go_default_library",
@@ -26,9 +27,7 @@ go_library(
         "//go/lib/topology:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/pkg/sciond/config:go_default_library",
-        "//go/pkg/sciond/internal/metrics:go_default_library",
         "//go/pkg/trust:go_default_library",
-        "//go/proto:go_default_library",
     ],
 )
 

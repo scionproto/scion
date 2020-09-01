@@ -28,6 +28,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -239,6 +240,13 @@ func TestSerializeSCIONUPDExtn(t *testing.T) {
 	assert.NoError(t, gopacket.SerializeLayers(b, opts, s, hbh, e2e, u, pld), "Serialize")
 	raw := xtest.MustReadFromFile(t, rawFullPktFilename)
 	assert.Equal(t, raw, b.Bytes(), "Raw buffer")
+
+	// Ensure that the checksum is correct. Calculating over the bytes if the
+	// checksum is set should result in 0.
+	udpBuf := gopacket.NewSerializeBuffer()
+	assert.NoError(t, gopacket.SerializeLayers(udpBuf, opts, u, pld))
+	csum := util.Checksum(pseudoHeader(t, s, len(udpBuf.Bytes()), 17), udpBuf.Bytes())
+	assert.Zero(t, csum)
 }
 
 func TestDecodeSCIONUDPExtn(t *testing.T) {
@@ -281,7 +289,7 @@ func TestDecodeSCIONUDPExtn(t *testing.T) {
 	assert.Equal(t, layers.UDPPort(1280), udpHdr.SrcPort, "UDP.SrcPort")
 	assert.Equal(t, layers.UDPPort(80), udpHdr.DstPort, "UDP.DstPort")
 	assert.Equal(t, uint16(1032), udpHdr.Length, "UDP.Len")
-	assert.Equal(t, uint16(0xbbda), udpHdr.Checksum, "UDP.Checksum")
+	assert.Equal(t, uint16(0xb7d2), udpHdr.Checksum, "UDP.Checksum")
 
 	// Check Payload
 	appLayer := packet.ApplicationLayer()

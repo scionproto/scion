@@ -22,7 +22,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/renewal"
@@ -49,38 +48,6 @@ func LoadTrustMaterial(configDir string, db trust.DB, logger log.Logger) error {
 		logger.Info("Ignoring non-certificate chain", "file", f, "reason", r)
 	}
 	return nil
-}
-
-// TrustProviderConfig configures how the trust provider is created.
-type TrustProviderConfig struct {
-	IA       addr.IA
-	TrustDB  trust.DB
-	RPC      trust.RPC
-	HeaderV2 bool
-}
-
-// NewTrustProvider creates a trust material provider that uses paths from the path storage.
-func NewTrustProvider(cfg TrustProviderConfig) trust.FetchingProvider {
-	provider := trust.FetchingProvider{
-		DB: cfg.TrustDB,
-		Fetcher: trust.DefaultFetcher{
-			RPC: cfg.RPC,
-			IA:  cfg.IA,
-		},
-		Recurser: trust.ASLocalRecurser{IA: cfg.IA},
-	}
-	return provider
-}
-
-// SetTrustRouter initializes the Router of the FetchingProvider.
-// This is separate from NewTrustProvider due to the mutual dependence of
-// the provider and the router.
-func SetTrustRouter(provider *trust.FetchingProvider, router snet.Router) {
-	provider.Router = trust.AuthRouter{
-		ISD:    provider.Fetcher.(trust.DefaultFetcher).IA.I,
-		DB:     provider.DB,
-		Router: router,
-	}
 }
 
 // NewSigner creates a renewing signer backed by a certificate chain..

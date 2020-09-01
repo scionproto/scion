@@ -19,8 +19,6 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -28,7 +26,7 @@ import (
 type PusherConf struct {
 	TopoProvider topology.Provider
 	Intfs        *Interfaces
-	Msgr         infra.Messenger
+	StateSender  InterfaceStateSender
 }
 
 // Pusher pushes interface state infos to all border routers to remove the
@@ -45,24 +43,19 @@ func (cfg PusherConf) New() *Pusher {
 		topoProvider: cfg.TopoProvider,
 		intfs:        cfg.Intfs,
 		pusher: brPusher{
-			msgr: cfg.Msgr,
-			mode: "pusher",
+			sender: cfg.StateSender,
+			mode:   "pusher",
 		},
 	}
 }
 
 // Push removes the revocation for the given interface from all border routers.
-func (p *Pusher) Push(ctx context.Context, ifid common.IFIDType) {
-	intf := p.intfs.Get(ifid)
+func (p *Pusher) Push(ctx context.Context, ifID common.IFIDType) {
+	intf := p.intfs.Get(ifID)
 	if intf == nil || intf.State() != Active {
 		return
 	}
-	msg := &path_mgmt.IFStateInfos{
-		Infos: []*path_mgmt.IFStateInfo{{
-			IfID:   ifid,
-			Active: true,
-		}},
-	}
+	msg := []InterfaceState{{ID: uint16(ifID)}}
 	wg := &sync.WaitGroup{}
 	p.pusher.sendIfStateToAllBRs(ctx, msg, p.topoProvider.Get(), wg)
 	wg.Wait()

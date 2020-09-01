@@ -20,3 +20,8 @@ connection = "cs1-ff00_0_110-1.beacon.db"
 
 [metrics]
 prometheus = "242.253.100.2:30453"
+
+[quic]
+address = "242.253.100.2:0"
+cert_file = "/tls.pem"
+key_file = "/tls.key"

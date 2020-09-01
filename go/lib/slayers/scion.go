@@ -52,6 +52,8 @@ func (t PathType) String() string {
 		return "EPIC (2)"
 	case PathTypeCOLIBRI:
 		return "COLIBRI (3)"
+	case PathTypeEmpty:
+		return "Empty (4)"
 	}
 	return fmt.Sprintf("UNKNOWN (%d)", t)
 }
@@ -62,6 +64,7 @@ const (
 	PathTypeOneHop
 	PathTypeEPIC
 	PathTypeCOLIBRI
+	PathTypeEmpty
 )
 
 // AddrLen indicates the length of a host address in the SCION header. The four possible lengths are
@@ -253,6 +256,8 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	}
 
 	switch s.PathType {
+	case PathTypeEmpty:
+		s.Path = &scion.Decoded{}
 	case PathTypeSCION:
 		// Only allocate a SCION path if necessary. This reduces memory allocation and GC overhead
 		// considerably (3x improvement for DecodeFromBytes performance)
@@ -302,6 +307,8 @@ func scionNextLayerType(t common.L4ProtocolType) gopacket.LayerType {
 		return LayerTypeSCIONUDP
 	case common.L4SCMP:
 		return LayerTypeSCMP
+	case common.L4BFD:
+		return layers.LayerTypeBFD
 	case common.HopByHopClass:
 		return LayerTypeHopByHopExtn
 	case common.End2EndClass:
@@ -367,8 +374,8 @@ func parseAddr(addrType AddrType, addrLen AddrLen, raw []byte) (net.Addr, error)
 func packAddr(hostAddr net.Addr) (AddrLen, AddrType, []byte, error) {
 	switch a := hostAddr.(type) {
 	case *net.IPAddr:
-		if a.IP.To4() != nil {
-			return AddrLen4, T4Ip, a.IP, nil
+		if ip := a.IP.To4(); ip != nil {
+			return AddrLen4, T4Ip, ip, nil
 		}
 		return AddrLen16, T16Ip, a.IP, nil
 	case addr.HostSVC:
@@ -429,4 +436,71 @@ func (s *SCION) DecodeAddrHdr(data []byte) error {
 
 func addrBytes(addrLen AddrLen) int {
 	return (int(addrLen) + 1) * LineLen
+}
+
+// computeChecksum computes the checksum with the SCION pseudo header.
+func (s *SCION) computeChecksum(upperLayer []byte, protocol uint8) (uint16, error) {
+	if s == nil {
+		return 0, serrors.New("SCION header missing")
+	}
+	csum, err := s.pseudoHeaderChecksum(len(upperLayer), protocol)
+	if err != nil {
+		return 0, err
+	}
+	csum = s.upperLayerChecksum(upperLayer, csum)
+	folded := s.foldChecksum(csum)
+	return folded, nil
+}
+
+func (s *SCION) pseudoHeaderChecksum(length int, protocol uint8) (uint32, error) {
+	if len(s.rawDstAddr) == 0 {
+		return 0, serrors.New("destination address missing")
+	}
+	if len(s.rawSrcAddr) == 0 {
+		return 0, serrors.New("source address missing")
+	}
+	var csum uint32
+	var srcIA, dstIA [8]byte
+	s.SrcIA.Write(srcIA[:])
+	s.DstIA.Write(dstIA[:])
+	for i := 0; i < 8; i += 2 {
+		csum += uint32(srcIA[i]) << 8
+		csum += uint32(srcIA[i+1])
+		csum += uint32(dstIA[i]) << 8
+		csum += uint32(dstIA[i+1])
+	}
+	// Address length is guaranteed to be a multiple of 2 by the protocol.
+	for i := 0; i < len(s.rawSrcAddr); i += 2 {
+		csum += uint32(s.rawSrcAddr[i]) << 8
+		csum += uint32(s.rawSrcAddr[i+1])
+	}
+	for i := 0; i < len(s.rawDstAddr); i += 2 {
+		csum += uint32(s.rawDstAddr[i]) << 8
+		csum += uint32(s.rawDstAddr[i+1])
+	}
+	l := uint32(length)
+	csum += (l >> 16) + (l & 0xffff)
+	csum += uint32(protocol)
+	return csum, nil
+}
+
+func (s *SCION) upperLayerChecksum(upperLayer []byte, csum uint32) uint32 {
+	// Compute safe boundary to ensure we do not access out of bounds.
+	// Odd lengths are handled at the end.
+	safeBoundary := len(upperLayer) - 1
+	for i := 0; i < safeBoundary; i += 2 {
+		csum += uint32(upperLayer[i]) << 8
+		csum += uint32(upperLayer[i+1])
+	}
+	if len(upperLayer)%2 == 1 {
+		csum += uint32(upperLayer[safeBoundary]) << 8
+	}
+	return csum
+}
+
+func (s *SCION) foldChecksum(csum uint32) uint16 {
+	for csum > 0xffff {
+		csum = (csum >> 16) + (csum & 0xffff)
+	}
+	return ^uint16(csum)
 }

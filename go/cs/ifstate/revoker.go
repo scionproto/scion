@@ -21,15 +21,11 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/cs/metrics"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
@@ -38,6 +34,19 @@ import (
 // RevInserter stores revocation into persistent storage.
 type RevInserter interface {
 	InsertRevocations(ctx context.Context, revocations ...*path_mgmt.SignedRevInfo) error
+}
+
+// InterfaceState denotes the state of an interface.
+type InterfaceState struct {
+	// ID denotes the ID of the interface
+	ID uint16
+	// Revocation indicates whether there is a revocation on this interface.
+	Revocation *path_mgmt.SignedRevInfo
+}
+
+// InterfaceStateSender sends interface state updates to the given address.
+type InterfaceStateSender interface {
+	SendStateUpdate(context.Context, []InterfaceState, net.Addr) error
 }
 
 // RevConfig configures the parameters for revocation creation.
@@ -49,7 +58,7 @@ type RevConfig struct {
 // RevokerConf is the configuration to create a new revoker.
 type RevokerConf struct {
 	Intfs        *Interfaces
-	Msgr         infra.Messenger
+	StateSender  InterfaceStateSender
 	Signer       ctrl.Signer
 	TopoProvider topology.Provider
 	RevInserter  RevInserter
@@ -70,8 +79,8 @@ func (cfg RevokerConf) New() *Revoker {
 	return &Revoker{
 		cfg: cfg,
 		pusher: brPusher{
-			msgr: cfg.Msgr,
-			mode: "revoker",
+			sender: cfg.StateSender,
+			mode:   "revoker",
 		},
 	}
 }
@@ -126,7 +135,6 @@ func (r *Revoker) Run(ctx context.Context) {
 			// still continue to try to push it to BR/PS.
 		}
 		r.pushRevocationsToBRs(ctx, revs, wg)
-		r.pushRevocationsToPS(ctx, revs)
 		wg.Wait()
 	}
 }
@@ -154,57 +162,44 @@ func (r *Revoker) createSignedRev(ifid common.IFIDType) (*path_mgmt.SignedRevInf
 func (r *Revoker) pushRevocationsToBRs(ctx context.Context,
 	revs map[common.IFIDType]*path_mgmt.SignedRevInfo, wg *sync.WaitGroup) {
 
-	msg := &path_mgmt.IFStateInfos{
-		Infos: make([]*path_mgmt.IFStateInfo, 0, len(revs)),
-	}
-	for ifid := range revs {
-		msg.Infos = append(msg.Infos, infoFromInterface(ifid, r.cfg.Intfs.Get(ifid)))
+	msg := make([]InterfaceState, 0, len(revs))
+	for ifID := range revs {
+		msg = append(msg, interfaceStateFromInterface(ifID, r.cfg.Intfs.Get(ifID)))
 	}
 
 	l := metrics.SentLabels{Dst: metrics.DstBR}
-	metrics.Ifstate.Sent(l).Add(float64(len(msg.Infos)))
+	metrics.Ifstate.Sent(l).Add(float64(len(msg)))
 	r.pusher.sendIfStateToAllBRs(ctx, msg, r.cfg.TopoProvider.Get(), wg)
 }
 
-func (r *Revoker) pushRevocationsToPS(ctx context.Context,
-	revs map[common.IFIDType]*path_mgmt.SignedRevInfo) {
-
-	topo := r.cfg.TopoProvider.Get()
-	labels := metrics.SentLabels{Dst: metrics.DstPS}
-
-	a := &snet.SVCAddr{IA: topo.IA(), SVC: addr.SvcPS}
-	for ifid, srev := range revs {
-		if err := r.cfg.Msgr.SendRev(ctx, srev, a, messenger.NextId()); err != nil {
-			log.FromCtx(ctx).Error("[ifstate.Revoker] Failed to send revocation to PS",
-				"ifid", ifid, "err", err)
-		}
-		metrics.Ifstate.Sent(labels).Inc()
-	}
-}
-
 type brPusher struct {
-	msgr infra.Messenger
-	mode string
+	sender InterfaceStateSender
+	mode   string
 }
 
-func (p *brPusher) sendIfStateToAllBRs(ctx context.Context, msg *path_mgmt.IFStateInfos,
+func (p *brPusher) sendIfStateToAllBRs(ctx context.Context, msg []InterfaceState,
 	topo topology.Topology, wg *sync.WaitGroup) {
 
 	for _, br := range topo.BRNames() {
-		t := topo.SBRAddress(br)
-		p.sendIfStateToBr(ctx, msg, br, t, wg)
+		t, ok := topo.BR(br)
+		if !ok {
+			continue
+		}
+		ctrlA := t.CtrlAddrs.SCIONAddress
+		a := &net.TCPAddr{IP: ctrlA.IP, Port: ctrlA.Port, Zone: ctrlA.Zone}
+		p.sendIfStateToBr(ctx, msg, br, a, wg)
 	}
 }
 
-func (p *brPusher) sendIfStateToBr(ctx context.Context, msg *path_mgmt.IFStateInfos,
+func (p *brPusher) sendIfStateToBr(ctx context.Context, msg []InterfaceState,
 	id string, a net.Addr, wg *sync.WaitGroup) {
 
 	wg.Add(1)
 	go func() {
 		defer log.HandlePanic()
 		defer wg.Done()
-		if err := p.msgr.SendIfStateInfos(ctx, msg, a, messenger.NextId()); err != nil {
-			log.FromCtx(ctx).Error("Failed to send interface state to BR",
+		if err := p.sender.SendStateUpdate(ctx, msg, a); err != nil {
+			log.FromCtx(ctx).Info("Failed to send interface state to BR",
 				"br", id, "mode", p.mode, "err", err, "address", a)
 		}
 	}()
@@ -216,4 +211,11 @@ func toSlice(revs map[common.IFIDType]*path_mgmt.SignedRevInfo) []*path_mgmt.Sig
 		res = append(res, rev)
 	}
 	return res
+}
+
+func interfaceStateFromInterface(ifID common.IFIDType, intf *Interface) InterfaceState {
+	return InterfaceState{
+		ID:         uint16(ifID),
+		Revocation: intf.Revocation(),
+	}
 }

@@ -18,91 +18,73 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
-	"github.com/scionproto/scion/go/lib/pathdb"
-	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
 
-// NewForwardingHandler creates a forwarding segment request handler.
-// This handler is used (exclusively) for AS-local segment requests.
-func NewForwardingHandler(ia addr.IA, core bool, inspector trust.Inspector,
-	pathDB pathdb.PathDB, revCache revcache.RevCache, fetcher *segfetcher.Fetcher) infra.Handler {
+// ForwardingLookup handles path segment lookup requests in a non-core AS. If
+// segments are missing, the request is forwarded to the respective core ASes.
+// It should only be used in a non-core AS.
+type ForwardingLookup struct {
+	LocalIA     addr.IA
+	CoreChecker CoreChecker
+	Fetcher     *segfetcher.Fetcher
+	Expander    WildcardExpander
+}
 
-	return &baseHandler{
-		processor: &forwarder{
-			localIA:     ia,
-			coreChecker: CoreChecker{inspector},
-			fetcher:     fetcher,
-			expander: &wildcardExpander{
-				localIA:   ia,
-				core:      core,
-				inspector: inspector,
-				pathDB:    pathDB,
-			},
+// LookupSegments looks up the segments for the given request
+//
+//  - requests for up segment are answered directly, from the local DB
+//  - down and core segments are forwarded to the responsible core ASes,
+//    and results are cached
+func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
+	dst addr.IA) (segfetcher.Segments, error) {
+
+	segType, err := f.classify(ctx, src, dst)
+	if err != nil {
+		return nil, err
+	}
+
+	reqs, err := f.Expander.ExpandSrcWildcard(ctx,
+		segfetcher.Request{
+			Src:     src,
+			Dst:     dst,
+			SegType: segType,
 		},
-		revCache: revCache,
-	}
-}
-
-// forwarder is the processor for segment requests for AS-local segment requests.
-// - requests for up segment are answered directly, from the local DB
-// - down and core segments are forwarded to the responsible core ASes, and results are cached
-type forwarder struct {
-	localIA     addr.IA
-	coreChecker CoreChecker
-	fetcher     *segfetcher.Fetcher
-	expander    *wildcardExpander
-}
-
-func (h *forwarder) process(ctx context.Context,
-	req *path_mgmt.SegReq) (segfetcher.Segments, error) {
-
-	src := req.SrcIA()
-	dst := req.DstIA()
-	segType, err := h.classify(ctx, src, dst)
+	)
 	if err != nil {
-		return segfetcher.Segments{}, err
+		return nil, serrors.WrapStr("expanding wildcard request", err)
 	}
-
-	reqs, err := h.expander.ExpandSrcWildcard(ctx,
-		segfetcher.Request{Src: src, Dst: dst, SegType: segType})
-	if err != nil {
-		return segfetcher.Segments{},
-			serrors.WrapStr("failed to expand core wildcard request", err)
-	}
-
-	return h.fetcher.Fetch(ctx, reqs, false)
+	return f.Fetcher.Fetch(ctx, reqs, false)
 }
 
 // classify validates the request and determines the segment type for the request
-func (h *forwarder) classify(ctx context.Context, src, dst addr.IA) (proto.PathSegType, error) {
+func (f ForwardingLookup) classify(ctx context.Context,
+	src, dst addr.IA) (proto.PathSegType, error) {
+
 	unset := proto.PathSegType_unset // shorthand
 	if src.I == 0 || dst.I == 0 {
 		return unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"src", src, "dst", dst, "reason", "zero ISD src or dst")
 	}
-	if dst == h.localIA {
+	if dst == f.LocalIA {
 		// this could be an otherwise valid request, but probably the requester switched Src and Dst
 		return unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"src", src, "dst", dst, "reason", "dst is local AS, confusion?")
 	}
-	srcCore, err := h.coreChecker.IsCore(ctx, src)
+	srcCore, err := f.CoreChecker.IsCore(ctx, src)
 	if err != nil {
 		return proto.PathSegType_unset, err
 	}
-	dstCore, err := h.coreChecker.IsCore(ctx, dst)
+	dstCore, err := f.CoreChecker.IsCore(ctx, dst)
 	if err != nil {
 		return proto.PathSegType_unset, err
 	}
 	switch {
 	case srcCore && dstCore:
 		// core
-		if src.I != h.localIA.I {
+		if src.I != f.LocalIA.I {
 			return unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "core segment request src ISD not local ISD")
 		}
@@ -116,11 +98,11 @@ func (h *forwarder) classify(ctx context.Context, src, dst addr.IA) (proto.PathS
 		return proto.PathSegType_down, nil
 	case dstCore:
 		// up
-		if src != h.localIA {
+		if src != f.LocalIA {
 			return unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "up segment request src not local AS")
 		}
-		if dst.I != h.localIA.I {
+		if dst.I != f.LocalIA.I {
 			return unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "up segment request dst in different ISD")
 		}

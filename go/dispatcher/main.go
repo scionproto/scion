@@ -88,9 +88,12 @@ func realMain() int {
 	}()
 
 	env.SetupEnv(nil)
+
+	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
-		"info":   service.NewInfoHandler(),
-		"config": service.NewConfigHandler(cfg),
+		"info":      service.NewInfoHandler(),
+		"config":    service.NewConfigHandler(cfg),
+		"log/level": log.ConsoleLevel.ServeHTTP,
 	}
 	if err := statusPages.Register(http.DefaultServeMux, cfg.Dispatcher.ID); err != nil {
 		log.Error("registering status pages", "err", err)

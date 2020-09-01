@@ -35,6 +35,7 @@ func newShowpaths(pather CommandPather) *cobra.Command {
 		cfg        showpaths.Config
 		expiration bool
 		json       bool
+		noColor    bool
 	}
 
 	var cmd = &cobra.Command{
@@ -44,6 +45,9 @@ func newShowpaths(pather CommandPather) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		Example: fmt.Sprintf(`  %[1]s showpaths 1-ff00:0:110 --expiration
   %[1]s showpaths 1-ff00:0:110 --local 127.0.0.55 --json
+  %[1]s showpaths 1-ff00:0:111 --sequence="0-0#2 0*" # outgoing IfID=2
+  %[1]s showpaths 1-ff00:0:111 --sequence="0* 0-0#41" # incoming IfID=41 at dstIA
+  %[1]s showpaths 1-ff00:0:111 --sequence="0* 1-ff00:0:112 0*" # 1-ff00:0:112 on the path
   %[1]s showpaths 1-ff00:0:110 --no-probe`, pather.CommandPath()),
 		Long: `'showpaths' lists available paths between the local and the specified SCION ASe a.
 
@@ -52,6 +56,44 @@ forward traffic successfully (e.g. if a network link went down, or there is a bl
 hole on the path). To disable path probing, set the appropriate flag.
 
 'showpaths' can be instructed to output the paths as json using the the --json flag.
+
+The paths can be filtered according to a sequence. A sequence is a string of
+space separated HopPredicates. A Hop Predicate (HP) is of the form
+'ISD-AS#IF,IF'. The first IF means the inbound interface (the interface where
+packet enters the AS) and the second IF means the outbound interface (the
+interface where packet leaves the AS).  0 can be used as a wildcard for ISD, AS
+and both IF elements indepedently.
+
+HopPredicate Examples:
+
+  Match ISD 1: 1
+  Match AS 1-ff00:0:133: 1-ff00:0:133 or 1-ff00:0:133#0
+  Match inbound IF 2 of AS 1-ff00:0:133: 1-ff00:0:133#2,0
+  Match outbound IF 2 of AS 1-ff00:0:133: 1-ff00:0:133#0,2
+  Match inbound or outbound IF 2 of AS 1-ff00:0:133: 1-ff00:0:133#2
+
+Sequence Examples:
+
+  sequence: "1-ff00:0:133#0 1-ff00:0:120#2,1 0 0 1-ff00:0:110#0"
+
+The above example specifies a path from any interface in AS 1-ff00:0:133 to
+two subsequent interfaces in AS 1-ff00:0:120 (entering on interface 2 and
+exiting on interface 1), then there are two wildcards that each match any AS.
+The path must end with any interface in AS 1-ff00:0:110.
+
+  sequence: "1-ff00:0:133#1 1+ 2-ff00:0:1? 2-ff00:0:233#1"
+
+The above example includes operators and specifies a path from interface
+1-ff00:0:133#1 through multiple ASes in ISD 1, that may (but does not need
+to) traverse AS 2-ff00:0:1 and then reaches its destination on
+2-ff00:0:233#1.
+
+Available operators:
+
+  ? (the preceding HP may appear at most once)
+  + (the preceding ISD-level HP must appear at least once)
+  * (the preceding ISD-level HP may appear zero or more times)
+  | (logical OR)
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dst, err := addr.IAFromString(args[0])
@@ -78,7 +120,12 @@ hole on the path). To disable path probing, set the appropriate flag.
 			if flags.json {
 				return res.JSON(os.Stdout)
 			}
-			res.Human(os.Stdout, flags.expiration)
+			fmt.Fprintln(os.Stdout, "Available paths to", res.Destination)
+			if len(res.Paths) == 0 {
+				fmt.Fprintln(os.Stdout, "no path was found")
+				return nil
+			}
+			res.Human(os.Stdout, flags.expiration, !flags.noColor)
 			return nil
 		},
 	}
@@ -86,6 +133,8 @@ hole on the path). To disable path probing, set the appropriate flag.
 	cmd.Flags().StringVar(&flags.cfg.SCIOND, "sciond",
 		sciond.DefaultSCIONDAddress, "SCION Deamon address")
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", 5*time.Second, "Timeout")
+	cmd.Flags().StringVar(&flags.cfg.Sequence, "sequence",
+		"", "sequence space separated list of HPs")
 	cmd.Flags().IntVarP(&flags.cfg.MaxPaths, "maxpaths", "m", 10,
 		"Maximum number of paths that are displayed")
 	cmd.Flags().BoolVarP(&flags.expiration, "expiration", "e", false,
@@ -96,6 +145,7 @@ hole on the path). To disable path probing, set the appropriate flag.
 		"Do not probe the paths and print the health status")
 	cmd.Flags().BoolVarP(&flags.json, "json", "j", false,
 		"Write the output as machine readable json")
+	cmd.Flags().BoolVar(&flags.noColor, "no_color", false, "disable colored output")
 	cmd.Flags().IPVarP(&flags.cfg.Local, "local", "l", nil,
 		"Optional local IP address to use for probing health checks")
 

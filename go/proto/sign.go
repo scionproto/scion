@@ -120,6 +120,9 @@ func (s *SignS) ProtoId() ProtoIdType {
 }
 
 func (s *SignS) String() string {
+	if s == nil {
+		return "<nil>"
+	}
 	return fmt.Sprintf("SignType: %s Timestamp: %s SignSrc: %s Signature: %s", s.Type,
 		util.TimeToString(s.Time()), s.Src, s.Signature)
 }

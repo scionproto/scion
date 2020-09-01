@@ -42,7 +42,9 @@ const (
 	// BackendSqlite indicates an sqlite backend.
 	BackendSqlite Backend = "sqlite"
 	// DefaultPath indicates the default connection string for a generic database.
-	DefaultPath = "/share/scion.db"
+	DefaultPath        = "/share/scion.db"
+	DefaultTrustDBPath = "/share/data/%s.trust.db"
+	DefaultPathDBPath  = "/share/cache/%s.path.db"
 )
 
 // Default samples for various databases.
@@ -51,13 +53,13 @@ var (
 		Connection: "/share/cache/%s.beacon.db",
 	}
 	SamplePathDB = DBConfig{
-		Connection: "/share/cache/%s.path.db",
+		Connection: DefaultPathDBPath,
 	}
 	SampleRenewalDB = DBConfig{
 		Connection: "/share/data/trustdb/%s.renewal.db",
 	}
 	SampleTrustDB = DBConfig{
-		Connection: "/share/data/trustdb/%s.trust.db",
+		Connection: DefaultTrustDBPath,
 	}
 )
 
@@ -74,6 +76,21 @@ type DBConfig struct {
 	Connection   string `toml:"connection,omitempty"`
 	MaxOpenConns int    `toml:"max_open_conns,omitempty"`
 	MaxIdleConns int    `toml:"max_idle_conns,omitempty"`
+}
+
+type writeDefault struct {
+	*DBConfig
+	defaultPath string
+}
+
+func (w writeDefault) InitDefaults() {
+	if w.Connection == "" {
+		w.Connection = w.defaultPath
+	}
+}
+
+func (cfg *DBConfig) WithDefault(path string) config.Defaulter {
+	return writeDefault{DBConfig: cfg, defaultPath: path}
 }
 
 // SetConnLimits sets the maximum number of open and idle connections based on the configuration.

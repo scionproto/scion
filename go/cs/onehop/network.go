@@ -29,6 +29,7 @@ var _ snet.PacketDispatcherService = (*OHPPacketDispatcherService)(nil)
 // extension enabled.
 type OHPPacketDispatcherService struct {
 	snet.PacketDispatcherService
+	HeaderV2 bool
 }
 
 func (s *OHPPacketDispatcherService) Register(ctx context.Context, ia addr.IA,
@@ -38,16 +39,21 @@ func (s *OHPPacketDispatcherService) Register(ctx context.Context, ia addr.IA,
 	if err != nil {
 		return conn, port, err
 	}
-	return &ohpPacketConn{PacketConn: conn}, port, err
+	return &ohpPacketConn{PacketConn: conn, headerV2: s.HeaderV2}, port, err
 }
 
 var _ snet.PacketConn = (*ohpPacketConn)(nil)
 
 type ohpPacketConn struct {
 	snet.PacketConn
+	headerV2 bool
 }
 
 func (c *ohpPacketConn) WriteTo(pkt *snet.Packet, ov *net.UDPAddr) error {
+	extensions := pkt.Extensions
+	if !c.headerV2 {
+		extensions = append(extensions, &layers.ExtnOHP{})
+	}
 	return c.PacketConn.WriteTo(
 		&snet.Packet{
 			Bytes: pkt.Bytes,
@@ -55,9 +61,10 @@ func (c *ohpPacketConn) WriteTo(pkt *snet.Packet, ov *net.UDPAddr) error {
 				Destination: pkt.Destination,
 				Source:      pkt.Source,
 				Path:        pkt.Path,
-				Extensions:  append(pkt.Extensions, &layers.ExtnOHP{}),
+				Extensions:  extensions,
 				L4Header:    pkt.L4Header,
 				Payload:     pkt.Payload,
+				PayloadV2:   pkt.PayloadV2,
 			},
 		},
 		ov,

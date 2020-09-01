@@ -45,16 +45,16 @@ func (l RPCLabels) WithResult(result string) RPCLabels {
 }
 
 type rpc struct {
-	fetches prometheus.CounterVec
+	Fetches *prometheus.CounterVec
 }
 
 func newRPC() rpc {
 	return rpc{
-		fetches: *prom.NewCounterVecWithLabels(Namespace, "", "sent_requests_total",
+		Fetches: prom.NewCounterVecWithLabels(Namespace, "", "sent_requests_total",
 			"Number of trust material requests sent by the trust store", RPCLabels{}),
 	}
 }
 
 func (r *rpc) Fetch(l RPCLabels) prometheus.Counter {
-	return r.fetches.WithLabelValues(l.Values()...)
+	return r.Fetches.WithLabelValues(l.Values()...)
 }
