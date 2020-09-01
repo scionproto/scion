@@ -21,7 +21,10 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["reservation_test.go"],
+    srcs = [
+        "request_test.go",
+        "reservation_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
         "//go/cs/reservation/segment:go_default_library",

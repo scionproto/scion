@@ -55,10 +55,66 @@ func NewRequest(ts time.Time, id *reservation.E2EID, idx reservation.IndexNumber
 // SetupReq is an e2e setup/renewal request, that has been so far accepted.
 type SetupReq struct {
 	Request
-	SegmentRsvs       []reservation.SegmentID
-	SegmentRsvASCount []uint8 // how many ASes per segment reservation
-	RequestedBW       reservation.BWCls
-	AllocationTrail   []reservation.BWCls
+	SegmentRsvs              []reservation.SegmentID
+	SegmentRsvASCount        []uint8 // how many ASes per segment reservation
+	RequestedBW              reservation.BWCls
+	AllocationTrail          []reservation.BWCls
+	totalAScount             int
+	currentASSegmentRsvIndex int // the index in SegmentRsv for the current AS
+	isTransfer               bool
+}
+
+// NewSetupRequest creates and initializes an e2e setup request common for both success and failure.
+func NewSetupRequest(r *Request, segRsvs []reservation.SegmentID, segRsvCount []uint8,
+	requestedBW reservation.BWCls, allocTrail []reservation.BWCls) (*SetupReq, error) {
+
+	if len(segRsvs) != len(segRsvCount) || len(segRsvs) == 0 {
+		return nil, serrors.New("e2e setup request invalid", "seg_rsv_len", len(segRsvs),
+			"seg_rsv_count_len", len(segRsvCount))
+	}
+	totalAScount := 0
+	currASindex := -1
+	isTransfer := false
+	n := len(allocTrail) - 1
+	for i, c := range segRsvCount {
+		totalAScount += int(c)
+		n -= int(c) - 1
+		if i == len(segRsvCount)-1 {
+			n-- // the last segment spans 1 more AS
+		}
+		if n < 0 && currASindex < 0 {
+			currASindex = i
+			isTransfer = i < len(segRsvCount)-1 && n == -1 // last segment has no transfers
+		}
+	}
+	totalAScount -= len(segRsvCount) - 1
+	if currASindex < 0 {
+		return nil, serrors.New("error initializing e2e request",
+			"alloc_trail_len", len(allocTrail), "seg_rsv_count", segRsvCount)
+	}
+	return &SetupReq{
+		Request:                  *r,
+		SegmentRsvs:              segRsvs,
+		SegmentRsvASCount:        segRsvCount,
+		RequestedBW:              requestedBW,
+		AllocationTrail:          allocTrail,
+		totalAScount:             totalAScount,
+		currentASSegmentRsvIndex: currASindex,
+		isTransfer:               isTransfer,
+	}, nil
+}
+
+// IsSrcAS returns true if according to the request, this AS is the source of the reservation.
+func (r *SetupReq) IsSrcAS() bool {
+	return len(r.AllocationTrail) == 0
+}
+
+func (r *SetupReq) IsDstAS() bool {
+	return len(r.AllocationTrail) == r.totalAScount
+}
+
+func (r *SetupReq) IsTransferAS() bool {
+	return r.isTransfer
 }
 
 // SetupReqSuccess is a successful e2e setup request traveling along the reservation path.

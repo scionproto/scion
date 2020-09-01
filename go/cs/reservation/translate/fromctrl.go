@@ -290,12 +290,10 @@ func newRequestE2ESetup(ctrl *colibri_mgmt.E2ESetup, ts time.Time,
 	for i := range ctrl.AllocationTrail {
 		allocTrail[i] = reservation.BWCls(ctrl.AllocationTrail[i])
 	}
-	setup := e2e.SetupReq{
-		Request:           *r,
-		SegmentRsvs:       segmentIDs,
-		SegmentRsvASCount: ctrl.SegmentRsvASCount,
-		RequestedBW:       reservation.BWCls(ctrl.RequestedBW),
-		AllocationTrail:   allocTrail,
+	setup, err := e2e.NewSetupRequest(r, segmentIDs, ctrl.SegmentRsvASCount,
+		reservation.BWCls(ctrl.RequestedBW), allocTrail)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot contruct e2e setup request", err)
 	}
 	switch ctrl.Which {
 	case proto.E2ESetupReqData_Which_success:
@@ -304,12 +302,12 @@ func newRequestE2ESetup(ctrl *colibri_mgmt.E2ESetup, ts time.Time,
 			return nil, serrors.WrapStr("cannot construct e2e setup success request", err)
 		}
 		return &e2e.SetupReqSuccess{
-			SetupReq: setup,
+			SetupReq: *setup,
 			Token:    *tok,
 		}, nil
 	case proto.E2ESetupReqData_Which_failure:
 		return &e2e.SetupReqFailure{
-			SetupReq:  setup,
+			SetupReq:  *setup,
 			ErrorCode: ctrl.Failure.ErrorCode,
 		}, nil
 	default:
