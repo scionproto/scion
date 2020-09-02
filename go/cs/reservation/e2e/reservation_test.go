@@ -69,6 +69,10 @@ func TestNewIndex(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 1)
 	require.Equal(t, r.Indices[0].Idx, index)
+	index, err = r.NewIndex(expTime)
+	require.NoError(t, err)
+	require.Len(t, r.Indices, 2)
+	require.Equal(t, r.Indices[1].Idx, index)
 }
 
 func TestRemoveIndex(t *testing.T) {
@@ -78,6 +82,22 @@ func TestRemoveIndex(t *testing.T) {
 	err := r.RemoveIndex(idx)
 	require.NoError(t, err)
 	require.Len(t, r.Indices, 0)
+}
+
+func TestAllocResv(t *testing.T) {
+	r := newReservation()
+	// 1 index
+	r.NewIndex(util.SecsToTime(1))
+	r.Index(0).AllocBW = 5
+	require.Equal(t, uint64(64), r.AllocResv())
+	// 2 indices
+	r.NewIndex(util.SecsToTime(2))
+	r.Index(1).AllocBW = 3
+	require.Equal(t, uint64(64), r.AllocResv())
+	// 3 indices
+	r.NewIndex(util.SecsToTime(2))
+	r.Index(2).AllocBW = 3
+	require.Equal(t, uint64(32), r.AllocResv())
 }
 
 func newSegmentReservation(asidPath ...string) *segment.Reservation {
