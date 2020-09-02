@@ -602,6 +602,13 @@ func testGetE2ERsvFromID(ctx context.Context, t *testing.T, db backend.DB) {
 	rsv, err = db.GetE2ERsvFromID(ctx, &r.ID)
 	require.NoError(t, err)
 	require.Equal(t, r, rsv)
+	// not present in DB
+	ID, err := reservation.NewE2EID(xtest.MustParseAS("ff00:2222:3333"),
+		xtest.MustParseHexString("0123456789abcdef0123"))
+	require.NoError(t, err)
+	rsv, err = db.GetE2ERsvFromID(ctx, ID)
+	require.NoError(t, err)
+	require.Nil(t, rsv)
 }
 
 func testGetE2ERsvsOnSegRsv(ctx context.Context, t *testing.T, db backend.DB) {
