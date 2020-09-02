@@ -63,7 +63,6 @@ type ResponseSetupSuccess struct {
 type ResponseSetupFailure struct {
 	Response
 	ErrorCode uint8
-	InfoField reservation.InfoField
 	MaxBWs    []reservation.BWCls // granted by ASes in the path until the failed hop
 }
 

@@ -529,7 +529,6 @@ func setE2ESetupFailureResponse(msg *e2e.ResponseSetupFailure,
 		Which: proto.E2ESetupResData_Which_failure,
 		Failure: &colibri_mgmt.E2ESetupFailure{
 			ErrorCode:       msg.ErrorCode,
-			InfoField:       msg.InfoField.ToRaw(),
 			AllocationTrail: maxBWs,
 		},
 	}
@@ -550,7 +549,6 @@ func setE2ERenewalFailureResponse(msg *e2e.ResponseSetupFailure,
 		Which: proto.E2ESetupResData_Which_failure,
 		Failure: &colibri_mgmt.E2ESetupFailure{
 			ErrorCode:       msg.ErrorCode,
-			InfoField:       msg.InfoField.ToRaw(),
 			AllocationTrail: maxBWs,
 		},
 	}
