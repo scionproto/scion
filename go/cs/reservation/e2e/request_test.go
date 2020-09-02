@@ -189,32 +189,37 @@ func TestNewSetupRequest(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.TotalASCount, r.totalAScount)
 			require.Equal(t, tc.SegmentIndex, r.currentASSegmentRsvIndex)
-			require.Equal(t, tc.IsSrc, r.IsSrcAS())
-			require.Equal(t, tc.IsDst, r.IsDstAS())
-			require.Equal(t, tc.IsTransfer, r.IsTransferAS())
+			require.Equal(t, tc.IsSrc, r.IsThisASTheSrc())
+			require.Equal(t, tc.IsDst, r.IsThisASTheDst())
+			require.Equal(t, tc.IsTransfer, r.IsThisASaTransfer())
 		})
 	}
 }
 
-func TestIsSrcAS(t *testing.T) {
+func TestInterface(t *testing.T) {
 	id, err := reservation.NewE2EID(xtest.MustParseAS("ff00:0:111"),
 		xtest.MustParseHexString("beefcafebeefcafebeef"))
 	require.NoError(t, err)
 	path := segmenttest.NewTestPath()
 	baseReq, err := NewRequest(util.SecsToTime(1), id, 1, path)
 	require.NoError(t, err)
-	// one segment with 3 ASes
-	segmentRsvs := []reservation.SegmentID{*newTestSegmentID(t)}
-	segmentASCount := []uint8{3}
-	trail := []reservation.BWCls{}
-	r, err := NewSetupRequest(baseReq, segmentRsvs, segmentASCount, 5, trail)
+	segmentIDs := []reservation.SegmentID{*newTestSegmentID(t)}
+
+	r, err := NewSetupRequest(baseReq, segmentIDs, []uint8{2}, 5, nil)
 	require.NoError(t, err)
-	require.Equal(t, true, r.IsSrcAS())
-	//
-	trail = []reservation.BWCls{5, 5}
-	r, err = NewSetupRequest(baseReq, segmentRsvs, segmentASCount, 5, trail)
+	tok, err := reservation.TokenFromRaw(xtest.MustParseHexString(
+		"16ebdb4f0d042500003f001002bad1ce003f001002facade"))
 	require.NoError(t, err)
-	require.Equal(t, false, r.IsSrcAS())
+	success := SetupReqSuccess{
+		SetupReq: *r,
+		Token:    *tok,
+	}
+	require.Equal(t, r, success.GetCommonSetupReq())
+	failure := SetupReqFailure{
+		SetupReq:  *r,
+		ErrorCode: 6,
+	}
+	require.Equal(t, r, failure.GetCommonSetupReq())
 }
 
 // this fcn is helpful here to add segment reservations in the e2e setup request.

@@ -278,23 +278,58 @@ func (s *Store) TearDownSegmentReservation(ctx context.Context, req *segment.Tea
 }
 
 // AdmitE2EReservation will atempt to admit an e2e reservation.
-func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
+func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupRequest) (
 	base.MessageWithPath, error) {
 
+	req := request.GetCommonSetupReq()
 	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
 		return nil, serrors.WrapStr("error validating e2e request", err, "id", req.ID)
 	}
-	response, err := s.prepareFailureE2EResp(&req.Request)
-	if err != nil {
-		return nil, serrors.WrapStr("cannot construct e2e response", err, "id", req.ID)
+	var failedResponse base.MessageWithPath
+	pathToUse := req.Path().Copy()
+	if req.IsThisASTheDst() {
+		// TODO(juagargi) find the path to the src endhost
+		// pathToUse =
+		basicResponse, err := e2e.NewResponse(time.Now(), &req.ID, req.Index, pathToUse,
+			false, uint8(req.IndexOfCurrentHop()))
+		if err != nil {
+			return nil, serrors.WrapStr("cannot construct e2e response", err)
+		}
+		// get the info field from the successful or failed setup request:
+		var infoField *reservation.InfoField
+		if request.IsSuccess() {
+			successReq, ok := request.(*e2e.SetupReqSuccess)
+			if !ok {
+				return nil, serrors.New("logic error in e2e admission: cannot cast to success")
+			}
+			infoField = &successReq.Token.InfoField
+
+		} else {
+			failureReq, ok := request.(*e2e.SetupReqFailure)
+			if !ok {
+				return nil, serrors.New("logic error in e2e admission: cannot cast to failure")
+			}
+			// failureReq.In
+			_ = failureReq
+		}
+		failedResponse = &e2e.ResponseSetupFailure{
+			Response:  *basicResponse,
+			ErrorCode: 1,
+			InfoField: *infoField,
+			MaxBWs:    req.AllocationTrail,
+			// TODO(juagargi): how is a trail of so far granted bandwidths used here? all previous ASes did accept the request, and if this one fails it, it sends the failed request backwards.
+			// MaxBWs:    []reservation.BWCls{},
+		}
+	} else {
+		if err := pathToUse.Reverse(); err != nil {
+			return nil, serrors.WrapStr("cannot reverse path for response", err)
+		}
+		failedResponse = &e2e.SetupReqFailure{
+			SetupReq:  *req,
+			ErrorCode: 1, // TODO(juagargi) use error codes
+		}
 	}
 
-	failedResponse := &e2e.ResponseSetupFailure{
-		Response:  *response,
-		ErrorCode: 1,
-		// TODO(juagargi): how is a trail of so far granted bandwidths used here? all previous ASes did accept the request, and if this one fails it, it sends the failed request backwards.
-		// MaxBWs:    []reservation.BWCls{},
-	}
 	if len(req.SegmentRsvs) == 0 || len(req.SegmentRsvs) > 3 {
 		return failedResponse, serrors.New("invalid number of segment reservations for an e2e one",
 			"count", len(req.SegmentRsvs))
@@ -368,7 +403,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 			"e2e_id", rsv.ID)
 	}
 	free = free + rsv.AllocResv() // don't count this E2E request in the used BW
-	if req.IsTransferAS() {
+	if req.IsThisASaTransfer() {
 		// this AS must stitch two segment rsvs. according to the request
 		if len(segRsvIDs) == 1 {
 			return failedResponse, serrors.New("e2e setup request with transfer inconsistent",
@@ -398,7 +433,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 		return failedResponse, serrors.WrapStr("cannot commit transaction", err, "id", req.ID)
 	}
 	var msg base.MessageWithPath
-	if req.IsDstAS() {
+	if req.IsThisASTheDst() {
 		msg = &e2e.ResponseSetupSuccess{
 			// TODO(juagargi)
 		}
