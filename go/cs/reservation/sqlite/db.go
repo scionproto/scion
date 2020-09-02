@@ -577,6 +577,9 @@ func getE2ERsvFromID(ctx context.Context, x *sql.Tx, ID *reservation.E2EID) (
 	const query = `SELECT ROWID FROM e2e_reservation WHERE reservation_id = ?`
 	err := x.QueryRowContext(ctx, query, ID.ToRaw()).Scan(&rowID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
 	// read indices
