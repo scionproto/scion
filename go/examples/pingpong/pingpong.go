@@ -74,6 +74,7 @@ var (
 	sciondAddr  = flag.String("sciond", sciond.DefaultSCIONDAddress, "SCIOND address")
 	timeout     = flag.Duration("timeout", DefaultTimeout, "Timeout for the ping response")
 	verbose     = flag.Bool("v", false, "sets verbose output")
+	headerv2    = flag.Bool("header_v2", false, "Use the new header format")
 	logConsole  string
 
 	// No way to extract error code from error returned after closing session in quic-go.
@@ -228,16 +229,20 @@ func (c *client) run() {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
+	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
+		RevocationHandler: sciond.RevHandler{Connector: sciondConn},
+	}
+	if !(*headerv2) {
+		scmpHandler = snet.NewLegacySCMPHandler(sciond.RevHandler{Connector: sciondConn})
+	}
 	network := &snet.SCIONNetwork{
 		LocalIA: local.IA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher: ds,
-			SCMPHandler: snet.NewSCMPHandler(
-				sd.RevHandler{Connector: sciondConn},
-			),
-			// TODO(scrye): set this when we have CLI support for features
-			Version2: false,
+			Dispatcher:  ds,
+			SCMPHandler: scmpHandler,
+			Version2:    *headerv2,
 		},
+		Version2: *headerv2,
 	}
 
 	// Connect to remote address. Note that currently the SCION library
@@ -364,16 +369,20 @@ func (s server) run() {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
+	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
+		RevocationHandler: sciond.RevHandler{Connector: sciondConn},
+	}
+	if !(*headerv2) {
+		scmpHandler = snet.NewLegacySCMPHandler(sciond.RevHandler{Connector: sciondConn})
+	}
 	network := &snet.SCIONNetwork{
 		LocalIA: local.IA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher: ds,
-			SCMPHandler: snet.NewSCMPHandler(
-				sciond.RevHandler{Connector: sciondConn},
-			),
-			// TODO(scrye): set this when we have CLI support for features
-			Version2: false,
+			Dispatcher:  ds,
+			SCMPHandler: scmpHandler,
+			Version2:    *headerv2,
 		},
+		Version2: *headerv2,
 	}
 
 	if err != nil {

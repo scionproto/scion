@@ -17,7 +17,6 @@ package spath
 
 import (
 	"crypto/rand"
-	"encoding/binary"
 	"fmt"
 	"hash"
 	"math"
@@ -101,19 +100,7 @@ func NewOneHopV2(isd addr.ISD, ifid common.IFIDType, ts time.Time, exp ExpTimeTy
 			ExpTime:    uint8(exp),
 		},
 	}
-
-	input := make([]byte, 16)
-	binary.BigEndian.PutUint32(input[:4], util.TimeToSecs(ts))
-	input[4] = uint8(exp)
-	binary.BigEndian.PutUint16(input[7:9], ohp.FirstHop.ConsEgress)
-	binary.BigEndian.PutUint16(input[9:11], ohp.Info.SegID)
-
-	// Write must not return an error: https://godoc.org/hash#Hash
-	if _, err := hfmac.Write(input); err != nil {
-		panic(err)
-	}
-	fullMAC := hfmac.Sum(nil)
-	ohp.FirstHop.Mac = fullMAC[:6]
+	ohp.FirstHop.Mac = path.MAC(hfmac, &ohp.Info, &ohp.FirstHop)
 
 	raw := make([]byte, onehop.PathLen)
 	if err := ohp.SerializeTo(raw); err != nil {

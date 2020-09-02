@@ -37,6 +37,10 @@ steps:
       - cp -R go/proto/ /tmp/test-artifacts/
       - make gogen
       - diff -ur /tmp/test-artifacts/proto/ go/proto/
+      - rm -r /tmp/test-artifacts/proto/
+      - cp -R go/pkg/proto/ /tmp/test-artifacts
+      - make protobuf
+      - diff -ur /tmp/test-artifacts/proto/ go/pkg/proto/
       - mkdir -p /tmp/test-artifacts/licenses
       - ./tools/licenses.sh /tmp/test-artifacts/licenses $BUILDKITE_PIPELINE_SLUG
       - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
@@ -56,13 +60,12 @@ steps:
   - label: "IT: (svisor) Revocation tests"
     if: build.message !~ /\[doc\]/
     command:
-      - bazel build //:scion //:scion-ci >/dev/null 2>&1
-      - tar -xf bazel-bin/scion.tar -C bin --overwrite
-      - tar -xf bazel-bin/scion-ci.tar -C bin --overwrite
+      - echo "--- start topology (including build)"
       - ./scion.sh topology
       - ./scion.sh run && sleep 10
-      - ./bin/end2end_integration -log.console warn
-      - ./integration/revocation_test.sh
+      - echo "--- run tests"
+      - ./bin/end2end_integration || ( echo "^^^ +++" && false )
+      - ./integration/revocation_test.sh || ( echo "^^^ +++" && false )
     key: revocation_tests
     plugins:
       - scionproto/metahook#v0.3.0:
@@ -79,14 +82,13 @@ steps:
   - label: "IT: (svisor) {pp,end2end,scmp}"
     if: build.message !~ /\[doc\]/
     command:
-    - bazel build //:scion //:scion-ci >/dev/null 2>&1
-    - tar -xf bazel-bin/scion.tar -C bin --overwrite
-    - tar -xf bazel-bin/scion-ci.tar -C bin --overwrite
-    - ./scion.sh topology
-    - ./scion.sh run && sleep 10
-    - ./bin/pp_integration -log.console warn
-    - ./bin/scmp_integration -log.console warn
-    - ./bin/end2end_integration -log.console warn
+      - echo "--- start topology (including build)"
+      - ./scion.sh topology
+      - ./scion.sh run && sleep 10
+      - echo "--- run tests"
+      - ./bin/pp_integration || ( echo "^^^ +++" && false )
+      - ./bin/scion_integration || ( echo "^^^ +++" && false )
+      - ./bin/end2end_integration || ( echo "^^^ +++" && false )
     plugins:
       - scionproto/metahook#v0.3.0:
           post-command: |
@@ -95,7 +97,7 @@ steps:
             echo "SCION topology successfully shut down"
     artifact_paths:
       - "artifacts.out/**/*"
-    timeout_in_minutes: 10
+    timeout_in_minutes: 15
     key: e2e_integration_tests
     retry:
       automatic:
@@ -104,11 +106,13 @@ steps:
   - label: "IT: :docker:/topo E2E"
     if: build.message !~ /\[doc\]/
     command:
-    - ./scion.sh topology -d
-    - ./scion.sh run
-    - docker-compose -f gen/scion-dc.yml -p scion up -d $(docker-compose -f gen/scion-dc.yml config --services | grep tester)
-    - sleep 10
-    - ./bin/end2end_integration -d -log.console warn
+      - echo "--- start topology (including build)"
+      - ./scion.sh topology -d
+      - ./scion.sh run
+      - docker-compose -f gen/scion-dc.yml -p scion up -d $(docker-compose -f gen/scion-dc.yml config --services | grep tester)
+      - sleep 10
+      - echo "--- run tests"
+      - ./bin/end2end_integration -d || ( echo "^^^ +++" && false )
     plugins:
       - scionproto/metahook#v0.3.0:
           post-command: |
@@ -117,8 +121,26 @@ steps:
             echo "SCION topology successfully shut down"
     artifact_paths:
       - "artifacts.out/**/*"
-    timeout_in_minutes: 10
+    timeout_in_minutes: 15
     key: docker_integration_e2e_default
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+  - label: ":bash: TRC ceremony"
+    if: build.message !~ /\[doc\]/
+    command:
+      - echo "--- build"
+      - bazel build //:scion-topo >/dev/null 2>&1
+      - tar -xf bazel-bin/scion-topo.tar -C bin --overwrite
+      - echo "--- run test"
+      - mkdir -p /tmp/test-artifacts/trc-ceremony
+      - export SAFEDIR="/tmp/test-artifacts/trc-ceremony"
+      - ./scripts/cryptoplayground/trc_ceremony.sh
+      - sudo chmod 0777 /tmp/test-artifacts/trc-ceremony/*/keys/*.key
+    key: trc_ceremony_test
+    artifact_paths:
+      - "artifacts.out/**/*"
     retry:
       automatic:
         - exit_status: -1  # Agent was lost

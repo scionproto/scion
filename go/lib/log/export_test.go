@@ -14,6 +14,5 @@
 
 package log
 
-func SetHandler(l Logger, h Handler) {
-	l.(*logger).Logger.SetHandler(h)
-}
+var ConvertCfg = convertCfg
+var FmtCaller = fmtCaller

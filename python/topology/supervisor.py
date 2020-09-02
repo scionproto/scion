@@ -29,6 +29,7 @@ from python.topology.common import (
     COMMON_DIR,
     CS_CONFIG_NAME,
     DISP_CONFIG_NAME,
+    FEATURE_HEADER_V2,
     SD_CONFIG_NAME,
 )
 
@@ -56,7 +57,10 @@ class SupervisorGenerator(object):
 
     def _as_conf(self, topo, base):
         entries = []
-        entries.extend(self._br_entries(topo, "bin/border", base))
+        if FEATURE_HEADER_V2 in self.args.features:
+            entries.extend(self._br_entries(topo, "bin/border-router", base))
+        else:
+            entries.extend(self._br_entries(topo, "bin/border", base))
         entries.extend(self._control_service_entries(topo, base))
         return entries
 

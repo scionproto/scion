@@ -26,14 +26,14 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-type wildcardExpander struct {
-	localIA   addr.IA
-	core      bool
-	inspector trust.Inspector
-	pathDB    pathdb.PathDB
+type WildcardExpander struct {
+	LocalIA   addr.IA
+	Core      bool
+	Inspector trust.Inspector
+	PathDB    pathdb.PathDB
 }
 
-func (e *wildcardExpander) ExpandSrcWildcard(ctx context.Context,
+func (e *WildcardExpander) ExpandSrcWildcard(ctx context.Context,
 	req segfetcher.Request) (segfetcher.Requests, error) {
 
 	if req.Src.A != 0 {
@@ -60,8 +60,8 @@ func (e *wildcardExpander) ExpandSrcWildcard(ctx context.Context,
 }
 
 // coreASes queries the core ASes in isd.
-func (e *wildcardExpander) coreASes(ctx context.Context, isd addr.ISD) ([]addr.IA, error) {
-	coreASes, err := e.inspector.ByAttributes(ctx, isd, trust.Core)
+func (e *WildcardExpander) coreASes(ctx context.Context, isd addr.ISD) ([]addr.IA, error) {
+	coreASes, err := e.Inspector.ByAttributes(ctx, isd, trust.Core)
 	if err != nil {
 		return nil, serrors.WrapStr("failed to get local core ASes", err)
 	}
@@ -70,16 +70,16 @@ func (e *wildcardExpander) coreASes(ctx context.Context, isd addr.ISD) ([]addr.I
 
 // providerCoreASes returns the core ASes that are providers of this AS, i.e.
 // those core ASes that are directly reachable with an up segment
-func (e *wildcardExpander) providerCoreASes(ctx context.Context) ([]addr.IA, error) {
+func (e *WildcardExpander) providerCoreASes(ctx context.Context) ([]addr.IA, error) {
 
-	if e.core {
-		return []addr.IA{e.localIA}, nil
+	if e.Core {
+		return []addr.IA{e.LocalIA}, nil
 	}
 
 	params := &query.Params{
 		SegTypes: []proto.PathSegType{proto.PathSegType_up},
 	}
-	res, err := e.pathDB.Get(ctx, params)
+	res, err := e.PathDB.Get(ctx, params)
 	if err != nil {
 		return nil, err
 	}

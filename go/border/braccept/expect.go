@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/border/braccept/shared"
 	"github.com/scionproto/scion/go/lib/log"
@@ -57,7 +58,7 @@ func ExpectedPackets(desc string, to string, pkts ...*DevTaggedLayers) int {
 		}
 		// Packet received
 		pkt := pktV.Interface().(gopacket.Packet)
-		if _, e := checkPkt(IgnoredPkts, idx, pkt); e == nil {
+		if _, e := checkPkt(IgnoredPkts, idx, pkt); e == nil || isTCP(pkt) {
 			// Packet is to be ignored
 			continue
 		}
@@ -77,6 +78,15 @@ func ExpectedPackets(desc string, to string, pkts ...*DevTaggedLayers) int {
 		log.Info(fmt.Sprintf("Test %s: %s\n", desc, pass()))
 	}
 	return errors
+}
+
+// isTCP checks if packet is a TCP packet. We ignore tcp packets, as they are only
+// used for health checking.
+func isTCP(pkt gopacket.Packet) bool {
+	if tl := pkt.TransportLayer(); tl != nil {
+		return tl.LayerType() == layers.LayerTypeTCP
+	}
+	return false
 }
 
 // checkPkt compare a given packet against all the possible expected packets,

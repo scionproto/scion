@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ifstate
+package ifstate_test
 
 import (
 	"context"
@@ -33,19 +33,17 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/cs/ifstate/mock_ifstate"
 	"github.com/scionproto/scion/go/cs/metrics"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -58,12 +56,12 @@ var (
 	timeout     = time.Second
 	ttl         = path_mgmt.MinRevTTL
 	overlapTime = ttl / 2
-	expireTime  = time.Second + DefaultKeepaliveTimeout
+	expireTime  = time.Second + ifstate.DefaultKeepaliveTimeout
 	ia          = xtest.MustParseIA("1-ff00:0:111")
 )
 
 type brMsg struct {
-	msg *path_mgmt.IFStateInfos
+	msg []ifstate.InterfaceState
 	a   net.Addr
 }
 
@@ -83,15 +81,15 @@ func TestNoRevocationIssued(t *testing.T) {
 	Convey("TestNoRevocationIssued", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		msgr := mock_infra.NewMockMessenger(mctrl)
+		sender := mock_ifstate.NewMockInterfaceStateSender(mctrl)
 		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
-		intfs := NewInterfaces(topoProvider.Get().IFInfoMap(), Config{})
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		activateAll(intfs)
-		cfg := RevokerConf{
+		cfg := ifstate.RevokerConf{
 			Intfs:        intfs,
-			Msgr:         msgr,
+			StateSender:  sender,
 			Signer:       signer,
-			RevConfig:    RevConfig{RevOverlap: overlapTime},
+			RevConfig:    ifstate.RevConfig{RevOverlap: overlapTime},
 			TopoProvider: topoProvider,
 			RevInserter:  revInserter,
 		}
@@ -100,7 +98,7 @@ func TestNoRevocationIssued(t *testing.T) {
 		defer cancelF()
 		revoker.Run(ctx)
 		// gomock tests that no calls to the messenger are made.
-		checkInterfaces(intfs, map[common.IFIDType]State{})
+		checkInterfaces(intfs, map[common.IFIDType]ifstate.State{})
 	})
 }
 
@@ -115,25 +113,25 @@ func TestRevokeInterface(t *testing.T) {
 	Convey("TestRevokeInterface", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		msgr := mock_infra.NewMockMessenger(mctrl)
+		sender := mock_ifstate.NewMockInterfaceStateSender(mctrl)
 		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
-		intfs := NewInterfaces(topoProvider.Get().IFInfoMap(), Config{})
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		activateAll(intfs)
-		intfs.Get(101).lastActivate = time.Now().Add(-expireTime)
+		intfs.Get(101).SetLastActivate(time.Now().Add(-expireTime))
 		revInserter.EXPECT().InsertRevocations(gomock.Any(), &matchers.SignedRevs{
 			Verifier: revVerifier{pubKey: pub},
 			MatchRevs: []path_mgmt.RevInfo{{
 				RawIsdas: ia.IAInt(), IfID: 101, LinkType: proto.LinkType_peer},
 			},
 		})
-		checkSentMessages := expectMessengerCalls(msgr, 101, topoProvider)
-		cfg := RevokerConf{
+		checkSentMessages := expectSenderCalls(sender, 101, topoProvider)
+		cfg := ifstate.RevokerConf{
 			Intfs:        intfs,
-			Msgr:         msgr,
+			StateSender:  sender,
 			Signer:       signer,
 			TopoProvider: topoProvider,
 			RevInserter:  revInserter,
-			RevConfig: RevConfig{
+			RevConfig: ifstate.RevConfig{
 				RevTTL:     ttl,
 				RevOverlap: overlapTime,
 			},
@@ -142,7 +140,7 @@ func TestRevokeInterface(t *testing.T) {
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
 		revoker.Run(ctx)
-		checkInterfaces(intfs, map[common.IFIDType]State{101: Revoked})
+		checkInterfaces(intfs, map[common.IFIDType]ifstate.State{101: ifstate.Revoked})
 		checkSentMessages(t, revVerifier{pubKey: pub})
 	})
 }
@@ -157,11 +155,11 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 	Convey("TestRevokedInterfaceNotRevokedImmediately", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		msgr := mock_infra.NewMockMessenger(mctrl)
+		sender := mock_ifstate.NewMockInterfaceStateSender(mctrl)
 		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
-		intfs := NewInterfaces(topoProvider.Get().IFInfoMap(), Config{})
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		activateAll(intfs)
-		intfs.Get(101).state = Revoked
+		intfs.Get(101).SetState(ifstate.Revoked)
 		srev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
 			IfID:         101,
 			RawIsdas:     ia.IAInt(),
@@ -171,13 +169,13 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 		}, infra.NullSigner)
 		xtest.FailOnErr(t, err)
 		intfs.Get(101).SetRevocation(srev)
-		cfg := RevokerConf{
+		cfg := ifstate.RevokerConf{
 			Intfs:        intfs,
-			Msgr:         msgr,
+			StateSender:  sender,
 			Signer:       signer,
 			TopoProvider: topoProvider,
 			RevInserter:  revInserter,
-			RevConfig: RevConfig{
+			RevConfig: ifstate.RevConfig{
 				RevTTL:     ttl,
 				RevOverlap: overlapTime,
 			},
@@ -188,7 +186,7 @@ func TestRevokedInterfaceNotRevokedImmediately(t *testing.T) {
 		revoker.Run(ctx)
 		// gomock tests that no calls to the messenger are made.
 		SoMsg("Revocation should be same", intfs.Get(101).Revocation(), ShouldEqual, srev)
-		checkInterfaces(intfs, map[common.IFIDType]State{101: Revoked})
+		checkInterfaces(intfs, map[common.IFIDType]ifstate.State{101: ifstate.Revoked})
 	})
 }
 
@@ -203,11 +201,11 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 	Convey("TestRevokedInterfaceRevokedAgain", t, func() {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
-		msgr := mock_infra.NewMockMessenger(mctrl)
+		sender := mock_ifstate.NewMockInterfaceStateSender(mctrl)
 		revInserter := mock_ifstate.NewMockRevInserter(mctrl)
-		intfs := NewInterfaces(topoProvider.Get().IFInfoMap(), Config{})
+		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		activateAll(intfs)
-		intfs.Get(101).state = Revoked
+		intfs.Get(101).SetState(ifstate.Revoked)
 		srev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
 			IfID:         101,
 			RawIsdas:     ia.IAInt(),
@@ -223,14 +221,14 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 				RawIsdas: ia.IAInt(), IfID: 101, LinkType: proto.LinkType_peer},
 			},
 		})
-		checkSentMessages := expectMessengerCalls(msgr, 101, topoProvider)
-		cfg := RevokerConf{
+		checkSentMessages := expectSenderCalls(sender, 101, topoProvider)
+		cfg := ifstate.RevokerConf{
 			Intfs:        intfs,
-			Msgr:         msgr,
+			StateSender:  sender,
 			Signer:       signer,
 			TopoProvider: topoProvider,
 			RevInserter:  revInserter,
-			RevConfig: RevConfig{
+			RevConfig: ifstate.RevConfig{
 				RevTTL:     ttl,
 				RevOverlap: overlapTime,
 			},
@@ -240,7 +238,7 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 		defer cancelF()
 		revoker.Run(ctx)
 		// gomock tests that no calls to the messenger are made.
-		checkInterfaces(intfs, map[common.IFIDType]State{101: Revoked})
+		checkInterfaces(intfs, map[common.IFIDType]ifstate.State{101: ifstate.Revoked})
 		SoMsg("Revocation should be different", intfs.Get(101).Revocation(), ShouldNotEqual, srev)
 		checkSentMessages(t, revVerifier{pubKey: pub})
 	})
@@ -248,26 +246,17 @@ func TestRevokedInterfaceRevokedAgain(t *testing.T) {
 
 // TODO(lukedirtwalker): test revoking multiple interfaces at once.
 
-func expectMessengerCalls(msger *mock_infra.MockMessenger,
+func expectSenderCalls(sender *mock_ifstate.MockInterfaceStateSender,
 	revokedIfId common.IFIDType, topoProvider topology.Provider) func(*testing.T, revVerifier) {
 
 	var brMsgs []brMsg
 	var brMsgsMtx sync.Mutex
-	msger.EXPECT().SendIfStateInfos(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+	sender.EXPECT().SendStateUpdate(gomock.Any(), gomock.Any(), gomock.Any()).
 		Times(len(topoProvider.Get().BRNames())).DoAndReturn(
-		func(_ context.Context, msg *path_mgmt.IFStateInfos, a net.Addr, _ uint64) error {
+		func(_ context.Context, msg []ifstate.InterfaceState, a net.Addr) error {
 			brMsgsMtx.Lock()
 			defer brMsgsMtx.Unlock()
 			brMsgs = append(brMsgs, brMsg{msg: msg, a: a})
-			return nil
-		})
-	var psAddr net.Addr
-	var psMsg *path_mgmt.SignedRevInfo
-	msger.EXPECT().SendRev(gomock.Any(), gomock.Any(), gomock.Any(),
-		gomock.Any()).DoAndReturn(
-		func(_ context.Context, msg *path_mgmt.SignedRevInfo, a net.Addr, _ uint64) error {
-			psAddr = a
-			psMsg = msg
 			return nil
 		})
 	return func(t *testing.T, verifier revVerifier) {
@@ -276,29 +265,22 @@ func expectMessengerCalls(msger *mock_infra.MockMessenger,
 				ShouldEqual, len(topoProvider.Get().BRNames()))
 			sentBRs := expectedBRs(topoProvider)
 			for _, brMsg := range brMsgs {
-				brName := brId(t, topoProvider, brMsg.a.(*snet.UDPAddr))
+				brName := brId(t, topoProvider, brMsg.a.(*net.TCPAddr))
 				delete(sentBRs, brName)
 				checkBRMessage(t, brName, brMsg.msg, revokedIfId, verifier, topoProvider)
 			}
 			SoMsg("Should have sent to all brs", sentBRs, ShouldBeEmpty)
 		})
-		Convey("Check sent PS message", func() {
-			saddr := psAddr.(*snet.SVCAddr)
-			SoMsg("Should send to local IA", saddr.IA, ShouldResemble, ia)
-			SoMsg("Should send to PS", saddr.SVC, ShouldResemble, addr.SvcPS)
-			checkRevocation(t, psMsg, revokedIfId, verifier, topoProvider)
-		})
 	}
 }
 
-func checkBRMessage(t *testing.T, brId string, infos *path_mgmt.IFStateInfos,
+func checkBRMessage(t *testing.T, brId string, infos []ifstate.InterfaceState,
 	revokedIfId common.IFIDType, verifier revVerifier, topoProvider topology.Provider) {
 
 	Convey(fmt.Sprintf("Check ifstateinfo for %s", brId), func() {
-		SoMsg("Should contain correct amount of infos", len(infos.Infos), ShouldEqual, 1)
-		SoMsg("Correct ifid", infos.Infos[0].IfID, ShouldEqual, revokedIfId)
-		SoMsg("Not active", infos.Infos[0].Active, ShouldBeFalse)
-		checkRevocation(t, infos.Infos[0].SRevInfo, revokedIfId, verifier, topoProvider)
+		SoMsg("Should contain correct amount of infos", len(infos), ShouldEqual, 1)
+		SoMsg("Correct ifid", infos[0].ID, ShouldEqual, revokedIfId)
+		checkRevocation(t, infos[0].Revocation, revokedIfId, verifier, topoProvider)
 	})
 }
 
@@ -319,10 +301,10 @@ func checkRevocation(t *testing.T, srev *path_mgmt.SignedRevInfo,
 	})
 }
 
-func checkInterfaces(intfs *Interfaces, nonActive map[common.IFIDType]State) {
+func checkInterfaces(intfs *ifstate.Interfaces, nonActive map[common.IFIDType]ifstate.State) {
 	Convey("Check interface state", func() {
 		for ifid, intf := range intfs.All() {
-			expectedState := Active
+			expectedState := ifstate.Active
 			if st, ok := nonActive[ifid]; ok {
 				expectedState = st
 			}
@@ -331,16 +313,16 @@ func checkInterfaces(intfs *Interfaces, nonActive map[common.IFIDType]State) {
 	})
 }
 
-func brId(t *testing.T, topoProvider topology.Provider, saddr *snet.UDPAddr) string {
+func brId(t *testing.T, topoProvider topology.Provider, tcpA *net.TCPAddr) string {
 	topo := topoProvider.Get()
 	for _, brID := range topo.BRNames() {
 		a := topo.SBRAddress(brID)
-		if a.Host.IP.Equal(saddr.Host.IP) && a.IA == saddr.IA {
+		if a.Host.IP.Equal(tcpA.IP) {
 			return brID
 		}
 	}
 
-	t.Fatalf("Didn't find br ID for %s", saddr.Host)
+	t.Fatalf("Didn't find br ID for %s", tcpA)
 	return "" // meh, makes the compiler happy.
 }
 
@@ -353,7 +335,7 @@ func expectedBRs(topoProvider topology.Provider) map[string]struct{} {
 	return brIds
 }
 
-func activateAll(intfs *Interfaces) {
+func activateAll(intfs *ifstate.Interfaces) {
 	for _, intf := range intfs.All() {
 		intf.Activate(42)
 	}

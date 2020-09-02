@@ -118,14 +118,18 @@ func InitNetwork() *snet.SCIONNetwork {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
+	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
+		RevocationHandler: sciond.RevHandler{Connector: sciondConn},
+	}
+	if !HeaderV2 {
+		scmpHandler = snet.NewLegacySCMPHandler(sciond.RevHandler{Connector: sciondConn})
+	}
 	n := &snet.SCIONNetwork{
 		LocalIA: Local.IA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher: ds,
-			SCMPHandler: snet.NewSCMPHandler(
-				sciond.RevHandler{Connector: sciondConn},
-			),
-			Version2: HeaderV2,
+			Dispatcher:  ds,
+			SCMPHandler: scmpHandler,
+			Version2:    HeaderV2,
 		},
 		Version2: HeaderV2,
 	}

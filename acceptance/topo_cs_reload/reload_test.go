@@ -52,14 +52,18 @@ func TestPSTopoReload(t *testing.T) {
 		"/topology_invalid_changed_port.json",
 	}
 	for _, invalidFile := range invalidFiles {
-		t.Logf("loading %s", invalidFile)
-		loadTopo(t, invalidFile)
-		checkTopology(t, origTopo)
+		t.Run(fmt.Sprintf("file %s", invalidFile), func(t *testing.T) {
+			t.Logf("loading %s", invalidFile)
+			loadTopo(t, invalidFile)
+			checkTopology(t, origTopo)
+		})
 	}
 
 	// now try to load a valid one.
-	loadTopo(t, "/topology_reload.json")
-	checkTopology(t, reloadTopo)
+	t.Run("valid", func(t *testing.T) {
+		loadTopo(t, "/topology_reload.json")
+		checkTopology(t, reloadTopo)
+	})
 }
 
 func setupTest(t *testing.T) {

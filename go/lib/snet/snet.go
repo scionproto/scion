@@ -71,7 +71,7 @@ func NewNetwork(ia addr.IA, dispatcher reliable.Dispatcher,
 		LocalIA: ia,
 		Dispatcher: &DefaultPacketDispatcherService{
 			Dispatcher: dispatcher,
-			SCMPHandler: &scmpHandler{
+			SCMPHandler: &legacySCMPHandler{
 				revocationHandler: revHandler,
 			},
 		},
@@ -149,5 +149,5 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		conn.listen.Port = int(port)
 	}
 	log.Debug("Registered with dispatcher", "addr", &UDPAddr{IA: n.LocalIA, Host: conn.listen})
-	return newConn(conn, packetConn), nil
+	return newConn(conn, packetConn, n.Version2), nil
 }

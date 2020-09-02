@@ -8,7 +8,13 @@
     "exclude_files": {
       "gazelle/language/go/resolve.go": "",
       "/io_bazel_rules_docker/": "",
-      "/com_github_bazelbuild_buildtools/": ""
+      "/com_github_bazelbuild_buildtools/": "",
+      "/com_github_grpc_ecosystem_grpc_opentracing/go/otgrpc/": ""
+    }
+  },  
+  "copylocks": {
+    "exclude_files": {
+      "/org_golang_google_protobuf/internal/impl/": ""
     }
   },
   "nilness": {
@@ -35,7 +41,9 @@
       "gazelle/pathtools/path.go": "",
       "/com_github_antlr_antlr4/runtime/Go/antlr/": "",
       "/com_github_uber_jaeger_client_go": "",
-      "/com_github_marten_seemann_qtls/": ""
+      "/com_github_marten_seemann_qtls/": "",
+      "/org_golang_google_protobuf/encoding/prototext/": "",
+      "/org_golang_google_protobuf/internal/impl/": ""
     }
   },
   "unsafeptr": {

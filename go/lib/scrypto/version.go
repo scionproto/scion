@@ -15,20 +15,12 @@
 package scrypto
 
 import (
-	"encoding/json"
-	"errors"
 	"strconv"
 )
 
 // LatestVer is the wildcard version indicating the highest available version
 // when requesting certificate chains and TRCs.
 const LatestVer Version = 0
-
-// ErrInvalidVersion indicates an invalid trust file version.
-var ErrInvalidVersion = errors.New("version must not be zero")
-
-var _ json.Unmarshaler = (*Version)(nil)
-var _ json.Marshaler = (*Version)(nil)
 
 // Version identifies the version of a trust file. It cannot be
 // marshalled/unmarshalled to/from LatestVer.
@@ -44,25 +36,4 @@ func (v Version) String() string {
 		return "latest"
 	}
 	return strconv.FormatUint(uint64(v), 10)
-}
-
-// UnmarshalJSON checks that the value is not LatestVer.
-func (v *Version) UnmarshalJSON(b []byte) error {
-	parsed, err := strconv.ParseUint(string(b), 10, 64)
-	if err != nil {
-		return err
-	}
-	if Version(parsed) == LatestVer {
-		return ErrInvalidVersion
-	}
-	*v = Version(parsed)
-	return nil
-}
-
-// MarshalJSON checks that the value is not LatestVer.
-func (v Version) MarshalJSON() ([]byte, error) {
-	if v == LatestVer {
-		return nil, ErrInvalidVersion
-	}
-	return json.Marshal(uint64(v))
 }

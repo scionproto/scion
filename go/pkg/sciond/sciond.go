@@ -17,22 +17,29 @@ package sciond
 import (
 	"context"
 	"io"
+	"net"
 	"path/filepath"
 
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/prometheus/client_golang/prometheus"
+	"google.golang.org/grpc"
 
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra/messenger/tcp"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/pathdb"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
+	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
+	sdpb "github.com/scionproto/scion/go/pkg/proto/daemon"
 	"github.com/scionproto/scion/go/pkg/sciond/fetcher"
 	"github.com/scionproto/scion/go/pkg/sciond/internal/servers"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/pkg/trust/compat"
-	"github.com/scionproto/scion/go/proto"
+	trustgrpc "github.com/scionproto/scion/go/pkg/trust/grpc"
+	trustmetrics "github.com/scionproto/scion/go/pkg/trust/metrics"
 )
 
 // InitTracer initializes the global tracer.
@@ -46,7 +53,7 @@ func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
 }
 
 // TrustEngine builds the trust engine backed by the trust database.
-func TrustEngine(cfgDir string, db trust.DB) (trust.Engine, error) {
+func TrustEngine(cfgDir string, db trust.DB, dialer libgrpc.Dialer) (trust.Engine, error) {
 	certsDir := filepath.Join(cfgDir, "certs")
 	loaded, err := trust.LoadTRCs(context.Background(), certsDir, db)
 	if err != nil {
@@ -69,9 +76,10 @@ func TrustEngine(cfgDir string, db trust.DB) (trust.Engine, error) {
 		Inspector: trust.DBInspector{DB: db},
 		Provider: trust.FetchingProvider{
 			DB: db,
-			Fetcher: trust.DefaultFetcher{
-				RPC: tcp.NewClientMessenger(),
-				IA:  itopo.Get().IA(),
+			Fetcher: trustgrpc.Fetcher{
+				IA:       itopo.Get().IA(),
+				Dialer:   dialer,
+				Requests: metrics.NewPromCounter(trustmetrics.RPC.Fetches),
 			},
 			Recurser: trust.LocalOnlyRecurser{},
 			Router:   trust.LocalRouter{IA: itopo.Get().IA()},
@@ -88,22 +96,104 @@ type ServerCfg struct {
 	Engine   trust.Engine
 }
 
-// Server constructs a API server. The caller is responsible for starting and
-// shutting it down.
-func Server(listen string, cfg ServerCfg) *servers.Server {
-	handlers := servers.HandlerMap{
-		proto.SCIONDMsg_Which_pathReq: &servers.PathRequestHandler{
-			Fetcher: cfg.Fetcher,
-		},
-		proto.SCIONDMsg_Which_asInfoReq: &servers.ASInfoRequestHandler{
-			ASInspector: cfg.Engine,
-		},
-		proto.SCIONDMsg_Which_ifInfoRequest:      &servers.IFInfoRequestHandler{},
-		proto.SCIONDMsg_Which_serviceInfoRequest: &servers.SVCInfoRequestHandler{},
-		proto.SCIONDMsg_Which_revNotification: &servers.RevNotificationHandler{
-			RevCache: cfg.RevCache,
-			Verifier: compat.Verifier{Verifier: trust.Verifier{Engine: cfg.Engine}},
-		},
+// GRPCServer creates function that will serve the SCION daemon API via gRPC.
+// Note that the function is blocking.
+func GRPCServer(listen string, cfg ServerCfg) func() error {
+	return func() error {
+		listener, err := net.Listen("tcp", listen)
+		if err != nil {
+			return serrors.WrapStr("listening", err)
+		}
+		server := grpc.NewServer(
+			grpc.ChainUnaryInterceptor(
+				otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer()),
+				libgrpc.LogIDServerInterceptor(),
+			),
+		)
+		sdpb.RegisterDaemonServiceServer(server, servers.DaemonServer{
+			Fetcher:      cfg.Fetcher,
+			ASInspector:  cfg.Engine.Inspector,
+			RevCache:     cfg.RevCache,
+			TopoProvider: itopo.Provider(),
+			Metrics: servers.Metrics{
+				PathsRequests: servers.RequestMetrics{
+					Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
+						Namespace: "sd",
+						Subsystem: "path",
+						Name:      "requests_total",
+						Help:      "The amount of path requests received.",
+					}, servers.PathsRequestsLabels),
+					Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
+						Namespace: "sd",
+						Subsystem: "path",
+						Name:      "request_duration_seconds",
+						Help:      "Time to handle path requests.",
+						Buckets:   prom.DefaultLatencyBuckets,
+					}, servers.LatencyLabels),
+				},
+				ASRequests: servers.RequestMetrics{
+					Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
+						Namespace: "sd",
+						Subsystem: "as_info",
+						Name:      "requests_total",
+						Help:      "The amount of AS requests received.",
+					}, servers.ASRequestsLabels),
+					Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
+						Namespace: "sd",
+						Subsystem: "as_info",
+						Name:      "request_duration_seconds",
+						Help:      "Time to handle AS requests.",
+						Buckets:   prom.DefaultLatencyBuckets,
+					}, servers.LatencyLabels),
+				},
+				InterfacesRequests: servers.RequestMetrics{
+					Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
+						Namespace: "sd",
+						Subsystem: "if_info",
+						Name:      "requests_total",
+						Help:      "The amount of interfaces requests received.",
+					}, servers.InterfacesRequestsLabels),
+					Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
+						Namespace: "sd",
+						Subsystem: "if_info",
+						Name:      "request_duration_seconds",
+						Help:      "Time to handle interfaces requests.",
+						Buckets:   prom.DefaultLatencyBuckets,
+					}, servers.LatencyLabels),
+				},
+				ServicesRequests: servers.RequestMetrics{
+					Requests: metrics.NewPromCounterFrom(prometheus.CounterOpts{
+						Namespace: "sd",
+						Subsystem: "service_info",
+						Name:      "requests_total",
+						Help:      "The amount of services requests received.",
+					}, servers.ServicesRequestsLabels),
+					Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
+						Namespace: "sd",
+						Subsystem: "service_info",
+						Name:      "request_duration_seconds",
+						Help:      "Time to handle services requests.",
+						Buckets:   prom.DefaultLatencyBuckets,
+					}, servers.LatencyLabels),
+				},
+				InterfaceDownNotifications: servers.RequestMetrics{
+					Requests: metrics.NewPromCounter(prom.SafeRegister(
+						prometheus.NewCounterVec(prometheus.CounterOpts{
+							Namespace: "sd",
+							Name:      "received_revocations_total",
+							Help:      "The amount of revocations received.",
+						}, servers.InterfaceDownNotificationsLabels)).(*prometheus.CounterVec),
+					),
+					Latency: metrics.NewPromHistogramFrom(prometheus.HistogramOpts{
+						Namespace: "sd",
+						Subsystem: "revocation",
+						Name:      "notification_duration_seconds",
+						Help:      "Time to handle interface down notifications.",
+						Buckets:   prom.DefaultLatencyBuckets,
+					}, servers.LatencyLabels),
+				},
+			},
+		})
+		return server.Serve(listener)
 	}
-	return servers.NewServer("tcp", listen, handlers)
 }

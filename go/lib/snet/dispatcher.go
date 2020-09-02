@@ -17,14 +17,19 @@ package snet
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // PacketDispatcherService constructs SCION sockets where applications have
@@ -86,26 +91,91 @@ type SCMPHandler interface {
 	Handle(pkt *Packet) error
 }
 
-// NewSCMPHandler creates a default SCMP handler that forwards revocations to the revocation
+// DefaultSCMPHandler handles SCMP messages received from the network. If a
+// revocation handler is configured, it is informed of any received interface
+// down messages.
+type DefaultSCMPHandler struct {
+	// RevocationHandler manages revocations received via SCMP. If nil, the
+	// handler is not called.
+	RevocationHandler RevocationHandler
+}
+
+func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
+	scmp, ok := pkt.PayloadV2.(SCMPPayload)
+	if !ok {
+		return serrors.New("scmp handler invoked with non-scmp packet", "pkt", pkt)
+	}
+	typeCode := slayers.CreateSCMPTypeCode(scmp.Type(), scmp.Code())
+	if !typeCode.InfoMsg() {
+		metrics.M.SCMPErrors().Inc()
+	}
+	switch scmp.Type() {
+	case slayers.SCMPTypeExternalInterfaceDown:
+		msg := pkt.PayloadV2.(SCMPExternalInterfaceDown)
+		return h.handleSCMPRev(typeCode, &path_mgmt.RevInfo{
+			IfID:         common.IFIDType(msg.Interface),
+			RawIsdas:     msg.IA.IAInt(),
+			RawTimestamp: util.TimeToSecs(time.Now()),
+			RawTTL:       10,
+		})
+	case slayers.SCMPTypeInternalConnectivityDown:
+		msg := pkt.PayloadV2.(SCMPInternalConnectivityDown)
+		return h.handleSCMPRev(typeCode, &path_mgmt.RevInfo{
+			IfID:         common.IFIDType(msg.Egress),
+			RawIsdas:     msg.IA.IAInt(),
+			RawTimestamp: util.TimeToSecs(time.Now()),
+			RawTTL:       10,
+		})
+	default:
+		// Only handle connectivity down for now
+		log.Debug("Ignoring scmp packet", "scmp", typeCode, "src", pkt.Source)
+		return nil
+	}
+}
+
+func (h *DefaultSCMPHandler) handleSCMPRev(typeCode slayers.SCMPTypeCode,
+	revInfo *path_mgmt.RevInfo) error {
+
+	sRev, err := path_mgmt.NewSignedRevInfo(revInfo, nullSigner{})
+	if err != nil {
+		return serrors.WrapStr("creating signed rev info", err)
+	}
+	raw, err := sRev.Pack()
+	if err != nil {
+		return serrors.WrapStr("packing signed rev info", err)
+	}
+	if h.RevocationHandler != nil {
+		h.RevocationHandler.RevokeRaw(context.TODO(), raw)
+	}
+	return &OpError{typeCode: typeCode, revInfo: revInfo}
+}
+
+type nullSigner struct{}
+
+func (nullSigner) Sign(context.Context, []byte) (*proto.SignS, error) {
+	return &proto.SignS{}, nil
+}
+
+// NewLegacySCMPHandler creates a default SCMP handler that forwards revocations to the revocation
 // handler. SCMP packets are also forwarded to snet callers via errors returned by Read calls.
 //
 // If the revocation handler is nil, revocations are not forwarded. However, they are still sent
 // back to the caller during read operations.
-func NewSCMPHandler(rh RevocationHandler) SCMPHandler {
-	return &scmpHandler{
+func NewLegacySCMPHandler(rh RevocationHandler) SCMPHandler {
+	return &legacySCMPHandler{
 		revocationHandler: rh,
 	}
 }
 
-// scmpHandler handles SCMP messages received from the network. If a revocation handler is
+// legacySCMPHandler handles SCMP messages received from the network. If a revocation handler is
 // configured, it is informed of any received revocations. All revocations are passed back to the
 // caller embedded in the error, so applications can handle them manually.
-type scmpHandler struct {
+type legacySCMPHandler struct {
 	// revocationHandler manages revocations received via SCMP. If nil, the handler is not called.
 	revocationHandler RevocationHandler
 }
 
-func (h *scmpHandler) Handle(pkt *Packet) error {
+func (h *legacySCMPHandler) Handle(pkt *Packet) error {
 	hdr, ok := pkt.L4Header.(*scmp.Hdr)
 	if !ok {
 		return common.NewBasicError("scmp handler invoked with non-scmp packet", nil, "pkt", pkt)
@@ -126,7 +196,7 @@ func (h *scmpHandler) Handle(pkt *Packet) error {
 	return nil
 }
 
-func (h *scmpHandler) handleSCMPRev(hdr *scmp.Hdr, pkt *Packet) error {
+func (h *legacySCMPHandler) handleSCMPRev(hdr *scmp.Hdr, pkt *Packet) error {
 	scmpPayload, ok := pkt.Payload.(*scmp.Payload)
 	if !ok {
 		return common.NewBasicError("Unable to type assert payload to SCMP payload", nil,

@@ -1,4 +1,4 @@
-.PHONY: all clean godeps gogen mocks bazel gazelle setcap licenses
+.PHONY: all clean protobuf protobuf_clean godeps gogen mocks bazel gazelle setcap licenses
 
 BRACCEPT = bin/braccept
 
@@ -26,8 +26,20 @@ godeps:
 	@echo "godeps: skipped"
 endif
 
-go_deps.bzl: go.mod
+go_deps.bzl: protobuf go.mod
 	@tools/godeps.sh
+
+protobuf: protobuf_clean
+	bazel build //go/pkg/proto/control_plane:proto_srcs
+	tar -kxf bazel-bin/go/pkg/proto/control_plane/proto_srcs.tar -C go/pkg/proto/control_plane
+	chmod 0644 go/pkg/proto/control_plane/*.pb.go
+
+	bazel build //go/pkg/proto/daemon:proto_srcs
+	tar -kxf bazel-bin/go/pkg/proto/daemon/proto_srcs.tar -C go/pkg/proto/daemon
+	chmod 0644 go/pkg/proto/daemon/*.pb.go
+
+protobuf_clean:
+	rm -f go/pkg/proto/*/*.pb.go
 
 bazel: godeps gogen
 	rm -f bin/*
@@ -35,7 +47,7 @@ bazel: godeps gogen
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
 
-mocks:
+mocks: protobuf
 	./tools/gomocks
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build $(GAZELLE_DIRS)
 

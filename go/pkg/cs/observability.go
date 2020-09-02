@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -47,12 +48,12 @@ func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
 // additional information.
 func StartHTTPEndpoints(elemId string, cfg interface{}, signer cstrust.RenewingSigner,
 	ca cstrust.ChainBuilder, metrics env.Metrics) error {
-
 	statusPages := service.StatusPages{
-		"info":     service.NewInfoHandler(),
-		"config":   service.NewConfigHandler(cfg),
-		"topology": itopo.TopologyHandler,
-		"signer":   signerHandler(signer),
+		"info":      service.NewInfoHandler(),
+		"config":    service.NewConfigHandler(cfg),
+		"topology":  itopo.TopologyHandler,
+		"signer":    signerHandler(signer),
+		"log/level": log.ConsoleLevel.ServeHTTP,
 	}
 	if ca != (cstrust.ChainBuilder{}) {
 		statusPages["ca"] = caHandler(ca)

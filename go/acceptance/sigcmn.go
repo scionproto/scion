@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,15 +28,25 @@ import (
 )
 
 var (
-	IAIPMap = make(map[addr.IA]addr.HostIPv4)
+	iaIPMap = make(map[addr.IA]net.IP)
 )
 
 var SigAddr integration.HostAddr = func(ia addr.IA) *snet.UDPAddr {
-	return &snet.UDPAddr{IA: ia, Host: &net.UDPAddr{IP: net.IP(IAIPMap[ia])}}
+	return &snet.UDPAddr{IA: ia, Host: &net.UDPAddr{IP: iaIPMap[ia]}}
 }
 
 func ReadTestingConf() error {
-	conf := "gen/sig-testing.conf"
+	if err := loadNetAlloc(); err != nil {
+		return err
+	}
+	if len(iaIPMap) != 0 {
+		return nil
+	}
+	return loadSigTestingConfig()
+}
+
+func loadSigTestingConfig() error {
+	conf := integration.GenFile("sig-testing.conf")
 	file, err := os.Open(conf)
 	if err != nil {
 		return err
@@ -50,10 +61,21 @@ func ReadTestingConf() error {
 			if err != nil {
 				return err
 			}
-			IAIPMap[ia] = addr.HostIPv4(net.ParseIP(parts[1]))
+			iaIPMap[ia] = net.ParseIP(parts[1])
 		} else {
 			return common.NewBasicError("Bad line format", nil, "line", line)
 		}
+	}
+	return nil
+}
+
+func loadNetAlloc() error {
+	nets, err := integration.LoadNetworkAllocs()
+	if err != nil {
+		return err
+	}
+	for ia, a := range nets {
+		iaIPMap[ia] = a.Host.IP
 	}
 	return nil
 }

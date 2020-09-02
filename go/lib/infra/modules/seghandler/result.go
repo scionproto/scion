@@ -58,7 +58,7 @@ func (s Stats) RevStored() int {
 
 // RevDBErrs returns the amount of db errors for storing revocations.
 func (s Stats) RevDBErrs() int {
-	return len(s.StoredRevs) - len(s.VerifiedRevs)
+	return len(s.VerifiedRevs) - len(s.StoredRevs)
 }
 
 // RevVerifyErrors returns the amount of verification errors for revocations.
@@ -84,24 +84,10 @@ func (s *Stats) verificationErrs(verErrors []error) {
 
 // ProcessedResult is the result of handling a segment reply.
 type ProcessedResult struct {
-	early      chan int
-	full       chan struct{}
 	stats      Stats
 	revs       []*path_mgmt.SignedRevInfo
 	err        error
 	verifyErrs serrors.List
-}
-
-// EarlyTriggerProcessed returns a channel that will contain the number of
-// successfully stored segments once it is done processing the early trigger.
-func (r *ProcessedResult) EarlyTriggerProcessed() <-chan int {
-	return r.early
-}
-
-// FullReplyProcessed returns a channel that will be closed once the full reply
-// has been processed.
-func (r *ProcessedResult) FullReplyProcessed() <-chan struct{} {
-	return r.full
 }
 
 // Stats provides insights about storage and verification of segments.

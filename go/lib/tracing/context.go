@@ -52,3 +52,10 @@ func IDFromCtx(ctx context.Context) []byte {
 	}
 	return tracingBin.Bytes()
 }
+
+// StartSpanFromCtx wraps opentracing.StartSpanFromContext for convenience.
+func StartSpanFromCtx(ctx context.Context, operationName string,
+	opts ...opentracing.StartSpanOption) (opentracing.Span, context.Context) {
+
+	return opentracing.StartSpanFromContext(ctx, operationName, opts...)
+}

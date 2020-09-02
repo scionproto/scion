@@ -19,7 +19,8 @@ is a good place to start.
    PathPolicy
    HiddenPaths
    ColibriService
-   Metrics
+   uri
+   grpc
 
 
 Indices and tables

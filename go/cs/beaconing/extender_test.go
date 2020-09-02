@@ -595,8 +595,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 	})
 }
 
-type failSigner struct {
-}
+type failSigner struct{}
 
 func (f *failSigner) Sign(context.Context, []byte) (*proto.SignS, error) {
 	return nil, errors.New("fail")
@@ -606,4 +605,13 @@ func maxExpTimeFactory(max spath.ExpTimeType) func() spath.ExpTimeType {
 	return func() spath.ExpTimeType {
 		return max
 	}
+}
+
+func testBeacon(g *graph.Graph, ifids []common.IFIDType) *seg.Beacon {
+	bseg := &seg.Beacon{
+		Segment: g.Beacon(ifids),
+	}
+	bseg.Segment.RawASEntries = bseg.Segment.RawASEntries[:len(bseg.Segment.RawASEntries)-1]
+	bseg.Segment.ASEntries = bseg.Segment.ASEntries[:len(bseg.Segment.ASEntries)-1]
+	return bseg
 }

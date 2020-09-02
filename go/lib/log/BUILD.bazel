@@ -18,11 +18,9 @@ go_library(
         "//go/lib/common:go_default_library",
         "//go/lib/config:go_default_library",
         "//go/lib/serrors:go_default_library",
-        "@com_github_inconshreveable_log15//:go_default_library",
-        #"@com_github_inconshreveable_log15_ext//:go_default_library",
-        "@com_github_kormat_fmt15//:go_default_library",
-        "@com_github_mattn_go_isatty//:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
+        "@org_uber_go_zap//:go_default_library",
+        "@org_uber_go_zap//zapcore:go_default_library",
     ],
 )
 
@@ -33,12 +31,16 @@ go_test(
         "context_test.go",
         "export_test.go",
         "log_test.go",
+        "wrappers_test.go",
     ],
     embed = [":go_default_library"],
     deps = [
+        "//go/lib/common:go_default_library",
         "//go/lib/config:go_default_library",
         "//go/lib/log/logtest:go_default_library",
         "@com_github_pelletier_go_toml//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+        "@org_uber_go_zap//zapcore:go_default_library",
     ],
 )

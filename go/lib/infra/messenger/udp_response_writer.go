@@ -19,7 +19,6 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
-	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 )
@@ -34,30 +33,6 @@ type UDPResponseWriter struct {
 
 func (rw *UDPResponseWriter) SendAckReply(ctx context.Context, msg *ack.Ack) error {
 	return rw.Messenger.SendAck(ctx, msg, rw.Remote, rw.ID)
-}
-
-func (rw *UDPResponseWriter) SendTRCReply(ctx context.Context, msg *cert_mgmt.TRC) error {
-	return rw.Messenger.SendTRC(ctx, msg, rw.Remote, rw.ID)
-}
-
-func (rw *UDPResponseWriter) SendCertChainReply(ctx context.Context, msg *cert_mgmt.Chain) error {
-	return rw.Messenger.SendCertChain(ctx, msg, rw.Remote, rw.ID)
-}
-
-func (rw *UDPResponseWriter) SendChainRenewalReply(ctx context.Context,
-	msg *cert_mgmt.ChainRenewalReply) error {
-
-	return rw.Messenger.SendChainRenewalReply(ctx, msg, rw.Remote, rw.ID)
-}
-
-func (rw *UDPResponseWriter) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply) error {
-	return rw.Messenger.SendSegReply(ctx, msg, rw.Remote, rw.ID)
-}
-
-func (rw *UDPResponseWriter) SendIfStateInfoReply(ctx context.Context,
-	msg *path_mgmt.IFStateInfos) error {
-
-	return rw.Messenger.SendIfStateInfos(ctx, msg, rw.Remote, rw.ID)
 }
 
 func (rw *UDPResponseWriter) SendHPSegReply(ctx context.Context, msg *path_mgmt.HPSegReply) error {

@@ -52,7 +52,20 @@ def add_arguments(parser):
                         to be built manually e.g. when running acceptance tests)')
     parser.add_argument('-qos', '--colibri', action='store_true',
                         help='Generate COLIBRI service')
+    parser.add_argument('--features', help='Feature flags to enable, a comma separated list\
+                        e.g. header_v2,foo enables header_v2 and foo feature.')
     return parser
+
+
+def init_features(raw_args):
+    features = getattr(raw_args, 'features')
+    if features is None:
+        features = ''
+    feature_dict = {}
+    for f in features.split(','):
+        if f != '':
+            feature_dict[f] = True
+    setattr(raw_args, 'features', feature_dict)
 
 
 def main():
@@ -61,7 +74,9 @@ def main():
     """
     parser = argparse.ArgumentParser()
     add_arguments(parser)
-    args = ConfigGenArgs(parser.parse_args())
+    raw_args = parser.parse_args()
+    init_features(raw_args)
+    args = ConfigGenArgs(raw_args)
     confgen = ConfigGenerator(args)
     confgen.generate_all()
 

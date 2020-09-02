@@ -3,7 +3,13 @@ using Go = import "go.capnp";
 $Go.package("proto");
 $Go.import("github.com/scionproto/scion/go/proto");
 
-using Sciond = import "sciond.capnp";
+struct HostInfo {
+    port @0 :UInt16;  # Reachable port of the host.
+    addrs :group {  # Addresses of the host.
+        ipv4 @1 :Data;
+        ipv6 @2 :Data;
+    }
+}
 
 struct SIGCtrl {
     id @0 :UInt64;
@@ -20,6 +26,6 @@ struct SIGPoll {
 }
 
 struct SIGAddr {
-    ctrl @0 :Sciond.HostInfo;
-    data @1 :Sciond.HostInfo;
+    ctrl @0 :HostInfo;
+    data @1 :HostInfo;
 }

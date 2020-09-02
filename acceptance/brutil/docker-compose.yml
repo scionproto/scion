@@ -2,6 +2,7 @@ version: "2.4"
 x-br: &br
   environment:
     SU_EXEC_USERSPEC: "$LOGNAME"
+    SCION_BR_DISABLE_IFSTATE_MGMT: ""
   image: scion_border
   network_mode: "service:dispatcher"
   volumes:

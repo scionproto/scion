@@ -19,6 +19,7 @@ import (
 	"context"
 
 	"github.com/opentracing/opentracing-go"
+	"go.uber.org/zap"
 )
 
 type loggerContextKey string
@@ -54,12 +55,12 @@ func FromCtx(ctx context.Context) Logger {
 	return attachSpan(ctx, Root())
 }
 
-func attachSpan(ctx context.Context, logger Logger) Logger {
+func attachSpan(ctx context.Context, l Logger) Logger {
 	if span := opentracing.SpanFromContext(ctx); span != nil {
 		return Span{
-			Logger: logger,
+			Logger: &logger{logger: l.(*logger).logger.WithOptions(zap.AddCallerSkip(1))},
 			Span:   span,
 		}
 	}
-	return logger
+	return l
 }

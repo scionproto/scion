@@ -16,21 +16,18 @@ package rctrl
 
 import (
 	"context"
+	"net"
+	"time"
 
-	"github.com/scionproto/scion/go/border/internal/metrics"
+	"github.com/scionproto/scion/go/border/metrics"
+	"github.com/scionproto/scion/go/border/rctrl/grpc"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // RevInfoFwd takes RevInfos, and forwards them to the local Beacon Service
 // (BS) and Path Service (PS).
-func revInfoFwd(revInfoQ chan rpkt.RawSRevCallbackArgs) {
+func revInfoFwd(revInfoQ chan rpkt.RawSRevCallbackArgs, sender grpc.RevocationSender) {
 	cl := metrics.ControlLabels{}
 	// Run forever.
 	for args := range revInfoQ {
@@ -43,52 +40,27 @@ func revInfoFwd(revInfoQ chan rpkt.RawSRevCallbackArgs) {
 		}
 		cl.Result = metrics.Success
 		metrics.Control.ReadRevInfos(cl).Inc()
-		logger.Debug("Forwarding revocation", "revInfo", revInfo.String(), "targets", args.Addrs)
+		uniqueAddrs := make(map[string]net.Addr)
 		for _, svcAddr := range args.Addrs {
-			fwdRevInfo(args.SignedRevInfo, svcAddr)
+			a, err := rctx.Get().Conf.Topo.Anycast(svcAddr.Base())
+			if err != nil {
+				logger.Error("Resolving svc addr", "err", err, "addr", svcAddr)
+				continue
+			}
+			tcpA := &net.TCPAddr{IP: a.IP, Port: a.Port, Zone: a.Zone}
+			uniqueAddrs[tcpA.String()] = tcpA
 		}
+		var addrs []net.Addr
+		for _, a := range uniqueAddrs {
+			addrs = append(addrs, a)
+		}
+		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+		if err := sender.SendRevocation(ctx, args.SignedRevInfo, addrs); err != nil {
+			logger.Error("Forwarding revocation",
+				"revInfo", revInfo.String(), "targets", addrs, "err", err)
+		} else {
+			logger.Debug("Forwarding revocation", "revInfo", revInfo.String(), "targets", addrs)
+		}
+		cancelF()
 	}
-}
-
-// fwdRevInfo forwards RevInfo payloads to a designated local host.
-func fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostSVC) {
-	cl := metrics.SentRevInfoLabels{
-		Result: metrics.ErrProcess,
-		SVC:    dstHost.BaseString(),
-	}
-	ctx := rctx.Get()
-	cpld, err := ctrl.NewPathMgmtPld(sRevInfo, nil, nil)
-	if err != nil {
-		metrics.Control.SentRevInfos(cl).Inc()
-		log.Error("Error generating RevInfo Ctrl payload", "err", err)
-		return
-	}
-	scpld, err := cpld.SignedPld(context.TODO(), infra.NullSigner)
-	if err != nil {
-		metrics.Control.SentRevInfos(cl).Inc()
-		log.Error("Error generating RevInfo signed Ctrl payload", "err", err)
-		return
-	}
-	pld, err := scpld.PackPld()
-	if err != nil {
-		metrics.Control.SentRevInfos(cl).Inc()
-		logger.Error("Writing RevInfo signed Ctrl payload", "err", err)
-		return
-	}
-	dst := &snet.SVCAddr{IA: ia, SVC: dstHost}
-	dst.NextHop, err = ctx.ResolveSVCAny(dstHost)
-	if err != nil {
-		cl.Result = metrics.ErrResolveSVC
-		metrics.Control.SentRevInfos(cl).Inc()
-		logger.Error("Resolving SVC anycast", "err", err, "addr", dst)
-		return
-	}
-	if _, err := snetConn.WriteTo(pld, dst); err != nil {
-		metrics.Control.SentRevInfos(cl).Inc()
-		logger.Error("Writing RevInfo", "dst", dst, "err", err)
-		return
-	}
-	cl.Result = metrics.Success
-	metrics.Control.SentRevInfos(cl).Inc()
-	logger.Debug("Sent RevInfo", "dst", dst, "underlayDst", dst.NextHop)
 }

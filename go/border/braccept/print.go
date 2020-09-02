@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kormat/fmt15"
 	"github.com/mattn/go-isatty"
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
@@ -58,14 +57,14 @@ const (
 
 func pass() string {
 	if colorTerm {
-		return fmt15.ColorStr(passUni, green)
+		return fmt.Sprintf("\x1b[%dm%s\x1b[0m", green, passUni)
 	}
 	return "PASS"
 }
 
 func fail() string {
 	if colorTerm {
-		return fmt15.ColorStr(failUni, red)
+		return fmt.Sprintf("\x1b[%dm%s\x1b[0m", red, failUni)
 	}
 	return "FAIL"
 }

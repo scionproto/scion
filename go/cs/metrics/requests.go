@@ -15,8 +15,6 @@
 package metrics
 
 import (
-	"strconv"
-
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -27,19 +25,18 @@ import (
 
 // RequestOkLabels contains the labels for a request that succeeded.
 type RequestOkLabels struct {
-	SegType   proto.PathSegType
-	CacheOnly bool
-	DstISD    addr.ISD
+	SegType proto.PathSegType
+	DstISD  addr.ISD
 }
 
 // Labels returns the labels.
 func (l RequestOkLabels) Labels() []string {
-	return []string{"seg_type", "cache_only", "dst_isd"}
+	return []string{"seg_type", "dst_isd"}
 }
 
 // Values returns the values.
 func (l RequestOkLabels) Values() []string {
-	return []string{l.SegType.String(), strconv.FormatBool(l.CacheOnly), l.DstISD.String()}
+	return []string{l.SegType.String(), l.DstISD.String()}
 }
 
 // RequestLabels contains the labels for requests.
@@ -66,20 +63,20 @@ func (l RequestLabels) WithResult(result string) RequestLabels {
 
 // Request is for request metrics.
 type Request struct {
-	count       *prometheus.CounterVec
-	repliedSegs *prometheus.CounterVec
-	repliedRevs *prometheus.CounterVec
+	Requests        *prometheus.CounterVec
+	SegmentsSent    *prometheus.CounterVec
+	RevocationsSent *prometheus.CounterVec
 }
 
 func newRequests() Request {
 	subsystem := "requests"
 	return Request{
-		count: prom.NewCounterVecWithLabels(PSNamespace, subsystem, "total",
+		Requests: prom.NewCounterVecWithLabels(PSNamespace, subsystem, "total",
 			"Number of segment requests total. \"result\" indicates the outcome.",
 			RequestLabels{}),
-		repliedSegs: prom.NewCounterVecWithLabels(PSNamespace, subsystem, "replied_segments_total",
+		SegmentsSent: prom.NewCounterVecWithLabels(PSNamespace, subsystem, "replied_segments_total",
 			"Number of segments in reply to segment requests.", RequestOkLabels{}),
-		repliedRevs: prom.NewCounterVecWithLabels(
+		RevocationsSent: prom.NewCounterVecWithLabels(
 			PSNamespace,
 			subsystem,
 			"replied_revocations_total",
@@ -91,18 +88,18 @@ func newRequests() Request {
 
 // Count returns the counter for requests total.
 func (r Request) Count(l RequestLabels) prometheus.Counter {
-	return r.count.WithLabelValues(l.Values()...)
+	return r.Requests.WithLabelValues(l.Values()...)
 }
 
 // RepliedSegs returns the counter for the number of segments in a seg reply.
 func (r Request) RepliedSegs(l RequestOkLabels) prometheus.Counter {
-	return r.repliedSegs.WithLabelValues(l.Values()...)
+	return r.SegmentsSent.WithLabelValues(l.Values()...)
 }
 
 // RepliedRevs returns the counter for the number of revocations in a seg
 // reply.
 func (r Request) RepliedRevs(l RequestOkLabels) prometheus.Counter {
-	return r.repliedRevs.WithLabelValues(l.Values()...)
+	return r.RevocationsSent.WithLabelValues(l.Values()...)
 }
 
 // DetermineReplyType determines which type of segments is in the reply. The

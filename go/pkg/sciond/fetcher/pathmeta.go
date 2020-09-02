@@ -6,7 +6,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // PathMetadata is the condensed form of metadata retaining only the most important values.
@@ -17,10 +16,6 @@ type PathMetadata struct {
 	LinkTypes    []DenseASLinkType `capnp:"linkTypes"`
 	Locations    []DenseGeo        `capnp:"asLocations"`
 	Notes        []DenseNote       `capnp:"notes"`
-}
-
-func (s *PathMetadata) ProtoId() proto.ProtoIdType {
-	return proto.PathMetadata_TypeID
 }
 
 func (s *PathMetadata) String() string {
@@ -36,10 +31,6 @@ type DenseASLinkType struct {
 	RawIA         addr.IAInt `capnp:"isdas"`
 }
 
-func (s *DenseASLinkType) ProtoId() proto.ProtoIdType {
-	return proto.PathMetadata_InterfaceLinkType_TypeID
-}
-
 func (s *DenseASLinkType) String() string {
 	return fmt.Sprintf("InterLinkType: %d\nPeerLinkType: %d\nISD: %d\nAS: %d\n",
 		s.InterLinkType, s.PeerLinkType, s.RawIA.IA().I, s.RawIA.IA().A)
@@ -48,10 +39,6 @@ func (s *DenseASLinkType) String() string {
 type DenseGeo struct {
 	RouterLocations []DenseGeoLoc `capnp:"routerLocations"`
 	RawIA           addr.IAInt    `capnp:"isdas"`
-}
-
-func (s *DenseGeo) ProtoId() proto.ProtoIdType {
-	return proto.PathMetadata_Geo_TypeID
 }
 
 func (s *DenseGeo) String() string {
@@ -65,10 +52,6 @@ type DenseGeoLoc struct {
 	Address   string  `capnp:"address"`
 }
 
-func (s *DenseGeoLoc) ProtoId() proto.ProtoIdType {
-	return proto.PathMetadata_Geo_GPSData_TypeID
-}
-
 func (s *DenseGeoLoc) String() string {
 	return fmt.Sprintf("Latitude: %f\nLongitude: %f\nAddress: %s\n",
 		s.Latitude, s.Longitude, s.Address)
@@ -77,10 +60,6 @@ func (s *DenseGeoLoc) String() string {
 type DenseNote struct {
 	Note  string     `capnp:"note"`
 	RawIA addr.IAInt `capnp:"isdas"`
-}
-
-func (s *DenseNote) ProtoId() proto.ProtoIdType {
-	return proto.PathMetadata_Note_TypeID
 }
 
 func (s *DenseNote) String() string {

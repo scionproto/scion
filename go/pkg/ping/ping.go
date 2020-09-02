@@ -17,6 +17,7 @@ package ping
 
 import (
 	"context"
+	"encoding/binary"
 	"math/rand"
 	"net"
 	"time"
@@ -24,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -72,10 +72,10 @@ type Config struct {
 	PayloadSize int
 
 	// ErrHandler is invoked for every error that does not cause pinging to
-	// abort. Execution time must be small, as it is run synchronous.
+	// abort. Execution time must be small, as it is run synchronously.
 	ErrHandler func(err error)
 	// Update handler is invoked for every ping reply. Execution time must be
-	// small, as it is run synchronous.
+	// small, as it is run synchronously.
 	UpdateHandler func(Update)
 
 	HeaderV2 bool
@@ -89,15 +89,23 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	}
 
 	id := rand.Uint64()
+	legacyReplies := make(chan legacyReply, 10)
 	replies := make(chan reply, 10)
 
-	svc := snet.DefaultPacketDispatcherService{
-		Dispatcher: cfg.Dispatcher,
-		SCMPHandler: scmpHandler{
+	var scmpHandler snet.SCMPHandler = scmpHandler{
+		id:      uint16(id),
+		replies: replies,
+	}
+	if !cfg.HeaderV2 {
+		scmpHandler = legacySCMPHandler{
 			id:      id,
-			replies: replies,
-		},
-		Version2: cfg.HeaderV2,
+			replies: legacyReplies,
+		}
+	}
+	svc := snet.DefaultPacketDispatcherService{
+		Dispatcher:  cfg.Dispatcher,
+		SCMPHandler: scmpHandler,
+		Version2:    cfg.HeaderV2,
 	}
 	conn, port, err := svc.Register(ctx, cfg.Local.IA, cfg.Local.Host, addr.SvcNone)
 	if err != nil {
@@ -107,15 +115,37 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	local := cfg.Local.Copy()
 	local.Host.Port = int(port)
 
-	p := pinger{
+	// we need to have at least 8 bytes to store the request time in the
+	// payload.
+	if cfg.PayloadSize < 8 {
+		cfg.PayloadSize = 8
+	}
+	if cfg.HeaderV2 {
+		p := pinger{
+			attempts:      cfg.Attempts,
+			interval:      cfg.Interval,
+			timeout:       cfg.Timeout,
+			pldSize:       cfg.PayloadSize,
+			pld:           make([]byte, cfg.PayloadSize),
+			id:            id,
+			conn:          conn,
+			local:         local,
+			replies:       replies,
+			errHandler:    cfg.ErrHandler,
+			updateHandler: cfg.UpdateHandler,
+		}
+		return p.Ping(ctx, cfg.Remote)
+	}
+	p := legacyPinger{
 		attempts:      cfg.Attempts,
 		interval:      cfg.Interval,
 		timeout:       cfg.Timeout,
 		pldSize:       cfg.PayloadSize,
+		pld:           make([]byte, cfg.PayloadSize),
 		id:            id,
-		conn:          conn.(*snet.SCIONPacketConn),
+		conn:          conn,
 		local:         local,
-		replies:       replies,
+		replies:       legacyReplies,
 		errHandler:    cfg.ErrHandler,
 		updateHandler: cfg.UpdateHandler,
 	}
@@ -129,7 +159,7 @@ type pinger struct {
 	pldSize  int
 
 	id      uint64
-	conn    *snet.SCIONPacketConn
+	conn    snet.PacketConn
 	local   *snet.UDPAddr
 	replies <-chan reply
 
@@ -138,6 +168,7 @@ type pinger struct {
 	updateHandler func(Update)
 
 	// Mutable state
+	pld              []byte
 	sentSequence     int
 	receivedSequence int
 	stats            Stats
@@ -181,7 +212,12 @@ func (p *pinger) Ping(ctx context.Context, remote *snet.UDPAddr) (Stats, error) 
 func (p *pinger) send(remote *snet.UDPAddr) error {
 	sequence := p.sentSequence + 1
 
-	pkt, err := newEcho(p.local, remote, p.pldSize, scmp.InfoEcho{Id: p.id, Seq: uint16(sequence)})
+	binary.BigEndian.PutUint64(p.pld, uint64(time.Now().UnixNano()))
+	pkt, err := pack(p.local, remote, snet.SCMPEchoRequest{
+		Identifier: uint16(p.id),
+		SeqNumber:  uint16(sequence),
+		Payload:    p.pld,
+	})
 	if err != nil {
 		return err
 	}
@@ -204,6 +240,33 @@ func (p *pinger) send(remote *snet.UDPAddr) error {
 }
 
 func (p *pinger) receive(reply reply) {
+	rtt := reply.Received.Sub(time.Unix(0, int64(binary.BigEndian.Uint64(reply.Reply.Payload)))).
+		Round(time.Microsecond)
+	var state State
+	switch {
+	case rtt > p.timeout:
+		state = AfterTimeout
+	case int(reply.Reply.SeqNumber) < p.receivedSequence:
+		state = OutOfOrder
+	case int(reply.Reply.SeqNumber) == p.receivedSequence:
+		state = Duplicate
+	default:
+		state = Success
+		p.receivedSequence = int(reply.Reply.SeqNumber)
+	}
+	p.stats.Received++
+	if p.updateHandler != nil {
+		p.updateHandler(Update{
+			RTT:      rtt,
+			Sequence: int(reply.Reply.SeqNumber),
+			Size:     reply.Size,
+			Source:   reply.Source,
+			State:    state,
+		})
+	}
+}
+
+func (p *pinger) legacyReceive(reply legacyReply) {
 	rtt := reply.Received.Sub(reply.Header.Time()).Round(time.Microsecond)
 	var state State
 	switch {
@@ -253,46 +316,39 @@ type reply struct {
 	Received time.Time
 	Source   snet.SCIONAddress
 	Size     int
-	Header   *scmp.Hdr
-	Info     *scmp.InfoEcho
+	Reply    snet.SCMPEchoReply
 	Error    error
 }
 
 type scmpHandler struct {
-	id      uint64
+	id      uint16
 	replies chan<- reply
 }
 
 func (h scmpHandler) Handle(pkt *snet.Packet) error {
-	hdr, info, err := h.handle(pkt)
+	echo, err := h.handle(pkt)
 	h.replies <- reply{
-		Error:    err,
-		Header:   hdr,
-		Size:     len(pkt.Bytes),
-		Source:   pkt.Source,
-		Info:     info,
 		Received: time.Now(),
+		Source:   pkt.Source,
+		Size:     len(pkt.Bytes),
+		Reply:    echo,
+		Error:    err,
 	}
 	return nil
 }
 
-func (h scmpHandler) handle(pkt *snet.Packet) (*scmp.Hdr, *scmp.InfoEcho, error) {
-	scmpHdr, ok := pkt.L4Header.(*scmp.Hdr)
+func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPEchoReply, error) {
+	if pkt.PayloadV2 == nil {
+		return snet.SCMPEchoReply{}, serrors.New("no v2 payload found")
+	}
+	r, ok := pkt.PayloadV2.(snet.SCMPEchoReply)
 	if !ok {
-		return nil, nil, serrors.New("not an SCMP header", "type", common.TypeOf(pkt.L4Header))
-
+		return snet.SCMPEchoReply{}, serrors.New("not SCMPEchoReply",
+			"type", common.TypeOf(pkt.PayloadV2))
 	}
-	scmpPld, ok := pkt.PacketInfo.Payload.(*scmp.Payload)
-	if !ok {
-		return scmpHdr, nil,
-			serrors.New("not an SCMP payload", "type", common.TypeOf(pkt.Payload))
+	if r.Identifier != h.id {
+		return snet.SCMPEchoReply{}, serrors.New("wrong SCMP ID",
+			"expected", h.id, "actual", r.Identifier)
 	}
-	info, ok := scmpPld.Info.(*scmp.InfoEcho)
-	if !ok {
-		return nil, nil, serrors.New("not an echo", "type", common.TypeOf(scmpPld.Info))
-	}
-	if info.Id != h.id {
-		return nil, nil, serrors.New("wrong SCMP ID", "expected", h.id, "actual", info.Id)
-	}
-	return scmpHdr, info, nil
+	return r, nil
 }

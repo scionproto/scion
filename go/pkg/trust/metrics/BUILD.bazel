@@ -2,7 +2,10 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["db.go"],
+    srcs = [
+        "db.go",
+        "export.go",
+    ],
     importpath = "github.com/scionproto/scion/go/pkg/trust/metrics",
     visibility = ["//visibility:public"],
     deps = [

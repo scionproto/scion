@@ -54,7 +54,27 @@ func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) []*Path {
 
 	var pathSlice []*Path
 	for _, path := range paths {
-		pathSlice = append(pathSlice, path.GetFwdPathMetadata())
+		pathSlice = append(pathSlice, path.legacyFwdPathMetadata())
+	}
+	return FilterLongPaths(pathSlice)
+}
+
+// CombineV2 constructs paths between src and dst using the supplied
+// segments. All possible paths are first computed, and then filtered according
+// to FilterLongPaths. The remaining paths are returned sorted according to
+// weight (on equal weight, see pathSolutionList.Less for the tie-breaking
+// algorithm).
+//
+// If Combine cannot extract a hop field or info field from the segments, it
+// panics.
+//
+// This method is specifically for header v2.
+func CombineV2(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) []*Path {
+	paths := NewDMG(ups, cores, downs).GetPaths(VertexFromIA(src), VertexFromIA(dst))
+
+	var pathSlice []*Path
+	for _, path := range paths {
+		pathSlice = append(pathSlice, path.getFwdPathMetadata())
 	}
 	return FilterLongPaths(pathSlice)
 }

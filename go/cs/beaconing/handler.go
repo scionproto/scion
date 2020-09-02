@@ -17,22 +17,23 @@ package beaconing
 import (
 	"context"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/ifstate"
-	"github.com/scionproto/scion/go/cs/metrics"
+	csmetrics "github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/tracing"
 )
 
 // BeaconInserter inserts beacons into the beacon store.
@@ -41,186 +42,126 @@ type BeaconInserter interface {
 	InsertBeacon(ctx context.Context, beacon beacon.Beacon) (beacon.InsertStats, error)
 }
 
-// NewHandler returns an infra.Handler for beacon messages. Both the beacon
-// inserter and verifier must not be nil. Otherwise, the handler might panic.
-func NewHandler(ia addr.IA, intfs *ifstate.Interfaces, beaconInserter BeaconInserter,
-	verifier infra.Verifier) infra.Handler {
+// Handler handles beacons.
+type Handler struct {
+	LocalIA    addr.IA
+	Inserter   BeaconInserter
+	Verifier   infra.Verifier
+	Interfaces *ifstate.Interfaces
 
-	f := func(r *infra.Request) *infra.HandlerResult {
-		handler := &handler{
-			ia:       ia,
-			inserter: beaconInserter,
-			verifier: verifier,
-			intfs:    intfs,
-			request:  r,
-		}
-		return handler.Handle()
-	}
-	return infra.HandlerFunc(f)
+	BeaconsHandled metrics.Counter
 }
 
-type handler struct {
-	ia       addr.IA
-	inserter BeaconInserter
-	verifier infra.Verifier
-	intfs    *ifstate.Interfaces
-	request  *infra.Request
-}
+// HandleBeacon handles a baeacon received from peer.
+func (h Handler) HandleBeacon(ctx context.Context, b beacon.Beacon, peer *snet.UDPAddr) error {
+	span := opentracing.SpanFromContext(ctx)
+	labels := handlerLabels{Ingress: b.InIfId}
 
-// Handle handles a beacon.
-func (h *handler) Handle() *infra.HandlerResult {
-	logger := log.FromCtx(h.request.Context())
-	res, err := h.handle(logger)
-	if err != nil {
-		logger.Error("[BeaconHandler] Unable to handle beacon", "err", err)
-	}
-	return res
-}
-
-func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
-	rw, ok := infra.ResponseWriterFromContext(h.request.Context())
-	if !ok {
-		return infra.MetricsErrInternal, serrors.New("No Messenger found")
-	}
-
-	sendAck := messenger.SendAckHelper(h.request.Context(), rw)
-
-	labels := metrics.BeaconingLabels{}
-	ifid, as, err := h.getIFID()
-	if err != nil {
-		metrics.Beaconing.Received(labels.WithResult(metrics.ErrParse)).Inc()
-		return infra.MetricsErrInvalid, err
-	}
-	labels.InIfID, labels.NeighIA = ifid, as
-	b, res, err := h.buildBeacon(ifid)
-	if err != nil {
-		metrics.Beaconing.Received(labels.WithResult(metrics.ErrParse)).Inc()
-		return res, err
-	}
-	logger.Debug("[BeaconHandler] Received", "beacon", b)
-	if err := h.inserter.PreFilter(b); err != nil {
-		logger.Debug("[BeaconHandler] Beacon pre-filtered", "err", err)
-		metrics.Beaconing.Received(labels.WithResult(metrics.ErrPrefilter)).Inc()
-		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectPolicyError)
-		return infra.MetricsErrInvalid, nil
-	}
-	if err := h.verifyBeacon(b); err != nil {
-		logger.Debug("[BeaconHandler] Beacon verification", "err", err)
-		metrics.Beaconing.Received(labels.WithResult(metrics.ErrVerify)).Inc()
-		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
-		return infra.MetricsErrInvalid, err
-	}
-	stat, err := h.inserter.InsertBeacon(h.request.Context(), b)
-	if err != nil {
-		metrics.Beaconing.Received(labels.WithResult(metrics.ErrDB)).Inc()
-		sendAck(proto.Ack_ErrCode_reject, messenger.AckRetryDBError)
-		return infra.MetricsErrInternal, common.NewBasicError("Unable to insert beacon", err)
-	}
-	logger.Debug("[BeaconHandler] Successfully inserted", "beacon", b)
-	metrics.Beaconing.Received(labels.WithResult(
-		metrics.GetResultValue(stat.Inserted, stat.Updated, stat.Filtered))).Inc()
-	sendAck(proto.Ack_ErrCode_ok, "")
-	return infra.MetricsResultOk, nil
-}
-
-func (h *handler) buildBeacon(ifid common.IFIDType) (beacon.Beacon, *infra.HandlerResult, error) {
-	pseg, ok := h.request.Message.(*seg.PathSegment)
-	if !ok {
-		return beacon.Beacon{}, infra.MetricsErrInternal, common.NewBasicError(
-			"Wrong message type, expected *seg.PathSegment", nil,
-			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-	}
-	if err := pseg.ParseRaw(seg.ValidateBeacon); err != nil {
-		return beacon.Beacon{}, infra.MetricsErrInvalid,
-			common.NewBasicError("Unable to parse beacon", err, "beacon", pseg)
-	}
-	return beacon.Beacon{InIfId: ifid, Segment: pseg}, nil, nil
-}
-
-func (h *handler) getIFID() (common.IFIDType, addr.IA, error) {
-	var ia addr.IA
-	peer, ok := h.request.Peer.(*snet.UDPAddr)
-	if !ok {
-		return 0, ia, common.NewBasicError("Invalid peer address type, expected *snet.UDPAddr", nil,
-			"peer", h.request.Peer, "type", common.TypeOf(h.request.Peer))
-	}
-	ingressIfID, err := ingressIfID(peer.Path)
-	if err != nil {
-		return 0, ia, err
-	}
-	intf := h.intfs.Get(ingressIfID)
+	intf := h.Interfaces.Get(b.InIfId)
 	if intf == nil {
-		return 0, ia, common.NewBasicError("Received beacon on non-existent ifid", nil,
-			"ifid", ingressIfID)
+		err := serrors.New("received beacon on non-existent interface", "if_id", b.InIfId)
+		h.updateMetric(span, labels.WithResult(csmetrics.ErrNotClassified), err)
+		return err
 	}
-	return ingressIfID, intf.TopoInfo().IA, nil
-}
 
-func (h *handler) verifyBeacon(b beacon.Beacon) error {
-	if err := h.validateASEntry(b); err != nil {
-		return common.NewBasicError("Invalid last AS entry", err,
-			"entry", b.Segment.ASEntries[b.Segment.MaxAEIdx()])
+	upstream := intf.TopoInfo().IA
+	if span != nil {
+		span.SetTag("in_if_id", b.InIfId)
+		span.SetTag("upstream", upstream)
 	}
-	if err := h.verifySegment(b.Segment); err != nil {
-		return common.NewBasicError("Verification of beacon failed", err)
+	logger := log.FromCtx(ctx).New("beacon", b, "upstream", upstream)
+	ctx = log.CtxWith(ctx, logger)
+
+	logger.Debug("Received beacon")
+	if err := h.Inserter.PreFilter(b); err != nil {
+		logger.Debug("Beacon pre-filtered", "err", err)
+		h.updateMetric(span, labels.WithResult(csmetrics.ErrPrefilter), err)
+		return err
 	}
+	if err := h.validateASEntry(b, intf); err != nil {
+		logger.Info("Beacon validation failed", "err", err)
+		h.updateMetric(span, labels.WithResult(csmetrics.ErrVerify), err)
+		return err
+	}
+	if err := h.verifySegment(ctx, b.Segment, peer); err != nil {
+		logger.Info("Beacon verification failed", "err", err)
+		h.updateMetric(span, labels.WithResult(csmetrics.ErrVerify), err)
+		return serrors.WrapStr("verifying beacon", err)
+	}
+	stat, err := h.Inserter.InsertBeacon(ctx, b)
+	if err != nil {
+		logger.Debug("Failed to insert beacon", "err", err)
+		h.updateMetric(span, labels.WithResult(csmetrics.ErrDB), err)
+		return serrors.WrapStr("inserting beacon", err)
+
+	}
+	labels = labels.WithResult(csmetrics.GetResultValue(stat.Inserted, stat.Updated, stat.Filtered))
+	h.updateMetric(span, labels, err)
+	logger.Debug("Inserted beacon")
 	return nil
 }
 
-func (h *handler) validateASEntry(b beacon.Beacon) error {
-	intf := h.intfs.Get(b.InIfId)
-	if intf == nil {
-		return common.NewBasicError("Received beacon on non-existent ifid", nil, "ifid", b.InIfId)
-	}
+func (h Handler) validateASEntry(b beacon.Beacon, intf *ifstate.Interface) error {
 	topoInfo := intf.TopoInfo()
 	if topoInfo.LinkType != topology.Parent && topoInfo.LinkType != topology.Core {
-		return common.NewBasicError("Beacon received on invalid link", nil,
+		return serrors.New("beacon received on invalid link",
 			"ifid", b.InIfId, "linkType", topoInfo.LinkType)
 	}
 	asEntry := b.Segment.ASEntries[b.Segment.MaxAEIdx()]
 	if !asEntry.IA().Equal(topoInfo.IA) {
-		return common.NewBasicError("Invalid remote IA", nil,
+		return serrors.New("invalid upstream ISD-AS",
 			"expected", topoInfo.IA, "actual", asEntry.IA())
 	}
 	for i, hopEntry := range asEntry.HopEntries {
-		if !hopEntry.OutIA().Equal(h.ia) {
-			return common.NewBasicError("Out IA of hop entry does not match local IA", nil,
-				"index", i, "expected", h.ia, "actual", hopEntry.OutIA())
+		if !hopEntry.OutIA().Equal(h.LocalIA) {
+			return serrors.New("out ISD-AS of upstream hop entry does not match local ISD-AS",
+				"index", i, "expected", h.LocalIA, "actual", hopEntry.OutIA())
 		}
 	}
 	return nil
 }
 
-func (h *handler) verifySegment(segment *seg.PathSegment) error {
-	snetPeer := h.request.Peer.(*snet.UDPAddr)
-	peerPath, err := snetPeer.GetPath()
+func (h Handler) verifySegment(ctx context.Context, segment *seg.PathSegment,
+	peer *snet.UDPAddr) error {
+
+	peerPath, err := peer.GetPath()
 	if err != nil {
-		return common.NewBasicError("path error", err)
+		return err
 	}
 	svcToQuery := &snet.SVCAddr{
-		IA:      snetPeer.IA,
+		IA:      peer.IA,
 		Path:    peerPath.Path(),
 		NextHop: peerPath.UnderlayNextHop(),
 		SVC:     addr.SvcBS,
 	}
-	return segverifier.VerifySegment(h.request.Context(), h.verifier, svcToQuery, segment)
+	return segverifier.VerifySegment(ctx, h.Verifier, svcToQuery, segment)
 }
 
-func ingressIfID(path *spath.Path) (common.IFIDType, error) {
-	if path.IsHeaderV2() {
-		var sp scion.Raw
-		if err := sp.DecodeFromBytes(path.Raw); err != nil {
-			return 0, serrors.WrapStr("decoding path (v2)", err)
-		}
-		hf, err := sp.GetCurrentHopField()
-		if err != nil {
-			return 0, serrors.WrapStr("getting current hop field", err)
-		}
-		return common.IFIDType(hf.ConsIngress), nil
+func (h Handler) updateMetric(span opentracing.Span, l handlerLabels, err error) {
+	if h.BeaconsHandled != nil {
+		h.BeaconsHandled.With(l.Expand()...).Add(1)
 	}
-	hopF, err := path.GetHopField(path.HopOff)
-	if err != nil {
-		return 0, common.NewBasicError("Unable to extract hop field", err)
+	if span != nil {
+		tracing.ResultLabel(span, l.Result)
+		tracing.Error(span, err)
 	}
-	return hopF.ConsIngress, nil
+}
+
+type handlerLabels struct {
+	Ingress  common.IFIDType
+	Neighbor addr.IA
+	Result   string
+}
+
+func (l handlerLabels) Expand() []string {
+	return []string{
+		"in_if_id", l.Ingress.String(),
+		prom.LabelNeighIA, l.Neighbor.String(),
+		prom.LabelResult, l.Result,
+	}
+}
+
+func (l handlerLabels) WithResult(result string) handlerLabels {
+	l.Result = result
+	return l
 }

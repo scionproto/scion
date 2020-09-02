@@ -16,6 +16,7 @@ package messenger
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -101,7 +102,13 @@ func (r AddressRewriter) RedirectToQUIC(ctx context.Context,
 		// During One-Hop Path operation, use SVC resolution to also bootstrap the path.
 		p, u, quicRedirect, err := r.resolveSVC(ctx, path, fa.SVC)
 		if err != nil {
-			if r.SVCResolutionFraction < 1.0 {
+			// For a revoked path we don't fallback we want to give the option
+			// to retry with a new path.
+			isRevokedPath := func(err error) bool {
+				var opErr *snet.OpError
+				return errors.As(err, &opErr) && opErr.RevInfo() != nil
+			}
+			if r.SVCResolutionFraction < 1.0 && !isRevokedPath(err) {
 				// SVC resolution failed but we allow legacy behavior and have some
 				// fraction of the timeout left for data transfers, so return
 				// address with SVC destination still set

@@ -136,12 +136,13 @@ func (ac *Conn) WriteTo(p []byte, addr net.Addr) (int, error) {
 // Write is optimized for the use by ConnHandler (avoids reparsing the packet).
 func (ac *Conn) Write(pkt *respool.Packet) (int, error) {
 	// FIXME(roosd): Drop this with header v1.
-	if err := registerIfSCMPRequest(ac.regReference, &pkt.Info); err != nil {
-		log.Info("SCMP Request ID error, packet still sent", "err", err)
-	}
-	if err := registerIfSCMPInfo(ac.regReference, pkt); err != nil {
-		log.Info("SCMP Request ID error, packet still sent", "err", err)
-	}
+	registerIfSCMPRequest(ac.regReference, &pkt.Info)
+	// XXX(roosd): Ignore error since there is nothing we can do about it.
+	// Currently, the ID space is shared between all applications that register
+	// with the dispatcher. Likelihood that they overlap is very small.
+	// If this becomes ever a problem, we can namespace the ID per registered
+	// application.
+	registerIfSCMPInfo(ac.regReference, pkt)
 	return pkt.SendOnConn(ac.conn, pkt.UnderlayRemote)
 }
 

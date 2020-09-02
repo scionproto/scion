@@ -8,9 +8,8 @@ def build_tester_image():
         srcs = [
             "//go/integration/end2end:end2end",
             "//go/examples/pingpong:pingpong",
+            "//go/scion",
             "//go/scion-pki:scion-pki",
-            "//go/tools/scmp:scmp",
-            "//go/tools/showpaths:showpaths",
         ],
         package_dir = "bin",
     )

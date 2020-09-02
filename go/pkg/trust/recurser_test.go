@@ -36,6 +36,10 @@ func TestASLocalRecurserAllowRecursion(t *testing.T) {
 		"host local": {
 			Assertion: assert.NoError,
 		},
+		"AS local TCP": {
+			Addr:      &net.TCPAddr{IP: net.IP{127, 0, 0, 1}, Port: 404},
+			Assertion: assert.NoError,
+		},
 		"AS local": {
 			Addr:      &snet.UDPAddr{IA: ia110},
 			Assertion: assert.NoError,

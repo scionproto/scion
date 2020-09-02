@@ -16,68 +16,93 @@
 package log
 
 import (
+	"flag"
+	"fmt"
+	"net/http"
 	"os"
-	"runtime/debug"
-	"strings"
+	"time"
 
-	"github.com/inconshreveable/log15"
-	// Allows customization of timestamps and multi-line support
-	"github.com/kormat/fmt15"
-	"github.com/mattn/go-isatty"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-func init() {
-	fmt15.TimeFmt = common.TimeFmt
+func timeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+	enc.AppendString(t.Format(common.TimeFmt))
 }
 
-var logBuf *syncBuf
+func fmtCaller(caller zapcore.EntryCaller) string {
+	p := caller.TrimmedPath()
+	if len(p) > 30 {
+		p = "..." + p[len(p)-27:]
+	}
+	return fmt.Sprintf("%30s", p)
+}
+
+func fixedCallerEncoder(caller zapcore.EntryCaller, enc zapcore.PrimitiveArrayEncoder) {
+	enc.AppendString(fmtCaller(caller))
+}
 
 // Setup configures the logging library with the given config.
 func Setup(cfg Config) error {
 	cfg.InitDefaults()
-	var console log15.Handler
-	var err error
-	if console, err = setupConsole(cfg.Console); err != nil {
+	if err := setupConsole(cfg.Console); err != nil {
 		return err
 	}
-	setHandlers(console)
 	return nil
 }
 
-func setupConsole(cfg ConsoleConfig) (log15.Handler, error) {
-	lvl, err := log15.LvlFromString(cfg.Level)
-	if err != nil {
-		return nil, serrors.WrapStr("unable to parse log.console.level", err, "level", cfg.Level)
+func convertCfg(cfg ConsoleConfig) (zap.Config, error) {
+	var level zapcore.Level
+	if err := level.UnmarshalText([]byte(cfg.Level)); err != nil {
+		return zap.Config{}, serrors.WrapStr("unable to parse log.console.level", err,
+			"level", cfg.Level)
 	}
-	var cMap map[log15.Lvl]int
-	if isatty.IsTerminal(os.Stderr.Fd()) {
-		cMap = fmt15.ColorMap
+	encoding := "console"
+	if cfg.Format == "json" {
+		encoding = "json"
 	}
-	format := fmt15.Fmt15Format(cMap)
-	if strings.EqualFold(cfg.Format, "json") {
-		format = log15.JsonFormat()
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.EncodeTime = timeEncoder
+	if cfg.Format != "json" {
+		encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+		encoderConfig.EncodeCaller = fixedCallerEncoder
 	}
-	handler := log15.LvlFilterHandler(lvl, log15.StreamHandler(os.Stderr, format))
-	return handler, nil
+	return zap.Config{
+		Level:            zap.NewAtomicLevelAt(level),
+		Encoding:         encoding,
+		EncoderConfig:    encoderConfig,
+		OutputPaths:      []string{"stderr"},
+		ErrorOutputPaths: []string{"stderr"},
+	}, nil
 }
 
-func setHandlers(logConsHandler log15.Handler) {
-	var handler log15.Handler
-	switch {
-	case logConsHandler != nil:
-		handler = logConsHandler
+func setupConsole(cfg ConsoleConfig) error {
+	zCfg, err := convertCfg(cfg)
+	if err != nil {
+		return err
 	}
-	log15.Root().SetHandler(handler)
+	logger, err := zCfg.Build(zap.AddCallerSkip(1))
+	if err != nil {
+		return serrors.WrapStr("creating logger", err)
+	}
+	zap.ReplaceGlobals(logger)
+	ConsoleLevel = Level{a: zCfg.Level}
+	return nil
 }
 
 // HandlePanic catches panics and logs them.
 func HandlePanic() {
 	if msg := recover(); msg != nil {
-		log15.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
-		log15.Crit("=====================> Service panicked!")
+		// Ugly hack: If this flag is set, we are inside a test.
+		// In that case we want to rethrow the exception so that it appears in stdout.
+		if flag.Lookup("test.v") != nil {
+			panic(msg)
+		}
+		zap.L().Error("Panic", zap.Any("msg", msg), zap.Stack("stack"))
+		zap.L().Error("=====================> Service panicked!")
 		Flush()
 		os.Exit(255)
 	}
@@ -85,7 +110,24 @@ func HandlePanic() {
 
 // Flush writes the logs to the underlying buffer.
 func Flush() {
-	if logBuf != nil {
-		logBuf.Flush()
-	}
+	zap.L().Sync()
+}
+
+// ConsoleLevel allows interacting with the logging level at runtime.
+// It is initialized with after a successful call to Setup.
+var ConsoleLevel Level
+
+// Level allows to interact with the logging level at runtime.
+type Level struct {
+	a zap.AtomicLevel
+}
+
+// ServeHTTP is an endpoint that can report on or change the current logging
+// level.
+//
+// GET requests return a JSON description of the current logging level.
+// PUT requests change the logging level and expect a payload like:
+//   {"level":"info"}
+func (l Level) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	l.a.ServeHTTP(w, r)
 }

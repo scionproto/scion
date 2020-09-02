@@ -476,7 +476,7 @@ func ComputeSCMPGeneralDestination(s *spkt.ScnPkt, header *scmp.Hdr) (Destinatio
 	switch {
 	case isSCMPGeneralRequest(header):
 		invertSCMPGeneralType(header)
-		return SCMPHandlerDestination{HeaderV2: false}, nil
+		return SCMPHandlerDestination{}, nil
 	case isSCMPGeneralReply(header):
 		return &SCMPAppDestination{ID: id}, nil
 	default:
@@ -582,10 +582,7 @@ func sendPacket(routingEntry *TableEntry, pkt *respool.Packet) {
 
 var _ Destination = (*SCMPHandlerDestination)(nil)
 
-type SCMPHandlerDestination struct {
-	// HeaderV2 switches SCMP messages to the new SCION header format.
-	HeaderV2 bool
-}
+type SCMPHandlerDestination struct{}
 
 func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet) {
 	if err := pkt.Info.Reverse(); err != nil {
@@ -595,13 +592,7 @@ func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *respool.Packet
 
 	b := respool.GetBuffer()
 	pkt.Info.HBHExt = removeSCMPHBH(pkt.Info.HBHExt)
-	var n int
-	var err error
-	if h.HeaderV2 {
-		n, err = hpkt.WriteScnPkt2(&pkt.Info, b)
-	} else {
-		n, err = hpkt.WriteScnPkt(&pkt.Info, b)
-	}
+	n, err := hpkt.WriteScnPkt(&pkt.Info, b)
 	if err != nil {
 		log.Info("Unable to create reply SCMP packet", "err", err)
 		return

@@ -20,8 +20,8 @@ import (
 
 // Span is a logger that attaches all logs to the span.
 type Span struct {
-	Logger
-	Span opentracing.Span
+	Logger Logger
+	Span   opentracing.Span
 }
 
 // Debug logs to the logger and span.
@@ -40,6 +40,14 @@ func (s Span) Info(msg string, ctx ...interface{}) {
 func (s Span) Error(msg string, ctx ...interface{}) {
 	s.Logger.Error(msg, ctx...)
 	s.spanLog("error", msg, ctx...)
+}
+
+// New creates a new logger with the context attached.
+func (s Span) New(ctx ...interface{}) Logger {
+	return Span{
+		Logger: s.Logger.New(ctx...),
+		Span:   s.Span,
+	}
 }
 
 func (s Span) spanLog(lvl, msg string, ctx ...interface{}) {

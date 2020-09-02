@@ -18,7 +18,6 @@ go_library(
         "path_mgmt.capnp.go",
         "path_seg.capnp.go",
         "rev_info.capnp.go",
-        "sciond.capnp.go",
         "sibra.capnp.go",
         "sig.capnp.go",
         "sign.capnp.go",

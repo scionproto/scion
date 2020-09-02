@@ -29,9 +29,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kormat/fmt15"
-
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -272,7 +271,7 @@ func (s *serverStop) Close() error {
 // WithTimestamp returns s with the now timestamp prefixed.
 // This is helpful for logging staments to stdout/stderr or in a file where the logger isn't used.
 func WithTimestamp(s string) string {
-	return fmt.Sprintf("%v %s", time.Now().UTC().Format(fmt15.TimeFmt), s)
+	return fmt.Sprintf("%v %s", time.Now().UTC().Format(common.TimeFmt), s)
 }
 
 // StartServer runs a server. The server can be stopped by calling Close() on the returned Closer.
@@ -307,6 +306,9 @@ func ExecuteTimed(name string, f func() error) error {
 	start := time.Now()
 	err := f()
 	elapsed := time.Since(start)
+
+	// XXX(roosd) This string is used by buildkite to group output blocks.
+	fmt.Printf("--- test results: %s\n", name)
 	if err != nil {
 		log.Error("Test failed", "name", name, "elapsed", elapsed)
 		return err
@@ -350,7 +352,7 @@ func RunUnaryTests(in Integration, pairs []IAPair, timeout time.Duration) error 
 		if err := RunClient(in, pair, timeout); err != nil {
 			msg := fmt.Sprintf("Error in client: %v -> %v (%v/%v)",
 				pair.Src.IA, pair.Dst.IA, idx+1, len(pairs))
-			log.Error(msg, "err", err)
+			log.Error(msg, "name", in.Name(), "err", err)
 			return err
 		}
 		return nil

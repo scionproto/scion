@@ -68,23 +68,90 @@ goroutines should always call ``defer log.HandlePanic()`` as the first statement
 Logging
 -------
 
-* Use the SCION logging, i.e. import ``"github.com/scionproto/scion/go/lib/log"``.
-* Do not use ``log.Root().New(...)``, instead use New directly: ``log.New(...)``.
-* Keys should be snake case; use ``log.Debug("msg", "some_key", "foo")`` instead
+- To use logging, import ``"github.com/scionproto/scion/go/lib/log"``.
+- The logging package supports three logging levels:
+
+  - **Debug**: entries that are aimed only at developers, and include very low-level details.
+    These should never be enabled on a production machine. Examples of such entries may include
+    opening a socket, receiving a network message, or loading a file from the disk.
+  - **Info**: entries that either contain high-level information about what the application
+    is doing, or “errors” that are part of normal operation and have been handled by the code.
+    Examples of such entries may include: issuing a new certificate for a client, having
+    the authentication of an RPC call fail, or timing out when trying to connect to a server.
+  - **Error**: entries about severe problems encountered by the application.
+    The application might even need to terminate due to such an error. Example of such entries
+    may include: the database is unreachable, the database schema is corrupted, or writing a file
+    has failed due to insufficient disk space.
+
+- Do not use ``log.Root().New(...)``, instead use New directly: ``log.New(...)``.
+- Keys should be snake case; use ``log.Debug("msg", "some_key", "foo")`` instead
   of ``log.Debug("msg", "someKey", "foo")`` or other variants.
-* Try to not repeat key-value pairs in logging calls that are close-by; derive a
+- Try to not repeat key-value pairs in logging calls that are close-by; derive a
   new logging context instead (e.g., if multiple logging calls refer to a
   ``"request"`` for ``"Foo"``, create a sublogger with this context by calling
   ``newLogger = parentLogger.New("request", "Foo")`` and then use
   ``newLogger.Debug("x")``).
-* If multiple logging lines need to be correlated for debugging, consider adding
-  a debugging ID to them via ``log.NewDebugID``. Usually this is done together
-  with the sub-logger pattern in the previous bullet.
-* An empty ``log.New()`` has no impact and should be omitted.
+- An empty ``log.New()`` has no impact and should be omitted.
+- When creating a complex type whose methods should have access to logging, add
+  a ``log.Logger`` field to the type. If the field is ``nil``, then logging should
+  be disabled; this means only callers interested in having the type log something
+  need to bother with passing in a logger.
+
+
+Here is an example of how logging could be added to a type:
+
+.. literalinclude:: wrappers_test.go
+   :language: Go
+   :dedent: 1
+   :start-after: LITERALINCLUDE ExampleDiscardLogger START
+   :end-before: LITERALINCLUDE ExampleDiscardLogger END
 
 Metrics
 -------
 
-For metrics implementation, see
-`here <https://github.com/scionproto/scion/blob/master/doc/Metrics.md>`__.
+Metrics definition and interactions should be consistent throughout the code
+base. A common pattern makes it easier for developers to implement and refactor
+metrics, and for operators to understand where metrics are coming from. As a
+bonus, we should leverage the type system to help us spot as many errors as
+possible.
 
+To write code that both includes metrics, and is testable, we use the
+`metric recommendations from the go-kit project <https://godoc.org/github.com/go-kit/kit/metrics>`__.
+
+A simple example with labels (note that ``Foo``'s metrics can be unit tested by mocking the counter):
+
+.. literalinclude:: metrics_test.go
+   :language: Go
+   :dedent: 1
+   :start-after: LITERALINCLUDE ExampleCounter_Interface START
+   :end-before: LITERALINCLUDE ExampleCounter_Interface END
+
+Calling code can later create ``Giant`` objects with Prometheus metric reporting
+by plugging a prometheus counter as the ``Counter``. The Prometheus objects can be
+obtained from the metrics packages in the following way:
+
+.. literalinclude:: metrics_test.go
+   :language: Go
+   :dedent: 1
+   :start-after: LITERALINCLUDE ExampleCounter_Implementation START
+   :end-before: LITERALINCLUDE ExampleCounter_Implementation END
+
+In cases where performance is a concern, consider applying the labels outside of
+the performance-critical section.
+
+.. note::
+   Some packages have `metrics` packages that define labels and initialize
+   metrics (see the ``go/cs/beacon/metrics`` package for an example). While this
+   is also ok, the recommended way is to define labels in the package itself and
+   initialize metrics in `main`.
+
+Best Practices
+^^^^^^^^^^^^^^
+
+#. `prometheus.io/docs/practices/naming/ <https://prometheus.io/docs/practices/naming/>`__
+#. Namespace should be one word.
+#. Subsystem should be one word (if present).
+#. Use values that can be searched with regex. E.g. prepend ``err_`` for every error result.
+#. ``snake_case`` label names and values.
+#. Put shared label names and values into ``go/lib/prom``.
+#. Always initialize ``CounterVec`` to avoid hidden metrics `link <https://prometheus.io/docs/practices/instrumentation/#avoid-missing-metrics)>`.

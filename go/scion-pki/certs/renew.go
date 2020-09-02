@@ -34,8 +34,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/disp"
+	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -43,11 +42,15 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	"github.com/scionproto/scion/go/lib/snet/squic"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/svc"
 	"github.com/scionproto/scion/go/pkg/command"
+	"github.com/scionproto/scion/go/pkg/grpc"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/renewal"
+	"github.com/scionproto/scion/go/proto"
 )
 
 type subjectVars struct {
@@ -205,7 +208,7 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 				IA: ca,
 			}
 			disp := reliable.NewDispatcher(flags.dispatcherPath)
-			msgr, err := buildMsgr(ctx, disp, sds, local, remote)
+			dialer, err := buildDialer(ctx, disp, sds, local, remote)
 			if err != nil {
 				return err
 			}
@@ -215,7 +218,7 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 			if err != nil {
 				return err
 			}
-			renewed, err := renew(ctx, csr, remote.IA, signer, msgr)
+			renewed, err := renew(ctx, csr, remote.IA, signer, dialer)
 			if err != nil {
 				return err
 			}
@@ -311,9 +314,13 @@ func createSigner(srcIA addr.IA, trc cppki.SignedTRC, chain []*x509.Certificate,
 }
 
 func renew(ctx context.Context, csr []byte, dstIA addr.IA, signer trust.Signer,
-	msgr infra.Messenger) ([]*x509.Certificate, error) {
+	dialer grpc.Dialer) ([]*x509.Certificate, error) {
 
 	req, err := renewal.NewChainRenewalRequest(ctx, csr, signer)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := proto.PackRoot(req)
 	if err != nil {
 		return nil, err
 	}
@@ -321,15 +328,30 @@ func renew(ctx context.Context, csr []byte, dstIA addr.IA, signer trust.Signer,
 		IA:  dstIA,
 		SVC: addr.SvcCS,
 	}
-	rep, err := msgr.RequestChainRenewal(ctx, req, dstSVC, messenger.NextId())
+	conn, err := dialer.Dial(ctx, dstSVC)
 	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	client := cppb.NewChainRenewalServiceClient(conn)
+	reply, err := client.ChainRenewal(ctx,
+		&cppb.ChainRenewalRequest{
+			Raw: raw,
+		},
+		grpc.RetryProfile...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	var chainReply cert_mgmt.ChainRenewalReply
+	if err := proto.ParseFromRaw(&chainReply, reply.Raw); err != nil {
 		return nil, err
 	}
 	// XXX(karampok). We should verify the signature on the payload, but that
 	// implies having a full trust engine that is capable of resolving missing
 	// certificate chains for the CA. We skip it, since the chain itself is
 	// verified against the TRC, and thus, risk is very low.
-	return rep.Chain()
+	return chainReply.Chain()
 }
 
 func csrTemplate(chain []*x509.Certificate, tmpl string) (*x509.CertificateRequest, error) {
@@ -377,8 +399,9 @@ func csrTemplate(chain []*x509.Certificate, tmpl string) (*x509.CertificateReque
 	}, nil
 }
 
-func buildMsgr(ctx context.Context, ds reliable.Dispatcher, sds sciond.Service,
-	local, remote *snet.UDPAddr) (infra.Messenger, error) {
+func buildDialer(ctx context.Context, ds reliable.Dispatcher, sds sciond.Service,
+	local, remote *snet.UDPAddr) (grpc.Dialer, error) {
+
 	sdConn, err := sds.Connect(ctx)
 	if err != nil {
 		return nil, serrors.WrapStr("connecting to SCION Daemon", err)
@@ -387,7 +410,8 @@ func buildMsgr(ctx context.Context, ds reliable.Dispatcher, sds sciond.Service,
 		LocalIA: local.IA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher: ds,
-			SCMPHandler: snet.NewSCMPHandler(
+			// TODO(lukedirtwalker): use new handler for v2, see Anapaya/scion#3509
+			SCMPHandler: snet.NewLegacySCMPHandler(
 				sciond.RevHandler{Connector: sdConn},
 			),
 			Version2: false, // TODO(scrye): set this to true when we have CLI support for features
@@ -397,36 +421,33 @@ func buildMsgr(ctx context.Context, ds reliable.Dispatcher, sds sciond.Service,
 	if err != nil {
 		return nil, serrors.WrapStr("dialing", err)
 	}
-	return messenger.New(
-		&messenger.Config{
-			IA:         local.IA,
-			Dispatcher: disp.New(conn, messenger.DefaultAdapter, log.New()),
-			AddressRewriter: &messenger.AddressRewriter{
-				Router: &snet.BaseRouter{
-					Querier: sciond.Querier{Connector: sdConn, IA: local.IA},
-				},
-				SVCRouter: svcRouter{Connector: sdConn},
-				Resolver: &svc.Resolver{
-					LocalIA: local.IA,
-					ConnFactory: &snet.DefaultPacketDispatcherService{
-						Dispatcher: ds,
-						// TODO(scrye): set this to true when we have CLI support for features
-						Version2: false,
-					},
-					LocalIP: local.Host.IP,
-					Payload: []byte{0x00, 0x00, 0x00, 0x00},
-				},
-				SVCResolutionFraction: 1,
+	dialer := &grpc.QUICDialer{
+		Rewriter: &messenger.AddressRewriter{
+			Router: &snet.BaseRouter{
+				Querier: sciond.Querier{Connector: sdConn, IA: local.IA},
 			},
-			QUIC: &messenger.QUICConfig{
-				Conn: conn,
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-					NextProtos:         []string{"SCION"},
+			SVCRouter: svcRouter{Connector: sdConn},
+			Resolver: &svc.Resolver{
+				LocalIA: local.IA,
+				ConnFactory: &snet.DefaultPacketDispatcherService{
+					Dispatcher: ds,
+					// TODO(scrye): set this to true when we have CLI support for features
+					Version2: false,
 				},
+				LocalIP: local.Host.IP,
+				Payload: []byte{0x00, 0x00, 0x00, 0x00},
+			},
+			SVCResolutionFraction: 1,
+		},
+		Dialer: squic.ConnDialer{
+			Conn: conn,
+			TLSConfig: &tls.Config{
+				InsecureSkipVerify: true,
+				NextProtos:         []string{"SCION"},
 			},
 		},
-	), nil
+	}
+	return dialer, nil
 }
 
 func readECKey(file string) (*ecdsa.PrivateKey, error) {

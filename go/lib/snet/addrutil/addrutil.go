@@ -73,7 +73,10 @@ func (p PatherV2) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr,
 			ExpTime:     entry.HopEntries[0].HopField.ExpTime,
 			Mac:         entry.HopEntries[0].HopField.MAC,
 		}
-		beta = beta ^ binary.BigEndian.Uint16(entry.HopEntries[0].HopField.MAC[:2])
+		// the last AS entry is our AS for this we don't need to modify the beta.
+		if i < len(ps.ASEntries)-1 {
+			beta = beta ^ binary.BigEndian.Uint16(entry.HopEntries[0].HopField.MAC[:2])
+		}
 	}
 
 	hops := len(hopFields)

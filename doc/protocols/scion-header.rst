@@ -12,8 +12,8 @@ The SCION Header is aligned to 4 bytes.
 
 Common Header
 -------------
-The Common Header has the following format:
-::
+The Common Header has the following format::
+
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -69,8 +69,8 @@ RSV
 
 Address Header
 ==============
-The Address Header has the following format:
-::
+The Address Header has the following format::
+
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -97,8 +97,8 @@ DstHostAddr, SrcHostAddr
 
 Path Type: SCION
 ================
-The path type SCION has the following layout:
-::
+The path type SCION has the following layout::
+
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                          PathMetaHdr                          |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -121,8 +121,8 @@ PathMeta Header
 ---------------
 
 The PathMeta field is a 4 byte header containing meta information about the
-SCION path contained in the path header. It has the following format:
-::
+SCION path contained in the path header. It has the following format::
+
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -170,8 +170,8 @@ which greatly simplifies processing logic.
 
 Info Field
 ----------
-InfoField has the following format:
-::
+InfoField has the following format::
+
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -200,8 +200,8 @@ Timestamp
 
 Hop Field
 ---------
-The Hop Field has the following format:
-::
+The Hop Field has the following format::
+
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -246,7 +246,8 @@ ExpTime
 ConsIngress, ConsEgress
     The 16-bits ingress/egress interface IDs in construction direction.
 MAC
-    6-byte Message Authentication Code to authenticate the hop field. For details on how this MAC is calculated refer to `Hop Field MAC Computation`_.
+    6-byte Message Authentication Code to authenticate the hop field. For
+    details on how this MAC is calculated refer to `Hop Field MAC Computation`_.
 
 Hop Field MAC Computation
 -------------------------
@@ -261,7 +262,7 @@ To that end, MACs are calculated over the relevant fields of a hop field and
 additionally (conceptually) chained to other hop fields in the path segment. In
 the following, we specify the computation of a hop field MAC.
 
-We write the *i*-th  hop field in a path segment (in construction direction) as
+We write the `i`-th  hop field in a path segment (in construction direction) as
 
 .. math::
     HF_i = \langle  Flags_i || ExpTime_i || InIF_i || EgIF_i || \sigma_i \rangle
@@ -301,8 +302,8 @@ Here, :math:`\sigma_i[:2]` is the hop field MAC truncated to 2 bytes and
 During beaconing, the initial random value :math:`\beta_0` can be stored in the
 info field and all subsequent segment identifiers can be added to the respective
 hop entries, i.e., :math:`\beta_{i+1}` can be added to the *i*-th hop entry. On
-the data plane, the `SegID` field must contain :math:`\beta_{i+1}/\beta_i` for a
-segment in up/down direction before being processed at the *i*th hop (this also
+the data plane, the *SegID* field must contain :math:`\beta_{i+1}/\beta_i` for a
+segment in up/down direction before being processed at the *i*-th hop (this also
 applies to core segments).
 
 Peering Links
@@ -351,31 +352,36 @@ Initialization cases:
 Each AS on the path verifies the hop fields with the help of the current value
 in `SegID`. The operations differ based on the location of the AS on the path.
 Each AS has to set the `SegID` correctly for the next AS to verify its hop
-field. These operations also have to be done by ASes that deliver the packet
-to a local end host to ensure that path can be used in the reverse direction.
+field.
 
 Each operation is described form the perspective of AS `i`.
 
 Against construction direction (up, i.e., ConsDir == 0):
    #. `SegID` contains :math:`\beta_{i+1}` at this point.
    #. Compute :math:`\beta'_{i} := SegID \oplus \sigma_i[:2]`
-   #. Compute :math:`\sigma'_i` with the formula above by replacing
-      :math:`\beta_{i}` with :math:`\beta'_{i}`.
-   #. Check that the MAC in the hop field matches :math:`\sigma'_{i}`.
-   #. Update `SegID` for the next hop:
+   #. At the ingress router update `SegID`:
 
       :math:`SegID := \beta'_{i}`
-   #. `SegID` now contains :math:`\beta_{i}`.
+   #. `SegID` now contains :math:`\beta'_{i}`
+   #. Compute :math:`\sigma_i` with the formula above by replacing
+      :math:`\beta_{i}` with :math:`SegID`.
+   #. Check that the MAC in the hop field matches :math:`\sigma_{i}`. If the
+      MAC matches it follows that :math:`\beta'_{i} == \beta_{i}`.
 
 In construction direction (down, i.e., ConsDir == 1):
    #. `SegID` contains :math:`\beta_{i}` at this point.
    #. Compute :math:`\sigma'_i` with the formula above by replacing
       :math:`\beta_{i}` with `SegID`.
    #. Check that the MAC in the hop field matches :math:`\sigma'_{i}`.
-   #. Update `SegID` for the next hop:
+   #. At the egress router update `SegID` for the next hop:
 
       :math:`SegID := SegID \oplus \sigma_i[:2]`
    #. `SegID` now contains :math:`\beta_{i+1}`.
+
+An example of how processing is done in up and down direction is shown in the
+illustration below:
+
+.. image:: fig/seg-id-calculation.png
 
 The computation for ASes where a peering link is crossed between path segments
 is special cased. A path containing a peering link contains exactly two path
@@ -408,8 +414,8 @@ neighboring ASes.
 
 A OneHopPath has exactly one info field and two hop fields with the speciality
 that the second hop field is not known apriori, but is instead created by the
-corresponding BR upon processing of the OneHopPath.
-::
+corresponding BR upon processing of the OneHopPath::
+
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                           InfoField                           |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -422,3 +428,48 @@ Because of its special structure, no PathMeta header is needed. There is only a
 single info field and the appropriate hop field can be processed by a border
 router based on the source and destination address, i.e., ``if srcIA == self.IA:
 CurrHF := 0`` and ``if dstIA == self.IA: CurrHF := 1``.
+
+.. _pseudo-header-upper-layer-checksum:
+
+Pseudo Header for Upper-Layer Checksum
+======================================
+
+Upper-layer protocols that include the addresses from the SCION header in the
+checksum computation should use the following pseudo header:
+
+.. code-block:: text
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |            DstISD           |                                 |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                                 +
+    |                             DstAS                             |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |            SrcISD           |                                 |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                                 +
+    |                             SrcAS                             |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                    DstHostAddr (variable Len)                 |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                    SrcHostAddr (variable Len)                 |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                    Upper-Layer Packet Length                  |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                      zero                     |  Next Header  |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+DstISD, SrcISD, DstAS, SrcAS, DstHostAddr, SrcHostAddr
+    The values are taken from the SCION Address header.
+Upper-Layer Packet Length
+    The length of the upper-layer header and data. Some upper-layer protocols
+    define headers that carry the length information explicitly (e.g., UDP).
+    This information is used as the upper-layer packet length in the pseudo
+    header for these protocols. For the remaining protocols, that do not carry
+    the length information directly (e.g., SCMP), the value is defined as the
+    ``PayloadLen`` from the SCION header, minus the sum of the extension header
+    lengths.
+Next Header
+    The protocol identifier associated with the upper-layer protocol (e.g., 1
+    for SCMP, 17 for UDP). This field can differ from the ``NextHdr`` field in
+    the SCION header, if extensions are present.

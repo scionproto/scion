@@ -112,10 +112,7 @@ Checksum Calculation
 The checksum is the 16-bit one's complement of the one's complement sum of the
 entire SCMP message, starting with the SCMP message type field, and prepended
 with a "pseudo-header" consisting of the SCION address header and the layer-4
-protocol type.
-
-TODO(roosd): Define pseudo header similar to
-             https://tools.ietf.org/html/rfc2460#section-8.1
+protocol type as defined in :ref:`pseudo-header-upper-layer-checksum`.
 
 Processing Rules
 ----------------

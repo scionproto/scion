@@ -1,0 +1,11 @@
+build:
+  roots:
+    - .
+  excludes:
+    - anapaya/protobuf
+lint:
+  use:
+    - DEFAULT
+    - COMMENT_ENUM_VALUE
+    - COMMENT_FIELD
+    - COMMENT_RPC

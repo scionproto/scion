@@ -23,3 +23,7 @@ var (
 	ParseAddr           = parseAddr
 	SerializeTLVOptions = serializeTLVOptions
 )
+
+func (s *SCION) ComputeChecksum(upperLayer []byte, protocol uint8) (uint16, error) {
+	return s.computeChecksum(upperLayer, protocol)
+}

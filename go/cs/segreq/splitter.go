@@ -33,11 +33,11 @@ func NewSplitter(ia addr.IA, core bool, inspector trust.Inspector,
 			Core:      core,
 			Inspector: inspector,
 		},
-		expander: &wildcardExpander{
-			localIA:   ia,
-			core:      core,
-			inspector: inspector,
-			pathDB:    pathDB,
+		expander: &WildcardExpander{
+			LocalIA:   ia,
+			Core:      core,
+			Inspector: inspector,
+			PathDB:    pathDB,
 		},
 	}
 }
@@ -51,7 +51,7 @@ func NewSplitter(ia addr.IA, core bool, inspector trust.Inspector,
 // requests.
 type splitter struct {
 	segfetcher.Splitter
-	expander *wildcardExpander
+	expander *WildcardExpander
 }
 
 // Split splits a path request from the local AS to dst into a set of segment

@@ -16,6 +16,7 @@
 package config
 
 import (
+	"fmt"
 	"io"
 	"time"
 
@@ -52,8 +53,8 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Logging,
 		&cfg.Metrics,
 		&cfg.Tracing,
-		&cfg.TrustDB,
-		&cfg.PathDB,
+		cfg.TrustDB.WithDefault(fmt.Sprintf(storage.DefaultTrustDBPath, "sd")),
+		cfg.PathDB.WithDefault(fmt.Sprintf(storage.DefaultPathDBPath, "sd")),
 		&cfg.SD,
 	)
 }
@@ -80,14 +81,14 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		config.OverrideName(
 			config.FormatData(
 				&cfg.TrustDB,
-				storage.SetID(storage.SampleTrustDB, idSample).Connection,
+				fmt.Sprintf(storage.DefaultTrustDBPath, "sd"),
 			),
 			"trust_db",
 		),
 		config.OverrideName(
 			config.FormatData(
 				&cfg.PathDB,
-				storage.SetID(storage.SamplePathDB, idSample).Connection,
+				fmt.Sprintf(storage.DefaultPathDBPath, "sd"),
 			),
 			"path_db",
 		),

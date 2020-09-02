@@ -109,8 +109,9 @@ func realMain() int {
 
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
-		"info":   service.NewInfoHandler(),
-		"config": service.NewConfigHandler(cfg),
+		"info":      service.NewInfoHandler(),
+		"config":    service.NewConfigHandler(cfg),
+		"log/level": log.ConsoleLevel.ServeHTTP,
 	}
 	if err := statusPages.Register(http.DefaultServeMux, cfg.Sig.ID); err != nil {
 		log.Error("registering status pages", "err", err)
