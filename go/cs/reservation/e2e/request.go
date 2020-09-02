@@ -84,7 +84,7 @@ func NewSetupRequest(r *Request, segRsvs []reservation.SegmentID, segRsvCount []
 		}
 		if n < 0 && currASindex < 0 {
 			currASindex = i
-			isTransfer = i < len(segRsvCount)-1 && n == -1 // last segment has no transfers
+			isTransfer = i < len(segRsvCount)-1 && n == -1 // dst AS is no transfer
 		}
 	}
 	totalAScount -= len(segRsvCount) - 1
@@ -115,6 +115,18 @@ func (r *SetupReq) IsDstAS() bool {
 
 func (r *SetupReq) IsTransferAS() bool {
 	return r.isTransfer
+}
+
+// SegmentRsvIDsForThisAS returns the segment reservation ID this AS belongs to. Iff this
+// AS is a transfer AS (stitching point), there will be two reservation IDs returned, in the
+// order of traversal.
+func (r *SetupReq) SegmentRsvIDsForThisAS() []reservation.SegmentID {
+	indices := make([]reservation.SegmentID, 1, 2)
+	indices[0] = r.SegmentRsvs[r.currentASSegmentRsvIndex]
+	if r.isTransfer {
+		indices = append(indices, r.SegmentRsvs[r.currentASSegmentRsvIndex+1])
+	}
+	return indices
 }
 
 // SetupReqSuccess is a successful e2e setup request traveling along the reservation path.
