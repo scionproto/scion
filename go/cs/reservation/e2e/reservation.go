@@ -90,3 +90,20 @@ func (r *Reservation) Index(idx reservation.IndexNumber) *Index {
 	}
 	return &r.Indices[sliceIndex]
 }
+
+// AllocResv returns the allocated bandwidth by this reservation using the current active index and
+// the previous one. The max of those two values is used because the current active index might
+// be rolled back with a cleanup request. The return units is Kbps.
+func (r *Reservation) AllocResv() uint64 {
+	var maxBW reservation.BWCls
+	switch len(r.Indices) {
+	case 0:
+		return 0
+	case 1:
+		maxBW = r.Indices[len(r.Indices)-1].AllocBW
+	default:
+		maxBW = reservation.MaxBWCls(r.Indices[len(r.Indices)-1].AllocBW,
+			r.Indices[len(r.Indices)-2].AllocBW)
+	}
+	return maxBW.ToKbps()
+}
