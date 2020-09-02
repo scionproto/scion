@@ -16,6 +16,7 @@ package reservationstore
 
 import (
 	"context"
+	"math"
 	"time"
 
 	base "github.com/scionproto/scion/go/cs/reservation"
@@ -79,10 +80,9 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 			"id", req.ID)
 	}
 
-	var index *segment.Index
 	if rsv != nil {
 		// renewal, ensure index is not used
-		index = rsv.Index(req.InfoField.Idx)
+		index := rsv.Index(req.InfoField.Idx)
 		if index != nil {
 			return failedResponse, serrors.New("index from setup already in use",
 				"idx", req.InfoField.Idx, "id", req.ID)
@@ -105,7 +105,7 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 		return failedResponse, serrors.WrapStr("cannot create index from token", err,
 			"id", req.ID)
 	}
-	index = rsv.Index(idx)
+	index := rsv.Index(idx)
 
 	// checkpath type compatibility with end properties
 	if err := rsv.PathEndProps.ValidateWithPathType(rsv.PathType); err != nil {
@@ -295,6 +295,10 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 		// TODO(juagargi): how is a trail of so far granted bandwidths used here? all previous ASes did accept the request, and if this one fails it, it sends the failed request backwards.
 		// MaxBWs:    []reservation.BWCls{},
 	}
+	if len(req.SegmentRsvs) == 0 || len(req.SegmentRsvs) > 3 {
+		return failedResponse, serrors.New("invalid number of segment reservations for an e2e one",
+			"count", len(req.SegmentRsvs))
+	}
 	tx, err := s.db.BeginTransaction(ctx, nil)
 	if err != nil {
 		return failedResponse, serrors.WrapStr("cannot create transaction", err,
@@ -307,28 +311,104 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
 		return failedResponse, serrors.WrapStr("cannot obtain e2e reservation", err,
 			"id", req.ID)
 	}
-	if idx := rsv.Index(req.Index); idx != nil {
-		return failedResponse, serrors.New("already existing e2e index", "id", req.ID,
-			"idx", req.Index)
+	segRsvIDs := req.SegmentRsvIDsForThisAS()
+	if rsv != nil {
+		// renewal
+		if index := rsv.Index(req.Index); index != nil {
+			return failedResponse, serrors.New("already existing e2e index", "id", req.ID,
+				"idx", req.Index)
+		}
+	} else {
+		// new setup
+		rsv = &e2e.Reservation{
+			ID:                  req.ID,
+			SegmentReservations: make([]*segment.Reservation, len(segRsvIDs)),
+		}
+		for i, id := range segRsvIDs {
+			r, err := tx.GetSegmentRsvFromID(ctx, &id)
+			if err != nil {
+				return failedResponse, serrors.WrapStr("cannot get segment rsv for e2e admission",
+					err, "e2e_id", req.ID, "seg_id", id)
+			}
+			rsv.SegmentReservations[i] = r
+		}
 	}
 	if len(rsv.SegmentReservations) == 0 {
-		return nil, serrors.New("there is no segment rsv. associated to this e2e rsv.",
+		return failedResponse, serrors.New("there is no segment rsv. associated to this e2e rsv.",
 			"id", req.ID, "idx", req.Index)
 	}
-	if len(req.SegmentRsvs) == 0 || len(req.SegmentRsvs) > 3 {
-		return nil, serrors.New("invalid number of segment reservations for an e2e one",
-			"count", len(req.SegmentRsvs))
+	idx, err := rsv.NewIndex(req.Timestamp)
+	if err != nil {
+		return failedResponse, serrors.WrapStr("cannot create index in e2e admission", err,
+			"e2e_id", req.ID)
 	}
-	// find this AS along the path of the stitched reservation:
-	// TODO(juagargi) find an AS in a stitched segment reservation
+	index := rsv.Index(idx)
+	index.AllocBW = req.RequestedBW
+	// TODO(juagargi) req should be a success or a failure setup request
+	// index.Token =
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
+	//
 
-	// tx.GetE2ERsvsOnSegRsv(ctx, req.)
-	// TODO(juagargi) find the 1 or 2 segment reservations where this AS appears
+	// free, err := freeForE2E(ctx, tx, segRsvIDs[0], rsv.AllocResv())
+	free, err := freeInSegRsv(ctx, tx, rsv.SegmentReservations[0])
+	if err != nil {
+		return failedResponse, serrors.WrapStr("cannot compute free bw for e2e admission", err,
+			"e2e_id", rsv.ID)
+	}
+	free = free + rsv.AllocResv() // don't count this E2E request in the used BW
+	if req.IsTransferAS() {
+		// this AS must stitch two segment rsvs. according to the request
+		if len(segRsvIDs) == 1 {
+			return failedResponse, serrors.New("e2e setup request with transfer inconsistent",
+				"e2e_id", req.ID, "req_sgmt_rsvs_count", req.SegmentRsvASCount,
+				"trail_len", len(req.AllocationTrail))
+		}
+		freeOutgoing, err := freeAfterTransfer(ctx, tx, rsv)
+		if err != nil {
+			return failedResponse, serrors.WrapStr("cannot compute transfer", err, "id", req.ID)
+		}
+		freeOutgoing += rsv.AllocResv() // do not count this rsv's BW
+		if free > freeOutgoing {
+			free = freeOutgoing
+		}
+	}
+	if req.RequestedBW.ToKbps() > free {
+		// TODO(juagargi) fail the request
+	}
 
-	// admission:
-	// - compute max BW
+	// admitted
+	if err := tx.PersistE2ERsv(ctx, rsv); err != nil {
+		return failedResponse, serrors.WrapStr("cannot persist e2e reservation", err,
+			"id", req.ID)
+	}
 
-	return nil, nil
+	if err := tx.Commit(); err != nil {
+		return failedResponse, serrors.WrapStr("cannot commit transaction", err, "id", req.ID)
+	}
+	var msg base.MessageWithPath
+	if req.IsDstAS() {
+		msg = &e2e.ResponseSetupSuccess{
+			// TODO(juagargi)
+		}
+
+	} else {
+		msg = &e2e.SetupReqSuccess{
+			// TODO(juagargi)
+		}
+	}
+	return msg, nil
 }
 
 // CleanupE2EReservation will remove an index from an e2e reservation.
@@ -435,4 +515,57 @@ func morphE2EResponseToSuccess(resp *e2e.Response) *e2e.Response {
 	resp.Accepted = true
 	resp.FailedHop = 0
 	return resp
+}
+
+func sumAllBW(rsvs []*e2e.Reservation) uint64 {
+	var accum uint64
+	for _, r := range rsvs {
+		accum += r.AllocResv()
+	}
+	return accum
+}
+
+func freeInSegRsv(ctx context.Context, tx backend.Transaction, segRsv *segment.Reservation) (
+	uint64, error) {
+
+	rsvs, err := tx.GetE2ERsvsOnSegRsv(ctx, &segRsv.ID)
+	if err != nil {
+		return 0, serrors.WrapStr("cannot obtain e2e reservations to compute free bw",
+			err, "segment_id", segRsv.ID)
+	}
+	free := float64(segRsv.ActiveIndex().AllocBW.ToKbps())*float64(segRsv.TrafficSplit) -
+		float64(sumAllBW(rsvs))
+	return uint64(free), nil
+}
+
+// max bw in egress interface of the transfer AS
+func freeAfterTransfer(ctx context.Context, tx backend.Transaction, rsv *e2e.Reservation) (uint64, error) {
+
+	seg1 := rsv.SegmentReservations[0]
+	seg2 := rsv.SegmentReservations[1]
+	if seg1.PathType == reservation.CorePath && seg2.PathType == reservation.DownPath {
+		// as if no transfer
+		return math.MaxUint64, nil
+	}
+	// get all seg rsvs with this AS as destination, AND transfer flag set
+	rsvs, err := tx.GetAllSegmentRsvs(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var total uint64
+	for _, r := range rsvs {
+		if r.Egress == 0 && r.PathEndProps&reservation.EndTransfer != 0 {
+			total += r.ActiveIndex().AllocBW.ToKbps()
+		}
+	}
+	ratio := float64(seg1.ActiveIndex().AllocBW.ToKbps()) / float64(total)
+	// effectiveE2eTraffic is the minimum BW that e2e rsvs can use
+	effectiveE2eTraffic := float64(seg2.ActiveIndex().AllocBW.ToKbps()) * ratio
+	e2es, err := tx.GetE2ERsvsOnSegRsv(ctx, &seg2.ID)
+	if err != nil {
+		return 0, err
+	}
+	total = sumAllBW(e2es)
+	// the available BW for this e2e rsv is the effective minus the already used
+	return uint64(effectiveE2eTraffic) - total, nil
 }
