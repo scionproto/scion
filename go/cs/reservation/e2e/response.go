@@ -52,6 +52,11 @@ func NewResponse(ts time.Time, id *reservation.E2EID, idx reservation.IndexNumbe
 	}, nil
 }
 
+// IsHopByHop returns false, as all the responses travel directly to the source endhost.
+func (r *Response) IsHopByHop() bool {
+	return false
+}
+
 // ResponseSetupSuccess is the response to a success setup. It's sent on the reverse direction.
 type ResponseSetupSuccess struct {
 	Response
