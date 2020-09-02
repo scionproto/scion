@@ -116,7 +116,8 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 	// TODO(juagargi) use the transaction also in the admitter
 	err = s.admitter.AdmitRsv(ctx, req)
 	if err != nil {
-		return failedResponse, serrors.WrapStr("not admitted", err)
+		return failedResponse, serrors.WrapStr("segment not admitted", err, "id", req.ID,
+			"index", req.Index)
 	}
 	// admitted; the request contains already the value inside the "allocation beads" of the rsv
 	index.AllocBW = req.AllocTrail[len(req.AllocTrail)-1].AllocBW
@@ -309,6 +310,16 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 			ErrorCode: 1, // TODO(juagargi) use error codes
 		}
 	}
+	// sanity check: all successful requests are SetupReqSuccess. Failed ones are SetupReqFailure.
+	if request.IsSuccess() {
+		if _, ok := request.(*e2e.SetupReqSuccess); !ok {
+			return failedResponse, serrors.New("logic error, successful request can be casted")
+		}
+	} else {
+		if _, ok := request.(*e2e.SetupReqFailure); !ok {
+			return failedResponse, serrors.New("logic error, failed request can be casted")
+		}
+	}
 
 	if len(req.SegmentRsvs) == 0 || len(req.SegmentRsvs) > 3 {
 		return failedResponse, serrors.New("invalid number of segment reservations for an e2e one",
@@ -359,24 +370,9 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 	}
 	index := rsv.Index(idx)
 	index.AllocBW = req.RequestedBW
-	// TODO(juagargi) req should be a success or a failure setup request
-	// index.Token =
-	//
-	//
-	//
-	//
-	//
-	//
-	//
-	//
-	//
-	//
-	//
-	//
-	//
-	//
-
-	// free, err := freeForE2E(ctx, tx, segRsvIDs[0], rsv.AllocResv())
+	if request.IsSuccess() {
+		index.Token = &request.(*e2e.SetupReqSuccess).Token
+	}
 	free, err := freeInSegRsv(ctx, tx, rsv.SegmentReservations[0])
 	if err != nil {
 		return failedResponse, serrors.WrapStr("cannot compute free bw for e2e admission", err,
@@ -399,28 +395,38 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 			free = freeOutgoing
 		}
 	}
-	if req.RequestedBW.ToKbps() > free {
-		// TODO(juagargi) fail the request
+	if !request.IsSuccess() || req.RequestedBW.ToKbps() > free {
+		maxWillingToAlloc := reservation.BWClsFromBW(free)
+		if req.IsThisASTheDst() {
+			asAResponse := failedResponse.(*e2e.ResponseSetupFailure)
+			asAResponse.MaxBWs = append(asAResponse.MaxBWs, maxWillingToAlloc)
+		} else {
+			asARequest := failedResponse.(*e2e.SetupReqFailure)
+			asARequest.AllocationTrail = append(asARequest.AllocationTrail, maxWillingToAlloc)
+		}
+		return failedResponse, serrors.WrapStr("e2e not admitted", err, "id", req.ID,
+			"index", req.Index)
 	}
-
-	// admitted
+	// admitted so far
+	// TODO(juagargi) update token here
 	if err := tx.PersistE2ERsv(ctx, rsv); err != nil {
 		return failedResponse, serrors.WrapStr("cannot persist e2e reservation", err,
 			"id", req.ID)
 	}
-
 	if err := tx.Commit(); err != nil {
 		return failedResponse, serrors.WrapStr("cannot commit transaction", err, "id", req.ID)
 	}
 	var msg base.MessageWithPath
 	if req.IsThisASTheDst() {
+		asAResponse := failedResponse.(*e2e.ResponseSetupFailure)
 		msg = &e2e.ResponseSetupSuccess{
-			// TODO(juagargi)
+			Response: asAResponse.Response,
+			Token:    *index.Token,
 		}
-
 	} else {
 		msg = &e2e.SetupReqSuccess{
-			// TODO(juagargi)
+			SetupReq: *req,
+			Token:    *index.Token,
 		}
 	}
 	return msg, nil
