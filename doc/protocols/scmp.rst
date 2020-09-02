@@ -296,8 +296,8 @@ Parameter Problem
 |              | 35 - Non-local delivery                                   |br||
 |              |                                                               |
 |              | 48 - Invalid path                                         |br||
-|              | 49 - Unknown hop field ingress interface                  |br||
-|              | 50 - Unknown hop field egress interface                   |br||
+|              | 49 - Unknown hop field cons ingress interface             |br||
+|              | 50 - Unknown hop field cons egress interface              |br||
 |              | 51 - Invalid hop field MAC                                |br||
 |              | 52 - Path expired                                         |br||
 |              | 53 - Invalid segment change                               |br||
@@ -334,7 +334,7 @@ A **Parameter Problem** error message with code 35 SHOULD be originated in
 response to a packet that is on the last hop of its path, but the destination
 ISD-AS does not match the local ISD-AS.
 
-Codes 48-53 describe problems related to the path header. 49-52 are more
+Codes 48-53 describe problems related to the path header. 49-53 are more
 granular subsets of 48.
 
 Codes 64-66 describe problems related to extension headers. 65-66 are more
