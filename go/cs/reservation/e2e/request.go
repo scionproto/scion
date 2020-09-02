@@ -52,6 +52,15 @@ func NewRequest(ts time.Time, id *reservation.E2EID, idx reservation.IndexNumber
 	}, nil
 }
 
+// SetupRequest represents all possible e2e setup requests.
+type SetupRequest interface {
+	IsThisASTheSrc() bool
+	IsThisASTheDst() bool
+	IsThisASaTransfer() bool
+	IsSuccess() bool
+	GetCommonSetupReq() *SetupReq // return the underlying basic SetupReq (common for all)
+}
+
 // SetupReq is an e2e setup/renewal request, that has been so far accepted.
 type SetupReq struct {
 	Request
@@ -104,16 +113,21 @@ func NewSetupRequest(r *Request, segRsvs []reservation.SegmentID, segRsvCount []
 	}, nil
 }
 
-// IsSrcAS returns true if according to the request, this AS is the source of the reservation.
-func (r *SetupReq) IsSrcAS() bool {
+// GetCommonSetupReq returns the pointer to the data structure.
+func (r *SetupReq) GetCommonSetupReq() *SetupReq {
+	return r
+}
+
+// IsThisASTheSrc returns true if according to r, this AS is the source of the reservation.
+func (r *SetupReq) IsThisASTheSrc() bool {
 	return len(r.AllocationTrail) == 0
 }
 
-func (r *SetupReq) IsDstAS() bool {
+func (r *SetupReq) IsThisASTheDst() bool {
 	return len(r.AllocationTrail) == r.totalAScount
 }
 
-func (r *SetupReq) IsTransferAS() bool {
+func (r *SetupReq) IsThisASaTransfer() bool {
 	return r.isTransfer
 }
 
@@ -135,10 +149,24 @@ type SetupReqSuccess struct {
 	Token reservation.Token
 }
 
+var _ SetupRequest = (*SetupReqSuccess)(nil)
+
+// Success returns true.
+func (s *SetupReqSuccess) IsSuccess() bool {
+	return true
+}
+
 // SetupReqFailure is a failed e2e setup request also traveling along the reservation path.
 type SetupReqFailure struct {
 	SetupReq
 	ErrorCode uint8
+}
+
+var _ SetupRequest = (*SetupReqFailure)(nil)
+
+// Success returns false, as this is a failed setup.
+func (s *SetupReqFailure) IsSuccess() bool {
+	return false
 }
 
 // CleanupReq is a cleaup request for an e2e index.
