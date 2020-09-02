@@ -40,6 +40,11 @@ func (m *RequestMetadata) Path() *spath.Path {
 	return &m.path
 }
 
+// IsHopByHop returns true. If a subtype needs not to be hop by hop, it can override the function.
+func (m *RequestMetadata) IsHopByHop() bool {
+	return true
+}
+
 // NumberOfHops returns the number of hops in this reservation.
 func (m *RequestMetadata) NumberOfHops() int {
 	return (len(m.path.Raw) - spath.InfoFieldLength) / spath.HopFieldLength

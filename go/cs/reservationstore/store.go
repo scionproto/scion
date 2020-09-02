@@ -286,29 +286,15 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
 		return nil, serrors.WrapStr("error validating e2e request", err, "id", req.ID)
 	}
+	response, err := s.prepareFailureE2EResp(&req.Request)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot construct response", err, "id", req.ID)
+	}
 	var failedResponse base.MessageWithPath
-	pathToUse := req.Path().Copy()
-	if req.IsThisASTheDst() {
-		// TODO(juagargi) find the path to the src endhost
-		// pathToUse =
-		basicResponse, err := e2e.NewResponse(time.Now(), &req.ID, req.Index, pathToUse,
-			false, uint8(req.IndexOfCurrentHop()))
-		if err != nil {
-			return nil, serrors.WrapStr("cannot construct e2e response", err)
-		}
-		failedResponse = &e2e.ResponseSetupFailure{
-			Response:  *basicResponse,
-			ErrorCode: 1,
-			MaxBWs:    req.AllocationTrail,
-		}
-	} else {
-		if err := pathToUse.Reverse(); err != nil {
-			return nil, serrors.WrapStr("cannot reverse path for response", err)
-		}
-		failedResponse = &e2e.SetupReqFailure{
-			SetupReq:  *req,
-			ErrorCode: 1, // TODO(juagargi) use error codes
-		}
+	failedResponse = &e2e.ResponseSetupFailure{
+		Response:  *response,
+		ErrorCode: 1,
+		MaxBWs:    req.AllocationTrail,
 	}
 	// sanity check: all successful requests are SetupReqSuccess. Failed ones are SetupReqFailure.
 	if request.IsSuccess() {
@@ -401,8 +387,12 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 			asAResponse := failedResponse.(*e2e.ResponseSetupFailure)
 			asAResponse.MaxBWs = append(asAResponse.MaxBWs, maxWillingToAlloc)
 		} else {
-			asARequest := failedResponse.(*e2e.SetupReqFailure)
+			asARequest := &e2e.SetupReqFailure{
+				SetupReq:  *req,
+				ErrorCode: 1,
+			}
 			asARequest.AllocationTrail = append(asARequest.AllocationTrail, maxWillingToAlloc)
+			failedResponse = asARequest
 		}
 		return failedResponse, serrors.WrapStr("e2e not admitted", err, "id", req.ID,
 			"index", req.Index)
