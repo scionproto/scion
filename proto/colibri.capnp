@@ -138,8 +138,7 @@ struct E2ESetupResData {
         }
         failure :group {
             errorCode @3 :UInt8;
-            infoField @4 :Data;
-            allocationTrail @5 :List(UInt8);     # max bandwidths granted by all the ASes. See E2ESetupReqData
+            allocationTrail @4 :List(UInt8);     # max bandwidths granted by all the ASes. See E2ESetupReqData
         }
     }
 }

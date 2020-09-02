@@ -295,30 +295,10 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 		if err != nil {
 			return nil, serrors.WrapStr("cannot construct e2e response", err)
 		}
-		// get the info field from the successful or failed setup request:
-		var infoField *reservation.InfoField
-		if request.IsSuccess() {
-			successReq, ok := request.(*e2e.SetupReqSuccess)
-			if !ok {
-				return nil, serrors.New("logic error in e2e admission: cannot cast to success")
-			}
-			infoField = &successReq.Token.InfoField
-
-		} else {
-			failureReq, ok := request.(*e2e.SetupReqFailure)
-			if !ok {
-				return nil, serrors.New("logic error in e2e admission: cannot cast to failure")
-			}
-			// failureReq.In
-			_ = failureReq
-		}
 		failedResponse = &e2e.ResponseSetupFailure{
 			Response:  *basicResponse,
 			ErrorCode: 1,
-			InfoField: *infoField,
 			MaxBWs:    req.AllocationTrail,
-			// TODO(juagargi): how is a trail of so far granted bandwidths used here? all previous ASes did accept the request, and if this one fails it, it sends the failed request backwards.
-			// MaxBWs:    []reservation.BWCls{},
 		}
 	} else {
 		if err := pathToUse.Reverse(); err != nil {

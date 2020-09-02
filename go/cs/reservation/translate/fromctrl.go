@@ -463,10 +463,6 @@ func newResponseE2ESetup(ctrl *colibri_mgmt.E2ESetupRes, resp *colibri_mgmt.Resp
 			Token:    *tok,
 		}, nil
 	case proto.E2ESetupResData_Which_failure:
-		inf, err := reservation.InfoFieldFromRaw(ctrl.Failure.InfoField)
-		if err != nil {
-			return nil, serrors.WrapStr("cannot parse info field", err)
-		}
 		maxBWs := make([]reservation.BWCls, len(ctrl.Failure.AllocationTrail))
 		for i := range ctrl.Failure.AllocationTrail {
 			maxBWs[i] = reservation.BWCls(ctrl.Failure.AllocationTrail[i])
@@ -474,7 +470,6 @@ func newResponseE2ESetup(ctrl *colibri_mgmt.E2ESetupRes, resp *colibri_mgmt.Resp
 		return &e2e.ResponseSetupFailure{
 			Response:  *r,
 			ErrorCode: ctrl.Failure.ErrorCode,
-			InfoField: *inf,
 			MaxBWs:    maxBWs,
 		}, nil
 	default:

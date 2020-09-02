@@ -58,6 +58,5 @@ type E2ESetupSuccess struct {
 
 type E2ESetupFailure struct {
 	ErrorCode       uint8
-	InfoField       []byte
 	AllocationTrail []uint8
 }

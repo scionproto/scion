@@ -203,7 +203,6 @@ func newTestE2ESetupFailureResponse() *colibri_mgmt.E2ESetupRes {
 		Which: proto.E2ESetupResData_Which_failure,
 		Failure: &colibri_mgmt.E2ESetupFailure{
 			ErrorCode:       42,
-			InfoField:       xtest.MustParseHexString("16ebdb4f0d042500"),
 			AllocationTrail: []uint8{2, 3, 4},
 		},
 	}

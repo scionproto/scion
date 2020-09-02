@@ -219,7 +219,6 @@ func TestSerializeResponse(t *testing.T) {
 			Which: proto.E2ESetupResData_Which_failure,
 			Failure: &colibri_mgmt.E2ESetupFailure{
 				ErrorCode:       1,
-				InfoField:       xtest.MustParseHexString("fedcba9876543210"),
 				AllocationTrail: []uint8{1, 1, 2, 2},
 			},
 		}
@@ -321,7 +320,6 @@ func TestSerializeResponse(t *testing.T) {
 					Which: proto.E2ESetupResData_Which_failure,
 					Failure: &colibri_mgmt.E2ESetupFailure{
 						ErrorCode:       1,
-						InfoField:       xtest.MustParseHexString("fedcba9876543210"),
 						AllocationTrail: []uint8{1, 1, 2, 2},
 					},
 				},

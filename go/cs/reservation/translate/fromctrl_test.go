@@ -407,7 +407,6 @@ func TestNewResponseE2ESetup(t *testing.T) {
 				checkE2EIDs(t, tc.Ctrl.E2ESetup.Base.ID, &rs.ID)
 				require.Equal(t, tc.Ctrl.E2ESetup.Base.Index, uint8(rs.Index))
 				require.Equal(t, tc.Ctrl.E2ESetup.Failure.ErrorCode, rs.ErrorCode)
-				require.Equal(t, tc.Ctrl.E2ESetup.Failure.InfoField, rs.InfoField.ToRaw())
 				require.Len(t, rs.MaxBWs, len(tc.Ctrl.E2ESetup.Failure.AllocationTrail))
 			}
 		})
