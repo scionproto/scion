@@ -122,5 +122,6 @@ def scion_app_images_internal(suffix, base, name, binary, appdir, workdir, entry
         container_image(
             name = "%s_%s" % (name, suffix),
             base = "%s_%s_withcap.tar" % (name, suffix),
+            entrypoint = entrypoint,
             visibility = ["//visibility:public"],
         )
