@@ -146,6 +146,7 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *segment.Inde
 	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
 		return nil, serrors.WrapStr("error validating request", err, "id", req.ID)
 	}
+
 	response, err := s.prepareFailureSegmentResp(&req.Request)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct response", err, "id", req.ID)
@@ -154,6 +155,7 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *segment.Inde
 		Response:  *response,
 		ErrorCode: 1, // TODO(juagargi) specify error codes for every response
 	}
+
 	tx, err := s.db.BeginTransaction(ctx, nil)
 	if err != nil {
 		return failedResponse, serrors.WrapStr("cannot create transaction", err, "id", req.ID)
@@ -177,16 +179,12 @@ func (s *Store) ConfirmSegmentReservation(ctx context.Context, req *segment.Inde
 		return failedResponse, serrors.WrapStr("cannot commit transaction", err,
 			"id", req.ID)
 	}
-	var msg base.MessageWithPath
 	if req.IsLastAS() {
-		msg = &segment.ResponseIndexConfirmationSuccess{
+		return &segment.ResponseIndexConfirmationSuccess{
 			Response: *morphSegmentResponseToSuccess(response),
-		}
-	} else {
-		msg = req
+		}, nil
 	}
-
-	return msg, nil
+	return req, nil
 }
 
 // CleanupSegmentReservation deletes an index from a segment reservation.
