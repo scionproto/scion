@@ -34,6 +34,10 @@ protobuf: protobuf_clean
 	tar -kxf bazel-bin/go/pkg/proto/control_plane/proto_srcs.tar -C go/pkg/proto/control_plane
 	chmod 0644 go/pkg/proto/control_plane/*.pb.go
 
+	bazel build //go/pkg/proto/crypto:proto_srcs
+	tar -kxf bazel-bin/go/pkg/proto/crypto/proto_srcs.tar -C go/pkg/proto/crypto
+	chmod 0644 go/pkg/proto/crypto/*.pb.go
+
 	bazel build //go/pkg/proto/daemon:proto_srcs
 	tar -kxf bazel-bin/go/pkg/proto/daemon/proto_srcs.tar -C go/pkg/proto/daemon
 	chmod 0644 go/pkg/proto/daemon/*.pb.go
