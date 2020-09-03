@@ -1,6 +1,7 @@
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_docker//container:container.bzl", "container_image")
 load("@package_bundle//file:packages.bzl", "packages")
+load(":caps.bzl", "setcap")
 
 # Defines a common base image for all app images.
 def scion_app_base():
@@ -63,33 +64,64 @@ def scion_app_base():
 #   appdir - the directory to deploy the binary to
 #   workdir - working directory
 #   entrypoint - a list of strings that add up to the command line
-#   stamp - whether to stamp the created images (default=True).
-def scion_app_images(name, binary, appdir, workdir, entrypoint, stamp = True):
+#   caps - capabilities to set on the binary
+def scion_app_images(name, binary, appdir, workdir, entrypoint, caps = None):
     pkg_tar(
-        name = name + "_docker_files",
+        name = "%s_docker_files" % name,
         srcs = [binary],
         package_dir = appdir,
         mode = "0755",
     )
-
-    container_image(
-        name = name + "_prod",
-        repository = "scion",
-        base = "//docker:app_base",
-        tars = [":" + name + "_docker_files"],
-        workdir = workdir,
-        entrypoint = ["/sbin/su-exec"] + entrypoint,
-        stamp = stamp,
-        visibility = ["//visibility:public"],
+    scion_app_images_internal(
+        "prod",
+        "//docker:app_base",
+        name,
+        binary,
+        appdir,
+        workdir,
+        ["/sbin/su-exec"] + entrypoint,
+        caps,
+    )
+    scion_app_images_internal(
+        "debug",
+        "//docker:app_base_debug",
+        name,
+        binary,
+        appdir,
+        workdir,
+        entrypoint,
+        caps,
     )
 
-    container_image(
-        name = name + "_debug",
-        repository = "scion",
-        base = "//docker:app_base_debug",
-        tars = [":" + name + "_docker_files"],
-        workdir = workdir,
-        entrypoint = entrypoint,
-        stamp = stamp,
-        visibility = ["//visibility:public"],
-    )
+def scion_app_images_internal(suffix, base, name, binary, appdir, workdir, entrypoint, caps):
+    if not caps:
+        container_image(
+            name = "%s_%s" % (name, suffix),
+            repository = "scion",
+            base = base,
+            tars = [":%s_docker_files" % name],
+            workdir = workdir,
+            entrypoint = entrypoint,
+            visibility = ["//visibility:public"],
+        )
+    else:
+        container_image(
+            name = "%s_%s_nocap" % (name, suffix),
+            repository = "scion",
+            base = base,
+            tars = [":%s_docker_files" % name],
+            workdir = workdir,
+            entrypoint = entrypoint,
+        )
+        setcap(
+            name = "%s_%s_withcap" % (name, suffix),
+            image = "%s_%s_nocap.tar" % (name, suffix),
+            caps = caps,
+            binary = "%s/%s" % (appdir, name),
+        )
+        container_image(
+            name = "%s_%s" % (name, suffix),
+            base = "%s_%s_withcap.tar" % (name, suffix),
+            entrypoint = entrypoint,
+            visibility = ["//visibility:public"],
+        )
