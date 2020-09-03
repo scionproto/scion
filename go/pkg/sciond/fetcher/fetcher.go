@@ -198,7 +198,7 @@ type dstProvider struct {
 }
 
 func (r *dstProvider) Dst(_ context.Context, _ segfetcher.Request) (net.Addr, error) {
-	return r.TopologyProvider.Get().Anycast(addr.SvcPS)
+	return r.TopologyProvider.Get().Anycast(addr.SvcCS)
 }
 
 type neverLocal struct{}

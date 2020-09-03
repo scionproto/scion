@@ -969,10 +969,10 @@ func TestComputeDestination(t *testing.T) {
 		{
 			Description: "SCION/UDP with SVC destination is delivered by SVC",
 			Packet: &spkt.ScnPkt{
-				DstHost: addr.SvcPS,
+				DstHost: addr.SvcCS,
 				L4:      &l4.UDP{DstPort: 1002},
 			},
-			ExpectedDst: SVCDestinationLegacy(addr.SvcPS),
+			ExpectedDst: SVCDestinationLegacy(addr.SvcCS),
 		},
 		{
 			Description: "SCION/UDP without SVC or IP destination returns error",
@@ -1063,7 +1063,7 @@ func TestComputeDestination(t *testing.T) {
 		{
 			Description: "SCION/SCMP with non-IP destination returns error",
 			Packet: &spkt.ScnPkt{
-				DstHost: addr.SvcPS,
+				DstHost: addr.SvcCS,
 				L4:      &scmp.Hdr{Class: scmp.C_General, Type: scmp.T_G_EchoRequest},
 			},
 			ExpectedErr: ErrUnsupportedSCMPDestination,

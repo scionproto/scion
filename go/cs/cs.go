@@ -147,7 +147,7 @@ func run(file string) error {
 	}
 	nc := infraenv.NetworkConfig{
 		IA:                    topo.IA(),
-		Public:                topo.PublicAddress(addr.SvcBS, cfg.General.ID),
+		Public:                topo.PublicAddress(addr.SvcCS, cfg.General.ID),
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
 			Address:  cfg.QUIC.Address,

@@ -113,7 +113,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 			IA:              commonIA,
 			PublicAddress:   commonPublicL3Address,
 			PublicPort:      8081,
-			ServiceAddress:  addr.SvcPS,
+			ServiceAddress:  addr.SvcCS,
 			UnderlayAddress: commonUnderlayAddress,
 		}
 	)
@@ -176,7 +176,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 					SrcPort:  clientYAddress.PublicPort,
 					DstPort:  clientYAddress.PublicPort,
 					TotalLen: 12,
-					Checksum: common.RawBytes{0x37, 0xaa},
+					Checksum: common.RawBytes{0x37, 0xa9},
 				},
 				Pld: common.RawBytes{5, 6, 7, 8},
 			},
@@ -452,7 +452,7 @@ func genTestCases2(dispatcherPort int) []*TestCase2 {
 			IA:              commonIA,
 			PublicAddress:   commonPublicL3Address,
 			PublicPort:      8081,
-			ServiceAddress:  addr.SvcPS,
+			ServiceAddress:  addr.SvcCS,
 			UnderlayAddress: commonUnderlayAddress,
 		}
 	)

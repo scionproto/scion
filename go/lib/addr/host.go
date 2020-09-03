@@ -65,8 +65,7 @@ var (
 )
 
 const (
-	SvcBS       HostSVC = 0x0000
-	SvcPS       HostSVC = 0x0001
+	SvcDS       HostSVC = 0x0001
 	SvcCS       HostSVC = 0x0002
 	SvcSB       HostSVC = 0x0003
 	SvcSIG      HostSVC = 0x0004
@@ -205,10 +204,8 @@ func HostSVCFromString(str string) HostSVC {
 		m = SVCMcast
 	}
 	switch str {
-	case "BS":
-		return SvcBS | m
-	case "PS":
-		return SvcPS | m
+	case "DS":
+		return SvcDS | m
 	case "CS":
 		return SvcCS | m
 	case "SB":
@@ -280,10 +277,8 @@ func (h HostSVC) String() string {
 // returns UNKNOWN.
 func (h HostSVC) BaseString() string {
 	switch h.Base() {
-	case SvcBS:
-		return "BS"
-	case SvcPS:
-		return "PS"
+	case SvcDS:
+		return "DS"
 	case SvcCS:
 		return "CS"
 	case SvcSB:

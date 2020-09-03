@@ -87,10 +87,10 @@ func TestRegistrationMessageSerializeTo(t *testing.T) {
 			Registration: &Registration{
 				IA:            xtest.MustParseIA("1-ff00:0:1"),
 				PublicAddress: &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 80},
-				SVCAddress:    addr.SvcPS,
+				SVCAddress:    addr.SvcCS,
 			},
 			ExpectedData: []byte{0x03, 17, 0, 1, 0xff, 0, 0, 0, 0, 0x01, 0,
-				80, 1, 10, 2, 3, 4, 0x00, 0x01},
+				80, 1, 10, 2, 3, 4, 0x00, 0x02},
 		},
 		{
 			Name: "public address with bind and SVC",
@@ -227,12 +227,12 @@ func TestRegistrationMessageDecodeFromBytes(t *testing.T) {
 			Data: []byte{0x07, 17, 0, 1, 0xff, 0, 0, 0, 0, 0x01,
 				0, 80, 1, 10, 2, 3, 4,
 				0, 81, 1, 10, 5, 6, 7,
-				0x00, 0x01},
+				0x00, 0x02},
 			ExpectedRegistration: Registration{
 				IA:            xtest.MustParseIA("1-ff00:0:1"),
 				PublicAddress: &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 80},
 				BindAddress:   &net.UDPAddr{IP: net.IP{10, 5, 6, 7}, Port: 81},
-				SVCAddress:    addr.SvcPS,
+				SVCAddress:    addr.SvcCS,
 			},
 		},
 	}

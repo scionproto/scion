@@ -86,10 +86,6 @@ func (h TopoQuerier) UnderlayAnycast(ctx context.Context, svc addr.HostSVC) (*ne
 
 func svcAddrToProto(svc addr.HostSVC) proto.ServiceType {
 	switch svc {
-	case addr.SvcBS:
-		return proto.ServiceType_bs
-	case addr.SvcPS:
-		return proto.ServiceType_ps
 	case addr.SvcCS:
 		return proto.ServiceType_cs
 	case addr.SvcSIG:
@@ -101,14 +97,8 @@ func svcAddrToProto(svc addr.HostSVC) proto.ServiceType {
 
 func protoSVCToAddr(svc proto.ServiceType) addr.HostSVC {
 	switch svc {
-	case proto.ServiceType_br:
-		return addr.SvcBS
-	case proto.ServiceType_bs:
-		return addr.SvcBS
-	case proto.ServiceType_cs:
+	case proto.ServiceType_bs, proto.ServiceType_cs, proto.ServiceType_ps:
 		return addr.SvcCS
-	case proto.ServiceType_ps:
-		return addr.SvcPS
 	case proto.ServiceType_sig:
 		return addr.SvcSIG
 	default:

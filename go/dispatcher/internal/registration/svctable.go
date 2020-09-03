@@ -108,26 +108,19 @@ func (t *svcTable) Register(svc addr.HostSVC, address *net.UDPAddr,
 	address = copyUDPAddr(address)
 
 	if svc == addr.SvcWildcard {
-		refBS, err := t.registerOne(addr.SvcBS, address, value)
-		if err != nil {
-			return nil, err
-		}
 		refCS, err := t.registerOne(addr.SvcCS, address, value)
 		if err != nil {
-			refBS.Free()
 			return nil, err
 		}
-		refPS, err := t.registerOne(addr.SvcPS, address, value)
+		refDS, err := t.registerOne(addr.SvcDS, address, value)
 		if err != nil {
-			refBS.Free()
 			refCS.Free()
 			return nil, err
 		}
 		return &svcTableReference{
 			cleanF: func() {
-				refBS.Free()
 				refCS.Free()
-				refPS.Free()
+				refDS.Free()
 			},
 		}, nil
 	}

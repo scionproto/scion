@@ -157,7 +157,7 @@ func (s *BeaconSender) Send(ctx context.Context, bseg *seg.Beacon, ia addr.IA,
 		IA:      ia,
 		Path:    (*spath.Path)(path),
 		NextHop: ov,
-		SVC:     addr.SvcBS,
+		SVC:     addr.SvcCS,
 	}
 	addr, redirect, err := s.AddressRewriter.RedirectToQUIC(ctx, svc)
 	if err != nil {

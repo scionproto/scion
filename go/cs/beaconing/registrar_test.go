@@ -247,11 +247,11 @@ func TestRegistrarRun(t *testing.T) {
 
 					if !test.remotePS {
 						assert.Equal(t, topoProvider.Get().IA(), s.Addr.IA)
-						assert.Equal(t, addr.SvcPS, s.Addr.SVC)
+						assert.Equal(t, addr.SvcCS, s.Addr.SVC)
 						return
 					}
 					assert.Equal(t, pseg.FirstIA(), s.Addr.IA)
-					assert.Equal(t, addr.SvcPS, s.Addr.SVC)
+					assert.Equal(t, addr.SvcCS, s.Addr.SVC)
 					hopF, err := s.Addr.Path.GetHopField(s.Addr.Path.HopOff)
 					require.NoError(t, err)
 					assert.Equal(t, []uint8(hopF.Pack()),

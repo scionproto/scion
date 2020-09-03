@@ -52,7 +52,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			dispatcherService := svc.NewResolverPacketDispatcher(mockPacketDispatcherService,
 				mockReqHandler)
 			conn, port, err := dispatcherService.Register(context.Background(), addr.IA{},
-				&net.UDPAddr{}, addr.SvcPS)
+				&net.UDPAddr{}, addr.SvcCS)
 			SoMsg("conn", conn, ShouldBeNil)
 			SoMsg("port", port, ShouldEqual, 0)
 			SoMsg("err", err, ShouldNotBeNil)
@@ -64,7 +64,7 @@ func TestSVCResolutionServer(t *testing.T) {
 			dispatcherService := svc.NewResolverPacketDispatcher(mockPacketDispatcherService,
 				mockReqHandler)
 			conn, port, err := dispatcherService.Register(context.Background(), addr.IA{},
-				&net.UDPAddr{}, addr.SvcPS)
+				&net.UDPAddr{}, addr.SvcCS)
 			SoMsg("conn", conn, ShouldNotBeNil)
 			SoMsg("port", port, ShouldEqual, 1337)
 			SoMsg("err", err, ShouldBeNil)
@@ -75,7 +75,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
-							Host: addr.SvcPS,
+							Host: addr.SvcCS,
 						}
 						return nil
 					},
@@ -90,7 +90,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
-							Host: addr.SvcPS,
+							Host: addr.SvcCS,
 						}
 						return nil
 					},
@@ -104,7 +104,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
-							Host: addr.SvcPS,
+							Host: addr.SvcCS,
 						}
 						return nil
 					},
@@ -136,7 +136,7 @@ func TestSVCResolutionServer(t *testing.T) {
 				mockPacketConn.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, ov *net.UDPAddr) error {
 						pkt.Destination = snet.SCIONAddress{
-							Host: addr.SvcBS.Multicast(),
+							Host: addr.SvcCS.Multicast(),
 						}
 						return nil
 					},
