@@ -56,6 +56,7 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 		return nil, serrors.New("inconsistent number of hops",
 			"len_alloctrail", len(req.AllocTrail), "hf_count", req.IndexOfCurrentHop())
 	}
+
 	response, err := s.prepareFailureSegmentResp(&req.Request)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct response", err, "id", req.ID)
@@ -64,6 +65,7 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 		Response:    *response,
 		FailedSetup: req,
 	}
+
 	tx, err := s.db.BeginTransaction(ctx, nil)
 	if err != nil {
 		return failedResponse, serrors.WrapStr("cannot create transaction", err,
@@ -118,6 +120,7 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 	}
 	// admitted; the request contains already the value inside the "allocation beads" of the rsv
 	index.AllocBW = req.AllocTrail[len(req.AllocTrail)-1].AllocBW
+
 	if err = tx.PersistSegmentRsv(ctx, rsv); err != nil {
 		return failedResponse, serrors.WrapStr("cannot persist segment reservation", err,
 			"id", req.ID)
@@ -125,18 +128,16 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 	if err := tx.Commit(); err != nil {
 		return failedResponse, serrors.WrapStr("cannot commit transaction", err, "id", req.ID)
 	}
-	var msg base.MessageWithPath
+
 	if req.IsLastAS() {
 		// TODO(juagargi) update token here
-		msg = &segment.ResponseSetupSuccess{
+		return &segment.ResponseSetupSuccess{
 			Response: *morphSegmentResponseToSuccess(response),
 			Token:    *index.Token,
-		}
-	} else {
-		msg = req
+		}, nil
 	}
 	// TODO(juagargi) refactor function
-	return msg, nil
+	return req, nil
 }
 
 // ConfirmSegmentReservation changes the state of an index from temporary to confirmed.
@@ -194,6 +195,7 @@ func (s *Store) CleanupSegmentReservation(ctx context.Context, req *segment.Clea
 	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
 		return nil, serrors.WrapStr("error validating request", err, "id", req.ID)
 	}
+
 	response, err := s.prepareFailureSegmentResp(&req.Request)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct response", err, "id", req.ID)
@@ -202,6 +204,7 @@ func (s *Store) CleanupSegmentReservation(ctx context.Context, req *segment.Clea
 		Response:  *response,
 		ErrorCode: 1,
 	}
+
 	tx, err := s.db.BeginTransaction(ctx, nil)
 	if err != nil {
 		return failedResponse, serrors.WrapStr("cannot create transaction", err, "id", req.ID)
@@ -225,16 +228,13 @@ func (s *Store) CleanupSegmentReservation(ctx context.Context, req *segment.Clea
 		return failedResponse, serrors.WrapStr("cannot commit transaction", err,
 			"id", req.ID)
 	}
-	var msg base.MessageWithPath
-	if req.IsLastAS() {
-		msg = &segment.ResponseCleanupSuccess{
-			Response: *morphSegmentResponseToSuccess(response),
-		}
-	} else {
-		msg = req
-	}
 
-	return msg, nil
+	if req.IsLastAS() {
+		return &segment.ResponseCleanupSuccess{
+			Response: *morphSegmentResponseToSuccess(response),
+		}, nil
+	}
+	return req, nil
 }
 
 // TearDownSegmentReservation removes a whole segment reservation.
@@ -244,6 +244,7 @@ func (s *Store) TearDownSegmentReservation(ctx context.Context, req *segment.Tea
 	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
 		return nil, serrors.WrapStr("error validating request", err, "id", req.ID)
 	}
+
 	response, err := s.prepareFailureSegmentResp(&req.Request)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct response", err, "id", req.ID)
@@ -252,6 +253,7 @@ func (s *Store) TearDownSegmentReservation(ctx context.Context, req *segment.Tea
 		Response:  *response,
 		ErrorCode: 1,
 	}
+
 	tx, err := s.db.BeginTransaction(ctx, nil)
 	if err != nil {
 		return failedResponse, serrors.WrapStr("cannot create transaction", err, "id", req.ID)
@@ -266,16 +268,13 @@ func (s *Store) TearDownSegmentReservation(ctx context.Context, req *segment.Tea
 		return failedResponse, serrors.WrapStr("cannot commit transaction", err,
 			"id", req.ID)
 	}
-	var msg base.MessageWithPath
-	if req.IsLastAS() {
-		msg = &segment.ResponseTeardownSuccess{
-			Response: *morphSegmentResponseToSuccess(response),
-		}
-	} else {
-		msg = req
-	}
 
-	return msg, nil
+	if req.IsLastAS() {
+		return &segment.ResponseTeardownSuccess{
+			Response: *morphSegmentResponseToSuccess(response),
+		}, nil
+	}
+	return req, nil
 }
 
 // AdmitE2EReservation will atempt to admit an e2e reservation.
@@ -292,6 +291,7 @@ func (s *Store) CleanupE2EReservation(ctx context.Context, req *e2e.CleanupReq) 
 	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
 		return nil, serrors.WrapStr("error validating request", err, "id", req.ID)
 	}
+
 	response, err := s.prepareFailureE2EResp(&req.Request)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct response", err, "id", req.ID)
@@ -300,6 +300,7 @@ func (s *Store) CleanupE2EReservation(ctx context.Context, req *e2e.CleanupReq) 
 		Response:  *response,
 		ErrorCode: 1,
 	}
+
 	tx, err := s.db.BeginTransaction(ctx, nil)
 	if err != nil {
 		return failedResponse, serrors.WrapStr("cannot create transaction", err, "id", req.ID)
@@ -323,16 +324,14 @@ func (s *Store) CleanupE2EReservation(ctx context.Context, req *e2e.CleanupReq) 
 		return failedResponse, serrors.WrapStr("cannot commit transaction", err,
 			"id", req.ID)
 	}
-	var msg base.MessageWithPath
+
 	if req.IsLastAS() {
-		msg = &e2e.ResponseCleanupSuccess{
+		return &e2e.ResponseCleanupSuccess{
 			Response: *morphE2EResponseToSuccess(response),
-		}
-	} else {
-		msg = req
+		}, nil
 	}
 
-	return msg, nil
+	return req, nil
 }
 
 // DeleteExpiredIndices will just call the DB's method to delete the expired indices.
@@ -354,6 +353,7 @@ func (s *Store) prepareFailureSegmentResp(req *segment.Request) (*segment.Respon
 	if err := revPath.Reverse(); err != nil {
 		return nil, serrors.WrapStr("cannot reverse path for response", err)
 	}
+
 	response, err := segment.NewResponse(time.Now(), &req.ID, req.Index, revPath,
 		false, uint8(req.IndexOfCurrentHop()))
 	if err != nil {
@@ -369,6 +369,7 @@ func (s *Store) prepareFailureE2EResp(req *e2e.Request) (*e2e.Response, error) {
 	if err := revPath.Reverse(); err != nil {
 		return nil, serrors.WrapStr("cannot reverse path for response", err)
 	}
+
 	response, err := e2e.NewResponse(time.Now(), &req.ID, req.Index, revPath,
 		false, uint8(req.IndexOfCurrentHop()))
 	if err != nil {
