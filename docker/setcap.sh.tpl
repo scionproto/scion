@@ -31,7 +31,7 @@
 # This file was initially copied from rules_docker/docker/util/commit.sh.tpl and then adapted,
 # see https://github.com/bazelbuild/rules_docker/blob/master/docker/util/commit.sh.tpl
 
-set -ex
+set -e
 
 # Setup tools and load utils
 TO_JSON_TOOL="%{to_json_tool}"

@@ -34,6 +34,8 @@ Rules to set capabilities on a container. The container must have the `setcap`
 binary in it.
 """
 
+load("@io_bazel_rules_docker//container:container.bzl", "container_image")
+
 def _setcap_impl(ctx):
     """Implementation for the setcap rule.
     This rule sets capabilities on a binary in an image and stores the image.
@@ -143,3 +145,32 @@ setcap = rule(
     implementation = _setcap_impl,
     toolchains = ["@io_bazel_rules_docker//toolchains/docker:toolchain_type"],
 )
+
+# same as container_image, except that it allows to set capabilities on one binary
+def container_image_setcap(name, entrypoint, caps_binary = None, caps = None, **kwargs):
+    if not caps:
+        # Fast path. If no caps are to be set, skip the setcap dance.
+        container_image(
+            name = name,
+            entrypoint = entrypoint,
+            visibility = ["//visibility:public"],
+            **kwargs
+        )
+    else:
+        container_image(
+            name = name + "_nocap",
+            entrypoint = entrypoint,
+            **kwargs
+        )
+        setcap(
+            name = name + "_withcap",
+            image = name + "_nocap.tar",
+            caps = caps,
+            binary = caps_binary,
+        )
+        container_image(
+            name = name,
+            base = name + "_withcap.tar",
+            entrypoint = entrypoint,
+            visibility = ["//visibility:public"],
+        )
