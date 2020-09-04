@@ -32,6 +32,8 @@ type Response struct {
 	FailedHop            uint8                   // if accepted is false, the AS that failed it
 }
 
+var _ base.MessageWithPath = (*Response)(nil)
+
 // NewResponse contructs the segment Response type.
 func NewResponse(ts time.Time, id *reservation.SegmentID, idx reservation.IndexNumber,
 	path *spath.Path, accepted bool, failedHop uint8) (*Response, error) {
