@@ -17,11 +17,12 @@ package e2e
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNewRequest(t *testing.T) {
