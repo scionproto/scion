@@ -286,6 +286,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
 		return nil, serrors.WrapStr("error validating e2e request", err, "id", req.ID)
 	}
+
 	response, err := s.prepareFailureE2EResp(&req.Request)
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct response", err, "id", req.ID)
@@ -296,6 +297,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 		ErrorCode: 1,
 		MaxBWs:    req.AllocationTrail,
 	}
+
 	// sanity check: all successful requests are SetupReqSuccess. Failed ones are SetupReqFailure.
 	if request.IsSuccess() {
 		if _, ok := request.(*e2e.SetupReqSuccess); !ok {
@@ -311,6 +313,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 		return failedResponse, serrors.New("invalid number of segment reservations for an e2e one",
 			"count", len(req.SegmentRsvs))
 	}
+
 	tx, err := s.db.BeginTransaction(ctx, nil)
 	if err != nil {
 		return failedResponse, serrors.WrapStr("cannot create transaction", err,
@@ -323,6 +326,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 		return failedResponse, serrors.WrapStr("cannot obtain e2e reservation", err,
 			"id", req.ID)
 	}
+
 	segRsvIDs := req.SegmentRsvIDsForThisAS()
 	if rsv != nil {
 		// renewal
@@ -349,6 +353,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 		return failedResponse, serrors.New("there is no segment rsv. associated to this e2e rsv.",
 			"id", req.ID, "idx", req.Index)
 	}
+
 	idx, err := rsv.NewIndex(req.Timestamp)
 	if err != nil {
 		return failedResponse, serrors.WrapStr("cannot create index in e2e admission", err,
@@ -359,12 +364,14 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 	if request.IsSuccess() {
 		index.Token = &request.(*e2e.SetupReqSuccess).Token
 	}
+
 	free, err := freeInSegRsv(ctx, tx, rsv.SegmentReservations[0])
 	if err != nil {
 		return failedResponse, serrors.WrapStr("cannot compute free bw for e2e admission", err,
 			"e2e_id", rsv.ID)
 	}
 	free = free + rsv.AllocResv() // don't count this E2E request in the used BW
+
 	if req.IsThisASaTransfer() {
 		// this AS must stitch two segment rsvs. according to the request
 		if len(segRsvIDs) == 1 {
@@ -381,6 +388,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 			free = freeOutgoing
 		}
 	}
+
 	if !request.IsSuccess() || req.RequestedBW.ToKbps() > free {
 		maxWillingToAlloc := reservation.BWClsFromBW(free)
 		if req.IsThisASTheDst() {
@@ -397,15 +405,18 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 		return failedResponse, serrors.WrapStr("e2e not admitted", err, "id", req.ID,
 			"index", req.Index)
 	}
+
 	// admitted so far
 	// TODO(juagargi) update token here
 	if err := tx.PersistE2ERsv(ctx, rsv); err != nil {
 		return failedResponse, serrors.WrapStr("cannot persist e2e reservation", err,
 			"id", req.ID)
 	}
+
 	if err := tx.Commit(); err != nil {
 		return failedResponse, serrors.WrapStr("cannot commit transaction", err, "id", req.ID)
 	}
+
 	var msg base.MessageWithPath
 	if req.IsThisASTheDst() {
 		asAResponse := failedResponse.(*e2e.ResponseSetupFailure)
@@ -550,7 +561,8 @@ func freeInSegRsv(ctx context.Context, tx backend.Transaction, segRsv *segment.R
 }
 
 // max bw in egress interface of the transfer AS
-func freeAfterTransfer(ctx context.Context, tx backend.Transaction, rsv *e2e.Reservation) (uint64, error) {
+func freeAfterTransfer(ctx context.Context, tx backend.Transaction, rsv *e2e.Reservation) (
+	uint64, error) {
 
 	seg1 := rsv.SegmentReservations[0]
 	seg2 := rsv.SegmentReservations[1]
