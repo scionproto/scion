@@ -1,7 +1,6 @@
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
-load("@io_bazel_rules_docker//container:container.bzl", "container_bundle", "container_image")
 load("@package_bundle//file:packages.bzl", "packages")
-load(":caps.bzl", "setcap")
+load(":caps.bzl", "container_image_setcap")
 
 def build_sigtester_image():
     pkg_tar(
@@ -10,8 +9,8 @@ def build_sigtester_image():
         package_dir = "/share",
     )
 
-    container_image(
-        name = "scion_sig_acceptance_nocap",
+    container_image_setcap(
+        name = "scion_sig_acceptance",
         base = "@ubuntu16//image",
         env = {"TZ": "UTC"},
         debs = [
@@ -36,18 +35,6 @@ def build_sigtester_image():
         ],
         workdir = "/share",
         entrypoint = ["./sig.sh"],
-    )
-
-    setcap(
-        name = "scion_sig_acceptance_withcap",
-        image = ":scion_sig_acceptance_nocap.tar",
         caps = "cap_net_admin+ei",
-        binary = "/app/sig",
-    )
-
-    container_image(
-        name = "scion_sig_acceptance",
-        base = ":scion_sig_acceptance_withcap",
-        entrypoint = ["./sig.sh"],
-        visibility = ["//visibility:public"],
+        caps_binary = "/app/sig",
     )
