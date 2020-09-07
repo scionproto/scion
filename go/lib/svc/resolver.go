@@ -15,7 +15,6 @@
 package svc
 
 import (
-	"bytes"
 	"context"
 	"net"
 
@@ -186,7 +185,7 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 		}
 	}
 	var reply Reply
-	if err := reply.DecodeFrom(bytes.NewBuffer([]byte(b))); err != nil {
+	if err := reply.Unmarshal(b); err != nil {
 		return nil, common.NewBasicError(errDecode, err)
 	}
 

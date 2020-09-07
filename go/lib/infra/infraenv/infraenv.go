@@ -194,13 +194,12 @@ func (nc *NetworkConfig) AddressRewriter(
 func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, error) {
 	reply := &svc.Reply{
 		Transports: map[svc.Transport]string{
-			svc.UDP:  nc.Public.String(),
 			svc.QUIC: quicAddress,
 		},
 	}
 
-	udpAddressStr := &bytes.Buffer{}
-	if err := reply.SerializeTo(udpAddressStr); err != nil {
+	svcResolutionReply, err := reply.Marshal()
+	if err != nil {
 		return nil, serrors.WrapStr("building SVC resolution reply", err)
 	}
 
@@ -216,7 +215,7 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 		},
 		&LegacyForwardingHandler{
 			BaseHandler: &svc.BaseHandler{
-				Message: udpAddressStr.Bytes(),
+				Message: svcResolutionReply,
 			},
 			ExpectedPayload: resolutionRequestPayload,
 		},

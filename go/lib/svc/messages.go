@@ -15,20 +15,17 @@
 package svc
 
 import (
-	"io"
-	"sort"
+	"google.golang.org/protobuf/proto"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/svc/internal/proto"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
 // Reply is an SVC resolution reply.
 type Reply struct {
-	// Transports maps transport keys (e.g., "QUIC" or "UDP") to network
-	// address strings (e.g., "192.168.1.1:80"). Applications should check if
-	// the transport keys are acceptable and must parse the address strings
-	// accordingly.
+	// Transports maps transport keys (e.g., "QUIC") to network address strings
+	// (e.g., "192.168.1.1:80"). Applications should check if the transport keys
+	// are acceptable and must parse the address strings accordingly.
 	Transports map[Transport]string
 	// ReturnPath contains the reversed and initialized path the SVC resolution
 	// message arrived on. This can be used to communicate across paths
@@ -36,22 +33,22 @@ type Reply struct {
 	ReturnPath snet.Path
 }
 
-// DecodeFrom decodes a reply message from its capnp representation. No
+// Unmarshal decodes a reply message from its protobuf representation. No
 // validation of transport keys is performed.
 //
 // If the returned error is non-nil, the state of Reply is unspecified.
-func (r *Reply) DecodeFrom(rd io.Reader) error {
-	var protoObject proto.SVCResolutionReply
-	if err := protoObject.DecodeFrom(rd); err != nil {
+func (r *Reply) Unmarshal(raw []byte) error {
+	var rep cppb.ServiceResolutionResponse
+	if err := proto.Unmarshal(raw, &rep); err != nil {
 		return err
 	}
-	return r.fromProtoFormat(&protoObject)
+	return r.fromProtoFormat(&rep)
 }
 
 // SerializeTo encodes a reply message into its capnp representation. No
 // validation of transport keys is performed.
-func (r *Reply) SerializeTo(wr io.Writer) error {
-	return r.toProtoFormat().SerializeTo(wr)
+func (r *Reply) Marshal() ([]byte, error) {
+	return proto.Marshal(r.toProtoFormat())
 }
 
 // toProtoFormat converts a reply message to a low-level format suitable for
@@ -63,19 +60,17 @@ func (r *Reply) SerializeTo(wr io.Writer) error {
 // an empty slice. Unknown Transport keys are included in the Reply.
 //
 // Elements of the slice are always sorted by Key in ascending order.
-func (r *Reply) toProtoFormat() *proto.SVCResolutionReply {
-	protoReply := &proto.SVCResolutionReply{Transports: []proto.Transport{}}
+func (r *Reply) toProtoFormat() *cppb.ServiceResolutionResponse {
 	if r == nil || len(r.Transports) == 0 {
-		return protoReply
+		return &cppb.ServiceResolutionResponse{}
 	}
-	for k, v := range r.Transports {
-		protoReply.Transports = append(protoReply.Transports,
-			proto.Transport{Key: string(k), Value: v})
+	rep := &cppb.ServiceResolutionResponse{
+		Transports: make(map[string]*cppb.Transport, len(r.Transports)),
 	}
-	sort.Slice(protoReply.Transports, func(i, j int) bool {
-		return protoReply.Transports[i].Key < protoReply.Transports[j].Key
-	})
-	return protoReply
+	for key, addr := range r.Transports {
+		rep.Transports[string(key)] = &cppb.Transport{Address: addr}
+	}
+	return rep
 }
 
 // fromProtoFormat converts from a low-level format suitable for network
@@ -89,16 +84,13 @@ func (r *Reply) toProtoFormat() *proto.SVCResolutionReply {
 //
 // Calling this function always resets the internal state of the Reply, even if
 // an error is returned.
-func (r *Reply) fromProtoFormat(protoReply *proto.SVCResolutionReply) error {
+func (r *Reply) fromProtoFormat(protoReply *cppb.ServiceResolutionResponse) error {
 	r.Transports = make(map[Transport]string)
 	if protoReply == nil || len(protoReply.Transports) == 0 {
 		return nil
 	}
-	for _, transport := range protoReply.Transports {
-		if _, ok := r.Transports[Transport(transport.Key)]; ok {
-			return common.NewBasicError("duplicate key not allowed", nil, "key", transport.Key)
-		}
-		r.Transports[Transport(transport.Key)] = transport.Value
+	for key, transport := range protoReply.Transports {
+		r.Transports[Transport(key)] = transport.Address
 	}
 	return nil
 }
@@ -107,6 +99,5 @@ func (r *Reply) fromProtoFormat(protoReply *proto.SVCResolutionReply) error {
 type Transport string
 
 const (
-	UDP  Transport = "UDP"
 	QUIC Transport = "QUIC"
 )

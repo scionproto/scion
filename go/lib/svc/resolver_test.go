@@ -15,7 +15,6 @@
 package svc_test
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"net"
@@ -160,11 +159,11 @@ func TestRoundTripper(t *testing.T) {
 				c.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(nil)
 				c.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, _ *net.UDPAddr) error {
-						buf := &bytes.Buffer{}
-						if err := testReply.SerializeTo(buf); err != nil {
+						raw, err := testReply.Marshal()
+						if err != nil {
 							panic(err)
 						}
-						pkt.Payload = common.RawBytes(buf.Bytes())
+						pkt.Payload = common.RawBytes(raw)
 						return nil
 					},
 				)

@@ -398,7 +398,7 @@ func TestParseReply(t *testing.T) {
 			assertErr: assert.Error,
 		},
 		"key not found in reply": {
-			mockReply: &svc.Reply{Transports: map[svc.Transport]string{svc.UDP: "foo"}},
+			mockReply: &svc.Reply{Transports: map[svc.Transport]string{"UNKNOWN": "foo"}},
 			assertErr: assert.Error,
 		},
 		"key found in reply, but parsing fails": {
