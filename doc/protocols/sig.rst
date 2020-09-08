@@ -11,13 +11,13 @@ Introduction
 SIG Framing Protocol describes frames sent between two SIG instances.
 The IP packets transported via SIG are encapsulated in SIG frames.
 There can be multiple IP packets in a single SIG frame.
-Single IP packet can be also split into multiple SIG frames.
+A single IP packet can also be split into multiple SIG frames.
 
 SIG traffic can be sent over multiple SIG sessions. SIG uses different
 sessions to transport different classes of traffic (e.g. priority vs. normal.)
 
 Within each session there may be multiple streams. Streams are useful to
-distinguish between traffic send by different SIG instances. For example,
+distinguish between traffic sent by different SIG instances. For example,
 if SIG is restarted, it will create a new stream ID for each session. That way,
 the peer SIG will know that the new frame with a new stream ID does not
 carry trailing part of the unfinished IP packet from a different stream.
@@ -74,7 +74,7 @@ All fields within SIG frame header are in network byte order.
   SIG frames.
 
 - The ``Sequence number`` field indicates a position of the frame within a
-  stream. Consecutive frames can be used to reassembly IP packets split among
+  stream. Consecutive frames can be used to reassemble IP packets split among
   multiple frames.
 
 SIG frame payload
