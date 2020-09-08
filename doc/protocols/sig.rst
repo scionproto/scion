@@ -35,12 +35,6 @@ The Stack
 SIG framing protocol on top of SCION and UDP.
 
     +-----------------------+
-    |       Ethernet        |
-    +-----------------------+
-    |     IP (underlay)     |
-    +-----------------------+
-    |     UDP (underlay)    |
-    +-----------------------+
     |         SCION         |
     +-----------------------+
     |          UDP          |
@@ -62,9 +56,9 @@ Each SIG frame starts with SIG frame header with the following format:
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |   Reserved (12 bits)    |          Stream (20 bits)           |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                       Sequence number                         |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                 Sequence number (continued)                   |
+    |                                                               |
+    +                       Sequence number                         +
+    |                                                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 All fields within SIG frame header are in network byte order.
@@ -92,10 +86,10 @@ SIG frame payload
 
 SIG frame payload may contain one or more IPv4 or IPv6 packets, or parts
 thereof. No other types of packets can be encapsulated. The packets are
-places one directly after another, with no padding.
+placed one directly after another, with no padding.
 
 SIG will use IPv4/6 "payload length" field to determine the size of the packet.
-To make the processing easier, it is required that the "payload length" field
+To make the processing easier, it is required that the fixed part of the IP header
 is in the frame where the IP packet begins. In other words, the initial fragment
-of an IPv4 packet must be at least 4 bytes long. Initial fragment of an IPv6
-packet must be at least 6 bytes long.
+of an IPv4 packet must be at least 20 bytes long. Initial fragment of an IPv6
+packet must be at least 40 bytes long.
