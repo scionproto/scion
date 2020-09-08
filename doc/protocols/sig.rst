@@ -17,7 +17,7 @@ The IP packets transported via SIG are encapsulated in SIG frames.
 There can be multiple IP packets in a single SIG frame.
 Single IP packet can be also split into multiple SIG frames.
 
-SIG traffic can happen over multiple SIG sessions. SIG uses different
+SIG traffic can be sent over multiple SIG sessions. SIG uses different
 sessions to transport different classes of traffic (e.g. priority vs. normal.)
 
 Within each session there may be multiple streams. Streams are useful to
@@ -84,12 +84,29 @@ All fields within SIG frame header are in network byte order.
 SIG frame payload
 =================
 
-SIG frame payload may contain one or more IPv4 or IPv6 packets, or parts
+SIG frame payload may contain multiple IPv4 or IPv6 packets, or parts
 thereof. No other types of packets can be encapsulated. The packets are
 placed one directly after another, with no padding.
 
-SIG will use IPv4/6 "payload length" field to determine the size of the packet.
+SIG uses IPv4/6 "payload length" field to determine the size of the packet.
 To make the processing easier, it is required that the fixed part of the IP header
 is in the frame where the IP packet begins. In other words, the initial fragment
 of an IPv4 packet must be at least 20 bytes long. Initial fragment of an IPv6
 packet must be at least 40 bytes long.
+
+Example
+=======
+
+Following example shows three IP packets packed into three SIG frames:
+
+    +----------------------------+---------+---------+---------+----------------+
+    | SIG HDR Index=0 Seq=0      | IP4 HDR | payload | IP6 HDR | payload...     |
+    +----------------------------+---------+---------+---------+----------------+
+
+    +----------------------------+-----------------+---------+------------------+
+    | SIG HDR Index=8 Seq=1      | ...payload (8B) | IP4 HDR | payload...       |
+    +----------------------------+-----------------+---------+------------------+
+
+    +----------------------------+------------+
+    | SIG HDR Index=0xffff Seq=2 | ...payload |
+    +----------------------------+------------+
