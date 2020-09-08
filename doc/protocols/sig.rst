@@ -2,10 +2,6 @@
 SCION IP Gateway Framing Protocol Specification
 ***********************************************
 
-.. |br| raw:: html
-
-  <br/>
-
 This document contains the specification for the SCION IP Gateway (SIG)
 Framing Protocol.
 
@@ -32,34 +28,34 @@ number to reassemble the contained IP packets.
 The Stack
 =========
 
-SIG framing protocol on top of SCION and UDP.
+SIG framing protocol on top of SCION and UDP::
 
-    +-----------------------+
-    |         SCION         |
-    +-----------------------+
-    |          UDP          |
-    +-----------------------+
-    |    SIG frame header   |
-    +-----------------------+
-    |   SIG frame payload   |
-    +-----------------------+
+  +-----------------------+
+  |         SCION         |
+  +-----------------------+
+  |          UDP          |
+  +-----------------------+
+  |    SIG frame header   |
+  +-----------------------+
+  |   SIG frame payload   |
+  +-----------------------+
 
 SIG Frame Header
 ================
 
-Each SIG frame starts with SIG frame header with the following format:
+Each SIG frame starts with SIG frame header with the following format::
 
-     0                   1                   2                   3
-     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |     Version   |    Session    |            Index              |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |   Reserved (12 bits)    |          Stream (20 bits)           |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                                                               |
-    +                       Sequence number                         +
-    |                                                               |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   0                   1                   2                   3
+   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |     Version   |    Session    |            Index              |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |   Reserved (12 bits)    |          Stream (20 bits)           |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                                                               |
+  +                       Sequence number                         +
+  |                                                               |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 All fields within SIG frame header are in network byte order.
 
@@ -97,16 +93,16 @@ packet must be at least 40 bytes long.
 Example
 =======
 
-Following example shows three IP packets packed into three SIG frames:
+Following example shows three IP packets packed into three SIG frames::
 
-    +----------------------------+---------+---------+---------+----------------+
-    | SIG HDR Index=0 Seq=0      | IP4 HDR | payload | IP6 HDR | payload...     |
-    +----------------------------+---------+---------+---------+----------------+
+  +----------------------------+---------+---------+---------+----------------+
+  | SIG HDR Index=0 Seq=0      | IP4 HDR | payload | IP6 HDR | payload...     |
+  +----------------------------+---------+---------+---------+----------------+
 
-    +----------------------------+-----------------+---------+------------------+
-    | SIG HDR Index=8 Seq=1      | ...payload (8B) | IP4 HDR | payload...       |
-    +----------------------------+-----------------+---------+------------------+
+  +----------------------------+-----------------+---------+------------------+
+  | SIG HDR Index=8 Seq=1      | ...payload (8B) | IP4 HDR | payload...       |
+  +----------------------------+-----------------+---------+------------------+
 
-    +----------------------------+------------+
-    | SIG HDR Index=0xffff Seq=2 | ...payload |
-    +----------------------------+------------+
+  +----------------------------+------------+
+  | SIG HDR Index=0xffff Seq=2 | ...payload |
+  +----------------------------+------------+
