@@ -1,0 +1,101 @@
+***********************************************
+SCION IP Gateway Framing Protocol Specification
+***********************************************
+
+.. |br| raw:: html
+
+  <br/>
+
+This document contains the specification for the SCION IP Gateway (SIG)
+Framing Protocol.
+
+Introduction
+============
+
+SIG Framing Protocol describes frames sent between two SIG instances.
+The IP packets transported via SIG are encapsulated in SIG frames.
+There can be multiple IP packets in a single SIG frame.
+Single IP packet can be also split into multiple SIG frames.
+
+SIG traffic can happen over multiple SIG sessions. SIG uses different
+sessions to transport different classes of traffic (e.g. priority vs. normal.)
+
+Within each session there may be multiple streams. Streams are useful to
+distinguish between traffic send by different SIG instances. For example,
+if SIG is restarted, it will create a new stream ID for each session. That way,
+the peer SIG will know that the new frame with a new stream ID does not
+carry trailing part of the unfinished IP packet from a different stream.
+
+Each SIG frame has a sequence number. The remote SIG uses the sequence
+number to reassemble the contained IP packets.
+
+The Stack
+=========
+
+SIG framing protocol on top of SCION and UDP.
+
+    +-----------------------+
+    |       Ethernet        |
+    +-----------------------+
+    |     IP (underlay)     |
+    +-----------------------+
+    |     UDP (underlay)    |
+    +-----------------------+
+    |         SCION         |
+    +-----------------------+
+    |          UDP          |
+    +-----------------------+
+    |    SIG frame header   |
+    +-----------------------+
+    |   SIG frame payload   |
+    +-----------------------+
+
+SIG Frame Header
+================
+
+Each SIG frame starts with SIG frame header with the following format:
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |     Version   |    Session    |            Index              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |   Reserved (12 bits)    |          Stream (20 bits)           |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                       Sequence number                         |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                 Sequence number (continued)                   |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+All fields within SIG frame header are in network byte order.
+
+- The ``Version`` field indicates the SIG framing version. It must be set to zero.
+
+- The ``Session`` field indicates the SIG session to be used.
+
+- The ``Index`` field is the byte offset of the first beginning of an IP packet
+  within the payload. If no IP packet starts in the payload, for example, if
+  the frame contains only a trailing part of an IP packet, the field must be set
+  to 0xFFFF.
+
+- The ``Reserved`` field is reserved and must be set to zero.
+
+- The ``Stream`` field, along with the session identifies a unique sequence of
+  SIG frames.
+
+- The ``Sequence number`` field indicates a position of the frame within a
+  stream. Consecutive frames can be used to reassembly IP packets split among
+  multiple frames.
+
+SIG frame payload
+=================
+
+SIG frame payload may contain one or more IPv4 or IPv6 packets, or parts
+thereof. No other types of packets can be encapsulated. The packets are
+places one directly after another, with no padding.
+
+SIG will use IPv4/6 "payload length" field to determine the size of the packet.
+To make the processing easier, it is required that the "payload length" field
+is in the frame where the IP packet begins. In other words, the initial fragment
+of an IPv4 packet must be at least 4 bytes long. Initial fragment of an IPv6
+packet must be at least 6 bytes long.
