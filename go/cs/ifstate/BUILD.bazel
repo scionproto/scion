@@ -47,6 +47,7 @@ go_test(
         "//go/lib/infra/modules/itopo/itopotest:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
+        "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/topology:go_default_library",
         "//go/lib/util:go_default_library",

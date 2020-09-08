@@ -43,6 +43,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
@@ -362,6 +363,7 @@ func testBeaconOrErr(g *graph.Graph, desc []common.IFIDType) beacon.BeaconOrErr 
 func testSigner(t *testing.T, priv crypto.Signer, ia addr.IA) ctrl.Signer {
 	return trust.Signer{
 		PrivateKey: priv,
+		Algorithm:  signed.ECDSAWithSHA512,
 		IA:         ia,
 		TRCID: cppki.TRCID{
 			ISD:    ia.I,

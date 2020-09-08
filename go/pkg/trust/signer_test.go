@@ -34,6 +34,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -82,6 +83,7 @@ func TestSignerSign(t *testing.T) {
 
 				signer := trust.Signer{
 					PrivateKey: priv,
+					Algorithm:  signed.ECDSAWithSHA512,
 					Hash:       crypto.SHA512,
 					IA:         xtest.MustParseIA("1-ff00:0:110"),
 					TRCID: cppki.TRCID{
@@ -125,6 +127,7 @@ func TestSignerSign(t *testing.T) {
 
 		signer := trust.Signer{
 			PrivateKey: priv,
+			Algorithm:  signed.ECDSAWithSHA512,
 			Hash:       crypto.SHA512,
 			IA:         xtest.MustParseIA("1-ff00:0:110"),
 			TRCID: cppki.TRCID{

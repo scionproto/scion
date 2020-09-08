@@ -16,7 +16,6 @@ package certs
 
 import (
 	"context"
-	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -30,15 +29,15 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/xtest"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	mock_cp "github.com/scionproto/scion/go/pkg/proto/control_plane/mock_control_plane"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/proto"
 )
 
 func TestCSRTemplate(t *testing.T) {
@@ -110,33 +109,31 @@ func TestRenew(t *testing.T) {
 				mctrl *gomock.Controller) *mock_cp.MockChainRenewalServiceServer {
 
 				c := xtest.LoadChain(t, "testdata/renew/ISD1-ASff00_0_111.pem")
-				raw := []byte{}
-				raw = append(raw, c[0].Raw...)
-				raw = append(raw, c[1].Raw...)
+				body := cppb.ChainRenewalResponseBody{
+					Chain: &cppb.Chain{
+						AsCert: c[0].Raw,
+						CaCert: c[1].Raw,
+					},
+				}
+				rawBody, err := proto.Marshal(&body)
+				require.NoError(t, err)
 
 				signer := trust.Signer{
 					PrivateKey:   key,
-					Hash:         crypto.SHA512,
+					Algorithm:    signed.ECDSAWithSHA512,
 					IA:           xtest.MustParseIA("1-ff00:0:110"),
 					TRCID:        trc.TRC.ID,
 					SubjectKeyID: []byte("subject-key-id"),
 					Expiration:   time.Now().Add(20 * time.Hour),
 				}
-				meta, err := signer.Sign(context.Background(), raw)
-				require.NoError(t, err)
-
-				rep := &cert_mgmt.ChainRenewalReply{
-					RawChain:  raw,
-					Signature: meta,
-				}
-				rawRep, err := proto.PackRoot(rep)
+				signedMsg, err := signer.SignV2(context.Background(), rawBody)
 				require.NoError(t, err)
 				// TODO(karampok). Build matchers instead of gomock.Any()
 				// we have to verify that the req is valid signature wise.
 				srv := mock_cp.NewMockChainRenewalServiceServer(mctrl)
 				srv.EXPECT().ChainRenewal(gomock.Any(), gomock.Any()).Return(
 					&cppb.ChainRenewalResponse{
-						Raw: rawRep,
+						SignedResponse: signedMsg,
 					}, nil,
 				)
 				return srv
@@ -153,7 +150,7 @@ func TestRenew(t *testing.T) {
 
 			signer := trust.Signer{
 				PrivateKey:   key,
-				Hash:         crypto.SHA512,
+				Algorithm:    signed.ECDSAWithSHA512,
 				IA:           xtest.MustParseIA("1-ff00:0:111"),
 				TRCID:        trc.TRC.ID,
 				SubjectKeyID: []byte("subject-key-id"),

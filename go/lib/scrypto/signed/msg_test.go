@@ -171,9 +171,9 @@ func TestSign(t *testing.T) {
 				return
 			}
 
-			hdr, err := signed.UnverifiedHeader(msg)
+			hdr, err := signed.ExtractUnverifiedHeader(msg)
 			require.NoError(t, err)
-			assert.Equal(t, tc.Header, *hdr)
+			assert.Equal(t, signed.UnverifiedHeader(tc.Header), *hdr)
 		})
 	}
 }

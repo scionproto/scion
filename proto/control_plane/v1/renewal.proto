@@ -18,17 +18,32 @@ option go_package = "github.com/scionproto/scion/go/pkg/proto/control_plane";
 
 package proto.control_plane.v1;
 
+import "proto/control_plane/v1/cppki.proto";
+import "proto/crypto/v1/signed.proto";
+
 service ChainRenewalService {
     // RenewChain creates a chain from the chain request.
     rpc ChainRenewal(ChainRenewalRequest) returns (ChainRenewalResponse) {}
 }
 
 message ChainRenewalRequest {
-    // Raw is the raw signed request in the legacy format.
-    bytes raw = 1000;
+    // The signed certificate chain renewal requests. The body of the
+    // SignedMessage is the serialized ChainRenewalRequestBody.
+    proto.crypto.v1.SignedMessage signed_request = 1;
+}
+
+message ChainRenewalRequestBody {
+    // The raw certificate signature request (PKCS #10).
+    bytes csr = 1;
 }
 
 message ChainRenewalResponse {
-    // Raw is the raw signed chain in the legacy format.
-    bytes raw = 1000;
+    // The signed certificate chain renewal response. The body of the
+    // SignedMessage is the serialized ChainRenewalResponseBody.
+    proto.crypto.v1.SignedMessage signed_response = 1;
+}
+
+message ChainRenewalResponseBody {
+    // The renewed certificate chain.
+    proto.control_plane.v1.Chain chain = 1;
 }

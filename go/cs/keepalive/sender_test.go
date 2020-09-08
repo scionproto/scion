@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
@@ -91,6 +92,7 @@ func TestSenderRun(t *testing.T) {
 func createTestSigner(t *testing.T, key crypto.Signer) ctrl.Signer {
 	return trust.Signer{
 		PrivateKey: key,
+		Algorithm:  signed.ECDSAWithSHA512,
 		IA:         xtest.MustParseIA("1-ff00:0:84"),
 		TRCID: cppki.TRCID{
 			ISD:    1,

@@ -43,6 +43,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
@@ -344,6 +345,7 @@ func activateAll(intfs *ifstate.Interfaces) {
 func createTestSigner(t *testing.T, key crypto.Signer) ctrl.Signer {
 	return trust.Signer{
 		PrivateKey: key,
+		Algorithm:  signed.ECDSAWithSHA512,
 		IA:         xtest.MustParseIA("1-ff00:0:84"),
 		TRCID: cppki.TRCID{
 			ISD:    1,

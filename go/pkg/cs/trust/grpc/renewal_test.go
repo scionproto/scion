@@ -35,12 +35,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl"
-	libctrl "github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
-	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	trustgrpc "github.com/scionproto/scion/go/pkg/cs/trust/grpc"
 	"github.com/scionproto/scion/go/pkg/cs/trust/grpc/mock_grpc"
@@ -48,11 +45,9 @@ import (
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/renewal"
 	"github.com/scionproto/scion/go/pkg/trust/renewal/mock_renewal"
-	"github.com/scionproto/scion/go/proto"
 )
 
 func TestChainRenewalRequestHandle(t *testing.T) {
-	mockTime := time.Now()
 	mockErr := serrors.New("send error")
 	mockCSR := &x509.CertificateRequest{
 		Raw: []byte("mock CSR"),
@@ -68,20 +63,24 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 		},
 		{Raw: []byte("mock CA cert")},
 	}
-	mockRequest := &cert_mgmt.ChainRenewalRequest{
-		RawCSR: mockCSR.Raw,
-		Signature: &proto.SignS{
-			Timestamp: util.TimeToSecs(mockTime),
-			Src: libctrl.X509SignSrc{
-				IA:           xtest.MustParseIA("1-ff00:0:111"),
-				Base:         1,
-				Serial:       1,
-				SubjectKeyID: mockChain[0].SubjectKeyId,
-			}.Pack(),
-		},
-	}
-	rawRequest, err := proto.PackRoot(mockRequest)
+
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
+	signedReq, err := renewal.NewChainRenewalRequest(context.Background(), mockCSR.Raw,
+		trust.Signer{
+			PrivateKey: priv,
+			Algorithm:  signed.ECDSAWithSHA256,
+			ChainValidity: cppki.Validity{
+				NotBefore: time.Now(),
+				NotAfter:  time.Now().Add(time.Hour),
+			},
+			Expiration:   time.Now().Add(time.Hour - time.Minute),
+			IA:           xtest.MustParseIA("1-ff00:0:111"),
+			SubjectKeyID: mockChain[0].SubjectKeyId,
+		},
+	)
+	require.NoError(t, err)
+
 	mockIssuedChain := []*x509.Certificate{
 		{Raw: []byte("mock issued AS cert")},
 		{Raw: []byte("mock CA cert")},
@@ -95,18 +94,23 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 		Assertion    assert.ErrorAssertionFunc
 		Code         codes.Code
 	}{
-		"invalid signer src": {
+		"invalid verification key ID": {
 			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
-				raw, err := proto.PackRoot(&cert_mgmt.ChainRenewalRequest{
-					RawCSR: []byte("mock CSR"),
-					Signature: &proto.SignS{
-						Src: []byte("troll"),
+				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), mockCSR.Raw,
+					trust.Signer{
+						PrivateKey: priv,
+						Algorithm:  signed.ECDSAWithSHA256,
+						ChainValidity: cppki.Validity{
+							NotBefore: time.Now(),
+							NotAfter:  time.Now().Add(time.Hour),
+						},
+						Expiration:   time.Now().Add(time.Hour - time.Minute),
+						IA:           xtest.MustParseIA("0-ff00:0:111"),
+						SubjectKeyID: mockChain[0].SubjectKeyId,
 					},
-				})
+				)
 				require.NoError(t, err)
-				return &cppb.ChainRenewalRequest{
-					Raw: raw,
-				}
+				return signedReq
 			},
 			Verifier: func(ctrl *gomock.Controller) trustgrpc.RenewalRequestVerifier {
 				return mock_grpc.NewMockRenewalRequestVerifier(ctrl)
@@ -115,7 +119,7 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 				return mock_grpc.NewMockChainBuilder(ctrl)
 			},
 			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				return mock_seg.NewMockSigner(ctrl)
+				return mock_grpc.NewMockSmuggled(ctrl)
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {
 				return mock_renewal.NewMockDB(ctrl)
@@ -125,7 +129,7 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 		},
 		"db read error": {
 			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
-				return &cppb.ChainRenewalRequest{Raw: rawRequest}
+				return signedReq
 			},
 			Verifier: func(ctrl *gomock.Controller) trustgrpc.RenewalRequestVerifier {
 				return mock_grpc.NewMockRenewalRequestVerifier(ctrl)
@@ -134,7 +138,7 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 				return mock_grpc.NewMockChainBuilder(ctrl)
 			},
 			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				return mock_seg.NewMockSigner(ctrl)
+				return mock_grpc.NewMockSmuggled(ctrl)
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {
 				db := mock_renewal.NewMockDB(ctrl)
@@ -149,7 +153,7 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 		},
 		"not client": {
 			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
-				return &cppb.ChainRenewalRequest{Raw: rawRequest}
+				return signedReq
 			},
 			Verifier: func(ctrl *gomock.Controller) trustgrpc.RenewalRequestVerifier {
 				return mock_grpc.NewMockRenewalRequestVerifier(ctrl)
@@ -158,7 +162,7 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 				return mock_grpc.NewMockChainBuilder(ctrl)
 			},
 			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				return mock_seg.NewMockSigner(ctrl)
+				return mock_grpc.NewMockSmuggled(ctrl)
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {
 				db := mock_renewal.NewMockDB(ctrl)
@@ -173,12 +177,12 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 		},
 		"invalid signature": {
 			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
-				return &cppb.ChainRenewalRequest{Raw: rawRequest}
+				return signedReq
 			},
 			Verifier: func(ctrl *gomock.Controller) trustgrpc.RenewalRequestVerifier {
 				v := mock_grpc.NewMockRenewalRequestVerifier(ctrl)
 				v.EXPECT().VerifyChainRenewalRequest(
-					mockRequest,
+					signedReq,
 					[][]*x509.Certificate{mockChain},
 				).Return(nil, mockErr)
 				return v
@@ -187,7 +191,7 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 				return mock_grpc.NewMockChainBuilder(ctrl)
 			},
 			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				return mock_seg.NewMockSigner(ctrl)
+				return mock_grpc.NewMockSmuggled(ctrl)
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {
 				db := mock_renewal.NewMockDB(ctrl)
@@ -202,12 +206,12 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 		},
 		"failed to build chain": {
 			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
-				return &cppb.ChainRenewalRequest{Raw: rawRequest}
+				return signedReq
 			},
 			Verifier: func(ctrl *gomock.Controller) trustgrpc.RenewalRequestVerifier {
 				v := mock_grpc.NewMockRenewalRequestVerifier(ctrl)
 				v.EXPECT().VerifyChainRenewalRequest(
-					mockRequest,
+					signedReq,
 					[][]*x509.Certificate{mockChain},
 				).Return(mockCSR, nil)
 				return v
@@ -218,7 +222,7 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 				return cb
 			},
 			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				return mock_seg.NewMockSigner(ctrl)
+				return mock_grpc.NewMockSmuggled(ctrl)
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {
 				db := mock_renewal.NewMockDB(ctrl)
@@ -233,12 +237,12 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 		},
 		"db write error": {
 			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
-				return &cppb.ChainRenewalRequest{Raw: rawRequest}
+				return signedReq
 			},
 			Verifier: func(ctrl *gomock.Controller) trustgrpc.RenewalRequestVerifier {
 				v := mock_grpc.NewMockRenewalRequestVerifier(ctrl)
 				v.EXPECT().VerifyChainRenewalRequest(
-					mockRequest,
+					signedReq,
 					[][]*x509.Certificate{mockChain},
 				).Return(mockCSR, nil)
 				return v
@@ -249,7 +253,7 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 				return cb
 			},
 			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				return mock_seg.NewMockSigner(ctrl)
+				return mock_grpc.NewMockSmuggled(ctrl)
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {
 				db := mock_renewal.NewMockDB(ctrl)
@@ -265,12 +269,12 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 		},
 		"failed to sign": {
 			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
-				return &cppb.ChainRenewalRequest{Raw: rawRequest}
+				return signedReq
 			},
 			Verifier: func(ctrl *gomock.Controller) trustgrpc.RenewalRequestVerifier {
 				v := mock_grpc.NewMockRenewalRequestVerifier(ctrl)
 				v.EXPECT().VerifyChainRenewalRequest(
-					mockRequest,
+					signedReq,
 					[][]*x509.Certificate{mockChain},
 				).Return(mockCSR, nil)
 				return v
@@ -281,8 +285,8 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 				return cb
 			},
 			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				signer := mock_seg.NewMockSigner(ctrl)
-				signer.EXPECT().Sign(gomock.Any(), gomock.Any()).Return(nil, mockErr)
+				signer := mock_grpc.NewMockSmuggled(ctrl)
+				signer.EXPECT().SignV2(gomock.Any(), gomock.Any()).Return(nil, mockErr)
 				return signer
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {
@@ -299,22 +303,12 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 		},
 		"valid": {
 			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
-				return &cppb.ChainRenewalRequest{Raw: rawRequest}
+				return signedReq
 			},
 			Verifier: func(ctrl *gomock.Controller) trustgrpc.RenewalRequestVerifier {
 				v := mock_grpc.NewMockRenewalRequestVerifier(ctrl)
-				v.EXPECT().VerifyChainRenewalRequest(&cert_mgmt.ChainRenewalRequest{
-					RawCSR: mockCSR.Raw,
-					Signature: &proto.SignS{
-						Timestamp: util.TimeToSecs(mockTime),
-						Src: libctrl.X509SignSrc{
-							IA:           xtest.MustParseIA("1-ff00:0:111"),
-							Base:         1,
-							Serial:       1,
-							SubjectKeyID: mockChain[0].SubjectKeyId,
-						}.Pack(),
-					},
-				}, [][]*x509.Certificate{mockChain}).Return(mockCSR, nil)
+				v.EXPECT().VerifyChainRenewalRequest(signedReq,
+					[][]*x509.Certificate{mockChain}).Return(mockCSR, nil)
 				return v
 			},
 			ChainBuilder: func(ctrl *gomock.Controller) trustgrpc.ChainBuilder {
@@ -323,8 +317,8 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 				return cb
 			},
 			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				signer := mock_seg.NewMockSigner(ctrl)
-				signer.EXPECT().Sign(gomock.Any(), gomock.Any())
+				signer := mock_grpc.NewMockSmuggled(ctrl)
+				signer.EXPECT().SignV2(gomock.Any(), gomock.Any())
 				return signer
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {

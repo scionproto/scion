@@ -32,13 +32,14 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
@@ -50,7 +51,6 @@ import (
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/renewal"
-	"github.com/scionproto/scion/go/proto"
 )
 
 type subjectVars struct {
@@ -300,6 +300,7 @@ func createSigner(srcIA addr.IA, trc cppki.SignedTRC, chain []*x509.Certificate,
 	}
 	signer := trust.Signer{
 		PrivateKey:   key,
+		Algorithm:    signed.ECDSAWithSHA512,
 		Hash:         crypto.SHA512,
 		IA:           srcIA,
 		TRCID:        trc.TRC.ID,
@@ -320,10 +321,6 @@ func renew(ctx context.Context, csr []byte, dstIA addr.IA, signer trust.Signer,
 	if err != nil {
 		return nil, err
 	}
-	raw, err := proto.PackRoot(req)
-	if err != nil {
-		return nil, err
-	}
 	dstSVC := &snet.SVCAddr{
 		IA:  dstIA,
 		SVC: addr.SvcCS,
@@ -334,24 +331,33 @@ func renew(ctx context.Context, csr []byte, dstIA addr.IA, signer trust.Signer,
 	}
 	defer conn.Close()
 	client := cppb.NewChainRenewalServiceClient(conn)
-	reply, err := client.ChainRenewal(ctx,
-		&cppb.ChainRenewalRequest{
-			Raw: raw,
-		},
-		grpc.RetryProfile...,
-	)
+	reply, err := client.ChainRenewal(ctx, req, grpc.RetryProfile...)
 	if err != nil {
-		return nil, err
-	}
-	var chainReply cert_mgmt.ChainRenewalReply
-	if err := proto.ParseFromRaw(&chainReply, reply.Raw); err != nil {
 		return nil, err
 	}
 	// XXX(karampok). We should verify the signature on the payload, but that
 	// implies having a full trust engine that is capable of resolving missing
 	// certificate chains for the CA. We skip it, since the chain itself is
 	// verified against the TRC, and thus, risk is very low.
-	return chainReply.Chain()
+	body, err := signed.ExtractUnverifiedBody(reply.SignedResponse)
+	if err != nil {
+		return nil, err
+	}
+	var replyBody cppb.ChainRenewalResponseBody
+	if err := proto.Unmarshal(body, &replyBody); err != nil {
+		return nil, err
+	}
+	chain := make([]*x509.Certificate, 2)
+	if chain[0], err = x509.ParseCertificate(replyBody.Chain.AsCert); err != nil {
+		return nil, serrors.WrapStr("parsing AS certificate", err)
+	}
+	if chain[1], err = x509.ParseCertificate(replyBody.Chain.CaCert); err != nil {
+		return nil, serrors.WrapStr("parsing CA certificate", err)
+	}
+	if err := cppki.ValidateChain(chain); err != nil {
+		return nil, err
+	}
+	return chain, nil
 }
 
 func csrTemplate(chain []*x509.Certificate, tmpl string) (*x509.CertificateRequest, error) {

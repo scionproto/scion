@@ -16,7 +16,10 @@ package signed
 
 import (
 	"crypto"
+	"crypto/ecdsa"
+	"fmt"
 
+	"github.com/scionproto/scion/go/lib/serrors"
 	pbcrypto "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
 
@@ -29,6 +32,26 @@ const (
 )
 
 type SignatureAlgorithm int
+
+// SelectSignatureAlgorithm selects the signature algorithm based on the public
+// key algorithm and the message digest algorithm.
+func SelectSignatureAlgorithm(pub crypto.PublicKey, hash crypto.Hash) (SignatureAlgorithm, error) {
+	switch pub.(type) {
+	case *ecdsa.PublicKey:
+		switch hash {
+		case crypto.SHA256:
+			return ECDSAWithSHA256, nil
+		case crypto.SHA384:
+			return ECDSAWithSHA384, nil
+		case crypto.SHA512:
+			return ECDSAWithSHA512, nil
+		default:
+			return 0, serrors.New("ecdsa: unsupported hash algorithm", "algorithm", hash)
+		}
+	default:
+		return 0, serrors.New("unsupported public key algorithm", "type", fmt.Sprintf("%T", pub))
+	}
+}
 
 func signatureAlgorithmFromPB(a pbcrypto.SignatureAlgorithm) SignatureAlgorithm {
 	switch a {

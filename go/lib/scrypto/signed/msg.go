@@ -169,12 +169,27 @@ func checkPubKeyAlgo(signAlgo SignatureAlgorithm, pubKey crypto.PublicKey) error
 	}
 }
 
-// UnverifiedHeader extracts the header from the signed message without
+// UnverifiedHeader represents the header that was extracted without
+// verification. The contents of this type should not be trusted.
+type UnverifiedHeader Header
+
+// ExtractUnverifiedHeader extracts the header from the signed message without
 // verification. The caller can use it to identify the appropriate key for
 // verification.
-func UnverifiedHeader(signed *cryptopb.SignedMessage) (*Header, error) {
+func ExtractUnverifiedHeader(signed *cryptopb.SignedMessage) (*UnverifiedHeader, error) {
 	hdr, _, err := extractHeaderAndBody(signed)
-	return hdr, err
+	return (*UnverifiedHeader)(hdr), err
+}
+
+// UnverifiedBody represents the body that was extracted without verification.
+// The contents should not be trusted.
+type UnverifiedBody []byte
+
+// ExtractUnverifiedBody extracts the body from the signed message without
+// verification. The caller should not trust the contents.
+func ExtractUnverifiedBody(signed *cryptopb.SignedMessage) (UnverifiedBody, error) {
+	_, body, err := extractHeaderAndBody(signed)
+	return body, err
 }
 
 func extractHeaderAndBody(signed *cryptopb.SignedMessage) (*Header, []byte, error) {

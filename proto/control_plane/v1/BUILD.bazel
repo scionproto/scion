@@ -10,5 +10,8 @@ proto_library(
         "svc_resolution.proto",
     ],
     visibility = ["//visibility:public"],
-    deps = ["@com_google_protobuf//:timestamp_proto"],
+    deps = [
+        "//proto/crypto/v1:crypto",
+        "@com_google_protobuf//:timestamp_proto",
+    ],
 )

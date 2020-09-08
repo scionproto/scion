@@ -23,33 +23,41 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/tracing"
 	trustmetrics "github.com/scionproto/scion/go/pkg/cs/trust/internal/metrics"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/renewal"
-	"github.com/scionproto/scion/go/proto"
+	legacyproto "github.com/scionproto/scion/go/proto"
 )
+
+// XXX(roosd): Smuggled is used to interface smuggle until sign is replaced.
+type Smuggled interface {
+	Sign(ctx context.Context, msg []byte) (*legacyproto.SignS, error)
+	SignV2(ctx context.Context, msg []byte) (*cryptopb.SignedMessage, error)
+}
 
 // RenewalRequestVerifier verifies the incoming chain renewal request.
 type RenewalRequestVerifier interface {
-	VerifyChainRenewalRequest(*cert_mgmt.ChainRenewalRequest,
+	VerifyChainRenewalRequest(*cppb.ChainRenewalRequest,
 		[][]*x509.Certificate) (*x509.CertificateRequest, error)
 }
 
 // RenewalRequestVerifierFunc allows a func to implement the interface
-type RenewalRequestVerifierFunc func(*cert_mgmt.ChainRenewalRequest,
+type RenewalRequestVerifierFunc func(*cppb.ChainRenewalRequest,
 	[][]*x509.Certificate) (*x509.CertificateRequest, error)
 
-func (f RenewalRequestVerifierFunc) VerifyChainRenewalRequest(req *cert_mgmt.ChainRenewalRequest,
+func (f RenewalRequestVerifierFunc) VerifyChainRenewalRequest(req *cppb.ChainRenewalRequest,
 	chains [][]*x509.Certificate) (*x509.CertificateRequest, error) {
 	return f(req, chains)
 }
@@ -86,21 +94,30 @@ func (s RenewalServer) ChainRenewal(ctx context.Context,
 	span := opentracing.SpanFromContext(ctx)
 	logger := log.FromCtx(ctx)
 
-	chainReq := &cert_mgmt.ChainRenewalRequest{}
-	if err := proto.ParseFromRaw(chainReq, req.Raw); err != nil {
-		logger.Debug("Unable to parse chain request", "peer", peer, "err", err)
-		s.updateMetric(span, labels.WithResult(trustmetrics.ErrParse), err)
-		return nil, status.Error(codes.InvalidArgument, "request malformed")
-	}
-	src, err := ctrl.NewX509SignSrc(chainReq.Signature.Src)
+	unverfiedHeader, err := signed.ExtractUnverifiedHeader(req.SignedRequest)
 	if err != nil {
-		logger.Debug("Unable to parse chain request signature", "peer", peer, "err", err)
+		logger.Debug("Unable to extract signed header", "peer", peer, "err", err)
 		s.updateMetric(span, labels.WithResult(trustmetrics.ErrParse), err)
-		return nil, status.Error(codes.InvalidArgument, "request malformed")
+		return nil, status.Error(codes.InvalidArgument, "request malformed: cannot extract header")
 	}
+	var keyID cppb.VerificationKeyID
+	if err := proto.Unmarshal(unverfiedHeader.VerificationKeyID, &keyID); err != nil {
+		logger.Debug("Unable to extract verification key ID", "peer", peer, "err", err)
+		s.updateMetric(span, labels.WithResult(trustmetrics.ErrParse), err)
+		return nil, status.Error(codes.InvalidArgument,
+			"request malformed: cannot extract verification key ID")
+	}
+	if ia := addr.IAInt(keyID.IsdAs).IA(); ia.IsWildcard() {
+		logger.Debug("Verification key ID contains wildcard ISD-AS", "isd_as", ia, "peer", peer,
+			"err", err)
+		s.updateMetric(span, labels.WithResult(trustmetrics.ErrParse), err)
+		return nil, status.Error(codes.InvalidArgument,
+			"request malformed: verification key ID contains wildcard ISD-AS")
+	}
+
 	chains, err := s.DB.ClientChains(ctx, trust.ChainQuery{
-		IA:           src.IA,
-		SubjectKeyID: src.SubjectKeyID,
+		IA:           addr.IAInt(keyID.IsdAs).IA(),
+		SubjectKeyID: keyID.SubjectKeyId,
 		Date:         time.Now(),
 	})
 	if err != nil {
@@ -113,7 +130,7 @@ func (s RenewalServer) ChainRenewal(ctx context.Context,
 		s.updateMetric(span, labels.WithResult(trustmetrics.ErrNotFound), err)
 		return nil, status.Error(codes.PermissionDenied, "not a client")
 	}
-	csr, err := s.Verifier.VerifyChainRenewalRequest(chainReq, chains)
+	csr, err := s.Verifier.VerifyChainRenewalRequest(req, chains)
 	if err != nil {
 		logger.Info("Failed to verify certificate chain renewal request", "peer", peer, "err", err)
 		s.updateMetric(span, labels.WithResult(trustmetrics.ErrVerify), err)
@@ -130,24 +147,27 @@ func (s RenewalServer) ChainRenewal(ctx context.Context,
 		s.updateMetric(span, labels.WithResult(trustmetrics.ErrDB), err)
 		return nil, status.Error(codes.Unavailable, "failed to insert chain")
 	}
-	msg := append(append([]byte(nil), chain[0].Raw...), chain[1].Raw...)
-	signature, err := s.Signer.Sign(ctx, msg)
+
+	body := &cppb.ChainRenewalResponseBody{
+		Chain: &cppb.Chain{
+			AsCert: chain[0].Raw,
+			CaCert: chain[1].Raw,
+		},
+	}
+	rawBody, err := proto.Marshal(body)
+	if err != nil {
+		logger.Info("Failed to pack body for signature", "peer", peer, "err", err)
+		s.updateMetric(span, labels.WithResult(trustmetrics.ErrInternal), err)
+		return nil, status.Error(codes.Unavailable, "failed to pack reply")
+	}
+	signedMsg, err := s.Signer.(Smuggled).SignV2(ctx, rawBody)
 	if err != nil {
 		logger.Info("Failed to sign reply", "peer", peer, "err", err)
 		s.updateMetric(span, labels.WithResult(trustmetrics.ErrInternal), err)
 		return nil, status.Error(codes.Unavailable, "failed to sign reply")
 	}
-	rep, err := proto.PackRoot(&cert_mgmt.ChainRenewalReply{
-		RawChain:  msg,
-		Signature: signature,
-	})
-	if err != nil {
-		logger.Debug("Failed to pack renewed certificate chain", "peer", peer, "err", err)
-		s.updateMetric(span, labels.WithResult(trustmetrics.ErrInternal), err)
-		return nil, status.Error(codes.Unavailable, "failed to pack reply")
-	}
 	logger.Info("Issued new certificate chain",
-		"isd_as", src.IA,
+		"isd_as", addr.IAInt(keyID.IsdAs).IA(),
 		"subject_key_id", chain[0].SubjectKeyId,
 		"validity", cppki.Validity{
 			NotBefore: chain[0].NotBefore,
@@ -155,7 +175,7 @@ func (s RenewalServer) ChainRenewal(ctx context.Context,
 		},
 	)
 	return &cppb.ChainRenewalResponse{
-		Raw: rep,
+		SignedResponse: signedMsg,
 	}, nil
 }
 
