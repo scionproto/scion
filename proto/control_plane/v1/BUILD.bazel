@@ -7,6 +7,7 @@ proto_library(
         "legacy.proto",
         "renewal.proto",
         "seg.proto",
+        "seg_extensions.proto",
         "svc_resolution.proto",
     ],
     visibility = ["//visibility:public"],
