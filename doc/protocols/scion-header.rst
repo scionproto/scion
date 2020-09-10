@@ -437,8 +437,6 @@ Path Type: COLIBRI
 The COLIBRI path type is a bit different than the regular SCION in that it has
 only one info field::
 
-     0                   1                   2                   3
-     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                           InfoField                           |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -483,10 +481,11 @@ The only Info Field has the following format::
 
 (R)everse
     This packet travels in the reverse direction of the reservation.
-    :math:`R=1 \rightarrow C=1`. Otherwise invalid packet.
+    If `R` is set, `C` must be set as well. Otherwise the packet is invalid.
 
 (S)egment Reservation
-    This is a Segment Reservation Packet. :math:`S=1 \rightarrow C=1`. Otherwise invalid packet.
+    This is a Segment Reservation Packet.
+    If `S` is set, `C` must be set as well. Otherwise the packet is invalid.
     This flag is set everytime the Reservation ID is of type Segment ID.
 
 CurrHF
@@ -494,7 +493,7 @@ CurrHF
 
 SegLenN
     The length of the Nth Segment being used.
-    :math:`\text{SegLen}_n>0 \rightarrow \forall i, 0 \geq i \gt n, \text{SegLen}_i > 0`.
+    :math:`\text{SegLen}_n>0 \rightarrow \forall i, 0 \leq i \lt n, \text{SegLen}_i > 0`.
 
 Reservation ID
     Uses 16 bytes. Either an E2E Reservation ID or a Segment Reservation ID,
@@ -504,7 +503,7 @@ Reservation ID
 Expiration Tick
     The value represents the "tick" where this packet is no longer valid.
     A tick is four seconds, so :math:`\text{Expiration Time} = 4 \times 
-    \text{Expiration Tick}`.
+    \text{Expiration Tick}` seconds after Unix epoch.
 
 BWCls
     The bandwitdh class this reservation has.
@@ -525,7 +524,7 @@ Segment IDs
     Empty if :math:`S=1`. If not, the number of entries depends on the
     number of :math:`\text{SegLen}_n > 0`. One entry per each 
     :math:`\text{SegLen}_n > 0`, up to a total of 3.
-    Each Segment Resrvation ID is 10 bytes long. The total (up to 30 bytes)
+    Each Segment Reservation ID is 10 bytes long. The total (up to 30 bytes)
     is padded to a multiple of 4 (e.g. :math:`3\ \text{entries} = 30b 
     \rightarrow 32b`).
 
@@ -540,9 +539,7 @@ The Hop Field has the following format::
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |        Ingress ID             |         Egress ID             |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                                                               |
     |                              MAC                              |
-    |                                                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
@@ -570,8 +567,8 @@ Let's call SC (Segment Count) the number of segments:
 .. math::
     \begin{align}
     Len(InfoField) &= (1 + 4 + 2)\times 4 + Len(Segment IDs) \\
-    Len(InfoField) &= 28 + \text{align}(SC \times 4) \\ 
-    Len(InfoField) &= 28 + \lfloor \dfrac{SC \times 4 -1}{30} \rfloor \times 4 \\
+    Len(InfoField) &= 28 + \text{align}(SC \times 10) \\ 
+    Len(InfoField) &= 28 + 10 \times SC + 2 \times (SC \% 2) \\
     \end{align}
 
 TODO: remaining process
