@@ -247,7 +247,9 @@ ConsIngress, ConsEgress
     The 16-bits ingress/egress interface IDs in construction direction.
 MAC
     6-byte Message Authentication Code to authenticate the hop field. For
-    details on how this MAC is calculated refer to `Hop Field MAC Computation`_.
+    details on how this MAC is calculated refer to :ref:`hop-field-mac-computation`.
+
+.. _hop-field-mac-computation:
 
 Hop Field MAC Computation
 -------------------------
@@ -428,6 +430,164 @@ Because of its special structure, no PathMeta header is needed. There is only a
 single info field and the appropriate hop field can be processed by a border
 router based on the source and destination address, i.e., ``if srcIA == self.IA:
 CurrHF := 0`` and ``if dstIA == self.IA: CurrHF := 1``.
+
+Path Type: COLIBRI
+==================
+
+The COLIBRI path type is a bit different than the regular SCION in that it has
+only one info field::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           InfoField                           |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           HopField                            |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           HopField                            |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                              ...                              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+The length of the `InfoField` is variable, and is computed in
+:ref:`colibri-forwarding-process`.
+
+InfoField
+---------
+The only Info Field has the following format::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |C R S x x x x|    CurrHF   |  SegLen0  |  SegLen1  |  SegLen2  |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                                                               |
+    |                                                               |
+    |                                                               |
+    |                         Reservation ID                        |
+    |                                                               |
+    |                                                               |
+    |                                                               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                      Expiration Tick                          |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |      BWCls    |      RLC      |  Idx  |  PT   |       RSV     |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                        Segment IDs                            |
+    |                            ...                                |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+(C)ontrol
+    This is a control plane packet. It is allowed to chop the path at its tail.
+    Also, the destination of any control packet is the COLIBRI service anycast address.
+
+(R)everse
+    This packet travels in the reverse direction of the reservation.
+    :math:`R=1 \rightarrow C=1`. Otherwise invalid packet.
+
+(S)egment Reservation
+    This is a Segment Reservation Packet. :math:`S=1 \rightarrow C=1`. Otherwise invalid packet.
+    This flag is set everytime the Reservation ID is of type Segment ID.
+
+CurrHF
+    The index of the current hop field.
+
+SegLenN
+    The length of the Nth Segment being used.
+    :math:`\text{SegLen}_n>0 \rightarrow \forall i, 0 \geq i \gt n, \text{SegLen}_i > 0`.
+
+Reservation ID
+    Uses 16 bytes. Either an E2E Reservation ID or a Segment Reservation ID,
+    depending on `C`. If :math:`S=1`, the Segment Reservation ID is padded
+    with zeroes until using all 16 bytes.
+
+Expiration Tick
+    The value represents the "tick" where this packet is no longer valid.
+    A tick is four seconds, so :math:`\text{Expiration Time} = 4 \times 
+    \text{Expiration Tick}`.
+
+BWCls
+    The bandwitdh class this reservation has.
+
+RLC
+    The Request Latency Class this reservation has.
+
+Idx
+    The index of this reservation.
+
+PT
+    The Path Type of this reservation.
+
+RSV
+    Reserved.
+
+Segment IDs
+    Empty if :math:`S=1`. If not, the number of entries depends on the
+    number of :math:`\text{SegLen}_n > 0`. One entry per each 
+    :math:`\text{SegLen}_n > 0`, up to a total of 3.
+    Each Segment Resrvation ID is 10 bytes long. The total (up to 30 bytes)
+    is padded to a multiple of 4 (e.g. :math:`3\ \text{entries} = 30b 
+    \rightarrow 32b`).
+
+
+Hop Field
+---------
+
+The Hop Field has the following format::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |        Ingress ID             |         Egress ID             |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                                                               |
+    |                              MAC                              |
+    |                                                               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+Hop Field MAC Computation
+-------------------------
+
+Preliminary notes:
+Chaining should be alright. Describe an approximation of the control plane delivering responses.
+TODO
+
+
+.. _colibri-forwarding-process:
+
+Forwarding Process
+------------------
+
+There is a unique way of forward a COLIBRI packet, regardless of its
+underlying type or whether it is control plane or data plane.
+This should simplify the design and implementation of the COLIBRI
+part in the border router.
+
+The length of the `InfoField` depends on the number of :math:`\text{SegLen}_n > 0`.
+Let's call SC (Segment Count) the number of segments:
+
+.. math::
+    \begin{align}
+    Len(InfoField) &= (1 + 4 + 2)\times 4 + Len(Segment IDs) \\
+    Len(InfoField) &= 28 + \text{align}(SC \times 4) \\ 
+    Len(InfoField) &= 28 + \lfloor \dfrac{SC \times 4 -1}{30} \rfloor \times 4 \\
+    \end{align}
+
+TODO: remaining process
+
+Current Segment Reservation Calculations
+----------------------------------------
+For the essential monitoring, we need to compute the Segment Reservation
+ID we must charge this packet to. 
+
+
+That is done easily by substracting
+each :math:`\text{SegLen}_n` from `CurrHF`.
+
+TODO check this
+
+
 
 .. _pseudo-header-upper-layer-checksum:
 
