@@ -6,6 +6,16 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 
 # BEGIN subcommand functions
 
+run_silently() {
+    tmpfile=$(mktemp /tmp/scion-silent.XXXXXX)
+    $@ >>$tmpfile 2>&1
+    if [ $? -ne 0 ]; then
+        cat $tmpfile
+        return 1
+    fi
+    return 0
+}
+
 cmd_topo_clean() {
     set -e
     if is_docker_be; then
@@ -297,9 +307,7 @@ go_lint() {
       -a '!' -ipath 'go/proto/*.capnp.go' \
       -a '!' -ipath '*mock_*' \
       -a '!' -ipath 'go/lib/pathpol/sequence/*' > $TMPDIR/gofiles.list
-
-    lint_step "Building lint tools"
-    bazel build //:lint || return 1
+    run_silently bazel build //:lint || return 1
     tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
     local ret=0
     lint_step "impi"
@@ -314,7 +322,7 @@ go_lint() {
     # TODO(sustrik): At the moment there are no bazel rules for gofmt.
     # See: https://github.com/bazelbuild/rules_go/issues/511
     # Instead we'll just run the commands from Go SDK directly.
-    GOSDK=$(bazel info output_base)/external/go_sdk/bin
+    GOSDK=$(bazel info output_base 2>/dev/null)/external/go_sdk/bin
     out=$($GOSDK/gofmt -d -s $LOCAL_DIRS ./acceptance);
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     lint_step "linelen (lll)"
@@ -325,7 +333,7 @@ go_lint() {
     lint_step "ineffassign"
     $TMPDIR/ineffassign -exclude ineffassign.json go acceptance || ret=1
     lint_step "bazel"
-    make gazelle GAZELLE_MODE=diff || ret=1
+    run_silently make gazelle GAZELLE_MODE=diff || ret=1
     # Clean up the binaries
     rm -rf $TMPDIR
     return $ret
@@ -334,8 +342,7 @@ go_lint() {
 protobuf_lint() {
     lint_header "protobuf"
     local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
-    lint_step "Building lint tools"
-    bazel build //:lint || return 1
+    run_silently bazel build //:lint || return 1
     tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
     local ret=0
     lint_step "check files"
@@ -345,7 +352,7 @@ protobuf_lint() {
 bazel_lint() {
     lint_header "bazel"
     local ret=0
-    bazel run //:buildifier_check || ret=1
+    run_silently bazel run //:buildifier_check || ret=1
     if [ $ret -ne 0 ]; then
         printf "\nto fix run:\nbazel run //:buildifier\n"
     fi
