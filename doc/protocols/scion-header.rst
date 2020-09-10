@@ -576,17 +576,39 @@ Let's call SC (Segment Count) the number of segments:
 
 TODO: remaining process
 
-Current Segment Reservation Calculations
-----------------------------------------
+Current Segment Reservation ID Computation
+------------------------------------------
 For the essential monitoring, we need to compute the Segment Reservation
-ID we must charge this packet to. 
+ID we must charge this packet to. This ID can be actually two, if the AS
+where we compute it is a transfer AS (an AS stitching two segment
+reservations).
 
+The computation can be done by substracting each :math:`\text{SegLen}_n`
+from `CurrHF`. When we find a negative number, we have found our segment.
+The tranfer ASes are located at the end of each segment, if this is not
+the last segment.
+Pseudo code::
 
-That is done easily by substracting
-each :math:`\text{SegLen}_n` from `CurrHF`.
-
-TODO check this
-
+    func CurrentSegmentID(header):
+        if len(header.SegLen) == 0 {
+            return header.ReservationID[0:10] // the 10 first bytes
+        }
+        // returns the IDs of the current Segment Reservation(s)
+        // It will always return 1 or 2 (if it is a tranfer AS)
+        n <- header.CurrHF
+        for i := 0 ; i < len(header.SegLen) - 1 ; i++ {
+            switch {
+            case i == header.SegLen[i] - 1:
+                return i, i + 1
+            case i < header.SegLen[i] - 1:
+                return i
+            }
+            n -= header.SegLen [i]
+        }
+        if len(header.SegLen) > 0 AND n < header.SegLen[len(header.SegLen)-1] {
+            return len(header.SegLen) - 1
+        }
+        return error
 
 
 .. _pseudo-header-upper-layer-checksum:
