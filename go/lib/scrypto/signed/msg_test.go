@@ -20,6 +20,8 @@ import (
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/sha512"
 	"testing"
 	"time"
 
@@ -33,9 +35,10 @@ import (
 
 func TestSign(t *testing.T) {
 	testCases := map[string]struct {
-		Signer       func(t *testing.T) crypto.Signer
-		Header       signed.Header
-		ErrAssertion assert.ErrorAssertionFunc
+		Signer         func(t *testing.T) crypto.Signer
+		Header         signed.Header
+		AssociatedData []byte
+		ErrAssertion   assert.ErrorAssertionFunc
 	}{
 		"ECDSAWithSHA256": {
 			Signer: func(t *testing.T) crypto.Signer {
@@ -78,6 +81,22 @@ func TestSign(t *testing.T) {
 				VerificationKeyID:  []byte("some key id"),
 			},
 			ErrAssertion: assert.NoError,
+		},
+		"with associated data": {
+			Signer: func(t *testing.T) crypto.Signer {
+				priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+				require.NoError(t, err)
+				return priv
+			},
+			Header: signed.Header{
+				SignatureAlgorithm:   signed.ECDSAWithSHA256,
+				Metadata:             []byte("some metadata"),
+				Timestamp:            time.Now().UTC(),
+				VerificationKeyID:    []byte("some key id"),
+				AssociatedDataLength: 12,
+			},
+			AssociatedData: []byte("not included"),
+			ErrAssertion:   assert.NoError,
 		},
 		"no timestamp": {
 			Signer: func(t *testing.T) crypto.Signer {
@@ -158,6 +177,22 @@ func TestSign(t *testing.T) {
 			},
 			ErrAssertion: assert.Error,
 		},
+		"associated data length does not match": {
+			Signer: func(t *testing.T) crypto.Signer {
+				priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+				require.NoError(t, err)
+				return priv
+			},
+			Header: signed.Header{
+				SignatureAlgorithm:   signed.ECDSAWithSHA256,
+				Metadata:             []byte("some metadata"),
+				Timestamp:            time.Now().UTC(),
+				VerificationKeyID:    []byte("some key id"),
+				AssociatedDataLength: 10,
+			},
+			AssociatedData: []byte("not included"),
+			ErrAssertion:   assert.Error,
+		},
 	}
 	for name, tc := range testCases {
 		name, tc := name, tc
@@ -165,7 +200,7 @@ func TestSign(t *testing.T) {
 			t.Parallel()
 			body := []byte("super securely signed message")
 
-			msg, err := signed.Sign(tc.Header, body, tc.Signer(t))
+			msg, err := signed.Sign(tc.Header, body, tc.Signer(t), tc.AssociatedData)
 			tc.ErrAssertion(t, err)
 			if err != nil {
 				return
@@ -182,12 +217,13 @@ func TestVerify(t *testing.T) {
 	now := time.Now().UTC()
 
 	testCases := map[string]struct {
-		Input        func(t *testing.T) (*cryptopb.SignedMessage, crypto.PublicKey)
-		Message      *signed.Message
-		ErrAssertion assert.ErrorAssertionFunc
+		Input          func(t *testing.T) (*cryptopb.SignedMessage, []byte, crypto.PublicKey)
+		Message        *signed.Message
+		AssociatedData []byte
+		ErrAssertion   assert.ErrorAssertionFunc
 	}{
 		"ECDSAWithSHA256": {
-			Input: func(t *testing.T) (*cryptopb.SignedMessage, crypto.PublicKey) {
+			Input: func(t *testing.T) (*cryptopb.SignedMessage, []byte, crypto.PublicKey) {
 				priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				require.NoError(t, err)
 				hdr := signed.Header{
@@ -199,7 +235,7 @@ func TestVerify(t *testing.T) {
 
 				s, err := signed.Sign(hdr, []byte("some body"), priv)
 				require.NoError(t, err)
-				return s, priv.Public()
+				return s, nil, priv.Public()
 			},
 			Message: &signed.Message{
 				Header: signed.Header{
@@ -213,7 +249,7 @@ func TestVerify(t *testing.T) {
 			ErrAssertion: assert.NoError,
 		},
 		"ECDSAWithSHA384": {
-			Input: func(t *testing.T) (*cryptopb.SignedMessage, crypto.PublicKey) {
+			Input: func(t *testing.T) (*cryptopb.SignedMessage, []byte, crypto.PublicKey) {
 				priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				require.NoError(t, err)
 				hdr := signed.Header{
@@ -225,7 +261,7 @@ func TestVerify(t *testing.T) {
 
 				s, err := signed.Sign(hdr, []byte("some body"), priv)
 				require.NoError(t, err)
-				return s, priv.Public()
+				return s, nil, priv.Public()
 			},
 			Message: &signed.Message{
 				Header: signed.Header{
@@ -239,7 +275,7 @@ func TestVerify(t *testing.T) {
 			ErrAssertion: assert.NoError,
 		},
 		"ECDSAWithSHA512": {
-			Input: func(t *testing.T) (*cryptopb.SignedMessage, crypto.PublicKey) {
+			Input: func(t *testing.T) (*cryptopb.SignedMessage, []byte, crypto.PublicKey) {
 				priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				require.NoError(t, err)
 				hdr := signed.Header{
@@ -251,7 +287,7 @@ func TestVerify(t *testing.T) {
 
 				s, err := signed.Sign(hdr, []byte("some body"), priv)
 				require.NoError(t, err)
-				return s, priv.Public()
+				return s, nil, priv.Public()
 			},
 			Message: &signed.Message{
 				Header: signed.Header{
@@ -264,8 +300,38 @@ func TestVerify(t *testing.T) {
 			},
 			ErrAssertion: assert.NoError,
 		},
+		"with associated data": {
+			Input: func(t *testing.T) (*cryptopb.SignedMessage, []byte, crypto.PublicKey) {
+				priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+				require.NoError(t, err)
+				hdr := signed.Header{
+					SignatureAlgorithm:   signed.ECDSAWithSHA256,
+					Metadata:             []byte("some metadata"),
+					Timestamp:            now,
+					VerificationKeyID:    []byte("some key id"),
+					AssociatedDataLength: 12,
+				}
+
+				data := []byte("not included")
+
+				s, err := signed.Sign(hdr, []byte("some body"), priv, data)
+				require.NoError(t, err)
+				return s, data, priv.Public()
+			},
+			Message: &signed.Message{
+				Header: signed.Header{
+					SignatureAlgorithm:   signed.ECDSAWithSHA256,
+					Metadata:             []byte("some metadata"),
+					Timestamp:            now,
+					VerificationKeyID:    []byte("some key id"),
+					AssociatedDataLength: 12,
+				},
+				Body: []byte("some body"),
+			},
+			ErrAssertion: assert.NoError,
+		},
 		"nil key": {
-			Input: func(t *testing.T) (*cryptopb.SignedMessage, crypto.PublicKey) {
+			Input: func(t *testing.T) (*cryptopb.SignedMessage, []byte, crypto.PublicKey) {
 				priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				require.NoError(t, err)
 				hdr := signed.Header{
@@ -277,22 +343,22 @@ func TestVerify(t *testing.T) {
 
 				s, err := signed.Sign(hdr, []byte("some body"), priv)
 				require.NoError(t, err)
-				return s, nil
+				return s, nil, nil
 			},
 			ErrAssertion: assert.Error,
 		},
 		"malformed headerAndBody": {
-			Input: func(t *testing.T) (*cryptopb.SignedMessage, crypto.PublicKey) {
+			Input: func(t *testing.T) (*cryptopb.SignedMessage, []byte, crypto.PublicKey) {
 				priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				require.NoError(t, err)
 				return &cryptopb.SignedMessage{
 					HeaderAndBody: []byte("someweirdmalformedthingy"),
-				}, priv
+				}, nil, priv
 			},
 			ErrAssertion: assert.Error,
 		},
 		"malformed header": {
-			Input: func(t *testing.T) (*cryptopb.SignedMessage, crypto.PublicKey) {
+			Input: func(t *testing.T) (*cryptopb.SignedMessage, []byte, crypto.PublicKey) {
 				priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				require.NoError(t, err)
 
@@ -304,7 +370,26 @@ func TestVerify(t *testing.T) {
 				require.NoError(t, err)
 				return &cryptopb.SignedMessage{
 					HeaderAndBody: rawHdrAndBody,
-				}, priv
+				}, nil, priv
+			},
+			ErrAssertion: assert.Error,
+		},
+		"associated data missing": {
+			Input: func(t *testing.T) (*cryptopb.SignedMessage, []byte, crypto.PublicKey) {
+				priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+				require.NoError(t, err)
+				hdr := signed.Header{
+					SignatureAlgorithm:   signed.ECDSAWithSHA256,
+					Metadata:             []byte("some metadata"),
+					Timestamp:            now,
+					VerificationKeyID:    []byte("some key id"),
+					AssociatedDataLength: 12,
+				}
+
+				data := []byte("not included")
+				s, err := signed.Sign(hdr, []byte("some body"), priv, data)
+				require.NoError(t, err)
+				return s, nil, priv.Public()
 			},
 			ErrAssertion: assert.Error,
 		},
@@ -314,11 +399,74 @@ func TestVerify(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			signedMsg, key := tc.Input(t)
-			msg, err := signed.Verify(signedMsg, key)
+			signedMsg, associatedData, key := tc.Input(t)
+			msg, err := signed.Verify(signedMsg, key, associatedData)
 			tc.ErrAssertion(t, err)
 			assert.Equal(t, tc.Message, msg)
 		})
 	}
+}
 
+func TestComputeSignatureInput(t *testing.T) {
+	testCases := map[string]struct {
+		Algo           signed.SignatureAlgorithm
+		HeaderAndBody  []byte
+		AssociatedData [][]byte
+		Expected       []byte
+	}{
+		"PureEd25519": {
+			Algo:          signed.PureEd25519,
+			HeaderAndBody: []byte("headerAndBody"),
+			AssociatedData: [][]byte{
+				[]byte("Associated"),
+				[]byte("Data"),
+			},
+			Expected: []byte("headerAndBodyAssociatedData"),
+		},
+		"ECDSAWithSHA256": {
+			Algo:          signed.ECDSAWithSHA256,
+			HeaderAndBody: []byte("headerAndBody"),
+			AssociatedData: [][]byte{
+				[]byte("Associated"),
+				[]byte("Data"),
+			},
+			Expected: func() []byte {
+				sum := sha256.Sum256([]byte("headerAndBodyAssociatedData"))
+				return sum[:]
+			}(),
+		},
+		"ECDSAWithSHA384": {
+			Algo:          signed.ECDSAWithSHA384,
+			HeaderAndBody: []byte("headerAndBody"),
+			AssociatedData: [][]byte{
+				[]byte("Associated"),
+				[]byte("Data"),
+			},
+			Expected: func() []byte {
+				sum := sha512.Sum384([]byte("headerAndBodyAssociatedData"))
+				return sum[:]
+			}(),
+		},
+		"ECDSAWithSHA512": {
+			Algo:          signed.ECDSAWithSHA512,
+			HeaderAndBody: []byte("headerAndBody"),
+			AssociatedData: [][]byte{
+				[]byte("Associated"),
+				[]byte("Data"),
+			},
+			Expected: func() []byte {
+				sum := sha512.Sum512([]byte("headerAndBodyAssociatedData"))
+				return sum[:]
+			}(),
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			in, _ := signed.ComputeSignatureInput(tc.Algo, tc.HeaderAndBody, tc.AssociatedData...)
+			assert.Equal(t, tc.Expected, in)
+		})
+	}
 }

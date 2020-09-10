@@ -19,7 +19,11 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["msg_test.go"],
+    srcs = [
+        "example_test.go",
+        "export_test.go",
+        "msg_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
         "//go/pkg/proto/crypto:go_default_library",

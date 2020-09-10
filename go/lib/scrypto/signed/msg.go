@@ -42,6 +42,9 @@ type Header struct {
 	Timestamp time.Time
 	// Metadata is optional arbitrary data that is covered by the signature.
 	Metadata []byte
+	// AssociatedDataLength is the length of associated data that is covered
+	// by the signature, but is not included in the header and body.
+	AssociatedDataLength int
 }
 
 // Message represents the signed message.
@@ -50,10 +53,17 @@ type Message struct {
 	Body   []byte
 }
 
-// Sign creates a signed message.
-func Sign(hdr Header, body []byte, signer crypto.Signer) (*cryptopb.SignedMessage, error) {
+// Sign creates a signed message. The associated data is not included in the
+// header or body.
+func Sign(hdr Header, body []byte, signer crypto.Signer,
+	associatedData ...[]byte) (*cryptopb.SignedMessage, error) {
+
 	if signer == nil {
 		return nil, serrors.New("singer must not be nil")
+	}
+	if l := associatedDataLen(associatedData...); l != hdr.AssociatedDataLength {
+		return nil, serrors.New("header specifies a different associated data length",
+			"expected", hdr.AssociatedDataLength, "actual", l)
 	}
 	if err := checkPubKeyAlgo(hdr.SignatureAlgorithm, signer.Public()); err != nil {
 		return nil, err
@@ -68,10 +78,11 @@ func Sign(hdr Header, body []byte, signer crypto.Signer) (*cryptopb.SignedMessag
 	}
 
 	inputHdr := &cryptopb.Header{
-		SignatureAlgorithm: hdr.SignatureAlgorithm.toPB(),
-		Metadata:           hdr.Metadata,
-		VerificationKeyId:  hdr.VerificationKeyID,
-		Timestamp:          ts,
+		SignatureAlgorithm:   hdr.SignatureAlgorithm.toPB(),
+		Metadata:             hdr.Metadata,
+		VerificationKeyId:    hdr.VerificationKeyID,
+		Timestamp:            ts,
+		AssociatedDataLength: int32(hdr.AssociatedDataLength),
 	}
 	rawHdr, err := proto.Marshal(inputHdr)
 	if err != nil {
@@ -85,8 +96,8 @@ func Sign(hdr Header, body []byte, signer crypto.Signer) (*cryptopb.SignedMessag
 	if err != nil {
 		return nil, serrors.WrapStr("packing signature input", err)
 	}
-	input, hashAlgo := computeSignatureInput(hdr.SignatureAlgorithm, rawHdrAndBody)
-	signature, err := signer.Sign(rand.Reader, input, hashAlgo)
+	input, algo := computeSignatureInput(hdr.SignatureAlgorithm, rawHdrAndBody, associatedData...)
+	signature, err := signer.Sign(rand.Reader, input, algo)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +108,9 @@ func Sign(hdr Header, body []byte, signer crypto.Signer) (*cryptopb.SignedMessag
 }
 
 // Verify verifies the signed message.
-func Verify(signed *cryptopb.SignedMessage, key crypto.PublicKey) (*Message, error) {
+func Verify(signed *cryptopb.SignedMessage, key crypto.PublicKey,
+	associatedData ...[]byte) (*Message, error) {
+
 	if key == nil {
 		return nil, serrors.New("public key must not be nil")
 	}
@@ -105,11 +118,16 @@ func Verify(signed *cryptopb.SignedMessage, key crypto.PublicKey) (*Message, err
 	if err != nil {
 		return nil, serrors.WrapStr("extracting header", err)
 	}
+	if l := associatedDataLen(associatedData...); l != hdr.AssociatedDataLength {
+		return nil, serrors.New("header specifies a different associated data length",
+			"expected", hdr.AssociatedDataLength, "actual", l)
+	}
 	if err := checkPubKeyAlgo(hdr.SignatureAlgorithm, key); err != nil {
 		return nil, err
 	}
 
-	input, _ := computeSignatureInput(hdr.SignatureAlgorithm, signed.HeaderAndBody)
+	input, _ := computeSignatureInput(hdr.SignatureAlgorithm, signed.HeaderAndBody,
+		associatedData...)
 
 	switch pub := key.(type) {
 	case *ecdsa.PublicKey:
@@ -139,16 +157,28 @@ func Verify(signed *cryptopb.SignedMessage, key crypto.PublicKey) (*Message, err
 	}, nil
 }
 
-func computeSignatureInput(algo SignatureAlgorithm, hdrAndBody []byte) ([]byte, crypto.Hash) {
+func computeSignatureInput(algo SignatureAlgorithm, hdrAndBody []byte,
+	associatedData ...[]byte) ([]byte, crypto.Hash) {
+
 	hash := signatureAlgorithmDetails[algo].hash
 	if hash == 0 {
-		return hdrAndBody, hash
+		input := make([]byte, len(hdrAndBody)+associatedDataLen(associatedData...))
+		copy(input, hdrAndBody)
+		offset := len(hdrAndBody)
+		for _, d := range associatedData {
+			copy(input[offset:], d)
+			offset += len(d)
+		}
+		return input, hash
 	}
 	if !hash.Available() {
 		panic(fmt.Sprintf("unavailable hash algorithm: %v", hash))
 	}
 	h := hash.New()
 	h.Write(hdrAndBody)
+	for _, d := range associatedData {
+		h.Write(d)
+	}
 	return h.Sum(nil), hash
 }
 
@@ -209,9 +239,18 @@ func extractHeaderAndBody(signed *cryptopb.SignedMessage) (*Header, []byte, erro
 		}
 	}
 	return &Header{
-		SignatureAlgorithm: signatureAlgorithmFromPB(hdr.SignatureAlgorithm),
-		VerificationKeyID:  hdr.VerificationKeyId,
-		Timestamp:          ts,
-		Metadata:           hdr.Metadata,
+		SignatureAlgorithm:   signatureAlgorithmFromPB(hdr.SignatureAlgorithm),
+		VerificationKeyID:    hdr.VerificationKeyId,
+		Timestamp:            ts,
+		Metadata:             hdr.Metadata,
+		AssociatedDataLength: int(hdr.AssociatedDataLength),
 	}, hdrAndBody.Body, nil
+}
+
+func associatedDataLen(associatedData ...[]byte) int {
+	var associatedDataLen int
+	for _, d := range associatedData {
+		associatedDataLen += len(d)
+	}
+	return associatedDataLen
 }
