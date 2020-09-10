@@ -49,7 +49,7 @@ func packBeaconMsg(ctx context.Context, bseg *seg.Beacon, ia addr.IA, egIfid com
 	msg := &onehop.Msg{
 		Dst: snet.SCIONAddress{
 			IA:   ia,
-			Host: addr.SvcBS,
+			Host: addr.SvcCS,
 		},
 		Ifid:     egIfid,
 		InfoTime: time.Now(),

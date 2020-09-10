@@ -53,7 +53,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
 					IA:   xtest.MustParseIA("1-ff00:0:110"),
-					Host: addr.SvcBS,
+					Host: addr.SvcCS,
 				},
 				Source: snet.SCIONAddress{
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
@@ -71,7 +71,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
 					IA:   xtest.MustParseIA("1-ff00:0:110"),
-					Host: addr.SvcBS,
+					Host: addr.SvcCS,
 				},
 				Source: snet.SCIONAddress{
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
@@ -89,7 +89,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
 					IA:   xtest.MustParseIA("1-ff00:0:110"),
-					Host: addr.SvcBS,
+					Host: addr.SvcCS,
 				},
 				Source: snet.SCIONAddress{
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
@@ -107,7 +107,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
 					IA:   xtest.MustParseIA("1-ff00:0:110"),
-					Host: addr.SvcBS,
+					Host: addr.SvcCS,
 				},
 				Source: snet.SCIONAddress{
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
@@ -125,7 +125,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
 					IA:   xtest.MustParseIA("1-ff00:0:110"),
-					Host: addr.SvcBS,
+					Host: addr.SvcCS,
 				},
 				Source: snet.SCIONAddress{
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
@@ -143,7 +143,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
 					IA:   xtest.MustParseIA("1-ff00:0:110"),
-					Host: addr.SvcBS,
+					Host: addr.SvcCS,
 				},
 				Source: snet.SCIONAddress{
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
@@ -189,7 +189,7 @@ func TestPacketSerialize(t *testing.T) {
 				PacketInfo: snet.PacketInfo{
 					Destination: snet.SCIONAddress{
 						IA:   xtest.MustParseIA("1-ff00:0:110"),
-						Host: addr.SvcBS,
+						Host: addr.SvcCS,
 					},
 					Source: snet.SCIONAddress{
 						IA:   xtest.MustParseIA("1-ff00:0:112"),
@@ -210,7 +210,7 @@ func TestPacketSerialize(t *testing.T) {
 				PacketInfo: snet.PacketInfo{
 					Destination: snet.SCIONAddress{
 						IA:   xtest.MustParseIA("1-ff00:0:110"),
-						Host: addr.SvcBS,
+						Host: addr.SvcCS,
 					},
 					Source: snet.SCIONAddress{
 						IA:   xtest.MustParseIA("1-ff00:0:112"),
@@ -233,7 +233,7 @@ func TestPacketSerialize(t *testing.T) {
 				PacketInfo: snet.PacketInfo{
 					Destination: snet.SCIONAddress{
 						IA:   xtest.MustParseIA("1-ff00:0:110"),
-						Host: addr.SvcBS,
+						Host: addr.SvcCS,
 					},
 					Source: snet.SCIONAddress{
 						IA:   xtest.MustParseIA("1-ff00:0:112"),

@@ -50,12 +50,10 @@ func getRandomIA() addr.IA {
 }
 
 func getRandomSVC() addr.HostSVC {
-	switch rand.Intn(3) {
+	switch rand.Intn(2) {
 	case 0:
 		return addr.SvcNone
-	case 1:
-		return addr.SvcCS
 	default:
-		return addr.SvcPS
+		return addr.SvcCS
 	}
 }

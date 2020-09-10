@@ -66,7 +66,7 @@ func TestRegister(t *testing.T) {
 
 		"public address, no bind, svc succeeds": {
 			a:   &net.UDPAddr{IP: net.IP{192, 0, 22, 1}, Port: 8889},
-			svc: addr.SvcPS,
+			svc: addr.SvcCS,
 			af:  assert.NoError,
 		},
 
@@ -210,7 +210,7 @@ func TestRegisterWithBind(t *testing.T) {
 	assert.Equal(t, retValues, []interface{}{dummyValue})
 
 	t.Log("Bind lookup on different svc fails")
-	retValues = table.LookupService(addr.SvcBS, bind)
+	retValues = table.LookupService(addr.SvcDS, bind)
 	assert.Empty(t, retValues)
 
 	t.Log("Colliding binds returns error, and public port is released")

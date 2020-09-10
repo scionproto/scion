@@ -54,7 +54,7 @@ func updateInterfaces(updater grpc.IfStateUpdater) error {
 	cl := metrics.ControlLabels{
 		Result: metrics.ErrProcess,
 	}
-	bsAddrs, err := rctx.Get().Conf.Topo.Multicast(addr.SvcBS)
+	bsAddrs, err := rctx.Get().Conf.Topo.Multicast(addr.SvcCS)
 	if err != nil {
 		cl.Result = metrics.ErrResolveSVC
 		metrics.Control.SentIFStateReq(cl).Inc()

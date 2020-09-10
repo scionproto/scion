@@ -215,7 +215,7 @@ type remoteRegistrar struct {
 // with the path server.
 func (r *remoteRegistrar) start(ctx context.Context, bseg beacon.Beacon) {
 	logger := log.FromCtx(ctx)
-	addr, err := r.pather.GetPath(addr.SvcPS, bseg.Segment)
+	addr, err := r.pather.GetPath(addr.SvcCS, bseg.Segment)
 	if err != nil {
 		metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
 		logger.Error("Unable to choose server", "err", err)

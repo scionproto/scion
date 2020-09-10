@@ -92,7 +92,7 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 			IA:      peer.IA,
 			Path:    peer.Path,
 			NextHop: peer.NextHop,
-			SVC:     addr.SvcBS,
+			SVC:     addr.SvcCS,
 		},
 	)
 	if err := res.Err(); err != nil {

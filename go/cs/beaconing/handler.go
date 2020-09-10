@@ -132,7 +132,7 @@ func (h Handler) verifySegment(ctx context.Context, segment *seg.PathSegment,
 		IA:      peer.IA,
 		Path:    peerPath.Path(),
 		NextHop: peerPath.UnderlayNextHop(),
-		SVC:     addr.SvcBS,
+		SVC:     addr.SvcCS,
 	}
 	return segverifier.VerifySegment(ctx, h.Verifier, svcToQuery, segment)
 }

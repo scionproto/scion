@@ -191,13 +191,10 @@ func (rp *RtrPkt) processSCMPRevocation() error {
 	if (rp.dstIA.I == rp.Ctx.Conf.Topo.IA().I && intf.LinkType == topology.Core) ||
 		(rp.srcIA.I == rp.Ctx.Conf.Topo.IA().I && intf.LinkType == topology.Parent) {
 		// Case 1 & 2
-		args.Addrs = append(args.Addrs, addr.SvcBS)
-		if len(rp.Ctx.Conf.Topo.SVCNames(addr.SvcPS)) > 0 {
-			args.Addrs = append(args.Addrs, addr.SvcPS)
-		}
-	} else if rp.dstIA.Equal(rp.Ctx.Conf.IA) && len(rp.Ctx.Conf.Topo.SVCNames(addr.SvcPS)) > 0 {
+		args.Addrs = append(args.Addrs, addr.SvcCS)
+	} else if rp.dstIA.Equal(rp.Ctx.Conf.IA) && len(rp.Ctx.Conf.Topo.SVCNames(addr.SvcCS)) > 0 {
 		// Case 3
-		args.Addrs = append(args.Addrs, addr.SvcPS)
+		args.Addrs = append(args.Addrs, addr.SvcCS)
 	}
 	if len(args.Addrs) > 0 {
 		callbacks.rawSRevF(args)

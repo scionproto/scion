@@ -197,7 +197,7 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 		IA:      path.Destination(),
 		Path:    path.Path(),
 		NextHop: path.UnderlayNextHop(),
-		SVC:     addr.SvcPS,
+		SVC:     addr.SvcCS,
 	}
 	return addr, nil
 }
