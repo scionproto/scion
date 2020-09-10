@@ -25,6 +25,21 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
+// MaxSCMPPacketLen the maximum length a SCION packet including SCMP quote can
+// have. This length includes the SCION, and SCMP header of the packet.
+//
+//  +-------------------------+
+//  |        Underlay         |
+//  +-------------------------+
+//  |          SCION          |  \
+//  |          SCMP           |   \
+//  +-------------------------+    \_ MaxSCMPPacketLen
+//  |          Quote:         |    /
+//  |        SCION Orig       |   /
+//  |         L4 Orig         |  /
+//  +-------------------------+
+const MaxSCMPPacketLen = 1232
+
 // SCMP is the SCMP header on top of SCION header.
 //
 //   0                   1                   2                   3

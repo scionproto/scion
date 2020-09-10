@@ -162,12 +162,14 @@ func (SCMPEchoReply) Code() uint8 { return 0 }
 // SCMPTracerouteRequest is the SCMP traceroute request payload.
 type SCMPTracerouteRequest struct {
 	Identifier uint16
+	Sequence   uint16
 }
 
 func (m SCMPTracerouteRequest) toLayers(scn *slayers.SCION) []gopacket.SerializableLayer {
 	return toLayers(m, scn,
 		&slayers.SCMPTraceroute{
 			Identifier: m.Identifier,
+			Sequence:   m.Sequence,
 		},
 		nil,
 	)
@@ -182,6 +184,7 @@ func (SCMPTracerouteRequest) Code() uint8 { return 0 }
 // SCMPTracerouteReply is the SCMP traceroute reply payload.
 type SCMPTracerouteReply struct {
 	Identifier uint16
+	Sequence   uint16
 	IA         addr.IA
 	Interface  uint64
 }
@@ -190,6 +193,7 @@ func (m SCMPTracerouteReply) toLayers(scn *slayers.SCION) []gopacket.Serializabl
 	return toLayers(m, scn,
 		&slayers.SCMPTraceroute{
 			Identifier: m.Identifier,
+			Sequence:   m.Sequence,
 			IA:         m.IA,
 			Interface:  m.Interface,
 		},
@@ -358,6 +362,7 @@ func (p *Packet) Decode() error {
 			}
 			p.PayloadV2 = SCMPTracerouteRequest{
 				Identifier: v.Identifier,
+				Sequence:   v.Sequence,
 			}
 		case slayers.SCMPTypeTracerouteReply:
 			v, ok := layer.(*slayers.SCMPTraceroute)
@@ -368,6 +373,7 @@ func (p *Packet) Decode() error {
 			}
 			p.PayloadV2 = SCMPTracerouteReply{
 				Identifier: v.Identifier,
+				Sequence:   v.Sequence,
 				IA:         v.IA,
 				Interface:  v.Interface,
 			}

@@ -355,7 +355,7 @@ func TestSCMPTracerouteDecodeFromBytes(t *testing.T) {
 	}{
 		"valid": {
 			raw: append([]byte{
-				0x00, 0x2a, 0x00, 0x00,
+				0x00, 0x2a, 0x00, 0x09,
 				0x00, 0x01, 0xff, 0x00,
 				0x00, 0x00, 0x01, 0x11,
 				0x00, 0x00, 0x00, 0x00,
@@ -363,6 +363,7 @@ func TestSCMPTracerouteDecodeFromBytes(t *testing.T) {
 			}, bytes.Repeat([]byte{0xff}, 10)...),
 			decoded: &slayers.SCMPTraceroute{
 				Identifier: 42,
+				Sequence:   9,
 				IA:         xtest.MustParseIA("1-ff00:0:111"),
 				Interface:  5,
 			},
@@ -400,7 +401,7 @@ func TestSCMPTracerouteSerializeTo(t *testing.T) {
 	}{
 		"valid": {
 			raw: append([]byte{
-				0x00, 0x2a, 0x00, 0x00,
+				0x00, 0x2a, 0x00, 0x09,
 				0x00, 0x01, 0xff, 0x00,
 				0x00, 0x00, 0x01, 0x11,
 				0x00, 0x00, 0x00, 0x00,
@@ -408,6 +409,7 @@ func TestSCMPTracerouteSerializeTo(t *testing.T) {
 			}, bytes.Repeat([]byte{0xff}, 10)...),
 			decoded: &slayers.SCMPTraceroute{
 				Identifier: 42,
+				Sequence:   9,
 				IA:         xtest.MustParseIA("1-ff00:0:111"),
 				Interface:  5,
 			},
