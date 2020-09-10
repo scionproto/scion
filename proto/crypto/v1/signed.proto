@@ -34,7 +34,8 @@ enum SignatureAlgorithm {
 message SignedMessage {
     // Encoded header and body.
     bytes header_and_body = 1;
-    // Raw signature.
+    // Raw signature. The signature is computed over the concatenation of the
+    // header and body, and the optional associated data.
     bytes signature = 2;
 }
 
@@ -47,6 +48,10 @@ message Header {
     google.protobuf.Timestamp timestamp = 3;
     // Optional arbitrary per-protocol metadata.
     bytes metadata = 4;
+    // Length of associated data that is covered by the signature, but is not
+    // included in the header and body. This is zero, if no associated data is
+    // covered by the signature.
+    int32 associated_data_length = 5;
 }
 
 // Low-level representation of HeaderAndBody used for signature computation
