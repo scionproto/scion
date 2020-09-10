@@ -107,10 +107,13 @@ type SCIONPacketConn struct {
 
 // NewSCIONPacketConn creates a new conn with packet serialization/decoding
 // support that transfers data over conn.
-func NewSCIONPacketConn(conn net.PacketConn, scmpHandler SCMPHandler) *SCIONPacketConn {
+func NewSCIONPacketConn(conn net.PacketConn, scmpHandler SCMPHandler,
+	headerV2 bool) *SCIONPacketConn {
+
 	return &SCIONPacketConn{
 		conn:        conn,
 		scmpHandler: scmpHandler,
+		version2:    headerV2,
 	}
 }
 

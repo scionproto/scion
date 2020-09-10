@@ -879,6 +879,12 @@ def go_deps():
         version = "v1.0.1",
     )
     go_repository(
+        name = "com_github_mdlayher_raw",
+        importpath = "github.com/mdlayher/raw",
+        sum = "h1:aFkJ6lx4FPip+S+Uw4aTegFMct9shDvP+79PsSxpm3w=",
+        version = "v0.0.0-20191009151244-50f2db8cc065",
+    )
+    go_repository(
         name = "com_github_microcosm_cc_bluemonday",
         importpath = "github.com/microcosm-cc/bluemonday",
         sum = "h1:SIYunPjnlXcW+gVfvm0IlSeR5U3WZUOLfVmqg85Go44=",
