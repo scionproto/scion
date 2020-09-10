@@ -24,8 +24,9 @@ import (
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
@@ -68,46 +69,21 @@ func (b *Bytes) Prepare() {
 	*b = (*b)[:cap(*b)]
 }
 
-type Packet struct {
-	Bytes
-	PacketInfo
+type L4Header interface {
+	closed()
 }
 
-// PacketInfo contains the data needed to construct a SCION packet.
-//
-// This is a high-level structure, and can only be used to create valid
-// packets. The documentation for each field specifies cases where
-// serialization might fail due to some violation of SCION protocol rules.
-type PacketInfo struct {
-	// Destination contains the destination address.
-	Destination SCIONAddress
-	// Source contains the source address. If it is an SVC address, packet
-	// serialization will return an error.
-	Source SCIONAddress
-	// Path contains a SCION forwarding path. The field must be nil or an empty
-	// path if the source and destination are inside the same AS.
-	//
-	// If the source and destination are in different ASes but the path is
-	// nil or empty, an error is returned during serialization.
-	Path *spath.Path
-	// Extensions contains SCION HBH and E2E extensions. When received from a
-	// RawSCIONConn, extensions are present in the order they were found in the packet.
-	//
-	// When writing to a RawSCIONConn, the serializer will attempt
-	// to reorder the extensions, depending on their type, in the correct
-	// order. If the number of extensions is over the limit allowed by SCION,
-	// serialization will fail. Whenever multiple orders are valid, the stable
-	// sorting is preferred. The extensions are sorted in place, so callers
-	// should expect the order to change after a write.
-	//
-	// The SCMP HBH extension needs to be manually included by calling code,
-	// even when the L4Header and Payload demand one (as is the case, for
-	// example, for a SCMP::General::RecordPathRequest packet).
-	Extensions []common.Extension
-	// L4Header contains L4 header information.
-	L4Header l4.L4Header
-	Payload  common.Payload
+type UDPL4 struct {
+	slayers.UDP
 }
+
+func (UDPL4) closed() {}
+
+type SCMPExternalInterfaceDownL4 struct {
+	slayers.SCMPExternalInterfaceDown
+}
+
+func (SCMPExternalInterfaceDownL4) closed() {}
 
 // SCIONAddress is the fully-specified address of a host.
 type SCIONAddress struct {
@@ -131,10 +107,13 @@ type SCIONPacketConn struct {
 
 // NewSCIONPacketConn creates a new conn with packet serialization/decoding
 // support that transfers data over conn.
-func NewSCIONPacketConn(conn net.PacketConn, scmpHandler SCMPHandler) *SCIONPacketConn {
+func NewSCIONPacketConn(conn net.PacketConn, scmpHandler SCMPHandler,
+	headerV2 bool) *SCIONPacketConn {
+
 	return &SCIONPacketConn{
 		conn:        conn,
 		scmpHandler: scmpHandler,
+		version2:    headerV2,
 	}
 }
 
@@ -148,37 +127,39 @@ func (c *SCIONPacketConn) Close() error {
 }
 
 func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
-	StableSortExtensions(pkt.Extensions)
-	hbh, e2e, err := hpkt.ValidateExtensions(pkt.Extensions)
-	if err != nil {
-		return common.NewBasicError("Bad extension list", err)
-	}
-	// TODO(scrye): scnPkt is a temporary solution. Its functionality will be
-	// absorbed by the easier to use Packet structure in this package.
-	scnPkt := &spkt.ScnPkt{
-		DstIA:   pkt.Destination.IA,
-		SrcIA:   pkt.Source.IA,
-		DstHost: pkt.Destination.Host,
-		SrcHost: pkt.Source.Host,
-		E2EExt:  e2e,
-		HBHExt:  hbh,
-		Path:    pkt.Path,
-		L4:      pkt.L4Header,
-		Pld:     pkt.Payload,
-	}
-	pkt.Prepare()
-	var n int
 	if c.version2 {
-		n, err = hpkt.WriteScnPkt2(scnPkt, pkt.Bytes)
+		if err := pkt.Serialize(); err != nil {
+			return serrors.WrapStr("serialize SCION packet", err)
+		}
 	} else {
-		n, err = hpkt.WriteScnPkt(scnPkt, common.RawBytes(pkt.Bytes))
+		StableSortExtensions(pkt.Extensions)
+		hbh, e2e, err := hpkt.ValidateExtensions(pkt.Extensions)
+		if err != nil {
+			return common.NewBasicError("Bad extension list", err)
+		}
+		// TODO(scrye): scnPkt is a temporary solution. Its functionality will be
+		// absorbed by the easier to use Packet structure in this package.
+		scnPkt := &spkt.ScnPkt{
+			DstIA:   pkt.Destination.IA,
+			SrcIA:   pkt.Source.IA,
+			DstHost: pkt.Destination.Host,
+			SrcHost: pkt.Source.Host,
+			E2EExt:  e2e,
+			HBHExt:  hbh,
+			Path:    pkt.Path,
+			L4:      pkt.L4Header.(l4.L4Header),
+			Pld:     pkt.Payload,
+		}
+		pkt.Prepare()
+		n, err := hpkt.WriteScnPkt(scnPkt, common.RawBytes(pkt.Bytes))
+		if err != nil {
+			return common.NewBasicError("Unable to serialize SCION packet", err)
+		}
+		pkt.Bytes = pkt.Bytes[:n]
 	}
-	if err != nil {
-		return common.NewBasicError("Unable to serialize SCION packet", err)
-	}
-	pkt.Bytes = pkt.Bytes[:n]
+
 	// Send message
-	n, err = c.conn.WriteTo(pkt.Bytes, ov)
+	n, err := c.conn.WriteTo(pkt.Bytes, ov)
 	if err != nil {
 		return common.NewBasicError("Reliable socket write error", err)
 	}
@@ -192,6 +173,35 @@ func (c *SCIONPacketConn) SetWriteDeadline(d time.Time) error {
 }
 
 func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
+	if !c.version2 {
+		return c.readFromLoopLegacy(pkt, ov)
+	}
+	for {
+		// Read until we get an error or a data packet
+		if err := c.readFrom(pkt, ov); err != nil {
+			return err
+		}
+		if scmp, ok := pkt.PayloadV2.(SCMPPayload); ok {
+			if c.scmpHandler == nil {
+				metrics.M.SCMPErrors().Inc()
+				return serrors.New("scmp packet received, but no handler found",
+					"type_code", slayers.CreateSCMPTypeCode(scmp.Type(), scmp.Code()),
+					"src", pkt.Source)
+			}
+			if err := c.scmpHandler.Handle(pkt); err != nil {
+				// Return error intact s.t. applications can handle custom
+				// error types returned by SCMP handlers.
+				return err
+			}
+			continue
+		}
+		// non-SCMP L4s are assumed to be data and get passed back to the
+		// app.
+		return nil
+	}
+}
+
+func (c *SCIONPacketConn) readFromLoopLegacy(pkt *Packet, ov *net.UDPAddr) error {
 	for {
 		// Read until we get an error or a data packet
 		if err := c.readFrom(pkt, ov); err != nil {
@@ -236,26 +246,29 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 			"Actual", lastHopNetAddr)
 	}
 
-	// TODO(scrye): scnPkt is a temporary solution. Its functionality will be
-	// absorbed by the easier to use Packet structure in this package.
-	scnPkt := &spkt.ScnPkt{}
 	if c.version2 {
-		err = hpkt.ParseScnPkt2(scnPkt, common.RawBytes(pkt.Bytes))
+		if err := pkt.Decode(); err != nil {
+			metrics.M.ParseErrors().Inc()
+			return serrors.WrapStr("decoding packet", err)
+		}
 	} else {
+		// TODO(scrye): scnPkt is a temporary solution. Its functionality will be
+		// absorbed by the easier to use Packet structure in this package.
+		scnPkt := &spkt.ScnPkt{}
 		err = hpkt.ParseScnPkt(scnPkt, common.RawBytes(pkt.Bytes))
-	}
-	if err != nil {
-		metrics.M.ParseErrors().Inc()
-		return common.NewBasicError("SCION packet parse error", err)
+		pkt.Destination = SCIONAddress{IA: scnPkt.DstIA, Host: scnPkt.DstHost}
+		pkt.Source = SCIONAddress{IA: scnPkt.SrcIA, Host: scnPkt.SrcHost}
+		pkt.Path = scnPkt.Path
+		pkt.Extensions = append(pkt.Extensions, scnPkt.HBHExt...)
+		pkt.Extensions = append(pkt.Extensions, scnPkt.E2EExt...)
+		pkt.L4Header = scnPkt.L4
+		pkt.Payload = scnPkt.Pld
+		if err != nil {
+			metrics.M.ParseErrors().Inc()
+			return common.NewBasicError("SCION packet parse error", err)
+		}
 	}
 
-	pkt.Destination = SCIONAddress{IA: scnPkt.DstIA, Host: scnPkt.DstHost}
-	pkt.Source = SCIONAddress{IA: scnPkt.SrcIA, Host: scnPkt.SrcHost}
-	pkt.Path = scnPkt.Path
-	pkt.Extensions = append(pkt.Extensions, scnPkt.HBHExt...)
-	pkt.Extensions = append(pkt.Extensions, scnPkt.E2EExt...)
-	pkt.L4Header = scnPkt.L4
-	pkt.Payload = scnPkt.Pld
 	if ov != nil {
 		*ov = *lastHop
 	}

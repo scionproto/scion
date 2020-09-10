@@ -15,7 +15,6 @@
 package svc
 
 import (
-	"bytes"
 	"context"
 	"net"
 
@@ -25,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/svc/internal/ctxconn"
@@ -56,6 +56,8 @@ type Resolver struct {
 	RoundTripper RoundTripper
 	// Payload is used for the data part of SVC requests.
 	Payload []byte
+
+	HeaderV2 bool
 }
 
 // LookupSVC resolves the SVC address for the AS terminating the path.
@@ -87,11 +89,30 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 				Host: svc,
 			},
 			Path: p.Path(),
-			L4Header: &l4.UDP{
+			PayloadV2: snet.UDPPayload{
 				SrcPort: port,
+				Payload: r.Payload,
 			},
-			Payload: common.RawBytes(r.Payload),
 		},
+	}
+	if !r.HeaderV2 {
+		requestPacket = &snet.Packet{
+			PacketInfo: snet.PacketInfo{
+				Source: snet.SCIONAddress{
+					IA:   r.LocalIA,
+					Host: addr.HostFromIP(r.LocalIP),
+				},
+				Destination: snet.SCIONAddress{
+					IA:   p.Destination(),
+					Host: svc,
+				},
+				Path: p.Path(),
+				L4Header: &l4.UDP{
+					SrcPort: port,
+				},
+				Payload: common.RawBytes(r.Payload),
+			},
+		}
 	}
 	reply, err := r.getRoundTripper().RoundTrip(ctx, conn, requestPacket, p.UnderlayNextHop())
 	if err != nil {
@@ -148,12 +169,23 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 	if err := c.ReadFrom(&replyPacket, &replyOv); err != nil {
 		return nil, common.NewBasicError(errRead, err)
 	}
-	b, ok := replyPacket.Payload.(common.RawBytes)
-	if !ok {
-		return nil, common.NewBasicError(errUnsupportedPld, nil, "payload", replyPacket.Payload)
+	var b []byte
+	if replyPacket.PayloadV2 != nil {
+		udp, ok := replyPacket.PayloadV2.(snet.UDPPayload)
+		if !ok {
+			return nil, serrors.WithCtx(errUnsupportedPld,
+				"type", common.TypeOf(replyPacket.PayloadV2))
+		}
+		b = udp.Payload
+	} else {
+		var ok bool
+		b, ok = replyPacket.Payload.(common.RawBytes)
+		if !ok {
+			return nil, common.NewBasicError(errUnsupportedPld, nil, "payload", replyPacket.Payload)
+		}
 	}
 	var reply Reply
-	if err := reply.DecodeFrom(bytes.NewBuffer([]byte(b))); err != nil {
+	if err := reply.Unmarshal(b); err != nil {
 		return nil, common.NewBasicError(errDecode, err)
 	}
 

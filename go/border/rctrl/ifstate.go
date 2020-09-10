@@ -16,16 +16,14 @@ package rctrl
 
 import (
 	"context"
+	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/border/internal/metrics"
+	"github.com/scionproto/scion/go/border/metrics"
+	"github.com/scionproto/scion/go/border/rctrl/grpc"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
@@ -41,57 +39,32 @@ const (
 // interfaces. The BS normally updates the border routers everytime an
 // interface state changes, so this is only needed as a fail-safe after
 // startup.
-func ifStateUpdate() {
-	if err := genIFStateReq(); err != nil {
+func ifStateUpdate(updater grpc.IfStateUpdater) {
+	if err := updateInterfaces(updater); err != nil {
 		logger.Error(err.Error())
 	}
 	for range time.Tick(ifStateFreq) {
-		if err := genIFStateReq(); err != nil {
+		if err := updateInterfaces(updater); err != nil {
 			logger.Error(err.Error())
 		}
 	}
 }
 
-// genIFStateReq generates an Interface State request packet to the local beacon service.
-func genIFStateReq() error {
-	metrics.Control.IFStateTick().Inc()
+func updateInterfaces(updater grpc.IfStateUpdater) error {
 	cl := metrics.ControlLabels{
 		Result: metrics.ErrProcess,
 	}
-	cpld, err := ctrl.NewPathMgmtPld(&path_mgmt.IFStateReq{}, nil, nil)
-	if err != nil {
-		metrics.Control.SentIFStateReq(cl).Inc()
-		return common.NewBasicError("Generating IFStateReq Ctrl payload", err)
-	}
-	scpld, err := cpld.SignedPld(context.TODO(), infra.NullSigner)
-	if err != nil {
-		metrics.Control.SentIFStateReq(cl).Inc()
-		return common.NewBasicError("Generating IFStateReq signed Ctrl payload", err)
-	}
-	pld, err := scpld.PackPld()
-	if err != nil {
-		metrics.Control.SentIFStateReq(cl).Inc()
-		return common.NewBasicError("Writing IFStateReq signed Ctrl payload", err)
-	}
-	bsAddrs, err := rctx.Get().ResolveSVCMulti(addr.SvcBS)
+	bsAddrs, err := rctx.Get().Conf.Topo.Multicast(addr.SvcCS)
 	if err != nil {
 		cl.Result = metrics.ErrResolveSVC
 		metrics.Control.SentIFStateReq(cl).Inc()
 		return common.NewBasicError("Resolving SVC BS multicast", err)
 	}
-
-	var errors common.MultiError
-	for _, a := range bsAddrs {
-		dst := &snet.SVCAddr{IA: ia, NextHop: a, SVC: addr.SvcBS.Multicast()}
-		if _, err := snetConn.WriteTo(pld, dst); err != nil {
-			cl.Result = metrics.ErrWrite
-			metrics.Control.SentIFStateReq(cl).Inc()
-			errors = append(errors, common.NewBasicError("Writing IFStateReq", err, "dst", dst))
-			continue
-		}
-		logger.Debug("Sent IFStateReq", "dst", dst, "underlayDst", a)
-		cl.Result = metrics.Success
-		metrics.Control.SentIFStateReq(cl).Inc()
+	servers := make([]net.Addr, 0, len(bsAddrs))
+	for _, bs := range bsAddrs {
+		servers = append(servers, &net.TCPAddr{IP: bs.IP, Port: bs.Port, Zone: bs.Zone})
 	}
-	return errors.ToError()
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
+	return updater.UpdateIfState(ctx, servers)
 }

@@ -1,0 +1,79 @@
+// Copyright 2020 Anapaya Systems
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/scionproto/scion/go/pkg/proto/control_plane";
+
+package proto.control_plane.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service TrustMaterialService {
+    // Return the certificate chains that match the request.
+    rpc Chains(ChainsRequest) returns (ChainsResponse) {}
+    // Return a specific TRC that matches the request.
+    rpc TRC(TRCRequest) returns (TRCResponse) {}
+}
+
+message ChainsRequest {
+    // ISD-AS of Subject in the AS certificate.
+    uint64 isd_as = 1;
+    // SubjectKeyID in the AS certificate.
+    bytes subject_key_id = 2;
+    // Point in time that must be covered by the AS certificate's validity
+    // period. In seconds since UNIX epoch.
+    google.protobuf.Timestamp date = 3;
+}
+
+message ChainsResponse {
+    // List of chains that match the request.
+    repeated Chain chains = 1;
+}
+
+message Chain {
+    // AS certificate in the chain.
+    bytes as_cert = 1;
+    // CA certificate in the chain.
+    bytes ca_cert = 2;
+}
+
+message TRCRequest {
+    // ISD of the TRC.
+    uint32 isd = 1;
+    // BaseNumber of the TRC.
+    uint64 base = 2;
+    // SerialNumber of the TRC.
+    uint64 serial = 3;
+}
+
+message TRCResponse {
+    // Raw TRC.
+    bytes trc = 1;
+}
+
+// VerificationKeyID is used to identify certificates that authenticate the
+// verification key used to verify signatures.
+message VerificationKeyID {
+    // ISD-AS of the subject.
+    uint64 isd_as = 1;
+    // SubjectKeyID referenced in the certificate.
+    bytes subject_key_id = 2;
+    // Base number of the latest TRC available to the signer at the time of
+    // signature creation.
+    uint64 trc_base = 3;
+    // Serial number of the latest TRC available to the signer at the time of
+    // signature creation.
+    uint64 trc_serial = 4;
+}

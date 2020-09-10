@@ -22,10 +22,8 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/hostinfo"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/proto"
 )
 
 type PathErrorCode uint16
@@ -58,86 +56,10 @@ func (c PathErrorCode) String() string {
 	}
 }
 
-var _ proto.Cerealizable = (*Pld)(nil)
-
-type Pld struct {
-	Id                 uint64
-	TraceId            []byte
-	Which              proto.SCIONDMsg_Which
-	PathReq            *PathReq
-	PathReply          *PathReply
-	AsInfoReq          *ASInfoReq
-	AsInfoReply        *ASInfoReply
-	RevNotification    *RevNotification
-	RevReply           *RevReply
-	IfInfoRequest      *IFInfoRequest
-	IfInfoReply        *IFInfoReply
-	ServiceInfoRequest *ServiceInfoRequest
-	ServiceInfoReply   *ServiceInfoReply
-}
-
-func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
-	p := &Pld{}
-	return p, proto.ParseFromRaw(p, b)
-}
-
-func (p *Pld) ProtoId() proto.ProtoIdType {
-	return proto.SCIONDMsg_TypeID
-}
-
-func (p *Pld) String() string {
-	desc := []string{fmt.Sprintf("Sciond: Id: %d Union: ", p.Id)}
-	u1, err := p.union()
-	if err != nil {
-		desc = append(desc, err.Error())
-	} else {
-		desc = append(desc, fmt.Sprintf("%+v", u1))
-	}
-	return strings.Join(desc, "")
-}
-
-func (p *Pld) union() (interface{}, error) {
-	switch p.Which {
-	case proto.SCIONDMsg_Which_pathReq:
-		return p.PathReq, nil
-	case proto.SCIONDMsg_Which_pathReply:
-		return p.PathReply, nil
-	case proto.SCIONDMsg_Which_asInfoReq:
-		return p.AsInfoReq, nil
-	case proto.SCIONDMsg_Which_asInfoReply:
-		return p.AsInfoReply, nil
-	case proto.SCIONDMsg_Which_revNotification:
-		return p.RevNotification, nil
-	case proto.SCIONDMsg_Which_revReply:
-		return p.RevReply, nil
-	case proto.SCIONDMsg_Which_ifInfoRequest:
-		return p.IfInfoRequest, nil
-	case proto.SCIONDMsg_Which_ifInfoReply:
-		return p.IfInfoReply, nil
-	case proto.SCIONDMsg_Which_serviceInfoRequest:
-		return p.ServiceInfoRequest, nil
-	case proto.SCIONDMsg_Which_serviceInfoReply:
-		return p.ServiceInfoReply, nil
-	}
-	return nil, common.NewBasicError("Unsupported SCIOND union type", nil, "type", p.Which)
-}
-
 type PathReq struct {
-	Dst    addr.IAInt
-	Src    addr.IAInt
-	HPCfgs []*path_mgmt.HPGroupId `capnp:"hpCfgs"`
-	Flags  PathReqFlags
-}
-
-func (pathReq *PathReq) Copy() *PathReq {
-	if pathReq == nil {
-		return nil
-	}
-	return &PathReq{
-		Dst:   pathReq.Dst,
-		Src:   pathReq.Src,
-		Flags: pathReq.Flags,
-	}
+	Dst   addr.IAInt
+	Src   addr.IAInt
+	Flags PathReqFlags
 }
 
 func (pathReq *PathReq) String() string {
@@ -146,9 +68,8 @@ func (pathReq *PathReq) String() string {
 }
 
 type PathReqFlags struct {
-	PathCount uint16 `capnp:"-"`
-	Refresh   bool
-	Hidden    bool
+	Refresh bool
+	Hidden  bool
 }
 
 type PathReply struct {
@@ -262,7 +183,7 @@ func (fpm *FwdPathMeta) fmtIfaces() []string {
 }
 
 type PathInterface struct {
-	RawIsdas addr.IAInt `capnp:"isdas"`
+	RawIsdas addr.IAInt
 	IfID     common.IFIDType
 }
 
@@ -283,40 +204,6 @@ func (iface *PathInterface) Equal(other *PathInterface) bool {
 
 func (iface PathInterface) String() string {
 	return fmt.Sprintf("%s#%d", iface.IA(), iface.IfID)
-}
-
-type ASInfoReq struct {
-	Isdas addr.IAInt
-}
-
-func (r ASInfoReq) String() string {
-	return r.Isdas.String()
-}
-
-type ASInfoReply struct {
-	Entries []ASInfoReplyEntry
-}
-
-type ASInfoReplyEntry struct {
-	RawIsdas addr.IAInt `capnp:"isdas"`
-	Mtu      uint16
-	IsCore   bool
-}
-
-func (entry *ASInfoReplyEntry) ISD_AS() addr.IA {
-	return entry.RawIsdas.IA()
-}
-
-func (entry ASInfoReplyEntry) String() string {
-	return fmt.Sprintf("ia:%v, mtu:%v, core:%t", entry.ISD_AS(), entry.Mtu, entry.IsCore)
-}
-
-type RevNotification struct {
-	SRevInfo *path_mgmt.SignedRevInfo
-}
-
-func (rN *RevNotification) String() string {
-	return fmt.Sprintf("SRevInfo: %s", rN.SRevInfo)
 }
 
 type RevReply struct {
@@ -345,39 +232,4 @@ func (c RevResult) String() string {
 	default:
 		return fmt.Sprintf("Unknown revocation result (%d)", c)
 	}
-}
-
-type IFInfoRequest struct {
-	IfIDs []common.IFIDType
-}
-
-func (r IFInfoRequest) String() string {
-	return fmt.Sprintf("%v", r.IfIDs)
-}
-
-type IFInfoReply struct {
-	RawEntries []IFInfoReplyEntry `capnp:"entries"`
-}
-
-type IFInfoReplyEntry struct {
-	IfID     common.IFIDType
-	HostInfo hostinfo.Host
-}
-
-type ServiceInfoRequest struct {
-	ServiceTypes []proto.ServiceType
-}
-
-func (r ServiceInfoRequest) String() string {
-	return fmt.Sprintf("%v", r.ServiceTypes)
-}
-
-type ServiceInfoReply struct {
-	Entries []ServiceInfoReplyEntry
-}
-
-type ServiceInfoReplyEntry struct {
-	ServiceType proto.ServiceType
-	Ttl         uint32
-	HostInfos   []hostinfo.Host
 }

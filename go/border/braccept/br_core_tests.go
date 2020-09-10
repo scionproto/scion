@@ -26,7 +26,9 @@ func br_core_multi() int {
 	failures += xover_child_to_core()
 	failures += xover_child_to_child()
 
-	failures += revocation_core_to_local_isd()
+	// XXX revocation tests are disabled they would need gRPC support. But since
+	// they go away with header v2 we no longer add them.
+	// failures += revocation_core_to_local_isd()
 
 	return failures
 }

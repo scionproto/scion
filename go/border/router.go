@@ -22,7 +22,7 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/border/brconf"
-	"github.com/scionproto/scion/go/border/internal/metrics"
+	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctrl"
 	"github.com/scionproto/scion/go/border/rctx"
@@ -71,7 +71,7 @@ func (r *Router) Start() {
 	}()
 	go func() {
 		defer log.HandlePanic()
-		rctrl.Control(r.sRevInfoQ, cfg.General.ReconnectToDispatcher)
+		rctrl.Control(r.sRevInfoQ)
 	}()
 }
 
@@ -148,7 +148,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		return
 	}
 	if !valid {
-		rp.Error("Error validating packet, no specific error")
+		rp.Debug("Error validating packet, no specific error")
 		l.Result = metrics.ErrValidate
 		metrics.Process.Pkts(l).Inc()
 		return

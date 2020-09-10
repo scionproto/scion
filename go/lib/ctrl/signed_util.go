@@ -19,10 +19,8 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"regexp"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/proto"
@@ -36,71 +34,6 @@ type Signer interface {
 // Verifier verifies the signature of a signed payload.
 type Verifier interface {
 	VerifyPld(context.Context, *SignedPld) (*Pld, error)
-}
-
-const (
-	// SrcDefaultPrefix is the default prefix for proto.SignS.Src.
-	SrcDefaultPrefix = "DEFAULT: "
-	// SrcDefaultFmt is the default format for proto.SignS.Src.
-	SrcDefaultFmt = `^` + SrcDefaultPrefix + `IA: (\S+) CHAIN: (\d+) TRC: (\d+)$`
-)
-
-var reSrcDefault = regexp.MustCompile(SrcDefaultFmt)
-
-// SignSrcDef is the default format for signature source. It states the
-// signing entity, and the certificate chain authenticating the public key.
-// The TRC version is a hint for the TRC that can currently be used to
-// verify the chain.
-type SignSrcDef struct {
-	IA       addr.IA
-	ChainVer scrypto.Version
-	TRCVer   scrypto.Version
-}
-
-func NewSignSrcDefFromRaw(b common.RawBytes) (SignSrcDef, error) {
-	match := reSrcDefault.FindSubmatch(b)
-	if len(match) == 0 {
-		return SignSrcDef{}, common.NewBasicError("Unable to match default src", nil,
-			"string", string(b))
-	}
-	ia, err := addr.IAFromString(string(match[1]))
-	if err != nil {
-		return SignSrcDef{}, common.NewBasicError("Unable to parse default src IA", err)
-	}
-	var chainVer, trcVer scrypto.Version
-	if err := chainVer.UnmarshalJSON(match[2]); err != nil {
-		return SignSrcDef{}, common.NewBasicError("Unable to parse default src ChainVer", err)
-	}
-	if err := trcVer.UnmarshalJSON(match[3]); err != nil {
-		return SignSrcDef{}, common.NewBasicError("Unable to parse default src TRCVer", err)
-	}
-	return SignSrcDef{IA: ia, ChainVer: chainVer, TRCVer: trcVer}, nil
-}
-
-// IsUninitialized indicates whether the source is equal to the zero value.
-func (s *SignSrcDef) IsUninitialized() bool {
-	return *s == SignSrcDef{}
-}
-
-func (s *SignSrcDef) Pack() common.RawBytes {
-	return common.RawBytes(fmt.Sprintf("%sIA: %s CHAIN: %d TRC: %d", SrcDefaultPrefix,
-		s.IA, s.ChainVer, s.TRCVer))
-}
-
-func (s *SignSrcDef) String() string {
-	return fmt.Sprintf("IA: %s ChainVer: %d TRCVer: %d", s.IA, s.ChainVer, s.TRCVer)
-}
-
-func (s *SignSrcDef) Equal(t SignSrcDef) bool {
-	switch {
-	case !s.IA.Equal(t.IA):
-		return false
-	case s.ChainVer != t.ChainVer:
-		return false
-	case s.TRCVer != t.TRCVer:
-		return false
-	}
-	return true
 }
 
 const (

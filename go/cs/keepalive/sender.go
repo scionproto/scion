@@ -64,7 +64,7 @@ func (s *Sender) Run(ctx context.Context) {
 		msg := &onehop.Msg{
 			Dst: snet.SCIONAddress{
 				IA:   intf.IA,
-				Host: addr.SvcBS | addr.SVCMcast,
+				Host: addr.SvcCS | addr.SVCMcast,
 			},
 			Ifid:     ifid,
 			InfoTime: time.Now(),

@@ -9,6 +9,106 @@ import (
 	schemas "zombiezen.com/go/capnproto2/schemas"
 )
 
+type HostInfo struct{ capnp.Struct }
+type HostInfo_addrs HostInfo
+
+// HostInfo_TypeID is the unique identifier for the type HostInfo.
+const HostInfo_TypeID = 0xe02e04db98f2686a
+
+func NewHostInfo(s *capnp.Segment) (HostInfo, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
+	return HostInfo{st}, err
+}
+
+func NewRootHostInfo(s *capnp.Segment) (HostInfo, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
+	return HostInfo{st}, err
+}
+
+func ReadRootHostInfo(msg *capnp.Message) (HostInfo, error) {
+	root, err := msg.RootPtr()
+	return HostInfo{root.Struct()}, err
+}
+
+func (s HostInfo) String() string {
+	str, _ := text.Marshal(0xe02e04db98f2686a, s.Struct)
+	return str
+}
+
+func (s HostInfo) Port() uint16 {
+	return s.Struct.Uint16(0)
+}
+
+func (s HostInfo) SetPort(v uint16) {
+	s.Struct.SetUint16(0, v)
+}
+
+func (s HostInfo) Addrs() HostInfo_addrs { return HostInfo_addrs(s) }
+
+func (s HostInfo_addrs) Ipv4() ([]byte, error) {
+	p, err := s.Struct.Ptr(0)
+	return []byte(p.Data()), err
+}
+
+func (s HostInfo_addrs) HasIpv4() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s HostInfo_addrs) SetIpv4(v []byte) error {
+	return s.Struct.SetData(0, v)
+}
+
+func (s HostInfo_addrs) Ipv6() ([]byte, error) {
+	p, err := s.Struct.Ptr(1)
+	return []byte(p.Data()), err
+}
+
+func (s HostInfo_addrs) HasIpv6() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s HostInfo_addrs) SetIpv6(v []byte) error {
+	return s.Struct.SetData(1, v)
+}
+
+// HostInfo_List is a list of HostInfo.
+type HostInfo_List struct{ capnp.List }
+
+// NewHostInfo creates a new list of HostInfo.
+func NewHostInfo_List(s *capnp.Segment, sz int32) (HostInfo_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
+	return HostInfo_List{l}, err
+}
+
+func (s HostInfo_List) At(i int) HostInfo { return HostInfo{s.List.Struct(i)} }
+
+func (s HostInfo_List) Set(i int, v HostInfo) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s HostInfo_List) String() string {
+	str, _ := text.MarshalList(0xe02e04db98f2686a, s.List)
+	return str
+}
+
+// HostInfo_Promise is a wrapper for a HostInfo promised by a client call.
+type HostInfo_Promise struct{ *capnp.Pipeline }
+
+func (p HostInfo_Promise) Struct() (HostInfo, error) {
+	s, err := p.Pipeline.Struct()
+	return HostInfo{s}, err
+}
+
+func (p HostInfo_Promise) Addrs() HostInfo_addrs_Promise { return HostInfo_addrs_Promise{p.Pipeline} }
+
+// HostInfo_addrs_Promise is a wrapper for a HostInfo_addrs promised by a client call.
+type HostInfo_addrs_Promise struct{ *capnp.Pipeline }
+
+func (p HostInfo_addrs_Promise) Struct() (HostInfo_addrs, error) {
+	s, err := p.Pipeline.Struct()
+	return HostInfo_addrs{s}, err
+}
+
 type SIGCtrl struct{ capnp.Struct }
 type SIGCtrl_Which uint16
 
@@ -368,33 +468,43 @@ func (p SIGAddr_Promise) Data() HostInfo_Promise {
 	return HostInfo_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
-const schema_8273379c3e06a721 = "x\xdat\x91Ok\x1aQ\x14\xc5\xefy\xcf\x19\xffP" +
-	"q\x06]\x09\xa5-X\xaa\x82\xa5J\xa5 \xb4\xd4\x96" +
-	"R\xb2\xf3%\xdb\x1028C\x1c\x98\xe883\xe2R" +
-	"\xc8G0\xbb$\xcb@6Y\xe5{d\x91E\xc8*" +
-	"\x0bWYg\x1f\xf3\xc2c\x12\x95HV\x17\xce\xb9\xdc" +
-	"\xdf;\xef\x18\xe7\xbfY]\xcb\x81H\xbc\xd3t\xd9\xb6" +
-	"N\x9b\xacusD\"\x03\xc8Og\xfa\xaf\x93\x1f\xe1" +
-	"\x01iH\x12\x99\xfbSs\xa4\xe6pL\x98\x97\x8f\xdf" +
-	"\xcf\x1e\xeeo\xcd\xcc\xea\x1aS\xf6\xe5\xd4\xbcV\xf3j" +
-	"L\x90\xa9\x9f\x8d\xb0R\xda\x99\xa9\x83l\xb9\xf9\x0fI" +
-	"\x8eD\xbe\x86i\xbe\xa9n\xe7\xeb\xb8#\xc8\xd0\xdd\xfb" +
-	"\xda\xb5\xfc>\xfc\xd6\xd6\xc6\xff\xce\xc0\x83\xd7\x01D\x8a" +
-	"'\x88\x12 2+U\"Q\xe2\x10\xdf\x18\x80\x02\x94" +
-	"V\xfbC$\xca\x1c\xe2;C\xce\xb2\xed\x00\xc6\xcb\xeb" +
-	"\x080\x08\x93\xd0\x09Cw\xd0\x87N\x0c\xfa\x1a\xa6m" +
-	"\xdb\x08\xde\xc6\x98\x0bNu\x85\xd3\x8d\x02\x0f\x86\xfc\xf8" +
-	"\xf9p\xac})^PL\xca\xd9Vd\xad\xcb\xaf\x80" +
-	"\x7f\xa3 \xcee,\x80V\x91Hls\x88\x1eC\x16" +
-	"R\xc6D\xa7A$v9\x84\xc7\x90e\x8f\xb2\x00F" +
-	"d\xba*\xaf\xcd!|\x86,\x9f\xcb\x02\xb8*G\xa9" +
-	"=\x0e\x111p\xd7F\x9a\x18\xd2\x84\x0f\xa3~\xe8D" +
-	"\xa4O\xfc\x81\xe7m:C\x18\xcb\x8e\x9f\x7f'v\xfc" +
-	"u\xe7)\x00\x00\xff\xff\x12\xacx\x8f"
+const schema_8273379c3e06a721 = "x\xda|\x92\xc1k\x13A\x14\xc6\xbf\xefM\x92m\x0b" +
+	"!Y6^\x14)B\x85\xa4\x90\xd0\x86\xaa\x10P\xac" +
+	"\"\xda[G\x0f^D\\\xba\xa9\x89\xac\xd95\xbbZ" +
+	"<\x15\x04\x0f\x1e\xbc\x04\x04\xa9\x0a\x1e\x04\xff\x0cO\x1e" +
+	"\x14<{\x10\xc1\"\"\x1e<\xe8\xd9\xba2\xbb\xb6Y" +
+	"R\xf44\xcc\x9bo\xbe\x8f\xdf{o\x81<-\x8b\xc5" +
+	"W\x04t\xadXJ\x96\xdd\x17\xc7\xa4\xf3~\x0bz\x86" +
+	"L\x8e\xbc,\x9dzz\"\xba\x87\"-\xc0~=\xb2" +
+	"\xdf\x99\xf3\xcd\x06\x98|~~\xf7\xf2\xa1G\xf5g\xd0" +
+	"\x0e\x99\xdc\xe8\xfd|\xfc\xa1\xd0\xfa\x84\x03b\x11p\x8e" +
+	"\xf2-\xe84\xb8\x01\xee\xd4\x9f\x1c\xde\xfe\xf5\xe3\xa3=" +
+	"\x937\x14\x0bp\xees\xe4<4\xd6\xce\x03\xa3\x1c\xbb" +
+	"L\xa4\xa7\xe2/\xdcr\xbe\xa7\xe2o\xa9x\xead;" +
+	"j\xcc]\xdd6b\x19\x8b\xcf\xd1R,8\x0d\x199" +
+	"\x8b\xe9\xbf\xa6|\x05\x93\xa8\x7f\xbd\xb5\xe6\x86\x03\x86\x9d" +
+	"K+\xe7W\x03\x9f\xfe*\xa9\xa7T\x01(\x10\xb0\x1b" +
+	"\xf3\x80\x9eS\xd4\x0bB\xb2FSk\x9e\x01t]Q" +
+	"/\x09+\xae\xe7\x0dY\xdd\xa5\x01Y\x057\xa3n\x14" +
+	"\xf5\x83\x01K\x10\x96r1\x12v.\x04Q\xbc2X" +
+	"\x0fZ\xe6c\x04dY\x99q>\xcc6ib\xd2\xe6" +
+	"si\xfd\xf0\xce\x12\xcb\x10\x96\x91^\x8e\xef^&H" +
+	"\x96=\x8f\xc3\x7f\x93\xd8{(y\xf3\xb5x\xe8\xb3:" +
+	"nw\x06S\xf1\xdc\xd8\xdd_\xce\x07fLj=\xf8" +
+	"_\xef\x98[\x0e\xbb\xd9\x86T\xc2`\x18\xd3\x82\xd0\x02" +
+	"g\xd3vLP\x9c\x8d\x87\xd9<\xaa{\x9e\xeeA@" +
+	"_Q\xd4=a\x99I\x92at\xdb\x80\xbe\xa6\xa8}" +
+	"aY~'Y\xe7\xfafN\x9e\xa2\x0e\x85e\xb5\x93" +
+	"\xd4\xa8\x00\xfb\xa6\xa9\xf6\x14u,T}\x8f\xd3\x10N" +
+	"\x83\xb3\xb7\x07Q7Fi3\x0c|\xffb\xf7\x16\xab" +
+	"\xe3\xad\xff;\xd5\xec%\xdc\xff\xf2'\x00\x00\xff\xff-" +
+	"a\xbb\x1d"
 
 func init() {
 	schemas.Register(schema_8273379c3e06a721,
 		0x9ad73a0235a46141,
+		0x9d28951b5779a0e3,
 		0xddf1fce11d9b0028,
+		0xe02e04db98f2686a,
 		0xe15e242973323d08)
 }

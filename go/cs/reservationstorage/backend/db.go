@@ -44,6 +44,8 @@ type ReserverOnly interface {
 
 // TransitOnly represents an AS in-path of a reservation, not the one originating it.
 type TransitOnly interface {
+	// GetAllSegmentRsvs returns all segment reservations. Used by setup req.
+	GetAllSegmentRsvs(ctx context.Context) ([]*segment.Reservation, error)
 	// GetSegmentRsvsFromIFPair returns all segment reservations that enter this AS at
 	// the specified ingress and exit at that egress. Used by setup req.
 	GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress *common.IFIDType) (

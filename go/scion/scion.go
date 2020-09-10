@@ -47,6 +47,7 @@ func main() {
 		command.NewVersion(cmd),
 		newPing(cmd),
 		newShowpaths(cmd),
+		newTraceroute(cmd),
 	)
 
 	if err := cmd.Execute(); err != nil {

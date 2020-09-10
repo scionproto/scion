@@ -724,12 +724,12 @@ further explored here.
 
 ### Command Line Interface
 
-In order to make use of the information this extension provides, we will
-create a command line interface (CLI) to extract data from the extension.
-This CLI will be implemented as an extension of the current showpaths tool.
-To display information about the static properties, showpaths can be
-called with the flag `-staticinfo` and the following values will be displayed
-(provided they are available):
+In order to make use of the information this extension provides, we will create
+a command line interface (CLI) to extract data from the extension. This CLI will
+be implemented as an extension of the current scion showpaths tool. To display
+information about the static properties, scion showpaths can be called with the
+flag `-staticinfo` and the following values will be displayed (provided they are
+available):
 
 Name               | Description |
 -------------------|-------------|

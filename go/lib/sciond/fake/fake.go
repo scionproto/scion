@@ -17,7 +17,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // New creates a new fake SCIOND implementation using the data in the script.
@@ -56,6 +55,7 @@ func NewFromFile(file string) (sciond.Connector, error) {
 
 // Script describes the path entries a fake SCIOND should respond with.
 type Script struct {
+	IA      addr.IA  `json:"ia"`
 	Entries []*Entry `json:"entries"`
 }
 
@@ -190,7 +190,6 @@ func (c connector) Paths(_ context.Context, _, _ addr.IA,
 	flags sciond.PathReqFlags) ([]snet.Path, error) {
 
 	secondsElapsed := int(time.Since(c.creationTime).Seconds())
-	intMax := int(flags.PathCount)
 
 	var entry *Entry
 	for i := 0; i < len(c.script.Entries); i++ {
@@ -202,11 +201,7 @@ func (c connector) Paths(_ context.Context, _, _ addr.IA,
 	if entry == nil {
 		return nil, serrors.New("path not found")
 	}
-
-	if intMax > len(entry.Paths) {
-		intMax = len(entry.Paths)
-	}
-	return c.adapter(entry.Paths[:intMax]), nil
+	return c.adapter(entry.Paths), nil
 }
 
 func (c connector) adapter(paths []*Path) []snet.Path {
@@ -218,10 +213,10 @@ func (c connector) adapter(paths []*Path) []snet.Path {
 }
 
 func (c connector) LocalIA(ctx context.Context) (addr.IA, error) {
-	panic("not implemented")
+	return c.script.IA, nil
 }
 
-func (c connector) ASInfo(ctx context.Context, ia addr.IA) (*sciond.ASInfoReply, error) {
+func (c connector) ASInfo(ctx context.Context, ia addr.IA) (sciond.ASInfo, error) {
 	panic("not implemented")
 }
 
@@ -232,17 +227,17 @@ func (c connector) IFInfo(ctx context.Context,
 }
 
 func (c connector) SVCInfo(ctx context.Context,
-	svcTypes []proto.ServiceType) (*sciond.ServiceInfoReply, error) {
+	svcTypes []addr.HostSVC) (map[addr.HostSVC]string, error) {
 
 	panic("not implemented")
 }
 
-func (c connector) RevNotificationFromRaw(ctx context.Context, b []byte) (*sciond.RevReply, error) {
+func (c connector) RevNotificationFromRaw(ctx context.Context, b []byte) error {
 	panic("not implemented")
 }
 
 func (c connector) RevNotification(ctx context.Context,
-	sRevInfo *path_mgmt.SignedRevInfo) (*sciond.RevReply, error) {
+	sRevInfo *path_mgmt.SignedRevInfo) error {
 
 	panic("not implemented")
 }

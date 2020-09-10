@@ -2,7 +2,10 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["helper.go"],
+    srcs = [
+        "helper.go",
+        "path.go",
+    ],
     importpath = "github.com/scionproto/scion/go/pkg/app",
     visibility = ["//visibility:public"],
     deps = [
@@ -11,5 +14,6 @@ go_library(
         "//go/lib/sciond:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/snet:go_default_library",
+        "@com_github_fatih_color//:go_default_library",
     ],
 )

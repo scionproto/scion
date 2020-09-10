@@ -295,73 +295,247 @@ func (p PathEndProps_Promise) Struct() (PathEndProps, error) {
 	return PathEndProps{s}, err
 }
 
-type AllocationBeads struct{ capnp.Struct }
+type AllocationBead struct{ capnp.Struct }
 
-// AllocationBeads_TypeID is the unique identifier for the type AllocationBeads.
-const AllocationBeads_TypeID = 0xd58bfb363200f142
+// AllocationBead_TypeID is the unique identifier for the type AllocationBead.
+const AllocationBead_TypeID = 0xc8ba760a91de682a
 
-func NewAllocationBeads(s *capnp.Segment) (AllocationBeads, error) {
+func NewAllocationBead(s *capnp.Segment) (AllocationBead, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return AllocationBeads{st}, err
+	return AllocationBead{st}, err
 }
 
-func NewRootAllocationBeads(s *capnp.Segment) (AllocationBeads, error) {
+func NewRootAllocationBead(s *capnp.Segment) (AllocationBead, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return AllocationBeads{st}, err
+	return AllocationBead{st}, err
 }
 
-func ReadRootAllocationBeads(msg *capnp.Message) (AllocationBeads, error) {
+func ReadRootAllocationBead(msg *capnp.Message) (AllocationBead, error) {
 	root, err := msg.RootPtr()
-	return AllocationBeads{root.Struct()}, err
+	return AllocationBead{root.Struct()}, err
 }
 
-func (s AllocationBeads) String() string {
-	str, _ := text.Marshal(0xd58bfb363200f142, s.Struct)
+func (s AllocationBead) String() string {
+	str, _ := text.Marshal(0xc8ba760a91de682a, s.Struct)
 	return str
 }
 
-func (s AllocationBeads) AllocBW() uint8 {
+func (s AllocationBead) AllocBW() uint8 {
 	return s.Struct.Uint8(0)
 }
 
-func (s AllocationBeads) SetAllocBW(v uint8) {
+func (s AllocationBead) SetAllocBW(v uint8) {
 	s.Struct.SetUint8(0, v)
 }
 
-func (s AllocationBeads) MaxBW() uint8 {
+func (s AllocationBead) MaxBW() uint8 {
 	return s.Struct.Uint8(1)
 }
 
-func (s AllocationBeads) SetMaxBW(v uint8) {
+func (s AllocationBead) SetMaxBW(v uint8) {
 	s.Struct.SetUint8(1, v)
 }
 
-// AllocationBeads_List is a list of AllocationBeads.
-type AllocationBeads_List struct{ capnp.List }
+// AllocationBead_List is a list of AllocationBead.
+type AllocationBead_List struct{ capnp.List }
 
-// NewAllocationBeads creates a new list of AllocationBeads.
-func NewAllocationBeads_List(s *capnp.Segment, sz int32) (AllocationBeads_List, error) {
+// NewAllocationBead creates a new list of AllocationBead.
+func NewAllocationBead_List(s *capnp.Segment, sz int32) (AllocationBead_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return AllocationBeads_List{l}, err
+	return AllocationBead_List{l}, err
 }
 
-func (s AllocationBeads_List) At(i int) AllocationBeads { return AllocationBeads{s.List.Struct(i)} }
+func (s AllocationBead_List) At(i int) AllocationBead { return AllocationBead{s.List.Struct(i)} }
 
-func (s AllocationBeads_List) Set(i int, v AllocationBeads) error {
-	return s.List.SetStruct(i, v.Struct)
-}
+func (s AllocationBead_List) Set(i int, v AllocationBead) error { return s.List.SetStruct(i, v.Struct) }
 
-func (s AllocationBeads_List) String() string {
-	str, _ := text.MarshalList(0xd58bfb363200f142, s.List)
+func (s AllocationBead_List) String() string {
+	str, _ := text.MarshalList(0xc8ba760a91de682a, s.List)
 	return str
 }
 
-// AllocationBeads_Promise is a wrapper for a AllocationBeads promised by a client call.
-type AllocationBeads_Promise struct{ *capnp.Pipeline }
+// AllocationBead_Promise is a wrapper for a AllocationBead promised by a client call.
+type AllocationBead_Promise struct{ *capnp.Pipeline }
 
-func (p AllocationBeads_Promise) Struct() (AllocationBeads, error) {
+func (p AllocationBead_Promise) Struct() (AllocationBead, error) {
 	s, err := p.Pipeline.Struct()
-	return AllocationBeads{s}, err
+	return AllocationBead{s}, err
+}
+
+type SegmentBase struct{ capnp.Struct }
+
+// SegmentBase_TypeID is the unique identifier for the type SegmentBase.
+const SegmentBase_TypeID = 0x9668b2a783bf3465
+
+func NewSegmentBase(s *capnp.Segment) (SegmentBase, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return SegmentBase{st}, err
+}
+
+func NewRootSegmentBase(s *capnp.Segment) (SegmentBase, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return SegmentBase{st}, err
+}
+
+func ReadRootSegmentBase(msg *capnp.Message) (SegmentBase, error) {
+	root, err := msg.RootPtr()
+	return SegmentBase{root.Struct()}, err
+}
+
+func (s SegmentBase) String() string {
+	str, _ := text.Marshal(0x9668b2a783bf3465, s.Struct)
+	return str
+}
+
+func (s SegmentBase) Id() (SegmentReservationID, error) {
+	p, err := s.Struct.Ptr(0)
+	return SegmentReservationID{Struct: p.Struct()}, err
+}
+
+func (s SegmentBase) HasId() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s SegmentBase) SetId(v SegmentReservationID) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewId sets the id field to a newly
+// allocated SegmentReservationID struct, preferring placement in s's segment.
+func (s SegmentBase) NewId() (SegmentReservationID, error) {
+	ss, err := NewSegmentReservationID(s.Struct.Segment())
+	if err != nil {
+		return SegmentReservationID{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s SegmentBase) Index() uint8 {
+	return s.Struct.Uint8(0)
+}
+
+func (s SegmentBase) SetIndex(v uint8) {
+	s.Struct.SetUint8(0, v)
+}
+
+// SegmentBase_List is a list of SegmentBase.
+type SegmentBase_List struct{ capnp.List }
+
+// NewSegmentBase creates a new list of SegmentBase.
+func NewSegmentBase_List(s *capnp.Segment, sz int32) (SegmentBase_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	return SegmentBase_List{l}, err
+}
+
+func (s SegmentBase_List) At(i int) SegmentBase { return SegmentBase{s.List.Struct(i)} }
+
+func (s SegmentBase_List) Set(i int, v SegmentBase) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s SegmentBase_List) String() string {
+	str, _ := text.MarshalList(0x9668b2a783bf3465, s.List)
+	return str
+}
+
+// SegmentBase_Promise is a wrapper for a SegmentBase promised by a client call.
+type SegmentBase_Promise struct{ *capnp.Pipeline }
+
+func (p SegmentBase_Promise) Struct() (SegmentBase, error) {
+	s, err := p.Pipeline.Struct()
+	return SegmentBase{s}, err
+}
+
+func (p SegmentBase_Promise) Id() SegmentReservationID_Promise {
+	return SegmentReservationID_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+type E2EBase struct{ capnp.Struct }
+
+// E2EBase_TypeID is the unique identifier for the type E2EBase.
+const E2EBase_TypeID = 0x830a81292c60dfee
+
+func NewE2EBase(s *capnp.Segment) (E2EBase, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return E2EBase{st}, err
+}
+
+func NewRootE2EBase(s *capnp.Segment) (E2EBase, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return E2EBase{st}, err
+}
+
+func ReadRootE2EBase(msg *capnp.Message) (E2EBase, error) {
+	root, err := msg.RootPtr()
+	return E2EBase{root.Struct()}, err
+}
+
+func (s E2EBase) String() string {
+	str, _ := text.Marshal(0x830a81292c60dfee, s.Struct)
+	return str
+}
+
+func (s E2EBase) Id() (E2EReservationID, error) {
+	p, err := s.Struct.Ptr(0)
+	return E2EReservationID{Struct: p.Struct()}, err
+}
+
+func (s E2EBase) HasId() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s E2EBase) SetId(v E2EReservationID) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewId sets the id field to a newly
+// allocated E2EReservationID struct, preferring placement in s's segment.
+func (s E2EBase) NewId() (E2EReservationID, error) {
+	ss, err := NewE2EReservationID(s.Struct.Segment())
+	if err != nil {
+		return E2EReservationID{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s E2EBase) Index() uint8 {
+	return s.Struct.Uint8(0)
+}
+
+func (s E2EBase) SetIndex(v uint8) {
+	s.Struct.SetUint8(0, v)
+}
+
+// E2EBase_List is a list of E2EBase.
+type E2EBase_List struct{ capnp.List }
+
+// NewE2EBase creates a new list of E2EBase.
+func NewE2EBase_List(s *capnp.Segment, sz int32) (E2EBase_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	return E2EBase_List{l}, err
+}
+
+func (s E2EBase_List) At(i int) E2EBase { return E2EBase{s.List.Struct(i)} }
+
+func (s E2EBase_List) Set(i int, v E2EBase) error { return s.List.SetStruct(i, v.Struct) }
+
+func (s E2EBase_List) String() string {
+	str, _ := text.MarshalList(0x830a81292c60dfee, s.List)
+	return str
+}
+
+// E2EBase_Promise is a wrapper for a E2EBase promised by a client call.
+type E2EBase_Promise struct{ *capnp.Pipeline }
+
+func (p E2EBase_Promise) Struct() (E2EBase, error) {
+	s, err := p.Pipeline.Struct()
+	return E2EBase{s}, err
+}
+
+func (p E2EBase_Promise) Id() E2EReservationID_Promise {
+	return E2EReservationID_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
 type SegmentSetupReqData struct{ capnp.Struct }
@@ -370,12 +544,12 @@ type SegmentSetupReqData struct{ capnp.Struct }
 const SegmentSetupReqData_TypeID = 0xa26d74bea4eb287e
 
 func NewSegmentSetupReqData(s *capnp.Segment) (SegmentSetupReqData, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 5})
 	return SegmentSetupReqData{st}, err
 }
 
 func NewRootSegmentSetupReqData(s *capnp.Segment) (SegmentSetupReqData, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 5})
 	return SegmentSetupReqData{st}, err
 }
 
@@ -387,6 +561,31 @@ func ReadRootSegmentSetupReqData(msg *capnp.Message) (SegmentSetupReqData, error
 func (s SegmentSetupReqData) String() string {
 	str, _ := text.Marshal(0xa26d74bea4eb287e, s.Struct)
 	return str
+}
+
+func (s SegmentSetupReqData) Base() (SegmentBase, error) {
+	p, err := s.Struct.Ptr(0)
+	return SegmentBase{Struct: p.Struct()}, err
+}
+
+func (s SegmentSetupReqData) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s SegmentSetupReqData) SetBase(v SegmentBase) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewBase sets the base field to a newly
+// allocated SegmentBase struct, preferring placement in s's segment.
+func (s SegmentSetupReqData) NewBase() (SegmentBase, error) {
+	ss, err := NewSegmentBase(s.Struct.Segment())
+	if err != nil {
+		return SegmentBase{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
 }
 
 func (s SegmentSetupReqData) MinBW() uint8 {
@@ -414,17 +613,17 @@ func (s SegmentSetupReqData) SetSplitCls(v uint8) {
 }
 
 func (s SegmentSetupReqData) StartProps() (PathEndProps, error) {
-	p, err := s.Struct.Ptr(0)
+	p, err := s.Struct.Ptr(1)
 	return PathEndProps{Struct: p.Struct()}, err
 }
 
 func (s SegmentSetupReqData) HasStartProps() bool {
-	p, err := s.Struct.Ptr(0)
+	p, err := s.Struct.Ptr(1)
 	return p.IsValid() || err != nil
 }
 
 func (s SegmentSetupReqData) SetStartProps(v PathEndProps) error {
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
 }
 
 // NewStartProps sets the startProps field to a newly
@@ -434,22 +633,22 @@ func (s SegmentSetupReqData) NewStartProps() (PathEndProps, error) {
 	if err != nil {
 		return PathEndProps{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
 	return ss, err
 }
 
 func (s SegmentSetupReqData) EndProps() (PathEndProps, error) {
-	p, err := s.Struct.Ptr(1)
+	p, err := s.Struct.Ptr(2)
 	return PathEndProps{Struct: p.Struct()}, err
 }
 
 func (s SegmentSetupReqData) HasEndProps() bool {
-	p, err := s.Struct.Ptr(1)
+	p, err := s.Struct.Ptr(2)
 	return p.IsValid() || err != nil
 }
 
 func (s SegmentSetupReqData) SetEndProps(v PathEndProps) error {
-	return s.Struct.SetPtr(1, v.Struct.ToPtr())
+	return s.Struct.SetPtr(2, v.Struct.ToPtr())
 }
 
 // NewEndProps sets the endProps field to a newly
@@ -459,32 +658,46 @@ func (s SegmentSetupReqData) NewEndProps() (PathEndProps, error) {
 	if err != nil {
 		return PathEndProps{}, err
 	}
-	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
+	err = s.Struct.SetPtr(2, ss.Struct.ToPtr())
 	return ss, err
 }
 
-func (s SegmentSetupReqData) AllocationTrail() (AllocationBeads_List, error) {
-	p, err := s.Struct.Ptr(2)
-	return AllocationBeads_List{List: p.List()}, err
+func (s SegmentSetupReqData) InfoField() ([]byte, error) {
+	p, err := s.Struct.Ptr(3)
+	return []byte(p.Data()), err
 }
 
-func (s SegmentSetupReqData) HasAllocationTrail() bool {
-	p, err := s.Struct.Ptr(2)
+func (s SegmentSetupReqData) HasInfoField() bool {
+	p, err := s.Struct.Ptr(3)
 	return p.IsValid() || err != nil
 }
 
-func (s SegmentSetupReqData) SetAllocationTrail(v AllocationBeads_List) error {
-	return s.Struct.SetPtr(2, v.List.ToPtr())
+func (s SegmentSetupReqData) SetInfoField(v []byte) error {
+	return s.Struct.SetData(3, v)
+}
+
+func (s SegmentSetupReqData) AllocationTrail() (AllocationBead_List, error) {
+	p, err := s.Struct.Ptr(4)
+	return AllocationBead_List{List: p.List()}, err
+}
+
+func (s SegmentSetupReqData) HasAllocationTrail() bool {
+	p, err := s.Struct.Ptr(4)
+	return p.IsValid() || err != nil
+}
+
+func (s SegmentSetupReqData) SetAllocationTrail(v AllocationBead_List) error {
+	return s.Struct.SetPtr(4, v.List.ToPtr())
 }
 
 // NewAllocationTrail sets the allocationTrail field to a newly
-// allocated AllocationBeads_List, preferring placement in s's segment.
-func (s SegmentSetupReqData) NewAllocationTrail(n int32) (AllocationBeads_List, error) {
-	l, err := NewAllocationBeads_List(s.Struct.Segment(), n)
+// allocated AllocationBead_List, preferring placement in s's segment.
+func (s SegmentSetupReqData) NewAllocationTrail(n int32) (AllocationBead_List, error) {
+	l, err := NewAllocationBead_List(s.Struct.Segment(), n)
 	if err != nil {
-		return AllocationBeads_List{}, err
+		return AllocationBead_List{}, err
 	}
-	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	err = s.Struct.SetPtr(4, l.List.ToPtr())
 	return l, err
 }
 
@@ -493,7 +706,7 @@ type SegmentSetupReqData_List struct{ capnp.List }
 
 // NewSegmentSetupReqData creates a new list of SegmentSetupReqData.
 func NewSegmentSetupReqData_List(s *capnp.Segment, sz int32) (SegmentSetupReqData_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 5}, sz)
 	return SegmentSetupReqData_List{l}, err
 }
 
@@ -518,12 +731,16 @@ func (p SegmentSetupReqData_Promise) Struct() (SegmentSetupReqData, error) {
 	return SegmentSetupReqData{s}, err
 }
 
+func (p SegmentSetupReqData_Promise) Base() SegmentBase_Promise {
+	return SegmentBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
 func (p SegmentSetupReqData_Promise) StartProps() PathEndProps_Promise {
-	return PathEndProps_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+	return PathEndProps_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
 func (p SegmentSetupReqData_Promise) EndProps() PathEndProps_Promise {
-	return PathEndProps_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
+	return PathEndProps_Promise{Pipeline: p.Pipeline.GetPipeline(2)}
 }
 
 type SegmentSetupResData struct{ capnp.Struct }
@@ -553,12 +770,12 @@ func (w SegmentSetupResData_Which) String() string {
 const SegmentSetupResData_TypeID = 0xaa345154c72e2fa5
 
 func NewSegmentSetupResData(s *capnp.Segment) (SegmentSetupResData, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
 	return SegmentSetupResData{st}, err
 }
 
 func NewRootSegmentSetupResData(s *capnp.Segment) (SegmentSetupResData, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2})
 	return SegmentSetupResData{st}, err
 }
 
@@ -575,6 +792,31 @@ func (s SegmentSetupResData) String() string {
 func (s SegmentSetupResData) Which() SegmentSetupResData_Which {
 	return SegmentSetupResData_Which(s.Struct.Uint16(0))
 }
+func (s SegmentSetupResData) Base() (SegmentBase, error) {
+	p, err := s.Struct.Ptr(0)
+	return SegmentBase{Struct: p.Struct()}, err
+}
+
+func (s SegmentSetupResData) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s SegmentSetupResData) SetBase(v SegmentBase) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewBase sets the base field to a newly
+// allocated SegmentBase struct, preferring placement in s's segment.
+func (s SegmentSetupResData) NewBase() (SegmentBase, error) {
+	ss, err := NewSegmentBase(s.Struct.Segment())
+	if err != nil {
+		return SegmentBase{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
 func (s SegmentSetupResData) SetUnset() {
 	s.Struct.SetUint16(0, 0)
 
@@ -584,7 +826,7 @@ func (s SegmentSetupResData) Failure() (SegmentSetupReqData, error) {
 	if s.Struct.Uint16(0) != 1 {
 		panic("Which() != failure")
 	}
-	p, err := s.Struct.Ptr(0)
+	p, err := s.Struct.Ptr(1)
 	return SegmentSetupReqData{Struct: p.Struct()}, err
 }
 
@@ -592,13 +834,13 @@ func (s SegmentSetupResData) HasFailure() bool {
 	if s.Struct.Uint16(0) != 1 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
+	p, err := s.Struct.Ptr(1)
 	return p.IsValid() || err != nil
 }
 
 func (s SegmentSetupResData) SetFailure(v SegmentSetupReqData) error {
 	s.Struct.SetUint16(0, 1)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+	return s.Struct.SetPtr(1, v.Struct.ToPtr())
 }
 
 // NewFailure sets the failure field to a newly
@@ -609,7 +851,7 @@ func (s SegmentSetupResData) NewFailure() (SegmentSetupReqData, error) {
 	if err != nil {
 		return SegmentSetupReqData{}, err
 	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	err = s.Struct.SetPtr(1, ss.Struct.ToPtr())
 	return ss, err
 }
 
@@ -617,7 +859,7 @@ func (s SegmentSetupResData) Token() ([]byte, error) {
 	if s.Struct.Uint16(0) != 2 {
 		panic("Which() != token")
 	}
-	p, err := s.Struct.Ptr(0)
+	p, err := s.Struct.Ptr(1)
 	return []byte(p.Data()), err
 }
 
@@ -625,13 +867,13 @@ func (s SegmentSetupResData) HasToken() bool {
 	if s.Struct.Uint16(0) != 2 {
 		return false
 	}
-	p, err := s.Struct.Ptr(0)
+	p, err := s.Struct.Ptr(1)
 	return p.IsValid() || err != nil
 }
 
 func (s SegmentSetupResData) SetToken(v []byte) error {
 	s.Struct.SetUint16(0, 2)
-	return s.Struct.SetData(0, v)
+	return s.Struct.SetData(1, v)
 }
 
 // SegmentSetupResData_List is a list of SegmentSetupResData.
@@ -639,7 +881,7 @@ type SegmentSetupResData_List struct{ capnp.List }
 
 // NewSegmentSetupResData creates a new list of SegmentSetupResData.
 func NewSegmentSetupResData_List(s *capnp.Segment, sz int32) (SegmentSetupResData_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 2}, sz)
 	return SegmentSetupResData_List{l}, err
 }
 
@@ -664,8 +906,12 @@ func (p SegmentSetupResData_Promise) Struct() (SegmentSetupResData, error) {
 	return SegmentSetupResData{s}, err
 }
 
+func (p SegmentSetupResData_Promise) Base() SegmentBase_Promise {
+	return SegmentBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
 func (p SegmentSetupResData_Promise) Failure() SegmentSetupReqData_Promise {
-	return SegmentSetupReqData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+	return SegmentSetupReqData_Promise{Pipeline: p.Pipeline.GetPipeline(1)}
 }
 
 type SegmentTelesSetupData struct{ capnp.Struct }
@@ -787,12 +1033,12 @@ type SegmentTeardownReqData struct{ capnp.Struct }
 const SegmentTeardownReqData_TypeID = 0xa53b4bed5b0bc568
 
 func NewSegmentTeardownReqData(s *capnp.Segment) (SegmentTeardownReqData, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return SegmentTeardownReqData{st}, err
 }
 
 func NewRootSegmentTeardownReqData(s *capnp.Segment) (SegmentTeardownReqData, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return SegmentTeardownReqData{st}, err
 }
 
@@ -806,12 +1052,37 @@ func (s SegmentTeardownReqData) String() string {
 	return str
 }
 
+func (s SegmentTeardownReqData) Base() (SegmentBase, error) {
+	p, err := s.Struct.Ptr(0)
+	return SegmentBase{Struct: p.Struct()}, err
+}
+
+func (s SegmentTeardownReqData) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s SegmentTeardownReqData) SetBase(v SegmentBase) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewBase sets the base field to a newly
+// allocated SegmentBase struct, preferring placement in s's segment.
+func (s SegmentTeardownReqData) NewBase() (SegmentBase, error) {
+	ss, err := NewSegmentBase(s.Struct.Segment())
+	if err != nil {
+		return SegmentBase{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
 // SegmentTeardownReqData_List is a list of SegmentTeardownReqData.
 type SegmentTeardownReqData_List struct{ capnp.List }
 
 // NewSegmentTeardownReqData creates a new list of SegmentTeardownReqData.
 func NewSegmentTeardownReqData_List(s *capnp.Segment, sz int32) (SegmentTeardownReqData_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
 	return SegmentTeardownReqData_List{l}, err
 }
 
@@ -836,18 +1107,22 @@ func (p SegmentTeardownReqData_Promise) Struct() (SegmentTeardownReqData, error)
 	return SegmentTeardownReqData{s}, err
 }
 
+func (p SegmentTeardownReqData_Promise) Base() SegmentBase_Promise {
+	return SegmentBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
 type SegmentTeardownResData struct{ capnp.Struct }
 
 // SegmentTeardownResData_TypeID is the unique identifier for the type SegmentTeardownResData.
 const SegmentTeardownResData_TypeID = 0x8bd6c2ab5c4cf984
 
 func NewSegmentTeardownResData(s *capnp.Segment) (SegmentTeardownResData, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return SegmentTeardownResData{st}, err
 }
 
 func NewRootSegmentTeardownResData(s *capnp.Segment) (SegmentTeardownResData, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return SegmentTeardownResData{st}, err
 }
 
@@ -859,6 +1134,31 @@ func ReadRootSegmentTeardownResData(msg *capnp.Message) (SegmentTeardownResData,
 func (s SegmentTeardownResData) String() string {
 	str, _ := text.Marshal(0x8bd6c2ab5c4cf984, s.Struct)
 	return str
+}
+
+func (s SegmentTeardownResData) Base() (SegmentBase, error) {
+	p, err := s.Struct.Ptr(0)
+	return SegmentBase{Struct: p.Struct()}, err
+}
+
+func (s SegmentTeardownResData) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s SegmentTeardownResData) SetBase(v SegmentBase) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewBase sets the base field to a newly
+// allocated SegmentBase struct, preferring placement in s's segment.
+func (s SegmentTeardownResData) NewBase() (SegmentBase, error) {
+	ss, err := NewSegmentBase(s.Struct.Segment())
+	if err != nil {
+		return SegmentBase{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
 }
 
 func (s SegmentTeardownResData) ErrorCode() uint8 {
@@ -874,7 +1174,7 @@ type SegmentTeardownResData_List struct{ capnp.List }
 
 // NewSegmentTeardownResData creates a new list of SegmentTeardownResData.
 func NewSegmentTeardownResData_List(s *capnp.Segment, sz int32) (SegmentTeardownResData_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
 	return SegmentTeardownResData_List{l}, err
 }
 
@@ -899,18 +1199,22 @@ func (p SegmentTeardownResData_Promise) Struct() (SegmentTeardownResData, error)
 	return SegmentTeardownResData{s}, err
 }
 
+func (p SegmentTeardownResData_Promise) Base() SegmentBase_Promise {
+	return SegmentBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
 type SegmentIndexConfirmationData struct{ capnp.Struct }
 
 // SegmentIndexConfirmationData_TypeID is the unique identifier for the type SegmentIndexConfirmationData.
 const SegmentIndexConfirmationData_TypeID = 0xc4264f5cf728f9ac
 
 func NewSegmentIndexConfirmationData(s *capnp.Segment) (SegmentIndexConfirmationData, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return SegmentIndexConfirmationData{st}, err
 }
 
 func NewRootSegmentIndexConfirmationData(s *capnp.Segment) (SegmentIndexConfirmationData, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
 	return SegmentIndexConfirmationData{st}, err
 }
 
@@ -924,20 +1228,37 @@ func (s SegmentIndexConfirmationData) String() string {
 	return str
 }
 
-func (s SegmentIndexConfirmationData) Index() uint8 {
-	return s.Struct.Uint8(0)
+func (s SegmentIndexConfirmationData) Base() (SegmentBase, error) {
+	p, err := s.Struct.Ptr(0)
+	return SegmentBase{Struct: p.Struct()}, err
 }
 
-func (s SegmentIndexConfirmationData) SetIndex(v uint8) {
-	s.Struct.SetUint8(0, v)
+func (s SegmentIndexConfirmationData) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s SegmentIndexConfirmationData) SetBase(v SegmentBase) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewBase sets the base field to a newly
+// allocated SegmentBase struct, preferring placement in s's segment.
+func (s SegmentIndexConfirmationData) NewBase() (SegmentBase, error) {
+	ss, err := NewSegmentBase(s.Struct.Segment())
+	if err != nil {
+		return SegmentBase{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
 }
 
 func (s SegmentIndexConfirmationData) State() ReservationIndexState {
-	return ReservationIndexState(s.Struct.Uint16(2))
+	return ReservationIndexState(s.Struct.Uint16(0))
 }
 
 func (s SegmentIndexConfirmationData) SetState(v ReservationIndexState) {
-	s.Struct.SetUint16(2, uint16(v))
+	s.Struct.SetUint16(0, uint16(v))
 }
 
 // SegmentIndexConfirmationData_List is a list of SegmentIndexConfirmationData.
@@ -945,7 +1266,7 @@ type SegmentIndexConfirmationData_List struct{ capnp.List }
 
 // NewSegmentIndexConfirmationData creates a new list of SegmentIndexConfirmationData.
 func NewSegmentIndexConfirmationData_List(s *capnp.Segment, sz int32) (SegmentIndexConfirmationData_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
 	return SegmentIndexConfirmationData_List{l}, err
 }
 
@@ -970,18 +1291,114 @@ func (p SegmentIndexConfirmationData_Promise) Struct() (SegmentIndexConfirmation
 	return SegmentIndexConfirmationData{s}, err
 }
 
+func (p SegmentIndexConfirmationData_Promise) Base() SegmentBase_Promise {
+	return SegmentBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+type SegmentIndexConfirmationResData struct{ capnp.Struct }
+
+// SegmentIndexConfirmationResData_TypeID is the unique identifier for the type SegmentIndexConfirmationResData.
+const SegmentIndexConfirmationResData_TypeID = 0xaaff46584917b361
+
+func NewSegmentIndexConfirmationResData(s *capnp.Segment) (SegmentIndexConfirmationResData, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return SegmentIndexConfirmationResData{st}, err
+}
+
+func NewRootSegmentIndexConfirmationResData(s *capnp.Segment) (SegmentIndexConfirmationResData, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return SegmentIndexConfirmationResData{st}, err
+}
+
+func ReadRootSegmentIndexConfirmationResData(msg *capnp.Message) (SegmentIndexConfirmationResData, error) {
+	root, err := msg.RootPtr()
+	return SegmentIndexConfirmationResData{root.Struct()}, err
+}
+
+func (s SegmentIndexConfirmationResData) String() string {
+	str, _ := text.Marshal(0xaaff46584917b361, s.Struct)
+	return str
+}
+
+func (s SegmentIndexConfirmationResData) Base() (SegmentBase, error) {
+	p, err := s.Struct.Ptr(0)
+	return SegmentBase{Struct: p.Struct()}, err
+}
+
+func (s SegmentIndexConfirmationResData) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s SegmentIndexConfirmationResData) SetBase(v SegmentBase) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewBase sets the base field to a newly
+// allocated SegmentBase struct, preferring placement in s's segment.
+func (s SegmentIndexConfirmationResData) NewBase() (SegmentBase, error) {
+	ss, err := NewSegmentBase(s.Struct.Segment())
+	if err != nil {
+		return SegmentBase{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s SegmentIndexConfirmationResData) ErrorCode() uint8 {
+	return s.Struct.Uint8(0)
+}
+
+func (s SegmentIndexConfirmationResData) SetErrorCode(v uint8) {
+	s.Struct.SetUint8(0, v)
+}
+
+// SegmentIndexConfirmationResData_List is a list of SegmentIndexConfirmationResData.
+type SegmentIndexConfirmationResData_List struct{ capnp.List }
+
+// NewSegmentIndexConfirmationResData creates a new list of SegmentIndexConfirmationResData.
+func NewSegmentIndexConfirmationResData_List(s *capnp.Segment, sz int32) (SegmentIndexConfirmationResData_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	return SegmentIndexConfirmationResData_List{l}, err
+}
+
+func (s SegmentIndexConfirmationResData_List) At(i int) SegmentIndexConfirmationResData {
+	return SegmentIndexConfirmationResData{s.List.Struct(i)}
+}
+
+func (s SegmentIndexConfirmationResData_List) Set(i int, v SegmentIndexConfirmationResData) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s SegmentIndexConfirmationResData_List) String() string {
+	str, _ := text.MarshalList(0xaaff46584917b361, s.List)
+	return str
+}
+
+// SegmentIndexConfirmationResData_Promise is a wrapper for a SegmentIndexConfirmationResData promised by a client call.
+type SegmentIndexConfirmationResData_Promise struct{ *capnp.Pipeline }
+
+func (p SegmentIndexConfirmationResData_Promise) Struct() (SegmentIndexConfirmationResData, error) {
+	s, err := p.Pipeline.Struct()
+	return SegmentIndexConfirmationResData{s}, err
+}
+
+func (p SegmentIndexConfirmationResData_Promise) Base() SegmentBase_Promise {
+	return SegmentBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
 type SegmentCleanupData struct{ capnp.Struct }
 
 // SegmentCleanupData_TypeID is the unique identifier for the type SegmentCleanupData.
 const SegmentCleanupData_TypeID = 0xd3e56d3f1e39ca3c
 
 func NewSegmentCleanupData(s *capnp.Segment) (SegmentCleanupData, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return SegmentCleanupData{st}, err
 }
 
 func NewRootSegmentCleanupData(s *capnp.Segment) (SegmentCleanupData, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
 	return SegmentCleanupData{st}, err
 }
 
@@ -995,37 +1412,29 @@ func (s SegmentCleanupData) String() string {
 	return str
 }
 
-func (s SegmentCleanupData) Id() (SegmentReservationID, error) {
+func (s SegmentCleanupData) Base() (SegmentBase, error) {
 	p, err := s.Struct.Ptr(0)
-	return SegmentReservationID{Struct: p.Struct()}, err
+	return SegmentBase{Struct: p.Struct()}, err
 }
 
-func (s SegmentCleanupData) HasId() bool {
+func (s SegmentCleanupData) HasBase() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s SegmentCleanupData) SetId(v SegmentReservationID) error {
+func (s SegmentCleanupData) SetBase(v SegmentBase) error {
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
-// NewId sets the id field to a newly
-// allocated SegmentReservationID struct, preferring placement in s's segment.
-func (s SegmentCleanupData) NewId() (SegmentReservationID, error) {
-	ss, err := NewSegmentReservationID(s.Struct.Segment())
+// NewBase sets the base field to a newly
+// allocated SegmentBase struct, preferring placement in s's segment.
+func (s SegmentCleanupData) NewBase() (SegmentBase, error) {
+	ss, err := NewSegmentBase(s.Struct.Segment())
 	if err != nil {
-		return SegmentReservationID{}, err
+		return SegmentBase{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
-}
-
-func (s SegmentCleanupData) Index() uint8 {
-	return s.Struct.Uint8(0)
-}
-
-func (s SegmentCleanupData) SetIndex(v uint8) {
-	s.Struct.SetUint8(0, v)
 }
 
 // SegmentCleanupData_List is a list of SegmentCleanupData.
@@ -1033,7 +1442,7 @@ type SegmentCleanupData_List struct{ capnp.List }
 
 // NewSegmentCleanupData creates a new list of SegmentCleanupData.
 func NewSegmentCleanupData_List(s *capnp.Segment, sz int32) (SegmentCleanupData_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
 	return SegmentCleanupData_List{l}, err
 }
 
@@ -1058,156 +1467,228 @@ func (p SegmentCleanupData_Promise) Struct() (SegmentCleanupData, error) {
 	return SegmentCleanupData{s}, err
 }
 
-func (p SegmentCleanupData_Promise) Id() SegmentReservationID_Promise {
-	return SegmentReservationID_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p SegmentCleanupData_Promise) Base() SegmentBase_Promise {
+	return SegmentBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-type E2ESetupData struct{ capnp.Struct }
-type E2ESetupData_success E2ESetupData
-type E2ESetupData_failure E2ESetupData
-type E2ESetupData_Which uint16
+type SegmentCleanupResData struct{ capnp.Struct }
 
-const (
-	E2ESetupData_Which_unset   E2ESetupData_Which = 0
-	E2ESetupData_Which_success E2ESetupData_Which = 1
-	E2ESetupData_Which_failure E2ESetupData_Which = 2
-)
+// SegmentCleanupResData_TypeID is the unique identifier for the type SegmentCleanupResData.
+const SegmentCleanupResData_TypeID = 0xa6f94955f188b848
 
-func (w E2ESetupData_Which) String() string {
-	const s = "unsetsuccessfailure"
-	switch w {
-	case E2ESetupData_Which_unset:
-		return s[0:5]
-	case E2ESetupData_Which_success:
-		return s[5:12]
-	case E2ESetupData_Which_failure:
-		return s[12:19]
-
-	}
-	return "E2ESetupData_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+func NewSegmentCleanupResData(s *capnp.Segment) (SegmentCleanupResData, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return SegmentCleanupResData{st}, err
 }
 
-// E2ESetupData_TypeID is the unique identifier for the type E2ESetupData.
-const E2ESetupData_TypeID = 0xeb535c83335d74cf
-
-func NewE2ESetupData(s *capnp.Segment) (E2ESetupData, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
-	return E2ESetupData{st}, err
+func NewRootSegmentCleanupResData(s *capnp.Segment) (SegmentCleanupResData, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return SegmentCleanupResData{st}, err
 }
 
-func NewRootE2ESetupData(s *capnp.Segment) (E2ESetupData, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
-	return E2ESetupData{st}, err
-}
-
-func ReadRootE2ESetupData(msg *capnp.Message) (E2ESetupData, error) {
+func ReadRootSegmentCleanupResData(msg *capnp.Message) (SegmentCleanupResData, error) {
 	root, err := msg.RootPtr()
-	return E2ESetupData{root.Struct()}, err
+	return SegmentCleanupResData{root.Struct()}, err
 }
 
-func (s E2ESetupData) String() string {
-	str, _ := text.Marshal(0xeb535c83335d74cf, s.Struct)
+func (s SegmentCleanupResData) String() string {
+	str, _ := text.Marshal(0xa6f94955f188b848, s.Struct)
 	return str
 }
 
-func (s E2ESetupData) Which() E2ESetupData_Which {
-	return E2ESetupData_Which(s.Struct.Uint16(0))
-}
-func (s E2ESetupData) ReservationID() (E2EReservationID, error) {
+func (s SegmentCleanupResData) Base() (SegmentBase, error) {
 	p, err := s.Struct.Ptr(0)
-	return E2EReservationID{Struct: p.Struct()}, err
+	return SegmentBase{Struct: p.Struct()}, err
 }
 
-func (s E2ESetupData) HasReservationID() bool {
+func (s SegmentCleanupResData) HasBase() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s E2ESetupData) SetReservationID(v E2EReservationID) error {
+func (s SegmentCleanupResData) SetBase(v SegmentBase) error {
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
-// NewReservationID sets the reservationID field to a newly
-// allocated E2EReservationID struct, preferring placement in s's segment.
-func (s E2ESetupData) NewReservationID() (E2EReservationID, error) {
-	ss, err := NewE2EReservationID(s.Struct.Segment())
+// NewBase sets the base field to a newly
+// allocated SegmentBase struct, preferring placement in s's segment.
+func (s SegmentCleanupResData) NewBase() (SegmentBase, error) {
+	ss, err := NewSegmentBase(s.Struct.Segment())
 	if err != nil {
-		return E2EReservationID{}, err
+		return SegmentBase{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
-func (s E2ESetupData) SetUnset() {
-	s.Struct.SetUint16(0, 0)
-
+func (s SegmentCleanupResData) ErrorCode() uint8 {
+	return s.Struct.Uint8(0)
 }
 
-func (s E2ESetupData) Success() E2ESetupData_success { return E2ESetupData_success(s) }
-
-func (s E2ESetupData) SetSuccess() {
-	s.Struct.SetUint16(0, 1)
+func (s SegmentCleanupResData) SetErrorCode(v uint8) {
+	s.Struct.SetUint8(0, v)
 }
 
-func (s E2ESetupData_success) Token() ([]byte, error) {
+// SegmentCleanupResData_List is a list of SegmentCleanupResData.
+type SegmentCleanupResData_List struct{ capnp.List }
+
+// NewSegmentCleanupResData creates a new list of SegmentCleanupResData.
+func NewSegmentCleanupResData_List(s *capnp.Segment, sz int32) (SegmentCleanupResData_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	return SegmentCleanupResData_List{l}, err
+}
+
+func (s SegmentCleanupResData_List) At(i int) SegmentCleanupResData {
+	return SegmentCleanupResData{s.List.Struct(i)}
+}
+
+func (s SegmentCleanupResData_List) Set(i int, v SegmentCleanupResData) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s SegmentCleanupResData_List) String() string {
+	str, _ := text.MarshalList(0xa6f94955f188b848, s.List)
+	return str
+}
+
+// SegmentCleanupResData_Promise is a wrapper for a SegmentCleanupResData promised by a client call.
+type SegmentCleanupResData_Promise struct{ *capnp.Pipeline }
+
+func (p SegmentCleanupResData_Promise) Struct() (SegmentCleanupResData, error) {
+	s, err := p.Pipeline.Struct()
+	return SegmentCleanupResData{s}, err
+}
+
+func (p SegmentCleanupResData_Promise) Base() SegmentBase_Promise {
+	return SegmentBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+type E2ESetupReqData struct{ capnp.Struct }
+type E2ESetupReqData_success E2ESetupReqData
+type E2ESetupReqData_failure E2ESetupReqData
+type E2ESetupReqData_Which uint16
+
+const (
+	E2ESetupReqData_Which_unset   E2ESetupReqData_Which = 0
+	E2ESetupReqData_Which_success E2ESetupReqData_Which = 1
+	E2ESetupReqData_Which_failure E2ESetupReqData_Which = 2
+)
+
+func (w E2ESetupReqData_Which) String() string {
+	const s = "unsetsuccessfailure"
+	switch w {
+	case E2ESetupReqData_Which_unset:
+		return s[0:5]
+	case E2ESetupReqData_Which_success:
+		return s[5:12]
+	case E2ESetupReqData_Which_failure:
+		return s[12:19]
+
+	}
+	return "E2ESetupReqData_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
+
+// E2ESetupReqData_TypeID is the unique identifier for the type E2ESetupReqData.
+const E2ESetupReqData_TypeID = 0xfb1a873660b7e310
+
+func NewE2ESetupReqData(s *capnp.Segment) (E2ESetupReqData, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 4})
+	return E2ESetupReqData{st}, err
+}
+
+func NewRootE2ESetupReqData(s *capnp.Segment) (E2ESetupReqData, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 4})
+	return E2ESetupReqData{st}, err
+}
+
+func ReadRootE2ESetupReqData(msg *capnp.Message) (E2ESetupReqData, error) {
+	root, err := msg.RootPtr()
+	return E2ESetupReqData{root.Struct()}, err
+}
+
+func (s E2ESetupReqData) String() string {
+	str, _ := text.Marshal(0xfb1a873660b7e310, s.Struct)
+	return str
+}
+
+func (s E2ESetupReqData) Which() E2ESetupReqData_Which {
+	return E2ESetupReqData_Which(s.Struct.Uint16(2))
+}
+func (s E2ESetupReqData) Base() (E2EBase, error) {
+	p, err := s.Struct.Ptr(0)
+	return E2EBase{Struct: p.Struct()}, err
+}
+
+func (s E2ESetupReqData) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s E2ESetupReqData) SetBase(v E2EBase) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewBase sets the base field to a newly
+// allocated E2EBase struct, preferring placement in s's segment.
+func (s E2ESetupReqData) NewBase() (E2EBase, error) {
+	ss, err := NewE2EBase(s.Struct.Segment())
+	if err != nil {
+		return E2EBase{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s E2ESetupReqData) SegmentRsvs() (SegmentReservationID_List, error) {
 	p, err := s.Struct.Ptr(1)
-	return []byte(p.Data()), err
+	return SegmentReservationID_List{List: p.List()}, err
 }
 
-func (s E2ESetupData_success) HasToken() bool {
+func (s E2ESetupReqData) HasSegmentRsvs() bool {
 	p, err := s.Struct.Ptr(1)
 	return p.IsValid() || err != nil
 }
 
-func (s E2ESetupData_success) SetToken(v []byte) error {
-	return s.Struct.SetData(1, v)
+func (s E2ESetupReqData) SetSegmentRsvs(v SegmentReservationID_List) error {
+	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
-func (s E2ESetupData) Failure() E2ESetupData_failure { return E2ESetupData_failure(s) }
-
-func (s E2ESetupData) SetFailure() {
-	s.Struct.SetUint16(0, 2)
+// NewSegmentRsvs sets the segmentRsvs field to a newly
+// allocated SegmentReservationID_List, preferring placement in s's segment.
+func (s E2ESetupReqData) NewSegmentRsvs(n int32) (SegmentReservationID_List, error) {
+	l, err := NewSegmentReservationID_List(s.Struct.Segment(), n)
+	if err != nil {
+		return SegmentReservationID_List{}, err
+	}
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
+	return l, err
 }
 
-func (s E2ESetupData_failure) ErrorCode() uint8 {
-	return s.Struct.Uint8(2)
+func (s E2ESetupReqData) RequestedBW() uint8 {
+	return s.Struct.Uint8(0)
 }
 
-func (s E2ESetupData_failure) SetErrorCode(v uint8) {
-	s.Struct.SetUint8(2, v)
+func (s E2ESetupReqData) SetRequestedBW(v uint8) {
+	s.Struct.SetUint8(0, v)
 }
 
-func (s E2ESetupData_failure) InfoField() ([]byte, error) {
-	p, err := s.Struct.Ptr(1)
-	return []byte(p.Data()), err
-}
-
-func (s E2ESetupData_failure) HasInfoField() bool {
-	p, err := s.Struct.Ptr(1)
-	return p.IsValid() || err != nil
-}
-
-func (s E2ESetupData_failure) SetInfoField(v []byte) error {
-	return s.Struct.SetData(1, v)
-}
-
-func (s E2ESetupData_failure) MaxBWs() (capnp.UInt8List, error) {
+func (s E2ESetupReqData) AllocationTrail() (capnp.UInt8List, error) {
 	p, err := s.Struct.Ptr(2)
 	return capnp.UInt8List{List: p.List()}, err
 }
 
-func (s E2ESetupData_failure) HasMaxBWs() bool {
+func (s E2ESetupReqData) HasAllocationTrail() bool {
 	p, err := s.Struct.Ptr(2)
 	return p.IsValid() || err != nil
 }
 
-func (s E2ESetupData_failure) SetMaxBWs(v capnp.UInt8List) error {
+func (s E2ESetupReqData) SetAllocationTrail(v capnp.UInt8List) error {
 	return s.Struct.SetPtr(2, v.List.ToPtr())
 }
 
-// NewMaxBWs sets the maxBWs field to a newly
+// NewAllocationTrail sets the allocationTrail field to a newly
 // allocated capnp.UInt8List, preferring placement in s's segment.
-func (s E2ESetupData_failure) NewMaxBWs(n int32) (capnp.UInt8List, error) {
+func (s E2ESetupReqData) NewAllocationTrail(n int32) (capnp.UInt8List, error) {
 	l, err := capnp.NewUInt8List(s.Struct.Segment(), n)
 	if err != nil {
 		return capnp.UInt8List{}, err
@@ -1216,58 +1697,309 @@ func (s E2ESetupData_failure) NewMaxBWs(n int32) (capnp.UInt8List, error) {
 	return l, err
 }
 
-// E2ESetupData_List is a list of E2ESetupData.
-type E2ESetupData_List struct{ capnp.List }
+func (s E2ESetupReqData) SetUnset() {
+	s.Struct.SetUint16(2, 0)
 
-// NewE2ESetupData creates a new list of E2ESetupData.
-func NewE2ESetupData_List(s *capnp.Segment, sz int32) (E2ESetupData_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3}, sz)
-	return E2ESetupData_List{l}, err
 }
 
-func (s E2ESetupData_List) At(i int) E2ESetupData { return E2ESetupData{s.List.Struct(i)} }
+func (s E2ESetupReqData) Success() E2ESetupReqData_success { return E2ESetupReqData_success(s) }
 
-func (s E2ESetupData_List) Set(i int, v E2ESetupData) error { return s.List.SetStruct(i, v.Struct) }
+func (s E2ESetupReqData) SetSuccess() {
+	s.Struct.SetUint16(2, 1)
+}
 
-func (s E2ESetupData_List) String() string {
-	str, _ := text.MarshalList(0xeb535c83335d74cf, s.List)
+func (s E2ESetupReqData_success) Token() ([]byte, error) {
+	p, err := s.Struct.Ptr(3)
+	return []byte(p.Data()), err
+}
+
+func (s E2ESetupReqData_success) HasToken() bool {
+	p, err := s.Struct.Ptr(3)
+	return p.IsValid() || err != nil
+}
+
+func (s E2ESetupReqData_success) SetToken(v []byte) error {
+	return s.Struct.SetData(3, v)
+}
+
+func (s E2ESetupReqData) Failure() E2ESetupReqData_failure { return E2ESetupReqData_failure(s) }
+
+func (s E2ESetupReqData) SetFailure() {
+	s.Struct.SetUint16(2, 2)
+}
+
+func (s E2ESetupReqData_failure) ErrorCode() uint8 {
+	return s.Struct.Uint8(1)
+}
+
+func (s E2ESetupReqData_failure) SetErrorCode(v uint8) {
+	s.Struct.SetUint8(1, v)
+}
+
+// E2ESetupReqData_List is a list of E2ESetupReqData.
+type E2ESetupReqData_List struct{ capnp.List }
+
+// NewE2ESetupReqData creates a new list of E2ESetupReqData.
+func NewE2ESetupReqData_List(s *capnp.Segment, sz int32) (E2ESetupReqData_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 4}, sz)
+	return E2ESetupReqData_List{l}, err
+}
+
+func (s E2ESetupReqData_List) At(i int) E2ESetupReqData { return E2ESetupReqData{s.List.Struct(i)} }
+
+func (s E2ESetupReqData_List) Set(i int, v E2ESetupReqData) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s E2ESetupReqData_List) String() string {
+	str, _ := text.MarshalList(0xfb1a873660b7e310, s.List)
 	return str
 }
 
-// E2ESetupData_Promise is a wrapper for a E2ESetupData promised by a client call.
-type E2ESetupData_Promise struct{ *capnp.Pipeline }
+// E2ESetupReqData_Promise is a wrapper for a E2ESetupReqData promised by a client call.
+type E2ESetupReqData_Promise struct{ *capnp.Pipeline }
 
-func (p E2ESetupData_Promise) Struct() (E2ESetupData, error) {
+func (p E2ESetupReqData_Promise) Struct() (E2ESetupReqData, error) {
 	s, err := p.Pipeline.Struct()
-	return E2ESetupData{s}, err
+	return E2ESetupReqData{s}, err
 }
 
-func (p E2ESetupData_Promise) ReservationID() E2EReservationID_Promise {
-	return E2EReservationID_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p E2ESetupReqData_Promise) Base() E2EBase_Promise {
+	return E2EBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p E2ESetupData_Promise) Success() E2ESetupData_success_Promise {
-	return E2ESetupData_success_Promise{p.Pipeline}
+func (p E2ESetupReqData_Promise) Success() E2ESetupReqData_success_Promise {
+	return E2ESetupReqData_success_Promise{p.Pipeline}
 }
 
-// E2ESetupData_success_Promise is a wrapper for a E2ESetupData_success promised by a client call.
-type E2ESetupData_success_Promise struct{ *capnp.Pipeline }
+// E2ESetupReqData_success_Promise is a wrapper for a E2ESetupReqData_success promised by a client call.
+type E2ESetupReqData_success_Promise struct{ *capnp.Pipeline }
 
-func (p E2ESetupData_success_Promise) Struct() (E2ESetupData_success, error) {
+func (p E2ESetupReqData_success_Promise) Struct() (E2ESetupReqData_success, error) {
 	s, err := p.Pipeline.Struct()
-	return E2ESetupData_success{s}, err
+	return E2ESetupReqData_success{s}, err
 }
 
-func (p E2ESetupData_Promise) Failure() E2ESetupData_failure_Promise {
-	return E2ESetupData_failure_Promise{p.Pipeline}
+func (p E2ESetupReqData_Promise) Failure() E2ESetupReqData_failure_Promise {
+	return E2ESetupReqData_failure_Promise{p.Pipeline}
 }
 
-// E2ESetupData_failure_Promise is a wrapper for a E2ESetupData_failure promised by a client call.
-type E2ESetupData_failure_Promise struct{ *capnp.Pipeline }
+// E2ESetupReqData_failure_Promise is a wrapper for a E2ESetupReqData_failure promised by a client call.
+type E2ESetupReqData_failure_Promise struct{ *capnp.Pipeline }
 
-func (p E2ESetupData_failure_Promise) Struct() (E2ESetupData_failure, error) {
+func (p E2ESetupReqData_failure_Promise) Struct() (E2ESetupReqData_failure, error) {
 	s, err := p.Pipeline.Struct()
-	return E2ESetupData_failure{s}, err
+	return E2ESetupReqData_failure{s}, err
+}
+
+type E2ESetupResData struct{ capnp.Struct }
+type E2ESetupResData_success E2ESetupResData
+type E2ESetupResData_failure E2ESetupResData
+type E2ESetupResData_Which uint16
+
+const (
+	E2ESetupResData_Which_unset   E2ESetupResData_Which = 0
+	E2ESetupResData_Which_success E2ESetupResData_Which = 1
+	E2ESetupResData_Which_failure E2ESetupResData_Which = 2
+)
+
+func (w E2ESetupResData_Which) String() string {
+	const s = "unsetsuccessfailure"
+	switch w {
+	case E2ESetupResData_Which_unset:
+		return s[0:5]
+	case E2ESetupResData_Which_success:
+		return s[5:12]
+	case E2ESetupResData_Which_failure:
+		return s[12:19]
+
+	}
+	return "E2ESetupResData_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
+}
+
+// E2ESetupResData_TypeID is the unique identifier for the type E2ESetupResData.
+const E2ESetupResData_TypeID = 0xb65a7701e86386b2
+
+func NewE2ESetupResData(s *capnp.Segment) (E2ESetupResData, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
+	return E2ESetupResData{st}, err
+}
+
+func NewRootE2ESetupResData(s *capnp.Segment) (E2ESetupResData, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
+	return E2ESetupResData{st}, err
+}
+
+func ReadRootE2ESetupResData(msg *capnp.Message) (E2ESetupResData, error) {
+	root, err := msg.RootPtr()
+	return E2ESetupResData{root.Struct()}, err
+}
+
+func (s E2ESetupResData) String() string {
+	str, _ := text.Marshal(0xb65a7701e86386b2, s.Struct)
+	return str
+}
+
+func (s E2ESetupResData) Which() E2ESetupResData_Which {
+	return E2ESetupResData_Which(s.Struct.Uint16(0))
+}
+func (s E2ESetupResData) Base() (E2EBase, error) {
+	p, err := s.Struct.Ptr(0)
+	return E2EBase{Struct: p.Struct()}, err
+}
+
+func (s E2ESetupResData) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s E2ESetupResData) SetBase(v E2EBase) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewBase sets the base field to a newly
+// allocated E2EBase struct, preferring placement in s's segment.
+func (s E2ESetupResData) NewBase() (E2EBase, error) {
+	ss, err := NewE2EBase(s.Struct.Segment())
+	if err != nil {
+		return E2EBase{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s E2ESetupResData) SetUnset() {
+	s.Struct.SetUint16(0, 0)
+
+}
+
+func (s E2ESetupResData) Success() E2ESetupResData_success { return E2ESetupResData_success(s) }
+
+func (s E2ESetupResData) SetSuccess() {
+	s.Struct.SetUint16(0, 1)
+}
+
+func (s E2ESetupResData_success) Token() ([]byte, error) {
+	p, err := s.Struct.Ptr(1)
+	return []byte(p.Data()), err
+}
+
+func (s E2ESetupResData_success) HasToken() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s E2ESetupResData_success) SetToken(v []byte) error {
+	return s.Struct.SetData(1, v)
+}
+
+func (s E2ESetupResData) Failure() E2ESetupResData_failure { return E2ESetupResData_failure(s) }
+
+func (s E2ESetupResData) SetFailure() {
+	s.Struct.SetUint16(0, 2)
+}
+
+func (s E2ESetupResData_failure) ErrorCode() uint8 {
+	return s.Struct.Uint8(2)
+}
+
+func (s E2ESetupResData_failure) SetErrorCode(v uint8) {
+	s.Struct.SetUint8(2, v)
+}
+
+func (s E2ESetupResData_failure) InfoField() ([]byte, error) {
+	p, err := s.Struct.Ptr(1)
+	return []byte(p.Data()), err
+}
+
+func (s E2ESetupResData_failure) HasInfoField() bool {
+	p, err := s.Struct.Ptr(1)
+	return p.IsValid() || err != nil
+}
+
+func (s E2ESetupResData_failure) SetInfoField(v []byte) error {
+	return s.Struct.SetData(1, v)
+}
+
+func (s E2ESetupResData_failure) AllocationTrail() (capnp.UInt8List, error) {
+	p, err := s.Struct.Ptr(2)
+	return capnp.UInt8List{List: p.List()}, err
+}
+
+func (s E2ESetupResData_failure) HasAllocationTrail() bool {
+	p, err := s.Struct.Ptr(2)
+	return p.IsValid() || err != nil
+}
+
+func (s E2ESetupResData_failure) SetAllocationTrail(v capnp.UInt8List) error {
+	return s.Struct.SetPtr(2, v.List.ToPtr())
+}
+
+// NewAllocationTrail sets the allocationTrail field to a newly
+// allocated capnp.UInt8List, preferring placement in s's segment.
+func (s E2ESetupResData_failure) NewAllocationTrail(n int32) (capnp.UInt8List, error) {
+	l, err := capnp.NewUInt8List(s.Struct.Segment(), n)
+	if err != nil {
+		return capnp.UInt8List{}, err
+	}
+	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	return l, err
+}
+
+// E2ESetupResData_List is a list of E2ESetupResData.
+type E2ESetupResData_List struct{ capnp.List }
+
+// NewE2ESetupResData creates a new list of E2ESetupResData.
+func NewE2ESetupResData_List(s *capnp.Segment, sz int32) (E2ESetupResData_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3}, sz)
+	return E2ESetupResData_List{l}, err
+}
+
+func (s E2ESetupResData_List) At(i int) E2ESetupResData { return E2ESetupResData{s.List.Struct(i)} }
+
+func (s E2ESetupResData_List) Set(i int, v E2ESetupResData) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s E2ESetupResData_List) String() string {
+	str, _ := text.MarshalList(0xb65a7701e86386b2, s.List)
+	return str
+}
+
+// E2ESetupResData_Promise is a wrapper for a E2ESetupResData promised by a client call.
+type E2ESetupResData_Promise struct{ *capnp.Pipeline }
+
+func (p E2ESetupResData_Promise) Struct() (E2ESetupResData, error) {
+	s, err := p.Pipeline.Struct()
+	return E2ESetupResData{s}, err
+}
+
+func (p E2ESetupResData_Promise) Base() E2EBase_Promise {
+	return E2EBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+func (p E2ESetupResData_Promise) Success() E2ESetupResData_success_Promise {
+	return E2ESetupResData_success_Promise{p.Pipeline}
+}
+
+// E2ESetupResData_success_Promise is a wrapper for a E2ESetupResData_success promised by a client call.
+type E2ESetupResData_success_Promise struct{ *capnp.Pipeline }
+
+func (p E2ESetupResData_success_Promise) Struct() (E2ESetupResData_success, error) {
+	s, err := p.Pipeline.Struct()
+	return E2ESetupResData_success{s}, err
+}
+
+func (p E2ESetupResData_Promise) Failure() E2ESetupResData_failure_Promise {
+	return E2ESetupResData_failure_Promise{p.Pipeline}
+}
+
+// E2ESetupResData_failure_Promise is a wrapper for a E2ESetupResData_failure promised by a client call.
+type E2ESetupResData_failure_Promise struct{ *capnp.Pipeline }
+
+func (p E2ESetupResData_failure_Promise) Struct() (E2ESetupResData_failure, error) {
+	s, err := p.Pipeline.Struct()
+	return E2ESetupResData_failure{s}, err
 }
 
 type E2ECleanupData struct{ capnp.Struct }
@@ -1295,26 +2027,26 @@ func (s E2ECleanupData) String() string {
 	return str
 }
 
-func (s E2ECleanupData) ReservationID() (E2EReservationID, error) {
+func (s E2ECleanupData) Base() (E2EBase, error) {
 	p, err := s.Struct.Ptr(0)
-	return E2EReservationID{Struct: p.Struct()}, err
+	return E2EBase{Struct: p.Struct()}, err
 }
 
-func (s E2ECleanupData) HasReservationID() bool {
+func (s E2ECleanupData) HasBase() bool {
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s E2ECleanupData) SetReservationID(v E2EReservationID) error {
+func (s E2ECleanupData) SetBase(v E2EBase) error {
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
-// NewReservationID sets the reservationID field to a newly
-// allocated E2EReservationID struct, preferring placement in s's segment.
-func (s E2ECleanupData) NewReservationID() (E2EReservationID, error) {
-	ss, err := NewE2EReservationID(s.Struct.Segment())
+// NewBase sets the base field to a newly
+// allocated E2EBase struct, preferring placement in s's segment.
+func (s E2ECleanupData) NewBase() (E2EBase, error) {
+	ss, err := NewE2EBase(s.Struct.Segment())
 	if err != nil {
-		return E2EReservationID{}, err
+		return E2EBase{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
@@ -1346,8 +2078,100 @@ func (p E2ECleanupData_Promise) Struct() (E2ECleanupData, error) {
 	return E2ECleanupData{s}, err
 }
 
-func (p E2ECleanupData_Promise) ReservationID() E2EReservationID_Promise {
-	return E2EReservationID_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p E2ECleanupData_Promise) Base() E2EBase_Promise {
+	return E2EBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+}
+
+type E2ECleanupResData struct{ capnp.Struct }
+
+// E2ECleanupResData_TypeID is the unique identifier for the type E2ECleanupResData.
+const E2ECleanupResData_TypeID = 0xe04f6146370056c9
+
+func NewE2ECleanupResData(s *capnp.Segment) (E2ECleanupResData, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return E2ECleanupResData{st}, err
+}
+
+func NewRootE2ECleanupResData(s *capnp.Segment) (E2ECleanupResData, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1})
+	return E2ECleanupResData{st}, err
+}
+
+func ReadRootE2ECleanupResData(msg *capnp.Message) (E2ECleanupResData, error) {
+	root, err := msg.RootPtr()
+	return E2ECleanupResData{root.Struct()}, err
+}
+
+func (s E2ECleanupResData) String() string {
+	str, _ := text.Marshal(0xe04f6146370056c9, s.Struct)
+	return str
+}
+
+func (s E2ECleanupResData) Base() (E2EBase, error) {
+	p, err := s.Struct.Ptr(0)
+	return E2EBase{Struct: p.Struct()}, err
+}
+
+func (s E2ECleanupResData) HasBase() bool {
+	p, err := s.Struct.Ptr(0)
+	return p.IsValid() || err != nil
+}
+
+func (s E2ECleanupResData) SetBase(v E2EBase) error {
+	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+}
+
+// NewBase sets the base field to a newly
+// allocated E2EBase struct, preferring placement in s's segment.
+func (s E2ECleanupResData) NewBase() (E2EBase, error) {
+	ss, err := NewE2EBase(s.Struct.Segment())
+	if err != nil {
+		return E2EBase{}, err
+	}
+	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
+	return ss, err
+}
+
+func (s E2ECleanupResData) ErrorCode() uint8 {
+	return s.Struct.Uint8(0)
+}
+
+func (s E2ECleanupResData) SetErrorCode(v uint8) {
+	s.Struct.SetUint8(0, v)
+}
+
+// E2ECleanupResData_List is a list of E2ECleanupResData.
+type E2ECleanupResData_List struct{ capnp.List }
+
+// NewE2ECleanupResData creates a new list of E2ECleanupResData.
+func NewE2ECleanupResData_List(s *capnp.Segment, sz int32) (E2ECleanupResData_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 1}, sz)
+	return E2ECleanupResData_List{l}, err
+}
+
+func (s E2ECleanupResData_List) At(i int) E2ECleanupResData {
+	return E2ECleanupResData{s.List.Struct(i)}
+}
+
+func (s E2ECleanupResData_List) Set(i int, v E2ECleanupResData) error {
+	return s.List.SetStruct(i, v.Struct)
+}
+
+func (s E2ECleanupResData_List) String() string {
+	str, _ := text.MarshalList(0xe04f6146370056c9, s.List)
+	return str
+}
+
+// E2ECleanupResData_Promise is a wrapper for a E2ECleanupResData promised by a client call.
+type E2ECleanupResData_Promise struct{ *capnp.Pipeline }
+
+func (p E2ECleanupResData_Promise) Struct() (E2ECleanupResData, error) {
+	s, err := p.Pipeline.Struct()
+	return E2ECleanupResData{s}, err
+}
+
+func (p E2ECleanupResData_Promise) Base() E2EBase_Promise {
+	return E2EBase_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
 type Request struct{ capnp.Struct }
@@ -1659,12 +2483,12 @@ func (s Request) NewSegmentCleanup() (SegmentCleanupData, error) {
 	return ss, err
 }
 
-func (s Request) E2eSetup() (E2ESetupData, error) {
+func (s Request) E2eSetup() (E2ESetupReqData, error) {
 	if s.Struct.Uint16(0) != 8 {
 		panic("Which() != e2eSetup")
 	}
 	p, err := s.Struct.Ptr(0)
-	return E2ESetupData{Struct: p.Struct()}, err
+	return E2ESetupReqData{Struct: p.Struct()}, err
 }
 
 func (s Request) HasE2eSetup() bool {
@@ -1675,29 +2499,29 @@ func (s Request) HasE2eSetup() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Request) SetE2eSetup(v E2ESetupData) error {
+func (s Request) SetE2eSetup(v E2ESetupReqData) error {
 	s.Struct.SetUint16(0, 8)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewE2eSetup sets the e2eSetup field to a newly
-// allocated E2ESetupData struct, preferring placement in s's segment.
-func (s Request) NewE2eSetup() (E2ESetupData, error) {
+// allocated E2ESetupReqData struct, preferring placement in s's segment.
+func (s Request) NewE2eSetup() (E2ESetupReqData, error) {
 	s.Struct.SetUint16(0, 8)
-	ss, err := NewE2ESetupData(s.Struct.Segment())
+	ss, err := NewE2ESetupReqData(s.Struct.Segment())
 	if err != nil {
-		return E2ESetupData{}, err
+		return E2ESetupReqData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
-func (s Request) E2eRenewal() (E2ESetupData, error) {
+func (s Request) E2eRenewal() (E2ESetupReqData, error) {
 	if s.Struct.Uint16(0) != 9 {
 		panic("Which() != e2eRenewal")
 	}
 	p, err := s.Struct.Ptr(0)
-	return E2ESetupData{Struct: p.Struct()}, err
+	return E2ESetupReqData{Struct: p.Struct()}, err
 }
 
 func (s Request) HasE2eRenewal() bool {
@@ -1708,18 +2532,18 @@ func (s Request) HasE2eRenewal() bool {
 	return p.IsValid() || err != nil
 }
 
-func (s Request) SetE2eRenewal(v E2ESetupData) error {
+func (s Request) SetE2eRenewal(v E2ESetupReqData) error {
 	s.Struct.SetUint16(0, 9)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewE2eRenewal sets the e2eRenewal field to a newly
-// allocated E2ESetupData struct, preferring placement in s's segment.
-func (s Request) NewE2eRenewal() (E2ESetupData, error) {
+// allocated E2ESetupReqData struct, preferring placement in s's segment.
+func (s Request) NewE2eRenewal() (E2ESetupReqData, error) {
 	s.Struct.SetUint16(0, 9)
-	ss, err := NewE2ESetupData(s.Struct.Segment())
+	ss, err := NewE2ESetupReqData(s.Struct.Segment())
 	if err != nil {
-		return E2ESetupData{}, err
+		return E2ESetupReqData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
@@ -1812,12 +2636,12 @@ func (p Request_Promise) SegmentCleanup() SegmentCleanupData_Promise {
 	return SegmentCleanupData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Request_Promise) E2eSetup() E2ESetupData_Promise {
-	return E2ESetupData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Request_Promise) E2eSetup() E2ESetupReqData_Promise {
+	return E2ESetupReqData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Request_Promise) E2eRenewal() E2ESetupData_Promise {
-	return E2ESetupData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Request_Promise) E2eRenewal() E2ESetupReqData_Promise {
+	return E2ESetupReqData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
 func (p Request_Promise) E2eCleanup() E2ECleanupData_Promise {
@@ -1831,18 +2655,16 @@ const (
 	Response_Which_unset                    Response_Which = 0
 	Response_Which_segmentSetup             Response_Which = 1
 	Response_Which_segmentRenewal           Response_Which = 2
-	Response_Which_segmentTelesSetup        Response_Which = 3
-	Response_Which_segmentTelesRenewal      Response_Which = 4
-	Response_Which_segmentTeardown          Response_Which = 5
-	Response_Which_segmentIndexConfirmation Response_Which = 6
-	Response_Which_segmentCleanup           Response_Which = 7
-	Response_Which_e2eSetup                 Response_Which = 8
-	Response_Which_e2eRenewal               Response_Which = 9
-	Response_Which_e2eCleanup               Response_Which = 10
+	Response_Which_segmentTeardown          Response_Which = 3
+	Response_Which_segmentIndexConfirmation Response_Which = 4
+	Response_Which_segmentCleanup           Response_Which = 5
+	Response_Which_e2eSetup                 Response_Which = 6
+	Response_Which_e2eRenewal               Response_Which = 7
+	Response_Which_e2eCleanup               Response_Which = 8
 )
 
 func (w Response_Which) String() string {
-	const s = "unsetsegmentSetupsegmentRenewalsegmentTelesSetupsegmentTelesRenewalsegmentTeardownsegmentIndexConfirmationsegmentCleanupe2eSetupe2eRenewale2eCleanup"
+	const s = "unsetsegmentSetupsegmentRenewalsegmentTeardownsegmentIndexConfirmationsegmentCleanupe2eSetupe2eRenewale2eCleanup"
 	switch w {
 	case Response_Which_unset:
 		return s[0:5]
@@ -1850,22 +2672,18 @@ func (w Response_Which) String() string {
 		return s[5:17]
 	case Response_Which_segmentRenewal:
 		return s[17:31]
-	case Response_Which_segmentTelesSetup:
-		return s[31:48]
-	case Response_Which_segmentTelesRenewal:
-		return s[48:67]
 	case Response_Which_segmentTeardown:
-		return s[67:82]
+		return s[31:46]
 	case Response_Which_segmentIndexConfirmation:
-		return s[82:106]
+		return s[46:70]
 	case Response_Which_segmentCleanup:
-		return s[106:120]
+		return s[70:84]
 	case Response_Which_e2eSetup:
-		return s[120:128]
+		return s[84:92]
 	case Response_Which_e2eRenewal:
-		return s[128:138]
+		return s[92:102]
 	case Response_Which_e2eCleanup:
-		return s[138:148]
+		return s[102:112]
 
 	}
 	return "Response_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -1968,74 +2786,8 @@ func (s Response) NewSegmentRenewal() (SegmentSetupResData, error) {
 	return ss, err
 }
 
-func (s Response) SegmentTelesSetup() (SegmentSetupResData, error) {
-	if s.Struct.Uint16(0) != 3 {
-		panic("Which() != segmentTelesSetup")
-	}
-	p, err := s.Struct.Ptr(0)
-	return SegmentSetupResData{Struct: p.Struct()}, err
-}
-
-func (s Response) HasSegmentTelesSetup() bool {
-	if s.Struct.Uint16(0) != 3 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s Response) SetSegmentTelesSetup(v SegmentSetupResData) error {
-	s.Struct.SetUint16(0, 3)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
-
-// NewSegmentTelesSetup sets the segmentTelesSetup field to a newly
-// allocated SegmentSetupResData struct, preferring placement in s's segment.
-func (s Response) NewSegmentTelesSetup() (SegmentSetupResData, error) {
-	s.Struct.SetUint16(0, 3)
-	ss, err := NewSegmentSetupResData(s.Struct.Segment())
-	if err != nil {
-		return SegmentSetupResData{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
-func (s Response) SegmentTelesRenewal() (SegmentSetupResData, error) {
-	if s.Struct.Uint16(0) != 4 {
-		panic("Which() != segmentTelesRenewal")
-	}
-	p, err := s.Struct.Ptr(0)
-	return SegmentSetupResData{Struct: p.Struct()}, err
-}
-
-func (s Response) HasSegmentTelesRenewal() bool {
-	if s.Struct.Uint16(0) != 4 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s Response) SetSegmentTelesRenewal(v SegmentSetupResData) error {
-	s.Struct.SetUint16(0, 4)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
-
-// NewSegmentTelesRenewal sets the segmentTelesRenewal field to a newly
-// allocated SegmentSetupResData struct, preferring placement in s's segment.
-func (s Response) NewSegmentTelesRenewal() (SegmentSetupResData, error) {
-	s.Struct.SetUint16(0, 4)
-	ss, err := NewSegmentSetupResData(s.Struct.Segment())
-	if err != nil {
-		return SegmentSetupResData{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
 func (s Response) SegmentTeardown() (SegmentTeardownResData, error) {
-	if s.Struct.Uint16(0) != 5 {
+	if s.Struct.Uint16(0) != 3 {
 		panic("Which() != segmentTeardown")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -2043,7 +2795,7 @@ func (s Response) SegmentTeardown() (SegmentTeardownResData, error) {
 }
 
 func (s Response) HasSegmentTeardown() bool {
-	if s.Struct.Uint16(0) != 5 {
+	if s.Struct.Uint16(0) != 3 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -2051,14 +2803,14 @@ func (s Response) HasSegmentTeardown() bool {
 }
 
 func (s Response) SetSegmentTeardown(v SegmentTeardownResData) error {
-	s.Struct.SetUint16(0, 5)
+	s.Struct.SetUint16(0, 3)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSegmentTeardown sets the segmentTeardown field to a newly
 // allocated SegmentTeardownResData struct, preferring placement in s's segment.
 func (s Response) NewSegmentTeardown() (SegmentTeardownResData, error) {
-	s.Struct.SetUint16(0, 5)
+	s.Struct.SetUint16(0, 3)
 	ss, err := NewSegmentTeardownResData(s.Struct.Segment())
 	if err != nil {
 		return SegmentTeardownResData{}, err
@@ -2067,166 +2819,166 @@ func (s Response) NewSegmentTeardown() (SegmentTeardownResData, error) {
 	return ss, err
 }
 
-func (s Response) SegmentIndexConfirmation() (SegmentIndexConfirmationData, error) {
-	if s.Struct.Uint16(0) != 6 {
+func (s Response) SegmentIndexConfirmation() (SegmentIndexConfirmationResData, error) {
+	if s.Struct.Uint16(0) != 4 {
 		panic("Which() != segmentIndexConfirmation")
 	}
 	p, err := s.Struct.Ptr(0)
-	return SegmentIndexConfirmationData{Struct: p.Struct()}, err
+	return SegmentIndexConfirmationResData{Struct: p.Struct()}, err
 }
 
 func (s Response) HasSegmentIndexConfirmation() bool {
-	if s.Struct.Uint16(0) != 6 {
+	if s.Struct.Uint16(0) != 4 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s Response) SetSegmentIndexConfirmation(v SegmentIndexConfirmationData) error {
-	s.Struct.SetUint16(0, 6)
+func (s Response) SetSegmentIndexConfirmation(v SegmentIndexConfirmationResData) error {
+	s.Struct.SetUint16(0, 4)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSegmentIndexConfirmation sets the segmentIndexConfirmation field to a newly
-// allocated SegmentIndexConfirmationData struct, preferring placement in s's segment.
-func (s Response) NewSegmentIndexConfirmation() (SegmentIndexConfirmationData, error) {
-	s.Struct.SetUint16(0, 6)
-	ss, err := NewSegmentIndexConfirmationData(s.Struct.Segment())
+// allocated SegmentIndexConfirmationResData struct, preferring placement in s's segment.
+func (s Response) NewSegmentIndexConfirmation() (SegmentIndexConfirmationResData, error) {
+	s.Struct.SetUint16(0, 4)
+	ss, err := NewSegmentIndexConfirmationResData(s.Struct.Segment())
 	if err != nil {
-		return SegmentIndexConfirmationData{}, err
+		return SegmentIndexConfirmationResData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
-func (s Response) SegmentCleanup() (SegmentCleanupData, error) {
-	if s.Struct.Uint16(0) != 7 {
+func (s Response) SegmentCleanup() (SegmentCleanupResData, error) {
+	if s.Struct.Uint16(0) != 5 {
 		panic("Which() != segmentCleanup")
 	}
 	p, err := s.Struct.Ptr(0)
-	return SegmentCleanupData{Struct: p.Struct()}, err
+	return SegmentCleanupResData{Struct: p.Struct()}, err
 }
 
 func (s Response) HasSegmentCleanup() bool {
-	if s.Struct.Uint16(0) != 7 {
+	if s.Struct.Uint16(0) != 5 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s Response) SetSegmentCleanup(v SegmentCleanupData) error {
-	s.Struct.SetUint16(0, 7)
+func (s Response) SetSegmentCleanup(v SegmentCleanupResData) error {
+	s.Struct.SetUint16(0, 5)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSegmentCleanup sets the segmentCleanup field to a newly
-// allocated SegmentCleanupData struct, preferring placement in s's segment.
-func (s Response) NewSegmentCleanup() (SegmentCleanupData, error) {
-	s.Struct.SetUint16(0, 7)
-	ss, err := NewSegmentCleanupData(s.Struct.Segment())
+// allocated SegmentCleanupResData struct, preferring placement in s's segment.
+func (s Response) NewSegmentCleanup() (SegmentCleanupResData, error) {
+	s.Struct.SetUint16(0, 5)
+	ss, err := NewSegmentCleanupResData(s.Struct.Segment())
 	if err != nil {
-		return SegmentCleanupData{}, err
+		return SegmentCleanupResData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
-func (s Response) E2eSetup() (E2ESetupData, error) {
-	if s.Struct.Uint16(0) != 8 {
+func (s Response) E2eSetup() (E2ESetupResData, error) {
+	if s.Struct.Uint16(0) != 6 {
 		panic("Which() != e2eSetup")
 	}
 	p, err := s.Struct.Ptr(0)
-	return E2ESetupData{Struct: p.Struct()}, err
+	return E2ESetupResData{Struct: p.Struct()}, err
 }
 
 func (s Response) HasE2eSetup() bool {
-	if s.Struct.Uint16(0) != 8 {
+	if s.Struct.Uint16(0) != 6 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s Response) SetE2eSetup(v E2ESetupData) error {
-	s.Struct.SetUint16(0, 8)
+func (s Response) SetE2eSetup(v E2ESetupResData) error {
+	s.Struct.SetUint16(0, 6)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewE2eSetup sets the e2eSetup field to a newly
-// allocated E2ESetupData struct, preferring placement in s's segment.
-func (s Response) NewE2eSetup() (E2ESetupData, error) {
-	s.Struct.SetUint16(0, 8)
-	ss, err := NewE2ESetupData(s.Struct.Segment())
+// allocated E2ESetupResData struct, preferring placement in s's segment.
+func (s Response) NewE2eSetup() (E2ESetupResData, error) {
+	s.Struct.SetUint16(0, 6)
+	ss, err := NewE2ESetupResData(s.Struct.Segment())
 	if err != nil {
-		return E2ESetupData{}, err
+		return E2ESetupResData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
-func (s Response) E2eRenewal() (E2ESetupData, error) {
-	if s.Struct.Uint16(0) != 9 {
+func (s Response) E2eRenewal() (E2ESetupResData, error) {
+	if s.Struct.Uint16(0) != 7 {
 		panic("Which() != e2eRenewal")
 	}
 	p, err := s.Struct.Ptr(0)
-	return E2ESetupData{Struct: p.Struct()}, err
+	return E2ESetupResData{Struct: p.Struct()}, err
 }
 
 func (s Response) HasE2eRenewal() bool {
-	if s.Struct.Uint16(0) != 9 {
+	if s.Struct.Uint16(0) != 7 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s Response) SetE2eRenewal(v E2ESetupData) error {
-	s.Struct.SetUint16(0, 9)
+func (s Response) SetE2eRenewal(v E2ESetupResData) error {
+	s.Struct.SetUint16(0, 7)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewE2eRenewal sets the e2eRenewal field to a newly
-// allocated E2ESetupData struct, preferring placement in s's segment.
-func (s Response) NewE2eRenewal() (E2ESetupData, error) {
-	s.Struct.SetUint16(0, 9)
-	ss, err := NewE2ESetupData(s.Struct.Segment())
+// allocated E2ESetupResData struct, preferring placement in s's segment.
+func (s Response) NewE2eRenewal() (E2ESetupResData, error) {
+	s.Struct.SetUint16(0, 7)
+	ss, err := NewE2ESetupResData(s.Struct.Segment())
 	if err != nil {
-		return E2ESetupData{}, err
+		return E2ESetupResData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
 }
 
-func (s Response) E2eCleanup() (E2ECleanupData, error) {
-	if s.Struct.Uint16(0) != 10 {
+func (s Response) E2eCleanup() (E2ECleanupResData, error) {
+	if s.Struct.Uint16(0) != 8 {
 		panic("Which() != e2eCleanup")
 	}
 	p, err := s.Struct.Ptr(0)
-	return E2ECleanupData{Struct: p.Struct()}, err
+	return E2ECleanupResData{Struct: p.Struct()}, err
 }
 
 func (s Response) HasE2eCleanup() bool {
-	if s.Struct.Uint16(0) != 10 {
+	if s.Struct.Uint16(0) != 8 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
-func (s Response) SetE2eCleanup(v E2ECleanupData) error {
-	s.Struct.SetUint16(0, 10)
+func (s Response) SetE2eCleanup(v E2ECleanupResData) error {
+	s.Struct.SetUint16(0, 8)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewE2eCleanup sets the e2eCleanup field to a newly
-// allocated E2ECleanupData struct, preferring placement in s's segment.
-func (s Response) NewE2eCleanup() (E2ECleanupData, error) {
-	s.Struct.SetUint16(0, 10)
-	ss, err := NewE2ECleanupData(s.Struct.Segment())
+// allocated E2ECleanupResData struct, preferring placement in s's segment.
+func (s Response) NewE2eCleanup() (E2ECleanupResData, error) {
+	s.Struct.SetUint16(0, 8)
+	ss, err := NewE2ECleanupResData(s.Struct.Segment())
 	if err != nil {
-		return E2ECleanupData{}, err
+		return E2ECleanupResData{}, err
 	}
 	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
 	return ss, err
@@ -2282,36 +3034,28 @@ func (p Response_Promise) SegmentRenewal() SegmentSetupResData_Promise {
 	return SegmentSetupResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Response_Promise) SegmentTelesSetup() SegmentSetupResData_Promise {
-	return SegmentSetupResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p Response_Promise) SegmentTelesRenewal() SegmentSetupResData_Promise {
-	return SegmentSetupResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
 func (p Response_Promise) SegmentTeardown() SegmentTeardownResData_Promise {
 	return SegmentTeardownResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Response_Promise) SegmentIndexConfirmation() SegmentIndexConfirmationData_Promise {
-	return SegmentIndexConfirmationData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Response_Promise) SegmentIndexConfirmation() SegmentIndexConfirmationResData_Promise {
+	return SegmentIndexConfirmationResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Response_Promise) SegmentCleanup() SegmentCleanupData_Promise {
-	return SegmentCleanupData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Response_Promise) SegmentCleanup() SegmentCleanupResData_Promise {
+	return SegmentCleanupResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Response_Promise) E2eSetup() E2ESetupData_Promise {
-	return E2ESetupData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Response_Promise) E2eSetup() E2ESetupResData_Promise {
+	return E2ESetupResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Response_Promise) E2eRenewal() E2ESetupData_Promise {
-	return E2ESetupData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Response_Promise) E2eRenewal() E2ESetupResData_Promise {
+	return E2ESetupResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p Response_Promise) E2eCleanup() E2ECleanupData_Promise {
-	return E2ECleanupData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
+func (p Response_Promise) E2eCleanup() E2ECleanupResData_Promise {
+	return E2ECleanupResData_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
 type ColibriRequestPayload struct{ capnp.Struct }
@@ -2480,146 +3224,177 @@ func (p ColibriRequestPayload_Promise) Response() Response_Promise {
 	return Response_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-const schema_a3bf9fed859570f0 = "x\xda\xd4Wm\x8cTW\xf9\x7f\x9es\xe6maw" +
-	"g\x86;M\xf9\xf3O\\KJ\xb3\x10\x0at\x97\xa8" +
-	" \xed\xd4\xdd\x1de+\xd593\xbb)E6\xe5\xb2" +
-	"s\xb6\\\x9d\xb9w\xe6\xde\xbb]j\x8aT\xc4D\x82" +
-	"\x8amZ\xad\x1f\xacPi,\xbaI\x8b\xa9Ii\xa8" +
-	"o)\x81\xbe\x18c\xacV\x1b\x8d\x1am\x9aX1\x85" +
-	"\xa4\xd4-\x96k\x9e33\xf7\xce\xab\xcb\x07\xbf\xf8m" +
-	"\xf7<\xbfy\xces\x9f\xdf\xefy9\x1b\xfa\xc3\xb7\xb2" +
-	"\x9b\xc2G\"\x00b[8\xe2\x1d\\\xd8\xb6\xf3\xfb?" +
-	"\xfb\xcda\x10\xfd\x88\xde[\xe5\x87\xbfx\xfe\xdb?\xfe" +
-	"\x0e\x84\xa2\x00\xc37\xf25\xa8\xdd\xcc\xa3\x00\xda&\x9e" +
-	"\x06\xf4~x\xe5\x8d\xdf^<\xf7\x8f\xafB\xb2\xbf\x01" +
-	"\x1bf\x04\x9e\xe2+P+)\xb0\xc1\xe7\x00\xbdWg" +
-	"\x9e\xfb\x84\xbd\xeb\xef_o\x01#!\xce\xf0\xbfi\xbf" +
-	"T\xd8\x9f+\xc7w\xad\xdc\xfd\x97[^\xba\xf4\x0d\x10" +
-	"\xff\x8f\xe8\xfd\xc2\x9d\x1a\xfe\xc2\xce\xfc\x9bp\x0d\x8f\"" +
-	"\xc0\xf0\x05\xbe\x02\x01\xb5\x05\x05\xfd\xdc\xe0\x9b\xc7\x7f\xe4" +
-	"\x96\x1ek\x098L\xde\x86\xff/\xb4\x0c\xb5\xd5*\xf8" +
-	"U\xa1;\x10\xd0\xdbsf\xe9\xa7\xce\x7f\xfc\xc3\x8f7" +
-	"G\xa1\x10\x0f\x84\xd7\xa0v,\x1c\x05\xee=;\xf8\xd7" +
-	"\xc37?\x99?\xd1\xe9\xc3\xf6\x85W\xa2\xf6\x950\x05" +
-	"{(L\x1f\xf6\xf8\xfaug'\xc4\xc6\xef\xb5D\x90" +
-	"\xc1(\x07\x18~=\xbc\x0c\xb5\xb7\x15\xfcB\xf8I@" +
-	"\xef\x86?L\x1dY\xe6\xcd\x9f\xee\x90a\xedP\xe45" +
-	"\xed\xe1\x08\xfd\xf5@\x84\\\xcf/\x0c\xbe\xb3\xf3\x937" +
-	"<\xdf\x89\x8d\x0b\x91\x1d\xa8\x85\xa3\x04\xc6\xe8\x1c\xe0{" +
-	"\xf1\x07\xbf\xfb\xb1\x97+g\xda\xa3@6<\x15]\x89" +
-	"ZI\x81\x8d\xe8\x1b\x80\xde\xb1\x85\x89\xb7\x8e\\\xfb\xb5" +
-	"\xb3\x90\xecg\x01\x1ap8\x13[\x89\xdad\x8c\x90\"" +
-	"\xf6A@o\xcb\x8b\x9b\xde\x97.\xbd\xfe\xab\xd6\x04\x13" +
-	"q\xc3\x93\xb1%\xa8I\x85\xd6cs\x80\x97G.\x0c" +
-	"}\xe0\xf2\xe1_w\xf8\xb6\xe7b\x17\xb5\x17\x14\xf2\x0c" +
-	"!\xbd}\xdb\xcf\xffn\xfd\xfa\xb3\x7fjO\xdbR\x00" +
-	"\xed\xba\x9eg\xb5\xd5=\x8a\xb8\x9e?2@o\xcc>" +
-	"\xf7\xfb\xf9\xbbJ\x7f\xee\x0c\x9f\xec\xfd\x816\xd5K\xf0" +
-	";{-\x82\xfb\x9ai\x81s\"E\xeb\x89\xbf\xa6]" +
-	"\x13\xa7X\x92q\xca\xc6\xa3\x95[V]\xcf_\xba\xd8" +
-	"Yo'\xe3Jo\xa7\xe2D\xdf\xc1\xe5\xd7>z\xe0" +
-	"\xd5\xeb.u\x90\x86f$\xde\xd5f\x13\xf4W%A" +
-	"\x9f8m\x15\x8d\xdd\xb6\xb1\x8eO\xebe\xb3\xbc9/" +
-	"\xef.I\xd3\x9d\x90\xba]\xb0\xe6\xcc\x9ct\xe2c\xba" +
-	"\xabg\x11E\x88\x87\x00B\x08\x90\xec\xcb\x01\x88^\x8e" +
-	"b9CO\xda\xb6e\x8fZ\x05@\x89\x11`\x18\xe9" +
-	"\xea4'\x1di\xdf\xa3\xbb\x86e\xf2\xf11r\x19\xf3" +
-	"]\xae^\x03 \xae\xe7(60L\"\xa6\x90\x0eo" +
-	"\xdc\x0c \x069\x8a\x8d\x0c\xe3\xbac\x14\xb0\x0f\x18\xf6" +
-	"\x01\xa6\x9d\xd9\x99\x19co\xfd_\xff>V\xbd/3" +
-	"\x94\x19-J\xdd\x9c-w\x0a\xden\x08\xde\xae\x85\x04" +
-	"\x03\x86e\x8e\x8fa\"\xc8\x1d &\xda?%3\x94" +
-	"\xc9Kw\xb6L~\xd79\xb3\xd3\xd3\x92;\x0eyO" +
-	"`\x0a\x19\xb9\x1f\x02\x101\x8e\"\xc5p\xc0\xb5>#" +
-	"\xcd\xb6(\x9b\xb3\xa2\xdc\xe5deLwQ\x85\xba\xdc" +
-	"\x0f\xf5\x9b\xe4\xeb!\x8e\xe2hCR\xbeE\x87\x8fp" +
-	"\x14\xc7\x19&\x19\xab\xdez\xec6\x00q\x94\xa3\x98g" +
-	"\x88<\x85\x1c yb\x07\x80x\x82\xa3x\x9aa2" +
-	"\x84)\x0c\x01$O\x12\xf0)\x8e\xe24\xc3d\x98\xa5" +
-	"0\x0c\x90<u\x00@<\xc3Q\xbc\xc2p\xa0d\x98" +
-	"#w\xd4\x99\x1c(\xe9{\x83\xff<\xa7\\4\xdc\xd1" +
-	"\xa2\x03\x00\xc1\x99\xab\xdbn\xd6\xb6\x80\x97\x1dL\x04\xad" +
-	"\xa3\x96?i\x16\xb2\xb6UV?i\xb7\xea\xc5\xa25" +
-	"\xad\xbb\x06Z\xe6\x84\xad\x1bE\xc0~\xc0,GL\xd4" +
-	"\xab\x14\x90\x8e\x16\x95i\xa5\xcetWdQ:U\xe6" +
-	"\xa25I4\x88oh\x11\xf1\x0d8\xf4KL\x04\x9d" +
-	"\xbc\x1a\x7fz\xb7\xeeH%\x1b\x7f\xcct\x96M3\xd7" +
-	"\x8e\xcfu/\x0f\xf5z\x9e\x0a\"CA\xdc\xcaQl" +
-	"c\xd8\x87W\xbcj\x14\xe3#\x00b\x8c\xa3\xc82\xec" +
-	"c\xefyU\xbao'\xecV\x8eb\x82\xe1\xc0\xac\xe9" +
-	"H\x17\"\xfbgt\xa38k\xcb\xf6(\xbb\xc8\xb0V" +
-	",Y\xdd\xdd\x93Q$\xf1\xb2s5y!\x05\xad\xe5" +
-	"(>\xc4p\x80\xd8+\"\x02C\x1a\\\xae\xad\x9b\xce" +
-	"\x8c\xb4\x89\xeb\xfaY\xfd\xb6PS\"\xc6\xcd\x82\xdc;" +
-	"j\x993\x86]R\x0daL\xe7W\xc7\xcaP\x03+" +
-	"\x06y\xf1\xa5\xea\xb8\xba+1\x1e\x8c\x0d@\x8c\xb7S" +
-	"1Z\xfd7'+\xb3\xd2q\xb3\xfa\xbd\xc5\xa8\xa5\x17" +
-	"\xe8\xea\x84\x7f\xb5N\x0dn\x17GQ$.\xbc\x1a\x17" +
-	"\x06\xdd]\xe0(\xca\xc4\xc5\x95\x1a\x17%bh\x0fG" +
-	"\xe12\xec\xe3\xc4\x10\x15_\x85\xb2T\xe6(\xeec\xe8" +
-	"\xb9FI:\xae^\x02,c\x0c\x18\xc6 `\xcd\xae" +
-	"\xc6\x81\x89`z\xd4$dK\xa7l\x99\x8e\xacV\x8e" +
-	"?\x8a:\x0b\xac\xa1\xb7\xaa\xdc\xe6\xdd\xa8\xeeJ\x95P" +
-	"\x15er\x84~\x98\xec\xd9\x0c\xb0\xbf,\xcd\x82a\xde" +
-	"\x9d\xd6\xa7]\xe3\x1e\xd9E\xaa\xb5\x06JU\x05\xd0B" +
-	"\xcc\x8a\x80\x98N\xbcp\xa3\xd0^\x11\xcdd\xb5\x8a\xf0" +
-	"#\xb5>`\x99\x03#R/\xb4\xeapd\x11%\xec" +
-	"W}\xa4k\xdb\xaa_\x86\xf5\\\xa5\xab\x99\xa5[6" +
-	"\xfa\x15\xa8M\xe1\x10@~;r\xcc\x17\xb0\xa1\x085" +
-	"\x1d?\x0d\x90\xdfE\x86\"6\xd4\xa1f\xe0g\x01\xf2" +
-	"{\xc8\xe0\x92\x81\xff\xabJ\xbfV\xc1\x07\x01\xf2.\x19" +
-	"\xee'C\xe8\xb2\xa7\xfa\xaf\xb6\x0f\x1f\x03\xc8\xdfO\x86" +
-	"/\x93!\xfc\xae\xa7z\xb0v\x08\x0f\x00\xe4\xbfD\x86" +
-	"\x87\xc8\x10Y\xf0R\x18\xa1-\x0b_\x04\xc8?B\x86" +
-	"\xe3d\x88\xfe\xd3K\xa9\x85\xf4\x98\xba\xfc(\x19\xe6\xc9" +
-	"\x10{\xc7Ka\x0c@;\x81\xb7\x01\xe4\x9f \xc3\xd3" +
-	"d\xe8\xb9\xe4\xa5\xb0\x07@;\x89;\x00\xf2O\x91\xe1" +
-	"4\x19\x96\xbc\xed\xa5p\x09\x80vJ\x19\x9e!\xc3\xf3" +
-	"\xc80\xb94\x91BZY~\xaa<\xfd\x84\xce_\xa6" +
-	"\xf3^\x9e\xc2^\x00\xed\x05\xcc\x01\xe4\xcf\xd1\xf9+\x18" +
-	"\xb4 \xcf\xa9\xb59\x88\xd7\xfa\xa5\xbfw\xd6T[\x03" +
-	"\xe4 -M9\xa7\x17\xbbC&\xb0\xde\xb1\xb1\xbc\x18" +
-	"*'M\x19]\xcc[uRP)\xf9\xef\x87f\xcc" +
-	"8kmJ\xaa\xf0\xfc\xfd\xb6\x19=\x0a\xe9j\x85`" +
-	"\"X?\xeb3oH\xaaN_\xad\\\x7fU\x0b\xac" +
-	"\x14\xf0\x1cp\x15q\x07\xb3\xaa=\xe0\xca\xb7\xff$\xa9" +
-	"O\xcc\xe9iYve\xa1\xb1\xc7R\xe7\x97\x85\xad\x16" +
-	"\xf5\x97\xae\x9a\x1f\xa8\xf6;D\xb16\x90\xfc*%\xf9" +
-	"\xf7\x13\x91k\x9b$\xbfZI~\x90\x0c\x1b\x9b$\x7f" +
-	"\x93R\xdd\x062li\x92\xfc&%\xf9-d\xd8\xda" +
-	"$\xf9\x8c\x92\xfcV2L4I^(\xc9g\xc9\xb0" +
-	"\xb3I\xf2w*\xc9\x07\xf5\xe6K\xbe\xb5\xde|\xc9W" +
-	"\x94P\xcbd\xb8\xafI\xf2\xf7*e\xef%\xc3\xc1&" +
-	"\xc9\x7f^\x19\xfcB\xec.\xe1\x96a\xdaI\xc2] " +
-	"-\x12\xf6\x1fl\x8bH\xb8;.\x90\xb0\xffD\xfc_" +
-	"\x94p\xfb\xb6^[\xa9k+@\xc3\x1c\xb6\xaff\x0e" +
-	"c\xc3c\x9c\xc61\xa31\x8c\x0d/\xa6\xe4\xe4\x08\xb0" +
-	"\xc5w}\x7f&\xab\xbd\xdeq\xea\x1b\xd5\x7f|\x03(" +
-	"\x0c\xb7%\xadr\x09V\x1d\xfe\x99\\\xb0\xb4\xa9yE" +
-	"\x9b\xf7\xedt\xb8\x8d\xa3\xd8^\xdb\xdbi\xf3\x9e\xa4%" +
-	"3[\xfd\xc0\x8e/)\xc3\x9c\xb1>j\xc8\"`\xf0" +
-	"\xf8Q\xc3\xcd\xa9o\xca\x84\xec\xef\x98\xd5\xdaN\x90V" +
-	"K\xc1\x7f\xf3\xbd\xf5\xef\x00\x00\x00\xff\xff\xb3\xde\xb9R"
+const schema_a3bf9fed859570f0 = "x\xda\xc4X}\x8c\x14g\x19\x7f\x9ey\xf7\xeb\xf6n" +
+	"vw\x98%\x10b\xd9J\xda\x06\x08\xe5\xe3\x0emA" +
+	"\xf4\xe4n\x97rX\xca\xcd\xee\xa1\x80\\d\xb8\x9d\xeb" +
+	"\x8d\xee\xd7\xed\xcc\xf1aZ\xb1\x14?\xab\"54\xf1" +
+	"\x0f5\xad\xd6j\xc5\xd0`\xaa-\xa9656|\x84" +
+	"F\xd1V\xc0\x80\x85X\xd2\xa6\xe5\x1a \x85\xf6\x0a\xc7" +
+	"\x98\xe7\x9d\xdd\x99\xbd\xbdY>jj\xff\xdb}\x9fg" +
+	"\x9e\xcf\xdf\xf3\xf1\xbes\x0f\x07>+\xcc\xf3\xafh\x02" +
+	"Pr\xfe\x80\xf5\xf6\xab\xebf\xcdx \xfc (\x11" +
+	"D\xebli\xe77\x86\x7f\xf6\xfc\xcf\xc1\x8fA\x00\xf9" +
+	"\xfb\xbe=\xf2N\x1f\xfd\xda\xe1\xdb\x08hm\x1b\xb9{" +
+	"\xedo\xfe\xfc\xcf\x87\xbc\x98\xdb\x86}3Q\x1e\xe5\xdc" +
+	"#\x9c\xfb\xe9+\xaf\x1f=\xbf\xff\xed\x1f\x80\x14\xa9e" +
+	"\x16\x88y\xb5\x7f\x0a\xca\xba\x9f\x985?1k\xf3\x9f" +
+	"\x7f\xf0\x89=\x03\x8fx\xda\xf1\x82\xff\xef\xf2K\x9c\xf9" +
+	"\x00g>\xd2\xff\xc7{\xca\xeb\xce<R'\x99\xf3\xde" +
+	"\x1axS\x9e\x17\xa0_\xb7\x07\xda\x01\xad\xafM\x7f\xeb" +
+	"\x17\x7f2\xf3\x8f\xd5\x0b&qm\xcb\x03\x13P\xee\x0d" +
+	"p\x8b\x02\xfb\x10\xd0\x1ax\xb1\xf9\x8b\xc3\x9f\xfb\xd4\xe3" +
+	"\x1e\xa2\xdb\x16\x87f\xa2\xac\x84H\xf6\xf2\x10\xc9^\xfa" +
+	"\xcc\xb7\xcf\xad\xec\x1a\xf9\xa5g<\xf2\xa1i(\xdf\xcf" +
+	"\xb97\x87\xc8\xea\xbf\xf6>\xfaV\xf0\xcc\xea_\x812" +
+	"\x15\xd1\xda\xf3\xcd\xbe7p\xe3\x9a\xdf\xc3D\x16D\x80" +
+	"\xb6c\xa1V\x04\x94Oq\xc1{\xa7\xbf\xf6\xd0\xa7w" +
+	"g~\xed\x15:l\x9a\x86\xb2\xd4Dr\xc5&\x92\xfb" +
+	"\xf8\x9c\xd9\xfbz\x94\xf9O\xd6Y\x91\x12\x82\x0c\xa0M" +
+	"o\x9a\x80\xf2f\xce>\xd4\xf4:\xa0\xa5\xfenR\xd7" +
+	"\xaa%\xd6\x93\x9eFw\x85\xcb(\xf7\x86\x89{u\x98" +
+	"\x84\xdf\x93\xbc\xe5\xf2\xab\x13\x8bO\xd9F\xc7\xfe\xf3\x87" +
+	"u\x9f\xfc\xd6\x94K0\xd1\xc7\x8d~6\xcc\x8d~!" +
+	"LF;\x1e\xd5\xd9\xc1\xc8\x0e\xf9t\xf8\xbc|\x8e\x0b" +
+	"\x1e\x0e\x93\x19\xb7\x9d\xe8\xdd>\xc1\xda\xf5\\\x1d7\xc7" +
+	"\xcfw\x9a\xff%\xefl\xe6\xb8k&#v\x8dL\x7f" +
+	"w\xed\x8a\xdb\xfe\xe2i\xf2\xb9\xe65(\xfb[\x88\x1b" +
+	"[6\x02\x8eF\x1f~\xe2\xaeC\x83/\xd6Y\x81A" +
+	"\x86B[o\xcb4\x94\xf3\x9cYo!3\x1e\x1d\xe9" +
+	"9\xbb}\xd2\x0f\xf7\x81\x14\x11\\n\xc0\xb6\x948\x0d" +
+	"\xe5\x95\"q*\xe2\x1d\x80\xd6\xcc\x81\x7f\xef\x08o\xd8" +
+	"\xbb\xdf\xcb\xe0\x95\xe2\x9b\xb2\xcay{E2\xf8\xae\xdf" +
+	"N\xed\xbe\xb8Wy\xa9A\xd4D;j\"Em\xd1" +
+	"\xc1\x05S\xdb\xf3\xa7\xff\xe1\x05\xb8Sb\x18\xe5s\\" +
+	"\xee0g\xfe\xccww\xff(\xd3|\xe8\x887\x84\xc4" +
+	"\x08\x97;1\xb2\x1b\xf0\xd2\x81\xcf\xdf\xb1D]q\xd2" +
+	"+b\x07\"\x02\xca\xafDH\xec\xe1\x08\x99{\xff\xaa" +
+	"\xe1cs\xe6\xec;\x09\xe3b\xd6\x04 \xcf\x8b\xee\x95" +
+	"\x17D\xe9\xc3OD\x8b\x02\xa0\x95,\xef?\xbe\xebK" +
+	"\xf9S\xe3\xd9\x9b\x01\xe4\x13\xd2\x1e\xf9\xb4\xc4\xcd\x978" +
+	"\xfb\xb6\xc9\x93~\xba\xf5\xc8\xc7/z\x80Y\xde\x11\x7f" +
+	"_\xfeI\x9c~\xfd8N\x968\xa1\xaa\x13\xed\x0b2" +
+	"D\xf9B\xfc\xbc\x8c\x13I\xf4h|;Uk_1" +
+	"\xa7\xaf/\xeb\xb3\xb1O-\x15J\x0bS\xad\x89T\x87" +
+	"jh\xdd\x88J\x88\xf9\x00|\x08 \xcd\x98\x02\xa0\xdc" +
+	"\xc2P\x99+ b\x1c\xe9\xec\xf6V\x00e:Ce" +
+	"\xbe\x80L\xcfb\xcc\xb5\x12\x10c\x80\x09\xbd\x90\xd56" +
+	"a\x00\x04\x0c\xd4(b\xb6\xa2\x8cvo^+\x98=" +
+	"\x9aZ\xce\x167\x16\xd2\x9a\x11M\xaa\xa6Z\xa7w\xa6" +
+	"\x87\xde4\x802\x8b\xa1r\xa7\x80\xd1\xf5\xaa\xa1a\xcc" +
+	"m}\xb6fK+\x97\x8b\xe5\xceb\x16P\xbb\x86\xfe" +
+	"\xb4fh\xe5\x0d\xaa\xa9\x17\x0b\xac+\xd9X\xbb\xe4\xa8" +
+	"_\xe8\xba\x1dU\x0d=\x8b\"\x08(\x02\xb6\x1bC\xfd" +
+	"\xfd\xfa\xa6\xea_G\x9f0F_\x87j\xe0\x07\x0a\xae" +
+	"3\x0a\xae\x1a\\\xa1\x9a\xc5TgNS\x0bC%'" +
+	"\xa8>G\x9fHn\x85\x18*q7\x80\xce\x0c\xab\x04" +
+	"\xd0;X\x19\xcd\x1c*\xa5\xb5\xc1\xa4j\"\x17z\xb3" +
+	"#\xf40\x09=\xc4P9\xea:\xf1\x0a9\xf17\x86" +
+	"\xcaq\x01%\x01\xe3(\x00H\xc7\xe8\xf0e\x86\xcaI" +
+	"\x01%&\xc4\x91\x01H'\x96\x01(\xc7\x19*o\x08" +
+	"(\xf90\x8e>\x00\xe9\xf4\x1a\x00\xe55\x86\xcaY\x01" +
+	"%\xbf\x10G?\x804L\x9cg\x18*\xef\x09(\x05" +
+	"X\x1c\x03\x00\xd2\x05\x82\xc4;\x0c\xd3(\xa0\x14\xf4\xc5" +
+	"\xa9D\xa5\xd1\xad\x00\xcae\x86\x99\xc9\xd8\x10(\x89\xbc" +
+	"^\xe8\xf8B5\x8a\x89\xbc\xba\xc9\xfdg\x19\xa5\x9cn" +
+	"v\xe6\x0c\x00p\xcfL\xb5lv\x97\x8b\xc0J\x06\xc6" +
+	"\xdc\x0e\\\xc5]!\xdb].\x96\xf8'\xe3\xa9z\xa1" +
+	"\xbf\xb8D\xd7r\x80\x0eh,5\x97+\xf6\xa9\xa6\x8e" +
+	"\xc5BOY\xd5s\x80\x11\xc0n\x86\x18s\xbb% " +
+	"\x1d^\xb3\x80\x06\xaf3\xd7\xf5\xc5\xe2-\xb7\x82\x9f\xb4" +
+	"f$\x83\xff\xcf\xbaL\xb5\xa6*03\xc8\x9d\xd9\xc6" +
+	"P\xa2\xafO3\x0cr*V\xc1\x90\xd8\xeaz\x950" +
+	"\x8b_\xd1\x0a\xe3\xaa\xae>H9\xcd\xe0b\xbd\x9ci" +
+	"\xbdF\x99'\x0c\xfa\x12c\xee\"d\xbb\xd3N^v" +
+	"%\xc7\x17\xe7\xd5\xcb\xc7p\xca'\xe6\xd8\xa0R@\xd7" +
+	"2T\x06\x04\x14\xd1\xb2l#4\xb2l\x1dC%'" +
+	"\xe0M\xc2\x15\xab\xe2\xbe\xde\x01\xa0d\x19*%\x01o" +
+	"b\xa3tLE\x94'\xee\x01\x86\x8a\xd9\x18\xefC\x05" +
+	"C3!\xb0\xa5_\xd5sCem\xbcO\x0d\xc2\xe9" +
+	"\x1b\xe3H\x17\xf5\x9e\xceb\xa1_/\xe7y\xebLk" +
+	"\x09#\xf9\xd1\xa0d\x90\xa3\xa4_Mp\x87\xaa(\xa1" +
+	"\xae \x92\xaa\x16\x86\xcad\xe1\xea2\x85z\x99\xae3" +
+	"7\x92!\x912T\xb3\xa3R\x9e\x04\x91\xf2S\xb3u" +
+	"HJ\x07\x08\x0d\xba\xae\x93\x1dc\x88C\xbe\x9a\xa5z" +
+	"C\xbbUs \xc5;\x0d+\x19\xd7\x83\xe5en\xcc" +
+	"\x13\xd4nr\x88  M\x7f\xb3\xac\x16\x8c~\xadL" +
+	"\x0d\xabzv\x9d9O\xaa\xec\xba\x12^3\xc9\x1a\xa1" +
+	"\xd20US\xc3\xa8\xbbI\x02bt|\xd2;\xed\xbf" +
+	"impH3\xccnus.XT\xb3uiJ" +
+	"\xd7$\xc4I\x93\xde\xeaV\x0c\xa5\xc9\xae\xa3|\x87[" +
+	"0\x94'\xbb\x8c\x06)Z%\x86\xca}\x02Z\xa6\x9e" +
+	"\xd7\x0cS\xcd\x03\x960\x04\x02\x86j\xb2T\xb6\xed\xc0" +
+	"\x98\xbb\xcdU\x00\\\xd6\x8cR\xb1`h\xf6\x18pV" +
+	"C\xef\xe6P\xb3\x81\xf0\x18g\xcc\xa0j\xda+\x02\xb7" +
+	"R\xea\xa0\x0f\xa5\xa6\x85\x00[JZ!\xab\x17\xeem" +
+	"W\xfbL}\xc38\\,\xae\xcc\x92b!\xda\xa1\xd9" +
+	"\x81\xa9\xc9M\x87\x172j\x92\xb3\x85\x8f\xa2\x86\xd3\xf0" +
+	"\x1a\x058\xa6M3{V\xdfp\x9b\xae\xcc\x1c\x12\x08" +
+	"\xf0?\x0f\xb2\xfaI\xe2\xf4\x88\x16\xe6\x8bU\x16\x8f\x14" +
+	"\xc1%\xc9P\xe9\xaeD\x85\x16\x8f\xe5tx7Ce" +
+	"\x15\xed-\x95\xc5c%\xad\x13=6\x84<\xbb\xc9\x0d" +
+	"Mw\xfa(\xe2ir\xcd\xdc\xa50|\xb0\x8eZ\xbf" +
+	"\xce]\xad\xfba\x15\x86\xed6hI\xe3,\xe6k\xb1" +
+	",R)\xdf\x8a\xad\x00\x99\x9b\x91af\x16RM]" +
+	"\xb1kJ\x9e\x81_\x06\xc8L'\xc2|\"\x08\xa3v" +
+	"Y\xc9\xf3\xf0\xab\x00\x99\xb9DXD\x04v\xd9\xae," +
+	"y\x01n\x05\xc8\xdcI\x84$\x11|\x97,\x1epy" +
+	"1\x1e\x04\xc8,%B\x0f\x11\xfc\xef[<\xe8\xb2\xc2" +
+	"Eu\x13a-\x11\x02#\x16\xef\xed\xf2j\\\x06\x90" +
+	"YE\x84,\x11\x82\xefY|\xeb\x93U\\\x03\x90Y" +
+	"G\x84\x1c\x11B\xefZq\x0c\xd1]\x95\x13\x06\x88`" +
+	"\xd2\x9a\xd8\x14\x8b#]\xcd\x06\xb9\xa4\x12\x9d\xdfG\xe7" +
+	"a\x16\xc70\x80\xbc\x19\xd3\x00\x99Mt\xbe\x0d\x05\xa7" +
+	"\xea-\xa32\xcb!ZY\x0a\x9c\xb7\x83J\xac+\x0c" +
+	"ih\xd7\x0a\xdaF5\xd7\x98\xa5\x07+\xbb\x1bu\x09" +
+	"\xe7ah,O\x97P\xdfwyOq^ \xc6r" +
+	"wB\xbb\x0d\x1f\x8c\xb9/+U\x0c\xb4j\xbc\x1c\xec" +
+	"\xa6\xe4\\|]j\x9a\xec\x05\xc6-\xf6 s`\x02" +
+	"#\xd9\xd5\x9bq\x85\xa8\xf6\xf5i%S\xcb\xd6\x0e\x11" +
+	"\x1a]Zvi\x91\x1agC\xc4%\xecF\xfe!\x02" +
+	"\xeea\x80\xcc\"\",\x1d\x03\xb8\x14>\xd6\x08p[" +
+	"\x1b\x01\xee\xe0\x18\\9\x80\xd3\xb9r\x07W.\xe0\xea" +
+	"\x80%6]\xb4l\xc4m\xe6Ht\x90%\x86/X" +
+	"6\xe4\x1e\xe0\x84\xaf\x13\xe1{W\x85\\\xdd\xce\xe6\x05" +
+	"\xb9\x06,=X\xdd\x84\x91\x049\x8fd^\\\x84\x87" +
+	"\xa0-\xad1\x9f\x0b`\xe7\xd9\xef\xba\x00\xec\xbcG5" +
+	"\x06\xb0\xf3\xac\xe3\x09`\xe7\x99\xc3\x1b\xc0\x1e\xe4\x1a\x00" +
+	"\xbb\xcf\x9fu\xa3\xc3]\x05+c\xb9\x9d\xcf\xe5\x0f\xf3" +
+	"a\xa0f\xed\x1c\xac\xae\x9d\x1fsT=M\xaa\x9eb" +
+	"\xa8<W\xa3\xea\xd9\xf5\x00\xca3\x0c\x95\x97\x05D\xc1" +
+	"^f\x0e\xaf\xaf\xb9lW\xef\xd5\xc7hh\x1de\xa8" +
+	"\xbcC\xe8\xb7l\xf4K\xe7Z\xdd;\xb4\xe8\xe7K\xab" +
+	"\xf3\xda&]\xa0\xa55\xc0\x97V\xe7\xe1R:\xd1x" +
+	"iu\xc1\x1746\x18\xee\xed\xb5\xf6J\x14\xe1;\x11" +
+	"/v\x0d\x82\xd9\x9a\xad\xe2Z\x03\xb2\xd1J\xfc\xdf\x00" +
+	"\x00\x00\xff\xff\x07$@\x84"
 
 func init() {
 	schemas.Register(schema_a3bf9fed859570f0,
+		0x830a81292c60dfee,
 		0x8bd6c2ab5c4cf984,
 		0x8eeec8f2d8e7feb5,
+		0x9668b2a783bf3465,
 		0x96ec60724ebd66d7,
-		0x97f6cb3ee362225f,
 		0xa26d74bea4eb287e,
 		0xa53b4bed5b0bc568,
+		0xa6f94955f188b848,
+		0xa859ec07eba15dcf,
 		0xa953af3d8be428ba,
 		0xaa345154c72e2fa5,
+		0xaaff46584917b361,
+		0xb06f15dffc24444e,
+		0xb65a7701e86386b2,
 		0xbcacff128f5ddd26,
 		0xc4264f5cf728f9ac,
 		0xc571cc47a792000f,
 		0xc790178ff054f9a1,
+		0xc8ba760a91de682a,
+		0xcd51baf6501ead47,
 		0xd3e56d3f1e39ca3c,
-		0xd58bfb363200f142,
+		0xd7cc0b5393af8a3e,
+		0xe04f6146370056c9,
 		0xe0c72f2fd9ed587d,
 		0xe16d5facdcc87244,
-		0xeb535c83335d74cf,
-		0xf2cb0324253e719e,
-		0xf621d7829e171884)
+		0xf621d7829e171884,
+		0xfb1a873660b7e310)
 }

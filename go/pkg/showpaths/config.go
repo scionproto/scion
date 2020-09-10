@@ -35,4 +35,7 @@ type Config struct {
 	Refresh bool
 	// NoProbe configures whether the path status is probed or not.
 	NoProbe bool
+	// Sequence is a string of space separated Hop Predicates that is used for
+	// filtering.
+	Sequence string
 }

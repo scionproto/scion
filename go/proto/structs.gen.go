@@ -44,12 +44,6 @@ func NewRootStruct(id ProtoIdType, seg *capnp.Segment) (capnp.Struct, error) {
 			return blank, common.NewBasicError("Error creating new RevInfo capnp struct", err)
 		}
 		return v.Struct, nil
-	case SCIONDMsg_TypeID:
-		v, err := NewRootSCIONDMsg(seg)
-		if err != nil {
-			return blank, common.NewBasicError("Error creating new SCIONDMsg capnp struct", err)
-		}
-		return v.Struct, nil
 	case SignedBlob_TypeID:
 		v, err := NewRootSignedBlob(seg)
 		if err != nil {
@@ -72,6 +66,24 @@ func NewRootStruct(id ProtoIdType, seg *capnp.Segment) (capnp.Struct, error) {
 		v, err := NewRootColibriRequestPayload(seg)
 		if err != nil {
 			return blank, common.NewBasicError("Error creating new ColibriRequestPayload capnp struct", err)
+		}
+		return v.Struct, nil
+	case CertChainRenewalRequest_TypeID:
+		v, err := NewRootCertChainRenewalRequest(seg)
+		if err != nil {
+			return blank, common.NewBasicError("Error creating new CertChainRenewalRequest capnp struct", err)
+		}
+		return v.Struct, nil
+	case CertChainRenewalReply_TypeID:
+		v, err := NewRootCertChainRenewalReply(seg)
+		if err != nil {
+			return blank, common.NewBasicError("Error creating new CertChainRenewalReply capnp struct", err)
+		}
+		return v.Struct, nil
+	case SegRecs_TypeID:
+		v, err := NewRootSegRecs(seg)
+		if err != nil {
+			return blank, common.NewBasicError("Error creating new SegRecs capnp struct", err)
 		}
 		return v.Struct, nil
 	}
@@ -97,9 +109,6 @@ func (s PathSegmentSignedData) GetStruct() capnp.Struct {
 func (s RevInfo) GetStruct() capnp.Struct {
 	return s.Struct
 }
-func (s SCIONDMsg) GetStruct() capnp.Struct {
-	return s.Struct
-}
 func (s SignedBlob) GetStruct() capnp.Struct {
 	return s.Struct
 }
@@ -110,5 +119,14 @@ func (s SVCResolutionReply) GetStruct() capnp.Struct {
 	return s.Struct
 }
 func (s ColibriRequestPayload) GetStruct() capnp.Struct {
+	return s.Struct
+}
+func (s CertChainRenewalRequest) GetStruct() capnp.Struct {
+	return s.Struct
+}
+func (s CertChainRenewalReply) GetStruct() capnp.Struct {
+	return s.Struct
+}
+func (s SegRecs) GetStruct() capnp.Struct {
 	return s.Struct
 }

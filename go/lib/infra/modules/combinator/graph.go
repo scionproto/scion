@@ -268,20 +268,9 @@ type PathSolution struct {
 	cost int
 }
 
-// GetFwdPathMetadata builds the complete metadata for a forwarding path by
+// getFwdPathMetadata builds the complete metadata for a forwarding path by
 // extracting it from a path between source and destination in the DMG.
-func (solution *PathSolution) GetFwdPathMetadata() *Path {
-	var legacy bool
-	for _, edge := range solution.edges {
-		if edge.segment.PathSegment.SData.ISD != 0 {
-			legacy = true
-		} else if legacy {
-			panic("mixed segment types")
-		}
-	}
-	if legacy {
-		return solution.legacyFwdPathMetadata()
-	}
+func (solution *PathSolution) getFwdPathMetadata() *Path {
 	path := &Path{
 		Weight:   solution.cost,
 		Mtu:      ^uint16(0),
@@ -365,7 +354,6 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 	path.aggregateInterfaces()
 	path.Metadata = solution.collectMetadata()
 	return path
-
 }
 
 func (solution *PathSolution) legacyFwdPathMetadata() *Path {
@@ -470,7 +458,10 @@ func calculateBeta(edge *solutionEdge) uint16 {
 			index++
 		}
 	} else {
-		index = len(edge.segment.ASEntries)
+		index = len(edge.segment.ASEntries) - 1
+		if edge.edge.Peer == index {
+			index++
+		}
 	}
 	beta := edge.segment.SData.SegID
 	for i := 0; i < index; i++ {

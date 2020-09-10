@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/hiddenpath"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -51,67 +50,25 @@ type Handler struct {
 }
 
 // Handle verifies and stores a set of segments.
-func (h *Handler) Handle(ctx context.Context, recs Segments, server net.Addr,
-	earlyTrigger <-chan struct{}) *ProcessedResult {
-
-	result := &ProcessedResult{
-		early: make(chan int, 1),
-		full:  make(chan struct{}),
-	}
+func (h *Handler) Handle(ctx context.Context, recs Segments, server net.Addr) *ProcessedResult {
 	verifiedCh, units := h.Verifier.Verify(ctx, recs, server)
 	if units == 0 {
-		close(result.early)
-		close(result.full)
-		return result
+		return &ProcessedResult{}
 	}
-
-	go func() {
-		defer log.HandlePanic()
-		h.verifyAndStore(ctx, earlyTrigger, result, verifiedCh,
-			units, recs.HPGroupID)
-	}()
-	return result
+	return h.verifyAndStore(ctx, verifiedCh, units, recs.HPGroupID)
 }
 
 func (h *Handler) verifyAndStore(ctx context.Context,
-	earlyTrigger <-chan struct{}, result *ProcessedResult,
 	verifiedCh <-chan segverifier.UnitResult,
-	units int, hpGroupID hiddenpath.GroupId) {
+	units int, hpGroupID hiddenpath.GroupId) *ProcessedResult {
 
+	result := &ProcessedResult{}
 	verifiedUnits := make([]segverifier.UnitResult, 0, units)
-	var allVerifyErrs serrors.List
-	defer close(result.full)
-	defer func() {
-		if earlyTrigger != nil {
-			// Unblock channel if done before triggered
-			result.early <- result.stats.segDB.Total()
-		}
-	}()
 	for u := 0; u < units; u++ {
-		select {
-		case verifiedUnit := <-verifiedCh:
-			verifiedUnits = append(verifiedUnits, verifiedUnit)
-		case <-earlyTrigger:
-			// Reduce u since this does not process an additional unit.
-			u--
-			verifyErrs, err := h.storeResults(ctx, verifiedUnits, hpGroupID, &result.stats)
-			allVerifyErrs = append(allVerifyErrs, verifyErrs...)
-			result.early <- result.stats.segDB.Total()
-			if err == nil {
-				// clear already processed units
-				verifiedUnits = verifiedUnits[:0]
-			} else {
-				// reset stats
-				result.stats = Stats{}
-				log.FromCtx(ctx).Info("Storing on early trigger failed, continue processing",
-					"err", err)
-			}
-			// Make sure we do not select from this channel again
-			earlyTrigger = nil
-		}
+		verifiedUnits = append(verifiedUnits, <-verifiedCh)
 	}
 	verifyErrs, err := h.storeResults(ctx, verifiedUnits, hpGroupID, &result.stats)
-	result.verifyErrs = append(allVerifyErrs, verifyErrs...)
+	result.verifyErrs = verifyErrs
 	result.stats.verificationErrs(result.verifyErrs)
 	switch {
 	case err != nil:
@@ -119,6 +76,7 @@ func (h *Handler) verifyAndStore(ctx context.Context,
 	case result.stats.SegVerifyErrors() == units:
 		result.err = serrors.Wrap(ErrVerification, result.verifyErrs.ToError())
 	}
+	return result
 }
 
 func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.UnitResult,

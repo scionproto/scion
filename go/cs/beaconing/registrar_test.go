@@ -43,6 +43,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
@@ -246,11 +247,11 @@ func TestRegistrarRun(t *testing.T) {
 
 					if !test.remotePS {
 						assert.Equal(t, topoProvider.Get().IA(), s.Addr.IA)
-						assert.Equal(t, addr.SvcPS, s.Addr.SVC)
+						assert.Equal(t, addr.SvcCS, s.Addr.SVC)
 						return
 					}
 					assert.Equal(t, pseg.FirstIA(), s.Addr.IA)
-					assert.Equal(t, addr.SvcPS, s.Addr.SVC)
+					assert.Equal(t, addr.SvcCS, s.Addr.SVC)
 					hopF, err := s.Addr.Path.GetHopField(s.Addr.Path.HopOff)
 					require.NoError(t, err)
 					assert.Equal(t, []uint8(hopF.Pack()),
@@ -362,6 +363,7 @@ func testBeaconOrErr(g *graph.Graph, desc []common.IFIDType) beacon.BeaconOrErr 
 func testSigner(t *testing.T, priv crypto.Signer, ia addr.IA) ctrl.Signer {
 	return trust.Signer{
 		PrivateKey: priv,
+		Algorithm:  signed.ECDSAWithSHA512,
 		IA:         ia,
 		TRCID: cppki.TRCID{
 			ISD:    ia.I,

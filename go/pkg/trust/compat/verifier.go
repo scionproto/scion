@@ -59,10 +59,6 @@ func (v Verifier) WithServer(server net.Addr) infra.Verifier {
 	return v
 }
 
-func (v Verifier) WithSrc(_ ctrl.SignSrcDef) infra.Verifier {
-	panic("not supported")
-}
-
 func (v Verifier) WithSignatureTimestampRange(_ infra.SignatureTimestampRange) infra.Verifier {
 	panic("not supported")
 }

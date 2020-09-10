@@ -21,7 +21,7 @@ func svc_anycast_parent_to_internal_host() int {
 		IP4: Src=192.168.13.3 Dst=192.168.13.2 NextHdr=UDP Flags=DF
 		UDP: Src=40000 Dst=50000
 		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=SVC
-			ADDR: SrcIA=1-ff00:0:3 Src=172.16.3.1 DstIA=1-ff00:0:1 Dst=BS
+			ADDR: SrcIA=1-ff00:0:3 Src=172.16.3.1 DstIA=1-ff00:0:1 Dst=CS
 			IF_1: ISD=1 Hops=2 Flags=ConsDir
 				HF_1: ConsIngress=0   ConsEgress=311
 				HF_2: ConsIngress=131 ConsEgress=0
@@ -89,7 +89,7 @@ func svc_multicast_same_host_parent_to_internal_host() int {
 		IP4: Src=192.168.13.3 Dst=192.168.13.2 NextHdr=UDP Flags=DF
 		UDP: Src=40000 Dst=50000
 		SCION: NextHdr=UDP CurrInfoF=4 CurrHopF=6 SrcType=IPv4 DstType=SVC
-			ADDR: SrcIA=1-ff00:0:3 Src=172.16.3.1 DstIA=1-ff00:0:1 Dst=PS_M
+			ADDR: SrcIA=1-ff00:0:3 Src=172.16.3.1 DstIA=1-ff00:0:1 Dst=CS_M
 			IF_1: ISD=1 Hops=2 Flags=ConsDir
 				HF_1: ConsIngress=0   ConsEgress=311
 				HF_2: ConsIngress=131 ConsEgress=0

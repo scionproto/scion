@@ -243,7 +243,7 @@ func (t *topologyS) Exists(svc addr.HostSVC, name string) bool {
 func (t *topologyS) topoAddress(svc addr.HostSVC, name string) *TopoAddr {
 	var addresses IDAddrMap
 	switch svc.Base() {
-	case addr.SvcBS, addr.SvcCS, addr.SvcPS:
+	case addr.SvcCS:
 		addresses = t.Topology.CS
 	case addr.SvcSIG:
 		addresses = t.Topology.SIG
@@ -312,7 +312,7 @@ func (t *topologyS) UnderlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error) {
 
 func supportedSVC(svc addr.HostSVC) bool {
 	b := svc.Base()
-	return b == addr.SvcBS || b == addr.SvcCS || b == addr.SvcPS || b == addr.SvcSIG
+	return b == addr.SvcCS || b == addr.SvcSIG
 }
 
 func (t *topologyS) UnderlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error) {
@@ -368,7 +368,7 @@ func (t *topologyS) UnderlayByName(svc addr.HostSVC, name string) (*net.UDPAddr,
 
 func toProtoServiceType(svc addr.HostSVC) (proto.ServiceType, error) {
 	switch svc.Base() {
-	case addr.SvcBS, addr.SvcCS, addr.SvcPS:
+	case addr.SvcCS:
 		return proto.ServiceType_cs, nil
 	case addr.SvcSIG:
 		return proto.ServiceType_sig, nil
@@ -403,7 +403,7 @@ func (t *topologyS) SBRAddress(name string) *snet.UDPAddr {
 func (t *topologyS) SVCNames(svc addr.HostSVC) ServiceNames {
 	var m IDAddrMap
 	switch svc.Base() {
-	case addr.SvcBS, addr.SvcCS, addr.SvcPS:
+	case addr.SvcCS:
 		m = t.Topology.CS
 	case addr.SvcSIG:
 		m = t.Topology.SIG

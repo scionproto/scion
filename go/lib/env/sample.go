@@ -19,7 +19,7 @@ const generalSample = `
 id = "%s"
 
 # Directory for loading AS information, certs, keys, path policy, topology.
-config_dir = "/etc/scion"
+config_dir = "/share/conf"
 
 # Enable the snetproxy reconnecter. (default false)
 reconnect_to_dispatcher = false
@@ -30,15 +30,11 @@ const featuresSample = `
 `
 
 const sciondClientSample = `
-# Address of the SCIOND server the client should connect to.
+# Address of the SCIOND server the client should connect to. (default 127.0.0.1:30255)
 address = "127.0.0.1:30255"
 
 # Maximum time spent attempting to connect to sciond on start. (default 20s)
 initial_connect_period = "20s"
-
-# Maximum numer of paths provided by SCIOND.
-# Zero means that all the paths should be provided. (default 0)
-path_count = 0
 `
 
 const metricsSample = `
@@ -65,10 +61,10 @@ const quicSample = `
 address = ""
 
 # Certificate file to use for authenticating QUIC connections.
-cert_file = "/etc/scion/quic/tls.pem"
+cert_file = "/share/conf/quic/tls.pem"
 
 # Key file to use for authenticating QUIC connections.
-key_file = "/etc/scion/quic/tls.key"
+key_file = "/share/conf/quic/tls.key"
 
 # Enables SVC resolution for traffic to SVC
 # destinations in a way that is also compatible with control plane servers

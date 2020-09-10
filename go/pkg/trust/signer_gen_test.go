@@ -34,6 +34,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -89,6 +90,7 @@ func TestSignerGenGenerate(t *testing.T) {
 			assertFunc: assert.NoError,
 			expected: trust.Signer{
 				PrivateKey: key,
+				Algorithm:  signed.ECDSAWithSHA512,
 				Hash:       crypto.SHA512,
 				IA:         xtest.MustParseIA("1-ff00:0:110"),
 				TRCID: cppki.TRCID{
@@ -139,6 +141,7 @@ func TestSignerGenGenerate(t *testing.T) {
 			assertFunc: assert.NoError,
 			expected: trust.Signer{
 				PrivateKey: key,
+				Algorithm:  signed.ECDSAWithSHA512,
 				Hash:       crypto.SHA512,
 				IA:         xtest.MustParseIA("1-ff00:0:110"),
 				TRCID: cppki.TRCID{
@@ -204,6 +207,7 @@ func TestSignerGenGenerate(t *testing.T) {
 			assertFunc: assert.NoError,
 			expected: trust.Signer{
 				PrivateKey: key,
+				Algorithm:  signed.ECDSAWithSHA512,
 				Hash:       crypto.SHA512,
 				IA:         xtest.MustParseIA("1-ff00:0:110"),
 				TRCID: cppki.TRCID{

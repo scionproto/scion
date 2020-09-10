@@ -169,7 +169,7 @@ type PathPool struct {
 var _ iface.PathPool = (*PathPool)(nil)
 
 func NewPathPool(dst addr.IA) (*PathPool, error) {
-	pool, err := sigcmn.PathMgr.Watch(context.TODO(), sigcmn.IA, dst)
+	pool, err := sigcmn.PathMgr.Watch(context.TODO(), addr.IA{}, dst)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to register watch", err)
 	}

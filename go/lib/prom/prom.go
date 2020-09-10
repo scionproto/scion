@@ -187,7 +187,6 @@ func NewGaugeVec(namespace, subsystem, name, help string,
 
 // NewHistogram creates a new prometheus histogram that is registered with the default registry.
 func NewHistogram(namespace, subsystem, name, help string, buckets []float64) prometheus.Histogram {
-
 	return promauto.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: namespace,

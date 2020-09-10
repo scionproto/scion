@@ -13,10 +13,12 @@ set -o pipefail
 
 [ -n "$IA" ] && echo "Listening ia=$IA"
 
+set -o noglob
 log "bin_wrapper: Starting $PROG $@"
 
 "$PROG" "$@" |& while read line; do log $line; done
 exit_status=$?
+set +o noglob
 
 log "bin_wrapper: Stopped"
 

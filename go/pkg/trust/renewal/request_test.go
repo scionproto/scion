@@ -31,13 +31,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
-	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/xtest"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/renewal"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var update = flag.Bool("update", false, "Update all the testdata crypto")
@@ -76,14 +78,13 @@ func TestNewChainRenewalRequest(t *testing.T) {
 	testCases := map[string]struct {
 		csr        []byte
 		signer     trust.Signer
-		want       *cert_mgmt.ChainRenewalRequest
 		assertFunc assert.ErrorAssertionFunc
 	}{
 		"valid": {
 			csr: csr.Raw,
 			signer: trust.Signer{
 				PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
-				Hash:       crypto.SHA512,
+				Algorithm:  signed.ECDSAWithSHA512,
 				IA:         xtest.MustExtractIA(t, chain[0]),
 				TRCID: cppki.TRCID{
 					ISD:    1,
@@ -92,9 +93,6 @@ func TestNewChainRenewalRequest(t *testing.T) {
 				},
 				SubjectKeyID: chain[0].SubjectKeyId,
 				Expiration:   time.Now().Add(2 * time.Hour),
-			},
-			want: &cert_mgmt.ChainRenewalRequest{
-				RawCSR: csr.Raw,
 			},
 			assertFunc: assert.NoError,
 		},
@@ -106,11 +104,18 @@ func TestNewChainRenewalRequest(t *testing.T) {
 			t.Parallel()
 			got, err := renewal.NewChainRenewalRequest(context.Background(), tc.csr, tc.signer)
 			tc.assertFunc(t, err)
-			if tc.want == nil {
+			if err != nil {
 				return
 			}
-			assert.Equal(t, tc.want.RawCSR, got.RawCSR)
+			// Check CSR is included.
+			signedMsg, err := signed.Verify(got.SignedRequest, tc.signer.PrivateKey.Public())
+			require.NoError(t, err)
+			var body cppb.ChainRenewalRequestBody
+			err = proto.Unmarshal(signedMsg.Body, &body)
+			require.NoError(t, err)
+			assert.Equal(t, tc.csr, body.Csr)
 
+			// Check request is verifiable.
 			chains := [][]*x509.Certificate{chain}
 			_, err = renewal.VerifyChainRenewalRequest(got, chains)
 			assert.NoError(t, err)
@@ -127,41 +132,46 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 	bern3CSR := loadCSR(t, "./testdata/bern/cp-as3.csr")
 
 	testCases := map[string]struct {
-		request      *cert_mgmt.ChainRenewalRequest
-		buildRequest func(t *testing.T) *cert_mgmt.ChainRenewalRequest
+		buildRequest func(t *testing.T) *cppb.ChainRenewalRequest
 		chains       [][]*x509.Certificate
 		assertErr    assert.ErrorAssertionFunc
 	}{
 		"nil request": {
+			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
+				return nil
+			},
 			chains:    [][]*x509.Certificate{bern1Chain},
 			assertErr: assert.Error,
 		},
 		"CSR missing identity": {
-			buildRequest: func(t *testing.T) *cert_mgmt.ChainRenewalRequest {
+			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
 				// It's really weird how CreateCertificateRequest works, the
 				// subject contains the IA in the name, but when creating a
 				// CertificateRequest we need to put it into extra names.
 				// So by just recreating we drop the IA.
 				subject := bern2CSR.Subject
-				rawCSR, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
-					SignatureAlgorithm: bern2CSR.SignatureAlgorithm,
-					Subject:            subject,
-					DNSNames:           bern2CSR.DNSNames,
-					EmailAddresses:     bern2CSR.EmailAddresses,
-					IPAddresses:        bern2CSR.IPAddresses,
-					URIs:               bern2CSR.URIs,
-					ExtraExtensions:    bern2CSR.ExtraExtensions,
-				},
-					loadKey(t, "./testdata/bern/cp-as2.key"))
+				rawCSR, err := x509.CreateCertificateRequest(rand.Reader,
+					&x509.CertificateRequest{
+						SignatureAlgorithm: bern2CSR.SignatureAlgorithm,
+						Subject:            subject,
+						DNSNames:           bern2CSR.DNSNames,
+						EmailAddresses:     bern2CSR.EmailAddresses,
+						IPAddresses:        bern2CSR.IPAddresses,
+						URIs:               bern2CSR.URIs,
+						ExtraExtensions:    bern2CSR.ExtraExtensions,
+					},
+					loadKey(t, "./testdata/bern/cp-as2.key"),
+				)
 				require.NoError(t, err)
-				csr, err := x509.ParseCertificateRequest(rawCSR)
+				_, err = x509.ParseCertificateRequest(rawCSR)
 				require.NoError(t, err)
-				return &cert_mgmt.ChainRenewalRequest{
-					RawCSR: csr.Raw,
-					Signature: sign(t, trust.Signer{
+
+				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), rawCSR,
+					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
-						Hash:       crypto.SHA512,
-						IA:         xtest.MustExtractIA(t, bern1Chain[0]),
+						Algorithm:  signed.ECDSAWithSHA512,
+
+						IA: xtest.MustExtractIA(t, bern1Chain[0]),
 						TRCID: cppki.TRCID{
 							ISD:    1,
 							Base:   1,
@@ -169,14 +179,16 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 						},
 						SubjectKeyID: bern1Chain[0].SubjectKeyId,
 						Expiration:   time.Now().Add(2 * time.Hour),
-					}, csr.Raw),
-				}
+					},
+				)
+				require.NoError(t, err)
+				return signedReq
 			},
 			chains:    [][]*x509.Certificate{bern1Chain},
 			assertErr: assert.Error,
 		},
 		"CSR invalid identity": {
-			buildRequest: func(t *testing.T) *cert_mgmt.ChainRenewalRequest {
+			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
 				// It's really weird how CreateCertificateRequest works, the
 				// subject contains the IA in the name, but when creating a
 				// CertificateRequest we need to put it into extra names.
@@ -185,25 +197,28 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 					Type:  cppki.OIDNameIA,
 					Value: "fooBar",
 				})
-				rawCSR, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
-					SignatureAlgorithm: bern2CSR.SignatureAlgorithm,
-					Subject:            subject,
-					DNSNames:           bern2CSR.DNSNames,
-					EmailAddresses:     bern2CSR.EmailAddresses,
-					IPAddresses:        bern2CSR.IPAddresses,
-					URIs:               bern2CSR.URIs,
-					ExtraExtensions:    bern2CSR.Extensions,
-				},
-					loadKey(t, "./testdata/bern/cp-as2.key"))
+				rawCSR, err := x509.CreateCertificateRequest(rand.Reader,
+					&x509.CertificateRequest{
+						SignatureAlgorithm: bern2CSR.SignatureAlgorithm,
+						Subject:            subject,
+						DNSNames:           bern2CSR.DNSNames,
+						EmailAddresses:     bern2CSR.EmailAddresses,
+						IPAddresses:        bern2CSR.IPAddresses,
+						URIs:               bern2CSR.URIs,
+						ExtraExtensions:    bern2CSR.Extensions,
+					},
+					loadKey(t, "./testdata/bern/cp-as2.key"),
+				)
 				require.NoError(t, err)
-				csr, err := x509.ParseCertificateRequest(rawCSR)
+				_, err = x509.ParseCertificateRequest(rawCSR)
 				require.NoError(t, err)
-				return &cert_mgmt.ChainRenewalRequest{
-					RawCSR: csr.Raw,
-					Signature: sign(t, trust.Signer{
+
+				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), rawCSR,
+					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
-						Hash:       crypto.SHA512,
-						IA:         xtest.MustExtractIA(t, bern1Chain[0]),
+						Algorithm:  signed.ECDSAWithSHA512,
+
+						IA: xtest.MustExtractIA(t, bern1Chain[0]),
 						TRCID: cppki.TRCID{
 							ISD:    1,
 							Base:   1,
@@ -211,24 +226,27 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 						},
 						SubjectKeyID: bern1Chain[0].SubjectKeyId,
 						Expiration:   time.Now().Add(2 * time.Hour),
-					}, csr.Raw),
-				}
+					},
+				)
+				require.NoError(t, err)
+				return signedReq
 			},
 			chains:    [][]*x509.Certificate{bern1Chain},
 			assertErr: assert.Error,
 		},
 		"CSR wrong signature": {
-			buildRequest: func(t *testing.T) *cert_mgmt.ChainRenewalRequest {
-				invalidCSRRaw := append([]byte(nil), bern2CSR.Raw...)
-				invalidCSRRaw[len(invalidCSRRaw)-1] = invalidCSRRaw[len(invalidCSRRaw)-1] ^ 0xFF
-				invalidCSR, err := x509.ParseCertificateRequest(invalidCSRRaw)
+			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
+				invalid := append([]byte(nil), bern2CSR.Raw...)
+				invalid[len(invalid)-1] = invalid[len(invalid)-1] ^ 0xFF
+				_, err := x509.ParseCertificateRequest(invalid)
 				require.NoError(t, err)
-				return &cert_mgmt.ChainRenewalRequest{
-					RawCSR: invalidCSR.Raw,
-					Signature: sign(t, trust.Signer{
+
+				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), invalid,
+					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
-						Hash:       crypto.SHA512,
-						IA:         xtest.MustExtractIA(t, bern1Chain[0]),
+						Algorithm:  signed.ECDSAWithSHA512,
+
+						IA: xtest.MustExtractIA(t, bern1Chain[0]),
 						TRCID: cppki.TRCID{
 							ISD:    1,
 							Base:   1,
@@ -236,132 +254,177 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 						},
 						SubjectKeyID: bern1Chain[0].SubjectKeyId,
 						Expiration:   time.Now().Add(2 * time.Hour),
-					}, invalidCSR.Raw),
-				}
-			},
-			chains:    [][]*x509.Certificate{bern1Chain},
-			assertErr: assert.Error,
-		},
-		"signature src invalid": {
-			buildRequest: func(t *testing.T) *cert_mgmt.ChainRenewalRequest {
-				signature := sign(t, trust.Signer{
-					PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
-					Hash:       crypto.SHA512,
-					IA:         xtest.MustExtractIA(t, bern1Chain[0]),
-					TRCID: cppki.TRCID{
-						ISD:    1,
-						Base:   1,
-						Serial: 1,
 					},
-					SubjectKeyID: bern1Chain[0].SubjectKeyId,
-					Expiration:   time.Now().Add(2 * time.Hour),
-				}, bern2CSR.Raw)
-				signature.Src = nil
-				return &cert_mgmt.ChainRenewalRequest{
-					RawCSR:    bern2CSR.Raw,
-					Signature: signature,
-				}
+				)
+				require.NoError(t, err)
+				return signedReq
 			},
 			chains:    [][]*x509.Certificate{bern1Chain},
 			assertErr: assert.Error,
 		},
 		"no chains": {
-			request: &cert_mgmt.ChainRenewalRequest{
-				RawCSR: bern2CSR.Raw,
-				Signature: sign(t, trust.Signer{
-					PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
-					Hash:       crypto.SHA512,
-					IA:         xtest.MustExtractIA(t, bern1Chain[0]),
-					TRCID: cppki.TRCID{
-						ISD:    1,
-						Base:   1,
-						Serial: 1,
+			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
+				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), bern2CSR.Raw,
+					trust.Signer{
+						PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
+						Algorithm:  signed.ECDSAWithSHA512,
+
+						IA: xtest.MustExtractIA(t, bern1Chain[0]),
+						TRCID: cppki.TRCID{
+							ISD:    1,
+							Base:   1,
+							Serial: 1,
+						},
+						SubjectKeyID: bern1Chain[0].SubjectKeyId,
+						Expiration:   time.Now().Add(2 * time.Hour),
 					},
-					SubjectKeyID: bern1Chain[0].SubjectKeyId,
-					Expiration:   time.Now().Add(2 * time.Hour),
-				}, bern2CSR.Raw),
+				)
+				require.NoError(t, err)
+				return signedReq
 			},
 			assertErr: assert.Error,
 		},
 		"missing signature": {
-			request: &cert_mgmt.ChainRenewalRequest{
-				RawCSR: bern2CSR.Raw,
+			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
+				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), bern2CSR.Raw,
+					trust.Signer{
+						PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
+						Algorithm:  signed.ECDSAWithSHA512,
+
+						IA: xtest.MustExtractIA(t, bern1Chain[0]),
+						TRCID: cppki.TRCID{
+							ISD:    1,
+							Base:   1,
+							Serial: 1,
+						},
+						SubjectKeyID: bern1Chain[0].SubjectKeyId,
+						Expiration:   time.Now().Add(2 * time.Hour),
+					},
+				)
+				require.NoError(t, err)
+
+				return &cppb.ChainRenewalRequest{
+					SignedRequest: &cryptopb.SignedMessage{
+						HeaderAndBody: signedReq.SignedRequest.Signature,
+					},
+				}
+
 			},
 			chains:    [][]*x509.Certificate{bern1Chain},
 			assertErr: assert.Error,
 		},
 		"signature wrong key": {
-			request: &cert_mgmt.ChainRenewalRequest{
-				RawCSR: bern2CSR.Raw,
-				Signature: sign(t, trust.Signer{
-					PrivateKey: loadKey(t, "./testdata/bern/cp-as2.key"),
-					Hash:       crypto.SHA512,
-					IA:         xtest.MustExtractIA(t, bern1Chain[0]),
-					TRCID: cppki.TRCID{
-						ISD:    1,
-						Base:   1,
-						Serial: 1,
+			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
+				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), bern2CSR.Raw,
+					trust.Signer{
+						PrivateKey: loadKey(t, "./testdata/bern/cp-as2.key"),
+						Algorithm:  signed.ECDSAWithSHA512,
+
+						IA: xtest.MustExtractIA(t, bern1Chain[0]),
+						TRCID: cppki.TRCID{
+							ISD:    1,
+							Base:   1,
+							Serial: 1,
+						},
+						SubjectKeyID: bern1Chain[0].SubjectKeyId,
+						Expiration:   time.Now().Add(2 * time.Hour),
 					},
-					SubjectKeyID: bern1Chain[0].SubjectKeyId,
-					Expiration:   time.Now().Add(2 * time.Hour),
-				}, bern2CSR.Raw),
+				)
+				require.NoError(t, err)
+				return signedReq
 			},
 			chains:    [][]*x509.Certificate{bern1Chain},
 			assertErr: assert.Error,
 		},
 		"signature wrong content": {
-			request: &cert_mgmt.ChainRenewalRequest{
-				RawCSR: bern2CSR.Raw,
-				Signature: sign(t, trust.Signer{
-					PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
-					Hash:       crypto.SHA512,
-					IA:         xtest.MustExtractIA(t, bern1Chain[0]),
-					TRCID: cppki.TRCID{
-						ISD:    1,
-						Base:   1,
-						Serial: 1,
+			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
+				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), bern2CSR.Raw,
+					trust.Signer{
+						PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
+						Algorithm:  signed.ECDSAWithSHA512,
+
+						IA: xtest.MustExtractIA(t, bern1Chain[0]),
+						TRCID: cppki.TRCID{
+							ISD:    1,
+							Base:   1,
+							Serial: 1,
+						},
+						SubjectKeyID: bern1Chain[0].SubjectKeyId,
+						Expiration:   time.Now().Add(2 * time.Hour),
 					},
-					SubjectKeyID: bern1Chain[0].SubjectKeyId,
-					Expiration:   time.Now().Add(2 * time.Hour),
-				}, []byte("not the CSR")),
+				)
+				require.NoError(t, err)
+
+				wrongContent, err := renewal.NewChainRenewalRequest(context.Background(),
+					[]byte("wrong content"),
+					trust.Signer{
+						PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
+						Algorithm:  signed.ECDSAWithSHA512,
+
+						IA: xtest.MustExtractIA(t, bern1Chain[0]),
+						TRCID: cppki.TRCID{
+							ISD:    1,
+							Base:   1,
+							Serial: 1,
+						},
+						SubjectKeyID: bern1Chain[0].SubjectKeyId,
+						Expiration:   time.Now().Add(2 * time.Hour),
+					},
+				)
+				require.NoError(t, err)
+				return &cppb.ChainRenewalRequest{
+					SignedRequest: &cryptopb.SignedMessage{
+						HeaderAndBody: signedReq.SignedRequest.HeaderAndBody,
+						Signature:     wrongContent.SignedRequest.Signature,
+					},
+				}
 			},
 			chains:    [][]*x509.Certificate{bern1Chain},
 			assertErr: assert.Error,
 		},
 		"invalid CSR": {
-			request: &cert_mgmt.ChainRenewalRequest{
-				RawCSR: []byte("invalid CSR"),
-				Signature: sign(t, trust.Signer{
-					PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
-					Hash:       crypto.SHA512,
-					IA:         xtest.MustExtractIA(t, bern1Chain[0]),
-					TRCID: cppki.TRCID{
-						ISD:    1,
-						Base:   1,
-						Serial: 1,
+			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
+				invalid, err := renewal.NewChainRenewalRequest(context.Background(),
+					[]byte("wrong content"),
+					trust.Signer{
+						PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
+						Algorithm:  signed.ECDSAWithSHA512,
+
+						IA: xtest.MustExtractIA(t, bern1Chain[0]),
+						TRCID: cppki.TRCID{
+							ISD:    1,
+							Base:   1,
+							Serial: 1,
+						},
+						SubjectKeyID: bern1Chain[0].SubjectKeyId,
+						Expiration:   time.Now().Add(2 * time.Hour),
 					},
-					SubjectKeyID: bern1Chain[0].SubjectKeyId,
-					Expiration:   time.Now().Add(2 * time.Hour),
-				}, []byte("invalid CSR")),
+				)
+				require.NoError(t, err)
+				return invalid
 			},
 			chains:    [][]*x509.Certificate{bern1Chain},
 			assertErr: assert.Error,
 		},
 		"signature different IA": {
-			request: &cert_mgmt.ChainRenewalRequest{
-				RawCSR: bern2CSR.Raw,
-				Signature: sign(t, trust.Signer{
-					PrivateKey: loadKey(t, "./testdata/geneva/cp-as1.key"),
-					Hash:       crypto.SHA512,
-					IA:         xtest.MustExtractIA(t, geneva1Chain[0]),
-					TRCID: cppki.TRCID{
-						ISD:    1,
-						Base:   1,
-						Serial: 1,
+			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
+				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), bern2CSR.Raw,
+					trust.Signer{
+						PrivateKey: loadKey(t, "./testdata/geneva/cp-as1.key"),
+						Algorithm:  signed.ECDSAWithSHA512,
+
+						IA: xtest.MustExtractIA(t, bern1Chain[0]),
+						TRCID: cppki.TRCID{
+							ISD:    1,
+							Base:   1,
+							Serial: 1,
+						},
+						SubjectKeyID: geneva1Chain[0].SubjectKeyId,
+						Expiration:   time.Now().Add(2 * time.Hour),
 					},
-					SubjectKeyID: geneva1Chain[0].SubjectKeyId,
-					Expiration:   time.Now().Add(2 * time.Hour),
-				}, bern2CSR.Raw),
+				)
+				require.NoError(t, err)
+				return signedReq
 			},
 			// since we don't know what the calling code will use to identify
 			// the chain, let's provide both.
@@ -369,41 +432,72 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 			assertErr: assert.Error,
 		},
 		"valid": {
-			request: &cert_mgmt.ChainRenewalRequest{
-				RawCSR: bern2CSR.Raw,
-				Signature: sign(t, trust.Signer{
-					PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
-					Hash:       crypto.SHA512,
-					IA:         xtest.MustExtractIA(t, bern1Chain[0]),
-					TRCID: cppki.TRCID{
-						ISD:    1,
-						Base:   1,
-						Serial: 1,
+			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
+				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), bern2CSR.Raw,
+					trust.Signer{
+						PrivateKey: loadKey(t, "./testdata/bern/cp-as1.key"),
+						Algorithm:  signed.ECDSAWithSHA512,
+
+						IA: xtest.MustExtractIA(t, bern1Chain[0]),
+						TRCID: cppki.TRCID{
+							ISD:    1,
+							Base:   1,
+							Serial: 1,
+						},
+						SubjectKeyID: bern1Chain[0].SubjectKeyId,
+						Expiration:   time.Now().Add(2 * time.Hour),
 					},
-					SubjectKeyID: bern1Chain[0].SubjectKeyId,
-					Expiration:   time.Now().Add(2 * time.Hour),
-				}, bern2CSR.Raw),
+				)
+				require.NoError(t, err)
+				return signedReq
 			},
 			chains:    [][]*x509.Certificate{bern1Chain},
 			assertErr: assert.NoError,
 		},
 		"valid chain overlap": {
-			request: &cert_mgmt.ChainRenewalRequest{
-				RawCSR: bern3CSR.Raw,
-				Signature: sign(t, trust.Signer{
-					PrivateKey: loadKey(t, "./testdata/bern/cp-as2.key"),
-					Hash:       crypto.SHA512,
-					IA:         xtest.MustExtractIA(t, bern2Chain[0]),
-					TRCID: cppki.TRCID{
-						ISD:    1,
-						Base:   1,
-						Serial: 1,
+			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
+				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), bern3CSR.Raw,
+					trust.Signer{
+						PrivateKey: loadKey(t, "./testdata/bern/cp-as2.key"),
+						Algorithm:  signed.ECDSAWithSHA512,
+
+						IA: xtest.MustExtractIA(t, bern2Chain[0]),
+						TRCID: cppki.TRCID{
+							ISD:    1,
+							Base:   1,
+							Serial: 1,
+						},
+						SubjectKeyID: bern2Chain[0].SubjectKeyId,
+						Expiration:   time.Now().Add(2 * time.Hour),
 					},
-					SubjectKeyID: bern2Chain[0].SubjectKeyId,
-					Expiration:   time.Now().Add(2 * time.Hour),
-				}, bern3CSR.Raw),
+				)
+				require.NoError(t, err)
+				return signedReq
 			},
 			chains:    [][]*x509.Certificate{bern1Chain, bern2Chain},
+			assertErr: assert.NoError,
+		},
+		"valid, additional chain": {
+			buildRequest: func(t *testing.T) *cppb.ChainRenewalRequest {
+				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), bern3CSR.Raw,
+					trust.Signer{
+						PrivateKey: loadKey(t, "./testdata/bern/cp-as2.key"),
+						Algorithm:  signed.ECDSAWithSHA512,
+
+						IA: xtest.MustExtractIA(t, bern2Chain[0]),
+						TRCID: cppki.TRCID{
+							ISD:    1,
+							Base:   1,
+							Serial: 1,
+						},
+						SubjectKeyID: bern2Chain[0].SubjectKeyId,
+						Expiration:   time.Now().Add(2 * time.Hour),
+					},
+				)
+				require.NoError(t, err)
+				return signedReq
+			},
+			chains:    [][]*x509.Certificate{bern1Chain, bern2Chain, geneva1Chain},
 			assertErr: assert.NoError,
 		},
 	}
@@ -411,20 +505,11 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			req := tc.request
-			if req == nil && tc.buildRequest != nil {
-				req = tc.buildRequest(t)
-			}
+			req := tc.buildRequest(t)
 			_, err := renewal.VerifyChainRenewalRequest(req, tc.chains)
 			tc.assertErr(t, err)
 		})
 	}
-}
-
-func sign(t *testing.T, signer trust.Signer, msg []byte) *proto.SignS {
-	s, err := signer.Sign(context.Background(), msg)
-	require.NoError(t, err)
-	return s
 }
 
 func loadKey(t *testing.T, file string) crypto.Signer {

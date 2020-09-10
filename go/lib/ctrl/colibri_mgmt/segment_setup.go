@@ -19,12 +19,14 @@ import (
 )
 
 type SegmentSetup struct {
+	Base            *SegmentBase
 	MinBW           uint8
 	MaxBW           uint8
 	SplitCls        uint8
 	StartProps      PathEndProps
 	EndProps        PathEndProps
-	AllocationTrail []*AllocationBeads
+	InfoField       []byte
+	AllocationTrail []*AllocationBead
 }
 
 func (s *SegmentSetup) ProtoId() proto.ProtoIdType {
@@ -32,6 +34,7 @@ func (s *SegmentSetup) ProtoId() proto.ProtoIdType {
 }
 
 type SegmentSetupRes struct {
+	Base    *SegmentBase
 	Which   proto.SegmentSetupResData_Which
 	Failure *SegmentSetup
 	Token   []byte
@@ -50,11 +53,11 @@ func (pep *PathEndProps) ProtoId() proto.ProtoIdType {
 	return proto.PathEndProps_TypeID
 }
 
-type AllocationBeads struct {
+type AllocationBead struct {
 	AllocBW uint8
 	MaxBW   uint8
 }
 
-func (ab *AllocationBeads) ProtoId() proto.ProtoIdType {
-	return proto.AllocationBeads_TypeID
+func (ab *AllocationBead) ProtoId() proto.ProtoIdType {
+	return proto.AllocationBead_TypeID
 }

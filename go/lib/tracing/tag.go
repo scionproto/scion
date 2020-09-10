@@ -31,3 +31,8 @@ func Error(span opentracing.Span, err error) {
 		span.SetTag("error.msg", err)
 	}
 }
+
+// Component sets the 'component' tag according to the provided value.
+func Component(span opentracing.Span, component string) {
+	ext.Component.Set(span, component)
+}

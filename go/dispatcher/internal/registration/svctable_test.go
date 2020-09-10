@@ -117,7 +117,7 @@ func TestSVCTableOneItem(t *testing.T) {
 			So(retValues, ShouldBeEmpty)
 		})
 		Convey("anycasting to a different SVC does not find the entry", func() {
-			retValues := table.Lookup(addr.SvcPS, address.IP)
+			retValues := table.Lookup(addr.SvcDS, address.IP)
 			So(retValues, ShouldBeEmpty)
 		})
 		Convey("anycasting to the same SVC and IP finds the entry", func() {
@@ -343,18 +343,13 @@ func TestSVCTableWildcard(t *testing.T) {
 		LookupResultCount int
 	}{
 		{
-			Name:              "bs",
-			Address:           addr.SvcBS.Multicast(),
-			LookupResultCount: 1,
-		},
-		{
 			Name:              "cs",
 			Address:           addr.SvcCS.Multicast(),
 			LookupResultCount: 1,
 		},
 		{
-			Name:              "ps",
-			Address:           addr.SvcPS.Multicast(),
+			Name:              "ds",
+			Address:           addr.SvcDS.Multicast(),
 			LookupResultCount: 1,
 		},
 		{
@@ -380,9 +375,8 @@ func TestSVCTableWildcardFree(t *testing.T) {
 	require.NoError(t, err)
 	reference.Free()
 
-	assert.Equal(t, 0, len(table.Lookup(addr.SvcBS, nil)))
 	assert.Equal(t, 0, len(table.Lookup(addr.SvcCS, nil)))
-	assert.Equal(t, 0, len(table.Lookup(addr.SvcPS, nil)))
+	assert.Equal(t, 0, len(table.Lookup(addr.SvcDS, nil)))
 }
 
 func TestSVCTableWildcardRollback(t *testing.T) {
@@ -395,30 +389,20 @@ func TestSVCTableWildcardRollback(t *testing.T) {
 	testCases := []*struct {
 		Name                string
 		RegisteredAddress   addr.HostSVC
-		LookupResultBSCount int
 		LookupResultCSCount int
-		LookupResultPSCount int
+		LookupResultDSCount int
 	}{
-		{
-			Name:                "bs",
-			RegisteredAddress:   addr.SvcBS,
-			LookupResultBSCount: 1,
-			LookupResultCSCount: 0,
-			LookupResultPSCount: 0,
-		},
 		{
 			Name:                "cs",
 			RegisteredAddress:   addr.SvcCS,
-			LookupResultBSCount: 0,
 			LookupResultCSCount: 1,
-			LookupResultPSCount: 0,
+			LookupResultDSCount: 0,
 		},
 		{
-			Name:                "ps",
-			RegisteredAddress:   addr.SvcPS,
-			LookupResultBSCount: 0,
+			Name:                "ds",
+			RegisteredAddress:   addr.SvcDS,
 			LookupResultCSCount: 0,
-			LookupResultPSCount: 1,
+			LookupResultDSCount: 1,
 		},
 	}
 
@@ -431,9 +415,8 @@ func TestSVCTableWildcardRollback(t *testing.T) {
 			_, err = table.Register(addr.SvcWildcard, address, value)
 			assert.Error(t, err)
 
-			assert.Equal(t, tc.LookupResultBSCount, len(table.Lookup(addr.SvcBS, nil)))
 			assert.Equal(t, tc.LookupResultCSCount, len(table.Lookup(addr.SvcCS, nil)))
-			assert.Equal(t, tc.LookupResultPSCount, len(table.Lookup(addr.SvcPS, nil)))
+			assert.Equal(t, tc.LookupResultDSCount, len(table.Lookup(addr.SvcDS, nil)))
 		})
 	}
 }

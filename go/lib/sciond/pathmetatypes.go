@@ -4,21 +4,16 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // PathMetadata is the condensed form of metadata retaining only the most important values.
 type PathMetadata struct {
-	Latency uint16             `capnp:"totalLatency"`
-	Hops    uint8              `capnp:"totalHops"`
-	Bandwidth  uint32             `capnp:"minimalBandwidth"`
-	LinkTypes    []LinkType `capnp:"linkTypes"`
-	Geos    []*Geo        `capnp:"asLocations"`
-	Notes        []*Note       `capnp:"notes"`
-}
-
-func (s *PathMetadata) ProtoId() proto.ProtoIdType {
-	return proto.FwdPathMeta_PathMetadata_TypeID
+	Latency   uint16     `capnp:"totalLatency"`
+	Hops      uint8      `capnp:"totalHops"`
+	Bandwidth uint32     `capnp:"minimalBandwidth"`
+	LinkTypes []LinkType `capnp:"linkTypes"`
+	Geos      []*Geo     `capnp:"asLocations"`
+	Notes     []*Note    `capnp:"notes"`
 }
 
 func (s *PathMetadata) String() string {
@@ -51,12 +46,8 @@ func (t LinkType) String() string {
 }
 
 type Geo struct {
-	RouterLocations []*GeoLoc `capnp:"routerLocations"`
-	RawIA           addr.IAInt     `capnp:"isdas"`
-}
-
-func (s *Geo) ProtoId() proto.ProtoIdType {
-	return proto.FwdPathMeta_PathMetadata_Geo_TypeID
+	RouterLocations []*GeoLoc  `capnp:"routerLocations"`
+	RawIA           addr.IAInt `capnp:"isdas"`
 }
 
 func (s *Geo) String() string {
@@ -70,10 +61,6 @@ type GeoLoc struct {
 	Address   string  `capnp:"address"`
 }
 
-func (s *GeoLoc) ProtoId() proto.ProtoIdType {
-	return proto.FwdPathMeta_PathMetadata_Geo_GPSData_TypeID
-}
-
 func (s *GeoLoc) String() string {
 	return fmt.Sprintf("Latitude: %f, Longitude: %f, Address: %s",
 		s.Latitude, s.Longitude, s.Address)
@@ -82,10 +69,6 @@ func (s *GeoLoc) String() string {
 type Note struct {
 	Note  string     `capnp:"note"`
 	RawIA addr.IAInt `capnp:"isdas"`
-}
-
-func (s *Note) ProtoId() proto.ProtoIdType {
-	return proto.FwdPathMeta_PathMetadata_Note_TypeID
 }
 
 func (s *Note) String() string {

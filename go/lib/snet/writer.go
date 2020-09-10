@@ -29,8 +29,9 @@ import (
 )
 
 type scionConnWriter struct {
-	base *scionConnBase
-	conn PacketConn
+	base     *scionConnBase
+	conn     PacketConn
+	headerv2 bool
 
 	mtx    sync.Mutex
 	buffer common.RawBytes
@@ -84,13 +85,29 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 			Source: SCIONAddress{IA: c.base.scionNet.LocalIA,
 				Host: addr.HostFromIP(c.base.listen.IP)},
 			Path: path,
-			L4Header: &l4.UDP{
-				SrcPort:  uint16(c.base.listen.Port),
-				DstPort:  uint16(port),
-				TotalLen: uint16(l4.UDPLen + len(b)),
+			PayloadV2: UDPPayload{
+				SrcPort: uint16(c.base.listen.Port),
+				DstPort: uint16(port),
+				Payload: b,
 			},
-			Payload: common.RawBytes(b),
 		},
+	}
+	if !c.headerv2 {
+		pkt = &Packet{
+			Bytes: Bytes(c.buffer),
+			PacketInfo: PacketInfo{
+				Destination: dst,
+				Source: SCIONAddress{IA: c.base.scionNet.LocalIA,
+					Host: addr.HostFromIP(c.base.listen.IP)},
+				Path: path,
+				L4Header: &l4.UDP{
+					SrcPort:  uint16(c.base.listen.Port),
+					DstPort:  uint16(port),
+					TotalLen: uint16(l4.UDPLen + len(b)),
+				},
+				Payload: common.RawBytes(b),
+			},
+		}
 	}
 
 	c.mtx.Lock()

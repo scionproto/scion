@@ -19,10 +19,19 @@ import (
 )
 
 type SegmentIndexConfirmation struct {
-	Index uint8
+	Base  *SegmentBase
 	State proto.ReservationIndexState
 }
 
 func (s *SegmentIndexConfirmation) ProtoId() proto.ProtoIdType {
 	return proto.SegmentIndexConfirmationData_TypeID
+}
+
+type SegmentIndexConfirmationRes struct {
+	Base      *SegmentBase
+	ErrorCode uint8
+}
+
+func (s *SegmentIndexConfirmationRes) ProtoId() proto.ProtoIdType {
+	return proto.SegmentIndexConfirmationResData_TypeID
 }

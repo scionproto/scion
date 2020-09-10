@@ -11,9 +11,9 @@ import (
 // the most important values to be transmitted to SCIOND
 func CondenseMetadata(data *combinator.PathMetadata) *sciond.PathMetadata {
 	ret := &sciond.PathMetadata{
-		Latency: 0,
-		Hops:    0,
-		Bandwidth:  math.MaxUint32,
+		Latency:   0,
+		Hops:      0,
+		Bandwidth: math.MaxUint32,
 	}
 
 	for _, val := range data.ASBandwidths {
@@ -65,14 +65,14 @@ func CondenseMetadata(data *combinator.PathMetadata) *sciond.PathMetadata {
 	}
 
 	for _, link := range data.Links {
-		if sciond.LinkType(link.InterLinkType) != sciond.LinkTypeUnset{
+		if sciond.LinkType(link.InterLinkType) != sciond.LinkTypeUnset {
 			ret.LinkTypes = append(ret.LinkTypes, sciond.LinkType(link.InterLinkType))
 		}
-		if sciond.LinkType(link.PeerLinkType) != sciond.LinkTypeUnset{
+		if sciond.LinkType(link.PeerLinkType) != sciond.LinkTypeUnset {
 			ret.LinkTypes = append(ret.LinkTypes, sciond.LinkType(link.PeerLinkType))
 		}
 		if (sciond.LinkType(link.InterLinkType) == sciond.LinkTypeUnset) &&
-			(sciond.LinkType(link.PeerLinkType) == sciond.LinkTypeUnset){
+			(sciond.LinkType(link.PeerLinkType) == sciond.LinkTypeUnset) {
 			ret.LinkTypes = append(ret.LinkTypes, sciond.LinkTypeUnset)
 		}
 	}

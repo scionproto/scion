@@ -1,0 +1,143 @@
+// Copyright 2020 Anapaya Systems
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/scionproto/scion/go/pkg/proto/control_plane";
+
+package proto.control_plane.v1;
+
+import "proto/control_plane/v1/seg_extensions.proto";
+import "proto/crypto/v1/signed.proto";
+
+
+service SegmentLookupService {
+    // Segments returns all segments that match the request.
+    rpc Segments(SegmentsRequest) returns (SegmentsResponse) {}
+}
+
+message SegmentsRequest {
+    // The source ISD-AS of the segment.
+    uint64 src_isd_as = 1;
+    // The destination ISD-AS of the segment.
+    uint64 dst_isd_as = 2;
+}
+
+message SegmentsResponse {
+    // Raw is the raw SegRecs entry in the legacy format.
+    bytes raw = 1000;
+}
+
+service SegmentRegistrationService {
+    // SegmentsRegistration registers segments at the remote.
+    rpc SegmentsRegistration(SegmentsRegistrationRequest) returns (SegmentsRegistrationResponse) {}
+}
+
+message SegmentsRegistrationRequest {
+    // Raw is the raw SegRecs entry in the legacy format.
+    bytes raw = 1000;
+}
+
+message SegmentsRegistrationResponse {}
+
+service SegmentCreationService {
+    // Beacon sends a beacon to the remote.
+    rpc Beacon(BeaconRequest) returns (BeaconResponse) {}
+}
+
+message BeaconRequest {
+    // Raw is the raw PathSegment entry in the legace format.
+    bytes raw = 1000;
+}
+
+message BeaconResponse {}
+
+message PathSegment {
+    // The encoded SegmentInformation. It is used for signature input.
+    bytes segment_info = 1;
+    // Entries of ASes on the path.
+    repeated ASEntry as_entries = 2;
+}
+
+message SegmentInformation {
+    // Segment creation time set by the originating AS. Segment expiration time
+    // is computed relative to this timestamp. The timestamp is encoded as
+    // number of seconds elapsed since January 1, 1970 UTC.
+    int64 timestamp = 1;
+    // The 16-bit segment ID integer used for MAC computation.
+    uint32 segment_id = 2;
+}
+
+message ASEntry {
+    // The signed part of the AS entry. The body of the SignedMessage is the
+    // serialized ASEntrySignedBody. The signature input is defined as following:
+    //
+    //  input(ps, i) = signed.header_and_body || associated_data(ps, i)
+    //
+    //  associated_data(ps, i) = ps.segment_info ||
+    //                           ps.as_entries[1].signed.header_and_body ||
+    //                           ps.as_entries[1].signed.signature ||
+    //                           ...
+    //                           ps.as_entries[i-1].signed.header_and_body ||
+    //                           ps.as_entries[i-1].signed.signature
+    //
+    proto.crypto.v1.SignedMessage signed = 1;
+}
+
+message ASEntrySignedBody {
+    // ISD-AS of the AS that created this AS entry.
+    uint64 isd_as = 1;
+    // ISD-AS of the downstream AS.
+    uint64 next_isd_as = 2;
+    // The required regular hop entry.
+    HopEntry hop_entry = 3;
+    // Optional peer entries.
+    repeated PeerEntry peer_entries = 4;
+    // Intra AS MTU.
+    uint32 mtu = 5;
+    // Optional extensions.
+    proto.control_plane.v1.PathSegmentExtensions extensions = 6;
+}
+
+message HopEntry {
+    // Material to create the data-plane hop field.
+    HopField hop_field = 1;
+    // MTU on the ingress link.
+    uint32 ingress_mtu = 2;
+}
+
+message PeerEntry {
+    // ISD-AS of peer AS. This is used to match peering segments during path
+    // construction.
+    uint64 peer_isd_as = 1;
+    // Remote peer interface identifier. This is used to match peering segments
+    // during path construction.
+    uint64 peer_interface = 2;
+    // MTU on the peering link.
+    uint32 peer_mtu = 3;
+    // Material to create the data-plane hop field
+    HopField hop_field = 4;
+}
+
+message HopField {
+    // Ingress interface identifier.
+    uint64 ingress = 1;
+    // Egress interface identifier.
+    uint64 egress = 2;
+    // 8-bit encoded expiration offset relative to the segment creation
+    // timestamp.
+    uint32 exp_time = 3;
+    // MAC used in the dataplane to verify the hop field.
+    bytes mac = 4;
+}

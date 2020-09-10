@@ -6,4 +6,5 @@ if [ -n "$REMOTE_NETS" ] && [ -n "$SIG_IP" ]; then
         ip route add "$net" via $SIG_IP dev eth0
     done
 fi
+echo "Tester started"
 tail -f /dev/null

@@ -15,6 +15,8 @@
 package beacon
 
 import (
+	"fmt"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -53,6 +55,10 @@ func (b Beacon) Diversity(other Beacon) int {
 		}
 	}
 	return diff
+}
+
+func (b Beacon) String() string {
+	return fmt.Sprintf("Ingress: %d Segment: [ %s ]", b.InIfId, b.Segment)
 }
 
 func link(entry *seg.ASEntry) (addr.IA, common.IFIDType) {

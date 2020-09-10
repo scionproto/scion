@@ -6,11 +6,21 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 
 # BEGIN subcommand functions
 
+run_silently() {
+    tmpfile=$(mktemp /tmp/scion-silent.XXXXXX)
+    $@ >>$tmpfile 2>&1
+    if [ $? -ne 0 ]; then
+        cat $tmpfile
+        return 1
+    fi
+    return 0
+}
+
 cmd_topo_clean() {
     set -e
     if is_docker_be; then
         echo "Shutting down dockerized topology..."
-        ./tools/quiet ./tools/dc down
+        ./tools/quiet ./tools/dc down || true
     else
         echo "Shutting down: $(./scion.sh stop)"
     fi
@@ -268,6 +278,7 @@ cmd_lint() {
     py_lint || ret=1
     go_lint || ret=1
     bazel_lint || ret=1
+    protobuf_lint || ret=1
     md_lint || ret=1
     return $ret
 }
@@ -291,13 +302,12 @@ go_lint() {
     local LOCAL_DIRS="$(find go/* -maxdepth 0 -type d | grep -v vendor)"
     # Find go files to lint, excluding generated code. For linelen and misspell.
     find go acceptance -type f -iname '*.go' \
+      -a '!' -ipath '*.pb.go' \
       -a '!' -ipath 'go/proto/structs.gen.go' \
       -a '!' -ipath 'go/proto/*.capnp.go' \
       -a '!' -ipath '*mock_*' \
       -a '!' -ipath 'go/lib/pathpol/sequence/*' > $TMPDIR/gofiles.list
-
-    lint_step "Building lint tools"
-    bazel build //:lint || return 1
+    run_silently bazel build //:lint || return 1
     tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
     local ret=0
     lint_step "impi"
@@ -305,14 +315,14 @@ go_lint() {
         --skip 'mock_' \
         --skip 'go/proto/.*\.capnp\.go' \
         --skip 'go/proto/structs.gen.go' \
-        --skip 'go/protobuf/.*\.pb\.go' \
+        --skip '.*\.pb\.go' \
         ./go/... || ret=1
     $TMPDIR/impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal ./acceptance/... || ret=1
     lint_step "gofmt"
     # TODO(sustrik): At the moment there are no bazel rules for gofmt.
     # See: https://github.com/bazelbuild/rules_go/issues/511
     # Instead we'll just run the commands from Go SDK directly.
-    GOSDK=$(bazel info output_base)/external/go_sdk/bin
+    GOSDK=$(bazel info output_base 2>/dev/null)/external/go_sdk/bin
     out=$($GOSDK/gofmt -d -s $LOCAL_DIRS ./acceptance);
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     lint_step "linelen (lll)"
@@ -323,16 +333,26 @@ go_lint() {
     lint_step "ineffassign"
     $TMPDIR/ineffassign -exclude ineffassign.json go acceptance || ret=1
     lint_step "bazel"
-    make gazelle GAZELLE_MODE=diff || ret=1
+    run_silently make gazelle GAZELLE_MODE=diff || ret=1
     # Clean up the binaries
     rm -rf $TMPDIR
     return $ret
 }
 
+protobuf_lint() {
+    lint_header "protobuf"
+    local TMPDIR=$(mktemp -d /tmp/scion-lint.XXXXXXX)
+    run_silently bazel build //:lint || return 1
+    tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
+    local ret=0
+    lint_step "check files"
+    $TMPDIR/buf check lint || return 1
+}
+
 bazel_lint() {
     lint_header "bazel"
     local ret=0
-    bazel run //:buildifier_check || ret=1
+    run_silently bazel run //:buildifier_check || ret=1
     if [ $ret -ne 0 ]; then
         printf "\nto fix run:\nbazel run //:buildifier\n"
     fi

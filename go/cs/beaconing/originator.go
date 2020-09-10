@@ -75,7 +75,7 @@ func (o *Originator) originateBeacons(ctx context.Context, linkType topology.Lin
 	logger := log.FromCtx(ctx)
 	active, nonActive := sortedIntfs(o.Intfs, linkType)
 	if len(nonActive) > 0 && o.Tick.passed() {
-		logger.Debug("[beaconing.Originator] Ignore non-active interfaces", "ifids", nonActive)
+		logger.Debug("Ignore non-active interfaces", "ifids", nonActive)
 	}
 	intfs := o.needBeacon(active)
 	if len(intfs) == 0 {
@@ -91,8 +91,7 @@ func (o *Originator) originateBeacons(ctx context.Context, linkType topology.Lin
 			summary:    s,
 		}
 		if err := b.originateBeacon(ctx); err != nil {
-			logger.Error("[beaconing.Originator] Unable to originate on interface",
-				"ifid", ifid, "err", err)
+			logger.Info("Unable to originate on interface", "ifid", ifid, "err", err)
 		}
 	}
 	o.logSummary(logger, s, linkType)
@@ -128,12 +127,11 @@ func (o *Originator) needBeacon(active []common.IFIDType) []common.IFIDType {
 
 func (o *Originator) logSummary(logger log.Logger, s *summary, linkType topology.LinkType) {
 	if o.Tick.passed() {
-		logger.Info("[beaconing.Originator] Originated beacons",
-			"type", linkType.String(), "egIfIds", s.IfIds())
+		logger.Info("Originated beacons", "type", linkType.String(), "egIfIds", s.IfIds())
 		return
 	}
 	if s.count > 0 {
-		logger.Info("[beaconing.Originator] Originated beacons on stale interfaces",
+		logger.Info("Originated beacons on stale interfaces",
 			"type", linkType.String(), "egIfIds", s.IfIds())
 	}
 }

@@ -2,6 +2,8 @@
 
 set -eo pipefail
 
+echo "--- pre-artifact hook"
+
 # Attempt to do clean docker topology shutdown.
 # This lets applications flush the logs to avoid cutting them off.
 if [ -f "gen/scion-dc.yml" ]; then
@@ -48,7 +50,6 @@ echo "\$BUILD=$BUILD"
 ARTIFACTS="buildkite.${BUILDKITE_ORGANIZATION_SLUG}.${TARGET}.${BUILD}.${BUILDKITE_STEP_KEY:-unset}.${BUILDKITE_JOB_ID}"
 mkdir -p "artifacts/$ARTIFACTS" artifacts.out
 
-set -x
 function save {
     if [ -d "$1" ]; then
         echo Found artifacts: "$1"

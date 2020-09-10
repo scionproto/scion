@@ -1,0 +1,34 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "algo.go",
+        "msg.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/scrypto/signed",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/serrors:go_default_library",
+        "//go/pkg/proto/crypto:go_default_library",
+        "@com_github_golang_protobuf//ptypes:go_default_library_gen",
+        "@io_bazel_rules_go//proto/wkt:timestamp_go_proto",
+        "@org_golang_google_protobuf//proto:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "example_test.go",
+        "export_test.go",
+        "msg_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/pkg/proto/crypto:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+        "@org_golang_google_protobuf//proto:go_default_library",
+    ],
+)

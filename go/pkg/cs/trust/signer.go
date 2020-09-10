@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/serrors"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -39,4 +40,13 @@ func (s RenewingSigner) Sign(ctx context.Context, msg []byte) (*proto.SignS, err
 		return nil, serrors.WrapStr("failed to generate signer", err)
 	}
 	return signer.Sign(ctx, msg)
+}
+
+// SignV2 signs the message with the latest available Signer.
+func (s RenewingSigner) SignV2(ctx context.Context, msg []byte) (*cryptopb.SignedMessage, error) {
+	signer, err := s.SignerGen.Generate(ctx)
+	if err != nil {
+		return nil, serrors.WrapStr("failed to generate signer", err)
+	}
+	return signer.SignV2(ctx, msg)
 }

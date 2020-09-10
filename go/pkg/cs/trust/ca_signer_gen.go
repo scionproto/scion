@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -98,11 +99,14 @@ func (s *CachingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error)
 		metrics.Signer.ActiveCA().Set(0)
 		return cppki.CAPolicy{}, err
 	}
+	if !s.cached.Equal(policy) {
+		log.FromCtx(ctx).Info("Generated new CA policy",
+			"subject_key_id", fmt.Sprintf("%x", policy.Certificate.SubjectKeyId),
+			"expiration", policy.Certificate.NotAfter,
+		)
+	}
 	s.cached, s.ok = policy, true
-	log.FromCtx(ctx).Info("Generated new CA policy",
-		"subject_key_id", fmt.Sprintf("%x", policy.Certificate.SubjectKeyId),
-		"expiration", policy.Certificate.NotAfter,
-	)
+
 	metrics.Signer.ActiveCA().Set(1)
 	metrics.Signer.LastGeneratedCA().SetToCurrentTime()
 	metrics.Signer.ExpirationCA().Set(metrics.Timestamp(policy.Certificate.NotAfter))
@@ -223,13 +227,17 @@ func (l CACertLoader) CACerts(ctx context.Context) ([]*x509.Certificate, error) 
 	for _, f := range files {
 		cert, err := l.validateCACert(f, opts)
 		if err != nil {
+			if strings.HasSuffix(f, ".root.crt") {
+				logger.Debug("Ignoring non-CA certificate", "file", f, "reason", err)
+				continue
+			}
 			logger.Info("Ignoring non-CA certificate", "file", f, "reason", err)
 			continue
 		}
 		loaded = append(loaded, f)
 		certs = append(certs, cert)
 	}
-	log.FromCtx(ctx).Info("CA certificates loaded", "files", loaded)
+	log.FromCtx(ctx).Debug("CA certificates loaded", "files", loaded)
 	return certs, nil
 }
 

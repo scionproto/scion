@@ -22,7 +22,6 @@ import (
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing"
-	beaconingcompat "github.com/scionproto/scion/go/cs/beaconing/compat"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/cs/keepalive"
 	"github.com/scionproto/scion/go/cs/onehop"
@@ -31,16 +30,18 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
+	ifstategrpc "github.com/scionproto/scion/go/pkg/cs/ifstate/grpc"
+	"github.com/scionproto/scion/go/pkg/grpc"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -54,10 +55,10 @@ type TasksConfig struct {
 	TrustDB         trust.DB
 	PathDB          pathdb.PathDB
 	RevCache        revcache.RevCache
+	BeaconSender    beaconing.BeaconSender
+	SegmentRegister beaconing.RPC
 	BeaconStore     Store
 	Signer          ctrl.Signer
-	Msgr            infra.Messenger
-	AddressRewriter *messenger.AddressRewriter
 	Inspector       trust.Inspector
 
 	MACGen       func() hash.Hash
@@ -83,21 +84,11 @@ func (t *TasksConfig) Originator() *periodic.Runner {
 		Extender: t.extender("originator", topo.IA(), topo.MTU(), func() spath.ExpTimeType {
 			return t.BeaconStore.MaxExpTime(beacon.PropPolicy)
 		}),
-		BeaconSender: &onehop.BeaconSender{
-			Sender: onehop.Sender{
-				Conn:     t.OneHopConn,
-				IA:       topo.IA(),
-				MAC:      t.MACGen(),
-				Addr:     t.Public,
-				HeaderV2: t.HeaderV2,
-			},
-			AddressRewriter:  t.AddressRewriter,
-			QUICBeaconSender: t.Msgr,
-		},
-		IA:     topo.IA(),
-		Intfs:  t.Intfs,
-		Signer: t.Signer,
-		Tick:   beaconing.NewTick(t.OriginationInterval),
+		BeaconSender: t.BeaconSender,
+		IA:           topo.IA(),
+		Intfs:        t.Intfs,
+		Signer:       t.Signer,
+		Tick:         beaconing.NewTick(t.OriginationInterval),
 	}
 	return periodic.Start(s, 500*time.Millisecond, t.OriginationInterval)
 }
@@ -109,17 +100,7 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 		Extender: t.extender("propagator", topo.IA(), topo.MTU(), func() spath.ExpTimeType {
 			return t.BeaconStore.MaxExpTime(beacon.PropPolicy)
 		}),
-		BeaconSender: &onehop.BeaconSender{
-			Sender: onehop.Sender{
-				Conn:     t.OneHopConn,
-				IA:       topo.IA(),
-				MAC:      t.MACGen(),
-				Addr:     t.Public,
-				HeaderV2: t.HeaderV2,
-			},
-			AddressRewriter:  t.AddressRewriter,
-			QUICBeaconSender: t.Msgr,
-		},
+		BeaconSender: t.BeaconSender,
 		Provider:     t.BeaconStore,
 		IA:           topo.IA(),
 		Signer:       t.Signer,
@@ -152,7 +133,7 @@ func (t *TasksConfig) registrar(topo topology.Topology, segType proto.PathSegTyp
 		}),
 		Provider: t.BeaconStore,
 		Store:    &seghandler.DefaultStorage{PathDB: t.PathDB},
-		RPC:      beaconingcompat.RPC{Messenger: t.Msgr},
+		RPC:      t.SegmentRegister,
 		IA:       topo.IA(),
 		Signer:   t.Signer,
 		Intfs:    t.Intfs,
@@ -288,6 +269,7 @@ type LegacyTasksConfig struct {
 	Intfs       *ifstate.Interfaces
 	OneHopConn  *snet.SCIONPacketConn
 	BeaconStore Store
+	RevCache    revcache.RevCache
 	Signer      ctrl.Signer
 	Msgr        infra.Messenger
 
@@ -328,8 +310,8 @@ func (t LegacyTasksConfig) Revoker() *periodic.Runner {
 	return periodic.Start(
 		ifstate.RevokerConf{
 			Intfs:        t.Intfs,
-			Msgr:         t.Msgr,
-			RevInserter:  t.BeaconStore,
+			StateSender:  ifstategrpc.StateSender{Dialer: grpc.SimpleDialer{}},
+			RevInserter:  multiRevInserter{BeaconStore: t.BeaconStore, RevCache: t.RevCache},
 			Signer:       t.Signer,
 			TopoProvider: t.TopoProvider,
 			RevConfig: ifstate.RevConfig{
@@ -346,6 +328,27 @@ func killRunners(runners []*periodic.Runner) {
 	for _, r := range runners {
 		r.Kill()
 	}
+}
+
+type multiRevInserter struct {
+	BeaconStore ifstate.RevInserter
+	RevCache    revcache.RevCache
+}
+
+func (i multiRevInserter) InsertRevocations(ctx context.Context,
+	revocations ...*path_mgmt.SignedRevInfo) error {
+
+	var errors serrors.List
+	if err := i.BeaconStore.InsertRevocations(ctx, revocations...); err != nil {
+		errors = append(errors, serrors.WrapStr("insertings revs in beacon store", err))
+	}
+
+	for _, r := range revocations {
+		if _, err := i.RevCache.Insert(ctx, r); err != nil {
+			errors = append(errors, serrors.WrapStr("insertings revs in revcache", err))
+		}
+	}
+	return errors.ToError()
 }
 
 // Store is the interface to interact with the beacon store.

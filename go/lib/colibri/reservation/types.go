@@ -16,7 +16,10 @@ package reservation
 
 import (
 	"encoding/binary"
+	"encoding/hex"
+	"fmt"
 	"io"
+	"math"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -77,6 +80,17 @@ func (id *SegmentID) Read(raw []byte) (int, error) {
 	copy(raw, auxBuff[2:8])
 	copy(raw[6:], id.Suffix[:])
 	return SegmentIDLen, nil
+}
+
+// ToRaw calls Read and returns a new allocated buffer with the ID serialized.
+func (id *SegmentID) ToRaw() []byte {
+	buf := make([]byte, SegmentIDLen)
+	id.Read(buf) // safely ignore errors as they can only come from buffer size
+	return buf
+}
+
+func (id *SegmentID) String() string {
+	return fmt.Sprintf("%s-%x", id.ASID, id.Suffix)
 }
 
 // E2EID identifies a COLIBRI E2E reservation. The suffix is different for each
@@ -146,8 +160,19 @@ func (t Tick) ToTime() time.Time {
 	return util.SecsToTime(uint32(t) * 4)
 }
 
-// BWCls is the bandwidth class. bandwidth = 16 * sqrt(2^(BWCls - 1)). 0 <= bwcls <= 63 .
+// BWCls is the bandwidth class. bandwidth = 16 * sqrt(2^(BWCls - 1)). 0 <= bwcls <= 63 kbps.
 type BWCls uint8
+
+// BWClsFromBW constructs a BWCls from the bandwidth. Given that
+// bandwidth = 16 * sqrt(2^(BWCls - 1))
+// where bandwidth is kbps. We then have
+// BWCls = 2 * log2( bandwidth/16 ) + 1
+// The value of BWCls will be the ceiling of the previous expression.
+func BWClsFromBW(bwKbps uint64) BWCls {
+	cls := 2*math.Log2(float64(bwKbps)/16) + 1
+	cls = math.Min(cls, 63)
+	return BWCls(math.Ceil(cls))
+}
 
 // Validate will return an error for invalid values.
 func (b BWCls) Validate() error {
@@ -155,6 +180,27 @@ func (b BWCls) Validate() error {
 		return serrors.New("invalid BWClass value", "bw_cls", b)
 	}
 	return nil
+}
+
+// ToKbps returns the kilobits per second this BWCls represents.
+func (b BWCls) ToKbps() uint64 {
+	return uint64(16 * math.Sqrt(math.Pow(2, float64(b)-1)))
+}
+
+// MaxBWCls returns the maximum of two BWCls.
+func MaxBWCls(a, b BWCls) BWCls {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// MinBWCls returns the minimum of two BWCls.
+func MinBWCls(a, b BWCls) BWCls {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // SplitCls is the traffic split parameter. split = sqrt(2^c). The split divides the bandwidth
@@ -294,6 +340,16 @@ func (f *InfoField) Read(b []byte) (int, error) {
 	return 8, nil
 }
 
+// ToRaw returns the serial representation of the InfoField.
+func (f *InfoField) ToRaw() []byte {
+	var buff []byte = nil
+	if f != nil {
+		buff = make([]byte, InfoFieldLen)
+		f.Read(buff) // safely ignore errors as they can only come from buffer size
+	}
+	return buff
+}
+
 // PathEndProps represent the zero or more properties a COLIBRI path can have at both ends.
 type PathEndProps uint8
 
@@ -318,6 +374,43 @@ func (pep PathEndProps) Validate() error {
 	return nil
 }
 
+// ValidateWithPathType checks the validity of the properties when in a path of the specified type.
+func (pep PathEndProps) ValidateWithPathType(pt PathType) error {
+	if err := pep.Validate(); err != nil {
+		return err
+	}
+	var invalid bool
+	s := pep & 0xF0
+	e := pep & 0x0F
+	switch pt {
+	case CorePath:
+		if s == 0 {
+			invalid = true
+		}
+	case UpPath:
+		if s != StartLocal {
+			invalid = true
+		}
+	case DownPath:
+		if e != EndLocal {
+			invalid = true
+		}
+	case PeeringUpPath:
+		if s != StartLocal || e == 0 {
+			invalid = true
+		}
+	case PeeringDownPath:
+		if e != EndLocal || s == 0 {
+			invalid = true
+		}
+	}
+	if invalid {
+		return serrors.New("invalid combination of path end properties and path type",
+			"end_properties", hex.EncodeToString([]byte{byte(pep)}), "path_type", pt)
+	}
+	return nil
+}
+
 func NewPathEndProps(startLocal, startTransfer, endLocal, endTransfer bool) PathEndProps {
 	var props PathEndProps
 	if startLocal {
@@ -338,8 +431,24 @@ func NewPathEndProps(startLocal, startTransfer, endLocal, endTransfer bool) Path
 // AllocationBead represents an allocation resolved in an AS for a given reservation.
 // It is used in an array to represent the allocation trail that happened for a reservation.
 type AllocationBead struct {
-	AllocBW uint8
-	MaxBW   uint8
+	AllocBW BWCls
+	MaxBW   BWCls
+}
+
+type AllocationBeads []AllocationBead
+
+// MinMax returns the minimum of all the max BW in the AllocationBeads.
+func (bs AllocationBeads) MinMax() BWCls {
+	if len(bs) == 0 {
+		return 0
+	}
+	var min BWCls = math.MaxUint8
+	for _, b := range bs {
+		if b.MaxBW < min {
+			min = b.MaxBW
+		}
+	}
+	return min
 }
 
 // Token is used in the data plane to forward COLIBRI packets.
@@ -415,8 +524,9 @@ func (t *Token) Read(b []byte) (int, error) {
 
 // ToRaw returns the serial representation of the Token.
 func (t *Token) ToRaw() []byte {
-	buff := make([]byte, t.Len())
+	var buff []byte = nil
 	if t != nil {
+		buff = make([]byte, t.Len())
 		t.Read(buff) // safely ignore errors as they can only come from buffer size
 	}
 	return buff

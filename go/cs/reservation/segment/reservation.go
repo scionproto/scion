@@ -31,6 +31,7 @@ type Reservation struct {
 	Ingress      common.IFIDType          // igress interface ID: reservation packets enter
 	Egress       common.IFIDType          // egress interface ID: reservation packets leave
 	Path         Path                     // empty if not at the source of the reservation
+	PathType     reservation.PathType     // the type of path (up,core,down)
 	PathEndProps reservation.PathEndProps // the properties for stitching and start/end
 	TrafficSplit reservation.SplitCls     // the traffic split between control and data planes
 }
@@ -143,12 +144,12 @@ func (r *Reservation) addIndex(index *Index) (reservation.IndexNumber, error) {
 }
 
 // Index finds the Index with that IndexNumber and returns a pointer to it.
-func (r *Reservation) Index(idx reservation.IndexNumber) (*Index, error) {
+func (r *Reservation) Index(idx reservation.IndexNumber) *Index {
 	sliceIndex, err := base.FindIndex(r.Indices, idx)
 	if err != nil {
-		return nil, err
+		return nil
 	}
-	return &r.Indices[sliceIndex], nil
+	return &r.Indices[sliceIndex]
 }
 
 // SetIndexConfirmed sets the index as IndexPending (confirmed but not active). If the requested
@@ -205,4 +206,29 @@ func (r *Reservation) RemoveIndex(idx reservation.IndexNumber) error {
 		r.activeIndex = -1
 	}
 	return nil
+}
+
+// MaxBlockedBW returns the maximum bandwidth blocked by this reservation, which is
+// the same as the maximum allocated bandwidth indicated by its indices.
+func (r *Reservation) MaxBlockedBW() uint64 {
+	if len(r.Indices) == 0 {
+		return 0
+	}
+	var max reservation.BWCls
+	for _, idx := range r.Indices {
+		max = reservation.MaxBWCls(max, idx.AllocBW)
+	}
+	return max.ToKbps()
+}
+
+// MaxRequestedBW returns the maximum bandwidth requested by this reservation.
+func (r *Reservation) MaxRequestedBW() uint64 {
+	if len(r.Indices) == 0 {
+		return 0
+	}
+	var max reservation.BWCls
+	for _, idx := range r.Indices {
+		max = reservation.MaxBWCls(max, idx.MaxBW)
+	}
+	return max.ToKbps()
 }

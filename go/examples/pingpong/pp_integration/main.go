@@ -15,6 +15,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"time"
@@ -22,6 +23,8 @@ import (
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
 )
+
+var headerV2 bool
 
 const (
 	name = "pp_integration"
@@ -33,6 +36,7 @@ func main() {
 }
 
 func realMain() int {
+	addFlags()
 	if err := integration.Init(); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
@@ -40,6 +44,9 @@ func realMain() int {
 	defer log.HandlePanic()
 	defer log.Flush()
 	cmnArgs := []string{"-log.console", "debug", "-sciond", integration.SCIOND}
+	if headerV2 {
+		cmnArgs = append(cmnArgs, "-header_v2")
+	}
 	clientArgs := []string{"-mode", "client", "-count", "1",
 		"-local", integration.SrcAddrPattern + ":0",
 		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace}
@@ -79,4 +86,8 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		}
 		return nil
 	})
+}
+
+func addFlags() {
+	flag.BoolVar(&headerV2, "header_v2", false, "Use new header format")
 }

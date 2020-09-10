@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beaconing
+package beaconing_test
 
 import (
 	"context"
-	"net"
-	"os"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -25,17 +23,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
+	"github.com/scionproto/scion/go/cs/beaconing"
 	"github.com/scionproto/scion/go/cs/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
-	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -49,142 +45,246 @@ var (
 	localIF = graph.If_110_X_120_A
 )
 
-// Disable logging in all tests
-func TestMain(m *testing.M) {
-	metrics.InitBSMetrics()
-	log.Discard()
-	os.Exit(m.Run())
-}
+func TestHandlerHandleBeacon(t *testing.T) {
+	topoProvider := itopotest.TopoProviderFromFile(t, "testdata/topology-core.json")
 
-func TestNewHandler(t *testing.T) {
-	t.Log(t, "NewHandler creates a correct handler")
-	mctrl := gomock.NewController(t)
-	defer mctrl.Finish()
-	g := graph.NewDefaultGraph(mctrl)
-	pseg := testBeacon(g, []common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_110_X}).Segment
-	rw := mock_infra.NewMockResponseWriter(mctrl)
-	rw.EXPECT().SendAckReply(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
-	topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
-	t.Run("Correct beacon is inserted", func(t *testing.T) {
-		inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
-		expectedBeacon := beacon.Beacon{Segment: pseg, InIfId: localIF}
-		inserter.EXPECT().InsertBeacon(gomock.Any(), expectedBeacon).
-			Return(beacon.InsertStats{}, nil)
-		inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
-
-		verifier := mock_infra.NewMockVerifier(mctrl)
-		verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
-		verifier.EXPECT().WithIA(gomock.Any()).MaxTimes(2).Return(verifier)
-		verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
-			gomock.Any()).MaxTimes(2).Return(nil)
-
-		handler := NewHandler(localIA, testInterfaces(topoProvider.Get()), inserter, verifier)
-		res := handler.Handle(defaultTestReq(rw, pseg))
-		assert.Equal(t, res, infra.MetricsResultOk)
-	})
-	t.Log(t, "Invalid requests cause an error")
-	inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
-	inserter.EXPECT().PreFilter(gomock.Any()).AnyTimes().Return(nil)
-	verifier := mock_infra.NewMockVerifier(mctrl)
-
-	intfs := testInterfaces(topoProvider.Get())
-	handler := NewHandler(localIA, intfs, inserter, verifier)
-	t.Run("Wrong payload type", func(t *testing.T) {
-		req := infra.NewRequest(context.Background(), &ctrl.Pld{}, nil,
-			&snet.UDPAddr{IA: addr.IA{}, Path: testPath(localIF)}, 0)
-		res := handler.Handle(req)
-		assert.Equal(t, res, infra.MetricsErrInternal)
-	})
-	t.Run("Unparsable beacon", func(t *testing.T) {
-		pseg.RawSData = nil
-		res := handler.Handle(defaultTestReq(rw, pseg))
-		assert.Equal(t, res, infra.MetricsErrInvalid)
-	})
-	t.Log(t, "Invalid path information is caught")
-	t.Run("Invalid peer address", func(t *testing.T) {
-		peer := &net.IPNet{
-			IP:   net.IPv4zero,
-			Mask: net.IPMask([]byte{0, 0, 0, 0}),
+	validBeacon := func() beacon.Beacon {
+		mctrl := gomock.NewController(t)
+		defer mctrl.Finish()
+		g := graph.NewDefaultGraph(mctrl)
+		return beacon.Beacon{
+			Segment: testSegment(g, []common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_110_X}),
+			InIfId:  localIF,
 		}
-		req := infra.NewRequest(
-			infra.NewContextWithResponseWriter(context.Background(), rw),
-			pseg, nil, peer, 0)
-		res := handler.Handle(req)
-		assert.Equal(t, res, infra.MetricsErrInvalid)
-	})
-	t.Run("Invalid hop field", func(t *testing.T) {
-		req := infra.NewRequest(
-			infra.NewContextWithResponseWriter(context.Background(), rw),
-			pseg, nil, &snet.UDPAddr{IA: addr.IA{}, Path: &spath.Path{}}, 0)
-		res := handler.Handle(req)
-		assert.Equal(t, res, infra.MetricsErrInvalid)
-	})
-	t.Run("Invalid unknown interface", func(t *testing.T) {
-		req := infra.NewRequest(
-			infra.NewContextWithResponseWriter(context.Background(), rw),
-			pseg, nil, &snet.UDPAddr{IA: addr.IA{}, Path: testPath(12)}, 0)
-		res := handler.Handle(req)
-		assert.Equal(t, res, infra.MetricsErrInvalid)
-	})
+	}()
 
-	t.Log(t, "Invalid AS entry information is caught")
-	t.Run("Invalid link type", func(t *testing.T) {
-		req := infra.NewRequest(
-			infra.NewContextWithResponseWriter(context.Background(), rw),
-			pseg, nil, &snet.UDPAddr{IA: addr.IA{}, Path: testPath(42)}, 0)
-		res := handler.Handle(req)
-		assert.Equal(t, res, infra.MetricsErrInvalid)
-	})
-	t.Run("Invalid origin IA", func(t *testing.T) {
-		pseg := testBeacon(g, []common.IFIDType{graph.If_120_A_110_X}).Segment
-		asEntry := pseg.ASEntries[pseg.MaxAEIdx()]
-		asEntry.RawIA = xtest.MustParseIA("1-ff00:0:111").IAInt()
-		raw, err := asEntry.Pack()
-		require.NoError(t, err)
-		pseg.RawASEntries[pseg.MaxAEIdx()].Blob = raw
-		res := handler.Handle(defaultTestReq(rw, pseg))
-		assert.Equal(t, res, infra.MetricsErrInvalid)
-	})
-	t.Log(t, "Invalid hop entry")
-	t.Run("Invalid out IA", func(t *testing.T) {
-		pseg := testBeacon(g, []common.IFIDType{graph.If_120_A_110_X}).Segment
-		asEntry := pseg.ASEntries[pseg.MaxAEIdx()]
-		asEntry.HopEntries[0].RawOutIA = xtest.MustParseIA("1-ff00:0:111").IAInt()
-		raw, err := asEntry.Pack()
-		require.NoError(t, err)
-		pseg.RawASEntries[pseg.MaxAEIdx()].Blob = raw
-		res := handler.Handle(defaultTestReq(rw, pseg))
-		assert.Equal(t, res, infra.MetricsErrInvalid)
-	})
-	t.Run("Verification error", func(t *testing.T) {
-		verifier := mock_infra.NewMockVerifier(mctrl)
-		verifier.EXPECT().WithIA(gomock.Any()).Return(verifier)
-		verifier.EXPECT().WithServer(gomock.Any()).Return(verifier)
-		verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
-			gomock.Any()).MaxTimes(2).Return(serrors.New("failed"))
+	testCases := map[string]struct {
+		Inserter  func(mctrl *gomock.Controller) *mock_beaconing.MockBeaconInserter
+		Verifier  func(mctrl *gomock.Controller) *mock_infra.MockVerifier
+		Beacon    func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon
+		Peer      func() *snet.UDPAddr
+		Assertion assert.ErrorAssertionFunc
+	}{
+		"valid": {
+			Inserter: func(mctrl *gomock.Controller) *mock_beaconing.MockBeaconInserter {
+				inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
+				inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
+				inserter.EXPECT().InsertBeacon(gomock.Any(), validBeacon).Return(
+					beacon.InsertStats{}, nil,
+				)
+				return inserter
+			},
+			Verifier: func(mctrl *gomock.Controller) *mock_infra.MockVerifier {
+				verifier := mock_infra.NewMockVerifier(mctrl)
+				verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
+				verifier.EXPECT().WithIA(gomock.Any()).MaxTimes(2).Return(verifier)
+				verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
+					gomock.Any()).MaxTimes(2).Return(nil)
+				return verifier
+			},
+			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
+				return validBeacon
+			},
+			Peer: func() *snet.UDPAddr {
+				return &snet.UDPAddr{
+					IA:   addr.IA{},
+					Path: testPath(localIF),
+				}
+			},
+			Assertion: assert.NoError,
+		},
+		"received on unknown interface": {
+			Inserter: func(mctrl *gomock.Controller) *mock_beaconing.MockBeaconInserter {
+				return mock_beaconing.NewMockBeaconInserter(mctrl)
+			},
+			Verifier: func(mctrl *gomock.Controller) *mock_infra.MockVerifier {
+				return mock_infra.NewMockVerifier(mctrl)
+			},
+			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
+				g := graph.NewDefaultGraph(mctrl)
+				return beacon.Beacon{
+					Segment: testSegment(g, []common.IFIDType{
+						graph.If_220_X_120_B, graph.If_120_A_110_X,
+					}),
+					InIfId: 12,
+				}
+			},
+			Peer: func() *snet.UDPAddr {
+				return &snet.UDPAddr{
+					IA:   addr.IA{},
+					Path: testPath(12),
+				}
+			},
+			Assertion: assert.Error,
+		},
+		"invalid link type": {
+			Inserter: func(mctrl *gomock.Controller) *mock_beaconing.MockBeaconInserter {
+				inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
+				inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
+				return inserter
+			},
+			Verifier: func(mctrl *gomock.Controller) *mock_infra.MockVerifier {
+				return mock_infra.NewMockVerifier(mctrl)
+			},
+			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
+				g := graph.NewDefaultGraph(mctrl)
+				return beacon.Beacon{
+					Segment: testSegment(g, []common.IFIDType{
+						graph.If_220_X_120_B, graph.If_120_A_110_X,
+					}),
+					InIfId: 42,
+				}
+			},
+			Peer: func() *snet.UDPAddr {
+				return &snet.UDPAddr{
+					IA:   addr.IA{},
+					Path: testPath(42),
+				}
+			},
+			Assertion: assert.Error,
+		},
+		"invalid origin ISD-AS": {
+			Inserter: func(mctrl *gomock.Controller) *mock_beaconing.MockBeaconInserter {
+				inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
+				inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
+				return inserter
+			},
+			Verifier: func(mctrl *gomock.Controller) *mock_infra.MockVerifier {
+				return mock_infra.NewMockVerifier(mctrl)
+			},
+			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
+				g := graph.NewDefaultGraph(mctrl)
+				b := beacon.Beacon{
+					Segment: testSegment(g, []common.IFIDType{
+						graph.If_220_X_120_B, graph.If_120_A_110_X,
+					}),
+					InIfId: localIF,
+				}
+				asEntry := b.Segment.ASEntries[b.Segment.MaxAEIdx()]
+				asEntry.RawIA = xtest.MustParseIA("1-ff00:0:111").IAInt()
+				raw, err := asEntry.Pack()
+				require.NoError(t, err)
+				b.Segment.RawASEntries[b.Segment.MaxAEIdx()].Blob = raw
 
-		handler := NewHandler(localIA, intfs, inserter, verifier)
-		pseg := testBeacon(g, []common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_110_X}).Segment
-		res := handler.Handle(defaultTestReq(rw, pseg))
-		assert.Equal(t, res, infra.MetricsErrInvalid)
-	})
-	t.Run("Insertion error", func(t *testing.T) {
-		inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
-		inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
-		inserter.EXPECT().InsertBeacon(gomock.Any(),
-			gomock.Any()).Return(beacon.InsertStats{}, serrors.New("failed"))
+				return b
 
-		verifier := mock_infra.NewMockVerifier(mctrl)
-		verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
-		verifier.EXPECT().WithIA(gomock.Any()).MaxTimes(2).Return(verifier)
-		verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
-			gomock.Any()).MaxTimes(2).Return(nil)
+			},
+			Peer: func() *snet.UDPAddr {
+				return &snet.UDPAddr{
+					IA:   addr.IA{},
+					Path: testPath(localIF),
+				}
+			},
+			Assertion: assert.Error,
+		},
+		"invalid out ISD-AS": {
+			Inserter: func(mctrl *gomock.Controller) *mock_beaconing.MockBeaconInserter {
+				inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
+				inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
+				return inserter
+			},
+			Verifier: func(mctrl *gomock.Controller) *mock_infra.MockVerifier {
+				return mock_infra.NewMockVerifier(mctrl)
+			},
+			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
+				g := graph.NewDefaultGraph(mctrl)
+				b := beacon.Beacon{
+					Segment: testSegment(g, []common.IFIDType{
+						graph.If_220_X_120_B, graph.If_120_A_110_X,
+					}),
+					InIfId: localIF,
+				}
+				asEntry := b.Segment.ASEntries[b.Segment.MaxAEIdx()]
+				asEntry.HopEntries[0].RawOutIA = xtest.MustParseIA("1-ff00:0:111").IAInt()
+				raw, err := asEntry.Pack()
+				require.NoError(t, err)
+				b.Segment.RawASEntries[b.Segment.MaxAEIdx()].Blob = raw
 
-		handler := NewHandler(localIA, intfs, inserter, verifier)
-		pseg := testBeacon(g, []common.IFIDType{graph.If_220_X_120_B, graph.If_120_A_110_X}).Segment
-		res := handler.Handle(defaultTestReq(rw, pseg))
-		assert.Equal(t, res, infra.MetricsErrInternal)
-	})
+				return b
+
+			},
+			Peer: func() *snet.UDPAddr {
+				return &snet.UDPAddr{
+					IA:   addr.IA{},
+					Path: testPath(localIF),
+				}
+			},
+			Assertion: assert.Error,
+		},
+		"verification error": {
+			Inserter: func(mctrl *gomock.Controller) *mock_beaconing.MockBeaconInserter {
+				inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
+				inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
+				return inserter
+			},
+			Verifier: func(mctrl *gomock.Controller) *mock_infra.MockVerifier {
+				verifier := mock_infra.NewMockVerifier(mctrl)
+				verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
+				verifier.EXPECT().WithIA(gomock.Any()).MaxTimes(2).Return(verifier)
+				verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
+					gomock.Any()).MaxTimes(2).Return(serrors.New("failed"))
+				return verifier
+			},
+			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
+				return validBeacon
+			},
+			Peer: func() *snet.UDPAddr {
+				return &snet.UDPAddr{
+					IA:   addr.IA{},
+					Path: testPath(localIF),
+				}
+			},
+			Assertion: assert.Error,
+		},
+		"insertion error": {
+			Inserter: func(mctrl *gomock.Controller) *mock_beaconing.MockBeaconInserter {
+				inserter := mock_beaconing.NewMockBeaconInserter(mctrl)
+				inserter.EXPECT().PreFilter(gomock.Any()).Return(nil)
+				inserter.EXPECT().InsertBeacon(gomock.Any(), gomock.Any()).Return(
+					beacon.InsertStats{}, serrors.New("error"),
+				)
+				return inserter
+			},
+			Verifier: func(mctrl *gomock.Controller) *mock_infra.MockVerifier {
+				verifier := mock_infra.NewMockVerifier(mctrl)
+				verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
+				verifier.EXPECT().WithIA(gomock.Any()).MaxTimes(2).Return(verifier)
+				verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
+					gomock.Any()).MaxTimes(2).Return(nil)
+				return verifier
+			},
+			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
+				return validBeacon
+			},
+			Peer: func() *snet.UDPAddr {
+				return &snet.UDPAddr{
+					IA:   addr.IA{},
+					Path: testPath(localIF),
+				}
+			},
+			Assertion: assert.Error,
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			mctrl := gomock.NewController(t)
+			defer mctrl.Finish()
+
+			handler := beaconing.Handler{
+				LocalIA:    localIA,
+				Inserter:   tc.Inserter(mctrl),
+				Interfaces: testInterfaces(topoProvider.Get()),
+				Verifier:   tc.Verifier(mctrl),
+			}
+			err := handler.HandleBeacon(context.Background(),
+				tc.Beacon(t, mctrl),
+				tc.Peer(),
+			)
+			tc.Assertion(t, err)
+		})
+	}
 }
 
 func defaultTestReq(rw infra.ResponseWriter, pseg *seg.PathSegment) *infra.Request {
@@ -197,13 +297,11 @@ func defaultTestReq(rw infra.ResponseWriter, pseg *seg.PathSegment) *infra.Reque
 	)
 }
 
-func testBeacon(g *graph.Graph, ifids []common.IFIDType) *seg.Beacon {
-	bseg := &seg.Beacon{
-		Segment: g.Beacon(ifids),
-	}
-	bseg.Segment.RawASEntries = bseg.Segment.RawASEntries[:len(bseg.Segment.RawASEntries)-1]
-	bseg.Segment.ASEntries = bseg.Segment.ASEntries[:len(bseg.Segment.ASEntries)-1]
-	return bseg
+func testSegment(g *graph.Graph, ifids []common.IFIDType) *seg.PathSegment {
+	pseg := g.Beacon(ifids)
+	pseg.RawASEntries = pseg.RawASEntries[:len(pseg.RawASEntries)-1]
+	pseg.ASEntries = pseg.ASEntries[:len(pseg.ASEntries)-1]
+	return pseg
 }
 
 func testPath(ingressIfid common.IFIDType) *spath.Path {

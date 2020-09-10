@@ -44,16 +44,16 @@ func (l HandlerLabels) WithResult(result string) HandlerLabels {
 }
 
 type handler struct {
-	requests prometheus.CounterVec
+	Requests *prometheus.CounterVec
 }
 
 func newHandler() handler {
 	return handler{
-		requests: *prom.NewCounterVecWithLabels(Namespace, "", "received_requests_total",
+		Requests: prom.NewCounterVecWithLabels(Namespace, "", "received_requests_total",
 			"Number of requests served by the trust engine", HandlerLabels{}),
 	}
 }
 
 func (h *handler) Request(l HandlerLabels) prometheus.Counter {
-	return h.requests.WithLabelValues(l.Values()...)
+	return h.Requests.WithLabelValues(l.Values()...)
 }

@@ -105,11 +105,11 @@ func TestRedirectQUIC(t *testing.T) {
 			SVCResolutionFraction: 0.5,
 		}
 
-		input := &snet.SVCAddr{IA: dummyIA, SVC: addr.SvcBS}
+		input := &snet.SVCAddr{IA: dummyIA, SVC: addr.SvcCS}
 		want := &snet.SVCAddr{
 			IA:      dummyIA,
 			NextHop: &net.UDPAddr{IP: net.ParseIP("10.1.1.1")},
-			SVC:     addr.SvcBS,
+			SVC:     addr.SvcCS,
 		}
 		a, r, err := aw.RedirectToQUIC(context.Background(), input)
 		assert.NoError(t, err)
@@ -139,7 +139,7 @@ func TestRedirectQUIC(t *testing.T) {
 			SVCResolutionFraction: 1,
 		}
 
-		input := &snet.SVCAddr{IA: dummyIA, SVC: addr.SvcBS}
+		input := &snet.SVCAddr{IA: dummyIA, SVC: addr.SvcCS}
 		want := &snet.UDPAddr{
 			IA:      dummyIA,
 			Path:    &spath.Path{},
@@ -163,7 +163,7 @@ func TestRedirectQUIC(t *testing.T) {
 		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
 		path.EXPECT().Interfaces().Return(nil)
 		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
-		svcRouter.EXPECT().GetUnderlay(addr.SvcBS).Return(
+		svcRouter.EXPECT().GetUnderlay(addr.SvcCS).Return(
 			&net.UDPAddr{IP: net.ParseIP("10.1.1.1")}, nil,
 		)
 
@@ -173,9 +173,9 @@ func TestRedirectQUIC(t *testing.T) {
 			SVCResolutionFraction: 0.0,
 		}
 
-		input := &snet.SVCAddr{SVC: addr.SvcBS}
+		input := &snet.SVCAddr{SVC: addr.SvcCS}
 		want := &snet.SVCAddr{
-			SVC:     addr.SvcBS,
+			SVC:     addr.SvcCS,
 			NextHop: &net.UDPAddr{IP: net.ParseIP("10.1.1.1")},
 		}
 		a, r, err := aw.RedirectToQUIC(context.Background(), input)
@@ -196,7 +196,7 @@ func TestBuildFullAddress(t *testing.T) {
 			Router:    router,
 			SVCRouter: svcRouter,
 		}
-		input := &snet.SVCAddr{IA: remoteIA, SVC: addr.SvcBS}
+		input := &snet.SVCAddr{IA: remoteIA, SVC: addr.SvcCS}
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("err"))
 		_, err := aw.BuildFullAddress(context.Background(), input)
 		assert.Error(t, err)
@@ -213,7 +213,7 @@ func TestBuildFullAddress(t *testing.T) {
 			SVCRouter: svcRouter,
 		}
 
-		input := &snet.SVCAddr{IA: remoteIA, Path: &spath.Path{}, SVC: addr.SvcBS}
+		input := &snet.SVCAddr{IA: remoteIA, Path: &spath.Path{}, SVC: addr.SvcCS}
 		a, err := aw.BuildFullAddress(context.Background(), input)
 		assert.Equal(t, a, input)
 		assert.NoError(t, err)
@@ -235,13 +235,13 @@ func TestBuildFullAddress(t *testing.T) {
 		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{})
 		path.EXPECT().Interfaces().Return(make([]snet.PathInterface, 1)) // just non-empty
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
-		input := &snet.SVCAddr{IA: remoteIA, SVC: addr.SvcBS}
+		input := &snet.SVCAddr{IA: remoteIA, SVC: addr.SvcCS}
 		a, err := aw.BuildFullAddress(context.Background(), input)
 		want := &snet.SVCAddr{
 			IA:      remoteIA,
 			Path:    &spath.Path{},
 			NextHop: &net.UDPAddr{},
-			SVC:     addr.SvcBS,
+			SVC:     addr.SvcCS,
 		}
 		assert.Equal(t, a, want)
 		assert.NoError(t, err)
@@ -262,7 +262,7 @@ func TestBuildFullAddress(t *testing.T) {
 			IP:   net.IP{192, 168, 0, 1},
 			Port: 10,
 		}
-		svcRouter.EXPECT().GetUnderlay(addr.SvcBS).Return(underlayAddr, nil)
+		svcRouter.EXPECT().GetUnderlay(addr.SvcCS).Return(underlayAddr, nil)
 
 		path := mock_snet.NewMockPath(ctrl)
 		path.EXPECT().Interfaces()
@@ -270,10 +270,10 @@ func TestBuildFullAddress(t *testing.T) {
 		path.EXPECT().UnderlayNextHop()
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 
-		input := &snet.SVCAddr{IA: localIA, SVC: addr.SvcBS}
+		input := &snet.SVCAddr{IA: localIA, SVC: addr.SvcCS}
 		a, err := aw.BuildFullAddress(context.Background(), input)
 
-		want := &snet.SVCAddr{IA: localIA, NextHop: underlayAddr, SVC: addr.SvcBS}
+		want := &snet.SVCAddr{IA: localIA, NextHop: underlayAddr, SVC: addr.SvcCS}
 		assert.Equal(t, a, want)
 		assert.NoError(t, err)
 	})
@@ -289,7 +289,7 @@ func TestBuildFullAddress(t *testing.T) {
 			SVCRouter: svcRouter,
 		}
 
-		svcRouter.EXPECT().GetUnderlay(addr.SvcBS).Return(nil, errors.New("err"))
+		svcRouter.EXPECT().GetUnderlay(addr.SvcCS).Return(nil, errors.New("err"))
 
 		path := mock_snet.NewMockPath(ctrl)
 		path.EXPECT().Interfaces()
@@ -297,7 +297,7 @@ func TestBuildFullAddress(t *testing.T) {
 		path.EXPECT().UnderlayNextHop()
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 
-		input := &snet.SVCAddr{IA: localIA, SVC: addr.SvcBS}
+		input := &snet.SVCAddr{IA: localIA, SVC: addr.SvcCS}
 		a, err := aw.BuildFullAddress(context.Background(), input)
 		assert.Nil(t, a)
 		assert.Error(t, err)
@@ -315,7 +315,7 @@ func TestResolve(t *testing.T) {
 		assertErr             assert.ErrorAssertionFunc
 	}{
 		"svc address, lookup fails": {
-			input: addr.SvcBS,
+			input: addr.SvcCS,
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(nil, fmt.Errorf("err"))
@@ -324,7 +324,7 @@ func TestResolve(t *testing.T) {
 			assertErr:             assert.Error,
 		},
 		"svc address, lookup succeeds": {
-			input: addr.SvcBS,
+			input: addr.SvcCS,
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(
@@ -344,7 +344,7 @@ func TestResolve(t *testing.T) {
 			assertErr:             assert.NoError,
 		},
 		"svc address, half time allowed for resolution, lookup succeeds": {
-			input: addr.SvcBS,
+			input: addr.SvcCS,
 			ResolverSetup: func(r *mock_messenger.MockResolver) {
 				r.EXPECT().LookupSVC(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(
@@ -398,7 +398,7 @@ func TestParseReply(t *testing.T) {
 			assertErr: assert.Error,
 		},
 		"key not found in reply": {
-			mockReply: &svc.Reply{Transports: map[svc.Transport]string{svc.UDP: "foo"}},
+			mockReply: &svc.Reply{Transports: map[svc.Transport]string{"UNKNOWN": "foo"}},
 			assertErr: assert.Error,
 		},
 		"key found in reply, but parsing fails": {

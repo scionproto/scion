@@ -1,0 +1,49 @@
+// Copyright 2020 Anapaya Systems
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/scionproto/scion/go/pkg/proto/control_plane";
+
+package proto.control_plane.v1;
+
+import "proto/control_plane/v1/cppki.proto";
+import "proto/crypto/v1/signed.proto";
+
+service ChainRenewalService {
+    // RenewChain creates a chain from the chain request.
+    rpc ChainRenewal(ChainRenewalRequest) returns (ChainRenewalResponse) {}
+}
+
+message ChainRenewalRequest {
+    // The signed certificate chain renewal requests. The body of the
+    // SignedMessage is the serialized ChainRenewalRequestBody.
+    proto.crypto.v1.SignedMessage signed_request = 1;
+}
+
+message ChainRenewalRequestBody {
+    // The raw certificate signature request (PKCS #10).
+    bytes csr = 1;
+}
+
+message ChainRenewalResponse {
+    // The signed certificate chain renewal response. The body of the
+    // SignedMessage is the serialized ChainRenewalResponseBody.
+    proto.crypto.v1.SignedMessage signed_response = 1;
+}
+
+message ChainRenewalResponseBody {
+    // The renewed certificate chain.
+    proto.control_plane.v1.Chain chain = 1;
+}

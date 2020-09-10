@@ -22,14 +22,12 @@ type Response struct {
 	Which                    proto.Response_Which
 	SegmentSetup             *SegmentSetupRes
 	SegmentRenewal           *SegmentSetupRes
-	SegmentTelesSetup        *SegmentSetupRes
-	SegmentTelesRenewal      *SegmentSetupRes
 	SegmentTeardown          *SegmentTeardownRes
-	SegmentIndexConfirmation *SegmentIndexConfirmation
-	SegmentCleanup           *SegmentCleanup
-	E2ESetup                 *E2ESetup   `capnp:"e2eSetup"`
-	E2ERenewal               *E2ESetup   `capnp:"e2eRenewal"`
-	E2ECleanup               *E2ECleanup `capnp:"e2eCleanup"`
+	SegmentIndexConfirmation *SegmentIndexConfirmationRes
+	SegmentCleanup           *SegmentCleanupRes
+	E2ESetup                 *E2ESetupRes   `capnp:"e2eSetup"`
+	E2ERenewal               *E2ESetupRes   `capnp:"e2eRenewal"`
+	E2ECleanup               *E2ECleanupRes `capnp:"e2eCleanup"`
 	Accepted                 bool
 	FailedHop                uint8 // only relevant if Accepted == false
 }

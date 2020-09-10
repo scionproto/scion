@@ -27,13 +27,13 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/scionproto/scion/go/border/internal/metrics"
+	"github.com/scionproto/scion/go/border/metrics"
+	"github.com/scionproto/scion/go/border/rctrl/grpc"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // ifStates is a map of interface IDs to interface states.
@@ -94,14 +94,24 @@ func NewInfo(ifID common.IFIDType, ia addr.IA, active bool, srev *path_mgmt.Sign
 
 // Process processes Interface State updates from the beacon service.
 func Process(ifStates *path_mgmt.IFStateInfos) {
+	states := make([]grpc.InterfaceState, 0, len(ifStates.Infos))
+	for _, s := range ifStates.Infos {
+		states = append(states, grpc.InterfaceState{ID: uint64(s.IfID), Revocation: s.SRevInfo})
+	}
+	StateHandler{}.UpdateState(states)
+}
+
+type StateHandler struct{}
+
+func (StateHandler) UpdateState(ifStates []grpc.InterfaceState) {
 	cl := metrics.ControlLabels{Result: metrics.Success}
 	ctx := rctx.Get()
-	for _, info := range ifStates.Infos {
+	for _, info := range ifStates {
 		var rawSRev common.RawBytes
-		ifid := common.IFIDType(info.IfID)
-		if info.SRevInfo != nil {
+		ifid := common.IFIDType(info.ID)
+		if info.Revocation != nil {
 			var err error
-			rawSRev, err = proto.PackRoot(info.SRevInfo)
+			rawSRev, err = info.Revocation.Pack()
 			if err != nil {
 				cl.Result = metrics.ErrProcess
 				metrics.Control.ReceivedIFStateInfo(cl).Inc()
@@ -114,10 +124,10 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 			log.Info("Interface ID does not exist", "ifid", ifid)
 			continue
 		}
-		stateInfo := NewInfo(ifid, intf.IA, info.Active, info.SRevInfo, rawSRev)
+		stateInfo := NewInfo(ifid, intf.IA, info.Revocation == nil, info.Revocation, rawSRev)
 		s, ok := states.Load(ifid)
 		if !ok {
-			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)
+			log.Info("IFState: intf added", "ifid", ifid, "active", info.Revocation == nil)
 			s = &state{info: unsafe.Pointer(stateInfo)}
 			states.Store(ifid, s)
 			continue

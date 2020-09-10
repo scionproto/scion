@@ -65,10 +65,6 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 	)
 }
 
-func (cfg *Config) ConfigName() string {
-	return "br_config"
-}
-
 var _ config.Config = (*BR)(nil)
 
 // BR contains the border router specific parts of the configuration.

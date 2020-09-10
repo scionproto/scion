@@ -16,17 +16,14 @@ package segfetcher
 
 import (
 	"context"
-	"errors"
 	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/internal/metrics"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
-	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -43,54 +40,27 @@ var (
 
 // ReplyHandler handles replies.
 type ReplyHandler interface {
-	Handle(ctx context.Context, recs seghandler.Segments, server net.Addr,
-		earlyTrigger <-chan struct{}) *seghandler.ProcessedResult
+	Handle(ctx context.Context, recs seghandler.Segments,
+		server net.Addr) *seghandler.ProcessedResult
 }
 
-// FetcherConfig is the configuration for the fetcher.
-type FetcherConfig struct {
-	// QueryInterval specifies after how much time segments should be
-	// refetched at the remote server.
-	QueryInterval time.Duration
-	// Verifier is the verifier to use.
-	Verifier infra.Verifier
-	// PathDB is the path db to use.
-	PathDB pathdb.PathDB
-	// RevCache is the revocation cache to use.
-	RevCache revcache.RevCache
-	// RequestAPI is the request api to use.
-	RequestAPI RequestAPI
-	// DstProvider provides destinations to fetch segments from
-	DstProvider DstProvider
-	// MetricsNamespace is the namespace used for metrics.
-	MetricsNamespace string
-	// LocalInfo provides information about local segments.
-	LocalInfo LocalInfo
-}
-
-// New creates a new fetcher from the configuration.
-func (cfg FetcherConfig) New() *Fetcher {
-	return &Fetcher{
-		Resolver:  NewResolver(cfg.PathDB, cfg.RevCache, cfg.LocalInfo),
-		Requester: &DefaultRequester{API: cfg.RequestAPI, DstProvider: cfg.DstProvider},
-		ReplyHandler: &seghandler.Handler{
-			Verifier: &seghandler.DefaultVerifier{Verifier: cfg.Verifier},
-			Storage:  &seghandler.DefaultStorage{PathDB: cfg.PathDB, RevCache: cfg.RevCache},
-		},
-		PathDB:        cfg.PathDB,
-		QueryInterval: cfg.QueryInterval,
-		metrics:       metrics.NewFetcher(cfg.MetricsNamespace),
-	}
+// NewFetcherMetrics exposes the metrics constructor.
+//
+// XXX(roosd): This should be translated to the new metrics approach.
+func NewFetcherMetrics(ns string) metrics.Fetcher {
+	return metrics.NewFetcher(ns)
 }
 
 // Fetcher fetches, verifies and stores segments for a path segment request.
 type Fetcher struct {
-	Resolver      Resolver
-	Requester     Requester
-	ReplyHandler  ReplyHandler
-	PathDB        pathdb.PathDB
+	Resolver     Resolver
+	Requester    Requester
+	ReplyHandler ReplyHandler
+	PathDB       pathdb.PathDB
+	// QueryInterval specifies after how much time segments should be
+	// refetched at the remote server.
 	QueryInterval time.Duration
-	metrics       metrics.Fetcher
+	Metrics       metrics.Fetcher
 }
 
 // Fetch loads the requested segments from the path DB or requests them from a remote path server.
@@ -112,13 +82,11 @@ func (f *Fetcher) Fetch(ctx context.Context, reqs Requests, refresh bool) (Segme
 }
 
 func (f *Fetcher) Request(ctx context.Context, reqs Requests) (Segments, error) {
-	// XXX(lukedirtwalker): Optimally we wouldn't need a different timeout
-	// here. The problem is that revocations can't be differentiated from
-	// timeouts. And having 10s timeouts plays really bad together with
-	// revocations. See also: https://github.com/scionproto/scion/issues/3052
-	reqCtx, cancelF := context.WithTimeout(ctx, 3*time.Second)
-	defer cancelF()
-	replies := f.Requester.Request(reqCtx, reqs)
+	// Pass shorter context for requesting, such that we can reply even if a
+	// request hangs.
+	earlyCtx, cancel := earlyContext(ctx, 500*time.Millisecond)
+	defer cancel()
+	replies := f.Requester.Request(earlyCtx, reqs)
 	return f.waitOnProcessed(ctx, replies)
 }
 
@@ -130,47 +98,35 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context,
 	for reply := range replies {
 		// TODO(lukedirtwalker): Should we do this in go routines?
 		labels := metrics.RequestLabels{Result: metrics.ErrNotClassified}
-		if errors.Is(reply.Err, ErrNotReachable) {
-			log.FromCtx(ctx).Info("Request for unreachable dest ignored",
-				"req", reply.Req, "err", reply.Err)
-			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
-			continue
-		}
 		if reply.Err != nil {
 			if serrors.IsTimeout(reply.Err) {
 				labels.Result = metrics.ErrTimeout
 			}
-			f.metrics.SegRequests(labels).Inc()
-			return segs, reply.Err
-		}
-		if reply.Reply == nil || reply.Reply.Recs == nil {
-			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
+			f.Metrics.SegRequests(labels).Inc()
 			continue
 		}
-		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Reply), reply.Peer, nil)
-		select {
-		case <-r.FullReplyProcessed():
-			defer f.metrics.UpdateRevocation(r.Stats().RevStored(),
-				r.Stats().RevDBErrs(), r.Stats().RevVerifyErrors())
-			if err := r.Err(); err != nil {
-				f.metrics.SegRequests(labels.WithResult(metrics.ErrProcess)).Inc()
-				return segs, err
-			}
-			if len(r.VerificationErrors()) > 0 {
-				log.FromCtx(ctx).Info("Error during verification of segments/revocations",
-					"errors", r.VerificationErrors().ToError())
-			}
-			segs = append(segs, segsWithHPToSegs(r.Stats().VerifiedSegs)...)
-			nextQuery := f.nextQuery(segs)
-			_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil, nextQuery)
-			if err != nil {
-				logger.Info("NextQuery insertion failed", "err", err)
-			}
-			f.metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
-		case <-ctx.Done():
-			f.metrics.SegRequests(labels.WithResult(metrics.ErrTimeout)).Inc()
-			return segs, ctx.Err()
+		if reply.Segments == nil || reply.Segments.Recs == nil {
+			f.Metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
+			continue
 		}
+		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Segments), reply.Peer)
+		defer f.Metrics.UpdateRevocation(r.Stats().RevStored(),
+			r.Stats().RevDBErrs(), r.Stats().RevVerifyErrors())
+		if err := r.Err(); err != nil {
+			f.Metrics.SegRequests(labels.WithResult(metrics.ErrProcess)).Inc()
+			return segs, serrors.WrapStr("processing reply", err)
+		}
+		if len(r.VerificationErrors()) > 0 {
+			log.FromCtx(ctx).Info("Error during verification of segments/revocations",
+				"errors", r.VerificationErrors().ToError())
+		}
+		segs = append(segs, segsWithHPToSegs(r.Stats().VerifiedSegs)...)
+		nextQuery := f.nextQuery(segs)
+		_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil, nextQuery)
+		if err != nil {
+			logger.Info("NextQuery insertion failed", "err", err)
+		}
+		f.Metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
 	}
 	return segs, nil
 }
@@ -196,6 +152,13 @@ func (f *Fetcher) nearestNextQueryTime(now, nextQuery time.Time) time.Time {
 	return nextQuery
 }
 
+func earlyContext(ctx context.Context, leadTime time.Duration) (context.Context, func()) {
+	if deadline, ok := ctx.Deadline(); ok {
+		return context.WithDeadline(ctx, deadline.Add(-leadTime))
+	}
+	return ctx, func() {}
+}
+
 func maxSegmentExpiry(segs Segments) time.Time {
 	var max time.Time
 	for _, seg := range segs {
@@ -206,10 +169,10 @@ func maxSegmentExpiry(segs Segments) time.Time {
 	return max
 }
 
-func replyToRecs(reply *path_mgmt.SegReply) seghandler.Segments {
+func replyToRecs(reply *path_mgmt.SegRecs) seghandler.Segments {
 	return seghandler.Segments{
-		Segs:      reply.Recs.Recs,
-		SRevInfos: reply.Recs.SRevInfos,
+		Segs:      reply.Recs,
+		SRevInfos: reply.SRevInfos,
 	}
 }
 

@@ -122,9 +122,9 @@ func TestAuthoritativeClassify(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			p := &authoritativeProcessor{
-				localIA:     test.LocalIA,
-				coreChecker: newMockCoreChecker(ctrl),
+			p := AuthoritativeLookup{
+				LocalIA:     test.LocalIA,
+				CoreChecker: newMockCoreChecker(ctrl),
 			}
 			segType, err := p.classify(context.Background(), test.Request.Src, test.Request.Dst)
 			test.ErrorAssertion(t, err)

@@ -135,15 +135,13 @@ func TestIndex(t *testing.T) {
 	idx, _ := r.NewIndexAtSource(expTime, 0, 0, 0, 0, reservation.CorePath)
 	r.NewIndexAtSource(expTime, 0, 0, 0, 0, reservation.CorePath)
 	require.Len(t, r.Indices, 3)
-	index, err := r.Index(idx)
-	require.NoError(t, err)
+	index := r.Index(idx)
 	require.Equal(t, &r.Indices[1], index)
-	_, err = r.Index(reservation.IndexNumber(4))
-	require.Error(t, err)
+	index = r.Index(reservation.IndexNumber(4))
+	require.Nil(t, index)
 	r.SetIndexConfirmed(idx)
 	r.SetIndexActive(idx)
-	index, err = r.Index(idx)
-	require.NoError(t, err)
+	index = r.Index(idx)
 	require.Equal(t, &r.Indices[0], index)
 }
 
@@ -225,4 +223,16 @@ func TestRemoveIndex(t *testing.T) {
 	require.True(t, r.Indices[0].Idx == idx2)
 	err = r.Validate()
 	require.NoError(t, err)
+}
+
+func TestMaxBlockedBW(t *testing.T) {
+	r := segmenttest.NewReservation()
+	r.Indices = r.Indices[:0]
+	require.Equal(t, uint64(0), r.MaxBlockedBW())
+	r.NewIndexAtSource(util.SecsToTime(1), 1, 1, 1, 1, reservation.CorePath)
+	require.Equal(t, reservation.BWCls(1).ToKbps(), r.MaxBlockedBW())
+	r.NewIndexAtSource(util.SecsToTime(1), 1, 1, 1, 1, reservation.CorePath)
+	require.Equal(t, reservation.BWCls(1).ToKbps(), r.MaxBlockedBW())
+	r.Indices[0].AllocBW = 11
+	require.Equal(t, reservation.BWCls(11).ToKbps(), r.MaxBlockedBW())
 }

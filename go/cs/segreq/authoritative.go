@@ -18,74 +18,53 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/proto"
 )
 
-// NewAuthoritativeHandler creates a segment request handler that returns down
-// and core segments starting at this core AS.
-// This handler is used exclusively in core ASes.
-func NewAuthoritativeHandler(ia addr.IA, inspector trust.Inspector, pathDB pathdb.PathDB,
-	revCache revcache.RevCache) infra.Handler {
-
-	return &baseHandler{
-		processor: &authoritativeProcessor{
-			localIA:     ia,
-			coreChecker: CoreChecker{inspector},
-			pathDB:      pathDB,
-		},
-		revCache: revCache,
-	}
+// AuthoritativeLookup handles path segment lookup requests in a core AS. It
+// only returns down and core segments starting at this core AS. It should only
+// be used in a core AS.
+type AuthoritativeLookup struct {
+	LocalIA     addr.IA
+	CoreChecker CoreChecker
+	PathDB      pathdb.PathDB
 }
 
-// authoritativeProcesser handles segment requests for down and core segents
-// starting at this core AS.
-type authoritativeProcessor struct {
-	localIA     addr.IA
-	coreChecker CoreChecker
-	pathDB      pathdb.PathDB
-}
+func (a AuthoritativeLookup) LookupSegments(ctx context.Context, src,
+	dst addr.IA) (segfetcher.Segments, error) {
 
-func (h *authoritativeProcessor) process(ctx context.Context,
-	req *path_mgmt.SegReq) (segfetcher.Segments, error) {
-
-	src := req.SrcIA()
-	dst := req.DstIA()
-	segType, err := h.classify(ctx, src, dst)
+	segType, err := a.classify(ctx, src, dst)
 	if err != nil {
 		return nil, err
 	}
 
 	switch segType {
 	case proto.PathSegType_down:
-		return getDownSegments(ctx, h.pathDB, h.localIA, dst)
+		return getDownSegments(ctx, a.PathDB, a.LocalIA, dst)
 	case proto.PathSegType_core:
-		return getCoreSegments(ctx, h.pathDB, h.localIA, dst)
+		return getCoreSegments(ctx, a.PathDB, a.LocalIA, dst)
 	default:
 		panic("unexpected segType")
 	}
 }
 
 // classify validates the request and determines the segment type for the request
-func (h *authoritativeProcessor) classify(ctx context.Context,
+func (a AuthoritativeLookup) classify(ctx context.Context,
 	src, dst addr.IA) (proto.PathSegType, error) {
 
 	switch {
-	case src != h.localIA:
+	case src != a.LocalIA:
 		return proto.PathSegType_unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"src", src, "dst", dst, "reason", "src must be local AS")
 	case dst.I == 0:
 		return proto.PathSegType_unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"src", src, "dst", dst, "reason", "zero ISD dst")
-	case dst.I == h.localIA.I:
-		dstCore, err := h.coreChecker.IsCore(ctx, dst)
+	case dst.I == a.LocalIA.I:
+		dstCore, err := a.CoreChecker.IsCore(ctx, dst)
 		if err != nil {
 			return proto.PathSegType_unset, err
 		}

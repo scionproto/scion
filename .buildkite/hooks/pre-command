@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+echo "--- pre-command hook"
+
 # ACCEPTANCE_ARTIFACTS is used for acceptance tests built with the "old"
 # acceptance framework
 export ACCEPTANCE_ARTIFACTS=/tmp/test-artifacts

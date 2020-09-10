@@ -23,13 +23,19 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["params_test.go"],
+    srcs = [
+        "conf_test.go",
+        "export_test.go",
+        "params_test.go",
+    ],
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
         "//go/lib/env/envtest:go_default_library",
         "//go/lib/log/logtest:go_default_library",
+        "//go/lib/topology:go_default_library",
         "@com_github_pelletier_go_toml//:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
     ],
 )

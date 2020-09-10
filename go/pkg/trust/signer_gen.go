@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/trust/internal/metrics"
 )
@@ -122,6 +123,7 @@ func (s *SignerGen) bestForKey(ctx context.Context, key crypto.Signer,
 	}
 	return &Signer{
 		PrivateKey:   key,
+		Algorithm:    signed.ECDSAWithSHA512,
 		Hash:         crypto.SHA512,
 		IA:           s.IA,
 		TRCID:        id,

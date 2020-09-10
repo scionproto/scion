@@ -16,7 +16,6 @@ package certs
 
 import (
 	"context"
-	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -30,16 +29,14 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
-	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/mock_infra"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/xtest"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
+	mock_cp "github.com/scionproto/scion/go/pkg/proto/control_plane/mock_control_plane"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
@@ -96,34 +93,6 @@ func TestCSRTemplate(t *testing.T) {
 	}
 }
 
-func TestBuildMsgr(t *testing.T) {
-	testCases := map[string]struct {
-		dp            reliable.Dispatcher
-		sd            sciond.Service
-		local, remote string
-	}{
-		"valid": {
-			dp:     reliable.NewDispatcher("[127.0.0.19]:30255"),
-			sd:     sciond.NewService("/run/shm/dispatcher/default.sock"),
-			local:  "1-ff00:0:111,[127.0.0.18]:0",
-			remote: "1-ff00:0:110,[127.0.0.11]:4001",
-		},
-	}
-
-	for name, tc := range testCases {
-		name, tc := name, tc
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			local, err := snet.ParseUDPAddr(tc.local)
-			require.NoError(t, err)
-			remote, err := snet.ParseUDPAddr(tc.remote)
-			require.NoError(t, err)
-			_, err = buildMsgr(context.Background(), tc.dp, tc.sd, local, remote)
-			require.Error(t, err)
-		})
-	}
-}
-
 func TestRenew(t *testing.T) {
 	trc := xtest.LoadTRC(t, "testdata/renew/ISD1-B1-S1.trc")
 	key, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
@@ -132,38 +101,42 @@ func TestRenew(t *testing.T) {
 
 	testCases := map[string]struct {
 		Remote addr.IA
-		Msgr   func(t *testing.T, mctrl *gomock.Controller) infra.Messenger
+		Server func(t *testing.T, mctrl *gomock.Controller) *mock_cp.MockChainRenewalServiceServer
 	}{
 		"valid": {
 			Remote: xtest.MustParseIA("1-ff00:0:110"),
-			Msgr: func(t *testing.T, mctrl *gomock.Controller) infra.Messenger {
+			Server: func(t *testing.T,
+				mctrl *gomock.Controller) *mock_cp.MockChainRenewalServiceServer {
+
 				c := xtest.LoadChain(t, "testdata/renew/ISD1-ASff00_0_111.pem")
-				raw := []byte{}
-				raw = append(raw, c[0].Raw...)
-				raw = append(raw, c[1].Raw...)
+				body := cppb.ChainRenewalResponseBody{
+					Chain: &cppb.Chain{
+						AsCert: c[0].Raw,
+						CaCert: c[1].Raw,
+					},
+				}
+				rawBody, err := proto.Marshal(&body)
+				require.NoError(t, err)
 
 				signer := trust.Signer{
 					PrivateKey:   key,
-					Hash:         crypto.SHA512,
+					Algorithm:    signed.ECDSAWithSHA512,
 					IA:           xtest.MustParseIA("1-ff00:0:110"),
 					TRCID:        trc.TRC.ID,
 					SubjectKeyID: []byte("subject-key-id"),
 					Expiration:   time.Now().Add(20 * time.Hour),
 				}
-				meta, err := signer.Sign(context.Background(), raw)
+				signedMsg, err := signer.SignV2(context.Background(), rawBody)
 				require.NoError(t, err)
-
-				rep := &cert_mgmt.ChainRenewalReply{
-					RawChain:  raw,
-					Signature: meta,
-				}
-
 				// TODO(karampok). Build matchers instead of gomock.Any()
 				// we have to verify that the req is valid signature wise.
-				m := mock_infra.NewMockMessenger(mctrl)
-				m.EXPECT().RequestChainRenewal(ctxMatcher{}, gomock.Any(), gomock.Any(),
-					gomock.Any()).Return(rep, nil)
-				return m
+				srv := mock_cp.NewMockChainRenewalServiceServer(mctrl)
+				srv.EXPECT().ChainRenewal(gomock.Any(), gomock.Any()).Return(
+					&cppb.ChainRenewalResponse{
+						SignedResponse: signedMsg,
+					}, nil,
+				)
+				return srv
 			},
 		},
 	}
@@ -177,14 +150,19 @@ func TestRenew(t *testing.T) {
 
 			signer := trust.Signer{
 				PrivateKey:   key,
-				Hash:         crypto.SHA512,
+				Algorithm:    signed.ECDSAWithSHA512,
 				IA:           xtest.MustParseIA("1-ff00:0:111"),
 				TRCID:        trc.TRC.ID,
 				SubjectKeyID: []byte("subject-key-id"),
 				Expiration:   time.Now().Add(20 * time.Hour),
 			}
 
-			chain, err := renew(context.Background(), csr, tc.Remote, signer, tc.Msgr(t, mctrl))
+			svc := xtest.NewGRPCService()
+			cppb.RegisterChainRenewalServiceServer(svc.Server(), tc.Server(t, mctrl))
+			stop := svc.Start()
+			defer stop()
+
+			chain, err := renew(context.Background(), csr, tc.Remote, signer, svc)
 			require.NoError(t, err)
 			err = cppki.ValidateChain(chain)
 			require.NoError(t, err)

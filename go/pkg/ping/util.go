@@ -45,16 +45,14 @@ func SizeLegacy(local, remote *snet.UDPAddr, pldSize int) (int, error) {
 // Size computes the full SCION packet size for an address pair with a given
 // payload size.
 func Size(local, remote *snet.UDPAddr, pldSize int) (int, error) {
-	pkt, err := newEcho(local, remote, pldSize, scmp.InfoEcho{})
+	pkt, err := pack(local, remote, snet.SCMPEchoRequest{Payload: make([]byte, pldSize)})
 	if err != nil {
 		return 0, err
 	}
-	raw := make([]byte, common.MaxMTU)
-	n, err := hpkt.WriteScnPkt2(translate(pkt), raw)
-	if err != nil {
+	if err := pkt.Serialize(); err != nil {
 		return 0, err
 	}
-	return n, nil
+	return len(pkt.Bytes), nil
 }
 
 // XXX(roosd): does not handle e2e or hbh extensions.
@@ -98,6 +96,27 @@ func newEcho(local, remote *snet.UDPAddr, pldSize int, info scmp.InfoEcho) (*sne
 				len(pld),
 			),
 			Payload: common.RawBytes(pld),
+		},
+	}
+	return pkt, nil
+}
+
+func pack(local, remote *snet.UDPAddr, req snet.SCMPEchoRequest) (*snet.Packet, error) {
+	if remote.Path == nil && !local.IA.Equal(remote.IA) {
+		return nil, serrors.New("no path for remote ISD-AS", "local", local.IA, "remote", remote.IA)
+	}
+	pkt := &snet.Packet{
+		PacketInfo: snet.PacketInfo{
+			Destination: snet.SCIONAddress{
+				IA:   remote.IA,
+				Host: addr.HostFromIP(remote.Host.IP),
+			},
+			Source: snet.SCIONAddress{
+				IA:   local.IA,
+				Host: addr.HostFromIP(local.Host.IP),
+			},
+			Path:      remote.Path,
+			PayloadV2: req,
 		},
 	}
 	return pkt, nil

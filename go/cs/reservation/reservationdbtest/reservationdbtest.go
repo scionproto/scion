@@ -46,6 +46,7 @@ func TestDB(t *testing.T, db TestableDB) {
 		"get segment reservation from ID":        testGetSegmentRsvFromID,
 		"get segment reservations from src/dst":  testGetSegmentRsvsFromSrcDstIA,
 		"get segment reservation from path":      testGetSegmentRsvFromPath,
+		"get all segment reservations":           testGetAllSegmentRsvs,
 		"get segment reservation from IF pair":   testGetSegmentRsvsFromIFPair,
 		"delete segment reservation":             testDeleteSegmentRsv,
 		"delete expired indices":                 testDeleteExpiredIndices,
@@ -261,6 +262,34 @@ func testGetSegmentRsvFromPath(ctx context.Context, t *testing.T, db backend.DB)
 	r, err = db.GetSegmentRsvFromPath(ctx, r2.Path)
 	require.NoError(t, err)
 	require.Equal(t, r2, r)
+}
+
+func testGetAllSegmentRsvs(ctx context.Context, t *testing.T, db backend.DB) {
+	// empty
+	rsvs, err := db.GetAllSegmentRsvs(ctx)
+	require.NoError(t, err)
+	require.Empty(t, rsvs)
+	// insert in1,eg1 ; in2,eg1 ; in1,eg2
+	r1 := newTestReservation(t)
+	r1.Ingress = 11
+	r1.Egress = 12
+	err = db.NewSegmentRsv(ctx, r1)
+	require.NoError(t, err)
+	r2 := newTestReservation(t)
+	r2.Ingress = 21
+	r2.Egress = 12
+	err = db.NewSegmentRsv(ctx, r2)
+	require.NoError(t, err)
+	r3 := newTestReservation(t)
+	r3.Ingress = 11
+	r3.Egress = 22
+	err = db.NewSegmentRsv(ctx, r3)
+	require.NoError(t, err)
+	// retrieve them
+	rsvs, err = db.GetAllSegmentRsvs(ctx)
+	require.NoError(t, err)
+	expected := []*segment.Reservation{r1, r2, r3}
+	require.ElementsMatch(t, expected, rsvs)
 }
 
 func testGetSegmentRsvsFromIFPair(ctx context.Context, t *testing.T, db backend.DB) {

@@ -79,11 +79,15 @@ func (pf PathFingerprint) String() string {
 	return common.RawBytes(pf).String()
 }
 
+type Fingerprinter interface {
+	Interfaces() []PathInterface
+}
+
 // Fingerprint uniquely identifies the path based on the sequence of
 // ASes and BRs, i.e. by its PathInterfaces.
 // Other metadata, such as MTU or NextHop have no effect on the fingerprint.
 // Returns empty string for paths where the interfaces list is not available.
-func Fingerprint(path Path) PathFingerprint {
+func Fingerprint(path Fingerprinter) PathFingerprint {
 	interfaces := path.Interfaces()
 	if len(interfaces) == 0 {
 		return ""

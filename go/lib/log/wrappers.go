@@ -16,54 +16,22 @@
 package log
 
 import (
-	"fmt"
-	"strings"
-
-	"github.com/inconshreveable/log15"
+	"go.uber.org/zap"
 )
-
-// Level is the log level.
-type Level log15.Lvl
-
-// The different log levels
-const (
-	LevelError = Level(log15.LvlError)
-	LevelInfo  = Level(log15.LvlInfo)
-	LevelDebug = Level(log15.LvlDebug)
-)
-
-// LevelFromString parses the log level.
-func LevelFromString(lvl string) (Level, error) {
-	// Since we also parse python log entries we also have to handle the levels of python.
-	switch strings.ToUpper(lvl) {
-	case "DEBUG", "DBUG":
-		return LevelDebug, nil
-	case "INFO":
-		return LevelInfo, nil
-	case "ERROR", "EROR":
-		return LevelError, nil
-	default:
-		return LevelDebug, fmt.Errorf("Unknown level: %v", lvl)
-	}
-}
-
-func (l Level) String() string {
-	return strings.ToUpper(log15.Lvl(l).String())
-}
 
 // Debug logs at debug level.
 func Debug(msg string, ctx ...interface{}) {
-	log15.Debug(msg, ctx...)
+	zap.L().Debug(msg, convertCtx(ctx)...)
 }
 
 // Info logs at info level.
 func Info(msg string, ctx ...interface{}) {
-	log15.Info(msg, ctx...)
+	zap.L().Info(msg, convertCtx(ctx)...)
 }
 
 // Error logs at error level.
 func Error(msg string, ctx ...interface{}) {
-	log15.Error(msg, ctx...)
+	zap.L().Error(msg, convertCtx(ctx)...)
 }
 
 // Logger describes the logger interface.
@@ -75,30 +43,63 @@ type Logger interface {
 }
 
 type logger struct {
-	log15.Logger
-}
-
-func (l *logger) New(ctx ...interface{}) Logger {
-	return &logger{Logger: l.Logger.New(ctx...)}
+	logger *zap.Logger
 }
 
 // New creates a logger with the given context.
 func New(ctx ...interface{}) Logger {
-	return &logger{Logger: log15.New(ctx...)}
+	return &logger{logger: zap.L().With(convertCtx(ctx)...)}
+}
+
+func (l *logger) New(ctx ...interface{}) Logger {
+	return &logger{logger: l.logger.With(convertCtx(ctx)...)}
+}
+
+func (l *logger) Debug(msg string, ctx ...interface{}) {
+	l.logger.Debug(msg, convertCtx(ctx)...)
+}
+
+func (l *logger) Info(msg string, ctx ...interface{}) {
+	l.logger.Info(msg, convertCtx(ctx)...)
+}
+
+func (l *logger) Error(msg string, ctx ...interface{}) {
+	l.logger.Error(msg, convertCtx(ctx)...)
+
 }
 
 // Root returns the root logger. It's a logger without any context.
 func Root() Logger {
-	return &logger{Logger: log15.Root()}
+	return &logger{logger: zap.L()}
 }
 
 // Discard sets the logger up to discard all log entries. This is useful for
 // testing.
 func Discard() {
-	Root().(*logger).Logger.SetHandler(log15.DiscardHandler())
+	Root().(*logger).logger = zap.NewNop()
 }
 
-// Handler wraps log15.Handler, should only be used for testing.
-type Handler interface {
-	log15.Handler
+// DiscardLogger implements the Logger interface and discards all messages.
+// Subloggers created from this logger will also discard all messages and
+// ignore the additional context.
+//
+// To see how to use this, see the example.
+type DiscardLogger struct{}
+
+func (d DiscardLogger) New(ctx ...interface{}) Logger {
+	return d
+}
+
+func (DiscardLogger) Debug(msg string, ctx ...interface{}) {}
+
+func (DiscardLogger) Info(msg string, ctx ...interface{}) {}
+
+func (DiscardLogger) Error(msg string, ctx ...interface{}) {}
+
+func convertCtx(ctx []interface{}) []zap.Field {
+	fields := make([]zap.Field, 0, len(ctx)/2)
+	for i := 0; i+1 < len(ctx); i += 2 {
+		fields = append(fields, zap.Any(ctx[i].(string), ctx[i+1]))
+	}
+	return fields
 }

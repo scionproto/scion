@@ -15,12 +15,11 @@
 package svc
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/svc/internal/proto"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
 func TestSVCResolutionSerialization(t *testing.T) {
@@ -32,13 +31,12 @@ func TestSVCResolutionSerialization(t *testing.T) {
 				"bar": "baz",
 			},
 		}
-		buffer := &bytes.Buffer{}
 
-		err := message.SerializeTo(buffer)
+		raw, err := message.Marshal()
 		assert.NoError(t, err)
 
 		var newMessage Reply
-		err = newMessage.DecodeFrom(buffer)
+		err = newMessage.Unmarshal(raw)
 		assert.NoError(t, err)
 		assert.Equal(t, message, newMessage)
 	})
@@ -48,28 +46,22 @@ func TestReplyToProtoFormat(t *testing.T) {
 	testCases := []struct {
 		Name               string
 		Reply              *Reply
-		ExpectedProtoReply *proto.SVCResolutionReply
+		ExpectedProtoReply *cppb.ServiceResolutionResponse
 	}{
 		{
-			Name:  "nil reply",
-			Reply: nil,
-			ExpectedProtoReply: &proto.SVCResolutionReply{
-				Transports: []proto.Transport{},
-			},
+			Name:               "nil reply",
+			Reply:              nil,
+			ExpectedProtoReply: &cppb.ServiceResolutionResponse{},
 		},
 		{
-			Name:  "reply with nil map",
-			Reply: &Reply{},
-			ExpectedProtoReply: &proto.SVCResolutionReply{
-				Transports: []proto.Transport{},
-			},
+			Name:               "reply with nil map",
+			Reply:              &Reply{},
+			ExpectedProtoReply: &cppb.ServiceResolutionResponse{},
 		},
 		{
-			Name:  "reply with empty map",
-			Reply: &Reply{Transports: make(map[Transport]string)},
-			ExpectedProtoReply: &proto.SVCResolutionReply{
-				Transports: []proto.Transport{},
-			},
+			Name:               "reply with empty map",
+			Reply:              &Reply{Transports: make(map[Transport]string)},
+			ExpectedProtoReply: &cppb.ServiceResolutionResponse{},
 		},
 		{
 			Name: "reply with map with two elements",
@@ -79,10 +71,10 @@ func TestReplyToProtoFormat(t *testing.T) {
 					"bar": "baz",
 				},
 			},
-			ExpectedProtoReply: &proto.SVCResolutionReply{
-				Transports: []proto.Transport{
-					{Key: "bar", Value: "baz"},
-					{Key: "foo", Value: "bar"},
+			ExpectedProtoReply: &cppb.ServiceResolutionResponse{
+				Transports: map[string]*cppb.Transport{
+					"bar": {Address: "baz"},
+					"foo": {Address: "bar"},
 				},
 			},
 		},
@@ -101,7 +93,7 @@ func TestReplyToProtoFormat(t *testing.T) {
 func TestReplyFromProtoFormat(t *testing.T) {
 	testCases := []struct {
 		Name          string
-		ProtoReply    *proto.SVCResolutionReply
+		ProtoReply    *cppb.ServiceResolutionResponse
 		ExpectedReply *Reply
 		Error         assert.ErrorAssertionFunc
 	}{
@@ -115,7 +107,7 @@ func TestReplyFromProtoFormat(t *testing.T) {
 		},
 		{
 			Name:       "reply with nil slice",
-			ProtoReply: &proto.SVCResolutionReply{},
+			ProtoReply: &cppb.ServiceResolutionResponse{},
 			ExpectedReply: &Reply{
 				Transports: make(map[Transport]string),
 			},
@@ -123,8 +115,8 @@ func TestReplyFromProtoFormat(t *testing.T) {
 		},
 		{
 			Name: "reply with empty slice",
-			ProtoReply: &proto.SVCResolutionReply{
-				Transports: []proto.Transport{},
+			ProtoReply: &cppb.ServiceResolutionResponse{
+				Transports: map[string]*cppb.Transport{},
 			},
 			ExpectedReply: &Reply{
 				Transports: make(map[Transport]string),
@@ -133,9 +125,9 @@ func TestReplyFromProtoFormat(t *testing.T) {
 		},
 		{
 			Name: "reply with one element",
-			ProtoReply: &proto.SVCResolutionReply{
-				Transports: []proto.Transport{
-					{Key: "foo", Value: "bar"},
+			ProtoReply: &cppb.ServiceResolutionResponse{
+				Transports: map[string]*cppb.Transport{
+					"foo": {Address: "bar"},
 				},
 			},
 			ExpectedReply: &Reply{
@@ -147,10 +139,10 @@ func TestReplyFromProtoFormat(t *testing.T) {
 		},
 		{
 			Name: "reply with two elements with different keys",
-			ProtoReply: &proto.SVCResolutionReply{
-				Transports: []proto.Transport{
-					{Key: "foo", Value: "bar"},
-					{Key: "bar", Value: "baz"},
+			ProtoReply: &cppb.ServiceResolutionResponse{
+				Transports: map[string]*cppb.Transport{
+					"bar": {Address: "baz"},
+					"foo": {Address: "bar"},
 				},
 			},
 			ExpectedReply: &Reply{
@@ -160,21 +152,6 @@ func TestReplyFromProtoFormat(t *testing.T) {
 				},
 			},
 			Error: assert.NoError,
-		},
-		{
-			Name: "duplicate keys",
-			ProtoReply: &proto.SVCResolutionReply{
-				Transports: []proto.Transport{
-					{Key: "foo", Value: "bar"},
-					{Key: "foo", Value: "baz"},
-				},
-			},
-			ExpectedReply: &Reply{
-				Transports: map[Transport]string{
-					"foo": "bar",
-				},
-			},
-			Error: assert.Error,
 		},
 	}
 	t.Run("Proto objects should be converted to the correct reply", func(t *testing.T) {

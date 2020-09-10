@@ -22,8 +22,6 @@ import (
 	"github.com/scionproto/scion/go/lib/l4"
 	deprecatedlayers "github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/scmp"
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
@@ -274,89 +272,6 @@ func (p *parseCtx) DefaultL4Parser() error {
 		p.b[p.pldOffsets.start:p.pldOffsets.end])
 	if err != nil {
 		return common.NewBasicError("Checksum failed", err)
-	}
-	return nil
-}
-
-// ParseScnPkt2 converts a raw SCION v2 header packet into ScnPkt data.
-func ParseScnPkt2(s *spkt.ScnPkt, b []byte) error {
-	// XXX(scrye): Put these on the stack here, although this negates the gopacket speedups and puts
-	// pressure on the garbage collector.
-	var (
-		scionLayer slayers.SCION
-		udpLayer   slayers.UDP
-		scmpLayer  slayers.SCMPDummy
-		// XXX(scrye): HBH and E2E are not needed yet, so we silently ignore them.
-		payloadLayer gopacket.Payload
-	)
-
-	parser := gopacket.NewDecodingLayerParser(
-		slayers.LayerTypeSCION, &scionLayer, &udpLayer, &scmpLayer, &payloadLayer,
-	)
-
-	decoded := []gopacket.LayerType{}
-	if err := parser.DecodeLayers(b, &decoded); err != nil {
-		return serrors.WrapStr("decoding layers", err)
-	}
-
-	for _, layerType := range decoded {
-		switch layerType {
-		case slayers.LayerTypeSCION:
-			s.DstIA = scionLayer.DstIA
-			s.SrcIA = scionLayer.SrcIA
-			dstAddr, err := scionLayer.DstAddr()
-			if err != nil {
-				return serrors.WrapStr("extracting destination address", err)
-			}
-			s.DstHost, err = netAddrToHostAddr(dstAddr)
-			if err != nil {
-				return serrors.WrapStr("converting dst address to HostAddr", err)
-			}
-			srcAddr, err := scionLayer.SrcAddr()
-			if err != nil {
-				return serrors.WrapStr("extracting source address", err)
-			}
-			s.SrcHost, err = netAddrToHostAddr(srcAddr)
-			if err != nil {
-				return serrors.WrapStr("converting src address to HostAddr", err)
-			}
-
-			pathCopy := make([]byte, scionLayer.Path.Len())
-			// A path of length 4 is an empty path, because it only contains the mandatory
-			// minimal header. Applications model empty paths via nil, so we return nil here.
-			if len(pathCopy) != 4 {
-				if err := scionLayer.Path.SerializeTo(pathCopy); err != nil {
-					return serrors.WrapStr("extracting path", err)
-				}
-				s.Path = spath.NewV2(pathCopy, scionLayer.PathType == slayers.PathTypeOneHop)
-			} else {
-				s.Path = nil
-			}
-		case slayers.LayerTypeSCIONUDP:
-			s.L4 = &l4.UDP{
-				SrcPort:  uint16(udpLayer.SrcPort),
-				DstPort:  uint16(udpLayer.DstPort),
-				TotalLen: udpLayer.Length,
-				Checksum: []byte{byte(udpLayer.Checksum / 256), byte(udpLayer.Checksum % 256)},
-			}
-			s.Pld = common.RawBytes(payloadLayer.Payload())
-		case slayers.LayerTypeSCMP:
-			s.L4 = &scmp.Hdr{
-				Class:     scmpLayer.Class,
-				Type:      scmpLayer.Type,
-				TotalLen:  scmpLayer.TotalLen,
-				Checksum:  scmpLayer.Checksum,
-				Timestamp: scmpLayer.Timestamp,
-			}
-			pld, err := scmp.PldFromRaw(scmpLayer.Payload, scmp.ClassType{
-				Class: scmpLayer.Class,
-				Type:  scmpLayer.Type,
-			})
-			if err != nil {
-				return err
-			}
-			s.Pld = pld
-		}
 	}
 	return nil
 }

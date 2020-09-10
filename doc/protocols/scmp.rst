@@ -112,10 +112,7 @@ Checksum Calculation
 The checksum is the 16-bit one's complement of the one's complement sum of the
 entire SCMP message, starting with the SCMP message type field, and prepended
 with a "pseudo-header" consisting of the SCION address header and the layer-4
-protocol type.
-
-TODO(roosd): Define pseudo header similar to
-             https://tools.ietf.org/html/rfc2460#section-8.1
+protocol type as defined in :ref:`pseudo-header-upper-layer-checksum`.
 
 Processing Rules
 ----------------
@@ -296,10 +293,11 @@ Parameter Problem
 |              | 35 - Non-local delivery                                   |br||
 |              |                                                               |
 |              | 48 - Invalid path                                         |br||
-|              | 49 - Unknown hop field interface                          |br||
-|              | 50 - Invalid hop field MAC                                |br||
-|              | 51 - Path expired                                         |br||
-|              | 52 - Invalid segment change                               |br||
+|              | 49 - Unknown hop field cons ingress interface             |br||
+|              | 50 - Unknown hop field cons egress interface              |br||
+|              | 51 - Invalid hop field MAC                                |br||
+|              | 52 - Path expired                                         |br||
+|              | 53 - Invalid segment change                               |br||
 |              |                                                               |
 |              | 64 - Invalid extension header                             |br||
 |              | 65 - Unknown hop-by-hop option                            |br||
@@ -333,7 +331,7 @@ A **Parameter Problem** error message with code 35 SHOULD be originated in
 response to a packet that is on the last hop of its path, but the destination
 ISD-AS does not match the local ISD-AS.
 
-Codes 48-52 describe problems related to the path header. 49-52 are more
+Codes 48-53 describe problems related to the path header. 49-53 are more
 granular subsets of 48.
 
 Codes 64-66 describe problems related to extension headers. 65-66 are more
@@ -527,7 +525,7 @@ Traceroute Request
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |     Type      |     Code      |          Checksum             |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |           Identifier          |          reserved             |
+    |           Identifier          |        Sequence Number        |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |              ISD              |                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+         AS                    +
@@ -546,6 +544,8 @@ Traceroute Request
 | Code         | 0                                                             |
 +--------------+---------------------------------------------------------------+
 | Identifier   | A 16-bit identifier to aid matching replies with requests     |
++--------------+---------------------------------------------------------------+
+| Sequence Nr. | A 16-bit sequence number to aid matching replies with request |
 +--------------+---------------------------------------------------------------+
 | ISD          | Place holder set to zero by SCMP sender                       |
 +--------------+---------------------------------------------------------------+
@@ -570,7 +570,7 @@ Traceroute Reply
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |     Type      |     Code      |          Checksum             |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |           Identifier          |          reserved             |
+    |           Identifier          |        Sequence Number        |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |              ISD              |                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+         AS                    +
@@ -589,6 +589,8 @@ Traceroute Reply
 | Code         | 0                                                             |
 +--------------+---------------------------------------------------------------+
 | Identifier   | The identifier set in the Traceroute Request                  |
++--------------+---------------------------------------------------------------+
+| Sequence Nr. | The sequence number of the Tracroute Request                  |
 +--------------+---------------------------------------------------------------+
 | ISD          | The 16-bit ISD identifier of the SCMP originator              |
 +--------------+---------------------------------------------------------------+

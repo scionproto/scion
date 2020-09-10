@@ -44,6 +44,8 @@ DOCKER_USR_VOL = ['/etc/passwd:/etc/passwd:ro', '/etc/group:/etc/group:ro']
 
 SD_API_PORT = 30255
 
+FEATURE_HEADER_V2 = 'header_v2'
+
 
 class ArgsBase:
     def __init__(self, args):

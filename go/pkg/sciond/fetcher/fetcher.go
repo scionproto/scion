@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
+	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -37,7 +38,6 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/sciond/config"
-	"github.com/scionproto/scion/go/pkg/sciond/internal/metrics"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
@@ -50,8 +50,7 @@ type TrustStore interface {
 }
 
 type Fetcher interface {
-	GetPaths(ctx context.Context, req *sciond.PathReq,
-		earlyReplyInterval time.Duration) (*sciond.PathReply, error)
+	GetPaths(ctx context.Context, req *sciond.PathReq) (*sciond.PathReply, error)
 }
 
 type fetcher struct {
@@ -59,46 +58,58 @@ type fetcher struct {
 	config config.SDConfig
 }
 
-func NewFetcher(requestAPI segfetcher.RequestAPI, pathDB pathdb.PathDB, inspector trust.Inspector,
-	verifier infra.Verifier, revCache revcache.RevCache, cfg config.SDConfig,
-	topoProvider topology.Provider, headerV2 bool) Fetcher {
+type FetcherConfig struct {
+	RPC       segfetcher.RPC
+	PathDB    pathdb.PathDB
+	Inspector trust.Inspector
 
-	localIA := topoProvider.Get().IA()
+	Verifier infra.Verifier
+	RevCache revcache.RevCache
+	Cfg      config.SDConfig
+
+	TopoProvider topology.Provider
+	HeaderV2     bool
+}
+
+func NewFetcher(cfg FetcherConfig) Fetcher {
 	return &fetcher{
 		pather: segfetcher.Pather{
-			RevCache:     revCache,
-			TopoProvider: topoProvider,
-			Fetcher: segfetcher.FetcherConfig{
-				QueryInterval:    cfg.QueryInterval.Duration,
-				Verifier:         verifier,
-				PathDB:           pathDB,
-				RevCache:         revCache,
-				RequestAPI:       requestAPI,
-				DstProvider:      &dstProvider{TopologyProvider: topoProvider},
-				MetricsNamespace: metrics.Namespace,
-				LocalInfo:        neverLocal{},
-			}.New(),
-			Splitter: &segfetcher.MultiSegmentSplitter{
-				LocalIA:   localIA,
-				Core:      topoProvider.Get().Core(),
-				Inspector: inspector,
+			RevCache:     cfg.RevCache,
+			TopoProvider: cfg.TopoProvider,
+			Fetcher: &segfetcher.Fetcher{
+				QueryInterval: cfg.Cfg.QueryInterval.Duration,
+				PathDB:        cfg.PathDB,
+				Resolver: segfetcher.NewResolver(
+					cfg.PathDB,
+					cfg.RevCache,
+					neverLocal{},
+				),
+				ReplyHandler: &seghandler.Handler{
+					Verifier: &seghandler.DefaultVerifier{Verifier: cfg.Verifier},
+					Storage: &seghandler.DefaultStorage{
+						PathDB:   cfg.PathDB,
+						RevCache: cfg.RevCache,
+					},
+				},
+				Requester: &segfetcher.DefaultRequester{
+					RPC:         cfg.RPC,
+					DstProvider: &dstProvider{TopologyProvider: cfg.TopoProvider},
+				},
+				Metrics: segfetcher.NewFetcherMetrics("sd"),
 			},
-			HeaderV2: headerV2,
+			Splitter: &segfetcher.MultiSegmentSplitter{
+				LocalIA:   cfg.TopoProvider.Get().IA(),
+				Core:      cfg.TopoProvider.Get().Core(),
+				Inspector: cfg.Inspector,
+			},
+			HeaderV2: cfg.HeaderV2,
 		},
-		config: cfg,
+		config: cfg.Cfg,
 	}
 }
 
-// GetPaths fulfills the path request described by req. GetPaths will attempt
-// to build paths at start, after earlyReplyInterval and at context expiration
-// (or whenever all background workers return). An earlyReplyInterval of 0
-// means no early reply attempt is made.
-func (f *fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
-	earlyReplyInterval time.Duration) (*sciond.PathReply, error) {
-
-	// TODO(lukedirtwalker): move to validator, but we need to keep sciond
-	// error codes.
-	req = req.Copy()
+// GetPaths fulfills the path request described by req.
+func (f *fetcher) GetPaths(ctx context.Context, req *sciond.PathReq) (*sciond.PathReply, error) {
 	// Check context
 	if _, ok := ctx.Deadline(); !ok {
 		return nil, serrors.New("Context must have deadline set")
@@ -129,9 +140,6 @@ func (f *fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 			continue
 		}
 		paths = append(paths, p)
-		if req.Flags.PathCount != 0 && len(paths) == int(req.Flags.PathCount) {
-			break
-		}
 	}
 	if len(errs) > 0 {
 		log.FromCtx(ctx).Info("Errors while translating paths", "errs", errs.ToError())
@@ -191,7 +199,7 @@ type dstProvider struct {
 }
 
 func (r *dstProvider) Dst(_ context.Context, _ segfetcher.Request) (net.Addr, error) {
-	return r.TopologyProvider.Get().Anycast(addr.SvcPS)
+	return r.TopologyProvider.Get().Anycast(addr.SvcCS)
 }
 
 type neverLocal struct{}

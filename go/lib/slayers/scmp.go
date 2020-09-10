@@ -23,8 +23,22 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/util"
 )
+
+// MaxSCMPPacketLen the maximum length a SCION packet including SCMP quote can
+// have. This length includes the SCION, and SCMP header of the packet.
+//
+//  +-------------------------+
+//  |        Underlay         |
+//  +-------------------------+
+//  |          SCION          |  \
+//  |          SCMP           |   \
+//  +-------------------------+    \_ MaxSCMPPacketLen
+//  |          Quote:         |    /
+//  |        SCION Orig       |   /
+//  |         L4 Orig         |  /
+//  +-------------------------+
+const MaxSCMPPacketLen = 1232
 
 // SCMP is the SCMP header on top of SCION header.
 //
@@ -91,25 +105,18 @@ func (s *SCMP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOp
 
 	if opts.ComputeChecksums {
 		if s.scn == nil {
-			return serrors.New("can not calculate checksum without scion header")
+			return serrors.New("can not calculate checksum without SCION header")
 		}
+		// zero out checksum bytes
 		bytes[2] = 0
 		bytes[3] = 0
-
-		addrHdrLen := s.scn.AddrHdrLen()
-		pseudo := make([]byte, addrHdrLen+4+4)
-		if err := s.scn.SerializeAddrHdr(pseudo); err != nil {
+		s.Checksum, err = s.scn.computeChecksum(b.Bytes(), uint8(common.L4SCMP))
+		if err != nil {
 			return err
 		}
-		offset := addrHdrLen
-		binary.BigEndian.PutUint32(pseudo[offset:], uint32(len(b.Bytes())))
-		offset += 4
-		binary.BigEndian.PutUint32(pseudo[offset:], uint32(common.L4SCMP))
 
-		s.Checksum = util.Checksum(pseudo, b.Bytes())
 	}
 	binary.BigEndian.PutUint16(bytes[2:], s.Checksum)
-
 	return nil
 }
 

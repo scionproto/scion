@@ -319,7 +319,7 @@ func decodeSCMPParameterProblem(data []byte, pb gopacket.PacketBuilder) error {
 //   0                   1                   2                   3
 //   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//  |           Identifier          |          reserved             |
+//  |           Identifier          |        Sequence Number        |
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //  |              ISD              |                               |
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+         AS                    +
@@ -333,6 +333,7 @@ func decodeSCMPParameterProblem(data []byte, pb gopacket.PacketBuilder) error {
 type SCMPTraceroute struct {
 	layers.BaseLayer
 	Identifier uint16
+	Sequence   uint16
 	IA         addr.IA
 	Interface  uint64
 }
@@ -355,8 +356,10 @@ func (i *SCMPTraceroute) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback
 		return serrors.New("buffer too short", "min", minLength, "actual", size)
 	}
 	offset := 0
-	i.Identifier = binary.BigEndian.Uint16(data[:2])
-	offset += 2 + 2
+	i.Identifier = binary.BigEndian.Uint16(data[offset : offset+2])
+	offset += 2
+	i.Sequence = binary.BigEndian.Uint16(data[offset : offset+2])
+	offset += 2
 	i.IA = addr.IAFromRaw(data[offset : offset+addr.IABytes])
 	offset += addr.IABytes
 	i.Interface = binary.BigEndian.Uint64(data[offset : offset+scmpRawInterfaceLen])
@@ -379,7 +382,9 @@ func (i *SCMPTraceroute) SerializeTo(b gopacket.SerializeBuffer,
 	}
 	offset := 0
 	binary.BigEndian.PutUint16(buf[:2], i.Identifier)
-	offset += 2 + 2
+	offset += 2
+	binary.BigEndian.PutUint16(buf[offset:offset+2], i.Sequence)
+	offset += 2
 	i.IA.Write(buf[offset : offset+addr.IABytes])
 	offset += addr.IABytes
 	binary.BigEndian.PutUint64(buf[offset:offset+scmpRawInterfaceLen], i.Interface)

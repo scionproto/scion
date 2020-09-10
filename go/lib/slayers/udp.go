@@ -21,9 +21,8 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // UDP is the SCION/UDP header. It reuses layers.UDP as much as possible and only customizes
@@ -42,32 +41,38 @@ func (u *UDP) CanDecode() gopacket.LayerClass {
 }
 
 func (u *UDP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
-	if !opts.ComputeChecksums || u.scn == nil {
-		return u.UDP.SerializeTo(b, opts)
+	bytes, err := b.PrependBytes(8)
+	if err != nil {
+		return err
 	}
-
-	dstAddrBytes := addrBytes(u.scn.DstAddrLen)
-	srcAddrBytes := addrBytes(u.scn.SrcAddrLen)
-	addrHdrLen := 2*addr.IABytes + dstAddrBytes + srcAddrBytes
-	pseudo := make([]byte, addrHdrLen+2+6)
-	binary.BigEndian.PutUint16(pseudo[0:], uint16(common.L4UDP))
-	binary.BigEndian.PutUint16(pseudo[2:], uint16(u.SrcPort))
-	binary.BigEndian.PutUint16(pseudo[4:], uint16(u.DstPort))
+	binary.BigEndian.PutUint16(bytes, uint16(u.SrcPort))
+	binary.BigEndian.PutUint16(bytes[2:], uint16(u.DstPort))
 	if opts.FixLengths {
-		u.Length = uint16(len(b.Bytes()) + 8)
+		u.fixLengths(len(b.Bytes()))
 	}
-	binary.BigEndian.PutUint16(pseudo[6:], u.Length)
-	offset := 8
-	u.scn.DstIA.Write(pseudo[offset:])
-	offset += addr.IABytes
-	u.scn.SrcIA.Write(pseudo[offset:])
-	offset += addr.IABytes
-	offset += copy(pseudo[offset:], u.scn.rawDstAddr)
-	copy(pseudo[offset:], u.scn.rawSrcAddr)
-	u.Checksum = util.Checksum(pseudo, b.Bytes())
-	opts.ComputeChecksums = false
+	binary.BigEndian.PutUint16(bytes[4:], u.Length)
+	if opts.ComputeChecksums {
+		if u.scn == nil {
+			return serrors.New("can not calculate checksum without SCION header")
+		}
+		// zero out checksum bytes
+		bytes[6] = 0
+		bytes[7] = 0
+		u.Checksum, err = u.scn.computeChecksum(b.Bytes(), uint8(common.L4UDP))
+		if err != nil {
+			return err
+		}
+	}
+	binary.BigEndian.PutUint16(bytes[6:], u.Checksum)
+	return nil
+}
 
-	return u.UDP.SerializeTo(b, opts)
+func (u *UDP) fixLengths(length int) {
+	if length > 65535 {
+		u.Length = 0
+		return
+	}
+	u.Length = uint16(length)
 }
 
 func (u *UDP) SetNetworkLayerForChecksum(l gopacket.NetworkLayer) error {

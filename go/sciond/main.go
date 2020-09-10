@@ -15,8 +15,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -24,12 +24,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	libconfig "github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
-	"github.com/scionproto/scion/go/lib/infra/messenger/tcp"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
+	segfetchergrpc "github.com/scionproto/scion/go/lib/infra/modules/segfetcher/grpc"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/periodic"
@@ -38,6 +39,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/command"
+	"github.com/scionproto/scion/go/pkg/grpc"
 	"github.com/scionproto/scion/go/pkg/sciond"
 	"github.com/scionproto/scion/go/pkg/sciond/config"
 	"github.com/scionproto/scion/go/pkg/sciond/fetcher"
@@ -47,11 +49,6 @@ import (
 	"github.com/scionproto/scion/go/pkg/trust/compat"
 	trustmetrics "github.com/scionproto/scion/go/pkg/trust/metrics"
 )
-
-// CommandPather returns the path to a command.
-type CommandPather interface {
-	CommandPath() string
-}
 
 func main() {
 	var flags struct {
@@ -119,27 +116,43 @@ func run(file string) error {
 		10*time.Second, 10*time.Second)
 	defer rcCleaner.Stop()
 
+	dialer := &grpc.TCPDialer{
+		SvcResolver: func(svc addr.HostSVC) (*net.TCPAddr, error) {
+			addr, err := itopo.Get().Anycast(svc)
+			if err != nil {
+				return nil, err
+			}
+			return &net.TCPAddr{
+				IP:   addr.IP,
+				Port: addr.Port,
+				Zone: addr.Zone,
+			}, nil
+		},
+	}
+
 	trustDB, err := storage.NewTrustStorage(cfg.TrustDB)
 	if err != nil {
 		return serrors.WrapStr("initializing trust database", err)
 	}
 	trustDB = trustmetrics.WrapDB(string(storage.BackendSqlite), trustDB)
 	defer trustDB.Close()
-	engine, err := sciond.TrustEngine(cfg.General.ConfigDir, trustDB)
+	engine, err := sciond.TrustEngine(cfg.General.ConfigDir, trustDB, dialer)
 	if err != nil {
 		return serrors.WrapStr("creating trust engine", err)
 	}
 
-	srv := sciond.Server(cfg.SD.Address, sciond.ServerCfg{
+	srv := sciond.GRPCServer(cfg.SD.Address, sciond.ServerCfg{
 		Fetcher: fetcher.NewFetcher(
-			tcp.NewClientMessenger(),
-			pathDB,
-			engine,
-			compat.Verifier{Verifier: trust.Verifier{Engine: engine}},
-			revCache,
-			cfg.SD,
-			itopo.Provider(),
-			cfg.Features.HeaderV2,
+			fetcher.FetcherConfig{
+				RPC:          &segfetchergrpc.Requester{Dialer: dialer},
+				PathDB:       pathDB,
+				Inspector:    engine,
+				Verifier:     compat.Verifier{Verifier: trust.Verifier{Engine: engine}},
+				RevCache:     revCache,
+				Cfg:          cfg.SD,
+				TopoProvider: itopo.Provider(),
+				HeaderV2:     cfg.Features.HeaderV2,
+			},
 		),
 		Engine:   engine,
 		PathDB:   pathDB,
@@ -147,21 +160,17 @@ func run(file string) error {
 	})
 	go func() {
 		defer log.HandlePanic()
-		if err := srv.ListenAndServe(); err != nil {
+		if err := srv(); err != nil {
 			fatal.Fatal(serrors.WrapStr("serving API", err, "addr", cfg.SD.Address))
 		}
-	}()
-	defer func() {
-		ctx, cancel := context.WithTimeout(context.Background(), shutdownWaitTimeout)
-		defer cancel()
-		srv.Shutdown(ctx)
 	}()
 
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
-		"info":     service.NewInfoHandler(),
-		"config":   service.NewConfigHandler(cfg),
-		"topology": itopo.TopologyHandler,
+		"info":      service.NewInfoHandler(),
+		"config":    service.NewConfigHandler(cfg),
+		"topology":  itopo.TopologyHandler,
+		"log/level": log.ConsoleLevel.ServeHTTP,
 	}
 	if err := statusPages.Register(http.DefaultServeMux, cfg.General.ID); err != nil {
 		return serrors.WrapStr("registering status pages", err)

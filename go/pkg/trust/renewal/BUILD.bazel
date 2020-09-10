@@ -9,12 +9,13 @@ go_library(
     importpath = "github.com/scionproto/scion/go/pkg/trust/renewal",
     visibility = ["//visibility:public"],
     deps = [
-        "//go/lib/ctrl:go_default_library",
-        "//go/lib/ctrl/cert_mgmt:go_default_library",
         "//go/lib/infra/modules/db:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
+        "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/serrors:go_default_library",
+        "//go/pkg/proto/control_plane:go_default_library",
         "//go/pkg/trust:go_default_library",
+        "@org_golang_google_protobuf//proto:go_default_library",
     ],
 )
 
@@ -24,12 +25,14 @@ go_test(
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
-        "//go/lib/ctrl/cert_mgmt:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
+        "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/xtest:go_default_library",
+        "//go/pkg/proto/control_plane:go_default_library",
+        "//go/pkg/proto/crypto:go_default_library",
         "//go/pkg/trust:go_default_library",
-        "//go/proto:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
+        "@org_golang_google_protobuf//proto:go_default_library",
     ],
 )

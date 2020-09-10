@@ -15,24 +15,32 @@
 package trust
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/rand"
 	"fmt"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/trust/internal/metrics"
-	"github.com/scionproto/scion/go/proto"
+	legacy "github.com/scionproto/scion/go/proto"
 )
 
 // Signer is used to sign control plane messages with the AS private key.
 type Signer struct {
-	PrivateKey    crypto.Signer
+	PrivateKey crypto.Signer
+	Algorithm  signed.SignatureAlgorithm
+	// Deprecated: will be removed soon.
 	Hash          crypto.Hash
 	IA            addr.IA
 	SubjectKeyID  []byte
@@ -43,7 +51,7 @@ type Signer struct {
 }
 
 // Sign signs the message.
-func (s Signer) Sign(ctx context.Context, msg []byte) (*proto.SignS, error) {
+func (s Signer) Sign(ctx context.Context, msg []byte) (*legacy.SignS, error) {
 	l := metrics.SignerLabels{}
 
 	src := ctrl.X509SignSrc{
@@ -52,7 +60,7 @@ func (s Signer) Sign(ctx context.Context, msg []byte) (*proto.SignS, error) {
 		Serial:       s.TRCID.Serial,
 		SubjectKeyID: s.SubjectKeyID,
 	}
-	meta := &proto.SignS{Src: src.Pack()}
+	meta := &legacy.SignS{Src: src.Pack()}
 	meta.SetTimestamp(time.Now())
 
 	expDiff := s.Expiration.Sub(time.Now())
@@ -82,4 +90,54 @@ func (s Signer) Sign(ctx context.Context, msg []byte) (*proto.SignS, error) {
 	}
 	metrics.Signer.Sign(l.WithResult(metrics.Success)).Inc()
 	return meta, nil
+}
+
+// SignV2 will replace sign soon.
+func (s Signer) SignV2(ctx context.Context, msg []byte) (*cryptopb.SignedMessage, error) {
+	l := metrics.SignerLabels{}
+
+	now := time.Now()
+	expDiff := s.Expiration.Sub(now)
+	if expDiff < 0 {
+		return nil, serrors.New("signer is expired",
+			"subject_key_id", fmt.Sprintf("%x", s.SubjectKeyID),
+			"expiration", s.Expiration)
+	}
+	if expDiff < time.Hour {
+		log.FromCtx(ctx).Info("Signer expiration time is near",
+			"subject_key_id", fmt.Sprintf("%x", s.SubjectKeyID),
+			"expiration", s.Expiration)
+	}
+
+	id := &cppb.VerificationKeyID{
+		IsdAs:        uint64(s.IA.IAInt()),
+		TrcBase:      uint64(s.TRCID.Base),
+		TrcSerial:    uint64(s.TRCID.Serial),
+		SubjectKeyId: s.SubjectKeyID,
+	}
+	rawID, err := proto.Marshal(id)
+	if err != nil {
+		return nil, serrors.WrapStr("packing verification_key_id", err)
+	}
+	hdr := signed.Header{
+		SignatureAlgorithm: s.Algorithm,
+		VerificationKeyID:  rawID,
+		Timestamp:          now,
+	}
+	signedMsg, err := signed.Sign(hdr, msg, s.PrivateKey)
+	if err != nil {
+		metrics.Signer.Sign(l.WithResult(metrics.ErrInternal)).Inc()
+		return nil, err
+	}
+	metrics.Signer.Sign(l.WithResult(metrics.Success)).Inc()
+	return signedMsg, nil
+}
+
+func (s Signer) Equal(o Signer) bool {
+	return s.IA.Equal(o.IA) &&
+		bytes.Equal(s.SubjectKeyID, o.SubjectKeyID) &&
+		s.Expiration.Equal(o.Expiration) &&
+		s.TRCID == o.TRCID &&
+		s.ChainValidity == o.ChainValidity &&
+		s.InGrace == o.InGrace
 }

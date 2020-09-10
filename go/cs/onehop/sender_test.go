@@ -128,7 +128,7 @@ func testPacket() *Msg {
 	return &Msg{
 		Dst: snet.SCIONAddress{
 			IA:   xtest.MustParseIA("1-ff00:0:111"),
-			Host: addr.SvcBS,
+			Host: addr.SvcCS,
 		},
 		Ifid:     12,
 		InfoTime: time.Now(),

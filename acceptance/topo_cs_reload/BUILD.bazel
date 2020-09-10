@@ -42,6 +42,8 @@ container_image(
     ],
     files = [
         "testdata/cs.toml",
+        "testdata/tls.key",
+        "testdata/tls.pem",
         "testdata/topology_reload.json",
         ":invalid_changed_ip",
         ":invalid_changed_port",

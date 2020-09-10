@@ -46,6 +46,7 @@ func newPing(pather CommandPather) *cobra.Command {
 		dispatcher  string
 		timeout     time.Duration
 		maxMTU      bool
+		noColor     bool
 
 		features []string
 	}
@@ -78,7 +79,7 @@ func newPing(pather CommandPather) *cobra.Command {
 				return err
 			}
 			path, err := app.ChoosePath(context.Background(), sd, remote.IA,
-				flags.interactive, flags.refresh)
+				flags.interactive, flags.refresh, app.WithDisableColor(flags.noColor))
 			if err != nil {
 				return err
 			}
@@ -158,6 +159,7 @@ func newPing(pather CommandPather) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVarP(&flags.interactive, "interactive", "i", false, "interactive mode")
+	cmd.Flags().BoolVar(&flags.noColor, "no_color", false, "disable colored output")
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", time.Second, "timeout per packet")
 	cmd.Flags().IPVar(&flags.local, "local", nil, "IP address to listen on")
 	cmd.Flags().StringVar(&flags.sciond, "sciond", sciond.DefaultSCIONDAddress, "SCIOND address")

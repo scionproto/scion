@@ -23,13 +23,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sciond/pathprobe"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	"github.com/scionproto/scion/go/pkg/app"
 )
 
 // Result contains all the discovered paths.
@@ -58,10 +62,21 @@ type Hop struct {
 }
 
 // Human writes human readable output to the writer.
-func (r Result) Human(w io.Writer, showExpiration bool) {
-	fmt.Fprintln(w, "Available paths to", r.Destination)
+func (r Result) Human(w io.Writer, showExpiration, colored bool) {
+	if colored {
+		r.coloredHuman(w, showExpiration)
+		return
+	}
+	sectionHeader := func(intfs int) {
+		fmt.Fprintf(w, "%d Hops:\n", (intfs/2)+1)
+	}
+	sectionHeader(len(r.Paths[0].Hops))
 	for i, path := range r.Paths {
-		fmt.Fprintf(w, "[%2d] %s", i, fmt.Sprintf("%s", path.FullPath))
+		if i != 0 && len(r.Paths[i-1].Hops) != len(path.Hops) {
+			sectionHeader(len(path.Hops))
+		}
+
+		fmt.Fprintf(w, "[%2d] %s", i, path.FullPath)
 		if showExpiration {
 			ttl := time.Until(path.Expiry).Truncate(time.Second)
 			fmt.Fprintf(w, " Expires: %s (%s)", path.Expiry, ttl)
@@ -70,6 +85,41 @@ func (r Result) Human(w io.Writer, showExpiration bool) {
 			fmt.Fprintf(w, " Status: %s LocalIP: %s", path.Status, path.Local)
 		}
 		fmt.Fprintln(w)
+	}
+}
+
+func (r Result) coloredHuman(w io.Writer, showExpiration bool) {
+	keys := color.New(color.FgHiCyan)
+	values := color.New(color.FgWhite)
+	sectionHeader := func(intfs int) {
+		color.New(color.FgHiBlack).Fprintf(w, "%d Hops:\n", (intfs/2)+1)
+	}
+	sectionHeader(len(r.Paths[0].Hops))
+	for i, path := range r.Paths {
+		if i != 0 && len(r.Paths[i-1].Hops) != len(path.Hops) {
+			sectionHeader(len(path.Hops))
+		}
+
+		entries := []string{app.ColorPath(path.FullPath)}
+		if showExpiration {
+			ttl := time.Until(path.Expiry).Truncate(time.Second)
+			entries = append(entries, fmt.Sprintf("%s: %s (%s)",
+				keys.Sprint("Expires"), values.Sprint(path.Expiry), values.Sprint(ttl)),
+			)
+		}
+		if path.Status != "" {
+			statusColor := color.New(color.FgRed)
+			if strings.EqualFold(path.Status, string(pathprobe.StatusAlive)) {
+				statusColor = color.New(color.FgGreen)
+			}
+			entries = append(entries, fmt.Sprintf("%s: %s",
+				keys.Sprint("Status"), statusColor.Sprint(path.Status)),
+			)
+			entries = append(entries, fmt.Sprintf("%s: %s",
+				keys.Sprint("LocalIP"), values.Sprint(path.Local)),
+			)
+		}
+		fmt.Fprintf(w, "[%2d] %s\n", i, strings.Join(entries, " "))
 	}
 }
 
@@ -95,10 +145,33 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	// TODO(lukedirtwalker): Replace this with snet.Router once we have the
 	// possibility to have the same functionality, i.e. refresh, fetch all paths.
 	// https://github.com/scionproto/scion/issues/3348
-	paths, err := sdConn.Paths(ctx, dst, addr.IA{},
-		sciond.PathReqFlags{Refresh: cfg.Refresh, PathCount: uint16(cfg.MaxPaths)})
+	allPaths, err := sdConn.Paths(ctx, dst, addr.IA{},
+		sciond.PathReqFlags{Refresh: cfg.Refresh})
 	if err != nil {
 		return nil, serrors.WrapStr("failed to retrieve paths from SCIOND", err)
+	}
+
+	s, err := pathpol.NewSequence(cfg.Sequence)
+	if err != nil {
+		return nil, err
+	}
+	pathsToPs := func(paths []snet.Path) pathpol.PathSet {
+		ps := make(pathpol.PathSet, len(paths))
+		for _, p := range paths {
+			ps[snet.Fingerprint(p)] = p
+		}
+		return ps
+	}
+	keep := s.Eval(pathsToPs(allPaths))
+
+	paths := make([]snet.Path, 0, len(allPaths))
+	for _, p := range allPaths {
+		if _, ok := keep[snet.Fingerprint(p)]; ok {
+			paths = append(paths, p)
+		}
+	}
+	if cfg.MaxPaths != 0 && len(paths) > cfg.MaxPaths {
+		paths = paths[:cfg.MaxPaths]
 	}
 
 	var statuses map[string]pathprobe.Status
@@ -111,19 +184,19 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 				return nil, serrors.WrapStr("failed to determine local IP", err)
 			}
 		}
-		paths := pathprobe.FilterEmptyPaths(paths)
+		p := pathprobe.FilterEmptyPaths(paths)
 		statuses, err = pathprobe.Prober{
 			DstIA:   dst,
 			LocalIA: localIA,
 			LocalIP: localIP,
 			// TODO(scrye): set this when we have CLI support for features
 			Version2: false,
-		}.GetStatuses(ctx, paths)
+		}.GetStatuses(ctx, p)
 		if err != nil {
 			serrors.WrapStr("failed to get status", err)
 		}
 	}
-
+	app.SortPaths(paths)
 	res := &Result{Destination: dst}
 	for _, path := range paths {
 		fingerprint := "local"
@@ -176,7 +249,7 @@ func findDefaultLocalIP(ctx context.Context, sciondConn sciond.Connector) (net.I
 
 // findAnyHostInLocalAS returns the IP address of some (infrastructure) host in the local AS.
 func findAnyHostInLocalAS(ctx context.Context, sciondConn sciond.Connector) (net.IP, error) {
-	addr, err := sciond.TopoQuerier{Connector: sciondConn}.UnderlayAnycast(ctx, addr.SvcBS)
+	addr, err := sciond.TopoQuerier{Connector: sciondConn}.UnderlayAnycast(ctx, addr.SvcCS)
 	if err != nil {
 		return nil, err
 	}
