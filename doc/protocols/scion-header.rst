@@ -540,23 +540,23 @@ The only Info Field has the following format::
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |C R S x x x x|    CurrHF   |  SegLen0  |  SegLen1  |  SegLen2  |
+    |C R S r r r r|    CurrHF   |  SegLen0  |  SegLen1  |  SegLen2  |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                                                               |
-    |                                                               |
-    |                                                               |
-    |                         Reservation ID                        |
-    |                                                               |
+    |                        Reservation ID                         |
     |                                                               |
     |                                                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                      Expiration Tick                          |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |      BWCls    |      RLC      |  Idx  |  RPT  |       RSV     |
+    |      BWCls    |      RLC      |  Idx  |  RPT  |      RSV      |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                        Segment IDs                            |
     |                            ...                                |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+r
+    Unused and reserved for future use.
 
 (C)ontrol
     This is a control plane packet. It is allowed to chop the path at its tail.
@@ -615,7 +615,6 @@ Segment IDs
 
 Hop Field
 ---------
-
 The Hop Field has the following format::
 
      0                   1                   2                   3
@@ -666,8 +665,8 @@ MSegLenN
     with a 6 bit mask derived from the `C` flag:
 
     .. math::
-        MASK = \sum_0^5 2^i \times C \\
-        \text{MSegLen}_i = text{SegLen}_i \land \text{MASK}
+        MASK = (2^7 - 1) \times (1 - C) \\
+        \text{MSegLen}_i = \text{SegLen}_i \land \text{MASK}
 
 Furthermore, `InputData` is extended with up to 32 bytes containing
 the Segment IDs if C=1 AND S=0. This protects the segment IDs from
@@ -700,8 +699,6 @@ the InfoField. Its computation is shown in :ref:`colibri-forwarding-process`.
 We don't protect the Segment IDs when the packet is a segment reservation,
 due to the fact that its destination must be the COLIBRI service,
 and in it we can always check the Segment IDs stored in the DB.
-
-.. i \equiv \text{CurrHF} \\
 
 Finally, we append the `IngressID` and the `EgressID` from the previous
 hop field, if there was one:
