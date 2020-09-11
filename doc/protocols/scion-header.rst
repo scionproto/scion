@@ -469,7 +469,7 @@ The only Info Field has the following format::
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                      Expiration Tick                          |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |      BWCls    |      RLC      |  Idx  |  PT   |       RSV     |
+    |      BWCls    |      RLC      |  Idx  |  RPT  |       RSV     |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                        Segment IDs                            |
     |                            ...                                |
@@ -491,7 +491,7 @@ The only Info Field has the following format::
 CurrHF
     The index of the current hop field.
 
-SegLenN
+SegLenN (aka :math:`\text{SegLen}_n`)
     The length of the Nth Segment being used.
     :math:`\text{SegLen}_n>0 \rightarrow \forall i, 0 \leq i \lt n, \text{SegLen}_i > 0`.
 
@@ -514,8 +514,8 @@ RLC
 Idx
     The index of this reservation.
 
-PT
-    The Path Type of this reservation.
+RPT
+    The Reservation Path Type of this reservation.
 
 RSV
     Reserved.
