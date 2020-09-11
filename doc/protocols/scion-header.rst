@@ -631,10 +631,92 @@ The Hop Field has the following format::
 
 Hop Field MAC Computation
 -------------------------
+The MAC is used in the validation of a packet when it is being forwarded. It protectcs the path in two ways:
+    - Values of the InfoField and Hop Fields cannot be altered.
+    - Hop Fields must be used in the right order they were provided.
+      I.e. a Hop Field that was obtained in a path as the `i` th one,
+      must always be used in the `i` th position.
 
-Preliminary notes:
-Chaining should be alright. Describe an approximation of the control plane delivering responses.
-TODO
+We want to allow, though, chopping the tail of a path when delivering
+control messages. This is useful to keep only one fast path for the
+border router, and to avoid special cases for control traffic, such
+as hop by hop extension packets. To that end, the `C` control flag allows
+"skipping" the inclusion of the path lenght when set.
+:math:`\sigma_i` is the hop field MAC calculated from the
+following `InputData`::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                                                               |
+    |                        Reservation ID                         |
+    |                                                               |
+    |                                                               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                      Expiration Tick                          |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |      BWCls    |      RLC      |  Idx  |  RPT  |       0       |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |C R S|   0          0      | MSegLen0  | MSegLen1  | MSegLen2  |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+MSegLenN
+    The masked value of SegLenN (aka :math:`\text{SegLen}_n`)
+    This value is just the original :math:`\text{SegLen}_n` bitwise-ANDed
+    with a 6 bit mask derived from the `C` flag:
+
+    .. math::
+        MASK = \sum_0^5 2^i \times C \\
+        \text{MSegLen}_i = text{SegLen}_i \land \text{MASK}
+
+Furthermore, `InputData` is extended with up to 32 bytes containing
+the Segment IDs if C=1 AND S=0. This protects the segment IDs from
+being modified when the packet is an E2E reservation::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                                                               |
+    |                                                               |
+    |                                                               |
+    |                        Segment IDs                            |
+    |                                                               |
+    |                                                               |
+    |                                                           +-+-|
+    |                                                           |0 0|
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+The exact number of bytes appended to the input data depends on the length of
+the InfoField. Its computation is shown in :ref:`colibri-forwarding-process`.
+
+.. math::
+    \text{InputData} = \text{InputData} ||
+    \begin{cases}
+    \emptyset & \text{if $C=1 \land S=0$} \\
+    \text{InfoField[$28:-1$]} & \text{otherwise}
+    \end{cases}
+
+We don't protect the Segment IDs when the packet is a segment reservation,
+due to the fact that its destination must be the COLIBRI service,
+and in it we can always check the Segment IDs stored in the DB.
+
+.. i \equiv \text{CurrHF} \\
+
+Finally, we append the `IngressID` and the `EgressID` from the previous
+hop field, if there was one:
+
+.. math::
+    \text{InputData} = \text{InputData} ||
+    \begin{cases}
+    \emptyset & \text{if CurrHF $ = 0$} \\
+    \text{HopField}_{\text{CurrHF}-1}[0:4]  & \text{otherwise} \\
+    \end{cases}
+
+We just compute :math:`\sigma_i` with the appropriate `InputData`:
+
+.. math::
+    \sigma_i = \text{MAC}_{K_i} (\text{InputData})
 
 
 .. _colibri-forwarding-process:
