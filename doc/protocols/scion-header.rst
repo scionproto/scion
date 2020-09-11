@@ -404,6 +404,12 @@ In construction direction (down):
    #. Check that the MAC in the hop field matches :math:`{\sigma^P_i}'`.
    #. Do not update `SegID` as it already contains :math:`\beta_{i+1}`.
 
+Path Type: EmptyPath
+====================
+
+Empty path is used to send traffic within the AS. It has no additional fields.
+Keep in mind that address header is still present and must be correctly filled in.
+
 Path Type: OneHopPath
 =====================
 
