@@ -35,20 +35,20 @@ BFD bootstrapping process (that is, how incoming BFD packets with `Your Discrimi
 field equal to zero are to be mapped to the BFD sessions) is to be defined be each
 particular application.
 
-At the moment we define only the bootstrappng process for the SCION border router.
+At the moment we define only the bootstrappng process for the SCION router.
 
-Bootstrapping in SCION Border Router
-------------------------------------
+Bootstrapping in SCION Router
+-----------------------------
 
-SCION border router instance creates one "external" BFD session for each SCION
-interface that it owns. Its BFD peer is the SCION border router in the neighbouring
+SCION router instance creates one "external" BFD session for each SCION
+interface that it owns. Its BFD peer is the SCION router in the neighbouring
 AS. The associated BFD packets must use SCION OneHopPath type.
 
 This kind of BFD session in unambiguously identified by the ID of the SCION interface the
 packet was received on.
 
 Furthermore, SCION border router creates one "internal" BFD session for every
-other SCION border router within the same AS. The associated BFD packets must use SCION
+other SCION router instance within the same AS. The associated BFD packets must use SCION
 EmptyPath type.
 
 These BFD sessions are uniquely identified by the source address, as it appears
@@ -63,4 +63,4 @@ Caveats
 Note that there is no UDP header, and therefore no ports in BFD/SCION protocol.
 
 The consequence is that there can't be two SCION/BFD-enabled applications (e.g.
-two SCION border router instances) sharing the same IP address.
+two SCION router instances) sharing the same IP address.
