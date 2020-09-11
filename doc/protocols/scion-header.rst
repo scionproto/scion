@@ -452,6 +452,13 @@ The length of the `InfoField` is variable, and is computed in
 
 InfoField
 ---------
+TODO: Questions:
+    - probably best to add a field to indicate the current segment ID.
+      Only need two bits: current seg id IN [not an e2e, 0, 1, 2]
+    - The resevation path type can be removed. Can it? For any given 
+      segment resevation, its type must always be the same, and thus
+      established when setting it up. Is this correct?
+
 The only Info Field has the following format::
 
      0                   1                   2                   3
@@ -482,6 +489,7 @@ The only Info Field has the following format::
 (R)everse
     This packet travels in the reverse direction of the reservation.
     If `R` is set, `C` must be set as well. Otherwise the packet is invalid.
+    This flag is set everytime the COLIBRI service sends back a response.
 
 (S)egment Reservation
     This is a Segment Reservation Packet.
@@ -570,6 +578,11 @@ Let's call SC (Segment Count) the number of segments:
     Len(InfoField) &= 28 + \text{align}(SC \times 10) \\ 
     Len(InfoField) &= 28 + 10 \times SC + 2 \times (SC \% 2) \\
     \end{align}
+
+Validation:
+    - Check flags consistency
+    - Check expiration tick
+    - ...
 
 TODO: remaining process
 
