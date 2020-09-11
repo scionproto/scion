@@ -551,6 +551,8 @@ The Hop Field has the following format::
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
+.. _colibri-mac-computation:
+
 Hop Field MAC Computation
 -------------------------
 
@@ -569,22 +571,37 @@ underlying type or whether it is control plane or data plane.
 This should simplify the design and implementation of the COLIBRI
 part in the border router.
 
-The length of the `InfoField` depends on the number of :math:`\text{SegLen}_n > 0`.
+The validation process checks that all of the following conditions are true:
+    - The consistency of the flags: if `R` or `S` are set, `C` must be set.
+      Also if `S` is set, all the :math:`\text{SegLen}_n` must be zero.
+    - The time derived from the expiration tick is less than the current time.
+    - The `CurrHF` is not beyond bounds.
+      I.e. must be :math:`\lt \sum_{i=0}^2 SegLen_i`
+    - The :math:`\text{SegLen}_n` sequence must be correct. I.e.
+      :math:`\text{SegLen}_i = 0 \rightarrow \text{SegLen}_j = 0 \ \forall j>i`
+
+If the packet is valid, we continue to validate the current Hop Field.
+For that, we must compute the length of the `InfoField`, which depends on
+the number of :math:`\text{SegLen}_n > 0`.
 Let's call SC (Segment Count) the number of segments:
 
 .. math::
     \begin{align}
     Len(InfoField) &= (1 + 4 + 2)\times 4 + Len(Segment IDs) \\
     Len(InfoField) &= 28 + \text{align}(SC \times 10) \\ 
-    Len(InfoField) &= 28 + 10 \times SC + 2 \times (SC \% 2) \\
+    Len(InfoField) &= 28 + 10 \times SC + 2 \times (SC \bmod 2) \\
     \end{align}
 
-Validation:
-    - Check flags consistency
-    - Check expiration tick
-    - ...
+So the current hop field is located at :math:`Len(InfoField) + \text{CurrHF} \times 8`:
+    - Its `Ingress ID` field is checked against the actual ingress interface.
+    - Its MAC is computed according to :ref:`colibri-mac-computation`
+      and checked against the `MAC` field.
 
-TODO: remaining process
+If the packet is valid:
+    - Its `CurrHF` field is incremented by 1 if 
+      :math:`\text{CurrHF} \lt \sum_{i=0}^2 SegLen_i - 1`.
+    - It is forwarded to its `Egress ID` interface.
+
 
 Current Segment Reservation ID Computation
 ------------------------------------------
