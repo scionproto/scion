@@ -577,7 +577,7 @@ CurrHF
 
 SegLenN (aka :math:`\text{SegLen}_n`)
     The length of the Nth Segment being used.
-    :math:`\text{SegLen}_n>0 \rightarrow \forall i, 0 \leq i \lt n, \text{SegLen}_i > 0`.
+    :math:`\text{SegLen}_j > 0 \rightarrow \text{SegLen}_i > 0 \ \forall i, 0 \leq i \lt j`.
 
 Reservation ID
     Uses 16 bytes. Either an E2E Reservation ID or a Segment Reservation ID,
@@ -648,11 +648,12 @@ This should simplify the design and implementation of the COLIBRI
 part in the border router.
 
 The validation process checks that all of the following conditions are true:
-    - The consistency of the flags: if `R` or `S` are set, `C` must be set.
-      Also if `S` is set, all the :math:`\text{SegLen}_n` must be zero.
     - The time derived from the expiration tick is less than the current time.
+    - The consistency of the flags: if `R` or `S` are set, `C` must be set.
+      Also if `S` is set, then :math:`\text{SegLen}_i = 0, \ i \in {1,2}`.
+    - Hop count is not zero, i.e. :math:`\text{SegLen}_0 > 0`.
     - The `CurrHF` is not beyond bounds.
-      I.e. must be :math:`\lt \sum_{i=0}^2 SegLen_i`
+      I.e. :math:`\text{CurrHF} \lt \sum_{i=0}^2 SegLen_i`
     - The :math:`\text{SegLen}_n` sequence must be correct. I.e.
       :math:`\text{SegLen}_i = 0 \rightarrow \text{SegLen}_j = 0 \ \forall j>i`
 
