@@ -438,6 +438,8 @@ The COLIBRI path type is a bit different than the regular SCION in that it has
 only one info field::
 
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                        PacketTimestamp                        |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                           InfoField                           |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                           HopField                            |
@@ -450,12 +452,86 @@ only one info field::
 The length of the `InfoField` is variable, and is computed in
 :ref:`colibri-forwarding-process`.
 
+
+
+Packet Timestamp
+----------------
+Same as the `PacketTimestamp` in EPIC-HP.
+::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                             TsRel                             |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                             PckId                             |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+TsRel
+  A 4-byte timestamp relative to the (segment) Timestamp in the
+  first Info Field. TsRel is calculated by the source host as
+  follows:
+
+.. math::
+    \begin{align}
+        \text{Timestamp}_{\mu s} &= \text{Timestamp [s]}
+            \times 10^6 \\
+        \text{Ts} &= \text{current unix timestamp [$\mu$s]}  \\
+        \text{q} &= \left\lceil\left(\frac{24 \times 60 \times 60
+            \times 10^6}{2^{32}}\right)\right\rceil\text{$\mu$s}
+            = \text{21 $\mu$s}\\
+        \text{TsRel} &= \text{max} \left\{0,
+            \frac{\text{Ts - Timestamp}_{$\mu$s}}
+            {\text{q}} -1 \right\} \\
+        \textit{Get back the time when} &\textit{the packet
+        was timestamped:} \\
+        \text{Ts} &= \text{Timestamp}_{$\mu$s} + (1 + \text{TsRel})
+            \times \text{q}
+    \end{align}
+
+TsRel has a precision of :math:`\text{21 $\mu$s}` and covers at least
+one day (1 day and 63 minutes). When sending packets at high speeds
+(more than one packet every :math:`\text{21 $\mu$s}`) or when using
+multiple cores, collisions may occur in TsRel. To solve this
+problem, the source further identifies the packet using PckId.
+
+PckId
+  A 4-byte identifier that allows to distinguish two packets with
+  the same TsRel. Every source is free to set PckId arbitrarily, but
+  we recommend to use the following structure:
+
+::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |    CoreID     |                  CoreCounter                  |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+CoreID
+  Unique identifier representing one of the cores of the source
+  host.
+
+CoreCounter
+  Current value of the core counter belonging to the core specified
+  by CoreID. Every time a core sends an EPIC packet, it increases
+  its core counter (modular addition by 1).
+
+Note that the Packet Timestamp is at the very beginning of the
+header, this allows other components (like the replay suppression
+system) to access it without having to go through any parsing
+overhead. To achieve an even higher precision of the timestamp, the
+source is free to allocate additional bits from the PckId to TsRel
+for this purpose.
+
+
+
 InfoField
 ---------
 TODO: Questions:
     - probably best to add a field to indicate the current segment ID.
       Only need two bits: current seg id IN [not an e2e, 0, 1, 2]
-    - The resevation path type can be removed. Can it? For any given 
+    - The resevation path type can be removed. Can it? For any given
       segment resevation, its type must always be the same, and thus
       established when setting it up. Is this correct?
 
@@ -510,7 +586,7 @@ Reservation ID
 
 Expiration Tick
     The value represents the "tick" where this packet is no longer valid.
-    A tick is four seconds, so :math:`\text{Expiration Time} = 4 \times 
+    A tick is four seconds, so :math:`\text{Expiration Time} = 4 \times
     \text{Expiration Tick}` seconds after Unix epoch.
 
 BWCls
@@ -530,10 +606,10 @@ RSV
 
 Segment IDs
     Empty if :math:`S=1`. If not, the number of entries depends on the
-    number of :math:`\text{SegLen}_n > 0`. One entry per each 
+    number of :math:`\text{SegLen}_n > 0`. One entry per each
     :math:`\text{SegLen}_n > 0`, up to a total of 3.
     Each Segment Reservation ID is 10 bytes long. The total (up to 30 bytes)
-    is padded to a multiple of 4 (e.g. :math:`3\ \text{entries} = 30b 
+    is padded to a multiple of 4 (e.g. :math:`3\ \text{entries} = 30b
     \rightarrow 32b`).
 
 
@@ -588,17 +664,17 @@ Let's call SC (Segment Count) the number of segments:
 .. math::
     \begin{align}
     Len(InfoField) &= (1 + 4 + 2)\times 4 + Len(Segment IDs) \\
-    Len(InfoField) &= 28 + \text{align}(SC \times 10) \\ 
+    Len(InfoField) &= 28 + \text{align}(SC \times 10) \\
     Len(InfoField) &= 28 + 10 \times SC + 2 \times (SC \bmod 2) \\
     \end{align}
 
-So the current hop field is located at :math:`Len(InfoField) + \text{CurrHF} \times 8`:
+So the current hop field is located at :math:`8 + Len(InfoField) + \text{CurrHF} \times 8`:
     - Its `Ingress ID` field is checked against the actual ingress interface.
     - Its MAC is computed according to :ref:`colibri-mac-computation`
       and checked against the `MAC` field.
 
 If the packet is valid:
-    - Its `CurrHF` field is incremented by 1 if 
+    - Its `CurrHF` field is incremented by 1 if
       :math:`\text{CurrHF} \lt \sum_{i=0}^2 SegLen_i - 1`.
     - It is forwarded to its `Egress ID` interface.
 
