@@ -528,12 +528,17 @@ for this purpose.
 
 InfoField
 ---------
-TODO: Questions:
+TODO and questions:
     - probably best to add a field to indicate the current segment ID.
       Only need two bits: current seg id IN [not an e2e, 0, 1, 2]
     - The resevation path type can be removed. Can it? For any given
       segment resevation, its type must always be the same, and thus
       established when setting it up. Is this correct?
+    - Move extra documentation (e.g. Notes on the Control Plane) to a
+      more appropriate place (maybe the COLIBRI design).
+    - Add a trace of both the data plane and control plane for some
+      examples. E.g. Setup an E2E with 3 segments. Setup a Segment.
+      Renew them. Send data traffic with an E2E. Probably not here.
 
 The only Info Field has the following format::
 
@@ -792,6 +797,56 @@ Pseudo code::
             return len(header.SegLen) - 1
         }
         return error
+
+
+Notes on the Control Plane
+-----------------------------
+For this simplicity in the border router to work out, we must always include
+the hop fields in the direction of traversal, be it the reservation one,
+or its reverse.
+This can be done directly when we obtain the Hop Fields in the setup or renewal
+of the Segment and E2E reservations. This means that the setup or renewal
+operations will:
+
+    - Obtain two sets of MACs, for forward direction and reverse, when
+      operating on Segment reservations.
+      :math:`\{C=1,R=0,S=1\}, \{C=1,R=1,S=1\}`
+    - Obtain two sets of MACs, for E2E reservations. These are the equivalent
+      to the ones above, but for E2E ones. We also need the regular, data
+      sending one, that only exists in E2E:
+      :math:`\{C=1,R=0,S=0\}, \{C=1,R=1,S=0\}, \{C=0,R=0,S=0\}`
+
+With these sets of MACs, plus the rest of the data for the path, we can send
+requests in the forward direction by setting C=1, including the full path as
+payload of the packet, and chop the tail of the path so that it spans only
+until the next hop, semantically mimicking a hop by hop packet:
+
+.. math::
+    \begin{align}
+    \text{InfoField.HopFields} &= \text{
+    copy( Payload.CopyOfHopFields[0:$(i + 1) \times 8$]} ) \\
+    \text{InfoField.} C &= 1 \\
+    \end{align}
+
+The response travels the same way, but copying the MACs from the
+reversed ones that we will carry in the payload. The AS that is
+the destination of the reservation is the turning point; the path
+has to be reversed there. All these operations happen in the
+control plane.
+
+
+Improvements
+------------
+Some improvements to do now, or postpone for later:
+
+    - It would be nice to simplify the computation of the current segment ID.
+      By just adding a 2 bit indicator of it, that the BR will modify every time
+      it forwards a packet.
+    - Remove the Segment ID fields. For that, we have to ensure that end hosts
+      that have a valid path for a reservation cannot clean it up in the
+      COLIBRI service and obtain a new valid one. Then we can monitor only the E2E
+      ones. The book keeping of the traffic of the control reservations
+      will have to be merged somehow as well.
 
 
 .. _pseudo-header-upper-layer-checksum:
