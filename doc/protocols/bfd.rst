@@ -28,19 +28,24 @@ directly into SCION payload, with no additional intermediate protocol::
 
 The `NextHdr` field in the SCION common header must be set to type `BFD` (17).
 
+BFD in SCION Router
+===================
+
+Discriminators
+--------------
+
+SCION router should choose its discriminators for BFD sessions at random.
+
 Bootstrapping
-=============
+-------------
 
 BFD bootstrapping process (that is, how incoming BFD packet with `Your Discriminator`
 field equal to zero is mapped to a BFD session) is to be defined by each
 particular application.
 
-At the moment we define only the bootstrappng process for the SCION router.
+SCION router, in particular, does bootstrapping in the following way.
 
-Bootstrapping in SCION Router
------------------------------
-
-SCION router instance creates one "external" BFD session for each SCION
+It creates one "external" BFD session for each SCION
 interface that it owns. Its BFD peer is the SCION router in the neighbouring
 AS. The associated BFD packets must use SCION `OneHopPath
 <https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#path-type-onehoppath>`__
