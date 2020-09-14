@@ -586,7 +586,7 @@ SegLenN (aka :math:`\text{SegLen}_n`)
 
 Reservation ID
     Uses 16 bytes. Either an E2E Reservation ID or a Segment Reservation ID,
-    depending on `C`. If :math:`S=1`, the Segment Reservation ID is padded
+    depending on `S`. If :math:`S=1`, the Segment Reservation ID is padded
     with zeroes until using all 16 bytes.
 
 Expiration Tick
@@ -670,12 +670,12 @@ MSegLenN
     with a 6 bit mask derived from the `C` flag:
 
     .. math::
-        MASK = (2^7 - 1) \times (1 - C) \\
+        MASK = (2^6 - 1) \times (1 - C) \\
         \text{MSegLen}_i = \text{SegLen}_i \land \text{MASK}
 
 Furthermore, `InputData` is extended with up to 32 bytes containing
-the Segment IDs if C=1 AND S=0. This protects the segment IDs from
-being modified when the packet is an E2E reservation::
+all the Segment IDs plus the corresponding padding.
+This protects the segment IDs from being modified, if they are present::
 
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -690,20 +690,12 @@ being modified when the packet is an E2E reservation::
     |                                                           |0 0|
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
+.. math::
+    \text{InputData} = \text{InputData} ||
+    \text{InfoField[$28:-1$]}
 
 The exact number of bytes appended to the input data depends on the length of
 the InfoField. Its computation is shown in :ref:`colibri-forwarding-process`.
-
-.. math::
-    \text{InputData} = \text{InputData} ||
-    \begin{cases}
-    \emptyset & \text{if $C=1 \land S=0$} \\
-    \text{InfoField[$28:-1$]} & \text{otherwise}
-    \end{cases}
-
-We don't protect the Segment IDs when the packet is a segment reservation,
-due to the fact that its destination must be the COLIBRI service,
-and in it we can always check the Segment IDs stored in the DB.
 
 Finally, we append the `IngressID` and the `EgressID` from the previous
 hop field, if there was one:
@@ -726,7 +718,7 @@ We just compute :math:`\sigma_i` with the appropriate `InputData`:
 Forwarding Process
 ------------------
 
-There is a unique way of forward a COLIBRI packet, regardless of its
+There is a unique way of forwarding a COLIBRI packet, regardless of its
 underlying type or whether it is control plane or data plane.
 This should simplify the design and implementation of the COLIBRI
 part in the border router.
@@ -743,14 +735,14 @@ The validation process checks that all of the following conditions are true:
 
 If the packet is valid, we continue to validate the current Hop Field.
 For that, we must compute the length of the `InfoField`, which depends on
-the number of :math:`\text{SegLen}_n > 0`.
+the flag `C` and the number of :math:`\text{SegLen}_n > 0`.
 Let's call SC (Segment Count) the number of segments:
 
 .. math::
     \begin{align}
     Len(InfoField) &= (1 + 4 + 2)\times 4 + Len(Segment IDs) \\
-    Len(InfoField) &= 28 + \text{align}(SC \times 10) \\
-    Len(InfoField) &= 28 + 10 \times SC + 2 \times (SC \bmod 2) \\
+    Len(InfoField) &= 28 + (1 - C) \times \text{align}(SC \times 10) \\
+    Len(InfoField) &= 28 + (1 - C) \times ( 10 \times SC + 2 \times (SC \bmod 2) ) \\
     \end{align}
 
 So the current hop field is located at :math:`8 + Len(InfoField) + \text{CurrHF} \times 8`:
@@ -771,29 +763,33 @@ ID we must charge this packet to. This ID can be actually two, if the AS
 where we compute it is a transfer AS (an AS stitching two segment
 reservations).
 
-The computation can be done by substracting each :math:`\text{SegLen}_n`
+Note that there are no Segment IDs at the end of the `InfoField`, when the
+packet is a segment reservation. Instead, the `Reservation ID` is the
+Segment ID we are looking for.
+
+Now the computation can be done by substracting each :math:`\text{SegLen}_n`
 from `CurrHF`. When we find a negative number, we have found our segment.
 The tranfer ASes are located at the end of each segment, if this is not
 the last segment.
 Pseudo code::
 
     func CurrentSegmentID(header):
-        if len(header.SegLen) == 0 {
+        // Returns the IDs of the current Segment Reservation(s)
+        // It returns 1 index, or 2 if this is a tranfer AS
+        if len(header.SegLen) == 0 { // this must be a segment rsv. packet
             return header.ReservationID[0:10] // the 10 first bytes
         }
-        // returns the IDs of the current Segment Reservation(s)
-        // It will always return 1 or 2 (if it is a tranfer AS)
         n <- header.CurrHF
         for i := 0 ; i < len(header.SegLen) - 1 ; i++ {
             switch {
-            case i == header.SegLen[i] - 1:
+            case n == header.SegLen[i] - 1:
                 return i, i + 1
-            case i < header.SegLen[i] - 1:
+            case n < header.SegLen[i] - 1:
                 return i
             }
             n -= header.SegLen [i]
         }
-        if len(header.SegLen) > 0 AND n < header.SegLen[len(header.SegLen)-1] {
+        if n < header.SegLen[len(header.SegLen)-1] {
             return len(header.SegLen) - 1
         }
         return error
@@ -801,7 +797,7 @@ Pseudo code::
 
 Notes on the Control Plane
 -----------------------------
-For this simplicity in the border router to work out, we must always include
+For the simplicity in the BR forwarding to work out, we always include
 the hop fields in the direction of traversal, be it the reservation one,
 or its reverse.
 This can be done directly when we obtain the Hop Fields in the setup or renewal
