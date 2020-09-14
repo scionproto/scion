@@ -726,12 +726,14 @@ part in the border router.
 The validation process checks that all of the following conditions are true:
     - The time derived from the expiration tick is less than the current time.
     - The consistency of the flags: if `R` or `S` are set, `C` must be set.
-      Also if `S` is set, then :math:`\text{SegLen}_i = 0, \ i \in {1,2}`.
-    - Hop count is not zero, i.e. :math:`\text{SegLen}_0 > 0`.
+      Also if `S` is set, then :math:`\text{SegLen}_i = 0, \ i \in \{1,2\}`.
+    - Hop count has at least two ASes, i.e. :math:`\text{SegLen}_0 \geq 2`.
     - The `CurrHF` is not beyond bounds.
       I.e. :math:`\text{CurrHF} \lt \sum_{i=0}^2 SegLen_i`
     - The :math:`\text{SegLen}_n` sequence must be correct. I.e.
       :math:`\text{SegLen}_i = 0 \rightarrow \text{SegLen}_j = 0 \ \forall j>i`
+    - No segment length equals 1 (no single AS in a segment):
+      :math:`\text{SegLen}_i \neq 1, \forall i \in \{0, 1, 2 \}`
 
 If the packet is valid, we continue to validate the current Hop Field.
 For that, we must compute the length of the `InfoField`, which depends on
@@ -751,9 +753,13 @@ So the current hop field is located at :math:`8 + Len(InfoField) + \text{CurrHF}
       and checked against the `MAC` field.
 
 If the packet is valid:
-    - Its `CurrHF` field is incremented by 1 if
-      :math:`\text{CurrHF} \lt \sum_{i=0}^2 SegLen_i - 1`.
-    - It is forwarded to its `Egress ID` interface.
+    - If `C = 1`, the packet is delivered to the local COLIBRI anycast address.
+    - If `C = 0` and this AS is the destination AS (last hop):
+        - Check `DestIA` against this IA.
+    - If `C = 0` and this AS is not the destination:
+        - Its `CurrHF` field is incremented by 1 if
+          :math:`\text{CurrHF} \lt \sum_{i=0}^2 SegLen_i - 1`.
+        - It is forwarded to its `Egress ID` interface.
 
 
 Current Segment Reservation ID Computation
