@@ -69,7 +69,7 @@ type colorOptions struct {
 func applyColorOptions(opts ...ColorOption) colorOptions {
 	o := colorOptions{
 		keys:   color.New(color.FgHiCyan),
-		values: color.New(color.FgWhite),
+		values: color.New(),
 		link:   color.New(color.FgHiMagenta),
 		intf:   color.New(color.FgYellow),
 	}
