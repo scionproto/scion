@@ -19,11 +19,11 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/grpc"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // Requester fetches segments from a remote using gRPC.
@@ -51,12 +51,29 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 	if err != nil {
 		return nil, err
 	}
-	segs := &path_mgmt.SegRecs{}
-	if err := proto.ParseFromRaw(segs, rep.Raw); err != nil {
-		return nil, serrors.WrapStr("parsing records", err)
+	var segs []*seg.Meta
+	for segType, segments := range rep.Segments {
+		for i, pb := range segments.Segments {
+			ps, err := seg.SegmentFromPB(pb)
+			if err != nil {
+				return nil, serrors.WrapStr("parsing segments", err, "index", i)
+			}
+			segs = append(segs, &seg.Meta{
+				Type:    seg.Type(segType),
+				Segment: ps,
+			})
+		}
 	}
-	if err := segs.ParseRaw(); err != nil {
-		return nil, serrors.WrapStr("parsing individual records", err)
+	var revs []*path_mgmt.SignedRevInfo
+	for i, raw := range rep.DeprecatedSignedRevocations {
+		rev, err := path_mgmt.NewSignedRevInfoFromRaw(raw)
+		if err != nil {
+			return nil, serrors.WrapStr("parsing revocation", err, "index", i)
+		}
+		revs = append(revs, rev)
 	}
-	return segs, nil
+	return &path_mgmt.SegRecs{
+		Recs:      segs,
+		SRevInfos: revs,
+	}, nil
 }

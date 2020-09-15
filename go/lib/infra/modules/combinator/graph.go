@@ -93,8 +93,8 @@ func (g *DMG) traverseSegment(segment *InputSegment) {
 	// shortcuts. Add edge from last entry IA to first entry IA.
 	if segment.Type == proto.PathSegType_core {
 		g.AddEdge(
-			VertexFromIA(asEntries[len(asEntries)-1].IA()),
-			VertexFromIA(asEntries[0].IA()),
+			VertexFromIA(asEntries[len(asEntries)-1].Local),
+			VertexFromIA(asEntries[0].Local),
 			segment,
 			&Edge{Weight: len(asEntries) - 1},
 		)
@@ -104,7 +104,7 @@ func (g *DMG) traverseSegment(segment *InputSegment) {
 	// Up or Down segment. Last AS in the PCB is the root for edge addition.
 	// For Ups, edges will originate from pinnedIA. For Downs, edges will go
 	// towards pinnedIA.
-	pinnedIA := asEntries[len(asEntries)-1].IA()
+	pinnedIA := asEntries[len(asEntries)-1].Local
 
 	for asEntryIndex := len(asEntries) - 1; asEntryIndex >= 0; asEntryIndex-- {
 		// Whenever we add an edge that is not towards the first AS in the PCB,
@@ -113,41 +113,51 @@ func (g *DMG) traverseSegment(segment *InputSegment) {
 		// construction when adding verify-only HFs and pruning unneeded pieces
 		// of the segment.
 
-		currentIA := asEntries[asEntryIndex].IA()
-		// Construct edges for each hop in the current ASEntry.
-		for hopEntryIndex, hop := range asEntries[asEntryIndex].HopEntries {
-			weight := len(asEntries) - 1 - asEntryIndex
+		currentIA := asEntries[asEntryIndex].Local
 
-			// build new edge
-			var srcVertex, dstVertex Vertex
-			srcVertex = VertexFromIA(pinnedIA)
-			if hopEntryIndex == 0 {
-				if asEntryIndex == len(asEntries)-1 {
-					// This is the entry for our local AS; we're not interested in routing here,
-					// so we skip this entry.
-					continue
-				}
-				dstVertex = VertexFromIA(currentIA)
-			} else {
-				ingress := common.IFIDType(hop.HopField.ConsIngress)
-				dstVertex = VertexFromPeering(currentIA, ingress, hop.InIA(), hop.RemoteInIF)
-			}
+		type Tuple struct {
+			Src, Dst Vertex
+			Peer     int
+		}
+
+		var tuples []Tuple
+		// This is the entry for our local AS; we're not interested in routing here,
+		// so we skip this entry.
+		if asEntryIndex != len(asEntries)-1 {
+			tuples = append(tuples, Tuple{
+				Src: VertexFromIA(pinnedIA),
+				Dst: VertexFromIA(currentIA),
+			})
+		}
+
+		for peerEntryIdx, peer := range asEntries[asEntryIndex].PeerEntries {
+			ingress := common.IFIDType(peer.HopField.ConsIngress)
+			remote := common.IFIDType(peer.PeerInterface)
+			tuples = append(tuples, Tuple{
+				Src:  VertexFromIA(pinnedIA),
+				Dst:  VertexFromPeering(currentIA, ingress, peer.Peer, remote),
+				Peer: peerEntryIdx + 1,
+			})
+		}
+
+		for _, tuple := range tuples {
+			weight := len(asEntries) - 1 - asEntryIndex
 
 			if segment.Type == proto.PathSegType_down {
 				// reverse peering vertices (to have them match those created
 				// during up-segment exploration), and reverse edge orientation.
-				dstVertex = dstVertex.Reverse()
-				srcVertex, dstVertex = dstVertex, srcVertex
-				if hopEntryIndex != 0 {
+				tuple.Dst = tuple.Dst.Reverse()
+				tuple.Src, tuple.Dst = tuple.Dst, tuple.Src
+				if tuple.Peer != 0 {
 					// Count the peering link itself, but only once
 					weight += 1
 				}
 			}
 
-			g.AddEdge(srcVertex, dstVertex, segment, &Edge{
+			g.AddEdge(tuple.Src, tuple.Dst, segment, &Edge{
 				Weight:   weight,
 				Shortcut: asEntryIndex,
-				Peer:     hopEntryIndex,
+				Peer:     tuple.Peer,
 			})
 		}
 	}
@@ -289,7 +299,7 @@ func (solution *PathSolution) getFwdPathMetadata() *Path {
 			asEntry := asEntries[asEntryIdx]
 
 			// Regular hop field.
-			entry := asEntry.HopEntries[0]
+			entry := asEntry.HopEntry
 			hopField := &HopField{
 				ExpTime:     entry.HopField.ExpTime,
 				ConsIngress: entry.HopField.ConsIngress,
@@ -299,48 +309,48 @@ func (solution *PathSolution) getFwdPathMetadata() *Path {
 
 			// We don't know if this hop entry is used for forwarding (a peer
 			// entry might be used instead, which would override mtu later)
-			forwardingLinkMtu := entry.InMTU
+			forwardingLinkMtu := entry.IngressMTU
 
 			if isPeer {
 				// We've reached the ASEntry where we want to switch
 				// segments on a peering link.
-				peer := asEntry.HopEntries[solEdge.edge.Peer]
+				peer := asEntry.PeerEntries[solEdge.edge.Peer-1]
 				hopField = &HopField{
 					ExpTime:     peer.HopField.ExpTime,
 					ConsIngress: peer.HopField.ConsIngress,
 					ConsEgress:  peer.HopField.ConsEgress,
 					MAC:         append([]byte(nil), peer.HopField.MAC...),
 				}
-				forwardingLinkMtu = peer.InMTU
+				forwardingLinkMtu = peer.PeerMTU
 			}
 
 			// Segment is traversed in reverse construction direction.
 			// Only include non-zero interfaces.
 			if hopField.ConsEgress != 0 {
 				intfs = append(intfs, sciond.PathInterface{
-					RawIsdas: asEntry.RawIA,
+					RawIsdas: asEntry.Local.IAInt(),
 					IfID:     common.IFIDType(hopField.ConsEgress),
 				})
 			}
 			// In a non-peer shortcut the AS is not traversed completely.
 			if hopField.ConsIngress != 0 && (!isShortcut || isPeer) {
 				intfs = append(intfs, sciond.PathInterface{
-					RawIsdas: asEntry.RawIA,
+					RawIsdas: asEntry.Local.IAInt(),
 					IfID:     common.IFIDType(hopField.ConsIngress),
 				})
 			}
 			hops = append(hops, hopField)
 
-			path.Mtu = minUint16(path.Mtu, asEntry.MTU)
+			path.Mtu = minUint16(path.Mtu, uint16(asEntry.MTU))
 			if forwardingLinkMtu != 0 {
 				// The first HE in a segment has MTU 0, so we ignore those
-				path.Mtu = minUint16(path.Mtu, forwardingLinkMtu)
+				path.Mtu = minUint16(path.Mtu, uint16(forwardingLinkMtu))
 			}
 		}
 		path.Segments = append(path.Segments, &Segment{
 			Type: solEdge.segment.Type,
 			InfoField: &InfoField{
-				Timestamp: solEdge.segment.Timestamp(),
+				Timestamp: solEdge.segment.Info.Timestamp,
 				SegID:     calculateBeta(solEdge),
 				ConsDir:   solEdge.segment.IsDownSeg(),
 				Peer:      solEdge.edge.Peer != 0,
@@ -379,11 +389,11 @@ func (solution *PathSolution) legacyFwdPathMetadata() *Path {
 			asEntry := asEntries[asEntryIdx]
 
 			// Normal hop field.
-			hopEntry := asEntry.HopEntries[0]
-			newHF := currentSeg.appendHopFieldFrom(hopEntry)
+			hopEntry := asEntry.HopEntry
+			newHF := currentSeg.appendHopFieldFrom(&hopEntry.HopField)
 			// We don't know if this hop entry is used for forwarding (a peer
 			// entry might be used instead, which would override mtu later)
-			forwardingLinkMtu := hopEntry.InMTU
+			forwardingLinkMtu := hopEntry.IngressMTU
 			inIFID, outIFID = common.IFIDType(newHF.ConsEgress), common.IFIDType(newHF.ConsIngress)
 
 			// If we've transitioned from a previous segment, set Xover flag.
@@ -419,9 +429,9 @@ func (solution *PathSolution) legacyFwdPathMetadata() *Path {
 						// even if on last segment.
 						newHF.Xover = true
 						// Add a new hop field for the peering entry, and set Xover.
-						pHopEntry := asEntry.HopEntries[solEdge.edge.Peer]
-						pHF := currentSeg.appendHopFieldFrom(pHopEntry)
-						forwardingLinkMtu = pHopEntry.InMTU
+						pHopEntry := asEntry.PeerEntries[solEdge.edge.Peer-1]
+						pHF := currentSeg.appendHopFieldFrom(&pHopEntry.HopField)
+						forwardingLinkMtu = pHopEntry.PeerMTU
 						pHF.Xover = true
 						inIFID, outIFID = common.IFIDType(pHF.ConsEgress),
 							common.IFIDType(pHF.ConsIngress)
@@ -430,18 +440,20 @@ func (solution *PathSolution) legacyFwdPathMetadata() *Path {
 						outIFID = 0
 					}
 
-					newHF := currentSeg.appendHopFieldFrom(asEntries[asEntryIdx-1].HopEntries[0])
+					newHF := currentSeg.appendHopFieldFrom(
+						&asEntries[asEntryIdx-1].HopEntry.HopField,
+					)
 					newHF.VerifyOnly = true
 				}
 			}
 
-			path.Mtu = minUint16(path.Mtu, asEntry.MTU)
+			path.Mtu = minUint16(path.Mtu, uint16(asEntry.MTU))
 			if forwardingLinkMtu != 0 {
 				// The first HE in a segment has MTU 0, so we ignore those
-				path.Mtu = minUint16(path.Mtu, forwardingLinkMtu)
+				path.Mtu = minUint16(path.Mtu, uint16(forwardingLinkMtu))
 			}
 			currentSeg.Interfaces = append(currentSeg.Interfaces,
-				getPathInterfaces(asEntry.IA(), inIFID, outIFID)...)
+				getPathInterfaces(asEntry.Local, inIFID, outIFID)...)
 		}
 	}
 	path.reverseDownSegment()
@@ -454,18 +466,16 @@ func calculateBeta(edge *solutionEdge) uint16 {
 	var index int
 	if edge.segment.IsDownSeg() {
 		index = edge.edge.Shortcut
+		// If this is a peer, we need to set beta i+1.
 		if edge.edge.Peer != 0 {
 			index++
 		}
 	} else {
 		index = len(edge.segment.ASEntries) - 1
-		if edge.edge.Peer == index {
-			index++
-		}
 	}
-	beta := edge.segment.SData.SegID
+	beta := edge.segment.Info.SegmentID
 	for i := 0; i < index; i++ {
-		hop := edge.segment.ASEntries[i].HopEntries[0]
+		hop := edge.segment.ASEntries[i].HopEntry
 		beta = beta ^ binary.BigEndian.Uint16(hop.HopField.MAC)
 	}
 	return beta

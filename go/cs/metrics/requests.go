@@ -18,6 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/proto"
@@ -104,9 +105,9 @@ func (r Request) RepliedRevs(l RequestOkLabels) prometheus.Counter {
 
 // DetermineReplyType determines which type of segments is in the reply. The
 // method assumes that segs only contains one type of segments.
-func DetermineReplyType(segs segfetcher.Segments) proto.PathSegType {
+func DetermineReplyType(segs segfetcher.Segments) seg.Type {
 	if len(segs) > 0 {
 		return segs[0].Type
 	}
-	return proto.PathSegType_unset
+	return 0
 }

@@ -15,48 +15,14 @@
 package beaconing
 
 import (
-	"context"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/scionproto/scion/go/cs/ifstate"
-	"github.com/scionproto/scion/go/cs/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 )
-
-// packBeaconMsg packs the provided beacon and creates a one-hop message.
-func packBeaconMsg(ctx context.Context, bseg *seg.Beacon, ia addr.IA, egIfid common.IFIDType,
-	signer ctrl.Signer) (*onehop.Msg, error) {
-
-	pld, err := ctrl.NewPld(bseg, nil)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to create payload", err)
-	}
-	spld, err := pld.SignedPld(ctx, signer)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to sign payload", err)
-	}
-	packed, err := spld.PackPld()
-	if err != nil {
-		return nil, common.NewBasicError("Unable to pack payload", err)
-	}
-	msg := &onehop.Msg{
-		Dst: snet.SCIONAddress{
-			IA:   ia,
-			Host: addr.SvcCS,
-		},
-		Ifid:     egIfid,
-		InfoTime: time.Now(),
-		Pld:      packed,
-	}
-	return msg, nil
-}
 
 // sortedIntfs returns two sorted lists. The first list contains all active
 // interfaces of the given type. The second list contains all non-active

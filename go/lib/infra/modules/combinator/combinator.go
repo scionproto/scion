@@ -235,19 +235,19 @@ type Segment struct {
 // info field of segment.
 func (segment *Segment) initInfoFieldFrom(pathSegment *seg.PathSegment) {
 	segment.InfoField = &InfoField{
-		ISD:       pathSegment.SData.ISD,
-		SegID:     pathSegment.SData.SegID,
-		Timestamp: pathSegment.Timestamp(),
+		SegID:     pathSegment.Info.SegmentID,
+		Timestamp: pathSegment.Info.Timestamp,
+		ISD:       pathSegment.Info.ISD,
 	}
 }
 
 // appendHopFieldFrom copies the Hop Field in entry, and appends it to segment.
-func (segment *Segment) appendHopFieldFrom(entry *seg.HopEntry) *HopField {
+func (segment *Segment) appendHopFieldFrom(hf *seg.HopField) *HopField {
 	hopField := &HopField{
-		ExpTime:     entry.HopField.ExpTime,
-		ConsIngress: entry.HopField.ConsIngress,
-		ConsEgress:  entry.HopField.ConsEgress,
-		MAC:         append([]byte(nil), entry.HopField.MAC...),
+		ExpTime:     hf.ExpTime,
+		ConsIngress: hf.ConsIngress,
+		ConsEgress:  hf.ConsEgress,
+		MAC:         append([]byte(nil), hf.MAC...),
 	}
 	segment.HopFields = append(segment.HopFields, hopField)
 	if segment.InfoField.Hops == 0xff {

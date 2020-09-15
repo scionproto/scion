@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/mock_pathdb"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
-	"github.com/scionproto/scion/go/proto"
 )
 
 func TestDefaultStorageStoreSegs(t *testing.T) {
@@ -84,8 +83,8 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 		},
 		"Stats correct": {
 			Segs: []*seghandler.SegWithHP{
-				{Seg: seg.NewMeta(seg110To130, proto.PathSegType_core)},
-				{Seg: seg.NewMeta(seg110To130Short, proto.PathSegType_core)},
+				{Seg: &seg.Meta{Segment: seg110To130, Type: seg.TypeCore}},
+				{Seg: &seg.Meta{Segment: seg110To130Short, Type: seg.TypeCore}},
 			},
 			PathDB: func(ctrl *gomock.Controller) pathdb.PathDB {
 				pathDB := mock_pathdb.NewMockPathDB(ctrl)
@@ -94,11 +93,19 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 					pathDB.EXPECT().BeginTransaction(gomock.Any(), gomock.Any()).
 						Return(tx, nil),
 					tx.EXPECT().InsertWithHPCfgIDs(gomock.Any(),
-						seg.NewMeta(seg110To130Short, proto.PathSegType_core), gomock.Any()).
-						Return(pathdb.InsertStats{Updated: 1}, nil),
+						&seg.Meta{
+							Segment: seg110To130Short,
+							Type:    seg.TypeCore,
+						},
+						gomock.Any(),
+					).Return(pathdb.InsertStats{Updated: 1}, nil),
 					tx.EXPECT().InsertWithHPCfgIDs(gomock.Any(),
-						seg.NewMeta(seg110To130, proto.PathSegType_core), gomock.Any()).
-						Return(pathdb.InsertStats{Inserted: 1}, nil),
+						&seg.Meta{
+							Segment: seg110To130,
+							Type:    seg.TypeCore,
+						},
+						gomock.Any(),
+					).Return(pathdb.InsertStats{Inserted: 1}, nil),
 					tx.EXPECT().Commit(),
 					tx.EXPECT().Rollback(),
 				)

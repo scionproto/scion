@@ -141,7 +141,7 @@ func (r *RevInfo) SameIntf(other *RevInfo) bool {
 
 // Signer is used to sign raw bytes.
 type Signer interface {
-	Sign(ctx context.Context, msg []byte) (*proto.SignS, error)
+	SignLegacy(ctx context.Context, msg []byte) (*proto.SignS, error)
 }
 
 // Verifier is used to verify signatures.
@@ -169,7 +169,7 @@ func NewSignedRevInfo(r *RevInfo, signer Signer) (*SignedRevInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	sign, err := signer.Sign(context.TODO(), rawR)
+	sign, err := signer.SignLegacy(context.TODO(), rawR)
 	if err != nil {
 		return nil, err
 	}

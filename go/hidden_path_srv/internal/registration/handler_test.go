@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/registration"
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/registration/mock_registration"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -83,26 +82,6 @@ func TestSegReg(t *testing.T) {
 				&path_mgmt.HPSegReg{}, nil, nil, 0)
 			res := handler.Handle(req)
 			assert.Equal(t, infra.MetricsErrInternal, res)
-		},
-		"corrupt segment data": func(t *testing.T, ctx context.Context,
-			handler infra.Handler, m *mocks) {
-
-			segment := seg110_133.Segment.ShallowCopy()
-			segment.RawSData = common.RawBytes("abc")
-			req := infra.NewRequest(ctx, &path_mgmt.HPSegReg{
-				HPSegRecs: &path_mgmt.HPSegRecs{
-					Recs: []*seg.Meta{{
-						Segment: segment,
-					}},
-				},
-			}, nil, nil, 0)
-			ack := ack.Ack{
-				Err:     proto.Ack_ErrCode_reject,
-				ErrDesc: messenger.AckRejectFailedToParse,
-			}
-			m.rw.EXPECT().SendAckReply(gomock.Any(), &matchers.AckMsg{Ack: ack})
-			res := handler.Handle(req)
-			assert.Equal(t, infra.MetricsErrInvalid, res)
 		},
 		"invalid peer address type": func(t *testing.T, ctx context.Context,
 			handler infra.Handler, m *mocks) {

@@ -223,6 +223,9 @@ func ExtractUnverifiedBody(signed *cryptopb.SignedMessage) (UnverifiedBody, erro
 }
 
 func extractHeaderAndBody(signed *cryptopb.SignedMessage) (*Header, []byte, error) {
+	if signed == nil {
+		return nil, nil, serrors.New("nil message")
+	}
 	var hdrAndBody cryptopb.HeaderAndBodyInternal
 	if err := proto.Unmarshal(signed.HeaderAndBody, &hdrAndBody); err != nil {
 		return nil, nil, err

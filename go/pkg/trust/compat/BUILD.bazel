@@ -7,11 +7,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
-        "//go/lib/ctrl:go_default_library",
-        "//go/lib/ctrl/cert_mgmt:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/pkg/trust:go_default_library",
-        "//go/pkg/trust/internal/metrics:go_default_library",
-        "//go/proto:go_default_library",
     ],
 )

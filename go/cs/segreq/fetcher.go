@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/cs/segutil"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
@@ -35,7 +36,6 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/proto"
 )
 
 type FetcherConfig struct {
@@ -168,7 +168,7 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 
 	var path snet.Path
 	switch req.SegType {
-	case proto.PathSegType_core:
+	case seg.TypeCore:
 		// fast/simple path for core segment requests (only up segment required).
 		// Must NOT use the router recursively here;
 		// as it tries to find all paths, including paths through other core ASes,
@@ -180,7 +180,7 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 			return nil, serrors.Wrap(segfetcher.ErrNotReachable, err)
 		}
 		path = up
-	case proto.PathSegType_down:
+	case seg.TypeDown:
 		// Select a random path (just like we choose a random segment above)
 		// Avoids potentially being stuck with a broken but not revoked path;
 		// allows clients to retry with possibly different path in case of failure.
@@ -206,6 +206,6 @@ func (p *dstProvider) upPath(ctx context.Context, dst addr.IA) (snet.Path, error
 	return p.segSelector.SelectSeg(ctx, &query.Params{
 		StartsAt: []addr.IA{dst},
 		EndsAt:   []addr.IA{p.localIA},
-		SegTypes: []proto.PathSegType{proto.PathSegType_up},
+		SegTypes: []seg.Type{seg.TypeUp},
 	})
 }

@@ -28,7 +28,7 @@ import (
 
 // Signer takes a message and signs it, producing the signature metadata.
 type Signer interface {
-	Sign(ctx context.Context, msg []byte) (*proto.SignS, error)
+	SignLegacy(ctx context.Context, msg []byte) (*proto.SignS, error)
 }
 
 // Verifier verifies the signature of a signed payload.

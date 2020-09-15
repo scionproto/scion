@@ -126,7 +126,7 @@ func TestRenew(t *testing.T) {
 					SubjectKeyID: []byte("subject-key-id"),
 					Expiration:   time.Now().Add(20 * time.Hour),
 				}
-				signedMsg, err := signer.SignV2(context.Background(), rawBody)
+				signedMsg, err := signer.Sign(context.Background(), rawBody)
 				require.NoError(t, err)
 				// TODO(karampok). Build matchers instead of gomock.Any()
 				// we have to verify that the req is valid signature wise.

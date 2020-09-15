@@ -16,6 +16,9 @@ package hpsegreq_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"errors"
 	"testing"
 
@@ -30,14 +33,12 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/hiddenpath"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/pathdb/mock_pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var (
@@ -102,26 +103,26 @@ var (
 func newTestGraph(t *testing.T, ctrl *gomock.Controller) {
 	t.Helper()
 	g := graph.NewDefaultGraph(ctrl)
-	seg130_112 = markHidden(t, seg.NewMeta(
-		g.Beacon([]common.IFIDType{
+	seg130_112 = markHidden(t, &seg.Meta{
+		Segment: g.Beacon([]common.IFIDType{
 			graph.If_130_A_112_X,
 		}),
-		proto.PathSegType_down,
-	))
-	seg130_111_112 = markHidden(t, seg.NewMeta(
-		g.Beacon([]common.IFIDType{
+		Type: seg.TypeDown,
+	})
+	seg130_111_112 = markHidden(t, &seg.Meta{
+		Segment: g.Beacon([]common.IFIDType{
 			graph.If_130_B_111_A,
 			graph.If_111_A_112_X,
 		}),
-		proto.PathSegType_up,
-	))
-	seg120_111_112 = markHidden(t, seg.NewMeta(
-		g.Beacon([]common.IFIDType{
+		Type: seg.TypeUp,
+	})
+	seg120_111_112 = markHidden(t, &seg.Meta{
+		Segment: g.Beacon([]common.IFIDType{
 			graph.If_120_X_111_B,
 			graph.If_111_A_112_X,
 		}),
-		proto.PathSegType_core,
-	))
+		Type: seg.TypeCore,
+	})
 }
 
 func TestFetcher(t *testing.T) {
@@ -352,14 +353,21 @@ func TestFetcher(t *testing.T) {
 func markHidden(t *testing.T, m *seg.Meta) *seg.Meta {
 	t.Helper()
 	s := m.Segment
-	newSeg, err := seg.NewSeg(s.SData)
+
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
-	if s.MaxAEIdx() < 0 {
-		panic("Segment has no AS entries")
-	}
-	s.ASEntries[s.MaxAEIdx()].Exts.HiddenPathSeg = seg.NewHiddenPathSegExtn()
+	signer := graph.Signer{PrivateKey: priv}
+
+	newSeg, err := seg.CreateSegment(s.Info.Timestamp, s.Info.SegmentID, s.Info.ISD)
+	require.NoError(t, err)
+	require.NotEmpty(t, s.ASEntries)
+	s.ASEntries[s.MaxIdx()].Extensions.HiddenPath.IsHidden = true
 	for _, entry := range s.ASEntries {
-		newSeg.AddASEntry(context.Background(), entry, infra.NullSigner)
+		err := newSeg.AddASEntry(context.Background(), entry, signer)
+		require.NoError(t, err)
 	}
-	return seg.NewMeta(newSeg, m.Type)
+	return &seg.Meta{
+		Segment: newSeg,
+		Type:    m.Type,
+	}
 }

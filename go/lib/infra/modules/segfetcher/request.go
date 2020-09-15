@@ -17,14 +17,14 @@ package segfetcher
 import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 )
 
 // Request represents a path or segment request.
 type Request struct {
 	Src     addr.IA
 	Dst     addr.IA
-	SegType proto.PathSegType
+	SegType seg.Type
 }
 
 // IsZero returns whether the request is empty.

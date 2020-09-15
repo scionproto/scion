@@ -23,10 +23,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/mock_trust"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var (
@@ -74,7 +74,7 @@ func TestForwarderClassify(t *testing.T) {
 		LocalIA         addr.IA
 		Request         request
 		ErrorAssertion  require.ErrorAssertionFunc
-		ExpectedSegType proto.PathSegType
+		ExpectedSegType seg.Type
 	}{
 		"Invalid Src": {
 			LocalIA: nonCore111,
@@ -99,7 +99,7 @@ func TestForwarderClassify(t *testing.T) {
 				Dst: addr.IA{I: 2, A: 0},
 			},
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_core,
+			ExpectedSegType: seg.TypeCore,
 		},
 		"Core Wildcard Src": {
 			LocalIA: nonCore111,
@@ -108,7 +108,7 @@ func TestForwarderClassify(t *testing.T) {
 				Dst: core210,
 			},
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_core,
+			ExpectedSegType: seg.TypeCore,
 		},
 		"Core Wildcard Dst": {
 			LocalIA: nonCore111,
@@ -117,7 +117,7 @@ func TestForwarderClassify(t *testing.T) {
 				Dst: addr.IA{I: 2, A: 0},
 			},
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_core,
+			ExpectedSegType: seg.TypeCore,
 		},
 		"Core Invalid Src": {
 			LocalIA: nonCore111,
@@ -134,7 +134,7 @@ func TestForwarderClassify(t *testing.T) {
 				Dst: nonCore112,
 			},
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_down,
+			ExpectedSegType: seg.TypeDown,
 		},
 		"Down Wildcard": {
 			LocalIA: nonCore111,
@@ -143,7 +143,7 @@ func TestForwarderClassify(t *testing.T) {
 				Dst: nonCore112,
 			},
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_down,
+			ExpectedSegType: seg.TypeDown,
 		},
 		"Down Remote ISD": {
 			LocalIA: nonCore111,
@@ -152,7 +152,7 @@ func TestForwarderClassify(t *testing.T) {
 				Dst: nonCore212,
 			},
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_down,
+			ExpectedSegType: seg.TypeDown,
 		},
 		"Down Remote ISD Wildcard": {
 			LocalIA: nonCore111,
@@ -161,7 +161,7 @@ func TestForwarderClassify(t *testing.T) {
 				Dst: nonCore212,
 			},
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_down,
+			ExpectedSegType: seg.TypeDown,
 		},
 		"Down wrong ISD": {
 			LocalIA: nonCore111,
@@ -186,7 +186,7 @@ func TestForwarderClassify(t *testing.T) {
 				Dst: core110,
 			},
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_up,
+			ExpectedSegType: seg.TypeUp,
 		},
 		"Up Wildcard": {
 			LocalIA: nonCore111,
@@ -195,7 +195,7 @@ func TestForwarderClassify(t *testing.T) {
 				Dst: addr.IA{I: 1, A: 0},
 			},
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_up,
+			ExpectedSegType: seg.TypeUp,
 		},
 		"Up Invalid Src": {
 			LocalIA: nonCore111,

@@ -86,7 +86,7 @@ func (solution *PathSolution) gatherASEntries() *asEntryList {
 		}
 		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
 			asEntry := asEntries[asEntryIdx]
-			*entryContainer = append(*entryContainer, asEntry)
+			*entryContainer = append(*entryContainer, &asEntry)
 		}
 	}
 	return &res
@@ -98,8 +98,8 @@ func (solution *PathSolution) gatherASEntries() *asEntryList {
 func extractPeerdata(res *PathMetadata, asEntry *seg.ASEntry,
 	peerIfID common.IFIDType, includePeer bool) {
 
-	ia := asEntry.IA()
-	staticInfo := asEntry.Exts.StaticInfo
+	ia := asEntry.Local
+	staticInfo := seg.StaticInfoExtn{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
 	for i := 0; i < len(staticInfo.Latency.Peerlatencies); i++ {
 		if staticInfo.Latency.Peerlatencies[i].IfID == peerIfID {
 			if includePeer {
@@ -158,8 +158,8 @@ func extractPeerdata(res *PathMetadata, asEntry *seg.ASEntry,
 // extractSingleSegmentFinalASData is used to extract StaticInfo from
 // the final AS in a path that does not contain all 3 segments.
 func extractSingleSegmentFinalASData(res *PathMetadata, asEntry *seg.ASEntry) {
-	ia := asEntry.IA()
-	staticInfo := asEntry.Exts.StaticInfo
+	ia := asEntry.Local
+	staticInfo := seg.StaticInfoExtn{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
 	res.ASLatencies[ia] = ASLatency{
 		InterLatency: staticInfo.Latency.Egresslatency,
 		PeerLatency:  0,
@@ -183,8 +183,8 @@ func extractSingleSegmentFinalASData(res *PathMetadata, asEntry *seg.ASEntry) {
 // staticInfo.
 
 func extractNormaldata(res *PathMetadata, asEntry *seg.ASEntry) {
-	ia := asEntry.IA()
-	staticInfo := asEntry.Exts.StaticInfo
+	ia := asEntry.Local
+	staticInfo := seg.StaticInfoExtn{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
 	res.ASLatencies[ia] = ASLatency{
 		IntraLatency: staticInfo.Latency.IngressToEgressLatency,
 		InterLatency: staticInfo.Latency.Egresslatency,
@@ -210,9 +210,10 @@ func extractNormaldata(res *PathMetadata, asEntry *seg.ASEntry) {
 // when the path crosses over into the core segment (i.e. the AS is also the first AS
 // in the core segment).
 func extractUpOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
-	ia := newASEntry.IA()
-	staticInfo := oldASEntry.Exts.StaticInfo
-	hopEntry := newASEntry.HopEntries[0]
+	ia := newASEntry.Local
+	// FIXME(roosd): enable again: staticInfo := oldASEntry.Exts.StaticInfo
+	staticInfo := seg.StaticInfoExtn{}
+	hopEntry := newASEntry.HopEntry
 	newIngressIfID := common.IFIDType(hopEntry.HopField.ConsIngress)
 	for i := 0; i < len(staticInfo.Latency.Childlatencies); i++ {
 		if staticInfo.Latency.Childlatencies[i].IfID == newIngressIfID {
@@ -254,10 +255,10 @@ func extractUpOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry *s
 // when the path crosses over into the down segment (i.e. the AS is also the last AS
 // in the down segment).
 func extractCoreOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
-	ia := newASEntry.IA()
-	staticInfo := newASEntry.Exts.StaticInfo
-	oldSI := oldASEntry.Exts.StaticInfo
-	hopEntry := oldASEntry.HopEntries[0]
+	ia := newASEntry.Local
+	staticInfo := seg.StaticInfoExtn{} // FIXME(roosd): enable again: := newASEntry.Exts.StaticInfo
+	oldSI := seg.StaticInfoExtn{}      // FIXME(roosd): enable again: := oldASEntry.Exts.StaticInfo
+	hopEntry := oldASEntry.HopEntry
 	oldEgressIfID := common.IFIDType(hopEntry.HopField.ConsEgress)
 	for i := 0; i < len(staticInfo.Latency.Childlatencies); i++ {
 		if staticInfo.Latency.Childlatencies[i].IfID == oldEgressIfID {
@@ -318,7 +319,7 @@ func combineSegments(ases *asEntryList) *PathMetadata {
 	// then stitch the segments metadata and insert them
 	if lastUp != nil && ases.UpPeer != 0 {
 		// This is the last AS in the segment and it is connected to the down segment via peering.
-		extractPeerdata(meta, lastUp, peerIfID(lastUp.HopEntries[ases.UpPeer]), false)
+		extractPeerdata(meta, lastUp, peerIfID(lastUp.PeerEntries[ases.UpPeer-1]), false)
 		lastUp = nil
 	}
 	// if len(ases.Ups) > 0 && len(ases.Cores) > 0 && ases.Cores[0] != nil {
@@ -330,7 +331,7 @@ func combineSegments(ases *asEntryList) *PathMetadata {
 
 	if lastDown != nil && ases.DownPeer != 0 {
 		// This is the last AS in the segment and it is connected to the down segment via peering.
-		extractPeerdata(meta, lastDown, peerIfID(lastDown.HopEntries[ases.DownPeer]), true)
+		extractPeerdata(meta, lastDown, peerIfID(lastDown.PeerEntries[ases.DownPeer-1]), true)
 		lastDown = nil
 	}
 	if lastDown != nil && lastCore != nil {
@@ -365,27 +366,29 @@ func addMetaFromSegment(meta *PathMetadata, segment []*seg.ASEntry) *seg.ASEntry
 		return nil
 	}
 	asEntry := segment[0]
-	s := asEntry.Exts.StaticInfo
-	if s != nil {
+	s := &seg.StaticInfoExtn{} // FIXME(roosd): enable again := asEntry.Exts.StaticInfo
+	if false {
 		// For the first AS on the path, only extract
 		// the note and the geodata, since all other data
 		// is not available as part of the saved
 		// s as we only have metrics describing a connection
 		// between BRs (i.e. the "edges" of an AS) and a path could
 		// potentially originate somewhere in the "middle" of the AS.
-		meta.Geo[asEntry.IA()] = getGeo(asEntry)
-		meta.Notes[asEntry.IA()] = ASnote{Note: s.Note}
+		meta.Geo[asEntry.Local] = getGeo(asEntry)
+		meta.Notes[asEntry.Local] = ASnote{Note: s.Note}
 	}
 	for i := 1; i < len(segment)-1; i++ {
 		// If the AS is in the middle of the segment, simply extract
 		// the egress and ingressToEgress metrics from the corresponding
 		// fields in s.
-		if segment[i].Exts.StaticInfo == nil {
+		if true { // FIXME(roosd): enable again: if segment[i].Exts.StaticInfo == nil {
 			continue
 		}
 		extractNormaldata(meta, segment[i])
 	}
-	if len(segment) > 1 && segment[len(segment)-1].Exts.StaticInfo != nil {
+	// FIXME(roosd): enable again:
+	// if len(segment) > 1 && segment[len(segment)-1].Exts.StaticInfo != nil {
+	if false {
 		// the stitching is done later
 		return segment[len(segment)-1]
 	}
@@ -394,7 +397,9 @@ func addMetaFromSegment(meta *PathMetadata, segment []*seg.ASEntry) *seg.ASEntry
 
 func getGeo(asEntry *seg.ASEntry) ASGeo {
 	var locations []GeoLoc
-	for _, loc := range asEntry.Exts.StaticInfo.Geo.Locations {
+	// FIXME(roosd): Enable again := asEntry.Exts.StaticInfo.Geo.Locations
+	staticInfo := seg.StaticInfoExtn{}
+	for _, loc := range staticInfo.Geo.Locations {
 		locations = append(locations, GeoLoc{
 			Latitude:  loc.GPSData.Latitude,
 			Longitude: loc.GPSData.Longitude,
@@ -407,6 +412,6 @@ func getGeo(asEntry *seg.ASEntry) ASGeo {
 	return res
 }
 
-func peerIfID(he *seg.HopEntry) common.IFIDType {
+func peerIfID(he seg.PeerEntry) common.IFIDType {
 	return common.IFIDType(he.HopField.ConsIngress)
 }

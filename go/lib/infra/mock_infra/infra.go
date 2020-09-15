@@ -8,12 +8,12 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
-	ctrl "github.com/scionproto/scion/go/lib/ctrl"
 	ack "github.com/scionproto/scion/go/lib/ctrl/ack"
 	ifid "github.com/scionproto/scion/go/lib/ctrl/ifid"
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	infra "github.com/scionproto/scion/go/lib/infra"
-	proto "github.com/scionproto/scion/go/proto"
+	signed "github.com/scionproto/scion/go/lib/scrypto/signed"
+	crypto "github.com/scionproto/scion/go/pkg/proto/crypto"
 	net "net"
 	reflect "reflect"
 )
@@ -268,32 +268,23 @@ func (m *MockVerifier) EXPECT() *MockVerifierMockRecorder {
 }
 
 // Verify mocks base method
-func (m *MockVerifier) Verify(arg0 context.Context, arg1 []byte, arg2 *proto.SignS) error {
+func (m *MockVerifier) Verify(arg0 context.Context, arg1 *crypto.SignedMessage, arg2 ...[]byte) (*signed.Message, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Verify", arg0, arg1, arg2)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Verify indicates an expected call of Verify
-func (mr *MockVerifierMockRecorder) Verify(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVerifier)(nil).Verify), arg0, arg1, arg2)
-}
-
-// VerifyPld mocks base method
-func (m *MockVerifier) VerifyPld(arg0 context.Context, arg1 *ctrl.SignedPld) (*ctrl.Pld, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VerifyPld", arg0, arg1)
-	ret0, _ := ret[0].(*ctrl.Pld)
+	varargs := []interface{}{arg0, arg1}
+	for _, a := range arg2 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Verify", varargs...)
+	ret0, _ := ret[0].(*signed.Message)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// VerifyPld indicates an expected call of VerifyPld
-func (mr *MockVerifierMockRecorder) VerifyPld(arg0, arg1 interface{}) *gomock.Call {
+// Verify indicates an expected call of Verify
+func (mr *MockVerifierMockRecorder) Verify(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyPld", reflect.TypeOf((*MockVerifier)(nil).VerifyPld), arg0, arg1)
+	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVerifier)(nil).Verify), varargs...)
 }
 
 // WithIA mocks base method
@@ -322,20 +313,6 @@ func (m *MockVerifier) WithServer(arg0 net.Addr) infra.Verifier {
 func (mr *MockVerifierMockRecorder) WithServer(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithServer", reflect.TypeOf((*MockVerifier)(nil).WithServer), arg0)
-}
-
-// WithSignatureTimestampRange mocks base method
-func (m *MockVerifier) WithSignatureTimestampRange(arg0 infra.SignatureTimestampRange) infra.Verifier {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WithSignatureTimestampRange", arg0)
-	ret0, _ := ret[0].(infra.Verifier)
-	return ret0
-}
-
-// WithSignatureTimestampRange indicates an expected call of WithSignatureTimestampRange
-func (mr *MockVerifierMockRecorder) WithSignatureTimestampRange(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithSignatureTimestampRange", reflect.TypeOf((*MockVerifier)(nil).WithSignatureTimestampRange), arg0)
 }
 
 // MockHandler is a mock of Handler interface

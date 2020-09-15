@@ -15,8 +15,7 @@
 package seg
 
 import (
-	"context"
-	"fmt"
+	"bytes"
 	"testing"
 	"time"
 
@@ -25,10 +24,8 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var (
@@ -47,46 +44,33 @@ func allocPathSegment(ctrl *gomock.Controller, ias []addr.IA) *PathSegment {
 		}
 		hf.Write(rawHops[i])
 	}
-	ases := make([]*ASEntry, len(ias))
+	ases := make([]ASEntry, len(ias))
 	for i := range ias {
-		ia := ias[i]
-		inIA := addr.IA{}
-		if i > 0 {
-			inIA = ias[i-1]
+		var next addr.IA
+		if i < len(ias)-1 {
+			next = ias[i+1]
 		}
-		outIA := ia
-		if i == len(ases)-1 {
-			outIA = addr.IA{}
-		}
-		ases[i] = &ASEntry{
-			RawIA:      ia.IAInt(),
-			HopEntries: []*HopEntry{allocHopEntry(inIA, outIA, rawHops[i])},
-		}
-	}
-	rawInfo := make([]byte, spath.InfoFieldLength)
-	(&spath.InfoField{ISD: uint16(ias[0].I), TsInt: uint32(time.Now().Unix())}).Write(rawInfo)
-	pseg, _ := NewSeg(&PathSegmentSignedData{
-		RawInfo:      make([]byte, spath.InfoFieldLength),
-		RawTimestamp: uint32(time.Now().Unix()),
-		SegID:        1337,
-	})
-	signer := mock_seg.NewMockSigner(ctrl)
-	signer.EXPECT().Sign(gomock.Any(), gomock.AssignableToTypeOf(common.RawBytes{})).Return(
-		&proto.SignS{}, nil).AnyTimes()
-	for _, ase := range ases {
-		if err := pseg.AddASEntry(context.Background(), ase, signer); err != nil {
-			fmt.Printf("Error adding ASEntry: %v", err)
+		ases[i] = ASEntry{
+			Local: ias[i],
+			Next:  next,
+			MTU:   1337,
+			HopEntry: HopEntry{
+				HopField: HopField{
+					ConsIngress: 1,
+					ConsEgress:  2,
+					ExpTime:     uint8(spath.DefaultHopFExpiry),
+					MAC:         bytes.Repeat([]byte{0xab}, 6),
+				},
+				IngressMTU: 1337,
+			},
 		}
 	}
-	return pseg
-}
-
-func allocHopEntry(inIA, outIA addr.IA, hopF common.RawBytes) *HopEntry {
-	return &HopEntry{
-		RawInIA:     inIA.IAInt(),
-		RawOutIA:    outIA.IAInt(),
-		RawHopField: hopF,
+	ps, err := CreateSegment(time.Now(), 1337, 1)
+	if err != nil {
+		panic(err)
 	}
+	ps.ASEntries = ases
+	return ps
 }
 
 func TestFilterSegments(t *testing.T) {
@@ -99,22 +83,24 @@ func TestFilterSegments(t *testing.T) {
 	tests := map[string]struct {
 		Segs     []*PathSegment
 		Filtered []*PathSegment
-		KeepF    func(*PathSegment) bool
+		KeepF    func(*PathSegment) (bool, error)
 	}{
 		"Keep all": {
 			Segs:     []*PathSegment{seg110_120},
 			Filtered: []*PathSegment{seg110_120},
-			KeepF:    func(s *PathSegment) bool { return true },
+			KeepF:    func(s *PathSegment) (bool, error) { return true, nil },
 		},
 		"Drop all": {
 			Segs:     []*PathSegment{seg110_120},
 			Filtered: []*PathSegment{},
-			KeepF:    func(s *PathSegment) bool { return false },
+			KeepF:    func(s *PathSegment) (bool, error) { return false, nil },
 		},
 		"First IA core 1_110": {
 			Segs:     []*PathSegment{seg110_120, seg120_110},
 			Filtered: []*PathSegment{seg120_110},
-			KeepF:    func(s *PathSegment) bool { return core1_120.Equal(s.FirstIA()) },
+			KeepF: func(s *PathSegment) (bool, error) {
+				return core1_120.Equal(s.FirstIA()), nil
+			},
 		},
 	}
 

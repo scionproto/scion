@@ -18,8 +18,12 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathpol"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
 // PolicyHash is the hash of a policy.
@@ -52,4 +56,18 @@ func HashPolicy(policy *pathpol.Policy) (PolicyHash, error) {
 
 func (h PolicyHash) String() string {
 	return common.RawBytes(h).String()
+}
+
+// PackSegment packs a path segment.
+func PackSegment(ps *seg.PathSegment) ([]byte, error) {
+	return proto.Marshal(seg.PathSegmentToPB(ps))
+}
+
+// UnpackSegment unpacks a path segment.
+func UnpackSegment(raw []byte) (*seg.PathSegment, error) {
+	var pb cppb.PathSegment
+	if err := proto.Unmarshal(raw, &pb); err != nil {
+		return nil, err
+	}
+	return seg.SegmentFromPB(&pb)
 }

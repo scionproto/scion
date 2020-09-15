@@ -33,7 +33,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -90,13 +90,31 @@ func BuildUnits(segMetas []*seg.Meta,
 			if err != nil {
 				panic(err)
 			}
-			if segMeta.Segment.ContainsInterface(revInfo.IA(), common.IFIDType(revInfo.IfID)) {
+			if containsInterface(segMeta.Segment.ASEntries, revInfo.IA(), uint16(revInfo.IfID)) {
 				unit.SRevInfos = append(unit.SRevInfos, sRevInfo)
 			}
 		}
 		units = append(units, unit)
 	}
 	return units
+}
+
+func containsInterface(asEntries []seg.ASEntry, ia addr.IA, ifid uint16) bool {
+	for _, as := range asEntries {
+		if !as.Local.Equal(ia) {
+			continue
+		}
+		if as.HopEntry.HopField.ConsIngress == ifid || as.HopEntry.HopField.ConsEgress == ifid {
+			return true
+		}
+		// Only ingress interface differ.
+		for _, peer := range as.PeerEntries {
+			if peer.HopField.ConsIngress == ifid {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (u *Unit) Len() int {
@@ -171,10 +189,9 @@ func VerifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr
 	for i, asEntry := range segment.ASEntries {
 		// Bind the verifier to the values specified in the AS Entry since
 		// the sign meta does not carry this information.
-		verifier := verifier.WithServer(server).WithIA(asEntry.IA())
+		verifier := verifier.WithServer(server).WithIA(asEntry.Local)
 		if err := segment.VerifyASEntry(ctx, verifier, i); err != nil {
-			return serrors.Wrap(ErrSegment, err, "seg", segment,
-				"asEntry", asEntry, "sign", segment.RawASEntries[i].Sign)
+			return serrors.Wrap(ErrSegment, err, "seg", segment, "asEntry", asEntry)
 		}
 	}
 	return nil

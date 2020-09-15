@@ -28,13 +28,12 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/mock_segfetcher"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/proto"
 )
 
 const (
-	Up   = proto.PathSegType_up
-	Down = proto.PathSegType_down
-	Core = proto.PathSegType_core
+	Up   = seg.TypeUp
+	Down = seg.TypeDown
+	Core = seg.TypeCore
 )
 
 var (

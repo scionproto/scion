@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
@@ -47,7 +46,7 @@ type Propagator struct {
 	BeaconSender BeaconSender
 	Provider     BeaconProvider
 	IA           addr.IA
-	Signer       ctrl.Signer
+	Signer       seg.Signer
 	Intfs        *ifstate.Interfaces
 	Core         bool
 	AllowIsdLoop bool
@@ -183,23 +182,21 @@ func (p *beaconPropagator) start(ctx context.Context, wg *sync.WaitGroup) {
 }
 
 func (p *beaconPropagator) propagate(ctx context.Context) error {
-	raw, err := p.beacon.Segment.Pack()
-	if err != nil {
-		metrics.Propagator.InternalErrors().Inc()
-		return err
-	}
+	pb := seg.PathSegmentToPB(p.beacon.Segment)
 	var expected int
 	for _, egIfid := range p.activeIntfs {
 		if p.shouldIgnore(p.beacon, egIfid) {
 			continue
 		}
 		expected++
-		bseg := p.beacon
-		if bseg.Segment, err = seg.NewBeaconFromRaw(raw); err != nil {
+		// Create a "copy" from the original beacon to avoid races on the
+		// ASEntry slice.
+		ps, err := seg.BeaconFromPB(pb)
+		if err != nil {
 			metrics.Propagator.InternalErrors().Inc()
 			return common.NewBasicError("Unable to unpack beacon", err)
 		}
-		p.extendAndSend(ctx, bseg, egIfid)
+		p.extendAndSend(ctx, beacon.Beacon{Segment: ps, InIfId: p.beacon.InIfId}, egIfid)
 	}
 	p.wg.Wait()
 	if expected == 0 {
@@ -252,10 +249,9 @@ func (p *beaconPropagator) extendAndSend(ctx context.Context, bseg beacon.Beacon
 		topoInfo := intf.TopoInfo()
 		err := p.BeaconSender.Send(
 			ctx,
-			&seg.Beacon{Segment: bseg.Segment},
+			bseg.Segment,
 			topoInfo.IA,
 			egIfid,
-			p.Signer,
 			topoInfo.InternalAddr,
 		)
 		if err != nil {

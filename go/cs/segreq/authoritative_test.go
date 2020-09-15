@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 )
 
 func TestAuthoritativeClassify(t *testing.T) {
@@ -35,7 +35,7 @@ func TestAuthoritativeClassify(t *testing.T) {
 		LocalIA         addr.IA
 		Request         request
 		ErrorAssertion  require.ErrorAssertionFunc
-		ExpectedSegType proto.PathSegType
+		ExpectedSegType seg.Type
 	}{
 		"Invalid Src": {
 			LocalIA: core110,
@@ -68,7 +68,7 @@ func TestAuthoritativeClassify(t *testing.T) {
 				Dst: core120,
 			},
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_core,
+			ExpectedSegType: seg.TypeCore,
 		},
 		"Core Remote ISD": {
 			LocalIA: core110,
@@ -77,7 +77,7 @@ func TestAuthoritativeClassify(t *testing.T) {
 				Dst: core210,
 			},
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_core,
+			ExpectedSegType: seg.TypeCore,
 		},
 		"Core Wildcard Local ISD": {
 			LocalIA: core110,
@@ -86,7 +86,7 @@ func TestAuthoritativeClassify(t *testing.T) {
 				Dst: addr.IA{I: 1, A: 0},
 			},
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_core,
+			ExpectedSegType: seg.TypeCore,
 		},
 		"Core Wildcard Remote ISD": {
 			LocalIA: core110,
@@ -95,7 +95,7 @@ func TestAuthoritativeClassify(t *testing.T) {
 				Dst: addr.IA{I: 2, A: 0},
 			},
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_core,
+			ExpectedSegType: seg.TypeCore,
 		},
 		"Core Remote ISD Non-Core ": {
 			LocalIA: core110,
@@ -105,7 +105,7 @@ func TestAuthoritativeClassify(t *testing.T) {
 			},
 			// core/non-core dst in remote ISD unchecked! Returning an error would be ok too...
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_core,
+			ExpectedSegType: seg.TypeCore,
 		},
 		"Down": {
 			LocalIA: core110,
@@ -114,7 +114,7 @@ func TestAuthoritativeClassify(t *testing.T) {
 				Dst: nonCore111,
 			},
 			ErrorAssertion:  require.NoError,
-			ExpectedSegType: proto.PathSegType_down,
+			ExpectedSegType: seg.TypeDown,
 		},
 	}
 	for name, test := range tests {

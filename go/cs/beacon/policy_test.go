@@ -200,9 +200,9 @@ func TestFilterLoop(t *testing.T) {
 }
 
 func newTestBeacon(hops ...addr.IA) beacon.Beacon {
-	var entries []*seg.ASEntry
+	var entries []seg.ASEntry
 	for _, hop := range hops {
-		entries = append(entries, &seg.ASEntry{RawIA: hop.IAInt()})
+		entries = append(entries, seg.ASEntry{Local: hop})
 	}
 	b := beacon.Beacon{
 		Segment: &seg.PathSegment{

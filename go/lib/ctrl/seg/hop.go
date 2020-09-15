@@ -17,33 +17,105 @@
 package seg
 
 import (
+	"math"
+
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
 type HopEntry struct {
-	RawInIA     addr.IAInt `capnp:"inIA"`
-	RemoteInIF  common.IFIDType
-	InMTU       uint16     `capnp:"inMTU"`
-	RawOutIA    addr.IAInt `capnp:"outIA"`
-	RemoteOutIF common.IFIDType
-	HopField    HopField `capnp:"hopField"`
-
-	// Deprecated: This is only used for legacy path header
-	RawHopField []byte `capnp:"hopF"`
+	// HopField contains the necessary information to create a data-plane hop.
+	HopField HopField
+	// IngressMTU is the MTU on the ingress link.
+	IngressMTU int
 }
 
-func (e *HopEntry) InIA() addr.IA {
-	return e.RawInIA.IA()
+func hopEntryFromPB(pb *cppb.HopEntry) (HopEntry, error) {
+	if pb == nil {
+		return HopEntry{}, serrors.New("nil hop entry")
+	}
+	if pb.HopField == nil {
+		return HopEntry{}, serrors.New("hop field is nil")
+	}
+	if pb.IngressMtu > math.MaxInt32 {
+		return HopEntry{}, serrors.New("MTU too big", "mtu", pb.IngressMtu)
+	}
+	hop, err := hopFieldFromPB(pb.HopField)
+	if err != nil {
+		return HopEntry{}, serrors.WrapStr("parsing hop field", err)
+	}
+	return HopEntry{
+		HopField:   hop,
+		IngressMTU: int(pb.IngressMtu),
+	}, nil
 }
 
-func (e *HopEntry) OutIA() addr.IA {
-	return e.RawOutIA.IA()
+type PeerEntry struct {
+	// HopField contains the necessary information to create a data-plane hop.
+	HopField HopField
+	// Peer is the ISD-AS of the peering AS.
+	Peer addr.IA
+	// PeerInterface is the interface ID of the peering link on the remote
+	// peering AS side.
+	PeerInterface uint16
+	// PeerMTU is the MTU on the peering link.
+	PeerMTU int
+}
+
+func peerEntryFromPB(pb *cppb.PeerEntry) (PeerEntry, error) {
+	if pb == nil {
+		return PeerEntry{}, serrors.New("nil peer entry")
+	}
+	if pb.HopField == nil {
+		return PeerEntry{}, serrors.New("hop field is nil")
+	}
+	if ia := addr.IAInt(pb.PeerIsdAs).IA(); ia.IsWildcard() {
+		return PeerEntry{}, serrors.New("wildcard peer", "peer_isd_as", ia)
+	}
+	if pb.PeerInterface > math.MaxUint16 {
+		return PeerEntry{}, serrors.New("peer interface exceeds 65535",
+			"peer_interface", pb.PeerInterface)
+	}
+	if pb.PeerMtu > math.MaxInt32 {
+		return PeerEntry{}, serrors.New("MTU too big", "mtu", pb.PeerMtu)
+	}
+	hop, err := hopFieldFromPB(pb.HopField)
+	if err != nil {
+		return PeerEntry{}, serrors.WrapStr("parsing hop field", err)
+	}
+	return PeerEntry{
+		HopField:      hop,
+		Peer:          addr.IAInt(pb.PeerIsdAs).IA(),
+		PeerInterface: uint16(pb.PeerInterface),
+		PeerMTU:       int(pb.PeerMtu),
+	}, nil
 }
 
 type HopField struct {
-	ExpTime     uint8  `capnp:"expTime"`
-	ConsIngress uint16 `capnp:"consIngress"`
-	ConsEgress  uint16 `capnp:"consEgress"`
-	MAC         []byte `capnp:"mac"`
+	ExpTime     uint8
+	ConsIngress uint16
+	ConsEgress  uint16
+	MAC         []byte
+}
+
+func hopFieldFromPB(pb *cppb.HopField) (HopField, error) {
+	if pb.Ingress > math.MaxUint16 {
+		return HopField{}, serrors.New("ingress exceeds 65535", "ingress", pb.Ingress)
+	}
+	if pb.Egress > math.MaxUint16 {
+		return HopField{}, serrors.New("egress exceeds 65535", "egress", pb.Egress)
+	}
+	if pb.ExpTime > math.MaxUint8 {
+		return HopField{}, serrors.New("exp_time exceeds 255", "exp_time", pb.ExpTime)
+	}
+	if len(pb.Mac) != 6 {
+		return HopField{}, serrors.New("MAC must be 6 bytes", "len", len(pb.Mac))
+	}
+	return HopField{
+		ExpTime:     uint8(pb.ExpTime),
+		ConsIngress: uint16(pb.Ingress),
+		ConsEgress:  uint16(pb.Egress),
+		MAC:         pb.Mac,
+	}, nil
 }

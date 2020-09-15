@@ -18,12 +18,10 @@ import (
 	"context"
 
 	"github.com/opentracing/opentracing-go"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	csmetrics "github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
@@ -31,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/tracing"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // Lookuper looks up path segments.
@@ -90,23 +87,33 @@ func (s LookupServer) Segments(ctx context.Context,
 		// the client might still be able to use the segments so continue here.
 		logger.Debug("Failed to find revocations", "err", err)
 	}
-	raw, err := proto.PackRoot(&path_mgmt.SegRecs{
-		Recs:      segs,
-		SRevInfos: revs,
-	})
-	if err != nil {
-		logger.Debug("Failed to pack reply", "err", err)
-		s.updateMetric(span, labels.WithResult(csmetrics.ErrInternal), err)
-		// TODO(roosd): Differentiate errors and expose the applicable gRPC
-		// status codes.
-		return nil, status.Error(codes.Unavailable, "failed to pack reply")
+	rawRevs := make([][]byte, 0, len(revs))
+	for _, rev := range revs {
+		rawRev, err := rev.Pack()
+		if err != nil {
+			logger.Debug("Failed to pack revocation", "err", err)
+			continue
+		}
+		rawRevs = append(rawRevs, rawRev)
 	}
+
+	m := map[int32]*cppb.SegmentsResponse_Segments{}
+	for _, meta := range segs {
+		s, ok := m[int32(meta.Type)]
+		if !ok {
+			s = &cppb.SegmentsResponse_Segments{}
+			m[int32(meta.Type)] = s
+		}
+		s.Segments = append(s.Segments, seg.PathSegmentToPB(meta.Segment))
+	}
+
 	logger.Debug("Replied with segments", "count", len(segs))
 	s.updateMetric(span, labels.WithResult(csmetrics.OkSuccess), nil)
 	s.incSent(s.SegmentsSent, labels.Desc, len(segs))
 	s.incSent(s.RevocationsSent, labels.Desc, len(revs))
 	return &cppb.SegmentsResponse{
-		Raw: raw,
+		Segments:                    m,
+		DeprecatedSignedRevocations: rawRevs,
 	}, nil
 }
 
@@ -151,7 +158,7 @@ func (l requestLabels) WithResult(result string) requestLabels {
 }
 
 type descLabels struct {
-	SegType proto.PathSegType
+	SegType seg.Type
 	DstISD  addr.ISD
 }
 

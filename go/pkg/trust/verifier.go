@@ -19,12 +19,16 @@ import (
 	"net"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/trust/internal/metrics"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // Verifier is used to verify control plane messages using the AS cert
@@ -40,56 +44,57 @@ type Verifier struct {
 }
 
 // Verify verifies the signature of the msg.
-func (v Verifier) Verify(ctx context.Context, msg []byte, meta *proto.SignS) error {
+func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
+	associatedData ...[]byte) (*signed.Message, error) {
+
 	l := metrics.VerifierLabels{}
-	if meta == nil {
-		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
-		return serrors.New("signature is unset")
-	}
-	if len(meta.Signature) == 0 {
-		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
-		return serrors.New("missing signature")
-	}
-	src, err := ctrl.NewX509SignSrc(meta.Src)
+	hdr, err := signed.ExtractUnverifiedHeader(signedMsg)
 	if err != nil {
-		metrics.Verifier.Verify(l.WithResult(metrics.ErrParse)).Inc()
-		return err
-	}
-	if !v.BoundIA.IsZero() && !v.BoundIA.Equal(src.IA) {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
-		return serrors.New("IA does not match bound IA",
-			"expected", v.BoundIA, "actual", src.IA)
+		return nil, err
+	}
+
+	var keyID cppb.VerificationKeyID
+	if err := proto.Unmarshal(hdr.VerificationKeyID, &keyID); err != nil {
+		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
+		return nil, serrors.WrapStr("parsiing verification key ID", err)
+	}
+	ia := addr.IAInt(keyID.IsdAs).IA()
+	if !v.BoundIA.IsZero() && !v.BoundIA.Equal(ia) {
+		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
+		return nil, serrors.New("does not match bound ISD-AS", "expected", v.BoundIA, "actual", ia)
 	}
 	if v.Engine == nil {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()
-		return serrors.New("nil engine that provides cert chains")
+		return nil, serrors.New("nil engine that provides cert chains")
 	}
-	id := cppki.TRCID{ISD: src.IA.I, Base: src.Base, Serial: src.Serial}
+	id := cppki.TRCID{ISD: ia.I,
+		Base:   scrypto.Version(keyID.TrcBase),
+		Serial: scrypto.Version(keyID.TrcSerial),
+	}
 	if err := v.Engine.NotifyTRC(ctx, id, Server(v.BoundServer)); err != nil {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()
-		return serrors.WrapStr("reporting TRC", err, "id", id)
+		return nil, serrors.WrapStr("reporting TRC", err, "id", id)
 	}
 	chains, err := v.Engine.GetChains(ctx,
 		ChainQuery{
-			IA:           src.IA,
-			SubjectKeyID: src.SubjectKeyID,
+			IA:           ia,
+			SubjectKeyID: keyID.SubjectKeyId,
 			Date:         time.Now(),
 		},
 		Server(v.BoundServer),
 	)
 	if err != nil {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()
-		return err
+		return nil, err
 	}
 	for _, c := range chains {
-		asCrt := c[0]
-		input := meta.SigInput(msg, false)
-		if err := asCrt.CheckSignature(asCrt.SignatureAlgorithm, input,
-			meta.Signature); err == nil {
+		signedMsg, err := signed.Verify(signedMsg, c[0].PublicKey, associatedData...)
+		if err == nil {
 			metrics.Verifier.Verify(l.WithResult(metrics.Success)).Inc()
-			return nil
+			return signedMsg, nil
 		}
 	}
 	metrics.Verifier.Verify(l.WithResult(metrics.ErrNotFound)).Inc()
-	return serrors.New("no chain in database can verify signature")
+	return nil, serrors.New("no chain in database can verify signature")
 }

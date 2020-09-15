@@ -61,8 +61,8 @@ func (b Beacon) String() string {
 	return fmt.Sprintf("Ingress: %d Segment: [ %s ]", b.InIfId, b.Segment)
 }
 
-func link(entry *seg.ASEntry) (addr.IA, common.IFIDType) {
-	return entry.IA(), common.IFIDType(entry.HopEntries[0].HopField.ConsIngress)
+func link(entry seg.ASEntry) (addr.IA, common.IFIDType) {
+	return entry.Local, common.IFIDType(entry.HopEntry.HopField.ConsIngress)
 }
 
 // BeaconOrErr contains a read-only beacon or an error.
