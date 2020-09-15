@@ -19,15 +19,13 @@
 # Stdlib
 import configparser
 import os
+import shlex
 from io import StringIO
 
 # SCION
 from python.lib.util import write_file
 from python.topology.common import (
     ArgsTopoDicts,
-    BR_CONFIG_NAME,
-    COMMON_DIR,
-    CS_CONFIG_NAME,
     DISP_CONFIG_NAME,
     FEATURE_HEADER_V2,
     SD_CONFIG_NAME,
@@ -67,7 +65,7 @@ class SupervisorGenerator(object):
     def _br_entries(self, topo, cmd, base):
         entries = []
         for k, v in topo.get("border_routers", {}).items():
-            conf = os.path.join(base, k, BR_CONFIG_NAME)
+            conf = os.path.join(base, f"{k}.toml")
             entries.append((k, [cmd, "--config", conf]))
         return entries
 
@@ -76,7 +74,7 @@ class SupervisorGenerator(object):
         for k, v in topo.get("control_service", {}).items():
             # only a single control service instance per AS is currently supported
             if k.endswith("-1"):
-                conf = os.path.join(base, k, CS_CONFIG_NAME)
+                conf = os.path.join(base, f"{k}.toml")
                 entries.append((k, ["bin/cs", "--config", conf]))
         return entries
 
@@ -90,12 +88,10 @@ class SupervisorGenerator(object):
         base = topo_id.base_dir(self.args.output_dir)
         for elem, entry in sorted(entries, key=lambda x: x[0]):
             names.append(elem)
-            elem_dir = os.path.join(base, elem)
-            self._write_elem_conf(elem, entry, elem_dir, topo_id)
+            self._write_elem_conf(elem, entry, os.path.join(base, f"supervisord-{elem}.conf"))
         sd_name = "sd%s" % topo_id.file_fmt()
         names.append(sd_name)
-        conf_dir = os.path.join(base, COMMON_DIR)
-        config["program:%s" % sd_name] = self._sciond_entry(sd_name, conf_dir)
+        config["program:%s" % sd_name] = self._sciond_entry(sd_name, base)
         config["group:as%s" % topo_id.file_fmt()] = {
             "programs": ",".join(names)}
         text = StringIO()
@@ -104,40 +100,37 @@ class SupervisorGenerator(object):
             self.args.output_dir), SUPERVISOR_CONF)
         write_file(conf_path, text.getvalue())
 
-    def _write_elem_conf(self, elem, entry, elem_dir, topo_id=None):
+    def _write_elem_conf(self, elem, entry, path):
         config = configparser.ConfigParser(interpolation=None)
-        prog = self._common_entry(elem, entry, elem_dir)
+        prog = self._common_entry(elem, entry)
         if elem.startswith("br"):
             prog['environment'] += ',GODEBUG="cgocheck=0"'
         config["program:%s" % elem] = prog
         text = StringIO()
         config.write(text)
-        write_file(os.path.join(elem_dir, SUPERVISOR_CONF), text.getvalue())
+        write_file(path, text.getvalue())
 
     def _write_dispatcher_conf(self):
         elem = "dispatcher"
         elem_dir = os.path.join(self.args.output_dir, elem)
         config_file_path = os.path.join(elem_dir, DISP_CONFIG_NAME)
-        self._write_elem_conf(
-            elem, ["bin/dispatcher", "--config", config_file_path], elem_dir)
+        self._write_elem_conf(elem,
+                              ["bin/dispatcher", "--config", config_file_path],
+                              os.path.join(elem_dir, SUPERVISOR_CONF))
 
-    def _common_entry(self, name, cmd_args, elem_dir=None):
+    def _common_entry(self, name, cmd_args):
         entry = {
             'autostart': 'false',
             'autorestart': 'false',
             'environment': 'TZ=UTC',
-            'stdout_logfile': "NONE",
-            'stderr_logfile': "NONE",
+            'stdout_logfile': f"logs/{name}.log",
+            'redirect_stderr': True,
             'startretries': 0,
             'startsecs': 5,
             'priority': 100,
-            'command': self._mk_cmd(name, cmd_args),
+            'command': ' '.join(shlex.quote(a) for a in cmd_args),
         }
         if name == "dispatcher":
             entry['startsecs'] = 1
             entry['priority'] = 50
         return entry
-
-    def _mk_cmd(self, name, cmd_args):
-        return "bash -c 'exec %s &>logs/%s.log'" % (
-            " ".join(['"%s"' % arg for arg in cmd_args]), name)

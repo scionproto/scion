@@ -42,7 +42,7 @@ from python.topology.common import (
     join_host_port,
     json_default,
     SCION_SERVICE_NAMES,
-    srv_iter,
+    as_iter,
     TopoID
 )
 from python.topology.net import (
@@ -362,8 +362,8 @@ class TopoGenerator(object):
         self.as_list[key].append(str(topo_id))
 
     def _write_as_topos(self):
-        for topo_id, as_topo, base in srv_iter(
-                self.topo_dicts, self.args.output_dir, common=True):
+        # TODO use self._iterate (or replace that with as_iter)
+        for topo_id, as_topo, base in as_iter(self.topo_dicts, self.args.output_dir):
             path = os.path.join(base, TOPO_FILE)
             contents_json = json.dumps(self.topo_dicts[topo_id],
                                        default=json_default, indent=2)

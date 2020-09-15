@@ -27,9 +27,6 @@ from typing import Mapping
 from python.lib.util import write_file
 from python.topology.common import (
     ArgsTopoDicts,
-    BR_CONFIG_NAME,
-    COMMON_DIR,
-    CS_CONFIG_NAME,
     DISP_CONFIG_NAME,
     docker_host,
     join_host_port,
@@ -80,10 +77,10 @@ class GoGenerator(object):
             for k, v in topo.get("border_routers", {}).items():
                 base = topo_id.base_dir(self.args.output_dir)
                 br_conf = self._build_br_conf(topo_id, topo["isd_as"], base, k, v)
-                write_file(os.path.join(base, k, BR_CONFIG_NAME), toml.dumps(br_conf))
+                write_file(os.path.join(base, f"{k}.toml"), toml.dumps(br_conf))
 
     def _build_br_conf(self, topo_id, ia, base, name, v):
-        config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
+        config_dir = '/share/conf' if self.args.docker else base
         raw_entry = {
             'general': {
                 'id': name,
@@ -106,12 +103,11 @@ class GoGenerator(object):
                     base = topo_id.base_dir(self.args.output_dir)
                     bs_conf = self._build_control_service_conf(
                         topo_id, topo["isd_as"], base, elem_id, elem, ca)
-                    write_file(os.path.join(base, elem_id,
-                                            CS_CONFIG_NAME), toml.dumps(bs_conf))
+                    write_file(os.path.join(base, f"{elem_id}.toml"),
+                               toml.dumps(bs_conf))
 
     def _build_control_service_conf(self, topo_id, ia, base, name, infra_elem, ca):
-        config_dir = '/share/conf' if self.args.docker else os.path.join(
-            base, name)
+        config_dir = '/share/conf' if self.args.docker else base
         raw_entry = {
             'general': {
                 'id': name,
@@ -157,7 +153,7 @@ class GoGenerator(object):
                                yaml.dump(rsvps, default_flow_style=False))
 
     def _build_co_conf(self, topo_id, ia, base, name, infra_elem):
-        config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
+        config_dir = '/share/conf' if self.args.docker else base
         raw_entry = {
             'general': {
                 'ID': name,
@@ -234,11 +230,11 @@ class GoGenerator(object):
         for topo_id, topo in self.args.topo_dicts.items():
             base = topo_id.base_dir(self.args.output_dir)
             sciond_conf = self._build_sciond_conf(topo_id, topo["isd_as"], base)
-            write_file(os.path.join(base, COMMON_DIR, SD_CONFIG_NAME), toml.dumps(sciond_conf))
+            write_file(os.path.join(base, SD_CONFIG_NAME), toml.dumps(sciond_conf))
 
     def _build_sciond_conf(self, topo_id, ia, base):
         name = sciond_name(topo_id)
-        config_dir = '/share/conf' if self.args.docker else os.path.join(base, COMMON_DIR)
+        config_dir = '/share/conf' if self.args.docker else base
         ip = sciond_ip(self.args.docker, topo_id, self.args.networks)
         raw_entry = {
             'general': {
