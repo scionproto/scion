@@ -85,7 +85,11 @@ class TopoID(ISD_AS):
         return "%s-%s" % (self.isd_str(), self.as_file_fmt())
 
     def base_dir(self, out_dir):
-        return os.path.join(out_dir, self.ISD(), self.AS_file())
+        #return os.path.join(out_dir, self.ISD(), self.AS_file())
+        return os.path.join(out_dir, self.AS_file())
+
+    def base_dir_flat(self, out_dir):
+        return os.path.join(out_dir, self.AS_file())
 
     def __lt__(self, other):
         return str(self) < str(other)
@@ -149,6 +153,12 @@ def srv_iter(topo_dicts, out_dir, common=False):
                 yield topo_id, as_topo, os.path.join(base, elem)
         if common:
             yield topo_id, as_topo, os.path.join(base, COMMON_DIR)
+
+
+def as_iter(topo_dicts, out_dir):
+    for topo_id, as_topo in topo_dicts.items():
+        base = topo_id.base_dir(out_dir)
+        yield topo_id, as_topo, base
 
 
 def docker_image(args, image):

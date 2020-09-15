@@ -22,7 +22,8 @@ from collections import defaultdict
 
 from plumbum import local
 
-from python.topology.common import ArgsTopoConfig, srv_iter
+from python.lib.util import write_file
+from python.topology.common import ArgsTopoConfig
 
 
 class CertGenArgs(ArgsTopoConfig):
@@ -47,22 +48,21 @@ class CertGenerator(object):
     def _master_keys(self, topo_dicts):
         for topo_id, as_topo in topo_dicts.items():
             base = topo_id.base_dir(self.args.output_dir)
-            with open(os.path.join(base, 'keys', 'master0.key'), 'w') as f:
-                f.write(base64.b64encode(os.urandom(16)).decode())
-            with open(os.path.join(base, 'keys', 'master1.key'), 'w') as f:
-                f.write(base64.b64encode(os.urandom(16)).decode())
+            write_file(os.path.join(base, 'keys', 'master0.key'),
+                       base64.b64encode(os.urandom(16)).decode())
+            write_file(os.path.join(base, 'keys', 'master1.key'),
+                       base64.b64encode(os.urandom(16)).decode())
 
     def _copy_files(self, topo_dicts):
         cp = local['cp']
         # Copy the certs and key dir for all elements.
-        for topo_id, as_topo, base in srv_iter(
-                topo_dicts, self.args.output_dir, common=True):
-            elem_dir = local.path(base)
-            as_dir = elem_dir.dirname
-            cp('-r', as_dir / 'crypto', elem_dir / 'crypto')
-            cp('-r', as_dir / 'certs', elem_dir / 'certs')
-            cp('-r', as_dir / 'keys', elem_dir / 'keys')
-            cp(as_dir.dirname.dirname // '*/trcs/*.trc', elem_dir / 'certs')
+        for topo_id, as_topo in topo_dicts.items():
+            base = local.path(self.args.output_dir)
+            crypto_dir = base / topo_id.ISD() / topo_id.AS_file()
+            as_dir = local.path(topo_id.base_dir(self.args.output_dir))
+            cp('-r', crypto_dir / 'crypto', as_dir / 'crypto')
+            cp('-r', crypto_dir / 'certs', as_dir / 'certs')
+            cp(base // '*/trcs/*.trc', as_dir / 'certs')
         # Copy the customers dir for all certificate servers.
         for topo_id, as_topo in topo_dicts.items():
             as_dir = local.path(topo_id.base_dir(self.args.output_dir))

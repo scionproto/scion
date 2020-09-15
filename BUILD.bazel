@@ -11,6 +11,7 @@ pkg_tar(
     name = "scion",
     srcs = [
         "//go/border",
+        "//go/border-router",
         "//go/cs",
         "//go/dispatcher",
         "//go/posix-router",
