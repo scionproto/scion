@@ -55,8 +55,9 @@ PayloadLen
 PathType
     The PathType specifies the SCION path type with up to 256 different types.
     The format of each path type is independent of each other. The initially
-    proposed SCION path types are SCION (0), OneHopPath (1), EPIC (2) and
-    COLIBRI (3). Here, we only specify the SCION and OneHopPath path types.
+    proposed SCION path types are Empty (0), SCION (1), OneHopPath (2), EPIC (3)
+    and COLIBRI (4). Here, we only specify the Empty, SCION and OneHopPath path
+    types.
 DT/DL/ST/SL
     DT/ST and DL/SL encode host-address type and host-address length,
     respectively, for destination/ source. The possible host address length
@@ -403,6 +404,12 @@ In construction direction (down):
       :math:`\beta_{i+1}` with `SegID`.
    #. Check that the MAC in the hop field matches :math:`{\sigma^P_i}'`.
    #. Do not update `SegID` as it already contains :math:`\beta_{i+1}`.
+
+Path Type: EmptyPath
+====================
+
+Empty path is used to send traffic within the AS. It has no additional fields,
+i.e., it consumes 0 bytes on the wire.
 
 Path Type: OneHopPath
 =====================
