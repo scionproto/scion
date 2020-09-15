@@ -10,10 +10,8 @@ import (
 	beacon "github.com/scionproto/scion/go/cs/beacon"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	common "github.com/scionproto/scion/go/lib/common"
-	ctrl "github.com/scionproto/scion/go/lib/ctrl"
 	seg "github.com/scionproto/scion/go/lib/ctrl/seg"
 	seghandler "github.com/scionproto/scion/go/lib/infra/modules/seghandler"
-	proto "github.com/scionproto/scion/go/proto"
 	net "net"
 	reflect "reflect"
 )
@@ -132,17 +130,17 @@ func (m *MockBeaconSender) EXPECT() *MockBeaconSenderMockRecorder {
 }
 
 // Send mocks base method
-func (m *MockBeaconSender) Send(arg0 context.Context, arg1 *seg.Beacon, arg2 addr.IA, arg3 common.IFIDType, arg4 ctrl.Signer, arg5 *net.UDPAddr) error {
+func (m *MockBeaconSender) Send(arg0 context.Context, arg1 *seg.PathSegment, arg2 addr.IA, arg3 common.IFIDType, arg4 *net.UDPAddr) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Send", arg0, arg1, arg2, arg3, arg4, arg5)
+	ret := m.ctrl.Call(m, "Send", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Send indicates an expected call of Send
-func (mr *MockBeaconSenderMockRecorder) Send(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
+func (mr *MockBeaconSenderMockRecorder) Send(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockBeaconSender)(nil).Send), arg0, arg1, arg2, arg3, arg4, arg5)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockBeaconSender)(nil).Send), arg0, arg1, arg2, arg3, arg4)
 }
 
 // MockRPC is a mock of RPC interface
@@ -206,7 +204,7 @@ func (m *MockSegmentProvider) EXPECT() *MockSegmentProviderMockRecorder {
 }
 
 // SegmentsToRegister mocks base method
-func (m *MockSegmentProvider) SegmentsToRegister(arg0 context.Context, arg1 proto.PathSegType) (<-chan beacon.BeaconOrErr, error) {
+func (m *MockSegmentProvider) SegmentsToRegister(arg0 context.Context, arg1 seg.Type) (<-chan beacon.BeaconOrErr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SegmentsToRegister", arg0, arg1)
 	ret0, _ := ret[0].(<-chan beacon.BeaconOrErr)

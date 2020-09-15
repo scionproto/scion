@@ -26,7 +26,10 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -265,34 +268,35 @@ type SignatureTimestampRange struct {
 	MaxInFuture time.Duration
 }
 
+type LegacyVerifier interface {
+	ctrl.Verifier
+	Verifier
+}
+
 // Verifier is used to verify payloads signed with control-plane PKI
 // certificates.
 type Verifier interface {
-	ctrl.Verifier
-	Verify(ctx context.Context, msg []byte, sign *proto.SignS) error
+	seg.Verifier
 	// WithServer returns a verifier that fetches the necessary crypto
 	// objects from the specified server.
 	WithServer(server net.Addr) Verifier
 	// WithIA returns a verifier that only accepts signatures from the
 	// specified IA.
 	WithIA(ia addr.IA) Verifier
-	// WithSignatureTimestampRange returns a verifier that uses the specified
-	// signature timestamp range configuration.
-	WithSignatureTimestampRange(timestampRange SignatureTimestampRange) Verifier
 }
 
 var (
 	// NullSigner is a Signer that creates SignedPld's with no signature.
 	NullSigner ctrl.Signer = nullSigner{}
 	// NullSigVerifier ignores signatures on all messages.
-	NullSigVerifier Verifier = nullSigVerifier{}
+	NullSigVerifier LegacyVerifier = nullSigVerifier{}
 )
 
 var _ ctrl.Signer = nullSigner{}
 
 type nullSigner struct{}
 
-func (nullSigner) Sign(context.Context, []byte) (*proto.SignS, error) {
+func (nullSigner) SignLegacy(context.Context, []byte) (*proto.SignS, error) {
 	return &proto.SignS{}, nil
 }
 
@@ -300,8 +304,21 @@ var _ Verifier = nullSigVerifier{}
 
 type nullSigVerifier struct{}
 
-func (nullSigVerifier) Verify(_ context.Context, _ []byte, _ *proto.SignS) error {
-	return nil
+func (nullSigVerifier) Verify(_ context.Context, msg *cryptopb.SignedMessage,
+	_ ...[]byte) (*signed.Message, error) {
+
+	hdr, err := signed.ExtractUnverifiedHeader(msg)
+	if err != nil {
+		return nil, err
+	}
+	body, err := signed.ExtractUnverifiedBody(msg)
+	if err != nil {
+		return nil, err
+	}
+	return &signed.Message{
+		Header: signed.Header(*hdr),
+		Body:   body,
+	}, nil
 }
 
 func (nullSigVerifier) VerifyPld(_ context.Context, spld *ctrl.SignedPld) (*ctrl.Pld, error) {
@@ -313,9 +330,5 @@ func (nullSigVerifier) WithServer(_ net.Addr) Verifier {
 }
 
 func (nullSigVerifier) WithIA(_ addr.IA) Verifier {
-	return nullSigVerifier{}
-}
-
-func (nullSigVerifier) WithSignatureTimestampRange(_ SignatureTimestampRange) Verifier {
 	return nullSigVerifier{}
 }

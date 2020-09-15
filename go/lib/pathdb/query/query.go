@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // TODO(shitz): This should be moved when we have hidden path sets.
@@ -46,7 +45,7 @@ type IntfSpec struct {
 
 type Params struct {
 	SegIDs        []common.RawBytes
-	SegTypes      []proto.PathSegType
+	SegTypes      []seg.Type
 	HpCfgIDs      []*HPCfgID
 	Intfs         []*IntfSpec
 	StartsAt      []addr.IA
@@ -58,7 +57,7 @@ type Result struct {
 	Seg        *seg.PathSegment
 	LastUpdate time.Time
 	HpCfgIDs   []*HPCfgID
-	Type       proto.PathSegType
+	Type       seg.Type
 }
 
 // ResultOrErr is either a result or an error.
@@ -84,7 +83,10 @@ func (r Results) Segs() seg.Segments {
 func (r Results) SegMetas() []*seg.Meta {
 	segs := make([]*seg.Meta, len(r))
 	for i, r := range r {
-		segs[i] = seg.NewMeta(r.Seg, r.Type)
+		segs[i] = &seg.Meta{
+			Type:    r.Type,
+			Segment: r.Seg,
+		}
 	}
 	return segs
 }

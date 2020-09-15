@@ -18,12 +18,12 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/proto"
 )
 
 type WildcardExpander struct {
@@ -41,13 +41,13 @@ func (e *WildcardExpander) ExpandSrcWildcard(ctx context.Context,
 	}
 
 	switch req.SegType {
-	case proto.PathSegType_core:
+	case seg.TypeCore:
 		cores, err := e.providerCoreASes(ctx)
 		if err != nil {
 			return nil, err
 		}
 		return requestsSrcsToDst(cores, req.Dst, req.SegType), nil
-	case proto.PathSegType_down:
+	case seg.TypeDown:
 		cores, err := e.coreASes(ctx, req.Src.I)
 		if err != nil {
 			return nil, err
@@ -77,7 +77,7 @@ func (e *WildcardExpander) providerCoreASes(ctx context.Context) ([]addr.IA, err
 	}
 
 	params := &query.Params{
-		SegTypes: []proto.PathSegType{proto.PathSegType_up},
+		SegTypes: []seg.Type{seg.TypeUp},
 	}
 	res, err := e.PathDB.Get(ctx, params)
 	if err != nil {
@@ -88,7 +88,7 @@ func (e *WildcardExpander) providerCoreASes(ctx context.Context) ([]addr.IA, err
 }
 
 // requestsSrcsToDst creates a slice containing a request for each src in srcs to dst
-func requestsSrcsToDst(srcs []addr.IA, dst addr.IA, segType proto.PathSegType) segfetcher.Requests {
+func requestsSrcsToDst(srcs []addr.IA, dst addr.IA, segType seg.Type) segfetcher.Requests {
 	requests := make(segfetcher.Requests, 0, len(srcs))
 	for _, src := range srcs {
 		if src != dst {

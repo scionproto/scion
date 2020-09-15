@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // ErrInvalidRequest indicates an invalid request.
@@ -117,14 +116,14 @@ func (r *DefaultResolver) resolveSegment(ctx context.Context,
 
 func (r *DefaultResolver) loadSegment(ctx context.Context, req Request) (query.Results, error) {
 	start, end := req.Src, req.Dst
-	consDir := (req.SegType == proto.PathSegType_down)
+	consDir := (req.SegType == seg.TypeDown)
 	if !consDir {
 		start, end = end, start
 	}
 	return r.DB.Get(ctx, &query.Params{
 		StartsAt: []addr.IA{start},
 		EndsAt:   []addr.IA{end},
-		SegTypes: []proto.PathSegType{req.SegType},
+		SegTypes: []seg.Type{req.SegType},
 	})
 }
 
@@ -135,7 +134,7 @@ func (r *DefaultResolver) needsFetching(ctx context.Context, req Request) (bool,
 
 func (r *DefaultResolver) allRevoked(ctx context.Context, results query.Results) (bool, error) {
 	segs := results.Segs()
-	filtered, err := segs.FilterSegsErr(func(ps *seg.PathSegment) (bool, error) {
+	filtered, err := segs.FilterSegs(func(ps *seg.PathSegment) (bool, error) {
 		return revcache.NoRevokedHopIntf(ctx, r.RevCache, ps)
 	})
 	if err != nil {

@@ -62,13 +62,13 @@ func (s SegmentCreationServer) Beacon(ctx context.Context,
 		logger.Debug("Failed to extract ingress interface", "peer", peer, "err", err)
 		return nil, status.Error(codes.InvalidArgument, "failed to extract ingress interface")
 	}
-	seg, err := seg.NewBeaconFromRaw(req.Raw)
+	ps, err := seg.BeaconFromPB(req.Segment)
 	if err != nil {
 		logger.Debug("Failed to parse beacon", "peer", peer, "err", err)
 		return nil, status.Error(codes.InvalidArgument, "failed to parse beacon")
 	}
 	b := beacon.Beacon{
-		Segment: seg,
+		Segment: ps,
 		InIfId:  ingress,
 	}
 	if err := s.Handler.HandleBeacon(ctx, b, peer); err != nil {

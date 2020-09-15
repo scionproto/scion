@@ -22,10 +22,14 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
 const (
@@ -142,4 +146,18 @@ func (u Usage) String() string {
 		names = append(names, "Propagation")
 	}
 	return fmt.Sprintf("Usage: [%s]", strings.Join(names, ","))
+}
+
+// PackBeacon packs a beacon.
+func PackBeacon(ps *seg.PathSegment) ([]byte, error) {
+	return proto.Marshal(seg.PathSegmentToPB(ps))
+}
+
+// UnpackBeacon unpacks a beacon.
+func UnpackBeacon(raw []byte) (*seg.PathSegment, error) {
+	var pb cppb.PathSegment
+	if err := proto.Unmarshal(raw, &pb); err != nil {
+		return nil, err
+	}
+	return seg.BeaconFromPB(&pb)
 }

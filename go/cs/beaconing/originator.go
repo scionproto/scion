@@ -25,22 +25,19 @@ import (
 	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/lib/util"
 )
 
 var _ periodic.Task = (*Originator)(nil)
 
 // BeaconSender sends the beacon on the provided interface.
 type BeaconSender interface {
-	Send(ctx context.Context, beacon *seg.Beacon, dst addr.IA,
-		egress common.IFIDType, signer ctrl.Signer, nextHop *net.UDPAddr) error
+	Send(ctx context.Context, beacon *seg.PathSegment, dst addr.IA,
+		egress common.IFIDType, nextHop *net.UDPAddr) error
 }
 
 // Originator originates beacons. It should only be used by core ASes.
@@ -48,7 +45,7 @@ type Originator struct {
 	Extender     Extender
 	BeaconSender BeaconSender
 	IA           addr.IA
-	Signer       ctrl.Signer
+	Signer       seg.Signer
 	Intfs        *ifstate.Interfaces
 
 	// tick is mutable.
@@ -81,13 +78,12 @@ func (o *Originator) originateBeacons(ctx context.Context, linkType topology.Lin
 	if len(intfs) == 0 {
 		return
 	}
-	infoF := o.createInfoF(o.Tick.now)
 	s := newSummary()
 	for _, ifid := range intfs {
 		b := beaconOriginator{
 			Originator: o,
 			ifID:       ifid,
-			infoF:      infoF,
+			timestamp:  o.Tick.now,
 			summary:    s,
 		}
 		if err := b.originateBeacon(ctx); err != nil {
@@ -95,16 +91,6 @@ func (o *Originator) originateBeacons(ctx context.Context, linkType topology.Lin
 		}
 	}
 	o.logSummary(logger, s, linkType)
-}
-
-// createInfoF creates the info field.
-func (o *Originator) createInfoF(now time.Time) spath.InfoField {
-	infoF := spath.InfoField{
-		ConsDir: true,
-		ISD:     uint16(o.IA.I),
-		TsInt:   util.TimeToSecs(now),
-	}
-	return infoF
 }
 
 // needBeacon returns a list of interfaces that need a beacon.
@@ -139,9 +125,9 @@ func (o *Originator) logSummary(logger log.Logger, s *summary, linkType topology
 // beaconOriginator originates one beacon on the given interface.
 type beaconOriginator struct {
 	*Originator
-	ifID    common.IFIDType
-	infoF   spath.InfoField
-	summary *summary
+	ifID      common.IFIDType
+	timestamp time.Time
+	summary   *summary
 }
 
 // originateBeacon originates a beacon on the given ifid.
@@ -164,7 +150,6 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 		bseg,
 		topoInfo.IA,
 		o.ifID,
-		o.Signer,
 		topoInfo.InternalAddr,
 	)
 	if err != nil {
@@ -176,28 +161,20 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 	return nil
 }
 
-func (o *beaconOriginator) createBeacon(ctx context.Context) (*seg.Beacon, error) {
-	rawInfo := make([]byte, spath.InfoFieldLength)
-	o.infoF.Write(rawInfo)
-
+func (o *beaconOriginator) createBeacon(ctx context.Context) (*seg.PathSegment, error) {
 	segID, err := rand.Int(rand.Reader, big.NewInt(1<<16))
 	if err != nil {
 		return nil, err
 	}
-	bseg, err := seg.NewSeg(
-		&seg.PathSegmentSignedData{
-			RawInfo:      rawInfo,
-			RawTimestamp: o.infoF.TsInt,
-			SegID:        uint16(segID.Uint64()),
-		},
-	)
+	bseg, err := seg.CreateSegment(o.timestamp, uint16(segID.Uint64()), o.IA.I)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to create segment", err)
+		return nil, serrors.WrapStr("creating segment", err)
 	}
+
 	if err := o.Extender.Extend(ctx, bseg, 0, o.ifID, nil); err != nil {
-		return nil, common.NewBasicError("Unable to extend segment", err)
+		return nil, serrors.WrapStr("extending segment", err)
 	}
-	return &seg.Beacon{Segment: bseg}, nil
+	return bseg, nil
 }
 
 func (o *beaconOriginator) onSuccess(intf *ifstate.Interface) {

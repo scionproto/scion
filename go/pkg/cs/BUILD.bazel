@@ -23,6 +23,7 @@ go_library(
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl:go_default_library",
         "//go/lib/ctrl/path_mgmt:go_default_library",
+        "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/env:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/modules/cleaner:go_default_library",
@@ -48,7 +49,6 @@ go_library(
         "//go/pkg/service:go_default_library",
         "//go/pkg/trust:go_default_library",
         "//go/pkg/trust/renewal:go_default_library",
-        "//go/proto:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
     ],
 )

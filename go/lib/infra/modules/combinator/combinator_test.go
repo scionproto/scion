@@ -23,6 +23,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -121,21 +122,19 @@ func TestMultiPeering(t *testing.T) {
 		},
 	}
 
-	Convey("main", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
-				txtResult := writePaths(result)
-				if *update {
-					err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
-					xtest.FailOnErr(t, err)
-				}
-				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
+			txtResult := writePaths(result)
+			if *update {
+				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
-				SoMsg("result", txtResult.String(), ShouldEqual, string(expected))
-			})
-		}
-	})
+			}
+			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			xtest.FailOnErr(t, err)
+			assert.Equal(t, string(expected), txtResult.String())
+		})
+	}
 }
 
 func TestSameCoreParent(t *testing.T) {

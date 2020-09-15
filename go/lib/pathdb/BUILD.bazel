@@ -19,9 +19,11 @@ go_library(
         "//go/lib/pathpol:go_default_library",
         "//go/lib/prom:go_default_library",
         "//go/lib/tracing:go_default_library",
+        "//go/pkg/proto/control_plane:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_opentracing_opentracing_go//ext:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
+        "@org_golang_google_protobuf//proto:go_default_library",
     ],
 )
 

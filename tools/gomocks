@@ -37,7 +37,7 @@ MOCK_TARGETS = [
     ("go/lib/underlay/conn", "Conn"),
     ("go/lib/xtest", "Callback"),
     ("go/pkg/cs/trust", "CACertProvider,PolicyGen,SignerGen"),
-    ("go/pkg/cs/trust/grpc", "ChainBuilder,RenewalRequestVerifier,Smuggled"),
+    ("go/pkg/cs/trust/grpc", "ChainBuilder,RenewalRequestVerifier,Signer"),
     ("go/pkg/proto/control_plane",
         "ChainRenewalServiceServer,InterfaceStateConsumerServiceServer," +
         "InterfaceStateServiceServer,TrustMaterialServiceServer"),

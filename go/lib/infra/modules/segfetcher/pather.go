@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // Pather errors.
@@ -148,14 +147,14 @@ func (p *Pather) filterRevoked(ctx context.Context,
 // categorizeSegs splits a flat list of segments with type info into one
 // separate list per segment type.
 func categorizeSegs(segs Segments) (up, core, down seg.Segments) {
-	for _, seg := range segs {
-		switch seg.Type {
-		case proto.PathSegType_up:
-			up = append(up, seg.Segment)
-		case proto.PathSegType_core:
-			core = append(core, seg.Segment)
-		case proto.PathSegType_down:
-			down = append(down, seg.Segment)
+	for _, s := range segs {
+		switch s.Type {
+		case seg.TypeUp:
+			up = append(up, s.Segment)
+		case seg.TypeCore:
+			core = append(core, s.Segment)
+		case seg.TypeDown:
+			down = append(down, s.Segment)
 		}
 	}
 	return

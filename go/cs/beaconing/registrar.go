@@ -25,19 +25,17 @@ import (
 	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // SegmentProvider provides segments to register for the specified type.
 type SegmentProvider interface {
-	SegmentsToRegister(ctx context.Context, segType proto.PathSegType) (
+	SegmentsToRegister(ctx context.Context, segType seg.Type) (
 		<-chan beacon.BeaconOrErr, error)
 }
 
@@ -63,9 +61,9 @@ type Registrar struct {
 	RPC      RPC
 	Pather   addrutil.Pather
 	IA       addr.IA
-	Signer   ctrl.Signer
+	Signer   seg.Signer
 	Intfs    *ifstate.Interfaces
-	Type     proto.PathSegType
+	Type     seg.Type
 
 	// tick is mutable.
 	Tick     Tick
@@ -100,7 +98,7 @@ func (r *Registrar) run(ctx context.Context) error {
 	if len(nonActivePeers) > 0 {
 		logger.Debug("Ignore non-active peer interfaces", "type", r.Type, "intfs", nonActivePeers)
 	}
-	if r.Type != proto.PathSegType_down {
+	if r.Type != seg.TypeDown {
 		return r.registerLocal(ctx, segments, peers)
 	}
 	return r.registerRemote(ctx, segments, peers)
@@ -204,7 +202,7 @@ func (r *Registrar) logSummary(logger log.Logger, s *summary) {
 
 // remoteRegistrar registers one segment with the path server.
 type remoteRegistrar struct {
-	segType proto.PathSegType
+	segType seg.Type
 	rpc     RPC
 	pather  addrutil.Pather
 	summary *summary

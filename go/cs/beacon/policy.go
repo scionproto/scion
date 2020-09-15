@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
@@ -263,7 +264,7 @@ func (f *Filter) InitDefaults() {
 // Apply returns an error if the beacon is filtered.
 func (f Filter) Apply(beacon Beacon) error {
 	if len(beacon.Segment.ASEntries) > f.MaxHopsLength {
-		return common.NewBasicError("MaxHopsLength exceeded", nil, "max", f.MaxHopsLength,
+		return serrors.New("MaxHopsLength exceeded", "max", f.MaxHopsLength,
 			"actual", len(beacon.Segment.ASEntries))
 	}
 	hops := buildHops(beacon)
@@ -273,12 +274,12 @@ func (f Filter) Apply(beacon Beacon) error {
 	for _, ia := range hops {
 		for _, as := range f.AsBlackList {
 			if ia.A == as {
-				return common.NewBasicError("Contains blacklisted AS", nil, "ia", ia)
+				return serrors.New("contains blocked AS", "isd_as", ia)
 			}
 		}
 		for _, isd := range f.IsdBlackList {
 			if ia.I == isd {
-				return common.NewBasicError("Contains blacklisted ISD", nil, "isd", ia)
+				return serrors.New("contains blocked ISD", "isd_as", ia)
 			}
 		}
 	}
@@ -298,7 +299,7 @@ func FilterLoop(beacon Beacon, next addr.IA, allowIsdLoop bool) error {
 func buildHops(beacon Beacon) []addr.IA {
 	hops := make([]addr.IA, 0, len(beacon.Segment.ASEntries)+1)
 	for _, asEntry := range beacon.Segment.ASEntries {
-		hops = append(hops, asEntry.IA())
+		hops = append(hops, asEntry.Local)
 	}
 	return hops
 }

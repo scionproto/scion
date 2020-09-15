@@ -22,7 +22,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/extn"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -30,8 +29,7 @@ import (
 // union represents the contents of the unnamed capnp union.
 type union struct {
 	Which     proto.CtrlPld_Which
-	Beacon    *seg.Beacon `capnp:"pcb"`
-	IfID      *ifid.IFID  `capnp:"ifid"`
+	IfID      *ifid.IFID `capnp:"ifid"`
 	CertMgmt  *cert_mgmt.Pld
 	PathMgmt  *path_mgmt.Pld
 	Sibra     []byte `capnp:"-"` // Omit for now
@@ -43,9 +41,6 @@ type union struct {
 
 func (u *union) set(c proto.Cerealizable) error {
 	switch p := c.(type) {
-	case *seg.Beacon:
-		u.Which = proto.CtrlPld_Which_pcb
-		u.Beacon = p
 	case *ifid.IFID:
 		u.Which = proto.CtrlPld_Which_ifid
 		u.IfID = p
@@ -73,8 +68,6 @@ func (u *union) set(c proto.Cerealizable) error {
 
 func (u *union) get() (proto.Cerealizable, error) {
 	switch u.Which {
-	case proto.CtrlPld_Which_pcb:
-		return u.Beacon, nil
 	case proto.CtrlPld_Which_ifid:
 		return u.IfID, nil
 	case proto.CtrlPld_Which_pathMgmt:

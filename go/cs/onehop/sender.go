@@ -24,7 +24,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/l4"
@@ -145,8 +144,8 @@ type BeaconSender struct {
 }
 
 // Send packs and sends out the beacon.
-func (s *BeaconSender) Send(ctx context.Context, bseg *seg.Beacon, ia addr.IA,
-	egIfid common.IFIDType, signer ctrl.Signer, ov *net.UDPAddr) error {
+func (s *BeaconSender) Send(ctx context.Context, bseg *seg.PathSegment, ia addr.IA,
+	egIfid common.IFIDType, ov *net.UDPAddr) error {
 
 	path, err := s.CreatePath(egIfid, time.Now())
 	if err != nil {
@@ -167,7 +166,7 @@ func (s *BeaconSender) Send(ctx context.Context, bseg *seg.Beacon, ia addr.IA,
 		return serrors.New("could not resolve QUIC", "addr", svc)
 	}
 	log.Debug("Beaconing upgraded to QUIC", "remote", addr)
-	if err := s.RPC.SendBeacon(ctx, bseg.Segment, addr); err != nil {
+	if err := s.RPC.SendBeacon(ctx, bseg, addr); err != nil {
 		return serrors.WrapStr("sending beacon", err)
 	}
 	return nil

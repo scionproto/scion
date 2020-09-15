@@ -33,9 +33,9 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/mock_trust"
-	"github.com/scionproto/scion/go/proto"
 )
 
 func TestVerify(t *testing.T) {
@@ -54,7 +54,7 @@ func TestVerify(t *testing.T) {
 
 	testCases := map[string]struct {
 		provider    func(mctrl *gomock.Controller) trust.Provider
-		sign        *proto.SignS
+		sign        *cryptopb.SignedMessage
 		boundIA     addr.IA
 		boundServer net.Addr
 		assertFunc  assert.ErrorAssertionFunc
@@ -107,19 +107,7 @@ func TestVerify(t *testing.T) {
 			provider:   func(mctrl *gomock.Controller) trust.Provider { return nil },
 			assertFunc: assert.Error,
 		},
-		"invalid signature size": {
-			provider:   func(mctrl *gomock.Controller) trust.Provider { return nil },
-			sign:       &proto.SignS{Signature: []byte("")},
-			assertFunc: assert.Error,
-		},
-		"invalid signature source": {
-			provider: func(mctrl *gomock.Controller) trust.Provider { return nil },
-			sign: &proto.SignS{
-				Signature: []byte("notemptystring"),
-				Src:       []byte("da"),
-			},
-			assertFunc: assert.Error,
-		},
+
 		"invalid boundIA missmatch": {
 			provider:   func(mctrl *gomock.Controller) trust.Provider { return nil },
 			sign:       sign,
@@ -205,13 +193,19 @@ func TestVerify(t *testing.T) {
 				BoundServer: tc.boundServer,
 				Engine:      tc.provider(mctrl),
 			}
-			err := v.Verify(context.Background(), msg, tc.sign)
+			signedMsg, err := v.Verify(context.Background(), tc.sign)
 			tc.assertFunc(t, err)
+			if err != nil {
+				return
+			}
+			assert.Equal(t, msg, signedMsg.Body)
 		})
 	}
 }
 
-func validSignS(t *testing.T, msg []byte, rawIA string, key *ecdsa.PrivateKey) *proto.SignS {
+func validSignS(t *testing.T, msg []byte, rawIA string,
+	key *ecdsa.PrivateKey) *cryptopb.SignedMessage {
+
 	ia, _ := addr.IAFromString(rawIA)
 	signer := trust.Signer{
 		PrivateKey: key,

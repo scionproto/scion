@@ -34,7 +34,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -89,7 +88,7 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 		Request      func(t *testing.T) *cppb.ChainRenewalRequest
 		Verifier     func(ctrl *gomock.Controller) trustgrpc.RenewalRequestVerifier
 		ChainBuilder func(ctrl *gomock.Controller) trustgrpc.ChainBuilder
-		Signer       func(ctrl *gomock.Controller) ctrl.Signer
+		Signer       func(ctrl *gomock.Controller) trustgrpc.Signer
 		DB           func(ctrl *gomock.Controller) renewal.DB
 		Assertion    assert.ErrorAssertionFunc
 		Code         codes.Code
@@ -118,8 +117,8 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 			ChainBuilder: func(ctrl *gomock.Controller) trustgrpc.ChainBuilder {
 				return mock_grpc.NewMockChainBuilder(ctrl)
 			},
-			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				return mock_grpc.NewMockSmuggled(ctrl)
+			Signer: func(ctrl *gomock.Controller) trustgrpc.Signer {
+				return mock_grpc.NewMockSigner(ctrl)
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {
 				return mock_renewal.NewMockDB(ctrl)
@@ -137,8 +136,8 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 			ChainBuilder: func(ctrl *gomock.Controller) trustgrpc.ChainBuilder {
 				return mock_grpc.NewMockChainBuilder(ctrl)
 			},
-			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				return mock_grpc.NewMockSmuggled(ctrl)
+			Signer: func(ctrl *gomock.Controller) trustgrpc.Signer {
+				return mock_grpc.NewMockSigner(ctrl)
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {
 				db := mock_renewal.NewMockDB(ctrl)
@@ -161,8 +160,8 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 			ChainBuilder: func(ctrl *gomock.Controller) trustgrpc.ChainBuilder {
 				return mock_grpc.NewMockChainBuilder(ctrl)
 			},
-			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				return mock_grpc.NewMockSmuggled(ctrl)
+			Signer: func(ctrl *gomock.Controller) trustgrpc.Signer {
+				return mock_grpc.NewMockSigner(ctrl)
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {
 				db := mock_renewal.NewMockDB(ctrl)
@@ -190,8 +189,8 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 			ChainBuilder: func(ctrl *gomock.Controller) trustgrpc.ChainBuilder {
 				return mock_grpc.NewMockChainBuilder(ctrl)
 			},
-			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				return mock_grpc.NewMockSmuggled(ctrl)
+			Signer: func(ctrl *gomock.Controller) trustgrpc.Signer {
+				return mock_grpc.NewMockSigner(ctrl)
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {
 				db := mock_renewal.NewMockDB(ctrl)
@@ -221,8 +220,8 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 				cb.EXPECT().CreateChain(gomock.Any(), gomock.Any()).Return(nil, mockErr)
 				return cb
 			},
-			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				return mock_grpc.NewMockSmuggled(ctrl)
+			Signer: func(ctrl *gomock.Controller) trustgrpc.Signer {
+				return mock_grpc.NewMockSigner(ctrl)
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {
 				db := mock_renewal.NewMockDB(ctrl)
@@ -252,8 +251,8 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 				cb.EXPECT().CreateChain(gomock.Any(), gomock.Any()).Return(mockIssuedChain, nil)
 				return cb
 			},
-			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				return mock_grpc.NewMockSmuggled(ctrl)
+			Signer: func(ctrl *gomock.Controller) trustgrpc.Signer {
+				return mock_grpc.NewMockSigner(ctrl)
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {
 				db := mock_renewal.NewMockDB(ctrl)
@@ -284,9 +283,9 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 				cb.EXPECT().CreateChain(gomock.Any(), gomock.Any()).Return(mockIssuedChain, nil)
 				return cb
 			},
-			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				signer := mock_grpc.NewMockSmuggled(ctrl)
-				signer.EXPECT().SignV2(gomock.Any(), gomock.Any()).Return(nil, mockErr)
+			Signer: func(ctrl *gomock.Controller) trustgrpc.Signer {
+				signer := mock_grpc.NewMockSigner(ctrl)
+				signer.EXPECT().Sign(gomock.Any(), gomock.Any()).Return(nil, mockErr)
 				return signer
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {
@@ -316,9 +315,9 @@ func TestChainRenewalRequestHandle(t *testing.T) {
 				cb.EXPECT().CreateChain(gomock.Any(), gomock.Any()).Return(mockIssuedChain, nil)
 				return cb
 			},
-			Signer: func(ctrl *gomock.Controller) ctrl.Signer {
-				signer := mock_grpc.NewMockSmuggled(ctrl)
-				signer.EXPECT().SignV2(gomock.Any(), gomock.Any())
+			Signer: func(ctrl *gomock.Controller) trustgrpc.Signer {
+				signer := mock_grpc.NewMockSigner(ctrl)
+				signer.EXPECT().Sign(gomock.Any(), gomock.Any())
 				return signer
 			},
 			DB: func(ctrl *gomock.Controller) renewal.DB {

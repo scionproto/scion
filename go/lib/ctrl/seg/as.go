@@ -17,90 +17,80 @@
 package seg
 
 import (
-	"fmt"
+	"math"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
+	"github.com/scionproto/scion/go/lib/serrors"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
 
-var _ proto.Cerealizable = (*ASEntry)(nil)
-
 type ASEntry struct {
-	RawIA      addr.IAInt `capnp:"isdas"`
-	TrcVer     scrypto.Version
-	CertVer    scrypto.Version
-	IfIDSize   uint8
-	HopEntries []*HopEntry `capnp:"hops"`
-	MTU        uint16      `capnp:"mtu"`
-	Exts       struct {
-		RoutingPolicy common.RawBytes    `capnp:"-"` // Not supported yet
-		Sibra         common.RawBytes    `capnp:"-"` // Not supported yet
-		HiddenPathSeg *HiddenPathSegExtn `capnp:"hiddenPathSeg"`
-		StaticInfo    *StaticInfoExtn    `capnp:"staticInfo"`
-	}
+	// Signed contains the signed ASentry. It is used for signature input.
+	Signed *cryptopb.SignedMessage
+	// Local is the ISD-AS of the AS correspoding to this entry.
+	Local addr.IA
+	// Next is the ISD-AS of the downstream AS.
+	Next addr.IA
+	// HopEntry is the entry to create regular data plane paths.
+	HopEntry HopEntry
+	// PeerEntries is a list of entries to create peering data plane paths.
+	PeerEntries []PeerEntry
+	// MTU is the AS internal MTU.
+	MTU int
+	// Extensions holds all the beaconing extensions.
+	Extensions Extensions
 }
 
-func NewASEntryFromRaw(b common.RawBytes) (*ASEntry, error) {
-	ase := &ASEntry{}
-	if err := proto.ParseFromRaw(ase, b); err != nil {
-		return nil, err
+// ASEntryFromPB creates an AS entry from the protobuf representation.
+func ASEntryFromPB(pb *cppb.ASEntry) (ASEntry, error) {
+	if pb == nil {
+		return ASEntry{}, serrors.New("nil entry")
 	}
-	// FIXME(roosd): Remove when we switch to new header format completely.
-	for _, entry := range ase.HopEntries {
-		if len(entry.RawHopField) != 0 {
-			hopF, err := spath.HopFFromRaw(entry.RawHopField)
-			if err != nil {
-				return nil, err
-			}
-			entry.HopField.ExpTime = uint8(hopF.ExpTime)
-			entry.HopField.ConsIngress = uint16(hopF.ConsIngress)
-			entry.HopField.ConsEgress = uint16(hopF.ConsEgress)
-			entry.HopField.MAC = hopF.Mac
+	unverifiedBody, err := signed.ExtractUnverifiedBody(pb.Signed)
+	if err != nil {
+		return ASEntry{}, err
+	}
+	var entry cppb.ASEntrySignedBody
+	if err := proto.Unmarshal(unverifiedBody, &entry); err != nil {
+		return ASEntry{}, err
+	}
+	if ia := addr.IAInt(entry.IsdAs).IA(); ia.IsWildcard() {
+		return ASEntry{}, serrors.New("wildcard local ISD-AS", "isd_as", ia)
+	}
+	if entry.Mtu > math.MaxInt32 {
+		return ASEntry{}, serrors.New("MTU too big", "mtu", entry.Mtu)
+	}
+	hopEntry, err := hopEntryFromPB(entry.HopEntry)
+	if err != nil {
+		return ASEntry{}, serrors.WrapStr("parsing hop entry", err)
+	}
+
+	var peerEntries []PeerEntry
+	if len(entry.PeerEntries) != 0 {
+		peerEntries = make([]PeerEntry, 0, len(entry.PeerEntries))
+	}
+	for i, peer := range entry.PeerEntries {
+		if peer == nil {
+			continue
 		}
-	}
-	return ase, nil
-}
-
-func (ase *ASEntry) IA() addr.IA {
-	return ase.RawIA.IA()
-}
-
-func (ase *ASEntry) Validate(prevIA addr.IA, nextIA addr.IA, ignoreNext bool) error {
-	if ase.IA().IsWildcard() {
-		return common.NewBasicError("ASEntry has wildcard IA", nil, "ia", ase.IA())
-	}
-	if len(ase.HopEntries) == 0 {
-		return common.NewBasicError("ASEntry has no HopEntries", nil, "ia", ase.IA())
-	}
-	for i := range ase.HopEntries {
-		h := ase.HopEntries[i]
-		if i == 0 && !prevIA.Equal(h.InIA()) {
-			// Only perform this checks for the first HopEntry, as we can't validate
-			// peering HopEntries from the available information.
-			return common.NewBasicError("HopEntry InIA mismatch", nil,
-				"hopIdx", i, "expected", h.InIA(), "actual", prevIA)
+		peerEntry, err := peerEntryFromPB(peer)
+		if err != nil {
+			return ASEntry{}, serrors.WrapStr("parsing peer entry", err, "index", i)
 		}
-		if !ignoreNext && !nextIA.Equal(h.OutIA()) {
-			return common.NewBasicError("HopEntry OutIA mismatch", nil,
-				"hopIdx", i, "expected", h.OutIA(), "actual", nextIA)
-		}
+		peerEntries = append(peerEntries, peerEntry)
 	}
-	return nil
-}
 
-func (ase *ASEntry) Pack() (common.RawBytes, error) {
-	return proto.PackRoot(ase)
-}
-
-func (ase *ASEntry) ProtoId() proto.ProtoIdType {
-	return proto.ASEntry_TypeID
-}
-
-func (ase *ASEntry) String() string {
-	return fmt.Sprintf("%s Trc: %d Cert: %d Ifid size: %d Hops: %d MTU: %d Hidden: %v",
-		ase.IA(), ase.TrcVer, ase.CertVer, ase.IfIDSize, len(ase.HopEntries),
-		ase.MTU, ase.Exts.HiddenPathSeg)
+	return ASEntry{
+		HopEntry:    hopEntry,
+		PeerEntries: peerEntries,
+		Local:       addr.IAInt(entry.IsdAs).IA(),
+		Next:        addr.IAInt(entry.NextIsdAs).IA(), // Can contain wildcard.
+		MTU:         int(entry.Mtu),
+		Extensions:  extensionsFromPB(entry.Extensions),
+		Signed:      pb.Signed,
+	}, nil
 }

@@ -22,10 +22,10 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/proto"
 )
 
 const maxResultChanSize = 32
@@ -71,13 +71,13 @@ func (s *Store) BeaconsToPropagate(ctx context.Context) (<-chan BeaconOrErr, err
 // SegmentsToRegister returns a channel that provides all beacons to register at
 // the time of the call. The selections is based on the configured policy for
 // the requested segment type.
-func (s *Store) SegmentsToRegister(ctx context.Context, segType proto.PathSegType) (
+func (s *Store) SegmentsToRegister(ctx context.Context, segType seg.Type) (
 	<-chan BeaconOrErr, error) {
 
 	switch segType {
-	case proto.PathSegType_down:
+	case seg.TypeDown:
 		return s.getBeacons(ctx, &s.policies.DownReg)
-	case proto.PathSegType_up:
+	case seg.TypeUp:
 		return s.getBeacons(ctx, &s.policies.UpReg)
 	default:
 		return nil, common.NewBasicError("Unsupported segment type", nil, "type", segType)
@@ -150,10 +150,10 @@ func (s *CoreStore) BeaconsToPropagate(ctx context.Context) (<-chan BeaconOrErr,
 // SegmentsToRegister returns a channel that provides all beacons to register at
 // the time of the call. The selections is based on the configured policy for
 // the requested segment type.
-func (s *CoreStore) SegmentsToRegister(ctx context.Context, segType proto.PathSegType) (
+func (s *CoreStore) SegmentsToRegister(ctx context.Context, segType seg.Type) (
 	<-chan BeaconOrErr, error) {
 
-	if segType != proto.PathSegType_core {
+	if segType != seg.TypeCore {
 		return nil, common.NewBasicError("Unsupported segment type", nil, "type", segType)
 	}
 	return s.getBeacons(ctx, &s.policies.CoreReg)

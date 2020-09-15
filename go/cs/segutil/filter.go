@@ -82,16 +82,21 @@ func wrap(seg *seg.PathSegment, dir Direction) segWrap {
 	intfs := make([]snet.PathInterface, 0, len(seg.ASEntries))
 	keyParts := make([]string, 0, len(seg.ASEntries))
 	for _, asEntry := range seg.ASEntries {
-		for _, hopEntry := range asEntry.HopEntries {
-			hopField := hopEntry.HopField
-			for _, ifid := range []uint16{hopField.ConsIngress, hopField.ConsEgress} {
-				if ifid != 0 {
-					intfs = append(intfs, pathInterface{
-						ia:   asEntry.IA(),
-						ifid: common.IFIDType(ifid),
-					})
-					keyParts = append(keyParts, fmt.Sprintf("%s#%d", asEntry.IA(), ifid))
-				}
+
+		hof := asEntry.HopEntry.HopField
+		interfaces := []uint16{hof.ConsIngress, hof.ConsEgress}
+
+		for _, peer := range asEntry.PeerEntries {
+			interfaces = append(interfaces, peer.HopField.ConsIngress)
+		}
+
+		for _, ifid := range interfaces {
+			if ifid != 0 {
+				intfs = append(intfs, pathInterface{
+					ia:   asEntry.Local,
+					ifid: common.IFIDType(ifid),
+				})
+				keyParts = append(keyParts, fmt.Sprintf("%s#%d", asEntry.Local, ifid))
 			}
 		}
 	}

@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/util"
@@ -215,17 +214,17 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 	// Read all beacons that are available into memory first to free the lock.
 	for rows.Next() {
 		var rawBeacon sql.RawBytes
-		var inIntfId common.IFIDType
-		if err = rows.Scan(&rawBeacon, &inIntfId); err != nil {
+		var inIntfID common.IFIDType
+		if err = rows.Scan(&rawBeacon, &inIntfID); err != nil {
 			errors = append(errors, db.NewReadError(beacon.ErrReadingRows, err))
 			continue
 		}
-		s, err := seg.NewBeaconFromRaw(common.RawBytes(rawBeacon))
+		s, err := beacon.UnpackBeacon(rawBeacon)
 		if err != nil {
 			errors = append(errors, db.NewDataError(beacon.ErrParse, err))
 			continue
 		}
-		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: inIntfId})
+		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: inIntfID})
 	}
 	if err := rows.Err(); err != nil {
 		errors = append(errors, err)
@@ -262,7 +261,7 @@ func (e *executor) InsertBeacon(ctx context.Context, b beacon.Beacon,
 	}
 	if meta != nil {
 		// Update the beacon data if it is newer.
-		if b.Segment.Timestamp().After(meta.InfoTime) {
+		if b.Segment.Info.Timestamp.After(meta.InfoTime) {
 			meta.LastUpdated = time.Now()
 			if err := e.updateExistingBeacon(ctx, b, usage, meta.RowID, time.Now()); err != nil {
 				return ret, err
@@ -310,11 +309,11 @@ func (e *executor) updateExistingBeacon(ctx context.Context, b beacon.Beacon,
 	usage beacon.Usage, rowID int64, now time.Time) error {
 
 	fullID := b.Segment.FullID()
-	packedSeg, err := b.Segment.Pack()
+	packedSeg, err := beacon.PackBeacon(b.Segment)
 	if err != nil {
 		return err
 	}
-	infoTime := b.Segment.Timestamp().Unix()
+	infoTime := b.Segment.Info.Timestamp.Unix()
 	lastUpdated := now.UnixNano()
 	expTime := b.Segment.MaxExpiry().Unix()
 	inst := `UPDATE Beacons SET FullID=?, InIntfID=?, HopsLength=?, InfoTime=?,
@@ -333,12 +332,12 @@ func insertNewBeacon(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 
 	segID := b.Segment.ID()
 	fullID := b.Segment.FullID()
-	packed, err := b.Segment.Pack()
+	packed, err := beacon.PackBeacon(b.Segment)
 	if err != nil {
 		return db.NewInputDataError("pack segment", err)
 	}
 	start := b.Segment.FirstIA()
-	infoTime := b.Segment.Timestamp().Unix()
+	infoTime := b.Segment.Info.Timestamp.Unix()
 	lastUpdated := now.UnixNano()
 	expTime := b.Segment.MaxExpiry().Unix()
 
@@ -375,9 +374,9 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 	}
 	defer stmt.Close()
 	for _, as := range b.Segment.ASEntries {
-		ia := as.IA()
+		ia := as.Local
 		// Do not insert peering interfaces.
-		hof := as.HopEntries[0].HopField
+		hof := as.HopEntry.HopField
 		if err != nil {
 			return db.NewInputDataError("extract hop field", err)
 		}

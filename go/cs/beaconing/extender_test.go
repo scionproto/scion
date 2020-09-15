@@ -33,14 +33,13 @@ import (
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
-	"github.com/scionproto/scion/go/proto"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
 
 func TestLegacyExtenderExtend(t *testing.T) {
@@ -134,26 +133,12 @@ func TestLegacyExtenderExtend(t *testing.T) {
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			}
 
-			ts := util.TimeToSecs(time.Now())
-			rawInfo := make([]byte, spath.InfoFieldLength)
-			(&spath.InfoField{
-				ISD:   1,
-				TsInt: ts,
-			}).Write(rawInfo)
-
-			pseg, err := seg.NewSeg(
-				&seg.PathSegmentSignedData{
-					RawInfo:      rawInfo,
-					RawTimestamp: ts,
-					SegID:        uint16(mrand.Int()),
-					ISD:          1,
-				},
-			)
+			pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()), 1)
 			require.NoError(t, err)
 
 			// Create path segment from description, if available.
 			if len(test.seg) > 0 {
-				pseg = testBeacon(g, test.seg).Segment
+				pseg = testBeacon(g, test.seg)
 			}
 			require.NoError(t, err)
 			// Extend the segment.
@@ -171,34 +156,91 @@ func TestLegacyExtenderExtend(t *testing.T) {
 			}
 
 			err = pseg.VerifyASEntry(context.Background(),
-				segVerifier{pubKey: pub}, pseg.MaxAEIdx())
+				segVerifier{pubKey: pub}, pseg.MaxIdx())
 			require.NoError(t, err)
 
-			entry := pseg.ASEntries[pseg.MaxAEIdx()]
-			t.Run("AS entry", func(t *testing.T) {
-				assert.Equal(t, uint8(legacyIfIDSize), entry.IfIDSize)
-				assert.Equal(t, uint16(1337), entry.MTU)
-				assert.Equal(t, topoProvider.Get().IA(), entry.IA())
-				// Checks that inactive peers are ignored, even when provided.
-				assert.Len(t, entry.HopEntries, 2)
+			t.Run("parsable", func(t *testing.T) {
+				pb := seg.PathSegmentToPB(pseg)
+				if test.egress == 0 {
+					cpseg, err := seg.SegmentFromPB(pb)
+					require.NoError(t, err)
+					assert.Equal(t, pseg, cpseg)
+					return
+				}
+				cpseg, err := seg.BeaconFromPB(pb)
+				require.NoError(t, err)
+				assert.Equal(t, pseg, cpseg)
 			})
 
-			infoTS := pseg.Timestamp()
+			entry := pseg.ASEntries[pseg.MaxIdx()]
+			t.Run("AS entry", func(t *testing.T) {
+				assert.Equal(t, 1337, entry.MTU)
+				assert.Equal(t, topoProvider.Get().IA(), entry.Local)
+				// Checks that inactive peers are ignored, even when provided.
+				assert.Len(t, entry.PeerEntries, 1)
+				if test.egress != 0 {
+					intf := intfs.Get(test.egress)
+					assert.Equal(t, intf.TopoInfo().IA, entry.Next)
+				} else {
+					assert.Equal(t, addr.IA{}, entry.Next)
+				}
+
+			})
+
+			infoTS := pseg.Info.Timestamp
 			t.Run("hop entry check", func(t *testing.T) {
 				var prev []byte
 				// The extended hop entry is not the first one.
-				if pseg.MaxAEIdx() > 0 {
-					prev = pseg.ASEntries[pseg.MaxAEIdx()-1].HopEntries[0].RawHopField
+				if pseg.MaxIdx() > 0 {
+					hf := pseg.ASEntries[pseg.MaxIdx()-1].HopEntry.HopField
+					prev = (&spath.HopField{
+						ConsIngress: common.IFIDType(hf.ConsIngress),
+						ConsEgress:  common.IFIDType(hf.ConsEgress),
+						ExpTime:     spath.ExpTimeType(hf.ExpTime),
+						Mac:         hf.MAC,
+					}).Pack()
 				}
-				testHopEntry(t, entry.HopEntries[0], intfs, test.ingress, test.egress)
-				testHopF(t, entry.HopEntries[0], mac, infoTS, ext.MaxExpTime(),
+
+				mtu := 0
+				// Hop entries that are not first on the segment, must not
+				// contain zero values.
+				if test.ingress != 0 {
+					intf := intfs.Get(test.ingress)
+					require.NotNil(t, intf)
+					mtu = int(intf.TopoInfo().MTU)
+				}
+				assert.Equal(t, mtu, entry.HopEntry.IngressMTU)
+
+				testHopF(t, entry.HopEntry.HopField, mac, infoTS, ext.MaxExpTime(),
 					test.ingress, test.egress, prev)
 			})
 
 			t.Run("peer entry is correct", func(t *testing.T) {
-				testHopEntry(t, entry.HopEntries[1], intfs, peer, test.egress)
-				testHopF(t, entry.HopEntries[1], mac, infoTS, ext.MaxExpTime(),
-					peer, test.egress, entry.HopEntries[0].RawHopField)
+
+				hf := entry.HopEntry.HopField
+				prev := (&spath.HopField{
+					ConsIngress: common.IFIDType(hf.ConsIngress),
+					ConsEgress:  common.IFIDType(hf.ConsEgress),
+					ExpTime:     spath.ExpTimeType(hf.ExpTime),
+					Mac:         hf.MAC,
+				}).Pack()
+
+				// Hop entries that are not first on the segment, must not
+				// contain zero values.
+				intf := intfs.Get(peer)
+				require.NotNil(t, intf)
+				ia := intf.TopoInfo().IA
+				remote := uint16(intf.TopoInfo().RemoteIFID)
+				mtu := int(intf.TopoInfo().MTU)
+
+				peerEntry := entry.PeerEntries[0]
+
+				assert.Equal(t, ia, peerEntry.Peer)
+				assert.Equal(t, remote, peerEntry.PeerInterface)
+				assert.Equal(t, mtu, peerEntry.PeerMTU)
+
+				testHopF(t, peerEntry.HopField, mac, infoTS, ext.MaxExpTime(),
+					peer, test.egress, prev)
 			})
 		})
 	}
@@ -219,19 +261,19 @@ func TestLegacyExtenderExtend(t *testing.T) {
 			StaticInfo: func() *StaticInfoCfg { return nil },
 		}
 		require.NoError(t, err)
-		pseg := testBeacon(g, segDesc).Segment
+		pseg := testBeacon(g, segDesc)
 		err = ext.Extend(context.Background(), pseg, graph.If_111_B_120_X, 0, []common.IFIDType{})
 		require.NoError(t, err)
-		hopF := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField
+		hopF := pseg.ASEntries[pseg.MaxIdx()].HopEntry.HopField
 		assert.Equal(t, uint8(1), hopF.ExpTime)
 
 	})
 	t.Run("segment is not extended on error", func(t *testing.T) {
-		defaultSigner := func(t *testing.T) ctrl.Signer {
+		defaultSigner := func(t *testing.T) seg.Signer {
 			return testSigner(t, priv, topoProvider.Get().IA())
 		}
 		tests := map[string]struct {
-			Signer          func(t *testing.T) ctrl.Signer
+			Signer          func(t *testing.T) seg.Signer
 			Ingress, Egress common.IFIDType
 			Activate        func(intfs *ifstate.Interfaces)
 		}{
@@ -278,7 +320,7 @@ func TestLegacyExtenderExtend(t *testing.T) {
 				},
 			},
 			"Signer fails": {
-				Signer:  func(t *testing.T) ctrl.Signer { return &failSigner{} },
+				Signer:  func(t *testing.T) seg.Signer { return &failSigner{} },
 				Ingress: graph.If_111_B_120_X,
 				Activate: func(intfs *ifstate.Interfaces) {
 					intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
@@ -302,7 +344,7 @@ func TestLegacyExtenderExtend(t *testing.T) {
 					MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
 					StaticInfo: func() *StaticInfoCfg { return nil },
 				}
-				pseg := testBeacon(g, segDesc).Segment
+				pseg := testBeacon(g, segDesc)
 				err = ext.Extend(context.Background(), pseg,
 					test.Ingress, test.Egress, []common.IFIDType{})
 				assert.Error(t, err)
@@ -314,49 +356,22 @@ func TestLegacyExtenderExtend(t *testing.T) {
 // testHopF checks whether the hop field in the hop entry contains the expected
 // values. The ingress and prev are different between that cons and peer hop
 // field.
-func testHopF(t *testing.T, hop *seg.HopEntry, mac hash.Hash, ts time.Time,
+func testHopF(t *testing.T, hop seg.HopField, mac hash.Hash, ts time.Time,
 	expTime spath.ExpTimeType, ingress, egress common.IFIDType, prev []byte) {
 
 	if prev != nil {
 		prev = prev[1:]
 	}
-	hopF, err := spath.HopFFromRaw(hop.RawHopField)
-	require.NoError(t, err)
+	hopF := spath.HopField{
+		ConsIngress: common.IFIDType(hop.ConsIngress),
+		ConsEgress:  common.IFIDType(hop.ConsEgress),
+		ExpTime:     spath.ExpTimeType(hop.ExpTime),
+		Mac:         hop.MAC[:3],
+	}
 	assert.Equal(t, ingress, hopF.ConsIngress)
 	assert.Equal(t, egress, hopF.ConsEgress)
 	assert.NoError(t, hopF.Verify(mac, util.TimeToSecs(ts), prev))
 	assert.Equal(t, expTime, hopF.ExpTime)
-}
-
-// testHopEntry checks whether the hop entry contains the expected values. The
-// ingress is different between cons and peer hop entries.
-func testHopEntry(t *testing.T, hop *seg.HopEntry, intfs *ifstate.Interfaces,
-	ingress, egress common.IFIDType) {
-
-	ia, remote, mtu := addr.IA{}, common.IFIDType(0), uint16(0)
-	// Hop entries that are not first on the segment, must not
-	// contain zero values.
-	if ingress != 0 {
-		intf := intfs.Get(ingress)
-		if assert.NotNil(t, intf) {
-			ia = intf.TopoInfo().IA
-			remote = intf.TopoInfo().RemoteIFID
-			mtu = uint16(intf.TopoInfo().MTU)
-		}
-	}
-	assert.Equal(t, ia, hop.InIA())
-	assert.Equal(t, remote, hop.RemoteInIF)
-	assert.Equal(t, mtu, hop.InMTU)
-	ia, remote = addr.IA{}, common.IFIDType(0)
-	// Hop entries that are not last on the segment, must not
-	// contain zero values.
-	if egress != 0 {
-		intf := intfs.Get(egress)
-		ia = intf.TopoInfo().IA
-		remote = intf.TopoInfo().RemoteIFID
-	}
-	assert.Equal(t, ia, hop.OutIA())
-	assert.Equal(t, remote, hop.RemoteOutIF)
 }
 
 func TestDefaultExtenderExtend(t *testing.T) {
@@ -419,12 +434,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			}
-			pseg, err := seg.NewSeg(
-				&seg.PathSegmentSignedData{
-					RawTimestamp: util.TimeToSecs(time.Now()),
-					SegID:        uint16(mrand.Int()),
-				},
-			)
+			pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()), 0)
 			require.NoError(t, err)
 
 			// Extend the segment.
@@ -439,32 +449,41 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			err = pseg.VerifyASEntry(context.Background(), segVerifier{pubKey: pub}, 0)
 			require.NoError(t, err)
 
+			t.Run("parsable", func(t *testing.T) {
+				pb := seg.PathSegmentToPB(pseg)
+				if tc.egress == 0 {
+					cpseg, err := seg.SegmentFromPB(pb)
+					require.NoError(t, err)
+					assert.Equal(t, pseg, cpseg)
+					return
+				}
+				cpseg, err := seg.BeaconFromPB(pb)
+				require.NoError(t, err)
+				assert.Equal(t, pseg, cpseg)
+			})
+
 			entry := pseg.ASEntries[0]
 			t.Run("AS entry", func(t *testing.T) {
-				assert.Equal(t, uint8(16), entry.IfIDSize)
-				assert.Equal(t, uint16(1337), entry.MTU)
-				assert.Equal(t, topoProvider.Get().IA(), entry.IA())
-				// Checks that unset peers are ignored, even when provided.
-				assert.Len(t, entry.HopEntries, 2)
-			})
-			t.Run("hop entry check", func(t *testing.T) {
 				intf := intfs.Get(tc.egress)
 				ia := intf.TopoInfo().IA
-				assert.Equal(t, ia, entry.HopEntries[0].OutIA())
 
-				assert.Equal(t, uint16(tc.ingress), entry.HopEntries[0].HopField.ConsIngress)
-				assert.Equal(t, uint16(tc.egress), entry.HopEntries[0].HopField.ConsEgress)
-				assert.Equal(t, ext.MaxExpTime(), entry.HopEntries[0].HopField.ExpTime)
+				assert.Equal(t, 1337, entry.MTU)
+				assert.Equal(t, topoProvider.Get().IA(), entry.Local)
+				assert.Equal(t, ia, entry.Next)
+				// Checks that unset peers are ignored, even when provided.
+				assert.Len(t, entry.PeerEntries, 1)
+			})
+			t.Run("hop entry check", func(t *testing.T) {
+				assert.Equal(t, uint16(tc.ingress), entry.HopEntry.HopField.ConsIngress)
+				assert.Equal(t, uint16(tc.egress), entry.HopEntry.HopField.ConsEgress)
+				assert.Equal(t, ext.MaxExpTime(), entry.HopEntry.HopField.ExpTime)
 				// FIXME(roosd): Check hop field can be authenticated.
 			})
 			t.Run("peer entry check", func(t *testing.T) {
-				intf := intfs.Get(tc.egress)
-				ia := intf.TopoInfo().IA
-				assert.Equal(t, ia, entry.HopEntries[1].OutIA())
 
-				assert.Equal(t, uint16(peer), entry.HopEntries[1].HopField.ConsIngress)
-				assert.Equal(t, uint16(tc.egress), entry.HopEntries[1].HopField.ConsEgress)
-				assert.Equal(t, ext.MaxExpTime(), entry.HopEntries[1].HopField.ExpTime)
+				assert.Equal(t, uint16(peer), entry.PeerEntries[0].HopField.ConsIngress)
+				assert.Equal(t, uint16(tc.egress), entry.PeerEntries[0].HopField.ConsEgress)
+				assert.Equal(t, ext.MaxExpTime(), entry.PeerEntries[0].HopField.ExpTime)
 				// FIXME(roosd): Check hop field can be authenticated.
 			})
 		})
@@ -489,24 +508,19 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			StaticInfo: func() *StaticInfoCfg { return nil },
 		}
 		require.NoError(t, err)
-		pseg, err := seg.NewSeg(
-			&seg.PathSegmentSignedData{
-				RawTimestamp: util.TimeToSecs(time.Now()),
-				SegID:        uint16(mrand.Int()),
-			},
-		)
+		pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()), 0)
 		require.NoError(t, err)
 		err = ext.Extend(context.Background(), pseg, 0, graph.If_111_A_112_X, []common.IFIDType{})
 		require.NoError(t, err)
-		assert.Equal(t, uint8(1), pseg.ASEntries[0].HopEntries[0].HopField.ExpTime)
+		assert.Equal(t, uint8(1), pseg.ASEntries[0].HopEntry.HopField.ExpTime)
 
 	})
 	t.Run("segment is not extended on error", func(t *testing.T) {
-		defaultSigner := func(t *testing.T) ctrl.Signer {
+		defaultSigner := func(t *testing.T) seg.Signer {
 			return testSigner(t, priv, topoProvider.Get().IA())
 		}
 		testCases := map[string]struct {
-			Signer          func(t *testing.T) ctrl.Signer
+			Signer          func(t *testing.T) seg.Signer
 			Ingress, Egress common.IFIDType
 			Activate        func(intfs *ifstate.Interfaces)
 		}{
@@ -553,7 +567,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				},
 			},
 			"Signer fails": {
-				Signer:  func(t *testing.T) ctrl.Signer { return &failSigner{} },
+				Signer:  func(t *testing.T) seg.Signer { return &failSigner{} },
 				Ingress: graph.If_111_B_120_X,
 				Activate: func(intfs *ifstate.Interfaces) {
 					intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
@@ -580,12 +594,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 					StaticInfo: func() *StaticInfoCfg { return nil },
 				}
-				pseg, err := seg.NewSeg(
-					&seg.PathSegmentSignedData{
-						RawTimestamp: util.TimeToSecs(time.Now()),
-						SegID:        uint16(mrand.Int()),
-					},
-				)
+				pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()), 0)
 				require.NoError(t, err)
 				err = ext.Extend(context.Background(), pseg, tc.Ingress, tc.Egress,
 					[]common.IFIDType{})
@@ -597,7 +606,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 
 type failSigner struct{}
 
-func (f *failSigner) Sign(context.Context, []byte) (*proto.SignS, error) {
+func (f *failSigner) Sign(context.Context, []byte, ...[]byte) (*cryptopb.SignedMessage, error) {
 	return nil, errors.New("fail")
 }
 
@@ -607,11 +616,8 @@ func maxExpTimeFactory(max spath.ExpTimeType) func() spath.ExpTimeType {
 	}
 }
 
-func testBeacon(g *graph.Graph, ifids []common.IFIDType) *seg.Beacon {
-	bseg := &seg.Beacon{
-		Segment: g.Beacon(ifids),
-	}
-	bseg.Segment.RawASEntries = bseg.Segment.RawASEntries[:len(bseg.Segment.RawASEntries)-1]
-	bseg.Segment.ASEntries = bseg.Segment.ASEntries[:len(bseg.Segment.ASEntries)-1]
+func testBeacon(g *graph.Graph, ifids []common.IFIDType) *seg.PathSegment {
+	bseg := g.Beacon(ifids)
+	bseg.ASEntries = bseg.ASEntries[:len(bseg.ASEntries)-1]
 	return bseg
 }

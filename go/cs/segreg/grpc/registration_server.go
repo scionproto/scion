@@ -25,7 +25,7 @@ import (
 
 	csmetrics "github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
@@ -34,7 +34,6 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/tracing"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var _ cppb.SegmentRegistrationServiceServer
@@ -71,22 +70,27 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 		s.failMetric(span, labels.WithResult(csmetrics.ErrInternal), err)
 		return nil, err
 	}
+	labels.Type = classifySegs(logger, req.Segments)
 
-	segs := &path_mgmt.SegRecs{}
-	if err := proto.ParseFromRaw(segs, req.Raw); err != nil {
-		s.failMetric(span, labels.WithResult(csmetrics.ErrParse), err)
-		return nil, status.Error(codes.InvalidArgument, "failed to parse records")
+	var segs []*seg.Meta
+	for segType, segments := range req.Segments {
+		for _, pb := range segments.Segments {
+			ps, err := seg.SegmentFromPB(pb)
+			if err != nil {
+				s.failMetric(span, labels.WithResult(csmetrics.ErrParse), err)
+				return nil, status.Error(codes.InvalidArgument, "failed to parse segments")
+			}
+			segs = append(segs, &seg.Meta{
+				Type:    seg.Type(segType),
+				Segment: ps,
+			})
+		}
 	}
-	if err := segs.ParseRaw(); err != nil {
-		s.failMetric(span, labels.WithResult(csmetrics.ErrParse), err)
-		return nil, status.Error(codes.InvalidArgument, "failed to parse individual records")
-	}
-	labels.Type = classifySegs(logger, segs)
 
 	res := s.SegHandler.Handle(ctx,
 		seghandler.Segments{
-			Segs:      segs.Recs,
-			SRevInfos: segs.SRevInfos,
+			Segs:      segs,
+			SRevInfos: nil,
 		},
 		&snet.SVCAddr{
 			IA:      peer.IA,
@@ -154,18 +158,19 @@ func (l requestLabels) WithResult(result string) requestLabels {
 // be returned. However the type allows multiple segments to be registered, so
 // this function will concatenate the types if there are multiple segments of
 // different types.
-func classifySegs(logger log.Logger, segReg *path_mgmt.SegRecs) string {
-	segTypes := make(map[proto.PathSegType]struct{}, 1)
-	for _, segMeta := range segReg.Recs {
-		segTypes[segMeta.Type] = struct{}{}
-	}
-	if len(segTypes) > 1 {
-		logger.Info("SegReg contained multiple types, reporting unset in metrics",
-			"types", segTypes)
+func classifySegs(logger log.Logger,
+	segs map[int32]*cppb.SegmentsRegistrationRequest_Segments) string {
+
+	if len(segs) > 1 {
+		types := make([]seg.Type, 0, len(segs))
+		for t := range segs {
+			types = append(types, seg.Type(t))
+		}
+		logger.Info("SegReg contained multiple types, reporting unset in metrics", "types", types)
 		return "multi"
 	}
-	for segType := range segTypes {
-		return segType.String()
+	for t := range segs {
+		return seg.Type(t).String()
 	}
 	return "unset"
 }

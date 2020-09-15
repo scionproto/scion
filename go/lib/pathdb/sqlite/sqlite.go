@@ -36,13 +36,12 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/proto"
 )
 
 type segMeta struct {
 	RowID       int64
-	SegID       common.RawBytes
-	FullID      common.RawBytes
+	SegID       []byte
+	FullID      []byte
 	LastUpdated time.Time
 	Seg         *seg.PathSegment
 }
@@ -141,18 +140,18 @@ func (e *executor) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
 	pseg := segMeta.Segment
 	// Check if we already have a path segment.
 	segID := pseg.ID()
-	newFullId := pseg.FullID()
+	newFullID := pseg.FullID()
 	meta, err := e.get(ctx, segID)
 	if err != nil {
 		return noInsertion, err
 	}
 	if meta != nil {
 		// Check if the new segment is more recent.
-		if pseg.Timestamp().After(meta.Seg.Timestamp()) {
+		if pseg.Info.Timestamp.After(meta.Seg.Info.Timestamp) {
 			// Update existing path segment.
 			meta.Seg = pseg
 			meta.LastUpdated = time.Now()
-			if err := e.updateExisting(ctx, meta, segMeta.Type, newFullId, hpCfgIDs); err != nil {
+			if err := e.updateExisting(ctx, meta, segMeta.Type, newFullID, hpCfgIDs); err != nil {
 				return noInsertion, err
 			}
 			return pathdb.InsertStats{Updated: 1}, nil
@@ -169,11 +168,11 @@ func (e *executor) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
 	return pathdb.InsertStats{Inserted: 1}, nil
 }
 
-func (e *executor) get(ctx context.Context, segID common.RawBytes) (*segMeta, error) {
+func (e *executor) get(ctx context.Context, segID []byte) (*segMeta, error) {
 	query := "SELECT RowID, SegID, FullID, LastUpdated, Segment FROM Segments WHERE SegID=?"
 	var meta segMeta
 	var lastUpdated int64
-	var rawSeg common.RawBytes
+	var rawSeg []byte
 	err := e.db.QueryRowContext(ctx, query, segID).Scan(
 		&meta.RowID, &meta.SegID, &meta.FullID, &lastUpdated, &rawSeg)
 	if err == sql.ErrNoRows {
@@ -183,7 +182,7 @@ func (e *executor) get(ctx context.Context, segID common.RawBytes) (*segMeta, er
 		return nil, common.NewBasicError("Failed to lookup segment", err)
 	}
 	meta.LastUpdated = time.Unix(0, lastUpdated)
-	meta.Seg, err = seg.NewSegFromRaw(rawSeg)
+	meta.Seg, err = pathdb.UnpackSegment(rawSeg)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +190,7 @@ func (e *executor) get(ctx context.Context, segID common.RawBytes) (*segMeta, er
 }
 
 func (e *executor) updateExisting(ctx context.Context, meta *segMeta,
-	segType proto.PathSegType, newFullId common.RawBytes, hpCfgIDs []*query.HPCfgID) error {
+	segType seg.Type, newFullID []byte, hpCfgIDs []*query.HPCfgID) error {
 
 	return db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
 
@@ -210,7 +209,7 @@ func (e *executor) updateExisting(ctx context.Context, meta *segMeta,
 			}
 		}
 		// Update the IntfToSeg table
-		if !bytes.Equal(newFullId, meta.FullID) {
+		if !bytes.Equal(newFullID, meta.FullID) {
 			// Delete all old interfaces and then insert the new ones.
 			// Calculating the actual diffset would be better, but this is way easier to implement.
 			_, err := tx.ExecContext(ctx, `DELETE FROM IntfToSeg WHERE SegRowID=?`, meta.RowID)
@@ -226,7 +225,7 @@ func (e *executor) updateExisting(ctx context.Context, meta *segMeta,
 }
 
 func updateSeg(ctx context.Context, tx *sql.Tx, meta *segMeta) error {
-	packedSeg, err := meta.Seg.Pack()
+	packedSeg, err := pathdb.PackSegment(meta.Seg)
 	if err != nil {
 		return err
 	}
@@ -235,7 +234,7 @@ func updateSeg(ctx context.Context, tx *sql.Tx, meta *segMeta) error {
 	stmtStr := `UPDATE Segments SET FullID=?, LastUpdated=?, InfoTs=?, Segment=?, MaxExpiry=?
 				WHERE RowID=?`
 	_, err = tx.ExecContext(ctx, stmtStr,
-		fullID, meta.LastUpdated.UnixNano(), meta.Seg.Timestamp(), packedSeg, exp, meta.RowID)
+		fullID, meta.LastUpdated.UnixNano(), meta.Seg.Info.Timestamp, packedSeg, exp, meta.RowID)
 	if err != nil {
 		return common.NewBasicError("Failed to update segment", err)
 	}
@@ -243,7 +242,7 @@ func updateSeg(ctx context.Context, tx *sql.Tx, meta *segMeta) error {
 }
 
 func insertType(ctx context.Context, tx *sql.Tx, segRowID int64,
-	segType proto.PathSegType) error {
+	segType seg.Type) error {
 
 	_, err := tx.ExecContext(ctx, "INSERT INTO SegTypes (SegRowID, Type) VALUES (?, ?)",
 		segRowID, segType)
@@ -271,7 +270,7 @@ func insertFull(ctx context.Context, tx *sql.Tx, segMeta *seg.Meta,
 	pseg := segMeta.Segment
 	segID := pseg.ID()
 	fullID := pseg.FullID()
-	packedSeg, err := pseg.Pack()
+	packedSeg, err := pathdb.PackSegment(pseg)
 	if err != nil {
 		return err
 	}
@@ -283,7 +282,7 @@ func insertFull(ctx context.Context, tx *sql.Tx, segMeta *seg.Meta,
 			StartIsdID, StartAsID, EndIsdID, EndAsID)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	res, err := tx.ExecContext(ctx, inst, segID, fullID, time.Now().UnixNano(),
-		pseg.Timestamp().UnixNano(), packedSeg, exp, st.I, st.A, end.I, end.A)
+		pseg.Info.Timestamp.UnixNano(), packedSeg, exp, st.I, st.A, end.I, end.A)
 	if err != nil {
 		return common.NewBasicError("Failed to insert path segment", err)
 	}
@@ -308,8 +307,7 @@ func insertFull(ctx context.Context, tx *sql.Tx, segMeta *seg.Meta,
 	return nil
 }
 
-func insertInterfaces(ctx context.Context, tx *sql.Tx,
-	ases []*seg.ASEntry, segRowID int64) error {
+func insertInterfaces(ctx context.Context, tx *sql.Tx, ases []seg.ASEntry, segRowID int64) error {
 
 	stmtStr := `INSERT INTO IntfToSeg (IsdID, AsID, IntfID, SegRowID) VALUES (?, ?, ?, ?)`
 	stmt, err := tx.PrepareContext(ctx, stmtStr)
@@ -318,20 +316,29 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx,
 	}
 	defer stmt.Close()
 	for _, as := range ases {
-		ia := as.IA()
-		for idx, hop := range as.HopEntries {
-			hof := hop.HopField
+		ia := as.Local
+
+		hof := as.HopEntry.HopField
+		if hof.ConsIngress != 0 {
+			_, err = stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsIngress, segRowID)
+			if err != nil {
+				return serrors.WrapStr("inserting Ingress into IntfToSeg", err)
+			}
+		}
+		if hof.ConsEgress != 0 {
+			_, err := stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsEgress, segRowID)
+			if err != nil {
+				return serrors.WrapStr("inserting Egress into IntfToSeg", err)
+			}
+		}
+		// Only insert the Egress interface for the regular hop entry in an AS entry.
+
+		for i, peer := range as.PeerEntries {
+			hof := peer.HopField
 			if hof.ConsIngress != 0 {
 				_, err = stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsIngress, segRowID)
 				if err != nil {
-					return common.NewBasicError("Failed to insert Ingress into IntfToSeg", err)
-				}
-			}
-			// Only insert the Egress interface for the first hop entry in an AS entry.
-			if idx == 0 && hof.ConsEgress != 0 {
-				_, err := stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsEgress, segRowID)
-				if err != nil {
-					return common.NewBasicError("Failed to insert Egress into IntfToSeg", err)
+					return serrors.WrapStr("insert peering Ingress into IntfToSeg", err, "index", i)
 				}
 			}
 		}
@@ -384,7 +391,7 @@ func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results
 		var segRowID int
 		var rawSeg sql.RawBytes
 		var lastUpdated int64
-		var segType proto.PathSegType
+		var segType seg.Type
 		hpCfgID := &query.HPCfgID{IA: addr.IA{}}
 		err = rows.Scan(&segRowID, &rawSeg, &lastUpdated, &hpCfgID.IA.I,
 			&hpCfgID.IA.A, &hpCfgID.ID, &segType)
@@ -401,7 +408,7 @@ func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results
 				Type:       segType,
 			}
 			var err error
-			curRes.Seg, err = seg.NewSegFromRaw(common.RawBytes(rawSeg))
+			curRes.Seg, err = pathdb.UnpackSegment(rawSeg)
 			if err != nil {
 				return nil, common.NewBasicError("Error unmarshalling segment", err)
 			}
@@ -525,7 +532,7 @@ func (e *executor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error)
 			var segRowID int
 			var rawSeg sql.RawBytes
 			var lastUpdated int64
-			var segType proto.PathSegType
+			var segType seg.Type
 			hpCfgID := &query.HPCfgID{IA: addr.IA{}}
 			err = rows.Scan(&segRowID, &rawSeg, &lastUpdated,
 				&hpCfgID.IA.I, &hpCfgID.IA.A, &hpCfgID.ID, &segType)
@@ -544,7 +551,7 @@ func (e *executor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error)
 					Type:       segType,
 				}
 				var err error
-				curRes.Seg, err = seg.NewSegFromRaw(common.RawBytes(rawSeg))
+				curRes.Seg, err = pathdb.UnpackSegment(rawSeg)
 				if err != nil {
 					resCh <- query.ResultOrErr{
 						Err: common.NewBasicError("Error unmarshalling segment", err)}

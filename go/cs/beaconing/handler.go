@@ -107,16 +107,14 @@ func (h Handler) validateASEntry(b beacon.Beacon, intf *ifstate.Interface) error
 		return serrors.New("beacon received on invalid link",
 			"ifid", b.InIfId, "linkType", topoInfo.LinkType)
 	}
-	asEntry := b.Segment.ASEntries[b.Segment.MaxAEIdx()]
-	if !asEntry.IA().Equal(topoInfo.IA) {
+	asEntry := b.Segment.ASEntries[b.Segment.MaxIdx()]
+	if !asEntry.Local.Equal(topoInfo.IA) {
 		return serrors.New("invalid upstream ISD-AS",
-			"expected", topoInfo.IA, "actual", asEntry.IA())
+			"expected", topoInfo.IA, "actual", asEntry.Local)
 	}
-	for i, hopEntry := range asEntry.HopEntries {
-		if !hopEntry.OutIA().Equal(h.LocalIA) {
-			return serrors.New("out ISD-AS of upstream hop entry does not match local ISD-AS",
-				"index", i, "expected", h.LocalIA, "actual", hopEntry.OutIA())
-		}
+	if !asEntry.Next.Equal(h.LocalIA) {
+		return serrors.New("next ISD-AS of upstream AS entry does not match local ISD-AS",
+			"expected", h.LocalIA, "actual", asEntry.Next)
 	}
 	return nil
 }

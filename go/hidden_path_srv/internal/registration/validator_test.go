@@ -16,6 +16,9 @@ package registration_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -27,10 +30,8 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/hiddenpath"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var (
@@ -71,37 +72,37 @@ func newTestGraph(t *testing.T, ctrl *gomock.Controller) {
 	t.Helper()
 	g := graph.NewDefaultGraph(ctrl)
 	// hidden down
-	seg110_133 = markHidden(t, seg.NewMeta(
-		g.Beacon([]common.IFIDType{
+	seg110_133 = markHidden(t, &seg.Meta{
+		Segment: g.Beacon([]common.IFIDType{
 			graph.If_110_X_130_A,
 			graph.If_130_A_131_X,
 			graph.If_131_X_132_X,
 			graph.If_132_X_133_X,
 		}),
-		proto.PathSegType_down,
-	))
+		Type: seg.TypeDown,
+	})
 	// hidden up
-	seg120_121 = markHidden(t, seg.NewMeta(
-		g.Beacon([]common.IFIDType{
+	seg120_121 = markHidden(t, &seg.Meta{
+		Segment: g.Beacon([]common.IFIDType{
 			graph.If_120_B_121_X,
 		}),
-		proto.PathSegType_up,
-	))
+		Type: seg.TypeUp,
+	})
 	// missing hidden extn
-	seg210_212 = seg.NewMeta(
-		g.Beacon([]common.IFIDType{
+	seg210_212 = &seg.Meta{
+		Segment: g.Beacon([]common.IFIDType{
 			graph.If_210_X_211_A,
 			graph.If_211_A_212_X,
 		}),
-		proto.PathSegType_down,
-	)
+		Type: seg.TypeDown,
+	}
 	// core seg type
-	seg110_120 = markHidden(t, seg.NewMeta(
-		g.Beacon([]common.IFIDType{
+	seg110_120 = markHidden(t, &seg.Meta{
+		Segment: g.Beacon([]common.IFIDType{
 			graph.If_110_X_120_A,
 		}),
-		proto.PathSegType_core,
-	))
+		Type: seg.TypeCore,
+	})
 }
 
 func TestValidator(t *testing.T) {
@@ -188,14 +189,21 @@ func TestValidator(t *testing.T) {
 func markHidden(t *testing.T, m *seg.Meta) *seg.Meta {
 	t.Helper()
 	s := m.Segment
-	newSeg, err := seg.NewSeg(s.SData)
+
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
-	if s.MaxAEIdx() < 0 {
-		panic("Segment has no AS entries")
-	}
-	s.ASEntries[s.MaxAEIdx()].Exts.HiddenPathSeg = seg.NewHiddenPathSegExtn()
+	signer := graph.Signer{PrivateKey: priv}
+
+	newSeg, err := seg.CreateSegment(s.Info.Timestamp, s.Info.SegmentID, s.Info.ISD)
+	require.NoError(t, err)
+	require.NotEmpty(t, s.ASEntries)
+	s.ASEntries[s.MaxIdx()].Extensions.HiddenPath.IsHidden = true
 	for _, entry := range s.ASEntries {
-		newSeg.AddASEntry(context.Background(), entry, infra.NullSigner)
+		err := newSeg.AddASEntry(context.Background(), entry, signer)
+		require.NoError(t, err)
 	}
-	return seg.NewMeta(newSeg, m.Type)
+	return &seg.Meta{
+		Segment: newSeg,
+		Type:    m.Type,
+	}
 }

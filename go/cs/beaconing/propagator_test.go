@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -185,21 +184,16 @@ func TestPropagatorRun(t *testing.T) {
 			)
 
 			sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-				gomock.Any(), gomock.Any()).Times(test.expected).DoAndReturn(
-				func(_ context.Context, beacon *seg.Beacon, dst addr.IA, egress common.IFIDType,
-					_ ctrl.Signer, nextHop *net.UDPAddr) error {
-
-					err = beacon.Parse()
-					require.NoError(t, err)
-
+				gomock.Any()).Times(test.expected).DoAndReturn(
+				func(_ context.Context, beacon *seg.PathSegment, dst addr.IA,
+					egress common.IFIDType, nextHop *net.UDPAddr) error {
 					// Check the beacon is valid and verifiable.
-					pseg := beacon.Segment
-					assert.NoError(t, pseg.Validate(seg.ValidateBeacon))
-					assert.NoError(t, pseg.VerifyASEntry(context.Background(),
-						segVerifier{pubKey: pub}, pseg.MaxAEIdx()))
+					assert.NoError(t, beacon.Validate(seg.ValidateBeacon))
+					assert.NoError(t, beacon.VerifyASEntry(context.Background(),
+						segVerifier{pubKey: pub}, beacon.MaxIdx()))
 
 					// Extract the hop field from the current AS entry to compare.
-					hopF := pseg.ASEntries[pseg.MaxAEIdx()].HopEntries[0].HopField
+					hopF := beacon.ASEntries[beacon.MaxIdx()].HopEntry.HopField
 					require.NoError(t, err)
 					// Check the interface matches.
 					assert.Equal(t, hopF.ConsEgress, uint16(egress))
@@ -260,11 +254,11 @@ func TestPropagatorRun(t *testing.T) {
 		// 3. Run where no beacon is sent. -> no call
 		// 4. Run where beacons are sent on all interfaces. -> 2 calls
 		first := sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-			gomock.Any(), gomock.Any())
+			gomock.Any())
 		first.Return(serrors.New("fail"))
 
 		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-			gomock.Any(), gomock.Any()).Times(4).Return(nil)
+			gomock.Any()).Times(4).Return(nil)
 		// Initial run. Two writes expected, one write will fail.
 		p.Run(nil)
 		time.Sleep(1 * time.Second)

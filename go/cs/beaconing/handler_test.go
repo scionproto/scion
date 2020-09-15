@@ -20,7 +20,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing"
@@ -29,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -79,7 +77,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 				verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
 				verifier.EXPECT().WithIA(gomock.Any()).MaxTimes(2).Return(verifier)
 				verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
-					gomock.Any()).MaxTimes(2).Return(nil)
+					gomock.Any()).MaxTimes(2).Return(nil, nil)
 				return verifier
 			},
 			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
@@ -160,12 +158,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 					}),
 					InIfId: localIF,
 				}
-				asEntry := b.Segment.ASEntries[b.Segment.MaxAEIdx()]
-				asEntry.RawIA = xtest.MustParseIA("1-ff00:0:111").IAInt()
-				raw, err := asEntry.Pack()
-				require.NoError(t, err)
-				b.Segment.RawASEntries[b.Segment.MaxAEIdx()].Blob = raw
-
+				b.Segment.ASEntries[b.Segment.MaxIdx()].Local = xtest.MustParseIA("1-ff00:0:111")
 				return b
 
 			},
@@ -194,14 +187,8 @@ func TestHandlerHandleBeacon(t *testing.T) {
 					}),
 					InIfId: localIF,
 				}
-				asEntry := b.Segment.ASEntries[b.Segment.MaxAEIdx()]
-				asEntry.HopEntries[0].RawOutIA = xtest.MustParseIA("1-ff00:0:111").IAInt()
-				raw, err := asEntry.Pack()
-				require.NoError(t, err)
-				b.Segment.RawASEntries[b.Segment.MaxAEIdx()].Blob = raw
-
+				b.Segment.ASEntries[b.Segment.MaxIdx()].Next = xtest.MustParseIA("1-ff00:0:111")
 				return b
-
 			},
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
@@ -222,7 +209,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 				verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
 				verifier.EXPECT().WithIA(gomock.Any()).MaxTimes(2).Return(verifier)
 				verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
-					gomock.Any()).MaxTimes(2).Return(serrors.New("failed"))
+					gomock.Any()).MaxTimes(2).Return(nil, serrors.New("failed"))
 				return verifier
 			},
 			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
@@ -250,7 +237,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 				verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
 				verifier.EXPECT().WithIA(gomock.Any()).MaxTimes(2).Return(verifier)
 				verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
-					gomock.Any()).MaxTimes(2).Return(nil)
+					gomock.Any()).MaxTimes(2).Return(nil, nil)
 				return verifier
 			},
 			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
@@ -287,19 +274,8 @@ func TestHandlerHandleBeacon(t *testing.T) {
 	}
 }
 
-func defaultTestReq(rw infra.ResponseWriter, pseg *seg.PathSegment) *infra.Request {
-	return infra.NewRequest(
-		infra.NewContextWithResponseWriter(context.Background(), rw),
-		pseg,
-		nil,
-		&snet.UDPAddr{IA: addr.IA{}, Path: testPath(localIF)},
-		0,
-	)
-}
-
 func testSegment(g *graph.Graph, ifids []common.IFIDType) *seg.PathSegment {
 	pseg := g.Beacon(ifids)
-	pseg.RawASEntries = pseg.RawASEntries[:len(pseg.RawASEntries)-1]
 	pseg.ASEntries = pseg.ASEntries[:len(pseg.ASEntries)-1]
 	return pseg
 }

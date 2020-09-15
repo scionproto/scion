@@ -29,15 +29,14 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
-	"github.com/scionproto/scion/go/proto"
 )
 
 func TestStoreSegmentsToRegister(t *testing.T) {
 	testStoreSelection(t, func(store *beacon.Store) (<-chan beacon.BeaconOrErr, error) {
-		return store.SegmentsToRegister(context.Background(), proto.PathSegType_up)
+		return store.SegmentsToRegister(context.Background(), seg.TypeUp)
 	})
 	testStoreSelection(t, func(store *beacon.Store) (<-chan beacon.BeaconOrErr, error) {
-		return store.SegmentsToRegister(context.Background(), proto.PathSegType_down)
+		return store.SegmentsToRegister(context.Background(), seg.TypeDown)
 	})
 }
 
@@ -197,7 +196,7 @@ func testStoreSelection(t *testing.T,
 
 func TestCoreStoreSegmentsToRegister(t *testing.T) {
 	testCoreStoreSelection(t, func(store *beacon.CoreStore) (<-chan beacon.BeaconOrErr, error) {
-		return store.SegmentsToRegister(context.Background(), proto.PathSegType_core)
+		return store.SegmentsToRegister(context.Background(), seg.TypeCore)
 	})
 }
 
@@ -371,10 +370,10 @@ func testCoreStoreSelection(t *testing.T,
 
 func testBeaconOrErr(g *graph.Graph, desc ...common.IFIDType) beacon.BeaconOrErr {
 	pseg := testBeacon(g, desc)
-	asEntry := pseg.ASEntries[pseg.MaxAEIdx()]
+	asEntry := pseg.ASEntries[pseg.MaxIdx()]
 	return beacon.BeaconOrErr{
 		Beacon: beacon.Beacon{
-			InIfId:  asEntry.HopEntries[0].RemoteOutIF,
+			InIfId:  common.IFIDType(asEntry.HopEntry.HopField.ConsIngress),
 			Segment: pseg,
 		},
 	}
@@ -382,7 +381,6 @@ func testBeaconOrErr(g *graph.Graph, desc ...common.IFIDType) beacon.BeaconOrErr
 
 func testBeacon(g *graph.Graph, ifids []common.IFIDType) *seg.PathSegment {
 	pseg := g.Beacon(ifids)
-	pseg.RawASEntries = pseg.RawASEntries[:len(pseg.RawASEntries)-1]
 	pseg.ASEntries = pseg.ASEntries[:len(pseg.ASEntries)-1]
 	return pseg
 }

@@ -20,7 +20,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/hiddenpath"
-	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -78,11 +77,11 @@ func (v *DefaultValidator) checkGroupPermissions(groupId hiddenpath.GroupId, pee
 }
 
 func (v *DefaultValidator) checkSegments(recs []*seg.Meta) error {
-	for _, seg := range recs {
-		if !checkHiddenSegExtn(seg) {
+	for _, s := range recs {
+		if !checkHiddenSegExtn(s) {
 			return ErrMissingExtn
 		}
-		if seg.Type != proto.PathSegType_up && seg.Type != proto.PathSegType_down {
+		if s.Type != seg.TypeUp && s.Type != seg.TypeDown {
 			return ErrWrongSegType
 		}
 	}
@@ -90,12 +89,9 @@ func (v *DefaultValidator) checkSegments(recs []*seg.Meta) error {
 }
 
 func checkHiddenSegExtn(s *seg.Meta) bool {
-	if s.Segment.MaxAEIdx() < 0 {
+	if s.Segment.MaxIdx() < 0 {
 		return false
 	}
-	lastASEntry := s.Segment.ASEntries[s.Segment.MaxAEIdx()]
-	if lastASEntry.Exts.HiddenPathSeg == nil {
-		return false
-	}
-	return lastASEntry.Exts.HiddenPathSeg.Set
+	lastASEntry := s.Segment.ASEntries[s.Segment.MaxIdx()]
+	return lastASEntry.Extensions.HiddenPath.IsHidden
 }
