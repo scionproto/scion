@@ -77,7 +77,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 				verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
 				verifier.EXPECT().WithIA(gomock.Any()).MaxTimes(2).Return(verifier)
 				verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
-					gomock.Any()).MaxTimes(2).Return(nil)
+					gomock.Any()).MaxTimes(2).Return(nil, nil)
 				return verifier
 			},
 			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
@@ -209,7 +209,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 				verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
 				verifier.EXPECT().WithIA(gomock.Any()).MaxTimes(2).Return(verifier)
 				verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
-					gomock.Any()).MaxTimes(2).Return(serrors.New("failed"))
+					gomock.Any()).MaxTimes(2).Return(nil, serrors.New("failed"))
 				return verifier
 			},
 			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {
@@ -237,7 +237,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 				verifier.EXPECT().WithServer(gomock.Any()).MaxTimes(2).Return(verifier)
 				verifier.EXPECT().WithIA(gomock.Any()).MaxTimes(2).Return(verifier)
 				verifier.EXPECT().Verify(gomock.Any(), gomock.Any(),
-					gomock.Any()).MaxTimes(2).Return(nil)
+					gomock.Any()).MaxTimes(2).Return(nil, nil)
 				return verifier
 			},
 			Beacon: func(t *testing.T, mctrl *gomock.Controller) beacon.Beacon {

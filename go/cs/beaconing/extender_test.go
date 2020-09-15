@@ -159,9 +159,22 @@ func TestLegacyExtenderExtend(t *testing.T) {
 				segVerifier{pubKey: pub}, pseg.MaxIdx())
 			require.NoError(t, err)
 
+			t.Run("parsable", func(t *testing.T) {
+				pb := seg.PathSegmentToPB(pseg)
+				if test.egress == 0 {
+					cpseg, err := seg.SegmentFromPB(pb)
+					require.NoError(t, err)
+					assert.Equal(t, pseg, cpseg)
+					return
+				}
+				cpseg, err := seg.BeaconFromPB(pb)
+				require.NoError(t, err)
+				assert.Equal(t, pseg, cpseg)
+			})
+
 			entry := pseg.ASEntries[pseg.MaxIdx()]
 			t.Run("AS entry", func(t *testing.T) {
-				assert.Equal(t, uint16(1337), entry.MTU)
+				assert.Equal(t, 1337, entry.MTU)
 				assert.Equal(t, topoProvider.Get().IA(), entry.Local)
 				// Checks that inactive peers are ignored, even when provided.
 				assert.Len(t, entry.PeerEntries, 1)
@@ -353,7 +366,7 @@ func testHopF(t *testing.T, hop seg.HopField, mac hash.Hash, ts time.Time,
 		ConsIngress: common.IFIDType(hop.ConsIngress),
 		ConsEgress:  common.IFIDType(hop.ConsEgress),
 		ExpTime:     spath.ExpTimeType(hop.ExpTime),
-		Mac:         hop.MAC,
+		Mac:         hop.MAC[:3],
 	}
 	assert.Equal(t, ingress, hopF.ConsIngress)
 	assert.Equal(t, egress, hopF.ConsEgress)
@@ -435,6 +448,19 @@ func TestDefaultExtenderExtend(t *testing.T) {
 
 			err = pseg.VerifyASEntry(context.Background(), segVerifier{pubKey: pub}, 0)
 			require.NoError(t, err)
+
+			t.Run("parsable", func(t *testing.T) {
+				pb := seg.PathSegmentToPB(pseg)
+				if tc.egress == 0 {
+					cpseg, err := seg.SegmentFromPB(pb)
+					require.NoError(t, err)
+					assert.Equal(t, pseg, cpseg)
+					return
+				}
+				cpseg, err := seg.BeaconFromPB(pb)
+				require.NoError(t, err)
+				assert.Equal(t, pseg, cpseg)
+			})
 
 			entry := pseg.ASEntries[0]
 			t.Run("AS entry", func(t *testing.T) {

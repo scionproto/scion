@@ -72,11 +72,18 @@ func (s *LegacyExtender) Extend(ctx context.Context, pseg *seg.PathSegment,
 	if s.MTU == 0 {
 		return serrors.New("MTU not set")
 	}
+	firstHop := pseg.MaxIdx() < 0
+	if ingress == 0 && !firstHop {
+		return serrors.New("ingress must only be zero in first hop")
+	}
+	if ingress != 0 && firstHop {
+		return serrors.New("ingress must be zero in first hop", "ingress_id", ingress)
+	}
 	if ingress == 0 && egress == 0 {
-		return serrors.New("Ingress and egress must not be both 0")
+		return serrors.New("ingress and egress must not be both 0")
 	}
 	var prev common.RawBytes
-	if pseg.MaxIdx() >= 0 {
+	if !firstHop {
 		// XXX(roosd): Pack previous hopfield for computation.
 		prev = s.packHopField(pseg.ASEntries[pseg.MaxIdx()].HopEntry.HopField)
 	}
@@ -121,7 +128,7 @@ func (s *LegacyExtender) packHopField(hop seg.HopField) []byte {
 		ConsIngress: common.IFIDType(hop.ConsIngress),
 		ConsEgress:  common.IFIDType(hop.ConsEgress),
 		ExpTime:     spath.ExpTimeType(hop.ExpTime),
-		Mac:         hop.MAC,
+		Mac:         hop.MAC[:3],
 	}
 	return hf.Pack()
 }
@@ -214,12 +221,14 @@ func (s *LegacyExtender) createHopF(ingress, egress common.IFIDType, prev common
 		ConsIngress: ingress,
 		ConsEgress:  egress,
 		ExpTime:     s.MaxExpTime(),
+		Mac:         make([]byte, 6),
 	}
 	if prev != nil {
 		// Do not include the flags of the hop field in the mac input.
 		prev = prev[1:]
 	}
-	hop.Mac = hop.CalcMac(s.MAC(), util.TimeToSecs(ts), prev)
+	mac := hop.CalcMac(s.MAC(), util.TimeToSecs(ts), prev)
+	copy(hop.Mac, mac)
 	return hop, nil
 }
 
@@ -250,8 +259,15 @@ func (s *DefaultExtender) Extend(ctx context.Context, pseg *seg.PathSegment,
 	if s.MTU == 0 {
 		return serrors.New("MTU not set")
 	}
+	firstHop := pseg.MaxIdx() < 0
+	if ingress == 0 && !firstHop {
+		return serrors.New("ingress must only be zero in first hop")
+	}
+	if ingress != 0 && firstHop {
+		return serrors.New("ingress must be zero in first hop", "ingress_id", ingress)
+	}
 	if ingress == 0 && egress == 0 {
-		return serrors.New("Ingress and egress must not be both 0")
+		return serrors.New("ingress and egress must not be both 0")
 	}
 	ts := pseg.Info.Timestamp
 

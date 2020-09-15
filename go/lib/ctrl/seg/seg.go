@@ -162,6 +162,9 @@ func (ps *PathSegment) Validate(validationMethod ValidationMethod) error {
 	if len(ps.ASEntries) == 0 {
 		return serrors.New("no AS entries")
 	}
+	if ingress := ps.ASEntries[0].HopEntry.HopField.ConsIngress; ingress != 0 {
+		return serrors.New("first hop with non-zero ingress interface", "ingress_id", ingress)
+	}
 	for i := range ps.ASEntries {
 		next := ps.ASEntries[i].Next
 		switch {
@@ -174,10 +177,25 @@ func (ps *PathSegment) Validate(validationMethod ValidationMethod) error {
 			if next.IsWildcard() {
 				return serrors.New("next ISD-AS of the last AS entry in a beacon must not be empty")
 			}
+			if egress := ps.ASEntries[i].HopEntry.HopField.ConsEgress; egress == 0 {
+				return serrors.New("last hop in beacon with zero egress interface")
+			}
 		default:
-			if !next.IsWildcard() {
+			if !next.IsZero() {
 				return serrors.New("next ISD-AS of last AS entry in a segment must be empty",
 					"next", next)
+			}
+			if egress := ps.ASEntries[i].HopEntry.HopField.ConsEgress; egress != 0 {
+				return serrors.New("last hop in segment with non-zero egress interface",
+					"egress_id", egress)
+			}
+		}
+		for j, peer := range ps.ASEntries[i].PeerEntries {
+			egPeer, egHop := peer.HopField.ConsEgress, ps.ASEntries[i].HopEntry.HopField.ConsEgress
+			if egPeer != egHop {
+				return serrors.New("egress interface of peer entry does not match hop entry",
+					"expected", egHop, "actual", egPeer, "as_entry_idx", i, "peer_entry_idx", j)
+
 			}
 		}
 	}

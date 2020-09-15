@@ -253,7 +253,7 @@ func TestRegistrarRun(t *testing.T) {
 					pathHopField, err := s.Addr.Path.GetHopField(s.Addr.Path.HopOff)
 					require.NoError(t, err)
 					segHopField := pseg.ASEntries[pseg.MaxIdx()].HopEntry.HopField
-					assert.Equal(t, pathHopField.Mac, segHopField.MAC)
+					assert.Equal(t, []byte(pathHopField.Mac), segHopField.MAC[:3])
 					assert.Equal(t, uint16(pathHopField.ConsIngress), segHopField.ConsIngress)
 					assert.Equal(t, uint16(pathHopField.ConsEgress), segHopField.ConsEgress)
 
