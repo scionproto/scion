@@ -564,8 +564,8 @@ r
     Unused and reserved for future use.
 
 (C)ontrol
-    This is a control plane packet. It is allowed to chop the path at its tail.
-    Also, the destination of any control packet is the COLIBRI service anycast address.
+    This is a control plane packet. On each oorder router it will be
+    forwarded to the COLIBRI anycast address.
 
 (R)everse
     This packet travels in the reverse direction of the reservation.
@@ -641,11 +641,6 @@ The MAC is used in the validation of a packet when it is being forwarded. It pro
       I.e. a Hop Field that was obtained in a path as the `i` th one,
       must always be used in the `i` th position.
 
-We want to allow, though, chopping the tail of a path when delivering
-control messages. This is useful to keep only one fast path for the
-border router, and to avoid special cases for control traffic, such
-as hop by hop extension packets. To that end, the `C` control flag allows
-"skipping" the inclusion of the path lenght when set.
 :math:`\sigma_i` is the hop field MAC calculated from the
 following `InputData`::
 
@@ -661,19 +656,10 @@ following `InputData`::
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |      BWCls    |      RLC      |  Idx  |  RPT  |       0       |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |C R S|   0          0      | MSegLen0  | MSegLen1  | MSegLen2  |
+    |  0  |         0           |  SegLen0  |  SegLen1  |  SegLen2  |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-MSegLenN
-    The masked value of SegLenN (aka :math:`\text{SegLen}_n`)
-    This value is just the original :math:`\text{SegLen}_n` bitwise-ANDed
-    with a 6 bit mask derived from the `C` flag:
-
-    .. math::
-        MASK = (2^6 - 1) \times (1 - C) \\
-        \text{MSegLen}_i = \text{SegLen}_i \land \text{MASK}
-
-Furthermore, `InputData` is extended with up to 32 bytes containing
+The `InputData` is extended with up to 32 bytes containing
 all the Segment IDs plus the corresponding padding.
 This protects the segment IDs from being modified, if they are present::
 
@@ -697,20 +683,14 @@ This protects the segment IDs from being modified, if they are present::
 The exact number of bytes appended to the input data depends on the length of
 the InfoField. Its computation is shown in :ref:`colibri-forwarding-process`.
 
-Finally, we append the `IngressID` and the `EgressID` from the previous
-hop field, if there was one:
-
-.. math::
-    \text{InputData} = \text{InputData} ||
-    \begin{cases}
-    \emptyset & \text{if CurrHF $ = 0$} \\
-    \text{HopField}_{\text{CurrHF}-1}[0:4]  & \text{otherwise} \\
-    \end{cases}
 
 We just compute :math:`\sigma_i` with the appropriate `InputData`:
 
 .. math::
     \sigma_i = \text{MAC}_{K_i} (\text{InputData})
+
+TODO: In a later iteration we want to use per packet MACs, as they will
+guarantee that the source actually sent the packet.
 
 
 .. _colibri-forwarding-process:
@@ -775,7 +755,7 @@ Segment ID we are looking for.
 
 Now the computation can be done by substracting each :math:`\text{SegLen}_n`
 from `CurrHF`. When we find a negative number, we have found our segment.
-The tranfer ASes are located at the end of each segment, if this is not
+The transfer ASes are located at the end of each segment, if this is not
 the last segment.
 Pseudo code::
 
@@ -803,6 +783,9 @@ Pseudo code::
 
 Notes on the Control Plane
 -----------------------------
+TODO: we want to compute just one MAC flavor (the flags are not included in the computation).
+Is it feasible? What happens when R=1 ?
+
 For the simplicity in the BR forwarding to work out, we always include
 the hop fields in the direction of traversal, be it the reservation one,
 or its reverse.
@@ -843,7 +826,7 @@ Some improvements to do now, or postpone for later:
 
     - It would be nice to simplify the computation of the current segment ID.
       By just adding a 2 bit indicator of it, that the BR will modify every time
-      it forwards a packet.
+      it increments `CurrHF`.
     - Remove the Segment ID fields. For that, we have to ensure that end hosts
       that have a valid path for a reservation cannot clean it up in the
       COLIBRI service and obtain a new valid one. Then we can monitor only the E2E
