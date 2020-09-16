@@ -26,7 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
@@ -634,7 +633,7 @@ func (p PathProvider) GetPaths(src, dst addr.IA) PathSet {
 		var key strings.Builder
 		for _, ifid := range ifids {
 			ia := p.g.GetParent(ifid)
-			pathIntfs = append(pathIntfs, testPathIntf{ia: ia, ifid: ifid})
+			pathIntfs = append(pathIntfs, snet.PathInterface{IA: ia, ID: ifid})
 			key.WriteString(fmt.Sprintf("%s-%d", ia, ifid))
 		}
 		result[snet.PathFingerprint(key.String())] = &testPath{
@@ -651,14 +650,6 @@ type testPath struct {
 func (p *testPath) Interfaces() []snet.PathInterface {
 	return p.interfaces
 }
-
-type testPathIntf struct {
-	ia   addr.IA
-	ifid common.IFIDType
-}
-
-func (i testPathIntf) ID() common.IFIDType { return i.ifid }
-func (i testPathIntf) IA() addr.IA         { return i.ia }
 
 func mustHopPredicate(t *testing.T, str string) *HopPredicate {
 	hp, err := HopPredicateFromString(str)

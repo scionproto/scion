@@ -55,14 +55,16 @@ type Path interface {
 	Copy() Path
 }
 
-// PathInterface is an interface of the path. This is currently an interface so
-// that packages which can not depend on snet can still implement the snet.Path
-// interface.
-type PathInterface interface {
+// PathInterface is an interface of the path.
+type PathInterface struct {
 	// ID is the ID of the interface.
-	ID() common.IFIDType
+	ID common.IFIDType
 	// IA is the ISD AS identifier of the interface.
-	IA() addr.IA
+	IA addr.IA
+}
+
+func (iface PathInterface) String() string {
+	return fmt.Sprintf("%s#%d", iface.IA, iface.ID)
 }
 
 // PathMetadata contains supplementary information about a path.
@@ -94,8 +96,8 @@ func Fingerprint(path Fingerprinter) PathFingerprint {
 	}
 	h := sha256.New()
 	for _, intf := range interfaces {
-		binary.Write(h, binary.BigEndian, intf.IA().IAInt())
-		binary.Write(h, binary.BigEndian, intf.ID())
+		binary.Write(h, binary.BigEndian, intf.IA.IAInt())
+		binary.Write(h, binary.BigEndian, intf.ID)
 	}
 	return PathFingerprint(h.Sum(nil))
 }

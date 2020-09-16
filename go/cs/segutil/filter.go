@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathpol"
@@ -58,7 +57,7 @@ func segsToPs(segs seg.Segments, dir Direction) pathpol.PathSet {
 	ps := make(pathpol.PathSet, len(segs))
 	for _, seg := range segs {
 		sw := wrap(seg, dir)
-		ps[sw.Fingerprint()] = sw
+		ps[sw.key] = sw
 	}
 	return ps
 }
@@ -92,9 +91,9 @@ func wrap(seg *seg.PathSegment, dir Direction) segWrap {
 
 		for _, ifid := range interfaces {
 			if ifid != 0 {
-				intfs = append(intfs, pathInterface{
-					ia:   asEntry.Local,
-					ifid: common.IFIDType(ifid),
+				intfs = append(intfs, snet.PathInterface{
+					IA: asEntry.Local,
+					ID: common.IFIDType(ifid),
 				})
 				keyParts = append(keyParts, fmt.Sprintf("%s#%d", asEntry.Local, ifid))
 			}
@@ -113,13 +112,4 @@ func wrap(seg *seg.PathSegment, dir Direction) segWrap {
 	}
 }
 
-func (s segWrap) Interfaces() []snet.PathInterface  { return s.intfs }
-func (s segWrap) Fingerprint() snet.PathFingerprint { return s.key }
-
-type pathInterface struct {
-	ia   addr.IA
-	ifid common.IFIDType
-}
-
-func (i pathInterface) IA() addr.IA         { return i.ia }
-func (i pathInterface) ID() common.IFIDType { return i.ifid }
+func (s segWrap) Interfaces() []snet.PathInterface { return s.intfs }

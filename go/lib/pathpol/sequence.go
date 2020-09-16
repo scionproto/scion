@@ -91,13 +91,13 @@ func (s *Sequence) Eval(inputSet PathSet) PathSet {
 		// one element in form <IA>#<inbound-interface>,<outbound-interface>,
 		// e.g. 64-ff00:0:112#3,5. For the source AS, the inbound interface will be
 		// zero. For destination AS, outbound interface will be zero.
-		p := fmt.Sprintf("%s#0,%d ", ifaces[0].IA(), ifaces[0].ID())
+		p := fmt.Sprintf("%s#0,%d ", ifaces[0].IA, ifaces[0].ID)
 		for i := 1; i < len(ifaces)-1; i += 2 {
-			p += fmt.Sprintf("%s#%d,%d ", ifaces[i].IA(),
-				ifaces[i].ID(), ifaces[i+1].ID())
+			p += fmt.Sprintf("%s#%d,%d ", ifaces[i].IA,
+				ifaces[i].ID, ifaces[i+1].ID)
 		}
-		p += fmt.Sprintf("%s#%d,0 ", ifaces[len(ifaces)-1].IA(),
-			ifaces[len(ifaces)-1].ID())
+		p += fmt.Sprintf("%s#%d,0 ", ifaces[len(ifaces)-1].IA,
+			ifaces[len(ifaces)-1].ID)
 		// Check whether the string matches the sequence regexp.
 		//fmt.Printf("EVAL: %s\n", p)
 		if s.re.MatchString(p) {

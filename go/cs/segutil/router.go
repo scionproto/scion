@@ -84,13 +84,13 @@ func (r *Router) translate(comb *combinator.Path, dst addr.IA) (path, error) {
 	} else {
 		sp = spath.NewV2(buf.Bytes(), false)
 	}
-	nextHop, ok := r.Pather.TopoProvider.Get().UnderlayNextHop(comb.Interfaces[0].IfID)
+	nextHop, ok := r.Pather.TopoProvider.Get().UnderlayNextHop(comb.Interfaces[0].ID)
 	if !ok {
 		return path{}, serrors.New("Unable to find first-hop BR for path",
-			"ifid", comb.Interfaces[0].IfID)
+			"ifid", comb.Interfaces[0].ID)
 	}
 	p := path{
-		interfaces: make([]pathInterface, 0, len(comb.Interfaces)),
+		interfaces: make([]snet.PathInterface, len(comb.Interfaces)),
 		underlay:   nextHop,
 		spath:      sp,
 		metadata: pathMetadata{
@@ -98,14 +98,12 @@ func (r *Router) translate(comb *combinator.Path, dst addr.IA) (path, error) {
 			expiry: comb.ComputeExpTime(),
 		},
 	}
-	for _, intf := range comb.Interfaces {
-		p.interfaces = append(p.interfaces, pathInterface{ia: intf.IA(), ifid: intf.ID()})
-	}
+	copy(p.interfaces, comb.Interfaces)
 	return p, nil
 }
 
 type path struct {
-	interfaces []pathInterface
+	interfaces []snet.PathInterface
 	underlay   *net.UDPAddr
 	spath      *spath.Path
 	dst        addr.IA
@@ -150,7 +148,7 @@ func (p path) Destination() addr.IA {
 	if len(p.interfaces) == 0 {
 		return p.dst
 	}
-	return p.interfaces[len(p.interfaces)-1].IA()
+	return p.interfaces[len(p.interfaces)-1].IA
 }
 
 func (p path) Metadata() snet.PathMetadata {
@@ -178,14 +176,14 @@ func (p path) fmtInterfaces() []string {
 		return hops
 	}
 	intf := p.interfaces[0]
-	hops = append(hops, fmt.Sprintf("%s %d", intf.IA(), intf.ID()))
+	hops = append(hops, fmt.Sprintf("%s %d", intf.IA, intf.ID))
 	for i := 1; i < len(p.interfaces)-1; i += 2 {
 		inIntf := p.interfaces[i]
 		outIntf := p.interfaces[i+1]
-		hops = append(hops, fmt.Sprintf("%d %s %d", inIntf.ID(), inIntf.IA(), outIntf.ID()))
+		hops = append(hops, fmt.Sprintf("%d %s %d", inIntf.ID, inIntf.IA, outIntf.ID))
 	}
 	intf = p.interfaces[len(p.interfaces)-1]
-	hops = append(hops, fmt.Sprintf("%d %s", intf.ID(), intf.IA()))
+	hops = append(hops, fmt.Sprintf("%d %s", intf.ID, intf.IA))
 	return hops
 }
 

@@ -32,8 +32,8 @@ func TestJSONConversion(t *testing.T) {
 				Paths: []*fake.Path{
 					{
 						JSONInterfaces: []fake.PathInterface{
-							{JSONIA: xtest.MustParseIA("1-ff00:0:ffff"), JSONID: 1},
-							{JSONIA: xtest.MustParseIA("1-ff00:0:1"), JSONID: 1},
+							{IA: xtest.MustParseIA("1-ff00:0:ffff"), ID: 1},
+							{IA: xtest.MustParseIA("1-ff00:0:1"), ID: 1},
 						},
 						JSONNextHop: &fake.UDPAddr{
 							IP:   net.IP{192, 168, 0, 1},
@@ -73,8 +73,8 @@ func TestPaths(t *testing.T) {
 				Paths: []*fake.Path{
 					{
 						JSONInterfaces: []fake.PathInterface{
-							{JSONIA: xtest.MustParseIA("1-ff00:0:ffff"), JSONID: 1},
-							{JSONIA: xtest.MustParseIA("1-ff00:0:1"), JSONID: 1},
+							{IA: xtest.MustParseIA("1-ff00:0:ffff"), ID: 1},
+							{IA: xtest.MustParseIA("1-ff00:0:1"), ID: 1},
 						},
 						JSONNextHop: &fake.UDPAddr{
 							IP:   net.IP{10, 0, 0, 1},
@@ -89,8 +89,8 @@ func TestPaths(t *testing.T) {
 				Paths: []*fake.Path{
 					{
 						JSONInterfaces: []fake.PathInterface{
-							{JSONIA: xtest.MustParseIA("1-ff00:0:ffff"), JSONID: 1},
-							{JSONIA: xtest.MustParseIA("2-ff00:0:2"), JSONID: 1},
+							{IA: xtest.MustParseIA("1-ff00:0:ffff"), ID: 1},
+							{IA: xtest.MustParseIA("2-ff00:0:2"), ID: 1},
 						},
 						JSONNextHop: &fake.UDPAddr{
 							IP:   net.IP{10, 0, 0, 2},
@@ -118,7 +118,7 @@ func TestPaths(t *testing.T) {
 	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 1}, Port: 80}, paths[0].UnderlayNextHop())
 	assert.Equal(t, fake.DummyPath(), paths[0].Path())
 	assert.Equal(t, 2, len(paths[0].Interfaces()))
-	assert.Equal(t, paths[0].Destination(), paths[0].Interfaces()[1].IA())
+	assert.Equal(t, paths[0].Destination(), paths[0].Interfaces()[1].IA)
 	assert.Equal(t, xtest.MustParseIA("1-ff00:0:1"), paths[0].Destination())
 	assert.Equal(t, uint16(1472), paths[0].Metadata().MTU())
 	// path valid for more than an hour, but less than three
@@ -141,7 +141,7 @@ func TestPaths(t *testing.T) {
 	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 2}, Port: 80}, paths[0].UnderlayNextHop())
 	assert.Equal(t, fake.DummyPath(), paths[0].Path())
 	assert.Equal(t, 2, len(paths[0].Interfaces()))
-	assert.Equal(t, paths[0].Destination(), paths[0].Interfaces()[1].IA())
+	assert.Equal(t, paths[0].Destination(), paths[0].Interfaces()[1].IA)
 	assert.Equal(t, xtest.MustParseIA("2-ff00:0:2"), paths[0].Destination())
 	assert.Equal(t, uint16(1472), paths[0].Metadata().MTU())
 	// path valid for more than two hours, but less than four
@@ -152,8 +152,8 @@ func TestPaths(t *testing.T) {
 func TestPathCopy(t *testing.T) {
 	path := fake.Path{
 		JSONInterfaces: []fake.PathInterface{
-			{JSONIA: xtest.MustParseIA("1-ff00:0:ffff"), JSONID: 1},
-			{JSONIA: xtest.MustParseIA("1-ff00:0:1"), JSONID: 1},
+			{IA: xtest.MustParseIA("1-ff00:0:ffff"), ID: 1},
+			{IA: xtest.MustParseIA("1-ff00:0:1"), ID: 1},
 		},
 		JSONNextHop: &fake.UDPAddr{
 			IP:   net.IP{192, 168, 0, 1},

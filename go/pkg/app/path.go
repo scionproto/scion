@@ -33,10 +33,10 @@ func SortPaths(paths []snet.Path) {
 			return len(intfA) < len(intfB)
 		}
 		for i := range intfA {
-			if iaA, iaB := intfA[i].IA().IAInt(), intfA[i].IA().IAInt(); iaA != iaB {
+			if iaA, iaB := intfA[i].IA.IAInt(), intfA[i].IA.IAInt(); iaA != iaB {
 				return iaA < iaB
 			}
-			if idA, idB := intfA[i].ID(), intfB[i].ID(); idA != idB {
+			if idA, idB := intfA[i].ID, intfB[i].ID; idA != idB {
 				return idA < idB
 			}
 		}
@@ -105,22 +105,22 @@ func coloredHops(path snet.Path, opts colorOptions) []string {
 	var hops []string
 	intf := intfs[0]
 	hops = append(hops, opts.values.Sprintf("%s %s",
-		opts.values.Sprint(intf.IA()),
-		opts.intf.Sprint(intf.ID()),
+		opts.values.Sprint(intf.IA),
+		opts.intf.Sprint(intf.ID),
 	))
 	for i := 1; i < len(intfs)-1; i += 2 {
 		inIntf := intfs[i]
 		outIntf := intfs[i+1]
 		hops = append(hops, opts.values.Sprintf("%s %s %s",
-			opts.intf.Sprint(inIntf.ID()),
-			opts.values.Sprint(inIntf.IA()),
-			opts.intf.Sprint(outIntf.ID()),
+			opts.intf.Sprint(inIntf.ID),
+			opts.values.Sprint(inIntf.IA),
+			opts.intf.Sprint(outIntf.ID),
 		))
 	}
 	intf = intfs[len(intfs)-1]
 	hops = append(hops, opts.values.Sprintf("%s %s",
-		opts.intf.Sprint(intf.ID()),
-		opts.values.Sprint(intf.IA()),
+		opts.intf.Sprint(intf.ID),
+		opts.values.Sprint(intf.IA),
 	))
 	return hops
 }

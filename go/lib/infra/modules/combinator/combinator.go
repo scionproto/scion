@@ -32,10 +32,10 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
@@ -95,7 +95,7 @@ type Path struct {
 	Segments   []*Segment
 	Weight     int
 	Mtu        uint16
-	Interfaces []sciond.PathInterface
+	Interfaces []snet.PathInterface
 	StaticInfo *PathMetadata
 
 	HeaderV2 bool
@@ -124,7 +124,7 @@ func (p *Path) reverseDownSegment() {
 }
 
 func (p *Path) aggregateInterfaces() {
-	p.Interfaces = []sciond.PathInterface{}
+	p.Interfaces = []snet.PathInterface{}
 	for _, segment := range p.Segments {
 		p.Interfaces = append(p.Interfaces, segment.Interfaces...)
 	}
@@ -228,7 +228,7 @@ type Segment struct {
 	InfoField  *InfoField
 	HopFields  []*HopField
 	Type       proto.PathSegType
-	Interfaces []sciond.PathInterface
+	Interfaces []snet.PathInterface
 }
 
 // initInfoFieldFrom copies the info field in pathSegment, and sets it as the
@@ -336,8 +336,8 @@ func FilterLongPaths(paths []*Path) []*Path {
 		long := false
 		iaCounts := make(map[addr.IA]int)
 		for _, iface := range path.Interfaces {
-			iaCounts[iface.IA()]++
-			if iaCounts[iface.IA()] > 2 {
+			iaCounts[iface.IA]++
+			if iaCounts[iface.IA] > 2 {
 				long = true
 				break
 			}

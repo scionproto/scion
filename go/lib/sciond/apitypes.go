@@ -107,60 +107,12 @@ func protoSVCToAddr(svc proto.ServiceType) addr.HostSVC {
 }
 
 type Path struct {
-	interfaces []pathInterface
+	interfaces []snet.PathInterface
 	underlay   *net.UDPAddr
 	spath      *spath.Path
 	mtu        uint16
 	expiry     time.Time
 	dst        addr.IA
-}
-
-func pathReplyToPaths(pathReply *PathReply, dst addr.IA) ([]snet.Path, error) {
-	if pathReply.ErrorCode != ErrorOk {
-		return nil, serrors.New("Path lookup had an error", "err_code", pathReply.ErrorCode)
-	}
-	paths := make([]snet.Path, 0, len(pathReply.Entries))
-	for _, pe := range pathReply.Entries {
-		p, err := pathReplyEntryToPath(pe, dst)
-		if err != nil {
-			return nil, serrors.WrapStr("invalid path received", err)
-		}
-		paths = append(paths, p)
-	}
-	return paths, nil
-}
-
-func pathReplyEntryToPath(pe PathReplyEntry, dst addr.IA) (Path, error) {
-	if len(pe.Path.Interfaces) == 0 {
-		return Path{
-			dst:    dst,
-			mtu:    pe.Path.Mtu,
-			expiry: pe.Path.Expiry(),
-		}, nil
-	}
-
-	var sp *spath.Path
-	if !pe.Path.HeaderV2 {
-		sp = spath.New(pe.Path.FwdPath)
-		if err := sp.InitOffsets(); err != nil {
-			return Path{}, serrors.WrapStr("path error", err)
-		}
-	} else {
-		sp = spath.NewV2(pe.Path.FwdPath, false)
-	}
-
-	underlayAddr := pe.HostInfo.Underlay()
-	p := Path{
-		interfaces: make([]pathInterface, 0, len(pe.Path.Interfaces)),
-		underlay:   underlayAddr,
-		spath:      sp,
-		mtu:        pe.Path.Mtu,
-		expiry:     pe.Path.Expiry(),
-	}
-	for _, intf := range pe.Path.Interfaces {
-		p.interfaces = append(p.interfaces, pathInterface{ia: intf.IA(), id: intf.ID()})
-	}
-	return p, nil
 }
 
 func (p Path) UnderlayNextHop() *net.UDPAddr {
@@ -196,7 +148,7 @@ func (p Path) Destination() addr.IA {
 	if len(p.interfaces) == 0 {
 		return p.dst
 	}
-	return p.interfaces[len(p.interfaces)-1].IA()
+	return p.interfaces[len(p.interfaces)-1].IA
 }
 
 func (p Path) Metadata() snet.PathMetadata {
@@ -233,21 +185,13 @@ func (p Path) fmtInterfaces() []string {
 		return hops
 	}
 	intf := p.interfaces[0]
-	hops = append(hops, fmt.Sprintf("%s %d", intf.IA(), intf.ID()))
+	hops = append(hops, fmt.Sprintf("%s %d", intf.IA, intf.ID))
 	for i := 1; i < len(p.interfaces)-1; i += 2 {
 		inIntf := p.interfaces[i]
 		outIntf := p.interfaces[i+1]
-		hops = append(hops, fmt.Sprintf("%d %s %d", inIntf.ID(), inIntf.IA(), outIntf.ID()))
+		hops = append(hops, fmt.Sprintf("%d %s %d", inIntf.ID, inIntf.IA, outIntf.ID))
 	}
 	intf = p.interfaces[len(p.interfaces)-1]
-	hops = append(hops, fmt.Sprintf("%d %s", intf.ID(), intf.IA()))
+	hops = append(hops, fmt.Sprintf("%d %s", intf.ID, intf.IA))
 	return hops
 }
-
-type pathInterface struct {
-	id common.IFIDType
-	ia addr.IA
-}
-
-func (i pathInterface) ID() common.IFIDType { return i.id }
-func (i pathInterface) IA() addr.IA         { return i.ia }

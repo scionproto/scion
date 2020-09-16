@@ -225,7 +225,7 @@ func TestWatchFilter(t *testing.T) {
 			replySet := make(pathpol.PathSet)
 			for key, v := range ps {
 				for _, intf := range v.Interfaces() {
-					if intf.IA().Equal(src) && intf.ID() == 105 {
+					if intf.IA.Equal(src) && intf.ID == 105 {
 						replySet[key] = v
 						break
 					}

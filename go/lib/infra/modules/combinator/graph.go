@@ -23,7 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -288,7 +288,7 @@ func (solution *PathSolution) getFwdPathMetadata() *Path {
 	}
 	for _, solEdge := range solution.edges {
 		var hops []*HopField
-		var intfs []sciond.PathInterface
+		var intfs []snet.PathInterface
 
 		// Go through each ASEntry, starting from the last one, until we
 		// find a shortcut (which can be 0, meaning the end of the segment).
@@ -327,16 +327,16 @@ func (solution *PathSolution) getFwdPathMetadata() *Path {
 			// Segment is traversed in reverse construction direction.
 			// Only include non-zero interfaces.
 			if hopField.ConsEgress != 0 {
-				intfs = append(intfs, sciond.PathInterface{
-					RawIsdas: asEntry.Local.IAInt(),
-					IfID:     common.IFIDType(hopField.ConsEgress),
+				intfs = append(intfs, snet.PathInterface{
+					IA: asEntry.Local,
+					ID: common.IFIDType(hopField.ConsEgress),
 				})
 			}
 			// In a non-peer shortcut the AS is not traversed completely.
 			if hopField.ConsIngress != 0 && (!isShortcut || isPeer) {
-				intfs = append(intfs, sciond.PathInterface{
-					RawIsdas: asEntry.Local.IAInt(),
-					IfID:     common.IFIDType(hopField.ConsIngress),
+				intfs = append(intfs, snet.PathInterface{
+					IA: asEntry.Local,
+					ID: common.IFIDType(hopField.ConsIngress),
 				})
 			}
 			hops = append(hops, hopField)
@@ -549,15 +549,15 @@ func minUint16(x, y uint16) uint16 {
 	return y
 }
 
-func getPathInterfaces(ia addr.IA, inIFID, outIFID common.IFIDType) []sciond.PathInterface {
-	var result []sciond.PathInterface
+func getPathInterfaces(ia addr.IA, inIFID, outIFID common.IFIDType) []snet.PathInterface {
+	var result []snet.PathInterface
 	if inIFID != 0 {
 		result = append(result,
-			sciond.PathInterface{RawIsdas: ia.IAInt(), IfID: inIFID})
+			snet.PathInterface{IA: ia, ID: inIFID})
 	}
 	if outIFID != 0 {
 		result = append(result,
-			sciond.PathInterface{RawIsdas: ia.IAInt(), IfID: outIFID})
+			snet.PathInterface{IA: ia, ID: outIFID})
 	}
 	return result
 }

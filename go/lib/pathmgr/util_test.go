@@ -22,7 +22,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
@@ -46,9 +45,9 @@ func createPath(t testing.TB, ctrl *gomock.Controller, desc string) snet.Path {
 		if len(tokens) != 2 {
 			t.Fatalf("Invalid path description: %s", desc)
 		}
-		interfaces = append(interfaces, intf{
-			ia: xtest.MustParseIA(tokens[0]),
-			id: mustIfID(t, tokens[1]),
+		interfaces = append(interfaces, snet.PathInterface{
+			IA: xtest.MustParseIA(tokens[0]),
+			ID: mustIfID(t, tokens[1]),
 		})
 	}
 	path.EXPECT().Interfaces().Return(interfaces).AnyTimes()
@@ -62,11 +61,3 @@ func mustIfID(t testing.TB, s string) common.IFIDType {
 	}
 	return common.IFIDType(ifID)
 }
-
-type intf struct {
-	ia addr.IA
-	id common.IFIDType
-}
-
-func (i intf) IA() addr.IA         { return i.ia }
-func (i intf) ID() common.IFIDType { return i.id }

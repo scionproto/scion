@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hostinfo"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -107,7 +108,7 @@ func (e *PathReplyEntry) String() string {
 type FwdPathMeta struct {
 	FwdPath    []byte
 	Mtu        uint16
-	Interfaces []PathInterface
+	Interfaces []snet.PathInterface
 	ExpTime    uint32
 
 	HeaderV2 bool
@@ -118,7 +119,7 @@ func (fpm *FwdPathMeta) SrcIA() addr.IA {
 	if len(ifaces) == 0 {
 		return addr.IA{}
 	}
-	return ifaces[0].IA()
+	return ifaces[0].IA
 }
 
 func (fpm *FwdPathMeta) DstIA() addr.IA {
@@ -126,7 +127,7 @@ func (fpm *FwdPathMeta) DstIA() addr.IA {
 	if len(ifaces) == 0 {
 		return addr.IA{}
 	}
-	return ifaces[len(ifaces)-1].IA()
+	return ifaces[len(ifaces)-1].IA
 }
 
 func (fpm *FwdPathMeta) Expiry() time.Time {
@@ -140,7 +141,7 @@ func (fpm *FwdPathMeta) Copy() *FwdPathMeta {
 	res := &FwdPathMeta{Mtu: fpm.Mtu, ExpTime: fpm.ExpTime, HeaderV2: fpm.HeaderV2}
 	res.FwdPath = common.CloneByteSlice(fpm.FwdPath)
 	if fpm.Interfaces != nil {
-		res.Interfaces = make([]PathInterface, len(fpm.Interfaces))
+		res.Interfaces = make([]snet.PathInterface, len(fpm.Interfaces))
 		copy(res.Interfaces, fpm.Interfaces)
 	}
 	return res
@@ -157,39 +158,15 @@ func (fpm *FwdPathMeta) fmtIfaces() []string {
 		return hops
 	}
 	intf := fpm.Interfaces[0]
-	hops = append(hops, fmt.Sprintf("%s %d", intf.IA(), intf.IfID))
+	hops = append(hops, fmt.Sprintf("%s %d", intf.IA, intf.ID))
 	for i := 1; i < len(fpm.Interfaces)-1; i += 2 {
 		inIntf := fpm.Interfaces[i]
 		outIntf := fpm.Interfaces[i+1]
-		hops = append(hops, fmt.Sprintf("%d %s %d", inIntf.IfID, inIntf.IA(), outIntf.IfID))
+		hops = append(hops, fmt.Sprintf("%d %s %d", inIntf.ID, inIntf.IA, outIntf.ID))
 	}
 	intf = fpm.Interfaces[len(fpm.Interfaces)-1]
-	hops = append(hops, fmt.Sprintf("%d %s", intf.IfID, intf.IA()))
+	hops = append(hops, fmt.Sprintf("%d %s", intf.ID, intf.IA))
 	return hops
-}
-
-type PathInterface struct {
-	RawIsdas addr.IAInt
-	IfID     common.IFIDType
-}
-
-func (iface PathInterface) IA() addr.IA {
-	return iface.RawIsdas.IA()
-}
-
-func (iface PathInterface) ID() common.IFIDType {
-	return iface.IfID
-}
-
-func (iface *PathInterface) Equal(other *PathInterface) bool {
-	if iface == nil || other == nil {
-		return iface == other
-	}
-	return iface.RawIsdas == other.RawIsdas && iface.IfID == other.IfID
-}
-
-func (iface PathInterface) String() string {
-	return fmt.Sprintf("%s#%d", iface.IA(), iface.IfID)
 }
 
 type RevReply struct {

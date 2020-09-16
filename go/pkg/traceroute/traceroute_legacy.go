@@ -241,7 +241,7 @@ func validate(pkt *spkt.ScnPkt, path snet.Path, id uint64) (*scmp.Hdr,
 		return scmpHdr, info, nil
 	}
 	for _, e := range path.Interfaces() {
-		if info.IA == e.IA() && info.IfID == e.ID() {
+		if info.IA == e.IA && info.IfID == e.ID {
 			return scmpHdr, info, nil
 		}
 	}

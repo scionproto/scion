@@ -218,7 +218,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			Hops:        []Hop{},
 		}
 		for _, hop := range path.Interfaces() {
-			rpath.Hops = append(rpath.Hops, Hop{IA: hop.IA(), IfID: hop.ID()})
+			rpath.Hops = append(rpath.Hops, Hop{IA: hop.IA, IfID: hop.ID})
 		}
 		if status, ok := statuses[pathprobe.PathKey(path)]; ok {
 			rpath.Status = strings.ToLower(string(status.Status))
