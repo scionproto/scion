@@ -854,7 +854,7 @@ func (p *scionPacketProcessor) validatePktLen() error {
 			TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
 				slayers.SCMPCodeInvalidPacketSize),
 		},
-		&slayers.SCMPParameterProblem{Pointer: 6},
+		&slayers.SCMPParameterProblem{Pointer: 0},
 		serrors.New("bad packet size",
 			"header", p.scionLayer.PayloadLen, "actual", len(p.scionLayer.Payload)),
 	)

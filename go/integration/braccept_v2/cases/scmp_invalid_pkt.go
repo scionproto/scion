@@ -157,7 +157,7 @@ func SCMPBadPktLen(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 	scmpH.SetNetworkLayerForChecksum(scionL)
 	scmpP := &slayers.SCMPParameterProblem{
-		Pointer: 6,
+		Pointer: 0,
 	}
 
 	// Skip Ethernet + IPv4 + UDP
@@ -310,7 +310,7 @@ func SCMPQuoteCut(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 	scmpH.SetNetworkLayerForChecksum(scionL)
 	scmpP := &slayers.SCMPParameterProblem{
-		Pointer: 6,
+		Pointer: 0,
 	}
 
 	// Skip Ethernet + IPv4 + UDP
@@ -412,7 +412,7 @@ func NoSCMPReplyForSCMPError(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 	scmpH.SetNetworkLayerForChecksum(scionL)
 	scmpP := &slayers.SCMPParameterProblem{
-		Pointer: 6,
+		Pointer: 0,
 	}
 
 	payload := []byte("QUOTED SCION PACKET")
