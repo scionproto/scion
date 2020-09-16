@@ -18,7 +18,7 @@ is a good place to start.
    PathService
    PathPolicy
    HiddenPaths
-   ColibriService
+   ColibriDesign
    uri
    grpc
 
