@@ -82,41 +82,35 @@ class SupervisorGenerator(object):
         return self._common_entry(
             name, ["bin/sciond", "--config", os.path.join(conf_dir, SD_CONFIG_NAME)])
 
+    def _dispatcher_entry(self, name, conf_dir):
+        return self._common_entry(
+            name, ["bin/dispatcher", "--config", os.path.join(conf_dir, DISP_CONFIG_NAME)])
+
     def _write_as_conf(self, topo_id, entries):
         config = configparser.ConfigParser(interpolation=None)
         names = []
         base = topo_id.base_dir(self.args.output_dir)
-        for elem, entry in sorted(entries, key=lambda x: x[0]):
+        for elem, entry in sorted(entries):
             names.append(elem)
-            self._write_elem_conf(elem, entry, os.path.join(base, f"supervisord-{elem}.conf"))
+            prog = self._common_entry(elem, entry)
+            if elem.startswith("br"):
+                prog['environment'] += ',GODEBUG="cgocheck=0"'
+            config["program:%s" % elem] = prog
+
         sd_name = "sd%s" % topo_id.file_fmt()
         names.append(sd_name)
         config["program:%s" % sd_name] = self._sciond_entry(sd_name, base)
+
         config["group:as%s" % topo_id.file_fmt()] = {
             "programs": ",".join(names)}
-        text = StringIO()
-        config.write(text)
-        conf_path = os.path.join(topo_id.base_dir(
-            self.args.output_dir), SUPERVISOR_CONF)
-        write_file(conf_path, text.getvalue())
-
-    def _write_elem_conf(self, elem, entry, path):
-        config = configparser.ConfigParser(interpolation=None)
-        prog = self._common_entry(elem, entry)
-        if elem.startswith("br"):
-            prog['environment'] += ',GODEBUG="cgocheck=0"'
-        config["program:%s" % elem] = prog
-        text = StringIO()
-        config.write(text)
-        write_file(path, text.getvalue())
+        self._write_config(config, os.path.join(base, SUPERVISOR_CONF))
 
     def _write_dispatcher_conf(self):
         elem = "dispatcher"
-        elem_dir = os.path.join(self.args.output_dir, elem)
-        config_file_path = os.path.join(elem_dir, DISP_CONFIG_NAME)
-        self._write_elem_conf(elem,
-                              ["bin/dispatcher", "--config", config_file_path],
-                              os.path.join(elem_dir, SUPERVISOR_CONF))
+        conf_dir = os.path.join(self.args.output_dir, elem)
+        config = configparser.ConfigParser(interpolation=None)
+        config["program:%s" % elem] = self._dispatcher_entry(elem, conf_dir)
+        self._write_config(config, os.path.join(conf_dir, SUPERVISOR_CONF))
 
     def _common_entry(self, name, cmd_args):
         entry = {
@@ -134,3 +128,8 @@ class SupervisorGenerator(object):
             entry['startsecs'] = 1
             entry['priority'] = 50
         return entry
+
+    def _write_config(self, config, path):
+        text = StringIO()
+        config.write(text)
+        write_file(path, text.getvalue())
