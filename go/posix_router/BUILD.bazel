@@ -4,7 +4,7 @@ load("//:scion.bzl", "scion_go_binary")
 go_library(
     name = "go_default_library",
     srcs = ["main.go"],
-    importpath = "github.com/scionproto/scion/go/border-router",
+    importpath = "github.com/scionproto/scion/go/posix_router",
     visibility = ["//visibility:private"],
     deps = [
         "//go/border/brconf:go_default_library",
@@ -23,7 +23,7 @@ go_library(
 )
 
 scion_go_binary(
-    name = "border-router",
+    name = "posix_router",
     embed = [":go_default_library"],
     visibility = ["//visibility:public"],
 )

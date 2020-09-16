@@ -58,7 +58,7 @@ class SupervisorGenerator(object):
     def _as_conf(self, topo, base):
         entries = []
         if FEATURE_HEADER_V2 in self.args.features:
-            entries.extend(self._br_entries(topo, "bin/border-router", base))
+            entries.extend(self._br_entries(topo, "bin/posix_router", base))
         else:
             entries.extend(self._br_entries(topo, "bin/border", base))
         entries.extend(self._control_service_entries(topo, base))
