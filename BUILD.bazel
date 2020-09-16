@@ -13,6 +13,7 @@ pkg_tar(
         "//go/border",
         "//go/cs",
         "//go/dispatcher",
+        "//go/posix_router",
         "//go/scion",
         "//go/scion-pki",
         "//go/sciond",

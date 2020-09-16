@@ -40,8 +40,8 @@ func main() {
 		config string
 	}
 	cmd := &cobra.Command{
-		Use:           "border-router",
-		Short:         "SCION border router",
+		Use:           "posix_router",
+		Short:         "SCION router",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		Args:          cobra.NoArgs,
