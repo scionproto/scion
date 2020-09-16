@@ -225,8 +225,7 @@ func (r *resolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo
 	}
 	// Each watcher contains a cache; purge paths matched by the revocation
 	// immediately from each cache.
-	pi := sciond.PathInterface{RawIsdas: revInfo.IA().IAInt(),
-		IfID: common.IFIDType(revInfo.IfID)}
+	pi := snet.PathInterface{IA: revInfo.IA(), ID: revInfo.IfID}
 	f := func(w *WatchRunner) {
 		pathsBeforeRev := w.sp.Load().APS
 		pathsAfterRev := dropRevoked(pathsBeforeRev, pi)
@@ -242,7 +241,7 @@ func (r *resolver) logger(ctx context.Context) log.Logger {
 	return log.FromCtx(ctx).New("lib", "PathResolver")
 }
 
-func dropRevoked(aps spathmeta.AppPathSet, pi sciond.PathInterface) spathmeta.AppPathSet {
+func dropRevoked(aps spathmeta.AppPathSet, pi snet.PathInterface) spathmeta.AppPathSet {
 	other := make(spathmeta.AppPathSet)
 	for key, path := range aps {
 		if !matches(path, pi) {
@@ -252,9 +251,9 @@ func dropRevoked(aps spathmeta.AppPathSet, pi sciond.PathInterface) spathmeta.Ap
 	return other
 }
 
-func matches(path snet.Path, predicatePI sciond.PathInterface) bool {
+func matches(path snet.Path, predicatePI snet.PathInterface) bool {
 	for _, pi := range path.Interfaces() {
-		if pi.IA().Equal(predicatePI.IA()) && pi.ID() == predicatePI.ID() {
+		if pi.IA.Equal(predicatePI.IA) && pi.ID == predicatePI.ID {
 			return true
 		}
 	}

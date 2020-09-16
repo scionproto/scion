@@ -126,7 +126,7 @@ func (p *Pather) filterRevoked(ctx context.Context,
 		for _, iface := range path.Interfaces {
 			// cache automatically expires outdated revocations every second,
 			// so a cache hit implies revocation is still active.
-			revs, err := p.RevCache.Get(ctx, revcache.SingleKey(iface.IA(), iface.IfID))
+			revs, err := p.RevCache.Get(ctx, revcache.SingleKey(iface.IA, iface.ID))
 			if err != nil {
 				logger.Error("[segfetcher.Pather] Failed to get revocation", "err", err)
 				// continue, the client might still get some usable paths like this.
