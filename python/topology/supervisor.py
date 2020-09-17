@@ -47,26 +47,40 @@ class SupervisorGenerator(object):
         self.args = args
 
     def generate(self):
-        self._write_dispatcher_conf()
-        for topo_id, topo in self.args.topo_dicts.items():
-            base = topo_id.base_dir(self.args.output_dir)
-            entries = self._as_conf(topo, base)
-            self._write_as_conf(topo_id, entries)
+        config = configparser.ConfigParser(interpolation=None)
 
-    def _as_conf(self, topo, base):
+        for topo_id, topo in self.args.topo_dicts.items():
+            self._add_as_config(config, topo_id, topo)
+        self._add_dispatcher(config)
+
+        self._write_config(config, os.path.join(self.args.output_dir, SUPERVISOR_CONF))
+
+    def _add_as_config(self, config, topo_id, topo):
+        entries = self._as_entries(topo_id, topo)
+        for elem, entry in sorted(entries):
+            self._add_prog(config, elem, entry)
+        config["group:as%s" % topo_id.file_fmt()] = {
+            "programs": ",".join(name for name, _ in sorted(entries))
+        }
+
+    def _as_entries(self, topo_id, topo):
+        base = topo_id.base_dir(self.args.output_dir)
         entries = []
         if FEATURE_HEADER_V2 in self.args.features:
             entries.extend(self._br_entries(topo, "bin/posix-router", base))
         else:
             entries.extend(self._br_entries(topo, "bin/border", base))
         entries.extend(self._control_service_entries(topo, base))
+        entries.append(self._sciond_entry(topo_id, base))
         return entries
 
     def _br_entries(self, topo, cmd, base):
         entries = []
         for k, v in topo.get("border_routers", {}).items():
             conf = os.path.join(base, f"{k}.toml")
-            entries.append((k, [cmd, "--config", conf]))
+            prog = self._common_entry(k, [cmd, "--config", conf])
+            prog['environment'] += ',GODEBUG="cgocheck=0"'
+            entries.append((k, prog))
         return entries
 
     def _control_service_entries(self, topo, base):
@@ -75,42 +89,28 @@ class SupervisorGenerator(object):
             # only a single control service instance per AS is currently supported
             if k.endswith("-1"):
                 conf = os.path.join(base, f"{k}.toml")
-                entries.append((k, ["bin/cs", "--config", conf]))
+                prog = self._common_entry(k, ["bin/cs", "--config", conf])
+                entries.append((k, prog))
         return entries
 
-    def _sciond_entry(self, name, conf_dir):
-        return self._common_entry(
-            name, ["bin/sciond", "--config", os.path.join(conf_dir, SD_CONFIG_NAME)])
-
-    def _dispatcher_entry(self, name, conf_dir):
-        return self._common_entry(
-            name, ["bin/dispatcher", "--config", os.path.join(conf_dir, DISP_CONFIG_NAME)])
-
-    def _write_as_conf(self, topo_id, entries):
-        config = configparser.ConfigParser(interpolation=None)
-        names = []
-        base = topo_id.base_dir(self.args.output_dir)
-        for elem, entry in sorted(entries):
-            names.append(elem)
-            prog = self._common_entry(elem, entry)
-            if elem.startswith("br"):
-                prog['environment'] += ',GODEBUG="cgocheck=0"'
-            config["program:%s" % elem] = prog
-
+    def _sciond_entry(self, topo_id, conf_dir):
         sd_name = "sd%s" % topo_id.file_fmt()
-        names.append(sd_name)
-        config["program:%s" % sd_name] = self._sciond_entry(sd_name, base)
+        cmd_args = ["bin/sciond", "--config", os.path.join(conf_dir, SD_CONFIG_NAME)]
+        return (sd_name, self._common_entry(sd_name, cmd_args))
 
-        config["group:as%s" % topo_id.file_fmt()] = {
-            "programs": ",".join(names)}
-        self._write_config(config, os.path.join(base, SUPERVISOR_CONF))
+    def _add_dispatcher(self, config):
+        name, entry = self._dispatcher_entry()
+        self._add_prog(config, name, entry)
 
-    def _write_dispatcher_conf(self):
-        elem = "dispatcher"
-        conf_dir = os.path.join(self.args.output_dir, elem)
-        config = configparser.ConfigParser(interpolation=None)
-        config["program:%s" % elem] = self._dispatcher_entry(elem, conf_dir)
-        self._write_config(config, os.path.join(conf_dir, SUPERVISOR_CONF))
+    def _dispatcher_entry(self):
+        name = "dispatcher"
+        conf_dir = os.path.join(self.args.output_dir, name)
+        cmd_args = ["bin/dispatcher", "--config", os.path.join(conf_dir, DISP_CONFIG_NAME)]
+        return (name, self._common_entry(name, cmd_args))
+
+
+    def _add_prog(self, config, name, entry):
+        config["program:%s" % name] = entry
 
     def _common_entry(self, name, cmd_args):
         entry = {
