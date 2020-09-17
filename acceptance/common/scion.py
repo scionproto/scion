@@ -171,8 +171,8 @@ def svc_names_from_path(dirs: List[LocalPath]) -> List[str]:
     """
     names = set()
     for d in dirs:
-        names.union(f.stem for f in d.list()
-                    if f.is_file() and f.suffix == '.toml')
+        names.update(f.stem for f in d.list()
+                     if f.is_file() and f.suffix == '.toml')
     return list(names)
 
 
