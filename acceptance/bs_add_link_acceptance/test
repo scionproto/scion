@@ -56,7 +56,7 @@ def topology_files() -> LocalPath:
     Return the paths to all topology files for beacon servers in
     AS 1-ff00:0:110 and 1-ff00:0:111.
     """
-    return local.path('gen/ISD1') // 'ASff00_0_11[0,1]/cs*/topology.json'
+    return local.path('gen/') // 'ASff00_0_11[0,1]/topology.json'
 
 
 @Test.subcommand('setup')
@@ -123,7 +123,7 @@ class TestRun(CmdBase):
         logger.info('Initial end2end failed as expected, restoring topologies')
         files = topology_files()
         self.restore_topologies(files)
-        names = svc_names_from_path(files)
+        names = svc_names_from_path([f.parent for f in files])
         logging.info('Reloading services: %s' % names)
         self.scion.reload_svc(names)
         time.sleep(2)

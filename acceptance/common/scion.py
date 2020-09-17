@@ -162,18 +162,17 @@ class SCIONSupervisor(SCION):
         self.end2end(*args, retcode=code)
 
 
-def svc_names_from_path(files: LocalPath) -> List[str]:
+def svc_names_from_path(dirs: List[LocalPath]) -> List[str]:
     """
-    Return all service names based on the path to a file in the gen directory.
-    E.g. gen/ISD1/ASff00_0_110/bs1-ff00_0_110/bs.toml will return
-    [bs1-ff00_0_110].
+    Return all service names based on the path to one or multiple AS directories
+    in the gen directory.
+    E.g. gen/ASff00_0_110/ with a the file gen/ASff00_0_110/bs1-ff00_0_110.toml
+    will return [bs1-ff00_0_110].
     """
     names = set()
-    for file in files:
-        if file.is_file():
-            names.add(file.dirname.name)
-        else:
-            names.add(file.name)
+    for d in dirs:
+        names.union(f.stem for f in d.list()
+                    if f.is_file() and f.suffix == '.toml')
     return list(names)
 
 
