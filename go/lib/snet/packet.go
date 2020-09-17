@@ -59,9 +59,9 @@ func (m UDPPayload) toLayers(scn *slayers.SCION) []gopacket.SerializableLayer {
 type SCMPPayload interface {
 	Payload
 	// Type returns the type of the SCMP message as defined in slayers.
-	Type() uint8
+	Type() slayers.SCMPType
 	// Code returns the code of the SCMP message as defined in slayers.
-	Code() uint8
+	Code() slayers.SCMPCode
 }
 
 // SCMPExternalInterfaceDown is the message that indicates that an interface is
@@ -83,10 +83,12 @@ func (m SCMPExternalInterfaceDown) toLayers(scn *slayers.SCION) []gopacket.Seria
 }
 
 // Type returns the SCMP type.
-func (SCMPExternalInterfaceDown) Type() uint8 { return slayers.SCMPTypeExternalInterfaceDown }
+func (SCMPExternalInterfaceDown) Type() slayers.SCMPType {
+	return slayers.SCMPTypeExternalInterfaceDown
+}
 
 // Code returns the SCMP code.
-func (SCMPExternalInterfaceDown) Code() uint8 { return 0 }
+func (SCMPExternalInterfaceDown) Code() slayers.SCMPCode { return 0 }
 
 // SCMPInternalConnectivityDown is the message that an internal interface is
 // down.
@@ -108,10 +110,12 @@ func (m SCMPInternalConnectivityDown) toLayers(scn *slayers.SCION) []gopacket.Se
 }
 
 // Type returns the SCMP type.
-func (SCMPInternalConnectivityDown) Type() uint8 { return slayers.SCMPTypeInternalConnectivityDown }
+func (SCMPInternalConnectivityDown) Type() slayers.SCMPType {
+	return slayers.SCMPTypeInternalConnectivityDown
+}
 
 // Code returns the SCMP code.
-func (SCMPInternalConnectivityDown) Code() uint8 { return 0 }
+func (SCMPInternalConnectivityDown) Code() slayers.SCMPCode { return 0 }
 
 // SCMPEchoRequest is the SCMP echo request payload.
 type SCMPEchoRequest struct {
@@ -131,10 +135,10 @@ func (m SCMPEchoRequest) toLayers(scn *slayers.SCION) []gopacket.SerializableLay
 }
 
 // Type returns the SCMP type.
-func (SCMPEchoRequest) Type() uint8 { return slayers.SCMPTypeEchoRequest }
+func (SCMPEchoRequest) Type() slayers.SCMPType { return slayers.SCMPTypeEchoRequest }
 
 // Code returns the SCMP code.
-func (SCMPEchoRequest) Code() uint8 { return 0 }
+func (SCMPEchoRequest) Code() slayers.SCMPCode { return 0 }
 
 // SCMPEchoReply is the SCMP echo reply payload.
 type SCMPEchoReply struct {
@@ -154,10 +158,10 @@ func (m SCMPEchoReply) toLayers(scn *slayers.SCION) []gopacket.SerializableLayer
 }
 
 // Type returns the SCMP type.
-func (SCMPEchoReply) Type() uint8 { return slayers.SCMPTypeEchoReply }
+func (SCMPEchoReply) Type() slayers.SCMPType { return slayers.SCMPTypeEchoReply }
 
 // Code returns the SCMP code.
-func (SCMPEchoReply) Code() uint8 { return 0 }
+func (SCMPEchoReply) Code() slayers.SCMPCode { return 0 }
 
 // SCMPTracerouteRequest is the SCMP traceroute request payload.
 type SCMPTracerouteRequest struct {
@@ -176,10 +180,10 @@ func (m SCMPTracerouteRequest) toLayers(scn *slayers.SCION) []gopacket.Serializa
 }
 
 // Type returns the SCMP type.
-func (SCMPTracerouteRequest) Type() uint8 { return slayers.SCMPTypeTracerouteRequest }
+func (SCMPTracerouteRequest) Type() slayers.SCMPType { return slayers.SCMPTypeTracerouteRequest }
 
 // Code returns the SCMP code.
-func (SCMPTracerouteRequest) Code() uint8 { return 0 }
+func (SCMPTracerouteRequest) Code() slayers.SCMPCode { return 0 }
 
 // SCMPTracerouteReply is the SCMP traceroute reply payload.
 type SCMPTracerouteReply struct {
@@ -202,10 +206,10 @@ func (m SCMPTracerouteReply) toLayers(scn *slayers.SCION) []gopacket.Serializabl
 }
 
 // Type returns the SCMP type.
-func (SCMPTracerouteReply) Type() uint8 { return slayers.SCMPTypeTracerouteReply }
+func (SCMPTracerouteReply) Type() slayers.SCMPType { return slayers.SCMPTypeTracerouteReply }
 
 // Code returns the SCMP code.
-func (SCMPTracerouteReply) Code() uint8 { return 0 }
+func (SCMPTracerouteReply) Code() slayers.SCMPCode { return 0 }
 
 func toLayers(scmpPld SCMPPayload,
 	scn *slayers.SCION, details gopacket.SerializableLayer,

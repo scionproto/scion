@@ -126,7 +126,7 @@ func (s *SCMP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 		df.SetTruncated()
 		return serrors.New("SCMP layer length is less then 4 bytes", "minimum", 4, "actual", size)
 	}
-	s.TypeCode = CreateSCMPTypeCode(data[0], data[1])
+	s.TypeCode = CreateSCMPTypeCode(SCMPType(data[0]), SCMPCode(data[1]))
 	s.Checksum = binary.BigEndian.Uint16(data[2:4])
 	s.BaseLayer = layers.BaseLayer{Contents: data[:4], Payload: data[4:]}
 	return nil

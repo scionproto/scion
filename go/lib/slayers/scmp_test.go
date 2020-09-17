@@ -33,7 +33,7 @@ func TestSerializeDeserialize(t *testing.T) {
 	foo := make([]byte, 2)
 	expected := slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0)
 	expected.SerializeTo(foo)
-	actual := slayers.CreateSCMPTypeCode(foo[0], foo[1])
+	actual := slayers.CreateSCMPTypeCode(slayers.SCMPType(foo[0]), slayers.SCMPCode(foo[1]))
 	assert.Equal(t, expected, actual)
 }
 
