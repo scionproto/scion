@@ -19,19 +19,16 @@ import json
 import time
 import toml
 import sys
-import yaml
 from http.client import HTTPConnection
 from typing import List
 
 from plumbum import local
 from plumbum.path.local import LocalPath
-from plumbum.commands.processes import ProcessExecutionError
 
 from acceptance.common.base import CmdBase, TestBase, TestState, set_name
 from acceptance.common.log import LogExec, init_log
-from acceptance.common.scion import sciond_addr, SCIONDocker
+from acceptance.common.scion import SCIONDocker
 from acceptance.common.tools import DC
-from python.lib.scion_addr import ISD_AS
 
 
 set_name(__file__)
@@ -76,7 +73,7 @@ class TestRun(CmdBase):
         logger.info('==> Generate TRC update')
         local['./bin/scion-pki']('testcrypto', 'update', '-o', 'gen')
 
-        target = 'gen/ISD1/ASff00_0_110/cs1-ff00_0_110-1/crypto/as'
+        target = 'gen/ASff00_0_110/cs1-ff00_0_110-1/crypto/as'
         logger.info('==> Copy to %s' % target)
         local['cp']('gen/trcs/ISD1-B1-S2.trc', target)
 

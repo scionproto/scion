@@ -76,8 +76,9 @@ class SIGGenerator(object):
             'networks': {},
             'volumes': [
                 self._disp_vol(topo_id),
-                '%s:/share/conf:rw' % os.path.join(base, 'disp_sig_%s' % topo_id.file_fmt()),
-            ]
+                '%s:/share/conf:rw' % base,
+            ],
+            'command': ['--config', '/share/conf/disp_sig_%s.toml' % topo_id.file_fmt()],
         }
 
         net = self.args.networks['sig%s' % topo_id.file_fmt()][0]
@@ -113,7 +114,7 @@ class SIGGenerator(object):
             'volumes': [
                 self._disp_vol(topo_id),
                 '/dev/net/tun:/dev/net/tun',
-                '%s/sig%s:/share/conf' % (base, topo_id.file_fmt()),
+                '%s:/share/conf' % base,
             ],
             'network_mode': 'service:%s' % disp_id,
         }
@@ -127,8 +128,8 @@ class SIGGenerator(object):
             net = self.args.networks['sig%s' % t_id.file_fmt()][0]
             sig_cfg['ASes'][str(t_id)]['Nets'].append(net['net'])
 
-        cfg = os.path.join(topo_id.base_dir(self.args.output_dir), 'sig%s' % topo_id.file_fmt(),
-                           "cfg.json")
+        cfg = os.path.join(topo_id.base_dir(self.args.output_dir),
+                           "sig.json")
         contents_json = json.dumps(sig_cfg, default=json_default, indent=2)
         write_file(cfg, contents_json + '\n')
 
@@ -149,7 +150,7 @@ class SIGGenerator(object):
         sig_conf = {
             'sig': {
                 'id': name,
-                'sig_config': 'conf/cfg.json',
+                'sig_config': 'conf/sig.json',
                 'ip': str(net[ipv]),
             },
             'sciond_connection': {
@@ -165,7 +166,7 @@ class SIGGenerator(object):
             },
             'features': self.args.features,
         }
-        path = os.path.join(topo_id.base_dir(self.args.output_dir), name, SIG_CONFIG_NAME)
+        path = os.path.join(topo_id.base_dir(self.args.output_dir), SIG_CONFIG_NAME)
         write_file(path, toml.dumps(sig_conf))
 
     def _disp_vol(self, topo_id):

@@ -270,15 +270,14 @@ class GoGenerator(object):
 
     def _gen_disp_docker(self):
         for topo_id, topo in self.args.topo_dicts.items():
-            elem = "disp_sig_%s" % topo_id.file_fmt()
-            elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), elem)
-            disp_conf = self._build_disp_conf(elem, topo_id)
-            write_file(os.path.join(elem_dir, DISP_CONFIG_NAME), toml.dumps(disp_conf))
-            for k in list(topo.get("border_routers", {})) + list(topo.get("control_service", {})):
+            base = topo_id.base_dir(self.args.output_dir)
+            elem_ids = ['sig_%s' % topo_id.file_fmt()] + \
+                list(topo.get("border_routers", {})) + \
+                list(topo.get("control_service", {}))
+            for k in elem_ids:
                 disp_id = 'disp_%s' % k
-                elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), disp_id)
                 disp_conf = self._build_disp_conf(disp_id, topo_id)
-                write_file(os.path.join(elem_dir, DISP_CONFIG_NAME), toml.dumps(disp_conf))
+                write_file(os.path.join(base, f'{disp_id}.toml'), toml.dumps(disp_conf))
 
     def _build_disp_conf(self, name, topo_id=None):
         prometheus_addr = prom_addr_dispatcher(self.args.docker, topo_id,

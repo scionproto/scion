@@ -74,21 +74,21 @@ class SvcNameFromPathTestCase(unittest.TestCase):
 
     def setUp(self):
         self.dir = local.path(tempfile.mkdtemp())
-        files = ['bs1/toml', 'bs1/topo', 'bs2/toml', 'cs1/toml']
+        files = ['AS1/bs1.toml', 'AS1/topology.json', 'AS2/bs2.toml', 'AS2/cs2.toml']
         self._touch_files(files)
 
     def tearDown(self):
         shutil.rmtree(self.dir)
 
-    def test_multiple_paths_same_name(self):
-        path = local.path(self.dir) // '*/*'
-        actual = svc_names_from_path(path)
-        self.assertEqual(set(actual), {'bs1', 'bs2', 'cs1'}, 'wrong service names')
-
     def test_directory(self):
-        path = local.path(self.dir) // 'bs*'
+        path = local.path(self.dir) / 'AS2'
+        actual = svc_names_from_path([path])
+        self.assertEqual(set(actual), {'bs2', 'cs2'}, 'wrong service names')
+
+    def test_directories(self):
+        path = local.path(self.dir) // 'AS*'
         actual = svc_names_from_path(path)
-        self.assertEqual(set(actual), {'bs1', 'bs2'}, 'wrong service names')
+        self.assertEqual(set(actual), {'bs1', 'bs2', 'cs2'}, 'wrong service names')
 
     def _touch_files(self, names: List[str]):
         for name in names:
