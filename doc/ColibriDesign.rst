@@ -114,7 +114,7 @@ The COLIBRI service is differentiated into these parts:
 * **periodic tasks** for segment reservation creation and renewal,
 * **reservation storage** for partial and committed reservations.
 
-.. image:: fig/colibri_srv/COS.png
+.. image:: fig/colibri/COS.png
 
 
 Operations for Segment Reservations
@@ -264,7 +264,7 @@ There are no restrictions of cardinality other than uniqueness and non null-ness
 but nothing like triggers on insertion are used. E.g. it is technically possible to link more than three
 segment reservations with a given end to end one. These cardinality restrictions are enforced by code.
 
-.. image:: fig/colibri_srv/DB.png
+.. image:: fig/colibri/DB.png
 
 Furthermore, there are some indices created to speed up lookups:
 
