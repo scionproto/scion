@@ -13,35 +13,29 @@ on the thesis by Dominik Roos with title
 Reservation Infrastructure". In this document we will explain
 the differences from that thesis.
 
+This document will briefly discuss how the COLIBRI packets are forwarded,
+and how the same type of COLIBRI packets are used to transport the
+control plane traffic.
+This document will dig deeper in the COLIBRI service itself, given a more
+detailed view of the operations it will perform for the control plane
+to work.
 
 
 
 Components
 ==========
-There are four main components that need to be modified or created: the colibri service itself,
-the border router, a monitoring system per AS, and ``sciond`` in the endhost:
+There are four main components that need to be modified or created: the
+colibri service itself, the border router, a monitoring system, and
+``sciond`` in the endhost:
 
-* **COLIBRI Service** Enables the COLIBRI control plane. Used to negotiate both segment and end to
-  end reservations.
-* **Border Router** Needs to forward the COLIBRI traffic with higher priority than best effort.
-  Needs to monitor COLIBRI traffic.
-  **monitoring** Does the accounting and policing. It monitors per flow packets when originating
-  in this AS, or stateless when they are only transit.
-* **sciond** Needs to expose a COLIBRI *API*. Needs to manage end to end reservations in behalf
-  of the applications.
-
-
-
-
-
-
-
-
-
-The components necessary for COLIBRI do not change:
-    - COLIBRI Service: The service in charge of handling the control plane.
-    - Border Router: Handles the data plane.
-    - Monitoring: Does the accounting and policing.
+* **COLIBRI Service**: Enables the COLIBRI control plane. Used to negotiate
+  both segment and end to end reservations.
+* **Border Router**: Needs to forward the COLIBRI traffic with higher
+  priority than best effort.
+* **monitoring** Does the accounting and policing. It monitors per flow
+  packets when originating in this AS, or stateless when they are only transit.
+* **sciond** Needs to expose a COLIBRI *API*. Needs to manage end to end
+  reservations in behalf of the applications.
 
 
 Data & Control Plane Transport
@@ -55,12 +49,15 @@ COLIBRI packets in the border router.
 
 Forwarding
 ----------------
+TODO
+
+Let's focus first on the forwarding of an E2E packet.
 - Segment Reservation
 - E2E Reservation
 
 MAC Computation
 ---------------
-
+TODO
 
 
 
@@ -95,9 +92,9 @@ Operations
 
 COLIBRI Service
 ===============
-The COLIBRI Service manages the reservation process of the COLIBRI QoS subsystem
-in SCION. It handles both the segment and end to end reservations (formerly known as steady and
-ephemeral reservations).
+The COLIBRI Service manages the reservation process of the COLIBRI QoS
+subsystem in SCION. It handles both the segment and end to end reservations
+(formerly known as steady and ephemeral reservations).
 
 The COLIBRI service is structured similarly to
 other existing Go infrastructure services. It reuses the following:
@@ -110,7 +107,8 @@ other existing Go infrastructure services. It reuses the following:
 The COLIBRI service is differentiated into these parts:
 
 * **configuration** specifying admission and reservation parameters for this AS,
-* **handlers** to handle incoming reservation requests (creation, tear down, etc.),
+* **handlers** to handle incoming reservation requests (creation,
+  tear down, etc.),
 * **periodic tasks** for segment reservation creation and renewal,
 * **reservation storage** for partial and committed reservations.
 
@@ -129,16 +127,20 @@ Responses travel in the reverse direction: from :math:`\text{AS}_{i+1}` to
 
 Setup a Segment Reservation
 ***************************
-The configuration specifies which segment reservations should be created from this AS to other
-ASes. Whenever that configuration changes, the service should be notified.
+The configuration specifies which segment reservations should be created from
+this AS to other ASes. Whenever that configuration changes, the service
+should be notified.
 
-#. The service triggers the creation of a new segment reservation at boot time and whenever
-   the segment reservation configuration file changes.
-#. The service reads the configuration file and creates a segment reservation request per each entry.
-    - The path used in the request must be obtained using the *path predicate* in the configuration.
-#. The store in the COLIBRI service saves the intermediate request and sends the request to the next AS
-   in the path.
-#. If there is a timeout, this store will send a cleanup request to the next AS in the path.
+#. The service triggers the creation of a new segment reservation at
+   boot time and whenever the segment reservation configuration file changes.
+#. The service reads the configuration file and creates a segment reservation
+   request per each entry.
+    - The path used in the request must be obtained using the *path predicate*
+      in the configuration.
+#. The store in the COLIBRI service saves the intermediate request and
+   sends the request to the next AS in the path.
+#. If there is a timeout, this store will send a cleanup request to the
+   next AS in the path.
 
 
 Handle a Setup Request
@@ -156,14 +158,15 @@ Handle a Setup Response
 ***********************
 #. The store saves the reservation as final.
 #. If this AS is the first one in the reservation path (aka
-   *resevation initiator*), the store sends an index confirmation request
+   *reservation initiator*), the store sends an index confirmation request
    to the next AS in the path.
 #. If this AS is the not the first one in the reservation path, the store
    sends a response message to the previous AS's COLIBRI service.
 
 Handle an Index Confirmation Request
 ************************************
-#. The store in the COLIBRI service checks that the appropriate reservation is already final.
+#. The store in the COLIBRI service checks that the appropriate reservation
+   is already final.
 #. The store modifies the reservation to be confirmed
 #. The COLIBRI service forwards the confirmation request.
 
@@ -174,27 +177,32 @@ Handle a Cleanup Request
 
 Handle a Teardown Request
 *************************
-#. The COLIBRI service checks the reservation is confirmed but has no allocated end to end reservations.
-#. The COLIBRI service checks there are no telescoped reservations using this segment reservation.
+#. The COLIBRI service checks the reservation is confirmed but has no
+   allocated end to end reservations.
+#. The COLIBRI service checks there are no telescoped reservations using
+   this segment reservation.
 #. The store removes the reservation.
 #. The COLIBRI service forwards the teardown request.
 
 Handle a Renewal Request
 ************************
 The renewal request handler is the same as the `handle a setup request`_.
-The renewal is initiated differently (by adding a new index to an existing reservation),
-but handled the same way.
+The renewal is initiated differently (by adding a new index to an existing
+reservation), but handled the same way.
 
 Renew a Segment Reservation
 ***************************
-#. The service triggers the renewal of the existing segment reservations with constant frequency.
-#. The store in the COLIBRI service retrieves each one of the reservations that originate in this AS.
-#. Per reservation retrieved, the store adds a new index to it and pushes it forward.
+#. The service triggers the renewal of the existing segment reservations
+   with constant frequency.
+#. The store in the COLIBRI service retrieves each one of the reservations
+   that originate in this AS.
+#. Per reservation retrieved, the store adds a new index to it and
+   pushes it forward.
 
 Handle a Reservation Query
 **************************
-#. The store in the COLIBRI service receives the query and returns the collection of segment reservations
-   matching it.
+#. The store in the COLIBRI service receives the query and returns the
+   collection of segment reservations matching it.
 
 
 
@@ -204,8 +212,8 @@ Operations for E2E Reservations
 Handle an E2E Setup Request
 ***************************
 #. The COLIBRI service queries the store to admit the reservation
-#. The store computes the allowed bandwidth (knowing the current segment reservation and
-   the existing E2E reservations in it).
+#. The store computes the allowed bandwidth (knowing the current segment
+   reservation and the existing E2E reservations in it).
 #. The store pushes forward the setup request.
 
 Handle an E2E Renewal Request
@@ -222,7 +230,8 @@ Interfaces of the COLIBRI Service
 ---------------------------------
 Main interfaces of the service.
 
-The Reservation Store in the COLIBRI service keeps track of the reservations created and accepted in this AS, both segment and E2E.
+The Reservation Store in the COLIBRI service keeps track of the reservations
+created and accepted in this AS, both segment and E2E.
 The store provides the following interface:
 
 .. code-block:: go
@@ -240,7 +249,8 @@ The store provides the following interface:
         CleanupE2EReservation(ctx context.Context, id E2EReservationID) error
     }
 
-The `sciond` endhost daemon will expose the *API* that enables the use of COLIBRI by applications:
+The `sciond` endhost daemon will expose the *API* that enables the use
+of COLIBRI by applications:
 
 .. code-block:: go
 
@@ -257,12 +267,16 @@ The `sciond` endhost daemon will expose the *API* that enables the use of COLIBR
 
 Reservation DB
 --------------
-There are two main parts in the DB: the segment reservation entities, and the end to end entities.
-To link the end to end reservations to the appropriate segment ones, a table is used.
+There are two main parts in the DB: the segment reservation entities, and the
+end to end entities.
+To link the end to end reservations to the appropriate segment ones,
+a table is used.
 
-There are no restrictions of cardinality other than uniqueness and non null-ness for some fields,
-but nothing like triggers on insertion are used. E.g. it is technically possible to link more than three
-segment reservations with a given end to end one. These cardinality restrictions are enforced by code.
+There are no restrictions of cardinality other than uniqueness and non
+null-ness for some fields, but nothing like triggers on insertion are used.
+E.g. it is technically possible to link more than three segment reservations
+with a given end to end one. These cardinality restrictions are enforced
+by code.
 
 .. image:: fig/colibri/DB.png
 
