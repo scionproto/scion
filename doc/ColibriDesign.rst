@@ -5,10 +5,6 @@ COLIBRI Design
 
 
 
-TODO: merge the design document here, and make it stand alone without references to Dominik's thesis.
-
-TODO: replace COS with COLIBRI service
-
 About this document
 ===================
 COLIBRI is a QoS system for SCION. This brief design document is based
@@ -50,6 +46,12 @@ The components necessary for COLIBRI do not change:
 
 Data & Control Plane Transport
 ==============================
+There is only one type of COLIBRI packet. It is mainly used by the data plane
+to transport user data in E2E reservations, between end host machines.
+But this COLIBRI packet is also used by the COLIBRI service when it needs to 
+transport requests and responses between COLIBRI services in different ASes.
+The advantage of this decision is the simplicity of the treatment of the 
+COLIBRI packets in the border router.
 
 Forwarding
 ----------------
@@ -134,18 +136,18 @@ ASes. Whenever that configuration changes, the service should be notified.
    the segment reservation configuration file changes.
 #. The service reads the configuration file and creates a segment reservation request per each entry.
     - The path used in the request must be obtained using the *path predicate* in the configuration.
-#. The store in the *COS* saves the intermediate request and sends the request to the next AS
+#. The store in the COLIBRI service saves the intermediate request and sends the request to the next AS
    in the path.
 #. If there is a timeout, this store will send a cleanup request to the next AS in the path.
 
 
 Handle a Setup Request
 **********************
-#. The *COS* store is queried to admit the segment reservation.
+#. The COLIBRI service store is queried to admit the segment reservation.
 #. The store decides the admission for the reservation (how much bandwidth).
    It uses the *traffic_matrix* from the configuration package.
 #. The store saves an intermediate reservation entry in the DB.
-#. If this AS is the last one in the path, the *COS* store saves the
+#. If this AS is the last one in the path, the COLIBRI service store saves the
    reservation as final and notifies the previous AS in the path with a
    reservation response.
 #. The store forwards the request with the decided bandwidth.
@@ -157,25 +159,25 @@ Handle a Setup Response
    *resevation initiator*), the store sends an index confirmation request
    to the next AS in the path.
 #. If this AS is the not the first one in the reservation path, the store
-   sends a response message to the previous AS's *COS*.
+   sends a response message to the previous AS's COLIBRI service.
 
 Handle an Index Confirmation Request
 ************************************
-#. The store in the *COS* checks that the appropriate reservation is already final.
+#. The store in the COLIBRI service checks that the appropriate reservation is already final.
 #. The store modifies the reservation to be confirmed
-#. The *COS* forwards the confirmation request.
+#. The COLIBRI service forwards the confirmation request.
 
 Handle a Cleanup Request
 ************************
-#. The *COS* removes the referenced reservation from its store.
-#. The *COS* forwards the cleanup request.
+#. The COLIBRI service removes the referenced reservation from its store.
+#. The COLIBRI service forwards the cleanup request.
 
 Handle a Teardown Request
 *************************
-#. The *COS* checks the reservation is confirmed but has no allocated end to end reservations.
-#. The *COS* checks there are no telescoped reservations using this segment reservation.
+#. The COLIBRI service checks the reservation is confirmed but has no allocated end to end reservations.
+#. The COLIBRI service checks there are no telescoped reservations using this segment reservation.
 #. The store removes the reservation.
-#. The *COS* forwards the teardown request.
+#. The COLIBRI service forwards the teardown request.
 
 Handle a Renewal Request
 ************************
@@ -186,12 +188,12 @@ but handled the same way.
 Renew a Segment Reservation
 ***************************
 #. The service triggers the renewal of the existing segment reservations with constant frequency.
-#. The store in the *COS* retrieves each one of the reservations that originate in this AS.
+#. The store in the COLIBRI service retrieves each one of the reservations that originate in this AS.
 #. Per reservation retrieved, the store adds a new index to it and pushes it forward.
 
 Handle a Reservation Query
 **************************
-#. The store in the *COS* receives the query and returns the collection of segment reservations
+#. The store in the COLIBRI service receives the query and returns the collection of segment reservations
    matching it.
 
 
@@ -201,7 +203,7 @@ Operations for E2E Reservations
 
 Handle an E2E Setup Request
 ***************************
-#. The *COS* queries the store to admit the reservation
+#. The COLIBRI service queries the store to admit the reservation
 #. The store computes the allowed bandwidth (knowing the current segment reservation and
    the existing E2E reservations in it).
 #. The store pushes forward the setup request.
@@ -212,15 +214,15 @@ The renewal request handler is the same as the `handle an e2e setup request`_.
 
 Handle an E2E Cleanup Request
 *****************************
-#. The *COS* removes the request from its store.
-#. The *COS* forwards the cleanup request.
+#. The COLIBRI service removes the request from its store.
+#. The COLIBRI service forwards the cleanup request.
 
 
 Interfaces of the COLIBRI Service
 ---------------------------------
 Main interfaces of the service.
 
-The Reservation Store in the COS keeps track of the reservations created and accepted in this AS, both segment and E2E.
+The Reservation Store in the COLIBRI service keeps track of the reservations created and accepted in this AS, both segment and E2E.
 The store provides the following interface:
 
 .. code-block:: go
