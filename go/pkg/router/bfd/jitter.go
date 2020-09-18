@@ -45,7 +45,7 @@ const (
 // periodic BFD Control packets should be reduced by. If gen is nil, math/rand is used
 // for randomness.
 func computeInterval(transmitInterval time.Duration, detectMult uint,
-	gen intervalGenerator) time.Duration {
+	gen IntervalGenerator) time.Duration {
 
 	if transmitInterval <= 0 {
 		panic("transmission interval must be > 0")
@@ -65,7 +65,7 @@ func computeInterval(transmitInterval time.Duration, detectMult uint,
 }
 
 // IntervalGenerator generates integers in [x, y). It panics if x < 0 or if y <= x.
-type intervalGenerator interface {
+type IntervalGenerator interface {
 	Generate(x, y int) int
 }
 
@@ -78,7 +78,7 @@ type defaultIntervalGenerator struct {
 	// Source is used for pseudorandomness. Implementations do
 	// not need to be strong enough for use in cryptography. If nil,
 	// the default random number generator in package rand is used.
-	Source source
+	Source Source
 }
 
 // Generate returns pseudorandom integers from [x, y). Generate panics
@@ -101,6 +101,6 @@ func (g defaultIntervalGenerator) intn(n int) int {
 
 // Source is an pseudorandom number generator interface that is
 // satisfied by package math/rand's Rand type.
-type source interface {
+type Source interface {
 	Intn(n int) int
 }
