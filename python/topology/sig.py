@@ -22,7 +22,6 @@ import toml
 from python.lib.util import write_file
 from python.topology.common import (
     ArgsBase,
-    DOCKER_USR_VOL,
     json_default,
     remote_nets,
     sciond_svc_name,
@@ -54,7 +53,7 @@ class SIGGenerator(object):
         """
         self.args = args
         self.dc_conf = args.dc_conf
-        self.user_spec = os.environ.get('SCION_USERSPEC', '$LOGNAME')
+        self.user = '%d:%d' % (os.getuid(), os.getgid())
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
         self.prefix = ''
 
@@ -73,12 +72,9 @@ class SIGGenerator(object):
         entry = {
             'image': 'scion_dispatcher',
             'container_name': 'scion_%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt()),
-            'environment': {
-                'SU_EXEC_USERSPEC': self.user_spec,
-            },
+            'user': self.user,
             'networks': {},
             'volumes': [
-                *DOCKER_USR_VOL,
                 self._disp_vol(topo_id),
                 '%s:/share/conf:rw' % os.path.join(base, 'disp_sig_%s' % topo_id.file_fmt()),
             ]
@@ -94,26 +90,32 @@ class SIGGenerator(object):
         self.dc_conf['volumes'][vol_name] = None
 
     def _sig_dc_conf(self, topo_id, base):
+        setup_name = 'scion_sig_setup_%s' % topo_id.file_fmt()
+        disp_id = 'scion_disp_sig_%s' % topo_id.file_fmt()
+        self.dc_conf['services'][setup_name] = {
+            'image': 'scion_tester:latest',
+            'depends_on': [disp_id],
+            'entrypoint': './sig_setup.sh',
+            'privileged': True,
+            'network_mode': 'service:%s' % disp_id,
+            'command': [remote_nets(self.args.networks, topo_id)],
+        }
         self.dc_conf['services']['scion_sig_%s' % topo_id.file_fmt()] = {
-            'image': 'scion_sig_acceptance:latest',
+            'image': 'scion_sig:latest',
             'container_name': 'scion_%ssig_%s' % (self.prefix, topo_id.file_fmt()),
             'depends_on': [
-                'scion_disp_sig_%s' % topo_id.file_fmt(),
-                sciond_svc_name(topo_id)
+                disp_id,
+                sciond_svc_name(topo_id),
+                setup_name,
             ],
             'cap_add': ['NET_ADMIN'],
-            'privileged': True,
-            'environment': {
-                'SU_EXEC_USERSPEC': self.user_spec,
-            },
+            'user': self.user,
             'volumes': [
-                *DOCKER_USR_VOL,
                 self._disp_vol(topo_id),
                 '/dev/net/tun:/dev/net/tun',
                 '%s/sig%s:/share/conf' % (base, topo_id.file_fmt()),
             ],
-            'network_mode': 'service:scion_disp_sig_%s' % topo_id.file_fmt(),
-            'command': [remote_nets(self.args.networks, topo_id)]
+            'network_mode': 'service:%s' % disp_id,
         }
 
     def _sig_json(self, topo_id):

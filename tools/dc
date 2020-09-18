@@ -59,9 +59,7 @@ cmd_stop() {
 }
 
 cmd_down() {
-    cmd_stop "*"
-    cmd_run utils_cleaner
-    cmd_scion down
+    cmd_scion down -v
 }
 
 cmd_run() {

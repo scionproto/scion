@@ -1,9 +1,9 @@
 version: "2.4"
 x-br: &br
   environment:
-    SU_EXEC_USERSPEC: "$LOGNAME"
     SCION_BR_DISABLE_IFSTATE_MGMT: ""
-  image: scion_border
+  user: "$USER_ID:$GROUP_ID"
+  image: scion_border_debug
   network_mode: "service:dispatcher"
   volumes:
     - "/etc/passwd:/etc/passwd:ro"
@@ -14,8 +14,7 @@ services:
   dispatcher:
     image: scion_dispatcher
     network_mode: none
-    environment:
-      SU_EXEC_USERSPEC: "$LOGNAME"
+    user: "$USER_ID:$GROUP_ID"
     volumes:
       - "/etc/passwd:/etc/passwd:ro"
       - "/etc/group:/etc/group:ro"

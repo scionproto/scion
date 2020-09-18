@@ -28,7 +28,6 @@ from python.topology.common import (
     ArgsTopoDicts,
     docker_host,
     docker_image,
-    DOCKER_USR_VOL,
     FEATURE_HEADER_V2,
     sciond_svc_name
 )
@@ -61,7 +60,7 @@ class DockerGenerator(object):
         self.elem_networks = {}
         self.bridges = {}
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
-        self.user_spec = os.environ.get('SCION_USERSPEC', '$LOGNAME')
+        self.user = '%d:%d' % (os.getuid(), os.getgid())
         self.prefix = 'scion_'
 
     def generate(self):
@@ -149,12 +148,9 @@ class DockerGenerator(object):
                 'depends_on': [
                     'scion_disp_%s' % disp_id,
                 ],
-                'environment': {
-                    'SU_EXEC_USERSPEC': self.user_spec,
-                },
                 'network_mode': 'service:scion_disp_%s' % disp_id,
+                'user': self.user,
                 'volumes': [
-                    *DOCKER_USR_VOL,
                     self._disp_vol(disp_id),
                     '%s:/share/conf:ro' % os.path.join(base, k)
                 ],
@@ -168,12 +164,9 @@ class DockerGenerator(object):
                 'image': docker_image(self.args, 'cs'),
                 'container_name': self.prefix + k,
                 'depends_on': ['scion_disp_%s' % k],
-                'environment': {
-                    'SU_EXEC_USERSPEC': self.user_spec,
-                },
                 'network_mode': 'service:scion_disp_%s' % k,
+                'user': self.user,
                 'volumes': [
-                    *DOCKER_USR_VOL,
                     self._cache_vol(),
                     self._certs_vol(),
                     '%s:/share/conf:ro' % os.path.join(base, k),
@@ -188,13 +181,9 @@ class DockerGenerator(object):
         base_entry = {
             'extra_hosts': ['jaeger:%s' % docker_host(self.args.docker)],
             'image': docker_image(self.args, image),
-            'environment': {
-                'SU_EXEC_USERSPEC': self.user_spec,
-            },
             'networks': {},
-            'volumes': [
-                *DOCKER_USR_VOL,
-            ]
+            'user': self.user,
+            'volumes': [],
         }
         keys = list(topo.get("border_routers", {})) + list(topo.get("control_service", {}))
         for disp_id in keys:
@@ -239,11 +228,8 @@ class DockerGenerator(object):
             'depends_on': [
                 'scion_disp_%s' % disp_id
             ],
-            'environment': {
-                'SU_EXEC_USERSPEC': self.user_spec,
-            },
+            'user': self.user,
             'volumes': [
-                *DOCKER_USR_VOL,
                 self._disp_vol(disp_id),
                 self._cache_vol(),
                 self._certs_vol(),

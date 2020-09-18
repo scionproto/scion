@@ -5,7 +5,6 @@ TEST_DIR=${TEST_NAME}_acceptance
 BRACCEPT=bin/braccept
 
 UTIL_DIR=${UTIL_DIR:=acceptance/brutil}
-BRUTIL=${BRUTIL:=$UTIL_DIR/util.sh}
 COMMON_CONF_DIR=${COMMON_CONF_DIR:=$UTIL_DIR/conf}
 DOCKER_COMPOSE_FN=${DOCKER_COMPOSE_FN:=$UTIL_DIR/docker-compose.yml}
 
@@ -13,7 +12,10 @@ BR_TOML_FN=${BR_TOML_FN:=br.toml}
 BR_TOML=$TEST_ARTIFACTS_DIR/conf/$BR_TOML_FN
 BR_POST_SETUP_SLEEP_PERIOD=${BR_POST_SETUP_SLEEP_PERIOD:=0}
 
-. $BRUTIL
+export USER_ID=$(id -u)
+export GROUP_ID=$(id -g)
+
+. $UTIL_DIR/util.sh
 . acceptance/common.sh
 
 # Following are the functions required by the acceptance framework

@@ -225,13 +225,6 @@ container_pull(
     tag = "16.04",
 )
 
-# su-exec (used in app docker images)
-git_repository(
-    name = "com_github_anapaya_su_exec",
-    commit = "d7253c2eb8987067834bc7d2fb7bd0c7958ce1ff",
-    remote = "https://github.com/Anapaya/su-exec.git",
-)
-
 # Busybox (used in debug docker images)
 http_file(
     name = "busybox",
