@@ -30,6 +30,7 @@ def build_tester_image():
         ],
         srcs = [
             "files/tester.sh",
+            "files/sig_setup.sh",
         ],
         package_dir = "share",
     )
