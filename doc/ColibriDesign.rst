@@ -232,6 +232,8 @@ hop fields in the path, compared to the data it has in its DB. This is doable
 because these operations are done in the control plane, which is allowed to be
 not extremely fast.
 
+E2E Reservation Renewal Operation
+---------------------------------
 For convenience, we provide the trace of an E2E reservation renewal. This
 example has the following values:
 
@@ -260,31 +262,93 @@ example has the following values:
 #. The border router at *B* validates its hop field. It is correct (flags are
    not used for the MAC). The ``C`` flag is set, so the border router delivers
    it to the COLIBRI service.
+#. The COLIBRI service handles the request and does the admission. It is
+   admitted and the payload is modified accordingly.
+   The COLIBRI service sends the message to the next hop, which is C.
+#. The process continues on this way until there is an error or the request
+   reaches the last AS `G`.
+    - If there is an error, the payload is modified, and
+      the message is sent in reverse. This means ``R=1,C=1``. It will
+      traverse the path in reverse until it reaches `A`, where it will be
+      finally forwarded to :math:`h_1`, the reservation originator.
+    - If there are no errors, the request will reach AS `G`. There the
+      admission is computed in the COLIBRI service, and it will be forwarded
+      to the destination endhost :math:`h_2`. The endhost will decide the
+      admission of the reservation and respond to its AS's COLIBRI service.
+#. Assuming the request was admitted all the way up to the destination end-
+   host :math:`h_2`, this will reverse the traversal of the path by setting
+   ``R=1,C=1`` and send it to its AS's COLIBRI service.
+#. The COLIBRI service at `G` receives the response with acceptance, and then
+   it adds the hop field to the payload. It also computes the MAC
+   :math:`\sigma_G` and encrypts it with the public key of `A`. The MAC is
+   also added to the payload. The packet is sent to the border router at `G`.
+#. The border router at `G` receives the COLIBRI packet with ``R=1,C=1``,
+   and forwards it to the next border router, at `F`.
+#. The border router at `F` receives the packet. It checks the MAC and it is
+   valid (MAC is independent of the flags). It delivers it to the local
+   COLIBRI service.
+#. The COLIBRI service at `F` now add its own hop field and :math:`\sigma_F`,
+   encrypted with the public key of `A`. It then sends it to the border router.
+#. The process continues until the packet reaches the COLIBRI service at `A`,
+   where the hop fields inside are decrypted and stored so that COLIBRI
+   traffic originating for this reservation can be correctly stamped with the
+   per packet MAC.
 
-TODO finish the trace
+TODO Question: how is `G` sending back the packet with the per packet MAC schema?
 
-
-- What does a setup/renewal look like?
-
-TODO
-
-Operations
-----------
-
-- Segment Reservations:
-    - Setup
-    - Renewal
-    - Index Confirmation
-    - Cleanup
-    - Index Activation
-    - Teardown
-- E2E Reservation
-    - Setup
-    - Renewal
-    - Cleanup
+TODO Question: we want to have reliable communication between services. This means using
+quic for the communication. Will it work okay?
 
 
 
+
+Down-Segment Renewal Operation
+------------------------------
+The segment reservation operations look very much like the previous example,
+with the peculiarity of having the ``S=1`` flag. It is of special interest to
+check the case of a down-segment reservation renewal, as it has to originate
+in what would later be the destination AS. I.e. if the core AS is `E`, and
+the path we want to reserve is :math:`E \rightarrow F \rightarrow G`,
+the renewal is requested from G, but sent first to `E`.
+These are the steps:
+
+#. The COLIBRI service at `G` decides to renew the down-segment reservation.
+   It has the ID :math:`\text{Seg}_{(E,1)}`. The path of the reservation is
+   :math:`\verb!C=1,R=1,S=1!, E \rightarrow F \rightarrow G`. This is because
+   the first step is sending it from `G` to `E`. So `G` reverses the path and
+   computes the admission **in reverse**.
+   `G` then sends the packet to the border router.
+#. The border router at `G` sees the packet with ``R=1`` incoming via its
+   local interface. It will validate the packet and forward it to the next
+   border router, at `F`.
+#. The border router at `F` receives the package via the remote interface with
+   `G`. It validates the MAC successfully, as well as the rest of the fields.
+   Since ``C=1`` it delivers it to the local COLIBRI service.
+#. The COLIBRI service computes the admission, again **in reverse** and
+   updates the request with the admission values. It then sends
+   the packet to the border router again, to be forwarded.
+#. Similarly to the previous steps, the packet finally arrives to the local
+   COLIBRI service at `E`. It does the admission **in reverse** and, since this
+   is the last AS in the path, it adds its hop field and :math:`\sigma_E`
+   to the payload and it switches direction by setting ``R=0``.
+   Now the packet is sent back to the border router to be forwarded to the
+   next hop.
+#. The packet is now traveling in the direction of the reservation, and
+   arrives to the border router at `F`. This border router validates the
+   packet and sends it to the local COLIBRI service.
+#. The COLIBRI service at `F` receives the packet and adjusts in its DB the
+   values for the reservation. It adds its hop field and MAC and
+   sends the packet again to the border router, to continue its journey.
+#. The packet arrives to the border router at `G`, and since it has the flag
+   ``C=1`` it delivers it to the local COLIBRI service, after validating that
+   the MAC and the rest of the fields are okay.
+#. Finally, the COLIBRI service at `G` receives the packet and stores the
+   hop fields and MACs from the payload.
+
+
+
+TODO Question: in the case of a down-segment, who is storing the :math:`\sigma_X` ?
+Should that be the originator, i.e. `G` ? or the first AS in the direction of the traffic, i.e. `F` ?
 
 
 
