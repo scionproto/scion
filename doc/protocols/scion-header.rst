@@ -473,3 +473,238 @@ Next Header
     The protocol identifier associated with the upper-layer protocol (e.g., 1
     for SCMP, 17 for UDP). This field can differ from the ``NextHdr`` field in
     the SCION header, if extensions are present.
+
+Path Type: EPIC-HP
+==================
+EPIC-HP (EPIC for Hidden Paths) provides improved path authorization 
+for the last link of the path. For the SCION path type, an attacker 
+that once observed or brute-forced the hop authenticators for some 
+path can use them to send arbitrary traffic along this path. EPIC-HP 
+solves this problem on the last link, which is particularly 
+important for the security of hidden paths.
+::
+
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                        PacketTimestamp                        |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                          PathMetaHdr                          |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           InfoField                           |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                              ...                              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           InfoField                           |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           HopField                            |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                              ...                              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           HopField                            |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                             PHVF                              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                             LHVF                              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+The EPIC-HP header has the following structure:
+   - A *PacketTimestamp* field (8 bytes)
+   - The path header of the SCION path type, where one bit 
+     of the Path Meta Header is used to indicate whether the sender 
+     accepts SCION path type response packets.
+   - A 4-byte *PHVF* (Penultimate Hop Validation Field)  and a 
+     4-byte *LHVF* (Last Hop Validation Field)
+
+The EPIC-HP header contains the full SCION path type header. The 
+calculation of the hop field MAC is identical. This allows the 
+destination host to directly send back (many) SCION path type answer 
+packets to the source. This can be done by extracting and reversing 
+the SCION path type header contained in the EPIC-HP packet.  
+
+This is allowed from a security perspective, because the SCION path 
+type answer packets do not leak information that would allow 
+unauthorized entities to use the hidden path. In particular, a SCION 
+path type response packet only contains strictly less information 
+than the previously received EPIC-HP packet, as the response packet 
+does not include the PacketTimestamp, the PHVF, and the LHVF.
+
+If the sender is reachable through a hidden path itself, then it is 
+likely that its AS will not accept SCION path type packets, which 
+means that the destination can only respond using EPIC-HP traffic. 
+Therefore the sender can explicitly specify in the EPIC-HP packet 
+whether it wants the receiver to respond with SCION path type 
+response packets, or with EPIC-HP packets (assuming the receiver has 
+the necessary authenticators to send on the hidden path to the 
+sender).
+
+To protect the services behind the hidden link (only authorized 
+entities should be able to access the services, downgrade to the 
+SCION path type should be prevented, etc.), ASes need to be able to 
+configure the border routers such that only certain Path Types are 
+allowed. This is further described in the accompanying EPIC design 
+document (scion/doc/EPIC.md).
+
+.. _EPIC Path Meta Header:
+
+Path Meta Header
+----------------
+::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    | C |  CurrHF   |S|   RSV   |  Seg0Len  |  Seg1Len  |  Seg2Len  |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+SCION-Response (S)
+  Indicates whether the sender accepts SCION path type response packets. 
+
+Packet Timestamp
+----------------
+::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                             TsRel                             |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                             PckId                             |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+TsRel
+  A 4-byte timestamp relative to the (segment) Timestamp in the 
+  first Info Field. TsRel is calculated by the source host as 
+  follows:
+ 
+.. math::
+    \begin{align}
+        \text{Timestamp}_{\mu s} &= \text{Timestamp [s]} 
+            \times 10^6 \\
+        \text{Ts} &= \text{current unix timestamp [\mu s]}  \\
+        \text{q} &= \left\lceil\left(\frac{24 \times 60 \times 60 
+            \times 10^6}{2^{32}}\right)\right\rceil\text{\mu s}
+            = \text{21 \mu s}\\
+        \text{TsRel} &= \text{max} \left\{0, 
+            \frac{\text{Ts - Timestamp}_{\mu s}}
+            {\text{q}} -1 \right\} \\
+        \textit{Get back the time when} &\textit{the packet 
+        was timestamped:} \\
+        \text{Ts} &= \text{Timestamp}_{\mu s} + (1 + \text{TsRel}) 
+            \times \text{q} 
+    \end{align}
+
+TsRel has a precision of :math:`\text{21 \mu s}` and covers at least 
+one day (1 day and 63 minutes). When sending packets at high speeds 
+(more than one packet every :math:`\text{21 \mu s}`) or when using 
+multiple cores, collisions may occur in TsRel. To solve this 
+problem, the source further identifies the packet using PckId.
+
+PckId
+  A 4-byte identifier that allows to distinguish two packets with 
+  the same TsRel. Every source is free to set PckId arbitrarily, but 
+  we recommend to use the following structure:
+
+::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |    CoreID     |                  CoreCounter                  |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        
+CoreID
+  Unique identifier representing one of the cores of the source host. 
+
+CoreCounter
+  Current value of the core counter belonging to the core specified 
+  by CoreID. Every time a core sends an EPIC packet, it increases 
+  its core counter (modular addition by 1).
+
+Note that the Packet Timestamp is at the very beginning of the 
+header, this allows other components (like the replay suppression 
+system) to access it without having to go through any parsing 
+overhead. 
+
+.. To achieve an even higher precision of the timestamp, the 
+.. source is free to allocate additional bits from the PckId to TsRel 
+.. for this purpose.
+
+Hop Validation Fields (PHVF and LHVF)
+-------------------------------------
+::
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                             PHVF                              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                             LHVF                              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+Those 4-byte fields contain the Hop Validation Fields of the 
+penultimate and the last hop of the last segment. 
+
+EPIC Header Length Calculation
+------------------------------
+The length of the EPIC Path header is the same as the SCION Path
+header plus 8 bytes (Packet Timestamp), and plus 8 bytes for the 
+PHVF and LHVF.
+
+Procedures
+----------
+**Control plane:**
+The beaconing process is the same as for SCION, but the ASes not 
+only add the 6 bytes of the truncated MAC to the beacon, but further 
+append the remaining 10 bytes.
+
+**Data plane:**
+The source fetches the path, including all the 6-byte short hop 
+authenticators and the remaining 10 bytes of the authenticators, 
+from a (hidden) path server. We will refer to the fully assembled 16-byte 
+authenticators of the penultimate and last hop on the path as 
+:math:`{\sigma_{\text{PH}}}` for the penultimate hop (PH) and 
+:math:`{\sigma_{\text{LH}}}` for the last hop (LH), respectively. 
+
+The source then copies the short authenticators to the corresponding 
+MAC-subfield of the Hop Fields as for SCION path type packets and 
+adds the current Packet Timestamp. In addition, it calculates the 
+PHVF and LHVF as follows:
+
+.. math::    
+    \begin{align}
+    \text{Origin} &= \text{(SrcISD, SrcAS, SrcHostAddr)} \\
+    \text{PHVF} &= \text{MAC}_{\sigma_{\text{PH}}}
+        (\text{Flags}, \text{PacketTimestamp}, 
+        \text{Origin}, \text{PayloadLen})~\text{[0:4]} \\
+    \text{LHVF} &= \text{MAC}_{\sigma_{\text{LH}}}
+        (\text{Flags}, \text{PacketTimestamp}, 
+        \text{Origin}, \text{PayloadLen})~\text{[0:4]} \\
+    \end{align}
+
+Here, "Flags" is a 1-byte field structured as follows:
+::
+
+     0 1 2 3 4 5 6 7 8 
+    +-+-+-+-+-+-+-+-+-+
+    |S|SL |     0     |
+    +-+-+-+-+-+-+-+-+-+
+
+"S" refers to the SCION-Response flag in the `EPIC Path Meta 
+Header`_, and "SL" denotes the source host address length as defined 
+in the `Common Header`_.
+Because the length of the source host address varies based on SL, 
+also the length of the input to the MAC is dynamic.
+
+The border routers of the on-path ASes validate and forward the 
+EPIC-HP data plane packets as for SCION path type packets 
+(recalculate :math:`\sigma_{i}` and compare it to the MAC field in 
+the packet). 
+
+In addition, the penultimate hop of the last segment recomputes and 
+verifies the PHVF field. If the verification fails, the packet is 
+dropped. Similarly, the last hop of the last segment recomputes and 
+verifies the LHVF field. Again, if the verification fails, the 
+packet is dropped.
+
+How to only allow EPIC-HP traffic on a hidden path (and not SCION 
+path type packets) is described in the EPIC design document 
+(scion/doc/EPIC.md).
