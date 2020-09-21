@@ -173,26 +173,37 @@ AS in the path of said reservation. :math:`K_B` is a secret key that only
 *B* knows. *MAC* is the function used to compute the MAC. *InputData* are
 all the fields specified above, that will be part of the MAC computation.
 The **static MAC** is computed as:
+
 .. math::
-\sigma_B = MAC_{K_B}(InputData)
+    \sigma_B = MAC_{K_B}(InputData)
 
 That static MAC does not change with the payload of the packet. We will
 communicate each of the :math:`\sigma_B` for each *B* part of the path to
-the source of the reservation *A*, in the reservation setup process. The AS *A*
-will store these static MAC results as keys to use in the per packet MAC
-computation.
+the source of the reservation *A*, in the reservation setup process, but
+encrypted only for *A*, e.g. with the public AS certificate.
+The AS *A* will store these static MAC results as keys to use in the
+per packet MAC computation.
 
 Every time a new packet is sent using that COLIBRI reservation,
 the per packet MACs have to be computed. Let's call HFV (Hop Field Validation)
 the per packet MAC, and *TS* the high precision time stamp of the packet.
 The **per packet MAC** HFV is computed as follows:
+
 .. math::
-\text{HFV}_B = \text{MAC}_{\sigma_B}(TS)
+    \text{HFV}_B = \text{MAC}_{\sigma_B}(TS)
 
 Note that the key used to compute the HFV is :math:`\sigma_B`, the static
 MAC computed by *B* and that only *B* and *A* know.
-Thus if in a later moment, the HPV computed for a packet while in transit
-at *B* is correct, *B* know that only *A* could have actually computed it.
+
+For the sake of simplicity let's say that this computation happens in a
+specific service only for this purpose, that receives COLIBRI traffic from
+the local end hosts, checks their permissions, and then computes the HFV
+that go in the packet.
+
+If, at a later moment, the HPV computed for a packet while in transit
+at *B* is correct, *B* knows that only *A* could have actually computed it,
+since the :math:`\sigma_B` was not even given to end hosts, but only
+*official* services of A.
 
 
 
@@ -205,6 +216,53 @@ TODO
 
 Control Plane General Overview
 ==============================
+Because the ``C`` flag makes a COLIBRI packet to stop at every COLIBRI
+service along the reservation path, the requests can be sent
+using a normal COLIBRI packet with ``C=1``. The responses will be sent
+by the COLIBRI service using ``C=1`` and ``R=1``. This applies for both
+segment and E2E reservation operations, and thus depending on the type,
+the flag ``S`` will be set or not.
+
+This delivery mechanism cannot be abused, as every border router must check
+that if any of the ``R`` or ``S`` flags are set, ``C`` is also set. And
+must deliver to the local COLIBRI service if ``C`` is set. The COLIBRI
+service must always check when handling the request or response, that the
+path used in the packet is valid. I.e., it contains the correct sequence of
+hop fields in the path, compared to the data it has in its DB. This is doable
+because these operations are done in the control plane, which is allowed to be
+not extremely fast.
+
+For convenience, we provide the trace of an E2E reservation renewal. This
+example has the following values:
+
+- Reservation originator: end host :math:`h_1` in AS *A*
+- Reservation destination: end host :math:`h_2` in AS *G*
+- E2E reservation ID: :math:`\text{E2E}_{(A,1111)}`
+- The reservation stitches 3 segment reservations:
+    - Up: :math:`A \rightarrow B \rightarrow C`,
+      with ID :math:`\text{Seg}_{(A,1)}`
+    - Core: :math:`C \rightarrow D \rightarrow E`
+      with ID :math:`\text{Seg}_{(C,1)}`
+    - Down: :math:`E \rightarrow F \rightarrow G`
+      with ID :math:`\text{Seg}_{(E,1)}`
+
+#. The host :math:`h_1` in *A* decides to renew the reservation. Sends a
+   request to the COLIBRI service at *A*.
+   The packet has the path :math:`\verb!C=1,R=0,S=0!`,
+   :math:`A \rightarrow B \rightarrow C \rightarrow D
+   \rightarrow E \rightarrow F \rightarrow G`
+   All the static MACs :math:`\sigma_X` where provided in a previous setup of
+   the reservation.
+#. The service at *A* handles the request. It does the admission
+   in *A*. Modifies the payload conveniently and sends a message to the next
+   hop, which is *B*.
+#. The border router at *A* forwards the packet to *B*
+#. The border router at *B* validates its hop field. It is correct (flags are
+   not used for the MAC). The ``C`` flag is set, so the border router delivers
+   it to the COLIBRI service.
+
+TODO finish the trace
+
 
 - What does a setup/renewal look like?
 
