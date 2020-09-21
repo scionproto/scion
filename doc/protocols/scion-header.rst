@@ -690,7 +690,8 @@ We just compute :math:`\sigma_i` with the appropriate `InputData`:
     \sigma_i = \text{MAC}_{K_i} (\text{InputData})
 
 TODO: In a later iteration we want to use per packet MACs, as they will
-guarantee that the source actually sent the packet.
+guarantee that the source actually sent the packet. Should we document that
+approach or leave here only what we will implement now?
 
 
 .. _colibri-forwarding-process:
