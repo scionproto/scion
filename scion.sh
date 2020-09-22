@@ -386,23 +386,6 @@ cmd_clean() {
     make -s clean
 }
 
-cmd_sciond() {
-    [ -n "$1" ] || { echo "ISD-AS argument required"; exit 1; }
-    # Convert the ISD-AS argument into an array, where the first element is the
-    # ISD, and the second is the AS.
-    IFS=- read -a ia <<< $1
-    ISD=${ia[0]:?No ISD provided}
-    AS=${ia[1]:?No AS provided}
-    ADDR=${2:-127.0.0.1}
-    GENDIR=gen/ISD${ISD}/AS${AS}/endhost
-    [ -d "$GENDIR" ] || { echo "Topology directory for $ISD-$AS doesn't exist: $GENDIR"; exit 1; }
-    APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
-    PYTHONPATH=python/:. python/bin/sciond --addr $ADDR --api-addr $APIADDR sd${ISD}-${AS} $GENDIR &
-    echo "Sciond running for $ISD-$AS (pid $!)"
-    wait
-    exit $?
-}
-
 traces_name() {
     local name=jaeger_read_badger_traces
     echo "$name"
@@ -444,10 +427,6 @@ cmd_help() {
 	        All arguments or options are passed to topology/generator.py
 	    $PROGRAM run [nobuild]
 	        Run network.
-	    $PROGRAM sciond ISD-AS [ADDR]
-	        Start sciond with provided ISD and AS parameters, and bind to ADDR.
-	        ISD-AS must be in file format (e.g., 1-ff00_0_133). If ADDR is not
-	        supplied, sciond will bind to 127.0.0.1.
 	    $PROGRAM mstart PROCESS
 	        Start multiple processes
 	    $PROGRAM stop
