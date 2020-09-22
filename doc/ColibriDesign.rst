@@ -56,13 +56,11 @@ Reservation index
 Segment reservation
     A reservation between two ASes. This is a "tube" that allows to communicate
     control-plane traffic directly, or to embed one or multiple end-to-end
-    reservations inside. There is only one segment reservation possible per
-    any given SCION path segment.
-    All segment reservations have a unique ID.
+    reservations inside.
     A segment reservation can be of type up, down, core, peering-up, or
     peering-down. Up, down, and core are similar to the corresponding regular
-    SCION segments; peering-up and peering-down end or start with a peering link,
-    respectively.
+    SCION segments; peering-up and peering-down end or start with a
+    peering link, respectively.
     All segment reservations have a maximum set of 16 indices.
 
 End-to-end (E2E) reservation
@@ -70,10 +68,15 @@ End-to-end (E2E) reservation
     uses from one to three segment reservations to reach the destination end
     host (similar to regular SCION paths). The E2E reservation "stitches" these
     segment reservations to create a valid E2E reservation.
-    Each E2E reservation has its own unique ID. There is only one possible E2E
-    reservation per sequence of segment reservation, and thus, per SCION path.
     The path type of an E2E reservation is always the same (type *E2E*)
     An E2E reservation has a maximum set of 16 indices.
+
+Reservation ID
+    Segment and E2E reservations have a reservation ID. It uniquely identifies
+    the reservation. The reservation ID must be unique on the path (path
+    understood as a sequence of interface IDs).
+    Both Segment and E2E reservation IDs contain the AS ID of the reservation
+    originator AS as the first 6 bytes.
 
 There is only one type of COLIBRI packet. It is mainly used by the data plane
 to transport user data in E2E reservations between end-host machines.
@@ -150,10 +153,10 @@ To achieve the protection we want against changes in the relevant parts
 of the *InfoField* and *HopField*, we will include the following in the
 MAC computation:
 
-- Reservation ID: because there can be at most one reservation per path, and
+- Reservation ID: because there is only one path per reservation, and
   each reservation is identified by an ID, the ID also identifies the path.
-  This means that we will no longer need to onion the HopFields or include
-  any type of index to protect their order.
+  This means that we will no longer need to onion or chain the HopFields
+  or include any type of index to protect their order.
 - Reservation fields: fields that came from the reservation setup, and that
   should not be altered otherwise, must be included in the MAC computation.
   This prevents malicious clients from tampering with the reservation and
@@ -251,12 +254,10 @@ the flag ``S`` will be set or not.
 This delivery mechanism cannot be abused, as every border router must check
 that if any of the ``R`` or ``S`` flags are set, ``C`` is also set. And
 if ``C`` is set, the border router must deliver the packet
-to the local COLIBRI service. The COLIBRI
-service must always check when handling the request or response, that the
-path used in the packet is valid. I.e., it contains the correct sequence of
-HopFields in the path, compared to the data it has in its DB. This is doable
-because these operations are done in the control plane,
-which is not as performance critical as the data plane.
+to the local COLIBRI service.
+The COLIBRI service checks the source validity on each operation via
+DRKey tags inside the payload, that authenticate that the source is
+unaltered.
 
 E2E Reservation Renewal Operation
 ---------------------------------
