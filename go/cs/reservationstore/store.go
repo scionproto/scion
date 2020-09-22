@@ -419,9 +419,8 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 
 	var msg base.MessageWithPath
 	if req.IsThisASTheDst() {
-		asAResponse := failedResponse.(*e2e.ResponseSetupFailure)
 		msg = &e2e.ResponseSetupSuccess{
-			Response: asAResponse.Response,
+			Response: failedResponse.(*e2e.ResponseSetupFailure).Response,
 			Token:    *index.Token,
 		}
 	} else {

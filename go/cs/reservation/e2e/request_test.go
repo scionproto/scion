@@ -188,7 +188,7 @@ func TestNewSetupRequest(t *testing.T) {
 			}
 			r, err := NewSetupRequest(baseReq, segmentRsvs, tc.ASCountPerSegment, 5, trail)
 			require.NoError(t, err)
-			require.Equal(t, tc.TotalASCount, r.totalAScount)
+			require.Equal(t, tc.TotalASCount, r.totalASCount)
 			require.Equal(t, tc.SegmentIndex, r.currentASSegmentRsvIndex)
 			require.Equal(t, tc.IsSrc, r.IsThisASTheSrc())
 			require.Equal(t, tc.IsDst, r.IsThisASTheDst())
