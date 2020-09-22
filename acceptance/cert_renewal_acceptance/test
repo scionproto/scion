@@ -25,7 +25,6 @@ from typing import List
 
 from plumbum import local
 from plumbum.path.local import LocalPath
-from plumbum.commands.processes import ProcessExecutionError
 
 from acceptance.common.base import CmdBase, TestBase, TestState, set_name
 from acceptance.common.log import LogExec, init_log
@@ -75,32 +74,32 @@ class TestSetup(CmdBase):
 class TestRun(CmdBase):
     @LogExec(logger, 'run')
     def main(self):
-        cs_dirs = local.path('gen') // 'ISD*/AS*/cs*'
+        cs_configs = local.path('gen') // 'AS*/cs*.toml'
         isd_ases = []
 
         logger.info('==> Start renewal process')
-        for cs_dir in cs_dirs:
-            isd_as = ISD_AS(cs_dir.name[2:len(cs_dir.name)-2])
+        for cs_config in cs_configs:
+            isd_as = ISD_AS(cs_config.stem[2:len(cs_config.stem)-2])
             isd_ases.append(isd_as)
 
             logging.info('===> Start renewal: %s' % isd_as)
-            self._renewal_request(cs_dir, isd_as)
+            self._renewal_request(cs_config, isd_as)
 
         logger.info('==> Remove original private keys')
-        for cs_dir in cs_dirs:
-            orig_key = cs_dir / 'crypto/as/cp-as.key'
+        for cs_config in cs_configs:
+            orig_key = cs_config.parent / 'crypto/as/cp-as.key'
             logger.info('Removing original private key for %s: %s' % (isd_as, rel(orig_key)))
             orig_key.delete()
 
         logger.info('==> Check key and certificate reloads')
-        self._check_key_cert(cs_dirs)
+        self._check_key_cert(cs_configs)
 
         logger.info("==> Check connectivity")
         self.scion.run_end2end()
 
         logger.info('==> Shutting down control servers and purging caches')
-        for cs_dir in cs_dirs:
-            files = local.path('gen-cache') // ('%s*' % cs_dir.name)
+        for cs_config in cs_configs:
+            files = local.path('gen-cache') // ('%s*' % cs_config.stem)
             for db_file in files:
                 db_file.delete()
             logger.info('Deleted files: %s' % [file.name for file in files])
@@ -111,7 +110,8 @@ class TestRun(CmdBase):
         logger.info('==> Check connectivity')
         self.scion.run_end2end()
 
-    def _renewal_request(self, cs_dir: LocalPath, isd_as: ISD_AS):
+    def _renewal_request(self, cs_config: LocalPath, isd_as: ISD_AS):
+        cs_dir = cs_config.parent
         csr = cs_dir / 'crypto/as/csr.json'
         logger.info('Generating CSR for: %s' % rel(csr))
         template = {
@@ -142,7 +142,7 @@ class TestRun(CmdBase):
         ]
         if not self.no_docker:
             chain.touch()
-            args += ['--local', self._disp_ip(cs_dir.name)]
+            args += ['--local', self._disp_ip(cs_config.stem)]
 
         for i in range(len(args)):
             if isinstance(args[i], LocalPath):
@@ -156,15 +156,15 @@ class TestRun(CmdBase):
                                               '--trc', 'gen/trcs/ISD1-B1-S1.trc')
         logger.info(str(verify_out).rstrip('\n'))
 
-    def _check_key_cert(self, cs_dirs: List[LocalPath]):
+    def _check_key_cert(self, cs_configs: List[LocalPath]):
         not_ready = []
-        for cs_dir in cs_dirs:
-            not_ready.append(cs_dir)
+        for cs_config in cs_configs:
+            not_ready.append(cs_config)
 
         for _ in range(5):
             logger.info('Checking if all control servers have reloaded the key and certificate...')
-            for cs_dir in not_ready:
-                conn = HTTPConnection(self._http_endpoint(cs_dir))
+            for cs_config in not_ready:
+                conn = HTTPConnection(self._http_endpoint(cs_config))
                 conn.request('GET', '/signer')
                 resp = conn.getresponse()
                 if resp.status != 200:
@@ -172,21 +172,22 @@ class TestRun(CmdBase):
                     continue
 
                 pld = json.loads(resp.read().decode('utf-8'))
+                cs_dir = cs_config.parent
                 if pld['subject_key_id'] != self._extract_skid(cs_dir / 'crypto/as/renewed.pem'):
                     continue
                 logger.info('Control server successfully loaded new key and certificate: %s' %
-                            rel(cs_dir))
-                not_ready.remove(cs_dir)
+                            rel(cs_config))
+                not_ready.remove(cs_config)
             if not not_ready:
                 break
             time.sleep(3)
         else:
             logger.error('Control servers without reloaded key and certificate: %s' %
-                         [cs_dir.name for cs_dir in not_ready])
+                         [cs_config.name for cs_config in not_ready])
             sys.exit(1)
 
-    def _http_endpoint(self, cs_dir: LocalPath):
-        with open(cs_dir / 'cs.toml', 'r') as f:
+    def _http_endpoint(self, cs_config: LocalPath):
+        with open(cs_config, 'r') as f:
             cfg = toml.load(f)
             return cfg['metrics']['prometheus']
 
