@@ -18,6 +18,7 @@ is a good place to start.
    PathService
    PathPolicy
    HiddenPaths
+   EPIC
    ColibriService
    uri
    grpc
