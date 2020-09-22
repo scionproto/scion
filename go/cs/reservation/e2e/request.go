@@ -54,10 +54,7 @@ func NewRequest(ts time.Time, id *reservation.E2EID, idx reservation.IndexNumber
 
 // SetupRequest represents all possible e2e setup requests.
 type SetupRequest interface {
-	IsThisASTheSrc() bool
-	IsThisASTheDst() bool
-	IsThisASaTransfer() bool
-	IsSuccess() bool
+	IsSuccessful() bool
 	GetCommonSetupReq() *SetupReq // return the underlying basic SetupReq (common for all)
 }
 
@@ -118,17 +115,27 @@ func (r *SetupReq) GetCommonSetupReq() *SetupReq {
 	return r
 }
 
-// IsThisASTheSrc returns true if according to r, this AS is the source of the reservation.
-func (r *SetupReq) IsThisASTheSrc() bool {
-	return len(r.AllocationTrail) == 0
-}
-
-func (r *SetupReq) IsThisASTheDst() bool {
-	return len(r.AllocationTrail) == r.totalASCount
-}
-
-func (r *SetupReq) IsThisASaTransfer() bool {
+func (r *SetupReq) Transfer() bool {
 	return r.isTransfer
+}
+
+type PathLocation int
+
+const (
+	Source PathLocation = iota
+	Transit
+	Destination
+)
+
+func (r *SetupReq) Location() PathLocation {
+	switch len(r.AllocationTrail) {
+	case 0:
+		return Source
+	case r.totalASCount:
+		return Destination
+	default:
+		return Transit
+	}
 }
 
 // SegmentRsvIDsForThisAS returns the segment reservation ID this AS belongs to. Iff this
@@ -151,8 +158,8 @@ type SetupReqSuccess struct {
 
 var _ SetupRequest = (*SetupReqSuccess)(nil)
 
-// Success returns true.
-func (s *SetupReqSuccess) IsSuccess() bool {
+// IsSuccessful returns true.
+func (s *SetupReqSuccess) IsSuccessful() bool {
 	return true
 }
 
@@ -164,8 +171,8 @@ type SetupReqFailure struct {
 
 var _ SetupRequest = (*SetupReqFailure)(nil)
 
-// Success returns false, as this is a failed setup.
-func (s *SetupReqFailure) IsSuccess() bool {
+// IsSuccessful returns false, as this is a failed setup.
+func (s *SetupReqFailure) IsSuccessful() bool {
 	return false
 }
 

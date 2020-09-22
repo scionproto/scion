@@ -299,7 +299,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 	}
 
 	// sanity check: all successful requests are SetupReqSuccess. Failed ones are SetupReqFailure.
-	if request.IsSuccess() {
+	if request.IsSuccessful() {
 		if _, ok := request.(*e2e.SetupReqSuccess); !ok {
 			return failedResponse, serrors.New("logic error, successful request can be casted")
 		}
@@ -361,7 +361,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 	}
 	index := rsv.Index(idx)
 	index.AllocBW = req.RequestedBW
-	if request.IsSuccess() {
+	if request.IsSuccessful() {
 		index.Token = &request.(*e2e.SetupReqSuccess).Token
 	}
 
@@ -372,7 +372,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 	}
 	free = free + rsv.AllocResv() // don't count this E2E request in the used BW
 
-	if req.IsThisASaTransfer() {
+	if req.Transfer() {
 		// this AS must stitch two segment rsvs. according to the request
 		if len(segRsvIDs) == 1 {
 			return failedResponse, serrors.New("e2e setup request with transfer inconsistent",
@@ -389,9 +389,9 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 		}
 	}
 
-	if !request.IsSuccess() || req.RequestedBW.ToKbps() > free {
+	if !request.IsSuccessful() || req.RequestedBW.ToKbps() > free {
 		maxWillingToAlloc := reservation.BWClsFromBW(free)
-		if req.IsThisASTheDst() {
+		if req.Location() == e2e.Destination {
 			asAResponse := failedResponse.(*e2e.ResponseSetupFailure)
 			asAResponse.MaxBWs = append(asAResponse.MaxBWs, maxWillingToAlloc)
 		} else {
@@ -418,7 +418,7 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 	}
 
 	var msg base.MessageWithPath
-	if req.IsThisASTheDst() {
+	if req.Location() == e2e.Destination {
 		msg = &e2e.ResponseSetupSuccess{
 			Response: failedResponse.(*e2e.ResponseSetupFailure).Response,
 			Token:    *index.Token,
