@@ -57,7 +57,7 @@ Segment reservation
     A reservation between two ASes. This is a "tube" that allows to communicate
     control-plane traffic directly, or to embed one or multiple end-to-end
     reservations inside. There is only one segment reservation possible per
-    path. Not all paths can have a segment reservation.
+    any given SCION path segment.
     All segment reservations have a unique ID.
     A segment reservation can be of type up, down, core, peering-up, or
     peering-down. Up, down, and core are similar to the corresponding regular
@@ -69,9 +69,10 @@ End-to-end (E2E) reservation
     A reservation between two end hosts. It is used to send data traffic. It
     uses from one to three segment reservations to reach the destination end
     host (similar to regular SCION paths). The E2E reservation "stitches" these
-    segment reservations to conform its reservation.
+    segment reservations to create a valid E2E reservation.
     Each E2E reservation has its own unique ID. There is only one possible E2E
-    reservation per path.
+    reservation per sequence of segment reservation, and thus, per SCION path.
+    The path type of an E2E reservation is always the same (type *E2E*)
     An E2E reservation has a maximum set of 16 indices.
 
 There is only one type of COLIBRI packet. It is mainly used by the data plane
@@ -195,9 +196,9 @@ The **static MAC** is computed as:
     \sigma_B = \text{MAC}_{K_B}(InputData)
 
 That static MAC does not change with the payload of the packet. We will
-communicate each of the :math:`\sigma_B` for each *B* part of the path to
-the source of the reservation *A*, in the reservation setup process, but
-encrypted only for *A*, e.g. with the public AS certificate.
+communicate each of the :math:`\sigma_B` for each AS *B* part of the path, to
+AS *A* (the source of the reservation), in the reservation setup process, but
+encrypted only for *A*, e.g. with the public AS key or using DRKey.
 The AS *A* will store these static MAC results as keys to use in the
 per-packet MAC computation.
 
@@ -208,8 +209,9 @@ packet, *TS*.
 The **per-packet MAC** (HVF) is computed as follows:
 
 .. math::
-    \text{HVF}_B = \text{MAC}_{\sigma_B}(TS)
+    \text{HVF}_B = \text{MAC}_{\sigma_B}(TS, \text{packet_length}, \text{flags})
 
+The `flags` refer to the COLIBRI packet flags (``C,R,S``).
 Note that the key used to compute the HVF is :math:`\sigma_B`, the static
 MAC computed by *B*, which is only known to *B* and *A*.
 
@@ -241,12 +243,13 @@ the flag ``S`` will be set or not.
 
 This delivery mechanism cannot be abused, as every border router must check
 that if any of the ``R`` or ``S`` flags are set, ``C`` is also set. And
-must deliver to the local COLIBRI service if ``C`` is set. The COLIBRI
+if ``C`` is set, the bourder router must deliver the packet
+to the local COLIBRI service. The COLIBRI
 service must always check when handling the request or response, that the
 path used in the packet is valid. I.e., it contains the correct sequence of
 HopFields in the path, compared to the data it has in its DB. This is doable
-because these operations are done in the control plane, which is allowed to be
-not extremely fast.
+because these operations are done in the control plane,
+which is not as performance critical as the data plane.
 
 E2E Reservation Renewal Operation
 ---------------------------------
@@ -265,16 +268,16 @@ example has the following values:
   - Down: :math:`E \rightarrow F \rightarrow G`,
     with ID :math:`\text{Seg}_{(E,1)}`
 
-#. The host :math:`h_1` in *A* decides to renew the reservation. Sends a
-   request to the COLIBRI service at *A*.
+#. The host :math:`h_1` in *A* decides to renew the reservation. For this it
+   sends a request to the COLIBRI service at *A*.
    The packet has the path :math:`\verb!C=1,R=0,S=0!`,
    :math:`A \rightarrow B \rightarrow C \rightarrow D
    \rightarrow E \rightarrow F \rightarrow G`
-   All the static MACs :math:`\sigma_X` where provided in a previous setup of
+   All the static MACs :math:`\sigma_X` were provided in a previous setup of
    the reservation.
 #. The service at *A* handles the request. It does the admission
    in *A*. Modifies the payload conveniently and sends a message to the next
-   hop, which is *B*.
+   hop, which is *B*. TODO: how is the payload modified?
 #. The border router at *A* forwards the packet to *B*
 #. The border router at *B* validates its HopField. It is correct (flags are
    not used for the MAC). The ``C`` flag is set, so the border router delivers
@@ -299,13 +302,15 @@ example has the following values:
    ``R=1,C=1`` and send it to its AS's COLIBRI service.
 #. The COLIBRI service at `G` receives the response with acceptance, and then
    it adds the HopField to the payload. It also computes the MAC
-   :math:`\sigma_G` and encrypts it with the public key of `A`. The MAC is
+   :math:`\sigma_G` and encrypts and authenticates it with
+   :math:`DRKey K_{G \to A}`. The MAC is
    also added to the payload. The packet is sent to the border router at `G`.
 #. The border router at `G` receives the COLIBRI packet with ``R=1,C=1``,
    and forwards it to the next border router, at `F`.
-#. The border router at `F` receives the packet. It checks the MAC and it is
-   valid (MAC is independent of the flags). It delivers it to the local
-   COLIBRI service.
+#. The border router at `F` receives the packet. It checks whether the MAC
+   is valid and drops the packet if not. If the MAC is
+   valid (MAC is independent of the flags), the border router delivers it
+   to the local COLIBRI service.
 #. The COLIBRI service at `F` now add its own HopField and :math:`\sigma_F`,
    encrypted with the public key of `A`. It then sends it to the border router.
 #. The process continues until the packet reaches the COLIBRI service at `A`,
@@ -339,7 +344,7 @@ These are the steps:
 #. The border router at `G` sees the packet with ``R=1`` incoming via its
    local interface. It will validate the packet and forward it to the next
    border router, at `F`.
-#. The border router at `F` receives the package via the remote interface with
+#. The border router at `F` receives the packet via the remote interface with
    `G`. It validates the MAC successfully, as well as the rest of the fields.
    Since ``C=1`` it delivers it to the local COLIBRI service.
 #. The COLIBRI service computes the admission, again **in reverse** and
@@ -401,6 +406,19 @@ to :math:`\text{AS}_i` in the direction of the reservation.
 Responses travel in the reverse direction: from :math:`\text{AS}_{i+1}` to
 :math:`\text{AS}_i`.
 
+The exception to this are the down-segment reservations.
+The down-segment reservation requests travel (with ``R=1``) from the
+reservation destination to the reservation initial AS
+(:math:`\text{AS}_n \to \text{AS}_{n-1} \to \ldots \text{AS}_0`).
+This is done this way because the operation initiator will always be the
+reservation destination.
+So in a setup :math:`A \leftarrow B \leftarrow C`
+where `A` is the final destination of the reservation,
+it will also be `A` the AS to initiate the setup/renewal process,
+by sending a request using an existing reservation (if it exists) and ``R=1``.
+The same reasoning applies to the responses, that travel from
+:math:`\text{AS}_i` to :math:`\text{AS}_{i+1}`.
+In the example above, they would travel from `C` to `A`, with ``R=0``.
 
 Setup a Segment Reservation
 ***************************
