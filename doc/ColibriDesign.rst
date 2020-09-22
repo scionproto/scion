@@ -314,6 +314,8 @@ example has the following values:
    per-packet MAC.
 
 TODO Question: how is `G` sending back the packet with the per-packet MAC schema?
+Proposed: use HVF only when C=0, and static MACs when C=1. This should be okay,
+as every request comes source authenticated with DRKey, and stops at every COLIBRI service.
 
 TODO Question: we want to have reliable communication between services. This means using
 quic for the communication. Will it work okay?
