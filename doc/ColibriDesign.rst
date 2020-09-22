@@ -75,7 +75,7 @@ Reservation ID
     Segment and E2E reservations have a reservation ID. It uniquely identifies
     the reservation. The reservation ID must be unique on the path (path
     understood as a sequence of interface IDs).
-    Both Segment and E2E reservation IDs contain the AS ID of the reservation
+    Both segment and E2E reservation IDs contain the AS ID of the reservation
     originator AS as the first 6 bytes.
 
 There is only one type of COLIBRI packet. It is mainly used by the data plane
@@ -87,9 +87,12 @@ COLIBRI packets in the border router.
 
 Design Requirements
 -------------------
-#. The monitoring computes the bandwidth usage per segment reservation.
-   It relies on deriving the segment reservation ID for each packet without
-   keeping any state.
+#. The monitoring computes the bandwidth usage per E2E reservation.
+   This relies on the control-plane not invalidating any reservation until its
+   expiration time (what is valid in the data-plane is valid in the
+   control-plane).
+   The monitoring system must be able to catch E2E reservations over-usage and
+   double usage with high probability, without keeping any state.
 #. The border router must validate and forward the packets very quickly.
    For this, as mentioned before, we have only one COLIBRI packet type,
    and no hop-by-hop extensions. This means that the control-plane traffic
@@ -103,15 +106,12 @@ Design Decisions
 According to the requirements exposed above, here are some of the decisions
 taken to fulfill them:
 
-#. Each packet contains at least one reference to a segment reservation ID.
-   We will then include the lengths of the (possibly) three stitched segments,
-   alongside with their reservations IDs.
-   The monitoring (or any other) system can then deduce which is the current
-   segment reservation being used. For example, :math:`[2,3,2]` means we
-   expect 2 ASes in the up-segment, 3 in the core-segment, and 2 in the
-   down-segment. Note that the last AS in the up-segment is the same as the
-   first in the core-segment, and that the last AS of the core-segment is the
-   same as the first AS of the down-segment.
+#. The COLIBRI packet does not need segment IDs in it.
+   Since the E2E reservations are the only ones monitored,
+   the monitor does not need the segment IDs, and the COLIBRI packets that
+   carry segment reservation operations data belong to the control-plane and
+   can be policed there, we will not need to refer to the stitched segments
+   when the packet uses an E2E reservation.
 #. A COLIBRI path is composed of one mandatory *InfoField* and a sequence of
    *HopFields*. This applies to both segment and E2E reservations. The
    *InfoField* controls what the border router can do with the packet:
@@ -132,6 +132,7 @@ taken to fulfill them:
      Via this flag, we can always send the responses to the requests that
      the COLIBRI services receive. The responses always travel in the
      reverse direction, and must always stop at each COLIBRI service.
+     The bandwidth is also guaranteed when ``R=1``.
 
 #. The cryptographic tag enabling packet validation for an AS relies only on a
    private key derived from secret AS values (e.g., the master key), and fields
@@ -148,6 +149,7 @@ It protects the path in two ways:
 - HopFields must be used in the right order they were provided.
   I.e., a HopField that was obtained in a path as the `i`-th one,
   must always be used in the `i`-th position.
+- The number of HopFields is unaltered.
 
 To achieve the protection we want against changes in the relevant parts
 of the *InfoField* and *HopField*, we will include the following in the
@@ -164,13 +166,16 @@ MAC computation:
   These fields are:
 
   - Expiration time.
-  - The ``C`` flag.
   - Granted bandwidth.
   - Request latency class.
   - Index number.
   - Reservation path type (up, core, etc.)
-  - The lengths of the (up to three) stitched segments.
-  - The segment IDs of the (up to three) stitched segments.
+
+- Other fields of the *InfoField* related to the path that should
+  not be altered:
+
+  - The ``C`` flag.
+  - The number of ASes in the path.
 
 - Finally the ingress and egress interface IDs of the particular AS computing
   the MAC.
@@ -188,48 +193,53 @@ MAC computation:
     the COLIBRI service that the packet represents a valid segment reservation.
 
 As it can be noted, two sets of MAC values will be produced depending on the
-value of the flag ``C``. For ``C=1`` the MAC is computed and used as such in
+value of the flag ``C``. For ``C=1`` the MAC is computed and used directly in
 the HopFields.
 
-But when ``C=0``, we want to avoid end hosts from AS *A* being able to leak
-the MACs to other entities in different ASes, that could then generate traffic
+But when ``C=0``, we want to avoid end hosts from the source of the reservation
+AS *A* being able to leak the MACs to other entities in different ASes,
+that could then generate traffic
 that appears like generated from the original AS *A*, and thus AS *A*
 being wrongly blamed for consuming more than their granted bandwidth,
 which would surely have it blacklisted in the transit ASes.
 To do this we will use a per-packet MAC computation approach.
-This is done by computing two different types of MACs: the *static* MACs and
-the *per-packet* MACs.
+This is done by computing a different type of MAC:
+the *per-packet* MAC.
 
 Let's call *A* the source of the reservation, and *B* an
 AS in the path of said reservation. :math:`K_B` is a secret key that only
 *B* knows. *MAC* is the function used to compute the MAC. *InputData* are
 all the fields specified above, that will be part of the MAC computation.
-The **static MAC** is computed as:
+Let's describe both MACs. The **static MAC** is used when ``C=1``:
 
 .. math::
-    \sigma_B = \text{MAC}_{K_B}(InputData)
+    \text{MAC}_B^{C=1} = \text{MAC}_{K_B}(InputData)
 
-The MAC values when ``C=0`` are communicated in the successful response
+With ``C=0``, the **per-packet MAC** has to be computed.
+We denote the per-packet MACs as *HVF* (hop-validation field)
+and introduce a high-precision time stamp of each
+packet, *TS*.
+The (HVF) is computed as follows:
+
+.. math::
+    \begin{align}
+    \sigma_B &= \text{MAC}_B^{C=0} \\
+    \text{HVF}_B &= \text{MAC}_{\sigma_B}(TS, \text{packet_length},
+    \text{flags}) \\
+    \end{align}
+
+The `flags` refer to the COLIBRI packet flags (``C,R,S``).
+Note that the key used to compute the HVF is :math:`\sigma_B`, the static
+MAC computed by *B*, which is only known to *B* and *A*.
+
+The MAC values when ``C=1`` are communicated in the successful response
 of a reservation setup or renewal, without any type of encryption.
-In the same response message, we will
+In the same response message, we
 add each of the :math:`\sigma_B` for each AS *B* part of the path, but
 encrypted only for *A*, e.g. with the public AS key or using DRKey.
 The AS *A* will store both the static :math:`\text{MAC}_X^{C=1}`
 as well as the :math:`\sigma_B` values, that will be used as keys in the
 per-packet MAC computation.
-
-Every time a new packet is sent using that COLIBRI reservation with ``C=0``,
-the per-packet MACs have to be computed. We denote the per-packet MACs as *HVF*
-(hop-validation field) and introduce a high-precision time stamp of each
-packet, *TS*.
-The **per-packet MAC** (HVF) is computed as follows:
-
-.. math::
-    \text{HVF}_B = \text{MAC}_{\sigma_B}(TS, \text{packet_length}, \text{flags})
-
-The `flags` refer to the COLIBRI packet flags (``C,R,S``).
-Note that the key used to compute the HVF is :math:`\sigma_B`, the static
-MAC computed by *B*, which is only known to *B* and *A*.
 
 For the sake of simplicity let's say that this computation happens in a
 specific service only for this purpose, that receives COLIBRI traffic from
@@ -257,7 +267,9 @@ if ``C`` is set, the border router must deliver the packet
 to the local COLIBRI service.
 The COLIBRI service checks the source validity on each operation via
 DRKey tags inside the payload, that authenticate that the source is
-unaltered.
+is indeed requesting this operation.
+
+Since all control-plane operations have ``C=1``, they use the static MAC.
 
 E2E Reservation Renewal Operation
 ---------------------------------
