@@ -68,8 +68,7 @@ func TestNewSetupRequest(t *testing.T) {
 		TrailLength       int
 		TotalASCount      int
 		SegmentIndex      int
-		IsSrc             bool
-		IsDst             bool
+		PathLocation      PathLocation
 		IsTransfer        bool
 	}{
 		// "3-2-4 at 0" means:
@@ -79,8 +78,7 @@ func TestNewSetupRequest(t *testing.T) {
 			TrailLength:       0,
 			TotalASCount:      2,
 			SegmentIndex:      0,
-			IsSrc:             true,
-			IsDst:             false,
+			PathLocation:      Source,
 			IsTransfer:        false,
 		},
 		"2 at 1": {
@@ -88,8 +86,7 @@ func TestNewSetupRequest(t *testing.T) {
 			TrailLength:       1,
 			TotalASCount:      2,
 			SegmentIndex:      0,
-			IsSrc:             false,
-			IsDst:             false,
+			PathLocation:      Transit,
 			IsTransfer:        false,
 		},
 		"2 at 2": {
@@ -97,8 +94,7 @@ func TestNewSetupRequest(t *testing.T) {
 			TrailLength:       2,
 			TotalASCount:      2,
 			SegmentIndex:      0,
-			IsSrc:             false,
-			IsDst:             true,
+			PathLocation:      Destination,
 			IsTransfer:        false,
 		},
 		"3-4-5 at 0": {
@@ -106,8 +102,7 @@ func TestNewSetupRequest(t *testing.T) {
 			TrailLength:       0,
 			TotalASCount:      10,
 			SegmentIndex:      0,
-			IsSrc:             true,
-			IsDst:             false,
+			PathLocation:      Source,
 			IsTransfer:        false,
 		},
 		"3-4-5 at 1": {
@@ -115,8 +110,7 @@ func TestNewSetupRequest(t *testing.T) {
 			TrailLength:       1,
 			TotalASCount:      10,
 			SegmentIndex:      0,
-			IsSrc:             false,
-			IsDst:             false,
+			PathLocation:      Transit,
 			IsTransfer:        false,
 		},
 		"3-4-5 at 2": {
@@ -124,8 +118,7 @@ func TestNewSetupRequest(t *testing.T) {
 			TrailLength:       2,
 			TotalASCount:      10,
 			SegmentIndex:      0,
-			IsSrc:             false,
-			IsDst:             false,
+			PathLocation:      Transit,
 			IsTransfer:        true,
 		},
 		"3-4-5 at 3": {
@@ -133,8 +126,7 @@ func TestNewSetupRequest(t *testing.T) {
 			TrailLength:       3,
 			TotalASCount:      10,
 			SegmentIndex:      1,
-			IsSrc:             false,
-			IsDst:             false,
+			PathLocation:      Transit,
 			IsTransfer:        false,
 		},
 		"3-4-5 at 5": {
@@ -142,8 +134,7 @@ func TestNewSetupRequest(t *testing.T) {
 			TrailLength:       5,
 			TotalASCount:      10,
 			SegmentIndex:      1,
-			IsSrc:             false,
-			IsDst:             false,
+			PathLocation:      Transit,
 			IsTransfer:        true,
 		},
 		"3-4-5 at 6": {
@@ -151,8 +142,7 @@ func TestNewSetupRequest(t *testing.T) {
 			TrailLength:       6,
 			TotalASCount:      10,
 			SegmentIndex:      2,
-			IsSrc:             false,
-			IsDst:             false,
+			PathLocation:      Transit,
 			IsTransfer:        false,
 		},
 		"3-4-5 at 9": {
@@ -160,8 +150,7 @@ func TestNewSetupRequest(t *testing.T) {
 			TrailLength:       9,
 			TotalASCount:      10,
 			SegmentIndex:      2,
-			IsSrc:             false,
-			IsDst:             false,
+			PathLocation:      Transit,
 			IsTransfer:        false,
 		},
 		"3-4-5 at 10": {
@@ -169,8 +158,7 @@ func TestNewSetupRequest(t *testing.T) {
 			TrailLength:       10,
 			TotalASCount:      10,
 			SegmentIndex:      2,
-			IsSrc:             false,
-			IsDst:             true,
+			PathLocation:      Destination,
 			IsTransfer:        false,
 		},
 	}
@@ -190,9 +178,8 @@ func TestNewSetupRequest(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.TotalASCount, r.totalASCount)
 			require.Equal(t, tc.SegmentIndex, r.currentASSegmentRsvIndex)
-			require.Equal(t, tc.IsSrc, r.IsThisASTheSrc())
-			require.Equal(t, tc.IsDst, r.IsThisASTheDst())
-			require.Equal(t, tc.IsTransfer, r.IsThisASaTransfer())
+			require.Equal(t, tc.PathLocation, r.Location())
+			require.Equal(t, tc.IsTransfer, r.Transfer())
 		})
 	}
 }
