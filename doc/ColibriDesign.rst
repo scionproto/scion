@@ -146,14 +146,6 @@ It protects the path in two ways:
   I.e., a HopField that was obtained in a path as the `i`-th one,
   must always be used in the `i`-th position.
 
-.. Note::
-    The ``R`` flag we chose at the `design decisions`_
-    alters the order of appearance of the HopFields, but not the
-    computation of the MAC. Since ``R`` implies ``C``, each COLIBRI service
-    can (and possibly will) check that the ingress/egress pair they observe
-    in their HopField corresponds to that stored in their DB for the
-    reservation ID of the packet.
-
 To achieve the protection we want against changes in the relevant parts
 of the *InfoField* and *HopField*, we will include the following in the
 MAC computation:
@@ -169,6 +161,7 @@ MAC computation:
   These fields are:
 
   - Expiration time.
+  - The ``C`` flag.
   - Granted bandwidth.
   - Request latency class.
   - Index number.
@@ -179,9 +172,27 @@ MAC computation:
 - Finally the ingress and egress interface IDs of the particular AS computing
   the MAC.
 
-We also want to protect ASes from being wrongly blamed for consuming more than
-their granted bandwidth by other malicious ASes that pursue to have them
-blacklisted.
+.. Note::
+    The ``R`` flag we chose at the `design decisions`_
+    alters the order of appearance of the HopFields, but not the
+    computation of the MAC. Since ``R`` implies ``C``, each COLIBRI service
+    can (and possibly will) check that the ingress/egress pair they observe
+    in their HopField corresponds to that stored in their DB for the
+    reservation ID of the packet.
+
+    The ``S`` flag is also not part of the MAC computation, and since it forces
+    ``C=1`` we can follow the same principle described above and ensure in
+    the COLIBRI service that the packet represents a valid segment reservation.
+
+As it can be noted, two sets of MAC values will be produced depending on the
+value of the flag ``C``. For ``C=1`` the MAC is computed and used as such in
+the HopFields.
+
+But when ``C=0``, we want to avoid end hosts from AS *A* being able to leak
+the MACs to other entities in different ASes, that could then generate traffic
+that appears like generated from the original AS *A*, and thus AS *A*
+being wrongly blamed for consuming more than their granted bandwidth,
+which would surely have it blacklisted in the transit ASes.
 To do this we will use a per-packet MAC computation approach.
 This is done by computing two different types of MACs: the *static* MACs and
 the *per-packet* MACs.
@@ -195,14 +206,16 @@ The **static MAC** is computed as:
 .. math::
     \sigma_B = \text{MAC}_{K_B}(InputData)
 
-That static MAC does not change with the payload of the packet. We will
-communicate each of the :math:`\sigma_B` for each AS *B* part of the path, to
-AS *A* (the source of the reservation), in the reservation setup process, but
+The MAC values when ``C=0`` are communicated in the successful response
+of a reservation setup or renewal, without any type of encryption.
+In the same response message, we will
+add each of the :math:`\sigma_B` for each AS *B* part of the path, but
 encrypted only for *A*, e.g. with the public AS key or using DRKey.
-The AS *A* will store these static MAC results as keys to use in the
+The AS *A* will store both the static :math:`\text{MAC}_X^{C=1}`
+as well as the :math:`\sigma_B` values, that will be used as keys in the
 per-packet MAC computation.
 
-Every time a new packet is sent using that COLIBRI reservation,
+Every time a new packet is sent using that COLIBRI reservation with ``C=0``,
 the per-packet MACs have to be computed. We denote the per-packet MACs as *HVF*
 (hop-validation field) and introduce a high-precision time stamp of each
 packet, *TS*.
@@ -222,14 +235,8 @@ that go in the packet.
 
 If, at a later moment, the HVF computed for a packet while in transit
 at *B* is correct, *B* knows that only *A* could have actually computed it,
-since the :math:`\sigma_B` was not even given to end hosts, but only
-*official* services of A.
-
-TODO: do we really need the index number included in the MAC ?
-
-Forwarding
-----------
-TODO
+since the :math:`\sigma_B` was not ever given to end hosts, but only
+to the *official* service of AS *A*.
 
 
 Control-Plane General Overview
@@ -243,7 +250,7 @@ the flag ``S`` will be set or not.
 
 This delivery mechanism cannot be abused, as every border router must check
 that if any of the ``R`` or ``S`` flags are set, ``C`` is also set. And
-if ``C`` is set, the bourder router must deliver the packet
+if ``C`` is set, the border router must deliver the packet
 to the local COLIBRI service. The COLIBRI
 service must always check when handling the request or response, that the
 path used in the packet is valid. I.e., it contains the correct sequence of
@@ -273,17 +280,18 @@ example has the following values:
    The packet has the path :math:`\verb!C=1,R=0,S=0!`,
    :math:`A \rightarrow B \rightarrow C \rightarrow D
    \rightarrow E \rightarrow F \rightarrow G`
-   All the static MACs :math:`\sigma_X` were provided in a previous setup of
-   the reservation.
-#. The service at *A* handles the request. It does the admission
+#. The COLIBRI service at *A* handles the request. It does the admission
    in *A*. Modifies the payload conveniently and sends a message to the next
-   hop, which is *B*. TODO: how is the payload modified?
+   hop, which is *B*.
+   All the static MACs :math:`\text{MAC}_X^{C=1}` were provided in
+   a previous setup of the reservation and stored in the service.
+   TODO: how is the payload modified?
 #. The border router at *A* forwards the packet to *B*
-#. The border router at *B* validates its HopField. It is correct (flags are
-   not used for the MAC). The ``C`` flag is set, so the border router delivers
-   it to the COLIBRI service.
-#. The COLIBRI service handles the request and does the admission. It is
-   admitted and the payload is modified accordingly.
+#. The border router at *B* validates its HopField. It is correct.
+   The ``C`` flag is set, so the border router delivers
+   the packet to the COLIBRI service.
+#. The COLIBRI service at *B* handles the request and does the admission.
+   It is admitted and the payload is modified accordingly.
    The COLIBRI service sends the message to the next hop, which is C.
 #. The process continues on this way until there is an error or the request
    reaches the last AS `G`.
@@ -301,26 +309,25 @@ example has the following values:
    host :math:`h_2`, this will reverse the traversal of the path by setting
    ``R=1,C=1`` and send it to its AS's COLIBRI service.
 #. The COLIBRI service at `G` receives the response with acceptance, and then
-   it adds the HopField to the payload. It also computes the MAC
-   :math:`\sigma_G` and encrypts and authenticates it with
-   :math:`DRKey K_{G \to A}`. The MAC is
+   it adds the HopField to the payload. It also computes both MACs
+   :math:`\text{MAC}_G^{C=1}` and :math:`\text{MAC}_G^{C=0}` (which is
+   :math:`\sigma_G`) and encrypts and authenticates this last one with
+   :math:`DRKey K_{G \to A}`. Both MACs are
    also added to the payload. The packet is sent to the border router at `G`.
 #. The border router at `G` receives the COLIBRI packet with ``R=1,C=1``,
    and forwards it to the next border router, at `F`.
 #. The border router at `F` receives the packet. It checks whether the MAC
    is valid and drops the packet if not. If the MAC is
-   valid (MAC is independent of the flags), the border router delivers it
-   to the local COLIBRI service.
-#. The COLIBRI service at `F` now add its own HopField and :math:`\sigma_F`,
-   encrypted with the public key of `A`. It then sends it to the border router.
+   valid (:math:`\text{MAC}_F^{C=1}` is independent of the ``R`` flag),
+   the border router delivers it to the local COLIBRI service.
+#. The COLIBRI service at `F` now add its own HopField and
+   the two MACs :math:`\text{MAC}_F^{C=1}` and :math:`\sigma_F`,
+   the latter encrypted with :math:`DRKey K_{F \to A}`.
+   It then sends it to the border router.
 #. The process continues until the packet reaches the COLIBRI service at `A`,
    where the HopFields inside are decrypted and stored so that COLIBRI
    traffic originating for this reservation can be correctly stamped with the
-   per-packet MAC.
-
-TODO Question: how is `G` sending back the packet with the per-packet MAC schema?
-Proposed: use HVF only when C=0, and static MACs when C=1. This should be okay,
-as every request comes source authenticated with DRKey, and stops at every COLIBRI service.
+   appropriate MAC value.
 
 TODO Question: we want to have reliable communication between services. This means using
 quic for the communication. Will it work okay?
@@ -360,7 +367,7 @@ These are the steps:
    arrives to the border router at `F`. This border router validates the
    packet and sends it to the local COLIBRI service.
 #. The COLIBRI service at `F` receives the packet and adjusts in its DB the
-   values for the reservation. It adds its HopField and MAC and
+   values for the reservation. It adds its HopField and the two MACs and
    sends the packet again to the border router, to continue its journey.
 #. The packet arrives to the border router at `G`, and since it has the flag
    ``C=1`` it delivers it to the local COLIBRI service, after validating that
