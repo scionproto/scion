@@ -526,11 +526,11 @@ func flatten(out string) error {
 			return serrors.WithCtx(err, "file", trc)
 		}
 	}
-	pems, err := filepath.Glob(fmt.Sprintf("%s/ISD*/AS*/crypto/*/ISD*-AS*.pem", out))
+	pems, err := filepath.Glob(fmt.Sprintf("%s/AS*/crypto/*/ISD*-AS*.pem", out))
 	if err != nil {
 		return err
 	}
-	crts, err := filepath.Glob(fmt.Sprintf("%s/ISD*/AS*/crypto/*/ISD*-AS*.crt", out))
+	crts, err := filepath.Glob(fmt.Sprintf("%s/AS*/crypto/*/ISD*-AS*.crt", out))
 	if err != nil {
 		return err
 	}
