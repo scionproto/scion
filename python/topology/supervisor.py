@@ -108,7 +108,6 @@ class SupervisorGenerator(object):
         cmd_args = ["bin/dispatcher", "--config", os.path.join(conf_dir, DISP_CONFIG_NAME)]
         return (name, self._common_entry(name, cmd_args))
 
-
     def _add_prog(self, config, name, entry):
         config["program:%s" % name] = entry
 

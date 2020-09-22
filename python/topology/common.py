@@ -85,10 +85,6 @@ class TopoID(ISD_AS):
         return "%s-%s" % (self.isd_str(), self.as_file_fmt())
 
     def base_dir(self, out_dir):
-        #return os.path.join(out_dir, self.ISD(), self.AS_file())
-        return os.path.join(out_dir, self.AS_file())
-
-    def base_dir_flat(self, out_dir):
         return os.path.join(out_dir, self.AS_file())
 
     def __lt__(self, other):
