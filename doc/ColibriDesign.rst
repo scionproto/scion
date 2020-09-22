@@ -155,10 +155,11 @@ To achieve the protection we want against changes in the relevant parts
 of the *InfoField* and *HopField*, we will include the following in the
 MAC computation:
 
-- Reservation ID: because there is only one path per reservation, and
-  each reservation is identified by an ID, the ID also identifies the path.
-  This means that we will no longer need to onion or chain the HopFields
-  or include any type of index to protect their order.
+- Reservation ID: as each HopField's MAC is bound to the unique
+  reservation ID, it is impossible to "splice" reservations, i.e.,
+  combine HopFields from multiple reservations. Therefore, the
+  MAC chaining employed in standard SCION is not needed
+  (note that an ID is bound to exactly one path).
 - Reservation fields: fields that came from the reservation setup, and that
   should not be altered otherwise, must be included in the MAC computation.
   This prevents malicious clients from tampering with the reservation and
@@ -236,7 +237,7 @@ The MAC values when ``C=1`` are communicated in the successful response
 of a reservation setup or renewal, without any type of encryption.
 In the same response message, we
 add each of the :math:`\sigma_B` for each AS *B* part of the path, but
-encrypted only for *A*, e.g. with the public AS key or using DRKey.
+encrypted only for *A*, e.g. using DRKey.
 The AS *A* will store both the static :math:`\text{MAC}_X^{C=1}`
 as well as the :math:`\sigma_B` values, that will be used as keys in the
 per-packet MAC computation.
