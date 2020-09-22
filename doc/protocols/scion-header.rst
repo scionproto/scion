@@ -784,9 +784,6 @@ Pseudo code::
 
 Notes on the Control Plane
 -----------------------------
-TODO: we want to compute just one MAC flavor (the flags are not included in the computation).
-Is it feasible? What happens when R=1 ?
-
 For the simplicity in the BR forwarding to work out, we always include
 the hop fields in the direction of traversal, be it the reservation one,
 or its reverse.
