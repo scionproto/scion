@@ -68,7 +68,7 @@ type SetupReq struct {
 	SegmentRsvASCount        []uint8 // how many ASes per segment reservation
 	RequestedBW              reservation.BWCls
 	AllocationTrail          []reservation.BWCls
-	totalAScount             int
+	totalASCount             int
 	currentASSegmentRsvIndex int // the index in SegmentRsv for the current AS
 	isTransfer               bool
 }
@@ -81,12 +81,12 @@ func NewSetupRequest(r *Request, segRsvs []reservation.SegmentID, segRsvCount []
 		return nil, serrors.New("e2e setup request invalid", "seg_rsv_len", len(segRsvs),
 			"seg_rsv_count_len", len(segRsvCount))
 	}
-	totalAScount := 0
+	totalASCount := 0
 	currASindex := -1
 	isTransfer := false
 	n := len(allocTrail) - 1
 	for i, c := range segRsvCount {
-		totalAScount += int(c)
+		totalASCount += int(c)
 		n -= int(c) - 1
 		if i == len(segRsvCount)-1 {
 			n-- // the last segment spans 1 more AS
@@ -96,7 +96,7 @@ func NewSetupRequest(r *Request, segRsvs []reservation.SegmentID, segRsvCount []
 			isTransfer = i < len(segRsvCount)-1 && n == -1 // dst AS is no transfer
 		}
 	}
-	totalAScount -= len(segRsvCount) - 1
+	totalASCount -= len(segRsvCount) - 1
 	if currASindex < 0 {
 		return nil, serrors.New("error initializing e2e request",
 			"alloc_trail_len", len(allocTrail), "seg_rsv_count", segRsvCount)
@@ -107,7 +107,7 @@ func NewSetupRequest(r *Request, segRsvs []reservation.SegmentID, segRsvCount []
 		SegmentRsvASCount:        segRsvCount,
 		RequestedBW:              requestedBW,
 		AllocationTrail:          allocTrail,
-		totalAScount:             totalAScount,
+		totalASCount:             totalASCount,
 		currentASSegmentRsvIndex: currASindex,
 		isTransfer:               isTransfer,
 	}, nil
@@ -124,7 +124,7 @@ func (r *SetupReq) IsThisASTheSrc() bool {
 }
 
 func (r *SetupReq) IsThisASTheDst() bool {
-	return len(r.AllocationTrail) == r.totalAScount
+	return len(r.AllocationTrail) == r.totalASCount
 }
 
 func (r *SetupReq) IsThisASaTransfer() bool {
