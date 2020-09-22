@@ -31,6 +31,5 @@ type Capacities interface {
 // MessageWithPath is used to send messages from the COLIBRI service via the BR.
 type MessageWithPath interface {
 	Path() *spath.Path
-	IsHopByHop() bool
 	// Payload() []byte
 }
