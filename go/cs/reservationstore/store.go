@@ -419,8 +419,9 @@ func (s *Store) AdmitE2EReservation(ctx context.Context, request e2e.SetupReques
 
 	var msg base.MessageWithPath
 	if req.Location() == e2e.Destination {
+		asAResponse := failedResponse.(*e2e.ResponseSetupFailure)
 		msg = &e2e.ResponseSetupSuccess{
-			Response: failedResponse.(*e2e.ResponseSetupFailure).Response,
+			Response: *morphE2EResponseToSuccess(&asAResponse.Response),
 			Token:    *index.Token,
 		}
 	} else {

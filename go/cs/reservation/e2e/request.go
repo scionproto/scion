@@ -127,6 +127,19 @@ const (
 	Destination
 )
 
+func (l PathLocation) String() string {
+	switch l {
+	case Source:
+		return "source"
+	case Transit:
+		return "trantit"
+	case Destination:
+		return "destination"
+	}
+	return "unknown path location"
+}
+
+// Location returns the location of this node in the path of the request.
 func (r *SetupReq) Location() PathLocation {
 	switch len(r.AllocationTrail) {
 	case 0:
