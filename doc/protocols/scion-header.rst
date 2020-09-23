@@ -528,15 +528,6 @@ for this purpose.
 
 InfoField
 ---------
-TODO and questions:
-    
-    - The reservation path type can be removed. Can it? For any given
-      segment reservation, its type must always be the same, and thus
-      established when setting it up. Is this correct?
-    - Move extra documentation (e.g. Notes on the Control Plane) to a
-      more appropriate place (maybe the COLIBRI design).
-
-
 The only Info Field has the following format::
 
      0                   1                   2                   3
@@ -599,6 +590,12 @@ Idx
 RPT
     The Reservation Path Type of this reservation.
 
+
+TODO and questions:
+
+    - The reservation path type can be removed. Can it? For any given
+      segment reservation, its type must always be the same, and thus
+      established when setting it up. Is this correct?
 
 Hop Field
 ---------
