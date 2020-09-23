@@ -295,11 +295,10 @@ example has the following values:
    :math:`A \rightarrow B \rightarrow C \rightarrow D
    \rightarrow E \rightarrow F \rightarrow G`
 #. The COLIBRI service at *A* handles the request. It does the admission
-   in *A*. Modifies the payload conveniently and sends a message to the next
-   hop, which is *B*.
+   in *A*. It adds the maximum bandwidth from the admission to the
+   request and sends a message to the next hop, which is *B*.
    All the static MACs :math:`\text{MAC}_X^{C=1}` were provided in
    a previous setup of the reservation and stored in the service.
-   TODO: how is the payload modified?
 #. The border router at *A* forwards the packet to *B*
 #. The border router at *B* validates its HopField. It is correct.
    The ``C`` flag is set, so the border router delivers
@@ -388,9 +387,6 @@ These are the steps:
    the MAC and the rest of the fields are okay.
 #. Finally, the COLIBRI service at `G` receives the packet and stores the
    HopFields and MACs from the payload.
-
-TODO Question: in the case of a down-segment, who is storing the :math:`\sigma_X` ?
-Should that be the originator, i.e. `G` ? or the first AS in the direction of the traffic, i.e. `F` ?
 
 
 COLIBRI Service
