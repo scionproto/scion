@@ -149,7 +149,7 @@ class TestRun(CmdBase):
                 args[i] = str(args[i].relative_to(local.path('.')))
 
         logger.info('Requesting certificate chain renewal: %s' % rel(chain))
-        print(self.scion.execute(isd_as, './bin/scion-pki', 'certs', 'renew', *args))
+        logger.info(self.scion.execute(isd_as, './bin/scion-pki', 'certs', 'renew', *args))
 
         logger.info('Verify renewed certificate chain')
         verify_out = local['./bin/scion-pki']('certs', 'verify', chain,

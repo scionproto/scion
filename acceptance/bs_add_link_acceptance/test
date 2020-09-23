@@ -29,7 +29,7 @@ from plumbum.path.local import LocalPath
 
 from acceptance.common.log import LogExec, init_log
 from acceptance.common.base import CmdBase, set_name, TestBase, TestState
-from acceptance.common.scion import svc_names_from_path, SCIONDocker
+from acceptance.common.scion import SCIONDocker
 from acceptance.common.tools import DC
 
 set_name(__file__)
@@ -155,6 +155,7 @@ class TestRun(CmdBase):
         """
         for cs_config in cs_configs:
             cp(cs_config.parent / 'topology.json', cs_config.parent / cs_config.stem)
+
 
 if __name__ == '__main__':
     init_log()
