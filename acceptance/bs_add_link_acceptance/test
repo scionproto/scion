@@ -52,7 +52,7 @@ class Test(TestBase):
     """
 
 
-def find_cs_configs() -> List[LocalPath]:
+def cs_config_files() -> List[LocalPath]:
     """
     Return the paths to the cs  config files in AS 1-ff00:0:110 and 1-ff00:0:111.
     """
@@ -73,7 +73,7 @@ class TestSetup(CmdBase):
             self.docker_status()
 
     def modify_topologies(self):
-        cs_configs = find_cs_configs()
+        cs_configs = cs_config_files()
         cs_dirs = self.copy_cs_configs(cs_configs)
 
         topos = self.load_topologies(cs_dirs)
@@ -83,7 +83,7 @@ class TestSetup(CmdBase):
     def copy_cs_configs(self, cs_configs):
         """
         Copy configuration files shared between the different services (topology.json, crypto/, ..)
-        into separate subdirectory for the CS, it is "unshared" and can be modified without
+        into separate subdirectory for the CS, so that it is "unshared" and can be modified without
         affecting the other services (routers, sciond, ...).
         :returns: new subdirectories for CS configs
         """
@@ -139,7 +139,7 @@ class TestRun(CmdBase):
     def main(self):
         self.scion.run_end2end(expect_fail=True)
         logger.info('Initial end2end failed as expected, restoring topologies')
-        cs_configs = find_cs_configs()
+        cs_configs = cs_config_files()
         self.restore_topologies(cs_configs)
         names = [cs_config.stem for cs_config in cs_configs]
         logging.info('Reloading services: %s' % names)
