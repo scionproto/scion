@@ -139,6 +139,8 @@ taken to fulfill them:
    present in the packet.
 
 
+.. _colibri-mac-computation:
+
 MAC Computation
 ---------------
 A message-authentication code (MAC) is used in the validation of a packet when
@@ -225,11 +227,9 @@ The (HVF) is computed as follows:
 .. math::
     \begin{align}
     \sigma_B &= \text{MAC}_B^{C=0} \\
-    \text{HVF}_B &= \text{MAC}_{\sigma_B}(TS, \text{packet_length},
-    \text{flags}) \\
+    \text{HVF}_B &= \text{MAC}_{\sigma_B}(\text{TS}, \text{packet_length}) \\
     \end{align}
 
-The `flags` refer to the COLIBRI packet flags (``C,R,S``).
 Note that the key used to compute the HVF is :math:`\sigma_B`, the static
 MAC computed by *B*, which is only known to *B* and *A*.
 
@@ -459,7 +459,22 @@ should be notified.
    sends the request to the next AS in the path.
 #. If there is a timeout, this store will send a cleanup request to the
    next AS in the path.
+#. Otherwise a response will arrive before the timeout. If it is a failure,
+   it gets reported in the logs. A new attempt of a setup is triggered.
+#. If the response is successful, there will be a set of MACs in the
+   the response, only for ``C=1`` (segment reservations are always
+   ``C=1,S=1``). These MACs are stored alongside with the HopFields in the DB
+   for this reservation, and the setup finishes.
 
+Renew a Segment Reservation
+***************************
+#. The service triggers the renewal of the existing segment reservations
+   with constant frequency.
+#. The store in the COLIBRI service retrieves each one of the reservations
+   that originate in this AS.
+#. Per reservation retrieved, the store adds a new index to it and
+   pushes it forward, with the same dynamics as in
+   `Setup a Segment Reservation`_.
 
 Handle a Setup Request
 **********************
@@ -472,14 +487,22 @@ Handle a Setup Request
    reservation response.
 #. The store forwards the request with the decided bandwidth.
 
+Handle a Renewal Request
+************************
+The renewal request handler is the same as the `handle a setup request`_.
+The renewal is initiated differently (by adding a new index to an existing
+reservation), but handled the same way.
+
 Handle a Setup Response
 ***********************
-#. The store saves the reservation as final.
+#. If the response is a failure, it gets reported in the logs.
+#. If the response is successful, the store saves the reservation as final.
+   It also adds the HopField and its MAC for ``C=1`` to the response.
+#. The store sends the response back in the direction it was already traveling
+   (possibly with ``R=1`` unless this is a down-segment reservation).
 #. If this AS is the first one in the reservation path (aka
-   *reservation initiator*), the store sends an index confirmation request
-   to the next AS in the path.
-#. If this AS is the not the first one in the reservation path, the store
-   sends a response message to the previous AS's COLIBRI service.
+   *reservation initiator*), the store also starts
+   an index confirmation request.
 
 Handle an Index Confirmation Request
 ************************************
@@ -502,21 +525,6 @@ Handle a Teardown Request
 #. The store removes the reservation.
 #. The COLIBRI service forwards the teardown request.
 
-Handle a Renewal Request
-************************
-The renewal request handler is the same as the `handle a setup request`_.
-The renewal is initiated differently (by adding a new index to an existing
-reservation), but handled the same way.
-
-Renew a Segment Reservation
-***************************
-#. The service triggers the renewal of the existing segment reservations
-   with constant frequency.
-#. The store in the COLIBRI service retrieves each one of the reservations
-   that originate in this AS.
-#. Per reservation retrieved, the store adds a new index to it and
-   pushes it forward.
-
 Handle a Reservation Query
 **************************
 #. The store in the COLIBRI service receives the query and returns the
@@ -530,7 +538,23 @@ Handle an E2E Setup Request
 #. The COLIBRI service queries the store to admit the reservation
 #. The store computes the allowed bandwidth (knowing the current segment
    reservation and the existing E2E reservations in it).
-#. The store pushes forward the setup request.
+#. The store pushes forward the setup request, successful or otherwise.
+
+Handle an E2E Setup Response
+****************************
+#. The COLIBRI service receives a response traveling in the opposite direction
+   as the request.
+#. This COLIBRI service computes the maximum bandwidth it would be willing
+   to grant, and adds this information to the response.
+#. If the response was and still is successful after its own admission,
+   the service adds its HopField and two sets of MACs to the response (the
+   two sets are for ``C=0`` and ``C=1``).
+#. The response is sent along its way.
+#. If this was the COLIBRI service at the *reservation initiator* AS, the
+   COLIBRI service decrypts the ``C=0`` MACs and sends them to the
+   *stamping service* (the service in charge of computing the per packet MACs
+   or *HVFs*) if the response was successful, and informs in any case of
+   the result to the originating end-host of the reservation.
 
 Handle an E2E Renewal Request
 *****************************
