@@ -117,6 +117,7 @@ class SIGGenerator(object):
                 '%s:/share/conf' % base,
             ],
             'network_mode': 'service:%s' % disp_id,
+            'command': ['--config', '/share/conf/sig.toml'],
         }
 
     def _sig_json(self, topo_id):
