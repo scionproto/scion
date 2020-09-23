@@ -123,9 +123,10 @@ class TestRun(CmdBase):
         logger.info('Initial end2end failed as expected, restoring topologies')
         files = topology_files()
         self.restore_topologies(files)
-        names = svc_names_from_path([f.parent for f in files])
-        logging.info('Reloading services: %s' % names)
-        self.scion.reload_svc(names)
+        svc_names = svc_names_from_path([f.parent for f in files])
+        cs_names = [s for s in svc_names if s.startswith('cs')]
+        logging.info('Reloading services: %s' % cs_names)
+        self.scion.reload_svc(cs_names)
         time.sleep(2)
         self.scion.run_end2end()
 
