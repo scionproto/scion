@@ -529,23 +529,20 @@ for this purpose.
 InfoField
 ---------
 TODO and questions:
-    - probably best to add a field to indicate the current segment ID.
-      Only need two bits: current seg id IN [not an e2e, 0, 1, 2]
-    - The resevation path type can be removed. Can it? For any given
-      segment resevation, its type must always be the same, and thus
+    
+    - The reservation path type can be removed. Can it? For any given
+      segment reservation, its type must always be the same, and thus
       established when setting it up. Is this correct?
     - Move extra documentation (e.g. Notes on the Control Plane) to a
       more appropriate place (maybe the COLIBRI design).
-    - Add a trace of both the data plane and control plane for some
-      examples. E.g. Setup an E2E with 3 segments. Setup a Segment.
-      Renew them. Send data traffic with an E2E. Probably not here.
+
 
 The only Info Field has the following format::
 
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |C R S r r r r|    CurrHF   |  SegLen0  |  SegLen1  |  SegLen2  |
+    |C R S r r r r r r r r r r r r r|     CurrHF    |    HFCount    |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                                                               |
     |                        Reservation ID                         |
@@ -554,10 +551,7 @@ The only Info Field has the following format::
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                      Expiration Tick                          |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |      BWCls    |      RLC      |  Idx  |  RPT  |      RSV      |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                        Segment IDs                            |
-    |                            ...                                |
+    |      BWCls    |      RLC      |  Idx  |  RPT  |r r r r r r r r|
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 r
@@ -575,14 +569,13 @@ r
 (S)egment Reservation
     This is a Segment Reservation Packet.
     If `S` is set, `C` must be set as well. Otherwise the packet is invalid.
-    This flag is set everytime the Reservation ID is of type Segment ID.
+    This flag is set every time the Reservation ID is of type Segment ID.
 
 CurrHF
-    The index of the current hop field.
+    The index of the current HopField.
 
-SegLenN (aka :math:`\text{SegLen}_n`)
-    The length of the Nth Segment being used.
-    :math:`\text{SegLen}_j > 0 \rightarrow \text{SegLen}_i > 0 \ \forall i, 0 \leq i \lt j`.
+HFCount
+    The number of total HopFields.
 
 Reservation ID
     Uses 16 bytes. Either an E2E Reservation ID or a Segment Reservation ID,
@@ -606,17 +599,6 @@ Idx
 RPT
     The Reservation Path Type of this reservation.
 
-RSV
-    Reserved.
-
-Segment IDs
-    Empty if :math:`S=1`. If not, the number of entries depends on the
-    number of :math:`\text{SegLen}_n > 0`. One entry per each
-    :math:`\text{SegLen}_n > 0`, up to a total of 3.
-    Each Segment Reservation ID is 10 bytes long. The total (up to 30 bytes)
-    is padded to a multiple of 4 (e.g. :math:`3\ \text{entries} = 30b
-    \rightarrow 32b`).
-
 
 Hop Field
 ---------
@@ -631,21 +613,20 @@ The Hop Field has the following format::
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
-.. _colibri-mac-computation:
+
 
 Hop Field MAC Computation
 -------------------------
-The MAC is used in the validation of a packet when it is being forwarded. It protectcs the path in two ways:
-    - Values of the InfoField and Hop Fields cannot be altered.
-    - Hop Fields must be used in the right order they were provided.
-      I.e. a Hop Field that was obtained in a path as the `i` th one,
-      must always be used in the `i` th position.
+There is a explanation about the rationale of the MAC computation on
+:ref:`colibri-mac-computation`.
+Here we only detail how to perform the two different MAC computations.
 
-:math:`\sigma_i` is the hop field MAC calculated from the
-following `InputData`::
+The `InputData` is common for both types::
 
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |C|                      0                      |    HFCount    |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                                                               |
     |                        Reservation ID                         |
@@ -656,42 +637,31 @@ following `InputData`::
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |      BWCls    |      RLC      |  Idx  |  RPT  |       0       |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |  0  |         0           |  SegLen0  |  SegLen1  |  SegLen2  |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-The `InputData` is extended with up to 32 bytes containing
-all the Segment IDs plus the corresponding padding.
-This protects the segment IDs from being modified, if they are present::
-
-     0                   1                   2                   3
-     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                                                               |
-    |                                                               |
-    |                                                               |
-    |                        Segment IDs                            |
-    |                                                               |
-    |                                                               |
-    |                                                           +-+-|
-    |                                                           |0 0|
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+We just compute :math:`\text{MAC}_{K_i}^{C}` with the appropriate `InputData`:
 
 .. math::
-    \text{InputData} = \text{InputData} ||
-    \text{InfoField[$28:-1$]}
+    \text{MAC}_{K_i}^C (\text{InputData})
 
-The exact number of bytes appended to the input data depends on the length of
-the InfoField. Its computation is shown in :ref:`colibri-forwarding-process`.
-
-
-We just compute :math:`\sigma_i` with the appropriate `InputData`:
+Note that when ``C=0`` :math:`\text{MAC}_{K_i}^{C=0}` is also called
+:math:`\sigma_i`.
+In that case, we want to use :math:`\sigma_i` to compute the per packet MAC,
+also known as HopField Validation Field (*HVF*):
 
 .. math::
-    \sigma_i = \text{MAC}_{K_i} (\text{InputData})
+    \text{HVF}_i = \text{MAC}_{\sigma_i}(\text{TS}, \text{packet_length},
+    \text{flags})
 
-TODO: In a later iteration we want to use per packet MACs, as they will
-guarantee that the source actually sent the packet. Should we document that
-approach or leave here only what we will implement now?
+TS
+    The Timestamp described before.
+
+packet_length
+    The length of the packet.
+
+The per packet MACs (or *HVFs*) are used only when ``C=0``, which implies
+that the other two flags are also not set (``R=0,S=0``). The computation of
+the HVFs happens at the *stamping* service in the source AS for all HopFields,
+and at each transit AS for each of the HopFields.
 
 
 .. _colibri-forwarding-process:
@@ -705,131 +675,32 @@ This should simplify the design and implementation of the COLIBRI
 part in the border router.
 
 The validation process checks that all of the following conditions are true:
-    - The time derived from the expiration tick is less than the current time.
-    - The consistency of the flags: if `R` or `S` are set, `C` must be set.
-      Also if `S` is set, then :math:`\text{SegLen}_i = 0, \ i \in \{1,2\}`.
-    - Hop count has at least two ASes, i.e. :math:`\text{SegLen}_0 \geq 2`.
-    - The `CurrHF` is not beyond bounds.
-      I.e. :math:`\text{CurrHF} \lt \sum_{i=0}^2 SegLen_i`
-    - The :math:`\text{SegLen}_n` sequence must be correct. I.e.
-      :math:`\text{SegLen}_i = 0 \rightarrow \text{SegLen}_j = 0 \ \forall j>i`
-    - No segment length equals 1 (no single AS in a segment):
-      :math:`\text{SegLen}_i \neq 1, \forall i \in \{0, 1, 2 \}`
+
+- The time derived from the expiration tick is less than the current time.
+- The consistency of the flags: if `R` or `S` are set, `C` must be set.
+- HFCount is at least 2, :math:`\text{HFCount} \geq 2`.
+- The `CurrHF` is not beyond bounds.
+  I.e. :math:`\text{CurrHF} \lt \text{HFCount}`
 
 If the packet is valid, we continue to validate the current Hop Field.
-For that, we must compute the length of the `InfoField`, which depends on
-the flag `C` and the number of :math:`\text{SegLen}_n > 0`.
-Let's call SC (Segment Count) the number of segments:
+The current hop field is located at
+`Len(TS) + Len(InfoField) + CurrHF` :math:`\times 8`:
 
-.. math::
-    \begin{align}
-    Len(InfoField) &= (1 + 4 + 2)\times 4 + Len(Segment IDs) \\
-    Len(InfoField) &= 28 + (1 - C) \times \text{align}(SC \times 10) \\
-    Len(InfoField) &= 28 + (1 - C) \times ( 10 \times SC + 2 \times (SC \bmod 2) ) \\
-    \end{align}
-
-So the current hop field is located at :math:`8 + Len(InfoField) + \text{CurrHF} \times 8`:
-    - Its `Ingress ID` field is checked against the actual ingress interface.
-    - Its MAC is computed according to :ref:`colibri-mac-computation`
-      and checked against the `MAC` field.
+- Its `Ingress ID` field is checked against the actual ingress interface.
+- Its MAC is computed according to :ref:`colibri-mac-computation`
+  and checked against the `MAC` field. If ``C=0`` the `HVF` is computed and
+  checked instead of the static :math:`\text{MAC}_{K_i}^{C=1}`.
 
 If the packet is valid:
-    - If `C = 1`, the packet is delivered to the local COLIBRI anycast address.
-    - If `C = 0` and this AS is the destination AS (last hop):
-        - Check `DestIA` against this IA.
-    - If `C = 0` and this AS is not the destination:
-        - Its `CurrHF` field is incremented by 1 if
-          :math:`\text{CurrHF} \lt \sum_{i=0}^2 SegLen_i - 1`.
-        - It is forwarded to its `Egress ID` interface.
 
+- If `C = 1`, the packet is delivered to the local COLIBRI anycast address.
+- If `C = 0` and this AS is the destination AS (last hop):
+  - Check `DestIA` against this IA.
+- If `C = 0` and this AS is not the destination:
 
-Current Segment Reservation ID Computation
-------------------------------------------
-For the essential monitoring, we need to compute the Segment Reservation
-ID we must charge this packet to. This ID can be actually two, if the AS
-where we compute it is a transfer AS (an AS stitching two segment
-reservations).
-
-Note that there are no Segment IDs at the end of the `InfoField`, when the
-packet is a segment reservation. Instead, the `Reservation ID` is the
-Segment ID we are looking for.
-
-Now the computation can be done by substracting each :math:`\text{SegLen}_n`
-from `CurrHF`. When we find a negative number, we have found our segment.
-The transfer ASes are located at the end of each segment, if this is not
-the last segment.
-Pseudo code::
-
-    func CurrentSegmentID(header):
-        // Returns the IDs of the current Segment Reservation(s)
-        // It returns 1 index, or 2 if this is a tranfer AS
-        if len(header.SegLen) == 0 { // this must be a segment rsv. packet
-            return header.ReservationID[0:10] // the 10 first bytes
-        }
-        n <- header.CurrHF
-        for i := 0 ; i < len(header.SegLen) - 1 ; i++ {
-            switch {
-            case n == header.SegLen[i] - 1:
-                return i, i + 1
-            case n < header.SegLen[i] - 1:
-                return i
-            }
-            n -= header.SegLen [i]
-        }
-        if n < header.SegLen[len(header.SegLen)-1] {
-            return len(header.SegLen) - 1
-        }
-        return error
-
-
-Notes on the Control Plane
------------------------------
-For the simplicity in the BR forwarding to work out, we always include
-the hop fields in the direction of traversal, be it the reservation one,
-or its reverse.
-This can be done directly when we obtain the Hop Fields in the setup or renewal
-of the Segment and E2E reservations. This means that the setup or renewal
-operations will:
-
-    - Obtain two sets of MACs, for forward direction and reverse, when
-      operating on Segment reservations.
-      :math:`\{C=1,R=0,S=1\}, \{C=1,R=1,S=1\}`
-    - Obtain two sets of MACs, for E2E reservations. These are the equivalent
-      to the ones above, but for E2E ones. We also need the regular, data
-      sending one, that only exists in E2E:
-      :math:`\{C=1,R=0,S=0\}, \{C=1,R=1,S=0\}, \{C=0,R=0,S=0\}`
-
-With these sets of MACs, plus the rest of the data for the path, we can send
-requests in the forward direction by setting C=1, including the full path as
-payload of the packet, and chop the tail of the path so that it spans only
-until the next hop, semantically mimicking a hop by hop packet:
-
-.. math::
-    \begin{align}
-    \text{InfoField.HopFields} &= \text{
-    copy( Payload.CopyOfHopFields[0:$(i + 1) \times 8$]} ) \\
-    \text{InfoField.} C &= 1 \\
-    \end{align}
-
-The response travels the same way, but copying the MACs from the
-reversed ones that we will carry in the payload. The AS that is
-the destination of the reservation is the turning point; the path
-has to be reversed there. All these operations happen in the
-control plane.
-
-
-Improvements
-------------
-Some improvements to do now, or postpone for later:
-
-    - It would be nice to simplify the computation of the current segment ID.
-      By just adding a 2 bit indicator of it, that the BR will modify every time
-      it increments `CurrHF`.
-    - Remove the Segment ID fields. For that, we have to ensure that end hosts
-      that have a valid path for a reservation cannot clean it up in the
-      COLIBRI service and obtain a new valid one. Then we can monitor only the E2E
-      ones. The book keeping of the traffic of the control reservations
-      will have to be merged somehow as well.
+  - Its `CurrHF` field is incremented by 1 if
+    :math:`\text{CurrHF} \lt \sum_{i=0}^2 SegLen_i - 1`.
+  - It is forwarded to its `Egress ID` interface.
 
 
 .. _pseudo-header-upper-layer-checksum:
