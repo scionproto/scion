@@ -16,4 +16,4 @@ Open source cryptography documentation:
    interactions
    standards
    DRKeyInfra
-   ForwardingKeyRollover
+   forwarding-key-rollover
