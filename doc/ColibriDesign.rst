@@ -482,6 +482,13 @@ should be notified.
    the response, only for ``C=1`` (segment reservations are always
    ``C=1,S=1``). These MACs are stored alongside with the HopFields in the DB
    for this reservation, and the setup finishes.
+#. If the response was successful and the reservation is of type down-segment,
+   the reservation initiator (which is the requester) will inform the
+   reservation origin (which is the core AS) with the HopFields and MACs
+   necessary to send packets from there to here.
+   This is so that the E2E reservation setups (that sometimes travel in
+   segment reservations when there are no previous E2E reservations) can
+   travel inside a down-segment reservation.
 
 Renew a Segment Reservation
 ***************************
