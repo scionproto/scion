@@ -33,6 +33,12 @@ Border Router
     Needs to process COLIBRI packets differently than SCION packets and forward
     the COLIBRI traffic with higher priority than best effort.
 
+Stamping Service
+    The data-plane packets originating from the end-host go through this
+    service once in the AS source of the reservation. The *stamping service*
+    computes the per packet MAC that is later validated in the border routers
+    of the rest of AS along the path.
+
 Monitoring
     Does the accounting and policing. It monitors per flow packets when
     originating in this AS, or stateless when they are only transit.
@@ -73,10 +79,10 @@ End-to-end (E2E) reservation
 
 Reservation ID
     Segment and E2E reservations have a reservation ID. It uniquely identifies
-    the reservation. The reservation ID must be unique on the path (path
-    understood as a sequence of interface IDs).
+    the reservation..
     Both segment and E2E reservation IDs contain the AS ID of the reservation
     originator AS as the first 6 bytes.
+    The reservation ID must be unique
 
 There is only one type of COLIBRI packet. It is mainly used by the data plane
 to transport user data in E2E reservations between end-host machines.
@@ -208,6 +214,8 @@ which would surely have it blacklisted in the transit ASes.
 To do this we will use a per-packet MAC computation approach.
 This is done by computing a different type of MAC:
 the *per-packet* MAC.
+Note that ``C=0`` is only possible for E2E reservations not doing any
+control-plane operation, as setting any ``R`` or ``S`` forces ``C`` to be set.
 
 Let's call *A* the source of the reservation, and *B* an
 AS in the path of said reservation. :math:`K_B` is a secret key that only
