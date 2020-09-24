@@ -438,20 +438,27 @@ Path Type: COLIBRI
 The COLIBRI path type is a bit different than the regular SCION in that it has
 only one info field::
 
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                        PacketTimestamp                        |
+    |                                                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                                                               |
+    |                                                               |
     |                           InfoField                           |
+    |                                                               |
+    |                                                               |
+    |                                                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                           HopField                            |
+    |                                                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                           HopField                            |
+    |                                                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                              ...                              |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-The length of the `InfoField` is variable, and is computed in
-:ref:`colibri-forwarding-process`.
 
 
 Packet Timestamp
@@ -566,7 +573,8 @@ Reservation ID Suffix
     Uses 12 bytes. Either an E2E Reservation ID suffix or a
     Segment Reservation ID suffix,
     depending on `S`. If :math:`S=1`, the Segment Reservation ID suffix
-    is padded with zeroes until using all 12 bytes.
+    is padded with zeroes until using all 12 bytes. If :math:`S=0`
+    the 12 bytes from the E2E Reservation ID suffix are included.
 
 Expiration Tick
     The value represents the "tick" where this packet is no longer valid.
@@ -592,14 +600,15 @@ TODO and questions:
       segment reservation, its type must always be the same, and thus
       established when setting it up. Is this correct?
 
-Reservation ID Computation
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+Reservation ID Reconstruction
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The reservation ID is encoded in two parts in the packet header.
-The ASID which is always the initial part of the ID, is encoded in the
-regular SCION address header, either in the `SrcAS` or the `DstAS` field.
-The suffix is present in the `Reservation ID Suffix` field.
 
-The process of obtaining the reservation ID is simple. It depends only
+- The ASID, which is always the initial part of the ID, is encoded in the
+  regular SCION address header, either at the `SrcAS` or the `DstAS` field.
+- The suffix is present in the `Reservation ID Suffix` field.
+
+The process of reconstructing the reservation ID is simple. It depends only
 on the value of ``R``:
 
 .. code-block::
@@ -665,19 +674,18 @@ In that case, we want to use :math:`\sigma_i` to compute the per packet MAC,
 also known as HopField Validation Field (*HVF*):
 
 .. math::
-    \text{HVF}_i = \text{MAC}_{\sigma_i}(\text{TS}, \text{packet_length},
-    \text{flags})
+    \text{HVF}_i = \text{MAC}_{\sigma_i}(\text{TS}, \text{packet_length})
 
 TS
-    The Timestamp described before.
+    The Timestamp described on `packet timestamp`_.
 
 packet_length
     The length of the packet.
 
 The per packet MACs (or *HVFs*) are used only when ``C=0``, which implies
 that the other two flags are also not set (``R=0,S=0``). The computation of
-the HVFs happens at the *stamping* service in the source AS for all HopFields,
-and at each transit AS for each of the HopFields.
+the HVFs for all HopFields happens at the *stamping* service in the source AS,
+and they are verified at each transit AS, one HVF per transit AS.
 
 
 .. _colibri-forwarding-process:
