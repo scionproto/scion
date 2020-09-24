@@ -488,6 +488,7 @@ TsRel
         \text{Ts} &= \text{Timestamp}_{ns} + (1 + \text{TsRel})
             \times \text{q}
     \end{align}
+
 TsRel has a precision of :math:`\text{4 ns}` and covers at least
 17 seconds. When sending packets at high speeds
 (more than one packet every :math:`\text{4 ns}`) or when using
@@ -521,7 +522,7 @@ system) to access it without having to go through any parsing
 overhead.
 
 Info Field
----------
+----------
 The only info field has the following format::
 
      0                   1                   2                   3
