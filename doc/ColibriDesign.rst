@@ -79,10 +79,13 @@ End-to-end (E2E) reservation
 
 Reservation ID
     Segment and E2E reservations have a reservation ID. It uniquely identifies
-    the reservation..
+    the reservation.
+    The reservation ID must be unique.
     Both segment and E2E reservation IDs contain the AS ID of the reservation
-    originator AS as the first 6 bytes.
-    The reservation ID must be unique
+    originator AS as the first 6 bytes, and then a suffix of 4 bytes in the
+    case of a segment ID, or 12 bytes in the case of an E2E one::
+
+      ReservationID = AS ID || Suffix
 
 There is only one type of COLIBRI packet. It is mainly used by the data plane
 to transport user data in E2E reservations between end-host machines.
@@ -118,8 +121,9 @@ taken to fulfill them:
    carry segment reservation operations data belong to the control-plane and
    can be policed there, we will not need to refer to the stitched segments
    when the packet uses an E2E reservation.
-#. A COLIBRI path is composed of one mandatory *InfoField* and a sequence of
-   *HopFields*. This applies to both segment and E2E reservations. The
+#. A COLIBRI path is composed of one mandatory timestamp, one *InfoField* and
+   a sequence of *HopFields*.
+   This applies to both segment and E2E reservations. The
    *InfoField* controls what the border router can do with the packet:
 
    - Each COLIBRI packet can be used as if it had a hop-by-hop extension
@@ -143,6 +147,15 @@ taken to fulfill them:
 #. The cryptographic tag enabling packet validation for an AS relies only on a
    private key derived from secret AS values (e.g., the master key), and fields
    present in the packet.
+
+.. Note::
+
+   To enable high speed processing of the COLIBRI packets,
+   we keep the fields in a fixed well-known position.
+   This applies for instance to the existence of the timestamp for COLIBRI
+   packets of a segment reservation (where the timestamp is not needed),
+   or the length of the ID suffix (which could be shorter
+   for segment reservations).
 
 
 .. _colibri-mac-computation:
