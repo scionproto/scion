@@ -24,6 +24,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -186,6 +187,37 @@ func (d *QUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn,
 		),
 	)
 
+}
+
+// TLSQUICDialer dials a gRPC connection over TLS/QUIC/SCION. This dialer is meant to
+// be used for secure inter AS communication.
+type TLSQUICDialer struct {
+	*QUICDialer
+	Credentials credentials.TransportCredentials
+}
+
+// Dial dials a gRPC connection over TLS/QUIC/SCION.
+func (d *TLSQUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn, error) {
+	addr, _, err := d.Rewriter.RedirectToQUIC(ctx, addr)
+	if err != nil {
+		return nil, serrors.WrapStr("resolving SVC address", err)
+	}
+	if _, ok := addr.(*snet.UDPAddr); !ok {
+		return nil, serrors.New("wrong address type after svc resolution",
+			"type", common.TypeOf(addr))
+	}
+	dialer := func(context.Context, string) (net.Conn, error) {
+		return d.Dialer.Dial(ctx, addr)
+	}
+	return grpc.DialContext(ctx, addr.String(),
+		grpc.WithTransportCredentials(d.Credentials),
+		grpc.WithContextDialer(dialer),
+		grpc.WithChainUnaryInterceptor(
+			grpc_retry.UnaryClientInterceptor(),
+			otgrpc.OpenTracingClientInterceptor(opentracing.GlobalTracer()),
+			LogIDClientInterceptor(),
+		),
+	)
 }
 
 // RetryProfile is the common retry profile for RPCs.
