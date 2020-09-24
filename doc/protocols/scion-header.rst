@@ -536,11 +536,10 @@ The only Info Field has the following format::
     |C R S r r r r r r r r r r r r r|     CurrHF    |    HFCount    |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                                                               |
-    |                        Reservation ID                         |
-    |                                                               |
+    |                     Reservation ID Suffix                     |
     |                                                               |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                      Expiration Tick                          |
+    |                        Expiration Tick                        |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |      BWCls    |      RLC      |  Idx  |  RPT  |r r r r r r r r|
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -549,7 +548,7 @@ r
     Unused and reserved for future use.
 
 (C)ontrol
-    This is a control plane packet. On each oorder router it will be
+    This is a control plane packet. On each border router it will be
     forwarded to the COLIBRI anycast address.
 
 (R)everse
@@ -568,10 +567,11 @@ CurrHF
 HFCount
     The number of total HopFields.
 
-Reservation ID
-    Uses 16 bytes. Either an E2E Reservation ID or a Segment Reservation ID,
-    depending on `S`. If :math:`S=1`, the Segment Reservation ID is padded
-    with zeroes until using all 16 bytes.
+Reservation ID Suffix
+    Uses 12 bytes. Either an E2E Reservation ID suffix or a
+    Segment Reservation ID suffix,
+    depending on `S`. If :math:`S=1`, the Segment Reservation ID suffix
+    is padded with zeroes until using all 12 bytes.
 
 Expiration Tick
     The value represents the "tick" where this packet is no longer valid.
@@ -596,6 +596,33 @@ TODO and questions:
     - The reservation path type can be removed. Can it? For any given
       segment reservation, its type must always be the same, and thus
       established when setting it up. Is this correct?
+
+Reservation ID Computation
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+The reservation ID is encoded in two parts in the packet header.
+The ASID which is always the initial part of the ID, is encoded in the
+regular SCION address header, either in the `SrcAS` or the `DstAS` field.
+The suffix is present in the `Reservation ID Suffix` field.
+
+The process of obtaining the reservation ID is simple. It depends only
+on the value of ``R``:
+
+.. code-block::
+
+    var ASID [4]byte
+    var Suffix []byte
+    if R == 0 {
+        ASID = AddressHeader.SrcAS
+        Suffix = InfoField.IDSuffix[:4]
+    } else {
+        ASID = AddressHeader.DstAS
+        Suffix = InfoField.IDSuffix
+    }
+    ReservationID = append(ASID, Suffix)
+
+These steps need only to be carried out by entities that need the
+complete reservation ID, which excludes the border router.
+
 
 Hop Field
 ---------
