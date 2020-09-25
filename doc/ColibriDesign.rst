@@ -21,7 +21,7 @@ to work.
 
 Components
 ==========
-There are four main components that need to be modified or created: the
+There are five main components that need to be modified or created: the
 COLIBRI service itself, the border router, a monitoring system, and
 ``sciond`` in the end host:
 
@@ -87,6 +87,11 @@ Reservation ID
 
       ReservationID = AS ID || Suffix
 
+   The suffix spanning 4 and 12 bytes, for segment and E2E reservations
+   respectively, has enough space to avoid clashes by incrementing the suffix
+   in the case of segment reservations, or by randomly choosing one,
+   in the case of an E2E reservation.
+
 There is only one type of COLIBRI packet. It is mainly used by the data plane
 to transport user data in E2E reservations between end-host machines.
 But this COLIBRI packet is also used by the COLIBRI service when it needs to
@@ -112,15 +117,11 @@ Design Requirements
 
 Design Decisions
 ----------------
-According to the requirements exposed above, here are some of the decisions
+According to the requirements described above, here are some of the decisions
 taken to fulfill them:
 
-#. The COLIBRI packet does not need segment IDs in it.
-   Since the E2E reservations are the only ones monitored,
-   the monitor does not need the segment IDs, and the COLIBRI packets that
-   carry segment reservation operations data belong to the control-plane and
-   can be policed there, we will not need to refer to the stitched segments
-   when the packet uses an E2E reservation.
+#. Monitoring is only necessary for E2E reservations.
+   The monitoring system will simply ignore the segment reservations.
 #. A COLIBRI path is composed of one mandatory timestamp, one *InfoField* and
    a sequence of *HopFields*.
    This applies to both segment and E2E reservations. The
