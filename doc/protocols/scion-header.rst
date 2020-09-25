@@ -460,6 +460,8 @@ only one info field::
     |                              ...                              |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
+The sizes of the packet timestamp, the info field and the individual hop fields
+are fixed, although the number of hop fields is variable.
 
 Packet Timestamp
 ----------------
