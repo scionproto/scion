@@ -52,11 +52,11 @@ Data & Control-Plane Transport
 ==============================
 Nomenclature:
 
-Reservation index
+Reservation version
     For any reservation (whether segment or end-to-end, see below) to be used,
-    it is necessary to have one (and only one) active index.
-    An index is just a "version" of the reservation, that **cannot** modify
-    its path. However, it can modify the reserved bandwidth, as well as other
+    it is necessary to have one (and only one) active version.
+    The version **cannot** modify the path of a reservation.
+    However, it can modify the reserved bandwidth, as well as other
     properties of the reservation.
 
 Segment reservation
@@ -67,7 +67,7 @@ Segment reservation
     peering-down. Up, down, and core are similar to the corresponding regular
     SCION segments; peering-up and peering-down end or start with a
     peering link, respectively.
-    All segment reservations have a maximum set of 16 indices.
+    All segment reservations have a maximum set of 16 versions.
 
 End-to-end (E2E) reservation
     A reservation between two end hosts. It is used to send data traffic. It
@@ -75,7 +75,7 @@ End-to-end (E2E) reservation
     host (similar to regular SCION paths). The E2E reservation "stitches" these
     segment reservations to create a valid E2E reservation.
     The path type of an E2E reservation is always the same (type *E2E*)
-    An E2E reservation has a maximum set of 16 indices.
+    An E2E reservation has a maximum set of 16 versions.
 
 Reservation ID
     Segment and E2E reservations have a reservation ID. It uniquely identifies
@@ -190,7 +190,7 @@ MAC computation:
   - Expiration time.
   - Granted bandwidth.
   - Request latency class.
-  - Index number.
+  - Version number.
   - Reservation path type (up, core, etc.)
 
 - Other fields of the *InfoField* related to the path that should
@@ -496,7 +496,7 @@ Renew a Segment Reservation
    with constant frequency.
 #. The store in the COLIBRI service retrieves each one of the reservations
    that originate in this AS.
-#. Per reservation retrieved, the store adds a new index to it and
+#. Per reservation retrieved, the store adds a new version to it and
    pushes it forward, with the same dynamics as in
    `Setup a Segment Reservation`_.
 
@@ -514,7 +514,7 @@ Handle a Setup Request
 Handle a Renewal Request
 ************************
 The renewal request handler is the same as the `handle a setup request`_.
-The renewal is initiated differently (by adding a new index to an existing
+The renewal is initiated differently (by adding a new version to an existing
 reservation), but handled the same way.
 
 Handle a Setup Response
@@ -526,9 +526,9 @@ Handle a Setup Response
    (possibly with ``R=1`` unless this is a down-segment reservation).
 #. If this AS is the first one in the reservation path (aka
    *reservation initiator*), the store also starts
-   an index confirmation request.
+   an version confirmation request.
 
-Handle an Index Confirmation Request
+Handle an Version Confirmation Request
 ************************************
 #. The store in the COLIBRI service checks that the appropriate reservation
    is already final.
@@ -650,12 +650,12 @@ Furthermore, there are some indices created to speed up lookups:
     * ingress
     * egress
     * path
-* seg_index
-    * reservation,index_number
+* seg_version
+    * reservation,version_number
 * e2e_reservation
     * reservation_id
-* e2e_index
-    * reservation,index_number
+* e2e_version
+    * reservation,version_number
 * e2e_to_seg
     * e2e
     * seg
