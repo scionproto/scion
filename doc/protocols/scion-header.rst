@@ -543,7 +543,7 @@ The only info field has the following format::
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                        Expiration Tick                        |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |      BWCls    |      RLC      |  Idx  |  RPT  |r r r r r r r r|
+    |      BWCls    |      RLC      |  Ver  |  RPT  |r r r r r r r r|
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 r
@@ -552,47 +552,36 @@ r
 (C)ontrol
     This is a control plane packet. On each border router it will be
     forwarded to the COLIBRI anycast address.
-
 (R)everse
     This packet travels in the reverse direction of the reservation.
     If `R` is set, `C` must be set as well. Otherwise the packet is invalid.
     This flag is set every time the COLIBRI service sends back a response.
-
 (S)egment Reservation
     This is a Segment Reservation Packet.
     If `S` is set, `C` must be set as well. Otherwise the packet is invalid.
     This flag is set every time the Reservation ID is of type Segment ID.
-
 CurrHF
     The index of the current HopField.
-
 HFCount
     The number of total HopFields.
-
 Reservation ID Suffix
     Uses 12 bytes. Either an E2E Reservation ID suffix or a
     Segment Reservation ID suffix,
     depending on `S`. If :math:`S=1`, the Segment Reservation ID suffix
     is padded with zeroes until using all 12 bytes. If :math:`S=0`
     the 12 bytes from the E2E Reservation ID suffix are included.
-
 Expiration Tick
     The value represents the "tick" where this packet is no longer valid.
     A tick is four seconds, so :math:`\text{Expiration Time} = 4 \times
     \text{Expiration Tick}` seconds after Unix epoch.
-
 BWCls
     The bandwidth class this reservation has.
-
 RLC
     The Request Latency Class this reservation has.
-
-Idx
-    The index of this reservation.
-
+Ver
+    The version of this reservation.
 RPT
     The Reservation Path Type of this reservation.
-
 
 TODO and questions:
 
@@ -660,7 +649,7 @@ The `InputData` is common for both types::
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                      Expiration Tick                          |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |      BWCls    |      RLC      |  Idx  |  RPT  |       0       |
+    |      BWCls    |      RLC      |  Ver  |  RPT  |       0       |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 We just compute :math:`\text{MAC}_{K_i}^{C}` with the appropriate `InputData`:
@@ -678,7 +667,6 @@ also known as HopField Validation Field (*HVF*):
 
 TS
     The Timestamp described on `packet timestamp`_.
-
 packet_length
     The length of the packet.
 
