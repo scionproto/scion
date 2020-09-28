@@ -62,11 +62,11 @@ meaningful level of security:
   hidden path, the last two ASes employ one of two different
   strategies in the data plane:
 
-  1. Only allow EPIC-HP path type traffic. See use case "Highly
-     Secure Hidden Paths" [here](#HighlySecureHiddenPaths). The path
-     type filtering is further explained [here](#PathTypeFiltering).
-  2. Prioritize EPIC-HP path type traffic. See use case "DOS-Secure
-     Hidden Paths" [here](#DOSSecureHiddenPaths).
+  - Only allow EPIC-HP path type traffic. See use case "Highly
+    Secure Hidden Paths" [here](#HighlySecureHiddenPaths). The path
+    type filtering is further explained [here](#PathTypeFiltering).
+  - Prioritize EPIC-HP path type traffic. See use case "DOS-Secure
+    Hidden Paths" [here](#DOSSecureHiddenPaths).
 
 - The last two ASes of the hidden path have a duplicate-suppression
   system in place. This prohibits DOS attacks based on replayed
