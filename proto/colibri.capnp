@@ -114,15 +114,16 @@ struct SegmentCleanupResData {
 struct E2ESetupReqData {
     base @0 :E2EBase;
     segmentRsvs @1 :List(SegmentReservationID);
-    requestedBW @2 :UInt8;
-    allocationTrail @3 :List(UInt8);
+    segmentRsvASCount @2 :List(UInt8);  # how many ASes in each segment reservation
+    requestedBW @3 :UInt8;
+    allocationTrail @4 :List(UInt8);
     union {
-        unset @4 :Void;
+        unset @5 :Void;
         success :group {
-            token @5 :Data;
+            token @6 :Data;
         }
         failure :group {
-            errorCode @6 :UInt8;
+            errorCode @7 :UInt8;
         }
     }
 }
@@ -137,8 +138,7 @@ struct E2ESetupResData {
         }
         failure :group {
             errorCode @3 :UInt8;
-            infoField @4 :Data;
-            allocationTrail @5 :List(UInt8);     # max bandwidths granted by all the ASes. See E2ESetupReqData
+            allocationTrail @4 :List(UInt8);     # max bandwidths granted by all the ASes. See E2ESetupReqData
         }
     }
 }

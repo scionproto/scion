@@ -290,11 +290,10 @@ func newRequestE2ESetup(ctrl *colibri_mgmt.E2ESetup, ts time.Time,
 	for i := range ctrl.AllocationTrail {
 		allocTrail[i] = reservation.BWCls(ctrl.AllocationTrail[i])
 	}
-	setup := e2e.SetupReq{
-		Request:         *r,
-		SegmentRsvs:     segmentIDs,
-		RequestedBW:     reservation.BWCls(ctrl.RequestedBW),
-		AllocationTrail: allocTrail,
+	setup, err := e2e.NewSetupRequest(r, segmentIDs, ctrl.SegmentRsvASCount,
+		reservation.BWCls(ctrl.RequestedBW), allocTrail)
+	if err != nil {
+		return nil, serrors.WrapStr("cannot contruct e2e setup request", err)
 	}
 	switch ctrl.Which {
 	case proto.E2ESetupReqData_Which_success:
@@ -303,12 +302,12 @@ func newRequestE2ESetup(ctrl *colibri_mgmt.E2ESetup, ts time.Time,
 			return nil, serrors.WrapStr("cannot construct e2e setup success request", err)
 		}
 		return &e2e.SetupReqSuccess{
-			SetupReq: setup,
+			SetupReq: *setup,
 			Token:    *tok,
 		}, nil
 	case proto.E2ESetupReqData_Which_failure:
 		return &e2e.SetupReqFailure{
-			SetupReq:  setup,
+			SetupReq:  *setup,
 			ErrorCode: ctrl.Failure.ErrorCode,
 		}, nil
 	default:
@@ -464,10 +463,6 @@ func newResponseE2ESetup(ctrl *colibri_mgmt.E2ESetupRes, resp *colibri_mgmt.Resp
 			Token:    *tok,
 		}, nil
 	case proto.E2ESetupResData_Which_failure:
-		inf, err := reservation.InfoFieldFromRaw(ctrl.Failure.InfoField)
-		if err != nil {
-			return nil, serrors.WrapStr("cannot parse info field", err)
-		}
 		maxBWs := make([]reservation.BWCls, len(ctrl.Failure.AllocationTrail))
 		for i := range ctrl.Failure.AllocationTrail {
 			maxBWs[i] = reservation.BWCls(ctrl.Failure.AllocationTrail[i])
@@ -475,7 +470,6 @@ func newResponseE2ESetup(ctrl *colibri_mgmt.E2ESetupRes, resp *colibri_mgmt.Resp
 		return &e2e.ResponseSetupFailure{
 			Response:  *r,
 			ErrorCode: ctrl.Failure.ErrorCode,
-			InfoField: *inf,
 			MaxBWs:    maxBWs,
 		}, nil
 	default:

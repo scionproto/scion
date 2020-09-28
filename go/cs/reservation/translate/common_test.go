@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -162,11 +161,12 @@ func newTestCleanupFailureResponse() *colibri_mgmt.SegmentCleanupRes {
 
 func newTestE2ESetupSuccess() *colibri_mgmt.E2ESetup {
 	return &colibri_mgmt.E2ESetup{
-		Base:            newTestE2EBase(1),
-		SegmentRsvs:     []colibri_mgmt.SegmentReservationID{*newTestID()},
-		RequestedBW:     5,
-		AllocationTrail: []uint8{5, 5},
-		Which:           proto.E2ESetupReqData_Which_success,
+		Base:              newTestE2EBase(1),
+		SegmentRsvs:       []colibri_mgmt.SegmentReservationID{*newTestID()},
+		SegmentRsvASCount: []uint8{3},
+		RequestedBW:       5,
+		AllocationTrail:   []uint8{5, 5},
+		Which:             proto.E2ESetupReqData_Which_success,
 		Success: &colibri_mgmt.E2ESetupReqSuccess{
 			Token: xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade"),
 		},
@@ -175,11 +175,12 @@ func newTestE2ESetupSuccess() *colibri_mgmt.E2ESetup {
 
 func newTestE2ESetupFailure() *colibri_mgmt.E2ESetup {
 	return &colibri_mgmt.E2ESetup{
-		Base:            newTestE2EBase(1),
-		SegmentRsvs:     []colibri_mgmt.SegmentReservationID{*newTestID()},
-		RequestedBW:     5,
-		AllocationTrail: []uint8{5, 5},
-		Which:           proto.E2ESetupReqData_Which_failure,
+		Base:              newTestE2EBase(1),
+		SegmentRsvs:       []colibri_mgmt.SegmentReservationID{*newTestID()},
+		SegmentRsvASCount: []uint8{3},
+		RequestedBW:       5,
+		AllocationTrail:   []uint8{5, 5},
+		Which:             proto.E2ESetupReqData_Which_failure,
 		Failure: &colibri_mgmt.E2ESetupReqFailure{
 			ErrorCode: 66,
 		},
@@ -202,7 +203,6 @@ func newTestE2ESetupFailureResponse() *colibri_mgmt.E2ESetupRes {
 		Which: proto.E2ESetupResData_Which_failure,
 		Failure: &colibri_mgmt.E2ESetupFailure{
 			ErrorCode:       42,
-			InfoField:       xtest.MustParseHexString("16ebdb4f0d042500"),
 			AllocationTrail: []uint8{2, 3, 4},
 		},
 	}
@@ -225,26 +225,6 @@ func newTestE2ECleanupFailureResponse() *colibri_mgmt.E2ECleanupRes {
 		Base:      newTestE2EBase(1),
 		ErrorCode: 42,
 	}
-}
-
-// new path with one segment consisting on 3 hopfields: (0,2)->(1,2)->(1,0)
-func newTestPath() *spath.Path {
-	path := &spath.Path{
-		InfOff: 0,
-		HopOff: spath.InfoFieldLength + spath.HopFieldLength, // second hop field
-		Raw:    make([]byte, spath.InfoFieldLength+3*spath.HopFieldLength),
-	}
-	inf := spath.InfoField{ConsDir: true, ISD: 1, Hops: 3}
-	inf.Write(path.Raw)
-
-	hf := &spath.HopField{ConsEgress: 2}
-	hf.Write(path.Raw[spath.InfoFieldLength:])
-	hf = &spath.HopField{ConsIngress: 1, ConsEgress: 2}
-	hf.Write(path.Raw[spath.InfoFieldLength+spath.HopFieldLength:])
-	hf = &spath.HopField{ConsIngress: 1}
-	hf.Write(path.Raw[spath.InfoFieldLength+spath.HopFieldLength*2:])
-
-	return path
 }
 
 func checkRequest(t *testing.T, segSetup *colibri_mgmt.SegmentSetup, r *segment.SetupReq,

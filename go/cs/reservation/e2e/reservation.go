@@ -81,3 +81,29 @@ func (r *Reservation) RemoveIndex(idx reservation.IndexNumber) error {
 	r.Indices = r.Indices[sliceIndex+1:]
 	return nil
 }
+
+// Index finds the Index with that IndexNumber and returns a pointer to it. Nil if not found.
+func (r *Reservation) Index(idx reservation.IndexNumber) *Index {
+	sliceIndex, err := base.FindIndex(r.Indices, idx)
+	if err != nil {
+		return nil
+	}
+	return &r.Indices[sliceIndex]
+}
+
+// AllocResv returns the allocated bandwidth by this reservation using the current active index and
+// the previous one. The max of those two values is used because the current active index might
+// be rolled back with a cleanup request. The return units is Kbps.
+func (r *Reservation) AllocResv() uint64 {
+	var maxBW reservation.BWCls
+	switch len(r.Indices) {
+	case 0:
+		return 0
+	case 1:
+		maxBW = r.Indices[len(r.Indices)-1].AllocBW
+	default:
+		maxBW = reservation.MaxBWCls(r.Indices[len(r.Indices)-1].AllocBW,
+			r.Indices[len(r.Indices)-2].AllocBW)
+	}
+	return maxBW.ToKbps()
+}
