@@ -682,11 +682,11 @@ and they are verified at each transit AS, one HVF per transit AS.
 
 Forwarding Process
 ------------------
-
 There is a unique way of forwarding a COLIBRI packet, regardless of its
 underlying type or whether it is control plane or data plane.
 This should simplify the design and implementation of the COLIBRI
-part in the border router.
+part in the border router. The only branching happens on the value of the
+``C`` flag, as is noted below.
 
 The validation process checks that all of the following conditions are true:
 
