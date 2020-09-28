@@ -6,7 +6,7 @@ container_bundle(
     name = "prod",
     images = {
         "scion_border:latest": ":border_prod",
-        "scion_posix_router:latest": "posix_router_prod",
+        "scion_posix-router:latest": "posix-router_prod",
         "scion_cs:latest": ":cs_prod",
         "scion_dispatcher:latest": ":dispatcher_prod",
         "scion_sciond:latest": ":sciond_prod",
@@ -18,7 +18,7 @@ container_bundle(
     name = "debug",
     images = {
         "scion_border_debug:latest": ":border_debug",
-        "scion_posix_router_debug:latest": "posix_router_debug",
+        "scion_posix-router_debug:latest": "posix-router_debug",
         "scion_cs_debug:latest": ":cs_debug",
         "scion_dispatcher_debug:latest": ":dispatcher_debug",
         "scion_sciond_debug:latest": ":sciond_debug",
@@ -50,11 +50,11 @@ scion_app_images(
 )
 
 scion_app_images(
-    name = "posix_router",
+    name = "posix-router",
     appdir = "/app",
-    binary = "//go/posix_router",
+    binary = "//go/posix-router",
     entrypoint = [
-        "/app/posix_router",
+        "/app/posix-router",
         "--config",
         "/share/conf/br.toml",
     ],

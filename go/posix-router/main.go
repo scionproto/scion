@@ -40,7 +40,7 @@ func main() {
 		config string
 	}
 	cmd := &cobra.Command{
-		Use:           "posix_router",
+		Use:           "posix-router",
 		Short:         "SCION router",
 		SilenceErrors: true,
 		SilenceUsage:  true,

@@ -141,7 +141,7 @@ class DockerGenerator(object):
             disp_id = k
             image = docker_image(self.args, 'border')
             if FEATURE_HEADER_V2 in self.args.features:
-                image = docker_image(self.args, 'posix_router')
+                image = docker_image(self.args, 'posix-router')
             entry = {
                 'image': image,
                 'container_name': self.prefix + k,
