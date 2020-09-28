@@ -72,14 +72,7 @@ func (hs *HPSegReply) Sanitize(logger log.Logger) *HPSegReply {
 			Recs:    []*seg.Meta{},
 		}
 		for _, segment := range r.Recs {
-			err := segment.Segment.WalkHopEntries()
-			if err != nil {
-				if logger != nil {
-					logger.Info("Discarding bad segment", err, "ID", r.GroupId, "segment", segment)
-				}
-			} else {
-				temp.Recs = append(temp.Recs, segment)
-			}
+			temp.Recs = append(temp.Recs, segment)
 		}
 		if len(temp.Recs) > 0 {
 			newReply.Recs = append(newReply.Recs, temp)

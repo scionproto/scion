@@ -46,7 +46,7 @@ class DockerUtilsGenerator(object):
         """
         self.args = args
         self.dc_conf = args.dc_conf
-        self.user_spec = os.environ.get('SCION_USERSPEC', '$LOGNAME')
+        self.user = '%d:%d' % (os.getuid(), os.getgid())
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
 
     def generate(self):
@@ -65,19 +65,11 @@ class DockerUtilsGenerator(object):
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro'
             ],
-            'command': 'chown -R ' + self.user_spec + ' /mnt/volumes'
-        }
-        entry_clean = {
-            'image': 'busybox',
-            'network_mode': 'none',
-            'volumes': [],
-            'command': 'sh -c "find /mnt/volumes -type s -print0 | xargs -r0 rm -v"'
+            'command': 'chown -R ' + self.user + ' /mnt/volumes'
         }
         for volume in self.dc_conf['volumes']:
             entry_chown['volumes'].append('%s:/mnt/volumes/%s' % (volume, volume))
-            entry_clean['volumes'].append('%s:/mnt/volumes/%s' % (volume, volume))
         self.dc_conf['services']['utils_chowner'] = entry_chown
-        self.dc_conf['services']['utils_cleaner'] = entry_clean
 
     def _test_conf(self, topo_id):
         cntr_base = '/share'
@@ -89,6 +81,7 @@ class DockerUtilsGenerator(object):
             'privileged': True,
             'entrypoint': 'sh tester.sh',
             'environment': {},
+            # 'user': self.user,
             'volumes': [
                 'vol_scion_disp_cs%s-1:/run/shm/dispatcher:rw' % topo_id.file_fmt(),
                 self.output_base + '/logs:' + cntr_base + '/logs:rw',

@@ -39,7 +39,7 @@ func NewChainRenewalRequest(ctx context.Context, csr []byte,
 	if err != nil {
 		return nil, err
 	}
-	signedMsg, err := signer.SignV2(ctx, rawBody)
+	signedMsg, err := signer.Sign(ctx, rawBody)
 	if err != nil {
 		return nil, err
 	}

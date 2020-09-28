@@ -40,8 +40,6 @@ SD_CONFIG_NAME = 'sd.toml'
 DISP_CONFIG_NAME = 'disp.toml'
 SIG_CONFIG_NAME = 'sig.toml'
 
-DOCKER_USR_VOL = ['/etc/passwd:/etc/passwd:ro', '/etc/group:/etc/group:ro']
-
 SD_API_PORT = 30255
 
 FEATURE_HEADER_V2 = 'header_v2'

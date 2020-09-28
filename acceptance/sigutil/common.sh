@@ -48,8 +48,7 @@ do_command() {
 
 reload_sig() {
     log "Reloading SIG config for $1"
-    id="$(./tools/dc scion exec -T scion_sig_$1 pgrep -x sig)"
-    ./tools/dc scion exec -T scion_sig_"$1" kill -SIGHUP "$id"
+    ./tools/dc scion kill -s SIGHUP scion_sig_"$1" || echo "sending SIGHUP failed"
     # Wait till the new config takes effect.
     sleep 3
     # Make sure that the reload actually happened.

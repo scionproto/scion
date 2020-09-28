@@ -1,7 +1,6 @@
 load("@io_bazel_rules_docker//container:container.bzl", "container_bundle")
 load(":scion_app.bzl", "scion_app_base", "scion_app_images")
 load(":tester.bzl", "build_tester_image")
-load(":sig_tester.bzl", "build_sigtester_image")
 
 container_bundle(
     name = "prod",
@@ -28,7 +27,6 @@ container_bundle(
 container_bundle(
     name = "test",
     images = {
-        "scion_sig_acceptance:latest": ":scion_sig_acceptance",
         "scion_tester:latest": ":scion_tester",
     },
 )
@@ -36,8 +34,6 @@ container_bundle(
 scion_app_base()
 
 build_tester_image()
-
-build_sigtester_image()
 
 scion_app_images(
     name = "border",

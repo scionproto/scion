@@ -17,6 +17,7 @@ package revcache
 import (
 	"context"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -85,19 +86,23 @@ func RelevantRevInfos(ctx context.Context, revCache RevCache,
 // addRevKeys adds all revocations keys for the given segments to the keys set.
 // If hopOnly is set, only the first hop entry is considered.
 func addRevKeys(segs []*seg.PathSegment, keys KeySet, hopOnly bool) {
+	addIntfs := func(ia addr.IA, ingress, egress uint16) {
+		if ingress != 0 {
+			keys[*NewKey(ia, common.IFIDType(ingress))] = struct{}{}
+		}
+		if egress != 0 {
+			keys[*NewKey(ia, common.IFIDType(egress))] = struct{}{}
+		}
+	}
 	for _, s := range segs {
 		for _, asEntry := range s.ASEntries {
-			for _, entry := range asEntry.HopEntries {
-				hf := entry.HopField
-				if hf.ConsIngress != 0 {
-					keys[*NewKey(asEntry.IA(), common.IFIDType(hf.ConsIngress))] = struct{}{}
-				}
-				if hf.ConsEgress != 0 {
-					keys[*NewKey(asEntry.IA(), common.IFIDType(hf.ConsEgress))] = struct{}{}
-				}
-				if hopOnly {
-					break
-				}
+			hop := asEntry.HopEntry.HopField
+			addIntfs(asEntry.Local, hop.ConsIngress, hop.ConsEgress)
+			if hopOnly {
+				continue
+			}
+			for _, peer := range asEntry.PeerEntries {
+				addIntfs(asEntry.Local, peer.HopField.ConsIngress, peer.HopField.ConsEgress)
 			}
 		}
 	}

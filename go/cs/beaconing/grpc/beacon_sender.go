@@ -19,10 +19,8 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/grpc"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // BeaconSender propagates beacons.
@@ -33,10 +31,6 @@ type BeaconSender struct {
 
 // SendBeacon sends a beacon to the remote.
 func (r BeaconSender) SendBeacon(ctx context.Context, b *seg.PathSegment, remote net.Addr) error {
-	raw, err := proto.PackRoot(b)
-	if err != nil {
-		return serrors.WrapStr("packing beacon", err)
-	}
 	conn, err := r.Dialer.Dial(ctx, remote)
 	if err != nil {
 		return err
@@ -45,7 +39,7 @@ func (r BeaconSender) SendBeacon(ctx context.Context, b *seg.PathSegment, remote
 	client := cppb.NewSegmentCreationServiceClient(conn)
 	_, err = client.Beacon(ctx,
 		&cppb.BeaconRequest{
-			Raw: raw,
+			Segment: seg.PathSegmentToPB(b),
 		},
 		grpc.RetryProfile...,
 	)

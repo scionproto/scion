@@ -41,7 +41,7 @@ func newSignedPld(ctx context.Context, cpld *Pld, signer Signer) (*SignedPld, er
 	if spld.Blob, err = proto.PackRoot(cpld); err != nil {
 		return nil, err
 	}
-	sign, err := signer.Sign(ctx, spld.Blob)
+	sign, err := signer.SignLegacy(ctx, spld.Blob)
 	if err != nil {
 		return nil, err
 	}

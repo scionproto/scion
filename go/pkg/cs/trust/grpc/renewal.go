@@ -26,7 +26,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
@@ -38,13 +37,11 @@ import (
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/renewal"
-	legacyproto "github.com/scionproto/scion/go/proto"
 )
 
-// XXX(roosd): Smuggled is used to interface smuggle until sign is replaced.
-type Smuggled interface {
-	Sign(ctx context.Context, msg []byte) (*legacyproto.SignS, error)
-	SignV2(ctx context.Context, msg []byte) (*cryptopb.SignedMessage, error)
+type Signer interface {
+	Sign(ctx context.Context, msg []byte,
+		associatedData ...[]byte) (*cryptopb.SignedMessage, error)
 }
 
 // RenewalRequestVerifier verifies the incoming chain renewal request.
@@ -71,7 +68,7 @@ type ChainBuilder interface {
 type RenewalServer struct {
 	Verifier     RenewalRequestVerifier
 	ChainBuilder ChainBuilder
-	Signer       ctrl.Signer
+	Signer       Signer
 	DB           renewal.DB
 	IA           addr.IA
 
@@ -160,7 +157,7 @@ func (s RenewalServer) ChainRenewal(ctx context.Context,
 		s.updateMetric(span, labels.WithResult(trustmetrics.ErrInternal), err)
 		return nil, status.Error(codes.Unavailable, "failed to pack reply")
 	}
-	signedMsg, err := s.Signer.(Smuggled).SignV2(ctx, rawBody)
+	signedMsg, err := s.Signer.Sign(ctx, rawBody)
 	if err != nil {
 		logger.Info("Failed to sign reply", "peer", peer, "err", err)
 		s.updateMetric(span, labels.WithResult(trustmetrics.ErrInternal), err)

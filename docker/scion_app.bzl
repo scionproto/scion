@@ -11,22 +11,7 @@ def scion_app_base():
         # we need setcap so that we can add network capabilities to apps
         packages["libcap2"],
         packages["libcap2-bin"],
-        # needed by su-exec
-        packages["libgcc1"],
-        packages["libstdc++6"],
     ]
-
-    # Install su-exec.
-    pkg_tar(
-        name = "app_base_files",
-        srcs = [
-            "@com_github_anapaya_su_exec//:su-exec",
-        ],
-        remap_paths = {
-            "": "sbin",
-        },
-        mode = "0755",
-    )
 
     # Environment variables to set.
     env = {"TZ": "UTC"}
@@ -38,7 +23,6 @@ def scion_app_base():
         env = env,
         debs = debs,
         tars = [
-            ":app_base_files",
             "//licenses:licenses",
         ],
         visibility = ["//visibility:public"],
@@ -51,7 +35,6 @@ def scion_app_base():
         env = env,
         debs = debs,
         tars = [
-            ":app_base_files",
             "//licenses:licenses",
         ],
         visibility = ["//visibility:public"],
@@ -78,7 +61,7 @@ def scion_app_images(name, binary, appdir, workdir, entrypoint, caps = None):
         base = "//docker:app_base",
         tars = [":%s_docker_files" % name],
         workdir = workdir,
-        entrypoint = ["/sbin/su-exec"] + entrypoint,
+        entrypoint = entrypoint,
         caps_binary = "%s/%s" % (appdir, name),
         caps = caps,
     )

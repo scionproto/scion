@@ -620,13 +620,15 @@ func (p *scionPacketProcessor) validateHopExpiry() error {
 
 func (p *scionPacketProcessor) validateIngressID() error {
 	pktIngressID := p.hopField.ConsIngress
+	errCode := slayers.SCMPCodeUnknownHopFieldIngress
 	if !p.infoField.ConsDir {
 		pktIngressID = p.hopField.ConsEgress
+		errCode = slayers.SCMPCodeUnknownHopFieldEgress
 	}
 	if p.ingressID != 0 && p.ingressID != pktIngressID {
 		return p.packSCMP(
-			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
-				slayers.SCMPCodeUnknownHopFieldInterface),
+			&slayers.SCMP{
+				TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem, errCode),
 			},
 			&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
 			serrors.New("ingress interface invalid",
@@ -641,10 +643,13 @@ func (p *scionPacketProcessor) validateEgressID() error {
 	_, ih := p.d.internalNextHops[pktEgressID]
 	_, eh := p.d.external[pktEgressID]
 	if !ih && !eh {
+		errCode := slayers.SCMPCodeUnknownHopFieldEgress
+		if !p.infoField.ConsDir {
+			errCode = slayers.SCMPCodeUnknownHopFieldIngress
+		}
 		return p.packSCMP(
 			&slayers.SCMP{
-				TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
-					slayers.SCMPCodeUnknownHopFieldInterface),
+				TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem, errCode),
 			},
 			&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
 			cannotRoute,
@@ -854,7 +859,7 @@ func (p *scionPacketProcessor) validatePktLen() error {
 			TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
 				slayers.SCMPCodeInvalidPacketSize),
 		},
-		&slayers.SCMPParameterProblem{Pointer: 6},
+		&slayers.SCMPParameterProblem{Pointer: 0},
 		serrors.New("bad packet size",
 			"header", p.scionLayer.PayloadLen, "actual", len(p.scionLayer.Payload)),
 	)
@@ -921,10 +926,13 @@ func (p *scionPacketProcessor) process() (BatchConn, error) {
 		p.m.Addr = a
 		return p.d.internal, nil
 	}
+	errCode := slayers.SCMPCodeUnknownHopFieldEgress
+	if !p.infoField.ConsDir {
+		errCode = slayers.SCMPCodeUnknownHopFieldIngress
+	}
 	return nil, p.packSCMP(
 		&slayers.SCMP{
-			TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
-				slayers.SCMPCodeUnknownHopFieldInterface),
+			TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem, errCode),
 		},
 		&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
 		cannotRoute,

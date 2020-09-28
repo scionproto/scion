@@ -15,11 +15,9 @@
 package beaconing
 
 import (
-	"testing"
-
 	"github.com/scionproto/scion/go/cs/metrics"
 )
 
-func TestMain(m *testing.M) {
+func init() {
 	metrics.InitBSMetrics()
 }

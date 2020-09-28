@@ -17,202 +17,158 @@ package seg
 import (
 	"bytes"
 	"context"
-	"errors"
-	"fmt"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"testing"
+	"time"
 
-	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
-	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/proto"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
 
 var (
 	as110 = xtest.MustParseIA("1-ff00:0:110")
 	as111 = xtest.MustParseIA("1-ff00:0:111")
 	as112 = xtest.MustParseIA("1-ff00:0:112")
+	as113 = xtest.MustParseIA("1-ff00:0:113")
 )
 
 func TestPathSegmentAddASEntry(t *testing.T) {
-	asEntries := []*ASEntry{
+	asEntries := []ASEntry{
 		{
-			RawIA:    as110.IAInt(),
-			TrcVer:   1,
-			CertVer:  3,
-			MTU:      1500,
-			IfIDSize: 12,
-			HopEntries: []*HopEntry{
-				{
-					RemoteOutIF: 23,
-					RawOutIA:    as111.IAInt(),
-					RawHopField: make(common.RawBytes, spath.HopFieldLength),
-					HopField: HopField{
-						MAC: make([]byte, 3),
-					},
+			Local: as110,
+			Next:  as111,
+			MTU:   1500,
+			HopEntry: HopEntry{
+				HopField: HopField{
+					ConsIngress: 0,
+					ConsEgress:  1,
+					ExpTime:     uint8(spath.DefaultHopFExpiry),
+					MAC:         bytes.Repeat([]byte{0x11}, 6),
 				},
+				IngressMTU: 0,
 			},
 		},
 		{
-			RawIA:    as110.IAInt(),
-			TrcVer:   3,
-			CertVer:  7,
-			MTU:      1500,
-			IfIDSize: 12,
-			HopEntries: []*HopEntry{
-				{
-					RemoteInIF:  18,
-					RawInIA:     as110.IAInt(),
-					RemoteOutIF: 24,
-					RawOutIA:    as112.IAInt(),
-					RawHopField: make(common.RawBytes, spath.HopFieldLength),
-					HopField: HopField{
-						MAC: make([]byte, 3),
-					},
+			Local: as111,
+			Next:  as112,
+			MTU:   1500,
+			HopEntry: HopEntry{
+				HopField: HopField{
+					ConsIngress: 10,
+					ConsEgress:  11,
+					ExpTime:     uint8(spath.DefaultHopFExpiry),
+					MAC:         bytes.Repeat([]byte{0x22}, 6),
 				},
+				IngressMTU: 1337,
 			},
 		},
 		{
-			RawIA:    as110.IAInt(),
-			TrcVer:   4,
-			CertVer:  2,
-			MTU:      1500,
-			IfIDSize: 12,
-			HopEntries: []*HopEntry{
-				{
-					RemoteInIF:  19,
-					RawInIA:     as111.IAInt(),
-					RawHopField: make(common.RawBytes, spath.HopFieldLength),
-					HopField: HopField{
-						MAC: make([]byte, 3),
-					},
+			Local: as112,
+			Next:  as113,
+			MTU:   1500,
+			HopEntry: HopEntry{
+				HopField: HopField{
+					ConsIngress: 20,
+					ConsEgress:  21,
+					ExpTime:     uint8(spath.DefaultHopFExpiry),
+					MAC:         bytes.Repeat([]byte{0x33}, 6),
 				},
+				IngressMTU: 1442,
 			},
 		},
 	}
-	var keyPairs []*keyPair
+	var keyPairs []keyPair
 	for range asEntries {
 		keyPairs = append(keyPairs, newKeyPair(t))
 	}
-	Convey("When constructing a path segment by adding multiple AS entries", t, func() {
-		rawInfo := make([]byte, spath.InfoFieldLength)
-		(&spath.InfoField{ISD: 1, TsInt: 13}).Write(rawInfo)
-		pseg, err := NewSeg(&PathSegmentSignedData{
-			RawInfo:      make([]byte, spath.InfoFieldLength),
-			RawTimestamp: 13,
-			SegID:        1337,
-		})
-		xtest.FailOnErr(t, err)
-		id, fullId := getIds(t, pseg)
-		for i, entry := range asEntries {
-			pseg.AddASEntry(context.Background(), entry, keyPairs[i])
 
-			// Check that adding an AS entry modifies the segment id.
-			newId, newFullId := getIds(t, pseg)
-			SoMsg(fmt.Sprintf("ID differs %d", i), newId, ShouldNotEqual, id)
-			SoMsg(fmt.Sprintf("FullID differs %d", i), newFullId, ShouldNotEqual, fullId)
-			id, fullId = newId, newFullId
-		}
-		Convey("The segment should be verifiable", func() {
-			for i, keyPair := range keyPairs {
-				err := pseg.VerifyASEntry(context.Background(), keyPair, i)
-				SoMsg("Err "+asEntries[i].IA().String(), err, ShouldBeNil)
-			}
-		})
-		Convey("Modifying the first signature should render the segment unverifiable", func() {
-			pseg.RawASEntries[0].Sign.Signature[3] ^= 0xFF
-			for i, keyPair := range keyPairs {
-				err := pseg.VerifyASEntry(context.Background(), keyPair, i)
-				SoMsg("Err "+asEntries[i].IA().String(), err, ShouldNotBeNil)
-			}
-		})
-		Convey("Modifying the first AS entry should render the segment unverifiable", func() {
-			pseg.RawASEntries[0].Blob[3] ^= 0xFF
-			for i, keyPair := range keyPairs {
-				err := pseg.VerifyASEntry(context.Background(), keyPair, i)
-				SoMsg("Err "+asEntries[i].IA().String(), err, ShouldNotBeNil)
-			}
-		})
-	})
-	Convey("When adding an AS entry fails, the segment is not affected", t, func() {
-		rawInfo := make([]byte, spath.InfoFieldLength)
-		(&spath.InfoField{ISD: 1, TsInt: 13}).Write(rawInfo)
-		pseg, err := NewSeg(&PathSegmentSignedData{
-			RawInfo:      make([]byte, spath.InfoFieldLength),
-			RawTimestamp: 0,
-			SegID:        1337,
-		})
-		xtest.FailOnErr(t, err)
-		err = pseg.AddASEntry(context.Background(), asEntries[0], keyPairs[0])
-		SoMsg("AddASEntry err", err, ShouldBeNil)
-		raw, err := pseg.Pack()
-		SoMsg("Pack seg err", err, ShouldBeNil)
-		copySeg, err := NewBeaconFromRaw(raw)
-		SoMsg("Parse seg err", err, ShouldBeNil)
-		Convey("Invalid ASEntry causes an error", func() {
-			err := pseg.AddASEntry(context.Background(), nil, keyPairs[1])
-			SoMsg("err", err, ShouldNotBeNil)
-			id, fullId := getIds(t, pseg)
-			copyId, copyFullId := getIds(t, copySeg)
-			SoMsg("ID equal", id, ShouldResemble, copyId)
-			SoMsg("FullID equal", fullId, ShouldResemble, copyFullId)
-			SoMsg("eq", pseg, ShouldResemble, copySeg)
-		})
-		Convey("Signing errors do not change the segment", func() {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			signer := mock_seg.NewMockSigner(ctrl)
-			signer.EXPECT().Sign(gomock.Any(), gomock.Any()).Times(1).
-				Return(nil, errors.New("fail"))
-			err := pseg.AddASEntry(context.Background(), asEntries[1], signer)
-			SoMsg("err", err, ShouldNotBeNil)
-			id, fullId := getIds(t, pseg)
-			copyId, copyFullId := getIds(t, copySeg)
-			SoMsg("ID equal", id, ShouldResemble, copyId)
-			SoMsg("FullID equal", fullId, ShouldResemble, copyFullId)
-			SoMsg("eq", pseg, ShouldResemble, copySeg)
-		})
-	})
-}
+	ps, err := CreateSegment(time.Now(), 1337, 1)
+	require.NoError(t, err)
 
-func getIds(t *testing.T, seg *PathSegment) (common.RawBytes, common.RawBytes) {
-	t.Helper()
-	return seg.ID(), seg.FullID()
+	for i, entry := range asEntries {
+		id, fullID := ps.ID(), ps.FullID()
+		err := ps.AddASEntry(context.Background(), entry, keyPairs[i])
+		require.NoErrorf(t, err, "index: %d", i)
+
+		// Check that adding an AS entry modifies the segment id.
+		newID, newFullID := ps.ID(), ps.FullID()
+		assert.NotEqual(t, id, newID)
+		assert.NotEqual(t, fullID, newFullID)
+	}
+
+	for i, kp := range keyPairs {
+		err := ps.VerifyASEntry(context.Background(), kp, i)
+		require.NoErrorf(t, err, "index: %d", i)
+	}
+
+	c, err := BeaconFromPB(PathSegmentToPB(ps))
+	require.NoError(t, err)
+	for i, kp := range keyPairs {
+		err := c.VerifyASEntry(context.Background(), kp, i)
+		require.NoErrorf(t, err, "index: %d", i)
+	}
+
+	ps.ASEntries[0].Signed.Signature[3] ^= 0xFF
+	for i, kp := range keyPairs {
+		err := ps.VerifyASEntry(context.Background(), kp, i)
+		assert.Errorf(t, err, "index: %d", i)
+	}
 }
 
 type keyPair struct {
-	pubKey  []byte
-	privKey []byte
+	pubKey  crypto.PublicKey
+	privKey crypto.Signer
+	keyID   []byte
 }
 
-func newKeyPair(t *testing.T) *keyPair {
-	pub, priv, err := scrypto.GenKeyPair(scrypto.Ed25519)
-	xtest.FailOnErr(t, err)
-	return &keyPair{
-		pubKey:  pub,
+func newKeyPair(t *testing.T) keyPair {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	keyID := make([]byte, 10)
+	_, err = rand.Read(keyID)
+	require.NoError(t, err)
+	return keyPair{
+		pubKey:  priv.Public(),
 		privKey: priv,
+		keyID:   keyID,
 	}
 }
 
-func (t *keyPair) Sign(_ context.Context, packedSegment []byte) (*proto.SignS, error) {
-	sign := &proto.SignS{
-		Src: []byte{1, 4, 4, 2},
+func (p keyPair) Sign(_ context.Context, msg []byte,
+	associatedData ...[]byte) (*cryptopb.SignedMessage, error) {
+
+	var l int
+	for _, d := range associatedData {
+		l += len(d)
 	}
-	signature, err := scrypto.Sign(packedSegment, t.privKey, scrypto.Ed25519)
-	sign.Signature = signature
-	return sign, err
+	hdr := signed.Header{
+		SignatureAlgorithm:   signed.ECDSAWithSHA256,
+		Timestamp:            time.Now(),
+		VerificationKeyID:    p.keyID,
+		AssociatedDataLength: l,
+	}
+	return signed.Sign(hdr, msg, p.privKey, associatedData...)
 }
 
-func (t *keyPair) Verify(_ context.Context, msg []byte,
-	sign *proto.SignS) error {
+func (p keyPair) Verify(_ context.Context, signedMsg *cryptopb.SignedMessage,
+	associatedData ...[]byte) (*signed.Message, error) {
 
-	if !bytes.Equal(sign.Src, []byte{1, 4, 4, 2}) {
-		return common.NewBasicError("Invalid sign", nil,
-			"expected", []byte{1, 4, 4, 2}, "actual", sign.Src)
+	hdr, err := signed.ExtractUnverifiedHeader(signedMsg)
+	if err != nil {
+		return nil, err
 	}
-	return scrypto.Verify(msg, sign.Signature, t.pubKey, scrypto.Ed25519)
+	if !bytes.Equal(hdr.VerificationKeyID, p.keyID) {
+		return nil, serrors.New("verification key ID does not match")
+	}
+	return signed.Verify(signedMsg, p.pubKey, associatedData...)
+
 }

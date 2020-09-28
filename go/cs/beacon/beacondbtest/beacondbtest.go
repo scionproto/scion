@@ -15,6 +15,7 @@
 package beacondbtest
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"testing"
@@ -29,22 +30,26 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/proto"
 )
 
 var (
+	signer = graph.NewSigner()
+
 	ia311 = addr.IA{I: 1, A: 0xff0000000311}
 	ia330 = addr.IA{I: 1, A: 0xff0000000330}
 	ia331 = addr.IA{I: 1, A: 0xff0000000331}
 	ia332 = addr.IA{I: 1, A: 0xff0000000332}
+	ia333 = addr.IA{I: 1, A: 0xff0000000333}
 
 	Info1 = []IfInfo{
 		{
 			IA:     ia311,
+			Next:   ia330,
 			Egress: 10,
 		},
 	}
@@ -52,10 +57,12 @@ var (
 	Info2 = []IfInfo{
 		{
 			IA:     ia330,
+			Next:   ia331,
 			Egress: 4,
 		},
 		{
 			IA:      ia331,
+			Next:    ia332,
 			Ingress: 1,
 			Egress:  4,
 			Peers:   []PeerEntry{{IA: ia311, Ingress: 4}},
@@ -65,16 +72,19 @@ var (
 	Info3 = []IfInfo{
 		{
 			IA:     ia330,
+			Next:   ia331,
 			Egress: 5,
 		},
 		{
 			IA:      ia331,
+			Next:    ia332,
 			Ingress: 2,
 			Egress:  3,
 			Peers:   []PeerEntry{{IA: ia311, Ingress: 6}},
 		},
 		{
 			IA:      ia332,
+			Next:    ia333,
 			Ingress: 1,
 			Egress:  7,
 		},
@@ -664,7 +674,28 @@ func CheckResults(t *testing.T, results <-chan beacon.BeaconOrErr,
 			assert.NoError(t, res.Err, "Beacon %d err", i)
 			require.NotNil(t, res.Beacon.Segment, "Beacon %d segment", i)
 			// Make sure the segment is properly initialized.
-			assert.Equal(t, expected.Segment, res.Beacon.Segment, "Segment %d should match", i)
+
+			assert.Equal(t, expected.Segment.Info, res.Beacon.Segment.Info)
+			assert.Equal(t, expected.Segment.MaxIdx(), res.Beacon.Segment.MaxIdx())
+			for i := range expected.Segment.ASEntries {
+				expected := seg.ASEntry{
+					Extensions:  expected.Segment.ASEntries[i].Extensions,
+					HopEntry:    expected.Segment.ASEntries[i].HopEntry,
+					Local:       expected.Segment.ASEntries[i].Local,
+					MTU:         expected.Segment.ASEntries[i].MTU,
+					Next:        expected.Segment.ASEntries[i].Next,
+					PeerEntries: expected.Segment.ASEntries[i].PeerEntries,
+				}
+				actual := seg.ASEntry{
+					Extensions:  res.Beacon.Segment.ASEntries[i].Extensions,
+					HopEntry:    res.Beacon.Segment.ASEntries[i].HopEntry,
+					Local:       res.Beacon.Segment.ASEntries[i].Local,
+					MTU:         res.Beacon.Segment.ASEntries[i].MTU,
+					Next:        res.Beacon.Segment.ASEntries[i].Next,
+					PeerEntries: res.Beacon.Segment.ASEntries[i].PeerEntries,
+				}
+				assert.Equal(t, expected, actual)
+			}
 			assert.Equal(t, expected.InIfId, res.Beacon.InIfId, "InIfId %d should match", i)
 		case <-time.After(timeout):
 			t.Fatalf("Beacon %d took too long", i)
@@ -733,6 +764,7 @@ type PeerEntry struct {
 
 type IfInfo struct {
 	IA      addr.IA
+	Next    addr.IA
 	Ingress common.IFIDType
 	Egress  common.IFIDType
 	Peers   []PeerEntry
@@ -741,72 +773,51 @@ type IfInfo struct {
 func AllocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId common.IFIDType,
 	infoTS uint32) (beacon.Beacon, common.RawBytes) {
 
-	entries := make([]*seg.ASEntry, len(ases))
+	entries := make([]seg.ASEntry, len(ases))
 	for i, as := range ases {
-		prev := addr.IA{}
-		if i > 0 {
-			prev = ases[i-1].IA
-		}
-		next := addr.IA{}
-		if i < len(ases)-1 {
-			next = ases[i+1].IA
-		}
-		hops := []*seg.HopEntry{
-			allocHopEntry(prev, next, as.Ingress, as.Egress),
-		}
-		for _, peer := range as.Peers {
-			hops = append(hops, allocHopEntry(peer.IA, next, peer.Ingress, as.Egress))
+		var mtu int
+		if i != 0 {
+			mtu = 1500
 		}
 
-		entries[i] = &seg.ASEntry{
-			RawIA:      as.IA.IAInt(),
-			HopEntries: hops,
+		var peers []seg.PeerEntry
+		for _, peer := range as.Peers {
+			peers = append(peers, seg.PeerEntry{
+				Peer:          peer.IA,
+				PeerInterface: 1337,
+				PeerMTU:       1500,
+				HopField: seg.HopField{
+					ExpTime:     uint8(spath.DefaultHopFExpiry),
+					ConsIngress: uint16(peer.Ingress),
+					ConsEgress:  uint16(as.Egress),
+					MAC:         bytes.Repeat([]byte{0xff}, 6),
+				},
+			})
+		}
+		entries[i] = seg.ASEntry{
+			Local: as.IA,
+			Next:  as.Next,
+			MTU:   1500,
+			HopEntry: seg.HopEntry{
+				IngressMTU: mtu,
+				HopField: seg.HopField{
+					ExpTime:     uint8(spath.DefaultHopFExpiry),
+					ConsIngress: uint16(as.Ingress),
+					ConsEgress:  uint16(as.Egress),
+					MAC:         bytes.Repeat([]byte{0xff}, 6),
+				},
+			},
+			PeerEntries: peers,
 		}
 	}
 
-	rawInfo := make([]byte, spath.InfoFieldLength)
-	(&spath.InfoField{
-		ISD:   1,
-		TsInt: infoTS,
-	}).Write(rawInfo)
-
-	pseg, err := seg.NewSeg(
-		&seg.PathSegmentSignedData{
-			RawInfo:      rawInfo,
-			RawTimestamp: infoTS,
-			SegID:        10, // XXX(roosd): deterministic beacon needed.
-			ISD:          1,
-		},
-	)
+	// XXX(roosd): deterministic beacon needed.
+	pseg, err := seg.CreateSegment(time.Unix(int64(infoTS), 0), 10, 1)
 	require.NoError(t, err)
-	signer := mock_seg.NewMockSigner(ctrl)
-	signer.EXPECT().Sign(gomock.Any(), gomock.AssignableToTypeOf(common.RawBytes{})).Return(
-		&proto.SignS{}, nil).AnyTimes()
+
 	for _, entry := range entries {
 		err := pseg.AddASEntry(context.Background(), entry, signer)
 		require.NoError(t, err)
 	}
 	return beacon.Beacon{Segment: pseg, InIfId: inIfId}, pseg.ID()
-}
-
-func allocHopEntry(inIA, outIA addr.IA, ingress, egress common.IFIDType) *seg.HopEntry {
-	raw := make([]byte, 8)
-	hopF := spath.HopField{
-		ConsIngress: ingress,
-		ConsEgress:  egress,
-		ExpTime:     spath.DefaultHopFExpiry,
-		Mac:         []byte{1, 2, 3},
-	}
-	hopF.Write(raw)
-	return &seg.HopEntry{
-		RawInIA:     inIA.IAInt(),
-		RawOutIA:    outIA.IAInt(),
-		RawHopField: raw,
-		HopField: seg.HopField{
-			ExpTime:     uint8(hopF.ExpTime),
-			ConsIngress: uint16(hopF.ConsIngress),
-			ConsEgress:  uint16(hopF.ConsEgress),
-			MAC:         hopF.Mac,
-		},
-	}
 }

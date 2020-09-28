@@ -11,6 +11,3 @@ echo "11 sig" > /etc/iproute2/rt_tables
 for net in $(echo $1 | tr , ' '); do
     ip rule add to "$net" lookup sig
 done
-
-shift
-exec /sbin/su-exec /app/sig -config conf/sig.toml

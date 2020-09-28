@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/pathdbtest"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/xtest/matchers"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var (
@@ -146,5 +145,9 @@ func TestAdapter(t *testing.T) {
 }
 
 func getSeg(pseg *seg.PathSegment) *seg.Meta {
-	return seg.NewMeta(pseg, proto.PathSegType_down)
+	return &seg.Meta{
+		Segment: pseg,
+		Type:    seg.TypeDown,
+	}
+
 }

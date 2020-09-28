@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var TestTimeout = time.Second
@@ -133,13 +132,13 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 	defer cancelF()
 
 	seg1 := &seghandler.SegWithHP{
-		Seg: &seg.Meta{Type: proto.PathSegType_down},
+		Seg: &seg.Meta{Type: seg.TypeDown},
 	}
 	seg2 := &seghandler.SegWithHP{
-		Seg: &seg.Meta{Type: proto.PathSegType_up},
+		Seg: &seg.Meta{Type: seg.TypeUp},
 	}
 	seg3 := &seghandler.SegWithHP{
-		Seg: &seg.Meta{Type: proto.PathSegType_core},
+		Seg: &seg.Meta{Type: seg.TypeCore},
 	}
 	rev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{}, infra.NullSigner)
 	xtest.FailOnErr(t, err)
@@ -194,10 +193,10 @@ func TestReplyHandlerStorageError(t *testing.T) {
 	defer cancelF()
 
 	seg1 := &seghandler.SegWithHP{
-		Seg: &seg.Meta{Type: proto.PathSegType_down},
+		Seg: &seg.Meta{Type: seg.TypeDown},
 	}
 	seg2 := &seghandler.SegWithHP{
-		Seg: &seg.Meta{Type: proto.PathSegType_up},
+		Seg: &seg.Meta{Type: seg.TypeUp},
 	}
 	segs := seghandler.Segments{}
 	verified := make(chan segverifier.UnitResult, 2)

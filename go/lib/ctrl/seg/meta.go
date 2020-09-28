@@ -18,21 +18,34 @@ package seg
 import (
 	"fmt"
 
-	"github.com/scionproto/scion/go/proto"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
+// Meta holds the path segment with its type.
 type Meta struct {
-	Type    proto.PathSegType
-	Segment *PathSegment `capnp:"pathSeg"`
+	Segment *PathSegment
+	Type    Type
 }
 
-func NewMeta(s *PathSegment, t proto.PathSegType) *Meta {
-	return &Meta{
-		Type:    t,
-		Segment: s,
+// Type is the path segment type.
+type Type int
+
+// Path segment types.
+const (
+	TypeUp   = Type(cppb.SegmentType_SEGMENT_TYPE_UP)
+	TypeDown = Type(cppb.SegmentType_SEGMENT_TYPE_DOWN)
+	TypeCore = Type(cppb.SegmentType_SEGMENT_TYPE_CORE)
+)
+
+func (t Type) String() string {
+	switch t {
+	case TypeUp:
+		return "up"
+	case TypeDown:
+		return "down"
+	case TypeCore:
+		return "core"
+	default:
+		return fmt.Sprintf("UNKNOWN(%d)", t)
 	}
-}
-
-func (m *Meta) String() string {
-	return fmt.Sprintf("Type: %v, Segment: %v", m.Type, m.Segment)
 }

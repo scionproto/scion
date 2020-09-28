@@ -20,42 +20,26 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/sha512"
-	"encoding/asn1"
 	"fmt"
-	"math/big"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
-	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/internal/metrics"
 )
 
 func TestSignerSign(t *testing.T) {
-	verifyecdsa := func(input, signature []byte, pubKey crypto.PublicKey) error {
-		var ecdsaSig struct {
-			R, S *big.Int
-		}
-		if _, err := asn1.Unmarshal(signature, &ecdsaSig); err != nil {
-			return err
-		}
-		if !ecdsa.Verify(pubKey.(*ecdsa.PublicKey), input, ecdsaSig.R, ecdsaSig.S) {
-			return serrors.New("verification failure")
-		}
-		return nil
-	}
-
 	testCases := map[string]struct {
 		Curve elliptic.Curve
 		Hash  crypto.Hash
@@ -94,19 +78,21 @@ func TestSignerSign(t *testing.T) {
 					SubjectKeyID: []byte{0, 1, 2, 3, 4, 5, 6, 7},
 					Expiration:   time.Now().Add(2 * time.Hour),
 				}
-				sign, err := signer.Sign(context.Background(), msg)
+				signedMsg, err := signer.Sign(context.Background(), msg)
 				require.NoError(t, err)
-				assert.WithinDuration(t, time.Now(), util.SecsToTime(sign.Timestamp), 5*time.Second)
 
-				src, err := ctrl.NewX509SignSrc(sign.Src)
-				if assert.NoError(t, err) {
-					assert.Equal(t, xtest.MustParseIA("1-ff00:0:110"), src.IA)
-					assert.Equal(t, []byte{0, 1, 2, 3, 4, 5, 6, 7}, src.SubjectKeyID)
-				}
+				hdr, err := signed.ExtractUnverifiedHeader(signedMsg)
+				require.NoError(t, err)
+				assert.WithinDuration(t, time.Now(), hdr.Timestamp, 5*time.Second)
 
-				input := sha512.Sum512(sign.SigInput(msg, false))
-				err = verifyecdsa(input[:], sign.Signature, signer.PrivateKey.Public())
-				assert.NoError(t, err)
+				var keyID cppb.VerificationKeyID
+				require.NoError(t, proto.Unmarshal(hdr.VerificationKeyID, &keyID))
+
+				assert.Equal(t, xtest.MustParseIA("1-ff00:0:110"), addr.IAInt(keyID.IsdAs).IA())
+				assert.Equal(t, []byte{0, 1, 2, 3, 4, 5, 6, 7}, keyID.SubjectKeyId)
+
+				_, err = signed.Verify(signedMsg, signer.PrivateKey.Public())
+				require.NoError(t, err)
 			})
 		}
 	})

@@ -19,73 +19,80 @@ import (
 	"fmt"
 )
 
+// SCMPType is the type of the SCMP type code.
+type SCMPType uint8
+
+// SCMPCode is the code of the SCMP type code.
+type SCMPCode uint8
+
 // SCMP error messages.
 const (
-	SCMPTypeDestinationUnreachable   = 1
-	SCMPTypePacketTooBig             = 2
-	SCMPTypeParameterProblem         = 4
-	SCMPTypeExternalInterfaceDown    = 5
-	SCMPTypeInternalConnectivityDown = 6
+	SCMPTypeDestinationUnreachable   SCMPType = 1
+	SCMPTypePacketTooBig             SCMPType = 2
+	SCMPTypeParameterProblem         SCMPType = 4
+	SCMPTypeExternalInterfaceDown    SCMPType = 5
+	SCMPTypeInternalConnectivityDown SCMPType = 6
 )
 
 // Destination unreachable codes
 const (
-	SCMPCodeNoRoute                   = 0
-	SCMPCodeAdminDeny                 = 1
-	SCMPCodeBeyondScopeOfSourceAddr   = 2
-	SCMPCodeAddressUnreachable        = 3
-	SCMPCodePortUnreachable           = 4
-	SCMPCodeSourceAddressFailedPolicy = 5
-	SCMPCodeRejectRouteToDest         = 6
+	SCMPCodeNoRoute                   SCMPCode = 0
+	SCMPCodeAdminDeny                 SCMPCode = 1
+	SCMPCodeBeyondScopeOfSourceAddr   SCMPCode = 2
+	SCMPCodeAddressUnreachable        SCMPCode = 3
+	SCMPCodePortUnreachable           SCMPCode = 4
+	SCMPCodeSourceAddressFailedPolicy SCMPCode = 5
+	SCMPCodeRejectRouteToDest         SCMPCode = 6
 )
 
 // ParameterProblem
 const (
-	SCMPCodeErroneousHeaderField = 0
-	SCMPCodeUnknownNextHdrType   = 1
+	SCMPCodeErroneousHeaderField SCMPCode = 0
+	SCMPCodeUnknownNextHdrType   SCMPCode = 1
 
-	SCMPCodeInvalidCommonHeader  = 16
-	SCMPCodeUnknownSCIONVersion  = 17
-	SCMPCodeFlowIDRequired       = 18
-	SCMPCodeInvalidPacketSize    = 19
-	SCMPCodeUnknownPathType      = 20
-	SCMPCodeUnknownAddressFormat = 21
+	SCMPCodeInvalidCommonHeader  SCMPCode = 16
+	SCMPCodeUnknownSCIONVersion  SCMPCode = 17
+	SCMPCodeFlowIDRequired       SCMPCode = 18
+	SCMPCodeInvalidPacketSize    SCMPCode = 19
+	SCMPCodeUnknownPathType      SCMPCode = 20
+	SCMPCodeUnknownAddressFormat SCMPCode = 21
 
-	SCMPCodeInvalidAddressHeader      = 32
-	SCMPCodeInvalidSourceAddress      = 33
-	SCMPCodeInvalidDestinationAddress = 34
-	SCMPCodeNonLocalDelivery          = 35
+	SCMPCodeInvalidAddressHeader      SCMPCode = 32
+	SCMPCodeInvalidSourceAddress      SCMPCode = 33
+	SCMPCodeInvalidDestinationAddress SCMPCode = 34
+	SCMPCodeNonLocalDelivery          SCMPCode = 35
 
-	SCMPCodeInvalidPath              = 48
-	SCMPCodeUnknownHopFieldInterface = 49
-	SCMPCodeInvalidHopFieldMAC       = 50
-	SCMPCodePathExpired              = 51
-	SCMPCodeInvalidSegmentChange     = 52
+	SCMPCodeInvalidPath            SCMPCode = 48
+	SCMPCodeUnknownHopFieldIngress SCMPCode = 49
+	SCMPCodeUnknownHopFieldEgress  SCMPCode = 50
+	SCMPCodeInvalidHopFieldMAC     SCMPCode = 51
+	SCMPCodePathExpired            SCMPCode = 52
+	SCMPCodeInvalidSegmentChange   SCMPCode = 53
 
-	SCMPCodeInvalidExtensionHeader = 64
-	SCMPCodeUnknownHopByHopOption  = 65
-	SCMPCodeUnknownEndToEndOption  = 66
+	SCMPCodeInvalidExtensionHeader SCMPCode = 64
+	SCMPCodeUnknownHopByHopOption  SCMPCode = 65
+	SCMPCodeUnknownEndToEndOption  SCMPCode = 66
 )
 
 // SCMP informational messages.
 const (
-	SCMPTypeEchoRequest       = 128
-	SCMPTypeEchoReply         = 129
-	SCMPTypeTracerouteRequest = 130
-	SCMPTypeTracerouteReply   = 131
+	SCMPTypeEchoRequest       SCMPType = 128
+	SCMPTypeEchoReply         SCMPType = 129
+	SCMPTypeTracerouteRequest SCMPType = 130
+	SCMPTypeTracerouteReply   SCMPType = 131
 )
 
 // SCMPTypeCode represents SCMP type/code case.
 type SCMPTypeCode uint16
 
 // Type returns the SCMP type field.
-func (a SCMPTypeCode) Type() uint8 {
-	return uint8(a >> 8)
+func (a SCMPTypeCode) Type() SCMPType {
+	return SCMPType(a >> 8)
 }
 
 // Code returns the SCMP code field.
-func (a SCMPTypeCode) Code() uint8 {
-	return uint8(a)
+func (a SCMPTypeCode) Code() SCMPCode {
+	return SCMPCode(a)
 }
 
 // InfoMsg indicates if the SCMP message is an SCMP informational message.
@@ -115,13 +122,13 @@ func (a SCMPTypeCode) SerializeTo(bytes []byte) {
 }
 
 // CreateSCMPTypeCode is a convenience function to create an SCMPTypeCode
-func CreateSCMPTypeCode(typ uint8, code uint8) SCMPTypeCode {
-	return SCMPTypeCode(binary.BigEndian.Uint16([]byte{typ, code}))
+func CreateSCMPTypeCode(typ SCMPType, code SCMPCode) SCMPTypeCode {
+	return SCMPTypeCode(binary.BigEndian.Uint16([]byte{uint8(typ), uint8(code)}))
 }
 
-var scmpTypeCodeInfo = map[uint8]struct {
+var scmpTypeCodeInfo = map[SCMPType]struct {
 	name  string
-	codes map[uint8]string
+	codes map[SCMPCode]string
 }{
 	SCMPTypeDestinationUnreachable:   {name: "DestinationUnreachable"},
 	SCMPTypeExternalInterfaceDown:    {name: "ExternalInterfaceDown"},
@@ -132,7 +139,7 @@ var scmpTypeCodeInfo = map[uint8]struct {
 	SCMPTypeTracerouteRequest:        {name: "TracerouteRequest"},
 	SCMPTypeTracerouteReply:          {name: "TracerouteReply"},
 	SCMPTypeParameterProblem: {
-		"ParameterProblem", map[uint8]string{
+		"ParameterProblem", map[SCMPCode]string{
 			SCMPCodeErroneousHeaderField:      "ErroneousHeaderField",
 			SCMPCodeUnknownNextHdrType:        "UnknownNextHdrType",
 			SCMPCodeInvalidCommonHeader:       "InvalidCommonHeader",
@@ -146,7 +153,8 @@ var scmpTypeCodeInfo = map[uint8]struct {
 			SCMPCodeInvalidDestinationAddress: "InvalidDestinationAddress",
 			SCMPCodeNonLocalDelivery:          "NonLocalDelivery",
 			SCMPCodeInvalidPath:               "InvalidPath",
-			SCMPCodeUnknownHopFieldInterface:  "UnknownHopFieldInterface",
+			SCMPCodeUnknownHopFieldIngress:    "UnknownHopFieldIngressInterface",
+			SCMPCodeUnknownHopFieldEgress:     "UnknownHopFieldEgressInterface",
 			SCMPCodeInvalidHopFieldMAC:        "InvalidHopFieldMAC",
 			SCMPCodePathExpired:               "PathExpired",
 			SCMPCodeInvalidSegmentChange:      "InvalidSegmentChange",

@@ -22,7 +22,12 @@
 package graph
 
 import (
+	"bytes"
 	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	crand "crypto/rand"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -34,10 +39,9 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/proto"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
 
 // Graph implements a graph of ASes and IFIDs for testing purposes. IFIDs
@@ -56,6 +60,8 @@ type Graph struct {
 	// maps ASes to a structure containing a slice of their IFIDs
 	ases map[addr.IA]*AS
 
+	signers map[addr.IA]Signer
+
 	ctrl *gomock.Controller
 	lock sync.Mutex
 }
@@ -68,6 +74,7 @@ func New(ctrl *gomock.Controller) *Graph {
 		isPeer:  make(map[common.IFIDType]bool),
 		parents: make(map[common.IFIDType]addr.IA),
 		ases:    make(map[addr.IA]*AS),
+		signers: make(map[addr.IA]Signer),
 	}
 }
 
@@ -92,6 +99,7 @@ func (g *Graph) Add(ia string) {
 	g.ases[isdas] = &AS{
 		IFIDs: make(map[common.IFIDType]struct{}),
 	}
+	g.signers[isdas] = NewSigner()
 }
 
 // AddLink adds a new edge between the ASes described by xIA and yIA, with
@@ -224,8 +232,8 @@ func (g *Graph) BeaconWithStaticInfo(ifids []common.IFIDType) *seg.PathSegment {
 // constructed segment includes peering links. The hop fields in the returned
 // segment do not contain valid MACs.
 func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSegment {
-	var remoteInIF, inIF, outIF, remoteOutIF common.IFIDType
-	var inIA, currIA, outIA addr.IA
+	var inIF, outIF, remoteOutIF common.IFIDType
+	var currIA, outIA addr.IA
 
 	var segment *seg.PathSegment
 	if len(ifids) == 0 {
@@ -236,21 +244,7 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 		panic(fmt.Sprintf("%d unknown ifid", ifids[0]))
 	}
 
-	ts := util.TimeToSecs(time.Now())
-	rawInfo := make([]byte, spath.InfoFieldLength)
-	(&spath.InfoField{
-		ISD:   uint16(g.parents[ifids[0]].I),
-		TsInt: ts,
-	}).Write(rawInfo)
-
-	segment, err := seg.NewSeg(
-		&seg.PathSegmentSignedData{
-			RawInfo:      rawInfo,
-			RawTimestamp: ts,
-			SegID:        uint16(rand.Int()),
-			ISD:          g.parents[ifids[0]].I,
-		},
-	)
+	segment, err := seg.CreateSegment(time.Now(), uint16(rand.Int()), g.parents[ifids[0]].I)
 	if err != nil {
 		panic(err)
 	}
@@ -271,33 +265,20 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 			outIA = addr.IA{}
 		}
 
-		asEntry := &seg.ASEntry{
-			RawIA: currIA.IAInt(),
-		}
-
-		b := make(common.RawBytes, spath.HopFieldLength)
-		hf := spath.HopField{
-			ConsIngress: inIF,
-			ConsEgress:  outIF,
-			ExpTime:     spath.DefaultHopFExpiry,
-			Mac:         []byte{1, 2, 3},
-		}
-		hf.Write(b)
-		localHopEntry := &seg.HopEntry{
-			RawInIA:     inIA.IAInt(),
-			RemoteInIF:  remoteInIF,
-			InMTU:       1280,
-			RawOutIA:    outIA.IAInt(),
-			RemoteOutIF: remoteOutIF,
-			RawHopField: b,
-			HopField: seg.HopField{
-				ExpTime:     uint8(spath.DefaultHopFExpiry),
-				ConsIngress: uint16(inIF),
-				ConsEgress:  uint16(outIF),
-				MAC:         []byte{1, 2, 3},
+		asEntry := seg.ASEntry{
+			Local: currIA,
+			Next:  outIA,
+			MTU:   2000,
+			HopEntry: seg.HopEntry{
+				HopField: seg.HopField{
+					ExpTime:     uint8(spath.DefaultHopFExpiry),
+					ConsIngress: uint16(inIF),
+					ConsEgress:  uint16(outIF),
+					MAC:         bytes.Repeat([]byte{uint8(i)}, 6),
+				},
+				IngressMTU: 1280,
 			},
 		}
-		asEntry.HopEntries = append(asEntry.HopEntries, localHopEntry)
 
 		as := g.ases[currIA]
 
@@ -309,7 +290,7 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 		sort.Ints(ifids)
 		s := &seg.StaticInfoExtn{}
 		if addStaticInfo {
-			asEntry.Exts.StaticInfo = s
+			// FIXME(roosd): enable again: asEntry.Exts.StaticInfo = s
 			s.Geo.Locations = append(s.Geo.Locations, seg.Location{
 				GPSData: seg.Coordinates{
 					Latitude:  float32(currIA.IAInt()),
@@ -324,44 +305,25 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 		for _, intIFID := range ifids {
 			peeringLocalIF := common.IFIDType(intIFID)
 			if g.isPeer[peeringLocalIF] {
-				b := make(common.RawBytes, spath.HopFieldLength)
-				hf := spath.HopField{
-					ConsIngress: peeringLocalIF,
-					ConsEgress:  outIF,
-					ExpTime:     spath.DefaultHopFExpiry,
-					Mac:         []byte{1, 2, 3},
-				}
-				hf.Write(b)
 				peeringRemoteIF := g.links[peeringLocalIF]
-				peeringIA := g.parents[peeringRemoteIF]
-				peerHopEntry := &seg.HopEntry{
-					RawInIA:     peeringIA.IAInt(),
-					RemoteInIF:  peeringRemoteIF,
-					InMTU:       1280,
-					RawOutIA:    outIA.IAInt(),
-					RemoteOutIF: remoteOutIF,
-					RawHopField: b,
-
+				asEntry.PeerEntries = append(asEntry.PeerEntries, seg.PeerEntry{
+					Peer:          g.parents[peeringRemoteIF],
+					PeerInterface: uint16(peeringRemoteIF),
+					PeerMTU:       1280,
 					HopField: seg.HopField{
 						ExpTime:     uint8(spath.DefaultHopFExpiry),
 						ConsIngress: uint16(peeringLocalIF),
 						ConsEgress:  uint16(outIF),
-						MAC:         []byte{1, 2, 3},
+						MAC:         bytes.Repeat([]byte{uint8(i)}, 6),
 					},
-				}
-				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
+				})
 			}
 			if addStaticInfo {
 				generateStaticInfo(s, g.isPeer[peeringLocalIF], peeringLocalIF, outIF)
 			}
 		}
-		signer := mock_seg.NewMockSigner(g.ctrl)
-		signer.EXPECT().Sign(gomock.Any(), gomock.AssignableToTypeOf(common.RawBytes{})).Return(
-			&proto.SignS{}, nil).AnyTimes()
-		segment.AddASEntry(context.Background(), asEntry, signer)
-		remoteInIF = outIF
+		segment.AddASEntry(context.Background(), asEntry, g.signers[currIA])
 		inIF = remoteOutIF
-		inIA = currIA
 		currIA = g.parents[remoteOutIF]
 	}
 	return segment
@@ -371,6 +333,35 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 // counterpart. This is useful for testing IFID misconfigurations.
 func (g *Graph) DeleteInterface(ifid common.IFIDType) {
 	delete(g.links, ifid)
+}
+
+type Signer struct {
+	PrivateKey crypto.Signer
+}
+
+func NewSigner() Signer {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), crand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	return Signer{
+		PrivateKey: priv,
+	}
+}
+
+func (s Signer) Sign(ctx context.Context, msg []byte,
+	associatedData ...[]byte) (*cryptopb.SignedMessage, error) {
+
+	var l int
+	for _, d := range associatedData {
+		l += len(d)
+	}
+	hdr := signed.Header{
+		SignatureAlgorithm:   signed.ECDSAWithSHA256,
+		AssociatedDataLength: l,
+	}
+
+	return signed.Sign(hdr, msg, s.PrivateKey, associatedData...)
 }
 
 // AS contains a list of all the IFIDs in an AS.

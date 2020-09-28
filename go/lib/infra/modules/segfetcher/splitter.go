@@ -18,8 +18,8 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // Splitter splits a path request into set of segment requests.
@@ -39,9 +39,9 @@ type MultiSegmentSplitter struct {
 // Split splits a path request from the local AS to dst into a set of segment requests.
 func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests, error) {
 
-	const Up = proto.PathSegType_up
-	const Down = proto.PathSegType_down
-	const Core = proto.PathSegType_core
+	const Up = seg.TypeUp
+	const Down = seg.TypeDown
+	const Core = seg.TypeCore
 
 	src := s.LocalIA
 	srcCore := s.Core

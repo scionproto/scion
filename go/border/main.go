@@ -25,7 +25,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"os/user"
 	"sort"
 
 	"github.com/scionproto/scion/go/border/brconf"
@@ -87,10 +86,7 @@ func realMain() int {
 		log.Error("Setup failed", "err", err)
 		return 1
 	}
-	if err := checkPerms(); err != nil {
-		log.Error("Permissions checks failed", "err", err)
-		return 1
-	}
+
 	var err error
 	if r, err = NewRouter(cfg.General.ID, cfg.General.ConfigDir); err != nil {
 		log.Error("Startup failed", "err", err)
@@ -138,17 +134,6 @@ func setup() error {
 		}
 		log.Info("Config reloaded")
 	})
-	return nil
-}
-
-func checkPerms() error {
-	u, err := user.Current()
-	if err != nil {
-		return common.NewBasicError("Error retrieving user", err)
-	}
-	if u.Uid == "0" && !cfg.Features.AllowRunAsRoot {
-		return serrors.New("Running as root is not allowed for security reasons")
-	}
 	return nil
 }
 

@@ -21,9 +21,15 @@ package proto.control_plane.v1;
 message PathSegmentExtensions {
     // Optional static info extension.
     StaticInfoExtension static_info = 1;
+    // Optional hidden path extension.
+    HiddenPathExtension hidden_path = 2;
+}
+
+message HiddenPathExtension {
+    // Indicate if this is a hidden path.
+    bool is_hidden = 1;
 }
 
 message StaticInfoExtension {
     // TODO(roosd): Port static info from capnp to protobuf.
 }
-

@@ -152,7 +152,7 @@ func (h *DefaultSCMPHandler) handleSCMPRev(typeCode slayers.SCMPTypeCode,
 
 type nullSigner struct{}
 
-func (nullSigner) Sign(context.Context, []byte) (*proto.SignS, error) {
+func (nullSigner) SignLegacy(context.Context, []byte) (*proto.SignS, error) {
 	return &proto.SignS{}, nil
 }
 

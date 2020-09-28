@@ -27,8 +27,8 @@ cmd_topo_clean() {
     supervisor/supervisor.sh shutdown
     stop_jaeger
     rm -rf traces/*
-    mkdir -p logs traces gen gen-cache
-    find gen gen-cache -mindepth 1 -maxdepth 1 -exec rm -r {} +
+    mkdir -p logs traces gen gen-cache gen-certs
+    find gen gen-cache gen-certs -mindepth 1 -maxdepth 1 -exec rm -r {} +
 }
 
 cmd_topology() {
@@ -68,20 +68,16 @@ cmd_run() {
     fi
     run_setup
     echo "Running the network..."
-    # Start dispatcher first, as it is requrired by the border routers.
     if is_docker_be; then
-        ./tools/quiet ./scion.sh mstart '*disp*' # for dockerized
-    else
-        ./tools/quiet ./scion.sh mstart '*dispatcher*' # for supervisor
+        docker-compose -f gen/scion-dc.yml -p scion build
+        docker-compose -f gen/scion-dc.yml -p scion up -d
+        return 0
     fi
+    # Start dispatcher first, as it is requrired by the border routers.
+    ./tools/quiet ./scion.sh mstart '*dispatcher*' # for supervisor
     # Start border routers before all other services to provide connectivity.
     ./tools/quiet ./scion.sh mstart '*br*'
-    # Run with docker-compose or supervisor
-    if is_docker_be; then
-        ./tools/quiet ./tools/dc start 'scion*'
-    else
-        ./tools/quiet ./supervisor/supervisor.sh start all
-    fi
+    ./tools/quiet ./supervisor/supervisor.sh start all
 }
 
 load_cust_keys() {

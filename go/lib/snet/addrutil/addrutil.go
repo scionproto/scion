@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 // Pather computes the remote address with a path based on the provided segment.
@@ -60,22 +61,19 @@ func (p PatherV2) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr,
 		return nil, serrors.New("empty path")
 	}
 
-	beta := ps.SData.SegID
+	beta := ps.Info.SegmentID
 	// The hop fields need to be in reversed order.
 	hopFields := make([]*path.HopField, len(ps.ASEntries))
 	for i, entry := range ps.ASEntries {
-		if len(entry.HopEntries) == 0 {
-			return nil, serrors.New("hop with no entry", "index", i)
-		}
 		hopFields[len(hopFields)-1-i] = &path.HopField{
-			ConsIngress: entry.HopEntries[0].HopField.ConsIngress,
-			ConsEgress:  entry.HopEntries[0].HopField.ConsEgress,
-			ExpTime:     entry.HopEntries[0].HopField.ExpTime,
-			Mac:         entry.HopEntries[0].HopField.MAC,
+			ConsIngress: entry.HopEntry.HopField.ConsIngress,
+			ConsEgress:  entry.HopEntry.HopField.ConsEgress,
+			ExpTime:     entry.HopEntry.HopField.ExpTime,
+			Mac:         entry.HopEntry.HopField.MAC,
 		}
 		// the last AS entry is our AS for this we don't need to modify the beta.
 		if i < len(ps.ASEntries)-1 {
-			beta = beta ^ binary.BigEndian.Uint16(entry.HopEntries[0].HopField.MAC[:2])
+			beta = beta ^ binary.BigEndian.Uint16(entry.HopEntry.HopField.MAC[:2])
 		}
 	}
 
@@ -91,7 +89,7 @@ func (p PatherV2) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr,
 			NumINF:  1,
 		},
 		InfoFields: []*path.InfoField{{
-			Timestamp: ps.SData.RawTimestamp,
+			Timestamp: util.TimeToSecs(ps.Info.Timestamp),
 			ConsDir:   false,
 			SegID:     beta,
 		}},
@@ -165,32 +163,25 @@ func ResolveLocal(dst net.IP) (net.IP, error) {
 
 // legacyPath constructs a spath.Path from the path segment in construction direction.
 func legacyPath(ps *seg.PathSegment) (*spath.Path, error) {
-	info, err := spath.InfoFFromRaw(ps.SData.RawInfo)
-	if err != nil {
-		return nil, err
-	}
 	inf := spath.InfoField{
 		ConsDir: true,
 		Hops:    uint8(len(ps.ASEntries)),
-		TsInt:   info.TsInt,
-		ISD:     info.ISD,
+		TsInt:   util.TimeToSecs(ps.Info.Timestamp),
+		ISD:     0, // // XXX(roosd): This is no longer part of the path segment.
 	}
 
 	buf := bytes.Buffer{}
-	if _, err = inf.WriteTo(&buf); err != nil {
+	if _, err := inf.WriteTo(&buf); err != nil {
 		return nil, err
 	}
 	for _, asEntry := range ps.ASEntries {
-		if len(asEntry.HopEntries) == 0 {
-			return nil, serrors.New("ASEntry has no HopEntry", "asEntry", asEntry)
-		}
 		hf := spath.HopField{
-			ExpTime:     spath.ExpTimeType(asEntry.HopEntries[0].HopField.ExpTime),
-			ConsIngress: common.IFIDType(asEntry.HopEntries[0].HopField.ConsIngress),
-			ConsEgress:  common.IFIDType(asEntry.HopEntries[0].HopField.ConsEgress),
-			Mac:         asEntry.HopEntries[0].HopField.MAC,
+			ExpTime:     spath.ExpTimeType(asEntry.HopEntry.HopField.ExpTime),
+			ConsIngress: common.IFIDType(asEntry.HopEntry.HopField.ConsIngress),
+			ConsEgress:  common.IFIDType(asEntry.HopEntry.HopField.ConsEgress),
+			Mac:         asEntry.HopEntry.HopField.MAC,
 		}
-		if _, err = hf.WriteTo(&buf); err != nil {
+		if _, err := hf.WriteTo(&buf); err != nil {
 			return nil, err
 		}
 	}

@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
@@ -43,7 +44,6 @@ import (
 	ifstategrpc "github.com/scionproto/scion/go/pkg/cs/ifstate/grpc"
 	"github.com/scionproto/scion/go/pkg/grpc"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // TasksConfig holds the necessary configuration to start the periodic tasks a
@@ -58,7 +58,7 @@ type TasksConfig struct {
 	BeaconSender    beaconing.BeaconSender
 	SegmentRegister beaconing.RPC
 	BeaconStore     Store
-	Signer          ctrl.Signer
+	Signer          seg.Signer
 	Inspector       trust.Inspector
 
 	MACGen       func() hash.Hash
@@ -116,15 +116,15 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 func (t *TasksConfig) Registrars() []*periodic.Runner {
 	topo := t.TopoProvider.Get()
 	if topo.Core() {
-		return []*periodic.Runner{t.registrar(topo, proto.PathSegType_core, beacon.CoreRegPolicy)}
+		return []*periodic.Runner{t.registrar(topo, seg.TypeCore, beacon.CoreRegPolicy)}
 	}
 	return []*periodic.Runner{
-		t.registrar(topo, proto.PathSegType_down, beacon.DownRegPolicy),
-		t.registrar(topo, proto.PathSegType_up, beacon.UpRegPolicy),
+		t.registrar(topo, seg.TypeDown, beacon.DownRegPolicy),
+		t.registrar(topo, seg.TypeUp, beacon.UpRegPolicy),
 	}
 }
 
-func (t *TasksConfig) registrar(topo topology.Topology, segType proto.PathSegType,
+func (t *TasksConfig) registrar(topo topology.Topology, segType seg.Type,
 	policyType beacon.PolicyType) *periodic.Runner {
 
 	r := &beaconing.Registrar{
@@ -364,7 +364,7 @@ type Store interface {
 	// SegmentsToRegister returns a channel that provides all beacons to
 	// register at the time of the call. The selections is based on the
 	// configured propagation policy for the requested segment type.
-	SegmentsToRegister(ctx context.Context, segType proto.PathSegType) (
+	SegmentsToRegister(ctx context.Context, segType seg.Type) (
 		<-chan beacon.BeaconOrErr, error)
 	// InsertBeacon adds a verified beacon to the store, ignoring revocations.
 	InsertBeacon(ctx context.Context, beacon beacon.Beacon) (beacon.InsertStats, error)

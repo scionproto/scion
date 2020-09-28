@@ -26,10 +26,10 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/pathdb/sqlite"
-	"github.com/scionproto/scion/go/proto"
 )
 
 func main() {
@@ -93,7 +93,7 @@ type asIface struct {
 
 type segment struct {
 	LoggingID  string
-	SegType    proto.PathSegType
+	SegType    seg.Type
 	interfaces []asIface
 	Updated    time.Time
 	Expiry     time.Time
@@ -102,17 +102,17 @@ type segment struct {
 func newSegment(res *query.Result) (segment, error) {
 	ifs := make([]asIface, 0, len(res.Seg.ASEntries))
 	for _, ase := range res.Seg.ASEntries {
-		hop := ase.HopEntries[0].HopField
+		hop := ase.HopEntry.HopField
 		if hop.ConsIngress > 0 {
 			iface := asIface{
-				IA:    ase.IA(),
+				IA:    ase.Local,
 				ifNum: hop.ConsIngress,
 			}
 			ifs = append(ifs, iface)
 		}
 		if hop.ConsEgress > 0 {
 			iface := asIface{
-				IA:    ase.IA(),
+				IA:    ase.Local,
 				ifNum: hop.ConsEgress,
 			}
 			ifs = append(ifs, iface)

@@ -23,7 +23,6 @@ import (
 
 	"github.com/scionproto/scion/go/border/braccept/layers"
 	"github.com/scionproto/scion/go/border/braccept/shared"
-	"github.com/scionproto/scion/go/lib/infra"
 )
 
 func compareLayersHex(act, exp gopacket.Layer) {
@@ -127,8 +126,8 @@ func compareLayersSCMP(act, exp gopacket.Layer) error {
 
 func compareLayersPayload(act, exp gopacket.Layer) error {
 	// Try capnp decap first, otherwise do normal string comparison
-	actU, actErr := shared.CtrlCapnpDec(infra.NullSigVerifier, act.LayerContents())
-	expU, expErr := shared.CtrlCapnpDec(infra.NullSigVerifier, exp.LayerContents())
+	actU, actErr := shared.CtrlCapnpDec(act.LayerContents())
+	expU, expErr := shared.CtrlCapnpDec(exp.LayerContents())
 	if actErr == nil && expErr == nil {
 		// Both are capnp, compare then
 		actStr := actU.String()

@@ -21,11 +21,9 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"os/user"
 
 	"github.com/scionproto/scion/go/dispatcher/config"
 	"github.com/scionproto/scion/go/dispatcher/network"
-	"github.com/scionproto/scion/go/lib/common"
 	libconfig "github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
@@ -60,11 +58,6 @@ func realMain() int {
 	defer log.HandlePanic()
 	if err := cfg.Validate(); err != nil {
 		log.Error("Configuration validation failed", "err", err)
-		return 1
-	}
-
-	if err := checkPerms(); err != nil {
-		log.Error("Permissions checks failed", "err", err)
 		return 1
 	}
 
@@ -168,15 +161,4 @@ func waitForTeardown() int {
 	case <-fatal.FatalChan():
 		return 1
 	}
-}
-
-func checkPerms() error {
-	u, err := user.Current()
-	if err != nil {
-		return common.NewBasicError("Error retrieving user", err)
-	}
-	if u.Uid == "0" && !cfg.Features.AllowRunAsRoot {
-		return serrors.New("Running as root is not allowed for security reasons")
-	}
-	return nil
 }

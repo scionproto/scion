@@ -17,29 +17,6 @@
 
 package seg
 
-import (
-	"fmt"
-
-	"github.com/scionproto/scion/go/proto"
-)
-
-var _ proto.Cerealizable = (*HiddenPathSegExtn)(nil)
-
-type HiddenPathSegExtn struct {
-	Set bool
-}
-
-func NewHiddenPathSegExtn() *HiddenPathSegExtn {
-	return &HiddenPathSegExtn{Set: true}
-}
-
-func (hpExt *HiddenPathSegExtn) ProtoId() proto.ProtoIdType {
-	return proto.HiddenPathSegExtn_TypeID
-}
-
-func (hpExt *HiddenPathSegExtn) String() string {
-	if hpExt == nil {
-		return fmt.Sprintf("%v", false)
-	}
-	return fmt.Sprintf("%v", hpExt.Set)
+type HiddenPathExtension struct {
+	IsHidden bool
 }

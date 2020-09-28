@@ -160,7 +160,7 @@ func SCMPUnknownHop(artifactsDir string, mac hash.Hash) runner.Case {
 	scionL.NextHdr = common.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
-			slayers.SCMPCodeUnknownHopFieldInterface),
+			slayers.SCMPCodeUnknownHopFieldIngress),
 	}
 	scmpH.SetNetworkLayerForChecksum(scionL)
 	scmpP := &slayers.SCMPParameterProblem{
@@ -314,7 +314,7 @@ func SCMPUnknownHopEgress(artifactsDir string, mac hash.Hash) runner.Case {
 	scionL.NextHdr = common.L4SCMP
 	scmpH := &slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
-			slayers.SCMPCodeUnknownHopFieldInterface),
+			slayers.SCMPCodeUnknownHopFieldEgress),
 	}
 	scmpH.SetNetworkLayerForChecksum(scionL)
 	scmpP := &slayers.SCMPParameterProblem{Pointer: uint16(pointer)}

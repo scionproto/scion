@@ -21,6 +21,17 @@ package proto.control_plane.v1;
 import "proto/control_plane/v1/seg_extensions.proto";
 import "proto/crypto/v1/signed.proto";
 
+enum SegmentType {
+    // Unknown segemnt type.
+    SEGMENT_TYPE_UNSPECIFIED = 0;
+    // Up segment.
+    SEGMENT_TYPE_UP = 1;
+    // Down segment.
+    SEGMENT_TYPE_DOWN = 2;
+    // Core segment.
+    SEGMENT_TYPE_CORE = 3;
+  }
+
 
 service SegmentLookupService {
     // Segments returns all segments that match the request.
@@ -35,8 +46,17 @@ message SegmentsRequest {
 }
 
 message SegmentsResponse {
-    // Raw is the raw SegRecs entry in the legacy format.
-    bytes raw = 1000;
+    message Segments {
+        // List of path segments.
+        repeated PathSegment segments = 1;
+    }
+
+    // Mapping from path segment type to path segments. The key is the integer
+    // representation of the SegmentType enum.
+    map<int32, Segments> segments = 1;
+
+    // Deprecated list of signed revocations. Will be removed with header v1.
+    repeated bytes deprecated_signed_revocations = 1000;
 }
 
 service SegmentRegistrationService {
@@ -45,8 +65,14 @@ service SegmentRegistrationService {
 }
 
 message SegmentsRegistrationRequest {
-    // Raw is the raw SegRecs entry in the legacy format.
-    bytes raw = 1000;
+    message Segments {
+        // List of path segments.
+        repeated PathSegment segments = 1;
+    }
+
+    // Mapping from path segment type to path segments. The key is the integer
+    // representation of the SegmentType enum.
+    map<int32, Segments> segments = 1;
 }
 
 message SegmentsRegistrationResponse {}
@@ -57,8 +83,8 @@ service SegmentCreationService {
 }
 
 message BeaconRequest {
-    // Raw is the raw PathSegment entry in the legace format.
-    bytes raw = 1000;
+    // Beacon in form of a partial path segment.
+    PathSegment segment = 1;
 }
 
 message BeaconResponse {}
@@ -77,6 +103,11 @@ message SegmentInformation {
     int64 timestamp = 1;
     // The 16-bit segment ID integer used for MAC computation.
     uint32 segment_id = 2;
+
+
+    // Deprecated ISD identifier used for legacy path segment construction.
+    // This will be removed.
+    uint32 deprecated_isd = 1000;
 }
 
 message ASEntry {

@@ -20,7 +20,6 @@ package path_mgmt
 import (
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -39,7 +38,7 @@ func (s *SegRecs) ProtoId() proto.ProtoIdType {
 func (s *SegRecs) String() string {
 	desc := []string{"segments:"}
 	for _, m := range s.Recs {
-		desc = append(desc, "  "+m.String())
+		desc = append(desc, "  "+m.Segment.String())
 	}
 	if len(s.SRevInfos) > 0 {
 		desc = append(desc, "revocations:")
@@ -48,18 +47,6 @@ func (s *SegRecs) String() string {
 		}
 	}
 	return strings.Join(desc, "\n")
-}
-
-// ParseRaw populates the non-capnp fields of s based on data from the raw
-// capnp fields.
-func (s *SegRecs) ParseRaw() error {
-	for i, segMeta := range s.Recs {
-		if err := segMeta.Segment.ParseRaw(false); err != nil {
-			return common.NewBasicError("Unable to parse segment", err, "seg_index", i,
-				"segment", segMeta.Segment)
-		}
-	}
-	return nil
 }
 
 var _ proto.Cerealizable = (*SegReg)(nil)

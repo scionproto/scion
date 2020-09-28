@@ -18,9 +18,9 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // ForwardingLookup handles path segment lookup requests in a non-core AS. If
@@ -61,54 +61,53 @@ func (f ForwardingLookup) LookupSegments(ctx context.Context, src,
 
 // classify validates the request and determines the segment type for the request
 func (f ForwardingLookup) classify(ctx context.Context,
-	src, dst addr.IA) (proto.PathSegType, error) {
+	src, dst addr.IA) (seg.Type, error) {
 
-	unset := proto.PathSegType_unset // shorthand
 	if src.I == 0 || dst.I == 0 {
-		return unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+		return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"src", src, "dst", dst, "reason", "zero ISD src or dst")
 	}
 	if dst == f.LocalIA {
 		// this could be an otherwise valid request, but probably the requester switched Src and Dst
-		return unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+		return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"src", src, "dst", dst, "reason", "dst is local AS, confusion?")
 	}
 	srcCore, err := f.CoreChecker.IsCore(ctx, src)
 	if err != nil {
-		return proto.PathSegType_unset, err
+		return 0, err
 	}
 	dstCore, err := f.CoreChecker.IsCore(ctx, dst)
 	if err != nil {
-		return proto.PathSegType_unset, err
+		return 0, err
 	}
 	switch {
 	case srcCore && dstCore:
 		// core
 		if src.I != f.LocalIA.I {
-			return unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "core segment request src ISD not local ISD")
 		}
-		return proto.PathSegType_core, nil
+		return seg.TypeCore, nil
 	case srcCore:
 		// down
 		if src.I != dst.I {
-			return unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "down segment request src/dst in different ISD")
 		}
-		return proto.PathSegType_down, nil
+		return seg.TypeDown, nil
 	case dstCore:
 		// up
 		if src != f.LocalIA {
-			return unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "up segment request src not local AS")
 		}
 		if dst.I != f.LocalIA.I {
-			return unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+			return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 				"src", src, "dst", dst, "reason", "up segment request dst in different ISD")
 		}
-		return proto.PathSegType_up, nil
+		return seg.TypeUp, nil
 	default:
-		return unset, serrors.WithCtx(segfetcher.ErrInvalidRequest,
+		return 0, serrors.WithCtx(segfetcher.ErrInvalidRequest,
 			"src", src, "dst", dst, "reason", "non-core src & dst")
 	}
 }

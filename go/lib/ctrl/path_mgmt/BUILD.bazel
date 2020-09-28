@@ -12,7 +12,6 @@ go_library(
         "path_mgmt.go",
         "rev_info.go",
         "seg_recs.go",
-        "seg_reply.go",
         "seg_req.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/ctrl/path_mgmt",

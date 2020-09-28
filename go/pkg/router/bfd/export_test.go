@@ -45,6 +45,4 @@ type (
 	DefaultIntervalGenerator = defaultIntervalGenerator
 	State                    = state
 	Event                    = event
-	Source                   = source
-	IntervalGenerator        = intervalGenerator
 )

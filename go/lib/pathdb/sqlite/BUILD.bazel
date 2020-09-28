@@ -17,7 +17,6 @@ go_library(
         "//go/lib/pathdb:go_default_library",
         "//go/lib/pathdb/query:go_default_library",
         "//go/lib/serrors:go_default_library",
-        "//go/proto:go_default_library",
         "@com_github_mattn_go_sqlite3//:go_default_library",
     ],
 )

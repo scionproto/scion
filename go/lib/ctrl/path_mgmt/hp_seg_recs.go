@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -38,7 +37,7 @@ func (hs *HPSegRecs) ProtoId() proto.ProtoIdType {
 func (hs *HPSegRecs) String() string {
 	desc := []string{fmt.Sprintf("ID: %v\n  segments:", hs.GroupId)}
 	for _, m := range hs.Recs {
-		desc = append(desc, "    "+m.String())
+		desc = append(desc, "    "+m.Segment.String())
 	}
 	return strings.Join(desc, "\n")
 }
@@ -46,12 +45,6 @@ func (hs *HPSegRecs) String() string {
 // ParseRaw populates the non-capnp fields of s based on data from the raw
 // capnp fields.
 func (hs *HPSegRecs) ParseRaw() error {
-	for i, segMeta := range hs.Recs {
-		if err := segMeta.Segment.ParseRaw(false); err != nil {
-			return common.NewBasicError("Unable to parse segment", err, "seg_index", i,
-				"segment", segMeta.Segment)
-		}
-	}
 	return nil
 }
 
