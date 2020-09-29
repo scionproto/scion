@@ -141,22 +141,6 @@ def prom_addr_dispatcher(docker, topo_id,
     return None
 
 
-def srv_iter(topo_dicts, out_dir, common=False):
-    for topo_id, as_topo in topo_dicts.items():
-        base = topo_id.base_dir(out_dir)
-        for service in SCION_SERVICE_NAMES:
-            for elem in as_topo[service]:
-                yield topo_id, as_topo, os.path.join(base, elem)
-        if common:
-            yield topo_id, as_topo, os.path.join(base, COMMON_DIR)
-
-
-def as_iter(topo_dicts, out_dir):
-    for topo_id, as_topo in topo_dicts.items():
-        base = topo_id.base_dir(out_dir)
-        yield topo_id, as_topo, base
-
-
 def docker_image(args, image):
     if args.docker_registry:
         image = '%s/%s' % (args.docker_registry, image)

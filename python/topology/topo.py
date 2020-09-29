@@ -42,7 +42,6 @@ from python.topology.common import (
     join_host_port,
     json_default,
     SCION_SERVICE_NAMES,
-    as_iter,
     TopoID
 )
 from python.topology.net import (
@@ -137,7 +136,7 @@ class TopoGenerator(object):
             networks[k] = v
         self._iterate(self._generate_as_topo)
         self._iterate(self._generate_as_list)
-        self._write_as_topos()
+        self._iterate(self._write_as_topo)
         self._write_as_list()
         self._write_ifids()
         return self.topo_dicts, networks
@@ -361,13 +360,11 @@ class TopoGenerator(object):
             key = "Non-core"
         self.as_list[key].append(str(topo_id))
 
-    def _write_as_topos(self):
-        # TODO use self._iterate (or replace that with as_iter)
-        for topo_id, as_topo, base in as_iter(self.topo_dicts, self.args.output_dir):
-            path = os.path.join(base, TOPO_FILE)
-            contents_json = json.dumps(self.topo_dicts[topo_id],
-                                       default=json_default, indent=2)
-            write_file(path, contents_json + '\n')
+    def _write_as_topo(self, topo_id, _as_conf):
+        path = os.path.join(topo_id.base_dir(self.args.output_dir), TOPO_FILE)
+        contents_json = json.dumps(self.topo_dicts[topo_id],
+                                   default=json_default, indent=2)
+        write_file(path, contents_json + '\n')
 
     def _write_as_list(self):
         list_path = os.path.join(self.args.output_dir, AS_LIST_FILE)
