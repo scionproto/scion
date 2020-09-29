@@ -78,7 +78,7 @@ class TestSetup(CmdBase):
         self.scion.topology('topology/tiny.topo')
         # Modify the logging config for all beacon servers
         self.scion.set_configs({'log.file.level': 'debug'},
-                               local.path('gen/ISD1') // '*/bs*/bs.toml')
+                               local.path('gen/) // '*/bs*.toml')
         # Run the scion topology.
         self.scion.run()
         # Start the tester container in the dockerized topology.

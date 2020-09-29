@@ -22,13 +22,14 @@ from typing import Dict, List
 
 from plumbum.cmd import (
     cp,
+    mkdir,
 )
 from plumbum import local
 from plumbum.path.local import LocalPath
 
 from acceptance.common.log import LogExec, init_log
 from acceptance.common.base import CmdBase, set_name, TestBase, TestState
-from acceptance.common.scion import svc_names_from_path, SCIONDocker
+from acceptance.common.scion import SCIONDocker
 from acceptance.common.tools import DC
 
 set_name(__file__)
@@ -51,12 +52,11 @@ class Test(TestBase):
     """
 
 
-def topology_files() -> LocalPath:
+def cs_config_files() -> List[LocalPath]:
     """
-    Return the paths to all topology files for beacon servers in
-    AS 1-ff00:0:110 and 1-ff00:0:111.
+    Return the paths to the cs  config files in AS 1-ff00:0:110 and 1-ff00:0:111.
     """
-    return local.path('gen/ISD1') // 'ASff00_0_11[0,1]/cs*/topology.json'
+    return local.path('gen') // 'ASff00_0_11[0,1]/cs*.toml'
 
 
 @Test.subcommand('setup')
@@ -73,19 +73,37 @@ class TestSetup(CmdBase):
             self.docker_status()
 
     def modify_topologies(self):
-        files = topology_files()
-        self.backup_topologies(files)
-        topos = self.load_topologies(files)
+        cs_configs = cs_config_files()
+        cs_dirs = self.copy_cs_configs(cs_configs)
+
+        topos = self.load_topologies(cs_dirs)
         filtered = self.filter_interfaces(topos, ['1-ff00:0:110', '1-ff00:0:111'])
         self.dump_topologies(filtered)
 
-    @staticmethod
-    def backup_topologies(files: LocalPath):
-        for file in files:
-            cp(file, file+'~')
+    def copy_cs_configs(self, cs_configs):
+        """
+        Copy configuration files shared between the different services (topology.json, crypto/, ..)
+        into separate subdirectory for the CS, so that it is "unshared" and can be modified without
+        affecting the other services (routers, sciond, ...).
+        :returns: new subdirectories for CS configs
+        """
+        cs_dirs = []
+        for cs_config in cs_configs:
+            self.scion.set_configs({'general.config_dir': '/share/conf/%s/' % cs_config.stem},
+                                   [cs_config])
+            base = cs_config.parent
+            cs_dir = base / cs_config.stem
+            cs_dirs.append(cs_dir)
+            mkdir(cs_dir)
+            srcs = [base / n for n in ['crypto', 'keys', 'certs', 'topology.json']]
+            cp('-r', *srcs, cs_dir)
+
+        return cs_dirs
 
     @staticmethod
-    def load_topologies(files: LocalPath) -> Dict[str, Dict]:
+    def load_topologies(cs_dirs: List[LocalPath]) -> Dict[str, Dict]:
+
+        files = [cs_dir / 'topology.json' for cs_dir in cs_dirs]
         topos = {}
         for file in files:
             logger.debug('loading topology: %s', file)
@@ -121,18 +139,22 @@ class TestRun(CmdBase):
     def main(self):
         self.scion.run_end2end(expect_fail=True)
         logger.info('Initial end2end failed as expected, restoring topologies')
-        files = topology_files()
-        self.restore_topologies(files)
-        names = svc_names_from_path(files)
+        cs_configs = cs_config_files()
+        self.restore_topologies(cs_configs)
+        names = [cs_config.stem for cs_config in cs_configs]
         logging.info('Reloading services: %s' % names)
         self.scion.reload_svc(names)
         time.sleep(2)
         self.scion.run_end2end()
 
     @staticmethod
-    def restore_topologies(files: LocalPath):
-        for file in files:
-            cp(file+'~', file)
+    def restore_topologies(cs_configs: List[LocalPath]):
+        """
+        Copy unmodified topology.json file from shared AS directory and overwrite the
+        modified file in the CS's config subdirectory.
+        """
+        for cs_config in cs_configs:
+            cp(cs_config.parent / 'topology.json', cs_config.parent / cs_config.stem)
 
 
 if __name__ == '__main__':
