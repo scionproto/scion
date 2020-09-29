@@ -48,7 +48,7 @@ def scion_app_base():
 #   workdir - working directory
 #   entrypoint - a list of strings that add up to the command line
 #   caps - capabilities to set on the binary
-def scion_app_images(name, binary, appdir, workdir, entrypoint, caps = None):
+def scion_app_images(name, binary, appdir, workdir, entrypoint, cmd = None, caps = None):
     pkg_tar(
         name = "%s_docker_files" % name,
         srcs = [binary],
@@ -61,6 +61,7 @@ def scion_app_images(name, binary, appdir, workdir, entrypoint, caps = None):
         base = "//docker:app_base",
         tars = [":%s_docker_files" % name],
         workdir = workdir,
+        cmd = cmd,
         entrypoint = entrypoint,
         caps_binary = "%s/%s" % (appdir, name),
         caps = caps,
@@ -71,6 +72,7 @@ def scion_app_images(name, binary, appdir, workdir, entrypoint, caps = None):
         base = "//docker:app_base_debug",
         tars = [":%s_docker_files" % name],
         workdir = workdir,
+        cmd = cmd,
         entrypoint = entrypoint,
         caps_binary = "%s/%s" % (appdir, name),
         caps = caps,
