@@ -24,8 +24,7 @@ go_test(
 container_image(
     name = "dispatcher",
     base = "//docker:dispatcher_debug",
-    entrypoint = [
-        "/app/dispatcher",
+    cmd = [
         "--config",
         "/disp.toml",
     ],
@@ -35,8 +34,7 @@ container_image(
 container_image(
     name = "cs",
     base = "//docker:cs_debug",
-    entrypoint = [
-        "/app/cs",
+    cmd = [
         "--config",
         "/cs.toml",
     ],
