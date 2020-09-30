@@ -30,7 +30,7 @@ MOCK_TARGETS = [
     ("go/lib/revcache", "RevCache"),
     ("go/lib/sciond", "Connector"),
     ("go/lib/snet",
-        "PacketDispatcherService,Network,PacketConn,Path,PathInterface," +
+        "PacketDispatcherService,Network,PacketConn,Path," +
         "PathMetadata,PathQuerier,Router,RevocationHandler"),
     ("go/lib/sock/reliable", "Dispatcher"),
     ("go/lib/sock/reliable/reconnect", "IOOperation,Reconnecter"),

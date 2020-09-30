@@ -209,11 +209,11 @@ func convertPath(path *sdpb.Path, dst addr.IA) (Path, error) {
 	if err != nil {
 		return Path{}, serrors.WrapStr("resolving underlay", err)
 	}
-	interfaces := make([]pathInterface, 0, len(path.Interfaces))
+	interfaces := make([]snet.PathInterface, 0, len(path.Interfaces))
 	for _, pi := range path.Interfaces {
-		interfaces = append(interfaces, pathInterface{
-			id: common.IFIDType(pi.Id),
-			ia: addr.IAInt(pi.IsdAs).IA(),
+		interfaces = append(interfaces, snet.PathInterface{
+			ID: common.IFIDType(pi.Id),
+			IA: addr.IAInt(pi.IsdAs).IA(),
 		})
 	}
 	return Path{
