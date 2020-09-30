@@ -48,6 +48,21 @@ meant as a lightweight EPIC version and is specifically designed to
 better protect hidden paths. We will refer to ASes and hosts
 protected by a hidden path as "being behind a hidden link".
 
+With EPIC-HP, the last two ASes on a path extend the SCION
+authenticators to 16 bytes (instead of only 6 bytes).
+ASes and end hosts that want to send EPIC-HP traffic on such a path
+need to be in the possession of those extended authenticators.
+If they are, they can use the authenticators to calculate two
+per-packet MACs (for the last and penultimate ASes), which they add
+to the EPIC-HP packet header.
+The forwarding of EPIC-HP traffic at the on-path ASes is the same as
+for SCION path type traffic, which is possible because the EPIC-HP
+path type header contains the complete SCION path type header.
+In addition to the normal SCION forwarding operations, the last two
+ASes on the path recompute and validate the per-packet MACs.
+If the validation succeeds, the packet is forwarded, otherwise it is
+dropped.
+
 ### Assumptions
 
 EPIC-HP makes the following assumptions necessary to provide a
@@ -74,10 +89,7 @@ meaningful level of security:
 
 ### Example
 
-The following figure illustrates those assumptions:
-<p align="center">
-  <img src="fig/EPIC/path-type-filtering.png" width="630">
-</p>
+![](fig/EPIC/path-type-filtering-small.png).
 
 Here, AS 6 is the AS protected by the hidden path (blue lines). The
 hidden path ends at the local interface (black dot) of AS 6, so AS 6
@@ -122,9 +134,7 @@ source is itself behind a hidden link. The destination will
 therefore answer with a new EPIC-HP packet, provided it has the
 necessary authenticators for the hidden path towards the source.
 
-<p align="center">
-  <img src="fig/EPIC/SCION-reponse-flag.png" width="600">
-</p>
+![](fig/EPIC/SCION-reponse-flag-small.png).
 
 ## Procedures
 
@@ -210,8 +220,8 @@ answer with (arbitrariliy many) SCION path type packets.
 ## References
 
 <a id="1">[1]</a>
-M. Legner, T. Klenze, M. Wyss, C. Sprenger, A. Perrig. (2020)
-EPIC: Every Packet Is Checked in the Data Plane of a Path-Aware Internet
+M. Legner, T. Klenze, M. Wyss, C. Sprenger, A. Perrig. (2020) <br>
+EPIC: Every Packet Is Checked in the Data Plane of a Path-Aware Internet <br>
 Proceedings of the USENIX Security Symposium
 [[Link]](https://netsec.ethz.ch/publications/papers/Legner_Usenix2020_EPIC.pdf)
 
@@ -219,3 +229,8 @@ Proceedings of the USENIX Security Symposium
 Design Document for the Hidden Path Infrastructure
 [[Link]](https://scion.docs.anapaya.net/en/latest/HiddenPaths.html)
 
+<a id="3">[3]</a>
+T. Lee, C. Pappas, A. Perrig, V. Gligor, and Y. Hu. (2017) <br>
+The Case for In-Network Replay Suppression <br>
+Proceedings of the ACM Asia Conference on Computer and Communications Security
+[[Link]](https://netsec.ethz.ch/publications/papers/replay2017.pdf)
