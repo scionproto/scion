@@ -34,10 +34,11 @@ Border Router
     the COLIBRI traffic with higher priority than best effort.
 
 Stamping Service
-    The data-plane packets originating from the end-host go through this
-    service once in the AS source of the reservation. The *stamping service*
+    The data-plane packets originating from the end-host go through
+    the stamping service of their AS, before they are forwarded to
+    the next on-path AS of the reservation. The *stamping service*
     computes the per packet MAC that is later validated in the border routers
-    of the rest of AS along the path.
+    of the remaining on-path ASes.
 
 Monitoring
     Does the accounting and policing. It monitors per flow packets when
@@ -55,7 +56,7 @@ Nomenclature:
 Reservation version
     For any reservation (whether segment or end-to-end, see below) to be used,
     it is necessary to have one (and only one) active version.
-    The version **cannot** modify the path of a reservation.
+    The version **cannot** make a modification to the path of a reservation.
     However, it can modify the reserved bandwidth, as well as other
     properties of the reservation.
 
@@ -80,7 +81,6 @@ End-to-end (E2E) reservation
 Reservation ID
     Segment and E2E reservations have a reservation ID. It uniquely identifies
     the reservation.
-    The reservation ID must be unique.
     Both segment and E2E reservation IDs contain the AS ID of the reservation
     originator AS as the first 6 bytes, and then a suffix of 4 bytes in the
     case of a segment ID, or 12 bytes in the case of an E2E one::
@@ -101,10 +101,7 @@ COLIBRI packets in the border router.
 
 Design Requirements
 -------------------
-#. The monitoring computes the bandwidth usage per E2E reservation.
-   This relies on the control-plane not invalidating any reservation until its
-   expiration time (what is valid in the data-plane is valid in the
-   control-plane).
+#. The monitoring system computes the bandwidth usage per E2E reservation.
    The monitoring system must be able to catch E2E reservations over-usage and
    double usage with high probability, without keeping any state.
 #. The border router must validate and forward the packets very quickly.
@@ -112,8 +109,7 @@ Design Requirements
    and no hop-by-hop extensions. This means that the control-plane traffic
    uses the same transport mechanism.
 #. The border router must be able to check the validity of each packet without
-   keeping state. This requires cryptographic mechanisms built on a small set
-   of private keys (typically one) and no other state.
+   keeping state, or keeping it to a very small set of private keys.
 
 Design Decisions
 ----------------
@@ -122,6 +118,9 @@ taken to fulfill them:
 
 #. Monitoring is only necessary for E2E reservations.
    The monitoring system will simply ignore the segment reservations.
+   A version of an E2E reservation is valid until its expiration time,
+   thus the validity of a reservation is always consistent in both
+   data and control planes.
 #. A COLIBRI path is composed of one mandatory timestamp, one *InfoField* and
    a sequence of *HopFields*.
    This applies to both segment and E2E reservations. The
@@ -142,7 +141,8 @@ taken to fulfill them:
      allowed to travel on the reverse path).
      Via this flag, we can always send the responses to the requests that
      the COLIBRI services receive. The responses always travel in the
-     reverse direction, and must always stop at each COLIBRI service.
+     reverse direction, and must always stop at each COLIBRI service
+     on the path.
      The bandwidth is also guaranteed when ``R=1``.
 
 #. The cryptographic tag enabling packet validation for an AS relies only on a
@@ -165,13 +165,15 @@ MAC Computation
 ---------------
 A message-authentication code (MAC) is used in the validation of a packet when
 it is being forwarded.
-It protects the path in two ways:
+It protects the path in the following ways:
 
 - Values of the InfoField and HopFields cannot be altered.
 - HopFields must be used in the right order they were provided.
   I.e., a HopField that was obtained in a path as the `i`-th one,
   must always be used in the `i`-th position.
 - The number of HopFields is unaltered.
+- The source of the traffic is authenticated for E2E data-plane traffic
+  (so that the monitor system knows which source AS to attribute traffic to).
 
 To achieve the protection we want against changes in the relevant parts
 of the *InfoField* and *HopField*, we will include the following in the
@@ -206,7 +208,9 @@ MAC computation:
 .. Note::
     The ``R`` flag we chose at the `design decisions`_
     alters the order of appearance of the HopFields, but not the
-    computation of the MAC. Since ``R`` implies ``C``, each COLIBRI service
+    computation of the MAC. Since ``R`` implies ``C``, a packet with these
+    flags set will traverse the COLIBRI service of each AS on the path,
+    and these COLIBRI services
     can (and possibly will) check that the ingress/egress pair they observe
     in their HopField corresponds to that stored in their DB for the
     reservation ID of the packet.
@@ -215,11 +219,14 @@ MAC computation:
     ``C=1`` we can follow the same principle described above and ensure in
     the COLIBRI service that the packet represents a valid segment reservation.
 
-As it can be noted, two sets of MAC values will be produced depending on the
-value of the flag ``C``. For ``C=1`` the MAC is computed and used directly in
-the HopFields.
+We calculate the MAC differently depending on the value of the flag ``C``.
+For ``C=1`` the MAC is computed by each of the on-path ASes,
+and copied directly to their HopField. Like with the regular SCION path,
+this MAC is later validated by the same on-path AS when a packet uses the
+HopField.
 
-But when ``C=0``, we want to avoid end hosts from the source of the reservation
+With ``C=0`` (data plane traffic), we want to avoid end hosts
+from the source of the reservation
 AS *A* being able to leak the MACs to other entities in different ASes,
 that could then generate traffic
 that appears like generated from the original AS *A*, and thus AS *A*
@@ -235,7 +242,8 @@ Let's call *A* the source of the reservation, and *B* an
 AS in the path of said reservation. :math:`K_B` is a secret key that only
 *B* knows. *MAC* is the function used to compute the MAC. *InputData* are
 all the fields specified above, that will be part of the MAC computation.
-Let's describe both MACs. The **static MAC** is used when ``C=1``:
+Let's describe both MACs. The **static MAC** is used as a mechanism to
+validate each HopField when ``C=1``:
 
 .. math::
     \text{MAC}_B^{C=1} = \text{MAC}_{K_B}(InputData)
@@ -256,7 +264,8 @@ Note that the key used to compute the HVF is :math:`\sigma_B`, the static
 MAC computed by *B*, which is only known to *B* and *A*.
 
 The MAC values when ``C=1`` are communicated in the successful response
-of a reservation setup or renewal, without any type of encryption.
+of a segment or E2E reservation setup or renewal,
+without any type of encryption.
 In the same response message, we
 add each of the :math:`\sigma_B` for each AS *B* part of the path, but
 encrypted only for *A*, e.g. using DRKey.
@@ -290,7 +299,7 @@ if ``C`` is set, the border router must deliver the packet
 to the local COLIBRI service.
 The COLIBRI service checks the source validity on each operation via
 DRKey tags inside the payload, that authenticate that the source is
-is indeed requesting this operation.
+indeed requesting this operation.
 
 Since all control-plane operations have ``C=1``, they use the static MAC.
 
@@ -301,21 +310,18 @@ example has the following values:
 
 - Reservation originator: end host :math:`h_1` in AS *A*
 - Reservation destination: end host :math:`h_2` in AS *G*
-- E2E reservation ID: :math:`\text{E2E}_{(A,1111)}`
 - The reservation stitches 3 segment reservations:
 
-  - Up: :math:`A \rightarrow B \rightarrow C`,
-    with ID :math:`\text{Seg}_{(A,1)}`
-  - Core: :math:`C \rightarrow D \rightarrow E`,
-    with ID :math:`\text{Seg}_{(C,1)}`
-  - Down: :math:`E \rightarrow F \rightarrow G`,
-    with ID :math:`\text{Seg}_{(E,1)}`
+  - Up: :math:`A \rightarrow B \rightarrow C`.
+  - Core: :math:`C \rightarrow D \rightarrow E`.
+  - Down: :math:`E \rightarrow F \rightarrow G`.
 
 #. The host :math:`h_1` in *A* decides to renew the reservation. For this it
    sends a request to the COLIBRI service at *A*.
-   The packet has the path :math:`\verb!C=1,R=0,S=0!`,
+   The packet has its path with flags :math:`\verb!C=1,R=0,S=0!`,
+   and HopFields for
    :math:`A \rightarrow B \rightarrow C \rightarrow D
-   \rightarrow E \rightarrow F \rightarrow G`
+   \rightarrow E \rightarrow F \rightarrow G`.
 #. The COLIBRI service at *A* handles the request. It does the admission
    in *A*. It adds the maximum bandwidth from the admission to the
    request and sends a message to the next hop, which is *B*.
@@ -343,10 +349,11 @@ example has the following values:
 #. Assuming the request was admitted all the way up to the destination end-
    host :math:`h_2`, this will reverse the traversal of the path by setting
    ``R=1,C=1`` and send it to its AS's COLIBRI service.
-#. The COLIBRI service at `G` receives the response with acceptance, and then
+#. The COLIBRI service at `G` receives the response
+   stating that the renewal was accepted, and then
    it adds the HopField to the payload. It also computes both MACs
    :math:`\text{MAC}_G^{C=1}` and :math:`\text{MAC}_G^{C=0}` (which is
-   :math:`\sigma_G`) and encrypts and authenticates this last one with
+   :math:`\sigma_G`) and encrypts and authenticates the latter with
    :math:`DRKey K_{G \to A}`. Both MACs are
    also added to the payload. The packet is sent to the border router at `G`.
 #. The border router at `G` receives the COLIBRI packet with ``R=1,C=1``,
@@ -355,7 +362,7 @@ example has the following values:
    is valid and drops the packet if not. If the MAC is
    valid (:math:`\text{MAC}_F^{C=1}` is independent of the ``R`` flag),
    the border router delivers it to the local COLIBRI service.
-#. The COLIBRI service at `F` now add its own HopField and
+#. The COLIBRI service at `F` now adds its own HopField and
    the two MACs :math:`\text{MAC}_F^{C=1}` and :math:`\sigma_F`,
    the latter encrypted with :math:`DRKey K_{F \to A}`.
    It then sends it to the border router.
@@ -366,6 +373,10 @@ example has the following values:
 
 TODO Question: we want to have reliable communication between services. This means using
 quic for the communication. Will it work okay?
+
+TODO Do not forget to mention the independence between transport and operations:
+an operation about a reservation X can be transported using reservation Y,
+as long as it is compatible with the operation? Pros, cons.
 
 Down-Segment Renewal Operation
 ------------------------------
@@ -378,7 +389,7 @@ the renewal is requested from G, but sent first to `E`.
 These are the steps:
 
 #. The COLIBRI service at `G` decides to renew the down-segment reservation.
-   It has the ID :math:`\text{Seg}_{(E,1)}`. The path of the reservation is
+   The path of the reservation has the flags and HopFields:
    :math:`\verb!C=1,R=1,S=1!, E \rightarrow F \rightarrow G`. This is because
    the first step is sending it from `G` to `E`. So `G` reverses the path and
    computes the admission **in reverse**.
@@ -394,7 +405,8 @@ These are the steps:
    the packet to the border router again, to be forwarded.
 #. Similarly to the previous steps, the packet finally arrives to the local
    COLIBRI service at `E`. It does the admission **in reverse** and, since this
-   is the last AS in the path, it adds its HopField and :math:`\sigma_E`
+   is the last AS in the path, it adds its HopField and
+   :math:`\text{MAC}_E^{C=1}`
    to the payload and it switches direction by setting ``R=0``.
    Now the packet is sent back to the border router to be forwarded to the
    next hop.
@@ -409,6 +421,37 @@ These are the steps:
    the MAC and the rest of the fields are okay.
 #. Finally, the COLIBRI service at `G` receives the packet and stores the
    HopFields and MACs from the payload.
+
+Segment Reservation First Setup
+-------------------------------
+When there is no previous reservation possible to reach each and all of the
+on-path ASes necessary to establish a segment reservation setup,
+best effort traffic must be used.
+
+E2E Reservation First Setup
+---------------------------
+When there is no previous E2E reservation that could be used to reach each
+and all of the on-path ASes of a desired E2E reservation, the endhost still has
+the possibility of sending the request to its local COLIBRI service,
+always specifying which (up to three) segment reservations to stitch
+to build the E2E reservation. The COLIBRI service will transport the request,
+and the subsequent response, using segment reservations.
+
+#. The endhost sends an E2E reservation setup request to its local
+   COLIBRI service.
+#. The COLIBRI service of the reservation source AS will proceed with the
+   setup process as usual, with the only difference that it will send the
+   request to the next on-path AS using the first segment reservation.
+#. Each of the on-path ASes receive the request, which is being transported
+   using a segment reservation.
+#. The COLIBRI service at the transfer ASes will change the segment reservation
+   to forward the request with, using the next segment reservation.
+#. The COLIBRI service at the last transfer AS may have to use a down-segment
+   to send the request to the next COLIBRI service. This is still possible,
+   as this COLIBRI service also has the appropriate HopFields to use that
+   down-segment reservation (see `Setup a Segment Reservation`_ below).
+#. The rest of the process continues similarly to what is depicted on
+   `E2E Reservation Renewal Operation`_.
 
 
 COLIBRI Service
@@ -530,7 +573,7 @@ Handle a Setup Response
    an version confirmation request.
 
 Handle an Version Confirmation Request
-************************************
+**************************************
 #. The store in the COLIBRI service checks that the appropriate reservation
    is already final.
 #. The store modifies the reservation to be confirmed
