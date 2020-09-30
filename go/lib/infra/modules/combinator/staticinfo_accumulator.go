@@ -7,6 +7,11 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+// XXX(matzf) replace these types with appropriate definitions directly in
+// snet.PathMetadata, making this available to applications. Remove this here
+// PathMetadata (currently dead code) and change the logic below to directly
+// fill in the data into snet.PathMetadata.
+
 type ASnote struct {
 	Note string
 }
@@ -60,7 +65,7 @@ type asEntryList struct {
 
 // collectMetadata is the function used to extract StaticInfo
 // from a *PathSolution.
-func (solution *PathSolution) collectMetadata() *PathMetadata {
+func (solution *pathSolution) collectMetadata() *PathMetadata {
 	asEntries := solution.gatherASEntries()
 	return combineSegments(asEntries)
 }
@@ -69,7 +74,7 @@ func (solution *PathSolution) collectMetadata() *PathMetadata {
 // For each edge, it goes through each ASEntry and adds it to a list,
 // representing the up-, core-, and down segments respectively.
 // It also saves the Peer value of the up and down edges.
-func (solution *PathSolution) gatherASEntries() *asEntryList {
+func (solution *pathSolution) gatherASEntries() *asEntryList {
 	var res asEntryList
 	for _, solEdge := range solution.edges {
 		asEntries := solEdge.segment.ASEntries
