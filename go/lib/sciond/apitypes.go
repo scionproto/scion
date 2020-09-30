@@ -16,20 +16,21 @@ package sciond
 
 import (
 	"context"
-	"fmt"
 	"net"
-	"strings"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
+
+type PathReqFlags struct {
+	Refresh bool
+	Hidden  bool
+}
 
 // ASInfo provides information about the local AS.
 type ASInfo struct {
@@ -104,94 +105,4 @@ func protoSVCToAddr(svc proto.ServiceType) addr.HostSVC {
 	default:
 		return addr.SvcNone
 	}
-}
-
-type Path struct {
-	interfaces []snet.PathInterface
-	underlay   *net.UDPAddr
-	spath      *spath.Path
-	mtu        uint16
-	expiry     time.Time
-	dst        addr.IA
-}
-
-func (p Path) UnderlayNextHop() *net.UDPAddr {
-	if p.underlay == nil {
-		return nil
-	}
-	return &net.UDPAddr{
-		IP:   append(p.underlay.IP[:0:0], p.underlay.IP...),
-		Port: p.underlay.Port,
-		Zone: p.underlay.Zone,
-	}
-}
-
-func (p Path) Path() *spath.Path {
-	if p.spath == nil {
-		return nil
-	}
-	return p.spath.Copy()
-}
-
-func (p Path) Interfaces() []snet.PathInterface {
-	if p.interfaces == nil {
-		return nil
-	}
-	intfs := make([]snet.PathInterface, 0, len(p.interfaces))
-	for _, intf := range p.interfaces {
-		intfs = append(intfs, intf)
-	}
-	return intfs
-}
-
-func (p Path) Destination() addr.IA {
-	if len(p.interfaces) == 0 {
-		return p.dst
-	}
-	return p.interfaces[len(p.interfaces)-1].IA
-}
-
-func (p Path) Metadata() snet.PathMetadata {
-	return p
-}
-
-func (p Path) MTU() uint16 {
-	return p.mtu
-}
-
-func (p Path) Expiry() time.Time {
-	return p.expiry
-}
-
-func (p Path) Copy() snet.Path {
-	return Path{
-		interfaces: append(p.interfaces[:0:0], p.interfaces...),
-		underlay:   p.UnderlayNextHop(), // creates copy
-		spath:      p.Path(),            // creates copy
-		mtu:        p.mtu,
-		expiry:     p.expiry,
-	}
-}
-
-func (p Path) String() string {
-	hops := p.fmtInterfaces()
-	return fmt.Sprintf("Hops: [%s] MTU: %d NextHop: %s",
-		strings.Join(hops, ">"), p.mtu, p.underlay)
-}
-
-func (p Path) fmtInterfaces() []string {
-	var hops []string
-	if len(p.interfaces) == 0 {
-		return hops
-	}
-	intf := p.interfaces[0]
-	hops = append(hops, fmt.Sprintf("%s %d", intf.IA, intf.ID))
-	for i := 1; i < len(p.interfaces)-1; i += 2 {
-		inIntf := p.interfaces[i]
-		outIntf := p.interfaces[i+1]
-		hops = append(hops, fmt.Sprintf("%d %s %d", inIntf.ID, inIntf.IA, outIntf.ID))
-	}
-	intf = p.interfaces[len(p.interfaces)-1]
-	hops = append(hops, fmt.Sprintf("%d %s", intf.ID, intf.IA))
-	return hops
 }
