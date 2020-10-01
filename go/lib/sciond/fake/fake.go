@@ -100,14 +100,14 @@ func DummyPath() *spath.Path {
 
 func (p Path) Interfaces() []snet.PathInterface {
 	ifaces := make([]snet.PathInterface, len(p.JSONInterfaces))
-	for i := range p.JSONInterfaces {
-		ifaces[i] = p.JSONInterfaces[i]
+	for i, jsonIface := range p.JSONInterfaces {
+		ifaces[i] = snet.PathInterface{IA: jsonIface.IA, ID: jsonIface.ID}
 	}
 	return ifaces
 }
 
 func (p Path) Destination() addr.IA {
-	return p.JSONInterfaces[len(p.JSONInterfaces)-1].JSONIA
+	return p.JSONInterfaces[len(p.JSONInterfaces)-1].IA
 }
 
 func (p Path) Metadata() snet.PathMetadata {
@@ -133,16 +133,8 @@ func (p Path) String() string {
 }
 
 type PathInterface struct {
-	JSONIA addr.IA         `json:"ia"`
-	JSONID common.IFIDType `json:"id"`
-}
-
-func (i PathInterface) ID() common.IFIDType {
-	return i.JSONID
-}
-
-func (i PathInterface) IA() addr.IA {
-	return i.JSONIA
+	IA addr.IA         `json:"ia"`
+	ID common.IFIDType `json:"id"`
 }
 
 type pathMetadata struct {

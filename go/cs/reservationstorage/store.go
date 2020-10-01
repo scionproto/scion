@@ -33,7 +33,7 @@ type Store interface {
 		base.MessageWithPath, error)
 	TearDownSegmentReservation(ctx context.Context, req *sgt.TeardownReq) (
 		base.MessageWithPath, error)
-	AdmitE2EReservation(ctx context.Context, req *e2e.SetupReq) (
+	AdmitE2EReservation(ctx context.Context, req e2e.SetupRequest) (
 		base.MessageWithPath, error)
 	CleanupE2EReservation(ctx context.Context, req *e2e.CleanupReq) (
 		base.MessageWithPath, error)

@@ -19,13 +19,14 @@ import (
 )
 
 type E2ESetup struct {
-	Base            *E2EBase
-	SegmentRsvs     []SegmentReservationID
-	RequestedBW     uint8
-	AllocationTrail []uint8
-	Which           proto.E2ESetupReqData_Which
-	Success         *E2ESetupReqSuccess
-	Failure         *E2ESetupReqFailure
+	Base              *E2EBase
+	SegmentRsvs       []SegmentReservationID
+	SegmentRsvASCount []uint8
+	RequestedBW       uint8
+	AllocationTrail   []uint8
+	Which             proto.E2ESetupReqData_Which
+	Success           *E2ESetupReqSuccess
+	Failure           *E2ESetupReqFailure
 }
 
 func (s *E2ESetup) ProtoId() proto.ProtoIdType {
@@ -57,6 +58,5 @@ type E2ESetupSuccess struct {
 
 type E2ESetupFailure struct {
 	ErrorCode       uint8
-	InfoField       []byte
 	AllocationTrail []uint8
 }

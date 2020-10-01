@@ -162,21 +162,6 @@ class SCIONSupervisor(SCION):
         self.end2end(*args, retcode=code)
 
 
-def svc_names_from_path(files: LocalPath) -> List[str]:
-    """
-    Return all service names based on the path to a file in the gen directory.
-    E.g. gen/ISD1/ASff00_0_110/bs1-ff00_0_110/bs.toml will return
-    [bs1-ff00_0_110].
-    """
-    names = set()
-    for file in files:
-        if file.is_file():
-            names.add(file.dirname.name)
-        else:
-            names.add(file.name)
-    return list(names)
-
-
 def sciond_addr(isd_as: ISD_AS, port: bool = True):
     """
     Return the SCION Daemon address for the given AS.

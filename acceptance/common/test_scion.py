@@ -12,18 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import shutil
-import tempfile
 import unittest
-from typing import Any, Dict, List
-
-from plumbum import local
+from typing import Any, Dict
 
 from acceptance.common.scion import (
     merge_dict,
     path_to_dict,
-    svc_names_from_path,
 )
 
 
@@ -68,31 +62,3 @@ class PathToDictTestCase(unittest.TestCase):
     def test_path_to_dict(self):
         d = path_to_dict('a.b.c', 'd')
         self.assertEqual(d, {'a': {'b': {'c': 'd'}}}, 'wrong dictionary')
-
-
-class SvcNameFromPathTestCase(unittest.TestCase):
-
-    def setUp(self):
-        self.dir = local.path(tempfile.mkdtemp())
-        files = ['bs1/toml', 'bs1/topo', 'bs2/toml', 'cs1/toml']
-        self._touch_files(files)
-
-    def tearDown(self):
-        shutil.rmtree(self.dir)
-
-    def test_multiple_paths_same_name(self):
-        path = local.path(self.dir) // '*/*'
-        actual = svc_names_from_path(path)
-        self.assertEqual(set(actual), {'bs1', 'bs2', 'cs1'}, 'wrong service names')
-
-    def test_directory(self):
-        path = local.path(self.dir) // 'bs*'
-        actual = svc_names_from_path(path)
-        self.assertEqual(set(actual), {'bs1', 'bs2'}, 'wrong service names')
-
-    def _touch_files(self, names: List[str]):
-        for name in names:
-            file = self.dir / name
-            file.dirname.mkdir()
-            with open(os.path.join(self.dir, name), 'a'):
-                pass

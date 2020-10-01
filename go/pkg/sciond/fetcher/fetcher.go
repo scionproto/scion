@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
@@ -162,7 +163,7 @@ func (f *fetcher) translate(path *combinator.Path) (sciond.PathReplyEntry, error
 			Path: &sciond.FwdPathMeta{
 				FwdPath:    []byte{},
 				Mtu:        f.pather.TopoProvider.Get().MTU(),
-				Interfaces: []sciond.PathInterface{},
+				Interfaces: []snet.PathInterface{},
 				ExpTime:    util.TimeToSecs(time.Now().Add(spath.MaxTTL * time.Second)),
 				HeaderV2:   path.HeaderV2,
 			},
@@ -175,10 +176,10 @@ func (f *fetcher) translate(path *combinator.Path) (sciond.PathReplyEntry, error
 		// In-memory write should never fail
 		panic(err)
 	}
-	nextHop, ok := f.pather.TopoProvider.Get().UnderlayNextHop(path.Interfaces[0].IfID)
+	nextHop, ok := f.pather.TopoProvider.Get().UnderlayNextHop(path.Interfaces[0].ID)
 	if !ok {
 		return sciond.PathReplyEntry{}, serrors.New("unable to find first-hop BR for path",
-			"ifid", path.Interfaces[0].IfID)
+			"ifid", path.Interfaces[0].ID)
 	}
 	entry := sciond.PathReplyEntry{
 		Path: &sciond.FwdPathMeta{

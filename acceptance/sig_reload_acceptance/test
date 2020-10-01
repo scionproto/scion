@@ -8,7 +8,7 @@ TEST_NAME="sig_reload"
 
 SRC_IA_FILE="$(ia_file $SRC_IA)"
 SRC_AS_FILE="$(as_file $SRC_IA)"
-SIG_JSON="gen/ISD1/AS$SRC_AS_FILE/sig$SRC_IA_FILE/cfg.json"
+SIG_JSON="gen/AS$SRC_AS_FILE/sig.json"
 
 test_run() {
     set -e

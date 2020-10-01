@@ -147,11 +147,12 @@ setcap = rule(
 )
 
 # same as container_image, except that it allows to set capabilities on one binary
-def container_image_setcap(name, entrypoint, caps_binary = None, caps = None, **kwargs):
+def container_image_setcap(name, entrypoint, cmd = None, caps_binary = None, caps = None, **kwargs):
     if not caps:
         # Fast path. If no caps are to be set, skip the setcap dance.
         container_image(
             name = name,
+            cmd = cmd,
             entrypoint = entrypoint,
             visibility = ["//visibility:public"],
             **kwargs
@@ -159,6 +160,7 @@ def container_image_setcap(name, entrypoint, caps_binary = None, caps = None, **
     else:
         container_image(
             name = name + "_nocap",
+            cmd = cmd,
             entrypoint = entrypoint,
             **kwargs
         )
@@ -171,6 +173,7 @@ def container_image_setcap(name, entrypoint, caps_binary = None, caps = None, **
         container_image(
             name = name,
             base = name + "_withcap.tar",
+            cmd = cmd,
             entrypoint = entrypoint,
             visibility = ["//visibility:public"],
         )

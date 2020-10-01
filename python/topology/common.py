@@ -85,7 +85,7 @@ class TopoID(ISD_AS):
         return "%s-%s" % (self.isd_str(), self.as_file_fmt())
 
     def base_dir(self, out_dir):
-        return os.path.join(out_dir, self.ISD(), self.AS_file())
+        return os.path.join(out_dir, self.AS_file())
 
     def __lt__(self, other):
         return str(self) < str(other)
@@ -139,16 +139,6 @@ def prom_addr_dispatcher(docker, topo_id,
         if target_name in net_desc.ip_net:
             return '[%s]:%s' % (net_desc.ip_net[target_name].ip, port)
     return None
-
-
-def srv_iter(topo_dicts, out_dir, common=False):
-    for topo_id, as_topo in topo_dicts.items():
-        base = topo_id.base_dir(out_dir)
-        for service in SCION_SERVICE_NAMES:
-            for elem in as_topo[service]:
-                yield topo_id, as_topo, os.path.join(base, elem)
-        if common:
-            yield topo_id, as_topo, os.path.join(base, COMMON_DIR)
 
 
 def docker_image(args, image):

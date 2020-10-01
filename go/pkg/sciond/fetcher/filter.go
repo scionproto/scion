@@ -62,7 +62,7 @@ func newPathWrap(p *combinator.Path) pathWrap {
 	keyParts := make([]string, 0, len(p.Interfaces))
 	for _, intf := range p.Interfaces {
 		intfs = append(intfs, intf)
-		keyParts = append(keyParts, fmt.Sprintf("%s#%d", intf.IA(), intf.ID()))
+		keyParts = append(keyParts, fmt.Sprintf("%s#%d", intf.IA, intf.ID))
 	}
 	return pathWrap{
 		key:      snet.PathFingerprint(strings.Join(keyParts, " ")),

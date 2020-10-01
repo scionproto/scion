@@ -210,10 +210,11 @@ func newE2ESetup(msg *e2e.SetupReq) *colibri_mgmt.E2ESetup {
 		allocTrail[i] = uint8(msg.AllocationTrail[i])
 	}
 	return &colibri_mgmt.E2ESetup{
-		Base:            newE2EBase(&msg.Request),
-		SegmentRsvs:     newSegmentIDs(msg.SegmentRsvs),
-		RequestedBW:     uint8(msg.RequestedBW),
-		AllocationTrail: allocTrail,
+		Base:              newE2EBase(&msg.Request),
+		SegmentRsvs:       newSegmentIDs(msg.SegmentRsvs),
+		SegmentRsvASCount: msg.SegmentRsvASCount,
+		RequestedBW:       uint8(msg.RequestedBW),
+		AllocationTrail:   allocTrail,
 	}
 }
 
@@ -528,7 +529,6 @@ func setE2ESetupFailureResponse(msg *e2e.ResponseSetupFailure,
 		Which: proto.E2ESetupResData_Which_failure,
 		Failure: &colibri_mgmt.E2ESetupFailure{
 			ErrorCode:       msg.ErrorCode,
-			InfoField:       msg.InfoField.ToRaw(),
 			AllocationTrail: maxBWs,
 		},
 	}
@@ -549,7 +549,6 @@ func setE2ERenewalFailureResponse(msg *e2e.ResponseSetupFailure,
 		Which: proto.E2ESetupResData_Which_failure,
 		Failure: &colibri_mgmt.E2ESetupFailure{
 			ErrorCode:       msg.ErrorCode,
-			InfoField:       msg.InfoField.ToRaw(),
 			AllocationTrail: maxBWs,
 		},
 	}

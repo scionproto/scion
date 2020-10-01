@@ -141,9 +141,10 @@ func TestSerializeRequest(t *testing.T) {
 							Suffix: xtest.MustParseHexString("deadbeef"),
 						},
 					},
-					RequestedBW:     5,
-					AllocationTrail: []uint8{5},
-					Which:           proto.E2ESetupReqData_Which_success,
+					SegmentRsvASCount: []uint8{3},
+					RequestedBW:       5,
+					AllocationTrail:   []uint8{5},
+					Which:             proto.E2ESetupReqData_Which_success,
 					Success: &colibri_mgmt.E2ESetupReqSuccess{
 						Token: xtest.MustParseHexString("0000"),
 					},
@@ -165,9 +166,10 @@ func TestSerializeRequest(t *testing.T) {
 							Suffix: xtest.MustParseHexString("00000001"),
 						},
 					},
-					RequestedBW:     5,
-					AllocationTrail: []uint8{5, 4},
-					Which:           proto.E2ESetupReqData_Which_failure,
+					SegmentRsvASCount: []uint8{3, 2},
+					RequestedBW:       5,
+					AllocationTrail:   []uint8{5, 4},
+					Which:             proto.E2ESetupReqData_Which_failure,
 					Failure: &colibri_mgmt.E2ESetupReqFailure{
 						ErrorCode: 66,
 					},
@@ -217,7 +219,6 @@ func TestSerializeResponse(t *testing.T) {
 			Which: proto.E2ESetupResData_Which_failure,
 			Failure: &colibri_mgmt.E2ESetupFailure{
 				ErrorCode:       1,
-				InfoField:       xtest.MustParseHexString("fedcba9876543210"),
 				AllocationTrail: []uint8{1, 1, 2, 2},
 			},
 		}
@@ -319,7 +320,6 @@ func TestSerializeResponse(t *testing.T) {
 					Which: proto.E2ESetupResData_Which_failure,
 					Failure: &colibri_mgmt.E2ESetupFailure{
 						ErrorCode:       1,
-						InfoField:       xtest.MustParseHexString("fedcba9876543210"),
 						AllocationTrail: []uint8{1, 1, 2, 2},
 					},
 				},

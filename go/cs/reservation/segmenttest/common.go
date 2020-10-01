@@ -18,6 +18,7 @@ import (
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -48,4 +49,24 @@ func NewReservation() *segment.Reservation {
 	r.ID = *segID
 	r.Path = NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
 	return r
+}
+
+// NewTestPath returns a new path with one segment consisting on 3 hopfields: (0,2)->(1,2)->(1,0).
+func NewTestPath() *spath.Path {
+	path := &spath.Path{
+		InfOff: 0,
+		HopOff: spath.InfoFieldLength + spath.HopFieldLength, // second hop field
+		Raw:    make([]byte, spath.InfoFieldLength+3*spath.HopFieldLength),
+	}
+	inf := spath.InfoField{ConsDir: true, ISD: 1, Hops: 3}
+	inf.Write(path.Raw)
+
+	hf := &spath.HopField{ConsEgress: 2}
+	hf.Write(path.Raw[spath.InfoFieldLength:])
+	hf = &spath.HopField{ConsIngress: 1, ConsEgress: 2}
+	hf.Write(path.Raw[spath.InfoFieldLength+spath.HopFieldLength:])
+	hf = &spath.HopField{ConsIngress: 1}
+	hf.Write(path.Raw[spath.InfoFieldLength+spath.HopFieldLength*2:])
+
+	return path
 }

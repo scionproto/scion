@@ -22,8 +22,7 @@ container_image(
 container_image(
     name = "dispatcher1",
     base = "//docker:dispatcher_debug",
-    entrypoint = [
-        "/app/dispatcher",
+    cmd = [
         "-config",
         "/disp.toml",
     ],
@@ -33,8 +32,7 @@ container_image(
 container_image(
     name = "dispatcher2",
     base = "//docker:dispatcher_debug",
-    entrypoint = [
-        "/app/dispatcher",
+    cmd = [
         "-config",
         "/disp.toml",
     ],
@@ -44,8 +42,7 @@ container_image(
 container_image(
     name = "sig1",
     base = "//docker:sig_debug",
-    entrypoint = [
-        "/app/sig",
+    cmd = [
         "-config",
         "/sig.toml",
     ],
@@ -59,8 +56,7 @@ container_image(
 container_image(
     name = "sig2",
     base = "//docker:sig_debug",
-    entrypoint = [
-        "/app/sig",
+    cmd = [
         "-config",
         "/sig.toml",
     ],

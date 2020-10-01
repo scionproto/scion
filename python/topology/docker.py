@@ -141,7 +141,7 @@ class DockerGenerator(object):
             disp_id = k
             image = docker_image(self.args, 'border')
             if FEATURE_HEADER_V2 in self.args.features:
-                image = docker_image(self.args, 'border-router')
+                image = docker_image(self.args, 'posix-router')
             entry = {
                 'image': image,
                 'container_name': self.prefix + k,
@@ -152,9 +152,9 @@ class DockerGenerator(object):
                 'user': self.user,
                 'volumes': [
                     self._disp_vol(disp_id),
-                    '%s:/share/conf:ro' % os.path.join(base, k)
+                    '%s:/share/conf:ro' % base
                 ],
-                'command': []
+                'command': ['--config', '/share/conf/%s.toml' % k]
             }
             self.dc_conf['services']['scion_%s' % k] = entry
 
@@ -169,10 +169,10 @@ class DockerGenerator(object):
                 'volumes': [
                     self._cache_vol(),
                     self._certs_vol(),
-                    '%s:/share/conf:ro' % os.path.join(base, k),
+                    '%s:/share/conf:ro' % base,
                     self._disp_vol(k),
                 ],
-                'command': []
+                'command': ['--config', '/share/conf/%s.toml' % k]
             }
             self.dc_conf['services']['scion_%s' % k] = entry
 
@@ -207,8 +207,9 @@ class DockerGenerator(object):
             entry['networks'][self.bridges[net['net']]] = {'%s_address' % ipv: ip}
             entry['container_name'] = '%sdisp_%s' % (self.prefix, disp_id)
             entry['volumes'].append(self._disp_vol(disp_id))
-            conf = '%s:/share/conf:rw' % os.path.join(base, 'disp_%s' % disp_id)
+            conf = '%s:/share/conf:rw' % base
             entry['volumes'].append(conf)
+            entry['command'] = ['--config', '/share/conf/disp_%s.toml' % disp_id]
 
             self.dc_conf['services']['scion_disp_%s' % disp_id] = entry
             self.dc_conf['volumes'][self._disp_vol(disp_id).split(':')[0]] = None
@@ -233,11 +234,12 @@ class DockerGenerator(object):
                 self._disp_vol(disp_id),
                 self._cache_vol(),
                 self._certs_vol(),
-                '%s:/share/conf:ro' % os.path.join(base, 'endhost'),
+                '%s:/share/conf:ro' % base
             ],
             'networks': {
                 self.bridges[net['net']]: {'%s_address' % ipv: ip}
-            }
+            },
+            'command': ['--config', '/share/conf/sd.toml'],
         }
         self.dc_conf['services'][name] = entry
 

@@ -18,7 +18,7 @@ CONFDIR=`mktemp -d`
 mkdir -p $CONFDIR/certs $CONFDIR/keys $CONFDIR/crypto
 
 mv $TMP/trcs/*.trc $CONFDIR/certs
-mv $TMP/ISD1/AS*/crypto/* $CONFDIR/crypto
+mv $TMP/AS*/crypto/* $CONFDIR/crypto
 
 base64_pwd_gen > $CONFDIR/keys/master0.key
 base64_pwd_gen > $CONFDIR/keys/master1.key
