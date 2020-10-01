@@ -571,7 +571,7 @@ Packet Timestamp
 ----------------
 
 This timestamp represents the precise time at which a packet was sent.
-It is relative to the Timestamp in the first Info Field.
+It is relative to the Timestamp in the first `Info Field`_.
 Together with the (ISD, AS, host) triple of the packet source and
 the Timestamp in the first Info Field, the Packet Timestamp uniquely
 identifies a packet. Unique packet identifiers are a requirement for
@@ -698,14 +698,15 @@ PHVF and LHVF as follows:
     \begin{align}
     \text{Origin} &= \text{(SrcISD, SrcAS, SrcHostAddr)} \\
     \text{PHVF} &= \text{MAC}_{\sigma_{\text{PH}}}
-        (\text{Flags}, \text{PacketTimestamp},
+        (\text{Flags}, \text{Timestamp}, \text{PacketTimestamp},
         \text{Origin}, \text{PayloadLen})~\text{[0:4]} \\
     \text{LHVF} &= \text{MAC}_{\sigma_{\text{LH}}}
-        (\text{Flags}, \text{PacketTimestamp},
+        (\text{Flags}, \text{Timestamp}, \text{PacketTimestamp},
         \text{Origin}, \text{PayloadLen})~\text{[0:4]} \\
     \end{align}
 
-Here, "Flags" is a 1-byte field structured as follows:
+Here, "Timestamp" is the Timestamp from the first `Info Field`_ and
+"Flags" is a 1-byte field structured as follows:
 ::
 
      0 1 2 3 4 5 6 7 8
@@ -728,15 +729,16 @@ In addition, the penultimate hop of the last segment recomputes and
 verifies the PHVF field.
 As it has already calculated the 16-byte authenticator
 :math:`\sigma_{\text{PH}}` in the previous step, the penultimate hop
-only needs to extract the Flags, PacketTimestamp and Origin fields
-from the EPIC-HP packet and measure the length of the payload
-(PayloadLen), which is all the information it needs to recompute the
-PHVF. If the verification fails, i.e., the calculated PHVF is not
-equal to the PHVF field in the EPIC-HP packet, the packet is
-dropped. In the case of an authorized source (a source that knows
-the :math:`\sigma_{\text{PH}}` and :math:`\sigma_{\text{LH}}`), the
-recomputed PHVF and the PHVF field in the packet will always be
-equal (assuming the packet has not been tampered with on the way).
+only needs to extract the Flags, Timestamp, PacketTimestamp and
+Origin fields from the EPIC-HP packet and measure the length of the
+payload (PayloadLen), which is all the information it needs to
+recompute the PHVF. If the verification fails, i.e., the calculated
+PHVF is not equal to the PHVF field in the EPIC-HP packet, the
+packet is dropped. In the case of an authorized source (a source
+that knows the :math:`\sigma_{\text{PH}}` and
+:math:`\sigma_{\text{LH}}`), the recomputed PHVF and the PHVF field
+in the packet will always be equal (assuming the packet has not been
+tampered with on the way).
 
 Similarly, the last hop of the last segment recomputes and
 verifies the LHVF field. Again, if the verification fails, the
