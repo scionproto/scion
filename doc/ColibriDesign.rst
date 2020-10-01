@@ -378,49 +378,69 @@ TODO Do not forget to mention the independence between transport and operations:
 an operation about a reservation X can be transported using reservation Y,
 as long as it is compatible with the operation? Pros, cons.
 
-Down-Segment Renewal Operation
+Core-Segment Renewal Operation
 ------------------------------
-The segment reservation operations look very much like the previous example,
-with the peculiarity of having the ``S=1`` flag. It is of special interest to
-check the case of a down-segment reservation renewal, as it has to originate
-in what would later be the destination AS. I.e. if the core AS is `E`, and
-the path we want to reserve is :math:`E \rightarrow F \rightarrow G`,
-the renewal is requested from G, but sent first to `E`.
+The segment reservation operations look very much like in the previous example,
+with the peculiarity of having the ``S=1`` flag.
+This example covers the renewal of a core-segment reservation traversing
+the ASes in the sequence :math:`C \to D \to E`.
 These are the steps:
 
-#. The COLIBRI service at `G` decides to renew the down-segment reservation.
+#. The COLIBRI service at `C` decides to renew the down-segment reservation.
    The path of the reservation has the flags and HopFields:
-   :math:`\verb!C=1,R=1,S=1!, E \rightarrow F \rightarrow G`. This is because
-   the first step is sending it from `G` to `E`. So `G` reverses the path and
-   computes the admission **in reverse**.
-   `G` then sends the packet to the border router.
-#. The border router at `G` sees the packet with ``R=1`` incoming via its
+   :math:`\verb!C=1,R=0,S=1!, C \to D \to E`. The COLIBRI service at
+   `C` does the initial AS admission and sends the request to the
+   local border router.
+#. The border router at `C` sees the packet with ``C=1`` incoming via its
    local interface. It will validate the packet and forward it to the next
-   border router, at `F`.
-#. The border router at `F` receives the packet via the remote interface with
-   `G`. It validates the MAC successfully, as well as the rest of the fields.
+   border router, at `D`.
+#. The border router at `D` receives the packet via the remote interface with
+   `C`. It validates the MAC successfully, as well as the rest of the fields.
    Since ``C=1`` it delivers it to the local COLIBRI service.
-#. The COLIBRI service computes the admission, again **in reverse** and
+#. The COLIBRI service at `D` computes the admission, and
    updates the request with the admission values. It then sends
    the packet to the border router again, to be forwarded.
 #. Similarly to the previous steps, the packet finally arrives to the local
-   COLIBRI service at `E`. It does the admission **in reverse** and, since this
+   COLIBRI service at `E`. It does the admission and, since this
    is the last AS in the path, it adds its HopField and
    :math:`\text{MAC}_E^{C=1}`
-   to the payload and it switches direction by setting ``R=0``.
+   to the payload and it switches direction by setting ``R=1``.
    Now the packet is sent back to the border router to be forwarded to the
    next hop.
-#. The packet is now traveling in the direction of the reservation, and
-   arrives to the border router at `F`. This border router validates the
+#. The packet is now traveling in the reverse direction of the reservation,
+   and arrives to the border router at `D`. This border router validates the
    packet and sends it to the local COLIBRI service.
-#. The COLIBRI service at `F` receives the packet and adjusts in its DB the
+#. The COLIBRI service at `D` receives the packet and adjusts in its DB the
    values for the reservation. It adds its HopField and the two MACs and
    sends the packet again to the border router, to continue its journey.
-#. The packet arrives to the border router at `G`, and since it has the flag
+#. The packet arrives to the border router at `C`, and since it has the flag
    ``C=1`` it delivers it to the local COLIBRI service, after validating that
    the MAC and the rest of the fields are okay.
-#. Finally, the COLIBRI service at `G` receives the packet and stores the
+#. Finally, the COLIBRI service at `C` receives the packet and stores the
    HopFields and MACs from the payload.
+
+Down-Segment Renewal Operation
+------------------------------
+It is of special interest to check the case of a down-segment
+reservation renewal, as it has to originate in what would later be
+the destination AS. E.g. if the core AS is `E`, and the path
+consists of the sequence :math:`E \rightarrow F \rightarrow G`,
+the COLIBRI service at `G` triggers the operation by requesting the
+COLIBRI service at `E` to send the initial request along the path.
+These are the steps:
+
+#. The COLIBRI service at `G` decides it is time to renew a down-segment
+   reservation that ends at `G`. It prepares a trigger request and
+   sends it along the path, with the flag ``R=1``.
+#. The trigger request travels along the reservation, stopping at each
+   COLIBRI service, but not being processed until it reaches its recipient,
+   which is the COLIBRI service at `E`.
+#. The COLIBRI service at `E` handles the trigger request. It checks
+   (like with all control plane operations) the authenticity of the
+   request source, in this case with :math:`DRKey K_{E \to G}`.
+#. After authenticating the source, it proceeds to trigger a segment
+   reservation renewal. These steps are enumerated e.g. in
+   `core-segment renewal operation`_.
 
 Segment Reservation First Setup
 -------------------------------
