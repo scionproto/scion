@@ -220,15 +220,22 @@ MAC computation:
     the COLIBRI service that the packet represents a valid segment reservation.
 
 We calculate the MAC differently depending on the value of the flag ``C``.
-For ``C=1`` the MAC is computed by each of the on-path ASes,
-and copied directly to their HopField. Like with the regular SCION path,
-this MAC is later validated by the same on-path AS when a packet uses the
-HopField.
+For ``C=1`` the MAC is first computed by each of the on-path ASes,
+very similarly to the regular SCION path case.
+Each HopField of the path needs a MAC that is computed by
+exactly one on-path AS (the owner of the HopField) who then sets it in the MAC
+field of the HopField.
+Later, like with the regular SCION path,
+this MAC field is validated by the same on-path AS when a packet
+enters one of its border routers.
+Note that every on-path AS is able to observe the HopFields of all
+the other on-path ASes, and could leak them if they wanted to,
+rendering this mechanism useless to authenticate the source of the packet.
 
 With ``C=0`` (data plane traffic), we want to avoid end hosts
-from the source of the reservation
-AS *A* being able to leak the MACs to other entities in different ASes,
-that could then generate traffic
+from the source of the reservation AS *A*,
+and any other on-path ASes, to be able to leak the MACs to
+other entities in different ASes, that could then generate traffic
 that appears like generated from the original AS *A*, and thus AS *A*
 being wrongly blamed for consuming more than their granted bandwidth,
 which would surely have it blacklisted in the transit ASes.
