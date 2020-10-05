@@ -666,13 +666,15 @@ packet arrives at the border router of the last AS on the path, its
 border router recomputes and validates the LHVF.
 
 The specification of how the MACs for the Hop Validation Fields are
-calculated can be found in the Procedures_ section.
+calculated can be found in the `EPIC Procedures`_ section.
 
 EPIC Header Length Calculation
 ------------------------------
 The length of the EPIC Path header is the same as the SCION Path
 header plus 8 bytes (Packet Timestamp), and plus 8 bytes for the
 PHVF and LHVF.
+
+.. _EPIC Procedures:
 
 Procedures
 ----------
@@ -730,13 +732,13 @@ verifies the PHVF field.
 As it has already calculated the 16-byte authenticator
 :math:`\sigma_{\text{PH}}` in the previous step, the penultimate hop
 only needs to extract the Flags, Timestamp, PacketTimestamp and
-Origin fields from the EPIC-HP packet and measure the length of the
-payload (PayloadLen), which is all the information it needs to
-recompute the PHVF. If the verification fails, i.e., the calculated
-PHVF is not equal to the PHVF field in the EPIC-HP packet, the
-packet is dropped. In the case of an authorized source (a source
-that knows the :math:`\sigma_{\text{PH}}` and
-:math:`\sigma_{\text{LH}}`), the recomputed PHVF and the PHVF field
+Origin fields from the EPIC-HP packet, and the PayloadLen from
+the Common Header, which is all the information it
+needs to recompute the PHVF. If the verification fails, i.e., the
+calculated PHVF is not equal to the PHVF field in the EPIC-HP
+packet, the packet is dropped. In the case of an authorized source
+(a source that knows the :math:`\sigma_{\text{PH}}` and
+:math:`\sigma_{\text{LH}}`), the recomputed PHVF and the PHVF
 in the packet will always be equal (assuming the packet has not been
 tampered with on the way).
 

@@ -63,6 +63,11 @@ ASes on the path recompute and validate the per-packet MACs.
 If the validation succeeds, the packet is forwarded, otherwise it is
 dropped.
 
+Furthermore, the last two ASes on the path need to either filter out
+non-EPIC-HP traffic or prioritize EPIC-HP over other path type
+traffic. For this, the last AS on the path needs cooperation from
+its upstream provider.
+
 ### Assumptions
 
 EPIC-HP makes the following assumptions necessary to provide a
@@ -154,28 +159,24 @@ The last two ASes need to validate the fields accordingly.
 A more concise description can be found in the EPIC-HP path type
 specification.
 
-## <a id="PathTypeFiltering"></a> Path Type Filtering
+### Distributing the Authenticators
+The last AS on the path needs to distribute the authenticators to
+the set of trusted sources that should be able to send EPIC-HP
+traffic over the hidden link. This can be done over any secure
+channel, for example using secure end-to-end protocols, out-of-band
+communication, or the dedicated hidden path infastructure [[2]](#2).
+
+### <a id="PathTypeFiltering"></a> Path Type Filtering
 
 Network operators should be able to clearly define which kind of
 traffic (SCION, EPIC-HP, COLIBRI, and other protocols) they want to
 allow.
-Therefore, for each AS and every interface pair, an AS can be
-configured with 1-bit flags to allow only certain types of traffic:
-
-<p align=center>AllowedTraffic(If<sub>1</sub>, If<sub>2</sub>) =
-  (flag<sub>SCION</sub>, flag<sub>EPIC-HP</sub>, flag<sub>COLIBRI</sub>, ...)</p>
-
-The order of the interfaces, (If<sub>1</sub>, If<sub>2</sub>) vs.
-(If<sub>2</sub>, If<sub>1</sub>), allows to enable and disable
-different types of traffic depending on the direction.
-To exclusively allow SCION path type traffic (default) between
-interfaces 'x' and 'y' we would set:
-
-<p align=center>AllowedTraffic(x, y) = (1, 0, 0, ...)</p>
-
-And similarly to only allow EPIC-HP path type traffic:
-
-<p align=center>AllowedTraffic(x, y) = (0, 1, 0, ...)</p>
+Therefore, for each AS and every interface pair, an AS needs to be
+configurable to allow only certain types of traffic.
+The path type filtering between two interfaces can be different
+depending on the direction of the traffic. We might for example only
+allow EPIC-HP traffic from some interface 1 to some interface 2, but
+not apply any filtering for traffic from interface 2 to interface 1.
 
 ## Best Practices
 
