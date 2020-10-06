@@ -73,7 +73,7 @@ class SupervisorGenerator(object):
     def _br_entries(self, topo, cmd, base):
         entries = []
         for k, v in topo.get("border_routers", {}).items():
-            conf = os.path.join(base, f"{k}.toml")
+            conf = os.path.join(base, "%s.toml" % k)
             prog = self._common_entry(k, [cmd, "--config", conf])
             prog['environment'] += ',GODEBUG="cgocheck=0"'
             entries.append((k, prog))
@@ -84,7 +84,7 @@ class SupervisorGenerator(object):
         for k, v in topo.get("control_service", {}).items():
             # only a single control service instance per AS is currently supported
             if k.endswith("-1"):
-                conf = os.path.join(base, f"{k}.toml")
+                conf = os.path.join(base, "%s.toml" % k)
                 prog = self._common_entry(k, ["bin/cs", "--config", conf])
                 entries.append((k, prog))
         return entries
@@ -112,7 +112,7 @@ class SupervisorGenerator(object):
             'autostart': 'false',
             'autorestart': 'false',
             'environment': 'TZ=UTC',
-            'stdout_logfile': f"logs/{name}.log",
+            'stdout_logfile': "logs/%s.log" % name,
             'redirect_stderr': True,
             'startretries': 0,
             'startsecs': 5,

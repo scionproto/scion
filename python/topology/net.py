@@ -21,8 +21,17 @@ import logging
 import math
 import sys
 from collections import defaultdict
-from ipaddress import ip_interface, ip_network
-from typing import Mapping
+from ipaddress import (
+    ip_interface,
+    ip_network,
+    IPv4Address,
+    IPv6Address,
+    IPv4Network,
+    IPv6Network,
+    IPv4Interface,
+    IPv6Interface,
+)
+from typing import Mapping, Union
 
 # External packages
 import yaml
@@ -34,9 +43,13 @@ DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
 DEFAULT_SCN_DC_NETWORK = "172.20.0.0/20"
 
+IPAddress = Union[IPv4Address, IPv6Address]
+IPNetwork = Union[IPv4Network, IPv6Network]
+IPInterface = Union[IPv4Interface, IPv6Interface]
+
 
 class NetworkDescription(object):
-    def __init__(self, name: str, ip_net: Mapping[str, ip_interface]):
+    def __init__(self, name: str, ip_net: Mapping[str, IPInterface]):
         self.name = name
         self.ip_net = ip_net
 
@@ -68,7 +81,7 @@ class AddressGenerator(object):
     def register(self, id_: str) -> AddressProxy:
         return self._addrs[id_]
 
-    def alloc_addrs(self, subnet) -> Mapping[str, ip_interface]:
+    def alloc_addrs(self, subnet) -> Mapping[str, IPInterface]:
         hosts = subnet.hosts()
         interfaces = {}
         # With the docker backend, docker itself claims the first ip of every network
@@ -97,7 +110,8 @@ class SubnetGenerator(object):
         except ValueError:
             logging.critical("Invalid network '%s'", network)
             sys.exit(1)
-        self._subnets = defaultdict(lambda: AddressGenerator(self.docker))
+        self._subnets = defaultdict(lambda: AddressGenerator(self.docker)) \
+            # type: Mapping[str, AddressGenerator]
         self._allocations = defaultdict(list)
         # Initialise the allocations with the supplied network, making sure to
         # exclude 127.0.0.0/30 (for v4) and DEFAULT6_NETWORK_ADDR/126 (for v6)
@@ -119,7 +133,7 @@ class SubnetGenerator(object):
     def register(self, location: str) -> AddressGenerator:
         return self._subnets[location]
 
-    def alloc_subnets(self) -> Mapping[ip_network, NetworkDescription]:
+    def alloc_subnets(self) -> Mapping[IPNetwork, NetworkDescription]:
         max_prefix = self._net.max_prefixlen
         networks = {}
         for topo, subnet in sorted(self._subnets.items(), key=lambda x: str(x)):
@@ -173,13 +187,13 @@ class PortGenerator(object):
         return p
 
 
-def socket_address_str(ip: str, port: int) -> str:
+def socket_address_str(ip: IPAddress, port: int) -> str:
     if ip.version == 4:
         return "%s:%d" % (ip, port)
     return "[%s]:%d" % (ip, port)
 
 
-def _workaround_ip_network_hosts_py35(net: ip_network) -> ip_network:
+def _workaround_ip_network_hosts_py35(net: IPNetwork) -> IPNetwork:
     """
     Returns an _identical_ ipaddress.ip_network for which hosts() which will work as it should.
 

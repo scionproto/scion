@@ -15,7 +15,6 @@
 # Stdlib
 import copy
 import os
-from ipaddress import ip_network
 from typing import Mapping
 # External packages
 import yaml
@@ -31,14 +30,14 @@ from python.topology.common import (
     sciond_svc_name
 )
 from python.topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
-from python.topology.net import NetworkDescription
+from python.topology.net import NetworkDescription, IPNetwork
 from python.topology.sig import SIGGenArgs, SIGGenerator
 
 DOCKER_CONF = 'scion-dc.yml'
 
 
 class DockerGenArgs(ArgsTopoDicts):
-    def __init__(self, args, topo_dicts, networks: Mapping[ip_network, NetworkDescription]):
+    def __init__(self, args, topo_dicts, networks: Mapping[IPNetwork, NetworkDescription]):
         """
         :param object args: Contains the passed command line arguments as named attributes.
         :param dict topo_dicts: The generated topo dicts from TopoGenerator.

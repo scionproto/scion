@@ -15,7 +15,7 @@
 import logging
 import json
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any, Dict, List, MutableMapping
 
 import toml
 from plumbum import local
@@ -187,7 +187,7 @@ def path_to_dict(path: str, val: Any) -> Dict:
     return d
 
 
-def merge_dict(change_dict: Dict[str, Any], orig_dict: Dict[str, Any]):
+def merge_dict(change_dict: Dict[str, Any], orig_dict: MutableMapping[str, Any]):
     """
     Merge changes into the original dictionary. Leaf values in the change dict
     overwrite the values in the original dictionary.

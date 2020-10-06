@@ -20,7 +20,6 @@
 import os
 import toml
 import yaml
-from ipaddress import ip_network
 from typing import Mapping
 
 # SCION
@@ -41,7 +40,7 @@ from python.topology.common import (
     CO_CONFIG_NAME,
 )
 
-from python.topology.net import socket_address_str, NetworkDescription
+from python.topology.net import socket_address_str, NetworkDescription, IPNetwork
 
 from python.topology.prometheus import (
     CS_PROM_PORT,
@@ -57,7 +56,7 @@ CO_QUIC_PORT = 30357
 
 
 class GoGenArgs(ArgsTopoDicts):
-    def __init__(self, args, topo_dicts, networks: Mapping[ip_network, NetworkDescription]):
+    def __init__(self, args, topo_dicts, networks: Mapping[IPNetwork, NetworkDescription]):
         super().__init__(args, topo_dicts)
         self.networks = networks
 
@@ -78,7 +77,7 @@ class GoGenerator(object):
             for k, v in topo.get("border_routers", {}).items():
                 base = topo_id.base_dir(self.args.output_dir)
                 br_conf = self._build_br_conf(topo_id, topo["isd_as"], base, k, v)
-                write_file(os.path.join(base, f"{k}.toml"), toml.dumps(br_conf))
+                write_file(os.path.join(base, "%s.toml" % k), toml.dumps(br_conf))
 
     def _build_br_conf(self, topo_id, ia, base, name, v):
         config_dir = '/share/conf' if self.args.docker else base
@@ -104,7 +103,7 @@ class GoGenerator(object):
                     base = topo_id.base_dir(self.args.output_dir)
                     bs_conf = self._build_control_service_conf(
                         topo_id, topo["isd_as"], base, elem_id, elem, ca)
-                    write_file(os.path.join(base, f"{elem_id}.toml"),
+                    write_file(os.path.join(base, "%s.toml" % elem_id),
                                toml.dumps(bs_conf))
 
     def _build_control_service_conf(self, topo_id, ia, base, name, infra_elem, ca):
@@ -278,7 +277,7 @@ class GoGenerator(object):
             for k in elem_ids:
                 disp_id = 'disp_%s' % k
                 disp_conf = self._build_disp_conf(disp_id, topo_id)
-                write_file(os.path.join(base, f'{disp_id}.toml'), toml.dumps(disp_conf))
+                write_file(os.path.join(base, '%s.toml' % disp_id), toml.dumps(disp_conf))
 
     def _build_disp_conf(self, name, topo_id=None):
         prometheus_addr = prom_addr_dispatcher(self.args.docker, topo_id,
