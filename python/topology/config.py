@@ -23,7 +23,6 @@ import logging
 import os
 import sys
 from io import StringIO
-from ipaddress import ip_network
 from typing import Mapping
 
 # SCION
@@ -44,6 +43,7 @@ from python.topology.go import GoGenArgs, GoGenerator
 from python.topology.jaeger import JaegerGenArgs, JaegerGenerator
 from python.topology.net import (
     NetworkDescription,
+    IPNetwork,
     SubnetGenerator,
     DEFAULT_NETWORK,
 )
@@ -184,19 +184,19 @@ class ConfigGenerator(object):
                 write_file(os.path.join(base, path), value.decode())
 
     def _write_networks_conf(self,
-                             networks: Mapping[ip_network, NetworkDescription],
+                             networks: Mapping[IPNetwork, NetworkDescription],
                              out_file: str):
         config = configparser.ConfigParser(interpolation=None)
         for net, net_desc in networks.items():
             sub_conf = {}
             for prog, ip_net in net_desc.ip_net.items():
-                sub_conf[prog] = ip_net.ip
-            config[net] = sub_conf
+                sub_conf[prog] = str(ip_net.ip)
+            config[str(net)] = sub_conf
         text = StringIO()
         config.write(text)
         write_file(os.path.join(self.args.output_dir, out_file), text.getvalue())
 
-    def _write_sciond_conf(self, networks: Mapping[ip_network, NetworkDescription], out_file: str):
+    def _write_sciond_conf(self, networks: Mapping[IPNetwork, NetworkDescription], out_file: str):
         d = dict()
         for net_desc in networks.values():
             for prog, ip_net in net_desc.ip_net.items():
@@ -207,8 +207,8 @@ class ConfigGenerator(object):
             json.dump(d, f, sort_keys=True, indent=4)
 
 
-def remove_v4_nets(nets: Mapping[ip_network, NetworkDescription]
-                   ) -> Mapping[ip_network, NetworkDescription]:
+def remove_v4_nets(nets: Mapping[IPNetwork, NetworkDescription]
+                   ) -> Mapping[IPNetwork, NetworkDescription]:
     res = {}
     for net, net_desc in nets.items():
         if net_desc.name.endswith('_v4'):

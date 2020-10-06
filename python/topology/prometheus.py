@@ -19,7 +19,6 @@
 # Stdlib
 import os
 from collections import defaultdict
-from ipaddress import ip_network
 from typing import Mapping
 
 # External packages
@@ -35,7 +34,8 @@ from python.topology.common import (
     sciond_ip,
 )
 from python.topology.net import (
-    NetworkDescription
+    NetworkDescription,
+    IPNetwork,
 )
 
 CS_PROM_PORT = 30452
@@ -49,7 +49,7 @@ PROM_DC_FILE = "prom-dc.yml"
 
 
 class PrometheusGenArgs(ArgsTopoDicts):
-    def __init__(self, args, topo_dicts, networks: Mapping[ip_network, NetworkDescription]):
+    def __init__(self, args, topo_dicts, networks: Mapping[IPNetwork, NetworkDescription]):
         super().__init__(args, topo_dicts)
         self.networks = networks
 
