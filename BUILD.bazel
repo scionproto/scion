@@ -10,7 +10,6 @@ gazelle(name = "gazelle")
 pkg_tar(
     name = "scion",
     srcs = [
-        "//go/border",
         "//go/cs",
         "//go/dispatcher",
         "//go/posix-router",
@@ -30,9 +29,7 @@ pkg_tar(
     name = "scion-ci",
     srcs = [
         "//go/acceptance/sig_ping_acceptance",
-        "//go/border/braccept",
-        "//go/examples/pingpong",
-        "//go/examples/pingpong/pp_integration",
+        "//go/integration/braccept",
         "//go/integration/end2end",
         "//go/integration/end2end_integration",
         "//go/integration/scion_integration",

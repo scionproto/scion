@@ -23,7 +23,7 @@ from plumbum.cmd import (
 from plumbum import local
 
 SCION_DC_FILE = 'gen/scion-dc.yml'
-DC_PROJECT = 'acceptance_scion'
+DC_PROJECT = 'scion'
 
 
 def container_ip(container_name: str) -> str:
@@ -56,5 +56,4 @@ class DC(object):
         for svc in self('config', '--services').splitlines():
             dst_f = out_p / '%s.log' % svc
             with local.env(BASE_DIR=self.base_dir, COMPOSE_FILE=self.compose_file):
-                with redirect_stderr(sys.stdout):
-                    (docker_compose['-p', self.project, '--no-ansi', 'logs', svc] > dst_f)()
+                (docker_compose['-p', self.project, '--no-ansi', 'logs', svc] > dst_f)()

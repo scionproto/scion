@@ -22,3 +22,7 @@ var (
 	CryptoCADir     = cryptoCADir
 	CryptoVotingDir = cryptoVotingDir
 )
+
+func NewOut(base string) outConfig {
+	return outConfig{base: base}
+}

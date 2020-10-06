@@ -21,12 +21,14 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/common"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 var (
@@ -56,6 +58,11 @@ func TestLoadRawFromFile(t *testing.T) {
 						IA:        "6-ff00:0:363",
 						LinkTo:    "CORE",
 						MTU:       1472,
+						BFD: &jsontopo.BFD{
+							DetectMult:            3,
+							DesiredMinTxInterval:  util.DurWrap{Duration: 25 * time.Millisecond},
+							RequiredMinRxInterval: util.DurWrap{Duration: 25 * time.Millisecond},
+						},
 					},
 				},
 			},

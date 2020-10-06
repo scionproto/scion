@@ -19,7 +19,7 @@ go_rules_dependencies()
 go_download_sdk(
     name = "go_sdk",
     sdks = {
-        "linux_amd64": ("go1.13.10.linux-amd64.tar.gz", "8a4cbc9f2b95d114c38f6cbe94a45372d48c604b707db2057c787398dfbf8e7f"),
+        "linux_amd64": ("go1.14.9.linux-amd64.tar.gz", "f0d26ff572c72c9823ae752d3c81819a81a60c753201f51f89637482531c110a"),
     },
 )
 
@@ -35,7 +35,7 @@ http_archive(
     ],
 )
 
-load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
+load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
 load("//:tool_deps.bzl", "tool_deps")
 
 tool_deps()
@@ -75,10 +75,10 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "rules_pkg",
-    sha256 = "352c090cc3d3f9a6b4e676cf42a6047c16824959b438895a76c2989c6d7c246a",
+    sha256 = "aeca78988341a2ee1ba097641056d168320ecc51372ef7ff8e64b139516a4937",
     urls = [
-        "https://github.com/bazelbuild/rules_pkg/releases/download/0.2.5/rules_pkg-0.2.5.tar.gz",
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_pkg/releases/download/0.2.5/rules_pkg-0.2.5.tar.gz",
+        "https://github.com/bazelbuild/rules_pkg/releases/download/0.2.6-1/rules_pkg-0.2.6.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_pkg/releases/download/0.2.6/rules_pkg-0.2.6.tar.gz",
     ],
 )
 
@@ -89,9 +89,9 @@ rules_pkg_dependencies()
 # Docker rules
 http_archive(
     name = "io_bazel_rules_docker",
-    sha256 = "dc97fccceacd4c6be14e800b2a00693d5e8d07f69ee187babfd04a80a9f8e250",
-    strip_prefix = "rules_docker-0.14.1",
-    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.14.1/rules_docker-v0.14.1.tar.gz"],
+    sha256 = "4521794f0fba2e20f3bf15846ab5e01d5332e587e9ce81629c7f96c793bb7036",
+    strip_prefix = "rules_docker-0.14.4",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.14.4/rules_docker-v0.14.4.tar.gz"],
 )
 
 load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
@@ -101,6 +101,10 @@ container_repositories()
 load("@io_bazel_rules_docker//repositories:deps.bzl", container_deps = "deps")
 
 container_deps()
+
+load("@io_bazel_rules_docker//repositories:pip_repositories.bzl", docker_pip_deps = "pip_deps")
+
+docker_pip_deps()
 
 load("@io_bazel_rules_docker//go:image.bzl", _go_image_repos = "repositories")
 
@@ -121,32 +125,32 @@ load("@distroless//package_manager:dpkg.bzl", "dpkg_list", "dpkg_src")
 package_manager_repositories()
 
 dpkg_src(
-    name = "debian_stretch",
+    name = "debian10",
     arch = "amd64",
-    distro = "stretch",
-    sha256 = "2b13362808b7bd90d24db2e0804c799288694ae44bd7e3d123becc191451fc67",
-    snapshot = "20191028T085816Z",
+    distro = "buster",
+    sha256 = "f251129edc5e5b31dadd7bb252e5ce88b3fdbd76de672bc0bbcda4f667d5f47f",
+    snapshot = "20200612T083553Z",
     url = "https://snapshot.debian.org/archive",
 )
 
 dpkg_src(
-    name = "debian_stretch_backports",
+    name = "debian10_updates",
     arch = "amd64",
-    distro = "stretch-backports",
-    sha256 = "e9170a8f37a1bbb8ce2df49e6ab557d65ef809d19bf607fd91bcf8ba6b85e3f6",
-    snapshot = "20191028T085816Z",
+    distro = "buster-updates",
+    sha256 = "24b35fcd184d71f83c3f553a72e6636954552331adfbbc694f0f70bd33e1a2b4",
+    snapshot = "20200612T083553Z",
     url = "https://snapshot.debian.org/archive",
 )
 
 dpkg_src(
-    name = "debian_stretch_security",
-    package_prefix = "https://snapshot.debian.org/archive/debian-security/20191028T085816Z/",
-    packages_gz_url = "https://snapshot.debian.org/archive/debian-security/20191028T085816Z/dists/stretch/updates/main/binary-amd64/Packages.gz",
-    sha256 = "acea7d952d8ab84de3cd2c26934a1bcf5ad244d344ecdb7b2d0173712bbd9d7b",
+    name = "debian10_security",
+    package_prefix = "https://snapshot.debian.org/archive/debian-security/20200612T105246Z/",
+    packages_gz_url = "https://snapshot.debian.org/archive/debian-security/20200612T105246Z/dists/buster/updates/main/binary-amd64/Packages.gz",
+    sha256 = "c0ae35609f2d445e73ca8d3c03dc843f5ddae50f474cee10e79c4c1284ce2a2d",
 )
 
 dpkg_list(
-    name = "package_bundle",
+    name = "packages_debian10",
     packages = [
         "libc6",
         "libcap2",
@@ -163,59 +167,42 @@ dpkg_list(
         # Needed by sig acceptance
         # ping and its dependencies
         "iputils-ping",
-        "libidn11",
+        "libcap2",
+        "libcap2-bin",
+        "libidn2-0",
+        "libunistring2",
         "libnettle6",
         # iproute2 and its dependencies
         "iproute2",
         "libelf1",
         "libmnl0",
     ],
-    sources = [
-        "@debian_stretch_security//file:Packages.json",
-        "@debian_stretch_backports//file:Packages.json",
-        "@debian_stretch//file:Packages.json",
-    ],
-)
-
-dpkg_src(
-    name = "debian10",
-    arch = "amd64",
-    distro = "buster",
-    sha256 = "ca19e4187523f4b087a2e7aaa2662c6a0b46dc81ff2f3dd44d9c5d95df0df212",
-    snapshot = "20191028T085816Z",
-    url = "https://snapshot.debian.org/archive",
-)
-
-dpkg_src(
-    name = "debian10_security",
-    package_prefix = "https://snapshot.debian.org/archive/debian-security/20191028T085816Z/",
-    packages_gz_url = "https://snapshot.debian.org/archive/debian-security/20191028T085816Z/dists/buster/updates/main/binary-amd64/Packages.gz",
-    sha256 = "dace61a2f1c4031f33dbc78e416a7211fad9946a3d997e96256561ed92b034be",
-)
-
-dpkg_list(
-    name = "package_bundle_debian10",
-    packages = [
-        "libc6",
-        "libcap2",
-        "libcap2-bin",
-        "libgcc1",
-        "libstdc++6",
-        # These are needed by distroless.
-        "base-files",
-        "ca-certificates",
-        "libssl1.1",
-        "netbase",
-        "openssl",
-        "tzdata",
-    ],
+    # From Distroless WORKSPACE:
+    # Takes the first package found: security updates should go first
+    # If there was a security fix to a package before the stable release, this will find
+    # the older security release. This happened for stretch libc6.
     sources = [
         "@debian10_security//file:Packages.json",
+        "@debian10_updates//file:Packages.json",
         "@debian10//file:Packages.json",
     ],
 )
 
 load("@io_bazel_rules_docker//container:container.bzl", "container_pull")
+
+container_pull(
+    name = "static_debian10",
+    digest = "sha256:4433370ec2b3b97b338674b4de5ffaef8ce5a38d1c9c0cb82403304b8718cde9",
+    registry = "gcr.io",
+    repository = "distroless/static-debian10",
+)
+
+container_pull(
+    name = "debug_debian10",
+    digest = "sha256:72d496b69d121960b98ac7078cbacd7678f1941844b90b5e1cac337b91309d9d",
+    registry = "gcr.io",
+    repository = "distroless/base-debian10",
+)
 
 container_pull(
     name = "ubuntu16",
@@ -225,12 +212,23 @@ container_pull(
     tag = "16.04",
 )
 
+container_pull(
+    name = "node_slim",
+    digest = "sha256:1e33616579a5d5de9ec0a861798fb45602a1332be32a67a1cb227b667a5a4d63",
+    registry = "index.docker.io",
+    repository = "library/node",
+    tag = "10.16-slim",
+)
+
 # Busybox (used in debug docker images)
 http_file(
     name = "busybox",
     executable = True,
     sha256 = "b51b9328eb4e60748912e1c1867954a5cf7e9d5294781cae59ce225ed110523c",
-    urls = ["https://busybox.net/downloads/binaries/1.27.1-i686/busybox"],
+    urls = [
+        "https://busybox.net/downloads/binaries/1.27.1-i686/busybox",
+        "https://drive.google.com/uc?id=1RqCvs8CJubqzHYwJO5MI9UqPixMModWX",
+    ],
 )
 
 # Protobuf
@@ -251,9 +249,6 @@ http_archive(
     url = "https://github.com/bazelbuild/buildtools/archive/2.2.1.zip",
 )
 
-# Used for generating go mocks
-load("@bazel_gazelle//:deps.bzl", "go_repository")
-
 go_repository(
     name = "com_github_jmhodges_bazel_gomock",
     importpath = "github.com/jmhodges/bazel_gomock",
@@ -270,3 +265,8 @@ http_file(
         "https://github.com/bufbuild/buf/releases/download/v0.20.5/buf-Linux-x86_64",
     ],
 )
+
+load("//:dlv_deps.bzl", "dlv_repositories")
+
+# gazelle:repository_macro dlv_deps.bzl%dlv_repositories
+dlv_repositories()

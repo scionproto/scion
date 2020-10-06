@@ -64,8 +64,6 @@ type Config struct {
 	Remote      *snet.UDPAddr
 	Timeout     time.Duration
 
-	// HeaderV2 only configurations below.
-
 	// ProbesPerHop indicates how many probes should be done per hop.
 	ProbesPerHop int
 	// ErrHandler is invoked for every error that does not cause tracerouting to

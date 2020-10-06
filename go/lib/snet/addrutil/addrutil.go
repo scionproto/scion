@@ -15,48 +15,28 @@
 package addrutil
 
 import (
-	"bytes"
 	"encoding/binary"
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
 // Pather computes the remote address with a path based on the provided segment.
-type Pather interface {
-	GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, error)
-}
-
-// NewPather is a temporary helper until header v2 is complete.
-func NewPather(provider topology.Provider, headerV2 bool) Pather {
-	var pather Pather = LegacyPather{TopoProvider: provider}
-	if headerV2 {
-		pather = PatherV2{
-			UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-				return provider.Get().UnderlayNextHop2(common.IFIDType(ifID))
-			},
-		}
-	}
-	return pather
-}
-
-// PatherV2 creates paths in the V2 header format
-type PatherV2 struct {
+type Pather struct {
 	// UnderlayNextHop determines the next hop underlay address for the
 	// specified interface id.
 	UnderlayNextHop func(ifID uint16) (*net.UDPAddr, bool)
 }
 
-func (p PatherV2) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, error) {
+// GetPath computes the remote address with a path based on the provided segment.
+func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, error) {
 	if len(ps.ASEntries) == 0 {
 		return nil, serrors.New("empty path")
 	}
@@ -113,42 +93,6 @@ func (p PatherV2) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr,
 
 }
 
-// LegacyPather creates paths in the legacy V1 header format
-type LegacyPather struct {
-	TopoProvider topology.Provider
-}
-
-func (p LegacyPather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, error) {
-	return getPath(svc, ps, p.TopoProvider)
-}
-
-// getPath creates a path from the given segment and then creates a snet.SVCAddr.
-func getPath(svc addr.HostSVC, ps *seg.PathSegment,
-	topoProv topology.Provider) (*snet.SVCAddr, error) {
-
-	p, err := legacyPath(ps)
-	if err != nil {
-		return nil, serrors.WrapStr("constructing path from segment", err)
-	}
-	if err := p.Reverse(); err != nil {
-		return nil, serrors.WrapStr("reversing path", err)
-	}
-	if err := p.InitOffsets(); err != nil {
-		return nil, serrors.WrapStr("initializing offsets", err)
-	}
-	hopF, err := p.GetHopField(p.HopOff)
-	if err != nil {
-		return nil, serrors.WrapStr("extracting first hop field", err)
-	}
-	topo := topoProv.Get()
-	ifID := hopF.ConsIngress
-	UnderlayNextHop, ok := topo.UnderlayNextHop2(ifID)
-	if !ok {
-		return nil, serrors.New("first-hop border router not found", "intf_id", ifID)
-	}
-	return &snet.SVCAddr{IA: ps.FirstIA(), Path: p, NextHop: UnderlayNextHop, SVC: svc}, nil
-}
-
 // ResolveLocal returns the local IP address used for traffic destined to dst.
 func ResolveLocal(dst net.IP) (net.IP, error) {
 	udpAddr := net.UDPAddr{IP: dst, Port: 1}
@@ -159,31 +103,4 @@ func ResolveLocal(dst net.IP) (net.IP, error) {
 	defer udpConn.Close()
 	srcIP := udpConn.LocalAddr().(*net.UDPAddr).IP
 	return srcIP, nil
-}
-
-// legacyPath constructs a spath.Path from the path segment in construction direction.
-func legacyPath(ps *seg.PathSegment) (*spath.Path, error) {
-	inf := spath.InfoField{
-		ConsDir: true,
-		Hops:    uint8(len(ps.ASEntries)),
-		TsInt:   util.TimeToSecs(ps.Info.Timestamp),
-		ISD:     0, // // XXX(roosd): This is no longer part of the path segment.
-	}
-
-	buf := bytes.Buffer{}
-	if _, err := inf.WriteTo(&buf); err != nil {
-		return nil, err
-	}
-	for _, asEntry := range ps.ASEntries {
-		hf := spath.HopField{
-			ExpTime:     spath.ExpTimeType(asEntry.HopEntry.HopField.ExpTime),
-			ConsIngress: common.IFIDType(asEntry.HopEntry.HopField.ConsIngress),
-			ConsEgress:  common.IFIDType(asEntry.HopEntry.HopField.ConsEgress),
-			Mac:         asEntry.HopEntry.HopField.MAC,
-		}
-		if _, err := hf.WriteTo(&buf); err != nil {
-			return nil, err
-		}
-	}
-	return &spath.Path{Raw: buf.Bytes()}, nil
 }

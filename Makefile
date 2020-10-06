@@ -1,7 +1,5 @@
 .PHONY: all clean protobuf protobuf_clean godeps gogen mocks bazel gazelle setcap licenses
 
-BRACCEPT = bin/braccept
-
 GAZELLE_MODE?=fix
 GAZELLE_DIRS=./go ./acceptance
 
@@ -13,11 +11,7 @@ clean:
 	if [ -e go/vendor ]; then rm -r go/vendor; fi  # Cleanup from old setup with vendor
 
 gogen:
-ifndef GOGEN_SKIP
 	$(MAKE) -C go/proto
-else
-	@echo "gogen: skipped"
-endif
 
 ifndef GODEPS_SKIP
 godeps: go_deps.bzl
@@ -67,7 +61,7 @@ gazelle:
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build $(GAZELLE_DIRS)
 
 setcap:
-	tools/setcap cap_net_admin,cap_net_raw+ep $(BRACCEPT)
+	tools/setcap cap_net_admin,cap_net_raw+ep ./bin/braccept
 
 licenses:
 	tools/licenses.sh

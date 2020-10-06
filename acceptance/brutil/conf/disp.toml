@@ -3,6 +3,3 @@ id = "dispatcher"
 
 [log.console]
 level = "debug"
-
-[features]
-allow_run_as_root = true

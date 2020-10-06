@@ -164,13 +164,11 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	}
 	keep := s.Eval(pathsToPs(allPaths))
 
-	var headerV2 bool
 	paths := make([]snet.Path, 0, len(allPaths))
 	for _, p := range allPaths {
 		if _, ok := keep[snet.Fingerprint(p)]; ok {
 			paths = append(paths, p)
 		}
-		headerV2 = headerV2 || p.Path().IsHeaderV2()
 	}
 	if cfg.MaxPaths != 0 && len(paths) > cfg.MaxPaths {
 		paths = paths[:cfg.MaxPaths]
@@ -188,10 +186,9 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 		}
 		p := pathprobe.FilterEmptyPaths(paths)
 		statuses, err = pathprobe.Prober{
-			DstIA:    dst,
-			LocalIA:  localIA,
-			LocalIP:  localIP,
-			Version2: headerV2,
+			DstIA:   dst,
+			LocalIA: localIA,
+			LocalIP: localIP,
 		}.GetStatuses(ctx, p)
 		if err != nil {
 			serrors.WrapStr("failed to get status", err)

@@ -19,10 +19,10 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -34,6 +34,8 @@ import (
 	"github.com/scionproto/scion/go/pkg/cs/trust/internal/metrics"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
+
+var errRootCert = serrors.New("root certificate")
 
 // PolicyGen generates a new CA policy.
 type PolicyGen interface {
@@ -227,7 +229,7 @@ func (l CACertLoader) CACerts(ctx context.Context) ([]*x509.Certificate, error) 
 	for _, f := range files {
 		cert, err := l.validateCACert(f, opts)
 		if err != nil {
-			if strings.HasSuffix(f, ".root.crt") {
+			if errors.Is(err, errRootCert) {
 				logger.Debug("Ignoring non-CA certificate", "file", f, "reason", err)
 				continue
 			}
@@ -250,9 +252,11 @@ func (l CACertLoader) validateCACert(f string, opts x509.VerifyOptions) (*x509.C
 	if err != nil {
 		return nil, err
 	}
+	if t == cppki.Root {
+		return nil, errRootCert
+	}
 	if t != cppki.CA {
 		return nil, serrors.New("wrong type", "actual", t)
-
 	}
 	ia, err := cppki.ExtractIA(chain[0].Subject)
 	if err != nil {

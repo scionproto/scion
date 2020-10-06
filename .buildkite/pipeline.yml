@@ -1,17 +1,19 @@
 steps:
-  - label: ":bazel: Build scion code"
+  - label: "build scion code :bazel:"
     if: build.message !~ /\[doc\]/
     command:
       # create version files so that deb and rpm release targets work.
       - ./tools/package-version 0.1.0-citest
       - bazel build --announce_rc //:all
+      - make -C docker prod debug test
     key: build
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
-  - label: "UT: :bazel:/:bash: Unit tests & lint"
+  - wait
+  - label: "UT: unit tests & lint :bazel::bash:"
     if: build.message !~ /\[doc\]/
     command:
       - ./scion.sh test
@@ -24,7 +26,7 @@ steps:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
-  - label: "Check generated"
+  - label: "check generated"
     if: build.message !~ /\[doc\]/
     command:
       - mkdir -p /tmp/test-artifacts
@@ -44,6 +46,7 @@ steps:
       - mkdir -p /tmp/test-artifacts/licenses
       - ./tools/licenses.sh /tmp/test-artifacts/licenses $BUILDKITE_PIPELINE_SLUG
       - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
+    timeout_in_minutes: 15
     key: check_generated
     retry:
       automatic:
@@ -53,15 +56,17 @@ steps:
     if: build.message =~ /\[doc\]/
     command: ./scion.sh lint
     key: lint
+    timeout_in_minutes: 15
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: "IT: (svisor) {pp,end2end,scmp}"
+  - label: "E2E: default :go: :man_in_business_suit_levitating: (scion, ping)"
     if: build.message !~ /\[doc\]/
+    parallelism: "${SCION_TESTING_FLAKE_PARALLELISM-1}"
     command:
       - echo "--- start topology (including build)"
-      - ./scion.sh topology
+      - ./scion.sh topology -c topology/default.topo
       - ./scion.sh run && sleep 10
       - echo "--- run tests"
       - ./bin/scion_integration || ( echo "^^^ +++" && false )
@@ -75,21 +80,21 @@ steps:
     artifact_paths:
       - "artifacts.out/**/*"
     timeout_in_minutes: 15
-    key: e2e_integration_tests
+    key: e2e_integration_tests_v2
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: "IT: legacy (svisor) {pp,end2end,scmp}"
+  - label: "E2E: failing links :go: :man_in_business_suit_levitating:"
     if: build.message !~ /\[doc\]/
+    parallelism: "${SCION_TESTING_FLAKE_PARALLELISM-1}"
     command:
       - echo "--- start topology (including build)"
-      - ./scion.sh topology -c topology/tiny4.topo --features=header_legacy -d --sig
+      - ./scion.sh topology -c topology/default-no-peers.topo
       - ./scion.sh run && sleep 10
       - echo "--- run tests"
-      - ./bin/scion_integration -d --features=header_legacy || ( echo "^^^ +++" && false )
-      - ./bin/end2end_integration -d --features=header_legacy || ( echo "^^^ +++" && false )
-      - ./bin/sig_ping_acceptance -d || ( echo "^^^ +++" && false )
+      - ./bin/end2end_integration || ( echo "^^^ +++" && false )
+      - ./integration/revocation_test.sh
     plugins:
       - scionproto/metahook#v0.3.0:
           post-command: |
@@ -99,13 +104,14 @@ steps:
     artifact_paths:
       - "artifacts.out/**/*"
     timeout_in_minutes: 15
-    key: e2e_integration_tests_legacy
+    key: e2e_revocation_test_v2
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: "IT: :docker:/topo E2E"
+  - label: "E2E: default :go: :docker: (ping)"
     if: build.message !~ /\[doc\]/
+    parallelism: "${SCION_TESTING_FLAKE_PARALLELISM-1}"
     command:
       - echo "--- start topology (including build)"
       - ./scion.sh topology -d
@@ -128,7 +134,7 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: ":bash: TRC ceremony"
+  - label: "TRC ceremony :bash:"
     if: build.message !~ /\[doc\]/
     command:
       - echo "--- build"
@@ -139,6 +145,7 @@ steps:
       - export SAFEDIR="/tmp/test-artifacts/trc-ceremony"
       - ./scripts/cryptoplayground/trc_ceremony.sh
       - sudo chmod 0777 /tmp/test-artifacts/trc-ceremony/*/keys/*.key
+    timeout_in_minutes: 15
     key: trc_ceremony_test
     artifact_paths:
       - "artifacts.out/**/*"

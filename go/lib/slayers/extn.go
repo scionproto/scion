@@ -177,7 +177,7 @@ func (e *extnBase) serializeToWithTLVOptions(b gopacket.SerializeBuffer,
 	if err != nil {
 		return err
 	}
-	bytes[0] = uint8(e.NextHdr.FromLegacy())
+	bytes[0] = uint8(e.NextHdr)
 	if opts.FixLengths {
 		e.ExtLen = uint8((length / LineLen) - 1)
 	}
@@ -192,7 +192,7 @@ func decodeExtnBase(data []byte, df gopacket.DecodeFeedback) (extnBase, error) {
 		return e, serrors.New(fmt.Sprintf("invalid extension header. Length %d less than 2",
 			len(data)))
 	}
-	e.NextHdr = common.L4ProtocolType(data[0]).ToLegacy()
+	e.NextHdr = common.L4ProtocolType(data[0])
 	e.ExtLen = data[1]
 	e.ActualLen = (int(e.ExtLen) + 1) * LineLen
 	if len(data) < e.ActualLen {

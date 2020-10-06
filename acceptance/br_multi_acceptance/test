@@ -1,5 +1,6 @@
 #!/bin/bash
 
+export DOCKER_COMPOSE_FN=acceptance/br_multi_acceptance/dc.yml
 BRID=brA
 TEST_NAME=$(basename $(dirname "${0:?}") _acceptance)
 PROGRAM=$(basename "${0:?}")

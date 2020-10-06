@@ -17,7 +17,7 @@ services:
     - vol_topo_cs_reload_disp:/run/shm/dispatcher:rw
   topo_cs_reload_control_srv:
     container_name: topo_cs_reload_control_srv
-    image: bazel/acceptance/topo_cs_reload:cs
+    image: bazel/acceptance/topo_cs_reload:control
     depends_on:
       - topo_cs_reload_dispatcher
     volumes:

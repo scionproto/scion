@@ -1,0 +1,42 @@
+load("@pip3_deps//:requirements.bzl", "requirement")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "py_default_library",
+    srcs = glob(["**/*.py"]),
+    deps = [
+        "//python/lib:defines",
+        "//python/lib:scion_addr",
+        "//python/lib:types",
+        "//python/lib:util",
+    ],
+)
+
+py_binary(
+    name = "topogen",
+    srcs = ["generator.py"],
+    data = [
+        "//go/scion-pki",
+        "//tools:docker_ip",
+    ],
+    main = "generator.py",
+    python_version = "PY3",
+    srcs_version = "PY3",
+    deps = [
+        ":py_default_library",
+        "@bazel_tools//tools/python/runfiles",
+        requirement("toml"),
+        requirement("plumbum"),
+        requirement("pyyaml"),
+    ],
+)
+
+py_binary(
+    name = "topogentar",
+    srcs = ["topogentar.py"],
+    visibility = ["//visibility:public"],
+    deps = [
+        requirement("plumbum"),
+    ],
+)

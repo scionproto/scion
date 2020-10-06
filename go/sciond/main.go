@@ -151,7 +151,6 @@ func run(file string) error {
 				RevCache:     revCache,
 				Cfg:          cfg.SD,
 				TopoProvider: itopo.Provider(),
-				HeaderV2:     cfg.Features.HeaderV2,
 			},
 		),
 		Engine:   engine,

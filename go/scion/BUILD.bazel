@@ -4,7 +4,6 @@ load("//:scion.bzl", "scion_go_binary")
 go_library(
     name = "go_default_library",
     srcs = [
-        "features.go",
         "ping.go",
         "scion.go",
         "showpaths.go",
@@ -22,7 +21,6 @@ go_library(
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/topology:go_default_library",
         "//go/pkg/app:go_default_library",
-        "//go/pkg/app/feature:go_default_library",
         "//go/pkg/command:go_default_library",
         "//go/pkg/ping:go_default_library",
         "//go/pkg/showpaths:go_default_library",

@@ -17,8 +17,8 @@ shift
 [ -e "$FILE" ] || { echo "ERROR: file not found: $FILE"; exit 2; }
 
 # Check if capabilities are already set
-if ! setcap -q -v "$CAPS" "$FILE"; then
+if ! /sbin/setcap -q -v "$CAPS" "$FILE"; then
     # Only prompt for password if necessary
     sudo -p "setcap $FILE [sudo] password for %p: " true
-    sudo setcap "$CAPS" "$FILE"
+    sudo /sbin/setcap "$CAPS" "$FILE"
 fi

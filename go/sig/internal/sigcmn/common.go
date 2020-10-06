@@ -114,20 +114,16 @@ func initNetwork(cfg sigconfig.SigConf, sdCfg env.SCIONDClient,
 		return nil, nil, nil, serrors.WrapStr("discovering local ISD-AS", err)
 	}
 	pathResolver := pathmgr.New(sciondConn, pathmgr.Timers{})
-	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
-		RevocationHandler: pathResolver,
-	}
-	if !features.HeaderV2 {
-		scmpHandler = snet.NewLegacySCMPHandler(pathResolver)
-	}
 	network := &snet.SCIONNetwork{
 		LocalIA: ia,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher:  Dispatcher,
-			SCMPHandler: scmpHandler,
-			Version2:    features.HeaderV2,
+			Dispatcher: Dispatcher,
+			SCMPHandler: snet.DefaultSCMPHandler{
+				RevocationHandler: pathResolver,
+			},
+			Version2: true,
 		},
-		Version2: features.HeaderV2,
+		Version2: true,
 	}
 	return network, sciondConn, pathResolver, nil
 }

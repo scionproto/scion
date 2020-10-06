@@ -19,7 +19,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"hash"
 	"net"
 	"testing"
 	"time"
@@ -35,14 +34,11 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
 func TestPropagatorRun(t *testing.T) {
-	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
-	require.NoError(t, err)
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	pub := priv.Public()
@@ -103,6 +99,7 @@ func TestPropagatorRun(t *testing.T) {
 		{
 			name:     "Non-core: Child interface inactive",
 			inactive: map[common.IFIDType]bool{graph.If_111_A_112_X: true},
+			expected: 3,
 		},
 		{
 			name:     "Core: All interfaces active",
@@ -113,19 +110,19 @@ func TestPropagatorRun(t *testing.T) {
 			name:     "Core: 1-ff00:0:120 inactive",
 			inactive: map[common.IFIDType]bool{graph.If_110_X_120_A: true},
 			// Should not create beacon if ingress interface is down.
-			expected: 0,
+			expected: 3,
 			core:     true,
 		},
 		{
 			name:     "Core: 1-ff00:0:130 inactive",
 			inactive: map[common.IFIDType]bool{graph.If_110_X_130_A: true},
-			expected: 2,
+			expected: 3,
 			core:     true,
 		},
 		{
 			name:     "Core: 2-ff00:0:210 inactive",
 			inactive: map[common.IFIDType]bool{graph.If_110_X_210_X: true},
-			expected: 1,
+			expected: 3,
 			core:     true,
 		},
 		{
@@ -135,7 +132,8 @@ func TestPropagatorRun(t *testing.T) {
 				graph.If_110_X_130_A: true,
 				graph.If_110_X_210_X: true,
 			},
-			core: true,
+			expected: 3,
+			core:     true,
 		},
 	}
 	for _, test := range tests {
@@ -148,13 +146,13 @@ func TestPropagatorRun(t *testing.T) {
 			sender := mock_beaconing.NewMockBeaconSender(mctrl)
 
 			p := Propagator{
-				Extender: &LegacyExtender{
+				Extender: &DefaultExtender{
 					IA:         topoProvider.Get().IA(),
 					MTU:        topoProvider.Get().MTU(),
 					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
 					Intfs:      intfs,
-					MAC:        func() hash.Hash { return mac },
-					MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+					MAC:        macFactory,
+					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 					StaticInfo: func() *StaticInfoCfg { return nil },
 				},
 				BeaconSender: sender,
@@ -197,7 +195,7 @@ func TestPropagatorRun(t *testing.T) {
 					require.NoError(t, err)
 					// Check the interface matches.
 					assert.Equal(t, hopF.ConsEgress, uint16(egress))
-					// Check that the beacon is sent to the correct border router.
+					// Check that the beacon is sent to the correct router.
 					br := topoProvider.Get().IFInfoMap()[egress].InternalAddr
 					assert.Equal(t, br, nextHop)
 					return nil
@@ -217,13 +215,13 @@ func TestPropagatorRun(t *testing.T) {
 		sender := mock_beaconing.NewMockBeaconSender(mctrl)
 
 		p := Propagator{
-			Extender: &LegacyExtender{
+			Extender: &DefaultExtender{
 				IA:         topoProvider.Get().IA(),
 				MTU:        topoProvider.Get().MTU(),
 				Signer:     testSigner(t, priv, topoProvider.Get().IA()),
 				Intfs:      intfs,
-				MAC:        func() hash.Hash { return mac },
-				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				MAC:        macFactory,
+				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
 			BeaconSender: sender,

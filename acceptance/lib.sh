@@ -1,5 +1,7 @@
 . acceptance/color.sh
 
+ACCEPTANCE_TESTS=${ACCEPTANCE_TESTS:-"./acceptance/*_acceptance"}
+
 run_command() {
     local cmd="$1"
     local out="$2"
@@ -101,7 +103,7 @@ test_teardown_wrapper() {
 
 global_run() {
     local regex_matcher="$1"
-    for i in ./acceptance/*_acceptance; do
+    for i in $ACCEPTANCE_TESTS; do
         stats_total=$((stats_total+1))
         TEST_PROGRAM="$i/test"
         TEST_NAME=$($TEST_PROGRAM name)

@@ -73,6 +73,8 @@ type Resolver struct {
 func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC) (*Reply, error) {
 	var span opentracing.Span
 	span, ctx = opentracing.StartSpanFromContext(ctx, "svc.resolution")
+	span.SetTag("svc", svc.String())
+	span.SetTag("isd_as", p.Destination().String())
 	defer span.Finish()
 
 	u := &net.UDPAddr{

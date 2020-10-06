@@ -7,7 +7,7 @@ go_test(
     data = [
         "docker-compose.yml",
         "testdata/topology_reload.json",
-        ":cs.tar",
+        ":control.tar",
         ":dispatcher.tar",
         ":invalid_changed_ip",
         ":invalid_changed_port",
@@ -28,16 +28,18 @@ container_image(
         "--config",
         "/disp.toml",
     ],
+    entrypoint = ["/app/dispatcher"],
     files = ["testdata/disp.toml"],
 )
 
 container_image(
-    name = "cs",
-    base = "//docker:cs_debug",
+    name = "control",
+    base = "//docker:control_debug",
     cmd = [
         "--config",
         "/cs.toml",
     ],
+    entrypoint = ["/app/cs"],
     files = [
         "testdata/cs.toml",
         "testdata/tls.key",

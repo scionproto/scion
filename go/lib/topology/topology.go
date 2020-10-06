@@ -44,7 +44,7 @@ type (
 	// indicating an infinite TTL.
 	//
 	// The second section concerns the Border routers. BRNames is just a sorted slice
-	// of the names of the BRs in this topolgy. Its contents is exactly the same as
+	// of the names of the BRs in this topology. Its contents is exactly the same as
 	// the keys in the BR map.
 	//
 	// The BR map points from border router names to BRInfo structs, which in turn
@@ -112,6 +112,7 @@ type (
 		IA           addr.IA
 		LinkType     LinkType
 		MTU          int
+		BFD          BFD
 	}
 
 	// IDAddrMap maps process IDs to their topology addresses.
@@ -122,6 +123,14 @@ type (
 	TopoAddr struct {
 		SCIONAddress    *net.UDPAddr
 		UnderlayAddress *net.UDPAddr
+	}
+
+	// BFD is the configuration for a BFD session
+	BFD struct {
+		Disable               bool
+		DetectMult            uint8
+		DesiredMinTxInterval  time.Duration
+		RequiredMinRxInterval time.Duration
 	}
 )
 
@@ -242,6 +251,15 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 			if err = ifinfo.CheckLinks(isCore, name); err != nil {
 				return err
 			}
+			if bfd := rawIntf.BFD; bfd != nil {
+				ifinfo.BFD = BFD{
+					Disable:               bfd.Disable,
+					DetectMult:            bfd.DetectMult,
+					DesiredMinTxInterval:  bfd.DesiredMinTxInterval.Duration,
+					RequiredMinRxInterval: bfd.RequiredMinRxInterval.Duration,
+				}
+			}
+
 			// These fields are only necessary for the border router.
 			// Parsing should not fail if they are missing.
 			if rawIntf.Underlay.Bind == "" && rawIntf.Underlay.Remote == "" {

@@ -1,3 +1,5 @@
+.. _scmp-specification:
+
 ******************
 SCMP Specification
 ******************

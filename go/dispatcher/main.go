@@ -73,7 +73,7 @@ func realMain() int {
 			cfg.Dispatcher.ApplicationSocket,
 			os.FileMode(cfg.Dispatcher.SocketFileMode),
 			cfg.Dispatcher.UnderlayPort,
-			cfg.Features.HeaderV2,
+			true,
 		)
 		if err != nil {
 			fatal.Fatal(err)

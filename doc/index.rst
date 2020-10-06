@@ -17,7 +17,7 @@ is a good place to start.
    BeaconExtensions
    PathService
    PathPolicy
-   HiddenPaths
+   hidden-paths
    ColibriService
    uri
    grpc

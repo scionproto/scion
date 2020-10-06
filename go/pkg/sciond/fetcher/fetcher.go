@@ -69,7 +69,6 @@ type FetcherConfig struct {
 	Cfg      config.SDConfig
 
 	TopoProvider topology.Provider
-	HeaderV2     bool
 }
 
 func NewFetcher(cfg FetcherConfig) Fetcher {
@@ -103,7 +102,6 @@ func NewFetcher(cfg FetcherConfig) Fetcher {
 				Core:      cfg.TopoProvider.Get().Core(),
 				Inspector: cfg.Inspector,
 			},
-			HeaderV2: cfg.HeaderV2,
 		},
 		config: cfg.Cfg,
 	}

@@ -23,9 +23,10 @@ container_image(
     name = "dispatcher1",
     base = "//docker:dispatcher_debug",
     cmd = [
-        "-config",
+        "--config",
         "/disp.toml",
     ],
+    entrypoint = ["/app/dispatcher"],
     files = ["testdata/1-ff00_0_110/dispatcher/disp.toml"],
 )
 
@@ -33,9 +34,10 @@ container_image(
     name = "dispatcher2",
     base = "//docker:dispatcher_debug",
     cmd = [
-        "-config",
+        "--config",
         "/disp.toml",
     ],
+    entrypoint = ["/app/dispatcher"],
     files = ["testdata/1-ff00_0_111/dispatcher/disp.toml"],
 )
 
@@ -43,9 +45,10 @@ container_image(
     name = "sig1",
     base = "//docker:sig_debug",
     cmd = [
-        "-config",
+        "--config",
         "/sig.toml",
     ],
+    entrypoint = ["/app/sig"],
     files = [
         "testdata/1-ff00_0_110/sig/cfg.json",
         "testdata/1-ff00_0_110/sig/fake_sciond.json",
@@ -57,9 +60,10 @@ container_image(
     name = "sig2",
     base = "//docker:sig_debug",
     cmd = [
-        "-config",
+        "--config",
         "/sig.toml",
     ],
+    entrypoint = ["/app/sig"],
     files = [
         "testdata/1-ff00_0_111/sig/cfg.json",
         "testdata/1-ff00_0_111/sig/fake_sciond.json",

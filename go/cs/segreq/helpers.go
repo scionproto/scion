@@ -25,10 +25,14 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
+
+// Pather computes the remote address with a path based on the provided segment.
+type Pather interface {
+	GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, error)
+}
 
 // CoreChecker checks whether a given ia is core.
 type CoreChecker struct {
@@ -48,7 +52,7 @@ type SegSelector struct {
 	PathDB       pathdb.PathDB
 	RevCache     revcache.RevCache
 	TopoProvider topology.Provider
-	Pather       addrutil.Pather
+	Pather       Pather
 }
 
 // SelectSeg selects a suitable segment for the given path db query.
