@@ -61,11 +61,11 @@ steps:
     if: build.message !~ /\[doc\]/
     command:
       - echo "--- start topology (including build)"
-      - ./scion.sh topology
+      - ./scion.sh topology --features=header_legacy
       - ./scion.sh run && sleep 10
       - echo "--- run tests"
-      - ./bin/end2end_integration || ( echo "^^^ +++" && false )
-      - ./integration/revocation_test.sh || ( echo "^^^ +++" && false )
+      - ./bin/end2end_integration --features=header_legacy || ( echo "^^^ +++" && false )
+      - DOCKER_ARGS='--features=header_legacy' ./integration/revocation_test.sh || ( echo "^^^ +++" && false )
     key: revocation_tests
     plugins:
       - scionproto/metahook#v0.3.0:

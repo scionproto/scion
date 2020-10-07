@@ -52,3 +52,27 @@ func (p L4ProtocolType) String() string {
 	}
 	return fmt.Sprintf("UNKNOWN (%d)", p)
 }
+
+func (p L4ProtocolType) FromLegacy() L4ProtocolType {
+	switch p {
+	case HopByHopClass:
+		return 200
+	case End2EndClass:
+		return 201
+	case L4SCMP:
+		return 202
+	}
+	return p
+}
+
+func (p L4ProtocolType) ToLegacy() L4ProtocolType {
+	switch p {
+	case 200:
+		return HopByHopClass
+	case 201:
+		return End2EndClass
+	case 202:
+		return L4SCMP
+	}
+	return p
+}
