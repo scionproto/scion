@@ -28,6 +28,8 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/slayers/path/empty"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -179,6 +181,135 @@ func TestSCIONSCMP(t *testing.T) {
 	}
 }
 
+func TestPaths(t *testing.T) {
+	testCases := map[string]struct {
+		rawFile       string
+		decodedLayers func(t *testing.T) []gopacket.SerializableLayer
+	}{
+		"empty path": {
+			rawFile: filepath.Join(goldenDir, "empty-udp.bin"),
+			decodedLayers: func(t *testing.T) []gopacket.SerializableLayer {
+				s := &slayers.SCION{
+					Version:      0,
+					TrafficClass: 0xb8,
+					FlowID:       0xdead,
+					HdrLen:       12,
+					PayloadLen:   1032,
+					NextHdr:      common.L4UDP,
+					PathType:     slayers.PathTypeEmpty,
+					DstAddrType:  slayers.T16Ip,
+					DstAddrLen:   slayers.AddrLen16,
+					SrcAddrType:  slayers.T4Ip,
+					SrcAddrLen:   slayers.AddrLen4,
+					DstIA:        xtest.MustParseIA("1-ff00:0:111"),
+					SrcIA:        xtest.MustParseIA("1-ff00:0:111"),
+					Path:         empty.Path{},
+				}
+				require.NoError(t, s.SetDstAddr(ip6Addr))
+				require.NoError(t, s.SetSrcAddr(ip4Addr))
+				u := &slayers.UDP{
+					UDP: layers.UDP{
+						SrcPort:  1280,
+						DstPort:  80,
+						Length:   1032,
+						Checksum: 0xb8e4,
+					},
+				}
+				require.NoError(t, u.SetNetworkLayerForChecksum(s))
+				return []gopacket.SerializableLayer{s, u, gopacket.Payload(mkPayload(1024))}
+			},
+		},
+		"scion path": {
+			rawFile: filepath.Join(goldenDir, "scion-udp.bin"),
+			decodedLayers: func(t *testing.T) []gopacket.SerializableLayer {
+				s := &slayers.SCION{
+					Version:      0,
+					TrafficClass: 0xb8,
+					FlowID:       0xdead,
+					HdrLen:       29,
+					PayloadLen:   1032,
+					NextHdr:      common.L4UDP,
+					PathType:     slayers.PathTypeSCION,
+					DstAddrType:  slayers.T16Ip,
+					DstAddrLen:   slayers.AddrLen16,
+					SrcAddrType:  slayers.T4Ip,
+					SrcAddrLen:   slayers.AddrLen4,
+					DstIA:        xtest.MustParseIA("1-ff00:0:111"),
+					SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
+					Path:         &scion.Raw{},
+				}
+				require.NoError(t, s.SetDstAddr(ip6Addr))
+				require.NoError(t, s.SetSrcAddr(ip4Addr))
+				require.NoError(t, s.Path.DecodeFromBytes(rawPath))
+				u := &slayers.UDP{
+					UDP: layers.UDP{
+						SrcPort:  1280,
+						DstPort:  80,
+						Length:   1032,
+						Checksum: 0xb7d2,
+					},
+				}
+				require.NoError(t, u.SetNetworkLayerForChecksum(s))
+				return []gopacket.SerializableLayer{s, u, gopacket.Payload(mkPayload(1024))}
+			},
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run("decode: "+name, func(t *testing.T) {
+			t.Parallel()
+			if *update {
+				t.Skip("flag -update updates golden files")
+				return
+			}
+			raw, err := ioutil.ReadFile(tc.rawFile)
+			require.NoError(t, err)
+			packet := gopacket.NewPacket(raw, slayers.LayerTypeSCION, gopacket.Default)
+			pe := packet.ErrorLayer()
+			if pe != nil {
+				require.NoError(t, pe.Error())
+			}
+			decoded := tc.decodedLayers(t)
+			require.Equal(t, len(decoded), len(packet.Layers()))
+
+			for _, l := range decoded {
+				switch expected := l.(type) {
+				case *slayers.SCION:
+					sl := packet.Layer(slayers.LayerTypeSCION)
+					require.NotNil(t, sl, "SCION layer should exist")
+					s := sl.(*slayers.SCION)
+					expected.BaseLayer = s.BaseLayer
+					assert.Equal(t, gopacket.LayerString(expected), gopacket.LayerString(s))
+				case *slayers.UDP:
+					ul := packet.Layer(slayers.LayerTypeSCIONUDP)
+					require.NotNil(t, ul, "UDP layer should exist")
+					u := ul.(*slayers.UDP)
+					expected.BaseLayer = u.BaseLayer
+					assert.Equal(t, gopacket.LayerString(expected), gopacket.LayerString(u))
+				}
+			}
+		})
+		t.Run("serialize: "+name, func(t *testing.T) {
+			t.Parallel()
+			opts := gopacket.SerializeOptions{
+				FixLengths:       true,
+				ComputeChecksums: true,
+			}
+			got := gopacket.NewSerializeBuffer()
+			err := gopacket.SerializeLayers(got, opts, tc.decodedLayers(t)...)
+			require.NoError(t, err)
+			if *update {
+				err := ioutil.WriteFile(tc.rawFile, got.Bytes(), 0644)
+				require.NoError(t, err)
+				return
+			}
+			raw, err := ioutil.ReadFile(tc.rawFile)
+			require.NoError(t, err)
+			assert.Equal(t, raw, got.Bytes())
+		})
+	}
+}
+
 // TODO(shitz): Ideally, these would be table-driven tests.
 func TestDecodeSCIONUDP(t *testing.T) {
 	raw := xtest.MustReadFromFile(t, rawUDPPktFilename)
@@ -193,6 +324,7 @@ func TestDecodeSCIONUDP(t *testing.T) {
 	require.NotNil(t, scnL, "SCION layer should exist")
 	s := scnL.(*slayers.SCION) // Guaranteed to work
 	// Check SCION Header
+	assert.Equal(t, slayers.PathTypeSCION, s.PathType)
 	assert.Equal(t, uint8(29), s.HdrLen, "HdrLen")
 	assert.Equal(t, uint16(1032), s.PayloadLen, "PayloadLen")
 	assert.Equal(t, common.L4UDP, s.NextHdr, "CmnHdr.NextHdr")
@@ -205,7 +337,7 @@ func TestDecodeSCIONUDP(t *testing.T) {
 	assert.Equal(t, layers.UDPPort(1280), udpHdr.SrcPort, "UDP.SrcPort")
 	assert.Equal(t, layers.UDPPort(80), udpHdr.DstPort, "UDP.DstPort")
 	assert.Equal(t, uint16(1032), udpHdr.Length, "UDP.Len")
-	assert.Equal(t, uint16(0xbbda), udpHdr.Checksum, "UDP.Checksum")
+	assert.Equal(t, uint16(0xb7d2), udpHdr.Checksum, "UDP.Checksum")
 
 	// Check Payload
 	appLayer := packet.ApplicationLayer()
@@ -238,6 +370,11 @@ func TestSerializeSCIONUPDExtn(t *testing.T) {
 	opts := gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: true}
 
 	assert.NoError(t, gopacket.SerializeLayers(b, opts, s, hbh, e2e, u, pld), "Serialize")
+	if *update {
+		err := ioutil.WriteFile("testdata/"+rawFullPktFilename, b.Bytes(), 0644)
+		require.NoError(t, err)
+		return
+	}
 	raw := xtest.MustReadFromFile(t, rawFullPktFilename)
 	assert.Equal(t, raw, b.Bytes(), "Raw buffer")
 

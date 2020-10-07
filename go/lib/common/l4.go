@@ -25,7 +25,7 @@ const (
 	L4SCMP L4ProtocolType = 1
 	L4TCP  L4ProtocolType = 6
 	L4UDP  L4ProtocolType = 17
-	L4BFD  L4ProtocolType = 18
+	L4BFD  L4ProtocolType = 203
 
 	HopByHopClass L4ProtocolType = 0
 	End2EndClass  L4ProtocolType = 222
@@ -51,4 +51,28 @@ func (p L4ProtocolType) String() string {
 		return "End2End"
 	}
 	return fmt.Sprintf("UNKNOWN (%d)", p)
+}
+
+func (p L4ProtocolType) FromLegacy() L4ProtocolType {
+	switch p {
+	case HopByHopClass:
+		return 200
+	case End2EndClass:
+		return 201
+	case L4SCMP:
+		return 202
+	}
+	return p
+}
+
+func (p L4ProtocolType) ToLegacy() L4ProtocolType {
+	switch p {
+	case 200:
+		return HopByHopClass
+	case 201:
+		return End2EndClass
+	case 202:
+		return L4SCMP
+	}
+	return p
 }

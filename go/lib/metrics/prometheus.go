@@ -19,6 +19,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// NewPromGauge wraps a prometheus gauge vector as a gauge.
+func NewPromGauge(cv *prometheus.GaugeVec) Gauge {
+	return kitprom.NewGauge(cv)
+}
+
 // NewPromCounter wraps a prometheus counter vector as a counter.
 func NewPromCounter(cv *prometheus.CounterVec) Counter {
 	return kitprom.NewCounter(cv)

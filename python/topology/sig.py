@@ -26,7 +26,8 @@ from python.topology.common import (
     remote_nets,
     sciond_svc_name,
     SD_API_PORT,
-    SIG_CONFIG_NAME
+    SIG_CONFIG_NAME,
+    translate_features,
 )
 from python.topology.net import socket_address_str
 from python.topology.prometheus import SIG_PROM_PORT
@@ -165,7 +166,7 @@ class SIGGenerator(object):
             'metrics': {
                 'prometheus': '0.0.0.0:%s' % SIG_PROM_PORT
             },
-            'features': self.args.features,
+            'features': translate_features(self.args.features),
         }
         path = os.path.join(topo_id.base_dir(self.args.output_dir), SIG_CONFIG_NAME)
         write_file(path, toml.dumps(sig_conf))

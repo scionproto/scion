@@ -68,6 +68,7 @@ class TestSetup(CmdBase):
         if not self.no_docker:
             self.tools_dc('start', 'tester*')
             self.docker_status()
+        time.sleep(10)
 
 
 @Test.subcommand('run')

@@ -51,6 +51,7 @@ type Pather struct {
 func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 	refresh bool) ([]*combinator.Path, error) {
 
+	logger := log.FromCtx(ctx)
 	if dst.I == 0 {
 		return nil, serrors.WithCtx(ErrBadDst, "dst", dst)
 	}
@@ -63,9 +64,10 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 	if err != nil {
 		return nil, err
 	}
-	segs, err := p.Fetcher.Fetch(ctx, reqs, refresh)
-	if err != nil {
-		return nil, err
+	segs, fetchErr := p.Fetcher.Fetch(ctx, reqs, refresh)
+	// Even if fetching failed, attempt to create paths.
+	if fetchErr != nil {
+		logger.Debug("Fetching failed, attempting to build paths anyway", "err", err)
 	}
 	paths := p.buildAllPaths(src, dst, segs)
 	paths, err = p.filterRevoked(ctx, paths)
@@ -73,6 +75,9 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 		return nil, err
 	}
 	if len(paths) == 0 {
+		if fetchErr != nil {
+			return nil, fetchErr
+		}
 		return nil, ErrNoPaths
 	}
 	return paths, nil
@@ -128,7 +133,7 @@ func (p *Pather) filterRevoked(ctx context.Context,
 			// so a cache hit implies revocation is still active.
 			revs, err := p.RevCache.Get(ctx, revcache.SingleKey(iface.IA, iface.ID))
 			if err != nil {
-				logger.Error("[segfetcher.Pather] Failed to get revocation", "err", err)
+				logger.Error("Failed to get revocation", "err", err)
 				// continue, the client might still get some usable paths like this.
 			}
 			revoked = revoked || len(revs) > 0
@@ -138,7 +143,7 @@ func (p *Pather) filterRevoked(ctx context.Context,
 		}
 	}
 	if len(paths) != len(newPaths) {
-		logger.Debug("[segfetcher.Pather] Filtered paths with revocations",
+		logger.Debug("Filtered paths with revocations",
 			"all", len(paths), "revoked", len(paths)-len(newPaths))
 	}
 	return newPaths, nil

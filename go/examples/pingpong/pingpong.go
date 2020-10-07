@@ -29,6 +29,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -43,6 +44,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/pkg/app/feature"
 )
 
 const (
@@ -61,6 +63,7 @@ const (
 var (
 	local, remote snet.UDPAddr
 	fileData      []byte
+	headerLegacy  bool
 
 	count = flag.Int("count", 0,
 		fmt.Sprintf("Number of pings, between 0 and %d; a count of 0 means infinity", MaxPings))
@@ -74,8 +77,9 @@ var (
 	sciondAddr  = flag.String("sciond", sciond.DefaultSCIONDAddress, "SCIOND address")
 	timeout     = flag.Duration("timeout", DefaultTimeout, "Timeout for the ping response")
 	verbose     = flag.Bool("v", false, "sets verbose output")
-	headerv2    = flag.Bool("header_v2", false, "Use the new header format")
-	logConsole  string
+	features    = flag.String("features", "",
+		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
+	logConsole string
 
 	// No way to extract error code from error returned after closing session in quic-go.
 	// c.f. https://github.com/lucas-clemente/quic-go/issues/2441
@@ -139,6 +143,13 @@ func validateFlags() {
 		} else {
 			log.Info("file argument is ignored for mode " + ModeServer)
 		}
+	}
+	if features != nil && len(*features) != 0 {
+		f, err := feature.ParseDefault(strings.Split(*features, ","))
+		if err != nil {
+			LogFatal(err.Error())
+		}
+		headerLegacy = f.HeaderLegacy
 	}
 }
 
@@ -232,7 +243,7 @@ func (c *client) run() {
 	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
 		RevocationHandler: sciond.RevHandler{Connector: sciondConn},
 	}
-	if !(*headerv2) {
+	if headerLegacy {
 		scmpHandler = snet.NewLegacySCMPHandler(sciond.RevHandler{Connector: sciondConn})
 	}
 	network := &snet.SCIONNetwork{
@@ -240,9 +251,9 @@ func (c *client) run() {
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher:  ds,
 			SCMPHandler: scmpHandler,
-			Version2:    *headerv2,
+			Version2:    !headerLegacy,
 		},
-		Version2: *headerv2,
+		Version2: !headerLegacy,
 	}
 
 	// Connect to remote address. Note that currently the SCION library
@@ -372,7 +383,7 @@ func (s server) run() {
 	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
 		RevocationHandler: sciond.RevHandler{Connector: sciondConn},
 	}
-	if !(*headerv2) {
+	if headerLegacy {
 		scmpHandler = snet.NewLegacySCMPHandler(sciond.RevHandler{Connector: sciondConn})
 	}
 	network := &snet.SCIONNetwork{
@@ -380,9 +391,9 @@ func (s server) run() {
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher:  ds,
 			SCMPHandler: scmpHandler,
-			Version2:    *headerv2,
+			Version2:    !headerLegacy,
 		},
-		Version2: *headerv2,
+		Version2: !headerLegacy,
 	}
 
 	if err != nil {

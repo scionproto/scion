@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -34,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/pkg/app/feature"
 )
 
 const (
@@ -43,13 +45,14 @@ const (
 )
 
 var (
-	Local      snet.UDPAddr
-	Mode       string
-	Progress   string
-	sciondAddr string
-	Attempts   int
-	logConsole string
-	HeaderV2   bool
+	Local        snet.UDPAddr
+	Mode         string
+	Progress     string
+	sciondAddr   string
+	Attempts     int
+	logConsole   string
+	features     string
+	HeaderLegacy bool
 )
 
 func Setup() {
@@ -64,7 +67,8 @@ func addFlags() {
 	flag.StringVar(&sciondAddr, "sciond", sciond.DefaultSCIONDAddress, "SCIOND address")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
 	flag.StringVar(&logConsole, "log.console", "info", "Console logging level: debug|info|error")
-	flag.BoolVar(&HeaderV2, "header_v2", false, "Use the new header format.")
+	flag.StringVar(&features, "features", "",
+		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
 }
 
 // InitTracer initializes the global tracer and returns a closer function.
@@ -110,6 +114,13 @@ func validateFlags() {
 	if Local.Host == nil {
 		LogFatal("Missing local address")
 	}
+	if len(features) != 0 {
+		f, err := feature.ParseDefault(strings.Split(features, ","))
+		if err != nil {
+			LogFatal(err.Error())
+		}
+		HeaderLegacy = f.HeaderLegacy
+	}
 }
 
 func InitNetwork() *snet.SCIONNetwork {
@@ -121,7 +132,7 @@ func InitNetwork() *snet.SCIONNetwork {
 	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
 		RevocationHandler: sciond.RevHandler{Connector: sciondConn},
 	}
-	if !HeaderV2 {
+	if HeaderLegacy {
 		scmpHandler = snet.NewLegacySCMPHandler(sciond.RevHandler{Connector: sciondConn})
 	}
 	n := &snet.SCIONNetwork{
@@ -129,9 +140,9 @@ func InitNetwork() *snet.SCIONNetwork {
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher:  ds,
 			SCMPHandler: scmpHandler,
-			Version2:    HeaderV2,
+			Version2:    !HeaderLegacy,
 		},
-		Version2: HeaderV2,
+		Version2: !HeaderLegacy,
 	}
 	log.Debug("SCION network successfully initialized")
 	return n

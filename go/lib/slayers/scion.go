@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 )
@@ -44,27 +45,27 @@ type PathType uint8
 
 func (t PathType) String() string {
 	switch t {
-	case PathTypeSCION:
-		return "SCION (0)"
-	case PathTypeOneHop:
-		return "OneHop (1)"
-	case PathTypeEPIC:
-		return "EPIC (2)"
-	case PathTypeCOLIBRI:
-		return "COLIBRI (3)"
 	case PathTypeEmpty:
-		return "Empty (4)"
+		return "Empty (0)"
+	case PathTypeSCION:
+		return "SCION (1)"
+	case PathTypeOneHop:
+		return "OneHop (2)"
+	case PathTypeEPIC:
+		return "EPIC (3)"
+	case PathTypeCOLIBRI:
+		return "COLIBRI (4)"
 	}
 	return fmt.Sprintf("UNKNOWN (%d)", t)
 }
 
 // PathType constants
 const (
-	PathTypeSCION PathType = iota
+	PathTypeEmpty PathType = iota
+	PathTypeSCION
 	PathTypeOneHop
 	PathTypeEPIC
 	PathTypeCOLIBRI
-	PathTypeEmpty
 )
 
 // AddrLen indicates the length of a host address in the SCION header. The four possible lengths are
@@ -153,10 +154,10 @@ type SCION struct {
 	DstIA addr.IA
 	// SrcIA is the source ISD-AS.
 	SrcIA addr.IA
-	// rawDstAddr is the destination address.
-	rawDstAddr []byte
-	// rawSrcAddr is the source address.
-	rawSrcAddr []byte
+	// RawDstAddr is the destination address.
+	RawDstAddr []byte
+	// RawSrcAddr is the source address.
+	RawSrcAddr []byte
 
 	// Path is the path contained in the SCION header. It depends on the PathType field.
 	Path Path
@@ -196,7 +197,7 @@ func (s *SCION) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeO
 	// Serialize common header.
 	firstLine := uint32(s.Version&0xF)<<28 | uint32(s.TrafficClass)<<20 | s.FlowID&0xFFFFF
 	binary.BigEndian.PutUint32(buf[:4], firstLine)
-	buf[4] = uint8(s.NextHdr)
+	buf[4] = uint8(s.NextHdr.FromLegacy())
 	buf[5] = s.HdrLen
 	binary.BigEndian.PutUint16(buf[6:8], s.PayloadLen)
 	buf[8] = uint8(s.PathType)
@@ -229,7 +230,7 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	s.Version = uint8(firstLine >> 28)
 	s.TrafficClass = uint8((firstLine >> 20) & 0xFF)
 	s.FlowID = firstLine & 0xFFFFF
-	s.NextHdr = common.L4ProtocolType(data[4])
+	s.NextHdr = common.L4ProtocolType(data[4]).ToLegacy()
 	s.HdrLen = data[5]
 	s.PayloadLen = binary.BigEndian.Uint16(data[6:8])
 	s.PathType = PathType(data[8])
@@ -257,7 +258,14 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 
 	switch s.PathType {
 	case PathTypeEmpty:
-		s.Path = &scion.Decoded{}
+		if _, ok := s.Path.(empty.Path); ok {
+			break
+		}
+		s.Path = empty.Path{}
+		if pathLen != 0 {
+			return serrors.New("invalid header, non-empty empty path", "hdrBytes", hdrBytes,
+				"addrHdrLen", addrHdrLen, "CmdHdrLen", CmnHdrLen, "pathLen", pathLen)
+		}
 	case PathTypeSCION:
 		// Only allocate a SCION path if necessary. This reduces memory allocation and GC overhead
 		// considerably (3x improvement for DecodeFromBytes performance)
@@ -323,7 +331,7 @@ func scionNextLayerType(t common.L4ProtocolType) gopacket.LayerType {
 // information and thus should be treated read-only. Instead, SetDstAddr should be used to update
 // the destination address.
 func (s *SCION) DstAddr() (net.Addr, error) {
-	return parseAddr(s.DstAddrType, s.DstAddrLen, s.rawDstAddr)
+	return parseAddr(s.DstAddrType, s.DstAddrLen, s.RawDstAddr)
 }
 
 // SrcAddr parses the source address into a net.Addr. The returned net.Addr references data from the
@@ -331,7 +339,7 @@ func (s *SCION) DstAddr() (net.Addr, error) {
 // and thus should be treated read-only. Instead, SetDstAddr should be used to update the source
 // address.
 func (s *SCION) SrcAddr() (net.Addr, error) {
-	return parseAddr(s.SrcAddrType, s.SrcAddrLen, s.rawSrcAddr)
+	return parseAddr(s.SrcAddrType, s.SrcAddrLen, s.RawSrcAddr)
 }
 
 // SetDstAddr sets the destination address and updates the DstAddrLen/Type fields accordingly.
@@ -339,7 +347,7 @@ func (s *SCION) SrcAddr() (net.Addr, error) {
 // Changes to dst might leave the layer in an inconsistent state.
 func (s *SCION) SetDstAddr(dst net.Addr) error {
 	var err error
-	s.DstAddrLen, s.DstAddrType, s.rawDstAddr, err = packAddr(dst)
+	s.DstAddrLen, s.DstAddrType, s.RawDstAddr, err = packAddr(dst)
 	return err
 }
 
@@ -348,7 +356,7 @@ func (s *SCION) SetDstAddr(dst net.Addr) error {
 // Changes to src might leave the layer in an inconsistent state.
 func (s *SCION) SetSrcAddr(src net.Addr) error {
 	var err error
-	s.SrcAddrLen, s.SrcAddrType, s.rawSrcAddr, err = packAddr(src)
+	s.SrcAddrLen, s.SrcAddrType, s.RawSrcAddr, err = packAddr(src)
 	return err
 }
 
@@ -405,9 +413,9 @@ func (s *SCION) SerializeAddrHdr(buf []byte) error {
 	offset += addr.IABytes
 	s.SrcIA.Write(buf[offset:])
 	offset += addr.IABytes
-	copy(buf[offset:offset+dstAddrBytes], s.rawDstAddr)
+	copy(buf[offset:offset+dstAddrBytes], s.RawDstAddr)
 	offset += dstAddrBytes
-	copy(buf[offset:offset+srcAddrBytes], s.rawSrcAddr)
+	copy(buf[offset:offset+srcAddrBytes], s.RawSrcAddr)
 
 	return nil
 }
@@ -427,9 +435,9 @@ func (s *SCION) DecodeAddrHdr(data []byte) error {
 	offset += addr.IABytes
 	dstAddrBytes := addrBytes(s.DstAddrLen)
 	srcAddrBytes := addrBytes(s.SrcAddrLen)
-	s.rawDstAddr = data[offset : offset+dstAddrBytes]
+	s.RawDstAddr = data[offset : offset+dstAddrBytes]
 	offset += dstAddrBytes
-	s.rawSrcAddr = data[offset : offset+srcAddrBytes]
+	s.RawSrcAddr = data[offset : offset+srcAddrBytes]
 
 	return nil
 }
@@ -453,10 +461,10 @@ func (s *SCION) computeChecksum(upperLayer []byte, protocol uint8) (uint16, erro
 }
 
 func (s *SCION) pseudoHeaderChecksum(length int, protocol uint8) (uint32, error) {
-	if len(s.rawDstAddr) == 0 {
+	if len(s.RawDstAddr) == 0 {
 		return 0, serrors.New("destination address missing")
 	}
-	if len(s.rawSrcAddr) == 0 {
+	if len(s.RawSrcAddr) == 0 {
 		return 0, serrors.New("source address missing")
 	}
 	var csum uint32
@@ -470,13 +478,13 @@ func (s *SCION) pseudoHeaderChecksum(length int, protocol uint8) (uint32, error)
 		csum += uint32(dstIA[i+1])
 	}
 	// Address length is guaranteed to be a multiple of 2 by the protocol.
-	for i := 0; i < len(s.rawSrcAddr); i += 2 {
-		csum += uint32(s.rawSrcAddr[i]) << 8
-		csum += uint32(s.rawSrcAddr[i+1])
+	for i := 0; i < len(s.RawSrcAddr); i += 2 {
+		csum += uint32(s.RawSrcAddr[i]) << 8
+		csum += uint32(s.RawSrcAddr[i+1])
 	}
-	for i := 0; i < len(s.rawDstAddr); i += 2 {
-		csum += uint32(s.rawDstAddr[i]) << 8
-		csum += uint32(s.rawDstAddr[i+1])
+	for i := 0; i < len(s.RawDstAddr); i += 2 {
+		csum += uint32(s.RawDstAddr[i]) << 8
+		csum += uint32(s.RawDstAddr[i+1])
 	}
 	l := uint32(length)
 	csum += (l >> 16) + (l & 0xffff)

@@ -42,7 +42,7 @@ SIG_CONFIG_NAME = 'sig.toml'
 
 SD_API_PORT = 30255
 
-FEATURE_HEADER_V2 = 'header_v2'
+FEATURE_HEADER_LEGACY = 'header_legacy'
 
 
 class ArgsBase:
@@ -189,3 +189,12 @@ def json_default(o):
     if isinstance(o, AddressProxy):
         return str(o.ip)
     raise TypeError
+
+
+def translate_features(features):
+    f = dict(features)
+    if FEATURE_HEADER_LEGACY in f:
+        f.pop(FEATURE_HEADER_LEGACY)
+    else:
+        f["header_v2"] = True
+    return f

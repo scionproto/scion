@@ -15,8 +15,10 @@
 package router
 
 import (
+	"bytes"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"hash"
 	"math/big"
 	"net"
@@ -30,10 +32,12 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -42,6 +46,7 @@ import (
 	underlayconn "github.com/scionproto/scion/go/lib/underlay/conn"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/router/bfd"
+	"github.com/scionproto/scion/go/pkg/router/control"
 )
 
 const (
@@ -53,6 +58,10 @@ const (
 	// payload size of 64KB. At the moment we are limited by Ethernet size
 	// usually ~1500B, but 9000B to support jumbo frames.
 	bufSize = 9000
+
+	// hopFieldDefaultExpTime is the default validity of the hop field
+	// and 63 is equivalent to 6h.
+	hopFieldDefaultExpTime = 63
 )
 
 type bfdSession interface {
@@ -77,15 +86,17 @@ type BatchConn interface {
 //  - initializing connections; MUST be done prior to calling Run
 type DataPlane struct {
 	external         map[uint16]BatchConn
+	linkTypes        map[uint16]topology.LinkType
 	internal         BatchConn
 	internalIP       net.IP
 	internalNextHops map[uint16]net.Addr
-	svc              map[addr.HostSVC][]net.Addr
+	svc              *services
 	macFactory       func() hash.Hash
 	bfdSessions      map[uint16]bfdSession
 	localIA          addr.IA
 	mtx              sync.Mutex
 	running          bool
+	Metrics          *Metrics
 }
 
 var (
@@ -99,6 +110,7 @@ var (
 	unsupportedPathTypeNextHeader = serrors.New("unsupported combination")
 	noBFDSessionFound             = serrors.New("no BFD sessions was found")
 	noBFDSessionConfigured        = serrors.New("no BFD sessions have been configured")
+	errBFDDisabled                = serrors.New("BFD is disabled")
 )
 
 type scmpError struct {
@@ -195,8 +207,24 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn) error {
 	return nil
 }
 
+// AddLinkType adds the link type for a given interface ID. If a link type for
+// the given ID is already set, this method will return an error. This can only
+// be called on a not yet running dataplane.
+func (d *DataPlane) AddLinkType(ifID uint16, linkTo topology.LinkType) error {
+	if _, exists := d.linkTypes[ifID]; exists {
+		return serrors.WithCtx(alreadySet, "ifID", ifID)
+	}
+	if d.linkTypes == nil {
+		d.linkTypes = make(map[uint16]topology.LinkType)
+	}
+	d.linkTypes[ifID] = linkTo
+	return nil
+}
+
 // AddExternalInterfaceBFD adds the inter AS connection BFD session.
-func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn) error {
+func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn,
+	src, dst control.LinkEnd, cfg control.BFD) error {
+
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.running {
@@ -205,18 +233,33 @@ func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn) error {
 	if conn == nil {
 		return emptyValue
 	}
-
-	s := &bfdSend{
-		conn: conn,
-		addr: nil,
+	var m bfd.Metrics
+	if d.Metrics != nil {
+		labels := []string{"isd_as", d.localIA.String(), "interface", fmt.Sprint(ifID)}
+		m = bfd.Metrics{
+			Up:              metrics.NewPromGauge(d.Metrics.InterfaceUp).With(labels...),
+			PacketsSent:     metrics.NewPromCounter(d.Metrics.BFDPacketsSent).With(labels...),
+			PacketsReceived: metrics.NewPromCounter(d.Metrics.BFDPacketsReceived).With(labels...),
+		}
 	}
-	return d.addBFDController(ifID, s)
+	s := &bfdSend{
+		conn:       conn,
+		srcAddr:    src.Addr,
+		dstAddr:    dst.Addr,
+		srcIA:      src.IA,
+		dstIA:      dst.IA,
+		ifID:       ifID,
+		macFactory: d.macFactory,
+	}
+	return d.addBFDController(ifID, s, cfg, m)
 }
 
-func (d *DataPlane) addBFDController(ifID uint16, s *bfdSend) error {
-	// TODO(karampok). add extra argument as BFD params{} to set the timers.
-	// TODO(karampok). make the local discriminator random.
+func (d *DataPlane) addBFDController(ifID uint16, s *bfdSend, cfg control.BFD,
+	metrics bfd.Metrics) error {
 
+	if cfg.Disable {
+		return errBFDDisabled
+	}
 	if d.bfdSessions == nil {
 		d.bfdSessions = make(map[uint16]bfdSession)
 	}
@@ -227,36 +270,46 @@ func (d *DataPlane) addBFDController(ifID uint16, s *bfdSend) error {
 		return err
 	}
 	disc := layers.BFDDiscriminator(uint32(discInt.Uint64()) + 1)
-
 	d.bfdSessions[ifID] = &bfd.Session{
 		Sender:                s,
-		DetectMult:            3,
+		DetectMult:            layers.BFDDetectMultiplier(cfg.DetectMult),
 		Logger:                log.New("component", "BFD"),
-		DesiredMinTxInterval:  1 * time.Millisecond,
-		RequiredMinRxInterval: 25 * time.Millisecond,
+		DesiredMinTxInterval:  cfg.DesiredMinTxInterval,
+		RequiredMinRxInterval: cfg.RequiredMinRxInterval,
 		LocalDiscriminator:    disc,
 		ReceiveQueueSize:      10,
+		Metrics:               metrics,
 	}
-
 	return nil
 }
 
-// AddSvc adds the address for the given SVC. This can be called multiple times
-// for the same service, with the address added to the list of addresses that
-// provide the service. This can only be called on a not yet running dataplane.
-func (d *DataPlane) AddSvc(svc addr.HostSVC, a net.Addr) error {
+// AddSvc adds the address for the given service. This can be called multiple
+// times for the same service, with the address added to the list of addresses
+// that provide the service.
+func (d *DataPlane) AddSvc(svc addr.HostSVC, a *net.UDPAddr) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
-	if d.running {
-		return modifyExisting
-	}
 	if a == nil {
 		return emptyValue
 	}
 	if d.svc == nil {
-		d.svc = make(map[addr.HostSVC][]net.Addr)
+		d.svc = newServices()
 	}
-	d.svc[svc] = append(d.svc[svc], a)
+	d.svc.AddSvc(svc, a)
+	return nil
+}
+
+// DelSvc deletes the address for the given service.
+func (d *DataPlane) DelSvc(svc addr.HostSVC, a *net.UDPAddr) error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if a == nil {
+		return emptyValue
+	}
+	if d.svc == nil {
+		return nil
+	}
+	d.svc.DelSvc(svc, a)
 	return nil
 }
 
@@ -285,32 +338,48 @@ func (d *DataPlane) AddNextHop(ifID uint16, a net.Addr) error {
 // AddNextHopBFD adds the BFD session for the next hop address.
 // If the remote ifID belongs to an existing address, the existing
 // BFD session will be re-used.
-func (d *DataPlane) AddNextHopBFD(ifID uint16, a net.Addr) error {
+func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg control.BFD,
+	instance string) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.running {
 		return modifyExisting
 	}
 
-	if a == nil {
+	if dst == nil {
 		return emptyValue
 	}
 
 	for k, v := range d.internalNextHops {
-		if v.String() == a.String() {
+		if v.String() == dst.String() {
 			if c, ok := d.bfdSessions[k]; ok {
 				d.bfdSessions[ifID] = c
 				return nil
 			}
 		}
 	}
-
-	s := &bfdSend{
-		conn: d.internal,
-		addr: a,
+	var m bfd.Metrics
+	if d.Metrics != nil {
+		labels := []string{"isd_as", d.localIA.String(), "instance", instance}
+		m = bfd.Metrics{
+			Up: metrics.NewPromGauge(d.Metrics.SiblingReachable).
+				With(labels...),
+			PacketsSent: metrics.NewPromCounter(d.Metrics.SiblingBFDPacketsSent).
+				With(labels...),
+			PacketsReceived: metrics.NewPromCounter(d.Metrics.SiblingBFDPacketsReceived).
+				With(labels...),
+		}
 	}
-
-	return d.addBFDController(ifID, s)
+	s := &bfdSend{
+		conn:       d.internal,
+		srcAddr:    src,
+		dstAddr:    dst,
+		srcIA:      d.localIA,
+		dstIA:      d.localIA,
+		ifID:       0,
+		macFactory: d.macFactory,
+	}
+	return d.addBFDController(ifID, s, cfg, m)
 }
 
 // Run starts running the dataplane. Note that configuration is not possible
@@ -426,11 +495,22 @@ func (d *DataPlane) processPkt(ingressID uint16, m *ipv4.Message, s slayers.SCIO
 	switch s.PathType {
 	case slayers.PathTypeEmpty:
 		if s.NextHdr == common.L4BFD {
-			return nil, d.processBFD(ingressID, m.Addr, s.Payload)
+			src, err := s.SrcAddr()
+			if err != nil {
+				return nil, serrors.WrapStr("Failed to parse addr", err)
+			}
+			return nil, d.processIntraBFD(src, s.Payload)
 		}
 		return nil, serrors.WithCtx(unsupportedPathTypeNextHeader,
 			"type", s.PathType, "header", s.NextHdr)
 	case slayers.PathTypeOneHop:
+		if s.NextHdr == common.L4BFD {
+			ohp, ok := s.Path.(*onehop.Path)
+			if !ok {
+				return nil, malformedPath
+			}
+			return nil, d.processInterBFD(ingressID, ohp, s.Payload)
+		}
 		return d.processOHP(ingressID, m, s, buffer)
 	case slayers.PathTypeSCION:
 		return d.processSCION(ingressID, m, s, origPacket, buffer)
@@ -439,7 +519,25 @@ func (d *DataPlane) processPkt(ingressID uint16, m *ipv4.Message, s slayers.SCIO
 	}
 }
 
-func (d *DataPlane) processBFD(ingressID uint16, a net.Addr, data []byte) error {
+func (d *DataPlane) processInterBFD(ingressID uint16, oh *onehop.Path, data []byte) error {
+	if len(d.bfdSessions) == 0 {
+		return noBFDSessionConfigured
+	}
+
+	p := &layers.BFD{}
+	if err := p.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
+		return err
+	}
+
+	if v, ok := d.bfdSessions[ingressID]; ok {
+		v.Messages() <- p
+		return nil
+	}
+
+	return noBFDSessionFound
+}
+
+func (d *DataPlane) processIntraBFD(src net.Addr, data []byte) error {
 	if len(d.bfdSessions) == 0 {
 		return noBFDSessionConfigured
 	}
@@ -447,21 +545,31 @@ func (d *DataPlane) processBFD(ingressID uint16, a net.Addr, data []byte) error 
 	if err := p.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
 		return err
 	}
-	if ingressID == 0 && a == nil {
-		return serrors.New("cannot receive packet without source address on internal interface")
+
+	ifID := uint16(0)
+	srcIPAddr, ok := src.(*net.IPAddr)
+	if !ok {
+		return serrors.New("type assertion failure", "from", fmt.Sprintf("%v(%T)", src, src),
+			"expected", "*net.IPAddr")
 	}
-	if a != nil {
-		for k, v := range d.internalNextHops {
-			if v.String() == a.String() {
-				ingressID = k
-				continue
-			}
+
+	for k, v := range d.internalNextHops {
+		remoteUDPAddr, ok := v.(*net.UDPAddr)
+		if !ok {
+			return serrors.New("type assertion failure", "from",
+				fmt.Sprintf("%v(%T)", remoteUDPAddr, remoteUDPAddr), "expected", "*net.UDPAddr")
+		}
+		if bytes.Equal(remoteUDPAddr.IP, srcIPAddr.IP) {
+			ifID = k
+			continue
 		}
 	}
-	if v, ok := d.bfdSessions[ingressID]; ok {
+
+	if v, ok := d.bfdSessions[ifID]; ok {
 		v.Messages() <- p
 		return nil
 	}
+
 	return noBFDSessionFound
 }
 
@@ -501,6 +609,8 @@ type scionPacketProcessor struct {
 	hopField *path.HopField
 	// infoField is the current infoField field, is updated during processing.
 	infoField *path.InfoField
+	// segmentChange indicates if the path segment was changed during processing.
+	segmentChange bool
 }
 
 func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
@@ -655,7 +765,36 @@ func (p *scionPacketProcessor) validateEgressID() error {
 			cannotRoute,
 		)
 	}
-	return nil
+
+	// The following section checks path segment changes.
+	//
+	// Packets from the local AS are either already checked by the ingress
+	// router, or originate in the local AS.
+	if !p.segmentChange || p.ingressID == 0 {
+		return nil
+	}
+
+	// Check that the interface pair is valid on a segment switch.
+	ingress, egress := p.d.linkTypes[p.ingressID], p.d.linkTypes[pktEgressID]
+	switch {
+	case ingress == topology.Core && egress == topology.Child:
+		return nil
+	case ingress == topology.Child && egress == topology.Core:
+		return nil
+	case ingress == topology.Child && egress == topology.Child:
+		return nil
+	default:
+		return p.packSCMP(
+			&slayers.SCMP{
+				TypeCode: slayers.CreateSCMPTypeCode(
+					slayers.SCMPTypeParameterProblem,
+					slayers.SCMPCodeInvalidSegmentChange,
+				),
+			},
+			&slayers.SCMPParameterProblem{Pointer: p.currentInfoPointer()},
+			serrors.WithCtx(cannotRoute, "ingress_id", p.ingressID, "ingress_type", ingress,
+				"egress_id", pktEgressID, "egress_type", egress))
+	}
 }
 
 func (p *scionPacketProcessor) updateNonConsDirIngressSegID() error {
@@ -673,6 +812,11 @@ func (p *scionPacketProcessor) updateNonConsDirIngressSegID() error {
 		}
 	}
 	return nil
+}
+
+func (p *scionPacketProcessor) currentInfoPointer() uint16 {
+	return uint16(slayers.CmnHdrLen + p.scionLayer.AddrHdrLen() +
+		scion.MetaLen + path.InfoLen*int(p.path.PathMeta.CurrINF))
 }
 
 func (p *scionPacketProcessor) currentHopPointer() uint16 {
@@ -734,6 +878,7 @@ func (p *scionPacketProcessor) processEgress() error {
 }
 
 func (p *scionPacketProcessor) doXover() error {
+	p.segmentChange = true
 	if err := p.path.IncPath(); err != nil {
 		// TODO parameter problem invalid path
 		return serrors.WrapStr("incrementing path", err)
@@ -867,7 +1012,6 @@ func (p *scionPacketProcessor) validatePktLen() error {
 
 func (p *scionPacketProcessor) process() (BatchConn, error) {
 
-	// TODO(karampok). Add various packet validations.
 	if err := p.parsePath(); err != nil {
 		return nil, err
 	}
@@ -1004,21 +1148,13 @@ func (d *DataPlane) resolveLocalDst(s slayers.SCION) (net.Addr, error) {
 		return nil, err
 	}
 	if v, ok := dst.(addr.HostSVC); ok {
-		// TODO(karampok). We need to decide if we support multicast. They are
-		// needed to support keepalives in a HA architecture, because we need
-		// to make sure we hit the leader. If yes, then it requires significant
-		// re-factor because the processPkt function cannot anymore return a
-		// batchConn,error, but either an array and alternative approach (e.g.
-		// write message to channel).
-
 		// For map lookup use the Base address, i.e. strip the multi cast
 		// information, because we only register base addresses in the map.
-		if a, ok := d.svc[v.Base()]; ok {
-			if len(a) > 0 {
-				return addEndhostPort(a[0]), nil
-			}
+		a, ok := d.svc.Any(v.Base())
+		if !ok {
+			return nil, noSVCBackend
 		}
-		return nil, noSVCBackend
+		return a, nil
 	}
 	return addEndhostPort(dst), nil
 }
@@ -1046,27 +1182,54 @@ func updateSCIONLayer(m *ipv4.Message, s slayers.SCION, buffer gopacket.Serializ
 }
 
 type bfdSend struct {
-	conn BatchConn
-	addr net.Addr
+	conn             BatchConn
+	srcAddr, dstAddr *net.UDPAddr
+	srcIA, dstIA     addr.IA
+	macFactory       func() hash.Hash
+	ifID             uint16
 }
 
 func (b *bfdSend) String() string {
-	if b.addr == nil {
-		return "external"
-	}
-	return b.addr.String()
+	return b.srcAddr.String()
 }
 
 func (b *bfdSend) Send(bfd *layers.BFD) error {
-	// TODO(karampok). define the scion header for BFD messages.
 	scn := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
 		NextHdr:      common.L4BFD,
-		PathType:     slayers.PathTypeEmpty,
-		Path:         &scion.Decoded{},
+		SrcIA:        b.srcIA,
+		DstIA:        b.dstIA,
 	}
+
+	if err := scn.SetSrcAddr(&net.IPAddr{IP: b.srcAddr.IP}); err != nil {
+		return err
+	}
+	if err := scn.SetDstAddr(&net.IPAddr{IP: b.dstAddr.IP}); err != nil {
+		return err
+	}
+
+	if b.ifID == 0 {
+		scn.PathType = slayers.PathTypeEmpty
+		scn.Path = &empty.Path{}
+	} else {
+		ohp := &onehop.Path{
+			Info: path.InfoField{
+				ConsDir: true,
+				// Subtract 10 seconds to deal with possible clock drift.
+				Timestamp: uint32(time.Now().Unix() - 10),
+			},
+			FirstHop: path.HopField{
+				ConsEgress: b.ifID,
+				ExpTime:    hopFieldDefaultExpTime,
+			},
+		}
+		ohp.FirstHop.Mac = path.MAC(b.macFactory(), &ohp.Info, &ohp.FirstHop)
+		scn.PathType = slayers.PathTypeOneHop
+		scn.Path = ohp
+	}
+
 	buffer := gopacket.NewSerializeBuffer()
 	err := gopacket.SerializeLayers(buffer, gopacket.SerializeOptions{FixLengths: true},
 		scn, bfd)
@@ -1079,7 +1242,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	msg.Buffers[0] = make([]byte, len(raw))
 	copy(msg.Buffers[0], raw)
 	msg.N = len(raw)
-	msg.Addr = b.addr
+	msg.Addr = b.dstAddr
 	_, err = b.conn.WriteBatch(underlayconn.Messages{msg})
 	return err
 }

@@ -15,6 +15,7 @@
 package snet
 
 import (
+	"fmt"
 	"net"
 	"sort"
 	"time"
@@ -89,6 +90,10 @@ func (SCMPExternalInterfaceDownL4) closed() {}
 type SCIONAddress struct {
 	IA   addr.IA
 	Host addr.HostAddr
+}
+
+func (a SCIONAddress) String() string {
+	return fmt.Sprintf("%v,%s", a.IA, a.Host.String())
 }
 
 // SCIONPacketConn gives applications full control over the content of valid SCION

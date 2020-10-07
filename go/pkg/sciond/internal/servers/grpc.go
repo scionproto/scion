@@ -85,12 +85,12 @@ func (s DaemonServer) paths(ctx context.Context,
 	}()
 	getPathsReply, err := s.Fetcher.GetPaths(ctx, iReq)
 	if err != nil {
-		log.FromCtx(ctx).Error("Fetching paths", "err", err, "req", req)
+		log.FromCtx(ctx).Error("Fetching paths", "err", err, "req", iReq)
 		return nil, err
 	}
 	if getPathsReply.ErrorCode != sciond.ErrorOk {
 		log.FromCtx(ctx).Error("Fetching paths error code",
-			"code", getPathsReply.ErrorCode, "req", req)
+			"code", getPathsReply.ErrorCode, "req", iReq)
 		return nil, serrors.New("error code", "code", getPathsReply.ErrorCode)
 	}
 	reply := &sdpb.PathsResponse{}
@@ -160,8 +160,8 @@ func (s DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASResp
 	}
 	core, err := s.ASInspector.HasAttributes(ctx, reqIA, trust.Core)
 	if err != nil {
-		log.FromCtx(ctx).Error("Inspecting IA", "err", err, "ia", reqIA)
-		return nil, serrors.WrapStr("inspecting IA", err)
+		log.FromCtx(ctx).Error("Inspecting ISD-AS", "err", err, "isd_as", reqIA)
+		return nil, serrors.WrapStr("inspecting ISD-AS", err, "isd_as", reqIA)
 	}
 	reply := &sdpb.ASResponse{
 		IsdAs: uint64(reqIA.IAInt()),

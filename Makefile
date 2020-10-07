@@ -38,9 +38,17 @@ protobuf: protobuf_clean
 	tar -kxf bazel-bin/go/pkg/proto/crypto/proto_srcs.tar -C go/pkg/proto/crypto
 	chmod 0644 go/pkg/proto/crypto/*.pb.go
 
+	bazel build //go/pkg/proto/discovery:proto_srcs
+	tar -kxf bazel-bin/go/pkg/proto/discovery/proto_srcs.tar -C go/pkg/proto/discovery
+	chmod 0644 go/pkg/proto/discovery/*.pb.go
+
 	bazel build //go/pkg/proto/daemon:proto_srcs
 	tar -kxf bazel-bin/go/pkg/proto/daemon/proto_srcs.tar -C go/pkg/proto/daemon
 	chmod 0644 go/pkg/proto/daemon/*.pb.go
+
+	bazel build //go/pkg/proto/gateway:proto_srcs
+	tar -kxf bazel-bin/go/pkg/proto/gateway/proto_srcs.tar -C go/pkg/proto/gateway
+	chmod 0644 go/pkg/proto/gateway/*.pb.go
 
 protobuf_clean:
 	rm -f go/pkg/proto/*/*.pb.go

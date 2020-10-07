@@ -21,12 +21,13 @@ import (
 
 	"golang.org/x/crypto/pbkdf2"
 
-	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/pkg/router/brconf"
 )
 
 // Dataplane is the interface that a dataplane has to support to be controlled
@@ -34,14 +35,30 @@ import (
 type Dataplane interface {
 	CreateIACtx(ia addr.IA) error
 	AddInternalInterface(ia addr.IA, local net.UDPAddr) error
-	AddExternalInterface(ia addr.IA, ifid common.IFIDType,
-		local, remote net.UDPAddr, linkTo topology.LinkType, mtu int, owned bool) error
+	AddExternalInterface(localIfID common.IFIDType, info LinkInfo, owned bool) error
 	AddSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error
 	DelSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error
 	SetKey(ia addr.IA, index int, key common.RawBytes) error
 
 	SetRevocation(ia addr.IA, ifid common.IFIDType, rev common.RawBytes) error
 	DelRevocation(ia addr.IA, ifid common.IFIDType) error
+}
+
+// LinkInfo contains the information about a link between an internal and
+// external router.
+type LinkInfo struct {
+	Local    LinkEnd
+	Remote   LinkEnd
+	Instance string
+	LinkTo   topology.LinkType
+	BFD      BFD
+	MTU      int
+}
+
+// LinkEnd represents on end of a link.
+type LinkEnd struct {
+	IA   addr.IA
+	Addr *net.UDPAddr
 }
 
 // ConfigDataplane configures the data-plane with the new configuration.
@@ -107,6 +124,21 @@ func confExternalInterfaces(dp Dataplane, cfg *brconf.BRConf) error {
 	// External interfaces
 	for _, ifid := range ifids {
 		iface := infoMap[ifid]
+		linkInfo := LinkInfo{
+			Local: LinkEnd{
+				IA:   cfg.IA,
+				Addr: snet.CopyUDPAddr(iface.Local),
+			},
+			Remote: LinkEnd{
+				IA:   iface.IA,
+				Addr: snet.CopyUDPAddr(iface.Remote),
+			},
+			Instance: iface.BRName,
+			BFD:      withDefaults(BFD{}),
+			LinkTo:   iface.LinkType,
+			MTU:      iface.MTU,
+		}
+
 		_, owned := cfg.BR.IFs[ifid]
 		if !owned {
 			// XXX The current implementation effectively uses IP/UDP tunnels to create
@@ -114,11 +146,13 @@ func confExternalInterfaces(dp Dataplane, cfg *brconf.BRConf) error {
 			// When setting up external interfaces that belong to other routers in the AS, they
 			// are basically IP/UDP tunnels between the two border routers, and as such is
 			// configured in the data plane.
-			iface.Local = cfg.BR.InternalAddr
-			iface.Remote = iface.InternalAddr
+			linkInfo.Local.Addr = snet.CopyUDPAddr(cfg.BR.InternalAddr)
+			linkInfo.Remote.Addr = snet.CopyUDPAddr(iface.InternalAddr)
+			// For internal BFD always use the default configuration.
+			linkInfo.BFD = bfdDefaults
 		}
-		if err := dp.AddExternalInterface(cfg.IA, ifid, *iface.Local, *iface.Remote,
-			iface.LinkType, iface.MTU, owned); err != nil {
+
+		if err := dp.AddExternalInterface(ifid, linkInfo, owned); err != nil {
 			return err
 		}
 	}

@@ -31,15 +31,6 @@ func layerString(l gopacket.Layer) string {
 	return gopacket.LayerString(l)
 }
 
-func compareLayersString(act, exp gopacket.Layer) error {
-	a := layerString(act)
-	e := layerString(exp)
-	if a != e {
-		return serrors.New(stringDiffPrettyPrint(a, e))
-	}
-	return nil
-}
-
 func compareLayers(act, exp gopacket.Layer) error {
 	if act != nil && exp != nil && bytes.Equal(act.LayerContents(), exp.LayerContents()) {
 		return nil
@@ -57,33 +48,50 @@ func compareLayers(act, exp gopacket.Layer) error {
 		stringDiffPrettyPrint(a, e), expContents, actContents))
 }
 
-func comparePkts(got, want gopacket.Packet) error {
+// normalizePacket applies the normalization function and returns the modified packet.
+func normalizePacket(pkt gopacket.Packet, fn NormalizePacketFn) gopacket.Packet {
+	fn(pkt)
+	var lyrs []gopacket.SerializableLayer
+	for _, layer := range pkt.Layers() {
+		lyrs = append(lyrs, layer.(gopacket.SerializableLayer))
+	}
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{}
+	err := gopacket.SerializeLayers(buf, opts, lyrs...)
+	if err != nil {
+		panic(err)
+	}
+	packet := gopacket.NewPacket(buf.Bytes(), layers.LinkTypeEthernet, gopacket.Default)
+	return packet
+}
+
+// DefaultNormalizePacket zeroes-out all the fields in the packet that can't
+// generally be predicted by the test, both in received and in expected packet
+// and thus makes them equal even if the field value varies among test runs.
+func DefaultNormalizePacket(pkt gopacket.Packet) {
+	for _, l := range pkt.Layers() {
+		switch v := l.(type) {
+		case *layers.IPv4:
+			v.Id = 0
+			v.Checksum = 0
+		case *layers.UDP:
+			v.Checksum = 0
+		}
+	}
+}
+
+func comparePkts(got, want gopacket.Packet, normalizeFn NormalizePacketFn) error {
 	if got == nil || want == nil {
 		return serrors.New("can not compare nil packets")
+	}
+	if normalizeFn != nil {
+		got = normalizePacket(got, normalizeFn)
+		want = normalizePacket(want, normalizeFn)
 	}
 	var err error
 	var errors serrors.List
 	for _, l := range got.Layers() {
-		switch v := l.(type) {
-		case *layers.IPv4:
-			w := want.Layer(layers.LayerTypeIPv4)
-			w.(*layers.IPv4).Checksum = 0
-			v.Id, v.Checksum = 0, 0
-			err = compareLayersString(v, w)
-			// TODO(karampok). Add IPv6
-		case *layers.UDP:
-			w := want.Layer(layers.LayerTypeUDP)
-			w.(*layers.UDP).Checksum = 0
-			v.Checksum = 0
-			err = compareLayersString(v, w)
-		case *layers.BFD:
-			w := want.Layer(layers.LayerTypeBFD)
-			w.(*layers.BFD).MyDiscriminator = 0
-			v.MyDiscriminator = 0
-			err = compareLayersString(v, w)
-		default:
-			err = compareLayers(v, want.Layer(v.LayerType()))
-		}
+		err = compareLayers(l, want.Layer(l.LayerType()))
 		if err != nil {
 			errors = append(errors, serrors.WrapStr("layer mismatch", err))
 		}

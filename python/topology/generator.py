@@ -53,7 +53,7 @@ def add_arguments(parser):
     parser.add_argument('-qos', '--colibri', action='store_true',
                         help='Generate COLIBRI service')
     parser.add_argument('--features', help='Feature flags to enable, a comma separated list\
-                        e.g. header_v2,foo enables header_v2 and foo feature.')
+                        e.g. header_legacy,foo enables header_legacy and foo feature.')
     return parser
 
 

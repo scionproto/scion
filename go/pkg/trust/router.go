@@ -67,7 +67,7 @@ func (r AuthRouter) ChooseServer(ctx context.Context, subjectISD addr.ISD) (net.
 		return nil, serrors.WrapStr("unable to determine dest ISD to query", err)
 	}
 	logger := log.FromCtx(ctx)
-	logger.Debug("[trust:AuthRouter] Getting paths to any authoritative server", "isd", dstISD)
+	logger.Debug("Getting paths to any authoritative server", "isd", dstISD)
 	path, err := r.Router.Route(ctx, addr.IA{I: dstISD})
 	if err != nil {
 		return nil, serrors.WrapStr("unable to find path to any core AS", err, "isd", dstISD)
@@ -91,12 +91,12 @@ func (r AuthRouter) dstISD(ctx context.Context, destination addr.ISD) (addr.ISD,
 		return 0, serrors.WrapStr("error querying DB for TRC", err)
 	}
 	if sTRC.IsZero() {
-		logger.Info("[trust:AuthRouter] Direct to ISD-local authoritative servers",
+		logger.Info("Direct to ISD-local authoritative servers",
 			"reason", "remote TRC not found")
 		return r.ISD, nil
 	}
 	if !sTRC.TRC.Validity.Contains(time.Now()) {
-		logger.Info("[trust:AuthRouter] Direct to ISD-local authoritative servers",
+		logger.Info("Direct to ISD-local authoritative servers",
 			"reason", "remote TRC outside of validity period")
 		return r.ISD, nil
 	}
