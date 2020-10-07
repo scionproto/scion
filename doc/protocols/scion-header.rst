@@ -489,10 +489,23 @@ that once observed or brute-forced the hop authenticators for some
 path can use them to send arbitrary traffic along this path. EPIC-HP
 solves this problem on the last link, which is particularly
 important for the security of hidden paths.
+
+The EPIC-HP header has the following structure:
+   - A *PacketTimestamp* field (8 bytes)
+   - A 4-byte *PHVF* (Penultimate Hop Validation Field)  and a
+     4-byte *LHVF* (Last Hop Validation Field)
+   - The path header of the SCION path type, where one bit
+     of the Path Meta Header is used to indicate whether the sender
+     accepts SCION path type response packets.
+
 ::
 
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                        PacketTimestamp                        |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                             PHVF                              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                             LHVF                              |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                          PathMetaHdr                          |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -508,18 +521,6 @@ important for the security of hidden paths.
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                           HopField                            |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                             PHVF                              |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                             LHVF                              |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-The EPIC-HP header has the following structure:
-   - A *PacketTimestamp* field (8 bytes)
-   - The path header of the SCION path type, where one bit
-     of the Path Meta Header is used to indicate whether the sender
-     accepts SCION path type response packets.
-   - A 4-byte *PHVF* (Penultimate Hop Validation Field)  and a
-     4-byte *LHVF* (Last Hop Validation Field)
 
 The EPIC-HP header contains the full SCION path type header. The
 calculation of the hop field MAC is identical. This allows the
@@ -598,29 +599,30 @@ TsRel
     \begin{align}
         \text{Timestamp}_{\mu s} &= \text{Timestamp [s]}
             \times 10^6 \\
-        \text{Ts} &= \text{current unix timestamp [\mu s]}  \\
+        \text{Ts} &= \text{current unix timestamp [}\mu s\text{]}  \\
         \text{q} &= \left\lceil\left(\frac{24 \times 60 \times 60
-            \times 10^6}{2^{32}}\right)\right\rceil\text{\mu s}
-            = \text{21 \mu s}\\
+            \times 10^6}{2^{32}}\right)\right\rceil\mu s
+            = \text{21}\mu s\\
         \text{TsRel} &= \text{max} \left\{0,
             \frac{\text{Ts - Timestamp}_{\mu s}}
             {\text{q}} -1 \right\} \\
-        \textit{Get back the time when} &\textit{the packet
+        \textit{Get back the time when} &~\textit{the packet
         was timestamped:} \\
         \text{Ts} &= \text{Timestamp}_{\mu s} + (1 + \text{TsRel})
             \times \text{q}
     \end{align}
 
-TsRel has a precision of :math:`\text{21 \mu s}` and covers at least
+TsRel has a precision of :math:`21 \mu s` and covers at least
 one day (1 day and 63 minutes). When sending packets at high speeds
-(more than one packet every :math:`\text{21 \mu s}`) or when using
+(more than one packet every :math:`21 \mu s`) or when using
 multiple cores, collisions may occur in TsRel. To solve this
 problem, the source further identifies the packet using PckId.
 
 PckId
-  A 4-byte identifier that allows to distinguish two packets with
-  the same TsRel. Every source is free to set PckId arbitrarily, but
-  we recommend to use the following structure:
+  A 4-byte identifier that allows to distinguish packets with
+  the same TsRel. Every source is free to set PckId arbitrarily
+  (it only needs to be unique for all packets with the same TsRel),
+  but we recommend to use the following structure:
 
 ::
 

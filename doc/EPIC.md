@@ -89,7 +89,7 @@ meaningful level of security:
       Hidden Paths" [here](#DOSSecureHiddenPaths).
 
 - The last two ASes of the hidden path have a duplicate-suppression
-  system in place. This prohibits DOS attacks based on replayed
+  system in place [[3]](#3). This prohibits DOS attacks based on replayed
   packets.
 
 ### Example
@@ -171,7 +171,7 @@ communication, or the dedicated hidden path infastructure [[2]](#2).
 Network operators should be able to clearly define which kind of
 traffic (SCION, EPIC-HP, COLIBRI, and other protocols) they want to
 allow.
-Therefore, for each AS and every interface pair, an AS needs to be
+Therefore, for each AS and every interface pair, it should be
 configurable to allow only certain types of traffic.
 The path type filtering between two interfaces can be different
 depending on the direction of the traffic. We might for example only
