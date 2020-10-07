@@ -57,28 +57,6 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: "IT: (svisor) Revocation tests"
-    if: build.message !~ /\[doc\]/
-    command:
-      - echo "--- start topology (including build)"
-      - ./scion.sh topology --features=header_legacy
-      - ./scion.sh run && sleep 10
-      - echo "--- run tests"
-      - ./bin/end2end_integration --features=header_legacy || ( echo "^^^ +++" && false )
-      - DOCKER_ARGS='--features=header_legacy' ./integration/revocation_test.sh || ( echo "^^^ +++" && false )
-    key: revocation_tests
-    plugins:
-      - scionproto/metahook#v0.3.0:
-          post-command: |
-            echo "--- Shutting down SCION topology"
-            ./scion.sh stop
-            echo "SCION topology successfully shut down"
-    artifact_paths:
-      - "artifacts.out/**/*"
-    retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-        - exit_status: 255 # Forced agent shutdown
   - label: "IT: (svisor) {pp,end2end,scmp}"
     if: build.message !~ /\[doc\]/
     command:
