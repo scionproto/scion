@@ -168,10 +168,13 @@ func (nc *NetworkConfig) AddressRewriter(
 			SCMPHandler: nc.SCMPHandler,
 		}
 	}
-	return &messenger.AddressRewriter{
-		Router:    &snet.BaseRouter{Querier: snet.IntraASPathQuerier{IA: nc.IA}},
-		SVCRouter: nc.SVCRouter,
-		Resolver: &svc.Resolver{
+	var resolver messenger.Resolver = &svc.Resolver{
+		LocalIA:     nc.IA,
+		ConnFactory: connFactory,
+		LocalIP:     nc.Public.IP,
+	}
+	if !nc.Version2 {
+		resolver = &svc.LegacyResolver{
 			LocalIA:     nc.IA,
 			ConnFactory: connFactory,
 			LocalIP:     nc.Public.IP,
@@ -181,9 +184,13 @@ func (nc *NetworkConfig) AddressRewriter(
 			// SVC resolution. Legacy SVC traffic sent by legacy clients
 			// will have a non-0 value, and thus not trigger resolution
 			// logic.
-			Payload:  resolutionRequestPayload,
-			HeaderV2: nc.Version2,
-		},
+			Payload: resolutionRequestPayload,
+		}
+	}
+	return &messenger.AddressRewriter{
+		Router:                &snet.BaseRouter{Querier: snet.IntraASPathQuerier{IA: nc.IA}},
+		SVCRouter:             nc.SVCRouter,
+		Resolver:              resolver,
 		SVCResolutionFraction: 1.337,
 	}
 }
@@ -202,6 +209,17 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 	if err != nil {
 		return nil, serrors.WrapStr("building SVC resolution reply", err)
 	}
+	var svcHandler svc.RequestHandler = &svc.BaseHandler{
+		Message: svcResolutionReply,
+	}
+	if !nc.Version2 {
+		svcHandler = &LegacyForwardingHandler{
+			BaseHandler: &svc.BaseHandler{
+				Message: svcResolutionReply,
+			},
+			ExpectedPayload: resolutionRequestPayload,
+		}
+	}
 
 	dispatcherService := reliable.NewDispatcher("")
 	if nc.ReconnectToDispatcher {
@@ -213,12 +231,7 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 			Version2:    nc.Version2,
 			SCMPHandler: nc.SCMPHandler,
 		},
-		&LegacyForwardingHandler{
-			BaseHandler: &svc.BaseHandler{
-				Message: svcResolutionReply,
-			},
-			ExpectedPayload: resolutionRequestPayload,
-		},
+		svcHandler,
 	)
 	network := &snet.SCIONNetwork{
 		LocalIA:    nc.IA,

@@ -64,12 +64,12 @@ func (c *Cleaner) Run(ctx context.Context) {
 	count, err := c.deleter(ctx)
 	logger := log.FromCtx(ctx)
 	if err != nil {
-		logger.Error("[Cleaner] Failed to delete", "subsystem", c.subsystem, "err", err)
+		logger.Error("Failed to delete", "subsystem", c.subsystem, "err", err)
 		c.metric.resultsTotal.WithLabelValues("err").Inc()
 		return
 	}
 	if count > 0 {
-		logger.Info("[Cleaner] Deleted expired", "subsystem", c.subsystem, "count", count)
+		logger.Info("Deleted expired", "subsystem", c.subsystem, "count", count)
 		c.metric.deletedTotal.Add(float64(count))
 	}
 	c.metric.resultsTotal.WithLabelValues("ok").Inc()

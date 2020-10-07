@@ -59,7 +59,7 @@ var (
 		{IA: ia331, IfID: 6},
 		{IA: ia332, IfID: 1},
 	}
-	timeout = time.Second
+	timeout = 5 * time.Second
 )
 
 // TestablePathDB extends the path db interface with methods that are needed

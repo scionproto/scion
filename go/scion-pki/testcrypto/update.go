@@ -130,15 +130,15 @@ func extendTRC(now time.Time, out string, pred cppki.SignedTRC) error {
 		case cppki.Regular:
 			key, err := findkey(cryptoVotingDir(*ia, out), cert)
 			if err != nil {
-				return serrors.WrapStr("searching key", err, "ia", *ia, "type", t)
+				return serrors.WrapStr("searching key", err, "isd_as", *ia, "type", t)
 			}
 			extended, err := extendCert(now, cert, key)
 			if err != nil {
-				return serrors.WrapStr("creating certificate", err, "ia", *ia, "type", t)
+				return serrors.WrapStr("creating certificate", err, "isd_as", *ia, "type", t)
 			}
 			file := filepath.Join(out, "certs", regularCertName(*ia, int(pred.TRC.ID.Serial+1)))
 			if err := writeCert(file, extended); err != nil {
-				return serrors.WrapStr("writing certificate", err, "ia", *ia, "type", t)
+				return serrors.WrapStr("writing certificate", err, "isd_as", *ia, "type", t)
 			}
 			// Cast vote and show proof of possession.
 			signers[cert] = key
@@ -148,15 +148,15 @@ func extendTRC(now time.Time, out string, pred cppki.SignedTRC) error {
 		case cppki.Root:
 			key, err := findkey(cryptoCADir(*ia, out), cert)
 			if err != nil {
-				return serrors.WrapStr("searching key", err, "ia", *ia, "type", t)
+				return serrors.WrapStr("searching key", err, "isd_as", *ia, "type", t)
 			}
 			extended, err := extendCert(now, cert, key)
 			if err != nil {
-				return serrors.WrapStr("creating certificate", err, "ia", *ia, "type", t)
+				return serrors.WrapStr("creating certificate", err, "isd_as", *ia, "type", t)
 			}
 			file := filepath.Join(out, "certs", rootCertName(*ia, int(pred.TRC.ID.Serial+1)))
 			if err := writeCert(file, extended); err != nil {
-				return serrors.WrapStr("writing certificate", err, "ia", *ia, "type", t)
+				return serrors.WrapStr("writing certificate", err, "isd_as", *ia, "type", t)
 			}
 			// Show acknowledgment
 			signers[cert] = key
@@ -208,7 +208,7 @@ func resignTRC(now time.Time, out string, pred cppki.SignedTRC) error {
 		if t == cppki.Regular {
 			key, err := findkey(cryptoVotingDir(*ia, out), cert)
 			if err != nil {
-				return serrors.WrapStr("searching key", err, "ia", *ia, "type", t)
+				return serrors.WrapStr("searching key", err, "isd_as", *ia, "type", t)
 			}
 			signers[cert] = key
 			votes = append(votes, i)

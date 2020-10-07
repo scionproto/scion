@@ -20,6 +20,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -28,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/svc/internal/ctxconn"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
 // Internal resolver errors. These are implementation details and can change,
@@ -43,6 +45,17 @@ const (
 	errBadPath        common.ErrMsg = "unable to parse return path"
 )
 
+// For now, the request payload does not need to be dynamic. We initialize it
+// once on application start.
+var requestPayload []byte
+
+func init() {
+	var err error
+	if requestPayload, err = proto.Marshal(&cppb.ServiceResolutionRequest{}); err != nil {
+		panic(err)
+	}
+}
+
 // Resolver performs SVC address resolution.
 type Resolver struct {
 	// LocalIA is the local AS.
@@ -54,10 +67,6 @@ type Resolver struct {
 	// RoundTripper performs the request/reply exchange for SVC resolutions. If
 	// nil, the default round tripper is used.
 	RoundTripper RoundTripper
-	// Payload is used for the data part of SVC requests.
-	Payload []byte
-
-	HeaderV2 bool
 }
 
 // LookupSVC resolves the SVC address for the AS terminating the path.
@@ -66,8 +75,71 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 	span, ctx = opentracing.StartSpanFromContext(ctx, "svc.resolution")
 	defer span.Finish()
 
-	// FIXME(scrye): Assume registration is always instant for now. This,
-	// however, should respect ctx.
+	u := &net.UDPAddr{
+		IP: r.LocalIP,
+	}
+
+	conn, port, err := r.ConnFactory.Register(ctx, r.LocalIA, u, addr.SvcNone)
+	if err != nil {
+		ext.Error.Set(span, true)
+		return nil, serrors.Wrap(errRegistration, err)
+	}
+
+	requestPacket := &snet.Packet{
+		PacketInfo: snet.PacketInfo{
+			Source: snet.SCIONAddress{
+				IA:   r.LocalIA,
+				Host: addr.HostFromIP(r.LocalIP),
+			},
+			Destination: snet.SCIONAddress{
+				IA:   p.Destination(),
+				Host: svc,
+			},
+			Path: p.Path(),
+			PayloadV2: snet.UDPPayload{
+				SrcPort: port,
+				Payload: requestPayload,
+			},
+		},
+	}
+	reply, err := r.getRoundTripper().RoundTrip(ctx, conn, requestPacket, p.UnderlayNextHop())
+	if err != nil {
+		ext.Error.Set(span, true)
+		return nil, err
+	}
+	return reply, nil
+}
+
+func (r *Resolver) getRoundTripper() RoundTripper {
+	if r.RoundTripper == nil {
+		return DefaultRoundTripper()
+	}
+	return r.RoundTripper
+}
+
+// LegacyResolver performs SVC address resolution with legacy header.
+type LegacyResolver struct {
+	// LocalIA is the local AS.
+	LocalIA addr.IA
+	// ConnFactory is used to open ports for SVC resolution messages.
+	ConnFactory snet.PacketDispatcherService
+	// LocalIP is the default L3 address for connections originating from this process.
+	LocalIP net.IP
+	// RoundTripper performs the request/reply exchange for SVC resolutions. If
+	// nil, the default round tripper is used.
+	RoundTripper RoundTripper
+	// Payload is used for the data part of SVC requests.
+	Payload []byte
+}
+
+// LookupSVC resolves the SVC address for the AS terminating the path.
+func (r *LegacyResolver) LookupSVC(ctx context.Context, p snet.Path,
+	svc addr.HostSVC) (*Reply, error) {
+
+	var span opentracing.Span
+	span, ctx = opentracing.StartSpanFromContext(ctx, "svc.resolution")
+	defer span.Finish()
+
 	u := &net.UDPAddr{
 		IP: r.LocalIP,
 	}
@@ -89,30 +161,11 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 				Host: svc,
 			},
 			Path: p.Path(),
-			PayloadV2: snet.UDPPayload{
+			L4Header: &l4.UDP{
 				SrcPort: port,
-				Payload: r.Payload,
 			},
+			Payload: common.RawBytes(r.Payload),
 		},
-	}
-	if !r.HeaderV2 {
-		requestPacket = &snet.Packet{
-			PacketInfo: snet.PacketInfo{
-				Source: snet.SCIONAddress{
-					IA:   r.LocalIA,
-					Host: addr.HostFromIP(r.LocalIP),
-				},
-				Destination: snet.SCIONAddress{
-					IA:   p.Destination(),
-					Host: svc,
-				},
-				Path: p.Path(),
-				L4Header: &l4.UDP{
-					SrcPort: port,
-				},
-				Payload: common.RawBytes(r.Payload),
-			},
-		}
 	}
 	reply, err := r.getRoundTripper().RoundTrip(ctx, conn, requestPacket, p.UnderlayNextHop())
 	if err != nil {
@@ -122,7 +175,7 @@ func (r *Resolver) LookupSVC(ctx context.Context, p snet.Path, svc addr.HostSVC)
 	return reply, nil
 }
 
-func (r *Resolver) getRoundTripper() RoundTripper {
+func (r *LegacyResolver) getRoundTripper() RoundTripper {
 	if r.RoundTripper == nil {
 		return DefaultRoundTripper()
 	}

@@ -109,16 +109,16 @@ func (r *Revoker) Run(ctx context.Context) {
 		if intf.Revoke() && !r.hasValidRevocation(intf) {
 			if intf.Revocation() == nil {
 				labelsIssued.State = metrics.RevNew
-				logger.Info("[ifstate.Revoker] interface went down", "ifid", ifid)
+				logger.Info("interface went down", "ifid", ifid)
 			}
 			srev, err := r.createSignedRev(ifid)
 			if err != nil {
-				logger.Error("[ifstate.Revoker] Failed to create revocation",
+				logger.Error("Failed to create revocation",
 					"ifid", ifid, "err", err)
 				continue
 			}
 			if err := intf.SetRevocation(srev); err != nil {
-				logger.Error("[ifstate.Revoker] Failed to revoke!", "ifid", ifid, "err", err)
+				logger.Error("Failed to revoke!", "ifid", ifid, "err", err)
 				continue
 			}
 			if rev, err := srev.RevInfo(); err != nil {
@@ -131,7 +131,7 @@ func (r *Revoker) Run(ctx context.Context) {
 	if len(revs) > 0 {
 		wg := &sync.WaitGroup{}
 		if err := r.cfg.RevInserter.InsertRevocations(ctx, toSlice(revs)...); err != nil {
-			logger.Error("[ifstate.Revoker] Failed to insert revocations in store", "err", err)
+			logger.Error("Failed to insert revocations in store", "err", err)
 			// still continue to try to push it to BR/PS.
 		}
 		r.pushRevocationsToBRs(ctx, revs, wg)

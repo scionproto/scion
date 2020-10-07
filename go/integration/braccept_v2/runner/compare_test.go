@@ -46,7 +46,7 @@ func TestComparePkt(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			err := comparePkts(tc.got, tc.want)
+			err := comparePkts(tc.got, tc.want, nil)
 			assert.Error(t, err)
 		})
 	}

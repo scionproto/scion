@@ -59,7 +59,7 @@ func realMain() int {
 	args := []string{cmd, "-c", strconv.Itoa(*attempts), "-O", integration.DstHostReplace}
 	in := integration.NewBinaryIntegration(name, integration.WrapperCmd, args, nil)
 	err := integration.RunUnaryTests(in, integration.UniqueIAPairs(acceptance.SigAddr),
-		time.Duration(*attempts)*time.Second+integration.DefaultRunTimeout)
+		time.Duration(*attempts)*2*time.Second+integration.DefaultRunTimeout)
 	if !*fail && err != nil {
 		// The pings were supposed to get through but they didn't.
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)

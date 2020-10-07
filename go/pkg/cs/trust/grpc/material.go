@@ -62,12 +62,12 @@ func (s MaterialServer) Chains(ctx context.Context,
 
 	query, err := requestToChainQuery(req)
 	if err != nil {
-		logger.Debug("Invalid chain request", "peer", peer, "err", err)
+		logger.Debug("Invalid chain request", "peer", peer.Addr, "err", err)
 		s.updateMetric(span, labels.WithResult(trustmetrics.ErrParse), err)
 		return nil, err
 	}
 	setChainsTags(span, query)
-	logger.Debug("Received chain request", "query", query, "peer", peer)
+	logger.Debug("Received chain request", "query", query, "peer", peer.Addr)
 
 	chains, err := s.Provider.GetChains(ctx, query, trust.AllowInactive(), trust.Client(peer.Addr))
 	if err != nil {
@@ -94,12 +94,12 @@ func (s MaterialServer) TRC(ctx context.Context, req *cppb.TRCRequest) (*cppb.TR
 
 	id, err := requestToTRCQuery(req)
 	if err != nil {
-		logger.Debug("Invalid TRC request", "peer", peer, "err", err)
+		logger.Debug("Invalid TRC request", "peer", peer.Addr, "err", err)
 		s.updateMetric(span, labels.WithResult(trustmetrics.ErrParse), err)
 		return nil, err
 	}
 	setTRCTags(span, id)
-	logger.Debug("Received TRC request", "id", id, "peer", peer)
+	logger.Debug("Received TRC request", "id", id, "peer", peer.Addr)
 
 	trc, err := s.Provider.GetSignedTRC(ctx, id, trust.AllowInactive(), trust.Client(peer.Addr))
 	if err != nil {

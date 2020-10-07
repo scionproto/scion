@@ -127,6 +127,7 @@ func initNetwork(cfg sigconfig.SigConf, sdCfg env.SCIONDClient,
 			SCMPHandler: scmpHandler,
 			Version2:    features.HeaderV2,
 		},
+		Version2: features.HeaderV2,
 	}
 	return network, sciondConn, pathResolver, nil
 }

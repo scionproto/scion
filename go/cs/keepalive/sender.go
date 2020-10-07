@@ -49,7 +49,7 @@ func (s *Sender) Run(ctx context.Context) {
 	logger := log.FromCtx(ctx)
 	topo := s.TopoProvider.Get()
 	if topo == nil {
-		logger.Error("[keepalive.Sender] Unable to send keepalive, no topology set")
+		logger.Error("Unable to send keepalive, no topology set")
 		return
 	}
 	var sentIfids []common.IFIDType
@@ -57,7 +57,7 @@ func (s *Sender) Run(ctx context.Context) {
 		l := metrics.KeepaliveLabels{IfID: ifid, Result: metrics.ErrProcess}
 		pld, err := s.createPld(ctx, ifid)
 		if err != nil {
-			logger.Error("[keepalive.Sender] Unable to create payload", "err", err)
+			logger.Error("Unable to create payload", "err", err)
 			metrics.Keepalive.Transmits(l).Inc()
 			continue
 		}
@@ -71,7 +71,7 @@ func (s *Sender) Run(ctx context.Context) {
 			Pld:      pld,
 		}
 		if err := s.Send(msg, intf.InternalAddr); err != nil {
-			logger.Error("[keepalive.Sender] Unable to send packet", "err", err)
+			logger.Error("Unable to send packet", "err", err)
 			metrics.Keepalive.Transmits(l).Inc()
 			continue
 		}
@@ -82,7 +82,7 @@ func (s *Sender) Run(ctx context.Context) {
 		metrics.Keepalive.Transmits(l).Inc()
 	}
 	if len(sentIfids) > 0 {
-		logger.Debug("[keepalive.Sender] Sent keepalives", "ifids", sentIfids)
+		logger.Debug("Sent keepalives", "ifids", sentIfids)
 	}
 }
 

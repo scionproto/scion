@@ -45,10 +45,12 @@ go_library(
         "//go/lib/topology:go_default_library",
         "//go/pkg/cs/ifstate/grpc:go_default_library",
         "//go/pkg/cs/trust:go_default_library",
+        "//go/pkg/discovery:go_default_library",
         "//go/pkg/grpc:go_default_library",
         "//go/pkg/service:go_default_library",
         "//go/pkg/trust:go_default_library",
         "//go/pkg/trust/renewal:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
     ],
 )

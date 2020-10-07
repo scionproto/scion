@@ -87,7 +87,7 @@ func (h *handler) Handle() *infra.HandlerResult {
 	logger := log.FromCtx(h.request.Context())
 	res, err := h.handle(logger)
 	if err != nil {
-		logger.Error("[KeepaliveHandler] Unable to handle keepalive", "err", err)
+		logger.Error("Unable to handle keepalive", "err", err)
 	}
 	return res
 }
@@ -101,7 +101,7 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 			"Wrong message type, expected ifid.IFID", nil,
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 	}
-	logger.Debug("[KeepaliveHandler] Received", "ifidKeepalive", keepalive)
+	logger.Debug("Received", "ifidKeepalive", keepalive)
 	ifid, info, err := h.getIntfInfo()
 	if err != nil {
 		metrics.Keepalive.Receives(labels).Inc()
@@ -109,14 +109,14 @@ func (h *handler) handle(logger log.Logger) (*infra.HandlerResult, error) {
 	}
 	labels.IfID = ifid
 	if lastState := info.Activate(keepalive.OrigIfID); lastState != ifstate.Active {
-		logger.Info("[KeepaliveHandler] Activated interface", "ifid", ifid)
+		logger.Info("Activated interface", "ifid", ifid)
 		h.startPush(ifid)
 		if err := h.dropRevs(ifid, keepalive.OrigIfID, info.TopoInfo().IA); err != nil {
 			metrics.Keepalive.Receives(labels).Inc()
 			return infra.MetricsErrInternal, common.NewBasicError("Unable to drop revocations", err)
 		}
 	}
-	logger.Debug("[KeepaliveHandler] Successfully handled", "keepalive", keepalive)
+	logger.Debug("Successfully handled", "keepalive", keepalive)
 	labels.Result = metrics.Success
 	metrics.Keepalive.Receives(labels).Inc()
 	return infra.MetricsResultOk, nil

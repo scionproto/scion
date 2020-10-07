@@ -25,6 +25,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing"
@@ -32,7 +34,7 @@ import (
 	"github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/cs/keepalive"
-	"github.com/scionproto/scion/go/cs/metrics"
+	csmetrics "github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/cs/onehop"
 	segreggrpc "github.com/scionproto/scion/go/cs/segreg/grpc"
 	"github.com/scionproto/scion/go/cs/segreq"
@@ -63,8 +65,10 @@ import (
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	cstrustgrpc "github.com/scionproto/scion/go/pkg/cs/trust/grpc"
 	cstrustmetrics "github.com/scionproto/scion/go/pkg/cs/trust/metrics"
+	"github.com/scionproto/scion/go/pkg/discovery"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
+	dpb "github.com/scionproto/scion/go/pkg/proto/discovery"
 	"github.com/scionproto/scion/go/pkg/storage"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/compat"
@@ -116,8 +120,10 @@ func run(file string) error {
 	defer log.HandlePanic()
 	// TODO(roosd): This should be refactored when applying the new metrics
 	// approach.
-	metrics.InitBSMetrics()
-	metrics.InitPSMetrics()
+	csmetrics.InitBSMetrics()
+	csmetrics.InitPSMetrics()
+	metrics := cs.NewMetrics()
+
 	intfs, err := setup(&cfg)
 	if err != nil {
 		return err
@@ -204,9 +210,10 @@ func run(file string) error {
 		},
 	}
 	fetcherCfg := segreq.FetcherConfig{
-		IA:       topo.IA(),
-		PathDB:   pathDB,
-		RevCache: revCache,
+		IA:            topo.IA(),
+		PathDB:        pathDB,
+		RevCache:      revCache,
+		QueryInterval: cfg.PS.QueryInterval.Duration,
 		RPC: &segfetchergrpc.Requester{
 			Dialer: dialer,
 		},
@@ -250,7 +257,7 @@ func run(file string) error {
 			Inserter:       beaconStore,
 			Interfaces:     intfs,
 			Verifier:       verifier,
-			BeaconsHandled: libmetrics.NewPromCounter(metrics.Beaconing.BeaconsReceived),
+			BeaconsHandled: libmetrics.NewPromCounter(csmetrics.Beaconing.BeaconsReceived),
 		},
 	})
 
@@ -262,9 +269,9 @@ func run(file string) error {
 			PathDB:      pathDB,
 		},
 		RevCache:        revCache,
-		Requests:        libmetrics.NewPromCounter(metrics.Requests.Requests),
-		SegmentsSent:    libmetrics.NewPromCounter(metrics.Requests.SegmentsSent),
-		RevocationsSent: libmetrics.NewPromCounter(metrics.Requests.RevocationsSent),
+		Requests:        libmetrics.NewPromCounter(csmetrics.Requests.Requests),
+		SegmentsSent:    libmetrics.NewPromCounter(csmetrics.Requests.SegmentsSent),
+		RevocationsSent: libmetrics.NewPromCounter(csmetrics.Requests.RevocationsSent),
 	}
 	forwardingLookupServer := &segreqgrpc.LookupServer{
 		Lookuper: segreq.ForwardingLookup{
@@ -279,9 +286,9 @@ func run(file string) error {
 			},
 		},
 		RevCache:        revCache,
-		Requests:        libmetrics.NewPromCounter(metrics.Requests.Requests),
-		SegmentsSent:    libmetrics.NewPromCounter(metrics.Requests.SegmentsSent),
-		RevocationsSent: libmetrics.NewPromCounter(metrics.Requests.RevocationsSent),
+		Requests:        libmetrics.NewPromCounter(csmetrics.Requests.Requests),
+		SegmentsSent:    libmetrics.NewPromCounter(csmetrics.Requests.SegmentsSent),
+		RevocationsSent: libmetrics.NewPromCounter(csmetrics.Requests.RevocationsSent),
 	}
 
 	// Always register a forwarding lookup for AS internal requests.
@@ -304,7 +311,7 @@ func run(file string) error {
 					RevCache: revCache,
 				},
 			},
-			Registrations: libmetrics.NewPromCounter(metrics.Registrations.Registrations),
+			Registrations: libmetrics.NewPromCounter(csmetrics.Registrations.Registrations),
 		})
 
 	}
@@ -376,6 +383,17 @@ func run(file string) error {
 		10*time.Second,
 		5*time.Second,
 	)
+
+	ds := discovery.Topology{
+		Provider: itopo.Provider(),
+		Requests: libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
+	}
+	dpb.RegisterDiscoveryServiceServer(quicServer, ds)
+	dpb.RegisterDiscoveryServiceServer(tcpServer, ds)
+
+	dsHealth := health.NewServer()
+	dsHealth.SetServingStatus("discovery", healthpb.HealthCheckResponse_SERVING)
+	healthpb.RegisterHealthServer(tcpServer, dsHealth)
 
 	go func() {
 		defer log.HandlePanic()

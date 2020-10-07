@@ -106,7 +106,7 @@ func TestSCMPSerializeTo(t *testing.T) {
 		},
 		"valid with checksum": {
 			raw: append([]byte{
-				0x5, 0x0, 0x9a, 0xcc, // header
+				0x5, 0x0, 0x9a, 0x03, // header
 			}, bytes.Repeat([]byte{0xff}, 15)...), // payload
 			decoded: &slayers.SCMP{
 				TypeCode: slayers.CreateSCMPTypeCode(5, 0),
@@ -143,21 +143,21 @@ func TestSCMP(t *testing.T) {
 	}{
 		"destination unreachable": {
 			raw: append([]byte{
-				0x1, 0x6, 0x9f, 0xb2, // header SCMP
+				0x1, 0x6, 0x9e, 0xe9, // header SCMP
 				0x0, 0x0, 0x00, 0x00, // header SCMP msg
 			}, bytes.Repeat([]byte{0xff}, 15)...), // final payload
 			decodedLayers: []gopacket.SerializableLayer{
 				&slayers.SCMP{
 					BaseLayer: layers.BaseLayer{
 						Contents: []byte{
-							0x1, 0x6, 0x9f, 0xb2, // header SCMP
+							0x1, 0x6, 0x9e, 0xe9, // header SCMP
 						},
 						Payload: append([]byte{
 							0x0, 0x0, 0x00, 0x00,
 						}, bytes.Repeat([]byte{0xff}, 15)...),
 					},
 					TypeCode: slayers.CreateSCMPTypeCode(1, slayers.SCMPCodeRejectRouteToDest),
-					Checksum: 0x9fb2,
+					Checksum: 0x9ee9,
 				},
 				&slayers.SCMPDestinationUnreachable{
 					BaseLayer: layers.BaseLayer{
@@ -174,21 +174,21 @@ func TestSCMP(t *testing.T) {
 		// "packet too big":          {},
 		"parameter problem": {
 			raw: append([]byte{
-				0x4, 0x0, 0x9c, 0x76, // header SCMP
+				0x4, 0x0, 0x9b, 0xad, // header SCMP
 				0x0, 0x0, 0x00, 0x42, // header SCMP msg
 			}, bytes.Repeat([]byte{0xff}, 15)...), // final payload
 			decodedLayers: []gopacket.SerializableLayer{
 				&slayers.SCMP{
 					BaseLayer: layers.BaseLayer{
 						Contents: []byte{
-							0x4, 0x0, 0x9c, 0x76, // header SCMP
+							0x4, 0x0, 0x9b, 0xad, // header SCMP
 						},
 						Payload: append([]byte{
 							0x0, 0x0, 0x00, 0x42,
 						}, bytes.Repeat([]byte{0xff}, 15)...),
 					},
 					TypeCode: slayers.CreateSCMPTypeCode(4, slayers.SCMPCodeErroneousHeaderField),
-					Checksum: 0x9c76,
+					Checksum: 0x9bad,
 				},
 				&slayers.SCMPParameterProblem{
 					BaseLayer: layers.BaseLayer{
@@ -205,7 +205,7 @@ func TestSCMP(t *testing.T) {
 		},
 		"internal connectivity down": {
 			raw: append([]byte{
-				0x6, 0x0, 0x9a, 0x7d, // header SCMP
+				0x6, 0x0, 0x99, 0xb4, // header SCMP
 				0x0, 0x1, 0xff, 0x0, // start header SCMP msg
 				0x0, 0x0, 0x1, 0x11,
 				0x0, 0x0, 0x0, 0x0,
@@ -217,7 +217,7 @@ func TestSCMP(t *testing.T) {
 				&slayers.SCMP{
 					BaseLayer: layers.BaseLayer{
 						Contents: []byte{
-							0x6, 0x0, 0x9a, 0x7d, // header SCMP
+							0x6, 0x0, 0x99, 0xb4, // header SCMP
 						},
 						Payload: append([]byte{
 							0x0, 0x1, 0xff, 0x0,
@@ -229,7 +229,7 @@ func TestSCMP(t *testing.T) {
 						}, bytes.Repeat([]byte{0xff}, 15)...),
 					},
 					TypeCode: slayers.CreateSCMPTypeCode(6, 0),
-					Checksum: 0x9a7d,
+					Checksum: 0x99b4,
 				},
 				&slayers.SCMPInternalConnectivityDown{
 					BaseLayer: layers.BaseLayer{
@@ -253,7 +253,7 @@ func TestSCMP(t *testing.T) {
 		},
 		"external interface down": {
 			raw: append([]byte{
-				0x5, 0x0, 0x9b, 0x94, // header SCMP
+				0x5, 0x0, 0x9a, 0xcb, // header SCMP
 				0x0, 0x1, 0xff, 0x0, // start header SCMP msg
 				0x0, 0x0, 0x1, 0x11,
 				0x0, 0x0, 0x0, 0x0,
@@ -263,7 +263,7 @@ func TestSCMP(t *testing.T) {
 				&slayers.SCMP{
 					BaseLayer: layers.BaseLayer{
 						Contents: []byte{
-							0x5, 0x0, 0x9b, 0x94, // header SCMP
+							0x5, 0x0, 0x9a, 0xcb, // header SCMP
 						},
 						Payload: append([]byte{
 							0x0, 0x1, 0xff, 0x0,
@@ -273,7 +273,7 @@ func TestSCMP(t *testing.T) {
 						}, bytes.Repeat([]byte{0xff}, 15)...),
 					},
 					TypeCode: slayers.CreateSCMPTypeCode(5, 0),
-					Checksum: 0x9b94,
+					Checksum: 0x9acb,
 				},
 				&slayers.SCMPExternalInterfaceDown{
 					BaseLayer: layers.BaseLayer{
@@ -294,21 +294,21 @@ func TestSCMP(t *testing.T) {
 		},
 		"echo request": {
 			raw: append([]byte{
-				0x80, 0x00, 0x1b, 0x55, // header SCMP
+				0x80, 0x00, 0x1a, 0x8c, // header SCMP
 				0x00, 0x2a, 0x05, 0x39}, // start header SCMP msg
 				bytes.Repeat([]byte{0xff}, 15)...), // final payload
 			decodedLayers: []gopacket.SerializableLayer{
 				&slayers.SCMP{
 					BaseLayer: layers.BaseLayer{
 						Contents: []byte{
-							0x80, 0x0, 0x1b, 0x55,
+							0x80, 0x0, 0x1a, 0x8c,
 						},
 						Payload: append([]byte{
 							0x00, 0x2a, 0x05, 0x39},
 							bytes.Repeat([]byte{0xff}, 15)...),
 					},
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
-					Checksum: 0x1b55,
+					Checksum: 0x1a8c,
 				},
 				&slayers.SCMPEcho{
 					BaseLayer: layers.BaseLayer{
@@ -326,21 +326,21 @@ func TestSCMP(t *testing.T) {
 		},
 		"echo reply": {
 			raw: append([]byte{
-				0x81, 0x00, 0x1a, 0x55, // header SCMP
+				0x81, 0x00, 0x19, 0x8c, // header SCMP
 				0x00, 0x2a, 0x05, 0x39}, // start header SCMP msg
 				bytes.Repeat([]byte{0xff}, 15)...), // final payload
 			decodedLayers: []gopacket.SerializableLayer{
 				&slayers.SCMP{
 					BaseLayer: layers.BaseLayer{
 						Contents: []byte{
-							0x81, 0x0, 0x1a, 0x55,
+							0x81, 0x0, 0x19, 0x8c,
 						},
 						Payload: append([]byte{
 							0x00, 0x2a, 0x05, 0x39},
 							bytes.Repeat([]byte{0xff}, 15)...),
 					},
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoReply, 0),
-					Checksum: 0x1a55,
+					Checksum: 0x198c,
 				},
 				&slayers.SCMPEcho{
 					BaseLayer: layers.BaseLayer{
@@ -358,7 +358,7 @@ func TestSCMP(t *testing.T) {
 		},
 		"traceroute request": {
 			raw: append([]byte{
-				0x82, 0x00, 0x1e, 0x5d, // header SCMP
+				0x82, 0x00, 0x1d, 0x94, // header SCMP
 				0x00, 0x2a, 0x00, 0x09, // start header SCMP msg
 				0x00, 0x01, 0xff, 0x00,
 				0x00, 0x00, 0x01, 0x11,
@@ -369,7 +369,7 @@ func TestSCMP(t *testing.T) {
 				&slayers.SCMP{
 					BaseLayer: layers.BaseLayer{
 						Contents: []byte{
-							0x82, 0x0, 0x1e, 0x5d,
+							0x82, 0x0, 0x1d, 0x94,
 						},
 						Payload: append([]byte{
 							0x00, 0x2a, 0x00, 0x09,
@@ -380,7 +380,7 @@ func TestSCMP(t *testing.T) {
 							bytes.Repeat([]byte{0xff}, 15)...),
 					},
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0),
-					Checksum: 0x1e5d,
+					Checksum: 0x1d94,
 				},
 				&slayers.SCMPTraceroute{
 					BaseLayer: layers.BaseLayer{
@@ -404,7 +404,7 @@ func TestSCMP(t *testing.T) {
 		},
 		"traceroute reply": {
 			raw: append([]byte{
-				0x83, 0x00, 0x1d, 0x5d, // header SCMP
+				0x83, 0x00, 0x1c, 0x94, // header SCMP
 				0x00, 0x2a, 0x00, 0x09, // start header SCMP msg
 				0x00, 0x01, 0xff, 0x00,
 				0x00, 0x00, 0x01, 0x11,
@@ -415,7 +415,7 @@ func TestSCMP(t *testing.T) {
 				&slayers.SCMP{
 					BaseLayer: layers.BaseLayer{
 						Contents: []byte{
-							0x83, 0x0, 0x1d, 0x5d,
+							0x83, 0x0, 0x1c, 0x94,
 						},
 						Payload: append([]byte{
 							0x00, 0x2a, 0x00, 0x09,
@@ -426,7 +426,7 @@ func TestSCMP(t *testing.T) {
 							bytes.Repeat([]byte{0xff}, 15)...),
 					},
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
-					Checksum: 0x1d5d,
+					Checksum: 0x1c94,
 				},
 				&slayers.SCMPTraceroute{
 					BaseLayer: layers.BaseLayer{

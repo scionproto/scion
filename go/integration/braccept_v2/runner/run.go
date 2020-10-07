@@ -105,7 +105,7 @@ type ExpectedPacket struct {
 // packets using the storer. If the received packet in the device is matching
 // the expected packet and no other packet is received nil is returned.
 // Otherwise details of what went wrong are returned in the error.
-func (c *RunConfig) ExpectPacket(pkt ExpectedPacket) error {
+func (c *RunConfig) ExpectPacket(pkt ExpectedPacket, normalizeFn NormalizePacketFn) error {
 
 	timerCh := time.After(pkt.Timeout)
 	c.packetChans[len(c.deviceNames)] = reflect.SelectCase{
@@ -139,7 +139,7 @@ func (c *RunConfig) ExpectPacket(pkt ExpectedPacket) error {
 				"pkt", i, "expected", pkt.DevName, "actual", c.deviceNames[idx], "packet", got))
 			continue
 		}
-		if err := comparePkts(got, pkt.Pkt); err != nil {
+		if err := comparePkts(got, pkt.Pkt, normalizeFn); err != nil {
 			errors = append(errors, serrors.WrapStr("received mismatching packet", err,
 				"pkt", i))
 			continue
@@ -165,6 +165,8 @@ func (c *RunConfig) Close() {
 	c.handles = nil
 }
 
+type NormalizePacketFn func(gopacket.Packet)
+
 // Case represents a border router test case.
 type Case struct {
 	Name              string
@@ -172,6 +174,10 @@ type Case struct {
 	Input, Want       []byte
 	StoreDir          string
 	IgnoreNonMatching bool
+	// NormalizePacket is a function that will be called both on actual and
+	// expected packet. It can modify the packet fields so that unpredictable
+	// values are zeroed out and the packets match.
+	NormalizePacket NormalizePacketFn
 }
 
 // Run executes a test case. It writes input pkt to interface `WriteTo` and
@@ -200,7 +206,11 @@ func (t *Case) Run(cfg *RunConfig) error {
 		IgnoreNonMatching: t.IgnoreNonMatching,
 		Pkt:               wantPkt,
 	}
-	err := cfg.ExpectPacket(ePkt)
+	normalizePacket := t.NormalizePacket
+	if normalizePacket == nil {
+		normalizePacket = DefaultNormalizePacket
+	}
+	err := cfg.ExpectPacket(ePkt, normalizePacket)
 	if err == nil {
 		return nil
 	}

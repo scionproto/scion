@@ -17,6 +17,7 @@ package router_test
 import (
 	"bytes"
 	"fmt"
+	"hash"
 	"net"
 	"sync"
 	"testing"
@@ -34,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -42,6 +44,7 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/router"
+	"github.com/scionproto/scion/go/pkg/router/control"
 	"github.com/scionproto/scion/go/pkg/router/mock_router"
 )
 
@@ -135,10 +138,10 @@ func TestDataPlaneAddExternalInterface(t *testing.T) {
 }
 
 func TestDataPlaneAddSVC(t *testing.T) {
-	t.Run("fails after serve", func(t *testing.T) {
+	t.Run("succeeds after serve", func(t *testing.T) {
 		d := &router.DataPlane{}
 		d.FakeStart()
-		assert.Error(t, d.AddSvc(addr.SvcCS, &net.IPAddr{}))
+		assert.NoError(t, d.AddSvc(addr.SvcCS, &net.UDPAddr{}))
 	})
 	t.Run("adding nil value is not allowed", func(t *testing.T) {
 		d := &router.DataPlane{}
@@ -146,13 +149,13 @@ func TestDataPlaneAddSVC(t *testing.T) {
 	})
 	t.Run("normal set works", func(t *testing.T) {
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddSvc(addr.SvcCS, &net.IPAddr{}))
-		assert.NoError(t, d.AddSvc(addr.SvcSIG, &net.IPAddr{}))
+		assert.NoError(t, d.AddSvc(addr.SvcCS, &net.UDPAddr{}))
+		assert.NoError(t, d.AddSvc(addr.SvcSIG, &net.UDPAddr{}))
 	})
 	t.Run("set multiple times works", func(t *testing.T) {
 		d := &router.DataPlane{}
-		assert.NoError(t, d.AddSvc(addr.SvcCS, &net.IPAddr{}))
-		assert.NoError(t, d.AddSvc(addr.SvcCS, &net.IPAddr{}))
+		assert.NoError(t, d.AddSvc(addr.SvcCS, &net.UDPAddr{}))
+		assert.NoError(t, d.AddSvc(addr.SvcCS, &net.UDPAddr{}))
 	})
 }
 
@@ -253,14 +256,204 @@ func TestDataPlaneRun(t *testing.T) {
 				return ret
 			},
 		},
-		"bfd bootstrap sessions": {
+		"bfd bootstrap internal session": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
 				ret := &router.DataPlane{}
-				postBFD := func(msg *ipv4.Message, id layers.BFDDiscriminator, a net.Addr) {
+
+				postInternalBFD := func(id layers.BFDDiscriminator, src *net.UDPAddr) []byte {
 					scn := &slayers.SCION{
 						NextHdr:  common.L4BFD,
 						PathType: slayers.PathTypeEmpty,
-						Path:     &scion.Decoded{},
+						Path:     &empty.Path{},
+					}
+					bfdL := &layers.BFD{
+						Version:           1,
+						DetectMultiplier:  layers.BFDDetectMultiplier(2),
+						MyDiscriminator:   layers.BFDDiscriminator(id),
+						YourDiscriminator: 0,
+					}
+
+					_ = scn.SetSrcAddr(&net.IPAddr{IP: src.IP})
+					buffer := gopacket.NewSerializeBuffer()
+					_ = gopacket.SerializeLayers(buffer,
+						gopacket.SerializeOptions{FixLengths: true}, scn, bfdL)
+					return buffer.Bytes()
+				}
+
+				mtx := sync.Mutex{}
+				expectRemoteDiscriminators := map[layers.BFDDiscriminator]struct{}{}
+				routers := map[net.Addr][]uint16{
+					&net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4()}: {2, 3},
+					&net.UDPAddr{IP: net.ParseIP("10.0.200.201").To4()}: {4},
+				}
+
+				mInternal := mock_router.NewMockBatchConn(ctrl)
+				mInternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(m underlayconn.Messages, meta []underlayconn.ReadMeta) (int, error) {
+						i := 0
+						for k := range routers { // post a BFD from each neighbor router
+							disc := layers.BFDDiscriminator(i)
+							raw := postInternalBFD(disc, k.(*net.UDPAddr))
+							copy(m[i].Buffers[0], raw)
+							m[i].Buffers[0] = m[i].Buffers[0][:len(raw)]
+							m[i].N = len(raw)
+							expectRemoteDiscriminators[disc] = struct{}{}
+							i++
+						}
+						return len(routers), nil
+					},
+				).Times(1)
+				mInternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+
+				mInternal.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
+					func(ms underlayconn.Messages) (int, error) {
+						pkt := gopacket.NewPacket(ms[0].Buffers[0],
+							slayers.LayerTypeSCION, gopacket.Default)
+						if b := pkt.Layer(layers.LayerTypeBFD); b != nil {
+							v := b.(*layers.BFD).YourDiscriminator
+							mtx.Lock()
+							defer mtx.Unlock()
+							delete(expectRemoteDiscriminators, v)
+							if len(expectRemoteDiscriminators) == 0 {
+								done <- struct{}{}
+							}
+							return 1, nil
+						}
+
+						return 0, fmt.Errorf("no valid BFD message")
+					}).MinTimes(1)
+				mInternal.EXPECT().WriteBatch(gomock.Any()).Return(0, nil).AnyTimes()
+
+				local := &net.UDPAddr{IP: net.ParseIP("10.0.200.100").To4()}
+				_ = ret.SetKey([]byte("randomkeyformacs"))
+				_ = ret.AddInternalInterface(mInternal, net.IP{})
+				for remote, ifIDs := range routers {
+					for _, ifID := range ifIDs {
+						_ = ret.AddNextHop(ifID, remote)
+						_ = ret.AddNextHopBFD(ifID, local, remote.(*net.UDPAddr), bfd(), "")
+					}
+				}
+				return ret
+			},
+		},
+		"bfd sender internal": {
+			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
+				ret := &router.DataPlane{}
+				localAddr := &net.UDPAddr{IP: net.ParseIP("10.0.200.100").To4()}
+				remoteAddr := &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4()}
+				mInternal := mock_router.NewMockBatchConn(ctrl)
+				mInternal.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
+					func(ms underlayconn.Messages) (int, error) {
+						pkt := gopacket.NewPacket(ms[0].Buffers[0],
+							slayers.LayerTypeSCION, gopacket.Default)
+
+						if b := pkt.Layer(layers.LayerTypeBFD); b == nil {
+							return 1, nil
+						}
+
+						if scnL := pkt.Layer(slayers.LayerTypeSCION); scnL != nil {
+							s := scnL.(*slayers.SCION)
+							a, err := s.SrcAddr()
+							if err != nil {
+								return 1, nil
+							}
+							if !bytes.Equal(a.(*net.IPAddr).IP, localAddr.IP) {
+								return 1, nil
+							}
+
+							b, err := s.DstAddr()
+							if err != nil {
+								return 1, nil
+							}
+							if !bytes.Equal(b.(*net.IPAddr).IP, remoteAddr.IP) {
+								return 1, nil
+							}
+
+							if s.PathType != slayers.PathTypeEmpty {
+								return 1, nil
+							}
+							if _, ok := s.Path.(empty.Path); !ok {
+								return 1, nil
+							}
+						}
+						done <- struct{}{}
+						return 1, nil
+					}).MinTimes(1)
+				mInternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+
+				_ = ret.SetKey([]byte("randomkeyformacs"))
+				_ = ret.AddInternalInterface(mInternal, net.IP{})
+				_ = ret.AddNextHop(3, localAddr)
+				_ = ret.AddNextHopBFD(3, localAddr, remoteAddr, bfd(), "")
+
+				return ret
+			},
+		},
+		"bfd sender external": {
+			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
+				ret := &router.DataPlane{}
+				ifID := uint16(1)
+				mInternal := mock_router.NewMockBatchConn(ctrl)
+				mInternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+
+				mExternal := mock_router.NewMockBatchConn(ctrl)
+				mExternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mExternal.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
+					func(ms underlayconn.Messages) (int, error) {
+						pkt := gopacket.NewPacket(ms[0].Buffers[0],
+							slayers.LayerTypeSCION, gopacket.Default)
+
+						if b := pkt.Layer(layers.LayerTypeBFD); b == nil {
+							return 1, nil
+						}
+
+						if scnL := pkt.Layer(slayers.LayerTypeSCION); scnL != nil {
+							s := scnL.(*slayers.SCION)
+							if s.PathType != slayers.PathTypeOneHop {
+								return 1, nil
+							}
+
+							v, ok := s.Path.(*onehop.Path)
+							if !ok {
+								return 1, nil
+							}
+							if v.FirstHop.ConsEgress != ifID {
+								return 1, nil
+							}
+						}
+
+						done <- struct{}{}
+						return 1, nil
+					}).MinTimes(1)
+				mExternal.EXPECT().WriteBatch(gomock.Any()).Return(0, nil).AnyTimes()
+
+				local := control.LinkEnd{
+					IA:   xtest.MustParseIA("1-ff00:0:1"),
+					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.100")},
+				}
+				remote := control.LinkEnd{
+					IA:   xtest.MustParseIA("1-ff00:0:3"),
+					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
+				}
+				_ = ret.SetKey([]byte("randomkeyformacs"))
+				_ = ret.AddInternalInterface(mInternal, net.IP{})
+				_ = ret.AddExternalInterface(ifID, mExternal)
+				_ = ret.AddExternalInterfaceBFD(ifID, mExternal, local, remote, bfd())
+
+				return ret
+			},
+		},
+		"bfd bootstrap external session": {
+			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
+				ret := &router.DataPlane{}
+
+				postExternalBFD := func(id layers.BFDDiscriminator, fromIfID uint16) []byte {
+					scn := &slayers.SCION{
+						NextHdr:  common.L4BFD,
+						PathType: slayers.PathTypeOneHop,
+						Path: &onehop.Path{
+							FirstHop: path.HopField{ConsEgress: fromIfID},
+						},
 					}
 					bfdL := &layers.BFD{
 						Version:           1,
@@ -272,58 +465,33 @@ func TestDataPlaneRun(t *testing.T) {
 					buffer := gopacket.NewSerializeBuffer()
 					_ = gopacket.SerializeLayers(buffer,
 						gopacket.SerializeOptions{FixLengths: true}, scn, bfdL)
-					raw := buffer.Bytes()
-					copy(msg.Buffers[0], raw)
-					msg.Buffers[0] = msg.Buffers[0][:len(raw)]
-					msg.N = len(raw)
-					msg.Addr = a
+					return buffer.Bytes()
 				}
+
 				mInternal := mock_router.NewMockBatchConn(ctrl)
-				mInternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(m underlayconn.Messages, meta []underlayconn.ReadMeta) (int, error) {
-						postBFD(&m[0], 5, &net.IPAddr{IP: net.ParseIP("10.0.200.100").To4()})
-						postBFD(&m[1], 34, &net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()})
-						return 2, nil
-					},
-				).Times(1)
 				mInternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
 
 				mtx := sync.Mutex{}
-				expectRemoteDiscriminators := map[int]struct{}{
-					2:  {}, // local external interface
-					5:  {}, // remote one interface
-					34: {}, // remote two interfaces
-				}
-				mInternal.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
-					func(ms underlayconn.Messages) (int, error) {
-						pkt := gopacket.NewPacket(ms[0].Buffers[0],
-							slayers.LayerTypeSCION, gopacket.Default)
-						if b := pkt.Layer(layers.LayerTypeBFD); b != nil {
-							v := int(b.(*layers.BFD).YourDiscriminator)
-							mtx.Lock()
-							defer mtx.Unlock()
-							delete(expectRemoteDiscriminators, v)
-							if len(expectRemoteDiscriminators) == 0 {
-								done <- struct{}{}
-							}
-							return 1, nil
-						}
-						return 0, fmt.Errorf("no valid BFD message")
-					}).MinTimes(1)
-				mInternal.EXPECT().WriteBatch(gomock.Any()).Return(0, nil).AnyTimes()
+				expectRemoteDiscriminators := map[int]struct{}{}
 
 				mExternal := mock_router.NewMockBatchConn(ctrl)
 				mExternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(m underlayconn.Messages, meta []underlayconn.ReadMeta) (int, error) {
-						postBFD(&m[0], 2, nil)
+						raw := postExternalBFD(2, 1)
+						expectRemoteDiscriminators[2] = struct{}{}
+						copy(m[0].Buffers[0], raw)
+						m[0].Buffers[0] = m[0].Buffers[0][:len(raw)]
+						m[0].N = len(raw)
 						return 1, nil
 					},
 				).Times(1)
 				mExternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+
 				mExternal.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
 					func(ms underlayconn.Messages) (int, error) {
 						pkt := gopacket.NewPacket(ms[0].Buffers[0],
 							slayers.LayerTypeSCION, gopacket.Default)
+
 						if b := pkt.Layer(layers.LayerTypeBFD); b != nil {
 							v := int(b.(*layers.BFD).YourDiscriminator)
 							mtx.Lock()
@@ -338,15 +506,18 @@ func TestDataPlaneRun(t *testing.T) {
 					}).MinTimes(1)
 				mExternal.EXPECT().WriteBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
+				local := control.LinkEnd{
+					IA:   xtest.MustParseIA("1-ff00:0:1"),
+					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.100")},
+				}
+				remote := control.LinkEnd{
+					IA:   xtest.MustParseIA("1-ff00:0:3"),
+					Addr: &net.UDPAddr{IP: net.ParseIP("10.0.0.200")},
+				}
+				_ = ret.SetKey([]byte("randomkeyformacs"))
 				_ = ret.AddInternalInterface(mInternal, net.IP{})
-				_ = ret.AddNextHop(3, &net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()})
-				_ = ret.AddNextHopBFD(3, &net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()})
-				_ = ret.AddNextHop(4, &net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()})
-				_ = ret.AddNextHopBFD(4, &net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()})
-				_ = ret.AddNextHop(5, &net.IPAddr{IP: net.ParseIP("10.0.200.100").To4()})
-				_ = ret.AddNextHopBFD(5, &net.IPAddr{IP: net.ParseIP("10.0.200.100").To4()})
 				_ = ret.AddExternalInterface(1, mExternal)
-				_ = ret.AddExternalInterfaceBFD(1, mExternal)
+				_ = ret.AddExternalInterfaceBFD(1, mExternal, local, remote, bfd())
 
 				return ret
 			},
@@ -392,7 +563,7 @@ func TestProcessPkt(t *testing.T) {
 	}{
 		"inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, mock_router.NewMockBatchConn(ctrl), nil,
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
 					nil, xtest.MustParseIA("1-ff00:0:110"), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
@@ -419,9 +590,14 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(map[uint16]router.BatchConn{
-					uint16(1): mock_router.NewMockBatchConn(ctrl),
-				}, nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), key)
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(1): mock_router.NewMockBatchConn(ctrl),
+					},
+					map[uint16]topology.LinkType{
+						1: topology.Child,
+					},
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg()
@@ -448,9 +624,15 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"brtransit": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(map[uint16]router.BatchConn{
-					uint16(2): mock_router.NewMockBatchConn(ctrl),
-				}, nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), key)
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					},
+					map[uint16]topology.LinkType{
+						1: topology.Parent,
+						2: topology.Child,
+					},
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg()
@@ -476,9 +658,14 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"brtransit non consdir": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(map[uint16]router.BatchConn{
-					uint16(2): mock_router.NewMockBatchConn(ctrl),
-				}, nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), key)
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					},
+					map[uint16]topology.LinkType{
+						2: topology.Parent,
+						1: topology.Child,
+					}, nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg()
@@ -505,7 +692,12 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"astransit direct": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, mock_router.NewMockBatchConn(ctrl),
+				return router.NewDP(nil,
+					map[uint16]topology.LinkType{
+						1: topology.Core,
+						3: topology.Core,
+					},
+					mock_router.NewMockBatchConn(ctrl),
 					map[uint16]net.Addr{
 						uint16(3): &net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()},
 					}, nil, xtest.MustParseIA("1-ff00:0:110"), key)
@@ -530,7 +722,12 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"astransit xover": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, mock_router.NewMockBatchConn(ctrl),
+				return router.NewDP(nil,
+					map[uint16]topology.LinkType{
+						51: topology.Child,
+						3:  topology.Core,
+					},
+					mock_router.NewMockBatchConn(ctrl),
 					map[uint16]net.Addr{
 						uint16(3): &net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()},
 					}, nil, xtest.MustParseIA("1-ff00:0:110"), key)
@@ -577,10 +774,13 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"svc": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.HostSVC][]net.Addr{
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					map[addr.HostSVC][]*net.UDPAddr{
 						addr.HostSVCFromString("CS"): {
-							&net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()},
+							&net.UDPAddr{
+								IP:   net.ParseIP("10.0.200.200").To4(),
+								Port: topology.EndhostPort,
+							},
 						},
 					},
 					xtest.MustParseIA("1-ff00:0:110"), key)
@@ -609,8 +809,8 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"svc nobackend": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.HostSVC][]net.Addr{},
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					map[addr.HostSVC][]*net.UDPAddr{},
 					xtest.MustParseIA("1-ff00:0:110"), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
@@ -636,8 +836,8 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"svc invalid": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.HostSVC][]net.Addr{},
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					map[addr.HostSVC][]*net.UDPAddr{},
 					xtest.MustParseIA("1-ff00:0:110"), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
@@ -663,11 +863,17 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"onehop inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(map[uint16]router.BatchConn{
-					uint16(2): mock_router.NewMockBatchConn(ctrl),
-				}, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.HostSVC][]net.Addr{
-						addr.SvcCS: {&net.IPAddr{IP: net.ParseIP("172.0.2.10")}},
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					},
+					nil,
+					mock_router.NewMockBatchConn(ctrl), nil,
+					map[addr.HostSVC][]*net.UDPAddr{
+						addr.SvcCS: {&net.UDPAddr{
+							IP:   net.ParseIP("172.0.2.10"),
+							Port: topology.EndhostPort,
+						}},
 					},
 					xtest.MustParseIA("1-ff00:0:110"), key)
 			},
@@ -719,11 +925,17 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"reversed onehop outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(map[uint16]router.BatchConn{
-					uint16(1): mock_router.NewMockBatchConn(ctrl),
-				}, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.HostSVC][]net.Addr{
-						addr.SvcCS: {&net.IPAddr{IP: net.ParseIP("172.0.2.10")}},
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(1): mock_router.NewMockBatchConn(ctrl),
+					},
+					nil,
+					mock_router.NewMockBatchConn(ctrl), nil,
+					map[addr.HostSVC][]*net.UDPAddr{
+						addr.SvcCS: {&net.UDPAddr{
+							IP:   net.ParseIP("172.0.2.10"),
+							Port: topology.EndhostPort,
+						}},
 					},
 					xtest.MustParseIA("1-ff00:0:110"), key)
 			},
@@ -775,9 +987,12 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"onehop outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(map[uint16]router.BatchConn{
-					uint16(2): mock_router.NewMockBatchConn(ctrl),
-				}, mock_router.NewMockBatchConn(ctrl), nil,
+				return router.NewDP(
+					map[uint16]router.BatchConn{
+						uint16(2): mock_router.NewMockBatchConn(ctrl),
+					},
+					nil,
+					mock_router.NewMockBatchConn(ctrl), nil,
 					nil,
 					xtest.MustParseIA("1-ff00:0:110"), key)
 			},
@@ -816,8 +1031,8 @@ func TestProcessPkt(t *testing.T) {
 		},
 		"invalid dest": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
-				return router.NewDP(nil, mock_router.NewMockBatchConn(ctrl), nil,
-					map[addr.HostSVC][]net.Addr{},
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					map[addr.HostSVC][]*net.UDPAddr{},
 					xtest.MustParseIA("1-ff00:0:110"), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
@@ -916,4 +1131,18 @@ func computeMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopFiel
 	require.NoError(t, err)
 	return path.MAC(mac, info, hf)
 
+}
+
+func createMac(t *testing.T) hash.Hash {
+	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
+	xtest.FailOnErr(t, err)
+	return mac
+}
+
+func bfd() control.BFD {
+	return control.BFD{
+		DetectMult:            3,
+		DesiredMinTxInterval:  1 * time.Millisecond,
+		RequiredMinRxInterval: 25 * time.Millisecond,
+	}
 }

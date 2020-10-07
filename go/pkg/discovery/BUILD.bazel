@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["toposervice.go"],
+    importpath = "github.com/scionproto/scion/go/pkg/discovery",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/log:go_default_library",
+        "//go/lib/metrics:go_default_library",
+        "//go/lib/prom:go_default_library",
+        "//go/lib/topology:go_default_library",
+        "//go/lib/tracing:go_default_library",
+        "//go/pkg/proto/discovery:go_default_library",
+        "@com_github_opentracing_opentracing_go//:go_default_library",
+        "@org_golang_google_grpc//codes:go_default_library",
+        "@org_golang_google_grpc//status:go_default_library",
+    ],
+)

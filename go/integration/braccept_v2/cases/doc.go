@@ -18,7 +18,7 @@ into the braccept binary.
 
 The process to add a new case is the following:
 
-Step 1. Add a new file with a representantive name
+Step 1. Add a new file with a representative name
 e.g. cases/child_to_child_xover.go
 
 Step 2. Create a function inside that file which returns the new br accept

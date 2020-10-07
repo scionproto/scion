@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/pkg/app"
+	"github.com/scionproto/scion/go/pkg/app/feature"
 	"github.com/scionproto/scion/go/pkg/ping"
 )
 
@@ -61,7 +62,7 @@ func newPing(pather CommandPather) *cobra.Command {
 			if err != nil {
 				return serrors.WrapStr("parsing remote", err)
 			}
-			features, err := parseFeatures(flags.features)
+			features, err := feature.ParseDefault(flags.features)
 			if err != nil {
 				return err
 			}
@@ -106,12 +107,12 @@ func newPing(pather CommandPather) *cobra.Command {
 			pldSize := int(flags.size)
 			if flags.maxMTU {
 				mtu := int(path.Metadata().MTU())
-				pldSize, err = calcMaxPldSize(local, remote, mtu, features.HeaderV2)
+				pldSize, err = calcMaxPldSize(local, remote, mtu, !features.HeaderLegacy)
 				if err != nil {
 					return err
 				}
 			}
-			pktSize, err := calcPktSize(local, remote, pldSize, features.HeaderV2)
+			pktSize, err := calcPktSize(local, remote, pldSize, !features.HeaderLegacy)
 			if err != nil {
 				return err
 			}
@@ -148,7 +149,7 @@ func newPing(pather CommandPather) *cobra.Command {
 						update.Size, update.Source.IA, update.Source.Host, update.Sequence,
 						update.RTT, additional)
 				},
-				HeaderV2: features.HeaderV2,
+				HeaderV2: !features.HeaderLegacy,
 			})
 			pingSummary(stats, remote, time.Since(start))
 			if err != nil {
@@ -178,7 +179,7 @@ the SCION path.`,
 SCMP echo header and payload are equal to the MTU of the path. This flag overrides the
 'payload_size' flag.`)
 	cmd.Flags().StringSliceVar(&flags.features, "features", nil,
-		"enable development features "+features{}.supported())
+		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
 
 	return cmd
 }
