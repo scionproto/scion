@@ -19,8 +19,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 const (
@@ -31,7 +29,12 @@ const (
 )
 
 // BFD is the configuration for the BFD sessions.
-type BFD topology.BFD
+type BFD struct {
+	DetectMult            uint8
+	DesiredMinTxInterval  time.Duration
+	RequiredMinRxInterval time.Duration
+	Disable               bool
+}
 
 func withDefaults(cfg BFD) BFD {
 	// If default is disable, BFD is globally disabled.

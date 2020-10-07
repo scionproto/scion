@@ -86,9 +86,32 @@ steps:
       - ./scion.sh topology
       - ./scion.sh run && sleep 10
       - echo "--- run tests"
-      - ./bin/pp_integration || ( echo "^^^ +++" && false )
       - ./bin/scion_integration || ( echo "^^^ +++" && false )
       - ./bin/end2end_integration || ( echo "^^^ +++" && false )
+    plugins:
+      - scionproto/metahook#v0.3.0:
+          post-command: |
+            echo "--- Shutting down SCION topology"
+            ./scion.sh stop
+            echo "SCION topology successfully shut down"
+    artifact_paths:
+      - "artifacts.out/**/*"
+    timeout_in_minutes: 15
+    key: e2e_integration_tests
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
+  - label: "IT: legacy (svisor) {pp,end2end,scmp}"
+    if: build.message !~ /\[doc\]/
+    command:
+      - echo "--- start topology (including build)"
+      - ./scion.sh topology -c topology/tiny4.topo --features=header_legacy -d --sig
+      - ./scion.sh run && sleep 10
+      - echo "--- run tests"
+      - ./bin/scion_integration -d --features=header_legacy || ( echo "^^^ +++" && false )
+      - ./bin/end2end_integration -d --features=header_legacy || ( echo "^^^ +++" && false )
+      - ./bin/sig_ping_acceptance -d || ( echo "^^^ +++" && false )
     plugins:
       - scionproto/metahook#v0.3.0:
           post-command: |

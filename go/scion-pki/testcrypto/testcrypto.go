@@ -526,11 +526,11 @@ func flatten(out string) error {
 			return serrors.WithCtx(err, "file", trc)
 		}
 	}
-	pems, err := filepath.Glob(fmt.Sprintf("%s/ISD*/AS*/crypto/*/ISD*-AS*.pem", out))
+	pems, err := filepath.Glob(fmt.Sprintf("%s/AS*/crypto/*/ISD*-AS*.pem", out))
 	if err != nil {
 		return err
 	}
-	crts, err := filepath.Glob(fmt.Sprintf("%s/ISD*/AS*/crypto/*/ISD*-AS*.crt", out))
+	crts, err := filepath.Glob(fmt.Sprintf("%s/AS*/crypto/*/ISD*-AS*.crt", out))
 	if err != nil {
 		return err
 	}
@@ -547,18 +547,18 @@ func cleanup(cfg config) error {
 	gid := os.Getegid()
 	uid := os.Geteuid()
 	cmd := exec.Command("sh", "-c", withLib(`docker_exec "`+
-		fmt.Sprintf("chown %d:%d /workdir/*/*/crypto/*/*.key && ", uid, gid)+
-		`chmod 0666 /workdir/*/*/crypto/*/*.key && `+
-		`rm -f /workdir/*/*/crypto/*/cp-*.crt && `+
-		`rm -f /workdir/*/*/crypto/*/regular-*.crt && `+
-		`rm -f /workdir/*/*/crypto/*/sensitive-*.crt && `+
-		`rm -f /workdir/*/*/crypto/*/*.cnf && `+
-		`rm -f /workdir/*/*/crypto/*/*.csr && `+
-		`rm -f /workdir/*/*/crypto/voting/ISD-B1-S1.*.trc && `+
-		`rm -f /workdir/*/*/crypto/voting/*.der && `+
+		fmt.Sprintf("chown %d:%d /workdir/*/crypto/*/*.key && ", uid, gid)+
+		`chmod 0666 /workdir/*/crypto/*/*.key && `+
+		`rm -f /workdir/*/crypto/*/cp-*.crt && `+
+		`rm -f /workdir/*/crypto/*/regular-*.crt && `+
+		`rm -f /workdir/*/crypto/*/sensitive-*.crt && `+
+		`rm -f /workdir/*/crypto/*/*.cnf && `+
+		`rm -f /workdir/*/crypto/*/*.csr && `+
+		`rm -f /workdir/*/crypto/voting/ISD-B1-S1.*.trc && `+
+		`rm -f /workdir/*/crypto/voting/*.der && `+
 		`rm -f /workdir/*/*.der && `+
-		`rm -rf /workdir/*/*/crypto/*/certificates && `+
-		`rm -rf /workdir/*/*/crypto/*/database"`, cfg.lib))
+		`rm -rf /workdir/*/crypto/*/certificates && `+
+		`rm -rf /workdir/*/crypto/*/database"`, cfg.lib))
 	cmd.Env = []string{"CONTAINER_NAME=" + cfg.container}
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	return cmd.Run()
@@ -589,19 +589,19 @@ func trcDir(isd addr.ISD, base string) string {
 }
 
 func keyDir(ia addr.IA, base string) string {
-	return fmt.Sprintf("%s/ISD%d/AS%s/keys", base, ia.I, ia.A.FileFmt())
+	return fmt.Sprintf("%s/AS%s/keys", base, ia.A.FileFmt())
 }
 
 func certDir(ia addr.IA, base string) string {
-	return fmt.Sprintf("%s/ISD%d/AS%s/certs", base, ia.I, ia.A.FileFmt())
+	return fmt.Sprintf("%s/AS%s/certs", base, ia.A.FileFmt())
 }
 
 func cryptoASDir(ia addr.IA, base string) string {
-	return fmt.Sprintf("%s/ISD%d/AS%s/crypto/as", base, ia.I, ia.A.FileFmt())
+	return fmt.Sprintf("%s/AS%s/crypto/as", base, ia.A.FileFmt())
 }
 
 func cryptoCADir(ia addr.IA, base string) string {
-	return fmt.Sprintf("%s/ISD%d/AS%s/crypto/ca", base, ia.I, ia.A.FileFmt())
+	return fmt.Sprintf("%s/AS%s/crypto/ca", base, ia.A.FileFmt())
 }
 
 func cryptoCAClientDir(ia addr.IA, base string) string {
@@ -609,7 +609,7 @@ func cryptoCAClientDir(ia addr.IA, base string) string {
 }
 
 func cryptoVotingDir(ia addr.IA, base string) string {
-	return fmt.Sprintf("%s/ISD%d/AS%s/crypto/voting", base, ia.I, ia.A.FileFmt())
+	return fmt.Sprintf("%s/AS%s/crypto/voting", base, ia.A.FileFmt())
 }
 
 func chainName(ia addr.IA) string {

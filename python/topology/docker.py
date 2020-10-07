@@ -28,7 +28,7 @@ from python.topology.common import (
     ArgsTopoDicts,
     docker_host,
     docker_image,
-    FEATURE_HEADER_V2,
+    FEATURE_HEADER_LEGACY,
     sciond_svc_name
 )
 from python.topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
@@ -139,9 +139,9 @@ class DockerGenerator(object):
     def _br_conf(self, topo_id, topo, base):
         for k, _ in topo.get("border_routers", {}).items():
             disp_id = k
-            image = docker_image(self.args, 'border')
-            if FEATURE_HEADER_V2 in self.args.features:
-                image = docker_image(self.args, 'posix-router')
+            image = docker_image(self.args, 'posix-router')
+            if FEATURE_HEADER_LEGACY in self.args.features:
+                image = docker_image(self.args, 'border')
             entry = {
                 'image': image,
                 'container_name': self.prefix + k,

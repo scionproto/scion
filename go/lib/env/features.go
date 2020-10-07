@@ -26,7 +26,7 @@ var _ config.Config = (*Features)(nil)
 // needed. Feature flags are always boolean. Don't use any other types here!
 type Features struct {
 	AllowRunAsRoot bool `toml:"allow_run_as_root,omitempty"`
-	HeaderV2       bool `toml:"header_v2,omitempty" default:"true"`
+	HeaderV2       bool `toml:"header_v2,omitempty"`
 }
 
 func (cfg *Features) InitDefaults() {
