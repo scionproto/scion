@@ -54,6 +54,7 @@ func TestUpdateCerts(t *testing.T) {
 		"-t", "testdata/golden.topo",
 		"-l", "../../../scripts/cryptoplayground/crypto_lib.sh",
 		"-o", dir,
+		"--isd-dir",
 	})
 	err := cmd.Execute()
 	require.NoError(t, err)

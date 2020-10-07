@@ -32,9 +32,9 @@ class MergeDictTestCase(unittest.TestCase):
 
     def test_replace_leaf_entry(self):
         actual = self._orig()
-        merge_dict(path_to_dict('log.file.level', 'crit'), actual)
+        merge_dict(path_to_dict('log.file.level', 'error'), actual)
         expected = self._orig()
-        expected['log']['file']['level'] = 'crit'
+        expected['log']['file']['level'] = 'error'
         self.assertEqual(actual, expected, "level not overwritten")
 
     def test_replace_dict(self):

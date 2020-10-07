@@ -72,7 +72,8 @@ class TestBase(cli.Application):
         self.test_state.no_docker = True
         self.test_state.scion = SCIONSupervisor()
 
-    @cli.switch('artifacts', str, envname='ACCEPTANCE_ARTIFACTS')
+    @cli.switch('artifacts', str, envname='ACCEPTANCE_ARTIFACTS',
+                help='Artifacts directory')
     def artifacts_dir(self, a_dir: str):
         self.test_state.artifacts = local.path('%s/%s/' % (a_dir, NAME))
 
@@ -85,17 +86,14 @@ class CmdBase(cli.Application):
         for line in self.dc(*args).splitlines():
             print(line)
 
-    def cmd_collect_logs(self):
-        self.dc.collect_logs()
-
     def cmd_setup(self):
         mkdir('-p', self.artifacts)
 
     def cmd_teardown(self):
-        self.scion.stop()
         if not self.no_docker:
             self.dc.collect_logs(self.artifacts / 'logs' / 'docker')
             self.tools_dc('down')
+        self.scion.stop()
 
     def _collect_logs(self, name: str):
         if LocalPath('gen/%s-dc.yml' % name).exists():
@@ -106,14 +104,13 @@ class CmdBase(cli.Application):
             self.tools_dc(name, 'down')
 
     @staticmethod
-    def test_dir(prefix: str = '') -> LocalPath:
-        return local.path(prefix, 'acceptance') / DIR
+    def test_dir(prefix: str = '', directory: str = 'acceptance') -> LocalPath:
+        return local.path(prefix, directory) / DIR
 
     @staticmethod
     def docker_status():
         logger.info('Docker containers')
-        docker('ps', '-a', '-s')
-        # TODO(lukedirtwalker): print status to stdout
+        print(docker('ps', '-a', '-s'))
 
     @property
     def dc(self):
@@ -148,19 +145,3 @@ class TestTeardown(CmdBase):
     @LogExec(logger, 'teardown')
     def main(self):
         self.cmd_teardown()
-
-
-@TestBase.subcommand('dc')
-class TestDc(CmdBase):
-    """ Execute the docker-compose command. """
-
-    def main(self, *args):
-        self.cmd_dc(*args)
-
-
-@TestBase.subcommand('collect_logs')
-class TestCollectLogs(CmdBase):
-    """ Collect the docker logs and write them to 'logs/docker'. """
-
-    def main(self):
-        self.cmd_collect_logs()

@@ -21,10 +21,10 @@
 import argparse
 
 # SCION
-from lib.defines import (
+from python.lib.defines import (
     GEN_PATH,
 )
-from topology.config import (
+from python.topology.config import (
     ConfigGenerator,
     ConfigGenArgs,
     DEFAULT_TOPOLOGY_FILE,
@@ -53,7 +53,7 @@ def add_arguments(parser):
     parser.add_argument('-qos', '--colibri', action='store_true',
                         help='Generate COLIBRI service')
     parser.add_argument('--features', help='Feature flags to enable, a comma separated list\
-                        e.g. header_legacy,foo enables header_legacy and foo feature.')
+                        e.g. foo,bar enables foo and bar feature.')
     return parser
 
 

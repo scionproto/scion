@@ -5,15 +5,17 @@ Setting up the development environment
 
 #. Make sure that you are using a clean and recently updated **Ubuntu 18.04**.
    This environment assumes you're running as a non-root user with ``sudo`` access.
-#. We use `Bazel <https://bazel.build>`__ for both building and testing. To set up the
-   development environment, please install Bazel version 3.2.0:
+#. We use `Bazel <https://bazel.build>`__ for both building and testing. To be
+   able to define the bazel version in the repository we use the `bazelisk
+   <https://github.com/bazelbuild/bazelisk>`__ wrapper around bazel. To set it
+   up simply use::
 
-   .. code-block:: bash
+      ./tools/install_bazel
 
-      sudo apt-get install g++ unzip zip
-      wget https://github.com/bazelbuild/bazel/releases/download/3.2.0/bazel-3.2.0-installer-linux-x86_64.sh
-      bash ./bazel-3.2.0-installer-linux-x86_64.sh --user
-      rm ./bazel-3.2.0-installer-linux-x86_64.sh
+   and make sure that ``~/bin`` is on your ``PATH``.
+
+   You can also manually install ``bazelisk`` and create an alias so that
+   ``bazel`` will resolve to the ``bazelisk`` command. 
 
 #. Next, clone the SCION repository into the appropriate directory inside your workspace. In the commands below,
    replace ``${WORKSPACE}`` with the directory in which you want to set up the project:
@@ -39,6 +41,14 @@ Setting up the development environment
    Optionally install ``docker-compose``. This is needed if you want to run the
    ``docker-compose`` based test topology setup instead of the default setup based on ``supervisord``.
    Please follow the instructions for `docker-compose <https://docs.docker.com/compose/install/>`_.
+
+#. Start the bazel-remote container.
+
+   We use `bazel-remote <https://github.com/buchgr/bazel-remote>`_ to chache
+   build artifacts from bazel. Bazel-remote can manage the disk space and does
+   not infinitely grow like the Bazel built-in disk-cache. To start bazel-remote run::
+   
+      ./scion.sh bazel_remote
 
 #. SCION networks are composed of many different applications. To simplify testing, we provide a
    tool that generates test topologies. To generate the files required by the default topology (see
@@ -70,9 +80,9 @@ Setting up the development environment
 
 #. Finally, check that unit tests run correctly:
 
-    .. code-block:: bash
+   .. code-block:: bash
 
-       ./scion.sh test
+      ./scion.sh test
 
 #. (Optional) If you already have some code you wish to contribute upstream, you can also run the
    linters locally with:

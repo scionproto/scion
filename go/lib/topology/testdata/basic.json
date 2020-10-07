@@ -18,7 +18,12 @@
           "bandwidth": 1000,
           "isd_as": "1-ff00:0:312",
           "link_to": "PARENT",
-          "mtu": 1472
+          "mtu": 1472,
+          "bfd": {
+            "detect_mult": 10,
+            "desired_min_tx_interval": "10ms",
+            "required_min_rx_interval": "15ms"
+          }
         },
         "3": {
           "underlay": {

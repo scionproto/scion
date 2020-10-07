@@ -45,6 +45,7 @@ MOCK_TARGETS = [
         "ChainRenewalServiceServer,InterfaceStateConsumerServiceServer," +
         "InterfaceStateServiceServer,TrustMaterialServiceServer"),
     ("go/pkg/router/bfd", "Source,IntervalGenerator"),
+    ("go/pkg/router/svchealth", "Discoverer"),
     ("go/pkg/router", "BatchConn"),
     ("go/pkg/sciond/fetcher", "Fetcher,Policy"),
     ("go/pkg/trust",

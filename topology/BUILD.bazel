@@ -1,3 +1,4 @@
+load("//python/topology:topology.bzl", "topology")
 # gazelle:ignore
 
 filegroup(
@@ -6,14 +7,15 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
-filegroup(
-    name = "tiny",
-    srcs = ["tiny.topo"],
-    visibility = ["//visibility:public"],
+exports_files(
+    [
+        "tiny.topo",
+        "tiny4.topo",
+        "wide.topo",
+    ],
 )
 
-filegroup(
-    name = "wide",
-    srcs = ["wide.topo"],
-    visibility = ["//visibility:public"],
+topology(
+    name = "tiny_gen",
+    src = "tiny.topo",
 )

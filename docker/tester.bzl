@@ -1,13 +1,12 @@
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_docker//container:container.bzl", "container_bundle", "container_image")
-load("@package_bundle//file:packages.bzl", "packages")
+load("@packages_debian10//file:packages.bzl", "packages")
 
 def build_tester_image():
     pkg_tar(
         name = "bin",
         srcs = [
             "//go/integration/end2end:end2end",
-            "//go/examples/pingpong:pingpong",
             "//go/scion",
             "//go/scion-pki:scion-pki",
         ],
@@ -36,14 +35,17 @@ def build_tester_image():
     )
 
     container_image(
-        name = "scion_tester",
+        name = "tester",
         base = "@ubuntu16//image",
         env = {"TZ": "UTC"},
         debs = [
             packages["libc6"],
             # ping and its dependencies
             packages["iputils-ping"],
-            packages["libidn11"],
+            packages["libcap2"],
+            packages["libcap2-bin"],
+            packages["libidn2-0"],
+            packages["libunistring2"],
             packages["libnettle6"],
             # iproute2 and its dependencies
             packages["iproute2"],
@@ -55,4 +57,5 @@ def build_tester_image():
         ],
         workdir = "/share",
         cmd = "tail -f /dev/null",
+        visibility = ["//visibility:public"],
     )

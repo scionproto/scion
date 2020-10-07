@@ -110,7 +110,7 @@ func (s *SCMP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOp
 		// zero out checksum bytes
 		bytes[2] = 0
 		bytes[3] = 0
-		s.Checksum, err = s.scn.computeChecksum(b.Bytes(), uint8(common.L4SCMP.FromLegacy()))
+		s.Checksum, err = s.scn.computeChecksum(b.Bytes(), uint8(common.L4SCMP))
 		if err != nil {
 			return err
 		}

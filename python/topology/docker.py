@@ -28,7 +28,6 @@ from python.topology.common import (
     ArgsTopoDicts,
     docker_host,
     docker_image,
-    FEATURE_HEADER_LEGACY,
     sciond_svc_name
 )
 from python.topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
@@ -140,8 +139,6 @@ class DockerGenerator(object):
         for k, _ in topo.get("border_routers", {}).items():
             disp_id = k
             image = docker_image(self.args, 'posix-router')
-            if FEATURE_HEADER_LEGACY in self.args.features:
-                image = docker_image(self.args, 'border')
             entry = {
                 'image': image,
                 'container_name': self.prefix + k,
@@ -154,6 +151,14 @@ class DockerGenerator(object):
                     self._disp_vol(disp_id),
                     '%s:/share/conf:ro' % base
                 ],
+                'environment': {
+                    'SCION_EXPERIMENTAL_BFD_DETECT_MULT':
+                        '${SCION_EXPERIMENTAL_BFD_DETECT_MULT}',
+                    'SCION_EXPERIMENTAL_BFD_DESIRED_MIN_TX':
+                        '${SCION_EXPERIMENTAL_BFD_DESIRED_MIN_TX}',
+                    'SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX':
+                        '${SCION_EXPERIMENTAL_BFD_REQUIRED_MIN_RX}',
+                },
                 'command': ['--config', '/share/conf/%s.toml' % k]
             }
             self.dc_conf['services']['scion_%s' % k] = entry
@@ -161,7 +166,7 @@ class DockerGenerator(object):
     def _control_service_conf(self, topo_id, topo, base):
         for k, v in topo.get("control_service", {}).items():
             entry = {
-                'image': docker_image(self.args, 'cs'),
+                'image': docker_image(self.args, 'control'),
                 'container_name': self.prefix + k,
                 'depends_on': ['scion_disp_%s' % k],
                 'network_mode': 'service:scion_disp_%s' % k,
@@ -224,7 +229,7 @@ class DockerGenerator(object):
         disp_id = 'cs%s-1' % topo_id.file_fmt()
         entry = {
             'extra_hosts': ['jaeger:%s' % docker_host(self.args.docker)],
-            'image': docker_image(self.args, 'sciond'),
+            'image': docker_image(self.args, 'daemon'),
             'container_name': '%ssd%s' % (self.prefix, topo_id.file_fmt()),
             'depends_on': [
                 'scion_disp_%s' % disp_id

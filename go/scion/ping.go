@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/pkg/app"
-	"github.com/scionproto/scion/go/pkg/app/feature"
 	"github.com/scionproto/scion/go/pkg/ping"
 )
 
@@ -61,10 +60,6 @@ func newPing(pather CommandPather) *cobra.Command {
 			remote, err := snet.ParseUDPAddr(args[0])
 			if err != nil {
 				return serrors.WrapStr("parsing remote", err)
-			}
-			features, err := feature.ParseDefault(flags.features)
-			if err != nil {
-				return err
 			}
 			cmd.SilenceUsage = true
 
@@ -107,12 +102,12 @@ func newPing(pather CommandPather) *cobra.Command {
 			pldSize := int(flags.size)
 			if flags.maxMTU {
 				mtu := int(path.Metadata().MTU())
-				pldSize, err = calcMaxPldSize(local, remote, mtu, !features.HeaderLegacy)
+				pldSize, err = calcMaxPldSize(local, remote, mtu)
 				if err != nil {
 					return err
 				}
 			}
-			pktSize, err := calcPktSize(local, remote, pldSize, !features.HeaderLegacy)
+			pktSize, err := ping.Size(local, remote, pldSize)
 			if err != nil {
 				return err
 			}
@@ -149,7 +144,6 @@ func newPing(pather CommandPather) *cobra.Command {
 						update.Size, update.Source.IA, update.Source.Host, update.Sequence,
 						update.RTT, additional)
 				},
-				HeaderV2: !features.HeaderLegacy,
 			})
 			pingSummary(stats, remote, time.Since(start))
 			if err != nil {
@@ -178,25 +172,15 @@ the SCION path.`,
 		`choose the payload size such that the sent SCION packet including the SCION Header,
 SCMP echo header and payload are equal to the MTU of the path. This flag overrides the
 'payload_size' flag.`)
-	cmd.Flags().StringSliceVar(&flags.features, "features", nil,
-		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
-
 	return cmd
 }
 
-func calcMaxPldSize(local, remote *snet.UDPAddr, mtu int, headerV2 bool) (int, error) {
-	overhead, err := calcPktSize(local, remote, 0, headerV2)
+func calcMaxPldSize(local, remote *snet.UDPAddr, mtu int) (int, error) {
+	overhead, err := ping.Size(local, remote, 0)
 	if err != nil {
 		return 0, err
 	}
 	return mtu - overhead, nil
-}
-
-func calcPktSize(local, remote *snet.UDPAddr, pldSize int, headerV2 bool) (int, error) {
-	if headerV2 {
-		return ping.Size(local, remote, pldSize)
-	}
-	return ping.SizeLegacy(local, remote, pldSize)
 }
 
 func pingSummary(stats ping.Stats, remote *snet.UDPAddr, run time.Duration) {

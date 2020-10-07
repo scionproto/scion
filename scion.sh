@@ -16,6 +16,13 @@ run_silently() {
     return 0
 }
 
+cmd_bazel_remote() {
+    mkdir -p "$HOME/.cache/bazel/remote"
+    uid=$(id -u)
+    gid=$(id -g)
+    USER_ID="$uid" GROUP_ID="$gid" docker-compose -f bazel-remote.yml -p bazel_remote up -d
+}
+
 cmd_topo_clean() {
     set -e
     if is_docker_be; then
@@ -43,15 +50,6 @@ cmd_topology() {
     python/topology/generator.py "$@"
     if is_docker_be; then
         ./tools/quiet ./tools/dc run utils_chowner
-    fi
-    if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
-        local old=$(umask)
-        echo "Generating TLS cert"
-        mkdir -p "gen-certs"
-        umask 0177
-        openssl genrsa -out "gen-certs/tls.key" 2048
-        umask "$old"
-        openssl req -new -x509 -key "gen-certs/tls.key" -out "gen-certs/tls.pem" -days 3650 -subj /CN=scion_def_srv
     fi
 }
 
@@ -322,7 +320,7 @@ go_lint() {
     out=$($GOSDK/gofmt -d -s $LOCAL_DIRS ./acceptance);
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     lint_step "linelen (lll)"
-    out=$($TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:|`sql:"|gorm:"|`json:"|`yaml:' < $TMPDIR/gofiles.list);
+    out=$($TMPDIR/lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:|`sql:"|gorm:"|`json:"|`yaml:' < $TMPDIR/gofiles.list)
     if [ -n "$out" ]; then echo "$out"; ret=1; fi
     lint_step "misspell"
     xargs -a $TMPDIR/gofiles.list $TMPDIR/misspell -error || ret=1
@@ -403,7 +401,6 @@ cmd_traces() {
         -e BADGER_EPHEMERAL=false \
         -e BADGER_DIRECTORY_VALUE=/badger/data \
         -e BADGER_DIRECTORY_KEY=/badger/key \
-        -e BADGER_CONSISTENCY=true \
         -v "$trace_dir:/badger" \
         -p "$port":16686 \
         jaegertracing/all-in-one:1.16.0
@@ -449,6 +446,8 @@ cmd_help() {
 	        Serve jaeger traces from the specified folder (default: traces/)
 	    $PROGRAM stop_traces
 	        Stop the jaeger container started during the traces command
+	    $PROGRAM bazel_remote
+	        Starts the bazel remote.
 	_EOF
 }
 # END subcommand functions
@@ -458,7 +457,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond|traces|stop_traces|topo_clean)
+    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond|traces|stop_traces|topo_clean|bazel_remote)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;

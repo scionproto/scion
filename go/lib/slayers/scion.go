@@ -197,7 +197,7 @@ func (s *SCION) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeO
 	// Serialize common header.
 	firstLine := uint32(s.Version&0xF)<<28 | uint32(s.TrafficClass)<<20 | s.FlowID&0xFFFFF
 	binary.BigEndian.PutUint32(buf[:4], firstLine)
-	buf[4] = uint8(s.NextHdr.FromLegacy())
+	buf[4] = uint8(s.NextHdr)
 	buf[5] = s.HdrLen
 	binary.BigEndian.PutUint16(buf[6:8], s.PayloadLen)
 	buf[8] = uint8(s.PathType)
@@ -230,7 +230,7 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	s.Version = uint8(firstLine >> 28)
 	s.TrafficClass = uint8((firstLine >> 20) & 0xFF)
 	s.FlowID = firstLine & 0xFFFFF
-	s.NextHdr = common.L4ProtocolType(data[4]).ToLegacy()
+	s.NextHdr = common.L4ProtocolType(data[4])
 	s.HdrLen = data[5]
 	s.PayloadLen = binary.BigEndian.Uint16(data[6:8])
 	s.PathType = PathType(data[8])

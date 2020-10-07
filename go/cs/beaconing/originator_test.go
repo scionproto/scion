@@ -61,13 +61,13 @@ func TestOriginatorRun(t *testing.T) {
 		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		sender := mock_beaconing.NewMockBeaconSender(mctrl)
 		o := Originator{
-			Extender: &LegacyExtender{
+			Extender: &DefaultExtender{
 				IA:         topoProvider.Get().IA(),
 				MTU:        topoProvider.Get().MTU(),
 				Signer:     signer,
 				Intfs:      intfs,
 				MAC:        func() hash.Hash { return mac },
-				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
 			BeaconSender: sender,
@@ -78,12 +78,9 @@ func TestOriginatorRun(t *testing.T) {
 		}
 
 		require.NoError(t, err)
-		// Activate interfaces
-		intfs.Get(42).Activate(84)
-		intfs.Get(1129).Activate(82)
 
 		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-			gomock.Any()).Times(2).DoAndReturn(
+			gomock.Any()).Times(4).DoAndReturn(
 
 			func(_ context.Context, beacon *seg.PathSegment, dst addr.IA, egress common.IFIDType,
 				nextHop *net.UDPAddr) error {
@@ -116,13 +113,13 @@ func TestOriginatorRun(t *testing.T) {
 		sender := mock_beaconing.NewMockBeaconSender(mctrl)
 
 		o := Originator{
-			Extender: &LegacyExtender{
+			Extender: &DefaultExtender{
 				IA:         topoProvider.Get().IA(),
 				MTU:        topoProvider.Get().MTU(),
 				Signer:     signer,
 				Intfs:      intfs,
 				MAC:        func() hash.Hash { return mac },
-				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
 			BeaconSender: sender,
@@ -132,21 +129,17 @@ func TestOriginatorRun(t *testing.T) {
 			Tick:         NewTick(2 * time.Second),
 		}
 
-		// Activate interfaces
-		intfs.Get(42).Activate(84)
-		intfs.Get(1129).Activate(82)
-
-		// 1. Initial run where one beacon fails to send. -> 2 calls
+		// 1. Initial run where one beacon fails to send. -> 4 calls
 		// 2. Second run where the beacon is delivered. -> 1 call
 		// 3. Run where no beacon is sent. -> no call
-		// 4. Run where beacons are sent on all interfaces. -> 2 calls
+		// 4. Run where beacons are sent on all interfaces. -> 4 calls
 
 		first := sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
 			gomock.Any())
 		first.Return(serrors.New("fail"))
 
 		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-			gomock.Any()).Times(4).Return(nil)
+			gomock.Any()).Times(8).Return(nil)
 		// Initial run. Two writes expected, one write will fail.
 		o.Run(nil)
 		time.Sleep(1 * time.Second)

@@ -71,7 +71,7 @@ class SIGGenerator(object):
     def _dispatcher_conf(self, topo_id, base):
         # Create dispatcher config
         entry = {
-            'image': 'scion_dispatcher',
+            'image': 'dispatcher',
             'container_name': 'scion_%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt()),
             'user': self.user,
             'networks': {},
@@ -95,7 +95,7 @@ class SIGGenerator(object):
         setup_name = 'scion_sig_setup_%s' % topo_id.file_fmt()
         disp_id = 'scion_disp_sig_%s' % topo_id.file_fmt()
         self.dc_conf['services'][setup_name] = {
-            'image': 'scion_tester:latest',
+            'image': 'tester:latest',
             'depends_on': [disp_id],
             'entrypoint': './sig_setup.sh',
             'privileged': True,
@@ -103,7 +103,7 @@ class SIGGenerator(object):
             'command': [remote_nets(self.args.networks, topo_id)],
         }
         self.dc_conf['services']['scion_sig_%s' % topo_id.file_fmt()] = {
-            'image': 'scion_sig:latest',
+            'image': 'posix-gateway:latest',
             'container_name': 'scion_%ssig_%s' % (self.prefix, topo_id.file_fmt()),
             'depends_on': [
                 disp_id,

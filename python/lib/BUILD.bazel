@@ -15,3 +15,21 @@ py_library(
     name = "errors",
     srcs = ["errors.py"],
 )
+
+py_library(
+    name = "util",
+    srcs = ["util.py"],
+    deps = [
+        "//python/lib:errors",
+    ],
+)
+
+py_library(
+    name = "types",
+    srcs = ["types.py"],
+)
+
+py_library(
+    name = "defines",
+    srcs = ["defines.py"],
+)

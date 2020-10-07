@@ -70,7 +70,7 @@ func setupTest(t *testing.T) {
 	// first load the docker images from bazel into the docker deamon, the
 	// tars are in the same folder as this test runs in bazel.
 	mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar")
-	mustExec(t, "docker", "image", "load", "-i", "cs.tar")
+	mustExec(t, "docker", "image", "load", "-i", "control.tar")
 	// now start the docker containers
 	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "up", "-d")
 	// wait a bit to make sure the containers are ready.
@@ -88,7 +88,7 @@ func teardownTest(t *testing.T) {
 	// collect logs
 	for service, file := range map[string]string{
 		"topo_cs_reload_dispatcher":  "disp.log",
-		"topo_cs_reload_control_srv": "cs.log",
+		"topo_cs_reload_control_srv": "control.log",
 	} {
 		cmd := exec.Command("docker-compose", "-f", "docker-compose.yml", "logs", "--no-color",
 			service)

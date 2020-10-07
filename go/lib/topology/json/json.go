@@ -25,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 // Attribute indicates the capability of a primary AS.
@@ -100,6 +101,7 @@ type BRInterface struct {
 	IA        string   `json:"isd_as"`
 	LinkTo    string   `json:"link_to"`
 	MTU       int      `json:"mtu"`
+	BFD       *BFD     `json:"bfd,omitempty"`
 }
 
 // Underlay is the underlay information for a BR interface.
@@ -107,6 +109,14 @@ type Underlay struct {
 	Public string `json:"public"`
 	Remote string `json:"remote"`
 	Bind   string `json:"bind,omitempty"`
+}
+
+// BFD configuration.
+type BFD struct {
+	Disable               bool         `json:"disable,omitempty"`
+	DetectMult            uint8        `json:"detect_mult,omitempty"`
+	DesiredMinTxInterval  util.DurWrap `json:"desired_min_tx_interval,omitempty"`
+	RequiredMinRxInterval util.DurWrap `json:"required_min_rx_interval,omitempty"`
 }
 
 func (i ServerInfo) String() string {

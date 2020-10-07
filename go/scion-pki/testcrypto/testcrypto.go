@@ -45,6 +45,7 @@ func Cmd(pather command.Pather) *cobra.Command {
 		out       string
 		cryptoLib string
 		noCleanup bool
+		isdDir    bool
 	}
 
 	// cmd implements the testcrypto sub-command. The bash library needs to be
@@ -69,7 +70,7 @@ This command should only be used in testing.
 				}
 			}
 			cmd.SilenceUsage = true
-			return testcrypto(flags.topo, flags.cryptoLib, flags.out, flags.noCleanup)
+			return testcrypto(flags.topo, flags.cryptoLib, flags.out, flags.noCleanup, flags.isdDir)
 		},
 	}
 
@@ -78,6 +79,7 @@ This command should only be used in testing.
 	cmd.Flags().StringVarP(&flags.cryptoLib, "cryptolib", "l",
 		defaultCryptoLib, "Path to bash crypto library")
 	cmd.Flags().BoolVar(&flags.noCleanup, "no-cleanup", false, "Do not clean up openssl artifacts")
+	cmd.Flags().BoolVar(&flags.isdDir, "isd-dir", false, "Group ASes in ISD directory")
 	cmd.MarkFlagRequired("topo")
 
 	cmd.AddCommand(newUpdate())
@@ -87,13 +89,13 @@ This command should only be used in testing.
 
 type config struct {
 	topo      topo
-	out       string
+	out       outConfig
 	container string
 	lib       string
 	now       time.Time
 }
 
-func testcrypto(topo, cryptoLib, outDir string, noCleanup bool) error {
+func testcrypto(topo, cryptoLib, outDir string, noCleanup, isdDir bool) error {
 	t, err := loadTopo(topo)
 	if err != nil {
 		return err
@@ -102,14 +104,18 @@ func testcrypto(topo, cryptoLib, outDir string, noCleanup bool) error {
 	if err != nil {
 		return err
 	}
-	out, err := filepath.Abs(outDir)
+	base, err := filepath.Abs(outDir)
 	if err != nil {
 		return err
+	}
+	out := outConfig{
+		base: outDir,
+		isd:  isdDir,
 	}
 	if err := prepareDirectories(t, out); err != nil {
 		return err
 	}
-	container, err := startDocker(out, lib)
+	container, err := startDocker(base, lib)
 	if err != nil {
 		return err
 	}
@@ -188,8 +194,8 @@ func createVoters(cfg config) error {
 		cmd.Env = []string{
 			"STARTDATE=" + generalizedTime(cfg.now),
 			"ENDDATE=" + generalizedTime(cfg.now.Add(730*24*time.Hour)),
-			"KEYDIR=" + cryptoVotingDir(ia, "/workdir"),
-			"PUBDIR=" + cryptoVotingDir(ia, "/workdir"),
+			"KEYDIR=" + cryptoVotingDir(ia, outConfig{base: "/workdir", isd: cfg.out.isd}),
+			"PUBDIR=" + cryptoVotingDir(ia, outConfig{base: "/workdir", isd: cfg.out.isd}),
 			"CONTAINER_NAME=" + cfg.container,
 		}
 		if err := cmd.Run(); err != nil {
@@ -231,8 +237,8 @@ func createCAs(cfg config) error {
 		cmd.Env = []string{
 			"STARTDATE=" + generalizedTime(cfg.now),
 			"ENDDATE=" + generalizedTime(cfg.now.Add(730*24*time.Hour)),
-			"KEYDIR=" + cryptoCADir(ia, "/workdir"),
-			"PUBDIR=" + cryptoCADir(ia, "/workdir"),
+			"KEYDIR=" + cryptoCADir(ia, outConfig{base: "/workdir", isd: cfg.out.isd}),
+			"PUBDIR=" + cryptoCADir(ia, outConfig{base: "/workdir", isd: cfg.out.isd}),
 			"CONTAINER_NAME=" + cfg.container,
 		}
 		if err := cmd.Run(); err != nil {
@@ -269,8 +275,8 @@ func createASes(cfg config) error {
 		cmd.Env = []string{
 			"STARTDATE=" + generalizedTime(cfg.now),
 			"ENDDATE=" + generalizedTime(cfg.now.Add(365*24*time.Hour)),
-			"KEYDIR=" + cryptoASDir(ia, "/workdir"),
-			"PUBDIR=" + cryptoASDir(ia, "/workdir"),
+			"KEYDIR=" + cryptoASDir(ia, outConfig{base: "/workdir", isd: cfg.out.isd}),
+			"PUBDIR=" + cryptoASDir(ia, outConfig{base: "/workdir", isd: cfg.out.isd}),
 			"CONTAINER_NAME=" + cfg.container,
 		}
 		if err := cmd.Run(); err != nil {
@@ -291,8 +297,8 @@ func createASes(cfg config) error {
 		cmd.Env = []string{
 			"STARTDATE=" + generalizedTime(cfg.now),
 			"ENDDATE=" + generalizedTime(cfg.now.Add(365*24*time.Hour)),
-			"KEYDIR=" + cryptoCADir(ca, "/workdir"),
-			"PUBDIR=" + cryptoCADir(ca, "/workdir"),
+			"KEYDIR=" + cryptoCADir(ca, outConfig{base: "/workdir", isd: cfg.out.isd}),
+			"PUBDIR=" + cryptoCADir(ca, outConfig{base: "/workdir", isd: cfg.out.isd}),
 			"CONTAINER_NAME=" + cfg.container,
 		}
 		if err := cmd.Run(); err != nil {
@@ -363,7 +369,7 @@ func createTRCs(cfg config) error {
 		if err != nil {
 			return serrors.WrapStr("encoding TRC", err, "isd", isd)
 		}
-		pldName := filepath.Join(cfg.out, fmt.Sprintf("ISD%d", isd), "TRC-B1-S1.pld.der")
+		pldName := filepath.Join(cfg.out.base, fmt.Sprintf("ISD%d", isd), "TRC-B1-S1.pld.der")
 		err = ioutil.WriteFile(pldName, raw, 0666)
 		if err != nil {
 			return serrors.WrapStr("failed to write TRC payload", err, "isd", isd)
@@ -376,8 +382,8 @@ func createTRCs(cfg config) error {
 				sign_payload"`, isd), cfg.lib))
 			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 			cmd.Env = []string{
-				"KEYDIR=" + cryptoVotingDir(voter, "/workdir"),
-				"PUBDIR=" + cryptoVotingDir(voter, "/workdir"),
+				"KEYDIR=" + cryptoVotingDir(voter, outConfig{base: "/workdir", isd: cfg.out.isd}),
+				"PUBDIR=" + cryptoVotingDir(voter, outConfig{base: "/workdir", isd: cfg.out.isd}),
 				"CONTAINER_NAME=" + cfg.container,
 			}
 			if err := cmd.Run(); err != nil {
@@ -489,15 +495,15 @@ func setupOpenSSLConfigs(cfg config) error {
 	return nil
 }
 
-func prepareDirectories(t topo, out string) error {
+func prepareDirectories(t topo, out outConfig) error {
 	for ia, d := range t.ASes {
 		dirs := []string{
 			trcDir(ia.I, out),
 			keyDir(ia, out),
 			certDir(ia, out),
 			cryptoASDir(ia, out),
-			filepath.Join(out, "trcs"),
-			filepath.Join(out, "certs"),
+			filepath.Join(out.base, "trcs"),
+			filepath.Join(out.base, "certs"),
 		}
 		if d.Issuing {
 			dirs = append(dirs, cryptoCADir(ia, out))
@@ -515,28 +521,34 @@ func prepareDirectories(t topo, out string) error {
 	return nil
 }
 
-func flatten(out string) error {
-	trcs, err := filepath.Glob(fmt.Sprintf("%s/ISD*/trcs/ISD*-B*-S*.trc", out))
+func flatten(out outConfig) error {
+	trcs, err := filepath.Glob(fmt.Sprintf("%s/ISD*/trcs/ISD*-B*-S*.trc", out.base))
 	if err != nil {
 		return err
 	}
 	for _, trc := range trcs {
 		_, name := filepath.Split(trc)
-		if err := copyFile(filepath.Join(out, "trcs", name), trc); err != nil {
+		if err := copyFile(filepath.Join(out.base, "trcs", name), trc); err != nil {
 			return serrors.WithCtx(err, "file", trc)
 		}
 	}
-	pems, err := filepath.Glob(fmt.Sprintf("%s/AS*/crypto/*/ISD*-AS*.pem", out))
+
+	prefix := filepath.Join(out.base, "AS*")
+	if out.isd {
+		prefix = filepath.Join(out.base, "ISD*", "AS*")
+	}
+
+	pems, err := filepath.Glob(fmt.Sprintf("%s/crypto/*/ISD*-AS*.pem", prefix))
 	if err != nil {
 		return err
 	}
-	crts, err := filepath.Glob(fmt.Sprintf("%s/AS*/crypto/*/ISD*-AS*.crt", out))
+	crts, err := filepath.Glob(fmt.Sprintf("%s/crypto/*/ISD*-AS*.crt", prefix))
 	if err != nil {
 		return err
 	}
 	for _, file := range append(pems, crts...) {
 		_, name := filepath.Split(file)
-		if err := copyFile(filepath.Join(out, "certs", name), file); err != nil {
+		if err := copyFile(filepath.Join(out.base, "certs", name), file); err != nil {
 			return serrors.WithCtx(err, "file", file)
 		}
 	}
@@ -546,7 +558,8 @@ func flatten(out string) error {
 func cleanup(cfg config) error {
 	gid := os.Getegid()
 	uid := os.Geteuid()
-	cmd := exec.Command("sh", "-c", withLib(`docker_exec "`+
+
+	c := withLib(`docker_exec "`+
 		fmt.Sprintf("chown %d:%d /workdir/*/crypto/*/*.key && ", uid, gid)+
 		`chmod 0666 /workdir/*/crypto/*/*.key && `+
 		`rm -f /workdir/*/crypto/*/cp-*.crt && `+
@@ -558,7 +571,11 @@ func cleanup(cfg config) error {
 		`rm -f /workdir/*/crypto/voting/*.der && `+
 		`rm -f /workdir/*/*.der && `+
 		`rm -rf /workdir/*/crypto/*/certificates && `+
-		`rm -rf /workdir/*/crypto/*/database"`, cfg.lib))
+		`rm -rf /workdir/*/crypto/*/database"`, cfg.lib)
+	if cfg.out.isd {
+		c = strings.ReplaceAll(c, "workdir/", "workdir/*/")
+	}
+	cmd := exec.Command("sh", "-c", c)
 	cmd.Env = []string{"CONTAINER_NAME=" + cfg.container}
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	return cmd.Run()
@@ -584,32 +601,44 @@ func copyFile(dst string, src string) error {
 	return nil
 }
 
-func trcDir(isd addr.ISD, base string) string {
-	return fmt.Sprintf("%s/ISD%d/trcs", base, isd)
+type outConfig struct {
+	base string
+	isd  bool
 }
 
-func keyDir(ia addr.IA, base string) string {
-	return fmt.Sprintf("%s/AS%s/keys", base, ia.A.FileFmt())
+func (cfg outConfig) AS(ia addr.IA) string {
+	if cfg.isd {
+		return fmt.Sprintf("%s/ISD%d/AS%s", cfg.base, ia.I, ia.A.FileFmt())
+	}
+	return fmt.Sprintf("%s/AS%s", cfg.base, ia.A.FileFmt())
 }
 
-func certDir(ia addr.IA, base string) string {
-	return fmt.Sprintf("%s/AS%s/certs", base, ia.A.FileFmt())
+func trcDir(isd addr.ISD, out outConfig) string {
+	return fmt.Sprintf("%s/ISD%d/trcs", out.base, isd)
 }
 
-func cryptoASDir(ia addr.IA, base string) string {
-	return fmt.Sprintf("%s/AS%s/crypto/as", base, ia.A.FileFmt())
+func keyDir(ia addr.IA, out outConfig) string {
+	return filepath.Join(out.AS(ia), "keys")
 }
 
-func cryptoCADir(ia addr.IA, base string) string {
-	return fmt.Sprintf("%s/AS%s/crypto/ca", base, ia.A.FileFmt())
+func certDir(ia addr.IA, out outConfig) string {
+	return filepath.Join(out.AS(ia), "certs")
 }
 
-func cryptoCAClientDir(ia addr.IA, base string) string {
-	return filepath.Join(cryptoCADir(ia, base), "clients")
+func cryptoASDir(ia addr.IA, out outConfig) string {
+	return filepath.Join(out.AS(ia), "crypto", "as")
 }
 
-func cryptoVotingDir(ia addr.IA, base string) string {
-	return fmt.Sprintf("%s/AS%s/crypto/voting", base, ia.A.FileFmt())
+func cryptoCADir(ia addr.IA, out outConfig) string {
+	return filepath.Join(out.AS(ia), "crypto", "ca")
+}
+
+func cryptoCAClientDir(ia addr.IA, out outConfig) string {
+	return filepath.Join(cryptoCADir(ia, out), "clients")
+}
+
+func cryptoVotingDir(ia addr.IA, out outConfig) string {
+	return filepath.Join(out.AS(ia), "crypto", "voting")
 }
 
 func chainName(ia addr.IA) string {

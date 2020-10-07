@@ -21,8 +21,6 @@ import (
 	"time"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
-	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
-	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
@@ -47,10 +45,7 @@ func (SimpleDialer) Dial(ctx context.Context, address net.Addr) (*grpc.ClientCon
 	return grpc.DialContext(ctx, address.String(),
 		grpc.WithInsecure(),
 		grpc.WithBlock(),
-		grpc.WithChainUnaryInterceptor(
-			otgrpc.OpenTracingClientInterceptor(opentracing.GlobalTracer()),
-			LogIDClientInterceptor(),
-		),
+		UnaryClientInterceptor(),
 	)
 }
 
@@ -105,10 +100,7 @@ func (t *TCPDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn, 
 	}
 	return grpc.DialContext(ctx, target.String(),
 		grpc.WithInsecure(),
-		grpc.WithChainUnaryInterceptor(
-			otgrpc.OpenTracingClientInterceptor(opentracing.GlobalTracer()),
-			LogIDClientInterceptor(),
-		),
+		UnaryClientInterceptor(),
 	)
 }
 
@@ -180,11 +172,7 @@ func (d *QUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn,
 	return grpc.DialContext(ctx, addr.String(),
 		grpc.WithInsecure(),
 		grpc.WithContextDialer(dialer),
-		grpc.WithChainUnaryInterceptor(
-			grpc_retry.UnaryClientInterceptor(),
-			otgrpc.OpenTracingClientInterceptor(opentracing.GlobalTracer()),
-			LogIDClientInterceptor(),
-		),
+		UnaryClientInterceptor(),
 	)
 
 }
@@ -212,11 +200,7 @@ func (d *TLSQUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientCo
 	return grpc.DialContext(ctx, addr.String(),
 		grpc.WithTransportCredentials(d.Credentials),
 		grpc.WithContextDialer(dialer),
-		grpc.WithChainUnaryInterceptor(
-			grpc_retry.UnaryClientInterceptor(),
-			otgrpc.OpenTracingClientInterceptor(opentracing.GlobalTracer()),
-			LogIDClientInterceptor(),
-		),
+		UnaryClientInterceptor(),
 	)
 }
 

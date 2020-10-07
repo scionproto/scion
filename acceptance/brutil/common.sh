@@ -1,15 +1,15 @@
 # This is a base file included/sourced by each border router acceptance test
 
+ACCEPTANCE_DIR="${ACCEPTANCE_DIR:-"acceptance"}"
+
 export TEST_ARTIFACTS_DIR="${ACCEPTANCE_ARTIFACTS:?}/${TEST_NAME}"
 TEST_DIR=${TEST_NAME}_acceptance
 BRACCEPT=bin/braccept
 
-UTIL_DIR=${UTIL_DIR:=acceptance/brutil}
-COMMON_CONF_DIR=${COMMON_CONF_DIR:=$UTIL_DIR/conf}
+UTIL_DIR=acceptance/brutil
 DOCKER_COMPOSE_FN=${DOCKER_COMPOSE_FN:=$UTIL_DIR/docker-compose.yml}
 
-BR_TOML_FN=${BR_TOML_FN:=br.toml}
-BR_TOML=$TEST_ARTIFACTS_DIR/conf/$BR_TOML_FN
+BR_TOML=$TEST_ARTIFACTS_DIR/conf/br.toml
 BR_POST_SETUP_SLEEP_PERIOD=${BR_POST_SETUP_SLEEP_PERIOD:=0}
 
 export USER_ID=$(id -u)
@@ -53,10 +53,10 @@ test_config() {
     mkdir -p $TEST_ARTIFACTS_DIR/conf $TEST_ARTIFACTS_DIR/logs
 
     # Copy common configuration
-    cp -Lr "$COMMON_CONF_DIR/." "$TEST_ARTIFACTS_DIR/conf"
+    cp -Lr "$UTIL_DIR/conf/." "$TEST_ARTIFACTS_DIR/conf"
 
     # Copy custom test configuration files, ie. topology
-    cp -Lr "acceptance/${TEST_DIR}/conf/." "$TEST_ARTIFACTS_DIR/conf"
+    cp -Lr "$ACCEPTANCE_DIR/${TEST_DIR}/conf/." "$TEST_ARTIFACTS_DIR/conf"
 
     # Replace BR ID
     sed -i "s/id = .*$/id = \"${BRID}\"/g" "$BR_TOML"
@@ -73,7 +73,7 @@ test_run() {
     # of setting the capabilities twice on CI.
     make -s setcap
 
-    $BRACCEPT -testName "${TEST_NAME:?}" -keysDirPath "$TEST_ARTIFACTS_DIR/conf/keys" "$@"
+    "${BRACCEPT}" "${BRACCEPT_ARGS:-}"
 }
 
 test_teardown() {
@@ -82,6 +82,7 @@ test_teardown() {
     del_veths
     rm_docker_ns_link
     docker_status
+    docker-compose -f $DOCKER_COMPOSE_FN  logs --no-color > "$TEST_ARTIFACTS_DIR/dc.logs"
     docker-compose -f $DOCKER_COMPOSE_FN --no-ansi down
 }
 

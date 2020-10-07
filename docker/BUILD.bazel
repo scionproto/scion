@@ -1,53 +1,42 @@
-load("@io_bazel_rules_docker//container:container.bzl", "container_bundle")
+load("@io_bazel_rules_docker//container:container.bzl", "container_bundle", "container_import")
 load(":scion_app.bzl", "scion_app_base", "scion_app_images")
 load(":tester.bzl", "build_tester_image")
 
 container_bundle(
     name = "prod",
     images = {
-        "scion_border:latest": ":border_prod",
-        "scion_posix-router:latest": "posix-router_prod",
-        "scion_cs:latest": ":cs_prod",
-        "scion_dispatcher:latest": ":dispatcher_prod",
-        "scion_sciond:latest": ":sciond_prod",
-        "scion_sig:latest": ":sig_prod",
+        "control:latest": ":control_prod",
+        "daemon:latest": ":daemon_prod",
+        "dispatcher:latest": ":dispatcher_prod",
+        "posix-gateway:latest": ":sig_prod",
+        "posix-router:latest": "posix-router_prod",
     },
+    visibility = ["//visibility:public"],
 )
 
 container_bundle(
     name = "debug",
     images = {
-        "scion_border_debug:latest": ":border_debug",
-        "scion_posix-router_debug:latest": "posix-router_debug",
-        "scion_cs_debug:latest": ":cs_debug",
-        "scion_dispatcher_debug:latest": ":dispatcher_debug",
-        "scion_sciond_debug:latest": ":sciond_debug",
-        "scion_sig_debug:latest": ":sig_debug",
+        "control-debug:latest": ":control_debug",
+        "daemon-debug:latest": ":daemon_debug",
+        "dispatcher-debug:latest": ":dispatcher_debug",
+        "posix-gateway-debug:latest": ":sig_debug",
+        "posix-router-debug:latest": "posix-router_debug",
     },
+    visibility = ["//visibility:public"],
 )
 
 container_bundle(
     name = "test",
     images = {
-        "scion_tester:latest": ":scion_tester",
+        "tester:latest": ":tester",
     },
+    visibility = ["//visibility:public"],
 )
 
 scion_app_base()
 
 build_tester_image()
-
-scion_app_images(
-    name = "border",
-    appdir = "/app",
-    binary = "//go/border:border",
-    cmd = [
-        "--config",
-        "/share/conf/br.toml",
-    ],
-    entrypoint = ["/app/border"],
-    workdir = "/share",
-)
 
 scion_app_images(
     name = "posix-router",
@@ -62,7 +51,7 @@ scion_app_images(
 )
 
 scion_app_images(
-    name = "cs",
+    name = "control",
     appdir = "/app",
     binary = "//go/cs:cs",
     cmd = [
@@ -86,7 +75,7 @@ scion_app_images(
 )
 
 scion_app_images(
-    name = "sciond",
+    name = "daemon",
     appdir = "/app",
     binary = "//go/sciond:sciond",
     cmd = [

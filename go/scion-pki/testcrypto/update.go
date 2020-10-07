@@ -89,15 +89,20 @@ Scenarios:
 				}
 			}
 
+			matches, err := filepath.Glob(filepath.Join(flags.out, "ISD*", "AS*"))
+			out := outConfig{
+				base: flags.out,
+				isd:  err == nil && len(matches) != 0,
+			}
 			now := time.Now()
 			for isd, pred := range isds {
 				switch flags.scenario {
 				case "extend":
-					if err := extendTRC(now, flags.out, pred); err != nil {
+					if err := extendTRC(now, out, pred); err != nil {
 						return serrors.WrapStr("generating extension", err, "isd", isd)
 					}
 				case "re-sign":
-					if err := resignTRC(now, flags.out, pred); err != nil {
+					if err := resignTRC(now, out, pred); err != nil {
 						return serrors.WrapStr("re-signing", err)
 					}
 				default:
@@ -113,7 +118,7 @@ Scenarios:
 	return cmd
 }
 
-func extendTRC(now time.Time, out string, pred cppki.SignedTRC) error {
+func extendTRC(now time.Time, out outConfig, pred cppki.SignedTRC) error {
 	signers := map[*x509.Certificate]crypto.Signer{}
 	var include []*x509.Certificate
 	var votes []int
@@ -130,15 +135,16 @@ func extendTRC(now time.Time, out string, pred cppki.SignedTRC) error {
 		case cppki.Regular:
 			key, err := findkey(cryptoVotingDir(*ia, out), cert)
 			if err != nil {
-				return serrors.WrapStr("searching key", err, "ia", *ia, "type", t)
+				return serrors.WrapStr("searching key", err, "isd_as", *ia, "type", t)
 			}
 			extended, err := extendCert(now, cert, key)
 			if err != nil {
-				return serrors.WrapStr("creating certificate", err, "ia", *ia, "type", t)
+				return serrors.WrapStr("creating certificate", err, "isd_as", *ia, "type", t)
 			}
-			file := filepath.Join(out, "certs", regularCertName(*ia, int(pred.TRC.ID.Serial+1)))
+			file := filepath.Join(out.base, "certs",
+				regularCertName(*ia, int(pred.TRC.ID.Serial+1)))
 			if err := writeCert(file, extended); err != nil {
-				return serrors.WrapStr("writing certificate", err, "ia", *ia, "type", t)
+				return serrors.WrapStr("writing certificate", err, "isd_as", *ia, "type", t)
 			}
 			// Cast vote and show proof of possession.
 			signers[cert] = key
@@ -148,15 +154,15 @@ func extendTRC(now time.Time, out string, pred cppki.SignedTRC) error {
 		case cppki.Root:
 			key, err := findkey(cryptoCADir(*ia, out), cert)
 			if err != nil {
-				return serrors.WrapStr("searching key", err, "ia", *ia, "type", t)
+				return serrors.WrapStr("searching key", err, "isd_as", *ia, "type", t)
 			}
 			extended, err := extendCert(now, cert, key)
 			if err != nil {
-				return serrors.WrapStr("creating certificate", err, "ia", *ia, "type", t)
+				return serrors.WrapStr("creating certificate", err, "isd_as", *ia, "type", t)
 			}
-			file := filepath.Join(out, "certs", rootCertName(*ia, int(pred.TRC.ID.Serial+1)))
+			file := filepath.Join(out.base, "certs", rootCertName(*ia, int(pred.TRC.ID.Serial+1)))
 			if err := writeCert(file, extended); err != nil {
-				return serrors.WrapStr("writing certificate", err, "ia", *ia, "type", t)
+				return serrors.WrapStr("writing certificate", err, "isd_as", *ia, "type", t)
 			}
 			// Show acknowledgment
 			signers[cert] = key
@@ -192,7 +198,7 @@ func extendTRC(now time.Time, out string, pred cppki.SignedTRC) error {
 	return writeTRC(out, trc)
 }
 
-func resignTRC(now time.Time, out string, pred cppki.SignedTRC) error {
+func resignTRC(now time.Time, out outConfig, pred cppki.SignedTRC) error {
 	signers := map[*x509.Certificate]crypto.Signer{}
 	var include []*x509.Certificate
 	var votes []int
@@ -208,7 +214,7 @@ func resignTRC(now time.Time, out string, pred cppki.SignedTRC) error {
 		if t == cppki.Regular {
 			key, err := findkey(cryptoVotingDir(*ia, out), cert)
 			if err != nil {
-				return serrors.WrapStr("searching key", err, "ia", *ia, "type", t)
+				return serrors.WrapStr("searching key", err, "isd_as", *ia, "type", t)
 			}
 			signers[cert] = key
 			votes = append(votes, i)
@@ -333,12 +339,12 @@ func writeCert(file string, cert *x509.Certificate) error {
 	return out.Close()
 }
 
-func writeTRC(out string, trc cppki.SignedTRC) error {
+func writeTRC(out outConfig, trc cppki.SignedTRC) error {
 	raw, err := trc.Encode()
 	if err != nil {
 		return serrors.WrapStr("encoding TRC", err)
 	}
-	file := filepath.Join(out, "trcs",
+	file := filepath.Join(out.base, "trcs",
 		fmt.Sprintf("ISD%d-B%d-S%d.trc", trc.TRC.ID.ISD, trc.TRC.ID.Base, trc.TRC.ID.Serial))
 	return ioutil.WriteFile(file, raw, 0644)
 }

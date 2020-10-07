@@ -41,7 +41,6 @@ type Pather struct {
 	RevCache     revcache.RevCache
 	Fetcher      *Fetcher
 	Splitter     Splitter
-	HeaderV2     bool
 }
 
 // GetPaths returns all non-revoked and non-expired paths to the destination.
@@ -87,12 +86,8 @@ func (p *Pather) buildAllPaths(src, dst addr.IA, segs Segments) []*combinator.Pa
 	up, core, down := categorizeSegs(segs)
 	destinations := p.findDestinations(dst, up, core)
 	var paths []*combinator.Path
-	combine := combinator.Combine
-	if p.HeaderV2 {
-		combine = combinator.CombineV2
-	}
 	for dst := range destinations {
-		paths = append(paths, combine(src, dst, up, core, down)...)
+		paths = append(paths, combinator.CombineV2(src, dst, up, core, down)...)
 	}
 	// Filter expired paths
 	now := time.Now()

@@ -213,6 +213,11 @@ func TestIFInfoMap(t *testing.T) {
 			IA:        xtest.MustParseIA("1-ff00:0:312"),
 			LinkType:  Parent,
 			MTU:       1472,
+			BFD: BFD{
+				DetectMult:            10,
+				DesiredMinTxInterval:  10 * time.Millisecond,
+				RequiredMinRxInterval: 15 * time.Millisecond,
+			},
 		},
 		3: IFInfo{
 			ID:     3,

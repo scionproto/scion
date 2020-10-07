@@ -20,7 +20,6 @@ import (
 	"net"
 	"path/filepath"
 
-	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
@@ -104,12 +103,7 @@ func GRPCServer(listen string, cfg ServerCfg) func() error {
 		if err != nil {
 			return serrors.WrapStr("listening", err)
 		}
-		server := grpc.NewServer(
-			grpc.ChainUnaryInterceptor(
-				otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer()),
-				libgrpc.LogIDServerInterceptor(),
-			),
-		)
+		server := grpc.NewServer(libgrpc.UnaryServerInterceptor())
 		sdpb.RegisterDaemonServiceServer(server, servers.DaemonServer{
 			Fetcher:      cfg.Fetcher,
 			ASInspector:  cfg.Engine.Inspector,

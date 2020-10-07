@@ -3,9 +3,6 @@ id = "sig1-ff00_0_111"
 sig_config = "/cfg.json"
 ip = "242.254.200.2"
 
-[features]
-allow_run_as_root = true
-
 [sciond_connection]
 fake_data = "/fake_sciond.json"
 
