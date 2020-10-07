@@ -121,7 +121,7 @@ steps:
     artifact_paths:
       - "artifacts.out/**/*"
     timeout_in_minutes: 15
-    key: e2e_integration_tests
+    key: e2e_integration_tests_legacy
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
