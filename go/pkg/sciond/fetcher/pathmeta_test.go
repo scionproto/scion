@@ -491,7 +491,7 @@ func TestCollectMetadata(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			rawdata := combinator.CombineV2(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
+			rawdata := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
 			result := Condensemetadata(rawdata[0].StaticInfo)
 			assert.Equal(t, tc.expectedLatency, result.TotalLatency)
 			assert.Equal(t, tc.expectedBW, result.MinOfMaxBWs)

@@ -42,7 +42,7 @@ func TestFilter(t *testing.T) {
 	seg120To111 := g.Beacon([]common.IFIDType{graph.If_120_X_111_B})
 	seg130To111 := g.Beacon([]common.IFIDType{graph.If_130_B_111_A})
 
-	paths111To110 := combinator.CombineV2(ia111, ia110,
+	paths111To110 := combinator.Combine(ia111, ia110,
 		[]*seg.PathSegment{seg120To111, seg130To111},
 		[]*seg.PathSegment{seg110To120, seg110To130},
 		nil)
@@ -67,7 +67,7 @@ func TestFilter(t *testing.T) {
 					})
 				return pol
 			},
-			ExpectedPaths: combinator.CombineV2(ia111, ia110,
+			ExpectedPaths: combinator.Combine(ia111, ia110,
 				[]*seg.PathSegment{seg130To111},
 				[]*seg.PathSegment{seg110To130},
 				nil),

@@ -40,7 +40,7 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-// CombineV2 constructs paths between src and dst using the supplied
+// Combine constructs paths between src and dst using the supplied
 // segments. All possible paths are first computed, and then filtered according
 // to FilterLongPaths. The remaining paths are returned sorted according to
 // weight (on equal weight, see pathSolutionList.Less for the tie-breaking
@@ -50,7 +50,7 @@ import (
 // panics.
 //
 // This method is specifically for header v2.
-func CombineV2(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) []*Path {
+func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) []*Path {
 	paths := NewDMG(ups, cores, downs).GetPaths(VertexFromIA(src), VertexFromIA(dst))
 
 	var pathSlice []*Path
