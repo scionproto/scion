@@ -163,7 +163,7 @@ func (f *fetcher) translate(path *combinator.Path) (sciond.PathReplyEntry, error
 				Mtu:        f.pather.TopoProvider.Get().MTU(),
 				Interfaces: []snet.PathInterface{},
 				ExpTime:    util.TimeToSecs(time.Now().Add(spath.MaxTTL * time.Second)),
-				HeaderV2:   path.HeaderV2,
+				HeaderV2:   true,
 			},
 		}
 		return entry, nil
@@ -185,7 +185,7 @@ func (f *fetcher) translate(path *combinator.Path) (sciond.PathReplyEntry, error
 			Mtu:        path.Mtu,
 			Interfaces: path.Interfaces,
 			ExpTime:    uint32(path.ComputeExpTime().Unix()),
-			HeaderV2:   path.HeaderV2,
+			HeaderV2:   true,
 		},
 		HostInfo: hostinfo.FromUDPAddr(*nextHop),
 	}

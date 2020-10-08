@@ -103,11 +103,6 @@ message SegmentInformation {
     int64 timestamp = 1;
     // The 16-bit segment ID integer used for MAC computation.
     uint32 segment_id = 2;
-
-
-    // Deprecated ISD identifier used for legacy path segment construction.
-    // This will be removed.
-    uint32 deprecated_isd = 1000;
 }
 
 message ASEntry {

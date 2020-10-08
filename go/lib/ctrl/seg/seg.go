@@ -74,8 +74,8 @@ type PathSegment struct {
 
 // CreateSegment creates a new path segment. The AS entries should be added
 // using AddASEntry.
-func CreateSegment(timestamp time.Time, segID uint16, isd addr.ISD) (*PathSegment, error) {
-	info, err := NewInfo(timestamp, segID, isd)
+func CreateSegment(timestamp time.Time, segID uint16) (*PathSegment, error) {
+	info, err := NewInfo(timestamp, segID)
 	if err != nil {
 		return nil, err
 	}

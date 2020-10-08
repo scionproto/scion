@@ -358,7 +358,7 @@ func markHidden(t *testing.T, m *seg.Meta) *seg.Meta {
 	require.NoError(t, err)
 	signer := graph.Signer{PrivateKey: priv}
 
-	newSeg, err := seg.CreateSegment(s.Info.Timestamp, s.Info.SegmentID, s.Info.ISD)
+	newSeg, err := seg.CreateSegment(s.Info.Timestamp, s.Info.SegmentID)
 	require.NoError(t, err)
 	require.NotEmpty(t, s.ASEntries)
 	s.ASEntries[s.MaxIdx()].Extensions.HiddenPath.IsHidden = true
