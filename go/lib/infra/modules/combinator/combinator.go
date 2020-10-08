@@ -48,8 +48,6 @@ import (
 //
 // If Combine cannot extract a hop field or info field from the segments, it
 // panics.
-//
-// This method is specifically for header v2.
 func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) []*Path {
 	paths := NewDMG(ups, cores, downs).GetPaths(VertexFromIA(src), VertexFromIA(dst))
 

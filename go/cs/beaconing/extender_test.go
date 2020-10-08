@@ -100,7 +100,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			}
-			pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()), 0)
+			pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
 			require.NoError(t, err)
 
 			// Extend the segment.
@@ -174,7 +174,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			StaticInfo: func() *StaticInfoCfg { return nil },
 		}
 		require.NoError(t, err)
-		pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()), 0)
+		pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
 		require.NoError(t, err)
 		err = ext.Extend(context.Background(), pseg, 0, graph.If_111_A_112_X, []common.IFIDType{})
 		require.NoError(t, err)
@@ -260,7 +260,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 					StaticInfo: func() *StaticInfoCfg { return nil },
 				}
-				pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()), 0)
+				pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
 				require.NoError(t, err)
 				err = ext.Extend(context.Background(), pseg, tc.Ingress, tc.Egress,
 					[]common.IFIDType{})

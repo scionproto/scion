@@ -166,7 +166,7 @@ func (o *beaconOriginator) createBeacon(ctx context.Context) (*seg.PathSegment, 
 	if err != nil {
 		return nil, err
 	}
-	bseg, err := seg.CreateSegment(o.timestamp, uint16(segID.Uint64()), o.IA.I)
+	bseg, err := seg.CreateSegment(o.timestamp, uint16(segID.Uint64()))
 	if err != nil {
 		return nil, serrors.WrapStr("creating segment", err)
 	}
