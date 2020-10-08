@@ -77,7 +77,7 @@ func TestBadPeering(t *testing.T) {
 	Convey("main", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
+				result := CombineV2(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
 				txtResult := writePaths(result)
 				if *update {
 					err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
@@ -124,7 +124,7 @@ func TestMultiPeering(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
+			result := CombineV2(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
 			txtResult := writePaths(result)
 			if *update {
 				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
@@ -168,7 +168,7 @@ func TestSameCoreParent(t *testing.T) {
 	Convey("main", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
+				result := CombineV2(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
 				txtResult := writePaths(result)
 				if *update {
 					err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
@@ -220,7 +220,7 @@ func TestLoops(t *testing.T) {
 	Convey("TestLoops", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
+				result := CombineV2(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
 				txtResult := writePaths(result)
 				if *update {
 					err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
@@ -529,7 +529,7 @@ func TestComputePath(t *testing.T) {
 	Convey("main", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
+				result := CombineV2(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
 				txtResult := writePaths(result)
 				if *update {
 					err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
