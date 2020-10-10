@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -59,7 +60,13 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 	src := p.TopoProvider.Get().IA()
 	if dst.Equal(src) {
 		// For AS local communication, an empty path is used.
-		return []snet.Path{path.Path{Dst: dst}}, nil
+		return []snet.Path{path.Path{
+			Dst: dst,
+			Meta: path.PathMetadata{
+				Mtu: p.TopoProvider.Get().MTU(),
+				Exp: time.Now().Add(spath.MaxTTL * time.Second),
+			},
+		}}, nil
 	}
 	reqs, err := p.Splitter.Split(ctx, dst)
 	if err != nil {
