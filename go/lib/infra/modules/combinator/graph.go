@@ -296,8 +296,8 @@ type pathSolution struct {
 	cost int
 }
 
-// getFwdPathMetadata builds the forwarding path with metadata by
-// extracting it from a path between source and destination in the DMG.
+// Path builds the forwarding path with metadata by extracting it from a path
+// between source and destination in the DMG.
 func (solution *pathSolution) Path() Path {
 	mtu := ^uint16(0)
 	var segments segmentList
