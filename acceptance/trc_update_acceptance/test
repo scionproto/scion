@@ -30,7 +30,6 @@ from acceptance.common.log import LogExec, init_log
 from acceptance.common.scion import SCIONDocker
 from acceptance.common.tools import DC
 
-
 set_name(__file__)
 logger = logging.getLogger(__name__)
 
@@ -54,6 +53,7 @@ class Test(TestBase):
 
 @Test.subcommand('setup')
 class TestSetup(CmdBase):
+
     @LogExec(logger, 'setup')
     def main(self):
         # XXX(roosd): In IPv6, the http endpoints are not accessible.
@@ -66,6 +66,7 @@ class TestSetup(CmdBase):
 
 @Test.subcommand('run')
 class TestRun(CmdBase):
+
     @LogExec(logger, 'run')
     def main(self):
         cs_configs = local.path('gen') // 'AS*/cs*.toml'
@@ -105,26 +106,31 @@ class TestRun(CmdBase):
             not_ready.append(cs_config)
 
         for _ in range(5):
-            logger.info('Checking if all control servers have received the TRC update...')
+            logger.info(
+                'Checking if all control servers have received the TRC update...'
+            )
             for cs_config in not_ready:
                 conn = HTTPConnection(self._http_endpoint(cs_config))
                 conn.request('GET', '/signer')
                 resp = conn.getresponse()
                 if resp.status != 200:
-                    logger.info("Unexpected response: %d %s", resp.status, resp.reason)
+                    logger.info("Unexpected response: %d %s", resp.status,
+                                resp.reason)
                     continue
 
                 pld = json.loads(resp.read().decode('utf-8'))
                 if pld['trc_id']['serial_number'] != 2:
                     continue
-                logger.info('Control server received TRC update: %s' % rel(cs_config))
+                logger.info('Control server received TRC update: %s' %
+                            rel(cs_config))
                 not_ready.remove(cs_config)
             if not not_ready:
                 break
             time.sleep(3)
         else:
-            logger.error('Control servers that have not received TRC update: %s' %
-                         [cs_config.stem for cs_config in not_ready])
+            logger.error(
+                'Control servers that have not received TRC update: %s' %
+                [cs_config.stem for cs_config in not_ready])
             sys.exit(1)
 
     def _http_endpoint(self, cs_config: LocalPath):

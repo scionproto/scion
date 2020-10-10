@@ -1,0 +1,16 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@lint_tool_deps//:requirements.bzl", "requirement")
+
+py_binary(
+    name = "pylint",
+    srcs = ["lint.py"],
+    main = "lint.py",
+    deps = [requirement("pylint")],
+)
+
+py_binary(
+    name = "yapf",
+    srcs = ["format.py"],
+    main = "format.py",
+    deps = [requirement("yapf")],
+)

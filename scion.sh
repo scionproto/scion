@@ -280,6 +280,16 @@ cmd_lint() {
 py_lint() {
     lint_header "python"
     local ret=0
+    lint_step "yapf"
+    run_silently bazel build //tools/lint:yapf
+    bazel-bin/tools/lint/yapf --diff --recursive --style google python acceptance tools || ((ret++))
+    if [ ! "$ret" -eq "0" ]; then
+        echo ""
+        echo "Fix python formatting by running:"
+        echo "bazel build //tools/lint:yapf"
+        echo "bazel-bin/tools/lint/yapf -i --recursive --style google python acceptance tools"
+    fi
+    lint_step "flake8"
     for i in acceptance python; do
       [ -d "$i" ] || continue
       local cmd="flake8"

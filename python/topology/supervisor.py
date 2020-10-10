@@ -30,7 +30,6 @@ from python.topology.common import (
     SD_CONFIG_NAME,
 )
 
-
 SUPERVISOR_CONF = 'supervisord.conf'
 
 
@@ -39,6 +38,7 @@ class SupervisorGenArgs(ArgsTopoDicts):
 
 
 class SupervisorGenerator(object):
+
     def __init__(self, args):
         """
         :param SupervisorGenArgs args: Contains the passed command line arguments and topo dicts.
@@ -52,7 +52,8 @@ class SupervisorGenerator(object):
             self._add_as_config(config, topo_id, topo)
         self._add_dispatcher(config)
 
-        self._write_config(config, os.path.join(self.args.output_dir, SUPERVISOR_CONF))
+        self._write_config(config,
+                           os.path.join(self.args.output_dir, SUPERVISOR_CONF))
 
     def _add_as_config(self, config, topo_id, topo):
         entries = self._as_entries(topo_id, topo)
@@ -91,7 +92,10 @@ class SupervisorGenerator(object):
 
     def _sciond_entry(self, topo_id, conf_dir):
         sd_name = "sd%s" % topo_id.file_fmt()
-        cmd_args = ["bin/sciond", "--config", os.path.join(conf_dir, SD_CONFIG_NAME)]
+        cmd_args = [
+            "bin/sciond", "--config",
+            os.path.join(conf_dir, SD_CONFIG_NAME)
+        ]
         return (sd_name, self._common_entry(sd_name, cmd_args))
 
     def _add_dispatcher(self, config):
@@ -101,7 +105,10 @@ class SupervisorGenerator(object):
     def _dispatcher_entry(self):
         name = "dispatcher"
         conf_dir = os.path.join(self.args.output_dir, name)
-        cmd_args = ["bin/dispatcher", "--config", os.path.join(conf_dir, DISP_CONFIG_NAME)]
+        cmd_args = [
+            "bin/dispatcher", "--config",
+            os.path.join(conf_dir, DISP_CONFIG_NAME)
+        ]
         return (name, self._common_entry(name, cmd_args))
 
     def _add_prog(self, config, name, entry):

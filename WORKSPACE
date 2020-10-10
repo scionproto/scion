@@ -71,6 +71,15 @@ load("@pip3_deps//:requirements.bzl", "pip_install")
 
 pip_install()
 
+pip3_import(
+    name = "lint_tool_deps",
+    requirements = "//tools/lint:requirements.txt",
+)
+
+load("@lint_tool_deps//:requirements.bzl", lint_pip_install = "pip_install")
+
+lint_pip_install()
+
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(

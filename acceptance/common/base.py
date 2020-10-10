@@ -52,7 +52,8 @@ class TestState:
         self.scion = scion
         self.dc = dc
         if 'TEST_UNDECLARED_OUTPUTS_DIR' in os.environ:
-            self.artifacts = local.path(os.environ['TEST_UNDECLARED_OUTPUTS_DIR'])
+            self.artifacts = local.path(
+                os.environ['TEST_UNDECLARED_OUTPUTS_DIR'])
         else:
             self.artifacts = local.path(mktemp('-d').strip())
         self.no_docker = False
@@ -66,13 +67,16 @@ class TestBase(cli.Application):
     """
     test_state = None
 
-    @cli.switch('disable-docker', envname='DISABLE_DOCKER',
+    @cli.switch('disable-docker',
+                envname='DISABLE_DOCKER',
                 help='Run in supervisor environment.')
     def disable_docker(self):
         self.test_state.no_docker = True
         self.test_state.scion = SCIONSupervisor()
 
-    @cli.switch('artifacts', str, envname='ACCEPTANCE_ARTIFACTS',
+    @cli.switch('artifacts',
+                str,
+                envname='ACCEPTANCE_ARTIFACTS',
                 help='Artifacts directory')
     def artifacts_dir(self, a_dir: str):
         self.test_state.artifacts = local.path('%s/%s/' % (a_dir, NAME))
@@ -97,7 +101,8 @@ class CmdBase(cli.Application):
 
     def _collect_logs(self, name: str):
         if LocalPath('gen/%s-dc.yml' % name).exists():
-            self.tools_dc('collect_logs', name, self.artifacts / 'logs' / 'docker')
+            self.tools_dc('collect_logs', name,
+                          self.artifacts / 'logs' / 'docker')
 
     def _teardown(self, name: str):
         if LocalPath('gen/%s-dc.yml' % name).exists():
@@ -131,6 +136,7 @@ class CmdBase(cli.Application):
 
 @TestBase.subcommand('name')
 class TestName(CmdBase):
+
     def main(self):
         print(NAME)
 

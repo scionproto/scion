@@ -32,6 +32,7 @@ class CertGenArgs(common.ArgsTopoConfig):
 
 
 class CertGenerator(object):
+
     def __init__(self, args):
         """
         :param CertGenArgs args: Contains the passed command line
@@ -44,7 +45,8 @@ class CertGenerator(object):
         self.core_count = collections.defaultdict(int)
 
     def generate(self, topo_dicts):
-        self.pki('testcrypto', '-t', self.args.topo_config, '-o', self.args.output_dir)
+        self.pki('testcrypto', '-t', self.args.topo_config, '-o',
+                 self.args.output_dir)
         self._master_keys(topo_dicts)
         self._copy_files(topo_dicts)
         self._quic_certs()
@@ -72,5 +74,6 @@ class CertGenerator(object):
         os.makedirs(cert_dir, exist_ok=True)
         openssl = local['openssl']
         openssl('genrsa', '-out', cert_dir / 'tls.key', '2048')
-        openssl('req', '-new', '-x509', '-key', cert_dir / 'tls.key',
-                '-out', cert_dir / 'tls.pem', '-days', '3650', '-subj', '/CN=scion_def_srv')
+        openssl('req', '-new', '-x509', '-key', cert_dir / 'tls.key', '-out',
+                cert_dir / 'tls.pem', '-days', '3650', '-subj',
+                '/CN=scion_def_srv')

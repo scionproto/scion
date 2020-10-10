@@ -183,8 +183,8 @@ class ConfigGenerator(object):
             for path, value in ca_files[int(isd)].items():
                 write_file(os.path.join(base, path), value.decode())
 
-    def _write_networks_conf(self,
-                             networks: Mapping[ip_network, NetworkDescription],
+    def _write_networks_conf(self, networks: Mapping[ip_network,
+                                                     NetworkDescription],
                              out_file: str):
         config = configparser.ConfigParser(interpolation=None)
         for net, net_desc in networks.items():
@@ -194,9 +194,12 @@ class ConfigGenerator(object):
             config[net] = sub_conf
         text = StringIO()
         config.write(text)
-        write_file(os.path.join(self.args.output_dir, out_file), text.getvalue())
+        write_file(os.path.join(self.args.output_dir, out_file),
+                   text.getvalue())
 
-    def _write_sciond_conf(self, networks: Mapping[ip_network, NetworkDescription], out_file: str):
+    def _write_sciond_conf(self, networks: Mapping[ip_network,
+                                                   NetworkDescription],
+                           out_file: str):
         d = dict()
         for net_desc in networks.values():
             for prog, ip_net in net_desc.ip_net.items():
@@ -207,8 +210,9 @@ class ConfigGenerator(object):
             json.dump(d, f, sort_keys=True, indent=4)
 
 
-def remove_v4_nets(nets: Mapping[ip_network, NetworkDescription]
-                   ) -> Mapping[ip_network, NetworkDescription]:
+def remove_v4_nets(
+    nets: Mapping[ip_network, NetworkDescription]
+) -> Mapping[ip_network, NetworkDescription]:
     res = {}
     for net, net_desc in nets.items():
         if net_desc.name.endswith('_v4'):

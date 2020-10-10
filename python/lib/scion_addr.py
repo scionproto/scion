@@ -65,37 +65,44 @@ class ISD_AS:
         try:
             self._isd = int(raw)
         except ValueError:
-            raise SCIONParseError("Unable to parse ISD from string: %s" % raw) from None
+            raise SCIONParseError("Unable to parse ISD from string: %s" %
+                                  raw) from None
         if self._isd > self.MAX_ISD:
-            raise SCIONParseError("ISD too large (max: %d): %s" % (self.MAX_ISD, raw))
+            raise SCIONParseError("ISD too large (max: %d): %s" %
+                                  (self.MAX_ISD, raw))
 
     def _parse_dec_as(self, raw):
         try:
             self._as = int(raw, base=10)
         except ValueError:
-            raise SCIONParseError("Unable to parse decimal AS from string: %s" % raw) from None
+            raise SCIONParseError("Unable to parse decimal AS from string: %s" %
+                                  raw) from None
         if self._as > self.MAX_BGP_AS:
-            raise SCIONParseError("Decimal AS too large (max: %d): %s" % (self.MAX_BGP_AS, raw))
+            raise SCIONParseError("Decimal AS too large (max: %d): %s" %
+                                  (self.MAX_BGP_AS, raw))
 
     def _parse_hex_as(self, raw, as_sep=HEX_SEPARATOR):
         try:
             as_parts = raw.split(as_sep)
         except ValueError:
-            raise SCIONParseError("Unable to parse hex AS from string: %s" % raw) from None
+            raise SCIONParseError("Unable to parse hex AS from string: %s" %
+                                  raw) from None
         if len(as_parts) != self.HEX_AS_PARTS:
             raise SCIONParseError(
-                "Wrong number of separators (%s) in hex AS number (expected: %d actual: %s): %s" %
-                (self.HEX_SEPARATOR, self.HEX_AS_PARTS,  as_parts, raw))
+                "Wrong number of separators (%s) in hex AS number (expected: %d actual: %s): %s"
+                % (self.HEX_SEPARATOR, self.HEX_AS_PARTS, as_parts, raw))
         self._as = 0
         for i, s in enumerate(as_parts):
             self._as <<= 16
             v = int(s, base=16)
             if v > self.MAX_HEX_AS_PART:
-                raise SCIONParseError("Hex AS number has part greater than %x: %s" %
-                                      (self.MAX_HEX_AS_PART, raw))
+                raise SCIONParseError(
+                    "Hex AS number has part greater than %x: %s" %
+                    (self.MAX_HEX_AS_PART, raw))
             self._as |= v
         if self._as > self.MAX_AS:
-            raise SCIONParseError("AS too large (max: %d): %s" % (self.MAX_AS, raw))
+            raise SCIONParseError("AS too large (max: %d): %s" %
+                                  (self.MAX_AS, raw))
 
     def _parse_int(self, raw):
         """

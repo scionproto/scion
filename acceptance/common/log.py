@@ -17,11 +17,13 @@ from functools import wraps
 
 
 class LogExec(object):
+
     def __init__(self, logger: logging.Logger, sub_command: str):
         self.sub_command = sub_command
         self.logger = logger
 
     def __call__(self, f):
+
         @wraps(f)
         def wrapper(*args, **kwargs):
             self.logger.info("Start %s" % self.sub_command)
@@ -30,6 +32,7 @@ class LogExec(object):
                 self.logger.warning("Failed %s" % self.sub_command)
                 return ret
             self.logger.info("Finished %s" % self.sub_command)
+
         return wrapper
 
 

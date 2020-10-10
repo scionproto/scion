@@ -8,7 +8,8 @@ from plumbum.cmd import cp, mkdir, rm, chmod
 MOCK_TARGETS = [
     ("go/cs/beacon", "DB,Transaction"),
     ("go/cs/beaconing",
-        "BeaconInserter,BeaconProvider,BeaconSender,RPC,SegmentProvider,SegmentStore"),
+     "BeaconInserter,BeaconProvider,BeaconSender,RPC,SegmentProvider,SegmentStore"
+    ),
     ("go/cs/ifstate", "InterfaceStateSender,RevInserter"),
     ("go/cs/reservationstorage/backend", "DB,Transaction"),
     ("go/cs/segutil", "Policy"),
@@ -18,7 +19,7 @@ MOCK_TARGETS = [
     ("go/lib/infra/messenger", "LocalSVCRouter,Resolver"),
     ("go/lib/infra", "ResponseWriter,Verifier,Handler"),
     ("go/lib/infra/modules/segfetcher",
-        "DstProvider,ReplyHandler,Requester,Resolver,RPC,Splitter,LocalInfo"),
+     "DstProvider,ReplyHandler,Requester,Resolver,RPC,Splitter,LocalInfo"),
     ("go/lib/infra/modules/seghandler", "Storage,Verifier"),
     ("go/lib/l4", "L4Header"),
     ("go/lib/pathdb", "PathDB,Transaction,ReadWrite"),
@@ -27,9 +28,8 @@ MOCK_TARGETS = [
     ("go/lib/pktcls", "Cond"),
     ("go/lib/revcache", "RevCache"),
     ("go/lib/sciond", "Connector"),
-    ("go/lib/snet",
-        "PacketDispatcherService,Network,PacketConn,Path," +
-        "PathMetadata,PathQuerier,Router,RevocationHandler"),
+    ("go/lib/snet", "PacketDispatcherService,Network,PacketConn,Path," +
+     "PathMetadata,PathQuerier,Router,RevocationHandler"),
     ("go/lib/sock/reliable", "Dispatcher"),
     ("go/lib/sock/reliable/reconnect", "IOOperation,Reconnecter"),
     ("go/lib/svc/internal/ctxconn", "DeadlineCloser"),
@@ -40,14 +40,14 @@ MOCK_TARGETS = [
     ("go/pkg/cs/trust/grpc", "ChainBuilder,RenewalRequestVerifier,Signer"),
     ("go/pkg/cs/trust", "CACertProvider,PolicyGen,SignerGen"),
     ("go/pkg/proto/control_plane",
-        "ChainRenewalServiceServer,InterfaceStateConsumerServiceServer," +
-        "InterfaceStateServiceServer,TrustMaterialServiceServer"),
+     "ChainRenewalServiceServer,InterfaceStateConsumerServiceServer," +
+     "InterfaceStateServiceServer,TrustMaterialServiceServer"),
     ("go/pkg/router/bfd", "Source,IntervalGenerator"),
     ("go/pkg/router/svchealth", "Discoverer"),
     ("go/pkg/router", "BatchConn"),
     ("go/pkg/sciond/fetcher", "Fetcher,Policy"),
     ("go/pkg/trust",
-        "DB,Fetcher,Inspector,KeyRing,Provider,Recurser,Router,X509KeyPairLoader"),
+     "DB,Fetcher,Inspector,KeyRing,Provider,Recurser,Router,X509KeyPairLoader"),
     ("go/pkg/trust/renewal", "DB"),
     ("go/sig/egress/iface", "Session"),
     ("go/sig/egress/worker", "SCIONWriter"),
@@ -83,5 +83,6 @@ gomock(
     # Remove the rule.
     rm(os.path.join(mockdir, 'BUILD.bazel'))
     # Move the generated code to the source tree.
-    cp(os.path.join(rootpath, 'bazel-bin', package, 'mock_' + name, filename), mockdir)
+    cp(os.path.join(rootpath, 'bazel-bin', package, 'mock_' + name, filename),
+       mockdir)
     chmod("0644", os.path.join(mockdir, filename))
