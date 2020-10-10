@@ -32,7 +32,6 @@ from acceptance.common.scion import sciond_addr, SCIONDocker
 from acceptance.common.tools import DC
 from python.lib.scion_addr import ISD_AS
 
-
 set_name(__file__)
 logger = logging.getLogger(__name__)
 
@@ -62,6 +61,7 @@ class Test(TestBase):
 
 @Test.subcommand('setup')
 class TestSetup(CmdBase):
+
     @LogExec(logger, 'setup')
     def main(self):
         # XXX(roosd): In IPv6, the http endpoints are not accessible.
@@ -89,6 +89,7 @@ class TestSetup(CmdBase):
 
 @Test.subcommand('run')
 class TestRun(CmdBase):
+
     @LogExec(logger, 'run')
     def main(self):
         cs_configs = local.path('gen') // 'AS*/cs*.toml'
@@ -96,7 +97,7 @@ class TestRun(CmdBase):
 
         logger.info('==> Start renewal process')
         for cs_config in cs_configs:
-            isd_as = ISD_AS(cs_config.stem[2:len(cs_config.stem)-2])
+            isd_as = ISD_AS(cs_config.stem[2:len(cs_config.stem) - 2])
             isd_ases.append(isd_as)
 
             logging.info('===> Start renewal: %s' % isd_as)
@@ -105,7 +106,8 @@ class TestRun(CmdBase):
         logger.info('==> Remove original private keys')
         for cs_config in cs_configs:
             orig_key = cs_config.parent / 'crypto/as/cp-as.key'
-            logger.info('Removing original private key for %s: %s' % (isd_as, rel(orig_key)))
+            logger.info('Removing original private key for %s: %s' %
+                        (isd_as, rel(orig_key)))
             orig_key.delete()
 
         logger.info('==> Check key and certificate reloads')
@@ -141,21 +143,33 @@ class TestRun(CmdBase):
 
         key = cs_dir / 'crypto/as/renewed.key'
         logger.info('Generating new private key: %s' % rel(key))
-        local['openssl']('genpkey', '-algorithm', 'EC',
-                         '-pkeyopt', 'ec_paramgen_curve:P-256',
-                         '-pkeyopt', 'ec_param_enc:named_curve',
-                         '-out', cs_dir / 'crypto/as/renewed.key',
-                         )
+        local['openssl'](
+            'genpkey',
+            '-algorithm',
+            'EC',
+            '-pkeyopt',
+            'ec_paramgen_curve:P-256',
+            '-pkeyopt',
+            'ec_param_enc:named_curve',
+            '-out',
+            cs_dir / 'crypto/as/renewed.key',
+        )
 
         chain = cs_dir / 'crypto/as/renewed.pem'
         args = [
-            '--key', cs_dir / 'crypto/as/renewed.key',
-            '--transportkey', cs_dir / 'crypto/as/cp-as.key',
-            '--transportcert', cs_dir / ('crypto/as/ISD%s-AS%s.pem' % (
-                isd_as.isd_str(), isd_as.as_file_fmt())),
-            '--trc', cs_dir / 'certs/ISD1-B1-S1.trc',
-            '--out', chain,
-            '--sciond', sciond_addr(isd_as),
+            '--key',
+            cs_dir / 'crypto/as/renewed.key',
+            '--transportkey',
+            cs_dir / 'crypto/as/cp-as.key',
+            '--transportcert',
+            cs_dir / ('crypto/as/ISD%s-AS%s.pem' %
+                      (isd_as.isd_str(), isd_as.as_file_fmt())),
+            '--trc',
+            cs_dir / 'certs/ISD1-B1-S1.trc',
+            '--out',
+            chain,
+            '--sciond',
+            sciond_addr(isd_as),
         ]
         if not self.no_docker:
             chain.touch()
@@ -166,11 +180,13 @@ class TestRun(CmdBase):
                 args[i] = str(args[i].relative_to(local.path('.')))
 
         logger.info('Requesting certificate chain renewal: %s' % rel(chain))
-        logger.info(self.scion.execute(isd_as, './bin/scion-pki', 'certs', 'renew', *args))
+        logger.info(
+            self.scion.execute(isd_as, './bin/scion-pki', 'certs', 'renew',
+                               *args))
 
         logger.info('Verify renewed certificate chain')
-        verify_out = local['./bin/scion-pki']('certs', 'verify', chain,
-                                              '--trc', 'gen/trcs/ISD1-B1-S1.trc')
+        verify_out = local['./bin/scion-pki']('certs', 'verify', chain, '--trc',
+                                              'gen/trcs/ISD1-B1-S1.trc')
         logger.info(str(verify_out).rstrip('\n'))
 
     def _check_key_cert(self, cs_configs: List[LocalPath]):
@@ -179,28 +195,34 @@ class TestRun(CmdBase):
             not_ready.append(cs_config)
 
         for _ in range(5):
-            logger.info('Checking if all control servers have reloaded the key and certificate...')
+            logger.info(
+                'Checking if all control servers have reloaded the key and certificate...'
+            )
             for cs_config in not_ready:
                 conn = HTTPConnection(self._http_endpoint(cs_config))
                 conn.request('GET', '/signer')
                 resp = conn.getresponse()
                 if resp.status != 200:
-                    logger.info("Unexpected response: %d %s", resp.status, resp.reason)
+                    logger.info("Unexpected response: %d %s", resp.status,
+                                resp.reason)
                     continue
 
                 pld = json.loads(resp.read().decode('utf-8'))
                 cs_dir = cs_config.parent
-                if pld['subject_key_id'] != self._extract_skid(cs_dir / 'crypto/as/renewed.pem'):
+                if pld['subject_key_id'] != self._extract_skid(
+                        cs_dir / 'crypto/as/renewed.pem'):
                     continue
-                logger.info('Control server successfully loaded new key and certificate: %s' %
-                            rel(cs_config))
+                logger.info(
+                    'Control server successfully loaded new key and certificate: %s'
+                    % rel(cs_config))
                 not_ready.remove(cs_config)
             if not not_ready:
                 break
             time.sleep(3)
         else:
-            logger.error('Control servers without reloaded key and certificate: %s' %
-                         [cs_config.name for cs_config in not_ready])
+            logger.error(
+                'Control servers without reloaded key and certificate: %s' %
+                [cs_config.name for cs_config in not_ready])
             sys.exit(1)
 
     def _http_endpoint(self, cs_config: LocalPath):

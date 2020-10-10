@@ -26,6 +26,7 @@ from python.topology.common import (
 
 
 class DockerUtilsGenArgs(ArgsBase):
+
     def __init__(self, args, dc_conf, bridges, networks):
         """
         :param object args: Contains the passed command line arguments as named attributes.
@@ -40,6 +41,7 @@ class DockerUtilsGenArgs(ArgsBase):
 
 
 class DockerUtilsGenerator(object):
+
     def __init__(self, args):
         """
         :param UtilsGenArgs args: Contains the passed command line arguments.
@@ -62,13 +64,13 @@ class DockerUtilsGenerator(object):
             'image': 'busybox',
             'network_mode': 'none',
             'volumes': [
-                '/etc/passwd:/etc/passwd:ro',
-                '/etc/group:/etc/group:ro'
+                '/etc/passwd:/etc/passwd:ro', '/etc/group:/etc/group:ro'
             ],
             'command': 'chown -R ' + self.user + ' /mnt/volumes'
         }
         for volume in self.dc_conf['volumes']:
-            entry_chown['volumes'].append('%s:/mnt/volumes/%s' % (volume, volume))
+            entry_chown['volumes'].append('%s:/mnt/volumes/%s' %
+                                          (volume, volume))
         self.dc_conf['services']['utils_chowner'] = entry_chown
 
     def _test_conf(self, topo_id):
@@ -83,7 +85,8 @@ class DockerUtilsGenerator(object):
             'environment': {},
             # 'user': self.user,
             'volumes': [
-                'vol_scion_disp_cs%s-1:/run/shm/dispatcher:rw' % topo_id.file_fmt(),
+                'vol_scion_disp_cs%s-1:/run/shm/dispatcher:rw' %
+                topo_id.file_fmt(),
                 self.output_base + '/logs:' + cntr_base + '/logs:rw',
                 self.output_base + '/gen:' + cntr_base + '/gen:rw',
                 self.output_base + '/gen-certs:' + cntr_base + '/gen-certs:rw'
@@ -102,7 +105,8 @@ class DockerUtilsGenerator(object):
             # net information for the connected SIG
             sig_net = self.args.networks['sig%s' % topo_id.file_fmt()][0]
             entry['environment']['SIG_IP'] = str(sig_net[ipv])
-            entry['environment']['REMOTE_NETS'] = remote_nets(self.args.networks, topo_id)
+            entry['environment']['REMOTE_NETS'] = remote_nets(
+                self.args.networks, topo_id)
         self.dc_conf['services'][name] = entry
 
     def _sig_testing_conf(self):

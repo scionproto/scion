@@ -39,6 +39,7 @@ class TestWriteFile(object):
     """
     Unit tests for lib.util.write_file
     """
+
     @patch("lib.util.os.rename", autospec=True)
     @patch.object(builtins, 'open', mock_open())
     @patch("lib.util.os.makedirs", autospec=True)
@@ -80,6 +81,7 @@ class Loader(object):
     """
     Helper class for load_yaml_file tests.
     """
+
     @patch.object(builtins, 'open', mock_open())
     def _file_error(self, target):
         builtins.open.side_effect = IsADirectoryError
@@ -96,14 +98,18 @@ class TestLoadYAMLFile(Loader):
     """
     Unit tests for lib.util.load_yaml_file
     """
+
     def test_file_error(self):
         self._file_error(load_yaml_file)
 
     def test_json_error(self):
-        for excp in (yaml.scanner.ScannerError, ):
+        for excp in (yaml.scanner.ScannerError,):
             yield (
-                self._check_loader_error, load_yaml_file, "lib.util.yaml.load",
-                excp, SCIONYAMLError,
+                self._check_loader_error,
+                load_yaml_file,
+                "lib.util.yaml.load",
+                excp,
+                SCIONYAMLError,
             )
 
 

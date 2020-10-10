@@ -17,8 +17,7 @@ import yaml
 
 from python.lib.util import write_file
 from python.topology.common import (
-    ArgsTopoDicts,
-)
+    ArgsTopoDicts,)
 
 JAEGER_DC = 'jaeger-dc.yml'
 
@@ -33,7 +32,8 @@ class JaegerGenerator(object):
         self.args = args
         output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
         self.local_jaeger_dir = os.path.join('traces')
-        self.docker_jaeger_dir = os.path.join(output_base, self.local_jaeger_dir)
+        self.docker_jaeger_dir = os.path.join(output_base,
+                                              self.local_jaeger_dir)
 
     def generate(self):
         dc_conf = self._generate_dc()
@@ -51,19 +51,14 @@ class JaegerGenerator(object):
                     'image': 'jaegertracing/all-in-one:1.16.0',
                     'container_name': name,
                     'user': '%s:%s' % (str(os.getuid()), str(os.getgid())),
-                    'ports': [
-                        '6831:6831/udp',
-                        '16686:16686'
-                    ],
+                    'ports': ['6831:6831/udp', '16686:16686'],
                     'environment': [
                         'SPAN_STORAGE_TYPE=badger',
                         'BADGER_EPHEMERAL=false',
                         'BADGER_DIRECTORY_VALUE=/badger/data',
                         'BADGER_DIRECTORY_KEY=/badger/key',
                     ],
-                    'volumes': [
-                        '%s:/badger:rw' % self.docker_jaeger_dir,
-                    ],
+                    'volumes': ['%s:/badger:rw' % self.docker_jaeger_dir,],
                 }
             }
         }

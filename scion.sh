@@ -287,8 +287,20 @@ cmd_lint() {
 py_lint() {
     lint_header "python"
     local ret=0
+
     dirs="acceptance python"
     binaries="tools/github_releasenotes tools/package-version tools/gomocks"
+
+    lint_step "yapf"
+    run_silently bazel build //tools/lint:yapf
+    bazel-bin/tools/lint/yapf --diff --recursive --style google $dirs $binaries || ((ret++))
+    if [ ! "$ret" -eq "0" ]; then
+        echo ""
+        echo "Fix python formatting by running:"
+        echo "bazel build //tools/lint:yapf"
+        echo "bazel-bin/tools/lint/yapf -i --recursive --style google $dirs $binaries"
+    fi
+
     lint_step "flake8"
     flake8 $dirs $binaries | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
     return $ret

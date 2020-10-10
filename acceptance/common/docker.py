@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 """Assertions for working with docker environments.
 
 This module includes various assertions that can be used
@@ -105,6 +103,6 @@ def _get_networks() -> List[_Network]:
             ipv4 = prop.get('IPv4Address', '')
             ipv6 = prop.get('IPv6Address', '')
             containers.append('%s: %s %s' % (prop['Name'], ipv4, ipv6))
-        nets.append(_Network(net_inspect['Name'], net_inspect['Driver'],
-                             containers))
+        nets.append(
+            _Network(net_inspect['Name'], net_inspect['Driver'], containers))
     return nets

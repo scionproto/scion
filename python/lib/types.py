@@ -21,6 +21,7 @@ For all type classes that are used in multiple parts of the infrastructure.
 
 
 class TypeBase(object):  # pragma: no cover
+
     @classmethod
     def to_str(cls, type_, error=False):
         for attr in dir(cls):
@@ -32,9 +33,11 @@ class TypeBase(object):  # pragma: no cover
 
     @classmethod
     def all(cls):
-        return [getattr(cls, attr) for attr in dir(cls) if
-                not attr.startswith("__") and
-                not callable(getattr(cls, attr))]
+        return [
+            getattr(cls, attr)
+            for attr in dir(cls)
+            if not attr.startswith("__") and not callable(getattr(cls, attr))
+        ]
 
 
 ############################

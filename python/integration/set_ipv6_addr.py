@@ -67,9 +67,13 @@ def set_interfaces():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-a', '--add', action='store_true',
+    parser.add_argument('-a',
+                        '--add',
+                        action='store_true',
                         help='Add IPv6 local host addresses to loopback')
-    parser.add_argument('-d', '--delete', action='store_true',
+    parser.add_argument('-d',
+                        '--delete',
+                        action='store_true',
                         help='Delete IPv6 local host addresses from loopback')
     args = parser.parse_args()
     if args.add:

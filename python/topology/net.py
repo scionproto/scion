@@ -49,6 +49,7 @@ IPInterface = Union[IPv4Interface, IPv6Interface]
 
 
 class NetworkDescription(object):
+
     def __init__(self, name: str, ip_net: Mapping[str, IPInterface]):
         self.name = name
         self.ip_net = ip_net
@@ -74,6 +75,7 @@ class AddressProxy(yaml.YAMLObject):
 
 
 class AddressGenerator(object):
+
     def __init__(self, docker):
         self._addrs = defaultdict(lambda: AddressProxy())
         self.docker = docker
@@ -98,6 +100,7 @@ class AddressGenerator(object):
 
 
 class SubnetGenerator(object):
+
     def __init__(self, network: str, docker: bool):
         self.docker = docker
         if self.docker and network == DEFAULT_NETWORK:
@@ -112,6 +115,7 @@ class SubnetGenerator(object):
             sys.exit(1)
         self._subnets = defaultdict(lambda: AddressGenerator(self.docker)) \
             # type: Mapping[str, AddressGenerator]
+
         self._allocations = defaultdict(list)
         # Initialise the allocations with the supplied network, making sure to
         # exclude 127.0.0.0/30 (for v4) and DEFAULT6_NETWORK_ADDR/126 (for v6)
@@ -144,7 +148,8 @@ class SubnetGenerator(object):
                 if len(subnet) == 2:
                     req_prefix = max_prefix - 1
                 else:
-                    req_prefix = max_prefix - math.ceil(math.log2(len(subnet) + 2))
+                    req_prefix = max_prefix - math.ceil(
+                        math.log2(len(subnet) + 2))
             else:
                 # Docker needs space for a network and broadcast address as well as an IP linking
                 # to the host
@@ -161,7 +166,8 @@ class SubnetGenerator(object):
                 new_net = _workaround_ip_network_hosts_py35(new_net)
                 logging.debug("Allocating %s from %s for subnet size %d" %
                               (new_net, alloc, len(subnet)))
-                networks[new_net] = NetworkDescription(topo, subnet.alloc_addrs(new_net))
+                networks[new_net] = NetworkDescription(
+                    topo, subnet.alloc_addrs(new_net))
                 # Repopulate the allocations list with the left-over space
                 self._exclude_net(alloc, new_net)
                 break
@@ -176,6 +182,7 @@ class SubnetGenerator(object):
 
 
 class PortGenerator(object):
+
     def __init__(self):
         self.iter = iter(range(31000, 35000))
         self._ports = defaultdict(lambda: next(self.iter))
@@ -183,7 +190,7 @@ class PortGenerator(object):
     def register(self, id_: str) -> int:
         p = self._ports[id_]
         # reserve a quic port
-        self._ports[id_+"quic"]
+        self._ports[id_ + "quic"]
         return p
 
 

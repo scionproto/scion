@@ -52,8 +52,10 @@ def create_mock_full(kv=None, class_=None, return_value=None, side_effect=None):
     "attr()": val - sets the return value of attr() to val.
     "attr()...": val - sets the side_effects of attr() to val.
     """
+
     def base(name):
         return name.rstrip("().")
+
     if not kv:
         kv = {}
     attrs = []
