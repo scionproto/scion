@@ -89,10 +89,19 @@ func (s DaemonServer) paths(ctx context.Context,
 				IsdAs: uint64(intf.IA.IAInt()),
 			})
 		}
+
+		var raw []byte
+		if spath := p.Path(); spath != nil {
+			raw = spath.Raw
+		}
+		nextHopStr := ""
+		if nextHop := p.UnderlayNextHop(); nextHop != nil {
+			nextHopStr = nextHop.String()
+		}
 		reply.Paths = append(reply.Paths, &sdpb.Path{
-			Raw: p.Path().Raw,
+			Raw: raw,
 			Interface: &sdpb.Interface{
-				Address: &sdpb.Underlay{Address: p.UnderlayNextHop().String()},
+				Address: &sdpb.Underlay{Address: nextHopStr},
 			},
 			Interfaces: interfaces,
 			Mtu:        uint32(p.Metadata().MTU()),
