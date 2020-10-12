@@ -75,7 +75,7 @@ meaningful level of security:
 
 - The AS protected by the hidden path is the last AS.
   By "last AS" we mean that the beacon which defined the hidden path
-  ends in the local interface of this AS. Or stated differently: the
+  ends in this AS. Or stated differently: the
   AS reachable through the hidden path does not forward the beacon
   defining the hidden path to further downstream/peering ASes.
 - On the interface-pairs (ingress/egress pair) that affect the
@@ -97,13 +97,13 @@ meaningful level of security:
 ![](fig/EPIC/path-type-filtering-small.png).
 
 Here, AS 6 is the AS protected by the hidden path (blue lines). The
-hidden path ends at the local interface (black dot) of AS 6, so AS 6
+hidden path terminates at AS 6 (represented by black dot), so AS 6
 did not forward the beacon that defines the hidden path further down
 to AS 7.
 This is however still allowed for SCION path type traffic (green
 lines): there are SCION paths that enter AS 6 from AS 4. One of the
-two paths ends in the local interface of AS 6, while the other one
-is extended further to AS 7.
+two paths ends in AS 6, while the other one is extended further to
+AS 7.
 
 In this example, the border routers of AS 6 and AS 5 (the last and
 penultimate ASes on the hidden path) further implement path type
@@ -115,8 +115,7 @@ traffic, which would still satisfy the assumptions above.
 
 Of course the ASes can always decide to be more restrictive, for
 example AS 6 could additionally disallow SCION path type traffic
-from AS 4, so that its local interface is reachable through the
-hidden path only.
+from AS 4, so that it is reachable through the hidden path only.
 
 ### SCION Path Type Responses
 
@@ -127,19 +126,11 @@ last ASes on the path.
 The included SCION path type header allows the destination behind a
 hidden link to directly respond with SCION path type packets. The
 destination only has to extract the SCION path type header from the
-EPIC-HP header and reverse the path. For this, there is a
-"SCION-Response (S)" flag in the EPIC-HP path type header, which can
-be set by the source. Setting this flag (S = 1) makes sense if the
-source AS is not behind a hidden link, or if it is behind a hidden
-link but also allows SCION path type traffic (but with lower
-priority than EPIC-HP).
-
-If the SCION-Response flag is not set (S = 0), this means that the
-source is itself behind a hidden link. The destination will
-therefore answer with a new EPIC-HP packet, provided it has the
-necessary authenticators for the hidden path towards the source.
-
-![](fig/EPIC/SCION-reponse-flag-small.png).
+EPIC-HP header and reverse the path.
+If the source is protected by a hidden path itself, the destination
+needs to respond with EPIC-HP traffic. This means that the
+destination is responsible to configure or fetch the necessary
+authenticators.
 
 ## Procedures
 
@@ -194,9 +185,8 @@ attack preparations like scanning the services for vulnerabilities.
 If some host H1 inside an AS with such a setup wants to communicate
 with a host inside another AS that is also behind a hidden link,
 both hosts need to have valid authenticators to send traffic over
-the corresponding hidden paths. The hosts can exclusively
-communicate using EPIC-HP, and H1 needs to set the SCION-Response
-flag to zero.
+the corresponding hidden paths - the hosts can exclusively
+communicate using EPIC-HP.
 
 Note that hosts behind a hidden link can send SCION path type
 packets towards hosts in other ASes, but that those hosts can not
@@ -214,9 +204,10 @@ DOS attacks are not possible in this case, because an adversary is
 limited to sending low-priority SCION path type packets. However, an
 adversary can still reach the services behind the hidden link.
 
-In this scenario, the hosts protected by the hidden path can set the
-SCION-Response flag to one, so the destination will be able to
-answer with (arbitrariliy many) SCION path type packets.
+In this scenario hosts behind a hidden link can send SCION path type
+packets towards hosts in other ASes, and those hosts can reply
+with SCION path type traffic when they do not have the necessary
+authenticators to send back EPIC-HP traffic.
 
 ## References
 

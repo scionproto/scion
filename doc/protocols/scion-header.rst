@@ -494,9 +494,7 @@ The EPIC-HP header has the following structure:
    - A *PacketTimestamp* field (8 bytes)
    - A 4-byte *PHVF* (Penultimate Hop Validation Field)  and a
      4-byte *LHVF* (Last Hop Validation Field)
-   - The path header of the SCION path type, where one bit
-     of the Path Meta Header is used to indicate whether the sender
-     accepts SCION path type response packets.
+   - The complete SCION path type header
 
 ::
 
@@ -538,11 +536,8 @@ does not include the PacketTimestamp, the PHVF, and the LHVF.
 If the sender is reachable through a hidden path itself, then it is
 likely that its AS will not accept SCION path type packets, which
 means that the destination can only respond using EPIC-HP traffic.
-Therefore the sender can explicitly specify in the EPIC-HP packet
-whether it wants the receiver to respond with SCION path type
-response packets, or with EPIC-HP packets (assuming the receiver has
-the necessary authenticators to send on the hidden path to the
-sender).
+The destination is responsible to configure or fetch the necessary
+EPIC-HP authenticators.
 
 To protect the services behind the hidden link (only authorized
 entities should be able to access the services, downgrade to the
@@ -552,21 +547,6 @@ allowed. This is further described in the accompanying
 `EPIC design document`_.
 
 .. _`EPIC design document`: ../EPIC.html
-
-.. _EPIC Path Meta Header:
-
-Path Meta Header
-----------------
-::
-
-     0                   1                   2                   3
-     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    | C |  CurrHF   |S|   RSV   |  Seg0Len  |  Seg1Len  |  Seg2Len  |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-SCION-Response (S)
-  Indicates whether the sender accepts SCION path type response packets.
 
 Packet Timestamp
 ----------------
@@ -715,12 +695,11 @@ Here, "Timestamp" is the Timestamp from the first `Info Field`_ and
 
      0 1 2 3 4 5 6 7 8
     +-+-+-+-+-+-+-+-+-+
-    |S|SL |     0     |
+    |SL |      0      |
     +-+-+-+-+-+-+-+-+-+
 
-"S" refers to the SCION-Response flag in the `EPIC Path Meta
-Header`_, and "SL" denotes the source host address length as defined
-in the `Common Header`_.
+"SL" denotes the source host address length as defined in the
+`Common Header`_.
 Because the length of the source host address varies based on SL,
 also the length of the input to the MAC is dynamic.
 
