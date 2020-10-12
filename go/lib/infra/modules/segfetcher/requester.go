@@ -55,69 +55,81 @@ type Requester interface {
 
 // DefaultRequester requests all segments that can be requested from a request set.
 type DefaultRequester struct {
-	RPC           RPC
-	DstProvider   DstProvider
+	RPC         RPC
+	DstProvider DstProvider
+	// TimeoutFactor is the percentage of the total timeout available for a segment request
+	// that is allocated to the next try.
 	TimeoutFactor float64
 	MaxTries      int
 }
 
 // Request all requests in the request set
 func (r *DefaultRequester) Request(ctx context.Context, reqs Requests) <-chan ReplyOrErr {
-	replies := make(chan ReplyOrErr, len(reqs))
 	var wg sync.WaitGroup
+
+	replies := make(chan ReplyOrErr, len(reqs))
+	wg.Add(len(reqs))
+	go func() {
+		defer log.HandlePanic()
+		wg.Wait()
+		close(replies)
+	}()
 	for i := range reqs {
-		req := reqs[i]
-		span, ctx := opentracing.StartSpanFromContext(ctx, "segfetcher.requester",
-			opentracing.Tags{
-				"req.src":      req.Src.String(),
-				"req.dst":      req.Dst.String(),
-				"req.seg_type": req.SegType.String(),
-			},
-		)
-		wg.Add(1)
+		i := i
 		go func() {
 			defer log.HandlePanic()
 			defer wg.Done()
-			defer span.Finish()
-
-			logger := log.FromCtx(ctx).New("req_id", log.NewDebugID(), "request", req)
-			ctx := log.CtxWith(ctx, logger)
-
-			try := func(ctx context.Context) (*path_mgmt.SegRecs, net.Addr, error) {
-				tryCtx, cancel := r.tryDeadline(ctx)
-				defer cancel()
-				dst, err := r.DstProvider.Dst(tryCtx, req)
-				if err != nil {
-					return nil, nil, err
-				}
-				segs, err := r.RPC.Segments(tryCtx, req, dst)
-				if err != nil {
-					return nil, dst, err
-				}
-				return segs, dst, nil
-			}
-			for i := 0; ctx.Err() == nil && i < r.maxTries(); i++ {
-				segs, peer, err := try(ctx)
-				if err != nil {
-					logger.Debug("Segment lookup failed", "try", i+1, "peer", peer, "err", err)
-					continue
-				}
-				replies <- ReplyOrErr{Req: req, Segments: segs, Peer: peer}
-				return
-			}
-			err := ctx.Err()
-			if err == nil {
-				err = serrors.New("no attempts left")
-			}
-			replies <- ReplyOrErr{Req: req, Err: err}
+			r.requestWorker(ctx, reqs, i, replies)
 		}()
 	}
-	go func() {
-		defer log.HandlePanic()
-		defer close(replies)
-		wg.Wait()
-	}()
 	return replies
+}
+
+// requestWorker processes request i of reqs, and writes the result to the replies channel.
+func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i int,
+	replies chan<- ReplyOrErr) {
+
+	req := reqs[i]
+	span, ctx := opentracing.StartSpanFromContext(ctx, "segfetcher.requester",
+		opentracing.Tags{
+			"req.src":      req.Src.String(),
+			"req.dst":      req.Dst.String(),
+			"req.seg_type": req.SegType.String(),
+		},
+	)
+	defer span.Finish()
+
+	logger := log.FromCtx(ctx).New("req_id", log.NewDebugID(), "request", req)
+	ctx = log.CtxWith(ctx, logger)
+
+	try := func(ctx context.Context) (*path_mgmt.SegRecs, net.Addr, error) {
+		tryCtx, cancel := r.tryDeadline(ctx)
+		defer cancel()
+		dst, err := r.DstProvider.Dst(tryCtx, req)
+		if err != nil {
+			return nil, nil, err
+		}
+		segs, err := r.RPC.Segments(tryCtx, req, dst)
+		if err != nil {
+			return nil, dst, err
+		}
+		return segs, dst, nil
+	}
+	for tryIndex := 0; ctx.Err() == nil && tryIndex < r.maxTries(); tryIndex++ {
+		segs, peer, err := try(ctx)
+		if err != nil {
+			logger.Debug("Segment lookup failed", "try", tryIndex+1, "peer", peer,
+				"err", err)
+			continue
+		}
+		replies <- ReplyOrErr{Req: req, Segments: segs, Peer: peer}
+		return
+	}
+	err := ctx.Err()
+	if err == nil {
+		err = serrors.New("no attempts left")
+	}
+	replies <- ReplyOrErr{Req: req, Err: err}
 }
 
 func (r *DefaultRequester) tryDeadline(ctx context.Context) (context.Context, func()) {

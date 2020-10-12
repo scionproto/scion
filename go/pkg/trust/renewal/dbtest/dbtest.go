@@ -33,7 +33,7 @@ import (
 
 var (
 	// DefaultTimeout is the default timeout for running the test harness.
-	DefaultTimeout = time.Second
+	DefaultTimeout = 5 * time.Second
 	// DefaultRelPath is the default relative path to the test data.
 	DefaultRelPath = "../dbtest/testdata"
 )

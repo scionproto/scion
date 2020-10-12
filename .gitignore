@@ -10,10 +10,11 @@ Thumbs.db
 
 # SCION generated files #
 #########################
-/logs/*
-!/logs/.keepme
+/logs/
 /gen/
+/genold/
 /gen-cache/
+/gen-data/
 /gen-certs/
 /traces/
 
@@ -71,8 +72,10 @@ __pycache__
 tags
 
 # bazel artifacts
+##########################
 /bazel-*
-/.bazel-cache
+!bazel-remote.yml
+.bazel-cache/
 
 # local buildkite run
 /artifacts.out

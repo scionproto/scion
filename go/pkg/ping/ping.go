@@ -49,6 +49,7 @@ type Update struct {
 // State indicates the state of the echo reply
 type State int
 
+// Possible states.
 const (
 	Success State = iota
 	AfterTimeout
@@ -77,8 +78,6 @@ type Config struct {
 	// Update handler is invoked for every ping reply. Execution time must be
 	// small, as it is run synchronously.
 	UpdateHandler func(Update)
-
-	HeaderV2 bool
 }
 
 // Run ping with the configuration. This blocks until the configured number
@@ -89,23 +88,15 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	}
 
 	id := rand.Uint64()
-	legacyReplies := make(chan legacyReply, 10)
 	replies := make(chan reply, 10)
 
-	var scmpHandler snet.SCMPHandler = scmpHandler{
-		id:      uint16(id),
-		replies: replies,
-	}
-	if !cfg.HeaderV2 {
-		scmpHandler = legacySCMPHandler{
-			id:      id,
-			replies: legacyReplies,
-		}
-	}
 	svc := snet.DefaultPacketDispatcherService{
-		Dispatcher:  cfg.Dispatcher,
-		SCMPHandler: scmpHandler,
-		Version2:    cfg.HeaderV2,
+		Dispatcher: cfg.Dispatcher,
+		SCMPHandler: scmpHandler{
+			id:      uint16(id),
+			replies: replies,
+		},
+		Version2: true,
 	}
 	conn, port, err := svc.Register(ctx, cfg.Local.IA, cfg.Local.Host, addr.SvcNone)
 	if err != nil {
@@ -120,23 +111,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	if cfg.PayloadSize < 8 {
 		cfg.PayloadSize = 8
 	}
-	if cfg.HeaderV2 {
-		p := pinger{
-			attempts:      cfg.Attempts,
-			interval:      cfg.Interval,
-			timeout:       cfg.Timeout,
-			pldSize:       cfg.PayloadSize,
-			pld:           make([]byte, cfg.PayloadSize),
-			id:            id,
-			conn:          conn,
-			local:         local,
-			replies:       replies,
-			errHandler:    cfg.ErrHandler,
-			updateHandler: cfg.UpdateHandler,
-		}
-		return p.Ping(ctx, cfg.Remote)
-	}
-	p := legacyPinger{
+	p := pinger{
 		attempts:      cfg.Attempts,
 		interval:      cfg.Interval,
 		timeout:       cfg.Timeout,
@@ -145,7 +120,7 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 		id:            id,
 		conn:          conn,
 		local:         local,
-		replies:       legacyReplies,
+		replies:       replies,
 		errHandler:    cfg.ErrHandler,
 		updateHandler: cfg.UpdateHandler,
 	}
@@ -259,32 +234,6 @@ func (p *pinger) receive(reply reply) {
 		p.updateHandler(Update{
 			RTT:      rtt,
 			Sequence: int(reply.Reply.SeqNumber),
-			Size:     reply.Size,
-			Source:   reply.Source,
-			State:    state,
-		})
-	}
-}
-
-func (p *pinger) legacyReceive(reply legacyReply) {
-	rtt := reply.Received.Sub(reply.Header.Time()).Round(time.Microsecond)
-	var state State
-	switch {
-	case rtt > p.timeout:
-		state = AfterTimeout
-	case int(reply.Info.Seq) < p.receivedSequence:
-		state = OutOfOrder
-	case int(reply.Info.Seq) == p.receivedSequence:
-		state = Duplicate
-	default:
-		state = Success
-		p.receivedSequence = int(reply.Info.Seq)
-	}
-	p.stats.Received++
-	if p.updateHandler != nil {
-		p.updateHandler(Update{
-			RTT:      rtt,
-			Sequence: int(reply.Info.Seq),
 			Size:     reply.Size,
 			Source:   reply.Source,
 			State:    state,

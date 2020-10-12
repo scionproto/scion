@@ -69,7 +69,6 @@ type FetcherConfig struct {
 	Cfg      config.SDConfig
 
 	TopoProvider topology.Provider
-	HeaderV2     bool
 }
 
 func NewFetcher(cfg FetcherConfig) Fetcher {
@@ -103,7 +102,6 @@ func NewFetcher(cfg FetcherConfig) Fetcher {
 				Core:      cfg.TopoProvider.Get().Core(),
 				Inspector: cfg.Inspector,
 			},
-			HeaderV2: cfg.HeaderV2,
 		},
 		config: cfg.Cfg,
 	}
@@ -165,7 +163,7 @@ func (f *fetcher) translate(path *combinator.Path) (sciond.PathReplyEntry, error
 				Mtu:        f.pather.TopoProvider.Get().MTU(),
 				Interfaces: []snet.PathInterface{},
 				ExpTime:    util.TimeToSecs(time.Now().Add(spath.MaxTTL * time.Second)),
-				HeaderV2:   path.HeaderV2,
+				HeaderV2:   true,
 			},
 		}
 		return entry, nil
@@ -187,7 +185,7 @@ func (f *fetcher) translate(path *combinator.Path) (sciond.PathReplyEntry, error
 			Mtu:        path.Mtu,
 			Interfaces: path.Interfaces,
 			ExpTime:    uint32(path.ComputeExpTime().Unix()),
-			HeaderV2:   path.HeaderV2,
+			HeaderV2:   true,
 		},
 		HostInfo: hostinfo.FromUDPAddr(*nextHop),
 	}

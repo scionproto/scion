@@ -15,10 +15,7 @@ x-br: &br
     - "${TEST_ARTIFACTS_DIR}/conf:/share/conf"
 services:
   dispatcher:
-    command:
-    - --config
-    - /share/conf/disp.toml
-    image: scion_dispatcher
+    image: scion_dispatcher_debug
     network_mode: none
     user: "$USER_ID:$GROUP_ID"
     volumes:

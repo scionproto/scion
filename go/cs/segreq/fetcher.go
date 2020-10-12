@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/cs/segutil"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
@@ -54,8 +55,6 @@ type FetcherConfig struct {
 	RevCache revcache.RevCache
 	// RPC is the RPC used to request segments.
 	RPC segfetcher.RPC
-
-	HeaderV2 bool
 }
 
 // NewFetcher creates a segment fetcher configured for fetching segments from
@@ -67,7 +66,11 @@ func NewFetcher(cfg FetcherConfig) *segfetcher.Fetcher {
 			PathDB:       cfg.PathDB,
 			RevCache:     cfg.RevCache,
 			TopoProvider: cfg.TopoProvider,
-			Pather:       addrutil.NewPather(cfg.TopoProvider, cfg.HeaderV2),
+			Pather: addrutil.Pather{
+				UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+					return cfg.TopoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+				},
+			},
 		},
 		// Recursive/cyclic structure: the dstProvider in the fetcher uses the
 		// fetcher (see notes on dstProvider below).
@@ -117,8 +120,7 @@ func newRouter(cfg FetcherConfig, fetcher *segfetcher.Fetcher) snet.Router {
 				cfg.TopoProvider.Get().Core(),
 				cfg.Inspector,
 				cfg.PathDB),
-			Fetcher:  fetcher,
-			HeaderV2: cfg.HeaderV2,
+			Fetcher: fetcher,
 		},
 	}
 }

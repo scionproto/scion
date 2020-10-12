@@ -21,7 +21,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
@@ -35,9 +34,6 @@ type Info struct {
 	Timestamp time.Time
 	// SegmentID is the segment ID used in data plane hop field computation.
 	SegmentID uint16
-
-	// ISD is deprecated and only used for legacy path construction.
-	ISD addr.ISD
 }
 
 // infoFromRaw decodes the protobuf representation. The byte slice is captured
@@ -54,16 +50,14 @@ func infoFromRaw(raw []byte) (Info, error) {
 		Raw:       raw,
 		SegmentID: uint16(pb.SegmentId),
 		Timestamp: time.Unix(pb.Timestamp, 0),
-		ISD:       addr.ISD(pb.DeprecatedIsd),
 	}, nil
 }
 
 // NewInfo creates a new path segment info.
-func NewInfo(timestamp time.Time, segmentID uint16, isd addr.ISD) (Info, error) {
+func NewInfo(timestamp time.Time, segmentID uint16) (Info, error) {
 	info := &cppb.SegmentInformation{
-		Timestamp:     timestamp.Unix(),
-		SegmentId:     uint32(segmentID),
-		DeprecatedIsd: uint32(isd),
+		Timestamp: timestamp.Unix(),
+		SegmentId: uint32(segmentID),
 	}
 	raw, err := proto.Marshal(info)
 	if err != nil {
@@ -73,7 +67,6 @@ func NewInfo(timestamp time.Time, segmentID uint16, isd addr.ISD) (Info, error) 
 		Raw:       raw,
 		Timestamp: time.Unix(info.Timestamp, 0),
 		SegmentID: segmentID,
-		ISD:       isd,
 	}, nil
 }
 

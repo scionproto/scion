@@ -15,9 +15,9 @@ services:
         ipv4_address: 242.254.100.2
     volumes:
     - vol_topo_sd_reload_disp:/run/shm/dispatcher:rw
-  topo_sd_reload_sciond:
-    container_name: topo_sd_reload_sciond
-    image: bazel/acceptance/topo_sd_reload:sciond
+  topo_sd_reload_daemon:
+    container_name: topo_sd_reload_daemon
+    image: bazel/acceptance/topo_sd_reload:daemon
     volumes:
     - vol_topo_sd_reload_disp:/run/shm/dispatcher:ro
     - vol_topo_sd_reload_certs:/certs:ro

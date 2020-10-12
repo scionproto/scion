@@ -1,8 +1,10 @@
 #!/bin/bash
 
-echo "--- pre-exit hook"
+echo "--- Cleaning up the topology"
 
 ./scion.sh topo_clean
+
+echo "--- Cleaning up docker containers/networks/volumes"
 
 cntrs="$(docker ps -aq)"
 [ -n "$cntrs" ] && { echo "Remove leftover containers..."; docker rm -f $cntrs; }
@@ -12,8 +14,7 @@ docker network prune -f
 echo "Remove leftover volumes"
 docker volume prune -f
 
+echo "--- Cleaning up packages and logs"
+
 rm -f scion-utils-{rpm,deb}.{version,release}
 rm -rf bazel-testlogs logs/* traces gen gen-cache /tmp/test-artifacts
-
-# XXX(roosd): Last group is not collapsed even with ---
-echo "--- pre-exit done"

@@ -22,7 +22,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/scionproto/scion/go/border/brconf"
 	libconfig "github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
@@ -31,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/router"
+	"github.com/scionproto/scion/go/pkg/router/brconf"
 	"github.com/scionproto/scion/go/pkg/router/control"
 	"github.com/scionproto/scion/go/pkg/service"
 )
@@ -39,6 +39,7 @@ func main() {
 	var flags struct {
 		config string
 	}
+	metrics := router.NewMetrics()
 	cmd := &cobra.Command{
 		Use:           "posix-router",
 		Short:         "SCION router",
@@ -46,7 +47,7 @@ func main() {
 		SilenceUsage:  true,
 		Args:          cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(flags.config)
+			return run(flags.config, metrics)
 		},
 	}
 	cmd.AddCommand(
@@ -62,7 +63,7 @@ func main() {
 	}
 }
 
-func run(file string) error {
+func run(file string, metrics *router.Metrics) error {
 	fatal.Init()
 	cfg, err := setupBasic(file)
 	if err != nil {
@@ -81,15 +82,16 @@ func run(file string) error {
 	stop := make(chan struct{})
 	wg := new(sync.WaitGroup)
 	dp := &router.Connector{
-		DataPlane: router.DataPlane{},
+		DataPlane: router.DataPlane{
+			Metrics: metrics,
+		},
 	}
 	iaCtx := &control.IACtx{
-		BRConf:                   brConf,
-		DP:                       dp,
-		Stop:                     stop,
-		DisableLegacyIfStateMgmt: cfg.Features.HeaderV2,
+		BRConf: brConf,
+		DP:     dp,
+		Stop:   stop,
 	}
-	if err := iaCtx.Start(wg, cfg.General.ReconnectToDispatcher); err != nil {
+	if err := iaCtx.Start(wg); err != nil {
 		return serrors.WrapStr("starting dataplane", err)
 	}
 	if err := setupHTTPHandlers(cfg); err != nil {
@@ -132,9 +134,6 @@ func setupBasic(file string) (brconf.Config, error) {
 func validateCfg(cfg brconf.Config) error {
 	if err := cfg.Validate(); err != nil {
 		return serrors.WrapStr("validating config", err)
-	}
-	if !cfg.Features.HeaderV2 {
-		return serrors.New("border-router only works for new header format")
 	}
 	return nil
 }

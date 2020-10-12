@@ -21,13 +21,19 @@ import (
 
 // Metrics defines the data-plane metrics for the BR.
 type Metrics struct {
-	InputBytesTotal          *prometheus.CounterVec
-	OutputBytesTotal         *prometheus.CounterVec
-	InputPacketsTotal        *prometheus.CounterVec
-	OutputPacketsTotal       *prometheus.CounterVec
-	InputErrorsTotal         *prometheus.CounterVec
-	OutputErrorsTotal        *prometheus.CounterVec
-	InputDroppedPacketsTotal *prometheus.CounterVec
+	InputBytesTotal           *prometheus.CounterVec
+	OutputBytesTotal          *prometheus.CounterVec
+	InputPacketsTotal         *prometheus.CounterVec
+	OutputPacketsTotal        *prometheus.CounterVec
+	InputErrorsTotal          *prometheus.CounterVec
+	OutputErrorsTotal         *prometheus.CounterVec
+	InputDroppedPacketsTotal  *prometheus.CounterVec
+	InterfaceUp               *prometheus.GaugeVec
+	BFDPacketsSent            *prometheus.CounterVec
+	BFDPacketsReceived        *prometheus.CounterVec
+	SiblingReachable          *prometheus.GaugeVec
+	SiblingBFDPacketsSent     *prometheus.CounterVec
+	SiblingBFDPacketsReceived *prometheus.CounterVec
 }
 
 // NewMetrics initializes the metrics for the Border Router, and registers them
@@ -82,6 +88,49 @@ func NewMetrics() *Metrics {
 				Help: "Total number of packets dropped by kernel due to receive buffer overflow",
 			},
 			[]string{"interface", "isd_as", "neighbor_isd_as"},
+		),
+		InterfaceUp: promauto.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "router_interface_up",
+				Help: "Either zero or one depending on whether the interface is up.",
+			},
+			[]string{"interface", "isd_as"},
+		),
+		BFDPacketsSent: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "router_bfd_sent_packets_total",
+				Help: "Number of BFD packets sent.",
+			},
+			[]string{"interface", "isd_as"},
+		),
+		BFDPacketsReceived: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "router_bfd_received_packets_total",
+				Help: "Number of BFD packets received.",
+			},
+			[]string{"interface", "isd_as"},
+		),
+		SiblingReachable: promauto.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "router_sibling_reachable",
+				Help: "Either zero or one depending on whether a sibling router " +
+					"instance is reachable.",
+			},
+			[]string{"instance", "isd_as"},
+		),
+		SiblingBFDPacketsSent: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "router_bfd_sent_sibling_packets_total",
+				Help: "Number of BFD packets sent to sibling router instance.",
+			},
+			[]string{"instance", "isd_as"},
+		),
+		SiblingBFDPacketsReceived: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "router_bfd_received_sibling_packets_total",
+				Help: "Number of BFD packets received from sibling router instance.",
+			},
+			[]string{"instance", "isd_as"},
 		),
 	}
 }

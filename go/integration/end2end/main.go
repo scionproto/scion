@@ -99,19 +99,19 @@ type server struct {
 }
 
 func (s server) run() {
-	log.Info("Starting server", "ia", integration.Local.IA)
-	defer log.Info("Finished server", "ia", integration.Local.IA)
+	log.Info("Starting server", "isd_as", integration.Local.IA)
+	defer log.Info("Finished server", "isd_as", integration.Local.IA)
 
 	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
 		RevocationHandler: sciond.RevHandler{Connector: integration.SDConn()},
 	}
-	if !integration.HeaderV2 {
+	if integration.HeaderLegacy {
 		scmpHandler = snet.NewLegacySCMPHandler(sciond.RevHandler{Connector: integration.SDConn()})
 	}
 	connFactory := &snet.DefaultPacketDispatcherService{
 		Dispatcher:  reliable.NewDispatcher(""),
 		SCMPHandler: scmpHandler,
-		Version2:    integration.HeaderV2,
+		Version2:    !integration.HeaderLegacy,
 	}
 	conn, port, err := connFactory.Register(context.Background(), integration.Local.IA,
 		integration.Local.Host, addr.SvcNone)
@@ -183,19 +183,19 @@ type client struct {
 
 func (c *client) run() int {
 	pair := fmt.Sprintf("%s -> %s", integration.Local.IA, remote.IA)
-	log.Info("Starting", "pair", pair, "header_v2", integration.HeaderV2)
+	log.Info("Starting", "pair", pair, "header_legacy", integration.HeaderLegacy)
 	defer log.Info("Finished", "pair", pair)
 	defer integration.Done(integration.Local.IA, remote.IA)
 	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
 		RevocationHandler: sciond.RevHandler{Connector: integration.SDConn()},
 	}
-	if !integration.HeaderV2 {
+	if integration.HeaderLegacy {
 		scmpHandler = snet.NewLegacySCMPHandler(sciond.RevHandler{Connector: integration.SDConn()})
 	}
 	connFactory := &snet.DefaultPacketDispatcherService{
 		Dispatcher:  reliable.NewDispatcher(""),
 		SCMPHandler: scmpHandler,
-		Version2:    integration.HeaderV2,
+		Version2:    !integration.HeaderLegacy,
 	}
 
 	var err error
@@ -273,7 +273,7 @@ func (c *client) ping(ctx context.Context, n int) (snet.Path, error) {
 			},
 		},
 	}
-	if !integration.HeaderV2 {
+	if integration.HeaderLegacy {
 		pkt = &snet.Packet{
 			PacketInfo: snet.PacketInfo{
 				Destination: snet.SCIONAddress{
@@ -295,7 +295,7 @@ func (c *client) ping(ctx context.Context, n int) (snet.Path, error) {
 			},
 		}
 	}
-	log.Debug("sending ping", "path", path)
+	log.Debug("sending ping", "attempt", n, "path", path)
 	return path, c.conn.WriteTo(pkt, remote.NextHop)
 }
 

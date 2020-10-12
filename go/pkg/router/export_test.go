@@ -10,22 +10,27 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
+var NewServices = newServices
+
 func NewDP(
-	e map[uint16]BatchConn,
-	i BatchConn,
-	iNextHops map[uint16]net.Addr,
-	svc map[addr.HostSVC][]net.Addr,
+	external map[uint16]BatchConn,
+	linkTypes map[uint16]topology.LinkType,
+	internal BatchConn,
+	internalNextHops map[uint16]net.Addr,
+	svc map[addr.HostSVC][]*net.UDPAddr,
 	local addr.IA,
 	key []byte) *DataPlane {
 
 	dp := &DataPlane{
 		localIA:          local,
-		external:         e,
-		internalNextHops: iNextHops,
-		svc:              svc,
-		internal:         i,
+		external:         external,
+		linkTypes:        linkTypes,
+		internalNextHops: internalNextHops,
+		svc:              &services{m: svc},
+		internal:         internal,
 	}
 	dp.SetKey(key)
 	return dp
@@ -38,4 +43,8 @@ func (d *DataPlane) FakeStart() {
 func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message, s slayers.SCION,
 	origPacket []byte, b gopacket.SerializeBuffer) (BatchConn, error) {
 	return d.processPkt(ifID, m, s, origPacket, b)
+}
+
+func ExtractServices(s *services) map[addr.HostSVC][]*net.UDPAddr {
+	return s.m
 }

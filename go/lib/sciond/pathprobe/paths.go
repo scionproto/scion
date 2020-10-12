@@ -95,9 +95,6 @@ type Prober struct {
 	DstIA   addr.IA
 	LocalIA addr.IA
 	LocalIP net.IP
-
-	// Version2 switches packets to SCION header format version 2.
-	Version2 bool
 }
 
 // GetStatuses probes the paths and returns the statuses of the paths. The
@@ -122,9 +119,9 @@ func (p Prober) GetStatuses(ctx context.Context,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher:  reliable.NewDispatcher(""),
 			SCMPHandler: scmpH,
-			Version2:    p.Version2,
+			Version2:    true,
 		},
-		Version2: p.Version2,
+		Version2: true,
 	}
 	snetConn, err := network.Listen(ctx, "udp", &net.UDPAddr{IP: p.LocalIP}, addr.SvcNone)
 	if err != nil {
@@ -195,6 +192,36 @@ type scmpHandler struct {
 }
 
 func (h *scmpHandler) Handle(pkt *snet.Packet) error {
+	if pkt.PayloadV2 == nil {
+		return h.legacyHandle(pkt)
+	}
+	path, err := h.path(pkt)
+	if err != nil {
+		return err
+	}
+	switch pld := pkt.PayloadV2.(type) {
+	case snet.SCMPDestinationUnreachable:
+		h.setStatus(path, alive)
+		return errBadHost
+	case snet.SCMPExternalInterfaceDown:
+		h.setStatus(path, Status{
+			Status: StatusSCMP,
+			AdditionalInfo: fmt.Sprintf("external interface down: isd_as=%s interface=%d",
+				pld.IA, pld.Interface),
+		})
+		return errSCMP
+	case snet.SCMPInternalConnectivityDown:
+		h.setStatus(path, Status{
+			Status: StatusSCMP,
+			AdditionalInfo: fmt.Sprintf("internal connectivity down: "+
+				"isd_as=%s ingress=%d egress=%d", pld.IA, pld.Ingress, pld.Egress),
+		})
+		return errSCMP
+	}
+	return nil
+}
+
+func (h *scmpHandler) legacyHandle(pkt *snet.Packet) error {
 	hdr, ok := pkt.L4Header.(*scmp.Hdr)
 	if ok {
 		path, err := h.path(pkt)

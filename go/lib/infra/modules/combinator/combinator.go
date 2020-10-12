@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
@@ -50,26 +49,6 @@ import (
 // If Combine cannot extract a hop field or info field from the segments, it
 // panics.
 func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) []*Path {
-	paths := NewDMG(ups, cores, downs).GetPaths(VertexFromIA(src), VertexFromIA(dst))
-
-	var pathSlice []*Path
-	for _, path := range paths {
-		pathSlice = append(pathSlice, path.legacyFwdPathMetadata())
-	}
-	return FilterLongPaths(pathSlice)
-}
-
-// CombineV2 constructs paths between src and dst using the supplied
-// segments. All possible paths are first computed, and then filtered according
-// to FilterLongPaths. The remaining paths are returned sorted according to
-// weight (on equal weight, see pathSolutionList.Less for the tie-breaking
-// algorithm).
-//
-// If Combine cannot extract a hop field or info field from the segments, it
-// panics.
-//
-// This method is specifically for header v2.
-func CombineV2(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) []*Path {
 	paths := NewDMG(ups, cores, downs).GetPaths(VertexFromIA(src), VertexFromIA(dst))
 
 	var pathSlice []*Path
@@ -97,8 +76,6 @@ type Path struct {
 	Mtu        uint16
 	Interfaces []snet.PathInterface
 	StaticInfo *PathMetadata
-
-	HeaderV2 bool
 }
 
 func (p *Path) writeTestString(w io.Writer) {
@@ -142,9 +119,6 @@ func (p *Path) ComputeExpTime() time.Time {
 }
 
 func (p *Path) WriteTo(w io.Writer) (int64, error) {
-	if !p.HeaderV2 {
-		return p.writeLegacy(w)
-	}
 	var meta scion.MetaHdr
 	var infos []*path.InfoField
 	var hops []*path.HopField
@@ -189,72 +163,11 @@ func (p *Path) WriteTo(w io.Writer) (int64, error) {
 	return int64(n), nil
 }
 
-func (p *Path) writeLegacy(w io.Writer) (int64, error) {
-	var total int64
-	for _, segment := range p.Segments {
-		info := spath.InfoField{
-			ConsDir:  segment.InfoField.ConsDir,
-			Shortcut: segment.InfoField.Shortcut,
-			Peer:     segment.InfoField.Peer,
-			Hops:     uint8(segment.InfoField.Hops),
-			ISD:      uint16(segment.InfoField.ISD),
-			TsInt:    util.TimeToSecs(segment.InfoField.Timestamp),
-		}
-		n, err := info.WriteTo(w)
-		total += n
-		if err != nil {
-			return total, err
-		}
-		for _, hopField := range segment.HopFields {
-			hopField := spath.HopField{
-				VerifyOnly:  hopField.VerifyOnly,
-				Xover:       hopField.Xover,
-				ExpTime:     spath.ExpTimeType(hopField.ExpTime),
-				ConsIngress: common.IFIDType(hopField.ConsIngress),
-				ConsEgress:  common.IFIDType(hopField.ConsEgress),
-				Mac:         hopField.MAC,
-			}
-			n, err := hopField.WriteTo(w)
-			total += n
-			if err != nil {
-				return total, err
-			}
-		}
-	}
-	return total, nil
-}
-
 type Segment struct {
 	InfoField  *InfoField
 	HopFields  []*HopField
 	Type       proto.PathSegType
 	Interfaces []snet.PathInterface
-}
-
-// initInfoFieldFrom copies the info field in pathSegment, and sets it as the
-// info field of segment.
-func (segment *Segment) initInfoFieldFrom(pathSegment *seg.PathSegment) {
-	segment.InfoField = &InfoField{
-		SegID:     pathSegment.Info.SegmentID,
-		Timestamp: pathSegment.Info.Timestamp,
-		ISD:       pathSegment.Info.ISD,
-	}
-}
-
-// appendHopFieldFrom copies the Hop Field in entry, and appends it to segment.
-func (segment *Segment) appendHopFieldFrom(hf *seg.HopField) *HopField {
-	hopField := &HopField{
-		ExpTime:     hf.ExpTime,
-		ConsIngress: hf.ConsIngress,
-		ConsEgress:  hf.ConsEgress,
-		MAC:         append([]byte(nil), hf.MAC...),
-	}
-	segment.HopFields = append(segment.HopFields, hopField)
-	if segment.InfoField.Hops == 0xff {
-		panic("too many hops")
-	}
-	segment.InfoField.Hops++
-	return hopField
 }
 
 func (segment *Segment) reverse() {
@@ -286,19 +199,12 @@ type InfoField struct {
 	Timestamp time.Time
 	Peer      bool
 	ConsDir   bool
-
-	// legacy
-	Shortcut bool
-	ISD      addr.ISD
-	Hops     int // Not updated in v2 path. Use len()
 }
 
 func (field *InfoField) String() string {
-	return fmt.Sprintf("IF %s%s%s ISD=%d",
+	return fmt.Sprintf("IF %s%s",
 		flagPrint("C", field.ConsDir),
-		flagPrint("S", field.Shortcut),
-		flagPrint("P", field.Peer),
-		field.ISD)
+		flagPrint("P", field.Peer))
 }
 
 type HopField struct {
@@ -306,16 +212,10 @@ type HopField struct {
 	ConsIngress uint16
 	ConsEgress  uint16
 	MAC         []byte
-
-	// legacy
-	Xover      bool
-	VerifyOnly bool
 }
 
 func (field *HopField) String() string {
-	return fmt.Sprintf("HF %s%s InIF=%d OutIF=%d",
-		flagPrint("X", field.Xover),
-		flagPrint("V", field.VerifyOnly),
+	return fmt.Sprintf("HF InIF=%d OutIF=%d",
 		field.ConsIngress,
 		field.ConsEgress)
 }

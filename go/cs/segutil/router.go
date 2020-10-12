@@ -75,15 +75,7 @@ func (r *Router) translate(comb *combinator.Path, dst addr.IA) (path, error) {
 	if _, err := comb.WriteTo(buf); err != nil {
 		return path{}, err
 	}
-	var sp *spath.Path
-	if !comb.HeaderV2 {
-		sp = spath.New(buf.Bytes())
-		if err := sp.InitOffsets(); err != nil {
-			return path{}, err
-		}
-	} else {
-		sp = spath.NewV2(buf.Bytes(), false)
-	}
+	sp := spath.NewV2(buf.Bytes(), false)
 	nextHop, ok := r.Pather.TopoProvider.Get().UnderlayNextHop(comb.Interfaces[0].ID)
 	if !ok {
 		return path{}, serrors.New("Unable to find first-hop BR for path",

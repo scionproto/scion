@@ -91,7 +91,7 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 		keyPairs = append(keyPairs, newKeyPair(t))
 	}
 
-	ps, err := CreateSegment(time.Now(), 1337, 1)
+	ps, err := CreateSegment(time.Now(), 1337)
 	require.NoError(t, err)
 
 	for i, entry := range asEntries {

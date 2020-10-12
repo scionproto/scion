@@ -1,8 +1,5 @@
 [dispatcher]
 id = "disp_1-ff00_0_111"
 
-[features]
-allow_run_as_root = true
-
 [log.console]
 level = "debug"

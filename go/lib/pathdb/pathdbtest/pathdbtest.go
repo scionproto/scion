@@ -59,7 +59,7 @@ var (
 		{IA: ia331, IfID: 6},
 		{IA: ia332, IfID: 1},
 	}
-	timeout = time.Second
+	timeout = 5 * time.Second
 )
 
 // TestablePathDB extends the path db interface with methods that are needed
@@ -822,7 +822,7 @@ func AllocPathSegment(t *testing.T, ctrl *gomock.Controller, ifs []uint64,
 		},
 	}
 
-	pseg, err := seg.CreateSegment(time.Unix(int64(expiration), 0), uint16(mrand.Int()), 1)
+	pseg, err := seg.CreateSegment(time.Unix(int64(expiration), 0), uint16(mrand.Int()))
 	require.NoError(t, err)
 	for _, ase := range ases {
 		err := pseg.AddASEntry(context.Background(), ase, graph.NewSigner())

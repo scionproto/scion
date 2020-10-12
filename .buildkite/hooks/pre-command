@@ -2,32 +2,39 @@
 
 set -euo pipefail
 
-echo "--- pre-command hook"
+. .buildkite/hooks/pre-exit
+
+echo "--- Setting up bazel environment"
 
 # ACCEPTANCE_ARTIFACTS is used for acceptance tests built with the "old"
 # acceptance framework
 export ACCEPTANCE_ARTIFACTS=/tmp/test-artifacts
-
-echo "Clean existing environment"
-. .buildkite/hooks/pre-exit
 
 if [ -z ${BAZEL_REMOTE_S3_ACCESS_KEY_ID+x} ]; then
     echo "S3 env not set, not starting bazel remote proxy"
     exit 0
 fi
 
-# Add bazelrc for CI to home directory, so that remote_cache is picked up.
-cp -f .bazelrc_ci $HOME/.bazelrc
+rm -f $HOME/.bazelrc
+# Create a custom .bazelrc file in the home directory it takes precedence over
+# the workspace rc file.
+# We explicitly override --disk_cache to empty so that --remote_cache gets
+# picked up. This is not documented but by testing we found that without
+# overriding the --disk_cache the --remote_cache is ignored.
+# --nostamp is required for better caching (only on non-release jobs).
+echo "build --nostamp" > $HOME/.bazelrc
+if [ "$BUILDKITE_PIPELINE_SLUG" == "scion-releasing" ]; then
+    echo "build --stamp" > $HOME/.bazelrc
+fi
 
-echo "Starting bazel remote cache proxy"
+echo "--- Starting bazel remote cache proxy"
 
 # Start bazel remote cache proxy for S3
 # Note that S3 keys are injected by buildkite, see
 # https://buildkite.com/docs/pipelines/secrets#storing-secrets-with-the-elastic-ci-stack-for-aws
-# FIXME(lukedirtwalker): Once https://github.com/buchgr/bazel-remote/pull/162 is
-# merged we should use buchgr/bazel-remote-cache again.
 docker run -e BAZEL_REMOTE_S3_BUCKET=$BAZEL_REMOTE_S3_BUCKET\
            -e BAZEL_REMOTE_S3_ENDPOINT=s3.eu-central-1.amazonaws.com\
            -e BAZEL_REMOTE_S3_ACCESS_KEY_ID=$BAZEL_REMOTE_S3_ACCESS_KEY_ID\
            -e BAZEL_REMOTE_S3_SECRET_ACCESS_KEY=$BAZEL_REMOTE_S3_SECRET_ACCESS_KEY\
-           --net=host --name bazel-remote-cache -d scionproto/bazel-remote-cache
+           --net=host --name bazel-remote-cache -d buchgr/bazel-remote-cache\
+           --max_size=5 --experimental_remote_asset_api

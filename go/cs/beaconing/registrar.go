@@ -29,9 +29,14 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
-	"github.com/scionproto/scion/go/lib/snet/addrutil"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 )
+
+// Pather computes the remote address with a path based on the provided segment.
+type Pather interface {
+	GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, error)
+}
 
 // SegmentProvider provides segments to register for the specified type.
 type SegmentProvider interface {
@@ -59,7 +64,7 @@ type Registrar struct {
 	Provider SegmentProvider
 	Store    SegmentStore
 	RPC      RPC
-	Pather   addrutil.Pather
+	Pather   Pather
 	IA       addr.IA
 	Signer   seg.Signer
 	Intfs    *ifstate.Interfaces
@@ -204,7 +209,7 @@ func (r *Registrar) logSummary(logger log.Logger, s *summary) {
 type remoteRegistrar struct {
 	segType seg.Type
 	rpc     RPC
-	pather  addrutil.Pather
+	pather  Pather
 	summary *summary
 	wg      *sync.WaitGroup
 }

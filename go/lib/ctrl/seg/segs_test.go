@@ -65,7 +65,7 @@ func allocPathSegment(ctrl *gomock.Controller, ias []addr.IA) *PathSegment {
 			},
 		}
 	}
-	ps, err := CreateSegment(time.Now(), 1337, 1)
+	ps, err := CreateSegment(time.Now(), 1337)
 	if err != nil {
 		panic(err)
 	}

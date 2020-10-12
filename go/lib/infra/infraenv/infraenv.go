@@ -17,7 +17,6 @@
 package infraenv
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -81,9 +80,6 @@ type NetworkConfig struct {
 	// ignore SCMP messages. Otherwise, the server will shutdown when receiving
 	// an SCMP error message.
 	SCMPHandler snet.SCMPHandler
-
-	// Version2 switches packets to SCION header format version 2.
-	Version2 bool
 }
 
 // QUICStack contains everything to run a QUIC based RPC stack.
@@ -164,7 +160,7 @@ func (nc *NetworkConfig) AddressRewriter(
 	if connFactory == nil {
 		connFactory = &snet.DefaultPacketDispatcherService{
 			Dispatcher:  reliable.NewDispatcher(""),
-			Version2:    nc.Version2,
+			Version2:    true,
 			SCMPHandler: nc.SCMPHandler,
 		}
 	}
@@ -175,14 +171,6 @@ func (nc *NetworkConfig) AddressRewriter(
 			LocalIA:     nc.IA,
 			ConnFactory: connFactory,
 			LocalIP:     nc.Public.IP,
-			// Legacy control payloads have a 4-byte length prefix. A
-			// 0-value for the prefix is invalid, so SVC resolution-aware
-			// servers can use this to detect that the client is attempting
-			// SVC resolution. Legacy SVC traffic sent by legacy clients
-			// will have a non-0 value, and thus not trigger resolution
-			// logic.
-			Payload:  resolutionRequestPayload,
-			HeaderV2: nc.Version2,
 		},
 		SVCResolutionFraction: 1.337,
 	}
@@ -210,20 +198,17 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 	packetDispatcher := svc.NewResolverPacketDispatcher(
 		&snet.DefaultPacketDispatcherService{
 			Dispatcher:  dispatcherService,
-			Version2:    nc.Version2,
+			Version2:    true,
 			SCMPHandler: nc.SCMPHandler,
 		},
-		&LegacyForwardingHandler{
-			BaseHandler: &svc.BaseHandler{
-				Message: svcResolutionReply,
-			},
-			ExpectedPayload: resolutionRequestPayload,
+		&svc.BaseHandler{
+			Message: svcResolutionReply,
 		},
 	)
 	network := &snet.SCIONNetwork{
 		LocalIA:    nc.IA,
 		Dispatcher: packetDispatcher,
-		Version2:   nc.Version2,
+		Version2:   true,
 	}
 	conn, err := network.Listen(context.Background(), "udp", nc.Public, addr.SvcWildcard)
 	if err != nil {
@@ -246,9 +231,9 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 			// errors. Otherwise, the accept loop will always return that error
 			// on every subsequent call to accept.
 			SCMPHandler: ignoreSCMP{},
-			Version2:    nc.Version2,
+			Version2:    true,
 		},
-		Version2: nc.Version2,
+		Version2: true,
 	}
 	serverAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)
 	if err != nil {
@@ -264,9 +249,9 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher:  dispatcherService,
 			SCMPHandler: nc.SCMPHandler,
-			Version2:    nc.Version2,
+			Version2:    true,
 		},
-		Version2: nc.Version2,
+		Version2: true,
 	}
 	// Let the dispatcher decide on the port for the client connection.
 	clientAddr := &net.UDPAddr{
@@ -278,45 +263,6 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 		return nil, nil, serrors.WrapStr("creating client connection", err)
 	}
 	return client, server, nil
-}
-
-// LegacyForwardingHandler is an SVC resolution handler that only responds to
-// packets that have an SVC destination address and contain exactly 4 0x00
-// bytes in their payload. All other packets are considered to originate from
-// speakers that do not support SVC resolution, so they are forwarded to the
-// application unchanged.
-type LegacyForwardingHandler struct {
-	ExpectedPayload []byte
-	// BaseHandler is called after the payload is checked for the correct
-	// content.
-	BaseHandler *svc.BaseHandler
-}
-
-// Handle redirects packets that have an SVC destination address and contain
-// exactly 4 0x00 bytes to another handler, and forwards other packets back to
-// the application.
-func (h *LegacyForwardingHandler) Handle(request *svc.Request) (svc.Result, error) {
-	var pld []byte
-	if request.Packet.PayloadV2 != nil {
-		udp, ok := request.Packet.PayloadV2.(snet.UDPPayload)
-		if !ok {
-			return svc.Error, serrors.New("invalid payload",
-				"type", common.TypeOf(request.Packet.PayloadV2))
-		}
-		pld = udp.Payload
-	} else {
-		p, ok := request.Packet.Payload.(common.RawBytes)
-		if !ok {
-			return svc.Error, common.NewBasicError("Unsupported payload type", nil,
-				"payload", request.Packet.Payload)
-		}
-		pld = p
-	}
-	if bytes.Compare(h.ExpectedPayload, []byte(pld)) == 0 {
-		return h.BaseHandler.Handle(request)
-	}
-	log.Debug("Received control payload with SVC destination", "from", request.Packet.Source)
-	return svc.Forward, nil
 }
 
 // NewRouter constructs a path router for paths starting from localIA.

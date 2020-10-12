@@ -21,7 +21,6 @@ go_library(
         "//go/pkg/trust:go_default_library",
         "//go/pkg/trust/grpc:go_default_library",
         "//go/pkg/trust/metrics:go_default_library",
-        "@com_github_grpc_ecosystem_grpc_opentracing//go/otgrpc:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
         "@org_golang_google_grpc//:go_default_library",

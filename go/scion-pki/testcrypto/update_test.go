@@ -38,7 +38,7 @@ func TestUpdateExtend(t *testing.T) {
 	defer cleanF()
 	topo := "./testdata/test.topo"
 	cryptoLib := "../../../scripts/cryptoplayground/crypto_lib.sh"
-	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false)
+	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false)
 	require.NoError(t, err)
 
 	cmd := testcrypto.NewUpdate()
@@ -69,7 +69,8 @@ func TestUpdateExtend(t *testing.T) {
 
 	for _, ia := range allASes {
 		t.Run(ia.String(), func(t *testing.T) {
-			file := filepath.Join(testcrypto.CryptoASDir(ia, outDir), ia.FileFmt(true)+".pem")
+			file := filepath.Join(testcrypto.CryptoASDir(ia, testcrypto.NewOut(outDir)),
+				ia.FileFmt(true)+".pem")
 			chain, err := cppki.ReadPEMCerts(file)
 			require.NoError(t, err)
 			trc := trcs[ia.I].TRC
@@ -110,7 +111,7 @@ func TestUpdateReSign(t *testing.T) {
 	defer cleanF()
 	topo := "./testdata/test.topo"
 	cryptoLib := "../../../scripts/cryptoplayground/crypto_lib.sh"
-	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false)
+	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false)
 	require.NoError(t, err)
 
 	cmd := testcrypto.NewUpdate()
@@ -141,7 +142,8 @@ func TestUpdateReSign(t *testing.T) {
 
 	for _, ia := range allASes {
 		t.Run(ia.String(), func(t *testing.T) {
-			file := filepath.Join(testcrypto.CryptoASDir(ia, outDir), ia.FileFmt(true)+".pem")
+			file := filepath.Join(testcrypto.CryptoASDir(ia, testcrypto.NewOut(outDir)),
+				ia.FileFmt(true)+".pem")
 			chain, err := cppki.ReadPEMCerts(file)
 			require.NoError(t, err)
 			trc := trcs[ia.I].TRC

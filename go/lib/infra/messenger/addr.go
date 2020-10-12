@@ -184,7 +184,7 @@ func (r AddressRewriter) resolveSVC(ctx context.Context, p snet.Path,
 		defer cancelF()
 	}
 
-	logger.Debug("Sending SVC resolution request", "ia", p.Destination(), "svc", s,
+	logger.Debug("Sending SVC resolution request", "isd_as", p.Destination(), "svc", s,
 		"svcResFraction", r.SVCResolutionFraction)
 
 	reply, err := r.Resolver.LookupSVC(ctx, p, s)

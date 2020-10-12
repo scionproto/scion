@@ -20,3 +20,6 @@ indent_style = tab
 
 [.gitmodules]
 indent_style = tab
+
+[*.rst]
+indent_size = 3

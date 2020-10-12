@@ -15,6 +15,14 @@ py_library(
 )
 
 py_library(
+    name = "docker",
+    srcs = ["docker.py"],
+    deps = [
+        requirement("plumbum"),
+    ],
+)
+
+py_library(
     name = "go",
     srcs = ["go.py"],
 )

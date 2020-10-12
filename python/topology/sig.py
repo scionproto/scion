@@ -26,7 +26,8 @@ from python.topology.common import (
     remote_nets,
     sciond_svc_name,
     SD_API_PORT,
-    SIG_CONFIG_NAME
+    SIG_CONFIG_NAME,
+    translate_features,
 )
 from python.topology.net import socket_address_str
 from python.topology.prometheus import SIG_PROM_PORT
@@ -70,7 +71,7 @@ class SIGGenerator(object):
     def _dispatcher_conf(self, topo_id, base):
         # Create dispatcher config
         entry = {
-            'image': 'scion_dispatcher',
+            'image': 'dispatcher',
             'container_name': 'scion_%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt()),
             'user': self.user,
             'networks': {},
@@ -94,7 +95,7 @@ class SIGGenerator(object):
         setup_name = 'scion_sig_setup_%s' % topo_id.file_fmt()
         disp_id = 'scion_disp_sig_%s' % topo_id.file_fmt()
         self.dc_conf['services'][setup_name] = {
-            'image': 'scion_tester:latest',
+            'image': 'tester:latest',
             'depends_on': [disp_id],
             'entrypoint': './sig_setup.sh',
             'privileged': True,
@@ -102,7 +103,7 @@ class SIGGenerator(object):
             'command': [remote_nets(self.args.networks, topo_id)],
         }
         self.dc_conf['services']['scion_sig_%s' % topo_id.file_fmt()] = {
-            'image': 'scion_sig:latest',
+            'image': 'posix-gateway:latest',
             'container_name': 'scion_%ssig_%s' % (self.prefix, topo_id.file_fmt()),
             'depends_on': [
                 disp_id,
@@ -165,7 +166,7 @@ class SIGGenerator(object):
             'metrics': {
                 'prometheus': '0.0.0.0:%s' % SIG_PROM_PORT
             },
-            'features': self.args.features,
+            'features': translate_features(self.args.features),
         }
         path = os.path.join(topo_id.base_dir(self.args.output_dir), SIG_CONFIG_NAME)
         write_file(path, toml.dumps(sig_conf))

@@ -54,11 +54,13 @@ type Packet struct {
 	// FIXME(roosd): currently no support for extensions.
 	UDP  slayers.UDP
 	SCMP slayers.SCMP
-	Pld  gopacket.Payload
 
 	// L4 indicates what type is at layer 4.
 	L4 gopacket.LayerType
 
+	// parser is tied to the layers in this packet.
+	// IngoreUnsupported is set to true.
+	parser *gopacket.DecodingLayerParser
 	// buffer contains the raw slice that other fields reference
 	buffer common.RawBytes
 
@@ -73,10 +75,15 @@ func (p *Packet) Len() int {
 
 func newPacket() *Packet {
 	refCount := 1
-	return &Packet{
+	pkt := &Packet{
 		buffer:   GetBuffer(),
 		refCount: &refCount,
 	}
+	pkt.parser = gopacket.NewDecodingLayerParser(slayers.LayerTypeSCION,
+		&pkt.SCION, &pkt.UDP, &pkt.SCMP,
+	)
+	pkt.parser.IgnoreUnsupported = true
+	return pkt
 }
 
 // Dup increases pkt's reference count.
@@ -158,24 +165,16 @@ func (pkt *Packet) decodeBuffer() error {
 	if !pkt.HeaderV2 {
 		return hpkt.ParseScnPkt(&pkt.Info, pkt.buffer)
 	}
-	parser := gopacket.NewDecodingLayerParser(slayers.LayerTypeSCION,
-		&pkt.SCION, &pkt.UDP, &pkt.SCMP, &pkt.Pld,
-	)
 	decoded := make([]gopacket.LayerType, 3)
 
-	// Only return the error if it is not caused by the unregistered SCMP layers.
-	if err := parser.DecodeLayers(pkt.buffer, &decoded); err != nil {
-		if _, ok := err.(gopacket.UnsupportedLayerType); !ok {
-			return err
-		}
-		if len(decoded) == 0 || decoded[len(decoded)-1] != slayers.LayerTypeSCMP {
-			return err
-		}
+	// Unsupported layers are ignored by the parser.
+	if err := pkt.parser.DecodeLayers(pkt.buffer, &decoded); err != nil {
+		return err
 	}
 	if len(decoded) < 2 {
 		return serrors.New("L4 not decoded")
 	}
-	l4 := decoded[1]
+	l4 := decoded[len(decoded)-1]
 	if l4 != slayers.LayerTypeSCMP && l4 != slayers.LayerTypeSCIONUDP {
 		return serrors.New("unknown L4 layer decoded", "type", l4)
 	}

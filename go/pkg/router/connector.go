@@ -16,7 +16,6 @@ package router
 
 import (
 	"net"
-	"os"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -24,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/underlay/conn"
+	"github.com/scionproto/scion/go/pkg/router/control"
 )
 
 // Connector implements the Dataplane API of the router control process. It sets
@@ -60,58 +60,62 @@ func (c *Connector) AddInternalInterface(ia addr.IA, local net.UDPAddr) error {
 }
 
 // AddExternalInterface adds a link between the local and remote address.
-func (c *Connector) AddExternalInterface(ia addr.IA, ifID common.IFIDType,
-	local, remote net.UDPAddr, linkTo topology.LinkType, mtu int, owned bool) error {
+func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control.LinkInfo,
+	owned bool) error {
 
-	var bfdDisabled bool
-	disabled, _ := os.LookupEnv("DISABLE_BFD")
-	if disabled == "true" {
-		bfdDisabled = true
+	intf := uint16(localIfID)
+	log.Debug("Adding external interface", "interface", localIfID,
+		"local_isd_as", link.Local.IA, "local_addr", link.Local.Addr,
+		"remote_isd_as", link.Remote.IA, "remote_addr", link.Remote.IA,
+		"owned", owned, "bfd", !link.BFD.Disable)
+
+	if !c.ia.Equal(link.Local.IA) {
+		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", link.Local.IA)
+	}
+	if err := c.DataPlane.AddLinkType(intf, link.LinkTo); err != nil {
+		return serrors.WrapStr("adding link type", err, "if_id", localIfID)
 	}
 
-	log.Debug("Adding external interface",
-		"isd_as", ia, "ifID", ifID, "local", local, "remote", remote, "owned", owned,
-		"bfd", !bfdDisabled)
-	if !c.ia.Equal(ia) {
-		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
-	}
 	if !owned {
-		if !bfdDisabled {
-			if err := c.DataPlane.AddNextHopBFD(uint16(ifID), &remote); err != nil {
-				return serrors.WrapStr("adding next hop BFD", err, "if_id", ifID)
+		if !link.BFD.Disable {
+			err := c.DataPlane.AddNextHopBFD(intf, link.Local.Addr, link.Remote.Addr,
+				link.BFD, link.Instance)
+			if err != nil {
+				return serrors.WrapStr("adding next hop BFD", err, "if_id", localIfID)
 			}
 		}
-		return c.DataPlane.AddNextHop(uint16(ifID), &remote)
+		return c.DataPlane.AddNextHop(intf, link.Remote.Addr)
 	}
-	connection, err := conn.New(&local, &remote, nil)
+	connection, err := conn.New(link.Local.Addr, link.Remote.Addr, nil)
 	if err != nil {
 		return err
 	}
-	if !bfdDisabled {
-		if err := c.DataPlane.AddExternalInterfaceBFD(uint16(ifID), connection); err != nil {
-			return serrors.WrapStr("adding external BFD", err, "if_id", ifID)
+	if !link.BFD.Disable {
+		err := c.DataPlane.AddExternalInterfaceBFD(intf, connection, link.Local,
+			link.Remote, link.BFD)
+		if err != nil {
+			return serrors.WrapStr("adding external BFD", err, "if_id", localIfID)
 		}
 	}
-	return c.DataPlane.AddExternalInterface(uint16(ifID), connection)
+	return c.DataPlane.AddExternalInterface(intf, connection)
 }
 
 // AddSvc adds the service address for the given ISD-AS.
 func (c *Connector) AddSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error {
-	log.Debug("Adding SVC", "isd_as", ia, "svc", svc, "ip", ip)
+	log.Debug("Adding service", "isd_as", ia, "svc", svc, "ip", ip)
 	if !c.ia.Equal(ia) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
 	}
-	return c.DataPlane.AddSvc(svc, &net.IPAddr{IP: ip})
+	return c.DataPlane.AddSvc(svc, &net.UDPAddr{IP: ip, Port: topology.EndhostPort})
 }
 
 // DelSvc deletes the service entry for the given ISD-AS and IP pair.
 func (c *Connector) DelSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error {
+	log.Debug("Deleting service", "isd_as", ia, "svc", svc, "ip", ip)
 	if !c.ia.Equal(ia) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
 	}
-	// TODO(lukedirtwalker) implement.
-	log.Info("DelSVC is currently not implemented for the GoBR")
-	return nil
+	return c.DataPlane.DelSvc(svc, &net.UDPAddr{IP: ip, Port: topology.EndhostPort})
 }
 
 // SetKey sets the key for the given ISD-AS at the given index.
@@ -131,8 +135,7 @@ func (c *Connector) SetRevocation(ia addr.IA, ifID common.IFIDType, rev common.R
 	if !c.ia.Equal(ia) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
 	}
-	// TODO(lukedirtwalker) implement.
-	log.Info("SetRevocation is currently not implemented for the GoBR")
+	log.Info("SetRevocation is not supported")
 	return nil
 }
 
@@ -141,7 +144,6 @@ func (c *Connector) DelRevocation(ia addr.IA, ifid common.IFIDType) error {
 	if !c.ia.Equal(ia) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
 	}
-	// TODO(lukedirtwalker) implement.
-	log.Info("DelRevocation is currently not implemented for the GoBR")
+	log.Info("DelRevocation is not supported")
 	return nil
 }

@@ -26,6 +26,9 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/empty"
+	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -40,6 +43,164 @@ var (
 		"\x03\x04\x05\x06\x00\x3f\x00\x00\x00\x02\x01\x02\x03\x04\x05\x06\x00\x3f\x00\x01\x00\x00" +
 		"\x01\x02\x03\x04\x05\x06")
 )
+
+func TestSCIONLayerString(t *testing.T) {
+	ia1, err := addr.IAFromString("1-ff00:0:1")
+	assert.NoError(t, err)
+	ia2, err := addr.IAFromString("1-ff00:0:2")
+	assert.NoError(t, err)
+	sc := &slayers.SCION{
+		TrafficClass: 226,
+		FlowID:       12345,
+		NextHdr:      common.L4UDP,
+		DstIA:        ia1,
+		SrcIA:        ia2,
+	}
+	if err := sc.SetDstAddr(&net.IPAddr{IP: net.ParseIP("1.2.3.4").To4()}); err != nil {
+		assert.NoError(t, err)
+	}
+	if err := sc.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("5.6.7.8").To4()}); err != nil {
+		assert.NoError(t, err)
+	}
+
+	expectBegin := `` +
+		`SCION	{` +
+		`Contents=[] ` +
+		`Payload=[] ` +
+		`Version=0 ` +
+		`TrafficClass=226 ` +
+		`FlowID=12345 ` +
+		`NextHdr=UDP ` +
+		`HdrLen=0 ` +
+		`PayloadLen=0 `
+	expectMiddle := `` +
+		`DstAddrType=0 ` +
+		`DstAddrLen=0 ` +
+		`SrcAddrType=0 ` +
+		`SrcAddrLen=0 ` +
+		`DstIA=1-ff00:0:1 ` +
+		`SrcIA=1-ff00:0:2 ` +
+		`RawDstAddr=[1, 2, 3, 4] ` +
+		`RawSrcAddr=[5, 6, 7, 8] `
+	expectEnd := `}`
+
+	testCases := map[string]struct {
+		pathType slayers.PathType
+		path     slayers.Path
+		expect   string
+	}{
+		"empty": {
+			pathType: slayers.PathTypeEmpty,
+			path:     empty.Path{},
+			expect:   expectBegin + `PathType=Empty (0) ` + expectMiddle + `Path={}` + expectEnd,
+		},
+		"scion": {
+			pathType: slayers.PathTypeSCION,
+			path: &scion.Decoded{
+				Base: scion.Base{
+					PathMeta: scion.MetaHdr{
+						CurrINF: 5,
+						CurrHF:  6,
+						SegLen:  [3]uint8{1, 2, 3},
+					},
+					NumINF:  10,
+					NumHops: 11,
+				},
+				InfoFields: []*path.InfoField{
+					{
+						Peer:  true,
+						SegID: 222,
+					},
+				},
+				HopFields: []*path.HopField{
+					{
+						IngressRouterAlert: true,
+						EgressRouterAlert:  false,
+						ExpTime:            63,
+						ConsIngress:        4,
+						ConsEgress:         5,
+						Mac:                []byte{6, 7, 8},
+					},
+				},
+			},
+			expect: expectBegin + `PathType=SCION (1) ` + expectMiddle +
+				`Path={ ` +
+				`PathMeta={` +
+				`CurrInf: 5, ` +
+				`CurrHF: 6, ` +
+				`SegLen: [1 2 3]} ` +
+				`NumINF=10 ` +
+				`NumHops=11 ` +
+				`InfoFields=[{` +
+				`Peer: true, ` +
+				`ConsDir: false, ` +
+				`SegID: 222, ` +
+				`Timestamp: 1970-01-01 00:00:00+0000` +
+				`}] HopFields=[{` +
+				`IngressRouterAlert=true ` +
+				`EgressRouterAlert=false ` +
+				`ExpTime=63 ` +
+				`ConsIngress=4 ` +
+				`ConsEgress=5 ` +
+				`Mac=[6, 7, 8]` +
+				`}]}` + expectEnd,
+		},
+		"onehop": {
+			pathType: slayers.PathTypeOneHop,
+			path: &onehop.Path{
+				Info: path.InfoField{
+					ConsDir:   true,
+					SegID:     34,
+					Timestamp: 1000,
+				},
+				FirstHop: path.HopField{
+					ConsIngress: 5,
+					ConsEgress:  6,
+					ExpTime:     63,
+					Mac:         []byte{1, 2, 3},
+				},
+				SecondHop: path.HopField{
+					ConsIngress: 2,
+					ConsEgress:  3,
+					ExpTime:     63,
+					Mac:         []byte{7, 8, 9},
+				},
+			},
+			expect: expectBegin + `PathType=OneHop (2) ` + expectMiddle +
+				`Path={ ` +
+				`Info={ ` +
+				`Peer=false ` +
+				`ConsDir=true ` +
+				`SegID=34 ` +
+				`Timestamp=1000` +
+				`} FirstHop={ ` +
+				`IngressRouterAlert=false ` +
+				`EgressRouterAlert=false ` +
+				`ExpTime=63 ` +
+				`ConsIngress=5 ` +
+				`ConsEgress=6 ` +
+				`Mac=[1, 2, 3]` +
+				`} SecondHop={ ` +
+				`IngressRouterAlert=false ` +
+				`EgressRouterAlert=false ` +
+				`ExpTime=63 ` +
+				`ConsIngress=2 ` +
+				`ConsEgress=3 ` +
+				`Mac=[7, 8, 9]` +
+				`}}` + expectEnd,
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			sc.PathType = tc.pathType
+			sc.Path = tc.path
+			got := gopacket.LayerString(sc)
+			assert.Equal(t, tc.expect, got)
+		})
+	}
+}
 
 func TestSCIONSerializeDecode(t *testing.T) {
 	want := prepPacket(t, common.L4UDP)

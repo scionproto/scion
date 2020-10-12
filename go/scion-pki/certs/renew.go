@@ -46,6 +46,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/squic"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/svc"
+	"github.com/scionproto/scion/go/pkg/app/feature"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/grpc"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
@@ -79,6 +80,8 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
 		sciondAddr     string
 		listen         net.IP
 		timeout        time.Duration
+
+		features []string
 	}
 
 	cmd := &cobra.Command{
@@ -160,6 +163,10 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 					return err
 				}
 			}
+			features, err := feature.ParseDefault(flags.features)
+			if err != nil {
+				return err
+			}
 			cmd.SilenceUsage = true
 
 			log.Setup(log.Config{Console: log.ConsoleConfig{Level: "crit"}})
@@ -208,7 +215,7 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 				IA: ca,
 			}
 			disp := reliable.NewDispatcher(flags.dispatcherPath)
-			dialer, err := buildDialer(ctx, disp, sds, local, remote)
+			dialer, err := buildDialer(ctx, disp, sds, local, remote, features.HeaderLegacy)
 			if err != nil {
 				return err
 			}
@@ -271,7 +278,8 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 		"Optional local IP address")
 	cmd.Flags().StringVar(&flags.outFile, "out", "",
 		"File where renewed certificate chain is written")
-
+	cmd.Flags().StringSliceVar(&flags.features, "features", nil,
+		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
 	return cmd
 }
 
@@ -406,43 +414,55 @@ func csrTemplate(chain []*x509.Certificate, tmpl string) (*x509.CertificateReque
 }
 
 func buildDialer(ctx context.Context, ds reliable.Dispatcher, sds sciond.Service,
-	local, remote *snet.UDPAddr) (grpc.Dialer, error) {
+	local, remote *snet.UDPAddr, headerLegacy bool) (grpc.Dialer, error) {
 
 	sdConn, err := sds.Connect(ctx)
 	if err != nil {
 		return nil, serrors.WrapStr("connecting to SCION Daemon", err)
 	}
+
+	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
+		RevocationHandler: sciond.RevHandler{Connector: sdConn},
+	}
+	if headerLegacy {
+		scmpHandler = snet.NewLegacySCMPHandler(sciond.RevHandler{Connector: sdConn})
+	}
+
 	sn := &snet.SCIONNetwork{
 		LocalIA: local.IA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher: ds,
-			// TODO(lukedirtwalker): use new handler for v2, see Anapaya/scion#3509
-			SCMPHandler: snet.NewLegacySCMPHandler(
-				sciond.RevHandler{Connector: sdConn},
-			),
-			Version2: false, // TODO(scrye): set this to true when we have CLI support for features
+			Dispatcher:  ds,
+			SCMPHandler: scmpHandler,
+			Version2:    !headerLegacy,
 		},
+		Version2: !headerLegacy,
 	}
 	conn, err := sn.Dial(ctx, "udp", local.Host, remote, addr.SvcNone)
 	if err != nil {
 		return nil, serrors.WrapStr("dialing", err)
 	}
+
+	var resolver messenger.Resolver = &svc.Resolver{
+		LocalIA:     local.IA,
+		ConnFactory: sn.Dispatcher,
+		LocalIP:     local.Host.IP,
+	}
+	if headerLegacy {
+		resolver = &svc.LegacyResolver{
+			LocalIA:     local.IA,
+			ConnFactory: sn.Dispatcher,
+			LocalIP:     local.Host.IP,
+			Payload:     []byte{0x00, 0x00, 0x00, 0x00},
+		}
+	}
+
 	dialer := &grpc.QUICDialer{
 		Rewriter: &messenger.AddressRewriter{
 			Router: &snet.BaseRouter{
 				Querier: sciond.Querier{Connector: sdConn, IA: local.IA},
 			},
-			SVCRouter: svcRouter{Connector: sdConn},
-			Resolver: &svc.Resolver{
-				LocalIA: local.IA,
-				ConnFactory: &snet.DefaultPacketDispatcherService{
-					Dispatcher: ds,
-					// TODO(scrye): set this to true when we have CLI support for features
-					Version2: false,
-				},
-				LocalIP: local.Host.IP,
-				Payload: []byte{0x00, 0x00, 0x00, 0x00},
-			},
+			SVCRouter:             svcRouter{Connector: sdConn},
+			Resolver:              resolver,
 			SVCResolutionFraction: 1,
 		},
 		Dialer: squic.ConnDialer{

@@ -52,7 +52,7 @@ class TestSetup(Base):
             self.tools_dc('start', 'tester*')
             self.docker_status()
         # give some time for initial setup of control plane
-        time.sleep(4)
+        time.sleep(10)
 
 
 @Test.subcommand("run")

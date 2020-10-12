@@ -44,8 +44,8 @@ func MACGenFactory(configDir string) (func() hash.Hash, error) {
 
 // NewOneHopConn registers a new connection that should be used with one hop
 // paths.
-func NewOneHopConn(ia addr.IA, pub *net.UDPAddr, disp string, reconnecting,
-	headerV2 bool) (*snet.SCIONPacketConn, error) {
+func NewOneHopConn(ia addr.IA, pub *net.UDPAddr, disp string,
+	reconnecting bool) (*snet.SCIONPacketConn, error) {
 
 	dispatcherService := reliable.NewDispatcher(disp)
 	if reconnecting {
@@ -53,7 +53,7 @@ func NewOneHopConn(ia addr.IA, pub *net.UDPAddr, disp string, reconnecting,
 	}
 	pktDisp := &snet.DefaultPacketDispatcherService{
 		Dispatcher: dispatcherService,
-		Version2:   headerV2,
+		Version2:   true,
 	}
 	// We do not need to drain the connection, since the src address is spoofed
 	// to contain the topo address.

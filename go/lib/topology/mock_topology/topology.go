@@ -124,6 +124,21 @@ func (mr *MockTopologyMockRecorder) Exists(arg0, arg1 interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockTopology)(nil).Exists), arg0, arg1)
 }
 
+// Gateways mocks base method
+func (m *MockTopology) Gateways() ([]topology.GatewayInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Gateways")
+	ret0, _ := ret[0].([]topology.GatewayInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Gateways indicates an expected call of Gateways
+func (mr *MockTopologyMockRecorder) Gateways() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Gateways", reflect.TypeOf((*MockTopology)(nil).Gateways))
+}
+
 // IA mocks base method
 func (m *MockTopology) IA() addr.IA {
 	m.ctrl.T.Helper()

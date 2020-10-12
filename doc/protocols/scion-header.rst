@@ -2,6 +2,8 @@
 SCION Header Specification
 **************************
 
+.. _header-specification:
+
 This document contains the specification of the SCION packet header.
 
 SCION Header Formats
@@ -40,8 +42,8 @@ FlowID
 NextHdr
     Field that encodes the type of the first header after the SCION header. This
     can be either a SCION extension or a layer-4 protocol such as TCP or UDP.
-    Values of this field respect and extend `IANA’s assigned internet protocol
-    numbers <https://perma.cc/FBE8-S2W5>`_.
+    Values of this field respect the :ref:`Assigned SCION Protocol Numbers
+    <assigned-protocol-numbers>`.
 HdrLen
     Length of the SCION header in bytes (i.e., the sum of the lengths of the
     common header, the address header, and the path header). All SCION header

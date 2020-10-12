@@ -282,9 +282,8 @@ type PathSolution struct {
 // extracting it from a path between source and destination in the DMG.
 func (solution *PathSolution) getFwdPathMetadata() *Path {
 	path := &Path{
-		Weight:   solution.cost,
-		Mtu:      ^uint16(0),
-		HeaderV2: true,
+		Weight: solution.cost,
+		Mtu:    ^uint16(0),
 	}
 	for _, solEdge := range solution.edges {
 		var hops []*HopField
@@ -354,107 +353,10 @@ func (solution *PathSolution) getFwdPathMetadata() *Path {
 				SegID:     calculateBeta(solEdge),
 				ConsDir:   solEdge.segment.IsDownSeg(),
 				Peer:      solEdge.edge.Peer != 0,
-				Hops:      len(hops),
 			},
 			HopFields:  hops,
 			Interfaces: intfs,
 		})
-	}
-	path.reverseDownSegment()
-	path.aggregateInterfaces()
-	path.StaticInfo = solution.collectMetadata()
-	return path
-}
-
-func (solution *PathSolution) legacyFwdPathMetadata() *Path {
-	path := &Path{
-		Weight: solution.cost,
-		Mtu:    ^uint16(0),
-	}
-	for edgeIdx, solEdge := range solution.edges {
-		currentSeg := &Segment{
-			Type: solEdge.segment.Type,
-		}
-		currentSeg.initInfoFieldFrom(solEdge.segment.PathSegment)
-		currentSeg.InfoField.ConsDir = solEdge.segment.IsDownSeg()
-		currentSeg.InfoField.Shortcut = solEdge.edge.Shortcut != 0
-		currentSeg.InfoField.Peer = solEdge.edge.Peer != 0
-		path.Segments = append(path.Segments, currentSeg)
-
-		// Go through each ASEntry, starting from the last one, until we
-		// find a shortcut (which can be 0, meaning the end of the segment).
-		asEntries := solEdge.segment.ASEntries
-		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
-			var inIFID, outIFID common.IFIDType
-			asEntry := asEntries[asEntryIdx]
-
-			// Normal hop field.
-			hopEntry := asEntry.HopEntry
-			newHF := currentSeg.appendHopFieldFrom(&hopEntry.HopField)
-			// We don't know if this hop entry is used for forwarding (a peer
-			// entry might be used instead, which would override mtu later)
-			forwardingLinkMtu := hopEntry.IngressMTU
-			inIFID, outIFID = common.IFIDType(newHF.ConsEgress), common.IFIDType(newHF.ConsIngress)
-
-			// If we've transitioned from a previous segment, set Xover flag.
-			if edgeIdx > 0 {
-				if !solEdge.segment.IsDownSeg() && asEntryIdx == len(asEntries)-1 {
-					newHF.Xover = true
-				}
-				if solEdge.segment.IsDownSeg() && asEntryIdx == 0 {
-					newHF.Xover = true
-				}
-			}
-
-			if asEntryIdx == solEdge.edge.Shortcut {
-				// We've reached the ASEntry where we want to switch
-				// segments; this can happen either when we reach the end
-				// of the segment (so Shortcut = 0, Peer = 0), we reach a
-				// Shortcut annotation (so we don't need to go to the end
-				// of the segment anymore, Peer = 0), or when we need to
-				// traverse a peering link.
-
-				// If this is not the last segment in the path, set Xover flag.
-				if edgeIdx != len(solution.edges)-1 {
-					newHF.Xover = true
-				}
-
-				if solEdge.edge.Shortcut != 0 {
-					if solEdge.segment.IsDownSeg() && edgeIdx == 1 {
-						newHF.Xover = true
-					}
-
-					if solEdge.edge.Peer != 0 {
-						// Always set Xover flag for the current hop field,
-						// even if on last segment.
-						newHF.Xover = true
-						// Add a new hop field for the peering entry, and set Xover.
-						pHopEntry := asEntry.PeerEntries[solEdge.edge.Peer-1]
-						pHF := currentSeg.appendHopFieldFrom(&pHopEntry.HopField)
-						forwardingLinkMtu = pHopEntry.PeerMTU
-						pHF.Xover = true
-						inIFID, outIFID = common.IFIDType(pHF.ConsEgress),
-							common.IFIDType(pHF.ConsIngress)
-					} else {
-						// Normal shortcut, so only half of this HF is traversed by the packet
-						outIFID = 0
-					}
-
-					newHF := currentSeg.appendHopFieldFrom(
-						&asEntries[asEntryIdx-1].HopEntry.HopField,
-					)
-					newHF.VerifyOnly = true
-				}
-			}
-
-			path.Mtu = minUint16(path.Mtu, uint16(asEntry.MTU))
-			if forwardingLinkMtu != 0 {
-				// The first HE in a segment has MTU 0, so we ignore those
-				path.Mtu = minUint16(path.Mtu, uint16(forwardingLinkMtu))
-			}
-			currentSeg.Interfaces = append(currentSeg.Interfaces,
-				getPathInterfaces(asEntry.Local, inIFID, outIFID)...)
-		}
 	}
 	path.reverseDownSegment()
 	path.aggregateInterfaces()
@@ -535,31 +437,11 @@ type solutionEdge struct {
 	segment *InputSegment
 }
 
-func minUint32(x, y uint32) uint32 {
-	if x < y {
-		return x
-	}
-	return y
-}
-
 func minUint16(x, y uint16) uint16 {
 	if x < y {
 		return x
 	}
 	return y
-}
-
-func getPathInterfaces(ia addr.IA, inIFID, outIFID common.IFIDType) []snet.PathInterface {
-	var result []snet.PathInterface
-	if inIFID != 0 {
-		result = append(result,
-			snet.PathInterface{IA: ia, ID: inIFID})
-	}
-	if outIFID != 0 {
-		result = append(result,
-			snet.PathInterface{IA: ia, ID: outIFID})
-	}
-	return result
 }
 
 // validNextSeg returns whether nextSeg is a valid next segment in a path from the given currSeg.

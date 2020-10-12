@@ -22,6 +22,7 @@ import (
 	"time"
 
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/env"
@@ -31,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
+	"github.com/scionproto/scion/go/pkg/discovery"
 	"github.com/scionproto/scion/go/pkg/service"
 )
 
@@ -42,6 +44,27 @@ func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
 	}
 	opentracing.SetGlobalTracer(tracer)
 	return trCloser, nil
+}
+
+// Metrics defines the metrics exposed by the control server.
+//
+// XXX(roosd): Currently, most counters are created in the packages. The will
+// eventually be moved here.
+type Metrics struct {
+	DiscoveryRequestsTotal *prometheus.CounterVec
+}
+
+func NewMetrics() *Metrics {
+	return &Metrics{
+		DiscoveryRequestsTotal: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "discovery_requests_total",
+				Help: "Total number of discovery requests served.",
+			},
+			discovery.Topology{}.RequestsLabels(),
+		),
+	}
+
 }
 
 // StartHTTPEndpoints starts the HTTP endpoints that expose the metrics and

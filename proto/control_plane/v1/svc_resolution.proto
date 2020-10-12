@@ -18,9 +18,14 @@ option go_package = "github.com/scionproto/scion/go/pkg/proto/control_plane";
 
 package proto.control_plane.v1;
 
+// A ServiceResolutionRequest must always fit within a UDP datagram. If the
+// request does not fit, there is no mechanism for clients and servers to
+// establish control-plane reachability.
+message ServiceResolutionRequest {}
+
 // A ServiceResolutionResponse must always fit within a UDP datagram. If the
 // response does not fit, there is no mechanism for clients and servers to
-// establish control-plane reachability
+// establish control-plane reachability.
 message ServiceResolutionResponse {
     // Supported transports to reach the service,
     //

@@ -23,26 +23,19 @@ import (
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
-	"github.com/scionproto/scion/go/cs/keepalive"
-	"github.com/scionproto/scion/go/cs/onehop"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
-	ifstategrpc "github.com/scionproto/scion/go/pkg/cs/ifstate/grpc"
-	"github.com/scionproto/scion/go/pkg/grpc"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
@@ -70,7 +63,6 @@ type TasksConfig struct {
 	RegistrationInterval time.Duration
 
 	AllowIsdLoop bool
-	HeaderV2     bool
 }
 
 // Originator starts a periodic beacon origination task. For non-core ASes, no
@@ -138,8 +130,12 @@ func (t *TasksConfig) registrar(topo topology.Topology, segType seg.Type,
 		Signer:   t.Signer,
 		Intfs:    t.Intfs,
 		Type:     segType,
-		Pather:   addrutil.NewPather(t.TopoProvider, t.HeaderV2),
-		Tick:     beaconing.NewTick(t.RegistrationInterval),
+		Pather: addrutil.Pather{
+			UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+				return t.TopoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+			},
+		},
+		Tick: beaconing.NewTick(t.RegistrationInterval),
 	}
 	return periodic.Start(r, 500*time.Millisecond, t.RegistrationInterval)
 }
@@ -147,18 +143,6 @@ func (t *TasksConfig) registrar(topo topology.Topology, segType seg.Type,
 func (t *TasksConfig) extender(task string, ia addr.IA, mtu uint16,
 	maxExp func() spath.ExpTimeType) beaconing.Extender {
 
-	if !t.HeaderV2 {
-		return &beaconing.LegacyExtender{
-			IA:         ia,
-			Signer:     t.Signer,
-			MAC:        t.MACGen,
-			Intfs:      t.Intfs,
-			MTU:        mtu,
-			MaxExpTime: maxExp,
-			StaticInfo: t.StaticInfo,
-			Task:       task,
-		}
-	}
 	return &beaconing.DefaultExtender{
 		IA:         ia,
 		Signer:     t.Signer,
@@ -235,120 +219,10 @@ func (t *Tasks) Kill() {
 	t.Registrars = nil
 }
 
-// LegacyTasks keeps track of tasks running in legacy behavior.
-type LegacyTasks struct {
-	Keepalive *periodic.Runner
-	Revoker   *periodic.Runner
-}
-
-func StartLegacyTasks(cfg LegacyTasksConfig) *LegacyTasks {
-	return &LegacyTasks{
-		Keepalive: cfg.Keepalive(),
-		Revoker:   cfg.Revoker(),
-	}
-}
-
-func (t *LegacyTasks) Kill() {
-	if t == nil {
-		return
-	}
-	killRunners([]*periodic.Runner{
-		t.Keepalive,
-		t.Revoker,
-	})
-	t.Keepalive = nil
-	t.Revoker = nil
-}
-
-// LegacyTasksConfig holds the necessary configuration to start the periodic
-// tasks a CS is expected to run when running in header v1 mode. The tasks take
-// care of the keepalive and revocation mechanism. It will be replaced
-// by BR to BR health checking and be obsolete when switching to header v2.
-type LegacyTasksConfig struct {
-	Public      *net.UDPAddr
-	Intfs       *ifstate.Interfaces
-	OneHopConn  *snet.SCIONPacketConn
-	BeaconStore Store
-	RevCache    revcache.RevCache
-	Signer      ctrl.Signer
-	Msgr        infra.Messenger
-
-	MACGen       func() hash.Hash
-	TopoProvider topology.Provider
-
-	KeepaliveInterval    time.Duration
-	ExpiredCheckInterval time.Duration
-	RevTTL               time.Duration
-	RevOverlap           time.Duration
-
-	HeaderV2 bool
-}
-
-// Keepalive starts a keepalive sender.
-func (t LegacyTasksConfig) Keepalive() *periodic.Runner {
-	r := periodic.Start(
-		&keepalive.Sender{
-			Sender: &onehop.Sender{
-				Conn:     t.OneHopConn,
-				IA:       t.TopoProvider.Get().IA(),
-				MAC:      t.MACGen(),
-				Addr:     t.Public,
-				HeaderV2: t.HeaderV2,
-			},
-			Signer:       infra.NullSigner,
-			TopoProvider: t.TopoProvider,
-		},
-		t.KeepaliveInterval,
-		t.KeepaliveInterval,
-	)
-	r.TriggerRun()
-	return r
-}
-
-// Revoker starts a periodic tasks that checks if interfaces need to be revoked.
-func (t LegacyTasksConfig) Revoker() *periodic.Runner {
-	return periodic.Start(
-		ifstate.RevokerConf{
-			Intfs:        t.Intfs,
-			StateSender:  ifstategrpc.StateSender{Dialer: grpc.SimpleDialer{}},
-			RevInserter:  multiRevInserter{BeaconStore: t.BeaconStore, RevCache: t.RevCache},
-			Signer:       t.Signer,
-			TopoProvider: t.TopoProvider,
-			RevConfig: ifstate.RevConfig{
-				RevTTL:     t.RevTTL,
-				RevOverlap: t.RevOverlap,
-			},
-		}.New(),
-		t.ExpiredCheckInterval,
-		t.ExpiredCheckInterval,
-	)
-}
-
 func killRunners(runners []*periodic.Runner) {
 	for _, r := range runners {
 		r.Kill()
 	}
-}
-
-type multiRevInserter struct {
-	BeaconStore ifstate.RevInserter
-	RevCache    revcache.RevCache
-}
-
-func (i multiRevInserter) InsertRevocations(ctx context.Context,
-	revocations ...*path_mgmt.SignedRevInfo) error {
-
-	var errors serrors.List
-	if err := i.BeaconStore.InsertRevocations(ctx, revocations...); err != nil {
-		errors = append(errors, serrors.WrapStr("insertings revs in beacon store", err))
-	}
-
-	for _, r := range revocations {
-		if _, err := i.RevCache.Insert(ctx, r); err != nil {
-			errors = append(errors, serrors.WrapStr("insertings revs in revcache", err))
-		}
-	}
-	return errors.ToError()
 }
 
 // Store is the interface to interact with the beacon store.

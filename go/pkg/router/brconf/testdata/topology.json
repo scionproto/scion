@@ -1,0 +1,62 @@
+{
+  "isd_as": "1-ff00:0:110",
+  "mtu": 1472,
+  "attributes": [
+    "authoritative",
+    "core",
+    "issuing",
+    "voting"
+  ],
+  "border_routers": {
+    "br1-ff00_0_110-1": {
+      "internal_addr": "127.0.0.1:50000",
+      "ctrl_addr": "127.0.0.1:50001",
+      "interfaces": {
+        "1": {
+          "underlay": {
+            "public": "127.0.0.1:50000",
+            "remote": "127.0.0.2:50000"
+          },
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:120",
+          "link_to": "CORE",
+          "mtu": 1472
+        }
+      }
+    },
+    "br1-ff00_0_110-2": {
+      "internal_addr": "127.0.0.2:50000",
+      "ctrl_addr": "127.0.0.2:50002",
+      "interfaces": {
+        "2": {
+          "underlay": {
+            "public": "127.0.0.1:50000",
+            "remote": "127.0.0.1:50000"
+          },
+          "bandwidth": 1000,
+          "isd_as": "1-ff00:0:120",
+          "link_to": "CORE",
+          "mtu": 1472
+        }
+      }
+    }
+  },
+  "control_service": {
+    "cs1-ff00_0_110-1": {
+      "addr": "127.0.0.1:60003"
+    },
+    "cs1-ff00_0_110-2": {
+      "addr": "127.0.0.1:60004"
+    }
+  },
+  "sigs": {
+    "sig1-ff00_0_110-1": {
+      "ctrl_addr": "127.0.0.1:60007",
+      "data_addr": "127.0.0.1:60017"
+    },
+    "sig1-ff00_0_110-2": {
+      "ctrl_addr": "127.0.0.1:60008",
+      "data_addr": "127.0.0.1:60018"
+    }
+  }
+}

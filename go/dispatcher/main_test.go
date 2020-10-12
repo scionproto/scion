@@ -23,7 +23,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -80,7 +79,7 @@ type ClientAddress struct {
 	UnderlayPort    uint16
 }
 
-type TestCase struct {
+type LegacyTestCase struct {
 	Name            string
 	ClientAddress   *ClientAddress
 	TestPackets     []*spkt.ScnPkt
@@ -88,7 +87,7 @@ type TestCase struct {
 	ExpectedPacket  *spkt.ScnPkt
 }
 
-type TestCase2 struct {
+type TestCase struct {
 	Name            string
 	ClientAddress   *ClientAddress
 	TestPackets     []*snet.Packet
@@ -96,7 +95,7 @@ type TestCase2 struct {
 	ExpectedPacket  *snet.Packet
 }
 
-func genTestCases(dispatcherPort int) []*TestCase {
+func genLegacyTestCases(dispatcherPort int) []*LegacyTestCase {
 	// Addressing information
 	var (
 		commonIA              = xtest.MustParseIA("1-ff00:0:1")
@@ -118,7 +117,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 		}
 	)
 
-	var testCases = []*TestCase{
+	var testCases = []*LegacyTestCase{
 		{
 			Name:          "UDP/IPv4 packet",
 			ClientAddress: clientXAddress,
@@ -196,7 +195,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 					},
 					Pld: &scmp.Payload{
 						Meta:  &scmp.Meta{L4Proto: common.L4UDP, L4HdrLen: 1},
-						L4Hdr: MustPackL4Header(&l4.UDP{SrcPort: clientXAddress.PublicPort}),
+						L4Hdr: MustPackLegacyL4Header(&l4.UDP{SrcPort: clientXAddress.PublicPort}),
 					},
 				},
 			},
@@ -216,7 +215,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 					AddrHdr: common.RawBytes{},
 					PathHdr: common.RawBytes{},
 					ExtHdrs: common.RawBytes{},
-					L4Hdr:   MustPackL4Header(&l4.UDP{SrcPort: clientXAddress.PublicPort}),
+					L4Hdr:   MustPackLegacyL4Header(&l4.UDP{SrcPort: clientXAddress.PublicPort}),
 				},
 			},
 		},
@@ -435,7 +434,7 @@ func genTestCases(dispatcherPort int) []*TestCase {
 	return testCases
 }
 
-func genTestCases2(dispatcherPort int) []*TestCase2 {
+func genTestCases(dispatcherPort int) []*TestCase {
 	// Addressing information
 	var (
 		commonIA              = xtest.MustParseIA("1-ff00:0:1")
@@ -457,7 +456,7 @@ func genTestCases2(dispatcherPort int) []*TestCase2 {
 		}
 	)
 
-	var testCases = []*TestCase2{
+	var testCases = []*TestCase{
 		{
 			Name:          "UDP/IPv4 packet",
 			ClientAddress: clientXAddress,
@@ -540,14 +539,225 @@ func genTestCases2(dispatcherPort int) []*TestCase2 {
 				},
 			},
 		},
+		{
+			Name:            "SCMP::Error, UDP quote",
+			ClientAddress:   clientXAddress,
+			UnderlayAddress: clientXAddress.UnderlayAddress,
+			TestPackets: []*snet.Packet{
+				{
+					PacketInfo: snet.PacketInfo{
+						Source: snet.SCIONAddress{
+							IA:   clientXAddress.IA,
+							Host: clientXAddress.PublicAddress,
+						},
+						Destination: snet.SCIONAddress{
+							IA:   clientXAddress.IA,
+							Host: clientXAddress.PublicAddress,
+						},
+						PayloadV2: snet.SCMPDestinationUnreachable{
+							Payload: MustPack(snet.Packet{
+								PacketInfo: snet.PacketInfo{
+									Source: snet.SCIONAddress{
+										IA:   clientXAddress.IA,
+										Host: clientXAddress.PublicAddress,
+									},
+									Destination: snet.SCIONAddress{
+										IA:   clientXAddress.IA,
+										Host: clientXAddress.PublicAddress,
+									},
+									PayloadV2: snet.UDPPayload{SrcPort: clientXAddress.PublicPort},
+								},
+							}),
+						},
+					},
+				},
+			},
+			ExpectedPacket: &snet.Packet{
+				PacketInfo: snet.PacketInfo{
+					Source: snet.SCIONAddress{
+						IA:   clientXAddress.IA,
+						Host: clientXAddress.PublicAddress,
+					},
+					Destination: snet.SCIONAddress{
+						IA:   clientXAddress.IA,
+						Host: clientXAddress.PublicAddress,
+					},
+					PayloadV2: snet.SCMPDestinationUnreachable{
+						Payload: MustPack(snet.Packet{
+							PacketInfo: snet.PacketInfo{
+								Source: snet.SCIONAddress{
+									IA:   clientXAddress.IA,
+									Host: clientXAddress.PublicAddress,
+								},
+								Destination: snet.SCIONAddress{
+									IA:   clientXAddress.IA,
+									Host: clientXAddress.PublicAddress,
+								},
+								PayloadV2: snet.UDPPayload{SrcPort: clientXAddress.PublicPort},
+							},
+						}),
+					},
+				},
+			},
+		},
+		{
+			Name:            "SCMP::Error, SCMP quote",
+			ClientAddress:   clientXAddress,
+			UnderlayAddress: clientXAddress.UnderlayAddress,
+			TestPackets: []*snet.Packet{
+				{
+					// Force a SCMP General ID registration to happen, but route it
+					// from nowhere so we don't get it back
+					PacketInfo: snet.PacketInfo{
+						Source: snet.SCIONAddress{
+							IA:   xtest.MustParseIA("1-ff00:0:42"), // middle of nowhere
+							Host: clientXAddress.PublicAddress,
+						},
+						Destination: snet.SCIONAddress{
+							IA:   clientYAddress.IA,
+							Host: clientYAddress.PublicAddress,
+						},
+						PayloadV2: snet.SCMPEchoRequest{Identifier: 0xdead},
+					},
+				},
+				{
+					PacketInfo: snet.PacketInfo{
+						Source: snet.SCIONAddress{
+							IA:   clientXAddress.IA,
+							Host: clientXAddress.PublicAddress,
+						},
+						Destination: snet.SCIONAddress{
+							IA:   clientXAddress.IA,
+							Host: clientXAddress.PublicAddress,
+						},
+						PayloadV2: snet.SCMPDestinationUnreachable{
+							Payload: MustPack(snet.Packet{
+								PacketInfo: snet.PacketInfo{
+									Source: snet.SCIONAddress{
+										IA:   clientXAddress.IA,
+										Host: clientXAddress.PublicAddress,
+									},
+									Destination: snet.SCIONAddress{
+										IA:   clientXAddress.IA,
+										Host: clientXAddress.PublicAddress,
+									},
+									PayloadV2: snet.SCMPEchoRequest{Identifier: 0xdead},
+								},
+							}),
+						},
+					},
+				},
+			},
+			ExpectedPacket: &snet.Packet{
+				PacketInfo: snet.PacketInfo{
+					Source: snet.SCIONAddress{
+						IA:   clientXAddress.IA,
+						Host: clientXAddress.PublicAddress,
+					},
+					Destination: snet.SCIONAddress{
+						IA:   clientXAddress.IA,
+						Host: clientXAddress.PublicAddress,
+					},
+					PayloadV2: snet.SCMPDestinationUnreachable{
+						Payload: MustPack(snet.Packet{
+							PacketInfo: snet.PacketInfo{
+								Source: snet.SCIONAddress{
+									IA:   clientXAddress.IA,
+									Host: clientXAddress.PublicAddress,
+								},
+								Destination: snet.SCIONAddress{
+									IA:   clientXAddress.IA,
+									Host: clientXAddress.PublicAddress,
+								},
+								PayloadV2: snet.SCMPEchoRequest{Identifier: 0xdead},
+							},
+						}),
+					},
+				},
+			},
+		},
+		{
+			Name:            "SCMP::General::EchoRequest",
+			ClientAddress:   clientXAddress,
+			UnderlayAddress: clientYAddress.UnderlayAddress,
+			TestPackets: []*snet.Packet{
+				{
+					PacketInfo: snet.PacketInfo{
+						Source: snet.SCIONAddress{
+							IA:   clientXAddress.IA,
+							Host: clientXAddress.PublicAddress,
+						},
+						Destination: snet.SCIONAddress{
+							IA:   clientYAddress.IA,
+							Host: clientYAddress.PublicAddress,
+						},
+						PayloadV2: snet.SCMPEchoRequest{
+							Identifier: 0xdead,
+							SeqNumber:  0xcafe,
+							Payload:    []byte("hello?"),
+						},
+					},
+				},
+			},
+			ExpectedPacket: &snet.Packet{
+				PacketInfo: snet.PacketInfo{
+					Source: snet.SCIONAddress{
+						IA:   clientYAddress.IA,
+						Host: clientYAddress.PublicAddress,
+					},
+					Destination: snet.SCIONAddress{
+						IA:   clientXAddress.IA,
+						Host: clientXAddress.PublicAddress,
+					},
+					PayloadV2: snet.SCMPEchoReply{
+						Identifier: 0xdead,
+						SeqNumber:  0xcafe,
+						Payload:    []byte("hello?"),
+					},
+				},
+			},
+		},
+		{
+			Name:            "SCMP::General::TraceRouteRequest",
+			ClientAddress:   clientXAddress,
+			UnderlayAddress: clientYAddress.UnderlayAddress,
+			TestPackets: []*snet.Packet{
+				{
+					PacketInfo: snet.PacketInfo{
+						Source: snet.SCIONAddress{
+							IA:   clientXAddress.IA,
+							Host: clientXAddress.PublicAddress,
+						},
+						Destination: snet.SCIONAddress{
+							IA:   clientYAddress.IA,
+							Host: clientYAddress.PublicAddress,
+						},
+						PayloadV2: snet.SCMPTracerouteRequest{Identifier: 0xdeaf, Sequence: 0xcafd},
+					},
+				},
+			},
+			ExpectedPacket: &snet.Packet{
+				PacketInfo: snet.PacketInfo{
+					Source: snet.SCIONAddress{
+						IA:   clientYAddress.IA,
+						Host: clientYAddress.PublicAddress,
+					},
+					Destination: snet.SCIONAddress{
+						IA:   clientXAddress.IA,
+						Host: clientXAddress.PublicAddress,
+					},
+					PayloadV2: snet.SCMPTracerouteReply{Identifier: 0xdeaf, Sequence: 0xcafd},
+				},
+			},
+		},
 	}
-	// TODO(lukedirtwalker): add v2 SCMP tests (https://github.com/Anapaya/scion/issues/3480)
 	return testCases
 }
 
 func TestDataplaneIntegration(t *testing.T) {
-	dispatcherTestPort := 40031
+	dispatcherTestPort := 40032
 	settings := InitTestSettings(t, dispatcherTestPort)
+	settings.HeaderV2 = true
 
 	go func() {
 		err := RunDispatcher(false, settings.ApplicationSocket, reliable.DefaultDispSocketFileMode,
@@ -565,28 +775,7 @@ func TestDataplaneIntegration(t *testing.T) {
 	}
 }
 
-func TestDataplaneIntegrationV2(t *testing.T) {
-	dispatcherTestPort := 40032
-	settings := InitTestSettings(t, dispatcherTestPort)
-	settings.HeaderV2 = true
-
-	go func() {
-		err := RunDispatcher(false, settings.ApplicationSocket, reliable.DefaultDispSocketFileMode,
-			settings.UnderlayPort, settings.HeaderV2)
-		require.NoError(t, err, "dispatcher error")
-	}()
-	time.Sleep(defaultWaitDuration)
-
-	testCases := genTestCases2(dispatcherTestPort)
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			RunTestCase2(t, tc, settings)
-		})
-		time.Sleep(defaultWaitDuration)
-	}
-}
-
-func RunTestCase2(t *testing.T, tc *TestCase2, settings *TestSettings) {
+func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
 	dispatcherService := reliable.NewDispatcher(settings.ApplicationSocket)
 	ctx, cancelF := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancelF()
@@ -628,7 +817,7 @@ func RunTestCase2(t *testing.T, tc *TestCase2, settings *TestSettings) {
 	assert.Equal(t, tc.ExpectedPacket.PacketInfo, rcvPkt.PacketInfo)
 }
 
-func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
+func RunLegacyTestCase(t *testing.T, tc *LegacyTestCase, settings *TestSettings) {
 	dispatcherService := reliable.NewDispatcher(settings.ApplicationSocket)
 	ctx, cancelF := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancelF()
@@ -647,9 +836,6 @@ func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
 	defer conn.Close()
 
 	for _, packet := range tc.TestPackets {
-		if settings.HeaderV2 && strings.Contains(tc.Name, "SCMP") {
-			t.Skip("Skipping SCMP test", tc.Name)
-		}
 		sendBuffer := make([]byte, common.MaxMTU)
 		n, err := hpkt.WriteScnPkt(packet, sendBuffer)
 		require.NoError(t, err, "unable to serialize packet for sending")
@@ -686,7 +872,14 @@ func RunTestCase(t *testing.T, tc *TestCase, settings *TestSettings) {
 	}
 }
 
-func MustPackL4Header(header l4.L4Header) common.RawBytes {
+func MustPack(pkt snet.Packet) []byte {
+	if err := pkt.Serialize(); err != nil {
+		panic(err)
+	}
+	return pkt.Bytes
+}
+
+func MustPackLegacyL4Header(header l4.L4Header) common.RawBytes {
 	b, err := header.Pack(false)
 	if err != nil {
 		panic(err)
@@ -710,7 +903,7 @@ func MustPackQuotedSCMPL4Header(header *scmp.Hdr, meta *scmp.Meta, info scmp.Inf
 }
 
 func TestMain(m *testing.M) {
-	// log.Discard()
+	// log.Setup(log.Config{Console: log.ConsoleConfig{Level: "debug"}})
 	os.Exit(m.Run())
 }
 

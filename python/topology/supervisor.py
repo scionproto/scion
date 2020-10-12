@@ -27,7 +27,6 @@ from python.lib.util import write_file
 from python.topology.common import (
     ArgsTopoDicts,
     DISP_CONFIG_NAME,
-    FEATURE_HEADER_V2,
     SD_CONFIG_NAME,
 )
 
@@ -66,10 +65,7 @@ class SupervisorGenerator(object):
     def _as_entries(self, topo_id, topo):
         base = topo_id.base_dir(self.args.output_dir)
         entries = []
-        if FEATURE_HEADER_V2 in self.args.features:
-            entries.extend(self._br_entries(topo, "bin/posix-router", base))
-        else:
-            entries.extend(self._br_entries(topo, "bin/border", base))
+        entries.extend(self._br_entries(topo, "bin/posix-router", base))
         entries.extend(self._control_service_entries(topo, base))
         entries.append(self._sciond_entry(topo_id, base))
         return entries
