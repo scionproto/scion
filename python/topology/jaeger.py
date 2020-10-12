@@ -60,7 +60,6 @@ class JaegerGenerator(object):
                         'BADGER_EPHEMERAL=false',
                         'BADGER_DIRECTORY_VALUE=/badger/data',
                         'BADGER_DIRECTORY_KEY=/badger/key',
-                        'BADGER_CONSISTENCY=true',
                     ],
                     'volumes': [
                         '%s:/badger:rw' % self.docker_jaeger_dir,

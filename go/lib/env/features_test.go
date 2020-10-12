@@ -19,11 +19,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/go/lib/config"
 )
 
 func TestAllFeatureFlagsShouldBeBoolean(t *testing.T) {
 	features := reflect.TypeOf(Features{})
 	for i := 0; i < features.NumField(); i++ {
-		assert.Equal(t, reflect.Bool, features.Field(i).Type.Kind())
+		switch features.Field(i).Type {
+		case reflect.TypeOf(config.NoDefaulter{}), reflect.TypeOf(config.NoValidator{}):
+		default:
+			assert.Equal(t, reflect.Bool, features.Field(i).Type.Kind())
+		}
 	}
 }

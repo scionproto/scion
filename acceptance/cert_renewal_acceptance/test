@@ -44,17 +44,19 @@ class Test(TestBase):
     the renewed certificate.
 
     The test is split into multiple steps:
+      0. Before starting the topology, remove the client certificate for 112 in the CA CS.
       1. Start the topology.
-      2. For each AS in the topology, create a new private key and request
+      2. Restore the client certificate for 112 and wait for it to be picked up by the CA CS.
+      3. For each AS in the topology, create a new private key and request
          certificate chain renewal. The renewed chain is verified against the
          TRC.
-      3. Remove the previous private key from the control servers.
-      4. Ensure that the new private key and certificate are loaded by observing
+      4. Remove the previous private key from the control servers.
+      5. Ensure that the new private key and certificate are loaded by observing
          the http endpoint.
-      5. Check connectivity with an end to end test.
-      6. Stop all control servers and purge the state. This includes deleting
+      6. Check connectivity with an end to end test.
+      7. Stop all control servers and purge the state. This includes deleting
          all databases with cached data, including the path and trust database.
-      7. Restart control servers and check connectivity again.
+      8. Restart control servers and check connectivity again.
     """
 
 
@@ -64,10 +66,23 @@ class TestSetup(CmdBase):
     def main(self):
         # XXX(roosd): In IPv6, the http endpoints are not accessible.
         self.scion.topology('topology/tiny4.topo')
+
+        logger.info('==> Remove client certificate for 112')
+        path = local.path('gen/ISD1/ASff00_0_110/cs1-ff00_0_110-1/crypto/ca/clients/ISD1-ASff00_0_112.pem')
+        path.delete()
+
+        logger.info('==> Start the topology')
         self.scion.run()
         if not self.no_docker:
             self.tools_dc('start', 'tester*')
             self.docker_status()
+
+        logger.info('==> Restore client certificate for 112')
+        cert = local.path('gen/certs/ISD1-ASff00_0_112.pem')
+        cert.copy(path)
+
+        logger.info('==> Sleep thirty seconds to make sure the CS has picked up the client certificate')
+        time.sleep(30)
 
 
 @Test.subcommand('run')

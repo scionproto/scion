@@ -15,17 +15,23 @@
 package control
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"sync"
+	"time"
 
-	"github.com/scionproto/scion/go/border/brconf"
-	rctrlgrpc "github.com/scionproto/scion/go/border/rctrl/grpc"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
-	libmetrics "github.com/scionproto/scion/go/lib/metrics"
+	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/pkg/grpc"
-	"github.com/scionproto/scion/go/pkg/router/control/internal/metrics"
+	"github.com/scionproto/scion/go/pkg/router/brconf"
+	"github.com/scionproto/scion/go/pkg/router/svchealth"
+)
+
+const (
+	svcHealthDiscoveryInterval = time.Second
+	svcHealthDiscoveryTimeout  = 500 * time.Millisecond
 )
 
 // IACtx is the context for the router for a given IA.
@@ -34,20 +40,18 @@ type IACtx struct {
 	BRConf *brconf.BRConf
 	// DP is the underlying data plane.
 	DP Dataplane
+	// Discoverer is used to dynamically discover healthy service instances. If
+	// nil, service health watching is disabled.
+	Discoverer svchealth.Discoverer
 	// Stop channel, used for ISD-AS context cleanup
 	Stop chan struct{}
-	// DisableLegacyIfStateMgmt indicates whether the legacy interface state
-	// management should be disabled.
-	DisableLegacyIfStateMgmt bool
 
-	// Revocation expiration timers
-	timers *revTimer
+	// svcHealthWatcher watches for service health changes.
+	svcHealthWatcher *periodic.Runner
 }
 
 // Start configures the dataplane for the given context.
-func (iac *IACtx) Start(wg *sync.WaitGroup, v2 bool) error {
-	iac.timers = &revTimer{}
-
+func (iac *IACtx) Start(wg *sync.WaitGroup) error {
 	brConf := iac.BRConf
 	if brConf == nil {
 		// Nothing to do
@@ -64,36 +68,55 @@ func (iac *IACtx) Start(wg *sync.WaitGroup, v2 bool) error {
 	}
 	log.Debug("Dataplane configured successfully", "config", brConf)
 
-	_, disableUpdate := os.LookupEnv("SCION_ROUTER_DISABLE_IFSTATE_MGMT")
-	disableUpdate = disableUpdate || iac.DisableLegacyIfStateMgmt
-	if disableUpdate {
-		log.Info("interface state mgmt disabled")
-		return nil
-	}
-
-	wg.Add(2)
-
-	// Start goroutine that processes control packets
-	go func() {
-		defer log.HandlePanic()
-		defer wg.Done()
-		processCtrl(iac)
-	}()
-	// Start IFStateReq goroutine
-	go func() {
-		defer log.HandlePanic()
-		defer wg.Done()
-		updater := rctrlgrpc.IfStateUpdater{
-			Dialer:         grpc.SimpleDialer{},
-			Handler:        StateHandler{c: iac},
-			IfStateTicker:  libmetrics.NoWith(metrics.Control.IFStateTick()),
-			SendCounter:    libmetrics.NewPromCounter(metrics.Control.SendIFStateReqVec()),
-			ReceiveCounter: libmetrics.NewPromCounter(metrics.Control.ReceivedIFStateInfoVec()),
-			ProcessErrors:  libmetrics.NewPromCounter(metrics.Control.ProcessErrorsVec()),
-			Logger:         log.Root(),
+	_, disableSvcHealth := os.LookupEnv("SCION_EXPERIMENTAL_DISABLE_SERVICE_HEALTH")
+	if !disableSvcHealth && iac.Discoverer != nil {
+		if err := iac.watchSVCHealth(); err != nil {
+			return serrors.WrapStr("starting service health watcher", err)
 		}
-		ifStateReq(iac, updater)
-	}()
+		wg.Add(1)
+		go func() {
+			defer log.HandlePanic()
+			defer wg.Done()
+			<-iac.Stop
+			iac.svcHealthWatcher.Kill()
+		}()
+	}
+	return nil
+}
+
+func (iac *IACtx) watchSVCHealth() error {
+	w := svchealth.Watcher{
+		Discoverer: iac.Discoverer,
+		Topology:   iac.BRConf.Topo,
+	}
+	iac.svcHealthWatcher = periodic.Start(
+		periodic.Func{
+			TaskName: "svchealth.Watcher",
+			Task: func(ctx context.Context) {
+				logger := log.FromCtx(ctx)
+
+				diff, err := w.Discover(ctx)
+				if err != nil {
+					logger.Info("Ignoring service health update", "err", err)
+					return
+				}
+				for _, svc := range []addr.HostSVC{addr.SvcDS, addr.SvcCS} {
+					add := diff.Add[svc]
+					for _, ip := range add {
+						if err := iac.DP.AddSvc(iac.BRConf.IA, svc, ip); err != nil {
+							logger.Info("Failed to set service", "svc", svc, "ip", ip, "err", err)
+						}
+					}
+					remove := diff.Remove[svc]
+					for _, ip := range remove {
+						if err := iac.DP.DelSvc(iac.BRConf.IA, svc, ip); err != nil {
+							logger.Info("Failed to delete service",
+								"svc", svc, "ip", ip, "err", err)
+						}
+					}
+				}
+			},
+		}, svcHealthDiscoveryInterval, svcHealthDiscoveryTimeout)
 	return nil
 }
 

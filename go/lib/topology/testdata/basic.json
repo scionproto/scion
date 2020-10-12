@@ -18,7 +18,12 @@
           "bandwidth": 1000,
           "isd_as": "1-ff00:0:312",
           "link_to": "PARENT",
-          "mtu": 1472
+          "mtu": 1472,
+          "bfd": {
+            "detect_mult": 10,
+            "desired_min_tx_interval": "10ms",
+            "required_min_rx_interval": "15ms"
+          }
         },
         "3": {
           "underlay": {
@@ -73,12 +78,19 @@
       "addr": "[2001:db8:f00:b43::1%some-zone]:23425"
     }
   },
+  "discovery_service": {
+    "ds1-ff00:0:311-2": {
+      "addr": "127.0.0.67:30073"
+    }
+  },
   "sigs": {
     "sig1-ff00:0:311-1": {
-      "addr": "127.0.0.82:30100"
+      "ctrl_addr": "127.0.0.82:30100",
+      "data_addr": "127.0.0.82:30101"
     },
-    "sig1-ff00:0:311-2": {
-      "addr": "[2001:db8:f00:b43::82]:30100"
+    "sig2-ff00:0:311-1": {
+      "ctrl_addr": "[2001:db8:f00:b43::1%some-zone]:23425",
+      "data_addr": "[2001:db8:f00:b43::1%some-zone]:30101"
     }
   }
 }

@@ -244,7 +244,7 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 		panic(fmt.Sprintf("%d unknown ifid", ifids[0]))
 	}
 
-	segment, err := seg.CreateSegment(time.Now(), uint16(rand.Int()), g.parents[ifids[0]].I)
+	segment, err := seg.CreateSegment(time.Now(), uint16(rand.Int()))
 	if err != nil {
 		panic(err)
 	}

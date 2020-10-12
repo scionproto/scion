@@ -812,7 +812,7 @@ func AllocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId co
 	}
 
 	// XXX(roosd): deterministic beacon needed.
-	pseg, err := seg.CreateSegment(time.Unix(int64(infoTS), 0), 10, 1)
+	pseg, err := seg.CreateSegment(time.Unix(int64(infoTS), 0), 10)
 	require.NoError(t, err)
 
 	for _, entry := range entries {

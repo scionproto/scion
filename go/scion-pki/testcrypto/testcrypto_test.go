@@ -37,7 +37,7 @@ func TestCmd(t *testing.T) {
 	outDir, cleanF := xtest.MustTempDir("", "testcrypto")
 	topo := "./testdata/test.topo"
 	cryptoLib := "../../../scripts/cryptoplayground/crypto_lib.sh"
-	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false)
+	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false)
 	require.NoError(t, err)
 
 	allASes := []addr.IA{
@@ -82,13 +82,13 @@ func checkISD(t *testing.T, outDir string, isd addr.ISD) {
 }
 
 func checkAS(t *testing.T, outDir string, ia addr.IA) {
-	d := testcrypto.CryptoASDir(ia, outDir)
+	d := testcrypto.CryptoASDir(ia, testcrypto.NewOut(outDir))
 	checkFileExists(t, filepath.Join(d, "cp-as.key"))
 	validateChain(t, filepath.Join(d, fmt.Sprintf("%s.pem", ia.FileFmt(true))))
 }
 
 func checkIssuer(t *testing.T, outDir string, ia addr.IA) {
-	d := testcrypto.CryptoCADir(ia, outDir)
+	d := testcrypto.CryptoCADir(ia, testcrypto.NewOut(outDir))
 	checkFileExists(t, filepath.Join(d, "cp-ca.key"))
 	checkFileExists(t, filepath.Join(d, "cp-root.key"))
 	certName := fmt.Sprintf("%s.root.crt", ia.FileFmt(true))
@@ -98,7 +98,7 @@ func checkIssuer(t *testing.T, outDir string, ia addr.IA) {
 }
 
 func checkVoter(t *testing.T, outDir string, ia addr.IA) {
-	d := testcrypto.CryptoVotingDir(ia, outDir)
+	d := testcrypto.CryptoVotingDir(ia, testcrypto.NewOut(outDir))
 	checkFileExists(t, filepath.Join(d, "sensitive-voting.key"))
 	checkFileExists(t, filepath.Join(d, "regular-voting.key"))
 	sensitiveName := fmt.Sprintf("%s.sensitive.crt", ia.FileFmt(true))

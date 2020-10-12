@@ -2,8 +2,6 @@
 
 set -eo pipefail
 
-echo "--- pre-artifact hook"
-
 # Attempt to do clean docker topology shutdown.
 # This lets applications flush the logs to avoid cutting them off.
 if [ -f "gen/scion-dc.yml" ]; then

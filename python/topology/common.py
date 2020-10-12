@@ -27,6 +27,7 @@ COMMON_DIR = 'endhost'
 
 SCION_SERVICE_NAMES = (
     "control_service",
+    "discovery_service",
     "border_routers",
     "colibri_service",
 )
@@ -41,8 +42,6 @@ DISP_CONFIG_NAME = 'disp.toml'
 SIG_CONFIG_NAME = 'sig.toml'
 
 SD_API_PORT = 30255
-
-FEATURE_HEADER_V2 = 'header_v2'
 
 
 class ArgsBase:
@@ -144,8 +143,6 @@ def prom_addr_dispatcher(docker, topo_id,
 def docker_image(args, image):
     if args.docker_registry:
         image = '%s/%s' % (args.docker_registry, image)
-    else:
-        image = 'scion_%s' % image
     if args.image_tag:
         image = '%s:%s' % (image, args.image_tag)
     return image
@@ -189,3 +186,8 @@ def json_default(o):
     if isinstance(o, AddressProxy):
         return str(o.ip)
     raise TypeError
+
+
+def translate_features(features):
+    f = dict(features)
+    return f

@@ -19,7 +19,6 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -29,7 +28,6 @@ var _ snet.PacketDispatcherService = (*OHPPacketDispatcherService)(nil)
 // extension enabled.
 type OHPPacketDispatcherService struct {
 	snet.PacketDispatcherService
-	HeaderV2 bool
 }
 
 func (s *OHPPacketDispatcherService) Register(ctx context.Context, ia addr.IA,
@@ -39,21 +37,17 @@ func (s *OHPPacketDispatcherService) Register(ctx context.Context, ia addr.IA,
 	if err != nil {
 		return conn, port, err
 	}
-	return &ohpPacketConn{PacketConn: conn, headerV2: s.HeaderV2}, port, err
+	return &ohpPacketConn{PacketConn: conn}, port, err
 }
 
 var _ snet.PacketConn = (*ohpPacketConn)(nil)
 
 type ohpPacketConn struct {
 	snet.PacketConn
-	headerV2 bool
 }
 
 func (c *ohpPacketConn) WriteTo(pkt *snet.Packet, ov *net.UDPAddr) error {
 	extensions := pkt.Extensions
-	if !c.headerV2 {
-		extensions = append(extensions, &layers.ExtnOHP{})
-	}
 	return c.PacketConn.WriteTo(
 		&snet.Packet{
 			Bytes: pkt.Bytes,

@@ -23,7 +23,12 @@
           "bandwidth": 100000,
           "isd_as": "6-ff00:0:363",
           "link_to": "CORE",
-          "mtu": 1472
+          "mtu": 1472,
+          "bfd": {
+            "detect_mult": 3,
+            "desired_min_tx_interval": "25ms",
+            "required_min_rx_interval": "25ms"
+          }
         }
       }
     },

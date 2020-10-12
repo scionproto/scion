@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -exu
+set -eux -o pipefail
 
 dl_install() {
     local url="${1:?}"; shift
@@ -18,11 +18,11 @@ dl_install() {
 MACH="$(uname -m)"
 [ "$MACH" == "x86_64" ] || { echo "Error: bazel does not provide binaries for $MACH"; exit 1; }
 
-mkdir -p ~/bin
+mkdir -p ~/.local/bin
 
-BAZEL_VER=3.2.0
-BAZEL_CKSUM=db0201df83ae6a9f6c19a9103edaeb6b7ce228040244b90a6e3b1c85da4a2152
-BAZEL_FILE="bazel-${BAZEL_VER}-linux-${MACH}"
-BAZEL_URL=https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VER}/${BAZEL_FILE}
+BAZELISK_VER=v1.6.1
+BAZELISK_CKSUM=76c3af8cfe19f287b532990296bb58f02074d388856256b45a5f51bdbd196657
+BAZELISK_FILE="bazelisk-linux-amd64"
+BAZELISK_URL=https://github.com/bazelbuild/bazelisk/releases/download/${BAZELISK_VER}/${BAZELISK_FILE}
 
-dl_install "$BAZEL_URL" "$BAZEL_CKSUM" ~/bin/bazel
+dl_install "$BAZELISK_URL" "$BAZELISK_CKSUM" ~/.local/bin/bazel

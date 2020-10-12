@@ -15,6 +15,7 @@ test_setup() {
     ./scion.sh run nobuild
     ./tools/dc start tester_1-ff00_0_112 tester_1-ff00_0_110
     docker_status
+    sleep 10
 }
 
 test_run() {

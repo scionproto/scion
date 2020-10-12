@@ -44,7 +44,7 @@ type (
 	// indicating an infinite TTL.
 	//
 	// The second section concerns the Border routers. BRNames is just a sorted slice
-	// of the names of the BRs in this topolgy. Its contents is exactly the same as
+	// of the names of the BRs in this topology. Its contents is exactly the same as
 	// the keys in the BR map.
 	//
 	// The BR map points from border router names to BRInfo structs, which in turn
@@ -66,7 +66,14 @@ type (
 		IFInfoMap IfInfoMap
 
 		CS  IDAddrMap
-		SIG IDAddrMap
+		DS  IDAddrMap
+		SIG map[string]GatewayInfo
+	}
+
+	// GatewayInfo describes a scion gateway.
+	GatewayInfo struct {
+		CtrlAddr *TopoAddr
+		DataAddr *net.UDPAddr
 	}
 
 	// BRInfo is a list of AS-wide unique interface IDs for a router. These IDs are also used
@@ -105,6 +112,7 @@ type (
 		IA           addr.IA
 		LinkType     LinkType
 		MTU          int
+		BFD          BFD
 	}
 
 	// IDAddrMap maps process IDs to their topology addresses.
@@ -116,6 +124,14 @@ type (
 		SCIONAddress    *net.UDPAddr
 		UnderlayAddress *net.UDPAddr
 	}
+
+	// BFD is the configuration for a BFD session
+	BFD struct {
+		Disable               bool
+		DetectMult            uint8
+		DesiredMinTxInterval  time.Duration
+		RequiredMinRxInterval time.Duration
+	}
 )
 
 // NewRWTopology creates new empty Topo object, including all possible service maps etc.
@@ -123,7 +139,8 @@ func NewRWTopology() *RWTopology {
 	return &RWTopology{
 		BR:        make(map[string]BRInfo),
 		CS:        make(IDAddrMap),
-		SIG:       make(IDAddrMap),
+		DS:        make(IDAddrMap),
+		SIG:       make(map[string]GatewayInfo),
 		IFInfoMap: make(IfInfoMap),
 	}
 }
@@ -176,7 +193,7 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 		return err
 	}
 	if t.IA.IsWildcard() {
-		return common.NewBasicError("IA contains wildcard", nil, "ia", t.IA)
+		return common.NewBasicError("ISD-AS contains wildcard", nil, "isd_as", t.IA)
 	}
 	t.MTU = raw.MTU
 	t.Attributes = raw.Attributes
@@ -234,6 +251,15 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 			if err = ifinfo.CheckLinks(isCore, name); err != nil {
 				return err
 			}
+			if bfd := rawIntf.BFD; bfd != nil {
+				ifinfo.BFD = BFD{
+					Disable:               bfd.Disable,
+					DetectMult:            bfd.DetectMult,
+					DesiredMinTxInterval:  bfd.DesiredMinTxInterval.Duration,
+					RequiredMinRxInterval: bfd.RequiredMinRxInterval.Duration,
+				}
+			}
+
 			// These fields are only necessary for the border router.
 			// Parsing should not fail if they are missing.
 			if rawIntf.Underlay.Bind == "" && rawIntf.Underlay.Remote == "" {
@@ -272,10 +298,15 @@ func (t *RWTopology) populateServices(raw *jsontopo.Topology) error {
 	if err != nil {
 		return serrors.WrapStr("unable to extract CS address", err)
 	}
-	t.SIG, err = svcMapFromRaw(raw.SIG)
+	t.SIG, err = gatewayMapFromRaw(raw.SIG)
 	if err != nil {
 		return serrors.WrapStr("unable to extract SIG address", err)
 	}
+	t.DS, err = svcMapFromRaw(raw.DiscoveryService)
+	if err != nil {
+		return serrors.WrapStr("unable to extract DS address", err)
+	}
+
 	return nil
 }
 
@@ -316,10 +347,16 @@ func (t *RWTopology) getSvcInfo(svc proto.ServiceType) (*svcInfo, error) {
 	switch svc {
 	case proto.ServiceType_unset:
 		return nil, serrors.New("Service type unset")
+	case proto.ServiceType_ds:
+		return &svcInfo{idTopoAddrMap: t.DS}, nil
 	case proto.ServiceType_bs, proto.ServiceType_cs, proto.ServiceType_ps:
 		return &svcInfo{idTopoAddrMap: t.CS}, nil
 	case proto.ServiceType_sig:
-		return &svcInfo{idTopoAddrMap: t.SIG}, nil
+		m := make(IDAddrMap)
+		for k, v := range t.SIG {
+			m[k] = *v.CtrlAddr
+		}
+		return &svcInfo{idTopoAddrMap: m}, nil
 	default:
 		return nil, common.NewBasicError("Unsupported service type", nil, "type", svc)
 	}
@@ -330,6 +367,7 @@ func (t *RWTopology) Copy() *RWTopology {
 	if t == nil {
 		return nil
 	}
+
 	return &RWTopology{
 		Timestamp:  t.Timestamp,
 		IA:         t.IA,
@@ -341,8 +379,24 @@ func (t *RWTopology) Copy() *RWTopology {
 		IFInfoMap: t.IFInfoMap.copy(),
 
 		CS:  t.CS.copy(),
-		SIG: t.SIG.copy(),
+		DS:  t.DS.copy(),
+		SIG: copySIGMap(t.SIG),
 	}
+}
+
+func copySIGMap(m map[string]GatewayInfo) map[string]GatewayInfo {
+	if m == nil {
+		return nil
+	}
+	ret := make(map[string]GatewayInfo)
+	for k, v := range m {
+		e := GatewayInfo{
+			CtrlAddr: v.CtrlAddr.copy(),
+			DataAddr: copyUDPAddr(v.DataAddr),
+		}
+		ret[k] = e
+	}
+	return ret
 }
 
 func copyBRMap(m map[string]BRInfo) map[string]BRInfo {
@@ -415,6 +469,27 @@ func svcMapFromRaw(ras map[string]*jsontopo.ServerInfo) (IDAddrMap, error) {
 		svcMap[name] = *svcTopoAddr
 	}
 	return svcMap, nil
+}
+
+func gatewayMapFromRaw(ras map[string]*jsontopo.GatewayInfo) (map[string]GatewayInfo, error) {
+	ret := make(map[string]GatewayInfo)
+	for name, svc := range ras {
+		c, err := rawAddrToTopoAddr(svc.CtrlAddr)
+		if err != nil {
+			return nil, serrors.WrapStr("could not parse control address", err,
+				"address", svc.CtrlAddr, "process_name", name)
+		}
+		d, err := rawAddrToUDPAddr(svc.DataAddr)
+		if err != nil {
+			return nil, serrors.WrapStr("could not parse data address", err,
+				"address", svc.DataAddr, "process_name", name)
+		}
+		ret[name] = GatewayInfo{
+			CtrlAddr: c,
+			DataAddr: d,
+		}
+	}
+	return ret, nil
 }
 
 // GetByID returns the TopoAddr for the given ID, or nil if there is none.

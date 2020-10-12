@@ -12,7 +12,7 @@ create_veth() {
     shift 4
     NS=$(get_docker_ns)
     # Set veth1 pair
-    sudo ip link add $VETH_HOST type veth peer name $VETH_CONTAINER
+    sudo ip link add $VETH_HOST mtu 8000 type veth peer name $VETH_CONTAINER mtu 8000
     sudo sysctl -qw net.ipv6.conf.$VETH_HOST.disable_ipv6=1
     sudo ip link set $VETH_HOST up
     sudo ip link set $VETH_CONTAINER netns $NS

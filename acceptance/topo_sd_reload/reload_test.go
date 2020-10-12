@@ -64,10 +64,10 @@ func setupTest(t *testing.T) {
 	// first load the docker images from bazel into the docker deamon, the
 	// tars are in the same folder as this test runs in bazel.
 	mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar")
-	mustExec(t, "docker", "image", "load", "-i", "sciond.tar")
+	mustExec(t, "docker", "image", "load", "-i", "daemon.tar")
 	// now start the docker containers
 	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "up",
-		"-d", "topo_sd_reload_dispatcher", "topo_sd_reload_sciond")
+		"-d", "topo_sd_reload_dispatcher", "topo_sd_reload_daemon")
 	// wait a bit to make sure the containers are ready.
 	time.Sleep(time.Second / 2)
 	t.Log("Test setup done")
@@ -83,7 +83,7 @@ func teardownTest(t *testing.T) {
 	// collect logs
 	for service, file := range map[string]string{
 		"topo_sd_reload_dispatcher": "disp.log",
-		"topo_sd_reload_sciond":     "sciond.log",
+		"topo_sd_reload_daemon":     "daemon.log",
 	} {
 		cmd := exec.Command("docker-compose", "-f", "docker-compose.yml", "logs", "--no-color",
 			service)
@@ -104,9 +104,9 @@ func loadTopo(t *testing.T, name string) {
 	t.Helper()
 
 	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "exec", "-T",
-		"topo_sd_reload_sciond", "mv", name, "/topology.json")
+		"topo_sd_reload_daemon", "mv", name, "/topology.json")
 	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "kill", "-s", "SIGHUP",
-		"topo_sd_reload_sciond")
+		"topo_sd_reload_daemon")
 }
 
 func mustExec(t *testing.T, name string, arg ...string) {

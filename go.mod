@@ -36,11 +36,11 @@ require (
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
 	github.com/vishvananda/netlink v0.0.0-20170924180554-177f1ceba557
 	github.com/vishvananda/netns v0.0.0-20170219233438-54f0e4339ce7 // indirect
-	go.uber.org/zap v1.15.0
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	golang.org/x/net v0.0.0-20191105084925-a882066a44e0
+	go.uber.org/zap v1.16.0
+	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
+	golang.org/x/net v0.0.0-20200927032502-5d4f70055728
 	golang.org/x/text v0.3.3 // indirect
-	golang.org/x/tools v0.0.0-20200103221440-774c71fcf114
+	golang.org/x/tools v0.0.0-20200929223013-bf155c11ec6f
 	google.golang.org/genproto v0.0.0-20191002211648-c459b9ce5143 // indirect
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.23.0
@@ -53,4 +53,4 @@ replace github.com/nxadm/tail => github.com/lukedirtwalker/tail v1.3.1-0.2019091
 
 replace github.com/smartystreets/goconvey => github.com/kormat/goconvey v0.0.0-20191113114839-63cc4eee0dbc
 
-go 1.13
+go 1.14

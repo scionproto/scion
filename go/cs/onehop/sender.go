@@ -26,8 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/layers"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -46,7 +44,7 @@ type Msg struct {
 	// InfoTime is the timestamp set in the info field.
 	InfoTime time.Time
 	// Pld is the message payload.
-	Pld common.Payload
+	Pld []byte
 }
 
 // Sender is used to send payloads on a one-hop path.
@@ -61,8 +59,6 @@ type Sender struct {
 	macMtx sync.Mutex
 	// MAC is the mac to issue hop fields.
 	MAC hash.Hash
-	// HeaderV2 indicates the new header format should be used.
-	HeaderV2 bool
 }
 
 // Send sends the payload on a one-hop path.
@@ -90,26 +86,9 @@ func (s *Sender) CreatePkt(msg *Msg) (*snet.Packet, error) {
 			Path: (*spath.Path)(path),
 			PayloadV2: snet.UDPPayload{
 				SrcPort: uint16(s.Addr.Port),
-				Payload: msg.Pld.(common.RawBytes),
-			},
-		},
-	}
-	if !s.HeaderV2 {
-		pkt = &snet.Packet{
-			PacketInfo: snet.PacketInfo{
-				Destination: msg.Dst,
-				Source: snet.SCIONAddress{
-					IA:   s.IA,
-					Host: addr.HostFromIP(s.Addr.IP),
-				},
-				Path:       (*spath.Path)(path),
-				Extensions: []common.Extension{&layers.ExtnOHP{}},
-				L4Header: &l4.UDP{
-					SrcPort: uint16(s.Addr.Port),
-				},
 				Payload: msg.Pld,
 			},
-		}
+		},
 	}
 	return pkt, nil
 }
@@ -118,15 +97,12 @@ func (s *Sender) CreatePkt(msg *Msg) (*snet.Packet, error) {
 func (s *Sender) CreatePath(ifid common.IFIDType, now time.Time) (*Path, error) {
 	s.macMtx.Lock()
 	defer s.macMtx.Unlock()
-	if s.HeaderV2 {
-		path, err := spath.NewOneHopV2(s.IA.I, ifid, now, spath.DefaultHopFExpiry, s.MAC)
-		if err != nil {
-			return nil, err
-		}
-		return (*Path)(path), nil
+
+	path, err := spath.NewOneHopV2(s.IA.I, ifid, now, spath.DefaultHopFExpiry, s.MAC)
+	if err != nil {
+		return nil, err
 	}
-	path := spath.NewOneHop(s.IA.I, ifid, now, spath.DefaultHopFExpiry, s.MAC)
-	return (*Path)(path), path.InitOffsets()
+	return (*Path)(path), nil
 }
 
 // RPC is used to send beacons.

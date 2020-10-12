@@ -117,6 +117,60 @@ func TestServiceDetails(t *testing.T) {
 		},
 	}
 	assert.Equal(t, cses, c.CS)
+
+	dses := IDAddrMap{
+		"ds1-ff00:0:311-2": TopoAddr{
+			SCIONAddress: &net.UDPAddr{
+				IP:   net.IP{127, 0, 0, 67},
+				Port: 30073,
+			},
+			UnderlayAddress: &net.UDPAddr{
+				IP:   net.IP{127, 0, 0, 67},
+				Port: 30041,
+			},
+		},
+	}
+	assert.Equal(t, dses, c.DS)
+
+	sigs := map[string]GatewayInfo{
+		"sig1-ff00:0:311-1": {
+			CtrlAddr: &TopoAddr{
+				SCIONAddress: &net.UDPAddr{
+					IP:   net.IP{127, 0, 0, 82},
+					Port: 30100,
+				},
+				UnderlayAddress: &net.UDPAddr{
+					IP:   net.IP{127, 0, 0, 82},
+					Port: 30041,
+				},
+			},
+			DataAddr: &net.UDPAddr{
+				IP:   net.IP{127, 0, 0, 82},
+				Port: 30101,
+			},
+		},
+		"sig2-ff00:0:311-1": {
+			CtrlAddr: &TopoAddr{
+				SCIONAddress: &net.UDPAddr{
+					IP:   net.ParseIP("2001:db8:f00:b43::1"),
+					Port: 23425,
+					Zone: "some-zone",
+				},
+				UnderlayAddress: &net.UDPAddr{
+					IP:   net.ParseIP("2001:db8:f00:b43::1"),
+					Port: 30041,
+					Zone: "some-zone",
+				},
+			},
+			DataAddr: &net.UDPAddr{
+				IP:   net.ParseIP("2001:db8:f00:b43::1"),
+				Port: 30101,
+				Zone: "some-zone",
+			},
+		},
+	}
+	assert.Equal(t, sigs, c.SIG)
+
 }
 
 func TestServiceCount(t *testing.T) {
@@ -125,6 +179,7 @@ func TestServiceCount(t *testing.T) {
 	// The simple counting check for CS is done in the detailed population test as well
 	c := MustLoadTopo(t, "testdata/basic.json")
 	assert.Len(t, c.CS, 3, "CS")
+	assert.Len(t, c.DS, 1, "DS")
 	assert.Len(t, c.SIG, 2, "SIG")
 }
 
@@ -158,6 +213,11 @@ func TestIFInfoMap(t *testing.T) {
 			IA:        xtest.MustParseIA("1-ff00:0:312"),
 			LinkType:  Parent,
 			MTU:       1472,
+			BFD: BFD{
+				DetectMult:            10,
+				DesiredMinTxInterval:  10 * time.Millisecond,
+				RequiredMinRxInterval: 15 * time.Millisecond,
+			},
 		},
 		3: IFInfo{
 			ID:     3,

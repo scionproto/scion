@@ -59,10 +59,6 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 			if err != nil {
 				return serrors.WrapStr("parsing remote", err)
 			}
-			features, err := parseFeatures(flags.features)
-			if err != nil {
-				return err
-			}
 			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 			defer cancelF()
 			sd, err := sciond.NewService(flags.sciond).Connect(ctx)
@@ -119,11 +115,7 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 						fmtRTTs(u.RTTs, flags.timeout))
 				},
 			}
-			if features.HeaderV2 {
-				stats, err = traceroute.Run(ctx, cfg)
-			} else {
-				stats, err = traceroute.RunLegacy(ctx, cfg)
-			}
+			stats, err = traceroute.Run(ctx, cfg)
 			if err != nil {
 				return err
 			}
@@ -143,8 +135,6 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 	cmd.Flags().StringVar(&flags.dispatcher, "dispatcher", reliable.DefaultDispPath,
 		"dispatcher socket")
 	cmd.Flags().StringVar(&flags.sciond, "sciond", sciond.DefaultSCIONDAddress, "SCIOND address")
-	cmd.Flags().StringSliceVar(&flags.features, "features", nil,
-		"enable development features "+features{}.supported())
 	return cmd
 }
 

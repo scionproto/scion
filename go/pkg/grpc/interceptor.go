@@ -17,6 +17,8 @@ package grpc
 import (
 	"context"
 
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	opentracing "github.com/opentracing/opentracing-go"
 	jaeger "github.com/uber/jaeger-client-go"
 	"google.golang.org/grpc"
@@ -35,7 +37,7 @@ func LogIDClientInterceptor() grpc.UnaryClientInterceptor {
 	) error {
 
 		logger := loggerFromSpan(opentracing.SpanFromContext(ctx))
-		logger.Debug("Outgoing RPC", "method", method)
+		logger.Debug("Outgoing RPC", "method", method, "target", cc.Target())
 		ctx = log.CtxWith(ctx, logger)
 		return invoker(ctx, method, req, resp, cc, opts...)
 	}
@@ -66,4 +68,53 @@ func loggerFromSpan(span opentracing.Span) log.Logger {
 	}
 	id := spanCtx.TraceID()
 	return log.New("debug_id", log.NewDebugID(), "trace_id", id)
+}
+
+func openTracingInterceptorWithTarget() grpc.UnaryClientInterceptor {
+	// Need to declare a new function here because the span decorator binds to one of the
+	// args of the previous interceptor.
+	return func(
+		ctx context.Context,
+		method string,
+		req, reply interface{},
+		cc *grpc.ClientConn,
+		invoker grpc.UnaryInvoker,
+		opts ...grpc.CallOption,
+	) error {
+
+		spanDecorator := func(
+			span opentracing.Span,
+			method string,
+			req, resp interface{},
+			grpcError error,
+		) {
+			if span != nil {
+				span.SetTag("target", cc.Target())
+			}
+		}
+
+		return otgrpc.OpenTracingClientInterceptor(
+			opentracing.GlobalTracer(),
+			otgrpc.SpanDecorator(spanDecorator),
+		)(ctx, method, req, reply, cc, invoker, opts...)
+	}
+}
+
+// UnaryClientInterceptor constructs the default unary RPC client-side interceptor for
+// SCION control-plane applications.
+func UnaryClientInterceptor() grpc.DialOption {
+	return grpc.WithChainUnaryInterceptor(
+		grpc_retry.UnaryClientInterceptor(),
+		openTracingInterceptorWithTarget(),
+		LogIDClientInterceptor(),
+	)
+}
+
+// UnaryServerInterceptor constructs the default unary RPC server-side interceptor for
+// SCION control-plane applications.
+func UnaryServerInterceptor() grpc.ServerOption {
+	return grpc.ChainUnaryInterceptor(
+		otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer()),
+		LogIDServerInterceptor(),
+	)
 }

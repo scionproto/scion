@@ -18,12 +18,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/pkg/app/feature"
 )
 
-var headerV2 bool
+var features string
 
 func main() {
 	os.Exit(realMain())
@@ -37,6 +39,12 @@ func realMain() int {
 	}
 	defer log.HandlePanic()
 	defer log.Flush()
+	if len(features) != 0 {
+		if _, err := feature.ParseDefault(strings.Split(features, ",")); err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing features: %s\n", err)
+			return 1
+		}
+	}
 
 	cmnArgs := []string{
 		"--timeout", "4s",
@@ -48,8 +56,8 @@ func realMain() int {
 		)
 	}
 	cmnArgs = append(cmnArgs, integration.DstAddrPattern)
-	if headerV2 {
-		cmnArgs = append(cmnArgs, "--features=header_v2")
+	if len(features) != 0 {
+		cmnArgs = append(cmnArgs, "--features", features)
 	}
 
 	testCases := []struct {
@@ -82,5 +90,6 @@ func realMain() int {
 }
 
 func addFlags() {
-	flag.BoolVar(&headerV2, "header_v2", false, "Use new header format")
+	flag.StringVar(&features, "features", "",
+		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
 }

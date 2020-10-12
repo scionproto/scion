@@ -4,7 +4,6 @@ load("//:scion.bzl", "scion_go_binary")
 go_library(
     name = "go_default_library",
     srcs = [
-        "features.go",
         "ping.go",
         "scion.go",
         "showpaths.go",

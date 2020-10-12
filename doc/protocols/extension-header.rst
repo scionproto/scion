@@ -9,6 +9,7 @@ each. If both headers are present, the HBH options **MUST** come before the E2E
 options. The option header support a variable number of *type-length-value
 (TLV)* encoded options.
 
+.. _hop-by-hop-options:
 
 Hop-by-Hop Options Header
 =========================
@@ -28,8 +29,8 @@ SCION common header and has the following format::
 
 NextHdr
     Unsigned 8-bit integer. Identifies the type of header immediately following
-    the Hop-by-Hop Options header. Values of this field respect and extend
-    `IANA’s assigned internet protocol numbers <https://perma.cc/FBE8-S2W5>`_.
+    the Hop-by-Hop Options header. Values of this field respect the
+    :ref:`Assigned SCION Protocol Numbers <assigned-protocol-numbers>`.
 ExtLen
     Unsigned 8-bit integer. Length of the extension header computed as :math:`4B
     \cdot ExtLen`.
@@ -39,6 +40,8 @@ Options
     TLV-encoded options, as described below.
 
 The Hop-by-Hop Options header is aligned to 4 bytes.
+
+.. _end-to-end-options:
 
 End-to-End Options Header
 =========================
@@ -58,8 +61,8 @@ common header and has the following format::
 
 NextHdr
     Unsigned 8-bit integer. Identifies the type of header immediately following
-    the Hop-by-Hop Options header. Values of this field respect and extend
-    `IANA’s assigned internet protocol numbers <https://perma.cc/FBE8-S2W5>`_.
+    the Hop-by-Hop Options header. Values of this field respect the
+    :ref:`Assigned SCION Protocol Numbers <assigned-protocol-numbers>`.
 ExtLen
     Unsigned 8-bit integer. Length of the extension header computed as :math:`4B
     \cdot ExtLen`.

@@ -25,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 // Attribute indicates the capability of a primary AS.
@@ -67,10 +68,11 @@ type Topology struct {
 	MTU            int    `json:"mtu"`
 	// Attributes are the primary AS attributes as described in
 	// https://github.com/scionproto/scion/blob/master/doc/ControlPlanePKI.md#primary-ases
-	Attributes     []Attribute            `json:"attributes"`
-	BorderRouters  map[string]*BRInfo     `json:"border_routers,omitempty"`
-	ControlService map[string]*ServerInfo `json:"control_service,omitempty"`
-	SIG            map[string]*ServerInfo `json:"sigs,omitempty"`
+	Attributes       []Attribute             `json:"attributes"`
+	BorderRouters    map[string]*BRInfo      `json:"border_routers,omitempty"`
+	ControlService   map[string]*ServerInfo  `json:"control_service,omitempty"`
+	DiscoveryService map[string]*ServerInfo  `json:"discovery_service,omitempty"`
+	SIG              map[string]*GatewayInfo `json:"sigs,omitempty"`
 }
 
 // ServerInfo contains the information for a SCION application running in the local AS.
@@ -85,6 +87,12 @@ type BRInfo struct {
 	Interfaces   map[common.IFIDType]*BRInterface `json:"interfaces"`
 }
 
+// GatewayInfo contains SCION gateway information.
+type GatewayInfo struct {
+	CtrlAddr string `json:"ctrl_addr"`
+	DataAddr string `json:"data_addr"`
+}
+
 // BRInterface contains the information for an data-plane BR socket that is external (i.e., facing
 // the neighboring AS).
 type BRInterface struct {
@@ -93,6 +101,7 @@ type BRInterface struct {
 	IA        string   `json:"isd_as"`
 	LinkTo    string   `json:"link_to"`
 	MTU       int      `json:"mtu"`
+	BFD       *BFD     `json:"bfd,omitempty"`
 }
 
 // Underlay is the underlay information for a BR interface.
@@ -100,6 +109,14 @@ type Underlay struct {
 	Public string `json:"public"`
 	Remote string `json:"remote"`
 	Bind   string `json:"bind,omitempty"`
+}
+
+// BFD configuration.
+type BFD struct {
+	Disable               bool         `json:"disable,omitempty"`
+	DetectMult            uint8        `json:"detect_mult,omitempty"`
+	DesiredMinTxInterval  util.DurWrap `json:"desired_min_tx_interval,omitempty"`
+	RequiredMinRxInterval util.DurWrap `json:"required_min_rx_interval,omitempty"`
 }
 
 func (i ServerInfo) String() string {

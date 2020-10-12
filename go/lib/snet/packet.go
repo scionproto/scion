@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -116,6 +117,25 @@ func (SCMPInternalConnectivityDown) Type() slayers.SCMPType {
 
 // Code returns the SCMP code.
 func (SCMPInternalConnectivityDown) Code() slayers.SCMPCode { return 0 }
+
+// SCMPDestinationUnreachable is the message that a destination is not
+// reachable.
+type SCMPDestinationUnreachable struct {
+	code    slayers.SCMPCode
+	Payload []byte
+}
+
+func (m SCMPDestinationUnreachable) toLayers(scn *slayers.SCION) []gopacket.SerializableLayer {
+	return toLayers(m, scn, &slayers.SCMPDestinationUnreachable{}, m.Payload)
+}
+
+// Type returns the SCMP type.
+func (SCMPDestinationUnreachable) Type() slayers.SCMPType {
+	return slayers.SCMPTypeDestinationUnreachable
+}
+
+// Code returns the SCMP code.
+func (m SCMPDestinationUnreachable) Code() slayers.SCMPCode { return m.code }
 
 // SCMPEchoRequest is the SCMP echo request payload.
 type SCMPEchoRequest struct {
@@ -237,28 +257,22 @@ type Packet struct {
 // Decode decodes the Bytes buffer into PacketInfo.
 func (p *Packet) Decode() error {
 	var (
-		scionLayer   slayers.SCION
-		udpLayer     slayers.UDP
-		scmpLayer    slayers.SCMP
-		payloadLayer gopacket.Payload
+		scionLayer slayers.SCION
+		udpLayer   slayers.UDP
+		scmpLayer  slayers.SCMP
 	)
 	parser := gopacket.NewDecodingLayerParser(
-		slayers.LayerTypeSCION, &scionLayer, &udpLayer, &scmpLayer, &payloadLayer,
+		slayers.LayerTypeSCION, &scionLayer, &udpLayer, &scmpLayer,
 	)
+	parser.IgnoreUnsupported = true
 	decoded := make([]gopacket.LayerType, 3)
-	// Only return the error if it is not caused by the unregistered SCMP layers.
 	if err := parser.DecodeLayers(p.Bytes, &decoded); err != nil {
-		if _, ok := err.(gopacket.UnsupportedLayerType); !ok {
-			return err
-		}
-		if len(decoded) == 0 || decoded[len(decoded)-1] != slayers.LayerTypeSCMP {
-			return err
-		}
+		return err
 	}
 	if len(decoded) < 2 {
 		return serrors.New("L4 not decoded")
 	}
-	l4 := decoded[1]
+	l4 := decoded[len(decoded)-1]
 	if l4 != slayers.LayerTypeSCMP && l4 != slayers.LayerTypeSCIONUDP {
 		return serrors.New("unknown L4 layer decoded", "type", l4)
 	}
@@ -296,7 +310,7 @@ func (p *Packet) Decode() error {
 		p.PayloadV2 = UDPPayload{
 			SrcPort: uint16(udpLayer.SrcPort),
 			DstPort: uint16(udpLayer.DstPort),
-			Payload: payloadLayer.Payload(),
+			Payload: udpLayer.Payload,
 		}
 	case slayers.LayerTypeSCMP:
 		gpkt := gopacket.NewPacket(scmpLayer.Payload, scmpLayer.NextLayerType(),
@@ -308,6 +322,17 @@ func (p *Packet) Decode() error {
 
 		layer := layers[0]
 		switch scmpLayer.TypeCode.Type() {
+		case slayers.SCMPTypeDestinationUnreachable:
+			v, ok := layer.(*slayers.SCMPDestinationUnreachable)
+			if !ok {
+				return serrors.New("invalid SCMP packet",
+					"scmp.type", scmpLayer.TypeCode,
+					"payload.type", common.TypeOf(layer))
+			}
+			p.PayloadV2 = SCMPDestinationUnreachable{
+				code:    scmpLayer.TypeCode.Code(),
+				Payload: v.Payload,
+			}
 		case slayers.SCMPTypeExternalInterfaceDown:
 			v, ok := layer.(*slayers.SCMPExternalInterfaceDown)
 			if !ok {
@@ -382,7 +407,7 @@ func (p *Packet) Decode() error {
 				Interface:  v.Interface,
 			}
 		default:
-			return serrors.New("unhandled SCMP type", "type", scmpLayer.TypeCode)
+			return serrors.New("unhandled SCMP type", "type", scmpLayer.TypeCode, "src", p.Source)
 		}
 	}
 	return nil
@@ -400,9 +425,7 @@ func (p *Packet) Serialize() error {
 	var packetLayers []gopacket.SerializableLayer
 
 	var scionLayer slayers.SCION
-	// XXX(scrye): Set version 2 for debugging, although this is not part of the spec. This
-	// should be removed once the migration to the new SCION header is finished.
-	scionLayer.Version = 2
+	scionLayer.Version = 0
 	// XXX(scrye): Do not set TrafficClass, to keep things simple while we
 	// transition to HeaderV2. These should be added once the transition is
 	// complete.
@@ -428,17 +451,12 @@ func (p *Packet) Serialize() error {
 	if err := scionLayer.SetSrcAddr(netSrcAddr); err != nil {
 		return serrors.WrapStr("settting source address", err)
 	}
-	scionLayer.PathType = slayers.PathTypeSCION
 
 	switch {
 	case p.Path == nil:
 		// Default nil paths to an empty SCION path
-		decodedPath := scion.Decoded{
-			Base: scion.Base{
-				PathMeta: scion.MetaHdr{},
-			},
-		}
-		scionLayer.Path = &decodedPath
+		scionLayer.PathType = slayers.PathTypeEmpty
+		scionLayer.Path = empty.Path{}
 	case p.Path.IsOHP():
 		var path onehop.Path
 		if err := path.DecodeFromBytes(p.Path.Raw); err != nil {
@@ -452,6 +470,7 @@ func (p *Packet) Serialize() error {
 		if err := decodedPath.DecodeFromBytes(p.Path.Raw); err != nil {
 			return serrors.WrapStr("decoding path", err)
 		}
+		scionLayer.PathType = slayers.PathTypeSCION
 		scionLayer.Path = &decodedPath
 	}
 	packetLayers = append(packetLayers, &scionLayer)

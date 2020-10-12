@@ -1,15 +1,11 @@
 Path #0:
   Weight: 2
   Fields:
-    IF .SP ISD=1
-      HF X. InIF=1613 OutIF=0
-      HF X. InIF=1615 OutIF=0
-      HF .V InIF=0 OutIF=1316
-    IF CSP ISD=1
-      HF .V InIF=0 OutIF=3015
-      HF X. InIF=1516 OutIF=1518
-      HF X. InIF=1530 OutIF=1518
-      HF .. InIF=1815 OutIF=0
+    IF .P
+      HF InIF=1615 OutIF=0
+    IF CP
+      HF InIF=1516 OutIF=1518
+      HF InIF=1815 OutIF=0
   Interfaces:
     1-ff00:0:131#1615
     1-ff00:0:121#1516
@@ -18,16 +14,16 @@ Path #0:
 Path #1:
   Weight: 4
   Fields:
-    IF ... ISD=1
-      HF .. InIF=1613 OutIF=0
-      HF X. InIF=0 OutIF=1316
-    IF ... ISD=1
-      HF X. InIF=3229 OutIF=0
-      HF X. InIF=0 OutIF=2932
-    IF C.. ISD=1
-      HF X. InIF=0 OutIF=3015
-      HF .. InIF=1530 OutIF=1518
-      HF .. InIF=1815 OutIF=0
+    IF ..
+      HF InIF=1613 OutIF=0
+      HF InIF=0 OutIF=1316
+    IF ..
+      HF InIF=3229 OutIF=0
+      HF InIF=0 OutIF=2932
+    IF C.
+      HF InIF=0 OutIF=3015
+      HF InIF=1530 OutIF=1518
+      HF InIF=1815 OutIF=0
   Interfaces:
     1-ff00:0:131#1613
     1-ff00:0:130#1316

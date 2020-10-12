@@ -494,14 +494,14 @@ func ExtractIA(dn pkix.Name) (*addr.IA, error) {
 		}
 		rawIA, ok := name.Value.(string)
 		if !ok {
-			return nil, serrors.New("invalid IA value (not string)")
+			return nil, serrors.New("invalid ISD-AS value (not string)")
 		}
 		ia, err := addr.IAFromString(rawIA)
 		if err != nil {
-			return nil, serrors.WrapStr("invalid IA value", err)
+			return nil, serrors.WrapStr("invalid ISD-AS value", err)
 		}
 		if ia.IsWildcard() {
-			return nil, serrors.New("wildcard IA not allowed", "ia", ia)
+			return nil, serrors.New("wildcard ISD-AS not allowed", "isd_as", ia)
 		}
 		return &ia, nil
 	}

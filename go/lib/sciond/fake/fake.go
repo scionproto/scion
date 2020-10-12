@@ -77,7 +77,8 @@ type Path struct {
 	// JSONExpirationTimestamp contains the point in time when the path expires, in seconds,
 	// relative to the time of fake connector creation. Negative timestamps are also supported, and
 	// would mean SCIOND served a path that expired in the past.
-	JSONExpirationTimestamp int `json:"expiration_timestamp"`
+	JSONExpirationTimestamp int  `json:"expiration_timestamp"`
+	HeaderV2                bool `json:"header_v2"`
 
 	metadata pathMetadata
 }
@@ -87,14 +88,22 @@ func (p Path) UnderlayNextHop() *net.UDPAddr {
 }
 
 func (p Path) Path() *spath.Path {
-	return DummyPath()
+	return DummyPath(p.HeaderV2)
 }
 
 // DummyPath creates a path that is reversible.
-func DummyPath() *spath.Path {
-	return &spath.Path{
-		Raw:    make(common.RawBytes, spath.InfoFieldLength+2*spath.HopFieldLength),
-		HopOff: spath.InfoFieldLength,
+func DummyPath(headerV2 bool) *spath.Path {
+	var res *spath.Path
+	if headerV2 {
+		res = spath.NewV2(make(common.RawBytes, spath.InfoFieldLength+2*spath.HopFieldLength),
+			false)
+		res.HopOff = spath.InfoFieldLength
+		return res
+	} else {
+		return &spath.Path{
+			Raw:    make(common.RawBytes, spath.InfoFieldLength+2*spath.HopFieldLength),
+			HopOff: spath.InfoFieldLength,
+		}
 	}
 }
 
@@ -123,6 +132,7 @@ func (p Path) Copy() snet.Path {
 			Zone: p.JSONNextHop.Zone,
 		},
 		JSONExpirationTimestamp: p.JSONExpirationTimestamp,
+		HeaderV2:                p.HeaderV2,
 		metadata:                p.metadata,
 	}
 }

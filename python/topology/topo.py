@@ -258,6 +258,7 @@ class TopoGenerator(object):
 
     def _gen_srv_entries(self, topo_id, as_conf):
         srvs = [("control_servers", DEFAULT_CONTROL_SERVERS, "cs", "control_service")]
+        srvs.append(("control_servers", DEFAULT_CONTROL_SERVERS, "cs", "discovery_service"))
         if self.args.colibri:
             srvs.append(("colibri_servers", DEFAULT_COLIBRI_SERVERS, "co", "colibri_service"))
         for conf_key, def_num, nick, topo_key in srvs:
@@ -349,7 +350,8 @@ class TopoGenerator(object):
         if not self.args.docker:
             port = self.args.port_gen.register(elem_id)
         d = {
-            'Addr': join_host_port(self._reg_addr(topo_id, reg_id, addr_type).ip, port),
+            'ctrl_addr': join_host_port(self._reg_addr(topo_id, reg_id, addr_type).ip, port),
+            'data_addr': join_host_port(self._reg_addr(topo_id, reg_id, addr_type).ip, 30056),
         }
         self.topo_dicts[topo_id]['sigs'][elem_id] = d
 

@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/app/feature"
 )
 
 var (
@@ -41,7 +42,7 @@ var (
 	parallelism int
 	name        string
 	cmd         string
-	headerV2    bool
+	features    string
 )
 
 func getCmd() (string, bool) {
@@ -60,6 +61,13 @@ func realMain() int {
 	}
 	defer log.HandlePanic()
 	defer log.Flush()
+	if len(features) != 0 {
+		if _, err := feature.ParseDefault(strings.Split(features, ",")); err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing features: %s\n", err)
+			return 1
+		}
+	}
+
 	clientArgs := []string{
 		"-log.console", "debug",
 		"-attempts", strconv.Itoa(attempts),
@@ -73,9 +81,9 @@ func realMain() int {
 		"-sciond", integration.SCIOND,
 		"-local", integration.DstAddrPattern + ":0",
 	}
-	if headerV2 {
-		clientArgs = append(clientArgs, "-header_v2")
-		serverArgs = append(serverArgs, "-header_v2")
+	if len(features) != 0 {
+		clientArgs = append(clientArgs, "--features", features)
+		serverArgs = append(serverArgs, "--features", features)
 	}
 
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
@@ -99,10 +107,11 @@ func addFlags() {
 	flag.StringVar(&name, "name", "end2end_integration",
 		"The name of the test that is running (default: end2end_integration)")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
-	flag.StringVar(&subset, "subset", "all", "Subset of pairs to run (all|core-core|"+
-		"noncore-localcore|noncore-core|noncore-noncore)")
+	flag.StringVar(&subset, "subset", "all", "Subset of pairs to run (all|core#core|"+
+		"noncore#localcore|noncore#core|noncore#noncore)")
 	flag.IntVar(&parallelism, "parallelism", 1, "How many end2end tests run in parallel.")
-	flag.BoolVar(&headerV2, "header_v2", false, "Use new header format")
+	flag.StringVar(&features, "features", "",
+		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
 }
 
 // runTests runs the end2end tests for all pairs. In case of an error the
@@ -238,8 +247,8 @@ func clientTemplate(progressSock string) integration.Cmd {
 			"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
 		},
 	}
-	if headerV2 {
-		cmd.Args = append(cmd.Args, "-header_v2")
+	if len(features) != 0 {
+		cmd.Args = append(cmd.Args, "--features", features)
 	}
 	if progress {
 		cmd.Args = append(cmd.Args, "-progress", progressSock)
@@ -253,7 +262,7 @@ func getPairs() ([]integration.IAPair, error) {
 	if subset == "all" {
 		return pairs, nil
 	}
-	parts := strings.Split(subset, "-")
+	parts := strings.Split(subset, "#")
 	if len(parts) != 2 {
 		return nil, common.NewBasicError("Invalid subset", nil, "subset", subset)
 	}
@@ -263,6 +272,16 @@ func getPairs() ([]integration.IAPair, error) {
 // filter returns the list of ASes that are part of the desired subset.
 func filter(src, dst string, pairs []integration.IAPair, ases *util.ASList) []integration.IAPair {
 	var res []integration.IAPair
+	s, err1 := addr.IAFromString(src)
+	d, err2 := addr.IAFromString(dst)
+	if err1 == nil && err2 == nil {
+		for _, pair := range pairs {
+			if pair.Src.IA.Equal(s) && pair.Dst.IA.Equal(d) {
+				res = append(res, pair)
+				return res
+			}
+		}
+	}
 	for _, pair := range pairs {
 		filter := !contains(ases, src != "noncore", pair.Src.IA)
 		filter = filter || !contains(ases, dst != "noncore", pair.Dst.IA)

@@ -22,13 +22,13 @@ type L4ProtocolType uint8
 
 const (
 	L4None L4ProtocolType = 0
-	L4SCMP L4ProtocolType = 1
 	L4TCP  L4ProtocolType = 6
 	L4UDP  L4ProtocolType = 17
-	L4BFD  L4ProtocolType = 18
+	L4SCMP L4ProtocolType = 202
+	L4BFD  L4ProtocolType = 203
 
-	HopByHopClass L4ProtocolType = 0
-	End2EndClass  L4ProtocolType = 222
+	HopByHopClass L4ProtocolType = 200
+	End2EndClass  L4ProtocolType = 201
 )
 
 var L4Protocols = map[L4ProtocolType]bool{

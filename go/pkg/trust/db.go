@@ -17,6 +17,8 @@ package trust
 import (
 	"context"
 	"crypto/x509"
+	"encoding/json"
+	"fmt"
 	"io"
 	"time"
 
@@ -35,6 +37,21 @@ type ChainQuery struct {
 	SubjectKeyID []byte
 	// Date is the time when the chain must be valid.
 	Date time.Time
+}
+
+// MarshalJSON marshals the chain query for well formated log output.
+func (q ChainQuery) MarshalJSON() ([]byte, error) {
+	j := struct {
+		IA           addr.IA   `json:"isd_as"`
+		SubjectKeyID string    `json:"subject_key_id"`
+		Date         time.Time `json:"date"`
+	}{
+		IA:           q.IA,
+		SubjectKeyID: fmt.Sprintf("%x", q.SubjectKeyID),
+		Date:         q.Date,
+	}
+	return json.Marshal(j)
+
 }
 
 // DB is the database interface for trust material.

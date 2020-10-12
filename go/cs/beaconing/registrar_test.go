@@ -43,6 +43,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
@@ -50,8 +51,6 @@ import (
 )
 
 func TestRegistrarRun(t *testing.T) {
-	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
-	require.NoError(t, err)
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	pub := priv.Public()
@@ -93,13 +92,13 @@ func TestRegistrarRun(t *testing.T) {
 			segStore := mock_beaconing.NewMockSegmentStore(mctrl)
 
 			r := Registrar{
-				Extender: &LegacyExtender{
+				Extender: &DefaultExtender{
 					IA:         topoProvider.Get().IA(),
 					MTU:        topoProvider.Get().MTU(),
 					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
 					Intfs:      intfs,
-					MAC:        func() hash.Hash { return mac },
-					MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+					MAC:        macFactory,
+					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 					StaticInfo: func() *StaticInfoCfg { return nil },
 				},
 				IA:       topoProvider.Get().IA(),
@@ -108,8 +107,12 @@ func TestRegistrarRun(t *testing.T) {
 				Tick:     NewTick(time.Hour),
 				Provider: segProvider,
 				Store:    segStore,
-				Pather:   addrutil.LegacyPather{TopoProvider: topoProvider},
-				Type:     test.segType,
+				Pather: addrutil.Pather{
+					UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+						return topoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+					},
+				},
+				Type: test.segType,
 			}
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
@@ -179,13 +182,13 @@ func TestRegistrarRun(t *testing.T) {
 			rpc := mock_beaconing.NewMockRPC(mctrl)
 
 			r := Registrar{
-				Extender: &LegacyExtender{
+				Extender: &DefaultExtender{
 					IA:         topoProvider.Get().IA(),
 					MTU:        topoProvider.Get().MTU(),
 					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
 					Intfs:      intfs,
-					MAC:        func() hash.Hash { return mac },
-					MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+					MAC:        macFactory,
+					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 					StaticInfo: func() *StaticInfoCfg { return nil },
 				},
 				IA:       topoProvider.Get().IA(),
@@ -193,9 +196,13 @@ func TestRegistrarRun(t *testing.T) {
 				Intfs:    intfs,
 				Tick:     NewTick(time.Hour),
 				Provider: segProvider,
-				Pather:   addrutil.LegacyPather{TopoProvider: topoProvider},
-				Type:     test.segType,
-				RPC:      rpc,
+				Pather: addrutil.Pather{
+					UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+						return topoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+					},
+				},
+				Type: test.segType,
+				RPC:  rpc,
 			}
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
@@ -250,15 +257,20 @@ func TestRegistrarRun(t *testing.T) {
 					}
 					assert.Equal(t, pseg.FirstIA(), s.Addr.IA)
 					assert.Equal(t, addr.SvcCS, s.Addr.SVC)
-					pathHopField, err := s.Addr.Path.GetHopField(s.Addr.Path.HopOff)
-					require.NoError(t, err)
-					segHopField := pseg.ASEntries[pseg.MaxIdx()].HopEntry.HopField
-					assert.Equal(t, []byte(pathHopField.Mac), segHopField.MAC[:3])
-					assert.Equal(t, uint16(pathHopField.ConsIngress), segHopField.ConsIngress)
-					assert.Equal(t, uint16(pathHopField.ConsEgress), segHopField.ConsEgress)
 
-					a := topoProvider.Get().IFInfoMap()[pathHopField.ConsIngress].InternalAddr
-					assert.Equal(t, a, s.Addr.NextHop)
+					var path scion.Decoded
+					if assert.NoError(t, path.DecodeFromBytes(s.Addr.Path.Raw)) {
+						pathHopField := path.HopFields[0]
+
+						segHopField := pseg.ASEntries[pseg.MaxIdx()].HopEntry.HopField
+						assert.Equal(t, []byte(pathHopField.Mac), segHopField.MAC)
+						assert.Equal(t, pathHopField.ConsIngress, segHopField.ConsIngress)
+						assert.Equal(t, pathHopField.ConsEgress, segHopField.ConsEgress)
+
+						nextHop := common.IFIDType(pathHopField.ConsIngress)
+						a := topoProvider.Get().IFInfoMap()[nextHop].InternalAddr
+						assert.Equal(t, a, s.Addr.NextHop)
+					}
 				})
 			}
 			// The second run should not do anything, since the period has not passed.
@@ -273,13 +285,13 @@ func TestRegistrarRun(t *testing.T) {
 		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 
 		r := Registrar{
-			Extender: &LegacyExtender{
+			Extender: &DefaultExtender{
 				IA:         topoProvider.Get().IA(),
 				MTU:        topoProvider.Get().MTU(),
 				Signer:     testSigner(t, priv, topoProvider.Get().IA()),
 				Intfs:      intfs,
-				MAC:        func() hash.Hash { return mac },
-				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				MAC:        macFactory,
+				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
 			IA:       topoProvider.Get().IA(),
@@ -287,8 +299,12 @@ func TestRegistrarRun(t *testing.T) {
 			Intfs:    intfs,
 			Tick:     NewTick(time.Hour),
 			Provider: segProvider,
-			Pather:   addrutil.LegacyPather{TopoProvider: topoProvider},
-			Type:     seg.TypeCore,
+			Pather: addrutil.Pather{
+				UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+					return topoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+				},
+			},
+			Type: seg.TypeCore,
 		}
 		res := make(chan beacon.BeaconOrErr, 3)
 		segProvider.EXPECT().SegmentsToRegister(gomock.Any(), seg.TypeCore).DoAndReturn(
@@ -316,13 +332,13 @@ func TestRegistrarRun(t *testing.T) {
 		rpc := mock_beaconing.NewMockRPC(mctrl)
 
 		r := Registrar{
-			Extender: &LegacyExtender{
+			Extender: &DefaultExtender{
 				IA:         topoProvider.Get().IA(),
 				MTU:        topoProvider.Get().MTU(),
 				Signer:     testSigner(t, priv, topoProvider.Get().IA()),
 				Intfs:      intfs,
-				MAC:        func() hash.Hash { return mac },
-				MaxExpTime: maxExpTimeFactory(beacon.DefaultMaxExpTime),
+				MAC:        macFactory,
+				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
 			IA:       topoProvider.Get().IA(),
@@ -330,9 +346,13 @@ func TestRegistrarRun(t *testing.T) {
 			Intfs:    intfs,
 			Tick:     NewTick(time.Hour),
 			Provider: segProvider,
-			Pather:   addrutil.LegacyPather{TopoProvider: topoProvider},
-			Type:     seg.TypeDown,
-			RPC:      rpc,
+			Pather: addrutil.Pather{
+				UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+					return topoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+				},
+			},
+			Type: seg.TypeDown,
+			RPC:  rpc,
 		}
 		g := graph.NewDefaultGraph(mctrl)
 		require.NoError(t, err)
@@ -376,4 +396,13 @@ func testSigner(t *testing.T, priv crypto.Signer, ia addr.IA) seg.Signer {
 		SubjectKeyID: []byte("skid"),
 		Expiration:   time.Now().Add(time.Hour),
 	}
+}
+
+var macFactory = func() hash.Hash {
+	mac, err := scrypto.InitMac(make([]byte, 16))
+	// This can only happen if the library is messed up badly.
+	if err != nil {
+		panic(err)
+	}
+	return mac
 }

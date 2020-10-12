@@ -40,5 +40,5 @@ fi
 sleep ${SLEEP}s
 # Do another round of e2e test with retries
 log "Testing connectivity between all the hosts (with retries)."
-run Revocation bin/end2end_integration -log.console error -attempts 7 $DOCKER_ARGS
+run Revocation bin/end2end_integration -log.console info -attempts 15 -subset 1-ff00:0:131#2-ff00:0:222 $DOCKER_ARGS
 exit $?

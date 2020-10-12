@@ -25,16 +25,11 @@ var _ config.Config = (*Features)(nil)
 // Features contains all feature flags. Add feature flags to this structure as
 // needed. Feature flags are always boolean. Don't use any other types here!
 type Features struct {
-	AllowRunAsRoot bool `toml:"allow_run_as_root,omitempty"`
-	HeaderV2       bool `toml:"header_v2,omitempty"`
-}
+	config.NoDefaulter
+	config.NoValidator
 
-func (cfg *Features) InitDefaults() {
-	// All feature flags are intialized to false.
-}
-
-func (cfg *Features) Validate() error {
-	return nil
+	// Example:
+	// DanceAtMidnight bool `toml:"dance_at_midnight,omitempty"`
 }
 
 func (cfg *Features) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {

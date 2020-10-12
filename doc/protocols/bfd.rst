@@ -2,6 +2,8 @@
 BFD on top of SCION
 *******************
 
+.. _bfd-specification:
+
 BFD (Bidirectional Forwarding Detection) is a network protocol that is used to
 detect faults between two forwarding engines connected by a link. (See `rfc5880
 <https://tools.ietf.org/html/rfc5880>`__ and `rfc5881

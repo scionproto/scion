@@ -17,16 +17,17 @@
 =============================================
 """
 import base64
+import collections
 import os
-from collections import defaultdict
+import pathlib
 
 from plumbum import local
 
+from python.topology import common
 from python.lib.util import write_file
-from python.topology.common import ArgsTopoConfig
 
 
-class CertGenArgs(ArgsTopoConfig):
+class CertGenArgs(common.ArgsTopoConfig):
     pass
 
 
@@ -38,15 +39,18 @@ class CertGenerator(object):
         """
         self.args = args
         self.pki = local['./bin/scion-pki']
-        self.core_count = defaultdict(int)
+        if not local.path('./bin/scion-pki').exists():
+            self.pki = local[local.which('scion-pki')]
+        self.core_count = collections.defaultdict(int)
 
     def generate(self, topo_dicts):
         self.pki('testcrypto', '-t', self.args.topo_config, '-o', self.args.output_dir)
         self._master_keys(topo_dicts)
         self._copy_files(topo_dicts)
+        self._quic_certs()
 
     def _master_keys(self, topo_dicts):
-        for topo_id, as_topo in topo_dicts.items():
+        for topo_id in topo_dicts:
             base = topo_id.base_dir(self.args.output_dir)
             write_file(os.path.join(base, 'keys', 'master0.key'),
                        base64.b64encode(os.urandom(16)).decode())
@@ -62,3 +66,11 @@ class CertGenerator(object):
             as_dir = local.path(topo_id.base_dir(self.args.output_dir))
             mkdir('-p', as_dir / 'certs')
             cp(base // '*/trcs/*.trc', as_dir / 'certs/')
+
+    def _quic_certs(self):
+        cert_dir = pathlib.Path(self.args.output_dir).parent / 'gen-certs'
+        os.makedirs(cert_dir, exist_ok=True)
+        openssl = local['openssl']
+        openssl('genrsa', '-out', cert_dir / 'tls.key', '2048')
+        openssl('req', '-new', '-x509', '-key', cert_dir / 'tls.key',
+                '-out', cert_dir / 'tls.pem', '-days', '3650', '-subj', '/CN=scion_def_srv')
