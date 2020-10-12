@@ -151,6 +151,7 @@ A more concise description can be found in the EPIC-HP path type
 specification.
 
 ### Distributing the Authenticators
+
 The last AS on the path needs to distribute the authenticators to
 the set of trusted sources that should be able to send EPIC-HP
 traffic over the hidden link. This can be done over any secure
