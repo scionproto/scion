@@ -20,25 +20,40 @@ import (
 
 type Extensions struct {
 	HiddenPath HiddenPathExtension
+	StaticInfo *StaticInfoExtension
 }
 
-func extensionsFromPB(pb *cppb.PathSegmentExtensions) Extensions {
+func extensionsFromPB(pb *cppb.PathSegmentExtensions) (Extensions, error) {
 	if pb == nil {
-		return Extensions{}
+		return Extensions{}, nil
 	}
+
+	hiddenPath := HiddenPathExtension{
+		IsHidden: pb.HiddenPath != nil && pb.HiddenPath.IsHidden,
+	}
+
+	staticInfo, err := staticInfoExtensionFromPB(pb.StaticInfo)
+	if err != nil {
+		return Extensions{}, err
+	}
+
 	return Extensions{
-		HiddenPath: HiddenPathExtension{
-			IsHidden: pb.HiddenPath != nil && pb.HiddenPath.IsHidden,
-		},
-	}
+		HiddenPath: hiddenPath,
+		StaticInfo: staticInfo,
+	}, nil
 }
 
 func extensionsToPB(ext Extensions) *cppb.PathSegmentExtensions {
+	var hiddenPath *cppb.HiddenPathExtension
 	if ext.HiddenPath.IsHidden {
+		hiddenPath = &cppb.HiddenPathExtension{IsHidden: true}
+	}
+	staticInfo := staticInfoExtensionToPB(ext.StaticInfo)
+
+	if hiddenPath != nil || staticInfo != nil {
 		return &cppb.PathSegmentExtensions{
-			HiddenPath: &cppb.HiddenPathExtension{
-				IsHidden: ext.HiddenPath.IsHidden,
-			},
+			HiddenPath: hiddenPath,
+			StaticInfo: staticInfo,
 		}
 	}
 	return nil

@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -104,11 +103,7 @@ func (s *DefaultExtender) Extend(ctx context.Context, pseg *seg.PathSegment,
 		MTU:         int(s.MTU),
 	}
 	if static := s.StaticInfo(); static != nil {
-		staticInfoPeers := createPeerMap(s.Intfs)
-		staticInfo := static.generateStaticinfo(staticInfoPeers, egress, ingress)
-		// FIXME(roosd): Enable static info again.
-		// asEntry.Exts.StaticInfo = &staticInfo
-		_ = staticInfo
+		asEntry.Extensions.StaticInfo = static.Generate(s.Intfs, ingress, egress)
 	}
 	if err := pseg.AddASEntry(ctx, asEntry, s.Signer); err != nil {
 		return err
@@ -262,16 +257,4 @@ func min(a, b uint8) uint8 {
 		return b
 	}
 	return a
-}
-
-// createPeerMap creates a set of peers indicating whether the
-// interface identified by the key is used for peering or not.
-func createPeerMap(intfs *ifstate.Interfaces) map[common.IFIDType]struct{} {
-	peers := make(map[common.IFIDType]struct{})
-	for ifID, ifInfo := range intfs.All() {
-		if ifInfo.TopoInfo().LinkType == topology.Peer {
-			peers[ifID] = struct{}{}
-		}
-	}
-	return peers
 }
