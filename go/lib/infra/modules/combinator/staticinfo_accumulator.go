@@ -16,9 +16,7 @@ type ASnote struct {
 	Note string
 }
 
-type ASGeo struct {
-	Locations []GeoLoc
-}
+type ASGeo map[common.IFIDType]GeoLoc
 
 type GeoLoc struct {
 	Latitude  float32
@@ -27,9 +25,9 @@ type GeoLoc struct {
 }
 
 type ASLatency struct {
-	IntraLatency uint16
-	InterLatency uint16
-	PeerLatency  uint16
+	IntraLatency uint32
+	InterLatency uint32
+	PeerLatency  uint32 // XXX(matzf) this should go away, wrong abstraction level (?!)
 }
 
 type ASHops struct {
@@ -104,22 +102,19 @@ func extractPeerdata(res *PathMetadata, asEntry *seg.ASEntry,
 	peerIfID common.IFIDType, includePeer bool) {
 
 	ia := asEntry.Local
-	staticInfo := seg.StaticInfoExtn{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
-	for i := 0; i < len(staticInfo.Latency.Peerlatencies); i++ {
-		if staticInfo.Latency.Peerlatencies[i].IfID == peerIfID {
-			if includePeer {
-				res.ASLatencies[ia] = ASLatency{
-					IntraLatency: staticInfo.Latency.Peerlatencies[i].IntraDelay,
-					InterLatency: staticInfo.Latency.Egresslatency,
-					PeerLatency:  staticInfo.Latency.Peerlatencies[i].Interdelay,
-				}
-			} else {
-				res.ASLatencies[ia] = ASLatency{
-					IntraLatency: staticInfo.Latency.Peerlatencies[i].IntraDelay,
-					InterLatency: staticInfo.Latency.Egresslatency,
-				}
+	staticInfo := seg.StaticInfoExtension{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
+	if peerLatencyEntry, ok := staticInfo.Latency.Peers[peerIfID]; ok {
+		if includePeer {
+			res.ASLatencies[ia] = ASLatency{
+				IntraLatency: peerLatencyEntry.Intra,
+				InterLatency: staticInfo.Latency.Inter, // XXX(matzf): this seems wrong!
+				PeerLatency:  peerLatencyEntry.Inter,
 			}
-			break
+		} else {
+			res.ASLatencies[ia] = ASLatency{
+				IntraLatency: peerLatencyEntry.Intra,
+				InterLatency: staticInfo.Latency.Inter, // XXX(matzf): wth?
+			}
 		}
 	}
 	for i := 0; i < len(staticInfo.Linktype.Peerlinks); i++ {
@@ -164,9 +159,9 @@ func extractPeerdata(res *PathMetadata, asEntry *seg.ASEntry,
 // the final AS in a path that does not contain all 3 segments.
 func extractSingleSegmentFinalASData(res *PathMetadata, asEntry *seg.ASEntry) {
 	ia := asEntry.Local
-	staticInfo := seg.StaticInfoExtn{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
+	staticInfo := seg.StaticInfoExtension{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
 	res.ASLatencies[ia] = ASLatency{
-		InterLatency: staticInfo.Latency.Egresslatency,
+		InterLatency: staticInfo.Latency.Inter,
 		PeerLatency:  0,
 	}
 	res.Links[ia] = ASLink{
@@ -189,10 +184,10 @@ func extractSingleSegmentFinalASData(res *PathMetadata, asEntry *seg.ASEntry) {
 
 func extractNormaldata(res *PathMetadata, asEntry *seg.ASEntry) {
 	ia := asEntry.Local
-	staticInfo := seg.StaticInfoExtn{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
+	staticInfo := seg.StaticInfoExtension{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
 	res.ASLatencies[ia] = ASLatency{
-		IntraLatency: staticInfo.Latency.IngressToEgressLatency,
-		InterLatency: staticInfo.Latency.Egresslatency,
+		IntraLatency: staticInfo.Latency.Intra,
+		InterLatency: staticInfo.Latency.Inter,
 		PeerLatency:  0,
 	}
 	res.Links[ia] = ASLink{
@@ -217,17 +212,12 @@ func extractNormaldata(res *PathMetadata, asEntry *seg.ASEntry) {
 func extractUpOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
 	ia := newASEntry.Local
 	// FIXME(roosd): enable again: staticInfo := oldASEntry.Exts.StaticInfo
-	staticInfo := seg.StaticInfoExtn{}
+	staticInfo := seg.StaticInfoExtension{}
 	hopEntry := newASEntry.HopEntry
 	newIngressIfID := common.IFIDType(hopEntry.HopField.ConsIngress)
-	for i := 0; i < len(staticInfo.Latency.Childlatencies); i++ {
-		if staticInfo.Latency.Childlatencies[i].IfID == newIngressIfID {
-			res.ASLatencies[ia] = ASLatency{
-				IntraLatency: staticInfo.Latency.Childlatencies[i].Intradelay,
-				InterLatency: staticInfo.Latency.Egresslatency,
-			}
-			break
-		}
+	res.ASLatencies[ia] = ASLatency{
+		IntraLatency: staticInfo.Latency.XoverIntra[newIngressIfID], // defaults to 0
+		InterLatency: staticInfo.Latency.Intra,
 	}
 	res.Links[ia] = ASLink{
 		InterLinkType: staticInfo.Linktype.EgressLinkType,
@@ -259,22 +249,19 @@ func extractUpOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry *s
 // extractCoreOverdata is used to extract StaticInfo from the last AS in the core segment,
 // when the path crosses over into the down segment (i.e. the AS is also the last AS
 // in the down segment).
-func extractCoreOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
+func extractCoreOverdata(res *PathMetadata, oldASEntry, newASEntry *seg.ASEntry) {
 	ia := newASEntry.Local
-	staticInfo := seg.StaticInfoExtn{} // FIXME(roosd): enable again: := newASEntry.Exts.StaticInfo
-	oldSI := seg.StaticInfoExtn{}      // FIXME(roosd): enable again: := oldASEntry.Exts.StaticInfo
+	staticInfo := seg.StaticInfoExtension{} // FIXME(roosd): enable again: := newASEntry.Exts.StaticInfo
+	oldSI := seg.StaticInfoExtension{}      // FIXME(roosd): enable again: := oldASEntry.Exts.StaticInfo
 	hopEntry := oldASEntry.HopEntry
 	oldEgressIfID := common.IFIDType(hopEntry.HopField.ConsEgress)
-	for i := 0; i < len(staticInfo.Latency.Childlatencies); i++ {
-		if staticInfo.Latency.Childlatencies[i].IfID == oldEgressIfID {
-			res.ASLatencies[ia] = ASLatency{
-				IntraLatency: staticInfo.Latency.Childlatencies[i].Intradelay,
-				InterLatency: staticInfo.Latency.Egresslatency,
-				PeerLatency:  oldSI.Latency.Egresslatency,
-			}
-			break
-		}
+
+	res.ASLatencies[ia] = ASLatency{
+		IntraLatency: staticInfo.Latency.XoverIntra[oldEgressIfID], // defaults to 0
+		InterLatency: staticInfo.Latency.Inter,
+		PeerLatency:  oldSI.Latency.Inter,
 	}
+
 	res.Links[ia] = ASLink{
 		InterLinkType: staticInfo.Linktype.EgressLinkType,
 		PeerLinkType:  oldSI.Linktype.EgressLinkType,
@@ -371,7 +358,7 @@ func addMetaFromSegment(meta *PathMetadata, segment []*seg.ASEntry) *seg.ASEntry
 		return nil
 	}
 	asEntry := segment[0]
-	s := &seg.StaticInfoExtn{} // FIXME(roosd): enable again := asEntry.Exts.StaticInfo
+	s := &seg.StaticInfoExtension{} // FIXME(roosd): enable again := asEntry.Exts.StaticInfo
 	if false {
 		// For the first AS on the path, only extract
 		// the note and the geodata, since all other data
@@ -401,20 +388,15 @@ func addMetaFromSegment(meta *PathMetadata, segment []*seg.ASEntry) *seg.ASEntry
 }
 
 func getGeo(asEntry *seg.ASEntry) ASGeo {
-	var locations []GeoLoc
-	// FIXME(roosd): Enable again := asEntry.Exts.StaticInfo.Geo.Locations
-	staticInfo := seg.StaticInfoExtn{}
-	for _, loc := range staticInfo.Geo.Locations {
-		locations = append(locations, GeoLoc{
-			Latitude:  loc.GPSData.Latitude,
-			Longitude: loc.GPSData.Longitude,
-			Address:   loc.GPSData.Address,
-		})
+	geo := make(ASGeo)
+	for ifid, v := range asEntry.Extensions.StaticInfo.Geo {
+		geo[ifid] = GeoLoc{
+			Latitude:  v.Latitude,
+			Longitude: v.Longitude,
+			Address:   v.Address,
+		}
 	}
-	res := ASGeo{
-		Locations: locations,
-	}
-	return res
+	return geo
 }
 
 func peerIfID(he seg.PeerEntry) common.IFIDType {

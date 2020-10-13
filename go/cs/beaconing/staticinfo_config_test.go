@@ -28,19 +28,19 @@ func getTestConfigData() *StaticInfoCfg {
 		Latency: map[common.IFIDType]InterfaceLatencies{
 			1: {
 				Inter: 30,
-				Intra: map[common.IFIDType]uint16{2: 10, 3: 20, 5: 30},
+				Intra: map[common.IFIDType]uint32{2: 10, 3: 20, 5: 30},
 			},
 			2: {
 				Inter: 40,
-				Intra: map[common.IFIDType]uint16{1: 10, 3: 70, 5: 50},
+				Intra: map[common.IFIDType]uint32{1: 10, 3: 70, 5: 50},
 			},
 			3: {
 				Inter: 80,
-				Intra: map[common.IFIDType]uint16{1: 20, 2: 70, 5: 60},
+				Intra: map[common.IFIDType]uint32{1: 20, 2: 70, 5: 60},
 			},
 			5: {
 				Inter: 90,
-				Intra: map[common.IFIDType]uint16{1: 30, 2: 50, 3: 60},
+				Intra: map[common.IFIDType]uint32{1: 30, 2: 50, 3: 60},
 			},
 		},
 		Bandwidth: map[common.IFIDType]InterfaceBandwidths{
@@ -117,64 +117,46 @@ func TestGenerateStaticinfo(t *testing.T) {
 		peers      map[common.IFIDType]struct{}
 		egIfid     common.IFIDType
 		inIfid     common.IFIDType
-		expected   seg.StaticInfoExtn
+		expected   seg.StaticInfoExtension
 	}{
 		configData: getTestConfigData(),
 		peers:      map[common.IFIDType]struct{}{5: {}},
 		egIfid:     2,
 		inIfid:     3,
-		expected: seg.StaticInfoExtn{
-			Latency: seg.LatencyInfo{
-				Egresslatency:          40,
-				IngressToEgressLatency: 70,
-				Childlatencies: []seg.ChildLatency{
-					{
-						Intradelay: 70,
-						IfID:       3,
-					},
+		expected: seg.StaticInfoExtension{
+			Latency: &seg.LatencyInfo{
+				Inter: 40,
+				Intra: 70,
+				XoverIntra: map[common.IFIDType]uint32{
+					3: 70,
 				},
-				Peerlatencies: []seg.PeerLatency{
-					{
-						Interdelay: 90,
-						IntraDelay: 50,
-						IfID:       5,
+				Peers: map[common.IFIDType]seg.PeerLatencyInfo{
+					5: {
+						Inter: 90,
+						Intra: 50,
 					},
 				},
 			},
 			Geo: seg.GeoInfo{
-				Locations: []seg.Location{
-					{
-						GPSData: seg.Coordinates{
-							Latitude:  47.2,
-							Longitude: 62.2,
-							Address:   "geo1",
-						},
-						IfIDs: []common.IFIDType{1},
-					},
-					{
-						GPSData: seg.Coordinates{
-							Latitude:  79.2,
-							Longitude: 45.2,
-							Address:   "geo2",
-						},
-						IfIDs: []common.IFIDType{2},
-					},
-					{
-						GPSData: seg.Coordinates{
-							Latitude:  47.22,
-							Longitude: 42.23,
-							Address:   "geo3",
-						},
-						IfIDs: []common.IFIDType{3},
-					},
-					{
-						GPSData: seg.Coordinates{
-							Latitude:  48.2,
-							Longitude: 46.2,
-							Address:   "geo5",
-						},
-						IfIDs: []common.IFIDType{5},
-					},
+				1: seg.GeoCoordinates{
+					Latitude:  47.2,
+					Longitude: 62.2,
+					Address:   "geo1",
+				},
+				2: seg.GeoCoordinates{
+					Latitude:  79.2,
+					Longitude: 45.2,
+					Address:   "geo2",
+				},
+				3: seg.GeoCoordinates{
+					Latitude:  47.22,
+					Longitude: 42.23,
+					Address:   "geo3",
+				},
+				5: seg.GeoCoordinates{
+					Latitude:  48.2,
+					Longitude: 46.2,
+					Address:   "geo5",
 				},
 			},
 			Linktype: seg.LinktypeInfo{
@@ -216,16 +198,9 @@ func TestGenerateStaticinfo(t *testing.T) {
 			Note: "asdf",
 		},
 	}
-	actual := test.configData.generateStaticinfo(
-		test.peers, test.egIfid, test.inIfid)
-	assert.Equal(t, test.expected.Latency.Egresslatency,
-		actual.Latency.Egresslatency)
-	assert.Equal(t, test.expected.Latency.IngressToEgressLatency,
-		actual.Latency.IngressToEgressLatency)
-	assert.ElementsMatch(t, test.expected.Latency.Childlatencies,
-		actual.Latency.Childlatencies)
-	assert.ElementsMatch(t, test.expected.Latency.Peerlatencies,
-		actual.Latency.Peerlatencies)
+	actual := test.configData.generateStaticinfo(test.peers, test.egIfid, test.inIfid)
+
+	assert.Equal(t, test.expected.Latency, actual.Latency)
 
 	assert.Equal(t, test.expected.Bandwidth.IngressToEgressBW,
 		actual.Bandwidth.IngressToEgressBW)
@@ -244,8 +219,6 @@ func TestGenerateStaticinfo(t *testing.T) {
 	assert.ElementsMatch(t, test.expected.Hops.InterfaceHops,
 		actual.Hops.InterfaceHops)
 
-	assert.ElementsMatch(t, test.expected.Geo.Locations,
-		actual.Geo.Locations)
-
+	assert.Equal(t, test.expected.Geo, actual.Geo)
 	assert.Equal(t, test.expected.Note, actual.Note)
 }

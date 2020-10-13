@@ -287,19 +287,6 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 			ifids = append(ifids, int(peeringLocalIF))
 		}
 		sort.Ints(ifids)
-		s := &seg.StaticInfoExtn{}
-		if addStaticInfo {
-			// FIXME(roosd): enable again: asEntry.Exts.StaticInfo = s
-			s.Geo.Locations = append(s.Geo.Locations, seg.Location{
-				GPSData: seg.Coordinates{
-					Latitude:  float32(currIA.IAInt()),
-					Longitude: float32(currIA.IAInt()),
-					Address:   fmt.Sprintf("Location %s", currIA),
-				},
-				IfIDs: []common.IFIDType{},
-			})
-			s.Note = fmt.Sprintf("Note %s", currIA)
-		}
 
 		for _, intIFID := range ifids {
 			peeringLocalIF := common.IFIDType(intIFID)
@@ -317,9 +304,9 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 					},
 				})
 			}
-			if addStaticInfo {
-				generateStaticInfo(s, g.isPeer[peeringLocalIF], peeringLocalIF, outIF)
-			}
+		}
+		if addStaticInfo {
+			asEntry.Extensions.StaticInfo = generateStaticInfo(g, currIA, inIF, outIF)
 		}
 		segment.AddASEntry(context.Background(), asEntry, g.signers[currIA])
 		inIF = remoteOutIF
@@ -464,39 +451,48 @@ func NewDefaultGraph(ctrl *gomock.Controller) *Graph {
 // to egress metrics. Therefore for ASes that are neither the first nor the last on a
 // path segment, looking only at the egress interface on which the beacon left the AS
 // is sufficient when writing tests.
-func generateStaticInfo(s *seg.StaticInfoExtn, peer bool, ifID, egifID common.IFIDType) {
-	if peer {
-		s.Latency.Peerlatencies = append(s.Latency.Peerlatencies, seg.PeerLatency{
-			Interdelay: uint16(ifID),
-			IntraDelay: uint16(ifID),
-			IfID:       ifID,
-		})
-		s.Linktype.Peerlinks = append(s.Linktype.Peerlinks, seg.InterfaceLinkType{
-			IfID:     ifID,
-			LinkType: uint16(ifID) % 3,
-		})
-	} else {
-		s.Latency.Childlatencies = append(s.Latency.Childlatencies, seg.ChildLatency{
-			Intradelay: uint16(ifID),
-			IfID:       ifID,
-		})
-	}
-	s.Bandwidth.Bandwidths = append(s.Bandwidth.Bandwidths, seg.InterfaceBandwidth{
-		BW:   uint32(ifID),
-		IfID: ifID,
-	})
-	s.Hops.InterfaceHops = append(s.Hops.InterfaceHops, seg.InterfaceHops{
-		Hops: uint8(ifID),
-		IfID: ifID,
-	})
+func generateStaticInfo(g *Graph, ia addr.IA, inIF, outIF common.IFIDType) *seg.StaticInfoExtension {
 
-	if ifID == egifID {
-		s.Geo.Locations[0].IfIDs = append(s.Geo.Locations[0].IfIDs, ifID)
-		s.Latency.IngressToEgressLatency = uint16(egifID)
-		s.Latency.Egresslatency = uint16(egifID)
-		s.Linktype.EgressLinkType = uint16(egifID) % 3
-		s.Bandwidth.EgressBW = uint32(egifID)
-		s.Bandwidth.IngressToEgressBW = uint32(egifID)
-		s.Hops.InToOutHops = uint8(egifID)
+	as := g.ases[ia]
+
+	s := &seg.StaticInfoExtension{}
+
+	s.Latency.Intra = uint32((inIF&0xffff)<<16 | outIF&0xffff)
+	s.Latency.Inter = uint32(outIF)
+	for ifid := range as.IFIDs {
+		if g.isPeer[ifid] {
+			s.Latency.Peers[ifid] = seg.PeerLatencyInfo{
+				Intra: uint32((outIF&0xffff)<<16 | ifid&0xffff),
+				Inter: uint32(ifid),
+			}
+		} else {
+			s.Latency.XoverIntra[ifid] = uint32((outIF&0xffff)<<16 | ifid&0xffff)
+		}
 	}
+
+	for ifid := range as.IFIDs {
+		s.Geo[ifid] = seg.GeoCoordinates{
+			Latitude:  float32(ia.IAInt()),
+			Longitude: float32(ia.IAInt()),
+			Address:   fmt.Sprintf("Location %s#%d", ia, ifid),
+		}
+	}
+	/*
+		s.Bandwidth.Bandwidths = append(s.Bandwidth.Bandwidths, seg.InterfaceBandwidth{
+			BW:   uint32(ifID),
+			IfID: ifID,
+		})
+		s.Hops.InterfaceHops = append(s.Hops.InterfaceHops, seg.InterfaceHops{
+			Hops: uint8(ifID),
+			IfID: ifID,
+		})
+		if ifID == egifID {
+			s.Linktype.EgressLinkType = uint16(egifID) % 3
+			s.Bandwidth.EgressBW = uint32(egifID)
+			s.Bandwidth.IngressToEgressBW = uint32(egifID)
+			s.Hops.InToOutHops = uint8(egifID)
+		}
+	*/
+	s.Note = fmt.Sprintf("Note %s", ia)
+	return s
 }

@@ -24,9 +24,10 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
+// TODO(matzf): parse as time.Duration values + sanity checks?
 type InterfaceLatencies struct {
-	Inter uint16                     `json:"Inter"`
-	Intra map[common.IFIDType]uint16 `json:"Intra"`
+	Inter uint32                     `json:"Inter"`
+	Intra map[common.IFIDType]uint32 `json:"Intra"`
 }
 
 type InterfaceBandwidths struct {
@@ -57,29 +58,30 @@ type StaticInfoCfg struct {
 // gatherLatency extracts latency values from a StaticInfoCfg struct and
 // inserts them into the LatencyInfo portion of a StaticInfoExtn struct.
 func (cfgdata StaticInfoCfg) gatherLatency(peers map[common.IFIDType]struct{},
-	egifID common.IFIDType, inifID common.IFIDType) seg.LatencyInfo {
+	egifID common.IFIDType, inifID common.IFIDType) *seg.LatencyInfo {
 
-	l := seg.LatencyInfo{
-		Egresslatency:          cfgdata.Latency[egifID].Inter,
-		IngressToEgressLatency: cfgdata.Latency[egifID].Intra[inifID],
+	l := &seg.LatencyInfo{
+		Inter:      cfgdata.Latency[egifID].Inter,
+		Intra:      cfgdata.Latency[egifID].Intra[inifID],
+		XoverIntra: make(map[common.IFIDType]uint32),
+		Peers:      make(map[common.IFIDType]seg.PeerLatencyInfo),
 	}
+	// TODO(matzf): the interface-to-interface ("Intra") entries in the json file
+	// are (expected to be) symmetric. Should fill this in for the places where this was omitted.
 	for subintfid, intfdelay := range cfgdata.Latency[egifID].Intra {
 		// If we're looking at a peering interface, always include the data
 		if _, peer := peers[subintfid]; peer {
-			l.Peerlatencies = append(l.Peerlatencies, seg.PeerLatency{
-				IfID:       subintfid,
-				Interdelay: cfgdata.Latency[subintfid].Inter,
-				IntraDelay: intfdelay,
-			})
-			continue
-		}
-		// If we're looking at a NON-peering interface, only include the data
-		// if subintfid>egifID so as to not store redundant information
-		if subintfid > egifID {
-			l.Childlatencies = append(l.Childlatencies, seg.ChildLatency{
-				Intradelay: intfdelay,
-				IfID:       subintfid,
-			})
+			l.Peers[subintfid] = seg.PeerLatencyInfo{
+				Inter: cfgdata.Latency[subintfid].Inter,
+				Intra: intfdelay,
+			}
+		} else {
+			// If we're looking at a NON-peering interface, only include the data
+			// if subintfid>egifID so as to not store redundant information
+			// XXX(matzf): this is not handled in the combinator!?
+			if subintfid > egifID {
+				l.XoverIntra[subintfid] = intfdelay
+			}
 		}
 	}
 	return l
@@ -175,30 +177,18 @@ func (cfgdata StaticInfoCfg) gatherHops(peers map[common.IFIDType]struct{},
 
 // gatherGeo extracts geo values from a StaticInfoCfg struct and
 // inserts them into the GeoInfo portion of a StaticInfoExtn struct.
+// TODO(matzf): this could be reduced to only include the relevant interfaces,
+// i.e. ingress, egress, and peers.
 func (cfgdata StaticInfoCfg) gatherGeo() seg.GeoInfo {
-	l := seg.GeoInfo{}
-	for intfid, loc := range cfgdata.Geo {
-		assigned := false
-		for k := 0; k < len(l.Locations); k++ {
-			if (loc.Longitude == l.Locations[k].GPSData.Longitude) &&
-				(loc.Latitude == l.Locations[k].GPSData.Latitude) &&
-				(loc.Address == l.Locations[k].GPSData.Address) && (!assigned) {
-				l.Locations[k].IfIDs = append(l.Locations[k].IfIDs, intfid)
-				assigned = true
-			}
-		}
-		if !assigned {
-			l.Locations = append(l.Locations, seg.Location{
-				GPSData: seg.Coordinates{
-					Longitude: loc.Longitude,
-					Latitude:  loc.Latitude,
-					Address:   loc.Address,
-				},
-				IfIDs: []common.IFIDType{intfid},
-			})
+	gi := seg.GeoInfo{}
+	for ifid, loc := range cfgdata.Geo {
+		gi[ifid] = seg.GeoCoordinates{
+			Longitude: loc.Longitude,
+			Latitude:  loc.Latitude,
+			Address:   loc.Address,
 		}
 	}
-	return l
+	return gi
 }
 
 // ParseStaticInfoCfg parses data from a config file into a StaticInfoCfg struct.
@@ -219,9 +209,9 @@ func ParseStaticInfoCfg(file string) (*StaticInfoCfg, error) {
 // generateStaticinfo creates a StaticinfoExtn struct and
 // populates it with data extracted from configdata.
 func (cfgdata StaticInfoCfg) generateStaticinfo(peers map[common.IFIDType]struct{},
-	egifID common.IFIDType, inifID common.IFIDType) seg.StaticInfoExtn {
+	egifID common.IFIDType, inifID common.IFIDType) seg.StaticInfoExtension {
 
-	return seg.StaticInfoExtn{
+	return seg.StaticInfoExtension{
 		Latency:   cfgdata.gatherLatency(peers, egifID, inifID),
 		Bandwidth: cfgdata.gatherBW(peers, egifID, inifID),
 		Linktype:  cfgdata.gatherLinkType(peers, egifID),

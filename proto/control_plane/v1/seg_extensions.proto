@@ -31,5 +31,45 @@ message HiddenPathExtension {
 }
 
 message StaticInfoExtension {
-    // TODO(roosd): Port static info from capnp to protobuf.
+    // The approximate, lower-bound latency information for this ASEntry.
+    LatencyInfo latency = 1;
+    // Geographical coordinates describing the location of the routers for relevant interfaces of this AS.
+    // The key is the interface identifier.
+    map<uint64, GeoCoordinates> geo = 2;
+    // Generic note
+    string note = 3;
+}
+
+// LatencyInfo specifies approximate lower-bound latency values.
+// The separate intra, inter, cross-over and peering information allows to reconstruct
+// latency values for all paths based on this ASEntry.
+// All values are in milliseconds. 
+// TODO(matzf): I think this should be changed to microseconds -- the range for uint32 makes more sense.
+message LatencyInfo {
+    // Latency from beaconing-ingress to beaconing-egress interface in local AS.
+    uint32 intra = 1;
+    // Latency from beaconing-egress interface to beaconing-ingress interface in neighbor AS.
+    uint32 inter = 2;
+    // Latency from beaconing-egress interface to sibling child or core interfaces.
+    // The key is the interface identifier of the sibling child or core interface.
+    map<uint64, uint32> xover_intra = 3;
+    // Latency from beaconing-egress interface to peers.
+    // The key is the interface identifier of the peering interface.
+    map<uint64, PeerInfo> peers = 4;
+
+    message PeerInfo {
+        // Latency from beaconing-egress interface to the local peering interface.
+        uint32 intra = 1;
+        // Latency from the local peering interface to the peering interface in neighbor AS.
+        uint32 inter = 2;
+    }
+}
+
+message GeoCoordinates {
+  // The latitude of the geographic coordinate, in the WGS 84 datum.
+  float latitude = 1;
+  // The longitude of the geographic coordinate, in the WGS 84 datum.
+  float longitude = 2;
+  // The civic address of the location.
+  string address = 3;
 }

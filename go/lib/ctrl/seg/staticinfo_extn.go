@@ -15,199 +15,172 @@
 package seg
 
 import (
-	"fmt"
-
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/proto"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
+type StaticInfoExtension struct {
+	Latency   *LatencyInfo
+	Geo       GeoInfo
+	Linktype  LinktypeInfo
+	Bandwidth BandwidthInfo
+	Hops      InternalHopsInfo
+	Note      string
+}
+
 type LatencyInfo struct {
-	Egresslatency          uint16         `capnp:"egressLatency"`
-	IngressToEgressLatency uint16         `capnp:"ingressToEgressLatency"`
-	Childlatencies         []ChildLatency `capnp:"childLatencies"`
-	Peerlatencies          []PeerLatency  `capnp:"peeringLatencies"`
+	Intra      uint32
+	Inter      uint32
+	XoverIntra map[common.IFIDType]uint32
+	Peers      map[common.IFIDType]PeerLatencyInfo
 }
 
-func (s *LatencyInfo) ProtoId() proto.ProtoIdType {
-	return proto.StaticInfoExtn_LatencyInfo_TypeID
-}
-
-func (s *LatencyInfo) String() string {
-	return fmt.Sprintf("IngressToEgressLatency: %d\nEgressLatency: %d\n"+
-		"Childlatencies: %v\nPeerlatencies: %v\n", s.IngressToEgressLatency,
-		s.Egresslatency, s.Childlatencies, s.Peerlatencies)
-}
-
-type ChildLatency struct {
-	Intradelay uint16          `capnp:"intra"`
-	IfID       common.IFIDType `capnp:"ifID"`
-}
-
-func (s *ChildLatency) ProtoId() proto.ProtoIdType {
-	return proto.StaticInfoExtn_LatencyInfo_ChildLatency_TypeID
-}
-
-func (s *ChildLatency) String() string {
-	return fmt.Sprintf("Intralatency: %d\nIfID: %d\n",
-		s.Intradelay, s.IfID)
-}
-
-type PeerLatency struct {
-	Interdelay uint16          `capnp:"inter"`
-	IntraDelay uint16          `capnp:"intra"`
-	IfID       common.IFIDType `capnp:"ifID"`
-}
-
-func (s *PeerLatency) ProtoId() proto.ProtoIdType {
-	return proto.StaticInfoExtn_LatencyInfo_PeerLatency_TypeID
-}
-
-func (s *PeerLatency) String() string {
-	return fmt.Sprintf("Intralatency: %d\n"+
-		"Interlatency: %d\nIfID: %d\n", s.IntraDelay, s.Interdelay, s.IfID)
+type PeerLatencyInfo struct {
+	Inter uint32
+	Intra uint32
 }
 
 type BandwidthInfo struct {
-	EgressBW          uint32               `capnp:"egressBW"`
-	IngressToEgressBW uint32               `capnp:"ingressToEgressBW"`
-	Bandwidths        []InterfaceBandwidth `capnp:"bandwidths"`
-}
-
-func (s *BandwidthInfo) ProtoId() proto.ProtoIdType {
-	return proto.StaticInfoExtn_BandwidthInfo_TypeID
-}
-
-func (s *BandwidthInfo) String() string {
-	return fmt.Sprintf("IngressToEgressBW: %d\n"+
-		"EgressBW: %d\nInterfaceBandwidths: %v\n", s.IngressToEgressBW,
-		s.EgressBW, s.Bandwidths)
+	EgressBW          uint32
+	IngressToEgressBW uint32
+	Bandwidths        []InterfaceBandwidth
 }
 
 type InterfaceBandwidth struct {
-	BW   uint32          `capnp:"bw"`
-	IfID common.IFIDType `capnp:"ifID"`
+	BW   uint32
+	IfID common.IFIDType
 }
 
-func (s *InterfaceBandwidth) ProtoId() proto.ProtoIdType {
-	return proto.StaticInfoExtn_BandwidthInfo_InterfaceBandwidth_TypeID
-}
+type GeoInfo map[common.IFIDType]GeoCoordinates
 
-func (s *InterfaceBandwidth) String() string {
-	return fmt.Sprintf("BW: %d\nIfID: %d\n", s.BW, s.IfID)
-}
-
-type GeoInfo struct {
-	Locations []Location `capnp:"locations"`
-}
-
-func (s *GeoInfo) ProtoId() proto.ProtoIdType {
-	return proto.StaticInfoExtn_GeoInfo_TypeID
-}
-
-func (s *GeoInfo) String() string {
-	return fmt.Sprintf("Locations: %v\n", s.Locations)
-}
-
-type Location struct {
-	GPSData Coordinates       `capnp:"gpsData"`
-	IfIDs   []common.IFIDType `capnp:"interfaces"`
-}
-
-func (s *Location) ProtoId() proto.ProtoIdType {
-	return proto.StaticInfoExtn_GeoInfo_Location_TypeID
-}
-
-func (s *Location) String() string {
-	return fmt.Sprintf("Location: %v\n"+
-		"IfIDs: %v\n", s.GPSData, s.IfIDs)
-}
-
-type Coordinates struct {
-	Latitude  float32 `capnp:"latitude"`
-	Longitude float32 `capnp:"longitude"`
-	Address   string  `capnp:"address"`
-}
-
-func (s *Coordinates) ProtoId() proto.ProtoIdType {
-	return proto.StaticInfoExtn_GeoInfo_Location_Coordinates_TypeID
-}
-
-func (s *Coordinates) String() string {
-	return fmt.Sprintf("Latitude %f\n"+
-		"Longitude: %f\nAddress: %s\n", s.Latitude,
-		s.Longitude, s.Address)
+type GeoCoordinates struct {
+	Latitude  float32
+	Longitude float32
+	Address   string
 }
 
 type LinktypeInfo struct {
-	EgressLinkType uint16              `capnp:"egressLinkType"`
-	Peerlinks      []InterfaceLinkType `capnp:"peeringLinks"`
-}
-
-func (s *LinktypeInfo) ProtoId() proto.ProtoIdType {
-	return proto.StaticInfoExtn_LinkTypeInfo_TypeID
-}
-
-func (s *LinktypeInfo) String() string {
-	return fmt.Sprintf("EgressLinkType: %d\n"+
-		"PeerLinkTypes: %v\n", s.EgressLinkType, s.Peerlinks)
+	EgressLinkType uint16
+	Peerlinks      []InterfaceLinkType
 }
 
 type InterfaceLinkType struct {
-	IfID     common.IFIDType `capnp:"ifID"`
-	LinkType uint16          `capnp:"linkType"`
-}
-
-func (s *InterfaceLinkType) ProtoId() proto.ProtoIdType {
-	return proto.StaticInfoExtn_LinkTypeInfo_InterfaceLinkType_TypeID
-}
-
-func (s *InterfaceLinkType) String() string {
-	return fmt.Sprintf("LinkType: %d\n"+
-		"IfID: %d\n", s.LinkType, s.IfID)
+	IfID     common.IFIDType
+	LinkType uint16
 }
 
 type InternalHopsInfo struct {
-	InToOutHops   uint8           `capnp:"inToOutHops"`
-	InterfaceHops []InterfaceHops `capnp:"interfaceHops"`
-}
-
-func (s *InternalHopsInfo) ProtoId() proto.ProtoIdType {
-	return proto.StaticInfoExtn_InternalHopsInfo_TypeID
-}
-
-func (s *InternalHopsInfo) String() string {
-	return fmt.Sprintf("InToOutHops: %d\n"+
-		"InterfaceHops: %v\n", s.InToOutHops, s.InterfaceHops)
+	InToOutHops   uint8
+	InterfaceHops []InterfaceHops
 }
 
 type InterfaceHops struct {
-	Hops uint8           `capnp:"hops"`
-	IfID common.IFIDType `capnp:"ifID"`
+	Hops uint8
+	IfID common.IFIDType
 }
 
-func (s *InterfaceHops) ProtoId() proto.ProtoIdType {
-	return proto.StaticInfoExtn_InternalHopsInfo_InterfaceHops_TypeID
+func staticInfoExtensionFromPB(pb *cppb.StaticInfoExtension) (*StaticInfoExtension, error) {
+	if pb == nil {
+		return nil, nil
+	}
+
+	latency, err := latencyInfoFromPB(pb.Latency)
+	if err != nil {
+		return nil, err
+	}
+
+	geo, err := geoInfoFromPB(pb.Geo)
+	if err != nil {
+		return nil, err
+	}
+
+	staticInfo := &StaticInfoExtension{
+		Latency: latency,
+		Geo:     geo,
+		Note:    pb.Note,
+	}
+
+	return staticInfo, nil
 }
 
-func (s *InterfaceHops) String() string {
-	return fmt.Sprintf("Hops: %d\nIfID: %d\n", s.Hops, s.IfID)
+func latencyInfoFromPB(pb *cppb.LatencyInfo) (*LatencyInfo, error) {
+	if pb == nil {
+		return nil, nil
+	}
+	xoverIntra := make(map[common.IFIDType]uint32)
+	for ifid, v := range pb.XoverIntra {
+		xoverIntra[common.IFIDType(ifid)] = v
+	}
+	peers := make(map[common.IFIDType]PeerLatencyInfo)
+	for ifid, v := range pb.Peers {
+		peers[common.IFIDType(ifid)] = PeerLatencyInfo{
+			Intra: v.Intra,
+			Inter: v.Inter,
+		}
+	}
+	return &LatencyInfo{
+		Intra:      pb.Intra,
+		Inter:      pb.Inter,
+		XoverIntra: xoverIntra,
+		Peers:      peers,
+	}, nil
 }
 
-type StaticInfoExtn struct {
-	Latency   LatencyInfo      `capnp:"latency"`
-	Geo       GeoInfo          `capnp:"geo"`
-	Linktype  LinktypeInfo     `capnp:"linktype"`
-	Bandwidth BandwidthInfo    `capnp:"bandwidth"`
-	Hops      InternalHopsInfo `capnp:"internalHops"`
-	Note      string           `capnp:"note"`
+func geoInfoFromPB(pb map[uint64]*cppb.GeoCoordinates) (GeoInfo, error) {
+	gi := make(GeoInfo)
+	for ifid, v := range pb {
+		gi[common.IFIDType(ifid)] = GeoCoordinates{
+			Latitude:  v.Latitude,
+			Longitude: v.Longitude,
+			Address:   v.Address,
+		}
+	}
+	return gi, nil
 }
 
-func (s *StaticInfoExtn) ProtoId() proto.ProtoIdType {
-	return proto.StaticInfoExtn_TypeID
+func staticInfoToPB(si *StaticInfoExtension) *cppb.StaticInfoExtension {
+	if si == nil {
+		return nil
+	}
+
+	return &cppb.StaticInfoExtension{
+		Latency: latencyInfoToPB(si.Latency),
+		Geo:     geoInfoToPB(si.Geo),
+		Note:    si.Note,
+	}
 }
 
-func (s *StaticInfoExtn) String() string {
-	return fmt.Sprintf("Latency: %v\nGeo: %v\n"+
-		"Linktype: %v\nBandwidth: %v\nHops: %v\nNote: %v\n",
-		s.Latency, s.Geo, s.Linktype, s.Bandwidth, s.Hops, s.Note)
+func latencyInfoToPB(li *LatencyInfo) *cppb.LatencyInfo {
+	if li == nil {
+		return nil
+	}
+	xoverIntra := make(map[uint64]uint32)
+	for ifid, v := range li.XoverIntra {
+		xoverIntra[uint64(ifid)] = v
+	}
+	peers := make(map[uint64]*cppb.LatencyInfo_PeerInfo)
+	for ifid, v := range li.Peers {
+		peers[uint64(ifid)] = &cppb.LatencyInfo_PeerInfo{
+			Intra: v.Intra,
+			Inter: v.Inter,
+		}
+	}
+	return &cppb.LatencyInfo{
+		Intra:      li.Intra,
+		Inter:      li.Inter,
+		XoverIntra: xoverIntra,
+		Peers:      peers,
+	}
+}
+
+func geoInfoToPB(gi GeoInfo) map[uint64]*cppb.GeoCoordinates {
+	pb := make(map[uint64]*cppb.GeoCoordinates)
+	for ifid, v := range gi {
+		pb[uint64(ifid)] = &cppb.GeoCoordinates{
+			Latitude:  v.Latitude,
+			Longitude: v.Longitude,
+			Address:   v.Address,
+		}
+	}
+	return pb
 }

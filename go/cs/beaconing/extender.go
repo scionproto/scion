@@ -106,9 +106,7 @@ func (s *DefaultExtender) Extend(ctx context.Context, pseg *seg.PathSegment,
 	if static := s.StaticInfo(); static != nil {
 		staticInfoPeers := createPeerMap(s.Intfs)
 		staticInfo := static.generateStaticinfo(staticInfoPeers, egress, ingress)
-		// FIXME(roosd): Enable static info again.
-		// asEntry.Exts.StaticInfo = &staticInfo
-		_ = staticInfo
+		asEntry.Extensions.StaticInfo = &staticInfo
 	}
 	if err := pseg.AddASEntry(ctx, asEntry, s.Signer); err != nil {
 		return err
