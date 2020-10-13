@@ -84,13 +84,18 @@ func ASEntryFromPB(pb *cppb.ASEntry) (ASEntry, error) {
 		peerEntries = append(peerEntries, peerEntry)
 	}
 
+	extensions, err := extensionsFromPB(entry.Extensions)
+	if err != nil {
+		return ASEntry{}, serrors.WrapStr("parsing extensions", err)
+	}
+
 	return ASEntry{
 		HopEntry:    hopEntry,
 		PeerEntries: peerEntries,
 		Local:       addr.IAInt(entry.IsdAs).IA(),
 		Next:        addr.IAInt(entry.NextIsdAs).IA(), // Can contain wildcard.
 		MTU:         int(entry.Mtu),
-		Extensions:  extensionsFromPB(entry.Extensions),
+		Extensions:  extensions,
 		Signed:      pb.Signed,
 	}, nil
 }

@@ -305,6 +305,7 @@ func (solution *pathSolution) Path() Path {
 	for _, solEdge := range solution.edges {
 		var hops []*path.HopField
 		var intfs []snet.PathInterface
+		var pathASEntries []seg.ASEntry // ASEntries that on the path, eventually in path order.
 
 		// Go through each ASEntry, starting from the last one, until we
 		// find a shortcut (which can be 0, meaning the end of the segment).
@@ -355,6 +356,7 @@ func (solution *pathSolution) Path() Path {
 				})
 			}
 			hops = append(hops, hopField)
+			pathASEntries = append(pathASEntries, asEntry)
 
 			mtu = minUint16(mtu, uint16(asEntry.MTU))
 			if forwardingLinkMtu != 0 {
@@ -366,6 +368,7 @@ func (solution *pathSolution) Path() Path {
 		if solEdge.segment.Type == proto.PathSegType_down {
 			reverseHops(hops)
 			reverseIntfs(intfs)
+			reverseASEntries(pathASEntries)
 		}
 
 		segments = append(segments, segment{
@@ -377,8 +380,18 @@ func (solution *pathSolution) Path() Path {
 			},
 			HopFields:  hops,
 			Interfaces: intfs,
+			ASEntries:  pathASEntries,
 		})
 	}
+
+	interfaces := segments.Interfaces()
+	asEntries := segments.ASEntries()
+	asEntryIAs := []addr.IA{}
+	for _, ae := range asEntries {
+		asEntryIAs = append(asEntryIAs, ae.Local)
+	}
+	fmt.Println("AS ENtries: ", asEntryIAs)
+	_ = collectMetadata(interfaces, asEntries) // TODO(matzf) export this
 
 	return Path{
 		SPath:      segments.SPath(),
@@ -398,6 +411,12 @@ func reverseHops(s []*path.HopField) {
 }
 
 func reverseIntfs(s []snet.PathInterface) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+}
+
+func reverseASEntries(s []seg.ASEntry) {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
@@ -508,6 +527,7 @@ type segment struct {
 	InfoField  *path.InfoField
 	HopFields  []*path.HopField
 	Interfaces []snet.PathInterface
+	ASEntries  []seg.ASEntry
 }
 
 func (segment *segment) ComputeExpTime() time.Time {
@@ -539,6 +559,16 @@ func (s segmentList) Interfaces() []snet.PathInterface {
 		intfs = append(intfs, seg.Interfaces...)
 	}
 	return intfs
+}
+
+// ASEntries returns the concatenated lists of AS entry extensions from the
+// individual segments, in the order of appearnce on the path.
+func (s segmentList) ASEntries() []seg.ASEntry {
+	var asEntries []seg.ASEntry
+	for _, seg := range s {
+		asEntries = append(asEntries, seg.ASEntries...)
+	}
+	return asEntries
 }
 
 func (s segmentList) ComputeExpTime() time.Time {

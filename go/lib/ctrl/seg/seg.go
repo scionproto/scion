@@ -268,6 +268,7 @@ func (ps *PathSegment) AddASEntry(ctx context.Context, asEntry ASEntry, signer S
 		PeerEntries: make([]*cppb.PeerEntry, 0, len(asEntry.PeerEntries)),
 		Extensions:  extensionsToPB(asEntry.Extensions),
 	}
+	fmt.Println("Added staticinfo rly?", asEntryPB)
 	for _, peer := range asEntry.PeerEntries {
 		asEntryPB.PeerEntries = append(asEntryPB.PeerEntries,
 			&cppb.PeerEntry{
