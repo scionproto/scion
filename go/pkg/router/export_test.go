@@ -11,6 +11,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/underlay/conn"
 )
 
 var NewServices = newServices
@@ -40,9 +41,9 @@ func (d *DataPlane) FakeStart() {
 	d.running = true
 }
 
-func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message, s slayers.SCION,
+func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message, meta conn.ReadMeta, s slayers.SCION,
 	origPacket []byte, b gopacket.SerializeBuffer) (BatchConn, error) {
-	return d.processPkt(ifID, m, s, origPacket, b)
+	return d.processPkt(ifID, m, meta, s, origPacket, b)
 }
 
 func ExtractServices(s *services) map[addr.HostSVC][]*net.UDPAddr {

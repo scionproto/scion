@@ -409,12 +409,12 @@ func (d *DataPlane) Run() error {
 			if pkts == 0 {
 				continue
 			}
-			for _, p := range msgs[:pkts] {
+			for i, p := range msgs[:pkts] {
 				origPacket = origPacket[:p.N]
 				// TODO(karampok). Use meta for sanity checks.
 				p.Buffers[0] = p.Buffers[0][:p.N]
 				copy(origPacket[:p.N], p.Buffers[0])
-				wr, err := d.processPkt(ingressID, &p, spkt, origPacket, buffer)
+				wr, err := d.processPkt(ingressID, &p, metas[i], spkt, origPacket, buffer)
 				switch {
 				case err == nil:
 				case errors.As(err, &scmpErr):
@@ -474,8 +474,8 @@ func (d *DataPlane) Run() error {
 	return nil
 }
 
-func (d *DataPlane) processPkt(ingressID uint16, m *ipv4.Message, s slayers.SCION,
-	origPacket []byte, buffer gopacket.SerializeBuffer) (BatchConn, error) {
+func (d *DataPlane) processPkt(ingressID uint16, m *ipv4.Message, meta conn.ReadMeta,
+	s slayers.SCION, origPacket []byte, buffer gopacket.SerializeBuffer) (BatchConn, error) {
 
 	defer func() {
 		// zero out the fields for sending:
@@ -495,11 +495,7 @@ func (d *DataPlane) processPkt(ingressID uint16, m *ipv4.Message, s slayers.SCIO
 	switch s.PathType {
 	case slayers.PathTypeEmpty:
 		if s.NextHdr == common.L4BFD {
-			src, err := s.SrcAddr()
-			if err != nil {
-				return nil, serrors.WrapStr("Failed to parse addr", err)
-			}
-			return nil, d.processIntraBFD(src, s.Payload)
+			return nil, d.processIntraBFD(meta.Src, s.Payload)
 		}
 		return nil, serrors.WithCtx(unsupportedPathTypeNextHeader,
 			"type", s.PathType, "header", s.NextHdr)
@@ -547,7 +543,7 @@ func (d *DataPlane) processIntraBFD(src net.Addr, data []byte) error {
 	}
 
 	ifID := uint16(0)
-	srcIPAddr, ok := src.(*net.IPAddr)
+	srcUDPAddr, ok := src.(*net.UDPAddr)
 	if !ok {
 		return serrors.New("type assertion failure", "from", fmt.Sprintf("%v(%T)", src, src),
 			"expected", "*net.IPAddr")
@@ -559,7 +555,7 @@ func (d *DataPlane) processIntraBFD(src net.Addr, data []byte) error {
 			return serrors.New("type assertion failure", "from",
 				fmt.Sprintf("%v(%T)", remoteUDPAddr, remoteUDPAddr), "expected", "*net.UDPAddr")
 		}
-		if bytes.Equal(remoteUDPAddr.IP, srcIPAddr.IP) {
+		if bytes.Equal(remoteUDPAddr.IP, srcUDPAddr.IP) && remoteUDPAddr.Port == srcUDPAddr.Port {
 			ifID = k
 			continue
 		}

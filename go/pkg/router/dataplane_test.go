@@ -39,6 +39,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/underlay/conn"
 	underlayconn "github.com/scionproto/scion/go/lib/underlay/conn"
 	"github.com/scionproto/scion/go/lib/underlay/conn/mock_conn"
 	"github.com/scionproto/scion/go/lib/util"
@@ -242,6 +243,10 @@ func TestDataPlaneRun(t *testing.T) {
 							raw := buffer.Bytes()
 							copy(m[i].Buffers[0], raw)
 							m[i].N = len(raw)
+							meta[i] = conn.ReadMeta{
+								Src:   &net.UDPAddr{},
+								Local: &net.UDPAddr{},
+							}
 						}
 						return 10, nil
 					},
@@ -298,6 +303,10 @@ func TestDataPlaneRun(t *testing.T) {
 							m[i].Buffers[0] = m[i].Buffers[0][:len(raw)]
 							m[i].N = len(raw)
 							expectRemoteDiscriminators[disc] = struct{}{}
+							meta[i] = conn.ReadMeta{
+								Src:   &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4()},
+								Local: &net.UDPAddr{},
+							}
 							i++
 						}
 						return len(routers), nil
@@ -1066,7 +1075,11 @@ func TestProcessPkt(t *testing.T) {
 			buffer := gopacket.NewSerializeBuffer()
 			origMsg := make([]byte, len(input.Buffers[0]))
 			copy(origMsg, input.Buffers[0])
-			c, err := dp.ProcessPkt(tc.srcInterface, input, slayers.SCION{}, origMsg, buffer)
+			meta := conn.ReadMeta{
+				Src:   &net.UDPAddr{},
+				Local: &net.UDPAddr{},
+			}
+			c, err := dp.ProcessPkt(tc.srcInterface, input, meta, slayers.SCION{}, origMsg, buffer)
 			tc.assertFunc(t, err)
 			if err != nil {
 				return
