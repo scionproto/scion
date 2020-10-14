@@ -75,10 +75,7 @@ func (p Path) Interfaces() []snet.PathInterface {
 }
 
 func (p Path) Destination() addr.IA {
-	if len(p.IFaces) == 0 {
-		return p.Dst
-	}
-	return p.IFaces[len(p.IFaces)-1].IA
+	return p.Dst
 }
 
 func (p Path) Metadata() snet.PathMetadata {
