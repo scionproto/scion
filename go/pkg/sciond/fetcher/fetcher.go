@@ -106,12 +106,12 @@ func (f *fetcher) GetPaths(ctx context.Context, src, dst addr.IA,
 
 	// Check context
 	if _, ok := ctx.Deadline(); !ok {
-		return nil, serrors.New("Context must have deadline set")
+		return nil, serrors.New("context must have deadline set")
 	}
 	local := f.pather.TopoProvider.Get().IA()
 	// Check source
 	if !src.IsZero() && !src.Equal(local) {
-		return nil, serrors.New("Bad source AS", "src", src)
+		return nil, serrors.New("bad source AS", "src", src)
 	}
 	return f.pather.GetPaths(ctx, dst, refresh)
 }
