@@ -44,7 +44,6 @@ require (
 	google.golang.org/genproto v0.0.0-20191002211648-c459b9ce5143 // indirect
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.23.0
-	gopkg.in/restruct.v1 v1.0.0-20151213023948-80ede2e57cc2
 	gopkg.in/yaml.v2 v2.3.0
 	zombiezen.com/go/capnproto2 v0.0.0-20190813022230-ddfb9bb855fa
 )

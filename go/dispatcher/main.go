@@ -73,7 +73,6 @@ func realMain() int {
 			cfg.Dispatcher.ApplicationSocket,
 			os.FileMode(cfg.Dispatcher.SocketFileMode),
 			cfg.Dispatcher.UnderlayPort,
-			true,
 		)
 		if err != nil {
 			fatal.Fatal(err)
@@ -126,7 +125,7 @@ func setupBasic() error {
 }
 
 func RunDispatcher(deleteSocketFlag bool, applicationSocket string, socketFileMode os.FileMode,
-	underlayPort int, headerV2 bool) error {
+	underlayPort int) error {
 
 	if deleteSocketFlag {
 		if err := deleteSocket(cfg.Dispatcher.ApplicationSocket); err != nil {
@@ -137,7 +136,6 @@ func RunDispatcher(deleteSocketFlag bool, applicationSocket string, socketFileMo
 		UnderlaySocket:    fmt.Sprintf(":%d", underlayPort),
 		ApplicationSocket: applicationSocket,
 		SocketFileMode:    socketFileMode,
-		HeaderV2:          headerV2,
 	}
 	log.Debug("Dispatcher starting", "appSocket", applicationSocket, "underlayPort", underlayPort)
 	return dispatcher.ListenAndServe()

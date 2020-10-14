@@ -27,8 +27,8 @@ import (
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/sig/egress/iface"
 	"github.com/scionproto/scion/go/sig/egress/siginfo"
@@ -222,8 +222,7 @@ func (w *worker) resetFrame(f *frame) {
 	if remote != nil {
 		w.currSig = remote.Sig
 		if w.currSig != nil {
-			addrLen = uint16(spkt.AddrHdrLen(w.currSig.Host,
-				addr.HostFromIP(sigcmn.DataAddr)))
+			addrLen = uint16(addrHdrLen(w.currSig.Host, sigcmn.DataAddr))
 		}
 		w.currPathEntry = nil
 		if remote.SessPath != nil {
@@ -237,7 +236,22 @@ func (w *worker) resetFrame(f *frame) {
 		}
 	}
 	// FIXME(kormat): to do this properly, need to account for any ext headers.
-	f.reset(mtu - spkt.CmnHdrLen - addrLen - pathLen - l4.UDPLen)
+	f.reset(mtu - slayers.CmnHdrLen - addrLen - pathLen - l4.UDPLen)
+}
+
+func addrHdrLen(src addr.HostAddr, dst net.IP) int {
+	dstLen := 16
+	if dst.To4() != nil {
+		dstLen = 4
+	}
+	srcLen := 0
+	switch src.(type) {
+	case addr.HostIPv4, addr.HostSVC:
+		srcLen = 4
+	case addr.HostIPv6:
+		srcLen = 16
+	}
+	return addr.IABytes*2 + srcLen + dstLen
 }
 
 type frame struct {

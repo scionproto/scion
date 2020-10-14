@@ -60,7 +60,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
 				Path: spath.NewV2(rawOHP, true),
-				PayloadV2: snet.UDPPayload{
+				Payload: snet.UDPPayload{
 					SrcPort: 25,
 					DstPort: 1925,
 					Payload: []byte("hello packet"),
@@ -78,7 +78,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
 				Path: spath.NewV2(rawSP, false),
-				PayloadV2: snet.UDPPayload{
+				Payload: snet.UDPPayload{
 					SrcPort: 25,
 					DstPort: 1925,
 					Payload: []byte("hello packet"),
@@ -96,7 +96,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
 				Path: spath.NewV2(rawSP, false),
-				PayloadV2: snet.SCMPEchoRequest{
+				Payload: snet.SCMPEchoRequest{
 					Identifier: 4,
 					SeqNumber:  3310,
 					Payload:    []byte("echo request"),
@@ -114,7 +114,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
 				Path: spath.NewV2(rawSP, false),
-				PayloadV2: snet.SCMPEchoReply{
+				Payload: snet.SCMPEchoReply{
 					Identifier: 5,
 					SeqNumber:  3410,
 					Payload:    []byte("echo reply"),
@@ -132,7 +132,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
 				Path: spath.NewV2(rawSP, false),
-				PayloadV2: snet.SCMPExternalInterfaceDown{
+				Payload: snet.SCMPExternalInterfaceDown{
 					IA:        xtest.MustParseIA("1-ff00:0:111"),
 					Interface: 13,
 					Payload:   []byte("scmp quote"),
@@ -150,7 +150,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
 				Path: spath.NewV2(rawSP, false),
-				PayloadV2: snet.SCMPInternalConnectivityDown{
+				Payload: snet.SCMPInternalConnectivityDown{
 					IA:      xtest.MustParseIA("1-ff00:0:111"),
 					Ingress: 14,
 					Egress:  25,
@@ -167,7 +167,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 			actual := snet.Packet{Bytes: tc.Bytes}
 			assert.NoError(t, actual.Decode())
 			assert.Equal(t, tc.PacketInfo, actual.PacketInfo)
-			assert.Equal(t, tc.PacketInfo.PayloadV2, actual.PacketInfo.PayloadV2)
+			assert.Equal(t, tc.PacketInfo.Payload, actual.PacketInfo.Payload)
 			actual.Bytes = nil
 			assert.NoError(t, actual.Serialize())
 			assert.Equal(t, tc.Bytes, actual.Bytes)
@@ -196,7 +196,7 @@ func TestPacketSerialize(t *testing.T) {
 						Host: addr.HostIPv4(net.ParseIP("127.0.0.1")),
 					},
 					Path: spath.NewV2(rawOHP, true),
-					PayloadV2: snet.UDPPayload{
+					Payload: snet.UDPPayload{
 						SrcPort: 25,
 						DstPort: 1925,
 						Payload: []byte("hello packet"),
@@ -216,7 +216,7 @@ func TestPacketSerialize(t *testing.T) {
 						IA:   xtest.MustParseIA("1-ff00:0:112"),
 						Host: addr.HostIPv4(net.ParseIP("127.0.0.1")),
 					},
-					PayloadV2: snet.UDPPayload{
+					Payload: snet.UDPPayload{
 						SrcPort: 25,
 						DstPort: 1925,
 						Payload: []byte("hello packet"),

@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/slayers"
 )
 
@@ -30,13 +29,8 @@ const (
 )
 
 type OpError struct {
-	scmp     *scmp.Hdr
 	typeCode slayers.SCMPTypeCode
 	revInfo  *path_mgmt.RevInfo
-}
-
-func (e *OpError) SCMP() *scmp.Hdr {
-	return e.scmp
 }
 
 func (e *OpError) RevInfo() *path_mgmt.RevInfo {
@@ -44,10 +38,7 @@ func (e *OpError) RevInfo() *path_mgmt.RevInfo {
 }
 
 func (e *OpError) Error() string {
-	if e.scmp == nil {
-		return e.typeCode.String()
-	}
-	return e.scmp.String()
+	return e.typeCode.String()
 }
 
 var _ net.Conn = (*Conn)(nil)
@@ -60,13 +51,12 @@ type Conn struct {
 	scionConnReader
 }
 
-func newConn(base *scionConnBase, conn PacketConn, headerv2 bool) *Conn {
+func newConn(base *scionConnBase, conn PacketConn) *Conn {
 	c := &Conn{
 		conn:          conn,
 		scionConnBase: *base,
 	}
 	c.scionConnWriter = *newScionConnWriter(&c.scionConnBase, conn)
-	c.scionConnWriter.headerv2 = headerv2
 	c.scionConnReader = *newScionConnReader(&c.scionConnBase, conn)
 	return c
 }

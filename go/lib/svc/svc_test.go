@@ -22,17 +22,16 @@ import (
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/svc"
 	"github.com/scionproto/scion/go/lib/svc/mock_svc"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestSVCResolutionServer(t *testing.T) {
@@ -157,66 +156,79 @@ func TestDefaultHandler(t *testing.T) {
 			ReplyPayload   []byte
 			InputPacket    *snet.Packet
 			ExpectedPacket *snet.Packet
+			AssertErr      assert.ErrorAssertionFunc
 			ExpectedError  bool
 		}{
 			{
 				Description: "path cannot be reversed",
 				InputPacket: &snet.Packet{
 					PacketInfo: snet.PacketInfo{
-						Path: spath.New(common.RawBytes{0x00, 0x01, 0x02, 0x03}),
+						Path:    spath.New(common.RawBytes{0x00, 0x01, 0x02, 0x03}),
+						Payload: snet.UDPPayload{},
 					},
 				},
 				ExpectedError: true,
 			},
 			{
-				Description: "nil l4 header, success",
+				Description: "empty UDP payload, success",
 				InputPacket: &snet.Packet{
-					PacketInfo: snet.PacketInfo{},
+					PacketInfo: snet.PacketInfo{
+						Payload: snet.UDPPayload{},
+					},
 				},
 				ExpectedPacket: &snet.Packet{
 					PacketInfo: snet.PacketInfo{
-						Source: snet.SCIONAddress{},
+						Source:  snet.SCIONAddress{},
+						Payload: snet.UDPPayload{},
 					},
 				},
-				ExpectedError: false,
 			},
 			{
-				Description: "L4 header with ports",
+				Description: "UDP payload with ports",
 				InputPacket: &snet.Packet{
 					PacketInfo: snet.PacketInfo{
-						L4Header: &l4.UDP{SrcPort: 42, DstPort: 73},
+						Payload: snet.UDPPayload{SrcPort: 42, DstPort: 73},
 					},
 				},
 				ExpectedPacket: &snet.Packet{
 					PacketInfo: snet.PacketInfo{
-						L4Header: &l4.UDP{SrcPort: 73, DstPort: 42},
+						Payload: snet.UDPPayload{SrcPort: 73, DstPort: 42},
 					},
 				},
 			},
 			{
 				Description:  "Non-nil payload",
 				ReplyPayload: []byte{1, 2, 3, 4},
-				InputPacket:  &snet.Packet{},
+				InputPacket: &snet.Packet{
+					PacketInfo: snet.PacketInfo{
+						Payload: snet.UDPPayload{},
+					},
+				},
 				ExpectedPacket: &snet.Packet{
 					PacketInfo: snet.PacketInfo{
-						Payload: common.RawBytes{1, 2, 3, 4},
+						Payload: snet.UDPPayload{Payload: []byte{1, 2, 3, 4}},
 					},
 				},
 			},
 			{
 				Description: "Source address override",
 				ReplySource: snet.SCIONAddress{Host: addr.HostIPv4(net.IP{192, 168, 0, 1})},
-				InputPacket: &snet.Packet{},
+				InputPacket: &snet.Packet{
+					PacketInfo: snet.PacketInfo{
+						Payload: snet.UDPPayload{},
+					},
+				},
 				ExpectedPacket: &snet.Packet{
 					PacketInfo: snet.PacketInfo{
-						Source: snet.SCIONAddress{Host: addr.HostIPv4(net.IP{192, 168, 0, 1})},
+						Source:  snet.SCIONAddress{Host: addr.HostIPv4(net.IP{192, 168, 0, 1})},
+						Payload: snet.UDPPayload{},
 					},
 				},
 			},
 		}
 
 		for _, tc := range testCases {
-			Convey(tc.Description, func() {
+			t.Run(tc.Description, func(t *testing.T) {
 				ctrl := gomock.NewController(t)
 				defer ctrl.Finish()
 
@@ -235,17 +247,25 @@ func TestDefaultHandler(t *testing.T) {
 						Conn:   conn,
 					},
 				)
-				xtest.SoMsgError("err", err, tc.ExpectedError)
+				if tc.ExpectedError {
+					assert.Error(t, err)
+				} else {
+					assert.NoError(t, err)
+				}
 			})
 		}
 	})
 
-	Convey("Underlay addresses are forwarded", t, func() {
+	t.Run("Underlay addresses are forwarded", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		conn := mock_snet.NewMockPacketConn(ctrl)
-		packet := &snet.Packet{}
+		packet := &snet.Packet{
+			PacketInfo: snet.PacketInfo{
+				Payload: snet.UDPPayload{},
+			},
+		}
 		ov := &net.UDPAddr{IP: net.IP{192, 168, 0, 1}, Port: 0x29a}
 		conn.EXPECT().WriteTo(packet, ov).Times(1)
 		sender := &svc.BaseHandler{}
@@ -257,6 +277,6 @@ func TestDefaultHandler(t *testing.T) {
 			Underlay: ov,
 		}
 		_, err := sender.Handle(request)
-		So(err, ShouldBeNil)
+		assert.NoError(t, err)
 	})
 }

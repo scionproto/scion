@@ -147,7 +147,6 @@ func (nc *NetworkConfig) AddressRewriter(
 	if connFactory == nil {
 		connFactory = &snet.DefaultPacketDispatcherService{
 			Dispatcher:  reliable.NewDispatcher(""),
-			Version2:    true,
 			SCMPHandler: nc.SCMPHandler,
 		}
 	}
@@ -185,7 +184,6 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 	packetDispatcher := svc.NewResolverPacketDispatcher(
 		&snet.DefaultPacketDispatcherService{
 			Dispatcher:  dispatcherService,
-			Version2:    true,
 			SCMPHandler: nc.SCMPHandler,
 		},
 		&svc.BaseHandler{
@@ -195,7 +193,6 @@ func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 	network := &snet.SCIONNetwork{
 		LocalIA:    nc.IA,
 		Dispatcher: packetDispatcher,
-		Version2:   true,
 	}
 	conn, err := network.Listen(context.Background(), "udp", nc.Public, addr.SvcWildcard)
 	if err != nil {
@@ -233,9 +230,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 			// errors. Otherwise, the accept loop will always return that error
 			// on every subsequent call to accept.
 			SCMPHandler: ignoreSCMP{},
-			Version2:    true,
 		},
-		Version2: true,
 	}
 	serverAddr, err := net.ResolveUDPAddr("udp", nc.QUIC.Address)
 	if err != nil {
@@ -251,9 +246,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher:  dispatcherService,
 			SCMPHandler: nc.SCMPHandler,
-			Version2:    true,
 		},
-		Version2: true,
 	}
 	// Let the dispatcher decide on the port for the client connection.
 	clientAddr := &net.UDPAddr{

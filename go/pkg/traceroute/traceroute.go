@@ -102,7 +102,6 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 	dispatcher := snet.DefaultPacketDispatcherService{
 		Dispatcher:  cfg.Dispatcher,
 		SCMPHandler: scmpHandler{replies: replies},
-		Version2:    true,
 	}
 	conn, port, err := dispatcher.Register(ctx, cfg.Local.IA, cfg.Local.Host, addr.SvcNone)
 	if err != nil {
@@ -212,8 +211,8 @@ func (t *tracerouter) probeHop(ctx context.Context, dp *scion.Decoded,
 				IA:   t.local.IA,
 				Host: addr.HostFromIP(t.local.Host.IP),
 			},
-			Path:      p,
-			PayloadV2: snet.SCMPTracerouteRequest{Identifier: t.id},
+			Path:    p,
+			Payload: snet.SCMPTracerouteRequest{Identifier: t.id},
 		},
 	}
 	for i := 0; i < t.probesPerHop; i++ {
@@ -299,13 +298,13 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 }
 
 func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPTracerouteReply, error) {
-	if pkt.PayloadV2 == nil {
+	if pkt.Payload == nil {
 		return snet.SCMPTracerouteReply{}, serrors.New("no payload found")
 	}
-	r, ok := pkt.PayloadV2.(snet.SCMPTracerouteReply)
+	r, ok := pkt.Payload.(snet.SCMPTracerouteReply)
 	if !ok {
 		return snet.SCMPTracerouteReply{}, serrors.New("not SCMPTracerouteReply",
-			"type", common.TypeOf(pkt.PayloadV2))
+			"type", common.TypeOf(pkt.Payload))
 	}
 	return r, nil
 }

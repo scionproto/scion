@@ -21,7 +21,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
@@ -318,15 +317,9 @@ func (t *topologyS) UnderlayAnycast(svc addr.HostSVC) (*net.UDPAddr, error) {
 	name, err := names.GetRandom()
 	if err != nil {
 		if supportedSVC(svc) {
-			// FIXME(scrye): Return this error because some calling code in the BR searches for it.
-			// Ideally, the error should be communicated in a more explicit way.
-			return nil, serrors.WrapStr("No instances found for SVC address",
-				scmp.NewError(scmp.C_Routing, scmp.T_R_UnreachHost, nil, nil), "svc", svc)
+			return nil, serrors.New("no instances found for service", "svc", svc)
 		}
-		// FIXME(scrye): Return this error because some calling code in the BR searches for it.
-		// Ideally, the error should be communicated in a more explicit way.
-		return nil, serrors.Wrap(addr.ErrUnsupportedSVCAddress,
-			scmp.NewError(scmp.C_Routing, scmp.T_R_BadHost, nil, nil), "svc", svc)
+		return nil, serrors.WithCtx(addr.ErrUnsupportedSVCAddress, "svc", svc)
 	}
 	underlay, err := t.UnderlayByName(svc, name)
 	if err != nil {
@@ -353,10 +346,7 @@ func (t *topologyS) UnderlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error) 
 	}
 
 	if len(topoAddrs) == 0 {
-		// FIXME(scrye): Return this error because some calling code in the BR searches for it.
-		// Ideally, the error should be communicated in a more explicit way.
-		return nil, common.NewBasicError("No instances found for SVC address",
-			scmp.NewError(scmp.C_Routing, scmp.T_R_UnreachHost, nil, nil), "svc", svc)
+		return nil, serrors.New("no instances found for service", "svc", svc)
 	}
 
 	// Only select each IP:UnderlayPort combination once, s.t. the same message isn't multicasted
@@ -402,10 +392,7 @@ func toProtoServiceType(svc addr.HostSVC) (proto.ServiceType, error) {
 	case addr.SvcSIG:
 		return proto.ServiceType_sig, nil
 	default:
-		// FIXME(scrye): Return this error because some calling code in the BR searches for it.
-		// Ideally, the error should be communicated in a more explicit way.
-		return 0, serrors.Wrap(addr.ErrUnsupportedSVCAddress,
-			scmp.NewError(scmp.C_Routing, scmp.T_R_BadHost, nil, nil), "svc", svc)
+		return 0, serrors.WithCtx(addr.ErrUnsupportedSVCAddress, "svc", svc)
 	}
 }
 

@@ -96,7 +96,6 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 			id:      uint16(id),
 			replies: replies,
 		},
-		Version2: true,
 	}
 	conn, port, err := svc.Register(ctx, cfg.Local.IA, cfg.Local.Host, addr.SvcNone)
 	if err != nil {
@@ -287,13 +286,13 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 }
 
 func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPEchoReply, error) {
-	if pkt.PayloadV2 == nil {
+	if pkt.Payload == nil {
 		return snet.SCMPEchoReply{}, serrors.New("no v2 payload found")
 	}
-	r, ok := pkt.PayloadV2.(snet.SCMPEchoReply)
+	r, ok := pkt.Payload.(snet.SCMPEchoReply)
 	if !ok {
 		return snet.SCMPEchoReply{}, serrors.New("not SCMPEchoReply",
-			"type", common.TypeOf(pkt.PayloadV2))
+			"type", common.TypeOf(pkt.Payload))
 	}
 	if r.Identifier != h.id {
 		return snet.SCMPEchoReply{}, serrors.New("wrong SCMP ID",

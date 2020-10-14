@@ -22,13 +22,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/hpkt"
-	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
-	"github.com/scionproto/scion/go/lib/spkt"
 )
 
 // PacketConn gives applications easy access to writing and reading custom
@@ -105,9 +101,6 @@ type SCIONPacketConn struct {
 	// handler is nil, errors are returned back to applications every time an
 	// SCMP message is received.
 	scmpHandler SCMPHandler
-
-	// version2 switches packets to SCION header format version 2.
-	version2 bool
 }
 
 // NewSCIONPacketConn creates a new conn with packet serialization/decoding
@@ -118,7 +111,6 @@ func NewSCIONPacketConn(conn net.PacketConn, scmpHandler SCMPHandler,
 	return &SCIONPacketConn{
 		conn:        conn,
 		scmpHandler: scmpHandler,
-		version2:    headerV2,
 	}
 }
 
@@ -132,35 +124,8 @@ func (c *SCIONPacketConn) Close() error {
 }
 
 func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
-	if c.version2 {
-		if err := pkt.Serialize(); err != nil {
-			return serrors.WrapStr("serialize SCION packet", err)
-		}
-	} else {
-		StableSortExtensions(pkt.Extensions)
-		hbh, e2e, err := hpkt.ValidateExtensions(pkt.Extensions)
-		if err != nil {
-			return common.NewBasicError("Bad extension list", err)
-		}
-		// TODO(scrye): scnPkt is a temporary solution. Its functionality will be
-		// absorbed by the easier to use Packet structure in this package.
-		scnPkt := &spkt.ScnPkt{
-			DstIA:   pkt.Destination.IA,
-			SrcIA:   pkt.Source.IA,
-			DstHost: pkt.Destination.Host,
-			SrcHost: pkt.Source.Host,
-			E2EExt:  e2e,
-			HBHExt:  hbh,
-			Path:    pkt.Path,
-			L4:      pkt.L4Header.(l4.L4Header),
-			Pld:     pkt.Payload,
-		}
-		pkt.Prepare()
-		n, err := hpkt.WriteScnPkt(scnPkt, common.RawBytes(pkt.Bytes))
-		if err != nil {
-			return common.NewBasicError("Unable to serialize SCION packet", err)
-		}
-		pkt.Bytes = pkt.Bytes[:n]
+	if err := pkt.Serialize(); err != nil {
+		return serrors.WrapStr("serialize SCION packet", err)
 	}
 
 	// Send message
@@ -178,15 +143,12 @@ func (c *SCIONPacketConn) SetWriteDeadline(d time.Time) error {
 }
 
 func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
-	if !c.version2 {
-		return c.readFromLoopLegacy(pkt, ov)
-	}
 	for {
 		// Read until we get an error or a data packet
 		if err := c.readFrom(pkt, ov); err != nil {
 			return err
 		}
-		if scmp, ok := pkt.PayloadV2.(SCMPPayload); ok {
+		if scmp, ok := pkt.Payload.(SCMPPayload); ok {
 			if c.scmpHandler == nil {
 				metrics.M.SCMPErrors().Inc()
 				return serrors.New("scmp packet received, but no handler found",
@@ -203,31 +165,6 @@ func (c *SCIONPacketConn) ReadFrom(pkt *Packet, ov *net.UDPAddr) error {
 		// non-SCMP L4s are assumed to be data and get passed back to the
 		// app.
 		return nil
-	}
-}
-
-func (c *SCIONPacketConn) readFromLoopLegacy(pkt *Packet, ov *net.UDPAddr) error {
-	for {
-		// Read until we get an error or a data packet
-		if err := c.readFrom(pkt, ov); err != nil {
-			return err
-		}
-		if scmpHdr, ok := pkt.L4Header.(*scmp.Hdr); ok {
-			if c.scmpHandler == nil {
-				metrics.M.SCMPErrors().Inc()
-				return common.NewBasicError("scmp packet received, but no handler found", nil,
-					"scmp.Hdr", scmpHdr, "src", pkt.Source)
-			}
-			if err := c.scmpHandler.Handle(pkt); err != nil {
-				// Return error intact s.t. applications can handle custom
-				// error types returned by SCMP handlers.
-				return err
-			}
-		} else {
-			// non-SCMP L4s are assumed to be data and get passed back to the
-			// app.
-			return nil
-		}
 	}
 }
 
@@ -251,27 +188,9 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 			"Actual", lastHopNetAddr)
 	}
 
-	if c.version2 {
-		if err := pkt.Decode(); err != nil {
-			metrics.M.ParseErrors().Inc()
-			return serrors.WrapStr("decoding packet", err)
-		}
-	} else {
-		// TODO(scrye): scnPkt is a temporary solution. Its functionality will be
-		// absorbed by the easier to use Packet structure in this package.
-		scnPkt := &spkt.ScnPkt{}
-		err = hpkt.ParseScnPkt(scnPkt, common.RawBytes(pkt.Bytes))
-		pkt.Destination = SCIONAddress{IA: scnPkt.DstIA, Host: scnPkt.DstHost}
-		pkt.Source = SCIONAddress{IA: scnPkt.SrcIA, Host: scnPkt.SrcHost}
-		pkt.Path = scnPkt.Path
-		pkt.Extensions = append(pkt.Extensions, scnPkt.HBHExt...)
-		pkt.Extensions = append(pkt.Extensions, scnPkt.E2EExt...)
-		pkt.L4Header = scnPkt.L4
-		pkt.Payload = scnPkt.Pld
-		if err != nil {
-			metrics.M.ParseErrors().Inc()
-			return common.NewBasicError("SCION packet parse error", err)
-		}
+	if err := pkt.Decode(); err != nil {
+		metrics.M.ParseErrors().Inc()
+		return serrors.WrapStr("decoding packet", err)
 	}
 
 	if ov != nil {

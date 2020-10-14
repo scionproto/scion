@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -119,9 +118,7 @@ func (p Prober) GetStatuses(ctx context.Context,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher:  reliable.NewDispatcher(""),
 			SCMPHandler: scmpH,
-			Version2:    true,
 		},
-		Version2: true,
 	}
 	snetConn, err := network.Listen(ctx, "udp", &net.UDPAddr{IP: p.LocalIP}, addr.SvcNone)
 	if err != nil {
@@ -192,14 +189,11 @@ type scmpHandler struct {
 }
 
 func (h *scmpHandler) Handle(pkt *snet.Packet) error {
-	if pkt.PayloadV2 == nil {
-		return h.legacyHandle(pkt)
-	}
 	path, err := h.path(pkt)
 	if err != nil {
 		return err
 	}
-	switch pld := pkt.PayloadV2.(type) {
+	switch pld := pkt.Payload.(type) {
 	case snet.SCMPDestinationUnreachable:
 		h.setStatus(path, alive)
 		return errBadHost
@@ -216,23 +210,6 @@ func (h *scmpHandler) Handle(pkt *snet.Packet) error {
 			AdditionalInfo: fmt.Sprintf("internal connectivity down: "+
 				"isd_as=%s ingress=%d egress=%d", pld.IA, pld.Ingress, pld.Egress),
 		})
-		return errSCMP
-	}
-	return nil
-}
-
-func (h *scmpHandler) legacyHandle(pkt *snet.Packet) error {
-	hdr, ok := pkt.L4Header.(*scmp.Hdr)
-	if ok {
-		path, err := h.path(pkt)
-		if err != nil {
-			return err
-		}
-		if hdr.Class == scmp.C_Routing && hdr.Type == scmp.T_R_BadHost {
-			h.setStatus(path, alive)
-			return errBadHost
-		}
-		h.setStatus(path, Status{Status: StatusSCMP, AdditionalInfo: hdr.String()})
 		return errSCMP
 	}
 	return nil
