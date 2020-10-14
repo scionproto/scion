@@ -91,7 +91,7 @@ func TestMetrics(t *testing.T) {
 	betweenOrEqual(t, 5.0, 27.0, metrics.CounterValue(packetsSent))
 	betweenOrEqual(t, 5.0, 27.0, metrics.CounterValue(packetsReceived))
 	assert.Equal(t, 1.0, metrics.GaugeValue(up))
-	assert.Greater(t, metrics.CounterValue(stateChanges), 1.0)
+	assert.Greater(t, metrics.CounterValue(stateChanges), 0.0)
 
 	changes := metrics.CounterValue(stateChanges)
 	linkAToB.Sending(false)
