@@ -400,7 +400,6 @@ func run(file string) error {
 		&onehop.OHPPacketDispatcherService{
 			PacketDispatcherService: &snet.DefaultPacketDispatcherService{
 				Dispatcher: reliable.NewDispatcher(""),
-				Version2:   true,
 			},
 		},
 	)

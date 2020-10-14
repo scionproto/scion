@@ -117,9 +117,7 @@ func initNetwork(cfg sigconfig.SigConf, sdCfg env.SCIONDClient,
 			SCMPHandler: snet.DefaultSCMPHandler{
 				RevocationHandler: pathResolver,
 			},
-			Version2: true,
 		},
-		Version2: true,
 	}
 	return network, sciondConn, pathResolver, nil
 }

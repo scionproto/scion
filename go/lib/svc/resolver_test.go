@@ -21,14 +21,13 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	// . "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/svc"
@@ -36,53 +35,6 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
-
-func TestLegacyResolver(t *testing.T) {
-	Convey("", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		srcIA := xtest.MustParseIA("1-ff00:0:1")
-		dstIA := xtest.MustParseIA("1-ff00:0:2")
-		mockPath := mock_snet.NewMockPath(ctrl)
-		mockPath.EXPECT().Path().Return(nil).AnyTimes()
-		mockPath.EXPECT().UnderlayNextHop().Return(nil).AnyTimes()
-		mockPath.EXPECT().Destination().Return(dstIA).AnyTimes()
-
-		Convey("If opening up port fails, return error and no reply", func() {
-			mockPacketDispatcherService := mock_snet.NewMockPacketDispatcherService(ctrl)
-			mockPacketDispatcherService.EXPECT().Register(gomock.Any(), gomock.Any(),
-				gomock.Any(), gomock.Any()).
-				Return(nil, uint16(0), errors.New("no conn"))
-			resolver := &svc.LegacyResolver{
-				LocalIA:     srcIA,
-				ConnFactory: mockPacketDispatcherService,
-			}
-
-			reply, err := resolver.LookupSVC(context.Background(), mockPath, addr.SvcCS)
-			SoMsg("reply", reply, ShouldBeNil)
-			SoMsg("err", err, ShouldNotBeNil)
-		})
-		Convey("Local machine information is used to build conns", func() {
-			mockPacketDispatcherService := mock_snet.NewMockPacketDispatcherService(ctrl)
-			mockConn := mock_snet.NewMockPacketConn(ctrl)
-			mockPacketDispatcherService.EXPECT().Register(gomock.Any(), srcIA,
-				&net.UDPAddr{IP: net.IP{192, 0, 2, 1}},
-				addr.SvcNone).Return(mockConn, uint16(42), nil)
-			mockRoundTripper := mock_svc.NewMockRoundTripper(ctrl)
-			mockRoundTripper.EXPECT().RoundTrip(gomock.Any(), gomock.Any(), gomock.Any(),
-				gomock.Any())
-
-			resolver := &svc.LegacyResolver{
-				LocalIA:      srcIA,
-				ConnFactory:  mockPacketDispatcherService,
-				LocalIP:      net.IP{192, 0, 2, 1},
-				RoundTripper: mockRoundTripper,
-			}
-			resolver.LookupSVC(context.Background(), mockPath, addr.SvcCS)
-		})
-	})
-}
 
 func TestResolver(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -120,7 +72,7 @@ func TestResolver(t *testing.T) {
 		mockRoundTripper.EXPECT().RoundTrip(gomock.Any(), gomock.Any(), gomock.Any(),
 			gomock.Any()).Do(
 			func(_, _ interface{}, pkt *snet.Packet, _ interface{}) {
-				pld := pkt.PayloadV2.(snet.UDPPayload)
+				pld := pkt.Payload.(snet.UDPPayload)
 				require.NoError(t, proto.Unmarshal(pld.Payload, &cppb.ServiceResolutionRequest{}))
 			})
 
@@ -177,21 +129,6 @@ func TestRoundTripper(t *testing.T) {
 			},
 		},
 		{
-			Description:    "if bad payload type, return error",
-			InputPacket:    &snet.Packet{},
-			InputUnderlay:  &net.UDPAddr{},
-			ErrorAssertion: require.Error,
-			ConnSetup: func(c *mock_snet.MockPacketConn) {
-				c.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(nil)
-				c.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(pkt *snet.Packet, _ *net.UDPAddr) error {
-						pkt.Payload = &ctrl.SignedPld{}
-						return nil
-					},
-				)
-			},
-		},
-		{
 			Description:    "if reply cannot be parsed, return error",
 			InputPacket:    &snet.Packet{},
 			InputUnderlay:  &net.UDPAddr{},
@@ -200,7 +137,7 @@ func TestRoundTripper(t *testing.T) {
 				c.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(nil)
 				c.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, _ *net.UDPAddr) error {
-						pkt.Payload = common.RawBytes{42}
+						pkt.Payload = snet.UDPPayload{Payload: common.RawBytes{42}}
 						return nil
 					},
 				)
@@ -219,7 +156,7 @@ func TestRoundTripper(t *testing.T) {
 						if err != nil {
 							panic(err)
 						}
-						pkt.Payload = common.RawBytes(raw)
+						pkt.Payload = snet.UDPPayload{Payload: raw}
 						return nil
 					},
 				)

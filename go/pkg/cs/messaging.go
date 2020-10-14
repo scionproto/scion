@@ -53,7 +53,6 @@ func NewOneHopConn(ia addr.IA, pub *net.UDPAddr, disp string,
 	}
 	pktDisp := &snet.DefaultPacketDispatcherService{
 		Dispatcher: dispatcherService,
-		Version2:   true,
 	}
 	// We do not need to drain the connection, since the src address is spoofed
 	// to contain the topo address.

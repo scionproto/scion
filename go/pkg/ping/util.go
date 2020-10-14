@@ -47,8 +47,8 @@ func pack(local, remote *snet.UDPAddr, req snet.SCMPEchoRequest) (*snet.Packet, 
 				IA:   local.IA,
 				Host: addr.HostFromIP(local.Host.IP),
 			},
-			Path:      remote.Path,
-			PayloadV2: req,
+			Path:    remote.Path,
+			Payload: req,
 		},
 	}
 	return pkt, nil

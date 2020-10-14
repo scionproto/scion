@@ -60,7 +60,6 @@ var _ Network = (*SCIONNetwork)(nil)
 type SCIONNetwork struct {
 	LocalIA    addr.IA
 	Dispatcher PacketDispatcherService
-	Version2   bool
 }
 
 // NewNetwork creates a new networking context.
@@ -71,8 +70,8 @@ func NewNetwork(ia addr.IA, dispatcher reliable.Dispatcher,
 		LocalIA: ia,
 		Dispatcher: &DefaultPacketDispatcherService{
 			Dispatcher: dispatcher,
-			SCMPHandler: &legacySCMPHandler{
-				revocationHandler: revHandler,
+			SCMPHandler: &DefaultSCMPHandler{
+				RevocationHandler: revHandler,
 			},
 		},
 	}
@@ -138,7 +137,6 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		scionNet: n,
 		svc:      svc,
 		listen:   CopyUDPAddr(listen),
-		version2: n.Version2,
 	}
 	packetConn, port, err := conn.scionNet.Dispatcher.Register(ctx, n.LocalIA, listen, svc)
 	if err != nil {
@@ -149,5 +147,5 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		conn.listen.Port = int(port)
 	}
 	log.Debug("Registered with dispatcher", "addr", &UDPAddr{IA: n.LocalIA, Host: conn.listen})
-	return newConn(conn, packetConn, n.Version2), nil
+	return newConn(conn, packetConn), nil
 }

@@ -84,7 +84,7 @@ func (s *Sender) CreatePkt(msg *Msg) (*snet.Packet, error) {
 				Host: addr.HostFromIP(s.Addr.IP),
 			},
 			Path: (*spath.Path)(path),
-			PayloadV2: snet.UDPPayload{
+			Payload: snet.UDPPayload{
 				SrcPort: uint16(s.Addr.Port),
 				Payload: msg.Pld,
 			},

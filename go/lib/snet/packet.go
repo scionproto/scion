@@ -22,7 +22,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
@@ -307,7 +306,7 @@ func (p *Packet) Decode() error {
 	}
 	switch l4 {
 	case slayers.LayerTypeSCIONUDP:
-		p.PayloadV2 = UDPPayload{
+		p.Payload = UDPPayload{
 			SrcPort: uint16(udpLayer.SrcPort),
 			DstPort: uint16(udpLayer.DstPort),
 			Payload: udpLayer.Payload,
@@ -329,7 +328,7 @@ func (p *Packet) Decode() error {
 					"scmp.type", scmpLayer.TypeCode,
 					"payload.type", common.TypeOf(layer))
 			}
-			p.PayloadV2 = SCMPDestinationUnreachable{
+			p.Payload = SCMPDestinationUnreachable{
 				code:    scmpLayer.TypeCode.Code(),
 				Payload: v.Payload,
 			}
@@ -340,7 +339,7 @@ func (p *Packet) Decode() error {
 					"scmp.type", scmpLayer.TypeCode,
 					"payload.type", common.TypeOf(layer))
 			}
-			p.PayloadV2 = SCMPExternalInterfaceDown{
+			p.Payload = SCMPExternalInterfaceDown{
 				IA:        v.IA,
 				Interface: v.IfID,
 				Payload:   v.Payload,
@@ -352,7 +351,7 @@ func (p *Packet) Decode() error {
 					"scmp.type", scmpLayer.TypeCode,
 					"payload.type", common.TypeOf(layer))
 			}
-			p.PayloadV2 = SCMPInternalConnectivityDown{
+			p.Payload = SCMPInternalConnectivityDown{
 				IA:      v.IA,
 				Ingress: v.Ingress,
 				Egress:  v.Egress,
@@ -365,7 +364,7 @@ func (p *Packet) Decode() error {
 					"scmp.type", scmpLayer.TypeCode,
 					"payload.type", common.TypeOf(layer))
 			}
-			p.PayloadV2 = SCMPEchoRequest{
+			p.Payload = SCMPEchoRequest{
 				Identifier: v.Identifier,
 				SeqNumber:  v.SeqNumber,
 				Payload:    v.Payload,
@@ -377,7 +376,7 @@ func (p *Packet) Decode() error {
 					"scmp.type", scmpLayer.TypeCode,
 					"payload.type", common.TypeOf(layer))
 			}
-			p.PayloadV2 = SCMPEchoReply{
+			p.Payload = SCMPEchoReply{
 				Identifier: v.Identifier,
 				SeqNumber:  v.SeqNumber,
 				Payload:    v.Payload,
@@ -389,7 +388,7 @@ func (p *Packet) Decode() error {
 					"scmp.type", scmpLayer.TypeCode,
 					"payload.type", common.TypeOf(layer))
 			}
-			p.PayloadV2 = SCMPTracerouteRequest{
+			p.Payload = SCMPTracerouteRequest{
 				Identifier: v.Identifier,
 				Sequence:   v.Sequence,
 			}
@@ -400,7 +399,7 @@ func (p *Packet) Decode() error {
 					"scmp.type", scmpLayer.TypeCode,
 					"payload.type", common.TypeOf(layer))
 			}
-			p.PayloadV2 = SCMPTracerouteReply{
+			p.Payload = SCMPTracerouteReply{
 				Identifier: v.Identifier,
 				Sequence:   v.Sequence,
 				IA:         v.IA,
@@ -419,7 +418,7 @@ func (p *Packet) Serialize() error {
 	if p.Path != nil && !p.Path.IsHeaderV2() {
 		return serrors.New("Serialize only works for v2")
 	}
-	if p.PayloadV2 == nil {
+	if p.Payload == nil {
 		return serrors.New("no payload set")
 	}
 	var packetLayers []gopacket.SerializableLayer
@@ -474,7 +473,7 @@ func (p *Packet) Serialize() error {
 		scionLayer.Path = &decodedPath
 	}
 	packetLayers = append(packetLayers, &scionLayer)
-	packetLayers = append(packetLayers, p.PayloadV2.toLayers(&scionLayer)...)
+	packetLayers = append(packetLayers, p.Payload.toLayers(&scionLayer)...)
 
 	buffer := gopacket.NewSerializeBuffer()
 	options := gopacket.SerializeOptions{
@@ -506,28 +505,8 @@ type PacketInfo struct {
 	// If the source and destination are in different ASes but the path is
 	// nil or empty, an error is returned during serialization.
 	Path *spath.Path
-	// PayloadV2 is the Payload of the message.
-	PayloadV2 Payload
-
-	// Deprecated V1 fields:
-
-	// Extensions contains SCION HBH and E2E extensions. When received from a
-	// RawSCIONConn, extensions are present in the order they were found in the packet.
-	//
-	// When writing to a RawSCIONConn, the serializer will attempt
-	// to reorder the extensions, depending on their type, in the correct
-	// order. If the number of extensions is over the limit allowed by SCION,
-	// serialization will fail. Whenever multiple orders are valid, the stable
-	// sorting is preferred. The extensions are sorted in place, so callers
-	// should expect the order to change after a write.
-	//
-	// The SCMP HBH extension needs to be manually included by calling code,
-	// even when the L4Header and Payload demand one (as is the case, for
-	// example, for a SCMP::General::RecordPathRequest packet).
-	Extensions []common.Extension
-	// L4Header contains L4 header information.
-	L4Header l4.L4Header
-	Payload  common.Payload
+	// Payload is the Payload of the message.
+	Payload Payload
 }
 
 func netAddrToHostAddr(a net.Addr) (addr.HostAddr, error) {
