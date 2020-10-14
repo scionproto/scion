@@ -75,6 +75,9 @@ func (c *Connector) AddExternalInterface(localIfID common.IFIDType, link control
 	if err := c.DataPlane.AddLinkType(intf, link.LinkTo); err != nil {
 		return serrors.WrapStr("adding link type", err, "if_id", localIfID)
 	}
+	if err := c.DataPlane.AddNeighborIA(intf, link.Remote.IA); err != nil {
+		return serrors.WrapStr("adding neighboring IA", err, "if_id", localIfID)
+	}
 
 	if !owned {
 		if !link.BFD.Disable {

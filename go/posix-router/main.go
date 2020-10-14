@@ -30,7 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/router"
-	"github.com/scionproto/scion/go/pkg/router/brconf"
+	brconf "github.com/scionproto/scion/go/pkg/router/config"
 	"github.com/scionproto/scion/go/pkg/router/control"
 	"github.com/scionproto/scion/go/pkg/service"
 )
@@ -65,17 +65,17 @@ func main() {
 
 func run(file string, metrics *router.Metrics) error {
 	fatal.Init()
-	cfg, err := setupBasic(file)
+	fileConfig, err := setupBasic(file)
 	if err != nil {
 		return err
 	}
 	defer log.Flush()
-	defer env.LogAppStopped("BR", cfg.General.ID)
+	defer env.LogAppStopped("BR", fileConfig.General.ID)
 	defer log.HandlePanic()
-	if err := validateCfg(cfg); err != nil {
+	if err := validateCfg(fileConfig); err != nil {
 		return err
 	}
-	brConf, err := loadBRConf(cfg)
+	controlConfig, err := loadControlConfig(fileConfig)
 	if err != nil {
 		return err
 	}
@@ -87,14 +87,14 @@ func run(file string, metrics *router.Metrics) error {
 		},
 	}
 	iaCtx := &control.IACtx{
-		BRConf: brConf,
+		Config: controlConfig,
 		DP:     dp,
 		Stop:   stop,
 	}
 	if err := iaCtx.Start(wg); err != nil {
 		return serrors.WrapStr("starting dataplane", err)
 	}
-	if err := setupHTTPHandlers(cfg); err != nil {
+	if err := setupHTTPHandlers(fileConfig); err != nil {
 		return serrors.WrapStr("starting HTTP endpoints", err)
 	}
 	if err := dp.DataPlane.Run(); err != nil {
@@ -138,8 +138,8 @@ func validateCfg(cfg brconf.Config) error {
 	return nil
 }
 
-func loadBRConf(cfg brconf.Config) (*brconf.BRConf, error) {
-	newConf, err := brconf.Load(cfg.General.ID, cfg.General.ConfigDir)
+func loadControlConfig(cfg brconf.Config) (*control.Config, error) {
+	newConf, err := control.LoadConfig(cfg.General.ID, cfg.General.ConfigDir)
 	if err != nil {
 		return nil, serrors.WrapStr("loading topology", err)
 	}

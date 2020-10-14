@@ -18,40 +18,15 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
-	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/scrypto/signed"
-	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/proto"
 )
-
-// Interface Transport wraps around low-level networking objects to provide
-// reliable and unreliable delivery of network packets, together with
-// context-aware networking that can be used to construct handlers with
-// timeouts.
-//
-// Transport layers must be safe for concurrent use by multiple goroutines.
-type Transport interface {
-	// Send an unreliable message. Unreliable transport layers do not request
-	// an ACK. For reliable transport layers, this is the same as SendMsgTo.
-	SendUnreliableMsgTo(context.Context, common.RawBytes, net.Addr) error
-	// Send a reliable message. Unreliable transport layers block here waiting
-	// for the message to be ACK'd. Reliable transport layers return
-	// immediately.
-	SendMsgTo(context.Context, common.RawBytes, net.Addr) error
-	// Receive a message.
-	RecvFrom(context.Context) (common.RawBytes, net.Addr, error)
-	// Clean up.
-	Close(context.Context) error
-}
 
 // Handler is implemented by objects that can handle a request coming
 // from a remote SCION network node.
@@ -219,22 +194,6 @@ func NewResourceAwareHandler(handler Handler, resources ...ResourceHealth) Handl
 	})
 }
 
-type Messenger interface {
-	SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id uint64) error
-	// SendIfId sends a reliable ifid.IFID to address a.
-	SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id uint64) error
-	SendHPSegReg(ctx context.Context, msg *path_mgmt.HPSegReg, a net.Addr, id uint64) error
-	GetHPSegs(ctx context.Context, msg *path_mgmt.HPSegReq, a net.Addr,
-		id uint64) (*path_mgmt.HPSegReply, error)
-	SendHPSegReply(ctx context.Context, msg *path_mgmt.HPSegReply, a net.Addr, id uint64) error
-	GetHPCfgs(ctx context.Context, msg *path_mgmt.HPCfgReq, a net.Addr,
-		id uint64) (*path_mgmt.HPCfgReply, error)
-	SendHPCfgReply(ctx context.Context, msg *path_mgmt.HPCfgReply, a net.Addr, id uint64) error
-	AddHandler(msgType MessageType, h Handler)
-	ListenAndServe()
-	CloseServer() error
-}
-
 type ResponseWriter interface {
 	SendAckReply(ctx context.Context, msg *ack.Ack) error
 	SendHPSegReply(ctx context.Context, msg *path_mgmt.HPSegReply) error
@@ -259,20 +218,6 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("rpc: error from remote: %q", e.Message.ErrDesc)
 }
 
-// SignatureTimestampRange configures the range a signature timestamp is
-// considered valid. This allows for small clock drifts in the network.
-type SignatureTimestampRange struct {
-	// MaxPldAge determines the maximum age of a control payload signature.
-	MaxPldAge time.Duration
-	// MaxInFuture determines the maximum time a timestamp may be in the future.
-	MaxInFuture time.Duration
-}
-
-type LegacyVerifier interface {
-	ctrl.Verifier
-	Verifier
-}
-
 // Verifier is used to verify payloads signed with control-plane PKI
 // certificates.
 type Verifier interface {
@@ -288,8 +233,6 @@ type Verifier interface {
 var (
 	// NullSigner is a Signer that creates SignedPld's with no signature.
 	NullSigner ctrl.Signer = nullSigner{}
-	// NullSigVerifier ignores signatures on all messages.
-	NullSigVerifier LegacyVerifier = nullSigVerifier{}
 )
 
 var _ ctrl.Signer = nullSigner{}
@@ -298,37 +241,4 @@ type nullSigner struct{}
 
 func (nullSigner) SignLegacy(context.Context, []byte) (*proto.SignS, error) {
 	return &proto.SignS{}, nil
-}
-
-var _ Verifier = nullSigVerifier{}
-
-type nullSigVerifier struct{}
-
-func (nullSigVerifier) Verify(_ context.Context, msg *cryptopb.SignedMessage,
-	_ ...[]byte) (*signed.Message, error) {
-
-	hdr, err := signed.ExtractUnverifiedHeader(msg)
-	if err != nil {
-		return nil, err
-	}
-	body, err := signed.ExtractUnverifiedBody(msg)
-	if err != nil {
-		return nil, err
-	}
-	return &signed.Message{
-		Header: signed.Header(*hdr),
-		Body:   body,
-	}, nil
-}
-
-func (nullSigVerifier) VerifyPld(_ context.Context, spld *ctrl.SignedPld) (*ctrl.Pld, error) {
-	return spld.UnsafePld()
-}
-
-func (nullSigVerifier) WithServer(_ net.Addr) Verifier {
-	return nullSigVerifier{}
-}
-
-func (nullSigVerifier) WithIA(_ addr.IA) Verifier {
-	return nullSigVerifier{}
 }

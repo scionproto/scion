@@ -14,13 +14,10 @@ go_library(
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl:go_default_library",
         "//go/lib/ctrl/ack:go_default_library",
-        "//go/lib/ctrl/ifid:go_default_library",
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/prom:go_default_library",
-        "//go/lib/scrypto/signed:go_default_library",
-        "//go/pkg/proto/crypto:go_default_library",
         "//go/proto:go_default_library",
     ],
 )

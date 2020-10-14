@@ -109,39 +109,30 @@ type CtrlPld_Which uint16
 const (
 	CtrlPld_Which_unset     CtrlPld_Which = 0
 	CtrlPld_Which_pcb       CtrlPld_Which = 1
-	CtrlPld_Which_ifid      CtrlPld_Which = 2
-	CtrlPld_Which_certMgmt  CtrlPld_Which = 3
-	CtrlPld_Which_pathMgmt  CtrlPld_Which = 4
-	CtrlPld_Which_sibra     CtrlPld_Which = 5
-	CtrlPld_Which_drkeyMgmt CtrlPld_Which = 6
-	CtrlPld_Which_sig       CtrlPld_Which = 7
-	CtrlPld_Which_extn      CtrlPld_Which = 8
-	CtrlPld_Which_ack       CtrlPld_Which = 9
+	CtrlPld_Which_pathMgmt  CtrlPld_Which = 2
+	CtrlPld_Which_sibra     CtrlPld_Which = 3
+	CtrlPld_Which_drkeyMgmt CtrlPld_Which = 4
+	CtrlPld_Which_sig       CtrlPld_Which = 5
+	CtrlPld_Which_ack       CtrlPld_Which = 6
 )
 
 func (w CtrlPld_Which) String() string {
-	const s = "unsetpcbifidcertMgmtpathMgmtsibradrkeyMgmtsigextnack"
+	const s = "unsetpcbpathMgmtsibradrkeyMgmtsigack"
 	switch w {
 	case CtrlPld_Which_unset:
 		return s[0:5]
 	case CtrlPld_Which_pcb:
 		return s[5:8]
-	case CtrlPld_Which_ifid:
-		return s[8:12]
-	case CtrlPld_Which_certMgmt:
-		return s[12:20]
 	case CtrlPld_Which_pathMgmt:
-		return s[20:28]
+		return s[8:16]
 	case CtrlPld_Which_sibra:
-		return s[28:33]
+		return s[16:21]
 	case CtrlPld_Which_drkeyMgmt:
-		return s[33:42]
+		return s[21:30]
 	case CtrlPld_Which_sig:
-		return s[42:45]
-	case CtrlPld_Which_extn:
-		return s[45:49]
+		return s[30:33]
 	case CtrlPld_Which_ack:
-		return s[49:52]
+		return s[33:36]
 
 	}
 	return "CtrlPld_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -211,74 +202,8 @@ func (s CtrlPld) NewPcb() (PCB, error) {
 	return ss, err
 }
 
-func (s CtrlPld) Ifid() (IFID, error) {
-	if s.Struct.Uint16(0) != 2 {
-		panic("Which() != ifid")
-	}
-	p, err := s.Struct.Ptr(0)
-	return IFID{Struct: p.Struct()}, err
-}
-
-func (s CtrlPld) HasIfid() bool {
-	if s.Struct.Uint16(0) != 2 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s CtrlPld) SetIfid(v IFID) error {
-	s.Struct.SetUint16(0, 2)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
-
-// NewIfid sets the ifid field to a newly
-// allocated IFID struct, preferring placement in s's segment.
-func (s CtrlPld) NewIfid() (IFID, error) {
-	s.Struct.SetUint16(0, 2)
-	ss, err := NewIFID(s.Struct.Segment())
-	if err != nil {
-		return IFID{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
-func (s CtrlPld) CertMgmt() (CertMgmt, error) {
-	if s.Struct.Uint16(0) != 3 {
-		panic("Which() != certMgmt")
-	}
-	p, err := s.Struct.Ptr(0)
-	return CertMgmt{Struct: p.Struct()}, err
-}
-
-func (s CtrlPld) HasCertMgmt() bool {
-	if s.Struct.Uint16(0) != 3 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s CtrlPld) SetCertMgmt(v CertMgmt) error {
-	s.Struct.SetUint16(0, 3)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
-
-// NewCertMgmt sets the certMgmt field to a newly
-// allocated CertMgmt struct, preferring placement in s's segment.
-func (s CtrlPld) NewCertMgmt() (CertMgmt, error) {
-	s.Struct.SetUint16(0, 3)
-	ss, err := NewCertMgmt(s.Struct.Segment())
-	if err != nil {
-		return CertMgmt{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
 func (s CtrlPld) PathMgmt() (PathMgmt, error) {
-	if s.Struct.Uint16(0) != 4 {
+	if s.Struct.Uint16(0) != 2 {
 		panic("Which() != pathMgmt")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -286,7 +211,7 @@ func (s CtrlPld) PathMgmt() (PathMgmt, error) {
 }
 
 func (s CtrlPld) HasPathMgmt() bool {
-	if s.Struct.Uint16(0) != 4 {
+	if s.Struct.Uint16(0) != 2 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -294,14 +219,14 @@ func (s CtrlPld) HasPathMgmt() bool {
 }
 
 func (s CtrlPld) SetPathMgmt(v PathMgmt) error {
-	s.Struct.SetUint16(0, 4)
+	s.Struct.SetUint16(0, 2)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewPathMgmt sets the pathMgmt field to a newly
 // allocated PathMgmt struct, preferring placement in s's segment.
 func (s CtrlPld) NewPathMgmt() (PathMgmt, error) {
-	s.Struct.SetUint16(0, 4)
+	s.Struct.SetUint16(0, 2)
 	ss, err := NewPathMgmt(s.Struct.Segment())
 	if err != nil {
 		return PathMgmt{}, err
@@ -311,7 +236,7 @@ func (s CtrlPld) NewPathMgmt() (PathMgmt, error) {
 }
 
 func (s CtrlPld) Sibra() (SibraPayload, error) {
-	if s.Struct.Uint16(0) != 5 {
+	if s.Struct.Uint16(0) != 3 {
 		panic("Which() != sibra")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -319,7 +244,7 @@ func (s CtrlPld) Sibra() (SibraPayload, error) {
 }
 
 func (s CtrlPld) HasSibra() bool {
-	if s.Struct.Uint16(0) != 5 {
+	if s.Struct.Uint16(0) != 3 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -327,14 +252,14 @@ func (s CtrlPld) HasSibra() bool {
 }
 
 func (s CtrlPld) SetSibra(v SibraPayload) error {
-	s.Struct.SetUint16(0, 5)
+	s.Struct.SetUint16(0, 3)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSibra sets the sibra field to a newly
 // allocated SibraPayload struct, preferring placement in s's segment.
 func (s CtrlPld) NewSibra() (SibraPayload, error) {
-	s.Struct.SetUint16(0, 5)
+	s.Struct.SetUint16(0, 3)
 	ss, err := NewSibraPayload(s.Struct.Segment())
 	if err != nil {
 		return SibraPayload{}, err
@@ -344,7 +269,7 @@ func (s CtrlPld) NewSibra() (SibraPayload, error) {
 }
 
 func (s CtrlPld) DrkeyMgmt() (DRKeyMgmt, error) {
-	if s.Struct.Uint16(0) != 6 {
+	if s.Struct.Uint16(0) != 4 {
 		panic("Which() != drkeyMgmt")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -352,7 +277,7 @@ func (s CtrlPld) DrkeyMgmt() (DRKeyMgmt, error) {
 }
 
 func (s CtrlPld) HasDrkeyMgmt() bool {
-	if s.Struct.Uint16(0) != 6 {
+	if s.Struct.Uint16(0) != 4 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -360,14 +285,14 @@ func (s CtrlPld) HasDrkeyMgmt() bool {
 }
 
 func (s CtrlPld) SetDrkeyMgmt(v DRKeyMgmt) error {
-	s.Struct.SetUint16(0, 6)
+	s.Struct.SetUint16(0, 4)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewDrkeyMgmt sets the drkeyMgmt field to a newly
 // allocated DRKeyMgmt struct, preferring placement in s's segment.
 func (s CtrlPld) NewDrkeyMgmt() (DRKeyMgmt, error) {
-	s.Struct.SetUint16(0, 6)
+	s.Struct.SetUint16(0, 4)
 	ss, err := NewDRKeyMgmt(s.Struct.Segment())
 	if err != nil {
 		return DRKeyMgmt{}, err
@@ -377,7 +302,7 @@ func (s CtrlPld) NewDrkeyMgmt() (DRKeyMgmt, error) {
 }
 
 func (s CtrlPld) Sig() (SIGCtrl, error) {
-	if s.Struct.Uint16(0) != 7 {
+	if s.Struct.Uint16(0) != 5 {
 		panic("Which() != sig")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -385,7 +310,7 @@ func (s CtrlPld) Sig() (SIGCtrl, error) {
 }
 
 func (s CtrlPld) HasSig() bool {
-	if s.Struct.Uint16(0) != 7 {
+	if s.Struct.Uint16(0) != 5 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -393,14 +318,14 @@ func (s CtrlPld) HasSig() bool {
 }
 
 func (s CtrlPld) SetSig(v SIGCtrl) error {
-	s.Struct.SetUint16(0, 7)
+	s.Struct.SetUint16(0, 5)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewSig sets the sig field to a newly
 // allocated SIGCtrl struct, preferring placement in s's segment.
 func (s CtrlPld) NewSig() (SIGCtrl, error) {
-	s.Struct.SetUint16(0, 7)
+	s.Struct.SetUint16(0, 5)
 	ss, err := NewSIGCtrl(s.Struct.Segment())
 	if err != nil {
 		return SIGCtrl{}, err
@@ -409,41 +334,8 @@ func (s CtrlPld) NewSig() (SIGCtrl, error) {
 	return ss, err
 }
 
-func (s CtrlPld) Extn() (CtrlExtnDataList, error) {
-	if s.Struct.Uint16(0) != 8 {
-		panic("Which() != extn")
-	}
-	p, err := s.Struct.Ptr(0)
-	return CtrlExtnDataList{Struct: p.Struct()}, err
-}
-
-func (s CtrlPld) HasExtn() bool {
-	if s.Struct.Uint16(0) != 8 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s CtrlPld) SetExtn(v CtrlExtnDataList) error {
-	s.Struct.SetUint16(0, 8)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
-
-// NewExtn sets the extn field to a newly
-// allocated CtrlExtnDataList struct, preferring placement in s's segment.
-func (s CtrlPld) NewExtn() (CtrlExtnDataList, error) {
-	s.Struct.SetUint16(0, 8)
-	ss, err := NewCtrlExtnDataList(s.Struct.Segment())
-	if err != nil {
-		return CtrlExtnDataList{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
 func (s CtrlPld) Ack() (Ack, error) {
-	if s.Struct.Uint16(0) != 9 {
+	if s.Struct.Uint16(0) != 6 {
 		panic("Which() != ack")
 	}
 	p, err := s.Struct.Ptr(0)
@@ -451,7 +343,7 @@ func (s CtrlPld) Ack() (Ack, error) {
 }
 
 func (s CtrlPld) HasAck() bool {
-	if s.Struct.Uint16(0) != 9 {
+	if s.Struct.Uint16(0) != 6 {
 		return false
 	}
 	p, err := s.Struct.Ptr(0)
@@ -459,14 +351,14 @@ func (s CtrlPld) HasAck() bool {
 }
 
 func (s CtrlPld) SetAck(v Ack) error {
-	s.Struct.SetUint16(0, 9)
+	s.Struct.SetUint16(0, 6)
 	return s.Struct.SetPtr(0, v.Struct.ToPtr())
 }
 
 // NewAck sets the ack field to a newly
 // allocated Ack struct, preferring placement in s's segment.
 func (s CtrlPld) NewAck() (Ack, error) {
-	s.Struct.SetUint16(0, 9)
+	s.Struct.SetUint16(0, 6)
 	ss, err := NewAck(s.Struct.Segment())
 	if err != nil {
 		return Ack{}, err
@@ -527,14 +419,6 @@ func (p CtrlPld_Promise) Pcb() PCB_Promise {
 	return PCB_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p CtrlPld_Promise) Ifid() IFID_Promise {
-	return IFID_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p CtrlPld_Promise) CertMgmt() CertMgmt_Promise {
-	return CertMgmt_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
 func (p CtrlPld_Promise) PathMgmt() PathMgmt_Promise {
 	return PathMgmt_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
@@ -551,53 +435,43 @@ func (p CtrlPld_Promise) Sig() SIGCtrl_Promise {
 	return SIGCtrl_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p CtrlPld_Promise) Extn() CtrlExtnDataList_Promise {
-	return CtrlExtnDataList_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
 func (p CtrlPld_Promise) Ack() Ack_Promise {
 	return Ack_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-const schema_df42b02816bdc1bf = "x\xdaD\xd2MHTk\x1c\x06\xf0\xe7y\xcf|\xeb" +
-	"0\xe7p\x0eww\x11..T\xee\xbd\xa8\x08\x97+" +
-	"\xf7r\xfd\xb8\x92#N8\x1d\x037\xa53s\xc6q" +
-	"r\x9c\x8eg\x8e\xa8\x10T .\xc3EA\x05\x11\xad" +
-	"Z\x15\x09\x81\x14X\x89\x04\x12\x04\xd1BZ\x04\xd1\xa2" +
-	"M\xb40\xe9\xc3\xb4z\xe3\x1dfrw\xf8\xff\xce\xfb" +
-	">\xff\x17\x1e}\xbfG\x18\xc15 \x1d\x09\x86\xe4\xe8" +
-	"\xf5\xc1\xf9\xad\xddS\x17\x90NP\xc8\x87\x1b\xeb\xbf\xb4" +
-	"\xdc\xe9{\x85\x01\x11\x8e\x01F\xef}#\x19\x06:\x06" +
-	"n\x0aP^\xd9\xf1W\x17\x1e\x0fm\xc2H\xf0\xf0\xd7" +
-	"\xa0\x08\x03fP{k\x1a\x9a\xfa\x8ak\xf3\xa0\xcc\xf9" +
-	"^i\xdc-9\xfc3\x97q\xcbnw\xff\x7f\xbeW" +
-	"\x1a)9#d\xba]\x0b4J\x19 `\xf6\xb2\x13" +
-	"\xb0\xff\xa1F{\x90\x82q~\x97\x16\x15\x0c\xf07\xc0" +
-	"\xeeQ0\xac@|\x93\x16\x05`&\xd9\x06\xd8\xff+" +
-	"\x18Q\xa0}\x95\x165\xc0Lq\x08\xb0\x87\x15\x8c)" +
-	"\x08\x1cH\x8b\x01\xc0<^\x85Q\x05\x13\x0a\x82\xfb\xd2" +
-	"b\x100OT\xc3\xc7\x148\x0aB_\xa4\xc5\x10`" +
-	"fx\x0c\xb0'\x14\x94\x14\x84\xf7\xa4E\xf5\xb6bu" +
-	"+G\x81\xab \xf2YZ\x8c\x00\xe6Lu\xab)\x05" +
-	">\x05\x8d\x18-F\x01s\xb6\x1aQR\xf3\x055o" +
-	"\xa0\xc5\x18`\xce\xb1\x0f\xb0]5?\xa3.\x8a~\x92" +
-	"\x16\x1b\x00s\xb1\x9a\xe0+8G\xc1\xa6\xb9r%\xef" +
-	"#\x14vsY\xea\xf2Mz\xf1\xaf\xdc\x91G\xdb\x00" +
-	"\xa9\x83\x89\xe2d\xd1\xa1.\xef\xb5\x06\xf7\xcc\x83K\xd7" +
-	"jc\x99\xcb{~\xaa0\xe3\x03\xa0.\xff~\xf1n" +
-	"\xf9\xae\xbbr\xa3\xaen\xc6\x9f:\xd4'\xcf\xae6\xf6" +
-	"\xed\xff^\xd7\xa6J1\xebe\xa8\xcb\x95\xcd\xa5\xf1\x8f" +
-	"[\x1d\xbb\xf5S\x8e7\x9d_L\x15f@_\x9dz" +
-	"o\x1el\xaf\xad\xaf\xd64\\)\x16\xa8\xcb\xc8\xbf\x9d" +
-	"\x95\xd6\xe6\x93\xaf\xeb\xeb\xe5\x17\xfc2u9\xb9!\x96" +
-	"\x1f\xfc:\xf1\xb4\x1e\xe1\xe5g\x93\x0e\xa3\x10\x8c\x82g" +
-	"}/\x93\xcb'\x1d\xc6!\x18\x07\xc3\x99\xdc4u\xf9" +
-	"\xf2v\xd7\xf3\xee\xcb\xb7v~>\xa9\xd6'Q\xeb\x93" +
-	"],\x94\xf3N\xbf\xef%\xea\xad\x8ah\x01@\x95\xca" +
-	"hm\x03\xd2\xcd\x1a\xd3\xed\x82\x06Y-\x94\xf1\x87\x1a" +
-	"\xb6hLw\x09&\xb2\xa5\xd3\xd9z`\xa2R,\xa8" +
-	"-c\xe7\x8f~p.\xa6\x96j\x89?\x02\x00\x00\xff" +
-	"\xff\xf6\xaa\xbf\x18"
+const schema_df42b02816bdc1bf = "x\xdaL\x91\xc1K\x14o\x1c\x87?\x9fwfw\xc6" +
+	"\x1f;\xec\x0c3\xbf\xe8\x10\x08\xe2A\xa3\"E\x08\x84" +
+	"\xa8\x14)\x85\x0d_\xa7\x0e]\x92\xdd\x99e\xdb\\\xb7" +
+	"mv\xc2<E\xe09:t\xa8.\xd1\x1fP\xe4I" +
+	"\x08\xa4B\x02\x89\x0e\xd1\xc1S\x10\x1d\x82\x88\x02\x15\x05" +
+	"\xd3\xec\x8dw\xdb\xa5n\xc3\xf3\xcc\xf7\xfb\xbe/\x8f\xfb" +
+	"\xf6\xb4\xf02K\x80\xb43Yu\xe1\xd1\xb9\xb9\xd5\xcd" +
+	"\xabw \xf3\x14\xea\xc5\xab\xe5\x03}\xcfF>bL" +
+	"X\x16\xe0\x9dy\xee\x8d[\xc0\xc0\x98\"\xa8\x1e\xac\xa7" +
+	"\x8b7_O\xac\xc0\xcb\xf3\xef\xaf\x19a\x01~A|" +
+	"\xf5/\xb5\xbe.\x8a9PEiR\x9bn\xd4b\x1e" +
+	"\x8b\x8a\x8dzcx\xf4T\x9a\xd4&k\xf1$){" +
+	"\x0d3\xa7\x94I\xc0\xfb>\x08\xc8/\x06\xe5\x96\xa0\xc3" +
+	"_*\xa0\xa6\x1b=\x80\xfcfP\xee\x08:b_\x05" +
+	"\x14\x80\xb7=\x01\xc8-\x83S\x14t\x8c\x9f*\xa0\x01" +
+	"x\xfbz\xc3\x8e\xc1\xd0\xd4\xd8\xdcS\x01M\xc0'\xa7" +
+	"\x80)\x1a\x0cs\x9agvU\xc0\x0c\xe0w\xb1\x07\x08" +
+	"M-\\-\xb2?T\xc0,\xe0;-ak\x11P" +
+	"\xd0\xb3\x18P?\xc7\xe3 \x10\xe64?\xa8\xb9\xcd\x80" +
+	"6\xe0\xff\xcf\x11 t5?D\xc1\xee\x1b\xf5f9" +
+	"E\xd6jD%\xba\xea\xb3\x9c?\x11\x9d}\xb9\x06\x90" +
+	".\xa8\x1a\xc5\xf4J\xa12\x9b\x02\xa0\xab\xde\xbc{\x98" +
+	"\x1b\xd9=\xf2\xb8m\xbb\x9b\xd5RR\xa4\xab\xee\xae," +
+	"Lo\xaf\x0elv\xa6\xe2d\xa6<_\xa8\xcc\x82\xa9" +
+	"\x9e\xda\xf0\xf7\xd6\x96\x96\x17\xdb\xd6jV+t\x95}" +
+	"r\xb0\xd9\xdf{\xf9S\x87\x16\xa3\x19\xba\xea\xc3\xd3\xa1" +
+	"\xf7\xc3\xf7\x9f\xacwNH\xca\xd7\xc7cvA\xb0\x0b" +
+	"\xbc\x95&\xc5\xa8<\x1e\xd3\x81\xa0\xf3O,\xd1\x8e\x15" +
+	"V+\xf5r<\x9a&\xf9N2\xdb0\x81V\xb1\xfe" +
+	"\xc3\x80\xec5(\x8f\x0bz\xe4\x9f`G5\xec3(" +
+	"\x87\x04\xf3\xa5\xda\xb5Rgu\xbeY\xad\xd4\xe9\xaa\xff" +
+	"n\x9f\xdf\x8a\xef\x15\x16\xda\xf7\xf9\x1d\x00\x00\xff\xff\xa4" +
+	"\x1d\x9b\x97"
 
 func init() {
 	schemas.Register(schema_df42b02816bdc1bf,

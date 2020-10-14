@@ -8,7 +8,7 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
-	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	seg "github.com/scionproto/scion/go/lib/ctrl/seg"
 	segfetcher "github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	seghandler "github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	net "net"
@@ -190,10 +190,10 @@ func (m *MockRPC) EXPECT() *MockRPCMockRecorder {
 }
 
 // Segments mocks base method
-func (m *MockRPC) Segments(arg0 context.Context, arg1 segfetcher.Request, arg2 net.Addr) (*path_mgmt.SegRecs, error) {
+func (m *MockRPC) Segments(arg0 context.Context, arg1 segfetcher.Request, arg2 net.Addr) ([]*seg.Meta, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Segments", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*path_mgmt.SegRecs)
+	ret0, _ := ret[0].([]*seg.Meta)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

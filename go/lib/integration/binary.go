@@ -16,6 +16,7 @@ package integration
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -119,9 +120,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 		}
 		args = replacePattern(SCIOND, sciond, args)
 	}
-	r := &binaryWaiter{
-		exec.CommandContext(ctx, bi.cmd, args...),
-	}
+	r := exec.CommandContext(ctx, bi.cmd, args...)
 	log.Info(fmt.Sprintf("%v %v\n", bi.cmd, strings.Join(args, " ")))
 	r.Env = os.Environ()
 	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
@@ -176,7 +175,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 }
 
 func (bi *binaryIntegration) StartClient(ctx context.Context,
-	src, dst *snet.UDPAddr) (Waiter, error) {
+	src, dst *snet.UDPAddr) (*BinaryWaiter, error) {
 
 	args := replacePattern(SrcIAReplace, src.IA.String(), bi.clientArgs)
 	args = replacePattern(SrcHostReplace, src.Host.IP.String(), args)
@@ -190,30 +189,33 @@ func (bi *binaryIntegration) StartClient(ctx context.Context,
 		}
 		args = replacePattern(SCIOND, sciond, args)
 	}
-	r := &binaryWaiter{
-		exec.CommandContext(ctx, bi.cmd, args...),
+	r := &BinaryWaiter{
+		cmd:      exec.CommandContext(ctx, bi.cmd, args...),
+		waitDone: make(chan struct{}),
 	}
 	log.Info(fmt.Sprintf("%v %v\n", bi.cmd, strings.Join(args, " ")))
-	r.Env = os.Environ()
-	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
-	ep, err := r.StderrPipe()
+	r.cmd.Env = os.Environ()
+	r.cmd.Env = append(r.cmd.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
+	pr, pw, err := os.Pipe()
 	if err != nil {
-		return nil, err
+		return nil, serrors.WrapStr("creating pipe", err)
 	}
-	sp, err := r.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
+	r.cmd.Stderr = pw
+	r.cmd.Stdout = pw
+	defer pw.Close()
+
+	tpr := io.TeeReader(pr, &r.output)
 
 	go func() {
 		defer log.HandlePanic()
-		bi.writeLog("client", clientId(src, dst), fmt.Sprintf("%s -> %s", src.IA, dst.IA), ep)
+		bi.writeLog("client", clientID(src, dst), fmt.Sprintf("%s -> %s", src.IA, dst.IA), tpr)
 	}()
 	go func() {
 		defer log.HandlePanic()
-		bi.writeLog("client", clientId(src, dst), fmt.Sprintf("%s -> %s", src.IA, dst.IA), sp)
+		<-r.waitDone
+		pr.Close()
 	}()
-	return r, r.Start()
+	return r, r.cmd.Start()
 }
 
 func replacePattern(pattern string, replacement string, args []string) []string {
@@ -227,8 +229,7 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 	return argsCopy
 }
 
-func (bi *binaryIntegration) writeLog(name, id, startInfo string, ep io.ReadCloser) {
-	defer ep.Close()
+func (bi *binaryIntegration) writeLog(name, id, startInfo string, ep io.Reader) {
 	f, err := os.OpenFile(fmt.Sprintf("%s/%s_%s.log", bi.logDir, name, id),
 		os.O_CREATE|os.O_WRONLY, os.FileMode(0644))
 	if err != nil {
@@ -263,12 +264,25 @@ func needSCIOND(args []string) bool {
 	}
 	return false
 }
-func clientId(src, dst *snet.UDPAddr) string {
+
+func clientID(src, dst *snet.UDPAddr) string {
 	return fmt.Sprintf("%s_%s", src.IA.FileFmt(false), dst.IA.FileFmt(false))
 }
 
-var _ Waiter = (*binaryWaiter)(nil)
+// BinaryWaiter can be used to wait on completion of the process.
+type BinaryWaiter struct {
+	cmd      *exec.Cmd
+	waitDone chan struct{}
+	output   bytes.Buffer
+}
 
-type binaryWaiter struct {
-	*exec.Cmd
+// Wait waits for completion of the process.
+func (bw *BinaryWaiter) Wait() error {
+	defer close(bw.waitDone)
+	return bw.cmd.Wait()
+}
+
+// Output is the output of the process, only available after Wait is returnred.
+func (bw *BinaryWaiter) Output() []byte {
+	return bw.output.Bytes()
 }

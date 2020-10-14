@@ -29,4 +29,6 @@ type Metrics struct {
 	// it detects the remote is not Up), barring some network delays, if the local session is Up the
 	// remote session is also Up.
 	Up metrics.Gauge
+	// StateChanges reports the total number of state changes of the session.
+	StateChanges metrics.Counter
 }

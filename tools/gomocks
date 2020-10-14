@@ -6,19 +6,17 @@ from plumbum import local
 from plumbum.cmd import cp, mkdir, rm, chmod
 
 MOCK_TARGETS = [
-    ("go/border/rctrl/grpc", "IfStateHandler"),
     ("go/cs/beacon", "DB,Transaction"),
     ("go/cs/beaconing",
         "BeaconInserter,BeaconProvider,BeaconSender,RPC,SegmentProvider,SegmentStore"),
     ("go/cs/ifstate", "InterfaceStateSender,RevInserter"),
-    ("go/cs/keepalive", "IfStatePusher,RevDropper"),
     ("go/cs/reservationstorage/backend", "DB,Transaction"),
     ("go/cs/segutil", "Policy"),
-    ("go/hidden_path_srv/internal/hpsegreq", "Fetcher"),
+    ("go/hidden_path_srv/internal/hpsegreq", "Fetcher,RPC"),
     ("go/hidden_path_srv/internal/registration", "Validator"),
     ("go/lib/ctrl/seg", "Signer"),
     ("go/lib/infra/messenger", "LocalSVCRouter,Resolver"),
-    ("go/lib/infra", "Messenger,ResponseWriter,Verifier,Handler"),
+    ("go/lib/infra", "ResponseWriter,Verifier,Handler"),
     ("go/lib/infra/modules/segfetcher",
         "DstProvider,ReplyHandler,Requester,Resolver,RPC,Splitter,LocalInfo"),
     ("go/lib/infra/modules/seghandler", "Storage,Verifier"),

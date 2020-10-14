@@ -85,11 +85,11 @@ func (s DaemonServer) paths(ctx context.Context,
 	}()
 	getPathsReply, err := s.Fetcher.GetPaths(ctx, iReq)
 	if err != nil {
-		log.FromCtx(ctx).Error("Fetching paths", "err", err, "req", iReq)
+		log.FromCtx(ctx).Debug("Fetching paths", "err", err, "req", iReq)
 		return nil, err
 	}
 	if getPathsReply.ErrorCode != sciond.ErrorOk {
-		log.FromCtx(ctx).Error("Fetching paths error code",
+		log.FromCtx(ctx).Debug("Fetching paths error code",
 			"code", getPathsReply.ErrorCode, "req", iReq)
 		return nil, serrors.New("error code", "code", getPathsReply.ErrorCode)
 	}

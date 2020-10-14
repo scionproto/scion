@@ -75,7 +75,7 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 		}
 		trc, err := db.SignedTRC(ctx, tid)
 		if err != nil {
-			return res, serrors.WithCtx(err, "file", f)
+			return res, serrors.WrapStr("loading TRC to verify certificate chain", err, "file", f)
 		}
 		if trc.IsZero() {
 			res.Ignored[f] = serrors.New("TRC not found", "isd", ia.I)
@@ -88,7 +88,7 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 		}
 		inserted, err := db.InsertChain(ctx, chain)
 		if err != nil {
-			return res, serrors.WithCtx(err, "file", f)
+			return res, serrors.WrapStr("inserting certificate chain", err, "file", f)
 		}
 		if !inserted {
 			res.Ignored[f] = serrors.Wrap(ErrAlreadyExists, err)

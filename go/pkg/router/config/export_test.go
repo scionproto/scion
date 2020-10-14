@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2019 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package messenger
+package config
 
-import (
-	"sync/atomic"
-
-	"github.com/scionproto/scion/go/lib/scrypto"
-)
-
-var (
-	counter = scrypto.RandUint64()
-)
-
-// NextId is a concurrency-safe generator of unique request IDs for the messenger.
-func NextId() uint64 {
-	return atomic.AddUint64(&counter, 1)
-}
+const IDSample = idSample

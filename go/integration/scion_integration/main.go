@@ -22,10 +22,14 @@ import (
 
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/app/feature"
 )
 
-var features string
+var (
+	features string
+	test     string
+)
 
 func main() {
 	os.Exit(realMain())
@@ -55,33 +59,51 @@ func realMain() int {
 			"--local", integration.SrcHostReplace,
 		)
 	}
-	cmnArgs = append(cmnArgs, integration.DstAddrPattern)
 	if len(features) != 0 {
 		cmnArgs = append(cmnArgs, "--features", features)
 	}
 
 	testCases := []struct {
-		Name  string
-		Args  []string
-		Pairs func(integration.HostAddr) []integration.IAPair
+		Name        string
+		Args        []string
+		Pairs       func(integration.HostAddr) []integration.IAPair
+		OutputCheck func([]byte) error
 	}{
 		{
-			Name:  "ping",
-			Args:  append([]string{"./bin/scion", "ping", "-c", "1"}, cmnArgs...),
+			Name: "ping",
+			Args: append([]string{"./bin/scion", "ping", "-c", "1", integration.DstAddrPattern},
+				cmnArgs...),
 			Pairs: integration.IAPairs,
 		},
 		{
-			Name:  "traceroute",
-			Args:  append([]string{"./bin/scion", "traceroute"}, cmnArgs...),
+			Name: "traceroute",
+			Args: append([]string{"./bin/scion", "traceroute", integration.DstAddrPattern},
+				cmnArgs...),
 			Pairs: integration.UniqueIAPairs,
+		},
+		{
+			Name: "showpaths",
+			Args: append([]string{"./bin/scion", "sp", integration.DstIAReplace},
+				cmnArgs...),
+			Pairs: integration.UniqueIAPairs,
+			OutputCheck: func(output []byte) error {
+				if strings.Contains(string(output), "alive") {
+					return nil
+				}
+				return serrors.New("output missing \"alive\" path")
+			},
 		},
 	}
 
 	for _, tc := range testCases {
+		if test != "" && tc.Name != test {
+			continue
+		}
 		log.Info(fmt.Sprintf("Run scion %s tests:", tc.Name))
 		in := integration.NewBinaryIntegration(tc.Name, integration.WrapperCmd, tc.Args, nil)
 		pairs := tc.Pairs(integration.DispAddr)
-		if err := integration.RunUnaryTests(in, pairs, integration.DefaultRunTimeout); err != nil {
+		err := integration.RunUnaryTests(in, pairs, integration.DefaultRunTimeout, tc.OutputCheck)
+		if err != nil {
 			log.Error(fmt.Sprintf("Error during scion %s tests", tc.Name), "err", err)
 			return 1
 		}
@@ -92,4 +114,7 @@ func realMain() int {
 func addFlags() {
 	flag.StringVar(&features, "features", "",
 		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
+	flag.StringVar(&test, "test", "",
+		"Test to run. If empty, all tests are run.")
+
 }

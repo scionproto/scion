@@ -17,7 +17,6 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
-        "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/infra/modules/combinator:go_default_library",
         "//go/lib/infra/modules/segfetcher/internal/metrics:go_default_library",

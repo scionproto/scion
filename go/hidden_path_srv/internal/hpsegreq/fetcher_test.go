@@ -28,12 +28,12 @@ import (
 
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpathdb/adapter"
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hpsegreq"
+	"github.com/scionproto/scion/go/hidden_path_srv/internal/hpsegreq/mock_hpsegreq"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/hiddenpath"
-	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/pathdb/mock_pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -132,7 +132,7 @@ func TestFetcher(t *testing.T) {
 		peer  *snet.UDPAddr
 		err   error
 		res   []*path_mgmt.HPSegRecs
-		setup func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger)
+		setup func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_hpsegreq.MockRPC)
 	}{
 		"only DB": {
 			req: &path_mgmt.HPSegReq{
@@ -148,7 +148,7 @@ func TestFetcher(t *testing.T) {
 					},
 				},
 			},
-			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {
+			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_hpsegreq.MockRPC) {
 				res := query.Results{
 					&query.Result{Seg: seg130_112.Segment, Type: seg130_112.Type},
 				}
@@ -169,7 +169,7 @@ func TestFetcher(t *testing.T) {
 					},
 				},
 			},
-			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {
+			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_hpsegreq.MockRPC) {
 				reply := &path_mgmt.HPSegReply{
 					Recs: []*path_mgmt.HPSegRecs{
 						{
@@ -181,8 +181,7 @@ func TestFetcher(t *testing.T) {
 					},
 				}
 				addr := &snet.SVCAddr{IA: ia115, SVC: addr.SvcHPS}
-				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(),
-					addr, gomock.Any()).Return(reply, nil)
+				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), addr).Return(reply, nil)
 			},
 		},
 		"DB and remote": {
@@ -205,7 +204,7 @@ func TestFetcher(t *testing.T) {
 					},
 				},
 			},
-			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {
+			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_hpsegreq.MockRPC) {
 				res := query.Results{
 					&query.Result{Seg: seg130_112.Segment, Type: seg130_112.Type},
 				}
@@ -221,8 +220,7 @@ func TestFetcher(t *testing.T) {
 				}
 				addr := &snet.SVCAddr{IA: ia115, SVC: addr.SvcHPS}
 				mockDB.EXPECT().Get(gomock.Any(), gomock.Any()).Return(res, nil)
-				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), addr,
-					gomock.Any()).Return(reply, nil)
+				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), addr).Return(reply, nil)
 			},
 		},
 		"two remote": {
@@ -245,7 +243,7 @@ func TestFetcher(t *testing.T) {
 					},
 				},
 			},
-			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {
+			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_hpsegreq.MockRPC) {
 				reply2 := &path_mgmt.HPSegReply{
 					Recs: []*path_mgmt.HPSegRecs{
 						{
@@ -267,11 +265,9 @@ func TestFetcher(t *testing.T) {
 					},
 				}
 				addr2 := &snet.SVCAddr{IA: ia115, SVC: addr.SvcHPS}
-				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), addr2,
-					gomock.Any()).Return(reply2, nil)
+				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), addr2).Return(reply2, nil)
 				addr3 := &snet.SVCAddr{IA: ia114, SVC: addr.SvcHPS}
-				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), addr3,
-					gomock.Any()).Return(reply3, nil)
+				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), addr3).Return(reply3, nil)
 			},
 		},
 		"DB error": {
@@ -286,7 +282,7 @@ func TestFetcher(t *testing.T) {
 					Err:     "dummy",
 				},
 			},
-			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {
+			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_hpsegreq.MockRPC) {
 				mockDB.EXPECT().Get(gomock.Any(), gomock.Any()).Return(nil, errors.New("dummy"))
 			},
 		},
@@ -302,10 +298,11 @@ func TestFetcher(t *testing.T) {
 					Err:     "dummy",
 				},
 			},
-			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {
+			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_hpsegreq.MockRPC) {
 				addr := &snet.SVCAddr{IA: ia115, SVC: addr.SvcHPS}
-				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(),
-					addr, gomock.Any()).Return(nil, errors.New("dummy"))
+				mockMsgr.EXPECT().GetHPSegs(gomock.Any(), gomock.Any(), addr).Return(
+					nil, errors.New("dummy"),
+				)
 			},
 		},
 		"unknown group": {
@@ -315,7 +312,7 @@ func TestFetcher(t *testing.T) {
 			},
 			peer:  &snet.UDPAddr{IA: ia114},
 			err:   hpsegreq.ErrUnknownGroup,
-			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {},
+			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_hpsegreq.MockRPC) {},
 		},
 		"not a reader": {
 			req: &path_mgmt.HPSegReq{
@@ -324,7 +321,7 @@ func TestFetcher(t *testing.T) {
 			},
 			peer:  &snet.UDPAddr{IA: ia114},
 			err:   hpsegreq.ErrNotReader,
-			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_infra.MockMessenger) {},
+			setup: func(mockDB *mock_pathdb.MockPathDB, mockMsgr *mock_hpsegreq.MockRPC) {},
 		},
 	}
 	for name, test := range tests {
@@ -340,7 +337,7 @@ func TestFetcher(t *testing.T) {
 				},
 			}
 			mockDB := mock_pathdb.NewMockPathDB(ctrl)
-			mockMsgr := mock_infra.NewMockMessenger(ctrl)
+			mockMsgr := mock_hpsegreq.NewMockRPC(ctrl)
 			f := hpsegreq.NewDefaultFetcher(groupInfo, mockMsgr, adapter.New(mockDB))
 			test.setup(mockDB, mockMsgr)
 			recs, err := f.Fetch(context.Background(), test.req, test.peer)

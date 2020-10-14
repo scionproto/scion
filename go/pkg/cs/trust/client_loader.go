@@ -56,7 +56,7 @@ func (l ClientLoader) LoadClientChains(ctx context.Context) error {
 		}
 		inserted, err := l.ClientDB.InsertClientChain(ctx, chain)
 		if err != nil {
-			return serrors.WithCtx(err, "file", f)
+			return serrors.WrapStr("inserting client chain", err, "file", f)
 		}
 		if !inserted {
 			log.FromCtx(ctx).Debug("Ignoring existing client chain", "file", f)

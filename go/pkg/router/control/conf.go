@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/pkg/router/brconf"
 )
 
 // Dataplane is the interface that a dataplane has to support to be controlled
@@ -62,7 +61,7 @@ type LinkEnd struct {
 }
 
 // ConfigDataplane configures the data-plane with the new configuration.
-func ConfigDataplane(dp Dataplane, cfg *brconf.BRConf) error {
+func ConfigDataplane(dp Dataplane, cfg *Config) error {
 	if cfg == nil {
 		// No configuration, nothing to do
 		return serrors.New("empty configuration")
@@ -109,7 +108,7 @@ func DeriveHFMacKey(k []byte) []byte {
 	return pbkdf2.Key(k, hfMacSalt, 1000, 16, sha256.New)
 }
 
-func confExternalInterfaces(dp Dataplane, cfg *brconf.BRConf) error {
+func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 	// Sort out keys/ifids to get deterministic order for unit testing
 	infoMap := cfg.Topo.IFInfoMap()
 	if len(infoMap) == 0 {
@@ -167,7 +166,7 @@ var svcTypes = []addr.HostSVC{
 	addr.SvcHPS,
 }
 
-func confServices(dp Dataplane, cfg *brconf.BRConf) error {
+func confServices(dp Dataplane, cfg *Config) error {
 	if cfg.Topo == nil {
 		// nothing to tdo
 		return nil

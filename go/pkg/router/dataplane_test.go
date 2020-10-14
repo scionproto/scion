@@ -186,12 +186,14 @@ func TestDataPlaneRun(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
+	metrics := router.NewMetrics()
+
 	testCases := map[string]struct {
 		prepareDP func(*gomock.Controller, chan<- struct{}) *router.DataPlane
 	}{
 		"route 10 msg from external to internal": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := &router.DataPlane{}
+				ret := &router.DataPlane{Metrics: metrics}
 
 				key := []byte("testkey_xxxxxxxx")
 				local := xtest.MustParseIA("1-ff00:0:110")
@@ -258,7 +260,7 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 		"bfd bootstrap internal session": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := &router.DataPlane{}
+				ret := &router.DataPlane{Metrics: metrics}
 
 				postInternalBFD := func(id layers.BFDDiscriminator, src *net.UDPAddr) []byte {
 					scn := &slayers.SCION{
@@ -338,7 +340,7 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 		"bfd sender internal": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := &router.DataPlane{}
+				ret := &router.DataPlane{Metrics: metrics}
 				localAddr := &net.UDPAddr{IP: net.ParseIP("10.0.200.100").To4()}
 				remoteAddr := &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4()}
 				mInternal := mock_router.NewMockBatchConn(ctrl)
@@ -391,7 +393,7 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 		"bfd sender external": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := &router.DataPlane{}
+				ret := &router.DataPlane{Metrics: metrics}
 				ifID := uint16(1)
 				mInternal := mock_router.NewMockBatchConn(ctrl)
 				mInternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
@@ -445,7 +447,7 @@ func TestDataPlaneRun(t *testing.T) {
 		},
 		"bfd bootstrap external session": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
-				ret := &router.DataPlane{}
+				ret := &router.DataPlane{Metrics: metrics}
 
 				postExternalBFD := func(id layers.BFDDiscriminator, fromIfID uint16) []byte {
 					scn := &slayers.SCION{
@@ -1066,14 +1068,17 @@ func TestProcessPkt(t *testing.T) {
 			buffer := gopacket.NewSerializeBuffer()
 			origMsg := make([]byte, len(input.Buffers[0]))
 			copy(origMsg, input.Buffers[0])
-			c, err := dp.ProcessPkt(tc.srcInterface, input, slayers.SCION{}, origMsg, buffer)
+			result, err := dp.ProcessPkt(tc.srcInterface, input, slayers.SCION{}, origMsg, buffer)
 			tc.assertFunc(t, err)
 			if err != nil {
 				return
 			}
-			assert.NotNil(t, c)
-			// input is modified by processPkt
-			assert.Equal(t, want, input)
+			assert.NotNil(t, result.OutConn)
+			outPkt := &ipv4.Message{
+				Buffers: [][]byte{result.OutPkt},
+				Addr:    result.OutAddr,
+			}
+			assert.Equal(t, want, outPkt)
 		})
 	}
 }
