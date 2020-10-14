@@ -224,13 +224,14 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 				clientResults <- err
 			}(src, dsts)
 		}
+		errs = nil
 		for range groups {
 			err := <-clientResults
 			if err != nil {
-				return err
+				errs = append(errs, err)
 			}
 		}
-		return nil
+		return errs.ToError()
 	})
 }
 

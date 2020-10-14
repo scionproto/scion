@@ -25,36 +25,20 @@ import (
 
 // union represents the contents of the unnamed capnp union.
 type union struct {
-	Which        proto.PathMgmt_Which
-	SegReq       *SegReq
-	SegReg       *SegReg
-	SRevInfo     *SignedRevInfo
-	IFStateReq   *IFStateReq   `capnp:"ifStateReq"`
-	IFStateInfos *IFStateInfos `capnp:"ifStateInfos"`
-	HPSegReq     *HPSegReq     `capnp:"hpSegReq"`
-	HPSegReply   *HPSegReply   `capnp:"hpSegReply"`
-	HPSegReg     *HPSegReg     `capnp:"hpSegReg"`
-	HPCfgReq     *HPCfgReq     `capnp:"hpCfgReq"`
-	HPCfgReply   *HPCfgReply   `capnp:"hpCfgReply"`
+	Which      proto.PathMgmt_Which
+	SRevInfo   *SignedRevInfo
+	HPSegReq   *HPSegReq   `capnp:"hpSegReq"`
+	HPSegReply *HPSegReply `capnp:"hpSegReply"`
+	HPSegReg   *HPSegReg   `capnp:"hpSegReg"`
+	HPCfgReq   *HPCfgReq   `capnp:"hpCfgReq"`
+	HPCfgReply *HPCfgReply `capnp:"hpCfgReply"`
 }
 
 func (u *union) set(c proto.Cerealizable) error {
 	switch p := c.(type) {
-	case *SegReq:
-		u.Which = proto.PathMgmt_Which_segReq
-		u.SegReq = p
-	case *SegReg:
-		u.Which = proto.PathMgmt_Which_segReg
-		u.SegReg = p
 	case *SignedRevInfo:
 		u.Which = proto.PathMgmt_Which_sRevInfo
 		u.SRevInfo = p
-	case *IFStateReq:
-		u.Which = proto.PathMgmt_Which_ifStateReq
-		u.IFStateReq = p
-	case *IFStateInfos:
-		u.Which = proto.PathMgmt_Which_ifStateInfos
-		u.IFStateInfos = p
 	case *HPSegReq:
 		u.Which = proto.PathMgmt_Which_hpSegReq
 		u.HPSegReq = p
@@ -79,16 +63,8 @@ func (u *union) set(c proto.Cerealizable) error {
 
 func (u *union) get() (proto.Cerealizable, error) {
 	switch u.Which {
-	case proto.PathMgmt_Which_segReq:
-		return u.SegReq, nil
-	case proto.PathMgmt_Which_segReg:
-		return u.SegReg, nil
 	case proto.PathMgmt_Which_sRevInfo:
 		return u.SRevInfo, nil
-	case proto.PathMgmt_Which_ifStateReq:
-		return u.IFStateReq, nil
-	case proto.PathMgmt_Which_ifStateInfos:
-		return u.IFStateInfos, nil
 	case proto.PathMgmt_Which_hpSegReq:
 		return u.HPSegReq, nil
 	case proto.PathMgmt_Which_hpSegReply:

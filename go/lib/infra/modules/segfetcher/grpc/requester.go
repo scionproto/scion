@@ -18,7 +18,6 @@ import (
 	"context"
 	"net"
 
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -33,7 +32,7 @@ type Requester struct {
 }
 
 func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
-	server net.Addr) (*path_mgmt.SegRecs, error) {
+	server net.Addr) ([]*seg.Meta, error) {
 
 	conn, err := f.Dialer.Dial(ctx, server)
 	if err != nil {
@@ -64,16 +63,5 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 			})
 		}
 	}
-	var revs []*path_mgmt.SignedRevInfo
-	for i, raw := range rep.DeprecatedSignedRevocations {
-		rev, err := path_mgmt.NewSignedRevInfoFromRaw(raw)
-		if err != nil {
-			return nil, serrors.WrapStr("parsing revocation", err, "index", i)
-		}
-		revs = append(revs, rev)
-	}
-	return &path_mgmt.SegRecs{
-		Recs:      segs,
-		SRevInfos: revs,
-	}, nil
+	return segs, nil
 }

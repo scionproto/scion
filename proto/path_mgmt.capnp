@@ -4,27 +4,7 @@ $Go.package("proto");
 $Go.import("github.com/scionproto/scion/go/proto");
 
 using PSeg = import "path_seg.capnp";
-using IFState = import "if_state.capnp";
 using Sign = import "sign.capnp";
-
-struct SegReq {
-    srcIA @0 :UInt64;
-    dstIA @1 :UInt64;
-    flags :group {
-        sibra @2 :Bool;
-        cacheOnly @3 :Bool;
-    }
-}
-
-struct SegRecs {
-    recs @0 :List(PSeg.PathSegMeta);
-    sRevInfos @1 :List(Sign.SignedBlob);
-}
-
-struct SegReply {
-    req @0 :SegReq;
-    recs @1 :SegRecs;
-}
 
 struct SegIds {
     segId @0 :Data;
@@ -71,16 +51,11 @@ struct HPCfgReply {
 struct PathMgmt {
     union {
         unset @0 :Void;
-        segReq @1 :SegReq;
-        segReply @2 :SegReply;
-        segReg @3 :SegRecs;
-        sRevInfo @4 :Sign.SignedBlob;
-        ifStateReq @5 :IFState.IFStateReq;
-        ifStateInfos @6 :IFState.IFStateInfos;
-        hpSegReq @7 :HPSegReq;
-        hpSegReply @8 :HPSegReply;
-        hpSegReg @9 :HPSegRecs;
-        hpCfgReq @10 :HPCfgReq;
-        hpCfgReply @11 :HPCfgReply;
+        sRevInfo @1 :Sign.SignedBlob;
+        hpSegReq @2 :HPSegReq;
+        hpSegReply @3 :HPSegReply;
+        hpSegReg @4 :HPSegRecs;
+        hpCfgReq @5 :HPCfgReq;
+        hpCfgReply @6 :HPCfgReply;
     }
 }

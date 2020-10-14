@@ -157,6 +157,7 @@ func run(file string) error {
 	if err != nil {
 		return serrors.WrapStr("initializing QUIC stack", err)
 	}
+	defer quicStack.RedirectCloser()
 	tcpStack, err := nc.TCPStack()
 	if err != nil {
 		return serrors.WrapStr("initializing TCP stack", err)
@@ -379,11 +380,6 @@ func run(file string) error {
 		}
 	}()
 
-	go func() {
-		defer log.HandlePanic()
-		quicStack.Legacy.ListenAndServe()
-	}()
-	defer quicStack.Legacy.CloseServer()
 	err = cs.StartHTTPEndpoints(cfg.General.ID, cfg, signer, chainBuilder, cfg.Metrics)
 	if err != nil {
 		return serrors.WrapStr("registering status pages", err)

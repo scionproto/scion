@@ -72,8 +72,8 @@ type AppConnHandler struct {
 }
 
 func (h *AppConnHandler) Handle(appServer *dispatcher.Server) {
-	h.Logger.Info("Accepted new client")
-	defer h.Logger.Info("Closed client socket")
+	h.Logger.Debug("Accepted new client")
+	defer h.Logger.Debug("Closed client socket")
 	defer h.Conn.Close()
 
 	dispConn, err := h.doRegExchange(appServer)
@@ -134,7 +134,7 @@ func (h *AppConnHandler) logRegistration(ia addr.IA, public *net.UDPAddr, bind n
 	if svc != addr.SvcNone {
 		items = append(items, "svc", svc)
 	}
-	h.Logger.Info("Client registered address", items...)
+	h.Logger.Debug("Client registered address", items...)
 }
 
 func (h *AppConnHandler) recvRegistration(b common.RawBytes) (*reliable.Registration, error) {
@@ -176,9 +176,9 @@ func (h *AppConnHandler) RunAppToNetDataplane() {
 
 		if err := pkt.DecodeFromReliableConn(h.Conn); err != nil {
 			if err == io.EOF {
-				h.Logger.Info("[app->network] EOF received from client")
+				h.Logger.Debug("[app->network] EOF received from client")
 			} else {
-				h.Logger.Error("[app->network] Client connection error", "err", err)
+				h.Logger.Info("[app->network] Client connection error", "err", err)
 				metrics.M.AppReadErrors().Inc()
 			}
 			return

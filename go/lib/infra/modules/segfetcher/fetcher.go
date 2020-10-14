@@ -19,7 +19,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/internal/metrics"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
@@ -105,7 +105,7 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context,
 			f.Metrics.SegRequests(labels).Inc()
 			continue
 		}
-		if reply.Segments == nil || reply.Segments.Recs == nil {
+		if len(reply.Segments) == 0 {
 			f.Metrics.SegRequests(labels.WithResult(metrics.OkSuccess)).Inc()
 			continue
 		}
@@ -169,10 +169,9 @@ func maxSegmentExpiry(segs Segments) time.Time {
 	return max
 }
 
-func replyToRecs(reply *path_mgmt.SegRecs) seghandler.Segments {
+func replyToRecs(reply []*seg.Meta) seghandler.Segments {
 	return seghandler.Segments{
-		Segs:      reply.Recs,
-		SRevInfos: reply.SRevInfos,
+		Segs: reply,
 	}
 }
 

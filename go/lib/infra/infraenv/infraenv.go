@@ -28,8 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -84,11 +82,9 @@ type NetworkConfig struct {
 
 // QUICStack contains everything to run a QUIC based RPC stack.
 type QUICStack struct {
-	Listener *squic.ConnListener
-	Dialer   *squic.ConnDialer
-
-	// Legacy is the deprecated messenger stack solely used for the keepalives.
-	Legacy infra.Messenger
+	Listener       *squic.ConnListener
+	Dialer         *squic.ConnDialer
+	RedirectCloser func()
 }
 
 func (nc *NetworkConfig) TCPStack() (net.Listener, error) {
@@ -125,10 +121,9 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 		return nil, serrors.WrapStr("listening QUIC/SCION", err)
 	}
 
-	// assuming net.UDPAddr.
-	conn, err := nc.initUDPSocket(fmt.Sprintf("%s", server.LocalAddr()))
+	cancel, err := nc.initSvcRedirect(fmt.Sprintf("%s", server.LocalAddr()))
 	if err != nil {
-		return nil, serrors.WrapStr("listenting UDP/SCION", err)
+		return nil, serrors.WrapStr("starting service redirection", err)
 	}
 
 	return &QUICStack{
@@ -138,15 +133,7 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 			TLSConfig:  tlsConfig,
 			QUICConfig: nil,
 		},
-		Legacy: messenger.New(&messenger.Config{
-			IA:              nc.IA,
-			AddressRewriter: nc.AddressRewriter(nil),
-			Dispatcher: disp.New(
-				conn,
-				messenger.DefaultAdapter,
-				log.Root(),
-			),
-		}),
+		RedirectCloser: cancel,
 	}, nil
 }
 
@@ -176,10 +163,10 @@ func (nc *NetworkConfig) AddressRewriter(
 	}
 }
 
-// initUDPSocket creates the main control-plane UDP socket. SVC anycasts will be
+// initSvcRedirect creates the main control-plane UDP socket. SVC anycasts will be
 // delivered to this socket, which replies to SVC resolution requests. The
 // address will be included as the QUIC address in SVC resolution replies.
-func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, error) {
+func (nc *NetworkConfig) initSvcRedirect(quicAddress string) (func(), error) {
 	reply := &svc.Reply{
 		Transports: map[svc.Transport]string{
 			svc.QUIC: quicAddress,
@@ -214,7 +201,22 @@ func (nc *NetworkConfig) initUDPSocket(quicAddress string) (net.PacketConn, erro
 	if err != nil {
 		return nil, serrors.WrapStr("listening on SCION", err, "addr", nc.Public)
 	}
-	return conn, nil
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		defer log.HandlePanic()
+		buf := make([]byte, 1500)
+		done := ctx.Done()
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				conn.Read(buf)
+			}
+		}
+	}()
+	return cancel, nil
 }
 
 func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, error) {

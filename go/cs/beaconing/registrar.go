@@ -196,11 +196,12 @@ func (r *Registrar) registerLocal(ctx context.Context, segments <-chan beacon.Be
 
 func (r *Registrar) logSummary(logger log.Logger, s *summary) {
 	if r.Tick.passed() {
-		logger.Info("Registered beacons", "type", r.Type, "count", s.count, "startIAs", len(s.srcs))
+		logger.Debug("Registered beacons", "type", r.Type, "count", s.count,
+			"startIAs", len(s.srcs))
 		return
 	}
 	if s.count > 0 {
-		logger.Info("Registered beacons after stale period",
+		logger.Debug("Registered beacons after stale period",
 			"type", r.Type, "count", s.count, "startIAs", len(s.srcs))
 	}
 }

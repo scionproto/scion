@@ -17,15 +17,18 @@ package control
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/pkg/router/brconf"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/router/svchealth"
 )
 
@@ -34,10 +37,76 @@ const (
 	svcHealthDiscoveryTimeout  = 500 * time.Millisecond
 )
 
+// Config stores the runtime configuration state of an ISD-AS context.
+type Config struct {
+	// Topo contains the names of all local infrastructure elements, a map
+	// of interface IDs to routers, and the actual topology.
+	Topo topology.Topology
+	// IA is the current ISD-AS.
+	IA addr.IA
+	// BR is the topology information of this router.
+	BR *topology.BRInfo
+	// MasterKeys holds the local AS master keys.
+	MasterKeys keyconf.Master
+}
+
+// LoadConfig sets up the configuration, loading it from the supplied config directory.
+func LoadConfig(id, confDir string) (*Config, error) {
+	conf := &Config{}
+	if err := conf.loadTopo(id, confDir); err != nil {
+		return nil, err
+	}
+	if err := conf.loadMasterKeys(confDir); err != nil {
+		return nil, err
+	}
+	return conf, nil
+}
+
+func (cfg *Config) String() string {
+	return fmt.Sprintf("{IA: %s, BR.Name: %s", cfg.IA, cfg.BR.Name)
+}
+
+// loadTopo loads the topology from the config directory and initializes the
+// entries related to topo in the config.
+func (cfg *Config) loadTopo(id string, confDir string) error {
+	topoPath := filepath.Join(confDir, "topology.json")
+	topo, err := topology.FromJSONFile(topoPath)
+	if err != nil {
+		return err
+	}
+	if err := cfg.initTopo(id, topo); err != nil {
+		return serrors.WrapStr("initializing topology", err, "file", topoPath)
+	}
+	return nil
+}
+
+// initTopo initializes the entries related to topo in the config.
+func (cfg *Config) initTopo(id string, topo topology.Topology) error {
+	cfg.Topo = topo
+	cfg.IA = cfg.Topo.IA()
+	// Find the config for this router.
+	topoBR, ok := cfg.Topo.BR(id)
+	if !ok {
+		return serrors.New("element ID not found", "id", id)
+	}
+	cfg.BR = &topoBR
+	return nil
+}
+
+// loadMasterKeys loads the master keys from the config directory.
+func (cfg *Config) loadMasterKeys(confDir string) error {
+	var err error
+	cfg.MasterKeys, err = keyconf.LoadMaster(filepath.Join(confDir, "keys"))
+	if err != nil {
+		return serrors.WrapStr("loading master keys", err)
+	}
+	return nil
+}
+
 // IACtx is the context for the router for a given IA.
 type IACtx struct {
-	// BRConf is the router topology configuration
-	BRConf *brconf.BRConf
+	// Config is the router topology configuration
+	Config *Config
 	// DP is the underlying data plane.
 	DP Dataplane
 	// Discoverer is used to dynamically discover healthy service instances. If
@@ -52,21 +121,21 @@ type IACtx struct {
 
 // Start configures the dataplane for the given context.
 func (iac *IACtx) Start(wg *sync.WaitGroup) error {
-	brConf := iac.BRConf
-	if brConf == nil {
+	cfg := iac.Config
+	if cfg == nil {
 		// Nothing to do
 		return serrors.New("empty configuration")
 	}
 
 	log.Debug("Configuring Dataplane")
-	if err := ConfigDataplane(iac.DP, brConf); err != nil {
-		brConfDump, errDump := dumpConfig(brConf)
+	if err := ConfigDataplane(iac.DP, cfg); err != nil {
+		brConfDump, errDump := dumpConfig(cfg)
 		if errDump != nil {
 			brConfDump = serrors.FmtError(errDump)
 		}
 		return serrors.WrapStr("config setup", err, "config", brConfDump)
 	}
-	log.Debug("Dataplane configured successfully", "config", brConf)
+	log.Debug("Dataplane configured successfully", "config", cfg)
 
 	_, disableSvcHealth := os.LookupEnv("SCION_EXPERIMENTAL_DISABLE_SERVICE_HEALTH")
 	if !disableSvcHealth && iac.Discoverer != nil {
@@ -87,7 +156,7 @@ func (iac *IACtx) Start(wg *sync.WaitGroup) error {
 func (iac *IACtx) watchSVCHealth() error {
 	w := svchealth.Watcher{
 		Discoverer: iac.Discoverer,
-		Topology:   iac.BRConf.Topo,
+		Topology:   iac.Config.Topo,
 	}
 	iac.svcHealthWatcher = periodic.Start(
 		periodic.Func{
@@ -103,13 +172,13 @@ func (iac *IACtx) watchSVCHealth() error {
 				for _, svc := range []addr.HostSVC{addr.SvcDS, addr.SvcCS} {
 					add := diff.Add[svc]
 					for _, ip := range add {
-						if err := iac.DP.AddSvc(iac.BRConf.IA, svc, ip); err != nil {
+						if err := iac.DP.AddSvc(iac.Config.IA, svc, ip); err != nil {
 							logger.Info("Failed to set service", "svc", svc, "ip", ip, "err", err)
 						}
 					}
 					remove := diff.Remove[svc]
 					for _, ip := range remove {
-						if err := iac.DP.DelSvc(iac.BRConf.IA, svc, ip); err != nil {
+						if err := iac.DP.DelSvc(iac.Config.IA, svc, ip); err != nil {
 							logger.Info("Failed to delete service",
 								"svc", svc, "ip", ip, "err", err)
 						}
@@ -120,11 +189,11 @@ func (iac *IACtx) watchSVCHealth() error {
 	return nil
 }
 
-func dumpConfig(brConf *brconf.BRConf) (string, error) {
-	if brConf == nil {
+func dumpConfig(cfg *Config) (string, error) {
+	if cfg == nil {
 		return "", serrors.New("empty configuration")
 	}
-	b, err := json.MarshalIndent(brConf, "", "    ")
+	b, err := json.MarshalIndent(cfg, "", "    ")
 	if err != nil {
 		return "", err
 	}

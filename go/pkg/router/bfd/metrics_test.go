@@ -32,6 +32,7 @@ func TestMetrics(t *testing.T) {
 	packetsSent := metrics.NewTestCounter()
 	packetsReceived := metrics.NewTestCounter()
 	up := metrics.NewTestGauge()
+	stateChanges := metrics.NewTestCounter()
 
 	sessionA := &bfd.Session{
 		DetectMult:            1,
@@ -44,6 +45,7 @@ func TestMetrics(t *testing.T) {
 			PacketsSent:     packetsSent,
 			PacketsReceived: packetsReceived,
 			Up:              up,
+			StateChanges:    stateChanges,
 		},
 	}
 
@@ -89,12 +91,15 @@ func TestMetrics(t *testing.T) {
 	betweenOrEqual(t, 5.0, 27.0, metrics.CounterValue(packetsSent))
 	betweenOrEqual(t, 5.0, 27.0, metrics.CounterValue(packetsReceived))
 	assert.Equal(t, 1.0, metrics.GaugeValue(up))
+	assert.Greater(t, metrics.CounterValue(stateChanges), 0.0)
 
+	changes := metrics.CounterValue(stateChanges)
 	linkAToB.Sending(false)
 	linkBToA.Sending(false)
 	time.Sleep(2 * time.Second)
 
 	assert.Equal(t, 0.0, metrics.GaugeValue(up))
+	assert.Greater(t, metrics.CounterValue(stateChanges), changes)
 
 	linkAToB.Close()
 	linkBToA.Close()

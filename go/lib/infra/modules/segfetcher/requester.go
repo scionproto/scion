@@ -22,7 +22,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -32,7 +32,7 @@ var ErrNotReachable = serrors.New("remote not reachable")
 
 // RPC is used to fetch segments from a remote.
 type RPC interface {
-	Segments(ctx context.Context, req Request, dst net.Addr) (*path_mgmt.SegRecs, error)
+	Segments(ctx context.Context, req Request, dst net.Addr) ([]*seg.Meta, error)
 }
 
 // DstProvider provides the destination for a segment lookup including the path.
@@ -43,7 +43,7 @@ type DstProvider interface {
 // ReplyOrErr is a seg reply or an error for the given request.
 type ReplyOrErr struct {
 	Req      Request
-	Segments *path_mgmt.SegRecs
+	Segments []*seg.Meta
 	Peer     net.Addr
 	Err      error
 }
@@ -102,7 +102,7 @@ func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i i
 	logger := log.FromCtx(ctx).New("req_id", log.NewDebugID(), "request", req)
 	ctx = log.CtxWith(ctx, logger)
 
-	try := func(ctx context.Context) (*path_mgmt.SegRecs, net.Addr, error) {
+	try := func(ctx context.Context) ([]*seg.Meta, net.Addr, error) {
 		tryCtx, cancel := r.tryDeadline(ctx)
 		defer cancel()
 		dst, err := r.DstProvider.Dst(tryCtx, req)

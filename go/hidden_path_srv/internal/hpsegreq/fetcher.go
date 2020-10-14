@@ -16,14 +16,13 @@ package hpsegreq
 
 import (
 	"context"
+	"net"
 
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpathdb"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/hiddenpath"
-	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -33,6 +32,12 @@ var (
 	ErrUnknownGroup = serrors.New("group not known to HPS")
 	ErrNotReader    = serrors.New("peer is not a reader of this group")
 )
+
+// RPC is a temporary interface to allow code to compile.
+// This should be replaced by an interface that is appropriate for gRPC.
+type RPC interface {
+	GetHPSegs(context.Context, *path_mgmt.HPSegReq, net.Addr) (*path_mgmt.HPSegReply, error)
+}
 
 // Fetcher is a fetcher for hidden path segments
 type Fetcher interface {
@@ -48,17 +53,17 @@ var _ Fetcher = (*DefaultFetcher)(nil)
 // DefaultFetcher fetches hidden path segments from database and remote HPS
 type DefaultFetcher struct {
 	groupInfo *GroupInfo
-	msger     infra.Messenger
+	msgr      RPC
 	db        hiddenpathdb.HiddenPathDB
 }
 
 // NewDefaultFetcher creates a new DefaultFetcher
-func NewDefaultFetcher(groupInfo *GroupInfo, msger infra.Messenger,
+func NewDefaultFetcher(groupInfo *GroupInfo, msgr RPC,
 	db hiddenpathdb.HiddenPathDB) *DefaultFetcher {
 
 	return &DefaultFetcher{
 		groupInfo: groupInfo,
-		msger:     msger,
+		msgr:      msgr,
 		db:        db,
 	}
 }
@@ -139,7 +144,7 @@ func (f *DefaultFetcher) fetchRemote(ctx context.Context, ids []hiddenpath.Group
 		GroupIds: rawIds,
 	}
 	addr := &snet.SVCAddr{IA: remote, SVC: addr.SvcHPS}
-	reply, err := f.msger.GetHPSegs(ctx, req, addr, messenger.NextId())
+	reply, err := f.msgr.GetHPSegs(ctx, req, addr)
 	if err != nil {
 		var recs = make([]*path_mgmt.HPSegRecs, 0, len(ids))
 		for _, id := range rawIds {
