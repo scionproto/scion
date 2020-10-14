@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"testing"
 
@@ -28,6 +29,8 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -543,11 +546,54 @@ func TestComputePath(t *testing.T) {
 	})
 }
 
-func writePaths(paths []*Path) *bytes.Buffer {
+func writePaths(paths []Path) *bytes.Buffer {
 	buffer := &bytes.Buffer{}
 	for i, p := range paths {
 		fmt.Fprintf(buffer, "Path #%d:\n", i)
-		p.writeTestString(buffer)
+		writeTestString(p, buffer)
 	}
 	return buffer
+}
+
+func writeTestString(p Path, w io.Writer) {
+	fmt.Fprintf(w, "  Weight: %d\n", p.Weight)
+
+	sp := scion.Decoded{}
+	if err := sp.DecodeFromBytes(p.SPath.Raw); err != nil {
+		panic(err)
+	}
+
+	fmt.Fprintln(w, "  Fields:")
+	hopIdx := 0
+	for i := range sp.InfoFields {
+		fmt.Fprintf(w, "    %s\n", fmtIF(sp.InfoFields[i]))
+		numHops := int(sp.PathMeta.SegLen[i])
+		for h := 0; h < numHops; h++ {
+			fmt.Fprintf(w, "      %s\n", fmtHF(sp.HopFields[hopIdx]))
+			hopIdx++
+		}
+	}
+	fmt.Fprintln(w, "  Interfaces:")
+	for _, pi := range p.Interfaces {
+		fmt.Fprintf(w, "    %v\n", pi)
+	}
+}
+
+func fmtIF(field *path.InfoField) string {
+	return fmt.Sprintf("IF %s%s",
+		flagPrint("C", field.ConsDir),
+		flagPrint("P", field.Peer))
+}
+
+func fmtHF(field *path.HopField) string {
+	return fmt.Sprintf("HF InIF=%d OutIF=%d",
+		field.ConsIngress,
+		field.ConsEgress)
+}
+
+func flagPrint(name string, b bool) string {
+	if b == false {
+		return "."
+	}
+	return name
 }

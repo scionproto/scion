@@ -25,6 +25,9 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/path"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -48,7 +51,7 @@ type Pather struct {
 // combinator. In case the destination AS is the same as the local AS, a slice
 // containing an empty path is returned.
 func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
-	refresh bool) ([]*combinator.Path, error) {
+	refresh bool) ([]snet.Path, error) {
 
 	logger := log.FromCtx(ctx)
 	if dst.I == 0 {
@@ -57,7 +60,13 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 	src := p.TopoProvider.Get().IA()
 	if dst.Equal(src) {
 		// For AS local communication, an empty path is used.
-		return []*combinator.Path{{}}, nil
+		return []snet.Path{path.Path{
+			Dst: dst,
+			Meta: path.PathMetadata{
+				Mtu: p.TopoProvider.Get().MTU(),
+				Exp: time.Now().Add(spath.MaxTTL * time.Second),
+			},
+		}}, nil
 	}
 	reqs, err := p.Splitter.Split(ctx, dst)
 	if err != nil {
@@ -79,21 +88,21 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 		}
 		return nil, ErrNoPaths
 	}
-	return paths, nil
+	return p.translatePaths(paths)
 }
 
-func (p *Pather) buildAllPaths(src, dst addr.IA, segs Segments) []*combinator.Path {
+func (p *Pather) buildAllPaths(src, dst addr.IA, segs Segments) []combinator.Path {
 	up, core, down := categorizeSegs(segs)
 	destinations := p.findDestinations(dst, up, core)
-	var paths []*combinator.Path
+	var paths []combinator.Path
 	for dst := range destinations {
 		paths = append(paths, combinator.Combine(src, dst, up, core, down)...)
 	}
 	// Filter expired paths
 	now := time.Now()
-	var validPaths []*combinator.Path
+	var validPaths []combinator.Path
 	for _, path := range paths {
-		if path.ComputeExpTime().After(now) {
+		if path.Metadata.Exp.After(now) {
 			validPaths = append(validPaths, path)
 		}
 	}
@@ -117,10 +126,10 @@ func (p *Pather) findDestinations(dst addr.IA, ups, cores seg.Segments) map[addr
 }
 
 func (p *Pather) filterRevoked(ctx context.Context,
-	paths []*combinator.Path) ([]*combinator.Path, error) {
+	paths []combinator.Path) ([]combinator.Path, error) {
 
 	logger := log.FromCtx(ctx)
-	var newPaths []*combinator.Path
+	var newPaths []combinator.Path
 	for _, path := range paths {
 		revoked := false
 		for _, iface := range path.Interfaces {
@@ -142,6 +151,42 @@ func (p *Pather) filterRevoked(ctx context.Context,
 			"all", len(paths), "revoked", len(paths)-len(newPaths))
 	}
 	return newPaths, nil
+}
+
+// translate converts []combinator.Path to []snet.Path.
+// Effectively, this adds the NextHop information.
+func (p *Pather) translatePaths(cPaths []combinator.Path) ([]snet.Path, error) {
+	var paths []snet.Path
+	var errs serrors.List
+	for _, comb := range cPaths {
+		sp, err := p.translatePath(comb)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		paths = append(paths, sp)
+	}
+	if len(paths) == 0 {
+		return nil, serrors.New("no paths after translation", "errs", errs.ToError())
+	}
+	return paths, nil
+}
+
+// translate converts a combinator.Path to an snet.Path.
+// Effectively, this adds the NextHop information.
+func (p *Pather) translatePath(comb combinator.Path) (snet.Path, error) {
+	nextHop, ok := p.TopoProvider.Get().UnderlayNextHop(comb.Interfaces[0].ID)
+	if !ok {
+		return nil, serrors.New("Unable to find first-hop BR for path",
+			"ifid", comb.Interfaces[0].ID)
+	}
+	return path.Path{
+		Dst:     comb.Interfaces[len(comb.Interfaces)-1].IA,
+		SPath:   comb.SPath,
+		NextHop: nextHop,
+		IFaces:  comb.Interfaces,
+		Meta:    comb.Metadata,
+	}, nil
 }
 
 // categorizeSegs splits a flat list of segments with type info into one

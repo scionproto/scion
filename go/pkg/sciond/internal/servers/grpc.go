@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
@@ -71,52 +70,49 @@ func (s DaemonServer) paths(ctx context.Context,
 		defer cancelF()
 	}
 	srcIA, dstIA := addr.IAInt(req.SourceIsdAs).IA(), addr.IAInt(req.DestinationIsdAs).IA()
-	iReq := &sciond.PathReq{
-		Src: srcIA.IAInt(),
-		Dst: dstIA.IAInt(),
-		Flags: sciond.PathReqFlags{
-			Hidden:  req.Hidden,
-			Refresh: req.Refresh,
-		},
-	}
 	go func() {
 		defer log.HandlePanic()
-		s.backgroundPaths(ctx, iReq)
+		s.backgroundPaths(ctx, srcIA, dstIA, req.Refresh)
 	}()
-	getPathsReply, err := s.Fetcher.GetPaths(ctx, iReq)
+	paths, err := s.Fetcher.GetPaths(ctx, srcIA, dstIA, req.Refresh)
 	if err != nil {
-		log.FromCtx(ctx).Debug("Fetching paths", "err", err, "req", iReq)
+		log.FromCtx(ctx).Debug("Fetching paths", "err", err,
+			"src", srcIA, "dst", dstIA, "refresh", req.Refresh)
 		return nil, err
 	}
-	if getPathsReply.ErrorCode != sciond.ErrorOk {
-		log.FromCtx(ctx).Debug("Fetching paths error code",
-			"code", getPathsReply.ErrorCode, "req", iReq)
-		return nil, serrors.New("error code", "code", getPathsReply.ErrorCode)
-	}
 	reply := &sdpb.PathsResponse{}
-	for _, p := range getPathsReply.Entries {
+	for _, p := range paths {
 		var interfaces []*sdpb.PathInterface
-		for _, intf := range p.Path.Interfaces {
+		for _, intf := range p.Interfaces() {
 			interfaces = append(interfaces, &sdpb.PathInterface{
 				Id:    uint64(intf.ID),
 				IsdAs: uint64(intf.IA.IAInt()),
 			})
 		}
+
+		var raw []byte
+		if spath := p.Path(); spath != nil {
+			raw = spath.Raw
+		}
+		nextHopStr := ""
+		if nextHop := p.UnderlayNextHop(); nextHop != nil {
+			nextHopStr = nextHop.String()
+		}
 		reply.Paths = append(reply.Paths, &sdpb.Path{
-			Raw: p.Path.FwdPath,
+			Raw: raw,
 			Interface: &sdpb.Interface{
-				Address: &sdpb.Underlay{Address: p.HostInfo.UDP().String()},
+				Address: &sdpb.Underlay{Address: nextHopStr},
 			},
 			Interfaces: interfaces,
-			Mtu:        uint32(p.Path.Mtu),
-			Expiration: &timestamppb.Timestamp{Seconds: int64(p.Path.ExpTime)},
-			HeaderV2:   p.Path.HeaderV2,
+			Mtu:        uint32(p.Metadata().MTU()),
+			Expiration: &timestamppb.Timestamp{Seconds: p.Metadata().Expiry().Unix()},
+			HeaderV2:   true,
 		})
 	}
 	return reply, nil
 }
 
-func (s DaemonServer) backgroundPaths(origCtx context.Context, req *sciond.PathReq) {
+func (s DaemonServer) backgroundPaths(origCtx context.Context, src, dst addr.IA, refresh bool) {
 	backgroundTimeout := 5 * time.Second
 	deadline, ok := origCtx.Deadline()
 	if !ok || time.Until(deadline) > backgroundTimeout {
@@ -131,9 +127,10 @@ func (s DaemonServer) backgroundPaths(origCtx context.Context, req *sciond.PathR
 	}
 	span, ctx := opentracing.StartSpanFromContext(ctx, "fetch.paths.backround", spanOpts...)
 	defer span.Finish()
-	_, err := s.Fetcher.GetPaths(ctx, req)
+	_, err := s.Fetcher.GetPaths(ctx, src, dst, refresh)
 	if err != nil {
-		log.FromCtx(ctx).Debug("Error fetching paths", "err", err, "req", req)
+		log.FromCtx(ctx).Debug("Error fetching paths", "err", err,
+			"src", src, "dst", dst, "refresh", refresh)
 	}
 }
 

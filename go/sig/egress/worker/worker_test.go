@@ -152,9 +152,9 @@ func TestParsing(t *testing.T) {
 		defer tester.Finish()
 		tester.SendPacket(make([]byte, 2000))
 		tester.ExpectFrame(append([]byte{0, 0, 0, 0, 0, 0, 0, 1,
-			7, 208}, make([]byte, 1254)...))
+			7, 208}, make([]byte, 1250)...))
 		tester.ExpectLastFrame(append([]byte{0, 0, 0, 0, 0, 1, 0, 0},
-			make([]byte, 746)...))
+			make([]byte, 750)...))
 		tester.Run()
 	})
 
@@ -164,7 +164,7 @@ func TestParsing(t *testing.T) {
 		tester.SendPacket(make([]byte, 2000))
 		tester.SendPacket([]byte{10, 11, 12})
 		tester.ExpectFrame(append([]byte{0, 0, 0, 0, 0, 0, 0, 1,
-			7, 208}, make([]byte, 1254)...))
+			7, 208}, make([]byte, 1250)...))
 		exp := []byte{0, 0, 0, 0, 0, 1, 0, 95}
 		exp = append(exp, make([]byte, 746)...)
 		exp = append(exp, []byte{0, 0, 0, 0, 0, 0}...) // padding at the end of 1st packet

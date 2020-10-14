@@ -47,7 +47,6 @@ type ohpPacketConn struct {
 }
 
 func (c *ohpPacketConn) WriteTo(pkt *snet.Packet, ov *net.UDPAddr) error {
-	extensions := pkt.Extensions
 	return c.PacketConn.WriteTo(
 		&snet.Packet{
 			Bytes: pkt.Bytes,
@@ -55,10 +54,7 @@ func (c *ohpPacketConn) WriteTo(pkt *snet.Packet, ov *net.UDPAddr) error {
 				Destination: pkt.Destination,
 				Source:      pkt.Source,
 				Path:        pkt.Path,
-				Extensions:  extensions,
-				L4Header:    pkt.L4Header,
 				Payload:     pkt.Payload,
-				PayloadV2:   pkt.PayloadV2,
 			},
 		},
 		ov,

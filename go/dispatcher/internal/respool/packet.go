@@ -22,10 +22,8 @@ import (
 
 	"github.com/scionproto/scion/go/dispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
-	"github.com/scionproto/scion/go/lib/spkt"
 )
 
 var packetPool = sync.Pool{
@@ -34,10 +32,9 @@ var packetPool = sync.Pool{
 	},
 }
 
-func GetPacket(headerV2 bool) *Packet {
+func GetPacket() *Packet {
 	pkt := packetPool.Get().(*Packet)
 	*pkt.refCount = 1
-	pkt.HeaderV2 = headerV2
 	return pkt
 }
 
@@ -45,10 +42,7 @@ func GetPacket(headerV2 bool) *Packet {
 // (including hidden fields), so callers should only write to freshly created
 // packets, and readers should take care never to mutate data.
 type Packet struct {
-	Info           spkt.ScnPkt
 	UnderlayRemote *net.UDPAddr
-	// HeaderV2 indicates whether the new header format is used.
-	HeaderV2 bool
 
 	SCION slayers.SCION
 	// FIXME(roosd): currently no support for extensions.
@@ -162,9 +156,6 @@ func (pkt *Packet) DecodeFromReliableConn(conn net.PacketConn) error {
 }
 
 func (pkt *Packet) decodeBuffer() error {
-	if !pkt.HeaderV2 {
-		return hpkt.ParseScnPkt(&pkt.Info, pkt.buffer)
-	}
 	decoded := make([]gopacket.LayerType, 3)
 
 	// Unsupported layers are ignored by the parser.
@@ -188,7 +179,6 @@ func (pkt *Packet) SendOnConn(conn net.PacketConn, address net.Addr) (int, error
 
 func (pkt *Packet) reset() {
 	pkt.buffer = pkt.buffer[:cap(pkt.buffer)]
-	pkt.Info = spkt.ScnPkt{}
 	pkt.UnderlayRemote = nil
 	pkt.L4 = 0
 }

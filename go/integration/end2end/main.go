@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	libint "github.com/scionproto/scion/go/lib/integration"
-	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -102,16 +101,11 @@ func (s server) run() {
 	log.Info("Starting server", "isd_as", integration.Local.IA)
 	defer log.Info("Finished server", "isd_as", integration.Local.IA)
 
-	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
-		RevocationHandler: sciond.RevHandler{Connector: integration.SDConn()},
-	}
-	if integration.HeaderLegacy {
-		scmpHandler = snet.NewLegacySCMPHandler(sciond.RevHandler{Connector: integration.SDConn()})
-	}
 	connFactory := &snet.DefaultPacketDispatcherService{
-		Dispatcher:  reliable.NewDispatcher(""),
-		SCMPHandler: scmpHandler,
-		Version2:    !integration.HeaderLegacy,
+		Dispatcher: reliable.NewDispatcher(""),
+		SCMPHandler: snet.DefaultSCMPHandler{
+			RevocationHandler: sciond.RevHandler{Connector: integration.SDConn()},
+		},
 	}
 	conn, port, err := connFactory.Register(context.Background(), integration.Local.IA,
 		integration.Local.Host, addr.SvcNone)
@@ -132,30 +126,21 @@ func (s server) run() {
 			log.Error("Error reading packet", "err", err)
 			continue
 		}
-		var pld string
-		if p.PayloadV2 != nil {
-			udp, ok := p.PayloadV2.(snet.UDPPayload)
-			if !ok {
-				log.Error("Unexpected payload received", "type", common.TypeOf(p.PayloadV2))
-				continue
-			}
-			pld = string(udp.Payload)
+		udp, ok := p.Payload.(snet.UDPPayload)
+		if !ok {
+			log.Error("Unexpected payload received", "type", common.TypeOf(p.Payload))
+			continue
+		}
+		pld := string(udp.Payload)
 
-			p.Destination, p.Source = p.Source, p.Destination
-			p.PayloadV2 = snet.UDPPayload{
-				DstPort: udp.SrcPort,
-				SrcPort: udp.DstPort,
-				Payload: pongMessage(integration.Local.IA, p.Destination.IA),
-			}
-		} else {
-			pld = string(p.Payload.(common.RawBytes))
-
-			p.Destination, p.Source = p.Source, p.Destination
-			p.L4Header.Reverse()
-			p.Payload = common.RawBytes(pongMessage(integration.Local.IA, p.Destination.IA))
+		p.Destination, p.Source = p.Source, p.Destination
+		p.Payload = snet.UDPPayload{
+			DstPort: udp.SrcPort,
+			SrcPort: udp.DstPort,
+			Payload: pongMessage(integration.Local.IA, p.Destination.IA),
 		}
 		if pld != ping+integration.Local.IA.String() {
-			integration.LogFatal("Received unexpected data", "data", p.Payload.(common.RawBytes))
+			integration.LogFatal("Received unexpected data", "data", pld)
 		}
 		log.Debug(fmt.Sprintf("Ping received from %s, sending pong.", p.Source))
 		// reverse path
@@ -183,19 +168,14 @@ type client struct {
 
 func (c *client) run() int {
 	pair := fmt.Sprintf("%s -> %s", integration.Local.IA, remote.IA)
-	log.Info("Starting", "pair", pair, "header_legacy", integration.HeaderLegacy)
+	log.Info("Starting", "pair", pair)
 	defer log.Info("Finished", "pair", pair)
 	defer integration.Done(integration.Local.IA, remote.IA)
-	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
-		RevocationHandler: sciond.RevHandler{Connector: integration.SDConn()},
-	}
-	if integration.HeaderLegacy {
-		scmpHandler = snet.NewLegacySCMPHandler(sciond.RevHandler{Connector: integration.SDConn()})
-	}
 	connFactory := &snet.DefaultPacketDispatcherService{
-		Dispatcher:  reliable.NewDispatcher(""),
-		SCMPHandler: scmpHandler,
-		Version2:    !integration.HeaderLegacy,
+		Dispatcher: reliable.NewDispatcher(""),
+		SCMPHandler: snet.DefaultSCMPHandler{
+			RevocationHandler: sciond.RevHandler{Connector: integration.SDConn()},
+		},
 	}
 
 	var err error
@@ -266,34 +246,12 @@ func (c *client) ping(ctx context.Context, n int) (snet.Path, error) {
 				Host: addr.HostFromIP(integration.Local.Host.IP),
 			},
 			Path: remote.Path,
-			PayloadV2: snet.UDPPayload{
+			Payload: snet.UDPPayload{
 				SrcPort: c.port,
 				DstPort: uint16(remote.Host.Port),
 				Payload: pingMessage(remote.IA),
 			},
 		},
-	}
-	if integration.HeaderLegacy {
-		pkt = &snet.Packet{
-			PacketInfo: snet.PacketInfo{
-				Destination: snet.SCIONAddress{
-					IA:   remote.IA,
-					Host: addr.HostFromIP(remote.Host.IP),
-				},
-				Source: snet.SCIONAddress{
-					IA:   integration.Local.IA,
-					Host: addr.HostFromIP(integration.Local.Host.IP),
-				},
-				Path: remote.Path,
-				L4Header: &l4.UDP{
-					SrcPort: c.port,
-					DstPort: uint16(remote.Host.Port),
-				},
-				Payload: common.RawBytes(
-					pingMessage(remote.IA),
-				),
-			},
-		}
 	}
 	log.Debug("sending ping", "attempt", n, "path", path)
 	return path, c.conn.WriteTo(pkt, remote.NextHop)
@@ -340,16 +298,11 @@ func (c *client) pong(ctx context.Context) error {
 		return common.NewBasicError("Error reading packet", err)
 	}
 	expected := pong + remote.IA.String() + integration.Local.IA.String()
-	var pld string
-	if p.PayloadV2 != nil {
-		udp, ok := p.PayloadV2.(snet.UDPPayload)
-		if !ok {
-			return serrors.New("unexpected payload received", "type", common.TypeOf(p.PayloadV2))
-		}
-		pld = string(udp.Payload)
-	} else {
-		pld = string(p.Payload.(common.RawBytes))
+	udp, ok := p.Payload.(snet.UDPPayload)
+	if !ok {
+		return serrors.New("unexpected payload received", "type", common.TypeOf(p.Payload))
 	}
+	pld := string(udp.Payload)
 	if pld != expected {
 		return serrors.New("unexpected data received",
 			"data", pld, "expected", expected)

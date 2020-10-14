@@ -96,7 +96,6 @@ func TestDecodeBuffer(t *testing.T) {
 			buf := gopacket.NewSerializeBuffer()
 			require.NoError(t, gopacket.SerializeLayers(buf, opts, tc.Layers(t)...))
 			pkt := newPacket()
-			pkt.HeaderV2 = true
 			pkt.buffer = buf.Bytes()
 			err := pkt.decodeBuffer()
 			tc.ErrAssertion(t, err)

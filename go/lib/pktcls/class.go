@@ -43,8 +43,8 @@ func (c *Class) GetName() string {
 	return c.name
 }
 
-func (c *Class) Eval(hpkt *Packet) bool {
-	return c.Cond.Eval(hpkt)
+func (c *Class) Eval(pkt *Packet) bool {
+	return c.Cond.Eval(pkt)
 }
 
 func (c *Class) MarshalJSON() ([]byte, error) {

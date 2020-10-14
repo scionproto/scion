@@ -163,10 +163,6 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 					return err
 				}
 			}
-			features, err := feature.ParseDefault(flags.features)
-			if err != nil {
-				return err
-			}
 			cmd.SilenceUsage = true
 
 			log.Setup(log.Config{Console: log.ConsoleConfig{Level: "crit"}})
@@ -215,7 +211,7 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 				IA: ca,
 			}
 			disp := reliable.NewDispatcher(flags.dispatcherPath)
-			dialer, err := buildDialer(ctx, disp, sds, local, remote, features.HeaderLegacy)
+			dialer, err := buildDialer(ctx, disp, sds, local, remote)
 			if err != nil {
 				return err
 			}
@@ -414,46 +410,25 @@ func csrTemplate(chain []*x509.Certificate, tmpl string) (*x509.CertificateReque
 }
 
 func buildDialer(ctx context.Context, ds reliable.Dispatcher, sds sciond.Service,
-	local, remote *snet.UDPAddr, headerLegacy bool) (grpc.Dialer, error) {
+	local, remote *snet.UDPAddr) (grpc.Dialer, error) {
 
 	sdConn, err := sds.Connect(ctx)
 	if err != nil {
 		return nil, serrors.WrapStr("connecting to SCION Daemon", err)
 	}
 
-	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
-		RevocationHandler: sciond.RevHandler{Connector: sdConn},
-	}
-	if headerLegacy {
-		scmpHandler = snet.NewLegacySCMPHandler(sciond.RevHandler{Connector: sdConn})
-	}
-
 	sn := &snet.SCIONNetwork{
 		LocalIA: local.IA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher:  ds,
-			SCMPHandler: scmpHandler,
-			Version2:    !headerLegacy,
+			Dispatcher: ds,
+			SCMPHandler: snet.DefaultSCMPHandler{
+				RevocationHandler: sciond.RevHandler{Connector: sdConn},
+			},
 		},
-		Version2: !headerLegacy,
 	}
 	conn, err := sn.Dial(ctx, "udp", local.Host, remote, addr.SvcNone)
 	if err != nil {
 		return nil, serrors.WrapStr("dialing", err)
-	}
-
-	var resolver messenger.Resolver = &svc.Resolver{
-		LocalIA:     local.IA,
-		ConnFactory: sn.Dispatcher,
-		LocalIP:     local.Host.IP,
-	}
-	if headerLegacy {
-		resolver = &svc.LegacyResolver{
-			LocalIA:     local.IA,
-			ConnFactory: sn.Dispatcher,
-			LocalIP:     local.Host.IP,
-			Payload:     []byte{0x00, 0x00, 0x00, 0x00},
-		}
 	}
 
 	dialer := &grpc.QUICDialer{
@@ -461,8 +436,12 @@ func buildDialer(ctx context.Context, ds reliable.Dispatcher, sds sciond.Service
 			Router: &snet.BaseRouter{
 				Querier: sciond.Querier{Connector: sdConn, IA: local.IA},
 			},
-			SVCRouter:             svcRouter{Connector: sdConn},
-			Resolver:              resolver,
+			SVCRouter: svcRouter{Connector: sdConn},
+			Resolver: &svc.Resolver{
+				LocalIA:     local.IA,
+				ConnFactory: sn.Dispatcher,
+				LocalIP:     local.Host.IP,
+			},
 			SVCResolutionFraction: 1,
 		},
 		Dialer: squic.ConnDialer{

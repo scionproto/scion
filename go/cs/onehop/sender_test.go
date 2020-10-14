@@ -122,8 +122,8 @@ func checkTestPkt(t *testing.T, s *Sender, msg *Msg, pkt *snet.Packet) {
 		Host: addr.HostFromIPStr("127.0.0.1"),
 	}, pkt.Source)
 	assert.True(t, pkt.Path.IsOHP())
-	assert.Equal(t, uint16(4242), pkt.PayloadV2.(snet.UDPPayload).SrcPort)
-	assert.Equal(t, msg.Pld, pkt.PayloadV2.(snet.UDPPayload).Payload)
+	assert.Equal(t, uint16(4242), pkt.Payload.(snet.UDPPayload).SrcPort)
+	assert.Equal(t, msg.Pld, pkt.Payload.(snet.UDPPayload).Payload)
 }
 
 // testConn is a packet conn that returns an empty underlay address.

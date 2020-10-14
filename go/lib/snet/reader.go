@@ -20,8 +20,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -75,25 +73,17 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 	}
 
 	var n int
-	if pkt.PayloadV2 != nil {
-		udp, ok := pkt.PayloadV2.(UDPPayload)
-		if !ok {
-			return 0, nil, serrors.New("unexpected payload", "type", common.TypeOf(pkt.PayloadV2))
-		}
-		if len(udp.Payload) > len(b) {
-			return 0, nil, serrors.New("buffer to small",
-				"expected", len(udp.Payload), "actual", len(b))
-		}
-		copy(b, udp.Payload)
-		b = b[:len(udp.Payload)]
-		n = len(udp.Payload)
-	} else {
-		// Copy data, extract address
-		n, err = pkt.Payload.WritePld(b)
-		if err != nil {
-			return 0, nil, common.NewBasicError("Unable to copy payload", err)
-		}
+	udp, ok := pkt.Payload.(UDPPayload)
+	if !ok {
+		return 0, nil, serrors.New("unexpected payload", "type", common.TypeOf(pkt.Payload))
 	}
+	if len(udp.Payload) > len(b) {
+		return 0, nil, serrors.New("buffer to small",
+			"expected", len(udp.Payload), "actual", len(b))
+	}
+	copy(b, udp.Payload)
+	b = b[:len(udp.Payload)]
+	n = len(udp.Payload)
 
 	remote := &UDPAddr{}
 	// On UDP network we can get either UDP traffic or SCMP messages
@@ -116,20 +106,10 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 
 		var err error
 		var l4i uint16
-		if pkt.PayloadV2 != nil {
-			if udp, ok := pkt.PayloadV2.(UDPPayload); ok {
-				l4i = udp.SrcPort
-			}
-		} else {
-			switch hdr := pkt.L4Header.(type) {
-			case *l4.UDP:
-				l4i = hdr.SrcPort
-			case *scmp.Hdr:
-			default:
-				err = common.NewBasicError("Unexpected SCION L4 protocol", nil,
-					"expected", "UDP or SCMP", "actual", pkt.L4Header.L4Type())
-			}
+		if udp, ok := pkt.Payload.(UDPPayload); ok {
+			l4i = udp.SrcPort
 		}
+
 		// Copy the address to prevent races. See
 		// https://github.com/scionproto/scion/issues/1659.
 		ip := pkt.Source.Host.IP()

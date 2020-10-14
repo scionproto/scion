@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
@@ -45,14 +44,13 @@ const (
 )
 
 var (
-	Local        snet.UDPAddr
-	Mode         string
-	Progress     string
-	sciondAddr   string
-	Attempts     int
-	logConsole   string
-	features     string
-	HeaderLegacy bool
+	Local      snet.UDPAddr
+	Mode       string
+	Progress   string
+	sciondAddr string
+	Attempts   int
+	logConsole string
+	features   string
 )
 
 func Setup() {
@@ -114,13 +112,6 @@ func validateFlags() {
 	if Local.Host == nil {
 		LogFatal("Missing local address")
 	}
-	if len(features) != 0 {
-		f, err := feature.ParseDefault(strings.Split(features, ","))
-		if err != nil {
-			LogFatal(err.Error())
-		}
-		HeaderLegacy = f.HeaderLegacy
-	}
 }
 
 func InitNetwork() *snet.SCIONNetwork {
@@ -129,20 +120,14 @@ func InitNetwork() *snet.SCIONNetwork {
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
-	var scmpHandler snet.SCMPHandler = snet.DefaultSCMPHandler{
-		RevocationHandler: sciond.RevHandler{Connector: sciondConn},
-	}
-	if HeaderLegacy {
-		scmpHandler = snet.NewLegacySCMPHandler(sciond.RevHandler{Connector: sciondConn})
-	}
 	n := &snet.SCIONNetwork{
 		LocalIA: Local.IA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher:  ds,
-			SCMPHandler: scmpHandler,
-			Version2:    !HeaderLegacy,
+			Dispatcher: ds,
+			SCMPHandler: snet.DefaultSCMPHandler{
+				RevocationHandler: sciond.RevHandler{Connector: sciondConn},
+			},
 		},
-		Version2: !HeaderLegacy,
 	}
 	log.Debug("SCION network successfully initialized")
 	return n

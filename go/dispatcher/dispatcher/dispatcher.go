@@ -13,10 +13,8 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
-	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
-	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/underlay/conn"
 )
 
@@ -33,8 +31,6 @@ type Server struct {
 	routingTable *IATable
 	ipv4Conn     net.PacketConn
 	ipv6Conn     net.PacketConn
-	// HeaderV2 indicates whether the new header format is used.
-	HeaderV2 bool
 }
 
 // NewServer creates new instance of Server. Internally, it opens the dispatcher ports
@@ -75,7 +71,6 @@ func (as *Server) Serve() error {
 		netToRingDataplane := &NetToRingDataplane{
 			UnderlayConn: as.ipv4Conn,
 			RoutingTable: as.routingTable,
-			HeaderV2:     as.HeaderV2,
 		}
 		errChan <- netToRingDataplane.Run()
 	}()
@@ -84,7 +79,6 @@ func (as *Server) Serve() error {
 		netToRingDataplane := &NetToRingDataplane{
 			UnderlayConn: as.ipv6Conn,
 			RoutingTable: as.routingTable,
-			HeaderV2:     as.HeaderV2,
 		}
 		errChan <- netToRingDataplane.Run()
 	}()
@@ -135,8 +129,6 @@ func (ac *Conn) WriteTo(p []byte, addr net.Addr) (int, error) {
 
 // Write is optimized for the use by ConnHandler (avoids reparsing the packet).
 func (ac *Conn) Write(pkt *respool.Packet) (int, error) {
-	// FIXME(roosd): Drop this with header v1.
-	registerIfSCMPRequest(ac.regReference, &pkt.Info)
 	// XXX(roosd): Ignore error since there is nothing we can do about it.
 	// Currently, the ID space is shared between all applications that register
 	// with the dispatcher. Likelihood that they overlap is very small.
@@ -224,27 +216,6 @@ func openConn(network, address string, p SocketMetaHandler) (net.PacketConn, err
 	}
 
 	return &underlayConnWrapper{Conn: c, Handler: p}, nil
-}
-
-// registerIfSCMPRequest registers the ID of the SCMP Request, if it is an
-// SCMP::General::EchoRequest, SCMP::General::TraceRouteRequest or SCMP::General::RecordPathRequest
-// packet. It also increments SCMP-related metrics.
-func registerIfSCMPRequest(ref registration.RegReference, packet *spkt.ScnPkt) error {
-	if scmpHdr, ok := packet.L4.(*scmp.Hdr); ok {
-		metrics.M.SCMPWritePkts(
-			metrics.SCMP{
-				Class: scmpHdr.Class.String(),
-				Type:  scmpHdr.Type.Name(scmpHdr.Class),
-			},
-		).Inc()
-		if !isSCMPGeneralRequest(scmpHdr) {
-			return nil
-		}
-		if id := getSCMPGeneralID(packet); id != 0 {
-			return ref.RegisterID(id)
-		}
-	}
-	return nil
 }
 
 // registerIfSCMPInfo registers the ID of the SCMP request if it is an echo or

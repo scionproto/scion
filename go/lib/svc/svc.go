@@ -175,37 +175,24 @@ func (h *BaseHandler) Handle(request *Request) (Result, error) {
 	if err != nil {
 		return Error, err
 	}
-	var replyPacket *snet.Packet
-	if request.Packet.PayloadV2 != nil {
-		udp, ok := request.Packet.PayloadV2.(snet.UDPPayload)
-		if !ok {
-			return Error, serrors.New("invalid payload in request",
-				"expected", "UDP", "type", common.TypeOf(request.Packet.PayloadV2))
-		}
-		replyPacket = &snet.Packet{
-			PacketInfo: snet.PacketInfo{
-				Destination: request.Packet.Source,
-				Source:      request.Source,
-				Path:        path,
-				PayloadV2: snet.UDPPayload{
-					DstPort: udp.SrcPort,
-					SrcPort: udp.DstPort,
-					Payload: h.Message,
-				},
-			},
-		}
-	} else {
-		l4header := h.reverseL4Header(request.Packet.L4Header)
-		replyPacket = &snet.Packet{
-			PacketInfo: snet.PacketInfo{
-				Destination: request.Packet.Source,
-				Source:      request.Source,
-				Path:        path,
-				L4Header:    l4header,
-				Payload:     h.getPayload(),
-			},
-		}
+	udp, ok := request.Packet.Payload.(snet.UDPPayload)
+	if !ok {
+		return Error, serrors.New("invalid payload in request",
+			"expected", "UDP", "type", common.TypeOf(request.Packet.Payload))
 	}
+	replyPacket := &snet.Packet{
+		PacketInfo: snet.PacketInfo{
+			Destination: request.Packet.Source,
+			Source:      request.Source,
+			Path:        path,
+			Payload: snet.UDPPayload{
+				DstPort: udp.SrcPort,
+				SrcPort: udp.DstPort,
+				Payload: h.Message,
+			},
+		},
+	}
+
 	err = request.Conn.WriteTo(replyPacket, request.Underlay)
 	if err != nil {
 		return Error, err
