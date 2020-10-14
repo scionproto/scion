@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/spath"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	sdpb "github.com/scionproto/scion/go/pkg/proto/daemon"
@@ -186,42 +187,46 @@ func pathResponseToPaths(paths []*sdpb.Path, dst addr.IA) ([]snet.Path, error) {
 	return result, nil
 }
 
-func convertPath(path *sdpb.Path, dst addr.IA) (Path, error) {
-	expiry := time.Unix(path.Expiration.Seconds, int64(path.Expiration.Nanos))
-	if len(path.Interfaces) == 0 {
-		return Path{
-			dst:    dst,
-			mtu:    uint16(path.Mtu),
-			expiry: expiry,
+func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
+	expiry := time.Unix(p.Expiration.Seconds, int64(p.Expiration.Nanos))
+	if len(p.Interfaces) == 0 {
+		return path.Path{
+			Dst: dst,
+			Meta: path.PathMetadata{
+				Mtu: uint16(p.Mtu),
+				Exp: expiry,
+			},
 		}, nil
 	}
 	var sp *spath.Path
-	if !path.HeaderV2 {
-		sp = spath.New(path.Raw)
+	if !p.HeaderV2 {
+		sp = spath.New(p.Raw)
 		if err := sp.InitOffsets(); err != nil {
-			return Path{}, serrors.WrapStr("initializing path offsets", err)
+			return path.Path{}, serrors.WrapStr("initializing path offsets", err)
 		}
 	} else {
-		sp = spath.NewV2(path.Raw, false)
+		sp = spath.NewV2(p.Raw, false)
 	}
 
-	underlayA, err := net.ResolveUDPAddr("udp", path.Interface.Address.Address)
+	underlayA, err := net.ResolveUDPAddr("udp", p.Interface.Address.Address)
 	if err != nil {
-		return Path{}, serrors.WrapStr("resolving underlay", err)
+		return path.Path{}, serrors.WrapStr("resolving underlay", err)
 	}
-	interfaces := make([]snet.PathInterface, 0, len(path.Interfaces))
-	for _, pi := range path.Interfaces {
+	interfaces := make([]snet.PathInterface, 0, len(p.Interfaces))
+	for _, pi := range p.Interfaces {
 		interfaces = append(interfaces, snet.PathInterface{
 			ID: common.IFIDType(pi.Id),
 			IA: addr.IAInt(pi.IsdAs).IA(),
 		})
 	}
-	return Path{
-		interfaces: interfaces,
-		underlay:   underlayA,
-		spath:      sp,
-		mtu:        uint16(path.Mtu),
-		expiry:     expiry,
-		dst:        dst,
+	return path.Path{
+		Dst:     dst,
+		SPath:   sp,
+		NextHop: underlayA,
+		IFaces:  interfaces,
+		Meta: path.PathMetadata{
+			Mtu: uint16(p.Mtu),
+			Exp: expiry,
+		},
 	}, nil
 }

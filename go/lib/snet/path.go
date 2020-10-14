@@ -44,6 +44,7 @@ type Path interface {
 	Path() *spath.Path
 	// Interfaces returns a list of interfaces on the path. If the list is not
 	// available the result is nil.
+	// XXX(matzf): move this to PathMetadata
 	Interfaces() []PathInterface
 	// Destination is the AS the path points to. Empty paths return the local
 	// AS of the router that created them.
@@ -68,6 +69,7 @@ func (iface PathInterface) String() string {
 }
 
 // PathMetadata contains supplementary information about a path.
+// XXX(matzf): change this to a struct type
 type PathMetadata interface {
 	// MTU returns the MTU of the path.
 	MTU() uint16

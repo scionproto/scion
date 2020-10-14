@@ -7,8 +7,9 @@ package mock_fetcher
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
+	addr "github.com/scionproto/scion/go/lib/addr"
 	pathpol "github.com/scionproto/scion/go/lib/pathpol"
-	sciond "github.com/scionproto/scion/go/lib/sciond"
+	snet "github.com/scionproto/scion/go/lib/snet"
 	reflect "reflect"
 )
 
@@ -36,18 +37,18 @@ func (m *MockFetcher) EXPECT() *MockFetcherMockRecorder {
 }
 
 // GetPaths mocks base method
-func (m *MockFetcher) GetPaths(arg0 context.Context, arg1 *sciond.PathReq) (*sciond.PathReply, error) {
+func (m *MockFetcher) GetPaths(arg0 context.Context, arg1, arg2 addr.IA, arg3 bool) ([]snet.Path, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetPaths", arg0, arg1)
-	ret0, _ := ret[0].(*sciond.PathReply)
+	ret := m.ctrl.Call(m, "GetPaths", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].([]snet.Path)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetPaths indicates an expected call of GetPaths
-func (mr *MockFetcherMockRecorder) GetPaths(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockFetcherMockRecorder) GetPaths(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPaths", reflect.TypeOf((*MockFetcher)(nil).GetPaths), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPaths", reflect.TypeOf((*MockFetcher)(nil).GetPaths), arg0, arg1, arg2, arg3)
 }
 
 // MockPolicy is a mock of Policy interface
