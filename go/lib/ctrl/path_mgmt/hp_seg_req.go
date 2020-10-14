@@ -21,7 +21,7 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-var _ proto.Cerealizable = (*SegReq)(nil)
+var _ proto.Cerealizable = (*HPSegReq)(nil)
 
 type HPSegReq struct {
 	RawDstIA addr.IAInt `capnp:"dstIA"`

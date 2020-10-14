@@ -99,7 +99,7 @@ type Integration interface {
 	// StartClient should start the client on the src address connecting to the dst address.
 	// StartClient should return immediately.
 	// The context should be used to make the client cancellable.
-	StartClient(ctx context.Context, src, dst *snet.UDPAddr) (Waiter, error)
+	StartClient(ctx context.Context, src, dst *snet.UDPAddr) (*BinaryWaiter, error)
 }
 
 // Waiter is a descriptor of a process running in the integration test.
@@ -288,7 +288,9 @@ func StartServer(in Integration, dst *snet.UDPAddr) (io.Closer, error) {
 
 // RunClient runs a client on the given IAPair.
 // If the client does not finish until timeout it is killed.
-func RunClient(in Integration, pair IAPair, timeout time.Duration) error {
+func RunClient(in Integration, pair IAPair, timeout time.Duration,
+	checkOutput func([]byte) error) error {
+
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	c, err := in.StartClient(ctx, pair.Src, pair.Dst)
@@ -298,7 +300,10 @@ func RunClient(in Integration, pair IAPair, timeout time.Duration) error {
 	if err = c.Wait(); err != nil {
 		return err
 	}
-	return nil
+	if checkOutput == nil {
+		return nil
+	}
+	return checkOutput(c.Output())
 }
 
 // ExecuteTimed executes f and prints how long f took to StdOut. Returns the error of f.
@@ -341,7 +346,9 @@ func GroupBySource(pairs []IAPair) map[*snet.UDPAddr][]*snet.UDPAddr {
 
 // RunUnaryTests runs the client for each IAPair.
 // In case of an error the function is terminated immediately.
-func RunUnaryTests(in Integration, pairs []IAPair, timeout time.Duration) error {
+func RunUnaryTests(in Integration, pairs []IAPair,
+	timeout time.Duration, checkOutput func([]byte) error) error {
+
 	if timeout == 0 {
 		timeout = DefaultRunTimeout
 	}
@@ -349,7 +356,7 @@ func RunUnaryTests(in Integration, pairs []IAPair, timeout time.Duration) error 
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
 			in.Name(), pair.Src.IA, pair.Dst.IA, idx+1, len(pairs)))
 		// Start client
-		if err := RunClient(in, pair, timeout); err != nil {
+		if err := RunClient(in, pair, timeout, checkOutput); err != nil {
 			msg := fmt.Sprintf("Error in client: %v -> %v (%v/%v)",
 				pair.Src.IA, pair.Dst.IA, idx+1, len(pairs))
 			log.Error(msg, "name", in.Name(), "err", err)

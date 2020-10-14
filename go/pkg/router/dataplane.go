@@ -22,11 +22,13 @@ import (
 	"hash"
 	"math/big"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/ipv4"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -87,6 +89,7 @@ type BatchConn interface {
 type DataPlane struct {
 	external         map[uint16]BatchConn
 	linkTypes        map[uint16]topology.LinkType
+	neighborIAs      map[uint16]addr.IA
 	internal         BatchConn
 	internalIP       net.IP
 	internalNextHops map[uint16]net.Addr
@@ -207,6 +210,28 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn) error {
 	return nil
 }
 
+// AddNeighborIA adds the neighboring IA for a given interface ID. If an IA for
+// the given ID is already set, this method will return an error. This can only
+// be called on a yet running dataplane.
+func (d *DataPlane) AddNeighborIA(ifID uint16, remote addr.IA) error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if d.running {
+		return modifyExisting
+	}
+	if remote.IsZero() {
+		return emptyValue
+	}
+	if _, exists := d.neighborIAs[ifID]; exists {
+		return serrors.WithCtx(alreadySet, "ifID", ifID)
+	}
+	if d.neighborIAs == nil {
+		d.neighborIAs = make(map[uint16]addr.IA)
+	}
+	d.neighborIAs[ifID] = remote
+	return nil
+}
+
 // AddLinkType adds the link type for a given interface ID. If a link type for
 // the given ID is already set, this method will return an error. This can only
 // be called on a not yet running dataplane.
@@ -235,11 +260,20 @@ func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn,
 	}
 	var m bfd.Metrics
 	if d.Metrics != nil {
-		labels := []string{"isd_as", d.localIA.String(), "interface", fmt.Sprint(ifID)}
+		labels := []string{
+			"interface", fmt.Sprint(ifID),
+			"isd_as", d.localIA.String(),
+			"neighbor_isd_as", dst.IA.String(),
+		}
 		m = bfd.Metrics{
-			Up:              metrics.NewPromGauge(d.Metrics.InterfaceUp).With(labels...),
-			PacketsSent:     metrics.NewPromCounter(d.Metrics.BFDPacketsSent).With(labels...),
-			PacketsReceived: metrics.NewPromCounter(d.Metrics.BFDPacketsReceived).With(labels...),
+			Up: metrics.NewPromGauge(d.Metrics.InterfaceUp).
+				With(labels...),
+			StateChanges: metrics.NewPromCounter(d.Metrics.BFDInterfaceStateChanges).
+				With(labels...),
+			PacketsSent: metrics.NewPromCounter(d.Metrics.BFDPacketsSent).
+				With(labels...),
+			PacketsReceived: metrics.NewPromCounter(d.Metrics.BFDPacketsReceived).
+				With(labels...),
 		}
 	}
 	s := &bfdSend{
@@ -339,7 +373,8 @@ func (d *DataPlane) AddNextHop(ifID uint16, a net.Addr) error {
 // If the remote ifID belongs to an existing address, the existing
 // BFD session will be re-used.
 func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg control.BFD,
-	instance string) error {
+	sibling string) error {
+
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.running {
@@ -360,9 +395,11 @@ func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 	}
 	var m bfd.Metrics
 	if d.Metrics != nil {
-		labels := []string{"isd_as", d.localIA.String(), "instance", instance}
+		labels := []string{"isd_as", d.localIA.String(), "sibling", sibling}
 		m = bfd.Metrics{
 			Up: metrics.NewPromGauge(d.Metrics.SiblingReachable).
+				With(labels...),
+			StateChanges: metrics.NewPromCounter(d.Metrics.SiblingBFDStateChanges).
 				With(labels...),
 			PacketsSent: metrics.NewPromCounter(d.Metrics.SiblingBFDPacketsSent).
 				With(labels...),
@@ -387,6 +424,8 @@ func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 func (d *DataPlane) Run() error {
 	d.mtx.Lock()
 	d.running = true
+
+	d.initMetrics()
 
 	read := func(ingressID uint16, rd BatchConn) {
 		msgs := conn.NewReadMessages(inputBatchCnt)
@@ -414,7 +453,12 @@ func (d *DataPlane) Run() error {
 				// TODO(karampok). Use meta for sanity checks.
 				p.Buffers[0] = p.Buffers[0][:p.N]
 				copy(origPacket[:p.N], p.Buffers[0])
-				wr, err := d.processPkt(ingressID, &p, spkt, origPacket, buffer)
+				// input metric
+				inputLabels := interfaceToMetricLabels(ingressID, d.localIA, d.neighborIAs)
+				d.Metrics.InputPacketsTotal.With(inputLabels).Inc()
+				d.Metrics.InputBytesTotal.With(inputLabels).Add(float64(p.N))
+
+				result, err := d.processPkt(ingressID, p.Buffers[0], spkt, origPacket, buffer)
 				switch {
 				case err == nil:
 				case errors.As(err, &scmpErr):
@@ -422,23 +466,29 @@ func (d *DataPlane) Run() error {
 						log.Debug("SCMP", "err", scmpErr, "dst_addr", p.Addr)
 					}
 					// SCMP go back the way they came.
-					wr = rd
-					// SCMP metric?
+					result.OutAddr = p.Addr
+					result.OutConn = rd
 				default:
 					log.Debug("Error processing packet", "err", err)
-					// error metric
+					d.Metrics.DroppedPacketsTotal.With(inputLabels).Inc()
 					continue
 				}
-				if wr == nil { // e.g. BFD case no message is forwarded
+				if result.OutConn == nil { // e.g. BFD case no message is forwarded
 					continue
 				}
-				_, err = wr.WriteBatch(underlayconn.Messages([]ipv4.Message{p}))
+				_, err = result.OutConn.WriteBatch(underlayconn.Messages([]ipv4.Message{{
+					Buffers: [][]byte{result.OutPkt},
+					Addr:    result.OutAddr,
+				}}))
 				if err != nil {
 					log.Debug("Error writing packet", "err", err)
 					// error metric
 					continue
 				}
 				// ok metric
+				outputLabels := interfaceToMetricLabels(result.EgressID, d.localIA, d.neighborIAs)
+				d.Metrics.OutputPacketsTotal.With(outputLabels).Inc()
+				d.Metrics.OutputBytesTotal.With(outputLabels).Add(float64(len(result.OutPkt)))
 			}
 
 			// Reset buffers to original capacity.
@@ -474,22 +524,41 @@ func (d *DataPlane) Run() error {
 	return nil
 }
 
-func (d *DataPlane) processPkt(ingressID uint16, m *ipv4.Message, s slayers.SCION,
-	origPacket []byte, buffer gopacket.SerializeBuffer) (BatchConn, error) {
+func (d *DataPlane) initMetrics() {
+	labels := interfaceToMetricLabels(0, d.localIA, d.neighborIAs)
+	d.Metrics.InputBytesTotal.With(labels).Add(0)
+	d.Metrics.InputPacketsTotal.With(labels).Add(0)
+	d.Metrics.OutputBytesTotal.With(labels).Add(0)
+	d.Metrics.OutputPacketsTotal.With(labels).Add(0)
+	d.Metrics.DroppedPacketsTotal.With(labels).Add(0)
+	for id := range d.neighborIAs {
+		if _, notOwned := d.internalNextHops[id]; notOwned {
+			continue
+		}
+		labels = interfaceToMetricLabels(id, d.localIA, d.neighborIAs)
+		d.Metrics.InputBytesTotal.With(labels).Add(0)
+		d.Metrics.InputPacketsTotal.With(labels).Add(0)
+		d.Metrics.OutputBytesTotal.With(labels).Add(0)
+		d.Metrics.OutputPacketsTotal.With(labels).Add(0)
+		d.Metrics.DroppedPacketsTotal.With(labels).Add(0)
+	}
+}
 
-	defer func() {
-		// zero out the fields for sending:
-		m.Flags = 0
-		m.NN = 0
-		m.N = 0
-		m.OOB = nil
-	}()
+type processResult struct {
+	EgressID uint16
+	OutConn  BatchConn
+	OutAddr  net.Addr
+	OutPkt   []byte
+}
 
-	if err := s.DecodeFromBytes(m.Buffers[0], gopacket.NilDecodeFeedback); err != nil {
-		return nil, err
+func (d *DataPlane) processPkt(ingressID uint16, rawPkt []byte, s slayers.SCION,
+	origPacket []byte, buffer gopacket.SerializeBuffer) (processResult, error) {
+
+	if err := s.DecodeFromBytes(rawPkt, gopacket.NilDecodeFeedback); err != nil {
+		return processResult{}, err
 	}
 	if err := buffer.Clear(); err != nil {
-		return nil, serrors.WrapStr("Failed to clear buffer", err)
+		return processResult{}, serrors.WrapStr("Failed to clear buffer", err)
 	}
 
 	switch s.PathType {
@@ -497,25 +566,25 @@ func (d *DataPlane) processPkt(ingressID uint16, m *ipv4.Message, s slayers.SCIO
 		if s.NextHdr == common.L4BFD {
 			src, err := s.SrcAddr()
 			if err != nil {
-				return nil, serrors.WrapStr("Failed to parse addr", err)
+				return processResult{}, serrors.WrapStr("Failed to parse addr", err)
 			}
-			return nil, d.processIntraBFD(src, s.Payload)
+			return processResult{}, d.processIntraBFD(src, s.Payload)
 		}
-		return nil, serrors.WithCtx(unsupportedPathTypeNextHeader,
+		return processResult{}, serrors.WithCtx(unsupportedPathTypeNextHeader,
 			"type", s.PathType, "header", s.NextHdr)
 	case slayers.PathTypeOneHop:
 		if s.NextHdr == common.L4BFD {
 			ohp, ok := s.Path.(*onehop.Path)
 			if !ok {
-				return nil, malformedPath
+				return processResult{}, malformedPath
 			}
-			return nil, d.processInterBFD(ingressID, ohp, s.Payload)
+			return processResult{}, d.processInterBFD(ingressID, ohp, s.Payload)
 		}
-		return d.processOHP(ingressID, m, s, buffer)
+		return d.processOHP(ingressID, rawPkt, s, buffer)
 	case slayers.PathTypeSCION:
-		return d.processSCION(ingressID, m, s, origPacket, buffer)
+		return d.processSCION(ingressID, rawPkt, s, origPacket, buffer)
 	default:
-		return nil, serrors.WithCtx(unsupportedPathType, "type", s.PathType)
+		return processResult{}, serrors.WithCtx(unsupportedPathType, "type", s.PathType)
 	}
 }
 
@@ -573,13 +642,13 @@ func (d *DataPlane) processIntraBFD(src net.Addr, data []byte) error {
 	return noBFDSessionFound
 }
 
-func (d *DataPlane) processSCION(ingressID uint16, m *ipv4.Message, s slayers.SCION,
-	origPacket []byte, buffer gopacket.SerializeBuffer) (BatchConn, error) {
+func (d *DataPlane) processSCION(ingressID uint16, rawPkt []byte, s slayers.SCION,
+	origPacket []byte, buffer gopacket.SerializeBuffer) (processResult, error) {
 
 	p := scionPacketProcessor{
 		d:          d,
 		ingressID:  ingressID,
-		m:          m,
+		rawPkt:     rawPkt,
 		scionLayer: s,
 		origPacket: origPacket,
 		buffer:     buffer,
@@ -593,9 +662,9 @@ type scionPacketProcessor struct {
 	// ingressID is the interface ID this packet came in, determined from the
 	// socket.
 	ingressID uint16
-	// m is the raw message, it is updated during processing to contain the
+	// rawPkt is the raw packet, it is updated during processing to contain the
 	// message to send out.
-	m *ipv4.Message
+	rawPkt []byte
 	// scionLayer is the SCION gopacket layer.
 	scionLayer slayers.SCION
 	// origPacket is the raw original packet, must not be modified.
@@ -614,7 +683,7 @@ type scionPacketProcessor struct {
 }
 
 func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
-	cause error) error {
+	cause error) (processResult, error) {
 
 	// parse everything to see if the original packet was an SCMP error.
 	var (
@@ -630,26 +699,26 @@ func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.Seri
 	decoded := make([]gopacket.LayerType, 5)
 	if err := parser.DecodeLayers(p.origPacket, &decoded); err != nil {
 		if _, ok := err.(gopacket.UnsupportedLayerType); !ok {
-			return serrors.WrapStr("decoding packet", err)
+			return processResult{}, serrors.WrapStr("decoding packet", err)
 		}
 	}
 	// in reply to an SCMP error do nothing:
 	if decoded[len(decoded)-1] == slayers.LayerTypeSCMP && !scmpLayer.TypeCode.InfoMsg() {
-		return serrors.WrapStr("SCMP error for SCMP error pkt -> DROP", cause)
+		return processResult{}, serrors.WrapStr("SCMP error for SCMP error pkt -> DROP", cause)
 	}
 
 	// the quoted packet is the packet in its current state
 	if err := p.path.SetInfoField(p.infoField, int(p.path.PathMeta.CurrINF)); err != nil {
-		return serrors.WrapStr("update info field", err)
+		return processResult{}, serrors.WrapStr("update info field", err)
 	}
 	if err := p.path.SetHopField(p.hopField, int(p.path.PathMeta.CurrHF)); err != nil {
-		return serrors.WrapStr("update hop field", err)
+		return processResult{}, serrors.WrapStr("update hop field", err)
 	}
 	if err := p.buffer.Clear(); err != nil {
-		return err
+		return processResult{}, err
 	}
 	if err := p.scionLayer.SerializeTo(p.buffer, gopacket.SerializeOptions{}); err != nil {
-		return err
+		return processResult{}, err
 	}
 	// quoteLen is used to limit the size of the quote buffer, the final quote
 	// length is calculated inside the scmpPacker.
@@ -677,46 +746,42 @@ func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.Seri
 		external,
 		cause,
 	)
-	if rawSCMP != nil {
-		p.m.Buffers[0] = p.m.Buffers[0][:len(rawSCMP)]
-		copy(p.m.Buffers[0], rawSCMP)
-	}
-	return err
+	return processResult{OutPkt: rawSCMP}, err
 }
 
-func (p *scionPacketProcessor) parsePath() error {
+func (p *scionPacketProcessor) parsePath() (processResult, error) {
 	var ok bool
 	p.path, ok = p.scionLayer.Path.(*scion.Raw)
 	if !ok {
 		// TODO(lukedirtwalker) parameter problem invalid path?
-		return malformedPath
+		return processResult{}, malformedPath
 	}
 	var err error
 	p.hopField, err = p.path.GetCurrentHopField()
 	if err != nil {
 		// TODO(lukedirtwalker) parameter problem invalid path?
-		return err
+		return processResult{}, err
 	}
 	p.infoField, err = p.path.GetCurrentInfoField()
 	if err != nil {
 		// TODO(lukedirtwalker) parameter problem invalid path?
-		return err
+		return processResult{}, err
 	}
-	if err := p.validateHopExpiry(); err != nil {
-		return err
+	if r, err := p.validateHopExpiry(); err != nil {
+		return r, err
 	}
-	if err := p.validateIngressID(); err != nil {
-		return err
+	if r, err := p.validateIngressID(); err != nil {
+		return r, err
 	}
-	return nil
+	return processResult{}, nil
 }
 
-func (p *scionPacketProcessor) validateHopExpiry() error {
+func (p *scionPacketProcessor) validateHopExpiry() (processResult, error) {
 	expiration := util.SecsToTime(p.infoField.Timestamp).
 		Add(spath.ExpTimeType(p.hopField.ExpTime).ToDuration())
 	expired := expiration.Before(time.Now())
 	if !expired {
-		return nil
+		return processResult{}, nil
 	}
 	return p.packSCMP(
 		&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
@@ -728,7 +793,7 @@ func (p *scionPacketProcessor) validateHopExpiry() error {
 	)
 }
 
-func (p *scionPacketProcessor) validateIngressID() error {
+func (p *scionPacketProcessor) validateIngressID() (processResult, error) {
 	pktIngressID := p.hopField.ConsIngress
 	errCode := slayers.SCMPCodeUnknownHopFieldIngress
 	if !p.infoField.ConsDir {
@@ -745,10 +810,10 @@ func (p *scionPacketProcessor) validateIngressID() error {
 				"pkt_ingress", pktIngressID, "router_ingress", p.ingressID),
 		)
 	}
-	return nil
+	return processResult{}, nil
 }
 
-func (p *scionPacketProcessor) validateEgressID() error {
+func (p *scionPacketProcessor) validateEgressID() (processResult, error) {
 	pktEgressID := p.egressInterface()
 	_, ih := p.d.internalNextHops[pktEgressID]
 	_, eh := p.d.external[pktEgressID]
@@ -766,23 +831,19 @@ func (p *scionPacketProcessor) validateEgressID() error {
 		)
 	}
 
-	// The following section checks path segment changes.
-	//
-	// Packets from the local AS are either already checked by the ingress
-	// router, or originate in the local AS.
-	if !p.segmentChange || p.ingressID == 0 {
-		return nil
+	if !p.segmentChange {
+		return processResult{}, nil
 	}
-
 	// Check that the interface pair is valid on a segment switch.
+	// Having a segment change received from the internal interface is never valid.
 	ingress, egress := p.d.linkTypes[p.ingressID], p.d.linkTypes[pktEgressID]
 	switch {
 	case ingress == topology.Core && egress == topology.Child:
-		return nil
+		return processResult{}, nil
 	case ingress == topology.Child && egress == topology.Core:
-		return nil
+		return processResult{}, nil
 	case ingress == topology.Child && egress == topology.Child:
-		return nil
+		return processResult{}, nil
 	default:
 		return p.packSCMP(
 			&slayers.SCMP{
@@ -807,7 +868,7 @@ func (p *scionPacketProcessor) updateNonConsDirIngressSegID() error {
 		if err := p.path.SetInfoField(p.infoField, int(p.path.PathMeta.CurrINF)); err != nil {
 			return serrors.WrapStr("update info field", err)
 		}
-		if err := updateSCIONLayer(p.m, p.scionLayer, p.buffer); err != nil {
+		if err := updateSCIONLayer(p.rawPkt, p.scionLayer, p.buffer); err != nil {
 			return err
 		}
 	}
@@ -824,7 +885,7 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 		scion.MetaLen + path.InfoLen*p.path.NumINF + path.HopLen*int(p.path.PathMeta.CurrHF))
 }
 
-func (p *scionPacketProcessor) verifyCurrentMAC() error {
+func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 	if err := path.VerifyMAC(p.d.macFactory(), p.infoField, p.hopField); err != nil {
 		return p.packSCMP(
 			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
@@ -836,22 +897,22 @@ func (p *scionPacketProcessor) verifyCurrentMAC() error {
 				"seg_id", p.infoField.SegID),
 		)
 	}
-	return nil
+	return processResult{}, nil
 }
 
-func (p *scionPacketProcessor) processInbound() error {
-	var err error
-	p.m.Addr, err = p.d.resolveLocalDst(p.scionLayer)
+func (p *scionPacketProcessor) resolveInbound() (net.Addr, processResult, error) {
+	a, err := p.d.resolveLocalDst(p.scionLayer)
 	switch {
 	case errors.Is(err, noSVCBackend):
-		return p.packSCMP(
+		r, err := p.packSCMP(
 			&slayers.SCMP{
 				TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeDestinationUnreachable,
 					slayers.SCMPCodeNoRoute),
 			},
 			&slayers.SCMPDestinationUnreachable{}, err)
+		return nil, r, err
 	default:
-		return nil
+		return a, processResult{}, nil
 	}
 }
 
@@ -869,40 +930,38 @@ func (p *scionPacketProcessor) processEgress() error {
 		// TODO parameter problem invalid path
 		return serrors.WrapStr("incrementing path", err)
 	}
-	if err := updateSCIONLayer(p.m, p.scionLayer, p.buffer); err != nil {
+	if err := updateSCIONLayer(p.rawPkt, p.scionLayer, p.buffer); err != nil {
 		return err
 	}
-
-	p.m.Addr = nil
 	return nil
 }
 
-func (p *scionPacketProcessor) doXover() error {
+func (p *scionPacketProcessor) doXover() (processResult, error) {
 	p.segmentChange = true
 	if err := p.path.IncPath(); err != nil {
 		// TODO parameter problem invalid path
-		return serrors.WrapStr("incrementing path", err)
+		return processResult{}, serrors.WrapStr("incrementing path", err)
 	}
 	var err error
 	if p.hopField, err = p.path.GetCurrentHopField(); err != nil {
 		// TODO parameter problem invalid path
-		return err
+		return processResult{}, err
 	}
 	if p.infoField, err = p.path.GetCurrentInfoField(); err != nil {
 		// TODO parameter problem invalid path
-		return err
+		return processResult{}, err
 	}
-	if err := updateSCIONLayer(p.m, p.scionLayer, p.buffer); err != nil {
-		return err
+	if err := updateSCIONLayer(p.rawPkt, p.scionLayer, p.buffer); err != nil {
+		return processResult{}, err
 	}
-	if err := p.validateHopExpiry(); err != nil {
-		return err
+	if r, err := p.validateHopExpiry(); err != nil {
+		return r, err
 	}
 	// verify the new block
-	if err := p.verifyCurrentMAC(); err != nil {
-		return serrors.WithCtx(err, "info", "after xover")
+	if r, err := p.verifyCurrentMAC(); err != nil {
+		return r, serrors.WithCtx(err, "info", "after xover")
 	}
-	return nil
+	return processResult{}, nil
 }
 
 func (p *scionPacketProcessor) egressInterface() uint16 {
@@ -912,7 +971,7 @@ func (p *scionPacketProcessor) egressInterface() uint16 {
 	return p.hopField.ConsIngress
 }
 
-func (p *scionPacketProcessor) validateEgressUp() error {
+func (p *scionPacketProcessor) validateEgressUp() (processResult, error) {
 	egressID := p.egressInterface()
 	if v, ok := p.d.bfdSessions[egressID]; ok {
 		if !v.IsUp() {
@@ -935,51 +994,53 @@ func (p *scionPacketProcessor) validateEgressUp() error {
 			return p.packSCMP(scmpH, scmpP, serrors.New("bfd session down"))
 		}
 	}
-	return nil
+	return processResult{}, nil
 }
 
-func (p *scionPacketProcessor) handleIngressRouterAlert() error {
+func (p *scionPacketProcessor) handleIngressRouterAlert() (processResult, error) {
 	if p.ingressID == 0 {
-		return nil
+		return processResult{}, nil
 	}
 	ingressAlert := (!p.infoField.ConsDir && p.hopField.EgressRouterAlert) ||
 		(p.infoField.ConsDir && p.hopField.IngressRouterAlert)
 	if !ingressAlert {
-		return nil
+		return processResult{}, nil
 	}
 	p.hopField.IngressRouterAlert = false
 	return p.handleSCMPTraceRouteRequest(p.ingressID)
 }
 
-func (p *scionPacketProcessor) handleEgressRouterAlert() error {
+func (p *scionPacketProcessor) handleEgressRouterAlert() (processResult, error) {
 	egressAlert := (p.infoField.ConsDir && p.hopField.EgressRouterAlert) ||
 		(!p.infoField.ConsDir && p.hopField.IngressRouterAlert)
 	if !egressAlert {
-		return nil
+		return processResult{}, nil
 	}
 	egressID := p.egressInterface()
 	if _, ok := p.d.external[egressID]; !ok {
-		return nil
+		return processResult{}, nil
 	}
 	p.hopField.EgressRouterAlert = false
 	return p.handleSCMPTraceRouteRequest(egressID)
 }
 
-func (p *scionPacketProcessor) handleSCMPTraceRouteRequest(interfaceID uint16) error {
+func (p *scionPacketProcessor) handleSCMPTraceRouteRequest(
+	interfaceID uint16) (processResult, error) {
+
 	var scmpH slayers.SCMP
 	if err := scmpH.DecodeFromBytes(p.scionLayer.Payload, gopacket.NilDecodeFeedback); err != nil {
 		log.Debug("Parsing SCMP header of router alert", "err", err)
-		return nil
+		return processResult{}, nil
 	}
 	if scmpH.TypeCode != slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0) {
 		log.Debug("Packet with router alert, but not traceroute request",
 			"type_code", scmpH.TypeCode)
-		return nil
+		return processResult{}, nil
 	}
 	var scmpP slayers.SCMPTraceroute
 	if err := scmpP.DecodeFromBytes(scmpH.Payload, gopacket.NilDecodeFeedback); err != nil {
 		log.Debug("Parsing SCMPTraceroute", "err", err)
-		return nil
+		return processResult{}, nil
 	}
 	scmpH = slayers.SCMP{
 		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
@@ -990,14 +1051,12 @@ func (p *scionPacketProcessor) handleSCMPTraceRouteRequest(interfaceID uint16) e
 		IA:         p.d.localIA,
 		Interface:  uint64(interfaceID),
 	}
-	// XXX(lukedirtwalker): this is no really an error but we use error to
-	// indicate SCMP to the root processing function.
 	return p.packSCMP(&scmpH, &scmpP, nil)
 }
 
-func (p *scionPacketProcessor) validatePktLen() error {
+func (p *scionPacketProcessor) validatePktLen() (processResult, error) {
 	if int(p.scionLayer.PayloadLen) == len(p.scionLayer.Payload) {
-		return nil
+		return processResult{}, nil
 	}
 	return p.packSCMP(
 		&slayers.SCMP{
@@ -1010,71 +1069,71 @@ func (p *scionPacketProcessor) validatePktLen() error {
 	)
 }
 
-func (p *scionPacketProcessor) process() (BatchConn, error) {
+func (p *scionPacketProcessor) process() (processResult, error) {
 
-	if err := p.parsePath(); err != nil {
-		return nil, err
+	if r, err := p.parsePath(); err != nil {
+		return r, err
 	}
-	if err := p.validatePktLen(); err != nil {
-		return nil, err
+	if r, err := p.validatePktLen(); err != nil {
+		return r, err
 	}
 	if err := p.updateNonConsDirIngressSegID(); err != nil {
-		return nil, err
+		return processResult{}, err
 	}
-	if err := p.verifyCurrentMAC(); err != nil {
-		return nil, err
+	if r, err := p.verifyCurrentMAC(); err != nil {
+		return r, err
 	}
-	if err := p.handleIngressRouterAlert(); err != nil {
-		return nil, err
+	if r, err := p.handleIngressRouterAlert(); err != nil {
+		return r, err
 	}
 
 	// Inbound: pkts destined to the local IA.
 	if p.scionLayer.DstIA.Equal(p.d.localIA) && int(p.path.PathMeta.CurrHF)+1 == p.path.NumHops {
-		if err := p.processInbound(); err != nil {
-			return nil, err
+		a, r, err := p.resolveInbound()
+		if err != nil {
+			return r, err
 		}
-		return p.d.internal, nil
+		return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil
 	}
 
 	// Outbound: pkts leaving the local IA.
 	// BRTransit: pkts leaving from the same BR different interface.
 
 	if p.path.IsXover() {
-		if err := p.doXover(); err != nil {
-			return nil, err
+		if r, err := p.doXover(); err != nil {
+			return r, err
 		}
 	}
-	if err := p.validateEgressID(); err != nil {
-		return nil, err
+	if r, err := p.validateEgressID(); err != nil {
+		return r, err
 	}
 	// handle egress router alert before we check if it's up because we want to
 	// send the reply anyway, so that trace route can pinpoint the exact link
 	// that failed.
-	if err := p.handleEgressRouterAlert(); err != nil {
-		return nil, err
+	if r, err := p.handleEgressRouterAlert(); err != nil {
+		return r, err
 	}
-	if err := p.validateEgressUp(); err != nil {
-		return nil, err
+	if r, err := p.validateEgressUp(); err != nil {
+		return r, err
 	}
 
 	egressID := p.egressInterface()
 	if c, ok := p.d.external[egressID]; ok {
 		if err := p.processEgress(); err != nil {
-			return nil, err
+			return processResult{}, err
 		}
-		return c, nil
+		return processResult{EgressID: egressID, OutConn: c, OutPkt: p.rawPkt}, nil
 	}
 
 	// ASTransit: pkts leaving from another AS BR.
 	if a, ok := p.d.internalNextHops[egressID]; ok {
-		p.m.Addr = a
-		return p.d.internal, nil
+		return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil
 	}
 	errCode := slayers.SCMPCodeUnknownHopFieldEgress
 	if !p.infoField.ConsDir {
 		errCode = slayers.SCMPCodeUnknownHopFieldIngress
 	}
-	return nil, p.packSCMP(
+	return p.packSCMP(
 		&slayers.SCMP{
 			TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem, errCode),
 		},
@@ -1083,43 +1142,43 @@ func (p *scionPacketProcessor) process() (BatchConn, error) {
 	)
 }
 
-func (d *DataPlane) processOHP(ingressID uint16, m *ipv4.Message, s slayers.SCION,
-	buffer gopacket.SerializeBuffer) (BatchConn, error) {
+func (d *DataPlane) processOHP(ingressID uint16, rawPkt []byte, s slayers.SCION,
+	buffer gopacket.SerializeBuffer) (processResult, error) {
 
 	p, ok := s.Path.(*onehop.Path)
 	if !ok {
 		// TODO parameter problem -> invalid path
-		return nil, malformedPath
+		return processResult{}, malformedPath
 	}
 	if !p.Info.ConsDir {
 		// TODO parameter problem -> invalid path
-		return nil, serrors.WrapStr("OneHop path in reverse construction direction is not allowed",
+		return processResult{}, serrors.WrapStr(
+			"OneHop path in reverse construction direction is not allowed",
 			malformedPath, "srcIA", s.SrcIA, "dstIA", s.DstIA)
 	}
 	if !d.localIA.Equal(s.DstIA) && !d.localIA.Equal(s.SrcIA) {
 		// TODO parameter problem -> invalid path
-		return nil, serrors.WrapStr("OneHop neither destined or originating from IA", cannotRoute,
-			"localIA", d.localIA, "srcIA", s.SrcIA, "dstIA", s.DstIA)
+		return processResult{}, serrors.WrapStr("OneHop neither destined or originating from IA",
+			cannotRoute, "localIA", d.localIA, "srcIA", s.SrcIA, "dstIA", s.DstIA)
 	}
 	// OHP leaving our IA
 	if d.localIA.Equal(s.SrcIA) {
 		if err := path.VerifyMAC(d.macFactory(), &p.Info, &p.FirstHop); err != nil {
 			// TODO parameter problem -> invalid MAC
-			return nil, serrors.WithCtx(err, "type", "ohp")
+			return processResult{}, serrors.WithCtx(err, "type", "ohp")
 		}
 		p.Info.UpdateSegID(p.FirstHop.Mac)
 
-		if err := updateSCIONLayer(m, s, buffer); err != nil {
-			return nil, err
+		if err := updateSCIONLayer(rawPkt, s, buffer); err != nil {
+			return processResult{}, err
 		}
 		// OHP should always be directed to the correct BR.
 		if c, ok := d.external[p.FirstHop.ConsEgress]; ok {
 			// buffer should already be correct
-			m.Addr = nil
-			return c, nil
+			return processResult{EgressID: p.FirstHop.ConsEgress, OutConn: c, OutPkt: rawPkt}, nil
 		}
 		// TODO parameter problem invalid interface
-		return nil, serrors.WithCtx(cannotRoute, "type", "ohp",
+		return processResult{}, serrors.WithCtx(cannotRoute, "type", "ohp",
 			"egress", p.FirstHop.ConsEgress, "consDir", p.Info.ConsDir)
 	}
 
@@ -1130,15 +1189,14 @@ func (d *DataPlane) processOHP(ingressID uint16, m *ipv4.Message, s slayers.SCIO
 	}
 	p.SecondHop.Mac = path.MAC(d.macFactory(), &p.Info, &p.SecondHop)
 
-	if err := updateSCIONLayer(m, s, buffer); err != nil {
-		return nil, err
+	if err := updateSCIONLayer(rawPkt, s, buffer); err != nil {
+		return processResult{}, err
 	}
-	var err error
-	m.Addr, err = d.resolveLocalDst(s)
+	a, err := d.resolveLocalDst(s)
 	if err != nil {
-		return nil, err
+		return processResult{}, err
 	}
-	return d.internal, nil
+	return processResult{OutConn: d.internal, OutAddr: a, OutPkt: rawPkt}, nil
 }
 
 func (d *DataPlane) resolveLocalDst(s slayers.SCION) (net.Addr, error) {
@@ -1166,7 +1224,7 @@ func addEndhostPort(dst net.Addr) net.Addr {
 	return dst
 }
 
-func updateSCIONLayer(m *ipv4.Message, s slayers.SCION, buffer gopacket.SerializeBuffer) error {
+func updateSCIONLayer(rawPkt []byte, s slayers.SCION, buffer gopacket.SerializeBuffer) error {
 	if err := buffer.Clear(); err != nil {
 		return err
 	}
@@ -1177,7 +1235,7 @@ func updateSCIONLayer(m *ipv4.Message, s slayers.SCION, buffer gopacket.Serializ
 	// which can write into the existing buffer, see also the discussion in
 	// https://fsnets.slack.com/archives/C8ADBBG0J/p1592805884250700
 	rawContents := buffer.Bytes()
-	copy(m.Buffers[0][:len(rawContents)], rawContents)
+	copy(rawPkt[:len(rawContents)], rawContents)
 	return nil
 }
 
@@ -1283,7 +1341,7 @@ func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.Serializable
 	if err := decPath.Reverse(); err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "reversing path for SCMP")
 	}
-	if incPath {
+	if incPath || decPath.IsXover() {
 		infoField := decPath.InfoFields[decPath.PathMeta.CurrINF]
 		if infoField.ConsDir {
 			hopField := decPath.HopFields[decPath.PathMeta.CurrHF]
@@ -1362,4 +1420,21 @@ type pathIncrementer struct{}
 
 func (pathIncrementer) update(p *scion.Raw) error {
 	return p.IncPath()
+}
+
+func interfaceToMetricLabels(id uint16, localIA addr.IA,
+	neighbors map[uint16]addr.IA) prometheus.Labels {
+
+	if id == 0 {
+		return prometheus.Labels{
+			"isd_as":          localIA.String(),
+			"interface":       "internal",
+			"neighbor_isd_as": localIA.String(),
+		}
+	}
+	return prometheus.Labels{
+		"isd_as":          localIA.String(),
+		"interface":       strconv.FormatUint(uint64(id), 10),
+		"neighbor_isd_as": neighbors[id].String(),
+	}
 }

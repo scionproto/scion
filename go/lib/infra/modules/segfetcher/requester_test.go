@@ -23,7 +23,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/mock_segfetcher"
@@ -77,9 +76,7 @@ func TestRequester(t *testing.T) {
 			Reqs: segfetcher.Requests{req_111_1},
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
 				req := req_111_1
-				reply := &path_mgmt.SegRecs{
-					Recs: []*seg.Meta{tg.seg120_111_up},
-				}
+				reply := []*seg.Meta{tg.seg120_111_up}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req), gomock.Any()).
 					Return(reply, nil)
 				return []segfetcher.ReplyOrErr{{Req: req_111_1, Segments: reply}}
@@ -89,9 +86,7 @@ func TestRequester(t *testing.T) {
 			Reqs: segfetcher.Requests{req_1_111},
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
 				req := req_1_111
-				reply := &path_mgmt.SegRecs{
-					Recs: []*seg.Meta{tg.seg120_111_down, tg.seg130_111_down},
-				}
+				reply := []*seg.Meta{tg.seg120_111_down, tg.seg130_111_down}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req), gomock.Any()).
 					Return(reply, nil)
 				return []segfetcher.ReplyOrErr{{Req: req_1_111, Segments: reply}}
@@ -105,15 +100,11 @@ func TestRequester(t *testing.T) {
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).Times(3).
 					Return(nil, testErr)
 				req2 := req_210_120
-				reply2 := &path_mgmt.SegRecs{
-					Recs: []*seg.Meta{tg.seg210_120_core},
-				}
+				reply2 := []*seg.Meta{tg.seg210_120_core}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req2), gomock.Any()).
 					Return(reply2, nil)
 				req3 := req_210_130
-				reply3 := &path_mgmt.SegRecs{
-					Recs: []*seg.Meta{tg.seg210_130_core},
-				}
+				reply3 := []*seg.Meta{tg.seg210_130_core}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req3), gomock.Any()).
 					Return(reply3, nil)
 				return []segfetcher.ReplyOrErr{
@@ -127,9 +118,7 @@ func TestRequester(t *testing.T) {
 			Reqs: segfetcher.Requests{req_111_1},
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
 				req := req_111_1
-				reply := &path_mgmt.SegRecs{
-					Recs: []*seg.Meta{tg.seg120_111_up},
-				}
+				reply := []*seg.Meta{tg.seg120_111_up}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req), gomock.Any()).
 					Return(reply, nil)
 				return []segfetcher.ReplyOrErr{{Req: req_111_1, Segments: reply}}
@@ -139,9 +128,7 @@ func TestRequester(t *testing.T) {
 			Reqs: segfetcher.Requests{req_1_111},
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
 				req := req_1_111
-				reply := &path_mgmt.SegRecs{
-					Recs: []*seg.Meta{tg.seg120_111_down, tg.seg130_111_down},
-				}
+				reply := []*seg.Meta{tg.seg120_111_down, tg.seg130_111_down}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req), gomock.Any()).
 					Return(reply, nil)
 				return []segfetcher.ReplyOrErr{{Req: req_1_111, Segments: reply}}
@@ -151,15 +138,11 @@ func TestRequester(t *testing.T) {
 			Reqs: segfetcher.Requests{req_111_1, req_2_211},
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
 				req1 := req_111_1
-				reply1 := &path_mgmt.SegRecs{
-					Recs: []*seg.Meta{tg.seg120_111_up, tg.seg130_111_up},
-				}
+				reply1 := []*seg.Meta{tg.seg120_111_up, tg.seg130_111_up}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).
 					Return(reply1, nil)
 				req2 := req_2_211
-				reply2 := &path_mgmt.SegRecs{
-					Recs: []*seg.Meta{tg.seg210_211_down},
-				}
+				reply2 := []*seg.Meta{tg.seg210_211_down}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req2), gomock.Any()).
 					Return(reply2, nil)
 				return []segfetcher.ReplyOrErr{

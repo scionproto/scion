@@ -178,6 +178,7 @@ func (s *Session) Run() error {
 		s.remoteDiscriminator = s.RemoteDiscriminator
 	}
 	s.initMessages()
+	s.initMetrics()
 
 	// detectionTimer tracks the period of time without receiving BFD packets after which the
 	// session is determined to have failed.
@@ -367,6 +368,22 @@ func (s *Session) initMessages() {
 	}
 }
 
+// initMetrics initializes the metrics to a zero value.
+func (s *Session) initMetrics() {
+	if s.Metrics.Up != nil {
+		s.Metrics.Up.Set(0)
+	}
+	if s.Metrics.PacketsReceived != nil {
+		s.Metrics.PacketsReceived.Add(0)
+	}
+	if s.Metrics.PacketsSent != nil {
+		s.Metrics.PacketsSent.Add(0)
+	}
+	if s.Metrics.StateChanges != nil {
+		s.Metrics.StateChanges.Add(0)
+	}
+}
+
 // debug logs a debug message if a logger is configured.
 func (s *Session) debug(msg string, ctx ...interface{}) {
 	if s.Logger != nil {
@@ -388,6 +405,9 @@ func (s *Session) transition(e event) {
 			} else {
 				s.Metrics.Up.Set(0)
 			}
+		}
+		if s.Metrics.StateChanges != nil {
+			s.Metrics.StateChanges.Add(1)
 		}
 	}
 }

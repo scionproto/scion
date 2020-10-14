@@ -25,15 +25,15 @@ type Metrics struct {
 	OutputBytesTotal          *prometheus.CounterVec
 	InputPacketsTotal         *prometheus.CounterVec
 	OutputPacketsTotal        *prometheus.CounterVec
-	InputErrorsTotal          *prometheus.CounterVec
-	OutputErrorsTotal         *prometheus.CounterVec
-	InputDroppedPacketsTotal  *prometheus.CounterVec
+	DroppedPacketsTotal       *prometheus.CounterVec
 	InterfaceUp               *prometheus.GaugeVec
+	BFDInterfaceStateChanges  *prometheus.CounterVec
 	BFDPacketsSent            *prometheus.CounterVec
 	BFDPacketsReceived        *prometheus.CounterVec
 	SiblingReachable          *prometheus.GaugeVec
 	SiblingBFDPacketsSent     *prometheus.CounterVec
 	SiblingBFDPacketsReceived *prometheus.CounterVec
+	SiblingBFDStateChanges    *prometheus.CounterVec
 }
 
 // NewMetrics initializes the metrics for the Border Router, and registers them
@@ -68,24 +68,11 @@ func NewMetrics() *Metrics {
 			},
 			[]string{"interface", "isd_as", "neighbor_isd_as"},
 		),
-		InputErrorsTotal: promauto.NewCounterVec(
+		DroppedPacketsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "router_input_read_errors_total",
-				Help: "Total number of input socket read errors",
-			},
-			[]string{"interface", "isd_as", "neighbor_isd_as"},
-		),
-		OutputErrorsTotal: promauto.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "router_output_write_errors_total",
-				Help: "Total number of output socket write errors.",
-			},
-			[]string{"interface", "isd_as", "neighbor_isd_as"},
-		),
-		InputDroppedPacketsTotal: promauto.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "router_input_dropped_pkts_total",
-				Help: "Total number of packets dropped by kernel due to receive buffer overflow",
+				Name: "router_dropped_pkts_total",
+				Help: "Total number of packets dropped by the router. This metric reports " +
+					"the number of packets that were dropped because of errors.",
 			},
 			[]string{"interface", "isd_as", "neighbor_isd_as"},
 		),
@@ -94,21 +81,28 @@ func NewMetrics() *Metrics {
 				Name: "router_interface_up",
 				Help: "Either zero or one depending on whether the interface is up.",
 			},
-			[]string{"interface", "isd_as"},
+			[]string{"interface", "isd_as", "neighbor_isd_as"},
+		),
+		BFDInterfaceStateChanges: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "router_bfd_state_changes_total",
+				Help: "Total number of BFD state changes.",
+			},
+			[]string{"interface", "isd_as", "neighbor_isd_as"},
 		),
 		BFDPacketsSent: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "router_bfd_sent_packets_total",
 				Help: "Number of BFD packets sent.",
 			},
-			[]string{"interface", "isd_as"},
+			[]string{"interface", "isd_as", "neighbor_isd_as"},
 		),
 		BFDPacketsReceived: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "router_bfd_received_packets_total",
 				Help: "Number of BFD packets received.",
 			},
-			[]string{"interface", "isd_as"},
+			[]string{"interface", "isd_as", "neighbor_isd_as"},
 		),
 		SiblingReachable: promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -116,21 +110,28 @@ func NewMetrics() *Metrics {
 				Help: "Either zero or one depending on whether a sibling router " +
 					"instance is reachable.",
 			},
-			[]string{"instance", "isd_as"},
+			[]string{"sibling", "isd_as"},
 		),
 		SiblingBFDPacketsSent: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "router_bfd_sent_sibling_packets_total",
 				Help: "Number of BFD packets sent to sibling router instance.",
 			},
-			[]string{"instance", "isd_as"},
+			[]string{"sibling", "isd_as"},
 		),
 		SiblingBFDPacketsReceived: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "router_bfd_received_sibling_packets_total",
 				Help: "Number of BFD packets received from sibling router instance.",
 			},
-			[]string{"instance", "isd_as"},
+			[]string{"sibling", "isd_as"},
+		),
+		SiblingBFDStateChanges: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "router_bfd_sibling_state_changes_total",
+				Help: "Total number of BFD state changes for sibling router instances",
+			},
+			[]string{"sibling", "isd_as"},
 		),
 	}
 }

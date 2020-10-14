@@ -15,6 +15,10 @@ import (
 
 var NewServices = newServices
 
+type ProcessResult struct {
+	processResult
+}
+
 func NewDP(
 	external map[uint16]BatchConn,
 	linkTypes map[uint16]topology.LinkType,
@@ -41,8 +45,9 @@ func (d *DataPlane) FakeStart() {
 }
 
 func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message, s slayers.SCION,
-	origPacket []byte, b gopacket.SerializeBuffer) (BatchConn, error) {
-	return d.processPkt(ifID, m, s, origPacket, b)
+	origPacket []byte, b gopacket.SerializeBuffer) (ProcessResult, error) {
+	result, err := d.processPkt(ifID, m.Buffers[0], s, origPacket, b)
+	return ProcessResult{processResult: result}, err
 }
 
 func ExtractServices(s *services) map[addr.HostSVC][]*net.UDPAddr {

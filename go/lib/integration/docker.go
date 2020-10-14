@@ -66,7 +66,7 @@ func (di *dockerIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 }
 
 func (di *dockerIntegration) StartClient(ctx context.Context,
-	src, dst *snet.UDPAddr) (Waiter, error) {
+	src, dst *snet.UDPAddr) (*BinaryWaiter, error) {
 	bi := *di.binaryIntegration
 	bi.clientArgs = append(dockerArgs, append([]string{TesterID(src), bi.cmd}, bi.clientArgs...)...)
 	bi.cmd = dockerCmd

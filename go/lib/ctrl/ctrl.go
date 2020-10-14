@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -50,16 +49,6 @@ func NewPathMgmtPld(u proto.Cerealizable, pathD *path_mgmt.Data, ctrlD *Data) (*
 	return NewPld(ppld, ctrlD)
 }
 
-// NewCertMgmtPld creates a new control payload, containing a new cert_mgmt payload,
-// which in turn contains the supplied Cerealizable instance.
-func NewCertMgmtPld(u proto.Cerealizable, certD *cert_mgmt.Data, ctrlD *Data) (*Pld, error) {
-	cpld, err := cert_mgmt.NewPld(u, certD)
-	if err != nil {
-		return nil, err
-	}
-	return NewPld(cpld, ctrlD)
-}
-
 func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 	p := &Pld{Data: &Data{}}
 	return p, proto.ParseFromRaw(p, b)
@@ -67,21 +56,6 @@ func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 
 func (p *Pld) Union() (proto.Cerealizable, error) {
 	return p.union.get()
-}
-
-// GetCertMgmt returns the CertMgmt payload and the CtrlPld's non-union Data.
-// If the union type is not CertMgmt, an error is returned.
-func (p *Pld) GetCertMgmt() (*cert_mgmt.Pld, *Data, error) {
-	u, err := p.Union()
-	if err != nil {
-		return nil, nil, err
-	}
-	certP, ok := u.(*cert_mgmt.Pld)
-	if !ok {
-		return nil, nil, common.NewBasicError("Non-matching ctrl pld contents", nil,
-			"expected", "*cert_mgmt.Pld", "actual", common.TypeOf(u))
-	}
-	return certP, p.Data, nil
 }
 
 // GetPathMgmt returns the PathMgmt payload and the CtrlPld's non-union Data.
