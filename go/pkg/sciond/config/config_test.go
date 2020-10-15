@@ -57,6 +57,6 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 }
 
 func CheckTestSDConfig(t *testing.T, cfg *SDConfig, id string) {
-	assert.Equal(t, sciond.DefaultSCIONDAddress, cfg.Address)
+	assert.Equal(t, sciond.DefaultAPIAddress, cfg.Address)
 	assert.Equal(t, DefaultQueryInterval, cfg.QueryInterval.Duration)
 }

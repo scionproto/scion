@@ -27,7 +27,7 @@ import (
 
 const (
 	DefaultCtrlPort    = 30256
-	DefaultEncapPort   = 30056
+	DefaultDataPort    = 30056
 	DefaultTunName     = "sig"
 	DefaultTunRTableId = 11
 )
@@ -78,12 +78,16 @@ type SigConf struct {
 	ID string `toml:"id,omitempty"`
 	// The SIG config json file. (required)
 	SIGConfig string `toml:"sig_config,omitempty"`
-	// IP the bind IP address (optional, default determined based on route to control service)
-	IP net.IP `toml:"ip,omitempty"`
+	// CtrlAddr is the bind IP address for control messages
+	// (optional, default determined based on route to control service)
+	CtrlAddr net.IP `toml:"ctrl_addr,omitempty"`
 	// Control data port, e.g. keepalives. (default DefaultCtrlPort)
 	CtrlPort uint16 `toml:"ctrl_port,omitempty"`
-	// Encapsulation data port. (default DefaultEncapPort)
-	EncapPort uint16 `toml:"encap_port,omitempty"`
+	// DataAddr is the bind IP address for encapsulated traffic
+	// (optional, defaults to CtrlAddr)
+	DataAddr net.IP `toml:"data_addr,omitempty"`
+	// Encapsulation data port. (default DefaultDataPort)
+	DataPort uint16 `toml:"data_port,omitempty"`
 	// Name of TUN device to create. (default DefaultTunName)
 	Tun string `toml:"tun,omitempty"`
 	// TunRTableId the id of the routing table used in the SIG. (default DefaultTunRTableId)
@@ -109,8 +113,8 @@ func (cfg *SigConf) Validate() error {
 	if cfg.CtrlPort == 0 {
 		cfg.CtrlPort = DefaultCtrlPort
 	}
-	if cfg.EncapPort == 0 {
-		cfg.EncapPort = DefaultEncapPort
+	if cfg.DataPort == 0 {
+		cfg.DataPort = DefaultDataPort
 	}
 	if cfg.Tun == "" {
 		cfg.Tun = DefaultTunName

@@ -297,6 +297,7 @@ func TestDataPlaneRun(t *testing.T) {
 							disc := layers.BFDDiscriminator(i)
 							raw := postInternalBFD(disc, k.(*net.UDPAddr))
 							copy(m[i].Buffers[0], raw)
+							m[i].Addr = &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
 							m[i].Buffers[0] = m[i].Buffers[0][:len(raw)]
 							m[i].N = len(raw)
 							expectRemoteDiscriminators[disc] = struct{}{}
@@ -1068,7 +1069,8 @@ func TestProcessPkt(t *testing.T) {
 			buffer := gopacket.NewSerializeBuffer()
 			origMsg := make([]byte, len(input.Buffers[0]))
 			copy(origMsg, input.Buffers[0])
-			result, err := dp.ProcessPkt(tc.srcInterface, input, slayers.SCION{}, origMsg, buffer)
+			result, err := dp.ProcessPkt(tc.srcInterface, input, slayers.SCION{}, origMsg,
+				buffer)
 			tc.assertFunc(t, err)
 			if err != nil {
 				return

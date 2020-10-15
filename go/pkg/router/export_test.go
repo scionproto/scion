@@ -46,7 +46,8 @@ func (d *DataPlane) FakeStart() {
 
 func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message, s slayers.SCION,
 	origPacket []byte, b gopacket.SerializeBuffer) (ProcessResult, error) {
-	result, err := d.processPkt(ifID, m.Buffers[0], s, origPacket, b)
+
+	result, err := d.processPkt(ifID, m.Buffers[0], m.Addr, s, origPacket, b)
 	return ProcessResult{processResult: result}, err
 }
 

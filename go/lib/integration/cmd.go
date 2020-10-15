@@ -43,7 +43,7 @@ func (c Cmd) Template(src, dst *snet.UDPAddr) (Cmd, error) {
 	if needSCIOND(args) {
 		sciond, err := GetSCIONDAddress(GenFile(SCIONDAddressesFile), src.IA)
 		if err != nil {
-			return Cmd{}, serrors.WrapStr("unable to determine SCIOND address", err)
+			return Cmd{}, serrors.WrapStr("unable to determine SCION Daemon address", err)
 		}
 		args = replacePattern(SCIOND, sciond, args)
 	}

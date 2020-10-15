@@ -129,9 +129,8 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	return &QUICStack{
 		Listener: squic.NewConnListener(listener),
 		Dialer: &squic.ConnDialer{
-			Conn:       client,
-			TLSConfig:  tlsConfig,
-			QUICConfig: nil,
+			Conn:      client,
+			TLSConfig: tlsConfig,
 		},
 		RedirectCloser: cancel,
 	}, nil

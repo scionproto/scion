@@ -97,6 +97,6 @@ func CheckTestTracing(t *testing.T, cfg *env.Tracing) {
 }
 
 func CheckTestSciond(t *testing.T, cfg *env.SCIONDClient, id string) {
-	assert.Equal(t, sciond.DefaultSCIONDAddress, cfg.Address)
+	assert.Equal(t, sciond.DefaultAPIAddress, cfg.Address)
 	assert.Equal(t, env.SciondInitConnectPeriod, cfg.InitialConnectPeriod.Duration)
 }

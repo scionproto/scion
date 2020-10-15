@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	libconfig "github.com/scionproto/scion/go/lib/config"
@@ -39,7 +40,8 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/command"
-	"github.com/scionproto/scion/go/pkg/grpc"
+	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
+	sdpb "github.com/scionproto/scion/go/pkg/proto/daemon"
 	"github.com/scionproto/scion/go/pkg/sciond"
 	"github.com/scionproto/scion/go/pkg/sciond/config"
 	"github.com/scionproto/scion/go/pkg/sciond/fetcher"
@@ -116,7 +118,7 @@ func run(file string) error {
 		10*time.Second, 10*time.Second)
 	defer rcCleaner.Stop()
 
-	dialer := &grpc.TCPDialer{
+	dialer := &libgrpc.TCPDialer{
 		SvcResolver: func(svc addr.HostSVC) (*net.TCPAddr, error) {
 			addr, err := itopo.Get().Anycast(svc)
 			if err != nil {
@@ -141,7 +143,14 @@ func run(file string) error {
 		return serrors.WrapStr("creating trust engine", err)
 	}
 
-	srv := sciond.GRPCServer(cfg.SD.Address, sciond.ServerCfg{
+	listen := sciond.APIAddress(cfg.SD.Address)
+	listener, err := net.Listen("tcp", listen)
+	if err != nil {
+		return serrors.WrapStr("listening", err)
+	}
+
+	server := grpc.NewServer(libgrpc.UnaryServerInterceptor())
+	sdpb.RegisterDaemonServiceServer(server, sciond.NewServer(sciond.ServerConfig{
 		Fetcher: fetcher.NewFetcher(
 			fetcher.FetcherConfig{
 				RPC:          &segfetchergrpc.Requester{Dialer: dialer},
@@ -153,14 +162,16 @@ func run(file string) error {
 				TopoProvider: itopo.Provider(),
 			},
 		),
-		Engine:   engine,
-		PathDB:   pathDB,
-		RevCache: revCache,
-	})
+		Engine:       engine,
+		PathDB:       pathDB,
+		RevCache:     revCache,
+		TopoProvider: itopo.Provider(),
+	}))
+
 	go func() {
 		defer log.HandlePanic()
-		if err := srv(); err != nil {
-			fatal.Fatal(serrors.WrapStr("serving API", err, "addr", cfg.SD.Address))
+		if err := server.Serve(listener); err != nil {
+			fatal.Fatal(serrors.WrapStr("serving API", err, "addr", listen))
 		}
 	}()
 

@@ -46,10 +46,10 @@ var (
 )
 
 const (
-	// DefaultSCIONDAddress contains the system default for a SCIOND socket.
-	DefaultSCIONDAddress = "127.0.0.1:30255"
-	// DefaultSCIONDPort contains the default port for a SCIOND client API socket.
-	DefaultSCIONDPort = 30255
+	// DefaultAPIAddress contains the system default for a daemon API socket.
+	DefaultAPIAddress = "127.0.0.1:30255"
+	// DefaultAPIPort contains the default port for a daemon client API socket.
+	DefaultAPIPort = 30255
 )
 
 // NewService returns a SCIOND API connection factory.
@@ -79,7 +79,7 @@ type Connector interface {
 	// ASInfo requests from SCIOND information about AS ia, the zero IA can be
 	// use to detect the local IA.
 	ASInfo(ctx context.Context, ia addr.IA) (ASInfo, error)
-	// IFInfo requests from SCIOND addresses and ports of interfaces. Slice
+	// IFInfo requests from SCION Daemon addresses and ports of interfaces. Slice
 	// ifs contains interface IDs of BRs. If empty, a fresh (i.e., uncached)
 	// answer containing all interfaces is returned.
 	IFInfo(ctx context.Context, ifs []common.IFIDType) (map[common.IFIDType]*net.UDPAddr, error)

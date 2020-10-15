@@ -55,7 +55,7 @@ func Init(keyPath, pemPath string) error {
 	return nil
 }
 
-// Dial dials using quic over the scion network.
+// Dial dials using QUIC over the SCION network.
 func Dial(network *snet.SCIONNetwork, listen *net.UDPAddr, remote *snet.UDPAddr,
 	svc addr.HostSVC, quicConfig *quic.Config) (quic.Session, error) {
 

@@ -26,9 +26,9 @@ import (
 func CheckTestSIG(t *testing.T, cfg *config.SigConf, id string) {
 	assert.Equal(t, id, cfg.ID)
 	assert.Equal(t, "/etc/scion/sig/sig.json", cfg.SIGConfig)
-	assert.Equal(t, net.ParseIP("192.0.2.100"), cfg.IP)
+	assert.Equal(t, net.ParseIP("192.0.2.100"), cfg.CtrlAddr)
 	assert.Equal(t, config.DefaultCtrlPort, int(cfg.CtrlPort))
-	assert.Equal(t, config.DefaultEncapPort, int(cfg.EncapPort))
+	assert.Equal(t, config.DefaultDataPort, int(cfg.DataPort))
 	assert.Equal(t, config.DefaultTunName, cfg.Tun)
 	assert.Equal(t, config.DefaultTunRTableId, cfg.TunRTableId)
 }
