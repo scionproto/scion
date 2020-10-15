@@ -36,8 +36,12 @@ message StaticInfoExtension {
     // Geographical coordinates describing the location of the routers for relevant interfaces of this AS.
     // The key is the interface identifier.
     map<uint64, GeoCoordinates> geo = 2;
+    // Description of the underlying network for the intra-AS links, for the relevant interfaces of this AS.
+    // The key is the interface identifier.
+    map<uint64, LinkType> link_type = 3;
+    BandwidthInfo bandwidth = 4;
     // Generic note
-    string note = 3;
+    string note = 5;
 }
 
 // LatencyInfo specifies approximate lower-bound latency values.
@@ -65,11 +69,38 @@ message LatencyInfo {
     }
 }
 
+message BandwidthInfo {
+    uint32 intra = 1;
+    uint32 inter = 2;
+    // Bandwidth between beaconing-egress interface and sibling child or core interfaces.
+    // The key is the interface identifier of the sibling child or core interface.
+    map<uint64, uint32> xover_intra = 3;
+    // Bandwidth between beaconing-egress interface and peers.
+    // The key is the interface identifier of the peering interface.
+    map<uint64, PeerInfo> peers = 4;
+
+    message PeerInfo {
+        // Bandwidth between beaconing-egress interface and the local peering interface.
+        uint32 intra = 1;
+        // Bandwidth between the local peering interface and the peering interface in neighbor AS.
+        uint32 inter = 2;
+    }
+}
+
 message GeoCoordinates {
-  // The latitude of the geographic coordinate, in the WGS 84 datum.
-  float latitude = 1;
-  // The longitude of the geographic coordinate, in the WGS 84 datum.
-  float longitude = 2;
-  // The civic address of the location.
-  string address = 3;
+    // The latitude of the geographic coordinate, in the WGS 84 datum.
+    float latitude = 1;
+    // The longitude of the geographic coordinate, in the WGS 84 datum.
+    float longitude = 2;
+    // The civic address of the location.
+    string address = 3;
+}
+
+enum LinkType {
+    // Direct physical connection.
+    DIRECT = 0;
+    // Connection with local routing/switching.
+    MULTI_HOP = 1;
+    // Connection overlayed over publicly routed Internet.
+    OPEN_NET = 2;
 }

@@ -487,7 +487,7 @@ func generateStaticInfo(g *Graph, ia addr.IA, inIF, outIF common.IFIDType) *seg.
 			IfID: ifID,
 		})
 		if ifID == egifID {
-			s.Linktype.EgressLinkType = uint16(egifID) % 3
+			s.LinkType.EgressLinkType = uint16(egifID) % 3
 			s.Bandwidth.EgressBW = uint32(egifID)
 			s.Bandwidth.IngressToEgressBW = uint32(egifID)
 			s.Hops.InToOutHops = uint8(egifID)

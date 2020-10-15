@@ -17,7 +17,7 @@ package beaconing
 import (
 	"encoding/json"
 	"io/ioutil"
-	"math"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -45,11 +45,40 @@ type InterfaceHops struct {
 	Intra map[common.IFIDType]uint8 `json:"Intra"`
 }
 
+type JSONLinkType seg.LinkType
+
+func (l *JSONLinkType) MarshalText() ([]byte, error) {
+	switch *l {
+	case seg.LinkTypeDirect:
+		return []byte("direct"), nil
+	case seg.LinkTypeMultihop:
+		return []byte("multihop"), nil
+	case seg.LinkTypeOpennet:
+		return []byte("opennet"), nil
+	default:
+		return nil, serrors.New("invalid link type value")
+	}
+}
+
+func (l *JSONLinkType) UnmarshalText(text []byte) error {
+	switch strings.ToLower(string(text)) {
+	case "direct":
+		*l = seg.LinkTypeDirect
+	case "multihop":
+		*l = seg.LinkTypeMultihop
+	case "opennet":
+		*l = seg.LinkTypeOpennet
+	default:
+		return serrors.New("invalid link type", "link type", text)
+	}
+	return nil
+}
+
 // StaticInfoCfg is used to parse data from config.json.
 type StaticInfoCfg struct {
 	Latency   map[common.IFIDType]InterfaceLatencies  `json:"Latency"`
 	Bandwidth map[common.IFIDType]InterfaceBandwidths `json:"Bandwidth"`
-	Linktype  map[common.IFIDType]string              `json:"Linktype"`
+	LinkType  map[common.IFIDType]*JSONLinkType       `json:"LinkType"`
 	Geo       map[common.IFIDType]InterfaceGeodata    `json:"Geo"`
 	Hops      map[common.IFIDType]InterfaceHops       `json:"Hops"`
 	Note      string                                  `json:"Note"`
@@ -90,68 +119,46 @@ func (cfgdata StaticInfoCfg) gatherLatency(peers map[common.IFIDType]struct{},
 // gatherBW extracts bandwidth values from a StaticInfoCfg struct and
 // inserts them into the BandwidthInfo portion of a StaticInfoExtn struct.
 func (cfgdata StaticInfoCfg) gatherBW(peers map[common.IFIDType]struct{}, egifID common.IFIDType,
-	inifID common.IFIDType) seg.BandwidthInfo {
+	inifID common.IFIDType) *seg.BandwidthInfo {
 
-	l := seg.BandwidthInfo{
-		EgressBW:          cfgdata.Bandwidth[egifID].Inter,
-		IngressToEgressBW: cfgdata.Bandwidth[egifID].Intra[inifID],
+	bw := &seg.BandwidthInfo{
+		Inter:      cfgdata.Bandwidth[egifID].Inter,
+		Intra:      cfgdata.Bandwidth[egifID].Intra[inifID],
+		XoverIntra: make(map[common.IFIDType]uint32),
+		Peers:      make(map[common.IFIDType]seg.PeerBandwidthInfo),
 	}
 	for subintfid, intfbw := range cfgdata.Bandwidth[egifID].Intra {
 		// If we're looking at a peering interface, always include the data
 		if _, peer := peers[subintfid]; peer {
-			l.Bandwidths = append(l.Bandwidths, seg.InterfaceBandwidth{
-				IfID: subintfid,
-				BW: uint32(math.Min(float64(intfbw),
-					float64(cfgdata.Bandwidth[subintfid].Inter))),
-			})
-			continue
-		}
-		// If we're looking at a NON-peering interface, only include the
-		// data if subintfid>egifID so as to not store redundant information
-		if subintfid > egifID {
-			l.Bandwidths = append(l.Bandwidths, seg.InterfaceBandwidth{
-				BW:   intfbw,
-				IfID: subintfid,
-			})
+			bw.Peers[subintfid] = seg.PeerBandwidthInfo{
+				Inter: cfgdata.Bandwidth[subintfid].Inter,
+				Intra: intfbw,
+			}
+		} else {
+			// If we're looking at a NON-peering interface, only include the
+			// data if subintfid>egifID so as to not store redundant information
+			if subintfid > egifID {
+				bw.XoverIntra[subintfid] = intfbw
+			}
 		}
 	}
-	return l
+	return bw
 }
 
-// transformLinkType transforms the linktype from a string into a
-// value that can be automatically parsed into a capnp enum.
-func transformLinkType(linktype string) uint16 {
-	switch linktype {
-	case "direct":
-		return 0
-	case "multihop":
-		return 1
-	case "opennet":
-		return 2
-	default:
-		return 2
-	}
-}
-
-// gatherLinktype extracts linktype values from a StaticInfoCfg struct and
-// inserts them into the LinktypeInfo portion of a StaticInfoExtn struct.
+// gatherLinkType extracts linktype values from a StaticInfoCfg struct and
+// inserts them into the LinkTypeInfo portion of a StaticInfoExtn struct.
 func (cfgdata StaticInfoCfg) gatherLinkType(peers map[common.IFIDType]struct{},
-	egifID common.IFIDType) seg.LinktypeInfo {
+	egifID common.IFIDType) seg.LinkTypeInfo {
 
-	l := seg.LinktypeInfo{
-		EgressLinkType: transformLinkType(cfgdata.Linktype[egifID]),
-	}
-	for intfid, intfLT := range cfgdata.Linktype {
-		// If we're looking at a peering interface, include the data for
-		// the peering link, otherwise drop it
-		if _, peer := peers[intfid]; peer {
-			l.Peerlinks = append(l.Peerlinks, seg.InterfaceLinkType{
-				LinkType: transformLinkType(intfLT),
-				IfID:     intfid,
-			})
+	lt := make(seg.LinkTypeInfo)
+	lt[egifID] = seg.LinkType(*cfgdata.LinkType[egifID])
+	// Additionally add link type for peering links
+	for ifid, intfLT := range cfgdata.LinkType {
+		if _, peer := peers[ifid]; peer {
+			lt[ifid] = seg.LinkType(*intfLT)
 		}
 	}
-	return l
+	return lt
 }
 
 // gatherHops extracts hop values from a StaticInfoCfg struct and
@@ -214,7 +221,7 @@ func (cfgdata StaticInfoCfg) generateStaticinfo(peers map[common.IFIDType]struct
 	return seg.StaticInfoExtension{
 		Latency:   cfgdata.gatherLatency(peers, egifID, inifID),
 		Bandwidth: cfgdata.gatherBW(peers, egifID, inifID),
-		Linktype:  cfgdata.gatherLinkType(peers, egifID),
+		LinkType:  cfgdata.gatherLinkType(peers, egifID),
 		Geo:       cfgdata.gatherGeo(),
 		Note:      cfgdata.Note,
 		Hops:      cfgdata.gatherHops(peers, egifID, inifID),

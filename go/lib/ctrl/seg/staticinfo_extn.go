@@ -22,12 +22,13 @@ import (
 type StaticInfoExtension struct {
 	Latency   *LatencyInfo
 	Geo       GeoInfo
-	Linktype  LinktypeInfo
-	Bandwidth BandwidthInfo
+	LinkType  LinkTypeInfo
+	Bandwidth *BandwidthInfo
 	Hops      InternalHopsInfo
 	Note      string
 }
 
+// TODO(matzf): change to time.Duration
 type LatencyInfo struct {
 	Intra      uint32
 	Inter      uint32
@@ -40,17 +41,6 @@ type PeerLatencyInfo struct {
 	Intra uint32
 }
 
-type BandwidthInfo struct {
-	EgressBW          uint32
-	IngressToEgressBW uint32
-	Bandwidths        []InterfaceBandwidth
-}
-
-type InterfaceBandwidth struct {
-	BW   uint32
-	IfID common.IFIDType
-}
-
 type GeoInfo map[common.IFIDType]GeoCoordinates
 
 type GeoCoordinates struct {
@@ -59,14 +49,26 @@ type GeoCoordinates struct {
 	Address   string
 }
 
-type LinktypeInfo struct {
-	EgressLinkType uint16
-	Peerlinks      []InterfaceLinkType
+type LinkType uint8
+
+const (
+	LinkTypeDirect   = 0
+	LinkTypeMultihop = 1
+	LinkTypeOpennet  = 2
+)
+
+type LinkTypeInfo map[common.IFIDType]LinkType
+
+type BandwidthInfo struct {
+	Intra      uint32
+	Inter      uint32
+	XoverIntra map[common.IFIDType]uint32
+	Peers      map[common.IFIDType]PeerBandwidthInfo
 }
 
-type InterfaceLinkType struct {
-	IfID     common.IFIDType
-	LinkType uint16
+type PeerBandwidthInfo struct {
+	Inter uint32
+	Intra uint32
 }
 
 type InternalHopsInfo struct {

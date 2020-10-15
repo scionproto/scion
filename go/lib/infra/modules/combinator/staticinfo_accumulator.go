@@ -35,8 +35,8 @@ type ASHops struct {
 }
 
 type ASLink struct {
-	InterLinkType uint16
-	PeerLinkType  uint16
+	InterLinkType seg.LinkType
+	PeerLinkType  seg.LinkType
 }
 
 type ASBandwidth struct {
@@ -117,19 +117,15 @@ func extractPeerdata(res *PathMetadata, asEntry *seg.ASEntry,
 			}
 		}
 	}
-	for i := 0; i < len(staticInfo.Linktype.Peerlinks); i++ {
-		if staticInfo.Linktype.Peerlinks[i].IfID == peerIfID {
-			if includePeer {
-				res.Links[ia] = ASLink{
-					InterLinkType: staticInfo.Linktype.EgressLinkType,
-					PeerLinkType:  staticInfo.Linktype.Peerlinks[i].LinkType,
-				}
-			} else {
-				res.Links[ia] = ASLink{
-					InterLinkType: staticInfo.Linktype.EgressLinkType,
-				}
-			}
-			break
+	// XXX(matzf): doesn't make any sense, doesn't handle missing entry
+	if includePeer {
+		res.Links[ia] = ASLink{
+			InterLinkType: staticInfo.LinkType[common.IFIDType(asEntry.HopEntry.HopField.ConsEgress)],
+			PeerLinkType:  staticInfo.LinkType[peerIfID],
+		}
+	} else {
+		res.Links[ia] = ASLink{
+			InterLinkType: staticInfo.LinkType[common.IFIDType(asEntry.HopEntry.HopField.ConsEgress)],
 		}
 	}
 	for i := 0; i < len(staticInfo.Bandwidth.Bandwidths); i++ {
@@ -165,7 +161,7 @@ func extractSingleSegmentFinalASData(res *PathMetadata, asEntry *seg.ASEntry) {
 		PeerLatency:  0,
 	}
 	res.Links[ia] = ASLink{
-		InterLinkType: staticInfo.Linktype.EgressLinkType,
+		InterLinkType: staticInfo.LinkType[common.IFIDType(asEntry.HopEntry.HopField.ConsEgress)],
 	}
 	res.ASBandwidths[ia] = ASBandwidth{
 		InterBW: staticInfo.Bandwidth.EgressBW,
@@ -191,7 +187,7 @@ func extractNormaldata(res *PathMetadata, asEntry *seg.ASEntry) {
 		PeerLatency:  0,
 	}
 	res.Links[ia] = ASLink{
-		InterLinkType: staticInfo.Linktype.EgressLinkType,
+		InterLinkType: staticInfo.LinkType[common.IFIDType(asEntry.HopEntry.HopField.ConsEgress)],
 	}
 	res.ASBandwidths[ia] = ASBandwidth{
 		IntraBW: staticInfo.Bandwidth.IngressToEgressBW,
@@ -220,7 +216,7 @@ func extractUpOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry *s
 		InterLatency: staticInfo.Latency.Intra,
 	}
 	res.Links[ia] = ASLink{
-		InterLinkType: staticInfo.Linktype.EgressLinkType,
+		InterLinkType: staticInfo.LinkType.EgressLinkType,
 	}
 
 	for i := 0; i < len(staticInfo.Bandwidth.Bandwidths); i++ {
@@ -263,10 +259,14 @@ func extractCoreOverdata(res *PathMetadata, oldASEntry, newASEntry *seg.ASEntry)
 	}
 
 	res.Links[ia] = ASLink{
-		InterLinkType: staticInfo.Linktype.EgressLinkType,
-		PeerLinkType:  oldSI.Linktype.EgressLinkType,
+		InterLinkType: staticInfo.LinkType[common.IFIDType(newASEntry.HopEntry.HopField.ConsEgress)],
+		PeerLinkType:  oldSI.LinkType[common.IFIDType(oldASEntry.HopEntry.HopField.ConsEgress)],
 	}
 
+	res.ASBandwidths[ia] = ASBandwidth{
+		IntraBW: staticInfo.Bandwidth.Bandwidths[i].BW,
+		InterBW: staticInfo.Bandwidth.EgressBW,
+	}
 	for i := 0; i < len(staticInfo.Bandwidth.Bandwidths); i++ {
 		if staticInfo.Bandwidth.Bandwidths[i].IfID == oldEgressIfID {
 			res.ASBandwidths[ia] = ASBandwidth{

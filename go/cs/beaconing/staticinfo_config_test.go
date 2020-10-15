@@ -61,7 +61,7 @@ func getTestConfigData() *StaticInfoCfg {
 				Intra: map[common.IFIDType]uint32{1: 1333330, 2: 1555540, 3: 15666660},
 			},
 		},
-		Linktype: map[common.IFIDType]string{1: "direct", 2: "opennet", 3: "multihop", 5: "direct"},
+		LinkType: map[common.IFIDType]string{1: "direct", 2: "opennet", 3: "multihop", 5: "direct"},
 		Geo: map[common.IFIDType]InterfaceGeodata{
 			1: {
 				Longitude: 62.2,
@@ -159,7 +159,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 					Address:   "geo5",
 				},
 			},
-			Linktype: seg.LinktypeInfo{
+			LinkType: seg.LinkTypeInfo{
 				EgressLinkType: 2,
 				Peerlinks: []seg.InterfaceLinkType{
 					{
@@ -199,26 +199,5 @@ func TestGenerateStaticinfo(t *testing.T) {
 		},
 	}
 	actual := test.configData.generateStaticinfo(test.peers, test.egIfid, test.inIfid)
-
-	assert.Equal(t, test.expected.Latency, actual.Latency)
-
-	assert.Equal(t, test.expected.Bandwidth.IngressToEgressBW,
-		actual.Bandwidth.IngressToEgressBW)
-	assert.Equal(t, test.expected.Bandwidth.EgressBW,
-		actual.Bandwidth.EgressBW)
-	assert.ElementsMatch(t, test.expected.Bandwidth.Bandwidths,
-		actual.Bandwidth.Bandwidths)
-
-	assert.Equal(t, test.expected.Linktype.EgressLinkType,
-		actual.Linktype.EgressLinkType)
-	assert.ElementsMatch(t, test.expected.Linktype.Peerlinks,
-		actual.Linktype.Peerlinks)
-
-	assert.Equal(t, test.expected.Hops.InToOutHops,
-		actual.Hops.InToOutHops)
-	assert.ElementsMatch(t, test.expected.Hops.InterfaceHops,
-		actual.Hops.InterfaceHops)
-
-	assert.Equal(t, test.expected.Geo, actual.Geo)
-	assert.Equal(t, test.expected.Note, actual.Note)
+	assert.Equal(t, test.expected, actual)
 }
