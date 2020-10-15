@@ -16,31 +16,38 @@ package beaconing
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 func getTestConfigData() *StaticInfoCfg {
+
+	millis := func(ms int) util.DurWrap {
+		return util.DurWrap{Duration: time.Duration(ms) * time.Millisecond}
+	}
+
 	return &StaticInfoCfg{
 		Latency: map[common.IFIDType]InterfaceLatencies{
 			1: {
-				Inter: 30,
-				Intra: map[common.IFIDType]uint32{2: 10, 3: 20, 5: 30},
+				Inter: millis(30),
+				Intra: map[common.IFIDType]util.DurWrap{2: millis(10), 3: millis(20), 5: millis(30)},
 			},
 			2: {
-				Inter: 40,
-				Intra: map[common.IFIDType]uint32{1: 10, 3: 70, 5: 50},
+				Inter: millis(40),
+				Intra: map[common.IFIDType]util.DurWrap{1: millis(10), 3: millis(70), 5: millis(50)},
 			},
 			3: {
-				Inter: 80,
-				Intra: map[common.IFIDType]uint32{1: 20, 2: 70, 5: 60},
+				Inter: millis(80),
+				Intra: map[common.IFIDType]util.DurWrap{1: millis(20), 2: millis(70), 5: millis(60)},
 			},
 			5: {
-				Inter: 90,
-				Intra: map[common.IFIDType]uint32{1: 30, 2: 50, 3: 60},
+				Inter: millis(90),
+				Intra: map[common.IFIDType]util.DurWrap{1: millis(30), 2: millis(50), 3: millis(60)},
 			},
 		},
 		Bandwidth: map[common.IFIDType]InterfaceBandwidths{
@@ -61,11 +68,11 @@ func getTestConfigData() *StaticInfoCfg {
 				Intra: map[common.IFIDType]uint32{1: 1333330, 2: 1555540, 3: 15666660},
 			},
 		},
-		LinkType: map[common.IFIDType]JSONLinkType{
-			1: JSONLinkType(seg.LinkTypeDirect),
-			2: JSONLinkType(seg.LinkTypeOpennet),
-			3: JSONLinkType(seg.LinkTypeMultihop),
-			5: JSONLinkType(seg.LinkTypeDirect),
+		LinkType: map[common.IFIDType]LinkType{
+			1: LinkType(seg.LinkTypeDirect),
+			2: LinkType(seg.LinkTypeOpennet),
+			3: LinkType(seg.LinkTypeMultihop),
+			5: LinkType(seg.LinkTypeDirect),
 		},
 		Geo: map[common.IFIDType]InterfaceGeodata{
 			1: {
@@ -130,16 +137,14 @@ func TestGenerateStaticinfo(t *testing.T) {
 		inIfid:     3,
 		expected: seg.StaticInfoExtension{
 			Latency: &seg.LatencyInfo{
-				Inter: 40,
-				Intra: 70,
-				XoverIntra: map[common.IFIDType]uint32{
-					3: 70,
+				Inter: 40 * time.Millisecond,
+				Intra: 70 * time.Millisecond,
+				XoverIntra: map[common.IFIDType]time.Duration{
+					3: 70 * time.Millisecond,
+					5: 50 * time.Millisecond,
 				},
-				Peers: map[common.IFIDType]seg.PeerLatencyInfo{
-					5: {
-						Inter: 90,
-						Intra: 50,
-					},
+				PeerInter: map[common.IFIDType]time.Duration{
+					5: 90 * time.Millisecond,
 				},
 			},
 			Geo: seg.GeoInfo{
@@ -173,12 +178,10 @@ func TestGenerateStaticinfo(t *testing.T) {
 				Intra: 6555550,
 				XoverIntra: map[common.IFIDType]uint32{
 					3: 6555550,
+					5: 75555550,
 				},
-				Peers: map[common.IFIDType]seg.PeerBandwidthInfo{
-					5: {
-						Intra: 75555550,
-						Inter: 120,
-					},
+				PeerInter: map[common.IFIDType]uint32{
+					5: 120,
 				},
 			},
 			Hops: &seg.InternalHopsInfo{

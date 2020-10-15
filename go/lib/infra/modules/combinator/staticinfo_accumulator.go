@@ -103,7 +103,7 @@ func extractPeerdata(res *PathMetadata, asEntry *seg.ASEntry,
 
 	ia := asEntry.Local
 	staticInfo := seg.StaticInfoExtension{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
-	if peerLatencyEntry, ok := staticInfo.Latency.Peers[peerIfID]; ok {
+	if peerLatencyEntry, ok := staticInfo.Latency.PeerInter[peerIfID]; ok {
 		if includePeer {
 			res.ASLatencies[ia] = ASLatency{
 				IntraLatency: peerLatencyEntry.Intra,

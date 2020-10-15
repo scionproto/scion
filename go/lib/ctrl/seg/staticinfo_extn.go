@@ -15,6 +15,8 @@
 package seg
 
 import (
+	"time"
+
 	"github.com/scionproto/scion/go/lib/common"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
@@ -28,17 +30,11 @@ type StaticInfoExtension struct {
 	Note      string
 }
 
-// TODO(matzf): change to time.Duration
 type LatencyInfo struct {
-	Intra      uint32
-	Inter      uint32
-	XoverIntra map[common.IFIDType]uint32
-	Peers      map[common.IFIDType]PeerLatencyInfo
-}
-
-type PeerLatencyInfo struct {
-	Inter uint32
-	Intra uint32
+	Intra      time.Duration
+	Inter      time.Duration
+	XoverIntra map[common.IFIDType]time.Duration
+	PeerInter  map[common.IFIDType]time.Duration
 }
 
 type GeoInfo map[common.IFIDType]GeoCoordinates
@@ -63,22 +59,12 @@ type BandwidthInfo struct {
 	Intra      uint32
 	Inter      uint32
 	XoverIntra map[common.IFIDType]uint32
-	Peers      map[common.IFIDType]PeerBandwidthInfo
-}
-
-type PeerBandwidthInfo struct {
-	Inter uint32
-	Intra uint32
+	PeerInter  map[common.IFIDType]uint32
 }
 
 type InternalHopsInfo struct {
 	Hops      uint32
 	XoverHops map[common.IFIDType]uint32
-}
-
-type InterfaceHops struct {
-	Hops uint8
-	IfID common.IFIDType
 }
 
 func staticInfoExtensionFromPB(pb *cppb.StaticInfoExtension) (*StaticInfoExtension, error) {
@@ -109,22 +95,19 @@ func latencyInfoFromPB(pb *cppb.LatencyInfo) (*LatencyInfo, error) {
 	if pb == nil {
 		return nil, nil
 	}
-	xoverIntra := make(map[common.IFIDType]uint32)
+	xoverIntra := make(map[common.IFIDType]time.Duration)
 	for ifid, v := range pb.XoverIntra {
-		xoverIntra[common.IFIDType(ifid)] = v
+		xoverIntra[common.IFIDType(ifid)] = time.Duration(v) * time.Microsecond
 	}
-	peers := make(map[common.IFIDType]PeerLatencyInfo)
-	for ifid, v := range pb.Peers {
-		peers[common.IFIDType(ifid)] = PeerLatencyInfo{
-			Intra: v.Intra,
-			Inter: v.Inter,
-		}
+	peerInter := make(map[common.IFIDType]time.Duration)
+	for ifid, v := range pb.PeerInter {
+		peerInter[common.IFIDType(ifid)] = time.Duration(v) * time.Microsecond
 	}
 	return &LatencyInfo{
-		Intra:      pb.Intra,
-		Inter:      pb.Inter,
+		Intra:      time.Duration(pb.Intra) * time.Microsecond,
+		Inter:      time.Duration(pb.Inter) * time.Microsecond,
 		XoverIntra: xoverIntra,
-		Peers:      peers,
+		PeerInter:  peerInter,
 	}, nil
 }
 
@@ -158,20 +141,17 @@ func latencyInfoToPB(li *LatencyInfo) *cppb.LatencyInfo {
 	}
 	xoverIntra := make(map[uint64]uint32)
 	for ifid, v := range li.XoverIntra {
-		xoverIntra[uint64(ifid)] = v
+		xoverIntra[uint64(ifid)] = uint32(v.Microseconds())
 	}
-	peers := make(map[uint64]*cppb.LatencyInfo_PeerInfo)
-	for ifid, v := range li.Peers {
-		peers[uint64(ifid)] = &cppb.LatencyInfo_PeerInfo{
-			Intra: v.Intra,
-			Inter: v.Inter,
-		}
+	peerInter := make(map[uint64]uint32)
+	for ifid, v := range li.PeerInter {
+		peerInter[uint64(ifid)] = uint32(v.Microseconds())
 	}
 	return &cppb.LatencyInfo{
-		Intra:      li.Intra,
-		Inter:      li.Inter,
+		Intra:      uint32(li.Intra.Microseconds()),
+		Inter:      uint32(li.Inter.Microseconds()),
 		XoverIntra: xoverIntra,
-		Peers:      peers,
+		PeerInter:  peerInter,
 	}
 }
 

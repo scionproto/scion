@@ -33,11 +33,11 @@ message HiddenPathExtension {
 message StaticInfoExtension {
     // The approximate, lower-bound latency information for this ASEntry.
     LatencyInfo latency = 1;
-    // Geographical coordinates describing the location of the routers for relevant interfaces of this AS.
-    // The key is the interface identifier.
+    // Geographical coordinates describing the location of the routers for
+    // relevant interfaces of this AS. The key is the interface identifier.
     map<uint64, GeoCoordinates> geo = 2;
-    // Description of the underlying network for the intra-AS links, for the relevant interfaces of this AS.
-    // The key is the interface identifier.
+    // Description of the underlying network for the intra-AS links, for the
+    // relevant interfaces of this AS. The key is the interface identifier.
     map<uint64, LinkType> link_type = 3;
     BandwidthInfo bandwidth = 4;
     InternalHopsInfo internal_hops = 5;
@@ -48,26 +48,22 @@ message StaticInfoExtension {
 // LatencyInfo specifies approximate lower-bound latency values.
 // The separate intra, inter, cross-over and peering information allows to reconstruct
 // latency values for all paths based on this ASEntry.
-// All values are in milliseconds. 
-// TODO(matzf): I think this should be changed to microseconds -- the range for uint32 makes more sense.
+// All values are in microseconds. 
 message LatencyInfo {
-    // Latency from beaconing-ingress to beaconing-egress interface in local AS.
+    // Latency between beaconing-ingress and beaconing-egress interface in the
+    // local AS.
     uint32 intra = 1;
-    // Latency from beaconing-egress interface to beaconing-ingress interface in neighbor AS.
+    // Latency between beaconing-egress interface in the local AS and
+    // beaconing-ingress interface in the neighbor AS.
     uint32 inter = 2;
-    // Latency from beaconing-egress interface to sibling child or core interfaces.
-    // The key is the interface identifier of the sibling child or core interface.
+    // Latency between beaconing-egress interface and sibling child, core or
+    // peer link interfaces. The key is the interface identifier of the
+    // sibling child, core or peer interface.
     map<uint64, uint32> xover_intra = 3;
-    // Latency from beaconing-egress interface to peers.
-    // The key is the interface identifier of the peering interface.
-    map<uint64, PeerInfo> peers = 4;
-
-    message PeerInfo {
-        // Latency from beaconing-egress interface to the local peering interface.
-        uint32 intra = 1;
-        // Latency from the local peering interface to the peering interface in neighbor AS.
-        uint32 inter = 2;
-    }
+    // Latency between the local peer interface and the peer interface in
+    // the neighbor AS. The key is the interface identifier of the local
+    // peer interface.
+    map<uint64, uint32> peer_inter = 4;
 }
 
 message GeoCoordinates {
@@ -89,25 +85,25 @@ enum LinkType {
 }
 
 message BandwidthInfo {
+    // Bandwidth between beaconing-ingress and beaconing-egress interface in
+    // the local AS.
     uint32 intra = 1;
+    // Bandwidth between beaconing-egress interface in the local AS and
+    // beaconing-ingress interface in the neighbor AS.
     uint32 inter = 2;
-    // Bandwidth between beaconing-egress interface and sibling child or core interfaces.
-    // The key is the interface identifier of the sibling child or core interface.
+    // Bandwidth between beaconing-egress interface and sibling child, core or
+    // peer link interfaces. The key is the interface identifier of the sibling
+    // child, core or peer interface.
     map<uint64, uint32> xover_intra = 3;
-    // Bandwidth between beaconing-egress interface and peers.
-    // The key is the interface identifier of the peering interface.
-    map<uint64, PeerInfo> peers = 4;
-
-    message PeerInfo {
-        // Bandwidth between beaconing-egress interface and the local peering interface.
-        uint32 intra = 1;
-        // Bandwidth between the local peering interface and the peering interface in neighbor AS.
-        uint32 inter = 2;
-    }
+    // Bandwidth between the local peer interface and the peer interface
+    // in neighbor AS. The key is the interface identifier of the local
+    // peer interface.
+    map<uint64, uint32> peer_inter = 4;
 }
 
 message InternalHopsInfo {
-    // Number of AS internal hops between the beaconing-ingress and the beaconing-egress interface.
+    // Number of AS internal hops between the beaconing-ingress and the
+    // beaconing-egress interface.
     uint32 hops = 1;
     // Number of AS internal hops between the beaconing-egress and sibling
     // child, core or peer interfaces.

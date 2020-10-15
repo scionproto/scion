@@ -457,16 +457,12 @@ func generateStaticInfo(g *Graph, ia addr.IA, inIF, outIF common.IFIDType) *seg.
 
 	s := &seg.StaticInfoExtension{}
 
-	s.Latency.Intra = uint32((inIF&0xffff)<<16 | outIF&0xffff)
-	s.Latency.Inter = uint32(outIF)
+	s.Latency.Intra = time.Duration((inIF&0xffff)<<16 | outIF&0xffff)
+	s.Latency.Inter = time.Duration(outIF)
 	for ifid := range as.IFIDs {
+		s.Latency.XoverIntra[ifid] = time.Duration((outIF&0xffff)<<16 | ifid&0xffff)
 		if g.isPeer[ifid] {
-			s.Latency.Peers[ifid] = seg.PeerLatencyInfo{
-				Intra: uint32((outIF&0xffff)<<16 | ifid&0xffff),
-				Inter: uint32(ifid),
-			}
-		} else {
-			s.Latency.XoverIntra[ifid] = uint32((outIF&0xffff)<<16 | ifid&0xffff)
+			s.Latency.PeerInter[ifid] = time.Duration(ifid)
 		}
 	}
 
