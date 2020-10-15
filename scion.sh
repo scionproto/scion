@@ -284,11 +284,6 @@ py_lint() {
     local py_executables=$(find -type f -executable -regex '.*/[^.]*$' | xargs file -i | grep 'text/x-python' | cut -d: -f1)
     lint_step "flake8"
     flake8 python acceptance ${py_executables} | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
-    lint_step "mypy"
-    mypy -p python -p acceptance || ((ret++))
-    for i in $py_executables; do
-      mypy $i || ((ret++))  # needs to be run seperately for each __main__ module
-    done
     return $ret
 }
 
