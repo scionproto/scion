@@ -24,7 +24,7 @@ type StaticInfoExtension struct {
 	Geo       GeoInfo
 	LinkType  LinkTypeInfo
 	Bandwidth *BandwidthInfo
-	Hops      InternalHopsInfo
+	Hops      *InternalHopsInfo
 	Note      string
 }
 
@@ -72,8 +72,8 @@ type PeerBandwidthInfo struct {
 }
 
 type InternalHopsInfo struct {
-	InToOutHops   uint8
-	InterfaceHops []InterfaceHops
+	Hops      uint32
+	XoverHops map[common.IFIDType]uint32
 }
 
 type InterfaceHops struct {

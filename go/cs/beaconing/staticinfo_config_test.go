@@ -61,7 +61,12 @@ func getTestConfigData() *StaticInfoCfg {
 				Intra: map[common.IFIDType]uint32{1: 1333330, 2: 1555540, 3: 15666660},
 			},
 		},
-		LinkType: map[common.IFIDType]string{1: "direct", 2: "opennet", 3: "multihop", 5: "direct"},
+		LinkType: map[common.IFIDType]JSONLinkType{
+			1: JSONLinkType(seg.LinkTypeDirect),
+			2: JSONLinkType(seg.LinkTypeOpennet),
+			3: JSONLinkType(seg.LinkTypeMultihop),
+			5: JSONLinkType(seg.LinkTypeDirect),
+		},
 		Geo: map[common.IFIDType]InterfaceGeodata{
 			1: {
 				Longitude: 62.2,
@@ -86,16 +91,16 @@ func getTestConfigData() *StaticInfoCfg {
 		},
 		Hops: map[common.IFIDType]InterfaceHops{
 			1: {
-				Intra: map[common.IFIDType]uint8{2: 2, 3: 3, 5: 0},
+				Intra: map[common.IFIDType]uint32{2: 2, 3: 3, 5: 0},
 			},
 			2: {
-				Intra: map[common.IFIDType]uint8{1: 2, 3: 3, 5: 1},
+				Intra: map[common.IFIDType]uint32{1: 2, 3: 3, 5: 1},
 			},
 			3: {
-				Intra: map[common.IFIDType]uint8{1: 4, 2: 6, 5: 3},
+				Intra: map[common.IFIDType]uint32{1: 4, 2: 6, 5: 3},
 			},
 			5: {
-				Intra: map[common.IFIDType]uint8{1: 2, 2: 3, 3: 4},
+				Intra: map[common.IFIDType]uint32{1: 2, 2: 3, 3: 4},
 			},
 		},
 		Note: "asdf",
@@ -160,39 +165,27 @@ func TestGenerateStaticinfo(t *testing.T) {
 				},
 			},
 			LinkType: seg.LinkTypeInfo{
-				EgressLinkType: 2,
-				Peerlinks: []seg.InterfaceLinkType{
-					{
-						IfID:     5,
-						LinkType: 0,
+				2: seg.LinkTypeOpennet,
+				5: seg.LinkTypeDirect,
+			},
+			Bandwidth: &seg.BandwidthInfo{
+				Inter: 5000000,
+				Intra: 6555550,
+				XoverIntra: map[common.IFIDType]uint32{
+					3: 6555550,
+				},
+				Peers: map[common.IFIDType]seg.PeerBandwidthInfo{
+					5: {
+						Intra: 75555550,
+						Inter: 120,
 					},
 				},
 			},
-			Bandwidth: seg.BandwidthInfo{
-				EgressBW:          5000000,
-				IngressToEgressBW: 6555550,
-				Bandwidths: []seg.InterfaceBandwidth{
-					{
-						IfID: 3,
-						BW:   6555550,
-					},
-					{
-						IfID: 5,
-						BW:   120,
-					},
-				},
-			},
-			Hops: seg.InternalHopsInfo{
-				InToOutHops: 3,
-				InterfaceHops: []seg.InterfaceHops{
-					{
-						IfID: 3,
-						Hops: 3,
-					},
-					{
-						IfID: 5,
-						Hops: 1,
-					},
+			Hops: &seg.InternalHopsInfo{
+				Hops: 3,
+				XoverHops: map[common.IFIDType]uint32{
+					3: 3,
+					5: 1,
 				},
 			},
 			Note: "asdf",

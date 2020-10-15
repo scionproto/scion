@@ -40,8 +40,9 @@ message StaticInfoExtension {
     // The key is the interface identifier.
     map<uint64, LinkType> link_type = 3;
     BandwidthInfo bandwidth = 4;
+    InternalHopsInfo internal_hops = 5;
     // Generic note
-    string note = 5;
+    string note = 6;
 }
 
 // LatencyInfo specifies approximate lower-bound latency values.
@@ -69,6 +70,24 @@ message LatencyInfo {
     }
 }
 
+message GeoCoordinates {
+    // The latitude of the geographic coordinate, in the WGS 84 datum.
+    float latitude = 1;
+    // The longitude of the geographic coordinate, in the WGS 84 datum.
+    float longitude = 2;
+    // The civic address of the location.
+    string address = 3;
+}
+
+enum LinkType {
+    // Direct physical connection.
+    DIRECT = 0;
+    // Connection with local routing/switching.
+    MULTI_HOP = 1;
+    // Connection overlayed over publicly routed Internet.
+    OPEN_NET = 2;
+}
+
 message BandwidthInfo {
     uint32 intra = 1;
     uint32 inter = 2;
@@ -87,20 +106,10 @@ message BandwidthInfo {
     }
 }
 
-message GeoCoordinates {
-    // The latitude of the geographic coordinate, in the WGS 84 datum.
-    float latitude = 1;
-    // The longitude of the geographic coordinate, in the WGS 84 datum.
-    float longitude = 2;
-    // The civic address of the location.
-    string address = 3;
-}
-
-enum LinkType {
-    // Direct physical connection.
-    DIRECT = 0;
-    // Connection with local routing/switching.
-    MULTI_HOP = 1;
-    // Connection overlayed over publicly routed Internet.
-    OPEN_NET = 2;
+message InternalHopsInfo {
+    // Number of AS internal hops between the beaconing-ingress and the beaconing-egress interface.
+    uint32 hops = 1;
+    // Number of AS internal hops between the beaconing-egress and sibling
+    // child, core or peer interfaces.
+    map<uint64, uint32> xover_hops = 2;
 }

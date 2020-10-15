@@ -42,7 +42,7 @@ type InterfaceGeodata struct {
 }
 
 type InterfaceHops struct {
-	Intra map[common.IFIDType]uint8 `json:"Intra"`
+	Intra map[common.IFIDType]uint32 `json:"Intra"`
 }
 
 type JSONLinkType seg.LinkType
@@ -78,7 +78,7 @@ func (l *JSONLinkType) UnmarshalText(text []byte) error {
 type StaticInfoCfg struct {
 	Latency   map[common.IFIDType]InterfaceLatencies  `json:"Latency"`
 	Bandwidth map[common.IFIDType]InterfaceBandwidths `json:"Bandwidth"`
-	LinkType  map[common.IFIDType]*JSONLinkType       `json:"LinkType"`
+	LinkType  map[common.IFIDType]JSONLinkType        `json:"LinkType"`
 	Geo       map[common.IFIDType]InterfaceGeodata    `json:"Geo"`
 	Hops      map[common.IFIDType]InterfaceHops       `json:"Hops"`
 	Note      string                                  `json:"Note"`
@@ -151,11 +151,11 @@ func (cfgdata StaticInfoCfg) gatherLinkType(peers map[common.IFIDType]struct{},
 	egifID common.IFIDType) seg.LinkTypeInfo {
 
 	lt := make(seg.LinkTypeInfo)
-	lt[egifID] = seg.LinkType(*cfgdata.LinkType[egifID])
+	lt[egifID] = seg.LinkType(cfgdata.LinkType[egifID])
 	// Additionally add link type for peering links
 	for ifid, intfLT := range cfgdata.LinkType {
 		if _, peer := peers[ifid]; peer {
-			lt[ifid] = seg.LinkType(*intfLT)
+			lt[ifid] = seg.LinkType(intfLT)
 		}
 	}
 	return lt
@@ -164,22 +164,20 @@ func (cfgdata StaticInfoCfg) gatherLinkType(peers map[common.IFIDType]struct{},
 // gatherHops extracts hop values from a StaticInfoCfg struct and
 // inserts them into the InternalHopsinfo portion of a StaticInfoExtn struct.
 func (cfgdata StaticInfoCfg) gatherHops(peers map[common.IFIDType]struct{},
-	egifID common.IFIDType, inifID common.IFIDType) seg.InternalHopsInfo {
+	egifID common.IFIDType, inifID common.IFIDType) *seg.InternalHopsInfo {
 
-	l := seg.InternalHopsInfo{
-		InToOutHops: cfgdata.Hops[egifID].Intra[inifID],
+	ihi := &seg.InternalHopsInfo{
+		Hops:      cfgdata.Hops[egifID].Intra[inifID],
+		XoverHops: make(map[common.IFIDType]uint32),
 	}
-	for intfid, intfHops := range cfgdata.Hops[egifID].Intra {
+	for ifid, intfHops := range cfgdata.Hops[egifID].Intra {
 		// If we're looking at a peering interface or intfid>egifID, include
 		// the data, otherwise drop it so as to not store redundant information
-		if _, peer := peers[intfid]; peer || (intfid > egifID) {
-			l.InterfaceHops = append(l.InterfaceHops, seg.InterfaceHops{
-				Hops: intfHops,
-				IfID: intfid,
-			})
+		if _, peer := peers[ifid]; peer || (ifid > egifID) {
+			ihi.XoverHops[ifid] = intfHops
 		}
 	}
-	return l
+	return ihi
 }
 
 // gatherGeo extracts geo values from a StaticInfoCfg struct and
