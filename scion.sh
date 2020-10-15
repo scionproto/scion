@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export PYTHONPATH=python/:.
+export PYTHONPATH=.
 
 EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 
@@ -279,14 +279,11 @@ cmd_lint() {
 
 py_lint() {
     lint_header "python"
-    local ret=0
-    for i in acceptance python; do
-      [ -d "$i" ] || continue
-      local cmd="flake8"
-      lint_step "$cmd /$i"
-      ( cd "$i" && $cmd --config flake8.ini . ) | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
-    done
-    flake8 --config python/flake8.ini tools/gomocks || ((ret++))
+    # Run linters on python/ and acceptance/ directories.
+    # Additionally, find all executable python files without .py extension
+    local py_executables=$(find -type f -executable -regex '.*/[^.]*$' | xargs file -i | grep 'text/x-python' | cut -d: -f1)
+    lint_step "flake8"
+    flake8 python acceptance ${py_executables} | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
     return $ret
 }
 

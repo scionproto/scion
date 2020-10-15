@@ -13,15 +13,15 @@
 # limitations under the License.
 
 # Stdlib
-from ipaddress import ip_address, ip_network
+from ipaddress import ip_address
 import os
 import subprocess
 from urllib.parse import urlsplit
-from typing import Mapping
+from typing import Mapping, Tuple
 
 # SCION
 from python.lib.scion_addr import ISD_AS
-from python.topology.net import AddressProxy, NetworkDescription
+from python.topology.net import AddressProxy, NetworkDescription, IPNetwork
 
 COMMON_DIR = 'endhost'
 
@@ -98,7 +98,7 @@ def prom_addr(addr: str, port: int) -> str:
     return join_host_port(ip, port)
 
 
-def split_host_port(addr: str) -> (str, int):
+def split_host_port(addr: str) -> Tuple[str, int]:
     parts = urlsplit('//' + addr)
     if parts.port is None:
         raise ValueError("missing port in addr: {}".format(addr))
@@ -114,7 +114,7 @@ def join_host_port(host: str, port: int) -> str:
     return '[{}]:{}'.format(host, port)
 
 
-def sciond_ip(docker, topo_id, networks: Mapping[ip_network, NetworkDescription]):
+def sciond_ip(docker, topo_id, networks: Mapping[IPNetwork, NetworkDescription]):
     for net_desc in networks.values():
         for prog, ip_net in net_desc.ip_net.items():
             if prog == 'sd%s' % topo_id.file_fmt():
@@ -123,7 +123,7 @@ def sciond_ip(docker, topo_id, networks: Mapping[ip_network, NetworkDescription]
 
 
 def prom_addr_dispatcher(docker, topo_id,
-                         networks: Mapping[ip_network, NetworkDescription],
+                         networks: Mapping[IPNetwork, NetworkDescription],
                          port, name):
     if not docker:
         return "[127.0.0.1]:%s" % port

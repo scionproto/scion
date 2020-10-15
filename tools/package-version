@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-# This script converts a version from ./tools/git-version to debian and rpm 
+# This script converts a version from ./tools/git-version to debian and rpm
 # version files that can be consumed by bazel.
 # Examples:
-# - prefix-v0.8.0-rc1-1-g0aec09a 
+# - prefix-v0.8.0-rc1-1-g0aec09a
 #   -> scion-utils-deb.version: 0.8.0~rc1~1~g0aec09a
 #   -> scion-utils-rpm.version: 0.8.0
 #   -> scion-utils-rpm.release: rc1-1-g0aec09a
-# - prefix-v0.8.0 
+# - prefix-v0.8.0
 #   -> scion-utils-deb.version: 0.8.0
 #   -> scion-utils-rpm.version: 0.8.0
 #   -> scion-utils-rpm.release: 1
@@ -38,15 +38,10 @@ if m is None:
 version = version[m.start():]
 deb_version = version.replace('-', '~')
 parts = version.split('-', 1)
-rpm_version, rpm_release = parts[0], 1
+rpm_version, rpm_release = parts[0], '1'
 if len(parts) > 1:
     rpm_release = parts[1]
 
-with open(DEB_VERSION, 'w') as f:
-    f.write('%s' % deb_version)
-
-with open(RPM_VERSION, 'w') as f:
-    f.write('%s' % rpm_version)
-
-with open(RPM_RELEASE, 'w') as f:
-    f.write('%s' % rpm_release)
+Path(DEB_VERSION).write_text(deb_version)
+Path(RPM_VERSION).write_text(rpm_version)
+Path(RPM_RELEASE).write_text(rpm_release)

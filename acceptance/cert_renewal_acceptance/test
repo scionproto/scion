@@ -68,7 +68,8 @@ class TestSetup(CmdBase):
         self.scion.topology('topology/tiny4.topo')
 
         logger.info('==> Remove client certificate for 112')
-        path = local.path('gen/ISD1/ASff00_0_110/cs1-ff00_0_110-1/crypto/ca/clients/ISD1-ASff00_0_112.pem')
+        path = local.path('gen/ISD1/ASff00_0_110/cs1-ff00_0_110-1/'
+                          'crypto/ca/clients/ISD1-ASff00_0_112.pem')
         path.delete()
 
         logger.info('==> Start the topology')
@@ -81,7 +82,8 @@ class TestSetup(CmdBase):
         cert = local.path('gen/certs/ISD1-ASff00_0_112.pem')
         cert.copy(path)
 
-        logger.info('==> Sleep thirty seconds to make sure the CS has picked up the client certificate')
+        logger.info('==> Sleep thirty seconds to make sure the CS '
+                    'has picked up the client certificate')
         time.sleep(30)
 
 

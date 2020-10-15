@@ -29,7 +29,7 @@ DIR = 'NOT_SET'
 logger = logging.getLogger(__name__)
 
 
-def set_name(file: dir):
+def set_name(file: str):
     global NAME
     global DIR
     DIR = local.path(file).dirname.name
@@ -64,7 +64,7 @@ class TestBase(cli.Application):
     TestBase is used to implement the test entry point. Tests should
     sub-class it and only define the doc string.
     """
-    test_state = None
+    test_state = None  # type: TestState
 
     @cli.switch('disable-docker', envname='DISABLE_DOCKER',
                 help='Run in supervisor environment.')
