@@ -18,16 +18,17 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
 type StaticInfoExtension struct {
-	Latency   *LatencyInfo
-	Geo       GeoInfo
-	LinkType  LinkTypeInfo
-	Bandwidth *BandwidthInfo
-	Hops      *InternalHopsInfo
-	Note      string
+	Latency      *LatencyInfo
+	Geo          GeoInfo
+	LinkType     LinkTypeInfo
+	Bandwidth    *BandwidthInfo
+	InternalHops *InternalHopsInfo
+	Note         string
 }
 
 type LatencyInfo struct {
@@ -76,16 +77,30 @@ func staticInfoExtensionFromPB(pb *cppb.StaticInfoExtension) (*StaticInfoExtensi
 	if err != nil {
 		return nil, err
 	}
-
 	geo, err := geoInfoFromPB(pb.Geo)
+	if err != nil {
+		return nil, err
+	}
+	linkType, err := linkTypeInfoFromPB(pb.LinkType)
+	if err != nil {
+		return nil, err
+	}
+	bandwidth, err := bandwidthInfoFromPB(pb.Bandwidth)
+	if err != nil {
+		return nil, err
+	}
+	internalHops, err := internalHopsInfoFromPB(pb.InternalHops)
 	if err != nil {
 		return nil, err
 	}
 
 	staticInfo := &StaticInfoExtension{
-		Latency: latency,
-		Geo:     geo,
-		Note:    pb.Note,
+		Latency:      latency,
+		Geo:          geo,
+		LinkType:     linkType,
+		Bandwidth:    bandwidth,
+		InternalHops: internalHops,
+		Note:         pb.Note,
 	}
 
 	return staticInfo, nil
@@ -123,15 +138,73 @@ func geoInfoFromPB(pb map[uint64]*cppb.GeoCoordinates) (GeoInfo, error) {
 	return gi, nil
 }
 
-func staticInfoToPB(si *StaticInfoExtension) *cppb.StaticInfoExtension {
+func linkTypeInfoFromPB(pb map[uint64]cppb.LinkType) (LinkTypeInfo, error) {
+	lti := make(LinkTypeInfo)
+	for ifid, vpb := range pb {
+		var v LinkType
+		switch vpb {
+		case cppb.LinkType_LINK_TYPE_UNSPECIFIED:
+			continue
+		case cppb.LinkType_LINK_TYPE_DIRECT:
+			v = LinkTypeDirect
+		case cppb.LinkType_LINK_TYPE_MULTI_HOP:
+			v = LinkTypeMultihop
+		case cppb.LinkType_LINK_TYPE_OPEN_NET:
+			v = LinkTypeOpennet
+		default:
+			return nil, serrors.New("invalid link type option", "link type", vpb)
+		}
+		lti[common.IFIDType(ifid)] = v
+	}
+	return lti, nil
+}
+
+func bandwidthInfoFromPB(pb *cppb.BandwidthInfo) (*BandwidthInfo, error) {
+	if pb == nil {
+		return nil, nil
+	}
+	xoverIntra := make(map[common.IFIDType]uint32)
+	for ifid, v := range pb.XoverIntra {
+		xoverIntra[common.IFIDType(ifid)] = v
+	}
+	peerInter := make(map[common.IFIDType]uint32)
+	for ifid, v := range pb.PeerInter {
+		peerInter[common.IFIDType(ifid)] = v
+	}
+	return &BandwidthInfo{
+		Intra:      pb.Intra,
+		Inter:      pb.Inter,
+		XoverIntra: xoverIntra,
+		PeerInter:  peerInter,
+	}, nil
+}
+
+func internalHopsInfoFromPB(pb *cppb.InternalHopsInfo) (*InternalHopsInfo, error) {
+	if pb == nil {
+		return nil, nil
+	}
+	xoverHops := make(map[common.IFIDType]uint32)
+	for ifid, v := range pb.XoverHops {
+		xoverHops[common.IFIDType(ifid)] = v
+	}
+	return &InternalHopsInfo{
+		Hops:      pb.Hops,
+		XoverHops: xoverHops,
+	}, nil
+}
+
+func staticInfoExtensionToPB(si *StaticInfoExtension) *cppb.StaticInfoExtension {
 	if si == nil {
 		return nil
 	}
 
 	return &cppb.StaticInfoExtension{
-		Latency: latencyInfoToPB(si.Latency),
-		Geo:     geoInfoToPB(si.Geo),
-		Note:    si.Note,
+		Latency:      latencyInfoToPB(si.Latency),
+		Geo:          geoInfoToPB(si.Geo),
+		LinkType:     linkTypeInfoToPB(si.LinkType),
+		Bandwidth:    bandwidthInfoToPB(si.Bandwidth),
+		InternalHops: internalHopsInfoToPB(si.InternalHops),
+		Note:         si.Note,
 	}
 }
 
@@ -165,4 +238,57 @@ func geoInfoToPB(gi GeoInfo) map[uint64]*cppb.GeoCoordinates {
 		}
 	}
 	return pb
+}
+
+func linkTypeInfoToPB(lti LinkTypeInfo) map[uint64]cppb.LinkType {
+	pb := make(map[uint64]cppb.LinkType)
+	for ifid, v := range lti {
+		var vpb cppb.LinkType
+		switch v {
+		case LinkTypeDirect:
+			vpb = cppb.LinkType_LINK_TYPE_DIRECT
+		case LinkTypeMultihop:
+			vpb = cppb.LinkType_LINK_TYPE_MULTI_HOP
+		case LinkTypeOpennet:
+			vpb = cppb.LinkType_LINK_TYPE_OPEN_NET
+		default:
+			continue
+		}
+		pb[uint64(ifid)] = vpb
+	}
+	return pb
+}
+
+func bandwidthInfoToPB(bwi *BandwidthInfo) *cppb.BandwidthInfo {
+	if bwi == nil {
+		return nil
+	}
+	xoverIntra := make(map[uint64]uint32)
+	for ifid, v := range bwi.XoverIntra {
+		xoverIntra[uint64(ifid)] = v
+	}
+	peerInter := make(map[uint64]uint32)
+	for ifid, v := range bwi.PeerInter {
+		peerInter[uint64(ifid)] = v
+	}
+	return &cppb.BandwidthInfo{
+		Intra:      bwi.Intra,
+		Inter:      bwi.Inter,
+		XoverIntra: xoverIntra,
+		PeerInter:  peerInter,
+	}
+}
+
+func internalHopsInfoToPB(ihi *InternalHopsInfo) *cppb.InternalHopsInfo {
+	if ihi == nil {
+		return nil
+	}
+	xoverHops := make(map[uint64]uint32)
+	for ifid, v := range ihi.XoverHops {
+		xoverHops[uint64(ifid)] = v
+	}
+	return &cppb.InternalHopsInfo{
+		Hops:      ihi.Hops,
+		XoverHops: xoverHops,
+	}
 }

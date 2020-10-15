@@ -451,7 +451,8 @@ func NewDefaultGraph(ctrl *gomock.Controller) *Graph {
 // to egress metrics. Therefore for ASes that are neither the first nor the last on a
 // path segment, looking only at the egress interface on which the beacon left the AS
 // is sufficient when writing tests.
-func generateStaticInfo(g *Graph, ia addr.IA, inIF, outIF common.IFIDType) *seg.StaticInfoExtension {
+func generateStaticInfo(g *Graph, ia addr.IA,
+	inIF, outIF common.IFIDType) *seg.StaticInfoExtension {
 
 	as := g.ases[ia]
 

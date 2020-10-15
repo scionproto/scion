@@ -102,6 +102,8 @@ func extractPeerdata(res *PathMetadata, asEntry *seg.ASEntry,
 	peerIfID common.IFIDType, includePeer bool) {
 
 	ia := asEntry.Local
+	egIfID := common.IFIDType(asEntry.HopEntry.HopField.ConsEgress)
+
 	staticInfo := seg.StaticInfoExtension{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
 	if peerLatencyEntry, ok := staticInfo.Latency.PeerInter[peerIfID]; ok {
 		if includePeer {
@@ -120,12 +122,12 @@ func extractPeerdata(res *PathMetadata, asEntry *seg.ASEntry,
 	// XXX(matzf): doesn't make any sense, doesn't handle missing entry
 	if includePeer {
 		res.Links[ia] = ASLink{
-			InterLinkType: staticInfo.LinkType[common.IFIDType(asEntry.HopEntry.HopField.ConsEgress)],
+			InterLinkType: staticInfo.LinkType[egIfID],
 			PeerLinkType:  staticInfo.LinkType[peerIfID],
 		}
 	} else {
 		res.Links[ia] = ASLink{
-			InterLinkType: staticInfo.LinkType[common.IFIDType(asEntry.HopEntry.HopField.ConsEgress)],
+			InterLinkType: staticInfo.LinkType[egIfID],
 		}
 	}
 	for i := 0; i < len(staticInfo.Bandwidth.Bandwidths); i++ {
@@ -155,13 +157,14 @@ func extractPeerdata(res *PathMetadata, asEntry *seg.ASEntry,
 // the final AS in a path that does not contain all 3 segments.
 func extractSingleSegmentFinalASData(res *PathMetadata, asEntry *seg.ASEntry) {
 	ia := asEntry.Local
+	egIfID := common.IFIDType(asEntry.HopEntry.HopField.ConsEgress)
 	staticInfo := seg.StaticInfoExtension{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
 	res.ASLatencies[ia] = ASLatency{
 		InterLatency: staticInfo.Latency.Inter,
 		PeerLatency:  0,
 	}
 	res.Links[ia] = ASLink{
-		InterLinkType: staticInfo.LinkType[common.IFIDType(asEntry.HopEntry.HopField.ConsEgress)],
+		InterLinkType: staticInfo.LinkType[egIfID],
 	}
 	res.ASBandwidths[ia] = ASBandwidth{
 		InterBW: staticInfo.Bandwidth.EgressBW,
@@ -180,6 +183,7 @@ func extractSingleSegmentFinalASData(res *PathMetadata, asEntry *seg.ASEntry) {
 
 func extractNormaldata(res *PathMetadata, asEntry *seg.ASEntry) {
 	ia := asEntry.Local
+	egIfID := common.IFIDType(asEntry.HopEntry.HopField.ConsEgress)
 	staticInfo := seg.StaticInfoExtension{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
 	res.ASLatencies[ia] = ASLatency{
 		IntraLatency: staticInfo.Latency.Intra,
@@ -187,7 +191,7 @@ func extractNormaldata(res *PathMetadata, asEntry *seg.ASEntry) {
 		PeerLatency:  0,
 	}
 	res.Links[ia] = ASLink{
-		InterLinkType: staticInfo.LinkType[common.IFIDType(asEntry.HopEntry.HopField.ConsEgress)],
+		InterLinkType: staticInfo.LinkType[egIfID],
 	}
 	res.ASBandwidths[ia] = ASBandwidth{
 		IntraBW: staticInfo.Bandwidth.IngressToEgressBW,

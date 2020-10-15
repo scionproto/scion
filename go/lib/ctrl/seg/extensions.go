@@ -48,7 +48,7 @@ func extensionsToPB(ext Extensions) *cppb.PathSegmentExtensions {
 	if ext.HiddenPath.IsHidden {
 		hiddenPath = &cppb.HiddenPathExtension{IsHidden: true}
 	}
-	staticInfo := staticInfoToPB(ext.StaticInfo)
+	staticInfo := staticInfoExtensionToPB(ext.StaticInfo)
 
 	if hiddenPath != nil || staticInfo != nil {
 		return &cppb.PathSegmentExtensions{

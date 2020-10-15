@@ -178,7 +178,7 @@ func (cfgdata StaticInfoCfg) gatherHops(peers map[common.IFIDType]struct{},
 
 // gatherGeo extracts geo values from a StaticInfoCfg struct and
 // inserts them into the GeoInfo portion of a StaticInfoExtn struct.
-// TODO(matzf): this could be reduced to only include the relevant interfaces,
+// TODO(matzf): this should be reduced to only include the relevant interfaces,
 // i.e. ingress, egress, and peers.
 func (cfgdata StaticInfoCfg) gatherGeo() seg.GeoInfo {
 	gi := seg.GeoInfo{}
@@ -213,11 +213,11 @@ func (cfgdata StaticInfoCfg) generateStaticinfo(peers map[common.IFIDType]struct
 	egifID common.IFIDType, inifID common.IFIDType) seg.StaticInfoExtension {
 
 	return seg.StaticInfoExtension{
-		Latency:   cfgdata.gatherLatency(peers, egifID, inifID),
-		Bandwidth: cfgdata.gatherBW(peers, egifID, inifID),
-		LinkType:  cfgdata.gatherLinkType(peers, egifID),
-		Geo:       cfgdata.gatherGeo(),
-		Note:      cfgdata.Note,
-		Hops:      cfgdata.gatherHops(peers, egifID, inifID),
+		Latency:      cfgdata.gatherLatency(peers, egifID, inifID),
+		Geo:          cfgdata.gatherGeo(),
+		LinkType:     cfgdata.gatherLinkType(peers, egifID),
+		Bandwidth:    cfgdata.gatherBW(peers, egifID, inifID),
+		InternalHops: cfgdata.gatherHops(peers, egifID, inifID),
+		Note:         cfgdata.Note,
 	}
 }

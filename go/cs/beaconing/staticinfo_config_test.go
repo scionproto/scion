@@ -27,27 +27,27 @@ import (
 
 func getTestConfigData() *StaticInfoCfg {
 
-	millis := func(ms int) util.DurWrap {
+	ms := func(ms int) util.DurWrap {
 		return util.DurWrap{Duration: time.Duration(ms) * time.Millisecond}
 	}
 
 	return &StaticInfoCfg{
 		Latency: map[common.IFIDType]InterfaceLatencies{
 			1: {
-				Inter: millis(30),
-				Intra: map[common.IFIDType]util.DurWrap{2: millis(10), 3: millis(20), 5: millis(30)},
+				Inter: ms(30),
+				Intra: map[common.IFIDType]util.DurWrap{2: ms(10), 3: ms(20), 5: ms(30)},
 			},
 			2: {
-				Inter: millis(40),
-				Intra: map[common.IFIDType]util.DurWrap{1: millis(10), 3: millis(70), 5: millis(50)},
+				Inter: ms(40),
+				Intra: map[common.IFIDType]util.DurWrap{1: ms(10), 3: ms(70), 5: ms(50)},
 			},
 			3: {
-				Inter: millis(80),
-				Intra: map[common.IFIDType]util.DurWrap{1: millis(20), 2: millis(70), 5: millis(60)},
+				Inter: ms(80),
+				Intra: map[common.IFIDType]util.DurWrap{1: ms(20), 2: ms(70), 5: ms(60)},
 			},
 			5: {
-				Inter: millis(90),
-				Intra: map[common.IFIDType]util.DurWrap{1: millis(30), 2: millis(50), 3: millis(60)},
+				Inter: ms(90),
+				Intra: map[common.IFIDType]util.DurWrap{1: ms(30), 2: ms(50), 3: ms(60)},
 			},
 		},
 		Bandwidth: map[common.IFIDType]InterfaceBandwidths{
@@ -184,7 +184,7 @@ func TestGenerateStaticinfo(t *testing.T) {
 					5: 120,
 				},
 			},
-			Hops: &seg.InternalHopsInfo{
+			InternalHops: &seg.InternalHopsInfo{
 				Hops: 3,
 				XoverHops: map[common.IFIDType]uint32{
 					3: 3,
