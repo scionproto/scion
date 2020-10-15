@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -31,7 +30,7 @@ var (
 	core1_120 = xtest.MustParseIA("1-ff00:0:120")
 )
 
-func allocPathSegment(ctrl *gomock.Controller, ias []addr.IA) *PathSegment {
+func allocPathSegment(ias []addr.IA) *PathSegment {
 	ases := make([]ASEntry, len(ias))
 	for i := range ias {
 		var next addr.IA
@@ -62,11 +61,8 @@ func allocPathSegment(ctrl *gomock.Controller, ias []addr.IA) *PathSegment {
 }
 
 func TestFilterSegments(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	seg110_120 := allocPathSegment(ctrl, []addr.IA{core1_110, core1_120})
-	seg120_110 := allocPathSegment(ctrl, []addr.IA{core1_120, core1_110})
+	seg110_120 := allocPathSegment([]addr.IA{core1_110, core1_120})
+	seg120_110 := allocPathSegment([]addr.IA{core1_120, core1_110})
 
 	tests := map[string]struct {
 		Segs     []*PathSegment

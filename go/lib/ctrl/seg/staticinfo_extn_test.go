@@ -1,0 +1,134 @@
+// Copyright 2020 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package seg
+
+import (
+	"testing"
+	"time"
+
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestRoundtripStaticInfoExtension(t *testing.T) {
+	testCases := map[string]*StaticInfoExtension{
+		"nil":   nil,
+		"empty": &StaticInfoExtension{},
+		"empty_non_nil": &StaticInfoExtension{
+			Geo:      make(GeoInfo),
+			LinkType: make(LinkTypeInfo),
+		},
+		"latency": &StaticInfoExtension{
+			Latency: &LatencyInfo{
+				Intra: 5 * time.Millisecond,
+				Inter: 100 * time.Millisecond,
+				XoverIntra: map[common.IFIDType]time.Duration{
+					10: 10 * time.Millisecond,
+					11: 11 * time.Millisecond,
+				},
+				PeerInter: map[common.IFIDType]time.Duration{
+					11: 111 * time.Millisecond,
+				},
+			},
+		},
+		"link_type": &StaticInfoExtension{
+			LinkType: LinkTypeInfo{
+				1: LinkTypeDirect,
+				2: LinkTypeMultihop,
+				3: LinkTypeOpennet,
+			},
+		},
+		"geo": &StaticInfoExtension{
+			Geo: GeoInfo{
+				1: GeoCoordinates{
+					Latitude:  48.858222,
+					Longitude: 2.2945,
+					Address:   "Eiffel Tower\n7th arrondissement\nParis\nFrance",
+				},
+			},
+		},
+		"internal_hops": &StaticInfoExtension{
+			InternalHops: &InternalHopsInfo{
+				Hops: 1,
+				XoverHops: map[common.IFIDType]uint32{
+					10: 2,
+					11: 3,
+				},
+			},
+		},
+		"bandwidth": &StaticInfoExtension{
+			Bandwidth: &BandwidthInfo{
+				Intra: 100_000_000,
+				Inter: 1_000_000,
+				XoverIntra: map[common.IFIDType]uint32{
+					10: 10_000_000,
+					11: 11_000_000,
+				},
+				PeerInter: map[common.IFIDType]uint32{
+					11: 2_000_000,
+				},
+			},
+		},
+		"note": &StaticInfoExtension{
+			Note: "test",
+		},
+	}
+
+	for name, extn := range testCases {
+		t.Run(name, func(t *testing.T) {
+			pb := staticInfoExtensionToPB(extn)
+			actual, err := staticInfoExtensionFromPB(pb)
+			require.NoError(t, err)
+			// Ignore nil vs empty map; replace empty by nil before check
+			nilEmptyMaps(extn)
+			nilEmptyMaps(actual)
+			assert.Equal(t, extn, actual)
+		})
+	}
+}
+
+func nilEmptyMaps(si *StaticInfoExtension) {
+	if si == nil {
+		return
+	}
+	if si.Latency != nil {
+		if len(si.Latency.XoverIntra) == 0 {
+			si.Latency.XoverIntra = nil
+		}
+		if len(si.Latency.PeerInter) == 0 {
+			si.Latency.PeerInter = nil
+		}
+	}
+	if len(si.Geo) == 0 {
+		si.Geo = nil
+	}
+	if len(si.LinkType) == 0 {
+		si.LinkType = nil
+	}
+	if si.Bandwidth != nil {
+		if len(si.Bandwidth.XoverIntra) == 0 {
+			si.Bandwidth.XoverIntra = nil
+		}
+		if len(si.Bandwidth.PeerInter) == 0 {
+			si.Bandwidth.PeerInter = nil
+		}
+	}
+	if si.InternalHops != nil {
+		if len(si.InternalHops.XoverHops) == 0 {
+			si.InternalHops.XoverHops = nil
+		}
+	}
+}
