@@ -116,7 +116,6 @@ def join_host_port(host: str, port: int) -> str:
 
 def sciond_ip(docker, topo_id, networks: Mapping[IPNetwork, NetworkDescription]):
     for net_desc in networks.values():
-        print(net_desc.ip_net)
         for prog, ip_net in net_desc.ip_net.items():
             if prog == 'sd%s' % topo_id.file_fmt():
                 return ip_net.ip
