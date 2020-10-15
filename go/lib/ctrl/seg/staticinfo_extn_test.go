@@ -18,20 +18,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 func TestRoundtripStaticInfoExtension(t *testing.T) {
 	testCases := map[string]*StaticInfoExtension{
 		"nil":   nil,
-		"empty": &StaticInfoExtension{},
-		"empty_non_nil": &StaticInfoExtension{
+		"empty": {},
+		"empty_non_nil": {
 			Geo:      make(GeoInfo),
 			LinkType: make(LinkTypeInfo),
 		},
-		"latency": &StaticInfoExtension{
+		"latency": {
 			Latency: &LatencyInfo{
 				Intra: 5 * time.Millisecond,
 				Inter: 100 * time.Millisecond,
@@ -44,14 +45,14 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 				},
 			},
 		},
-		"link_type": &StaticInfoExtension{
+		"link_type": {
 			LinkType: LinkTypeInfo{
 				1: LinkTypeDirect,
 				2: LinkTypeMultihop,
 				3: LinkTypeOpennet,
 			},
 		},
-		"geo": &StaticInfoExtension{
+		"geo": {
 			Geo: GeoInfo{
 				1: GeoCoordinates{
 					Latitude:  48.858222,
@@ -60,7 +61,7 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 				},
 			},
 		},
-		"internal_hops": &StaticInfoExtension{
+		"internal_hops": {
 			InternalHops: &InternalHopsInfo{
 				Hops: 1,
 				XoverHops: map[common.IFIDType]uint32{
@@ -69,7 +70,7 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 				},
 			},
 		},
-		"bandwidth": &StaticInfoExtension{
+		"bandwidth": {
 			Bandwidth: &BandwidthInfo{
 				Intra: 100_000_000,
 				Inter: 1_000_000,
@@ -82,7 +83,7 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 				},
 			},
 		},
-		"note": &StaticInfoExtension{
+		"note": {
 			Note: "test",
 		},
 	}
