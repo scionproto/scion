@@ -56,7 +56,7 @@ func TestNewRequestSegmentSetupFromCtrl(t *testing.T) {
 	p := segmenttest.NewTestPath()
 	r, err = newRequestSegmentSetup(ctrlMsg, ts, p)
 	require.NoError(t, err)
-	require.Equal(t, p, r.Path())
+	require.Equal(t, p, r.PathDeleteme())
 	checkRequest(t, ctrlMsg, r, ts)
 	require.Equal(t, common.IFIDType(1), r.Ingress)
 	require.Equal(t, common.IFIDType(2), r.Egress)

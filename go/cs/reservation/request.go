@@ -36,7 +36,7 @@ func NewRequestMetadata(path *spath.Path) (*RequestMetadata, error) {
 }
 
 // Path returns the spath.Path in this metadata.
-func (m *RequestMetadata) Path() *spath.Path {
+func (m *RequestMetadata) PathDeleteme() *spath.Path {
 	return &m.path
 }
 

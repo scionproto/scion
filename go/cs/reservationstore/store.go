@@ -498,7 +498,7 @@ func (s *Store) validateAuthenticators(req *base.RequestMetadata) error {
 // prepareFailureSegmentResp will create a failure segment response, which
 // is sent in the reverse path that the request had.
 func (s *Store) prepareFailureSegmentResp(req *segment.Request) (*segment.Response, error) {
-	revPath := req.Path().Copy()
+	revPath := req.PathDeleteme().Copy()
 	if err := revPath.Reverse(); err != nil {
 		return nil, serrors.WrapStr("cannot reverse path for response", err)
 	}
@@ -514,7 +514,7 @@ func (s *Store) prepareFailureSegmentResp(req *segment.Request) (*segment.Respon
 // prepareFailureE2EResp will create a failure e2e response, which
 // is sent in the reverse path that the request had.
 func (s *Store) prepareFailureE2EResp(req *e2e.Request) (*e2e.Response, error) {
-	revPath := req.Path().Copy()
+	revPath := req.PathDeleteme().Copy()
 	if err := revPath.Reverse(); err != nil {
 		return nil, serrors.WrapStr("cannot reverse path for response", err)
 	}
