@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // Request is the base struct for any type of COLIBRI segment request.
@@ -38,25 +37,13 @@ type Request struct {
 
 // NewRequest constructs the segment Request type.
 func NewRequest(ts time.Time, id *reservation.SegmentID, idx reservation.IndexNumber,
-	path *spath.Path) (*Request, error) {
+	path base.ColibriPath) (*Request, error) {
 
 	metadata, err := base.NewRequestMetadata(path)
 	if err != nil {
 		return nil, serrors.WrapStr("new segment request", err)
 	}
-	hf, err := path.GetHopField(path.HopOff)
-	if err != nil {
-		return nil, serrors.WrapStr("cannot get ingress and egress IFIDs from the setup request",
-			err, "hop_off", path.HopOff)
-	}
-	ingressIFID, egressIFID := hf.ConsIngress, hf.ConsEgress
-	infField, err := path.GetInfoField(path.InfOff)
-	if err != nil {
-		return nil, serrors.WrapStr("cannot obtain infofield from spath", err)
-	}
-	if !infField.ConsDir {
-		egressIFID, ingressIFID = ingressIFID, egressIFID
-	}
+	ingressIFID, egressIFID := path.IngressEgressIFIDs()
 	if id == nil {
 		return nil, serrors.New("new segment request with nil ID")
 	}

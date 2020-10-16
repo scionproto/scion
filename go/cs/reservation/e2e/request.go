@@ -20,7 +20,6 @@ import (
 	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // Request is the base struct for any type of COLIBRI e2e request.
@@ -33,7 +32,7 @@ type Request struct {
 
 // NewRequest constructs the e2e Request type.
 func NewRequest(ts time.Time, id *reservation.E2EID, idx reservation.IndexNumber,
-	path *spath.Path) (*Request, error) {
+	path base.ColibriPath) (*Request, error) {
 
 	metadata, err := base.NewRequestMetadata(path)
 	if err != nil {

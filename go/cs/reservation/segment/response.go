@@ -20,7 +20,6 @@ import (
 	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // Response is the base struct for any type of COLIBRI segment response.
@@ -36,7 +35,7 @@ var _ base.MessageWithPath = (*Response)(nil)
 
 // NewResponse contructs the segment Response type.
 func NewResponse(ts time.Time, id *reservation.SegmentID, idx reservation.IndexNumber,
-	path *spath.Path, accepted bool, failedHop uint8) (*Response, error) {
+	path base.ColibriPath, accepted bool, failedHop uint8) (*Response, error) {
 
 	metadata, err := base.NewRequestMetadata(path)
 	if err != nil {

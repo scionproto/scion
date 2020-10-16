@@ -19,7 +19,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
+	"github.com/scionproto/scion/go/cs/reservation/test"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
@@ -49,7 +49,7 @@ func TestNewCtrlE2EReservationID(t *testing.T) {
 func TestNewSegmentSetup(t *testing.T) {
 	ctrl := newTestSetup()
 	ts := util.SecsToTime(1)
-	r, err := newRequestSegmentSetup(ctrl, ts, segmenttest.NewTestPath())
+	r, err := newRequestSegmentSetup(ctrl, ts, test.NewTestPath())
 	require.NoError(t, err)
 	newCtrl := newSegmentSetup(r)
 	require.Equal(t, ctrl, newCtrl)
@@ -357,7 +357,7 @@ func TestNewCtrlFromMsg(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			msg, err := NewMsgFromCtrl(tc.Ctrl, segmenttest.NewTestPath())
+			msg, err := NewMsgFromCtrl(tc.Ctrl, test.NewTestPath())
 			require.NoError(t, err)
 			newCtrl, err := NewCtrlFromMsg(msg, tc.Renewal)
 			require.NoError(t, err)
