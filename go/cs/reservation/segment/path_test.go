@@ -26,7 +26,7 @@ import (
 
 func TestValidatePath(t *testing.T) {
 	tc := map[string]struct {
-		Path    segment.Path
+		Path    segment.ReservationTransparentPath
 		IsValid bool
 	}{
 		"src-dst": {
@@ -58,8 +58,8 @@ func TestValidatePath(t *testing.T) {
 
 func TestEqualPath(t *testing.T) {
 	tc := map[string]struct {
-		Path1   segment.Path
-		Path2   segment.Path
+		Path1   segment.ReservationTransparentPath
+		Path2   segment.ReservationTransparentPath
 		IsEqual bool
 	}{
 		"eq1": {
@@ -81,7 +81,7 @@ func TestEqualPath(t *testing.T) {
 		},
 		"eq4": {
 			Path1:   nil,
-			Path2:   make(segment.Path, 0),
+			Path2:   make(segment.ReservationTransparentPath, 0),
 			IsEqual: true,
 		},
 		"neq1": {
@@ -123,7 +123,7 @@ func TestGetIAs(t *testing.T) {
 	p = nil
 	require.Equal(t, xtest.MustParseIA("0-0"), p.GetSrcIA())
 	require.Equal(t, xtest.MustParseIA("0-0"), p.GetDstIA())
-	p = make(segment.Path, 0)
+	p = make(segment.ReservationTransparentPath, 0)
 	require.Equal(t, xtest.MustParseIA("0-0"), p.GetSrcIA())
 	require.Equal(t, xtest.MustParseIA("0-0"), p.GetDstIA())
 }
@@ -131,11 +131,11 @@ func TestGetIAs(t *testing.T) {
 func TestPathLen(t *testing.T) {
 	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
 	require.Equal(t, 2*12, p.Len())
-	p = segment.Path{}
+	p = segment.ReservationTransparentPath{}
 	require.Equal(t, 0, p.Len())
 	p = nil
 	require.Equal(t, 0, p.Len())
-	p = make(segment.Path, 0)
+	p = make(segment.ReservationTransparentPath, 0)
 	require.Equal(t, 0, p.Len())
 }
 
@@ -171,7 +171,7 @@ func TestToFromBinary(t *testing.T) {
 	// empty and nil path
 	p = nil
 	require.Empty(t, p.ToRaw())
-	p = make(segment.Path, 0)
+	p = make(segment.ReservationTransparentPath, 0)
 	require.Empty(t, p.ToRaw())
 }
 

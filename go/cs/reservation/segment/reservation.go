@@ -25,14 +25,14 @@ import (
 // Reservation represents a segment reservation.
 type Reservation struct {
 	ID           reservation.SegmentID
-	Indices      Indices                  // existing indices in this reservation
-	activeIndex  int                      // -1 <= activeIndex < len(Indices)
-	Ingress      uint16                   // igress interface ID: reservation packets enter
-	Egress       uint16                   // egress interface ID: reservation packets leave
-	Path         Path                     // empty if not at the source of the reservation
-	PathType     reservation.PathType     // the type of path (up,core,down)
-	PathEndProps reservation.PathEndProps // the properties for stitching and start/end
-	TrafficSplit reservation.SplitCls     // the traffic split between control and data planes
+	Indices      Indices                    // existing indices in this reservation
+	activeIndex  int                        // -1 <= activeIndex < len(Indices)
+	Ingress      uint16                     // igress interface ID: reservation packets enter
+	Egress       uint16                     // egress interface ID: reservation packets leave
+	Path         ReservationTransparentPath // empty if not at the source of the reservation
+	PathType     reservation.PathType       // the type of path (up,core,down)
+	PathEndProps reservation.PathEndProps   // the properties for stitching and start/end
+	TrafficSplit reservation.SplitCls       // the traffic split between control and data planes
 }
 
 func NewReservation() *Reservation {
