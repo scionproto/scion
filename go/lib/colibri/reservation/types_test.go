@@ -21,7 +21,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -412,7 +411,7 @@ func TestValidateToken(t *testing.T) {
 	tok := newToken()
 	err := tok.Validate()
 	require.NoError(t, err)
-	tok.HopFields = []spath.HopField{}
+	tok.HopFields = []HopField{}
 	err = tok.Validate()
 	require.Error(t, err)
 }
@@ -434,7 +433,7 @@ func TestTokenFromRaw(t *testing.T) {
 	require.Error(t, err)
 
 	// one hop field less
-	tok, err = TokenFromRaw(referenceRaw[:len(referenceRaw)-spath.HopFieldLength])
+	tok, err = TokenFromRaw(referenceRaw[:len(referenceRaw)-HopFieldLen])
 	require.NoError(t, err)
 	require.Len(t, tok.HopFields, len(reference.HopFields)-1)
 }
@@ -472,29 +471,29 @@ func newInfoFieldRaw() []byte {
 	return xtest.MustParseHexString("16ebdb4f0d042500")
 }
 
+func newHopField(ingress, egress uint16, mac []byte) *HopField {
+	hf := HopField{
+		Ingress: ingress,
+		Egress:  egress,
+	}
+	if len(mac) < len(hf.Mac) {
+		panic(fmt.Errorf("mac is too short: %d", len(mac)))
+	}
+	copy(hf.Mac[:], mac)
+	return &hf
+}
+
 func newToken() Token {
 	return Token{
 		InfoField: newInfoField(),
-		HopFields: []spath.HopField{
-			{
-				Xover:       false,
-				ExpTime:     spath.DefaultHopFExpiry,
-				ConsIngress: 1,
-				ConsEgress:  2,
-				Mac:         xtest.MustParseHexString("bad1ce"),
-			},
-			{
-				Xover:       false,
-				ExpTime:     spath.DefaultHopFExpiry,
-				ConsIngress: 1,
-				ConsEgress:  2,
-				Mac:         xtest.MustParseHexString("facade"),
-			},
+		HopFields: []HopField{
+			*newHopField(1, 2, xtest.MustParseHexString("badcffee")),
+			*newHopField(1, 2, xtest.MustParseHexString("baadf00d")),
 		},
 	}
 }
 func newTokenRaw() []byte {
-	return xtest.MustParseHexString("16ebdb4f0d042500003f001002bad1ce003f001002facade")
+	return xtest.MustParseHexString("16ebdb4f0d04250000010002badcffee00010002baadf00d")
 }
 
 func mustParseSegmentID(s string) SegmentID {
