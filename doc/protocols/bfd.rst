@@ -62,16 +62,12 @@ other SCION router instance within the same AS. The associated BFD packets must 
 <https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#path-type-empty>`__
 path type.
 
-These BFD sessions are uniquely identified by the source address, as it appears
-in the SCION address header.
+These BFD sessions are uniquely identified by the source address and port, as it appears
+in the underlay UPD header.
+
+NOTE: Using underlay to identify the sibling SCION router is a workaround.
+Eventually we don't want SCION protocols to depend on the underlay
+protocol. The plan is to use UDP/BFD inside in the SCION payload.
 
 Any other BFD packets (e.g. packets with standard SCION path) are invalid and
 must be dropped by the SCION router.
-
-Caveats
-=======
-
-Note that there is no UDP header, and therefore no ports in BFD/SCION protocol.
-
-The consequence is that there can't be two SCION/BFD-enabled applications (e.g.
-two SCION router instances) sharing the same IP address.
