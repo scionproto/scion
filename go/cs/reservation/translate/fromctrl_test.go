@@ -21,7 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/cs/reservation/e2e"
 	"github.com/scionproto/scion/go/cs/reservation/segment"
-	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
+	"github.com/scionproto/scion/go/cs/reservation/test"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
@@ -53,7 +53,7 @@ func TestNewRequestSegmentSetupFromCtrl(t *testing.T) {
 	ts := util.SecsToTime(1)
 	r, err := newRequestSegmentSetup(ctrlMsg, ts, nil)
 	require.Error(t, err) // missing path
-	p := segmenttest.NewTestPath()
+	p := test.NewTestPath()
 	r, err = newRequestSegmentSetup(ctrlMsg, ts, p)
 	require.NoError(t, err)
 	require.Equal(t, p, r.PathDeleteme())
@@ -67,7 +67,7 @@ func TestNewRequestSegmentTelesSetup(t *testing.T) {
 	ts := util.SecsToTime(1)
 	r, err := newRequestSegmentTelesSetup(ctrlMsg, ts, nil)
 	require.Error(t, err) // path is nil
-	r, err = newRequestSegmentTelesSetup(ctrlMsg, ts, segmenttest.NewTestPath())
+	r, err = newRequestSegmentTelesSetup(ctrlMsg, ts, test.NewTestPath())
 	require.NoError(t, err)
 	checkRequest(t, ctrlMsg.Setup, &r.SetupReq, ts)
 	require.Equal(t, xtest.MustParseAS("ff00:cafe:1"), r.BaseID.ASID)
@@ -79,7 +79,7 @@ func TestNewRequestSegmentTeardown(t *testing.T) {
 	ts := util.SecsToTime(1)
 	r, err := newRequestSegmentTeardown(ctrlMsg, ts, nil)
 	require.Error(t, err) // path is nil
-	r, err = newRequestSegmentTeardown(ctrlMsg, ts, segmenttest.NewTestPath())
+	r, err = newRequestSegmentTeardown(ctrlMsg, ts, test.NewTestPath())
 	require.NoError(t, err)
 	checkIDs(t, ctrlMsg.Base.ID, &r.ID)
 	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
@@ -90,7 +90,7 @@ func TestNewRequestSegmentIndexConfirmation(t *testing.T) {
 	ts := util.SecsToTime(1)
 	r, err := newRequestSegmentIndexConfirmation(ctrlMsg, ts, nil)
 	require.Error(t, err) // nil path
-	r, err = newRequestSegmentIndexConfirmation(ctrlMsg, ts, segmenttest.NewTestPath())
+	r, err = newRequestSegmentIndexConfirmation(ctrlMsg, ts, test.NewTestPath())
 	require.NoError(t, err)
 	checkIDs(t, ctrlMsg.Base.ID, &r.ID)
 	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
@@ -102,7 +102,7 @@ func TestNewRequestSegmentCleanup(t *testing.T) {
 	ts := util.SecsToTime(1)
 	r, err := newRequestSegmentCleanup(ctrlMsg, ts, nil)
 	require.Error(t, err) // nil path
-	r, err = newRequestSegmentCleanup(ctrlMsg, ts, segmenttest.NewTestPath())
+	r, err = newRequestSegmentCleanup(ctrlMsg, ts, test.NewTestPath())
 	require.NoError(t, err)
 	checkIDs(t, ctrlMsg.Base.ID, &r.ID)
 	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
@@ -113,7 +113,7 @@ func TestNewRequestE2ESetupSuccess(t *testing.T) {
 	ts := util.SecsToTime(1)
 	_, err := newRequestE2ESetup(ctrlMsg, ts, nil)
 	require.Error(t, err)
-	s, err := newRequestE2ESetup(ctrlMsg, ts, segmenttest.NewTestPath())
+	s, err := newRequestE2ESetup(ctrlMsg, ts, test.NewTestPath())
 	require.NoError(t, err)
 	require.IsType(t, &e2e.SetupReqSuccess{}, s)
 	r := s.(*e2e.SetupReqSuccess)
@@ -141,7 +141,7 @@ func TestNewRequestE2ESetupFailure(t *testing.T) {
 	ts := util.SecsToTime(1)
 	_, err := newRequestE2ESetup(ctrlMsg, ts, nil)
 	require.Error(t, err)
-	s, err := newRequestE2ESetup(ctrlMsg, ts, segmenttest.NewTestPath())
+	s, err := newRequestE2ESetup(ctrlMsg, ts, test.NewTestPath())
 	require.NoError(t, err)
 	require.IsType(t, &e2e.SetupReqFailure{}, s)
 	r := s.(*e2e.SetupReqFailure)
@@ -169,7 +169,7 @@ func TestNewRequestE2ECleanup(t *testing.T) {
 	ts := util.SecsToTime(1)
 	r, err := newRequestE2ECleanup(ctrlMsg, ts, nil)
 	require.Error(t, err)
-	r, err = newRequestE2ECleanup(ctrlMsg, ts, segmenttest.NewTestPath())
+	r, err = newRequestE2ECleanup(ctrlMsg, ts, test.NewTestPath())
 	require.NoError(t, err)
 	checkE2EIDs(t, ctrlMsg.Base.ID, &r.ID)
 	require.Equal(t, ctrlMsg.Base.Index, uint8(r.Index))
@@ -204,7 +204,7 @@ func TestNewResponseSegmentSetup(t *testing.T) {
 			_, err := newResponseSegmentSetup(tc.Ctrl.SegmentSetup, tc.Ctrl, ts, nil)
 			require.Error(t, err)
 			r, err := newResponseSegmentSetup(tc.Ctrl.SegmentSetup, tc.Ctrl, ts,
-				segmenttest.NewTestPath())
+				test.NewTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Ctrl.Accepted {
@@ -252,7 +252,7 @@ func TestNewResponseSegmentTeardown(t *testing.T) {
 			_, err := newResponseSegmentTeardown(tc.Ctrl.SegmentTeardown, tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
 			r, err := newResponseSegmentTeardown(tc.Ctrl.SegmentTeardown, tc.Ctrl, ts,
-				segmenttest.NewTestPath())
+				test.NewTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Ctrl.Accepted {
@@ -300,7 +300,7 @@ func TestNewResponseSegmentIndexConfirmation(t *testing.T) {
 				tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
 			r, err := newResponseSegmentIndexConfirmation(tc.Ctrl.SegmentIndexConfirmation,
-				tc.Ctrl, ts, segmenttest.NewTestPath())
+				tc.Ctrl, ts, test.NewTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Ctrl.Accepted {
@@ -347,7 +347,7 @@ func TestNewResponseSegmentCleanup(t *testing.T) {
 			_, err := newResponseSegmentCleanup(tc.Ctrl.SegmentCleanup, tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
 			r, err := newResponseSegmentCleanup(tc.Ctrl.SegmentCleanup, tc.Ctrl, ts,
-				segmenttest.NewTestPath())
+				test.NewTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Ctrl.Accepted {
@@ -392,7 +392,7 @@ func TestNewResponseE2ESetup(t *testing.T) {
 			ts := util.SecsToTime(1)
 			_, err := newResponseE2ESetup(tc.Ctrl.E2ESetup, tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
-			r, err := newResponseE2ESetup(tc.Ctrl.E2ESetup, tc.Ctrl, ts, segmenttest.NewTestPath())
+			r, err := newResponseE2ESetup(tc.Ctrl.E2ESetup, tc.Ctrl, ts, test.NewTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Ctrl.Accepted {
@@ -440,7 +440,7 @@ func TestNewResponseE2EClenaup(t *testing.T) {
 			_, err := newResponseE2EClenaup(tc.Ctrl.E2ECleanup, tc.Ctrl, ts, nil)
 			require.Error(t, err) // no path
 			r, err := newResponseE2EClenaup(tc.Ctrl.E2ECleanup, tc.Ctrl, ts,
-				segmenttest.NewTestPath())
+				test.NewTestPath())
 			require.NoError(t, err)
 			require.NotNil(t, r)
 			if tc.Ctrl.Accepted {
