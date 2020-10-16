@@ -116,7 +116,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 	if needSCIOND(args) {
 		sciond, err := GetSCIONDAddress(GenFile(SCIONDAddressesFile), dst.IA)
 		if err != nil {
-			return nil, serrors.WrapStr("unable to determine SCIOND address", err)
+			return nil, serrors.WrapStr("unable to determine SCION Daemon address", err)
 		}
 		args = replacePattern(SCIOND, sciond, args)
 	}
@@ -185,7 +185,7 @@ func (bi *binaryIntegration) StartClient(ctx context.Context,
 	if needSCIOND(args) {
 		sciond, err := GetSCIONDAddress(GenFile(SCIONDAddressesFile), src.IA)
 		if err != nil {
-			return nil, serrors.WrapStr("unable to determine SCIOND address", err)
+			return nil, serrors.WrapStr("unable to determine SCION Daemon address", err)
 		}
 		args = replacePattern(SCIOND, sciond, args)
 	}

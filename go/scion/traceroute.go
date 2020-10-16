@@ -134,7 +134,7 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 	cmd.Flags().IPVar(&flags.local, "local", nil, "IP address to listen on")
 	cmd.Flags().StringVar(&flags.dispatcher, "dispatcher", reliable.DefaultDispPath,
 		"dispatcher socket")
-	cmd.Flags().StringVar(&flags.sciond, "sciond", sciond.DefaultSCIONDAddress, "SCIOND address")
+	cmd.Flags().StringVar(&flags.sciond, "sciond", sciond.DefaultAPIAddress, "SCION Daemon address")
 	return cmd
 }
 

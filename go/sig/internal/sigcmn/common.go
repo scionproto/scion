@@ -62,7 +62,7 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SCIONDClient, features env.Features) 
 		return common.NewBasicError("Error creating local SCION Network context", err)
 	}
 
-	ip := cfg.IP
+	ip := cfg.CtrlAddr
 	if len(ip) == 0 || ip.IsUnspecified() {
 		ip, err = findDefaultLocalIP(context.Background(), sciondConn)
 		if err != nil {
@@ -73,7 +73,7 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SCIONDClient, features env.Features) 
 	CtrlAddr = ip
 	CtrlPort = int(cfg.CtrlPort)
 	DataAddr = ip
-	DataPort = int(cfg.EncapPort)
+	DataPort = int(cfg.DataPort)
 	conn, err := network.Listen(context.Background(), "udp",
 		&net.UDPAddr{IP: CtrlAddr, Port: CtrlPort}, addr.SvcSIG)
 	if err != nil {

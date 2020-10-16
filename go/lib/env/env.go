@@ -143,7 +143,7 @@ type SCIONDClient struct {
 
 func (cfg *SCIONDClient) InitDefaults() {
 	if cfg.Address == "" {
-		cfg.Address = sciond.DefaultSCIONDAddress
+		cfg.Address = sciond.DefaultAPIAddress
 	}
 	if cfg.InitialConnectPeriod.Duration == 0 {
 		cfg.InitialConnectPeriod.Duration = SciondInitConnectPeriod

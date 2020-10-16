@@ -266,8 +266,8 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 	cmd.MarkFlagRequired("trc")
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", 5*time.Second,
 		"Timeout for command")
-	cmd.Flags().StringVar(&flags.sciondAddr, "sciond", sciond.DefaultSCIONDAddress,
-		"SCIOND address")
+	cmd.Flags().StringVar(&flags.sciondAddr, "sciond", sciond.DefaultAPIAddress,
+		"SCION Daemon address")
 	cmd.Flags().StringVar(&flags.dispatcherPath, "dispatcher", reliable.DefaultDispPath,
 		"Dispatcher socket path")
 	cmd.Flags().IPVarP(&flags.listen, "local", "l", nil,

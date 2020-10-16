@@ -453,12 +453,15 @@ func (d *DataPlane) Run() error {
 				// TODO(karampok). Use meta for sanity checks.
 				p.Buffers[0] = p.Buffers[0][:p.N]
 				copy(origPacket[:p.N], p.Buffers[0])
+
 				// input metric
 				inputLabels := interfaceToMetricLabels(ingressID, d.localIA, d.neighborIAs)
 				d.Metrics.InputPacketsTotal.With(inputLabels).Inc()
 				d.Metrics.InputBytesTotal.With(inputLabels).Add(float64(p.N))
 
-				result, err := d.processPkt(ingressID, p.Buffers[0], spkt, origPacket, buffer)
+				result, err := d.processPkt(ingressID, p.Buffers[0], p.Addr, spkt, origPacket,
+					buffer)
+
 				switch {
 				case err == nil:
 				case errors.As(err, &scmpErr):
@@ -551,7 +554,7 @@ type processResult struct {
 	OutPkt   []byte
 }
 
-func (d *DataPlane) processPkt(ingressID uint16, rawPkt []byte, s slayers.SCION,
+func (d *DataPlane) processPkt(ingressID uint16, rawPkt []byte, srcAddr net.Addr, s slayers.SCION,
 	origPacket []byte, buffer gopacket.SerializeBuffer) (processResult, error) {
 
 	if err := s.DecodeFromBytes(rawPkt, gopacket.NilDecodeFeedback); err != nil {
@@ -564,11 +567,7 @@ func (d *DataPlane) processPkt(ingressID uint16, rawPkt []byte, s slayers.SCION,
 	switch s.PathType {
 	case slayers.PathTypeEmpty:
 		if s.NextHdr == common.L4BFD {
-			src, err := s.SrcAddr()
-			if err != nil {
-				return processResult{}, serrors.WrapStr("Failed to parse addr", err)
-			}
-			return processResult{}, d.processIntraBFD(src, s.Payload)
+			return processResult{}, d.processIntraBFD(srcAddr, s.Payload)
 		}
 		return processResult{}, serrors.WithCtx(unsupportedPathTypeNextHeader,
 			"type", s.PathType, "header", s.NextHdr)
@@ -616,7 +615,7 @@ func (d *DataPlane) processIntraBFD(src net.Addr, data []byte) error {
 	}
 
 	ifID := uint16(0)
-	srcIPAddr, ok := src.(*net.IPAddr)
+	srcUDPAddr, ok := src.(*net.UDPAddr)
 	if !ok {
 		return serrors.New("type assertion failure", "from", fmt.Sprintf("%v(%T)", src, src),
 			"expected", "*net.IPAddr")
@@ -628,7 +627,7 @@ func (d *DataPlane) processIntraBFD(src net.Addr, data []byte) error {
 			return serrors.New("type assertion failure", "from",
 				fmt.Sprintf("%v(%T)", remoteUDPAddr, remoteUDPAddr), "expected", "*net.UDPAddr")
 		}
-		if bytes.Equal(remoteUDPAddr.IP, srcIPAddr.IP) {
+		if bytes.Equal(remoteUDPAddr.IP, srcUDPAddr.IP) && remoteUDPAddr.Port == srcUDPAddr.Port {
 			ifID = k
 			continue
 		}

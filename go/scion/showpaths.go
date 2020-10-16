@@ -131,7 +131,7 @@ Available operators:
 	}
 
 	cmd.Flags().StringVar(&flags.cfg.SCIOND, "sciond",
-		sciond.DefaultSCIONDAddress, "SCION Deamon address")
+		sciond.DefaultAPIAddress, "SCION Deamon address")
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", 5*time.Second, "Timeout")
 	cmd.Flags().StringVar(&flags.cfg.Sequence, "sequence",
 		"", "sequence space separated list of HPs")

@@ -434,5 +434,5 @@ func GetSCIONDAddress(networksFile string, ia addr.IA) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("[%v]:%d", addresses[ia.String()], sciond.DefaultSCIONDPort), nil
+	return fmt.Sprintf("[%v]:%d", addresses[ia.String()], sciond.DefaultAPIPort), nil
 }

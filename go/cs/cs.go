@@ -361,7 +361,6 @@ func run(file string) error {
 		Requests: libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
 	}
 	dpb.RegisterDiscoveryServiceServer(quicServer, ds)
-	dpb.RegisterDiscoveryServiceServer(tcpServer, ds)
 
 	dsHealth := health.NewServer()
 	dsHealth.SetServingStatus("discovery", healthpb.HealthCheckResponse_SERVING)

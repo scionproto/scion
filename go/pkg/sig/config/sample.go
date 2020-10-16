@@ -23,14 +23,18 @@ id = "%s"
 # The SIG config json file. (required)
 sig_config = "/etc/scion/sig/sig.json"
 
-# The bind IP address. (optional, default determined based on route to control service)
-ip = "192.0.2.100"
+# The bind IP address for control messages.
+# (optional, default determined based on route to control service)
+ctrl_addr = "192.0.2.100"
 
 # Control data port, e.g. keepalives. (default 30256)
 ctrl_port = 30256
 
-# Encapsulation data port. (default 30056)
-encap_port = 30056
+# The bind IP address for encapsulated traffic (optional, defaults to ctrl_addr)
+data_addr = "192.0.2.101"
+
+# Encapsulated data port. (default 30056)
+data_port = 30056
 
 # Name of TUN device to create. (default "sig")
 tun = "sig"

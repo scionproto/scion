@@ -153,7 +153,7 @@ class SIGGenerator(object):
             'sig': {
                 'id': name,
                 'sig_config': 'conf/sig.json',
-                'ip': str(net[ipv]),
+                'ctrl_addr': str(net[ipv]),
             },
             'sciond_connection': {
                 'address': socket_address_str(sciond_ip, SD_API_PORT),

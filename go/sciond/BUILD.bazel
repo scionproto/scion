@@ -29,6 +29,7 @@ go_library(
         "//go/lib/topology:go_default_library",
         "//go/pkg/command:go_default_library",
         "//go/pkg/grpc:go_default_library",
+        "//go/pkg/proto/daemon:go_default_library",
         "//go/pkg/sciond:go_default_library",
         "//go/pkg/sciond/config:go_default_library",
         "//go/pkg/sciond/fetcher:go_default_library",
@@ -38,5 +39,6 @@ go_library(
         "//go/pkg/trust/compat:go_default_library",
         "//go/pkg/trust/metrics:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
+        "@org_golang_google_grpc//:go_default_library",
     ],
 )

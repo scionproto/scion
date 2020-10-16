@@ -109,7 +109,7 @@ type SDConfig struct {
 
 func (cfg *SDConfig) InitDefaults() {
 	if cfg.Address == "" {
-		cfg.Address = sciond.DefaultSCIONDAddress
+		cfg.Address = sciond.DefaultAPIAddress
 	}
 	if cfg.QueryInterval.Duration == 0 {
 		cfg.QueryInterval.Duration = DefaultQueryInterval
