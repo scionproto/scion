@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend/mock_backend"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -202,7 +201,7 @@ func TestTubeRatio(t *testing.T) {
 		req            *segment.SetupReq
 		setupDB        func(db *mock_backend.MockDB)
 		globalCapacity uint64
-		interfaces     []common.IFIDType
+		interfaces     []uint16
 	}{
 		"empty": {
 			tubeRatio: 1,
@@ -212,7 +211,7 @@ func TestTubeRatio(t *testing.T) {
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 			globalCapacity: 1024 * 1024,
-			interfaces:     []common.IFIDType{1, 2, 3},
+			interfaces:     []uint16{1, 2, 3},
 		},
 		"one source, one ingress": {
 			tubeRatio: 1,
@@ -224,7 +223,7 @@ func TestTubeRatio(t *testing.T) {
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 			globalCapacity: 1024 * 1024,
-			interfaces:     []common.IFIDType{1, 2, 3},
+			interfaces:     []uint16{1, 2, 3},
 		},
 		"one source, two ingress": {
 			tubeRatio: .5,
@@ -237,7 +236,7 @@ func TestTubeRatio(t *testing.T) {
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 			globalCapacity: 1024 * 1024,
-			interfaces:     []common.IFIDType{1, 2, 3},
+			interfaces:     []uint16{1, 2, 3},
 		},
 		"two sources, request already present": {
 			tubeRatio: .5,
@@ -250,7 +249,7 @@ func TestTubeRatio(t *testing.T) {
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 			globalCapacity: 1024 * 1024,
-			interfaces:     []common.IFIDType{1, 2, 3},
+			interfaces:     []uint16{1, 2, 3},
 		},
 		"multiple sources, multiple ingress": {
 			tubeRatio: .75,
@@ -264,7 +263,7 @@ func TestTubeRatio(t *testing.T) {
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 			globalCapacity: 1024 * 1024,
-			interfaces:     []common.IFIDType{1, 2, 3},
+			interfaces:     []uint16{1, 2, 3},
 		},
 		"exceeding ingress capacity": {
 			tubeRatio: 10. / 13., // 10 / (10 + 0 + 3)
@@ -278,7 +277,7 @@ func TestTubeRatio(t *testing.T) {
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 			globalCapacity: 10,
-			interfaces:     []common.IFIDType{1, 2, 3},
+			interfaces:     []uint16{1, 2, 3},
 		},
 		"with many other irrelevant reservations": {
 			tubeRatio: .75,
@@ -296,7 +295,7 @@ func TestTubeRatio(t *testing.T) {
 				db.EXPECT().GetAllSegmentRsvs(gomock.Any()).AnyTimes().Return(rsvs, nil)
 			},
 			globalCapacity: 1024 * 1024,
-			interfaces:     []common.IFIDType{1, 2, 3, 4, 5},
+			interfaces:     []uint16{1, 2, 3, 4, 5},
 		},
 	}
 
@@ -412,7 +411,7 @@ func TestLinkRatio(t *testing.T) {
 
 			adm.Capacities = &testCapacities{
 				Cap:    1024 * 1024,
-				Ifaces: []common.IFIDType{1, 2, 3},
+				Ifaces: []uint16{1, 2, 3},
 			}
 			db := adm.DB.(*mock_backend.MockDB)
 			tc.setupDB(db)
@@ -430,16 +429,16 @@ func TestLinkRatio(t *testing.T) {
 
 type testCapacities struct {
 	Cap    uint64
-	Ifaces []common.IFIDType
+	Ifaces []uint16
 }
 
 var _ base.Capacities = (*testCapacities)(nil)
 
-func (c *testCapacities) IngressInterfaces() []common.IFIDType           { return c.Ifaces }
-func (c *testCapacities) EgressInterfaces() []common.IFIDType            { return c.Ifaces }
-func (c *testCapacities) Capacity(from, to common.IFIDType) uint64       { return c.Cap }
-func (c *testCapacities) CapacityIngress(ingress common.IFIDType) uint64 { return c.Cap }
-func (c *testCapacities) CapacityEgress(egress common.IFIDType) uint64   { return c.Cap }
+func (c *testCapacities) IngressInterfaces() []uint16           { return c.Ifaces }
+func (c *testCapacities) EgressInterfaces() []uint16            { return c.Ifaces }
+func (c *testCapacities) Capacity(from, to uint16) uint64       { return c.Cap }
+func (c *testCapacities) CapacityIngress(ingress uint16) uint64 { return c.Cap }
+func (c *testCapacities) CapacityEgress(egress uint16) uint64   { return c.Cap }
 
 func newTestAdmitter(t *testing.T) (*StatelessAdmission, func()) {
 	mctlr := gomock.NewController(t)
@@ -449,14 +448,14 @@ func newTestAdmitter(t *testing.T) (*StatelessAdmission, func()) {
 		DB: db,
 		Capacities: &testCapacities{
 			Cap:    1024, // 1MBps
-			Ifaces: []common.IFIDType{1, 2},
+			Ifaces: []uint16{1, 2},
 		},
 		Delta: 1,
 	}, mctlr.Finish
 }
 
 // newTestRequest creates a request ID ff00:1:1 beefcafe
-func newTestRequest(t *testing.T, ingress, egress common.IFIDType,
+func newTestRequest(t *testing.T, ingress, egress uint16,
 	minBW, maxBW reservation.BWCls) *segment.SetupReq {
 
 	ID, err := reservation.SegmentIDFromRaw(xtest.MustParseHexString("ff0000010001beefcafe"))
@@ -476,7 +475,7 @@ func newTestRequest(t *testing.T, ingress, egress common.IFIDType,
 	}
 }
 
-func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress common.IFIDType,
+func testNewRsv(t *testing.T, srcAS string, suffix string, ingress, egress uint16,
 	minBW, maxBW, allocBW reservation.BWCls) *segment.Reservation {
 
 	ID, err := reservation.NewSegmentID(xtest.MustParseAS(srcAS),

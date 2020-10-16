@@ -17,7 +17,6 @@ package segmenttest
 import (
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -29,8 +28,8 @@ func NewPathFromComponents(chain ...interface{}) segment.Path {
 	for i := 0; i < len(chain); i += 3 {
 		p = append(p, segment.PathStepWithIA{
 			PathStep: segment.PathStep{
-				Ingress: common.IFIDType(chain[i].(int)),
-				Egress:  common.IFIDType(chain[i+2].(int)),
+				Ingress: uint16(chain[i].(int)),
+				Egress:  uint16(chain[i+2].(int)),
 			},
 			IA: xtest.MustParseIA(chain[i+1].(string)),
 		})

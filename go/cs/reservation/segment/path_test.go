@@ -130,7 +130,7 @@ func TestGetIAs(t *testing.T) {
 
 func TestPathLen(t *testing.T) {
 	p := segmenttest.NewPathFromComponents(0, "1-ff00:0:1", 1, 1, "1-ff00:0:2", 0)
-	require.Equal(t, 8*6, p.Len())
+	require.Equal(t, 2*12, p.Len())
 	p = segment.Path{}
 	require.Equal(t, 0, p.Len())
 	p = nil
@@ -146,10 +146,10 @@ func TestToFromBinary(t *testing.T) {
 	require.Error(t, err)
 	_, err = p.Read(buff)
 	require.Error(t, err)
-	buff = make([]byte, 2*3*8)
+	buff = make([]byte, 2*12)
 	c, err := p.Read(buff)
 	require.NoError(t, err)
-	require.Equal(t, 2*3*8, c)
+	require.Equal(t, 2*12, c)
 
 	anotherP, err := segment.NewPathFromRaw(buff)
 	require.NoError(t, err)

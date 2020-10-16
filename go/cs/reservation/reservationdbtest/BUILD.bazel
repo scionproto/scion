@@ -12,7 +12,6 @@ go_library(
         "//go/cs/reservationstorage/backend:go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/colibri/reservation:go_default_library",
-        "//go/lib/common:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/lib/xtest:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",

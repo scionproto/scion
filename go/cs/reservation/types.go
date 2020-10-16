@@ -14,17 +14,13 @@
 
 package reservation
 
-import (
-	"github.com/scionproto/scion/go/lib/common"
-)
-
 // Capacities describes what a capacity description must offer.
 type Capacities interface {
-	IngressInterfaces() []common.IFIDType
-	EgressInterfaces() []common.IFIDType
-	Capacity(from, to common.IFIDType) uint64
-	CapacityIngress(ingress common.IFIDType) uint64
-	CapacityEgress(egress common.IFIDType) uint64
+	IngressInterfaces() []uint16
+	EgressInterfaces() []uint16
+	Capacity(from, to uint16) uint64
+	CapacityIngress(ingress uint16) uint64
+	CapacityEgress(egress uint16) uint64
 }
 
 // ColibriPath is a path of type COLIBRI.
@@ -36,8 +32,7 @@ type ColibriPath interface {
 	Reverse() error
 	NumberOfHops() int
 	IndexOfCurrentHop() int
-	// TODO(juagargi) replace common.IFIDType with uint16
-	IngressEgressIFIDs() (common.IFIDType, common.IFIDType)
+	IngressEgressIFIDs() (uint16, uint16)
 }
 
 // MessageWithPath is used to send messages from the COLIBRI service via the BR.

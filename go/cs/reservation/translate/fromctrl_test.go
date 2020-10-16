@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/cs/reservation/test"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -58,8 +57,8 @@ func TestNewRequestSegmentSetupFromCtrl(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, p, r.Path())
 	checkRequest(t, ctrlMsg, r, ts)
-	require.Equal(t, common.IFIDType(1), r.Ingress)
-	require.Equal(t, common.IFIDType(2), r.Egress)
+	require.EqualValues(t, 1, r.Ingress)
+	require.EqualValues(t, 2, r.Egress)
 }
 
 func TestNewRequestSegmentTelesSetup(t *testing.T) {

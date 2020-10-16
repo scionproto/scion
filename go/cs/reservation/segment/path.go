@@ -21,11 +21,11 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // Path represents a reservation path, in the reservation order.
+// TODO(juagargi) there exists a ColibriPath that should superseed this type. Remove this.
 type Path []PathStepWithIA
 
 var _ io.Reader = (*Path)(nil)
@@ -39,9 +39,9 @@ func NewPathFromRaw(buff []byte) (Path, error) {
 	p := make(Path, steps)
 	for i := 0; i < steps; i++ {
 		offset := i * PathStepWithIALen
-		p[i].Ingress = common.IFIDType(binary.BigEndian.Uint64(buff[offset:]))
-		p[i].Egress = common.IFIDType(binary.BigEndian.Uint64(buff[offset+8:]))
-		p[i].IA = addr.IAFromRaw(buff[offset+16:])
+		p[i].Ingress = binary.BigEndian.Uint16(buff[offset:])
+		p[i].Egress = binary.BigEndian.Uint16(buff[offset+2:])
+		p[i].IA = addr.IAFromRaw(buff[offset+4:])
 	}
 	return p, nil
 }
@@ -111,9 +111,9 @@ func (p Path) Read(buff []byte) (int, error) {
 	}
 	for i, s := range p {
 		offset := i * PathStepWithIALen
-		binary.BigEndian.PutUint64(buff[offset:], uint64(s.Ingress))
-		binary.BigEndian.PutUint64(buff[offset+8:], uint64(s.Egress))
-		binary.BigEndian.PutUint64(buff[offset+16:], uint64(s.IA.IAInt()))
+		binary.BigEndian.PutUint16(buff[offset:], s.Ingress)
+		binary.BigEndian.PutUint16(buff[offset+2:], s.Egress)
+		binary.BigEndian.PutUint64(buff[offset+4:], uint64(s.IA.IAInt()))
 	}
 	return p.Len(), nil
 }
@@ -138,8 +138,8 @@ func (p Path) String() string {
 
 // PathStep is one hop of the Path. For a source AS Ingress will be invalid. Conversely for dst.
 type PathStep struct {
-	Ingress common.IFIDType
-	Egress  common.IFIDType
+	Ingress uint16
+	Egress  uint16
 }
 
 // PathStepWithIA is a step in a reservation path as seen from the source AS.
@@ -149,7 +149,7 @@ type PathStepWithIA struct {
 }
 
 // PathStepWithIALen amounts for Ingress+Egress+IA.
-const PathStepWithIALen = 8 + 8 + 8
+const PathStepWithIALen = 2 + 2 + 8
 
 func (s *PathStepWithIA) String() string {
 	return fmt.Sprintf("%d %s %d", s.Ingress, s.IA.String(), s.Egress)
