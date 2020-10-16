@@ -38,7 +38,7 @@ func TestNewRequest(t *testing.T) {
 	require.Equal(t, util.SecsToTime(1), r.Timestamp)
 	require.Equal(t, id, &r.ID)
 	require.Equal(t, reservation.IndexNumber(1), r.Index)
-	require.Equal(t, segmenttest.NewTestPath(), r.RequestMetadata.Path())
+	require.Equal(t, segmenttest.NewTestPath(), r.RequestMetadata.PathDeleteme())
 }
 
 func TestNewSetupRequest(t *testing.T) {
