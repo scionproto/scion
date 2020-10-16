@@ -25,16 +25,27 @@ COMMAND="$1"
 shift 1
 ACCEPTANCE_DIR="${ACCEPTANCE_DIR:-"acceptance"}"
 
+test_prog() {
+    if [ -f "$ACCEPTANCE_DIR/${TEST}_acceptance/test" ]; then
+        TEST_PROGRAM="$ACCEPTANCE_DIR/${TEST}_acceptance/test"
+    else
+        TEST_PROGRAM="$ACCEPTANCE_DIR/${TEST}_acceptance/test.py"
+    fi
+} 
+
 case "$COMMAND" in
     setup|run|teardown)
         TEST="$1"
         shift 1
-        "$ACCEPTANCE_DIR/${TEST}_acceptance/test" $COMMAND "$@";;
+        test_prog
+        "$TEST_PROGRAM" $COMMAND "$@";;
     gsetup)
         global_setup ;;
     grun)
         artifacts_dir; stats_failed=0
-        global_run_single "$ACCEPTANCE_DIR/${1}_acceptance/test"
+        TEST="$1"
+        test_prog
+        global_run_single "$TEST_PROGRAM"
         [ $stats_failed -eq 0 ] ;;
     gteardown)
         global_teardown ;;

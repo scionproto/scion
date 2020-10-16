@@ -279,11 +279,11 @@ cmd_lint() {
 
 py_lint() {
     lint_header "python"
-    # Run linters on python/ and acceptance/ directories.
-    # Additionally, find all executable python files without .py extension
-    local py_executables=$(find -type f -executable -regex '.*/[^.]*$' | xargs file -i | grep 'text/x-python' | cut -d: -f1)
+    local ret=0
+    dirs="acceptance python"
+    binaries="tools/github_releasenotes tools/package-version tools/gomocks"
     lint_step "flake8"
-    flake8 python acceptance ${py_executables} | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
+    flake8 $dirs $binaries | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
     return $ret
 }
 
