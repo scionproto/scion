@@ -19,7 +19,6 @@ import (
 
 	base "github.com/scionproto/scion/go/cs/reservation"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -30,8 +29,8 @@ type Request struct {
 	ID                   reservation.SegmentID   // the ID this request refers to
 	Index                reservation.IndexNumber // the index this request refers to
 	Timestamp            time.Time               // the mandatory timestamp
-	Ingress              common.IFIDType         // the interface the traffic uses to enter the AS
-	Egress               common.IFIDType         // the interface the traffic uses to leave the AS
+	Ingress              uint16                  // the interface the traffic uses to enter the AS
+	Egress               uint16                  // the interface the traffic uses to leave the AS
 	Reservation          *Reservation            // nil if no reservation yet
 }
 

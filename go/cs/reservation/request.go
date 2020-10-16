@@ -39,17 +39,7 @@ func (m *RequestMetadata) Path() ColibriPath {
 	return m.path
 }
 
-// NumberOfHops returns the number of hops in this reservation.
-func (m *RequestMetadata) NumberOfHops() int {
-	return m.path.NumberOfHops()
-}
-
-// IndexOfCurrentHop returns the 0-based index of the current hop.
-func (m *RequestMetadata) IndexOfCurrentHop() int {
-	return m.path.IndexOfCurrentHop()
-}
-
 // IsLastAS returns true if this hop is the last one (this AS is the destination).
 func (m *RequestMetadata) IsLastAS() bool {
-	return m.IndexOfCurrentHop() == m.NumberOfHops()-1
+	return m.path.IndexOfCurrentHop() == m.path.NumberOfHops()-1
 }

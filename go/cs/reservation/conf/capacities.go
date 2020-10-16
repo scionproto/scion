@@ -19,37 +19,36 @@ import (
 	"sort"
 
 	base "github.com/scionproto/scion/go/cs/reservation"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // internal structure used to serialize to and from json.
 type capacities struct {
 	// ingress capacities
-	CapIn map[common.IFIDType]uint64 `json:"ingress_kbps"`
+	CapIn map[uint16]uint64 `json:"ingress_kbps"`
 	// egress capacities
-	CapEg map[common.IFIDType]uint64 `json:"egress_kbps"`
+	CapEg map[uint16]uint64 `json:"egress_kbps"`
 	// configured allowed transit
-	In2Eg map[common.IFIDType]map[common.IFIDType]uint64 `json:"ingress_to_egress_kbps"`
+	In2Eg map[uint16]map[uint16]uint64 `json:"ingress_to_egress_kbps"`
 }
 
 // Capacities aka capacity matrix.
 type Capacities struct {
 	c capacities
 	// derived fields from the above ones:
-	inIfs []common.IFIDType
-	egIfs []common.IFIDType
+	inIfs []uint16
+	egIfs []uint16
 }
 
 var _ base.Capacities = (*Capacities)(nil)
 var _ json.Unmarshaler = (*Capacities)(nil)
 var _ json.Marshaler = (*Capacities)(nil)
 
-func (c *Capacities) IngressInterfaces() []common.IFIDType           { return c.inIfs }
-func (c *Capacities) EgressInterfaces() []common.IFIDType            { return c.egIfs }
-func (c *Capacities) Capacity(from, to common.IFIDType) uint64       { return c.c.In2Eg[from][to] }
-func (c *Capacities) CapacityIngress(ingress common.IFIDType) uint64 { return c.c.CapIn[ingress] }
-func (c *Capacities) CapacityEgress(egress common.IFIDType) uint64   { return c.c.CapEg[egress] }
+func (c *Capacities) IngressInterfaces() []uint16           { return c.inIfs }
+func (c *Capacities) EgressInterfaces() []uint16            { return c.egIfs }
+func (c *Capacities) Capacity(from, to uint16) uint64       { return c.c.In2Eg[from][to] }
+func (c *Capacities) CapacityIngress(ingress uint16) uint64 { return c.c.CapIn[ingress] }
+func (c *Capacities) CapacityEgress(egress uint16) uint64   { return c.c.CapEg[egress] }
 
 // UnmarshalJSON deserializes into the json-aware internal data structure.
 func (c *Capacities) UnmarshalJSON(b []byte) error {
@@ -65,7 +64,7 @@ func (c Capacities) MarshalJSON() ([]byte, error) {
 }
 
 func (c *Capacities) init() error {
-	totalEgress := make(map[common.IFIDType]uint64)
+	totalEgress := make(map[uint16]uint64)
 	for ingress, intoMap := range c.c.In2Eg {
 		var accumIngress uint64
 		for egress, cap := range intoMap {
@@ -96,14 +95,14 @@ func (c *Capacities) init() error {
 		}
 	}
 	// init list of ingress interfaces
-	c.inIfs = make([]common.IFIDType, len(c.c.CapIn))
+	c.inIfs = make([]uint16, len(c.c.CapIn))
 	i := 0
 	for ifid := range c.c.CapIn {
 		c.inIfs[i] = ifid
 		i++
 	}
 	// init list of egress interfaces
-	c.egIfs = make([]common.IFIDType, len(c.c.CapEg))
+	c.egIfs = make([]uint16, len(c.c.CapEg))
 	i = 0
 	for ifid := range c.c.CapEg {
 		c.egIfs[i] = ifid

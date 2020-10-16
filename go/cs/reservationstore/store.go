@@ -53,9 +53,9 @@ func (s *Store) AdmitSegmentReservation(ctx context.Context, req *segment.SetupR
 	if err := s.validateAuthenticators(&req.RequestMetadata); err != nil {
 		return nil, serrors.WrapStr("error validating request", err, "id", req.ID)
 	}
-	if req.IndexOfCurrentHop() != len(req.AllocTrail) {
+	if req.Path().IndexOfCurrentHop() != len(req.AllocTrail) {
 		return nil, serrors.New("inconsistent number of hops",
-			"len_alloctrail", len(req.AllocTrail), "hf_count", req.IndexOfCurrentHop())
+			"len_alloctrail", len(req.AllocTrail), "hf_count", req.Path().IndexOfCurrentHop())
 	}
 
 	response, err := s.prepareFailureSegmentResp(&req.Request)
@@ -504,7 +504,7 @@ func (s *Store) prepareFailureSegmentResp(req *segment.Request) (*segment.Respon
 	}
 
 	response, err := segment.NewResponse(time.Now(), &req.ID, req.Index, revPath,
-		false, uint8(req.IndexOfCurrentHop()))
+		false, uint8(req.Path().IndexOfCurrentHop()))
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct segment response", err)
 	}
@@ -520,7 +520,7 @@ func (s *Store) prepareFailureE2EResp(req *e2e.Request) (*e2e.Response, error) {
 	}
 
 	response, err := e2e.NewResponse(time.Now(), &req.ID, req.Index, revPath,
-		false, uint8(req.IndexOfCurrentHop()))
+		false, uint8(req.Path().IndexOfCurrentHop()))
 	if err != nil {
 		return nil, serrors.WrapStr("cannot construct e2e response", err)
 	}

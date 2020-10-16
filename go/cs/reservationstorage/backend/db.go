@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/cs/reservation/segment"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 )
 
@@ -48,7 +47,7 @@ type TransitOnly interface {
 	GetAllSegmentRsvs(ctx context.Context) ([]*segment.Reservation, error)
 	// GetSegmentRsvsFromIFPair returns all segment reservations that enter this AS at
 	// the specified ingress and exit at that egress. Used by setup req.
-	GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress *common.IFIDType) (
+	GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress *uint16) (
 		[]*segment.Reservation, error)
 }
 

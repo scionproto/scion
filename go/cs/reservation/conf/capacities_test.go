@@ -20,7 +20,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -37,9 +36,9 @@ func TestJson(t *testing.T) {
 		"using all keys": {
 			filename: "caps1.json",
 			cap: Capacities{c: capacities{
-				CapIn: map[common.IFIDType]uint64{1: 100, 2: 200, 3: 300},
-				CapEg: map[common.IFIDType]uint64{1: 100, 2: 200, 3: 40},
-				In2Eg: map[common.IFIDType]map[common.IFIDType]uint64{
+				CapIn: map[uint16]uint64{1: 100, 2: 200, 3: 300},
+				CapEg: map[uint16]uint64{1: 100, 2: 200, 3: 40},
+				In2Eg: map[uint16]map[uint16]uint64{
 					1: {2: 10, 3: 20},
 					2: {1: 10, 3: 20},
 					3: {1: 10, 2: 20},
@@ -50,7 +49,7 @@ func TestJson(t *testing.T) {
 		"big num no float": {
 			filename: "caps2.json",
 			cap: Capacities{c: capacities{
-				CapIn: map[common.IFIDType]uint64{1: bigint},
+				CapIn: map[uint16]uint64{1: bigint},
 			},
 			},
 		},
@@ -82,9 +81,9 @@ func TestValidation(t *testing.T) {
 		"okay": {
 			okay: true,
 			cap: Capacities{c: capacities{
-				CapIn: map[common.IFIDType]uint64{1: 100, 2: 200, 3: 300},
-				CapEg: map[common.IFIDType]uint64{1: 100, 2: 200, 3: 40},
-				In2Eg: map[common.IFIDType]map[common.IFIDType]uint64{
+				CapIn: map[uint16]uint64{1: 100, 2: 200, 3: 300},
+				CapEg: map[uint16]uint64{1: 100, 2: 200, 3: 40},
+				In2Eg: map[uint16]map[uint16]uint64{
 					1: {2: 10, 3: 20},
 					2: {1: 10, 3: 20},
 					3: {1: 10, 2: 20},
@@ -95,8 +94,8 @@ func TestValidation(t *testing.T) {
 		"too much ingress": {
 			okay: false,
 			cap: Capacities{c: capacities{
-				CapIn: map[common.IFIDType]uint64{1: 10},
-				In2Eg: map[common.IFIDType]map[common.IFIDType]uint64{
+				CapIn: map[uint16]uint64{1: 10},
+				In2Eg: map[uint16]map[uint16]uint64{
 					1: {2: 10, 3: 1},
 				},
 			},
@@ -105,9 +104,9 @@ func TestValidation(t *testing.T) {
 		"too much egress": {
 			okay: false,
 			cap: Capacities{c: capacities{
-				CapIn: map[common.IFIDType]uint64{1: 100, 2: 100, 3: 100},
-				CapEg: map[common.IFIDType]uint64{1: 100, 2: 100, 3: 100},
-				In2Eg: map[common.IFIDType]map[common.IFIDType]uint64{
+				CapIn: map[uint16]uint64{1: 100, 2: 100, 3: 100},
+				CapEg: map[uint16]uint64{1: 100, 2: 100, 3: 100},
+				In2Eg: map[uint16]map[uint16]uint64{
 					1: {2: 90, 3: 1},
 					3: {2: 20, 1: 1},
 				},
@@ -117,9 +116,9 @@ func TestValidation(t *testing.T) {
 		"ingress to itself (reflection not allowed)": {
 			okay: false,
 			cap: Capacities{c: capacities{
-				CapIn: map[common.IFIDType]uint64{1: 100, 2: 100, 3: 100},
-				CapEg: map[common.IFIDType]uint64{1: 100, 2: 100, 3: 100},
-				In2Eg: map[common.IFIDType]map[common.IFIDType]uint64{
+				CapIn: map[uint16]uint64{1: 100, 2: 100, 3: 100},
+				CapEg: map[uint16]uint64{1: 100, 2: 100, 3: 100},
+				In2Eg: map[uint16]map[uint16]uint64{
 					1: {1: 10, 3: 1},
 				},
 			},
@@ -128,9 +127,9 @@ func TestValidation(t *testing.T) {
 		"too few ingress capacities": {
 			okay: false,
 			cap: Capacities{c: capacities{
-				CapIn: map[common.IFIDType]uint64{1: 100, 3: 100},
-				CapEg: map[common.IFIDType]uint64{1: 100, 2: 100, 3: 100},
-				In2Eg: map[common.IFIDType]map[common.IFIDType]uint64{
+				CapIn: map[uint16]uint64{1: 100, 3: 100},
+				CapEg: map[uint16]uint64{1: 100, 2: 100, 3: 100},
+				In2Eg: map[uint16]map[uint16]uint64{
 					1: {2: 0, 3: 0},
 					2: {1: 0, 3: 0},
 					3: {1: 0, 2: 0},
@@ -141,9 +140,9 @@ func TestValidation(t *testing.T) {
 		"too few egress capacities": {
 			okay: false,
 			cap: Capacities{c: capacities{
-				CapIn: map[common.IFIDType]uint64{1: 100, 2: 100, 3: 100},
-				CapEg: map[common.IFIDType]uint64{1: 100, 3: 100},
-				In2Eg: map[common.IFIDType]map[common.IFIDType]uint64{
+				CapIn: map[uint16]uint64{1: 100, 2: 100, 3: 100},
+				CapEg: map[uint16]uint64{1: 100, 3: 100},
+				In2Eg: map[uint16]map[uint16]uint64{
 					1: {2: 0, 3: 0},
 					2: {1: 0, 3: 0},
 					3: {1: 0, 2: 0},
@@ -169,9 +168,9 @@ func TestValidation(t *testing.T) {
 
 func TestCapacities(t *testing.T) {
 	c := &Capacities{c: capacities{
-		CapIn: map[common.IFIDType]uint64{1: 100, 2: 100, 3: 100},
-		CapEg: map[common.IFIDType]uint64{1: 100, 2: 100, 3: 100},
-		In2Eg: map[common.IFIDType]map[common.IFIDType]uint64{
+		CapIn: map[uint16]uint64{1: 100, 2: 100, 3: 100},
+		CapEg: map[uint16]uint64{1: 100, 2: 100, 3: 100},
+		In2Eg: map[uint16]map[uint16]uint64{
 			1: {2: 12, 3: 13},
 			2: {1: 21, 3: 23},
 			3: {1: 31, 2: 32},
@@ -189,17 +188,17 @@ func cloneCapacities(c *Capacities) *Capacities {
 	ret := &Capacities{}
 	copy(ret.inIfs, c.inIfs)
 	copy(ret.egIfs, c.egIfs)
-	ret.c.CapIn = make(map[common.IFIDType]uint64)
+	ret.c.CapIn = make(map[uint16]uint64)
 	for k, v := range c.c.CapIn {
 		ret.c.CapIn[k] = v
 	}
-	ret.c.CapEg = make(map[common.IFIDType]uint64)
+	ret.c.CapEg = make(map[uint16]uint64)
 	for k, v := range c.c.CapEg {
 		ret.c.CapEg[k] = v
 	}
-	ret.c.In2Eg = make(map[common.IFIDType]map[common.IFIDType]uint64)
+	ret.c.In2Eg = make(map[uint16]map[uint16]uint64)
 	for k, v := range c.c.In2Eg {
-		m := make(map[common.IFIDType]uint64)
+		m := make(map[uint16]uint64)
 		for k, v := range v {
 			m[k] = v
 		}
