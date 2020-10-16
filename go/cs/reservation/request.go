@@ -35,7 +35,7 @@ func NewRequestMetadata(path ColibriPath) (*RequestMetadata, error) {
 }
 
 // Path returns the ColibriPath in this metadata.
-func (m *RequestMetadata) PathDeleteme() ColibriPath {
+func (m *RequestMetadata) Path() ColibriPath {
 	return m.path
 }
 

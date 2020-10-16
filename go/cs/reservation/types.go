@@ -42,6 +42,6 @@ type ColibriPath interface {
 
 // MessageWithPath is used to send messages from the COLIBRI service via the BR.
 type MessageWithPath interface {
-	PathDeleteme() ColibriPath
+	Path() ColibriPath
 	// Payload() []byte
 }
