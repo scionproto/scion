@@ -24,7 +24,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -337,7 +336,7 @@ func (f *InfoField) Read(b []byte) (int, error) {
 	b[5] = byte(f.RLC)
 	b[6] = byte(f.Idx<<4) | uint8(f.PathType)
 	b[7] = 0 // b[7] is padding
-	return 8, nil
+	return InfoFieldLen, nil
 }
 
 // ToRaw returns the serial representation of the InfoField.
@@ -451,10 +450,52 @@ func (bs AllocationBeads) MinMax() BWCls {
 	return min
 }
 
+// HopField is a COLIBRI HopField.
+// TODO(juagargi) move to slayers
+type HopField struct {
+	Ingress uint16
+	Egress  uint16
+	Mac     [4]byte
+}
+
+const HopFieldLen = 8
+
+// HopFieldFromRaw builds a HopField from a raw buffer.
+func HopFieldFromRaw(raw []byte) (*HopField, error) {
+	if len(raw) < HopFieldLen {
+		return nil, serrors.New("buffer too small for HopField", "min_size", HopFieldLen,
+			"current_size", len(raw))
+	}
+	hf := HopField{
+		Ingress: binary.BigEndian.Uint16(raw[:2]),
+		Egress:  binary.BigEndian.Uint16(raw[2:4]),
+	}
+	copy(hf.Mac[:], raw[4:8])
+	return &hf, nil
+}
+
+func (hf *HopField) Read(b []byte) (int, error) {
+	if len(b) < HopFieldLen {
+		return 0, serrors.New("buffer too small for HopField", "min_size", HopFieldLen,
+			"current_size", len(b))
+	}
+	binary.BigEndian.PutUint16(b[:2], hf.Ingress)
+	binary.BigEndian.PutUint16(b[2:4], hf.Egress)
+	copy(b[4:], hf.Mac[:])
+	return HopFieldLen, nil
+}
+
+// ToRaw returns the serial representation of the HopField.
+func (hf *HopField) ToRaw() []byte {
+	buff := make([]byte, HopFieldLen)
+	hf.Read(buff) // discard returned values
+	return buff
+}
+
 // Token is used in the data plane to forward COLIBRI packets.
 type Token struct {
 	InfoField
-	HopFields []spath.HopField
+	HopFields []HopField
 }
 
 // Validate will return an error for invalid values. It will not check the hop fields' validity.
@@ -471,11 +512,11 @@ func TokenFromRaw(raw []byte) (*Token, error) {
 		return nil, nil
 	}
 	rawHFs := len(raw) - InfoFieldLen
-	if rawHFs < 0 || rawHFs%spath.HopFieldLength != 0 {
-		return nil, serrors.New("buffer too small", "min_size", InfoFieldLen,
+	if rawHFs < 0 || rawHFs%HopFieldLen != 0 {
+		return nil, serrors.New("buffer too small for Token", "min_size", InfoFieldLen,
 			"current_size", len(raw))
 	}
-	numHFs := rawHFs / spath.HopFieldLength
+	numHFs := rawHFs / HopFieldLen
 	inf, err := InfoFieldFromRaw(raw[:InfoFieldLen])
 	if err != nil {
 		return nil, err
@@ -484,11 +525,11 @@ func TokenFromRaw(raw []byte) (*Token, error) {
 		InfoField: *inf,
 	}
 	if numHFs > 0 {
-		t.HopFields = make([]spath.HopField, numHFs)
+		t.HopFields = make([]HopField, numHFs)
 	}
 	for i := 0; i < numHFs; i++ {
-		offset := InfoFieldLen + i*spath.HopFieldLength
-		hf, err := spath.HopFFromRaw(raw[offset : offset+spath.HopFieldLength])
+		offset := InfoFieldLen + i*HopFieldLen
+		hf, err := HopFieldFromRaw(raw[offset : offset+HopFieldLen])
 		if err != nil {
 			return nil, err
 		}
@@ -502,7 +543,7 @@ func (t *Token) Len() int {
 	if t == nil {
 		return 0
 	}
-	return InfoFieldLen + len(t.HopFields)*spath.HopFieldLength
+	return InfoFieldLen + len(t.HopFields)*HopFieldLen
 }
 
 // Read serializes this Token to the passed buffer.
@@ -516,8 +557,8 @@ func (t *Token) Read(b []byte) (int, error) {
 		return 0, err
 	}
 	for i := 0; i < len(t.HopFields); i++ {
-		t.HopFields[i].Write(b[offset : offset+spath.HopFieldLength])
-		offset += spath.HopFieldLength
+		t.HopFields[i].Read(b[offset : offset+HopFieldLen])
+		offset += HopFieldLen
 	}
 	return offset, nil
 }
