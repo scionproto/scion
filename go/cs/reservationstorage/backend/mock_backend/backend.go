@@ -159,7 +159,7 @@ func (mr *MockDBMockRecorder) GetSegmentRsvFromID(arg0, arg1 interface{}) *gomoc
 }
 
 // GetSegmentRsvFromPath mocks base method
-func (m *MockDB) GetSegmentRsvFromPath(arg0 context.Context, arg1 segment.Path) (*segment.Reservation, error) {
+func (m *MockDB) GetSegmentRsvFromPath(arg0 context.Context, arg1 segment.ReservationTransparentPath) (*segment.Reservation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSegmentRsvFromPath", arg0, arg1)
 	ret0, _ := ret[0].(*segment.Reservation)
@@ -396,7 +396,7 @@ func (mr *MockTransactionMockRecorder) GetSegmentRsvFromID(arg0, arg1 interface{
 }
 
 // GetSegmentRsvFromPath mocks base method
-func (m *MockTransaction) GetSegmentRsvFromPath(arg0 context.Context, arg1 segment.Path) (*segment.Reservation, error) {
+func (m *MockTransaction) GetSegmentRsvFromPath(arg0 context.Context, arg1 segment.ReservationTransparentPath) (*segment.Reservation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSegmentRsvFromPath", arg0, arg1)
 	ret0, _ := ret[0].(*segment.Reservation)

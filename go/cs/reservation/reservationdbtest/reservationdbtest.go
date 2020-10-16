@@ -655,7 +655,7 @@ func newToken() *reservation.Token {
 func newTestReservation(t *testing.T) *segment.Reservation {
 	t.Helper()
 	r := segment.NewReservation()
-	r.Path = segment.Path{}
+	r.Path = segment.ReservationTransparentPath{}
 	r.ID.ASID = xtest.MustParseAS("ff00:0:1")
 	r.Ingress = 0
 	r.Egress = 1
