@@ -145,12 +145,12 @@ func (p *Propagator) needsBeacons(logger log.Logger) []common.IFIDType {
 
 func (p *Propagator) logSummary(logger log.Logger, s *summary) {
 	if p.Tick.passed() {
-		logger.Info("Propagated beacons",
+		logger.Debug("Propagated beacons",
 			"count", s.count, "startIAs", len(s.srcs), "egIfIds", s.IfIds())
 		return
 	}
 	if s.count > 0 {
-		logger.Info("Propagated beacons on stale interfaces",
+		logger.Debug("Propagated beacons on stale interfaces",
 			"count", s.count, "startIAs", len(s.srcs), "egIfIds", s.IfIds())
 	}
 }

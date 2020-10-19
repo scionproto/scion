@@ -18,8 +18,15 @@ package infraenv
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
+	"math/big"
 	"net"
 	"time"
 
@@ -49,10 +56,6 @@ var resolutionRequestPayload = []byte{0x00, 0x00, 0x00, 0x00}
 type QUIC struct {
 	// Address is the UDP address to start the QUIC server on.
 	Address string
-	// CertFile is the certificate to use for QUIC authentication.
-	CertFile string
-	// KeyFile is the private key to use for QUIC authentication.
-	KeyFile string
 }
 
 // NetworkConfig describes the networking configuration of a SCION
@@ -99,7 +102,6 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	if nc.QUIC.Address == "" {
 		return nil, serrors.New("QUIC address required")
 	}
-	var err error
 	client, server, err := nc.initQUICSockets()
 	if err != nil {
 		return nil, err
@@ -107,14 +109,9 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	log.Info("QUIC server conn initialized", "local_addr", server.LocalAddr())
 	log.Info("QUIC client conn initialized", "local_addr", client.LocalAddr())
 
-	cert, err := tls.LoadX509KeyPair(nc.QUIC.CertFile, nc.QUIC.KeyFile)
+	tlsConfig, err := generateTLSConfig()
 	if err != nil {
 		return nil, err
-	}
-	tlsConfig := &tls.Config{
-		Certificates:       []tls.Certificate{cert},
-		InsecureSkipVerify: true,
-		NextProtos:         []string{"SCION"},
 	}
 	listener, err := quic.Listen(server, tlsConfig, nil)
 	if err != nil {
@@ -133,6 +130,50 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 			TLSConfig: tlsConfig,
 		},
 		RedirectCloser: cancel,
+	}, nil
+}
+
+func generateTLSConfig() (*tls.Config, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	serialLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serial, err := rand.Int(rand.Reader, serialLimit)
+	if err != nil {
+		return nil, serrors.WrapStr("creating random serial number", err)
+	}
+
+	template := x509.Certificate{
+		SerialNumber: serial,
+		Subject: pkix.Name{
+			CommonName: "scion_def_srv",
+		},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(3650 * 24 * time.Hour),
+		KeyUsage:    x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
+	if err != nil {
+		return nil, err
+	}
+	privBytes, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		return nil, err
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privBytes})
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return nil, err
+	}
+	return &tls.Config{
+		Certificates:       []tls.Certificate{tlsCert},
+		InsecureSkipVerify: true,
+		NextProtos:         []string{"SCION"},
 	}, nil
 }
 

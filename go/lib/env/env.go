@@ -293,8 +293,6 @@ func (cfg *Tracing) NewTracer(id string) (opentracing.Tracer, io.Closer, error) 
 type QUIC struct {
 	ResolutionFraction float64 `toml:"resolution_fraction,omitempty"`
 	Address            string  `toml:"address,omitempty"`
-	CertFile           string  `toml:"cert_file,omitempty"`
-	KeyFile            string  `toml:"key_file,omitempty"`
 }
 
 func (cfg *QUIC) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {

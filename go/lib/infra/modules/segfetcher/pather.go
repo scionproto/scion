@@ -17,6 +17,8 @@ package segfetcher
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sort"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -130,6 +132,7 @@ func (p *Pather) filterRevoked(ctx context.Context,
 
 	logger := log.FromCtx(ctx)
 	var newPaths []combinator.Path
+	revokedInterfaces := make(map[snet.PathInterface]struct{})
 	for _, path := range paths {
 		revoked := false
 		for _, iface := range path.Interfaces {
@@ -140,6 +143,9 @@ func (p *Pather) filterRevoked(ctx context.Context,
 				logger.Error("Failed to get revocation", "err", err)
 				// continue, the client might still get some usable paths like this.
 			}
+			if len(revs) > 0 {
+				revokedInterfaces[snet.PathInterface{IA: iface.IA, ID: iface.ID}] = struct{}{}
+			}
 			revoked = revoked || len(revs) > 0
 		}
 		if !revoked {
@@ -148,9 +154,20 @@ func (p *Pather) filterRevoked(ctx context.Context,
 	}
 	if len(paths) != len(newPaths) {
 		logger.Debug("Filtered paths with revocations",
-			"all", len(paths), "revoked", len(paths)-len(newPaths))
+			"num_paths", len(paths), "num_revoked_paths", len(paths)-len(newPaths),
+			"revoked_due_to", revocationsString(revokedInterfaces))
 	}
 	return newPaths, nil
+}
+
+// revocationsString pretty-prints the revocations map to a string.
+func revocationsString(revocations map[snet.PathInterface]struct{}) string {
+	r := make([]string, 0, len(revocations))
+	for i := range revocations {
+		r = append(r, i.String())
+	}
+	sort.Strings(r)
+	return fmt.Sprint(r)
 }
 
 // translate converts []combinator.Path to []snet.Path.

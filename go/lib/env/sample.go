@@ -60,12 +60,6 @@ const quicSample = `
 # not started. (default "")
 address = ""
 
-# Certificate file to use for authenticating QUIC connections.
-cert_file = "/share/conf/quic/tls.pem"
-
-# Key file to use for authenticating QUIC connections.
-key_file = "/share/conf/quic/tls.key"
-
 # Enables SVC resolution for traffic to SVC
 # destinations in a way that is also compatible with control plane servers
 # that do not implement the SVC Resolution Mechanism. The value represents

@@ -173,7 +173,7 @@ func (h *AppConnHandler) RunAppToNetDataplane() {
 			if err == io.EOF {
 				h.Logger.Debug("[app->network] EOF received from client")
 			} else {
-				h.Logger.Info("[app->network] Client connection error", "err", err)
+				h.Logger.Debug("[app->network] Client connection error", "err", err)
 				metrics.M.AppReadErrors().Inc()
 			}
 			return
