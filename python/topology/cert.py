@@ -19,7 +19,6 @@
 import base64
 import collections
 import os
-import pathlib
 
 from plumbum import local
 
@@ -47,7 +46,6 @@ class CertGenerator(object):
         self.pki('testcrypto', '-t', self.args.topo_config, '-o', self.args.output_dir)
         self._master_keys(topo_dicts)
         self._copy_files(topo_dicts)
-        self._quic_certs()
 
     def _master_keys(self, topo_dicts):
         for topo_id in topo_dicts:
@@ -66,11 +64,3 @@ class CertGenerator(object):
             as_dir = local.path(topo_id.base_dir(self.args.output_dir))
             mkdir('-p', as_dir / 'certs')
             cp(base // '*/trcs/*.trc', as_dir / 'certs/')
-
-    def _quic_certs(self):
-        cert_dir = pathlib.Path(self.args.output_dir).parent / 'gen-certs'
-        os.makedirs(cert_dir, exist_ok=True)
-        openssl = local['openssl']
-        openssl('genrsa', '-out', cert_dir / 'tls.key', '2048')
-        openssl('req', '-new', '-x509', '-key', cert_dir / 'tls.key',
-                '-out', cert_dir / 'tls.pem', '-days', '3650', '-subj', '/CN=scion_def_srv')

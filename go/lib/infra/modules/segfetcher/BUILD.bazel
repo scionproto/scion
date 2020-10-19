@@ -39,7 +39,9 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "export_test.go",
         "fetcher_test.go",
+        "pather_test.go",
         "requester_test.go",
         "resolver_test.go",
         "splitter_test.go",
@@ -56,6 +58,7 @@ go_test(
         "//go/lib/pathdb/query:go_default_library",
         "//go/lib/revcache:go_default_library",
         "//go/lib/revcache/mock_revcache:go_default_library",
+        "//go/lib/snet:go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/lib/xtest/graph:go_default_library",
         "//go/lib/xtest/matchers:go_default_library",

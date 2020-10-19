@@ -144,9 +144,7 @@ func run(file string) error {
 		Public:                topo.PublicAddress(addr.SvcCS, cfg.General.ID),
 		ReconnectToDispatcher: cfg.General.ReconnectToDispatcher,
 		QUIC: infraenv.QUIC{
-			Address:  cfg.QUIC.Address,
-			CertFile: cfg.QUIC.CertFile,
-			KeyFile:  cfg.QUIC.KeyFile,
+			Address: cfg.QUIC.Address,
 		},
 		SVCRouter: messenger.NewSVCRouter(itopo.Provider()),
 		SCMPHandler: snet.DefaultSCMPHandler{

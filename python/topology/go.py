@@ -322,7 +322,5 @@ class GoGenerator(object):
             port += 1
         return {
             'address':  join_host_port(addr, port),
-            'cert_file': os.path.join(self.certs_dir, 'tls.pem'),
-            'key_file': os.path.join(self.certs_dir, 'tls.key'),
             'resolution_fraction': svcfrac,
         }
