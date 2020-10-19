@@ -101,6 +101,8 @@ type E2EID struct {
 
 const E2EIDLen = 16
 
+var _ io.Reader = (*E2EID)(nil)
+
 // NewE2EID returns a new E2EID
 func NewE2EID(AS addr.AS, suffix []byte) (*E2EID, error) {
 	if len(suffix) != 10 {
@@ -129,6 +131,7 @@ func E2EIDFromRaw(raw []byte) (*E2EID, error) {
 	return E2EIDFromRawBuffers(raw[:6], raw[6:])
 }
 
+// Read serializes this E2EID into the buffer.
 func (id *E2EID) Read(raw []byte) (int, error) {
 	if len(raw) < E2EIDLen {
 		return 0, serrors.New("buffer too small", "actual", len(raw), "min", E2EIDLen)
@@ -287,6 +290,8 @@ type InfoField struct {
 
 // InfoFieldLen is the length in bytes of the InfoField.
 const InfoFieldLen = 8
+
+var _ io.Reader = (*InfoField)(nil)
 
 // Validate will return an error for invalid values.
 func (f *InfoField) Validate() error {
@@ -460,6 +465,8 @@ type HopField struct {
 
 const HopFieldLen = 8
 
+var _ io.Reader = (*HopField)(nil)
+
 // HopFieldFromRaw builds a HopField from a raw buffer.
 func HopFieldFromRaw(raw []byte) (*HopField, error) {
 	if len(raw) < HopFieldLen {
@@ -474,6 +481,7 @@ func HopFieldFromRaw(raw []byte) (*HopField, error) {
 	return &hf, nil
 }
 
+// Read serializes this HopField into the buffer.
 func (hf *HopField) Read(b []byte) (int, error) {
 	if len(b) < HopFieldLen {
 		return 0, serrors.New("buffer too small for HopField", "min_size", HopFieldLen,
@@ -497,6 +505,8 @@ type Token struct {
 	InfoField
 	HopFields []HopField
 }
+
+var _ io.Reader = (*Token)(nil)
 
 // Validate will return an error for invalid values. It will not check the hop fields' validity.
 func (t *Token) Validate() error {
