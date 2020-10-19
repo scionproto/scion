@@ -16,41 +16,30 @@ package reservation
 
 import (
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // RequestMetadata contains information about the request, such as its forwarding path.
 // This base struct can be used by any request or response packets.
 type RequestMetadata struct {
-	path spath.Path // the path the packet came / will go with
+	path ColibriPath // the path the packet came / will go with
 }
 
 // NewRequestMetadata constructs the base Request type.
-func NewRequestMetadata(path *spath.Path) (*RequestMetadata, error) {
+func NewRequestMetadata(path ColibriPath) (*RequestMetadata, error) {
 	if path == nil {
 		return nil, serrors.New("new request with nil path")
 	}
 	return &RequestMetadata{
-		path: *path.Copy(),
+		path: path.Copy(),
 	}, nil
 }
 
-// Path returns the spath.Path in this metadata.
-func (m *RequestMetadata) Path() *spath.Path {
-	return &m.path
-}
-
-// NumberOfHops returns the number of hops in this reservation.
-func (m *RequestMetadata) NumberOfHops() int {
-	return (len(m.path.Raw) - spath.InfoFieldLength) / spath.HopFieldLength
-}
-
-// IndexOfCurrentHop returns the 0-based index of the current hop.
-func (m *RequestMetadata) IndexOfCurrentHop() int {
-	return (m.path.HopOff - spath.InfoFieldLength) / spath.HopFieldLength
+// Path returns the ColibriPath in this metadata.
+func (m *RequestMetadata) Path() ColibriPath {
+	return m.path
 }
 
 // IsLastAS returns true if this hop is the last one (this AS is the destination).
 func (m *RequestMetadata) IsLastAS() bool {
-	return m.IndexOfCurrentHop() == m.NumberOfHops()-1
+	return m.path.IndexOfCurrentHop() == m.path.NumberOfHops()-1
 }

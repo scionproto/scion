@@ -24,13 +24,12 @@ import (
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/ctrl/colibri_mgmt"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/proto"
 )
 
 // NewMsgFromCtrl takes a colibri ctrl message and returns a new application type.
-// the spath.Path comes from the scion packet that encapsulates the ctrl payload.
-func NewMsgFromCtrl(ctrl *colibri_mgmt.ColibriRequestPayload, path *spath.Path) (
+// the ColibriPath comes from the  packet that encapsulates the ctrl payload.
+func NewMsgFromCtrl(ctrl *colibri_mgmt.ColibriRequestPayload, path base.ColibriPath) (
 	base.MessageWithPath, error) {
 
 	if ctrl == nil {
@@ -89,7 +88,7 @@ func NewE2EIDFromCtrl(ctrl *colibri_mgmt.E2EReservationID) (
 	return id, nil
 }
 
-func newRequestFromCtrl(ctrl *colibri_mgmt.Request, ts time.Time, path *spath.Path) (
+func newRequestFromCtrl(ctrl *colibri_mgmt.Request, ts time.Time, path base.ColibriPath) (
 	base.MessageWithPath, error) {
 
 	if ctrl == nil {
@@ -121,7 +120,7 @@ func newRequestFromCtrl(ctrl *colibri_mgmt.Request, ts time.Time, path *spath.Pa
 	}
 }
 
-func newResponseFromCtrl(ctrl *colibri_mgmt.Response, ts time.Time, path *spath.Path) (
+func newResponseFromCtrl(ctrl *colibri_mgmt.Response, ts time.Time, path base.ColibriPath) (
 	base.MessageWithPath, error) {
 
 	if ctrl == nil {
@@ -151,9 +150,9 @@ func newResponseFromCtrl(ctrl *colibri_mgmt.Response, ts time.Time, path *spath.
 
 // newRequestSegmentSetup constructs a SetupReq from its control message counterpart.
 // The timestamp comes from the wrapping ColibriRequestPayload,
-// and the spath from the wrapping SCION packet.
+// and the path from the wrapping packet.
 func newRequestSegmentSetup(ctrl *colibri_mgmt.SegmentSetup, ts time.Time,
-	path *spath.Path) (*segment.SetupReq, error) {
+	path base.ColibriPath) (*segment.SetupReq, error) {
 
 	id, err := NewSegmentIDFromCtrl(ctrl.Base.ID)
 	if err != nil {
@@ -191,7 +190,7 @@ func newRequestSegmentSetup(ctrl *colibri_mgmt.SegmentSetup, ts time.Time,
 
 // NewTelesRequestFromCtrlMsg constucts the app type from its control message counterpart.
 func newRequestSegmentTelesSetup(ctrl *colibri_mgmt.SegmentTelesSetup, ts time.Time,
-	path *spath.Path) (*segment.SetupTelesReq, error) {
+	path base.ColibriPath) (*segment.SetupTelesReq, error) {
 
 	if ctrl.BaseID == nil || ctrl.Setup == nil {
 		return nil, serrors.New("illegal ctrl telescopic setup received", "base_id", ctrl.BaseID,
@@ -213,7 +212,7 @@ func newRequestSegmentTelesSetup(ctrl *colibri_mgmt.SegmentTelesSetup, ts time.T
 }
 
 func newRequestSegmentTeardown(ctrl *colibri_mgmt.SegmentTeardownReq, ts time.Time,
-	path *spath.Path) (*segment.TeardownReq, error) {
+	path base.ColibriPath) (*segment.TeardownReq, error) {
 
 	id, err := NewSegmentIDFromCtrl(ctrl.Base.ID)
 	if err != nil {
@@ -229,7 +228,7 @@ func newRequestSegmentTeardown(ctrl *colibri_mgmt.SegmentTeardownReq, ts time.Ti
 }
 
 func newRequestSegmentIndexConfirmation(ctrl *colibri_mgmt.SegmentIndexConfirmation, ts time.Time,
-	path *spath.Path) (*segment.IndexConfirmationReq, error) {
+	path base.ColibriPath) (*segment.IndexConfirmationReq, error) {
 
 	id, err := NewSegmentIDFromCtrl(ctrl.Base.ID)
 	if err != nil {
@@ -250,7 +249,7 @@ func newRequestSegmentIndexConfirmation(ctrl *colibri_mgmt.SegmentIndexConfirmat
 }
 
 func newRequestSegmentCleanup(ctrl *colibri_mgmt.SegmentCleanup, ts time.Time,
-	path *spath.Path) (*segment.CleanupReq, error) {
+	path base.ColibriPath) (*segment.CleanupReq, error) {
 
 	id, err := NewSegmentIDFromCtrl(ctrl.Base.ID)
 	if err != nil {
@@ -266,7 +265,7 @@ func newRequestSegmentCleanup(ctrl *colibri_mgmt.SegmentCleanup, ts time.Time,
 }
 
 func newRequestE2ESetup(ctrl *colibri_mgmt.E2ESetup, ts time.Time,
-	path *spath.Path) (base.MessageWithPath, error) {
+	path base.ColibriPath) (base.MessageWithPath, error) {
 
 	id, err := NewE2EIDFromCtrl(ctrl.Base.ID)
 	if err != nil {
@@ -316,7 +315,7 @@ func newRequestE2ESetup(ctrl *colibri_mgmt.E2ESetup, ts time.Time,
 }
 
 func newRequestE2ECleanup(ctrl *colibri_mgmt.E2ECleanup, ts time.Time,
-	path *spath.Path) (*e2e.CleanupReq, error) {
+	path base.ColibriPath) (*e2e.CleanupReq, error) {
 
 	id, err := NewE2EIDFromCtrl(ctrl.Base.ID)
 	if err != nil {
@@ -333,7 +332,7 @@ func newRequestE2ECleanup(ctrl *colibri_mgmt.E2ECleanup, ts time.Time,
 
 // the failedHop parameter won't be used if the response is successful.
 func newResponseSegmentSetup(ctrl *colibri_mgmt.SegmentSetupRes, resp *colibri_mgmt.Response,
-	ts time.Time, path *spath.Path) (base.MessageWithPath, error) {
+	ts time.Time, path base.ColibriPath) (base.MessageWithPath, error) {
 
 	id, err := NewSegmentIDFromCtrl(ctrl.Base.ID)
 	if err != nil {
@@ -369,7 +368,7 @@ func newResponseSegmentSetup(ctrl *colibri_mgmt.SegmentSetupRes, resp *colibri_m
 }
 
 func newResponseSegmentTeardown(ctrl *colibri_mgmt.SegmentTeardownRes, resp *colibri_mgmt.Response,
-	ts time.Time, path *spath.Path) (base.MessageWithPath, error) {
+	ts time.Time, path base.ColibriPath) (base.MessageWithPath, error) {
 
 	id, err := NewSegmentIDFromCtrl(ctrl.Base.ID)
 	if err != nil {
@@ -393,7 +392,8 @@ func newResponseSegmentTeardown(ctrl *colibri_mgmt.SegmentTeardownRes, resp *col
 }
 
 func newResponseSegmentIndexConfirmation(ctrl *colibri_mgmt.SegmentIndexConfirmationRes,
-	resp *colibri_mgmt.Response, ts time.Time, path *spath.Path) (base.MessageWithPath, error) {
+	resp *colibri_mgmt.Response, ts time.Time,
+	path base.ColibriPath) (base.MessageWithPath, error) {
 
 	id, err := NewSegmentIDFromCtrl(ctrl.Base.ID)
 	if err != nil {
@@ -417,7 +417,7 @@ func newResponseSegmentIndexConfirmation(ctrl *colibri_mgmt.SegmentIndexConfirma
 }
 
 func newResponseSegmentCleanup(ctrl *colibri_mgmt.SegmentCleanupRes, resp *colibri_mgmt.Response,
-	ts time.Time, path *spath.Path) (base.MessageWithPath, error) {
+	ts time.Time, path base.ColibriPath) (base.MessageWithPath, error) {
 
 	id, err := NewSegmentIDFromCtrl(ctrl.Base.ID)
 	if err != nil {
@@ -441,7 +441,7 @@ func newResponseSegmentCleanup(ctrl *colibri_mgmt.SegmentCleanupRes, resp *colib
 }
 
 func newResponseE2ESetup(ctrl *colibri_mgmt.E2ESetupRes, resp *colibri_mgmt.Response,
-	ts time.Time, path *spath.Path) (base.MessageWithPath, error) {
+	ts time.Time, path base.ColibriPath) (base.MessageWithPath, error) {
 
 	id, err := NewE2EIDFromCtrl(ctrl.Base.ID)
 	if err != nil {
@@ -478,7 +478,7 @@ func newResponseE2ESetup(ctrl *colibri_mgmt.E2ESetupRes, resp *colibri_mgmt.Resp
 }
 
 func newResponseE2EClenaup(ctrl *colibri_mgmt.E2ECleanupRes, resp *colibri_mgmt.Response,
-	ts time.Time, path *spath.Path) (base.MessageWithPath, error) {
+	ts time.Time, path base.ColibriPath) (base.MessageWithPath, error) {
 
 	id, err := NewE2EIDFromCtrl(ctrl.Base.ID)
 	if err != nil {

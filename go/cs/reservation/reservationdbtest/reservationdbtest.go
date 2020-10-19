@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -328,7 +327,7 @@ func testGetSegmentRsvsFromIFPair(ctx context.Context, t *testing.T, db backend.
 	expected = []*segment.Reservation{r1, r3}
 	require.ElementsMatch(t, expected, rsvs)
 	// no matches
-	var inexistentIngress common.IFIDType = 222
+	var inexistentIngress uint16 = 222
 	rsvs, err = db.GetSegmentRsvsFromIFPair(ctx, &inexistentIngress, nil)
 	require.NoError(t, err)
 	require.Len(t, rsvs, 0)
@@ -656,7 +655,7 @@ func newToken() *reservation.Token {
 func newTestReservation(t *testing.T) *segment.Reservation {
 	t.Helper()
 	r := segment.NewReservation()
-	r.Path = segment.Path{}
+	r.Path = segment.ReservationTransparentPath{}
 	r.ID.ASID = xtest.MustParseAS("ff00:0:1")
 	r.Ingress = 0
 	r.Egress = 1

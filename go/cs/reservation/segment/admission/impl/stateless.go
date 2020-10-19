@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -193,7 +192,7 @@ type demPerSource map[addr.AS]demands
 // this is, all cap. requested demands from all reservations, grouped by source, that enter
 // the AS at "ingress" and exit at "egress". It also stores all the source demands that enter
 // the AS at "ingress", and the source demands that exit the AS at "egress".
-func (a *StatelessAdmission) computeTempDemands(ctx context.Context, ingress common.IFIDType,
+func (a *StatelessAdmission) computeTempDemands(ctx context.Context, ingress uint16,
 	req *segment.SetupReq) (demPerSource, error) {
 
 	// TODO(juagargi) consider adding a call to db to get all srcDem,inDem,egDem grouped by source
@@ -243,7 +242,7 @@ func (a *StatelessAdmission) computeTempDemands(ctx context.Context, ingress com
 // demsPerSrc must hold the inDem, egDem and srcDem of all reservations, grouped by source, and
 // for an ingress interface = ingress parameter.
 func (a *StatelessAdmission) transitDemand(ctx context.Context, req *segment.SetupReq,
-	ingress common.IFIDType, demsPerSrc demPerSource) (uint64, error) {
+	ingress uint16, demsPerSrc demPerSource) (uint64, error) {
 
 	capIn := a.Capacities.CapacityIngress(ingress)
 	capEg := a.Capacities.CapacityEgress(req.Egress)

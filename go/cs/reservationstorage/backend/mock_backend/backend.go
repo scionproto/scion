@@ -13,7 +13,6 @@ import (
 	backend "github.com/scionproto/scion/go/cs/reservationstorage/backend"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	reservation "github.com/scionproto/scion/go/lib/colibri/reservation"
-	common "github.com/scionproto/scion/go/lib/common"
 	reflect "reflect"
 	time "time"
 )
@@ -160,7 +159,7 @@ func (mr *MockDBMockRecorder) GetSegmentRsvFromID(arg0, arg1 interface{}) *gomoc
 }
 
 // GetSegmentRsvFromPath mocks base method
-func (m *MockDB) GetSegmentRsvFromPath(arg0 context.Context, arg1 segment.Path) (*segment.Reservation, error) {
+func (m *MockDB) GetSegmentRsvFromPath(arg0 context.Context, arg1 segment.ReservationTransparentPath) (*segment.Reservation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSegmentRsvFromPath", arg0, arg1)
 	ret0, _ := ret[0].(*segment.Reservation)
@@ -175,7 +174,7 @@ func (mr *MockDBMockRecorder) GetSegmentRsvFromPath(arg0, arg1 interface{}) *gom
 }
 
 // GetSegmentRsvsFromIFPair mocks base method
-func (m *MockDB) GetSegmentRsvsFromIFPair(arg0 context.Context, arg1, arg2 *common.IFIDType) ([]*segment.Reservation, error) {
+func (m *MockDB) GetSegmentRsvsFromIFPair(arg0 context.Context, arg1, arg2 *uint16) ([]*segment.Reservation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSegmentRsvsFromIFPair", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*segment.Reservation)
@@ -397,7 +396,7 @@ func (mr *MockTransactionMockRecorder) GetSegmentRsvFromID(arg0, arg1 interface{
 }
 
 // GetSegmentRsvFromPath mocks base method
-func (m *MockTransaction) GetSegmentRsvFromPath(arg0 context.Context, arg1 segment.Path) (*segment.Reservation, error) {
+func (m *MockTransaction) GetSegmentRsvFromPath(arg0 context.Context, arg1 segment.ReservationTransparentPath) (*segment.Reservation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSegmentRsvFromPath", arg0, arg1)
 	ret0, _ := ret[0].(*segment.Reservation)
@@ -412,7 +411,7 @@ func (mr *MockTransactionMockRecorder) GetSegmentRsvFromPath(arg0, arg1 interfac
 }
 
 // GetSegmentRsvsFromIFPair mocks base method
-func (m *MockTransaction) GetSegmentRsvsFromIFPair(arg0 context.Context, arg1, arg2 *common.IFIDType) ([]*segment.Reservation, error) {
+func (m *MockTransaction) GetSegmentRsvsFromIFPair(arg0 context.Context, arg1, arg2 *uint16) ([]*segment.Reservation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSegmentRsvsFromIFPair", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*segment.Reservation)

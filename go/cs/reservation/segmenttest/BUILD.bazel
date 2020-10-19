@@ -8,8 +8,6 @@ go_library(
     deps = [
         "//go/cs/reservation/segment:go_default_library",
         "//go/lib/colibri/reservation:go_default_library",
-        "//go/lib/common:go_default_library",
-        "//go/lib/spath:go_default_library",
         "//go/lib/xtest:go_default_library",
     ],
 )

@@ -21,33 +21,35 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-// Path represents a reservation path, in the reservation order.
-type Path []PathStepWithIA
+// ReservationTransparentPath represents a reservation path, in the reservation order.
+// This path is seen only in the source of a segment reservation.
+// TODO(juagargi) there exists a ColibriPath that could be used instead, if we only
+// need equality. If we need to know the IDs of the transit ASes, it won't be possible.
+type ReservationTransparentPath []PathStepWithIA
 
-var _ io.Reader = (*Path)(nil)
+var _ io.Reader = (*ReservationTransparentPath)(nil)
 
 // NewPathFromRaw constructs a new Path from the byte representation.
-func NewPathFromRaw(buff []byte) (Path, error) {
+func NewPathFromRaw(buff []byte) (ReservationTransparentPath, error) {
 	if len(buff)%PathStepWithIALen != 0 {
 		return nil, serrors.New("buffer input is not a multiple of a path step", "len", len(buff))
 	}
 	steps := len(buff) / PathStepWithIALen
-	p := make(Path, steps)
+	p := make(ReservationTransparentPath, steps)
 	for i := 0; i < steps; i++ {
 		offset := i * PathStepWithIALen
-		p[i].Ingress = common.IFIDType(binary.BigEndian.Uint64(buff[offset:]))
-		p[i].Egress = common.IFIDType(binary.BigEndian.Uint64(buff[offset+8:]))
-		p[i].IA = addr.IAFromRaw(buff[offset+16:])
+		p[i].Ingress = binary.BigEndian.Uint16(buff[offset:])
+		p[i].Egress = binary.BigEndian.Uint16(buff[offset+2:])
+		p[i].IA = addr.IAFromRaw(buff[offset+4:])
 	}
 	return p, nil
 }
 
 // Validate returns an error if there is invalid data.
-func (p Path) Validate() error {
+func (p ReservationTransparentPath) Validate() error {
 	if len(p) < 2 {
 		return serrors.New("invalid path length", "len", len(p))
 	}
@@ -61,8 +63,8 @@ func (p Path) Validate() error {
 	return nil
 }
 
-// Equal returns true if both Path contain the same values.
-func (p Path) Equal(o Path) bool {
+// Equal returns true if both ReservationTransparentPath contain the same values.
+func (p ReservationTransparentPath) Equal(o ReservationTransparentPath) bool {
 	if len(p) != len(o) {
 		return false
 	}
@@ -75,9 +77,9 @@ func (p Path) Equal(o Path) bool {
 }
 
 // GetSrcIA returns the source IA in the path or a zero IA if the path is nil (it's not the
-// source AS of the reservation and has no access to the Path of the reservation).
+// source AS of the reservation and has no access to the path of the reservation).
 // If the Path is not nil, it assumes is valid, i.e. it has at least length 2.
-func (p Path) GetSrcIA() addr.IA {
+func (p ReservationTransparentPath) GetSrcIA() addr.IA {
 	if len(p) == 0 {
 		return addr.IA{}
 	}
@@ -85,24 +87,24 @@ func (p Path) GetSrcIA() addr.IA {
 }
 
 // GetDstIA returns the source IA in the path or a zero IA if the path is nil (it's not the
-// source AS of the reservation and has no access to the Path of the reservation).
-// If the Path is not nil, it assumes is valid, i.e. it has at least length 2.
-func (p Path) GetDstIA() addr.IA {
+// source AS of the reservation and has no access to the path of the reservation).
+// If the path is not nil, it assumes is valid, i.e. it has at least length 2.
+func (p ReservationTransparentPath) GetDstIA() addr.IA {
 	if len(p) == 0 {
 		return addr.IA{}
 	}
 	return p[len(p)-1].IA
 }
 
-// Len returns the length of this Path in bytes, when serialized.
-func (p Path) Len() int {
+// Len returns the length of this path in bytes, when serialized.
+func (p ReservationTransparentPath) Len() int {
 	if len(p) == 0 {
 		return 0
 	}
 	return len(p) * PathStepWithIALen
 }
 
-func (p Path) Read(buff []byte) (int, error) {
+func (p ReservationTransparentPath) Read(buff []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -111,15 +113,15 @@ func (p Path) Read(buff []byte) (int, error) {
 	}
 	for i, s := range p {
 		offset := i * PathStepWithIALen
-		binary.BigEndian.PutUint64(buff[offset:], uint64(s.Ingress))
-		binary.BigEndian.PutUint64(buff[offset+8:], uint64(s.Egress))
-		binary.BigEndian.PutUint64(buff[offset+16:], uint64(s.IA.IAInt()))
+		binary.BigEndian.PutUint16(buff[offset:], s.Ingress)
+		binary.BigEndian.PutUint16(buff[offset+2:], s.Egress)
+		binary.BigEndian.PutUint64(buff[offset+4:], uint64(s.IA.IAInt()))
 	}
 	return p.Len(), nil
 }
 
-// ToRaw returns a buffer representing this Path.
-func (p Path) ToRaw() []byte {
+// ToRaw returns a buffer representing this ReservationTransparentPath.
+func (p ReservationTransparentPath) ToRaw() []byte {
 	if len(p) == 0 {
 		return nil
 	}
@@ -128,7 +130,7 @@ func (p Path) ToRaw() []byte {
 	return buff
 }
 
-func (p Path) String() string {
+func (p ReservationTransparentPath) String() string {
 	strs := make([]string, len(p))
 	for i, s := range p {
 		strs[i] = s.String()
@@ -136,10 +138,11 @@ func (p Path) String() string {
 	return strings.Join(strs, ">")
 }
 
-// PathStep is one hop of the Path. For a source AS Ingress will be invalid. Conversely for dst.
+// PathStep is one hop of the ReservationTransparentPath.
+// For a source AS Ingress will be invalid. Conversely for dst.
 type PathStep struct {
-	Ingress common.IFIDType
-	Egress  common.IFIDType
+	Ingress uint16
+	Egress  uint16
 }
 
 // PathStepWithIA is a step in a reservation path as seen from the source AS.
@@ -149,7 +152,7 @@ type PathStepWithIA struct {
 }
 
 // PathStepWithIALen amounts for Ingress+Egress+IA.
-const PathStepWithIALen = 8 + 8 + 8
+const PathStepWithIALen = 2 + 2 + 8
 
 func (s *PathStepWithIA) String() string {
 	return fmt.Sprintf("%d %s %d", s.Ingress, s.IA.String(), s.Egress)

@@ -41,6 +41,9 @@ const (
 )
 
 // IFIDType is the type for interface IDs.
+//
+// Deprecated: with version 2 of the SCION header, there is no interface ID type anymore.
+// Use the appropriate type depending on the path type.
 type IFIDType uint64
 
 func (ifid IFIDType) String() string {

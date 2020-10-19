@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/cs/reservationstorage/backend"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
@@ -163,8 +162,8 @@ func (x *executor) GetSegmentRsvsFromSrcDstIA(ctx context.Context, srcIA, dstIA 
 }
 
 // GetSegmentRsvFromPath searches for a segment reservation with the specified path.
-func (x *executor) GetSegmentRsvFromPath(ctx context.Context, path segment.Path) (
-	*segment.Reservation, error) {
+func (x *executor) GetSegmentRsvFromPath(ctx context.Context,
+	path segment.ReservationTransparentPath) (*segment.Reservation, error) {
 
 	rsvs, err := getSegReservations(ctx, x.db, "WHERE path = ?", []interface{}{path.ToRaw()})
 	if err != nil {
@@ -188,7 +187,7 @@ func (x *executor) GetAllSegmentRsvs(ctx context.Context) ([]*segment.Reservatio
 
 // GetSegmentRsvsFromIFPair returns all segment reservations that enter this AS at
 // the specified ingress and exit at that egress.
-func (x *executor) GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress *common.IFIDType) (
+func (x *executor) GetSegmentRsvsFromIFPair(ctx context.Context, ingress, egress *uint16) (
 	[]*segment.Reservation, error) {
 
 	conditions := make([]string, 0, 2)
@@ -401,8 +400,8 @@ type rsvFields struct {
 	RowID        int
 	AsID         uint64
 	Suffix       uint32
-	Ingress      common.IFIDType
-	Egress       common.IFIDType
+	Ingress      uint16
+	Egress       uint16
 	Path         []byte
 	EndProps     int
 	TrafficSplit int

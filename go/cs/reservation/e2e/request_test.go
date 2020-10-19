@@ -19,7 +19,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/cs/reservation/segmenttest"
+	"github.com/scionproto/scion/go/cs/reservation/test"
 	"github.com/scionproto/scion/go/lib/colibri/reservation"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -28,17 +28,17 @@ import (
 func TestNewRequest(t *testing.T) {
 	_, err := NewRequest(util.SecsToTime(1), nil, 1, nil)
 	require.Error(t, err)
-	_, err = NewRequest(util.SecsToTime(1), nil, 1, segmenttest.NewTestPath())
+	_, err = NewRequest(util.SecsToTime(1), nil, 1, test.NewTestPath())
 	require.Error(t, err)
 	id, err := reservation.NewE2EID(xtest.MustParseAS("ff00:0:111"),
 		xtest.MustParseHexString("beefcafebeefcafebeef"))
 	require.NoError(t, err)
-	r, err := NewRequest(util.SecsToTime(1), id, 1, segmenttest.NewTestPath())
+	r, err := NewRequest(util.SecsToTime(1), id, 1, test.NewTestPath())
 	require.NoError(t, err)
 	require.Equal(t, util.SecsToTime(1), r.Timestamp)
 	require.Equal(t, id, &r.ID)
 	require.Equal(t, reservation.IndexNumber(1), r.Index)
-	require.Equal(t, segmenttest.NewTestPath(), r.RequestMetadata.Path())
+	require.Equal(t, test.NewTestPath(), r.RequestMetadata.Path())
 }
 
 func TestNewSetupRequest(t *testing.T) {
@@ -47,7 +47,7 @@ func TestNewSetupRequest(t *testing.T) {
 	id, err := reservation.NewE2EID(xtest.MustParseAS("ff00:0:111"),
 		xtest.MustParseHexString("beefcafebeefcafebeef"))
 	require.NoError(t, err)
-	path := segmenttest.NewTestPath()
+	path := test.NewTestPath()
 	baseReq, err := NewRequest(util.SecsToTime(1), id, 1, path)
 	require.NoError(t, err)
 	_, err = NewSetupRequest(baseReq, nil, nil, 5, nil)
@@ -188,7 +188,7 @@ func TestInterface(t *testing.T) {
 	id, err := reservation.NewE2EID(xtest.MustParseAS("ff00:0:111"),
 		xtest.MustParseHexString("beefcafebeefcafebeef"))
 	require.NoError(t, err)
-	path := segmenttest.NewTestPath()
+	path := test.NewTestPath()
 	baseReq, err := NewRequest(util.SecsToTime(1), id, 1, path)
 	require.NoError(t, err)
 	segmentIDs := []reservation.SegmentID{*newTestSegmentID(t)}

@@ -15,7 +15,6 @@ go_library(
         "//go/cs/reservation/segment:go_default_library",
         "//go/lib/colibri/reservation:go_default_library",
         "//go/lib/serrors:go_default_library",
-        "//go/lib/spath:go_default_library",
     ],
 )
 
@@ -29,6 +28,7 @@ go_test(
     deps = [
         "//go/cs/reservation/segment:go_default_library",
         "//go/cs/reservation/segmenttest:go_default_library",
+        "//go/cs/reservation/test:go_default_library",
         "//go/lib/colibri/reservation:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/lib/xtest:go_default_library",
