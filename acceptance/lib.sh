@@ -106,6 +106,9 @@ global_run() {
     for i in $ACCEPTANCE_TESTS; do
         stats_total=$((stats_total+1))
         TEST_PROGRAM="$i/test"
+        if [ ! -f "$TEST_PROGRAM" ]; then
+            TEST_PROGRAM="$i/test.py"
+        fi
         TEST_NAME=$($TEST_PROGRAM name)
         print_green "[----------]" "Test found: $TEST_NAME"
         if [[ "$TEST_NAME" =~ $regex_matcher ]]; then
