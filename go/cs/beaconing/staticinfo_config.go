@@ -102,7 +102,6 @@ func (cfgdata StaticInfoCfg) gatherLatency(peers map[common.IFIDType]struct{},
 		// If we're looking at a peering interface, always include the data
 		// If we're looking at a NON-peering interface, only include the data
 		// if subintfid>egifID so as to not store redundant information
-		// XXX(matzf): this is not handled in the combinator!?
 		// XXX(matzf): filter PARENT interfaces
 		_, peer := peers[subintfid]
 		if peer || subintfid > egifID {

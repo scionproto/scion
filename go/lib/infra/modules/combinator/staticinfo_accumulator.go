@@ -67,16 +67,15 @@ func collectMetadata(interfaces []snet.PathInterface, asEntries []seg.ASEntry) P
 
 func collectLatency(path pathInfo) []time.Duration {
 	// Were making our lives quite easy here:
-	// 0) Prepare lookup table of the connected remote interface ID; this is not
-	//    directly available from the individual AS entries (except for peers, but
-	//    this way we don't even have to care).
 	// 1) Go over the ASEntries (in whatever order) and store the latency
 	//    information for any interface pair we can find to a map.
 	//    Here, we can also handle any inconsistencies we may find.
 	// 2) Go over the path, in order, for each pair of consecutive interfaces, we
 	//    just lookiup the latency from the map.
 
-	// 0)
+	// 0) Prepare lookup table of the connected remote interface ID; this is not
+	//    directly available from the individual AS entries (except for peers, but
+	//    this way we don't even have to care).
 	remoteIF := make(map[snet.PathInterface]snet.PathInterface)
 	for i := 0; i < len(path.Interfaces); i += 2 {
 		remoteIF[path.Interfaces[i]] = path.Interfaces[i+1]

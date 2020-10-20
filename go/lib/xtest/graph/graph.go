@@ -212,6 +212,24 @@ func (g *Graph) GetPaths(xIA string, yIA string) [][]common.IFIDType {
 	return solution
 }
 
+// Latency returns an arbitrary latency value between two interfaces. The
+// interfaces should either be part of the same AS, in which case the intra-AS
+// latency is returned, or they should form a link of the graph. Otherwise,
+// this panics.
+// The value returned is symmetric, i.e. g.Latency(a, b) == g.Latency(b, a)
+func (g *Graph) Latency(a, b common.IFIDType) time.Duration {
+	sameIA := (g.parents[a] == g.parents[b])
+	if !sameIA && g.links[a] != b {
+		panic("interfaces must be in the same AS or connected by a link")
+	}
+
+	d := time.Microsecond * time.Duration(a*b*11939%10000) // value in 0-10ms
+	if sameIA {
+		return d
+	}
+	return d + 10*time.Millisecond // value in 10-20ms
+}
+
 // Beacon constructs path segments across a series of egress ifids. The parent
 // AS of the first IFID is the origin of the beacon, and the beacon propagates
 // down to the parent AS of the remote counterpart of the last IFID. The
@@ -456,19 +474,29 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 
 	as := g.ases[ia]
 
-	s := &seg.StaticInfoExtension{}
-
-	s.Latency.Intra = time.Duration((inIF&0xffff)<<16 | outIF&0xffff)
-	s.Latency.Inter = time.Duration(outIF)
-	for ifid := range as.IFIDs {
-		s.Latency.XoverIntra[ifid] = time.Duration((outIF&0xffff)<<16 | ifid&0xffff)
-		if g.isPeer[ifid] {
-			s.Latency.PeerInter[ifid] = time.Duration(ifid)
+	var latency *seg.LatencyInfo
+	if outIF != 0 {
+		latency = &seg.LatencyInfo{
+			XoverIntra: make(map[common.IFIDType]time.Duration),
+			PeerInter:  make(map[common.IFIDType]time.Duration),
+		}
+		if inIF != 0 && outIF != 0 {
+			latency.Intra = g.Latency(inIF, outIF)
+		}
+		latency.Inter = g.Latency(outIF, g.links[outIF])
+		for ifid := range as.IFIDs {
+			if g.isPeer[ifid] || ifid > outIF {
+				latency.XoverIntra[ifid] = g.Latency(ifid, outIF)
+			}
+			if g.isPeer[ifid] {
+				latency.PeerInter[ifid] = g.Latency(ifid, g.links[ifid])
+			}
 		}
 	}
 
+	geo := make(seg.GeoInfo)
 	for ifid := range as.IFIDs {
-		s.Geo[ifid] = seg.GeoCoordinates{
+		geo[ifid] = seg.GeoCoordinates{
 			Latitude:  float32(ia.IAInt()),
 			Longitude: float32(ia.IAInt()),
 			Address:   fmt.Sprintf("Location %s#%d", ia, ifid),
@@ -490,6 +518,9 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 			s.Hops.InToOutHops = uint8(egifID)
 		}
 	*/
-	s.Note = fmt.Sprintf("Note %s", ia)
-	return s
+	return &seg.StaticInfoExtension{
+		Latency: latency,
+		Geo:     geo,
+		Note:    fmt.Sprintf("Note %s", ia),
+	}
 }
