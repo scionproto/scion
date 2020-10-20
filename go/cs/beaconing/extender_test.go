@@ -35,7 +35,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
@@ -276,8 +275,8 @@ func (f *failSigner) Sign(context.Context, []byte, ...[]byte) (*cryptopb.SignedM
 	return nil, errors.New("fail")
 }
 
-func maxExpTimeFactory(max spath.ExpTimeType) func() spath.ExpTimeType {
-	return func() spath.ExpTimeType {
+func maxExpTimeFactory(max uint8) func() uint8 {
+	return func() uint8 {
 		return max
 	}
 }

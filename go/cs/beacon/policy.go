@@ -22,7 +22,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // PolicyType is the policy type.
@@ -47,7 +46,7 @@ const (
 	// DefaultMaxHopsLength is the default MaxHopsLength value.
 	DefaultMaxHopsLength = 10
 	// DefaultMaxExpTime is the default MaxExpTime value.
-	DefaultMaxExpTime = spath.DefaultHopFExpiry
+	DefaultMaxExpTime = uint8(63)
 )
 
 // Policies keeps track of all policies for a non-core beacon store.
@@ -184,7 +183,7 @@ type Policy struct {
 	CandidateSetSize int `yaml:"CandidateSetSize"`
 	// MaxExpTime indicates the maximum value for the expiration time when
 	// extending the segment.
-	MaxExpTime *spath.ExpTimeType `yaml:"MaxExpTime"`
+	MaxExpTime *uint8 `yaml:"MaxExpTime"`
 	// Filter is the filter applied to segments.
 	Filter Filter `yaml:"Filter"`
 	// Type is the policy type.

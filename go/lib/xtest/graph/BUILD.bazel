@@ -13,7 +13,6 @@ go_library(
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/scrypto/signed:go_default_library",
-        "//go/lib/spath:go_default_library",
         "//go/pkg/proto/crypto:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
     ],

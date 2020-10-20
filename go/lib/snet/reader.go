@@ -92,12 +92,10 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 		remote.IA = pkt.Source.IA
 
 		// Extract path
-		if pkt.Path != nil {
-			remote.Path = pkt.Path.Copy()
-			if err = remote.Path.Reverse(); err != nil {
-				return 0, nil,
-					common.NewBasicError("Unable to reverse path on received packet", err)
-			}
+		remote.Path = pkt.Path.Copy()
+		if err = remote.Path.Reverse(); err != nil {
+			return 0, nil,
+				common.NewBasicError("Unable to reverse path on received packet", err)
 		}
 
 		// Copy the address to prevent races. See

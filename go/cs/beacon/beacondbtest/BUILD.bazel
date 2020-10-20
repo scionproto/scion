@@ -12,7 +12,7 @@ go_library(
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/infra:go_default_library",
-        "//go/lib/spath:go_default_library",
+        "//go/lib/slayers/path:go_default_library",
         "//go/lib/util:go_default_library",
         "//go/lib/xtest/graph:go_default_library",
         "//go/proto:go_default_library",

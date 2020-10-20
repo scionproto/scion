@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -258,7 +257,7 @@ func intfActive(intfs *ifstate.Interfaces, ifid common.IFIDType) bool {
 	return intf != nil && intf.State() == ifstate.Active
 }
 
-func min(a, b spath.ExpTimeType) spath.ExpTimeType {
+func min(a, b uint8) uint8 {
 	if a > b {
 		return b
 	}

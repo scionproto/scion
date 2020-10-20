@@ -34,7 +34,7 @@ func Size(local, remote *snet.UDPAddr, pldSize int) (int, error) {
 }
 
 func pack(local, remote *snet.UDPAddr, req snet.SCMPEchoRequest) (*snet.Packet, error) {
-	if remote.Path == nil && !local.IA.Equal(remote.IA) {
+	if remote.Path.IsEmpty() && !local.IA.Equal(remote.IA) {
 		return nil, serrors.New("no path for remote ISD-AS", "local", local.IA, "remote", remote.IA)
 	}
 	pkt := &snet.Packet{

@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // Update contains the information for a single hop.
@@ -94,7 +95,7 @@ type tracerouter struct {
 
 // Run runs the traceroute.
 func Run(ctx context.Context, cfg Config) (Stats, error) {
-	if cfg.PathEntry.Path() == nil {
+	if cfg.PathEntry.Path().IsEmpty() {
 		return Stats{}, serrors.New("empty path is not allowed for traceroute")
 	}
 	id := rand.Uint64()
@@ -290,7 +291,7 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		Remote: &snet.UDPAddr{
 			IA:   pkt.Source.IA,
 			Host: &net.UDPAddr{IP: pkt.Destination.Host.IP()},
-			Path: pkt.Path.Copy(),
+			Path: spath.Path{Raw: append(pkt.Path.Raw[:0:0], pkt.Path.Raw...), Type: pkt.Path.Type},
 		},
 		Error: err,
 	}

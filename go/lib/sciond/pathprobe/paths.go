@@ -69,7 +69,7 @@ func (s Status) String() string {
 // GetStatuses.
 func PathKey(path snet.Path) string {
 	spath := path.Path()
-	if spath == nil {
+	if spath.IsEmpty() {
 		return ""
 	}
 	return string(spath.Raw)
@@ -82,7 +82,7 @@ func FilterEmptyPaths(paths []snet.Path) []snet.Path {
 	}
 	filtered := make([]snet.Path, 0, len(paths))
 	for _, path := range paths {
-		if path.Path() != nil && len(path.Path().Raw) > 0 {
+		if !path.Path().IsEmpty() && len(path.Path().Raw) > 0 {
 			filtered = append(filtered, path)
 		}
 	}

@@ -280,14 +280,8 @@ func testSegment(g *graph.Graph, ifids []common.IFIDType) *seg.PathSegment {
 	return pseg
 }
 
-func testPath(ingressIfid common.IFIDType) *spath.Path {
-	path := &spath.Path{
-		Raw:    make(common.RawBytes, spath.InfoFieldLength+spath.HopFieldLength),
-		HopOff: spath.InfoFieldLength,
-	}
-	(&spath.InfoField{Hops: 1}).Write(path.Raw[:spath.InfoFieldLength])
-	(&spath.HopField{ConsIngress: ingressIfid}).Write(path.Raw[spath.InfoFieldLength:])
-	return path
+func testPath(ingressIfid common.IFIDType) spath.Path {
+	return spath.Path{}
 }
 
 func testInterfaces(topo topology.Topology) *ifstate.Interfaces {

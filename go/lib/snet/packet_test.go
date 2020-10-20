@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
@@ -59,7 +60,10 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
-				Path: spath.NewV2(rawOHP, true),
+				Path: spath.Path{
+					Raw:  rawOHP,
+					Type: slayers.PathTypeOneHop,
+				},
 				Payload: snet.UDPPayload{
 					SrcPort: 25,
 					DstPort: 1925,
@@ -77,7 +81,10 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
-				Path: spath.NewV2(rawSP, false),
+				Path: spath.Path{
+					Raw:  rawSP,
+					Type: slayers.PathTypeSCION,
+				},
 				Payload: snet.UDPPayload{
 					SrcPort: 25,
 					DstPort: 1925,
@@ -95,7 +102,10 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
-				Path: spath.NewV2(rawSP, false),
+				Path: spath.Path{
+					Raw:  rawSP,
+					Type: slayers.PathTypeSCION,
+				},
 				Payload: snet.SCMPEchoRequest{
 					Identifier: 4,
 					SeqNumber:  3310,
@@ -113,7 +123,10 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
-				Path: spath.NewV2(rawSP, false),
+				Path: spath.Path{
+					Raw:  rawSP,
+					Type: slayers.PathTypeSCION,
+				},
 				Payload: snet.SCMPEchoReply{
 					Identifier: 5,
 					SeqNumber:  3410,
@@ -131,7 +144,10 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
-				Path: spath.NewV2(rawSP, false),
+				Path: spath.Path{
+					Raw:  rawSP,
+					Type: slayers.PathTypeSCION,
+				},
 				Payload: snet.SCMPExternalInterfaceDown{
 					IA:        xtest.MustParseIA("1-ff00:0:111"),
 					Interface: 13,
@@ -149,7 +165,10 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:   xtest.MustParseIA("1-ff00:0:112"),
 					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
 				},
-				Path: spath.NewV2(rawSP, false),
+				Path: spath.Path{
+					Raw:  rawSP,
+					Type: slayers.PathTypeSCION,
+				},
 				Payload: snet.SCMPInternalConnectivityDown{
 					IA:      xtest.MustParseIA("1-ff00:0:111"),
 					Ingress: 14,
@@ -195,7 +214,10 @@ func TestPacketSerialize(t *testing.T) {
 						IA:   xtest.MustParseIA("1-ff00:0:112"),
 						Host: addr.HostIPv4(net.ParseIP("127.0.0.1")),
 					},
-					Path: spath.NewV2(rawOHP, true),
+					Path: spath.Path{
+						Raw:  rawOHP,
+						Type: slayers.PathTypeOneHop,
+					},
 					Payload: snet.UDPPayload{
 						SrcPort: 25,
 						DstPort: 1925,
@@ -239,7 +261,10 @@ func TestPacketSerialize(t *testing.T) {
 						IA:   xtest.MustParseIA("1-ff00:0:112"),
 						Host: addr.HostIPv4(net.ParseIP("127.0.0.1")),
 					},
-					Path: spath.NewV2(rawOHP, true),
+					Path: spath.Path{
+						Raw:  rawOHP,
+						Type: slayers.PathTypeOneHop,
+					},
 				},
 			},
 			assertErr: assert.Error,

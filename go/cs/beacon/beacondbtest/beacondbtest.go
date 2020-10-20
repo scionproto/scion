@@ -31,7 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/proto"
@@ -356,7 +356,7 @@ func testDeleteExpiredBeacons(t *testing.T, ctrl *gomock.Controller, db beacon.D
 	ts1 := uint32(10)
 	ts2 := uint32(20)
 	// defaultExp is the default expiry of the hopfields.
-	defaultExp := spath.DefaultHopFExpiry.ToDuration()
+	defaultExp := path.ExpTimeToDuration(63)
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
 	InsertBeacon(t, ctrl, db, Info3, 12, ts1, beacon.UsageProp)
@@ -787,7 +787,7 @@ func AllocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId co
 				PeerInterface: 1337,
 				PeerMTU:       1500,
 				HopField: seg.HopField{
-					ExpTime:     uint8(spath.DefaultHopFExpiry),
+					ExpTime:     63,
 					ConsIngress: uint16(peer.Ingress),
 					ConsEgress:  uint16(as.Egress),
 					MAC:         bytes.Repeat([]byte{0xff}, 6),
@@ -801,7 +801,7 @@ func AllocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId co
 			HopEntry: seg.HopEntry{
 				IngressMTU: mtu,
 				HopField: seg.HopField{
-					ExpTime:     uint8(spath.DefaultHopFExpiry),
+					ExpTime:     63,
 					ConsIngress: uint16(as.Ingress),
 					ConsEgress:  uint16(as.Egress),
 					MAC:         bytes.Repeat([]byte{0xff}, 6),

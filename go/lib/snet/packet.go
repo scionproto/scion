@@ -294,15 +294,15 @@ func (p *Packet) Decode() error {
 	p.Destination = SCIONAddress{IA: scionLayer.DstIA, Host: dstHost}
 	p.Source = SCIONAddress{IA: scionLayer.SrcIA, Host: srcHost}
 	// A path of length 4 is an empty path, because it only contains the mandatory
-	// minimal header. Applications model empty paths via nil, so we return nil here.
+	// minimal header.
 	if l := scionLayer.Path.Len(); l > 4 {
 		pathCopy := make([]byte, scionLayer.Path.Len())
 		if err := scionLayer.Path.SerializeTo(pathCopy); err != nil {
 			return serrors.WrapStr("extracting path", err)
 		}
-		p.Path = spath.NewV2(pathCopy, scionLayer.PathType == slayers.PathTypeOneHop)
+		p.Path = spath.Path{Raw: pathCopy, Type: scionLayer.PathType}
 	} else {
-		p.Path = nil
+		p.Path = spath.Path{}
 	}
 	switch l4 {
 	case slayers.LayerTypeSCIONUDP:
@@ -415,9 +415,6 @@ func (p *Packet) Decode() error {
 // Serialize serializes the PacketInfo into the raw buffer of the packet.
 func (p *Packet) Serialize() error {
 	p.Prepare()
-	if p.Path != nil && !p.Path.IsHeaderV2() {
-		return serrors.New("Serialize only works for v2")
-	}
 	if p.Payload == nil {
 		return serrors.New("no payload set")
 	}
@@ -451,19 +448,19 @@ func (p *Packet) Serialize() error {
 		return serrors.WrapStr("settting source address", err)
 	}
 
-	switch {
-	case p.Path == nil:
+	switch p.Path.Type {
+	case slayers.PathTypeEmpty:
 		// Default nil paths to an empty SCION path
 		scionLayer.PathType = slayers.PathTypeEmpty
 		scionLayer.Path = empty.Path{}
-	case p.Path.IsOHP():
+	case slayers.PathTypeOneHop:
 		var path onehop.Path
 		if err := path.DecodeFromBytes(p.Path.Raw); err != nil {
 			return serrors.WrapStr("decoding path", err)
 		}
 		scionLayer.PathType = slayers.PathTypeOneHop
 		scionLayer.Path = &path
-	default:
+	case slayers.PathTypeSCION:
 		// Use decoded for simplicity, easier to work with when debugging with delve.
 		var decodedPath scion.Decoded
 		if err := decodedPath.DecodeFromBytes(p.Path.Raw); err != nil {
@@ -471,6 +468,8 @@ func (p *Packet) Serialize() error {
 		}
 		scionLayer.PathType = slayers.PathTypeSCION
 		scionLayer.Path = &decodedPath
+	default:
+		return serrors.New("unsupported path", "type", p.Path.Type)
 	}
 	packetLayers = append(packetLayers, &scionLayer)
 	packetLayers = append(packetLayers, p.Payload.toLayers(&scionLayer)...)
@@ -504,7 +503,7 @@ type PacketInfo struct {
 	//
 	// If the source and destination are in different ASes but the path is
 	// nil or empty, an error is returned during serialization.
-	Path *spath.Path
+	Path spath.Path
 	// Payload is the Payload of the message.
 	Payload Payload
 }

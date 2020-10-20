@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -198,16 +199,6 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 			},
 		}, nil
 	}
-	var sp *spath.Path
-	if !p.HeaderV2 {
-		sp = spath.New(p.Raw)
-		if err := sp.InitOffsets(); err != nil {
-			return path.Path{}, serrors.WrapStr("initializing path offsets", err)
-		}
-	} else {
-		sp = spath.NewV2(p.Raw, false)
-	}
-
 	underlayA, err := net.ResolveUDPAddr("udp", p.Interface.Address.Address)
 	if err != nil {
 		return path.Path{}, serrors.WrapStr("resolving underlay", err)
@@ -221,7 +212,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	}
 	return path.Path{
 		Dst:     dst,
-		SPath:   sp,
+		SPath:   spath.Path{Raw: p.Raw, Type: slayers.PathTypeSCION},
 		NextHop: underlayA,
 		IFaces:  interfaces,
 		Meta: path.PathMetadata{

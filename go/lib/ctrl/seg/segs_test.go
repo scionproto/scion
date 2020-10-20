@@ -23,8 +23,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -34,16 +32,6 @@ var (
 )
 
 func allocPathSegment(ctrl *gomock.Controller, ias []addr.IA) *PathSegment {
-	rawHops := make([][]byte, len(ias))
-	for i := 0; i < len(ias); i++ {
-		rawHops[i] = make([]byte, 8)
-		hf := spath.HopField{
-			ConsIngress: common.IFIDType(1),
-			ConsEgress:  common.IFIDType(2),
-			ExpTime:     spath.DefaultHopFExpiry,
-		}
-		hf.Write(rawHops[i])
-	}
 	ases := make([]ASEntry, len(ias))
 	for i := range ias {
 		var next addr.IA
@@ -58,7 +46,7 @@ func allocPathSegment(ctrl *gomock.Controller, ias []addr.IA) *PathSegment {
 				HopField: HopField{
 					ConsIngress: 1,
 					ConsEgress:  2,
-					ExpTime:     uint8(spath.DefaultHopFExpiry),
+					ExpTime:     63,
 					MAC:         bytes.Repeat([]byte{0xab}, 6),
 				},
 				IngressMTU: 1337,

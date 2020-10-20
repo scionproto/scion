@@ -81,21 +81,14 @@ func (s SegmentCreationServer) Beacon(ctx context.Context,
 }
 
 // extractIngressIfID extracts the ingress interface ID from a path.
-func extractIngressIfID(path *spath.Path) (common.IFIDType, error) {
-	if path.IsHeaderV2() {
-		var sp scion.Raw
-		if err := sp.DecodeFromBytes(path.Raw); err != nil {
-			return 0, serrors.WrapStr("decoding path (v2)", err)
-		}
-		hf, err := sp.GetCurrentHopField()
-		if err != nil {
-			return 0, serrors.WrapStr("getting current hop field", err)
-		}
-		return common.IFIDType(hf.ConsIngress), nil
+func extractIngressIfID(path spath.Path) (common.IFIDType, error) {
+	var sp scion.Raw
+	if err := sp.DecodeFromBytes(path.Raw); err != nil {
+		return 0, serrors.WrapStr("decoding path (v2)", err)
 	}
-	hopF, err := path.GetHopField(path.HopOff)
+	hf, err := sp.GetCurrentHopField()
 	if err != nil {
-		return 0, serrors.WrapStr("extracting hop field", err)
+		return 0, serrors.WrapStr("getting current hop field", err)
 	}
-	return hopF.ConsIngress, nil
+	return common.IFIDType(hf.ConsIngress), nil
 }

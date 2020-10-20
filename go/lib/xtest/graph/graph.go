@@ -40,7 +40,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
-	"github.com/scionproto/scion/go/lib/spath"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
 
@@ -271,7 +270,7 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 			MTU:   2000,
 			HopEntry: seg.HopEntry{
 				HopField: seg.HopField{
-					ExpTime:     uint8(spath.DefaultHopFExpiry),
+					ExpTime:     63,
 					ConsIngress: uint16(inIF),
 					ConsEgress:  uint16(outIF),
 					MAC:         bytes.Repeat([]byte{uint8(i)}, 6),
@@ -311,7 +310,7 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 					PeerInterface: uint16(peeringRemoteIF),
 					PeerMTU:       1280,
 					HopField: seg.HopField{
-						ExpTime:     uint8(spath.DefaultHopFExpiry),
+						ExpTime:     63,
 						ConsIngress: uint16(peeringLocalIF),
 						ConsEgress:  uint16(outIF),
 						MAC:         bytes.Repeat([]byte{uint8(i)}, 6),

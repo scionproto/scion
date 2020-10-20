@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 const maxResultChanSize = 32
@@ -102,7 +101,7 @@ func (s *Store) getBeacons(ctx context.Context, policy *Policy) (<-chan BeaconOr
 }
 
 // MaxExpTime returns the segment maximum expiration time for the given policy.
-func (s *Store) MaxExpTime(policyType PolicyType) spath.ExpTimeType {
+func (s *Store) MaxExpTime(policyType PolicyType) uint8 {
 	switch policyType {
 	case UpRegPolicy:
 		return *s.policies.UpReg.MaxExpTime
@@ -200,7 +199,7 @@ func (s *CoreStore) getBeacons(ctx context.Context, policy *Policy) (<-chan Beac
 }
 
 // MaxExpTime returns the segment maximum expiration time for the given policy.
-func (s *CoreStore) MaxExpTime(policyType PolicyType) spath.ExpTimeType {
+func (s *CoreStore) MaxExpTime(policyType PolicyType) uint8 {
 	switch policyType {
 	case CoreRegPolicy:
 		return *s.policies.CoreReg.MaxExpTime

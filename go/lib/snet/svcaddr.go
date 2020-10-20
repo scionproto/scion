@@ -25,7 +25,7 @@ import (
 // SVCAddr is the address type for SVC destinations.
 type SVCAddr struct {
 	IA      addr.IA
-	Path    *spath.Path
+	Path    spath.Path
 	NextHop *net.UDPAddr
 	SVC     addr.HostSVC
 }
@@ -42,16 +42,8 @@ func (a *SVCAddr) String() string {
 
 // GetPath returns a path with attached metadata.
 func (a *SVCAddr) GetPath() (Path, error) {
-	// Initialize path so it is always ready for use
-	var p *spath.Path
-	if a.Path != nil {
-		p = a.Path.Copy()
-		if err := p.InitOffsets(); err != nil {
-			return nil, err
-		}
-	}
 	return &partialPath{
-		spath:       p,
+		spath:       a.Path.Copy(),
 		underlay:    a.NextHop,
 		destination: a.IA,
 	}, nil

@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -515,9 +516,9 @@ func (segment *segment) ComputeExpTime() time.Time {
 }
 
 func (segment *segment) computeHopFieldsTTL() time.Duration {
-	minTTL := time.Duration(spath.MaxTTL) * time.Second
+	minTTL := time.Duration(path.MaxTTL) * time.Second
 	for _, hf := range segment.HopFields {
-		offset := spath.ExpTimeType(hf.ExpTime).ToDuration()
+		offset := path.ExpTimeToDuration(hf.ExpTime)
 		if minTTL > offset {
 			minTTL = offset
 		}
@@ -551,7 +552,7 @@ func (s segmentList) ComputeExpTime() time.Time {
 	return minTimestamp
 }
 
-func (s segmentList) SPath() *spath.Path {
+func (s segmentList) SPath() spath.Path {
 	var meta scion.MetaHdr
 	var infos []*path.InfoField
 	var hops []*path.HopField
@@ -574,5 +575,5 @@ func (s segmentList) SPath() *spath.Path {
 	if err := sp.SerializeTo(raw); err != nil {
 		panic(err)
 	}
-	return spath.NewV2(raw, false)
+	return spath.Path{Raw: raw, Type: slayers.PathTypeSCION}
 }

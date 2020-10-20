@@ -34,7 +34,6 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
@@ -73,7 +72,7 @@ func (t *TasksConfig) Originator() *periodic.Runner {
 		return nil
 	}
 	s := &beaconing.Originator{
-		Extender: t.extender("originator", topo.IA(), topo.MTU(), func() spath.ExpTimeType {
+		Extender: t.extender("originator", topo.IA(), topo.MTU(), func() uint8 {
 			return t.BeaconStore.MaxExpTime(beacon.PropPolicy)
 		}),
 		BeaconSender: t.BeaconSender,
@@ -89,7 +88,7 @@ func (t *TasksConfig) Originator() *periodic.Runner {
 func (t *TasksConfig) Propagator() *periodic.Runner {
 	topo := t.TopoProvider.Get()
 	p := &beaconing.Propagator{
-		Extender: t.extender("propagator", topo.IA(), topo.MTU(), func() spath.ExpTimeType {
+		Extender: t.extender("propagator", topo.IA(), topo.MTU(), func() uint8 {
 			return t.BeaconStore.MaxExpTime(beacon.PropPolicy)
 		}),
 		BeaconSender: t.BeaconSender,
@@ -120,7 +119,7 @@ func (t *TasksConfig) registrar(topo topology.Topology, segType seg.Type,
 	policyType beacon.PolicyType) *periodic.Runner {
 
 	r := &beaconing.Registrar{
-		Extender: t.extender("registrar", topo.IA(), topo.MTU(), func() spath.ExpTimeType {
+		Extender: t.extender("registrar", topo.IA(), topo.MTU(), func() uint8 {
 			return t.BeaconStore.MaxExpTime(policyType)
 		}),
 		Provider: t.BeaconStore,
@@ -141,7 +140,7 @@ func (t *TasksConfig) registrar(topo topology.Topology, segType seg.Type,
 }
 
 func (t *TasksConfig) extender(task string, ia addr.IA, mtu uint16,
-	maxExp func() spath.ExpTimeType) beaconing.Extender {
+	maxExp func() uint8) beaconing.Extender {
 
 	return &beaconing.DefaultExtender{
 		IA:         ia,
@@ -251,7 +250,7 @@ type Store interface {
 	// policies after the update are removed.
 	UpdatePolicy(ctx context.Context, policy beacon.Policy) error
 	// MaxExpTime returns the segment maximum expiration time for the given policy.
-	MaxExpTime(policyType beacon.PolicyType) spath.ExpTimeType
+	MaxExpTime(policyType beacon.PolicyType) uint8
 	// DeleteExpired deletes expired Beacons from the store.
 	DeleteExpiredBeacons(ctx context.Context) (int, error)
 	// DeleteExpiredRevocations deletes expired Revocations from the store.
