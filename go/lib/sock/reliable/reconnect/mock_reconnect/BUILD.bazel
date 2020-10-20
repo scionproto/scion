@@ -1,8 +1,20 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = [
+        "IOOperation",
+        "Reconnecter",
+    ],
+    library = "//go/lib/sock/reliable/reconnect:go_default_library",
+    package = "mock_reconnect",
+)
 
 go_library(
     name = "go_default_library",
-    srcs = ["reconnect.go"],
+    srcs = ["mock.go"],
     importpath = "github.com/scionproto/scion/go/lib/sock/reliable/reconnect/mock_reconnect",
     visibility = ["//visibility:public"],
     deps = ["@com_github_golang_mock//gomock:go_default_library"],

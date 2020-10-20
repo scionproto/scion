@@ -9,3 +9,4 @@ Testing documentation:
 
    crypto
    mocks
+   ../../testgen/README

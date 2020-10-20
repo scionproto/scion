@@ -1,8 +1,17 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = ["SCIONWriter"],
+    library = "//go/sig/egress/worker:go_default_library",
+    package = "mock_worker",
+)
 
 go_library(
     name = "go_default_library",
-    srcs = ["worker.go"],
+    srcs = ["mock.go"],
     importpath = "github.com/scionproto/scion/go/sig/egress/worker/mock_worker",
     visibility = ["//visibility:public"],
     deps = ["@com_github_golang_mock//gomock:go_default_library"],

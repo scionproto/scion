@@ -1,87 +1,108 @@
 #!/usr/bin/env python3
 
 import os
-import sys
-from plumbum import local
-from plumbum.cmd import cp, mkdir, rm, chmod
+import pathlib
+from typing import List
 
-MOCK_TARGETS = [
-    ("go/cs/beacon", "DB,Transaction"),
-    ("go/cs/beaconing",
-        "BeaconInserter,BeaconProvider,BeaconSender,RPC,SegmentProvider,SegmentStore"),
-    ("go/cs/ifstate", "InterfaceStateSender,RevInserter"),
-    ("go/cs/reservationstorage/backend", "DB,Transaction"),
-    ("go/cs/segutil", "Policy"),
-    ("go/hidden_path_srv/internal/hpsegreq", "Fetcher,RPC"),
-    ("go/hidden_path_srv/internal/registration", "Validator"),
-    ("go/lib/ctrl/seg", "Signer"),
-    ("go/lib/infra/messenger", "LocalSVCRouter,Resolver"),
-    ("go/lib/infra", "ResponseWriter,Verifier,Handler"),
-    ("go/lib/infra/modules/segfetcher",
-        "DstProvider,ReplyHandler,Requester,Resolver,RPC,Splitter,LocalInfo"),
-    ("go/lib/infra/modules/seghandler", "Storage,Verifier"),
-    ("go/lib/l4", "L4Header"),
-    ("go/lib/pathdb", "PathDB,Transaction,ReadWrite"),
-    ("go/lib/pathmgr", "Policy,Querier,Resolver"),
-    ("go/lib/periodic/internal/metrics", "ExportMetric"),
-    ("go/lib/pktcls", "Cond"),
-    ("go/lib/revcache", "RevCache"),
-    ("go/lib/sciond", "Connector"),
-    ("go/lib/snet",
-        "PacketDispatcherService,Network,PacketConn,Path," +
-        "PathMetadata,PathQuerier,Router,RevocationHandler"),
-    ("go/lib/sock/reliable", "Dispatcher"),
-    ("go/lib/sock/reliable/reconnect", "IOOperation,Reconnecter"),
-    ("go/lib/svc/internal/ctxconn", "DeadlineCloser"),
-    ("go/lib/svc", "RequestHandler,RoundTripper"),
-    ("go/lib/topology", "Topology"),
-    ("go/lib/underlay/conn", "Conn"),
-    ("go/lib/xtest", "Callback"),
-    ("go/pkg/cs/trust/grpc", "ChainBuilder,RenewalRequestVerifier,Signer"),
-    ("go/pkg/cs/trust", "CACertProvider,PolicyGen,SignerGen"),
-    ("go/pkg/proto/control_plane",
-        "ChainRenewalServiceServer,InterfaceStateConsumerServiceServer," +
-        "InterfaceStateServiceServer,TrustMaterialServiceServer"),
-    ("go/pkg/router/bfd", "Source,IntervalGenerator"),
-    ("go/pkg/router/svchealth", "Discoverer"),
-    ("go/pkg/router", "BatchConn"),
-    ("go/pkg/sciond/fetcher", "Fetcher,Policy"),
-    ("go/pkg/trust",
-        "DB,Fetcher,Inspector,KeyRing,Provider,Recurser,Router,X509KeyPairLoader"),
-    ("go/pkg/trust/renewal", "DB"),
-    ("go/sig/egress/iface", "Session"),
-    ("go/sig/egress/worker", "SCIONWriter"),
-]
+import plumbum
+from plumbum import cli, cmd
+from plumbum.path.utils import delete
 
-rootpath = os.path.dirname(sys.path[0])
-bazel = local['bazel']
 
-for (package, interfaces) in MOCK_TARGETS:
-    print("Processing " + package)
-    name = os.path.split(package)[1]
-    mockdir = os.path.join(rootpath, package, "mock_" + name)
-    # Remove old mock code.
-    rm("-rf", mockdir)
-    mkdir("-p", mockdir)
-    # Generate the bazel rule to generate the mock.
-    buildscript = """
+def rule_to_file(rule: str) -> (str, str):
+    """
+    Converts the bazel rule name into a pair of paths to mock files. The first
+    path is the mock file in the bazel tree, and the second one is the path in
+    the workspace tree.
+    """
+    if not rule.startswith("//"):
+        raise ValueError("invalid rule name: '%s', must start with //" % rule)
+    if ":" not in rule:
+        raise ValueError("invalid rule name: '%s', must contain :" % rule)
+    package = rule.split(":")[0][2:]
+    return (os.path.join('bazel-bin', package, "mock.go"),
+            os.path.join(package, "mock.go"))
+
+
+def mock_rules() -> List[str]:
+    bazel = plumbum.local['bazel']
+    raw_rules = bazel("query", "filter(\"go_default_mock$\", kind(gomock, //...))")
+    return raw_rules.splitlines()
+
+
+class GoMocks(cli.Application):
+    """
+    Tool to update all mocked Go files in the repository. For adding a new mock
+    please use the `add` subcommand.
+    """
+
+    def main(self):
+        if self.nested_command:
+            return
+        self.update_files()
+
+    def update_files(self):
+        rules = mock_rules()
+        bazel = plumbum.local['bazel']
+        print("building mock files...")
+        bazel("build", rules)
+        for rule in rules:
+            print(rule)
+            bf, wf = rule_to_file(rule)
+            cmd.cp(bf, wf)
+
+
+@GoMocks.subcommand("diff")
+class Diff(GoMocks):
+    """
+    Checks the difference between generated files and the files in the worktree.
+    """
+    def main(self):
+        rules = mock_rules()
+        bazel = plumbum.local['bazel']
+        bazel("build", rules)
+        for rule in rules:
+            bf, wf = rule_to_file(rule)
+            cmd.diff(bf, wf)
+
+
+@GoMocks.subcommand("add")
+class Add(GoMocks):
+    """
+    Adds a new gomock file. Note that for existing mocks the current generation
+    rule is overriden. Thus, to add a single interface to an existing generation
+    rule, all interfaces need to be specified.
+    """
+
+    package = cli.SwitchAttr("--package", str, mandatory=True,
+                             help="The package directory, relatively to the SCION root dir")
+    interfaces = cli.SwitchAttr("--interfaces", str, mandatory=True,
+                                help="The interfaces to mock, separated by comma")
+
+    def main(self):
+        self.package = self.package.rstrip("/")
+        package_path = plumbum.local.path(self.package)
+        name = package_path.name
+        mock_path = plumbum.local.path(package_path / "mock_%s" % name)
+        delete(mock_path // "*.go")
+        buildscript = """
 load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
 gomock(
-    name = "mock_%s",
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = %s,
     library = "//%s:go_default_library",
     package = "mock_%s",
-    interfaces = %s,
-    out = "%s.go",
 )
-""" % (name, package, name, interfaces.split(","), name)
-    with open(os.path.join(mockdir, 'BUILD.bazel'), 'x') as out:
-        out.write(buildscript + '\n')
-    # Execute the rule.
-    (bazel['build', '--incompatible_no_support_tools_in_action_inputs=false',
-           '//' + package + "/mock_" + name])()
-    filename = '%s.go' % name
-    # Remove the rule.
-    rm(os.path.join(mockdir, 'BUILD.bazel'))
-    # Move the generated code to the source tree.
-    cp(os.path.join(rootpath, 'bazel-bin', package, 'mock_' + name, filename), mockdir)
-    chmod("0644", os.path.join(mockdir, filename))
+""" % (self.interfaces.split(","), self.package, name)
+        pathlib.Path(mock_path / "BUILD.bazel").write_text(buildscript)
+        mock_rule = "//%s:go_default_mock" % os.path.join(self.package, "mock_%s" % name)
+        bazel = plumbum.local['bazel']
+        bazel("build", mock_rule)
+        bf, wf = rule_to_file(mock_rule)
+        cmd.cp(bf, wf)
+        cmd.make("gazelle")
+
+
+if __name__ == "__main__":
+    GoMocks.run()

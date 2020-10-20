@@ -1,8 +1,17 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = ["RevCache"],
+    library = "//go/lib/revcache:go_default_library",
+    package = "mock_revcache",
+)
 
 go_library(
     name = "go_default_library",
-    srcs = ["revcache.go"],
+    srcs = ["mock.go"],
     importpath = "github.com/scionproto/scion/go/lib/revcache/mock_revcache",
     visibility = ["//visibility:public"],
     deps = [

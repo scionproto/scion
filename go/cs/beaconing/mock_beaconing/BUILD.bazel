@@ -1,8 +1,24 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = [
+        "BeaconInserter",
+        "BeaconProvider",
+        "BeaconSender",
+        "RPC",
+        "SegmentProvider",
+        "SegmentStore",
+    ],
+    library = "//go/cs/beaconing:go_default_library",
+    package = "mock_beaconing",
+)
 
 go_library(
     name = "go_default_library",
-    srcs = ["beaconing.go"],
+    srcs = ["mock.go"],
     importpath = "github.com/scionproto/scion/go/cs/beaconing/mock_beaconing",
     visibility = ["//visibility:public"],
     deps = [
