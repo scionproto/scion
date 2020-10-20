@@ -35,16 +35,19 @@ func TestConfigSample(t *testing.T) {
 	InitTestConfig(&cfg)
 	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)
 	assert.NoError(t, err)
-	CheckTestConfig(t, &cfg, "sig4")
+	CheckTestConfig(t, &cfg, "gateway")
 }
 
 func InitTestConfig(cfg *config.Config) {
-	envtest.InitTest(nil, &cfg.Metrics, nil, &cfg.Sciond)
+	envtest.InitTest(nil, &cfg.Metrics, nil, &cfg.Daemon)
 	logtest.InitTestLogging(&cfg.Logging)
+	configtest.InitGateway(&cfg.Gateway)
+	configtest.InitTunnel(&cfg.Tunnel)
 }
 
 func CheckTestConfig(t *testing.T, cfg *config.Config, id string) {
-	envtest.CheckTest(t, nil, &cfg.Metrics, nil, &cfg.Sciond, id)
+	envtest.CheckTest(t, nil, &cfg.Metrics, nil, &cfg.Daemon, id)
 	logtest.CheckTestLogging(t, &cfg.Logging, id)
-	configtest.CheckTestSIG(t, &cfg.Sig, id)
+	configtest.CheckGateway(t, &cfg.Gateway)
+	configtest.CheckTunnel(t, &cfg.Tunnel)
 }

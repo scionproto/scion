@@ -15,9 +15,9 @@
 package config
 
 import (
-	"fmt"
 	"io"
 	"net"
+	"strconv"
 
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
@@ -26,18 +26,24 @@ import (
 )
 
 const (
-	DefaultCtrlPort    = 30256
-	DefaultDataPort    = 30056
-	DefaultTunName     = "sig"
-	DefaultTunRTableId = 11
+	DefaultCtrlAddr = ":30256"
+	DefaultDataAddr = ":30056"
+	defaultCtrlPort = 30256
+	defaultDataPort = 30056
+
+	DefaultTrafficPolicyFile = "/share/conf/traffic.policy"
+
+	DefaultTunnelName           = "sig"
+	DefaultTunnelRoutingTableID = 11
 )
 
 type Config struct {
 	Features env.Features
 	Logging  log.Config       `toml:"log,omitempty"`
 	Metrics  env.Metrics      `toml:"metrics,omitempty"`
-	Sciond   env.SCIONDClient `toml:"sciond_connection,omitempty"`
-	Sig      SigConf          `toml:"sig,omitempty"`
+	Daemon   env.SCIONDClient `toml:"sciond_connection,omitempty"`
+	Gateway  Gateway          `toml:"gateway,omitempty"`
+	Tunnel   Tunnel           `toml:"tunnel,omitempty"`
 }
 
 func (cfg *Config) InitDefaults() {
@@ -45,8 +51,9 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
-		&cfg.Sciond,
-		&cfg.Sig,
+		&cfg.Daemon,
+		&cfg.Gateway,
+		&cfg.Tunnel,
 	)
 }
 
@@ -55,80 +62,103 @@ func (cfg *Config) Validate() error {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
-		&cfg.Sciond,
-		&cfg.Sig,
+		&cfg.Daemon,
+		&cfg.Gateway,
+		&cfg.Tunnel,
 	)
 }
 
 func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
-	config.WriteSample(dst, path, config.CtxMap{config.ID: idSample},
+	config.WriteSample(dst, path, config.CtxMap{config.ID: "gateway"},
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
-		&cfg.Sciond,
-		&cfg.Sig,
+		&cfg.Daemon,
+		&cfg.Gateway,
+		&cfg.Tunnel,
 	)
 }
 
-var _ config.Config = (*SigConf)(nil)
+// Gateway holds the gateway specific configuration.
+type Gateway struct {
+	config.NoDefaulter
 
-// SigConf contains the configuration specific to the SIG.
-type SigConf struct {
-	// ID of the SIG (required)
+	// ID of the SIG.
 	ID string `toml:"id,omitempty"`
-	// The SIG config json file. (required)
-	SIGConfig string `toml:"sig_config,omitempty"`
-	// CtrlAddr is the bind IP address for control messages
-	// (optional, default determined based on route to control service)
-	CtrlAddr net.IP `toml:"ctrl_addr,omitempty"`
-	// Control data port, e.g. keepalives. (default DefaultCtrlPort)
-	CtrlPort uint16 `toml:"ctrl_port,omitempty"`
-	// DataAddr is the bind IP address for encapsulated traffic
-	// (optional, defaults to CtrlAddr)
-	DataAddr net.IP `toml:"data_addr,omitempty"`
-	// Encapsulation data port. (default DefaultDataPort)
-	DataPort uint16 `toml:"data_port,omitempty"`
-	// Name of TUN device to create. (default DefaultTunName)
-	Tun string `toml:"tun,omitempty"`
-	// TunRTableId the id of the routing table used in the SIG. (default DefaultTunRTableId)
-	TunRTableId int `toml:"tun_routing_table_id,omitempty"`
-	// IPv4 source address hint to put into routing table.
-	SrcIP4 net.IP `toml:"src_ipv4,omitempty"`
-	// IPv6 source address hint to put into routing table.
-	SrcIP6 net.IP `toml:"src_ipv6,omitempty"`
+	// TrafficPolicy is the file path of the traffic policy file.
+	TrafficPolicy string `toml:"traffic_policy_file,omitempty"`
+	// Control plane address, for probes.
+	CtrlAddr string `toml:"ctrl_addr,omitempty"`
+	// Data plane address, for frames.
+	DataAddr string `toml:"data_addr,omitempty"`
+	// SCION dispatcher path.
+	Dispatcher string `toml:"dispatcher,omitempty"`
 }
 
-// InitDefaults sets the default values to unset values.
-func (cfg *SigConf) InitDefaults() {
-}
-
-// Validate validate the config and returns an error if a value is not valid.
-func (cfg *SigConf) Validate() error {
+func (cfg *Gateway) Validate() error {
 	if cfg.ID == "" {
-		return serrors.New("id must be set!")
+		cfg.ID = "gateway"
 	}
-	if cfg.SIGConfig == "" {
-		return serrors.New("sig_config must be set!")
+	if cfg.TrafficPolicy == "" {
+		return serrors.New("traffic_policy_file must be set")
 	}
-	if cfg.CtrlPort == 0 {
-		cfg.CtrlPort = DefaultCtrlPort
+	cfg.CtrlAddr = defaultAddress(cfg.CtrlAddr, defaultCtrlPort)
+	cfg.DataAddr = defaultAddress(cfg.DataAddr, defaultDataPort)
+
+	return nil
+}
+
+func (cfg *Gateway) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, gatewaySample)
+}
+
+func (cfg *Gateway) ConfigName() string {
+	return "gateway"
+}
+
+// Tunnel holds the tunneling configuration.
+type Tunnel struct {
+	config.NoDefaulter
+
+	// Name is the name of TUN device to create.
+	Name string `toml:"name,omitempty"`
+	// RoutingTableID is the ID of the routing table used in the gateway.
+	RoutingTableID int `toml:"routing_table_id,omitempty"`
+	// SrcIPv4 is the source address int to put into the routing table.
+	SrcIPv4 net.IP `toml:"src_ipv4,omitempty"`
+	// SrcIPv6 is the source address int to put into the routing table.
+	SrcIPv6 net.IP `toml:"src_ipv6,omitempty"`
+}
+
+func (cfg *Tunnel) Validate() error {
+	if cfg.Name == "" {
+		cfg.Name = DefaultTunnelName
 	}
-	if cfg.DataPort == 0 {
-		cfg.DataPort = DefaultDataPort
-	}
-	if cfg.Tun == "" {
-		cfg.Tun = DefaultTunName
-	}
-	if cfg.TunRTableId == 0 {
-		cfg.TunRTableId = DefaultTunRTableId
+	if cfg.RoutingTableID == 0 {
+		cfg.RoutingTableID = DefaultTunnelRoutingTableID
 	}
 	return nil
 }
 
-func (cfg *SigConf) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
-	config.WriteString(dst, fmt.Sprintf(sigSample, ctx[config.ID]))
+func (cfg *Tunnel) Sample(dst io.Writer, path config.Path, ctx config.CtxMap) {
+	config.WriteString(dst, tunnelSample)
 }
 
-func (cfg *SigConf) ConfigName() string {
-	return "sig"
+func (cfg *Tunnel) ConfigName() string {
+	return "tunnel"
+}
+
+// defaultAddress determines the default address. If port is not specified, or
+// is zero, it is set to the default port. If the input is garbage, the output
+// is garbage as well.
+func defaultAddress(input string, defaultPort int) string {
+	host, port, err := net.SplitHostPort(input)
+	switch {
+	case err != nil:
+		return net.JoinHostPort(input, strconv.Itoa(defaultPort))
+	case port == "0", port == "":
+		return net.JoinHostPort(host, strconv.Itoa(defaultPort))
+	default:
+		return input
+	}
 }

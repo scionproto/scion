@@ -18,6 +18,7 @@ package sigcmn
 import (
 	"context"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -32,7 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
-	sigconfig "github.com/scionproto/scion/go/pkg/sig/config"
+	"github.com/scionproto/scion/go/pkg/sig/config"
 )
 
 const (
@@ -56,24 +57,34 @@ var (
 	CtrlConn   *snet.Conn
 )
 
-func Init(cfg sigconfig.SigConf, sdCfg env.SCIONDClient, features env.Features) error {
+func Init(cfg config.Gateway, sdCfg env.SCIONDClient, features env.Features) error {
 	network, sciondConn, resolver, err := initNetwork(cfg, sdCfg, features)
 	if err != nil {
 		return common.NewBasicError("Error creating local SCION Network context", err)
 	}
 
-	ip := cfg.CtrlAddr
-	if len(ip) == 0 || ip.IsUnspecified() {
-		ip, err = findDefaultLocalIP(context.Background(), sciondConn)
+	ctrlIP, ctrlPort, err := splitAddr(cfg.CtrlAddr)
+	if err != nil {
+		return serrors.WrapStr("parsing control address", err, "ctrl_addr", cfg.CtrlAddr)
+	}
+	if len(ctrlIP) == 0 || ctrlIP.IsUnspecified() {
+		ctrlIP, err = findDefaultLocalIP(context.Background(), sciondConn)
 		if err != nil {
 			return serrors.WrapStr("unable to determine default local IP", err)
 		}
 	}
+	dataIP, dataPort, err := splitAddr(cfg.DataAddr)
+	if err != nil {
+		return serrors.WrapStr("parsing data address", err, "data_addr", cfg.DataAddr)
+	}
+	if len(dataIP) == 0 || dataIP.IsUnspecified() {
+		dataIP = ctrlIP
+	}
 
-	CtrlAddr = ip
-	CtrlPort = int(cfg.CtrlPort)
-	DataAddr = ip
-	DataPort = int(cfg.DataPort)
+	CtrlAddr = ctrlIP
+	CtrlPort = ctrlPort
+	DataAddr = dataIP
+	DataPort = dataPort
 	conn, err := network.Listen(context.Background(), "udp",
 		&net.UDPAddr{IP: CtrlAddr, Port: CtrlPort}, addr.SvcSIG)
 	if err != nil {
@@ -87,7 +98,7 @@ func Init(cfg sigconfig.SigConf, sdCfg env.SCIONDClient, features env.Features) 
 	return nil
 }
 
-func initNetwork(cfg sigconfig.SigConf, sdCfg env.SCIONDClient,
+func initNetwork(cfg config.Gateway, sdCfg env.SCIONDClient,
 	features env.Features) (*snet.SCIONNetwork, sciond.Connector, pathmgr.Resolver, error) {
 
 	var err error
@@ -122,13 +133,13 @@ func initNetwork(cfg sigconfig.SigConf, sdCfg env.SCIONDClient,
 	return network, sciondConn, pathResolver, nil
 }
 
-func initFakeSCIOND(cfg sigconfig.SigConf,
+func initFakeSCIOND(cfg config.Gateway,
 	sdCfg env.SCIONDClient, features env.Features) (sciond.Connector, error) {
 
 	return fake.NewFromFile(sdCfg.FakeData)
 }
 
-func initRealSCIOND(cfg sigconfig.SigConf,
+func initRealSCIOND(cfg config.Gateway,
 	sdCfg env.SCIONDClient, features env.Features) (sciond.Connector, error) {
 
 	// TODO(karampok). To be kept until https://github.com/scionproto/scion/issues/3377
@@ -159,6 +170,22 @@ func ValidatePort(desc string, port int) error {
 func GetMgmtAddr() sig_mgmt.Addr {
 	return *sig_mgmt.NewAddr(addr.HostFromIP(CtrlAddr), uint16(CtrlPort),
 		addr.HostFromIP(DataAddr), uint16(DataPort))
+}
+
+func splitAddr(addr string) (net.IP, int, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, 0, err
+	}
+	ip, err := net.ResolveIPAddr("ip", host)
+	if err != nil {
+		return nil, 0, err
+	}
+	p, err := strconv.Atoi(port)
+	if err != nil {
+		return nil, 0, err
+	}
+	return ip.IP, p, nil
 }
 
 // TODO(matzf): this is a simple, hopefully temporary, workaround to not having

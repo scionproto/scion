@@ -1,7 +1,7 @@
-[sig]
+[gateway]
 id = "sig1-ff00_0_110"
-sig_config = "/cfg.json"
-ip = "242.254.100.2"
+traffic_policy_file = "/cfg.json"
+ctrl_addr = "242.254.100.2"
 
 [sciond_connection]
 fake_data = "/fake_sciond.json"

@@ -69,7 +69,7 @@ func realMain() int {
 		return 1
 	}
 	defer log.Flush()
-	defer env.LogAppStopped("SIG", cfg.Sig.ID)
+	defer env.LogAppStopped("SIG", cfg.Gateway.ID)
 	defer log.HandlePanic()
 	if err := cfg.Validate(); err != nil {
 		log.Error("Configuration validation failed", "err", err)
@@ -81,20 +81,20 @@ func realMain() int {
 		log.Error("TUN device initialization failed", "err", err)
 		return 1
 	}
-	if err := sigcmn.Init(cfg.Sig, cfg.Sciond, cfg.Features); err != nil {
+	if err := sigcmn.Init(cfg.Gateway, cfg.Daemon, cfg.Features); err != nil {
 		log.Error("SIG common initialization failed", "err", err)
 		return 1
 	}
 	env.SetupEnv(
 		func() {
-			success := loadConfig(cfg.Sig.SIGConfig)
+			success := loadConfig(cfg.Gateway.TrafficPolicy)
 			// Errors already logged in loadConfig
 			log.Info("reloadOnSIGHUP: reload done", "success", success)
 		},
 	)
 	sigdisp.Init(sigcmn.CtrlConn, false)
 	// Parse sig config
-	if loadConfig(cfg.Sig.SIGConfig) != true {
+	if loadConfig(cfg.Gateway.TrafficPolicy) != true {
 		log.Error("SIG configuration loading failed")
 		return 1
 	}
@@ -112,7 +112,7 @@ func realMain() int {
 		"config":    service.NewConfigHandler(cfg),
 		"log/level": log.ConsoleLevel.ServeHTTP,
 	}
-	if err := statusPages.Register(http.DefaultServeMux, cfg.Sig.ID); err != nil {
+	if err := statusPages.Register(http.DefaultServeMux, cfg.Gateway.ID); err != nil {
 		log.Error("registering status pages", "err", err)
 		return 1
 	}
@@ -136,32 +136,33 @@ func setupBasic() error {
 	if err := log.Setup(cfg.Logging); err != nil {
 		return serrors.WrapStr("Failed to initialize logging", err)
 	}
-	prom.ExportElementID(cfg.Sig.ID)
-	return env.LogAppStarted("SIG", cfg.Sig.ID)
+	prom.ExportElementID(cfg.Gateway.ID)
+	return env.LogAppStarted("SIG", cfg.Gateway.ID)
 }
 
 func setupTun() (io.ReadWriteCloser, error) {
 	if err := checkPerms(); err != nil {
 		return nil, serrors.WrapStr("Permissions checks failed", err)
 	}
-	tunLink, tunIO, err := xnet.ConnectTun(cfg.Sig.Tun)
+	tunLink, tunIO, err := xnet.ConnectTun(cfg.Tunnel.Name)
 	if err != nil {
 		return nil, err
 	}
-	src := cfg.Sig.SrcIP4
+	src := cfg.Tunnel.SrcIPv4
 	if len(src) == 0 && sigcmn.CtrlAddr.To4() != nil {
 		src = sigcmn.CtrlAddr
 	}
-	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV4Net, src); err != nil {
+	if err = xnet.AddRoute(cfg.Tunnel.RoutingTableID, tunLink, sigcmn.DefV4Net, src); err != nil {
 		return nil,
 			common.NewBasicError("Unable to add default IPv4 route to SIG routing table", err)
 	}
-	src = cfg.Sig.SrcIP6
+	src = cfg.Tunnel.SrcIPv6
 	if len(src) == 0 && sigcmn.CtrlAddr.To16() != nil && sigcmn.CtrlAddr.To4() == nil {
 		src = sigcmn.CtrlAddr
 	}
 	if len(src) != 0 {
-		if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV6Net, src); err != nil {
+		err = xnet.AddRoute(cfg.Tunnel.RoutingTableID, tunLink, sigcmn.DefV6Net, src)
+		if err != nil {
 			return nil,
 				common.NewBasicError("Unable to add default IPv6 route to SIG routing table", err)
 		}

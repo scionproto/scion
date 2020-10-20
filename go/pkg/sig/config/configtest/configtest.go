@@ -15,7 +15,6 @@
 package configtest
 
 import (
-	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,12 +22,21 @@ import (
 	"github.com/scionproto/scion/go/pkg/sig/config"
 )
 
-func CheckTestSIG(t *testing.T, cfg *config.SigConf, id string) {
-	assert.Equal(t, id, cfg.ID)
-	assert.Equal(t, "/etc/scion/sig/sig.json", cfg.SIGConfig)
-	assert.Equal(t, net.ParseIP("192.0.2.100"), cfg.CtrlAddr)
-	assert.Equal(t, config.DefaultCtrlPort, int(cfg.CtrlPort))
-	assert.Equal(t, config.DefaultDataPort, int(cfg.DataPort))
-	assert.Equal(t, config.DefaultTunName, cfg.Tun)
-	assert.Equal(t, config.DefaultTunRTableId, cfg.TunRTableId)
+func InitGateway(cfg *config.Gateway) {
+	cfg.Dispatcher = "garbage"
+}
+
+func CheckGateway(t *testing.T, cfg *config.Gateway) {
+	assert.Equal(t, "gateway", cfg.ID)
+	assert.Equal(t, config.DefaultTrafficPolicyFile, cfg.TrafficPolicy)
+	assert.Equal(t, config.DefaultCtrlAddr, cfg.CtrlAddr)
+	assert.Equal(t, config.DefaultDataAddr, cfg.DataAddr)
+	assert.Empty(t, cfg.Dispatcher)
+}
+
+func InitTunnel(cfg *config.Tunnel) {}
+
+func CheckTunnel(t *testing.T, cfg *config.Tunnel) {
+	assert.Equal(t, config.DefaultTunnelName, cfg.Name)
+	assert.Equal(t, config.DefaultTunnelRoutingTableID, cfg.RoutingTableID)
 }
