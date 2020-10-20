@@ -14,31 +14,45 @@
 
 package config
 
-const idSample = "sig4"
+const gatewaySample = `
+# ID of the gateway (default "gateway")
+id = "gateway"
 
-const sigSample = `
-# ID of the SIG. (required)
-id = "%s"
+# The traffic policy file. If not set or empty, the gateway attempts to read the
+# policy from the default location. If set, the gateway will read the policy from
+# the specified location. If the file does not exist, the gateway will return an
+# error.
+# (default "/share/conf/traffic.policy")
+traffic_policy_file = "/share/conf/traffic.policy"
 
-# The SIG config json file. (required)
-sig_config = "/etc/scion/sig/sig.json"
+# The bind address for control messages. If the host part of the address is
+# empty, the gateway infers the address based on the route to the control
+# service. If the port is empty, or zero, the default port 30256 is used.
+#
+# (default ":30256")
+#
+# Examples:
+#  ""                  -> infers the IP and uses default port.
+#  ":30299"            -> infers the IP and uses the custom port 30299
+#  "192.0.2.100"       -> use the IP and use the default port (192.0.2.100:30256)
+#  "192.0.2.100:30299" -> use the address directly
+ctrl_addr = ":30256"
 
-# The bind IP address for control messages.
-# (optional, default determined based on route to control service)
-ctrl_addr = "192.0.2.100"
+# The bind address for encapsulated traffic. If the IP is not specified, the IP
+# from the control address is used. If the port is empty, or zero, the default
+# port 30056 is used.
+#
+# (default ":30056")
+data_addr = ":30056"
 
-# Control data port, e.g. keepalives. (default 30256)
-ctrl_port = 30256
+# Custom SCION dispatcher path (default "")
+dispatcher = ""
+`
 
-# The bind IP address for encapsulated traffic (optional, defaults to ctrl_addr)
-data_addr = "192.0.2.101"
-
-# Encapsulated data port. (default 30056)
-data_port = 30056
-
+const tunnelSample = `
 # Name of TUN device to create. (default "sig")
-tun = "sig"
+name = "sig"
 
-# Id of the routing table. (default 11)
-tun_routing_table_id = 11
+# The routing table ID. (default 11)
+routing_table_id = 11
 `

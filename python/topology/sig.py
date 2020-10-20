@@ -150,9 +150,9 @@ class SIGGenerator(object):
         sciond_ip = sciond_net[ipv]
 
         sig_conf = {
-            'sig': {
+            'gateway': {
                 'id': name,
-                'sig_config': 'conf/sig.json',
+                'traffic_policy_file': 'conf/sig.json',
                 'ctrl_addr': str(net[ipv]),
             },
             'sciond_connection': {

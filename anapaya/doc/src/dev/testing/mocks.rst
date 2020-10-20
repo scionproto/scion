@@ -1,1 +1,0 @@
-../../../../../doc/testing/mocks.rst
