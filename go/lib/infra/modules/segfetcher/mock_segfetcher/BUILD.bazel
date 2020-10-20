@@ -1,8 +1,25 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = [
+        "DstProvider",
+        "ReplyHandler",
+        "Requester",
+        "Resolver",
+        "RPC",
+        "Splitter",
+        "LocalInfo",
+    ],
+    library = "//go/lib/infra/modules/segfetcher:go_default_library",
+    package = "mock_segfetcher",
+)
 
 go_library(
     name = "go_default_library",
-    srcs = ["segfetcher.go"],
+    srcs = ["mock.go"],
     importpath = "github.com/scionproto/scion/go/lib/infra/modules/segfetcher/mock_segfetcher",
     visibility = ["//visibility:public"],
     deps = [

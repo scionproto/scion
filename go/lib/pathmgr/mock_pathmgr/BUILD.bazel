@@ -1,8 +1,21 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = [
+        "Policy",
+        "Querier",
+        "Resolver",
+    ],
+    library = "//go/lib/pathmgr:go_default_library",
+    package = "mock_pathmgr",
+)
 
 go_library(
     name = "go_default_library",
-    srcs = ["pathmgr.go"],
+    srcs = ["mock.go"],
     importpath = "github.com/scionproto/scion/go/lib/pathmgr/mock_pathmgr",
     visibility = ["//visibility:public"],
     deps = [

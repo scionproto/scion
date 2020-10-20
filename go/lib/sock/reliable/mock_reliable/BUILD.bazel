@@ -1,8 +1,17 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = ["Dispatcher"],
+    library = "//go/lib/sock/reliable:go_default_library",
+    package = "mock_reliable",
+)
 
 go_library(
     name = "go_default_library",
-    srcs = ["reliable.go"],
+    srcs = ["mock.go"],
     importpath = "github.com/scionproto/scion/go/lib/sock/reliable/mock_reliable",
     visibility = ["//visibility:public"],
     deps = [

@@ -1,8 +1,20 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = [
+        "Storage",
+        "Verifier",
+    ],
+    library = "//go/lib/infra/modules/seghandler:go_default_library",
+    package = "mock_seghandler",
+)
 
 go_library(
     name = "go_default_library",
-    srcs = ["seghandler.go"],
+    srcs = ["mock.go"],
     importpath = "github.com/scionproto/scion/go/lib/infra/modules/seghandler/mock_seghandler",
     visibility = ["//visibility:public"],
     deps = [

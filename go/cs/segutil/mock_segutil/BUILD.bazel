@@ -1,8 +1,17 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = ["Policy"],
+    library = "//go/cs/segutil:go_default_library",
+    package = "mock_segutil",
+)
 
 go_library(
     name = "go_default_library",
-    srcs = ["segutil.go"],
+    srcs = ["mock.go"],
     importpath = "github.com/scionproto/scion/go/cs/segutil/mock_segutil",
     visibility = ["//visibility:public"],
     deps = [

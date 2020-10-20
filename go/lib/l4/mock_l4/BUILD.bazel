@@ -1,8 +1,17 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = ["L4Header"],
+    library = "//go/lib/l4:go_default_library",
+    package = "mock_l4",
+)
 
 go_library(
     name = "go_default_library",
-    srcs = ["l4.go"],
+    srcs = ["mock.go"],
     importpath = "github.com/scionproto/scion/go/lib/l4/mock_l4",
     visibility = ["//visibility:public"],
     deps = [

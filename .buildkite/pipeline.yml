@@ -46,6 +46,7 @@ steps:
       - mkdir -p /tmp/test-artifacts/licenses
       - ./tools/licenses.sh /tmp/test-artifacts/licenses $BUILDKITE_PIPELINE_SLUG
       - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
+      - ./tools/gomocks diff
     timeout_in_minutes: 15
     key: check_generated
     retry:
