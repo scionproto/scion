@@ -28,6 +28,13 @@ stop_infra() {
     ./scion.sh stop
 }
 
+build_binaries() {
+    rm bin/*
+    bazel build //:scion //:scion-ci
+    tar -kxf bazel-bin/scion.tar -C bin
+    tar -kxf bazel-bin/scion-ci.tar -C bin
+}
+
 build_docker_tester() {
     make -C docker test
 }
@@ -52,7 +59,7 @@ global_setup() {
     run_command stop_infra ${out_dir:+$out_dir/global_setup_pre_clean.out}
     find logs -mindepth 1 -maxdepth 1 -not -path '*/\.*' -exec rm -r {} +
     print_green "[-->-------]" "Building local code"
-    run_command make ${out_dir:+$out_dir/global_setup_make.out}
+    run_command build_binaries ${out_dir:+$out_dir/global_setup_make.out}
     print_green "[--->------]" "Building per-app docker images"
     run_command build_docker_perapp ${out_dir:+$out_dir/global_setup_docker_perapp.out}
     print_green "[---->-----]" "Building tester docker images"
