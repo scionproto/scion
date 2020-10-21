@@ -31,7 +31,7 @@ steps:
     command:
       - mkdir -p /tmp/test-artifacts
       - cp go.mod go.sum go_deps.bzl /tmp/test-artifacts/
-      - make godeps -B
+      - make go_deps.bzl -B
       - bazel-${BUILDKITE_PIPELINE_SLUG}/external/go_sdk/bin/go mod tidy
       - diff -u /tmp/test-artifacts/go.mod go.mod
       - diff -u /tmp/test-artifacts/go.sum go.sum
