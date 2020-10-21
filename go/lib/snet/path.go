@@ -119,10 +119,7 @@ func (p *partialPath) UnderlayNextHop() *net.UDPAddr {
 }
 
 func (p *partialPath) Path() spath.Path {
-	return spath.Path{
-		Raw:  append(p.spath.Raw[:0:0], p.spath.Raw...),
-		Type: p.spath.Type,
-	}
+	return p.spath.Copy()
 }
 
 func (p *partialPath) Interfaces() []PathInterface {

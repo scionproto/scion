@@ -57,10 +57,7 @@ func (p Path) UnderlayNextHop() *net.UDPAddr {
 }
 
 func (p Path) Path() spath.Path {
-	return spath.Path{
-		Raw:  append(p.SPath.Raw[:0:0], p.SPath.Raw...),
-		Type: p.SPath.Type,
-	}
+	return p.SPath.Copy()
 }
 
 func (p Path) Interfaces() []snet.PathInterface {
