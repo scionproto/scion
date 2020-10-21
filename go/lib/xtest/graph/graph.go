@@ -523,16 +523,19 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 			XoverIntra: make(map[common.IFIDType]time.Duration),
 			PeerInter:  make(map[common.IFIDType]time.Duration),
 		}
-		if inIF != 0 && outIF != 0 {
+		if inIF != 0 {
 			latency.Intra = g.Latency(inIF, outIF)
 		}
 		latency.Inter = g.Latency(outIF, g.links[outIF])
 		for ifid := range as.IFIDs {
-			if g.isPeer[ifid] || ifid > outIF {
+			if ifid != outIF && ifid != inIF {
+				// Note: the test graph does not distinguish between parent/child or core interfaces.
+				// Otherwise, we could skip the parent interfaces and half of the
+				// sibling interfaces here.
 				latency.XoverIntra[ifid] = g.Latency(ifid, outIF)
-			}
-			if g.isPeer[ifid] {
-				latency.PeerInter[ifid] = g.Latency(ifid, g.links[ifid])
+				if g.isPeer[ifid] {
+					latency.PeerInter[ifid] = g.Latency(ifid, g.links[ifid])
+				}
 			}
 		}
 	}
@@ -553,16 +556,16 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 			XoverIntra: make(map[common.IFIDType]uint32),
 			PeerInter:  make(map[common.IFIDType]uint32),
 		}
-		if inIF != 0 && outIF != 0 {
+		if inIF != 0 {
 			bandwidth.Intra = g.Bandwidth(inIF, outIF)
 		}
 		bandwidth.Inter = g.Bandwidth(outIF, g.links[outIF])
 		for ifid := range as.IFIDs {
-			if g.isPeer[ifid] || ifid > outIF {
+			if ifid != outIF && ifid != inIF {
 				bandwidth.XoverIntra[ifid] = g.Bandwidth(ifid, outIF)
-			}
-			if g.isPeer[ifid] {
-				bandwidth.PeerInter[ifid] = g.Bandwidth(ifid, g.links[ifid])
+				if g.isPeer[ifid] {
+					bandwidth.PeerInter[ifid] = g.Bandwidth(ifid, g.links[ifid])
+				}
 			}
 		}
 	}
@@ -576,7 +579,9 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 			internalHops.Hops = g.InternalHops(inIF, outIF)
 		}
 		for ifid := range as.IFIDs {
-			internalHops.XoverHops[ifid] = g.InternalHops(ifid, outIF)
+			if ifid != outIF && ifid != inIF {
+				internalHops.XoverHops[ifid] = g.InternalHops(ifid, outIF)
+			}
 		}
 	}
 
