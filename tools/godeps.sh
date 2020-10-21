@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This script uses gazelle to generate go_deps.bzl from go.mod.
-# You don't need to invoke this directly, just run `make godeps`.
+# You don't need to invoke this directly, just run `make go_deps.bzl`.
 
 set -e
 
