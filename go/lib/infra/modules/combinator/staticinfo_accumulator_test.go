@@ -15,12 +15,14 @@
 package combinator
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -58,6 +60,11 @@ func TestMetadataLatency(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			metadata := collectMetadata(tc.Path, tc.ASEntries)
 			checkLatency(t, g, tc.Path, metadata.Latency)
+			checkGeo(t, g, tc.Path, metadata.Geo)
+			checkLinkType(t, g, tc.Path, metadata.LinkType)
+			checkBandwidth(t, g, tc.Path, metadata.Bandwidth)
+			checkInternalHops(t, g, tc.Path, metadata.InternalHops)
+			checkNotes(t, g, tc.Path, metadata.Notes)
 		})
 	}
 }
@@ -66,16 +73,106 @@ func checkLatency(t *testing.T, g *graph.Graph,
 	path []snet.PathInterface, latency []time.Duration) {
 
 	if len(path) == 0 {
-		assert.Equal(t, len(latency), 0)
+		assert.Equal(t, 0, len(latency))
 		return
 	}
 
-	assert.Equal(t, len(latency), len(path)-1)
+	expected := []time.Duration{}
 	for i := 0; i < len(path)-1; i++ {
 		ifid_a := path[i].ID
 		ifid_b := path[i+1].ID
-		assert.Equal(t, g.Latency(ifid_a, ifid_b), latency[i])
+		expected = append(expected, g.Latency(ifid_a, ifid_b))
 	}
+	assert.Equal(t, expected, latency)
+}
+
+func checkBandwidth(t *testing.T, g *graph.Graph,
+	path []snet.PathInterface, bandwidth []uint32) {
+
+	if len(path) == 0 {
+		assert.Equal(t, 0, len(bandwidth))
+		return
+	}
+
+	expected := []uint32{}
+	for i := 0; i < len(path)-1; i++ {
+		ifid_a := path[i].ID
+		ifid_b := path[i+1].ID
+		expected = append(expected, g.Bandwidth(ifid_a, ifid_b))
+	}
+	assert.Equal(t, expected, bandwidth)
+}
+
+func checkInternalHops(t *testing.T, g *graph.Graph,
+	path []snet.PathInterface, internalHops []uint32) {
+
+	if len(path) == 0 {
+		assert.Equal(t, 0, len(internalHops))
+		return
+	}
+
+	expected := []uint32{}
+	for i := 1; i < len(path)-1; i += 2 {
+		ifid_a := path[i].ID
+		ifid_b := path[i+1].ID
+		expected = append(expected, g.InternalHops(ifid_a, ifid_b))
+	}
+	assert.Equal(t, expected, internalHops)
+}
+
+func checkGeo(t *testing.T, g *graph.Graph, path []snet.PathInterface, geos []GeoCoordinates) {
+	if len(path) == 0 {
+		assert.Equal(t, 0, len(geos))
+		return
+	}
+
+	expected := []GeoCoordinates{}
+	for _, iface := range path {
+		e := g.GeoCoordinates(iface.ID)
+		expected = append(expected, GeoCoordinates{
+			Longitude: e.Longitude,
+			Latitude:  e.Latitude,
+			Address:   e.Address})
+	}
+	assert.Equal(t, expected, geos)
+}
+
+func checkLinkType(t *testing.T, g *graph.Graph,
+	path []snet.PathInterface, linkTypes []LinkType) {
+
+	if len(path) == 0 {
+		assert.Equal(t, 0, len(linkTypes))
+		return
+	}
+
+	expected := []LinkType{}
+	for i := 0; i < len(path); i += 2 {
+		ifid_a := path[i].ID
+		ifid_b := path[i+1].ID
+		expected = append(expected, linkTypeFromSeg(g.LinkType(ifid_a, ifid_b)))
+	}
+	assert.Equal(t, expected, linkTypes)
+
+}
+func checkNotes(t *testing.T, g *graph.Graph, path []snet.PathInterface, notes []string) {
+	if len(path) == 0 {
+		assert.Equal(t, 0, len(notes))
+		return
+	}
+
+	// (very) explicitly gather ASes from path interface list
+	ases := []addr.IA{}
+	ases = append(ases, path[0].IA)
+	for i := 1; i < len(path)-1; i += 2 {
+		ases = append(ases, path[i].IA)
+	}
+	ases = append(ases, path[len(path)-1].IA)
+
+	expected := []string{}
+	for _, ia := range ases {
+		expected = append(expected, fmt.Sprintf("Note %s", ia))
+	}
+	assert.Equal(t, expected, notes)
 }
 
 func concatASEntries(up, core, down []seg.ASEntry) []seg.ASEntry {

@@ -49,9 +49,9 @@ type GeoCoordinates struct {
 type LinkType uint8
 
 const (
-	LinkTypeDirect   = 0
-	LinkTypeMultihop = 1
-	LinkTypeOpennet  = 2
+	LinkTypeDirect = iota
+	LinkTypeMultihop
+	LinkTypeOpennet
 )
 
 type LinkTypeInfo map[common.IFIDType]LinkType
