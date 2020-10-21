@@ -86,7 +86,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
 					IA:   addr.IA{},
-					Path: testPath(localIF),
+					Path: spath.Path{},
 				}
 			},
 			Assertion: assert.NoError,
@@ -110,7 +110,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
 					IA:   addr.IA{},
-					Path: testPath(12),
+					Path: spath.Path{},
 				}
 			},
 			Assertion: assert.Error,
@@ -136,7 +136,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
 					IA:   addr.IA{},
-					Path: testPath(42),
+					Path: spath.Path{},
 				}
 			},
 			Assertion: assert.Error,
@@ -165,7 +165,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
 					IA:   addr.IA{},
-					Path: testPath(localIF),
+					Path: spath.Path{},
 				}
 			},
 			Assertion: assert.Error,
@@ -193,7 +193,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
 					IA:   addr.IA{},
-					Path: testPath(localIF),
+					Path: spath.Path{},
 				}
 			},
 			Assertion: assert.Error,
@@ -218,7 +218,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
 					IA:   addr.IA{},
-					Path: testPath(localIF),
+					Path: spath.Path{},
 				}
 			},
 			Assertion: assert.Error,
@@ -246,7 +246,7 @@ func TestHandlerHandleBeacon(t *testing.T) {
 			Peer: func() *snet.UDPAddr {
 				return &snet.UDPAddr{
 					IA:   addr.IA{},
-					Path: testPath(localIF),
+					Path: spath.Path{},
 				}
 			},
 			Assertion: assert.Error,
@@ -278,10 +278,6 @@ func testSegment(g *graph.Graph, ifids []common.IFIDType) *seg.PathSegment {
 	pseg := g.Beacon(ifids)
 	pseg.ASEntries = pseg.ASEntries[:len(pseg.ASEntries)-1]
 	return pseg
-}
-
-func testPath(ingressIfid common.IFIDType) spath.Path {
-	return spath.Path{}
 }
 
 func testInterfaces(topo topology.Topology) *ifstate.Interfaces {

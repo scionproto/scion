@@ -202,10 +202,7 @@ func (h *BaseHandler) Handle(request *Request) (Result, error) {
 
 func (h *BaseHandler) reversePath(path spath.Path) (spath.Path, error) {
 	// Reverse copy to not modify input packet
-	path = spath.Path{
-		Raw:  append(path.Raw[:0:0], path.Raw...),
-		Type: path.Type,
-	}
+	path = path.Copy()
 	if err := path.Reverse(); err != nil {
 		return path, err
 	}
