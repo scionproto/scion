@@ -53,10 +53,17 @@ cmd_topology() {
     fi
 }
 
+build_binaries() {
+    rm bin/*
+    bazel build //:scion //:scion-ci
+    tar -kxf bazel-bin/scion.tar -C bin
+    tar -kxf bazel-bin/scion-ci.tar -C bin
+}
+
 cmd_run() {
     if [ "$1" != "nobuild" ]; then
         echo "Compiling..."
-        make -s || exit 1
+        build_binaries || exit 1
         if is_docker_be; then
             echo "Build perapp images"
             ./tools/quiet make -C docker prod
