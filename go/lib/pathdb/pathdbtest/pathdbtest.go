@@ -32,7 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -338,7 +338,7 @@ func testDeleteExpired(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.Read
 	ts1 := uint32(10)
 	ts2 := uint32(20)
 	// defaultExp is the default expiry of the hopfields.
-	defaultExp := spath.DefaultHopFExpiry.ToDuration()
+	defaultExp := path.ExpTimeToDuration(63)
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
 	pseg1, _ := AllocPathSegment(t, ctrl, ifs1, ts1)
@@ -781,7 +781,7 @@ func AllocPathSegment(t *testing.T, ctrl *gomock.Controller, ifs []uint64,
 		hops = append(hops, seg.HopField{
 			ConsIngress: uint16(ifs[2*i]),
 			ConsEgress:  uint16(ifs[2*i+1]),
-			ExpTime:     uint8(spath.DefaultHopFExpiry),
+			ExpTime:     63,
 			MAC:         []byte{1, 2, 3, 4, 5, 6},
 		})
 	}

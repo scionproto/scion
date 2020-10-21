@@ -25,8 +25,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -163,7 +163,10 @@ func TestDefaultHandler(t *testing.T) {
 				Description: "path cannot be reversed",
 				InputPacket: &snet.Packet{
 					PacketInfo: snet.PacketInfo{
-						Path:    spath.New(common.RawBytes{0x00, 0x01, 0x02, 0x03}),
+						Path: spath.Path{
+							Raw:  []byte{0x00, 0x01, 0x02, 0x03},
+							Type: slayers.PathTypeSCION,
+						},
 						Payload: snet.UDPPayload{},
 					},
 				},

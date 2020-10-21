@@ -31,7 +31,7 @@ type Sig struct {
 	EncapL4Port int
 }
 
-func (s *Sig) CtrlSnetAddr(path *spath.Path, nextHop *net.UDPAddr) net.Addr {
+func (s *Sig) CtrlSnetAddr(path spath.Path, nextHop *net.UDPAddr) net.Addr {
 	switch s.Host.(type) {
 	case addr.HostSVC:
 		return &snet.SVCAddr{

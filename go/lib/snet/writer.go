@@ -49,7 +49,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	var (
 		dst     SCIONAddress
 		port    int
-		path    *spath.Path
+		path    spath.Path
 		nextHop *net.UDPAddr
 	)
 

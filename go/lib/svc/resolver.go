@@ -168,13 +168,8 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 		return nil, common.NewBasicError(errDecode, err)
 	}
 
-	if replyPacket.Path != nil {
-		if err := replyPacket.Path.Reverse(); err != nil {
-			return nil, common.NewBasicError(errBadPath, err)
-		}
-		if err := replyPacket.Path.InitOffsets(); err != nil {
-			return nil, common.NewBasicError(errBadPath, err)
-		}
+	if err := replyPacket.Path.Reverse(); err != nil {
+		return nil, common.NewBasicError(errBadPath, err)
 	}
 	reply.ReturnPath = &path{
 		spath:       replyPacket.Path,
@@ -185,7 +180,7 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 }
 
 type path struct {
-	spath       *spath.Path
+	spath       spath.Path
 	underlay    *net.UDPAddr
 	destination addr.IA
 }
@@ -194,7 +189,7 @@ func (p *path) UnderlayNextHop() *net.UDPAddr {
 	return p.underlay
 }
 
-func (p *path) Path() *spath.Path {
+func (p *path) Path() spath.Path {
 	return p.spath
 }
 

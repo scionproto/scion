@@ -200,13 +200,11 @@ func (h *BaseHandler) Handle(request *Request) (Result, error) {
 	return Handled, nil
 }
 
-func (h *BaseHandler) reversePath(path *spath.Path) (*spath.Path, error) {
-	if !path.IsEmpty() {
-		// Reverse copy to not modify input packet
-		path = path.Copy()
-		if err := path.Reverse(); err != nil {
-			return path, err
-		}
+func (h *BaseHandler) reversePath(path spath.Path) (spath.Path, error) {
+	// Reverse copy to not modify input packet
+	path = path.Copy()
+	if err := path.Reverse(); err != nil {
+		return path, err
 	}
 	return path, nil
 }

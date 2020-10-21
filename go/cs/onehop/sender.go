@@ -83,7 +83,7 @@ func (s *Sender) CreatePkt(msg *Msg) (*snet.Packet, error) {
 				IA:   s.IA,
 				Host: addr.HostFromIP(s.Addr.IP),
 			},
-			Path: (*spath.Path)(path),
+			Path: (spath.Path)(path),
 			Payload: snet.UDPPayload{
 				SrcPort: uint16(s.Addr.Port),
 				Payload: msg.Pld,
@@ -94,15 +94,15 @@ func (s *Sender) CreatePkt(msg *Msg) (*snet.Packet, error) {
 }
 
 // CreatePath creates the one-hop path and initializes it.
-func (s *Sender) CreatePath(ifid common.IFIDType, now time.Time) (*Path, error) {
+func (s *Sender) CreatePath(ifid common.IFIDType, now time.Time) (Path, error) {
 	s.macMtx.Lock()
 	defer s.macMtx.Unlock()
 
-	path, err := spath.NewOneHopV2(s.IA.I, ifid, now, spath.DefaultHopFExpiry, s.MAC)
+	path, err := spath.NewOneHop(s.IA.I, uint16(ifid), now, 63, s.MAC)
 	if err != nil {
-		return nil, err
+		return Path{}, err
 	}
-	return (*Path)(path), nil
+	return (Path)(path), nil
 }
 
 // RPC is used to send beacons.
@@ -130,7 +130,7 @@ func (s *BeaconSender) Send(ctx context.Context, bseg *seg.PathSegment, ia addr.
 
 	svc := &snet.SVCAddr{
 		IA:      ia,
-		Path:    (*spath.Path)(path),
+		Path:    (spath.Path)(path),
 		NextHop: ov,
 		SVC:     addr.SvcCS,
 	}

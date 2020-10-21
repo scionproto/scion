@@ -81,7 +81,6 @@ func TestPaths(t *testing.T) {
 							Port: 80,
 						},
 						JSONExpirationTimestamp: 7200,
-						HeaderV2:                false,
 					},
 				},
 			},
@@ -98,7 +97,6 @@ func TestPaths(t *testing.T) {
 							Port: 80,
 						},
 						JSONExpirationTimestamp: 10800,
-						HeaderV2:                true,
 					},
 				},
 			},
@@ -118,7 +116,7 @@ func TestPaths(t *testing.T) {
 	assert.NotEqual(t, "", string(snet.Fingerprint(paths[0])))
 	assert.Equal(t, snet.Fingerprint(script.Entries[0].Paths[0]), snet.Fingerprint(paths[0]))
 	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 1}, Port: 80}, paths[0].UnderlayNextHop())
-	assert.Equal(t, fake.DummyPath(false), paths[0].Path())
+	assert.Equal(t, fake.DummyPath(), paths[0].Path())
 	assert.Equal(t, 2, len(paths[0].Interfaces()))
 	assert.Equal(t, paths[0].Destination(), paths[0].Interfaces()[1].IA)
 	assert.Equal(t, xtest.MustParseIA("1-ff00:0:1"), paths[0].Destination())
@@ -141,7 +139,7 @@ func TestPaths(t *testing.T) {
 	assert.NotEqual(t, "", string(snet.Fingerprint(paths[0])))
 	assert.Equal(t, snet.Fingerprint(script.Entries[1].Paths[0]), snet.Fingerprint(paths[0]))
 	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 2}, Port: 80}, paths[0].UnderlayNextHop())
-	assert.Equal(t, fake.DummyPath(true), paths[0].Path())
+	assert.Equal(t, fake.DummyPath(), paths[0].Path())
 	assert.Equal(t, 2, len(paths[0].Interfaces()))
 	assert.Equal(t, paths[0].Destination(), paths[0].Interfaces()[1].IA)
 	assert.Equal(t, xtest.MustParseIA("2-ff00:0:2"), paths[0].Destination())

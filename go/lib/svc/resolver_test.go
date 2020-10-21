@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/svc"
 	"github.com/scionproto/scion/go/lib/svc/mock_svc"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -43,7 +44,7 @@ func TestResolver(t *testing.T) {
 	srcIA := xtest.MustParseIA("1-ff00:0:1")
 	dstIA := xtest.MustParseIA("1-ff00:0:2")
 	mockPath := mock_snet.NewMockPath(ctrl)
-	mockPath.EXPECT().Path().Return(nil).AnyTimes()
+	mockPath.EXPECT().Path().Return(spath.Path{}).AnyTimes()
 	mockPath.EXPECT().UnderlayNextHop().Return(nil).AnyTimes()
 	mockPath.EXPECT().Destination().Return(dstIA).AnyTimes()
 

@@ -30,7 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/util"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
@@ -213,7 +213,7 @@ func (ps *PathSegment) MaxExpiry() time.Time {
 // MinExpiry returns the minimum expiry of all hop fields.
 // Assumes segment is validated.
 func (ps *PathSegment) MinExpiry() time.Time {
-	return ps.expiry(spath.MaxTTL*time.Second, func(hfTtl time.Duration, ttl time.Duration) bool {
+	return ps.expiry(path.MaxTTL*time.Second, func(hfTtl time.Duration, ttl time.Duration) bool {
 		return hfTtl < ttl
 	})
 }
@@ -223,12 +223,12 @@ func (ps *PathSegment) expiry(initTTL time.Duration,
 
 	ttl := initTTL
 	for _, asEntry := range ps.ASEntries {
-		hfTTL := spath.ExpTimeType(asEntry.HopEntry.HopField.ExpTime).ToDuration()
+		hfTTL := path.ExpTimeToDuration(asEntry.HopEntry.HopField.ExpTime)
 		if compare(hfTTL, ttl) {
 			ttl = hfTTL
 		}
 		for _, peer := range asEntry.PeerEntries {
-			hfTTL := spath.ExpTimeType(peer.HopField.ExpTime).ToDuration()
+			hfTTL := path.ExpTimeToDuration(peer.HopField.ExpTime)
 			if compare(hfTTL, ttl) {
 				ttl = hfTTL
 			}

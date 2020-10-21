@@ -42,7 +42,6 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/underlay/conn"
 	underlayconn "github.com/scionproto/scion/go/lib/underlay/conn"
@@ -777,7 +776,7 @@ func (p *scionPacketProcessor) parsePath() (processResult, error) {
 
 func (p *scionPacketProcessor) validateHopExpiry() (processResult, error) {
 	expiration := util.SecsToTime(p.infoField.Timestamp).
-		Add(spath.ExpTimeType(p.hopField.ExpTime).ToDuration())
+		Add(path.ExpTimeToDuration(p.hopField.ExpTime))
 	expired := expiration.Before(time.Now())
 	if !expired {
 		return processResult{}, nil

@@ -144,11 +144,9 @@ func (s server) run() {
 		}
 		log.Debug(fmt.Sprintf("Ping received from %s, sending pong.", p.Source))
 		// reverse path
-		if p.Path != nil {
-			if err := p.Path.Reverse(); err != nil {
-				log.Debug(fmt.Sprintf("Error reversing path, err = %v", err))
-				continue
-			}
+		if err := p.Path.Reverse(); err != nil {
+			log.Debug(fmt.Sprintf("Error reversing path, err = %v", err))
+			continue
 		}
 		// Send pong
 		if err := conn.WriteTo(&p, &ov); err != nil {

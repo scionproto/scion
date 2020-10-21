@@ -30,7 +30,7 @@ var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-[\d:A-Fa-f]+),(?P<host>.+)$`)
 // UDPAddr to be used when UDP host.
 type UDPAddr struct {
 	IA      addr.IA
-	Path    *spath.Path
+	Path    spath.Path
 	NextHop *net.UDPAddr
 	Host    *net.UDPAddr
 }
@@ -92,16 +92,8 @@ func (a *UDPAddr) String() string {
 
 // GetPath returns a path with attached metadata.
 func (a *UDPAddr) GetPath() (Path, error) {
-	// Initialize path so it is always ready for use
-	var p *spath.Path
-	if a.Path != nil {
-		p = a.Path.Copy()
-		if err := p.InitOffsets(); err != nil {
-			return nil, err
-		}
-	}
 	return &partialPath{
-		spath:       p,
+		spath:       a.Path.Copy(),
 		underlay:    a.NextHop,
 		destination: a.IA,
 	}, nil

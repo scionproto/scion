@@ -27,9 +27,9 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
+	rawpath "github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -66,7 +66,7 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 			Dst: dst,
 			Meta: path.PathMetadata{
 				Mtu: p.TopoProvider.Get().MTU(),
-				Exp: time.Now().Add(spath.MaxTTL * time.Second),
+				Exp: time.Now().Add(rawpath.MaxTTL * time.Second),
 			},
 		}}, nil
 	}

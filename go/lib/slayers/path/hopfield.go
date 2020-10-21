@@ -16,6 +16,7 @@ package path
 
 import (
 	"encoding/binary"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -26,6 +27,11 @@ const (
 	// MacLen is the size of the MAC of each HopField.
 	MacLen = 6
 )
+
+// MaxTTL is the maximum age of a HopField in seconds.
+const MaxTTL = 24 * 60 * 60 // One day in seconds
+
+const expTimeUnit = MaxTTL / 256 // ~5m38s
 
 // HopField is the HopField used in the SCION and OneHop path types.
 //
@@ -96,4 +102,10 @@ func (h *HopField) SerializeTo(b []byte) error {
 	copy(b[6:12], h.Mac)
 
 	return nil
+}
+
+// ExpTimeToDuration calculates the relative expiration time in seconds.
+// Note that for a 0 value ExpTime, the minimal duration is expTimeUnit.
+func ExpTimeToDuration(expTime uint8) time.Duration {
+	return (time.Duration(expTime) + 1) * time.Duration(expTimeUnit) * time.Second
 }

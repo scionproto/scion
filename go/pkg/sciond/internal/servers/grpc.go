@@ -90,10 +90,7 @@ func (s DaemonServer) paths(ctx context.Context,
 			})
 		}
 
-		var raw []byte
-		if spath := p.Path(); spath != nil {
-			raw = spath.Raw
-		}
+		raw := p.Path().Raw
 		nextHopStr := ""
 		if nextHop := p.UnderlayNextHop(); nextHop != nil {
 			nextHopStr = nextHop.String()

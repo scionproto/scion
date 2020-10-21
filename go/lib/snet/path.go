@@ -26,6 +26,9 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
+// MaxSegTTL is the maximum expiry for a path segment. It's one day in seconds.
+const MaxSegTTL = 24 * 60 * 60
+
 // Path is an abstract representation of a path. Most applications do not need
 // access to the raw internals.
 //
@@ -39,9 +42,7 @@ type Path interface {
 	// speaker. Usually, this is a border router that will forward the traffic.
 	UnderlayNextHop() *net.UDPAddr
 	// Path returns a raw (data-plane compatible) representation of the path.
-	// The returned path is initialized and ready for use in snet calls that
-	// deal with raw paths.
-	Path() *spath.Path
+	Path() spath.Path
 	// Interfaces returns a list of interfaces on the path. If the list is not
 	// available the result is nil.
 	// XXX(matzf): move this to PathMetadata
@@ -108,7 +109,7 @@ func Fingerprint(path Fingerprinter) PathFingerprint {
 // temporary solution where a full path cannot be reconstituted from other
 // objects, notably snet.UDPAddr and snet.SVCAddr.
 type partialPath struct {
-	spath       *spath.Path
+	spath       spath.Path
 	underlay    *net.UDPAddr
 	destination addr.IA
 }
@@ -117,10 +118,7 @@ func (p *partialPath) UnderlayNextHop() *net.UDPAddr {
 	return p.underlay
 }
 
-func (p *partialPath) Path() *spath.Path {
-	if p.spath == nil {
-		return nil
-	}
+func (p *partialPath) Path() spath.Path {
 	return p.spath.Copy()
 }
 
@@ -141,7 +139,7 @@ func (p *partialPath) Copy() Path {
 		return nil
 	}
 	return &partialPath{
-		spath:       p.spath.Copy(),
+		spath:       p.Path(),
 		underlay:    CopyUDPAddr(p.underlay),
 		destination: p.destination,
 	}

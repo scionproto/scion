@@ -22,7 +22,6 @@ import (
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -71,7 +70,7 @@ func TestLoadPolicyFromYaml(t *testing.T) {
 			assert.Equal(t, 6, p.BestSetSize)
 			assert.Equal(t, 20, p.CandidateSetSize)
 			assert.Equal(t, test.Type, p.Type)
-			assert.Equal(t, spath.ExpTimeType(42), *p.MaxExpTime)
+			assert.Equal(t, uint8(42), *p.MaxExpTime)
 			assert.Equal(t, 8, p.Filter.MaxHopsLength)
 			assert.Equal(t, []addr.AS{ia110.A, ia111.A}, p.Filter.AsBlackList)
 			assert.Equal(t, []addr.ISD{1, 2, 3}, p.Filter.IsdBlackList)

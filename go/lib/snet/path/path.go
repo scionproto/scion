@@ -34,7 +34,7 @@ import (
 // Path is an snet.Path with full metadata
 type Path struct {
 	Dst     addr.IA
-	SPath   *spath.Path
+	SPath   spath.Path
 	NextHop *net.UDPAddr
 	IFaces  []snet.PathInterface
 	Meta    PathMetadata
@@ -56,10 +56,7 @@ func (p Path) UnderlayNextHop() *net.UDPAddr {
 	}
 }
 
-func (p Path) Path() *spath.Path {
-	if p.SPath == nil {
-		return nil
-	}
+func (p Path) Path() spath.Path {
 	return p.SPath.Copy()
 }
 

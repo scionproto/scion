@@ -66,7 +66,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 		"ISD local": {
 			ISD: 1,
 			Expect: func(_ *mock_trust.MockDB, r *mock_snet.MockRouter, p *mock_snet.MockPath) {
-				p.EXPECT().Path().AnyTimes().Return(&spath.Path{Raw: []byte("isd local path")})
+				p.EXPECT().Path().AnyTimes().Return(spath.Path{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
 				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(p, nil)
@@ -90,7 +90,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 					cppki.SignedTRC{TRC: cppki.TRC{Validity: cppki.Validity{NotAfter: future}}},
 					nil,
 				)
-				p.EXPECT().Path().AnyTimes().Return(&spath.Path{Raw: []byte("remote ISD path")})
+				p.EXPECT().Path().AnyTimes().Return(spath.Path{Raw: []byte("remote ISD path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia210)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
 				r.EXPECT().Route(gomock.Any(), addr.IA{I: 2}).Return(p, nil)
@@ -103,7 +103,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 					cppki.TRCID{ISD: addr.ISD(2)}).Return(
 					cppki.SignedTRC{}, nil,
 				)
-				p.EXPECT().Path().AnyTimes().Return(&spath.Path{Raw: []byte("isd local path")})
+				p.EXPECT().Path().AnyTimes().Return(spath.Path{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
 				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(p, nil)
@@ -118,7 +118,7 @@ func TestCSRouterChooseServer(t *testing.T) {
 					cppki.SignedTRC{TRC: cppki.TRC{Validity: cppki.Validity{NotAfter: passed}}},
 					nil,
 				)
-				p.EXPECT().Path().AnyTimes().Return(&spath.Path{Raw: []byte("isd local path")})
+				p.EXPECT().Path().AnyTimes().Return(spath.Path{Raw: []byte("isd local path")})
 				p.EXPECT().Destination().AnyTimes().Return(ia110)
 				p.EXPECT().UnderlayNextHop().AnyTimes().Return(nil)
 				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(p, nil)

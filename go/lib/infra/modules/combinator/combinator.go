@@ -48,7 +48,7 @@ func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) []Path {
 
 type Path struct {
 	Dst        addr.IA
-	SPath      *spath.Path
+	SPath      spath.Path
 	Interfaces []snet.PathInterface
 	Metadata   path.PathMetadata
 	Weight     int // XXX(matzf): unused, drop this?

@@ -16,8 +16,7 @@
               }
             ],
             "next_hop": "192.168.0.1:80",
-            "expiration_timestamp": 7200,
-            "header_v2": false
+            "expiration_timestamp": 7200
           }
         ]
       }

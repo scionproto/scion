@@ -295,10 +295,10 @@ func (mr *MockPathMockRecorder) Metadata() *gomock.Call {
 }
 
 // Path mocks base method
-func (m *MockPath) Path() *spath.Path {
+func (m *MockPath) Path() spath.Path {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Path")
-	ret0, _ := ret[0].(*spath.Path)
+	ret0, _ := ret[0].(spath.Path)
 	return ret0
 }
 

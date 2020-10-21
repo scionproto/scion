@@ -31,8 +31,8 @@ func (p *emptyPath) UnderlayNextHop() *net.UDPAddr {
 	return nil
 }
 
-func (p *emptyPath) Path() *spath.Path {
-	return nil
+func (p *emptyPath) Path() spath.Path {
+	return spath.Path{}
 }
 
 func (p *emptyPath) Interfaces() []snet.PathInterface {
