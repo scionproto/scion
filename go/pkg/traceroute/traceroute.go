@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // Update contains the information for a single hop.
@@ -291,7 +290,7 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		Remote: &snet.UDPAddr{
 			IA:   pkt.Source.IA,
 			Host: &net.UDPAddr{IP: pkt.Destination.Host.IP()},
-			Path: spath.Path{Raw: append(pkt.Path.Raw[:0:0], pkt.Path.Raw...), Type: pkt.Path.Type},
+			Path: pkt.Path.Copy(),
 		},
 		Error: err,
 	}
