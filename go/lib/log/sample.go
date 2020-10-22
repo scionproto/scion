@@ -18,6 +18,10 @@ const loggingConsoleSample = `
 # Console logging level (debug|info|error) (default info)
 level = "info"
 
+# Log a stacktrace for all messages at or above the given level. If the value
+# is 'none', no stacktrace is included. (debug|info|error|none) (default error)
+stacktrace_level = "error"
+
 # Logging fromat (human|json) (default human)
 format = "human"
 `
