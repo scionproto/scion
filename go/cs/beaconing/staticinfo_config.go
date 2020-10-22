@@ -159,17 +159,15 @@ func (cfgdata StaticInfoCfg) gatherLinkType(peers map[common.IFIDType]struct{},
 // gatherHops extracts hop values from a StaticInfoCfg struct and
 // inserts them into the InternalHopsinfo portion of a StaticInfoExtn struct.
 func (cfgdata StaticInfoCfg) gatherHops(peers map[common.IFIDType]struct{},
-	egifID common.IFIDType, inifID common.IFIDType) *seg.InternalHopsInfo {
+	egifID common.IFIDType, inifID common.IFIDType) seg.InternalHopsInfo {
 
-	ihi := &seg.InternalHopsInfo{
-		Hops:      cfgdata.Hops[egifID].Intra[inifID],
-		XoverHops: make(map[common.IFIDType]uint32),
-	}
+	ihi := make(seg.InternalHopsInfo)
+	ihi[inifID] = cfgdata.Hops[egifID].Intra[inifID]
 	for ifid, intfHops := range cfgdata.Hops[egifID].Intra {
 		// If we're looking at a peering interface or intfid>egifID, include
 		// the data, otherwise drop it so as to not store redundant information
 		if _, peer := peers[ifid]; peer || (ifid > egifID) {
-			ihi.XoverHops[ifid] = intfHops
+			ihi[ifid] = intfHops
 		}
 	}
 	return ihi

@@ -570,17 +570,15 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 		}
 	}
 
-	var internalHops *seg.InternalHopsInfo
+	var internalHops seg.InternalHopsInfo
 	if outIF != 0 {
-		internalHops = &seg.InternalHopsInfo{
-			XoverHops: make(map[common.IFIDType]uint32),
-		}
+		internalHops = make(map[common.IFIDType]uint32)
 		if inIF != 0 {
-			internalHops.Hops = g.InternalHops(inIF, outIF)
+			internalHops[inIF] = g.InternalHops(inIF, outIF)
 		}
 		for ifid := range as.IFIDs {
 			if ifid != outIF && ifid != inIF {
-				internalHops.XoverHops[ifid] = g.InternalHops(ifid, outIF)
+				internalHops[ifid] = g.InternalHops(ifid, outIF)
 			}
 		}
 	}

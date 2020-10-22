@@ -184,12 +184,9 @@ func TestGenerateStaticinfo(t *testing.T) {
 					5: 120,
 				},
 			},
-			InternalHops: &seg.InternalHopsInfo{
-				Hops: 3,
-				XoverHops: map[common.IFIDType]uint32{
-					3: 3,
-					5: 1,
-				},
+			InternalHops: map[common.IFIDType]uint32{
+				3: 3,
+				5: 1,
 			},
 			Note: "asdf",
 		},

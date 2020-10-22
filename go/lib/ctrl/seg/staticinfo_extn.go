@@ -27,7 +27,7 @@ type StaticInfoExtension struct {
 	Geo          GeoInfo
 	LinkType     LinkTypeInfo
 	Bandwidth    *BandwidthInfo
-	InternalHops *InternalHopsInfo
+	InternalHops InternalHopsInfo
 	Note         string
 }
 
@@ -63,10 +63,7 @@ type BandwidthInfo struct {
 	PeerInter  map[common.IFIDType]uint32
 }
 
-type InternalHopsInfo struct {
-	Hops      uint32
-	XoverHops map[common.IFIDType]uint32
-}
+type InternalHopsInfo map[common.IFIDType]uint32
 
 func staticInfoExtensionFromPB(pb *cppb.StaticInfoExtension) (*StaticInfoExtension, error) {
 	if pb == nil {
@@ -179,18 +176,15 @@ func bandwidthInfoFromPB(pb *cppb.BandwidthInfo) (*BandwidthInfo, error) {
 	}, nil
 }
 
-func internalHopsInfoFromPB(pb *cppb.InternalHopsInfo) (*InternalHopsInfo, error) {
+func internalHopsInfoFromPB(pb map[uint64]uint32) (InternalHopsInfo, error) {
 	if pb == nil {
 		return nil, nil
 	}
-	xoverHops := make(map[common.IFIDType]uint32)
-	for ifid, v := range pb.XoverHops {
-		xoverHops[common.IFIDType(ifid)] = v
+	ihi := make(InternalHopsInfo)
+	for ifid, v := range pb {
+		ihi[common.IFIDType(ifid)] = v
 	}
-	return &InternalHopsInfo{
-		Hops:      pb.Hops,
-		XoverHops: xoverHops,
-	}, nil
+	return ihi, nil
 }
 
 func staticInfoExtensionToPB(si *StaticInfoExtension) *cppb.StaticInfoExtension {
@@ -279,16 +273,13 @@ func bandwidthInfoToPB(bwi *BandwidthInfo) *cppb.BandwidthInfo {
 	}
 }
 
-func internalHopsInfoToPB(ihi *InternalHopsInfo) *cppb.InternalHopsInfo {
+func internalHopsInfoToPB(ihi InternalHopsInfo) map[uint64]uint32 {
 	if ihi == nil {
 		return nil
 	}
-	xoverHops := make(map[uint64]uint32)
-	for ifid, v := range ihi.XoverHops {
-		xoverHops[uint64(ifid)] = v
+	pb := make(map[uint64]uint32)
+	for ifid, v := range ihi {
+		pb[uint64(ifid)] = v
 	}
-	return &cppb.InternalHopsInfo{
-		Hops:      ihi.Hops,
-		XoverHops: xoverHops,
-	}
+	return pb
 }

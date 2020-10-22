@@ -296,22 +296,15 @@ func collectInternalHops(p pathInfo) []uint32 {
 	hopInternalHops := make(map[hopKey]uint32)
 	for _, asEntry := range p.ASEntries {
 		staticInfo := asEntry.Extensions.StaticInfo
-		if staticInfo != nil && staticInfo.InternalHops != nil {
-			inIF := snet.PathInterface{
-				IA: asEntry.Local,
-				ID: common.IFIDType(asEntry.HopEntry.HopField.ConsIngress),
-			}
-			egIF := snet.PathInterface{
-				IA: asEntry.Local,
-				ID: common.IFIDType(asEntry.HopEntry.HopField.ConsEgress),
-			}
+		egIF := snet.PathInterface{
+			IA: asEntry.Local,
+			ID: common.IFIDType(asEntry.HopEntry.HopField.ConsEgress),
+		}
+		if staticInfo != nil && egIF.ID != 0 {
 			internalHops := staticInfo.InternalHops
-			// Ingress to Egress interface
-			addHopBandwidth(hopInternalHops, inIF, egIF, internalHops.Hops)
-			// Egress to sibling child, core or peer interfaces
-			for ifid, v := range internalHops.XoverHops {
-				xoverIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
-				addHopBandwidth(hopInternalHops, egIF, xoverIF, v)
+			for ifid, v := range internalHops {
+				otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+				addHopInternalHops(hopInternalHops, egIF, otherIF, v)
 			}
 		}
 	}

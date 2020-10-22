@@ -41,8 +41,14 @@ message StaticInfoExtension {
     map<uint64, LinkType> link_type = 3;
     // Approximate, maximum bandwidth for paths based on this ASEntry.
     BandwidthInfo bandwidth = 4;
-    // Number of AS internal hops.
-    InternalHopsInfo internal_hops = 5;
+    // Number of AS internal hops between the construction-egress and the relevant
+    // other interfaces. These are:
+    // - construction-ingress interface (if any)
+    // - sibling child interfaces,
+    // - core interfaces, if this is the start of a segment, or the end of a core segment
+    // - peer interfaces
+    // The key is the interface identifier of the other interface.
+    map<uint64, uint32> internal_hops = 5;
     // Generic note
     string note = 6;
 }
@@ -107,13 +113,4 @@ message BandwidthInfo {
     // in neighbor AS. The key is the interface identifier of the local
     // peer interface.
     map<uint64, uint32> peer_inter = 4;
-}
-
-message InternalHopsInfo {
-    // Number of AS internal hops between the beaconing-ingress and the
-    // beaconing-egress interface.
-    uint32 hops = 1;
-    // Number of AS internal hops between the beaconing-egress and sibling
-    // child, core or peer interfaces.
-    map<uint64, uint32> xover_hops = 2;
 }
