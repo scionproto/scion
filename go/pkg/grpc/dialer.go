@@ -16,13 +16,14 @@ package grpc
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"time"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/resolver"
+	"google.golang.org/grpc/resolver/manual"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -89,50 +90,30 @@ func (SimpleDialer) Dial(ctx context.Context, address net.Addr) (*grpc.ClientCon
 // TCPDialer dials a gRPC connection over TCP. This dialer is meant to be used
 // for AS internal communication, and is capable of resolving svc addresses.
 type TCPDialer struct {
-	SvcResolver func(addr.HostSVC) (*net.TCPAddr, error)
+	SvcResolver func(addr.HostSVC) []resolver.Address
 }
 
 // Dial dials a gRPC connection over TCP. It resolves svc addresses.
-func (t *TCPDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn, error) {
-	target, err := t.resolveTarget(addr)
-	if err != nil {
-		return nil, err
+func (t *TCPDialer) Dial(ctx context.Context, dst net.Addr) (*grpc.ClientConn, error) {
+	if v, ok := dst.(addr.HostSVC); ok {
+		targets := t.SvcResolver(v)
+		if len(targets) == 0 {
+			return nil, serrors.New("could not resolve")
+		}
+
+		r := manual.NewBuilderWithScheme("svc")
+		r.InitialState(resolver.State{Addresses: targets})
+		return grpc.DialContext(ctx, r.Scheme()+":///"+v.String(),
+			grpc.WithInsecure(),
+			grpc.WithResolvers(r),
+			UnaryClientInterceptor(),
+		)
 	}
-	return grpc.DialContext(ctx, target.String(),
+
+	return grpc.DialContext(ctx, dst.String(),
 		grpc.WithInsecure(),
 		UnaryClientInterceptor(),
 	)
-}
-
-func (t *TCPDialer) resolveTarget(addr net.Addr) (*net.TCPAddr, error) {
-	var dst *net.TCPAddr
-	switch a := addr.(type) {
-	case *snet.UDPAddr:
-		// XXX(roosd): hack since we pass around UDP addresses.
-		dst = &net.TCPAddr{
-			IP:   a.Host.IP,
-			Port: a.Host.Port,
-			Zone: a.Host.Zone,
-		}
-	case *net.UDPAddr:
-		// XXX(roosd): hack since we pass around UDP addresses.
-		dst = &net.TCPAddr{
-			IP:   a.IP,
-			Port: a.Port,
-			Zone: a.Zone,
-		}
-	case *snet.SVCAddr:
-		var err error
-		if dst, err = t.SvcResolver(a.SVC); err != nil {
-			return nil, err
-		}
-	case *net.TCPAddr:
-		dst = a
-	default:
-		return nil, serrors.New("address type not supported",
-			"addr", dst, "type", fmt.Sprintf("%T", dst))
-	}
-	return dst, nil
 }
 
 // AddressRewriter redirects to QUIC endpoints.

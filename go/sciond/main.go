@@ -24,6 +24,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/resolver"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	libconfig "github.com/scionproto/scion/go/lib/config"
@@ -119,16 +120,16 @@ func run(file string) error {
 	defer rcCleaner.Stop()
 
 	dialer := &libgrpc.TCPDialer{
-		SvcResolver: func(svc addr.HostSVC) (*net.TCPAddr, error) {
-			addr, err := itopo.Get().Anycast(svc)
+		SvcResolver: func(dst addr.HostSVC) []resolver.Address {
+			targets := []resolver.Address{}
+			addrs, err := itopo.Provider().Get().Multicast(dst)
 			if err != nil {
-				return nil, err
+				return targets
 			}
-			return &net.TCPAddr{
-				IP:   addr.IP,
-				Port: addr.Port,
-				Zone: addr.Zone,
-			}, nil
+			for _, entry := range addrs {
+				targets = append(targets, resolver.Address{Addr: entry.String()})
+			}
+			return targets
 		},
 	}
 

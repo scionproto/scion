@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/showpaths"
 )
 
@@ -49,7 +50,8 @@ func newShowpaths(pather CommandPather) *cobra.Command {
   %[1]s showpaths 1-ff00:0:111 --sequence="0* 0-0#41" # incoming IfID=41 at dstIA
   %[1]s showpaths 1-ff00:0:111 --sequence="0* 1-ff00:0:112 0*" # 1-ff00:0:112 on the path
   %[1]s showpaths 1-ff00:0:110 --no-probe`, pather.CommandPath()),
-		Long: `'showpaths' lists available paths between the local and the specified SCION ASe a.
+		Long: fmt.Sprintf(`'showpaths' lists available paths between the local and the specified
+SCION ASe a.
 
 By default, the paths are probed. Paths served from the SCION Deamon's might not
 forward traffic successfully (e.g. if a network link went down, or there is a black
@@ -57,44 +59,11 @@ hole on the path). To disable path probing, set the appropriate flag.
 
 'showpaths' can be instructed to output the paths as json using the the --json flag.
 
-The paths can be filtered according to a sequence. A sequence is a string of
-space separated HopPredicates. A Hop Predicate (HP) is of the form
-'ISD-AS#IF,IF'. The first IF means the inbound interface (the interface where
-packet enters the AS) and the second IF means the outbound interface (the
-interface where packet leaves the AS).  0 can be used as a wildcard for ISD, AS
-and both IF elements indepedently.
+If no alive path is discovered, json output is not enabled, and probing is not
+disabled, showpaths will exit with the code 1.
+On other errors, showpaths will exit with code 2.
 
-HopPredicate Examples:
-
-  Match ISD 1: 1
-  Match AS 1-ff00:0:133: 1-ff00:0:133 or 1-ff00:0:133#0
-  Match inbound IF 2 of AS 1-ff00:0:133: 1-ff00:0:133#2,0
-  Match outbound IF 2 of AS 1-ff00:0:133: 1-ff00:0:133#0,2
-  Match inbound or outbound IF 2 of AS 1-ff00:0:133: 1-ff00:0:133#2
-
-Sequence Examples:
-
-  sequence: "1-ff00:0:133#0 1-ff00:0:120#2,1 0 0 1-ff00:0:110#0"
-
-The above example specifies a path from any interface in AS 1-ff00:0:133 to
-two subsequent interfaces in AS 1-ff00:0:120 (entering on interface 2 and
-exiting on interface 1), then there are two wildcards that each match any AS.
-The path must end with any interface in AS 1-ff00:0:110.
-
-  sequence: "1-ff00:0:133#1 1+ 2-ff00:0:1? 2-ff00:0:233#1"
-
-The above example includes operators and specifies a path from interface
-1-ff00:0:133#1 through multiple ASes in ISD 1, that may (but does not need
-to) traverse AS 2-ff00:0:1 and then reaches its destination on
-2-ff00:0:233#1.
-
-Available operators:
-
-  ? (the preceding HP may appear at most once)
-  + (the preceding ISD-level HP must appear at least once)
-  * (the preceding ISD-level HP may appear zero or more times)
-  | (logical OR)
-`,
+%s`, filterHelp),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dst, err := addr.IAFromString(args[0])
 			if err != nil {
@@ -122,10 +91,12 @@ Available operators:
 			}
 			fmt.Fprintln(os.Stdout, "Available paths to", res.Destination)
 			if len(res.Paths) == 0 {
-				fmt.Fprintln(os.Stdout, "no path was found")
-				return nil
+				return app.WithExitCode(serrors.New("no path found"), 1)
 			}
 			res.Human(os.Stdout, flags.expiration, !flags.noColor)
+			if res.Alive() == 0 && !flags.cfg.NoProbe {
+				return app.WithExitCode(serrors.New("no path alive"), 1)
+			}
 			return nil
 		},
 	}

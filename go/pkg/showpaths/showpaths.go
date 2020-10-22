@@ -27,7 +27,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sciond/pathprobe"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -131,6 +130,17 @@ func (r Result) JSON(w io.Writer) error {
 	return enc.Encode(r)
 }
 
+// Alive returns the number of alive paths.
+func (r Result) Alive() int {
+	var c int
+	for _, path := range r.Paths {
+		if strings.EqualFold(path.Status, string(pathprobe.StatusAlive)) {
+			c++
+		}
+	}
+	return c
+}
+
 // Run lists the paths to the specified ISD-AS to stdout.
 func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	sdConn, err := sciond.NewService(cfg.SCIOND).Connect(ctx)
@@ -150,25 +160,9 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("failed to retrieve paths from SCIOND", err)
 	}
-
-	s, err := pathpol.NewSequence(cfg.Sequence)
+	paths, err := app.Filter(cfg.Sequence, allPaths)
 	if err != nil {
 		return nil, err
-	}
-	pathsToPs := func(paths []snet.Path) pathpol.PathSet {
-		ps := make(pathpol.PathSet, len(paths))
-		for _, p := range paths {
-			ps[snet.Fingerprint(p)] = p
-		}
-		return ps
-	}
-	keep := s.Eval(pathsToPs(allPaths))
-
-	paths := make([]snet.Path, 0, len(allPaths))
-	for _, p := range allPaths {
-		if _, ok := keep[snet.Fingerprint(p)]; ok {
-			paths = append(paths, p)
-		}
 	}
 	if cfg.MaxPaths != 0 && len(paths) > cfg.MaxPaths {
 		paths = paths[:cfg.MaxPaths]

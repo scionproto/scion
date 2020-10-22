@@ -27,6 +27,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -50,13 +51,41 @@ func QueryASInfo(ctx context.Context, conn sciond.Connector) (ASInfo, error) {
 	}, nil
 }
 
+// Filter filters out paths according to a sequence.
+func Filter(seq string, paths []snet.Path) ([]snet.Path, error) {
+	s, err := pathpol.NewSequence(seq)
+	if err != nil {
+		return nil, err
+	}
+	pathsToPs := func(paths []snet.Path) pathpol.PathSet {
+		ps := make(pathpol.PathSet, len(paths))
+		for _, p := range paths {
+			ps[snet.Fingerprint(p)] = p
+		}
+		return ps
+	}
+	keep := s.Eval(pathsToPs(paths))
+	ret := make([]snet.Path, 0, len(paths))
+	for _, p := range paths {
+		if _, ok := keep[snet.Fingerprint(p)]; ok {
+			ret = append(ret, p)
+		}
+	}
+	return ret, nil
+}
+
 // ChoosePath selects a path to the remote.
 func ChoosePath(ctx context.Context, conn sciond.Connector, remote addr.IA,
-	interactive, refresh bool, opts ...ColorOption) (snet.Path, error) {
+	interactive, refresh bool, seq string, opts ...ColorOption) (snet.Path, error) {
 
-	paths, err := conn.Paths(ctx, remote, addr.IA{}, sciond.PathReqFlags{Refresh: refresh})
+	allPaths, err := conn.Paths(ctx, remote, addr.IA{}, sciond.PathReqFlags{Refresh: refresh})
 	if err != nil {
-		return nil, serrors.WrapStr("retreiving paths", err)
+		return nil, serrors.WrapStr("retrieving paths", err)
+	}
+
+	paths, err := Filter(seq, allPaths)
+	if err != nil {
+		return nil, err
 	}
 	if len(paths) == 0 {
 		return nil, serrors.New("no path available")
