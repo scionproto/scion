@@ -1,7 +1,6 @@
 package combinator
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -247,7 +246,6 @@ func collectLinkType(p pathInfo) []LinkType {
 		}
 	}
 
-	fmt.Println("hopLinkTypes", hopLinkTypes)
 	// 2) Go over the path; for each inter-AS link interface pair, add the link type
 	linkTypes := make([]LinkType, len(p.Interfaces)/2)
 	for i := 0; i < len(p.Interfaces); i += 2 {
