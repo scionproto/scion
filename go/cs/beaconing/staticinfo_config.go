@@ -211,9 +211,9 @@ func (cfgdata StaticInfoCfg) generateStaticinfo(peers map[common.IFIDType]struct
 
 	return seg.StaticInfoExtension{
 		Latency:      cfgdata.gatherLatency(peers, egifID, inifID),
+		Bandwidth:    cfgdata.gatherBW(peers, egifID, inifID),
 		Geo:          cfgdata.gatherGeo(),
 		LinkType:     cfgdata.gatherLinkType(peers, egifID),
-		Bandwidth:    cfgdata.gatherBW(peers, egifID, inifID),
 		InternalHops: cfgdata.gatherHops(peers, egifID, inifID),
 		Note:         cfgdata.Note,
 	}

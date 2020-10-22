@@ -22,6 +22,11 @@ type PathMetadata struct {
 	// A 0-value indicates that the AS did not announce a latency for this hop.
 	Latency []time.Duration
 
+	// Bandwidth lists the bandwidth between any two consecutive interfaces.
+	// Entry i describes the bandwidth between interfaces i and i+1.
+	// A 0-value indicates that the AS did not announce a bandwidth for this hop.
+	Bandwidth []uint32
+
 	// Geo lists the geographical position of the border routers along the path.
 	// Entry i describes the position of the router for interface i.
 	// A 0-value indicates that the AS did not announce a position for this router.
@@ -30,11 +35,6 @@ type PathMetadata struct {
 	// LinkType contains the announced link type of inter-domain links.
 	// Entry i describes the link between interfaces 2*i and 2*i+1.
 	LinkType []LinkType
-
-	// Bandwidth lists the bandwidth between any two consecutive interfaces.
-	// Entry i describes the bandwidth between interfaces i and i+1.
-	// A 0-value indicates that the AS did not announce a bandwidth for this hop.
-	Bandwidth []uint32
 
 	// InternalHops lists the number of AS internal hops for the ASes on path.
 	// Entry i describes the hop between interfaces 2*i+1 and 2*i+2 in the same AS.
@@ -91,9 +91,9 @@ func collectMetadata(interfaces []snet.PathInterface, asEntries []seg.ASEntry) P
 	path := pathInfo{interfaces, asEntries, remoteIF}
 	return PathMetadata{
 		Latency:      collectLatency(path),
+		Bandwidth:    collectBandwidth(path),
 		Geo:          collectGeo(path),
 		LinkType:     collectLinkType(path),
-		Bandwidth:    collectBandwidth(path),
 		InternalHops: collectInternalHops(path),
 		Notes:        collectNotes(path),
 	}
@@ -163,6 +163,64 @@ func addHopLatency(m map[hopKey]time.Duration, a, b snet.PathInterface, v time.D
 	}
 }
 
+func collectBandwidth(p pathInfo) []uint32 {
+	// This is identical to collecting latencies.
+	// 1)
+	hopBandwidths := make(map[hopKey]uint32)
+	for _, asEntry := range p.ASEntries {
+		staticInfo := asEntry.Extensions.StaticInfo
+		if staticInfo != nil && staticInfo.Bandwidth != nil {
+			inIF := snet.PathInterface{
+				IA: asEntry.Local,
+				ID: common.IFIDType(asEntry.HopEntry.HopField.ConsIngress),
+			}
+			egIF := snet.PathInterface{
+				IA: asEntry.Local,
+				ID: common.IFIDType(asEntry.HopEntry.HopField.ConsEgress),
+			}
+			bandwidth := staticInfo.Bandwidth
+			// Ingress to Egress interface
+			addHopBandwidth(hopBandwidths, inIF, egIF, bandwidth.Intra)
+			// Egress to neighbor
+			addHopBandwidth(hopBandwidths, egIF, p.RemoteIF[egIF], bandwidth.Inter)
+			// Egress to sibling child, core or peer interfaces
+			for ifid, v := range bandwidth.XoverIntra {
+				xoverIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+				addHopBandwidth(hopBandwidths, egIF, xoverIF, v)
+			}
+			// Local peer to remote peer interface
+			for ifid, v := range bandwidth.PeerInter {
+				localIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+				addHopBandwidth(hopBandwidths, localIF, p.RemoteIF[localIF], v)
+			}
+		}
+	}
+
+	// 2)
+	bandwidths := make([]uint32, len(p.Interfaces)-1)
+	for i := 0; i+1 < len(p.Interfaces); i++ {
+		bandwidths[i] = hopBandwidths[makeHopKey(p.Interfaces[i], p.Interfaces[i+1])]
+	}
+
+	return bandwidths
+}
+
+// addHopBandwidth adds the bandwidth of hop a-b to the map. Handle conflicting entries by
+// chosing the more conservative value (i.e. keep lower bandwidth value).
+func addHopBandwidth(m map[hopKey]uint32, a, b snet.PathInterface, v uint32) {
+	// Skip incomplete entries; not strictly necessary, we'd just not look this up
+	if a.ID == 0 || b.ID == 0 {
+		return
+	}
+	if v == 0 {
+		return
+	}
+	k := makeHopKey(a, b)
+	if vExisting, exists := m[k]; !exists || vExisting > v {
+		m[k] = v
+	}
+}
+
 func collectGeo(p pathInfo) []GeoCoordinates {
 	ifaceGeos := make(map[snet.PathInterface]GeoCoordinates)
 	for _, asEntry := range p.ASEntries {
@@ -224,64 +282,6 @@ func linkTypeFromSeg(lt seg.LinkType) LinkType {
 		return LinkTypeOpennet
 	default:
 		return LinkTypeUnset
-	}
-}
-
-func collectBandwidth(p pathInfo) []uint32 {
-	// This is identical to collecting latencies.
-	// 1)
-	hopBandwidths := make(map[hopKey]uint32)
-	for _, asEntry := range p.ASEntries {
-		staticInfo := asEntry.Extensions.StaticInfo
-		if staticInfo != nil && staticInfo.Bandwidth != nil {
-			inIF := snet.PathInterface{
-				IA: asEntry.Local,
-				ID: common.IFIDType(asEntry.HopEntry.HopField.ConsIngress),
-			}
-			egIF := snet.PathInterface{
-				IA: asEntry.Local,
-				ID: common.IFIDType(asEntry.HopEntry.HopField.ConsEgress),
-			}
-			bandwidth := staticInfo.Bandwidth
-			// Ingress to Egress interface
-			addHopBandwidth(hopBandwidths, inIF, egIF, bandwidth.Intra)
-			// Egress to neighbor
-			addHopBandwidth(hopBandwidths, egIF, p.RemoteIF[egIF], bandwidth.Inter)
-			// Egress to sibling child, core or peer interfaces
-			for ifid, v := range bandwidth.XoverIntra {
-				xoverIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
-				addHopBandwidth(hopBandwidths, egIF, xoverIF, v)
-			}
-			// Local peer to remote peer interface
-			for ifid, v := range bandwidth.PeerInter {
-				localIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
-				addHopBandwidth(hopBandwidths, localIF, p.RemoteIF[localIF], v)
-			}
-		}
-	}
-
-	// 2)
-	bandwidths := make([]uint32, len(p.Interfaces)-1)
-	for i := 0; i+1 < len(p.Interfaces); i++ {
-		bandwidths[i] = hopBandwidths[makeHopKey(p.Interfaces[i], p.Interfaces[i+1])]
-	}
-
-	return bandwidths
-}
-
-// addHopBandwidth adds the bandwidth of hop a-b to the map. Handle conflicting entries by
-// chosing the more conservative value (i.e. keep lower bandwidth value).
-func addHopBandwidth(m map[hopKey]uint32, a, b snet.PathInterface, v uint32) {
-	// Skip incomplete entries; not strictly necessary, we'd just not look this up
-	if a.ID == 0 || b.ID == 0 {
-		return
-	}
-	if v == 0 {
-		return
-	}
-	k := makeHopKey(a, b)
-	if vExisting, exists := m[k]; !exists || vExisting > v {
-		m[k] = v
 	}
 }
 

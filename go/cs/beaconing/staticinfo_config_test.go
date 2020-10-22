@@ -147,6 +147,17 @@ func TestGenerateStaticinfo(t *testing.T) {
 					5: 90 * time.Millisecond,
 				},
 			},
+			Bandwidth: &seg.BandwidthInfo{
+				Inter: 5000000,
+				Intra: 6555550,
+				XoverIntra: map[common.IFIDType]uint32{
+					3: 6555550,
+					5: 75555550,
+				},
+				PeerInter: map[common.IFIDType]uint32{
+					5: 120,
+				},
+			},
 			Geo: seg.GeoInfo{
 				1: seg.GeoCoordinates{
 					Latitude:  47.2,
@@ -172,17 +183,6 @@ func TestGenerateStaticinfo(t *testing.T) {
 			LinkType: seg.LinkTypeInfo{
 				2: seg.LinkTypeOpennet,
 				5: seg.LinkTypeDirect,
-			},
-			Bandwidth: &seg.BandwidthInfo{
-				Inter: 5000000,
-				Intra: 6555550,
-				XoverIntra: map[common.IFIDType]uint32{
-					3: 6555550,
-					5: 75555550,
-				},
-				PeerInter: map[common.IFIDType]uint32{
-					5: 120,
-				},
 			},
 			InternalHops: map[common.IFIDType]uint32{
 				3: 3,

@@ -33,14 +33,14 @@ message HiddenPathExtension {
 message StaticInfoExtension {
     // Approximate, lower-bound latency for paths based on this ASEntry.
     LatencyInfo latency = 1;
+    // Approximate, maximum bandwidth for paths based on this ASEntry.
+    BandwidthInfo bandwidth = 2;
     // Geographical coordinates describing the location of the routers for
     // relevant interfaces of this AS. The key is the interface identifier.
-    map<uint64, GeoCoordinates> geo = 2;
+    map<uint64, GeoCoordinates> geo = 3;
     // Description of the underlying network for the intra-AS links, for the
     // relevant interfaces of this AS. The key is the interface identifier.
-    map<uint64, LinkType> link_type = 3;
-    // Approximate, maximum bandwidth for paths based on this ASEntry.
-    BandwidthInfo bandwidth = 4;
+    map<uint64, LinkType> link_type = 4;
     // Number of AS internal hops between the construction-egress and the relevant
     // other interfaces. These are:
     // - construction-ingress interface (if any)
@@ -74,26 +74,6 @@ message LatencyInfo {
     map<uint64, uint32> peer_inter = 4;
 }
 
-message GeoCoordinates {
-    // Latitude of the geographic coordinate, in the WGS 84 datum.
-    float latitude = 1;
-    // Longitude of the geographic coordinate, in the WGS 84 datum.
-    float longitude = 2;
-    // Civic address of the location.
-    string address = 3;
-}
-
-enum LinkType {
-    // Unspecified link type.
-    LINK_TYPE_UNSPECIFIED = 0;
-    // Direct physical connection.
-    LINK_TYPE_DIRECT = 1;
-    // Connection with local routing/switching.
-    LINK_TYPE_MULTI_HOP = 2;
-    // Connection overlayed over publicly routed Internet.
-    LINK_TYPE_OPEN_NET = 3;
-}
-
 // BandwidthInfo specifies approximate maximum link bandwidth.
 // The separate intra, inter, cross-over and peering information allows to
 // reconstruct bandwidth values for all paths based on this ASEntry.
@@ -114,3 +94,24 @@ message BandwidthInfo {
     // peer interface.
     map<uint64, uint32> peer_inter = 4;
 }
+
+message GeoCoordinates {
+    // Latitude of the geographic coordinate, in the WGS 84 datum.
+    float latitude = 1;
+    // Longitude of the geographic coordinate, in the WGS 84 datum.
+    float longitude = 2;
+    // Civic address of the location.
+    string address = 3;
+}
+
+enum LinkType {
+    // Unspecified link type.
+    LINK_TYPE_UNSPECIFIED = 0;
+    // Direct physical connection.
+    LINK_TYPE_DIRECT = 1;
+    // Connection with local routing/switching.
+    LINK_TYPE_MULTI_HOP = 2;
+    // Connection overlayed over publicly routed Internet.
+    LINK_TYPE_OPEN_NET = 3;
+}
+

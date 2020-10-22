@@ -50,10 +50,10 @@ func TestStaticinfo(t *testing.T) {
 				{IA: xtest.MustParseIA("1-ff00:0:120"), ID: graph.If_120_X_111_B},
 				{IA: xtest.MustParseIA("1-ff00:0:111"), ID: graph.If_111_B_120_X},
 			},
-			ASEntries: concatASEntries(
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_A_131_X}).ASEntries,
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_120_A_130_B}).ASEntries,
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_120_X_111_B}).ASEntries,
+			ASEntries: concatBeaconASEntries(g,
+				[]common.IFIDType{graph.If_130_A_131_X},
+				[]common.IFIDType{graph.If_120_A_130_B},
+				[]common.IFIDType{graph.If_120_X_111_B},
 			),
 		},
 		{
@@ -64,9 +64,9 @@ func TestStaticinfo(t *testing.T) {
 				{IA: xtest.MustParseIA("1-ff00:0:130"), ID: graph.If_130_A_110_X},
 				{IA: xtest.MustParseIA("1-ff00:0:110"), ID: graph.If_110_X_130_A},
 			},
-			ASEntries: concatASEntries(
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_A_131_X}).ASEntries,
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_110_X_130_A}).ASEntries,
+			ASEntries: concatBeaconASEntries(g,
+				[]common.IFIDType{graph.If_130_A_131_X},
+				[]common.IFIDType{graph.If_110_X_130_A},
 				nil,
 			),
 		},
@@ -76,8 +76,8 @@ func TestStaticinfo(t *testing.T) {
 				{IA: xtest.MustParseIA("1-ff00:0:131"), ID: graph.If_131_X_130_A},
 				{IA: xtest.MustParseIA("1-ff00:0:130"), ID: graph.If_130_A_131_X},
 			},
-			ASEntries: concatASEntries(
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_130_A_131_X}).ASEntries,
+			ASEntries: concatBeaconASEntries(g,
+				[]common.IFIDType{graph.If_130_A_131_X},
 				nil,
 				nil,
 			),
@@ -90,10 +90,10 @@ func TestStaticinfo(t *testing.T) {
 				{IA: xtest.MustParseIA("2-ff00:0:211"), ID: graph.If_211_A_222_X},
 				{IA: xtest.MustParseIA("2-ff00:0:222"), ID: graph.If_222_X_211_A},
 			},
-			ASEntries: concatASEntries(
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A1_212_X}).ASEntries,
+			ASEntries: concatBeaconASEntries(g,
+				[]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A1_212_X},
 				nil,
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A_222_X}).ASEntries,
+				[]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A_222_X},
 			),
 		},
 		{
@@ -106,10 +106,10 @@ func TestStaticinfo(t *testing.T) {
 				{IA: xtest.MustParseIA("2-ff00:0:221"), ID: graph.If_221_X_222_X},
 				{IA: xtest.MustParseIA("2-ff00:0:222"), ID: graph.If_222_X_221_X},
 			},
-			ASEntries: concatASEntries(
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A1_212_X}).ASEntries,
+			ASEntries: concatBeaconASEntries(g,
+				[]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A1_212_X},
 				nil,
-				g.BeaconWithStaticInfo([]common.IFIDType{graph.If_220_X_221_X, graph.If_221_X_222_X}).ASEntries,
+				[]common.IFIDType{graph.If_220_X_221_X, graph.If_221_X_222_X},
 			),
 		},
 	}
@@ -233,8 +233,15 @@ func checkNotes(t *testing.T, g *graph.Graph, path []snet.PathInterface, notes [
 	assert.Equal(t, expected, notes)
 }
 
-func concatASEntries(up, core, down []seg.ASEntry) []seg.ASEntry {
-	r := append(up, core...)
-	r = append(r, down...)
+func concatBeaconASEntries(g *graph.Graph,
+	upIfIDs, coreIfIDs, downIfIDs []common.IFIDType) []seg.ASEntry {
+
+	r := []seg.ASEntry{}
+	for _, ifids := range [][]common.IFIDType{upIfIDs, coreIfIDs, downIfIDs} {
+		seg := g.BeaconWithStaticInfo(ifids)
+		if seg != nil {
+			r = append(r, seg.ASEntries...)
+		}
+	}
 	return r
 }

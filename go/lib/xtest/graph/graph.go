@@ -529,7 +529,8 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 		latency.Inter = g.Latency(outIF, g.links[outIF])
 		for ifid := range as.IFIDs {
 			if ifid != outIF && ifid != inIF {
-				// Note: the test graph does not distinguish between parent/child or core interfaces.
+				// Note: the test graph does not distinguish between parent/child or
+				// core interfaces.
 				// Otherwise, we could skip the parent interfaces and half of the
 				// sibling interfaces here.
 				latency.XoverIntra[ifid] = g.Latency(ifid, outIF)
@@ -538,16 +539,6 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 				}
 			}
 		}
-	}
-
-	geo := make(seg.GeoInfo)
-	for ifid := range as.IFIDs {
-		geo[ifid] = g.GeoCoordinates(ifid)
-	}
-
-	linkType := make(seg.LinkTypeInfo)
-	for ifid := range as.IFIDs {
-		linkType[ifid] = g.LinkType(ifid, g.links[ifid])
 	}
 
 	var bandwidth *seg.BandwidthInfo
@@ -570,6 +561,16 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 		}
 	}
 
+	geo := make(seg.GeoInfo)
+	for ifid := range as.IFIDs {
+		geo[ifid] = g.GeoCoordinates(ifid)
+	}
+
+	linkType := make(seg.LinkTypeInfo)
+	for ifid := range as.IFIDs {
+		linkType[ifid] = g.LinkType(ifid, g.links[ifid])
+	}
+
 	var internalHops seg.InternalHopsInfo
 	if outIF != 0 {
 		internalHops = make(map[common.IFIDType]uint32)
@@ -585,9 +586,9 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 
 	return &seg.StaticInfoExtension{
 		Latency:      latency,
+		Bandwidth:    bandwidth,
 		Geo:          geo,
 		LinkType:     linkType,
-		Bandwidth:    bandwidth,
 		InternalHops: internalHops,
 		Note:         fmt.Sprintf("Note %s", ia),
 	}
