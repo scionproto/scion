@@ -116,7 +116,7 @@ On other errors, showpaths will exit with code 2.
 		"Do not probe the paths and print the health status")
 	cmd.Flags().BoolVarP(&flags.json, "json", "j", false,
 		"Write the output as machine readable json")
-	cmd.Flags().BoolVar(&flags.noColor, "no_color", false, "disable colored output")
+	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "disable colored output")
 	cmd.Flags().IPVarP(&flags.cfg.Local, "local", "l", nil,
 		"Optional local IP address to use for probing health checks")
 
