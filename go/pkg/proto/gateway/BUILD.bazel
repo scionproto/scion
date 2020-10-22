@@ -1,5 +1,4 @@
 load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
-load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
 go_proto_library(
     name = "go_default_library",
@@ -7,15 +6,4 @@ go_proto_library(
     importpath = "github.com/scionproto/scion/go/pkg/proto/gateway",
     proto = "//proto/gateway/v1:gateway",
     visibility = ["//visibility:public"],
-)
-
-filegroup(
-    name = "proto_src_files",
-    srcs = [":go_default_library"],
-    output_group = "go_generated_srcs",
-)
-
-pkg_tar(
-    name = "proto_srcs",
-    srcs = [":proto_src_files"],
 )
