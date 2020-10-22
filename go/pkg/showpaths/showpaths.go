@@ -62,12 +62,22 @@ type Hop struct {
 
 // Human writes human readable output to the writer.
 func (r Result) Human(w io.Writer, showExpiration, colored bool) {
+	noColor := color.New()
+	keys := noColor
+	values := noColor
+	header := noColor
+	statusGood := noColor
+	statusBad := noColor
 	if colored {
-		r.coloredHuman(w, showExpiration)
-		return
+		keys = color.New(color.FgHiCyan)
+		values = noColor
+		header = color.New(color.FgHiBlack)
+		statusGood = color.New(color.FgGreen)
+		statusBad = color.New(color.FgRed)
 	}
+
 	sectionHeader := func(intfs int) {
-		fmt.Fprintf(w, "%d Hops:\n", (intfs/2)+1)
+		header.Fprintf(w, "%d Hops:\n", (intfs/2)+1)
 	}
 	sectionHeader(len(r.Paths[0].Hops))
 	for i, path := range r.Paths {
@@ -75,31 +85,7 @@ func (r Result) Human(w io.Writer, showExpiration, colored bool) {
 			sectionHeader(len(path.Hops))
 		}
 
-		fmt.Fprintf(w, "[%2d] %s", i, path.FullPath)
-		if showExpiration {
-			ttl := time.Until(path.Expiry).Truncate(time.Second)
-			fmt.Fprintf(w, " Expires: %s (%s)", path.Expiry, ttl)
-		}
-		if path.Status != "" {
-			fmt.Fprintf(w, " Status: %s LocalIP: %s", path.Status, path.Local)
-		}
-		fmt.Fprintln(w)
-	}
-}
-
-func (r Result) coloredHuman(w io.Writer, showExpiration bool) {
-	keys := color.New(color.FgHiCyan)
-	values := color.New(color.FgWhite)
-	sectionHeader := func(intfs int) {
-		color.New(color.FgHiBlack).Fprintf(w, "%d Hops:\n", (intfs/2)+1)
-	}
-	sectionHeader(len(r.Paths[0].Hops))
-	for i, path := range r.Paths {
-		if i != 0 && len(r.Paths[i-1].Hops) != len(path.Hops) {
-			sectionHeader(len(path.Hops))
-		}
-
-		entries := []string{app.ColorPath(path.FullPath)}
+		entries := []string{app.ColorPath(path.FullPath, app.WithDisableColor(!colored))}
 		if showExpiration {
 			ttl := time.Until(path.Expiry).Truncate(time.Second)
 			entries = append(entries, fmt.Sprintf("%s: %s (%s)",
@@ -107,9 +93,9 @@ func (r Result) coloredHuman(w io.Writer, showExpiration bool) {
 			)
 		}
 		if path.Status != "" {
-			statusColor := color.New(color.FgRed)
+			statusColor := statusBad
 			if strings.EqualFold(path.Status, string(pathprobe.StatusAlive)) {
-				statusColor = color.New(color.FgGreen)
+				statusColor = statusGood
 			}
 			entries = append(entries, fmt.Sprintf("%s: %s",
 				keys.Sprint("Status"), statusColor.Sprint(path.Status)),
