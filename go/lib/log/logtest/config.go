@@ -29,4 +29,5 @@ func InitTestLogging(cfg *log.Config) {}
 func CheckTestLogging(t *testing.T, cfg *log.Config, id string) {
 	assert.Equal(t, log.DefaultConsoleLevel, cfg.Console.Level)
 	assert.Equal(t, "human", cfg.Console.Format)
+	assert.Equal(t, log.DefaultStacktraceLevel, cfg.Console.StacktraceLevel)
 }

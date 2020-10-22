@@ -24,6 +24,8 @@ import (
 const (
 	// DefaultConsoleLevel is the default log level for the console.
 	DefaultConsoleLevel = "info"
+	// DefaultStacktraceLevel is the default log level for which stack traces are included.
+	DefaultStacktraceLevel = "error"
 )
 
 // Config is the configuration for the logger.
@@ -61,6 +63,8 @@ type ConsoleConfig struct {
 	Level string `toml:"level,omitempty"`
 	// Format of the console logging. (human|json)
 	Format string `toml:"format,omitempty"`
+	// StacktraceLevel sets from which level stacktraces are included.
+	StacktraceLevel string `toml:"stacktrace_level,omitempty"`
 }
 
 // InitDefaults populates unset fields in cfg to their default values (if they
@@ -71,5 +75,8 @@ func (c *ConsoleConfig) InitDefaults() {
 	}
 	if !strings.EqualFold(c.Format, "json") {
 		c.Format = "human"
+	}
+	if c.StacktraceLevel == "" {
+		c.StacktraceLevel = DefaultStacktraceLevel
 	}
 }

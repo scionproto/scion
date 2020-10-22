@@ -71,12 +71,25 @@ func convertCfg(cfg ConsoleConfig) (zap.Config, error) {
 		encoderConfig.EncodeCaller = fixedCallerEncoder
 	}
 	return zap.Config{
-		Level:            zap.NewAtomicLevelAt(level),
-		Encoding:         encoding,
-		EncoderConfig:    encoderConfig,
-		OutputPaths:      []string{"stderr"},
-		ErrorOutputPaths: []string{"stderr"},
+		Level:             zap.NewAtomicLevelAt(level),
+		DisableStacktrace: cfg.StacktraceLevel == "none",
+		Encoding:          encoding,
+		EncoderConfig:     encoderConfig,
+		OutputPaths:       []string{"stderr"},
+		ErrorOutputPaths:  []string{"stderr"},
 	}, nil
+}
+
+func getStacktraceLvl(cfg ConsoleConfig) (zapcore.LevelEnabler, error) {
+	if cfg.StacktraceLevel == "none" {
+		return zap.PanicLevel, nil
+	}
+	var level zapcore.Level
+	if err := level.UnmarshalText([]byte(cfg.StacktraceLevel)); err != nil {
+		return nil, serrors.WrapStr("unable to parse log.console.stacktrace_level", err,
+			"level", cfg.Level)
+	}
+	return level, nil
 }
 
 func setupConsole(cfg ConsoleConfig) error {
@@ -84,7 +97,11 @@ func setupConsole(cfg ConsoleConfig) error {
 	if err != nil {
 		return err
 	}
-	logger, err := zCfg.Build(zap.AddCallerSkip(1))
+	stacktrace, err := getStacktraceLvl(cfg)
+	if err != nil {
+		return err
+	}
+	logger, err := zCfg.Build(zap.AddCallerSkip(1), zap.AddStacktrace(stacktrace))
 	if err != nil {
 		return serrors.WrapStr("creating logger", err)
 	}
