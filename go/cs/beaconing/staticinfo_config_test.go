@@ -137,24 +137,22 @@ func TestGenerateStaticinfo(t *testing.T) {
 		inIfid:     3,
 		expected: seg.StaticInfoExtension{
 			Latency: &seg.LatencyInfo{
-				Inter: 40 * time.Millisecond,
-				Intra: 70 * time.Millisecond,
-				XoverIntra: map[common.IFIDType]time.Duration{
+				Intra: map[common.IFIDType]time.Duration{
 					3: 70 * time.Millisecond,
 					5: 50 * time.Millisecond,
 				},
-				PeerInter: map[common.IFIDType]time.Duration{
+				Inter: map[common.IFIDType]time.Duration{
+					3: 40 * time.Millisecond,
 					5: 90 * time.Millisecond,
 				},
 			},
 			Bandwidth: &seg.BandwidthInfo{
-				Inter: 5000000,
-				Intra: 6555550,
-				XoverIntra: map[common.IFIDType]uint32{
+				Intra: map[common.IFIDType]uint32{
 					3: 6555550,
 					5: 75555550,
 				},
-				PeerInter: map[common.IFIDType]uint32{
+				Inter: map[common.IFIDType]uint32{
+					3: 5000000,
 					5: 120,
 				},
 			},

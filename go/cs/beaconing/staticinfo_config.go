@@ -91,24 +91,26 @@ func (cfgdata StaticInfoCfg) gatherLatency(peers map[common.IFIDType]struct{},
 	egifID common.IFIDType, inifID common.IFIDType) *seg.LatencyInfo {
 
 	l := &seg.LatencyInfo{
-		Inter:      cfgdata.Latency[egifID].Inter.Duration,
-		Intra:      cfgdata.Latency[egifID].Intra[inifID].Duration,
-		XoverIntra: make(map[common.IFIDType]time.Duration),
-		PeerInter:  make(map[common.IFIDType]time.Duration),
+		Intra: make(map[common.IFIDType]time.Duration),
+		Inter: make(map[common.IFIDType]time.Duration),
 	}
-	// TODO(matzf): the interface-to-interface ("Intra") entries in the json file
-	// are (expected to be!) symmetric. Should fill this in for the places where this was omitted.
-	for subintfid, intfdelay := range cfgdata.Latency[egifID].Intra {
-		// If we're looking at a peering interface, always include the data
-		// If we're looking at a NON-peering interface, only include the data
-		// if subintfid>egifID so as to not store redundant information
-		// XXX(matzf): filter PARENT interfaces
-		_, peer := peers[subintfid]
-		if peer || subintfid > egifID {
-			l.XoverIntra[subintfid] = intfdelay.Duration
+	if egifID != 0 {
+		l.Inter[egifID] = cfgdata.Latency[egifID].Inter.Duration
+		for subintfid, intfdelay := range cfgdata.Latency[egifID].Intra {
+			// XXX(matzf): filter PARENT interfaces, filter CORE interfaces unless
+			// this is the start/end of segment. This is wrong:
+			// If we're looking at a peering interface, always include the data
+			// If we're looking at a NON-peering interface, only include the data
+			// if subintfid>egifID so as to not store redundant information
+			_, peer := peers[subintfid]
+			if subintfid == inifID || peer || subintfid > egifID {
+				l.Intra[subintfid] = intfdelay.Duration
+			}
 		}
-		if peer {
-			l.PeerInter[subintfid] = cfgdata.Latency[subintfid].Inter.Duration
+	}
+	for peerIfID := range peers {
+		if _, ok := cfgdata.Latency[peerIfID]; ok {
+			l.Inter[peerIfID] = cfgdata.Latency[peerIfID].Inter.Duration
 		}
 	}
 	return l
@@ -120,21 +122,22 @@ func (cfgdata StaticInfoCfg) gatherBW(peers map[common.IFIDType]struct{}, egifID
 	inifID common.IFIDType) *seg.BandwidthInfo {
 
 	bw := &seg.BandwidthInfo{
-		Inter:      cfgdata.Bandwidth[egifID].Inter,
-		Intra:      cfgdata.Bandwidth[egifID].Intra[inifID],
-		XoverIntra: make(map[common.IFIDType]uint32),
-		PeerInter:  make(map[common.IFIDType]uint32),
+		Intra: make(map[common.IFIDType]uint32),
+		Inter: make(map[common.IFIDType]uint32),
 	}
-	for subintfid, intfbw := range cfgdata.Bandwidth[egifID].Intra {
-		// If we're looking at a peering interface, always include the data
-		// If we're looking at a NON-peering interface, only include the data
-		// if subintfid>egifID so as to not store redundant information
-		_, peer := peers[subintfid]
-		if peer || subintfid > egifID {
-			bw.XoverIntra[subintfid] = intfbw
+	if _, ok := cfgdata.Bandwidth[egifID]; egifID != 0 && ok {
+		bw.Inter[egifID] = cfgdata.Bandwidth[egifID].Inter
+		for subintfid, intfbw := range cfgdata.Bandwidth[egifID].Intra {
+			// XXX(matzf) filter correctly, see Latency
+			_, peer := peers[subintfid]
+			if subintfid == inifID || peer || subintfid > egifID {
+				bw.Intra[subintfid] = intfbw
+			}
 		}
-		if peer {
-			bw.PeerInter[subintfid] = cfgdata.Bandwidth[subintfid].Inter
+	}
+	for peerIfID := range peers {
+		if _, ok := cfgdata.Bandwidth[peerIfID]; ok {
+			bw.Inter[peerIfID] = cfgdata.Bandwidth[peerIfID].Inter
 		}
 	}
 	return bw
@@ -201,6 +204,8 @@ func ParseStaticInfoCfg(file string) (*StaticInfoCfg, error) {
 		return nil, serrors.WrapStr("failed to parse static info config: ",
 			err, "file ", file)
 	}
+	// TODO(matzf): the interface-to-interface ("Intra") entries in the json file
+	// are (expected to be!) symmetric. Check & fill in the symmetric entries.
 	return &cfg, nil
 }
 

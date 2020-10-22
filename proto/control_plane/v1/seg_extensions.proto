@@ -54,45 +54,49 @@ message StaticInfoExtension {
 }
 
 // LatencyInfo specifies approximate lower-bound latency values.
-// The separate intra, inter, cross-over and peering information allows to
-// reconstruct latency values for all paths based on this ASEntry.
+// The separate intra and inter AS latency information allows to reconstruct
+// latency values for all paths (cross-over, shortcut, peering) based on this
+// ASEntry.
 // All values are in microseconds. 
 message LatencyInfo {
-    // Latency between beaconing-ingress and beaconing-egress interface in the
-    // local AS.
-    uint32 intra = 1;
-    // Latency between beaconing-egress interface in the local AS and
-    // beaconing-ingress interface in the neighbor AS.
-    uint32 inter = 2;
-    // Latency between beaconing-egress interface and sibling child, core or
-    // peer link interfaces. The key is the interface identifier of the
-    // sibling child, core or peer interface.
-    map<uint64, uint32> xover_intra = 3;
-    // Latency between the local peer interface and the peer interface in
-    // the neighbor AS. The key is the interface identifier of the local
-    // peer interface.
-    map<uint64, uint32> peer_inter = 4;
+    // Latency between construction-egress interface the relevant other
+    // interfaces. These are:
+    // - construction-ingress interface (if any)
+    // - sibling child interfaces,
+    // - core interfaces, if this is the start of a segment, or the end of a core segment
+    // - peer interfaces
+    // The key is the interface identifier of the other interface.
+    map<uint64, uint32> intra = 1;
+    // Latency between the local interface and the interface in the neighbor AS
+    // for the relevant links. These are:
+    // - link at construction-egress interface (if any)
+    // - peer links
+    // The key is the interface identifier of the local interface associated
+    // with the link.
+    map<uint64, uint32> inter = 2;
 }
 
 // BandwidthInfo specifies approximate maximum link bandwidth.
-// The separate intra, inter, cross-over and peering information allows to
-// reconstruct bandwidth values for all paths based on this ASEntry.
+// The separate intra and inter AS bandwidth information allows to reconstruct
+// bandwidth values for all paths (cross-over, shortcut, peering) based on this
+// ASEntry.
 // All values are in Kbit/s.
 message BandwidthInfo {
-    // Bandwidth between beaconing-ingress and beaconing-egress interface in
-    // the local AS.
-    uint32 intra = 1;
-    // Bandwidth between beaconing-egress interface in the local AS and
-    // beaconing-ingress interface in the neighbor AS.
-    uint32 inter = 2;
-    // Bandwidth between beaconing-egress interface and sibling child, core or
-    // peer link interfaces. The key is the interface identifier of the sibling
-    // child, core or peer interface.
-    map<uint64, uint32> xover_intra = 3;
-    // Bandwidth between the local peer interface and the peer interface
-    // in neighbor AS. The key is the interface identifier of the local
-    // peer interface.
-    map<uint64, uint32> peer_inter = 4;
+    // Bandwidth between construction-egress interface the relevant other
+    // interfaces. These are:
+    // - construction-ingress interface (if any)
+    // - sibling child interfaces,
+    // - core interfaces, if this is the start of a segment, or the end of a core segment
+    // - peer interfaces
+    // The key is the interface identifier of the other interface.
+    map<uint64, uint32> intra = 1;
+    // Bandwidth between the local interface and the interface in the neighbor AS
+    // for the relevant links. These are:
+    // - link at construction-egress interface (if any)
+    // - peer links
+    // The key is the interface identifier of the local interface associated
+    // with the link.
+    map<uint64, uint32> inter = 2;
 }
 
 message GeoCoordinates {

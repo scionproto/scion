@@ -112,26 +112,18 @@ func collectLatency(p pathInfo) []time.Duration {
 	for _, asEntry := range p.ASEntries {
 		staticInfo := asEntry.Extensions.StaticInfo
 		if staticInfo != nil && staticInfo.Latency != nil {
-			inIF := snet.PathInterface{
-				IA: asEntry.Local,
-				ID: common.IFIDType(asEntry.HopEntry.HopField.ConsIngress),
-			}
 			egIF := snet.PathInterface{
 				IA: asEntry.Local,
 				ID: common.IFIDType(asEntry.HopEntry.HopField.ConsEgress),
 			}
 			latency := staticInfo.Latency
-			// Ingress to Egress interface
-			addHopLatency(hopLatencies, inIF, egIF, latency.Intra)
-			// Egress to neighbor
-			addHopLatency(hopLatencies, egIF, p.RemoteIF[egIF], latency.Inter)
 			// Egress to sibling child, core or peer interfaces
-			for ifid, v := range latency.XoverIntra {
-				xoverIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
-				addHopLatency(hopLatencies, egIF, xoverIF, v)
+			for ifid, v := range latency.Intra {
+				otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+				addHopLatency(hopLatencies, egIF, otherIF, v)
 			}
 			// Local peer to remote peer interface
-			for ifid, v := range latency.PeerInter {
+			for ifid, v := range latency.Inter {
 				localIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
 				addHopLatency(hopLatencies, localIF, p.RemoteIF[localIF], v)
 			}
@@ -170,26 +162,18 @@ func collectBandwidth(p pathInfo) []uint32 {
 	for _, asEntry := range p.ASEntries {
 		staticInfo := asEntry.Extensions.StaticInfo
 		if staticInfo != nil && staticInfo.Bandwidth != nil {
-			inIF := snet.PathInterface{
-				IA: asEntry.Local,
-				ID: common.IFIDType(asEntry.HopEntry.HopField.ConsIngress),
-			}
 			egIF := snet.PathInterface{
 				IA: asEntry.Local,
 				ID: common.IFIDType(asEntry.HopEntry.HopField.ConsEgress),
 			}
 			bandwidth := staticInfo.Bandwidth
-			// Ingress to Egress interface
-			addHopBandwidth(hopBandwidths, inIF, egIF, bandwidth.Intra)
-			// Egress to neighbor
-			addHopBandwidth(hopBandwidths, egIF, p.RemoteIF[egIF], bandwidth.Inter)
-			// Egress to sibling child, core or peer interfaces
-			for ifid, v := range bandwidth.XoverIntra {
-				xoverIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
-				addHopBandwidth(hopBandwidths, egIF, xoverIF, v)
+			// Egress to other local interfaces
+			for ifid, v := range bandwidth.Intra {
+				otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+				addHopBandwidth(hopBandwidths, egIF, otherIF, v)
 			}
 			// Local peer to remote peer interface
-			for ifid, v := range bandwidth.PeerInter {
+			for ifid, v := range bandwidth.Inter {
 				localIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
 				addHopBandwidth(hopBandwidths, localIF, p.RemoteIF[localIF], v)
 			}

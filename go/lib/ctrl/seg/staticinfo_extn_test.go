@@ -36,11 +36,11 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 			Latency: &LatencyInfo{
 				Intra: 5 * time.Millisecond,
 				Inter: 100 * time.Millisecond,
-				XoverIntra: map[common.IFIDType]time.Duration{
+				Intra: map[common.IFIDType]time.Duration{
 					10: 10 * time.Millisecond,
 					11: 11 * time.Millisecond,
 				},
-				PeerInter: map[common.IFIDType]time.Duration{
+				Inter: map[common.IFIDType]time.Duration{
 					11: 111 * time.Millisecond,
 				},
 			},
@@ -74,11 +74,11 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 			Bandwidth: &BandwidthInfo{
 				Intra: 100_000_000,
 				Inter: 1_000_000,
-				XoverIntra: map[common.IFIDType]uint32{
+				Intra: map[common.IFIDType]uint32{
 					10: 10_000_000,
 					11: 11_000_000,
 				},
-				PeerInter: map[common.IFIDType]uint32{
+				Inter: map[common.IFIDType]uint32{
 					11: 2_000_000,
 				},
 			},
@@ -106,11 +106,11 @@ func nilEmptyMaps(si *StaticInfoExtension) {
 		return
 	}
 	if si.Latency != nil {
-		if len(si.Latency.XoverIntra) == 0 {
-			si.Latency.XoverIntra = nil
+		if len(si.Latency.Intra) == 0 {
+			si.Latency.Intra = nil
 		}
-		if len(si.Latency.PeerInter) == 0 {
-			si.Latency.PeerInter = nil
+		if len(si.Latency.Inter) == 0 {
+			si.Latency.Inter = nil
 		}
 	}
 	if len(si.Geo) == 0 {
@@ -120,11 +120,11 @@ func nilEmptyMaps(si *StaticInfoExtension) {
 		si.LinkType = nil
 	}
 	if si.Bandwidth != nil {
-		if len(si.Bandwidth.XoverIntra) == 0 {
-			si.Bandwidth.XoverIntra = nil
+		if len(si.Bandwidth.Intra) == 0 {
+			si.Bandwidth.Intra = nil
 		}
-		if len(si.Bandwidth.PeerInter) == 0 {
-			si.Bandwidth.PeerInter = nil
+		if len(si.Bandwidth.Inter) == 0 {
+			si.Bandwidth.Inter = nil
 		}
 	}
 	if si.InternalHops != nil {
