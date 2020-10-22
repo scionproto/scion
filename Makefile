@@ -29,25 +29,13 @@ gogen:
 	$(MAKE) -C go/proto
 
 protobuf:
-	bazel build //go/pkg/proto/control_plane:proto_srcs \
-		//go/pkg/proto/crypto:proto_srcs \
-		//go/pkg/proto/discovery:proto_srcs \
-		//go/pkg/proto/daemon:proto_srcs \
-		//go/pkg/proto/gateway:proto_srcs
-
+	bazel build --output_groups=go_generated_srcs //go/pkg/proto/...
 	rm -f go/pkg/proto/*/*.pb.go
-
-	tar -kxf bazel-bin/go/pkg/proto/control_plane/proto_srcs.tar -C go/pkg/proto/control_plane
-	tar -kxf bazel-bin/go/pkg/proto/crypto/proto_srcs.tar -C go/pkg/proto/crypto
-	tar -kxf bazel-bin/go/pkg/proto/discovery/proto_srcs.tar -C go/pkg/proto/discovery
-	tar -kxf bazel-bin/go/pkg/proto/daemon/proto_srcs.tar -C go/pkg/proto/daemon
-	tar -kxf bazel-bin/go/pkg/proto/gateway/proto_srcs.tar -C go/pkg/proto/gateway
-
+	cp -r bazel-bin/go/pkg/proto/*/go_default_library_/github.com/scionproto/scion/go/pkg/proto/* go/pkg/proto
 	chmod 0644 go/pkg/proto/*/*.pb.go
 
 mocks:
-	./tools/gomocks
-	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build $(GAZELLE_DIRS)
+	tools/gomocks
 
 gazelle:
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build $(GAZELLE_DIRS)
