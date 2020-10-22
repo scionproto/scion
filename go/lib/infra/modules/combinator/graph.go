@@ -386,11 +386,6 @@ func (solution *pathSolution) Path() Path {
 
 	interfaces := segments.Interfaces()
 	asEntries := segments.ASEntries()
-	asEntryIAs := []addr.IA{}
-	for _, ae := range asEntries {
-		asEntryIAs = append(asEntryIAs, ae.Local)
-	}
-	fmt.Println("AS ENtries: ", asEntryIAs)
 	_ = collectMetadata(interfaces, asEntries) // TODO(matzf) export this
 
 	return Path{
