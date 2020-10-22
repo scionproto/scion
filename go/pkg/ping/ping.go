@@ -156,19 +156,35 @@ func (p *pinger) Ping(ctx context.Context, remote *snet.UDPAddr) (Stats, error) 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	errSend := make(chan error, 1)
+
 	go func() {
 		defer log.HandlePanic()
 		p.drain(ctx)
+	}()
+
+	go func() {
+		defer log.HandlePanic()
+		for i := uint16(0); i < p.attempts; i++ {
+			if err := p.send(remote); err != nil {
+				errSend <- serrors.WrapStr("sending", err)
+				return
+			}
+			select {
+			case <-send.C:
+			case <-ctx.Done():
+				return
+			}
+		}
+		time.AfterFunc(p.timeout, cancel)
 	}()
 
 	for i := uint16(0); i < p.attempts; i++ {
 		select {
 		case <-ctx.Done():
 			return p.stats, nil
-		case <-send.C:
-			if err := p.send(remote); err != nil {
-				return p.stats, serrors.WrapStr("sending", err)
-			}
+		case err := <-errSend:
+			return p.stats, err
 		case reply := <-p.replies:
 			if reply.Error != nil {
 				if p.errHandler != nil {
@@ -180,7 +196,6 @@ func (p *pinger) Ping(ctx context.Context, remote *snet.UDPAddr) (Stats, error) 
 		}
 	}
 	return p.stats, nil
-
 }
 
 func (p *pinger) send(remote *snet.UDPAddr) error {

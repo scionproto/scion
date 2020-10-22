@@ -38,21 +38,29 @@ import (
 func newTraceroute(pather CommandPather) *cobra.Command {
 	var flags struct {
 		dispatcher  string
+		features    []string
 		interactive bool
 		local       net.IP
-		sciond      string
-		refresh     bool
-		timeout     time.Duration
 		noColor     bool
-
-		features []string
+		refresh     bool
+		sciond      string
+		sequence    string
+		timeout     time.Duration
 	}
 
 	var cmd = &cobra.Command{
 		Use:     "traceroute [flags] <remote>",
 		Aliases: []string{"tr"},
 		Short:   "Trace the SCION route to a remote SCION AS using SCMP traceroute packets",
-		Args:    cobra.ExactArgs(1),
+		Example: fmt.Sprintf("  %[1]s traceroute 1-ff00:0:110,10.0.0.1", pather.CommandPath()),
+		Long: fmt.Sprintf(`'traceroute' traces the SCION path to a remote AS using
+SCMP traceroute packets.
+
+If any packet is dropped, traceroute will exit with code 1.
+On other errors, traceroute will exit with code 2.
+%s`, filterHelp),
+
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 			remote, err := snet.ParseUDPAddr(args[0])
@@ -70,7 +78,8 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 				return err
 			}
 			path, err := app.ChoosePath(context.Background(), sd, remote.IA,
-				flags.interactive, flags.refresh, app.WithDisableColor(flags.noColor))
+				flags.interactive, flags.refresh, flags.sequence,
+				app.WithDisableColor(flags.noColor))
 			if err != nil {
 				return err
 			}
@@ -120,11 +129,10 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 				return err
 			}
 			if stats.Sent != stats.Recv {
-				return serrors.New("packets were lost")
+				return app.WithExitCode(serrors.New("packets were lost"), 1)
 			}
 			return nil
 		},
-		Example: fmt.Sprintf("%[1]s traceroute 1-ff00:0:1,[10.0.0.1]", pather.CommandPath()),
 	}
 
 	cmd.Flags().BoolVar(&flags.refresh, "refresh", false, "set refresh flag for path request")
@@ -135,6 +143,7 @@ func newTraceroute(pather CommandPather) *cobra.Command {
 	cmd.Flags().StringVar(&flags.dispatcher, "dispatcher", reliable.DefaultDispPath,
 		"dispatcher socket")
 	cmd.Flags().StringVar(&flags.sciond, "sciond", sciond.DefaultAPIAddress, "SCION Daemon address")
+	cmd.Flags().StringVar(&flags.sequence, "sequence", "", "sequence space separated list of HPs")
 	return cmd
 }
 

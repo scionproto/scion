@@ -85,7 +85,7 @@ func NewFetcher(cfg FetcherConfig) Fetcher {
 				},
 				Requester: &segfetcher.DefaultRequester{
 					RPC:         cfg.RPC,
-					DstProvider: &dstProvider{TopologyProvider: cfg.TopoProvider},
+					DstProvider: &dstProvider{},
 				},
 				Metrics: segfetcher.NewFetcherMetrics("sd"),
 			},
@@ -117,11 +117,10 @@ func (f *fetcher) GetPaths(ctx context.Context, src, dst addr.IA,
 }
 
 type dstProvider struct {
-	TopologyProvider topology.Provider
 }
 
 func (r *dstProvider) Dst(_ context.Context, _ segfetcher.Request) (net.Addr, error) {
-	return r.TopologyProvider.Get().Anycast(addr.SvcCS)
+	return addr.SvcCS, nil
 }
 
 type neverLocal struct{}

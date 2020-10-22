@@ -40,5 +40,6 @@ go_library(
         "//go/pkg/trust/metrics:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//resolver:go_default_library",
     ],
 )

@@ -56,7 +56,7 @@ func NewServer(address string, ipv4Conn, ipv6Conn net.PacketConn) (*Server, erro
 		}
 	}
 	return &Server{
-		routingTable: NewIATable(1024, 65535),
+		routingTable: NewIATable(32768, 65535),
 		ipv4Conn:     ipv4Conn,
 		ipv6Conn:     ipv6Conn,
 	}, nil
