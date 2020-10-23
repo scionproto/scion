@@ -291,8 +291,7 @@ func (cfg *Tracing) NewTracer(id string) (opentracing.Tracer, io.Closer, error) 
 
 // QUIC contains configuration for control-plane speakers.
 type QUIC struct {
-	ResolutionFraction float64 `toml:"resolution_fraction,omitempty"`
-	Address            string  `toml:"address,omitempty"`
+	Address string `toml:"address,omitempty"`
 }
 
 func (cfg *QUIC) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
