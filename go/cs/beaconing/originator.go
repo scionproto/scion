@@ -19,6 +19,7 @@ import (
 	"crypto/rand"
 	"math/big"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/cs/ifstate"
@@ -60,8 +61,19 @@ func (o *Originator) Name() string {
 // Run originates core and downstream beacons.
 func (o *Originator) Run(ctx context.Context) {
 	o.Tick.now = time.Now()
-	o.originateBeacons(ctx, topology.Core)
-	o.originateBeacons(ctx, topology.Child)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer log.HandlePanic()
+		defer wg.Done()
+		o.originateBeacons(ctx, topology.Core)
+	}()
+	go func() {
+		defer log.HandlePanic()
+		defer wg.Done()
+		o.originateBeacons(ctx, topology.Child)
+	}()
+	wg.Wait()
 	metrics.Originator.Runtime().Add(time.Since(o.Tick.now).Seconds())
 	o.Tick.updateLast()
 }
@@ -79,6 +91,8 @@ func (o *Originator) originateBeacons(ctx context.Context, linkType topology.Lin
 		return
 	}
 	s := newSummary()
+	var wg sync.WaitGroup
+	wg.Add(len(intfs))
 	for _, ifid := range intfs {
 		b := beaconOriginator{
 			Originator: o,
@@ -86,10 +100,15 @@ func (o *Originator) originateBeacons(ctx context.Context, linkType topology.Lin
 			timestamp:  o.Tick.now,
 			summary:    s,
 		}
-		if err := b.originateBeacon(ctx); err != nil {
-			logger.Info("Unable to originate on interface", "ifid", ifid, "err", err)
-		}
+		go func() {
+			defer log.HandlePanic()
+			defer wg.Done()
+			if err := b.originateBeacon(ctx); err != nil {
+				logger.Info("Unable to originate on interface", "ifid", b.ifID, "err", err)
+			}
+		}()
 	}
+	wg.Wait()
 	o.logSummary(logger, s, linkType)
 }
 
