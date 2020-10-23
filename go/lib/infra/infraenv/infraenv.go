@@ -100,7 +100,7 @@ func (nc *NetworkConfig) TCPStack() (net.Listener, error) {
 
 func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	if nc.QUIC.Address == "" {
-		return nil, serrors.New("QUIC address required")
+		nc.QUIC.Address = net.JoinHostPort(nc.Public.IP.String(), "0")
 	}
 	client, server, err := nc.initQUICSockets()
 	if err != nil {

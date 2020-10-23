@@ -28,12 +28,10 @@ from python.topology.common import (
     ArgsTopoDicts,
     DISP_CONFIG_NAME,
     docker_host,
-    join_host_port,
     prom_addr,
     prom_addr_dispatcher,
     sciond_ip,
     sciond_name,
-    split_host_port,
     translate_features,
     SD_API_PORT,
     SD_CONFIG_NAME,
@@ -126,7 +124,6 @@ class GoGenerator(object):
             },
             'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(infra_elem, CS_PROM_PORT),
-            'quic': self._quic_conf_entry(CS_QUIC_PORT, self.args.svcfrac, infra_elem),
             'features': translate_features(self.args.features),
         }
         if ca:
@@ -166,7 +163,6 @@ class GoGenerator(object):
             },
             'tracing': self._tracing_entry(),
             'metrics': self._metrics_entry(infra_elem, CO_PROM_PORT),
-            'quic': self._quic_conf_entry(CO_QUIC_PORT, self.args.svcfrac, infra_elem),
             'features': translate_features(self.args.features),
         }
         return raw_entry
@@ -313,14 +309,4 @@ class GoGenerator(object):
         a = prom_addr(infra_elem['addr'], base_port)
         return {
             'prometheus': a,
-        }
-
-    def _quic_conf_entry(self, port, svcfrac, elem=None):
-        addr = '127.0.0.1' if elem is None else split_host_port(elem['addr'])[0]
-        if self.args.docker and elem is not None:
-            _, port = split_host_port(elem['addr'])
-            port += 1
-        return {
-            'address':  join_host_port(addr, port),
-            'resolution_fraction': svcfrac,
         }
