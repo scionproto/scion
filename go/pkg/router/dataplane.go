@@ -329,6 +329,11 @@ func (d *DataPlane) AddSvc(svc addr.HostSVC, a *net.UDPAddr) error {
 		d.svc = newServices()
 	}
 	d.svc.AddSvc(svc, a)
+	if d.Metrics != nil {
+		labels := serviceMetricLabels(d.localIA, svc)
+		d.Metrics.ServiceInstanceChanges.With(labels).Add(1)
+		d.Metrics.ServiceInstanceCount.With(labels).Add(1)
+	}
 	return nil
 }
 
@@ -343,6 +348,11 @@ func (d *DataPlane) DelSvc(svc addr.HostSVC, a *net.UDPAddr) error {
 		return nil
 	}
 	d.svc.DelSvc(svc, a)
+	if d.Metrics != nil {
+		labels := serviceMetricLabels(d.localIA, svc)
+		d.Metrics.ServiceInstanceChanges.With(labels).Add(1)
+		d.Metrics.ServiceInstanceCount.With(labels).Add(-1)
+	}
 	return nil
 }
 
@@ -1434,5 +1444,12 @@ func interfaceToMetricLabels(id uint16, localIA addr.IA,
 		"isd_as":          localIA.String(),
 		"interface":       strconv.FormatUint(uint64(id), 10),
 		"neighbor_isd_as": neighbors[id].String(),
+	}
+}
+
+func serviceMetricLabels(localIA addr.IA, svc addr.HostSVC) prometheus.Labels {
+	return prometheus.Labels{
+		"isd_as":  localIA.String(),
+		"service": svc.BaseString(),
 	}
 }
