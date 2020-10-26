@@ -74,6 +74,7 @@ type (
 	GatewayInfo struct {
 		CtrlAddr *TopoAddr
 		DataAddr *net.UDPAddr
+		AllowIFs []common.IFIDType
 	}
 
 	// BRInfo is a list of AS-wide unique interface IDs for a router. These IDs are also used
@@ -484,9 +485,14 @@ func gatewayMapFromRaw(ras map[string]*jsontopo.GatewayInfo) (map[string]Gateway
 			return nil, serrors.WrapStr("could not parse data address", err,
 				"address", svc.DataAddr, "process_name", name)
 		}
+		var ifs []common.IFIDType
+		for _, i := range svc.Interfaces {
+			ifs = append(ifs, common.IFIDType(i))
+		}
 		ret[name] = GatewayInfo{
 			CtrlAddr: c,
 			DataAddr: d,
+			AllowIFs: ifs,
 		}
 	}
 	return ret, nil

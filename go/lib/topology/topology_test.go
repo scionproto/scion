@@ -148,6 +148,7 @@ func TestServiceDetails(t *testing.T) {
 				IP:   net.IP{127, 0, 0, 82},
 				Port: 30101,
 			},
+			AllowIFs: []common.IFIDType{1, 3, 5},
 		},
 		"sig2-ff00:0:311-1": {
 			CtrlAddr: &TopoAddr{
