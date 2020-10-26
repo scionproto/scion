@@ -20,7 +20,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"hash"
 	"net"
 	"testing"
 	"time"
@@ -36,7 +35,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
@@ -49,8 +47,6 @@ const (
 
 func TestOriginatorRun(t *testing.T) {
 	topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
-	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
-	require.NoError(t, err)
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	pub := priv.Public()
@@ -66,7 +62,7 @@ func TestOriginatorRun(t *testing.T) {
 				MTU:        topoProvider.Get().MTU(),
 				Signer:     signer,
 				Intfs:      intfs,
-				MAC:        func() hash.Hash { return mac },
+				MAC:        macFactory,
 				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
@@ -118,7 +114,7 @@ func TestOriginatorRun(t *testing.T) {
 				MTU:        topoProvider.Get().MTU(),
 				Signer:     signer,
 				Intfs:      intfs,
-				MAC:        func() hash.Hash { return mac },
+				MAC:        macFactory,
 				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
