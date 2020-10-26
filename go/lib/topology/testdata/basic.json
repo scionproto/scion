@@ -86,7 +86,8 @@
   "sigs": {
     "sig1-ff00:0:311-1": {
       "ctrl_addr": "127.0.0.82:30100",
-      "data_addr": "127.0.0.82:30101"
+      "data_addr": "127.0.0.82:30101",
+      "allow_interfaces": [1,3,5]
     },
     "sig2-ff00:0:311-1": {
       "ctrl_addr": "[2001:db8:f00:b43::1%some-zone]:23425",
