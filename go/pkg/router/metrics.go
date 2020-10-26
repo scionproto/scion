@@ -30,6 +30,8 @@ type Metrics struct {
 	BFDInterfaceStateChanges  *prometheus.CounterVec
 	BFDPacketsSent            *prometheus.CounterVec
 	BFDPacketsReceived        *prometheus.CounterVec
+	ServiceInstanceCount      *prometheus.GaugeVec
+	ServiceInstanceChanges    *prometheus.CounterVec
 	SiblingReachable          *prometheus.GaugeVec
 	SiblingBFDPacketsSent     *prometheus.CounterVec
 	SiblingBFDPacketsReceived *prometheus.CounterVec
@@ -103,6 +105,21 @@ func NewMetrics() *Metrics {
 				Help: "Number of BFD packets received.",
 			},
 			[]string{"interface", "isd_as", "neighbor_isd_as"},
+		),
+		ServiceInstanceCount: promauto.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "router_service_instance_count",
+				Help: "Number of service instances known by the data plane.",
+			},
+			[]string{"service", "isd_as"},
+		),
+		ServiceInstanceChanges: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "router_service_instance_changes_total",
+				Help: "Number of total service instance changes. Both addition and removal of a " +
+					"service instance is accumulated.",
+			},
+			[]string{"service", "isd_as"},
 		),
 		SiblingReachable: promauto.NewGaugeVec(
 			prometheus.GaugeOpts{

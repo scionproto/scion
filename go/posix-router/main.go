@@ -30,7 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/router"
-	brconf "github.com/scionproto/scion/go/pkg/router/config"
+	"github.com/scionproto/scion/go/pkg/router/config"
 	"github.com/scionproto/scion/go/pkg/router/control"
 	"github.com/scionproto/scion/go/pkg/service"
 )
@@ -52,7 +52,7 @@ func main() {
 	}
 	cmd.AddCommand(
 		command.NewCompletion(cmd),
-		command.NewSample(cmd, command.NewSampleConfig(&brconf.Config{})),
+		command.NewSample(cmd, command.NewSampleConfig(&config.Config{})),
 		command.NewVersion(cmd),
 	)
 	cmd.Flags().StringVar(&flags.config, "config", "", "Configuration file (required)")
@@ -72,7 +72,7 @@ func run(file string, metrics *router.Metrics) error {
 	defer log.Flush()
 	defer env.LogAppStopped("BR", fileConfig.General.ID)
 	defer log.HandlePanic()
-	if err := validateCfg(fileConfig); err != nil {
+	if err := validateConfig(fileConfig); err != nil {
 		return err
 	}
 	controlConfig, err := loadControlConfig(fileConfig)
@@ -115,30 +115,30 @@ func run(file string, metrics *router.Metrics) error {
 	}
 }
 
-func setupBasic(file string) (brconf.Config, error) {
-	var cfg brconf.Config
+func setupBasic(file string) (config.Config, error) {
+	var cfg config.Config
 	if err := libconfig.LoadFile(file, &cfg); err != nil {
-		return brconf.Config{}, serrors.WrapStr("loading config from file", err, "file", file)
+		return config.Config{}, serrors.WrapStr("loading config from file", err, "file", file)
 	}
 	cfg.InitDefaults()
 	if err := log.Setup(cfg.Logging); err != nil {
-		return brconf.Config{}, serrors.WrapStr("initialize logging", err)
+		return config.Config{}, serrors.WrapStr("initialize logging", err)
 	}
 	prom.ExportElementID(cfg.General.ID)
 	if err := env.LogAppStarted("BR", cfg.General.ID); err != nil {
-		return brconf.Config{}, err
+		return config.Config{}, err
 	}
 	return cfg, nil
 }
 
-func validateCfg(cfg brconf.Config) error {
+func validateConfig(cfg config.Config) error {
 	if err := cfg.Validate(); err != nil {
 		return serrors.WrapStr("validating config", err)
 	}
 	return nil
 }
 
-func loadControlConfig(cfg brconf.Config) (*control.Config, error) {
+func loadControlConfig(cfg config.Config) (*control.Config, error) {
 	newConf, err := control.LoadConfig(cfg.General.ID, cfg.General.ConfigDir)
 	if err != nil {
 		return nil, serrors.WrapStr("loading topology", err)
@@ -146,7 +146,7 @@ func loadControlConfig(cfg brconf.Config) (*control.Config, error) {
 	return newConf, nil
 }
 
-func setupHTTPHandlers(cfg brconf.Config) error {
+func setupHTTPHandlers(cfg config.Config) error {
 	statusPages := service.StatusPages{
 		"info":      service.NewInfoHandler(),
 		"config":    service.NewConfigHandler(cfg),
