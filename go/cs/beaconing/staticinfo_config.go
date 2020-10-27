@@ -252,8 +252,9 @@ func includeIntraInfo(ifType map[common.IFIDType]topology.LinkType,
 }
 
 func interfaceTypeTable(intfs *ifstate.Interfaces) map[common.IFIDType]topology.LinkType {
-	ifTypes := make(map[common.IFIDType]topology.LinkType)
-	for ifID, ifInfo := range intfs.All() {
+	ifMap := intfs.All()
+	ifTypes := make(map[common.IFIDType]topology.LinkType, len(ifMap))
+	for ifID, ifInfo := range ifMap {
 		ifTypes[ifID] = ifInfo.TopoInfo().LinkType
 	}
 	return ifTypes
