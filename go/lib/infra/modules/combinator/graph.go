@@ -541,7 +541,7 @@ func (segment *segment) computeHopFieldsTTL() time.Duration {
 	return minTTL
 }
 
-// segmentList is a halper that represents a path as a sequence of up to three
+// segmentList is a helper that represents a path as a sequence of up to three
 // segments during the conversion from the graph solution to the raw forwarding
 // information.
 type segmentList []segment
@@ -556,8 +556,8 @@ func (s segmentList) Interfaces() []snet.PathInterface {
 	return intfs
 }
 
-// ASEntries returns the concatenated lists of AS entry extensions from the
-// individual segments, in the order of appearnce on the path.
+// ASEntries returns the concatenated lists of AS entries from the
+// individual segments, in the order of appearance on the path.
 func (s segmentList) ASEntries() []seg.ASEntry {
 	var asEntries []seg.ASEntry
 	for _, seg := range s {

@@ -22,7 +22,7 @@ type PathMetadata struct {
 	// A 0-value indicates that the AS did not announce a latency for this hop.
 	Latency []time.Duration
 
-	// Bandwidth lists the bandwidth between any two consecutive interfaces.
+	// Bandwidth lists the bandwidth between any two consecutive interfaces, in Kbit/s.
 	// Entry i describes the bandwidth between interfaces i and i+1.
 	// A 0-value indicates that the AS did not announce a bandwidth for this hop.
 	Bandwidth []uint32
@@ -100,7 +100,7 @@ func collectMetadata(interfaces []snet.PathInterface, asEntries []seg.ASEntry) P
 }
 
 func collectLatency(p pathInfo) []time.Duration {
-	// Were making our lives quite easy here:
+	// We're making our lives quite easy here:
 	// 1) Go over the ASEntries (in whatever order) and store the latency
 	//    information for any interface pair we can find to a map.
 	//    Here, we can also handle any inconsistencies we may find.
