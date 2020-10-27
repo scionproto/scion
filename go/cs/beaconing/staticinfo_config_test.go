@@ -143,7 +143,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 			ingress: 3,
 			egress:  1,
 			expected: staticinfo.Extension{
-				Latency: &staticinfo.LatencyInfo{
+				Latency: staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{
 						2: 10 * time.Millisecond,
 						3: 20 * time.Millisecond,
@@ -154,7 +154,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 						5: 90 * time.Millisecond,
 					},
 				},
-				Bandwidth: &staticinfo.BandwidthInfo{
+				Bandwidth: staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint32{
 						2: 100000000,
 						3: 200000000,
@@ -199,7 +199,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 			ingress: 3,
 			egress:  2,
 			expected: staticinfo.Extension{
-				Latency: &staticinfo.LatencyInfo{
+				Latency: staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{
 						3: 70 * time.Millisecond,
 						5: 50 * time.Millisecond,
@@ -209,7 +209,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 						5: 90 * time.Millisecond,
 					},
 				},
-				Bandwidth: &staticinfo.BandwidthInfo{
+				Bandwidth: staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint32{
 						3: 6555550,
 						5: 75555550,
@@ -252,13 +252,13 @@ func TestGenerateStaticInfo(t *testing.T) {
 			ingress: 3,
 			egress:  0,
 			expected: staticinfo.Extension{
-				Latency: &staticinfo.LatencyInfo{
+				Latency: staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{},
 					Inter: map[common.IFIDType]time.Duration{
 						5: 90 * time.Millisecond,
 					},
 				},
-				Bandwidth: &staticinfo.BandwidthInfo{
+				Bandwidth: staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint32{},
 					Inter: map[common.IFIDType]uint32{
 						5: 120,
@@ -288,7 +288,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 			ingress: 0,
 			egress:  1,
 			expected: staticinfo.Extension{
-				Latency: &staticinfo.LatencyInfo{
+				Latency: staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{
 						2: 10 * time.Millisecond,
 						5: 30 * time.Millisecond,
@@ -298,7 +298,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 						5: 90 * time.Millisecond,
 					},
 				},
-				Bandwidth: &staticinfo.BandwidthInfo{
+				Bandwidth: staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint32{
 						2: 100000000,
 						5: 300000000,
@@ -336,7 +336,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 			ingress: 0,
 			egress:  2,
 			expected: staticinfo.Extension{
-				Latency: &staticinfo.LatencyInfo{
+				Latency: staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{
 						5: 50 * time.Millisecond,
 					},
@@ -345,7 +345,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 						5: 90 * time.Millisecond,
 					},
 				},
-				Bandwidth: &staticinfo.BandwidthInfo{
+				Bandwidth: staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint32{
 						5: 75555550,
 					},

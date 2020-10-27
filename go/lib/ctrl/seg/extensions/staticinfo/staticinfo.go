@@ -29,8 +29,8 @@ import (
 // Extension is the internal repesentation of the StaticInfoExtension path
 // segment extension.
 type Extension struct {
-	Latency      *LatencyInfo
-	Bandwidth    *BandwidthInfo
+	Latency      LatencyInfo
+	Bandwidth    BandwidthInfo
 	Geo          GeoInfo
 	LinkType     LinkTypeInfo
 	InternalHops InternalHopsInfo
@@ -122,9 +122,9 @@ func FromPB(pb *cppb.StaticInfoExtension) (*Extension, error) {
 	return staticInfo, nil
 }
 
-func latencyInfoFromPB(pb *cppb.LatencyInfo) (*LatencyInfo, error) {
+func latencyInfoFromPB(pb *cppb.LatencyInfo) (LatencyInfo, error) {
 	if pb == nil {
-		return nil, nil
+		return LatencyInfo{}, nil
 	}
 	intra := make(map[common.IFIDType]time.Duration)
 	for ifid, v := range pb.Intra {
@@ -134,15 +134,15 @@ func latencyInfoFromPB(pb *cppb.LatencyInfo) (*LatencyInfo, error) {
 	for ifid, v := range pb.Inter {
 		inter[common.IFIDType(ifid)] = time.Duration(v) * time.Microsecond
 	}
-	return &LatencyInfo{
+	return LatencyInfo{
 		Intra: intra,
 		Inter: inter,
 	}, nil
 }
 
-func bandwidthInfoFromPB(pb *cppb.BandwidthInfo) (*BandwidthInfo, error) {
+func bandwidthInfoFromPB(pb *cppb.BandwidthInfo) (BandwidthInfo, error) {
 	if pb == nil {
-		return nil, nil
+		return BandwidthInfo{}, nil
 	}
 	intra := make(map[common.IFIDType]uint32)
 	for ifid, v := range pb.Intra {
@@ -152,7 +152,7 @@ func bandwidthInfoFromPB(pb *cppb.BandwidthInfo) (*BandwidthInfo, error) {
 	for ifid, v := range pb.Inter {
 		inter[common.IFIDType(ifid)] = v
 	}
-	return &BandwidthInfo{
+	return BandwidthInfo{
 		Intra: intra,
 		Inter: inter,
 	}, nil
@@ -218,15 +218,15 @@ func ToPB(si *Extension) *cppb.StaticInfoExtension {
 	}
 }
 
-func latencyInfoToPB(li *LatencyInfo) *cppb.LatencyInfo {
-	if li == nil {
+func latencyInfoToPB(li LatencyInfo) *cppb.LatencyInfo {
+	if len(li.Intra) == 0 && len(li.Inter) == 0 {
 		return nil
 	}
-	intra := make(map[uint64]uint32)
+	intra := make(map[uint64]uint32, len(li.Intra))
 	for ifid, v := range li.Intra {
 		intra[uint64(ifid)] = uint32(v.Microseconds())
 	}
-	inter := make(map[uint64]uint32)
+	inter := make(map[uint64]uint32, len(li.Inter))
 	for ifid, v := range li.Inter {
 		inter[uint64(ifid)] = uint32(v.Microseconds())
 	}
@@ -236,15 +236,15 @@ func latencyInfoToPB(li *LatencyInfo) *cppb.LatencyInfo {
 	}
 }
 
-func bandwidthInfoToPB(bwi *BandwidthInfo) *cppb.BandwidthInfo {
-	if bwi == nil {
+func bandwidthInfoToPB(bwi BandwidthInfo) *cppb.BandwidthInfo {
+	if len(bwi.Intra) == 0 && len(bwi.Inter) == 0 {
 		return nil
 	}
-	intra := make(map[uint64]uint32)
+	intra := make(map[uint64]uint32, len(bwi.Intra))
 	for ifid, v := range bwi.Intra {
 		intra[uint64(ifid)] = v
 	}
-	inter := make(map[uint64]uint32)
+	inter := make(map[uint64]uint32, len(bwi.Inter))
 	for ifid, v := range bwi.Inter {
 		inter[uint64(ifid)] = v
 	}

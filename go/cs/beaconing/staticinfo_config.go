@@ -129,9 +129,9 @@ func (cfg StaticInfoCfg) gather(ifType map[common.IFIDType]topology.LinkType,
 // gatherLatency extracts latency values from a StaticInfoCfg struct and
 // inserts them into the LatencyInfo portion of a StaticInfoExtn struct.
 func (cfg StaticInfoCfg) gatherLatency(ifType map[common.IFIDType]topology.LinkType,
-	ingress, egress common.IFIDType) *staticinfo.LatencyInfo {
+	ingress, egress common.IFIDType) staticinfo.LatencyInfo {
 
-	l := &staticinfo.LatencyInfo{
+	l := staticinfo.LatencyInfo{
 		Intra: make(map[common.IFIDType]time.Duration),
 		Inter: make(map[common.IFIDType]time.Duration),
 	}
@@ -154,9 +154,9 @@ func (cfg StaticInfoCfg) gatherLatency(ifType map[common.IFIDType]topology.LinkT
 // gatherBW extracts bandwidth values from a StaticInfoCfg struct and
 // inserts them into the BandwidthInfo portion of a StaticInfoExtn struct.
 func (cfg StaticInfoCfg) gatherBW(ifType map[common.IFIDType]topology.LinkType,
-	ingress, egress common.IFIDType) *staticinfo.BandwidthInfo {
+	ingress, egress common.IFIDType) staticinfo.BandwidthInfo {
 
-	bw := &staticinfo.BandwidthInfo{
+	bw := staticinfo.BandwidthInfo{
 		Intra: make(map[common.IFIDType]uint32),
 		Inter: make(map[common.IFIDType]uint32),
 	}

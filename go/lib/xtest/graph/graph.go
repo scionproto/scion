@@ -518,12 +518,10 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 
 	as := g.ases[ia]
 
-	var latency *staticinfo.LatencyInfo
+	latency := staticinfo.LatencyInfo{}
 	if outIF != 0 {
-		latency = &staticinfo.LatencyInfo{
-			Intra: make(map[common.IFIDType]time.Duration),
-			Inter: make(map[common.IFIDType]time.Duration),
-		}
+		latency.Intra = make(map[common.IFIDType]time.Duration)
+		latency.Inter = make(map[common.IFIDType]time.Duration)
 		for ifid := range as.IFIDs {
 			if ifid != outIF {
 				// Note: the test graph does not distinguish between parent/child or
@@ -538,12 +536,10 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 		}
 	}
 
-	var bandwidth *staticinfo.BandwidthInfo
+	bandwidth := staticinfo.BandwidthInfo{}
 	if outIF != 0 {
-		bandwidth = &staticinfo.BandwidthInfo{
-			Intra: make(map[common.IFIDType]uint32),
-			Inter: make(map[common.IFIDType]uint32),
-		}
+		bandwidth.Intra = make(map[common.IFIDType]uint32)
+		bandwidth.Inter = make(map[common.IFIDType]uint32)
 		for ifid := range as.IFIDs {
 			if ifid != outIF {
 				bandwidth.Intra[ifid] = g.Bandwidth(ifid, outIF)

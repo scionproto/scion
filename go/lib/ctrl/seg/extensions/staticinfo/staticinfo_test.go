@@ -34,7 +34,7 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 			LinkType: make(staticinfo.LinkTypeInfo),
 		},
 		"latency": {
-			Latency: &staticinfo.LatencyInfo{
+			Latency: staticinfo.LatencyInfo{
 				Intra: map[common.IFIDType]time.Duration{
 					10: 10 * time.Millisecond,
 					11: 11 * time.Millisecond,
@@ -45,7 +45,7 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 			},
 		},
 		"bandwidth": {
-			Bandwidth: &staticinfo.BandwidthInfo{
+			Bandwidth: staticinfo.BandwidthInfo{
 				Intra: map[common.IFIDType]uint32{
 					10: 10_000_000,
 					11: 11_000_000,
@@ -99,21 +99,17 @@ func nilEmptyMaps(si *staticinfo.Extension) {
 	if si == nil {
 		return
 	}
-	if si.Latency != nil {
-		if len(si.Latency.Intra) == 0 {
-			si.Latency.Intra = nil
-		}
-		if len(si.Latency.Inter) == 0 {
-			si.Latency.Inter = nil
-		}
+	if len(si.Latency.Intra) == 0 {
+		si.Latency.Intra = nil
 	}
-	if si.Bandwidth != nil {
-		if len(si.Bandwidth.Intra) == 0 {
-			si.Bandwidth.Intra = nil
-		}
-		if len(si.Bandwidth.Inter) == 0 {
-			si.Bandwidth.Inter = nil
-		}
+	if len(si.Latency.Inter) == 0 {
+		si.Latency.Inter = nil
+	}
+	if len(si.Bandwidth.Intra) == 0 {
+		si.Bandwidth.Intra = nil
+	}
+	if len(si.Bandwidth.Inter) == 0 {
+		si.Bandwidth.Inter = nil
 	}
 	if len(si.Geo) == 0 {
 		si.Geo = nil
