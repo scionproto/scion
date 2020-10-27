@@ -211,11 +211,12 @@ func collectGeo(p pathInfo) []GeoCoordinates {
 	ifaceGeos := make(map[snet.PathInterface]GeoCoordinates)
 	for _, asEntry := range p.ASEntries {
 		staticInfo := asEntry.Extensions.StaticInfo
-		if staticInfo != nil && staticInfo.Geo != nil {
-			for ifid, v := range staticInfo.Geo {
-				iface := snet.PathInterface{IA: asEntry.Local, ID: ifid}
-				ifaceGeos[iface] = GeoCoordinates(v)
-			}
+		if staticInfo == nil {
+			continue
+		}
+		for ifid, v := range staticInfo.Geo {
+			iface := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+			ifaceGeos[iface] = GeoCoordinates(v)
 		}
 	}
 
@@ -232,19 +233,20 @@ func collectLinkType(p pathInfo) []LinkType {
 	hopLinkTypes := make(map[hopKey]LinkType)
 	for _, asEntry := range p.ASEntries {
 		staticInfo := asEntry.Extensions.StaticInfo
-		if staticInfo != nil {
-			for ifid, rawLinkType := range staticInfo.LinkType {
-				linkType := convertLinkType(rawLinkType)
-				localIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
-				hop := makeHopKey(localIF, p.RemoteIF[localIF])
-				if prevLinkType, duplicate := hopLinkTypes[hop]; duplicate {
-					// Handle conflicts by using LinkTypeUnset
-					if prevLinkType != linkType {
-						hopLinkTypes[hop] = LinkTypeUnset
-					}
-				} else {
-					hopLinkTypes[hop] = linkType
+		if staticInfo == nil {
+			continue
+		}
+		for ifid, rawLinkType := range staticInfo.LinkType {
+			linkType := convertLinkType(rawLinkType)
+			localIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+			hop := makeHopKey(localIF, p.RemoteIF[localIF])
+			if prevLinkType, duplicate := hopLinkTypes[hop]; duplicate {
+				// Handle conflicts by using LinkTypeUnset
+				if prevLinkType != linkType {
+					hopLinkTypes[hop] = LinkTypeUnset
 				}
+			} else {
+				hopLinkTypes[hop] = linkType
 			}
 		}
 	}
@@ -281,16 +283,17 @@ func collectInternalHops(p pathInfo) []uint32 {
 	hopInternalHops := make(map[hopKey]uint32)
 	for _, asEntry := range p.ASEntries {
 		staticInfo := asEntry.Extensions.StaticInfo
+		if staticInfo == nil {
+			continue
+		}
 		egIF := snet.PathInterface{
 			IA: asEntry.Local,
 			ID: common.IFIDType(asEntry.HopEntry.HopField.ConsEgress),
 		}
-		if staticInfo != nil && egIF.ID != 0 {
-			internalHops := staticInfo.InternalHops
-			for ifid, v := range internalHops {
-				otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
-				addHopInternalHops(hopInternalHops, egIF, otherIF, v)
-			}
+		internalHops := staticInfo.InternalHops
+		for ifid, v := range internalHops {
+			otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+			addHopInternalHops(hopInternalHops, egIF, otherIF, v)
 		}
 	}
 
