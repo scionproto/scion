@@ -54,19 +54,19 @@ func getTestConfigData() *StaticInfoCfg {
 		Bandwidth: map[common.IFIDType]InterfaceBandwidths{
 			1: {
 				Inter: 400000000,
-				Intra: map[common.IFIDType]uint32{2: 100000000, 3: 200000000, 5: 300000000},
+				Intra: map[common.IFIDType]uint64{2: 100000000, 3: 200000000, 5: 300000000},
 			},
 			2: {
 				Inter: 5000000,
-				Intra: map[common.IFIDType]uint32{1: 5044444, 3: 6555550, 5: 75555550},
+				Intra: map[common.IFIDType]uint64{1: 5044444, 3: 6555550, 5: 75555550},
 			},
 			3: {
 				Inter: 80,
-				Intra: map[common.IFIDType]uint32{1: 9333330, 2: 1044440, 5: 1333310},
+				Intra: map[common.IFIDType]uint64{1: 9333330, 2: 1044440, 5: 1333310},
 			},
 			5: {
 				Inter: 120,
-				Intra: map[common.IFIDType]uint32{1: 1333330, 2: 1555540, 3: 15666660},
+				Intra: map[common.IFIDType]uint64{1: 1333330, 2: 1555540, 3: 15666660},
 			},
 		},
 		LinkType: map[common.IFIDType]LinkType{
@@ -155,12 +155,12 @@ func TestGenerateStaticInfo(t *testing.T) {
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
-					Intra: map[common.IFIDType]uint32{
+					Intra: map[common.IFIDType]uint64{
 						2: 100000000,
 						3: 200000000,
 						5: 300000000,
 					},
-					Inter: map[common.IFIDType]uint32{
+					Inter: map[common.IFIDType]uint64{
 						1: 400000000,
 						5: 120,
 					},
@@ -210,11 +210,11 @@ func TestGenerateStaticInfo(t *testing.T) {
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
-					Intra: map[common.IFIDType]uint32{
+					Intra: map[common.IFIDType]uint64{
 						3: 6555550,
 						5: 75555550,
 					},
-					Inter: map[common.IFIDType]uint32{
+					Inter: map[common.IFIDType]uint64{
 						2: 5000000,
 						5: 120,
 					},
@@ -259,8 +259,8 @@ func TestGenerateStaticInfo(t *testing.T) {
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
-					Intra: map[common.IFIDType]uint32{},
-					Inter: map[common.IFIDType]uint32{
+					Intra: map[common.IFIDType]uint64{},
+					Inter: map[common.IFIDType]uint64{
 						5: 120,
 					},
 				},
@@ -299,11 +299,11 @@ func TestGenerateStaticInfo(t *testing.T) {
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
-					Intra: map[common.IFIDType]uint32{
+					Intra: map[common.IFIDType]uint64{
 						2: 100000000,
 						5: 300000000,
 					},
-					Inter: map[common.IFIDType]uint32{
+					Inter: map[common.IFIDType]uint64{
 						1: 400000000,
 						5: 120,
 					},
@@ -346,10 +346,10 @@ func TestGenerateStaticInfo(t *testing.T) {
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
-					Intra: map[common.IFIDType]uint32{
+					Intra: map[common.IFIDType]uint64{
 						5: 75555550,
 					},
-					Inter: map[common.IFIDType]uint32{
+					Inter: map[common.IFIDType]uint64{
 						2: 5000000,
 						5: 120,
 					},

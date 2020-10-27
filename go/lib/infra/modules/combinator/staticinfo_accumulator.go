@@ -25,7 +25,7 @@ type PathMetadata struct {
 	// Bandwidth lists the bandwidth between any two consecutive interfaces, in Kbit/s.
 	// Entry i describes the bandwidth between interfaces i and i+1.
 	// A 0-value indicates that the AS did not announce a bandwidth for this hop.
-	Bandwidth []uint32
+	Bandwidth []uint64
 
 	// Geo lists the geographical position of the border routers along the path.
 	// Entry i describes the position of the router for interface i.
@@ -156,10 +156,10 @@ func addHopLatency(m map[hopKey]time.Duration, a, b snet.PathInterface, v time.D
 	}
 }
 
-func collectBandwidth(p pathInfo) []uint32 {
+func collectBandwidth(p pathInfo) []uint64 {
 	// This is identical to collecting latencies.
 	// 1)
-	hopBandwidths := make(map[hopKey]uint32)
+	hopBandwidths := make(map[hopKey]uint64)
 	for _, asEntry := range p.ASEntries {
 		staticInfo := asEntry.Extensions.StaticInfo
 		if staticInfo == nil {
@@ -183,7 +183,7 @@ func collectBandwidth(p pathInfo) []uint32 {
 	}
 
 	// 2)
-	bandwidths := make([]uint32, len(p.Interfaces)-1)
+	bandwidths := make([]uint64, len(p.Interfaces)-1)
 	for i := 0; i+1 < len(p.Interfaces); i++ {
 		bandwidths[i] = hopBandwidths[makeHopKey(p.Interfaces[i], p.Interfaces[i+1])]
 	}
@@ -193,7 +193,7 @@ func collectBandwidth(p pathInfo) []uint32 {
 
 // addHopBandwidth adds the bandwidth of hop a-b to the map. Handle conflicting entries by
 // chosing the more conservative value (i.e. keep lower bandwidth value).
-func addHopBandwidth(m map[hopKey]uint32, a, b snet.PathInterface, v uint32) {
+func addHopBandwidth(m map[hopKey]uint64, a, b snet.PathInterface, v uint64) {
 	// Skip incomplete entries; not strictly necessary, we'd just not look this up
 	if a.ID == 0 || b.ID == 0 {
 		return
@@ -307,8 +307,17 @@ func collectInternalHops(p pathInfo) []uint32 {
 }
 
 func addHopInternalHops(m map[hopKey]uint32, a, b snet.PathInterface, v uint32) {
-	// behaviour is identical to bandwidth.
-	addHopBandwidth(m, a, b, v)
+	// Skip incomplete entries; not strictly necessary, we'd just not look this up
+	if a.ID == 0 || b.ID == 0 {
+		return
+	}
+	if v == 0 {
+		return
+	}
+	k := makeHopKey(a, b)
+	if vExisting, exists := m[k]; !exists || vExisting > v {
+		m[k] = v
+	}
 }
 
 func collectNotes(p pathInfo) []string {

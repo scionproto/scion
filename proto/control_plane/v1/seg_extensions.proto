@@ -89,14 +89,14 @@ message BandwidthInfo {
     // - core interfaces, if this is the start of a segment, or the end of a core segment
     // - peer interfaces
     // The key is the interface identifier of the other interface.
-    map<uint64, uint32> intra = 1;
+    map<uint64, uint64> intra = 1;
     // Bandwidth between the local interface and the interface in the neighbor AS
     // for the relevant links. These are:
     // - link at construction-egress interface (if any)
     // - peer links
     // The key is the interface identifier of the local interface associated
     // with the link.
-    map<uint64, uint32> inter = 2;
+    map<uint64, uint64> inter = 2;
 }
 
 message GeoCoordinates {

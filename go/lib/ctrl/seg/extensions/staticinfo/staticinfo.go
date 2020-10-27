@@ -46,8 +46,8 @@ type LatencyInfo struct {
 // BandwidthInfo is the internal repesentation of `bandwidth` in the
 // StaticInfoExtension.
 type BandwidthInfo struct {
-	Intra map[common.IFIDType]uint32
-	Inter map[common.IFIDType]uint32
+	Intra map[common.IFIDType]uint64
+	Inter map[common.IFIDType]uint64
 }
 
 // GeoInfo is the internal repesentation of `geo` in the
@@ -119,11 +119,11 @@ func bandwidthInfoFromPB(pb *cppb.BandwidthInfo) BandwidthInfo {
 	if pb == nil || len(pb.Intra) == 0 && len(pb.Inter) == 0 {
 		return BandwidthInfo{}
 	}
-	intra := make(map[common.IFIDType]uint32, len(pb.Intra))
+	intra := make(map[common.IFIDType]uint64, len(pb.Intra))
 	for ifid, v := range pb.Intra {
 		intra[common.IFIDType(ifid)] = v
 	}
-	inter := make(map[common.IFIDType]uint32, len(pb.Inter))
+	inter := make(map[common.IFIDType]uint64, len(pb.Inter))
 	for ifid, v := range pb.Inter {
 		inter[common.IFIDType(ifid)] = v
 	}
@@ -221,11 +221,11 @@ func bandwidthInfoToPB(bwi BandwidthInfo) *cppb.BandwidthInfo {
 	if len(bwi.Intra) == 0 && len(bwi.Inter) == 0 {
 		return nil
 	}
-	intra := make(map[uint64]uint32, len(bwi.Intra))
+	intra := make(map[uint64]uint64, len(bwi.Intra))
 	for ifid, v := range bwi.Intra {
 		intra[uint64(ifid)] = v
 	}
-	inter := make(map[uint64]uint32, len(bwi.Inter))
+	inter := make(map[uint64]uint64, len(bwi.Inter))
 	for ifid, v := range bwi.Inter {
 		inter[uint64(ifid)] = v
 	}

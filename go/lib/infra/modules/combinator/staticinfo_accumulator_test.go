@@ -145,14 +145,14 @@ func checkLatency(t *testing.T, g *graph.Graph,
 }
 
 func checkBandwidth(t *testing.T, g *graph.Graph,
-	path []snet.PathInterface, bandwidth []uint32) {
+	path []snet.PathInterface, bandwidth []uint64) {
 
 	if len(path) == 0 {
 		assert.Equal(t, 0, len(bandwidth))
 		return
 	}
 
-	expected := []uint32{}
+	expected := []uint64{}
 	for i := 0; i < len(path)-1; i++ {
 		ifid_a := path[i].ID
 		ifid_b := path[i+1].ID

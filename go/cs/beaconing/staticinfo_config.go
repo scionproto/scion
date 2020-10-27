@@ -34,8 +34,8 @@ type InterfaceLatencies struct {
 }
 
 type InterfaceBandwidths struct {
-	Inter uint32                     `json:"Inter"`
-	Intra map[common.IFIDType]uint32 `json:"Intra"`
+	Inter uint64                     `json:"Inter"`
+	Intra map[common.IFIDType]uint64 `json:"Intra"`
 }
 
 type InterfaceGeodata struct {
@@ -156,8 +156,8 @@ func (cfg StaticInfoCfg) generateBandwidth(ifType map[common.IFIDType]topology.L
 	ingress, egress common.IFIDType) staticinfo.BandwidthInfo {
 
 	bw := staticinfo.BandwidthInfo{
-		Intra: make(map[common.IFIDType]uint32),
-		Inter: make(map[common.IFIDType]uint32),
+		Intra: make(map[common.IFIDType]uint64),
+		Inter: make(map[common.IFIDType]uint64),
 	}
 	for ifid, v := range cfg.Bandwidth[egress].Intra {
 		if includeIntraInfo(ifType, ifid, ingress, egress) {

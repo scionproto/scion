@@ -45,11 +45,11 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 		},
 		"bandwidth": {
 			Bandwidth: staticinfo.BandwidthInfo{
-				Intra: map[common.IFIDType]uint32{
-					10: 10_000_000,
-					11: 11_000_000,
+				Intra: map[common.IFIDType]uint64{
+					10: 1,              // 1Kbit/s
+					11: 10_000_000_000, // 10Tbit/s
 				},
-				Inter: map[common.IFIDType]uint32{
+				Inter: map[common.IFIDType]uint64{
 					11: 2_000_000,
 				},
 			},

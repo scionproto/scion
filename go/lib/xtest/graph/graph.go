@@ -342,13 +342,13 @@ func (g *Graph) Latency(a, b common.IFIDType) time.Duration {
 
 // Bandwidth returns an arbitrary test bandwidth value between two interfaces.
 // Analogous to Latency.
-func (g *Graph) Bandwidth(a, b common.IFIDType) uint32 {
+func (g *Graph) Bandwidth(a, b common.IFIDType) uint64 {
 	sameIA := (g.parents[a] == g.parents[b])
 	if !sameIA && g.links[a] != b {
 		panic("interfaces must be in the same AS or connected by a link")
 	}
 
-	return 1000 * uint32(a*b*11939%10000) // value in 0-10_000_000kbps, 0-10Gbps
+	return 1000 * uint64(a*b*11939%10000) // value in 0-10_000_000kbps, 0-10Gbps
 }
 
 // GeoCoordinates returns an arbitrary test GeoCoordinate for the interface
@@ -538,8 +538,8 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 
 	bandwidth := staticinfo.BandwidthInfo{}
 	if outIF != 0 {
-		bandwidth.Intra = make(map[common.IFIDType]uint32)
-		bandwidth.Inter = make(map[common.IFIDType]uint32)
+		bandwidth.Intra = make(map[common.IFIDType]uint64)
+		bandwidth.Inter = make(map[common.IFIDType]uint64)
 		for ifid := range as.IFIDs {
 			if ifid != outIF {
 				bandwidth.Intra[ifid] = g.Bandwidth(ifid, outIF)
