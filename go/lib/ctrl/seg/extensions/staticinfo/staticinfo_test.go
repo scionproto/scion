@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
@@ -85,8 +84,7 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 	for name, extn := range testCases {
 		t.Run(name, func(t *testing.T) {
 			pb := staticinfo.ToPB(extn)
-			actual, err := staticinfo.FromPB(pb)
-			require.NoError(t, err)
+			actual := staticinfo.FromPB(pb)
 			// Ignore nil vs empty map; replace empty by nil before check
 			nilEmptyMaps(extn)
 			nilEmptyMaps(actual)

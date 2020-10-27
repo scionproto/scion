@@ -24,24 +24,19 @@ type Extensions struct {
 	StaticInfo *staticinfo.Extension
 }
 
-func extensionsFromPB(pb *cppb.PathSegmentExtensions) (Extensions, error) {
+func extensionsFromPB(pb *cppb.PathSegmentExtensions) Extensions {
 	if pb == nil {
-		return Extensions{}, nil
+		return Extensions{}
 	}
 
 	hiddenPath := HiddenPathExtension{
 		IsHidden: pb.HiddenPath != nil && pb.HiddenPath.IsHidden,
 	}
-
-	staticInfo, err := staticinfo.FromPB(pb.StaticInfo)
-	if err != nil {
-		return Extensions{}, err
-	}
-
+	staticInfo := staticinfo.FromPB(pb.StaticInfo)
 	return Extensions{
 		HiddenPath: hiddenPath,
 		StaticInfo: staticInfo,
-	}, nil
+	}
 }
 
 func extensionsToPB(ext Extensions) *cppb.PathSegmentExtensions {

@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/serrors"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
@@ -84,47 +83,23 @@ type LinkTypeInfo map[common.IFIDType]LinkType
 type InternalHopsInfo map[common.IFIDType]uint32
 
 // FromPB creates the staticinfo Extension from the protobuf representation.
-func FromPB(pb *cppb.StaticInfoExtension) (*Extension, error) {
+func FromPB(pb *cppb.StaticInfoExtension) *Extension {
 	if pb == nil {
-		return nil, nil
+		return nil
 	}
-
-	latency, err := latencyInfoFromPB(pb.Latency)
-	if err != nil {
-		return nil, err
-	}
-	geo, err := geoInfoFromPB(pb.Geo)
-	if err != nil {
-		return nil, err
-	}
-	linkType, err := linkTypeInfoFromPB(pb.LinkType)
-	if err != nil {
-		return nil, err
-	}
-	bandwidth, err := bandwidthInfoFromPB(pb.Bandwidth)
-	if err != nil {
-		return nil, err
-	}
-	internalHops, err := internalHopsInfoFromPB(pb.InternalHops)
-	if err != nil {
-		return nil, err
-	}
-
-	staticInfo := &Extension{
-		Latency:      latency,
-		Bandwidth:    bandwidth,
-		Geo:          geo,
-		LinkType:     linkType,
-		InternalHops: internalHops,
+	return &Extension{
+		Latency:      latencyInfoFromPB(pb.Latency),
+		Bandwidth:    bandwidthInfoFromPB(pb.Bandwidth),
+		Geo:          geoInfoFromPB(pb.Geo),
+		LinkType:     linkTypeInfoFromPB(pb.LinkType),
+		InternalHops: internalHopsInfoFromPB(pb.InternalHops),
 		Note:         pb.Note,
 	}
-
-	return staticInfo, nil
 }
 
-func latencyInfoFromPB(pb *cppb.LatencyInfo) (LatencyInfo, error) {
+func latencyInfoFromPB(pb *cppb.LatencyInfo) LatencyInfo {
 	if pb == nil {
-		return LatencyInfo{}, nil
+		return LatencyInfo{}
 	}
 	intra := make(map[common.IFIDType]time.Duration)
 	for ifid, v := range pb.Intra {
@@ -137,12 +112,12 @@ func latencyInfoFromPB(pb *cppb.LatencyInfo) (LatencyInfo, error) {
 	return LatencyInfo{
 		Intra: intra,
 		Inter: inter,
-	}, nil
+	}
 }
 
-func bandwidthInfoFromPB(pb *cppb.BandwidthInfo) (BandwidthInfo, error) {
+func bandwidthInfoFromPB(pb *cppb.BandwidthInfo) BandwidthInfo {
 	if pb == nil {
-		return BandwidthInfo{}, nil
+		return BandwidthInfo{}
 	}
 	intra := make(map[common.IFIDType]uint32)
 	for ifid, v := range pb.Intra {
@@ -155,10 +130,10 @@ func bandwidthInfoFromPB(pb *cppb.BandwidthInfo) (BandwidthInfo, error) {
 	return BandwidthInfo{
 		Intra: intra,
 		Inter: inter,
-	}, nil
+	}
 }
 
-func geoInfoFromPB(pb map[uint64]*cppb.GeoCoordinates) (GeoInfo, error) {
+func geoInfoFromPB(pb map[uint64]*cppb.GeoCoordinates) GeoInfo {
 	gi := make(GeoInfo)
 	for ifid, v := range pb {
 		gi[common.IFIDType(ifid)] = GeoCoordinates{
@@ -167,10 +142,10 @@ func geoInfoFromPB(pb map[uint64]*cppb.GeoCoordinates) (GeoInfo, error) {
 			Address:   v.Address,
 		}
 	}
-	return gi, nil
+	return gi
 }
 
-func linkTypeInfoFromPB(pb map[uint64]cppb.LinkType) (LinkTypeInfo, error) {
+func linkTypeInfoFromPB(pb map[uint64]cppb.LinkType) LinkTypeInfo {
 	lti := make(LinkTypeInfo)
 	for ifid, vpb := range pb {
 		var v LinkType
@@ -184,22 +159,22 @@ func linkTypeInfoFromPB(pb map[uint64]cppb.LinkType) (LinkTypeInfo, error) {
 		case cppb.LinkType_LINK_TYPE_OPEN_NET:
 			v = LinkTypeOpennet
 		default:
-			return nil, serrors.New("invalid link type option", "link type", vpb)
+			continue
 		}
 		lti[common.IFIDType(ifid)] = v
 	}
-	return lti, nil
+	return lti
 }
 
-func internalHopsInfoFromPB(pb map[uint64]uint32) (InternalHopsInfo, error) {
+func internalHopsInfoFromPB(pb map[uint64]uint32) InternalHopsInfo {
 	if pb == nil {
-		return nil, nil
+		return nil
 	}
 	ihi := make(InternalHopsInfo)
 	for ifid, v := range pb {
 		ihi[common.IFIDType(ifid)] = v
 	}
-	return ihi, nil
+	return ihi
 }
 
 // FromPB creates the protobuf representation for the staticinfo Extension.

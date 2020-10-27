@@ -84,10 +84,7 @@ func ASEntryFromPB(pb *cppb.ASEntry) (ASEntry, error) {
 		peerEntries = append(peerEntries, peerEntry)
 	}
 
-	extensions, err := extensionsFromPB(entry.Extensions)
-	if err != nil {
-		return ASEntry{}, serrors.WrapStr("parsing extensions", err)
-	}
+	extensions := extensionsFromPB(entry.Extensions)
 
 	return ASEntry{
 		HopEntry:    hopEntry,
