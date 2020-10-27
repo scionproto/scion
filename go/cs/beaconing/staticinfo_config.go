@@ -99,6 +99,7 @@ func ParseStaticInfoCfg(file string) (*StaticInfoCfg, error) {
 		return nil, serrors.WrapStr("failed to parse static info config: ",
 			err, "file ", file)
 	}
+	// TODO(matzf): validate that there are no entries for 0 the interface ID.
 	// TODO(matzf): the interface-to-interface ("Intra") entries in the json file
 	// are (expected to be!) symmetric. Check & fill in the symmetric entries.
 	return &cfg, nil
@@ -135,11 +136,9 @@ func (cfg StaticInfoCfg) gatherLatency(ifType map[common.IFIDType]topology.LinkT
 		Intra: make(map[common.IFIDType]time.Duration),
 		Inter: make(map[common.IFIDType]time.Duration),
 	}
-	if egress != 0 {
-		for ifid, v := range cfg.Latency[egress].Intra {
-			if includeIntraInfo(ifType, ifid, ingress, egress) {
-				l.Intra[ifid] = v.Duration
-			}
+	for ifid, v := range cfg.Latency[egress].Intra {
+		if includeIntraInfo(ifType, ifid, ingress, egress) {
+			l.Intra[ifid] = v.Duration
 		}
 	}
 	for ifid, v := range cfg.Latency {
@@ -160,12 +159,9 @@ func (cfg StaticInfoCfg) gatherBW(ifType map[common.IFIDType]topology.LinkType,
 		Intra: make(map[common.IFIDType]uint32),
 		Inter: make(map[common.IFIDType]uint32),
 	}
-	if _, ok := cfg.Bandwidth[egress]; egress != 0 && ok {
-		bw.Inter[egress] = cfg.Bandwidth[egress].Inter
-		for ifid, v := range cfg.Bandwidth[egress].Intra {
-			if includeIntraInfo(ifType, ifid, ingress, egress) {
-				bw.Intra[ifid] = v
-			}
+	for ifid, v := range cfg.Bandwidth[egress].Intra {
+		if includeIntraInfo(ifType, ifid, ingress, egress) {
+			bw.Intra[ifid] = v
 		}
 	}
 	for ifid, v := range cfg.Bandwidth {
