@@ -379,7 +379,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := cfg.gather(ifType, tc.ingress, tc.egress)
+			actual := cfg.generate(ifType, tc.ingress, tc.egress)
 			assert.Equal(t, tc.expected, *actual)
 		})
 	}

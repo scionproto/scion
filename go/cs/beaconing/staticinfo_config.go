@@ -111,25 +111,25 @@ func (cfg StaticInfoCfg) Generate(intfs *ifstate.Interfaces,
 	ingress, egress common.IFIDType) *staticinfo.Extension {
 
 	ifType := interfaceTypeTable(intfs)
-	return cfg.gather(ifType, ingress, egress)
+	return cfg.generate(ifType, ingress, egress)
 }
 
-func (cfg StaticInfoCfg) gather(ifType map[common.IFIDType]topology.LinkType,
+func (cfg StaticInfoCfg) generate(ifType map[common.IFIDType]topology.LinkType,
 	ingress, egress common.IFIDType) *staticinfo.Extension {
 
 	return &staticinfo.Extension{
-		Latency:      cfg.gatherLatency(ifType, ingress, egress),
-		Bandwidth:    cfg.gatherBW(ifType, ingress, egress),
-		Geo:          cfg.gatherGeo(ifType, ingress, egress),
-		LinkType:     cfg.gatherLinkType(ifType, egress),
-		InternalHops: cfg.gatherHops(ifType, ingress, egress),
+		Latency:      cfg.generateLatency(ifType, ingress, egress),
+		Bandwidth:    cfg.generateBandwidth(ifType, ingress, egress),
+		Geo:          cfg.generateGeo(ifType, ingress, egress),
+		LinkType:     cfg.generateLinkType(ifType, egress),
+		InternalHops: cfg.generateInternalHops(ifType, ingress, egress),
 		Note:         cfg.Note,
 	}
 }
 
-// gatherLatency extracts latency values from a StaticInfoCfg struct and
-// inserts them into the LatencyInfo portion of a StaticInfoExtn struct.
-func (cfg StaticInfoCfg) gatherLatency(ifType map[common.IFIDType]topology.LinkType,
+// generateLatency creates the LatencyInfo by extracting the relevant values from
+// the config.
+func (cfg StaticInfoCfg) generateLatency(ifType map[common.IFIDType]topology.LinkType,
 	ingress, egress common.IFIDType) staticinfo.LatencyInfo {
 
 	l := staticinfo.LatencyInfo{
@@ -150,9 +150,9 @@ func (cfg StaticInfoCfg) gatherLatency(ifType map[common.IFIDType]topology.LinkT
 	return l
 }
 
-// gatherBW extracts bandwidth values from a StaticInfoCfg struct and
-// inserts them into the BandwidthInfo portion of a StaticInfoExtn struct.
-func (cfg StaticInfoCfg) gatherBW(ifType map[common.IFIDType]topology.LinkType,
+// generateBandwidth creates the BandwidthInfo by extracting the relevant values
+// from the config.
+func (cfg StaticInfoCfg) generateBandwidth(ifType map[common.IFIDType]topology.LinkType,
 	ingress, egress common.IFIDType) staticinfo.BandwidthInfo {
 
 	bw := staticinfo.BandwidthInfo{
@@ -173,9 +173,9 @@ func (cfg StaticInfoCfg) gatherBW(ifType map[common.IFIDType]topology.LinkType,
 	return bw
 }
 
-// gatherLinkType extracts linktype values from a StaticInfoCfg struct and
-// inserts them into the LinkTypeInfo portion of a StaticInfoExtn struct.
-func (cfg StaticInfoCfg) gatherLinkType(ifType map[common.IFIDType]topology.LinkType,
+// generateLinkType creates the LinkTypeInfo by extracting the relevant values from
+// the config.
+func (cfg StaticInfoCfg) generateLinkType(ifType map[common.IFIDType]topology.LinkType,
 	egress common.IFIDType) staticinfo.LinkTypeInfo {
 
 	lt := make(staticinfo.LinkTypeInfo)
@@ -188,9 +188,9 @@ func (cfg StaticInfoCfg) gatherLinkType(ifType map[common.IFIDType]topology.Link
 	return lt
 }
 
-// gatherHops extracts hop values from a StaticInfoCfg struct and
-// inserts them into the InternalHopsinfo portion of a StaticInfoExtn struct.
-func (cfg StaticInfoCfg) gatherHops(ifType map[common.IFIDType]topology.LinkType,
+// generateInternalHops creates the InternalHopsInfo by extracting the relevant
+// values from the config.
+func (cfg StaticInfoCfg) generateInternalHops(ifType map[common.IFIDType]topology.LinkType,
 	ingress, egress common.IFIDType) staticinfo.InternalHopsInfo {
 
 	ihi := make(staticinfo.InternalHopsInfo)
@@ -202,9 +202,9 @@ func (cfg StaticInfoCfg) gatherHops(ifType map[common.IFIDType]topology.LinkType
 	return ihi
 }
 
-// gatherGeo extracts geo values from a StaticInfoCfg struct and
-// inserts them into the GeoInfo portion of a StaticInfoExtn struct.
-func (cfg StaticInfoCfg) gatherGeo(ifType map[common.IFIDType]topology.LinkType,
+// generateGeo creates the GeoInfo by extracting the relevant values from
+// the config.
+func (cfg StaticInfoCfg) generateGeo(ifType map[common.IFIDType]topology.LinkType,
 	ingress, egress common.IFIDType) staticinfo.GeoInfo {
 
 	gi := staticinfo.GeoInfo{}
