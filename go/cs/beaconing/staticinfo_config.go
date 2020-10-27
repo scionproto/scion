@@ -22,7 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
@@ -48,15 +48,15 @@ type InterfaceHops struct {
 	Intra map[common.IFIDType]uint32 `json:"Intra"`
 }
 
-type LinkType seg.LinkType
+type LinkType staticinfo.LinkType
 
 func (l *LinkType) MarshalText() ([]byte, error) {
 	switch *l {
-	case seg.LinkTypeDirect:
+	case staticinfo.LinkTypeDirect:
 		return []byte("direct"), nil
-	case seg.LinkTypeMultihop:
+	case staticinfo.LinkTypeMultihop:
 		return []byte("multihop"), nil
-	case seg.LinkTypeOpennet:
+	case staticinfo.LinkTypeOpennet:
 		return []byte("opennet"), nil
 	default:
 		return nil, serrors.New("invalid link type value")
@@ -66,11 +66,11 @@ func (l *LinkType) MarshalText() ([]byte, error) {
 func (l *LinkType) UnmarshalText(text []byte) error {
 	switch strings.ToLower(string(text)) {
 	case "direct":
-		*l = seg.LinkTypeDirect
+		*l = staticinfo.LinkTypeDirect
 	case "multihop":
-		*l = seg.LinkTypeMultihop
+		*l = staticinfo.LinkTypeMultihop
 	case "opennet":
-		*l = seg.LinkTypeOpennet
+		*l = staticinfo.LinkTypeOpennet
 	default:
 		return serrors.New("invalid link type", "link type", text)
 	}
@@ -107,16 +107,16 @@ func ParseStaticInfoCfg(file string) (*StaticInfoCfg, error) {
 // Generate creates a StaticInfoExtn struct and
 // populates it with data extracted from the configuration.
 func (cfg StaticInfoCfg) Generate(intfs *ifstate.Interfaces,
-	ingress, egress common.IFIDType) *seg.StaticInfoExtension {
+	ingress, egress common.IFIDType) *staticinfo.Extension {
 
 	ifType := interfaceTypeTable(intfs)
 	return cfg.gather(ifType, ingress, egress)
 }
 
 func (cfg StaticInfoCfg) gather(ifType map[common.IFIDType]topology.LinkType,
-	ingress, egress common.IFIDType) *seg.StaticInfoExtension {
+	ingress, egress common.IFIDType) *staticinfo.Extension {
 
-	return &seg.StaticInfoExtension{
+	return &staticinfo.Extension{
 		Latency:      cfg.gatherLatency(ifType, ingress, egress),
 		Bandwidth:    cfg.gatherBW(ifType, ingress, egress),
 		Geo:          cfg.gatherGeo(ifType, ingress, egress),
@@ -129,9 +129,9 @@ func (cfg StaticInfoCfg) gather(ifType map[common.IFIDType]topology.LinkType,
 // gatherLatency extracts latency values from a StaticInfoCfg struct and
 // inserts them into the LatencyInfo portion of a StaticInfoExtn struct.
 func (cfg StaticInfoCfg) gatherLatency(ifType map[common.IFIDType]topology.LinkType,
-	ingress, egress common.IFIDType) *seg.LatencyInfo {
+	ingress, egress common.IFIDType) *staticinfo.LatencyInfo {
 
-	l := &seg.LatencyInfo{
+	l := &staticinfo.LatencyInfo{
 		Intra: make(map[common.IFIDType]time.Duration),
 		Inter: make(map[common.IFIDType]time.Duration),
 	}
@@ -154,9 +154,9 @@ func (cfg StaticInfoCfg) gatherLatency(ifType map[common.IFIDType]topology.LinkT
 // gatherBW extracts bandwidth values from a StaticInfoCfg struct and
 // inserts them into the BandwidthInfo portion of a StaticInfoExtn struct.
 func (cfg StaticInfoCfg) gatherBW(ifType map[common.IFIDType]topology.LinkType,
-	ingress, egress common.IFIDType) *seg.BandwidthInfo {
+	ingress, egress common.IFIDType) *staticinfo.BandwidthInfo {
 
-	bw := &seg.BandwidthInfo{
+	bw := &staticinfo.BandwidthInfo{
 		Intra: make(map[common.IFIDType]uint32),
 		Inter: make(map[common.IFIDType]uint32),
 	}
@@ -180,13 +180,13 @@ func (cfg StaticInfoCfg) gatherBW(ifType map[common.IFIDType]topology.LinkType,
 // gatherLinkType extracts linktype values from a StaticInfoCfg struct and
 // inserts them into the LinkTypeInfo portion of a StaticInfoExtn struct.
 func (cfg StaticInfoCfg) gatherLinkType(ifType map[common.IFIDType]topology.LinkType,
-	egress common.IFIDType) seg.LinkTypeInfo {
+	egress common.IFIDType) staticinfo.LinkTypeInfo {
 
-	lt := make(seg.LinkTypeInfo)
+	lt := make(staticinfo.LinkTypeInfo)
 	for ifid, intfLT := range cfg.LinkType {
 		t := ifType[ifid]
 		if ifid == egress || t == topology.Peer {
-			lt[ifid] = seg.LinkType(intfLT)
+			lt[ifid] = staticinfo.LinkType(intfLT)
 		}
 	}
 	return lt
@@ -195,9 +195,9 @@ func (cfg StaticInfoCfg) gatherLinkType(ifType map[common.IFIDType]topology.Link
 // gatherHops extracts hop values from a StaticInfoCfg struct and
 // inserts them into the InternalHopsinfo portion of a StaticInfoExtn struct.
 func (cfg StaticInfoCfg) gatherHops(ifType map[common.IFIDType]topology.LinkType,
-	ingress, egress common.IFIDType) seg.InternalHopsInfo {
+	ingress, egress common.IFIDType) staticinfo.InternalHopsInfo {
 
-	ihi := make(seg.InternalHopsInfo)
+	ihi := make(staticinfo.InternalHopsInfo)
 	for ifid, v := range cfg.Hops[egress].Intra {
 		if includeIntraInfo(ifType, ifid, ingress, egress) {
 			ihi[ifid] = v
@@ -209,13 +209,13 @@ func (cfg StaticInfoCfg) gatherHops(ifType map[common.IFIDType]topology.LinkType
 // gatherGeo extracts geo values from a StaticInfoCfg struct and
 // inserts them into the GeoInfo portion of a StaticInfoExtn struct.
 func (cfg StaticInfoCfg) gatherGeo(ifType map[common.IFIDType]topology.LinkType,
-	ingress, egress common.IFIDType) seg.GeoInfo {
+	ingress, egress common.IFIDType) staticinfo.GeoInfo {
 
-	gi := seg.GeoInfo{}
+	gi := staticinfo.GeoInfo{}
 	for ifid, loc := range cfg.Geo {
 		t := ifType[ifid]
 		if ifid == egress || ifid == ingress || t == topology.Peer {
-			gi[ifid] = seg.GeoCoordinates{
+			gi[ifid] = staticinfo.GeoCoordinates{
 				Longitude: loc.Longitude,
 				Latitude:  loc.Latitude,
 				Address:   loc.Address,

@@ -207,7 +207,7 @@ func checkLinkType(t *testing.T, g *graph.Graph,
 	for i := 0; i < len(path); i += 2 {
 		ifid_a := path[i].ID
 		ifid_b := path[i+1].ID
-		expected = append(expected, linkTypeFromSeg(g.LinkType(ifid_a, ifid_b)))
+		expected = append(expected, convertLinkType(g.LinkType(ifid_a, ifid_b)))
 	}
 	assert.Equal(t, expected, linkTypes)
 

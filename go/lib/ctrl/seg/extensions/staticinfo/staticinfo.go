@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package seg
+// Package staticinfo contains the internal representation of the
+// StaticInfoExtension path segment extension, and conversion from and to the
+// corresponding protobuf representation.
+// See also StaticInfoExtension in proto/control_plane/v1/seg_extensions.proto.
+package staticinfo
 
 import (
 	"time"
@@ -22,7 +26,9 @@ import (
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
-type StaticInfoExtension struct {
+// Extension is the internal repesentation of the StaticInfoExtension path
+// segment extension.
+type Extension struct {
 	Latency      *LatencyInfo
 	Bandwidth    *BandwidthInfo
 	Geo          GeoInfo
@@ -31,24 +37,36 @@ type StaticInfoExtension struct {
 	Note         string
 }
 
+// LatencyInfo is the internal repesentation of `latency` in the
+// StaticInfoExtension.
 type LatencyInfo struct {
 	Intra map[common.IFIDType]time.Duration
 	Inter map[common.IFIDType]time.Duration
 }
 
+// BandwidthInfo is the internal repesentation of `bandwidth` in the
+// StaticInfoExtension.
 type BandwidthInfo struct {
 	Intra map[common.IFIDType]uint32
 	Inter map[common.IFIDType]uint32
 }
 
+// GeoInfo is the internal repesentation of `geo` in the
+// StaticInfoExtension.
 type GeoInfo map[common.IFIDType]GeoCoordinates
 
+// GeoCoordinates is the internal repesentation of the GeoCoordinates in the
+// StaticInfoExtension.
 type GeoCoordinates struct {
 	Latitude  float32
 	Longitude float32
 	Address   string
 }
 
+// LinkType is the internal representation of the LinkType in the
+// StaticInfoExtension.
+// There is no UNSPECIFIED value here, as we can simply omit these from the
+// internal map representation.
 type LinkType uint8
 
 const (
@@ -57,11 +75,16 @@ const (
 	LinkTypeOpennet
 )
 
+// LinkTypeInfo is the internal representation of `link_type` in the
+// StaticInfoExtension.
 type LinkTypeInfo map[common.IFIDType]LinkType
 
+// InternalHopsInfo is the internal representation of `internal_hops` in the
+// StaticInfoExtension.
 type InternalHopsInfo map[common.IFIDType]uint32
 
-func staticInfoExtensionFromPB(pb *cppb.StaticInfoExtension) (*StaticInfoExtension, error) {
+// FromPB creates the staticinfo Extension from the protobuf representation.
+func FromPB(pb *cppb.StaticInfoExtension) (*Extension, error) {
 	if pb == nil {
 		return nil, nil
 	}
@@ -87,7 +110,7 @@ func staticInfoExtensionFromPB(pb *cppb.StaticInfoExtension) (*StaticInfoExtensi
 		return nil, err
 	}
 
-	staticInfo := &StaticInfoExtension{
+	staticInfo := &Extension{
 		Latency:      latency,
 		Bandwidth:    bandwidth,
 		Geo:          geo,
@@ -179,7 +202,8 @@ func internalHopsInfoFromPB(pb map[uint64]uint32) (InternalHopsInfo, error) {
 	return ihi, nil
 }
 
-func staticInfoExtensionToPB(si *StaticInfoExtension) *cppb.StaticInfoExtension {
+// FromPB creates the protobuf representation for the staticinfo Extension.
+func ToPB(si *Extension) *cppb.StaticInfoExtension {
 	if si == nil {
 		return nil
 	}

@@ -39,6 +39,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
@@ -351,12 +352,12 @@ func (g *Graph) Bandwidth(a, b common.IFIDType) uint32 {
 }
 
 // GeoCoordinates returns an arbitrary test GeoCoordinate for the interface
-func (g *Graph) GeoCoordinates(ifid common.IFIDType) seg.GeoCoordinates {
+func (g *Graph) GeoCoordinates(ifid common.IFIDType) staticinfo.GeoCoordinates {
 	ia, ok := g.parents[ifid]
 	if !ok {
 		panic("unknown interface")
 	}
-	return seg.GeoCoordinates{
+	return staticinfo.GeoCoordinates{
 		Latitude:  float32(ifid),
 		Longitude: float32(ifid),
 		Address:   fmt.Sprintf("Location %s#%d", ia, ifid),
@@ -365,12 +366,12 @@ func (g *Graph) GeoCoordinates(ifid common.IFIDType) seg.GeoCoordinates {
 
 // LinkType returns an arbitrary test link type value for an inter-AS link.
 // Only for inter-AS links, otherwise analogous to Latency.
-func (g *Graph) LinkType(a, b common.IFIDType) seg.LinkType {
+func (g *Graph) LinkType(a, b common.IFIDType) staticinfo.LinkType {
 	if g.links[a] != b {
 		panic("interfaces must be connected by a link")
 	}
 
-	return seg.LinkType(a * b % 3)
+	return staticinfo.LinkType(a * b % 3)
 }
 
 // InternalHops returns an arbitrary number of internal hops value between two
@@ -513,13 +514,13 @@ func NewDefaultGraph(ctrl *gomock.Controller) *Graph {
 // path segment, looking only at the egress interface on which the beacon left the AS
 // is sufficient when writing tests.
 func generateStaticInfo(g *Graph, ia addr.IA,
-	inIF, outIF common.IFIDType) *seg.StaticInfoExtension {
+	inIF, outIF common.IFIDType) *staticinfo.Extension {
 
 	as := g.ases[ia]
 
-	var latency *seg.LatencyInfo
+	var latency *staticinfo.LatencyInfo
 	if outIF != 0 {
-		latency = &seg.LatencyInfo{
+		latency = &staticinfo.LatencyInfo{
 			Intra: make(map[common.IFIDType]time.Duration),
 			Inter: make(map[common.IFIDType]time.Duration),
 		}
@@ -537,9 +538,9 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 		}
 	}
 
-	var bandwidth *seg.BandwidthInfo
+	var bandwidth *staticinfo.BandwidthInfo
 	if outIF != 0 {
-		bandwidth = &seg.BandwidthInfo{
+		bandwidth = &staticinfo.BandwidthInfo{
 			Intra: make(map[common.IFIDType]uint32),
 			Inter: make(map[common.IFIDType]uint32),
 		}
@@ -553,17 +554,17 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 		}
 	}
 
-	geo := make(seg.GeoInfo)
+	geo := make(staticinfo.GeoInfo)
 	for ifid := range as.IFIDs {
 		geo[ifid] = g.GeoCoordinates(ifid)
 	}
 
-	linkType := make(seg.LinkTypeInfo)
+	linkType := make(staticinfo.LinkTypeInfo)
 	for ifid := range as.IFIDs {
 		linkType[ifid] = g.LinkType(ifid, g.links[ifid])
 	}
 
-	var internalHops seg.InternalHopsInfo
+	var internalHops staticinfo.InternalHopsInfo
 	if outIF != 0 {
 		internalHops = make(map[common.IFIDType]uint32)
 		if inIF != 0 {
@@ -576,7 +577,7 @@ func generateStaticInfo(g *Graph, ia addr.IA,
 		}
 	}
 
-	return &seg.StaticInfoExtension{
+	return &staticinfo.Extension{
 		Latency:      latency,
 		Bandwidth:    bandwidth,
 		Geo:          geo,

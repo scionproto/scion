@@ -7,6 +7,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -55,7 +56,7 @@ const (
 	LinkTypeOpennet
 )
 
-type GeoCoordinates seg.GeoCoordinates
+type GeoCoordinates staticinfo.GeoCoordinates
 
 // pathInfo is a helper to extract the StaticInfo metadata, using the information
 // of the path already created from the pathSolution.
@@ -231,7 +232,7 @@ func collectLinkType(p pathInfo) []LinkType {
 		staticInfo := asEntry.Extensions.StaticInfo
 		if staticInfo != nil {
 			for ifid, rawLinkType := range staticInfo.LinkType {
-				linkType := linkTypeFromSeg(rawLinkType)
+				linkType := convertLinkType(rawLinkType)
 				localIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
 				hop := makeHopKey(localIF, p.RemoteIF[localIF])
 				if prevLinkType, duplicate := hopLinkTypes[hop]; duplicate {
@@ -254,13 +255,13 @@ func collectLinkType(p pathInfo) []LinkType {
 	return linkTypes
 }
 
-func linkTypeFromSeg(lt seg.LinkType) LinkType {
+func convertLinkType(lt staticinfo.LinkType) LinkType {
 	switch lt {
-	case seg.LinkTypeDirect:
+	case staticinfo.LinkTypeDirect:
 		return LinkTypeDirect
-	case seg.LinkTypeMultihop:
+	case staticinfo.LinkTypeMultihop:
 		return LinkTypeMultihop
-	case seg.LinkTypeOpennet:
+	case staticinfo.LinkTypeOpennet:
 		return LinkTypeOpennet
 	default:
 		return LinkTypeUnset

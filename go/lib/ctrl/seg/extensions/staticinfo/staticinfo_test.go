@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package seg
+package staticinfo_test
 
 import (
 	"testing"
@@ -22,18 +22,19 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
 )
 
 func TestRoundtripStaticInfoExtension(t *testing.T) {
-	testCases := map[string]*StaticInfoExtension{
+	testCases := map[string]*staticinfo.Extension{
 		"nil":   nil,
 		"empty": {},
 		"empty_non_nil": {
-			Geo:      make(GeoInfo),
-			LinkType: make(LinkTypeInfo),
+			Geo:      make(staticinfo.GeoInfo),
+			LinkType: make(staticinfo.LinkTypeInfo),
 		},
 		"latency": {
-			Latency: &LatencyInfo{
+			Latency: &staticinfo.LatencyInfo{
 				Intra: map[common.IFIDType]time.Duration{
 					10: 10 * time.Millisecond,
 					11: 11 * time.Millisecond,
@@ -44,7 +45,7 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 			},
 		},
 		"bandwidth": {
-			Bandwidth: &BandwidthInfo{
+			Bandwidth: &staticinfo.BandwidthInfo{
 				Intra: map[common.IFIDType]uint32{
 					10: 10_000_000,
 					11: 11_000_000,
@@ -55,15 +56,15 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 			},
 		},
 		"link_type": {
-			LinkType: LinkTypeInfo{
-				1: LinkTypeDirect,
-				2: LinkTypeMultihop,
-				3: LinkTypeOpennet,
+			LinkType: staticinfo.LinkTypeInfo{
+				1: staticinfo.LinkTypeDirect,
+				2: staticinfo.LinkTypeMultihop,
+				3: staticinfo.LinkTypeOpennet,
 			},
 		},
 		"geo": {
-			Geo: GeoInfo{
-				1: GeoCoordinates{
+			Geo: staticinfo.GeoInfo{
+				1: staticinfo.GeoCoordinates{
 					Latitude:  48.858222,
 					Longitude: 2.2945,
 					Address:   "Eiffel Tower\n7th arrondissement\nParis\nFrance",
@@ -83,8 +84,8 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 
 	for name, extn := range testCases {
 		t.Run(name, func(t *testing.T) {
-			pb := staticInfoExtensionToPB(extn)
-			actual, err := staticInfoExtensionFromPB(pb)
+			pb := staticinfo.ToPB(extn)
+			actual, err := staticinfo.FromPB(pb)
 			require.NoError(t, err)
 			// Ignore nil vs empty map; replace empty by nil before check
 			nilEmptyMaps(extn)
@@ -94,7 +95,7 @@ func TestRoundtripStaticInfoExtension(t *testing.T) {
 	}
 }
 
-func nilEmptyMaps(si *StaticInfoExtension) {
+func nilEmptyMaps(si *staticinfo.Extension) {
 	if si == nil {
 		return
 	}

@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -70,10 +70,10 @@ func getTestConfigData() *StaticInfoCfg {
 			},
 		},
 		LinkType: map[common.IFIDType]LinkType{
-			1: LinkType(seg.LinkTypeDirect),
-			2: LinkType(seg.LinkTypeOpennet),
-			3: LinkType(seg.LinkTypeMultihop),
-			5: LinkType(seg.LinkTypeDirect),
+			1: LinkType(staticinfo.LinkTypeDirect),
+			2: LinkType(staticinfo.LinkTypeOpennet),
+			3: LinkType(staticinfo.LinkTypeMultihop),
+			5: LinkType(staticinfo.LinkTypeDirect),
 		},
 		Geo: map[common.IFIDType]InterfaceGeodata{
 			1: {
@@ -136,14 +136,14 @@ func TestGenerateStaticInfo(t *testing.T) {
 		name     string
 		ingress  common.IFIDType
 		egress   common.IFIDType
-		expected seg.StaticInfoExtension
+		expected staticinfo.Extension
 	}{
 		{
 			name:    "propagate 3 -> 1",
 			ingress: 3,
 			egress:  1,
-			expected: seg.StaticInfoExtension{
-				Latency: &seg.LatencyInfo{
+			expected: staticinfo.Extension{
+				Latency: &staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{
 						2: 10 * time.Millisecond,
 						3: 20 * time.Millisecond,
@@ -154,7 +154,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 						5: 90 * time.Millisecond,
 					},
 				},
-				Bandwidth: &seg.BandwidthInfo{
+				Bandwidth: &staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint32{
 						2: 100000000,
 						3: 200000000,
@@ -165,26 +165,26 @@ func TestGenerateStaticInfo(t *testing.T) {
 						5: 120,
 					},
 				},
-				Geo: seg.GeoInfo{
-					1: seg.GeoCoordinates{
+				Geo: staticinfo.GeoInfo{
+					1: staticinfo.GeoCoordinates{
 						Latitude:  47.2,
 						Longitude: 62.2,
 						Address:   "geo1",
 					},
-					3: seg.GeoCoordinates{
+					3: staticinfo.GeoCoordinates{
 						Latitude:  47.22,
 						Longitude: 42.23,
 						Address:   "geo3",
 					},
-					5: seg.GeoCoordinates{
+					5: staticinfo.GeoCoordinates{
 						Latitude:  48.2,
 						Longitude: 46.2,
 						Address:   "geo5",
 					},
 				},
-				LinkType: seg.LinkTypeInfo{
-					1: seg.LinkTypeDirect,
-					5: seg.LinkTypeDirect,
+				LinkType: staticinfo.LinkTypeInfo{
+					1: staticinfo.LinkTypeDirect,
+					5: staticinfo.LinkTypeDirect,
 				},
 				InternalHops: map[common.IFIDType]uint32{
 					2: 2,
@@ -198,8 +198,8 @@ func TestGenerateStaticInfo(t *testing.T) {
 			name:    "propagate 3 -> 2",
 			ingress: 3,
 			egress:  2,
-			expected: seg.StaticInfoExtension{
-				Latency: &seg.LatencyInfo{
+			expected: staticinfo.Extension{
+				Latency: &staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{
 						3: 70 * time.Millisecond,
 						5: 50 * time.Millisecond,
@@ -209,7 +209,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 						5: 90 * time.Millisecond,
 					},
 				},
-				Bandwidth: &seg.BandwidthInfo{
+				Bandwidth: &staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint32{
 						3: 6555550,
 						5: 75555550,
@@ -219,26 +219,26 @@ func TestGenerateStaticInfo(t *testing.T) {
 						5: 120,
 					},
 				},
-				Geo: seg.GeoInfo{
-					2: seg.GeoCoordinates{
+				Geo: staticinfo.GeoInfo{
+					2: staticinfo.GeoCoordinates{
 						Latitude:  79.2,
 						Longitude: 45.2,
 						Address:   "geo2",
 					},
-					3: seg.GeoCoordinates{
+					3: staticinfo.GeoCoordinates{
 						Latitude:  47.22,
 						Longitude: 42.23,
 						Address:   "geo3",
 					},
-					5: seg.GeoCoordinates{
+					5: staticinfo.GeoCoordinates{
 						Latitude:  48.2,
 						Longitude: 46.2,
 						Address:   "geo5",
 					},
 				},
-				LinkType: seg.LinkTypeInfo{
-					2: seg.LinkTypeOpennet,
-					5: seg.LinkTypeDirect,
+				LinkType: staticinfo.LinkTypeInfo{
+					2: staticinfo.LinkTypeOpennet,
+					5: staticinfo.LinkTypeDirect,
 				},
 				InternalHops: map[common.IFIDType]uint32{
 					3: 3,
@@ -251,33 +251,33 @@ func TestGenerateStaticInfo(t *testing.T) {
 			name:    "terminate",
 			ingress: 3,
 			egress:  0,
-			expected: seg.StaticInfoExtension{
-				Latency: &seg.LatencyInfo{
+			expected: staticinfo.Extension{
+				Latency: &staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{},
 					Inter: map[common.IFIDType]time.Duration{
 						5: 90 * time.Millisecond,
 					},
 				},
-				Bandwidth: &seg.BandwidthInfo{
+				Bandwidth: &staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint32{},
 					Inter: map[common.IFIDType]uint32{
 						5: 120,
 					},
 				},
-				Geo: seg.GeoInfo{
-					3: seg.GeoCoordinates{
+				Geo: staticinfo.GeoInfo{
+					3: staticinfo.GeoCoordinates{
 						Latitude:  47.22,
 						Longitude: 42.23,
 						Address:   "geo3",
 					},
-					5: seg.GeoCoordinates{
+					5: staticinfo.GeoCoordinates{
 						Latitude:  48.2,
 						Longitude: 46.2,
 						Address:   "geo5",
 					},
 				},
-				LinkType: seg.LinkTypeInfo{
-					5: seg.LinkTypeDirect,
+				LinkType: staticinfo.LinkTypeInfo{
+					5: staticinfo.LinkTypeDirect,
 				},
 				InternalHops: map[common.IFIDType]uint32{},
 				Note:         "asdf",
@@ -287,8 +287,8 @@ func TestGenerateStaticInfo(t *testing.T) {
 			name:    "originate 1",
 			ingress: 0,
 			egress:  1,
-			expected: seg.StaticInfoExtension{
-				Latency: &seg.LatencyInfo{
+			expected: staticinfo.Extension{
+				Latency: &staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{
 						2: 10 * time.Millisecond,
 						5: 30 * time.Millisecond,
@@ -298,7 +298,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 						5: 90 * time.Millisecond,
 					},
 				},
-				Bandwidth: &seg.BandwidthInfo{
+				Bandwidth: &staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint32{
 						2: 100000000,
 						5: 300000000,
@@ -308,21 +308,21 @@ func TestGenerateStaticInfo(t *testing.T) {
 						5: 120,
 					},
 				},
-				Geo: seg.GeoInfo{
-					1: seg.GeoCoordinates{
+				Geo: staticinfo.GeoInfo{
+					1: staticinfo.GeoCoordinates{
 						Latitude:  47.2,
 						Longitude: 62.2,
 						Address:   "geo1",
 					},
-					5: seg.GeoCoordinates{
+					5: staticinfo.GeoCoordinates{
 						Latitude:  48.2,
 						Longitude: 46.2,
 						Address:   "geo5",
 					},
 				},
-				LinkType: seg.LinkTypeInfo{
-					1: seg.LinkTypeDirect,
-					5: seg.LinkTypeDirect,
+				LinkType: staticinfo.LinkTypeInfo{
+					1: staticinfo.LinkTypeDirect,
+					5: staticinfo.LinkTypeDirect,
 				},
 				InternalHops: map[common.IFIDType]uint32{
 					2: 2,
@@ -335,8 +335,8 @@ func TestGenerateStaticInfo(t *testing.T) {
 			name:    "originate 2",
 			ingress: 0,
 			egress:  2,
-			expected: seg.StaticInfoExtension{
-				Latency: &seg.LatencyInfo{
+			expected: staticinfo.Extension{
+				Latency: &staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{
 						5: 50 * time.Millisecond,
 					},
@@ -345,7 +345,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 						5: 90 * time.Millisecond,
 					},
 				},
-				Bandwidth: &seg.BandwidthInfo{
+				Bandwidth: &staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint32{
 						5: 75555550,
 					},
@@ -354,21 +354,21 @@ func TestGenerateStaticInfo(t *testing.T) {
 						5: 120,
 					},
 				},
-				Geo: seg.GeoInfo{
-					2: seg.GeoCoordinates{
+				Geo: staticinfo.GeoInfo{
+					2: staticinfo.GeoCoordinates{
 						Latitude:  79.2,
 						Longitude: 45.2,
 						Address:   "geo2",
 					},
-					5: seg.GeoCoordinates{
+					5: staticinfo.GeoCoordinates{
 						Latitude:  48.2,
 						Longitude: 46.2,
 						Address:   "geo5",
 					},
 				},
-				LinkType: seg.LinkTypeInfo{
-					2: seg.LinkTypeOpennet,
-					5: seg.LinkTypeDirect,
+				LinkType: staticinfo.LinkTypeInfo{
+					2: staticinfo.LinkTypeOpennet,
+					5: staticinfo.LinkTypeDirect,
 				},
 				InternalHops: map[common.IFIDType]uint32{
 					5: 1,
