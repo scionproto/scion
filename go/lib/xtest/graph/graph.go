@@ -39,6 +39,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
@@ -287,19 +288,6 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 			ifids = append(ifids, int(peeringLocalIF))
 		}
 		sort.Ints(ifids)
-		s := &seg.StaticInfoExtn{}
-		if addStaticInfo {
-			// FIXME(roosd): enable again: asEntry.Exts.StaticInfo = s
-			s.Geo.Locations = append(s.Geo.Locations, seg.Location{
-				GPSData: seg.Coordinates{
-					Latitude:  float32(currIA.IAInt()),
-					Longitude: float32(currIA.IAInt()),
-					Address:   fmt.Sprintf("Location %s", currIA),
-				},
-				IfIDs: []common.IFIDType{},
-			})
-			s.Note = fmt.Sprintf("Note %s", currIA)
-		}
 
 		for _, intIFID := range ifids {
 			peeringLocalIF := common.IFIDType(intIFID)
@@ -317,9 +305,9 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 					},
 				})
 			}
-			if addStaticInfo {
-				generateStaticInfo(s, g.isPeer[peeringLocalIF], peeringLocalIF, outIF)
-			}
+		}
+		if addStaticInfo {
+			asEntry.Extensions.StaticInfo = generateStaticInfo(g, currIA, inIF, outIF)
 		}
 		segment.AddASEntry(context.Background(), asEntry, g.signers[currIA])
 		inIF = remoteOutIF
@@ -332,6 +320,67 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 // counterpart. This is useful for testing IFID misconfigurations.
 func (g *Graph) DeleteInterface(ifid common.IFIDType) {
 	delete(g.links, ifid)
+}
+
+// Latency returns an arbitrary test latency value between two interfaces. The
+// interfaces should either be part of the same AS, in which case the intra-AS
+// latency is returned, or they should form a link of the graph. Otherwise,
+// this panics.
+// The value returned is symmetric, i.e. g.Latency(a, b) == g.Latency(b, a)
+func (g *Graph) Latency(a, b common.IFIDType) time.Duration {
+	sameIA := (g.parents[a] == g.parents[b])
+	if !sameIA && g.links[a] != b {
+		panic("interfaces must be in the same AS or connected by a link")
+	}
+
+	d := time.Microsecond * time.Duration(a*b*11939%10000) // value in 0-10ms
+	if sameIA {
+		return d
+	}
+	return d + 10*time.Millisecond // value in 10-20ms
+}
+
+// Bandwidth returns an arbitrary test bandwidth value between two interfaces.
+// Analogous to Latency.
+func (g *Graph) Bandwidth(a, b common.IFIDType) uint64 {
+	sameIA := (g.parents[a] == g.parents[b])
+	if !sameIA && g.links[a] != b {
+		panic("interfaces must be in the same AS or connected by a link")
+	}
+
+	return 1000 * uint64(a*b*11939%10000) // value in 0-10_000_000kbps, 0-10Gbps
+}
+
+// GeoCoordinates returns an arbitrary test GeoCoordinate for the interface
+func (g *Graph) GeoCoordinates(ifid common.IFIDType) staticinfo.GeoCoordinates {
+	ia, ok := g.parents[ifid]
+	if !ok {
+		panic("unknown interface")
+	}
+	return staticinfo.GeoCoordinates{
+		Latitude:  float32(ifid),
+		Longitude: float32(ifid),
+		Address:   fmt.Sprintf("Location %s#%d", ia, ifid),
+	}
+}
+
+// LinkType returns an arbitrary test link type value for an inter-AS link.
+// Only for inter-AS links, otherwise analogous to Latency.
+func (g *Graph) LinkType(a, b common.IFIDType) staticinfo.LinkType {
+	if g.links[a] != b {
+		panic("interfaces must be connected by a link")
+	}
+
+	return staticinfo.LinkType(a * b % 3)
+}
+
+// InternalHops returns an arbitrary number of internal hops value between two
+// interfaces of an AS.
+func (g *Graph) InternalHops(a, b common.IFIDType) uint32 {
+	if g.parents[a] != g.parents[b] {
+		panic("interfaces must be in the same AS")
+	}
+	return uint32(a * b % 10)
 }
 
 type Signer struct {
@@ -464,39 +513,72 @@ func NewDefaultGraph(ctrl *gomock.Controller) *Graph {
 // to egress metrics. Therefore for ASes that are neither the first nor the last on a
 // path segment, looking only at the egress interface on which the beacon left the AS
 // is sufficient when writing tests.
-func generateStaticInfo(s *seg.StaticInfoExtn, peer bool, ifID, egifID common.IFIDType) {
-	if peer {
-		s.Latency.Peerlatencies = append(s.Latency.Peerlatencies, seg.PeerLatency{
-			Interdelay: uint16(ifID),
-			IntraDelay: uint16(ifID),
-			IfID:       ifID,
-		})
-		s.Linktype.Peerlinks = append(s.Linktype.Peerlinks, seg.InterfaceLinkType{
-			IfID:     ifID,
-			LinkType: uint16(ifID) % 3,
-		})
-	} else {
-		s.Latency.Childlatencies = append(s.Latency.Childlatencies, seg.ChildLatency{
-			Intradelay: uint16(ifID),
-			IfID:       ifID,
-		})
-	}
-	s.Bandwidth.Bandwidths = append(s.Bandwidth.Bandwidths, seg.InterfaceBandwidth{
-		BW:   uint32(ifID),
-		IfID: ifID,
-	})
-	s.Hops.InterfaceHops = append(s.Hops.InterfaceHops, seg.InterfaceHops{
-		Hops: uint8(ifID),
-		IfID: ifID,
-	})
+func generateStaticInfo(g *Graph, ia addr.IA,
+	inIF, outIF common.IFIDType) *staticinfo.Extension {
 
-	if ifID == egifID {
-		s.Geo.Locations[0].IfIDs = append(s.Geo.Locations[0].IfIDs, ifID)
-		s.Latency.IngressToEgressLatency = uint16(egifID)
-		s.Latency.Egresslatency = uint16(egifID)
-		s.Linktype.EgressLinkType = uint16(egifID) % 3
-		s.Bandwidth.EgressBW = uint32(egifID)
-		s.Bandwidth.IngressToEgressBW = uint32(egifID)
-		s.Hops.InToOutHops = uint8(egifID)
+	as := g.ases[ia]
+
+	latency := staticinfo.LatencyInfo{}
+	if outIF != 0 {
+		latency.Intra = make(map[common.IFIDType]time.Duration)
+		latency.Inter = make(map[common.IFIDType]time.Duration)
+		for ifid := range as.IFIDs {
+			if ifid != outIF {
+				// Note: the test graph does not distinguish between parent/child or
+				// core interfaces.
+				// Otherwise, we could skip the parent interfaces and half of the
+				// sibling interfaces here.
+				latency.Intra[ifid] = g.Latency(ifid, outIF)
+			}
+			if ifid == outIF || g.isPeer[ifid] {
+				latency.Inter[ifid] = g.Latency(ifid, g.links[ifid])
+			}
+		}
+	}
+
+	bandwidth := staticinfo.BandwidthInfo{}
+	if outIF != 0 {
+		bandwidth.Intra = make(map[common.IFIDType]uint64)
+		bandwidth.Inter = make(map[common.IFIDType]uint64)
+		for ifid := range as.IFIDs {
+			if ifid != outIF {
+				bandwidth.Intra[ifid] = g.Bandwidth(ifid, outIF)
+			}
+			if ifid == outIF || g.isPeer[ifid] {
+				bandwidth.Inter[ifid] = g.Bandwidth(ifid, g.links[ifid])
+			}
+		}
+	}
+
+	geo := make(staticinfo.GeoInfo)
+	for ifid := range as.IFIDs {
+		geo[ifid] = g.GeoCoordinates(ifid)
+	}
+
+	linkType := make(staticinfo.LinkTypeInfo)
+	for ifid := range as.IFIDs {
+		linkType[ifid] = g.LinkType(ifid, g.links[ifid])
+	}
+
+	var internalHops staticinfo.InternalHopsInfo
+	if outIF != 0 {
+		internalHops = make(map[common.IFIDType]uint32)
+		if inIF != 0 {
+			internalHops[inIF] = g.InternalHops(inIF, outIF)
+		}
+		for ifid := range as.IFIDs {
+			if ifid != outIF && ifid != inIF {
+				internalHops[ifid] = g.InternalHops(ifid, outIF)
+			}
+		}
+	}
+
+	return &staticinfo.Extension{
+		Latency:      latency,
+		Bandwidth:    bandwidth,
+		Geo:          geo,
+		LinkType:     linkType,
+		InternalHops: internalHops,
+		Note:         fmt.Sprintf("Note %s", ia),
 	}
 }

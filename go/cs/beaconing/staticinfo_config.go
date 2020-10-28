@@ -17,21 +17,25 @@ package beaconing
 import (
 	"encoding/json"
 	"io/ioutil"
-	"math"
+	"strings"
+	"time"
 
+	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 type InterfaceLatencies struct {
-	Inter uint16                     `json:"Inter"`
-	Intra map[common.IFIDType]uint16 `json:"Intra"`
+	Inter util.DurWrap                     `json:"Inter"`
+	Intra map[common.IFIDType]util.DurWrap `json:"Intra"`
 }
 
 type InterfaceBandwidths struct {
-	Inter uint32                     `json:"Inter"`
-	Intra map[common.IFIDType]uint32 `json:"Intra"`
+	Inter uint64                     `json:"Inter"`
+	Intra map[common.IFIDType]uint64 `json:"Intra"`
 }
 
 type InterfaceGeodata struct {
@@ -41,164 +45,46 @@ type InterfaceGeodata struct {
 }
 
 type InterfaceHops struct {
-	Intra map[common.IFIDType]uint8 `json:"Intra"`
+	Intra map[common.IFIDType]uint32 `json:"Intra"`
+}
+
+type LinkType staticinfo.LinkType
+
+func (l *LinkType) MarshalText() ([]byte, error) {
+	switch *l {
+	case staticinfo.LinkTypeDirect:
+		return []byte("direct"), nil
+	case staticinfo.LinkTypeMultihop:
+		return []byte("multihop"), nil
+	case staticinfo.LinkTypeOpennet:
+		return []byte("opennet"), nil
+	default:
+		return nil, serrors.New("invalid link type value")
+	}
+}
+
+func (l *LinkType) UnmarshalText(text []byte) error {
+	switch strings.ToLower(string(text)) {
+	case "direct":
+		*l = staticinfo.LinkTypeDirect
+	case "multihop":
+		*l = staticinfo.LinkTypeMultihop
+	case "opennet":
+		*l = staticinfo.LinkTypeOpennet
+	default:
+		return serrors.New("invalid link type", "link type", text)
+	}
+	return nil
 }
 
 // StaticInfoCfg is used to parse data from config.json.
 type StaticInfoCfg struct {
 	Latency   map[common.IFIDType]InterfaceLatencies  `json:"Latency"`
 	Bandwidth map[common.IFIDType]InterfaceBandwidths `json:"Bandwidth"`
-	Linktype  map[common.IFIDType]string              `json:"Linktype"`
+	LinkType  map[common.IFIDType]LinkType            `json:"LinkType"`
 	Geo       map[common.IFIDType]InterfaceGeodata    `json:"Geo"`
 	Hops      map[common.IFIDType]InterfaceHops       `json:"Hops"`
 	Note      string                                  `json:"Note"`
-}
-
-// gatherLatency extracts latency values from a StaticInfoCfg struct and
-// inserts them into the LatencyInfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherLatency(peers map[common.IFIDType]struct{},
-	egifID common.IFIDType, inifID common.IFIDType) seg.LatencyInfo {
-
-	l := seg.LatencyInfo{
-		Egresslatency:          cfgdata.Latency[egifID].Inter,
-		IngressToEgressLatency: cfgdata.Latency[egifID].Intra[inifID],
-	}
-	for subintfid, intfdelay := range cfgdata.Latency[egifID].Intra {
-		// If we're looking at a peering interface, always include the data
-		if _, peer := peers[subintfid]; peer {
-			l.Peerlatencies = append(l.Peerlatencies, seg.PeerLatency{
-				IfID:       subintfid,
-				Interdelay: cfgdata.Latency[subintfid].Inter,
-				IntraDelay: intfdelay,
-			})
-			continue
-		}
-		// If we're looking at a NON-peering interface, only include the data
-		// if subintfid>egifID so as to not store redundant information
-		if subintfid > egifID {
-			l.Childlatencies = append(l.Childlatencies, seg.ChildLatency{
-				Intradelay: intfdelay,
-				IfID:       subintfid,
-			})
-		}
-	}
-	return l
-}
-
-// gatherBW extracts bandwidth values from a StaticInfoCfg struct and
-// inserts them into the BandwidthInfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherBW(peers map[common.IFIDType]struct{}, egifID common.IFIDType,
-	inifID common.IFIDType) seg.BandwidthInfo {
-
-	l := seg.BandwidthInfo{
-		EgressBW:          cfgdata.Bandwidth[egifID].Inter,
-		IngressToEgressBW: cfgdata.Bandwidth[egifID].Intra[inifID],
-	}
-	for subintfid, intfbw := range cfgdata.Bandwidth[egifID].Intra {
-		// If we're looking at a peering interface, always include the data
-		if _, peer := peers[subintfid]; peer {
-			l.Bandwidths = append(l.Bandwidths, seg.InterfaceBandwidth{
-				IfID: subintfid,
-				BW: uint32(math.Min(float64(intfbw),
-					float64(cfgdata.Bandwidth[subintfid].Inter))),
-			})
-			continue
-		}
-		// If we're looking at a NON-peering interface, only include the
-		// data if subintfid>egifID so as to not store redundant information
-		if subintfid > egifID {
-			l.Bandwidths = append(l.Bandwidths, seg.InterfaceBandwidth{
-				BW:   intfbw,
-				IfID: subintfid,
-			})
-		}
-	}
-	return l
-}
-
-// transformLinkType transforms the linktype from a string into a
-// value that can be automatically parsed into a capnp enum.
-func transformLinkType(linktype string) uint16 {
-	switch linktype {
-	case "direct":
-		return 0
-	case "multihop":
-		return 1
-	case "opennet":
-		return 2
-	default:
-		return 2
-	}
-}
-
-// gatherLinktype extracts linktype values from a StaticInfoCfg struct and
-// inserts them into the LinktypeInfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherLinkType(peers map[common.IFIDType]struct{},
-	egifID common.IFIDType) seg.LinktypeInfo {
-
-	l := seg.LinktypeInfo{
-		EgressLinkType: transformLinkType(cfgdata.Linktype[egifID]),
-	}
-	for intfid, intfLT := range cfgdata.Linktype {
-		// If we're looking at a peering interface, include the data for
-		// the peering link, otherwise drop it
-		if _, peer := peers[intfid]; peer {
-			l.Peerlinks = append(l.Peerlinks, seg.InterfaceLinkType{
-				LinkType: transformLinkType(intfLT),
-				IfID:     intfid,
-			})
-		}
-	}
-	return l
-}
-
-// gatherHops extracts hop values from a StaticInfoCfg struct and
-// inserts them into the InternalHopsinfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherHops(peers map[common.IFIDType]struct{},
-	egifID common.IFIDType, inifID common.IFIDType) seg.InternalHopsInfo {
-
-	l := seg.InternalHopsInfo{
-		InToOutHops: cfgdata.Hops[egifID].Intra[inifID],
-	}
-	for intfid, intfHops := range cfgdata.Hops[egifID].Intra {
-		// If we're looking at a peering interface or intfid>egifID, include
-		// the data, otherwise drop it so as to not store redundant information
-		if _, peer := peers[intfid]; peer || (intfid > egifID) {
-			l.InterfaceHops = append(l.InterfaceHops, seg.InterfaceHops{
-				Hops: intfHops,
-				IfID: intfid,
-			})
-		}
-	}
-	return l
-}
-
-// gatherGeo extracts geo values from a StaticInfoCfg struct and
-// inserts them into the GeoInfo portion of a StaticInfoExtn struct.
-func (cfgdata StaticInfoCfg) gatherGeo() seg.GeoInfo {
-	l := seg.GeoInfo{}
-	for intfid, loc := range cfgdata.Geo {
-		assigned := false
-		for k := 0; k < len(l.Locations); k++ {
-			if (loc.Longitude == l.Locations[k].GPSData.Longitude) &&
-				(loc.Latitude == l.Locations[k].GPSData.Latitude) &&
-				(loc.Address == l.Locations[k].GPSData.Address) && (!assigned) {
-				l.Locations[k].IfIDs = append(l.Locations[k].IfIDs, intfid)
-				assigned = true
-			}
-		}
-		if !assigned {
-			l.Locations = append(l.Locations, seg.Location{
-				GPSData: seg.Coordinates{
-					Longitude: loc.Longitude,
-					Latitude:  loc.Latitude,
-					Address:   loc.Address,
-				},
-				IfIDs: []common.IFIDType{intfid},
-			})
-		}
-	}
-	return l
 }
 
 // ParseStaticInfoCfg parses data from a config file into a StaticInfoCfg struct.
@@ -213,20 +99,159 @@ func ParseStaticInfoCfg(file string) (*StaticInfoCfg, error) {
 		return nil, serrors.WrapStr("failed to parse static info config: ",
 			err, "file ", file)
 	}
+	// TODO(matzf): validate that there are no entries for 0 the interface ID.
+	// TODO(matzf): the interface-to-interface ("Intra") entries in the json file
+	// are (expected to be!) symmetric. Check & fill in the symmetric entries.
 	return &cfg, nil
 }
 
-// generateStaticinfo creates a StaticinfoExtn struct and
-// populates it with data extracted from configdata.
-func (cfgdata StaticInfoCfg) generateStaticinfo(peers map[common.IFIDType]struct{},
-	egifID common.IFIDType, inifID common.IFIDType) seg.StaticInfoExtn {
+// Generate creates a StaticInfoExtn struct and
+// populates it with data extracted from the configuration.
+func (cfg StaticInfoCfg) Generate(intfs *ifstate.Interfaces,
+	ingress, egress common.IFIDType) *staticinfo.Extension {
 
-	return seg.StaticInfoExtn{
-		Latency:   cfgdata.gatherLatency(peers, egifID, inifID),
-		Bandwidth: cfgdata.gatherBW(peers, egifID, inifID),
-		Linktype:  cfgdata.gatherLinkType(peers, egifID),
-		Geo:       cfgdata.gatherGeo(),
-		Note:      cfgdata.Note,
-		Hops:      cfgdata.gatherHops(peers, egifID, inifID),
+	ifType := interfaceTypeTable(intfs)
+	return cfg.generate(ifType, ingress, egress)
+}
+
+func (cfg StaticInfoCfg) generate(ifType map[common.IFIDType]topology.LinkType,
+	ingress, egress common.IFIDType) *staticinfo.Extension {
+
+	return &staticinfo.Extension{
+		Latency:      cfg.generateLatency(ifType, ingress, egress),
+		Bandwidth:    cfg.generateBandwidth(ifType, ingress, egress),
+		Geo:          cfg.generateGeo(ifType, ingress, egress),
+		LinkType:     cfg.generateLinkType(ifType, egress),
+		InternalHops: cfg.generateInternalHops(ifType, ingress, egress),
+		Note:         cfg.Note,
 	}
+}
+
+// generateLatency creates the LatencyInfo by extracting the relevant values from
+// the config.
+func (cfg StaticInfoCfg) generateLatency(ifType map[common.IFIDType]topology.LinkType,
+	ingress, egress common.IFIDType) staticinfo.LatencyInfo {
+
+	l := staticinfo.LatencyInfo{
+		Intra: make(map[common.IFIDType]time.Duration),
+		Inter: make(map[common.IFIDType]time.Duration),
+	}
+	for ifid, v := range cfg.Latency[egress].Intra {
+		if includeIntraInfo(ifType, ifid, ingress, egress) {
+			l.Intra[ifid] = v.Duration
+		}
+	}
+	for ifid, v := range cfg.Latency {
+		t := ifType[ifid]
+		if ifid == egress || t == topology.Peer {
+			l.Inter[ifid] = v.Inter.Duration
+		}
+	}
+	return l
+}
+
+// generateBandwidth creates the BandwidthInfo by extracting the relevant values
+// from the config.
+func (cfg StaticInfoCfg) generateBandwidth(ifType map[common.IFIDType]topology.LinkType,
+	ingress, egress common.IFIDType) staticinfo.BandwidthInfo {
+
+	bw := staticinfo.BandwidthInfo{
+		Intra: make(map[common.IFIDType]uint64),
+		Inter: make(map[common.IFIDType]uint64),
+	}
+	for ifid, v := range cfg.Bandwidth[egress].Intra {
+		if includeIntraInfo(ifType, ifid, ingress, egress) {
+			bw.Intra[ifid] = v
+		}
+	}
+	for ifid, v := range cfg.Bandwidth {
+		t := ifType[ifid]
+		if ifid == egress || t == topology.Peer {
+			bw.Inter[ifid] = v.Inter
+		}
+	}
+	return bw
+}
+
+// generateLinkType creates the LinkTypeInfo by extracting the relevant values from
+// the config.
+func (cfg StaticInfoCfg) generateLinkType(ifType map[common.IFIDType]topology.LinkType,
+	egress common.IFIDType) staticinfo.LinkTypeInfo {
+
+	lt := make(staticinfo.LinkTypeInfo)
+	for ifid, intfLT := range cfg.LinkType {
+		t := ifType[ifid]
+		if ifid == egress || t == topology.Peer {
+			lt[ifid] = staticinfo.LinkType(intfLT)
+		}
+	}
+	return lt
+}
+
+// generateInternalHops creates the InternalHopsInfo by extracting the relevant
+// values from the config.
+func (cfg StaticInfoCfg) generateInternalHops(ifType map[common.IFIDType]topology.LinkType,
+	ingress, egress common.IFIDType) staticinfo.InternalHopsInfo {
+
+	ihi := make(staticinfo.InternalHopsInfo)
+	for ifid, v := range cfg.Hops[egress].Intra {
+		if includeIntraInfo(ifType, ifid, ingress, egress) {
+			ihi[ifid] = v
+		}
+	}
+	return ihi
+}
+
+// generateGeo creates the GeoInfo by extracting the relevant values from
+// the config.
+func (cfg StaticInfoCfg) generateGeo(ifType map[common.IFIDType]topology.LinkType,
+	ingress, egress common.IFIDType) staticinfo.GeoInfo {
+
+	gi := staticinfo.GeoInfo{}
+	for ifid, loc := range cfg.Geo {
+		t := ifType[ifid]
+		if ifid == egress || ifid == ingress || t == topology.Peer {
+			gi[ifid] = staticinfo.GeoCoordinates{
+				Longitude: loc.Longitude,
+				Latitude:  loc.Latitude,
+				Address:   loc.Address,
+			}
+		}
+	}
+	return gi
+}
+
+// includeIntraInfo determines if the intra-AS metadata info for the interface
+// pair (ifid, egress) should be included in this beacon:
+// Include information between the egress interface and
+// - ingress interface
+// - sibling child interfaces,
+// - core interfaces, at start or end of a segment
+// - peer interfaces
+// For core/sibling child interfaces, we can skip some entries to avoid
+// redundancy: by consistently only including latency to interfaces with
+// ifid > egress, we ensure that for each cross-over, the latency from
+// this AS Entry's egress interface to the other AS Entry's egress
+// interface will be available in exactly one of the two AS Entries.
+// Note that the choice of < or > is arbitrary.  At least each separate
+// AS needs to pick one consistently (or decide to just include the full
+// information all the time), otherwise information for cross-overs may
+// be missing.
+func includeIntraInfo(ifType map[common.IFIDType]topology.LinkType,
+	ifid, ingress, egress common.IFIDType) bool {
+
+	t := ifType[ifid]
+	return ifid == ingress ||
+		t == topology.Child && ifid > egress ||
+		t == topology.Core && (egress == 0 || ingress == 0) && ifid > egress ||
+		t == topology.Peer
+}
+
+func interfaceTypeTable(intfs *ifstate.Interfaces) map[common.IFIDType]topology.LinkType {
+	ifMap := intfs.All()
+	ifTypes := make(map[common.IFIDType]topology.LinkType, len(ifMap))
+	for ifID, ifInfo := range ifMap {
+		ifTypes[ifID] = ifInfo.TopoInfo().LinkType
+	}
+	return ifTypes
 }

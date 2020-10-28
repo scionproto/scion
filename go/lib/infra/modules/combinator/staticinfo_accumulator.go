@@ -1,422 +1,382 @@
 package combinator
 
 import (
+	"strings"
+	"time"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
-// XXX(matzf) replace these types with appropriate definitions directly in
-// snet.PathMetadata, making this available to applications. Remove this here
-// PathMetadata (currently dead code) and change the logic below to directly
-// fill in the data into snet.PathMetadata.
+// XXX(matzf) these types are only here temporarily, to keep changes localized for the current PR.
+// This will be moved to snet.PathMetadata, making this available to applications.
 
-type ASnote struct {
-	Note string
-}
-
-type ASGeo struct {
-	Locations []GeoLoc
-}
-
-type GeoLoc struct {
-	Latitude  float32
-	Longitude float32
-	Address   string
-}
-
-type ASLatency struct {
-	IntraLatency uint16
-	InterLatency uint16
-	PeerLatency  uint16
-}
-
-type ASHops struct {
-	Hops uint8
-}
-
-type ASLink struct {
-	InterLinkType uint16
-	PeerLinkType  uint16
-}
-
-type ASBandwidth struct {
-	IntraBW uint32
-	InterBW uint32
-}
-
+// TODO(matzf) document where does this info come from and how much to trust it.
 type PathMetadata struct {
-	ASLatencies  map[addr.IA]ASLatency
-	ASBandwidths map[addr.IA]ASBandwidth
-	ASHops       map[addr.IA]ASHops
-	Geo          map[addr.IA]ASGeo
-	Links        map[addr.IA]ASLink
-	Notes        map[addr.IA]ASnote
+	// Latency lists the latencies between any two consecutive interfaces.
+	// Entry i describes the latency between interface i and i+1.
+	// Consequently, there are N-1 entries for N interfaces.
+	// A 0-value indicates that the AS did not announce a latency for this hop.
+	Latency []time.Duration
+
+	// Bandwidth lists the bandwidth between any two consecutive interfaces, in Kbit/s.
+	// Entry i describes the bandwidth between interfaces i and i+1.
+	// A 0-value indicates that the AS did not announce a bandwidth for this hop.
+	Bandwidth []uint64
+
+	// Geo lists the geographical position of the border routers along the path.
+	// Entry i describes the position of the router for interface i.
+	// A 0-value indicates that the AS did not announce a position for this router.
+	Geo []GeoCoordinates
+
+	// LinkType contains the announced link type of inter-domain links.
+	// Entry i describes the link between interfaces 2*i and 2*i+1.
+	LinkType []LinkType
+
+	// InternalHops lists the number of AS internal hops for the ASes on path.
+	// Entry i describes the hop between interfaces 2*i+1 and 2*i+2 in the same AS.
+	// Consequently, there are no entries for the first and last ASes, as these
+	// are not traversed completely by the path.
+	InternalHops []uint32
+
+	// Notes contains the notes added by ASes on the path, in the order of occurrence.
+	// Entry i is the note of AS i on the path.
+	Notes []string
 }
 
-type asEntryList struct {
-	Ups      []*seg.ASEntry
-	Cores    []*seg.ASEntry
-	Downs    []*seg.ASEntry
-	UpPeer   int
-	DownPeer int
+type LinkType uint8
+
+const (
+	LinkTypeUnset LinkType = iota
+	LinkTypeDirect
+	LinkTypeMultihop
+	LinkTypeOpennet
+)
+
+type GeoCoordinates staticinfo.GeoCoordinates
+
+// pathInfo is a helper to extract the StaticInfo metadata, using the information
+// of the path already created from the pathSolution.
+type pathInfo struct {
+	// Interfaces contains the PathInterfaces in order of occurrence on the path.
+	Interfaces []snet.PathInterface
+	// ASEntries contains the relevant ASEntries (in arbitrary order)
+	ASEntries []seg.ASEntry
+	// RemoteIF is a lookup table for connected remote interface.
+	// This information is otherwise not directly available from the individual
+	// AS (except for peers, but this way we don't even have to care).
+	RemoteIF map[snet.PathInterface]snet.PathInterface
 }
 
-// collectMetadata is the function used to extract StaticInfo
-// from a *PathSolution.
-func (solution *pathSolution) collectMetadata() *PathMetadata {
-	asEntries := solution.gatherASEntries()
-	return combineSegments(asEntries)
-}
+func collectMetadata(interfaces []snet.PathInterface, asEntries []seg.ASEntry) PathMetadata {
+	if len(interfaces) == 0 {
+		return PathMetadata{}
+	}
+	if len(interfaces)%2 != 0 {
+		panic("the number of interfaces traversed by the path is expected to be even")
+	}
 
-// gatherASEntries goes through the edges in the PathSolution found by GetPaths.
-// For each edge, it goes through each ASEntry and adds it to a list,
-// representing the up-, core-, and down segments respectively.
-// It also saves the Peer value of the up and down edges.
-func (solution *pathSolution) gatherASEntries() *asEntryList {
-	var res asEntryList
-	for _, solEdge := range solution.edges {
-		asEntries := solEdge.segment.ASEntries
-		var entryContainer *[]*seg.ASEntry
-		switch solEdge.segment.Type {
-		case proto.PathSegType_up:
-			entryContainer = &res.Ups
-			res.UpPeer = solEdge.edge.Peer
-		case proto.PathSegType_core:
-			entryContainer = &res.Cores
-		case proto.PathSegType_down:
-			entryContainer = &res.Downs
-			res.DownPeer = solEdge.edge.Peer
-		}
-		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
-			asEntry := asEntries[asEntryIdx]
-			*entryContainer = append(*entryContainer, &asEntry)
-		}
+	// Prepare lookup table of the connected remote interface IDs; this is not
+	// directly available from the individual AS entries (except for peers, but
+	// this way we don't even have to care).
+	remoteIF := make(map[snet.PathInterface]snet.PathInterface)
+	for i := 0; i < len(interfaces); i += 2 {
+		remoteIF[interfaces[i]] = interfaces[i+1]
+		remoteIF[interfaces[i+1]] = interfaces[i]
 	}
-	return &res
-}
 
-// extractPeerdata is used to treat ASEntries which are involved in peering.
-// It includes saves the metrics for the egress, intra-AS, and peering
-// connections in the respective fields in RawPathMetadata.
-func extractPeerdata(res *PathMetadata, asEntry *seg.ASEntry,
-	peerIfID common.IFIDType, includePeer bool) {
-
-	ia := asEntry.Local
-	staticInfo := seg.StaticInfoExtn{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
-	for i := 0; i < len(staticInfo.Latency.Peerlatencies); i++ {
-		if staticInfo.Latency.Peerlatencies[i].IfID == peerIfID {
-			if includePeer {
-				res.ASLatencies[ia] = ASLatency{
-					IntraLatency: staticInfo.Latency.Peerlatencies[i].IntraDelay,
-					InterLatency: staticInfo.Latency.Egresslatency,
-					PeerLatency:  staticInfo.Latency.Peerlatencies[i].Interdelay,
-				}
-			} else {
-				res.ASLatencies[ia] = ASLatency{
-					IntraLatency: staticInfo.Latency.Peerlatencies[i].IntraDelay,
-					InterLatency: staticInfo.Latency.Egresslatency,
-				}
-			}
-			break
-		}
-	}
-	for i := 0; i < len(staticInfo.Linktype.Peerlinks); i++ {
-		if staticInfo.Linktype.Peerlinks[i].IfID == peerIfID {
-			if includePeer {
-				res.Links[ia] = ASLink{
-					InterLinkType: staticInfo.Linktype.EgressLinkType,
-					PeerLinkType:  staticInfo.Linktype.Peerlinks[i].LinkType,
-				}
-			} else {
-				res.Links[ia] = ASLink{
-					InterLinkType: staticInfo.Linktype.EgressLinkType,
-				}
-			}
-			break
-		}
-	}
-	for i := 0; i < len(staticInfo.Bandwidth.Bandwidths); i++ {
-		if staticInfo.Bandwidth.Bandwidths[i].IfID == peerIfID {
-			res.ASBandwidths[ia] = ASBandwidth{
-				IntraBW: staticInfo.Bandwidth.Bandwidths[i].BW,
-				InterBW: staticInfo.Bandwidth.EgressBW,
-			}
-			break
-		}
-	}
-	for i := 0; i < len(staticInfo.Hops.InterfaceHops); i++ {
-		if staticInfo.Hops.InterfaceHops[i].IfID == peerIfID {
-			res.ASHops[ia] = ASHops{
-				Hops: staticInfo.Hops.InterfaceHops[i].Hops,
-			}
-			break
-		}
-	}
-	res.Geo[ia] = getGeo(asEntry)
-	res.Notes[ia] = ASnote{
-		Note: staticInfo.Note,
+	path := pathInfo{interfaces, asEntries, remoteIF}
+	return PathMetadata{
+		Latency:      collectLatency(path),
+		Bandwidth:    collectBandwidth(path),
+		Geo:          collectGeo(path),
+		LinkType:     collectLinkType(path),
+		InternalHops: collectInternalHops(path),
+		Notes:        collectNotes(path),
 	}
 }
 
-// extractSingleSegmentFinalASData is used to extract StaticInfo from
-// the final AS in a path that does not contain all 3 segments.
-func extractSingleSegmentFinalASData(res *PathMetadata, asEntry *seg.ASEntry) {
-	ia := asEntry.Local
-	staticInfo := seg.StaticInfoExtn{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
-	res.ASLatencies[ia] = ASLatency{
-		InterLatency: staticInfo.Latency.Egresslatency,
-		PeerLatency:  0,
-	}
-	res.Links[ia] = ASLink{
-		InterLinkType: staticInfo.Linktype.EgressLinkType,
-	}
-	res.ASBandwidths[ia] = ASBandwidth{
-		InterBW: staticInfo.Bandwidth.EgressBW,
-	}
-	res.ASHops[ia] = ASHops{}
-	res.Geo[ia] = getGeo(asEntry)
-	res.Notes[ia] = ASnote{
-		Note: staticInfo.Note,
-	}
-}
+func collectLatency(p pathInfo) []time.Duration {
+	// We're making our lives quite easy here:
+	// 1) Go over the ASEntries (in whatever order) and store the latency
+	//    information for any interface pair we can find to a map.
+	//    Here, we can also handle any inconsistencies we may find.
+	// 2) Go over the path, in order, for each pair of consecutive interfaces, we
+	//    just lookiup the latency from the map.
 
-// extractNormaldata is used to extract StaticInfo from an AS that is
-// "in the middle" of a path, i.e. it is neither the first nor last AS
-// in the segment. It only uses egress and ingress to egress values from
-// staticInfo.
-
-func extractNormaldata(res *PathMetadata, asEntry *seg.ASEntry) {
-	ia := asEntry.Local
-	staticInfo := seg.StaticInfoExtn{} // FIXME(roosd): enable again: asEntry.Exts.StaticInfo
-	res.ASLatencies[ia] = ASLatency{
-		IntraLatency: staticInfo.Latency.IngressToEgressLatency,
-		InterLatency: staticInfo.Latency.Egresslatency,
-		PeerLatency:  0,
-	}
-	res.Links[ia] = ASLink{
-		InterLinkType: staticInfo.Linktype.EgressLinkType,
-	}
-	res.ASBandwidths[ia] = ASBandwidth{
-		IntraBW: staticInfo.Bandwidth.IngressToEgressBW,
-		InterBW: staticInfo.Bandwidth.EgressBW,
-	}
-	res.ASHops[ia] = ASHops{
-		Hops: staticInfo.Hops.InToOutHops,
-	}
-	res.Geo[ia] = getGeo(asEntry)
-	res.Notes[ia] = ASnote{
-		Note: staticInfo.Note,
-	}
-}
-
-// extractUpOverdata is used to extract StaticInfo from the last AS in the up segment,
-// when the path crosses over into the core segment (i.e. the AS is also the first AS
-// in the core segment).
-func extractUpOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
-	ia := newASEntry.Local
-	// FIXME(roosd): enable again: staticInfo := oldASEntry.Exts.StaticInfo
-	staticInfo := seg.StaticInfoExtn{}
-	hopEntry := newASEntry.HopEntry
-	newIngressIfID := common.IFIDType(hopEntry.HopField.ConsIngress)
-	for i := 0; i < len(staticInfo.Latency.Childlatencies); i++ {
-		if staticInfo.Latency.Childlatencies[i].IfID == newIngressIfID {
-			res.ASLatencies[ia] = ASLatency{
-				IntraLatency: staticInfo.Latency.Childlatencies[i].Intradelay,
-				InterLatency: staticInfo.Latency.Egresslatency,
-			}
-			break
-		}
-	}
-	res.Links[ia] = ASLink{
-		InterLinkType: staticInfo.Linktype.EgressLinkType,
-	}
-
-	for i := 0; i < len(staticInfo.Bandwidth.Bandwidths); i++ {
-		if staticInfo.Bandwidth.Bandwidths[i].IfID == newIngressIfID {
-			res.ASBandwidths[ia] = ASBandwidth{
-				IntraBW: staticInfo.Bandwidth.Bandwidths[i].BW,
-				InterBW: staticInfo.Bandwidth.EgressBW,
-			}
-			break
-		}
-	}
-	for i := 0; i < len(staticInfo.Hops.InterfaceHops); i++ {
-		if staticInfo.Hops.InterfaceHops[i].IfID == newIngressIfID {
-			res.ASHops[ia] = ASHops{
-				Hops: staticInfo.Hops.InterfaceHops[i].Hops,
-			}
-			break
-		}
-	}
-	res.Geo[ia] = getGeo(newASEntry)
-	res.Notes[ia] = ASnote{
-		Note: staticInfo.Note,
-	}
-}
-
-// extractCoreOverdata is used to extract StaticInfo from the last AS in the core segment,
-// when the path crosses over into the down segment (i.e. the AS is also the last AS
-// in the down segment).
-func extractCoreOverdata(res *PathMetadata, oldASEntry *seg.ASEntry, newASEntry *seg.ASEntry) {
-	ia := newASEntry.Local
-	staticInfo := seg.StaticInfoExtn{} // FIXME(roosd): enable again: := newASEntry.Exts.StaticInfo
-	oldSI := seg.StaticInfoExtn{}      // FIXME(roosd): enable again: := oldASEntry.Exts.StaticInfo
-	hopEntry := oldASEntry.HopEntry
-	oldEgressIfID := common.IFIDType(hopEntry.HopField.ConsEgress)
-	for i := 0; i < len(staticInfo.Latency.Childlatencies); i++ {
-		if staticInfo.Latency.Childlatencies[i].IfID == oldEgressIfID {
-			res.ASLatencies[ia] = ASLatency{
-				IntraLatency: staticInfo.Latency.Childlatencies[i].Intradelay,
-				InterLatency: staticInfo.Latency.Egresslatency,
-				PeerLatency:  oldSI.Latency.Egresslatency,
-			}
-			break
-		}
-	}
-	res.Links[ia] = ASLink{
-		InterLinkType: staticInfo.Linktype.EgressLinkType,
-		PeerLinkType:  oldSI.Linktype.EgressLinkType,
-	}
-
-	for i := 0; i < len(staticInfo.Bandwidth.Bandwidths); i++ {
-		if staticInfo.Bandwidth.Bandwidths[i].IfID == oldEgressIfID {
-			res.ASBandwidths[ia] = ASBandwidth{
-				IntraBW: staticInfo.Bandwidth.Bandwidths[i].BW,
-				InterBW: staticInfo.Bandwidth.EgressBW,
-			}
-			break
-		}
-	}
-	for i := 0; i < len(staticInfo.Hops.InterfaceHops); i++ {
-		if staticInfo.Hops.InterfaceHops[i].IfID == oldEgressIfID {
-			res.ASHops[ia] = ASHops{
-				Hops: staticInfo.Hops.InterfaceHops[i].Hops,
-			}
-			break
-		}
-	}
-	res.Geo[ia] = getGeo(newASEntry)
-	res.Notes[ia] = ASnote{
-		Note: staticInfo.Note,
-	}
-}
-
-// combineSegments is responsible for going through each list of ASEntries
-// representing a path segment and calling the extractor
-// functions from above that correspond to the
-// particular role/position of each ASEntry in the segment.
-func combineSegments(ases *asEntryList) *PathMetadata {
-	meta := &PathMetadata{
-		ASLatencies:  make(map[addr.IA]ASLatency),
-		ASBandwidths: make(map[addr.IA]ASBandwidth),
-		ASHops:       make(map[addr.IA]ASHops),
-		Geo:          make(map[addr.IA]ASGeo),
-		Links:        make(map[addr.IA]ASLink),
-		Notes:        make(map[addr.IA]ASnote),
-	}
-	// first insert the meta from the segments
-	lastUp := addMetaFromSegment(meta, ases.Ups)
-	lastCore := addMetaFromSegment(meta, ases.Cores)
-	lastDown := addMetaFromSegment(meta, ases.Downs)
-
-	// then stitch the segments metadata and insert them
-	if lastUp != nil && ases.UpPeer != 0 {
-		// This is the last AS in the segment and it is connected to the down segment via peering.
-		extractPeerdata(meta, lastUp, peerIfID(lastUp.PeerEntries[ases.UpPeer-1]), false)
-		lastUp = nil
-	}
-	// if len(ases.Ups) > 0 && len(ases.Cores) > 0 && ases.Cores[0] != nil {
-	// TODO(juagargi): beware that here ^^, as well as in the original code, lastUp could be nil
-	if lastUp != nil && len(ases.Cores) > 0 && ases.Cores[0] != nil {
-		// We're in the AS where we cross over from the up to the core segment
-		extractUpOverdata(meta, lastUp, ases.Cores[0])
-	}
-
-	if lastDown != nil && ases.DownPeer != 0 {
-		// This is the last AS in the segment and it is connected to the down segment via peering.
-		extractPeerdata(meta, lastDown, peerIfID(lastDown.PeerEntries[ases.DownPeer-1]), true)
-		lastDown = nil
-	}
-	if lastDown != nil && lastCore != nil {
-		extractCoreOverdata(meta, lastCore, lastDown)
-		lastDown, lastCore, lastUp = nil, nil, nil
-	} else if lastDown != nil && lastUp != nil {
-		extractCoreOverdata(meta, lastUp, lastDown)
-		lastDown, lastUp = nil, nil
-	}
-
-	// put a "stopper" at last entry for this cases: only up, only core, up-core, and only down.
-	var lastFinal *seg.ASEntry
-	if lastUp != nil {
-		lastFinal = lastUp
-	}
-	if lastCore != nil {
-		lastFinal = lastCore
-	}
-	if lastFinal == nil && lastDown != nil {
-		lastFinal = lastDown
-	}
-	if lastFinal != nil {
-		extractSingleSegmentFinalASData(meta, lastFinal)
-	}
-
-	return meta
-}
-
-// inclusion of info from segment. Returns the last ASEntry of the segment if len >1
-func addMetaFromSegment(meta *PathMetadata, segment []*seg.ASEntry) *seg.ASEntry {
-	if len(segment) == 0 {
-		return nil
-	}
-	asEntry := segment[0]
-	s := &seg.StaticInfoExtn{} // FIXME(roosd): enable again := asEntry.Exts.StaticInfo
-	if false {
-		// For the first AS on the path, only extract
-		// the note and the geodata, since all other data
-		// is not available as part of the saved
-		// s as we only have metrics describing a connection
-		// between BRs (i.e. the "edges" of an AS) and a path could
-		// potentially originate somewhere in the "middle" of the AS.
-		meta.Geo[asEntry.Local] = getGeo(asEntry)
-		meta.Notes[asEntry.Local] = ASnote{Note: s.Note}
-	}
-	for i := 1; i < len(segment)-1; i++ {
-		// If the AS is in the middle of the segment, simply extract
-		// the egress and ingressToEgress metrics from the corresponding
-		// fields in s.
-		if true { // FIXME(roosd): enable again: if segment[i].Exts.StaticInfo == nil {
+	// 1)
+	hopLatencies := make(map[hopKey]time.Duration)
+	for _, asEntry := range p.ASEntries {
+		staticInfo := asEntry.Extensions.StaticInfo
+		if staticInfo == nil {
 			continue
 		}
-		extractNormaldata(meta, segment[i])
+		egIF := snet.PathInterface{
+			IA: asEntry.Local,
+			ID: common.IFIDType(asEntry.HopEntry.HopField.ConsEgress),
+		}
+		latency := staticInfo.Latency
+		// Egress to sibling child, core or peer interfaces
+		for ifid, v := range latency.Intra {
+			otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+			addHopLatency(hopLatencies, egIF, otherIF, v)
+		}
+		// Local peer to remote peer interface
+		for ifid, v := range latency.Inter {
+			localIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+			addHopLatency(hopLatencies, localIF, p.RemoteIF[localIF], v)
+		}
 	}
-	// FIXME(roosd): enable again:
-	// if len(segment) > 1 && segment[len(segment)-1].Exts.StaticInfo != nil {
-	if false {
-		// the stitching is done later
-		return segment[len(segment)-1]
+
+	// 2)
+	latencies := make([]time.Duration, len(p.Interfaces)-1)
+	for i := 0; i+1 < len(p.Interfaces); i++ {
+		latencies[i] = hopLatencies[makeHopKey(p.Interfaces[i], p.Interfaces[i+1])]
 	}
-	return nil
+
+	return latencies
 }
 
-func getGeo(asEntry *seg.ASEntry) ASGeo {
-	var locations []GeoLoc
-	// FIXME(roosd): Enable again := asEntry.Exts.StaticInfo.Geo.Locations
-	staticInfo := seg.StaticInfoExtn{}
-	for _, loc := range staticInfo.Geo.Locations {
-		locations = append(locations, GeoLoc{
-			Latitude:  loc.GPSData.Latitude,
-			Longitude: loc.GPSData.Longitude,
-			Address:   loc.GPSData.Address,
-		})
+// addHopLatency adds the latency of hop a-b to the map. Handle conflicting entries by
+// chosing the more conservative value (i.e. keep higher latency value).
+func addHopLatency(m map[hopKey]time.Duration, a, b snet.PathInterface, v time.Duration) {
+	// Skip incomplete entries; not strictly necessary, we'd just not look this up
+	if a.ID == 0 || b.ID == 0 {
+		return
 	}
-	res := ASGeo{
-		Locations: locations,
+	if v == 0 {
+		return
 	}
-	return res
+	k := makeHopKey(a, b)
+	if vExisting, exists := m[k]; !exists || vExisting < v {
+		m[k] = v
+	}
 }
 
-func peerIfID(he seg.PeerEntry) common.IFIDType {
-	return common.IFIDType(he.HopField.ConsIngress)
+func collectBandwidth(p pathInfo) []uint64 {
+	// This is identical to collecting latencies.
+	// 1)
+	hopBandwidths := make(map[hopKey]uint64)
+	for _, asEntry := range p.ASEntries {
+		staticInfo := asEntry.Extensions.StaticInfo
+		if staticInfo == nil {
+			continue
+		}
+		egIF := snet.PathInterface{
+			IA: asEntry.Local,
+			ID: common.IFIDType(asEntry.HopEntry.HopField.ConsEgress),
+		}
+		bandwidth := staticInfo.Bandwidth
+		// Egress to other local interfaces
+		for ifid, v := range bandwidth.Intra {
+			otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+			addHopBandwidth(hopBandwidths, egIF, otherIF, v)
+		}
+		// Local peer to remote peer interface
+		for ifid, v := range bandwidth.Inter {
+			localIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+			addHopBandwidth(hopBandwidths, localIF, p.RemoteIF[localIF], v)
+		}
+	}
+
+	// 2)
+	bandwidths := make([]uint64, len(p.Interfaces)-1)
+	for i := 0; i+1 < len(p.Interfaces); i++ {
+		bandwidths[i] = hopBandwidths[makeHopKey(p.Interfaces[i], p.Interfaces[i+1])]
+	}
+
+	return bandwidths
+}
+
+// addHopBandwidth adds the bandwidth of hop a-b to the map. Handle conflicting entries by
+// chosing the more conservative value (i.e. keep lower bandwidth value).
+func addHopBandwidth(m map[hopKey]uint64, a, b snet.PathInterface, v uint64) {
+	// Skip incomplete entries; not strictly necessary, we'd just not look this up
+	if a.ID == 0 || b.ID == 0 {
+		return
+	}
+	if v == 0 {
+		return
+	}
+	k := makeHopKey(a, b)
+	if vExisting, exists := m[k]; !exists || vExisting > v {
+		m[k] = v
+	}
+}
+
+func collectGeo(p pathInfo) []GeoCoordinates {
+	ifaceGeos := make(map[snet.PathInterface]GeoCoordinates)
+	for _, asEntry := range p.ASEntries {
+		staticInfo := asEntry.Extensions.StaticInfo
+		if staticInfo == nil {
+			continue
+		}
+		for ifid, v := range staticInfo.Geo {
+			iface := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+			ifaceGeos[iface] = GeoCoordinates(v)
+		}
+	}
+
+	geos := make([]GeoCoordinates, len(p.Interfaces))
+	for i, iface := range p.Interfaces {
+		geos[i] = ifaceGeos[iface]
+	}
+	return geos
+}
+
+func collectLinkType(p pathInfo) []LinkType {
+	// 1) Gather map with all the LinkTypes, identified by the (unordered)
+	// interface pair associated with each link
+	hopLinkTypes := make(map[hopKey]LinkType)
+	for _, asEntry := range p.ASEntries {
+		staticInfo := asEntry.Extensions.StaticInfo
+		if staticInfo == nil {
+			continue
+		}
+		for ifid, rawLinkType := range staticInfo.LinkType {
+			linkType := convertLinkType(rawLinkType)
+			localIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+			hop := makeHopKey(localIF, p.RemoteIF[localIF])
+			if prevLinkType, duplicate := hopLinkTypes[hop]; duplicate {
+				// Handle conflicts by using LinkTypeUnset
+				if prevLinkType != linkType {
+					hopLinkTypes[hop] = LinkTypeUnset
+				}
+			} else {
+				hopLinkTypes[hop] = linkType
+			}
+		}
+	}
+
+	// 2) Go over the path; for each inter-AS link interface pair, add the link type
+	linkTypes := make([]LinkType, len(p.Interfaces)/2)
+	for i := 0; i < len(p.Interfaces); i += 2 {
+		linkTypes[i/2] = hopLinkTypes[makeHopKey(p.Interfaces[i], p.Interfaces[i+1])]
+	}
+	return linkTypes
+}
+
+func convertLinkType(lt staticinfo.LinkType) LinkType {
+	switch lt {
+	case staticinfo.LinkTypeDirect:
+		return LinkTypeDirect
+	case staticinfo.LinkTypeMultihop:
+		return LinkTypeMultihop
+	case staticinfo.LinkTypeOpennet:
+		return LinkTypeOpennet
+	default:
+		return LinkTypeUnset
+	}
+}
+
+func collectInternalHops(p pathInfo) []uint32 {
+	// Analogous to collectLatencies, but simplified as there are no inter-AS
+	// hops to worry about.
+
+	// 1)
+	// Note: the odd name means "number of internal hops, indexed by the hop(-key)".
+	// Just to keep this consistent with e.g. hopLatencies, which sounds a lot
+	// less weird.
+	hopInternalHops := make(map[hopKey]uint32)
+	for _, asEntry := range p.ASEntries {
+		staticInfo := asEntry.Extensions.StaticInfo
+		if staticInfo == nil {
+			continue
+		}
+		egIF := snet.PathInterface{
+			IA: asEntry.Local,
+			ID: common.IFIDType(asEntry.HopEntry.HopField.ConsEgress),
+		}
+		internalHops := staticInfo.InternalHops
+		for ifid, v := range internalHops {
+			otherIF := snet.PathInterface{IA: asEntry.Local, ID: ifid}
+			addHopInternalHops(hopInternalHops, egIF, otherIF, v)
+		}
+	}
+
+	// 2) Now add an entry for each fully traversed AS
+	internalHops := make([]uint32, (len(p.Interfaces)-2)/2)
+	for i := 1; i+1 < len(p.Interfaces); i += 2 {
+		internalHops[(i-1)/2] = hopInternalHops[makeHopKey(p.Interfaces[i], p.Interfaces[i+1])]
+	}
+
+	return internalHops
+}
+
+func addHopInternalHops(m map[hopKey]uint32, a, b snet.PathInterface, v uint32) {
+	// Skip incomplete entries; not strictly necessary, we'd just not look this up
+	if a.ID == 0 || b.ID == 0 {
+		return
+	}
+	if v == 0 {
+		return
+	}
+	k := makeHopKey(a, b)
+	if vExisting, exists := m[k]; !exists || vExisting > v {
+		m[k] = v
+	}
+}
+
+func collectNotes(p pathInfo) []string {
+	// can have multiple AS entries for the same AS (at segment cross over, or loop paths).
+	// collect all notes first
+	allNotes := make(map[addr.IA][]string)
+	for _, asEntry := range p.ASEntries {
+		ia := asEntry.Local
+		staticInfo := asEntry.Extensions.StaticInfo
+		if staticInfo != nil && len(staticInfo.Note) > 0 {
+			allNotes[ia] = append(allNotes[ia], staticInfo.Note)
+		}
+	}
+
+	// (very) explicitly gather traversed ASes from path interface list
+	ases := []addr.IA{}
+	ases = append(ases, p.Interfaces[0].IA)
+	for i := 1; i < len(p.Interfaces); i += 2 {
+		ases = append(ases, p.Interfaces[i].IA)
+	}
+
+	// Now put the notes in order. Deduplicate entries but keep multiple notes in
+	// case there are differences.
+	notes := make([]string, len(ases))
+	for i, ia := range ases {
+		asNotes := deduplicateStrings(allNotes[ia])
+		notes[i] = strings.Join(asNotes, "\n")
+	}
+	return notes
+}
+
+func deduplicateStrings(elements []string) []string {
+	result := []string{}
+	for _, v := range elements {
+		exists := false
+		for _, r := range result {
+			if v == r {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
+// hopKey is a map key for looking up information about a hop, a pair of
+// snet.PathInterface.
+type hopKey struct {
+	a snet.PathInterface
+	b snet.PathInterface
+}
+
+// makeHopKey makes a key for an unordered interface pair lookup.
+func makeHopKey(a, b snet.PathInterface) hopKey {
+	if a.IA.IAInt() > b.IA.IAInt() || a.IA == b.IA && a.ID > b.ID {
+		return hopKey{b, a}
+	}
+	return hopKey{a, b}
 }
