@@ -21,7 +21,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -207,20 +206,4 @@ func (h *BaseHandler) reversePath(path spath.Path) (spath.Path, error) {
 		return path, err
 	}
 	return path, nil
-}
-
-func (h *BaseHandler) reverseL4Header(header l4.L4Header) l4.L4Header {
-	if header == nil {
-		return nil
-	}
-	l4HeaderCopy := header.Copy()
-	l4HeaderCopy.Reverse()
-	return l4HeaderCopy
-}
-
-func (h *BaseHandler) getPayload() common.Payload {
-	if h.Message == nil {
-		return nil
-	}
-	return common.RawBytes(h.Message)
 }

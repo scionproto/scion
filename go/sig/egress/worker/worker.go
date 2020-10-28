@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
-	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/slayers"
@@ -56,6 +55,7 @@ const (
 	MinSpace   = 16
 	SigHdrLen  = 8
 	MaxSeq     = (1 << 24) - 1
+	udpHdrLen  = 8
 )
 
 type SCIONWriter interface {
@@ -236,7 +236,7 @@ func (w *worker) resetFrame(f *frame) {
 		}
 	}
 	// FIXME(kormat): to do this properly, need to account for any ext headers.
-	f.reset(mtu - slayers.CmnHdrLen - addrLen - pathLen - l4.UDPLen)
+	f.reset(mtu - slayers.CmnHdrLen - addrLen - pathLen - udpHdrLen)
 }
 
 func addrHdrLen(src addr.HostAddr, dst net.IP) int {
