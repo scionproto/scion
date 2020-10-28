@@ -131,15 +131,13 @@ func checkLatency(t *testing.T, g *graph.Graph,
 	path []snet.PathInterface, latency []time.Duration) {
 
 	if len(path) == 0 {
-		assert.Equal(t, 0, len(latency))
+		assert.Empty(t, latency)
 		return
 	}
 
 	expected := []time.Duration{}
 	for i := 0; i < len(path)-1; i++ {
-		ifid_a := path[i].ID
-		ifid_b := path[i+1].ID
-		expected = append(expected, g.Latency(ifid_a, ifid_b))
+		expected = append(expected, g.Latency(path[i].ID, path[i+1].ID))
 	}
 	assert.Equal(t, expected, latency)
 }
@@ -148,15 +146,13 @@ func checkBandwidth(t *testing.T, g *graph.Graph,
 	path []snet.PathInterface, bandwidth []uint64) {
 
 	if len(path) == 0 {
-		assert.Equal(t, 0, len(bandwidth))
+		assert.Empty(t, bandwidth)
 		return
 	}
 
 	expected := []uint64{}
 	for i := 0; i < len(path)-1; i++ {
-		ifid_a := path[i].ID
-		ifid_b := path[i+1].ID
-		expected = append(expected, g.Bandwidth(ifid_a, ifid_b))
+		expected = append(expected, g.Bandwidth(path[i].ID, path[i+1].ID))
 	}
 	assert.Equal(t, expected, bandwidth)
 }
@@ -165,22 +161,20 @@ func checkInternalHops(t *testing.T, g *graph.Graph,
 	path []snet.PathInterface, internalHops []uint32) {
 
 	if len(path) == 0 {
-		assert.Equal(t, 0, len(internalHops))
+		assert.Empty(t, internalHops)
 		return
 	}
 
 	expected := []uint32{}
 	for i := 1; i < len(path)-1; i += 2 {
-		ifid_a := path[i].ID
-		ifid_b := path[i+1].ID
-		expected = append(expected, g.InternalHops(ifid_a, ifid_b))
+		expected = append(expected, g.InternalHops(path[i].ID, path[i+1].ID))
 	}
 	assert.Equal(t, expected, internalHops)
 }
 
 func checkGeo(t *testing.T, g *graph.Graph, path []snet.PathInterface, geos []GeoCoordinates) {
 	if len(path) == 0 {
-		assert.Equal(t, 0, len(geos))
+		assert.Empty(t, geos)
 		return
 	}
 
@@ -190,7 +184,8 @@ func checkGeo(t *testing.T, g *graph.Graph, path []snet.PathInterface, geos []Ge
 		expected = append(expected, GeoCoordinates{
 			Longitude: e.Longitude,
 			Latitude:  e.Latitude,
-			Address:   e.Address})
+			Address:   e.Address,
+		})
 	}
 	assert.Equal(t, expected, geos)
 }
@@ -199,22 +194,20 @@ func checkLinkType(t *testing.T, g *graph.Graph,
 	path []snet.PathInterface, linkTypes []LinkType) {
 
 	if len(path) == 0 {
-		assert.Equal(t, 0, len(linkTypes))
+		assert.Empty(t, linkTypes)
 		return
 	}
 
 	expected := []LinkType{}
 	for i := 0; i < len(path); i += 2 {
-		ifid_a := path[i].ID
-		ifid_b := path[i+1].ID
-		expected = append(expected, convertLinkType(g.LinkType(ifid_a, ifid_b)))
+		expected = append(expected, convertLinkType(g.LinkType(path[i].ID, path[i+1].ID)))
 	}
 	assert.Equal(t, expected, linkTypes)
 
 }
 func checkNotes(t *testing.T, g *graph.Graph, path []snet.PathInterface, notes []string) {
 	if len(path) == 0 {
-		assert.Equal(t, 0, len(notes))
+		assert.Empty(t, notes)
 		return
 	}
 
