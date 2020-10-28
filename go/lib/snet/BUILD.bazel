@@ -45,7 +45,6 @@ go_test(
     srcs = [
         "export_test.go",
         "packet_test.go",
-        "raw_test.go",
         "svcaddr_test.go",
         "udpaddr_test.go",
         "writer_test.go",
@@ -53,8 +52,6 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/lib/addr:go_default_library",
-        "//go/lib/common:go_default_library",
-        "//go/lib/layers:go_default_library",
         "//go/lib/slayers:go_default_library",
         "//go/lib/slayers/path:go_default_library",
         "//go/lib/slayers/path/onehop:go_default_library",

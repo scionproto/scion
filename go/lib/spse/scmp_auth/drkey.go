@@ -34,7 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spse"
 )
 
-var _ common.Extension = (*DRKeyExtn)(nil)
+//var _ common.Extension = (*DRKeyExtn)(nil)
 
 // DRKeyExtn is an implementation of the SCMPAuthDRKey extension.
 // It is used to authenticate scmp messages.
@@ -129,16 +129,6 @@ func (s *DRKeyExtn) Pack() (common.RawBytes, error) {
 		return nil, err
 	}
 	return b, nil
-}
-
-func (s *DRKeyExtn) Copy() common.Extension {
-	if s == nil {
-		return nil
-	}
-	c := NewDRKeyExtn()
-	c.Direction = s.Direction
-	copy(c.MAC, s.MAC)
-	return c
 }
 
 func (s *DRKeyExtn) Len() int {

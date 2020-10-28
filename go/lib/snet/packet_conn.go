@@ -17,7 +17,6 @@ package snet
 import (
 	"fmt"
 	"net"
-	"sort"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -216,37 +215,4 @@ type SerializationOptions struct {
 	// previous offsets. If it is set to false, then the fields are left
 	// unchanged.
 	InitializePaths bool
-}
-
-// StableSortExtensions sorts the extensions in data in place. The sort is stable.
-//
-// SCMP extensions are moved to the start of the slice, followed by HBH
-// extensions and finally E2E extensions.
-//
-// StableSortExtensions performs no validations on the number and/or types of
-// extensions.
-//
-// The function panics if data is nil.
-func StableSortExtensions(data []common.Extension) {
-	sort.SliceStable(data, func(i, j int) bool {
-		return compareExtensions(data[i], data[j])
-	})
-}
-
-func compareExtensions(x, y common.Extension) bool {
-	return getPriority(x) < getPriority(y)
-}
-
-func getPriority(x common.Extension) int {
-	switch x.Class() {
-	case common.HopByHopClass:
-		if x.Type() == common.ExtnSCMPType {
-			return 10
-		}
-		return 20
-	case common.End2EndClass:
-		return 30
-	default:
-		return 100
-	}
 }

@@ -34,7 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spse"
 )
 
-var _ common.Extension = (*HashTreeExtn)(nil)
+//var _ common.Extension = (*HashTreeExtn)(nil)
 
 // HashTreeExtn is the implementation of the SCMPAuthHashTree extension.
 // It is used to authenticate scmp messages.
@@ -131,17 +131,6 @@ func (s *HashTreeExtn) Pack() (common.RawBytes, error) {
 		return nil, err
 	}
 	return b, nil
-}
-
-func (s *HashTreeExtn) Copy() common.Extension {
-	if s == nil {
-		return nil
-	}
-	c, _ := NewHashTreeExtn(s.Height)
-	copy(c.Order, s.Order)
-	copy(c.Signature, s.Signature)
-	copy(c.Hashes, s.Hashes)
-	return c
 }
 
 func (s *HashTreeExtn) Len() int {
