@@ -190,8 +190,8 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			FullPath:    path,
 			Fingerprint: fingerprint,
 			NextHop:     nextHop,
-			Expiry:      path.Metadata().Expiry(),
-			MTU:         path.Metadata().MTU(),
+			Expiry:      path.Metadata().Expiry,
+			MTU:         path.Metadata().MTU,
 			Local:       localIP,
 			Hops:        []Hop{},
 		}

@@ -112,7 +112,7 @@ On other errors, ping will exit with code 2.
 			}
 			pldSize := int(flags.size)
 			if flags.maxMTU {
-				mtu := int(path.Metadata().MTU())
+				mtu := int(path.Metadata().MTU)
 				pldSize, err = calcMaxPldSize(local, remote, mtu)
 				if err != nil {
 					return err

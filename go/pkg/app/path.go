@@ -40,7 +40,7 @@ func SortPaths(paths []snet.Path) {
 				return idA < idB
 			}
 		}
-		expA, expB := paths[a].Metadata().Expiry(), paths[b].Metadata().Expiry()
+		expA, expB := paths[a].Metadata().Expiry, paths[b].Metadata().Expiry
 		if !expA.Equal(expB) {
 			return expA.Before(expB)
 		}
@@ -88,7 +88,7 @@ func ColorPath(path snet.Path, opts ...ColorOption) string {
 	hops := coloredHops(path, o)
 	entries := []string{
 		fmt.Sprintf("%s: [%s]", o.keys.Sprint("Hops"), strings.Join(hops, o.link.Sprint(">"))),
-		fmt.Sprintf("%s: %s", o.keys.Sprint("MTU"), o.values.Sprint(path.Metadata().MTU())),
+		fmt.Sprintf("%s: %s", o.keys.Sprint("MTU"), o.values.Sprint(path.Metadata().MTU)),
 		fmt.Sprintf("%s: %s", o.keys.Sprint("NextHop"), o.values.Sprint(path.UnderlayNextHop())),
 	}
 	return strings.Join(entries, " ")

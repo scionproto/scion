@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
@@ -50,7 +49,7 @@ type Path struct {
 	Dst        addr.IA
 	SPath      spath.Path
 	Interfaces []snet.PathInterface
-	Metadata   path.PathMetadata
+	Metadata   snet.PathMetadata
 	Weight     int // XXX(matzf): unused, drop this?
 }
 

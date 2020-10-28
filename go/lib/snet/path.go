@@ -52,7 +52,7 @@ type Path interface {
 	Destination() addr.IA
 	// Metadata returns supplementary information about this path.
 	// Returns nil if the metadata is not available.
-	Metadata() PathMetadata
+	Metadata() *PathMetadata
 	// Copy create a copy of the path.
 	Copy() Path
 }
@@ -70,12 +70,11 @@ func (iface PathInterface) String() string {
 }
 
 // PathMetadata contains supplementary information about a path.
-// XXX(matzf): change this to a struct type
-type PathMetadata interface {
-	// MTU returns the MTU of the path.
-	MTU() uint16
-	// Expiry returns the expiration time of the path.
-	Expiry() time.Time
+type PathMetadata struct {
+	// MTU is the maximum transmission unit for the path, in bytes.
+	MTU uint16
+	// Expiry is the expiration time of the path.
+	Expiry time.Time
 }
 
 type PathFingerprint string
@@ -130,7 +129,7 @@ func (p *partialPath) Destination() addr.IA {
 	return p.destination
 }
 
-func (p *partialPath) Metadata() PathMetadata {
+func (p *partialPath) Metadata() *PathMetadata {
 	return nil
 }
 

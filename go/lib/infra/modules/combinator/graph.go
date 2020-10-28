@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
-	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
@@ -391,9 +390,9 @@ func (solution *pathSolution) Path() Path {
 	return Path{
 		SPath:      segments.SPath(),
 		Interfaces: segments.Interfaces(),
-		Metadata: snetpath.PathMetadata{
-			Mtu: mtu,
-			Exp: segments.ComputeExpTime(),
+		Metadata: snet.PathMetadata{
+			MTU:    mtu,
+			Expiry: segments.ComputeExpTime(),
 		},
 		Weight: solution.cost,
 	}

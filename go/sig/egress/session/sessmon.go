@@ -126,8 +126,8 @@ func (sm *sessMonitor) updatePaths() {
 	var oldExpTime time.Time
 	var oldMtu uint16
 	if md := currPath.Path().Metadata(); md != nil {
-		oldExpTime = md.Expiry()
-		oldMtu = md.MTU()
+		oldExpTime = md.Expiry
+		oldMtu = md.MTU
 	}
 	sm.sessPathPool.Update(sm.pool.Paths())
 	metrics.SessionPaths.WithLabelValues(sm.sess.IA().String(),
@@ -137,8 +137,8 @@ func (sm *sessMonitor) updatePaths() {
 	var expTime time.Time
 	var mtu uint16
 	if md := currPath.Path().Metadata(); md != nil {
-		expTime = md.Expiry()
-		mtu = md.MTU()
+		expTime = md.Expiry
+		mtu = md.MTU
 	}
 	if expTime != oldExpTime || mtu != oldMtu {
 		sm.logger.Debug("sessMonitor: Path metadata changed",
@@ -238,7 +238,7 @@ func (sm *sessMonitor) updateSessSnap() {
 	if remote.SessPath != nil {
 		var mtu uint16
 		if md := remote.SessPath.Path().Metadata(); md != nil {
-			mtu = md.MTU()
+			mtu = md.MTU
 		}
 		metrics.SessionMTU.WithLabelValues(sm.sess.IA().String(),
 			sm.sess.SessId.String()).Set(float64(mtu))

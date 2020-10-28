@@ -101,8 +101,8 @@ func (s DaemonServer) paths(ctx context.Context,
 				Address: &sdpb.Underlay{Address: nextHopStr},
 			},
 			Interfaces: interfaces,
-			Mtu:        uint32(p.Metadata().MTU()),
-			Expiration: &timestamppb.Timestamp{Seconds: p.Metadata().Expiry().Unix()},
+			Mtu:        uint32(p.Metadata().MTU),
+			Expiration: &timestamppb.Timestamp{Seconds: p.Metadata().Expiry.Unix()},
 			HeaderV2:   true,
 		})
 	}

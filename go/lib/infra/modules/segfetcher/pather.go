@@ -64,9 +64,9 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 		// For AS local communication, an empty path is used.
 		return []snet.Path{path.Path{
 			Dst: dst,
-			Meta: path.PathMetadata{
-				Mtu: p.TopoProvider.Get().MTU(),
-				Exp: time.Now().Add(rawpath.MaxTTL * time.Second),
+			Meta: snet.PathMetadata{
+				MTU:    p.TopoProvider.Get().MTU(),
+				Expiry: time.Now().Add(rawpath.MaxTTL * time.Second),
 			},
 		}}, nil
 	}
@@ -104,7 +104,7 @@ func (p *Pather) buildAllPaths(src, dst addr.IA, segs Segments) []combinator.Pat
 	now := time.Now()
 	var validPaths []combinator.Path
 	for _, path := range paths {
-		if path.Metadata.Exp.After(now) {
+		if path.Metadata.Expiry.After(now) {
 			validPaths = append(validPaths, path)
 		}
 	}

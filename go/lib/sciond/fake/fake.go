@@ -29,11 +29,10 @@ func New(script *Script) sciond.Connector {
 	}
 	for _, entry := range script.Entries {
 		for _, path := range entry.Paths {
-			creationTime := c.creationTime
 			lifetime := time.Duration(path.JSONExpirationTimestamp) * time.Second
-			path.metadata = pathMetadata{
-				creationTime:   creationTime,
-				expirationTime: creationTime.Add(lifetime),
+			path.metadata = snet.PathMetadata{
+				MTU:    1472,
+				Expiry: c.creationTime.Add(lifetime),
 			}
 		}
 	}
@@ -79,7 +78,7 @@ type Path struct {
 	// would mean SCIOND served a path that expired in the past.
 	JSONExpirationTimestamp int `json:"expiration_timestamp"`
 
-	metadata pathMetadata
+	metadata snet.PathMetadata
 }
 
 func (p Path) UnderlayNextHop() *net.UDPAddr {
@@ -107,8 +106,8 @@ func (p Path) Destination() addr.IA {
 	return p.JSONInterfaces[len(p.JSONInterfaces)-1].IA
 }
 
-func (p Path) Metadata() snet.PathMetadata {
-	return p.metadata
+func (p Path) Metadata() *snet.PathMetadata {
+	return &p.metadata
 }
 
 func (p Path) Copy() snet.Path {
@@ -132,21 +131,6 @@ func (p Path) String() string {
 type PathInterface struct {
 	IA addr.IA         `json:"ia"`
 	ID common.IFIDType `json:"id"`
-}
-
-type pathMetadata struct {
-	// creationTime contains the time when this object was constructed.
-	creationTime time.Time
-	// expirationTime contains the time when this path expires.
-	expirationTime time.Time
-}
-
-func (m pathMetadata) MTU() uint16 {
-	return 1472
-}
-
-func (m pathMetadata) Expiry() time.Time {
-	return m.expirationTime
 }
 
 // UDPAddr decorates net.UDPAddr with custom JSON marshaling logic.

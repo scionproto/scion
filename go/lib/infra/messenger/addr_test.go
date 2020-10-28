@@ -470,7 +470,7 @@ func (t *testPath) Destination() addr.IA {
 	panic("not implemented")
 }
 
-func (t *testPath) Metadata() snet.PathMetadata {
+func (t *testPath) Metadata() *snet.PathMetadata {
 	panic("not implemented")
 }
 
