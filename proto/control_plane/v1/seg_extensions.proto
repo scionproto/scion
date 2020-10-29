@@ -38,7 +38,7 @@ message StaticInfoExtension {
     // Geographical coordinates describing the location of the routers for
     // relevant interfaces of this AS. The key is the interface identifier.
     map<uint64, GeoCoordinates> geo = 3;
-    // Description of the underlying network for the intra-AS links, for the
+    // Description of the underlying network for the inter-AS links, for the
     // relevant interfaces of this AS. The key is the interface identifier.
     map<uint64, LinkType> link_type = 4;
     // Number of AS internal hops between the construction-egress and the

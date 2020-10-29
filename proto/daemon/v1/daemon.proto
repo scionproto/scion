@@ -19,6 +19,7 @@ option go_package = "github.com/scionproto/scion/go/pkg/proto/daemon";
 package proto.daemon.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 
 service DaemonService {
     // Return a set of paths to the requested destination.
@@ -63,9 +64,36 @@ message Path {
     uint32 mtu = 4;
     // The point in time when this path expires. In seconds since UNIX epoch.
     google.protobuf.Timestamp expiration = 5;
-
-    // Specify that this is a SCION header v2 path.
-    bool header_v2 = 1000;
+    // Latency lists the latencies between any two consecutive interfaces.
+    // Entry i describes the latency between interface i and i+1.
+    // Consequently, there are N-1 entries for N interfaces.
+    // A 0-value indicates that the AS did not announce a latency for this hop.
+    repeated google.protobuf.Duration latency = 6;
+    // Bandwidth lists the bandwidth between any two consecutive interfaces, in
+    // Kbit/s.
+    // Entry i describes the bandwidth between interfaces i and i+1.
+    // A 0-value indicates that the AS did not announce a bandwidth for this
+    // hop.
+    repeated uint64 bandwidth = 7;
+    // Geo lists the geographical position of the border routers along the
+    // path.
+    // Entry i describes the position of the router for interface i.
+    // A 0-value indicates that the AS did not announce a position for this
+    // router.
+    repeated GeoCoordinates geo = 8;
+    // LinkType contains the announced link type of inter-domain links.
+    // Entry i describes the link between interfaces 2*i and 2*i+1.
+    repeated LinkType link_type = 9;
+    // InternalHops lists the number of AS internal hops for the ASes on path.
+    // Entry i describes the hop between interfaces 2*i+1 and 2*i+2 in the same
+    // AS.
+    // Consequently, there are no entries for the first and last ASes, as these
+    // are not traversed completely by the path.
+    repeated uint32 internal_hops = 10;
+    // Notes contains the notes added by ASes on the path, in the order of
+    // occurrence.
+    // Entry i is the note of AS i on the path.
+    repeated string notes = 11;
 }
 
 message PathInterface {
@@ -73,6 +101,26 @@ message PathInterface {
     uint64 isd_as = 1;
     // ID of the interface in the AS.
     uint64 id = 2;
+}
+
+message GeoCoordinates {
+    // Latitude of the geographic coordinate, in the WGS 84 datum.
+    float latitude = 1;
+    // Longitude of the geographic coordinate, in the WGS 84 datum.
+    float longitude = 2;
+    // Civic address of the location.
+    string address = 3;
+}
+
+enum LinkType {
+    // Unspecified link type.
+    LINK_TYPE_UNSPECIFIED = 0;
+    // Direct physical connection.
+    LINK_TYPE_DIRECT = 1;
+    // Connection with local routing/switching.
+    LINK_TYPE_MULTI_HOP = 2;
+    // Connection overlayed over publicly routed Internet.
+    LINK_TYPE_OPEN_NET = 3;
 }
 
 message ASRequest {

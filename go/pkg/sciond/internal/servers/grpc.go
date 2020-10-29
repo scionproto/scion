@@ -18,6 +18,7 @@ import (
 	"context"
 	"time"
 
+	durationpb "github.com/golang/protobuf/ptypes/duration"
 	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/opentracing/opentracing-go"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	sdpb "github.com/scionproto/scion/go/pkg/proto/daemon"
@@ -82,31 +84,74 @@ func (s DaemonServer) paths(ctx context.Context,
 	}
 	reply := &sdpb.PathsResponse{}
 	for _, p := range paths {
-		var interfaces []*sdpb.PathInterface
-		for _, intf := range p.Metadata().Interfaces {
-			interfaces = append(interfaces, &sdpb.PathInterface{
-				Id:    uint64(intf.ID),
-				IsdAs: uint64(intf.IA.IAInt()),
-			})
-		}
-
-		raw := p.Path().Raw
-		nextHopStr := ""
-		if nextHop := p.UnderlayNextHop(); nextHop != nil {
-			nextHopStr = nextHop.String()
-		}
-		reply.Paths = append(reply.Paths, &sdpb.Path{
-			Raw: raw,
-			Interface: &sdpb.Interface{
-				Address: &sdpb.Underlay{Address: nextHopStr},
-			},
-			Interfaces: interfaces,
-			Mtu:        uint32(p.Metadata().MTU),
-			Expiration: &timestamppb.Timestamp{Seconds: p.Metadata().Expiry.Unix()},
-			HeaderV2:   true,
-		})
+		reply.Paths = append(reply.Paths, pathToPB(p))
 	}
 	return reply, nil
+}
+
+func pathToPB(path snet.Path) *sdpb.Path {
+	meta := path.Metadata()
+	interfaces := make([]*sdpb.PathInterface, len(meta.Interfaces))
+	for i, intf := range meta.Interfaces {
+		interfaces[i] = &sdpb.PathInterface{
+			Id:    uint64(intf.ID),
+			IsdAs: uint64(intf.IA.IAInt()),
+		}
+	}
+
+	latency := make([]*durationpb.Duration, len(meta.Latency))
+	for i, v := range meta.Latency {
+		seconds := int64(v / time.Second)
+		nanos := int32(v - time.Duration(seconds)*time.Second)
+		latency[i] = &durationpb.Duration{Seconds: seconds, Nanos: nanos}
+	}
+	geo := make([]*sdpb.GeoCoordinates, len(meta.Geo))
+	for i, v := range meta.Geo {
+		geo[i] = &sdpb.GeoCoordinates{
+			Latitude:  v.Latitude,
+			Longitude: v.Longitude,
+			Address:   v.Address,
+		}
+	}
+	linkType := make([]sdpb.LinkType, len(meta.LinkType))
+	for i, v := range meta.LinkType {
+		linkType[i] = linkTypeToPB(v)
+	}
+
+	raw := path.Path().Raw
+	nextHopStr := ""
+	if nextHop := path.UnderlayNextHop(); nextHop != nil {
+		nextHopStr = nextHop.String()
+	}
+	return &sdpb.Path{
+		Raw: raw,
+		Interface: &sdpb.Interface{
+			Address: &sdpb.Underlay{Address: nextHopStr},
+		},
+		Interfaces:   interfaces,
+		Mtu:          uint32(meta.MTU),
+		Expiration:   &timestamppb.Timestamp{Seconds: meta.Expiry.Unix()},
+		Latency:      latency,
+		Bandwidth:    meta.Bandwidth,
+		Geo:          geo,
+		LinkType:     linkType,
+		InternalHops: meta.InternalHops,
+		Notes:        meta.Notes,
+	}
+
+}
+
+func linkTypeToPB(lt snet.LinkType) sdpb.LinkType {
+	switch lt {
+	case snet.LinkTypeDirect:
+		return sdpb.LinkType_LINK_TYPE_DIRECT
+	case snet.LinkTypeMultihop:
+		return sdpb.LinkType_LINK_TYPE_MULTI_HOP
+	case snet.LinkTypeOpennet:
+		return sdpb.LinkType_LINK_TYPE_OPEN_NET
+	default:
+		return sdpb.LinkType_LINK_TYPE_UNSPECIFIED
+	}
 }
 
 func (s DaemonServer) backgroundPaths(origCtx context.Context, src, dst addr.IA, refresh bool) {

@@ -203,21 +203,57 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	if err != nil {
 		return path.Path{}, serrors.WrapStr("resolving underlay", err)
 	}
-	interfaces := make([]snet.PathInterface, 0, len(p.Interfaces))
-	for _, pi := range p.Interfaces {
-		interfaces = append(interfaces, snet.PathInterface{
+	interfaces := make([]snet.PathInterface, len(p.Interfaces))
+	for i, pi := range p.Interfaces {
+		interfaces[i] = snet.PathInterface{
 			ID: common.IFIDType(pi.Id),
 			IA: addr.IAInt(pi.IsdAs).IA(),
-		})
+		}
 	}
+	latency := make([]time.Duration, len(p.Latency))
+	for i, v := range p.Latency {
+		latency[i] = time.Second*time.Duration(v.Seconds) + time.Duration(v.Nanos)
+	}
+	geo := make([]snet.GeoCoordinates, len(p.Geo))
+	for i, v := range p.Geo {
+		geo[i] = snet.GeoCoordinates{
+			Latitude:  v.Latitude,
+			Longitude: v.Longitude,
+			Address:   v.Address,
+		}
+	}
+	linkType := make([]snet.LinkType, len(p.LinkType))
+	for i, v := range p.LinkType {
+		linkType[i] = linkTypeFromPB(v)
+	}
+
 	return path.Path{
 		Dst:     dst,
 		SPath:   spath.Path{Raw: p.Raw, Type: slayers.PathTypeSCION},
 		NextHop: underlayA,
 		Meta: snet.PathMetadata{
-			Interfaces: interfaces,
-			MTU:        uint16(p.Mtu),
-			Expiry:     expiry,
+			Interfaces:   interfaces,
+			MTU:          uint16(p.Mtu),
+			Expiry:       expiry,
+			Latency:      latency,
+			Bandwidth:    p.Bandwidth,
+			Geo:          geo,
+			LinkType:     linkType,
+			InternalHops: p.InternalHops,
+			Notes:        p.Notes,
 		},
 	}, nil
+}
+
+func linkTypeFromPB(lt sdpb.LinkType) snet.LinkType {
+	switch lt {
+	case sdpb.LinkType_LINK_TYPE_DIRECT:
+		return snet.LinkTypeDirect
+	case sdpb.LinkType_LINK_TYPE_MULTI_HOP:
+		return snet.LinkTypeMultihop
+	case sdpb.LinkType_LINK_TYPE_OPEN_NET:
+		return snet.LinkTypeOpennet
+	default:
+		return snet.LinkTypeUnset
+	}
 }
