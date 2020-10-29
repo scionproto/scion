@@ -385,14 +385,20 @@ func (solution *pathSolution) Path() Path {
 
 	interfaces := segments.Interfaces()
 	asEntries := segments.ASEntries()
-	_ = collectMetadata(interfaces, asEntries) // TODO(matzf) export this
+	staticInfo := collectMetadata(interfaces, asEntries)
 
 	return Path{
 		SPath: segments.SPath(),
 		Metadata: snet.PathMetadata{
-			Interfaces: interfaces,
-			MTU:        mtu,
-			Expiry:     segments.ComputeExpTime(),
+			Interfaces:   interfaces,
+			MTU:          mtu,
+			Expiry:       segments.ComputeExpTime(),
+			Latency:      staticInfo.Latency,
+			Bandwidth:    staticInfo.Bandwidth,
+			Geo:          staticInfo.Geo,
+			LinkType:     staticInfo.LinkType,
+			InternalHops: staticInfo.InternalHops,
+			Notes:        staticInfo.Notes,
 		},
 		Weight: solution.cost,
 	}
