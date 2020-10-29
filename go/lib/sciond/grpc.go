@@ -214,10 +214,10 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 		Dst:     dst,
 		SPath:   spath.Path{Raw: p.Raw, Type: slayers.PathTypeSCION},
 		NextHop: underlayA,
-		IFaces:  interfaces,
 		Meta: snet.PathMetadata{
-			MTU:    uint16(p.Mtu),
-			Expiry: expiry,
+			Interfaces: interfaces,
+			MTU:        uint16(p.Mtu),
+			Expiry:     expiry,
 		},
 	}, nil
 }

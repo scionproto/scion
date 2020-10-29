@@ -83,7 +83,7 @@ func (s DaemonServer) paths(ctx context.Context,
 	reply := &sdpb.PathsResponse{}
 	for _, p := range paths {
 		var interfaces []*sdpb.PathInterface
-		for _, intf := range p.Interfaces() {
+		for _, intf := range p.Metadata().Interfaces {
 			interfaces = append(interfaces, &sdpb.PathInterface{
 				Id:    uint64(intf.ID),
 				IsdAs: uint64(intf.IA.IAInt()),

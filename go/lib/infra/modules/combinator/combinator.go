@@ -46,11 +46,10 @@ func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) []Path {
 }
 
 type Path struct {
-	Dst        addr.IA
-	SPath      spath.Path
-	Interfaces []snet.PathInterface
-	Metadata   snet.PathMetadata
-	Weight     int // XXX(matzf): unused, drop this?
+	Dst      addr.IA
+	SPath    spath.Path
+	Metadata snet.PathMetadata
+	Weight   int // XXX(matzf): unused, drop this?
 }
 
 // filterLongPaths returns a new slice containing only those paths that do not
@@ -61,7 +60,7 @@ func filterLongPaths(paths []Path) []Path {
 	for _, path := range paths {
 		long := false
 		iaCounts := make(map[addr.IA]int)
-		for _, iface := range path.Interfaces {
+		for _, iface := range path.Metadata.Interfaces {
 			iaCounts[iface.IA]++
 			if iaCounts[iface.IA] > 2 {
 				long = true

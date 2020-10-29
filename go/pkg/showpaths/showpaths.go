@@ -178,7 +178,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	res := &Result{Destination: dst}
 	for _, path := range paths {
 		fingerprint := "local"
-		if len(path.Interfaces()) > 0 {
+		if len(path.Metadata().Interfaces) > 0 {
 			fp := snet.Fingerprint(path).String()
 			fingerprint = fp[:16]
 		}
@@ -195,7 +195,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			Local:       localIP,
 			Hops:        []Hop{},
 		}
-		for _, hop := range path.Interfaces() {
+		for _, hop := range path.Metadata().Interfaces {
 			rpath.Hops = append(rpath.Hops, Hop{IA: hop.IA, IfID: hop.ID})
 		}
 		if status, ok := statuses[pathprobe.PathKey(path)]; ok {

@@ -388,11 +388,11 @@ func (solution *pathSolution) Path() Path {
 	_ = collectMetadata(interfaces, asEntries) // TODO(matzf) export this
 
 	return Path{
-		SPath:      segments.SPath(),
-		Interfaces: segments.Interfaces(),
+		SPath: segments.SPath(),
 		Metadata: snet.PathMetadata{
-			MTU:    mtu,
-			Expiry: segments.ComputeExpTime(),
+			Interfaces: interfaces,
+			MTU:        mtu,
+			Expiry:     segments.ComputeExpTime(),
 		},
 		Weight: solution.cost,
 	}

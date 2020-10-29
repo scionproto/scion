@@ -98,7 +98,9 @@ func TestRedirectQUIC(t *testing.T) {
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 		path.EXPECT().Path().Return(spath.Path{})
 		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
-		path.EXPECT().Interfaces().Return(make([]snet.PathInterface, 1)) // just non-empty
+		path.EXPECT().Metadata().Return(&snet.PathMetadata{
+			Interfaces: make([]snet.PathInterface, 1), // just non-empty
+		})
 
 		aw := messenger.AddressRewriter{
 			Router:                router,
@@ -132,7 +134,9 @@ func TestRedirectQUIC(t *testing.T) {
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 		path.EXPECT().Path().Return(spath.Path{})
 		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
-		path.EXPECT().Interfaces().Return(make([]snet.PathInterface, 1)) // just non-empty
+		path.EXPECT().Metadata().Return(&snet.PathMetadata{
+			Interfaces: make([]snet.PathInterface, 1), // just non-empty
+		})
 
 		aw := messenger.AddressRewriter{
 			Router:                router,
@@ -162,7 +166,7 @@ func TestRedirectQUIC(t *testing.T) {
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 		path.EXPECT().Path().Return(spath.Path{})
 		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{IP: net.ParseIP("10.1.1.1")})
-		path.EXPECT().Interfaces().Return(nil)
+		path.EXPECT().Metadata().Return(&snet.PathMetadata{})
 		svcRouter := mock_messenger.NewMockLocalSVCRouter(ctrl)
 		svcRouter.EXPECT().GetUnderlay(addr.SvcCS).Return(
 			&net.UDPAddr{IP: net.ParseIP("10.1.1.1")}, nil,
@@ -238,7 +242,9 @@ func TestBuildFullAddress(t *testing.T) {
 		path := mock_snet.NewMockPath(ctrl)
 		path.EXPECT().Path().Return(spath.Path{})
 		path.EXPECT().UnderlayNextHop().Return(&net.UDPAddr{})
-		path.EXPECT().Interfaces().Return(make([]snet.PathInterface, 1)) // just non-empty
+		path.EXPECT().Metadata().Return(&snet.PathMetadata{
+			Interfaces: make([]snet.PathInterface, 1), // just non-empty
+		})
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
 		input := &snet.SVCAddr{IA: remoteIA, SVC: addr.SvcCS}
 		a, err := aw.BuildFullAddress(context.Background(), input)
@@ -270,7 +276,7 @@ func TestBuildFullAddress(t *testing.T) {
 		svcRouter.EXPECT().GetUnderlay(addr.SvcCS).Return(underlayAddr, nil)
 
 		path := mock_snet.NewMockPath(ctrl)
-		path.EXPECT().Interfaces()
+		path.EXPECT().Metadata().Return(&snet.PathMetadata{})
 		path.EXPECT().Path()
 		path.EXPECT().UnderlayNextHop()
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
@@ -297,7 +303,7 @@ func TestBuildFullAddress(t *testing.T) {
 		svcRouter.EXPECT().GetUnderlay(addr.SvcCS).Return(nil, errors.New("err"))
 
 		path := mock_snet.NewMockPath(ctrl)
-		path.EXPECT().Interfaces()
+		path.EXPECT().Metadata().Return(&snet.PathMetadata{})
 		path.EXPECT().Path()
 		path.EXPECT().UnderlayNextHop()
 		router.EXPECT().Route(gomock.Any(), gomock.Any()).Return(path, nil)
@@ -460,10 +466,6 @@ func (t *testPath) UnderlayNextHop() *net.UDPAddr {
 
 func (t *testPath) Path() spath.Path {
 	return spath.Path{}
-}
-
-func (t *testPath) Interfaces() []snet.PathInterface {
-	panic("not implemented")
 }
 
 func (t *testPath) Destination() addr.IA {

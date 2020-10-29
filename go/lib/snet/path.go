@@ -43,10 +43,6 @@ type Path interface {
 	UnderlayNextHop() *net.UDPAddr
 	// Path returns a raw (data-plane compatible) representation of the path.
 	Path() spath.Path
-	// Interfaces returns a list of interfaces on the path. If the list is not
-	// available the result is nil.
-	// XXX(matzf): move this to PathMetadata
-	Interfaces() []PathInterface
 	// Destination is the AS the path points to. Empty paths return the local
 	// AS of the router that created them.
 	Destination() addr.IA
@@ -71,10 +67,23 @@ func (iface PathInterface) String() string {
 
 // PathMetadata contains supplementary information about a path.
 type PathMetadata struct {
+	// Interfaces is a list of interfaces on the path.
+	Interfaces []PathInterface
 	// MTU is the maximum transmission unit for the path, in bytes.
 	MTU uint16
 	// Expiry is the expiration time of the path.
 	Expiry time.Time
+}
+
+func (pm *PathMetadata) Copy() *PathMetadata {
+	if pm == nil {
+		return nil
+	}
+	return &PathMetadata{
+		Interfaces: append(pm.Interfaces[:0:0], pm.Interfaces...),
+		MTU:        pm.MTU,
+		Expiry:     pm.Expiry,
+	}
 }
 
 type PathFingerprint string
@@ -83,21 +92,17 @@ func (pf PathFingerprint) String() string {
 	return common.RawBytes(pf).String()
 }
 
-type Fingerprinter interface {
-	Interfaces() []PathInterface
-}
-
 // Fingerprint uniquely identifies the path based on the sequence of
 // ASes and BRs, i.e. by its PathInterfaces.
 // Other metadata, such as MTU or NextHop have no effect on the fingerprint.
 // Returns empty string for paths where the interfaces list is not available.
-func Fingerprint(path Fingerprinter) PathFingerprint {
-	interfaces := path.Interfaces()
-	if len(interfaces) == 0 {
+func Fingerprint(path Path) PathFingerprint {
+	meta := path.Metadata()
+	if meta == nil || len(meta.Interfaces) == 0 {
 		return ""
 	}
 	h := sha256.New()
-	for _, intf := range interfaces {
+	for _, intf := range meta.Interfaces {
 		binary.Write(h, binary.BigEndian, intf.IA.IAInt())
 		binary.Write(h, binary.BigEndian, intf.ID)
 	}

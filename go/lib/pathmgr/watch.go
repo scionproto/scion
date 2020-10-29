@@ -152,7 +152,7 @@ type queryConfig struct {
 func (bq *queryConfig) Do(ctx context.Context, flags sciond.PathReqFlags) spathmeta.AppPathSet {
 	aps := bq.querier.Query(ctx, bq.src, bq.dst, flags)
 	if bq.filter != nil {
-		aps = psToAps(bq.filter.Filter(apsToPs(aps)))
+		aps = filterAps(bq.filter, aps)
 	}
 	return aps
 }

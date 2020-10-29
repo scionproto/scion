@@ -48,33 +48,45 @@ type Policy interface {
 func Filter(segs seg.Segments, policy Policy, dir Direction) seg.Segments {
 	// The sequence filter doesn't work for segments, therefore the option to
 	// ignore sequences is passed.
-	return psToSegs(policy.FilterOpt(segsToPs(segs, dir), pathpol.FilterOptions{
+
+	wrappedSegs := wrapSegs(segs, dir)
+	keep := policy.FilterOpt(segsToPs(wrappedSegs), pathpol.FilterOptions{
 		IgnoreSequence: true,
-	}))
+	})
+	return filteredSegs(keep, wrappedSegs)
 }
 
-func segsToPs(segs seg.Segments, dir Direction) pathpol.PathSet {
-	ps := make(pathpol.PathSet, len(segs))
-	for _, seg := range segs {
-		sw := wrap(seg, dir)
-		ps[sw.key] = sw
+func segsToPs(wrappedSegs []segWrap) pathpol.PathSet {
+	ps := make(pathpol.PathSet, len(wrappedSegs))
+	for _, sw := range wrappedSegs {
+		ps[sw.key] = &sw.metadata
 	}
 	return ps
 }
 
-func psToSegs(ps pathpol.PathSet) seg.Segments {
-	segs := make(seg.Segments, 0, len(ps))
-	for _, sw := range ps {
-		seg := sw.(segWrap).origSeg
-		segs = append(segs, seg)
+func filteredSegs(keep pathpol.PathSet, wrappedSegs []segWrap) seg.Segments {
+	segs := make(seg.Segments, 0, len(keep))
+	for _, sw := range wrappedSegs {
+		if _, ok := keep[sw.key]; ok {
+			seg := sw.origSeg
+			segs = append(segs, seg)
+		}
 	}
 	return segs
 }
 
 type segWrap struct {
-	intfs   []snet.PathInterface
-	key     snet.PathFingerprint
-	origSeg *seg.PathSegment
+	metadata snet.PathMetadata
+	key      snet.PathFingerprint
+	origSeg  *seg.PathSegment
+}
+
+func wrapSegs(segs seg.Segments, dir Direction) []segWrap {
+	wrappedSegs := make([]segWrap, len(segs))
+	for i, seg := range segs {
+		wrappedSegs[i] = wrap(seg, dir)
+	}
+	return wrappedSegs
 }
 
 func wrap(seg *seg.PathSegment, dir Direction) segWrap {
@@ -106,10 +118,11 @@ func wrap(seg *seg.PathSegment, dir Direction) segWrap {
 		}
 	}
 	return segWrap{
-		intfs:   intfs,
+		metadata: snet.PathMetadata{
+			Interfaces: intfs,
+			// Ok to leave MTU, Expiry, etc unset, as long as these are not used by pathpol
+		},
 		key:     snet.PathFingerprint(strings.Join(keyParts, " ")),
 		origSeg: seg,
 	}
 }
-
-func (s segWrap) Interfaces() []snet.PathInterface { return s.intfs }

@@ -27,7 +27,7 @@ import (
 // SortPaths sorts paths according to hops and interfaces.
 func SortPaths(paths []snet.Path) {
 	sort.Slice(paths, func(a, b int) bool {
-		intfA, intfB := paths[a].Interfaces(), paths[b].Interfaces()
+		intfA, intfB := paths[a].Metadata().Interfaces, paths[b].Metadata().Interfaces
 		// Sort according to path length.
 		if len(intfA) != len(intfB) {
 			return len(intfA) < len(intfB)
@@ -98,7 +98,7 @@ func coloredHops(path snet.Path, opts colorOptions) []string {
 	if path == nil {
 		return nil
 	}
-	intfs := path.Interfaces()
+	intfs := path.Metadata().Interfaces
 	if len(intfs) == 0 {
 		return nil
 	}
