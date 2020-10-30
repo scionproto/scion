@@ -18,8 +18,6 @@ package common
 import (
 	"fmt"
 	"strings"
-
-	"github.com/scionproto/scion/go/lib/assert"
 )
 
 // ErrorMsger allows extracting the message from an error. This means a caller
@@ -128,13 +126,6 @@ func (be BasicError) Unwrap() error {
 // being a list of string/val pairs. These key/value pairs should contain all context-dependent
 // information: 'msg' argument itself should be a constant string.
 func NewBasicError(msg ErrMsg, e error, logCtx ...interface{}) error {
-	if assert.On {
-		assert.Must(len(logCtx)%2 == 0, "Log context must have an even number of elements")
-		for i := 0; i < len(logCtx); i += 2 {
-			_, ok := logCtx[i].(string)
-			assert.Must(ok, "First element of each log context pair must be a string")
-		}
-	}
 	return BasicError{Msg: msg, logCtx: logCtx, Err: e}
 }
 

@@ -28,7 +28,6 @@ import (
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 
-	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -93,8 +92,8 @@ func New(listen, remote *net.UDPAddr, cfg *Config) (Conn, error) {
 	if remote != nil {
 		a = remote
 	}
-	if assert.On {
-		assert.Must(listen != nil || remote != nil, "Either listen or remote must be set")
+	if listen == nil && remote == nil {
+		panic("either listen or remote must be set")
 	}
 	if a.IP.To4() != nil {
 		return newConnUDPIPv4(listen, remote, cfg)
@@ -119,9 +118,6 @@ func newConnUDPIPv4(listen, remote *net.UDPAddr, cfg *Config) (*connUDPIPv4, err
 // ReadBatch reads up to len(msgs) packets, and stores them in msgs, with their
 // corresponding ReadMeta in metas. It returns the number of packets read, and an error if any.
 func (c *connUDPIPv4) ReadBatch(msgs Messages, metas []ReadMeta) (int, error) {
-	if assert.On {
-		assert.Must(len(msgs) == len(metas), "msgs and metas must be the same length")
-	}
 	for i := range metas {
 		metas[i].reset()
 	}
@@ -172,9 +168,6 @@ func newConnUDPIPv6(listen, remote *net.UDPAddr, cfg *Config) (*connUDPIPv6, err
 // ReadBatch reads up to len(msgs) packets, and stores them in msgs, with their
 // corresponding ReadMeta in metas. It returns the number of packets read, and an error if any.
 func (c *connUDPIPv6) ReadBatch(msgs Messages, metas []ReadMeta) (int, error) {
-	if assert.On {
-		assert.Must(len(msgs) == len(metas), "msgs and metas must be the same length")
-	}
 	for i := range metas {
 		metas[i].reset()
 	}
@@ -335,9 +328,6 @@ func (c *connUDPBase) Write(b common.RawBytes) (int, error) {
 func (c *connUDPBase) WriteTo(b common.RawBytes, dst *net.UDPAddr) (int, error) {
 	if c.Remote != nil {
 		return c.conn.Write(b)
-	}
-	if assert.On {
-		assert.Must(dst.Port != 0, "Underlay port must not be 0")
 	}
 	return c.conn.WriteTo(b, dst)
 }

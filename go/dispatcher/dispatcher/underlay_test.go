@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/dispatcher/internal/respool"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
@@ -931,12 +930,6 @@ func TestSCMPHandlerReverse(t *testing.T) {
 			})
 		})
 	}
-}
-
-func MustPackL4Header(t *testing.T, header l4.L4Header) common.RawBytes {
-	b, err := header.Pack(false)
-	require.NoError(t, err)
-	return b
 }
 
 func newSCIONHdr(t *testing.T, l4 common.L4ProtocolType) *slayers.SCION {

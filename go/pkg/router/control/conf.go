@@ -22,7 +22,6 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -100,7 +99,9 @@ func ConfigDataplane(dp Dataplane, cfg *Config) error {
 
 // DeriveHFMacKey derives the MAC key from the given key.
 func DeriveHFMacKey(k []byte) []byte {
-	assert.Must(len(k) > 0, "")
+	if len(k) == 0 {
+		panic("empty key")
+	}
 	// XXX Generate keys - MUST be kept in sync with go/lib/scrypto/mac.go
 	hfMacSalt := []byte("Derive OF Key")
 	// This uses 16B keys with 1000 hash iterations, which is the same as the
