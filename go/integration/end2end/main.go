@@ -17,7 +17,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"flag"
 	"fmt"
 	"net"
@@ -230,9 +229,6 @@ func (c *client) ping(ctx context.Context, n int) (snet.Path, error) {
 			Port: topology.EndhostPort,
 		}
 	}
-	var debugID [common.ExtnFirstLineLen]byte
-	// API guarantees return values are ok
-	_, _ = rand.Read(debugID[:])
 	pkt := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
 			Destination: snet.SCIONAddress{
