@@ -22,8 +22,7 @@ import yaml
 from python.lib.defines import DOCKER_COMPOSE_CONFIG_VERSION
 from python.lib.util import (
     write_file,)
-from python.topology.common import (ArgsTopoDicts, docker_host, docker_image,
-                                    sciond_svc_name)
+from python.topology.common import (ArgsTopoDicts, docker_host, docker_image, sciond_svc_name)
 from python.topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
 from python.topology.net import NetworkDescription, IPNetwork
 from python.topology.sig import SIGGenArgs, SIGGenerator
@@ -70,8 +69,7 @@ class DockerGenerator(object):
     def generate(self):
         self._create_networks()
         for topo_id, topo in self.args.topo_dicts.items():
-            base = os.path.join(self.output_base,
-                                topo_id.base_dir(self.args.output_dir))
+            base = os.path.join(self.output_base, topo_id.base_dir(self.args.output_dir))
             self._gen_topo(topo_id, topo, base)
         if self.args.sig:
             self._gen_sig()
@@ -82,12 +80,10 @@ class DockerGenerator(object):
                    yaml.dump(self.dc_conf, default_flow_style=False))
 
     def _docker_utils_args(self):
-        return DockerUtilsGenArgs(self.args, self.dc_conf, self.bridges,
-                                  self.elem_networks)
+        return DockerUtilsGenArgs(self.args, self.dc_conf, self.bridges, self.elem_networks)
 
     def _sig_args(self):
-        return SIGGenArgs(self.args, self.dc_conf, self.bridges,
-                          self.elem_networks)
+        return SIGGenArgs(self.args, self.dc_conf, self.bridges, self.elem_networks)
 
     def _gen_topo(self, topo_id, topo, base):
         self._dispatcher_conf(topo_id, topo, base)
@@ -138,8 +134,7 @@ class DockerGenerator(object):
             }
             if net_desc.name in v4nets:
                 v4_net = v4nets[net_desc.name]
-                self.dc_conf['networks'][net_name]['ipam']['config'].append(
-                    {'subnet': str(v4_net)})
+                self.dc_conf['networks'][net_name]['ipam']['config'].append({'subnet': str(v4_net)})
             if network.version == 6:
                 self.dc_conf['networks'][net_name]['enable_ipv6'] = True
 
@@ -150,13 +145,11 @@ class DockerGenerator(object):
             entry = {
                 'image': image,
                 'container_name': self.prefix + k,
-                'depends_on': ['scion_disp_%s' % disp_id,],
+                'depends_on': ['scion_disp_%s' % disp_id],
                 'network_mode': 'service:scion_disp_%s' % disp_id,
                 'user': self.user,
-                'volumes': [
-                    self._disp_vol(disp_id),
-                    '%s:/share/conf:ro' % base
-                ],
+                'volumes': [self._disp_vol(disp_id),
+                            '%s:/share/conf:ro' % base],
                 'environment': {
                     'SCION_EXPERIMENTAL_BFD_DETECT_MULT':
                         '${SCION_EXPERIMENTAL_BFD_DETECT_MULT}',
@@ -196,8 +189,7 @@ class DockerGenerator(object):
             'user': self.user,
             'volumes': [],
         }
-        keys = list(topo.get("border_routers", {})) + list(
-            topo.get("control_service", {}))
+        keys = list(topo.get("border_routers", {})) + list(topo.get("control_service", {}))
         for disp_id in keys:
             entry = copy.deepcopy(base_entry)
             net_key = disp_id
@@ -216,20 +208,15 @@ class DockerGenerator(object):
             if ipv not in net:
                 ipv = 'ipv6'
             ip = str(net[ipv])
-            entry['networks'][self.bridges[net['net']]] = {
-                '%s_address' % ipv: ip
-            }
+            entry['networks'][self.bridges[net['net']]] = {'%s_address' % ipv: ip}
             entry['container_name'] = '%sdisp_%s' % (self.prefix, disp_id)
             entry['volumes'].append(self._disp_vol(disp_id))
             conf = '%s:/share/conf:rw' % base
             entry['volumes'].append(conf)
-            entry['command'] = [
-                '--config', '/share/conf/disp_%s.toml' % disp_id
-            ]
+            entry['command'] = ['--config', '/share/conf/disp_%s.toml' % disp_id]
 
             self.dc_conf['services']['scion_disp_%s' % disp_id] = entry
-            self.dc_conf['volumes'][self._disp_vol(disp_id).split(':')
-                                    [0]] = None
+            self.dc_conf['volumes'][self._disp_vol(disp_id).split(':')[0]] = None
 
     def _sciond_conf(self, topo_id, base):
         name = sciond_svc_name(topo_id)

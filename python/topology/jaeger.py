@@ -32,8 +32,7 @@ class JaegerGenerator(object):
         self.args = args
         output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
         self.local_jaeger_dir = os.path.join('traces')
-        self.docker_jaeger_dir = os.path.join(output_base,
-                                              self.local_jaeger_dir)
+        self.docker_jaeger_dir = os.path.join(output_base, self.local_jaeger_dir)
 
     def generate(self):
         dc_conf = self._generate_dc()
@@ -58,7 +57,7 @@ class JaegerGenerator(object):
                         'BADGER_DIRECTORY_VALUE=/badger/data',
                         'BADGER_DIRECTORY_KEY=/badger/key',
                     ],
-                    'volumes': ['%s:/badger:rw' % self.docker_jaeger_dir,],
+                    'volumes': ['%s:/badger:rw' % self.docker_jaeger_dir],
                 }
             }
         }

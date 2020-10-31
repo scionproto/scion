@@ -48,8 +48,7 @@ def write_file(file_path, text):
     try:
         os.makedirs(dir_, exist_ok=True)
     except OSError as e:
-        raise SCIONIOError("Error creating '%s' dir: %s" %
-                           (dir_, e.strerror)) from None
+        raise SCIONIOError("Error creating '%s' dir: %s" % (dir_, e.strerror)) from None
     tmp_file = file_path + ".new"
     try:
         with open(tmp_file, 'w') as f:
@@ -79,11 +78,9 @@ def load_yaml_file(file_path):
         with open(file_path) as f:
             return yaml.load(f, Loader=yaml.SafeLoader)
     except OSError as e:
-        raise SCIONIOError("Error opening '%s': %s" %
-                           (file_path, e.strerror)) from None
+        raise SCIONIOError("Error opening '%s': %s" % (file_path, e.strerror)) from None
     except (yaml.scanner.ScannerError) as e:
-        raise SCIONYAMLError("Error parsing '%s': %s" %
-                             (file_path, e)) from None
+        raise SCIONYAMLError("Error parsing '%s': %s" % (file_path, e)) from None
 
 
 def load_sciond_file(file_path):

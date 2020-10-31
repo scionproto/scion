@@ -147,8 +147,8 @@ class ConfigGenerator(object):
         return topo_gen.generate()
 
     def _topo_args(self):
-        return TopoGenArgs(self.args, self.topo_config, self.subnet_gen4,
-                           self.subnet_gen6, self.default_mtu)
+        return TopoGenArgs(self.args, self.topo_config, self.subnet_gen4, self.subnet_gen6,
+                           self.default_mtu)
 
     def _generate_supervisor(self, topo_dicts):
         args = self._supervisor_args(topo_dicts)
@@ -196,8 +196,7 @@ class ConfigGenerator(object):
             config[str(net)] = sub_conf
         text = StringIO()
         config.write(text)
-        write_file(os.path.join(self.args.output_dir, out_file),
-                   text.getvalue())
+        write_file(os.path.join(self.args.output_dir, out_file), text.getvalue())
 
     def _write_sciond_conf(
         self,
@@ -215,8 +214,7 @@ class ConfigGenerator(object):
 
 
 def remove_v4_nets(
-    nets: Mapping[IPNetwork, NetworkDescription]
-) -> Mapping[IPNetwork, NetworkDescription]:
+        nets: Mapping[IPNetwork, NetworkDescription]) -> Mapping[IPNetwork, NetworkDescription]:
     res = {}
     for net, net_desc in nets.items():
         if net_desc.name.endswith('_v4'):

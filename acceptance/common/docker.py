@@ -94,8 +94,7 @@ def _get_networks() -> List[_Network]:
     net_json = cmd.docker('network', 'ls', '-q', '--format={{json .}}')
     for net_json in net_json.splitlines():
         net = json.loads(net_json)
-        net_inspect_json = cmd.docker('network', 'inspect',
-                                      '--format={{json .}}', net['ID'])
+        net_inspect_json = cmd.docker('network', 'inspect', '--format={{json .}}', net['ID'])
         net_inspect = json.loads(net_inspect_json)
 
         containers = []
@@ -103,6 +102,5 @@ def _get_networks() -> List[_Network]:
             ipv4 = prop.get('IPv4Address', '')
             ipv6 = prop.get('IPv6Address', '')
             containers.append('%s: %s %s' % (prop['Name'], ipv4, ipv6))
-        nets.append(
-            _Network(net_inspect['Name'], net_inspect['Driver'], containers))
+        nets.append(_Network(net_inspect['Name'], net_inspect['Driver'], containers))
     return nets

@@ -106,8 +106,7 @@ class TestRun(CmdBase):
         logger.info('==> Remove original private keys')
         for cs_config in cs_configs:
             orig_key = cs_config.parent / 'crypto/as/cp-as.key'
-            logger.info('Removing original private key for %s: %s' %
-                        (isd_as, rel(orig_key)))
+            logger.info('Removing original private key for %s: %s' % (isd_as, rel(orig_key)))
             orig_key.delete()
 
         logger.info('==> Check key and certificate reloads')
@@ -162,8 +161,7 @@ class TestRun(CmdBase):
             '--transportkey',
             cs_dir / 'crypto/as/cp-as.key',
             '--transportcert',
-            cs_dir / ('crypto/as/ISD%s-AS%s.pem' %
-                      (isd_as.isd_str(), isd_as.as_file_fmt())),
+            cs_dir / ('crypto/as/ISD%s-AS%s.pem' % (isd_as.isd_str(), isd_as.as_file_fmt())),
             '--trc',
             cs_dir / 'certs/ISD1-B1-S1.trc',
             '--out',
@@ -180,9 +178,7 @@ class TestRun(CmdBase):
                 args[i] = str(args[i].relative_to(local.path('.')))
 
         logger.info('Requesting certificate chain renewal: %s' % rel(chain))
-        logger.info(
-            self.scion.execute(isd_as, './bin/scion-pki', 'certs', 'renew',
-                               *args))
+        logger.info(self.scion.execute(isd_as, './bin/scion-pki', 'certs', 'renew', *args))
 
         logger.info('Verify renewed certificate chain')
         verify_out = local['./bin/scion-pki']('certs', 'verify', chain, '--trc',
@@ -195,34 +191,28 @@ class TestRun(CmdBase):
             not_ready.append(cs_config)
 
         for _ in range(5):
-            logger.info(
-                'Checking if all control servers have reloaded the key and certificate...'
-            )
+            logger.info('Checking if all control servers have reloaded the key and certificate...')
             for cs_config in not_ready:
                 conn = HTTPConnection(self._http_endpoint(cs_config))
                 conn.request('GET', '/signer')
                 resp = conn.getresponse()
                 if resp.status != 200:
-                    logger.info("Unexpected response: %d %s", resp.status,
-                                resp.reason)
+                    logger.info("Unexpected response: %d %s", resp.status, resp.reason)
                     continue
 
                 pld = json.loads(resp.read().decode('utf-8'))
                 cs_dir = cs_config.parent
-                if pld['subject_key_id'] != self._extract_skid(
-                        cs_dir / 'crypto/as/renewed.pem'):
+                if pld['subject_key_id'] != self._extract_skid(cs_dir / 'crypto/as/renewed.pem'):
                     continue
-                logger.info(
-                    'Control server successfully loaded new key and certificate: %s'
-                    % rel(cs_config))
+                logger.info('Control server successfully loaded new key and certificate: %s' %
+                            rel(cs_config))
                 not_ready.remove(cs_config)
             if not not_ready:
                 break
             time.sleep(3)
         else:
-            logger.error(
-                'Control servers without reloaded key and certificate: %s' %
-                [cs_config.name for cs_config in not_ready])
+            logger.error('Control servers without reloaded key and certificate: %s' %
+                         [cs_config.name for cs_config in not_ready])
             sys.exit(1)
 
     def _http_endpoint(self, cs_config: LocalPath):

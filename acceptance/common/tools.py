@@ -34,10 +34,7 @@ def container_ip(container_name: str) -> str:
 
 class DC(object):
 
-    def __init__(self,
-                 base_dir: str,
-                 project: str = DC_PROJECT,
-                 compose_file: str = SCION_DC_FILE):
+    def __init__(self, base_dir: str, project: str = DC_PROJECT, compose_file: str = SCION_DC_FILE):
         self.base_dir = base_dir
         self.project = project
         self.compose_file = compose_file
@@ -46,8 +43,7 @@ class DC(object):
         """Runs docker compose with the given arguments"""
         with local.env(BASE_DIR=self.base_dir, COMPOSE_FILE=self.compose_file):
             with redirect_stderr(sys.stdout):
-                return docker_compose('-p', self.project, '--no-ansi', *args,
-                                      **kwargs)
+                return docker_compose('-p', self.project, '--no-ansi', *args, **kwargs)
 
     def collect_logs(self, out_dir: str = 'logs/docker'):
         """Collects the logs from the services into the given directory"""
@@ -55,7 +51,5 @@ class DC(object):
         mkdir('-p', out_p)
         for svc in self('config', '--services').splitlines():
             dst_f = out_p / '%s.log' % svc
-            with local.env(BASE_DIR=self.base_dir,
-                           COMPOSE_FILE=self.compose_file):
-                (docker_compose['-p', self.project, '--no-ansi', 'logs', svc] >
-                 dst_f)()
+            with local.env(BASE_DIR=self.base_dir, COMPOSE_FILE=self.compose_file):
+                (docker_compose['-p', self.project, '--no-ansi', 'logs', svc] > dst_f)()

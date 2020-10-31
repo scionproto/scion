@@ -293,12 +293,12 @@ py_lint() {
 
     lint_step "yapf"
     run_silently bazel build //tools/lint:yapf
-    bazel-bin/tools/lint/yapf --diff --recursive --style google $dirs $binaries || ((ret++))
+    bazel-bin/tools/lint/yapf --diff --recursive --style tools/lint/.style.yapf $dirs $binaries || ((ret++))
     if [ ! "$ret" -eq "0" ]; then
         echo ""
         echo "Fix python formatting by running:"
         echo "bazel build //tools/lint:yapf"
-        echo "bazel-bin/tools/lint/yapf -i --recursive --style google $dirs $binaries"
+        echo "bazel-bin/tools/lint/yapf -i --recursive --style tools/lint/.style.yapf $dirs $binaries"
     fi
 
     lint_step "flake8"

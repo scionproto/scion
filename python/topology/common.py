@@ -107,8 +107,7 @@ def split_host_port(addr: str) -> Tuple[str, int]:
     if parts.port is None:
         raise ValueError("missing port in addr: {}".format(addr))
     # first remove the port, and strip ipv6 brackets:
-    ip = parts.netloc.rsplit(sep=':{}'.format(parts.port),
-                             maxsplit=1)[0].strip('[]')
+    ip = parts.netloc.rsplit(sep=':{}'.format(parts.port), maxsplit=1)[0].strip('[]')
     return (ip, parts.port)
 
 

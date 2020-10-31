@@ -106,8 +106,7 @@ class SubnetGenerator(object):
         if self.docker and network == DEFAULT_NETWORK:
             network = DEFAULT_SCN_DC_NETWORK
         if "/" not in network:
-            logging.critical("No prefix length specified for network '%s'",
-                             network)
+            logging.critical("No prefix length specified for network '%s'", network)
         try:
             self._net = ip_network(network)
         except ValueError:
@@ -148,8 +147,7 @@ class SubnetGenerator(object):
                 if len(subnet) == 2:
                     req_prefix = max_prefix - 1
                 else:
-                    req_prefix = max_prefix - math.ceil(
-                        math.log2(len(subnet) + 2))
+                    req_prefix = max_prefix - math.ceil(math.log2(len(subnet) + 2))
             else:
                 # Docker needs space for a network and broadcast address as well as an IP linking
                 # to the host
@@ -166,8 +164,7 @@ class SubnetGenerator(object):
                 new_net = _workaround_ip_network_hosts_py35(new_net)
                 logging.debug("Allocating %s from %s for subnet size %d" %
                               (new_net, alloc, len(subnet)))
-                networks[new_net] = NetworkDescription(
-                    topo, subnet.alloc_addrs(new_net))
+                networks[new_net] = NetworkDescription(topo, subnet.alloc_addrs(new_net))
                 # Repopulate the allocations list with the left-over space
                 self._exclude_net(alloc, new_net)
                 break
