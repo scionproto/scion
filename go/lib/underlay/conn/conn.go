@@ -277,7 +277,7 @@ func (c *connUDPBase) Read(b common.RawBytes) (int, *ReadMeta, error) {
 	}
 	if c.Remote != nil {
 		c.readMeta.Src = c.Remote
-	} else {
+	} else if src != nil {
 		c.readMeta.Src = &net.UDPAddr{
 			IP:   src.IP,
 			Port: src.Port,
