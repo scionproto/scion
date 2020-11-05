@@ -62,7 +62,7 @@ func NewPolicy(name string, acl *ACL, sequence *Sequence, options []Option) *Pol
 	return policy
 }
 
-// Filter filters the path set according to the policy.
+// Filter filters the paths according to the policy.
 func (p *Policy) Filter(paths []snet.Path) []snet.Path {
 	return p.FilterOpt(paths, FilterOptions{})
 }

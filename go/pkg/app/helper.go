@@ -57,8 +57,7 @@ func Filter(seq string, paths []snet.Path) ([]snet.Path, error) {
 	if err != nil {
 		return nil, err
 	}
-	ret := s.Eval(paths)
-	return ret, nil
+	return s.Eval(paths), nil
 }
 
 // ChoosePath selects a path to the remote.
