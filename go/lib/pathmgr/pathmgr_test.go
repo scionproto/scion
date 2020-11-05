@@ -32,9 +32,9 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/pathmgr/mock_pathmgr"
-	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sciond/mock_sciond"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -112,7 +112,7 @@ func TestQueryFilter(t *testing.T) {
 		"Deny policy": {
 			Policy: func(ctrl *gomock.Controller) pathmgr.Policy {
 				pol := mock_pathmgr.NewMockPolicy(ctrl)
-				pol.EXPECT().Filter(gomock.Any()).Return(make(pathpol.PathSet))
+				pol.EXPECT().Filter(gomock.Any()).Return([]snet.Path{})
 				return pol
 			},
 			ExpectedPaths: 0,
@@ -121,8 +121,8 @@ func TestQueryFilter(t *testing.T) {
 			Policy: func(_ *gomock.Controller) pathmgr.Policy {
 				pol := mock_pathmgr.NewMockPolicy(ctrl)
 				pol.EXPECT().Filter(gomock.Any()).DoAndReturn(
-					func(ps pathpol.PathSet) pathpol.PathSet {
-						return ps
+					func(paths []snet.Path) []snet.Path {
+						return paths
 					},
 				)
 				return pol
@@ -221,17 +221,17 @@ func TestWatchFilter(t *testing.T) {
 
 	policy := mock_pathmgr.NewMockPolicy(ctrl)
 	policy.EXPECT().Filter(gomock.Any()).DoAndReturn(
-		func(ps pathpol.PathSet) pathpol.PathSet {
-			replySet := make(pathpol.PathSet)
-			for key, v := range ps {
-				for _, intf := range v.Interfaces {
+		func(paths []snet.Path) []snet.Path {
+			result := []snet.Path{}
+			for _, path := range paths {
+				for _, intf := range path.Metadata().Interfaces {
 					if intf.IA.Equal(src) && intf.ID == 105 {
-						replySet[key] = v
+						result = append(result, path)
 						break
 					}
 				}
 			}
-			return replySet
+			return result
 		},
 	).AnyTimes()
 

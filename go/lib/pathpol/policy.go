@@ -16,13 +16,15 @@
 // Package pathpol implements path policies, documentation in doc/PathPolicy.md
 // Currently implemented: ACL, Sequence, Extends and Options.
 //
-// A policy has an Act() method that takes an AppPathSet and returns a filtered AppPathSet
+// A policy has Filter() method that takes a slice of paths and returns a
+// filtered slice of paths.
 package pathpol
 
 import (
 	"sort"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // ExtPolicy is an extending policy, it may have a list of policies it extends
@@ -60,26 +62,26 @@ func NewPolicy(name string, acl *ACL, sequence *Sequence, options []Option) *Pol
 	return policy
 }
 
-// Filter filters the path set according to the policy.
-func (p *Policy) Filter(paths PathSet) PathSet {
+// Filter filters the paths according to the policy.
+func (p *Policy) Filter(paths []snet.Path) []snet.Path {
 	return p.FilterOpt(paths, FilterOptions{})
 }
 
 // FilterOpt filters the path set according to the policy with the given
 // options.
-func (p *Policy) FilterOpt(paths PathSet, opts FilterOptions) PathSet {
+func (p *Policy) FilterOpt(paths []snet.Path, opts FilterOptions) []snet.Path {
 	if p == nil {
 		return paths
 	}
-	resultSet := p.ACL.Eval(paths)
+	result := p.ACL.Eval(paths)
 	if p.Sequence != nil && !opts.IgnoreSequence {
-		resultSet = p.Sequence.Eval(resultSet)
+		result = p.Sequence.Eval(result)
 	}
 	// Filter on sub policies
 	if len(p.Options) > 0 {
-		resultSet = p.evalOptions(resultSet, opts)
+		result = p.evalOptions(result, opts)
 	}
-	return resultSet
+	return result
 }
 
 // PolicyFromExtPolicy creates a Policy from an extending Policy and the extended policies
@@ -133,8 +135,8 @@ func (p *Policy) applyExtended(extends []string, exPolicies []*ExtPolicy) error 
 
 // evalOptions evaluates the options of a policy and returns the pathSet that matches the option
 // with the highest weight
-func (p *Policy) evalOptions(inputSet PathSet, opts FilterOptions) PathSet {
-	subPolicySet := make(PathSet)
+func (p *Policy) evalOptions(paths []snet.Path, opts FilterOptions) []snet.Path {
+	subPolicySet := make(map[snet.PathFingerprint]struct{})
 	currWeight := p.Options[0].Weight
 	// Go through sub policies
 	for _, option := range p.Options {
@@ -142,12 +144,18 @@ func (p *Policy) evalOptions(inputSet PathSet, opts FilterOptions) PathSet {
 			break
 		}
 		currWeight = option.Weight
-		subPaths := option.Policy.FilterOpt(inputSet, opts)
-		for key, path := range subPaths {
-			subPolicySet[key] = path
+		subPaths := option.Policy.FilterOpt(paths, opts)
+		for _, path := range subPaths {
+			subPolicySet[snet.Fingerprint(path)] = struct{}{}
 		}
 	}
-	return subPolicySet
+	result := []snet.Path{}
+	for _, path := range paths {
+		if _, ok := subPolicySet[snet.Fingerprint(path)]; ok {
+			result = append(result, path)
+		}
+	}
+	return result
 }
 
 // Option contains a weight and a policy and is used as a list item in Policy.Options

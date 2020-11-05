@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathpol/sequence"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
@@ -73,13 +74,13 @@ func NewSequence(s string) (*Sequence, error) {
 }
 
 // Eval evaluates the interface sequence list and returns the set of paths that match the list
-func (s *Sequence) Eval(inputSet PathSet) PathSet {
+func (s *Sequence) Eval(paths []snet.Path) []snet.Path {
 	if s == nil || s.srcstr == "" {
-		return inputSet
+		return paths
 	}
-	resultSet := make(PathSet)
-	for key, path := range inputSet {
-		ifaces := path.Interfaces
+	result := []snet.Path{}
+	for _, path := range paths {
+		ifaces := path.Metadata().Interfaces
 		// Path should contain even number of interfaces. 1 for source AS,
 		// 1 for destination AS and 2 per each intermediate AS. Invalid paths should
 		// not occur but if they do let's ignore them.
@@ -101,10 +102,10 @@ func (s *Sequence) Eval(inputSet PathSet) PathSet {
 		// Check whether the string matches the sequence regexp.
 		//fmt.Printf("EVAL: %s\n", p)
 		if s.re.MatchString(p) {
-			resultSet[key] = path
+			result = append(result, path)
 		}
 	}
-	return resultSet
+	return result
 }
 
 func (s *Sequence) String() string {

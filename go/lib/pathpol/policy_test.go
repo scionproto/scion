@@ -17,8 +17,6 @@ package pathpol
 
 import (
 	"encoding/json"
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -27,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -625,20 +624,20 @@ func NewPathProvider(ctrl *gomock.Controller) PathProvider {
 	}
 }
 
-func (p PathProvider) GetPaths(src, dst addr.IA) PathSet {
-	result := make(PathSet)
+func (p PathProvider) GetPaths(src, dst addr.IA) []snet.Path {
+	result := []snet.Path{}
 	paths := p.g.GetPaths(src.String(), dst.String())
 	for _, ifids := range paths {
 		pathIntfs := make([]snet.PathInterface, 0, len(ifids))
-		var key strings.Builder
 		for _, ifid := range ifids {
 			ia := p.g.GetParent(ifid)
 			pathIntfs = append(pathIntfs, snet.PathInterface{IA: ia, ID: ifid})
-			key.WriteString(fmt.Sprintf("%s-%d", ia, ifid))
 		}
-		result[snet.PathFingerprint(key.String())] = &snet.PathMetadata{
-			Interfaces: pathIntfs,
-		}
+		result = append(result, snetpath.Path{
+			Meta: snet.PathMetadata{
+				Interfaces: pathIntfs,
+			},
+		})
 	}
 	return result
 }
