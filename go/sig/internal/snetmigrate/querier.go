@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 // PathQuerier implements snet.PathQuerier. This struct just exists to simplify
@@ -39,18 +38,14 @@ func (q *PathQuerier) Query(ctx context.Context, dst addr.IA) ([]snet.Path, erro
 	if q.Resolver == nil || dst.Equal(q.IA) {
 		return []snet.Path{&emptyPath{q.IA}}, nil
 	}
-	var aps spathmeta.AppPathSet
+	var paths []snet.Path
 	if q.PathPolicy == nil {
-		aps = q.Resolver.Query(ctx, q.IA, dst, sciond.PathReqFlags{})
+		paths = q.Resolver.Query(ctx, q.IA, dst, sciond.PathReqFlags{})
 	} else {
-		aps = q.Resolver.QueryFilter(ctx, q.IA, dst, q.PathPolicy)
+		paths = q.Resolver.QueryFilter(ctx, q.IA, dst, q.PathPolicy)
 	}
-	if len(aps) == 0 {
+	if len(paths) == 0 {
 		return nil, common.NewBasicError("unable to find paths", nil)
-	}
-	paths := make([]snet.Path, 0, len(aps))
-	for _, ap := range aps {
-		paths = append(paths, ap)
 	}
 	return paths, nil
 }

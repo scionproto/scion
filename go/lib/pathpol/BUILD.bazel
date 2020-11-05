@@ -5,7 +5,6 @@ go_library(
     srcs = [
         "acl.go",
         "hop_pred.go",
-        "pathset.go",
         "policy.go",
         "sequence.go",
     ],

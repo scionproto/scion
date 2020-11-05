@@ -18,8 +18,7 @@
 // A new resolver can be instantiated by calling `New`. There are two types of
 // supported path queries, simple or periodic.
 //
-// Simple path queries are issued via 'Query'; they return an
-// spathmeta.AppPathSet of valid paths.
+// Simple path queries are issued via 'Query'
 //
 // Periodic path queries are added via 'Watch', which returns a pointer to a
 // thread-safe SyncPaths object; calling Load on the object returns the data
@@ -39,7 +38,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
@@ -82,19 +80,19 @@ const (
 
 // Policy is used to filter paths
 type Policy interface {
-	Filter(pathpol.PathSet) pathpol.PathSet
+	Filter([]snet.Path) []snet.Path
 }
 
 type Querier interface {
 	// Query returns a set of paths between src and dst.
-	Query(ctx context.Context, src, dst addr.IA, flags sciond.PathReqFlags) spathmeta.AppPathSet
+	Query(ctx context.Context, src, dst addr.IA, flags sciond.PathReqFlags) []snet.Path
 }
 
 type Resolver interface {
 	Querier
 	// QueryFilter returns a set of paths between src and dst that satisfy
 	// policy. A nil policy will not delete any paths.
-	QueryFilter(ctx context.Context, src, dst addr.IA, policy Policy) spathmeta.AppPathSet
+	QueryFilter(ctx context.Context, src, dst addr.IA, policy Policy) []snet.Path
 	// Watch returns an object that periodically polls for paths between src
 	// and dst.
 	//
@@ -145,35 +143,32 @@ func New(conn sciond.Connector, timers Timers) Resolver {
 }
 
 func (r *resolver) Query(ctx context.Context, src, dst addr.IA,
-	flags sciond.PathReqFlags) spathmeta.AppPathSet {
+	flags sciond.PathReqFlags) []snet.Path {
 
 	paths, err := r.sciondConn.Paths(ctx, dst, src, flags)
 	if err != nil {
 		r.logger(ctx).Error("SCIOND network error", "err", err)
-		return make(spathmeta.AppPathSet)
+		return []snet.Path{}
 	}
-	return spathmeta.NewAppPathSet(paths)
+	return paths
 }
 
 func (r *resolver) QueryFilter(ctx context.Context, src, dst addr.IA,
-	policy Policy) spathmeta.AppPathSet {
+	policy Policy) []snet.Path {
 
-	aps := r.Query(ctx, src, dst, sciond.PathReqFlags{})
+	paths := r.Query(ctx, src, dst, sciond.PathReqFlags{})
 	if policy == nil {
-		return aps
+		return paths
 	}
-	return filterAps(policy, aps)
+	return policy.Filter(paths)
 }
 
 func (r *resolver) WatchFilter(ctx context.Context, src, dst addr.IA,
 	filter Policy) (*SyncPaths, error) {
 
-	aps := r.Query(ctx, src, dst, sciond.PathReqFlags{})
-	if filter != nil {
-		aps = filterAps(filter, aps)
-	}
+	paths := r.QueryFilter(ctx, src, dst, filter)
 	sp := NewSyncPaths()
-	sp.Update(aps)
+	sp.Update(spathmeta.NewAppPathSet(paths))
 
 	query := &queryConfig{
 		querier: Querier(r),
@@ -258,8 +253,4 @@ func matches(path snet.Path, predicatePI snet.PathInterface) bool {
 		}
 	}
 	return false
-}
-
-func filterAps(filter Policy, aps spathmeta.AppPathSet) spathmeta.AppPathSet {
-	return spathmeta.AppPathSet(filter.Filter(pathpol.PathSet(aps)))
 }

@@ -57,20 +57,7 @@ func Filter(seq string, paths []snet.Path) ([]snet.Path, error) {
 	if err != nil {
 		return nil, err
 	}
-	pathsToPs := func(paths []snet.Path) pathpol.PathSet {
-		ps := make(pathpol.PathSet, len(paths))
-		for _, p := range paths {
-			ps[snet.Fingerprint(p)] = p
-		}
-		return ps
-	}
-	keep := s.Eval(pathsToPs(paths))
-	ret := make([]snet.Path, 0, len(paths))
-	for _, p := range paths {
-		if _, ok := keep[snet.Fingerprint(p)]; ok {
-			ret = append(ret, p)
-		}
-	}
+	ret := s.Eval(paths)
 	return ret, nil
 }
 

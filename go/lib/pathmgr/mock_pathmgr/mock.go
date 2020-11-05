@@ -11,9 +11,8 @@ import (
 	common "github.com/scionproto/scion/go/lib/common"
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	pathmgr "github.com/scionproto/scion/go/lib/pathmgr"
-	pathpol "github.com/scionproto/scion/go/lib/pathpol"
 	sciond "github.com/scionproto/scion/go/lib/sciond"
-	spathmeta "github.com/scionproto/scion/go/lib/spath/spathmeta"
+	snet "github.com/scionproto/scion/go/lib/snet"
 	reflect "reflect"
 )
 
@@ -41,10 +40,10 @@ func (m *MockPolicy) EXPECT() *MockPolicyMockRecorder {
 }
 
 // Filter mocks base method
-func (m *MockPolicy) Filter(arg0 pathpol.PathSet) pathpol.PathSet {
+func (m *MockPolicy) Filter(arg0 []snet.Path) []snet.Path {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Filter", arg0)
-	ret0, _ := ret[0].(pathpol.PathSet)
+	ret0, _ := ret[0].([]snet.Path)
 	return ret0
 }
 
@@ -78,10 +77,10 @@ func (m *MockQuerier) EXPECT() *MockQuerierMockRecorder {
 }
 
 // Query mocks base method
-func (m *MockQuerier) Query(arg0 context.Context, arg1, arg2 addr.IA, arg3 sciond.PathReqFlags) spathmeta.AppPathSet {
+func (m *MockQuerier) Query(arg0 context.Context, arg1, arg2 addr.IA, arg3 sciond.PathReqFlags) []snet.Path {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Query", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(spathmeta.AppPathSet)
+	ret0, _ := ret[0].([]snet.Path)
 	return ret0
 }
 
@@ -115,10 +114,10 @@ func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
 }
 
 // Query mocks base method
-func (m *MockResolver) Query(arg0 context.Context, arg1, arg2 addr.IA, arg3 sciond.PathReqFlags) spathmeta.AppPathSet {
+func (m *MockResolver) Query(arg0 context.Context, arg1, arg2 addr.IA, arg3 sciond.PathReqFlags) []snet.Path {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Query", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(spathmeta.AppPathSet)
+	ret0, _ := ret[0].([]snet.Path)
 	return ret0
 }
 
@@ -129,10 +128,10 @@ func (mr *MockResolverMockRecorder) Query(arg0, arg1, arg2, arg3 interface{}) *g
 }
 
 // QueryFilter mocks base method
-func (m *MockResolver) QueryFilter(arg0 context.Context, arg1, arg2 addr.IA, arg3 pathmgr.Policy) spathmeta.AppPathSet {
+func (m *MockResolver) QueryFilter(arg0 context.Context, arg1, arg2 addr.IA, arg3 pathmgr.Policy) []snet.Path {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "QueryFilter", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(spathmeta.AppPathSet)
+	ret0, _ := ret[0].([]snet.Path)
 	return ret0
 }
 

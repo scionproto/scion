@@ -42,18 +42,18 @@ func NewACL(entries ...*ACLEntry) (*ACL, error) {
 }
 
 // Eval returns the set of paths that match the ACL.
-func (a *ACL) Eval(inputSet PathSet) PathSet {
-	resultSet := make(PathSet)
+func (a *ACL) Eval(paths []snet.Path) []snet.Path {
 	if a == nil || len(a.Entries) == 0 {
-		return inputSet
+		return paths
 	}
-	for key, path := range inputSet {
+	result := []snet.Path{}
+	for _, path := range paths {
 		// Check ACL
 		if a.evalPath(path.Metadata()) {
-			resultSet[key] = path
+			result = append(result, path)
 		}
 	}
-	return resultSet
+	return result
 }
 
 func (a *ACL) MarshalJSON() ([]byte, error) {
