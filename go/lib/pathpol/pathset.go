@@ -19,4 +19,4 @@ import (
 )
 
 // PathSet represents a set of paths used for policy filtering.
-type PathSet map[snet.PathFingerprint]*snet.PathMetadata
+type PathSet map[snet.PathFingerprint]snet.Path

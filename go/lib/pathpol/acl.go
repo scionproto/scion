@@ -49,7 +49,7 @@ func (a *ACL) Eval(inputSet PathSet) PathSet {
 	}
 	for key, path := range inputSet {
 		// Check ACL
-		if a.evalPath(path) {
+		if a.evalPath(path.Metadata()) {
 			resultSet[key] = path
 		}
 	}
@@ -64,8 +64,8 @@ func (a *ACL) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, &a.Entries)
 }
 
-func (a *ACL) evalPath(path *snet.PathMetadata) ACLAction {
-	for i, iface := range path.Interfaces {
+func (a *ACL) evalPath(pm *snet.PathMetadata) ACLAction {
+	for i, iface := range pm.Interfaces {
 		if a.evalInterface(iface, i%2 != 0) == Deny {
 			return Deny
 		}

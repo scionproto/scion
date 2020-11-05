@@ -27,6 +27,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -636,8 +637,10 @@ func (p PathProvider) GetPaths(src, dst addr.IA) PathSet {
 			pathIntfs = append(pathIntfs, snet.PathInterface{IA: ia, ID: ifid})
 			key.WriteString(fmt.Sprintf("%s-%d", ia, ifid))
 		}
-		result[snet.PathFingerprint(key.String())] = &snet.PathMetadata{
-			Interfaces: pathIntfs,
+		result[snet.PathFingerprint(key.String())] = snetpath.Path{
+			Meta: snet.PathMetadata{
+				Interfaces: pathIntfs,
+			},
 		}
 	}
 	return result
