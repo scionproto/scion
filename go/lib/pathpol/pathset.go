@@ -18,11 +18,5 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-// PathSet is a set of paths. PathSet is used for policy filtering.
-type PathSet map[snet.PathFingerprint]Path
-
-// Path describes a path or a partial path, e.g. a segment.
-type Path interface {
-	// Interfaces returns all the interfaces of this path.
-	Interfaces() []snet.PathInterface
-}
+// PathSet represents a set of paths used for policy filtering.
+type PathSet map[snet.PathFingerprint]*snet.PathMetadata

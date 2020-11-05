@@ -64,9 +64,9 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 		// For AS local communication, an empty path is used.
 		return []snet.Path{path.Path{
 			Dst: dst,
-			Meta: path.PathMetadata{
-				Mtu: p.TopoProvider.Get().MTU(),
-				Exp: time.Now().Add(rawpath.MaxTTL * time.Second),
+			Meta: snet.PathMetadata{
+				MTU:    p.TopoProvider.Get().MTU(),
+				Expiry: time.Now().Add(rawpath.MaxTTL * time.Second),
 			},
 		}}, nil
 	}
@@ -104,7 +104,7 @@ func (p *Pather) buildAllPaths(src, dst addr.IA, segs Segments) []combinator.Pat
 	now := time.Now()
 	var validPaths []combinator.Path
 	for _, path := range paths {
-		if path.Metadata.Exp.After(now) {
+		if path.Metadata.Expiry.After(now) {
 			validPaths = append(validPaths, path)
 		}
 	}
@@ -135,7 +135,7 @@ func (p *Pather) filterRevoked(ctx context.Context,
 	revokedInterfaces := make(map[snet.PathInterface]struct{})
 	for _, path := range paths {
 		revoked := false
-		for _, iface := range path.Interfaces {
+		for _, iface := range path.Metadata.Interfaces {
 			// cache automatically expires outdated revocations every second,
 			// so a cache hit implies revocation is still active.
 			revs, err := p.RevCache.Get(ctx, revcache.SingleKey(iface.IA, iface.ID))
@@ -192,16 +192,15 @@ func (p *Pather) translatePaths(cPaths []combinator.Path) ([]snet.Path, error) {
 // translate converts a combinator.Path to an snet.Path.
 // Effectively, this adds the NextHop information.
 func (p *Pather) translatePath(comb combinator.Path) (snet.Path, error) {
-	nextHop, ok := p.TopoProvider.Get().UnderlayNextHop(comb.Interfaces[0].ID)
+	nextHop, ok := p.TopoProvider.Get().UnderlayNextHop(comb.Metadata.Interfaces[0].ID)
 	if !ok {
 		return nil, serrors.New("Unable to find first-hop BR for path",
-			"ifid", comb.Interfaces[0].ID)
+			"ifid", comb.Metadata.Interfaces[0].ID)
 	}
 	return path.Path{
-		Dst:     comb.Interfaces[len(comb.Interfaces)-1].IA,
+		Dst:     comb.Metadata.Interfaces[len(comb.Metadata.Interfaces)-1].IA,
 		SPath:   comb.SPath,
 		NextHop: nextHop,
-		IFaces:  comb.Interfaces,
 		Meta:    comb.Metadata,
 	}, nil
 }

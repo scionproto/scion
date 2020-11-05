@@ -43,7 +43,7 @@ func (p *emptyPath) Destination() addr.IA {
 	return p.source
 }
 
-func (p *emptyPath) Metadata() snet.PathMetadata {
+func (p *emptyPath) Metadata() *snet.PathMetadata {
 	return nil
 }
 

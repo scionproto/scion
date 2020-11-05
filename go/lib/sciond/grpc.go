@@ -193,9 +193,9 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 	if len(p.Interfaces) == 0 {
 		return path.Path{
 			Dst: dst,
-			Meta: path.PathMetadata{
-				Mtu: uint16(p.Mtu),
-				Exp: expiry,
+			Meta: snet.PathMetadata{
+				MTU:    uint16(p.Mtu),
+				Expiry: expiry,
 			},
 		}, nil
 	}
@@ -214,10 +214,10 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 		Dst:     dst,
 		SPath:   spath.Path{Raw: p.Raw, Type: slayers.PathTypeSCION},
 		NextHop: underlayA,
-		IFaces:  interfaces,
-		Meta: path.PathMetadata{
-			Mtu: uint16(p.Mtu),
-			Exp: expiry,
+		Meta: snet.PathMetadata{
+			Interfaces: interfaces,
+			MTU:        uint16(p.Mtu),
+			Expiry:     expiry,
 		},
 	}, nil
 }

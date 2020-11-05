@@ -5,7 +5,6 @@ package fake
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
+	snetpath "github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
@@ -26,16 +26,6 @@ func New(script *Script) sciond.Connector {
 	c := &connector{
 		script:       script,
 		creationTime: time.Now(),
-	}
-	for _, entry := range script.Entries {
-		for _, path := range entry.Paths {
-			creationTime := c.creationTime
-			lifetime := time.Duration(path.JSONExpirationTimestamp) * time.Second
-			path.metadata = pathMetadata{
-				creationTime:   creationTime,
-				expirationTime: creationTime.Add(lifetime),
-			}
-		}
 	}
 	return c
 }
@@ -78,75 +68,29 @@ type Path struct {
 	// relative to the time of fake connector creation. Negative timestamps are also supported, and
 	// would mean SCIOND served a path that expired in the past.
 	JSONExpirationTimestamp int `json:"expiration_timestamp"`
-
-	metadata pathMetadata
 }
 
-func (p Path) UnderlayNextHop() *net.UDPAddr {
-	return (*net.UDPAddr)(p.JSONNextHop)
-}
-
-func (p Path) Path() spath.Path {
-	return DummyPath()
-}
-
-// DummyPath creates a path that is reversible.
-func DummyPath() spath.Path {
-	return spath.Path{}
-}
-
-func (p Path) Interfaces() []snet.PathInterface {
+func (p Path) Path(creationTime time.Time) snet.Path {
 	ifaces := make([]snet.PathInterface, len(p.JSONInterfaces))
 	for i, jsonIface := range p.JSONInterfaces {
 		ifaces[i] = snet.PathInterface{IA: jsonIface.IA, ID: jsonIface.ID}
 	}
-	return ifaces
-}
-
-func (p Path) Destination() addr.IA {
-	return p.JSONInterfaces[len(p.JSONInterfaces)-1].IA
-}
-
-func (p Path) Metadata() snet.PathMetadata {
-	return p.metadata
-}
-
-func (p Path) Copy() snet.Path {
-	return &Path{
-		JSONInterfaces: p.JSONInterfaces,
-		JSONNextHop: &UDPAddr{
-			IP:   append(p.JSONNextHop.IP[:0:0], p.JSONNextHop.IP...),
-			Port: p.JSONNextHop.Port,
-			Zone: p.JSONNextHop.Zone,
+	lifetime := time.Duration(p.JSONExpirationTimestamp) * time.Second
+	return snetpath.Path{
+		Dst:     ifaces[len(ifaces)-1].IA,
+		SPath:   spath.Path{},
+		NextHop: (*net.UDPAddr)(p.JSONNextHop),
+		Meta: snet.PathMetadata{
+			Interfaces: ifaces,
+			MTU:        1472,
+			Expiry:     creationTime.Add(lifetime),
 		},
-		JSONExpirationTimestamp: p.JSONExpirationTimestamp,
-		metadata:                p.metadata,
 	}
-}
-
-func (p Path) String() string {
-	return fmt.Sprintf("FakePath(Dest: %v, NextHop: %v, Fingerprint: %v)",
-		p.Destination(), p.JSONNextHop, snet.Fingerprint(p))
 }
 
 type PathInterface struct {
 	IA addr.IA         `json:"ia"`
 	ID common.IFIDType `json:"id"`
-}
-
-type pathMetadata struct {
-	// creationTime contains the time when this object was constructed.
-	creationTime time.Time
-	// expirationTime contains the time when this path expires.
-	expirationTime time.Time
-}
-
-func (m pathMetadata) MTU() uint16 {
-	return 1472
-}
-
-func (m pathMetadata) Expiry() time.Time {
-	return m.expirationTime
 }
 
 // UDPAddr decorates net.UDPAddr with custom JSON marshaling logic.
@@ -196,7 +140,7 @@ func (c connector) Paths(_ context.Context, _, _ addr.IA,
 func (c connector) adapter(paths []*Path) []snet.Path {
 	var snetPaths []snet.Path
 	for _, path := range paths {
-		snetPaths = append(snetPaths, path.Copy())
+		snetPaths = append(snetPaths, path.Path(c.creationTime))
 	}
 	return snetPaths
 }

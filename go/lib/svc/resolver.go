@@ -201,7 +201,7 @@ func (p *path) Destination() addr.IA {
 	return p.destination
 }
 
-func (p *path) Metadata() snet.PathMetadata {
+func (p *path) Metadata() *snet.PathMetadata {
 	return nil
 }
 

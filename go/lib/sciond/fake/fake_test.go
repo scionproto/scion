@@ -18,6 +18,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sciond/fake"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -102,6 +103,14 @@ func TestPaths(t *testing.T) {
 			},
 		},
 	}
+	entry0PathInterfaces := []snet.PathInterface{
+		{IA: xtest.MustParseIA("1-ff00:0:ffff"), ID: 1},
+		{IA: xtest.MustParseIA("1-ff00:0:1"), ID: 1},
+	}
+	entry1PathInterfaces := []snet.PathInterface{
+		{IA: xtest.MustParseIA("1-ff00:0:ffff"), ID: 1},
+		{IA: xtest.MustParseIA("2-ff00:0:2"), ID: 1},
+	}
 	c := fake.New(script)
 
 	paths, err := c.Paths(
@@ -114,16 +123,15 @@ func TestPaths(t *testing.T) {
 
 	require.Equal(t, 1, len(paths))
 	assert.NotEqual(t, "", string(snet.Fingerprint(paths[0])))
-	assert.Equal(t, snet.Fingerprint(script.Entries[0].Paths[0]), snet.Fingerprint(paths[0]))
+	assert.Equal(t, entry0PathInterfaces, paths[0].Metadata().Interfaces)
 	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 1}, Port: 80}, paths[0].UnderlayNextHop())
-	assert.Equal(t, fake.DummyPath(), paths[0].Path())
-	assert.Equal(t, 2, len(paths[0].Interfaces()))
-	assert.Equal(t, paths[0].Destination(), paths[0].Interfaces()[1].IA)
+	assert.Equal(t, spath.Path{}, paths[0].Path())
+	assert.Equal(t, paths[0].Destination(), paths[0].Metadata().Interfaces[1].IA)
 	assert.Equal(t, xtest.MustParseIA("1-ff00:0:1"), paths[0].Destination())
-	assert.Equal(t, uint16(1472), paths[0].Metadata().MTU())
+	assert.Equal(t, uint16(1472), paths[0].Metadata().MTU)
 	// path valid for more than an hour, but less than three
-	assert.True(t, paths[0].Metadata().Expiry().After(time.Now().Add(time.Hour)))
-	assert.True(t, paths[0].Metadata().Expiry().Before(time.Now().Add(3*time.Hour)))
+	assert.True(t, paths[0].Metadata().Expiry.After(time.Now().Add(time.Hour)))
+	assert.True(t, paths[0].Metadata().Expiry.Before(time.Now().Add(3*time.Hour)))
 
 	time.Sleep(time.Second)
 
@@ -137,39 +145,16 @@ func TestPaths(t *testing.T) {
 
 	require.Equal(t, 1, len(paths))
 	assert.NotEqual(t, "", string(snet.Fingerprint(paths[0])))
-	assert.Equal(t, snet.Fingerprint(script.Entries[1].Paths[0]), snet.Fingerprint(paths[0]))
+	assert.Equal(t, entry1PathInterfaces, paths[0].Metadata().Interfaces)
 	assert.Equal(t, &net.UDPAddr{IP: net.IP{10, 0, 0, 2}, Port: 80}, paths[0].UnderlayNextHop())
-	assert.Equal(t, fake.DummyPath(), paths[0].Path())
-	assert.Equal(t, 2, len(paths[0].Interfaces()))
-	assert.Equal(t, paths[0].Destination(), paths[0].Interfaces()[1].IA)
+	assert.Equal(t, spath.Path{}, paths[0].Path())
+	assert.Equal(t, 2, len(paths[0].Metadata().Interfaces))
+	assert.Equal(t, paths[0].Destination(), paths[0].Metadata().Interfaces[1].IA)
 	assert.Equal(t, xtest.MustParseIA("2-ff00:0:2"), paths[0].Destination())
-	assert.Equal(t, uint16(1472), paths[0].Metadata().MTU())
+	assert.Equal(t, uint16(1472), paths[0].Metadata().MTU)
 	// path valid for more than two hours, but less than four
-	assert.True(t, paths[0].Metadata().Expiry().After(time.Now().Add(2*time.Hour)))
-	assert.True(t, paths[0].Metadata().Expiry().Before(time.Now().Add(4*time.Hour)))
-}
-
-func TestPathCopy(t *testing.T) {
-	path := fake.Path{
-		JSONInterfaces: []fake.PathInterface{
-			{IA: xtest.MustParseIA("1-ff00:0:ffff"), ID: 1},
-			{IA: xtest.MustParseIA("1-ff00:0:1"), ID: 1},
-		},
-		JSONNextHop: &fake.UDPAddr{
-			IP:   net.IP{192, 168, 0, 1},
-			Port: 80,
-			Zone: "abc",
-		},
-	}
-
-	copyPath := path.Copy()
-	assert.Equal(t, &path, copyPath.(*fake.Path))
-
-	path.JSONNextHop.Port = 8080
-	path.JSONNextHop.IP[3] = 1
-
-	assert.Equal(t, 80, copyPath.(*fake.Path).JSONNextHop.Port)
-	assert.Equal(t, net.IP{192, 168, 0, 1}, copyPath.(*fake.Path).JSONNextHop.IP)
+	assert.True(t, paths[0].Metadata().Expiry.After(time.Now().Add(2*time.Hour)))
+	assert.True(t, paths[0].Metadata().Expiry.Before(time.Now().Add(4*time.Hour)))
 }
 
 func TestASInfo(t *testing.T) {

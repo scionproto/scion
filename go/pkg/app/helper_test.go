@@ -34,8 +34,10 @@ func TestFilter(t *testing.T) {
 		"valid": {
 			input: []snet.Path{
 				path.Path{
-					Dst:    xtest.MustParseIA("1-ff00:0:112"),
-					IFaces: []snet.PathInterface{{ID: 1}},
+					Dst: xtest.MustParseIA("1-ff00:0:112"),
+					Meta: snet.PathMetadata{
+						Interfaces: []snet.PathInterface{{ID: 1}},
+					},
 				},
 			},
 			sequence:  "0-0#53",

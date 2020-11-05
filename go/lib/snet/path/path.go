@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -36,13 +35,7 @@ type Path struct {
 	Dst     addr.IA
 	SPath   spath.Path
 	NextHop *net.UDPAddr
-	IFaces  []snet.PathInterface
-	Meta    PathMetadata
-}
-
-type PathMetadata struct {
-	Mtu uint16
-	Exp time.Time
+	Meta    snet.PathMetadata
 }
 
 func (p Path) UnderlayNextHop() *net.UDPAddr {
@@ -60,62 +53,42 @@ func (p Path) Path() spath.Path {
 	return p.SPath.Copy()
 }
 
-func (p Path) Interfaces() []snet.PathInterface {
-	if p.IFaces == nil {
-		return nil
-	}
-	intfs := make([]snet.PathInterface, 0, len(p.IFaces))
-	for _, intf := range p.IFaces {
-		intfs = append(intfs, intf)
-	}
-	return intfs
-}
-
 func (p Path) Destination() addr.IA {
 	return p.Dst
 }
 
-func (p Path) Metadata() snet.PathMetadata {
-	return p.Meta
-}
-
-func (p PathMetadata) MTU() uint16 {
-	return p.Mtu
-}
-
-func (p PathMetadata) Expiry() time.Time {
-	return p.Exp
+func (p Path) Metadata() *snet.PathMetadata {
+	return p.Meta.Copy()
 }
 
 func (p Path) Copy() snet.Path {
 	return Path{
-		IFaces:  append(p.IFaces[:0:0], p.IFaces...),
-		NextHop: p.UnderlayNextHop(), // creates copy
-		SPath:   p.Path(),            // creates copy
 		Dst:     p.Dst,
-		Meta:    p.Meta,
+		SPath:   p.Path(),            // creates copy
+		NextHop: p.UnderlayNextHop(), // creates copy
+		Meta:    *p.Metadata(),       // creates copy
 	}
 }
 
 func (p Path) String() string {
-	hops := p.fmtInterfaces()
+	hops := fmtInterfaces(p.Meta.Interfaces)
 	return fmt.Sprintf("Hops: [%s] MTU: %d NextHop: %s",
-		strings.Join(hops, ">"), p.Meta.Mtu, p.NextHop)
+		strings.Join(hops, ">"), p.Meta.MTU, p.NextHop)
 }
 
-func (p Path) fmtInterfaces() []string {
+func fmtInterfaces(ifaces []snet.PathInterface) []string {
 	var hops []string
-	if len(p.IFaces) == 0 {
+	if len(ifaces) == 0 {
 		return hops
 	}
-	intf := p.IFaces[0]
+	intf := ifaces[0]
 	hops = append(hops, fmt.Sprintf("%s %d", intf.IA, intf.ID))
-	for i := 1; i < len(p.IFaces)-1; i += 2 {
-		inIntf := p.IFaces[i]
-		outIntf := p.IFaces[i+1]
+	for i := 1; i < len(ifaces)-1; i += 2 {
+		inIntf := ifaces[i]
+		outIntf := ifaces[i+1]
 		hops = append(hops, fmt.Sprintf("%d %s %d", inIntf.ID, inIntf.IA, outIntf.ID))
 	}
-	intf = p.IFaces[len(p.IFaces)-1]
+	intf = ifaces[len(ifaces)-1]
 	hops = append(hops, fmt.Sprintf("%d %s", intf.ID, intf.IA))
 	return hops
 }

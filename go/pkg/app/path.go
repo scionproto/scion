@@ -27,7 +27,7 @@ import (
 // SortPaths sorts paths according to hops and interfaces.
 func SortPaths(paths []snet.Path) {
 	sort.Slice(paths, func(a, b int) bool {
-		intfA, intfB := paths[a].Interfaces(), paths[b].Interfaces()
+		intfA, intfB := paths[a].Metadata().Interfaces, paths[b].Metadata().Interfaces
 		// Sort according to path length.
 		if len(intfA) != len(intfB) {
 			return len(intfA) < len(intfB)
@@ -40,7 +40,7 @@ func SortPaths(paths []snet.Path) {
 				return idA < idB
 			}
 		}
-		expA, expB := paths[a].Metadata().Expiry(), paths[b].Metadata().Expiry()
+		expA, expB := paths[a].Metadata().Expiry, paths[b].Metadata().Expiry
 		if !expA.Equal(expB) {
 			return expA.Before(expB)
 		}
@@ -88,7 +88,7 @@ func ColorPath(path snet.Path, opts ...ColorOption) string {
 	hops := coloredHops(path, o)
 	entries := []string{
 		fmt.Sprintf("%s: [%s]", o.keys.Sprint("Hops"), strings.Join(hops, o.link.Sprint(">"))),
-		fmt.Sprintf("%s: %s", o.keys.Sprint("MTU"), o.values.Sprint(path.Metadata().MTU())),
+		fmt.Sprintf("%s: %s", o.keys.Sprint("MTU"), o.values.Sprint(path.Metadata().MTU)),
 		fmt.Sprintf("%s: %s", o.keys.Sprint("NextHop"), o.values.Sprint(path.UnderlayNextHop())),
 	}
 	return strings.Join(entries, " ")
@@ -98,7 +98,7 @@ func coloredHops(path snet.Path, opts colorOptions) []string {
 	if path == nil {
 		return nil
 	}
-	intfs := path.Interfaces()
+	intfs := path.Metadata().Interfaces
 	if len(intfs) == 0 {
 		return nil
 	}

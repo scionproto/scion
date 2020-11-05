@@ -64,8 +64,8 @@ func (a *ACL) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, &a.Entries)
 }
 
-func (a *ACL) evalPath(path Path) ACLAction {
-	for i, iface := range path.Interfaces() {
+func (a *ACL) evalPath(path *snet.PathMetadata) ACLAction {
+	for i, iface := range path.Interfaces {
 		if a.evalInterface(iface, i%2 != 0) == Deny {
 			return Deny
 		}

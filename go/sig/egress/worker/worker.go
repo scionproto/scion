@@ -230,7 +230,7 @@ func (w *worker) resetFrame(f *frame) {
 		}
 		if w.currPathEntry != nil {
 			if md := w.currPathEntry.Metadata(); md != nil {
-				mtu = md.MTU()
+				mtu = md.MTU
 			}
 			pathLen = uint16(len(w.currPathEntry.Path().Raw))
 		}

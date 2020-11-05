@@ -574,7 +574,7 @@ func writeTestString(p Path, w io.Writer) {
 		}
 	}
 	fmt.Fprintln(w, "  Interfaces:")
-	for _, pi := range p.Interfaces {
+	for _, pi := range p.Metadata.Interfaces {
 		fmt.Fprintf(w, "    %v\n", pi)
 	}
 }

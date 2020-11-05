@@ -9,7 +9,6 @@ gomock(
         "Network",
         "PacketConn",
         "Path",
-        "PathMetadata",
         "PathQuerier",
         "Router",
         "RevocationHandler",

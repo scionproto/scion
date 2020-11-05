@@ -50,7 +50,9 @@ func createPath(t testing.TB, ctrl *gomock.Controller, desc string) snet.Path {
 			ID: mustIfID(t, tokens[1]),
 		})
 	}
-	path.EXPECT().Interfaces().Return(interfaces).AnyTimes()
+	path.EXPECT().Metadata().Return(&snet.PathMetadata{
+		Interfaces: interfaces,
+	}).AnyTimes()
 	return path
 }
 

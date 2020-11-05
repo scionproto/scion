@@ -113,7 +113,7 @@ On other errors, traceroute will exit with code 2.
 			cfg := traceroute.Config{
 				Dispatcher:   reliable.NewDispatcher(flags.dispatcher),
 				Remote:       remote,
-				MTU:          path.Metadata().MTU(),
+				MTU:          path.Metadata().MTU,
 				Local:        local,
 				PathEntry:    path,
 				Timeout:      flags.timeout,

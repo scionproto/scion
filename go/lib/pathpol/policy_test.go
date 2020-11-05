@@ -636,19 +636,11 @@ func (p PathProvider) GetPaths(src, dst addr.IA) PathSet {
 			pathIntfs = append(pathIntfs, snet.PathInterface{IA: ia, ID: ifid})
 			key.WriteString(fmt.Sprintf("%s-%d", ia, ifid))
 		}
-		result[snet.PathFingerprint(key.String())] = &testPath{
-			interfaces: pathIntfs,
+		result[snet.PathFingerprint(key.String())] = &snet.PathMetadata{
+			Interfaces: pathIntfs,
 		}
 	}
 	return result
-}
-
-type testPath struct {
-	interfaces []snet.PathInterface
-}
-
-func (p *testPath) Interfaces() []snet.PathInterface {
-	return p.interfaces
 }
 
 func mustHopPredicate(t *testing.T, str string) *HopPredicate {
