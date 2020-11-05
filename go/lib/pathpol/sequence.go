@@ -79,7 +79,7 @@ func (s *Sequence) Eval(inputSet PathSet) PathSet {
 	}
 	resultSet := make(PathSet)
 	for key, path := range inputSet {
-		ifaces := path.Interfaces
+		ifaces := path.Metadata().Interfaces
 		// Path should contain even number of interfaces. 1 for source AS,
 		// 1 for destination AS and 2 per each intermediate AS. Invalid paths should
 		// not occur but if they do let's ignore them.

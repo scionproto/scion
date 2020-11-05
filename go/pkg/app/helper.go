@@ -60,7 +60,7 @@ func Filter(seq string, paths []snet.Path) ([]snet.Path, error) {
 	pathsToPs := func(paths []snet.Path) pathpol.PathSet {
 		ps := make(pathpol.PathSet, len(paths))
 		for _, p := range paths {
-			ps[snet.Fingerprint(p)] = p.Metadata()
+			ps[snet.Fingerprint(p)] = p
 		}
 		return ps
 	}

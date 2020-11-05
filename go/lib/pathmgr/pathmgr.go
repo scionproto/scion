@@ -261,24 +261,5 @@ func matches(path snet.Path, predicatePI snet.PathInterface) bool {
 }
 
 func filterAps(filter Policy, aps spathmeta.AppPathSet) spathmeta.AppPathSet {
-	keep := filter.Filter(apsToPs(aps))
-	return filteredAps(keep, aps)
-}
-
-func apsToPs(aps spathmeta.AppPathSet) pathpol.PathSet {
-	ps := make(pathpol.PathSet, len(aps))
-	for key, path := range aps {
-		ps[key] = path.Metadata()
-	}
-	return ps
-}
-
-func filteredAps(keep pathpol.PathSet, aps spathmeta.AppPathSet) spathmeta.AppPathSet {
-	filtered := make(spathmeta.AppPathSet, len(keep))
-	for key, path := range aps {
-		if _, ok := keep[key]; ok {
-			filtered[key] = path
-		}
-	}
-	return filtered
+	return spathmeta.AppPathSet(filter.Filter(pathpol.PathSet(aps)))
 }
