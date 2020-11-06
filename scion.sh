@@ -303,8 +303,9 @@ go_lint() {
       -a '!' -ipath '*.pb.go' \
       -a '!' -ipath 'go/proto/structs.gen.go' \
       -a '!' -ipath 'go/proto/*.capnp.go' \
-      -a '!' -ipath '*mock_*' \
-      -a '!' -ipath 'go/lib/pathpol/sequence/*' > $TMPDIR/gofiles.list
+      -a '!' -ipath '*mock_*' > $TMPDIR/gofiles.list
+    lint_step "Building lint tools"
+
     run_silently bazel build //:lint || return 1
     tar -xf bazel-bin/lint.tar -C $TMPDIR || return 1
     local ret=0

@@ -1,0 +1,15 @@
+load("@rules_antlr//antlr:antlr4.bzl", "antlr")
+
+antlr(
+    name = "traffic_class",
+    srcs = ["TrafficClass.g4"],
+    language = "Go",
+    package = "traffic_class",
+)
+
+antlr(
+    name = "sequence",
+    srcs = ["Sequence.g4"],
+    language = "Go",
+    package = "sequence",
+)

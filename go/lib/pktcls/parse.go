@@ -20,8 +20,8 @@ import (
 
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 
+	"github.com/scionproto/scion/antlr/traffic_class"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/pktcls/traffic_class"
 )
 
 type classListener struct {

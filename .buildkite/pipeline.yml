@@ -47,6 +47,10 @@ steps:
       - ./tools/licenses.sh /tmp/test-artifacts/licenses $BUILDKITE_PIPELINE_SLUG
       - diff -rNu3 /tmp/test-artifacts/licenses ./licenses/data
       - ./tools/gomocks diff
+      - rm -rf /tmp/test-artifacts/antlr
+      - cp -R antlr/ /tmp/test-artifacts/antlr
+      - make antlr
+      - diff -ur /tmp/test-artifacts/antlr/ antlr/
     timeout_in_minutes: 15
     key: check_generated
     retry:
