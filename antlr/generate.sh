@@ -6,7 +6,7 @@ GAZELLE_MODE=$1
 
 ROOTDIR=$(dirname "$0")/..
 
-#GOSDK=$(bazel info output_base 2>/dev/null)/external/go_sdk/bin
+GOSDK=$(bazel info output_base 2>/dev/null)/external/go_sdk/bin
 
 function generate {
     PACKAGE=$1
