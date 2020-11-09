@@ -24,9 +24,9 @@ import (
 
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 
+	"github.com/scionproto/scion/antlr/sequence"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathpol/sequence"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
