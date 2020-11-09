@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "trafficclass_base_listener.go",
+        "trafficclass_lexer.go",
+        "trafficclass_listener.go",
+        "trafficclass_parser.go",
+    ],
+    importpath = "github.com/scionproto/scion/antlr/traffic_class",
+    visibility = ["//visibility:public"],
+    deps = ["@com_github_antlr_antlr4//runtime/Go/antlr:go_default_library"],
+)
