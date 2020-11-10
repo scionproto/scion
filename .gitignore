@@ -36,6 +36,11 @@ __pycache__
 #########################
 .vscode/
 
+# IDEA files
+#########################
+.idea
+*.iml
+
 # build files
 #########################
 .installstamp

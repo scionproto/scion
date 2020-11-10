@@ -26,6 +26,7 @@ from typing import Mapping
 from python.lib.util import write_file
 from python.topology.common import (
     ArgsTopoDicts,
+    BOOTSTRAP_DIR,
     DISP_CONFIG_NAME,
     docker_host,
     prom_addr,
@@ -227,6 +228,12 @@ class GoGenerator(object):
             base = topo_id.base_dir(self.args.output_dir)
             sciond_conf = self._build_sciond_conf(topo_id, topo["isd_as"], base)
             write_file(os.path.join(base, SD_CONFIG_NAME), toml.dumps(sciond_conf))
+
+            if self.args.bootstrap:
+                bootstrap_conf = self._build_bootstrap_conf(topo_id, topo["ISD_AS"], base)
+                write_file(os.path.join(base, BOOTSTRAP_DIR, SD_CONFIG_NAME), toml.dumps(bootstrap_conf))
+                for name, discovery_service in topo["DiscoveryService"].items():
+                    write_file(os.path.join(base, BOOTSTRAP_DIR, "hints", name), str(discovery_service["Addrs"]["IPv4"]["Public"]["Addr"].ip))
 
     def _build_sciond_conf(self, topo_id, ia, base):
         name = sciond_name(topo_id)
