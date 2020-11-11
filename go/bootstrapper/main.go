@@ -38,19 +38,19 @@ func realMain() int {
 		return 1
 	}
 	cfg.InitDefaults()
-	if err := env.InitLogging(&cfg.Logging); err != nil {
+	if err := log.Setup(cfg.Logging); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 	defer log.Flush()
 	defer env.LogAppStopped("bootstrapper", "")
-	defer log.LogPanicAndExit()
+	defer log.HandlePanic()
 
 	if err := cfg.Validate(); err != nil {
 		log.Error("Unable to validate config", "err", err)
 		return 1
 	}
-	itopo.Init("", proto.ServiceType_unset, itopo.Callbacks{})
+	itopo.Init(&itopo.Config{ID:"", Svc:proto.ServiceType_unset, Callbacks: itopo.Callbacks{}})
 	_, err := tryBootstrapping()
 	if err != nil {
 		log.Error("Bootstrapping failed", "err", err)

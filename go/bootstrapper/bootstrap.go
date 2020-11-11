@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/grandcat/zeroconf"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv4/client4"
@@ -24,17 +25,13 @@ import (
 	"github.com/miekg/dns"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/discovery"
-	"github.com/scionproto/scion/go/lib/infra/infraenv"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/lib/truststorage"
+	"golang.org/x/net/context/ctxhttp"
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -43,54 +40,46 @@ import (
 )
 
 const (
+	baseURL = "discovery/v1"
 	discoveryPort           uint16 = 8041
 	discoveryServiceDNSName string = "_sciondiscovery._tcp"
 	discoveryDDDSDNSName    string = "x-sciondiscovery:tcp"
 
 	sciondConfigTemplate string = `
 [general]
-ReconnectToDispatcher = true
-ConfigDir = "{{ .ConfigDirectory }}"
-ID = "sd{{ .ISD_AS.FileFmt false }}"
+    id = "sd{{ .IA.FileFmt false }}"
+    config_dir = "{{ .ConfigDirectory }}"
+    reconnect_to_dispatcher = false
 
-[sd]
-Public = "{{ .ISD_AS }},[{{ .IPAddress }}]:0"
-Reliable = "/run/shm/sciond/sd{{ .ISD_AS.FileFmt false }}.sock"
-Unix = "/run/shm/sciond/sd{{ .ISD_AS.FileFmt false }}.unix"
+[log]
+    [log.console]
+        level = "info"
+        stacktrace_level = "error"
+        format = "human"
+	[log.file]
 
-[quic]
-KeyFile = "gen-certs/tls.key"
-CertFile = "gen-certs/tls.pem"
-Address = "[{{ .IPAddress }}]:0"
-ResolutionFraction = 0.4
-
-[sd.pathDB]
-Connection = "gen-cache/sd{{ .ISD_AS.FileFmt false }}.path.db"
-
-[trustDB]
-Connection = "gen-cache/sd{{ .ISD_AS.FileFmt false }}.trust.db"
-Backend = "sqlite"
-
-[logging.console]
-Level = "crit"
-
-[logging.file]
-Path = "logs/sd{{ .ISD_AS.FileFmt false }}.log"
-Level = "debug"
-
-[discovery.static]
-Enable = {{ .HasDiscoverySection }}
-
-[discovery.dynamic]
-Enable = {{ .HasDiscoverySection }}
-
-[tracing]
-agent = "127.0.0.1:1409"
-enabled = true
-debug = true
 
 [metrics]
-Prometheus = "[127.0.0.1]:9105"
+    prometheus = ""
+
+[tracing]
+    enabled = false
+    debug = false
+    agent = "localhost:6831"
+
+[trust_db]
+    connection = "gen-cache/sd{{ .IA.FileFmt false }}.trust.db"
+    max_open_conns = 0
+    max_idle_conns = 0
+
+[path_db]
+    connection = "gen-cache/sd{{ .IA.FileFmt false }}.path.db"
+    max_open_conns = 0
+    max_idle_conns = 0
+
+[sd]
+    address = "127.0.0.1:30255"
+    query_interval = "5m"
 `
 )
 
@@ -100,16 +89,12 @@ var (
 )
 
 type templateContext struct {
-	HasDiscoverySection bool
-
-	ISD_AS addr.IA
-
+	IA addr.IA
 	IPAddress net.IP
-
 	ConfigDirectory string
 }
 
-func tryBootstrapping() (*topology.Topo, error) {
+func tryBootstrapping() (topology.Topology, error) {
 	hintGenerators := []HintGenerator{
 		&DHCPHintGenerator{},
 		&DNSSDHintGenerator{},
@@ -118,7 +103,7 @@ func tryBootstrapping() (*topology.Topo, error) {
 	for i := 0; i < len(hintGenerators); i++ {
 		generator := hintGenerators[i]
 		go func() {
-			defer log.LogPanicAndExit()
+			defer log.HandlePanic()
 			generator.Generate(channel)
 		}()
 	}
@@ -150,12 +135,12 @@ func tryBootstrapping() (*topology.Topo, error) {
 	}
 }
 
-func fetchTopology(address string) (*topology.Topo, common.RawBytes) {
+func fetchTopology(address string) (topology.Topology, common.RawBytes) {
 	ctx, cancelF := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancelF()
-	params := discovery.FetchParams{Mode: discovery.Static, File: discovery.Endhost}
+	//params := discovery.FetchParams{Mode: discovery.Static, File: discovery.Endhost}
 
-	ip := addr.HostFromIPStr(address)
+	ip := addr.HostFromIPStr(address).IP()
 
 	if ip == nil {
 		log.Debug("Discovered invalid address", "address", address)
@@ -164,20 +149,42 @@ func fetchTopology(address string) (*topology.Topo, common.RawBytes) {
 	log.Debug("Trying to fetch from " + address)
 
 	now := time.Now().UnixNano()
-	topo, raw, err := discovery.FetchTopoRaw(ctx, params, &addr.AppAddr{L3: ip, L4: addr.NewL4TCPInfo(discoveryPort)}, nil)
+	//discovery.FetchTopoRaw(ctx, params, &addr.AppAddr{L3: ip, L4: addr.NewL4TCPInfo(discoveryPort)}, nil)
+	topo, raw, err := fetchTopoHttp(ctx, &net.TCPAddr{IP:ip, Port: int(discoveryPort)})
 	then := time.Now().UnixNano()
-	log.Debug("timing", "type", "topo", "value", (then - now))
+	log.Debug("timing", "type", "topo", "value", then - now)
 
 	if err != nil {
 		log.Debug("Nothing was found")
 		return nil, nil
 	}
-
 	log.Debug("candidate topology found")
 	return topo, raw
 }
 
-func generateSciondConfig(topo *topology.Topo) error {
+func fetchTopoHttp(ctx context.Context, ds *net.TCPAddr) (topology.Topology, common.RawBytes, error) {
+	url := fmt.Sprintf("%s://%s:%d/%s", "http", ds.IP, ds.Port, baseURL + "/static/endhost.json")
+	log.Debug("Fetching topology", "url", url)
+	rep, err := ctxhttp.Get(ctx, nil, url)
+	if err != nil {
+		return nil, nil, common.NewBasicError("HTTP request failed", err)
+	}
+	defer rep.Body.Close()
+	if rep.StatusCode != http.StatusOK {
+		return nil, nil, common.NewBasicError("Status not OK", nil, "status", rep.Status)
+	}
+	raw, err := ioutil.ReadAll(rep.Body)
+	if err != nil {
+		return nil, nil, common.NewBasicError("Unable to read body", err)
+	}
+	rwTopo, err := topology.RWTopologyFromJSONBytes(raw)
+	if err != nil {
+		return nil, nil, common.NewBasicError("Unable to parse RWTopology from JSON bytes", err)
+	}
+	return topology.FromRWTopology(rwTopo), raw, nil
+}
+
+func generateSciondConfig(topo topology.Topology) error {
 	t := template.Must(template.New("config").Parse(sciondConfigTemplate))
 	sciondFile, err := os.OpenFile(cfg.SciondDirectory + "/sd.toml", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
@@ -189,12 +196,8 @@ func generateSciondConfig(topo *topology.Topo) error {
 		return errors.New("")
 	}
 	ctx := templateContext{
-		HasDiscoverySection: len(topo.DSNames) > 0,
-
-		ISD_AS: topo.ISD_AS,
-
+		IA: topo.IA(),
 		IPAddress: address,
-
 		ConfigDirectory: cfg.SciondDirectory,
 	}
 	err = t.Execute(sciondFile, ctx)
@@ -205,50 +208,72 @@ func generateSciondConfig(topo *topology.Topo) error {
 	return nil
 }
 
-func fetchTRC(topo *topology.Topo) error {
-
-	trustDBConf := truststorage.TrustDBConf{}
-	trustDBConf[truststorage.ConnectionKey] = "gen-cache/sd" + topo.ISD_AS.FileFmt(false) + ".trust.db"
-	trustDBConf[truststorage.BackendKey] = "sqlite"
-	trustDB, err := trustDBConf.New()
-	if err != nil {
-		log.Crit("Unable to initialize trustDB", "err", err)
-		return err
-	}
-	defer trustDB.Close()
-	provider := providerFunc(func() *topology.Topo { return topo })
-	trustConf := trust.Config{TopoProvider: provider}
-	trustStore := trust.NewStore(trustDB, topo.ISD_AS, trustConf, log.Root())
-	ip := getIPAddress()
-	nc := infraenv.NetworkConfig{
-		IA:                    topo.ISD_AS,
-		Public:                &snet.Addr{IA: topo.ISD_AS, Host: &addr.AppAddr{L3: addr.HostFromIP(ip), L4: addr.NewL4UDPInfo(uint16(0))}},
-		Bind:                  nil,
-		SVC:                   addr.SvcNone,
-		ReconnectToDispatcher: true,
-		QUIC: infraenv.QUIC{
-			Address:  "",
-			CertFile: "",
-			KeyFile:  "",
-		},
-		SVCResolutionFraction: 0,
-		TrustStore:            trustStore,
-		SVCRouter:             messenger.NewSVCRouter(provider),
-	}
-	_, err = nc.Messenger()
-	if err != nil {
-		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
-		return err
-	}
-	now := time.Now().UnixNano()
-	err = trustStore.LoadAuthoritativeTRCWithNetwork("")
-	then := time.Now().UnixNano()
-	log.Debug("timing", "type", "trc", "value", (then - now))
-	if err != nil {
-		log.Crit("Unable to load local TRC", "err", err)
-		return err
-	}
-
+func fetchTRC(topo topology.Topology) error {
+	//var err error
+	////trustDBConf := truststorage.TrustDBConf{}
+	////trustDBConf[truststorage.ConnectionKey] =
+	////trustDBConf[truststorage.BackendKey] = "sqlite"
+	////trustDB, err := trustDBConf.New()
+	////if err != nil {
+	////	log.Error("Unable to initialize trustDB", "err", err)
+	////	return err
+	////}
+	//dbPath := "gen-cache/sd" + topo.IA().FileFmt(false) + ".trust.db"
+	//trustDB, err := storage.NewTrustStorage(storage.DBConfig{Connection: dbPath})
+	//if err != nil {
+	//	return serrors.WrapStr("initializing trust database", err)
+	//}
+	//defer trustDB.Close()
+	//provider := providerFunc(func() topology.Topology { return topo })
+	////trustConf := trust.Config{TopoProvider: provider}
+	////trustStore := trust.NewStore(trustDB, topo.ISD_AS, trustConf, log.Root())
+	//dialer := &libgrpc.TCPDialer{
+	//	SvcResolver: func(dst addr.HostSVC) []resolver.Address {
+	//		targets := []resolver.Address{}
+	//		addrs, err := itopo.Provider().Get().Multicast(dst)
+	//		if err != nil {
+	//			return targets
+	//		}
+	//		for _, entry := range addrs {
+	//			targets = append(targets, resolver.Address{Addr: entry.String()})
+	//		}
+	//		return targets
+	//	},
+	//}
+	//engine, err := sciond.TrustEngine("", trustDB, dialer)
+	//if err != nil {
+	//	return serrors.WrapStr("creating trust engine", err)
+	//}
+	//engine.GetSignedTRC()
+	//ip := getIPAddress()
+	//_ = infraenv.NetworkConfig{
+	//	IA:     topo.IA(),
+	//	Public: &net.UDPAddr{IP: ip},
+	//	//&snet.Addr{IA: topo.IA(), Host: &addr.AppAddr{L3: addr.HostFromIP(ip), L4: addr.NewL4UDPInfo(uint16(0))}},
+	//	//Bind:                  nil,
+	//	//SVC:                   addr.SvcNone,
+	//	ReconnectToDispatcher: true,
+	//	QUIC:                  infraenv.QUIC{Address: ""},
+	//	//CertFile: "",
+	//	//KeyFile:  "",
+	//	//},
+	//	//SVCResolutionFraction: 0,
+	//	//TrustStore:            trustStore,
+	//	SVCRouter: messenger.NewSVCRouter(provider),
+	//}
+	////_, err = nc.Messenger()
+	////if err != nil {
+	////	log.Error(infraenv.ErrAppUnableToInitMessenger, "err", err)
+	////	return err
+	////}
+	//now := time.Now().UnixNano()
+	////err = trustStore.LoadAuthoritativeTRCWithNetwork("")
+	//then := time.Now().UnixNano()
+	//log.Debug("timing", "type", "trc", "value", then - now)
+	//if err != nil {
+	//	log.Error("Unable to load local TRC", "err", err)
+	//	return err
+	//}
 	return nil
 }
 
@@ -277,7 +302,7 @@ func probeInterface(currentInterface *net.Interface, channel chan string) {
 	client := client4.NewClient()
 	localIPs, err := dhcpv4.IPv4AddrsForInterface(currentInterface)
 	if err != nil || len(localIPs) == 0 {
-		log.Warn("DHCP hinter could not get local IPs", "interface", currentInterface.Name, "err", err)
+		log.Error("DHCP hinter could not get local IPs", "interface", currentInterface.Name, "err", err)
 		return
 	}
 	p, err := dhcpv4.NewInform(currentInterface.HardwareAddr, localIPs[0], dhcpv4.WithRequestedOptions(
@@ -285,18 +310,18 @@ func probeInterface(currentInterface *net.Interface, channel chan string) {
 		dhcpv4.OptionDomainNameServer,
 		dhcpv4.OptionDNSDomainSearchList))
 	if err != nil {
-		log.Crit("DHCP hinter failed to build network packet", "interface", currentInterface.Name, "err", err)
+		log.Error("DHCP hinter failed to build network packet", "interface", currentInterface.Name, "err", err)
 		return
 	}
 	p.SetBroadcast()
 	sender, err := client4.MakeBroadcastSocket(currentInterface.Name)
 	if err != nil {
-		log.Crit("DHCP hinter failed to open broadcast sender socket", "interface", currentInterface.Name, "err", err)
+		log.Error("DHCP hinter failed to open broadcast sender socket", "interface", currentInterface.Name, "err", err)
 		return
 	}
 	receiver, err := client4.MakeListeningSocket(currentInterface.Name)
 	if err != nil {
-		log.Crit("DHCP hinter failed to open receiver socket", "interface", currentInterface.Name, "err", err)
+		log.Error("DHCP hinter failed to open receiver socket", "interface", currentInterface.Name, "err", err)
 		return
 	}
 	now := time.Now().UnixNano()
@@ -304,7 +329,7 @@ func probeInterface(currentInterface *net.Interface, channel chan string) {
 	then := time.Now().UnixNano()
 	log.Debug("timing", "type", "dhcp", "value", (then - now))
 	if err != nil {
-		log.Warn("DHCP hinter failed to send inform request", "interface", currentInterface.Name, "err", err)
+		log.Error("DHCP hinter failed to send inform request", "interface", currentInterface.Name, "err", err)
 		return
 	}
 	ip := dhcpv4.GetIP(dhcpv4.OptionDefaultWorldWideWebServer, ack.Options).String()
@@ -316,7 +341,7 @@ func probeInterface(currentInterface *net.Interface, channel chan string) {
 	searchDomains, err := rfc1035label.FromBytes(rawSearchDomains)
 
 	if err != nil {
-		log.Warn("DHCP failed to to read search domains", "err", err)
+		log.Error("DHCP failed to to read search domains", "err", err)
 		// don't return, proceed without search domains
 	}
 
@@ -390,7 +415,7 @@ func resolveDNS(resolver, query string, dnsRR uint16, channel chan string) {
 	msg.RecursionDesired = true
 	result, err := dns.Exchange(msg, resolver+":53")
 	if err != nil {
-		log.Warn("DNS-SD failed", "err", err)
+		log.Error("DNS-SD failed", "err", err)
 		return
 	}
 
@@ -410,7 +435,7 @@ func resolveDNS(resolver, query string, dnsRR uint16, channel chan string) {
 		case *dns.SRV:
 			result := *(answer.(*dns.SRV))
 			if result.Port != discoveryPort {
-				log.Warn("DNS announced invalid discovery port", "expected", discoveryPort, "actual", result.Port)
+				log.Error("DNS announced invalid discovery port", "expected", discoveryPort, "actual", result.Port)
 			}
 			serviceRecords = append(serviceRecords, result)
 		case *dns.A:
@@ -466,14 +491,14 @@ func (g *MDNSSDHintGenerator) Generate(channel chan string) {
 
 	resolver, err := zeroconf.NewResolver(zeroconf.SelectIfaces([]net.Interface{*intf}))
 	if err != nil {
-		log.Warn("mDNS could not construct dns resolver", "err", err)
+		log.Error("mDNS could not construct dns resolver", "err", err)
 		return
 	}
 
 	var now int64
 	entries := make(chan *zeroconf.ServiceEntry)
 	go func(now *int64, results <-chan *zeroconf.ServiceEntry) {
-		defer log.LogPanicAndExit()
+		defer log.HandlePanic()
 		then := time.Now().UnixNano()
 		log.Debug("timing", "type", "mdns", "value", (then - *now))
 		for entry := range results {
@@ -494,7 +519,7 @@ func (g *MDNSSDHintGenerator) Generate(channel chan string) {
 	now = time.Now().UnixNano()
 	err = resolver.Browse(ctx, "_sciondiscovery._tcp", "local.", entries)
 	if err != nil {
-		log.Warn("mDNS could not lookup", "err", err)
+		log.Error("mDNS could not lookup", "err", err)
 		return
 	}
 	<-ctx.Done()
@@ -503,7 +528,7 @@ func (g *MDNSSDHintGenerator) Generate(channel chan string) {
 func getInterface() *net.Interface {
 	intf, err := net.InterfaceByName(cfg.Interface)
 	if err != nil {
-		log.Crit("Bootstrapper could not get interface", "err", err)
+		log.Error("Bootstrapper could not get interface", "err", err)
 		return nil
 	}
 	return intf
@@ -540,12 +565,12 @@ func getIPAddress() net.IP {
 func getDomainName() string {
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Warn("Bootstrapper could not get hostname", "err", err)
+		log.Error("Bootstrapper could not get hostname", "err", err)
 		return ""
 	}
 	split := strings.SplitAfterN(hostname, ".", 2)
 	if len(split) < 2 {
-		log.Warn("Bootstrapper could not get domain name", "hostname", hostname, "split", split)
+		log.Error("Bootstrapper could not get domain name", "hostname", hostname, "split", split)
 		return ""
 	} else {
 		log.Debug("Bootstrapper", "domain", split[1])
@@ -600,8 +625,8 @@ func (s byOrder) Swap(i, j int) {
 }
 
 // Glue to provide fetched topology
-type providerFunc func() *topology.Topo
+type providerFunc func() topology.Topology
 
-func (f providerFunc) Get() *topology.Topo {
+func (f providerFunc) Get() topology.Topology {
 	return f()
 }

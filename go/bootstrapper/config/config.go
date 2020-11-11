@@ -4,7 +4,7 @@ package config
 import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
-	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/log"
 	"io"
 )
 
@@ -25,7 +25,7 @@ type Config struct {
 		DNSNAPTR bool
 	}
 
-	Logging env.Logging
+	Logging log.Config
 }
 
 func (cfg *Config) InitDefaults() {
