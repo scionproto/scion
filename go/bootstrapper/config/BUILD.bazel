@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
@@ -11,12 +11,6 @@ go_library(
     deps = [
         "//go/lib/common:go_default_library",
         "//go/lib/config:go_default_library",
-        "//go/lib/drkeystorage:go_default_library",
-        "//go/lib/env:go_default_library",
-        "//go/lib/infra/modules/idiscovery:go_default_library",
-        "//go/lib/pathstorage:go_default_library",
-        "//go/lib/snet:go_default_library",
-        "//go/lib/truststorage:go_default_library",
-        "//go/lib/util:go_default_library",
+        "//go/lib/log:go_default_library",
     ],
 )

@@ -1,0 +1,10 @@
+server {
+        listen 8041 default_server;
+        listen [::]:8041 default_server;
+
+        location / {
+                root /srv/http/;
+                autoindex on;
+                autoindex_format json;
+        }
+}

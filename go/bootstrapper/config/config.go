@@ -11,20 +11,16 @@ import (
 var _ config.Config = (*Config)(nil)
 
 type Config struct {
-	Interface string
-
-	SciondDirectory string
-
-	Mechanisms struct {
+	Interface   string
+	SCIONFolder string
+	Mechanisms  struct {
+		// Mock hinter for testing purposes
+		MOCK bool
 		DHCP bool
-
 		MDNS bool
-
 		DNSSD bool
-
 		DNSNAPTR bool
 	}
-
 	Logging log.Config
 }
 
@@ -33,8 +29,8 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Logging,
 	)
 
-	if cfg.SciondDirectory == "" {
-		cfg.SciondDirectory = "."
+	if cfg.SCIONFolder == "" {
+		cfg.SCIONFolder = "."
 	}
 }
 

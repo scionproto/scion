@@ -51,7 +51,7 @@ func realMain() int {
 		return 1
 	}
 	itopo.Init(&itopo.Config{ID:"", Svc:proto.ServiceType_unset, Callbacks: itopo.Callbacks{}})
-	_, err := tryBootstrapping()
+	err := tryBootstrapping()
 	if err != nil {
 		log.Error("Bootstrapping failed", "err", err)
 		return 1

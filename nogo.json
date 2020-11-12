@@ -17,12 +17,6 @@
       "/org_golang_google_protobuf/internal/impl/": ""
     }
   },
-  "composites": {
-    "exclude_files": {
-      "/com_github_miekg_dns": "",
-      "/com_github_grandcat_zeroconf": ""
-    }
-  },
   "nilness": {
     "only_files": {
       "/go/": "https://github.com/bazelbuild/rules_go/issues/2172"
@@ -33,8 +27,7 @@
       "/com_github_mattn_go_sqlite3": "",
       "/com_github_lucas_clemente_quic_go": "",
       "/com_github_cloudflare_sidh": "",
-      "/com_github_vishvananda_netlink": "",
-      "/com_github_u_root_u_root": ""
+      "/com_github_vishvananda_netlink": ""
     }
   },
   "printf": {

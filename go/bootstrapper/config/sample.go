@@ -7,7 +7,7 @@ const bootstrapperSample = `
 Interface = eth0
 
 # The path where sciond config files will be placed (default ".")
-SciondDirectory = sciond/
+SCIONFolder = sciond/
 
 [mechanisms]
 

@@ -1,0 +1,11 @@
+Interface = "wlp0s20f3"
+SciondDirectory = "/home/heimdall/Repos/scion-bootstrapper/go/sciond"
+CertsDirectory = "/home/heimdall/Repos/scion-bootstrapper/go/sciond/certs"
+[mechanisms]
+DHCP = true
+mDNS = false
+DNSSD = false
+DNSNAPTR = false
+
+[log.console]
+level = "debug"

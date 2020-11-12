@@ -24,7 +24,6 @@ from python.lib.scion_addr import ISD_AS
 from python.topology.net import AddressProxy, NetworkDescription, IPNetwork
 
 COMMON_DIR = 'endhost'
-BOOTSTRAP_DIR = 'bootstrap'
 
 SCION_SERVICE_NAMES = (
     "control_service",
