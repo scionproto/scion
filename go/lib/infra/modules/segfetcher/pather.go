@@ -97,7 +97,7 @@ func (p *Pather) buildAllPaths(src, dst addr.IA, segs Segments) []combinator.Pat
 	destinations := p.findDestinations(dst, up, core)
 	var paths []combinator.Path
 	for dst := range destinations {
-		paths = append(paths, combinator.Combine(src, dst, up, core, down)...)
+		paths = append(paths, combinator.Combine(src, dst, up, core, down, false)...)
 	}
 	// Filter expired paths
 	now := time.Now()
