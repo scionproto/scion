@@ -11,53 +11,6 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-// XXX(matzf) these types are only here temporarily, to keep changes localized for the current PR.
-// This will be moved to snet.PathMetadata, making this available to applications.
-
-// TODO(matzf) document where does this info come from and how much to trust it.
-type PathMetadata struct {
-	// Latency lists the latencies between any two consecutive interfaces.
-	// Entry i describes the latency between interface i and i+1.
-	// Consequently, there are N-1 entries for N interfaces.
-	// A 0-value indicates that the AS did not announce a latency for this hop.
-	Latency []time.Duration
-
-	// Bandwidth lists the bandwidth between any two consecutive interfaces, in Kbit/s.
-	// Entry i describes the bandwidth between interfaces i and i+1.
-	// A 0-value indicates that the AS did not announce a bandwidth for this hop.
-	Bandwidth []uint64
-
-	// Geo lists the geographical position of the border routers along the path.
-	// Entry i describes the position of the router for interface i.
-	// A 0-value indicates that the AS did not announce a position for this router.
-	Geo []GeoCoordinates
-
-	// LinkType contains the announced link type of inter-domain links.
-	// Entry i describes the link between interfaces 2*i and 2*i+1.
-	LinkType []LinkType
-
-	// InternalHops lists the number of AS internal hops for the ASes on path.
-	// Entry i describes the hop between interfaces 2*i+1 and 2*i+2 in the same AS.
-	// Consequently, there are no entries for the first and last ASes, as these
-	// are not traversed completely by the path.
-	InternalHops []uint32
-
-	// Notes contains the notes added by ASes on the path, in the order of occurrence.
-	// Entry i is the note of AS i on the path.
-	Notes []string
-}
-
-type LinkType uint8
-
-const (
-	LinkTypeUnset LinkType = iota
-	LinkTypeDirect
-	LinkTypeMultihop
-	LinkTypeOpennet
-)
-
-type GeoCoordinates staticinfo.GeoCoordinates
-
 // pathInfo is a helper to extract the StaticInfo metadata, using the information
 // of the path already created from the pathSolution.
 type pathInfo struct {
@@ -71,9 +24,11 @@ type pathInfo struct {
 	RemoteIF map[snet.PathInterface]snet.PathInterface
 }
 
-func collectMetadata(interfaces []snet.PathInterface, asEntries []seg.ASEntry) PathMetadata {
+// collectMetadata extracts the StaticInfo metadata. The returned snet.PathMetadata
+// contains Latency, Bandwidth, Geo, LinkType, InternalHops and Notes.
+func collectMetadata(interfaces []snet.PathInterface, asEntries []seg.ASEntry) snet.PathMetadata {
 	if len(interfaces) == 0 {
-		return PathMetadata{}
+		return snet.PathMetadata{}
 	}
 	if len(interfaces)%2 != 0 {
 		panic("the number of interfaces traversed by the path is expected to be even")
@@ -89,7 +44,7 @@ func collectMetadata(interfaces []snet.PathInterface, asEntries []seg.ASEntry) P
 	}
 
 	path := pathInfo{interfaces, asEntries, remoteIF}
-	return PathMetadata{
+	return snet.PathMetadata{
 		Latency:      collectLatency(path),
 		Bandwidth:    collectBandwidth(path),
 		Geo:          collectGeo(path),
@@ -207,8 +162,8 @@ func addHopBandwidth(m map[hopKey]uint64, a, b snet.PathInterface, v uint64) {
 	}
 }
 
-func collectGeo(p pathInfo) []GeoCoordinates {
-	ifaceGeos := make(map[snet.PathInterface]GeoCoordinates)
+func collectGeo(p pathInfo) []snet.GeoCoordinates {
+	ifaceGeos := make(map[snet.PathInterface]snet.GeoCoordinates)
 	for _, asEntry := range p.ASEntries {
 		staticInfo := asEntry.Extensions.StaticInfo
 		if staticInfo == nil {
@@ -216,21 +171,25 @@ func collectGeo(p pathInfo) []GeoCoordinates {
 		}
 		for ifid, v := range staticInfo.Geo {
 			iface := snet.PathInterface{IA: asEntry.Local, ID: ifid}
-			ifaceGeos[iface] = GeoCoordinates(v)
+			ifaceGeos[iface] = snet.GeoCoordinates{
+				Longitude: v.Longitude,
+				Latitude:  v.Latitude,
+				Address:   v.Address,
+			}
 		}
 	}
 
-	geos := make([]GeoCoordinates, len(p.Interfaces))
+	geos := make([]snet.GeoCoordinates, len(p.Interfaces))
 	for i, iface := range p.Interfaces {
 		geos[i] = ifaceGeos[iface]
 	}
 	return geos
 }
 
-func collectLinkType(p pathInfo) []LinkType {
+func collectLinkType(p pathInfo) []snet.LinkType {
 	// 1) Gather map with all the LinkTypes, identified by the (unordered)
 	// interface pair associated with each link
-	hopLinkTypes := make(map[hopKey]LinkType)
+	hopLinkTypes := make(map[hopKey]snet.LinkType)
 	for _, asEntry := range p.ASEntries {
 		staticInfo := asEntry.Extensions.StaticInfo
 		if staticInfo == nil {
@@ -243,7 +202,7 @@ func collectLinkType(p pathInfo) []LinkType {
 			if prevLinkType, duplicate := hopLinkTypes[hop]; duplicate {
 				// Handle conflicts by using LinkTypeUnset
 				if prevLinkType != linkType {
-					hopLinkTypes[hop] = LinkTypeUnset
+					hopLinkTypes[hop] = snet.LinkTypeUnset
 				}
 			} else {
 				hopLinkTypes[hop] = linkType
@@ -252,23 +211,23 @@ func collectLinkType(p pathInfo) []LinkType {
 	}
 
 	// 2) Go over the path; for each inter-AS link interface pair, add the link type
-	linkTypes := make([]LinkType, len(p.Interfaces)/2)
+	linkTypes := make([]snet.LinkType, len(p.Interfaces)/2)
 	for i := 0; i < len(p.Interfaces); i += 2 {
 		linkTypes[i/2] = hopLinkTypes[makeHopKey(p.Interfaces[i], p.Interfaces[i+1])]
 	}
 	return linkTypes
 }
 
-func convertLinkType(lt staticinfo.LinkType) LinkType {
+func convertLinkType(lt staticinfo.LinkType) snet.LinkType {
 	switch lt {
 	case staticinfo.LinkTypeDirect:
-		return LinkTypeDirect
+		return snet.LinkTypeDirect
 	case staticinfo.LinkTypeMultihop:
-		return LinkTypeMultihop
+		return snet.LinkTypeMultihop
 	case staticinfo.LinkTypeOpennet:
-		return LinkTypeOpennet
+		return snet.LinkTypeOpennet
 	default:
-		return LinkTypeUnset
+		return snet.LinkTypeUnset
 	}
 }
 
