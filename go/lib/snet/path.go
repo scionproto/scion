@@ -66,10 +66,11 @@ func (iface PathInterface) String() string {
 }
 
 // PathMetadata contains supplementary information about a path.
-// This information is collected from individual AS entries in the path
-// construction beacons; these entries are signed is signed and thus can be
-// attributed to each AS. However, the *correctness* of this meta data has
-// *not* been verified.
+//
+// The information about MTU, Latency, Bandwidth etc. are based solely on data
+// contained in the AS entries in the path construction beacons. These entries
+// are signed/verified based on the control plane PKI. However, the
+// *correctness* of this meta data has *not* been checked.
 type PathMetadata struct {
 	// Interfaces is a list of interfaces on the path.
 	Interfaces []PathInterface
@@ -131,17 +132,26 @@ func (pm *PathMetadata) Copy() *PathMetadata {
 // LinkType describes the underlying network for inter-domain links.
 type LinkType uint8
 
+// LinkType values
 const (
+	// LinkTypeUnset represents an unspecified link type.
 	LinkTypeUnset LinkType = iota
+	// LinkTypeDirect represents a direct physical connection.
 	LinkTypeDirect
+	// LinkTypeMultihop represents a connection with local routing/switching.
 	LinkTypeMultihop
+	// LinkTypeOpennet represents a connection overlayed over publicly routed Internet.
 	LinkTypeOpennet
 )
 
+// GeoCoordinates describes a geographical position (of a border router on the path).
 type GeoCoordinates struct {
-	Latitude  float32
+	// Latitude of the geographic coordinate, in the WGS 84 datum.
+	Latitude float32
+	// Longitude of the geographic coordinate, in the WGS 84 datum.
 	Longitude float32
-	Address   string
+	// Civic address of the location.
+	Address string
 }
 
 type PathFingerprint string
