@@ -44,7 +44,7 @@ Setting up the development environment
 
 #. Start the bazel-remote container.
 
-   We use `bazel-remote <https://github.com/buchgr/bazel-remote>`_ to chache
+   We use `bazel-remote <https://github.com/buchgr/bazel-remote>`_ to cache
    build artifacts from bazel. Bazel-remote can manage the disk space and does
    not infinitely grow like the Bazel built-in disk-cache. To start bazel-remote run::
    

@@ -172,16 +172,16 @@ func checkInternalHops(t *testing.T, g *graph.Graph,
 	assert.Equal(t, expected, internalHops)
 }
 
-func checkGeo(t *testing.T, g *graph.Graph, path []snet.PathInterface, geos []GeoCoordinates) {
+func checkGeo(t *testing.T, g *graph.Graph, path []snet.PathInterface, geos []snet.GeoCoordinates) {
 	if len(path) == 0 {
 		assert.Empty(t, geos)
 		return
 	}
 
-	expected := []GeoCoordinates{}
+	expected := []snet.GeoCoordinates{}
 	for _, iface := range path {
 		e := g.GeoCoordinates(iface.ID)
-		expected = append(expected, GeoCoordinates{
+		expected = append(expected, snet.GeoCoordinates{
 			Longitude: e.Longitude,
 			Latitude:  e.Latitude,
 			Address:   e.Address,
@@ -191,14 +191,14 @@ func checkGeo(t *testing.T, g *graph.Graph, path []snet.PathInterface, geos []Ge
 }
 
 func checkLinkType(t *testing.T, g *graph.Graph,
-	path []snet.PathInterface, linkTypes []LinkType) {
+	path []snet.PathInterface, linkTypes []snet.LinkType) {
 
 	if len(path) == 0 {
 		assert.Empty(t, linkTypes)
 		return
 	}
 
-	expected := []LinkType{}
+	expected := []snet.LinkType{}
 	for i := 0; i < len(path); i += 2 {
 		expected = append(expected, convertLinkType(g.LinkType(path[i].ID, path[i+1].ID)))
 	}
