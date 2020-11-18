@@ -2,6 +2,7 @@
 package config
 
 import (
+	"github.com/scionproto/scion/go/bootstrapper/hinting"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/log"
@@ -11,16 +12,12 @@ import (
 var _ config.Config = (*Config)(nil)
 
 type Config struct {
-	Interface   string
-	SCIONFolder string
-	Mechanisms  struct {
-		// Mock hinter for testing purposes
-		MOCK bool
-		DHCP bool
-		MDNS bool
-		DNSSD bool
-		DNSNAPTR bool
-	}
+	Interface   string `toml:"interface"`
+	SCIONFolder string `toml:"scion_folder"`
+	SCIONDConf 	string `toml:"sciond_conf"`
+	DHCP hinting.DHCPHintGeneratorConf `toml:"dhcp"`
+	DNSSD hinting.DNSHintGeneratorConf `toml:"dnssd"`
+	MDNS hinting.MDNSHintGeneratorConf `toml:"mdns"`
 	Logging log.Config
 }
 
