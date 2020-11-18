@@ -35,9 +35,9 @@ import (
 )
 
 const (
-	baseURL = "scion/discovery/v1"
-	httpRequestTimeout			   = 2*time.Second
-	hintsTimeout = 10*time.Second
+	baseURL            = "scion/discovery/v1"
+	httpRequestTimeout = 2 * time.Second
+	hintsTimeout       = 10 * time.Second
 )
 
 var (
@@ -72,13 +72,17 @@ OuterLoop:
 		case ipAddr := <-ipHintsChan:
 			serverAddr := &net.TCPAddr{IP: ipAddr, Port: int(hinting.DiscoveryPort)}
 			err := pullTopology(serverAddr)
-			if err != nil{ return err }
-			err = generateSciondConfig(cfg.SCIONDConf)
+			if err != nil {
+				return err
+			}
+			err = generateSDConfig(cfg.SDConf)
 			if err != nil {
 				return err
 			}
 			err = pullTRCs(serverAddr)
-			if err != nil { return err }
+			if err != nil {
+				return err
+			}
 			break OuterLoop
 		case <-hintsTimeout:
 			return fmt.Errorf("bootstrapper timed out")
@@ -88,7 +92,7 @@ OuterLoop:
 }
 
 func pullTopology(addr *net.TCPAddr) error {
-	url := fmt.Sprintf("%s://%s:%d/%s", "http", addr.IP, addr.Port, baseURL + "/topology.json")
+	url := fmt.Sprintf("%s://%s:%d/%s", "http", addr.IP, addr.Port, baseURL+"/topology.json")
 	_, err := url2.Parse(url)
 	if err != nil {
 		return common.NewBasicError("Invalid url: ", err)
@@ -102,7 +106,7 @@ func pullTopology(addr *net.TCPAddr) error {
 	if err != nil {
 		return common.NewBasicError("unable to parse RWTopology from JSON bytes", err)
 	}
-	topologyPath := path.Join(cfg.SCIONFolder,"topology.json")
+	topologyPath := path.Join(cfg.SCIONFolder, "topology.json")
 	err = ioutil.WriteFile(topologyPath, raw, 0644)
 	if err != nil {
 		return common.NewBasicError("Bootstrapper could not store topology", err)
@@ -134,7 +138,7 @@ func fetchTopologyHTTP(url string) (common.RawBytes, error) {
 }
 
 func pullTRCs(addr *net.TCPAddr) error {
-	url := fmt.Sprintf("%s://%s:%d/%s", "http", addr.IP, addr.Port, baseURL + "/trcs.tar.gz")
+	url := fmt.Sprintf("%s://%s:%d/%s", "http", addr.IP, addr.Port, baseURL+"/trcs.tar.gz")
 	log.Info("Fetching TRCs", "url", url)
 	ctx, cancelF := context.WithTimeout(context.Background(), httpRequestTimeout)
 	defer cancelF()
@@ -189,22 +193,21 @@ func pullTRCs(addr *net.TCPAddr) error {
 	return nil
 }
 
-func generateSciondConfig(sciondConf string) error {
-	if sciondConf == "" {
+func generateSDConfig(sdConf string) error {
+	if sdConf == "" {
 		return nil
 	}
-	srcConfFile, err := os.OpenFile(sciondConf, os.O_RDONLY, 0644)
+	srcConfFile, err := os.OpenFile(sdConf, os.O_RDONLY, 0644)
 	if err != nil {
-		return common.NewBasicError("error opening src sciond conf file", err)
+		return common.NewBasicError("error opening src sd conf file", err)
 	}
-	dstConfFile, err := os.OpenFile(path.Join(cfg.SCIONFolder,"sd.toml"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	dstConfFile, err := os.OpenFile(path.Join(cfg.SCIONFolder, "sd.toml"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return common.NewBasicError("error opening dest sciond conf file", err)
+		return common.NewBasicError("error opening dest sd conf file", err)
 	}
 	_, err = io.Copy(dstConfFile, srcConfFile)
 	if err != nil {
-		return common.NewBasicError("error copying sciond conf file", err)
+		return common.NewBasicError("error copying sd conf file", err)
 	}
 	return nil
 }
-

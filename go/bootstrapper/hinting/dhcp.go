@@ -14,8 +14,9 @@ type DHCPHintGeneratorConf struct {
 }
 
 var _ HintGenerator = (*DHCPHintGenerator)(nil)
-type DHCPHintGenerator struct{
-	cfg *DHCPHintGeneratorConf
+
+type DHCPHintGenerator struct {
+	cfg   *DHCPHintGeneratorConf
 	iface *net.Interface
 }
 
@@ -55,7 +56,7 @@ func (g *DHCPHintGenerator) createDHCPRequest() (*dhcpv4.DHCPv4, error) {
 	return p, nil
 }
 
-func (g *DHCPHintGenerator) sendReceive(p *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, error){
+func (g *DHCPHintGenerator) sendReceive(p *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, error) {
 	p.SetBroadcast()
 	client := client4.NewClient()
 	sender, err := client4.MakeBroadcastSocket(g.iface.Name)

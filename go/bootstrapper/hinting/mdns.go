@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	resolverTimeout = 2*time.Second
+	resolverTimeout = 2 * time.Second
 )
 
 type MDNSHintGeneratorConf struct {
@@ -17,13 +17,14 @@ type MDNSHintGeneratorConf struct {
 }
 
 var _ HintGenerator = (*MDNSSDHintGenerator)(nil)
+
 // Multicast Domain Name System Service Discovery
-type MDNSSDHintGenerator struct{
-	cfg *MDNSHintGeneratorConf
+type MDNSSDHintGenerator struct {
+	cfg   *MDNSHintGeneratorConf
 	iface *net.Interface
 }
 
-func NewMDNSHintGenerator(cfg *MDNSHintGeneratorConf, iface *net.Interface) *MDNSSDHintGenerator{
+func NewMDNSHintGenerator(cfg *MDNSHintGeneratorConf, iface *net.Interface) *MDNSSDHintGenerator {
 	return &MDNSSDHintGenerator{cfg, iface}
 }
 

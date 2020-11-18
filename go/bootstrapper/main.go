@@ -50,7 +50,7 @@ func realMain() int {
 		log.Error("Unable to validate config", "err", err)
 		return 1
 	}
-	itopo.Init(&itopo.Config{ID:"", Svc:proto.ServiceType_unset, Callbacks: itopo.Callbacks{}})
+	itopo.Init(&itopo.Config{ID: "", Svc: proto.ServiceType_unset, Callbacks: itopo.Callbacks{}})
 	err := tryBootstrapping()
 	if err != nil {
 		log.Error("Bootstrapping failed", "err", err)

@@ -12,13 +12,13 @@ import (
 var _ config.Config = (*Config)(nil)
 
 type Config struct {
-	Interface   string `toml:"interface"`
-	SCIONFolder string `toml:"scion_folder"`
-	SCIONDConf 	string `toml:"sciond_conf"`
-	DHCP hinting.DHCPHintGeneratorConf `toml:"dhcp"`
-	DNSSD hinting.DNSHintGeneratorConf `toml:"dnssd"`
-	MDNS hinting.MDNSHintGeneratorConf `toml:"mdns"`
-	Logging log.Config
+	Interface   string                        `toml:"interface"`
+	SCIONFolder string                        `toml:"scion_folder"`
+	SDConf      string                        `toml:"sd_conf"`
+	DHCP        hinting.DHCPHintGeneratorConf `toml:"dhcp"`
+	DNSSD       hinting.DNSHintGeneratorConf  `toml:"dnssd"`
+	MDNS        hinting.MDNSHintGeneratorConf `toml:"mdns"`
+	Logging     log.Config
 }
 
 func (cfg *Config) InitDefaults() {

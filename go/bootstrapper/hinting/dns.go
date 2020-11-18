@@ -18,14 +18,16 @@ const (
 var (
 	dnsServersChan = make(chan DNSInfo)
 )
+
 type DNSHintGeneratorConf struct {
 	EnableSD    bool `toml:"enable_sd"`
 	EnableNAPTR bool `toml:"enable_naptr"`
 }
 
 var _ HintGenerator = (*DNSSDHintGenerator)(nil)
+
 // DNSSDHintGenerator implements the Domain Name System Service Discovery
-type DNSSDHintGenerator struct{
+type DNSSDHintGenerator struct {
 	cfg *DNSHintGeneratorConf
 }
 
@@ -34,7 +36,7 @@ func NewDNSSDHintGenerator(cfg *DNSHintGeneratorConf) *DNSSDHintGenerator {
 }
 
 func (g *DNSSDHintGenerator) Generate(ipHintsChan chan net.IP) {
-	for dnsServer := range dnsServersChan{
+	for dnsServer := range dnsServersChan {
 		dnsServer.searchDomains = append(dnsServer.searchDomains, getDomainName())
 
 		for _, resolver := range dnsServer.resolvers {
@@ -54,7 +56,7 @@ func (g *DNSSDHintGenerator) Generate(ipHintsChan chan net.IP) {
 }
 
 type DNSInfo struct {
-	resolvers	 []string
+	resolvers     []string
 	searchDomains []string
 }
 

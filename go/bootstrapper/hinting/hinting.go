@@ -3,7 +3,7 @@ package hinting
 import "net"
 
 const (
-	DiscoveryPort           uint16 = 8041
+	DiscoveryPort uint16 = 8041
 )
 
 type HintGenerator interface {

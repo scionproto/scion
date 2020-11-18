@@ -18,6 +18,7 @@ pkg_tar(
         "//go/sciond",
         "//go/sig",
         "//go/tools/pathdb_dump",
+	"//go/bootstrapper"
     ],
     mode = "0755",
     package_dir = "",
