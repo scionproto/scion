@@ -9,7 +9,8 @@
       "gazelle/language/go/resolve.go": "",
       "/io_bazel_rules_docker/": "",
       "/com_github_bazelbuild_buildtools/": "",
-      "/com_github_grpc_ecosystem_grpc_opentracing/go/otgrpc/": ""
+      "/com_github_grpc_ecosystem_grpc_opentracing/go/otgrpc/": "",
+      "/com_github_grandcat_zeroconf": ""
     }
   },
   "copylocks": {
