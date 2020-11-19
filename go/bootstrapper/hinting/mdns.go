@@ -38,12 +38,14 @@ func (g *MDNSSDHintGenerator) Generate(ipHintsChan chan net.IP) {
 		return
 	}
 	entriesChan := make(chan *zeroconf.ServiceEntry)
-	go handleEntries(entriesChan, ipHintsChan)
+	go func() {
+		defer log.HandlePanic()
+		handleEntries(entriesChan, ipHintsChan)
+	}()
 	discoverEntries(resolver, entriesChan)
 }
 
 func handleEntries(entriesChan <-chan *zeroconf.ServiceEntry, ipHintsChan chan net.IP) {
-	defer log.HandlePanic()
 	for entry := range entriesChan {
 		for _, address := range entry.AddrIPv4 {
 			log.Info("mDNS hint", "IP", address.String())

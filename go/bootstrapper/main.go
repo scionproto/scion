@@ -3,6 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	_ "net/http/pprof"
+	"os"
+)
+
+import (
 	"github.com/BurntSushi/toml"
 	"github.com/scionproto/scion/go/bootstrapper/config"
 	"github.com/scionproto/scion/go/lib/env"
@@ -10,8 +15,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/proto"
-	_ "net/http/pprof"
-	"os"
 )
 
 var (

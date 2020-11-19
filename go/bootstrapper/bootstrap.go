@@ -19,11 +19,6 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"github.com/scionproto/scion/go/bootstrapper/hinting"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/topology"
-	"golang.org/x/net/context/ctxhttp"
 	"io"
 	"io/ioutil"
 	"net"
@@ -32,6 +27,14 @@ import (
 	"os"
 	"path"
 	"time"
+)
+
+import (
+	"github.com/scionproto/scion/go/bootstrapper/hinting"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/topology"
+	"golang.org/x/net/context/ctxhttp"
 )
 
 const (

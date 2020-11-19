@@ -10,6 +10,7 @@ gazelle(name = "gazelle")
 pkg_tar(
     name = "scion",
     srcs = [
+        "//go/bootstrapper",
         "//go/cs",
         "//go/dispatcher",
         "//go/posix-router",
@@ -18,7 +19,6 @@ pkg_tar(
         "//go/sciond",
         "//go/sig",
         "//go/tools/pathdb_dump",
-	"//go/bootstrapper"
     ],
     mode = "0755",
     package_dir = "",
