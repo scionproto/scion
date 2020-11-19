@@ -19,11 +19,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"strings"
 	"time"
-
-	"github.com/fatih/color"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -43,15 +42,16 @@ type Result struct {
 
 // Path holds information about the discovered path.
 type Path struct {
-	FullPath    snet.Path `json:"-"`
-	Fingerprint string    `json:"fingerprint"`
-	Hops        []Hop     `json:"hops"`
-	NextHop     string    `json:"next_hop"`
-	Expiry      time.Time `json:"expiry"`
-	MTU         uint16    `json:"mtu"`
-	Status      string    `json:"status,omitempty"`
-	StatusInfo  string    `json:"status_info,omitempty"`
-	Local       net.IP    `json:"local_ip,omitempty"`
+	FullPath    snet.Path       `json:"-"`
+	Fingerprint string          `json:"fingerprint"`
+	Hops        []Hop           `json:"hops"`
+	NextHop     string          `json:"next_hop"`
+	Expiry      time.Time       `json:"expiry"`
+	MTU         uint16          `json:"mtu"`
+	Latency     []time.Duration `json:"latency"`
+	Status      string          `json:"status,omitempty"`
+	StatusInfo  string          `json:"status_info,omitempty"`
+	Local       net.IP          `json:"local_ip,omitempty"`
 }
 
 // Hop represents an hop on the path.
@@ -61,23 +61,22 @@ type Hop struct {
 }
 
 // Human writes human readable output to the writer.
-func (r Result) Human(w io.Writer, showExpiration, colored bool) {
-	noColor := color.New()
-	keys := noColor
-	values := noColor
-	header := noColor
-	statusGood := noColor
-	statusBad := noColor
-	if colored {
-		keys = color.New(color.FgHiCyan)
-		values = noColor
-		header = color.New(color.FgHiBlack)
-		statusGood = color.New(color.FgGreen)
-		statusBad = color.New(color.FgRed)
-	}
+func (r Result) Human(w io.Writer, showExtendedMetadata, colored bool) {
+	cs := app.DefaultColorScheme(!colored)
 
+	/*
+		for i := 0; i < 7; i++ {
+			r.Paths = append(r.Paths, r.Paths...)
+		}
+	*/
+
+	idxWidth := len(fmt.Sprint(len(r.Paths) - 1))
+	entrySeparator := " "
+	if showExtendedMetadata {
+		entrySeparator = "\n" + strings.Repeat(" ", idxWidth+2+1)
+	}
 	sectionHeader := func(intfs int) {
-		header.Fprintf(w, "%d Hops:\n", (intfs/2)+1)
+		cs.Header.Fprintf(w, "%d Hops:\n", (intfs/2)+1)
 	}
 	sectionHeader(len(r.Paths[0].Hops))
 	for i, path := range r.Paths {
@@ -85,27 +84,146 @@ func (r Result) Human(w io.Writer, showExpiration, colored bool) {
 			sectionHeader(len(path.Hops))
 		}
 
-		entries := []string{app.ColorPath(path.FullPath, app.WithDisableColor(!colored))}
-		if showExpiration {
+		entries := cs.KeyValues(
+			"Hops", cs.Path(path.FullPath),
+			"MTU", fmt.Sprint(path.MTU),
+			"NextHop", fmt.Sprint(path.NextHop),
+		)
+		if showExtendedMetadata {
+			meta := path.FullPath.Metadata()
 			ttl := time.Until(path.Expiry).Truncate(time.Second)
-			entries = append(entries, fmt.Sprintf("%s: %s (%s)",
-				keys.Sprint("Expires"), values.Sprint(path.Expiry), values.Sprint(ttl)),
-			)
+			entries = append(entries, cs.KeyValues(
+				"Expires", fmt.Sprintf("%s (%s)", path.Expiry, ttl),
+				"Latency", humanLatency(meta),
+				"Bandwidth", humanBandwidth(meta),
+				"Geo", humanGeo(meta),
+				"LinkType", humanLinkType(meta),
+				"InternalHops", humanInternalHops(meta),
+				"Notes", humanNotes(meta),
+			)...)
 		}
 		if path.Status != "" {
-			statusColor := statusBad
+			statusColor := cs.Bad
 			if strings.EqualFold(path.Status, string(pathprobe.StatusAlive)) {
-				statusColor = statusGood
+				statusColor = cs.Good
 			}
-			entries = append(entries, fmt.Sprintf("%s: %s",
-				keys.Sprint("Status"), statusColor.Sprint(path.Status)),
-			)
-			entries = append(entries, fmt.Sprintf("%s: %s",
-				keys.Sprint("LocalIP"), values.Sprint(path.Local)),
-			)
+			entries = append(entries, cs.KeyValues(
+				"Status", statusColor.Sprint(path.Status),
+				"LocalIP", fmt.Sprint(path.Local),
+			)...)
 		}
-		fmt.Fprintf(w, "[%2d] %s\n", i, strings.Join(entries, " "))
+		fmt.Fprintf(w, "[%*d] %s\n", idxWidth, i, strings.Join(entries, entrySeparator))
 	}
+}
+
+func humanLatency(p *snet.PathMetadata) string {
+	complete := true
+	var tot time.Duration
+	for _, v := range p.Latency {
+		complete = complete && v > 0
+		tot += v
+	}
+	if complete {
+		return fmt.Sprint(tot)
+	}
+	if tot > 0 {
+		return fmt.Sprintf(">%s (information incomplete)", tot)
+	}
+	return "N/A"
+}
+
+func humanBandwidth(p *snet.PathMetadata) string {
+	complete := true
+	var bottleneck uint64 = math.MaxUint64
+	for _, v := range p.Bandwidth {
+		complete = complete && v > 0
+		if v > 0 && v < bottleneck {
+			bottleneck = v
+		}
+	}
+	if complete {
+		return fmt.Sprintf("%dKbit/s", bottleneck) // TODO(matzf) use appropriate metric prefixes?
+	}
+	if bottleneck < math.MaxUint64 {
+		return fmt.Sprintf("%dKbit/s (information incomplete)", bottleneck)
+	}
+	return "N/A"
+}
+
+func humanGeo(p *snet.PathMetadata) string {
+	geos := make([]string, len(p.Geo))
+	hasAny := false
+	for i, geo := range p.Geo {
+		hasLatLong := (geo.Latitude != 0.0 || geo.Longitude != 0.0)
+		latLong := fmt.Sprintf("%g,%g", geo.Latitude, geo.Longitude)
+		sanitizedAddr := sanitizeString(geo.Address)
+		quotedAddr := fmt.Sprintf("\"%s\"", sanitizedAddr)
+		hasAddr := sanitizedAddr != ""
+		hasAny = hasAny || hasLatLong || hasAddr
+		if hasLatLong && hasAddr {
+			geos[i] = fmt.Sprintf("%s (%s)", latLong, quotedAddr)
+		} else if hasLatLong {
+			geos[i] = latLong
+		} else if hasAddr {
+			geos[i] = quotedAddr
+		} else {
+			geos[i] = "N/A"
+		}
+	}
+	if !hasAny { // special case, repeated "N/A" looks a bit pointless
+		return "[]"
+	}
+	return fmt.Sprintf("[%s]", strings.Join(geos, " > "))
+}
+
+func humanLinkType(p *snet.PathMetadata) string {
+	linkTypes := make([]string, len(p.LinkType))
+	for i, lt := range p.LinkType {
+		linkTypes[i] = lt.String()
+	}
+	return fmt.Sprintf("[%s]", strings.Join(linkTypes, ", "))
+}
+
+func humanInternalHops(p *snet.PathMetadata) string {
+	internalHops := []string{}
+	for i, numHops := range p.InternalHops {
+		if numHops == 0 {
+			continue
+		}
+		interfaceIdx := 2*i + 1
+		ia := p.Interfaces[interfaceIdx].IA
+		internalHops = append(internalHops, fmt.Sprintf("%s: %d", ia, numHops))
+	}
+	return fmt.Sprintf("[%s]", strings.Join(internalHops, ", "))
+}
+
+func humanNotes(p *snet.PathMetadata) string {
+	notes := []string{}
+	for i, note := range p.Notes {
+		if note == "" {
+			continue
+		}
+		interfaceIdx := 0
+		if i > 0 {
+			interfaceIdx = 2*i - 1
+		}
+		ia := p.Interfaces[interfaceIdx].IA
+		notes = append(notes, fmt.Sprintf("%s: \"%s\"", ia, sanitizeString(note)))
+	}
+	return fmt.Sprintf("[%s]", strings.Join(notes, ", "))
+}
+
+// sanitizeString returns a trimmed single line representation of the string,
+// with any control characters or qutation marks removed.
+func sanitizeString(str string) string {
+	str = strings.ReplaceAll(str, "\n", ", ")
+	str = strings.TrimSpace(str)
+	return strings.Map(func(r rune) rune {
+		if r >= 32 && r != 127 && r != '"' {
+			return r
+		}
+		return -1
+	}, str)
 }
 
 // JSON writes the showpaths result as a json object to the writer.
@@ -186,12 +304,14 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 		if nh := path.UnderlayNextHop(); nh != nil {
 			nextHop = path.UnderlayNextHop().String()
 		}
+		pathMeta := path.Metadata()
 		rpath := Path{
 			FullPath:    path,
 			Fingerprint: fingerprint,
 			NextHop:     nextHop,
-			Expiry:      path.Metadata().Expiry,
-			MTU:         path.Metadata().MTU,
+			Expiry:      pathMeta.Expiry,
+			MTU:         pathMeta.MTU,
+			Latency:     pathMeta.Latency,
 			Local:       localIP,
 			Hops:        []Hop{},
 		}

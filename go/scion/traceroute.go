@@ -98,7 +98,7 @@ On other errors, traceroute will exit with code 2.
 			span.SetTag("src.isd_as", info.IA)
 			path, err := app.ChoosePath(traceCtx, sd, remote.IA,
 				flags.interactive, flags.refresh, flags.sequence,
-				app.WithDisableColor(flags.noColor))
+				app.DefaultColorScheme(flags.noColor))
 			if err != nil {
 				return err
 			}
