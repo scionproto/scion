@@ -30,7 +30,6 @@ import (
 	beaconinggrpc "github.com/scionproto/scion/go/cs/beaconing/grpc"
 	"github.com/scionproto/scion/go/cs/config"
 	"github.com/scionproto/scion/go/cs/ifstate"
-	csmetrics "github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/cs/onehop"
 	segreggrpc "github.com/scionproto/scion/go/cs/segreg/grpc"
 	"github.com/scionproto/scion/go/cs/segreq"
@@ -112,10 +111,6 @@ func run(file string) error {
 	defer log.Flush()
 	defer env.LogAppStopped(common.CPService, cfg.General.ID)
 	defer log.HandlePanic()
-	// TODO(roosd): This should be refactored when applying the new metrics
-	// approach.
-	csmetrics.InitBSMetrics()
-	csmetrics.InitPSMetrics()
 	metrics := cs.NewMetrics()
 
 	intfs, err := setup(&cfg)
@@ -234,7 +229,7 @@ func run(file string) error {
 			Inserter:       beaconStore,
 			Interfaces:     intfs,
 			Verifier:       verifier,
-			BeaconsHandled: libmetrics.NewPromCounter(csmetrics.Beaconing.BeaconsReceived),
+			BeaconsHandled: libmetrics.NewPromCounter(metrics.BeaconingReceivedTotal),
 		},
 	})
 
@@ -245,10 +240,9 @@ func run(file string) error {
 			CoreChecker: segreq.CoreChecker{Inspector: inspector},
 			PathDB:      pathDB,
 		},
-		RevCache:        revCache,
-		Requests:        libmetrics.NewPromCounter(csmetrics.Requests.Requests),
-		SegmentsSent:    libmetrics.NewPromCounter(csmetrics.Requests.SegmentsSent),
-		RevocationsSent: libmetrics.NewPromCounter(csmetrics.Requests.RevocationsSent),
+		RevCache:     revCache,
+		Requests:     libmetrics.NewPromCounter(metrics.SegmentLookupRequestsTotal),
+		SegmentsSent: libmetrics.NewPromCounter(metrics.SegmentLookupSegmentsSentTotal),
 	}
 	forwardingLookupServer := &segreqgrpc.LookupServer{
 		Lookuper: segreq.ForwardingLookup{
@@ -262,23 +256,21 @@ func run(file string) error {
 				PathDB:    pathDB,
 			},
 		},
-		RevCache:        revCache,
-		Requests:        libmetrics.NewPromCounter(csmetrics.Requests.Requests),
-		SegmentsSent:    libmetrics.NewPromCounter(csmetrics.Requests.SegmentsSent),
-		RevocationsSent: libmetrics.NewPromCounter(csmetrics.Requests.RevocationsSent),
+		RevCache:     revCache,
+		Requests:     libmetrics.NewPromCounter(metrics.SegmentLookupRequestsTotal),
+		SegmentsSent: libmetrics.NewPromCounter(metrics.SegmentLookupSegmentsSentTotal),
 	}
 
 	// Always register a forwarding lookup for AS internal requests.
 	cppb.RegisterSegmentLookupServiceServer(tcpServer, forwardingLookupServer)
 	if topo.Core() {
 		cppb.RegisterSegmentLookupServiceServer(quicServer, authLookupServer)
-	} else {
-		cppb.RegisterSegmentLookupServiceServer(quicServer, forwardingLookupServer)
 	}
 
 	// Handle segment registration.
 	if topo.Core() {
 		cppb.RegisterSegmentRegistrationServiceServer(quicServer, &segreggrpc.RegistrationServer{
+			LocalIA: topo.IA(),
 			SegHandler: seghandler.Handler{
 				Verifier: &seghandler.DefaultVerifier{
 					Verifier: verifier,
@@ -288,7 +280,7 @@ func run(file string) error {
 					RevCache: revCache,
 				},
 			},
-			Registrations: libmetrics.NewPromCounter(csmetrics.Registrations.Registrations),
+			Registrations: libmetrics.NewPromCounter(metrics.SegmentRegistrationsTotal),
 		})
 
 	}
@@ -423,6 +415,7 @@ func run(file string) error {
 		Signer:          signer,
 		OneHopConn:      ohpConn,
 		Inspector:       inspector,
+		Metrics:         metrics,
 		MACGen:          macGen,
 		TopoProvider:    itopo.Provider(),
 		StaticInfo:      func() *beaconing.StaticInfoCfg { return staticInfo },

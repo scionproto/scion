@@ -32,7 +32,7 @@ type Router struct {
 // AS, an empty path is returned.
 func (r *Router) Route(ctx context.Context, dst addr.IA) (snet.Path, error) {
 	paths, err := r.AllRoutes(ctx, dst)
-	if err != nil {
+	if err != nil || len(paths) == 0 {
 		return nil, err
 	}
 	return paths[0], nil

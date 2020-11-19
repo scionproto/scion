@@ -18,7 +18,6 @@ go_library(
     deps = [
         "//go/cs/beacon:go_default_library",
         "//go/cs/ifstate:go_default_library",
-        "//go/cs/metrics:go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
@@ -45,7 +44,6 @@ go_test(
     srcs = [
         "extender_test.go",
         "handler_test.go",
-        "main_test.go",
         "originator_test.go",
         "propagator_test.go",
         "registrar_test.go",
@@ -57,7 +55,6 @@ go_test(
         "//go/cs/beacon:go_default_library",
         "//go/cs/beaconing/mock_beaconing:go_default_library",
         "//go/cs/ifstate:go_default_library",
-        "//go/cs/metrics:go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",

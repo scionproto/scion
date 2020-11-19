@@ -23,11 +23,13 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -51,17 +53,89 @@ func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
 // XXX(roosd): Currently, most counters are created in the packages. The will
 // eventually be moved here.
 type Metrics struct {
-	DiscoveryRequestsTotal *prometheus.CounterVec
+	BeaconingOriginatedTotal               *prometheus.CounterVec
+	BeaconingPropagatedTotal               *prometheus.CounterVec
+	BeaconingPropagatorInternalErrorsTotal *prometheus.CounterVec
+	BeaconingReceivedTotal                 *prometheus.CounterVec
+	BeaconingRegisteredTotal               *prometheus.CounterVec
+	BeaconingRegistrarInternalErrorsTotal  *prometheus.CounterVec
+	DiscoveryRequestsTotal                 *prometheus.CounterVec
+	SegmentLookupRequestsTotal             *prometheus.CounterVec
+	SegmentLookupSegmentsSentTotal         *prometheus.CounterVec
+	SegmentRegistrationsTotal              *prometheus.CounterVec
 }
 
 func NewMetrics() *Metrics {
 	return &Metrics{
-		DiscoveryRequestsTotal: prometheus.NewCounterVec(
+		BeaconingOriginatedTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "control_beaconing_originated_beacons_total",
+				Help: "Total number of beacons originated.",
+			},
+			[]string{"egress_interface", prom.LabelResult},
+		),
+		BeaconingPropagatedTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "control_beaconing_propagated_beacons_total",
+				Help: "Total number of beacons propagated.",
+			},
+			[]string{"start_isd_as", "ingress_interface", "egress_interface", prom.LabelResult},
+		),
+		BeaconingPropagatorInternalErrorsTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "control_beaconing_propagator_internal_errors_total",
+				Help: "Total number of internal errors in the beacon propagator.",
+			},
+			[]string{},
+		),
+		BeaconingReceivedTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "control_beaconing_received_beacons_total",
+				Help: "Total number of beacons received.",
+			},
+			[]string{"ingress_interface", prom.LabelNeighIA, prom.LabelResult},
+		),
+		BeaconingRegisteredTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "control_beaconing_registered_segments_total",
+				Help: "Total number of segments registered.",
+			},
+			[]string{"start_isd_as", "ingress_interface", "seg_type", prom.LabelResult},
+		),
+		BeaconingRegistrarInternalErrorsTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "control_beaconing_registrar_internal_errors_total",
+				Help: "Total number of internal errors in the beacon registrar.",
+			},
+			[]string{"seg_type"},
+		),
+		DiscoveryRequestsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "discovery_requests_total",
 				Help: "Total number of discovery requests served.",
 			},
 			discovery.Topology{}.RequestsLabels(),
+		),
+		SegmentLookupRequestsTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "control_segment_lookup_requests_total",
+				Help: "Total number of path segments requests received.",
+			},
+			[]string{"dst_isd", "seg_type", prom.LabelResult},
+		),
+		SegmentLookupSegmentsSentTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "control_segment_lookup_segments_sent_total",
+				Help: "Total number of path segments sent in the replies.",
+			},
+			[]string{"dst_isd", "seg_type"},
+		),
+		SegmentRegistrationsTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "control_segment_registry_segments_received_total",
+				Help: "Total number of path segments received through registrations.",
+			},
+			[]string{"src", "seg_type", prom.LabelResult},
 		),
 	}
 

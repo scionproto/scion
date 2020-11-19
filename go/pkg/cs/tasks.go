@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -52,6 +53,7 @@ type TasksConfig struct {
 	BeaconStore     Store
 	Signer          seg.Signer
 	Inspector       trust.Inspector
+	Metrics         *Metrics
 
 	MACGen       func() hash.Hash
 	TopoProvider topology.Provider
@@ -81,6 +83,9 @@ func (t *TasksConfig) Originator() *periodic.Runner {
 		Signer:       t.Signer,
 		Tick:         beaconing.NewTick(t.OriginationInterval),
 	}
+	if t.Metrics != nil {
+		s.Originated = metrics.NewPromCounter(t.Metrics.BeaconingOriginatedTotal)
+	}
 	return periodic.Start(s, 500*time.Millisecond, t.OriginationInterval)
 }
 
@@ -99,6 +104,10 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 		AllowIsdLoop: t.AllowIsdLoop,
 		Core:         topo.Core(),
 		Tick:         beaconing.NewTick(t.PropagationInterval),
+	}
+	if t.Metrics != nil {
+		p.Propagated = metrics.NewPromCounter(t.Metrics.BeaconingPropagatedTotal)
+		p.InternalErrors = metrics.NewPromCounter(t.Metrics.BeaconingPropagatorInternalErrorsTotal)
 	}
 	return periodic.Start(p, 500*time.Millisecond, t.PropagationInterval)
 }
@@ -136,6 +145,10 @@ func (t *TasksConfig) registrar(topo topology.Topology, segType seg.Type,
 		},
 		Tick: beaconing.NewTick(t.RegistrationInterval),
 	}
+	if t.Metrics != nil {
+		r.Registered = metrics.NewPromCounter(t.Metrics.BeaconingRegisteredTotal)
+		r.InternalErrors = metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal)
+	}
 	return periodic.Start(r, 500*time.Millisecond, t.RegistrationInterval)
 }
 
@@ -168,8 +181,8 @@ func StartTasks(cfg TasksConfig) (*Tasks, error) {
 	beaconCleaner := newBeaconCleaner(cfg.BeaconStore)
 	revCleaner := newRevocationCleaner(cfg.BeaconStore)
 
-	segCleaner := pathdb.NewCleaner(cfg.PathDB, "ps_segments")
-	segRevCleaner := revcache.NewCleaner(cfg.RevCache, "ps_revocation")
+	segCleaner := pathdb.NewCleaner(cfg.PathDB, "control_pathstorage_segments")
+	segRevCleaner := revcache.NewCleaner(cfg.RevCache, "control_pathstorage_revocation")
 	return &Tasks{
 		Originator: cfg.Originator(),
 		Propagator: cfg.Propagator(),
@@ -180,7 +193,7 @@ func StartTasks(cfg TasksConfig) (*Tasks, error) {
 					beaconCleaner.Run(ctx)
 					revCleaner.Run(ctx)
 				},
-				TaskName: "beaconstorage_cleaner",
+				TaskName: "control_beaconstorage_cleaner",
 			},
 			30*time.Second,
 			30*time.Second,
@@ -191,6 +204,7 @@ func StartTasks(cfg TasksConfig) (*Tasks, error) {
 					segCleaner.Run(ctx)
 					segRevCleaner.Run(ctx)
 				},
+				TaskName: "control_pathstorage_cleaner",
 			},
 			10*time.Second,
 			10*time.Second,
@@ -269,7 +283,7 @@ type expiredBeaconsDeleter interface {
 func newBeaconCleaner(s expiredBeaconsDeleter) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		return s.DeleteExpiredBeacons(ctx)
-	}, "bs_beacon")
+	}, "control_beaconstorage_beacon")
 }
 
 // expiredRevocationsDeleter deletes expired Revocations from the store.
@@ -282,5 +296,5 @@ type expiredRevocationsDeleter interface {
 func newRevocationCleaner(s expiredRevocationsDeleter) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		return s.DeleteExpiredRevocations(ctx)
-	}, "bs_revocation")
+	}, "control_beaconstorage_revocation")
 }

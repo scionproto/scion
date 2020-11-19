@@ -16,6 +16,7 @@ package cs
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"time"
 
@@ -36,6 +37,10 @@ func LoadTrustMaterial(configDir string, db trust.DB, logger log.Logger) error {
 	}
 	logger.Info("TRCs loaded", "files", loaded.Loaded)
 	for f, r := range loaded.Ignored {
+		if errors.Is(r, trust.ErrAlreadyExists) {
+			logger.Debug("Ignoring existing TRC", "file", f)
+			continue
+		}
 		logger.Info("Ignoring non-TRC", "file", f, "reason", r)
 	}
 	localCertsDir := filepath.Join(configDir, "crypto/as")
@@ -45,6 +50,10 @@ func LoadTrustMaterial(configDir string, db trust.DB, logger log.Logger) error {
 	}
 	logger.Info("Certificate chains loaded", "files", loaded.Loaded)
 	for f, r := range loaded.Ignored {
+		if errors.Is(r, trust.ErrAlreadyExists) {
+			logger.Debug("Ignoring existing certificate chain", "file", f)
+			continue
+		}
 		logger.Info("Ignoring non-certificate chain", "file", f, "reason", r)
 	}
 	return nil

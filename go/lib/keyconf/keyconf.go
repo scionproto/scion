@@ -73,7 +73,11 @@ func LoadMaster(path string) (Master, error) {
 	return m, nil
 }
 
-func (m *Master) String() string {
+func (m Master) MarshalJSON() ([]byte, error) {
+	return []byte(`{"key0":"redacted","key1":"redacted"}`), nil
+}
+
+func (m Master) String() string {
 	return fmt.Sprintf("Key0:%s Key1:%s",
 		//XXX(roosd): Uncomment for debugging.
 		//m.Key0, m.Key1

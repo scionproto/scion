@@ -35,8 +35,7 @@ import (
 
 // Pather errors.
 var (
-	ErrBadDst  = errors.New("bad destination AS")
-	ErrNoPaths = errors.New("no paths found")
+	ErrBadDst = errors.New("bad destination AS")
 )
 
 // Pather is used to construct paths from the path database. If necessary, paths
@@ -88,7 +87,7 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 		if fetchErr != nil {
 			return nil, fetchErr
 		}
-		return nil, ErrNoPaths
+		return nil, nil
 	}
 	return p.translatePaths(paths)
 }

@@ -17,18 +17,20 @@ package beaconing
 import (
 	"context"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/ifstate"
-	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 )
@@ -70,6 +72,9 @@ type Registrar struct {
 	Intfs    *ifstate.Interfaces
 	Type     seg.Type
 
+	Registered     metrics.Counter
+	InternalErrors metrics.Counter
+
 	// tick is mutable.
 	Tick     Tick
 	lastSucc time.Time
@@ -77,16 +82,15 @@ type Registrar struct {
 
 // Name returns the tasks name.
 func (r *Registrar) Name() string {
-	return "bs_beaconing_registrar"
+	return "control_beaconing_registrar"
 }
 
 // Run registers path segments for the specified type to path servers.
 func (r *Registrar) Run(ctx context.Context) {
 	r.Tick.now = time.Now()
 	if err := r.run(ctx); err != nil {
-		log.FromCtx(ctx).Error("Unable to register", "type", r.Type, "err", err)
+		log.FromCtx(ctx).Error("Unable to register", "seg_type", r.Type, "err", err)
 	}
-	metrics.Registrar.RuntimeWithType(r.Type.String()).Add(time.Since(r.Tick.now).Seconds())
 	r.Tick.updateLast()
 }
 
@@ -101,7 +105,8 @@ func (r *Registrar) run(ctx context.Context) error {
 	}
 	peers, nonActivePeers := sortedIntfs(r.Intfs, topology.Peer)
 	if len(nonActivePeers) > 0 {
-		logger.Debug("Ignore non-active peer interfaces", "type", r.Type, "intfs", nonActivePeers)
+		logger.Debug("Ignore non-active peer interfaces",
+			"seg_type", r.Type, "interfaces", nonActivePeers)
 	}
 	if r.Type != seg.TypeDown {
 		return r.registerLocal(ctx, segments, peers)
@@ -119,7 +124,7 @@ func (r *Registrar) registerRemote(ctx context.Context, segments <-chan beacon.B
 	for bOrErr := range segments {
 		if bOrErr.Err != nil {
 			logger.Error("Unable to get beacon", "err", bOrErr.Err)
-			metrics.Registrar.InternalErrorsWithType(r.Type.String()).Inc()
+			r.incrementInternalErrors()
 			continue
 		}
 		if !intfActive(r.Intfs, bOrErr.Beacon.InIfId) {
@@ -127,17 +132,18 @@ func (r *Registrar) registerRemote(ctx context.Context, segments <-chan beacon.B
 		}
 		err := r.Extender.Extend(ctx, bOrErr.Beacon.Segment, bOrErr.Beacon.InIfId, 0, peers)
 		if err != nil {
-			metrics.Registrar.InternalErrorsWithType(r.Type.String()).Inc()
 			logger.Error("Unable to terminate beacon", "beacon", bOrErr.Beacon, "err", err)
+			r.incrementInternalErrors()
 			continue
 		}
 		expected++
 		s := remoteRegistrar{
-			segType: r.Type,
-			rpc:     r.RPC,
-			pather:  r.Pather,
-			summary: s,
-			wg:      &wg,
+			registrar: r,
+			segType:   r.Type,
+			rpc:       r.RPC,
+			pather:    r.Pather,
+			summary:   s,
+			wg:        &wg,
 		}
 
 		// Avoid head-of-line blocking when sending message to slow servers.
@@ -163,7 +169,7 @@ func (r *Registrar) registerLocal(ctx context.Context, segments <-chan beacon.Be
 	for bOrErr := range segments {
 		if bOrErr.Err != nil {
 			logger.Error("Unable to get beacon", "err", bOrErr.Err)
-			metrics.Registrar.InternalErrorsWithType(r.Type.String()).Inc()
+			r.incrementInternalErrors()
 			continue
 		}
 		if !intfActive(r.Intfs, bOrErr.Beacon.InIfId) {
@@ -171,8 +177,8 @@ func (r *Registrar) registerLocal(ctx context.Context, segments <-chan beacon.Be
 		}
 		err := r.Extender.Extend(ctx, bOrErr.Beacon.Segment, bOrErr.Beacon.InIfId, 0, peers)
 		if err != nil {
-			metrics.Registrar.InternalErrorsWithType(r.Type.String()).Inc()
 			logger.Error("Unable to terminate beacon", "beacon", bOrErr.Beacon, "err", err)
+			r.incrementInternalErrors()
 			continue
 		}
 		toRegister = append(toRegister, &seghandler.SegWithHP{
@@ -185,10 +191,10 @@ func (r *Registrar) registerLocal(ctx context.Context, segments <-chan beacon.Be
 	}
 	stats, err := r.Store.StoreSegs(ctx, toRegister)
 	if err != nil {
-		metrics.Registrar.InternalErrorsWithType(r.Type.String()).Inc()
+		r.incrementInternalErrors()
 		return err
 	}
-	updateMetricsFromStat(stats, beacons, r.Type.String())
+	r.updateMetricsFromStat(stats, beacons)
 	r.lastSucc = r.Tick.now
 	r.logSummary(logger, summarizeStats(stats, beacons))
 	return nil
@@ -196,23 +202,58 @@ func (r *Registrar) registerLocal(ctx context.Context, segments <-chan beacon.Be
 
 func (r *Registrar) logSummary(logger log.Logger, s *summary) {
 	if r.Tick.passed() {
-		logger.Debug("Registered beacons", "type", r.Type, "count", s.count,
-			"startIAs", len(s.srcs))
+		logger.Debug("Registered beacons", "seg_type", r.Type, "count", s.count,
+			"start_isd_ases", len(s.srcs))
 		return
 	}
 	if s.count > 0 {
 		logger.Debug("Registered beacons after stale period",
-			"type", r.Type, "count", s.count, "startIAs", len(s.srcs))
+			"seg_type", r.Type, "count", s.count, "start_isd_ases", len(s.srcs))
 	}
+}
+
+// updateMetricsFromStat is used to update the metrics for local DB inserts.
+func (r *Registrar) updateMetricsFromStat(s seghandler.SegStats, b map[string]beacon.Beacon) {
+	for _, id := range s.InsertedSegs {
+		r.incrementMetrics(registrarLabels{
+			StartIA: b[id].Segment.FirstIA(),
+			Ingress: b[id].InIfId,
+			SegType: r.Type.String(),
+			Result:  "ok_new",
+		})
+	}
+	for _, id := range s.UpdatedSegs {
+		r.incrementMetrics(registrarLabels{
+			StartIA: b[id].Segment.FirstIA(),
+			Ingress: b[id].InIfId,
+			SegType: r.Type.String(),
+			Result:  "ok_updated",
+		})
+	}
+}
+
+func (r *Registrar) incrementInternalErrors() {
+	if r.InternalErrors == nil {
+		return
+	}
+	r.InternalErrors.With("seg_type", r.Type.String()).Add(1)
+}
+
+func (r *Registrar) incrementMetrics(labels registrarLabels) {
+	if r.Registered == nil {
+		return
+	}
+	r.Registered.With(labels.Expand()...).Add(1)
 }
 
 // remoteRegistrar registers one segment with the path server.
 type remoteRegistrar struct {
-	segType seg.Type
-	rpc     RPC
-	pather  Pather
-	summary *summary
-	wg      *sync.WaitGroup
+	registrar *Registrar
+	segType   seg.Type
+	rpc       RPC
+	pather    Pather
+	summary   *summary
+	wg        *sync.WaitGroup
 }
 
 // start extends the beacon and starts a go routine that registers the beacon
@@ -221,8 +262,8 @@ func (r *remoteRegistrar) start(ctx context.Context, bseg beacon.Beacon) {
 	logger := log.FromCtx(ctx)
 	addr, err := r.pather.GetPath(addr.SvcCS, bseg.Segment)
 	if err != nil {
-		metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
 		logger.Error("Unable to choose server", "err", err)
+		r.registrar.incrementInternalErrors()
 		return
 	}
 	r.startSendSegReg(ctx, bseg, seg.Meta{Type: r.segType, Segment: bseg.Segment}, addr)
@@ -237,43 +278,27 @@ func (r *remoteRegistrar) startSendSegReg(ctx context.Context, bseg beacon.Beaco
 	go func() {
 		defer log.HandlePanic()
 		defer r.wg.Done()
+
+		labels := registrarLabels{
+			StartIA: bseg.Segment.FirstIA(),
+			Ingress: bseg.InIfId,
+			SegType: r.segType.String(),
+		}
+
 		logger := log.FromCtx(ctx)
 		if err := r.rpc.RegisterSegment(ctx, reg, addr); err != nil {
-			logger.Error("Unable to register segment", "type", r.segType, "addr", addr, "err", err)
-			metrics.Registrar.InternalErrorsWithType(r.segType.String()).Inc()
+			logger.Error("Unable to register segment",
+				"seg_type", r.segType, "addr", addr, "err", err)
+			r.registrar.incrementMetrics(labels.WithResult(prom.ErrNetwork))
 			return
 		}
 		r.summary.AddSrc(bseg.Segment.FirstIA())
 		r.summary.Inc()
-		l := metrics.RegistrarLabels{
-			SegType: r.segType.String(),
-			StartIA: bseg.Segment.FirstIA(),
-			InIfID:  bseg.InIfId,
-			Result:  metrics.Success,
-		}
-		metrics.Registrar.Beacons(l).Inc()
-		logger.Debug("Successfully registered segment", "type", r.segType,
+
+		r.registrar.incrementMetrics(labels.WithResult(prom.Success))
+		logger.Debug("Successfully registered segment", "seg_type", r.segType,
 			"addr", addr, "seg", bseg.Segment)
 	}()
-}
-
-func updateMetricsFromStat(s seghandler.SegStats, b map[string]beacon.Beacon, segType string) {
-	for _, id := range s.InsertedSegs {
-		metrics.Registrar.Beacons(metrics.RegistrarLabels{
-			InIfID:  b[id].InIfId,
-			StartIA: b[id].Segment.FirstIA(),
-			Result:  metrics.OkNew,
-			SegType: segType,
-		}).Inc()
-	}
-	for _, id := range s.UpdatedSegs {
-		metrics.Registrar.Beacons(metrics.RegistrarLabels{
-			InIfID:  b[id].InIfId,
-			StartIA: b[id].Segment.FirstIA(),
-			Result:  metrics.OkUpdated,
-			SegType: segType,
-		}).Inc()
-	}
 }
 
 func summarizeStats(s seghandler.SegStats, b map[string]beacon.Beacon) *summary {
@@ -283,4 +308,25 @@ func summarizeStats(s seghandler.SegStats, b map[string]beacon.Beacon) *summary 
 		sum.Inc()
 	}
 	return sum
+}
+
+type registrarLabels struct {
+	StartIA addr.IA
+	Ingress common.IFIDType
+	SegType string
+	Result  string
+}
+
+func (l registrarLabels) Expand() []string {
+	return []string{
+		"start_isd_as", l.StartIA.String(),
+		"ingress_interface", strconv.Itoa(int(l.Ingress)),
+		"seg_type", l.SegType,
+		prom.LabelResult, l.Result,
+	}
+}
+
+func (l registrarLabels) WithResult(result string) registrarLabels {
+	l.Result = result
+	return l
 }

@@ -14,7 +14,6 @@ go_library(
     importpath = "github.com/scionproto/scion/go/cs/segreq",
     visibility = ["//visibility:public"],
     deps = [
-        "//go/cs/metrics:go_default_library",
         "//go/cs/segutil:go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",

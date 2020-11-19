@@ -149,6 +149,9 @@ func (r AddressRewriter) buildFullAddress(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
+	if p == nil {
+		return nil, serrors.New("no path found", "isd_as", s.IA)
+	}
 
 	ret.Path = p.Path()
 	ret.NextHop = p.UnderlayNextHop()

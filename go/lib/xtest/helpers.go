@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -192,6 +193,14 @@ func MustParseHexString(s string) []byte {
 		panic(err)
 	}
 	return decoded
+}
+
+// MustParseCIDR parses s and returns the corresponding net.IPNet object. It
+// panics if s is not a valid CIDR string.
+func MustParseCIDR(t *testing.T, s string) *net.IPNet {
+	_, network, err := net.ParseCIDR(s)
+	require.NoError(t, err)
+	return network
 }
 
 // AssertReadReturnsBetween will call t.Fatalf if the first read from the

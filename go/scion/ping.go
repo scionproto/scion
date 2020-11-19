@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/ping"
 )
@@ -42,6 +43,7 @@ func newPing(pather CommandPather) *cobra.Command {
 		interactive bool
 		interval    time.Duration
 		local       net.IP
+		logLevel    string
 		maxMTU      bool
 		noColor     bool
 		refresh     bool
@@ -49,6 +51,7 @@ func newPing(pather CommandPather) *cobra.Command {
 		sequence    string
 		size        uint
 		timeout     time.Duration
+		tracer      string
 	}
 
 	var cmd = &cobra.Command{
@@ -71,20 +74,35 @@ On other errors, ping will exit with code 2.
 			if err != nil {
 				return serrors.WrapStr("parsing remote", err)
 			}
+			if err := setupLog(flags.logLevel); err != nil {
+				return serrors.WrapStr("setting up logging", err)
+			}
+			closer, err := setupTracer("ping", flags.tracer)
+			if err != nil {
+				return serrors.WrapStr("setting up tracing", err)
+			}
+			defer closer()
+
 			cmd.SilenceUsage = true
 
-			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+			span, traceCtx := tracing.CtxWith(context.Background(), "run")
+			span.SetTag("dst.isd_as", remote.IA)
+			span.SetTag("dst.host", remote.Host.IP)
+			defer span.Finish()
+
+			ctx, cancelF := context.WithTimeout(traceCtx, time.Second)
 			defer cancelF()
 			sd, err := sciond.NewService(flags.sciond).Connect(ctx)
 			if err != nil {
 				return serrors.WrapStr("connecting to SCION Daemon", err)
 			}
 
-			info, err := app.QueryASInfo(context.Background(), sd)
+			info, err := app.QueryASInfo(traceCtx, sd)
 			if err != nil {
 				return err
 			}
-			path, err := app.ChoosePath(context.Background(), sd, remote.IA,
+			span.SetTag("src.isd_as", info.IA)
+			path, err := app.ChoosePath(traceCtx, sd, remote.IA,
 				flags.interactive, flags.refresh, flags.sequence,
 				app.WithDisableColor(flags.noColor))
 			if err != nil {
@@ -106,6 +124,7 @@ On other errors, ping will exit with code 2.
 				fmt.Printf("Resolved local address:\n  %s\n", localIP)
 			}
 			fmt.Printf("Using path:\n  %s\n\n", path)
+			span.SetTag("src.host", localIP)
 			local := &snet.UDPAddr{
 				IA:   info.IA,
 				Host: &net.UDPAddr{IP: localIP},
@@ -125,7 +144,7 @@ On other errors, ping will exit with code 2.
 			fmt.Printf("PING %s pld=%dB scion_pkt=%dB\n", remote, pldSize, pktSize)
 
 			start := time.Now()
-			ctx = app.WithSignal(context.Background(), os.Interrupt, syscall.SIGTERM)
+			ctx = app.WithSignal(traceCtx, os.Interrupt, syscall.SIGTERM)
 			count := flags.count
 			if count == 0 {
 				count = math.MaxUint16
@@ -187,6 +206,9 @@ the SCION path.`,
 		`choose the payload size such that the sent SCION packet including the SCION Header,
 SCMP echo header and payload are equal to the MTU of the path. This flag overrides the
 'payload_size' flag.`)
+	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", "Console logging level verbosity "+
+		"(debug|info|error)")
+	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
 	return cmd
 }
 

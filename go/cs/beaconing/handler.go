@@ -21,7 +21,6 @@ import (
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/ifstate"
-	csmetrics "github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -59,43 +58,45 @@ func (h Handler) HandleBeacon(ctx context.Context, b beacon.Beacon, peer *snet.U
 
 	intf := h.Interfaces.Get(b.InIfId)
 	if intf == nil {
-		err := serrors.New("received beacon on non-existent interface", "if_id", b.InIfId)
-		h.updateMetric(span, labels.WithResult(csmetrics.ErrNotClassified), err)
+		err := serrors.New("received beacon on non-existent interface",
+			"ingress_interface", b.InIfId)
+		h.updateMetric(span, labels.WithResult(prom.ErrNotClassified), err)
 		return err
 	}
 
 	upstream := intf.TopoInfo().IA
 	if span != nil {
-		span.SetTag("in_if_id", b.InIfId)
+		span.SetTag("ingress_interface", b.InIfId)
 		span.SetTag("upstream", upstream)
 	}
+	labels.Neighbor = upstream
 	logger := log.FromCtx(ctx).New("beacon", b, "upstream", upstream)
 	ctx = log.CtxWith(ctx, logger)
 
 	logger.Debug("Received beacon")
 	if err := h.Inserter.PreFilter(b); err != nil {
 		logger.Debug("Beacon pre-filtered", "err", err)
-		h.updateMetric(span, labels.WithResult(csmetrics.ErrPrefilter), err)
+		h.updateMetric(span, labels.WithResult("err_prefilter"), err)
 		return err
 	}
 	if err := h.validateASEntry(b, intf); err != nil {
 		logger.Info("Beacon validation failed", "err", err)
-		h.updateMetric(span, labels.WithResult(csmetrics.ErrVerify), err)
+		h.updateMetric(span, labels.WithResult(prom.ErrVerify), err)
 		return err
 	}
 	if err := h.verifySegment(ctx, b.Segment, peer); err != nil {
 		logger.Info("Beacon verification failed", "err", err)
-		h.updateMetric(span, labels.WithResult(csmetrics.ErrVerify), err)
+		h.updateMetric(span, labels.WithResult(prom.ErrVerify), err)
 		return serrors.WrapStr("verifying beacon", err)
 	}
 	stat, err := h.Inserter.InsertBeacon(ctx, b)
 	if err != nil {
 		logger.Debug("Failed to insert beacon", "err", err)
-		h.updateMetric(span, labels.WithResult(csmetrics.ErrDB), err)
+		h.updateMetric(span, labels.WithResult(prom.ErrDB), err)
 		return serrors.WrapStr("inserting beacon", err)
 
 	}
-	labels = labels.WithResult(csmetrics.GetResultValue(stat.Inserted, stat.Updated, stat.Filtered))
+	labels = labels.WithResult(resultValue(stat.Inserted, stat.Updated, stat.Filtered))
 	h.updateMetric(span, labels, err)
 	logger.Debug("Inserted beacon")
 	return nil
@@ -105,7 +106,7 @@ func (h Handler) validateASEntry(b beacon.Beacon, intf *ifstate.Interface) error
 	topoInfo := intf.TopoInfo()
 	if topoInfo.LinkType != topology.Parent && topoInfo.LinkType != topology.Core {
 		return serrors.New("beacon received on invalid link",
-			"ifid", b.InIfId, "linkType", topoInfo.LinkType)
+			"ingress_interface", b.InIfId, "link_type", topoInfo.LinkType)
 	}
 	asEntry := b.Segment.ASEntries[b.Segment.MaxIdx()]
 	if !asEntry.Local.Equal(topoInfo.IA) {
@@ -153,7 +154,7 @@ type handlerLabels struct {
 
 func (l handlerLabels) Expand() []string {
 	return []string{
-		"in_if_id", l.Ingress.String(),
+		"ingress_interface", l.Ingress.String(),
 		prom.LabelNeighIA, l.Neighbor.String(),
 		prom.LabelResult, l.Result,
 	}
@@ -162,4 +163,17 @@ func (l handlerLabels) Expand() []string {
 func (l handlerLabels) WithResult(result string) handlerLabels {
 	l.Result = result
 	return l
+}
+
+func resultValue(ins, upd, flt int) string {
+	switch {
+	case flt > 0:
+		return "ok_filtered"
+	case upd > 0:
+		return "ok_updated"
+	case ins > 0:
+		return "ok_new"
+	default:
+		return "ok_old"
+	}
 }

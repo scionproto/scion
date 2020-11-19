@@ -20,12 +20,20 @@ import (
 )
 
 // NewPromGauge wraps a prometheus gauge vector as a gauge.
-func NewPromGauge(cv *prometheus.GaugeVec) Gauge {
-	return kitprom.NewGauge(cv)
+// Returns nil, if gv is nil.
+func NewPromGauge(gv *prometheus.GaugeVec) Gauge {
+	if gv == nil {
+		return nil
+	}
+	return kitprom.NewGauge(gv)
 }
 
 // NewPromCounter wraps a prometheus counter vector as a counter.
+// Returns nil if cv is nil.
 func NewPromCounter(cv *prometheus.CounterVec) Counter {
+	if cv == nil {
+		return nil
+	}
 	return kitprom.NewCounter(cv)
 }
 

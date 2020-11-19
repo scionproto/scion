@@ -148,3 +148,45 @@ type Level struct {
 func (l Level) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	l.a.ServeHTTP(w, r)
 }
+
+// SafeNewLogger creates a new logger as a child of l only if l is not nil. If l is nil, then
+// nil is returned.
+func SafeNewLogger(l Logger, fields ...interface{}) Logger {
+	if l != nil {
+		return l.New(fields...)
+	}
+	return nil
+}
+
+// SafeDebug logs to l only if l is not nil.
+func SafeDebug(l Logger, msg string, fields ...interface{}) {
+	if l != nil {
+		if ll, ok := l.(*logger); ok {
+			ll.logger.Debug(msg, convertCtx(fields)...)
+			return
+		}
+		l.Debug(msg, fields...)
+	}
+}
+
+// SafeInfo logs to l only if l is not nil.
+func SafeInfo(l Logger, msg string, fields ...interface{}) {
+	if l != nil {
+		if ll, ok := l.(*logger); ok {
+			ll.logger.Info(msg, convertCtx(fields)...)
+			return
+		}
+		l.Info(msg, fields...)
+	}
+}
+
+// SafeError logs to l only if l is not nil.
+func SafeError(l Logger, msg string, fields ...interface{}) {
+	if l != nil {
+		if ll, ok := l.(*logger); ok {
+			ll.logger.Error(msg, convertCtx(fields)...)
+			return
+		}
+		l.Error(msg, fields...)
+	}
+}
