@@ -48,79 +48,83 @@ func SortPaths(paths []snet.Path) {
 	})
 }
 
-// ColorOption allows customizing the path coloring.
-type ColorOption func(*colorOptions)
+// ColorScheme allows customizing the path coloring.
+type ColorScheme struct {
+	Header *color.Color
+	Keys   *color.Color
+	Values *color.Color
+	Link   *color.Color
+	Intf   *color.Color
+	Good   *color.Color
+	Bad    *color.Color
+}
 
-// WithDisableColor sets wether coloring is disabled.
-func WithDisableColor(disable bool) ColorOption {
-	return func(opts *colorOptions) {
-		opts.disable = disable
+func DefaultColorScheme(disable bool) ColorScheme {
+	if disable {
+		noColor := color.New()
+		return ColorScheme{
+			Header: noColor,
+			Keys:   noColor,
+			Values: noColor,
+			Link:   noColor,
+			Intf:   noColor,
+			Good:   noColor,
+			Bad:    noColor,
+		}
+	}
+	return ColorScheme{
+		Header: color.New(color.FgHiBlack),
+		Keys:   color.New(color.FgHiCyan),
+		Values: color.New(),
+		Link:   color.New(color.FgHiMagenta),
+		Intf:   color.New(color.FgYellow),
+		Good:   color.New(color.FgGreen),
+		Bad:    color.New(color.FgRed),
 	}
 }
 
-type colorOptions struct {
-	disable bool
-	keys    *color.Color
-	values  *color.Color
-	link    *color.Color
-	intf    *color.Color
+func (cs ColorScheme) KeyValue(k, v string) string {
+	return fmt.Sprintf("%s: %s", cs.Keys.Sprintf(k), cs.Values.Sprintf(v))
 }
 
-func applyColorOptions(opts ...ColorOption) colorOptions {
-	o := colorOptions{
-		keys:   color.New(color.FgHiCyan),
-		values: color.New(),
-		link:   color.New(color.FgHiMagenta),
-		intf:   color.New(color.FgYellow),
+func (cs ColorScheme) KeyValues(kv ...string) []string {
+	if len(kv)%2 != 0 {
+		panic("KeyValues expects even number of parameters")
 	}
-	for _, opt := range opts {
-		opt(&o)
+	entries := make([]string, 0, len(kv)/2)
+	for i := 0; i < len(kv); i += 2 {
+		entries = append(entries, cs.KeyValue(kv[i], kv[i+1]))
 	}
-	return o
+	return entries
 }
 
-// ColorPath returns a colored path description.
-func ColorPath(path snet.Path, opts ...ColorOption) string {
-	o := applyColorOptions(opts...)
-	if o.disable {
-		return fmt.Sprint(path)
-	}
-	hops := coloredHops(path, o)
-	entries := []string{
-		fmt.Sprintf("%s: [%s]", o.keys.Sprint("Hops"), strings.Join(hops, o.link.Sprint(">"))),
-		fmt.Sprintf("%s: %s", o.keys.Sprint("MTU"), o.values.Sprint(path.Metadata().MTU)),
-		fmt.Sprintf("%s: %s", o.keys.Sprint("NextHop"), o.values.Sprint(path.UnderlayNextHop())),
-	}
-	return strings.Join(entries, " ")
-}
-
-func coloredHops(path snet.Path, opts colorOptions) []string {
+func (cs ColorScheme) Path(path snet.Path) string {
 	if path == nil {
-		return nil
+		return ""
 	}
 	intfs := path.Metadata().Interfaces
 	if len(intfs) == 0 {
-		return nil
+		return ""
 	}
 	var hops []string
 	intf := intfs[0]
-	hops = append(hops, opts.values.Sprintf("%s %s",
-		opts.values.Sprint(intf.IA),
-		opts.intf.Sprint(intf.ID),
+	hops = append(hops, cs.Values.Sprintf("%s %s",
+		cs.Values.Sprint(intf.IA),
+		cs.Intf.Sprint(intf.ID),
 	))
 	for i := 1; i < len(intfs)-1; i += 2 {
 		inIntf := intfs[i]
 		outIntf := intfs[i+1]
-		hops = append(hops, opts.values.Sprintf("%s %s %s",
-			opts.intf.Sprint(inIntf.ID),
-			opts.values.Sprint(inIntf.IA),
-			opts.intf.Sprint(outIntf.ID),
+		hops = append(hops, cs.Values.Sprintf("%s %s %s",
+			cs.Intf.Sprint(inIntf.ID),
+			cs.Values.Sprint(inIntf.IA),
+			cs.Intf.Sprint(outIntf.ID),
 		))
 	}
 	intf = intfs[len(intfs)-1]
-	hops = append(hops, opts.values.Sprintf("%s %s",
-		opts.intf.Sprint(intf.ID),
-		opts.values.Sprint(intf.IA),
+	hops = append(hops, cs.Values.Sprintf("%s %s",
+		cs.Intf.Sprint(intf.ID),
+		cs.Values.Sprint(intf.IA),
 	))
-	return hops
+	return fmt.Sprintf("[%s]", strings.Join(hops, cs.Link.Sprintf(">")))
 }
