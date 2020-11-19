@@ -17,6 +17,5 @@ go_library(
         "//go/lib/snet/addrutil:go_default_library",
         "//go/pkg/app:go_default_library",
         "//go/pkg/pathprobe:go_default_library",
-        "@com_github_fatih_color//:go_default_library",
     ],
 )
