@@ -4,22 +4,18 @@ load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
 gomock(
     name = "go_default_mock",
     out = "mock.go",
-    interfaces = [
-        "InterfaceStateSender",
-        "RevInserter",
-    ],
-    library = "//go/cs/ifstate:go_default_library",
-    package = "mock_ifstate",
+    interfaces = ["Logger"],
+    library = "//go/lib/log:go_default_library",
+    package = "mock_log",
 )
 
 go_library(
     name = "go_default_library",
     srcs = ["mock.go"],
-    importpath = "github.com/scionproto/scion/go/cs/ifstate/mock_ifstate",
+    importpath = "github.com/scionproto/scion/go/lib/log/mock_log",
     visibility = ["//visibility:public"],
     deps = [
-        "//go/cs/ifstate:go_default_library",
-        "//go/lib/ctrl/path_mgmt:go_default_library",
+        "//go/lib/log:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
     ],
 )

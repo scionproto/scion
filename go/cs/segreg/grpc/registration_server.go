@@ -23,9 +23,9 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
-	csmetrics "github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
@@ -40,6 +40,7 @@ var _ cppb.SegmentRegistrationServiceServer
 
 // RegistrationServer handles segment registration requests.
 type RegistrationServer struct {
+	LocalIA    addr.IA
 	SegHandler seghandler.Handler
 
 	// Requests aggregates all the incoming registration requests. If it is not
@@ -60,16 +61,17 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 	gPeer, ok := peer.FromContext(ctx)
 	if !ok {
 		err := serrors.New("peer must exist")
-		s.failMetric(span, labels.WithResult(csmetrics.ErrInternal), err)
+		s.failMetric(span, labels.WithResult(prom.ErrInternal), err)
 		return nil, err
 	}
 	peer, ok := gPeer.Addr.(*snet.UDPAddr)
 	if !ok {
 		err := serrors.New("peer must be *snet.UDPAddr", "actual", fmt.Sprintf("%T", gPeer))
 		logger.Debug("Wrong peer type", "err", err)
-		s.failMetric(span, labels.WithResult(csmetrics.ErrInternal), err)
+		s.failMetric(span, labels.WithResult(prom.ErrInternal), err)
 		return nil, err
 	}
+	labels.Source = peerToLabel(peer.IA, s.LocalIA)
 	labels.Type = classifySegs(logger, req.Segments)
 
 	var segs []*seg.Meta
@@ -77,7 +79,7 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 		for _, pb := range segments.Segments {
 			ps, err := seg.SegmentFromPB(pb)
 			if err != nil {
-				s.failMetric(span, labels.WithResult(csmetrics.ErrParse), err)
+				s.failMetric(span, labels.WithResult(prom.ErrParse), err)
 				return nil, status.Error(codes.InvalidArgument, "failed to parse segments")
 			}
 			segs = append(segs, &seg.Meta{
@@ -100,7 +102,7 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 		},
 	)
 	if err := res.Err(); err != nil {
-		s.failMetric(span, labels.WithResult(csmetrics.ErrProcess), err)
+		s.failMetric(span, labels.WithResult(prom.ErrProcess), err)
 		// TODO(roosd): Classify crypto/db error and return appropriate status code.
 		return nil, err
 	}
@@ -122,13 +124,13 @@ func (s *RegistrationServer) successMetric(span opentracing.Span, labels request
 	stats seghandler.Stats) {
 
 	if s.Registrations != nil {
-		s.Registrations.With(labels.WithResult(csmetrics.OkRegistrationNew).Expand()...).Add(
+		s.Registrations.With(labels.WithResult("ok_new").Expand()...).Add(
 			float64(stats.SegsInserted()))
-		s.Registrations.With(labels.WithResult(csmetrics.OkRegiststrationUpdated).Expand()...).Add(
+		s.Registrations.With(labels.WithResult("ok_updated").Expand()...).Add(
 			float64(stats.SegsUpdated()))
 	}
 	if span != nil {
-		tracing.ResultLabel(span, csmetrics.OkSuccess)
+		tracing.ResultLabel(span, prom.Success)
 		span.SetTag("segments_inserted", stats.SegsInserted())
 		span.SetTag("segments_updated", stats.SegsUpdated())
 	}
@@ -143,7 +145,7 @@ type requestLabels struct {
 func (l requestLabels) Expand() []string {
 	return []string{
 		"src", l.Source,
-		"type", l.Type,
+		"seg_type", l.Type,
 		prom.LabelResult, l.Result,
 	}
 }
@@ -173,4 +175,15 @@ func classifySegs(logger log.Logger,
 		return seg.Type(t).String()
 	}
 	return "unset"
+}
+
+func peerToLabel(peer, local addr.IA) string {
+	switch {
+	case peer.Equal(local):
+		return infra.PromSrcASLocal
+	case peer.I == local.I:
+		return infra.PromSrcISDLocal
+	default:
+		return infra.PromSrcISDRemote
+	}
 }

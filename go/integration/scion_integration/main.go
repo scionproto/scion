@@ -53,12 +53,19 @@ func realMain() int {
 	cmnArgs := []string{
 		"--timeout", "4s",
 		"--sciond", integration.SCIOND,
+		"--log.level", "debug",
 	}
 	if *integration.Docker {
 		cmnArgs = append(cmnArgs,
 			"--local", integration.SrcHostReplace,
+			"--tracing.agent", "jaeger:6831",
+		)
+	} else {
+		cmnArgs = append(cmnArgs,
+			"--tracing.agent", "localhost:6831",
 		)
 	}
+
 	if len(features) != 0 {
 		cmnArgs = append(cmnArgs, "--features", features)
 	}

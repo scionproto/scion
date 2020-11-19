@@ -19,7 +19,6 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
-	csmetrics "github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
@@ -47,9 +46,6 @@ type LookupServer struct {
 	// SegmentsSent aggregates the number of segments that were transmitted in
 	// response to a segment request.
 	SegmentsSent metrics.Counter
-	// RevocationsSent aggregates the number of revocations that were
-	// transmitted in response to a segment request.
-	RevocationsSent metrics.Counter
 }
 
 func (s LookupServer) Segments(ctx context.Context,
@@ -75,7 +71,7 @@ func (s LookupServer) Segments(ctx context.Context,
 		return nil, err
 	}
 
-	labels.Desc.SegType = csmetrics.DetermineReplyType(segs)
+	labels.Desc.SegType = determineReplyType(segs)
 	if span != nil {
 		span.SetTag("seg_type", labels.Desc.SegType)
 	}
@@ -108,9 +104,8 @@ func (s LookupServer) Segments(ctx context.Context,
 	}
 
 	logger.Debug("Replied with segments", "count", len(segs))
-	s.updateMetric(span, labels.WithResult(csmetrics.OkSuccess), nil)
+	s.updateMetric(span, labels.WithResult(prom.Success), nil)
 	s.incSent(s.SegmentsSent, labels.Desc, len(segs))
-	s.incSent(s.RevocationsSent, labels.Desc, len(revs))
 	return &cppb.SegmentsResponse{
 		Segments:                    m,
 		DeprecatedSignedRevocations: rawRevs,
@@ -158,13 +153,22 @@ func (l requestLabels) WithResult(result string) requestLabels {
 }
 
 type descLabels struct {
-	SegType seg.Type
+	SegType string
 	DstISD  addr.ISD
 }
 
 func (l descLabels) Expand() []string {
 	return []string{
-		"seg_type", l.SegType.String(),
+		"seg_type", l.SegType,
 		"dst_isd", l.DstISD.String(),
 	}
+}
+
+// determineReplyType determines which type of segments is in the reply. The
+// method assumes that segs only contains one type of segments.
+func determineReplyType(segs segfetcher.Segments) string {
+	if len(segs) > 0 {
+		return segs[0].Type.String()
+	}
+	return "none"
 }

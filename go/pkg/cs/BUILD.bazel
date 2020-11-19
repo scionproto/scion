@@ -27,8 +27,10 @@ go_library(
         "//go/lib/infra/modules/seghandler:go_default_library",
         "//go/lib/keyconf:go_default_library",
         "//go/lib/log:go_default_library",
+        "//go/lib/metrics:go_default_library",
         "//go/lib/pathdb:go_default_library",
         "//go/lib/periodic:go_default_library",
+        "//go/lib/prom:go_default_library",
         "//go/lib/revcache:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
@@ -45,5 +47,6 @@ go_library(
         "//go/pkg/trust/renewal:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus/promauto:go_default_library",
     ],
 )

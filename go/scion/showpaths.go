@@ -23,9 +23,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/app"
 	"github.com/scionproto/scion/go/pkg/showpaths"
 )
@@ -36,7 +36,9 @@ func newShowpaths(pather CommandPather) *cobra.Command {
 		cfg        showpaths.Config
 		expiration bool
 		json       bool
+		logLevel   string
 		noColor    bool
+		tracer     string
 	}
 
 	var cmd = &cobra.Command{
@@ -69,18 +71,22 @@ On other errors, showpaths will exit with code 2.
 			if err != nil {
 				return serrors.WrapStr("invalid destination ISD-AS", err)
 			}
+			if err := setupLog(flags.logLevel); err != nil {
+				return serrors.WrapStr("setting up logging", err)
+			}
+			closer, err := setupTracer("showpaths", flags.tracer)
+			if err != nil {
+				return serrors.WrapStr("setting up tracing", err)
+			}
+			defer closer()
 
-			// At this point it is reasonable to assume that the caller knows how to
-			// call the command. Silence the usage help output on error, because subsequent
-			// errors are likely not caused malformed CLI arguments.
-			// See https://github.com/spf13/cobra/issues/340
 			cmd.SilenceUsage = true
 
-			// FIXME(roosd): This practically turns of logging done in libraries. We
-			// should not have to do this.
-			log.Setup(log.Config{Console: log.ConsoleConfig{Level: "crit"}})
+			span, traceCtx := tracing.CtxWith(context.Background(), "run")
+			span.SetTag("dst.isd_as", dst)
+			defer span.Finish()
 
-			ctx, cancel := context.WithTimeout(context.Background(), flags.timeout)
+			ctx, cancel := context.WithTimeout(traceCtx, flags.timeout)
 			defer cancel()
 			res, err := showpaths.Run(ctx, dst, flags.cfg)
 			if err != nil {
@@ -119,6 +125,8 @@ On other errors, showpaths will exit with code 2.
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "disable colored output")
 	cmd.Flags().IPVarP(&flags.cfg.Local, "local", "l", nil,
 		"Optional local IP address to use for probing health checks")
-
+	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", "Console logging level verbosity "+
+		"(debug|info|error)")
+	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
 	return cmd
 }

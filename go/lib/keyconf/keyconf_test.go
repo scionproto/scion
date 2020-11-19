@@ -16,6 +16,7 @@ package keyconf
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,4 +33,29 @@ func TestLoadMaster(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, mstr0, m.Key0)
 	assert.Equal(t, mstr1, m.Key1)
+}
+
+func TestMasterRedacted(t *testing.T) {
+	m := Master{
+		Key0: []byte("super"),
+		Key1: []byte("secret"),
+	}
+	assert.Equal(t, "Key0:<redacted> Key1:<redacted>", m.String())
+	assert.Equal(t, "Key0:<redacted> Key1:<redacted>", (&m).String())
+
+	raw, err := json.Marshal(m)
+	require.NoError(t, err)
+	assert.Equal(t, `{"key0":"redacted","key1":"redacted"}`, string(raw))
+
+	raw, err = json.Marshal(&m)
+	require.NoError(t, err)
+	assert.Equal(t, `{"key0":"redacted","key1":"redacted"}`, string(raw))
+
+	raw, err = json.Marshal(struct {
+		Keys Master `json:"keys"`
+	}{
+		Keys: m,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, `{"keys":{"key0":"redacted","key1":"redacted"}}`, string(raw))
 }

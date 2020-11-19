@@ -75,7 +75,7 @@ func (s *DefaultExtender) Extend(ctx context.Context, pseg *seg.PathSegment,
 		return serrors.New("ingress must only be zero in first hop")
 	}
 	if ingress != 0 && firstHop {
-		return serrors.New("ingress must be zero in first hop", "ingress_id", ingress)
+		return serrors.New("ingress must be zero in first hop", "ingress_interface", ingress)
 	}
 	if ingress == 0 && egress == 0 {
 		return serrors.New("ingress and egress must not be both 0")
@@ -121,7 +121,8 @@ func (s *DefaultExtender) createPeerEntries(egress common.IFIDType, peers []comm
 	for _, peer := range peers {
 		peerEntry, err := s.createPeerEntry(peer, egress, ts, beta)
 		if err != nil {
-			log.Debug("Ignoring peer link upon error", "task", s.Task, "ifid", peer, "err", err)
+			log.Debug("Ignoring peer link upon error",
+				"task", s.Task, "peer_interface", peer, "err", err)
 			continue
 		}
 		peerEntries = append(peerEntries, peerEntry)
@@ -135,7 +136,7 @@ func (s *DefaultExtender) createHopEntry(ingress, egress common.IFIDType, ts tim
 	remoteInMTU, err := s.remoteMTU(ingress)
 	if err != nil {
 		return seg.HopEntry{}, serrors.WrapStr("checking remote ingress interface (mtu)", err,
-			"ifid", ingress)
+			"interfaces", ingress)
 	}
 	hopF := s.createHopF(uint16(ingress), uint16(egress), ts, beta)
 	return seg.HopEntry{
@@ -155,7 +156,7 @@ func (s *DefaultExtender) createPeerEntry(ingress, egress common.IFIDType, ts ti
 	remoteInIA, remoteInIfID, remoteInMTU, err := s.remoteInfo(ingress)
 	if err != nil {
 		return seg.PeerEntry{}, serrors.WrapStr("checking remote ingress interface", err,
-			"ifid", ingress)
+			"ingress_interface", ingress)
 	}
 	hopF := s.createHopF(uint16(ingress), uint16(egress), ts, beta)
 	return seg.PeerEntry{
@@ -210,10 +211,10 @@ func (s *DefaultExtender) remoteInfo(ifid common.IFIDType) (
 	}
 	topoInfo := intf.TopoInfo()
 	if topoInfo.RemoteIFID == 0 {
-		return 0, 0, 0, serrors.New("remote ifid is not set")
+		return 0, 0, 0, serrors.New("remote interface ID is not set")
 	}
 	if topoInfo.IA.IsWildcard() {
-		return 0, 0, 0, serrors.New("remote is wildcard", "isd_as", topoInfo.IA)
+		return 0, 0, 0, serrors.New("remote ISD-AS is wildcard", "isd_as", topoInfo.IA)
 	}
 	return topoInfo.IA.IAInt(), topoInfo.RemoteIFID, uint16(topoInfo.MTU), nil
 }

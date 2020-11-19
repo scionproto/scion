@@ -21,7 +21,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/cs/metrics"
 	"github.com/scionproto/scion/go/cs/segutil"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -96,7 +95,7 @@ func NewFetcher(cfg FetcherConfig) *segfetcher.Fetcher {
 			DstProvider:   d,
 			TimeoutFactor: 0.33,
 		},
-		Metrics: segfetcher.NewFetcherMetrics(metrics.PSNamespace),
+		Metrics: segfetcher.NewFetcherMetrics("control"),
 	}
 
 	d.router = newRouter(cfg, fetcher)
@@ -189,6 +188,9 @@ func (p *dstProvider) Dst(ctx context.Context, req segfetcher.Request) (net.Addr
 		paths, err := p.router.AllRoutes(ctx, dst)
 		if err != nil {
 			return nil, serrors.Wrap(segfetcher.ErrNotReachable, err)
+		}
+		if len(paths) == 0 {
+			return nil, segfetcher.ErrNotReachable
 		}
 		path = paths[rand.Intn(len(paths))]
 	default:

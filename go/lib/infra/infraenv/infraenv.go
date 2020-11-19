@@ -109,7 +109,7 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	log.Info("QUIC server conn initialized", "local_addr", server.LocalAddr())
 	log.Info("QUIC client conn initialized", "local_addr", client.LocalAddr())
 
-	tlsConfig, err := generateTLSConfig()
+	tlsConfig, err := GenerateTLSConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,8 @@ func (nc *NetworkConfig) QUICStack() (*QUICStack, error) {
 	}, nil
 }
 
-func generateTLSConfig() (*tls.Config, error) {
+// GenerateTLSConfig generates a self-signed certificate.
+func GenerateTLSConfig() (*tls.Config, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, err

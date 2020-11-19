@@ -83,6 +83,8 @@ func PeerToLabel(peer net.Addr, local addr.IA) string {
 		ia = v.IA
 	case *snet.UDPAddr:
 		ia = v.IA
+	case *net.TCPAddr:
+		return infra.PromSrcASLocal
 	default:
 		return infra.PromSrcUnknown
 	}

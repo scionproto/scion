@@ -16,6 +16,7 @@ package sciond
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"path/filepath"
@@ -61,6 +62,10 @@ func TrustEngine(cfgDir string, db trust.DB, dialer libgrpc.Dialer) (trust.Engin
 	}
 	log.Info("TRCs loaded", "files", loaded.Loaded)
 	for f, r := range loaded.Ignored {
+		if errors.Is(r, trust.ErrAlreadyExists) {
+			log.Debug("Ignoring existing TRC", "file", f)
+			continue
+		}
 		log.Info("Ignoring non-TRC", "file", f, "reason", r)
 	}
 	loaded, err = trust.LoadChains(context.Background(), certsDir, db)
@@ -70,6 +75,10 @@ func TrustEngine(cfgDir string, db trust.DB, dialer libgrpc.Dialer) (trust.Engin
 	}
 	log.Info("Certificate chains loaded", "files", loaded.Loaded)
 	for f, r := range loaded.Ignored {
+		if errors.Is(r, trust.ErrAlreadyExists) {
+			log.Debug("Ignoring existing certificate chain", "file", f)
+			continue
+		}
 		log.Info("Ignoring non-certificate chain", "file", f, "reason", r)
 	}
 	return trust.Engine{

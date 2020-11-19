@@ -64,18 +64,56 @@ type Gauge = metrics.Gauge
 // HTTP request latencies.
 type Histogram = metrics.Histogram
 
-type AddCounter interface {
-	Add(float64)
+// CounterAdd increases the passed in counter by the amount specified.
+// This is a no-op if c is nil.
+func CounterAdd(c Counter, delta float64) {
+	if c != nil {
+		c.Add(delta)
+	}
 }
 
-type noWither struct {
-	AddCounter
+// CounterInc increases the passed in counter by 1.
+// This is a no-op if c is nil.
+func CounterInc(c Counter) {
+	CounterAdd(c, 1)
 }
 
-func (noWither) With(...string) Counter {
-	panic("With not supported on plain counter")
+// CounterWith returns a Counter with the labels provided. Returns nil if c is nil.
+func CounterWith(c Counter, labelValues ...string) Counter {
+	if c == nil {
+		return nil
+	}
+	return c.With(labelValues...)
 }
 
-func NoWith(c AddCounter) Counter {
-	return noWither{AddCounter: c}
+// GaugeSet sets the passed in gauge to the value specified.
+// This is a no-op if g is nil.
+func GaugeSet(g Gauge, value float64) {
+	if g != nil {
+		g.Set(value)
+	}
+}
+
+// GaugeWith returns a Gauge with the labels provided. Returns nil if g is nil.
+func GaugeWith(g Gauge, labelValues ...string) Gauge {
+	if g == nil {
+		return nil
+	}
+	return g.With(labelValues...)
+}
+
+// HistogramObserve adds an observation to the histogram.
+// This is a no-op if h is nil.
+func HistogramObserve(h Histogram, value float64) {
+	if h != nil {
+		h.Observe(value)
+	}
+}
+
+// HistogramWith returns a Histogram with the labels provided. Returns nil if h is nil.
+func HistogramWith(h Histogram, labelValues ...string) Histogram {
+	if h == nil {
+		return nil
+	}
+	return h.With(labelValues...)
 }

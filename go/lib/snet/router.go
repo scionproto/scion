@@ -45,7 +45,7 @@ type BaseRouter struct {
 // the local AS to dst.
 func (r *BaseRouter) Route(ctx context.Context, dst addr.IA) (Path, error) {
 	paths, err := r.AllRoutes(ctx, dst)
-	if err != nil {
+	if err != nil || len(paths) == 0 {
 		return nil, err
 	}
 	return paths[0], nil

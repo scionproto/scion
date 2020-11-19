@@ -103,7 +103,7 @@ func (t *TCPDialer) Dial(ctx context.Context, dst net.Addr) (*grpc.ClientConn, e
 
 		r := manual.NewBuilderWithScheme("svc")
 		r.InitialState(resolver.State{Addresses: targets})
-		return grpc.DialContext(ctx, r.Scheme()+":///"+v.String(),
+		return grpc.DialContext(ctx, r.Scheme()+":///"+v.BaseString(),
 			grpc.WithInsecure(),
 			grpc.WithResolvers(r),
 			UnaryClientInterceptor(),
