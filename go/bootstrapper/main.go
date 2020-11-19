@@ -37,12 +37,12 @@ func realMain() int {
 		return v
 	}
 	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_, _ = fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 	cfg.InitDefaults()
 	if err := log.Setup(cfg.Logging); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_, _ = fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 	defer log.Flush()
@@ -54,11 +54,14 @@ func realMain() int {
 		return 1
 	}
 	itopo.Init(&itopo.Config{ID: "", Svc: proto.ServiceType_unset, Callbacks: itopo.Callbacks{}})
-	err := tryBootstrapping()
+	b, err := NewBootstrapper(&cfg)
 	if err != nil {
+		log.Error("Error creating bootstrapper", "err", err)
+		return 1
+	}
+	if err := b.tryBootstrapping(); err != nil {
 		log.Error("Bootstrapping failed", "err", err)
 		return 1
 	}
-
 	return 0
 }

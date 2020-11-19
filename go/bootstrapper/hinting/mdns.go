@@ -28,7 +28,7 @@ func NewMDNSHintGenerator(cfg *MDNSHintGeneratorConf, iface *net.Interface) *MDN
 	return &MDNSSDHintGenerator{cfg, iface}
 }
 
-func (g *MDNSSDHintGenerator) Generate(ipHintsChan chan net.IP) {
+func (g *MDNSSDHintGenerator) Generate(ipHintsChan chan<- net.IP) {
 	if !g.cfg.Enable {
 		return
 	}
@@ -45,7 +45,7 @@ func (g *MDNSSDHintGenerator) Generate(ipHintsChan chan net.IP) {
 	discoverEntries(resolver, entriesChan)
 }
 
-func handleEntries(entriesChan <-chan *zeroconf.ServiceEntry, ipHintsChan chan net.IP) {
+func handleEntries(entriesChan <-chan *zeroconf.ServiceEntry, ipHintsChan chan<- net.IP) {
 	for entry := range entriesChan {
 		for _, address := range entry.AddrIPv4 {
 			log.Info("mDNS hint", "IP", address.String())

@@ -35,7 +35,7 @@ func NewDNSSDHintGenerator(cfg *DNSHintGeneratorConf) *DNSSDHintGenerator {
 	return &DNSSDHintGenerator{cfg}
 }
 
-func (g *DNSSDHintGenerator) Generate(ipHintsChan chan net.IP) {
+func (g *DNSSDHintGenerator) Generate(ipHintsChan chan<- net.IP) {
 	for dnsServer := range dnsServersChan {
 		dnsServer.searchDomains = append(dnsServer.searchDomains, getDomainName())
 
@@ -73,7 +73,7 @@ func getDNSNAPTRQuery(resolver, domain string) string {
 	return query
 }
 
-func resolveDNS(resolver, query string, dnsRR uint16, ipHintsChan chan net.IP) {
+func resolveDNS(resolver, query string, dnsRR uint16, ipHintsChan chan<- net.IP) {
 	msg := new(dns.Msg)
 	msg.SetQuestion(query, dnsRR)
 	msg.RecursionDesired = true

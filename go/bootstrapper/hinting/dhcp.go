@@ -24,7 +24,7 @@ func NewDHCPHintGenerator(cfg *DHCPHintGeneratorConf, iface *net.Interface) *DHC
 	return &DHCPHintGenerator{cfg, iface}
 }
 
-func (g *DHCPHintGenerator) Generate(ipHintsChan chan net.IP) {
+func (g *DHCPHintGenerator) Generate(ipHintsChan chan<- net.IP) {
 	log.Info("DHCP Probing", "interface", g.iface.Name)
 	p, err := g.createDHCPRequest()
 	if err != nil {
@@ -74,7 +74,7 @@ func (g *DHCPHintGenerator) sendReceive(p *dhcpv4.DHCPv4) (*dhcpv4.DHCPv4, error
 	return ack, nil
 }
 
-func (g *DHCPHintGenerator) dispatchIPHints(ack *dhcpv4.DHCPv4, ipHintChan chan net.IP) {
+func (g *DHCPHintGenerator) dispatchIPHints(ack *dhcpv4.DHCPv4, ipHintChan chan<- net.IP) {
 	if !g.cfg.Enable {
 		return
 	}

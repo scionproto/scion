@@ -7,5 +7,5 @@ const (
 )
 
 type HintGenerator interface {
-	Generate(chan net.IP)
+	Generate(chan<- net.IP)
 }

@@ -19,11 +19,11 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"github.com/scionproto/scion/go/bootstrapper/config"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
-	url2 "net/url"
 	"os"
 	"path"
 	"time"
@@ -43,36 +43,43 @@ const (
 	hintsTimeout       = 10 * time.Second
 )
 
-var (
+type Bootstrapper struct {
+	cfg   *config.Config
+	iface *net.Interface
 	// ipHintsChan is used to inform the bootstrapper about discovered ip hints
-	ipHintsChan = make(chan net.IP)
-)
+	ipHintsChan chan net.IP
+}
 
-func tryBootstrapping() error {
+func NewBootstrapper(cfg *config.Config) (*Bootstrapper, error) {
 	log.Debug("Cfg", "", cfg)
 	iface, err := net.InterfaceByName(cfg.Interface)
 	if err != nil {
-		return common.NewBasicError("bootstrapper could not get interface", err)
+		return nil, common.NewBasicError("getting interface by name", err)
 	}
+	return &Bootstrapper{
+		cfg,
+		iface,
+		make(chan net.IP)}, nil
+}
+
+func (b *Bootstrapper) tryBootstrapping() error {
 	hintGenerators := []hinting.HintGenerator{
-		hinting.NewDHCPHintGenerator(&cfg.DHCP, iface),
+		hinting.NewDHCPHintGenerator(&cfg.DHCP, b.iface),
 		// XXX: DNSSD depends on DHCP, should this be better enforced?
 		hinting.NewDNSSDHintGenerator(&cfg.DNSSD),
-		hinting.NewMDNSHintGenerator(&cfg.MDNS, iface)}
-
+		hinting.NewMDNSHintGenerator(&cfg.MDNS, b.iface)}
 	for _, g := range hintGenerators {
 		go func(g hinting.HintGenerator) {
 			defer log.HandlePanic()
-			g.Generate(ipHintsChan)
+			g.Generate(b.ipHintsChan)
 		}(g)
 	}
-
 	hintsTimeout := time.After(hintsTimeout)
 	log.Info("Waiting for hints ...")
 OuterLoop:
 	for {
 		select {
-		case ipAddr := <-ipHintsChan:
+		case ipAddr := <-b.ipHintsChan:
 			serverAddr := &net.TCPAddr{IP: ipAddr, Port: int(hinting.DiscoveryPort)}
 			err := pullTopology(serverAddr)
 			if err != nil {
@@ -95,14 +102,20 @@ OuterLoop:
 }
 
 func pullTopology(addr *net.TCPAddr) error {
-	url := fmt.Sprintf("%s://%s:%d/%s", "http", addr.IP, addr.Port, baseURL+"/topology.json")
-	_, err := url2.Parse(url)
-	if err != nil {
-		return common.NewBasicError("Invalid url: ", err)
-	}
-	raw, err := fetchTopologyHTTP(url)
+	url := buildTopologyURL(addr.IP, addr.Port)
+	log.Info("Fetching topology from " + url)
+	r, err := fetchHTTP(url)
 	if err != nil {
 		return err
+	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			log.Error("Error closing the body of the topology response", "err", err)
+		}
+	}()
+	raw, err := ioutil.ReadAll(r)
+	if err != nil {
+		return common.NewBasicError("Unable to read from response body", err)
 	}
 	// Check that the topology is valid
 	_, err = topology.RWTopologyFromJSONBytes(raw)
@@ -117,52 +130,35 @@ func pullTopology(addr *net.TCPAddr) error {
 	return nil
 }
 
-func fetchTopologyHTTP(url string) (common.RawBytes, error) {
-	log.Info("Fetching topology from " + url)
-	ctx, cancelF := context.WithTimeout(context.Background(), httpRequestTimeout)
-	defer cancelF()
-	rep, err := ctxhttp.Get(ctx, nil, url)
-	if err != nil {
-		return nil, common.NewBasicError("HTTP request failed", err)
-	}
-	defer func() {
-		if err := rep.Body.Close(); err != nil {
-			log.Error("Error closing the body of the topology response", "err", err)
-		}
-	}()
-	if rep.StatusCode != http.StatusOK {
-		return nil, common.NewBasicError("Status not OK", nil, "status", rep.Status)
-	}
-	raw, err := ioutil.ReadAll(rep.Body)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to read body", err)
-	}
-	return raw, nil
+func buildTopologyURL(ip net.IP, port int) string {
+	urlPath := baseURL + "/topology.json"
+	return fmt.Sprintf("%s://%s:%d/%s", "http", ip, port, urlPath)
 }
 
 func pullTRCs(addr *net.TCPAddr) error {
-	url := fmt.Sprintf("%s://%s:%d/%s", "http", addr.IP, addr.Port, baseURL+"/trcs.tar.gz")
+	url := buildTRCsURL(addr.IP, addr.Port)
 	log.Info("Fetching TRCs", "url", url)
-	ctx, cancelF := context.WithTimeout(context.Background(), httpRequestTimeout)
-	defer cancelF()
-	rep, err := ctxhttp.Get(ctx, nil, url)
+	r, err := fetchHTTP(url)
 	if err != nil {
-		return common.NewBasicError("HTTP request failed", err)
+		return err
 	}
+	// Close response reader and handle errors
 	defer func() {
-		if err := rep.Body.Close(); err != nil {
+		if err := r.Close(); err != nil {
 			log.Error("Error closing the body of the TRCs response", "err", err)
 		}
 	}()
-	if rep.StatusCode != http.StatusOK {
-		return common.NewBasicError("Status not OK", nil, "status", rep.Status)
-	}
-
 	// Extract TRCs gzip tar archive
-	zr, err := gzip.NewReader(rep.Body)
+	zr, err := gzip.NewReader(r)
 	if err != nil {
 		return common.NewBasicError("Unable to read body as gzip", err)
 	}
+	// Close gunzip reader and handle errors
+	defer func() {
+		if err := zr.Close(); err != nil {
+			log.Error("Error closing gunzip reader", "err", err)
+		}
+	}()
 	tr := tar.NewReader(zr)
 	for {
 		hdr, err := tr.Next()
@@ -190,10 +186,28 @@ func pullTRCs(addr *net.TCPAddr) error {
 			return fmt.Errorf("TRCs archive must be composed of TRCs only, unknown type found: %c", hdr.Typeflag)
 		}
 	}
-	if err := zr.Close(); err != nil {
-		return common.NewBasicError("error closing gunzip reader", err)
-	}
 	return nil
+}
+
+func buildTRCsURL(ip net.IP, port int) string {
+	urlPath := baseURL + "/trcs.tar.gz"
+	return fmt.Sprintf("%s://%s:%d/%s", "http", ip, port, urlPath)
+}
+
+func fetchHTTP(url string) (io.ReadCloser, error) {
+	ctx, cancelF := context.WithTimeout(context.Background(), httpRequestTimeout)
+	defer cancelF()
+	res, err := ctxhttp.Get(ctx, nil, url)
+	if err != nil {
+		return nil, common.NewBasicError("HTTP request failed", err)
+	}
+	if res.StatusCode != http.StatusOK {
+		if err != res.Body.Close() {
+			log.Error("Error closing response body", "err", err)
+		}
+		return nil, common.NewBasicError("Status not OK", nil, "status", res.Status)
+	}
+	return res.Body, nil
 }
 
 func generateSDConfig(sdConf string) error {
