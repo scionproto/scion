@@ -70,6 +70,16 @@ func TestTrafficClassValidation(t *testing.T) {
 			Valid: false,
 		},
 		{
+			Name:  "protocol IPv4Cond",
+			Class: "protocol=tcp",
+			Valid: true,
+		},
+		{
+			Name:  "protocol IPv4Cond invalid",
+			Class: "protocol=FOO",
+			Valid: false,
+		},
+		{
 			Name:  "BOOL",
 			Class: "BOOL=true",
 			Valid: true,
@@ -192,6 +202,38 @@ func TestTrafficClassTree(t *testing.T) {
 				pktcls.NewCondIPv4(&pktcls.IPv4MatchDestination{Net: net})},
 		},
 		{
+			Name:  "srcport",
+			Class: "srcport=12345",
+			Tree: pktcls.NewCondPorts(&pktcls.PortMatchSource{
+				MinPort: 12345,
+				MaxPort: 12345,
+			}),
+		},
+		{
+			Name:  "dstport",
+			Class: "dstport=12345",
+			Tree: pktcls.NewCondPorts(&pktcls.PortMatchDestination{
+				MinPort: 12345,
+				MaxPort: 12345,
+			}),
+		},
+		{
+			Name:  "srcport range",
+			Class: "srcport=100-199",
+			Tree: pktcls.NewCondPorts(&pktcls.PortMatchSource{
+				MinPort: 100,
+				MaxPort: 199,
+			}),
+		},
+		{
+			Name:  "dstport range",
+			Class: "dstport=100-199",
+			Tree: pktcls.NewCondPorts(&pktcls.PortMatchDestination{
+				MinPort: 100,
+				MaxPort: 199,
+			}),
+		},
+		{
 			Name:  "ANY ALL NOT src dst dscp",
 			Class: "ANY(dscp=0x2,ALL(dst=12.12.12.0/26,dscp=0x2, NOT(src=12.12.12.0/26)))",
 			Tree: pktcls.CondAnyOf{
@@ -204,6 +246,16 @@ func TestTrafficClassTree(t *testing.T) {
 					)},
 				},
 			},
+		},
+		{
+			Name:  "protocol TCP",
+			Class: "protocol=TCP",
+			Tree:  pktcls.NewCondIPv4(&pktcls.IPv4MatchProtocol{Protocol: uint8(6)}),
+		},
+		{
+			Name:  "protocol udp",
+			Class: "protocol=udp",
+			Tree:  pktcls.NewCondIPv4(&pktcls.IPv4MatchProtocol{Protocol: uint8(17)}),
 		},
 	}
 

@@ -15,58 +15,79 @@ var _ = reflect.Copy
 var _ = strconv.Itoa
 
 var parserATN = []uint16{
-	3, 24715, 42794, 33075, 47597, 16764, 15335, 30598, 22884, 3, 22, 96, 4,
-	2, 9, 2, 4, 3, 9, 3, 4, 4, 9, 4, 4, 5, 9, 5, 4, 6, 9, 6, 4, 7, 9, 7, 4,
-	8, 9, 8, 4, 9, 9, 9, 4, 10, 9, 10, 4, 11, 9, 11, 4, 12, 9, 12, 4, 13, 9,
-	13, 3, 2, 3, 2, 3, 2, 3, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 3, 4, 3, 4, 3,
-	4, 3, 5, 3, 5, 3, 5, 3, 5, 3, 6, 3, 6, 3, 6, 3, 7, 3, 7, 3, 7, 3, 7, 3,
-	7, 7, 7, 51, 10, 7, 12, 7, 14, 7, 54, 11, 7, 3, 7, 3, 7, 3, 8, 3, 8, 3,
-	8, 3, 8, 3, 8, 7, 8, 63, 10, 8, 12, 8, 14, 8, 66, 11, 8, 3, 8, 3, 8, 3,
-	9, 3, 9, 3, 9, 3, 9, 3, 9, 3, 10, 3, 10, 3, 10, 3, 10, 3, 11, 3, 11, 3,
-	11, 3, 11, 5, 11, 83, 10, 11, 3, 12, 3, 12, 3, 12, 3, 12, 3, 12, 3, 12,
-	5, 12, 91, 10, 12, 3, 13, 3, 13, 3, 13, 3, 13, 2, 2, 14, 2, 4, 6, 8, 10,
-	12, 14, 16, 18, 20, 22, 24, 2, 4, 3, 2, 12, 13, 3, 2, 9, 10, 2, 93, 2,
-	26, 3, 2, 2, 2, 4, 30, 3, 2, 2, 2, 6, 34, 3, 2, 2, 2, 8, 38, 3, 2, 2, 2,
-	10, 42, 3, 2, 2, 2, 12, 45, 3, 2, 2, 2, 14, 57, 3, 2, 2, 2, 16, 69, 3,
-	2, 2, 2, 18, 74, 3, 2, 2, 2, 20, 82, 3, 2, 2, 2, 22, 90, 3, 2, 2, 2, 24,
-	92, 3, 2, 2, 2, 26, 27, 7, 19, 2, 2, 27, 28, 7, 3, 2, 2, 28, 29, 7, 14,
-	2, 2, 29, 3, 3, 2, 2, 2, 30, 31, 7, 20, 2, 2, 31, 32, 7, 3, 2, 2, 32, 33,
-	7, 14, 2, 2, 33, 5, 3, 2, 2, 2, 34, 35, 7, 21, 2, 2, 35, 36, 7, 4, 2, 2,
-	36, 37, 9, 2, 2, 2, 37, 7, 3, 2, 2, 2, 38, 39, 7, 22, 2, 2, 39, 40, 7,
-	4, 2, 2, 40, 41, 9, 2, 2, 2, 41, 9, 3, 2, 2, 2, 42, 43, 7, 5, 2, 2, 43,
-	44, 7, 12, 2, 2, 44, 11, 3, 2, 2, 2, 45, 46, 7, 15, 2, 2, 46, 47, 7, 6,
-	2, 2, 47, 52, 5, 22, 12, 2, 48, 49, 7, 7, 2, 2, 49, 51, 5, 22, 12, 2, 50,
-	48, 3, 2, 2, 2, 51, 54, 3, 2, 2, 2, 52, 50, 3, 2, 2, 2, 52, 53, 3, 2, 2,
-	2, 53, 55, 3, 2, 2, 2, 54, 52, 3, 2, 2, 2, 55, 56, 7, 8, 2, 2, 56, 13,
-	3, 2, 2, 2, 57, 58, 7, 16, 2, 2, 58, 59, 7, 6, 2, 2, 59, 64, 5, 22, 12,
-	2, 60, 61, 7, 7, 2, 2, 61, 63, 5, 22, 12, 2, 62, 60, 3, 2, 2, 2, 63, 66,
-	3, 2, 2, 2, 64, 62, 3, 2, 2, 2, 64, 65, 3, 2, 2, 2, 65, 67, 3, 2, 2, 2,
-	66, 64, 3, 2, 2, 2, 67, 68, 7, 8, 2, 2, 68, 15, 3, 2, 2, 2, 69, 70, 7,
-	17, 2, 2, 70, 71, 7, 6, 2, 2, 71, 72, 5, 22, 12, 2, 72, 73, 7, 8, 2, 2,
-	73, 17, 3, 2, 2, 2, 74, 75, 7, 18, 2, 2, 75, 76, 7, 3, 2, 2, 76, 77, 9,
-	3, 2, 2, 77, 19, 3, 2, 2, 2, 78, 83, 5, 2, 2, 2, 79, 83, 5, 4, 3, 2, 80,
-	83, 5, 6, 4, 2, 81, 83, 5, 8, 5, 2, 82, 78, 3, 2, 2, 2, 82, 79, 3, 2, 2,
-	2, 82, 80, 3, 2, 2, 2, 82, 81, 3, 2, 2, 2, 83, 21, 3, 2, 2, 2, 84, 91,
-	5, 14, 8, 2, 85, 91, 5, 12, 7, 2, 86, 91, 5, 16, 9, 2, 87, 91, 5, 20, 11,
-	2, 88, 91, 5, 10, 6, 2, 89, 91, 5, 18, 10, 2, 90, 84, 3, 2, 2, 2, 90, 85,
-	3, 2, 2, 2, 90, 86, 3, 2, 2, 2, 90, 87, 3, 2, 2, 2, 90, 88, 3, 2, 2, 2,
-	90, 89, 3, 2, 2, 2, 91, 23, 3, 2, 2, 2, 92, 93, 5, 22, 12, 2, 93, 94, 7,
-	2, 2, 3, 94, 25, 3, 2, 2, 2, 6, 52, 64, 82, 90,
+	3, 24715, 42794, 33075, 47597, 16764, 15335, 30598, 22884, 3, 27, 140,
+	4, 2, 9, 2, 4, 3, 9, 3, 4, 4, 9, 4, 4, 5, 9, 5, 4, 6, 9, 6, 4, 7, 9, 7,
+	4, 8, 9, 8, 4, 9, 9, 9, 4, 10, 9, 10, 4, 11, 9, 11, 4, 12, 9, 12, 4, 13,
+	9, 13, 4, 14, 9, 14, 4, 15, 9, 15, 4, 16, 9, 16, 4, 17, 9, 17, 4, 18, 9,
+	18, 4, 19, 9, 19, 3, 2, 3, 2, 3, 2, 3, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4,
+	3, 4, 3, 4, 3, 4, 3, 5, 3, 5, 3, 5, 3, 5, 3, 6, 3, 6, 3, 6, 3, 6, 3, 7,
+	3, 7, 3, 7, 3, 7, 3, 8, 3, 8, 3, 8, 3, 8, 3, 8, 3, 8, 3, 9, 3, 9, 3, 9,
+	3, 9, 3, 10, 3, 10, 3, 10, 3, 10, 3, 10, 3, 10, 3, 11, 3, 11, 3, 11, 3,
+	12, 3, 12, 3, 12, 3, 12, 3, 12, 7, 12, 87, 10, 12, 12, 12, 14, 12, 90,
+	11, 12, 3, 12, 3, 12, 3, 13, 3, 13, 3, 13, 3, 13, 3, 13, 7, 13, 99, 10,
+	13, 12, 13, 14, 13, 102, 11, 13, 3, 13, 3, 13, 3, 14, 3, 14, 3, 14, 3,
+	14, 3, 14, 3, 15, 3, 15, 3, 15, 3, 15, 3, 16, 3, 16, 3, 16, 3, 16, 3, 16,
+	5, 16, 120, 10, 16, 3, 17, 3, 17, 3, 17, 3, 17, 5, 17, 126, 10, 17, 3,
+	18, 3, 18, 3, 18, 3, 18, 3, 18, 3, 18, 3, 18, 5, 18, 135, 10, 18, 3, 19,
+	3, 19, 3, 19, 3, 19, 2, 2, 20, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22,
+	24, 26, 28, 30, 32, 34, 36, 2, 4, 3, 2, 13, 14, 3, 2, 10, 11, 2, 136, 2,
+	38, 3, 2, 2, 2, 4, 42, 3, 2, 2, 2, 6, 46, 3, 2, 2, 2, 8, 50, 3, 2, 2, 2,
+	10, 54, 3, 2, 2, 2, 12, 58, 3, 2, 2, 2, 14, 62, 3, 2, 2, 2, 16, 68, 3,
+	2, 2, 2, 18, 72, 3, 2, 2, 2, 20, 78, 3, 2, 2, 2, 22, 81, 3, 2, 2, 2, 24,
+	93, 3, 2, 2, 2, 26, 105, 3, 2, 2, 2, 28, 110, 3, 2, 2, 2, 30, 119, 3, 2,
+	2, 2, 32, 125, 3, 2, 2, 2, 34, 134, 3, 2, 2, 2, 36, 136, 3, 2, 2, 2, 38,
+	39, 7, 20, 2, 2, 39, 40, 7, 3, 2, 2, 40, 41, 7, 15, 2, 2, 41, 3, 3, 2,
+	2, 2, 42, 43, 7, 21, 2, 2, 43, 44, 7, 3, 2, 2, 44, 45, 7, 15, 2, 2, 45,
+	5, 3, 2, 2, 2, 46, 47, 7, 22, 2, 2, 47, 48, 7, 4, 2, 2, 48, 49, 9, 2, 2,
+	2, 49, 7, 3, 2, 2, 2, 50, 51, 7, 23, 2, 2, 51, 52, 7, 4, 2, 2, 52, 53,
+	9, 2, 2, 2, 53, 9, 3, 2, 2, 2, 54, 55, 7, 24, 2, 2, 55, 56, 7, 3, 2, 2,
+	56, 57, 7, 27, 2, 2, 57, 11, 3, 2, 2, 2, 58, 59, 7, 25, 2, 2, 59, 60, 7,
+	3, 2, 2, 60, 61, 7, 13, 2, 2, 61, 13, 3, 2, 2, 2, 62, 63, 7, 25, 2, 2,
+	63, 64, 7, 3, 2, 2, 64, 65, 7, 13, 2, 2, 65, 66, 7, 5, 2, 2, 66, 67, 7,
+	13, 2, 2, 67, 15, 3, 2, 2, 2, 68, 69, 7, 26, 2, 2, 69, 70, 7, 3, 2, 2,
+	70, 71, 7, 13, 2, 2, 71, 17, 3, 2, 2, 2, 72, 73, 7, 26, 2, 2, 73, 74, 7,
+	3, 2, 2, 74, 75, 7, 13, 2, 2, 75, 76, 7, 5, 2, 2, 76, 77, 7, 13, 2, 2,
+	77, 19, 3, 2, 2, 2, 78, 79, 7, 6, 2, 2, 79, 80, 7, 13, 2, 2, 80, 21, 3,
+	2, 2, 2, 81, 82, 7, 16, 2, 2, 82, 83, 7, 7, 2, 2, 83, 88, 5, 34, 18, 2,
+	84, 85, 7, 8, 2, 2, 85, 87, 5, 34, 18, 2, 86, 84, 3, 2, 2, 2, 87, 90, 3,
+	2, 2, 2, 88, 86, 3, 2, 2, 2, 88, 89, 3, 2, 2, 2, 89, 91, 3, 2, 2, 2, 90,
+	88, 3, 2, 2, 2, 91, 92, 7, 9, 2, 2, 92, 23, 3, 2, 2, 2, 93, 94, 7, 17,
+	2, 2, 94, 95, 7, 7, 2, 2, 95, 100, 5, 34, 18, 2, 96, 97, 7, 8, 2, 2, 97,
+	99, 5, 34, 18, 2, 98, 96, 3, 2, 2, 2, 99, 102, 3, 2, 2, 2, 100, 98, 3,
+	2, 2, 2, 100, 101, 3, 2, 2, 2, 101, 103, 3, 2, 2, 2, 102, 100, 3, 2, 2,
+	2, 103, 104, 7, 9, 2, 2, 104, 25, 3, 2, 2, 2, 105, 106, 7, 18, 2, 2, 106,
+	107, 7, 7, 2, 2, 107, 108, 5, 34, 18, 2, 108, 109, 7, 9, 2, 2, 109, 27,
+	3, 2, 2, 2, 110, 111, 7, 19, 2, 2, 111, 112, 7, 3, 2, 2, 112, 113, 9, 3,
+	2, 2, 113, 29, 3, 2, 2, 2, 114, 120, 5, 2, 2, 2, 115, 120, 5, 4, 3, 2,
+	116, 120, 5, 6, 4, 2, 117, 120, 5, 8, 5, 2, 118, 120, 5, 10, 6, 2, 119,
+	114, 3, 2, 2, 2, 119, 115, 3, 2, 2, 2, 119, 116, 3, 2, 2, 2, 119, 117,
+	3, 2, 2, 2, 119, 118, 3, 2, 2, 2, 120, 31, 3, 2, 2, 2, 121, 126, 5, 12,
+	7, 2, 122, 126, 5, 14, 8, 2, 123, 126, 5, 16, 9, 2, 124, 126, 5, 18, 10,
+	2, 125, 121, 3, 2, 2, 2, 125, 122, 3, 2, 2, 2, 125, 123, 3, 2, 2, 2, 125,
+	124, 3, 2, 2, 2, 126, 33, 3, 2, 2, 2, 127, 135, 5, 24, 13, 2, 128, 135,
+	5, 22, 12, 2, 129, 135, 5, 26, 14, 2, 130, 135, 5, 30, 16, 2, 131, 135,
+	5, 32, 17, 2, 132, 135, 5, 20, 11, 2, 133, 135, 5, 28, 15, 2, 134, 127,
+	3, 2, 2, 2, 134, 128, 3, 2, 2, 2, 134, 129, 3, 2, 2, 2, 134, 130, 3, 2,
+	2, 2, 134, 131, 3, 2, 2, 2, 134, 132, 3, 2, 2, 2, 134, 133, 3, 2, 2, 2,
+	135, 35, 3, 2, 2, 2, 136, 137, 5, 34, 18, 2, 137, 138, 7, 2, 2, 3, 138,
+	37, 3, 2, 2, 2, 7, 88, 100, 119, 125, 134,
 }
 var deserializer = antlr.NewATNDeserializer(nil)
 var deserializedATN = deserializer.DeserializeFromUInt16(parserATN)
 
 var literalNames = []string{
-	"", "'='", "'=0x'", "'cls='", "'('", "','", "')'", "'true'", "'false'",
+	"", "'='", "'=0x'", "'-'", "'cls='", "'('", "','", "')'", "'true'", "'false'",
 }
 var symbolicNames = []string{
-	"", "", "", "", "", "", "", "", "", "WHITESPACE", "DIGITS", "HEX_DIGITS",
-	"NET", "ANY", "ALL", "NOT", "BOOL", "SRC", "DST", "DSCP", "TOS",
+	"", "", "", "", "", "", "", "", "", "", "WHITESPACE", "DIGITS", "HEX_DIGITS",
+	"NET", "ANY", "ALL", "NOT", "BOOL", "SRC", "DST", "DSCP", "TOS", "PROTOCOL",
+	"SRCPORT", "DSTPORT", "STRING",
 }
 
 var ruleNames = []string{
-	"matchSrc", "matchDst", "matchDSCP", "matchTOS", "condCls", "condAny",
-	"condAll", "condNot", "condBool", "condIPv4", "cond", "trafficClass",
+	"matchSrc", "matchDst", "matchDSCP", "matchTOS", "matchProtocol", "matchSrcPort",
+	"matchSrcPortRange", "matchDstPort", "matchDstPortRange", "condCls", "condAny",
+	"condAll", "condNot", "condBool", "condIPv4", "condPort", "cond", "trafficClass",
 }
 var decisionToDFA = make([]*antlr.DFA, len(deserializedATN.DecisionToState))
 
@@ -105,34 +126,45 @@ const (
 	TrafficClassParserT__5       = 6
 	TrafficClassParserT__6       = 7
 	TrafficClassParserT__7       = 8
-	TrafficClassParserWHITESPACE = 9
-	TrafficClassParserDIGITS     = 10
-	TrafficClassParserHEX_DIGITS = 11
-	TrafficClassParserNET        = 12
-	TrafficClassParserANY        = 13
-	TrafficClassParserALL        = 14
-	TrafficClassParserNOT        = 15
-	TrafficClassParserBOOL       = 16
-	TrafficClassParserSRC        = 17
-	TrafficClassParserDST        = 18
-	TrafficClassParserDSCP       = 19
-	TrafficClassParserTOS        = 20
+	TrafficClassParserT__8       = 9
+	TrafficClassParserWHITESPACE = 10
+	TrafficClassParserDIGITS     = 11
+	TrafficClassParserHEX_DIGITS = 12
+	TrafficClassParserNET        = 13
+	TrafficClassParserANY        = 14
+	TrafficClassParserALL        = 15
+	TrafficClassParserNOT        = 16
+	TrafficClassParserBOOL       = 17
+	TrafficClassParserSRC        = 18
+	TrafficClassParserDST        = 19
+	TrafficClassParserDSCP       = 20
+	TrafficClassParserTOS        = 21
+	TrafficClassParserPROTOCOL   = 22
+	TrafficClassParserSRCPORT    = 23
+	TrafficClassParserDSTPORT    = 24
+	TrafficClassParserSTRING     = 25
 )
 
 // TrafficClassParser rules.
 const (
-	TrafficClassParserRULE_matchSrc     = 0
-	TrafficClassParserRULE_matchDst     = 1
-	TrafficClassParserRULE_matchDSCP    = 2
-	TrafficClassParserRULE_matchTOS     = 3
-	TrafficClassParserRULE_condCls      = 4
-	TrafficClassParserRULE_condAny      = 5
-	TrafficClassParserRULE_condAll      = 6
-	TrafficClassParserRULE_condNot      = 7
-	TrafficClassParserRULE_condBool     = 8
-	TrafficClassParserRULE_condIPv4     = 9
-	TrafficClassParserRULE_cond         = 10
-	TrafficClassParserRULE_trafficClass = 11
+	TrafficClassParserRULE_matchSrc          = 0
+	TrafficClassParserRULE_matchDst          = 1
+	TrafficClassParserRULE_matchDSCP         = 2
+	TrafficClassParserRULE_matchTOS          = 3
+	TrafficClassParserRULE_matchProtocol     = 4
+	TrafficClassParserRULE_matchSrcPort      = 5
+	TrafficClassParserRULE_matchSrcPortRange = 6
+	TrafficClassParserRULE_matchDstPort      = 7
+	TrafficClassParserRULE_matchDstPortRange = 8
+	TrafficClassParserRULE_condCls           = 9
+	TrafficClassParserRULE_condAny           = 10
+	TrafficClassParserRULE_condAll           = 11
+	TrafficClassParserRULE_condNot           = 12
+	TrafficClassParserRULE_condBool          = 13
+	TrafficClassParserRULE_condIPv4          = 14
+	TrafficClassParserRULE_condPort          = 15
+	TrafficClassParserRULE_cond              = 16
+	TrafficClassParserRULE_trafficClass      = 17
 )
 
 // IMatchSrcContext is an interface to support dynamic dispatch.
@@ -223,15 +255,15 @@ func (p *TrafficClassParser) MatchSrc() (localctx IMatchSrcContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(24)
+		p.SetState(36)
 		p.Match(TrafficClassParserSRC)
 	}
 	{
-		p.SetState(25)
+		p.SetState(37)
 		p.Match(TrafficClassParserT__0)
 	}
 	{
-		p.SetState(26)
+		p.SetState(38)
 		p.Match(TrafficClassParserNET)
 	}
 
@@ -326,15 +358,15 @@ func (p *TrafficClassParser) MatchDst() (localctx IMatchDstContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(28)
+		p.SetState(40)
 		p.Match(TrafficClassParserDST)
 	}
 	{
-		p.SetState(29)
+		p.SetState(41)
 		p.Match(TrafficClassParserT__0)
 	}
 	{
-		p.SetState(30)
+		p.SetState(42)
 		p.Match(TrafficClassParserNET)
 	}
 
@@ -434,15 +466,15 @@ func (p *TrafficClassParser) MatchDSCP() (localctx IMatchDSCPContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(32)
+		p.SetState(44)
 		p.Match(TrafficClassParserDSCP)
 	}
 	{
-		p.SetState(33)
+		p.SetState(45)
 		p.Match(TrafficClassParserT__1)
 	}
 	{
-		p.SetState(34)
+		p.SetState(46)
 		_la = p.GetTokenStream().LA(1)
 
 		if !(_la == TrafficClassParserDIGITS || _la == TrafficClassParserHEX_DIGITS) {
@@ -549,15 +581,15 @@ func (p *TrafficClassParser) MatchTOS() (localctx IMatchTOSContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(36)
+		p.SetState(48)
 		p.Match(TrafficClassParserTOS)
 	}
 	{
-		p.SetState(37)
+		p.SetState(49)
 		p.Match(TrafficClassParserT__1)
 	}
 	{
-		p.SetState(38)
+		p.SetState(50)
 		_la = p.GetTokenStream().LA(1)
 
 		if !(_la == TrafficClassParserDIGITS || _la == TrafficClassParserHEX_DIGITS) {
@@ -566,6 +598,545 @@ func (p *TrafficClassParser) MatchTOS() (localctx IMatchTOSContext) {
 			p.GetErrorHandler().ReportMatch(p)
 			p.Consume()
 		}
+	}
+
+	return localctx
+}
+
+// IMatchProtocolContext is an interface to support dynamic dispatch.
+type IMatchProtocolContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+
+	// IsMatchProtocolContext differentiates from other interfaces.
+	IsMatchProtocolContext()
+}
+
+type MatchProtocolContext struct {
+	*antlr.BaseParserRuleContext
+	parser antlr.Parser
+}
+
+func NewEmptyMatchProtocolContext() *MatchProtocolContext {
+	var p = new(MatchProtocolContext)
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_matchProtocol
+	return p
+}
+
+func (*MatchProtocolContext) IsMatchProtocolContext() {}
+
+func NewMatchProtocolContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *MatchProtocolContext {
+	var p = new(MatchProtocolContext)
+
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = TrafficClassParserRULE_matchProtocol
+
+	return p
+}
+
+func (s *MatchProtocolContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *MatchProtocolContext) PROTOCOL() antlr.TerminalNode {
+	return s.GetToken(TrafficClassParserPROTOCOL, 0)
+}
+
+func (s *MatchProtocolContext) STRING() antlr.TerminalNode {
+	return s.GetToken(TrafficClassParserSTRING, 0)
+}
+
+func (s *MatchProtocolContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *MatchProtocolContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *MatchProtocolContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(TrafficClassListener); ok {
+		listenerT.EnterMatchProtocol(s)
+	}
+}
+
+func (s *MatchProtocolContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(TrafficClassListener); ok {
+		listenerT.ExitMatchProtocol(s)
+	}
+}
+
+func (p *TrafficClassParser) MatchProtocol() (localctx IMatchProtocolContext) {
+	localctx = NewMatchProtocolContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 8, TrafficClassParserRULE_matchProtocol)
+
+	defer func() {
+		p.ExitRule()
+	}()
+
+	defer func() {
+		if err := recover(); err != nil {
+			if v, ok := err.(antlr.RecognitionException); ok {
+				localctx.SetException(v)
+				p.GetErrorHandler().ReportError(p, v)
+				p.GetErrorHandler().Recover(p, v)
+			} else {
+				panic(err)
+			}
+		}
+	}()
+
+	p.EnterOuterAlt(localctx, 1)
+	{
+		p.SetState(52)
+		p.Match(TrafficClassParserPROTOCOL)
+	}
+	{
+		p.SetState(53)
+		p.Match(TrafficClassParserT__0)
+	}
+	{
+		p.SetState(54)
+		p.Match(TrafficClassParserSTRING)
+	}
+
+	return localctx
+}
+
+// IMatchSrcPortContext is an interface to support dynamic dispatch.
+type IMatchSrcPortContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+
+	// IsMatchSrcPortContext differentiates from other interfaces.
+	IsMatchSrcPortContext()
+}
+
+type MatchSrcPortContext struct {
+	*antlr.BaseParserRuleContext
+	parser antlr.Parser
+}
+
+func NewEmptyMatchSrcPortContext() *MatchSrcPortContext {
+	var p = new(MatchSrcPortContext)
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_matchSrcPort
+	return p
+}
+
+func (*MatchSrcPortContext) IsMatchSrcPortContext() {}
+
+func NewMatchSrcPortContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *MatchSrcPortContext {
+	var p = new(MatchSrcPortContext)
+
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = TrafficClassParserRULE_matchSrcPort
+
+	return p
+}
+
+func (s *MatchSrcPortContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *MatchSrcPortContext) SRCPORT() antlr.TerminalNode {
+	return s.GetToken(TrafficClassParserSRCPORT, 0)
+}
+
+func (s *MatchSrcPortContext) DIGITS() antlr.TerminalNode {
+	return s.GetToken(TrafficClassParserDIGITS, 0)
+}
+
+func (s *MatchSrcPortContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *MatchSrcPortContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *MatchSrcPortContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(TrafficClassListener); ok {
+		listenerT.EnterMatchSrcPort(s)
+	}
+}
+
+func (s *MatchSrcPortContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(TrafficClassListener); ok {
+		listenerT.ExitMatchSrcPort(s)
+	}
+}
+
+func (p *TrafficClassParser) MatchSrcPort() (localctx IMatchSrcPortContext) {
+	localctx = NewMatchSrcPortContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 10, TrafficClassParserRULE_matchSrcPort)
+
+	defer func() {
+		p.ExitRule()
+	}()
+
+	defer func() {
+		if err := recover(); err != nil {
+			if v, ok := err.(antlr.RecognitionException); ok {
+				localctx.SetException(v)
+				p.GetErrorHandler().ReportError(p, v)
+				p.GetErrorHandler().Recover(p, v)
+			} else {
+				panic(err)
+			}
+		}
+	}()
+
+	p.EnterOuterAlt(localctx, 1)
+	{
+		p.SetState(56)
+		p.Match(TrafficClassParserSRCPORT)
+	}
+	{
+		p.SetState(57)
+		p.Match(TrafficClassParserT__0)
+	}
+	{
+		p.SetState(58)
+		p.Match(TrafficClassParserDIGITS)
+	}
+
+	return localctx
+}
+
+// IMatchSrcPortRangeContext is an interface to support dynamic dispatch.
+type IMatchSrcPortRangeContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+
+	// IsMatchSrcPortRangeContext differentiates from other interfaces.
+	IsMatchSrcPortRangeContext()
+}
+
+type MatchSrcPortRangeContext struct {
+	*antlr.BaseParserRuleContext
+	parser antlr.Parser
+}
+
+func NewEmptyMatchSrcPortRangeContext() *MatchSrcPortRangeContext {
+	var p = new(MatchSrcPortRangeContext)
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_matchSrcPortRange
+	return p
+}
+
+func (*MatchSrcPortRangeContext) IsMatchSrcPortRangeContext() {}
+
+func NewMatchSrcPortRangeContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *MatchSrcPortRangeContext {
+	var p = new(MatchSrcPortRangeContext)
+
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = TrafficClassParserRULE_matchSrcPortRange
+
+	return p
+}
+
+func (s *MatchSrcPortRangeContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *MatchSrcPortRangeContext) SRCPORT() antlr.TerminalNode {
+	return s.GetToken(TrafficClassParserSRCPORT, 0)
+}
+
+func (s *MatchSrcPortRangeContext) AllDIGITS() []antlr.TerminalNode {
+	return s.GetTokens(TrafficClassParserDIGITS)
+}
+
+func (s *MatchSrcPortRangeContext) DIGITS(i int) antlr.TerminalNode {
+	return s.GetToken(TrafficClassParserDIGITS, i)
+}
+
+func (s *MatchSrcPortRangeContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *MatchSrcPortRangeContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *MatchSrcPortRangeContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(TrafficClassListener); ok {
+		listenerT.EnterMatchSrcPortRange(s)
+	}
+}
+
+func (s *MatchSrcPortRangeContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(TrafficClassListener); ok {
+		listenerT.ExitMatchSrcPortRange(s)
+	}
+}
+
+func (p *TrafficClassParser) MatchSrcPortRange() (localctx IMatchSrcPortRangeContext) {
+	localctx = NewMatchSrcPortRangeContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 12, TrafficClassParserRULE_matchSrcPortRange)
+
+	defer func() {
+		p.ExitRule()
+	}()
+
+	defer func() {
+		if err := recover(); err != nil {
+			if v, ok := err.(antlr.RecognitionException); ok {
+				localctx.SetException(v)
+				p.GetErrorHandler().ReportError(p, v)
+				p.GetErrorHandler().Recover(p, v)
+			} else {
+				panic(err)
+			}
+		}
+	}()
+
+	p.EnterOuterAlt(localctx, 1)
+	{
+		p.SetState(60)
+		p.Match(TrafficClassParserSRCPORT)
+	}
+	{
+		p.SetState(61)
+		p.Match(TrafficClassParserT__0)
+	}
+	{
+		p.SetState(62)
+		p.Match(TrafficClassParserDIGITS)
+	}
+	{
+		p.SetState(63)
+		p.Match(TrafficClassParserT__2)
+	}
+	{
+		p.SetState(64)
+		p.Match(TrafficClassParserDIGITS)
+	}
+
+	return localctx
+}
+
+// IMatchDstPortContext is an interface to support dynamic dispatch.
+type IMatchDstPortContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+
+	// IsMatchDstPortContext differentiates from other interfaces.
+	IsMatchDstPortContext()
+}
+
+type MatchDstPortContext struct {
+	*antlr.BaseParserRuleContext
+	parser antlr.Parser
+}
+
+func NewEmptyMatchDstPortContext() *MatchDstPortContext {
+	var p = new(MatchDstPortContext)
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_matchDstPort
+	return p
+}
+
+func (*MatchDstPortContext) IsMatchDstPortContext() {}
+
+func NewMatchDstPortContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *MatchDstPortContext {
+	var p = new(MatchDstPortContext)
+
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = TrafficClassParserRULE_matchDstPort
+
+	return p
+}
+
+func (s *MatchDstPortContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *MatchDstPortContext) DSTPORT() antlr.TerminalNode {
+	return s.GetToken(TrafficClassParserDSTPORT, 0)
+}
+
+func (s *MatchDstPortContext) DIGITS() antlr.TerminalNode {
+	return s.GetToken(TrafficClassParserDIGITS, 0)
+}
+
+func (s *MatchDstPortContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *MatchDstPortContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *MatchDstPortContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(TrafficClassListener); ok {
+		listenerT.EnterMatchDstPort(s)
+	}
+}
+
+func (s *MatchDstPortContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(TrafficClassListener); ok {
+		listenerT.ExitMatchDstPort(s)
+	}
+}
+
+func (p *TrafficClassParser) MatchDstPort() (localctx IMatchDstPortContext) {
+	localctx = NewMatchDstPortContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 14, TrafficClassParserRULE_matchDstPort)
+
+	defer func() {
+		p.ExitRule()
+	}()
+
+	defer func() {
+		if err := recover(); err != nil {
+			if v, ok := err.(antlr.RecognitionException); ok {
+				localctx.SetException(v)
+				p.GetErrorHandler().ReportError(p, v)
+				p.GetErrorHandler().Recover(p, v)
+			} else {
+				panic(err)
+			}
+		}
+	}()
+
+	p.EnterOuterAlt(localctx, 1)
+	{
+		p.SetState(66)
+		p.Match(TrafficClassParserDSTPORT)
+	}
+	{
+		p.SetState(67)
+		p.Match(TrafficClassParserT__0)
+	}
+	{
+		p.SetState(68)
+		p.Match(TrafficClassParserDIGITS)
+	}
+
+	return localctx
+}
+
+// IMatchDstPortRangeContext is an interface to support dynamic dispatch.
+type IMatchDstPortRangeContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+
+	// IsMatchDstPortRangeContext differentiates from other interfaces.
+	IsMatchDstPortRangeContext()
+}
+
+type MatchDstPortRangeContext struct {
+	*antlr.BaseParserRuleContext
+	parser antlr.Parser
+}
+
+func NewEmptyMatchDstPortRangeContext() *MatchDstPortRangeContext {
+	var p = new(MatchDstPortRangeContext)
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_matchDstPortRange
+	return p
+}
+
+func (*MatchDstPortRangeContext) IsMatchDstPortRangeContext() {}
+
+func NewMatchDstPortRangeContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *MatchDstPortRangeContext {
+	var p = new(MatchDstPortRangeContext)
+
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = TrafficClassParserRULE_matchDstPortRange
+
+	return p
+}
+
+func (s *MatchDstPortRangeContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *MatchDstPortRangeContext) DSTPORT() antlr.TerminalNode {
+	return s.GetToken(TrafficClassParserDSTPORT, 0)
+}
+
+func (s *MatchDstPortRangeContext) AllDIGITS() []antlr.TerminalNode {
+	return s.GetTokens(TrafficClassParserDIGITS)
+}
+
+func (s *MatchDstPortRangeContext) DIGITS(i int) antlr.TerminalNode {
+	return s.GetToken(TrafficClassParserDIGITS, i)
+}
+
+func (s *MatchDstPortRangeContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *MatchDstPortRangeContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *MatchDstPortRangeContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(TrafficClassListener); ok {
+		listenerT.EnterMatchDstPortRange(s)
+	}
+}
+
+func (s *MatchDstPortRangeContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(TrafficClassListener); ok {
+		listenerT.ExitMatchDstPortRange(s)
+	}
+}
+
+func (p *TrafficClassParser) MatchDstPortRange() (localctx IMatchDstPortRangeContext) {
+	localctx = NewMatchDstPortRangeContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 16, TrafficClassParserRULE_matchDstPortRange)
+
+	defer func() {
+		p.ExitRule()
+	}()
+
+	defer func() {
+		if err := recover(); err != nil {
+			if v, ok := err.(antlr.RecognitionException); ok {
+				localctx.SetException(v)
+				p.GetErrorHandler().ReportError(p, v)
+				p.GetErrorHandler().Recover(p, v)
+			} else {
+				panic(err)
+			}
+		}
+	}()
+
+	p.EnterOuterAlt(localctx, 1)
+	{
+		p.SetState(70)
+		p.Match(TrafficClassParserDSTPORT)
+	}
+	{
+		p.SetState(71)
+		p.Match(TrafficClassParserT__0)
+	}
+	{
+		p.SetState(72)
+		p.Match(TrafficClassParserDIGITS)
+	}
+	{
+		p.SetState(73)
+		p.Match(TrafficClassParserT__2)
+	}
+	{
+		p.SetState(74)
+		p.Match(TrafficClassParserDIGITS)
 	}
 
 	return localctx
@@ -635,7 +1206,7 @@ func (s *CondClsContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *TrafficClassParser) CondCls() (localctx ICondClsContext) {
 	localctx = NewCondClsContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 8, TrafficClassParserRULE_condCls)
+	p.EnterRule(localctx, 18, TrafficClassParserRULE_condCls)
 
 	defer func() {
 		p.ExitRule()
@@ -655,11 +1226,11 @@ func (p *TrafficClassParser) CondCls() (localctx ICondClsContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(40)
-		p.Match(TrafficClassParserT__2)
+		p.SetState(76)
+		p.Match(TrafficClassParserT__3)
 	}
 	{
-		p.SetState(41)
+		p.SetState(77)
 		p.Match(TrafficClassParserDIGITS)
 	}
 
@@ -753,7 +1324,7 @@ func (s *CondAnyContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *TrafficClassParser) CondAny() (localctx ICondAnyContext) {
 	localctx = NewCondAnyContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 10, TrafficClassParserRULE_condAny)
+	p.EnterRule(localctx, 20, TrafficClassParserRULE_condAny)
 	var _la int
 
 	defer func() {
@@ -774,38 +1345,38 @@ func (p *TrafficClassParser) CondAny() (localctx ICondAnyContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(43)
+		p.SetState(79)
 		p.Match(TrafficClassParserANY)
 	}
 	{
-		p.SetState(44)
-		p.Match(TrafficClassParserT__3)
+		p.SetState(80)
+		p.Match(TrafficClassParserT__4)
 	}
 	{
-		p.SetState(45)
+		p.SetState(81)
 		p.Cond()
 	}
-	p.SetState(50)
+	p.SetState(86)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
-	for _la == TrafficClassParserT__4 {
+	for _la == TrafficClassParserT__5 {
 		{
-			p.SetState(46)
-			p.Match(TrafficClassParserT__4)
+			p.SetState(82)
+			p.Match(TrafficClassParserT__5)
 		}
 		{
-			p.SetState(47)
+			p.SetState(83)
 			p.Cond()
 		}
 
-		p.SetState(52)
+		p.SetState(88)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
-		p.SetState(53)
-		p.Match(TrafficClassParserT__5)
+		p.SetState(89)
+		p.Match(TrafficClassParserT__6)
 	}
 
 	return localctx
@@ -898,7 +1469,7 @@ func (s *CondAllContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *TrafficClassParser) CondAll() (localctx ICondAllContext) {
 	localctx = NewCondAllContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 12, TrafficClassParserRULE_condAll)
+	p.EnterRule(localctx, 22, TrafficClassParserRULE_condAll)
 	var _la int
 
 	defer func() {
@@ -919,38 +1490,38 @@ func (p *TrafficClassParser) CondAll() (localctx ICondAllContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(55)
+		p.SetState(91)
 		p.Match(TrafficClassParserALL)
 	}
 	{
-		p.SetState(56)
-		p.Match(TrafficClassParserT__3)
+		p.SetState(92)
+		p.Match(TrafficClassParserT__4)
 	}
 	{
-		p.SetState(57)
+		p.SetState(93)
 		p.Cond()
 	}
-	p.SetState(62)
+	p.SetState(98)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
-	for _la == TrafficClassParserT__4 {
+	for _la == TrafficClassParserT__5 {
 		{
-			p.SetState(58)
-			p.Match(TrafficClassParserT__4)
+			p.SetState(94)
+			p.Match(TrafficClassParserT__5)
 		}
 		{
-			p.SetState(59)
+			p.SetState(95)
 			p.Cond()
 		}
 
-		p.SetState(64)
+		p.SetState(100)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
-		p.SetState(65)
-		p.Match(TrafficClassParserT__5)
+		p.SetState(101)
+		p.Match(TrafficClassParserT__6)
 	}
 
 	return localctx
@@ -1030,7 +1601,7 @@ func (s *CondNotContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *TrafficClassParser) CondNot() (localctx ICondNotContext) {
 	localctx = NewCondNotContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 14, TrafficClassParserRULE_condNot)
+	p.EnterRule(localctx, 24, TrafficClassParserRULE_condNot)
 
 	defer func() {
 		p.ExitRule()
@@ -1050,20 +1621,20 @@ func (p *TrafficClassParser) CondNot() (localctx ICondNotContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(67)
+		p.SetState(103)
 		p.Match(TrafficClassParserNOT)
 	}
 	{
-		p.SetState(68)
-		p.Match(TrafficClassParserT__3)
+		p.SetState(104)
+		p.Match(TrafficClassParserT__4)
 	}
 	{
-		p.SetState(69)
+		p.SetState(105)
 		p.Cond()
 	}
 	{
-		p.SetState(70)
-		p.Match(TrafficClassParserT__5)
+		p.SetState(106)
+		p.Match(TrafficClassParserT__6)
 	}
 
 	return localctx
@@ -1133,7 +1704,7 @@ func (s *CondBoolContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *TrafficClassParser) CondBool() (localctx ICondBoolContext) {
 	localctx = NewCondBoolContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 16, TrafficClassParserRULE_condBool)
+	p.EnterRule(localctx, 26, TrafficClassParserRULE_condBool)
 	var _la int
 
 	defer func() {
@@ -1154,18 +1725,18 @@ func (p *TrafficClassParser) CondBool() (localctx ICondBoolContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(72)
+		p.SetState(108)
 		p.Match(TrafficClassParserBOOL)
 	}
 	{
-		p.SetState(73)
+		p.SetState(109)
 		p.Match(TrafficClassParserT__0)
 	}
 	{
-		p.SetState(74)
+		p.SetState(110)
 		_la = p.GetTokenStream().LA(1)
 
-		if !(_la == TrafficClassParserT__6 || _la == TrafficClassParserT__7) {
+		if !(_la == TrafficClassParserT__7 || _la == TrafficClassParserT__8) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)
@@ -1254,6 +1825,16 @@ func (s *CondIPv4Context) MatchTOS() IMatchTOSContext {
 	return t.(IMatchTOSContext)
 }
 
+func (s *CondIPv4Context) MatchProtocol() IMatchProtocolContext {
+	var t = s.GetTypedRuleContext(reflect.TypeOf((*IMatchProtocolContext)(nil)).Elem(), 0)
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IMatchProtocolContext)
+}
+
 func (s *CondIPv4Context) GetRuleContext() antlr.RuleContext {
 	return s
 }
@@ -1276,7 +1857,7 @@ func (s *CondIPv4Context) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *TrafficClassParser) CondIPv4() (localctx ICondIPv4Context) {
 	localctx = NewCondIPv4Context(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 18, TrafficClassParserRULE_condIPv4)
+	p.EnterRule(localctx, 28, TrafficClassParserRULE_condIPv4)
 
 	defer func() {
 		p.ExitRule()
@@ -1294,40 +1875,201 @@ func (p *TrafficClassParser) CondIPv4() (localctx ICondIPv4Context) {
 		}
 	}()
 
-	p.SetState(80)
+	p.SetState(117)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
 	case TrafficClassParserSRC:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(76)
+			p.SetState(112)
 			p.MatchSrc()
 		}
 
 	case TrafficClassParserDST:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(77)
+			p.SetState(113)
 			p.MatchDst()
 		}
 
 	case TrafficClassParserDSCP:
 		p.EnterOuterAlt(localctx, 3)
 		{
-			p.SetState(78)
+			p.SetState(114)
 			p.MatchDSCP()
 		}
 
 	case TrafficClassParserTOS:
 		p.EnterOuterAlt(localctx, 4)
 		{
-			p.SetState(79)
+			p.SetState(115)
 			p.MatchTOS()
+		}
+
+	case TrafficClassParserPROTOCOL:
+		p.EnterOuterAlt(localctx, 5)
+		{
+			p.SetState(116)
+			p.MatchProtocol()
 		}
 
 	default:
 		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+	}
+
+	return localctx
+}
+
+// ICondPortContext is an interface to support dynamic dispatch.
+type ICondPortContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+
+	// IsCondPortContext differentiates from other interfaces.
+	IsCondPortContext()
+}
+
+type CondPortContext struct {
+	*antlr.BaseParserRuleContext
+	parser antlr.Parser
+}
+
+func NewEmptyCondPortContext() *CondPortContext {
+	var p = new(CondPortContext)
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	p.RuleIndex = TrafficClassParserRULE_condPort
+	return p
+}
+
+func (*CondPortContext) IsCondPortContext() {}
+
+func NewCondPortContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *CondPortContext {
+	var p = new(CondPortContext)
+
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = TrafficClassParserRULE_condPort
+
+	return p
+}
+
+func (s *CondPortContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *CondPortContext) MatchSrcPort() IMatchSrcPortContext {
+	var t = s.GetTypedRuleContext(reflect.TypeOf((*IMatchSrcPortContext)(nil)).Elem(), 0)
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IMatchSrcPortContext)
+}
+
+func (s *CondPortContext) MatchSrcPortRange() IMatchSrcPortRangeContext {
+	var t = s.GetTypedRuleContext(reflect.TypeOf((*IMatchSrcPortRangeContext)(nil)).Elem(), 0)
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IMatchSrcPortRangeContext)
+}
+
+func (s *CondPortContext) MatchDstPort() IMatchDstPortContext {
+	var t = s.GetTypedRuleContext(reflect.TypeOf((*IMatchDstPortContext)(nil)).Elem(), 0)
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IMatchDstPortContext)
+}
+
+func (s *CondPortContext) MatchDstPortRange() IMatchDstPortRangeContext {
+	var t = s.GetTypedRuleContext(reflect.TypeOf((*IMatchDstPortRangeContext)(nil)).Elem(), 0)
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IMatchDstPortRangeContext)
+}
+
+func (s *CondPortContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *CondPortContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *CondPortContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(TrafficClassListener); ok {
+		listenerT.EnterCondPort(s)
+	}
+}
+
+func (s *CondPortContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(TrafficClassListener); ok {
+		listenerT.ExitCondPort(s)
+	}
+}
+
+func (p *TrafficClassParser) CondPort() (localctx ICondPortContext) {
+	localctx = NewCondPortContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 30, TrafficClassParserRULE_condPort)
+
+	defer func() {
+		p.ExitRule()
+	}()
+
+	defer func() {
+		if err := recover(); err != nil {
+			if v, ok := err.(antlr.RecognitionException); ok {
+				localctx.SetException(v)
+				p.GetErrorHandler().ReportError(p, v)
+				p.GetErrorHandler().Recover(p, v)
+			} else {
+				panic(err)
+			}
+		}
+	}()
+
+	p.SetState(123)
+	p.GetErrorHandler().Sync(p)
+	switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 3, p.GetParserRuleContext()) {
+	case 1:
+		p.EnterOuterAlt(localctx, 1)
+		{
+			p.SetState(119)
+			p.MatchSrcPort()
+		}
+
+	case 2:
+		p.EnterOuterAlt(localctx, 2)
+		{
+			p.SetState(120)
+			p.MatchSrcPortRange()
+		}
+
+	case 3:
+		p.EnterOuterAlt(localctx, 3)
+		{
+			p.SetState(121)
+			p.MatchDstPort()
+		}
+
+	case 4:
+		p.EnterOuterAlt(localctx, 4)
+		{
+			p.SetState(122)
+			p.MatchDstPortRange()
+		}
+
 	}
 
 	return localctx
@@ -1411,6 +2153,16 @@ func (s *CondContext) CondIPv4() ICondIPv4Context {
 	return t.(ICondIPv4Context)
 }
 
+func (s *CondContext) CondPort() ICondPortContext {
+	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICondPortContext)(nil)).Elem(), 0)
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(ICondPortContext)
+}
+
 func (s *CondContext) CondCls() ICondClsContext {
 	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICondClsContext)(nil)).Elem(), 0)
 
@@ -1453,7 +2205,7 @@ func (s *CondContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *TrafficClassParser) Cond() (localctx ICondContext) {
 	localctx = NewCondContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 20, TrafficClassParserRULE_cond)
+	p.EnterRule(localctx, 32, TrafficClassParserRULE_cond)
 
 	defer func() {
 		p.ExitRule()
@@ -1471,49 +2223,56 @@ func (p *TrafficClassParser) Cond() (localctx ICondContext) {
 		}
 	}()
 
-	p.SetState(88)
+	p.SetState(132)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
 	case TrafficClassParserALL:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(82)
+			p.SetState(125)
 			p.CondAll()
 		}
 
 	case TrafficClassParserANY:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(83)
+			p.SetState(126)
 			p.CondAny()
 		}
 
 	case TrafficClassParserNOT:
 		p.EnterOuterAlt(localctx, 3)
 		{
-			p.SetState(84)
+			p.SetState(127)
 			p.CondNot()
 		}
 
-	case TrafficClassParserSRC, TrafficClassParserDST, TrafficClassParserDSCP, TrafficClassParserTOS:
+	case TrafficClassParserSRC, TrafficClassParserDST, TrafficClassParserDSCP, TrafficClassParserTOS, TrafficClassParserPROTOCOL:
 		p.EnterOuterAlt(localctx, 4)
 		{
-			p.SetState(85)
+			p.SetState(128)
 			p.CondIPv4()
 		}
 
-	case TrafficClassParserT__2:
+	case TrafficClassParserSRCPORT, TrafficClassParserDSTPORT:
 		p.EnterOuterAlt(localctx, 5)
 		{
-			p.SetState(86)
+			p.SetState(129)
+			p.CondPort()
+		}
+
+	case TrafficClassParserT__3:
+		p.EnterOuterAlt(localctx, 6)
+		{
+			p.SetState(130)
 			p.CondCls()
 		}
 
 	case TrafficClassParserBOOL:
-		p.EnterOuterAlt(localctx, 6)
+		p.EnterOuterAlt(localctx, 7)
 		{
-			p.SetState(87)
+			p.SetState(131)
 			p.CondBool()
 		}
 
@@ -1598,7 +2357,7 @@ func (s *TrafficClassContext) ExitRule(listener antlr.ParseTreeListener) {
 
 func (p *TrafficClassParser) TrafficClass() (localctx ITrafficClassContext) {
 	localctx = NewTrafficClassContext(p, p.GetParserRuleContext(), p.GetState())
-	p.EnterRule(localctx, 22, TrafficClassParserRULE_trafficClass)
+	p.EnterRule(localctx, 34, TrafficClassParserRULE_trafficClass)
 
 	defer func() {
 		p.ExitRule()
@@ -1618,11 +2377,11 @@ func (p *TrafficClassParser) TrafficClass() (localctx ITrafficClassContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(90)
+		p.SetState(134)
 		p.Cond()
 	}
 	{
-		p.SetState(91)
+		p.SetState(135)
 		p.Match(TrafficClassParserEOF)
 	}
 

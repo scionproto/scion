@@ -1,0 +1,43 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "config.go",
+        "loader.go",
+        "sample.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/pkg/gateway/config",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/config:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/serrors:go_default_library",
+        "//go/pkg/gateway/control:go_default_library",
+        "//go/pkg/gateway/routing:go_default_library",
+        "//go/pkg/worker:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "config_test.go",
+        "loader_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/log/mock_log:go_default_library",
+        "//go/lib/serrors:go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "//go/pkg/gateway/config/configtest:go_default_library",
+        "//go/pkg/gateway/config/mock_config:go_default_library",
+        "//go/pkg/gateway/control:go_default_library",
+        "//go/pkg/gateway/control/mock_control:go_default_library",
+        "//go/pkg/gateway/routing:go_default_library",
+        "@com_github_golang_mock//gomock:go_default_library",
+        "@com_github_pelletier_go_toml//:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

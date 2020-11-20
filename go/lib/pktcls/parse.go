@@ -17,11 +17,14 @@ package pktcls
 import (
 	"net"
 	"strconv"
+	"strings"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr"
+	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/antlr/traffic_class"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 type classListener struct {
@@ -109,6 +112,80 @@ func (l *classListener) EnterMatchTOS(ctx *traffic_class.MatchTOSContext) {
 	}
 	mtos.TOS = uint8(tos)
 	l.pushCond(NewCondIPv4(mtos))
+}
+
+func (l *classListener) EnterMatchProtocol(ctx *traffic_class.MatchProtocolContext) {
+	// Push Selector as Predicate on stack and update the number of Conds on the stack
+	prot := &IPv4MatchProtocol{}
+	number, err := protocolNameToNumber(ctx.GetStop().GetText())
+	if err != nil {
+		l.err = common.NewBasicError("Protocol parsing failed!", err,
+			"protocol", ctx.GetStop().GetText())
+	}
+	prot.Protocol = number
+	l.pushCond(NewCondIPv4(prot))
+}
+
+func (l *classListener) EnterMatchSrcPort(ctx *traffic_class.MatchSrcPortContext) {
+	// Push Selector as Predicate on stack and update the number of Conds on the stack
+	src := &PortMatchSource{}
+	msrc, err := strconv.ParseUint(ctx.GetStop().GetText(), 10, 16)
+	if err != nil {
+		l.err = common.NewBasicError("SRCPORT parsing failed!", err,
+			"srcport", ctx.GetStop().GetText())
+	}
+	src.MinPort = uint16(msrc)
+	src.MaxPort = uint16(msrc)
+	l.pushCond(NewCondPorts(src))
+}
+
+func (l *classListener) EnterMatchSrcPortRange(ctx *traffic_class.MatchSrcPortRangeContext) {
+	// Push Selector as Predicate on stack and update the number of Conds on the stack
+	src := &PortMatchSource{}
+	min := ctx.GetToken(traffic_class.TrafficClassLexerDIGITS, 0).GetText()
+	max := ctx.GetToken(traffic_class.TrafficClassLexerDIGITS, 1).GetText()
+	msrcMin, err := strconv.ParseUint(min, 10, 16)
+	if err != nil {
+		l.err = common.NewBasicError("SRCPORT parsing failed!", err, "srcport", min)
+	}
+	msrcMax, err := strconv.ParseUint(max, 10, 16)
+	if err != nil {
+		l.err = common.NewBasicError("SRCPORT parsing failed!", err, "srcport", max)
+	}
+	src.MinPort = uint16(msrcMin)
+	src.MaxPort = uint16(msrcMax)
+	l.pushCond(NewCondPorts(src))
+}
+
+func (l *classListener) EnterMatchDstPort(ctx *traffic_class.MatchDstPortContext) {
+	// Push Selector as Predicate on stack and update the number of Conds on the stack
+	dst := &PortMatchDestination{}
+	mdst, err := strconv.ParseUint(ctx.GetStop().GetText(), 10, 16)
+	if err != nil {
+		l.err = common.NewBasicError("DSTPORT parsing failed!", err,
+			"dstport", ctx.GetStop().GetText())
+	}
+	dst.MinPort = uint16(mdst)
+	dst.MaxPort = uint16(mdst)
+	l.pushCond(NewCondPorts(dst))
+}
+
+func (l *classListener) EnterMatchDstPortRange(ctx *traffic_class.MatchDstPortRangeContext) {
+	// Push Selector as Predicate on stack and update the number of Conds on the stack
+	dst := &PortMatchDestination{}
+	min := ctx.GetToken(traffic_class.TrafficClassLexerDIGITS, 0).GetText()
+	max := ctx.GetToken(traffic_class.TrafficClassLexerDIGITS, 1).GetText()
+	mdstMin, err := strconv.ParseUint(min, 10, 16)
+	if err != nil {
+		l.err = common.NewBasicError("SRCPORT parsing failed!", err, "dstport", min)
+	}
+	mdstMax, err := strconv.ParseUint(max, 10, 16)
+	if err != nil {
+		l.err = common.NewBasicError("SRCPORT parsing failed!", err, "dstport", max)
+	}
+	dst.MinPort = uint16(mdstMin)
+	dst.MaxPort = uint16(mdstMax)
+	l.pushCond(NewCondPorts(dst))
 }
 
 func (l *classListener) EnterCondCls(ctx *traffic_class.CondClsContext) {
@@ -204,4 +281,15 @@ func buildTrafficClassParser(class string) *traffic_class.TrafficClassParser {
 	)
 	parser.BuildParseTrees = true
 	return parser
+}
+
+// protocolNameToNumber converts protocol name (e.g. "TCP") to IP protcol
+// number. The function is case insensitive.
+func protocolNameToNumber(name string) (uint8, error) {
+	for number, meta := range layers.IPProtocolMetadata {
+		if strings.EqualFold(name, meta.Name) {
+			return uint8(number), nil
+		}
+	}
+	return 0, serrors.New("unknown IP protocol name", "name", name)
 }

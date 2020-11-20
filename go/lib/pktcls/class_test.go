@@ -60,12 +60,14 @@ func TestClassMapMarshalUnMarshal(t *testing.T) {
 					"transit ISD 2",
 					pktcls.NewCondAnyOf(
 						pktcls.NewCondIPv4(&pktcls.IPv4MatchToS{TOS: 0x0}),
+						pktcls.NewCondIPv4(&pktcls.IPv4MatchProtocol{Protocol: 6}),
 						pktcls.NewCondIPv4(&pktcls.IPv4MatchSource{
 							Net: &net.IPNet{
 								IP:   net.IP{10, 0, 0, 0},
 								Mask: net.IPv4Mask(255, 0, 0, 0),
 							},
 						}),
+						pktcls.NewCondPorts(&pktcls.PortMatchSource{MinPort: 1, MaxPort: 10}),
 					),
 				),
 				"classC": pktcls.NewClass(
@@ -215,6 +217,14 @@ func TestClassUnmarshalError(t *testing.T) {
 			"CondIPv4": {
 				"MatchSource": {
 					"Net": "1.2.3.4///"
+				}
+			},
+			"Name": "Unable to parse source operand string"
+		}
+		{
+			"CondIPv4": {
+				"MatchProtocol": {
+					"Protocol": "foo"
 				}
 			},
 			"Name": "Unable to parse source operand string"

@@ -137,7 +137,7 @@ load("@distroless//package_manager:dpkg.bzl", "dpkg_list", "dpkg_src")
 package_manager_repositories()
 
 dpkg_src(
-    name = "debian10",
+    name = "debian10_snap",
     arch = "amd64",
     distro = "buster",
     sha256 = "f251129edc5e5b31dadd7bb252e5ce88b3fdbd76de672bc0bbcda4f667d5f47f",
@@ -146,7 +146,7 @@ dpkg_src(
 )
 
 dpkg_src(
-    name = "debian10_updates",
+    name = "debian10_updates_snap",
     arch = "amd64",
     distro = "buster-updates",
     sha256 = "24b35fcd184d71f83c3f553a72e6636954552331adfbbc694f0f70bd33e1a2b4",
@@ -155,7 +155,7 @@ dpkg_src(
 )
 
 dpkg_src(
-    name = "debian10_security",
+    name = "debian10_security_snap",
     package_prefix = "https://snapshot.debian.org/archive/debian-security/20200612T105246Z/",
     packages_gz_url = "https://snapshot.debian.org/archive/debian-security/20200612T105246Z/dists/buster/updates/main/binary-amd64/Packages.gz",
     sha256 = "c0ae35609f2d445e73ca8d3c03dc843f5ddae50f474cee10e79c4c1284ce2a2d",
@@ -187,16 +187,40 @@ dpkg_list(
         # iproute2 and its dependencies
         "iproute2",
         "libelf1",
-        "libmnl0",
+        # for perf tests
+        "iperf",
+        # so that status pages can be downloaded
+        "wget",
+        #
+        "ethtool",
+        # iptables and its dependencies (only not already present)
+        "gcc-8-base",
+        "iptables",
+        "libip4tc0",
+        "libip6tc0",
+        "libiptc0",
+        "libnetfilter-conntrack3",
+        "libnfnetlink0",
+        "libnftnl11",
+        "libxtables12",
+        # telnet and its dependencies (only not already present)
+        "telnet",
+        # sysctl and dependencies
+        "procps",
+        "libgpm2",
+        "libncurses6",
+        "libprocps7",
+        "lsb-base",
+        "psmisc",
     ],
     # From Distroless WORKSPACE:
     # Takes the first package found: security updates should go first
     # If there was a security fix to a package before the stable release, this will find
     # the older security release. This happened for stretch libc6.
     sources = [
-        "@debian10_security//file:Packages.json",
-        "@debian10_updates//file:Packages.json",
-        "@debian10//file:Packages.json",
+        "@debian10_security_snap//file:Packages.json",
+        "@debian10_updates_snap//file:Packages.json",
+        "@debian10_snap//file:Packages.json",
     ],
 )
 
@@ -217,11 +241,11 @@ container_pull(
 )
 
 container_pull(
-    name = "ubuntu16",
-    digest = "sha256:a98d9dcf3a34b2b78e78c61d003eb4d7a90d30fd54451686e2f0bd2ef5f602ac",
+    name = "debian10",
+    digest = "sha256:60cb30babcd1740309903c37d3d408407d190cf73015aeddec9086ef3f393a5d",
     registry = "index.docker.io",
-    repository = "library/ubuntu",
-    tag = "16.04",
+    repository = "library/debian",
+    tag = "10",
 )
 
 container_pull(

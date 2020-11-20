@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = ["Publisher"],
+    library = "//go/pkg/gateway/config:go_default_library",
+    package = "mock_config",
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = ["mock.go"],
+    importpath = "github.com/scionproto/scion/go/pkg/gateway/config/mock_config",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/pkg/gateway/control:go_default_library",
+        "//go/pkg/gateway/routing:go_default_library",
+        "@com_github_golang_mock//gomock:go_default_library",
+    ],
+)

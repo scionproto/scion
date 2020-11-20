@@ -31,8 +31,23 @@
             },
             {
                 "CondIPv4": {
+                    "MatchProtocol": {
+                        "Protocol": "TCP"
+                    }
+                }
+            },
+            {
+                "CondIPv4": {
                     "MatchSource": {
                         "Net": "10.0.0.0/8"
+                    }
+                }
+            },
+            {
+                "CondPorts": {
+                    "MatchSourcePort": {
+                        "MaxPort": "10",
+                        "MinPort": "1"
                     }
                 }
             }

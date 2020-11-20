@@ -50,6 +50,10 @@ const (
 	TypeIPv4MatchDestination = "MatchDestination"
 	TypeIPv4MatchToS         = "MatchToS"
 	TypeIPv4MatchDSCP        = "MatchDSCP"
+	TypeIPv4MatchProtocol    = "MatchProtocol"
+	TypeCondPorts            = "CondPorts"
+	TypePortMatchSource      = "MatchSourcePort"
+	TypePortMatchDestination = "MatchDestinationPort"
 )
 
 // generic container for marshaling custom data
@@ -112,6 +116,22 @@ func unmarshalInterface(b []byte) (Typer, error) {
 			var p IPv4MatchDSCP
 			err := json.Unmarshal(*v, &p)
 			return &p, err
+		case TypeIPv4MatchProtocol:
+			var p IPv4MatchProtocol
+			err := json.Unmarshal(*v, &p)
+			return &p, err
+		case TypeCondPorts:
+			var c CondPorts
+			err := json.Unmarshal(*v, &c)
+			return &c, err
+		case TypePortMatchSource:
+			var p PortMatchSource
+			err := json.Unmarshal(*v, &p)
+			return &p, err
+		case TypePortMatchDestination:
+			var p PortMatchDestination
+			err := json.Unmarshal(*v, &p)
+			return &p, err
 		default:
 			return nil, common.NewBasicError("Unknown type", nil, "type", k)
 		}
@@ -132,13 +152,26 @@ func unmarshalCond(b []byte) (Cond, error) {
 	return c, nil
 }
 
-// unmarshal extracts an IPv4Predicate from a JSON encoding
-func unmarshalPredicate(b []byte) (IPv4Predicate, error) {
+// unmarshalIPv4Predicate extracts an IPv4Predicate from a JSON encoding
+func unmarshalIPv4Predicate(b []byte) (IPv4Predicate, error) {
 	t, err := unmarshalInterface(b)
 	if err != nil {
 		return nil, err
 	}
 	p, ok := t.(IPv4Predicate)
+	if !ok {
+		return nil, serrors.New("Unable to extract Cond from interface")
+	}
+	return p, nil
+}
+
+// unmarshalPortPredicate extracts an PortPredicate from a JSON encoding
+func unmarshalPortPredicate(b []byte) (PortPredicate, error) {
+	t, err := unmarshalInterface(b)
+	if err != nil {
+		return nil, err
+	}
+	p, ok := t.(PortPredicate)
 	if !ok {
 		return nil, serrors.New("Unable to extract Cond from interface")
 	}

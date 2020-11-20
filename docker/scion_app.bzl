@@ -63,16 +63,16 @@ def scion_app_base():
 # Defines images for a specific SCION application.
 # Creates "{name}_prod" and "{name}_debug" targets.
 #   name - name of the rule
-#   binary - the target that builds the app binary
+#   src - the target that builds the app binary
 #   appdir - the directory to deploy the binary to
 #   workdir - working directory
 #   entrypoint - a list of strings that add up to the command line
 #   cmd - string or list of strings of commands to execute in the image.
 #   caps - capabilities to set on the binary
-def scion_app_images(name, binary, appdir, workdir, entrypoint, cmd = None, caps = None):
+def scion_app_images(name, src, entrypoint, appdir = "/app", workdir = "/share", cmd = None, caps = None, caps_binary = None):
     pkg_tar(
         name = "%s_docker_files" % name,
-        srcs = [binary],
+        srcs = [src],
         package_dir = appdir,
         mode = "0755",
     )
@@ -84,7 +84,7 @@ def scion_app_images(name, binary, appdir, workdir, entrypoint, cmd = None, caps
         workdir = workdir,
         cmd = cmd,
         entrypoint = entrypoint,
-        caps_binary = "%s/%s" % (appdir, name),
+        caps_binary = caps_binary,
         caps = caps,
     )
     container_image_setcap(
@@ -95,6 +95,6 @@ def scion_app_images(name, binary, appdir, workdir, entrypoint, cmd = None, caps
         workdir = workdir,
         cmd = cmd,
         entrypoint = entrypoint,
-        caps_binary = "%s/%s" % (appdir, name),
+        caps_binary = caps_binary,
         caps = caps,
     )

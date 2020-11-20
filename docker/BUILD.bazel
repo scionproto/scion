@@ -8,8 +8,8 @@ container_bundle(
         "control:latest": ":control_prod",
         "daemon:latest": ":daemon_prod",
         "dispatcher:latest": ":dispatcher_prod",
-        "posix-gateway:latest": ":sig_prod",
-        "posix-router:latest": "posix-router_prod",
+        "posix-gateway:latest": ":posix_gateway_prod",
+        "posix-router:latest": "posix_router_prod",
     },
     visibility = ["//visibility:public"],
 )
@@ -20,8 +20,8 @@ container_bundle(
         "control-debug:latest": ":control_debug",
         "daemon-debug:latest": ":daemon_debug",
         "dispatcher-debug:latest": ":dispatcher_debug",
-        "posix-gateway-debug:latest": ":sig_debug",
-        "posix-router-debug:latest": "posix-router_debug",
+        "posix-gateway-debug:latest": ":posix_gateway_debug",
+        "posix-router-debug:latest": "posix_router_debug",
     },
     visibility = ["//visibility:public"],
 )
@@ -39,62 +39,53 @@ scion_app_base()
 build_tester_image()
 
 scion_app_images(
-    name = "posix-router",
-    appdir = "/app",
-    binary = "//go/posix-router",
+    name = "posix_router",
+    src = "//go/posix-router",
     cmd = [
         "--config",
         "/share/conf/br.toml",
     ],
     entrypoint = ["/app/posix-router"],
-    workdir = "/share",
 )
 
 scion_app_images(
     name = "control",
-    appdir = "/app",
-    binary = "//go/cs:cs",
+    src = "//go/cs",
     cmd = [
         "--config",
         "/share/conf/cs.toml",
     ],
     entrypoint = ["/app/cs"],
-    workdir = "/share",
 )
 
 scion_app_images(
     name = "dispatcher",
-    appdir = "/app",
-    binary = "//go/dispatcher:dispatcher",
+    src = "//go/dispatcher",
     cmd = [
         "--config",
         "/share/conf/disp.toml",
     ],
     entrypoint = ["/app/dispatcher"],
-    workdir = "/share",
 )
 
 scion_app_images(
     name = "daemon",
-    appdir = "/app",
-    binary = "//go/sciond:sciond",
+    src = "//go/sciond",
     cmd = [
         "--config",
         "/share/conf/sd.toml",
     ],
     entrypoint = ["/app/sciond"],
-    workdir = "/share",
 )
 
 scion_app_images(
-    name = "sig",
-    appdir = "/app",
-    binary = "//go/sig:sig",
+    name = "posix_gateway",
+    src = "//go/posix-gateway",
     caps = "cap_net_admin+ei",
+    caps_binary = "/app/posix-gateway",
     cmd = [
         "--config",
         "/share/conf/sig.toml",
     ],
-    entrypoint = ["/app/sig"],
-    workdir = "/share",
+    entrypoint = ["/app/posix-gateway"],
 )

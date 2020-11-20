@@ -6,6 +6,7 @@ package mock_pktcls
 
 import (
 	gomock "github.com/golang/mock/gomock"
+	gopacket "github.com/google/gopacket"
 	reflect "reflect"
 )
 
@@ -33,7 +34,7 @@ func (m *MockCond) EXPECT() *MockCondMockRecorder {
 }
 
 // Eval mocks base method
-func (m *MockCond) Eval(arg0 interface{}) bool {
+func (m *MockCond) Eval(arg0 gopacket.Layer) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Eval", arg0)
 	ret0, _ := ret[0].(bool)

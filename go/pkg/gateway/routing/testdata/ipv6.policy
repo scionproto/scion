@@ -1,0 +1,2 @@
+accept    1-ff00:0:110    1-ff00:0:112    fd13:37::/64      # Allow specific subnet from 1-ff00:0:110
+reject    0-0             1-ff00:0:112    ::/0,0.0.0.0/0    # Reject everything

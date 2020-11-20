@@ -17,8 +17,8 @@ import os
 
 from plumbum import cli
 from plumbum import local
-from plumbum.cmd import docker, mkdir, mktemp
-from plumbum.path.local import LocalPath
+from plumbum import cmd
+from plumbum import path
 
 from acceptance.common.log import LogExec
 from acceptance.common.scion import SCION, SCIONSupervisor
@@ -51,10 +51,13 @@ class TestState:
 
         self.scion = scion
         self.dc = dc
+        self.topology_tar = ""
+        self.containers_tar = ""
         if 'TEST_UNDECLARED_OUTPUTS_DIR' in os.environ:
             self.artifacts = local.path(os.environ['TEST_UNDECLARED_OUTPUTS_DIR'])
         else:
-            self.artifacts = local.path(mktemp('-d').strip())
+            self.artifacts = local.path(cmd.mktemp('-d').strip())
+        self.dc.compose_file = self.artifacts / 'gen/scion-dc.yml'
         self.no_docker = False
         self.tools_dc = local['./tools/dc']
 
@@ -77,6 +80,14 @@ class TestBase(cli.Application):
     def artifacts_dir(self, a_dir: str):
         self.test_state.artifacts = local.path('%s/%s/' % (a_dir, NAME))
 
+    @cli.switch('topology_tar', str, help="The tarball with the topology files")
+    def topology_tar(self, tar: str):
+        self.test_state.topology_tar = tar
+
+    @cli.switch('containers_tar', str, help="The tarball with the containers")
+    def containers_tar(self, tar: str):
+        self.test_state.containers_tar = tar
+
 
 class CmdBase(cli.Application):
     """ CmdBase is used to implement the test sub-commands. """
@@ -87,7 +98,7 @@ class CmdBase(cli.Application):
             print(line)
 
     def cmd_setup(self):
-        mkdir('-p', self.artifacts)
+        cmd.mkdir('-p', self.artifacts)
 
     def cmd_teardown(self):
         if not self.no_docker:
@@ -96,21 +107,21 @@ class CmdBase(cli.Application):
         self.scion.stop()
 
     def _collect_logs(self, name: str):
-        if LocalPath('gen/%s-dc.yml' % name).exists():
+        if path.local.LocalPath('gen/%s-dc.yml' % name).exists():
             self.tools_dc('collect_logs', name, self.artifacts / 'logs' / 'docker')
 
     def _teardown(self, name: str):
-        if LocalPath('gen/%s-dc.yml' % name).exists():
+        if path.local.LocalPath('gen/%s-dc.yml' % name).exists():
             self.tools_dc(name, 'down')
 
     @staticmethod
-    def test_dir(prefix: str = '', directory: str = 'acceptance') -> LocalPath:
+    def test_dir(prefix: str = '', directory: str = 'acceptance') -> path.local.LocalPath:
         return local.path(prefix, directory) / DIR
 
     @staticmethod
     def docker_status():
         logger.info('Docker containers')
-        print(docker('ps', '-a', '-s'))
+        print(cmd.docker('ps', '-a', '-s'))
 
     @property
     def dc(self):

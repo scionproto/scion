@@ -13,11 +13,22 @@ SRC: 'SRC' | 'src';
 DST: 'DST' | 'dst';
 DSCP: 'DSCP' | 'dscp';
 TOS: 'TOS' | 'tos';
+PROTOCOL: 'PROTOCOL' | 'protocol';
+SRCPORT: 'SRCPORT' | 'srcport';
+DSTPORT: 'DSTPORT' | 'dstport';
+
+STRING: [a-zA-Z]+;
 
 matchSrc: SRC '=' NET;
 matchDst: DST '=' NET;
 matchDSCP: DSCP '=0x' (HEX_DIGITS | DIGITS);
 matchTOS: TOS '=0x' (HEX_DIGITS | DIGITS);
+matchProtocol: PROTOCOL '=' STRING;
+
+matchSrcPort: SRCPORT '=' DIGITS;
+matchSrcPortRange: SRCPORT '=' DIGITS '-' DIGITS;
+matchDstPort: DSTPORT '=' DIGITS;
+matchDstPortRange: DSTPORT '=' DIGITS '-' DIGITS;
 
 condCls: 'cls=' DIGITS;
 condAny: ANY '(' cond (',' cond)* ')';
@@ -25,6 +36,8 @@ condAll: ALL '(' cond (',' cond)* ')';
 condNot: NOT '(' cond ')';
 condBool: BOOL '=' ('true' | 'false');
 
-condIPv4: matchSrc | matchDst | matchDSCP | matchTOS;
-cond: condAll | condAny | condNot | condIPv4 | condCls | condBool;
+condIPv4: matchSrc | matchDst | matchDSCP | matchTOS | matchProtocol;
+condPort: matchSrcPort | matchSrcPortRange | matchDstPort | matchDstPortRange;
+cond: condAll | condAny | condNot | condIPv4 | condPort | condCls | condBool;
+
 trafficClass: cond EOF;

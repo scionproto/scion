@@ -201,3 +201,43 @@ func (m *IPv4MatchDSCP) UnmarshalJSON(b []byte) error {
 	m.DSCP = uint8(i)
 	return nil
 }
+
+var _ IPv4Predicate = (*IPv4MatchProtocol)(nil)
+
+// IPv4Matchprotocol checks whether the the L4 protocol matches.
+type IPv4MatchProtocol struct {
+	Protocol uint8
+}
+
+func (m *IPv4MatchProtocol) Type() string {
+	return "MatchProtocol"
+}
+
+func (m *IPv4MatchProtocol) Eval(p *layers.IPv4) bool {
+	return m.Protocol == uint8(p.Protocol)
+}
+
+func (m *IPv4MatchProtocol) String() string {
+	return fmt.Sprintf("protocol=%s", layers.IPProtocolMetadata[m.Protocol].Name)
+}
+
+func (m *IPv4MatchProtocol) MarshalJSON() ([]byte, error) {
+	return json.Marshal(
+		jsonContainer{
+			"Protocol": layers.IPProtocolMetadata[m.Protocol].Name,
+		},
+	)
+}
+
+func (m *IPv4MatchProtocol) UnmarshalJSON(b []byte) error {
+	s, err := unmarshalStringField(b, "Protocol", "Protocol")
+	if err != nil {
+		return err
+	}
+	n, err := protocolNameToNumber(s)
+	if err != nil {
+		return err
+	}
+	m.Protocol = n
+	return nil
+}

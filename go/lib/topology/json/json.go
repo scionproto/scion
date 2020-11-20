@@ -89,9 +89,9 @@ type BRInfo struct {
 
 // GatewayInfo contains SCION gateway information.
 type GatewayInfo struct {
-	CtrlAddr   string `json:"ctrl_addr"`
-	DataAddr   string `json:"data_addr"`
-	Interfaces []int  `json:"allow_interfaces,omitempty"`
+	CtrlAddr   string   `json:"ctrl_addr"`
+	DataAddr   string   `json:"data_addr"`
+	Interfaces []uint64 `json:"allow_interfaces,omitempty"`
 }
 
 // BRInterface contains the information for an data-plane BR socket that is external (i.e., facing
