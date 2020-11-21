@@ -64,6 +64,7 @@ func NewBootstrapper(cfg *config.Config) (*Bootstrapper, error) {
 
 func (b *Bootstrapper) tryBootstrapping() error {
 	hintGenerators := []hinting.HintGenerator{
+		hinting.NewMockHintGenerator(&cfg.MOCK),
 		hinting.NewDHCPHintGenerator(&cfg.DHCP, b.iface),
 		// XXX: DNSSD depends on DHCP, should this be better enforced?
 		hinting.NewDNSSDHintGenerator(&cfg.DNSSD),
@@ -104,7 +105,9 @@ OuterLoop:
 func pullTopology(addr *net.TCPAddr) error {
 	url := buildTopologyURL(addr.IP, addr.Port)
 	log.Info("Fetching topology from " + url)
-	r, err := fetchHTTP(url)
+	ctx, cancelF := context.WithTimeout(context.Background(), httpRequestTimeout)
+	defer cancelF()
+	r, err := fetchHTTP(ctx, url)
 	if err != nil {
 		return err
 	}
@@ -138,7 +141,9 @@ func buildTopologyURL(ip net.IP, port int) string {
 func pullTRCs(addr *net.TCPAddr) error {
 	url := buildTRCsURL(addr.IP, addr.Port)
 	log.Info("Fetching TRCs", "url", url)
-	r, err := fetchHTTP(url)
+	ctx, cancelF := context.WithTimeout(context.Background(), httpRequestTimeout)
+	defer cancelF()
+	r, err := fetchHTTP(ctx, url)
 	if err != nil {
 		return err
 	}
@@ -194,9 +199,7 @@ func buildTRCsURL(ip net.IP, port int) string {
 	return fmt.Sprintf("%s://%s:%d/%s", "http", ip, port, urlPath)
 }
 
-func fetchHTTP(url string) (io.ReadCloser, error) {
-	ctx, cancelF := context.WithTimeout(context.Background(), httpRequestTimeout)
-	defer cancelF()
+func fetchHTTP(ctx context.Context, url string) (io.ReadCloser, error) {
 	res, err := ctxhttp.Get(ctx, nil, url)
 	if err != nil {
 		return nil, common.NewBasicError("HTTP request failed", err)

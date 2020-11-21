@@ -15,10 +15,11 @@ type Config struct {
 	Interface   string                        `toml:"interface"`
 	SCIONFolder string                        `toml:"scion_folder"`
 	SDConf      string                        `toml:"sd_conf"`
+	MOCK        hinting.MOCKHintGeneratorConf `toml:"mock"`
 	DHCP        hinting.DHCPHintGeneratorConf `toml:"dhcp"`
 	DNSSD       hinting.DNSHintGeneratorConf  `toml:"dnssd"`
 	MDNS        hinting.MDNSHintGeneratorConf `toml:"mdns"`
-	Logging     log.Config
+	Logging     log.Config                    `toml:"log"`
 }
 
 func (cfg *Config) InitDefaults() {

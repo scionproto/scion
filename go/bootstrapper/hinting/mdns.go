@@ -13,7 +13,7 @@ const (
 )
 
 type MDNSHintGeneratorConf struct {
-	Enable bool `toml:"enable"`
+	Enable bool `toml:"Enable"`
 }
 
 var _ HintGenerator = (*MDNSSDHintGenerator)(nil)

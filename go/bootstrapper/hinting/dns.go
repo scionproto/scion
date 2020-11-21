@@ -100,7 +100,8 @@ func resolveDNS(resolver, query string, dnsRR uint16, ipHintsChan chan<- net.IP)
 			result := *(answer.(*dns.SRV))
 			// TODO: Should we really consider different ports an error?
 			if result.Port != DiscoveryPort {
-				log.Error("DNS announced invalid discovery port", "expected", DiscoveryPort, "actual", result.Port)
+				log.Error("DNS announced invalid discovery port",
+					"expected", DiscoveryPort, "actual", result.Port)
 			}
 			serviceRecords = append(serviceRecords, result)
 		case *dns.A:
