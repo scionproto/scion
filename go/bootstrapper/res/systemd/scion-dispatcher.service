@@ -1,0 +1,19 @@
+[Unit]
+Description=SCION Dispatcher
+Documentation=https://www.scionlab.org
+After=network-online.target
+Wants=network-online.target
+PartOf=scionlab.target
+
+[Service]
+Type=simple
+WorkingDirectory=/etc/scion/
+ExecStartPre=/bin/mkdir -p /run/shm/dispatcher
+ExecStart=/opt/scion/dispatcher --config /etc/scion/disp.toml
+RemainAfterExit=False
+KillMode=control-group
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=scionlab.target

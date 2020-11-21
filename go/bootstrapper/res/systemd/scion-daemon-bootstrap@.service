@@ -1,0 +1,18 @@
+[Unit]
+Description=SCION Daemon
+Documentation=https://www.scionlab.org
+After=network-online.target scion-bootstrapper@%i.service scion-dispatcher.service
+BindsTo=scion-bootstrapper@%i.service
+Wants=network-online.target
+PartOf=scionlab.target
+
+[Service]
+Type=simple
+WorkingDirectory=/etc/scion/
+ExecStartPre=/bin/mkdir -p /etc/scion/gen-cache /var/cache/scion /run/shm/sciond
+ExecStart=/opt/scion/sciond --config /etc/scion/sd.toml
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=scionlab.target

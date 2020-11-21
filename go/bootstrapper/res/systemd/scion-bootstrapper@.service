@@ -1,0 +1,24 @@
+[Unit]
+Description=SCION Bootstrapper
+Documentation=https://www.scionlab.org
+After=network-online.target
+Before=scion-daemon@%i.service
+Wants=network-online.target
+PartOf=scionlab.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/etc/scion/
+ExecStartPre=/bin/mkdir -p /etc/scion/certs/
+ExecStartPre=/bin/cp /etc/scion/boot.toml /etc/scion/boot-%i.toml
+ExecStartPre=/bin/sed -i s#NIC#%i#g /etc/scion/boot-%i.toml
+ExecStart=/opt/scion/bootstrapper -config boot-%i.toml
+RemainAfterExit=True
+TimeoutStartSec=120
+Restart=no
+
+# Raw network is needed for DHCP
+AmbientCapabilities=CAP_NET_RAW
+
+[Install]
+WantedBy=scionlab.target
