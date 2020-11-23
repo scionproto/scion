@@ -19,6 +19,21 @@ type TrafficClassListener interface {
 	// EnterMatchTOS is called when entering the matchTOS production.
 	EnterMatchTOS(c *MatchTOSContext)
 
+	// EnterMatchProtocol is called when entering the matchProtocol production.
+	EnterMatchProtocol(c *MatchProtocolContext)
+
+	// EnterMatchSrcPort is called when entering the matchSrcPort production.
+	EnterMatchSrcPort(c *MatchSrcPortContext)
+
+	// EnterMatchSrcPortRange is called when entering the matchSrcPortRange production.
+	EnterMatchSrcPortRange(c *MatchSrcPortRangeContext)
+
+	// EnterMatchDstPort is called when entering the matchDstPort production.
+	EnterMatchDstPort(c *MatchDstPortContext)
+
+	// EnterMatchDstPortRange is called when entering the matchDstPortRange production.
+	EnterMatchDstPortRange(c *MatchDstPortRangeContext)
+
 	// EnterCondCls is called when entering the condCls production.
 	EnterCondCls(c *CondClsContext)
 
@@ -36,6 +51,9 @@ type TrafficClassListener interface {
 
 	// EnterCondIPv4 is called when entering the condIPv4 production.
 	EnterCondIPv4(c *CondIPv4Context)
+
+	// EnterCondPort is called when entering the condPort production.
+	EnterCondPort(c *CondPortContext)
 
 	// EnterCond is called when entering the cond production.
 	EnterCond(c *CondContext)
@@ -55,6 +73,21 @@ type TrafficClassListener interface {
 	// ExitMatchTOS is called when exiting the matchTOS production.
 	ExitMatchTOS(c *MatchTOSContext)
 
+	// ExitMatchProtocol is called when exiting the matchProtocol production.
+	ExitMatchProtocol(c *MatchProtocolContext)
+
+	// ExitMatchSrcPort is called when exiting the matchSrcPort production.
+	ExitMatchSrcPort(c *MatchSrcPortContext)
+
+	// ExitMatchSrcPortRange is called when exiting the matchSrcPortRange production.
+	ExitMatchSrcPortRange(c *MatchSrcPortRangeContext)
+
+	// ExitMatchDstPort is called when exiting the matchDstPort production.
+	ExitMatchDstPort(c *MatchDstPortContext)
+
+	// ExitMatchDstPortRange is called when exiting the matchDstPortRange production.
+	ExitMatchDstPortRange(c *MatchDstPortRangeContext)
+
 	// ExitCondCls is called when exiting the condCls production.
 	ExitCondCls(c *CondClsContext)
 
@@ -72,6 +105,9 @@ type TrafficClassListener interface {
 
 	// ExitCondIPv4 is called when exiting the condIPv4 production.
 	ExitCondIPv4(c *CondIPv4Context)
+
+	// ExitCondPort is called when exiting the condPort production.
+	ExitCondPort(c *CondPortContext)
 
 	// ExitCond is called when exiting the cond production.
 	ExitCond(c *CondContext)

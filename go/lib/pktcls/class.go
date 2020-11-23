@@ -16,6 +16,8 @@ package pktcls
 
 import (
 	"encoding/json"
+
+	"github.com/google/gopacket"
 )
 
 var (
@@ -43,7 +45,7 @@ func (c *Class) GetName() string {
 	return c.name
 }
 
-func (c *Class) Eval(pkt *Packet) bool {
+func (c *Class) Eval(pkt gopacket.Layer) bool {
 	return c.Cond.Eval(pkt)
 }
 

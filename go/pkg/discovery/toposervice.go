@@ -16,6 +16,7 @@ package discovery
 
 import (
 	"context"
+	"net"
 
 	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc/codes"
@@ -58,14 +59,36 @@ func (t Topology) Gateways(ctx context.Context,
 		Gateways: make([]*dpb.Gateway, 0, len(gateways)),
 	}
 	for _, info := range gateways {
+		// XXX(lukedirtwalker): for now we use a fixed probe port in the future
+		// we can just send a different one if we need to.
+		probeAddr := &net.UDPAddr{
+			IP:   info.CtrlAddr.SCIONAddress.IP,
+			Zone: info.CtrlAddr.SCIONAddress.Zone,
+			Port: 30856,
+		}
 		reply.Gateways = append(reply.Gateways, &dpb.Gateway{
-			ControlAddress: info.CtrlAddr.SCIONAddress.String(),
-			DataAddress:    info.DataAddr.String(),
+			ControlAddress:  info.CtrlAddr.SCIONAddress.String(),
+			DataAddress:     info.DataAddr.String(),
+			ProbeAddress:    probeAddr.String(),
+			AllowInterfaces: info.AllowInterfaces,
 		})
 	}
 	logger.Debug("Replied with gateways", "gateways", gateways)
 	t.updateTelemetry(span, labels.WithResult(prom.Success), nil)
 	return reply, nil
+}
+
+// HiddenSegmentServices discovers hidden segment services in this topology.
+func (t Topology) HiddenSegmentServices(ctx context.Context,
+	_ *dpb.HiddenSegmentServicesRequest) (*dpb.HiddenSegmentServicesResponse, error) {
+
+	span := opentracing.SpanFromContext(ctx)
+	labels := requestLabels{ReqType: "hidden_segment_services"}
+	logger := log.FromCtx(ctx)
+
+	logger.Debug("Hidden segment services currently not supported")
+	t.updateTelemetry(span, labels.WithResult("err_unimplemented"), nil)
+	return nil, status.Error(codes.Unimplemented, "not supported")
 }
 
 // RequestsLabels exposes the labels required by the Requests metric.

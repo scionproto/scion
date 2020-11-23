@@ -36,21 +36,29 @@ def build_tester_image():
 
     container_image(
         name = "tester",
-        base = "@ubuntu16//image",
+        base = "@debian10//image",
         env = {"TZ": "UTC"},
         debs = [
-            packages["libc6"],
-            # ping and its dependencies
-            packages["iputils-ping"],
-            packages["libcap2"],
-            packages["libcap2-bin"],
-            packages["libidn2-0"],
-            packages["libunistring2"],
-            packages["libnettle6"],
-            # iproute2 and its dependencies
-            packages["iproute2"],
-            packages["libelf1"],
-            packages["libmnl0"],
+            # iptables and its dependencies (only not already present)
+            packages["gcc-8-base"],
+            packages["iptables"],
+            packages["libip4tc0"],
+            packages["libip6tc0"],
+            packages["libiptc0"],
+            packages["libnetfilter-conntrack3"],
+            packages["libnfnetlink0"],
+            packages["libnftnl11"],
+            packages["libxtables12"],
+            # telnet and its dependencies (only not already present)
+            packages["telnet"],
+            packages["netbase"],
+            # sysctl and dependencies
+            packages["procps"],
+            packages["libgpm2"],
+            packages["libncurses6"],
+            packages["libprocps7"],
+            packages["lsb-base"],
+            packages["psmisc"],
         ],
         tars = [
             ":share",

@@ -196,11 +196,23 @@ func MustParseHexString(s string) []byte {
 }
 
 // MustParseCIDR parses s and returns the corresponding net.IPNet object. It
-// panics if s is not a valid CIDR string.
+// fails the test if s is not a valid CIDR string.
 func MustParseCIDR(t *testing.T, s string) *net.IPNet {
+	t.Helper()
+
 	_, network, err := net.ParseCIDR(s)
 	require.NoError(t, err)
 	return network
+}
+
+// MustParseUDPAddr parses s and returns the corresponding net.UDPAddr object.
+// It fails the test if s is not a valid UDP address string.
+func MustParseUDPAddr(t *testing.T, s string) *net.UDPAddr {
+	t.Helper()
+
+	a, err := net.ResolveUDPAddr("udp", s)
+	require.NoError(t, err)
+	return a
 }
 
 // AssertReadReturnsBetween will call t.Fatalf if the first read from the

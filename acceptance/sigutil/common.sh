@@ -11,7 +11,7 @@ test_setup() {
     ./scion.sh topology -c $TEST_TOPOLOGY -d --sig -n 242.254.0.0/16
     ./scion.sh run nobuild
     ./tools/dc start 'tester*'
-    sleep 7
+    sleep 20
     docker_status
 }
 
@@ -51,10 +51,4 @@ reload_sig() {
     ./tools/dc scion kill -s SIGHUP scion_sig_"$1" || echo "sending SIGHUP failed"
     # Wait till the new config takes effect.
     sleep 3
-    # Make sure that the reload actually happened.
-    COUNT=$(./tools/dc scion logs scion_sig_$1 | grep --text ".*Config reloaded.*" | wc -l)
-    if [ "$COUNT" != "$2" ]; then
-            echo "Expected $2 config reloads, found $COUNT."
-        exit 1
-    fi
 }

@@ -44,6 +44,36 @@ func (s *BaseTrafficClassListener) EnterMatchTOS(ctx *MatchTOSContext) {}
 // ExitMatchTOS is called when production matchTOS is exited.
 func (s *BaseTrafficClassListener) ExitMatchTOS(ctx *MatchTOSContext) {}
 
+// EnterMatchProtocol is called when production matchProtocol is entered.
+func (s *BaseTrafficClassListener) EnterMatchProtocol(ctx *MatchProtocolContext) {}
+
+// ExitMatchProtocol is called when production matchProtocol is exited.
+func (s *BaseTrafficClassListener) ExitMatchProtocol(ctx *MatchProtocolContext) {}
+
+// EnterMatchSrcPort is called when production matchSrcPort is entered.
+func (s *BaseTrafficClassListener) EnterMatchSrcPort(ctx *MatchSrcPortContext) {}
+
+// ExitMatchSrcPort is called when production matchSrcPort is exited.
+func (s *BaseTrafficClassListener) ExitMatchSrcPort(ctx *MatchSrcPortContext) {}
+
+// EnterMatchSrcPortRange is called when production matchSrcPortRange is entered.
+func (s *BaseTrafficClassListener) EnterMatchSrcPortRange(ctx *MatchSrcPortRangeContext) {}
+
+// ExitMatchSrcPortRange is called when production matchSrcPortRange is exited.
+func (s *BaseTrafficClassListener) ExitMatchSrcPortRange(ctx *MatchSrcPortRangeContext) {}
+
+// EnterMatchDstPort is called when production matchDstPort is entered.
+func (s *BaseTrafficClassListener) EnterMatchDstPort(ctx *MatchDstPortContext) {}
+
+// ExitMatchDstPort is called when production matchDstPort is exited.
+func (s *BaseTrafficClassListener) ExitMatchDstPort(ctx *MatchDstPortContext) {}
+
+// EnterMatchDstPortRange is called when production matchDstPortRange is entered.
+func (s *BaseTrafficClassListener) EnterMatchDstPortRange(ctx *MatchDstPortRangeContext) {}
+
+// ExitMatchDstPortRange is called when production matchDstPortRange is exited.
+func (s *BaseTrafficClassListener) ExitMatchDstPortRange(ctx *MatchDstPortRangeContext) {}
+
 // EnterCondCls is called when production condCls is entered.
 func (s *BaseTrafficClassListener) EnterCondCls(ctx *CondClsContext) {}
 
@@ -79,6 +109,12 @@ func (s *BaseTrafficClassListener) EnterCondIPv4(ctx *CondIPv4Context) {}
 
 // ExitCondIPv4 is called when production condIPv4 is exited.
 func (s *BaseTrafficClassListener) ExitCondIPv4(ctx *CondIPv4Context) {}
+
+// EnterCondPort is called when production condPort is entered.
+func (s *BaseTrafficClassListener) EnterCondPort(ctx *CondPortContext) {}
+
+// ExitCondPort is called when production condPort is exited.
+func (s *BaseTrafficClassListener) ExitCondPort(ctx *CondPortContext) {}
 
 // EnterCond is called when production cond is entered.
 func (s *BaseTrafficClassListener) EnterCond(ctx *CondContext) {}

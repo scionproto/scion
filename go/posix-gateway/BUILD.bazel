@@ -1,0 +1,33 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("//:scion.bzl", "scion_go_binary")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["main.go"],
+    importpath = "github.com/scionproto/scion/go/posix-gateway",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/lib/config:go_default_library",
+        "//go/lib/env:go_default_library",
+        "//go/lib/fatal:go_default_library",
+        "//go/lib/log:go_default_library",
+        "//go/lib/prom:go_default_library",
+        "//go/lib/sciond:go_default_library",
+        "//go/lib/serrors:go_default_library",
+        "//go/lib/sock/reliable:go_default_library",
+        "//go/pkg/command:go_default_library",
+        "//go/pkg/gateway:go_default_library",
+        "//go/pkg/gateway/xnet:go_default_library",
+        "//go/pkg/service:go_default_library",
+        "//go/posix-gateway/config:go_default_library",
+        "@com_github_spf13_cobra//:go_default_library",
+        "@com_github_syndtr_gocapability//capability:go_default_library",
+        "@com_github_vishvananda_netlink//:go_default_library",
+    ],
+)
+
+scion_go_binary(
+    name = "posix-gateway",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

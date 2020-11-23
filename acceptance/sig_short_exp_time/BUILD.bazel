@@ -43,12 +43,12 @@ container_image(
 
 container_image(
     name = "sig1",
-    base = "//docker:sig_debug",
+    base = "//docker:posix_gateway_debug",
     cmd = [
         "--config",
         "/sig.toml",
     ],
-    entrypoint = ["/app/sig"],
+    entrypoint = ["/app/posix-gateway"],
     files = [
         "testdata/1-ff00_0_110/sig/cfg.json",
         "testdata/1-ff00_0_110/sig/fake_sciond.json",
@@ -58,12 +58,12 @@ container_image(
 
 container_image(
     name = "sig2",
-    base = "//docker:sig_debug",
+    base = "//docker:posix_gateway_debug",
     cmd = [
         "--config",
         "/sig.toml",
     ],
-    entrypoint = ["/app/sig"],
+    entrypoint = ["/app/posix-gateway"],
     files = [
         "testdata/1-ff00_0_111/sig/cfg.json",
         "testdata/1-ff00_0_111/sig/fake_sciond.json",

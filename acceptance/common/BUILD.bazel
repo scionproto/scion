@@ -39,6 +39,7 @@ py_library(
         requirement("plumbum"),
         requirement("toml"),
         "log",
+        "//python/lib:scion_addr",
     ],
 )
 

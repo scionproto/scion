@@ -139,5 +139,5 @@ def rel(path: LocalPath):
 
 if __name__ == '__main__':
     init_log()
-    Test.test_state = TestState(SCIONDocker(), DC(''))
+    Test.test_state = TestState(SCIONDocker(), DC())
     Test.run()

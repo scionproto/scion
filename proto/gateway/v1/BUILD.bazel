@@ -4,6 +4,7 @@ proto_library(
     name = "gateway",
     srcs = [
         "control.proto",
+        "prefix.proto",
     ],
     visibility = ["//visibility:public"],
 )

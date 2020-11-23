@@ -97,7 +97,7 @@ func TestIPCond(t *testing.T) {
 	testCases := []struct {
 		Name    string
 		Cond    pktcls.Cond
-		Packet  *pktcls.Packet
+		Packet  gopacket.Layer
 		ExpEval bool
 	}{
 		{
@@ -112,13 +112,24 @@ func TestIPCond(t *testing.T) {
 					},
 				),
 			),
-			Packet: newTestPacket(
-				&layers.IPv4{
-					SrcIP: net.IP{172, 17, 1, 1},
-					DstIP: net.IP{192, 168, 1, 2},
-				},
-				[]byte{1, 1, 1, 1},
+			Packet: &layers.IPv4{
+				SrcIP: net.IP{172, 17, 1, 1},
+				DstIP: net.IP{192, 168, 1, 2},
+			},
+			ExpEval: true,
+		},
+		{
+			Name: "Match IPv4 protocol",
+			Cond: pktcls.NewCondAllOf(
+				pktcls.NewCondIPv4(
+					&pktcls.IPv4MatchProtocol{
+						Protocol: 6,
+					},
+				),
 			),
+			Packet: &layers.IPv4{
+				Protocol: 6,
+			},
 			ExpEval: true,
 		},
 		{
@@ -138,13 +149,10 @@ func TestIPCond(t *testing.T) {
 					},
 				),
 			),
-			Packet: newTestPacket(
-				&layers.IPv4{
-					SrcIP: net.IP{192, 168, 1, 1},
-					DstIP: net.IP{10, 0, 0, 2},
-				},
-				[]byte{2, 2, 2, 2},
-			),
+			Packet: &layers.IPv4{
+				SrcIP: net.IP{192, 168, 1, 1},
+				DstIP: net.IP{10, 0, 0, 2},
+			},
 			ExpEval: false,
 		},
 	}
@@ -154,6 +162,79 @@ func TestIPCond(t *testing.T) {
 			assert.Equal(t, test.ExpEval, test.Cond.Eval(test.Packet))
 		})
 	}
+}
+
+func TestPortCond(t *testing.T) {
+	testCases := map[string]struct {
+		Cond    pktcls.Cond
+		SrcPort uint16
+		DstPort uint16
+		ExpEval bool
+	}{
+		"Match UDP src port": {
+			Cond: pktcls.NewCondAllOf(
+				pktcls.NewCondPorts(
+					&pktcls.PortMatchSource{
+						MinPort: 100,
+						MaxPort: 199,
+					},
+				),
+			),
+			SrcPort: 150,
+			ExpEval: true,
+		},
+		"Do not match UDP dst port": {
+			Cond: pktcls.NewCondAllOf(
+				pktcls.NewCondPorts(
+					&pktcls.PortMatchDestination{
+						MinPort: 100,
+						MaxPort: 199,
+					},
+				),
+			),
+			DstPort: 200,
+			ExpEval: false,
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			pkt := createUDPPacket(tc.SrcPort, tc.DstPort)
+			assert.Equal(t, tc.ExpEval, tc.Cond.Eval(pkt))
+		})
+	}
+}
+
+func createUDPPacket(src, dst uint16) gopacket.Layer {
+	ip := &layers.IPv4{
+		Version:  4,
+		IHL:      5,
+		TTL:      64,
+		SrcIP:    net.IP{192, 168, 14, 3},
+		DstIP:    net.IP{192, 168, 14, 2},
+		Protocol: layers.IPProtocolUDP,
+		Flags:    layers.IPv4DontFragment,
+	}
+	udp := &layers.UDP{
+		SrcPort: layers.UDPPort(src),
+		DstPort: layers.UDPPort(dst),
+	}
+	udp.SetNetworkLayerForChecksum(ip)
+	payload := []byte("payload")
+	input := gopacket.NewSerializeBuffer()
+	options := gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+	if err := gopacket.SerializeLayers(input, options,
+		ip, udp, gopacket.Payload(payload)); err != nil {
+		panic(err)
+	}
+	pkt := &layers.IPv4{}
+	pkt.DecodeFromBytes(input.Bytes(), gopacket.NilDecodeFeedback)
+	return pkt
 }
 
 func TestStringer(t *testing.T) {
@@ -193,15 +274,4 @@ func TestStringer(t *testing.T) {
 			assert.Equal(t, test.Cond, parsedCond)
 		})
 	}
-}
-
-func newTestPacket(ipv4 *layers.IPv4, pld []byte) *pktcls.Packet {
-	buf := gopacket.NewSerializeBuffer()
-	gopacket.SerializeLayers(
-		buf,
-		gopacket.SerializeOptions{},
-		ipv4,
-		gopacket.Payload(pld),
-	)
-	return pktcls.NewPacket(buf.Bytes())
 }

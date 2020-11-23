@@ -1,0 +1,67 @@
+// Copyright 2020 Anapaya Systems
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+option go_package = "github.com/scionproto/scion/go/pkg/proto/discovery";
+
+package proto.discovery.v1;
+
+service DiscoveryService {
+    // Return the remote gateways.
+    rpc Gateways(GatewaysRequest) returns (GatewaysResponse) {}
+    // Return the hidden segment services.
+    rpc HiddenSegmentServices(HiddenSegmentServicesRequest) returns (HiddenSegmentServicesResponse) {}
+}
+
+message GatewaysRequest {}
+
+message GatewaysResponse {
+    // The list of gateways.
+    repeated Gateway gateways = 1;
+}
+
+message Gateway {
+    // The control address of this gateway.
+    string control_address = 1;
+    // The data address of this gateway.
+    string data_address = 2;
+    // The probe address of this gateway. The probe address is used for the
+    // gateway health checking probes.
+    string probe_address = 3;
+    // The allowed AS interface IDs of this gateway. The client of this service
+    // should only access this gateway by using a path that reaches the
+    // destination AS through an interface that is member of this list. The
+    // list can be empty, in which case any path can be used.
+    repeated uint64 allow_interfaces = 4;
+}
+
+message HiddenSegmentServicesRequest {}
+
+message HiddenSegmentServicesResponse {
+    // The list of lookup service instances.
+    repeated HiddenSegmentLookupServer lookup = 1;
+    // The list of registration service instances.
+    repeated HiddenSegmentRegistrationServer registration = 2;
+}
+
+message HiddenSegmentLookupServer {
+    // The address of a hidden segment lookup service instance.
+    string address = 1;
+}
+
+message HiddenSegmentRegistrationServer {
+    // The address of a hidden segment registration service instance.
+    string address = 1;
+}
