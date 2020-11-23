@@ -14,6 +14,7 @@ py_library(
         requirement("plumbum"),
         "//acceptance/common:base",
         "//acceptance/common:log",
+        "//acceptance/common:scion",
         "//acceptance/common:tools",
     ],
 )

@@ -1,4 +1,4 @@
-# Generates a tar with all the files generate by testgen.
+# Generates a tar with all the files generate by topogen.
 #   name: name of the rule
 #   src: input topology file
 #   out: the output tar file
@@ -10,15 +10,6 @@
 #   tag: Defines which set of tag images to be used (e.g scion_cs_<tag>)
 #   user: Defines 'user id: group id' to be used in docker-compose file
 #   no_bfd: Switch off BFD between border routers
-#
-# For convenience, <name>_up and <name>_down targets are generated to start and
-# stop the topology, respectively. For example, if the rule is:
-#
-#    topology(name='foo', topo='foo.topo')
-#
-# The the following command will start all the services:
-#
-#    bazel run foo_up
 #
 def topology(
         name,
@@ -69,3 +60,12 @@ def topology(
             "//tools:docker_ip",
         ],
     )
+
+    bundles = []
+    if tag == "debug":
+        bundles += ["//docker:debug.tar"]
+    else:
+        bundles += ["//docker:prod.tar"]
+    args = ["$(location :" + name + ")"]
+    for bundle in bundles:
+        args += ["$(location " + bundle + ")"]
