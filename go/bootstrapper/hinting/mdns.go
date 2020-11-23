@@ -2,10 +2,12 @@ package hinting
 
 import (
 	"context"
-	"github.com/grandcat/zeroconf"
-	"github.com/scionproto/scion/go/lib/log"
 	"net"
 	"time"
+
+	"github.com/grandcat/zeroconf"
+
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 const (

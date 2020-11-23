@@ -1,8 +1,9 @@
 package hinting
 
 import (
-	"github.com/scionproto/scion/go/lib/log"
 	"net"
+
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 const (
@@ -39,4 +40,3 @@ func (m *MockHintGenerator) Generate(ipHintsChan chan<- net.IP) {
 		ipHintsChan <- ip
 	}
 }
-

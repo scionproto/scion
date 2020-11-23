@@ -19,7 +19,6 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"github.com/scionproto/scion/go/bootstrapper/config"
 	"io"
 	"io/ioutil"
 	"net"
@@ -27,14 +26,14 @@ import (
 	"os"
 	"path"
 	"time"
-)
 
-import (
+	"golang.org/x/net/context/ctxhttp"
+
+	"github.com/scionproto/scion/go/bootstrapper/config"
 	"github.com/scionproto/scion/go/bootstrapper/hinting"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/topology"
-	"golang.org/x/net/context/ctxhttp"
 )
 
 const (
@@ -188,7 +187,8 @@ func pullTRCs(addr *net.TCPAddr) error {
 		case tar.TypeDir:
 			return fmt.Errorf("TRCs archive must be composed of TRCs only, directory found")
 		default:
-			return fmt.Errorf("TRCs archive must be composed of TRCs only, unknown type found: %c", hdr.Typeflag)
+			return fmt.Errorf("TRCs archive must be composed of TRCs only"+
+				", unknown type found: %c", hdr.Typeflag)
 		}
 	}
 	return nil
@@ -221,7 +221,8 @@ func generateSDConfig(sdConf string) error {
 	if err != nil {
 		return common.NewBasicError("error opening src sd conf file", err)
 	}
-	dstConfFile, err := os.OpenFile(path.Join(cfg.SCIONFolder, "sd.toml"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	dstConfFile, err := os.OpenFile(path.Join(cfg.SCIONFolder, "sd.toml"),
+		os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return common.NewBasicError("error opening dest sd conf file", err)
 	}

@@ -3,12 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	_ "net/http/pprof"
 	"os"
-)
 
-import (
 	"github.com/BurntSushi/toml"
+
 	"github.com/scionproto/scion/go/bootstrapper/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"

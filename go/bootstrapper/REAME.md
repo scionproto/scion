@@ -1,20 +1,25 @@
-Client bootstrap service
----
-# Webserver (nginx) installation
+# Client bootstrap service
+
+## Webserver (nginx) installation
+
 After having installed **nginx**, follow these steps to expose the endpoints needed for client bootstrapping:
-- copy the `nginx/scion` configuration to `/etc/nginx/sites-available` and enable it by creating a link that points to `/etc/nginx/sites-available/scion` in `/etc/nginx/sites-enabled`),
+
+- copy the `nginx/scion` configuration to `/etc/nginx/sites-available` and
+ enable it by creating a link that points to `/etc/nginx/sites-available/scion` in `/etc/nginx/sites-enabled`),
 - create a link to the topology to expose in `/srv/http/scion/discovery/v1/topology.json`, and
 - create a link to the folder containing the certificates to serve in `/srv/http/scion/discovery/v1/certs/`.
 
-## Check the webserver
+### Check the webserver
+
 You can test that the webserver is working with:
-- `curl ${SERVER_IP}:8041/scion/discovery/v1/topology.json`, and 
+
+- `curl ${SERVER_IP}:8041/scion/discovery/v1/topology.json`, and
 - `curl ${SERVER_IP}:8041/scion/discovery/v1/certs/`
 
 The former should return the topology of the AS.
 The latter should return a list of certificate files.
 
-# Systemd
+## Systemd
 
 ---
 title: Setup automatic endhost configuration
@@ -22,12 +27,12 @@ parent: Configuration
 nav_order: 40
 ---
 
-# Setup automatic endhost configuration
+## Setup automatic endhost configuration
 
 To have endhosts automatically join the SCION AS rather than configure the
 endhost manually, you can deploy the bootstrapping service.
 
-## Deploy the Discovery Service
+### Deploy the Discovery Service
 
 The Discovery Service is a static HTTP server hosting the `topology.json` file.
 We describe a sample setup using nginx but any webserver with the same URL paths
@@ -41,7 +46,7 @@ sudo apt-get install nginx
 
 Put the following configuration into `/etc/nginx/nginx.conf`:
 
-```
+```nginx
 user www-data www-data;
 worker_processes  auto;
 events {
@@ -80,18 +85,18 @@ Check that the topology can be fetched by accessing
 `http://<yourdiscoveryserver>:8041/discovery/v1/static/endhost.json`. This
 should serve your topology file.
 
-## Configure a Discovery Mechanism
+### Configure a Discovery Mechanism
 
 Choose at least one of the described options:
 
-### DHCP configuration
+#### DHCP configuration
 
 Configure your local DHCP server to provide clients with the IP address of your
 discovery service as option 72 "Default WWW server". The concrete configuration
 depends on your DHCP server. For `dnsmasq` add the following line to
 `/etc/dnsmasq.conf`: `dhcp-option=72,<yourdiscoveryserverIP>`
 
-### mDNS configuration
+#### mDNS configuration
 
 Install an mDNS daemon on your machine:
 
@@ -117,24 +122,25 @@ Put the configuration to `/etc/avahi/services/sciondiscovery.xml`:
 sudo systemctl enable --now avahi-daemon
 ```
 
-### DNS Configuration
+#### DNS Configuration
 
 Configure your DNS domain (if you have one) to contain the following records:
 
 Using DNS SD:
-```
+
+```dns
 _sciondiscovery._tcp.<yourdomain> IN SRV 10 10 8041 <yourdiscoveryserver>
 <yourdiscoveryserver> IN A <yourdiscoveryserverIP>
 ```
 
 OR using DNS S-NAPTR:
 
-```
+```dns
 <yourdomain> IN NAPTR 10 10 "a" "x-sciondiscovery:tcp" <yourdiscoveryserver>
 <yourdiscoveryserver> IN A <yourdiscoveryserverIP>
 ```
 
-## Configure the endhost
+### Configure the endhost
 
 On the endhost install and enable the following. Replace `ens1` with your actual
 network interface.

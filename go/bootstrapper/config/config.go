@@ -2,11 +2,12 @@
 package config
 
 import (
+	"io"
+
 	"github.com/scionproto/scion/go/bootstrapper/hinting"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/log"
-	"io"
 )
 
 var _ config.Config = (*Config)(nil)

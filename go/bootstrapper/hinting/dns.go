@@ -1,13 +1,15 @@
 package hinting
 
 import (
-	"github.com/miekg/dns"
-	"github.com/scionproto/scion/go/lib/log"
 	"math/rand"
 	"net"
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/miekg/dns"
+
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 const (

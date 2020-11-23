@@ -1,12 +1,14 @@
 package hinting
 
 import (
+	"net"
+
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv4/client4"
 	"github.com/insomniacslk/dhcp/rfc1035label"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"net"
 )
 
 type DHCPHintGeneratorConf struct {
