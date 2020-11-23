@@ -1,0 +1,17 @@
+interface = "NIC"
+scion_folder = "/etc/scion"
+
+[mock]
+  enable = true
+  address = "192.33.93.173"
+[dhcp]
+  enable = true
+[dnssd]
+  enableSD = true
+  enableNAPTR = true
+[mdns]
+  enable = true
+
+[log]
+  [log.console]
+    level = "debug"

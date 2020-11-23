@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -e
+
+if [ "$1" = remove ]; then
+    systemctl disable scion-dispatcher.service \
+				      scion-bootstrapper@* \
+				      scion-daemon-bootstrap@*
+    systemctl stop scion-dispatcher.service \
+				   scion-bootstrapper@* \
+				   scion-daemon-bootstrap@*
+fi

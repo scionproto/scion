@@ -1,0 +1,7 @@
+[dispatcher]
+    id = "dispatcher"
+    application_socket = "/run/shm/dispatcher/default.sock"
+[log]
+  [log.console]
+    level = "debug"
+

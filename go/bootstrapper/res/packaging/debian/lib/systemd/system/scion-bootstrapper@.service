@@ -19,6 +19,7 @@ Restart=no
 
 # Raw network is needed for DHCP
 AmbientCapabilities=CAP_NET_RAW
+#NoNewPrivileges=true
 
 [Install]
 WantedBy=scionlab.target

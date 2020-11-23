@@ -1,0 +1,11 @@
+[general]
+    id = "sd"
+    config_dir = "/etc/scion"
+[trust_db]
+    connection = "/etc/scion/gen-cache/sd.trust.db"
+[path_db]
+    connection = "/etc/scion/gen-cache/sd.path.db"
+[log]
+  [log.console]
+    level = "debug"
+

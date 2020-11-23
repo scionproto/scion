@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -e
+
+# summary of how this script can be called:
+#        * <postinst> `configure' <most-recently-configured-version>
+#        * <old-postinst> `abort-upgrade' <new version>
+#        * <conflictor's-postinst> `abort-remove' `in-favour' <package>
+#          <new-version>
+#        * <postinst> `abort-remove'
+#        * <deconfigured's-postinst> `abort-deconfigure' `in-favour'
+#          <failed-install-package> <version> `removing'
+#          <conflicting-package> <version>
+# for details, see http://www.debian.org/doc/debian-policy/ or
+# the debian-policy package
+
+# source debconf library
+. /usr/share/debconf/confmodule
+
+case "$1" in
+    configure)
+    systemctl daemon-reload > /dev/null 2>&1
+
+	# retrieve the first active network interface
+	iface=$(ip addr show | awk '/inet.*brd/{print $NF; exit}')
+	if [ $? -ne 0 ] || [ -z "$iface" ]; then
+	    echo "[x] Could not find an active network interface, manual systemd startup needed"
+	else
+	    echo "[*] Using $iface to bootstrap SCION ..."
+	fi
+
+    systemctl enable --now scion-dispatcher.service \
+                           scion-bootstrapper@$iface.service \
+                           scion-daemon-bootstrap@$iface.service 2>&1 > /dev/null
+	exit 0
+        ;;
+    abort-*)
+        # How'd we get here??
+        exit 1
+        ;;
+    *)
+        ;;
+esac
+

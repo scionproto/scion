@@ -1,0 +1,8 @@
+Package: scion-bootstrapper
+Version: 0.1
+Section: net
+Priority: optional
+Architecture: amd64
+Maintainer: -
+Description: -
+Built-Using: Bazel
