@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -74,10 +75,11 @@ func main() {
 	var flags struct {
 		config string
 	}
+	executable := filepath.Base(os.Args[0])
 	cmd := &cobra.Command{
-		Use:           "cs",
+		Use:           executable,
 		Short:         "SCION Control Service instance",
-		Example:       "  cs --config cs.toml",
+		Example:       "  " + executable + " --config cs.toml",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		Args:          cobra.NoArgs,

@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -27,8 +28,9 @@ import (
 )
 
 func main() {
+	executable := filepath.Base(os.Args[0])
 	cmd := &cobra.Command{
-		Use:   "scion-pki",
+		Use:   executable,
 		Short: "SCION Control Plane PKI Management Tool",
 		Args:  cobra.NoArgs,
 		// Silence the errors, since we print them in main. Otherwise, cobra

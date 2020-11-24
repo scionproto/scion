@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -70,8 +71,9 @@ type CommandPather interface {
 }
 
 func main() {
+	executable := filepath.Base(os.Args[0])
 	cmd := &cobra.Command{
-		Use:   "scion",
+		Use:   executable,
 		Short: "A clean-slate Internet architecture",
 		Args:  cobra.NoArgs,
 		// Silence the errors, since we print them in main. Otherwise, cobra

@@ -20,6 +20,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -57,10 +58,11 @@ func main() {
 	var flags struct {
 		config string
 	}
+	executable := filepath.Base(os.Args[0])
 	cmd := &cobra.Command{
-		Use:           "sciond",
+		Use:           executable,
 		Short:         "SCION Daemon",
-		Example:       "  sciond --config sd.toml",
+		Example:       "  " + executable + " --config sd.toml",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		Args:          cobra.NoArgs,
