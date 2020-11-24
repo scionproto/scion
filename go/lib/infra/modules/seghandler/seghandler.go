@@ -21,10 +21,10 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/hiddenpath"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/hiddenpath"
 )
 
 // Errors
@@ -38,7 +38,7 @@ var (
 type Segments struct {
 	Segs      []*seg.Meta
 	SRevInfos []*path_mgmt.SignedRevInfo
-	HPGroupID hiddenpath.GroupId
+	HPGroupID hiddenpath.GroupID
 }
 
 // Handler is a handler that verifies and stores seg replies. The handler
@@ -60,7 +60,7 @@ func (h *Handler) Handle(ctx context.Context, recs Segments, server net.Addr) *P
 
 func (h *Handler) verifyAndStore(ctx context.Context,
 	verifiedCh <-chan segverifier.UnitResult,
-	units int, hpGroupID hiddenpath.GroupId) *ProcessedResult {
+	units int, hpGroupID hiddenpath.GroupID) *ProcessedResult {
 
 	result := &ProcessedResult{}
 	verifiedUnits := make([]segverifier.UnitResult, 0, units)
@@ -80,7 +80,7 @@ func (h *Handler) verifyAndStore(ctx context.Context,
 }
 
 func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.UnitResult,
-	hpGroupID hiddenpath.GroupId, stats *Stats) ([]error, error) {
+	hpGroupID hiddenpath.GroupID, stats *Stats) ([]error, error) {
 
 	var verifyErrs []error
 	segs := make([]*SegWithHP, 0, len(verifiedUnits))
@@ -123,7 +123,7 @@ func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.
 	return verifyErrs, nil
 }
 
-func convertHPGroupID(id hiddenpath.GroupId) []*query.HPCfgID {
+func convertHPGroupID(id hiddenpath.GroupID) []*query.HPCfgID {
 	return []*query.HPCfgID{
 		{
 			IA: addr.IA{

@@ -35,6 +35,9 @@ type IPForwarderMetrics struct {
 	// IPPktsLocalRecv counts the number of IP packets received from the local network. If nil,
 	// the metric is not reported.
 	IPPktsLocalRecv metrics.Counter
+	// IPPktsNoRoute counts the number of IP packets received from the local network and that were
+	// discarded because no routing entry was found. If nil, the metric is not reported.
+	IPPktsNoRoute metrics.Counter
 	// MetricInvalidPackets counts the number of packet parsing errors. If nil, the metric
 	// is not reported.
 	IPPktsInvalid metrics.Counter
@@ -98,9 +101,13 @@ func (f *IPForwarder) Run() error {
 			continue
 		}
 
-		if session := f.route(ipVersion, packet); session != nil {
-			session.Write(buf[:length])
+		session := f.route(ipVersion, packet)
+		if session == nil {
+			metrics.CounterInc(f.Metrics.IPPktsNoRoute)
+			continue
 		}
+
+		session.Write(buf[:length])
 	}
 }
 

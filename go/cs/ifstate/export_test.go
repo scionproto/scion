@@ -15,26 +15,11 @@
 package ifstate
 
 import (
-	"time"
-
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
-func (intf *Interface) SetLastActivate(t time.Time) {
-	intf.lastActivate = t
-}
-
-func (intf *Interface) SetRev(rev *path_mgmt.SignedRevInfo) {
-	intf.revocation = rev
-}
-
 func (intf *Interface) Cfg() *Config {
 	return &intf.cfg
-}
-
-func (intf *Interface) LastActivate() time.Time {
-	return intf.lastActivate
 }
 
 func (intf *Interface) TopoInfoRef() *topology.IFInfo {

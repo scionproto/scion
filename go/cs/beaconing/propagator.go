@@ -84,10 +84,7 @@ func (p *Propagator) run(ctx context.Context) error {
 	if len(intfs) == 0 {
 		return nil
 	}
-	peers, nonActivePeers := sortedIntfs(p.Intfs, topology.Peer)
-	if len(nonActivePeers) > 0 && p.Tick.passed() {
-		logger.Debug("Ignore non-active peering interfaces", "interfaces", nonActivePeers)
-	}
+	peers := sortedIntfs(p.Intfs, topology.Peer)
 	beacons, err := p.Provider.BeaconsToPropagate(ctx)
 	if err != nil {
 		p.incrementInternalErrors()
@@ -101,16 +98,16 @@ func (p *Propagator) run(ctx context.Context) error {
 			p.incrementInternalErrors()
 			continue
 		}
-		if !intfActive(p.Intfs, bOrErr.Beacon.InIfId) {
+		if p.Intfs.Get(bOrErr.Beacon.InIfId) == nil {
 			continue
 		}
 		b := beaconPropagator{
-			Propagator:  p,
-			beacon:      bOrErr.Beacon,
-			activeIntfs: intfs,
-			peers:       peers,
-			summary:     s,
-			logger:      logger,
+			Propagator: p,
+			beacon:     bOrErr.Beacon,
+			intfs:      intfs,
+			peers:      peers,
+			summary:    s,
+			logger:     logger,
 		}
 		b.start(ctx, &wg)
 	}
@@ -123,20 +120,17 @@ func (p *Propagator) run(ctx context.Context) error {
 // propagated to. In a core AS, these are all active core links. In a non-core
 // AS, these are all active child links.
 func (p *Propagator) needsBeacons(logger log.Logger) []common.IFIDType {
-	var activeIntfs, nonActiveIntfs []common.IFIDType
+	var intfs []common.IFIDType
 	if p.Core {
-		activeIntfs, nonActiveIntfs = sortedIntfs(p.Intfs, topology.Core)
+		intfs = sortedIntfs(p.Intfs, topology.Core)
 	} else {
-		activeIntfs, nonActiveIntfs = sortedIntfs(p.Intfs, topology.Child)
-	}
-	if len(nonActiveIntfs) > 0 && p.Tick.passed() {
-		logger.Debug("Ignore non-active interfaces", "interfaces", nonActiveIntfs)
+		intfs = sortedIntfs(p.Intfs, topology.Child)
 	}
 	if p.Tick.passed() {
-		return activeIntfs
+		return intfs
 	}
-	stale := make([]common.IFIDType, 0, len(activeIntfs))
-	for _, ifid := range activeIntfs {
+	stale := make([]common.IFIDType, 0, len(intfs))
+	for _, ifid := range intfs {
 		intf := p.Intfs.Get(ifid)
 		if intf == nil {
 			continue
@@ -170,13 +164,13 @@ func (p *Propagator) incrementInternalErrors() {
 // beaconPropagator propagates one beacon to all active interfaces.
 type beaconPropagator struct {
 	*Propagator
-	wg          sync.WaitGroup
-	beacon      beacon.Beacon
-	activeIntfs []common.IFIDType
-	peers       []common.IFIDType
-	success     ctr
-	summary     *summary
-	logger      log.Logger
+	wg      sync.WaitGroup
+	beacon  beacon.Beacon
+	intfs   []common.IFIDType
+	peers   []common.IFIDType
+	success ctr
+	summary *summary
+	logger  log.Logger
 }
 
 // start adds to the wait group and starts propagation of the beacon on
@@ -196,7 +190,7 @@ func (p *beaconPropagator) start(ctx context.Context, wg *sync.WaitGroup) {
 func (p *beaconPropagator) propagate(ctx context.Context) error {
 	pb := seg.PathSegmentToPB(p.beacon.Segment)
 	var expected int
-	for _, egIfid := range p.activeIntfs {
+	for _, egIfid := range p.intfs {
 		if p.shouldIgnore(p.beacon, egIfid) {
 			continue
 		}

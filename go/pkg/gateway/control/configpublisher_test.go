@@ -47,7 +47,7 @@ func TestConfigPublisherPublish(t *testing.T) {
 			PerfPolicy:     namedPerfPolicy{},
 			PathPolicy:     control.DefaultPathPolicy,
 			PathCount:      1,
-			Prefixes:       mustParseCIDRs(t, "127.0.0.0/8"),
+			Prefixes:       xtest.MustParseCIDRs(t, "127.0.0.0/8"),
 		},
 	}
 	testCases := map[string]func(*testing.T){

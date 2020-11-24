@@ -23,6 +23,17 @@ is a good place to start.
    uri
    grpc
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Operational manuals:
+
+   manuals/common
+   manuals/router
+   manuals/dispatcher
+   manuals/daemon
+   manuals/control
+   manuals/gateway
+
 
 Indices and tables
 ==================

@@ -181,7 +181,6 @@ func TestTRCVerifyUpdate(t *testing.T) {
 			tc.ErrAssertion(t, err)
 		})
 	}
-
 }
 
 func dropInfos(infos []protocol.SignerInfo, cert *x509.Certificate) []protocol.SignerInfo {
@@ -317,6 +316,28 @@ func TestTRCVerifyBase(t *testing.T) {
 			tc.ErrAssertion(t, err)
 		})
 	}
+}
+
+// TestTRCVerifyCompatibility checks the compatibility for TRC verification with
+// TRCs that were generated with a go version prior to 1.15.
+//
+// As of go1.15 marshalling a SET in DER adheres to X690 Section 11.6 and
+// produces an ordered set.
+// (https://github.com/golang/go/commit/f0cea848679b8f8cdc5f76e1b1e36ebb924a68f8)
+func TestTRCVerifyCompatibility(t *testing.T) {
+	raw, err := ioutil.ReadFile("./testdata/compatibility/ISD1-B1-S1-pre1.15.trc")
+	require.NoError(t, err)
+	signed, err := cppki.DecodeSignedTRC(raw)
+	require.NoError(t, err)
+	err = signed.Verify(nil)
+	assert.NoError(t, err)
+
+	raw, err = ioutil.ReadFile("./testdata/compatibility/ISD1-B1-S2-pre1.15.trc")
+	require.NoError(t, err)
+	signed2, err := cppki.DecodeSignedTRC(raw)
+	require.NoError(t, err)
+	err = signed2.Verify(&signed.TRC)
+	require.NoError(t, err)
 }
 
 func loadSignedTRC(t *testing.T) cppki.SignedTRC {

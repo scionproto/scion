@@ -339,8 +339,16 @@ func (w *prefixWatcher) run(ctx context.Context) {
 		logger.Info("Failed to fetch IP prefixes from remote gateway", "err", err)
 		return
 	}
-	logger.Debug("Fetched prefixes successfully", "prefixes", prefixes)
+	logger.Debug("Fetched prefixes successfully", "prefixes", fmtPrefixes(prefixes))
 	w.Consumer.Prefixes(w.remote, w.gateway, prefixes)
+}
+
+func fmtPrefixes(prefixes []*net.IPNet) []string {
+	ret := []string{}
+	for _, p := range prefixes {
+		ret = append(ret, p.String())
+	}
+	return ret
 }
 
 func (w *prefixWatcher) runOnceCheck() error {

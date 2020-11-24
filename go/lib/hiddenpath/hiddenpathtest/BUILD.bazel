@@ -1,9 +1,0 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
-
-go_library(
-    name = "go_default_library",
-    srcs = ["helpers.go"],
-    importpath = "github.com/scionproto/scion/go/lib/hiddenpath/hiddenpathtest",
-    visibility = ["//visibility:public"],
-    deps = ["//go/lib/hiddenpath:go_default_library"],
-)

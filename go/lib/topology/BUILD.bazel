@@ -8,6 +8,7 @@ go_library(
         "interface.go",
         "linktype.go",
         "raw.go",
+        "servicetype.go",
         "topology.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/topology",
@@ -19,7 +20,6 @@ go_library(
         "//go/lib/snet:go_default_library",
         "//go/lib/topology/json:go_default_library",
         "//go/lib/topology/underlay:go_default_library",
-        "//go/proto:go_default_library",
     ],
 )
 
@@ -28,6 +28,7 @@ go_test(
     srcs = [
         "export_test.go",
         "interface_test.go",
+        "servicetype_test.go",
         "topology_test.go",
         "types_test.go",
     ],

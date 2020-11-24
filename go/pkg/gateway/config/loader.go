@@ -93,10 +93,13 @@ func (l *Loader) run() error {
 			sp, rp, err := l.loadFiles()
 			if err != nil {
 				log.SafeError(l.Logger, "Failed to load files", "err", err)
+			}
+			if sp == nil && rp == nil {
 				continue
 			}
 			l.Publisher.Publish(sp, rp)
-			log.SafeInfo(l.Logger, "Published new configurations")
+			log.SafeInfo(l.Logger, "Published new configurations",
+				"session_policies", sp != nil, "routing_policy", rp != nil)
 		case <-l.workerBase.GetDoneChan():
 			return nil
 		}
@@ -104,15 +107,16 @@ func (l *Loader) run() error {
 }
 
 func (l *Loader) loadFiles() (control.SessionPolicies, *routing.Policy, error) {
+	var errors serrors.List
 	sp, err := control.LoadSessionPolicies(l.SessionPoliciesFile, l.SessionPolicyParser)
 	if err != nil {
-		return nil, nil, serrors.WrapStr("loading session policies", err)
+		errors = append(errors, serrors.WrapStr("loading session policies", err))
 	}
 	rp, err := l.loadRoutingPolicy()
 	if err != nil {
-		return nil, nil, serrors.WrapStr("loading routing policiy", err)
+		errors = append(errors, serrors.WrapStr("loading routing policiy", err))
 	}
-	return sp, rp, nil
+	return sp, rp, errors.ToError()
 }
 
 func (l *Loader) loadRoutingPolicy() (*routing.Policy, error) {

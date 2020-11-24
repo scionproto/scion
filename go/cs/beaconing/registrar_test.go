@@ -134,12 +134,6 @@ func TestRegistrarRun(t *testing.T) {
 				},
 			)
 
-			for ifid, intf := range intfs.All() {
-				if test.inactivePeers[ifid] {
-					continue
-				}
-				intf.Activate(42)
-			}
 			r.Run(context.Background())
 			assert.Len(t, stored, len(test.beacons))
 			for _, s := range stored {
@@ -234,12 +228,6 @@ func TestRegistrarRun(t *testing.T) {
 					return nil
 				},
 			)
-			for ifid, intf := range intfs.All() {
-				if test.inactivePeers[ifid] {
-					continue
-				}
-				intf.Activate(42)
-			}
 			r.Run(context.Background())
 			require.Len(t, sent, len(test.beacons))
 			for segIdx, s := range sent {

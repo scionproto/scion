@@ -15,9 +15,9 @@
 package hpsegreq
 
 import (
+	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpath"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/hiddenpath"
 )
 
 // GroupInfo holds all information about hidden path groups needed by the HPS

@@ -4,15 +4,12 @@ go_library(
     name = "go_default_library",
     srcs = [
         "doc.go",
-        "export_state.go",
         "ifstate.go",
     ],
     importpath = "github.com/scionproto/scion/go/cs/ifstate",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/common:go_default_library",
-        "//go/lib/ctrl/path_mgmt:go_default_library",
-        "//go/lib/serrors:go_default_library",
         "//go/lib/topology:go_default_library",
     ],
 )
@@ -26,10 +23,8 @@ go_test(
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
-        "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/topology:go_default_library",
         "@com_github_smartystreets_goconvey//convey:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
-        "@com_github_stretchr_testify//require:go_default_library",
     ],
 )

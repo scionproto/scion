@@ -90,3 +90,28 @@ Setting up the development environment
    .. code-block:: bash
 
       ./scion.sh lint
+
+Wireshark
+---------
+
+To inspect SCION packets that are sent over the wire it can be helpful to use
+Wireshark. We use version 3.x of Wireshark, which is not shipped by default on
+Ubuntu 18.04. To install it use:
+
+.. code-block:: bash
+
+   sudo add-apt-repository ppa:wireshark-dev/stable
+   sudo apt-get update
+   sudo apt-get install wireshark
+
+To use the SCION dissector you need to install it:
+
+.. code-block:: bash
+
+   mkdir -p ~/.wireshark/plugins
+   cp tools/wireshark/scion.lua ~/.wireshark/plugins
+
+After that you can test it by running a topology and using a SCION filter for
+example::
+
+    tshark -Y 'scion.dst_as == "ff00:0:110"'

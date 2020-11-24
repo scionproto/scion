@@ -17,8 +17,6 @@ package topology
 
 import (
 	"strings"
-
-	"github.com/scionproto/scion/go/proto"
 )
 
 // LinkType describes inter-AS links.
@@ -41,11 +39,37 @@ const (
 )
 
 func (lt LinkType) String() string {
-	return proto.LinkType(lt).String()
+	switch lt {
+	case Unset:
+		return "unset"
+	case Core:
+		return "core"
+	case Parent:
+		return "parent"
+	case Child:
+		return "child"
+	case Peer:
+		return "peer"
+	default:
+		return ""
+	}
 }
 
 // LinkTypeFromString returns the numerical link type associated with a string description. If the
 // string is not recognized, an Unset link type is returned. The matching is case-insensitive.
 func LinkTypeFromString(s string) LinkType {
-	return LinkType(proto.LinkTypeFromString(strings.ToLower(s)))
+	switch strings.ToLower(s) {
+	case "unset":
+		return Unset
+	case "core":
+		return Core
+	case "parent":
+		return Parent
+	case "child":
+		return Child
+	case "peer":
+		return Peer
+	default:
+		return Unset
+	}
 }

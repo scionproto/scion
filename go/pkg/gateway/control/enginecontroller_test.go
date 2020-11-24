@@ -15,7 +15,6 @@
 package control_test
 
 import (
-	"net"
 	"testing"
 	"time"
 
@@ -159,13 +158,13 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.1.0.1:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.99.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.99.0.0/16"),
 				},
 			},
 			Chains: []*control.RoutingChain{
 				{
 					RemoteIA:        xtest.MustParseIA("1-ff00:0:110"),
-					Prefixes:        mustParseCIDRs(t, "10.99.0.0/16"),
+					Prefixes:        xtest.MustParseCIDRs(t, "10.99.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{{ID: 1, Matcher: pktcls.CondTrue}},
 				},
 			},
@@ -185,13 +184,13 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.1.0.1:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
 				},
 			},
 			Chains: []*control.RoutingChain{
 				{
 					RemoteIA:        xtest.MustParseIA("1-ff00:0:110"),
-					Prefixes:        mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
+					Prefixes:        xtest.MustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{{ID: 1, Matcher: pktcls.CondTrue}},
 				},
 			},
@@ -211,7 +210,7 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.1.0.1:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
 				},
 				{
 					ID:             23,
@@ -223,13 +222,13 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.1.0.1:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
 				},
 			},
 			Chains: []*control.RoutingChain{
 				{
 					RemoteIA: xtest.MustParseIA("1-ff00:0:110"),
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{
 						{
 							ID:      1,
@@ -256,7 +255,8 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.45.0.1:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16", "10.1.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t,
+						"10.98.0.0/16", "10.99.0.0/16", "10.1.0.0/16"),
 				},
 				{
 					ID:             101,
@@ -268,7 +268,8 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.45.0.2:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16", "10.2.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t,
+						"10.98.0.0/16", "10.99.0.0/16", "10.2.0.0/16"),
 				},
 				{
 					ID:             102,
@@ -280,7 +281,8 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.45.0.1:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16", "10.1.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t,
+						"10.98.0.0/16", "10.99.0.0/16", "10.1.0.0/16"),
 				},
 				{
 					ID:             103,
@@ -292,13 +294,14 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.45.0.2:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16", "10.2.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t,
+						"10.98.0.0/16", "10.99.0.0/16", "10.2.0.0/16"),
 				},
 			},
 			Chains: []*control.RoutingChain{
 				{
 					RemoteIA: xtest.MustParseIA("1-ff00:0:110"),
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{
 						{
 							ID:      1,
@@ -309,7 +312,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				},
 				{
 					RemoteIA: xtest.MustParseIA("1-ff00:0:110"),
-					Prefixes: mustParseCIDRs(t, "10.1.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{
 						{
 							ID:      2,
@@ -320,7 +323,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				},
 				{
 					RemoteIA: xtest.MustParseIA("1-ff00:0:110"),
-					Prefixes: mustParseCIDRs(t, "10.2.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.2.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{
 						{
 							ID:      3,
@@ -351,7 +354,8 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.45.0.1:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16", "10.1.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t,
+						"10.98.0.0/16", "10.99.0.0/16", "10.1.0.0/16"),
 				},
 				{
 					ID:             101,
@@ -363,7 +367,8 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.45.0.2:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16", "10.2.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t,
+						"10.98.0.0/16", "10.99.0.0/16", "10.2.0.0/16"),
 				},
 				{
 					ID:             102,
@@ -375,7 +380,8 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.45.0.1:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16", "10.1.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t,
+						"10.98.0.0/16", "10.99.0.0/16", "10.1.0.0/16"),
 				},
 				{
 					ID:             103,
@@ -387,13 +393,14 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.45.0.2:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16", "10.2.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t,
+						"10.98.0.0/16", "10.99.0.0/16", "10.2.0.0/16"),
 				},
 			},
 			Chains: []*control.RoutingChain{
 				{
 					RemoteIA: xtest.MustParseIA("1-ff00:0:110"),
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{
 						{
 							ID:      1,
@@ -403,7 +410,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				},
 				{
 					RemoteIA: xtest.MustParseIA("1-ff00:0:110"),
-					Prefixes: mustParseCIDRs(t, "10.1.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{
 						{
 							ID:      2,
@@ -413,7 +420,7 @@ func TestBuildRoutingChains(t *testing.T) {
 				},
 				{
 					RemoteIA: xtest.MustParseIA("1-ff00:0:110"),
-					Prefixes: mustParseCIDRs(t, "10.2.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.2.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{
 						{
 							ID:      3,
@@ -440,7 +447,7 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.45.0.1:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.1.0.0/16", "10.2.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/16", "10.2.0.0/16"),
 				},
 				{
 					ID:             101,
@@ -452,7 +459,7 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.45.0.2:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.1.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/16"),
 				},
 				{
 					ID:             102,
@@ -464,18 +471,18 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.45.0.3:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.2.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.2.0.0/16"),
 				},
 			},
 			Chains: []*control.RoutingChain{
 				{
 					RemoteIA:        xtest.MustParseIA("1-ff00:0:110"),
-					Prefixes:        mustParseCIDRs(t, "10.1.0.0/16"),
+					Prefixes:        xtest.MustParseCIDRs(t, "10.1.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{{ID: 1, Matcher: pktcls.CondTrue}},
 				},
 				{
 					RemoteIA:        xtest.MustParseIA("1-ff00:0:110"),
-					Prefixes:        mustParseCIDRs(t, "10.2.0.0/16"),
+					Prefixes:        xtest.MustParseCIDRs(t, "10.2.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{{ID: 2, Matcher: pktcls.CondTrue}},
 				},
 			},
@@ -496,7 +503,7 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.1.0.1:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
 				},
 				{
 					ID:             42,
@@ -508,18 +515,18 @@ func TestBuildRoutingChains(t *testing.T) {
 					Gateway: control.Gateway{
 						Control: xtest.MustParseUDPAddr(t, "10.42.0.1:30256"),
 					},
-					Prefixes: mustParseCIDRs(t, "10.13.0.0/16", "10.14.0.0/16"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.13.0.0/16", "10.14.0.0/16"),
 				},
 			},
 			Chains: []*control.RoutingChain{
 				{
 					RemoteIA:        xtest.MustParseIA("1-ff00:0:110"),
-					Prefixes:        mustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
+					Prefixes:        xtest.MustParseCIDRs(t, "10.98.0.0/16", "10.99.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{{ID: 1, Matcher: pktcls.CondTrue}},
 				},
 				{
 					RemoteIA:        xtest.MustParseIA("1-ff00:0:111"),
-					Prefixes:        mustParseCIDRs(t, "10.13.0.0/16", "10.14.0.0/16"),
+					Prefixes:        xtest.MustParseCIDRs(t, "10.13.0.0/16", "10.14.0.0/16"),
 					TrafficMatchers: []control.TrafficMatcher{{ID: 2, Matcher: pktcls.CondTrue}},
 				},
 			},
@@ -537,14 +544,6 @@ func TestBuildRoutingChains(t *testing.T) {
 			assert.Equal(t, tc.SessionMapping, sm)
 		})
 	}
-}
-
-func mustParseCIDRs(t *testing.T, entries ...string) []*net.IPNet {
-	result := make([]*net.IPNet, 0, len(entries))
-	for _, e := range entries {
-		result = append(result, xtest.MustParseCIDR(t, e))
-	}
-	return result
 }
 
 type testPktWriter struct {

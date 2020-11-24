@@ -59,8 +59,8 @@ func TestSegReg(t *testing.T) {
 				ErrDesc: "",
 			}
 			segments := seghandler.Segments{
-				Segs:      msg.HPSegRecs.Recs,
-				HPGroupID: group.Id,
+				Segs: msg.HPSegRecs.Recs,
+				//HPGroupID: group.Id,
 			}
 			m.validator.EXPECT().Validate(msg, peer.IA).Return(nil)
 			m.verifier.EXPECT().Verify(gomock.Any(), segments, peer)

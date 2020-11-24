@@ -282,6 +282,5 @@ func testSegment(g *graph.Graph, ifids []common.IFIDType) *seg.PathSegment {
 
 func testInterfaces(topo topology.Topology) *ifstate.Interfaces {
 	intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
-	intfs.Get(graph.If_110_X_120_A).Activate(graph.If_120_A_110_X)
 	return intfs
 }

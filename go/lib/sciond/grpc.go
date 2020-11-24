@@ -17,7 +17,6 @@ package sciond
 import (
 	"context"
 	"net"
-	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -30,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/topology"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	sdpb "github.com/scionproto/scion/go/pkg/proto/daemon"
 )
@@ -136,7 +136,7 @@ func (c grpcConn) SVCInfo(ctx context.Context, _ []addr.HostSVC) (map[addr.HostS
 	}
 	result := make(map[addr.HostSVC]string)
 	for st, si := range response.Services {
-		svc := addr.HostSVCFromString(strings.ToUpper(st))
+		svc := topoServiceTypeToSVCAddr(topology.ServiceTypeFromString(st))
 		if svc == addr.SvcNone || len(si.Services) == 0 {
 			continue
 		}
@@ -255,5 +255,16 @@ func linkTypeFromPB(lt sdpb.LinkType) snet.LinkType {
 		return snet.LinkTypeOpennet
 	default:
 		return snet.LinkTypeUnset
+	}
+}
+
+func topoServiceTypeToSVCAddr(st topology.ServiceType) addr.HostSVC {
+	switch st {
+	case topology.Control:
+		return addr.SvcCS
+	case topology.Gateway:
+		return addr.SvcSIG
+	default:
+		return addr.SvcNone
 	}
 }

@@ -20,10 +20,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpath"
+	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpath/hiddenpathtest"
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hpsegreq"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/hiddenpath"
-	"github.com/scionproto/scion/go/lib/hiddenpath/hiddenpathtest"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 

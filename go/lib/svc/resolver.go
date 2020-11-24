@@ -143,20 +143,30 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 	defer cancelF()
 
 	if pkt == nil {
-		return nil, common.NewBasicError(errNilPacket, nil)
+		return nil, errNilPacket
 	}
 	if u == nil {
-		return nil, common.NewBasicError(errNilUnderlay, nil)
+		return nil, errNilUnderlay
 	}
 
 	if err := c.WriteTo(pkt, u); err != nil {
-		return nil, common.NewBasicError(errWrite, err)
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+		return nil, serrors.Wrap(errWrite, err)
 	}
 
 	var replyPacket snet.Packet
 	var replyOv net.UDPAddr
 	if err := c.ReadFrom(&replyPacket, &replyOv); err != nil {
-		return nil, common.NewBasicError(errRead, err)
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+		return nil, serrors.Wrap(errRead, err)
 	}
 	udp, ok := replyPacket.Payload.(snet.UDPPayload)
 	if !ok {
@@ -165,11 +175,11 @@ func (roundTripper) RoundTrip(ctx context.Context, c snet.PacketConn, pkt *snet.
 	}
 	var reply Reply
 	if err := reply.Unmarshal(udp.Payload); err != nil {
-		return nil, common.NewBasicError(errDecode, err)
+		return nil, serrors.Wrap(errDecode, err)
 	}
 
 	if err := replyPacket.Path.Reverse(); err != nil {
-		return nil, common.NewBasicError(errBadPath, err)
+		return nil, serrors.Wrap(errBadPath, err)
 	}
 	reply.ReturnPath = &path{
 		spath:       replyPacket.Path,

@@ -19,8 +19,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -32,16 +30,6 @@ const (
 	// can receive no IFID keepalive packets until it is considered expired.
 	DefaultKeepaliveTimeout = 3 * DefaultKeepaliveInterval
 )
-
-const (
-	// Active indicates that the interface is active.
-	Active State = "Active"
-	// Revoked indicates that the interface is revoked.
-	Revoked State = "Revoked"
-)
-
-// State is the state of an interface.
-type State string
 
 // Config enables configuration of the interfaces.
 type Config struct {
@@ -88,10 +76,8 @@ func (intfs *Interfaces) Update(ifInfomap topology.IfInfoMap) {
 			m[ifid] = intf
 		} else {
 			m[ifid] = &Interface{
-				topoInfo:     info,
-				state:        Active,
-				lastActivate: time.Now(),
-				cfg:          intfs.cfg,
+				topoInfo: info,
+				cfg:      intfs.cfg,
 			}
 		}
 	}
@@ -130,64 +116,19 @@ func (intfs *Interfaces) Get(ifid common.IFIDType) *Interface {
 type Interface struct {
 	mu            sync.RWMutex
 	topoInfo      topology.IFInfo
-	state         State
-	revocation    *path_mgmt.SignedRevInfo
 	lastOriginate time.Time
 	lastPropagate time.Time
-	lastActivate  time.Time
 	cfg           Config
 }
 
-// Activate activates the interface the keep alive is received from when
-// necessary, and sets the remote interface id. The return value indicates
-// the previous state of the interface.
-func (intf *Interface) Activate(remote common.IFIDType) State {
+// Activate sets the remote interface ID.
+//
+// Deprecated: Please do not use this anymore. It's only kept for testing
+// purposes.
+func (intf *Interface) Activate(remote common.IFIDType) {
 	intf.mu.Lock()
 	defer intf.mu.Unlock()
-	prev := intf.state
-	intf.state = Active
-	intf.lastActivate = time.Now()
 	intf.topoInfo.RemoteIFID = remote
-	intf.revocation = nil
-	return prev
-}
-
-// Revoke checks whether the interface has not been activated for a certain
-// amount of time. If that is the case and the current state is active, the
-// state changes to Revoked. The times for last beacon origination and
-// propagation are reset to the zero value. The return value indicates, whether
-// the state is revoked when the call returns.
-func (intf *Interface) Revoke() bool {
-	intf.mu.Lock()
-	defer intf.mu.Unlock()
-	if time.Now().Sub(intf.lastActivate) > intf.cfg.KeepaliveTimeout {
-		intf.lastOriginate = time.Time{}
-		intf.lastPropagate = time.Time{}
-		intf.state = Revoked
-	}
-	return intf.state == Revoked
-}
-
-// SetRevocation sets the revocation for this interface. This can only be
-// invoked when the interface is in revoked state. Otherwise it is assumed that
-// the interface has been activated in the meantime and should not be revoked.
-// This is indicated through an error.
-func (intf *Interface) SetRevocation(rev *path_mgmt.SignedRevInfo) error {
-	intf.mu.Lock()
-	defer intf.mu.Unlock()
-	if intf.state == Active {
-		return serrors.New("interface activated in the meantime")
-	}
-	intf.state = Revoked
-	intf.revocation = rev
-	return nil
-}
-
-// Revocation returns the revocation.
-func (intf *Interface) Revocation() *path_mgmt.SignedRevInfo {
-	intf.mu.RLock()
-	defer intf.mu.RUnlock()
-	return intf.revocation
 }
 
 // TopoInfo returns the topology information.
@@ -195,13 +136,6 @@ func (intf *Interface) TopoInfo() topology.IFInfo {
 	intf.mu.RLock()
 	defer intf.mu.RUnlock()
 	return intf.topoInfo
-}
-
-// State returns the current state of the interface.
-func (intf *Interface) State() State {
-	intf.mu.RLock()
-	defer intf.mu.RUnlock()
-	return intf.state
 }
 
 // Originate sets the time this interface has been originated on last.
@@ -235,12 +169,8 @@ func (intf *Interface) LastPropagate() time.Time {
 func (intf *Interface) reset() {
 	intf.mu.Lock()
 	defer intf.mu.Unlock()
-	intf.state = Active
-	intf.revocation = nil
 	intf.lastOriginate = time.Time{}
 	intf.lastPropagate = time.Time{}
-	// Set the starting point for the timeout interval.
-	intf.lastActivate = time.Now()
 }
 
 func (intf *Interface) updateTopoInfo(topoInfo topology.IFInfo) {

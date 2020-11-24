@@ -85,10 +85,7 @@ func (o *Originator) Run(ctx context.Context) {
 // the specified link type.
 func (o *Originator) originateBeacons(ctx context.Context, linkType topology.LinkType) {
 	logger := log.FromCtx(ctx)
-	active, nonActive := sortedIntfs(o.Intfs, linkType)
-	if len(nonActive) > 0 && o.Tick.passed() {
-		logger.Debug("Ignore non-active interfaces", "egress_interfaces", nonActive)
-	}
+	active := sortedIntfs(o.Intfs, linkType)
 	intfs := o.needBeacon(active)
 	if len(intfs) == 0 {
 		return

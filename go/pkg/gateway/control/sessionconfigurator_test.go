@@ -103,13 +103,13 @@ func TestSessionConfigurator(t *testing.T) {
 						Gateway: control.Gateway{
 							Probe: mustParseUDPAddr(t, "10.0.1.1:25"),
 						},
-						Prefixes: mustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
+						Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
 					},
 					{
 						Gateway: control.Gateway{
 							Probe: mustParseUDPAddr(t, "10.0.1.2:25"),
 						},
-						Prefixes: mustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
+						Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
 					},
 				},
 			},
@@ -122,7 +122,7 @@ func TestSessionConfigurator(t *testing.T) {
 				PerfPolicy:     namedPerfPolicy{},
 				PathPolicy:     control.DefaultPathPolicy,
 				PathCount:      1,
-				Prefixes:       mustParseCIDRs(t, "10.1.0.0/24"),
+				Prefixes:       xtest.MustParseCIDRs(t, "10.1.0.0/24"),
 			},
 		}
 		expectedConfig := []*control.SessionConfig{
@@ -133,7 +133,7 @@ func TestSessionConfigurator(t *testing.T) {
 				TrafficMatcher: pktcls.CondTrue,
 				PerfPolicy:     namedPerfPolicy{},
 				PathPolicy:     control.DefaultPathPolicy,
-				Prefixes:       mustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
+				Prefixes:       xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
 				Gateway: control.Gateway{
 					Probe: mustParseUDPAddr(t, "10.0.1.1:25"),
 				},
@@ -145,7 +145,7 @@ func TestSessionConfigurator(t *testing.T) {
 				TrafficMatcher: pktcls.CondTrue,
 				PerfPolicy:     namedPerfPolicy{},
 				PathPolicy:     control.DefaultPathPolicy,
-				Prefixes:       mustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
+				Prefixes:       xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
 				Gateway: control.Gateway{
 					Probe: mustParseUDPAddr(t, "10.0.1.2:25"),
 				},
@@ -215,13 +215,13 @@ func TestBuildSessionConfigs(t *testing.T) {
 							Gateway: control.Gateway{
 								Probe: mustParseUDPAddr(t, "10.0.1.1:25"),
 							},
-							Prefixes: mustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
+							Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
 						},
 						{
 							Gateway: control.Gateway{
 								Probe: mustParseUDPAddr(t, "10.0.1.2:25"),
 							},
-							Prefixes: mustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
+							Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
 						},
 					},
 				},
@@ -261,13 +261,13 @@ func TestBuildSessionConfigs(t *testing.T) {
 							Gateway: control.Gateway{
 								Probe: mustParseUDPAddr(t, "10.0.1.1:25"),
 							},
-							Prefixes: mustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
+							Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
 						},
 						{
 							Gateway: control.Gateway{
 								Probe: mustParseUDPAddr(t, "10.0.1.2:25"),
 							},
-							Prefixes: mustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
+							Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
 						},
 					},
 				},
@@ -280,7 +280,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     namedPerfPolicy{},
 					PathPolicy:     control.DefaultPathPolicy,
-					Prefixes:       mustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
+					Prefixes:       xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
 					Gateway: control.Gateway{
 						Probe: mustParseUDPAddr(t, "10.0.1.1:25"),
 					},
@@ -292,7 +292,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     namedPerfPolicy{},
 					PathPolicy:     control.DefaultPathPolicy,
-					Prefixes:       mustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
+					Prefixes:       xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
 					Gateway: control.Gateway{
 						Probe: mustParseUDPAddr(t, "10.0.1.2:25"),
 					},
@@ -347,14 +347,14 @@ func TestBuildSessionConfigs(t *testing.T) {
 								Probe:      mustParseUDPAddr(t, "10.0.1.1:25"),
 								Interfaces: []uint64{40, 4},
 							},
-							Prefixes: mustParseCIDRs(t, "10.40.0.0/24", "10.4.0.0/24"),
+							Prefixes: xtest.MustParseCIDRs(t, "10.40.0.0/24", "10.4.0.0/24"),
 						},
 						{
 							Gateway: control.Gateway{
 								Probe:      mustParseUDPAddr(t, "10.0.1.2:25"),
 								Interfaces: []uint64{13, 37},
 							},
-							Prefixes: mustParseCIDRs(t, "10.13.0.0/24", "10.37.0.0/24"),
+							Prefixes: xtest.MustParseCIDRs(t, "10.13.0.0/24", "10.37.0.0/24"),
 						},
 					},
 					xtest.MustParseIA("1-ff00:0:111"): {
@@ -363,7 +363,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 								Probe:      mustParseUDPAddr(t, "10.6.20.1:404"),
 								Interfaces: []uint64{1},
 							},
-							Prefixes: mustParseCIDRs(t, "10.21.0.0/24"),
+							Prefixes: xtest.MustParseCIDRs(t, "10.21.0.0/24"),
 						},
 					},
 				},
@@ -377,7 +377,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					PerfPolicy:     namedPerfPolicy{},
 					PathPolicy: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"),
 						[]uint64{40, 4}),
-					Prefixes: mustParseCIDRs(t, "10.1.0.0/24", "10.40.0.0/24", "10.4.0.0/24"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.40.0.0/24", "10.4.0.0/24"),
 					Gateway: control.Gateway{
 						Probe:      mustParseUDPAddr(t, "10.0.1.1:25"),
 						Interfaces: []uint64{40, 4},
@@ -391,7 +391,8 @@ func TestBuildSessionConfigs(t *testing.T) {
 					PerfPolicy:     namedPerfPolicy{},
 					PathPolicy: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"),
 						[]uint64{13, 37}),
-					Prefixes: mustParseCIDRs(t, "10.1.0.0/24", "10.13.0.0/24", "10.37.0.0/24"),
+					Prefixes: xtest.MustParseCIDRs(t,
+						"10.1.0.0/24", "10.13.0.0/24", "10.37.0.0/24"),
 					Gateway: control.Gateway{
 						Probe:      mustParseUDPAddr(t, "10.0.1.2:25"),
 						Interfaces: []uint64{13, 37},
@@ -407,7 +408,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 						Pol1: &pathpol.Policy{Name: "pol2"},
 						Pol2: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"), []uint64{40, 4}),
 					},
-					Prefixes: mustParseCIDRs(t, "10.1.0.0/24", "10.40.0.0/24", "10.4.0.0/24"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.40.0.0/24", "10.4.0.0/24"),
 					Gateway: control.Gateway{
 						Probe:      mustParseUDPAddr(t, "10.0.1.1:25"),
 						Interfaces: []uint64{40, 4},
@@ -423,7 +424,8 @@ func TestBuildSessionConfigs(t *testing.T) {
 						Pol1: &pathpol.Policy{Name: "pol2"},
 						Pol2: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"), []uint64{13, 37}),
 					},
-					Prefixes: mustParseCIDRs(t, "10.1.0.0/24", "10.13.0.0/24", "10.37.0.0/24"),
+					Prefixes: xtest.MustParseCIDRs(t,
+						"10.1.0.0/24", "10.13.0.0/24", "10.37.0.0/24"),
 					Gateway: control.Gateway{
 						Probe:      mustParseUDPAddr(t, "10.0.1.2:25"),
 						Interfaces: []uint64{13, 37},
@@ -439,7 +441,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 						Pol1: &pathpol.Policy{Name: "pol2"},
 						Pol2: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"), []uint64{40, 4}),
 					},
-					Prefixes: mustParseCIDRs(t, "10.1.0.0/24", "10.40.0.0/24", "10.4.0.0/24"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.40.0.0/24", "10.4.0.0/24"),
 					Gateway: control.Gateway{
 						Probe:      mustParseUDPAddr(t, "10.0.1.1:25"),
 						Interfaces: []uint64{40, 4},
@@ -455,7 +457,8 @@ func TestBuildSessionConfigs(t *testing.T) {
 						Pol1: &pathpol.Policy{Name: "pol2"},
 						Pol2: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"), []uint64{13, 37}),
 					},
-					Prefixes: mustParseCIDRs(t, "10.1.0.0/24", "10.13.0.0/24", "10.37.0.0/24"),
+					Prefixes: xtest.MustParseCIDRs(t,
+						"10.1.0.0/24", "10.13.0.0/24", "10.37.0.0/24"),
 					Gateway: control.Gateway{
 						Probe:      mustParseUDPAddr(t, "10.0.1.2:25"),
 						Interfaces: []uint64{13, 37},
@@ -468,7 +471,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					TrafficMatcher: pktcls.CondTrue,
 					PerfPolicy:     namedPerfPolicy{},
 					PathPolicy:     gatewayPolicy(xtest.MustParseIA("1-ff00:0:111"), []uint64{1}),
-					Prefixes:       mustParseCIDRs(t, "10.25.0.0/24", "10.21.0.0/24"),
+					Prefixes:       xtest.MustParseCIDRs(t, "10.25.0.0/24", "10.21.0.0/24"),
 					Gateway: control.Gateway{
 						Probe:      mustParseUDPAddr(t, "10.6.20.1:404"),
 						Interfaces: []uint64{1},

@@ -121,7 +121,7 @@ func (f *FilteringPathSelector) Select(selectables []Selectable, current Fingerp
 		pathCount = len(allowed)
 	}
 
-	paths := make([]snet.Path, 0, pathCount)
+	paths := make([]snet.Path, pathCount)
 	for i := 0; i < pathCount; i++ {
 		paths = append(paths, allowed[i].Path)
 	}

@@ -303,15 +303,20 @@ Discovery service gRPC definition
    message HiddenSegmentServicesRequest {}
 
    message HiddenSegmentServicesResponse {
-       // The list of lookup services.
-       repeated HiddenSegmentService lookup = 1;
-       // The list of registration services.
-       repeated HiddenSegmentService registration = 2;
+       // The list of lookup service instances.
+       repeated HiddenSegmentLookupServer lookup = 1;
+       // The list of registration service instances.
+       repeated HiddenSegmentRegistrationServer registration = 2;
    }
 
-   message HiddenSegmentService {
-       // The control address of this hidden segment service.
-       string control_address = 1;
+   message HiddenSegmentLookupServer {
+       // The address of a hidden segment lookup service instance.
+       string address = 1;
+   }
+
+   message HiddenSegmentRegistrationServer {
+       // The address of a hidden segment registration service instance.
+       string address = 1;
    }
 
 Security
