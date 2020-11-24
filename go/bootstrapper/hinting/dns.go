@@ -1,6 +1,8 @@
 package hinting
 
 import (
+	"fmt"
+	"github.com/scionproto/scion/go/lib/common"
 	"math/rand"
 	"net"
 	"os"
@@ -24,6 +26,7 @@ var (
 type DNSHintGeneratorConf struct {
 	EnableSD    bool `toml:"enable_sd"`
 	EnableNAPTR bool `toml:"enable_naptr"`
+	EnableSRV   bool `toml:"enable_srv"`
 }
 
 var _ HintGenerator = (*DNSSDHintGenerator)(nil)
@@ -39,10 +42,19 @@ func NewDNSSDHintGenerator(cfg *DNSHintGeneratorConf) *DNSSDHintGenerator {
 
 func (g *DNSSDHintGenerator) Generate(ipHintsChan chan<- net.IP) {
 	for dnsServer := range dnsServersChan {
-		dnsServer.searchDomains = append(dnsServer.searchDomains, getDomainName())
+		localDomainName, err := getDomainName()
+		if err != nil {
+			log.Error("Error retrieving local domain name", "err", err)
+		} else {
+			dnsServer.searchDomains = append(dnsServer.searchDomains, localDomainName)
+		}
 
 		for _, resolver := range dnsServer.resolvers {
 			for _, domain := range dnsServer.searchDomains {
+				if g.cfg.EnableSRV {
+					query := getDNSSDQuery(resolver, domain)
+					resolveDNS(resolver, query, dns.TypeSRV, ipHintsChan)
+				}
 				if g.cfg.EnableSD {
 					query := getDNSSDQuery(resolver, domain)
 					resolveDNS(resolver, query, dns.TypePTR, ipHintsChan)
@@ -143,20 +155,18 @@ func resolveDNS(resolver, query string, dnsRR uint16, ipHintsChan chan<- net.IP)
 	}
 }
 
-func getDomainName() string {
+func getDomainName() (string, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Error("Bootstrapper could not get hostname", "err", err)
-		return ""
+		return "", common.NewBasicError("could not get hostname", err)
 	}
 	split := strings.SplitAfterN(hostname, ".", 2)
 	if len(split) < 2 {
-		log.Debug("Bootstrapper could not get domain name", "hostname", hostname, "split", split)
-		return ""
+		return "", fmt.Errorf("could not get domain name, hostname: %s, split: %s", hostname, split)
 	} else {
 		log.Info("Bootstrapper", "domain", split[1])
 	}
-	return split[1]
+	return split[1], nil
 }
 
 // Order as defined by DNS-SD RFC
