@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/proto"
 )
 
 type PathReqFlags struct {
@@ -66,9 +65,8 @@ type TopoQuerier struct {
 
 // UnderlayAnycast provides any address for the given svc type.
 func (h TopoQuerier) UnderlayAnycast(ctx context.Context, svc addr.HostSVC) (*net.UDPAddr, error) {
-	psvc := svcAddrToProto(svc)
-	if psvc == proto.ServiceType_unset {
-		return nil, serrors.New("invalid svc type", "svc", svc)
+	if err := checkSVC(svc); err != nil {
+		return nil, err
 	}
 	r, err := h.Connector.SVCInfo(ctx, []addr.HostSVC{svc})
 	if err != nil {
@@ -85,24 +83,11 @@ func (h TopoQuerier) UnderlayAnycast(ctx context.Context, svc addr.HostSVC) (*ne
 	return &net.UDPAddr{IP: a.IP, Port: topology.EndhostPort, Zone: a.Zone}, nil
 }
 
-func svcAddrToProto(svc addr.HostSVC) proto.ServiceType {
+func checkSVC(svc addr.HostSVC) error {
 	switch svc {
-	case addr.SvcCS:
-		return proto.ServiceType_cs
-	case addr.SvcSIG:
-		return proto.ServiceType_sig
+	case addr.SvcCS, addr.SvcSIG:
+		return nil
 	default:
-		return proto.ServiceType_unset
-	}
-}
-
-func protoSVCToAddr(svc proto.ServiceType) addr.HostSVC {
-	switch svc {
-	case proto.ServiceType_bs, proto.ServiceType_cs, proto.ServiceType_ps:
-		return addr.SvcCS
-	case proto.ServiceType_sig:
-		return addr.SvcSIG
-	default:
-		return addr.SvcNone
+		return serrors.New("invalid svc type", "svc", svc)
 	}
 }

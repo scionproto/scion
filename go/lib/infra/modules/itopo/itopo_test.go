@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/mock_xtest"
-	"github.com/scionproto/scion/go/proto"
 )
 
 type updateTestFunc func(*topology.RWTopology) (*topology.RWTopology, bool, error)
@@ -74,7 +73,7 @@ func TestStateUpdate(t *testing.T) {
 		id := "cs1-ff00:0:311-1"
 		config := &Config{
 			ID:        id,
-			Svc:       proto.ServiceType_cs,
+			Svc:       topology.Control,
 			Callbacks: clbks.Clbks(),
 		}
 		s := newState(config)
@@ -116,7 +115,7 @@ func TestStateUpdate(t *testing.T) {
 		s := newState(
 			&Config{
 				ID:        id,
-				Svc:       proto.ServiceType_br,
+				Svc:       topology.Router,
 				Callbacks: clbks.Clbks(),
 			},
 		)

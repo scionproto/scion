@@ -68,7 +68,6 @@ import (
 	trustgrpc "github.com/scionproto/scion/go/pkg/trust/grpc"
 	trustmetrics "github.com/scionproto/scion/go/pkg/trust/metrics"
 	"github.com/scionproto/scion/go/pkg/trust/renewal"
-	"github.com/scionproto/scion/go/proto"
 )
 
 func main() {
@@ -468,7 +467,7 @@ func setup(cfg *config.Config) (*ifstate.Interfaces, error) {
 	intfs := ifstate.NewInterfaces(topo.IFInfoMap(), ifstate.Config{})
 	itopo.Init(&itopo.Config{
 		ID:  cfg.General.ID,
-		Svc: proto.ServiceType_cs,
+		Svc: topology.Control,
 		Callbacks: itopo.Callbacks{
 			OnUpdate: func() {
 				intfs.Update(itopo.Get().IFInfoMap())

@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpath"
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpathdb/adapter"
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hpsegreq"
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hpsegreq/mock_hpsegreq"
@@ -33,7 +34,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/hiddenpath"
 	"github.com/scionproto/scion/go/lib/pathdb/mock_pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/snet"

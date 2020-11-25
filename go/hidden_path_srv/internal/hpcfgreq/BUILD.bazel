@@ -6,10 +6,10 @@ go_library(
     importpath = "github.com/scionproto/scion/go/hidden_path_srv/internal/hpcfgreq",
     visibility = ["//go/hidden_path_srv:__subpackages__"],
     deps = [
+        "//go/hidden_path_srv/internal/hiddenpath:go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl/path_mgmt:go_default_library",
-        "//go/lib/hiddenpath:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/messenger:go_default_library",
         "//go/lib/log:go_default_library",
@@ -23,10 +23,10 @@ go_test(
     srcs = ["handler_test.go"],
     embed = [":go_default_library"],
     deps = [
+        "//go/hidden_path_srv/internal/hiddenpath:go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/ctrl/ack:go_default_library",
         "//go/lib/ctrl/path_mgmt:go_default_library",
-        "//go/lib/hiddenpath:go_default_library",
         "//go/lib/infra:go_default_library",
         "//go/lib/infra/messenger:go_default_library",
         "//go/lib/infra/mock_infra:go_default_library",

@@ -23,7 +23,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/topology"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var fn = "testdata/topo.json"
@@ -50,7 +49,7 @@ func TestGeneralValidatorImmutable(t *testing.T) {
 
 func TestSvcValidatorGeneral(t *testing.T) {
 	Convey("Given a service validator", t, func() {
-		v := &svcValidator{id: "cs1-ff00:0:311-1", svc: proto.ServiceType_cs}
+		v := &svcValidator{id: "cs1-ff00:0:311-1", svc: topology.Control}
 		Convey("A nil topology is not valid", func() {
 			SoMsg("err", v.General(nil), ShouldNotBeNil)
 		})
@@ -65,7 +64,7 @@ func TestSvcValidatorGeneral(t *testing.T) {
 
 func TestSvcValidatorImmutable(t *testing.T) {
 	Convey("Given a service validator", t, func() {
-		v := &svcValidator{id: "cs1-ff00:0:311-1", svc: proto.ServiceType_cs}
+		v := &svcValidator{id: "cs1-ff00:0:311-1", svc: topology.Control}
 		other := "cs1-ff00:0:311-2"
 		oldTopo := loadTopo(fn, t)
 		topo := loadTopo(fn, t)

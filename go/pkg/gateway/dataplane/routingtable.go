@@ -80,7 +80,7 @@ type RoutingTable struct {
 	RouteExporter control.RouteExporter
 
 	indexToSubEntry map[int]*subEntry
-	indexToEntry    map[int]*entry
+	indexToEntries  map[int][]*entry
 	table           []*entry
 	mtx             sync.RWMutex
 }
@@ -91,7 +91,7 @@ func NewRoutingTable(exporter control.RouteExporter,
 	chains []*control.RoutingChain) *RoutingTable {
 
 	indexToSubEntry := make(map[int]*subEntry)
-	indexToEntry := make(map[int]*entry)
+	indexToEntries := make(map[int][]*entry)
 	var table []*entry
 	for _, chain := range chains {
 		for _, prefix := range chain.Prefixes {
@@ -99,9 +99,12 @@ func NewRoutingTable(exporter control.RouteExporter,
 				Prefix: prefix,
 			}
 			for _, tm := range chain.TrafficMatchers {
-				se := &subEntry{Class: tm.Matcher, Session: nil}
-				indexToSubEntry[tm.ID] = se
-				indexToEntry[tm.ID] = e
+				se, ok := indexToSubEntry[tm.ID]
+				if !ok {
+					se = &subEntry{Class: tm.Matcher, Session: nil}
+					indexToSubEntry[tm.ID] = se
+				}
+				indexToEntries[tm.ID] = append(indexToEntries[tm.ID], e)
 				e.Table = append(e.Table, se)
 			}
 			table = append(table, e)
@@ -111,7 +114,7 @@ func NewRoutingTable(exporter control.RouteExporter,
 	return &RoutingTable{
 		RouteExporter:   exporter,
 		indexToSubEntry: indexToSubEntry,
-		indexToEntry:    indexToEntry,
+		indexToEntries:  indexToEntries,
 		table:           table,
 	}
 }
@@ -179,12 +182,13 @@ func (rt *RoutingTable) AddRoute(index int, session control.PktWriter) error {
 	if !ok {
 		return serrors.New("invalid index")
 	}
-	e := rt.indexToEntry[index]
-	healthyBefore := e.isHealthy()
-	se.Session = session
-	if !healthyBefore {
-		rt.addNetwork(e.Prefix)
+	for _, e := range rt.indexToEntries[index] {
+		healthyBefore := e.isHealthy()
+		if !healthyBefore {
+			rt.addNetwork(e.Prefix)
+		}
 	}
+	se.Session = session
 	return nil
 }
 
@@ -197,8 +201,10 @@ func (rt *RoutingTable) DelRoute(index int) error {
 		return serrors.New("invalid index")
 	}
 	se.Session = nil
-	if e := rt.indexToEntry[index]; !e.isHealthy() {
-		rt.deleteNetwork(e.Prefix)
+	for _, e := range rt.indexToEntries[index] {
+		if !e.isHealthy() {
+			rt.deleteNetwork(e.Prefix)
+		}
 	}
 	return nil
 }

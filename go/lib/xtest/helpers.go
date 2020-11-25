@@ -205,6 +205,18 @@ func MustParseCIDR(t *testing.T, s string) *net.IPNet {
 	return network
 }
 
+// MustParseCIDRs parses the CIDR entries and returns a list containing the
+// parsed net.IPNet objects.
+func MustParseCIDRs(t *testing.T, entries ...string) []*net.IPNet {
+	t.Helper()
+
+	result := make([]*net.IPNet, 0, len(entries))
+	for _, e := range entries {
+		result = append(result, MustParseCIDR(t, e))
+	}
+	return result
+}
+
 // MustParseUDPAddr parses s and returns the corresponding net.UDPAddr object.
 // It fails the test if s is not a valid UDP address string.
 func MustParseUDPAddr(t *testing.T, s string) *net.UDPAddr {

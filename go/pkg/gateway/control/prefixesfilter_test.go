@@ -54,12 +54,12 @@ func TestPrefixesFilterPrefixes(t *testing.T) {
 				{
 					IA:       xtest.MustParseIA("1-ff00:0:111"),
 					Gateway:  control.Gateway{},
-					Prefixes: mustParseCIDRs(t, "10.1.0.0/25"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/25"),
 				},
 				{
 					IA:       xtest.MustParseIA("1-ff00:0:112"),
 					Gateway:  control.Gateway{},
-					Prefixes: mustParseCIDRs(t, "10.4.0.0/25"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.4.0.0/25"),
 				},
 			},
 		},
@@ -82,12 +82,12 @@ func TestPrefixesFilterPrefixes(t *testing.T) {
 				{
 					IA:       xtest.MustParseIA("1-ff00:0:111"),
 					Gateway:  control.Gateway{},
-					Prefixes: mustParseCIDRs(t, "10.1.0.0/25"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/25"),
 				},
 				{
 					IA:       xtest.MustParseIA("1-ff00:0:112"),
 					Gateway:  control.Gateway{},
-					Prefixes: mustParseCIDRs(t, "10.4.0.0/25"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.4.0.0/25"),
 				},
 			},
 		},
@@ -95,9 +95,9 @@ func TestPrefixesFilterPrefixes(t *testing.T) {
 			CreateFilter: func(_ *testing.T, ctrl *gomock.Controller) control.PrefixesFilter {
 				consumer := mock_control.NewMockPrefixConsumer(ctrl)
 				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:111"), gomock.Any(),
-					mustParseCIDRs(t, "10.1.0.0/25"))
+					xtest.MustParseCIDRs(t, "10.1.0.0/25"))
 				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:112"), gomock.Any(),
-					mustParseCIDRs(t, "10.4.0.0/25"))
+					xtest.MustParseCIDRs(t, "10.4.0.0/25"))
 				provider := mock_control.NewMockRoutingPolicyProvider(ctrl)
 				provider.EXPECT().RoutingPolicy().
 					Return(&routing.Policy{DefaultAction: routing.Accept}).Times(2)
@@ -112,12 +112,12 @@ func TestPrefixesFilterPrefixes(t *testing.T) {
 				{
 					IA:       xtest.MustParseIA("1-ff00:0:111"),
 					Gateway:  control.Gateway{},
-					Prefixes: mustParseCIDRs(t, "10.1.0.0/25"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/25"),
 				},
 				{
 					IA:       xtest.MustParseIA("1-ff00:0:112"),
 					Gateway:  control.Gateway{},
-					Prefixes: mustParseCIDRs(t, "10.4.0.0/25"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.4.0.0/25"),
 				},
 			},
 		},
@@ -125,9 +125,9 @@ func TestPrefixesFilterPrefixes(t *testing.T) {
 			CreateFilter: func(t *testing.T, ctrl *gomock.Controller) control.PrefixesFilter {
 				consumer := mock_control.NewMockPrefixConsumer(ctrl)
 				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:111"), gomock.Any(),
-					mustParseCIDRs(t, "10.1.0.0/25"))
+					xtest.MustParseCIDRs(t, "10.1.0.0/25"))
 				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:112"), gomock.Any(),
-					mustParseCIDRs(t, "10.4.0.0/25"))
+					xtest.MustParseCIDRs(t, "10.4.0.0/25"))
 				consumer.EXPECT().Prefixes(xtest.MustParseIA("1-ff00:0:113"), gomock.Any(), nil)
 				pol := &routing.Policy{DefaultAction: routing.Reject}
 				err := pol.UnmarshalText(
@@ -149,17 +149,17 @@ accept    1-ff00:0:113    1-ff00:0:110    10.3.0.0/25`))
 				{
 					IA:       xtest.MustParseIA("1-ff00:0:111"),
 					Gateway:  control.Gateway{},
-					Prefixes: mustParseCIDRs(t, "10.1.0.0/25", "127.0.0.0/8", "172.0.0.0/8"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.1.0.0/25", "127.0.0.0/8", "172.0.0.0/8"),
 				},
 				{
 					IA:       xtest.MustParseIA("1-ff00:0:112"),
 					Gateway:  control.Gateway{},
-					Prefixes: mustParseCIDRs(t, "10.4.0.0/25", "127.0.0.0/8", "172.0.0.0/8"),
+					Prefixes: xtest.MustParseCIDRs(t, "10.4.0.0/25", "127.0.0.0/8", "172.0.0.0/8"),
 				},
 				{
 					IA:       xtest.MustParseIA("1-ff00:0:113"),
 					Gateway:  control.Gateway{},
-					Prefixes: mustParseCIDRs(t, "127.0.0.0/8", "172.0.0.0/8"),
+					Prefixes: xtest.MustParseCIDRs(t, "127.0.0.0/8", "172.0.0.0/8"),
 				},
 			},
 		},

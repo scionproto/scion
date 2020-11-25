@@ -22,11 +22,11 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpath"
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpathdb"
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpathdb/adapter"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/hiddenpath"
 	"github.com/scionproto/scion/go/lib/pathdb/mock_pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/pathdbtest"
 	"github.com/scionproto/scion/go/lib/pathdb/query"

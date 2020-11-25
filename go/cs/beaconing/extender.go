@@ -248,11 +248,6 @@ func extractBeta(pseg *seg.PathSegment) uint16 {
 	return beta
 }
 
-func intfActive(intfs *ifstate.Interfaces, ifid common.IFIDType) bool {
-	intf := intfs.Get(ifid)
-	return intf != nil && intf.State() == ifstate.Active
-}
-
 func min(a, b uint8) uint8 {
 	if a > b {
 		return b

@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // validator is used to validate that the topology update is permissible.
@@ -30,11 +29,11 @@ type validator interface {
 	Validate(topo, oldTopo *topology.RWTopology) error
 }
 
-func validatorFactory(id string, svc proto.ServiceType) validator {
+func validatorFactory(id string, svc topology.ServiceType) validator {
 	switch svc {
-	case proto.ServiceType_unset:
+	case topology.Unknown:
 		return &validatorWrap{&generalValidator{}}
-	case proto.ServiceType_br:
+	case topology.Router:
 		// FIXME(roosd): add validator for border router.
 		return &validatorWrap{&brValidator{id: id}}
 	default:
@@ -108,7 +107,7 @@ var _ internalValidator = (*svcValidator)(nil)
 type svcValidator struct {
 	generalValidator
 	id  string
-	svc proto.ServiceType
+	svc topology.ServiceType
 }
 
 func (v *svcValidator) General(topo *topology.RWTopology) error {

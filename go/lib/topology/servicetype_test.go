@@ -1,4 +1,4 @@
-// Copyright 2019 Anapaya Systems
+// Copyright 2020 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ifstate
+package topology_test
 
-func (intf *Interface) SetState(s State) {
-	intf.state = s
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/go/lib/topology"
+)
+
+func TestServiceTypeStringAndParse(t *testing.T) {
+	serviceTypes := []topology.ServiceType{
+		topology.Unknown,
+		topology.Router,
+		topology.Control,
+		topology.Discovery,
+		topology.Gateway,
+	}
+	for _, st := range serviceTypes {
+		t.Run(st.String(), func(t *testing.T) {
+			assert.Equal(t, st, topology.ServiceTypeFromString(st.String()))
+		})
+	}
 }

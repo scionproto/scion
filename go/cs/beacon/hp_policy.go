@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,20 +15,19 @@
 package beacon
 
 import (
-	"encoding/json"
 	"io/ioutil"
 
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/hiddenpath"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/hiddenpath"
 )
 
 // HPGroup holds a hidden path group
 type HPGroup struct {
 	GroupCfgPath string `yaml:"CfgFilePath"`
-	Group        hiddenpath.Group
+	Group        *hiddenpath.Group
 }
 
 // RegPolicy holds a segmentregistration policy
@@ -40,8 +39,8 @@ type RegPolicy struct {
 
 // HPPolicy holds the public and hidden registration policies for an interface
 type HPPolicy struct {
-	Public RegPolicy                        `yaml:"PS"`
-	Hidden map[hiddenpath.GroupId]RegPolicy `yaml:"HPS"`
+	Public RegPolicy            `yaml:"PS"`
+	Hidden map[string]RegPolicy `yaml:"HPS"`
 }
 
 // HPPolicies holds all the hidden path registration policies for a BS
@@ -53,8 +52,8 @@ type HPPolicies struct {
 
 // HPRegistration holds all the information required for hidden path segment registrations
 type HPRegistration struct {
-	HPPolicies HPPolicies                      `yaml:"SegmentRegistration"`
-	HPGroups   map[hiddenpath.GroupId]*HPGroup `yaml:"HPGroups"`
+	HPPolicies HPPolicies          `yaml:"SegmentRegistration"`
+	HPGroups   map[string]*HPGroup `yaml:"HPGroups"`
 }
 
 // Validate verifies that for all hidden path policies the referenced Group exists
@@ -69,9 +68,9 @@ func (hp *HPRegistration) Validate() error {
 		}
 	}
 	for id, g := range hp.HPGroups {
-		if id != g.Group.Id {
+		if id != g.Group.ID.String() {
 			return common.NewBasicError("GroupId key doesn't match loaded HPGroup",
-				nil, "key", id, "loaded", g.Group.Id)
+				nil, "key", id, "loaded", g.Group.ID)
 		}
 	}
 	return nil
@@ -118,9 +117,10 @@ func (g *HPGroup) loadGroup() error {
 		return common.NewBasicError("Unable to read hidden path group file", err,
 			"path", g.GroupCfgPath)
 	}
-	err = json.Unmarshal(b, &g.Group)
+	v, err := hiddenpath.ParseGroup(b)
 	if err != nil {
 		return err
 	}
+	g.Group = v
 	return nil
 }

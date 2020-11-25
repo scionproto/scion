@@ -24,27 +24,20 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
-// sortedIntfs returns two sorted lists. The first list contains all active
-// interfaces of the given type. The second list contains all non-active
-// interfaces of the given type.
-func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) ([]common.IFIDType,
-	[]common.IFIDType) {
+// sortedIntfs returns all interfaces of the given link type sorted by interface
+// ID.
+func sortedIntfs(intfs *ifstate.Interfaces, linkType topology.LinkType) []common.IFIDType {
 
-	var active, nonActive []common.IFIDType
+	var result []common.IFIDType
 	for ifid, intf := range intfs.All() {
 		topoInfo := intf.TopoInfo()
 		if topoInfo.LinkType != linkType {
 			continue
 		}
-		if intf.State() != ifstate.Active {
-			nonActive = append(nonActive, ifid)
-			continue
-		}
-		active = append(active, ifid)
+		result = append(result, ifid)
 	}
-	sort.Slice(active, func(i, j int) bool { return active[i] < active[j] })
-	sort.Slice(nonActive, func(i, j int) bool { return nonActive[i] < nonActive[j] })
-	return active, nonActive
+	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
+	return result
 }
 
 type summary struct {

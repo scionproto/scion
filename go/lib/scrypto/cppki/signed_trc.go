@@ -187,7 +187,7 @@ func (s *SignedTRC) verifySignerInfo(cert *x509.Certificate, si protocol.SignerI
 	if !bytes.Equal(attrDigest, actualDigest.Sum(nil)) {
 		return serrors.New("message digest does not match")
 	}
-	sigInput, err := si.SignedAttrs.MarshaledForSigning()
+	sigInput, err := si.SignedAttrs.MarshaledForVerifying()
 	if err != nil {
 		return err
 	}

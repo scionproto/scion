@@ -108,5 +108,8 @@ func (n *ConfigPublisher) RoutingPolicy() *routing.Policy {
 	n.mtx.RLock()
 	defer n.mtx.RUnlock()
 
+	if n.routingPolicy == nil {
+		return nil
+	}
 	return n.routingPolicy.Copy()
 }

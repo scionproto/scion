@@ -98,16 +98,11 @@ func (r *Registrar) run(ctx context.Context) error {
 	if r.Tick.now.Sub(r.lastSucc) < r.Tick.period && !r.Tick.passed() {
 		return nil
 	}
-	logger := log.FromCtx(ctx)
 	segments, err := r.Provider.SegmentsToRegister(ctx, r.Type)
 	if err != nil {
 		return err
 	}
-	peers, nonActivePeers := sortedIntfs(r.Intfs, topology.Peer)
-	if len(nonActivePeers) > 0 {
-		logger.Debug("Ignore non-active peer interfaces",
-			"seg_type", r.Type, "interfaces", nonActivePeers)
-	}
+	peers := sortedIntfs(r.Intfs, topology.Peer)
 	if r.Type != seg.TypeDown {
 		return r.registerLocal(ctx, segments, peers)
 	}
@@ -127,7 +122,7 @@ func (r *Registrar) registerRemote(ctx context.Context, segments <-chan beacon.B
 			r.incrementInternalErrors()
 			continue
 		}
-		if !intfActive(r.Intfs, bOrErr.Beacon.InIfId) {
+		if r.Intfs.Get(bOrErr.Beacon.InIfId) == nil {
 			continue
 		}
 		err := r.Extender.Extend(ctx, bOrErr.Beacon.Segment, bOrErr.Beacon.InIfId, 0, peers)
@@ -172,7 +167,7 @@ func (r *Registrar) registerLocal(ctx context.Context, segments <-chan beacon.Be
 			r.incrementInternalErrors()
 			continue
 		}
-		if !intfActive(r.Intfs, bOrErr.Beacon.InIfId) {
+		if r.Intfs.Get(bOrErr.Beacon.InIfId) == nil {
 			continue
 		}
 		err := r.Extender.Extend(ctx, bOrErr.Beacon.Segment, bOrErr.Beacon.InIfId, 0, peers)

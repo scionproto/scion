@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // Provider provides a topology snapshot. The snapshot is guaranteed to not change.
@@ -88,7 +87,7 @@ type Topology interface {
 	UnderlayNextHop(ifID common.IFIDType) (*net.UDPAddr, bool)
 
 	// MakeHostInfos returns the underlay addresses of all services for the specified service type.
-	MakeHostInfos(st proto.ServiceType) []net.UDPAddr
+	MakeHostInfos(st ServiceType) []net.UDPAddr
 
 	// Gateways returns an array of all gateways.
 	Gateways() ([]GatewayInfo, error)
@@ -191,7 +190,7 @@ func (t *topologyS) UnderlayNextHop2(ifid common.IFIDType) (*net.UDPAddr, bool) 
 	return copyUDPAddr(ifInfo.InternalAddr), true
 }
 
-func (t *topologyS) MakeHostInfos(st proto.ServiceType) []net.UDPAddr {
+func (t *topologyS) MakeHostInfos(st ServiceType) []net.UDPAddr {
 	var hostInfos []net.UDPAddr
 	addresses, err := t.Topology.GetAllTopoAddrs(st)
 	if err != nil {
@@ -289,7 +288,7 @@ func (t *topologyS) Anycast(svc addr.HostSVC) (*net.UDPAddr, error) {
 }
 
 func (t *topologyS) Multicast(svc addr.HostSVC) ([]*net.UDPAddr, error) {
-	st, err := toProtoServiceType(svc)
+	st, err := toServiceType(svc)
 	if err != nil {
 		return nil, err
 	}
@@ -336,7 +335,7 @@ func supportedSVC(svc addr.HostSVC) bool {
 }
 
 func (t *topologyS) UnderlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error) {
-	st, err := toProtoServiceType(svc)
+	st, err := toServiceType(svc)
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +367,7 @@ func (t *topologyS) UnderlayMulticast(svc addr.HostSVC) ([]*net.UDPAddr, error) 
 }
 
 func (t *topologyS) UnderlayByName(svc addr.HostSVC, name string) (*net.UDPAddr, error) {
-	st, err := toProtoServiceType(svc)
+	st, err := toServiceType(svc)
 	if err != nil {
 		return nil, err
 	}
@@ -383,14 +382,14 @@ func (t *topologyS) UnderlayByName(svc addr.HostSVC, name string) (*net.UDPAddr,
 	return copyUDPAddr(underlayAddr), nil
 }
 
-func toProtoServiceType(svc addr.HostSVC) (proto.ServiceType, error) {
+func toServiceType(svc addr.HostSVC) (ServiceType, error) {
 	switch svc.Base() {
 	case addr.SvcDS:
-		return proto.ServiceType_ds, nil
+		return Discovery, nil
 	case addr.SvcCS:
-		return proto.ServiceType_cs, nil
+		return Control, nil
 	case addr.SvcSIG:
-		return proto.ServiceType_sig, nil
+		return Gateway, nil
 	default:
 		return 0, serrors.WithCtx(addr.ErrUnsupportedSVCAddress, "svc", svc)
 	}

@@ -187,11 +187,13 @@ func TestLoaderRun(t *testing.T) {
 		"session policy load error": func(t *testing.T, ctrl *gomock.Controller) {
 			stopCh := make(chan struct{})
 			publisher := mock_config.NewMockPublisher(ctrl)
+			publisher.EXPECT().Publish(nil, &defaultPol).Do(
+				func(control.SessionPolicies, *routing.Policy) { close(stopCh) })
 			parser := mock_control.NewMockSessionPolicyParser(ctrl)
 			parser.EXPECT().Parse(rawSP).Return(nil, serrors.New("test err"))
 			logger := mock_log.NewMockLogger(ctrl)
-			logger.EXPECT().Error(gomock.Any(), gomock.Any()).Do(
-				func(string, ...interface{}) { close(stopCh) })
+			logger.EXPECT().Error(gomock.Any(), gomock.Any())
+			logger.EXPECT().Info(gomock.Any(), gomock.Any())
 			trigger := make(chan struct{})
 			loader := &config.Loader{
 				SessionPoliciesFile: spFile,

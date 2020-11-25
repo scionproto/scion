@@ -179,7 +179,7 @@ func verifySignerInfo(si protocol.SignerInfo, digest []byte, certs []*x509.Certi
 	if !bytes.Equal(msgDigest, digest[:]) {
 		return serrors.New("invalid SignerInfo message digest")
 	}
-	input, err := si.SignedAttrs.MarshaledForSigning()
+	input, err := si.SignedAttrs.MarshaledForVerifying()
 	if err != nil {
 		return serrors.WrapStr("error marshalling signature input", err)
 	}

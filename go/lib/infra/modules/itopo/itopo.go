@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var st *state
@@ -62,7 +61,7 @@ type Config struct {
 	ID string
 	// Svc is the service type of the application. Updated are treated differently depending
 	// on it.
-	Svc proto.ServiceType
+	Svc topology.ServiceType
 	// Callbacks can be used to run custom code on specific events.
 	Callbacks Callbacks
 	// TopologyFactory is used to build Topology facades for the underlying topology object.

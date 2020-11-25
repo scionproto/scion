@@ -82,10 +82,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			defer mctrl.Finish()
 			// Setup interfaces with active parent, child and one peer interface.
 			intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
-			intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
-			intfs.Get(graph.If_111_A_112_X).Activate(graph.If_112_X_111_A)
 			intfs.Get(peer).Activate(graph.If_121_X_111_C)
-			intfs.Get(peer).SetState(ifstate.Revoked)
 			ext := &DefaultExtender{
 				IA:     topoProvider.Get().IA(),
 				Signer: testSigner(t, priv, topoProvider.Get().IA()),
@@ -158,7 +155,6 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		defer mctrl.Finish()
 		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		require.NoError(t, err)
-		intfs.Get(graph.If_111_A_112_X).Activate(graph.If_112_X_111_A)
 		ext := &DefaultExtender{
 			IA:     topoProvider.Get().IA(),
 			Signer: testSigner(t, priv, topoProvider.Get().IA()),
@@ -187,56 +183,37 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		testCases := map[string]struct {
 			Signer          func(t *testing.T) seg.Signer
 			Ingress, Egress common.IFIDType
-			Activate        func(intfs *ifstate.Interfaces)
 		}{
 			"Unknown Ingress": {
-				Signer:   defaultSigner,
-				Ingress:  10,
-				Activate: func(intfs *ifstate.Interfaces) {},
+				Signer:  defaultSigner,
+				Ingress: 10,
 			},
 			"Inactive Ingress": {
-				Signer:   defaultSigner,
-				Ingress:  graph.If_111_B_120_X,
-				Activate: func(intfs *ifstate.Interfaces) {},
+				Signer:  defaultSigner,
+				Ingress: graph.If_111_B_120_X,
 			},
 			"Invalid Ingress Remote": {
 				Signer:  defaultSigner,
 				Ingress: graph.If_111_B_120_X,
-				Activate: func(intfs *ifstate.Interfaces) {
-					intfs.Get(graph.If_111_B_120_X).Activate(0)
-				},
 			},
 			"Unknown Egress": {
 				Signer:  defaultSigner,
 				Ingress: graph.If_111_B_120_X,
 				Egress:  10,
-				Activate: func(intfs *ifstate.Interfaces) {
-					intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
-				},
 			},
 			"Inactive Egress": {
 				Signer:  defaultSigner,
 				Ingress: graph.If_111_B_120_X,
 				Egress:  graph.If_111_A_112_X,
-				Activate: func(intfs *ifstate.Interfaces) {
-					intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
-				},
 			},
 			"Invalid Egress Remote": {
 				Signer:  defaultSigner,
 				Ingress: graph.If_111_B_120_X,
 				Egress:  graph.If_111_A_112_X,
-				Activate: func(intfs *ifstate.Interfaces) {
-					intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
-					intfs.Get(graph.If_111_A_112_X).Activate(0)
-				},
 			},
 			"Signer fails": {
 				Signer:  func(t *testing.T) seg.Signer { return &failSigner{} },
 				Ingress: graph.If_111_B_120_X,
-				Activate: func(intfs *ifstate.Interfaces) {
-					intfs.Get(graph.If_111_B_120_X).Activate(graph.If_120_X_111_B)
-				},
 			},
 		}
 		for name, tc := range testCases {
@@ -245,7 +222,6 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				mctrl := gomock.NewController(t)
 				defer mctrl.Finish()
 				intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
-				tc.Activate(intfs)
 				ext := &DefaultExtender{
 					IA:     topoProvider.Get().IA(),
 					Signer: testSigner(t, priv, topoProvider.Get().IA()),

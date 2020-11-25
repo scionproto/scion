@@ -10,7 +10,6 @@ import (
 	common "github.com/scionproto/scion/go/lib/common"
 	snet "github.com/scionproto/scion/go/lib/snet"
 	topology "github.com/scionproto/scion/go/lib/topology"
-	proto "github.com/scionproto/scion/go/proto"
 	net "net"
 	reflect "reflect"
 )
@@ -196,7 +195,7 @@ func (mr *MockTopologyMockRecorder) MTU() *gomock.Call {
 }
 
 // MakeHostInfos mocks base method
-func (m *MockTopology) MakeHostInfos(arg0 proto.ServiceType) []net.UDPAddr {
+func (m *MockTopology) MakeHostInfos(arg0 topology.ServiceType) []net.UDPAddr {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "MakeHostInfos", arg0)
 	ret0, _ := ret[0].([]net.UDPAddr)

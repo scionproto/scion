@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
 	"github.com/scionproto/scion/go/lib/topology/underlay"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // EndhostPort is the underlay port that the dispatcher binds to on non-routers.
@@ -319,7 +318,7 @@ func (t *RWTopology) Active(now time.Time) bool {
 
 // GetTopoAddr returns the address information for the process of the requested type with the
 // requested ID.
-func (t *RWTopology) GetTopoAddr(id string, svc proto.ServiceType) (*TopoAddr, error) {
+func (t *RWTopology) GetTopoAddr(id string, svc ServiceType) (*TopoAddr, error) {
 	svcInfo, err := t.getSvcInfo(svc)
 	if err != nil {
 		return nil, err
@@ -332,7 +331,7 @@ func (t *RWTopology) GetTopoAddr(id string, svc proto.ServiceType) (*TopoAddr, e
 }
 
 // GetAllTopoAddrs returns the address information of all processes of the requested type.
-func (t *RWTopology) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) {
+func (t *RWTopology) GetAllTopoAddrs(svc ServiceType) ([]TopoAddr, error) {
 	svcInfo, err := t.getSvcInfo(svc)
 	if err != nil {
 		return nil, err
@@ -344,22 +343,22 @@ func (t *RWTopology) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) 
 	return topoAddrs, nil
 }
 
-func (t *RWTopology) getSvcInfo(svc proto.ServiceType) (*svcInfo, error) {
+func (t *RWTopology) getSvcInfo(svc ServiceType) (*svcInfo, error) {
 	switch svc {
-	case proto.ServiceType_unset:
-		return nil, serrors.New("Service type unset")
-	case proto.ServiceType_ds:
+	case Unknown:
+		return nil, serrors.New("service type unknown")
+	case Discovery:
 		return &svcInfo{idTopoAddrMap: t.DS}, nil
-	case proto.ServiceType_bs, proto.ServiceType_cs, proto.ServiceType_ps:
+	case Control:
 		return &svcInfo{idTopoAddrMap: t.CS}, nil
-	case proto.ServiceType_sig:
+	case Gateway:
 		m := make(IDAddrMap)
 		for k, v := range t.SIG {
 			m[k] = *v.CtrlAddr
 		}
 		return &svcInfo{idTopoAddrMap: m}, nil
 	default:
-		return nil, common.NewBasicError("Unsupported service type", nil, "type", svc)
+		return nil, serrors.New("unsupported service type", "type", svc)
 	}
 }
 
@@ -368,7 +367,6 @@ func (t *RWTopology) Copy() *RWTopology {
 	if t == nil {
 		return nil
 	}
-
 	return &RWTopology{
 		Timestamp:  t.Timestamp,
 		IA:         t.IA,

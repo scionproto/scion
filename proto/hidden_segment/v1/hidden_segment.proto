@@ -25,12 +25,12 @@ service HiddenSegmentRegistrationService {
     rpc HiddenSegmentRegistration(HiddenSegmentRegistrationRequest) returns (HiddenSegmentRegistrationResponse) {}
 }
 
-message HiddenSegmentRegistrationRequest {
-    message Segments {
-        // List of path segments.
-        repeated proto.control_plane.v1.PathSegment segments = 1;
-    }
+message Segments {
+    // List of path segments.
+    repeated proto.control_plane.v1.PathSegment segments = 1;
+}
 
+message HiddenSegmentRegistrationRequest {
     // Mapping from path segment type to path segments. The key is the integer
     // representation of the control_plane.v1.SegmentType enum.
     map<int32, Segments> segments = 1;
@@ -40,3 +40,21 @@ message HiddenSegmentRegistrationRequest {
 }
 
 message HiddenSegmentRegistrationResponse {}
+
+service HiddenSegmentLookupService {
+    // HiddenSegments returns all segments that match the request.
+    rpc HiddenSegments(HiddenSegmentsRequest) returns (HiddenSegmentsResponse) {}
+}
+
+message HiddenSegmentsRequest {
+    // Hidden path group IDs for which a hidden segment is requested.
+    repeated uint64 group_ids = 1;
+    // The destination ISD-AS of the segment.
+    uint64 dst_isd_as = 2;
+}
+
+message HiddenSegmentsResponse {
+    // Mapping from path segment type to path segments. The key is the integer
+    // representation of the control_plane.v1.SegmentType enum.
+    map<int32, Segments> segments = 1;
+}

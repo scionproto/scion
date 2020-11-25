@@ -62,21 +62,6 @@ func TestPropagatorRun(t *testing.T) {
 			{graph.If_130_B_120_A, graph.If_120_A_110_X},
 		},
 	}
-	// The interfaces in the non-core and core topologies.
-	allIntfs := map[bool]map[common.IFIDType]common.IFIDType{
-		false: {
-			graph.If_111_A_112_X: graph.If_112_X_111_A,
-			graph.If_111_B_120_X: graph.If_120_X_111_B,
-			graph.If_111_B_211_A: graph.If_211_A_111_B,
-			graph.If_111_C_211_A: graph.If_211_A_111_C,
-			graph.If_111_C_121_X: graph.If_121_X_111_C,
-		},
-		true: {
-			graph.If_110_X_120_A: graph.If_120_A_110_X,
-			graph.If_110_X_130_A: graph.If_130_A_110_X,
-			graph.If_110_X_210_X: graph.If_210_X_110_X,
-		},
-	}
 	tests := []test{
 		{
 			name:     "Non-core: All interfaces active",
@@ -163,12 +148,6 @@ func TestPropagatorRun(t *testing.T) {
 				Core:         test.core,
 				Provider:     provider,
 			}
-			for ifid, remote := range allIntfs[test.core] {
-				if test.inactive[ifid] {
-					continue
-				}
-				intfs.Get(ifid).Activate(remote)
-			}
 			g := graph.NewDefaultGraph(mctrl)
 			provider.EXPECT().BeaconsToPropagate(gomock.Any()).MaxTimes(2).DoAndReturn(
 				func(_ interface{}) (<-chan beacon.BeaconOrErr, error) {
@@ -233,9 +212,6 @@ func TestPropagatorRun(t *testing.T) {
 			Provider:     provider,
 		}
 
-		for ifid, remote := range allIntfs[true] {
-			intfs.Get(ifid).Activate(remote)
-		}
 		g := graph.NewDefaultGraph(mctrl)
 		// We call run 4 times in this test, since the interface to 1-ff00:0:120
 		// will never be beaconed on, because the beacons are filtered for loops.

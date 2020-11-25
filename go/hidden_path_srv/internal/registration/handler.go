@@ -18,7 +18,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/hiddenpath"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
@@ -95,8 +94,8 @@ func (h *hpSegRegHandler) handle(logger log.Logger) (*infra.HandlerResult, error
 		return infra.MetricsErrInvalid, nil
 	}
 	segRecs := seghandler.Segments{
-		Segs:      hpSegReg.Recs,
-		HPGroupID: hiddenpath.IdFromMsg(hpSegReg.GroupId),
+		Segs: hpSegReg.Recs,
+		//		HPGroupID: hiddenpath.IdFromMsg(hpSegReg.GroupId),
 	}
 	res := h.segHandler.Handle(ctx, segRecs, snetPeer)
 	if err := res.Err(); err != nil {

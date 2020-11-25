@@ -244,6 +244,8 @@ type Attributes []Attribute
 //   encoding of the EXPLICIT SET OF tag, rather than of the IMPLICIT [0] tag,
 //   MUST be included in the message digest calculation along with the length
 //   and content octets of the SignedAttributes value.
+//
+// When verifying, use MarshaledForVerifying to guarantee backwards compatibility.
 func (attrs Attributes) MarshaledForSigning() ([]byte, error) {
 	input := struct {
 		Attributes `asn1:"set"`
@@ -258,6 +260,45 @@ func (attrs Attributes) MarshaledForSigning() ([]byte, error) {
 	if _, err = asn1.Unmarshal(seq, &raw); err != nil {
 		return nil, err
 	}
+	return raw.Bytes, nil
+}
+
+// MarshaledForVerifying DER encodes the Attributes as needed for verifying
+// SignedAttributes. The order of the attributes is preserved to allow verifying
+// signatures that were produced by applications running go1.14 or older.
+//
+// As of go1.15 marshalling a SET in DER adheres to X690 Section 11.6 and
+// produces an ordered set.
+// (https://github.com/golang/go/commit/f0cea848679b8f8cdc5f76e1b1e36ebb924a68f8)
+//
+// Signatures produced by applications using go1.14 or older have unsorted
+// attributes and would fail to verify if order is not preserved.
+func (attrs Attributes) MarshaledForVerifying() ([]byte, error) {
+	// Tools that do not respect X690 Section 11.6 will produce signatures over
+	// the attributes without sorting them first. With go1.15, a set is sorted
+	// when marshalling. To be able to verify the signature, the raw output of
+	// this function must retain the same order that was used during signing. We
+	// marshal the attributes as a SEQUENCE instead of a SET, and later replace
+	// the SEQUENCE tag with a SET tag. This works because SETs and SEQUENCEs
+	// are serialized the same, except for their tag.
+	input := struct {
+		Attributes `asn1:"seq"` // Marshal as SEQUENCE to preserve order.
+	}{attrs}
+	seq, err := asn1.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+
+	// unwrap the outer SEQUENCE
+	var raw asn1.RawValue
+	if _, err = asn1.Unmarshal(seq, &raw); err != nil {
+		return nil, err
+	}
+
+	// replace SEQUENCE tag with SET tag
+	TagMask := uint8(0x1f)
+	raw.Bytes[0] = (raw.Bytes[0] & ^TagMask) | asn1.TagSet
+
 	return raw.Bytes, nil
 }
 
@@ -368,7 +409,7 @@ type SignerInfo struct {
 	Version            int
 	SID                asn1.RawValue
 	DigestAlgorithm    pkix.AlgorithmIdentifier
-	SignedAttrs        Attributes `asn1:"optional,tag:0"`
+	SignedAttrs        Attributes `asn1:"set,optional,tag:0"`
 	SignatureAlgorithm pkix.AlgorithmIdentifier
 	Signature          []byte
 	UnsignedAttrs      Attributes `asn1:"set,optional,tag:1"`

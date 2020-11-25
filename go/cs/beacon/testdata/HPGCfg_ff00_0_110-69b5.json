@@ -1,16 +1,16 @@
 {
-    "GroupID": "ff00:0:110-69b5",
-    "Version": 1,
-    "Owner": "1-ff00:0:110",
-    "Writers": [
+    "group_id": "ff00:0:110-69b5",
+    "version": 1,
+    "owner": "1-ff00:0:110",
+    "writers": [
         "1-ff00:0:111",
         "1-ff00:0:112"
     ],
-    "Readers": [
+    "readers": [
         "1-ff00:0:113",
         "1-ff00:0:114"
     ],
-    "Registries": [
+    "registries": [
         "1-ff00:0:110",
         "1-ff00:0:111",
         "1-ff00:0:113"

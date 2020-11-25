@@ -1,4 +1,4 @@
-// Copyright 2019 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,53 +25,48 @@ import (
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/hiddenpath"
-	"github.com/scionproto/scion/go/lib/hiddenpath/hiddenpathtest"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-var (
-	id69b5 = hiddenpathtest.MustParseHPGroupId("ff00:0:110-69b5")
-	idabcd = hiddenpathtest.MustParseHPGroupId("ffaa:0:222-abcd")
-)
+func TestHPRegistrationFromYaml(t *testing.T) {
+	id69b5 := "ff00:0:110-69b5"
+	idabcd := "ffaa:0:222-abcd"
 
-var refPolicy = beacon.RegPolicy{
-	RegUp:         true,
-	RegDown:       true,
-	MaxExpiration: util.DurWrap{Duration: time.Hour},
-}
+	refPolicy := beacon.RegPolicy{
+		RegUp:         true,
+		RegDown:       true,
+		MaxExpiration: util.DurWrap{Duration: time.Hour},
+	}
 
-// expected is the HPRegistration which should result from parsing 'testdata/hp_policy.yml'
-// It is missing the initialized hiddenpath.Groups (unmarshalling those is tested in the hiddenpath
-// package)
-var expected = &beacon.HPRegistration{
-	HPPolicies: beacon.HPPolicies{
-		DefaultAction:   "register",
-		HiddenAndPublic: true,
-		Policies: map[common.IFIDType]beacon.HPPolicy{
-			2: {
-				Public: refPolicy,
-				Hidden: map[hiddenpath.GroupId]beacon.RegPolicy{
-					id69b5: refPolicy,
-					idabcd: refPolicy,
+	// expected is the HPRegistration which should result from parsing
+	// 'testdata/hp_policy.yml' It is missing the initialized hiddenpath.Groups
+	// (unmarshalling those is tested in the hiddenpath package)
+	expected := &beacon.HPRegistration{
+		HPPolicies: beacon.HPPolicies{
+			DefaultAction:   "register",
+			HiddenAndPublic: true,
+			Policies: map[common.IFIDType]beacon.HPPolicy{
+				2: {
+					Public: refPolicy,
+					Hidden: map[string]beacon.RegPolicy{
+						id69b5: refPolicy,
+						idabcd: refPolicy,
+					},
+				},
+				3: {
+					Public: refPolicy,
 				},
 			},
-			3: {
-				Public: refPolicy,
+		},
+		HPGroups: map[string]*beacon.HPGroup{
+			id69b5: {
+				GroupCfgPath: "testdata/HPGCfg_ff00_0_110-69b5.json",
+			},
+			idabcd: {
+				GroupCfgPath: "testdata/HPGCfg_ffaa_0_222-abcd.json",
 			},
 		},
-	},
-	HPGroups: map[hiddenpath.GroupId]*beacon.HPGroup{
-		id69b5: {
-			GroupCfgPath: "testdata/HPGCfg_ff00_0_110-69b5.json",
-		},
-		idabcd: {
-			GroupCfgPath: "testdata/HPGCfg_ffaa_0_222-abcd.json",
-		},
-	},
-}
-
-func TestHPRegistrationFromYaml(t *testing.T) {
+	}
 
 	t.Run("Valid", func(t *testing.T) {
 		fn := "testdata/hp_policy.yml"
@@ -80,7 +75,7 @@ func TestHPRegistrationFromYaml(t *testing.T) {
 
 		for _, v := range r.HPGroups {
 			assert.NotZero(t, v.Group, "HPGroup %q not initialized", v.GroupCfgPath)
-			v.Group = hiddenpath.Group{}
+			v.Group = nil
 		}
 		assert.Equal(t, expected, r)
 	})
