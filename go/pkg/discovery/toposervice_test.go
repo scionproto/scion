@@ -16,10 +16,12 @@ package discovery_test
 
 import (
 	"context"
+	"sort"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -29,9 +31,9 @@ import (
 
 func TestGateways(t *testing.T) {
 	testCases := map[string]struct {
-		provider   topology.Provider
-		want       *dpb.GatewaysResponse
-		asserError assert.ErrorAssertionFunc
+		provider    topology.Provider
+		want        *dpb.GatewaysResponse
+		assertError assert.ErrorAssertionFunc
 	}{
 		"valid": {
 			provider: itopotest.TopoProviderFromFile(t, "testdata/topology.json"),
@@ -50,7 +52,7 @@ func TestGateways(t *testing.T) {
 					},
 				},
 			},
-			asserError: assert.NoError,
+			assertError: assert.NoError,
 		},
 	}
 
@@ -67,7 +69,110 @@ func TestGateways(t *testing.T) {
 			defer cancel()
 
 			got, err := d.Gateways(ctx, nil)
-			tc.asserError(t, err)
+			tc.assertError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestHiddenSegmentServices(t *testing.T) {
+	testCases := map[string]struct {
+		topo        []byte
+		want        *dpb.HiddenSegmentServicesResponse
+		assertError assert.ErrorAssertionFunc
+	}{
+		"no service": {
+			topo: []byte(`
+			{
+				"isd_as": "1-ff00:0:311"
+			}
+			`),
+			want:        &dpb.HiddenSegmentServicesResponse{},
+			assertError: assert.NoError,
+		},
+		"only lookup service": {
+			topo: []byte(`
+			{
+				"isd_as": "1-ff00:0:311",
+				"hidden_segment_lookup_service": {
+					"hsls-1": {"addr": "10.1.0.1:30254"},
+					"hsls-2": {"addr": "10.1.0.2:30254"}
+				}
+			}
+			`),
+			want: &dpb.HiddenSegmentServicesResponse{
+				Lookup: []*dpb.HiddenSegmentLookupServer{
+					{Address: "10.1.0.1:30254"},
+					{Address: "10.1.0.2:30254"},
+				},
+			},
+			assertError: assert.NoError,
+		},
+		"only registration service": {
+			topo: []byte(`
+			{
+				"isd_as": "1-ff00:0:311",
+				"hidden_segment_registration_service": {
+					"hsls-3": {"addr": "10.1.0.3:30254"},
+					"hsls-4": {"addr": "10.1.0.4:30254"}
+				}
+			}
+			`),
+			want: &dpb.HiddenSegmentServicesResponse{
+				Registration: []*dpb.HiddenSegmentRegistrationServer{
+					{Address: "10.1.0.3:30254"},
+					{Address: "10.1.0.4:30254"},
+				},
+			},
+			assertError: assert.NoError,
+		},
+		"both services": {
+			topo: []byte(`
+			{
+				"isd_as": "1-ff00:0:311",
+				"hidden_segment_lookup_service": {
+					"hsls-1": {"addr": "10.1.0.1:30254"},
+					"hsls-2": {"addr": "10.1.0.2:30254"}
+				},
+				"hidden_segment_registration_service": {
+					"hsls-3": {"addr": "10.1.0.3:30254"},
+					"hsls-4": {"addr": "10.1.0.4:30254"}
+				}
+			}
+			`),
+			want: &dpb.HiddenSegmentServicesResponse{
+				Lookup: []*dpb.HiddenSegmentLookupServer{
+					{Address: "10.1.0.1:30254"},
+					{Address: "10.1.0.2:30254"},
+				},
+				Registration: []*dpb.HiddenSegmentRegistrationServer{
+					{Address: "10.1.0.3:30254"},
+					{Address: "10.1.0.4:30254"},
+				},
+			},
+			assertError: assert.NoError,
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			rwTopo, err := topology.RWTopologyFromJSONBytes(tc.topo)
+			require.NoError(t, err)
+			d := discovery.Topology{Provider: &itopotest.TestTopoProvider{RWTopology: rwTopo}}
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
+			got, err := d.HiddenSegmentServices(ctx, nil)
+			tc.assertError(t, err)
+			sort.Slice(got.Lookup, func(i, j int) bool {
+				return got.Lookup[i].Address < got.Lookup[j].Address
+			})
+			sort.Slice(got.Registration, func(i, j int) bool {
+				return got.Registration[i].Address < got.Registration[j].Address
+			})
 			assert.Equal(t, tc.want, got)
 		})
 	}

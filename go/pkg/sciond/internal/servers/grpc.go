@@ -16,6 +16,7 @@ package servers
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	durationpb "github.com/golang/protobuf/ptypes/duration"
@@ -267,7 +268,10 @@ func (s DaemonServer) services(ctx context.Context,
 	serviceTypes := []topology.ServiceType{topology.Control, topology.Gateway}
 	for _, t := range serviceTypes {
 		list := &sdpb.ListService{}
-		svcHosts := topo.MakeHostInfos(t)
+		svcHosts, err := topo.MakeHostInfos(t)
+		if err != nil && !errors.Is(topology.ErrAddressNotFound, err) {
+			return nil, err
+		}
 		for _, h := range svcHosts {
 			// TODO(lukedirtwalker): build actual URI after it's defined (anapapaya/scion#3587)
 			list.Services = append(list.Services, &sdpb.Service{Uri: h.String()})

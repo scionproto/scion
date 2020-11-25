@@ -34,6 +34,9 @@ import (
 // EndhostPort is the underlay port that the dispatcher binds to on non-routers.
 const EndhostPort = underlay.EndhostPort
 
+// ErrAddressNotFound indicates the address was not found.
+var ErrAddressNotFound = serrors.New("address not found")
+
 type (
 	// RWTopology is the topology type for applications and libraries that need write
 	// access to AS topology information (e.g., discovery, topology reloaders).
@@ -64,9 +67,11 @@ type (
 		BRNames   []string
 		IFInfoMap IfInfoMap
 
-		CS  IDAddrMap
-		DS  IDAddrMap
-		SIG map[string]GatewayInfo
+		CS                        IDAddrMap
+		DS                        IDAddrMap
+		HiddenSegmentLookup       IDAddrMap
+		HiddenSegmentRegistration IDAddrMap
+		SIG                       map[string]GatewayInfo
 	}
 
 	// GatewayInfo describes a scion gateway.
@@ -137,11 +142,13 @@ type (
 // NewRWTopology creates new empty Topo object, including all possible service maps etc.
 func NewRWTopology() *RWTopology {
 	return &RWTopology{
-		BR:        make(map[string]BRInfo),
-		CS:        make(IDAddrMap),
-		DS:        make(IDAddrMap),
-		SIG:       make(map[string]GatewayInfo),
-		IFInfoMap: make(IfInfoMap),
+		BR:                        make(map[string]BRInfo),
+		CS:                        make(IDAddrMap),
+		DS:                        make(IDAddrMap),
+		HiddenSegmentLookup:       make(IDAddrMap),
+		HiddenSegmentRegistration: make(IDAddrMap),
+		SIG:                       make(map[string]GatewayInfo),
+		IFInfoMap:                 make(IfInfoMap),
 	}
 }
 
@@ -306,7 +313,14 @@ func (t *RWTopology) populateServices(raw *jsontopo.Topology) error {
 	if err != nil {
 		return serrors.WrapStr("unable to extract DS address", err)
 	}
-
+	t.HiddenSegmentLookup, err = svcMapFromRaw(raw.HiddenSegmentLookup)
+	if err != nil {
+		return serrors.WrapStr("unable to extract hidden segment lookup address", err)
+	}
+	t.HiddenSegmentRegistration, err = svcMapFromRaw(raw.HiddenSegmentReg)
+	if err != nil {
+		return serrors.WrapStr("unable to extract hidden segment registration address", err)
+	}
 	return nil
 }
 
@@ -330,15 +344,15 @@ func (t *RWTopology) GetTopoAddr(id string, svc ServiceType) (*TopoAddr, error) 
 	return topoAddr, nil
 }
 
-// GetAllTopoAddrs returns the address information of all processes of the requested type.
-func (t *RWTopology) GetAllTopoAddrs(svc ServiceType) ([]TopoAddr, error) {
+// getAllTopoAddrs returns the address information of all processes of the requested type.
+func (t *RWTopology) getAllTopoAddrs(svc ServiceType) ([]TopoAddr, error) {
 	svcInfo, err := t.getSvcInfo(svc)
 	if err != nil {
 		return nil, err
 	}
 	topoAddrs := svcInfo.getAllTopoAddrs()
 	if topoAddrs == nil {
-		return nil, serrors.New("Address not found")
+		return nil, ErrAddressNotFound
 	}
 	return topoAddrs, nil
 }
@@ -351,6 +365,10 @@ func (t *RWTopology) getSvcInfo(svc ServiceType) (*svcInfo, error) {
 		return &svcInfo{idTopoAddrMap: t.DS}, nil
 	case Control:
 		return &svcInfo{idTopoAddrMap: t.CS}, nil
+	case HiddenSegmentLookup:
+		return &svcInfo{idTopoAddrMap: t.HiddenSegmentLookup}, nil
+	case HiddenSegmentRegistration:
+		return &svcInfo{idTopoAddrMap: t.HiddenSegmentRegistration}, nil
 	case Gateway:
 		m := make(IDAddrMap)
 		for k, v := range t.SIG {
@@ -377,9 +395,11 @@ func (t *RWTopology) Copy() *RWTopology {
 		BRNames:   append(t.BRNames[:0:0], t.BRNames...),
 		IFInfoMap: t.IFInfoMap.copy(),
 
-		CS:  t.CS.copy(),
-		DS:  t.DS.copy(),
-		SIG: copySIGMap(t.SIG),
+		CS:                        t.CS.copy(),
+		DS:                        t.DS.copy(),
+		SIG:                       copySIGMap(t.SIG),
+		HiddenSegmentLookup:       t.HiddenSegmentLookup.copy(),
+		HiddenSegmentRegistration: t.HiddenSegmentRegistration.copy(),
 	}
 }
 
