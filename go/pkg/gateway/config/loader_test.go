@@ -117,21 +117,6 @@ func TestLoaderRun(t *testing.T) {
 			}()
 			xtest.AssertReadReturnsBefore(t, doneCh, time.Second)
 		},
-		"missing routing policy file fails": func(t *testing.T, ctrl *gomock.Controller) {
-			loader := &config.Loader{
-				SessionPoliciesFile: "session.policy",
-				Publisher:           mock_config.NewMockPublisher(ctrl),
-				Trigger:             make(chan struct{}),
-				SessionPolicyParser: mock_control.NewMockSessionPolicyParser(ctrl),
-			}
-			doneCh := make(chan struct{})
-			go func() {
-				defer close(doneCh)
-				err := loader.Run()
-				assert.Error(t, err)
-			}()
-			xtest.AssertReadReturnsBefore(t, doneCh, time.Second)
-		},
 		"close before run immediately returns": func(t *testing.T, ctrl *gomock.Controller) {
 			loader := &config.Loader{
 				SessionPoliciesFile: "session.policy",
@@ -232,7 +217,7 @@ func TestLoaderRun(t *testing.T) {
 			logger.EXPECT().Info(gomock.Any(), gomock.Any())
 			loader := &config.Loader{
 				SessionPoliciesFile: spFile,
-				RoutingPolicyFile:   config.DefaultIPRoutingPolicyFile,
+				RoutingPolicyFile:   "",
 				Publisher:           publisher,
 				Trigger:             trigger,
 				SessionPolicyParser: parser,

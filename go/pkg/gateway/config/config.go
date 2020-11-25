@@ -20,6 +20,7 @@ import (
 	"strconv"
 
 	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // Defaults.
@@ -47,8 +48,6 @@ type Gateway struct {
 	CtrlAddr string `toml:"ctrl_addr,omitempty"`
 	// Data plane address, for frames.
 	DataAddr string `toml:"data_addr,omitempty"`
-	// SCION dispatcher path.
-	Dispatcher string `toml:"dispatcher,omitempty"`
 }
 
 func (cfg *Gateway) Validate() error {
@@ -56,10 +55,7 @@ func (cfg *Gateway) Validate() error {
 		cfg.ID = "gateway"
 	}
 	if cfg.TrafficPolicy == "" {
-		cfg.TrafficPolicy = DefaultSessionPoliciesFile
-	}
-	if cfg.IPRoutingPolicy == "" {
-		cfg.IPRoutingPolicy = DefaultIPRoutingPolicyFile
+		return serrors.New("no traffic policy file path specified")
 	}
 	cfg.CtrlAddr = DefaultAddress(cfg.CtrlAddr, defaultCtrlPort)
 	cfg.DataAddr = DefaultAddress(cfg.DataAddr, defaultDataPort)
