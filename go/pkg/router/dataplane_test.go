@@ -265,7 +265,7 @@ func TestDataPlaneRun(t *testing.T) {
 				postInternalBFD := func(id layers.BFDDiscriminator, src *net.UDPAddr) []byte {
 					scn := &slayers.SCION{
 						NextHdr:  common.L4BFD,
-						PathType: slayers.PathTypeEmpty,
+						PathType: empty.PathType,
 						Path:     &empty.Path{},
 					}
 					bfdL := &layers.BFD{
@@ -372,7 +372,7 @@ func TestDataPlaneRun(t *testing.T) {
 								return 1, nil
 							}
 
-							if s.PathType != slayers.PathTypeEmpty {
+							if s.PathType != empty.PathType {
 								return 1, nil
 							}
 							if _, ok := s.Path.(empty.Path); !ok {
@@ -412,7 +412,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 						if scnL := pkt.Layer(slayers.LayerTypeSCION); scnL != nil {
 							s := scnL.(*slayers.SCION)
-							if s.PathType != slayers.PathTypeOneHop {
+							if s.PathType != onehop.PathType {
 								return 1, nil
 							}
 
@@ -453,7 +453,7 @@ func TestDataPlaneRun(t *testing.T) {
 				postExternalBFD := func(id layers.BFDDiscriminator, fromIfID uint16) []byte {
 					scn := &slayers.SCION{
 						NextHdr:  common.L4BFD,
-						PathType: slayers.PathTypeOneHop,
+						PathType: onehop.PathType,
 						Path: &onehop.Path{
 							FirstHop: path.HopField{ConsEgress: fromIfID},
 						},
@@ -882,7 +882,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg()
-				spkt.PathType = slayers.PathTypeOneHop
+				spkt.PathType = onehop.PathType
 				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
 				err := spkt.SetDstAddr(addr.SVCMcast | addr.SvcCS)
 				require.NoError(t, err)
@@ -944,7 +944,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg()
-				spkt.PathType = slayers.PathTypeSCION
+				spkt.PathType = scion.PathType
 				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110")
 				err := spkt.SetDstAddr(addr.SVCMcast | addr.SvcCS)
 				require.NoError(t, err)
@@ -1001,7 +1001,7 @@ func TestProcessPkt(t *testing.T) {
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg()
-				spkt.PathType = slayers.PathTypeOneHop
+				spkt.PathType = onehop.PathType
 				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110")
 				err := spkt.SetDstAddr(addr.SVCMcast | addr.SvcCS)
 				require.NoError(t, err)
@@ -1085,7 +1085,7 @@ func TestProcessPkt(t *testing.T) {
 	}
 }
 
-func toMsg(t *testing.T, spkt *slayers.SCION, dpath slayers.Path) *ipv4.Message {
+func toMsg(t *testing.T, spkt *slayers.SCION, dpath path.Path) *ipv4.Message {
 	t.Helper()
 	ret := &ipv4.Message{}
 	spkt.Path = dpath
@@ -1109,7 +1109,7 @@ func prepBaseMsg() (*slayers.SCION, *scion.Decoded) {
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
 		NextHdr:      common.L4UDP,
-		PathType:     slayers.PathTypeSCION,
+		PathType:     scion.PathType,
 		DstIA:        xtest.MustParseIA("4-ff00:0:411"),
 		SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
 		Path:         &scion.Raw{},

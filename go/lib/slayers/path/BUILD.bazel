@@ -6,6 +6,7 @@ go_library(
         "hopfield.go",
         "infofield.go",
         "mac.go",
+        "path.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/slayers/path",
     visibility = ["//visibility:public"],

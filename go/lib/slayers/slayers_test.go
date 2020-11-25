@@ -28,6 +28,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/util"
@@ -196,7 +197,7 @@ func TestPaths(t *testing.T) {
 					HdrLen:       12,
 					PayloadLen:   1032,
 					NextHdr:      common.L4UDP,
-					PathType:     slayers.PathTypeEmpty,
+					PathType:     empty.PathType,
 					DstAddrType:  slayers.T16Ip,
 					DstAddrLen:   slayers.AddrLen16,
 					SrcAddrType:  slayers.T4Ip,
@@ -229,7 +230,7 @@ func TestPaths(t *testing.T) {
 					HdrLen:       29,
 					PayloadLen:   1032,
 					NextHdr:      common.L4UDP,
-					PathType:     slayers.PathTypeSCION,
+					PathType:     scion.PathType,
 					DstAddrType:  slayers.T16Ip,
 					DstAddrLen:   slayers.AddrLen16,
 					SrcAddrType:  slayers.T4Ip,
@@ -324,7 +325,7 @@ func TestDecodeSCIONUDP(t *testing.T) {
 	require.NotNil(t, scnL, "SCION layer should exist")
 	s := scnL.(*slayers.SCION) // Guaranteed to work
 	// Check SCION Header
-	assert.Equal(t, slayers.PathTypeSCION, s.PathType)
+	assert.Equal(t, path.Type(scion.PathType), s.PathType)
 	assert.Equal(t, uint8(29), s.HdrLen, "HdrLen")
 	assert.Equal(t, uint16(1032), s.PayloadLen, "PayloadLen")
 	assert.Equal(t, common.L4UDP, s.NextHdr, "CmnHdr.NextHdr")

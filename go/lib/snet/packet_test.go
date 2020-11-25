@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
@@ -62,7 +61,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 				},
 				Path: spath.Path{
 					Raw:  rawOHP,
-					Type: slayers.PathTypeOneHop,
+					Type: onehop.PathType,
 				},
 				Payload: snet.UDPPayload{
 					SrcPort: 25,
@@ -83,7 +82,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 				},
 				Path: spath.Path{
 					Raw:  rawSP,
-					Type: slayers.PathTypeSCION,
+					Type: scion.PathType,
 				},
 				Payload: snet.UDPPayload{
 					SrcPort: 25,
@@ -104,7 +103,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 				},
 				Path: spath.Path{
 					Raw:  rawSP,
-					Type: slayers.PathTypeSCION,
+					Type: scion.PathType,
 				},
 				Payload: snet.SCMPEchoRequest{
 					Identifier: 4,
@@ -125,7 +124,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 				},
 				Path: spath.Path{
 					Raw:  rawSP,
-					Type: slayers.PathTypeSCION,
+					Type: scion.PathType,
 				},
 				Payload: snet.SCMPEchoReply{
 					Identifier: 5,
@@ -146,7 +145,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 				},
 				Path: spath.Path{
 					Raw:  rawSP,
-					Type: slayers.PathTypeSCION,
+					Type: scion.PathType,
 				},
 				Payload: snet.SCMPExternalInterfaceDown{
 					IA:        xtest.MustParseIA("1-ff00:0:111"),
@@ -167,7 +166,7 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 				},
 				Path: spath.Path{
 					Raw:  rawSP,
-					Type: slayers.PathTypeSCION,
+					Type: scion.PathType,
 				},
 				Payload: snet.SCMPInternalConnectivityDown{
 					IA:      xtest.MustParseIA("1-ff00:0:111"),
@@ -216,7 +215,7 @@ func TestPacketSerialize(t *testing.T) {
 					},
 					Path: spath.Path{
 						Raw:  rawOHP,
-						Type: slayers.PathTypeOneHop,
+						Type: onehop.PathType,
 					},
 					Payload: snet.UDPPayload{
 						SrcPort: 25,
@@ -263,7 +262,7 @@ func TestPacketSerialize(t *testing.T) {
 					},
 					Path: spath.Path{
 						Raw:  rawOHP,
-						Type: slayers.PathTypeOneHop,
+						Type: onehop.PathType,
 					},
 				},
 			},

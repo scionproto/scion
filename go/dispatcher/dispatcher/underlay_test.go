@@ -843,7 +843,7 @@ func TestSCMPHandlerReverse(t *testing.T) {
 					TrafficClass: 0xb8,
 					FlowID:       0xdead,
 					NextHdr:      common.L4SCMP,
-					PathType:     slayers.PathTypeSCION,
+					PathType:     scion.PathType,
 					SrcIA:        xtest.MustParseIA("1-ff00:0:110"),
 					DstIA:        xtest.MustParseIA("1-ff00:0:112"),
 					Path: &scion.Decoded{
@@ -886,7 +886,7 @@ func TestSCMPHandlerReverse(t *testing.T) {
 					HdrLen:       21,
 					NextHdr:      common.L4SCMP,
 					PayloadLen:   uint16(4 + len(pkt.SCMP.Payload)),
-					PathType:     slayers.PathTypeSCION,
+					PathType:     scion.PathType,
 					SrcIA:        xtest.MustParseIA("1-ff00:0:112"),
 					DstIA:        xtest.MustParseIA("1-ff00:0:110"),
 					Path: &scion.Decoded{
@@ -935,7 +935,7 @@ func TestSCMPHandlerReverse(t *testing.T) {
 func newSCIONHdr(t *testing.T, l4 common.L4ProtocolType) *slayers.SCION {
 	scion := &slayers.SCION{
 		NextHdr:  l4,
-		PathType: slayers.PathTypeSCION,
+		PathType: scion.PathType,
 		SrcIA:    xtest.MustParseIA("1-ff00:0:110"),
 		DstIA:    xtest.MustParseIA("1-ff00:0:112"),
 		Path: &scion.Decoded{

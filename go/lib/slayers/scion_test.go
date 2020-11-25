@@ -85,17 +85,17 @@ func TestSCIONLayerString(t *testing.T) {
 	expectEnd := `}`
 
 	testCases := map[string]struct {
-		pathType slayers.PathType
-		path     slayers.Path
+		pathType path.Type
+		path     path.Path
 		expect   string
 	}{
 		"empty": {
-			pathType: slayers.PathTypeEmpty,
+			pathType: empty.PathType,
 			path:     empty.Path{},
 			expect:   expectBegin + `PathType=Empty (0) ` + expectMiddle + `Path={}` + expectEnd,
 		},
 		"scion": {
-			pathType: slayers.PathTypeSCION,
+			pathType: scion.PathType,
 			path: &scion.Decoded{
 				Base: scion.Base{
 					PathMeta: scion.MetaHdr{
@@ -146,7 +146,7 @@ func TestSCIONLayerString(t *testing.T) {
 				`}]}` + expectEnd,
 		},
 		"onehop": {
-			pathType: slayers.PathTypeOneHop,
+			pathType: onehop.PathType,
 			path: &onehop.Path{
 				Info: path.InfoField{
 					ConsDir:   true,
@@ -414,7 +414,7 @@ func prepPacket(t testing.TB, c common.L4ProtocolType) *slayers.SCION {
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
 		NextHdr:      c,
-		PathType:     slayers.PathTypeSCION,
+		PathType:     scion.PathType,
 		DstAddrType:  slayers.T16Ip,
 		DstAddrLen:   slayers.AddrLen16,
 		SrcAddrType:  slayers.T4Ip,

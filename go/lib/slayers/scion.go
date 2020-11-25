@@ -16,7 +16,6 @@ package slayers
 
 import (
 	"encoding/binary"
-	"fmt"
 	"net"
 
 	"github.com/google/gopacket"
@@ -25,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
@@ -40,33 +40,11 @@ const (
 	SCIONVersion = 0
 )
 
-// PathType indicates the type of the path contained in the SCION header.
-type PathType uint8
-
-func (t PathType) String() string {
-	switch t {
-	case PathTypeEmpty:
-		return "Empty (0)"
-	case PathTypeSCION:
-		return "SCION (1)"
-	case PathTypeOneHop:
-		return "OneHop (2)"
-	case PathTypeEPIC:
-		return "EPIC (3)"
-	case PathTypeCOLIBRI:
-		return "COLIBRI (4)"
-	}
-	return fmt.Sprintf("UNKNOWN (%d)", t)
+func init() {
+	empty.RegisterPath()
+	scion.RegisterPath()
+	onehop.RegisterPath()
 }
-
-// PathType constants
-const (
-	PathTypeEmpty PathType = iota
-	PathTypeSCION
-	PathTypeOneHop
-	PathTypeEPIC
-	PathTypeCOLIBRI
-)
 
 // AddrLen indicates the length of a host address in the SCION header. The four possible lengths are
 // 4, 8, 12, or 16 bytes.
@@ -95,20 +73,6 @@ const (
 	T16Ip AddrType = iota
 )
 
-// Path is the path contained in the SCION header.
-type Path interface {
-	// SerializeTo serializes the path into the provided buffer.
-	SerializeTo(b []byte) error
-	// DecodesFromBytes decodes the path from the provided buffer.
-	DecodeFromBytes(b []byte) error
-	// Reverse reverses a path such that it can be used in the reversed direction.
-	//
-	// XXX(shitz): This method should possibly be moved to a higher-level path manipulation package.
-	Reverse() error
-	// Len returns the length of a path in bytes.
-	Len() int
-}
-
 // SCION is the header of a SCION packet.
 type SCION struct {
 	layers.BaseLayer
@@ -136,7 +100,7 @@ type SCION struct {
 	// the L4 payload. This field is 16 bits long, supporting a maximum payload size of 64KB.
 	PayloadLen uint16
 	// PathType specifies the type of path in this SCION header.
-	PathType PathType
+	PathType path.Type
 	// DstAddrType (2 bit) is the type of the destination address.
 	DstAddrType AddrType
 	// DstAddrLen (2 bit) is the length of the destination address. Supported address length are 4B
@@ -160,7 +124,7 @@ type SCION struct {
 	RawSrcAddr []byte
 
 	// Path is the path contained in the SCION header. It depends on the PathType field.
-	Path Path
+	Path path.Path
 }
 
 func (s *SCION) LayerType() gopacket.LayerType {
@@ -233,7 +197,7 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	s.NextHdr = common.L4ProtocolType(data[4])
 	s.HdrLen = data[5]
 	s.PayloadLen = binary.BigEndian.Uint16(data[6:8])
-	s.PathType = PathType(data[8])
+	s.PathType = path.Type(data[8])
 	s.DstAddrType = AddrType(data[9] >> 6)
 	s.DstAddrLen = AddrLen(data[9] >> 4 & 0x3)
 	s.SrcAddrType = AddrType(data[9] >> 2 & 0x3)
@@ -255,39 +219,16 @@ func (s *SCION) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 		return serrors.New("invalid header, negative pathLen",
 			"hdrBytes", hdrBytes, "addrHdrLen", addrHdrLen, "CmdHdrLen", CmnHdrLen)
 	}
-
-	switch s.PathType {
-	case PathTypeEmpty:
-		if _, ok := s.Path.(empty.Path); ok {
-			break
-		}
-		s.Path = empty.Path{}
-		if pathLen != 0 {
-			return serrors.New("invalid header, non-empty empty path", "hdrBytes", hdrBytes,
-				"addrHdrLen", addrHdrLen, "CmdHdrLen", CmnHdrLen, "pathLen", pathLen)
-		}
-	case PathTypeSCION:
-		// Only allocate a SCION path if necessary. This reduces memory allocation and GC overhead
-		// considerably (3x improvement for DecodeFromBytes performance)
-		if _, ok := s.Path.(*scion.Raw); ok {
-			break
-		}
-		s.Path = &scion.Raw{}
-	case PathTypeOneHop:
-		if _, ok := s.Path.(*onehop.Path); ok {
-			break
-		}
-		s.Path = &onehop.Path{}
-	case PathTypeEPIC, PathTypeCOLIBRI:
-		return serrors.New("unsupported path type", "type", s.PathType.String())
-	default:
-		return serrors.New("unknown path type", "type", s.PathType.String())
-	}
-
 	if minLen := offset + pathLen; len(data) < minLen {
 		df.SetTruncated()
 		return serrors.New("provided buffer is too small", "expected", minLen, "actual", len(data))
 	}
+
+	s.Path, err = path.NewPath(s.PathType)
+	if err != nil {
+		return err
+	}
+
 	err = s.Path.DecodeFromBytes(data[offset : offset+pathLen])
 	if err != nil {
 		return err

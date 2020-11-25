@@ -24,8 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
-	"github.com/scionproto/scion/go/lib/slayers/path/empty"
-	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/spath"
 )
@@ -448,29 +447,23 @@ func (p *Packet) Serialize() error {
 		return serrors.WrapStr("settting source address", err)
 	}
 
-	switch p.Path.Type {
-	case slayers.PathTypeEmpty:
-		// Default nil paths to an empty SCION path
-		scionLayer.PathType = slayers.PathTypeEmpty
-		scionLayer.Path = empty.Path{}
-	case slayers.PathTypeOneHop:
-		var path onehop.Path
-		if err := path.DecodeFromBytes(p.Path.Raw); err != nil {
-			return serrors.WrapStr("decoding path", err)
-		}
-		scionLayer.PathType = slayers.PathTypeOneHop
-		scionLayer.Path = &path
-	case slayers.PathTypeSCION:
-		// Use decoded for simplicity, easier to work with when debugging with delve.
-		var decodedPath scion.Decoded
-		if err := decodedPath.DecodeFromBytes(p.Path.Raw); err != nil {
-			return serrors.WrapStr("decoding path", err)
-		}
-		scionLayer.PathType = slayers.PathTypeSCION
-		scionLayer.Path = &decodedPath
-	default:
-		return serrors.New("unsupported path", "type", p.Path.Type)
+	scionLayer.PathType = p.Path.Type
+	scionLayer.Path, err = path.NewPath(p.Path.Type)
+	if err != nil {
+		return err
 	}
+	if err = scionLayer.Path.DecodeFromBytes(p.Path.Raw); err != nil {
+		return serrors.WrapStr("decoding path", err)
+	}
+	// XXX this is for convenience when debugging with delve
+	if p.Path.Type == scion.PathType {
+		sp := scionLayer.Path.(*scion.Raw)
+		scionLayer.Path, err = sp.ToDecoded()
+		if err != nil {
+			return err
+		}
+	}
+
 	packetLayers = append(packetLayers, &scionLayer)
 	packetLayers = append(packetLayers, p.Payload.toLayers(&scionLayer)...)
 

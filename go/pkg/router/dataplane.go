@@ -574,13 +574,13 @@ func (d *DataPlane) processPkt(ingressID uint16, rawPkt []byte, srcAddr net.Addr
 	}
 
 	switch s.PathType {
-	case slayers.PathTypeEmpty:
+	case empty.PathType:
 		if s.NextHdr == common.L4BFD {
 			return processResult{}, d.processIntraBFD(srcAddr, s.Payload)
 		}
 		return processResult{}, serrors.WithCtx(unsupportedPathTypeNextHeader,
 			"type", s.PathType, "header", s.NextHdr)
-	case slayers.PathTypeOneHop:
+	case onehop.PathType:
 		if s.NextHdr == common.L4BFD {
 			ohp, ok := s.Path.(*onehop.Path)
 			if !ok {
@@ -589,7 +589,7 @@ func (d *DataPlane) processPkt(ingressID uint16, rawPkt []byte, srcAddr net.Addr
 			return processResult{}, d.processInterBFD(ingressID, ohp, s.Payload)
 		}
 		return d.processOHP(ingressID, rawPkt, s, buffer)
-	case slayers.PathTypeSCION:
+	case scion.PathType:
 		return d.processSCION(ingressID, rawPkt, s, origPacket, buffer)
 	default:
 		return processResult{}, serrors.WithCtx(unsupportedPathType, "type", s.PathType)
@@ -1277,7 +1277,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	}
 
 	if b.ifID == 0 {
-		scn.PathType = slayers.PathTypeEmpty
+		scn.PathType = empty.PathType
 		scn.Path = &empty.Path{}
 	} else {
 		ohp := &onehop.Path{
@@ -1292,7 +1292,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 			},
 		}
 		ohp.FirstHop.Mac = path.MAC(b.macFactory(), &ohp.Info, &ohp.FirstHop)
-		scn.PathType = slayers.PathTypeOneHop
+		scn.PathType = onehop.PathType
 		scn.Path = ohp
 	}
 

@@ -27,7 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/messenger/mock_messenger"
-	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -220,7 +220,7 @@ func TestBuildFullAddress(t *testing.T) {
 
 		input := &snet.SVCAddr{
 			IA:   remoteIA,
-			Path: spath.Path{Type: slayers.PathTypeSCION},
+			Path: spath.Path{Type: scion.PathType},
 			SVC:  addr.SvcCS,
 		}
 		a, err := aw.BuildFullAddress(context.Background(), input)

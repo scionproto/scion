@@ -25,6 +25,18 @@ import (
 // MetaLen is the length of the PathMetaHeader.
 const MetaLen = 4
 
+const PathType path.Type = 1
+
+func RegisterPath() {
+	path.RegisterPath(path.Metadata{
+		Type: PathType,
+		Desc: "SCION",
+		New: func() path.Path {
+			return &Raw{}
+		},
+	})
+}
+
 // Base holds the basic information that is used by both raw and fully decoded paths.
 type Base struct {
 	// PathMeta is the SCION path meta header. It is always instantiated when

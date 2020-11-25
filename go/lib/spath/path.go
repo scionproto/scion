@@ -25,8 +25,8 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
+	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/util"
@@ -45,7 +45,7 @@ var (
 // Path is the raw dataplane path.
 type Path struct {
 	Raw  []byte
-	Type slayers.PathType
+	Type path.Type
 }
 
 func NewOneHop(isd addr.ISD, ifID uint16, ts time.Time, exp uint8, hfmac hash.Hash) (Path, error) {
@@ -72,12 +72,12 @@ func NewOneHop(isd addr.ISD, ifID uint16, ts time.Time, exp uint8, hfmac hash.Ha
 	}
 	return Path{
 		Raw:  raw,
-		Type: slayers.PathTypeOneHop,
+		Type: onehop.PathType,
 	}, nil
 }
 
 func (p Path) IsEmpty() bool {
-	return len(p.Raw) == 0 && p.Type == slayers.PathTypeEmpty
+	return len(p.Raw) == 0 && p.Type == empty.PathType
 }
 
 func (p Path) Copy() Path {
@@ -94,11 +94,11 @@ func (p *Path) Reverse() error {
 	}
 	var path scion.Decoded
 	switch p.Type {
-	case slayers.PathTypeSCION:
+	case scion.PathType:
 		if err := path.DecodeFromBytes(p.Raw); err != nil {
 			return err
 		}
-	case slayers.PathTypeOneHop:
+	case onehop.PathType:
 		//  Since a OHP can't be reversed we create a proper SCION path instead,
 		//  and reverse that.
 		var ohp onehop.Path
@@ -115,7 +115,7 @@ func (p *Path) Reverse() error {
 		}
 		path = *sp
 		p.Raw = make([]byte, sp.Len())
-		p.Type = slayers.PathTypeSCION
+		p.Type = scion.PathType
 	default:
 		return serrors.New("unsupported path", "type", p.Type)
 	}
@@ -131,13 +131,13 @@ func (p *Path) Reverse() error {
 }
 
 func (path *Path) IsOHP() bool {
-	return path.Type == slayers.PathTypeOneHop
+	return path.Type == onehop.PathType
 }
 
 func (path *Path) String() string {
 	var p string
 	switch path.Type {
-	case slayers.PathTypeOneHop:
+	case onehop.PathType:
 		var op onehop.Path
 		if err := op.DecodeFromBytes(path.Raw); err != nil {
 			p = fmt.Sprintf("err decoding: %v", err)
@@ -146,7 +146,7 @@ func (path *Path) String() string {
 				fmt.Sprintf("I: %d, E: %d", op.FirstHop.ConsIngress, op.FirstHop.ConsEgress),
 				fmt.Sprintf("I: %d, E: %d", op.SecondHop.ConsIngress, op.SecondHop.ConsEgress))
 		}
-	case slayers.PathTypeSCION:
+	case scion.PathType:
 		var sp scion.Decoded
 		if err := sp.DecodeFromBytes(path.Raw); err != nil {
 			p = fmt.Sprintf("err decoding: %v", err)

@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -89,7 +88,7 @@ func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, e
 	}
 	return &snet.SVCAddr{
 		IA:      ps.FirstIA(),
-		Path:    spath.Path{Raw: raw, Type: slayers.PathTypeSCION},
+		Path:    spath.Path{Raw: raw, Type: scion.PathType},
 		NextHop: nextHop,
 		SVC:     svc,
 	}, nil

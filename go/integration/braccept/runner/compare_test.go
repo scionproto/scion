@@ -89,7 +89,7 @@ func prepareSCION(t *testing.T, diff string) gopacket.Packet {
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
 		NextHdr:      common.L4UDP,
-		PathType:     slayers.PathTypeSCION,
+		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:4"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:3"),
 		Path:         sp,

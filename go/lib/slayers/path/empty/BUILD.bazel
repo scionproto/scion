@@ -5,4 +5,8 @@ go_library(
     srcs = ["empty.go"],
     importpath = "github.com/scionproto/scion/go/lib/slayers/path/empty",
     visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/serrors:go_default_library",
+        "//go/lib/slayers/path:go_default_library",
+    ],
 )

@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -229,7 +229,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 
 	return path.Path{
 		Dst:     dst,
-		SPath:   spath.Path{Raw: p.Raw, Type: slayers.PathTypeSCION},
+		SPath:   spath.Path{Raw: p.Raw, Type: scion.PathType},
 		NextHop: underlayA,
 		Meta: snet.PathMetadata{
 			Interfaces:   interfaces,

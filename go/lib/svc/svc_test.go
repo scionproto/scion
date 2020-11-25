@@ -26,7 +26,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -165,7 +165,7 @@ func TestDefaultHandler(t *testing.T) {
 					PacketInfo: snet.PacketInfo{
 						Path: spath.Path{
 							Raw:  []byte{0x00, 0x01, 0x02, 0x03},
-							Type: slayers.PathTypeSCION,
+							Type: scion.PathType,
 						},
 						Payload: snet.UDPPayload{},
 					},

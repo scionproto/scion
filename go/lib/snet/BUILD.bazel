@@ -26,8 +26,7 @@ go_library(
         "//go/lib/log:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/slayers:go_default_library",
-        "//go/lib/slayers/path/empty:go_default_library",
-        "//go/lib/slayers/path/onehop:go_default_library",
+        "//go/lib/slayers/path:go_default_library",
         "//go/lib/slayers/path/scion:go_default_library",
         "//go/lib/snet/internal/metrics:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
@@ -52,7 +51,6 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/lib/addr:go_default_library",
-        "//go/lib/slayers:go_default_library",
         "//go/lib/slayers/path:go_default_library",
         "//go/lib/slayers/path/onehop:go_default_library",
         "//go/lib/slayers/path/scion:go_default_library",

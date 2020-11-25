@@ -100,7 +100,7 @@ func ParentToChild(artifactsDir string, mac hash.Hash) runner.Case {
 		TrafficClass: 0xb8,
 		FlowID:       0xdead,
 		NextHdr:      common.L4UDP,
-		PathType:     slayers.PathTypeSCION,
+		PathType:     scion.PathType,
 		SrcIA:        xtest.MustParseIA("1-ff00:0:3"),
 		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
 		Path:         sp,

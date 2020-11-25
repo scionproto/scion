@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -603,5 +602,5 @@ func (s segmentList) SPath() spath.Path {
 	if err := sp.SerializeTo(raw); err != nil {
 		panic(err)
 	}
-	return spath.Path{Raw: raw, Type: slayers.PathTypeSCION}
+	return spath.Path{Raw: raw, Type: scion.PathType}
 }
