@@ -380,9 +380,7 @@ Routing Policy File
 ===================
 
 The routing policy file contains the configuration which IP prefixes are
-announced, accepted, and rejected. For more information about dynamic IP prefix
-discovery in the gateway, have a look at the `design document
-<src/dev/design_docs/gateway-ip-exchange.html>`_.
+announced, accepted, and rejected.
 
 A routing policy consists of a list of rules. Each rule consists of an action
 and three matchers. Optionally, a rule can have a comment.
