@@ -26,6 +26,8 @@ const (
 	Control
 	Discovery
 	Gateway
+	HiddenSegmentLookup
+	HiddenSegmentRegistration
 )
 
 func (t ServiceType) String() string {
@@ -38,6 +40,10 @@ func (t ServiceType) String() string {
 		return "discovery"
 	case Gateway:
 		return "gateway"
+	case HiddenSegmentLookup:
+		return "hiddensegmentlookup"
+	case HiddenSegmentRegistration:
+		return "hiddensegmentregistration"
 	default:
 		return "unknown"
 	}
@@ -54,6 +60,10 @@ func ServiceTypeFromString(s string) ServiceType {
 		return Discovery
 	case "gateway":
 		return Gateway
+	case "hiddensegmentlookup":
+		return HiddenSegmentLookup
+	case "hiddensegmentregistration":
+		return HiddenSegmentRegistration
 	default:
 		return Unknown
 	}

@@ -16,6 +16,7 @@ package discovery
 
 import (
 	"context"
+	"errors"
 	"net"
 
 	"github.com/opentracing/opentracing-go"
@@ -86,9 +87,32 @@ func (t Topology) HiddenSegmentServices(ctx context.Context,
 	labels := requestLabels{ReqType: "hidden_segment_services"}
 	logger := log.FromCtx(ctx)
 
-	logger.Debug("Hidden segment services currently not supported")
-	t.updateTelemetry(span, labels.WithResult("err_unimplemented"), nil)
-	return nil, status.Error(codes.Unimplemented, "not supported")
+	topo := t.Provider.Get()
+	lookups, err := topo.MakeHostInfos(topology.HiddenSegmentLookup)
+	if err != nil && !errors.Is(err, topology.ErrAddressNotFound) {
+		return nil, err
+	}
+	registration, err := topo.MakeHostInfos(topology.HiddenSegmentRegistration)
+	if err != nil && !errors.Is(err, topology.ErrAddressNotFound) {
+		return nil, err
+	}
+
+	response := &dpb.HiddenSegmentServicesResponse{}
+	for _, l := range lookups {
+		response.Lookup = append(response.Lookup, &dpb.HiddenSegmentLookupServer{
+			Address: l.String(),
+		})
+	}
+	for _, r := range registration {
+		response.Registration = append(response.Registration, &dpb.HiddenSegmentRegistrationServer{
+			Address: r.String(),
+		})
+	}
+
+	logger.Debug("Replied with hidden segment services",
+		"lookups", len(lookups), "registration", len(registration))
+	t.updateTelemetry(span, labels.WithResult(prom.Success), nil)
+	return response, nil
 }
 
 // RequestsLabels exposes the labels required by the Requests metric.

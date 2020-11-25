@@ -195,11 +195,12 @@ func (mr *MockTopologyMockRecorder) MTU() *gomock.Call {
 }
 
 // MakeHostInfos mocks base method
-func (m *MockTopology) MakeHostInfos(arg0 topology.ServiceType) []net.UDPAddr {
+func (m *MockTopology) MakeHostInfos(arg0 topology.ServiceType) ([]net.UDPAddr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "MakeHostInfos", arg0)
 	ret0, _ := ret[0].([]net.UDPAddr)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // MakeHostInfos indicates an expected call of MakeHostInfos

@@ -29,6 +29,8 @@ func TestServiceTypeStringAndParse(t *testing.T) {
 		topology.Control,
 		topology.Discovery,
 		topology.Gateway,
+		topology.HiddenSegmentLookup,
+		topology.HiddenSegmentRegistration,
 	}
 	for _, st := range serviceTypes {
 		t.Run(st.String(), func(t *testing.T) {
