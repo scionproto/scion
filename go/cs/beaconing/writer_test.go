@@ -91,28 +91,25 @@ func TestRegistrarRun(t *testing.T) {
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			segStore := mock_beaconing.NewMockSegmentStore(mctrl)
 
-			r := Registrar{
-				Extender: &DefaultExtender{
-					IA:         topoProvider.Get().IA(),
-					MTU:        topoProvider.Get().MTU(),
-					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
-					Intfs:      intfs,
-					MAC:        macFactory,
-					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
-					StaticInfo: func() *StaticInfoCfg { return nil },
+			r := WriteScheduler{
+				Writer: &LocalWriter{
+					Extender: &DefaultExtender{
+						IA:         topoProvider.Get().IA(),
+						MTU:        topoProvider.Get().MTU(),
+						Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+						Intfs:      intfs,
+						MAC:        macFactory,
+						MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
+						StaticInfo: func() *StaticInfoCfg { return nil },
+					},
+					Intfs: intfs,
+					Store: segStore,
+					Type:  test.segType,
 				},
-				IA:       topoProvider.Get().IA(),
-				Signer:   testSigner(t, priv, topoProvider.Get().IA()),
 				Intfs:    intfs,
 				Tick:     NewTick(time.Hour),
 				Provider: segProvider,
-				Store:    segStore,
-				Pather: addrutil.Pather{
-					UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-						return topoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
-					},
-				},
-				Type: test.segType,
+				Type:     test.segType,
 			}
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
@@ -175,28 +172,30 @@ func TestRegistrarRun(t *testing.T) {
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			rpc := mock_beaconing.NewMockRPC(mctrl)
 
-			r := Registrar{
-				Extender: &DefaultExtender{
-					IA:         topoProvider.Get().IA(),
-					MTU:        topoProvider.Get().MTU(),
-					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
-					Intfs:      intfs,
-					MAC:        macFactory,
-					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
-					StaticInfo: func() *StaticInfoCfg { return nil },
+			r := WriteScheduler{
+				Writer: &RemoteWriter{
+					Extender: &DefaultExtender{
+						IA:         topoProvider.Get().IA(),
+						MTU:        topoProvider.Get().MTU(),
+						Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+						Intfs:      intfs,
+						MAC:        macFactory,
+						MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
+						StaticInfo: func() *StaticInfoCfg { return nil },
+					},
+					Pather: addrutil.Pather{
+						UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+							return topoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+						},
+					},
+					RPC:   rpc,
+					Type:  test.segType,
+					Intfs: intfs,
 				},
-				IA:       topoProvider.Get().IA(),
-				Signer:   testSigner(t, priv, topoProvider.Get().IA()),
 				Intfs:    intfs,
 				Tick:     NewTick(time.Hour),
 				Provider: segProvider,
-				Pather: addrutil.Pather{
-					UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-						return topoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
-					},
-				},
-				Type: test.segType,
-				RPC:  rpc,
+				Type:     test.segType,
 			}
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
@@ -272,27 +271,24 @@ func TestRegistrarRun(t *testing.T) {
 		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 
-		r := Registrar{
-			Extender: &DefaultExtender{
-				IA:         topoProvider.Get().IA(),
-				MTU:        topoProvider.Get().MTU(),
-				Signer:     testSigner(t, priv, topoProvider.Get().IA()),
-				Intfs:      intfs,
-				MAC:        macFactory,
-				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
-				StaticInfo: func() *StaticInfoCfg { return nil },
+		r := WriteScheduler{
+			Writer: &LocalWriter{
+				Extender: &DefaultExtender{
+					IA:         topoProvider.Get().IA(),
+					MTU:        topoProvider.Get().MTU(),
+					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+					Intfs:      intfs,
+					MAC:        macFactory,
+					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
+					StaticInfo: func() *StaticInfoCfg { return nil },
+				},
+				Intfs: intfs,
+				Type:  seg.TypeCore,
 			},
-			IA:       topoProvider.Get().IA(),
-			Signer:   testSigner(t, priv, topoProvider.Get().IA()),
 			Intfs:    intfs,
 			Tick:     NewTick(time.Hour),
 			Provider: segProvider,
-			Pather: addrutil.Pather{
-				UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-					return topoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
-				},
-			},
-			Type: seg.TypeCore,
+			Type:     seg.TypeCore,
 		}
 		res := make(chan beacon.BeaconOrErr, 3)
 		segProvider.EXPECT().SegmentsToRegister(gomock.Any(), seg.TypeCore).DoAndReturn(
@@ -319,28 +315,30 @@ func TestRegistrarRun(t *testing.T) {
 		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 		rpc := mock_beaconing.NewMockRPC(mctrl)
 
-		r := Registrar{
-			Extender: &DefaultExtender{
-				IA:         topoProvider.Get().IA(),
-				MTU:        topoProvider.Get().MTU(),
-				Signer:     testSigner(t, priv, topoProvider.Get().IA()),
-				Intfs:      intfs,
-				MAC:        macFactory,
-				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
-				StaticInfo: func() *StaticInfoCfg { return nil },
+		r := WriteScheduler{
+			Writer: &RemoteWriter{
+				Extender: &DefaultExtender{
+					IA:         topoProvider.Get().IA(),
+					MTU:        topoProvider.Get().MTU(),
+					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
+					Intfs:      intfs,
+					MAC:        macFactory,
+					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
+					StaticInfo: func() *StaticInfoCfg { return nil },
+				},
+				Pather: addrutil.Pather{
+					UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+						return topoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+					},
+				},
+				RPC:   rpc,
+				Intfs: intfs,
+				Type:  seg.TypeDown,
 			},
-			IA:       topoProvider.Get().IA(),
-			Signer:   testSigner(t, priv, topoProvider.Get().IA()),
 			Intfs:    intfs,
 			Tick:     NewTick(time.Hour),
 			Provider: segProvider,
-			Pather: addrutil.Pather{
-				UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-					return topoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
-				},
-			},
-			Type: seg.TypeDown,
-			RPC:  rpc,
+			Type:     seg.TypeDown,
 		}
 		g := graph.NewDefaultGraph(mctrl)
 		require.NoError(t, err)

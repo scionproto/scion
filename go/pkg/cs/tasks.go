@@ -112,42 +112,61 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 	return periodic.Start(p, 500*time.Millisecond, t.PropagationInterval)
 }
 
-// Registrars starts periodic segment registration tasks.
-func (t *TasksConfig) Registrars() []*periodic.Runner {
+// SegmentWriters starts periodic segment registration tasks.
+func (t *TasksConfig) SegmentWriters() []*periodic.Runner {
 	topo := t.TopoProvider.Get()
 	if topo.Core() {
-		return []*periodic.Runner{t.registrar(topo, seg.TypeCore, beacon.CoreRegPolicy)}
+		return []*periodic.Runner{t.segmentWriter(topo, seg.TypeCore, beacon.CoreRegPolicy)}
 	}
 	return []*periodic.Runner{
-		t.registrar(topo, seg.TypeDown, beacon.DownRegPolicy),
-		t.registrar(topo, seg.TypeUp, beacon.UpRegPolicy),
+		t.segmentWriter(topo, seg.TypeDown, beacon.DownRegPolicy),
+		t.segmentWriter(topo, seg.TypeUp, beacon.UpRegPolicy),
 	}
 }
 
-func (t *TasksConfig) registrar(topo topology.Topology, segType seg.Type,
+func (t *TasksConfig) segmentWriter(topo topology.Topology, segType seg.Type,
 	policyType beacon.PolicyType) *periodic.Runner {
 
-	r := &beaconing.Registrar{
-		Extender: t.extender("registrar", topo.IA(), topo.MTU(), func() uint8 {
-			return t.BeaconStore.MaxExpTime(policyType)
-		}),
+	var internalErr, registered metrics.Counter
+	if t.Metrics != nil {
+		internalErr = metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal)
+		registered = metrics.NewPromCounter(t.Metrics.BeaconingRegisteredTotal)
+	}
+	var writer beaconing.Writer
+	if segType != seg.TypeDown {
+		writer = &beaconing.LocalWriter{
+			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
+			Registered:     registered,
+			Type:           segType,
+			Intfs:          t.Intfs,
+			Extender: t.extender("registrar", topo.IA(), topo.MTU(), func() uint8 {
+				return t.BeaconStore.MaxExpTime(policyType)
+			}),
+			Store: &seghandler.DefaultStorage{PathDB: t.PathDB},
+		}
+	} else {
+		writer = &beaconing.RemoteWriter{
+			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
+			Registered:     registered,
+			Type:           segType,
+			Intfs:          t.Intfs,
+			Extender: t.extender("registrar", topo.IA(), topo.MTU(), func() uint8 {
+				return t.BeaconStore.MaxExpTime(policyType)
+			}),
+			RPC: t.SegmentRegister,
+			Pather: addrutil.Pather{
+				UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+					return t.TopoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+				},
+			},
+		}
+	}
+	r := &beaconing.WriteScheduler{
 		Provider: t.BeaconStore,
-		Store:    &seghandler.DefaultStorage{PathDB: t.PathDB},
-		RPC:      t.SegmentRegister,
-		IA:       topo.IA(),
-		Signer:   t.Signer,
 		Intfs:    t.Intfs,
 		Type:     segType,
-		Pather: addrutil.Pather{
-			UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
-				return t.TopoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
-			},
-		},
-		Tick: beaconing.NewTick(t.RegistrationInterval),
-	}
-	if t.Metrics != nil {
-		r.Registered = metrics.NewPromCounter(t.Metrics.BeaconingRegisteredTotal)
-		r.InternalErrors = metrics.NewPromCounter(t.Metrics.BeaconingRegistrarInternalErrorsTotal)
+		Writer:   writer,
+		Tick:     beaconing.NewTick(t.RegistrationInterval),
 	}
 	return periodic.Start(r, 500*time.Millisecond, t.RegistrationInterval)
 }
@@ -186,7 +205,7 @@ func StartTasks(cfg TasksConfig) (*Tasks, error) {
 	return &Tasks{
 		Originator: cfg.Originator(),
 		Propagator: cfg.Propagator(),
-		Registrars: cfg.Registrars(),
+		Registrars: cfg.SegmentWriters(),
 		BeaconCleaner: periodic.Start(
 			periodic.Func{
 				Task: func(ctx context.Context) {
