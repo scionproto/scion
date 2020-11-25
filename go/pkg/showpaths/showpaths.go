@@ -175,7 +175,10 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 		}
 	}
 	app.SortPaths(paths)
-	res := &Result{Destination: dst}
+	res := &Result{
+		Destination: dst,
+		Paths:       []Path{},
+	}
 	for _, path := range paths {
 		fingerprint := "local"
 		if len(path.Metadata().Interfaces) > 0 {
