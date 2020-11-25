@@ -61,8 +61,7 @@ A Performance Policy defines the performance metric that should be optimized
 when making a path selection. Possible values can be shortest_path, latency,
 jitter, droprate, or mix (take a weighted score across all metrics) (note, not
 all of these are currently implemented and are subject to change). A Performance
-Policy is used to order the set of paths defined by a Path Class. The default is
-latency.
+Policy is used to order the set of paths defined by a Path Class.
 
 Path Count
 ----------
@@ -73,7 +72,7 @@ within a Session. Default is 1.
 How it all fits together
 ------------------------
 
-A gateway has one or mulitple Session Policies per remote AS. The Traffic Class
+A gateway has one or multiple Session Policies per remote AS. The Traffic Class
 defines the set of IP packets which are forwarded by the configuration. A Path
 Class defines the set of possible paths that can be used by this configuration.
 A Performance Policy orders the set of possible paths according to the some
