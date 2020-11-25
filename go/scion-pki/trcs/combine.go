@@ -147,6 +147,8 @@ func combineSignerInfos(trcs map[string]cppki.SignedTRC) ([]protocol.SignerInfo,
 	for _, info := range infos {
 		l = append(l, info.Info)
 	}
+	// Keep sorting for consistent output for older go versions.
+	// Starting from go1.15, the SignerInfos will be sorted when serializing.
 	sort.Slice(l, func(i, j int) bool {
 		return bytes.Compare(l[i].SID.FullBytes, l[j].SID.FullBytes) < 0
 	})

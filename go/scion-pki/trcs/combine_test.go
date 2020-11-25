@@ -163,7 +163,7 @@ func TestCombineSignerInfos(t *testing.T) {
 			if err != nil {
 				return
 			}
-			assert.Equal(t, signed.SignerInfos, infos)
+			assert.ElementsMatch(t, signed.SignerInfos, infos)
 		})
 	}
 }
