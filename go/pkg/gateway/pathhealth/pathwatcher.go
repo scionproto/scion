@@ -169,7 +169,7 @@ func (s *pathState) sendProbe(now time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	// Probe timed out.
-	if s.lastReceived.Add(defaultProbeInterval).Before(now) {
+	if s.lastReceived.Add(defaultProbeInterval * 2).Before(now) {
 		s.consecutiveProbes = 0
 		return
 	}
