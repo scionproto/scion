@@ -55,10 +55,12 @@ SD files creation
 ^^^^^^^^^^^^^^^^^
 
 Once retrieved the topology JSON file and the TRCs archive, the bootstrapper
-moves the former to ``/etc/scion/topology.json``, and the content of the
-latter to ``/etc/scion/certs/``.
+moves the former to ``<scion_folder>/topology.json``, and the content of the
+latter to ``<scion_folder>/certs/``.
 If an SD alternative configuration file is specified, in the configuration of 
-the bootstrapper, the bootstrapper copies this file to ``/etc/scion/sd.toml``.
+the bootstrapper, the bootstrapper copies this file to ``<scion_folder>/sd.toml``.
+
+If not specified differently, ``<scion_folder>`` defaults to ``/etc/scion``.
 
 Discovery mechanisms
 --------------------
@@ -134,6 +136,39 @@ means.
 
 Minimal configuration files
 ===========================
+
+Bootstrapper
+------------
+.. code-block:: toml
+
+  # The network interface to use (default "")
+  interface = "NIC"
+  # The folder where the SD files will be created (default "/etc/scion")
+  scion_folder = "/etc/scion"
+  # The SD configuration files to override the default one (default "")
+  sd_conf = ""
+
+  # Discovery mechanisms
+  [mock]
+          # Enable the fake discovery (default false)
+          # This discovery mechanisms is used for testing purposes
+          enable = false
+          # The address to return when simulating a network discovery (default "")
+          address = "192.33.93.173"
+  [dhcp]
+          # Enable the DHCP discovery (default true)
+          enable = false
+  [dnssd]
+          # Enable the DNS SRV discovery (default false)
+          enable_srv = true
+          # Enable the DNS-SD discovery (default false)
+          enable_sd = true
+          # Enable the DNS-NAPTR discovery (default false)
+          enable_naptr = true
+  [mdns]
+          # Enable the mDNS discovery (default false)
+          enable = true
+
 
 Systemd service units
 ---------------------
@@ -231,11 +266,16 @@ Security
 Request for Comments
 ====================
 
-Unlike the DHCP option, the DNS SRV record can specify a port to reach the 
-service. Currently, if the port is not the canonical one, currently the 8041,
-the hint is discarded.
-Do we want this behavior?
-In my opinion this should be changed.
+1. Unlike the DHCP option, the DNS SRV record can specify a port to reach the
+   service. Currently, if the port is not the canonical one, currently the 8041,
+   the hint is discarded.
+   Do we want this behavior?
+   In my opinion this should be changed.
+2. The name server the DNS discovery mechanisms uses is now retrieved via DHCP,
+   instead of looking it up locally (since most likely it has been already
+   retrieved with the DHCP exchange when the device obtained an IP address).
+   The was motivation for this was to be OS independent.
+   Do we want to keep this behavior?
 
 References
 ==========
