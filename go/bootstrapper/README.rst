@@ -39,13 +39,15 @@ The bootstrapping process consists of the following:
 
 1. The bootstrapper daemon probes the local network for hints about the
    web server address using the available discovery mechanisms (i.e., DHCP , DNS and mDNS).
-2. Once a hint gets received, the bootstrapper tries to download the topology of
+2. Wait for hints from discoverers.
+3. Once a hint gets received, the bootstrapper tries to download the topology of
    the AS and some TRCs from the hinted local web server.
-3. If the retrieval is successful, the bootstrapper prepares the SD's files and
-   exits successfully, and the SD is automatically started by Systemd.
-4. Otherwise, the bootstrapper tries to contact the web server specified by the next hint.
-5. If no hint is received after a certain span of time, the bootstrapper
-   times out and exit with a non-zero value.
+
+   a. On success, the bootstrapper prepares the SD's files and exits successfully, and the SD is automatically started by Systemd.
+   b. On failure, the bootstrapper tries to contact the web server specified by the next hint (go back to 2).
+
+If no hint is received after a certain span of time, the bootstrapper times out
+and exit with a non-zero value.
 
 NB: The TRCs retrieval is a temporary solution; in the future, they will be
 installed on a device via other means, ideally before it gets connected to
