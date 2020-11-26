@@ -178,7 +178,7 @@ Bootstrapper
 
 A minimal example of the bootstrapper service units ``scion-bootstrapper@.service``.
 
-.. code-block:: toml
+::
 
   [Unit]
   After=network-online.target
@@ -202,7 +202,7 @@ SCIOND
 
 A minimal example of the sciond service units ``scion-daemon-bootstrap@.service``.
 
-.. code-block:: toml
+::
 
   [Unit]
   After=network-online.target scion-bootstrapper@%i.service scion-dispatcher.service
