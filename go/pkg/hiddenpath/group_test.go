@@ -16,6 +16,7 @@ package hiddenpath_test
 
 import (
 	"io/ioutil"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,6 +26,20 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
 )
+
+func TestGroupIDUint64Conversion(t *testing.T) {
+	testCases := []hiddenpath.GroupID{
+		{OwnerAS: xtest.MustParseAS("ff00:0:110"), Suffix: 24},
+		{OwnerAS: xtest.MustParseAS("ff00:0:112"), Suffix: 0},
+	}
+	for i, id := range testCases {
+		i, id := i, id
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			raw := id.ToUint64()
+			assert.Equal(t, id, hiddenpath.GroupIDFromUint64(raw))
+		})
+	}
+}
 
 func TestNewGroup(t *testing.T) {
 	testcases := map[string]struct {

@@ -33,8 +33,12 @@ type GroupID struct {
 	Suffix  uint16
 }
 
-func (id GroupID) String() string {
-	return fmt.Sprintf("%s-%x", id.OwnerAS, id.Suffix)
+// GroupIDFromUint64 creates the group ID from the uint64 representation.
+func GroupIDFromUint64(id uint64) GroupID {
+	return GroupID{
+		OwnerAS: addr.AS(id >> 16),
+		Suffix:  uint16(id),
+	}
 }
 
 // ToUint64 returns the uint64 representation of the group ID.
@@ -42,7 +46,12 @@ func (id GroupID) ToUint64() uint64 {
 	return uint64(id.OwnerAS)<<16 | uint64(id.Suffix)
 }
 
-func parseGroupID(s string) (GroupID, error) {
+func (id GroupID) String() string {
+	return fmt.Sprintf("%s-%x", id.OwnerAS, id.Suffix)
+}
+
+// ParseGroupID parses the string representation of the group ID.
+func ParseGroupID(s string) (GroupID, error) {
 	v := strings.Replace(s, "_", ":", 2)
 	parts := strings.Split(v, "-")
 	if len(parts) != 2 {
@@ -106,7 +115,7 @@ func ParseGroup(raw []byte) (*Group, error) {
 				"json", err1, "yml", err2)
 		}
 	}
-	id, err := parseGroupID(info.ID)
+	id, err := ParseGroupID(info.ID)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing group ID", err)
 
