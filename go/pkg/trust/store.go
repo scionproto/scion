@@ -27,9 +27,14 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-// ErrAlreadyExists indicates a file is ignored because the contents have
-// already been loaded previously.
-var ErrAlreadyExists = serrors.New("already exists")
+var (
+	// ErrAlreadyExists indicates a file is ignored because the contents have
+	// already been loaded previously.
+	ErrAlreadyExists = serrors.New("already exists")
+	// ErrOutsideValidity indicates a file is ignored because the current time
+	// is outside of the certificates validity period.
+	ErrOutsideValidity = serrors.New("outside validity")
+)
 
 // LoadResult indicates which files were loaded, which files were ignored.
 type LoadResult struct {
@@ -62,7 +67,11 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 			res.Ignored[f] = err
 			continue
 		}
-
+		validity := cppki.Validity{NotBefore: chain[0].NotBefore, NotAfter: chain[0].NotAfter}
+		if !validity.Contains(time.Now()) {
+			res.Ignored[f] = ErrOutsideValidity
+			continue
+		}
 		ia, err := cppki.ExtractIA(chain[0].Subject)
 		if err != nil {
 			res.Ignored[f] = err

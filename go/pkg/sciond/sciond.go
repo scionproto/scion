@@ -79,6 +79,10 @@ func TrustEngine(cfgDir string, db trust.DB, dialer libgrpc.Dialer) (trust.Engin
 			log.Debug("Ignoring existing certificate chain", "file", f)
 			continue
 		}
+		if errors.Is(r, trust.ErrOutsideValidity) {
+			log.Debug("Ignoring certificate chain outside validity", "file", f)
+			continue
+		}
 		log.Info("Ignoring non-certificate chain", "file", f, "reason", r)
 	}
 	return trust.Engine{

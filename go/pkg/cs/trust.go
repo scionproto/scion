@@ -54,6 +54,10 @@ func LoadTrustMaterial(configDir string, db trust.DB, logger log.Logger) error {
 			logger.Debug("Ignoring existing certificate chain", "file", f)
 			continue
 		}
+		if errors.Is(r, trust.ErrOutsideValidity) {
+			logger.Debug("Ignoring certificate chain outside validity", "file", f)
+			continue
+		}
 		logger.Info("Ignoring non-certificate chain", "file", f, "reason", r)
 	}
 	return nil

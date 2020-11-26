@@ -35,7 +35,10 @@ import (
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
-var errRootCert = serrors.New("root certificate")
+var (
+	errRootCert        = serrors.New("root certificate")
+	errOutsideValidity = serrors.New("outside validity")
+)
 
 // PolicyGen generates a new CA policy.
 type PolicyGen interface {
@@ -233,6 +236,10 @@ func (l CACertLoader) CACerts(ctx context.Context) ([]*x509.Certificate, error) 
 				logger.Debug("Ignoring non-CA certificate", "file", f, "reason", err)
 				continue
 			}
+			if errors.Is(err, errOutsideValidity) {
+				logger.Debug("Ignoring CA certificate outside validity", "file", f)
+				continue
+			}
 			logger.Info("Ignoring non-CA certificate", "file", f, "reason", err)
 			continue
 		}
@@ -264,6 +271,10 @@ func (l CACertLoader) validateCACert(f string, opts x509.VerifyOptions) (*x509.C
 	}
 	if !l.IA.Equal(*ia) {
 		return nil, serrors.New("certificate for other ISD-AS", "isd_as", *ia)
+	}
+	validity := cppki.Validity{NotBefore: chain[0].NotBefore, NotAfter: chain[0].NotAfter}
+	if !validity.Contains(time.Now()) {
+		return nil, errOutsideValidity
 	}
 	if _, err := chain[0].Verify(opts); err != nil {
 		return nil, err

@@ -51,6 +51,10 @@ func (l CryptoLoader) Chains(ctx context.Context,
 			log.FromCtx(ctx).Debug("Ignoring existing certificate chain", "file", f)
 			continue
 		}
+		if errors.Is(reason, trust.ErrOutsideValidity) {
+			log.FromCtx(ctx).Debug("Ignoring certificate chain outside validity", "file", f)
+			continue
+		}
 		log.FromCtx(ctx).Info("Ignoring non-certificate chain", "file", f, "reason", reason)
 	}
 	return l.DB.Chains(ctx, query)
