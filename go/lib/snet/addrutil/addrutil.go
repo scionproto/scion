@@ -100,7 +100,7 @@ func (p Pather) GetPath(svc addr.HostSVC, ps *seg.PathSegment) (*snet.SVCAddr, e
 //
 // This returns a sensible but arbitrary local IP. In the general case the
 // local IP would depend on the next hop of selected path. This approach will
-// not work in more complicated setups where e.g. different network interface
+// not work in more complicated setups where e.g. different network interfaces
 // are used to talk to different AS interfaces.
 //
 // This is a simple workaround for not being able to use wildcard addresses
