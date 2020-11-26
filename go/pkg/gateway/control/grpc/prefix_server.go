@@ -39,9 +39,9 @@ type IPPrefixServer struct {
 	LocalIA addr.IA
 	// Advertiser is the advertiser used to get the list of prefixes to advertise.
 	Advertiser Advertiser
-	// PrefixesAnnounced reports the number of IP prefixes announced. If nil, no  metrics are
+	// PrefixesAdvertised reports the number of IP prefixes advertised. If nil, no  metrics are
 	// reported.
-	PrefixesAnnounced metrics.Gauge
+	PrefixesAdvertised metrics.Gauge
 }
 
 func (s IPPrefixServer) Prefixes(ctx context.Context,
@@ -56,7 +56,7 @@ func (s IPPrefixServer) Prefixes(ctx context.Context,
 		return nil, status.Error(codes.InvalidArgument, "SCION peer required")
 	}
 	prefixes := s.Advertiser.AdvertiseList(s.LocalIA, udp.IA)
-	metrics.GaugeSet(metrics.GaugeWith(s.PrefixesAnnounced,
+	metrics.GaugeSet(metrics.GaugeWith(s.PrefixesAdvertised,
 		"remote_isd_as", udp.IA.String()), float64(len(prefixes)))
 
 	pb := make([]*gpb.Prefix, 0, len(prefixes))

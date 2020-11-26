@@ -242,7 +242,7 @@ type PrefixFetcher interface {
 }
 
 // PrefixWatcherConfig configures a prefix watcher that watches IP prefixes
-// advertised by a remote gateway. The discovered IP prefixes are announced to
+// advertised by a remote gateway. The discovered IP prefixes are advertised to
 // the prefix consumer. The watcher is stateless and does not keep track of
 // previously discovered IP prefixes.
 type PrefixWatcherConfig struct {
@@ -278,7 +278,7 @@ func (c *PrefixWatcherConfig) validateParameters() error {
 }
 
 // prefixWatcher watches IP prefixes advertised by a remote gateway. The
-// discovered IP prefixes are announced to the prefix consumer. The watcher is
+// discovered IP prefixes are advertised to the prefix consumer. The watcher is
 // stateless and does not keep track of previously discovered IP prefixes.
 type prefixWatcher struct {
 	PrefixWatcherConfig

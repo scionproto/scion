@@ -503,15 +503,15 @@ func (g *Gateway) Run() error {
 
 	var paMetric metrics.Gauge
 	if g.Metrics != nil {
-		paMetric = metrics.NewPromGauge(g.Metrics.PrefixesAnnounced)
+		paMetric = metrics.NewPromGauge(g.Metrics.PrefixesAdvertised)
 	}
 	discoveryServer := grpc.NewServer(libgrpc.UnaryServerInterceptor())
 	gatewaypb.RegisterIPPrefixesServiceServer(
 		discoveryServer,
 		controlgrpc.IPPrefixServer{
-			LocalIA:           localIA,
-			Advertiser:        &ConfigPublisherAdvertiser{ConfigPublisher: configPublisher},
-			PrefixesAnnounced: paMetric,
+			LocalIA:            localIA,
+			Advertiser:         &ConfigPublisherAdvertiser{ConfigPublisher: configPublisher},
+			PrefixesAdvertised: paMetric,
 		},
 	)
 

@@ -126,9 +126,9 @@ var (
 		Help:   "Total number of discovered remote gateways.",
 		Labels: []string{"remote_isd_as"},
 	}
-	PrefixesAnnouncedMeta = MetricMeta{
-		Name:   "gateway_prefixes_announced",
-		Help:   "Total number of announced IP prefixes (outgoing).",
+	PrefixesAdvertisedMeta = MetricMeta{
+		Name:   "gateway_prefixes_advertised",
+		Help:   "Total number of advertised IP prefixes (outgoing).",
 		Labels: []string{"remote_isd_as"},
 	}
 	PrefixesAcceptedMeta = MetricMeta{
@@ -198,10 +198,10 @@ type Metrics struct {
 	SessionPathsAvailable *prometheus.GaugeVec
 
 	// Discovery Metrics
-	Remotes           *prometheus.GaugeVec
-	PrefixesAnnounced *prometheus.GaugeVec
-	PrefixesAccepted  *prometheus.GaugeVec
-	PrefixesRejected  *prometheus.GaugeVec
+	Remotes            *prometheus.GaugeVec
+	PrefixesAdvertised *prometheus.GaugeVec
+	PrefixesAccepted   *prometheus.GaugeVec
+	PrefixesRejected   *prometheus.GaugeVec
 }
 
 // NewMetrics initializes the metrics for the gateway and registers them with the default registry.
@@ -228,7 +228,7 @@ func NewMetrics() *Metrics {
 		PathsMonitored:               PathsMonitoredMeta.NewGaugeVec(),
 		SessionPathsAvailable:        SessionPathsAvailableMeta.NewGaugeVec(),
 		Remotes:                      RemotesMeta.NewGaugeVec(),
-		PrefixesAnnounced:            PrefixesAnnouncedMeta.NewGaugeVec(),
+		PrefixesAdvertised:           PrefixesAdvertisedMeta.NewGaugeVec(),
 		PrefixesAccepted:             PrefixesAcceptedMeta.NewGaugeVec(),
 		PrefixesRejected:             PrefixesRejectedMeta.NewGaugeVec(),
 	}

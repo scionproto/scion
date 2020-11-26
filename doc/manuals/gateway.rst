@@ -289,14 +289,14 @@ Remote IP prefixes
 
 **Labels**: ``remote_isd_as``
 
-Announced IP prefixes
-^^^^^^^^^^^^^^^^^^^^^
+Advertised IP prefixes
+^^^^^^^^^^^^^^^^^^^^^^
 
-**Name**: ``gateway_prefixes_announced``
+**Name**: ``gateway_prefixes_advertised``
 
 **Type**: Gauge
 
-**Description**: Number of announced IP prefixes.
+**Description**: Number of advertised IP prefixes.
 
 **Labels**: ``remote_isd_as``
 
@@ -379,7 +379,7 @@ Routing Policy File
 ===================
 
 The routing policy file contains the configuration which IP prefixes are
-announced, accepted, and rejected.
+advertised, accepted, and rejected.
 
 A routing policy consists of a list of rules. Each rule consists of an action
 and three matchers. Optionally, a rule can have a comment.
@@ -433,8 +433,8 @@ the gateway uses a default policy equivalent to ::
 
   reject 0-0 0-0 0.0.0.0/0,::/0
 
-i.e., it rejects all IP prefixes announced by any remote. Additionally, no local
-IP prefixes are announced, because there is no explicit ``advertise`` directive.
+i.e., it rejects all IP prefixes advertised by any remote. Additionally, no local
+IP prefixes are advertised, because there is no explicit ``advertise`` directive.
 
 Network prefix pinning
 ======================
