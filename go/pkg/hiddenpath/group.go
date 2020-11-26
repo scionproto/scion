@@ -17,6 +17,7 @@ package hiddenpath
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"strings"
 
@@ -34,6 +35,11 @@ type GroupID struct {
 
 func (id GroupID) String() string {
 	return fmt.Sprintf("%s-%x", id.OwnerAS, id.Suffix)
+}
+
+// ToUint64 returns the uint64 representation of the group ID.
+func (id GroupID) ToUint64() uint64 {
+	return uint64(id.OwnerAS)<<16 | uint64(id.Suffix)
 }
 
 func parseGroupID(s string) (GroupID, error) {
@@ -168,4 +174,21 @@ func (g *Group) Validate() error {
 	}
 
 	return nil
+}
+
+// LoadHiddenPathGroups loads hiddenpath group configuration files.
+func LoadHiddenPathGroups(files []string) ([]*Group, error) {
+	var ret []*Group
+	for _, f := range files {
+		raw, err := ioutil.ReadFile(f)
+		if err != nil {
+			return nil, err
+		}
+		g, err := ParseGroup(raw)
+		if err != nil {
+			return nil, serrors.WrapStr("parsing file", err, "file", f)
+		}
+		ret = append(ret, g)
+	}
+	return ret, nil
 }

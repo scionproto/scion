@@ -105,6 +105,8 @@ type SDConfig struct {
 	// QueryInterval specifies after how much time segments
 	// for a destination should be refetched.
 	QueryInterval util.DurWrap `toml:"query_interval,omitempty"`
+	//HiddenPathGroup is a list of files that each contains a hiddenpath group configuration.
+	HiddenPathGroups []string `toml:"hidden_path_groups,omitempty"`
 }
 
 func (cfg *SDConfig) InitDefaults() {

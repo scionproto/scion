@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
+	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	segfetchergrpc "github.com/scionproto/scion/go/lib/infra/modules/segfetcher/grpc"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -43,6 +44,8 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/command"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
+	"github.com/scionproto/scion/go/pkg/hiddenpath"
+	hpgrpc "github.com/scionproto/scion/go/pkg/hiddenpath/grpc"
 	sdpb "github.com/scionproto/scion/go/pkg/proto/daemon"
 	"github.com/scionproto/scion/go/pkg/sciond"
 	"github.com/scionproto/scion/go/pkg/sciond/config"
@@ -152,11 +155,27 @@ func run(file string) error {
 		return serrors.WrapStr("listening", err)
 	}
 
+	hpGroups, err := hiddenpath.LoadHiddenPathGroups(cfg.SD.HiddenPathGroups)
+	if err != nil {
+		return err
+	}
+	var requester segfetcher.RPC
+	requester = &segfetchergrpc.Requester{
+		Dialer: dialer,
+	}
+	if len(hpGroups) > 0 {
+		requester = &hpgrpc.Requester{
+			RegularLookup: &segfetchergrpc.Requester{Dialer: dialer},
+			HPGroups:      hpGroups,
+			Dialer:        dialer,
+		}
+	}
+
 	server := grpc.NewServer(libgrpc.UnaryServerInterceptor())
 	sdpb.RegisterDaemonServiceServer(server, sciond.NewServer(sciond.ServerConfig{
 		Fetcher: fetcher.NewFetcher(
 			fetcher.FetcherConfig{
-				RPC:          &segfetchergrpc.Requester{Dialer: dialer},
+				RPC:          requester,
 				PathDB:       pathDB,
 				Inspector:    engine,
 				Verifier:     compat.Verifier{Verifier: trust.Verifier{Engine: engine}},

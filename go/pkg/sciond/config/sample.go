@@ -22,4 +22,8 @@ address = "127.0.0.1:30255"
 
 # The time after which segments for a destination are refetched. (default 5m)
 query_interval = "5m"
+
+# A list of file path that each contain a hiddenpath group configuration.
+# e.g. ["path/to/group1.json"], ["path/to/group2.yaml"]. (default [])
+hidden_path_groups =  [""]
 `
