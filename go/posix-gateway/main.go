@@ -22,6 +22,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/syndtr/gocapability/capability"
@@ -46,10 +47,11 @@ func main() {
 	var flags struct {
 		config string
 	}
+	executable := filepath.Base(os.Args[0])
 	cmd := &cobra.Command{
-		Use:           "posix-gateway",
+		Use:           executable,
 		Short:         "SCION IP gateway",
-		Example:       "  posix-gateway --config gateway.toml",
+		Example:       "  " + executable + " --config gateway.toml",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		Args:          cobra.NoArgs,

@@ -10,7 +10,6 @@ scion_go_binary(
 go_library(
     name = "go_default_library",
     srcs = [
-        "completion.go",
         "main.go",
         "version.go",
     ],
@@ -18,7 +17,6 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//go/lib/env:go_default_library",
-        "//go/lib/serrors:go_default_library",
         "//go/pkg/command:go_default_library",
         "//go/scion-pki/certs:go_default_library",
         "//go/scion-pki/testcrypto:go_default_library",

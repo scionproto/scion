@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/spf13/cobra"
@@ -40,9 +41,11 @@ func main() {
 		config string
 	}
 	metrics := router.NewMetrics()
+	executable := filepath.Base(os.Args[0])
 	cmd := &cobra.Command{
-		Use:           "posix-router",
+		Use:           executable,
 		Short:         "SCION router",
+		Example:       "  " + executable + " --config br.toml",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		Args:          cobra.NoArgs,
