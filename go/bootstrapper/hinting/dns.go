@@ -2,7 +2,6 @@ package hinting
 
 import (
 	"fmt"
-	"github.com/scionproto/scion/go/lib/common"
 	"math/rand"
 	"net"
 	"os"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/miekg/dns"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 )
 

@@ -38,6 +38,8 @@ import (
 
 const (
 	baseURL            = "scion/discovery/v1"
+	topologyEndpoint   = "/topology.json"
+	TRCsEndpoint       = "/trcs.tar.gz"
 	httpRequestTimeout = 2 * time.Second
 	hintsTimeout       = 10 * time.Second
 )
@@ -133,8 +135,8 @@ func pullTopology(addr *net.TCPAddr) error {
 }
 
 func buildTopologyURL(ip net.IP, port int) string {
-	urlPath := baseURL + "/topology.json"
-	return fmt.Sprintf("%s://%s:%d/%s", "http", ip, port, urlPath)
+	urlPath := baseURL + topologyEndpoint
+	return fmt.Sprintf("http://%s:%d/%s", ip, port, urlPath)
 }
 
 func pullTRCs(addr *net.TCPAddr) error {
@@ -195,8 +197,8 @@ func pullTRCs(addr *net.TCPAddr) error {
 }
 
 func buildTRCsURL(ip net.IP, port int) string {
-	urlPath := baseURL + "/trcs.tar.gz"
-	return fmt.Sprintf("%s://%s:%d/%s", "http", ip, port, urlPath)
+	urlPath := baseURL + TRCsEndpoint
+	return fmt.Sprintf("http://%s:%d/%s", ip, port, urlPath)
 }
 
 func fetchHTTP(ctx context.Context, url string) (io.ReadCloser, error) {
