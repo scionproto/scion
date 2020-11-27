@@ -1,20 +1,24 @@
-Client bootstrap service
----
+# Client bootstrap service
 
-This file contains configuration options and provide some instructions to get started.
+This file contains configuration options and provide some instructions to
+get started.
 
-# Nginx web server
+## Nginx web server
 
-After having installed Nginx, the network admin can follow these steps to expose the endpoints needed by the bootstrapper:
+After having installed Nginx, the network admin can follow these steps to
+expose the endpoints needed by the bootstrapper:
+
 - copy the site configuration to `/etc/nginx/sites-available` and enable it by creating
   a link that points to `/etc/nginx/sites-available/scion` in `/etc/nginx/sites-enabled`,
 - create a link to the topology at `/srv/http/scion/discovery/v1/topology.json`, and
 - create a link to a *tar* archive containing the TRCs to serve at
   `/srv/http/scion/discovery/v1/trcs.tar`.
 
-## Site configuration
+### Site configuration
+
 A simple site configuration to host the SCION configuration resources.
-```
+
+```nginx
 server {
       listen 8041 default_server;
       listen [::]:8041 default_server;
@@ -27,7 +31,7 @@ server {
 }
 ```
 
-## Check the webserver
+### Check the webserver
 
 You can test that the webserver is working with:
 
@@ -37,14 +41,14 @@ You can test that the webserver is working with:
 The former should return the topology of the AS.
 The latter should return an archive containing the served TRCs.
 
-# Discovery mechanisms
+## Discovery mechanisms
 
-## DHCP (dnsmasq)
+### DHCP (dnsmasq)
 
 For example, with `dnsmasq`, an option 72 "Default WWW server" can be done by
 adding the following line to `/etc/dnsmasq.conf`: `dhcp-option=72,<webserverIP>`
 
-## mDNS (avahi)
+### mDNS (avahi)
 
 Put the following configuration to `/etc/avahi/services/sciondiscovery.xml`:
 
@@ -60,13 +64,13 @@ Put the following configuration to `/etc/avahi/services/sciondiscovery.xml`:
 </service-group>
 ```
 
+## Systemd service units
 
-# Systemd service units
+### Bootstrapper
 
-## Bootstrapper
 A minimal example of the bootstrapper service units ``scion-bootstrapper@.service``.
 
-```
+```toml
 [Unit]
 After=network-online.target
 Before=scion-daemon@%i.service
@@ -85,20 +89,20 @@ RemainAfterExit=True
 AmbientCapabilities=CAP_NET_RAW
 ```
 
-## SCIOND
+### SCIOND
 
 A minimal example of the sciond service units ``scion-daemon-bootstrap@.service``.
 
-```
-  [Unit]
-  After=network-online.target scion-bootstrapper@%i.service scion-dispatcher.service
-  BindsTo=scion-bootstrapper@%i.service
-  Wants=network-online.target
+```toml
+[Unit]
+After=network-online.target scion-bootstrapper@%i.service scion-dispatcher.service
+BindsTo=scion-bootstrapper@%i.service
+Wants=network-online.target
 
-  [Service]
-  Type=simple
-  WorkingDirectory=/etc/scion/
-  ExecStartPre=/bin/mkdir -p /etc/scion/gen-cache /var/cache/scion /run/shm/sciond
-  ExecStart=/opt/scion/sciond --config /etc/scion/sd.toml
+[Service]
+Type=simple
+WorkingDirectory=/etc/scion/
+ExecStartPre=/bin/mkdir -p /etc/scion/gen-cache /var/cache/scion /run/shm/sciond
+ExecStart=/opt/scion/sciond --config /etc/scion/sd.toml
 ```
 

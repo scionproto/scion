@@ -3,10 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	libconfig "github.com/scionproto/scion/go/lib/config"
 	"os"
 
 	"github.com/scionproto/scion/go/bootstrapper/config"
+	libconfig "github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"

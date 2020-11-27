@@ -16,7 +16,7 @@ sd_conf = ""
 	# This discovery mechanisms is used for testing purposes
 	enable = false
 	# The address to return when simulating a network discovery (default "")
-	address = "192.33.93.173"
+	address = ""
 [dhcp]
 	# Whether to enable DHCP discovery or not (default false)
 	enable = false

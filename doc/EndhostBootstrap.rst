@@ -27,13 +27,12 @@ Design
 Bootstrapping process
 ---------------------
 
-We use **Systemd** to orchestrate the bootstrapping process: managing the
-bootstrapper daemon; and guaranteeing the sequentiality constraints of the
-SD with respect to the bootstrapper daemon.
-In fact, the SD must start only after the bootstrapper exited successfully.
+An external orchestrator (e.g., *Systemd*) shall take care of: managing the
+bootstrapper daemon; and start the SD once the bootstrapper exits
+successfully.
 
 In the remainder of this section, we assume that the dispatcher, the
-bootstrapper, and the sciond service units are all enabled and running.
+bootstrapper, and the SD services are all enabled.
 
 The bootstrapping process consists of the following:
 
@@ -43,11 +42,11 @@ The bootstrapping process consists of the following:
 3. Once a hint gets received, the bootstrapper tries to download the topology of
    the AS and some TRCs from the hinted local web server.
 
-   a. On success, the bootstrapper prepares the SD's files and exits successfully, and the SD is automatically started by Systemd.
+   a. On success, the bootstrapper prepares the SD's files and exits successfully, and the SD is automatically started by the orchestrator.
    b. On failure, the bootstrapper tries to contact the web server specified by the next hint (go back to 2).
 
 If no hint is received after a certain span of time, the bootstrapper times out
-and exit with a non-zero value.
+and exits with a non-zero value.
 
 NB: The TRCs retrieval is a temporary solution; in the future, they will be
 installed on a device via other means, ideally before it gets connected to
@@ -124,9 +123,7 @@ easy to correctly setup a network to work with multicast traffic.
 Web server
 ----------
 
-We choose *Nginx* for the web server to serve the bootstrapping configuration files -- obviously, this can be achieved with any other web server.
-
-The endpoints exposed by the web server are the following:
+The web server (e.g. *Nginx*) shall expose the following endpoints to erve the bootstrapping configuration files:
 
 - ``/scion/discovery/<version>/topology.json``: to retrieve the topology of
   the AS, and
