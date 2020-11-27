@@ -18,6 +18,8 @@
 package pathhealth
 
 import (
+	"errors"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -231,6 +233,11 @@ func (m *Monitor) drainConn() {
 		// This avoids logging errors for closing connections.
 		if closing() {
 			return
+		}
+		if errors.Is(err, io.EOF) {
+			// dispatcher is currently down so back off.
+			time.Sleep(500 * time.Millisecond)
+			continue
 		}
 		if err != nil {
 			opErr, ok := err.(*snet.OpError)
