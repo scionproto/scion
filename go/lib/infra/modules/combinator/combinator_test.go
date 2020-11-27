@@ -594,6 +594,16 @@ func TestFilterDuplicates(t *testing.T) {
 		Expected []uint32
 	}{
 		{
+			Name:     "nil slice",
+			Paths:    nil,
+			Expected: []uint32{},
+		},
+		{
+			Name:     "empty slice",
+			Paths:    []combinator.Path{},
+			Expected: []uint32{},
+		},
+		{
 			Name: "single path",
 			Paths: []combinator.Path{
 				testPath(1, path0, timeEarly),
