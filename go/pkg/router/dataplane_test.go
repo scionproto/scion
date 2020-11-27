@@ -912,7 +912,7 @@ func TestProcessPkt(t *testing.T) {
 
 				sp, err := dpath.ToSCIONDecoded()
 				require.NoError(t, err)
-				err = sp.Reverse()
+				_, err = sp.Reverse()
 				require.NoError(t, err)
 
 				ret := toMsg(t, spkt, dpath)
@@ -973,8 +973,9 @@ func TestProcessPkt(t *testing.T) {
 				sp, err := dpath.ToSCIONDecoded()
 				require.NoError(t, err)
 				require.NoError(t, sp.IncPath())
-				err = sp.Reverse()
+				p, err := sp.Reverse()
 				require.NoError(t, err)
+				sp = p.(*scion.Decoded)
 
 				if !afterProcessing {
 					return toMsg(t, spkt, sp)

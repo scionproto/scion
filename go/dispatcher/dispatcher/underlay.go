@@ -340,7 +340,7 @@ func (h SCMPHandler) reverseSCION(pkt *respool.Packet) error {
 	if err := pkt.SCION.SetDstAddr(src); err != nil {
 		return serrors.WrapStr("setting destination address", err)
 	}
-	if err := pkt.SCION.Path.Reverse(); err != nil {
+	if pkt.SCION.Path, err = pkt.SCION.Path.Reverse(); err != nil {
 		return serrors.WrapStr("reversing path", err)
 	}
 	return nil

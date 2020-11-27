@@ -45,9 +45,11 @@ type Path interface {
 	// Reverse reverses a path such that it can be used in the reversed direction.
 	//
 	// XXX(shitz): This method should possibly be moved to a higher-level path manipulation package.
-	Reverse() error
+	Reverse() (Path, error)
 	// Len returns the length of a path in bytes.
 	Len() int
+	// Type returns the type of a path.
+	Type() Type
 }
 
 type metadata struct {

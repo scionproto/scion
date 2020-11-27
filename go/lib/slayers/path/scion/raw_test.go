@@ -67,8 +67,9 @@ func TestRawReverse(t *testing.T) {
 				t.Parallel()
 				input := mkRawPath(t, tc.input, uint8(tc.inIdxs[i][0]), uint8(tc.inIdxs[i][1]))
 				want := mkRawPath(t, tc.want, uint8(tc.wantIdxs[i][0]), uint8(tc.wantIdxs[i][1]))
-				assert.NoError(t, input.Reverse())
-				assert.Equal(t, want, input)
+				revPath, err := input.Reverse()
+				assert.NoError(t, err)
+				assert.Equal(t, want, revPath)
 			})
 		}
 	}

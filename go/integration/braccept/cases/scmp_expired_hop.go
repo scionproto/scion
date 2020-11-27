@@ -152,9 +152,11 @@ func SCMPExpiredHop(artifactsDir string, mac hash.Hash) runner.Case {
 		panic(err)
 	}
 
-	if err := sp.Reverse(); err != nil {
+	p, err := sp.Reverse()
+	if err != nil {
 		panic(err)
 	}
+	sp = p.(*scion.Decoded)
 	if err := sp.IncPath(); err != nil {
 		panic(err)
 	}
@@ -320,9 +322,11 @@ func SCMPExpiredHopAfterXover(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
-	if err := sp.Reverse(); err != nil {
+	p, err := sp.Reverse()
+	if err != nil {
 		panic(err)
 	}
+	sp = p.(*scion.Decoded)
 	if err := sp.IncPath(); err != nil {
 		panic(err)
 	}

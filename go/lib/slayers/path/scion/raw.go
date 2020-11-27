@@ -59,22 +59,24 @@ func (s *Raw) SerializeTo(b []byte) error {
 }
 
 // Reverse reverses the path such that it can be used in the reverse direction.
-func (s *Raw) Reverse() error {
+func (s *Raw) Reverse() (path.Path, error) {
 	// XXX(shitz): The current implementation is not the most performant, since it parses the entire
 	// path first. If this becomes a performance bottleneck, the implementation should be changed to
 	// work directly on the raw representation.
 
 	decoded, err := s.ToDecoded()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if err := decoded.Reverse(); err != nil {
-		return err
+	reversed, err := decoded.Reverse()
+	if err != nil {
+		return nil, err
 	}
-	if err := decoded.SerializeTo(s.Raw); err != nil {
-		return err
+	if err := reversed.SerializeTo(s.Raw); err != nil {
+		return nil, err
 	}
-	return s.DecodeFromBytes(s.Raw)
+	err = s.DecodeFromBytes(s.Raw)
+	return s, err
 }
 
 // ToDecoded transforms a scion.Raw to a scion.Decoded.

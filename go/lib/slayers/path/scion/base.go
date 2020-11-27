@@ -108,6 +108,11 @@ func (s *Base) Len() int {
 	return MetaLen + int(s.NumINF)*path.InfoLen + int(s.NumHops)*path.HopLen
 }
 
+// Type returns the type of the path.
+func (s *Base) Type() path.Type {
+	return PathType
+}
+
 // MetaHdr is the PathMetaHdr of a SCION (data-plane) path type.
 type MetaHdr struct {
 	CurrINF uint8

@@ -1345,17 +1345,18 @@ func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.Serializable
 	if err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "decoding raw path")
 	}
-	s.scionL.Path = decPath
-	if err := decPath.Reverse(); err != nil {
+	s.scionL.Path, err = decPath.Reverse()
+	if err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "reversing path for SCMP")
 	}
-	if incPath || decPath.IsXover() {
-		infoField := decPath.InfoFields[decPath.PathMeta.CurrINF]
+	revPath := s.scionL.Path.(*scion.Decoded)
+	if incPath || revPath.IsXover() {
+		infoField := revPath.InfoFields[revPath.PathMeta.CurrINF]
 		if infoField.ConsDir {
-			hopField := decPath.HopFields[decPath.PathMeta.CurrHF]
+			hopField := revPath.HopFields[revPath.PathMeta.CurrHF]
 			infoField.UpdateSegID(hopField.Mac)
 		}
-		if err := decPath.IncPath(); err != nil {
+		if err := revPath.IncPath(); err != nil {
 			return nil, serrors.Wrap(cannotRoute, err, "details", "incrementing path for SCMP")
 		}
 	}

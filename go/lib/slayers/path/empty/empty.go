@@ -49,10 +49,14 @@ func (o Path) SerializeTo(b []byte) error {
 	return nil
 }
 
-func (o Path) Reverse() error {
-	return nil
+func (o Path) Reverse() (path.Path, error) {
+	return o, nil
 }
 
 func (o Path) Len() int {
 	return PathLen
+}
+
+func (o Path) Type() path.Type {
+	return PathType
 }

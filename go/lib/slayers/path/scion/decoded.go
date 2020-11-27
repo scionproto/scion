@@ -95,10 +95,10 @@ func (s *Decoded) SerializeTo(b []byte) error {
 }
 
 // Reverse reverses a SCION path.
-func (s *Decoded) Reverse() error {
+func (s *Decoded) Reverse() (path.Path, error) {
 	if s.NumINF == 0 {
 		// Empty path doesn't need reversal.
-		return nil
+		return nil, nil
 	}
 	// Reverse order of InfoFields and SegLens
 	for i, j := 0, s.NumINF-1; i < j; i, j = i+1, j-1 {
@@ -118,7 +118,7 @@ func (s *Decoded) Reverse() error {
 	s.PathMeta.CurrINF = uint8(s.NumINF) - s.PathMeta.CurrINF - 1
 	s.PathMeta.CurrHF = uint8(s.NumHops) - s.PathMeta.CurrHF - 1
 
-	return nil
+	return s, nil
 }
 
 // ToRaw tranforms scion.Decoded into scion.Raw

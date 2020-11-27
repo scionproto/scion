@@ -141,9 +141,11 @@ func SCMPDestinationUnreachable(artifactsDir string, mac hash.Hash) runner.Case 
 		panic(err)
 	}
 
-	if err := sp.Reverse(); err != nil {
+	p, err := sp.Reverse()
+	if err != nil {
 		panic(err)
 	}
+	sp = p.(*scion.Decoded)
 	if err := sp.IncPath(); err != nil {
 		panic(err)
 	}

@@ -172,8 +172,9 @@ func TestDecodedReverse(t *testing.T) {
 					uint8(tc.inIdxs[i][1]))
 				wantPath := mkDecodedPath(t, tc.want, uint8(tc.wantIdxs[i][0]),
 					uint8(tc.wantIdxs[i][1]))
-				assert.NoError(t, inputPath.Reverse())
-				assert.Equal(t, wantPath, inputPath)
+				revPath, err := inputPath.Reverse()
+				assert.NoError(t, err)
+				assert.Equal(t, wantPath, revPath)
 			})
 		}
 	}
