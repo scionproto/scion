@@ -39,7 +39,7 @@ import (
 const (
 	baseURL            = "scion/discovery/v1"
 	topologyEndpoint   = "/topology.json"
-	TRCsEndpoint       = "/trcs.tar.gz"
+	TRCsEndpoint       = "/trcs.tar"
 	httpRequestTimeout = 2 * time.Second
 	hintsTimeout       = 10 * time.Second
 )
