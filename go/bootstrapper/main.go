@@ -3,9 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	libconfig "github.com/scionproto/scion/go/lib/config"
 	"os"
-
-	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/bootstrapper/config"
 	"github.com/scionproto/scion/go/lib/env"
@@ -34,7 +33,7 @@ func realMain() int {
 	if v, ok := env.CheckFlags(&cfg); !ok {
 		return v
 	}
-	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
+	if err := libconfig.LoadFile(env.ConfigFile(), &cfg); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
