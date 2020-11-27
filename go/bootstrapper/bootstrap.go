@@ -16,7 +16,6 @@ package main
 
 import (
 	"archive/tar"
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -25,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
 
 	"golang.org/x/net/context/ctxhttp"
@@ -154,18 +154,8 @@ func pullTRCs(addr *net.TCPAddr) error {
 			log.Error("Error closing the body of the TRCs response", "err", err)
 		}
 	}()
-	// Extract TRCs gzip tar archive
-	zr, err := gzip.NewReader(r)
-	if err != nil {
-		return common.NewBasicError("Unable to read body as gzip", err)
-	}
-	// Close gunzip reader and handle errors
-	defer func() {
-		if err := zr.Close(); err != nil {
-			log.Error("Error closing gunzip reader", "err", err)
-		}
-	}()
-	tr := tar.NewReader(zr)
+	// Extract TRCs tar archive
+	tr := tar.NewReader(r)
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -176,8 +166,13 @@ func pullTRCs(addr *net.TCPAddr) error {
 		}
 		switch hdr.Typeflag {
 		case tar.TypeReg:
-			log.Info("Extracting TRC", "name", hdr.Name)
-			trcPath := path.Join(cfg.SCIONFolder, "certs", hdr.Name)
+			trcName := filepath.Base(hdr.Name)
+			if trcName == "." {
+				log.Error("Invalid TRC file name", "name", hdr.Name)
+				continue
+			}
+			log.Info("Extracting TRC", "name", trcName)
+			trcPath := path.Join(cfg.SCIONFolder, "certs", trcName)
 			f, err := os.OpenFile(trcPath, os.O_CREATE|os.O_RDWR, 0644)
 			if err != nil {
 				return common.NewBasicError("error creating file to store TRC", err)
