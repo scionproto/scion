@@ -35,6 +35,22 @@ communication to leave the AS.
 Design
 ======
 
+Hidden path configuration file
+------------------------------
+
+A hidden path configuration file is loaded by all applications participating
+in Hidden Paths. It is a YAML file organized in two main sections:
+
+- Group definitions. This section is present on all SCION Daemons and Control Services
+  wanting to use Hidden Paths. It contains the hidden paths groups that should be
+  known by the applications, with each group further defining the roles of each AS
+  in the group.
+- Registration policy. This section is only present on ASes wanting to register
+  hidden paths with a Hidden Paths Registry (i.e., leaf ASes that want to be hidden)
+
+We now describe each of the sections. An example with a full configuration can
+be found later in the document.
+
 Hidden path group
 -----------------
 
@@ -44,20 +60,24 @@ information is shared. A hidden path group consists of:
 - GroupID: Unique 64bit identification of the group:
   :math:`OwnerAS_{48bit}||GroupID_{16bit}`
 
-- Version: A version indicating the version of the configuration
-
-- Owner: AS ID of the owner of the hidden path group. The Owner AS is
+- Owner: AS ID of the owner of the hidden path group. The *Owner* AS is
   responsible for maintaining the hidden path group configuration and
-  distributing it to all servers that require it. *(Access: Read/Write)*
+  distributing it to all servers that require it. The *Owner* has Read and
+  Write access to the Hidden Paths registry contents.
 
 - Writers: All ASes in the group which are allowed to register hidden paths
-  *(Access: Read/Write)*
+  The *Writers* have Read and Write access to the Hidden Paths registry
+  contents.
 
 - Readers: All ASes in the group which are allowed to read hidden path
-  information *(Access: Read)*
+  information. The *Readers* have Read access to the Hidden Paths registry
+  contents.
 
-- Registries: All ASes in the group at which *Writers* register hidden paths
-  *(Access: Read)*
+- Registries: All ASes in the group at which *Writers* register hidden paths.
+  The *Registries* have Read access to the Hidden Paths registry contents.
+  Note that even though they can Write data to the registry storage they
+  maintain, they are unable to build paths that are valid in the Hidden
+  Paths group, meaning they effectively only have Read access.
 
 The hidden path group configuration is shared amongst the members of the group
 out-of-band. It is the group owner's responsibility to disseminate updated
@@ -67,98 +87,130 @@ path group configuration might be added in the future.
 Example group configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Below is an example of a hidden path group configuration file
-(``hp_group_ff00_0_110-69b5.json``):
+The group configuration is the first section of a hidden paths configuration file.
+Below is an example of a hidden path group configuration containing
+two groups. The groups are owned by two ASes and use distinct registries,
+but the readers and writers are the same.
 
-.. code-block:: json
+.. code-block:: yaml
 
-   {
-       "group_id": "ff00:0:110-69b5",
-       "version": 1,
-       "owner": "1-ff00:0:110",
-       "writers": [
-           "1-ff00:0:111",
-           "1-ff00:0:112"
-       ],
-       "readers": [
-           "1-ff00:0:114"
-       ],
-       "registries": [
-           "1-ff00:0:111",
-           "1-ff00:0:113"
-       ]
-   }
+   groups:
+     "ff00:0:110-69b5":
+       owner: "1-ff00:0:110"
+       writers:
+         - "1-ff00:0:111"
+         - "1-ff00:0:112"
+       readers:
+         - "1-ff00:0:114"
+       registries:
+         - "1-ff00:0:111"
+         - "1-ff00:0:113"
+     "ffaa:0:222-abcd":
+       owner: "1-ffaa:0:222"
+       writers:
+         - "1-ff00:0:111"
+         - "1-ff00:0:112"
+       readers:
+         - "1-ff00:0:114"
+       registries:
+         - "1-ff00:0:115"
 
 Segment registration
 --------------------
 
+Segment registration is the second part of a hidden paths configuration file.
+It is an optional section, and only Control Services who want to register
+hidden paths at a registry must define it.
+
 The segment registration needs to distinguish between segments to be registered
-publicly and hidden. Additionally, a segment can be registered as up-segment
-only or as down-segment only. These decisions are based on a policy defined in a
-configuration file. For each segment, identified by its interface ID, the
-following parameters can be defined:
+publicly and hidden. These decisions are based on a policy that is defined
+for each SCION Interface ID in the local AS. If an interface is marked as
+``public``, then down-segments going through the interface will be registered
+via the normal SCION beacon down-segment registration mechanism. For each
+hidden path group that is specified, the down-segment will be registered via
+the hidden paths registration mechanism.
 
-- ``max_expiration``:  The time interval after which the segment becomes invalid
+Below is an example registration configuration.
 
-- ``reg_down``: Whether to register the segment as down-segment.
+.. code-block:: yaml
 
-- ``reg_up``: Whether to register the segment as up-segment.
+   registration_policy_per_interface:
+     2:
+       - public
+       - "ff00:0:110-69b5"
+       - "ffaa:0:222-abcd"
+     3:
+       - public
 
-These parameters can be specified for *public* and for each hidden path group
-individually. Segments not explicitly listed are either fully registered as
-public up- and down-segments or not registered at all, depending on the
-configured default action.
+Segments constructed via interfaces not listed in the registration policy will not
+be registered at all. This default prevents the scenario where an AS that wants to stay
+hidden adds an new interface, and announces paths to itself without realizing.
 
-The beaconing module can be configured to not allow the registration of a
-segment both as public and hidden.
+Example complete configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Example registration configuration
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Below is an example ``hp_policy.yml`` configuration. In ``hidden_path_groups``
-all the hidden path groups available to the service are listed. Furthermore, the
-configuration contains the segment registration policies in the
-``segment_registration`` section. The file ``hp_policy.yml`` in turn is pointed
-to by the ``cs.toml`` file by specifying the ``hidden_path_registration``
-parameter.
+A sample configuration file for SCION Daemons and Control Services that don't register hidden paths
+might look like the following:
 
 .. code-block:: yaml
 
    ---
-   hidden_path_groups:
+   groups:
      "ff00:0:110-69b5":
-       config_file: testdata/hp_group_ff00_0_110-69b5.json
+       owner: "1-ff00:0:110"
+       writers:
+         - "1-ff00:0:111"
+         - "1-ff00:0:112"
+       readers:
+         - "1-ff00:0:114"
+       registries:
+         - "1-ff00:0:111"
+         - "1-ff00:0:113"
      "ffaa:0:222-abcd":
-       config_file: testdata/hp_group_ffaa_0_222-abcd.json
-   segment_registration:
-     default_action: register
-     hidden_and_public: true
-     # Mapping from ingress interface to registration policy
-     policies:
-       2:
-         public:
-           register_up: true
-           register_down: true
-           max_expiration: 1h
-         "ff00:0:110-69b5":
-           register_up: true
-           register_down: true
-           max_expiration: 1h
-         "ffaa:0:222-abcd":
-           register_up: true
-           register_down: true
-           max_expiration: 1h
-       3:
-         public:
-           register_up: true
-           register_down: true
-           max_expiration: 1h
+       owner: "1-ffaa:0:222"
+       writers:
+         - "1-ff00:0:111"
+         - "1-ff00:0:112"
+       readers:
+         - "1-ff00:0:114"
+       registries:
+         - "1-ff00:0:115"
+   ...
 
-The default action is set to ``register``, this means that all segments not
-listed in this configuration are registered as public up- and down-segments with
-default expiration. Note that the segment with interface ID 2 is both registered
-as hidden and public. This is allowed by setting ``hidden_and_public`` to
-``true``.
+For an AS that wants to register hidden paths with a registry, both sections need to be included:
+
+.. code-block:: yaml
+
+   ---
+   groups:
+     "ff00:0:110-69b5":
+       owner: "1-ff00:0:110"
+       writers:
+         - "1-ff00:0:111"
+         - "1-ff00:0:112"
+       readers:
+         - "1-ff00:0:114"
+       registries:
+         - "1-ff00:0:111"
+         - "1-ff00:0:113"
+     "ffaa:0:222-abcd":
+       owner: "1-ffaa:0:222"
+       writers:
+         - "1-ff00:0:111"
+         - "1-ff00:0:112"
+       readers:
+         - "1-ff00:0:114"
+       registries:
+         - "1-ff00:0:115"
+   registration_policy_per_interface:
+     2:
+       - public
+       - "ff00:0:110-69b5"
+       - "ffaa:0:222-abcd"
+     3:
+       - public
+   ...
+
 
 Hidden segment registration service
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
