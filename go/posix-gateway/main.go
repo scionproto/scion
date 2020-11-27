@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/gateway"
@@ -114,6 +115,12 @@ func run(file string) error {
 	controlAddress, err := net.ResolveUDPAddr("udp", cfg.Gateway.CtrlAddr)
 	if err != nil {
 		return serrors.WrapStr("parsing control address", err)
+	}
+	if len(controlAddress.IP) == 0 {
+		controlAddress.IP, err = addrutil.DefaultLocalIP(context.Background(), daemon)
+		if err != nil {
+			return serrors.WrapStr("determine default local IP", err)
+		}
 	}
 	dataAddress, err := net.ResolveUDPAddr("udp", cfg.Gateway.DataAddr)
 	if err != nil {

@@ -507,11 +507,7 @@ func findLocalAddr(ctx context.Context, sds sciond.Service) (*snet.UDPAddr, erro
 	if err != nil {
 		return nil, err
 	}
-	csAddr, err := sciond.TopoQuerier{Connector: sdConn}.UnderlayAnycast(ctx, addr.SvcCS)
-	if err != nil {
-		return nil, err
-	}
-	localIP, err := addrutil.ResolveLocal(csAddr.IP)
+	localIP, err := addrutil.DefaultLocalIP(ctx, sdConn)
 	if err != nil {
 		return nil, err
 	}
