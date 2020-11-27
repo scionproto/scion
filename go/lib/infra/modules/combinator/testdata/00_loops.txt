@@ -8,15 +8,6 @@ Path #0:
     1-ff00:0:111#1417
     1-ff00:0:112#1714
 Path #1:
-  Weight: 1
-  Fields:
-    IF C.
-      HF InIF=1432 OutIF=1417
-      HF InIF=1714 OutIF=0
-  Interfaces:
-    1-ff00:0:111#1417
-    1-ff00:0:112#1714
-Path #2:
   Weight: 2
   Fields:
     IF ..
@@ -30,7 +21,7 @@ Path #2:
     1-ff00:0:130#3214
     1-ff00:0:130#1317
     1-ff00:0:112#1713
-Path #3:
+Path #2:
   Weight: 3
   Fields:
     IF ..
@@ -49,7 +40,7 @@ Path #3:
     1-ff00:0:130#3229
     1-ff00:0:130#1317
     1-ff00:0:112#1713
-Path #4:
+Path #3:
   Weight: 4
   Fields:
     IF ..
