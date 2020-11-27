@@ -1,6 +1,6 @@
-**********************
-End host bootstrapping
-**********************
+******************
+End host bootstrap
+******************
 
 This file documents the design of the end host bootstrapping.
 
@@ -130,137 +130,12 @@ The endpoints exposed by the web server are the following:
 
 - ``/scion/discovery/<version>/topology.json``: to retrieve the topology of
   the AS, and
-- ``/scion/discovery/<version>/trcs.tar.gz``: to retrieve the TRCs needed by the SD.
+- ``/scion/discovery/<version>/trcs.tar``: to retrieve the TRCs needed by the SD.
 
 NB: The endpoints are kept separate since in the future the latter will be removed.
 As previously pointed out, the TRCs will be installed on a device via different
 means.
 
-Minimal configuration files
-===========================
-
-Bootstrapper
-------------
-.. code-block:: toml
-
-  # The network interface to use (default "")
-  interface = "NIC"
-  # The folder where the SD files will be created (default "/etc/scion")
-  scion_folder = "/etc/scion"
-  # The SD configuration files to override the default one (default "")
-  sd_conf = ""
-
-  # Discovery mechanisms
-  [mock]
-          # Enable the fake discovery (default false)
-          # This discovery mechanisms is used for testing purposes
-          enable = false
-          # The address to return when simulating a network discovery (default "")
-          address = "192.33.93.173"
-  [dhcp]
-          # Enable the DHCP discovery (default true)
-          enable = false
-  [dnssd]
-          # Enable the DNS SRV discovery (default false)
-          enable_srv = true
-          # Enable the DNS-SD discovery (default false)
-          enable_sd = true
-          # Enable the DNS-NAPTR discovery (default false)
-          enable_naptr = true
-  [mdns]
-          # Enable the mDNS discovery (default false)
-          enable = true
-
-
-Systemd service units
----------------------
-
-Bootstrapper
-^^^^^^^^^^^^
-
-A minimal example of the bootstrapper service units ``scion-bootstrapper@.service``.
-
-::
-
-  [Unit]
-  After=network-online.target
-  Before=scion-daemon@%i.service
-  Wants=network-online.target
-
-  [Service]
-  Type=oneshot
-  WorkingDirectory=/etc/scion/
-  ExecStartPre=/bin/mkdir -p /etc/scion/certs/
-  ExecStartPre=/bin/cp /etc/scion/boot.toml /etc/scion/boot-%i.toml
-  ExecStartPre=/bin/sed -i s#NIC#%i#g /etc/scion/boot-%i.toml
-  ExecStart=/opt/scion/bootstrapper -config boot-%i.toml
-  RemainAfterExit=True
-
-  # Raw network is needed for DHCP
-  AmbientCapabilities=CAP_NET_RAW
-
-SCIOND
-^^^^^^
-
-A minimal example of the sciond service units ``scion-daemon-bootstrap@.service``.
-
-::
-
-  [Unit]
-  After=network-online.target scion-bootstrapper@%i.service scion-dispatcher.service
-  BindsTo=scion-bootstrapper@%i.service
-  Wants=network-online.target
-
-  [Service]
-  Type=simple
-  WorkingDirectory=/etc/scion/
-  ExecStartPre=/bin/mkdir -p /etc/scion/gen-cache /var/cache/scion /run/shm/sciond
-  ExecStart=/opt/scion/sciond --config /etc/scion/sd.toml
-
-DNS
----
-
-mDNS
-^^^^
-
-A simple mDNS configuration can be achieved using *Avahi* with the following configuration:
- 
-.. code-block::xml
-
-  <?xml version="1.0" standalone='no'?>
-  <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
-  <service-group>
-    <name replace-wildcards="yes">%h</name>
-      <service>
-          <type>_sciondiscovery._tcp</type>
-          <port>8041</port>
-      </service>
-  </service-group>
-
-Nginx site
-----------
-
-::
-
-  server {
-          listen 8041 default_server;
-          listen [::]:8041 default_server;
-
-          location / {
-                  root /srv/http/;
-                  autoindex on;
-                  autoindex_format json;
-          }
-  }
-
-
-After having installed Nginx, the network admin can follow these steps to expose the endpoints needed by the bootstrapper:
-
-- copy the site configuration to ``/etc/nginx/sites-available`` and enable it by creating
-  a link that points to ``/etc/nginx/sites-available/scion`` in ``/etc/nginx/sites-enabled``,
-- create a link to the topology at ``/srv/http/scion/discovery/v1/topology.json``, and
-- create a link to a *tar.gz* archive containing the TRCs to serve at
-  ``/srv/http/scion/discovery/v1/trcs.tar.gz``.
 
 Security
 ========
