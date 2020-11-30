@@ -244,13 +244,15 @@ func (g *Gateway) Run() error {
 	}
 	log.SafeInfo(g.Logger, "Learned local IA from SCION Daemon", "ia", localIA)
 
+	reconnectingDispatcher := reconnect.NewDispatcherService(g.Dispatcher)
+
 	// *************************************************************************
 	// Set up path monitoring. The path monitor runs an the SCION/UDP stack
 	// using the control address and uses traceroute packets to check if paths
 	// are healthy. Paths are fetched from a Daemon. Data-plane revocations are
 	// forwarded to the Daemon to improve path construction.
 	// *************************************************************************
-	pathMonitorConnection, pathMonitorPort, err := g.Dispatcher.Register(
+	pathMonitorConnection, pathMonitorPort, err := reconnectingDispatcher.Register(
 		context.Background(),
 		localIA,
 		&net.UDPAddr{IP: g.PathMonitorIP},
@@ -400,7 +402,7 @@ func (g *Gateway) Run() error {
 		LocalIA: localIA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			// Enable transparent reconnections to the dispatcher
-			Dispatcher: reconnect.NewDispatcherService(g.Dispatcher),
+			Dispatcher: reconnectingDispatcher,
 			// Forward revocations to Daemon
 			SCMPHandler: snet.DefaultSCMPHandler{
 				RevocationHandler: revocationHandler,
@@ -477,7 +479,7 @@ func (g *Gateway) Run() error {
 		LocalIA: localIA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			// Enable transparent reconnections to the dispatcher
-			Dispatcher: reconnect.NewDispatcherService(g.Dispatcher),
+			Dispatcher: reconnectingDispatcher,
 			// Discard all SCMP, to avoid accept errors on the QUIC server.
 			SCMPHandler: ignoreSCMP{},
 		},
