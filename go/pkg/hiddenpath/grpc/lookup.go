@@ -28,52 +28,64 @@ import (
 	hspb "github.com/scionproto/scion/go/pkg/proto/hidden_segment"
 )
 
-// Lookuper is used to lookup segments.
-type Lookuper interface {
-	Segments(context.Context, hiddenpath.SegmentRequest) ([]*seg.Meta, error)
-}
-
 // SegmentServer serves segments from a lookuper.
 type SegmentServer struct {
-	Lookup Lookuper
+	Lookup        hiddenpath.Lookuper
+	Authoritative bool
 }
 
 // HiddenSegments serves hidden segments requests using the provided lookup.
 func (s *SegmentServer) HiddenSegments(ctx context.Context,
 	pbReq *hspb.HiddenSegmentsRequest) (*hspb.HiddenSegmentsResponse, error) {
 
-	rawPeer, ok := peer.FromContext(ctx)
-	if !ok {
-		return nil, status.Error(codes.Internal, "couldn't extract peer")
+	if pbReq == nil {
+		return nil, status.Error(codes.Internal, "invalid request")
 	}
-	peerAddr, ok := rawPeer.Addr.(*snet.UDPAddr)
-	if !ok {
-		return nil, status.Error(codes.Internal, "peer is not snet.UDPAddr")
-	}
+
+	// TODO(karampok): tracing
+	// TODO(karampok): metrics
+
 	groups := make([]hiddenpath.GroupID, 0, len(pbReq.GroupIds))
 	for _, id := range pbReq.GroupIds {
 		groups = append(groups, hiddenpath.GroupIDFromUint64(id))
 	}
 	req := hiddenpath.SegmentRequest{
 		GroupIDs: groups,
-		Peer:     peerAddr.IA,
 		DstIA:    addr.IAInt(pbReq.DstIsdAs).IA(),
 	}
+
+	if s.Authoritative {
+		rawPeer, ok := peer.FromContext(ctx)
+		if !ok {
+			return nil, status.Error(codes.Internal, "couldn't extract peer")
+		}
+		peerAddr, ok := rawPeer.Addr.(*snet.UDPAddr)
+		if !ok {
+			return nil, status.Error(codes.Internal, "peer is not snet.UDPAddr")
+		}
+		req.Peer = peerAddr.IA
+	}
+
 	reply, err := s.Lookup.Segments(ctx, req)
 	if err != nil {
 		// TODO(lukedirtwalker): determine the proper error code here.
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	m := map[int32]*hspb.Segments{}
-	for _, meta := range reply {
-		s, ok := m[int32(meta.Type)]
+
+	return toHSPB(reply), nil
+}
+
+func toHSPB(input []*seg.Meta) *hspb.HiddenSegmentsResponse {
+	segments := make(map[int32]*hspb.Segments)
+	for _, meta := range input {
+		s, ok := segments[int32(meta.Type)]
 		if !ok {
 			s = &hspb.Segments{}
-			m[int32(meta.Type)] = s
+			segments[int32(meta.Type)] = s
 		}
 		s.Segments = append(s.Segments, seg.PathSegmentToPB(meta.Segment))
 	}
 	return &hspb.HiddenSegmentsResponse{
-		Segments: m,
-	}, nil
+		Segments: segments,
+	}
 }

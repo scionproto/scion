@@ -116,6 +116,14 @@ func (g *Group) Validate() error {
 	return nil
 }
 
+func (g *Group) GetRegistries() []addr.IA {
+	var ret []addr.IA
+	for k := range g.Registries {
+		ret = append(ret, k)
+	}
+	return ret
+}
+
 // Groups is a list of hidden path groups.
 type Groups map[GroupID]*Group
 

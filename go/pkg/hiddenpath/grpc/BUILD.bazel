@@ -45,7 +45,7 @@ go_test(
         "//go/lib/xtest/graph:go_default_library",
         "//go/pkg/grpc:go_default_library",
         "//go/pkg/hiddenpath:go_default_library",
-        "//go/pkg/hiddenpath/grpc/mock_grpc:go_default_library",
+        "//go/pkg/hiddenpath/mock_hiddenpath:go_default_library",
         "//go/pkg/proto/control_plane:go_default_library",
         "//go/pkg/proto/discovery:go_default_library",
         "//go/pkg/proto/discovery/mock_discovery:go_default_library",

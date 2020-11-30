@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "authoritative.go",
         "discovery.go",
+        "forwarder.go",
         "group.go",
         "registrationpolicy.go",
     ],
@@ -13,6 +14,7 @@ go_library(
     deps = [
         "//go/lib/addr:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
+        "//go/lib/log:go_default_library",
         "//go/lib/serrors:go_default_library",
         "@in_gopkg_yaml_v2//:go_default_library",
     ],
@@ -22,6 +24,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "authoritative_test.go",
+        "forwarder_test.go",
         "group_test.go",
         "registrationpolicy_test.go",
     ],
