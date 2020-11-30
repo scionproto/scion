@@ -16,12 +16,10 @@
 package topology
 
 import (
-	"fmt"
 	"net"
 	"testing"
 	"time"
 
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -382,28 +380,21 @@ func TestIFInfoMapCoreAS(t *testing.T) {
 func TestBRsCoreAS(t *testing.T) {
 	c := MustLoadTopo(t, "testdata/core.json")
 	brCases := []struct {
-		name    string
-		intfids []common.IFIDType
+		name       string
+		interfaces []common.IFIDType
 	}{
-		{name: "borderrouter6-ff00:0:362-1", intfids: []common.IFIDType{91}},
-		{name: "borderrouter6-ff00:0:362-9", intfids: []common.IFIDType{32}},
+		{name: "borderrouter6-ff00:0:362-1", interfaces: []common.IFIDType{91}},
+		{name: "borderrouter6-ff00:0:362-9", interfaces: []common.IFIDType{32}},
 	}
 	for _, test := range brCases {
-		Convey(fmt.Sprintf("Checking BR details for %s", test.name), t, func() {
-			Convey(fmt.Sprintf("Checking whether topo has a BR named %s", test.name), func() {
-				So(c.BR, ShouldContainKey, test.name)
-			})
-			for _, i := range test.intfids {
-				Convey(fmt.Sprintf("Checking if %s has interface with id %v", test.name, i),
-					func() {
-						So(c.BR[test.name].IFIDs, ShouldContain, i)
-					})
+		t.Run(test.name, func(t *testing.T) {
+			assert.Contains(t, c.BR, test.name)
+			for _, intf := range test.interfaces {
+				assert.Contains(t, c.BR[test.name].IFIDs, intf)
 			}
 		})
 	}
-	Convey("Checking if the number of BRs in the Topo is correct", t, func() {
-		So(len(c.BR), ShouldEqual, len(brCases))
-	})
+	assert.Equal(t, len(c.BR), len(brCases), "Mismatched number of BRs")
 }
 
 func TestCopy(t *testing.T) {
