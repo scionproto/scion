@@ -275,8 +275,13 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 					ConsIngress: uint16(inIF),
 					ConsEgress:  uint16(outIF),
 					MAC:         bytes.Repeat([]byte{uint8(i)}, 6),
+					HashEpicMac: bytes.Repeat([]byte{0xff}, 16),
 				},
 				IngressMTU: 1280,
+			},
+			Unsigned: seg.ASEntryUnsigned{
+				EpicHopMac:   bytes.Repeat([]byte{0xff}, 10),
+				EpicPeerMacs: make([][]byte, 0),
 			},
 		}
 
@@ -302,8 +307,11 @@ func (g *Graph) beacon(ifids []common.IFIDType, addStaticInfo bool) *seg.PathSeg
 						ConsIngress: uint16(peeringLocalIF),
 						ConsEgress:  uint16(outIF),
 						MAC:         bytes.Repeat([]byte{uint8(i)}, 6),
+						HashEpicMac: bytes.Repeat([]byte{0xff}, 16),
 					},
 				})
+				asEntry.Unsigned.EpicPeerMacs = append(asEntry.Unsigned.EpicPeerMacs,
+					(bytes.Repeat([]byte{0xff}, 10)))
 			}
 		}
 		if addStaticInfo {

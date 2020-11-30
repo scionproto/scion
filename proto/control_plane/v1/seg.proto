@@ -119,6 +119,20 @@ message ASEntry {
     //                           ps.as_entries[i-1].signed.signature
     //
     proto.crypto.v1.SignedMessage signed = 1;
+    // The unsigned part of the AS entry.
+    Unsigned unsigned = 2;
+}
+
+message Unsigned {
+    // EPIC: extended MAC of the hop entry
+    EpicMac epic_hop_mac = 1;
+    // EPIC: extended MACs of the peer entries
+    repeated EpicMac epic_peer_macs = 2;
+}
+
+message EpicMac {
+    // EPIC: remaining 10 bytes of the MAC
+    bytes epic_mac = 1;
 }
 
 message ASEntrySignedBody {
@@ -166,4 +180,6 @@ message HopField {
     uint32 exp_time = 3;
     // MAC used in the dataplane to verify the hop field.
     bytes mac = 4;
+    // Hash of the remaining 10 bytes of the MAC
+    bytes hash_epic_mac = 5;
 }

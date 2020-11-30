@@ -791,6 +791,7 @@ func AllocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId co
 					ConsIngress: uint16(peer.Ingress),
 					ConsEgress:  uint16(as.Egress),
 					MAC:         bytes.Repeat([]byte{0xff}, 6),
+					HashEpicMac: bytes.Repeat([]byte{0xff}, 16),
 				},
 			})
 		}
@@ -805,9 +806,18 @@ func AllocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId co
 					ConsIngress: uint16(as.Ingress),
 					ConsEgress:  uint16(as.Egress),
 					MAC:         bytes.Repeat([]byte{0xff}, 6),
+					HashEpicMac: bytes.Repeat([]byte{0xff}, 16),
 				},
 			},
 			PeerEntries: peers,
+			Unsigned: seg.ASEntryUnsigned{
+				EpicHopMac:   bytes.Repeat([]byte{0xff}, 10),
+				EpicPeerMacs: make([][]byte, 0),
+			},
+		}
+		for range peers {
+			entries[i].Unsigned.EpicPeerMacs = append(entries[i].Unsigned.EpicPeerMacs,
+				bytes.Repeat([]byte{0xff}, 10))
 		}
 	}
 

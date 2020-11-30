@@ -17,6 +17,7 @@ go_library(
     deps = [
         "//go/lib/addr:go_default_library",
         "//go/lib/ctrl/seg/extensions/staticinfo:go_default_library",
+        "//go/lib/log:go_default_library",
         "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/slayers/path:go_default_library",

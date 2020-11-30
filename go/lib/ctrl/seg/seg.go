@@ -28,6 +28,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
@@ -259,15 +260,17 @@ func (ps *PathSegment) AddASEntry(ctx context.Context, asEntry ASEntry, signer S
 		HopEntry: &cppb.HopEntry{
 			IngressMtu: uint32(asEntry.HopEntry.IngressMTU),
 			HopField: &cppb.HopField{
-				ExpTime: uint32(asEntry.HopEntry.HopField.ExpTime),
-				Ingress: uint64(asEntry.HopEntry.HopField.ConsIngress),
-				Egress:  uint64(asEntry.HopEntry.HopField.ConsEgress),
-				Mac:     asEntry.HopEntry.HopField.MAC,
+				ExpTime:     uint32(asEntry.HopEntry.HopField.ExpTime),
+				Ingress:     uint64(asEntry.HopEntry.HopField.ConsIngress),
+				Egress:      uint64(asEntry.HopEntry.HopField.ConsEgress),
+				Mac:         asEntry.HopEntry.HopField.MAC,
+				HashEpicMac: asEntry.HopEntry.HopField.HashEpicMac,
 			},
 		},
 		PeerEntries: make([]*cppb.PeerEntry, 0, len(asEntry.PeerEntries)),
 		Extensions:  extensionsToPB(asEntry.Extensions),
 	}
+
 	for _, peer := range asEntry.PeerEntries {
 		asEntryPB.PeerEntries = append(asEntryPB.PeerEntries,
 			&cppb.PeerEntry{
@@ -275,14 +278,16 @@ func (ps *PathSegment) AddASEntry(ctx context.Context, asEntry ASEntry, signer S
 				PeerInterface: uint64(peer.PeerInterface),
 				PeerMtu:       uint32(peer.PeerMTU),
 				HopField: &cppb.HopField{
-					ExpTime: uint32(peer.HopField.ExpTime),
-					Ingress: uint64(peer.HopField.ConsIngress),
-					Egress:  uint64(peer.HopField.ConsEgress),
-					Mac:     peer.HopField.MAC,
+					ExpTime:     uint32(peer.HopField.ExpTime),
+					Ingress:     uint64(peer.HopField.ConsIngress),
+					Egress:      uint64(peer.HopField.ConsEgress),
+					Mac:         peer.HopField.MAC,
+					HashEpicMac: peer.HopField.HashEpicMac,
 				},
 			},
 		)
 	}
+
 	rawASEntry, err := proto.Marshal(asEntryPB)
 	if err != nil {
 		return serrors.WrapStr("packing AS entry", err)
@@ -364,8 +369,24 @@ func PathSegmentToPB(ps *PathSegment) *cppb.PathSegment {
 		AsEntries:   make([]*cppb.ASEntry, 0, len(ps.ASEntries)),
 	}
 	for _, entry := range ps.ASEntries {
+		// Translate the unsigned part of the AS entry
+		unsigned := &cppb.Unsigned{
+			EpicHopMac:   &cppb.EpicMac{EpicMac: entry.Unsigned.EpicHopMac},
+			EpicPeerMacs: make([]*cppb.EpicMac, 0),
+		}
+		log.Debug("Translate EPIC hop Mac to PB", "mac", entry.Unsigned.EpicHopMac,
+			"length", len(entry.Unsigned.EpicHopMac))
+
+		for _, peer := range entry.Unsigned.EpicPeerMacs {
+			unsigned.EpicPeerMacs = append(unsigned.EpicPeerMacs,
+				&cppb.EpicMac{EpicMac: peer})
+			log.Debug("Translate EPIC peer Mac to PB", "mac", peer, "length", len(peer))
+		}
+		log.Debug("test", "unsigned", unsigned)
+
 		pb.AsEntries = append(pb.AsEntries, &cppb.ASEntry{
-			Signed: entry.Signed,
+			Signed:   entry.Signed,
+			Unsigned: unsigned,
 		})
 	}
 	return pb

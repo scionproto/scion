@@ -783,6 +783,7 @@ func AllocPathSegment(t *testing.T, ctrl *gomock.Controller, ifs []uint64,
 			ConsEgress:  uint16(ifs[2*i+1]),
 			ExpTime:     63,
 			MAC:         []byte{1, 2, 3, 4, 5, 6},
+			HashEpicMac: bytes.Repeat([]byte{0xff}, 16),
 		})
 	}
 
@@ -794,6 +795,10 @@ func AllocPathSegment(t *testing.T, ctrl *gomock.Controller, ifs []uint64,
 			HopEntry: seg.HopEntry{
 				IngressMTU: 1337,
 				HopField:   hops[0],
+			},
+			Unsigned: seg.ASEntryUnsigned{
+				EpicHopMac:   bytes.Repeat([]byte{0xff}, 10),
+				EpicPeerMacs: make([][]byte, 0),
 			},
 		},
 		{
@@ -812,12 +817,20 @@ func AllocPathSegment(t *testing.T, ctrl *gomock.Controller, ifs []uint64,
 					PeerMTU:       1337,
 				},
 			},
+			Unsigned: seg.ASEntryUnsigned{
+				EpicHopMac:   bytes.Repeat([]byte{0xff}, 10),
+				EpicPeerMacs: [][]uint8{bytes.Repeat([]byte{0xff}, 10)},
+			},
 		},
 		{
 			Local: ia332,
 			HopEntry: seg.HopEntry{
 				IngressMTU: 1337,
 				HopField:   hops[3],
+			},
+			Unsigned: seg.ASEntryUnsigned{
+				EpicHopMac:   bytes.Repeat([]byte{0xff}, 10),
+				EpicPeerMacs: make([][]byte, 0),
 			},
 		},
 	}

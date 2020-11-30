@@ -52,8 +52,13 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 					ConsEgress:  1,
 					ExpTime:     63,
 					MAC:         bytes.Repeat([]byte{0x11}, 6),
+					HashEpicMac: bytes.Repeat([]byte{0xff}, 16),
 				},
 				IngressMTU: 0,
+			},
+			Unsigned: ASEntryUnsigned{
+				EpicHopMac:   bytes.Repeat([]byte{0xff}, 10),
+				EpicPeerMacs: make([][]byte, 0),
 			},
 		},
 		{
@@ -66,8 +71,13 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 					ConsEgress:  11,
 					ExpTime:     63,
 					MAC:         bytes.Repeat([]byte{0x22}, 6),
+					HashEpicMac: bytes.Repeat([]byte{0xff}, 16),
 				},
 				IngressMTU: 1337,
+			},
+			Unsigned: ASEntryUnsigned{
+				EpicHopMac:   bytes.Repeat([]byte{0xff}, 10),
+				EpicPeerMacs: make([][]byte, 0),
 			},
 		},
 		{
@@ -80,8 +90,13 @@ func TestPathSegmentAddASEntry(t *testing.T) {
 					ConsEgress:  21,
 					ExpTime:     63,
 					MAC:         bytes.Repeat([]byte{0x33}, 6),
+					HashEpicMac: bytes.Repeat([]byte{0xff}, 16),
 				},
 				IngressMTU: 1442,
+			},
+			Unsigned: ASEntryUnsigned{
+				EpicHopMac:   bytes.Repeat([]byte{0xff}, 10),
+				EpicPeerMacs: make([][]byte, 0),
 			},
 		},
 	}
