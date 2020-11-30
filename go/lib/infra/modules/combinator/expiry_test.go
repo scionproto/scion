@@ -17,7 +17,7 @@ package combinator
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/slayers/path"
 )
@@ -67,14 +67,14 @@ func TestComputeSegmentExpTime(t *testing.T) {
 			ExpectedExpiration: 4295053695 - 128, // rounding error drift
 		},
 	}
-	Convey("Expiration values should be correct", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				computedExpiration := tc.Segment.ComputeExpTime()
-				So(computedExpiration.Unix(), ShouldEqual, tc.ExpectedExpiration)
-			})
-		}
-	})
+	t.Log("Expiration values should be correct")
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			computedExpiration := tc.Segment.ComputeExpTime()
+			assert.Equal(t, computedExpiration.Unix(), tc.ExpectedExpiration)
+		})
+
+	}
 }
 
 func buildTestSegment(timestamp uint32, ttls ...uint8) *segment {

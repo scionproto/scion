@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -81,22 +80,20 @@ func TestBadPeering(t *testing.T) {
 			},
 		},
 	}
-
-	Convey("main", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
-				txtResult := writePaths(result)
-				if *update {
-					err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
-					xtest.FailOnErr(t, err)
-				}
-				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+	t.Log("TestBadPeering")
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
+			txtResult := writePaths(result)
+			if *update {
+				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
-				SoMsg("result", txtResult.String(), ShouldEqual, string(expected))
-			})
-		}
-	})
+			}
+			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			assert.NoError(t, err)
+			assert.Equal(t, string(expected), txtResult.String())
+		})
+	}
 }
 
 func TestMultiPeering(t *testing.T) {
@@ -129,7 +126,7 @@ func TestMultiPeering(t *testing.T) {
 			},
 		},
 	}
-
+	t.Log("TestMultiPeering")
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
@@ -139,7 +136,7 @@ func TestMultiPeering(t *testing.T) {
 				xtest.FailOnErr(t, err)
 			}
 			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
-			xtest.FailOnErr(t, err)
+			assert.NoError(t, err)
 			assert.Equal(t, string(expected), txtResult.String())
 		})
 	}
@@ -172,22 +169,20 @@ func TestSameCoreParent(t *testing.T) {
 			},
 		},
 	}
-
-	Convey("main", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
-				txtResult := writePaths(result)
-				if *update {
-					err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
-					xtest.FailOnErr(t, err)
-				}
-				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+	t.Log("TestSameCoreParent")
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
+			txtResult := writePaths(result)
+			if *update {
+				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
-				SoMsg("result", txtResult.String(), ShouldEqual, string(expected))
-			})
-		}
-	})
+			}
+			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			assert.NoError(t, err)
+			assert.Equal(t, string(expected), txtResult.String())
+		})
+	}
 }
 
 func TestLoops(t *testing.T) {
@@ -225,21 +220,20 @@ func TestLoops(t *testing.T) {
 			},
 		},
 	}
-	Convey("TestLoops", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
-				txtResult := writePaths(result)
-				if *update {
-					err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
-					xtest.FailOnErr(t, err)
-				}
-				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+	t.Log("TestLoops")
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
+			txtResult := writePaths(result)
+			if *update {
+				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
-				SoMsg("result", txtResult.String(), ShouldEqual, string(expected))
-			})
-		}
-	})
+			}
+			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			assert.NoError(t, err)
+			assert.Equal(t, string(expected), txtResult.String())
+		})
+	}
 }
 
 func TestComputePath(t *testing.T) {
@@ -533,22 +527,20 @@ func TestComputePath(t *testing.T) {
 			},
 		},
 	}
-
-	Convey("main", t, func() {
-		for _, tc := range testCases {
-			Convey(tc.Name, func() {
-				result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
-				txtResult := writePaths(result)
-				if *update {
-					err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
-					xtest.FailOnErr(t, err)
-				}
-				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+	t.Log("TestComputePath")
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := combinator.Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs, false)
+			txtResult := writePaths(result)
+			if *update {
+				err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
 				xtest.FailOnErr(t, err)
-				SoMsg("result", txtResult.String(), ShouldEqual, string(expected))
-			})
-		}
-	})
+			}
+			expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+			assert.NoError(t, err)
+			assert.Equal(t, string(expected), txtResult.String())
+		})
+	}
 }
 func TestFilterDuplicates(t *testing.T) {
 	// Define three different path interface sequences for the test cases below.
