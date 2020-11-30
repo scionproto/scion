@@ -1,0 +1,27 @@
+groups:
+  ff00:0:110-69b5:
+    owner: 1-ff00:0:110
+    writers:
+    - 1-ff00:0:111
+    - 1-ff00:0:112
+    readers:
+    - 1-ff00:0:114
+    registries:
+    - 1-ff00:0:111
+    - 1-ff00:0:113
+  ff00:0:222-abcd:
+    owner: 1-ff00:0:222
+    writers:
+    - 1-ff00:0:111
+    - 1-ff00:0:112
+    readers:
+    - 1-ff00:0:114
+    registries:
+    - 1-ff00:0:115
+registration_policy_per_interface:
+  2:
+  - ff00:0:110-69b5
+  - ff00:0:222-abcd
+  - public
+  3:
+  - public

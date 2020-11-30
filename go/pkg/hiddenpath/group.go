@@ -15,9 +15,9 @@
 package hiddenpath
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -79,8 +79,6 @@ type Group struct {
 	// ID is a 64-bit unique identifier of the group. It is the concatenation of
 	// the owner AS number and a hex encoded 16-bit suffix.
 	ID GroupID
-	// Version is the version of the configuration.
-	Version uint
 	// Owner is the AS ID of the owner of the hidden path group. The Owner AS is
 	// responsible for maintaining the hidden path group configuration and
 	// distributing it to all entities that require it.
@@ -96,77 +94,10 @@ type Group struct {
 	Registries map[addr.IA]struct{}
 }
 
-// ParseGroup processes a raw string and returns a hiddenpath group object.
-// The raw string can be either json or yaml format.
-func ParseGroup(raw []byte) (*Group, error) {
-	type groupInfo struct {
-		ID         string   `yaml:"group_id" json:"group_id"`
-		Version    uint     `yaml:"version" json:"version"`
-		Owner      string   `yaml:"owner" json:"owner"`
-		Writers    []string `yaml:"writers" json:"writers"`
-		Readers    []string `yaml:"readers" json:"readers"`
-		Registries []string `yaml:"registries" json:"registries"`
-	}
-
-	info := &groupInfo{}
-	if err1 := json.Unmarshal(raw, info); err1 != nil {
-		if err2 := yaml.Unmarshal(raw, info); err2 != nil {
-			return nil, serrors.New("unknown format, neither yml or json",
-				"json", err1, "yml", err2)
-		}
-	}
-	id, err := ParseGroupID(info.ID)
-	if err != nil {
-		return nil, serrors.WrapStr("parsing group ID", err)
-
-	}
-	owner, err := addr.IAFromString(info.Owner)
-	if err != nil {
-		return nil, serrors.WrapStr("parsing owner", err)
-	}
-
-	ret := &Group{
-		ID:         id,
-		Version:    info.Version,
-		Owner:      owner,
-		Writers:    map[addr.IA]struct{}{},
-		Readers:    map[addr.IA]struct{}{},
-		Registries: map[addr.IA]struct{}{},
-	}
-
-	for _, w := range info.Writers {
-		ia, err := addr.IAFromString(w)
-		if err != nil {
-			return nil, err
-		}
-		ret.Writers[ia] = struct{}{}
-	}
-
-	for _, r := range info.Readers {
-		ia, err := addr.IAFromString(r)
-		if err != nil {
-			return nil, err
-		}
-		ret.Readers[ia] = struct{}{}
-	}
-
-	for _, r := range info.Registries {
-		ia, err := addr.IAFromString(r)
-		if err != nil {
-			return nil, err
-		}
-		ret.Registries[ia] = struct{}{}
-	}
-
-	return ret, nil
-}
-
+// Validate validates the group.
 func (g *Group) Validate() error {
-	if g.ID == (GroupID{}) {
+	if g.ID.ToUint64() == 0 {
 		return serrors.New("missing group id")
-	}
-	if g.Version == 0 {
-		return serrors.New("invalid version", "version", 0)
 	}
 	if g.Owner.IsZero() {
 		return serrors.New("missing owner")
@@ -185,19 +116,137 @@ func (g *Group) Validate() error {
 	return nil
 }
 
-// LoadHiddenPathGroups loads hiddenpath group configuration files.
-func LoadHiddenPathGroups(files []string) ([]*Group, error) {
-	var ret []*Group
-	for _, f := range files {
-		raw, err := ioutil.ReadFile(f)
+// Groups is a list of hidden path groups.
+type Groups map[GroupID]*Group
+
+// Validate validates all groups in the map.
+func (g Groups) Validate() error {
+	for _, group := range g {
+		if err := group.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// UnmarshalYAML implements the yaml unmarshaller for the Groups type.
+func (g Groups) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	yg := &registrationPolicyInfo{}
+	if err := unmarshal(&yg); err != nil {
+		return serrors.WrapStr("unmarshaling YAML", err)
+	}
+	if len(yg.Groups) == 0 {
+		return nil
+	}
+	groups, err := parseGroups(yg.Groups)
+	if err != nil {
+		return err
+	}
+	for id, group := range groups {
+		g[id] = group
+	}
+	return nil
+}
+
+// MarshalYAML implements yaml marshalling.
+func (g Groups) MarshalYAML() (interface{}, error) {
+	return &registrationPolicyInfo{
+		Groups: marshalGroups(g),
+	}, nil
+}
+
+// LoadHiddenPathGroups loads the hiddenpath groups configuration file.
+func LoadHiddenPathGroups(file string) (Groups, error) {
+	ret := make(Groups)
+	if file == "" {
+		return nil, nil
+	}
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, serrors.WrapStr("opening file", err)
+	}
+	defer f.Close()
+	if err := yaml.NewDecoder(f).Decode(&ret); err != nil {
+		return nil, serrors.WrapStr("parsing file", err, "file", file)
+	}
+	if err := ret.Validate(); err != nil {
+		return nil, serrors.WrapStr("validating", err, "file", f)
+	}
+	return ret, nil
+}
+
+type groupInfo struct {
+	Owner      string   `yaml:"owner,omitempty"`
+	Writers    []string `yaml:"writers,omitempty"`
+	Readers    []string `yaml:"readers,omitempty"`
+	Registries []string `yaml:"registries,omitempty"`
+}
+
+func parseGroups(groups map[string]*groupInfo) (Groups, error) {
+	result := make(Groups)
+	for rawID, rawGroup := range groups {
+		id, err := ParseGroupID(rawID)
+		if err != nil {
+			return nil, serrors.WrapStr("parsing group ID", err)
+		}
+		owner, err := addr.IAFromString(rawGroup.Owner)
+		if err != nil {
+			return nil, serrors.WrapStr("parsing owner", err, "group_id", id)
+		}
+		writers, err := stringsToIASet(rawGroup.Writers)
+		if err != nil {
+			return nil, serrors.WrapStr("parsing writer", err)
+		}
+		readers, err := stringsToIASet(rawGroup.Readers)
+		if err != nil {
+			return nil, serrors.WrapStr("parsing readers", err)
+		}
+		registries, err := stringsToIASet(rawGroup.Registries)
+		if err != nil {
+			return nil, serrors.WrapStr("parsing registries", err)
+		}
+		result[id] = &Group{
+			ID:         id,
+			Owner:      owner,
+			Writers:    writers,
+			Readers:    readers,
+			Registries: registries,
+		}
+	}
+	return result, nil
+}
+
+func marshalGroups(groups Groups) map[string]*groupInfo {
+	result := make(map[string]*groupInfo, len(groups))
+	for id, group := range groups {
+		result[id.String()] = &groupInfo{
+			Owner:      group.Owner.String(),
+			Writers:    iaSetToStrings(group.Writers),
+			Readers:    iaSetToStrings(group.Readers),
+			Registries: iaSetToStrings(group.Registries),
+		}
+	}
+	return result
+}
+
+func iaSetToStrings(ias map[addr.IA]struct{}) []string {
+	result := make([]string, 0, len(ias))
+	for ia := range ias {
+		result = append(result, ia.String())
+	}
+	// make consistent output.
+	sort.Strings(result)
+	return result
+}
+
+func stringsToIASet(rawIAs []string) (map[addr.IA]struct{}, error) {
+	result := make(map[addr.IA]struct{})
+	for _, rawIA := range rawIAs {
+		ia, err := addr.IAFromString(rawIA)
 		if err != nil {
 			return nil, err
 		}
-		g, err := ParseGroup(raw)
-		if err != nil {
-			return nil, serrors.WrapStr("parsing file", err, "file", f)
-		}
-		ret = append(ret, g)
+		result[ia] = struct{}{}
 	}
-	return ret, nil
+	return result, nil
 }

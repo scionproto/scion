@@ -48,26 +48,29 @@ func TestRequesterSegments(t *testing.T) {
 	go func() { s.Serve(lis) }()
 	defer s.Stop()
 
+	hpID := hiddenpath.GroupID{
+		OwnerAS: xtest.MustParseAS("ff00:0:2"),
+		Suffix:  15,
+	}
+	defaultGroups := hiddenpath.Groups{
+		hpID: {
+			ID: hpID,
+			Writers: map[addr.IA]struct{}{
+				xtest.MustParseIA("1-ff00:0:3"): {},
+			},
+		},
+	}
+
 	t.Run("cases", func(t *testing.T) {
 		testCases := map[string]struct {
-			hpGroups             []*hiddenpath.Group
+			hpGroups             hiddenpath.Groups
 			input                segfetcher.Request
 			prepareRegularLookup func(*gomock.Controller) segfetcher.RPC
 			want                 int
 			assertError          assert.ErrorAssertionFunc
 		}{
 			"dst in writers": {
-				hpGroups: []*hiddenpath.Group{
-					{
-						ID: hiddenpath.GroupID{
-							OwnerAS: xtest.MustParseAS("ff00:0:2"),
-							Suffix:  15,
-						},
-						Writers: map[addr.IA]struct{}{
-							xtest.MustParseIA("1-ff00:0:3"): {},
-						},
-					},
-				},
+				hpGroups: defaultGroups,
 				prepareRegularLookup: func(c *gomock.Controller) segfetcher.RPC {
 					ret := mock_segfetcher.NewMockRPC(c)
 					ret.EXPECT().Segments(gomock.Any(), gomock.Any(), gomock.Any()).
@@ -81,17 +84,7 @@ func TestRequesterSegments(t *testing.T) {
 				assertError: assert.NoError,
 			},
 			"dst not in writers": {
-				hpGroups: []*hiddenpath.Group{
-					{
-						ID: hiddenpath.GroupID{
-							OwnerAS: xtest.MustParseAS("ff00:0:2"),
-							Suffix:  15,
-						},
-						Writers: map[addr.IA]struct{}{
-							xtest.MustParseIA("1-ff00:0:3"): {},
-						},
-					},
-				},
+				hpGroups: defaultGroups,
 				prepareRegularLookup: func(c *gomock.Controller) segfetcher.RPC {
 					ret := mock_segfetcher.NewMockRPC(c)
 					ret.EXPECT().Segments(gomock.Any(), gomock.Any(), gomock.Any()).
@@ -105,17 +98,7 @@ func TestRequesterSegments(t *testing.T) {
 				assertError: assert.NoError,
 			},
 			"invalid": {
-				hpGroups: []*hiddenpath.Group{
-					{
-						ID: hiddenpath.GroupID{
-							OwnerAS: xtest.MustParseAS("ff00:0:2"),
-							Suffix:  15,
-						},
-						Writers: map[addr.IA]struct{}{
-							xtest.MustParseIA("1-ff00:0:3"): {},
-						},
-					},
-				},
+				hpGroups: defaultGroups,
 				prepareRegularLookup: func(c *gomock.Controller) segfetcher.RPC {
 					ret := mock_segfetcher.NewMockRPC(c)
 					ret.EXPECT().Segments(gomock.Any(), gomock.Any(), gomock.Any()).

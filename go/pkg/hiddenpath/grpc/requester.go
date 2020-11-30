@@ -34,7 +34,7 @@ type Requester struct {
 	Dialer libgrpc.Dialer
 	// HPGroups is used to fetch hidden segments when the destination IA belongs
 	// to the writers of a group configuration.
-	HPGroups []*hiddenpath.Group
+	HPGroups hiddenpath.Groups
 	// RegularLookup is the regular segment lookup.
 	RegularLookup segfetcher.RPC
 }

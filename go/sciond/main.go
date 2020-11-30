@@ -157,7 +157,7 @@ func run(file string) error {
 
 	hpGroups, err := hiddenpath.LoadHiddenPathGroups(cfg.SD.HiddenPathGroups)
 	if err != nil {
-		return err
+		return serrors.WrapStr("loading hidden path groups", err)
 	}
 	var requester segfetcher.RPC
 	requester = &segfetchergrpc.Requester{
