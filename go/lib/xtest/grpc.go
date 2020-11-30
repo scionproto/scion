@@ -17,6 +17,7 @@ package xtest
 import (
 	"context"
 	"net"
+	"testing"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
@@ -38,9 +39,9 @@ func (s *GRPCService) Server() *grpc.Server {
 	return s.server
 }
 
-func (s *GRPCService) Start() func() {
+func (s *GRPCService) Start(t *testing.T) {
 	go func() { s.server.Serve(s.listener) }()
-	return s.server.Stop
+	t.Cleanup(s.server.Stop)
 }
 
 func (s *GRPCService) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn, error) {

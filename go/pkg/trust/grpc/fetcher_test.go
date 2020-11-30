@@ -155,8 +155,7 @@ func TestFetcherChains(t *testing.T) {
 
 			svc := xtest.NewGRPCService()
 			cppb.RegisterTrustMaterialServiceServer(svc.Server(), tc.Server(mctrl))
-			stop := svc.Start()
-			defer stop()
+			svc.Start(t)
 
 			f := trustgrpc.Fetcher{Dialer: svc}
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -236,8 +235,7 @@ func TestFetcherTRC(t *testing.T) {
 
 			svc := xtest.NewGRPCService()
 			cppb.RegisterTrustMaterialServiceServer(svc.Server(), tc.Server(mctrl))
-			stop := svc.Start()
-			defer stop()
+			svc.Start(t)
 
 			f := trustgrpc.Fetcher{Dialer: svc}
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)

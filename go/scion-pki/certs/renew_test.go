@@ -159,8 +159,7 @@ func TestRenew(t *testing.T) {
 
 			svc := xtest.NewGRPCService()
 			cppb.RegisterChainRenewalServiceServer(svc.Server(), tc.Server(t, mctrl))
-			stop := svc.Start()
-			defer stop()
+			svc.Start(t)
 
 			chain, err := renew(context.Background(), csr, tc.Remote, signer, svc)
 			require.NoError(t, err)

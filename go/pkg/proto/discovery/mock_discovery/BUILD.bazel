@@ -1,0 +1,21 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+
+gomock(
+    name = "go_default_mock",
+    out = "mock.go",
+    interfaces = ["DiscoveryServiceServer"],
+    library = "//go/pkg/proto/discovery:go_default_library",
+    package = "mock_discovery",
+)
+
+go_library(
+    name = "go_default_library",
+    srcs = ["mock.go"],
+    importpath = "github.com/scionproto/scion/go/pkg/proto/discovery/mock_discovery",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/pkg/proto/discovery:go_default_library",
+        "@com_github_golang_mock//gomock:go_default_library",
+    ],
+)
