@@ -150,7 +150,7 @@ func run(file string) error {
 		Daemon:                   daemon,
 		InternalDevice:           tunnelIO,
 		RouteDevice:              tunnelLink,
-		RouteSource:              controlAddress.IP,
+		RouteSource:              dataAddress.IP,
 		ConfigReloadTrigger:      reloadConfigTrigger,
 		HTTPEndpoints:            httpPages,
 		HTTPServeMux:             http.DefaultServeMux,
