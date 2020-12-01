@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"io"
 	"net"
+	"sort"
 	"sync"
 	"time"
 
@@ -251,12 +252,20 @@ func buildRoutingChains(sessionConfigs []*SessionConfig) ([]*RoutingChain, map[i
 
 	// first we group by IA:
 	iaConfigs := make(map[addr.IA][]*SessionConfig)
+	var sortedIAs []addr.IA
 	for _, sc := range sessionConfigs {
+		if _, ok := iaConfigs[sc.IA]; !ok {
+			sortedIAs = append(sortedIAs, sc.IA)
+		}
 		iaConfigs[sc.IA] = append(iaConfigs[sc.IA], sc)
 	}
+	sort.Slice(sortedIAs, func(i, j int) bool {
+		return sortedIAs[i].IAInt() < sortedIAs[j].IAInt()
+	})
 	// For each prefix, compute the set of gateways that serves it. For each
 	// distinct gateway set we need a routing chain.
-	for ia, iaSessions := range iaConfigs {
+	for _, ia := range sortedIAs {
+		iaSessions := iaConfigs[ia]
 		// First for each prefix find the remote gateways that can be used
 		// to serve this prefix.
 		prefixToGWs := buildPrefixToGatewayMapping(iaSessions)
