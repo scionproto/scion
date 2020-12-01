@@ -49,6 +49,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
+	"os"
+	"strings"
 
 	"github.com/pelletier/go-toml"
 
@@ -204,4 +207,32 @@ func FormatData(s Sampler, a ...interface{}) Sampler {
 		Sampler: s,
 		data:    a,
 	}
+}
+
+// LoadResource returns an object suitable for reading based
+// on the resource specified by location.
+//
+// If location starts with "http://" or "https://", LoadResource
+// will issue an HTTP GET to retrieve the resource. Only the Body
+// of the reply can be read from the returned reader.
+//
+// If the location does not start with "http://" or "https://,
+// LoadResource interprets location as a file path and loads the resource
+// from disk.
+//
+// It is the caller's responsibility to close the returned reader.
+func LoadResource(location string) (io.ReadCloser, error) {
+	if strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://") {
+		response, err := http.Get(location)
+		if err != nil {
+			return nil, serrors.WrapStr("fetching config over HTTP", err)
+		}
+
+		return response.Body, nil
+	}
+	rc, err := os.Open(location)
+	if err != nil {
+		return nil, serrors.WrapStr("loading config from disk", err)
+	}
+	return rc, nil
 }

@@ -16,7 +16,6 @@ package hiddenpath
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,6 +23,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -164,21 +164,21 @@ func (g Groups) MarshalYAML() (interface{}, error) {
 }
 
 // LoadHiddenPathGroups loads the hiddenpath groups configuration file.
-func LoadHiddenPathGroups(file string) (Groups, error) {
+func LoadHiddenPathGroups(location string) (Groups, error) {
 	ret := make(Groups)
-	if file == "" {
+	if location == "" {
 		return nil, nil
 	}
-	f, err := os.Open(file)
+	c, err := config.LoadResource(location)
 	if err != nil {
 		return nil, serrors.WrapStr("opening file", err)
 	}
-	defer f.Close()
-	if err := yaml.NewDecoder(f).Decode(&ret); err != nil {
-		return nil, serrors.WrapStr("parsing file", err, "file", file)
+	defer c.Close()
+	if err := yaml.NewDecoder(c).Decode(&ret); err != nil {
+		return nil, serrors.WrapStr("parsing file", err, "file", location)
 	}
 	if err := ret.Validate(); err != nil {
-		return nil, serrors.WrapStr("validating", err, "file", f)
+		return nil, serrors.WrapStr("validating", err, "file", c)
 	}
 	return ret, nil
 }

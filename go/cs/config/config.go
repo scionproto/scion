@@ -298,6 +298,8 @@ type Policies struct {
 	// HiddenPathRegistration contains the file path for the hidden path registration policy
 	// and the corresponding hidden path groups.
 	// If this is the empty string, no hidden path functionality is used.
+	// If HiddenPathRegistration begins with http:// or https://, it will be fetched
+	// over the network from the specified URL instead.
 	HiddenPathRegistration string `toml:"hidden_path_registration,omitempty"`
 }
 

@@ -106,6 +106,8 @@ type SDConfig struct {
 	// for a destination should be refetched.
 	QueryInterval util.DurWrap `toml:"query_interval,omitempty"`
 	// HiddenPathGroup is a file that contains the hiddenpath groups.
+	// If HiddenPathGroups begins with http:// or https://, it will be fetched
+	// over the network from the specified URL instead.
 	HiddenPathGroups string `toml:"hidden_path_groups,omitempty"`
 }
 
