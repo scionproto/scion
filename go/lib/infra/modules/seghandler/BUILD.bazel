@@ -36,7 +36,6 @@ go_test(
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
-        "//go/lib/infra:go_default_library",
         "//go/lib/infra/modules/seghandler/mock_seghandler:go_default_library",
         "//go/lib/infra/modules/segverifier:go_default_library",
         "//go/lib/mocks/net/mock_net:go_default_library",

@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // PacketDispatcherService constructs SCION sockets where applications have
@@ -131,7 +130,7 @@ func (h DefaultSCMPHandler) Handle(pkt *Packet) error {
 func (h *DefaultSCMPHandler) handleSCMPRev(typeCode slayers.SCMPTypeCode,
 	revInfo *path_mgmt.RevInfo) error {
 
-	sRev, err := path_mgmt.NewSignedRevInfo(revInfo, nullSigner{})
+	sRev, err := path_mgmt.NewSignedRevInfo(revInfo)
 	if err != nil {
 		return serrors.WrapStr("creating signed rev info", err)
 	}
@@ -143,10 +142,4 @@ func (h *DefaultSCMPHandler) handleSCMPRev(typeCode slayers.SCMPTypeCode,
 		h.RevocationHandler.RevokeRaw(context.TODO(), raw)
 	}
 	return &OpError{typeCode: typeCode, revInfo: revInfo}
-}
-
-type nullSigner struct{}
-
-func (nullSigner) SignLegacy(context.Context, []byte) (*proto.SignS, error) {
-	return &proto.SignS{}, nil
 }

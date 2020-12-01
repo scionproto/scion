@@ -17,12 +17,10 @@
 package ctrl
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -39,16 +37,6 @@ func NewPld(u proto.Cerealizable, d *Data) (*Pld, error) {
 	return p, p.union.set(u)
 }
 
-// NewPathMgmtPld creates a new control payload, containing a new path_mgmt payload,
-// which in turn contains the supplied Cerealizable instance.
-func NewPathMgmtPld(u proto.Cerealizable, pathD *path_mgmt.Data, ctrlD *Data) (*Pld, error) {
-	ppld, err := path_mgmt.NewPld(u, pathD)
-	if err != nil {
-		return nil, err
-	}
-	return NewPld(ppld, ctrlD)
-}
-
 func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 	p := &Pld{Data: &Data{}}
 	return p, proto.ParseFromRaw(p, b)
@@ -56,21 +44,6 @@ func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 
 func (p *Pld) Union() (proto.Cerealizable, error) {
 	return p.union.get()
-}
-
-// GetPathMgmt returns the PathMgmt payload and the CtrlPld's non-union Data.
-// If the union type is not PathMgmt, an error is returned.
-func (p *Pld) GetPathMgmt() (*path_mgmt.Pld, *Data, error) {
-	u, err := p.Union()
-	if err != nil {
-		return nil, nil, err
-	}
-	pathP, ok := u.(*path_mgmt.Pld)
-	if !ok {
-		return nil, nil, common.NewBasicError("Non-matching ctrl pld contents", nil,
-			"expected", "*path_mgmt.Pld", "actual", common.TypeOf(u))
-	}
-	return pathP, p.Data, nil
 }
 
 func (p *Pld) Len() int {
@@ -90,10 +63,6 @@ func (p *Pld) Copy() (*Pld, error) {
 
 func (p *Pld) Write(b common.RawBytes) (int, error) {
 	return proto.WriteRoot(p, b)
-}
-
-func (p *Pld) SignedPld(ctx context.Context, signer Signer) (*SignedPld, error) {
-	return newSignedPld(ctx, p, signer)
 }
 
 func (p *Pld) ProtoId() proto.ProtoIdType {

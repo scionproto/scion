@@ -52,7 +52,6 @@ go_test(
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
-        "//go/lib/infra:go_default_library",
         "//go/lib/infra/modules/segfetcher/mock_segfetcher:go_default_library",
         "//go/lib/pathdb/mock_pathdb:go_default_library",
         "//go/lib/pathdb/query:go_default_library",

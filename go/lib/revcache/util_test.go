@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/mock_revcache"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -47,12 +46,12 @@ var (
 
 func TestFilterNew(t *testing.T) {
 	now := time.Now()
-	sr10, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifid10, now), infra.NullSigner)
+	sr10, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifid10, now))
 	xtest.FailOnErr(t, err)
-	sr11, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifid11, now), infra.NullSigner)
+	sr11, err := path_mgmt.NewSignedRevInfo(defaultRevInfo(ia110, ifid11, now))
 	xtest.FailOnErr(t, err)
 	sr11Old, err := path_mgmt.NewSignedRevInfo(
-		defaultRevInfo(ia110, ifid11, now.Add(-10*time.Second)), infra.NullSigner)
+		defaultRevInfo(ia110, ifid11, now.Add(-10*time.Second)))
 	xtest.FailOnErr(t, err)
 	Convey("TestFilterNew", t, func() {
 		ctrl := gomock.NewController(t)
@@ -119,7 +118,7 @@ func TestNoRevokedHopIntf(t *testing.T) {
 		})
 		Convey("Given a revcache with an on segment revocation", func() {
 			sRev, err := path_mgmt.NewSignedRevInfo(
-				defaultRevInfo(ia211, graph.If_210_X_211_A, now), infra.NullSigner)
+				defaultRevInfo(ia211, graph.If_210_X_211_A, now))
 			xtest.FailOnErr(t, err)
 			revCache.EXPECT().Get(gomock.Eq(ctx), gomock.Any()).Return(
 				revcache.Revocations{

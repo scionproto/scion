@@ -50,6 +50,7 @@ class GoMocks(cli.Application):
             print(rule)
             bf, wf = rule_to_file(rule)
             cmd.cp(bf, wf)
+            cmd.chmod("0644", wf)
 
 
 @GoMocks.subcommand("diff")
@@ -95,12 +96,14 @@ gomock(
     package = "mock_%s",
 )
 """ % (self.interfaces.split(","), self.package, name)
+        pathlib.Path(mock_path).mkdir(parents=True, exist_ok=True)
         pathlib.Path(mock_path / "BUILD.bazel").write_text(buildscript)
         mock_rule = "//%s:go_default_mock" % os.path.join(self.package, "mock_%s" % name)
         bazel = plumbum.local['bazel']
         bazel("build", mock_rule)
         bf, wf = rule_to_file(mock_rule)
         cmd.cp(bf, wf)
+        cmd.chmod("0644", wf)
         cmd.make("gazelle")
 
 

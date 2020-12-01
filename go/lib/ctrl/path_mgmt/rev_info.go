@@ -139,11 +139,6 @@ func (r *RevInfo) SameIntf(other *RevInfo) bool {
 		r.LinkType == other.LinkType
 }
 
-// Signer is used to sign raw bytes.
-type Signer interface {
-	SignLegacy(ctx context.Context, msg []byte) (*proto.SignS, error)
-}
-
 // Verifier is used to verify signatures.
 type Verifier interface {
 	// Verify verifies the packed signed revocation based on the signature meta
@@ -164,18 +159,14 @@ func NewSignedRevInfoFromRaw(b common.RawBytes) (*SignedRevInfo, error) {
 	return sr, proto.ParseFromRaw(sr, b)
 }
 
-func NewSignedRevInfo(r *RevInfo, signer Signer) (*SignedRevInfo, error) {
+func NewSignedRevInfo(r *RevInfo) (*SignedRevInfo, error) {
 	rawR, err := r.Pack()
-	if err != nil {
-		return nil, err
-	}
-	sign, err := signer.SignLegacy(context.TODO(), rawR)
 	if err != nil {
 		return nil, err
 	}
 	return &SignedRevInfo{
 		Blob:    rawR,
-		Sign:    sign,
+		Sign:    &proto.SignS{},
 		revInfo: r,
 	}, nil
 }

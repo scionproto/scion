@@ -16,25 +16,13 @@ package ctrl
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/proto"
 )
-
-// Signer takes a message and signs it, producing the signature metadata.
-type Signer interface {
-	SignLegacy(ctx context.Context, msg []byte) (*proto.SignS, error)
-}
-
-// Verifier verifies the signature of a signed payload.
-type Verifier interface {
-	VerifyPld(context.Context, *SignedPld) (*Pld, error)
-}
 
 const (
 	// versionLen is the length of a the encoded scrypto.Version.

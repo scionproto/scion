@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
@@ -328,7 +327,7 @@ func testCandidateBeacons(t *testing.T, db Testable, inTx bool) {
 					LinkType:     proto.LinkType_child,
 					RawTimestamp: util.TimeToSecs(time.Now().Add(-5 * time.Second)),
 					RawTTL:       10,
-				}, infra.NullSigner)
+				})
 				require.NoError(t, err)
 				InsertRevocation(t, db, sRev)
 			},
@@ -389,7 +388,7 @@ func testDeleteRevokedBeacons(t *testing.T, db Testable, inTx bool) {
 		LinkType:     proto.LinkType_child,
 		RawTimestamp: ts,
 		RawTTL:       10,
-	}, infra.NullSigner)
+	})
 	require.NoError(t, err)
 	srev2, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
 		IfID:         Info2[1].Ingress,
@@ -397,7 +396,7 @@ func testDeleteRevokedBeacons(t *testing.T, db Testable, inTx bool) {
 		LinkType:     proto.LinkType_child,
 		RawTimestamp: ts,
 		RawTTL:       10,
-	}, infra.NullSigner)
+	})
 	require.NoError(t, err)
 
 	tests := map[string]struct {
@@ -463,7 +462,7 @@ func testAllRevocations(t *testing.T, db Testable, inTx bool) {
 		LinkType:     proto.LinkType_child,
 		RawTimestamp: ts,
 		RawTTL:       10,
-	}, infra.NullSigner)
+	})
 	require.NoError(t, err)
 
 	tests := map[string]struct {
@@ -513,7 +512,7 @@ func testInsertUpdateRevocation(t *testing.T, _ *gomock.Controller, db beacon.DB
 		LinkType:     proto.LinkType_child,
 		RawTimestamp: ts,
 		RawTTL:       20,
-	}, infra.NullSigner)
+	})
 	require.NoError(t, err)
 	err = db.InsertRevocation(ctx, srev1)
 	require.NoError(t, err)
@@ -524,7 +523,7 @@ func testInsertUpdateRevocation(t *testing.T, _ *gomock.Controller, db beacon.DB
 		LinkType:     proto.LinkType_child,
 		RawTimestamp: ts + 1,
 		RawTTL:       10,
-	}, infra.NullSigner)
+	})
 	require.NoError(t, err)
 	err = db.InsertRevocation(ctx, srev2)
 	require.NoError(t, err)
@@ -548,7 +547,7 @@ func testDeleteRevocation2(t *testing.T, db Testable, inTx bool) {
 		LinkType:     proto.LinkType_child,
 		RawTimestamp: ts,
 		RawTTL:       10,
-	}, infra.NullSigner)
+	})
 	require.NoError(t, err)
 
 	tests := map[string]struct {
@@ -625,7 +624,7 @@ func testDeleteExpiredRevocations(t *testing.T, _ *gomock.Controller, db beacon.
 		LinkType:     proto.LinkType_child,
 		RawTimestamp: ts,
 		RawTTL:       10,
-	}, infra.NullSigner)
+	})
 	require.NoError(t, err)
 	InsertRevocation(t, db, srev1)
 	// non-expired revocation is not deleted.

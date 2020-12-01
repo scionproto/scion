@@ -20,7 +20,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // SignerGen generates signers.
@@ -31,15 +30,6 @@ type SignerGen interface {
 // RenewingSigner is a signer that automatically picks up new key/cert material.
 type RenewingSigner struct {
 	SignerGen SignerGen
-}
-
-// SignLegacy signs the message with the latest available Signer.
-func (s RenewingSigner) SignLegacy(ctx context.Context, msg []byte) (*proto.SignS, error) {
-	signer, err := s.SignerGen.Generate(ctx)
-	if err != nil {
-		return nil, serrors.WrapStr("failed to generate signer", err)
-	}
-	return signer.SignLegacy(ctx, msg)
 }
 
 // Sign signs the message with the latest available Signer.

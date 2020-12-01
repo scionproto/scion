@@ -18,48 +18,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
-	"github.com/scionproto/scion/go/proto"
 )
-
-var _ infra.ResourceHealth = (*mockResource)(nil)
-
-type mockResource struct {
-	name    string
-	healthy bool
-}
-
-func (r *mockResource) Name() string {
-	return r.name
-}
-
-func (r *mockResource) IsHealthy() bool {
-	return r.healthy
-}
-
-// TestResourceHealth tests that an unhealthy resource results in error replied.
-func TestResourceHealth(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	handler := infra.HandlerFunc(func(r *infra.Request) *infra.HandlerResult {
-		return nil
-	})
-	rHandler := infra.NewResourceAwareHandler(handler,
-		&mockResource{name: "tstFail", healthy: false})
-	rwMock := mock_infra.NewMockResponseWriter(ctrl)
-	ctx := infra.NewContextWithResponseWriter(context.Background(), rwMock)
-	rwMock.EXPECT().SendAckReply(gomock.Eq(ctx), gomock.Eq(&ack.Ack{
-		Err:     proto.Ack_ErrCode_reject,
-		ErrDesc: "Resource tstFail not healthy",
-	}))
-	req := infra.NewRequest(ctx, nil, nil, nil, 1)
-	rHandler.Handle(req)
-}
 
 func TestResponseWriterFromContext(t *testing.T) {
 	tests := map[string]struct {

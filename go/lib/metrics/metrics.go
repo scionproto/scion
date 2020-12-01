@@ -94,6 +94,20 @@ func GaugeSet(g Gauge, value float64) {
 	}
 }
 
+// GaugeAdd increases the passed in gauge by the amount specified.
+// This is a no-op if g is nil.
+func GaugeAdd(g Gauge, delta float64) {
+	if g != nil {
+		g.Add(delta)
+	}
+}
+
+// GaugeInc increases the passed in gauge by 1.
+// This is a no-op if g is nil.
+func GaugeInc(g Gauge) {
+	GaugeAdd(g, 1)
+}
+
 // GaugeWith returns a Gauge with the labels provided. Returns nil if g is nil.
 func GaugeWith(g Gauge, labelValues ...string) Gauge {
 	if g == nil {

@@ -22,7 +22,6 @@ go_library(
         "//go/pkg/proto/crypto:go_default_library",
         "//go/pkg/trust:go_default_library",
         "//go/pkg/trust/renewal:go_default_library",
-        "//go/proto:go_default_library",
     ],
 )
 

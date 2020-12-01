@@ -4,7 +4,6 @@ go_library(
     name = "go_default_library",
     srcs = [
         "ctrl.go",
-        "signed.go",
         "signed_util.go",
         "union.go",
     ],

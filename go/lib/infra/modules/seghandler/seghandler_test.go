@@ -24,7 +24,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler/mock_seghandler"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
@@ -83,7 +82,7 @@ func TestHandleAllVerificationsFail(t *testing.T) {
 		serrors.WrapStr("test err 3", segverifier.ErrSegment),
 		serrors.WrapStr("test err rev 1", segverifier.ErrRevocation),
 	}
-	rev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{}, infra.NullSigner)
+	rev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{})
 	xtest.FailOnErr(t, err)
 
 	storage := mock_seghandler.NewMockStorage(ctrl)
@@ -140,7 +139,7 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 	seg3 := &seghandler.SegWithHP{
 		Seg: &seg.Meta{Type: seg.TypeCore},
 	}
-	rev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{}, infra.NullSigner)
+	rev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{})
 	xtest.FailOnErr(t, err)
 	segs := seghandler.Segments{}
 	verified := make(chan segverifier.UnitResult, 3)

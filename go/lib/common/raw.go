@@ -18,8 +18,6 @@ import (
 	"fmt"
 )
 
-var _ Payload = (*RawBytes)(nil)
-
 type RawBytes []byte
 
 func (r RawBytes) String() string {
@@ -30,7 +28,7 @@ func (r RawBytes) Len() int {
 	return len(r)
 }
 
-func (r RawBytes) Copy() (Payload, error) {
+func (r RawBytes) Copy() (RawBytes, error) {
 	return append(RawBytes{}, r...), nil
 }
 

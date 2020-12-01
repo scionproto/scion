@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -304,7 +303,7 @@ func (s DaemonServer) notifyInterfaceDown(ctx context.Context,
 		RawTTL:       10,
 		RawTimestamp: util.TimeToSecs(time.Now()),
 	}
-	sRev, err := path_mgmt.NewSignedRevInfo(revInfo, infra.NullSigner)
+	sRev, err := path_mgmt.NewSignedRevInfo(revInfo)
 	if err != nil {
 		log.FromCtx(ctx).Error("Signing revocation", "err", err, "req", req)
 		return nil, metricsError{

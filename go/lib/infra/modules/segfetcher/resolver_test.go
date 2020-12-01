@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/pathdb/mock_pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
@@ -392,7 +391,7 @@ func TestResolverWithRevocations(t *testing.T) {
 
 	revoke := func(t *testing.T, revCache *mock_revcache.MockRevCache, key revcache.Key) {
 		ksMatcher := keySetContains{keys: []revcache.Key{key}}
-		srev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{}, infra.NullSigner)
+		srev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{})
 		require.NoError(t, err)
 		revCache.EXPECT().Get(gomock.Any(), ksMatcher).
 			Return(revcache.Revocations{key: srev}, nil)
@@ -448,7 +447,7 @@ func TestResolverWithRevocations(t *testing.T) {
 			ExpectRevcache: func(t *testing.T, revCache *mock_revcache.MockRevCache) {
 				key110 := revcache.Key{IA: core_110, IfId: graph.If_110_X_130_A}
 				ksMatcher := keySetContains{keys: []revcache.Key{key110}}
-				srev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{}, infra.NullSigner)
+				srev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{})
 				require.NoError(t, err)
 				revCache.EXPECT().Get(gomock.Any(), ksMatcher).Return(revcache.Revocations{
 					key110: srev,

@@ -141,6 +141,9 @@ network, i.e., on the internal interface.
 
 **Labels**: none
 
+.. note::
+   In the Anapaya EDGE Gateway this covers only those packets that match one of the configured prefixes.
+
 Received local IP packets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -150,6 +153,9 @@ Received local IP packets
 local network, i.e., on the internal interface.
 
 **Labels**: none
+
+.. note::
+   In the Anapaya EDGE Gateway this covers only those packets that match one of the configured prefixes.
 
 Sent frames
 ^^^^^^^^^^^
