@@ -41,17 +41,21 @@ type DBSegment struct {
 	GroupIDs []GroupID
 }
 
-// SegmentDBRead is the read interface to the hidden segment database.
-type SegmentDBRead interface {
+// SegmentDB is the interface to the hidden segment database.
+type SegmentDB interface {
+	// Get gets the segment that ends at the given IA, and is in one of the
+	// given hidden path groups.
 	Get(context.Context, addr.IA, []GroupID) ([]DBSegment, error)
+	// Put puts the given segments in the database.
+	Put(context.Context, []DBSegment) error
 }
 
 // AuthoritativeServer serves segments from the database.
 type AuthoritativeServer struct {
-	// Groups is used to get the current set of groups.
+	// Groups is the current set of groups.
 	Groups map[GroupID]*Group
 	// DB is used to read hidden segments.
-	DB SegmentDBRead
+	DB SegmentDB
 	// LocalIA is the ISD-AS this server is run in.
 	LocalIA addr.IA
 }
