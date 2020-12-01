@@ -28,8 +28,8 @@ var _ config.Config = (*Config)(nil)
 
 type Config struct {
 	Interface   string                        `toml:"interface"`
-	SCIONFolder string                        `toml:"scion_folder"`
-	SDConf      string                        `toml:"sd_conf"`
+	TopologyFolder string                     `toml:"topology_folder"`
+	TRCsFolder string                         `toml:"trcs_folder"`
 	MOCK        hinting.MOCKHintGeneratorConf `toml:"mock"`
 	DHCP        hinting.DHCPHintGeneratorConf `toml:"dhcp"`
 	DNSSD       hinting.DNSHintGeneratorConf  `toml:"dnssd"`
@@ -41,9 +41,11 @@ func (cfg *Config) InitDefaults() {
 	config.InitAll(
 		&cfg.Logging,
 	)
-
-	if cfg.SCIONFolder == "" {
-		cfg.SCIONFolder = "."
+	if cfg.TopologyFolder == "" {
+		cfg.TopologyFolder = "."
+	}
+	if cfg.TRCsFolder == "" {
+		cfg.TRCsFolder = "."
 	}
 }
 

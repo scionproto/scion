@@ -37,11 +37,12 @@ import (
 )
 
 const (
-	baseURL            = "scion/discovery/v1"
-	topologyEndpoint   = "/topology.json"
-	TRCsEndpoint       = "/trcs.tar"
-	httpRequestTimeout = 2 * time.Second
-	hintsTimeout       = 10 * time.Second
+	baseURL              = "scion/discovery/v1"
+	topologyEndpoint     = "/topology.json"
+	TRCsEndpoint         = "/trcs.tar"
+	TopologyJSONFileName = "topology.json"
+	httpRequestTimeout   = 2 * time.Second
+	hintsTimeout         = 10 * time.Second
 )
 
 type Bootstrapper struct {
@@ -87,10 +88,6 @@ OuterLoop:
 			if err != nil {
 				return err
 			}
-			err = generateSDConfig(cfg.SDConf)
-			if err != nil {
-				return err
-			}
 			err = pullTRCs(serverAddr)
 			if err != nil {
 				return err
@@ -126,7 +123,7 @@ func pullTopology(addr *net.TCPAddr) error {
 	if err != nil {
 		return common.NewBasicError("unable to parse RWTopology from JSON bytes", err)
 	}
-	topologyPath := path.Join(cfg.SCIONFolder, "topology.json")
+	topologyPath := path.Join(cfg.TopologyFolder, TopologyJSONFileName)
 	err = ioutil.WriteFile(topologyPath, raw, 0644)
 	if err != nil {
 		return common.NewBasicError("Bootstrapper could not store topology", err)
@@ -172,7 +169,7 @@ func pullTRCs(addr *net.TCPAddr) error {
 				continue
 			}
 			log.Info("Extracting TRC", "name", trcName)
-			trcPath := path.Join(cfg.SCIONFolder, "certs", trcName)
+			trcPath := path.Join(cfg.TRCsFolder, trcName)
 			f, err := os.OpenFile(trcPath, os.O_CREATE|os.O_RDWR, 0644)
 			if err != nil {
 				return common.NewBasicError("error creating file to store TRC", err)
@@ -208,24 +205,4 @@ func fetchHTTP(ctx context.Context, url string) (io.ReadCloser, error) {
 		return nil, common.NewBasicError("Status not OK", nil, "status", res.Status)
 	}
 	return res.Body, nil
-}
-
-func generateSDConfig(sdConf string) error {
-	if sdConf == "" {
-		return nil
-	}
-	srcConfFile, err := os.OpenFile(sdConf, os.O_RDONLY, 0644)
-	if err != nil {
-		return common.NewBasicError("error opening src sd conf file", err)
-	}
-	dstConfFile, err := os.OpenFile(path.Join(cfg.SCIONFolder, "sd.toml"),
-		os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return common.NewBasicError("error opening dest sd conf file", err)
-	}
-	_, err = io.Copy(dstConfFile, srcConfFile)
-	if err != nil {
-		return common.NewBasicError("error copying sd conf file", err)
-	}
-	return nil
 }

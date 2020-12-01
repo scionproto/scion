@@ -19,10 +19,10 @@ const idSample = "bootstrapper"
 const bootstrapperSample = `
 # The network interface to use (default "")
 interface = "NIC"
-# The folder where the SD files will be created (default "/etc/scion")
-scion_folder = "/etc/scion"
-# The SD configuration files to override the default one (default "")
-sd_conf = ""
+# The folder where the retrieved topology JSON file is stored (default ".")
+topology_folder = "."
+# The folder where the retrieved TRCs archive is extracted (default ".")
+trcs_folder = "."
 
 # Discovery mechanisms
 [mock]
