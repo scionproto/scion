@@ -15,11 +15,10 @@
 # limitations under the License.
 
 import logging
-import os
 import time
 
-from plumbum import cli, local
-from plumbum.cmd import docker, docker_compose, sed, tar
+import plumbum
+from plumbum import cmd
 
 from acceptance.common import base
 from acceptance.common import log
@@ -35,12 +34,13 @@ class Test(base.TestBase):
     """
     Tests that IP pinging between SIGs works.
     """
-    sig_acceptance = cli.SwitchAttr('sig_acceptance', str, default='./bin/sig_ping_acceptance',
-                                    help="The sig_ping_acceptance binary" +
-                                    " (default: ./bin/sig_ping_acceptance)")
+    sig_acceptance = plumbum.cli.SwitchAttr("sig_acceptance", str,
+                                            default="./bin/sig_ping_acceptance",
+                                            help="The sig_ping_acceptance binary" +
+                                            " (default: ./bin/sig_ping_acceptance)")
 
     def main(self):
-        print('artifacts dir: %s' % self.test_state.artifacts)
+        print("artifacts dir: %s" % self.test_state.artifacts)
         self._unpack_topo()
         if not self.nested_command:
             try:
@@ -51,41 +51,40 @@ class Test(base.TestBase):
 
     def _unpack_topo(self):
         # Unpack the topogen output, adapt SCIONROOT.
-        tar('-xf', './acceptance/sig_ping/gen.tar',
-            '-C', self.test_state.artifacts)
-        sed('-i', 's#$SCIONROOT#%s#g' % self.test_state.artifacts,
-            self.test_state.artifacts / 'gen/scion-dc.yml')
+        cmd.tar("-xf", "./acceptance/sig_ping/gen.tar",
+                "-C", self.test_state.artifacts)
+        cmd.sed("-i", "s#$SCIONROOT#%s#g" % self.test_state.artifacts,
+                self.test_state.artifacts / "gen/scion-dc.yml")
 
     def _docker_compose(self, *args) -> str:
-        with local.env(LOGNAME=os.environ['USER']):
-            return docker_compose('-f', self.test_state.artifacts / 'gen' / 'scion-dc.yml',
-                                  '-p', 'scion', *args)
+        return cmd.docker_compose("-f", self.test_state.artifacts / "gen" / "scion-dc.yml",
+                                  "-p", "scion", *args)
 
     def _setup(self):
         # First load the images
-        print(docker('image', 'load', '-i',
-              './acceptance/sig_ping/testcontainers.tar'))
+        print(cmd.docker("image", "load", "-i",
+              "./acceptance/sig_ping/testcontainers.tar"))
 
         # Start the topology, wait for everything to be ready.
-        print(self._docker_compose('up', '-d'))
+        print(self._docker_compose("up", "-d"))
         # Give some time, so revocation can be gone.
-        print('wait for topology to be ready')
+        print("wait for topology to be ready")
         time.sleep(20)
-        print(self._docker_compose('ps'))
-        print('setup done')
+        print(self._docker_compose("ps"))
+        print("setup done")
 
     def _run(self):
-        ping_test = local[self.sig_acceptance]
+        ping_test = plumbum.local[self.sig_acceptance]
 
-        print('Running ping test')
-        print(ping_test('-d', '-outDir', self.test_state.artifacts))
-        print('Ping done')
+        print("Running ping test")
+        print(ping_test("-d", "-outDir", self.test_state.artifacts))
+        print("Ping done")
 
     def _teardown(self):
-        logs = self._docker_compose('logs')
-        with open(self.test_state.artifacts / 'logs' / 'docker-compose.log', 'w') as f:
+        logs = self._docker_compose("logs")
+        with open(self.test_state.artifacts / "logs" / "docker-compose.log", "w") as f:
             f.write(logs)
-        print(self._docker_compose('down', '-v'))
+        print(self._docker_compose("down", "-v"))
 
 
 @Test.subcommand("setup")

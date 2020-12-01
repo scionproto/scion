@@ -1,0 +1,65 @@
+load("@io_bazel_rules_docker//container:container.bzl", "container_bundle")
+load("@rules_python//python:defs.bzl", "py_test")
+load("@pip3_deps//:requirements.bzl", "requirement")
+load("//python/topology:topology.bzl", "topology")
+
+py_library(
+    name = "test_lib",
+    srcs = ["test.py"],
+    data = [
+        ":hp_topology",
+        ":testcontainers.tar",
+        "//acceptance/hidden_paths/testdata:hp_groups_as2_as5.yml",
+        "//acceptance/hidden_paths/testdata:hp_groups_as3.yml",
+        "//acceptance/hidden_paths/testdata:hp_groups_as4.yml",
+    ],
+    deps = [
+        requirement("plumbum"),
+        "//acceptance/common:base",
+        "//acceptance/common:log",
+        "//acceptance/common:scion",
+        "//acceptance/common:tools",
+    ],
+)
+
+py_binary(
+    name = "test_setup",
+    srcs = ["test.py"],
+    args = ["setup"],
+    main = "test.py",
+    deps = [":test_lib"],
+)
+
+py_binary(
+    name = "test_teardown",
+    srcs = ["test.py"],
+    args = ["teardown"],
+    main = "test.py",
+    deps = [":test_lib"],
+)
+
+py_test(
+    name = "test",
+    size = "large",
+    srcs = ["test.py"],
+    args = [],
+    deps = [":test_lib"],
+)
+
+container_bundle(
+    name = "testcontainers",
+    images = {
+        "control:latest": "//docker:control_prod",
+        "daemon:latest": "//docker:daemon_prod",
+        "dispatcher:latest": "//docker:dispatcher_prod",
+        "posix-gateway:latest": "//docker:posix_gateway_prod",
+        "posix-router:latest": "//docker:posix_router_prod",
+        "tester:latest": "//docker:tester",
+    },
+)
+
+topology(
+    name = "hp_topology",
+    src = "//acceptance/hidden_paths/testdata:topology.topo",
+    out = "gen.tar",
+)

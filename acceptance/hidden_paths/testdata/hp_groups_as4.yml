@@ -1,0 +1,12 @@
+groups:
+  "ff00:0:2-4":
+    owner: "1-ff00:0:2"
+    writers:
+      - "1-ff00:0:4"
+    readers:
+      - "1-ff00:0:5"
+    registries:
+      - "1-ff00:0:2"
+registration_policy_per_interface:
+  1:
+    - "ff00:0:2-4"
