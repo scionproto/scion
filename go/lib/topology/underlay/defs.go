@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 type Type int
@@ -66,7 +66,7 @@ func TypeFromString(s string) (Type, error) {
 	case strings.ToLower(UDPIPv46Name):
 		return UDPIPv46, nil
 	default:
-		return Invalid, common.NewBasicError("Unknown underlay type", nil, "type", s)
+		return Invalid, serrors.New("Unknown underlay type", "type", s)
 	}
 }
 

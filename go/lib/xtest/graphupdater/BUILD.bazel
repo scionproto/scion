@@ -11,7 +11,7 @@ go_library(
     importpath = "github.com/scionproto/scion/go/lib/xtest/graphupdater",
     visibility = ["//visibility:private"],
     deps = [
-        "//go/lib/common:go_default_library",
+        "//go/lib/serrors:go_default_library",
         "//go/lib/xtest/graph:go_default_library",
         "@in_gopkg_yaml_v2//:go_default_library",
     ],

@@ -65,7 +65,7 @@ type Sender struct {
 func (s *Sender) Send(msg *Msg, nextHop *net.UDPAddr) error {
 	pkt, err := s.CreatePkt(msg)
 	if err != nil {
-		return common.NewBasicError("Unable to create packet", err)
+		return serrors.WrapStr("Unable to create packet", err)
 	}
 	return s.Conn.WriteTo(pkt, nextHop)
 }

@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -53,7 +54,7 @@ func ISDFromString(s string) (ISD, error) {
 	isd, err := strconv.ParseUint(s, 10, ISDBits)
 	if err != nil {
 		// err.Error() will contain the original value
-		return 0, common.NewBasicError("Unable to parse ISD", err)
+		return 0, serrors.WrapStr("Unable to parse ISD", err)
 	}
 	return ISD(isd), nil
 }
@@ -63,7 +64,7 @@ func ISDFromString(s string) (ISD, error) {
 func ISDFromFileFmt(s string, prefix bool) (ISD, error) {
 	if prefix {
 		if !strings.HasPrefix(s, ISDFmtPrefix) {
-			return 0, common.NewBasicError("prefix missing", nil, "prefix", ISDFmtPrefix, "raw", s)
+			return 0, serrors.New("prefix missing", "prefix", ISDFmtPrefix, "raw", s)
 		}
 		s = s[len(ISDFmtPrefix):]
 	}
@@ -93,7 +94,7 @@ func ASFromString(s string) (AS, error) {
 func ASFromFileFmt(s string, prefix bool) (AS, error) {
 	if prefix {
 		if !strings.HasPrefix(s, ASFmtPrefix) {
-			return 0, common.NewBasicError("prefix missing", nil, "prefix", ASFmtPrefix, "raw", s)
+			return 0, serrors.New("prefix missing", "prefix", ASFmtPrefix, "raw", s)
 		}
 		s = s[len(ASFmtPrefix):]
 	}
@@ -106,13 +107,13 @@ func asParse(s string, sep string) (AS, error) {
 		as, err := strconv.ParseUint(s, 10, BGPASBits)
 		if err != nil {
 			// err.Error() will contain the original value
-			return 0, common.NewBasicError("Unable to parse AS", err)
+			return 0, serrors.WrapStr("Unable to parse AS", err)
 		}
 		return AS(as), nil
 	}
 	parts := strings.Split(s, sep)
 	if len(parts) != asParts {
-		return 0, common.NewBasicError("unable to parse AS: wrong number of separators", nil,
+		return 0, serrors.New("unable to parse AS: wrong number of separators",
 			"expected", asParts, "actual", len(parts), "sep", sep, "raw", s)
 	}
 	var as AS
@@ -120,7 +121,7 @@ func asParse(s string, sep string) (AS, error) {
 		as <<= asPartBits
 		v, err := strconv.ParseUint(parts[i], asPartBase, asPartBits)
 		if err != nil {
-			return 0, common.NewBasicError("Unable to parse AS part", err, "raw", s)
+			return 0, serrors.WrapStr("Unable to parse AS part", err, "raw", s)
 		}
 		as |= AS(v)
 	}
@@ -165,7 +166,7 @@ func (as AS) inRange() bool {
 
 func (as AS) MarshalText() ([]byte, error) {
 	if !as.inRange() {
-		return nil, common.NewBasicError("invalid AS", nil, "max", MaxAS, "actual", as)
+		return nil, serrors.New("invalid AS", "max", MaxAS, "actual", as)
 	}
 	return []byte(as.String()), nil
 }
@@ -199,7 +200,7 @@ func IAFromRaw(b common.RawBytes) IA {
 func IAFromString(s string) (IA, error) {
 	parts := strings.Split(s, "-")
 	if len(parts) != 2 {
-		return IA{}, common.NewBasicError("Invalid ISD-AS", nil, "raw", s)
+		return IA{}, serrors.New("Invalid ISD-AS", "raw", s)
 	}
 	isd, err := ISDFromString(parts[0])
 	if err != nil {
@@ -216,7 +217,7 @@ func IAFromString(s string) (IA, error) {
 func IAFromFileFmt(s string, prefixes bool) (IA, error) {
 	parts := strings.Split(s, "-")
 	if len(parts) != 2 {
-		return IA{}, common.NewBasicError("Invalid ISD-AS", nil, "raw", s)
+		return IA{}, serrors.New("Invalid ISD-AS", "raw", s)
 	}
 	isd, err := ISDFromFileFmt(parts[0], prefixes)
 	if err != nil {

@@ -20,7 +20,6 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 )
 
 // SVCTable tracks SVC registrations.
@@ -101,7 +100,7 @@ func (t *svcTable) Register(svc addr.HostSVC, address *net.UDPAddr,
 		return nil, err
 	}
 	if svc == addr.SvcNone {
-		return nil, common.NewBasicError(ErrSvcNone, nil)
+		return nil, ErrSvcNone
 	}
 	// save a copy of the address to prevent callers from later affecting table
 	// state
@@ -213,13 +212,13 @@ func (t *svcTable) doCleanup(svc addr.HostSVC, ip net.IP, port *ring.Ring) {
 
 func validateUDPAddr(address *net.UDPAddr) error {
 	if address == nil {
-		return common.NewBasicError(ErrNilAddress, nil)
+		return ErrNilAddress
 	}
 	if address.IP.IsUnspecified() {
-		return common.NewBasicError(ErrZeroIP, nil)
+		return ErrZeroIP
 	}
 	if address.Port == 0 {
-		return common.NewBasicError(ErrZeroPort, nil)
+		return ErrZeroPort
 	}
 	return nil
 }
@@ -234,7 +233,7 @@ func (t unicastIpTable) insert(address *net.UDPAddr, value interface{}) (*ring.R
 	list, ok := t[str]
 	if ok {
 		if list.Find(address.Port) {
-			return nil, common.NewBasicError(ErrOverlappingAddress, nil)
+			return nil, ErrOverlappingAddress
 		}
 	} else {
 		list = newPortList()

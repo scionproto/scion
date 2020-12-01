@@ -15,6 +15,7 @@ go_library(
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/log:go_default_library",
+        "//go/lib/serrors:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
     ],
 )

@@ -216,7 +216,7 @@ func (cfg *BSConfig) Validate() error {
 		initDurWrap(&cfg.RevTTL, DefaultRevTTL)
 	}
 	if cfg.RevTTL.Duration < path_mgmt.MinRevTTL {
-		return common.NewBasicError("rev_ttl must be equal or greater than MinRevTTL", nil,
+		return serrors.New("rev_ttl must be equal or greater than MinRevTTL",
 			"MinRevTTL", path_mgmt.MinRevTTL)
 	}
 	if cfg.RevOverlap.Duration == 0 {

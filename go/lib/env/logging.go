@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -34,7 +34,7 @@ var (
 func LogAppStarted(svcType, elemID string) error {
 	inDocker, err := util.RunsInDocker()
 	if err != nil {
-		return common.NewBasicError("Unable to determine if running in docker", err)
+		return serrors.WrapStr("Unable to determine if running in docker", err)
 	}
 	info := fmt.Sprintf("=====================> Service started %s %s\n"+
 		"%s  %s\n  %s\n  %s\n  %s\n",

@@ -200,7 +200,7 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 		return err
 	}
 	if t.IA.IsWildcard() {
-		return common.NewBasicError("ISD-AS contains wildcard", nil, "isd_as", t.IA)
+		return serrors.New("ISD-AS contains wildcard", "isd_as", t.IA)
 	}
 	t.MTU = raw.MTU
 	t.Attributes = raw.Attributes
@@ -210,10 +210,10 @@ func (t *RWTopology) populateMeta(raw *jsontopo.Topology) error {
 func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 	for name, rawBr := range raw.BorderRouters {
 		if rawBr.CtrlAddr == "" {
-			return common.NewBasicError("Missing Control Address", nil, "br", name)
+			return serrors.New("Missing Control Address", "br", name)
 		}
 		if rawBr.InternalAddr == "" {
-			return common.NewBasicError("Missing Internal Address", nil, "br", name)
+			return serrors.New("Missing Internal Address", "br", name)
 		}
 		ctrlAddr, err := rawAddrToTopoAddr(rawBr.CtrlAddr)
 		if err != nil {
@@ -233,7 +233,7 @@ func (t *RWTopology) populateBR(raw *jsontopo.Topology) error {
 			var err error
 			// Check that ifid is unique
 			if _, ok := t.IFInfoMap[ifid]; ok {
-				return common.NewBasicError("IFID already exists", nil, "ID", ifid)
+				return serrors.New("IFID already exists", "ID", ifid)
 			}
 			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
 			ifinfo := IFInfo{
@@ -339,7 +339,7 @@ func (t *RWTopology) GetTopoAddr(id string, svc ServiceType) (*TopoAddr, error) 
 	}
 	topoAddr := svcInfo.idTopoAddrMap.GetByID(id)
 	if topoAddr == nil {
-		return nil, common.NewBasicError("Element not found", nil, "id", id)
+		return nil, serrors.New("Element not found", "id", id)
 	}
 	return topoAddr, nil
 }
@@ -541,14 +541,14 @@ func (i IFInfo) CheckLinks(isCore bool, brName string) error {
 		switch i.LinkType {
 		case Core, Child:
 		default:
-			return common.NewBasicError("Illegal link type for core AS", nil,
+			return serrors.New("Illegal link type for core AS",
 				"type", i.LinkType, "br", brName)
 		}
 	} else {
 		switch i.LinkType {
 		case Parent, Child, Peer:
 		default:
-			return common.NewBasicError("Illegal link type for non-core AS", nil,
+			return serrors.New("Illegal link type for non-core AS",
 				"type", i.LinkType, "br", brName)
 		}
 	}

@@ -25,8 +25,8 @@ import (
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 
 	"github.com/scionproto/scion/antlr/sequence"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -60,14 +60,14 @@ func NewSequence(s string) (*Sequence, error) {
 	listener := sequenceListener{}
 	antlr.ParseTreeWalkerDefault.Walk(&listener, parser.Start())
 	if errListener.msg != "" {
-		return nil, common.NewBasicError("Failed to parse a sequence", nil,
+		return nil, serrors.New("Failed to parse a sequence",
 			"sequence", s, "msg", errListener.msg)
 	}
 	restr := fmt.Sprintf("^%s$", listener.stack[0])
 	re, err := regexp.Compile(restr)
 	if err != nil {
 		// This should never happen. Sequence parser should produce a valid regexp.
-		return nil, common.NewBasicError("Error while parsing sequence regexp", err,
+		return nil, serrors.WrapStr("Error while parsing sequence regexp", err,
 			"regexp", restr)
 	}
 	return &Sequence{re: re, srcstr: s, restr: restr}, nil

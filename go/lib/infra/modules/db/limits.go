@@ -18,7 +18,7 @@ import (
 	"database/sql"
 	"strconv"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 var _ LimitSetter = (*sql.DB)(nil)
@@ -59,10 +59,10 @@ func SetConnLimits(cfg LimitConfig, db LimitSetter) {
 // ValidateConfigLimits validates connection limits on the given config map.
 func ValidateConfigLimits(cfg map[string]string) error {
 	if _, _, err := parsedInt(cfg, MaxOpenConnsKey); err != nil {
-		return common.NewBasicError("Invalid MaxOpenConns", nil, "value", cfg[MaxOpenConnsKey])
+		return serrors.New("Invalid MaxOpenConns", "value", cfg[MaxOpenConnsKey])
 	}
 	if _, _, err := parsedInt(cfg, MaxIdleConnsKey); err != nil {
-		return common.NewBasicError("Invalid MaxIdleConns", nil, "value", cfg[MaxIdleConnsKey])
+		return serrors.New("Invalid MaxIdleConns", "value", cfg[MaxIdleConnsKey])
 	}
 	return nil
 }

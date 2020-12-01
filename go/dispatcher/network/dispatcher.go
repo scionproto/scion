@@ -18,8 +18,8 @@ import (
 	"os"
 
 	"github.com/scionproto/scion/go/dispatcher/dispatcher"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -42,7 +42,7 @@ func (d *Dispatcher) ListenAndServe() error {
 	}
 	defer dispServerConn.Close()
 	if err := os.Chmod(d.ApplicationSocket, d.SocketFileMode); err != nil {
-		return common.NewBasicError("chmod failed", err, "socket file", d.ApplicationSocket)
+		return serrors.WrapStr("chmod failed", err, "socket file", d.ApplicationSocket)
 	}
 
 	errChan := make(chan error)

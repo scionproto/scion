@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -47,7 +46,7 @@ func NewSqlite(path string, schema string, schemaVersion int) (*sql.DB, error) {
 	var existingVersion int
 	err = db.QueryRow("PRAGMA user_version;").Scan(&existingVersion)
 	if err != nil {
-		return nil, common.NewBasicError("Failed to check schema version", err,
+		return nil, serrors.WrapStr("Failed to check schema version", err,
 			"path", path)
 	}
 	if existingVersion == 0 {
@@ -55,7 +54,7 @@ func NewSqlite(path string, schema string, schemaVersion int) (*sql.DB, error) {
 			return nil, err
 		}
 	} else if existingVersion != schemaVersion {
-		return nil, common.NewBasicError("Database schema version mismatch", nil,
+		return nil, serrors.New("Database schema version mismatch",
 			"expected", schemaVersion, "have", existingVersion, "path", path)
 	}
 	return db, nil
@@ -65,7 +64,7 @@ func open(path string) (*sql.DB, error) {
 	var err error
 	u, err := url.Parse(path)
 	if err != nil {
-		return nil, common.NewBasicError("invalid connection path", err, "path", path)
+		return nil, serrors.WrapStr("invalid connection path", err, "path", path)
 
 	}
 	q := u.Query()
@@ -77,7 +76,7 @@ func open(path string) (*sql.DB, error) {
 	path = u.String()
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
-		return nil, common.NewBasicError("Couldn't open SQLite database", err, "path", path)
+		return nil, serrors.WrapStr("Couldn't open SQLite database", err, "path", path)
 	}
 	// On future errors, close the sql database before exiting
 	defer func() {
@@ -87,23 +86,23 @@ func open(path string) (*sql.DB, error) {
 	}()
 	// Make sure DB is reachable
 	if err = db.Ping(); err != nil {
-		return nil, common.NewBasicError("Initial DB ping failed, connection broken?", err,
+		return nil, serrors.WrapStr("Initial DB ping failed, connection broken?", err,
 			"path", path)
 	}
 	// Ensure foreign keys are supported and enabled.
 	var enabled bool
 	err = db.QueryRow("PRAGMA foreign_keys;").Scan(&enabled)
 	if err == sql.ErrNoRows {
-		return nil, common.NewBasicError("Foreign keys not supported", err,
+		return nil, serrors.WrapStr("Foreign keys not supported", err,
 			"path", path)
 	}
 	if err != nil {
-		return nil, common.NewBasicError("Failed to check for foreign key support", err,
+		return nil, serrors.WrapStr("Failed to check for foreign key support", err,
 			"path", path)
 	}
 	if !enabled {
 		db.Close()
-		return nil, common.NewBasicError("Failed to enable foreign key support", nil,
+		return nil, serrors.New("Failed to enable foreign key support",
 			"path", path)
 	}
 	return db, nil
@@ -112,12 +111,12 @@ func open(path string) (*sql.DB, error) {
 func setup(db *sql.DB, schema string, schemaVersion int, path string) error {
 	_, err := db.Exec(schema)
 	if err != nil {
-		return common.NewBasicError("Failed to set up SQLite database", err, "path", path)
+		return serrors.WrapStr("Failed to set up SQLite database", err, "path", path)
 	}
 	// Write schema version to database.
 	_, err = db.Exec(fmt.Sprintf("PRAGMA user_version = %d", schemaVersion))
 	if err != nil {
-		return common.NewBasicError("Failed to write schema version", err, "path", path)
+		return serrors.WrapStr("Failed to write schema version", err, "path", path)
 	}
 	return nil
 }

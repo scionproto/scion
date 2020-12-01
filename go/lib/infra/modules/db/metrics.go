@@ -17,8 +17,8 @@ package db
 import (
 	"errors"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/prom"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // ErrToMetricLabel classifies the error into a label that can be used in metrics.
@@ -26,7 +26,7 @@ func ErrToMetricLabel(err error) string {
 	switch {
 	case err == nil:
 		return prom.Success
-	case common.IsTimeoutErr(err):
+	case serrors.IsTimeout(err):
 		return prom.ErrTimeout
 	case errors.Is(err, ErrInvalidInputData):
 		return "err_input_data_invalid"

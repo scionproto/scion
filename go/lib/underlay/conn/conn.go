@@ -218,37 +218,37 @@ func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cf
 	}
 	if raddr == nil {
 		if c, err = net.ListenUDP(network, laddr); err != nil {
-			return common.NewBasicError("Error listening on socket", err,
+			return serrors.WrapStr("Error listening on socket", err,
 				"network", network, "listen", laddr)
 		}
 	} else {
 		if c, err = net.DialUDP(network, laddr, raddr); err != nil {
-			return common.NewBasicError("Error setting up connection", err,
+			return serrors.WrapStr("Error setting up connection", err,
 				"network", network, "listen", laddr, "remote", raddr)
 		}
 	}
 	// Set reporting socket options
 	if err := sockctrl.SetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RXQ_OVFL, 1); err != nil {
-		return common.NewBasicError("Error setting SO_RXQ_OVFL socket option", err,
+		return serrors.WrapStr("Error setting SO_RXQ_OVFL socket option", err,
 			"listen", laddr, "remote", raddr)
 	}
 	if err := sockctrl.SetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_TIMESTAMPNS, 1); err != nil {
-		return common.NewBasicError("Error setting SO_TIMESTAMPNS socket option", err,
+		return serrors.WrapStr("Error setting SO_TIMESTAMPNS socket option", err,
 			"listen", laddr, "remote", raddr)
 	}
 	// Set and confirm receive buffer size
 	before, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
 	if err != nil {
-		return common.NewBasicError("Error getting SO_RCVBUF socket option (before)", err,
+		return serrors.WrapStr("Error getting SO_RCVBUF socket option (before)", err,
 			"listen", laddr, "remote", raddr)
 	}
 	if err = c.SetReadBuffer(cfg.getReceiveBufferSize()); err != nil {
-		return common.NewBasicError("Error setting recv buffer size", err,
+		return serrors.WrapStr("Error setting recv buffer size", err,
 			"listen", laddr, "remote", raddr)
 	}
 	after, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
 	if err != nil {
-		return common.NewBasicError("Error getting SO_RCVBUF socket option (after)", err,
+		return serrors.WrapStr("Error getting SO_RCVBUF socket option (after)", err,
 			"listen", laddr, "remote", raddr)
 	}
 	if after/2 != ReceiveBufferSize {
@@ -256,7 +256,7 @@ func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cf
 		ctx := []interface{}{"expected", ReceiveBufferSize, "actual", after / 2,
 			"before", before / 2}
 		if !*sizeIgnore {
-			return common.NewBasicError(common.ErrMsg(msg), nil, ctx...)
+			return serrors.New(msg, ctx...)
 		}
 		log.Info(msg, ctx...)
 	}

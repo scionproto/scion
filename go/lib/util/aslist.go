@@ -21,7 +21,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // ASList is a list of ISD-AS identifiers grouped by core and non-core.
@@ -35,12 +35,12 @@ type ASList struct {
 func LoadASList(fileName string) (*ASList, error) {
 	buffer, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to read from file", err, "name", fileName)
+		return nil, serrors.WrapStr("Unable to read from file", err, "name", fileName)
 	}
 	var asList ASList
 	err = yaml.Unmarshal(buffer, &asList)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to parse YAML data", err)
+		return nil, serrors.WrapStr("Unable to parse YAML data", err)
 	}
 	return &asList, nil
 }

@@ -47,7 +47,6 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/internal/metrics"
@@ -113,7 +112,7 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 	metrics.M.Listens().Inc()
 
 	if network != "udp" {
-		return nil, common.NewBasicError("Unknown network", nil, "network", network)
+		return nil, serrors.New("Unknown network", "network", network)
 	}
 
 	// FIXME(scrye): If no local address is specified, we want to

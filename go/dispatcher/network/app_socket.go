@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -101,18 +102,18 @@ func (h *AppConnHandler) doRegExchange(appServer *dispatcher.Server) (net.Packet
 
 	regInfo, err := h.recvRegistration(b)
 	if err != nil {
-		return nil, common.NewBasicError("registration message error", nil, "err", err)
+		return nil, serrors.New("registration message error", "err", err)
 	}
 	appConn, _, err := appServer.Register(nil,
 		regInfo.IA, regInfo.PublicAddress, regInfo.SVCAddress)
 	if err != nil {
-		return nil, common.NewBasicError("registration table error", nil, "err", err)
+		return nil, serrors.New("registration table error", "err", err)
 	}
 	udpAddr := appConn.(*dispatcher.Conn).LocalAddr().(*net.UDPAddr)
 	port := uint16(udpAddr.Port)
 	if err := h.sendConfirmation(b, &reliable.Confirmation{Port: port}); err != nil {
 		appConn.Close()
-		return nil, common.NewBasicError("confirmation message error", nil, "err", err)
+		return nil, serrors.New("confirmation message error", "err", err)
 	}
 	h.logRegistration(regInfo.IA, udpAddr, getBindIP(regInfo.BindAddress),
 		regInfo.SVCAddress)

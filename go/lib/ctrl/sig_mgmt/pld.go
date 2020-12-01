@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -49,7 +50,7 @@ func (u *union) set(c proto.Cerealizable) error {
 		u.Which = proto.SIGCtrl_Which_pollRep
 		u.PollRep = p
 	default:
-		return common.NewBasicError("Unsupported SIG ctrl union type (set)", nil,
+		return serrors.New("Unsupported SIG ctrl union type (set)",
 			"type", common.TypeOf(c))
 	}
 	return nil
@@ -62,7 +63,7 @@ func (u *union) get() (proto.Cerealizable, error) {
 	case proto.SIGCtrl_Which_pollRep:
 		return u.PollRep, nil
 	}
-	return nil, common.NewBasicError("Unsupported SIG ctrl union type (get)", nil,
+	return nil, serrors.New("Unsupported SIG ctrl union type (get)",
 		"type", u.Which)
 }
 

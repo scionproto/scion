@@ -20,6 +20,7 @@ import (
 	mrand "math/rand"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -50,12 +51,12 @@ func RandInt64() int64 {
 // Nonce takes an input length and returns a random nonce of the given length.
 func Nonce(l int) (common.RawBytes, error) {
 	if l <= 0 {
-		return nil, common.NewBasicError(ErrInvalidNonceSize, nil)
+		return nil, ErrInvalidNonceSize
 	}
 	nonce := make([]byte, l)
 	_, err := io.ReadFull(rand.Reader, nonce)
 	if err != nil {
-		return nil, common.NewBasicError(ErrUnableToGenerateNonce, err)
+		return nil, serrors.Wrap(ErrUnableToGenerateNonce, err)
 	}
 	return nonce, nil
 }

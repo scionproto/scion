@@ -24,7 +24,6 @@ import (
 	"github.com/lucas-clemente/quic-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -49,7 +48,7 @@ func Init(keyPath, pemPath string) error {
 	}
 	cert, err := tls.LoadX509KeyPair(pemPath, keyPath)
 	if err != nil {
-		return common.NewBasicError("squic: Unable to load TLS cert/key", err)
+		return serrors.WrapStr("squic: Unable to load TLS cert/key", err)
 	}
 	srvTlsCfg.Certificates = []tls.Certificate{cert}
 	return nil

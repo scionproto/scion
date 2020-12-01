@@ -327,7 +327,7 @@ func NewRouter(localIA addr.IA, sd env.SCIONDClient) (snet.Router, error) {
 		select {
 		case <-ticker.C:
 		case <-timer.C:
-			return nil, common.NewBasicError("Timed out during initial sciond connect", err)
+			return nil, serrors.WrapStr("Timed out during initial sciond connect", err)
 		}
 	}
 	return router, nil

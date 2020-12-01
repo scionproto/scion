@@ -20,6 +20,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/sig_mgmt"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -45,7 +46,7 @@ func (u *union) set(c proto.Cerealizable) error {
 		u.Which = proto.CtrlPld_Which_ack
 		u.Ack = p
 	default:
-		return common.NewBasicError("Unsupported ctrl union type (set)", nil,
+		return serrors.New("Unsupported ctrl union type (set)",
 			"type", common.TypeOf(c))
 	}
 	return nil
@@ -60,5 +61,5 @@ func (u *union) get() (proto.Cerealizable, error) {
 	case proto.CtrlPld_Which_ack:
 		return u.Ack, nil
 	}
-	return nil, common.NewBasicError("Unsupported ctrl union type (get)", nil, "type", u.Which)
+	return nil, serrors.New("Unsupported ctrl union type (get)", "type", u.Which)
 }

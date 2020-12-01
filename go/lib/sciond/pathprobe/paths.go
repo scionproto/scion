@@ -24,7 +24,6 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -122,11 +121,11 @@ func (p Prober) GetStatuses(ctx context.Context,
 	}
 	snetConn, err := network.Listen(ctx, "udp", &net.UDPAddr{IP: p.LocalIP}, addr.SvcNone)
 	if err != nil {
-		return nil, common.NewBasicError("listening failed", err)
+		return nil, serrors.WrapStr("listening failed", err)
 	}
 	defer snetConn.Close()
 	snetConn.SetDeadline(deadline)
-	var sendErrors common.MultiError
+	var sendErrors serrors.List
 	for _, path := range paths {
 		scmpH.setStatus(PathKey(path), timeout)
 		if err := p.send(snetConn, path); err != nil {
@@ -136,7 +135,7 @@ func (p Prober) GetStatuses(ctx context.Context,
 	if err := sendErrors.ToError(); err != nil {
 		return nil, err
 	}
-	var receiveErrors common.MultiError
+	var receiveErrors serrors.List
 	for i := len(scmpH.statuses); i > 0; i-- {
 		if err := p.receive(snetConn); err != nil {
 			receiveErrors = append(receiveErrors, err)
@@ -158,7 +157,7 @@ func (p Prober) send(scionConn *snet.Conn, path snet.Path) error {
 	log.Debug("Sending test packet.", "path", fmt.Sprintf("%s", path))
 	_, err := scionConn.WriteTo([]byte{}, addr)
 	if err != nil {
-		return common.NewBasicError("cannot send packet", err)
+		return serrors.WrapStr("cannot send packet", err)
 	}
 	return nil
 }
@@ -173,11 +172,11 @@ func (p Prober) receive(scionConn *snet.Conn) error {
 	if errors.Is(err, errBadHost) || errors.Is(err, errSCMP) {
 		return nil
 	}
-	if common.IsTimeoutErr(err) {
+	if serrors.IsTimeout(err) {
 		// Timeout expired before all replies were received.
 		return nil
 	}
-	return common.NewBasicError("failed to read packet", err)
+	return serrors.WrapStr("failed to read packet", err)
 }
 
 var errBadHost = errors.New("scmp: bad host")
@@ -218,7 +217,7 @@ func (h *scmpHandler) Handle(pkt *snet.Packet) error {
 func (h *scmpHandler) path(pkt *snet.Packet) (string, error) {
 	path := pkt.Path.Copy()
 	if err := path.Reverse(); err != nil {
-		return "", common.NewBasicError("unable to reverse path on received packet", err)
+		return "", serrors.WrapStr("unable to reverse path on received packet", err)
 	}
 	return string(path.Raw), nil
 }

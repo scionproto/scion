@@ -24,8 +24,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -57,6 +57,8 @@ func TestLocalRouterChooseServer(t *testing.T) {
 func TestCSRouterChooseServer(t *testing.T) {
 	ia110 := xtest.MustParseIA("1-ff00:0:110")
 	ia210 := xtest.MustParseIA("2-ff00:0:210")
+	dbErr := serrors.New("DB error")
+	routeErr := serrors.New("unable to route")
 
 	tests := map[string]struct {
 		ISD         addr.ISD
@@ -76,10 +78,10 @@ func TestCSRouterChooseServer(t *testing.T) {
 			ISD: 1,
 			Expect: func(_ *mock_trust.MockDB, r *mock_snet.MockRouter, p *mock_snet.MockPath) {
 				r.EXPECT().Route(gomock.Any(), addr.IA{I: 1}).Return(
-					nil, common.NewBasicError("unable to route", nil),
+					nil, routeErr,
 				)
 			},
-			ExpectedErr: common.NewBasicError("unable to route", nil),
+			ExpectedErr: routeErr,
 		},
 		"Remote ISD, Valid TRC": {
 			ISD: 2,
@@ -129,10 +131,10 @@ func TestCSRouterChooseServer(t *testing.T) {
 			Expect: func(db *mock_trust.MockDB, r *mock_snet.MockRouter, p *mock_snet.MockPath) {
 				db.EXPECT().SignedTRC(gomock.Any(),
 					cppki.TRCID{ISD: addr.ISD(2)}).Return(
-					cppki.SignedTRC{}, common.NewBasicError("DB error", nil),
+					cppki.SignedTRC{}, dbErr,
 				)
 			},
-			ExpectedErr: common.NewBasicError("DB error", nil),
+			ExpectedErr: dbErr,
 		},
 	}
 	for name, test := range tests {

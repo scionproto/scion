@@ -130,7 +130,7 @@ func (c *SCIONPacketConn) WriteTo(pkt *Packet, ov *net.UDPAddr) error {
 	// Send message
 	n, err := c.conn.WriteTo(pkt.Bytes, ov)
 	if err != nil {
-		return common.NewBasicError("Reliable socket write error", err)
+		return serrors.WrapStr("Reliable socket write error", err)
 	}
 	metrics.M.WriteBytes().Add(float64(n))
 	metrics.M.WritePackets().Inc()
@@ -172,7 +172,7 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 	n, lastHopNetAddr, err := c.conn.ReadFrom(pkt.Bytes)
 	if err != nil {
 		metrics.M.DispatcherErrors().Inc()
-		return common.NewBasicError("Reliable socket read error", err)
+		return serrors.WrapStr("Reliable socket read error", err)
 	}
 	metrics.M.ReadBytes().Add(float64(n))
 	metrics.M.ReadPackets().Inc()
@@ -183,7 +183,7 @@ func (c *SCIONPacketConn) readFrom(pkt *Packet, ov *net.UDPAddr) error {
 	var ok bool
 	lastHop, ok = lastHopNetAddr.(*net.UDPAddr)
 	if !ok {
-		return common.NewBasicError("Invalid lastHop address Type", nil,
+		return serrors.New("Invalid lastHop address Type",
 			"Actual", lastHopNetAddr)
 	}
 

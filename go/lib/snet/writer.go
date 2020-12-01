@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology/underlay"
 )
@@ -55,7 +56,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 
 	switch a := raddr.(type) {
 	case nil:
-		return 0, common.NewBasicError("Missing remote address", nil)
+		return 0, serrors.New("Missing remote address")
 	case *UDPAddr:
 		dst, port, path = SCIONAddress{IA: a.IA, Host: addr.HostFromIP(a.Host.IP)},
 			a.Host.Port, a.Path
@@ -72,7 +73,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 		dst, port, path = SCIONAddress{IA: a.IA, Host: a.SVC}, 0, a.Path
 		nextHop = a.NextHop
 	default:
-		return 0, common.NewBasicError("Unable to write to non-SCION address", nil,
+		return 0, serrors.New("Unable to write to non-SCION address",
 			"addr", fmt.Sprintf("%v(%T)", a, a))
 	}
 

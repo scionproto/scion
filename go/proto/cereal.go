@@ -23,6 +23,7 @@ import (
 	"zombiezen.com/go/capnproto2/pogs"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -50,7 +51,7 @@ func WriteRoot(c Cerealizable, b common.RawBytes) (int, error) {
 	raw := &util.Raw{B: b}
 	enc := capnp.NewPackedEncoder(raw)
 	if err := enc.Encode(msg); err != nil {
-		return 0, common.NewBasicError("Failed to encode capnp struct", err,
+		return 0, serrors.WrapStr("Failed to encode capnp struct", err,
 			"id", c.ProtoId(), "type", common.TypeOf(c))
 	}
 	return raw.Offset, nil
@@ -64,7 +65,7 @@ func PackRoot(c Cerealizable) (common.RawBytes, error) {
 	}
 	raw, err := msg.MarshalPacked()
 	if err != nil {
-		return nil, common.NewBasicError("Failed to marshal capnp struct", err,
+		return nil, serrors.WrapStr("Failed to marshal capnp struct", err,
 			"id", c.ProtoId(), "type", common.TypeOf(c))
 	}
 	return raw, nil
@@ -85,7 +86,7 @@ func SerializeTo(c Cerealizable, wr io.Writer) error {
 func cerealInsert(c Cerealizable) (*capnp.Message, error) {
 	msg, arena, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
-		return nil, common.NewBasicError("Failed to create new capnp message", err,
+		return nil, serrors.WrapStr("Failed to create new capnp message", err,
 			"id", c.ProtoId(), "type", common.TypeOf(c))
 	}
 	s, err := NewRootStruct(c.ProtoId(), arena)
@@ -93,7 +94,7 @@ func cerealInsert(c Cerealizable) (*capnp.Message, error) {
 		return nil, err
 	}
 	if err := pogs.Insert(uint64(c.ProtoId()), s, c); err != nil {
-		return nil, common.NewBasicError("Failed to insert struct into capnp message", err,
+		return nil, serrors.WrapStr("Failed to insert struct into capnp message", err,
 			"id", c.ProtoId(), "type", common.TypeOf(c))
 	}
 	return msg, nil
@@ -118,11 +119,11 @@ func readRootFromReader(r io.Reader) (capnp.Struct, error) {
 	var blank capnp.Struct
 	msg, err := SafeDecode(capnp.NewPackedDecoder(r))
 	if err != nil {
-		return blank, common.NewBasicError("Failed to decode capnp message", err)
+		return blank, serrors.WrapStr("Failed to decode capnp message", err)
 	}
 	rootPtr, err := msg.RootPtr()
 	if err != nil {
-		return blank, common.NewBasicError("Failed to get root pointer from capnp message", err)
+		return blank, serrors.WrapStr("Failed to get root pointer from capnp message", err)
 	}
 	return rootPtr.Struct(), nil
 }
@@ -131,7 +132,7 @@ func readRootFromReader(r io.Reader) (capnp.Struct, error) {
 func SafeExtract(val interface{}, typeID uint64, s capnp.Struct) (err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
-			err = common.NewBasicError("pogs panic", nil, "panic", rec)
+			err = serrors.New("pogs panic", "panic", rec)
 		}
 	}()
 	return pogsExtractF(val, typeID, s)
@@ -145,7 +146,7 @@ func SafeDecode(decoder *capnp.Decoder) (msg *capnp.Message, err error) {
 	// FIXME(scrye): Add unit tests for this function.
 	defer func() {
 		if rec := recover(); rec != nil {
-			msg, err = nil, common.NewBasicError("decode panic", nil, "panic", rec)
+			msg, err = nil, serrors.New("decode panic", "panic", rec)
 		}
 	}()
 	return decoder.Decode()

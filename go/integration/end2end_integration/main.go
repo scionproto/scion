@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -265,7 +264,7 @@ func getPairs() ([]integration.IAPair, error) {
 	}
 	parts := strings.Split(subset, "#")
 	if len(parts) != 2 {
-		return nil, common.NewBasicError("Invalid subset", nil, "subset", subset)
+		return nil, serrors.New("Invalid subset", "subset", subset)
 	}
 	return filter(parts[0], parts[1], pairs, integration.ASList), nil
 }

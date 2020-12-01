@@ -23,6 +23,7 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -37,11 +38,11 @@ var (
 func InitMac(key []byte) (hash.Hash, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, common.NewBasicError(ErrCipherFailure, err)
+		return nil, serrors.Wrap(ErrCipherFailure, err)
 	}
 	mac, err := cmac.New(block)
 	if err != nil {
-		return nil, common.NewBasicError(ErrMacFailure, err)
+		return nil, serrors.Wrap(ErrMacFailure, err)
 	}
 	return mac, nil
 }

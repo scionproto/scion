@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // UDPPortTable stores port allocations for UDP/IPv4 and UDP/IPv6 sockets.
@@ -74,10 +74,10 @@ func (t *UDPPortTable) overlapsWith(address *net.UDPAddr) bool {
 // entry overlaps, or if the value is nil.
 func (t *UDPPortTable) Insert(address *net.UDPAddr, value interface{}) (*net.UDPAddr, error) {
 	if t.overlapsWith(address) {
-		return nil, common.NewBasicError(ErrOverlappingAddress, nil, "address", address)
+		return nil, serrors.WithCtx(ErrOverlappingAddress, "address", address)
 	}
 	if value == nil {
-		return nil, common.NewBasicError(ErrNoValue, nil)
+		return nil, ErrNoValue
 	}
 	address = copyUDPAddr(address)
 	newAddress, err := t.computeAddressWithPort(address)
@@ -211,5 +211,5 @@ func (a *UDPPortAllocator) Allocate(ip net.IP, t *UDPPortTable) (int, error) {
 			return candidate.Port, nil
 		}
 	}
-	return 0, common.NewBasicError(ErrNoPorts, nil)
+	return 0, ErrNoPorts
 }

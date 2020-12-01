@@ -19,14 +19,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // RunsInDocker returns whether the current binary is run in a docker container.
 func RunsInDocker() (bool, error) {
 	f, err := os.Open("/proc/self/cgroup")
 	if err != nil {
-		return false, common.NewBasicError("Failed to open /proc/self/cgroup", err)
+		return false, serrors.WrapStr("Failed to open /proc/self/cgroup", err)
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)

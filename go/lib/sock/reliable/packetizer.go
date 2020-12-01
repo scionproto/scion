@@ -19,7 +19,7 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // ReadPacketizer splits a stream of reliable socket frames into packets.
@@ -43,7 +43,7 @@ func (r *ReadPacketizer) Read(b []byte) (int, error) {
 	for {
 		if packet := r.haveNextPacket(r.data); packet != nil {
 			if len(packet) > len(b) {
-				return 0, common.NewBasicError(ErrBufferTooSmall, nil,
+				return 0, serrors.WithCtx(ErrBufferTooSmall,
 					"have", len(b), "want", len(packet))
 			}
 			copy(b, packet)

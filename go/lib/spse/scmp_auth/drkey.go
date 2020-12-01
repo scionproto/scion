@@ -31,6 +31,7 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spse"
 )
 
@@ -94,7 +95,7 @@ func NewDRKeyExtn() *DRKeyExtn {
 
 func (s DRKeyExtn) SetDirection(dir Dir) error {
 	if dir > HostToHostReversed {
-		return common.NewBasicError("Invalid direction", nil, "dir", dir)
+		return serrors.New("Invalid direction", "dir", dir)
 	}
 	s.Direction = dir
 	return nil
@@ -102,7 +103,7 @@ func (s DRKeyExtn) SetDirection(dir Dir) error {
 
 func (s DRKeyExtn) SetMAC(mac common.RawBytes) error {
 	if len(mac) != MACLength {
-		return common.NewBasicError("Invalid MAC size", nil,
+		return serrors.New("Invalid MAC size",
 			"expected", MACLength, "actual", len(mac))
 	}
 	copy(s.MAC, mac)
@@ -111,7 +112,7 @@ func (s DRKeyExtn) SetMAC(mac common.RawBytes) error {
 
 func (s *DRKeyExtn) Write(b common.RawBytes) error {
 	if len(b) < s.Len() {
-		return common.NewBasicError("Buffer too short", nil,
+		return serrors.New("Buffer too short",
 			"method", "SCMPAuthDRKeyExtn.Write", "expected", s.Len(), "actual", len(b))
 	}
 	b[0] = uint8(s.SecMode)

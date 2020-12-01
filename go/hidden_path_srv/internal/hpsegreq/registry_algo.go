@@ -17,7 +17,7 @@ package hpsegreq
 import (
 	"github.com/scionproto/scion/go/hidden_path_srv/internal/hiddenpath"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // GroupInfo holds all information about hidden path groups needed by the HPS
@@ -86,12 +86,12 @@ func (gi *GroupInfo) CheckIds(ids hiddenpath.GroupIdSet) error {
 	for id := range ids {
 		group, ok := gi.Groups[id]
 		if !ok {
-			return common.NewBasicError("Unknown group",
-				nil, "group", id)
+			return serrors.New("Unknown group",
+				"group", id)
 		}
 		if len(group.Registries) == 0 {
-			return common.NewBasicError("Group does not have any Registries",
-				nil, "group", id)
+			return serrors.New("Group does not have any Registries",
+				"group", id)
 		}
 	}
 	return nil

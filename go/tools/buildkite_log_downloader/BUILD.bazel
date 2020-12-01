@@ -7,7 +7,7 @@ go_library(
     importpath = "github.com/scionproto/scion/go/tools/buildkite_log_downloader",
     visibility = ["//visibility:private"],
     deps = [
-        "//go/lib/common:go_default_library",
+        "//go/lib/serrors:go_default_library",
         "@com_github_buildkite_go_buildkite//buildkite:go_default_library",
     ],
 )

@@ -128,10 +128,10 @@ func (t *iaTable) Register(ia addr.IA, public *net.UDPAddr, bind net.IP, svc add
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 	if ia.I == 0 {
-		return nil, common.NewBasicError(ErrBadISD, nil)
+		return nil, ErrBadISD
 	}
 	if ia.A == 0 {
-		return nil, common.NewBasicError(ErrBadAS, nil)
+		return nil, ErrBadAS
 	}
 	table, ok := t.ia[ia]
 	if !ok {

@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -45,7 +45,7 @@ var durationRE = regexp.MustCompile("^([0-9]+)(y|w|d|h|m|s|ms|us|µs|ns)$")
 func ParseDuration(durationStr string) (time.Duration, error) {
 	matches := durationRE.FindStringSubmatch(durationStr)
 	if len(matches) != 3 {
-		return 0, common.NewBasicError("Invalid duration string", nil, "val", durationStr)
+		return 0, serrors.New("Invalid duration string", "val", durationStr)
 	}
 	var (
 		n, _ = strconv.Atoi(matches[1])
@@ -71,7 +71,7 @@ func ParseDuration(durationStr string) (time.Duration, error) {
 	case "ns":
 		// Value already correct
 	default:
-		return 0, common.NewBasicError("Invalid time unit in duration string", nil,
+		return 0, serrors.New("Invalid time unit in duration string",
 			"unit", unit, "val", durationStr)
 	}
 	return dur, nil

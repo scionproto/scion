@@ -94,8 +94,7 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 		// Extract path
 		remote.Path = pkt.Path.Copy()
 		if err = remote.Path.Reverse(); err != nil {
-			return 0, nil,
-				common.NewBasicError("Unable to reverse path on received packet", err)
+			return 0, nil, serrors.WrapStr("Unable to reverse path on received packet", err)
 		}
 
 		// Copy the address to prevent races. See
@@ -114,7 +113,7 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 		remote.Host = &net.UDPAddr{IP: append(ip[:0:0], ip...), Port: int(l4i)}
 		return n, remote, err
 	}
-	return 0, nil, common.NewBasicError("Unknown network", nil, "net", c.base.net)
+	return 0, nil, serrors.New("Unknown network", "net", c.base.net)
 }
 
 func (c *scionConnReader) SetReadDeadline(t time.Time) error {

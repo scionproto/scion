@@ -16,7 +16,6 @@
 package common
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -46,127 +45,12 @@ func GetNestedError(e error) error {
 	return nil
 }
 
-// Temporary allows signalling of a temporary error. Based on https://golang.org/pkg/net/#Error
-type Temporary interface {
-	error
-	Temporary() bool
-}
-
-// IsTemporaryErr determines if e is a temporary Error. As a fall-back, if e implements ErrorNester,
-// IsTemporaryErr recurses on the nested error. Otherwise returns false.
-func IsTemporaryErr(e error) bool {
-	if t, _ := e.(Temporary); t != nil {
-		return t.Temporary()
-	}
-	if n := GetNestedError(e); n != nil {
-		return IsTemporaryErr(n)
-	}
-	return false
-}
-
-// Timeout allows signalling of a timeout error. Based on https://golang.org/pkg/net/#Error
-type Timeout interface {
-	error
-	Timeout() bool
-}
-
-// IsTimeoutErr determines if e is a temporary Error. As a fall-back, if e implements ErrorNester,
-// IsTimeoutErr recurses on the nested error. Otherwise returns false.
-func IsTimeoutErr(e error) bool {
-	if t, _ := e.(Timeout); t != nil {
-		return t.Timeout()
-	}
-	if n := GetNestedError(e); n != nil {
-		return IsTimeoutErr(n)
-	}
-	return false
-}
-
 // ErrMsg should be used for error string constants. The constant can then be
 // used for Is checking in the calling code.
 type ErrMsg string
 
 func (e ErrMsg) Error() string {
 	return string(e)
-}
-
-var _ ErrorMsger = BasicError{}
-var _ ErrorNester = BasicError{}
-
-// BasicError is a simple error type that implements ErrorMsger and ErrorNester,
-// and can contain context (slice of [string, val, string, val...]) for logging purposes.
-type BasicError struct {
-	// Error message
-	Msg ErrMsg
-	// Error context, for logging purposes only
-	logCtx []interface{}
-	// Nested error, if any.
-	Err error
-}
-
-// Is returns whether this error is the same error as err, or in case err is a
-// ErrMsg whether the message is equal.
-func (be BasicError) Is(err error) bool {
-	switch other := err.(type) {
-	case BasicError:
-		return be.Msg == other.Msg
-	case ErrMsg:
-		return be.Msg == other
-	default:
-		return false
-	}
-}
-
-// Unwrap returns the next error in the error chain, or nil if there is none.
-func (be BasicError) Unwrap() error {
-	return be.GetErr()
-}
-
-// NewBasicError creates a new BasicError, with e as the embedded error (can be nil), with logCtx
-// being a list of string/val pairs. These key/value pairs should contain all context-dependent
-// information: 'msg' argument itself should be a constant string.
-func NewBasicError(msg ErrMsg, e error, logCtx ...interface{}) error {
-	return BasicError{Msg: msg, logCtx: logCtx, Err: e}
-}
-
-func (be BasicError) TopError() string {
-	s := make([]string, 0, 1+(len(be.logCtx)/2))
-	s = append(s, string(be.Msg))
-	s[0] = string(be.Msg)
-	for i := 0; i < len(be.logCtx); i += 2 {
-		s = append(s, fmt.Sprintf("%s=\"%v\"", be.logCtx[i], be.logCtx[i+1]))
-	}
-	return strings.Join(s, " ")
-}
-
-func (be BasicError) Error() string {
-	return FmtError(be)
-}
-
-func (be BasicError) GetMsg() string {
-	return string(be.Msg)
-}
-
-func (be BasicError) GetErr() error {
-	return be.Err
-}
-
-// MultiError is a slice of errors
-type MultiError []error
-
-// ToError returns the object as error interface implementation.
-func (be MultiError) ToError() error {
-	if len(be) == 0 {
-		return nil
-	}
-	return multiError(be)
-}
-
-// multiError is the internal error interface implementation of MultiError.
-type multiError []error
-
-func (be multiError) Error() string {
-	return FmtErrors(be)
 }
 
 // FmtError formats e for logging. It walks through all nested errors, putting each on a new line,

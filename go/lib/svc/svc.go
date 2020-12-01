@@ -131,7 +131,7 @@ func (c *resolverPacketConn) ReadFrom(pkt *snet.Packet, ov *net.UDPAddr) error {
 		}
 		switch result, err := c.handler.Handle(r); result {
 		case Error:
-			return common.NewBasicError(ErrHandler, err)
+			return serrors.Wrap(ErrHandler, err)
 		case Forward:
 			return nil
 		default:

@@ -49,8 +49,7 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 	dashParts := strings.Split(str, "-")
 	isd, err := addr.ISDFromString(dashParts[0])
 	if err != nil {
-		return &HopPredicate{},
-			common.NewBasicError("Failed to parse ISD", err, "value", str)
+		return &HopPredicate{}, serrors.WrapStr("Failed to parse ISD", err, "value", str)
 	}
 	if len(dashParts) == 1 {
 		return &HopPredicate{ISD: isd, IfIDs: ifIDs}, nil
@@ -59,7 +58,7 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 	hashParts := strings.Split(dashParts[1], "#")
 	as, err := addr.ASFromString(hashParts[0])
 	if err != nil {
-		return &HopPredicate{}, common.NewBasicError("Failed to parse AS", err, "value", str)
+		return &HopPredicate{}, serrors.WrapStr("Failed to parse AS", err, "value", str)
 	}
 	if len(hashParts) == 1 {
 		return &HopPredicate{ISD: isd, AS: as, IfIDs: ifIDs}, nil
@@ -67,20 +66,19 @@ func HopPredicateFromString(str string) (*HopPredicate, error) {
 	// Parse IfIDs if present
 	commaParts := strings.Split(hashParts[1], ",")
 	if ifIDs[0], err = parseIfID(commaParts[0]); err != nil {
-		return &HopPredicate{}, common.NewBasicError("Failed to parse ifids", err, "value", str)
+		return &HopPredicate{}, serrors.WrapStr("Failed to parse ifids", err, "value", str)
 	}
 	if len(commaParts) == 2 {
 		ifID, err := parseIfID(commaParts[1])
 		if err != nil {
-			return &HopPredicate{}, common.NewBasicError("Failed to parse ifids", err, "value", str)
+			return &HopPredicate{}, serrors.WrapStr("Failed to parse ifids", err, "value", str)
 		}
 		ifIDs = append(ifIDs, ifID)
 	}
 	// IfID cannot be set when the AS is a wildcard
 	if as == 0 && (ifIDs[0] != 0 || (len(ifIDs) > 1 && ifIDs[1] != 0)) {
-		return &HopPredicate{},
-			common.NewBasicError("Failed to parse hop predicate, IfIDs must be 0",
-				nil, "value", str)
+		return &HopPredicate{}, serrors.New("Failed to parse hop predicate, IfIDs must be 0",
+			"value", str)
 	}
 	return &HopPredicate{ISD: isd, AS: as, IfIDs: ifIDs}, nil
 }
@@ -152,8 +150,7 @@ func validateHopPredStr(str string) error {
 	hashes := strings.Count(str, "#")
 	commas := strings.Count(str, ",")
 	if dashes > 1 || hashes > 1 || commas > 1 {
-		return common.NewBasicError(
-			"Failed to parse hop predicate, found delimiter too often", nil,
+		return serrors.New("Failed to parse hop predicate, found delimiter too often",
 			"dashes", dashes, "hashes", hashes, "commas", commas)
 	}
 	if dashes == 0 && (hashes > 0 || commas > 0) {

@@ -18,7 +18,6 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 )
 
 // Table manages the UDP/IP port registrations for a single AS.
@@ -50,10 +49,10 @@ func (t *Table) Register(public *net.UDPAddr, bind net.IP, svc addr.HostSVC,
 	value interface{}) (*TableReference, error) {
 
 	if public == nil {
-		return nil, common.NewBasicError(ErrNoPublicAddress, nil)
+		return nil, ErrNoPublicAddress
 	}
 	if bind != nil && svc == addr.SvcNone {
-		return nil, common.NewBasicError(ErrBindWithoutSvc, nil)
+		return nil, ErrBindWithoutSvc
 	}
 	address, err := t.udpPortTable.Insert(public, value)
 	if err != nil {

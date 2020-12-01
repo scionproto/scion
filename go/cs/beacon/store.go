@@ -79,7 +79,7 @@ func (s *Store) SegmentsToRegister(ctx context.Context, segType seg.Type) (
 	case seg.TypeUp:
 		return s.getBeacons(ctx, &s.policies.UpReg)
 	default:
-		return nil, common.NewBasicError("Unsupported segment type", nil, "type", segType)
+		return nil, serrors.New("Unsupported segment type", "type", segType)
 	}
 }
 
@@ -153,7 +153,7 @@ func (s *CoreStore) SegmentsToRegister(ctx context.Context, segType seg.Type) (
 	<-chan BeaconOrErr, error) {
 
 	if segType != seg.TypeCore {
-		return nil, common.NewBasicError("Unsupported segment type", nil, "type", segType)
+		return nil, serrors.New("Unsupported segment type", "type", segType)
 	}
 	return s.getBeacons(ctx, &s.policies.CoreReg)
 }
@@ -191,7 +191,7 @@ func (s *CoreStore) getBeacons(ctx context.Context, policy *Policy) (<-chan Beac
 		wg.Wait()
 		if len(errs) > 0 {
 			results <- BeaconOrErr{
-				Err: common.NewBasicError("Unable to get beacons from db", nil, "srcs", errs),
+				Err: serrors.New("Unable to get beacons from db", "srcs", errs),
 			}
 		}
 	}()

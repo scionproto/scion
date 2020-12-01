@@ -15,8 +15,8 @@
 package infra
 
 import (
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/prom"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -74,7 +74,7 @@ func MetricsErrTrustStore(err error) *HandlerResult {
 // MetricsErrWithTimeout checks if the error is a timeout and if so returns
 // timeoutResult otherwise returns result.
 func MetricsErrWithTimeout(err error, timeoutResult, result *HandlerResult) *HandlerResult {
-	if common.IsTimeoutErr(err) {
+	if serrors.IsTimeout(err) {
 		return timeoutResult
 	}
 	return result

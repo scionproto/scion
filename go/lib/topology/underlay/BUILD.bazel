@@ -5,7 +5,7 @@ go_library(
     srcs = ["defs.go"],
     importpath = "github.com/scionproto/scion/go/lib/topology/underlay",
     visibility = ["//visibility:public"],
-    deps = ["//go/lib/common:go_default_library"],
+    deps = ["//go/lib/serrors:go_default_library"],
 )
 
 go_test(

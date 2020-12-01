@@ -22,8 +22,8 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/integration"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -63,7 +63,7 @@ func loadSigTestingConfig() error {
 			}
 			iaIPMap[ia] = net.ParseIP(parts[1])
 		} else {
-			return common.NewBasicError("Bad line format", nil, "line", line)
+			return serrors.New("Bad line format", "line", line)
 		}
 	}
 	return nil

@@ -70,7 +70,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -343,7 +342,7 @@ type Listener struct {
 func Listen(laddr string) (*Listener, error) {
 	l, err := net.Listen("unix", laddr)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to listen on address", err, "addr", laddr)
+		return nil, serrors.WrapStr("Unable to listen on address", err, "addr", laddr)
 	}
 	return &Listener{l.(*net.UnixListener)}, nil
 }

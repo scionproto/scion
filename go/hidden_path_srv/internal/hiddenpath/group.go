@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // Parsing errors
@@ -63,7 +64,7 @@ func (id *GroupId) UnmarshalText(data []byte) error {
 	v = strings.Replace(v, "_", ":", 2)
 	parts := strings.Split(v, "-")
 	if len(parts) != 2 {
-		return common.NewBasicError(ErrInvalidGroupIdFormat, nil, "GroupId", v)
+		return serrors.WithCtx(ErrInvalidGroupIdFormat, "GroupId", v)
 	}
 	ownerAS, err := addr.ASFromString(parts[0])
 	if err != nil {
@@ -71,7 +72,7 @@ func (id *GroupId) UnmarshalText(data []byte) error {
 	}
 	suffix, err := strconv.ParseUint(parts[1], 16, 16)
 	if err != nil {
-		return common.NewBasicError(ErrInvalidGroupIdSuffix, err, "Suffix", parts[1])
+		return serrors.Wrap(ErrInvalidGroupIdSuffix, err, "Suffix", parts[1])
 	}
 	id.OwnerAS = ownerAS
 	id.Suffix = uint16(suffix)
@@ -126,23 +127,23 @@ func (g *Group) UnmarshalJSON(data []byte) (err error) {
 		return err
 	}
 	if v.Id == (GroupId{}) {
-		return common.NewBasicError(ErrMissingGroupId, nil)
+		return ErrMissingGroupId
 	}
 	if v.Version == 0 {
-		return common.NewBasicError(ErrInvalidVersion, nil)
+		return ErrInvalidVersion
 	}
 	if v.Owner == (addr.IA{}) {
-		return common.NewBasicError(ErrMissingOwner, nil)
+		return ErrMissingOwner
 	}
 	if v.Owner.A != v.Id.OwnerAS {
-		return common.NewBasicError(ErrOwnerMismatch, nil,
+		return serrors.WithCtx(ErrOwnerMismatch,
 			"OwnerAS", v.Owner.A, "GroupId.OwnerAS", v.Id.OwnerAS)
 	}
 	if len(v.Writers) == 0 {
-		return common.NewBasicError(ErrEmptyWriters, nil)
+		return ErrEmptyWriters
 	}
 	if len(v.Registries) == 0 {
-		return common.NewBasicError(ErrEmptyRegistries, nil)
+		return ErrEmptyRegistries
 	}
 	*g = Group(v)
 	return nil

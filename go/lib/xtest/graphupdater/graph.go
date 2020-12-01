@@ -21,7 +21,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 var (
@@ -46,7 +46,7 @@ func (i *iface) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 	matches := ifaceRegexp.FindStringSubmatch(s)
 	if len(matches) < 3 || len(matches[1]) == 0 {
-		return common.NewBasicError("Invalid interface", nil, "s", s)
+		return serrors.New("Invalid interface", "s", s)
 	}
 	iface := matches[2]
 	if len(iface) == 0 {

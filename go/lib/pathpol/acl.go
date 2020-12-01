@@ -20,7 +20,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -101,7 +101,7 @@ func (ae *ACLEntry) LoadFromString(str string) error {
 		ae.Rule, err = HopPredicateFromString(parts[1])
 		return err
 	}
-	return common.NewBasicError("ACLEntry has too many parts", nil, "str", str)
+	return serrors.New("ACLEntry has too many parts", "str", str)
 }
 
 func (ae *ACLEntry) String() string {
@@ -134,7 +134,7 @@ func getAction(symbol string) (ACLAction, error) {
 	} else if symbol == denySymbol {
 		return false, nil
 	} else {
-		return false, common.NewBasicError("Bad action symbol", nil, "action", symbol)
+		return false, serrors.New("Bad action symbol", "action", symbol)
 	}
 }
 

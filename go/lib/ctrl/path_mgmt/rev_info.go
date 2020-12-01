@@ -24,13 +24,12 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
 const MinRevTTL = 10 * time.Second // MinRevTTL is the minimum lifetime of a revocation
-
-var _ common.Timeout = (*RevTimeError)(nil)
 
 type RevTimeError string
 
@@ -85,7 +84,7 @@ func (r *RevInfo) Expiration() time.Time {
 
 func (r *RevInfo) Active() error {
 	if r.TTL() < MinRevTTL {
-		return common.NewBasicError("Revocation TTL smaller than MinRevTTL.", nil,
+		return serrors.New("Revocation TTL smaller than MinRevTTL.",
 			"TTL", r.TTL().Seconds(), "MinRevTTL", MinRevTTL.Seconds())
 	}
 	now := time.Now()
@@ -94,7 +93,7 @@ func (r *RevInfo) Active() error {
 		return NewRevTimeError(r)
 	}
 	if r.Timestamp().After(now.Add(time.Second)) {
-		return common.NewBasicError("Revocation timestamp is in the future.", nil,
+		return serrors.New("Revocation timestamp is in the future.",
 			"timestamp", util.TimeToCompact(r.Timestamp()))
 	}
 	return nil

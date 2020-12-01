@@ -259,7 +259,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	paths, err := c.sdConn.Paths(ctx, remote.IA, integration.Local.IA,
 		sciond.PathReqFlags{Refresh: n != 0})
 	if err != nil {
-		return nil, common.NewBasicError("Error requesting paths", err)
+		return nil, serrors.WrapStr("Error requesting paths", err)
 	}
 	// if all paths had an error, let's try them again.
 	if len(paths) <= len(c.errorPaths) {
@@ -289,7 +289,7 @@ func (c *client) pong(ctx context.Context) error {
 	var p snet.Packet
 	var ov net.UDPAddr
 	if err := c.conn.ReadFrom(&p, &ov); err != nil {
-		return common.NewBasicError("Error reading packet", err)
+		return serrors.WrapStr("Error reading packet", err)
 	}
 	expected := pong + remote.IA.String() + integration.Local.IA.String()
 	udp, ok := p.Payload.(snet.UDPPayload)

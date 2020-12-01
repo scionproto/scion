@@ -15,7 +15,6 @@
 package registration
 
 import (
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -40,7 +39,7 @@ func (t *SCMPTable) Register(id uint64, value interface{}) error {
 		return serrors.New("cannot register nil value")
 	}
 	if _, ok := t.m[id]; ok {
-		return common.NewBasicError("id already registered", nil, "id", id)
+		return serrors.New("id already registered", "id", id)
 	}
 	t.m[id] = value
 	return nil

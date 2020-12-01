@@ -5,7 +5,10 @@ go_library(
     srcs = ["keyconf.go"],
     importpath = "github.com/scionproto/scion/go/lib/keyconf",
     visibility = ["//visibility:public"],
-    deps = ["//go/lib/common:go_default_library"],
+    deps = [
+        "//go/lib/common:go_default_library",
+        "//go/lib/serrors:go_default_library",
+    ],
 )
 
 go_test(

@@ -29,7 +29,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/log"
@@ -89,7 +88,7 @@ func (b *Backend) BeginTransaction(ctx context.Context,
 	defer b.Unlock()
 	tx, err := b.db.BeginTx(ctx, opts)
 	if err != nil {
-		return nil, common.NewBasicError("Failed to create transaction", err)
+		return nil, serrors.WrapStr("Failed to create transaction", err)
 	}
 	return &transaction{
 		executor: &executor{
@@ -179,7 +178,7 @@ func (e *executor) get(ctx context.Context, segID []byte) (*segMeta, error) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, common.NewBasicError("Failed to lookup segment", err)
+		return nil, serrors.WrapStr("Failed to lookup segment", err)
 	}
 	meta.LastUpdated = time.Unix(0, lastUpdated)
 	meta.Seg, err = pathdb.UnpackSegment(rawSeg)
@@ -236,7 +235,7 @@ func updateSeg(ctx context.Context, tx *sql.Tx, meta *segMeta) error {
 	_, err = tx.ExecContext(ctx, stmtStr,
 		fullID, meta.LastUpdated.UnixNano(), meta.Seg.Info.Timestamp, packedSeg, exp, meta.RowID)
 	if err != nil {
-		return common.NewBasicError("Failed to update segment", err)
+		return serrors.WrapStr("Failed to update segment", err)
 	}
 	return nil
 }
@@ -247,7 +246,7 @@ func insertType(ctx context.Context, tx *sql.Tx, segRowID int64,
 	_, err := tx.ExecContext(ctx, "INSERT INTO SegTypes (SegRowID, Type) VALUES (?, ?)",
 		segRowID, segType)
 	if err != nil {
-		return common.NewBasicError("Failed to insert type", err)
+		return serrors.WrapStr("Failed to insert type", err)
 	}
 	return nil
 }
@@ -259,7 +258,7 @@ func insertHPCfgID(ctx context.Context, tx *sql.Tx, segRowID int64,
 		"INSERT INTO HpCfgIds (SegRowID, IsdID, AsID, CfgID) VALUES (?, ?, ?, ?)",
 		segRowID, hpCfgID.IA.I, hpCfgID.IA.A, hpCfgID.ID)
 	if err != nil {
-		return common.NewBasicError("Failed to insert hpCfgID", err)
+		return serrors.WrapStr("Failed to insert hpCfgID", err)
 	}
 	return nil
 }
@@ -284,11 +283,11 @@ func insertFull(ctx context.Context, tx *sql.Tx, segMeta *seg.Meta,
 	res, err := tx.ExecContext(ctx, inst, segID, fullID, time.Now().UnixNano(),
 		pseg.Info.Timestamp.UnixNano(), packedSeg, exp, st.I, st.A, end.I, end.A)
 	if err != nil {
-		return common.NewBasicError("Failed to insert path segment", err)
+		return serrors.WrapStr("Failed to insert path segment", err)
 	}
 	segRowID, err := res.LastInsertId()
 	if err != nil {
-		return common.NewBasicError("Failed to retrieve segRowID of inserted segment", err)
+		return serrors.WrapStr("Failed to retrieve segRowID of inserted segment", err)
 	}
 	// Insert all interfaces.
 	if err = insertInterfaces(ctx, tx, pseg.ASEntries, segRowID); err != nil {
@@ -312,7 +311,7 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, ases []seg.ASEntry, segRo
 	stmtStr := `INSERT INTO IntfToSeg (IsdID, AsID, IntfID, SegRowID) VALUES (?, ?, ?, ?)`
 	stmt, err := tx.PrepareContext(ctx, stmtStr)
 	if err != nil {
-		return common.NewBasicError("Failed to prepare insert into IntfToSeg", err)
+		return serrors.WrapStr("Failed to prepare insert into IntfToSeg", err)
 	}
 	defer stmt.Close()
 	for _, as := range ases {
@@ -381,7 +380,7 @@ func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results
 	stmt, args := e.buildQuery(params)
 	rows, err := e.db.QueryContext(ctx, stmt, args...)
 	if err != nil {
-		return nil, common.NewBasicError("Error looking up path segment", err, "q", stmt)
+		return nil, serrors.WrapStr("Error looking up path segment", err, "q", stmt)
 	}
 	defer rows.Close()
 	var res query.Results
@@ -396,7 +395,7 @@ func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results
 		err = rows.Scan(&segRowID, &rawSeg, &lastUpdated, &hpCfgID.IA.I,
 			&hpCfgID.IA.A, &hpCfgID.ID, &segType)
 		if err != nil {
-			return nil, common.NewBasicError("Error reading DB response", err)
+			return nil, serrors.WrapStr("Error reading DB response", err)
 		}
 		// Check if we have a new segment.
 		if segRowID != prevID {
@@ -410,7 +409,7 @@ func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results
 			var err error
 			curRes.Seg, err = pathdb.UnpackSegment(rawSeg)
 			if err != nil {
-				return nil, common.NewBasicError("Error unmarshalling segment", err)
+				return nil, serrors.WrapStr("Error unmarshalling segment", err)
 			}
 		}
 		// Append hpCfgID to result
@@ -519,7 +518,7 @@ func (e *executor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error)
 	stmt, args := e.buildQuery(nil)
 	rows, err := e.db.QueryContext(ctx, stmt, args...)
 	if err != nil {
-		return nil, common.NewBasicError("Error looking up path segment", err, "q", stmt)
+		return nil, serrors.WrapStr("Error looking up path segment", err, "q", stmt)
 	}
 	resCh := make(chan query.ResultOrErr)
 	go func() {
@@ -538,7 +537,7 @@ func (e *executor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error)
 				&hpCfgID.IA.I, &hpCfgID.IA.A, &hpCfgID.ID, &segType)
 			if err != nil {
 				resCh <- query.ResultOrErr{
-					Err: common.NewBasicError("Error reading DB response", err)}
+					Err: serrors.WrapStr("Error reading DB response", err)}
 				return
 			}
 			// Check if we have a new segment.
@@ -554,7 +553,7 @@ func (e *executor) GetAll(ctx context.Context) (<-chan query.ResultOrErr, error)
 				curRes.Seg, err = pathdb.UnpackSegment(rawSeg)
 				if err != nil {
 					resCh <- query.ResultOrErr{
-						Err: common.NewBasicError("Error unmarshalling segment", err)}
+						Err: serrors.WrapStr("Error unmarshalling segment", err)}
 					return
 				}
 			}
@@ -598,7 +597,7 @@ func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA, policy
 		return err
 	})
 	if err != nil {
-		return false, common.NewBasicError("Failed to execute statement", err)
+		return false, serrors.WrapStr("Failed to execute statement", err)
 	}
 	n, err := r.RowsAffected()
 	return n > 0, err

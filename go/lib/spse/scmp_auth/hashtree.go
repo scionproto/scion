@@ -31,6 +31,7 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spse"
 )
 
@@ -69,7 +70,7 @@ const (
 
 func NewHashTreeExtn(height uint8) (*HashTreeExtn, error) {
 	if height > MaxHeight {
-		return nil, common.NewBasicError("Invalid height", nil,
+		return nil, serrors.New("Invalid height",
 			"height", height, "max height", MaxHeight)
 	}
 
@@ -84,7 +85,7 @@ func NewHashTreeExtn(height uint8) (*HashTreeExtn, error) {
 
 func (s HashTreeExtn) SetOrder(order common.RawBytes) error {
 	if len(order) != OrderLength {
-		return common.NewBasicError("Invalid order length", nil,
+		return serrors.New("Invalid order length",
 			"expected", OrderLength, "actual", len(order))
 	}
 	copy(s.Order, order)
@@ -94,7 +95,7 @@ func (s HashTreeExtn) SetOrder(order common.RawBytes) error {
 
 func (s HashTreeExtn) SetSignature(signature common.RawBytes) error {
 	if len(signature) != SignatureLength {
-		return common.NewBasicError("Invalid signature length", nil,
+		return serrors.New("Invalid signature length",
 			"expected", SignatureLength, "actual", len(signature))
 	}
 	copy(s.Signature, signature)
@@ -104,7 +105,7 @@ func (s HashTreeExtn) SetSignature(signature common.RawBytes) error {
 
 func (s HashTreeExtn) SetHashes(hashes common.RawBytes) error {
 	if len(hashes) != len(s.Hashes) {
-		return common.NewBasicError("Invalid hashes length", nil,
+		return serrors.New("Invalid hashes length",
 			"expected", len(s.Hashes), "actual", len(hashes))
 	}
 	copy(s.Hashes, hashes)
@@ -114,7 +115,7 @@ func (s HashTreeExtn) SetHashes(hashes common.RawBytes) error {
 
 func (s *HashTreeExtn) Write(b common.RawBytes) error {
 	if len(b) < s.Len() {
-		return common.NewBasicError("Buffer too short", nil,
+		return serrors.New("Buffer too short",
 			"method", "SCMPAuthHashTreeExtn.Write", "expected min", s.Len(), "actual", len(b))
 	}
 	b[0] = uint8(s.SecMode)
