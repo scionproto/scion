@@ -24,17 +24,16 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/pkg/hiddenpath"
 )
 
 // SegWithHP is a segment with hidden path cfg ids.
 type SegWithHP struct {
 	Seg     *seg.Meta
-	HPGroup hiddenpath.GroupID
+	HPGroup HPGroupID
 }
 
 func (s *SegWithHP) String() string {
-	return fmt.Sprintf("{Seg: %v, HPGroup: %s}", s.Seg, s.HPGroup)
+	return fmt.Sprintf("{Seg: %v, HPGroup: %v}", s.Seg, s.HPGroup)
 }
 
 // SegStats provides statistics about segment insertion/updates.

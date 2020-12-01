@@ -9,6 +9,8 @@ gomock(
         "RPC",
         "Verifier",
         "Lookuper",
+        "Discoverer",
+        "AddressResolver",
     ],
     library = "//go/pkg/hiddenpath:go_default_library",
     package = "mock_hiddenpath",

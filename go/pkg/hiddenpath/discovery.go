@@ -17,6 +17,10 @@ package hiddenpath
 import (
 	"context"
 	"net"
+
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // Servers is a list of discovered remote hidden segment server.
@@ -30,4 +34,60 @@ type Servers struct {
 // Discoverer can be used to find remote discovery services.
 type Discoverer interface {
 	Discover(ctx context.Context, dsAddr net.Addr) (Servers, error)
+}
+
+// AddressResolver helps to resolve addresses in a remote AS.
+type AddressResolver interface {
+	// Resolve creates an address with a path to the remote ISD-AS that is
+	// specified.
+	Resolve(context.Context, addr.IA) (net.Addr, error)
+}
+
+// RegistrationResolver resolves the address of a hidden segment registration
+// server in an IA.
+type RegistrationResolver struct {
+	Router     snet.Router
+	Discoverer Discoverer
+}
+
+// Resolve resolves a hidden segment registration server in the remote IA.
+func (r RegistrationResolver) Resolve(ctx context.Context, ia addr.IA) (net.Addr, error) {
+	return resolve(ctx, ia, r.Discoverer, r.Router, func(s Servers) (*net.UDPAddr, error) {
+		if len(s.Registration) == 0 {
+			return nil, serrors.New("no registration server found")
+		}
+		return s.Registration[0], nil
+	})
+}
+
+func resolve(ctx context.Context, ia addr.IA, discoverer Discoverer, router snet.Router,
+	extractAddr func(Servers) (*net.UDPAddr, error)) (net.Addr, error) {
+
+	path, err := router.Route(ctx, ia)
+	if err != nil {
+		return nil, serrors.WrapStr("looking up path", err)
+	}
+	if path == nil {
+		return nil, serrors.WrapStr("no path found to remote", err)
+	}
+	dsAddr := &snet.SVCAddr{
+		IA:      ia,
+		NextHop: path.UnderlayNextHop(),
+		Path:    path.Path(),
+		SVC:     addr.SvcDS,
+	}
+	hps, err := discoverer.Discover(ctx, dsAddr)
+	if err != nil {
+		return nil, serrors.WrapStr("discovering hidden path server", err)
+	}
+	a, err := extractAddr(hps)
+	if err != nil {
+		return nil, serrors.WithCtx(err, "isd_as", ia)
+	}
+	return &snet.UDPAddr{
+		IA:      ia,
+		Host:    a,
+		NextHop: path.UnderlayNextHop(),
+		Path:    path.Path(),
+	}, nil
 }

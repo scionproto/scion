@@ -149,7 +149,6 @@ func TestRegistrarRun(t *testing.T) {
 		fn            string
 		beacons       [][]common.IFIDType
 		inactivePeers map[common.IFIDType]bool
-		remotePS      bool
 	}{
 		{
 			name:          "Down segment",
@@ -160,7 +159,6 @@ func TestRegistrarRun(t *testing.T) {
 				{graph.If_120_X_111_B},
 				{graph.If_130_B_120_A, graph.If_120_X_111_B},
 			},
-			remotePS: true,
 		},
 	}
 	for _, test := range testsRemote {
@@ -237,11 +235,6 @@ func TestRegistrarRun(t *testing.T) {
 					assert.NoError(t, pseg.VerifyASEntry(context.Background(),
 						segVerifier{pubKey: pub}, pseg.MaxIdx()))
 
-					if !test.remotePS {
-						assert.Equal(t, topoProvider.Get().IA(), s.Addr.IA)
-						assert.Equal(t, addr.SvcCS, s.Addr.SVC)
-						return
-					}
 					assert.Equal(t, pseg.FirstIA(), s.Addr.IA)
 					assert.Equal(t, addr.SvcCS, s.Addr.SVC)
 
