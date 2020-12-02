@@ -28,7 +28,7 @@ import (
 type MemoryRevocationStore struct {
 	Logger log.Logger
 
-	mu   sync.Mutex
+	mu   sync.RWMutex
 	revs map[snet.PathInterface]*path_mgmt.RevInfo
 }
 
@@ -53,6 +53,9 @@ func (s *MemoryRevocationStore) AddRevocation(rev *path_mgmt.RevInfo) {
 
 // Cleanup removes all expired revocations.
 func (s *MemoryRevocationStore) Cleanup() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	now := time.Now()
 	for k, rev := range s.revs {
 		if rev.Expiration().Before(now) {
@@ -68,6 +71,9 @@ func (s *MemoryRevocationStore) IsRevoked(path snet.Path) bool {
 	if meta := path.Metadata(); meta != nil {
 		ifaces = meta.Interfaces
 	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	now := time.Now()
 	for _, iface := range ifaces {
 		key := snet.PathInterface{ID: iface.ID, IA: iface.IA}
