@@ -10,7 +10,7 @@ package proto
 import (
 	"zombiezen.com/go/capnproto2"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // NewRootStruct calls the appropriate NewRoot<x> function corresponding to the capnp proto type ID,
@@ -27,7 +27,7 @@ do
 	case ${roottype}_TypeID:
 		v, err := NewRoot$roottype(seg)
 		if err != nil {
-			return blank, common.NewBasicError("Error creating new $roottype capnp struct", err)
+			return blank, serrors.WrapStr("Error creating new $roottype capnp struct", err)
 		}
 		return v.Struct, nil
 EOF
@@ -35,9 +35,8 @@ done
 
 cat <<EOF
 	}
-	return blank, common.NewBasicError(
+	return blank, serrors.New(
 		"Unsupported capnp struct type (i.e. not listed in go/proto/structs_gen_go.sh:ROOTTYPES)",
-		nil,
 		"id", id,
 	)
 }

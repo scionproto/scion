@@ -4,13 +4,9 @@ go_library(
     name = "go_default_library",
     srcs = [
         "sockctrl.go",
-        "sockctrl_prego19.go",
         "sockopt.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/sockctrl",
     visibility = ["//visibility:public"],
-    deps = [
-        "//go/lib/common:go_default_library",
-        "//go/lib/serrors:go_default_library",
-    ],
+    deps = ["//go/lib/serrors:go_default_library"],
 )
