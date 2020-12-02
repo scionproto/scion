@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["config.go"],
+    importpath = "github.com/scionproto/scion/go/pkg/trust/config",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/config:go_default_library",
+        "@com_github_patrickmn_go_cache//:go_default_library",
+    ],
+)

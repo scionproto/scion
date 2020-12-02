@@ -177,7 +177,16 @@ func run(file string) error {
 	}
 	defer beaconStore.Close()
 
-	inspector := trust.DBInspector{DB: trustDB}
+	trustengineCache := cfg.TrustEngine.Cache.New()
+	cacheHits := libmetrics.NewPromCounter(trustmetrics.CacheHitsTotal)
+	inspector := trust.CachingInspector{
+		Inspector: trust.DBInspector{
+			DB: trustDB,
+		},
+		CacheHits:          cacheHits,
+		MaxCacheExpiration: cfg.TrustEngine.Cache.Expiration,
+		Cache:              trustengineCache,
+	}
 	provider := trust.FetchingProvider{
 		DB: trustDB,
 		Fetcher: trustgrpc.Fetcher{
@@ -190,7 +199,10 @@ func run(file string) error {
 	}
 	verifier := compat.Verifier{
 		Verifier: trust.Verifier{
-			Engine: provider,
+			Engine:             provider,
+			CacheHits:          cacheHits,
+			MaxCacheExpiration: cfg.TrustEngine.Cache.Expiration,
+			Cache:              trustengineCache,
 		},
 	}
 	fetcherCfg := segreq.FetcherConfig{

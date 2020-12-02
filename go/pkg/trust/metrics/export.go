@@ -14,10 +14,23 @@
 
 package metrics
 
-import "github.com/scionproto/scion/go/pkg/trust/internal/metrics"
+import (
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+
+	"github.com/scionproto/scion/go/lib/prom"
+	"github.com/scionproto/scion/go/pkg/trust/internal/metrics"
+)
 
 // Exported metrics. This is a transitional hack until the new metrics approach
 // is used everywhere.
 var (
-	RPC = metrics.RPC
+	RPC            = metrics.RPC
+	CacheHitsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "trustengine_cache_lookups_total",
+			Help: "Total number of cache hits in the trust engine.",
+		},
+		[]string{"type", prom.LabelResult},
+	)
 )

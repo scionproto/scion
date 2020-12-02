@@ -38,6 +38,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	segfetchergrpc "github.com/scionproto/scion/go/lib/infra/modules/segfetcher/grpc"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
@@ -152,6 +153,12 @@ func run(file string) error {
 	if err != nil {
 		return serrors.WrapStr("creating trust engine", err)
 	}
+	engine.Inspector = trust.CachingInspector{
+		Inspector:          engine.Inspector,
+		Cache:              cfg.TrustEngine.Cache.New(),
+		CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
+		MaxCacheExpiration: cfg.TrustEngine.Cache.Expiration,
+	}
 
 	listen := sciond.APIAddress(cfg.SD.Address)
 	listener, err := net.Listen("tcp", listen)
@@ -179,7 +186,12 @@ func run(file string) error {
 		if cfg.SD.DisableSegVerification {
 			return acceptAllVerifier{}
 		}
-		return compat.Verifier{Verifier: trust.Verifier{Engine: engine}}
+		return compat.Verifier{Verifier: trust.Verifier{
+			Engine:             engine,
+			Cache:              cfg.TrustEngine.Cache.New(),
+			CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
+			MaxCacheExpiration: cfg.TrustEngine.Cache.Expiration,
+		}}
 	}
 
 	server := grpc.NewServer(libgrpc.UnaryServerInterceptor())

@@ -10,11 +10,14 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/infra/modules/db:go_default_library",
+        "//go/lib/prom:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
         "//go/lib/tracing:go_default_library",
         "//go/pkg/trust:go_default_library",
         "//go/pkg/trust/internal/metrics:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus/promauto:go_default_library",
     ],
 )
 
