@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -31,6 +32,7 @@ import (
 	libconfig "github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
@@ -40,12 +42,14 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/pkg/command"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
 	hpgrpc "github.com/scionproto/scion/go/pkg/hiddenpath/grpc"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	sdpb "github.com/scionproto/scion/go/pkg/proto/daemon"
 	"github.com/scionproto/scion/go/pkg/sciond"
 	"github.com/scionproto/scion/go/pkg/sciond/config"
@@ -171,6 +175,13 @@ func run(file string) error {
 		}
 	}
 
+	createVerifier := func() infra.Verifier {
+		if cfg.SD.DisableSegVerification {
+			return acceptAllVerifier{}
+		}
+		return compat.Verifier{Verifier: trust.Verifier{Engine: engine}}
+	}
+
 	server := grpc.NewServer(libgrpc.UnaryServerInterceptor())
 	sdpb.RegisterDaemonServiceServer(server, sciond.NewServer(sciond.ServerConfig{
 		Fetcher: fetcher.NewFetcher(
@@ -178,7 +189,7 @@ func run(file string) error {
 				RPC:          requester,
 				PathDB:       pathDB,
 				Inspector:    engine,
-				Verifier:     compat.Verifier{Verifier: trust.Verifier{Engine: engine}},
+				Verifier:     createVerifier(),
 				RevCache:     revCache,
 				Cfg:          cfg.SD,
 				TopoProvider: itopo.Provider(),
@@ -249,4 +260,20 @@ func setup(cfg config.Config) error {
 	}
 	infraenv.InitInfraEnvironment(cfg.General.Topology())
 	return nil
+}
+
+type acceptAllVerifier struct{}
+
+func (acceptAllVerifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
+	associatedData ...[]byte) (*signed.Message, error) {
+
+	return nil, nil
+}
+
+func (v acceptAllVerifier) WithServer(net.Addr) infra.Verifier {
+	return v
+}
+
+func (v acceptAllVerifier) WithIA(addr.IA) infra.Verifier {
+	return v
 }

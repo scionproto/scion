@@ -46,6 +46,7 @@ func InitTestConfig(cfg *Config) {
 
 func InitTestSDConfig(cfg *SDConfig) {
 	cfg.Address = "garbage"
+	cfg.DisableSegVerification = true
 }
 
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
@@ -58,5 +59,6 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 
 func CheckTestSDConfig(t *testing.T, cfg *SDConfig, id string) {
 	assert.Equal(t, sciond.DefaultAPIAddress, cfg.Address)
+	assert.False(t, cfg.DisableSegVerification)
 	assert.Equal(t, DefaultQueryInterval, cfg.QueryInterval.Duration)
 }

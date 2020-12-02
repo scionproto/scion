@@ -20,6 +20,10 @@ const sdSample = `
 # Address where the SCION Daemon server API is exposed. (default 127.0.0.1:30255)
 address = "127.0.0.1:30255"
 
+# Disable segment verification of the daemon. This can be done if it runs in
+# the same trust zone as the control service. (default false)
+disable_seg_verification = false
+
 # The time after which segments for a destination are refetched. (default 5m)
 query_interval = "5m"
 

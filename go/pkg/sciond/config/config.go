@@ -102,6 +102,9 @@ type SDConfig struct {
 	// Address is the local address to listen on for SCION messages, and to send out messages to
 	// other nodes.
 	Address string `toml:"address,omitempty"`
+	// DisableSegVerification indicates that segment verification should be
+	// disabled.
+	DisableSegVerification bool `toml:"disable_seg_verification,omitempty"`
 	// QueryInterval specifies after how much time segments
 	// for a destination should be refetched.
 	QueryInterval util.DurWrap `toml:"query_interval,omitempty"`
