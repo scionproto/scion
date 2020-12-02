@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"time"
 
+	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/resolver"
@@ -213,6 +214,7 @@ func run(file string) error {
 		TopoProvider: itopo.Provider(),
 	}))
 
+	promgrpc.Register(server)
 	go func() {
 		defer log.HandlePanic()
 		if err := server.Serve(listener); err != nil {

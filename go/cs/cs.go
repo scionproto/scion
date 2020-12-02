@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"time"
 
+	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -369,6 +370,8 @@ func run(file string) error {
 	dsHealth.SetServingStatus("discovery", healthpb.HealthCheckResponse_SERVING)
 	healthpb.RegisterHealthServer(tcpServer, dsHealth)
 
+	promgrpc.Register(quicServer)
+	promgrpc.Register(tcpServer)
 	go func() {
 		defer log.HandlePanic()
 		if err := quicServer.Serve(quicStack.Listener); err != nil {

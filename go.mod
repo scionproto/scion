@@ -12,6 +12,7 @@ require (
 	github.com/google/go-querystring v1.0.1-0.20190318165438-c8c88dbee036 // indirect
 	github.com/google/gopacket v1.1.16-0.20190123011826-102d5ca2098c
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190118093823-f849b5445de4
+	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
 	github.com/iancoleman/strcase v0.0.0-20190422225806-e506e3ef7365
 	github.com/kr/pretty v0.2.0 // indirect

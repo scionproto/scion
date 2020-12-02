@@ -18,6 +18,7 @@ import (
 	"context"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	grpcprom "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
 	opentracing "github.com/opentracing/opentracing-go"
 	jaeger "github.com/uber/jaeger-client-go"
@@ -105,6 +106,7 @@ func openTracingInterceptorWithTarget() grpc.UnaryClientInterceptor {
 func UnaryClientInterceptor() grpc.DialOption {
 	return grpc.WithChainUnaryInterceptor(
 		grpc_retry.UnaryClientInterceptor(),
+		grpcprom.UnaryClientInterceptor,
 		openTracingInterceptorWithTarget(),
 		LogIDClientInterceptor(),
 	)
@@ -114,6 +116,7 @@ func UnaryClientInterceptor() grpc.DialOption {
 // SCION control-plane applications.
 func UnaryServerInterceptor() grpc.ServerOption {
 	return grpc.ChainUnaryInterceptor(
+		grpcprom.UnaryServerInterceptor,
 		otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer()),
 		LogIDServerInterceptor(),
 	)
