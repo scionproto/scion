@@ -111,8 +111,8 @@ type ServerConfig struct {
 }
 
 // NewServer constructs a daemon API server.
-func NewServer(cfg ServerConfig) servers.DaemonServer {
-	return servers.DaemonServer{
+func NewServer(cfg ServerConfig) *servers.DaemonServer {
+	return &servers.DaemonServer{
 		Fetcher:      cfg.Fetcher,
 		ASInspector:  cfg.Engine.Inspector,
 		RevCache:     cfg.RevCache,

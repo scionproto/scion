@@ -17,11 +17,13 @@ package servers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	durationpb "github.com/golang/protobuf/ptypes/duration"
 	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/opentracing/opentracing-go"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -47,10 +49,13 @@ type DaemonServer struct {
 	ASInspector  trust.Inspector
 
 	Metrics Metrics
+
+	foregroundPathDedupe singleflight.Group
+	backgroundPathDedupe singleflight.Group
 }
 
 // Paths serves the paths request.
-func (s DaemonServer) Paths(ctx context.Context,
+func (s *DaemonServer) Paths(ctx context.Context,
 	req *sdpb.PathsRequest) (*sdpb.PathsResponse, error) {
 
 	start := time.Now()
@@ -63,7 +68,7 @@ func (s DaemonServer) Paths(ctx context.Context,
 	return response, unwrapMetricsError(err)
 }
 
-func (s DaemonServer) paths(ctx context.Context,
+func (s *DaemonServer) paths(ctx context.Context,
 	req *sdpb.PathsRequest) (*sdpb.PathsResponse, error) {
 
 	if _, ok := ctx.Deadline(); !ok {
@@ -76,7 +81,7 @@ func (s DaemonServer) paths(ctx context.Context,
 		defer log.HandlePanic()
 		s.backgroundPaths(ctx, srcIA, dstIA, req.Refresh)
 	}()
-	paths, err := s.Fetcher.GetPaths(ctx, srcIA, dstIA, req.Refresh)
+	paths, err := s.fetchPaths(ctx, &s.foregroundPathDedupe, srcIA, dstIA, req.Refresh)
 	if err != nil {
 		log.FromCtx(ctx).Debug("Fetching paths", "err", err,
 			"src", srcIA, "dst", dstIA, "refresh", req.Refresh)
@@ -87,6 +92,20 @@ func (s DaemonServer) paths(ctx context.Context,
 		reply.Paths = append(reply.Paths, pathToPB(p))
 	}
 	return reply, nil
+}
+
+func (s *DaemonServer) fetchPaths(ctx context.Context, group *singleflight.Group, src, dst addr.IA,
+	refresh bool) ([]snet.Path, error) {
+
+	r, err, _ := group.Do(fmt.Sprintf("%s%s%t", src, dst, refresh),
+		func() (interface{}, error) {
+			return s.Fetcher.GetPaths(ctx, src, dst, refresh)
+		},
+	)
+	// just cast to the correct type, ignore the "ok", since that can only be
+	// false in case of a nil result.
+	paths, _ := r.([]snet.Path)
+	return paths, err
 }
 
 func pathToPB(path snet.Path) *sdpb.Path {
@@ -154,7 +173,7 @@ func linkTypeToPB(lt snet.LinkType) sdpb.LinkType {
 	}
 }
 
-func (s DaemonServer) backgroundPaths(origCtx context.Context, src, dst addr.IA, refresh bool) {
+func (s *DaemonServer) backgroundPaths(origCtx context.Context, src, dst addr.IA, refresh bool) {
 	backgroundTimeout := 5 * time.Second
 	deadline, ok := origCtx.Deadline()
 	if !ok || time.Until(deadline) > backgroundTimeout {
@@ -167,17 +186,16 @@ func (s DaemonServer) backgroundPaths(origCtx context.Context, src, dst addr.IA,
 	if span := opentracing.SpanFromContext(origCtx); span != nil {
 		spanOpts = append(spanOpts, opentracing.FollowsFrom(span.Context()))
 	}
-	span, ctx := opentracing.StartSpanFromContext(ctx, "fetch.paths.backround", spanOpts...)
+	span, ctx := opentracing.StartSpanFromContext(ctx, "fetch.paths.background", spanOpts...)
 	defer span.Finish()
-	_, err := s.Fetcher.GetPaths(ctx, src, dst, refresh)
-	if err != nil {
-		log.FromCtx(ctx).Debug("Error fetching paths", "err", err,
+	if _, err := s.fetchPaths(ctx, &s.backgroundPathDedupe, src, dst, refresh); err != nil {
+		log.FromCtx(ctx).Debug("Error fetching paths (background)", "err", err,
 			"src", src, "dst", dst, "refresh", refresh)
 	}
 }
 
 // AS serves the AS request.
-func (s DaemonServer) AS(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASResponse, error) {
+func (s *DaemonServer) AS(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASResponse, error) {
 	start := time.Now()
 	response, err := s.as(ctx, req)
 	s.Metrics.ASRequests.inc(
@@ -187,7 +205,7 @@ func (s DaemonServer) AS(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASResp
 	return response, unwrapMetricsError(err)
 }
 
-func (s DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASResponse, error) {
+func (s *DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASResponse, error) {
 	topo := s.TopoProvider.Get()
 	reqIA := addr.IAInt(req.IsdAs).IA()
 	if reqIA.IsZero() {
@@ -211,7 +229,7 @@ func (s DaemonServer) as(ctx context.Context, req *sdpb.ASRequest) (*sdpb.ASResp
 }
 
 // Interfaces serves the interfaces request.
-func (s DaemonServer) Interfaces(ctx context.Context,
+func (s *DaemonServer) Interfaces(ctx context.Context,
 	req *sdpb.InterfacesRequest) (*sdpb.InterfacesResponse, error) {
 
 	start := time.Now()
@@ -223,7 +241,7 @@ func (s DaemonServer) Interfaces(ctx context.Context,
 	return response, unwrapMetricsError(err)
 }
 
-func (s DaemonServer) interfaces(ctx context.Context,
+func (s *DaemonServer) interfaces(ctx context.Context,
 	_ *sdpb.InterfacesRequest) (*sdpb.InterfacesResponse, error) {
 
 	reply := &sdpb.InterfacesResponse{
@@ -245,7 +263,7 @@ func (s DaemonServer) interfaces(ctx context.Context,
 }
 
 // Services serves the services request.
-func (s DaemonServer) Services(ctx context.Context,
+func (s *DaemonServer) Services(ctx context.Context,
 	req *sdpb.ServicesRequest) (*sdpb.ServicesResponse, error) {
 
 	start := time.Now()
@@ -257,7 +275,7 @@ func (s DaemonServer) Services(ctx context.Context,
 	return respsonse, unwrapMetricsError(err)
 }
 
-func (s DaemonServer) services(ctx context.Context,
+func (s *DaemonServer) services(ctx context.Context,
 	_ *sdpb.ServicesRequest) (*sdpb.ServicesResponse, error) {
 
 	reply := &sdpb.ServicesResponse{
@@ -281,7 +299,7 @@ func (s DaemonServer) services(ctx context.Context,
 }
 
 // NotifyInterfaceDown notifies the server about an interface that is down.
-func (s DaemonServer) NotifyInterfaceDown(ctx context.Context,
+func (s *DaemonServer) NotifyInterfaceDown(ctx context.Context,
 	req *sdpb.NotifyInterfaceDownRequest) (*sdpb.NotifyInterfaceDownResponse, error) {
 
 	start := time.Now()
@@ -293,7 +311,7 @@ func (s DaemonServer) NotifyInterfaceDown(ctx context.Context,
 	return response, unwrapMetricsError(err)
 }
 
-func (s DaemonServer) notifyInterfaceDown(ctx context.Context,
+func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 	req *sdpb.NotifyInterfaceDownRequest) (*sdpb.NotifyInterfaceDownResponse, error) {
 
 	revInfo := &path_mgmt.RevInfo{
