@@ -148,7 +148,8 @@ func confExternalInterfaces(dp Dataplane, cfg *Config) error {
 			// configured in the data plane.
 			linkInfo.Local.Addr = snet.CopyUDPAddr(cfg.BR.InternalAddr)
 			linkInfo.Remote.Addr = snet.CopyUDPAddr(iface.InternalAddr)
-			// For internal BFD always use the default configuration.
+			// For internal BFD always use the default configuration, which can be modified with
+			// the env variables.
 			linkInfo.BFD = bfdDefaults
 		}
 

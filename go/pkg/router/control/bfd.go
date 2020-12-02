@@ -33,6 +33,8 @@ const (
 // BFD is the configuration for the BFD sessions.
 type BFD topology.BFD
 
+// XXX(sgmonroy) note that env values only affect defaults, which in turn are only used
+// if there were no BFD related settings in the topology.
 func withDefaults(cfg BFD) BFD {
 	// If default is disable, BFD is globally disabled.
 	if bfdDefaults.Disable {
@@ -53,8 +55,8 @@ func withDefaults(cfg BFD) BFD {
 var (
 	bfdDefaults = BFD{
 		DetectMult:            3,
-		DesiredMinTxInterval:  25 * time.Millisecond,
-		RequiredMinRxInterval: 25 * time.Millisecond,
+		DesiredMinTxInterval:  200 * time.Millisecond,
+		RequiredMinRxInterval: 200 * time.Millisecond,
 		// Disable indicates if BFD is disabled globally.
 		Disable: false,
 	}

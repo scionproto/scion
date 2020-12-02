@@ -116,7 +116,7 @@ func ExternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 		MyDiscriminator:       12345,
 		YourDiscriminator:     0,
 		DesiredMinTxInterval:  1000000,
-		RequiredMinRxInterval: 25000,
+		RequiredMinRxInterval: 200000,
 	}
 	// Prepare input packet
 	input := gopacket.NewSerializeBuffer()
@@ -143,7 +143,7 @@ func ExternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 	bfd.State = layers.BFDStateInit
 	bfd.YourDiscriminator = 12345
-	bfd.DesiredMinTxInterval = 25000
+	bfd.DesiredMinTxInterval = 200000
 	err = gopacket.SerializeLayers(want, options, ethernet, ip, udp, scionL, bfd)
 	if err != nil {
 		panic(err)
@@ -212,7 +212,7 @@ func InternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 		MyDiscriminator:       12345,
 		YourDiscriminator:     0,
 		DesiredMinTxInterval:  1000000,
-		RequiredMinRxInterval: 25000,
+		RequiredMinRxInterval: 200000,
 	}
 	// Prepare input packet
 	input := gopacket.NewSerializeBuffer()
@@ -237,7 +237,7 @@ func InternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 	bfd.State = layers.BFDStateInit
 	bfd.YourDiscriminator = 12345
-	bfd.DesiredMinTxInterval = 25000
+	bfd.DesiredMinTxInterval = 200000
 	err = gopacket.SerializeLayers(want, options, ethernet, ip, udp, scionL, bfd)
 	if err != nil {
 		panic(err)
