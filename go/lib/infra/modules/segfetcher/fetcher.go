@@ -77,9 +77,9 @@ func (f *Fetcher) Fetch(ctx context.Context, reqs Requests, refresh bool) (Segme
 	// Forward and cache any requests that were not local / cached
 	fetchedSegs, err := f.Request(ctx, fetchReqs)
 	if err != nil {
-		return Segments{}, serrors.Wrap(errFetch, err)
+		err = serrors.Wrap(errFetch, err)
 	}
-	return append(loadedSegs, fetchedSegs...), nil
+	return append(loadedSegs, fetchedSegs...), err
 }
 
 func (f *Fetcher) Request(ctx context.Context, reqs Requests) (Segments, error) {

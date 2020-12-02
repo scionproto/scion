@@ -79,10 +79,7 @@ func (p *Pather) GetPaths(ctx context.Context, dst addr.IA,
 		logger.Debug("Fetching failed, attempting to build paths anyway", "err", err)
 	}
 	paths := p.buildAllPaths(src, dst, segs)
-	paths, err = p.filterRevoked(ctx, paths)
-	if err != nil {
-		return nil, err
-	}
+	paths = p.filterRevoked(ctx, paths)
 	if len(paths) == 0 {
 		if fetchErr != nil {
 			return nil, fetchErr
@@ -127,7 +124,7 @@ func (p *Pather) findDestinations(dst addr.IA, ups, cores seg.Segments) map[addr
 }
 
 func (p *Pather) filterRevoked(ctx context.Context,
-	paths []combinator.Path) ([]combinator.Path, error) {
+	paths []combinator.Path) []combinator.Path {
 
 	logger := log.FromCtx(ctx)
 	var newPaths []combinator.Path
@@ -156,7 +153,7 @@ func (p *Pather) filterRevoked(ctx context.Context,
 			"num_paths", len(paths), "num_revoked_paths", len(paths)-len(newPaths),
 			"revoked_due_to", revocationsString(revokedInterfaces))
 	}
-	return newPaths, nil
+	return newPaths
 }
 
 // revocationsString pretty-prints the revocations map to a string.

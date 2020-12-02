@@ -66,9 +66,12 @@ func (s LookupServer) Segments(ctx context.Context,
 	if err != nil {
 		logger.Debug("Failed to lookup requested segments", "err", err)
 		s.updateMetric(span, labels.WithResult(segfetcher.ErrToMetricsLabel(err)), err)
-		// TODO(roosd): Differentiate errors and expose the applicable gRPC
-		// status codes.
-		return nil, err
+		if len(segs) == 0 {
+			// TODO(roosd): Differentiate errors and expose the applicable gRPC
+			// status codes.
+			return nil, err
+		}
+		// We have some segments and continue with a partial result.
 	}
 
 	labels.Desc.SegType = determineReplyType(segs)
