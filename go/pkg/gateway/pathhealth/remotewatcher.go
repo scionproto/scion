@@ -30,7 +30,10 @@ const (
 	// graceInterval specifies how long to keep unused paths around.
 	graceInterval = time.Minute
 	// routerTimeout is a timeout for querying the paths via snet.Router.
-	routerTimeout = 100 * time.Millisecond
+	// TODO(sustrik): Given that path querying and path fetching is done in the same
+	// thread, let's set this to probeInterval - 100ms. Eventually, the two tasks
+	// should run in two separate goroutines.
+	routerTimeout = 400 * time.Millisecond
 )
 
 // PathWatcher monitors a specific path.

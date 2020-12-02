@@ -69,7 +69,7 @@ class Test(base.TestBase):
         print(self._docker_compose("up", "-d"))
         # Give some time, so revocation can be gone.
         print("wait for topology to be ready")
-        time.sleep(20)
+        time.sleep(30)
         print(self._docker_compose("ps"))
         print("setup done")
 

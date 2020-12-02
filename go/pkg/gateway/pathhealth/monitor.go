@@ -30,8 +30,12 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-// defaultProbeInterval specifies how often should path probes be sent.
-const defaultProbeInterval = 500 * time.Millisecond
+const (
+	// defaultPathUpdateInterval specifies how often the paths are retrieved from the daemon.
+	defaultPathUpdateInterval = 10 * time.Second
+	// defaultProbeInterval specifies how often should path probes be sent.
+	defaultProbeInterval = 500 * time.Millisecond
+)
 
 // RemoteWatcher watches multiple paths to a given remote.
 type RemoteWatcher interface {
@@ -74,6 +78,8 @@ type Monitor struct {
 	RevocationHandler snet.RevocationHandler
 	// Router is the path manager connected to the SCION daemon.
 	Router snet.Router
+	// PathUpdateInterval specified how often the paths are retrieved from the daemon.
+	PathUpdateInterval time.Duration
 	// Probeinterval defines the interval at which probes are sent. If it is not
 	// set a default is used.
 	ProbeInterval time.Duration
@@ -101,6 +107,9 @@ func (m *Monitor) Run() {
 		panic("monitor must only be started once")
 	}
 
+	if m.PathUpdateInterval == 0 {
+		m.PathUpdateInterval = defaultPathUpdateInterval
+	}
 	if m.ProbeInterval == 0 {
 		m.ProbeInterval = defaultProbeInterval
 	}
@@ -169,15 +178,18 @@ func (m *Monitor) unregister(remoteWatcher *remoteWatcherItem) {
 
 // run triggers periodical tasks on the pathmonitor.
 func (m *Monitor) run() {
+	pathUpdateTicker := time.NewTicker(m.PathUpdateInterval)
 	probeTicker := time.NewTicker(m.ProbeInterval)
 	defer probeTicker.Stop()
 	defer m.conn.Close() // This kills the handleProbeReply goroutine.
 	defer log.SafeInfo(m.Logger, "Terminated PathMonitor")
 
+	m.updatePaths()
 	for {
 		select {
-		case <-probeTicker.C:
+		case <-pathUpdateTicker.C:
 			m.updatePaths()
+		case <-probeTicker.C:
 			m.cleanup()
 			m.sendProbes()
 		case <-m.stopChannel:
