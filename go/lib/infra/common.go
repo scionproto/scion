@@ -18,12 +18,22 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/proto"
+)
+
+const (
+	// DefaultRPCTimeout is the default silent time SCION RPC Clients will wait
+	// for before declaring a timeout. Most RPCs will be subject to an
+	// additional context, and the timeout will be the minimum value allowed by
+	// the context and this timeout. RPC clients are free to use a different
+	// timeout if they have special requirements.
+	DefaultRPCTimeout time.Duration = 10 * time.Second
 )
 
 // Handler is implemented by objects that can handle a request coming

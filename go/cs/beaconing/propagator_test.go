@@ -180,9 +180,9 @@ func TestPropagatorRun(t *testing.T) {
 					return nil
 				},
 			)
-			p.Run(nil)
+			p.Run(context.Background())
 			// Check that no beacons are sent, since the period has not passed yet.
-			p.Run(nil)
+			p.Run(context.Background())
 		})
 	}
 	t.Run("Fast recovery", func(t *testing.T) {
@@ -234,14 +234,14 @@ func TestPropagatorRun(t *testing.T) {
 		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
 			gomock.Any()).Times(4).Return(nil)
 		// Initial run. Two writes expected, one write will fail.
-		p.Run(nil)
+		p.Run(context.Background())
 		time.Sleep(1 * time.Second)
 		// Second run. One write expected.
-		p.Run(nil)
+		p.Run(context.Background())
 		// Third run. No write expected
-		p.Run(nil)
+		p.Run(context.Background())
 		time.Sleep(1 * time.Second)
 		// Fourth run. Since period has passed, two writes are expected.
-		p.Run(nil)
+		p.Run(context.Background())
 	})
 }

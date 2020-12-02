@@ -98,9 +98,9 @@ func TestOriginatorRun(t *testing.T) {
 		)
 
 		// Start beacon messages.
-		o.Run(nil)
+		o.Run(context.Background())
 		// The second run should not cause any beacons to originate.
-		o.Run(nil)
+		o.Run(context.Background())
 	})
 	t.Run("Fast recovery", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
@@ -137,15 +137,15 @@ func TestOriginatorRun(t *testing.T) {
 		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
 			gomock.Any()).Times(8).Return(nil)
 		// Initial run. Two writes expected, one write will fail.
-		o.Run(nil)
+		o.Run(context.Background())
 		time.Sleep(1 * time.Second)
 		// Second run. One write expected.
-		o.Run(nil)
+		o.Run(context.Background())
 		// Third run. No write expected
-		o.Run(nil)
+		o.Run(context.Background())
 		time.Sleep(1 * time.Second)
 		// Fourth run. Since period has passed, two writes are expected.
-		o.Run(nil)
+		o.Run(context.Background())
 	})
 }
 

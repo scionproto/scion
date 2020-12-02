@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/periodic"
@@ -71,11 +72,11 @@ func (p *Propagator) Name() string {
 // interfaces. In a non-core beacon server, child interfaces are the target
 // interfaces.
 func (p *Propagator) Run(ctx context.Context) {
-	p.Tick.now = time.Now()
+	p.Tick.SetNow(time.Now())
 	if err := p.run(ctx); err != nil {
 		log.FromCtx(ctx).Error("Unable to propagate beacons", "err", err)
 	}
-	p.Tick.updateLast()
+	p.Tick.UpdateLast()
 }
 
 func (p *Propagator) run(ctx context.Context) error {
@@ -126,7 +127,7 @@ func (p *Propagator) needsBeacons(logger log.Logger) []common.IFIDType {
 	} else {
 		intfs = sortedIntfs(p.Intfs, topology.Child)
 	}
-	if p.Tick.passed() {
+	if p.Tick.Passed() {
 		return intfs
 	}
 	stale := make([]common.IFIDType, 0, len(intfs))
@@ -135,7 +136,7 @@ func (p *Propagator) needsBeacons(logger log.Logger) []common.IFIDType {
 		if intf == nil {
 			continue
 		}
-		if p.Tick.now.Sub(intf.LastPropagate()) > p.Tick.period {
+		if p.Tick.Overdue(intf.LastPropagate()) {
 			stale = append(stale, ifid)
 		}
 	}
@@ -143,7 +144,7 @@ func (p *Propagator) needsBeacons(logger log.Logger) []common.IFIDType {
 }
 
 func (p *Propagator) logSummary(logger log.Logger, s *summary) {
-	if p.Tick.passed() {
+	if p.Tick.Passed() {
 		logger.Debug("Propagated beacons",
 			"count", s.count, "start_isd_ases", len(s.srcs), "egress_interfaces", s.IfIds())
 		return
@@ -246,14 +247,23 @@ func (p *beaconPropagator) extendAndSend(ctx context.Context, bseg beacon.Beacon
 			return
 		}
 		topoInfo := intf.TopoInfo()
+
+		rpcContext, cancelF := context.WithTimeout(ctx, infra.DefaultRPCTimeout)
+		defer cancelF()
+		rpcStart := time.Now()
+
 		err := p.BeaconSender.Send(
-			ctx,
+			rpcContext,
 			bseg.Segment,
 			topoInfo.IA,
 			egIfid,
 			topoInfo.InternalAddr,
 		)
 		if err != nil {
+			if rpcContext.Err() != nil {
+				err = serrors.WrapStr("timed out waiting for RPC to complete", err,
+					"waited_for", time.Since(rpcStart))
+			}
 			p.logger.Info("Unable to send packet", "egress_interface", egIfid, "err", err)
 			p.incrementMetrics(labels.WithResult(prom.ErrNetwork))
 			return
@@ -278,7 +288,7 @@ func (p *beaconPropagator) shouldIgnore(bseg beacon.Beacon, egIfid common.IFIDTy
 }
 
 func (p *beaconPropagator) onSuccess(intf *ifstate.Interface, egIfid common.IFIDType) {
-	intf.Propagate(p.Tick.now)
+	intf.Propagate(p.Tick.Now())
 	p.success.Inc()
 	p.summary.AddIfid(egIfid)
 }

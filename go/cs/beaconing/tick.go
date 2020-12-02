@@ -19,6 +19,8 @@ import (
 )
 
 // Tick keeps track whether the period has passed compared to the last time.
+//
+// If the Tick's clock has never been set, its value is the default Go time.Time.
 type Tick struct {
 	now    time.Time
 	last   time.Time
@@ -29,15 +31,34 @@ func NewTick(period time.Duration) Tick {
 	return Tick{period: period}
 }
 
-// updateLast updates the last time to the current time, if the period has
+func (t *Tick) SetNow(now time.Time) {
+	t.now = now
+}
+
+func (t *Tick) Now() time.Time {
+	return t.now
+}
+
+// Overdue returns true if the Tick's period has elapsed since timestamp in the
+// past up to the Tick's Now time.
+func (t *Tick) Overdue(timestamp time.Time) bool {
+	return t.now.Sub(timestamp) > t.period
+}
+
+func (t *Tick) Period() time.Duration {
+	return t.period
+}
+
+// UpdateLast updates the last time to the current time, if the period has
 // passed since last.
-func (t *Tick) updateLast() {
-	if t.passed() {
+func (t *Tick) UpdateLast() {
+	if t.Passed() {
 		t.last = t.now
 	}
 }
 
-// passed returns whether the last timestamp is further away from now than the period
-func (t *Tick) passed() bool {
+// Passed returns true if the Tick's period has elapsed since the last UpdateLast call up to
+// the Tick's Now time.
+func (t *Tick) Passed() bool {
 	return t.now.Sub(t.last) >= t.period
 }
