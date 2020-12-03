@@ -189,8 +189,8 @@ func (bi *binaryIntegration) StartClient(ctx context.Context,
 		args = replacePattern(SCIOND, sciond, args)
 	}
 	r := &BinaryWaiter{
-		cmd:      exec.CommandContext(ctx, bi.cmd, args...),
-		waitDone: make(chan struct{}),
+		cmd:         exec.CommandContext(ctx, bi.cmd, args...),
+		logsWritten: make(chan struct{}),
 	}
 	log.Info(fmt.Sprintf("%v %v\n", bi.cmd, strings.Join(args, " ")))
 	r.cmd.Env = os.Environ()
@@ -207,12 +207,9 @@ func (bi *binaryIntegration) StartClient(ctx context.Context,
 
 	go func() {
 		defer log.HandlePanic()
+		defer close(r.logsWritten)
+		defer pr.Close()
 		bi.writeLog("client", clientID(src, dst), fmt.Sprintf("%s -> %s", src.IA, dst.IA), tpr)
-	}()
-	go func() {
-		defer log.HandlePanic()
-		<-r.waitDone
-		pr.Close()
 	}()
 	return r, r.cmd.Start()
 }
@@ -270,15 +267,16 @@ func clientID(src, dst *snet.UDPAddr) string {
 
 // BinaryWaiter can be used to wait on completion of the process.
 type BinaryWaiter struct {
-	cmd      *exec.Cmd
-	waitDone chan struct{}
-	output   bytes.Buffer
+	cmd         *exec.Cmd
+	logsWritten chan struct{}
+	output      bytes.Buffer
 }
 
 // Wait waits for completion of the process.
 func (bw *BinaryWaiter) Wait() error {
-	defer close(bw.waitDone)
-	return bw.cmd.Wait()
+	err := bw.cmd.Wait()
+	<-bw.logsWritten
+	return err
 }
 
 // Output is the output of the process, only available after Wait is returnred.
