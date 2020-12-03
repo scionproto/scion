@@ -34,7 +34,7 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 	testCases := map[string]struct {
 		request   hiddenpath.SegmentRequest
 		local     addr.IA
-		db        func(ctrl *gomock.Controller) hiddenpath.SegmentDB
+		db        func(ctrl *gomock.Controller) hiddenpath.Store
 		groups    func() map[hiddenpath.GroupID]*hiddenpath.Group
 		want      []*seg.Meta
 		assertErr assert.ErrorAssertionFunc
@@ -45,7 +45,7 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 				DstIA:    xtest.MustParseIA("2-ff00:0:22"),
 				Peer:     xtest.MustParseIA("1-ff00:0:13"),
 			},
-			db: func(ctrl *gomock.Controller) hiddenpath.SegmentDB {
+			db: func(ctrl *gomock.Controller) hiddenpath.Store {
 				return nil
 			},
 			groups: func() map[hiddenpath.GroupID]*hiddenpath.Group {
@@ -69,7 +69,7 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 				DstIA: xtest.MustParseIA("2-ff00:0:22"),
 				Peer:  xtest.MustParseIA("1-ff00:0:13"),
 			},
-			db: func(ctrl *gomock.Controller) hiddenpath.SegmentDB {
+			db: func(ctrl *gomock.Controller) hiddenpath.Store {
 				return nil
 			},
 			groups: func() map[hiddenpath.GroupID]*hiddenpath.Group {
@@ -93,7 +93,7 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 				DstIA: xtest.MustParseIA("2-ff00:0:22"),
 				Peer:  xtest.MustParseIA("1-ff00:0:13"),
 			},
-			db: func(ctrl *gomock.Controller) hiddenpath.SegmentDB {
+			db: func(ctrl *gomock.Controller) hiddenpath.Store {
 				return nil
 			},
 			groups: func() map[hiddenpath.GroupID]*hiddenpath.Group {
@@ -122,7 +122,7 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 				DstIA: xtest.MustParseIA("2-ff00:0:22"),
 				Peer:  xtest.MustParseIA("1-ff00:0:13"),
 			},
-			db: func(ctrl *gomock.Controller) hiddenpath.SegmentDB {
+			db: func(ctrl *gomock.Controller) hiddenpath.Store {
 				return nil
 			},
 			groups: func() map[hiddenpath.GroupID]*hiddenpath.Group {
@@ -151,8 +151,8 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 				DstIA: xtest.MustParseIA("2-ff00:0:22"),
 				Peer:  xtest.MustParseIA("1-ff00:0:13"),
 			},
-			db: func(ctrl *gomock.Controller) hiddenpath.SegmentDB {
-				db := mock_hiddenpath.NewMockSegmentDB(ctrl)
+			db: func(ctrl *gomock.Controller) hiddenpath.Store {
+				db := mock_hiddenpath.NewMockStore(ctrl)
 				db.EXPECT().Get(gomock.Any(), xtest.MustParseIA("2-ff00:0:22"),
 					[]hiddenpath.GroupID{
 						{OwnerAS: xtest.MustParseAS("ff00:0:110")},
@@ -186,13 +186,13 @@ func TestAuthoritativeServerSegments(t *testing.T) {
 				DstIA: xtest.MustParseIA("2-ff00:0:22"),
 				Peer:  xtest.MustParseIA("1-ff00:0:13"),
 			},
-			db: func(ctrl *gomock.Controller) hiddenpath.SegmentDB {
-				db := mock_hiddenpath.NewMockSegmentDB(ctrl)
+			db: func(ctrl *gomock.Controller) hiddenpath.Store {
+				db := mock_hiddenpath.NewMockStore(ctrl)
 				db.EXPECT().Get(gomock.Any(), xtest.MustParseIA("2-ff00:0:22"),
 					[]hiddenpath.GroupID{
 						{OwnerAS: xtest.MustParseAS("ff00:0:110")},
 						{OwnerAS: xtest.MustParseAS("ff00:0:111")},
-					}).Return([]hiddenpath.DBSegment{{Meta: seg.Meta{Type: seg.TypeDown}}}, nil)
+					}).Return([]*seg.Meta{{Type: seg.TypeDown}}, nil)
 				return db
 			},
 			groups: func() map[hiddenpath.GroupID]*hiddenpath.Group {

@@ -33,29 +33,12 @@ type SegmentRequest struct {
 	Peer addr.IA
 }
 
-// DBSegment is a segment that is stored in the database.
-type DBSegment struct {
-	// Meta contains the segment and its type.
-	Meta seg.Meta
-	// GroupIDs are the hidden segment group IDs this
-	GroupIDs []GroupID
-}
-
-// SegmentDB is the interface to the hidden segment database.
-type SegmentDB interface {
-	// Get gets the segment that ends at the given IA, and is in one of the
-	// given hidden path groups.
-	Get(context.Context, addr.IA, []GroupID) ([]DBSegment, error)
-	// Put puts the given segments in the database.
-	Put(context.Context, []DBSegment) error
-}
-
 // AuthoritativeServer serves segments from the database.
 type AuthoritativeServer struct {
 	// Groups is the current set of groups.
 	Groups map[GroupID]*Group
 	// DB is used to read hidden segments.
-	DB SegmentDB
+	DB Store
 	// LocalIA is the ISD-AS this server is run in.
 	LocalIA addr.IA
 }
@@ -84,11 +67,7 @@ func (s AuthoritativeServer) Segments(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	reply := make([]*seg.Meta, 0, len(segs))
-	for _, s := range segs {
-		reply = append(reply, &s.Meta)
-	}
-	return reply, nil
+	return segs, nil
 }
 
 func canRead(peer addr.IA, group *Group) bool {

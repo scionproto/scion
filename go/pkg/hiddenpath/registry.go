@@ -47,7 +47,7 @@ type RegistryServer struct {
 	// Groups is the current set of groups.
 	Groups map[GroupID]*Group
 	// DB is used to write received segments.
-	DB SegmentDB
+	DB Store
 	// Verifier is used to verify the received segments.
 	Verifier Verifier
 	// LocalIA is the IA this handler is in.
@@ -71,19 +71,17 @@ func (h RegistryServer) Register(ctx context.Context, reg Registration) error {
 	if _, ok := group.Registries[h.LocalIA]; !ok {
 		return serrors.New("receiver not registry in group")
 	}
-	dbSegs := make([]DBSegment, 0, len(reg.Segments))
 	for _, s := range reg.Segments {
 		if s.Type != seg.TypeDown {
 			return serrors.New("wrong segment type", "segment", s, "expected", seg.TypeDown)
 		}
-		dbSegs = append(dbSegs, DBSegment{Meta: *s, GroupIDs: []GroupID{reg.GroupID}})
 	}
 	// verify segments
 	if err := h.Verifier.Verify(ctx, reg.Segments, reg.Peer); err != nil {
 		return serrors.WrapStr("verifying segments", err)
 	}
 	// store segments in db
-	if err := h.DB.Put(ctx, dbSegs); err != nil {
+	if err := h.DB.Put(ctx, reg.Segments, reg.GroupID); err != nil {
 		return serrors.WrapStr("writing segments", err)
 	}
 	return nil
