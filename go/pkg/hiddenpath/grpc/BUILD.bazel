@@ -5,12 +5,14 @@ go_library(
     srcs = [
         "discovery.go",
         "lookup.go",
+        "register.go",
         "registry.go",
         "requester.go",
     ],
     importpath = "github.com/scionproto/scion/go/pkg/hiddenpath/grpc",
     visibility = ["//visibility:public"],
     deps = [
+        "//go/cs/beaconing:go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/infra/modules/segfetcher:go_default_library",
@@ -18,6 +20,7 @@ go_library(
         "//go/lib/snet:go_default_library",
         "//go/pkg/grpc:go_default_library",
         "//go/pkg/hiddenpath:go_default_library",
+        "//go/pkg/proto/control_plane:go_default_library",
         "//go/pkg/proto/discovery:go_default_library",
         "//go/pkg/proto/hidden_segment:go_default_library",
         "@org_golang_google_grpc//codes:go_default_library",

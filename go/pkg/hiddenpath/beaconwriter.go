@@ -32,6 +32,17 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
+// SegmentRegistration is a registration for hidden segments.
+type SegmentRegistration struct {
+	GroupID GroupID
+	Seg     seg.Meta
+}
+
+// Register is used to register segments to a remote.
+type Register interface {
+	RegisterSegment(context.Context, SegmentRegistration, net.Addr) error
+}
+
 // BeaconWriter terminates segments and registers them at remotes. The remotes
 // can either be a public core segment registry or a hidden segment registry.
 type BeaconWriter struct {
@@ -46,9 +57,9 @@ type BeaconWriter struct {
 	Intfs *ifstate.Interfaces
 	// Extender is used to terminate the beacon.
 	Extender beaconing.Extender
-	// RPCs are used to send the segment to the remote. For public registrations
+	// RPC is used to send the segment to the remote. For public registrations
 	// the entry with an empty group ID as key is used.
-	RPCs map[GroupID]beaconing.RPC
+	RPC Register
 	// Pather is used to construct paths to the originator of a beacon.
 	Pather beaconing.Pather
 	// RegistrationPolicy is the hidden path registration policy.
@@ -100,12 +111,11 @@ func (w *BeaconWriter) Write(ctx context.Context, segments <-chan beacon.BeaconO
 					internalErrors:  w.InternalErrors,
 					registered:      w.Registered,
 					summary:         summary,
-					segType:         seg.TypeDown,
 					hiddenPathGroup: id,
 					resolveRemote: func(ctx context.Context) (net.Addr, error) {
 						return w.AddressResolver.Resolve(ctx, a)
 					},
-					rpc: w.RPCs[id],
+					rpc: w.RPC,
 				}
 				if id.ToUint64() == 0 {
 					// public
@@ -136,15 +146,17 @@ type remoteWriter struct {
 	internalErrors  metrics.Counter
 	registered      metrics.Counter
 	summary         *summary
-	segType         seg.Type
 	hiddenPathGroup GroupID
 	resolveRemote   func(context.Context) (net.Addr, error)
-	rpc             beaconing.RPC
+	rpc             Register
 }
 
 // run resolves, and writes the segment to the remote registry.
 func (w *remoteWriter) run(ctx context.Context, bseg beacon.Beacon) {
-	reg := seg.Meta{Type: w.segType, Segment: bseg.Segment}
+	reg := SegmentRegistration{
+		Seg:     seg.Meta{Type: seg.TypeDown, Segment: bseg.Segment},
+		GroupID: w.hiddenPathGroup,
+	}
 
 	logger := log.FromCtx(ctx)
 
@@ -185,7 +197,7 @@ func (w *remoteWriter) hpGroup() string {
 }
 
 func (w *remoteWriter) segTypeString() string {
-	s := w.segType.String()
+	s := seg.TypeDown.String()
 	if w.hiddenPathGroup.ToUint64() != 0 {
 		s = "hidden_" + s
 	}

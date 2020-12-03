@@ -12,6 +12,7 @@ gomock(
         "AddressResolver",
         "Discoverer",
         "Registry",
+        "Register",
     ],
     library = "//go/pkg/hiddenpath:go_default_library",
     package = "mock_hiddenpath",

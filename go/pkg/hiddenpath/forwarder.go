@@ -29,9 +29,9 @@ type Lookuper interface {
 	Segments(context.Context, SegmentRequest) ([]*seg.Meta, error)
 }
 
-// RPC is used to fetch hidden segments from a remote.
+// RPC is used to fetch hidden segments from a remote and to register segments to a remote.
 type RPC interface {
-	HiddenSegments(ctx context.Context, req SegmentRequest, dst net.Addr) ([]*seg.Meta, error)
+	HiddenSegments(context.Context, SegmentRequest, net.Addr) ([]*seg.Meta, error)
 }
 
 // Verifier is used to verify a segments reply.

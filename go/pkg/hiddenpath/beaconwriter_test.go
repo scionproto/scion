@@ -32,7 +32,6 @@ import (
 
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/cs/beaconing"
-	"github.com/scionproto/scion/go/cs/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -92,38 +91,38 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 	topoProvider := itopotest.TopoProviderFromFile(t, topoNonCore)
 
 	testCases := map[string]struct {
-		beacons    [][]common.IFIDType
-		createRPCs func(*testing.T, *gomock.Controller) map[hiddenpath.GroupID]beaconing.RPC
-		policy     hiddenpath.RegistrationPolicy
-		resolver   func(*gomock.Controller) hiddenpath.AddressResolver
+		beacons   [][]common.IFIDType
+		createRPC func(*testing.T, *gomock.Controller) hiddenpath.Register
+		policy    hiddenpath.RegistrationPolicy
+		resolver  func(*gomock.Controller) hiddenpath.AddressResolver
 	}{
 		"Only public registration": {
 			beacons: [][]common.IFIDType{
 				{graph.If_120_X_111_B},
 				{graph.If_130_B_120_A, graph.If_120_X_111_B},
 			},
-			createRPCs: func(t *testing.T,
-				ctrl *gomock.Controller) map[hiddenpath.GroupID]beaconing.RPC {
+			createRPC: func(t *testing.T,
+				ctrl *gomock.Controller) hiddenpath.Register {
 
-				rpc := mock_beaconing.NewMockRPC(ctrl)
+				rpc := mock_hiddenpath.NewMockRegister(ctrl)
 				rpc.EXPECT().RegisterSegment(gomock.Any(), gomock.Any(),
 					matchSVCCS("1-ff00:0:120")).DoAndReturn(
-					func(_ context.Context, meta seg.Meta, remote net.Addr) error {
-						validatePublicSeg(t, meta.Segment, remote.(*snet.SVCAddr), topoProvider)
+					func(_ context.Context, reg hiddenpath.SegmentRegistration,
+						remote net.Addr) error {
+						validatePublicSeg(t, reg.Seg.Segment, remote.(*snet.SVCAddr), topoProvider)
 						return nil
 					},
 				)
 				rpc.EXPECT().RegisterSegment(gomock.Any(), gomock.Any(),
 					matchSVCCS("1-ff00:0:130")).DoAndReturn(
-					func(_ context.Context, meta seg.Meta, remote net.Addr) error {
-						validatePublicSeg(t, meta.Segment, remote.(*snet.SVCAddr), topoProvider)
+					func(_ context.Context, reg hiddenpath.SegmentRegistration,
+						remote net.Addr) error {
+						validatePublicSeg(t, reg.Seg.Segment, remote.(*snet.SVCAddr), topoProvider)
 						return nil
 					},
 				)
 
-				return map[hiddenpath.GroupID]beaconing.RPC{
-					{}: rpc,
-				}
+				return rpc
 			},
 			policy: hiddenpath.RegistrationPolicy{
 				uint64(graph.If_111_B_120_X): hiddenpath.InterfacePolicy{
@@ -139,24 +138,21 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				{graph.If_120_X_111_B},
 				{graph.If_130_B_120_A, graph.If_120_X_111_B},
 			},
-			createRPCs: func(t *testing.T,
-				ctrl *gomock.Controller) map[hiddenpath.GroupID]beaconing.RPC {
-
-				rpc := mock_beaconing.NewMockRPC(ctrl)
+			createRPC: func(t *testing.T,
+				ctrl *gomock.Controller) hiddenpath.Register {
+				rpc := mock_hiddenpath.NewMockRegister(ctrl)
 				rpc.EXPECT().RegisterSegment(gomock.Any(), gomock.Any(),
 					addrMatcher{udp: &snet.UDPAddr{
 						IA:   xtest.MustParseIA("1-ff00:0:114"),
 						Host: xtest.MustParseUDPAddr(t, "10.1.0.1:404"),
 					}}).Times(2).DoAndReturn(
-					func(_ context.Context, meta seg.Meta, remote net.Addr) error {
-						validateHS(t, meta.Segment)
+					func(_ context.Context, reg hiddenpath.SegmentRegistration,
+						remote net.Addr) error {
+						validateHS(t, reg.Seg.Segment)
 						return nil
 					},
 				)
-
-				return map[hiddenpath.GroupID]beaconing.RPC{
-					mustParseGroupID(t, "ff00:0:140-2"): rpc,
-				}
+				return rpc
 			},
 			policy: hiddenpath.RegistrationPolicy{
 				uint64(graph.If_111_B_120_X): hiddenpath.InterfacePolicy{
@@ -203,7 +199,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 				},
-				RPCs: tc.createRPCs(t, ctrl),
+				RPC: tc.createRPC(t, ctrl),
 				Pather: addrutil.Pather{
 					UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
 						return topoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
