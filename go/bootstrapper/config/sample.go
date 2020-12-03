@@ -17,12 +17,8 @@ package config
 const idSample = "bootstrapper"
 
 const bootstrapperSample = `
-# The network interface to use (default "")
-interface = "NIC"
-# The folder where the retrieved topology JSON file is stored (default ".")
-topology_folder = "."
-# The folder where the retrieved TRCs archive is extracted (default ".")
-trcs_folder = "."
+# The folder where the retrieved topology and certificates are stored (default ".")
+sciond_config_dir = "."
 
 # Discovery mechanisms
 [mock]

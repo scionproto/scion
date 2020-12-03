@@ -29,7 +29,8 @@ import (
 )
 
 var (
-	cfg config.Config
+	cfg       config.Config
+	ifaceName = flag.String("iface", "", "the interface used to probe the network")
 )
 
 func init() {
@@ -56,6 +57,7 @@ func realMain() int {
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
+	cfg.InterfaceName = *ifaceName
 	defer log.Flush()
 	defer env.LogAppStopped("bootstrapper", "")
 	defer log.HandlePanic()

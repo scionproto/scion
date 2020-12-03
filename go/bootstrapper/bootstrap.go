@@ -54,9 +54,9 @@ type Bootstrapper struct {
 
 func NewBootstrapper(cfg *config.Config) (*Bootstrapper, error) {
 	log.Debug("Cfg", "", cfg)
-	iface, err := net.InterfaceByName(cfg.Interface)
+	iface, err := net.InterfaceByName(cfg.InterfaceName)
 	if err != nil {
-		return nil, common.NewBasicError("getting interface by name", err)
+		return nil, common.NewBasicError(common.ErrMsg("getting interface by name: "+cfg.InterfaceName), err)
 	}
 	return &Bootstrapper{
 		cfg,
@@ -123,7 +123,7 @@ func pullTopology(addr *net.TCPAddr) error {
 	if err != nil {
 		return common.NewBasicError("unable to parse RWTopology from JSON bytes", err)
 	}
-	topologyPath := path.Join(cfg.TopologyFolder, TopologyJSONFileName)
+	topologyPath := path.Join(cfg.SciondConfigDir, TopologyJSONFileName)
 	err = ioutil.WriteFile(topologyPath, raw, 0644)
 	if err != nil {
 		return common.NewBasicError("Bootstrapper could not store topology", err)
@@ -169,7 +169,7 @@ func pullTRCs(addr *net.TCPAddr) error {
 				continue
 			}
 			log.Info("Extracting TRC", "name", trcName)
-			trcPath := path.Join(cfg.TRCsFolder, trcName)
+			trcPath := path.Join(cfg.SciondConfigDir, "certs", trcName)
 			f, err := os.OpenFile(trcPath, os.O_CREATE|os.O_RDWR, 0644)
 			if err != nil {
 				return common.NewBasicError("error creating file to store TRC", err)

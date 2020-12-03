@@ -19,7 +19,6 @@ import (
 	"io"
 
 	"github.com/scionproto/scion/go/bootstrapper/hinting"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/log"
 )
@@ -27,33 +26,25 @@ import (
 var _ config.Config = (*Config)(nil)
 
 type Config struct {
-	Interface   string                        `toml:"interface"`
-	TopologyFolder string                     `toml:"topology_folder"`
-	TRCsFolder string                         `toml:"trcs_folder"`
-	MOCK        hinting.MOCKHintGeneratorConf `toml:"mock"`
-	DHCP        hinting.DHCPHintGeneratorConf `toml:"dhcp"`
-	DNSSD       hinting.DNSHintGeneratorConf  `toml:"dnssd"`
-	MDNS        hinting.MDNSHintGeneratorConf `toml:"mdns"`
-	Logging     log.Config                    `toml:"log"`
+	InterfaceName   string
+	SciondConfigDir string                        `toml:"sciond_config_dir"`
+	MOCK            hinting.MOCKHintGeneratorConf `toml:"mock"`
+	DHCP            hinting.DHCPHintGeneratorConf `toml:"dhcp"`
+	DNSSD           hinting.DNSHintGeneratorConf  `toml:"dnssd"`
+	MDNS            hinting.MDNSHintGeneratorConf `toml:"mdns"`
+	Logging         log.Config                    `toml:"log,omitempty"`
 }
 
 func (cfg *Config) InitDefaults() {
 	config.InitAll(
 		&cfg.Logging,
 	)
-	if cfg.TopologyFolder == "" {
-		cfg.TopologyFolder = "."
-	}
-	if cfg.TRCsFolder == "" {
-		cfg.TRCsFolder = "."
+	if cfg.SciondConfigDir == "" {
+		cfg.SciondConfigDir = "."
 	}
 }
 
 func (cfg *Config) Validate() error {
-	if cfg.Interface == "" {
-		return common.NewBasicError("Interface must be set", nil)
-	}
-
 	return config.ValidateAll(
 		&cfg.Logging,
 	)
