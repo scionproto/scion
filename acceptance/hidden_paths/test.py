@@ -2,7 +2,9 @@
 
 # Copyright 2020 Anapaya Systems
 
+import http.server
 import time
+import threading
 
 from plumbum import cmd
 
@@ -71,11 +73,66 @@ class Test(base.TestBase):
         print(cmd.docker("image", "load", "-i",
               "./acceptance/hidden_paths/testcontainers.tar"))
 
-        # TODO(scrye): Mangle configuration files of Daemons and Control Services to enable
-        # hidden paths.
+        http_server_port = 9090
+
+        as_numbers = ["2", "3", "4", "5"]
+        # HTTP configuration server runs on 0.0.0.0 and needs to be reachable from
+        # every daemon and control service. There is one host IP on every AS bridge.
+        # We use this IP for the configuration download URLs.
+        server_ips = {
+            "2": "172.20.0.49",
+            "3": "172.20.0.57",
+            "4": "172.20.0.65",
+            "5": "172.20.0.73",
+        }
+        control_addresses = {
+            "2": "172.20.0.51:30252",
+            "3": "172.20.0.59:30252",
+            "4": "172.20.0.67:30252",
+            "5": "172.20.0.75:30252",
+        }
+        # Each AS participating in hidden paths has their own hidden paths configuration file.
+        hp_configs = {
+            "2": "hp_groups_as2_as5.yml",
+            "3": "hp_groups_as3.yml",
+            "4": "hp_groups_as4.yml",
+            "5": "hp_groups_as2_as5.yml",
+        }
+
+        # Edit all the configuration files of daemons and control services with
+        # the computed configuration URL
+        for as_number in as_numbers:
+            hp_config_url = "http://%s:%d/acceptance/hidden_paths/testdata/%s" % (
+                server_ips[as_number], http_server_port, hp_configs[as_number])
+
+            as_dir = "ASff00_0_%s" % as_number
+            as_dir_path = self.test_state.artifacts / "gen" / as_dir
+
+            daemon_path = as_dir_path / "sd.toml"
+            scion.update_toml({"sd.hidden_path_groups": hp_config_url}, [daemon_path])
+
+            control_id = "cs1-ff00_0_%s-1" % as_number
+            control_file = "%s.toml" % control_id
+            control_path = as_dir_path / control_file
+            scion.update_toml({"path.hidden_paths_cfg": hp_config_url}, [control_path])
+
+            # For simplicity, expose the services in all hidden paths ASes,
+            # even though some don't need the registration service.
+            topology_update = {
+                "hidden_segment_lookup_service.%s.addr" % control_id:
+                    control_addresses[as_number],
+                "hidden_segment_registration_service.%s.addr" % control_id:
+                    control_addresses[as_number],
+            }
+            topology_file = as_dir_path / "topology.json"
+            scion.update_json(topology_update, [topology_file])
+
+        server = http.server.HTTPServer(("0.0.0.0", 9090), http.server.SimpleHTTPRequestHandler)
+        server_thread = threading.Thread(target=configuration_server, args=[server])
+        server_thread.start()
 
         print(self._docker_compose("up", "-d"))
-        time.sleep(5)
+        time.sleep(10)  # Give applications time to download configurations
 
         self._testers = {
             "2": "tester_1-ff00_0_2",
@@ -95,6 +152,7 @@ class Test(base.TestBase):
             "4": "172.20.0.68:30255",
             "5": "172.20.0.76:30255",
         }
+        server.shutdown()
 
     def _run(self):
         # Group 3
@@ -149,3 +207,9 @@ if __name__ == "__main__":
     log.init_log()
     Test.test_state = base.TestState(scion.SCIONDocker(), tools.DC())
     Test.run()
+
+
+def configuration_server(server):
+    print("HTTP configuration server starting on %s:%d." % server.server_address)
+    server.serve_forever()
+    print("HTTP configuration server closed.")

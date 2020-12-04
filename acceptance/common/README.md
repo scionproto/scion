@@ -65,41 +65,40 @@ class Test(TestBase):
 
 
 # This decorator defines the sub-command setup.
-@Test.subcommand('setup')
+@Test.subcommand("setup")
 class TestSetup(CmdBase):
     """ This doc string is used in the sub-command help. """
 
     # This decorator logs start and end of the call.
-    @LogExec(logger, 'setup')
+    @LogExec(logger, "setup")
     def main(self):
         # Create test dir if it does not exist.
         self.cmd_setup()
         # Create the tiny topology/
-        self.scion.topology('topology/tiny.topo')
+        self.scion.topology("topology/tiny.topo")
         # Modify the logging config for all beacon servers
-        self.scion.set_configs({'log.file.level': 'debug'},
-                               local.path('gen/) // '*/bs*.toml')
+        scion.update_toml({"log.file.level": "debug"}, local.path("gen/) // "*/bs*.toml")
         # Run the scion topology.
         self.scion.run()
         # Start the tester container in the dockerized topology.
         if not self.no_docker:
-            self.tools_dc('start', 'tester*')
+            self.tools_dc("start", "tester*")
             self.docker_status()
 
 
 # This decorator defines the sub-command run.
-@Test.subcommand('run')
+@Test.subcommand("run")
 class TestRun(CmdBase):
     """ This doc string is used in the sub-command help. """
 
     # This decorator logs start and end of the call.
-    @LogExec(logger, 'run')
+    @LogExec(logger, "run")
     def main(self):
         # Run end-to-end test.
         self.scion.run_end2end()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     init_log()
     Test.run()
 ```
