@@ -26,7 +26,7 @@ func InitGateway(cfg *config.Gateway) {}
 
 func CheckGateway(t *testing.T, cfg *config.Gateway) {
 	assert.Equal(t, "gateway", cfg.ID)
-	assert.Equal(t, "/share/conf/traffic.policy", cfg.TrafficPolicy)
+	assert.Equal(t, config.DefaultSessionPoliciesFile, cfg.TrafficPolicy)
 	assert.Empty(t, cfg.IPRoutingPolicy)
 	assert.Equal(t, config.DefaultCtrlAddr, cfg.CtrlAddr)
 	assert.Equal(t, config.DefaultDataAddr, cfg.DataAddr)

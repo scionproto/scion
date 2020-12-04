@@ -20,7 +20,6 @@ import (
 	"strconv"
 
 	"github.com/scionproto/scion/go/lib/config"
-	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // Defaults.
@@ -55,7 +54,7 @@ func (cfg *Gateway) Validate() error {
 		cfg.ID = "gateway"
 	}
 	if cfg.TrafficPolicy == "" {
-		return serrors.New("no traffic policy file path specified")
+		cfg.TrafficPolicy = DefaultSessionPoliciesFile
 	}
 	cfg.CtrlAddr = DefaultAddress(cfg.CtrlAddr, defaultCtrlPort)
 	cfg.DataAddr = DefaultAddress(cfg.DataAddr, defaultDataPort)

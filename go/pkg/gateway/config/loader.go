@@ -22,6 +22,13 @@ import (
 	"github.com/scionproto/scion/go/pkg/worker"
 )
 
+// Default file paths
+const (
+	// FIXME(lukedirtwalker): cleanup traffic policy and use "session.policy"
+	// instead.
+	DefaultSessionPoliciesFile = "/share/conf/traffic.policy"
+)
+
 // Publisher publishes new configurations.
 type Publisher interface {
 	Publish(control.SessionPolicies, *routing.Policy)

@@ -18,7 +18,11 @@ const gatewaySample = `
 # ID of the gateway (default "gateway")
 id = "gateway"
 
-# The traffic policy file. This file is must exist. (required)
+# The traffic policy file. If not set or empty, the gateway attempts to read the
+# policy from the default location. If set, the gateway will read the policy from
+# the specified location. If the file does not exist, the gateway will exit with
+# an error.
+# (default "/share/conf/traffic.policy")
 traffic_policy_file = "/share/conf/traffic.policy"
 
 # The IP routing policy file. If set, the gateway will read the policy
