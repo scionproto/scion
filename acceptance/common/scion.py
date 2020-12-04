@@ -93,22 +93,49 @@ class SCION(ABC):
         """
         pass
 
-    @staticmethod
-    def set_configs(change_dict: Dict[str, Any], files: LocalPath):
-        """
-        Overwrite or set the values in the toml files with the specified
-        changes. The key in the change dictionary is a dot separated path
-        to the toml value. E.g. {'log.console.level': 'debug'} result in the
-        toml file with the following set:
 
-        [log.console]
-          level = "debug"
-        """
-        for f in files:
-            t = toml.load(f)
-            for path, val in change_dict.items():
-                merge_dict(path_to_dict(path, val), t)
-            toml.dump(t, f)
+def update_toml(change_dict: Dict[str, Any], files: LocalPath):
+    """ Overwrite or set the values in the TOML files with the specified changes.
+
+    Args:
+        change_dict: Change dictionary containing a dot separated path
+          to the TOML value. E.g. {"log.console.level": "debug"} result in the
+          TOML file with the following set:
+
+          [log.console]
+              level = "debug"
+        files: names of file or files to update.
+
+    Raises:
+        TypeError: Argument file is of invalid type
+        TomlDecodeError: Error while decoding TOML
+        IOError / FileNotFoundError: File path is not valid
+    """
+    for f in files:
+        t = toml.load(f)
+        for path, val in change_dict.items():
+            merge_dict(path_to_dict(path, val), t)
+        toml.dump(t, f)
+
+
+def update_json(change_dict: Dict[str, Any], files: LocalPath):
+    """ Overwrite or set the values in the JSON files with the specified changes.
+
+    Args:
+        change_dict: Change dictionary containing a dot separated path
+          to the JSON value.
+        files: names of file or files to update.
+
+    Raises:
+        IOError / FileNotFoundError: File path is not valid
+    """
+    for file in files:
+        with open(file, "r") as f:
+            t = json.load(f)
+        for path, val in change_dict.items():
+            merge_dict(path_to_dict(path, val), t)
+        with open(file, "w") as f:
+            json.dump(t, f, indent=2)
 
 
 class SCIONDocker(SCION):

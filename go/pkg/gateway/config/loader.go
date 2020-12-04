@@ -15,6 +15,8 @@
 package config
 
 import (
+	"os"
+
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
@@ -27,6 +29,7 @@ const (
 	// FIXME(lukedirtwalker): cleanup traffic policy and use "session.policy"
 	// instead.
 	DefaultSessionPoliciesFile = "/share/conf/traffic.policy"
+	DefaultIPRoutingPolicyFile = "/share/conf/ip_routing.policy"
 )
 
 // Publisher publishes new configurations.
@@ -67,6 +70,9 @@ func (l *Loader) Close() error {
 func (l *Loader) validate() error {
 	if l.SessionPoliciesFile == "" {
 		return serrors.New("SessionPoliciesFile must be set")
+	}
+	if l.RoutingPolicyFile == "" {
+		return serrors.New("RoutingPolicyFile must be set")
 	}
 	if l.Publisher == nil {
 		return serrors.New("Publisher must be set")
@@ -114,11 +120,21 @@ func (l *Loader) loadFiles() (control.SessionPolicies, *routing.Policy, error) {
 }
 
 func (l *Loader) loadRoutingPolicy() (*routing.Policy, error) {
-	if l.RoutingPolicyFile == "" {
-		// return a default routing policy that rejects everything.
-		return &routing.Policy{DefaultAction: routing.Reject}, nil
+	path := l.RoutingPolicyFile
+	if path == DefaultIPRoutingPolicyFile {
+		// for a default file that doesn't exist return a default routing policy
+		// that rejects everything.
+		_, err := os.Stat(path)
+		switch {
+		case err == nil:
+		case os.IsNotExist(err):
+			return &routing.Policy{DefaultAction: routing.Reject}, nil
+		default:
+			return nil, serrors.WrapStr("accessing default routing policy file", err,
+				"file", path)
+		}
 	}
-	rp, err := routing.LoadPolicy(l.RoutingPolicyFile)
+	rp, err := routing.LoadPolicy(path)
 	if err != nil {
 		return nil, err
 	}

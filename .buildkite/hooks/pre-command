@@ -18,12 +18,14 @@ fi
 rm -f $HOME/.bazelrc
 # Create a custom .bazelrc file in the home directory it takes precedence over
 # the workspace rc file.
-# We explicitly override --disk_cache to empty so that --remote_cache gets
-# picked up. This is not documented but by testing we found that without
-# overriding the --disk_cache the --remote_cache is ignored.
+# We explicitly override --[no]stamp flag.
 # --nostamp is required for better caching (only on non-release jobs).
-echo "build --nostamp" > $HOME/.bazelrc
-if [ "$BUILDKITE_PIPELINE_SLUG" == "scion-releasing" ]; then
+if [ "$BUILDKITE_PIPELINE_SLUG" == "scion" ]; then
+    echo "build --nostamp" > $HOME/.bazelrc
+    # Also set a fixed GIT_VERSION so that the workspace_status_command always
+    # returns the same value on CI to improve cache reuse.
+    export GIT_VERSION="ci-fixed"
+else
     echo "build --stamp" > $HOME/.bazelrc
 fi
 

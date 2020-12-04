@@ -47,6 +47,8 @@ type Gateway struct {
 	CtrlAddr string `toml:"ctrl_addr,omitempty"`
 	// Data plane address, for frames.
 	DataAddr string `toml:"data_addr,omitempty"`
+	// SCION dispatcher path.
+	Dispatcher string `toml:"dispatcher,omitempty"`
 }
 
 func (cfg *Gateway) Validate() error {
@@ -55,6 +57,9 @@ func (cfg *Gateway) Validate() error {
 	}
 	if cfg.TrafficPolicy == "" {
 		cfg.TrafficPolicy = DefaultSessionPoliciesFile
+	}
+	if cfg.IPRoutingPolicy == "" {
+		cfg.IPRoutingPolicy = DefaultIPRoutingPolicyFile
 	}
 	cfg.CtrlAddr = DefaultAddress(cfg.CtrlAddr, defaultCtrlPort)
 	cfg.DataAddr = DefaultAddress(cfg.DataAddr, defaultDataPort)

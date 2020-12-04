@@ -38,13 +38,14 @@ py_binary(
     deps = [":test_lib"],
 )
 
-py_test(
-    name = "test",
-    size = "large",
-    srcs = ["test.py"],
-    args = [],
-    deps = [":test_lib"],
-)
+# FIXME(scrye): Uncomment the below to enable on CI
+# py_test(
+#     name = "test",
+#     size = "large",
+#     srcs = ["test.py"],
+#     args = [],
+#     deps = [":test_lib"],
+# )
 
 container_bundle(
     name = "testcontainers",
