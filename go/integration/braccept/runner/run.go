@@ -202,7 +202,7 @@ func (t *Case) Run(cfg *RunConfig) error {
 	ePkt := ExpectedPacket{
 		Storer:            storer,
 		DevName:           t.ReadFrom,
-		Timeout:           250 * time.Millisecond,
+		Timeout:           350 * time.Millisecond,
 		IgnoreNonMatching: t.IgnoreNonMatching,
 		Pkt:               wantPkt,
 	}
