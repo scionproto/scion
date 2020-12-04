@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/cs/beaconing"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/serrors"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
 	"github.com/scionproto/scion/go/pkg/proto/control_plane"
@@ -27,8 +28,8 @@ import (
 	hspb "github.com/scionproto/scion/go/pkg/proto/hidden_segment"
 )
 
-// Register can be used to register segments to remotes.
-type Register struct {
+// Registerer can be used to register segments to remotes.
+type Registerer struct {
 	// Dialer dials a new gRPC connection.
 	Dialer libgrpc.Dialer
 	// RegularRegistration is the regular segment registration.
@@ -37,9 +38,12 @@ type Register struct {
 
 // RegisterSegment registers the segment at the remote. If the hidden path group
 // ID is not defined it is registered via a normal segment registration message
-func (s Register) RegisterSegment(ctx context.Context,
+func (s Registerer) RegisterSegment(ctx context.Context,
 	reg hiddenpath.SegmentRegistration, remote net.Addr) error {
 
+	if reg.Seg.Segment == nil {
+		return serrors.New("no segments to register")
+	}
 	if reg.GroupID.ToUint64() == 0 { // do regular public registration
 		return s.RegularRegistration.RegisterSegment(ctx, reg.Seg, remote)
 	}
