@@ -256,6 +256,10 @@ type PSConfig struct {
 	// QueryInterval specifies after how much time segments
 	// for a destination should be refetched.
 	QueryInterval util.DurWrap `toml:"query_interval,omitempty"`
+	// HiddenPathsCfg specifies the file name of the hidden path configuration.
+	// If HiddenPathsCfg begins with http:// or https://, it will be fetched
+	// over the network from the specified URL instead.
+	HiddenPathsCfg string `toml:"hidden_paths_cfg,omitempty"`
 }
 
 func (cfg *PSConfig) InitDefaults() {
@@ -300,12 +304,6 @@ type Policies struct {
 	// If this is the empty string, the default policy is used. In a core beacon
 	// server, this field is ignored.
 	DownRegistration string `toml:"down_registration,omitempty"`
-	// HiddenPathRegistration contains the file path for the hidden path registration policy
-	// and the corresponding hidden path groups.
-	// If this is the empty string, no hidden path functionality is used.
-	// If HiddenPathRegistration begins with http:// or https://, it will be fetched
-	// over the network from the specified URL instead.
-	HiddenPathRegistration string `toml:"hidden_path_registration,omitempty"`
 }
 
 // Sample generates a sample for the beacon server specific configuration.

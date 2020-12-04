@@ -17,6 +17,9 @@ package hiddenpath
 import (
 	"sort"
 
+	"gopkg.in/yaml.v2"
+
+	"github.com/scionproto/scion/go/lib/config"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -74,7 +77,57 @@ func (p RegistrationPolicy) UnmarshalYAML(unmarshal func(interface{}) error) err
 	if err != nil {
 		return err
 	}
-	for ifID, groupIDs := range rawPolicy.Policies {
+	parsed, err := parsePolicies(groups, rawPolicy.Policies)
+	if err != nil {
+		return err
+	}
+	for ifID, pol := range parsed {
+		p[ifID] = pol
+	}
+	return nil
+}
+
+// LoadConfiguration loads the hidden paths configuration indicated by the
+// location. If the location starts with http:// or https:// the configuration
+// is fetched via HTTP.
+func LoadConfiguration(location string) (Groups, RegistrationPolicy, error) {
+	if location == "" {
+		return nil, nil, nil
+	}
+	c, err := config.LoadResource(location)
+	if err != nil {
+		return nil, nil, serrors.WithCtx(err, "location", location)
+	}
+	defer c.Close()
+	info := registrationPolicyInfo{}
+	if err := yaml.NewDecoder(c).Decode(&info); err != nil {
+		return nil, nil, serrors.WrapStr("parsing", err, "location", location)
+	}
+	groups, err := parseGroups(info.Groups)
+	if err != nil {
+		return nil, nil, serrors.WrapStr("parsing groups", err, "location", location)
+	}
+	if err := groups.Validate(); err != nil {
+		return nil, nil, serrors.WrapStr("validating groups", err, "location", location)
+	}
+	if len(info.Policies) == 0 {
+		return groups, nil, nil
+	}
+	pol, err := parsePolicies(groups, info.Policies)
+	if err != nil {
+		return nil, nil, serrors.WrapStr("parsing policies", err, "location", location)
+	}
+	return groups, pol, nil
+}
+
+type registrationPolicyInfo struct {
+	Groups   map[string]*groupInfo `yaml:"groups,omitempty"`
+	Policies map[uint64][]string   `yaml:"registration_policy_per_interface,omitempty"`
+}
+
+func parsePolicies(groups Groups, rawPolicies map[uint64][]string) (RegistrationPolicy, error) {
+	result := make(RegistrationPolicy)
+	for ifID, groupIDs := range rawPolicies {
 		pol := InterfacePolicy{
 			Groups: make(map[GroupID]*Group),
 		}
@@ -85,20 +138,15 @@ func (p RegistrationPolicy) UnmarshalYAML(unmarshal func(interface{}) error) err
 			}
 			id, err := ParseGroupID(groupID)
 			if err != nil {
-				return serrors.WrapStr("parsing group ID", err)
+				return nil, serrors.WrapStr("parsing group ID", err)
 			}
 			group, ok := groups[id]
 			if !ok {
-				return serrors.New("referring to unknown group", "group_id", id)
+				return nil, serrors.New("referring to unknown group", "group_id", id)
 			}
 			pol.Groups[id] = group
 		}
-		p[ifID] = pol
+		result[ifID] = pol
 	}
-	return nil
-}
-
-type registrationPolicyInfo struct {
-	Groups   map[string]*groupInfo `yaml:"groups,omitempty"`
-	Policies map[uint64][]string   `yaml:"registration_policy_per_interface,omitempty"`
+	return result, nil
 }

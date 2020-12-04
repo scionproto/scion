@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
 	hspb "github.com/scionproto/scion/go/pkg/proto/hidden_segment"
 )
@@ -36,6 +37,8 @@ type RegistrationServer struct {
 // request.
 func (s RegistrationServer) HiddenSegmentRegistration(ctx context.Context,
 	req *hspb.HiddenSegmentRegistrationRequest) (*hspb.HiddenSegmentRegistrationResponse, error) {
+
+	logger := log.FromCtx(ctx)
 
 	id := hiddenpath.GroupIDFromUint64(req.GroupId)
 	rawPeer, ok := peer.FromContext(ctx)
@@ -62,6 +65,7 @@ func (s RegistrationServer) HiddenSegmentRegistration(ctx context.Context,
 		Peer:     rawPeer.Addr,
 	})
 	if err != nil {
+		logger.Debug("Error during registration", "err", err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &hspb.HiddenSegmentRegistrationResponse{}, nil

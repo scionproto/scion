@@ -19,6 +19,10 @@ const idSample = "cs-1"
 const psSample = `
 # The time after which segments for a destination are refetched. (default 5m)
 query_interval = "5m"
+# The path to the hidden paths configuration file. If the path is empty, hidden
+# paths functionality is not enabled. If the path starts with http:// or
+# https:// the configuration is fetched from the given URL. (default: "")
+hidden_paths_cfg = ""
 `
 
 const caSample = `

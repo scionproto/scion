@@ -137,7 +137,7 @@ func TestRegistryRegister(t *testing.T) {
 				verifier := mock_hiddenpath.NewMockVerifier(ctrl)
 				verifier.EXPECT().Verify(gomock.Any(),
 					[]*seg.Meta{{Type: seg.TypeDown}},
-					&snet.UDPAddr{IA: writer},
+					&snet.SVCAddr{IA: writer, SVC: addr.SvcCS},
 				).Return(serrors.New("test err"))
 				return verifier
 			},
@@ -159,7 +159,7 @@ func TestRegistryRegister(t *testing.T) {
 				verifier := mock_hiddenpath.NewMockVerifier(ctrl)
 				verifier.EXPECT().Verify(gomock.Any(),
 					[]*seg.Meta{{Type: seg.TypeDown}},
-					&snet.UDPAddr{IA: writer},
+					&snet.SVCAddr{IA: writer, SVC: addr.SvcCS},
 				)
 				return verifier
 			},
@@ -181,7 +181,7 @@ func TestRegistryRegister(t *testing.T) {
 				verifier := mock_hiddenpath.NewMockVerifier(ctrl)
 				verifier.EXPECT().Verify(gomock.Any(),
 					[]*seg.Meta{{Type: seg.TypeDown}},
-					&snet.UDPAddr{IA: writer},
+					&snet.SVCAddr{IA: writer, SVC: addr.SvcCS},
 				)
 				return verifier
 			},

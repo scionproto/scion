@@ -124,6 +124,19 @@ func (g *Group) GetRegistries() []addr.IA {
 	return ret
 }
 
+// Roles indicates roles in a hidden path group(s).
+type Roles struct {
+	Owner    bool
+	Registry bool
+	Reader   bool
+	Writer   bool
+}
+
+// None returns true if no role is set.
+func (r Roles) None() bool {
+	return !r.Owner && !r.Registry && !r.Reader && !r.Writer
+}
+
 // Groups is a list of hidden path groups.
 type Groups map[GroupID]*Group
 
@@ -171,16 +184,32 @@ func LoadHiddenPathGroups(location string) (Groups, error) {
 	}
 	c, err := config.LoadResource(location)
 	if err != nil {
-		return nil, serrors.WrapStr("opening file", err)
+		return nil, serrors.WithCtx(err, "location", location)
 	}
 	defer c.Close()
 	if err := yaml.NewDecoder(c).Decode(&ret); err != nil {
-		return nil, serrors.WrapStr("parsing file", err, "file", location)
+		return nil, serrors.WrapStr("parsing", err, "location", location)
 	}
 	if err := ret.Validate(); err != nil {
 		return nil, serrors.WrapStr("validating", err, "file", c)
 	}
 	return ret, nil
+}
+
+// Roles returns the roles the given ISD-AS has in this set of groups.
+func (g Groups) Roles(ia addr.IA) Roles {
+	r := Roles{}
+	inSet := func(ia addr.IA, set map[addr.IA]struct{}) bool {
+		_, ok := set[ia]
+		return ok
+	}
+	for _, group := range g {
+		r.Owner = r.Owner || ia.Equal(group.Owner)
+		r.Registry = r.Registry || inSet(ia, group.Registries)
+		r.Reader = r.Reader || inSet(ia, group.Readers)
+		r.Writer = r.Writer || inSet(ia, group.Writers)
+	}
+	return r
 }
 
 type groupInfo struct {

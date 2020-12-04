@@ -60,6 +60,23 @@ func (r RegistrationResolver) Resolve(ctx context.Context, ia addr.IA) (net.Addr
 	})
 }
 
+// LookupResolver resolves the address of a hidden segment lookup
+// server in an IA.
+type LookupResolver struct {
+	Router     snet.Router
+	Discoverer Discoverer
+}
+
+// Resolve resolves a hidden segment lookup server in the remote IA.
+func (r LookupResolver) Resolve(ctx context.Context, ia addr.IA) (net.Addr, error) {
+	return resolve(ctx, ia, r.Discoverer, r.Router, func(s Servers) (*net.UDPAddr, error) {
+		if len(s.Lookup) == 0 {
+			return nil, serrors.New("no lookup server found")
+		}
+		return s.Lookup[0], nil
+	})
+}
+
 func resolve(ctx context.Context, ia addr.IA, discoverer Discoverer, router snet.Router,
 	extractAddr func(Servers) (*net.UDPAddr, error)) (net.Addr, error) {
 

@@ -110,15 +110,17 @@ func TestForwardServerSegments(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
+			resolver := mock_hiddenpath.NewMockAddressResolver(ctrl)
+			resolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(&net.UDPAddr{}, nil).
+				AnyTimes()
+
 			server := hiddenpath.ForwardServer{
 				Groups:    tc.groups(),
 				RPC:       tc.rpc(ctrl),
 				LocalAuth: tc.lookuper(ctrl),
 				LocalIA:   local,
 				Verifier:  tc.verifier(ctrl),
-				Resolve: func(context.Context, addr.IA) (net.Addr, error) {
-					return &net.UDPAddr{}, nil
-				},
+				Resolver:  resolver,
 			}
 			got, err := server.Segments(context.Background(), tc.request)
 			tc.assertErr(t, err)
