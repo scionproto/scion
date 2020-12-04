@@ -85,11 +85,15 @@ class Test(base.TestBase):
             "4": "172.20.0.65",
             "5": "172.20.0.73",
         }
+        # XXX(lukedirtwalker): The ports below are the dynamic QUIC server
+        # ports. Thanks to the docker setup they are setup consistently so we
+        # can use them. Optimally we would define a static server port inside
+        # the CS and use that one instead.
         control_addresses = {
-            "2": "172.20.0.51:30252",
-            "3": "172.20.0.59:30252",
-            "4": "172.20.0.67:30252",
-            "5": "172.20.0.75:30252",
+            "2": "172.20.0.51:32768",
+            "3": "172.20.0.59:32768",
+            "4": "172.20.0.67:32768",
+            "5": "172.20.0.75:32768",
         }
         # Each AS participating in hidden paths has their own hidden paths configuration file.
         hp_configs = {
@@ -132,7 +136,7 @@ class Test(base.TestBase):
         server_thread.start()
 
         print(self._docker_compose("up", "-d"))
-        time.sleep(10)  # Give applications time to download configurations
+        time.sleep(4)  # Give applications time to download configurations
 
         self._testers = {
             "2": "tester_1-ff00_0_2",
@@ -152,6 +156,12 @@ class Test(base.TestBase):
             "4": "172.20.0.68:30255",
             "5": "172.20.0.76:30255",
         }
+        self._dispatcher_ips = {
+            "2": "172.20.0.51",
+            "3": "172.20.0.59",
+            "4": "172.20.0.67",
+            "5": "172.20.0.75",
+        }
         server.shutdown()
 
     def _run(self):
@@ -166,9 +176,7 @@ class Test(base.TestBase):
         self._showpaths_bidirectional("4", "5", 0)
 
         # Group 3 X 4
-        # FIXME(scrye): When hidden paths is implemented, the below should fail.
-        # Change to 1.
-        self._showpaths_bidirectional("3", "4", 0)
+        self._showpaths_bidirectional("3", "4", 1)
 
     def _showpaths_bidirectional(self, source: str, destination: str, retcode: int):
         self._showpaths_run(source, destination, retcode)
@@ -178,14 +186,13 @@ class Test(base.TestBase):
         print(cmd.docker("exec", "-t", self._testers[source_as], "./bin/scion",
                          "sp", self._ases[destination_as],
                          "--sciond", self._daemons_api[source_as],
+                         "--local", self._dispatcher_ips[source_as],
                          "--timeout", "2s",
-                         "--no-probe",  # FIXME(scrye): Testers always time out, but paths exist.
                          retcode=retcode))
 
     def _teardown(self):
-        logs = self._docker_compose("logs")
-        with open(self.test_state.artifacts / "logs" / "docker-compose.log", "w") as f:
-            f.write(logs)
+        self.test_state.dc.compose_file = self.test_state.artifacts / "gen/scion-dc.yml"
+        self.test_state.dc.collect_logs(out_dir=self.test_state.artifacts / "logs")
         print(self._docker_compose("down", "-v"))
 
 
@@ -203,13 +210,13 @@ class TestTeardown(Test):
         self._teardown()
 
 
-if __name__ == "__main__":
-    log.init_log()
-    Test.test_state = base.TestState(scion.SCIONDocker(), tools.DC())
-    Test.run()
-
-
 def configuration_server(server):
     print("HTTP configuration server starting on %s:%d." % server.server_address)
     server.serve_forever()
     print("HTTP configuration server closed.")
+
+
+if __name__ == "__main__":
+    log.init_log()
+    Test.test_state = base.TestState(scion.SCIONDocker(), tools.DC())
+    Test.run()

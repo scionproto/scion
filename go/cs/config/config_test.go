@@ -103,10 +103,13 @@ func CheckTestPolicies(t *testing.T, cfg *Policies) {
 	assert.Empty(t, cfg.DownRegistration)
 }
 
-func InitTestPSConfig(cfg *PSConfig) {}
+func InitTestPSConfig(cfg *PSConfig) {
+	cfg.HiddenPathsCfg = "garbage"
+}
 
 func CheckTestPSConfig(t *testing.T, cfg *PSConfig, id string) {
 	assert.Equal(t, DefaultQueryInterval, cfg.QueryInterval.Duration)
+	assert.Empty(t, cfg.HiddenPathsCfg)
 }
 
 func InitTestCA(cfg *CA) {}

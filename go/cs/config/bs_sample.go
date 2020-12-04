@@ -63,9 +63,4 @@ up_registration = ""
 # the default policy is used. In a core beacon server, this field is ignored.
 # (default "")
 down_registration = ""
-
-# The file path for the hidden path registration policy. In case of the empty string,
-# no hidden path functionality is used.
-# (default "")
-hidden_path_registration = ""
 `

@@ -16,6 +16,7 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
 	hspb "github.com/scionproto/scion/go/pkg/proto/hidden_segment"
@@ -38,7 +40,9 @@ type SegmentServer struct {
 func (s *SegmentServer) HiddenSegments(ctx context.Context,
 	pbReq *hspb.HiddenSegmentsRequest) (*hspb.HiddenSegmentsResponse, error) {
 
+	logger := log.FromCtx(ctx)
 	if pbReq == nil {
+		logger.Debug("invalid request")
 		return nil, status.Error(codes.Internal, "invalid request")
 	}
 
@@ -57,10 +61,12 @@ func (s *SegmentServer) HiddenSegments(ctx context.Context,
 	if s.Authoritative {
 		rawPeer, ok := peer.FromContext(ctx)
 		if !ok {
+			logger.Debug("Extracting peer failed", "ctx", ctx)
 			return nil, status.Error(codes.Internal, "couldn't extract peer")
 		}
 		peerAddr, ok := rawPeer.Addr.(*snet.UDPAddr)
 		if !ok {
+			logger.Debug("Invalid peer type", "type", fmt.Sprintf("%T", rawPeer.Addr))
 			return nil, status.Error(codes.Internal, "peer is not snet.UDPAddr")
 		}
 		req.Peer = peerAddr.IA
@@ -69,6 +75,7 @@ func (s *SegmentServer) HiddenSegments(ctx context.Context,
 	reply, err := s.Lookup.Segments(ctx, req)
 	if err != nil {
 		// TODO(lukedirtwalker): determine the proper error code here.
+		logger.Debug("Failed to look up segments", "err", err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

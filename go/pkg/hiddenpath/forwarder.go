@@ -20,6 +20,8 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -48,11 +50,11 @@ type ForwardServer struct {
 	LocalAuth Lookuper
 	LocalIA   addr.IA
 	RPC       RPC
-	Resolve   func(context.Context, addr.IA) (net.Addr, error)
+	Resolver  AddressResolver
 	Verifier  Verifier
 }
 
-// RecursiveServer serves segments for the given request. It finds per group ID
+// Segments serves segments for the given request. It finds per group ID
 // the authoritative server and makes the QUIC grpc call. It does not support
 // local cache.
 func (s ForwardServer) Segments(ctx context.Context,
@@ -99,14 +101,10 @@ func (s ForwardServer) Segments(ctx context.Context,
 			if r.Equal(s.LocalIA) {
 				req.Peer = s.LocalIA
 				reply, err := s.LocalAuth.Segments(ctx, req)
-				if err != nil {
-					replies <- segsOrErr{err: err}
-					return
-				}
-				replies <- segsOrErr{segs: reply}
+				replies <- segsOrErr{segs: reply, err: err}
 				return
 			}
-			a, err := s.Resolve(ctx, r)
+			a, err := s.Resolver.Resolve(ctx, r)
 			if err != nil {
 				replies <- segsOrErr{err: err}
 				return
@@ -140,4 +138,25 @@ func (s ForwardServer) Segments(ctx context.Context,
 		segs = append(segs, reply.segs...)
 	}
 	return segs, errs.ToError()
+}
+
+// VerifierAdapter adapts and infra.Verifier to the hidden path verifier
+// interface.
+type VerifierAdapter struct {
+	Verifier infra.Verifier
+}
+
+// Verify verifies the segments. It returns an error if a verification of any of
+// the segments fails.
+func (v VerifierAdapter) Verify(ctx context.Context, segments []*seg.Meta, server net.Addr) error {
+	resCh, units := segverifier.StartVerification(ctx, v.Verifier, server, segments, nil)
+
+	var errors serrors.List
+	for u := 0; u < units; u++ {
+		vu := <-resCh
+		if err := vu.SegError(); err != nil {
+			errors = append(errors, err)
+		}
+	}
+	return errors.ToError()
 }

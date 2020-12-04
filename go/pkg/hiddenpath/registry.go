@@ -76,8 +76,17 @@ func (h RegistryServer) Register(ctx context.Context, reg Registration) error {
 			return serrors.New("wrong segment type", "segment", s, "expected", seg.TypeDown)
 		}
 	}
+	// XXX(lukedirtwalker): because the remote might send from the client QUIC
+	// stack we can't simply use the peer address. So for now we just use the
+	// SVC_CS address in the peer.
+	verificationPeer := &snet.SVCAddr{
+		IA:      peer.IA,
+		Path:    peer.Path,
+		NextHop: peer.NextHop,
+		SVC:     addr.SvcCS,
+	}
 	// verify segments
-	if err := h.Verifier.Verify(ctx, reg.Segments, reg.Peer); err != nil {
+	if err := h.Verifier.Verify(ctx, reg.Segments, verificationPeer); err != nil {
 		return serrors.WrapStr("verifying segments", err)
 	}
 	// store segments in db

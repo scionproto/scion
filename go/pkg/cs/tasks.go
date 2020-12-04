@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/pkg/hiddenpath"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
@@ -62,6 +63,10 @@ type TasksConfig struct {
 	OriginationInterval  time.Duration
 	PropagationInterval  time.Duration
 	RegistrationInterval time.Duration
+	// HiddenPathRegistrationCfg contains the required options to configure
+	// hidden paths down segment registration. If it is nil, normal path
+	// registration is used instead.
+	HiddenPathRegistrationCfg *HiddenPathRegistrationCfg
 
 	AllowIsdLoop bool
 }
@@ -133,7 +138,8 @@ func (t *TasksConfig) segmentWriter(topo topology.Topology, segType seg.Type,
 		registered = metrics.NewPromCounter(t.Metrics.BeaconingRegisteredTotal)
 	}
 	var writer beaconing.Writer
-	if segType != seg.TypeDown {
+	switch {
+	case segType != seg.TypeDown:
 		writer = &beaconing.LocalWriter{
 			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
 			Registered:     registered,
@@ -144,7 +150,28 @@ func (t *TasksConfig) segmentWriter(topo topology.Topology, segType seg.Type,
 			}),
 			Store: &seghandler.DefaultStorage{PathDB: t.PathDB},
 		}
-	} else {
+
+	case t.HiddenPathRegistrationCfg != nil:
+		writer = &hiddenpath.BeaconWriter{
+			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
+			Registered:     registered,
+			Intfs:          t.Intfs,
+			Extender: t.extender("registrar", topo.IA(), topo.MTU(), func() uint8 {
+				return t.BeaconStore.MaxExpTime(policyType)
+			}),
+			RPC: t.HiddenPathRegistrationCfg.RPC,
+			Pather: addrutil.Pather{
+				UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
+					return t.TopoProvider.Get().UnderlayNextHop2(common.IFIDType(ifID))
+				},
+			},
+			RegistrationPolicy: t.HiddenPathRegistrationCfg.Policy,
+			AddressResolver: hiddenpath.RegistrationResolver{
+				Router:     t.HiddenPathRegistrationCfg.Router,
+				Discoverer: t.HiddenPathRegistrationCfg.Discoverer,
+			},
+		}
+	default:
 		writer = &beaconing.RemoteWriter{
 			InternalErrors: metrics.CounterWith(internalErr, "seg_type", segType.String()),
 			Registered:     registered,
@@ -255,6 +282,15 @@ func killRunners(runners []*periodic.Runner) {
 	for _, r := range runners {
 		r.Kill()
 	}
+}
+
+// HiddenPathRegistrationCfg contains the required options to configure hidden
+// paths down segment registration.
+type HiddenPathRegistrationCfg struct {
+	Policy     hiddenpath.RegistrationPolicy
+	Router     snet.Router
+	Discoverer hiddenpath.Discoverer
+	RPC        hiddenpath.Register
 }
 
 // Store is the interface to interact with the beacon store.

@@ -58,7 +58,16 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 	})
 
 	g.Go(func() error {
-		segs, err := f.hiddenSegments(ctx, req, server)
+		hReq := hiddenpath.SegmentRequest{
+			DstIA: req.Dst,
+		}
+		for _, g := range f.HPGroups {
+			if _, ok := g.Writers[req.Dst]; ok {
+				hReq.GroupIDs = append(hReq.GroupIDs, g.ID)
+			}
+		}
+		r := HiddenRequester{Dialer: f.Dialer}
+		segs, err := r.HiddenSegments(ctx, hReq, server)
 		if err != nil {
 			return err
 		}
@@ -73,20 +82,25 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 	return append(regularSegs, hiddenSegs...), nil
 }
 
-func (f *Requester) hiddenSegments(ctx context.Context, req segfetcher.Request,
-	server net.Addr) ([]*seg.Meta, error) {
+// HiddenRequester fetches hidden segments from a remote using gRPC.
+type HiddenRequester struct {
+	// Dialer dials a new gRPC connection.
+	Dialer libgrpc.Dialer
+}
 
-	conn, err := f.Dialer.Dial(ctx, server)
+// HiddenSegments fetches the hidden segments.
+func (f *HiddenRequester) HiddenSegments(ctx context.Context,
+	req hiddenpath.SegmentRequest, dst net.Addr) ([]*seg.Meta, error) {
+
+	conn, err := f.Dialer.Dial(ctx, dst)
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
 
 	groups := []uint64{}
-	for _, g := range f.HPGroups {
-		if _, ok := g.Writers[req.Dst]; ok {
-			groups = append(groups, g.ID.ToUint64())
-		}
+	for _, id := range req.GroupIDs {
+		groups = append(groups, id.ToUint64())
 	}
 
 	if len(groups) == 0 {
@@ -97,7 +111,7 @@ func (f *Requester) hiddenSegments(ctx context.Context, req segfetcher.Request,
 	rep, err := client.HiddenSegments(ctx,
 		&hppb.HiddenSegmentsRequest{
 			GroupIds: groups,
-			DstIsdAs: uint64(req.Dst.IAInt()),
+			DstIsdAs: uint64(req.DstIA.IAInt()),
 		},
 		libgrpc.RetryProfile...,
 	)
