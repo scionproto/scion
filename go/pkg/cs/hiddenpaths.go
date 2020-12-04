@@ -107,7 +107,7 @@ func (c HiddenPathConfigurator) Setup(location string) (*HiddenPathRegistrationC
 		Discoverer: &hpgrpc.Discoverer{
 			Dialer: c.Dialer,
 		},
-		RPC: &hpgrpc.Register{
+		RPC: &hpgrpc.Registerer{
 			Dialer:              c.Dialer,
 			RegularRegistration: beaconinggrpc.Registrar{Dialer: c.Dialer},
 		},
