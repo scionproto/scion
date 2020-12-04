@@ -22,17 +22,14 @@ import (
 	"github.com/scionproto/scion/go/pkg/gateway/config"
 )
 
-func InitGateway(cfg *config.Gateway) {
-	cfg.Dispatcher = "garbage"
-}
+func InitGateway(cfg *config.Gateway) {}
 
 func CheckGateway(t *testing.T, cfg *config.Gateway) {
 	assert.Equal(t, "gateway", cfg.ID)
 	assert.Equal(t, config.DefaultSessionPoliciesFile, cfg.TrafficPolicy)
-	assert.Equal(t, config.DefaultIPRoutingPolicyFile, cfg.IPRoutingPolicy)
+	assert.Empty(t, cfg.IPRoutingPolicy)
 	assert.Equal(t, config.DefaultCtrlAddr, cfg.CtrlAddr)
 	assert.Equal(t, config.DefaultDataAddr, cfg.DataAddr)
-	assert.Empty(t, cfg.Dispatcher)
 }
 
 func InitTunnel(cfg *config.Tunnel) {}

@@ -18,10 +18,6 @@ const gatewaySample = `
 # ID of the gateway (default "gateway")
 id = "gateway"
 
-# The traffic policy file. This file is required to exist. If empty, the gateway
-# attempts to read from the default location.
-# (default "/share/conf/traffic.policy")
-
 # The traffic policy file. If not set or empty, the gateway attempts to read the
 # policy from the default location. If set, the gateway will read the policy from
 # the specified location. If the file does not exist, the gateway will exit with
@@ -29,13 +25,11 @@ id = "gateway"
 # (default "/share/conf/traffic.policy")
 traffic_policy_file = "/share/conf/traffic.policy"
 
-# The IP routing policy file. If not set or empty, the gateway attempts to read
-# the policy from the default location. If set, the gateway will read the policy
-# from the specified location. If the file is specified but does not exist, the
-# gateway will exit with an error. It the file is not specified and no file in the
-# default location exists, a default policy that rejects everything is used.
-# (default "/share/conf/ip_routing.policy")
-ip_routing_policy_file = "/share/conf/ip_routing.policy"
+# The IP routing policy file. If set, the gateway will read the policy
+# from the specified location. It no file is specified, a default policy
+# that rejects all IP prefix announcements is used.
+# (default "")
+ip_routing_policy_file = ""
 
 # The bind address for control messages. If the host part of the address is
 # empty, the gateway infers the address based on the route to the control
@@ -56,9 +50,6 @@ ctrl_addr = ":30256"
 #
 # (default ":30056")
 data_addr = ":30056"
-
-# Custom SCION dispatcher path (default "")
-dispatcher = ""
 `
 
 const tunnelSample = `
