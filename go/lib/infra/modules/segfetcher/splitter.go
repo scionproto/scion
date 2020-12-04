@@ -45,19 +45,26 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 
 	src := s.LocalIA
 	srcCore := s.Core
-	dstCore, err := s.isCore(ctx, dst)
+	singleCore, dstCore, err := s.inspect(ctx, src, dst)
 	if err != nil {
-		return Requests{}, err
+		return nil, err
 	}
+
 	switch {
 	case !srcCore && !dstCore:
+		if !singleCore.IsZero() {
+			return Requests{
+				{Src: src, Dst: singleCore, SegType: Up},
+				{Src: singleCore, Dst: dst, SegType: Down},
+			}, nil
+		}
 		return Requests{
 			{Src: src, Dst: toWildCard(src), SegType: Up},
 			{Src: toWildCard(src), Dst: toWildCard(dst), SegType: Core},
 			{Src: toWildCard(dst), Dst: dst, SegType: Down},
 		}, nil
 	case !srcCore && dstCore:
-		if src.I == dst.I && dst.IsWildcard() {
+		if (src.I == dst.I && dst.IsWildcard()) || singleCore.Equal(dst) {
 			return Requests{{Src: src, Dst: dst, SegType: Up}}, nil
 		}
 		return Requests{
@@ -65,6 +72,9 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 			{Src: toWildCard(src), Dst: dst, SegType: Core},
 		}, nil
 	case srcCore && !dstCore:
+		if singleCore.Equal(src) {
+			return Requests{{Src: src, Dst: dst, SegType: Down}}, nil
+		}
 		return Requests{
 			{Src: src, Dst: toWildCard(dst), SegType: Core},
 			{Src: toWildCard(dst), Dst: dst, SegType: Down},
@@ -72,6 +82,29 @@ func (s *MultiSegmentSplitter) Split(ctx context.Context, dst addr.IA) (Requests
 	default:
 		return Requests{{Src: src, Dst: dst, SegType: Core}}, nil
 	}
+}
+
+func (s *MultiSegmentSplitter) inspect(ctx context.Context,
+	src, dst addr.IA) (addr.IA, bool, error) {
+
+	if src.I != dst.I {
+		isCore, err := s.isCore(ctx, dst)
+		return addr.IA{}, isCore, err
+	}
+	cores, err := s.Inspector.ByAttributes(ctx, src.I, trust.Core)
+	if err != nil {
+		return addr.IA{}, false, err
+	}
+	var single addr.IA
+	if len(cores) == 1 {
+		single = cores[0]
+	}
+	for _, c := range cores {
+		if c.Equal(dst) {
+			return single, true, nil
+		}
+	}
+	return single, dst.IsWildcard(), nil
 }
 
 func (s *MultiSegmentSplitter) isCore(ctx context.Context, dst addr.IA) (bool, error) {
