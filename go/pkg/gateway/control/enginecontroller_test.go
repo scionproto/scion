@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/google/gopacket"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/pktcls"
@@ -550,4 +551,4 @@ type testPktWriter struct {
 	ID uint8
 }
 
-func (_ testPktWriter) Write([]byte) {}
+func (_ testPktWriter) Write(gopacket.Packet) {}

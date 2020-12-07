@@ -33,6 +33,7 @@ go_library(
         "//go/pkg/gateway/control:go_default_library",
         "@com_github_google_gopacket//:go_default_library",
         "@com_github_google_gopacket//layers:go_default_library",
+        "@com_github_serialx_hashring//:go_default_library",
     ],
 )
 

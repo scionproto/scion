@@ -31,7 +31,7 @@ func TestSessionRun(t *testing.T) {
 		)
 
 		dataplaneSession := mock_control.NewMockDataplaneSession(ctrl)
-		dataplaneSession.EXPECT().SetPath(path)
+		dataplaneSession.EXPECT().SetPaths([]snet.Path{path})
 
 		events := make(chan control.SessionEvent)
 		sessionMonitorEvents := make(chan control.SessionEvent)
@@ -96,7 +96,7 @@ func TestSessionRun(t *testing.T) {
 			Paths: []snet.Path{path}}).MinTimes(2)
 
 		dataplaneSession := mock_control.NewMockDataplaneSession(ctrl)
-		dataplaneSession.EXPECT().SetPath(path).MinTimes(2)
+		dataplaneSession.EXPECT().SetPaths([]snet.Path{path}).MinTimes(2)
 
 		events := make(chan control.SessionEvent)
 		sessionMonitorEvents := make(chan control.SessionEvent)

@@ -16,9 +16,9 @@ import (
 // DataplaneSession represents a packet framer sending packets along a specific path.
 type DataplaneSession interface {
 	PktWriter
-	// SetPath can be used to change the path on which packets are sent. If the path is invalid
+	// SetPaths can be used to change the paths on which packets are sent. If a path is invalid
 	// or causes MTU issues, an error is returned.
-	SetPath(snet.Path) error
+	SetPaths([]snet.Path) error
 	// Close informs the session it should shut down. It does not wait for the session to close.
 	Close()
 }
@@ -112,23 +112,13 @@ func (s *Session) Run() error {
 			if s.PathMonitorPollInterval == 0 && sessionMonitorEvent.Event == EventUp {
 				s.pathResultMtx.Lock()
 				s.pathResult = s.PathMonitorRegistration.Get()
-				paths := s.pathResult.Paths
-				// TODO: This uses only the best path. Implement support for
-				// multipath.
-				if len(paths) > 0 {
-					s.DataplaneSession.SetPath(paths[0])
-				}
+				s.DataplaneSession.SetPaths(s.pathResult.Paths)
 				s.pathResultMtx.Unlock()
 			}
 		case <-pathChan:
 			s.pathResultMtx.Lock()
 			s.pathResult = s.PathMonitorRegistration.Get()
-			paths := s.pathResult.Paths
-			// TODO: This uses only the best path. Implement support for
-			// multipath.
-			if len(paths) > 0 {
-				s.DataplaneSession.SetPath(paths[0])
-			}
+			s.DataplaneSession.SetPaths(s.pathResult.Paths)
 			s.pathResultMtx.Unlock()
 		}
 	}

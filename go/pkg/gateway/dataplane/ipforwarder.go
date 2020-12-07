@@ -93,7 +93,7 @@ func (f *IPForwarder) Run() error {
 			continue
 		}
 
-		packet := f.parse(ipVersion, buf)
+		packet := f.parse(ipVersion, buf[:length])
 		if packet.ErrorLayer() != nil {
 			metrics.CounterInc(f.Metrics.IPPktsInvalid)
 			log.SafeDebug(f.Logger, "forwarder: failed to parse packet",
@@ -107,7 +107,7 @@ func (f *IPForwarder) Run() error {
 			continue
 		}
 
-		session.Write(buf[:length])
+		session.Write(packet)
 	}
 }
 

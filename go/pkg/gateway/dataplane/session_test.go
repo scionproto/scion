@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
@@ -47,7 +49,7 @@ func TestSinglePath(t *testing.T) {
 
 	frameChan := make(chan ([]byte))
 	sess := createSession(t, ctrl, frameChan)
-	sess.SetPath(createMockPath(ctrl, 200))
+	sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)})
 	sendPackets(t, sess, 22, 10)
 	waitFrames(t, frameChan, 22, 10)
 	sess.Close()
@@ -63,12 +65,12 @@ func TestTwoPaths(t *testing.T) {
 
 	sess := createSession(t, ctrl, frameChan)
 
-	sess.SetPath(createMockPath(ctrl, 200))
+	sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)})
 	sendPackets(t, sess, 22, 10)
 
 	// The previous packets are not yet sent, yet we set a new path thus creating a new
 	// sender. The goal is to test that the old packets will still be sent out.
-	sess.SetPath(createMockPath(ctrl, 200))
+	sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)})
 	sendPackets(t, sess, 22, 10)
 	waitFrames(t, frameChan, 22, 20)
 
@@ -90,10 +92,15 @@ func createSession(t *testing.T, ctrl *gomock.Controller, frameChan chan []byte)
 }
 
 func sendPackets(t *testing.T, sess *Session, payloadSize int, pktCount int) {
-	pkt := append([]byte{
+	bytes := append([]byte{
 		// IPv4 header.
 		0x40, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	}, make([]byte, payloadSize)...)
+	decodeOptions := gopacket.DecodeOptions{
+		NoCopy: true,
+		Lazy:   true,
+	}
+	pkt := gopacket.NewPacket(bytes, layers.LayerTypeIPv4, decodeOptions)
 	for i := 0; i < pktCount; i++ {
 		sess.Write(pkt)
 	}

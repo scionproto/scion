@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -328,7 +329,7 @@ type testPktWriter struct {
 	ID int
 }
 
-func (_ testPktWriter) Write([]byte) {}
+func (_ testPktWriter) Write(gopacket.Packet) {}
 func (w testPktWriter) String() string {
 	return fmt.Sprintf("%d", w.ID)
 }

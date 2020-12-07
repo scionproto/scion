@@ -53,6 +53,8 @@ type SessionConfig struct {
 	// PathPolicy specifies the path properties that paths used for this session
 	// must satisfy.
 	PathPolicy policies.PathPolicy
+	// PathCount is the max number of paths to use.
+	PathCount int
 	// Gateway describes a discovered remote gateway instance.
 	Gateway Gateway
 	// Prefixes contains the network prefixes that are reachable through this
@@ -323,6 +325,7 @@ func buildSessionConfigs(sessionPolicies SessionPolicies,
 				TrafficMatcher: sessionPolicy.TrafficMatcher,
 				PerfPolicy:     sessionPolicy.PerfPolicy,
 				PathPolicy:     pathPol,
+				PathCount:      sessionPolicy.PathCount,
 				Gateway:        entry.Gateway,
 				Prefixes:       mergePrefixes(sessionPolicy.Prefixes, entry.Prefixes),
 			})

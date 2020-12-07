@@ -34,6 +34,7 @@ var (
 		},
 	}
 	DefaultPerfPolicy = fingerPrintOrder{}
+	DefaultPathCount  = 1
 )
 
 // LegacySessionPolicyAdapter parses the legacy gateway JSON configuration and
@@ -62,7 +63,7 @@ func (LegacySessionPolicyAdapter) Parse(raw []byte) (SessionPolicies, error) {
 			TrafficMatcher: pktcls.CondTrue,
 			PerfPolicy:     DefaultPerfPolicy,
 			PathPolicy:     DefaultPathPolicy,
-			PathCount:      1,
+			PathCount:      DefaultPathCount,
 			Prefixes:       prefixes,
 		})
 	}

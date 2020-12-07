@@ -24,6 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/gopacket"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -286,6 +288,7 @@ func (e *Engine) initWorkers() error {
 		pathMonitorRegistration := e.PathMonitor.Register(remoteIA, &policies.Policies{
 			PathPolicy: config.PathPolicy,
 			PerfPolicy: config.PerfPolicy,
+			PathCount:  config.PathCount,
 		}, config.PolicyID)
 		probeConn, err := e.ProbeConnFactory.New()
 		if err != nil {
@@ -409,7 +412,7 @@ type RoutingTableSwapper interface {
 
 // PktWriter is the interface exposed by a data-plane session for forwarding packets.
 type PktWriter interface {
-	Write([]byte)
+	Write(packet gopacket.Packet)
 }
 
 // DataplaneSessionFactory is used to construct a data-plane session with a specific ID towards a

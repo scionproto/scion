@@ -27,6 +27,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.6.0
 	github.com/sergi/go-diff v1.0.1-0.20180205163309-da645544ed44
+	github.com/serialx/hashring v0.0.0-20200727003509-22c0c7ab6b1b
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/songgao/water v0.0.0-20190725173103-fd331bda3f4b
 	github.com/spf13/cobra v1.0.0

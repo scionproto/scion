@@ -23,7 +23,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/lucas-clemente/quic-go"
+	quic "github.com/lucas-clemente/quic-go"
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
 
@@ -104,13 +104,14 @@ func (dpf DataplaneSessionFactory) New(id uint8, policyID int,
 		FramesSent:         metrics.CounterWith(dpf.Metrics.FramesSent, labels...),
 		SendExternalErrors: dpf.Metrics.SendExternalErrors,
 	}
-	return &dataplane.Session{
+	sess := &dataplane.Session{
 		SessionID:          id,
 		GatewayAddr:        *remoteAddr.(*net.UDPAddr),
 		DataPlaneConn:      conn,
 		PathStatsPublisher: dpf.PathStatsPublisher,
 		Metrics:            metrics,
 	}
+	return sess
 }
 
 type PacketConnFactory struct {

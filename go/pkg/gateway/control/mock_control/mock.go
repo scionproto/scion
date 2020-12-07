@@ -7,6 +7,7 @@ package mock_control
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
+	gopacket "github.com/google/gopacket"
 	layers "github.com/google/gopacket/layers"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	snet "github.com/scionproto/scion/go/lib/snet"
@@ -53,22 +54,22 @@ func (mr *MockDataplaneSessionMockRecorder) Close() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockDataplaneSession)(nil).Close))
 }
 
-// SetPath mocks base method
-func (m *MockDataplaneSession) SetPath(arg0 snet.Path) error {
+// SetPaths mocks base method
+func (m *MockDataplaneSession) SetPaths(arg0 []snet.Path) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetPath", arg0)
+	ret := m.ctrl.Call(m, "SetPaths", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// SetPath indicates an expected call of SetPath
-func (mr *MockDataplaneSessionMockRecorder) SetPath(arg0 interface{}) *gomock.Call {
+// SetPaths indicates an expected call of SetPaths
+func (mr *MockDataplaneSessionMockRecorder) SetPaths(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetPath", reflect.TypeOf((*MockDataplaneSession)(nil).SetPath), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetPaths", reflect.TypeOf((*MockDataplaneSession)(nil).SetPaths), arg0)
 }
 
 // Write mocks base method
-func (m *MockDataplaneSession) Write(arg0 []byte) {
+func (m *MockDataplaneSession) Write(arg0 gopacket.Packet) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Write", arg0)
 }
@@ -611,7 +612,7 @@ func (m *MockPktWriter) EXPECT() *MockPktWriterMockRecorder {
 }
 
 // Write mocks base method
-func (m *MockPktWriter) Write(arg0 []byte) {
+func (m *MockPktWriter) Write(arg0 gopacket.Packet) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Write", arg0)
 }
