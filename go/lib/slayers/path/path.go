@@ -23,7 +23,10 @@ import (
 // PathType is uint8 so 256 values max.
 const maxPathType = 256
 
-var registeredPaths [maxPathType]metadata
+var (
+	registeredPaths [maxPathType]metadata
+	strictDecoding  bool = true
+)
 
 // Type indicates the type of the path contained in the SCION header.
 type Type uint8
@@ -78,11 +81,52 @@ func RegisterPath(pathMeta Metadata) {
 	registeredPaths[pathMeta.Type].Metadata = pathMeta
 }
 
+// StrictDecoding enables or disables strict path decoding. If enabled, unknown
+// path types fail to decode. If disabled, unknown path types are decoded into a
+// raw path that keeps the encoded path around for re-serialization.
+//
+// Strict parsing is enabled by default.
+//
+// Experimental: This function is experimental and might be subject to change.
+func StrictDecoding(strict bool) {
+	strictDecoding = strict
+}
+
 // NewPath returns a new path object of pathType.
 func NewPath(pathType Type) (Path, error) {
 	pm := registeredPaths[pathType]
 	if !pm.inUse {
-		return nil, serrors.New("unsupported path", "type", pathType)
+		if strictDecoding {
+			return nil, serrors.New("unsupported path", "type", pathType)
+		}
+		return &rawPath{}, nil
 	}
 	return pm.New(), nil
+}
+
+type rawPath struct {
+	raw      []byte
+	pathType Type
+}
+
+func (p *rawPath) SerializeTo(b []byte) error {
+	copy(b, p.raw)
+	return nil
+}
+
+func (p *rawPath) DecodeFromBytes(b []byte) error {
+	p.raw = b
+	return nil
+}
+
+func (p *rawPath) Reverse() (Path, error) {
+	return nil, serrors.New("not supported")
+}
+
+func (p *rawPath) Len() int {
+	return len(p.raw)
+}
+
+func (p *rawPath) Type() Type {
+	return p.pathType
 }

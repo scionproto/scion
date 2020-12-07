@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/service"
 )
@@ -65,6 +66,8 @@ func realMain() int {
 		log.Error("Creating directory tree for socket failed", "err", err)
 		return 1
 	}
+
+	path.StrictDecoding(false)
 
 	go func() {
 		defer log.HandlePanic()
