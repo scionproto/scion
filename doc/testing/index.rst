@@ -8,4 +8,5 @@ Testing documentation:
    :maxdepth: 2
 
    crypto
+   hiddenpaths
    mocks
