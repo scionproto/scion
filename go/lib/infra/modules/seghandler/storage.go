@@ -16,7 +16,6 @@ package seghandler
 
 import (
 	"context"
-	"fmt"
 	"sort"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -25,16 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
 )
-
-// SegWithHP is a segment with hidden path cfg ids.
-type SegWithHP struct {
-	Seg     *seg.Meta
-	HPGroup HPGroupID
-}
-
-func (s *SegWithHP) String() string {
-	return fmt.Sprintf("{Seg: %v, HPGroup: %v}", s.Seg, s.HPGroup)
-}
 
 // SegStats provides statistics about segment insertion/updates.
 type SegStats struct {
@@ -61,7 +50,7 @@ func (s *SegStats) Log(logger log.Logger) {
 
 // Storage is used to store segments and revocations.
 type Storage interface {
-	StoreSegs(context.Context, []*SegWithHP) (SegStats, error)
+	StoreSegs(context.Context, []*seg.Meta) (SegStats, error)
 	StoreRevs(context.Context, []*path_mgmt.SignedRevInfo) error
 }
 
@@ -73,7 +62,7 @@ type DefaultStorage struct {
 }
 
 // StoreSegs stores the given segments in the pathdb in a transaction.
-func (s *DefaultStorage) StoreSegs(ctx context.Context, segs []*SegWithHP) (SegStats, error) {
+func (s *DefaultStorage) StoreSegs(ctx context.Context, segs []*seg.Meta) (SegStats, error) {
 	tx, err := s.PathDB.BeginTransaction(ctx, nil)
 	if err != nil {
 		return SegStats{}, err
@@ -81,18 +70,18 @@ func (s *DefaultStorage) StoreSegs(ctx context.Context, segs []*SegWithHP) (SegS
 	defer tx.Rollback()
 	// Sort to prevent sql deadlock.
 	sort.Slice(segs, func(i, j int) bool {
-		return segs[i].Seg.Segment.GetLoggingID() < segs[j].Seg.Segment.GetLoggingID()
+		return segs[i].Segment.GetLoggingID() < segs[j].Segment.GetLoggingID()
 	})
 	segStats := SegStats{}
 	for _, seg := range segs {
-		stats, err := tx.InsertWithHPCfgIDs(ctx, seg.Seg, convertHPGroupID(seg.HPGroup))
+		stats, err := tx.Insert(ctx, seg)
 		if err != nil {
 			return SegStats{}, err
 		}
 		if stats.Inserted > 0 {
-			segStats.InsertedSegs = append(segStats.InsertedSegs, seg.Seg.Segment.GetLoggingID())
+			segStats.InsertedSegs = append(segStats.InsertedSegs, seg.Segment.GetLoggingID())
 		} else if stats.Updated > 0 {
-			segStats.UpdatedSegs = append(segStats.UpdatedSegs, seg.Seg.Segment.GetLoggingID())
+			segStats.UpdatedSegs = append(segStats.UpdatedSegs, seg.Segment.GetLoggingID())
 		}
 	}
 	if err := tx.Commit(); err != nil {

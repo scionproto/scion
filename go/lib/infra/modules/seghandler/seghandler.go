@@ -18,11 +18,9 @@ import (
 	"context"
 	"net"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
-	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -32,18 +30,11 @@ var (
 	ErrDB           = serrors.New("database error")
 )
 
-// HPGroupID is the hidden path group ID.
-type HPGroupID struct {
-	Owner  addr.IA
-	Suffix uint16
-}
-
 // Segments is a list of segments and revocations belonging to them.
 // Optionally a hidden path group ID is attached.
 type Segments struct {
 	Segs      []*seg.Meta
 	SRevInfos []*path_mgmt.SignedRevInfo
-	HPGroupID HPGroupID
 }
 
 // Handler is a handler that verifies and stores seg replies. The handler
@@ -60,19 +51,18 @@ func (h *Handler) Handle(ctx context.Context, recs Segments, server net.Addr) *P
 	if units == 0 {
 		return &ProcessedResult{}
 	}
-	return h.verifyAndStore(ctx, verifiedCh, units, recs.HPGroupID)
+	return h.verifyAndStore(ctx, verifiedCh, units)
 }
 
 func (h *Handler) verifyAndStore(ctx context.Context,
-	verifiedCh <-chan segverifier.UnitResult,
-	units int, hpGroupID HPGroupID) *ProcessedResult {
+	verifiedCh <-chan segverifier.UnitResult, units int) *ProcessedResult {
 
 	result := &ProcessedResult{}
 	verifiedUnits := make([]segverifier.UnitResult, 0, units)
 	for u := 0; u < units; u++ {
 		verifiedUnits = append(verifiedUnits, <-verifiedCh)
 	}
-	verifyErrs, err := h.storeResults(ctx, verifiedUnits, hpGroupID, &result.stats)
+	verifyErrs, err := h.storeResults(ctx, verifiedUnits, &result.stats)
 	result.verifyErrs = verifyErrs
 	result.stats.verificationErrs(result.verifyErrs)
 	switch {
@@ -85,23 +75,17 @@ func (h *Handler) verifyAndStore(ctx context.Context,
 }
 
 func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.UnitResult,
-	hpGroupID HPGroupID, stats *Stats) ([]error, error) {
+	stats *Stats) ([]error, error) {
 
 	var verifyErrs []error
-	segs := make([]*SegWithHP, 0, len(verifiedUnits))
+	segs := make([]*seg.Meta, 0, len(verifiedUnits))
 	var revs []*path_mgmt.SignedRevInfo
 	for _, unit := range verifiedUnits {
 		if err := unit.SegError(); err != nil {
 			verifyErrs = append(verifyErrs, err)
 		} else {
-			segs = append(segs, &SegWithHP{
-				Seg:     unit.Unit.SegMeta,
-				HPGroup: hpGroupID,
-			})
-			stats.VerifiedSegs = append(stats.VerifiedSegs, &SegWithHP{
-				Seg:     unit.Unit.SegMeta,
-				HPGroup: hpGroupID,
-			})
+			segs = append(segs, unit.Unit.SegMeta)
+			stats.VerifiedSegs = append(stats.VerifiedSegs, unit.Unit.SegMeta)
 		}
 		for idx, rev := range unit.Unit.SRevInfos {
 			if err, ok := unit.Errors[idx]; ok {
@@ -126,13 +110,4 @@ func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.
 		stats.StoredRevs = append(stats.StoredRevs, revs...)
 	}
 	return verifyErrs, nil
-}
-
-func convertHPGroupID(id HPGroupID) []*query.HPCfgID {
-	return []*query.HPCfgID{
-		{
-			IA: id.Owner,
-			ID: uint64(id.Suffix),
-		},
-	}
 }

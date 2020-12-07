@@ -43,7 +43,7 @@ func TestParseFromRaw(t *testing.T) {
 		},
 	}
 	pack := func(t *testing.T) []byte {
-		packed, err := PackRoot(&asEntry{})
+		packed, err := PackRoot(&sBlob{})
 		require.NoError(t, err)
 		return packed
 	}
@@ -51,7 +51,7 @@ func TestParseFromRaw(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			pogsExtractF = test.Extractor
 			wrapped := func() {
-				err := ParseFromRaw(&asEntry{}, pack(t))
+				err := ParseFromRaw(&sBlob{}, pack(t))
 				test.Assertion(t, err)
 			}
 			require.NotPanics(t, wrapped)
@@ -91,8 +91,8 @@ func okExtract(_ interface{}, _ uint64, _ capnp.Struct) error {
 	return nil
 }
 
-type asEntry struct{}
+type sBlob struct{}
 
-func (a asEntry) ProtoId() ProtoIdType { return ASEntry_TypeID }
+func (a sBlob) ProtoId() ProtoIdType { return SignedBlob_TypeID }
 
-func (a asEntry) String() string { return "asEntry" }
+func (a sBlob) String() string { return "asEntry" }

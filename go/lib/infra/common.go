@@ -21,8 +21,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl/ack"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -100,21 +98,11 @@ func (k *contextKey) String() string {
 	return "infra/messenger context value " + k.name
 }
 
-func NewContextWithResponseWriter(ctx context.Context, rw ResponseWriter) context.Context {
-	return context.WithValue(ctx, responseWriterContextKey, rw)
-}
-
 type MessageType int
 
 const (
 	None MessageType = iota
 	IfId
-	Ack
-	HPSegReg
-	HPSegRequest
-	HPSegReply
-	HPCfgRequest
-	HPCfgReply
 )
 
 func (mt MessageType) String() string {
@@ -123,18 +111,6 @@ func (mt MessageType) String() string {
 		return "None"
 	case IfId:
 		return "IfId"
-	case Ack:
-		return "Ack"
-	case HPSegReg:
-		return "HPSegReg"
-	case HPSegRequest:
-		return "HPSegRequest"
-	case HPSegReply:
-		return "HPSegReply"
-	case HPCfgRequest:
-		return "HPCfgRequest"
-	case HPCfgReply:
-		return "HPCfgReply"
 	default:
 		return fmt.Sprintf("Unknown (%d)", mt)
 	}
@@ -148,45 +124,9 @@ func (mt MessageType) MetricLabel() string {
 		return "none"
 	case IfId:
 		return "ifid_push"
-	case Ack:
-		return "ack_push"
-	case HPSegReg:
-		return "hp_seg_reg_push"
-	case HPSegRequest:
-		return "hp_seg_req"
-	case HPSegReply:
-		return "hp_seg_push"
-	case HPCfgRequest:
-		return "hp_cfg_req"
-	case HPCfgReply:
-		return "hp_cfg_push"
 	default:
 		return "unknown_mt"
 	}
-}
-
-type ResponseWriter interface {
-	SendAckReply(ctx context.Context, msg *ack.Ack) error
-	SendHPSegReply(ctx context.Context, msg *path_mgmt.HPSegReply) error
-	SendHPCfgReply(ctx context.Context, msg *path_mgmt.HPCfgReply) error
-}
-
-func ResponseWriterFromContext(ctx context.Context) (ResponseWriter, bool) {
-	if ctx == nil {
-		return nil, false
-	}
-	rw, ok := ctx.Value(responseWriterContextKey).(ResponseWriter)
-	return rw, ok
-}
-
-var _ error = (*Error)(nil)
-
-type Error struct {
-	Message *ack.Ack
-}
-
-func (e *Error) Error() string {
-	return fmt.Sprintf("rpc: error from remote: %q", e.Message.ErrDesc)
 }
 
 // Verifier is used to verify payloads signed with control-plane PKI

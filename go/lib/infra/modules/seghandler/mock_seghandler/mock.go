@@ -8,6 +8,7 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	seg "github.com/scionproto/scion/go/lib/ctrl/seg"
 	seghandler "github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	segverifier "github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	net "net"
@@ -52,7 +53,7 @@ func (mr *MockStorageMockRecorder) StoreRevs(arg0, arg1 interface{}) *gomock.Cal
 }
 
 // StoreSegs mocks base method
-func (m *MockStorage) StoreSegs(arg0 context.Context, arg1 []*seghandler.SegWithHP) (seghandler.SegStats, error) {
+func (m *MockStorage) StoreSegs(arg0 context.Context, arg1 []*seg.Meta) (seghandler.SegStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreSegs", arg0, arg1)
 	ret0, _ := ret[0].(seghandler.SegStats)

@@ -39,7 +39,7 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 	seg110To130Short := tg.Beacon([]common.IFIDType{graph.If_110_X_130_A})
 
 	tests := map[string]struct {
-		Segs           []*seghandler.SegWithHP
+		Segs           []*seg.Meta
 		PathDB         func(ctrl *gomock.Controller) pathdb.PathDB
 		ExpectedStats  seghandler.SegStats
 		ErrorAssertion assert.ErrorAssertionFunc
@@ -82,9 +82,9 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 			ErrorAssertion: assert.Error,
 		},
 		"Stats correct": {
-			Segs: []*seghandler.SegWithHP{
-				{Seg: &seg.Meta{Segment: seg110To130, Type: seg.TypeCore}},
-				{Seg: &seg.Meta{Segment: seg110To130Short, Type: seg.TypeCore}},
+			Segs: []*seg.Meta{
+				{Segment: seg110To130, Type: seg.TypeCore},
+				{Segment: seg110To130Short, Type: seg.TypeCore},
 			},
 			PathDB: func(ctrl *gomock.Controller) pathdb.PathDB {
 				pathDB := mock_pathdb.NewMockPathDB(ctrl)
@@ -92,19 +92,17 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 				gomock.InOrder(
 					pathDB.EXPECT().BeginTransaction(gomock.Any(), gomock.Any()).
 						Return(tx, nil),
-					tx.EXPECT().InsertWithHPCfgIDs(gomock.Any(),
+					tx.EXPECT().Insert(gomock.Any(),
 						&seg.Meta{
 							Segment: seg110To130Short,
 							Type:    seg.TypeCore,
 						},
-						gomock.Any(),
 					).Return(pathdb.InsertStats{Updated: 1}, nil),
-					tx.EXPECT().InsertWithHPCfgIDs(gomock.Any(),
+					tx.EXPECT().Insert(gomock.Any(),
 						&seg.Meta{
 							Segment: seg110To130,
 							Type:    seg.TypeCore,
 						},
-						gomock.Any(),
 					).Return(pathdb.InsertStats{Inserted: 1}, nil),
 					tx.EXPECT().Commit(),
 					tx.EXPECT().Rollback(),

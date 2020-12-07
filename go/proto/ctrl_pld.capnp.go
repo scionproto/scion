@@ -169,103 +169,19 @@ func (s CtrlPld) SetUnset() {
 
 }
 
-func (s CtrlPld) Pcb() (PCB, error) {
-	if s.Struct.Uint16(0) != 1 {
-		panic("Which() != pcb")
-	}
-	p, err := s.Struct.Ptr(0)
-	return PCB{Struct: p.Struct()}, err
-}
-
-func (s CtrlPld) HasPcb() bool {
-	if s.Struct.Uint16(0) != 1 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s CtrlPld) SetPcb(v PCB) error {
+func (s CtrlPld) SetPcb() {
 	s.Struct.SetUint16(0, 1)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+
 }
 
-// NewPcb sets the pcb field to a newly
-// allocated PCB struct, preferring placement in s's segment.
-func (s CtrlPld) NewPcb() (PCB, error) {
-	s.Struct.SetUint16(0, 1)
-	ss, err := NewPCB(s.Struct.Segment())
-	if err != nil {
-		return PCB{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
-func (s CtrlPld) PathMgmt() (PathMgmt, error) {
-	if s.Struct.Uint16(0) != 2 {
-		panic("Which() != pathMgmt")
-	}
-	p, err := s.Struct.Ptr(0)
-	return PathMgmt{Struct: p.Struct()}, err
-}
-
-func (s CtrlPld) HasPathMgmt() bool {
-	if s.Struct.Uint16(0) != 2 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s CtrlPld) SetPathMgmt(v PathMgmt) error {
+func (s CtrlPld) SetPathMgmt() {
 	s.Struct.SetUint16(0, 2)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+
 }
 
-// NewPathMgmt sets the pathMgmt field to a newly
-// allocated PathMgmt struct, preferring placement in s's segment.
-func (s CtrlPld) NewPathMgmt() (PathMgmt, error) {
-	s.Struct.SetUint16(0, 2)
-	ss, err := NewPathMgmt(s.Struct.Segment())
-	if err != nil {
-		return PathMgmt{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
-func (s CtrlPld) Sibra() (SibraPayload, error) {
-	if s.Struct.Uint16(0) != 3 {
-		panic("Which() != sibra")
-	}
-	p, err := s.Struct.Ptr(0)
-	return SibraPayload{Struct: p.Struct()}, err
-}
-
-func (s CtrlPld) HasSibra() bool {
-	if s.Struct.Uint16(0) != 3 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s CtrlPld) SetSibra(v SibraPayload) error {
+func (s CtrlPld) SetSibra() {
 	s.Struct.SetUint16(0, 3)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
 
-// NewSibra sets the sibra field to a newly
-// allocated SibraPayload struct, preferring placement in s's segment.
-func (s CtrlPld) NewSibra() (SibraPayload, error) {
-	s.Struct.SetUint16(0, 3)
-	ss, err := NewSibraPayload(s.Struct.Segment())
-	if err != nil {
-		return SibraPayload{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
 }
 
 func (s CtrlPld) DrkeyMgmt() (DRKeyMgmt, error) {
@@ -301,70 +217,14 @@ func (s CtrlPld) NewDrkeyMgmt() (DRKeyMgmt, error) {
 	return ss, err
 }
 
-func (s CtrlPld) Sig() (SIGCtrl, error) {
-	if s.Struct.Uint16(0) != 5 {
-		panic("Which() != sig")
-	}
-	p, err := s.Struct.Ptr(0)
-	return SIGCtrl{Struct: p.Struct()}, err
-}
-
-func (s CtrlPld) HasSig() bool {
-	if s.Struct.Uint16(0) != 5 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s CtrlPld) SetSig(v SIGCtrl) error {
+func (s CtrlPld) SetSig() {
 	s.Struct.SetUint16(0, 5)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
+
 }
 
-// NewSig sets the sig field to a newly
-// allocated SIGCtrl struct, preferring placement in s's segment.
-func (s CtrlPld) NewSig() (SIGCtrl, error) {
-	s.Struct.SetUint16(0, 5)
-	ss, err := NewSIGCtrl(s.Struct.Segment())
-	if err != nil {
-		return SIGCtrl{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
-}
-
-func (s CtrlPld) Ack() (Ack, error) {
-	if s.Struct.Uint16(0) != 6 {
-		panic("Which() != ack")
-	}
-	p, err := s.Struct.Ptr(0)
-	return Ack{Struct: p.Struct()}, err
-}
-
-func (s CtrlPld) HasAck() bool {
-	if s.Struct.Uint16(0) != 6 {
-		return false
-	}
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s CtrlPld) SetAck(v Ack) error {
+func (s CtrlPld) SetAck() {
 	s.Struct.SetUint16(0, 6)
-	return s.Struct.SetPtr(0, v.Struct.ToPtr())
-}
 
-// NewAck sets the ack field to a newly
-// allocated Ack struct, preferring placement in s's segment.
-func (s CtrlPld) NewAck() (Ack, error) {
-	s.Struct.SetUint16(0, 6)
-	ss, err := NewAck(s.Struct.Segment())
-	if err != nil {
-		return Ack{}, err
-	}
-	err = s.Struct.SetPtr(0, ss.Struct.ToPtr())
-	return ss, err
 }
 
 func (s CtrlPld) ReqId() uint64 {
@@ -415,63 +275,39 @@ func (p CtrlPld_Promise) Struct() (CtrlPld, error) {
 	return CtrlPld{s}, err
 }
 
-func (p CtrlPld_Promise) Pcb() PCB_Promise {
-	return PCB_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p CtrlPld_Promise) PathMgmt() PathMgmt_Promise {
-	return PathMgmt_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p CtrlPld_Promise) Sibra() SibraPayload_Promise {
-	return SibraPayload_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
 func (p CtrlPld_Promise) DrkeyMgmt() DRKeyMgmt_Promise {
 	return DRKeyMgmt_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
 }
 
-func (p CtrlPld_Promise) Sig() SIGCtrl_Promise {
-	return SIGCtrl_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-func (p CtrlPld_Promise) Ack() Ack_Promise {
-	return Ack_Promise{Pipeline: p.Pipeline.GetPipeline(0)}
-}
-
-const schema_df42b02816bdc1bf = "x\xdaL\x91\xc1K\x14o\x1c\x87?\x9fwfw\xc6" +
-	"\x1f;\xec\x0c3\xbf\xe8\x10\x08\xe2A\xa3\"E\x08\x84" +
-	"\xa8\x14)\x85\x0d_\xa7\x0e]\x92\xdd\x99e\xdb\\\xb7" +
-	"mv\xc2<E\xe09:t\xa8.\xd1\x1fP\xe4I" +
-	"\x08\xa4B\x02\x89\x0e\xd1\xc1S\x10\x1d\x82\x88\x02\x15\x05" +
-	"\xd3\xec\x8dw\xdb\xa5n\xc3\xf3\xcc\xf7\xfb\xbe/\x8f\xfb" +
-	"\xf6\xb4\xf02K\x80\xb43Yu\xe1\xd1\xb9\xb9\xd5\xcd" +
-	"\xabw \xf3\x14\xea\xc5\xab\xe5\x03}\xcfF>bL" +
-	"X\x16\xe0\x9dy\xee\x8d[\xc0\xc0\x98\"\xa8\x1e\xac\xa7" +
-	"\x8b7_O\xac\xc0\xcb\xf3\xef\xaf\x19a\x01~A|" +
-	"\xf5/\xb5\xbe.\x8a9PEiR\x9bn\xd4b\x1e" +
-	"\x8b\x8a\x8dzcx\xf4T\x9a\xd4&k\xf1$){" +
-	"\x0d3\xa7\x94I\xc0\xfb>\x08\xc8/\x06\xe5\x96\xa0\xc3" +
-	"_*\xa0\xa6\x1b=\x80\xfcfP\xee\x08:b_\x05" +
-	"\x14\x80\xb7=\x01\xc8-\x83S\x14t\x8c\x9f*\xa0\x01" +
-	"x\xfbz\xc3\x8e\xc1\xd0\xd4\xd8\xdcS\x01M\xc0'\xa7" +
-	"\x80)\x1a\x0cs\x9agvU\xc0\x0c\xe0w\xb1\x07\x08" +
-	"M-\\-\xb2?T\xc0,\xe0;-ak\x11P" +
-	"\xd0\xb3\x18P?\xc7\xe3 \x10\xe64?\xa8\xb9\xcd\x80" +
-	"6\xe0\xff\xcf\x11 t5?D\xc1\xee\x1b\xf5f9" +
-	"E\xd6jD%\xba\xea\xb3\x9c?\x11\x9d}\xb9\x06\x90" +
-	".\xa8\x1a\xc5\xf4J\xa12\x9b\x02\xa0\xab\xde\xbc{\x98" +
-	"\x1b\xd9=\xf2\xb8m\xbb\x9b\xd5RR\xa4\xab\xee\xae," +
-	"Lo\xaf\x0elv\xa6\xe2d\xa6<_\xa8\xcc\x82\xa9" +
-	"\x9e\xda\xf0\xf7\xd6\x96\x96\x17\xdb\xd6jV+t\x95}" +
-	"r\xb0\xd9\xdf{\xf9S\x87\x16\xa3\x19\xba\xea\xc3\xd3\xa1" +
-	"\xf7\xc3\xf7\x9f\xacwNH\xca\xd7\xc7cvA\xb0\x0b" +
-	"\xbc\x95&\xc5\xa8<\x1e\xd3\x81\xa0\xf3O,\xd1\x8e\x15" +
-	"V+\xf5r<\x9a&\xf9N2\xdb0\x81V\xb1\xfe" +
-	"\xc3\x80\xec5(\x8f\x0bz\xe4\x9f`G5\xec3(" +
-	"\x87\x04\xf3\xa5\xda\xb5Rgu\xbeY\xad\xd4\xe9\xaa\xff" +
-	"n\x9f\xdf\x8a\xef\x15\x16\xda\xf7\xf9\x1d\x00\x00\xff\xff\xa4" +
-	"\x1d\x9b\x97"
+const schema_df42b02816bdc1bf = "x\xdaL\x90Ak\x13A\x00\x85\xdf\x9b\xd9\xec&\x92" +
+	"%;\xec*\x1e\x84@\xe9\xa1\x0a\x8a\x16O^\xd4\x96" +
+	"\x82)D:Y=x\x92$\x1b\xd6\xd8m\\7+" +
+	"\xd5\x93\x08\x9e=y\xf1\xe4_\xb0\xa7\x82PDD\x10" +
+	"\xf1\xec\xd5\xab\x88\x82\x95\x08\xd5ZG&\xb6\xe8m\xf8" +
+	"\xbe\xe11\xf3\x05\xef.\x08U\xd9\x04t\xb5\xe2\x9a+" +
+	"O/\xad\xbf\xf9v\xf3\x11t\x83\xc2\xbcx\xb9ud" +
+	"\xee\xd9\xc2\x07,\x09\xcf\x03\xd4\xc5\xe7\xaa\xe5\x01g\x96" +
+	"\x0cA\xf3\xe4k\xb9q\xf7\xf5\xf2+\xa8\x06\xff]\xad" +
+	"\x08\x0f\x08\xdb\xe2Sxmz\xba*\xd6A\xd3/\x8b" +
+	"\xecz\x9e%<\xd5\xef\xe6\xa3\xfc\xdc\xe2\xf9\xb2\xc8V" +
+	"\xb2d\x85\xd4\xb3\xd2\xa9\x1b\xe3\x10P_\xe6\x01\xfdQ" +
+	"RO\x04}\xfe6\x11-\xdd\x9e\x01\xf4gI\xbd#" +
+	"\xe8\x8b=\x13Q\x00\xea\xfb2\xa0'\x92\x1d\x0a\xfa\xf2" +
+	"\x97\x89(\x01\xb5g\x17v$c\xc7bg\xd7Dt" +
+	"\x80\x90\xec\x00\x1dJ\xc6u\xcb+?M\xc4\x0a\x10\xd6" +
+	"8\x03\xc4\x8e\x15\x81\x15\xee\x0f\x13\xd1\x05B\x7f*\xaa" +
+	"VD\x14T\x1e#\xda\xef(\xce\x03q\xdd\xf2\xa3\x96" +
+	"W\x19\xb1\x0a\x84\x87\xb9\x00\xc4\x81\xe5\xc7(\xd8\xbc3" +
+	"\x1a\x0fJ\xb8^\xde\xef\xc15y\xb7\xbc\xd1N\xd7J" +
+	"\xc0k\x8e\x87\xbd\xa2\x0b\xd7$\xc5\xea\xe0^;]\x03" +
+	"K\x06\xe6\xedv\xb8\xfb~sk\x03 \x03\xd0\x1b\x0f" +
+	"S\xb8^\xb7\xbf\x0a\xb7Y\x0cn\xb7\x12\xd6 X\x03" +
+	"\xef\x97E\xb7?h%\xf4!\xe8\xff\x97V\xec\xa7\x8d" +
+	"\x87\xe9h\x90,\x96E\xe3 pU:\xc0\xb4\xef\xf1" +
+	"\x13\x80\x9e\x95\xd4\xa7\x05\x15\xf97\xefI\x0b\xe7$\xf5" +
+	"Y\xc1F/\xbb\xd5;\x98n\x8c\x87\xe9\x88\x819\xf4" +
+	"\xe0\xf2$y\xdc~\xb8\xff\xb6?\x01\x00\x00\xff\xff!" +
+	"N\x81\x0d"
 
 func init() {
 	schemas.Register(schema_df42b02816bdc1bf,

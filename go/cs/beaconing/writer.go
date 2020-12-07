@@ -52,7 +52,7 @@ type SegmentProvider interface {
 
 // SegmentStore stores segments in the path database.
 type SegmentStore interface {
-	StoreSegs(context.Context, []*seghandler.SegWithHP) (seghandler.SegStats, error)
+	StoreSegs(context.Context, []*seg.Meta) (seghandler.SegStats, error)
 }
 
 // RPC registers the path segment with the remote.
@@ -225,7 +225,7 @@ func (r *LocalWriter) Write(ctx context.Context, segments <-chan beacon.BeaconOr
 
 	logger := log.FromCtx(ctx)
 	beacons := make(map[string]beacon.Beacon)
-	var toRegister []*seghandler.SegWithHP
+	var toRegister []*seg.Meta
 	for bOrErr := range segments {
 		if bOrErr.Err != nil {
 			logger.Error("Unable to get beacon", "err", bOrErr.Err)
@@ -241,9 +241,7 @@ func (r *LocalWriter) Write(ctx context.Context, segments <-chan beacon.BeaconOr
 			metrics.CounterInc(r.InternalErrors)
 			continue
 		}
-		toRegister = append(toRegister, &seghandler.SegWithHP{
-			Seg: &seg.Meta{Type: r.Type, Segment: bOrErr.Beacon.Segment},
-		})
+		toRegister = append(toRegister, &seg.Meta{Type: r.Type, Segment: bOrErr.Beacon.Segment})
 		beacons[bOrErr.Beacon.Segment.GetLoggingID()] = bOrErr.Beacon
 	}
 	if len(toRegister) == 0 {

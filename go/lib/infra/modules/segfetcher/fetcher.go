@@ -121,7 +121,7 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context,
 			log.FromCtx(ctx).Info("Error during verification of segments/revocations",
 				"errors", r.VerificationErrors().ToError())
 		}
-		segs = append(segs, segsWithHPToSegs(r.Stats().VerifiedSegs)...)
+		segs = append(segs, Segments(r.Stats().VerifiedSegs)...)
 		nextQuery := f.nextQuery(segs)
 		_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil, nextQuery)
 		if err != nil {
@@ -180,12 +180,4 @@ func replyToRecs(reply []*seg.Meta) seghandler.Segments {
 	return seghandler.Segments{
 		Segs: reply,
 	}
-}
-
-func segsWithHPToSegs(segsWithHP []*seghandler.SegWithHP) Segments {
-	segs := make(Segments, 0, len(segsWithHP))
-	for _, seg := range segsWithHP {
-		segs = append(segs, seg.Seg)
-	}
-	return segs
 }
