@@ -1227,6 +1227,12 @@ def go_deps():
         version = "v1.0.1-0.20180205163309-da645544ed44",
     )
     go_repository(
+        name = "com_github_serialx_hashring",
+        importpath = "github.com/serialx/hashring",
+        sum = "h1:h+3JX2VoWTFuyQEo87pStk/a99dzIO1mM9KxIyLPGTU=",
+        version = "v0.0.0-20200727003509-22c0c7ab6b1b",
+    )
+    go_repository(
         name = "com_github_shopify_sarama",
         importpath = "github.com/Shopify/sarama",
         sum = "h1:9oksLxC6uxVPHPVYUmq6xhr1BOF/hHobWH2UzO67z1s=",
