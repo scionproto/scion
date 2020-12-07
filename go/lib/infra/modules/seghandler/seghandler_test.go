@@ -130,15 +130,9 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), TestTimeout)
 	defer cancelF()
 
-	seg1 := &seghandler.SegWithHP{
-		Seg: &seg.Meta{Type: seg.TypeDown},
-	}
-	seg2 := &seghandler.SegWithHP{
-		Seg: &seg.Meta{Type: seg.TypeUp},
-	}
-	seg3 := &seghandler.SegWithHP{
-		Seg: &seg.Meta{Type: seg.TypeCore},
-	}
+	seg1 := &seg.Meta{Type: seg.TypeDown}
+	seg2 := &seg.Meta{Type: seg.TypeUp}
+	seg3 := &seg.Meta{Type: seg.TypeCore}
 	rev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{})
 	xtest.FailOnErr(t, err)
 	segs := seghandler.Segments{}
@@ -152,24 +146,24 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 		Verifier: verifier,
 	}
 	storage.EXPECT().StoreSegs(gomock.Any(),
-		gomock.Eq([]*seghandler.SegWithHP{seg1, seg2, seg3})).
+		gomock.Eq([]*seg.Meta{seg1, seg2, seg3})).
 		Return(seghandler.SegStats{InsertedSegs: []string{"seg1", "seg2", "seg3"}}, nil)
 	storage.EXPECT().StoreRevs(gomock.Any(),
 		gomock.Eq([]*path_mgmt.SignedRevInfo{rev1}))
 
 	verified <- segverifier.UnitResult{
 		Unit: &segverifier.Unit{
-			SegMeta: seg1.Seg,
+			SegMeta: seg1,
 		},
 	}
 	verified <- segverifier.UnitResult{
 		Unit: &segverifier.Unit{
-			SegMeta: seg2.Seg,
+			SegMeta: seg2,
 		},
 	}
 	verified <- segverifier.UnitResult{
 		Unit: &segverifier.Unit{
-			SegMeta:   seg3.Seg,
+			SegMeta:   seg3,
 			SRevInfos: []*path_mgmt.SignedRevInfo{rev1},
 		},
 	}
@@ -191,12 +185,8 @@ func TestReplyHandlerStorageError(t *testing.T) {
 	ctx, cancelF := context.WithTimeout(context.Background(), TestTimeout)
 	defer cancelF()
 
-	seg1 := &seghandler.SegWithHP{
-		Seg: &seg.Meta{Type: seg.TypeDown},
-	}
-	seg2 := &seghandler.SegWithHP{
-		Seg: &seg.Meta{Type: seg.TypeUp},
-	}
+	seg1 := &seg.Meta{Type: seg.TypeDown}
+	seg2 := &seg.Meta{Type: seg.TypeUp}
 	segs := seghandler.Segments{}
 	verified := make(chan segverifier.UnitResult, 2)
 
@@ -209,17 +199,17 @@ func TestReplyHandlerStorageError(t *testing.T) {
 	}
 	storageErr := serrors.New("Test error")
 	storage.EXPECT().StoreSegs(gomock.Any(),
-		gomock.Eq([]*seghandler.SegWithHP{seg1, seg2})).
+		gomock.Eq([]*seg.Meta{seg1, seg2})).
 		Return(seghandler.SegStats{}, storageErr)
 
 	verified <- segverifier.UnitResult{
 		Unit: &segverifier.Unit{
-			SegMeta: seg1.Seg,
+			SegMeta: seg1,
 		},
 	}
 	verified <- segverifier.UnitResult{
 		Unit: &segverifier.Unit{
-			SegMeta: seg2.Seg,
+			SegMeta: seg2,
 		},
 	}
 	r := handler.Handle(ctx, segs, nil)

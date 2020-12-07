@@ -18,6 +18,7 @@ import (
 	"errors"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -28,7 +29,7 @@ type Stats struct {
 	segDB           SegStats
 	segVerifyErrors int
 	// VerifiedSegs contains all segments that were successfully verified.
-	VerifiedSegs []*SegWithHP
+	VerifiedSegs []*seg.Meta
 	// StoredRevs contains all revocations that were verified and stored.
 	StoredRevs []*path_mgmt.SignedRevInfo
 	// VerifiedRevs contains all revocations that were verified.

@@ -14,28 +14,10 @@ import (
 func NewRootStruct(id ProtoIdType, seg *capnp.Segment) (capnp.Struct, error) {
 	var blank capnp.Struct
 	switch id {
-	case ASEntry_TypeID:
-		v, err := NewRootASEntry(seg)
-		if err != nil {
-			return blank, serrors.WrapStr("Error creating new ASEntry capnp struct", err)
-		}
-		return v.Struct, nil
 	case CtrlPld_TypeID:
 		v, err := NewRootCtrlPld(seg)
 		if err != nil {
 			return blank, serrors.WrapStr("Error creating new CtrlPld capnp struct", err)
-		}
-		return v.Struct, nil
-	case PathSegment_TypeID:
-		v, err := NewRootPathSegment(seg)
-		if err != nil {
-			return blank, serrors.WrapStr("Error creating new PathSegment capnp struct", err)
-		}
-		return v.Struct, nil
-	case PathSegmentSignedData_TypeID:
-		v, err := NewRootPathSegmentSignedData(seg)
-		if err != nil {
-			return blank, serrors.WrapStr("Error creating new PathSegmentSignedData capnp struct", err)
 		}
 		return v.Struct, nil
 	case RevInfo_TypeID:
@@ -56,12 +38,6 @@ func NewRootStruct(id ProtoIdType, seg *capnp.Segment) (capnp.Struct, error) {
 			return blank, serrors.WrapStr("Error creating new SignedCtrlPld capnp struct", err)
 		}
 		return v.Struct, nil
-	case SVCResolutionReply_TypeID:
-		v, err := NewRootSVCResolutionReply(seg)
-		if err != nil {
-			return blank, serrors.WrapStr("Error creating new SVCResolutionReply capnp struct", err)
-		}
-		return v.Struct, nil
 	case ColibriRequestPayload_TypeID:
 		v, err := NewRootColibriRequestPayload(seg)
 		if err != nil {
@@ -75,16 +51,7 @@ func NewRootStruct(id ProtoIdType, seg *capnp.Segment) (capnp.Struct, error) {
 	)
 }
 
-func (s ASEntry) GetStruct() capnp.Struct {
-	return s.Struct
-}
 func (s CtrlPld) GetStruct() capnp.Struct {
-	return s.Struct
-}
-func (s PathSegment) GetStruct() capnp.Struct {
-	return s.Struct
-}
-func (s PathSegmentSignedData) GetStruct() capnp.Struct {
 	return s.Struct
 }
 func (s RevInfo) GetStruct() capnp.Struct {
@@ -94,9 +61,6 @@ func (s SignedBlob) GetStruct() capnp.Struct {
 	return s.Struct
 }
 func (s SignedCtrlPld) GetStruct() capnp.Struct {
-	return s.Struct
-}
-func (s SVCResolutionReply) GetStruct() capnp.Struct {
 	return s.Struct
 }
 func (s ColibriRequestPayload) GetStruct() capnp.Struct {

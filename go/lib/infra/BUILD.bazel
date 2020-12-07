@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
@@ -10,21 +10,9 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
-        "//go/lib/ctrl/ack:go_default_library",
-        "//go/lib/ctrl/path_mgmt:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/prom:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/proto:go_default_library",
-    ],
-)
-
-go_test(
-    name = "go_default_test",
-    srcs = ["common_test.go"],
-    embed = [":go_default_library"],
-    deps = [
-        "//go/lib/infra/mock_infra:go_default_library",
-        "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )

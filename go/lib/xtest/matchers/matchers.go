@@ -25,7 +25,6 @@ import (
 	"github.com/golang/mock/gomock"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -52,26 +51,6 @@ func (m *addrIAMatcher) Matches(x interface{}) bool {
 
 func (m *addrIAMatcher) String() string {
 	return fmt.Sprintf("Matching addr with IA %v", m.ia)
-}
-
-var _ gomock.Matcher = (*AckMsg)(nil)
-
-// AckMsg matches ack messages.
-type AckMsg struct {
-	Ack ack.Ack
-}
-
-// Matches returns whether the matcher matches x.
-func (m *AckMsg) Matches(x interface{}) bool {
-	ack, ok := x.(*ack.Ack)
-	if !ok {
-		return false
-	}
-	return ack.Err == m.Ack.Err && ack.ErrDesc == m.Ack.ErrDesc
-}
-
-func (m *AckMsg) String() string {
-	return fmt.Sprintf("is ack msg: %v", m.Ack)
 }
 
 var _ gomock.Matcher = (*SignedRevs)(nil)

@@ -242,7 +242,7 @@ func (m *MockSegmentStore) EXPECT() *MockSegmentStoreMockRecorder {
 }
 
 // StoreSegs mocks base method
-func (m *MockSegmentStore) StoreSegs(arg0 context.Context, arg1 []*seghandler.SegWithHP) (seghandler.SegStats, error) {
+func (m *MockSegmentStore) StoreSegs(arg0 context.Context, arg1 []*seg.Meta) (seghandler.SegStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreSegs", arg0, arg1)
 	ret0, _ := ret[0].(seghandler.SegStats)
