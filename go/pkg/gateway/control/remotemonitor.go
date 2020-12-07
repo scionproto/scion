@@ -16,6 +16,10 @@ package control
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"sync"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
@@ -34,7 +38,7 @@ type GatewayWatcherFactory interface {
 	New(addr.IA, GatewayWatcherMetrics) Runner
 }
 
-// RemoteMinitor watches for currently monitored remote ASes and creates
+// RemoteMonitor watches for currently monitored remote ASes and creates
 // GatewayWatchers accordingly. For all new IAs that weren't seen
 // before new GatewayWatcher is created. For all IAs that were seen before
 // but are not present in an update the corresponding GatewayWatcher is stopped.
@@ -48,6 +52,8 @@ type RemoteMonitor struct {
 	// RemotesMonitored is the number of remote gateways discovered. If nil, no metric is reported.
 	RemotesMonitored metrics.Gauge
 
+	// stateMtx protects the state below from concurrent access.
+	stateMtx sync.RWMutex
 	// context is the parent context for all watcher contexts.
 	context context.Context
 	// cancel is a function that cancels context.
@@ -61,6 +67,11 @@ type RemoteMonitor struct {
 type watcherEntry struct {
 	runner Runner
 	cancel context.CancelFunc
+}
+
+// remoteDiagnostics represents the gathered diagnostics from the gateways.
+type remoteDiagnostics struct {
+	Gateways map[string]gatewayDiagnostics `json:"gateways"`
 }
 
 func (rm *RemoteMonitor) Run() error {
@@ -96,6 +107,8 @@ func (rm *RemoteMonitor) run() error {
 }
 
 func (rm *RemoteMonitor) process(ias []addr.IA) {
+	rm.stateMtx.Lock()
+	defer rm.stateMtx.Unlock()
 	newWatchers := make(map[addr.IA]watcherEntry)
 	for _, ia := range ias {
 		we, ok := rm.currentWatchers[ia]
@@ -130,4 +143,39 @@ func (rm *RemoteMonitor) process(ias []addr.IA) {
 	}
 	// Replace old watchers with the new watchers.
 	rm.currentWatchers = newWatchers
+}
+
+// DiagnosticsWrite writes diagnostics to the writer.
+func (rm *RemoteMonitor) DiagnosticsWrite(w io.Writer) {
+	rm.stateMtx.RLock()
+	defer rm.stateMtx.RUnlock()
+
+	// assemble the diagnostics json output
+	diagnostics := struct {
+		Remotes map[addr.IA]remoteDiagnostics `json:"remotes"`
+	}{
+		Remotes: make(map[addr.IA]remoteDiagnostics),
+	}
+
+	for ia, watcher := range rm.currentWatchers {
+		gatewaywatcher, ok := watcher.runner.(interface {
+			diagnostics() (remoteDiagnostics, error)
+		})
+		if !ok {
+			continue
+		}
+		var err error
+		diagnostics.Remotes[ia], err = gatewaywatcher.diagnostics()
+		if err != nil {
+			w.Write([]byte(fmt.Sprintf("Error collecting  diagnostics from gateways %v", err)))
+			return
+		}
+	}
+
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	if err := enc.Encode(diagnostics); err != nil {
+		w.Write([]byte(fmt.Sprintf("Error collecting Remotes diagnostics %v", err)))
+		return
+	}
 }

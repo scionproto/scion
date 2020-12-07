@@ -120,13 +120,29 @@ type GatewayWatcher struct {
 	// initialized, no metrics will be reported.
 	Metrics GatewayWatcherMetrics
 
+	// stateMtx protects the state below from concurrent access.
+	stateMtx sync.RWMutex
 	gateways []Gateway
-	cancels  map[string]func()
-
-	runMarkerLock sync.Mutex
+	// currentWatchers is a map of all currently active prefix watchers.
+	currentWatchers map[string]watcherItem
+	runMarkerLock   sync.Mutex
 	// runMarker is set to true the first time a Session runs. Subsequent calls use this value to
 	// return an error.
 	runMarker bool
+}
+
+type watcherItem struct {
+	*prefixWatcher
+	cancel func()
+}
+
+// gatewayDiagnostics represents the gathered diagnostics from the prefixes.
+type gatewayDiagnostics struct {
+	DataAddr   string    `json:"data_address"`
+	ProbeAddr  string    `json:"probe_address"`
+	Interfaces []uint64  `json:"interfaces"`
+	Prefixes   []string  `json:"prefixes"`
+	Timestamp  time.Time `json:"timestamp"`
 }
 
 // Run watches the remote for gateways. This method blocks until the context
@@ -159,7 +175,6 @@ func (w *GatewayWatcher) Run(ctx context.Context) error {
 func (w *GatewayWatcher) run(runCtx context.Context) {
 	ctx, cancel := context.WithTimeout(runCtx, w.DiscoverTimeout)
 	defer cancel()
-
 	logger := log.FromCtx(ctx)
 	logger.Debug("Discovering remote gateways")
 	discovered, err := w.Discoverer.Gateways(ctx)
@@ -167,15 +182,17 @@ func (w *GatewayWatcher) run(runCtx context.Context) {
 		logger.Info("Failed to discover remote gateways", "err", err)
 		return
 	}
+	w.stateMtx.Lock()
+	defer w.stateMtx.Unlock()
 	diff := computeDiff(w.gateways, discovered)
 	for _, gateway := range diff.Add {
-		w.cancels[fmt.Sprint(gateway)] = w.watchPrefixes(runCtx, gateway)
+		w.currentWatchers[fmt.Sprint(gateway)] = w.watchPrefixes(runCtx, gateway)
 	}
 	for _, gateway := range diff.Remove {
 		key := fmt.Sprint(gateway)
-		if stop, ok := w.cancels[key]; ok {
-			stop()
-			delete(w.cancels, key)
+		if prefixWatcher, ok := w.currentWatchers[key]; ok {
+			prefixWatcher.cancel()
+			delete(w.currentWatchers, key)
 		}
 	}
 	if len(diff.Add) != 0 {
@@ -188,9 +205,9 @@ func (w *GatewayWatcher) run(runCtx context.Context) {
 	metrics.GaugeSet(w.Metrics.Remotes, float64(len(discovered)))
 }
 
-func (w *GatewayWatcher) watchPrefixes(ctx context.Context, gateway Gateway) func() {
+func (w *GatewayWatcher) watchPrefixes(ctx context.Context, gateway Gateway) watcherItem {
 	ctx, cancel := context.WithCancel(ctx)
-
+	watcher := newPrefixWatcher(gateway, w.Remote, w.Template)
 	go func(ctx context.Context, watcher *prefixWatcher) {
 		defer log.HandlePanic()
 		if err := watcher.Run(ctx); err != nil {
@@ -200,8 +217,11 @@ func (w *GatewayWatcher) watchPrefixes(ctx context.Context, gateway Gateway) fun
 			}
 			log.FromCtx(ctx).Info("PrefixWatcher stopped with error", "remote", addr, "err", err)
 		}
-	}(ctx, newPrefixWatcher(gateway, w.Remote, w.Template))
-	return cancel
+	}(ctx, watcher)
+	return watcherItem{
+		prefixWatcher: watcher,
+		cancel:        cancel,
+	}
 }
 
 func (w *GatewayWatcher) runOnceCheck() error {
@@ -211,8 +231,37 @@ func (w *GatewayWatcher) runOnceCheck() error {
 		return ErrAlreadyRunning
 	}
 	w.runMarker = true
-	w.cancels = map[string]func(){}
+	w.currentWatchers = map[string]watcherItem{}
 	return nil
+}
+
+// Diagnostics gives back a RemoteDiagnostics map
+func (w *GatewayWatcher) diagnostics() (remoteDiagnostics, error) {
+	w.stateMtx.RLock()
+	defer w.stateMtx.RUnlock()
+
+	// assemble the diagnostics json output
+	diagnostics := struct {
+		Gateways map[string]gatewayDiagnostics `json:"gateways"`
+	}{
+		Gateways: make(map[string]gatewayDiagnostics),
+	}
+	for _, watcher := range w.currentWatchers {
+		watcher.stateMtx.RLock()
+		defer watcher.stateMtx.RUnlock()
+		interfaces := watcher.gateway.Interfaces
+		if watcher.gateway.Interfaces == nil {
+			interfaces = []uint64{}
+		}
+		diagnostics.Gateways[watcher.gateway.Control.String()] = gatewayDiagnostics{
+			DataAddr:   watcher.gateway.Data.String(),
+			ProbeAddr:  watcher.gateway.Probe.String(),
+			Interfaces: interfaces,
+			Prefixes:   watcher.prefixes,
+			Timestamp:  watcher.timestamp,
+		}
+	}
+	return diagnostics, nil
 }
 
 func (w *GatewayWatcher) validateParameters() error {
@@ -289,6 +338,12 @@ type prefixWatcher struct {
 	// runMarker is set to true the first time a Session runs. Subsequent calls use this value to
 	// return an error.
 	runMarker bool
+	// stateMtx protects the state below from concurrent access.
+	stateMtx sync.RWMutex
+	// state of last fetched prefixes
+	prefixes []string
+	// timestamp of last fetched prefixes
+	timestamp time.Time
 }
 
 func newPrefixWatcher(gateway Gateway, remote addr.IA, cfg PrefixWatcherConfig) *prefixWatcher {
@@ -340,7 +395,14 @@ func (w *prefixWatcher) run(ctx context.Context) {
 		return
 	}
 	logger.Debug("Fetched prefixes successfully", "prefixes", fmtPrefixes(prefixes))
+
+	snapshot := fmtPrefixes(prefixes)
 	w.Consumer.Prefixes(w.remote, w.gateway, prefixes)
+
+	w.stateMtx.Lock()
+	defer w.stateMtx.Unlock()
+	w.prefixes = snapshot
+	w.timestamp = time.Now()
 }
 
 func fmtPrefixes(prefixes []*net.IPNet) []string {
@@ -352,8 +414,6 @@ func fmtPrefixes(prefixes []*net.IPNet) []string {
 }
 
 func (w *prefixWatcher) runOnceCheck() error {
-	w.runMarkerLock.Lock()
-	defer w.runMarkerLock.Unlock()
 	if w.runMarker {
 		return ErrAlreadyRunning
 	}
