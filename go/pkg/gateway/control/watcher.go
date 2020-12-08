@@ -306,8 +306,6 @@ type PrefixWatcherConfig struct {
 	// PollTimeout is the timout for an individual poll attempts. If zero, this
 	// defaults to 5 seconds.
 	PollTimeout time.Duration
-
-	// TODO(roosd): Add metrics https://github.com/Anapaya/scion/issues/4250
 }
 
 func (c *PrefixWatcherConfig) validateParameters() error {
