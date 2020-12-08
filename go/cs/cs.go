@@ -370,6 +370,20 @@ func run(file string) error {
 	dsHealth.SetServingStatus("discovery", healthpb.HealthCheckResponse_SERVING)
 	healthpb.RegisterHealthServer(tcpServer, dsHealth)
 
+	hpCfg := cs.HiddenPathConfigurator{
+		LocalIA:           topo.IA(),
+		Verifier:          verifier,
+		PathDB:            pathDB,
+		Dialer:            dialer,
+		FetcherConfig:     fetcherCfg,
+		IntraASTCPServer:  tcpServer,
+		InterASQUICServer: quicServer,
+	}
+	hpWriterCfg, err := hpCfg.Setup(cfg.PS.HiddenPathsCfg)
+	if err != nil {
+		return err
+	}
+
 	promgrpc.Register(quicServer)
 	promgrpc.Register(tcpServer)
 	go func() {
@@ -399,20 +413,7 @@ func run(file string) error {
 	}
 	staticInfo, err := beaconing.ParseStaticInfoCfg(cfg.General.StaticInfoConfig())
 	if err != nil {
-		log.Info("Failed to read static info", "err", err)
-	}
-	hpCfg := cs.HiddenPathConfigurator{
-		LocalIA:           topo.IA(),
-		Verifier:          verifier,
-		PathDB:            pathDB,
-		Dialer:            dialer,
-		FetcherConfig:     fetcherCfg,
-		IntraASTCPServer:  tcpServer,
-		InterASQUICServer: quicServer,
-	}
-	hpWriterCfg, err := hpCfg.Setup(cfg.PS.HiddenPathsCfg)
-	if err != nil {
-		return err
+		log.Info("No static info file found. Static info settings disabled.", "err", err)
 	}
 
 	addressRewriter := nc.AddressRewriter(
