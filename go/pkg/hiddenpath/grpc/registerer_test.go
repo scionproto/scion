@@ -29,8 +29,10 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/pkg/cs/trust/grpc/mock_grpc"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
 	hpgrpc "github.com/scionproto/scion/go/pkg/hiddenpath/grpc"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/proto/hidden_segment"
 	hspb "github.com/scionproto/scion/go/pkg/proto/hidden_segment"
 	"github.com/scionproto/scion/go/pkg/proto/hidden_segment/mock_hidden_segment"
@@ -40,6 +42,7 @@ func TestRegistererRegisterSegment(t *testing.T) {
 	testCases := map[string]struct {
 		input     hiddenpath.SegmentRegistration
 		hpServer  func(*gomock.Controller) hidden_segment.HiddenSegmentRegistrationServiceServer
+		signer    func(ctrl *gomock.Controller) hpgrpc.Signer
 		regular   func(*gomock.Controller) beaconing.RPC
 		assertErr assert.ErrorAssertionFunc
 	}{
@@ -50,8 +53,14 @@ func TestRegistererRegisterSegment(t *testing.T) {
 					Return(&hidden_segment.HiddenSegmentRegistrationResponse{}, nil)
 				return s
 			},
-			regular: func(c *gomock.Controller) beaconing.RPC {
-				r := mock_beaconing.NewMockRPC(c)
+			signer: func(ctrl *gomock.Controller) hpgrpc.Signer {
+				signer := mock_grpc.NewMockSigner(ctrl)
+				signer.EXPECT().Sign(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(&cryptopb.SignedMessage{}, nil)
+				return signer
+			},
+			regular: func(ctrl *gomock.Controller) beaconing.RPC {
+				r := mock_beaconing.NewMockRPC(ctrl)
 				r.EXPECT().RegisterSegment(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 				return r
 			},
@@ -68,8 +77,11 @@ func TestRegistererRegisterSegment(t *testing.T) {
 					Return(&hidden_segment.HiddenSegmentRegistrationResponse{}, nil).Times(0)
 				return s
 			},
-			regular: func(c *gomock.Controller) beaconing.RPC {
-				r := mock_beaconing.NewMockRPC(c)
+			signer: func(ctrl *gomock.Controller) hpgrpc.Signer {
+				return mock_grpc.NewMockSigner(ctrl)
+			},
+			regular: func(ctrl *gomock.Controller) beaconing.RPC {
+				r := mock_beaconing.NewMockRPC(ctrl)
 				r.EXPECT().RegisterSegment(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
 				return r
 			},
@@ -94,6 +106,7 @@ func TestRegistererRegisterSegment(t *testing.T) {
 			s := hpgrpc.Registerer{
 				Dialer:              svc,
 				RegularRegistration: tc.regular(ctrl),
+				Signer:              tc.signer(ctrl),
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()

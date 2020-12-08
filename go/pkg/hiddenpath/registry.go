@@ -16,10 +16,8 @@ package hiddenpath
 
 import (
 	"context"
-	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -37,9 +35,8 @@ type Registration struct {
 	// GroupID is the hiddenpath group ID under which the segments should be
 	// registered.
 	GroupID GroupID
-	// Peer is the address of the writer of the segments. This is expected to be
-	// a snet.UDPAddr.
-	Peer net.Addr
+	// Peer is the address of the writer of the segments.
+	Peer *snet.SVCAddr
 }
 
 // RegistryServer handles hidden segment registrations.
@@ -61,11 +58,7 @@ func (h RegistryServer) Register(ctx context.Context, reg Registration) error {
 	if !ok {
 		return serrors.New("unknown group")
 	}
-	peer, ok := reg.Peer.(*snet.UDPAddr)
-	if !ok {
-		return serrors.New("unhandled peer type", "type", common.TypeOf(reg.Peer))
-	}
-	if _, ok := group.Writers[peer.IA]; !ok {
+	if _, ok := group.Writers[reg.Peer.IA]; !ok {
 		return serrors.New("sender not writer in group")
 	}
 	if _, ok := group.Registries[h.LocalIA]; !ok {
@@ -76,17 +69,9 @@ func (h RegistryServer) Register(ctx context.Context, reg Registration) error {
 			return serrors.New("wrong segment type", "segment", s, "expected", seg.TypeDown)
 		}
 	}
-	// XXX(lukedirtwalker): because the remote might send from the client QUIC
-	// stack we can't simply use the peer address. So for now we just use the
-	// SVC_CS address in the peer.
-	verificationPeer := &snet.SVCAddr{
-		IA:      peer.IA,
-		Path:    peer.Path,
-		NextHop: peer.NextHop,
-		SVC:     addr.SvcCS,
-	}
+
 	// verify segments
-	if err := h.Verifier.Verify(ctx, reg.Segments, verificationPeer); err != nil {
+	if err := h.Verifier.Verify(ctx, reg.Segments, reg.Peer); err != nil {
 		return serrors.WrapStr("verifying segments", err)
 	}
 	// store segments in db

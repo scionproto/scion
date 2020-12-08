@@ -21,11 +21,18 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/mock_infra"
+	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
 	hpgrpc "github.com/scionproto/scion/go/pkg/hiddenpath/grpc"
@@ -35,10 +42,16 @@ import (
 )
 
 func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
+	marshalBody := func(t *testing.T, body *hspb.HiddenSegmentRegistrationRequestBody) []byte {
+		r, err := proto.Marshal(body)
+		require.NoError(t, err)
+		return r
+	}
+
 	testCases := map[string]struct {
 		ctx       context.Context
 		registry  func(*gomock.Controller) hiddenpath.Registry
-		input     func(ctrl *gomock.Controller) *hspb.HiddenSegmentRegistrationRequest
+		verifier  func(ctrl *gomock.Controller) infra.Verifier
 		want      *hspb.HiddenSegmentRegistrationResponse
 		assertErr assert.ErrorAssertionFunc
 	}{
@@ -47,70 +60,157 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 			registry: func(ctrl *gomock.Controller) hiddenpath.Registry {
 				return mock_hiddenpath.NewMockRegistry(ctrl)
 			},
-			input: func(ctrl *gomock.Controller) *hspb.HiddenSegmentRegistrationRequest {
-				return &hspb.HiddenSegmentRegistrationRequest{}
+			verifier: func(ctrl *gomock.Controller) infra.Verifier {
+				return mock_infra.NewMockVerifier(ctrl)
+			},
+			want:      nil,
+			assertErr: assert.Error,
+		},
+		"invalid peer": {
+			ctx: peer.NewContext(context.Background(), &peer.Peer{Addr: &net.UDPAddr{}}),
+			registry: func(ctrl *gomock.Controller) hiddenpath.Registry {
+				return mock_hiddenpath.NewMockRegistry(ctrl)
+			},
+			verifier: func(ctrl *gomock.Controller) infra.Verifier {
+				return mock_infra.NewMockVerifier(ctrl)
 			},
 			want:      nil,
 			assertErr: assert.Error,
 		},
 		"invalid segment": {
-			ctx: peer.NewContext(context.Background(), &peer.Peer{Addr: &net.UDPAddr{}}),
+			ctx: peer.NewContext(context.Background(), &peer.Peer{Addr: &snet.UDPAddr{
+				IA: xtest.MustParseIA("1-ff00:0:110"),
+			}}),
 			registry: func(ctrl *gomock.Controller) hiddenpath.Registry {
 				return mock_hiddenpath.NewMockRegistry(ctrl)
 			},
-			input: func(ctrl *gomock.Controller) *hspb.HiddenSegmentRegistrationRequest {
-				return &hspb.HiddenSegmentRegistrationRequest{
+			verifier: func(ctrl *gomock.Controller) infra.Verifier {
+				body := marshalBody(t, &hspb.HiddenSegmentRegistrationRequestBody{
 					Segments: map[int32]*hspb.Segments{
 						1: {Segments: []*control_plane.PathSegment{
 							{SegmentInfo: []byte("garbage")},
 						}},
 					},
-				}
+				})
+				v := mock_infra.NewMockVerifier(ctrl)
+				v.EXPECT().WithServer(gomock.Any()).Return(v)
+				v.EXPECT().WithIA(xtest.MustParseIA("1-ff00:0:110")).Return(v)
+				v.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).Return(&signed.Message{
+					Body: body,
+				}, nil)
+				return v
+			},
+			want:      nil,
+			assertErr: assert.Error,
+		},
+		"signature verification error": {
+			ctx: peer.NewContext(context.Background(), &peer.Peer{Addr: &snet.UDPAddr{
+				IA: xtest.MustParseIA("1-ff00:0:110"),
+			}}),
+			registry: func(ctrl *gomock.Controller) hiddenpath.Registry {
+				return mock_hiddenpath.NewMockRegistry(ctrl)
+			},
+			verifier: func(ctrl *gomock.Controller) infra.Verifier {
+				g := graph.NewDefaultGraph(ctrl)
+				s := g.Beacon([]common.IFIDType{graph.If_110_X_120_A})
+
+				body := marshalBody(t, &hspb.HiddenSegmentRegistrationRequestBody{
+					Segments: map[int32]*hspb.Segments{
+						1: {Segments: []*control_plane.PathSegment{
+							seg.PathSegmentToPB(s),
+						}},
+					},
+				})
+				v := mock_infra.NewMockVerifier(ctrl)
+				v.EXPECT().WithServer(gomock.Any()).Return(v)
+				v.EXPECT().WithIA(xtest.MustParseIA("1-ff00:0:110")).Return(v)
+				v.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).Return(&signed.Message{
+					Body: body,
+				}, serrors.New("verification failed"))
+				return v
+			},
+			want:      nil,
+			assertErr: assert.Error,
+		},
+		"invalid body": {
+			ctx: peer.NewContext(context.Background(), &peer.Peer{Addr: &snet.UDPAddr{
+				IA: xtest.MustParseIA("1-ff00:0:110"),
+			}}),
+			registry: func(ctrl *gomock.Controller) hiddenpath.Registry {
+				return mock_hiddenpath.NewMockRegistry(ctrl)
+			},
+			verifier: func(ctrl *gomock.Controller) infra.Verifier {
+				body := []byte("garbage")
+				v := mock_infra.NewMockVerifier(ctrl)
+				v.EXPECT().WithServer(gomock.Any()).Return(v)
+				v.EXPECT().WithIA(xtest.MustParseIA("1-ff00:0:110")).Return(v)
+				v.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).Return(&signed.Message{
+					Body: body,
+				}, nil)
+				return v
 			},
 			want:      nil,
 			assertErr: assert.Error,
 		},
 		"registry error": {
-			ctx: peer.NewContext(context.Background(), &peer.Peer{Addr: &net.UDPAddr{}}),
+			ctx: peer.NewContext(context.Background(), &peer.Peer{Addr: &snet.UDPAddr{
+				IA: xtest.MustParseIA("1-ff00:0:110"),
+			}}),
 			registry: func(ctrl *gomock.Controller) hiddenpath.Registry {
 				registry := mock_hiddenpath.NewMockRegistry(ctrl)
 				registry.EXPECT().Register(gomock.Any(), gomock.Any()).
 					Return(serrors.New("test err"))
 				return registry
 			},
-			input: func(ctrl *gomock.Controller) *hspb.HiddenSegmentRegistrationRequest {
+			verifier: func(ctrl *gomock.Controller) infra.Verifier {
 				g := graph.NewDefaultGraph(ctrl)
 				s := g.Beacon([]common.IFIDType{graph.If_110_X_120_A})
 
-				return &hspb.HiddenSegmentRegistrationRequest{
+				body := marshalBody(t, &hspb.HiddenSegmentRegistrationRequestBody{
 					Segments: map[int32]*hspb.Segments{
 						1: {Segments: []*control_plane.PathSegment{
 							seg.PathSegmentToPB(s),
 						}},
 					},
-				}
+				})
+				v := mock_infra.NewMockVerifier(ctrl)
+				v.EXPECT().WithServer(gomock.Any()).Return(v)
+				v.EXPECT().WithIA(xtest.MustParseIA("1-ff00:0:110")).Return(v)
+				v.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).Return(&signed.Message{
+					Body: body,
+				}, nil)
+				return v
 			},
 			want:      nil,
 			assertErr: assert.Error,
 		},
 		"valid": {
-			ctx: peer.NewContext(context.Background(), &peer.Peer{Addr: &net.UDPAddr{}}),
+			ctx: peer.NewContext(context.Background(), &peer.Peer{Addr: &snet.UDPAddr{
+				IA: xtest.MustParseIA("1-ff00:0:110"),
+			}}),
 			registry: func(ctrl *gomock.Controller) hiddenpath.Registry {
 				registry := mock_hiddenpath.NewMockRegistry(ctrl)
 				registry.EXPECT().Register(gomock.Any(), gomock.Any())
 				return registry
 			},
-			input: func(ctrl *gomock.Controller) *hspb.HiddenSegmentRegistrationRequest {
+			verifier: func(ctrl *gomock.Controller) infra.Verifier {
 				g := graph.NewDefaultGraph(ctrl)
 				s := g.Beacon([]common.IFIDType{graph.If_110_X_120_A})
 
-				return &hspb.HiddenSegmentRegistrationRequest{
+				body := marshalBody(t, &hspb.HiddenSegmentRegistrationRequestBody{
 					Segments: map[int32]*hspb.Segments{
 						1: {Segments: []*control_plane.PathSegment{
 							seg.PathSegmentToPB(s),
 						}},
 					},
-				}
+				})
+				v := mock_infra.NewMockVerifier(ctrl)
+				v.EXPECT().WithServer(gomock.Any()).Return(v)
+				v.EXPECT().WithIA(xtest.MustParseIA("1-ff00:0:110")).Return(v)
+				v.EXPECT().Verify(gomock.Any(), gomock.Any(), gomock.Any()).Return(&signed.Message{
+					Body: body,
+				}, nil)
+				return v
 			},
 			want:      &hspb.HiddenSegmentRegistrationResponse{},
 			assertErr: assert.NoError,
@@ -126,8 +226,10 @@ func TestRegistrationServerHiddenSegmentRegistration(t *testing.T) {
 
 			s := hpgrpc.RegistrationServer{
 				Registry: tc.registry(ctrl),
+				Verifier: tc.verifier(ctrl),
 			}
-			got, err := s.HiddenSegmentRegistration(tc.ctx, tc.input(ctrl))
+			got, err := s.HiddenSegmentRegistration(tc.ctx,
+				&hspb.HiddenSegmentRegistrationRequest{})
 			assert.Equal(t, tc.want, got)
 			tc.assertErr(t, err)
 		})

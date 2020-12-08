@@ -18,15 +18,24 @@ import (
 	"context"
 	"net"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/scionproto/scion/go/cs/beaconing"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/serrors"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
 	"github.com/scionproto/scion/go/pkg/proto/control_plane"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	hppb "github.com/scionproto/scion/go/pkg/proto/hidden_segment"
 	hspb "github.com/scionproto/scion/go/pkg/proto/hidden_segment"
 )
+
+// Signer signs requests.
+type Signer interface {
+	// Sign signs the msg and returns a signed message.
+	Sign(ctx context.Context, msg []byte, associatedData ...[]byte) (*cryptopb.SignedMessage, error)
+}
 
 // Registerer can be used to register segments to remotes.
 type Registerer struct {
@@ -34,6 +43,8 @@ type Registerer struct {
 	Dialer libgrpc.Dialer
 	// RegularRegistration is the regular segment registration.
 	RegularRegistration beaconing.RPC
+	// Signer signs segment registration requests.
+	Signer Signer
 }
 
 // RegisterSegment registers the segment at the remote. If the hidden path group
@@ -55,7 +66,7 @@ func (s Registerer) RegisterSegment(ctx context.Context,
 	defer conn.Close()
 
 	client := hspb.NewHiddenSegmentRegistrationServiceClient(conn)
-	in := &hspb.HiddenSegmentRegistrationRequest{
+	body := &hspb.HiddenSegmentRegistrationRequestBody{
 		GroupId: reg.GroupID.ToUint64(),
 		Segments: map[int32]*hppb.Segments{
 			int32(reg.Seg.Type): {Segments: []*control_plane.PathSegment{
@@ -63,6 +74,15 @@ func (s Registerer) RegisterSegment(ctx context.Context,
 			}},
 		},
 	}
-	_, err = client.HiddenSegmentRegistration(ctx, in, libgrpc.RetryProfile...)
+	rawBody, err := proto.Marshal(body)
+	if err != nil {
+		return err
+	}
+	signedMsg, err := s.Signer.Sign(ctx, rawBody)
+	if err != nil {
+		return err
+	}
+	req := &hspb.HiddenSegmentRegistrationRequest{SignedRequest: signedMsg}
+	_, err = client.HiddenSegmentRegistration(ctx, req, libgrpc.RetryProfile...)
 	return err
 }

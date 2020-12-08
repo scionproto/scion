@@ -33,6 +33,7 @@ import (
 type HiddenPathConfigurator struct {
 	LocalIA           addr.IA
 	Verifier          infra.Verifier
+	Signer            hpgrpc.Signer
 	PathDB            pathdb.PathDB
 	Dialer            libgrpc.Dialer
 	FetcherConfig     segreq.FetcherConfig
@@ -62,8 +63,9 @@ func (c HiddenPathConfigurator) Setup(location string) (*HiddenPathRegistrationC
 			Groups:    groups,
 			LocalAuth: c.localAuthServer(groups),
 			LocalIA:   c.LocalIA,
-			RPC: &hpgrpc.HiddenRequester{
+			RPC: &hpgrpc.AuthoritativeRequester{
 				Dialer: c.Dialer,
+				Signer: c.Signer,
 			},
 			Resolver: hiddenpath.LookupResolver{
 				Router: segreq.NewRouter(c.FetcherConfig),
@@ -78,10 +80,11 @@ func (c HiddenPathConfigurator) Setup(location string) (*HiddenPathRegistrationC
 	})
 	if roles.Registry {
 		log.Info("Starting hidden path authoritative and registration server")
-		hspb.RegisterHiddenSegmentLookupServiceServer(c.InterASQUICServer, &hpgrpc.SegmentServer{
-			Lookup:        c.localAuthServer(groups),
-			Authoritative: true,
-		})
+		hspb.RegisterAuthoritativeHiddenSegmentLookupServiceServer(c.InterASQUICServer,
+			&hpgrpc.AuthoritativeSegmentServer{
+				Lookup:   c.localAuthServer(groups),
+				Verifier: c.Verifier,
+			})
 		hspb.RegisterHiddenSegmentRegistrationServiceServer(c.InterASQUICServer,
 			&hpgrpc.RegistrationServer{
 				Registry: hiddenpath.RegistryServer{
@@ -94,6 +97,7 @@ func (c HiddenPathConfigurator) Setup(location string) (*HiddenPathRegistrationC
 					},
 					LocalIA: c.LocalIA,
 				},
+				Verifier: c.Verifier,
 			},
 		)
 	}
@@ -110,6 +114,7 @@ func (c HiddenPathConfigurator) Setup(location string) (*HiddenPathRegistrationC
 		RPC: &hpgrpc.Registerer{
 			Dialer:              c.Dialer,
 			RegularRegistration: beaconinggrpc.Registrar{Dialer: c.Dialer},
+			Signer:              c.Signer,
 		},
 	}, nil
 }

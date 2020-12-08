@@ -8,5 +8,6 @@ proto_library(
     visibility = ["//visibility:public"],
     deps = [
         "//proto/control_plane/v1:control_plane",
+        "//proto/crypto/v1:crypto",
     ],
 )

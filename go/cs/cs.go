@@ -373,6 +373,7 @@ func run(file string) error {
 	hpCfg := cs.HiddenPathConfigurator{
 		LocalIA:           topo.IA(),
 		Verifier:          verifier,
+		Signer:            signer,
 		PathDB:            pathDB,
 		Dialer:            dialer,
 		FetcherConfig:     fetcherCfg,

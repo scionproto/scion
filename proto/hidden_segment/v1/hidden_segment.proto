@@ -19,6 +19,7 @@ option go_package = "github.com/scionproto/scion/go/pkg/proto/hidden_segment";
 package proto.hidden_segment.v1;
 
 import "proto/control_plane/v1/seg.proto";
+import "proto/crypto/v1/signed.proto";
 
 service HiddenSegmentRegistrationService {
     // HiddenSegmentRegistration registers hidden segments at the remote.
@@ -31,6 +32,12 @@ message Segments {
 }
 
 message HiddenSegmentRegistrationRequest {
+    // The signed hidden segment registration request. The body of the
+    // SignedMessage is the serialized HiddenSegmentRegistrationRequestBody.
+    proto.crypto.v1.SignedMessage signed_request = 1;
+}
+
+message HiddenSegmentRegistrationRequestBody {
     // Mapping from path segment type to path segments. The key is the integer
     // representation of the control_plane.v1.SegmentType enum.
     map<int32, Segments> segments = 1;
@@ -54,6 +61,23 @@ message HiddenSegmentsRequest {
 }
 
 message HiddenSegmentsResponse {
+    // Mapping from path segment type to path segments. The key is the integer
+    // representation of the control_plane.v1.SegmentType enum.
+    map<int32, Segments> segments = 1;
+}
+
+service AuthoritativeHiddenSegmentLookupService {
+    // HiddenSegments returns all segments that match the request.
+    rpc AuthoritativeHiddenSegments(AuthoritativeHiddenSegmentsRequest) returns (AuthoritativeHiddenSegmentsResponse) {}
+}
+
+message AuthoritativeHiddenSegmentsRequest {
+    // The signed hidden segment request. The body of the SignedMessage is the
+    // serialized HiddenSegmentRegistrationRequestBody.
+    proto.crypto.v1.SignedMessage signed_request = 1;
+}
+
+message AuthoritativeHiddenSegmentsResponse {
     // Mapping from path segment type to path segments. The key is the integer
     // representation of the control_plane.v1.SegmentType enum.
     map<int32, Segments> segments = 1;

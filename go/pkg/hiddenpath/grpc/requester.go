@@ -18,6 +18,7 @@ import (
 	"context"
 	"net"
 
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -25,7 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
-	hppb "github.com/scionproto/scion/go/pkg/proto/hidden_segment"
+	hspb "github.com/scionproto/scion/go/pkg/proto/hidden_segment"
 )
 
 // Requester fetches segments from a remote using gRPC.
@@ -58,16 +59,7 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 	})
 
 	g.Go(func() error {
-		hReq := hiddenpath.SegmentRequest{
-			DstIA: req.Dst,
-		}
-		for _, g := range f.HPGroups {
-			if _, ok := g.Writers[req.Dst]; ok {
-				hReq.GroupIDs = append(hReq.GroupIDs, g.ID)
-			}
-		}
-		r := HiddenRequester{Dialer: f.Dialer}
-		segs, err := r.HiddenSegments(ctx, hReq, server)
+		segs, err := f.hiddenSegments(ctx, req, server)
 		if err != nil {
 			return err
 		}
@@ -82,17 +74,53 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 	return append(regularSegs, hiddenSegs...), nil
 }
 
-// HiddenRequester fetches hidden segments from a remote using gRPC.
-type HiddenRequester struct {
-	// Dialer dials a new gRPC connection.
-	Dialer libgrpc.Dialer
+func (f *Requester) hiddenSegments(ctx context.Context, req segfetcher.Request,
+	server net.Addr) ([]*seg.Meta, error) {
+
+	conn, err := f.Dialer.Dial(ctx, server)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	groups := []uint64{}
+	for _, g := range f.HPGroups {
+		if _, ok := g.Writers[req.Dst]; ok {
+			groups = append(groups, g.ID.ToUint64())
+		}
+	}
+
+	if len(groups) == 0 {
+		return nil, nil
+	}
+
+	client := hspb.NewHiddenSegmentLookupServiceClient(conn)
+	rep, err := client.HiddenSegments(ctx,
+		&hspb.HiddenSegmentsRequest{
+			GroupIds: groups,
+			DstIsdAs: uint64(req.Dst.IAInt()),
+		},
+		libgrpc.RetryProfile...,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return unpackSegs(rep.Segments)
 }
 
-// HiddenSegments fetches the hidden segments.
-func (f *HiddenRequester) HiddenSegments(ctx context.Context,
-	req hiddenpath.SegmentRequest, dst net.Addr) ([]*seg.Meta, error) {
+// AuthoritativeRequester requests hidden segments from an authoritative server.
+type AuthoritativeRequester struct {
+	// Dialer dials a new gRPC connection.
+	Dialer libgrpc.Dialer
+	// Signer is used to sign the requests.
+	Signer Signer
+}
 
-	conn, err := f.Dialer.Dial(ctx, dst)
+// HiddenSegments requests from the authoritative server.
+func (r AuthoritativeRequester) HiddenSegments(ctx context.Context,
+	req hiddenpath.SegmentRequest, server net.Addr) ([]*seg.Meta, error) {
+
+	conn, err := r.Dialer.Dial(ctx, server)
 	if err != nil {
 		return nil, err
 	}
@@ -103,23 +131,32 @@ func (f *HiddenRequester) HiddenSegments(ctx context.Context,
 		groups = append(groups, id.ToUint64())
 	}
 
-	if len(groups) == 0 {
-		return nil, nil
+	pbReq := &hspb.HiddenSegmentsRequest{
+		GroupIds: groups,
+		DstIsdAs: uint64(req.DstIA.IAInt()),
+	}
+	rawReq, err := proto.Marshal(pbReq)
+	if err != nil {
+		return nil, serrors.WrapStr("marshaling request", err)
+	}
+	signedReq, err := r.Signer.Sign(ctx, rawReq)
+	if err != nil {
+		return nil, serrors.WrapStr("signing request", err)
 	}
 
-	client := hppb.NewHiddenSegmentLookupServiceClient(conn)
-	rep, err := client.HiddenSegments(ctx,
-		&hppb.HiddenSegmentsRequest{
-			GroupIds: groups,
-			DstIsdAs: uint64(req.DstIA.IAInt()),
-		},
-		libgrpc.RetryProfile...,
-	)
+	client := hspb.NewAuthoritativeHiddenSegmentLookupServiceClient(conn)
+	rep, err := client.AuthoritativeHiddenSegments(ctx, &hspb.AuthoritativeHiddenSegmentsRequest{
+		SignedRequest: signedReq,
+	}, libgrpc.RetryProfile...)
 	if err != nil {
 		return nil, err
 	}
+	return unpackSegs(rep.Segments)
+}
+
+func unpackSegs(pbSegs map[int32]*hspb.Segments) ([]*seg.Meta, error) {
 	var segs []*seg.Meta
-	for segType, segments := range rep.Segments {
+	for segType, segments := range pbSegs {
 		for i, pb := range segments.Segments {
 			ps, err := seg.SegmentFromPB(pb)
 			if err != nil {

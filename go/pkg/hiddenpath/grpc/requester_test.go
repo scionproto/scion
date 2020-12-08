@@ -15,7 +15,6 @@
 package grpc_test
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -30,15 +29,16 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	"github.com/scionproto/scion/go/lib/infra/modules/segfetcher/mock_segfetcher"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/pkg/cs/trust/grpc/mock_grpc"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
 	hpgrpc "github.com/scionproto/scion/go/pkg/hiddenpath/grpc"
-	"github.com/scionproto/scion/go/pkg/proto/control_plane"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	hspb "github.com/scionproto/scion/go/pkg/proto/hidden_segment"
 	"github.com/scionproto/scion/go/pkg/proto/hidden_segment/mock_hidden_segment"
 )
 
 func TestRequesterSegments(t *testing.T) {
+	testSeg := createSeg()
 	hpID := hiddenpath.GroupID{
 		OwnerAS: xtest.MustParseAS("ff00:0:2"),
 		Suffix:  15,
@@ -113,7 +113,9 @@ func TestRequesterSegments(t *testing.T) {
 
 				server := mock_hidden_segment.NewMockHiddenSegmentLookupServiceServer(ctrl)
 				server.EXPECT().HiddenSegments(gomock.Any(), gomock.Any()).
-					Return(replyHiddenSegments(), nil).AnyTimes()
+					Return(&hspb.HiddenSegmentsResponse{
+						Segments: hpgrpc.ToHSPB([]*seg.Meta{&testSeg}),
+					}, nil).AnyTimes()
 				svc := xtest.NewGRPCService()
 				hspb.RegisterHiddenSegmentLookupServiceServer(svc.Server(), server)
 				svc.Start(t)
@@ -135,24 +137,64 @@ func TestRequesterSegments(t *testing.T) {
 	})
 }
 
-func replyHiddenSegments() *hspb.HiddenSegmentsResponse {
-	createSeg := func() *control_plane.PathSegment {
-		asEntry := seg.ASEntry{
-			Local: xtest.MustParseIA("1-ff00:0:110"),
-			HopEntry: seg.HopEntry{
-				HopField: seg.HopField{MAC: bytes.Repeat([]byte{0x11}, 6)},
+func TestAuthoritativeRequesterHiddenSegments(t *testing.T) {
+	testSeg := createSeg()
+	testCases := map[string]struct {
+		input       hiddenpath.SegmentRequest
+		signer      func(*gomock.Controller) hpgrpc.Signer
+		server      func(*gomock.Controller) hspb.AuthoritativeHiddenSegmentLookupServiceServer
+		want        int
+		assertError assert.ErrorAssertionFunc
+	}{
+		"valid": {
+			input: hiddenpath.SegmentRequest{
+				GroupIDs: []hiddenpath.GroupID{mustParseGroupID(t, "ff00:0:42-404")},
+				DstIA:    xtest.MustParseIA("1-ff00:0:3"),
 			},
-		}
-		ps, _ := seg.CreateSegment(time.Now(), 1337)
-		ps.AddASEntry(context.Background(), asEntry, graph.NewSigner())
-		return seg.PathSegmentToPB(ps)
+			signer: func(ctrl *gomock.Controller) hpgrpc.Signer {
+				s := mock_grpc.NewMockSigner(ctrl)
+				s.EXPECT().Sign(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(&cryptopb.SignedMessage{}, nil)
+				return s
+			},
+			server: func(
+				ctrl *gomock.Controller) hspb.AuthoritativeHiddenSegmentLookupServiceServer {
+
+				s := mock_hidden_segment.NewMockAuthoritativeHiddenSegmentLookupServiceServer(ctrl)
+				s.EXPECT().AuthoritativeHiddenSegments(gomock.Any(), gomock.Any()).
+					Return(&hspb.AuthoritativeHiddenSegmentsResponse{
+						Segments: hpgrpc.ToHSPB([]*seg.Meta{&testSeg}),
+					}, nil)
+				return s
+			},
+			want:        1,
+			assertError: assert.NoError,
+		},
 	}
 
-	return &hspb.HiddenSegmentsResponse{
-		Segments: map[int32]*hspb.Segments{
-			2: {Segments: []*control_plane.PathSegment{
-				createSeg(),
-			}},
-		},
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			svc := xtest.NewGRPCService()
+			hspb.RegisterAuthoritativeHiddenSegmentLookupServiceServer(svc.Server(),
+				tc.server(ctrl))
+			svc.Start(t)
+
+			requester := &hpgrpc.AuthoritativeRequester{
+				Dialer: svc,
+				Signer: tc.signer(ctrl),
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
+			got, err := requester.HiddenSegments(ctx, tc.input, &net.UDPAddr{})
+			tc.assertError(t, err)
+			assert.Equal(t, tc.want, len(got))
+		})
 	}
 }

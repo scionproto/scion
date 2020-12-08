@@ -16,24 +16,22 @@ package grpc
 
 import (
 	"context"
-	"fmt"
 
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
 	hspb "github.com/scionproto/scion/go/pkg/proto/hidden_segment"
 )
 
 // SegmentServer serves segments from a lookuper.
 type SegmentServer struct {
-	Lookup        hiddenpath.Lookuper
-	Authoritative bool
+	Lookup hiddenpath.Lookuper
 }
 
 // HiddenSegments serves hidden segments requests using the provided lookup.
@@ -45,33 +43,7 @@ func (s *SegmentServer) HiddenSegments(ctx context.Context,
 		logger.Debug("invalid request")
 		return nil, status.Error(codes.Internal, "invalid request")
 	}
-
-	// TODO(karampok): tracing
-	// TODO(karampok): metrics
-
-	groups := make([]hiddenpath.GroupID, 0, len(pbReq.GroupIds))
-	for _, id := range pbReq.GroupIds {
-		groups = append(groups, hiddenpath.GroupIDFromUint64(id))
-	}
-	req := hiddenpath.SegmentRequest{
-		GroupIDs: groups,
-		DstIA:    addr.IAInt(pbReq.DstIsdAs).IA(),
-	}
-
-	if s.Authoritative {
-		rawPeer, ok := peer.FromContext(ctx)
-		if !ok {
-			logger.Debug("Extracting peer failed", "ctx", ctx)
-			return nil, status.Error(codes.Internal, "couldn't extract peer")
-		}
-		peerAddr, ok := rawPeer.Addr.(*snet.UDPAddr)
-		if !ok {
-			logger.Debug("Invalid peer type", "type", fmt.Sprintf("%T", rawPeer.Addr))
-			return nil, status.Error(codes.Internal, "peer is not snet.UDPAddr")
-		}
-		req.Peer = peerAddr.IA
-	}
-
+	req := fromHSPB(pbReq)
 	reply, err := s.Lookup.Segments(ctx, req)
 	if err != nil {
 		// TODO(lukedirtwalker): determine the proper error code here.
@@ -79,10 +51,68 @@ func (s *SegmentServer) HiddenSegments(ctx context.Context,
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return toHSPB(reply), nil
+	return &hspb.HiddenSegmentsResponse{
+		Segments: toHSPB(reply),
+	}, nil
 }
 
-func toHSPB(input []*seg.Meta) *hspb.HiddenSegmentsResponse {
+// AuthoritativeSegmentServer serves hidden segments from a lookuper and
+// verifies that requests are correctly signed from the peer.
+type AuthoritativeSegmentServer struct {
+	Lookup   hiddenpath.Lookuper
+	Verifier infra.Verifier
+}
+
+// AuthoritativeHiddenSegments serves the given hidden segments request.
+func (s AuthoritativeSegmentServer) AuthoritativeHiddenSegments(ctx context.Context,
+	pbReq *hspb.AuthoritativeHiddenSegmentsRequest,
+) (*hspb.AuthoritativeHiddenSegmentsResponse, error) {
+
+	logger := log.FromCtx(ctx)
+	if pbReq == nil {
+		logger.Debug("invalid request")
+		return nil, status.Error(codes.Internal, "invalid request")
+	}
+	p, peerIA, err := getPeer(ctx)
+	if err != nil {
+		logger.Debug("Extracting peer", "err", err)
+		return nil, status.Error(codes.Internal, "extracting peer")
+	}
+	msg, err := s.Verifier.WithIA(peerIA).WithServer(p).Verify(ctx, pbReq.SignedRequest)
+	if err != nil {
+		logger.Debug("Verifying request", "err", err)
+		return nil, status.Error(codes.Unauthenticated, "verifying signature")
+	}
+	var r hspb.HiddenSegmentsRequest
+	if err := proto.Unmarshal(msg.Body, &r); err != nil {
+		logger.Debug("Parsing body", "err", err)
+		return nil, status.Error(codes.InvalidArgument, "parsing body")
+	}
+	req := fromHSPB(&r)
+	req.Peer = peerIA
+	reply, err := s.Lookup.Segments(ctx, req)
+	if err != nil {
+		// TODO(lukedirtwalker): determine the proper error code here.
+		logger.Debug("Failed to look up segments", "err", err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &hspb.AuthoritativeHiddenSegmentsResponse{
+		Segments: toHSPB(reply),
+	}, nil
+}
+
+func fromHSPB(pbReq *hspb.HiddenSegmentsRequest) hiddenpath.SegmentRequest {
+	groups := make([]hiddenpath.GroupID, 0, len(pbReq.GroupIds))
+	for _, id := range pbReq.GroupIds {
+		groups = append(groups, hiddenpath.GroupIDFromUint64(id))
+	}
+	return hiddenpath.SegmentRequest{
+		GroupIDs: groups,
+		DstIA:    addr.IAInt(pbReq.DstIsdAs).IA(),
+	}
+}
+
+func toHSPB(input []*seg.Meta) map[int32]*hspb.Segments {
 	segments := make(map[int32]*hspb.Segments)
 	for _, meta := range input {
 		s, ok := segments[int32(meta.Type)]
@@ -92,7 +122,5 @@ func toHSPB(input []*seg.Meta) *hspb.HiddenSegmentsResponse {
 		}
 		s.Segments = append(s.Segments, seg.PathSegmentToPB(meta.Segment))
 	}
-	return &hspb.HiddenSegmentsResponse{
-		Segments: segments,
-	}
+	return segments
 }

@@ -5,6 +5,7 @@ gomock(
     name = "go_default_mock",
     out = "mock.go",
     interfaces = [
+        "AuthoritativeHiddenSegmentLookupServiceServer",
         "HiddenSegmentRegistrationServiceServer",
         "HiddenSegmentLookupServiceServer",
     ],

@@ -8,5 +8,6 @@ go_proto_library(
     visibility = ["//visibility:public"],
     deps = [
         "//go/pkg/proto/control_plane:go_default_library",
+        "//go/pkg/proto/crypto:go_default_library",
     ],
 )
