@@ -5,7 +5,9 @@ go_library(
     srcs = [
         "error.go",
         "helper.go",
+        "observability.go",
         "path.go",
+        "sequence.go",
     ],
     importpath = "github.com/scionproto/scion/go/pkg/app",
     visibility = ["//visibility:public"],

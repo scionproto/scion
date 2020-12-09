@@ -61,7 +61,7 @@ SCMP traceroute packets.
 
 If any packet is dropped, traceroute will exit with code 1.
 On other errors, traceroute will exit with code 2.
-%s`, filterHelp),
+%s`, app.SequenceHelp),
 
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -69,7 +69,7 @@ On other errors, traceroute will exit with code 2.
 			if err != nil {
 				return serrors.WrapStr("parsing remote", err)
 			}
-			if err := setupLog(flags.logLevel); err != nil {
+			if err := app.SetupLog(flags.logLevel); err != nil {
 				return serrors.WrapStr("setting up logging", err)
 			}
 			closer, err := setupTracer("traceroute", flags.tracer)
@@ -163,9 +163,8 @@ On other errors, traceroute will exit with code 2.
 	cmd.Flags().StringVar(&flags.dispatcher, "dispatcher", reliable.DefaultDispPath,
 		"dispatcher socket")
 	cmd.Flags().StringVar(&flags.sciond, "sciond", sciond.DefaultAPIAddress, "SCION Daemon address")
-	cmd.Flags().StringVar(&flags.sequence, "sequence", "", "sequence space separated list of HPs")
-	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", "Console logging level verbosity "+
-		"(debug|info|error)")
+	cmd.Flags().StringVar(&flags.sequence, "sequence", "", app.SequenceUsage)
+	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
 	return cmd
 }
