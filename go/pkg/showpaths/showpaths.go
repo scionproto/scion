@@ -64,15 +64,13 @@ type Hop struct {
 func (r Result) Human(w io.Writer, showExtendedMetadata, colored bool) {
 	cs := app.DefaultColorScheme(!colored)
 
-	/*
-		for i := 0; i < 7; i++ {
-			r.Paths = append(r.Paths, r.Paths...)
-		}
-	*/
-
 	idxWidth := len(fmt.Sprint(len(r.Paths) - 1))
+	// in normal mode, the key-value entries are put on on a single line, separated by space:
 	entrySeparator := " "
 	if showExtendedMetadata {
+		// in extended mode, the entries are newline separated and indented,
+		// taking into account the length of the path index "header" before the
+		// first entry (length of index + 2 brackets + 1 space)
 		entrySeparator = "\n" + strings.Repeat(" ", idxWidth+2+1)
 	}
 	sectionHeader := func(intfs int) {
@@ -214,7 +212,7 @@ func humanNotes(p *snet.PathMetadata) string {
 }
 
 // sanitizeString returns a trimmed single line representation of the string,
-// with any control characters or qutation marks removed.
+// with any control characters or quotation marks removed.
 func sanitizeString(str string) string {
 	str = strings.ReplaceAll(str, "\n", ", ")
 	str = strings.TrimSpace(str)
