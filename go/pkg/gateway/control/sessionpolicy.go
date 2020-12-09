@@ -44,7 +44,10 @@ type LegacySessionPolicyAdapter struct{}
 // Parse parses the raw JSON into a SessionPolicies struct.
 func (LegacySessionPolicyAdapter) Parse(raw []byte) (SessionPolicies, error) {
 	type JSONFormat struct {
-		ASes          map[addr.IA]struct{ Nets []string }
+		ASes map[addr.IA]struct {
+			Nets      []string
+			PathCount int
+		}
 		ConfigVersion uint64
 	}
 	cfg := &JSONFormat{}
@@ -57,13 +60,17 @@ func (LegacySessionPolicyAdapter) Parse(raw []byte) (SessionPolicies, error) {
 		if err != nil {
 			return nil, err
 		}
+		pathCount := DefaultPathCount
+		if asEntry.PathCount != 0 {
+			pathCount = asEntry.PathCount
+		}
 		policies = append(policies, SessionPolicy{
 			ID:             0,
 			IA:             ia,
 			TrafficMatcher: pktcls.CondTrue,
 			PerfPolicy:     DefaultPerfPolicy,
 			PathPolicy:     DefaultPathPolicy,
-			PathCount:      DefaultPathCount,
+			PathCount:      pathCount,
 			Prefixes:       prefixes,
 		})
 	}
