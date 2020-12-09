@@ -28,11 +28,11 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/sciond/pathprobe"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/pkg/app"
+	"github.com/scionproto/scion/go/pkg/pathprobe"
 )
 
 // Result contains all the discovered paths.
