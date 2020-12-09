@@ -20,6 +20,7 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"sort"
 
 	toml "github.com/pelletier/go-toml"
 
@@ -63,6 +64,8 @@ func (s StatusPages) Register(serveMux *http.ServeMux, elemId string) error {
 		pages = append(pages, endpoint)
 		serveMux.HandleFunc(fmt.Sprintf("/%s", endpoint), handler)
 	}
+	pages = append(pages, "metrics")
+	sort.Strings(pages)
 	var mainBuf bytes.Buffer
 	if err := t.Execute(&mainBuf, mainData{ElemId: elemId, Pages: pages}); err != nil {
 		return serrors.WrapStr("executing template", err)
