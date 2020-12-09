@@ -72,6 +72,26 @@ func (l *ConnListener) Accept() (net.Conn, error) {
 	}
 	ctx, cancel := context.WithTimeout(l.ctx, 5*time.Second)
 	defer cancel()
+	return acceptStream(ctx, session)
+}
+
+// AcceptCtx accepts the first stream on a session and wraps it as a net.Conn. Accepts a context in
+// case the caller doesn't want this to block indefinitely.
+func (l *ConnListener) AcceptCtx(ctx context.Context) (net.Conn, error) {
+	session, err := l.Listener.Accept(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return acceptStream(ctx, session)
+}
+
+// Close closes the listener.
+func (l *ConnListener) Close() error {
+	l.cancel()
+	return l.Listener.Close()
+}
+
+func acceptStream(ctx context.Context, session quic.Session) (net.Conn, error) {
 	stream, err := session.AcceptStream(ctx)
 	if err != nil {
 		log.Debug("Accepting stream failed", "err", err)
@@ -81,13 +101,6 @@ func (l *ConnListener) Accept() (net.Conn, error) {
 		Session: session,
 		err:     err,
 	}, nil
-
-}
-
-// Close closes the listener.
-func (l *ConnListener) Close() error {
-	l.cancel()
-	return l.Listener.Close()
 }
 
 // ConnDialer dials a net.Conn over a QUIC stream.
