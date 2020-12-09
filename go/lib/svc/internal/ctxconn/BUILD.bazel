@@ -15,6 +15,6 @@ go_test(
     deps = [
         "//go/lib/svc/internal/ctxconn/mock_ctxconn:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
-        "@com_github_smartystreets_goconvey//convey:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )

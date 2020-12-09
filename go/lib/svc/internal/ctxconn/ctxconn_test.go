@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/svc/internal/ctxconn/mock_ctxconn"
 )
@@ -28,36 +28,35 @@ import (
 const baseUnit = time.Millisecond
 
 func TestCloseConeOnDone(t *testing.T) {
-	Convey("", t, func() {
+
+	t.Run("if no deadline and no ctx canceled, close it not called", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
+		cancelFunc := CloseConnOnDone(context.Background(), nil)
+		assert.NotPanics(t, func() { cancelFunc() })
+	})
+	t.Run("if no deadline and ctx canceled, close is called once", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		ctx, ctxCancelF := context.WithCancel(context.Background())
+		ctxCancelF()
+		closer := mock_ctxconn.NewMockDeadlineCloser(ctrl)
+		closer.EXPECT().Close()
+		cancelFunc := CloseConnOnDone(ctx, closer)
+		time.Sleep(20 * baseUnit)
+		cancelFunc()
+	})
 
-		Convey("if no deadline and no ctx canceled, close it not called", func() {
-			cancelFunc := CloseConnOnDone(context.Background(), nil)
-			cancelFunc()
-		})
-		Convey("if no deadline and ctx canceled, close is called once", func() {
-			ctx, ctxCancelF := context.WithCancel(context.Background())
-			ctxCancelF()
-			closer := mock_ctxconn.NewMockDeadlineCloser(ctrl)
-			closer.EXPECT().Close()
-			cancelFunc := CloseConnOnDone(ctx, closer)
-			time.Sleep(20 * baseUnit)
-			Convey("Cancelling afterwards does not do additional close calls", func() {
-				cancelFunc()
-			})
-		})
-		Convey("if deadline expires, close is called once", func() {
-			deadline := time.Now().Add(0)
-
-			ctx, cancelF := context.WithDeadline(context.Background(), deadline)
-			defer cancelF()
-
-			closer := mock_ctxconn.NewMockDeadlineCloser(ctrl)
-			closer.EXPECT().Close()
-			closer.EXPECT().SetDeadline(deadline)
-			CloseConnOnDone(ctx, closer)
-			time.Sleep(20 * baseUnit)
-		})
+	t.Run("if deadline expires, close is called once", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		deadline := time.Now().Add(0)
+		ctx, cancelF := context.WithDeadline(context.Background(), deadline)
+		defer cancelF()
+		closer := mock_ctxconn.NewMockDeadlineCloser(ctrl)
+		closer.EXPECT().Close()
+		closer.EXPECT().SetDeadline(deadline)
+		CloseConnOnDone(ctx, closer)
+		time.Sleep(20 * baseUnit)
 	})
 }
