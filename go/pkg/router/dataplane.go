@@ -33,6 +33,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/libepic"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -40,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
+	"github.com/scionproto/scion/go/lib/slayers/path/epic"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -589,6 +591,8 @@ func (d *DataPlane) processPkt(ingressID uint16, rawPkt []byte, srcAddr net.Addr
 		return d.processOHP(ingressID, rawPkt, s, buffer)
 	case scion.PathType:
 		return d.processSCION(ingressID, rawPkt, s, origPacket, buffer)
+	case epic.PathType:
+		return d.processEPIC(ingressID, rawPkt, s, origPacket, buffer)
 	default:
 		return processResult{}, serrors.WithCtx(unsupportedPathType, "type", s.PathType)
 	}
@@ -652,14 +656,94 @@ func (d *DataPlane) processSCION(ingressID uint16, rawPkt []byte, s slayers.SCIO
 	origPacket []byte, buffer gopacket.SerializeBuffer) (processResult, error) {
 
 	p := scionPacketProcessor{
-		d:          d,
-		ingressID:  ingressID,
-		rawPkt:     rawPkt,
-		scionLayer: s,
-		origPacket: origPacket,
-		buffer:     buffer,
+		d:           d,
+		ingressID:   ingressID,
+		rawPkt:      rawPkt,
+		scionLayer:  s,
+		origPacket:  origPacket,
+		buffer:      buffer,
+		isSubheader: false,
 	}
 	return p.process()
+}
+
+func (d *DataPlane) processEPIC(ingressID uint16, rawPkt []byte, s slayers.SCION,
+	origPacket []byte, buffer gopacket.SerializeBuffer) (processResult, error) {
+
+	// Get the already parsed EPIC path header
+	epicpath, ok := s.Path.(*epic.EpicPath)
+	if !ok {
+		return processResult{}, malformedPath
+	}
+
+	// Get the raw SCION subheader
+	scionRaw := epicpath.ScionRaw
+	if scionRaw == nil {
+		return processResult{}, malformedPath
+	}
+
+	// Parse the current info field to get the timestamp
+	info, err := scionRaw.GetCurrentInfoField()
+	if err != nil || info == nil {
+		return processResult{}, malformedPath
+	}
+
+	// Check validity of timestamp
+	timestamp := info.Timestamp
+	packetTimestamp := epicpath.PacketTimestamp
+	libepic.VerifyTimestamp(timestamp, packetTimestamp)
+
+	// Process the SCION subheader
+	p := scionPacketProcessor{
+		d:           d,
+		ingressID:   ingressID,
+		rawPkt:      rawPkt,
+		scionLayer:  s,
+		origPacket:  origPacket,
+		buffer:      buffer,
+		isSubheader: true,
+	}
+	result, err := p.process()
+	if err != nil {
+		return processResult{}, err
+	}
+
+	// Get the cached authenticator
+	auth := p.cachedMac
+	if len(auth) != 16 {
+		return processResult{}, serrors.New("epic authenticator has invalid length "+
+			"(expected 16 bytes)", "length", len(auth))
+	}
+
+	// Verify the PHVF and LHVF if necessary
+	if b, err := libepic.IsPenultimateHop(scionRaw); b {
+		if err != nil {
+			return processResult{}, err
+		}
+		ok, err := libepic.VerifyHVF(auth, epicpath, &s, timestamp, false)
+		if err != nil {
+			return processResult{}, err
+		}
+		if !ok {
+			// todo: send back scmp packet?
+			return processResult{}, serrors.New("PHVF verification failed")
+		}
+	} else if b, err := libepic.IsLastHop(scionRaw); b {
+		if err != nil {
+			return processResult{}, err
+		}
+		ok, err := libepic.VerifyHVF(auth, epicpath, &s, timestamp, true)
+		if err != nil {
+			return processResult{}, err
+		}
+		if !ok {
+			// todo: send back scmp packet?
+			return processResult{}, serrors.New("LHVF verification failed")
+		}
+	}
+
+	// Return the result of the SCION packet processor
+	return result, nil
 }
 
 type scionPacketProcessor struct {
@@ -677,6 +761,8 @@ type scionPacketProcessor struct {
 	origPacket []byte
 	// buffer is the buffer that can be used to serialize gopacket layers.
 	buffer gopacket.SerializeBuffer
+	// isSubheader indicates whether the scion path is part of an epic-hp path.
+	isSubheader bool
 
 	// path is the raw SCION path. Will be set during processing.
 	path *scion.Raw
@@ -686,6 +772,10 @@ type scionPacketProcessor struct {
 	infoField *path.InfoField
 	// segmentChange indicates if the path segment was changed during processing.
 	segmentChange bool
+
+	// cachedMac contains the full 16 bytes of the MAC. Will be set during processing.
+	// For a hop performing an Xover, it is the MAC corresponding to the down segment.
+	cachedMac []byte
 }
 
 func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
@@ -756,11 +846,19 @@ func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.Seri
 }
 
 func (p *scionPacketProcessor) parsePath() (processResult, error) {
-	var ok bool
-	p.path, ok = p.scionLayer.Path.(*scion.Raw)
-	if !ok {
-		// TODO(lukedirtwalker) parameter problem invalid path?
-		return processResult{}, malformedPath
+	if p.isSubheader {
+		epicpath, ok := p.scionLayer.Path.(*epic.EpicPath)
+		if !ok {
+			return processResult{}, malformedPath
+		}
+		p.path = epicpath.ScionRaw
+	} else {
+		var ok bool
+		p.path, ok = p.scionLayer.Path.(*scion.Raw)
+		if !ok {
+			// TODO(lukedirtwalker) parameter problem invalid path?
+			return processResult{}, malformedPath
+		}
 	}
 	var err error
 	p.hopField, err = p.path.GetCurrentHopField()
@@ -892,7 +990,8 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 }
 
 func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
-	if err := path.VerifyMAC(p.d.macFactory(), p.infoField, p.hopField); err != nil {
+	fullMac := path.FullMAC(p.d.macFactory(), p.infoField, p.hopField)
+	if err := path.VerifyMAC(fullMac[:6], p.hopField); err != nil {
 		return p.packSCMP(
 			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
 				slayers.SCMPCodeInvalidHopFieldMAC),
@@ -903,6 +1002,10 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 				"seg_id", p.infoField.SegID),
 		)
 	}
+	// Add the full MAC to the SCION packet processor,
+	// such that EPIC does not need to recalculate it.
+	p.cachedMac = fullMac
+
 	return processResult{}, nil
 }
 
@@ -1181,7 +1284,8 @@ func (d *DataPlane) processOHP(ingressID uint16, rawPkt []byte, s slayers.SCION,
 	}
 	// OHP leaving our IA
 	if d.localIA.Equal(s.SrcIA) {
-		if err := path.VerifyMAC(d.macFactory(), &p.Info, &p.FirstHop); err != nil {
+		fullMac := path.FullMAC(d.macFactory(), &p.Info, &p.FirstHop)
+		if err := path.VerifyMAC(fullMac[:6], &p.FirstHop); err != nil {
 			// TODO parameter problem -> invalid MAC
 			return processResult{}, serrors.WithCtx(err, "type", "ohp")
 		}
