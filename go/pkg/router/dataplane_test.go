@@ -32,10 +32,12 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/libepic"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
+	"github.com/scionproto/scion/go/lib/slayers/path/epic"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -47,6 +49,8 @@ import (
 	"github.com/scionproto/scion/go/pkg/router/control"
 	"github.com/scionproto/scion/go/pkg/router/mock_router"
 )
+
+var cachedTsRel uint32
 
 func TestDataPlaneAddInternalInterface(t *testing.T) {
 	t.Run("fails after serve", func(t *testing.T) {
@@ -1059,6 +1063,90 @@ func TestProcessPkt(t *testing.T) {
 			srcInterface: 1,
 			assertFunc:   assert.Error,
 		},
+		"epic inbound": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					nil, xtest.MustParseIA("1-ff00:0:110"), key)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt := &slayers.SCION{
+					Version:      0,
+					TrafficClass: 0xb8,
+					FlowID:       0xdead,
+					NextHdr:      common.L4UDP,
+					PathType:     epic.PathType,
+					DstIA:        xtest.MustParseIA("4-ff00:0:411"),
+					SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
+					Path:         nil,
+					PayloadLen:   18,
+				}
+				dpath := &scion.Decoded{
+					Base: scion.Base{
+						PathMeta: scion.MetaHdr{
+							CurrHF: 1,
+							SegLen: [3]uint8{3, 0, 0},
+						},
+						NumINF:  1,
+						NumHops: 3,
+					},
+					InfoFields: []*path.InfoField{
+						{SegID: 0x111, ConsDir: true, Timestamp: util.TimeToSecs(time.Now())},
+					},
+					HopFields: []*path.HopField{},
+				}
+
+				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+				dst := &net.IPAddr{IP: net.ParseIP("10.0.100.100").To4()}
+				_ = spkt.SetDstAddr(dst)
+				dpath.HopFields = []*path.HopField{
+					{ConsIngress: 41, ConsEgress: 40},
+					{ConsIngress: 31, ConsEgress: 30},
+					{ConsIngress: 01, ConsEgress: 0},
+				}
+				dpath.Base.PathMeta.CurrHF = 2
+				dpath.Base.PathMeta.CurrINF = 0
+				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+
+				// Put scion path into epic path header
+				timestamp := dpath.InfoFields[0].Timestamp
+				var tsRel uint32
+				if afterProcessing {
+					tsRel = cachedTsRel
+				} else {
+					tsRel, _ = libepic.CreateTsRel(timestamp)
+					cachedTsRel = tsRel
+				}
+				packetTimestamp := libepic.CreateEpicTimestamp(tsRel, 1, 2)
+
+				scionRaw, err := dpath.ToRaw()
+				assert.NoError(t, err)
+				epicpath := &epic.EpicPath{
+					ScionRaw:        scionRaw,
+					PacketTimestamp: packetTimestamp,
+					PHVF:            make([]byte, 4),
+					LHVF:            make([]byte, 4),
+				}
+				spkt.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()})
+				spkt.Path = epicpath
+
+				// Generate epic authenticators
+				authLast := computeFullMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+
+				// Calculate PHVF and LHVF
+				macLast, err := libepic.CalculateEpicMac(authLast, epicpath, spkt, timestamp)
+				assert.NoError(t, err)
+				copy(epicpath.LHVF, macLast)
+
+				ret := toMsg(t, spkt, epicpath)
+				if afterProcessing {
+					ret.Addr = &net.UDPAddr{IP: dst.IP, Port: topology.EndhostPort}
+					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+				}
+				return ret
+			},
+			srcInterface: 1,
+			assertFunc:   assert.NoError,
+		},
 	}
 
 	for name, tc := range testCases {
@@ -1066,7 +1154,8 @@ func TestProcessPkt(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			dp := tc.prepareDP(ctrl)
-			input, want := tc.mockMsg(false), tc.mockMsg(true)
+			input := tc.mockMsg(false)
+			want := tc.mockMsg(true)
 			buffer := gopacket.NewSerializeBuffer()
 			origMsg := make([]byte, len(input.Buffers[0]))
 			copy(origMsg, input.Buffers[0])
@@ -1138,6 +1227,13 @@ func computeMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopFiel
 	mac, err := scrypto.InitMac(key)
 	require.NoError(t, err)
 	return path.MAC(mac, info, hf)
+
+}
+
+func computeFullMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopField) []byte {
+	mac, err := scrypto.InitMac(key)
+	require.NoError(t, err)
+	return path.FullMAC(mac, info, hf)
 
 }
 

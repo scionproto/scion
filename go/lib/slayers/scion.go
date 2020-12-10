@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
+	"github.com/scionproto/scion/go/lib/slayers/path/epic"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 )
@@ -44,6 +45,7 @@ func init() {
 	empty.RegisterPath()
 	scion.RegisterPath()
 	onehop.RegisterPath()
+	epic.RegisterPath()
 }
 
 // AddrLen indicates the length of a host address in the SCION header. The four possible lengths are

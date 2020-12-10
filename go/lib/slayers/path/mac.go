@@ -36,12 +36,23 @@ func MAC(h hash.Hash, info *InfoField, hf *HopField) []byte {
 	return h.Sum(nil)[:6]
 }
 
-// VerifyMAC verifies that the MAC in the hop field is correct, i.e. matches the
-// value calculated with MAC(h, info, hf). If the calculated MAC matches the
-// value in the hop field nil is returned, otherwise an error is returned.
-func VerifyMAC(h hash.Hash, info *InfoField, hf *HopField) error {
-	expectedMac := MAC(h, info, hf)
-	if !bytes.Equal(hf.Mac, expectedMac) {
+// Return the full 16 bytes. Used in the border router to enable EPIC validations.
+func FullMAC(h hash.Hash, info *InfoField, hf *HopField) []byte {
+	h.Reset()
+	input := MACInput(info.SegID, info.Timestamp, hf.ExpTime, hf.ConsIngress, hf.ConsEgress)
+	// Write must not return an error: https://godoc.org/hash#Hash
+	if _, err := h.Write(input); err != nil {
+		panic(err)
+	}
+	return h.Sum(nil)[:16]
+}
+
+// VerifyMAC verifies that the MAC in the hop field is correct by
+// comparing it to the calculated expectedMac.
+// If the expectedMac matches the value in the hop field nil is returned,
+// otherwise an error is returned.
+func VerifyMAC(expectedMac []byte, hf *HopField) error {
+	if !bytes.Equal(hf.Mac[:6], expectedMac[:6]) {
 		return serrors.New("MAC",
 			"expected", fmt.Sprintf("%x", expectedMac),
 			"actual", fmt.Sprintf("%x", hf.Mac))
