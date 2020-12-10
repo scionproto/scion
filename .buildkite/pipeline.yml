@@ -29,6 +29,7 @@ steps:
   - label: "check generated"
     if: build.message !~ /\[doc\]/
     command:
+      - ./tools/licensechecker.py $(find go acceptance -type f -iname '*.go')
       - mkdir -p /tmp/test-artifacts
       - cp go.mod go.sum go_deps.bzl /tmp/test-artifacts/
       - make go_deps.bzl -B
