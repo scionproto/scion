@@ -33,7 +33,6 @@ import (
 	"github.com/lucas-clemente/quic-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
@@ -45,12 +44,6 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 	"github.com/scionproto/scion/go/lib/svc"
 )
-
-const (
-	ErrAppUnableToInitMessenger common.ErrMsg = "Unable to initialize SCION Infra Messenger"
-)
-
-var resolutionRequestPayload = []byte{0x00, 0x00, 0x00, 0x00}
 
 // QUIC contains the QUIC configuration for control-plane speakers.
 type QUIC struct {

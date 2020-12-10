@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/periodic"
@@ -168,7 +167,7 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 		return serrors.WrapStr("creating beacon", err, "egress_interface", o.ifID)
 	}
 
-	rpcContext, cancelF := context.WithTimeout(ctx, infra.DefaultRPCTimeout)
+	rpcContext, cancelF := context.WithTimeout(ctx, DefaultRPCTimeout)
 	defer cancelF()
 
 	rpcStart := time.Now()
