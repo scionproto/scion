@@ -25,13 +25,21 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
+)
+
+const (
+	// DefaultRPCTimeout is the default silent time SCION RPC Clients will wait
+	// for before declaring a timeout. Most RPCs will be subject to an
+	// additional context, and the timeout will be the minimum value allowed by
+	// the context and this timeout. RPC clients are free to use a different
+	// timeout if they have special requirements.
+	DefaultRPCTimeout time.Duration = 10 * time.Second
 )
 
 // BeaconProvider provides beacons to send to neighboring ASes.
@@ -248,7 +256,7 @@ func (p *beaconPropagator) extendAndSend(ctx context.Context, bseg beacon.Beacon
 		}
 		topoInfo := intf.TopoInfo()
 
-		rpcContext, cancelF := context.WithTimeout(ctx, infra.DefaultRPCTimeout)
+		rpcContext, cancelF := context.WithTimeout(ctx, DefaultRPCTimeout)
 		defer cancelF()
 		rpcStart := time.Now()
 

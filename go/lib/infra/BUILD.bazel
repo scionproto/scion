@@ -3,8 +3,8 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
-        "common.go",
         "metrics.go",
+        "verifier.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/infra",
     visibility = ["//visibility:public"],
@@ -13,6 +13,5 @@ go_library(
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/prom:go_default_library",
         "//go/lib/serrors:go_default_library",
-        "//go/proto:go_default_library",
     ],
 )
