@@ -212,6 +212,18 @@ dpkg_list(
         "libprocps7",
         "lsb-base",
         "psmisc",
+        # needed by bbcp
+        "libssl1.1",
+        "openssh-server",
+        "openssh-client",
+        "libwrap0",
+        "libkrb5-3",
+        "libgssapi-krb5-2",
+        "libk5crypto3",
+        "libkrb5support0",
+        "libkeyutils1",
+        # needed for brctl
+        "bridge-utils",
     ],
     # From Distroless WORKSPACE:
     # Takes the first package found: security updates should go first
@@ -306,3 +318,7 @@ load("//:dlv_deps.bzl", "dlv_repositories")
 
 # gazelle:repository_macro dlv_deps.bzl%dlv_repositories
 dlv_repositories()
+
+load("//:bbcp.bzl", "bbcp_repository")
+
+bbcp_repository()

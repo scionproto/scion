@@ -1,0 +1,85 @@
+load("@io_bazel_rules_docker//container:container.bzl", "container_bundle", "container_image")
+load("@rules_python//python:defs.bzl", "py_test")
+load("@pip3_deps//:requirements.bzl", "requirement")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load("//python/topology:topology.bzl", "topology")
+
+py_library(
+    name = "file_transfer_lib",
+    srcs = ["file_transfer.py"],
+    data = [
+        ":containers.tar",
+        ":topo",
+    ],
+    deps = [
+        requirement("plumbum"),
+        "//acceptance/common:base",
+        "//acceptance/common:log",
+        "//acceptance/common:scion",
+        "//acceptance/common:tools",
+    ],
+)
+
+py_binary(
+    name = "file_transfer_setup",
+    srcs = ["file_transfer.py"],
+    args = ["setup"],
+    main = "file_transfer.py",
+    deps = [":file_transfer_lib"],
+)
+
+py_binary(
+    name = "file_transfer_run",
+    srcs = ["file_transfer.py"],
+    args = ["run"],
+    main = "file_transfer.py",
+    deps = [":file_transfer_lib"],
+)
+
+py_binary(
+    name = "file_transfer_teardown",
+    srcs = ["file_transfer.py"],
+    args = ["teardown"],
+    main = "file_transfer.py",
+    deps = [":file_transfer_lib"],
+)
+
+py_test(
+    name = "file_transfer",
+    size = "large",
+    srcs = ["file_transfer.py"],
+    args = [],
+    deps = [":file_transfer_lib"],
+)
+
+pkg_tar(
+    name = "tc_setup",
+    srcs = ["tc_setup.sh"],
+    package_dir = "share",
+)
+
+container_image(
+    name = "tester",
+    base = "//docker:bbcp_tester",
+    cmd = "tail -f /dev/null",
+    tars = [":tc_setup"],
+)
+
+container_bundle(
+    name = "containers",
+    images = {
+        "control:latest": "//docker:control_prod",
+        "daemon:latest": "//docker:daemon_prod",
+        "dispatcher:latest": "//docker:dispatcher_prod",
+        "posix-gateway:latest": "//docker:posix_gateway_prod",
+        "posix-router:latest": "//docker:posix_router_prod",
+        "tester:latest": ":tester",
+    },
+)
+
+topology(
+    name = "topo",
+    src = "topo.topo",
+    out = "gen.tar",
+    sig = True,
+)

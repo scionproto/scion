@@ -1,4 +1,5 @@
 bridge-utils
+build-essential
 capnproto
 cgroup-tools
 curl
@@ -17,3 +18,4 @@ software-properties-common
 sqlite3
 sudo
 tzdata
+zlib1g-dev
