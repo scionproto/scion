@@ -23,13 +23,8 @@ from http import client
 from plumbum import cmd
 
 from acceptance.common import base
-from acceptance.common import log
 from acceptance.common import tools
 from acceptance.common import scion
-
-
-base.set_name(__file__)
-logger = logging.getLogger(__name__)
 
 
 class Test(base.TestBase):
@@ -39,48 +34,22 @@ class Test(base.TestBase):
         self._unpack_topo()
         if not self.nested_command:
             try:
-                self._setup()
+                self.setup()
                 self._run()
             finally:
-                self._teardown()
-
-    def _unpack_topo(self):
-        # Unpack the topogen output.
-        cmd.tar("-xf", "./demo/file_transfer/gen.tar",
-                "-C", self.test_state.artifacts)
-        # Adjust SCIONROOT.
-        scion_dc = self.test_state.artifacts / "gen/scion-dc.yml"
-        cmd.sed("-i", "s#$SCIONROOT#%s#g" % self.test_state.artifacts, scion_dc)
-        # Add throttling to the inter-AS links.
-        with open(scion_dc, "r") as file:
-            dc = yaml.load(file, Loader=yaml.FullLoader)
-        dc["services"]["tc_setup"] = {
-            "container_name": "tc_setup",
-            "image": "tester:latest",
-            "cap_add": ["NET_ADMIN"],
-            "entrypoint": ["/bin/sh", "-ec",
-                "/share/tc_setup.sh scn_000 16.0mbit ; /share/tc_setup.sh scn_001 16.0mbit"],
-            "depends_on": ["scion_br1-ff00_0_111-1", "scion_br1-ff00_0_111-2"],
-            "network_mode": "host",
-        }
-        with open(scion_dc, "w") as file:
-            yaml.dump(dc, file)
-
-    def _docker_compose(self, *args) -> str:
-        return cmd.docker_compose("-f", self.test_state.artifacts / "gen" / "scion-dc.yml",
-                                  "-p", "scion", *args)
+                self.teardown()
 
     def _refresh_paths(self):
-        self._docker_compose("exec", "-T", "tester_1-ff00_0_110", "ping", "-c", "2",
-                             "172.20.0.39")
-        self._docker_compose("exec", "-T", "tester_1-ff00_0_111", "ping", "-c", "2",
-                             "172.20.0.23")
-        self._docker_compose("exec", "-T", "tester_1-ff00_0_110", "./bin/scion", "sp",
-                             "1-ff00:0:111", "--sciond", "172.20.0.21:30255",
-                             "--timeout", "5s", "--refresh", "--local", "172.20.0.20")
-        self._docker_compose("exec", "-T", "tester_1-ff00_0_111", "./bin/scion", "sp",
-                             "1-ff00:0:110", "--sciond", "172.20.0.37:30255",
-                             "--timeout", "5s", "--refresh", "--local", "172.20.0.36")
+        self.test_state.dc("exec", "-T", "tester_1-ff00_0_110", "ping", "-c", "2",
+                           "172.20.0.39")
+        self.test_state.dc("exec", "-T", "tester_1-ff00_0_111", "ping", "-c", "2",
+                           "172.20.0.23")
+        self.test_state.dc("exec", "-T", "tester_1-ff00_0_110", "./bin/scion", "sp",
+                           "1-ff00:0:111", "--sciond", "172.20.0.21:30255",
+                           "--timeout", "5s", "--refresh", "--local", "172.20.0.20")
+        self.test_state.dc("exec", "-T", "tester_1-ff00_0_111", "./bin/scion", "sp",
+                           "1-ff00:0:110", "--sciond", "172.20.0.37:30255",
+                           "--timeout", "5s", "--refresh", "--local", "172.20.0.36")
 
     def _set_path_count(self, path_count):
         # Change the gateway config.
@@ -91,20 +60,20 @@ class Test(base.TestBase):
         with open(config_name, "w") as f:
             json.dump(t, f, indent=2)
         # Reload the config.
-        self._docker_compose("kill", "-s", "SIGHUP", "scion_sig_1-ff00_0_111")
+        self.test_state.dc("kill", "-s", "SIGHUP", "scion_sig_1-ff00_0_111")
         # Give gateway some time to start using the new path count.
         time.sleep(2)
 
     def _transfer(self, filename, size):
         print("transferring a file (%d MB)" % size)
         # Create a large file.
-        self._docker_compose("exec", "-T", "tester_1-ff00_0_111",
-                             "fallocate", "-l", "%dM" % size, filename)
+        self.test_state.dc("exec", "-T", "tester_1-ff00_0_111",
+                           "fallocate", "-l", "%dM" % size, filename)
         start_time = time.time()
         # Copy it, via ports 40000-40020, to the other AS.
-        self._docker_compose("exec", "-T", "tester_1-ff00_0_111",
-                             "bbcp", "-s",  "20", "-Z", "40000:40020",
-                             "localhost:/share/%s" % filename, "172.20.0.23:/share")
+        self.test_state.dc("exec", "-T", "tester_1-ff00_0_111",
+                           "bbcp", "-s",  "20", "-Z", "40000:40020",
+                           "localhost:/share/%s" % filename, "172.20.0.23:/share")
         elapsed = time.time() - start_time
         throughput = float(size * 1024 * 1024 * 8) / 1000000 / elapsed
         print("transfer finished")
@@ -122,20 +91,36 @@ class Test(base.TestBase):
                 return float(m.group(1)) / 1024 / 1024
         return None
 
-    def _setup(self):
+    def setup(self):
         print("setting up the infrastructure")
 
-        # First load the images
-        cmd.docker("image", "load", "-i", "./demo/file_transfer/containers.tar")
+        self.setup_prepare()
+
+        # Add throttling to the inter-AS links.
+        scion_dc = self.test_state.artifacts / "gen/scion-dc.yml"
+        with open(scion_dc, "r") as file:
+            dc = yaml.load(file, Loader=yaml.FullLoader)
+        dc["services"]["tc_setup"] = {
+            "container_name": "tc_setup",
+            "image": "tester:latest",
+            "cap_add": ["NET_ADMIN"],
+            "entrypoint": ["/bin/sh", "-ec",
+                "/share/tc_setup.sh scn_000 16.0mbit ; /share/tc_setup.sh scn_001 16.0mbit"],
+            "depends_on": ["scion_br1-ff00_0_111-1", "scion_br1-ff00_0_111-2"],
+            "network_mode": "host",
+        }
+        with open(scion_dc, "w") as file:
+            yaml.dump(dc, file)
+
 
         # Start the topology
-        self._docker_compose("up", "-d")
+        self.setup_start()
 
         # Initialize SSH in tester containers (needed by bbcp)
-        self._docker_compose("exec", "-T", "tester_1-ff00_0_110", "/bin/bash",
-                             "/share/ssh_setup.sh")
-        self._docker_compose("exec", "-T", "tester_1-ff00_0_111", "/bin/bash",
-                             "/share/ssh_setup.sh")
+        self.test_state.dc("exec", "-T", "tester_1-ff00_0_110", "/bin/bash",
+                           "/share/ssh_setup.sh")
+        self.test_state.dc("exec", "-T", "tester_1-ff00_0_111", "/bin/bash",
+                           "/share/ssh_setup.sh")
 
         # Wait till everything starts working.
         print("waiting for 30 seconds for the system to bootstrap")
@@ -164,35 +149,8 @@ class Test(base.TestBase):
         traffic2 = self._get_br_traffic("172.20.0.35:30442") - traffic2
         print("traffic on path 2: %f MB (includes SCION and encapsulation overhead)" % traffic2)
 
-    def _teardown(self):
-        logs = self._docker_compose("logs")
-        with open(self.test_state.artifacts / "logs" / "docker-compose.log", "w") as f:
-            f.write(logs)
-        self._docker_compose("down", "-v")
-
-
-@Test.subcommand("setup")
-class TestSetup(Test):
-
-    def main(self):
-        self._setup()
-
-
-@Test.subcommand("run")
-class TestRun(Test):
-
-    def main(self):
-        self._run()
-
-
-@Test.subcommand("teardown")
-class TestTeardown(Test):
-
-    def main(self):
-        self._teardown()
-
 
 if __name__ == "__main__":
-    log.init_log()
+    base.register_commands(Test)
     Test.test_state = base.TestState(scion.SCIONDocker(), tools.DC())
     Test.run()

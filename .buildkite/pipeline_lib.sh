@@ -10,9 +10,16 @@ gen_acceptance() {
     for test in "$accept_dir"/*_acceptance; do
         name="$(basename ${test%_acceptance})"
         echo "  - label: \"AT: $name\""
+        echo "    parallelism: $PARALLELISM"
         echo "    if: build.message !~ /\[doc\]/"
-        if [[ ",${skipped_tests}," = *",${name},"* ]]; then
-            echo "    skip: true"
+        if [ -n "${SINGLE_TEST}" ]; then
+            if [ "${SINGLE_TEST}" != "${name}" ]; then
+                echo "    skip: true"
+            fi
+        else
+            if [[ ",${skipped_tests}," = *",${name},"* ]]; then
+                echo "    skip: true"
+            fi
         fi
         echo "    command:"
         if [[ ! "${no_setup_tests}" == *"${name}"* ]]; then
@@ -41,10 +48,9 @@ gen_acceptance() {
 #   -1: the bazel directory in which the tests are.
 gen_bazel_test_steps() {
     for test in $(bazel query "kind(test, ${1}/...)" 2>/dev/null); do
-        # test has the format //acceptance/<name>:<name>_test
-        name=$(echo $test | cut -d ':' -f 1)
-        name=${name#"$1/"}
+        name=${test#"$1/"}
         echo "  - label: \"AT: $name :bazel:\""
+        echo "    parallelism: $PARALLELISM"
         echo "    if: build.message !~ /\[doc\]/"
         echo "    command:"
         if [[ "$test" =~ "go" ]]; then
@@ -53,7 +59,15 @@ gen_bazel_test_steps() {
         else
             echo "      - bazel test $test --cache_test_results=\${BAZEL_CACHE_TEST_RESULTS:-auto}"
         fi
-        echo "    key: ${name}_acceptance"
+        if [ -n "${SINGLE_TEST}" ]; then
+            if [ "${SINGLE_TEST}" != "${name}" ]; then
+                echo "    skip: true"
+            fi
+        fi
+        echo "    key: \"${name}_acceptance\""
+        echo "    plugins:"
+        echo "      - scionproto/metahook#v0.3.0:"
+        echo "          post-command:  cat bazel-testlogs/${1}/${name//://}/test.log"
         echo "    artifact_paths:"
         echo "      - \"artifacts.out/**/*\""
         echo "    timeout_in_minutes: 20"

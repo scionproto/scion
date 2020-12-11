@@ -1,80 +1,15 @@
-load("@io_bazel_rules_docker//container:container.bzl", "container_bundle")
-load("@rules_python//python:defs.bzl", "py_test")
-load("@pip3_deps//:requirements.bzl", "requirement")
-load("//python/topology:topology.bzl", "topology")
+load("//acceptance/common:topogen.bzl", "topogen_test")
 
-py_library(
-    name = "test_lib",
-    srcs = ["test.py"],
-    data = [
-        ":sig_topo",
-        ":testcontainers.tar",
-    ],
-    deps = [
-        requirement("plumbum"),
-        "//acceptance/common:base",
-        "//acceptance/common:log",
-        "//acceptance/common:scion",
-        "//acceptance/common:tools",
-    ],
-)
-
-py_binary(
-    name = "test_setup",
-    srcs = ["test.py"],
-    args = ["setup"],
-    main = "test.py",
-    deps = [":test_lib"],
-)
-
-py_binary(
-    name = "test_run",
-    srcs = ["test.py"],
-    args = [
-        "run",
-        "--sig_acceptance",
-        "$(location //go/acceptance/sig_ping_acceptance)",
-    ],
-    data = ["//go/acceptance/sig_ping_acceptance"],
-    main = "test.py",
-    deps = [":test_lib"],
-)
-
-py_binary(
-    name = "test_teardown",
-    srcs = ["test.py"],
-    args = ["teardown"],
-    main = "test.py",
-    deps = [":test_lib"],
-)
-
-py_test(
+topogen_test(
     name = "test",
-    size = "large",
-    srcs = ["test.py"],
+    src = "test.py",
     args = [
-        "--sig_acceptance",
+        "--gateway_acceptance",
         "$(location //go/acceptance/sig_ping_acceptance)",
     ],
-    data = ["//go/acceptance/sig_ping_acceptance"],
-    deps = [":test_lib"],
-)
-
-container_bundle(
-    name = "testcontainers",
-    images = {
-        "control:latest": "//docker:control_prod",
-        "daemon:latest": "//docker:daemon_prod",
-        "dispatcher:latest": "//docker:dispatcher_prod",
-        "posix-gateway:latest": "//docker:posix_gateway_prod",
-        "posix-router:latest": "//docker:posix_router_prod",
-        "tester:latest": "//docker:tester",
-    },
-)
-
-topology(
-    name = "sig_topo",
-    src = "//topology:tiny4.topo",
-    out = "gen.tar",
-    sig = True,
+    data = [
+        "//go/acceptance/sig_ping_acceptance",
+    ],
+    gateway = True,
+    topo = "//topology:tiny4.topo",
 )

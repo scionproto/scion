@@ -9,7 +9,6 @@ import threading
 from plumbum import cmd
 
 from acceptance.common import base
-from acceptance.common import log
 from acceptance.common import tools
 from acceptance.common import scion
 
@@ -49,29 +48,16 @@ class Test(base.TestBase):
     """
 
     def main(self):
-        print("artifacts dir: %s" % self.test_state.artifacts)
-        self._unpack_topo()
         if not self.nested_command:
             try:
-                self._setup()
+                self.setup()
                 time.sleep(20)
                 self._run()
             finally:
-                self._teardown()
+                self.teardown()
 
-    def _unpack_topo(self):
-        cmd.tar("-xf", "./acceptance/hidden_paths/gen.tar",
-                "-C", self.test_state.artifacts)
-        cmd.sed("-i", "s#$SCIONROOT#%s#g" % self.test_state.artifacts,
-                self.test_state.artifacts / "gen/scion-dc.yml")
-
-    def _docker_compose(self, *args) -> str:
-        return cmd.docker_compose("-f", self.test_state.artifacts / "gen" / "scion-dc.yml",
-                                  "-p", "scion", *args)
-
-    def _setup(self):
-        print(cmd.docker("image", "load", "-i",
-              "./acceptance/hidden_paths/testcontainers.tar"))
+    def setup(self):
+        self.setup_prepare()
 
         http_server_port = 9090
 
@@ -135,7 +121,7 @@ class Test(base.TestBase):
         server_thread = threading.Thread(target=configuration_server, args=[server])
         server_thread.start()
 
-        print(self._docker_compose("up", "-d"))
+        self.setup_start()
         time.sleep(4)  # Give applications time to download configurations
 
         self._testers = {
@@ -190,25 +176,6 @@ class Test(base.TestBase):
                          "--timeout", "2s",
                          retcode=retcode))
 
-    def _teardown(self):
-        self.test_state.dc.compose_file = self.test_state.artifacts / "gen/scion-dc.yml"
-        self.test_state.dc.collect_logs(out_dir=self.test_state.artifacts / "logs")
-        print(self._docker_compose("down", "-v"))
-
-
-@Test.subcommand("setup")
-class TestSetup(Test):
-
-    def main(self):
-        self._setup()
-
-
-@Test.subcommand("teardown")
-class TestTeardown(Test):
-
-    def main(self):
-        self._teardown()
-
 
 def configuration_server(server):
     print("HTTP configuration server starting on %s:%d." % server.server_address)
@@ -217,6 +184,6 @@ def configuration_server(server):
 
 
 if __name__ == "__main__":
-    log.init_log()
+    base.register_commands(Test)
     Test.test_state = base.TestState(scion.SCIONDocker(), tools.DC())
     Test.run()

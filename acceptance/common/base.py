@@ -14,6 +14,7 @@
 
 import logging
 import os
+import typing
 
 from plumbum import cli
 from plumbum import local
@@ -41,6 +42,8 @@ class TestState:
     TestState is used to share state between the command
     and the sub-command.
     """
+
+    artifacts = None
 
     def __init__(self, scion: SCION, dc: DC):
         """
@@ -76,9 +79,14 @@ class TestBase(cli.Application):
         self.test_state.scion = SCIONSupervisor()
 
     @cli.switch('artifacts', str, envname='ACCEPTANCE_ARTIFACTS',
-                help='Artifacts directory')
+                help='Artifacts directory (for legacy tests)')
     def artifacts_dir(self, a_dir: str):
         self.test_state.artifacts = local.path('%s/%s/' % (a_dir, NAME))
+
+    @cli.switch('artifacts_dir', str, help='Artifacts directory (for bazel tests)')
+    def artifacts_dir_new(self, a_dir: str):
+        self.test_state.artifacts = local.path(a_dir)
+        self.test_state.dc.compose_file = self.test_state.artifacts / 'gen/scion-dc.yml'
 
     @cli.switch('topology_tar', str, help="The tarball with the topology files")
     def topology_tar(self, tar: str):
@@ -87,6 +95,42 @@ class TestBase(cli.Application):
     @cli.switch('containers_tar', str, help="The tarball with the containers")
     def containers_tar(self, tar: str):
         self.test_state.containers_tar = tar
+
+    def _unpack_topo(self):
+        cmd.tar('-xf', self.test_state.topology_tar, '-C', self.test_state.artifacts)
+        cmd.sed('-i', 's#$SCIONROOT#%s#g' % self.test_state.artifacts,
+                self.test_state.artifacts / 'gen/scion-dc.yml')
+        self.test_state.dc.compose_file = self.test_state.artifacts / 'gen/scion-dc.yml'
+
+    def setup_prepare(self):
+        print('artifacts dir: %s' % self.test_state.artifacts)
+        self._unpack_topo()
+        print(cmd.docker('image', 'load', '-i', self.test_state.containers_tar))
+
+    def setup(self):
+        self.setup_prepare()
+        self.setup_start()
+
+    def setup_start(self):
+        print(self.test_state.dc('up', '-d'))
+        print(self.test_state.dc('ps'))
+        print('artifacts dir: %s' % self.test_state.artifacts)
+
+    def teardown(self):
+        self._unpack_topo()
+        # Flush the logs.
+        print(self.test_state.dc('stop'))
+        self.test_state.dc.collect_logs(out_dir=self.test_state.artifacts / 'logs')
+        print(self.test_state.dc('down', '-v'))
+
+    def send_signal(self, container, signal):
+        """Sends signal to a container.
+
+            Args:
+                container: the name of the container.
+                signal: the signal to send
+        """
+        print(self.test_state.dc("kill", "-s", signal, container))
 
 
 class CmdBase(cli.Application):
@@ -156,3 +200,25 @@ class TestTeardown(CmdBase):
     @LogExec(logger, 'teardown')
     def main(self):
         self.cmd_teardown()
+
+
+def register_commands(c: typing.Type[TestBase]):
+    """
+    Registers the default subcommands to the test class c.
+    """
+
+    class TestSetup(c):
+        def main(self):
+            self.setup()
+
+    class TestRun(c):
+        def main(self):
+            self._run()
+
+    class TestTeardown(c):
+        def main(self):
+            self.teardown()
+
+    c.subcommand("setup", TestSetup)
+    c.subcommand("run", TestRun)
+    c.subcommand("teardown", TestTeardown)
