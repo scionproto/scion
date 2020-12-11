@@ -37,6 +37,7 @@ type sender struct {
 	conn               net.PacketConn
 	address            net.Addr
 	pathStatsPublisher PathStatsPublisher
+	path               snet.Path
 	pathFingerprint    snet.PathFingerprint
 	metrics            SessionMetrics
 }
@@ -65,6 +66,7 @@ func newSender(sessID uint8, conn net.PacketConn, path snet.Path,
 			Host:    &gatewayAddr,
 		},
 		pathStatsPublisher: pathStatsPublisher,
+		path:               path,
 		pathFingerprint:    snet.Fingerprint(path),
 		metrics:            metrics,
 	}

@@ -16,9 +16,10 @@
 
 import json
 import logging
+import re
 import time
 import yaml
-
+from http import client
 from plumbum import cmd
 
 from acceptance.common import base
@@ -110,6 +111,17 @@ class Test(base.TestBase):
         print("time elapsed: %f seconds" % elapsed)
         print("throughput: %f mbps" % throughput)
 
+    def _get_br_traffic(self, endpoint):
+        conn = client.HTTPConnection(endpoint)
+        conn.request('GET', '/metrics')
+        resp = conn.getresponse()
+        metrics = resp.read().decode('utf-8')
+        for line in metrics.splitlines():
+            m = re.search(r"""^router_input_bytes_total{interface="internal".*\s(.*)$""", line)
+            if m is not None:
+                return float(m.group(1)) / 1024 / 1024
+        return None
+
     def _setup(self):
         print("setting up the infrastructure")
 
@@ -126,21 +138,31 @@ class Test(base.TestBase):
                              "/share/ssh_setup.sh")
 
         # Wait till everything starts working.
-        print("waiting")
+        print("waiting for 30 seconds for the system to bootstrap")
         time.sleep(30)
         self._refresh_paths()
 
         print("setup done")
 
     def _run(self):
+        traffic1 = self._get_br_traffic("172.20.0.34:30442")
+        traffic2 = self._get_br_traffic("172.20.0.35:30442")
         print("--------------------")
         print("using one path")
         self._set_path_count(1)
         self._transfer("foo1.txt", 20)
+        traffic1 = self._get_br_traffic("172.20.0.34:30442") - traffic1
+        print("traffic on path 1: %f MB (includes SCION and encapsulation overhead)" % traffic1)
+        traffic2 = self._get_br_traffic("172.20.0.35:30442") - traffic2
+        print("traffic on path 2: %f MB (includes SCION and encapsulation overhead)" % traffic2)
         print("--------------------")
         print("using two paths")
         self._set_path_count(2)
         self._transfer("foo2.txt", 20)
+        traffic1 = self._get_br_traffic("172.20.0.34:30442") - traffic1
+        print("traffic on path 1: %f MB (includes SCION and encapsulation overhead)" % traffic1)
+        traffic2 = self._get_br_traffic("172.20.0.35:30442") - traffic2
+        print("traffic on path 2: %f MB (includes SCION and encapsulation overhead)" % traffic2)
 
     def _teardown(self):
         logs = self._docker_compose("logs")
