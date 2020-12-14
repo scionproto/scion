@@ -191,7 +191,7 @@ func VerifySegment(ctx context.Context, verifier infra.Verifier, server net.Addr
 		// the sign meta does not carry this information.
 		verifier := verifier.WithServer(server).WithIA(asEntry.Local)
 		if err := segment.VerifyASEntry(ctx, verifier, i); err != nil {
-			return serrors.Wrap(ErrSegment, err, "seg", segment, "asEntry", asEntry)
+			return serrors.Wrap(ErrSegment, err, "seg", segment, "as", asEntry.Local)
 		}
 	}
 	return nil

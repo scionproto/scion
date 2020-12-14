@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/util"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/trust/internal/metrics"
@@ -71,7 +72,7 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 	var keyID cppb.VerificationKeyID
 	if err := proto.Unmarshal(hdr.VerificationKeyID, &keyID); err != nil {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
-		return nil, serrors.WrapStr("parsiing verification key ID", err)
+		return nil, serrors.WrapStr("parsing verification key ID", err)
 	}
 	ia := addr.IAInt(keyID.IsdAs).IA()
 	if !v.BoundIA.IsZero() && !v.BoundIA.Equal(ia) {
@@ -90,17 +91,19 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()
 		return nil, serrors.WrapStr("reporting TRC", err, "id", id)
 	}
-
-	chains, err := v.getChains(ctx,
-		ChainQuery{
-			IA:           ia,
-			SubjectKeyID: keyID.SubjectKeyId,
-			Date:         time.Now(),
-		},
-	)
+	query := ChainQuery{
+		IA:           ia,
+		SubjectKeyID: keyID.SubjectKeyId,
+		Date:         time.Now(),
+	}
+	chains, err := v.getChains(ctx, query)
 	if err != nil {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()
-		return nil, err
+		return nil, serrors.WrapStr("getting chains", err,
+			"query.isd_as", query.IA,
+			"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
+			"query.date", util.TimeToCompact(query.Date),
+		)
 	}
 	for _, c := range chains {
 		signedMsg, err := signed.Verify(signedMsg, c[0].PublicKey, associatedData...)
@@ -110,7 +113,11 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 		}
 	}
 	metrics.Verifier.Verify(l.WithResult(metrics.ErrNotFound)).Inc()
-	return nil, serrors.New("no chain in database can verify signature")
+	return nil, serrors.New("no chain in database can verify signature",
+		"query.isd_as", query.IA,
+		"query.subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID),
+		"query.date", util.TimeToCompact(query.Date),
+	)
 }
 
 func (v *Verifier) notifyTRC(ctx context.Context, id cppki.TRCID) error {
