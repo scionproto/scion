@@ -288,4 +288,34 @@ func TestParsing(t *testing.T) {
 		// Payload.
 		91, 92, 93,
 	})
+	mt.AssertDone(t)
+
+	// One packet split into 3 frames.
+	SendFrame(t, w, []byte{
+		// SIG frame header.
+		0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 4,
+		// IPv4 header.
+		0x40, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		// Payload.
+		51, 52, 53, 54, 55, 56,
+	})
+	SendFrame(t, w, []byte{
+		// SIG frame header.
+		0, 1, 255, 255, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 5,
+		// Payload.
+		57, 58,
+	})
+	SendFrame(t, w, []byte{
+		// SIG frame header.
+		0, 1, 255, 255, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 6,
+		// Payload.
+		59, 60,
+	})
+	mt.AssertPacket(t, []byte{
+		// IPv4 header.
+		0x40, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		// Payload.
+		51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+	})
+	mt.AssertDone(t)
 }
