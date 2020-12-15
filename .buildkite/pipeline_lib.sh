@@ -49,25 +49,42 @@ gen_acceptance() {
 gen_bazel_test_steps() {
     for test in $(bazel query "kind(test, ${1}/...)" 2>/dev/null); do
         name=${test#"$1/"}
-        echo "  - label: \"AT: $name :bazel:\""
-        echo "    parallelism: $PARALLELISM"
+        skip=false
+        cache="--cache_test_results=\${BAZEL_CACHE_TEST_RESULTS:-auto}"
+        parallel="${PARALLELISM:-1}"
+        args=""
+
+        if [[ "$test" =~ "go" ]]; then
+          args="--test_arg=-test.v"
+        fi
+
+        ret=$(bazel query "attr(tags, '\\bskip\\b', $test)" 2>/dev/null)
+        if [[ $ret != "" ]]; then
+          skip="true"
+        fi
+
+        if [ -n "${SINGLE_TEST}" ]; then
+          if [ "${SINGLE_TEST}" != "${name}" ]; then
+            skip="true"
+          fi
+          cache="--nocache_test_results"
+        fi
+
+        n=${name/test_/}
+        echo "  - label: \"AT: ${n/gateway/gw} :bazel:\""
+        echo "    parallelism: $parallel"
         echo "    if: build.message !~ /\[doc\]/"
         echo "    command:"
-        if [[ "$test" =~ "go" ]]; then
-            # for go tests add verbose flag.
-            echo "      - bazel test $test --test_arg=-test.v --cache_test_results=\${BAZEL_CACHE_TEST_RESULTS:-auto}"
-        else
-            echo "      - bazel test $test --cache_test_results=\${BAZEL_CACHE_TEST_RESULTS:-auto}"
-        fi
-        if [ -n "${SINGLE_TEST}" ]; then
-            if [ "${SINGLE_TEST}" != "${name}" ]; then
-                echo "    skip: true"
-            fi
+        echo "      - bazel test $test $args $cache"
+        if [ "$skip" = true ]; then
+            echo "    skip: true"
         fi
         echo "    key: \"${name}_acceptance\""
         echo "    plugins:"
         echo "      - scionproto/metahook#v0.3.0:"
-        echo "          post-command:  cat bazel-testlogs/${1}/${name//://}/test.log"
+        echo "          post-command: |"
+        echo "            cat bazel-testlogs/${1}/${name//://}/test.log"
+        echo "            unzip bazel-testlogs/${1}/${name//://}/test.outputs/outputs.zip -d outputs 2>//dev//null"
         echo "    artifact_paths:"
         echo "      - \"artifacts.out/**/*\""
         echo "    timeout_in_minutes: 20"

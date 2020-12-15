@@ -63,6 +63,7 @@ if [ ! -z "$cache_ctr" ]; then
 fi
 
 save "bazel-testlogs"
+save "outputs"
 save "logs"
 save "traces"
 save "gen"
