@@ -28,6 +28,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/unsigned_extensions"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
@@ -266,7 +267,7 @@ func (ps *PathSegment) AddASEntry(ctx context.Context, asEntry ASEntry, signer S
 			},
 		},
 		PeerEntries: make([]*cppb.PeerEntry, 0, len(asEntry.PeerEntries)),
-		Extensions:  extensionsToPB(asEntry.Extensions),
+		Extensions:  ExtensionsToPB(asEntry.Extensions),
 	}
 	for _, peer := range asEntry.PeerEntries {
 		asEntryPB.PeerEntries = append(asEntryPB.PeerEntries,
@@ -365,7 +366,8 @@ func PathSegmentToPB(ps *PathSegment) *cppb.PathSegment {
 	}
 	for _, entry := range ps.ASEntries {
 		pb.AsEntries = append(pb.AsEntries, &cppb.ASEntry{
-			Signed: entry.Signed,
+			Signed:   entry.Signed,
+			Unsigned: unsigned_extensions.UnsignedExtensionsToPB(entry.UnsignedExtensions),
 		})
 	}
 	return pb
