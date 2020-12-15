@@ -16,7 +16,9 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
+        "//go/lib/ctrl/seg/extensions/digest:go_default_library",
         "//go/lib/ctrl/seg/extensions/staticinfo:go_default_library",
+        "//go/lib/ctrl/seg/unsigned_extensions:go_default_library",
         "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/slayers/path:go_default_library",
@@ -30,12 +32,15 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "extensions_test.go",
         "seg_test.go",
         "segs_test.go",
     ],
     embed = [":go_default_library"],
     deps = [
         "//go/lib/addr:go_default_library",
+        "//go/lib/ctrl/seg/extensions/digest:go_default_library",
+        "//go/lib/ctrl/seg/unsigned_extensions/epic_detached:go_default_library",
         "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/xtest:go_default_library",
