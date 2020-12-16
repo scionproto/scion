@@ -65,14 +65,17 @@ func (r Result) Human(w io.Writer, showExtendedMetadata, colored bool) {
 	cs := app.DefaultColorScheme(!colored)
 
 	idxWidth := len(fmt.Sprint(len(r.Paths) - 1))
-	// in normal mode, the key-value entries are put on on a single line, separated by space:
-	entrySeparator := " "
-	if showExtendedMetadata {
-		// in extended mode, the entries are newline separated and indented,
-		// taking into account the length of the path index "header" before the
-		// first entry (length of index + 2 brackets + 1 space)
-		entrySeparator = "\n" + strings.Repeat(" ", idxWidth+2+1)
-	}
+
+	// max number of key-value entries before switching to multi-line mode.
+	// Chosen to allow to include the expiration date in a single line, but switch to multi-line
+	// once at least one of the beacon extension items contains a meaningful value.
+	const maxEntriesSingleline = 6
+	separatorSingleline := " "
+	// in multi-line mode, the entries are newline separated and indented,
+	// taking into account the length of the path index "header" before the
+	// first entry (length of index + 2 brackets + 1 space)
+	separatorMultiline := "\n" + strings.Repeat(" ", idxWidth+2+1)
+
 	sectionHeader := func(intfs int) {
 		cs.Header.Fprintf(w, "%d Hops:\n", (intfs/2)+1)
 	}
@@ -90,11 +93,15 @@ func (r Result) Human(w io.Writer, showExtendedMetadata, colored bool) {
 		if showExtendedMetadata {
 			meta := path.FullPath.Metadata()
 			ttl := time.Until(path.Expiry).Truncate(time.Second)
-			entries = append(entries, cs.KeyValues(
+			entries = append(entries, cs.KeyValue(
 				"Expires", fmt.Sprintf("%s (%s)", path.Expiry, ttl),
+			))
+			// Add entries for information from beacon extension, only if a non-empty
+			// value can be shown.
+			entries = append(entries, filteredKeyValues(cs,
 				"Latency", humanLatency(meta),
 				"Bandwidth", humanBandwidth(meta),
-				"Geo", humanGeo(meta),
+				"Geo", humanGeo(meta, cs),
 				"LinkType", humanLinkType(meta),
 				"InternalHops", humanInternalHops(meta),
 				"Notes", humanNotes(meta),
@@ -110,10 +117,32 @@ func (r Result) Human(w io.Writer, showExtendedMetadata, colored bool) {
 				"LocalIP", fmt.Sprint(path.Local),
 			)...)
 		}
-		fmt.Fprintf(w, "[%*d] %s\n", idxWidth, i, strings.Join(entries, entrySeparator))
+		separator := separatorSingleline
+		if len(entries) > maxEntriesSingleline {
+			separator = separatorMultiline
+		}
+		fmt.Fprintf(w, "[%*d] %s\n", idxWidth, i, strings.Join(entries, separator))
 	}
 }
 
+// filteredKeyValues is analogous to app.ColorScheme.KeyValues, but ignores
+// entries with an empty value.
+func filteredKeyValues(cs app.ColorScheme, kv ...string) []string {
+	if len(kv)%2 != 0 {
+		panic("KeyValues expects even number of parameters")
+	}
+	entries := make([]string, 0)
+	for i := 0; i < len(kv); i += 2 {
+		if kv[i+1] == "" {
+			continue
+		}
+		entries = append(entries, cs.KeyValue(kv[i], kv[i+1]))
+	}
+	return entries
+}
+
+// humanLatency summarizes the latency information in the meta data in a human
+// readable string. Returns empty string if no information is available.
 func humanLatency(p *snet.PathMetadata) string {
 	complete := true
 	var tot time.Duration
@@ -127,9 +156,11 @@ func humanLatency(p *snet.PathMetadata) string {
 	if tot > 0 {
 		return fmt.Sprintf(">%s (information incomplete)", tot)
 	}
-	return "N/A"
+	return ""
 }
 
+// humanBandwidth summarizes the bandwidth information in the meta data in a
+// human readable string. Returns empty string if no information is available.
 func humanBandwidth(p *snet.PathMetadata) string {
 	complete := true
 	var bottleneck uint64 = math.MaxUint64
@@ -145,10 +176,12 @@ func humanBandwidth(p *snet.PathMetadata) string {
 	if bottleneck < math.MaxUint64 {
 		return fmt.Sprintf("%dKbit/s (information incomplete)", bottleneck)
 	}
-	return "N/A"
+	return ""
 }
 
-func humanGeo(p *snet.PathMetadata) string {
+// humanGeo summarizes the geographical information in the meta data in a human
+// readable string. Returns empty string if no information is available.
+func humanGeo(p *snet.PathMetadata, cs app.ColorScheme) string {
 	geos := make([]string, len(p.Geo))
 	hasAny := false
 	for i, geo := range p.Geo {
@@ -168,13 +201,26 @@ func humanGeo(p *snet.PathMetadata) string {
 			geos[i] = "N/A"
 		}
 	}
-	if !hasAny { // special case, repeated "N/A" looks a bit pointless
-		return "[]"
+	if !hasAny { // special case to hide the Geo entry when no information is available
+		return ""
 	}
-	return fmt.Sprintf("[%s]", strings.Join(geos, " > "))
+	return fmt.Sprintf("[%s]", strings.Join(geos, cs.Link.Sprintf(" > ")))
 }
 
+// humanGeo summarizes the link type information in the meta data in a human
+// readable string. Returns empty string if no information is available.
 func humanLinkType(p *snet.PathMetadata) string {
+	hasAny := false
+	for _, lt := range p.LinkType {
+		if lt != snet.LinkTypeUnset {
+			hasAny = true
+			break
+		}
+	}
+	if !hasAny {
+		return ""
+	}
+
 	linkTypes := make([]string, len(p.LinkType))
 	for i, lt := range p.LinkType {
 		linkTypes[i] = lt.String()
@@ -182,6 +228,9 @@ func humanLinkType(p *snet.PathMetadata) string {
 	return fmt.Sprintf("[%s]", strings.Join(linkTypes, ", "))
 }
 
+// humanInternalHops summarizes the information on the number of AS internal
+// hops along the path in the meta data in a human readable string. Returns
+// empty string if no information is available.
 func humanInternalHops(p *snet.PathMetadata) string {
 	internalHops := []string{}
 	for i, numHops := range p.InternalHops {
@@ -192,9 +241,14 @@ func humanInternalHops(p *snet.PathMetadata) string {
 		ia := p.Interfaces[interfaceIdx].IA
 		internalHops = append(internalHops, fmt.Sprintf("%s: %d", ia, numHops))
 	}
+	if len(internalHops) == 0 {
+		return ""
+	}
 	return fmt.Sprintf("[%s]", strings.Join(internalHops, ", "))
 }
 
+// humanNotes summarizes the notes in the meta data in a human readable string.
+// Returns empty string if no information is available.
 func humanNotes(p *snet.PathMetadata) string {
 	notes := []string{}
 	for i, note := range p.Notes {
@@ -207,6 +261,9 @@ func humanNotes(p *snet.PathMetadata) string {
 		}
 		ia := p.Interfaces[interfaceIdx].IA
 		notes = append(notes, fmt.Sprintf("%s: \"%s\"", ia, sanitizeString(note)))
+	}
+	if len(notes) == 0 {
+		return ""
 	}
 	return fmt.Sprintf("[%s]", strings.Join(notes, ", "))
 }
