@@ -54,7 +54,7 @@ func ServiceTypeFromString(s string) ServiceType {
 	switch strings.ToLower(s) {
 	case "router":
 		return Router
-	case "control":
+	case "control", "cs":
 		return Control
 	case "discovery":
 		return Discovery
