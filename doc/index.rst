@@ -14,7 +14,7 @@ is a good place to start.
    protocols/index
    testing/index
    BeaconService
-   BeaconExtensions
+   beacon-metadata
    PathService
    PathPolicy
    hidden-paths
