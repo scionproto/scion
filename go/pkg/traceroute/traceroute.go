@@ -289,7 +289,7 @@ func (h scmpHandler) Handle(pkt *snet.Packet) error {
 		Reply:    r,
 		Remote: &snet.UDPAddr{
 			IA:   pkt.Source.IA,
-			Host: &net.UDPAddr{IP: pkt.Destination.Host.IP()},
+			Host: &net.UDPAddr{IP: pkt.Source.Host.IP()},
 			Path: pkt.Path.Copy(),
 		},
 		Error: err,
