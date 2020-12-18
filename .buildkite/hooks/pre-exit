@@ -5,8 +5,12 @@ echo "--- Cleaning up the topology"
 ./scion.sh topo_clean
 
 echo "--- Cleaning up docker containers/networks/volumes"
-
-cntrs="$(docker ps -aq)"
+remote_cache=$(docker ps -q -f name=bazel-remote-cache)
+if [ -z ${remote_cache#+x} ]; then
+    cntrs="$(docker ps -aq)"
+else
+    cntrs="$(docker ps -aq | grep -v $remote_cache || true)"
+fi
 [ -n "$cntrs" ] && { echo "Remove leftover containers..."; docker rm -f $cntrs; }
 
 echo "Remove leftover networks"
