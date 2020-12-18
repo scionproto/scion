@@ -23,7 +23,7 @@ go_test(
 
 container_image(
     name = "dispatcher",
-    base = "//docker:dispatcher_debug",
+    base = "//docker:dispatcher",
     cmd = [
         "--config",
         "/disp.toml",
@@ -34,7 +34,7 @@ container_image(
 
 container_image(
     name = "control",
-    base = "//docker:control_debug",
+    base = "//docker:control",
     cmd = [
         "--config",
         "/cs.toml",

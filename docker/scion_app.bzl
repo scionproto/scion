@@ -26,22 +26,12 @@ def scion_app_base():
     # Environment variables to set.
     env = {"TZ": "UTC"}
 
-    # Base for prod images.
+    # Currently in opensource there are tests (reload_X) that are doing
+    # shell commands into the container. We need to change that behavior
+    # and once we do that we should only use the prod thin image without
+    # shell.
     container_image(
         name = "app_base",
-        base = "@static_debian10//image",
-        env = env,
-        debs = debs,
-        tars = [
-            "//licenses:licenses",
-        ],
-        layers = [":share_dirs_layer"],
-        visibility = ["//visibility:public"],
-    )
-
-    # base for debug images.
-    container_image(
-        name = "app_base_debug",
         base = "@debug_debian10//image",
         env = env,
         debs = debs,
@@ -52,16 +42,8 @@ def scion_app_base():
         visibility = ["//visibility:public"],
     )
 
-    pkg_tar(
-        name = "delve_bin",
-        srcs = [
-            "@com_github_go_delve_delve//cmd/dlv",
-        ],
-        package_dir = "bin",
-    )
-
 # Defines images for a specific SCION application.
-# Creates "{name}_prod" and "{name}_debug" targets.
+# Creates "{name}" targets.
 #   name - name of the rule
 #   src - the target that builds the app binary
 #   appdir - the directory to deploy the binary to
@@ -77,21 +59,10 @@ def scion_app_images(name, src, entrypoint, appdir = "/app", workdir = "/share",
         mode = "0755",
     )
     container_image_setcap(
-        name = name + "_prod",
+        name = name,
         repository = "scion",
         base = "//docker:app_base",
         tars = [":%s_docker_files" % name],
-        workdir = workdir,
-        cmd = cmd,
-        entrypoint = entrypoint,
-        caps_binary = caps_binary,
-        caps = caps,
-    )
-    container_image_setcap(
-        name = name + "_debug",
-        repository = "scion",
-        base = "//docker:app_base_debug",
-        tars = [":%s_docker_files" % name, "//docker:delve_bin"],
         workdir = workdir,
         cmd = cmd,
         entrypoint = entrypoint,

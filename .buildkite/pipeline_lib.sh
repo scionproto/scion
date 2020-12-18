@@ -26,9 +26,9 @@ gen_acceptance() {
             # some tests don't need the global setup, they are just starting a
             # (few) docker container(s) and run a bazel test against it. So no
             # prebuilding of all docker containers is needed.
-            echo "      - ./acceptance/ctl gsetup"
+            echo "      - ${accept_dir}/ctl gsetup"
         fi
-        echo "      - ./acceptance/ctl grun $name"
+        echo "      - ${accept_dir}/ctl grun $name"
         echo "    key: ${name}_acceptance"
         echo "    env:"
         echo "      PYTHONPATH: \"python/:.\""
