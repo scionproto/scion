@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package libepic_test
+package epic_test
 
 import (
 	"math"
@@ -23,7 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/libepic"
+	libepic "github.com/scionproto/scion/go/lib/epic"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path/epic"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
@@ -81,8 +81,8 @@ func TestTimestampVerification(t *testing.T) {
 	tsRel, err := libepic.CreateTsRel(timestamp)
 	assert.NoError(t, err)
 
-	cs := uint32(libepic.ClockSkewMs)
-	csAndPl := uint32(libepic.ClockSkewMs + libepic.PacketLifetimeMs)
+	cs := uint32(libepic.ExtractClockSkewMs())
+	csAndPl := uint32(libepic.ExtractClockSkewMs() + libepic.ExtractPacketLifetimeMs())
 
 	testCases := map[uint32]bool{
 		0:                           false,
