@@ -39,7 +39,7 @@ mocks:
 	tools/gomocks
 
 gazelle:
-	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -index=false -external=external -exclude go/vendor -exclude docker/_build $(GAZELLE_DIRS)
+	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -go_naming_convention go_default_library -index=false -external=external -exclude go/vendor -exclude docker/_build $(GAZELLE_DIRS)
 
 setcap:
 	tools/setcap cap_net_admin,cap_net_raw+ep ./bin/braccept

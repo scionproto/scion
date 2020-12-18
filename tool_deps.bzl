@@ -49,9 +49,3 @@ def tool_deps():
         commit = "c1cbdcb8df2b23af8530360d87ac9a7fabc48618",
         importpath = "github.com/pavius/impi",
     )
-
-    go_repository(
-        name = "com_github_jmhodges_bazel_gomock",
-        commit = "ff6c20a9b6978c52b88b7a1e2e55b3b86e26685b",
-        importpath = "github.com/jmhodges/bazel_gomock",
-    )

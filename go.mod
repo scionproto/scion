@@ -6,8 +6,8 @@ require (
 	github.com/dchest/cmac v0.0.0-20150527144652-62ff55a1048c
 	github.com/fatih/color v1.9.0
 	github.com/go-kit/kit v0.10.0
-	github.com/golang/mock v1.4.0
-	github.com/golang/protobuf v1.4.0
+	github.com/golang/mock v1.4.4
+	github.com/golang/protobuf v1.4.2
 	github.com/google/go-cmp v0.4.0
 	github.com/google/go-querystring v1.0.1-0.20190318165438-c8c88dbee036 // indirect
 	github.com/google/gopacket v1.1.16-0.20190123011826-102d5ca2098c
@@ -16,7 +16,7 @@ require (
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645
 	github.com/iancoleman/strcase v0.0.0-20190422225806-e506e3ef7365
 	github.com/kr/pretty v0.2.0 // indirect
-	github.com/lucas-clemente/quic-go v0.17.3
+	github.com/lucas-clemente/quic-go v0.19.2
 	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/mattn/go-isatty v0.0.12
 	github.com/mattn/go-sqlite3 v1.9.1-0.20180719091609-b3511bfdd742

@@ -24,4 +24,4 @@ function generate {
 generate traffic_class
 generate sequence
 
-bazel run //:gazelle -- update -mode=${GAZELLE_MODE} -index=false -external=external ${ROOTDIR}/antlr
+bazel run //:gazelle -- update -mode=${GAZELLE_MODE} -go_naming_convention go_default_library -index=false -external=external ${ROOTDIR}/antlr
