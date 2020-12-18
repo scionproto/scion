@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package epic implements the Path interface for the EPIC path type.
 package epic
 
 import (
@@ -22,8 +23,10 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 )
 
+// PathType denotes the EPIC path type identifier.
 const PathType path.Type = 3
 
+// RegisterPath registers the EPIC path type globally.
 func RegisterPath() {
 	path.RegisterPath(path.Metadata{
 		Type: PathType,
@@ -34,6 +37,7 @@ func RegisterPath() {
 	})
 }
 
+// EpicPath denotes the EPIC path type header.
 type EpicPath struct {
 	PacketTimestamp uint64
 	PHVF            []byte
@@ -41,6 +45,8 @@ type EpicPath struct {
 	ScionRaw        *scion.Raw
 }
 
+// SerializeTo serializes the EpicPath into buffer b. On failure, an error is returned, otherwise
+// SerializeTo will return nil.
 func (p *EpicPath) SerializeTo(b []byte) error {
 	if p == nil {
 		return serrors.New("epic path must not be nil")
@@ -61,6 +67,8 @@ func (p *EpicPath) SerializeTo(b []byte) error {
 	return p.ScionRaw.SerializeTo(b[16:])
 }
 
+// DecodeFromBytes deserializes the buffer b into the EpicPath. On failure, an error is returned,
+// otherwise SerializeTo will return nil.
 func (p *EpicPath) DecodeFromBytes(b []byte) error {
 	if p == nil {
 		return serrors.New("epic path must not be nil")
@@ -77,6 +85,8 @@ func (p *EpicPath) DecodeFromBytes(b []byte) error {
 	return p.ScionRaw.DecodeFromBytes(b[16:])
 }
 
+// Reverse reverses the EPIC path. In particular, this means that the SCION path type subheader
+// is reversed.
 func (p *EpicPath) Reverse() (path.Path, error) {
 	if p == nil {
 		return nil, serrors.New("epic path must not be nil")
@@ -96,6 +106,7 @@ func (p *EpicPath) Reverse() (path.Path, error) {
 	return p, nil
 }
 
+// Len returns the length of the EPIC path in bytes.
 func (p *EpicPath) Len() int {
 	if p == nil {
 		return 0
@@ -106,6 +117,7 @@ func (p *EpicPath) Len() int {
 	return 16 + p.ScionRaw.Len()
 }
 
+// Type returns the EPIC path type identifier.
 func (p *EpicPath) Type() path.Type {
 	return PathType
 }

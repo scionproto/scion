@@ -36,7 +36,7 @@ func MAC(h hash.Hash, info *InfoField, hf *HopField) []byte {
 	return h.Sum(nil)[:6]
 }
 
-// Return the full 16 bytes. Used in the border router to enable EPIC validations.
+// FullMAC returns the full 16 bytes of the HopField MAC.
 func FullMAC(h hash.Hash, info *InfoField, hf *HopField) []byte {
 	h.Reset()
 	input := MACInput(info.SegID, info.Timestamp, hf.ExpTime, hf.ConsIngress, hf.ConsEgress)

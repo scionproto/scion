@@ -2,23 +2,27 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["libepic.go"],
-    importpath = "github.com/scionproto/scion/go/lib/libepic",
+    srcs = [
+        "doc.go",
+        "epic.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/epic",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
-        "//go/lib/common:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/slayers:go_default_library",
         "//go/lib/slayers/path/epic:go_default_library",
         "//go/lib/slayers/path/scion:go_default_library",
-        "@com_github_dchest_cmac//:go_default_library",
     ],
 )
 
 go_test(
     name = "go_default_test",
-    srcs = ["libepic_test.go"],
+    srcs = [
+        "epic_test.go",
+        "export_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
         "//go/lib/slayers:go_default_library",
