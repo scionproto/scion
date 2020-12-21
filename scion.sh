@@ -66,9 +66,9 @@ cmd_run() {
         build_binaries || exit 1
         if is_docker_be; then
             echo "Build perapp images"
-            ./tools/quiet make -C docker prod
+            bazel run -c opt //docker:prod
             echo "Build scion tester"
-            ./tools/quiet make -C docker test
+            bazel run //docker:test
         fi
     fi
     run_setup

@@ -36,11 +36,11 @@ build_binaries() {
 }
 
 build_docker_tester() {
-    make -C docker test
+    bazel run //docker:test
 }
 
 build_docker_perapp() {
-    make -C docker prod debug
+    bazel run -c opt //docker:prod
 }
 
 artifacts_dir() {
