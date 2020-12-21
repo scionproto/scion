@@ -86,18 +86,15 @@ def topogen_test(
         data = data + common_data,
     )
 
-    suffix = "prod"
-    if debug:
-        suffix = "debug"
     images = {
-        "control:latest": "//docker:control_" + suffix,
-        "daemon:latest": "//docker:daemon_" + suffix,
-        "dispatcher:latest": "//docker:dispatcher_" + suffix,
+        "control:latest": "//docker:control",
+        "daemon:latest": "//docker:daemon",
+        "dispatcher:latest": "//docker:dispatcher",
         "tester:latest": tester,
-        "posix-router:latest": "//docker:posix_router_" + suffix,
+        "posix-router:latest": "//docker:posix_router",
     }
     if gateway:
-        images["posix-gateway:latest"] = "//docker:posix_gateway_" + suffix
+        images["posix-gateway:latest"] = "//docker:posix_gateway"
 
     container_bundle(
         name = "%s_containers" % name,

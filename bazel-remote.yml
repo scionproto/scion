@@ -4,7 +4,7 @@ services:
     container_name: bazel-remote-cache
     command: ["--max_size=50", "--experimental_remote_asset_api", "--host=127.0.0.1", "--profile_port=0"]
     network_mode: host
-    image: scionproto/bazel-remote-cache
+    image: buchgr/bazel-remote-cache
     user: $USER_ID:$GROUP_ID
     volumes:
       - $HOME/.cache/bazel/remote:/data:rw

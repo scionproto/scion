@@ -21,7 +21,7 @@ container_image(
 
 container_image(
     name = "dispatcher1",
-    base = "//docker:dispatcher_debug",
+    base = "//docker:dispatcher",
     cmd = [
         "--config",
         "/disp.toml",
@@ -32,7 +32,7 @@ container_image(
 
 container_image(
     name = "dispatcher2",
-    base = "//docker:dispatcher_debug",
+    base = "//docker:dispatcher",
     cmd = [
         "--config",
         "/disp.toml",
@@ -43,7 +43,7 @@ container_image(
 
 container_image(
     name = "sig1",
-    base = "//docker:posix_gateway_debug",
+    base = "//docker:posix_gateway",
     cmd = [
         "--config",
         "/sig.toml",
@@ -58,7 +58,7 @@ container_image(
 
 container_image(
     name = "sig2",
-    base = "//docker:posix_gateway_debug",
+    base = "//docker:posix_gateway",
     cmd = [
         "--config",
         "/sig.toml",

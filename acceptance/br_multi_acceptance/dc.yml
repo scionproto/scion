@@ -24,7 +24,7 @@ services:
     - /etc/passwd:/etc/passwd:ro
     - vol_scion_disp:/mnt/volumes/vol_scion_disp
   dispatcher:
-    image: dispatcher-debug
+    image: dispatcher
     container_name: brutil_dispatcher_1
     network_mode: none
     depends_on:
