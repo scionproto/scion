@@ -224,6 +224,7 @@ func (e *Engine) Status(w io.Writer) {
 				s.PathInfo,
 			}
 			w.Write([]byte(strings.Join(lines, "\n")))
+			w.Write([]byte("\n"))
 		}
 	}
 	for _, ia := range sortedIAs {
