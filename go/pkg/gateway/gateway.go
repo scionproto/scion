@@ -512,8 +512,10 @@ func (g *Gateway) Run() error {
 	gatewaypb.RegisterIPPrefixesServiceServer(
 		discoveryServer,
 		controlgrpc.IPPrefixServer{
-			LocalIA:            localIA,
-			Advertiser:         &ConfigPublisherAdvertiser{ConfigPublisher: configPublisher},
+			LocalIA: localIA,
+			Advertiser: &ConfigPublisherAdvertiser{
+				ConfigPublisher: configPublisher,
+			},
 			PrefixesAdvertised: paMetric,
 		},
 	)
@@ -634,6 +636,9 @@ func (g *Gateway) Run() error {
 	g.HTTPEndpoints["status"] = func(w http.ResponseWriter, _ *http.Request) {
 		engineController.Status(w)
 	}
+	g.HTTPEndpoints["diagnostics/prefixwatcher"] = func(w http.ResponseWriter, _ *http.Request) {
+		remoteMonitor.DiagnosticsWrite(w)
+	}
 	var fwMetrics dataplane.IPForwarderMetrics
 	if g.Metrics != nil {
 		fwMetrics.IPPktBytesLocalRecv = metrics.NewPromCounter(
@@ -644,6 +649,10 @@ func (g *Gateway) Run() error {
 			"reason", "invalid",
 		)
 		fwMetrics.ReceiveLocalErrors = metrics.NewPromCounter(g.Metrics.ReceiveLocalErrorsTotal)
+		fwMetrics.IPPktsNoRoute = metrics.CounterWith(
+			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal),
+			"reason", "no_route",
+		)
 	}
 	forwarder := &dataplane.IPForwarder{
 		Reader:       g.InternalDevice,

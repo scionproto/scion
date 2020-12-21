@@ -45,7 +45,7 @@ func main() {
 	cmd := &cobra.Command{
 		Use:           executable,
 		Short:         "SCION router",
-		Example:       "  " + executable + " --config br.toml",
+		Example:       "  " + executable + " --config router.toml",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		Args:          cobra.NoArgs,
