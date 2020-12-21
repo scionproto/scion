@@ -63,6 +63,8 @@ def build_tester_image():
             packages["libprocps7"],
             packages["lsb-base"],
             packages["psmisc"],
+            # iperf
+            packages["iperf"],
         ],
         tars = [
             ":share",
