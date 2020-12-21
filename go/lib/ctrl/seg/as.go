@@ -90,7 +90,7 @@ func ASEntryFromPB(pb *cppb.ASEntry) (ASEntry, error) {
 		peerEntries = append(peerEntries, peerEntry)
 	}
 
-	extensions := ExtensionsFromPB(entry.Extensions)
+	extensions := extensionsFromPB(entry.Extensions)
 	unsignedExtensions := unsigned_extensions.UnsignedExtensionsFromPB(pb.Unsigned)
 	err = checkUnsignedExtensions(&unsignedExtensions, &extensions)
 	if err != nil {
