@@ -26,7 +26,7 @@ type Extensions struct {
 	Digests    *digest.DigestExtension
 }
 
-func ExtensionsFromPB(pb *cppb.PathSegmentExtensions) Extensions {
+func extensionsFromPB(pb *cppb.PathSegmentExtensions) Extensions {
 	if pb == nil {
 		return Extensions{}
 	}
@@ -43,7 +43,7 @@ func ExtensionsFromPB(pb *cppb.PathSegmentExtensions) Extensions {
 	}
 }
 
-func ExtensionsToPB(ext Extensions) *cppb.PathSegmentExtensions {
+func extensionsToPB(ext Extensions) *cppb.PathSegmentExtensions {
 	var hiddenPath *cppb.HiddenPathExtension
 	if ext.HiddenPath.IsHidden {
 		hiddenPath = &cppb.HiddenPathExtension{IsHidden: true}

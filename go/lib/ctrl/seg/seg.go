@@ -267,7 +267,7 @@ func (ps *PathSegment) AddASEntry(ctx context.Context, asEntry ASEntry, signer S
 			},
 		},
 		PeerEntries: make([]*cppb.PeerEntry, 0, len(asEntry.PeerEntries)),
-		Extensions:  ExtensionsToPB(asEntry.Extensions),
+		Extensions:  extensionsToPB(asEntry.Extensions),
 	}
 	for _, peer := range asEntry.PeerEntries {
 		asEntryPB.PeerEntries = append(asEntryPB.PeerEntries,
