@@ -136,18 +136,6 @@ class Test(base.TestBase):
             "4": "1-ff00:0:4",
             "5": "1-ff00:0:5",
         }
-        self._daemons_api = {
-            "2": "172.20.0.52:30255",
-            "3": "172.20.0.60:30255",
-            "4": "172.20.0.68:30255",
-            "5": "172.20.0.76:30255",
-        }
-        self._dispatcher_ips = {
-            "2": "172.20.0.51",
-            "3": "172.20.0.59",
-            "4": "172.20.0.67",
-            "5": "172.20.0.75",
-        }
         server.shutdown()
 
     def _run(self):
@@ -169,10 +157,8 @@ class Test(base.TestBase):
         self._showpaths_run(destination, source, retcode)
 
     def _showpaths_run(self, source_as: str, destination_as: str, retcode: int):
-        print(cmd.docker("exec", "-t", self._testers[source_as], "./bin/scion",
+        print(cmd.docker("exec", "-t", self._testers[source_as], "scion",
                          "sp", self._ases[destination_as],
-                         "--sciond", self._daemons_api[source_as],
-                         "--local", self._dispatcher_ips[source_as],
                          "--timeout", "2s",
                          retcode=retcode))
 

@@ -163,7 +163,7 @@ class DockerGenerator(object):
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _control_service_conf(self, topo_id, topo, base):
-        for k, v in topo.get("control_service", {}).items():
+        for k in topo.get("control_service", {}).keys():
             entry = {
                 'image': docker_image(self.args, 'control'),
                 'container_name': self.prefix + k,

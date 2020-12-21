@@ -81,6 +81,7 @@ class DockerUtilsGenerator(object):
             'privileged': True,
             'entrypoint': 'sh tester.sh',
             'environment': {},
+            'hostname': name,
             # 'user': self.user,
             'volumes': [
                 'vol_scion_disp_cs%s-1:/run/shm/dispatcher:rw' % topo_id.file_fmt(),
@@ -96,6 +97,10 @@ class DockerUtilsGenerator(object):
         if ipv not in net:
             ipv = 'ipv6'
         entry['networks'][bridge] = {'%s_address' % ipv: str(net[ipv])}
+        disp_net = self.args.networks['cs%s-1' % topo_id.file_fmt()][0]
+        entry['environment']['SCION_LOCAL_ADDR'] = str(disp_net[ipv])
+        sciond_net = self.args.networks['sd%s' % topo_id.file_fmt()][0]
+        entry['environment']['SCION_DAEMON'] = '%s:30255' % sciond_net[ipv]
         if self.args.sig:
             # If the tester container needs to communicate to the SIG, it needs the SIG_IP and
             # REMOTE_NETS which are the remote subnets that need to be routed through the SIG.

@@ -41,15 +41,13 @@ class Test(base.TestBase):
 
     def _refresh_paths(self):
         self.test_state.dc("exec", "-T", "tester_1-ff00_0_110", "ping", "-c", "2",
-                           "172.20.0.39")
+                             "172.20.0.39")
         self.test_state.dc("exec", "-T", "tester_1-ff00_0_111", "ping", "-c", "2",
-                           "172.20.0.23")
-        self.test_state.dc("exec", "-T", "tester_1-ff00_0_110", "./bin/scion", "sp",
-                           "1-ff00:0:111", "--sciond", "172.20.0.21:30255",
-                           "--timeout", "5s", "--refresh", "--local", "172.20.0.20")
-        self.test_state.dc("exec", "-T", "tester_1-ff00_0_111", "./bin/scion", "sp",
-                           "1-ff00:0:110", "--sciond", "172.20.0.37:30255",
-                           "--timeout", "5s", "--refresh", "--local", "172.20.0.36")
+                             "172.20.0.23")
+        self.test_state.dc("exec", "-T", "tester_1-ff00_0_110", "scion", "sp", "1-ff00:0:111",
+                             "--timeout", "5s", "--refresh")
+        self.test_state.dc("exec", "-T", "tester_1-ff00_0_111", "scion", "sp", "1-ff00:0:110",
+                             "--timeout", "5s", "--refresh")
 
     def _set_path_count(self, path_count):
         # Change the gateway config.

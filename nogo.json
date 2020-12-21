@@ -42,7 +42,8 @@
       "/com_github_antlr_antlr4/runtime/Go/antlr/": "",
       "/com_github_uber_jaeger_client_go": "",
       "/com_github_marten_seemann_qtls/": "",
-      "/org_golang_google_protobuf/": ""
+      "/org_golang_google_protobuf/": "",
+      "/com_github_magiconair_properties": ""
     }
   },
   "unsafeptr": {

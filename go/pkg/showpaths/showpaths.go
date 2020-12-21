@@ -131,7 +131,7 @@ func (r Result) Alive() int {
 func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	sdConn, err := sciond.NewService(cfg.SCIOND).Connect(ctx)
 	if err != nil {
-		return nil, serrors.WrapStr("error connecting to SCIOND", err)
+		return nil, serrors.WrapStr("error connecting to SCIOND", err, "addr", cfg.SCIOND)
 	}
 	localIA, err := sdConn.LocalIA(ctx)
 	if err != nil {
