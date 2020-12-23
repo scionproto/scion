@@ -41,11 +41,11 @@ func (c Cmd) Template(src, dst *snet.UDPAddr) (Cmd, error) {
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
 	args = replacePattern(ServerPortReplace, serverPorts[dst.IA], args)
 	if needSCIOND(args) {
-		sciond, err := GetSCIONDAddress(GenFile(SCIONDAddressesFile), src.IA)
+		daemonAddr, err := GetSCIONDAddress(GenFile(DaemonAddressesFile), src.IA)
 		if err != nil {
 			return Cmd{}, serrors.WrapStr("unable to determine SCION Daemon address", err)
 		}
-		args = replacePattern(SCIOND, sciond, args)
+		args = replacePattern(Daemon, daemonAddr, args)
 	}
 	return Cmd{Binary: c.Binary, Args: args}, nil
 }

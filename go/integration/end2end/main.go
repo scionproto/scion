@@ -28,9 +28,9 @@ import (
 	"github.com/scionproto/scion/go/integration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/daemon"
 	libint "github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -103,7 +103,7 @@ func (s server) run() {
 	connFactory := &snet.DefaultPacketDispatcherService{
 		Dispatcher: reliable.NewDispatcher(""),
 		SCMPHandler: snet.DefaultSCMPHandler{
-			RevocationHandler: sciond.RevHandler{Connector: integration.SDConn()},
+			RevocationHandler: daemon.RevHandler{Connector: integration.SDConn()},
 		},
 	}
 	conn, port, err := connFactory.Register(context.Background(), integration.Local.IA,
@@ -158,7 +158,7 @@ func (s server) run() {
 type client struct {
 	conn   snet.PacketConn
 	port   uint16
-	sdConn sciond.Connector
+	sdConn daemon.Connector
 
 	errorPaths map[snet.PathFingerprint]struct{}
 }
@@ -171,7 +171,7 @@ func (c *client) run() int {
 	connFactory := &snet.DefaultPacketDispatcherService{
 		Dispatcher: reliable.NewDispatcher(""),
 		SCMPHandler: snet.DefaultSCMPHandler{
-			RevocationHandler: sciond.RevHandler{Connector: integration.SDConn()},
+			RevocationHandler: daemon.RevHandler{Connector: integration.SDConn()},
 		},
 	}
 
@@ -255,9 +255,8 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	if remote.IA.Equal(integration.Local.IA) {
 		return nil, nil
 	}
-	// Get paths from sciond
 	paths, err := c.sdConn.Paths(ctx, remote.IA, integration.Local.IA,
-		sciond.PathReqFlags{Refresh: n != 0})
+		daemon.PathReqFlags{Refresh: n != 0})
 	if err != nil {
 		return nil, serrors.WrapStr("Error requesting paths", err)
 	}
@@ -278,7 +277,7 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 		return nil, serrors.New("no path found",
 			"candidates", len(paths), "errors", len(c.errorPaths))
 	}
-	// Extract forwarding path from sciond response
+	// Extract forwarding path from the SCION Daemon response
 	remote.Path = path.Path()
 	remote.NextHop = path.UnderlayNextHop()
 	return path, nil

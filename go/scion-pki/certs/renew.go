@@ -35,9 +35,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -77,7 +77,7 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
 		trcFilePath       string
 
 		dispatcherPath string
-		sciondAddr     string
+		daemon         string
 		listen         net.IP
 		timeout        time.Duration
 
@@ -197,7 +197,7 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 			// Step 2. create messenger.
 			ctx, cancel := context.WithTimeout(context.Background(), flags.timeout)
 			defer cancel()
-			sds := sciond.NewService(flags.sciondAddr)
+			sds := daemon.NewService(flags.daemon)
 
 			local, err := findLocalAddr(ctx, sds)
 			if err != nil {
@@ -266,7 +266,7 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 	cmd.MarkFlagRequired("trc")
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", 5*time.Second,
 		"Timeout for command")
-	cmd.Flags().StringVar(&flags.sciondAddr, "sciond", sciond.DefaultAPIAddress,
+	cmd.Flags().StringVar(&flags.daemon, "sciond", daemon.DefaultAPIAddress,
 		"SCION Daemon address")
 	cmd.Flags().StringVar(&flags.dispatcherPath, "dispatcher", reliable.DefaultDispPath,
 		"Dispatcher socket path")
@@ -409,7 +409,7 @@ func csrTemplate(chain []*x509.Certificate, tmpl string) (*x509.CertificateReque
 	}, nil
 }
 
-func buildDialer(ctx context.Context, ds reliable.Dispatcher, sds sciond.Service,
+func buildDialer(ctx context.Context, ds reliable.Dispatcher, sds daemon.Service,
 	local, remote *snet.UDPAddr) (grpc.Dialer, error) {
 
 	sdConn, err := sds.Connect(ctx)
@@ -422,7 +422,7 @@ func buildDialer(ctx context.Context, ds reliable.Dispatcher, sds sciond.Service
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher: ds,
 			SCMPHandler: snet.DefaultSCMPHandler{
-				RevocationHandler: sciond.RevHandler{Connector: sdConn},
+				RevocationHandler: daemon.RevHandler{Connector: sdConn},
 			},
 		},
 	}
@@ -434,7 +434,7 @@ func buildDialer(ctx context.Context, ds reliable.Dispatcher, sds sciond.Service
 	dialer := &grpc.QUICDialer{
 		Rewriter: &messenger.AddressRewriter{
 			Router: &snet.BaseRouter{
-				Querier: sciond.Querier{Connector: sdConn, IA: local.IA},
+				Querier: daemon.Querier{Connector: sdConn, IA: local.IA},
 			},
 			SVCRouter: svcRouter{Connector: sdConn},
 			Resolver: &svc.Resolver{
@@ -498,7 +498,7 @@ func writeChain(chain []*x509.Certificate, file string) error {
 	return f.Close()
 }
 
-func findLocalAddr(ctx context.Context, sds sciond.Service) (*snet.UDPAddr, error) {
+func findLocalAddr(ctx context.Context, sds daemon.Service) (*snet.UDPAddr, error) {
 	sdConn, err := sds.Connect(ctx)
 	if err != nil {
 		return nil, err
@@ -527,10 +527,10 @@ func outFileFromSubject(renewed []*x509.Certificate, dir string) string {
 }
 
 type svcRouter struct {
-	Connector sciond.Connector
+	Connector daemon.Connector
 }
 
 func (r svcRouter) GetUnderlay(svc addr.HostSVC) (*net.UDPAddr, error) {
 	// XXX(karampok). We need to change the interface to not use TODO context.
-	return sciond.TopoQuerier{Connector: r.Connector}.UnderlayAnycast(context.TODO(), svc)
+	return daemon.TopoQuerier{Connector: r.Connector}.UnderlayAnycast(context.TODO(), svc)
 }

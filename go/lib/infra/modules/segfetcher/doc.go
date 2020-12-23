@@ -14,5 +14,5 @@
 
 // Package segfetcher contains all the logic that is needed to fetch segments,
 // verify and store segments in an efficient manner. It is designed to be
-// pluggable into sciond and PS.
+// pluggable into the daemon and control service.
 package segfetcher

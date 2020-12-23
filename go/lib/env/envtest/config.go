@@ -22,12 +22,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/uber/jaeger-client-go"
 
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 func InitTest(general *env.General, metrics *env.Metrics,
-	tracing *env.Tracing, sciond *env.SCIONDClient) {
+	tracing *env.Tracing, d *env.Daemon) {
 
 	if general != nil {
 		InitTestGeneral(general)
@@ -38,8 +38,8 @@ func InitTest(general *env.General, metrics *env.Metrics,
 	if tracing != nil {
 		InitTestTracing(tracing)
 	}
-	if sciond != nil {
-		InitTestSCIOND(sciond)
+	if d != nil {
+		InitTestSCIOND(d)
 	}
 }
 
@@ -54,12 +54,12 @@ func InitTestTracing(cfg *env.Tracing) {
 	cfg.Debug = true
 }
 
-func InitTestSCIOND(cfg *env.SCIONDClient) {
+func InitTestSCIOND(cfg *env.Daemon) {
 	cfg.Address = "garbage"
 }
 
 func CheckTest(t *testing.T, general *env.General, metrics *env.Metrics,
-	tracing *env.Tracing, sciond *env.SCIONDClient, id string) {
+	tracing *env.Tracing, d *env.Daemon, id string) {
 
 	if general != nil {
 		CheckTestGeneral(t, general, id)
@@ -70,8 +70,8 @@ func CheckTest(t *testing.T, general *env.General, metrics *env.Metrics,
 	if tracing != nil {
 		CheckTestTracing(t, tracing)
 	}
-	if sciond != nil {
-		CheckTestSciond(t, sciond, id)
+	if d != nil {
+		CheckTestSciond(t, d, id)
 	}
 }
 
@@ -96,7 +96,7 @@ func CheckTestTracing(t *testing.T, cfg *env.Tracing) {
 	)
 }
 
-func CheckTestSciond(t *testing.T, cfg *env.SCIONDClient, id string) {
-	assert.Equal(t, sciond.DefaultAPIAddress, cfg.Address)
+func CheckTestSciond(t *testing.T, cfg *env.Daemon, id string) {
+	assert.Equal(t, daemon.DefaultAPIAddress, cfg.Address)
 	assert.Equal(t, env.SciondInitConnectPeriod, cfg.InitialConnectPeriod.Duration)
 }

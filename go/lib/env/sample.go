@@ -29,11 +29,11 @@ const featuresSample = `
 # Feature flags are various boolean properties as defined in go/lib/env/features.go
 `
 
-const sciondClientSample = `
+const daemonSample = `
 # Address of the SCIOND server the client should connect to. (default 127.0.0.1:30255)
 address = "127.0.0.1:30255"
 
-# Maximum time spent attempting to connect to sciond on start. (default 20s)
+# Maximum time spent attempting to connect to SCION Daemon on start. (default 20s)
 initial_connect_period = "20s"
 `
 

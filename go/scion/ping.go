@@ -25,7 +25,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
@@ -47,7 +47,7 @@ func newPing(pather CommandPather) *cobra.Command {
 		maxMTU      bool
 		noColor     bool
 		refresh     bool
-		sciond      string
+		daemon      string
 		sequence    string
 		size        uint
 		timeout     time.Duration
@@ -92,7 +92,7 @@ On other errors, ping will exit with code 2.
 
 			ctx, cancelF := context.WithTimeout(traceCtx, time.Second)
 			defer cancelF()
-			sd, err := sciond.NewService(flags.sciond).Connect(ctx)
+			sd, err := daemon.NewService(flags.daemon).Connect(ctx)
 			if err != nil {
 				return serrors.WrapStr("connecting to SCION Daemon", err)
 			}
@@ -190,7 +190,7 @@ On other errors, ping will exit with code 2.
 	cmd.Flags().BoolVar(&flags.noColor, "no-color", false, "disable colored output")
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", time.Second, "timeout per packet")
 	cmd.Flags().IPVar(&flags.local, "local", nil, "IP address to listen on")
-	cmd.Flags().StringVar(&flags.sciond, "sciond", sciond.DefaultAPIAddress, "SCION Daemon address")
+	cmd.Flags().StringVar(&flags.daemon, "sciond", daemon.DefaultAPIAddress, "SCION Daemon address")
 	cmd.Flags().StringVar(&flags.sequence, "sequence", "", app.SequenceUsage)
 	cmd.Flags().StringVar(&flags.dispatcher, "dispatcher", reliable.DefaultDispPath,
 		"dispatcher socket")

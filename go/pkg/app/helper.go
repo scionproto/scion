@@ -26,9 +26,9 @@ import (
 	"github.com/fatih/color"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathpol"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -39,8 +39,8 @@ type ASInfo struct {
 	MTU uint16
 }
 
-// QueryASInfo queries information about the local AS from SCIOND.
-func QueryASInfo(ctx context.Context, conn sciond.Connector) (ASInfo, error) {
+// QueryASInfo queries information about the local AS from the SCION Daemon.
+func QueryASInfo(ctx context.Context, conn daemon.Connector) (ASInfo, error) {
 	asInfo, err := conn.ASInfo(ctx, addr.IA{})
 	if err != nil {
 		return ASInfo{}, err
@@ -61,10 +61,10 @@ func Filter(seq string, paths []snet.Path) ([]snet.Path, error) {
 }
 
 // ChoosePath selects a path to the remote.
-func ChoosePath(ctx context.Context, conn sciond.Connector, remote addr.IA,
+func ChoosePath(ctx context.Context, conn daemon.Connector, remote addr.IA,
 	interactive, refresh bool, seq string, opts ...ColorOption) (snet.Path, error) {
 
-	allPaths, err := conn.Paths(ctx, remote, addr.IA{}, sciond.PathReqFlags{Refresh: refresh})
+	allPaths, err := conn.Paths(ctx, remote, addr.IA{}, daemon.PathReqFlags{Refresh: refresh})
 	if err != nil {
 		return nil, serrors.WrapStr("retrieving paths", err)
 	}

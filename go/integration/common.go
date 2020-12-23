@@ -27,11 +27,11 @@ import (
 	"github.com/uber/jaeger-client-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/integration/progress"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/pkg/app/feature"
@@ -47,7 +47,7 @@ var (
 	Local      snet.UDPAddr
 	Mode       string
 	Progress   string
-	sciondAddr string
+	daemonAddr string
 	Attempts   int
 	logConsole string
 	features   string
@@ -62,7 +62,7 @@ func addFlags() {
 	flag.Var((*snet.UDPAddr)(&Local), "local", "(Mandatory) address to listen on")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	flag.StringVar(&Progress, "progress", "", "Socket to write progress to")
-	flag.StringVar(&sciondAddr, "sciond", sciond.DefaultAPIAddress, "SCION Daemon address")
+	flag.StringVar(&daemonAddr, "sciond", daemon.DefaultAPIAddress, "SCION Daemon address")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
 	flag.StringVar(&logConsole, "log.console", "info", "Console logging level: debug|info|error")
 	flag.StringVar(&features, "features", "",
@@ -116,7 +116,7 @@ func validateFlags() {
 
 func InitNetwork() *snet.SCIONNetwork {
 	ds := reliable.NewDispatcher("")
-	sciondConn, err := sciond.NewService(sciondAddr).Connect(context.Background())
+	daemonConn, err := daemon.NewService(daemonAddr).Connect(context.Background())
 	if err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
@@ -125,7 +125,7 @@ func InitNetwork() *snet.SCIONNetwork {
 		Dispatcher: &snet.DefaultPacketDispatcherService{
 			Dispatcher: ds,
 			SCMPHandler: snet.DefaultSCMPHandler{
-				RevocationHandler: sciond.RevHandler{Connector: sciondConn},
+				RevocationHandler: daemon.RevHandler{Connector: daemonConn},
 			},
 		},
 	}
@@ -133,12 +133,12 @@ func InitNetwork() *snet.SCIONNetwork {
 	return n
 }
 
-func SDConn() sciond.Connector {
+func SDConn() daemon.Connector {
 	ctx, cancelF := context.WithTimeout(context.Background(), DefaultIOTimeout)
 	defer cancelF()
-	conn, err := sciond.NewService(sciondAddr).Connect(ctx)
+	conn, err := daemon.NewService(daemonAddr).Connect(ctx)
 	if err != nil {
-		LogFatal("Unable to initialize sciond connection", "err", err)
+		LogFatal("Unable to initialize SCION Daemon connection", "err", err)
 	}
 	return conn
 }

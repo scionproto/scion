@@ -11,12 +11,12 @@ pkg_tar(
     name = "scion",
     srcs = [
         "//go/cs",
+        "//go/daemon",
         "//go/dispatcher",
         "//go/posix-gateway",
         "//go/posix-router",
         "//go/scion",
         "//go/scion-pki",
-        "//go/sciond",
         "//go/tools/pathdb_dump",
     ],
     mode = "0755",

@@ -27,8 +27,8 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/spf13/cobra"
 
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
@@ -78,7 +78,7 @@ func main() {
 		),
 		command.NewVersion(cmd),
 	)
-	cmd.Flags().StringVar(&cfg.daemon, "daemon", sciond.DefaultAPIAddress,
+	cmd.Flags().StringVar(&cfg.daemon, "daemon", daemon.DefaultAPIAddress,
 		"The SCION daemon address.")
 	cmd.Flags().StringVar(&cfg.sequence, "sequence", "", app.SequenceUsage)
 	cmd.Flags().BoolVarP(&cfg.interactive, "interactive", "i", false, "interactive mode")
@@ -117,7 +117,7 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 	scionLayer := parseSCION(&layersCfg)
 
 	ctx := app.WithSignal(context.Background(), os.Kill)
-	sdConn, err := sciond.NewService(cfg.daemon).Connect(ctx)
+	sdConn, err := daemon.NewService(cfg.daemon).Connect(ctx)
 	if err != nil {
 		return serrors.WrapStr("connecting to SCION daemon", err)
 	}

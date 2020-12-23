@@ -28,11 +28,11 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
@@ -213,7 +213,7 @@ type Gateway struct {
 	Dispatcher reliable.Dispatcher
 
 	// Daemon is the API of the SCION Daemon.
-	Daemon sciond.Connector
+	Daemon daemon.Connector
 
 	// InternalDevice is the tunnel interface from which packets are read.
 	InternalDevice io.ReadWriteCloser
@@ -265,8 +265,8 @@ func (g *Gateway) Run() error {
 	log.SafeDebug(g.Logger, "Path monitor connection opened on Raw UDP/SCION",
 		"local_ip", g.PathMonitorIP, "local_port", pathMonitorPort)
 
-	pathRouter := &snet.BaseRouter{Querier: sciond.Querier{Connector: g.Daemon, IA: localIA}}
-	revocationHandler := sciond.RevHandler{Connector: g.Daemon}
+	pathRouter := &snet.BaseRouter{Querier: daemon.Querier{Connector: g.Daemon, IA: localIA}}
+	revocationHandler := daemon.RevHandler{Connector: g.Daemon}
 
 	var pathsMonitored, sessionPathsAvailable metrics.Gauge
 	if g.Metrics != nil {

@@ -29,11 +29,11 @@ import (
 	"github.com/vishvananda/netlink"
 
 	libconfig "github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -104,7 +104,7 @@ func run(file string) error {
 		log.Debug("Network capabilities dropped (dropped CAP_NET_ADMIN)")
 	}
 
-	daemonService := &sciond.Service{
+	daemonService := &daemon.Service{
 		Address: cfg.Daemon.Address,
 	}
 	daemon, err := daemonService.Connect(context.TODO())

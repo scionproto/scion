@@ -27,7 +27,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
@@ -129,9 +129,9 @@ func (r Result) Alive() int {
 
 // Run lists the paths to the specified ISD-AS to stdout.
 func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
-	sdConn, err := sciond.NewService(cfg.SCIOND).Connect(ctx)
+	sdConn, err := daemon.NewService(cfg.Daemon).Connect(ctx)
 	if err != nil {
-		return nil, serrors.WrapStr("error connecting to SCIOND", err, "addr", cfg.SCIOND)
+		return nil, serrors.WrapStr("error connecting to the SCION Daemon", err, "addr", cfg.Daemon)
 	}
 	localIA, err := sdConn.LocalIA(ctx)
 	if err != nil {
@@ -142,9 +142,9 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	// possibility to have the same functionality, i.e. refresh, fetch all paths.
 	// https://github.com/scionproto/scion/issues/3348
 	allPaths, err := sdConn.Paths(ctx, dst, addr.IA{},
-		sciond.PathReqFlags{Refresh: cfg.Refresh})
+		daemon.PathReqFlags{Refresh: cfg.Refresh})
 	if err != nil {
-		return nil, serrors.WrapStr("failed to retrieve paths from SCIOND", err)
+		return nil, serrors.WrapStr("failed to retrieve paths from the SCION Daemon", err)
 	}
 	paths, err := app.Filter(cfg.Sequence, allPaths)
 	if err != nil {

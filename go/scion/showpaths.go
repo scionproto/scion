@@ -26,7 +26,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/app"
@@ -92,7 +92,7 @@ On other errors, showpaths will exit with code 2.
 			}
 			defer closer()
 
-			flags.cfg.SCIOND = v.GetString("sciond")
+			flags.cfg.Daemon = v.GetString("sciond")
 			flags.cfg.Local = net.ParseIP(v.GetString("local"))
 
 			cmd.SilenceUsage = true
@@ -122,8 +122,8 @@ On other errors, showpaths will exit with code 2.
 		},
 	}
 
-	cmd.Flags().StringVar(&flags.cfg.SCIOND, "sciond",
-		sciond.DefaultAPIAddress, "SCION Deamon address")
+	cmd.Flags().StringVar(&flags.cfg.Daemon, "sciond",
+		daemon.DefaultAPIAddress, "SCION Deamon address")
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", 5*time.Second, "Timeout")
 	cmd.Flags().StringVar(&flags.cfg.Sequence, "sequence", "", app.SequenceUsage)
 	cmd.Flags().IntVarP(&flags.cfg.MaxPaths, "maxpaths", "m", 10,

@@ -33,10 +33,10 @@ import (
 	"github.com/lucas-clemente/quic-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
@@ -295,7 +295,7 @@ func (nc *NetworkConfig) initQUICSockets() (net.PacketConn, net.PacketConn, erro
 }
 
 // NewRouter constructs a path router for paths starting from localIA.
-func NewRouter(localIA addr.IA, sd env.SCIONDClient) (snet.Router, error) {
+func NewRouter(localIA addr.IA, sd env.Daemon) (snet.Router, error) {
 	ticker := time.NewTicker(time.Second)
 	timer := time.NewTimer(sd.InitialConnectPeriod.Duration)
 	ctx, cancelF := context.WithTimeout(context.Background(), sd.InitialConnectPeriod.Duration)
@@ -307,11 +307,11 @@ func NewRouter(localIA addr.IA, sd env.SCIONDClient) (snet.Router, error) {
 	// done transparently and pushed to snet.NewNetwork.
 	var router snet.Router
 	for {
-		sciondConn, err := sciond.NewService(sd.Address).Connect(ctx)
+		daemonConn, err := daemon.NewService(sd.Address).Connect(ctx)
 		if err == nil {
 			router = &snet.BaseRouter{
-				Querier: sciond.Querier{
-					Connector: sciondConn,
+				Querier: daemon.Querier{
+					Connector: daemonConn,
 					IA:        localIA,
 				},
 			}
@@ -320,7 +320,7 @@ func NewRouter(localIA addr.IA, sd env.SCIONDClient) (snet.Router, error) {
 		select {
 		case <-ticker.C:
 		case <-timer.C:
-			return nil, serrors.WrapStr("Timed out during initial sciond connect", err)
+			return nil, serrors.WrapStr("Timed out during initial daemon connect", err)
 		}
 	}
 	return router, nil

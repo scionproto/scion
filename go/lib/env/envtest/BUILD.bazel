@@ -6,8 +6,8 @@ go_library(
     importpath = "github.com/scionproto/scion/go/lib/env/envtest",
     visibility = ["//visibility:public"],
     deps = [
+        "//go/lib/daemon:go_default_library",
         "//go/lib/env:go_default_library",
-        "//go/lib/sciond:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_uber_jaeger_client_go//:go_default_library",
     ],

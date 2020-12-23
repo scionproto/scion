@@ -71,13 +71,13 @@ func realMain() int {
 		"-log.console", "debug",
 		"-attempts", strconv.Itoa(attempts),
 		"-timeout", timeout.String(),
-		"-sciond", integration.SCIOND,
+		"-sciond", integration.Daemon,
 		"-local", integration.SrcAddrPattern + ":0",
 		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
 	}
 	serverArgs := []string{
 		"-mode", "server",
-		"-sciond", integration.SCIOND,
+		"-sciond", integration.Daemon,
 		"-local", integration.DstAddrPattern + ":0",
 	}
 	if len(features) != 0 {
@@ -242,7 +242,7 @@ func clientTemplate(progressSock string) integration.Cmd {
 			"-log.console", "debug",
 			"-attempts", strconv.Itoa(attempts),
 			"-timeout", timeout.String(),
-			"-sciond", integration.SCIOND,
+			"-sciond", integration.Daemon,
 			"-local", integration.SrcAddrPattern + ":0",
 			"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
 		},
