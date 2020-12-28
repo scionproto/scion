@@ -41,7 +41,10 @@ def build_tester_image():
     container_image(
         name = "tester",
         base = "@debian10//image",
-        env = {"TZ": "UTC"},
+        env = {
+            "TZ": "UTC",
+            "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/share/bin",
+        },
         debs = [
             # iptables and its dependencies (only not already present)
             packages["gcc-8-base"],
@@ -63,6 +66,8 @@ def build_tester_image():
             packages["libprocps7"],
             packages["lsb-base"],
             packages["psmisc"],
+            # iperf
+            packages["iperf"],
         ],
         tars = [
             ":share",

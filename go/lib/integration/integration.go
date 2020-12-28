@@ -31,8 +31,8 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
@@ -47,9 +47,9 @@ const (
 	CtxTimeout = 2 * time.Second
 	// RetryTimeout is the timeout between different attempts
 	RetryTimeout = time.Second / 2
-	// SCIONDAddressesFile is the default file for SCIOND addresses in a topology created
+	// DaemonAddressesFile is the default file for SCIOND addresses in a topology created
 	// with the topology generator.
-	SCIONDAddressesFile = "sciond_addresses.json"
+	DaemonAddressesFile = "sciond_addresses.json"
 )
 
 var (
@@ -434,5 +434,5 @@ func GetSCIONDAddress(networksFile string, ia addr.IA) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("[%v]:%d", addresses[ia.String()], sciond.DefaultAPIPort), nil
+	return fmt.Sprintf("[%v]:%d", addresses[ia.String()], daemon.DefaultAPIPort), nil
 }

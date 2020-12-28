@@ -30,3 +30,4 @@ rm -rf $DSTDIR/com_github_prometheus_procfs/scripts
 rm -rf $DSTDIR/org_uber_go_zap/checklicense.sh
 rm -rf $DSTDIR/com_github_hashicorp_consul_api/operator_license.go
 rm -rf $DSTDIR/com_github_opencontainers_image_spec/.tool
+rm -rf $DSTDIR/com_github_google_jsonnet/test_suite/*.jsonnet*

@@ -52,7 +52,7 @@ func realMain() int {
 
 	cmnArgs := []string{
 		"--timeout", "4s",
-		"--sciond", integration.SCIOND,
+		"--sciond", integration.Daemon,
 		"--log.level", "debug",
 	}
 	if *integration.Docker {

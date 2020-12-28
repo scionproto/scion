@@ -91,7 +91,7 @@ class SupervisorGenerator(object):
 
     def _sciond_entry(self, topo_id, conf_dir):
         sd_name = "sd%s" % topo_id.file_fmt()
-        cmd_args = ["bin/sciond", "--config", os.path.join(conf_dir, SD_CONFIG_NAME)]
+        cmd_args = ["bin/daemon", "--config", os.path.join(conf_dir, SD_CONFIG_NAME)]
         return (sd_name, self._common_entry(sd_name, cmd_args))
 
     def _add_dispatcher(self, config):

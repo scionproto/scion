@@ -58,12 +58,12 @@ scion_app_images(
 
 scion_app_images(
     name = "daemon",
-    src = "//go/sciond",
+    src = "//go/daemon",
     cmd = [
         "--config",
         "/share/conf/sd.toml",
     ],
-    entrypoint = ["/app/sciond"],
+    entrypoint = ["/app/daemon"],
 )
 
 scion_app_images(

@@ -1,0 +1,47 @@
+load("@io_bazel_rules_docker//container:container.bzl", "container_image")
+load("@io_bazel_rules_go//go:def.bzl", "go_test")
+
+go_test(
+    name = "go_default_test",
+    srcs = ["reload_test.go"],
+    data = [
+        "testdata/topology_reload.json",
+        ":daemon.tar",
+        ":dispatcher.tar",
+        ":docker-compose.yml",
+        "//acceptance/topo_common:invalid_reloads",
+        "//acceptance/topo_common:topology",
+    ],
+    deps = [
+        "//go/lib/topology:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)
+
+container_image(
+    name = "dispatcher",
+    base = "//docker:dispatcher",
+    cmd = [
+        "--config",
+        "/disp.toml",
+    ],
+    entrypoint = ["/app/dispatcher"],
+    files = ["testdata/disp.toml"],
+)
+
+container_image(
+    name = "daemon",
+    base = "//docker:daemon",
+    cmd = [
+        "--config",
+        "/sd.toml",
+    ],
+    entrypoint = ["/app/daemon"],
+    files = [
+        "testdata/sd.toml",
+        "testdata/topology_reload.json",
+        "//acceptance/topo_common:invalid_reloads",
+        "//acceptance/topo_common:topology",
+    ],
+)

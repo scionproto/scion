@@ -34,8 +34,8 @@ import (
 )
 
 const (
-	// SCIOND is a placeholder for the SCIOND server in the arguments.
-	SCIOND = "<SCIOND>"
+	// Daemon is a placeholder for the Daemon server in the arguments.
+	Daemon = "<SCIOND>"
 	// ServerPortReplace is a placeholder for the server port in the arguments.
 	ServerPortReplace = "<ServerPort>"
 	// SrcIAReplace is a placeholder for the source IA in the arguments.
@@ -113,11 +113,11 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst *snet.UDPAddr)
 	args := replacePattern(DstIAReplace, dst.IA.String(), bi.serverArgs)
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
 	if needSCIOND(args) {
-		sciond, err := GetSCIONDAddress(GenFile(SCIONDAddressesFile), dst.IA)
+		daemonAddr, err := GetSCIONDAddress(GenFile(DaemonAddressesFile), dst.IA)
 		if err != nil {
 			return nil, serrors.WrapStr("unable to determine SCION Daemon address", err)
 		}
-		args = replacePattern(SCIOND, sciond, args)
+		args = replacePattern(Daemon, daemonAddr, args)
 	}
 	r := exec.CommandContext(ctx, bi.cmd, args...)
 	log.Info(fmt.Sprintf("%v %v\n", bi.cmd, strings.Join(args, " ")))
@@ -182,11 +182,11 @@ func (bi *binaryIntegration) StartClient(ctx context.Context,
 	args = replacePattern(DstHostReplace, dst.Host.IP.String(), args)
 	args = replacePattern(ServerPortReplace, serverPorts[dst.IA], args)
 	if needSCIOND(args) {
-		sciond, err := GetSCIONDAddress(GenFile(SCIONDAddressesFile), src.IA)
+		daemonAddr, err := GetSCIONDAddress(GenFile(DaemonAddressesFile), src.IA)
 		if err != nil {
 			return nil, serrors.WrapStr("unable to determine SCION Daemon address", err)
 		}
-		args = replacePattern(SCIOND, sciond, args)
+		args = replacePattern(Daemon, daemonAddr, args)
 	}
 	r := &BinaryWaiter{
 		cmd:         exec.CommandContext(ctx, bi.cmd, args...),
@@ -254,7 +254,7 @@ func (bi *binaryIntegration) writeLog(name, id, startInfo string, ep io.Reader) 
 
 func needSCIOND(args []string) bool {
 	for _, arg := range args {
-		if strings.Contains(arg, SCIOND) {
+		if strings.Contains(arg, Daemon) {
 			return true
 		}
 	}
