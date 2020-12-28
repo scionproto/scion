@@ -57,7 +57,7 @@ func TestTracingSample(t *testing.T) {
 
 func TestSCIONDClientSample(t *testing.T) {
 	var sample bytes.Buffer
-	var cfg env.SCIONDClient
+	var cfg env.Daemon
 	cfg.Sample(&sample, nil, nil)
 	InitTestSCIOND(&cfg)
 	err := toml.NewDecoder(bytes.NewReader(sample.Bytes())).Strict(true).Decode(&cfg)

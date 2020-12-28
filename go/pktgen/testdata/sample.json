@@ -1,0 +1,19 @@
+{
+    "ethernet": {
+        "SrcMAC": "f0:0d:ca:fe:be:ef",
+        "DstMAC": "f0:0d:ca:fe:00:13",
+        "EthernetType": 2048
+    },
+    "ipv4": {
+        "SrcIP": "10.0.0.40",
+        "DstIP": "10.0.0.45"
+    },
+    "udp": {
+        "SrcPort": 4000,
+        "DstPort": 5000
+    },
+    "scion": {
+        "TrafficClass": 184,
+        "FlowID": 2002
+    }
+}

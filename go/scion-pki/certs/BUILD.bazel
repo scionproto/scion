@@ -11,9 +11,9 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
+        "//go/lib/daemon:go_default_library",
         "//go/lib/infra/messenger:go_default_library",
         "//go/lib/log:go_default_library",
-        "//go/lib/sciond:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
         "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/serrors:go_default_library",

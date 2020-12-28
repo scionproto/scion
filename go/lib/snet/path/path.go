@@ -14,7 +14,7 @@
 
 // Package path implements snet.Path with full metadata
 // This is used by libraries that provide paths for applications to use, such
-// as the path combinator and the sciond API. Applications using snet will not
+// as the path combinator and the SCION Daemon API. Applications using snet will not
 // usually make use of this package directly.
 //
 // TODO(matzf): perhaps moving empty path and partial path here too could be a nice cleanup.

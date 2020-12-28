@@ -27,7 +27,7 @@ type Config struct {
 	Features env.Features          `toml:"features,omitempty"`
 	Logging  log.Config            `toml:"log,omitempty"`
 	Metrics  env.Metrics           `toml:"metrics,omitempty"`
-	Daemon   env.SCIONDClient      `toml:"sciond_connection,omitempty"`
+	Daemon   env.Daemon            `toml:"sciond_connection,omitempty"`
 	Gateway  gatewayconfig.Gateway `toml:"gateway,omitempty"`
 	Tunnel   gatewayconfig.Tunnel  `toml:"tunnel,omitempty"`
 }

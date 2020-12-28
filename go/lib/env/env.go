@@ -35,10 +35,10 @@ import (
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 
 	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -54,7 +54,7 @@ const (
 	StaticInfoConfigFile = "staticInfoConfig.json"
 
 	// SciondInitConnectPeriod is the default total amount of time spent
-	// attempting to connect to sciond on start.
+	// attempting to connect to the daemon on start.
 	SciondInitConnectPeriod = 20 * time.Second
 
 	// ShutdownGraceInterval is the time applications wait after issuing a
@@ -126,42 +126,42 @@ func (cfg *General) StaticInfoConfig() string {
 	return filepath.Join(cfg.ConfigDir, StaticInfoConfigFile)
 }
 
-var _ config.Config = (*SCIONDClient)(nil)
+var _ config.Config = (*Daemon)(nil)
 
-// SCIONDClient contains information for running snet with sciond.
-type SCIONDClient struct {
-	// Address of the SCIOND server the client should connect to. Defaults to
+// Daemon contains information for running snet with the SCION Daemon.
+type Daemon struct {
+	// Address of the SCION Daemon the client should connect to. Defaults to
 	// 127.0.0.1:30255.
 	Address string `toml:"address,omitempty"`
 	// InitialConnectPeriod is the maximum amount of time spent attempting to
-	// connect to sciond on start.
+	// connect to the daemon on start.
 	InitialConnectPeriod util.DurWrap `toml:"initial_connect_period,omitempty"`
-	// FakeData can be used to replace the local SCIOND with a fake data source.
-	// It must point to a fake SCIOND configuration file.
+	// FakeData can be used to replace the local daemon with a fake data source.
+	// It must point to a fake daemon configuration file.
 	FakeData string `toml:"fake_data,omitempty"`
 }
 
-func (cfg *SCIONDClient) InitDefaults() {
+func (cfg *Daemon) InitDefaults() {
 	if cfg.Address == "" {
-		cfg.Address = sciond.DefaultAPIAddress
+		cfg.Address = daemon.DefaultAPIAddress
 	}
 	if cfg.InitialConnectPeriod.Duration == 0 {
 		cfg.InitialConnectPeriod.Duration = SciondInitConnectPeriod
 	}
 }
 
-func (cfg *SCIONDClient) Validate() error {
+func (cfg *Daemon) Validate() error {
 	if cfg.InitialConnectPeriod.Duration == 0 {
 		return serrors.New("InitialConnectPeriod must not be zero")
 	}
 	return nil
 }
 
-func (cfg *SCIONDClient) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
-	config.WriteString(dst, sciondClientSample)
+func (cfg *Daemon) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
+	config.WriteString(dst, daemonSample)
 }
 
-func (cfg *SCIONDClient) ConfigName() string {
+func (cfg *Daemon) ConfigName() string {
 	return "sciond_connection"
 }
 

@@ -17,13 +17,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/app"
@@ -40,6 +43,10 @@ func newShowpaths(pather CommandPather) *cobra.Command {
 		noColor    bool
 		tracer     string
 	}
+
+	v := viper.NewWithOptions(
+		viper.EnvKeyReplacer(strings.NewReplacer("SCIOND", "DAEMON", "LOCAL", "LOCAL_ADDR")),
+	)
 
 	var cmd = &cobra.Command{
 		Use:     "showpaths",
@@ -67,6 +74,11 @@ On other errors, showpaths will exit with code 2.
 
 %s`, app.SequenceHelp),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			v.SetEnvPrefix("scion")
+			if err := v.BindPFlags(cmd.Flags()); err != nil {
+				return serrors.WrapStr("binding flags", err)
+			}
+			v.AutomaticEnv()
 			dst, err := addr.IAFromString(args[0])
 			if err != nil {
 				return serrors.WrapStr("invalid destination ISD-AS", err)
@@ -79,6 +91,9 @@ On other errors, showpaths will exit with code 2.
 				return serrors.WrapStr("setting up tracing", err)
 			}
 			defer closer()
+
+			flags.cfg.Daemon = v.GetString("sciond")
+			flags.cfg.Local = net.ParseIP(v.GetString("local"))
 
 			cmd.SilenceUsage = true
 
@@ -107,8 +122,8 @@ On other errors, showpaths will exit with code 2.
 		},
 	}
 
-	cmd.Flags().StringVar(&flags.cfg.SCIOND, "sciond",
-		sciond.DefaultAPIAddress, "SCION Deamon address")
+	cmd.Flags().StringVar(&flags.cfg.Daemon, "sciond",
+		daemon.DefaultAPIAddress, "SCION Deamon address")
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", 5*time.Second, "Timeout")
 	cmd.Flags().StringVar(&flags.cfg.Sequence, "sequence", "", app.SequenceUsage)
 	cmd.Flags().IntVarP(&flags.cfg.MaxPaths, "maxpaths", "m", 10,
