@@ -118,8 +118,6 @@ class TestBase(cli.Application):
 
     def teardown(self):
         self._unpack_topo()
-        # Flush the logs.
-        print(self.test_state.dc('stop'))
         self.test_state.dc.collect_logs(out_dir=self.test_state.artifacts / 'logs')
         print(self.test_state.dc('down', '-v'))
 
