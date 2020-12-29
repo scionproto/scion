@@ -64,10 +64,14 @@ gen_bazel_test_steps() {
         fi
 
         if [ -n "${SINGLE_TEST}" ]; then
-          if [ "${SINGLE_TEST}" != "${name}" ]; then
+          if [[ ! "${name}" =~ "${SINGLE_TEST}" ]]; then
             skip="true"
           fi
           cache="--nocache_test_results"
+        fi
+
+        if [ "$parallel" != "1" ]; then
+            cache="--nocache_test_results"
         fi
 
         n=${name/test_/}

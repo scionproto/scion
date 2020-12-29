@@ -38,7 +38,7 @@ class Test(base.TestBase):
         if not self.nested_command:
             try:
                 self.setup()
-                time.sleep(30)
+                time.sleep(20)
                 self._run()
             finally:
                 self.teardown()
