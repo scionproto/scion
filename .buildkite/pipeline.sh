@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Following values are useful when debugging the CI.
+# Modify this value to run only a single test in the CI.
+export SINGLE_TEST=
+# Modify this value to run each step multiple times.
+export PARALLELISM=1
+
 set -eou pipefail
 
 # Following values are useful when debugging the CI.

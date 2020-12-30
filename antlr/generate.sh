@@ -12,9 +12,9 @@ function generate {
     PACKAGE=$1
 
     bazel build //antlr:${PACKAGE}
-    rm -rf ${ROOTDIR}/antlr/${PACKAGE}
-    mkdir ${ROOTDIR}/antlr/${PACKAGE}
-    cp -r ${ROOTDIR}/bazel-bin/antlr/${PACKAGE}.go/${PACKAGE}/* ${ROOTDIR}/antlr/${PACKAGE}
+    rm ${ROOTDIR}/antlr/${PACKAGE}/*.go
+    mkdir -p ${ROOTDIR}/antlr/${PACKAGE}
+    cp ${ROOTDIR}/bazel-bin/antlr/${PACKAGE}.go/${PACKAGE}/*.go ${ROOTDIR}/antlr/${PACKAGE}
     chmod 0644 ${ROOTDIR}/antlr/${PACKAGE}/*
     ${GOSDK}/gofmt -w antlr/${PACKAGE}/*.go
     # Make the generated files deterministic.
@@ -23,5 +23,3 @@ function generate {
 
 generate traffic_class
 generate sequence
-
-bazel run //:gazelle -- update -mode=${GAZELLE_MODE} -go_naming_convention go_default_library -index=false -external=external ${ROOTDIR}/antlr
