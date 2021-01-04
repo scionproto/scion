@@ -198,7 +198,7 @@ specific use case and have assessed the risks and implications sufficiently.
 Votes
 ^^^^^
 
-Votes contains a sequence of indicies of the voting certificates in the
+Votes contains a sequence of indices of the voting certificates in the
 predecessor TRC. In a *base* TRC, this sequence is empty. Every entry in this
 sequence MUST be unique.
 
@@ -379,7 +379,7 @@ The following rules MUST hold for both update categories:
 - The ``noTrustReset`` field MUST NOT change.
 - There MUST only be votes cast that are authenticated by **Sensitive Voting
   Certificates** or **Regular Voting Certificates** present in the predecessor
-  TRC. This means, the ``votes`` sequence MUST only contain indicies of the
+  TRC. This means, the ``votes`` sequence MUST only contain indices of the
   **Sensitive Voting Certificates** or **Regular Voting Certificates**.
 - The number of votes MUST be greater than or equal to the ``votingQuorum`` of
   the predecessor TRC.
