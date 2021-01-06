@@ -35,13 +35,13 @@ import (
 
 func newShowpaths(pather CommandPather) *cobra.Command {
 	var flags struct {
-		timeout    time.Duration
-		cfg        showpaths.Config
-		expiration bool
-		json       bool
-		logLevel   string
-		noColor    bool
-		tracer     string
+		timeout  time.Duration
+		cfg      showpaths.Config
+		extended bool
+		json     bool
+		logLevel string
+		noColor  bool
+		tracer   string
 	}
 
 	v := viper.NewWithOptions(
@@ -53,7 +53,7 @@ func newShowpaths(pather CommandPather) *cobra.Command {
 		Short:   "Display paths to a SCION AS",
 		Aliases: []string{"sp"},
 		Args:    cobra.ExactArgs(1),
-		Example: fmt.Sprintf(`  %[1]s showpaths 1-ff00:0:110 --expiration
+		Example: fmt.Sprintf(`  %[1]s showpaths 1-ff00:0:110 --extended
   %[1]s showpaths 1-ff00:0:110 --local 127.0.0.55 --json
   %[1]s showpaths 1-ff00:0:111 --sequence="0-0#2 0*" # outgoing IfID=2
   %[1]s showpaths 1-ff00:0:111 --sequence="0* 0-0#41" # incoming IfID=41 at dstIA
@@ -114,7 +114,7 @@ On other errors, showpaths will exit with code 2.
 			if len(res.Paths) == 0 {
 				return app.WithExitCode(serrors.New("no path found"), 1)
 			}
-			res.Human(os.Stdout, flags.expiration, !flags.noColor)
+			res.Human(os.Stdout, flags.extended, !flags.noColor)
 			if res.Alive() == 0 && !flags.cfg.NoProbe {
 				return app.WithExitCode(serrors.New("no path alive"), 1)
 			}
@@ -128,8 +128,8 @@ On other errors, showpaths will exit with code 2.
 	cmd.Flags().StringVar(&flags.cfg.Sequence, "sequence", "", app.SequenceUsage)
 	cmd.Flags().IntVarP(&flags.cfg.MaxPaths, "maxpaths", "m", 10,
 		"Maximum number of paths that are displayed")
-	cmd.Flags().BoolVarP(&flags.expiration, "expiration", "e", false,
-		"Show path expiration information")
+	cmd.Flags().BoolVarP(&flags.extended, "extended", "e", false,
+		"Show extended path meta data information")
 	cmd.Flags().BoolVarP(&flags.cfg.Refresh, "refresh", "r", false,
 		"Set refresh flag for SCION Deamon path request")
 	cmd.Flags().BoolVar(&flags.cfg.NoProbe, "no-probe", false,
