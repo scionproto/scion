@@ -40,9 +40,13 @@ func newPayload(pather command.Pather) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "payload",
 		Short: "Generate new TRC payload",
-		Example: fmt.Sprintf(`  %[1]s payload -t template.toml -o payload.der`,
+		Example: fmt.Sprintf(`  %[1]s payload -t template.toml -o payload.der
+  %[1]s payload -t template.toml -o payload.der -p predecessor.trc
+		`,
 			pather.CommandPath()),
 		Long: `'payload' creates the asn.1 encoded der file.
+
+To update an existing TRC the predecessor TRC needs to be specified.
 
 To inspect the created asn.1 file you can use the openssl tool:
 openssl asn1parse -inform DER -i -in payload.der
@@ -98,6 +102,10 @@ func loadPredecessor(base bool, pred string) (*cppki.TRC, error) {
 	if base {
 		fmt.Println("Generating payload for base TRC.")
 		return nil, nil
+	}
+	if pred == "" {
+		return nil, serrors.New("missing predecessor file." +
+			" Specify the predecessor TRC via --predecessor")
 	}
 	trc, err := DecodeFromFile(pred)
 	if err != nil {
