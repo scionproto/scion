@@ -1,1 +1,2 @@
-build --workspace_status_command=./tools/bazel-build-env --show_timestamps --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092
+build --workspace_status_command=./tools/bazel-build-env --show_timestamps --remote_cache=grpc://localhost:9092 --experimental_remote_downloader=grpc://localhost:9092  --incompatible_default_to_explicit_init_py
+test --incompatible_default_to_explicit_init_py
