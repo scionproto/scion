@@ -60,7 +60,7 @@ var (
 )
 
 // Init Initializes the package.
-// This MUST be called in the main coroutine when it starts.
+// This MUST be called in the main goroutine when it starts.
 func Init() {
 	fatalC = make(chan struct{})
 	shutdownC = make(chan struct{})

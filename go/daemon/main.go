@@ -16,22 +16,16 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
-	"path/filepath"
 	"time"
 
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/resolver"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	libconfig "github.com/scionproto/scion/go/lib/config"
-	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
@@ -42,12 +36,11 @@ import (
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/periodic"
-	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/pkg/command"
+	"github.com/scionproto/scion/go/pkg/app/launcher"
 	"github.com/scionproto/scion/go/pkg/daemon"
 	"github.com/scionproto/scion/go/pkg/daemon/config"
 	"github.com/scionproto/scion/go/pkg/daemon/fetcher"
@@ -63,60 +56,34 @@ import (
 	trustmetrics "github.com/scionproto/scion/go/pkg/trust/metrics"
 )
 
+var globalCfg config.Config
+
 func main() {
-	var flags struct {
-		config string
+	application := launcher.Application{
+		TOMLConfig: &globalCfg,
+		ShortName:  "SCION Daemon",
+		Main:       realMain,
 	}
-	executable := filepath.Base(os.Args[0])
-	cmd := &cobra.Command{
-		Use:           executable,
-		Short:         "SCION Daemon",
-		Example:       "  " + executable + " --config sd.toml",
-		SilenceErrors: true,
-		SilenceUsage:  true,
-		Args:          cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(flags.config)
-		},
-	}
-	cmd.AddCommand(
-		command.NewCompletion(cmd),
-		command.NewSample(cmd, command.NewSampleConfig(&config.Config{})),
-		command.NewVersion(cmd),
-	)
-	cmd.Flags().StringVar(&flags.config, "config", "", "Configuration file (required)")
-	cmd.MarkFlagRequired("config")
-	if err := cmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
-		os.Exit(1)
-	}
+	application.Run()
 }
 
 const (
 	shutdownWaitTimeout = 5 * time.Second
 )
 
-func run(file string) error {
-	fatal.Init()
-	cfg, err := setupBasic(file)
-	if err != nil {
-		return err
-	}
-	defer log.Flush()
-	defer env.LogAppStopped("SD", cfg.General.ID)
-	defer log.HandlePanic()
-	if err := setup(cfg); err != nil {
+func realMain() error {
+	if err := setup(); err != nil {
 		return err
 	}
 
-	closer, err := daemon.InitTracer(cfg.Tracing, cfg.General.ID)
+	closer, err := daemon.InitTracer(globalCfg.Tracing, globalCfg.General.ID)
 	if err != nil {
 		return serrors.WrapStr("initializing tracer", err)
 	}
 	defer closer.Close()
 
 	revCache := storage.NewRevocationStorage()
-	pathDB, err := storage.NewPathStorage(cfg.PathDB)
+	pathDB, err := storage.NewPathStorage(globalCfg.PathDB)
 	if err != nil {
 		return serrors.WrapStr("initializing path storage", err)
 	}
@@ -144,30 +111,30 @@ func run(file string) error {
 		},
 	}
 
-	trustDB, err := storage.NewTrustStorage(cfg.TrustDB)
+	trustDB, err := storage.NewTrustStorage(globalCfg.TrustDB)
 	if err != nil {
 		return serrors.WrapStr("initializing trust database", err)
 	}
 	trustDB = trustmetrics.WrapDB(string(storage.BackendSqlite), trustDB)
 	defer trustDB.Close()
-	engine, err := daemon.TrustEngine(cfg.General.ConfigDir, trustDB, dialer)
+	engine, err := daemon.TrustEngine(globalCfg.General.ConfigDir, trustDB, dialer)
 	if err != nil {
 		return serrors.WrapStr("creating trust engine", err)
 	}
 	engine.Inspector = trust.CachingInspector{
 		Inspector:          engine.Inspector,
-		Cache:              cfg.TrustEngine.Cache.New(),
+		Cache:              globalCfg.TrustEngine.Cache.New(),
 		CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
-		MaxCacheExpiration: cfg.TrustEngine.Cache.Expiration,
+		MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration,
 	}
 
-	listen := daemon.APIAddress(cfg.SD.Address)
+	listen := daemon.APIAddress(globalCfg.SD.Address)
 	listener, err := net.Listen("tcp", listen)
 	if err != nil {
 		return serrors.WrapStr("listening", err)
 	}
 
-	hpGroups, err := hiddenpath.LoadHiddenPathGroups(cfg.SD.HiddenPathGroups)
+	hpGroups, err := hiddenpath.LoadHiddenPathGroups(globalCfg.SD.HiddenPathGroups)
 	if err != nil {
 		return serrors.WrapStr("loading hidden path groups", err)
 	}
@@ -184,14 +151,14 @@ func run(file string) error {
 	}
 
 	createVerifier := func() infra.Verifier {
-		if cfg.SD.DisableSegVerification {
+		if globalCfg.SD.DisableSegVerification {
 			return acceptAllVerifier{}
 		}
 		return compat.Verifier{Verifier: trust.Verifier{
 			Engine:             engine,
-			Cache:              cfg.TrustEngine.Cache.New(),
+			Cache:              globalCfg.TrustEngine.Cache.New(),
 			CacheHits:          metrics.NewPromCounter(trustmetrics.CacheHitsTotal),
-			MaxCacheExpiration: cfg.TrustEngine.Cache.Expiration,
+			MaxCacheExpiration: globalCfg.TrustEngine.Cache.Expiration,
 		}}
 	}
 
@@ -204,7 +171,7 @@ func run(file string) error {
 				Inspector:    engine,
 				Verifier:     createVerifier(),
 				RevCache:     revCache,
-				Cfg:          cfg.SD,
+				Cfg:          globalCfg.SD,
 				TopoProvider: itopo.Provider(),
 			},
 		),
@@ -225,14 +192,14 @@ func run(file string) error {
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
 		"info":      service.NewInfoHandler(),
-		"config":    service.NewConfigHandler(cfg),
+		"config":    service.NewConfigHandler(globalCfg),
 		"topology":  itopo.TopologyHandler,
 		"log/level": log.ConsoleLevel.ServeHTTP,
 	}
-	if err := statusPages.Register(http.DefaultServeMux, cfg.General.ID); err != nil {
+	if err := statusPages.Register(http.DefaultServeMux, globalCfg.General.ID); err != nil {
 		return serrors.WrapStr("registering status pages", err)
 	}
-	cfg.Metrics.StartPrometheus()
+	globalCfg.Metrics.StartPrometheus()
 
 	select {
 	case <-fatal.ShutdownChan():
@@ -244,27 +211,8 @@ func run(file string) error {
 	}
 }
 
-func setupBasic(file string) (config.Config, error) {
-	var cfg config.Config
-	if err := libconfig.LoadFile(file, &cfg); err != nil {
-		return config.Config{}, serrors.WrapStr("loading config from file", err, "file", file)
-	}
-	cfg.InitDefaults()
-	if err := log.Setup(cfg.Logging); err != nil {
-		return config.Config{}, serrors.WrapStr("initialize logging", err)
-	}
-	prom.ExportElementID(cfg.General.ID)
-	if err := env.LogAppStarted("SD", cfg.General.ID); err != nil {
-		return config.Config{}, err
-	}
-	return cfg, nil
-}
-
-func setup(cfg config.Config) error {
-	if err := cfg.Validate(); err != nil {
-		return serrors.WrapStr("validating config", err)
-	}
-	topo, err := topology.FromJSONFile(cfg.General.Topology())
+func setup() error {
+	topo, err := topology.FromJSONFile(globalCfg.General.Topology())
 	if err != nil {
 		return serrors.WrapStr("loading topology", err)
 	}
@@ -272,7 +220,7 @@ func setup(cfg config.Config) error {
 	if err := itopo.Update(topo); err != nil {
 		return serrors.WrapStr("unable to set initial static topology", err)
 	}
-	infraenv.InitInfraEnvironment(cfg.General.Topology())
+	infraenv.InitInfraEnvironment(globalCfg.General.Topology())
 	return nil
 }
 
