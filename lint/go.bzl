@@ -10,7 +10,6 @@ def _add_go_lint_tests(name, **kwargs):
     if len(srcs) == 0:
         return
 
-    tags = kwargs.get("tags", [])
     impi_test(
         name = "%s-impi" % name,
         srcs = srcs,

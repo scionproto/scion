@@ -1,0 +1,10 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@python_lint_pip_deps//:requirements.bzl", "requirement")
+
+py_binary(
+    name = "flake8",
+    srcs = ["flakelint.py"],
+    main = "flakelint.py",
+    visibility = ["//visibility:public"],
+    deps = [requirement("flake8")],
+)

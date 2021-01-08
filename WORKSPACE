@@ -20,6 +20,7 @@ load("@apple_rules_lint//lint:setup.bzl", "lint_setup")
 # Add your linters here.
 lint_setup({
     "go": "//:go_lint_config",
+    "flake8": "//:flake8_lint_config",
 })
 
 # Bazel rules for Golang
@@ -327,3 +328,7 @@ dlv_repositories()
 load("//:bbcp.bzl", "bbcp_repository")
 
 bbcp_repository()
+
+load("//lint/private/python:deps.bzl", "python_lint_deps")
+
+python_lint_deps()
