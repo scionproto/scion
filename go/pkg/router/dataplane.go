@@ -670,30 +670,25 @@ func (d *DataPlane) processSCION(ingressID uint16, rawPkt []byte, s slayers.SCIO
 func (d *DataPlane) processEPIC(ingressID uint16, rawPkt []byte, s slayers.SCION,
 	origPacket []byte, buffer gopacket.SerializeBuffer) (processResult, error) {
 
-	// Get the already parsed EPIC path header
 	epicpath, ok := s.Path.(*epic.EpicPath)
 	if !ok {
 		return processResult{}, malformedPath
 	}
 
-	// Get the raw SCION subheader
 	scionRaw := epicpath.ScionRaw
 	if scionRaw == nil {
 		return processResult{}, malformedPath
 	}
 
-	// Parse the current info field to get the timestamp
 	info, err := scionRaw.GetCurrentInfoField()
-	if err != nil || info == nil {
-		return processResult{}, malformedPath
+	if err != nil {
+		return processResult{}, err
 	}
 
-	// Check validity of timestamp
 	timestamp := info.Timestamp
 	packetTimestamp := epicpath.PacketTimestamp
 	libepic.VerifyTimestamp(timestamp, packetTimestamp)
 
-	// Process the SCION subheader
 	p := scionPacketProcessor{
 		d:           d,
 		ingressID:   ingressID,
@@ -708,41 +703,20 @@ func (d *DataPlane) processEPIC(ingressID uint16, rawPkt []byte, s slayers.SCION
 		return processResult{}, err
 	}
 
-	// Get the cached authenticator
 	auth := p.cachedMac
-	if len(auth) != 16 {
+	if len(auth) != libepic.AuthLength {
 		return processResult{}, serrors.New("epic authenticator has invalid length "+
 			"(expected 16 bytes)", "length", len(auth))
 	}
 
-	// Verify the PHVF and LHVF if necessary
-	if b, err := libepic.IsPenultimateHop(scionRaw); b {
-		if err != nil {
-			return processResult{}, err
-		}
-		ok, err := libepic.VerifyHVF(auth, epicpath, &s, timestamp, false)
-		if err != nil {
-			return processResult{}, err
-		}
-		if !ok {
-			// todo: send back scmp packet?
-			return processResult{}, serrors.New("PHVF verification failed")
-		}
-	} else if b, err := libepic.IsLastHop(scionRaw); b {
-		if err != nil {
-			return processResult{}, err
-		}
-		ok, err := libepic.VerifyHVF(auth, epicpath, &s, timestamp, true)
-		if err != nil {
-			return processResult{}, err
-		}
-		if !ok {
-			// todo: send back scmp packet?
-			return processResult{}, serrors.New("LHVF verification failed")
-		}
+	ok, err = libepic.VerifyHVFIfNecessary(scionRaw, auth, epicpath, &s, timestamp)
+	if err != nil {
+		return processResult{}, err
+	}
+	if !ok {
+		return processResult{}, serrors.New("epic HVF verification failed")
 	}
 
-	// Return the result of the SCION packet processor
 	return result, nil
 }
 
@@ -846,13 +820,14 @@ func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.Seri
 }
 
 func (p *scionPacketProcessor) parsePath() (processResult, error) {
-	if p.isSubheader {
+	switch p.isSubheader {
+	case true:
 		epicpath, ok := p.scionLayer.Path.(*epic.EpicPath)
 		if !ok {
 			return processResult{}, malformedPath
 		}
 		p.path = epicpath.ScionRaw
-	} else {
+	case false:
 		var ok bool
 		p.path, ok = p.scionLayer.Path.(*scion.Raw)
 		if !ok {
@@ -860,6 +835,7 @@ func (p *scionPacketProcessor) parsePath() (processResult, error) {
 			return processResult{}, malformedPath
 		}
 	}
+
 	var err error
 	p.hopField, err = p.path.GetCurrentHopField()
 	if err != nil {

@@ -17,16 +17,22 @@ package epic
 import (
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path/epic"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 )
 
-func ExtractPacketLifetimeMs() uint16 {
-	return packetLifetimeMs
-}
-
-func ExtractClockSkewMs() uint16 {
-	return clockSkewMs
-}
+var (
+	PacketLifetimeMs = packetLifetimeMs
+	ClockSkewMs      = clockSkewMs
+)
 
 func PrepareMacInput(epicpath *epic.EpicPath, s *slayers.SCION, timestamp uint32) ([]byte, error) {
 	return prepareMacInput(epicpath, s, timestamp)
+}
+
+func IsPenultimateHop(scionRaw *scion.Raw) (bool, error) {
+	return isPenultimateHop(scionRaw)
+}
+
+func IsLastHop(scionRaw *scion.Raw) (bool, error) {
+	return isLastHop(scionRaw)
 }

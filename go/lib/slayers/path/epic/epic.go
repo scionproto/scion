@@ -23,8 +23,13 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 )
 
-// PathType denotes the EPIC path type identifier.
-const PathType path.Type = 3
+const (
+	// PathType denotes the EPIC path type identifier.
+	PathType path.Type = 3
+	// overhead denotes the number of bytes the EPIC path type contains in addition to the SCION
+	// path type. It is the sum of the PacketTimestamp (8B), the PHVF (4B) and the LHVF (4B) sizes.
+	overhead = 16
+)
 
 // RegisterPath registers the EPIC path type globally.
 func RegisterPath() {
@@ -112,9 +117,9 @@ func (p *EpicPath) Len() int {
 		return 0
 	}
 	if p.ScionRaw == nil {
-		return 16
+		return overhead
 	}
-	return 16 + p.ScionRaw.Len()
+	return overhead + p.ScionRaw.Len()
 }
 
 // Type returns the EPIC path type identifier.
