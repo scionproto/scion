@@ -47,7 +47,7 @@ gen_acceptance() {
 # args:
 #   -1: the bazel directory in which the tests are.
 gen_bazel_test_steps() {
-    for test in $(bazel query "kind(test, ${1}/...)" 2>/dev/null); do
+    for test in $(bazel query "attr(tags, integration, tests(${1}/...)) except attr(tags, lint, tests(${1}/...))" 2>/dev/null); do
         name=${test#"$1/"}
         skip=false
         cache="--cache_test_results=\${BAZEL_CACHE_TEST_RESULTS:-auto}"
@@ -64,10 +64,14 @@ gen_bazel_test_steps() {
         fi
 
         if [ -n "${SINGLE_TEST}" ]; then
-          if [ "${SINGLE_TEST}" != "${name}" ]; then
+          if [[ ! "${name}" =~ "${SINGLE_TEST}" ]]; then
             skip="true"
           fi
           cache="--nocache_test_results"
+        fi
+
+        if [ "$parallel" != "1" ]; then
+            cache="--nocache_test_results"
         fi
 
         n=${name/test_/}

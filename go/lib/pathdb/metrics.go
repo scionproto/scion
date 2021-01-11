@@ -22,12 +22,11 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra/modules/db"
+	dblib "github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/tracing"
@@ -105,8 +104,8 @@ func (c *counters) Observe(ctx context.Context, op promOp, action func(ctx conte
 	c.queriesTotal.WithLabelValues(string(op)).Inc()
 	err := action(ctx)
 
-	label := db.ErrToMetricLabel(err)
-	ext.Error.Set(span, err != nil)
+	label := dblib.ErrToMetricLabel(err)
+	tracing.Error(span, err)
 	tracing.ResultLabel(span, label)
 
 	c.resultsTotal.WithLabelValues(label, string(op)).Inc()
@@ -233,12 +232,21 @@ func (db *metricsExecutor) DeleteExpired(ctx context.Context, now time.Time) (in
 }
 
 func (db *metricsExecutor) Get(ctx context.Context, params *query.Params) (query.Results, error) {
-	var res query.Results
-	var err error
-	db.metrics.Observe(ctx, promOpGet, func(ctx context.Context) error {
-		res, err = db.pathDB.Get(ctx, params)
-		return err
-	})
+	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("pathdb.%s", string(promOpGet)))
+	defer span.Finish()
+	if params != nil {
+		span.SetTag("query.starts_at", params.StartsAt)
+		span.SetTag("query.ends_at", params.EndsAt)
+	}
+
+	db.metrics.queriesTotal.WithLabelValues(string(promOpGet)).Inc()
+	res, err := db.pathDB.Get(ctx, params)
+
+	label := dblib.ErrToMetricLabel(err)
+	tracing.Error(span, err)
+	tracing.ResultLabel(span, label)
+	span.SetTag("result.size", len(res))
+	db.metrics.resultsTotal.WithLabelValues(label, string(promOpGet)).Inc()
 	return res, err
 }
 

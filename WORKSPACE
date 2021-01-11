@@ -2,6 +2,26 @@
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
+# linter rules
+http_archive(
+    name = "apple_rules_lint",
+    sha256 = "ece669d52998c7a0df2c2380f37edbf4ed8ebb1a03587ed1781dfbececef9b3d",
+    urls = [
+        "https://github.com/apple/apple_rules_lint/releases/download/0.1.0/apple_rules_lint-0.1.0.tar.gz",
+    ],
+)
+
+load("@apple_rules_lint//lint:repositories.bzl", "lint_deps")
+
+lint_deps()
+
+load("@apple_rules_lint//lint:setup.bzl", "lint_setup")
+
+# Add your linters here.
+lint_setup({
+    "go": "//:go_lint_config",
+})
+
 # Bazel rules for Golang
 http_archive(
     name = "io_bazel_rules_go",

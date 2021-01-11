@@ -144,6 +144,19 @@ const (
 	LinkTypeOpennet
 )
 
+func (lt LinkType) String() string {
+	switch lt {
+	case LinkTypeDirect:
+		return "direct"
+	case LinkTypeMultihop:
+		return "multihop"
+	case LinkTypeOpennet:
+		return "opennet"
+	default:
+		return "unset"
+	}
+}
+
 // GeoCoordinates describes a geographical position (of a border router on the path).
 type GeoCoordinates struct {
 	// Latitude of the geographic coordinate, in the WGS 84 datum.

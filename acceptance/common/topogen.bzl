@@ -84,6 +84,7 @@ def topogen_test(
         args = args + common_args,
         deps = [":%s_lib" % name],
         data = data + common_data,
+        tags = ["integration"],
     )
 
     images = {

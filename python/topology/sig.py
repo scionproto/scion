@@ -110,6 +110,9 @@ class SIGGenerator(object):
                 sciond_svc_name(topo_id),
                 setup_name,
             ],
+            'environment': {
+                'SCION_EXPERIMENTAL_GATEWAY_PATH_UPDATE_INTERVAL': '1s',
+            },
             'cap_add': ['NET_ADMIN'],
             'user': self.user,
             'volumes': [
