@@ -127,7 +127,7 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 	}
 	path, err := app.ChoosePath(ctx, sdConn, dst.IA,
 		cfg.interactive, cfg.refresh, cfg.sequence,
-		app.WithDisableColor(cfg.noColor))
+		app.DefaultColorScheme(cfg.noColor))
 	if err != nil {
 		return serrors.WrapStr("fetching paths", err)
 	}

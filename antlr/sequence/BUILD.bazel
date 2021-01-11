@@ -1,4 +1,20 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("//lint:go.bzl", "go_library")
+load("//lint:go_config.bzl", "go_lint_config")
+load("@apple_rules_lint//lint:defs.bzl", "package_lint_config")
+
+go_lint_config(
+    name = "go_lint_config",
+    exclude_filter = [
+        "sequence_parser.go",
+    ],
+    visibility = [
+        "//visibility:public",
+    ],
+)
+
+package_lint_config({
+    "go": ":go_lint_config",
+})
 
 go_library(
     name = "go_default_library",

@@ -1,5 +1,5 @@
+load("//lint:go.bzl", "go_test")
 load("@io_bazel_rules_docker//container:container.bzl", "container_image")
-load("@io_bazel_rules_go//go:def.bzl", "go_test")
 
 go_test(
     name = "go_default_test",
@@ -14,6 +14,7 @@ go_test(
         "//acceptance/topo_common:invalid_reloads",
         "//acceptance/topo_common:topology",
     ],
+    tags = ["integration"],
     deps = [
         "//go/lib/topology:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",

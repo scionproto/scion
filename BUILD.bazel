@@ -1,9 +1,25 @@
 load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_go//go:def.bzl", "nogo")
+load("//lint:go_config.bzl", "go_lint_config")
 
 # gazelle:prefix github.com/scionproto/scion
+# gazelle:map_kind go_library go_library //lint:go.bzl
+# gazelle:map_kind go_test go_test //lint:go.bzl
 gazelle(name = "gazelle")
+
+go_lint_config(
+    name = "go_lint_config",
+    exclude_filter = [
+        "mock_",
+        ".pb.go",
+        ".capnp.go",
+        ".gen.go",
+    ],
+    visibility = [
+        "//visibility:public",
+    ],
+)
 
 # This is the SCION distributable package. It contains all (binary) services,
 # and the required tools.
@@ -59,8 +75,6 @@ pkg_tar(
         "@buf_bin//file:buf",
         "@com_github_client9_misspell//cmd/misspell",
         "@com_github_jeanmertz_lll//cmd/lll",
-        "@com_github_oncilla_ineffassign//:ineffassign",
-        "@com_github_pavius_impi//cmd/impi",
     ],
     mode = "0755",
     package_dir = "",

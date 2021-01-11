@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("//lint:go.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
@@ -22,6 +22,7 @@ go_library(
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/sock/reliable/reconnect:go_default_library",
         "//go/lib/svc:go_default_library",
+        "//go/lib/util:go_default_library",
         "//go/pkg/gateway/config:go_default_library",
         "//go/pkg/gateway/control:go_default_library",
         "//go/pkg/gateway/control/grpc:go_default_library",

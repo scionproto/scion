@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import subprocess
 import sys
 
 from contextlib import redirect_stderr
@@ -48,5 +49,6 @@ class DC(object):
         cmd.mkdir("-p", out_p)
         for svc in self("config", "--services").splitlines():
             dst_f = out_p / "%s.log" % svc
-            (cmd.docker_compose["-f", self.compose_file, "-p",
-                                self.project, "--no-ansi", "logs", svc] > dst_f)()
+            with open(dst_f, "w") as log_file:
+                cmd.docker.run(args=("logs", svc), stdout=log_file,
+                               stderr=subprocess.STDOUT, retcode=None)

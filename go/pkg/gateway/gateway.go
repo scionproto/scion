@@ -39,6 +39,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/sock/reliable/reconnect"
 	"github.com/scionproto/scion/go/lib/svc"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/gateway/config"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 	controlgrpc "github.com/scionproto/scion/go/pkg/gateway/control/grpc"
@@ -278,11 +279,12 @@ func (g *Gateway) Run() error {
 	}
 	pathMonitor := &PathMonitor{
 		Monitor: &pathhealth.Monitor{
-			LocalIA:           localIA,
-			LocalIP:           g.PathMonitorIP,
-			Conn:              pathMonitorConnection,
-			RevocationHandler: revocationHandler,
-			Router:            pathRouter,
+			LocalIA:            localIA,
+			LocalIP:            g.PathMonitorIP,
+			Conn:               pathMonitorConnection,
+			RevocationHandler:  revocationHandler,
+			Router:             pathRouter,
+			PathUpdateInterval: PathUpdateInterval(),
 			RemoteWatcherFactory: &pathhealth.DefaultRemoteWatcherFactory{
 				PathWatcherFactory: &pathhealth.DefaultPathWatcherFactory{
 					Logger: g.Logger,
@@ -682,6 +684,20 @@ func (g *Gateway) Run() error {
 
 func ExperimentalExportMainRT() bool {
 	return os.Getenv("SCION_EXPERIMENTAL_GATEWAY_MAIN_RT") != ""
+}
+
+func PathUpdateInterval() time.Duration {
+	s, ok := os.LookupEnv("SCION_EXPERIMENTAL_GATEWAY_PATH_UPDATE_INTERVAL")
+	if !ok {
+		return 0
+	}
+	dur, err := util.ParseDuration(s)
+	if err != nil {
+		log.Info("Failed to parse SCION_EXPERIMENTAL_GATEWAY_PATH_UPDATE_INTERVAL, using default",
+			"err", err)
+		return 0
+	}
+	return dur
 }
 
 func CreateIngressMetrics(m *Metrics) dataplane.IngressMetrics {

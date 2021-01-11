@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("//lint:go.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
@@ -21,7 +21,6 @@ go_library(
         "//go/lib/tracing:go_default_library",
         "//go/pkg/proto/control_plane:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
-        "@com_github_opentracing_opentracing_go//ext:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
         "@org_golang_google_protobuf//proto:go_default_library",
     ],
