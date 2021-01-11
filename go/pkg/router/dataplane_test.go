@@ -50,8 +50,6 @@ import (
 	"github.com/scionproto/scion/go/pkg/router/mock_router"
 )
 
-var cachedTsRel uint32
-
 func TestDataPlaneAddInternalInterface(t *testing.T) {
 	t.Run("fails after serve", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -561,6 +559,12 @@ func TestProcessPkt(t *testing.T) {
 	defer ctrl.Finish()
 
 	key := []byte("testkey_xxxxxxxx")
+
+	// cachedEpicTsRel contains the cached epic TsRel (relative timestamp). Caching is necessary
+	// because mockMsg(afterProcessing bool) is called twice, once with afterProcessing set to
+	// false, and then with afterProcessing set to true. Instead of recreating a new TsRel also
+	// in the second case, the old TsRel is reused because they must be consistent.
+	var cachedEpicTsRel uint32
 
 	testCases := map[string]struct {
 		mockMsg      func(bool) *ipv4.Message
@@ -1111,10 +1115,10 @@ func TestProcessPkt(t *testing.T) {
 				timestamp := dpath.InfoFields[0].Timestamp
 				var tsRel uint32
 				if afterProcessing {
-					tsRel = cachedTsRel
+					tsRel = cachedEpicTsRel
 				} else {
 					tsRel, _ = libepic.CreateTsRel(timestamp)
-					cachedTsRel = tsRel
+					cachedEpicTsRel = tsRel
 				}
 				packetTimestamp := libepic.CreateEpicTimestamp(tsRel, 1, 2)
 

@@ -81,8 +81,8 @@ func TestTimestampVerification(t *testing.T) {
 	tsRel, err := libepic.CreateTsRel(timestamp)
 	assert.NoError(t, err)
 
-	cs := uint32(libepic.ExtractClockSkewMs())
-	csAndPl := uint32(libepic.ExtractClockSkewMs() + libepic.ExtractPacketLifetimeMs())
+	cs := uint32(libepic.ClockSkewMs)
+	csAndPl := uint32(libepic.ClockSkewMs + libepic.PacketLifetimeMs)
 
 	testCases := map[uint32]bool{
 		0:                           false,

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
-Package epic contains methods for the creation and verification of the EPIC packet timestamp and
-validation fields.
-*/
+// Package epic contains methods for the creation and verification of the EPIC packet timestamp and
+// validation fields.
 package epic

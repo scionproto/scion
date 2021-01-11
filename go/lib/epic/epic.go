@@ -30,6 +30,9 @@ import (
 )
 
 const (
+	// AuthLength denotes the size of the authenticator in bytes
+	AuthLength = 16
+
 	// packetLifetimeMs denotes the maximal lifetime of a packet in milliseconds
 	packetLifetimeMs uint16 = 2000
 	// clockSkewMs denotes the maximal clock skew in milliseconds
@@ -156,6 +159,30 @@ func CalculateEpicMac(auth []byte, epicpath *epic.EpicPath, s *slayers.SCION,
 	return mac[len(mac)-16 : len(mac)-12], nil
 }
 
+// VerifyHVFIfNecessary verifies the correctness of the HVF if necessary, i.e., if the current hop
+// is either the penultimate or the last hop of the path.
+func VerifyHVFIfNecessary(scionRaw *scion.Raw, auth []byte, epicpath *epic.EpicPath,
+	s *slayers.SCION, timestamp uint32) (bool, error) {
+
+	IsPenHop, errPenHop := isPenultimateHop(scionRaw)
+	if errPenHop != nil {
+		return false, errPenHop
+	}
+	IsLastHop, errLastHop := isLastHop(scionRaw)
+	if errLastHop != nil {
+		return false, errLastHop
+	}
+
+	switch {
+	case IsPenHop:
+		return VerifyHVF(auth, epicpath, s, timestamp, false)
+	case IsLastHop:
+		return VerifyHVF(auth, epicpath, s, timestamp, true)
+	default:
+		return true, nil
+	}
+}
+
 // VerifyHVF verifies the correctness of the PHVF (if "last" is false) or the LHVF (if "last" is
 // true) field in the EPIC packet by recalculating and comparing them. If the EPIC
 // authenticator (auth), which denotes the full 16 bytes of the SCION path type MAC, has invalid
@@ -163,7 +190,7 @@ func CalculateEpicMac(auth []byte, epicpath *epic.EpicPath, s *slayers.SCION,
 func VerifyHVF(auth []byte, epicpath *epic.EpicPath, s *slayers.SCION,
 	timestamp uint32, last bool) (bool, error) {
 
-	if epicpath == nil || s == nil || len(auth) != 16 {
+	if epicpath == nil || s == nil || len(auth) != AuthLength {
 		return false, serrors.New("invalid input")
 	}
 
@@ -181,9 +208,9 @@ func VerifyHVF(auth []byte, epicpath *epic.EpicPath, s *slayers.SCION,
 	return bytes.Equal(hvf, mac), nil
 }
 
-// IsPenultimateHop returns whether the current hop is the penultimate hop on the path.
+// isPenultimateHop returns whether the current hop is the penultimate hop on the path.
 // It returns an error if scionRaw is nil.
-func IsPenultimateHop(scionRaw *scion.Raw) (bool, error) {
+func isPenultimateHop(scionRaw *scion.Raw) (bool, error) {
 	if scionRaw == nil {
 		return true, serrors.New("scion path must not be nil")
 	}
@@ -192,9 +219,9 @@ func IsPenultimateHop(scionRaw *scion.Raw) (bool, error) {
 	return currentHop == numberHops-2, nil
 }
 
-// IsPenultimateHop returns whether the current hop is the last hop on the path.
+// isLastHop returns whether the current hop is the last hop on the path.
 // It returns an error if scionRaw is nil.
-func IsLastHop(scionRaw *scion.Raw) (bool, error) {
+func isLastHop(scionRaw *scion.Raw) (bool, error) {
 	if scionRaw == nil {
 		return true, serrors.New("scion path must not be nil")
 	}
