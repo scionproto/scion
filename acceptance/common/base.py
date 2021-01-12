@@ -21,9 +21,9 @@ from plumbum import local
 from plumbum import cmd
 from plumbum import path
 
+from acceptance.common.docker import Compose
 from acceptance.common.log import LogExec
 from acceptance.common.scion import SCION, SCIONSupervisor
-from acceptance.common.tools import DC
 
 NAME = 'NOT_SET'  # must be set by users of the Base class.
 DIR = 'NOT_SET'
@@ -45,7 +45,7 @@ class TestState:
 
     artifacts = None
 
-    def __init__(self, scion: SCION, dc: DC):
+    def __init__(self, scion: SCION, dc: Compose):
         """
         Create new environment state for an execution of the acceptance
         testing framework. Plumbum subcommands can access this state

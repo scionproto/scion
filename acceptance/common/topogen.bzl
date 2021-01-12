@@ -33,7 +33,7 @@ def topogen_test(
             requirement("plumbum"),
             "//acceptance/common:base",
             "//acceptance/common:log",
-            "//acceptance/common:tools",
+            "//acceptance/common:docker",
         ] + deps,
         visibility = ["//visibility:public"],
     )

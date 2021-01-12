@@ -27,11 +27,48 @@ the assertion's writer if a writer is specified.
 
 import json
 import os
+import subprocess
+import sys
 from typing import List, NamedTuple
+from contextlib import redirect_stderr
 
+import plumbum
 from plumbum import cmd
 
+SCION_DC_FILE = "gen/scion-dc.yml"
+DC_PROJECT = "scion"
 SCION_TESTING_DOCKER_ASSERTIONS_OFF = 'SCION_TESTING_DOCKER_ASSERTIONS_OFF'
+
+
+def container_ip(container_name: str) -> str:
+    """Returns the ip of the given container"""
+    return cmd.docker("inspect", "-f", "{{range .NetworkSettings.Networks}}"
+                      "{{.IPAddress}}{{end}}", container_name).rstrip()
+
+
+class Compose(object):
+
+    def __init__(self,
+                 project: str = DC_PROJECT,
+                 compose_file: str = SCION_DC_FILE):
+        self.project = project
+        self.compose_file = compose_file
+
+    def __call__(self, *args, **kwargs) -> str:
+        """Runs docker compose with the given arguments"""
+        with redirect_stderr(sys.stdout):
+            return cmd.docker_compose("-f", self.compose_file, "-p", self.project, "--no-ansi",
+                                      *args, **kwargs)
+
+    def collect_logs(self, out_dir: str = "logs/docker"):
+        """Collects the logs from the services into the given directory"""
+        out_p = plumbum.local.path(out_dir)
+        cmd.mkdir("-p", out_p)
+        for svc in self("config", "--services").splitlines():
+            dst_f = out_p / "%s.log" % svc
+            with open(dst_f, "w") as log_file:
+                cmd.docker.run(args=("logs", svc), stdout=log_file,
+                               stderr=subprocess.STDOUT, retcode=None)
 
 
 class _Network(NamedTuple):

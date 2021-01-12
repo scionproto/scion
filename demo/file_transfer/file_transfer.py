@@ -21,7 +21,7 @@ import yaml
 from http import client
 
 from acceptance.common import base
-from acceptance.common import tools
+from acceptance.common import docker
 from acceptance.common import scion
 
 
@@ -148,5 +148,5 @@ class Test(base.TestBase):
 
 if __name__ == "__main__":
     base.register_commands(Test)
-    Test.test_state = base.TestState(scion.SCIONDocker(), tools.DC())
+    Test.test_state = base.TestState(scion.SCIONDocker(), docker.Compose())
     Test.run()
