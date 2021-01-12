@@ -36,7 +36,10 @@ func MAC(h hash.Hash, info *InfoField, hf *HopField) []byte {
 	return h.Sum(nil)[:6]
 }
 
-// FullMAC returns the full 16 bytes of the HopField MAC.
+// FullMAC calculates the HopField MAC according to
+// https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#hop-field-mac-computation
+// this method does not modify info or hf.
+// In contrast to MAC(), FullMAC returns all the 16 bytes instead of only 6 bytes of the MAC.
 func FullMAC(h hash.Hash, info *InfoField, hf *HopField) []byte {
 	h.Reset()
 	input := MACInput(info.SegID, info.Timestamp, hf.ExpTime, hf.ConsIngress, hf.ConsEgress)
