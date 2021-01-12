@@ -702,12 +702,7 @@ func (d *DataPlane) processEPIC(ingressID uint16, rawPkt []byte, s slayers.SCION
 	if err != nil {
 		return processResult{}, err
 	}
-
 	auth := p.cachedMac
-	if len(auth) != libepic.AuthLength {
-		return processResult{}, serrors.New("epic authenticator has invalid length "+
-			"(expected 16 bytes)", "length", len(auth))
-	}
 
 	ok, err = libepic.VerifyHVFIfNecessary(scionRaw, auth, epicpath, &s, timestamp)
 	if err != nil {

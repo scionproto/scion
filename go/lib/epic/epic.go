@@ -30,9 +30,8 @@ import (
 )
 
 const (
-	// AuthLength denotes the size of the authenticator in bytes
-	AuthLength = 16
-
+	// authLength denotes the size of the authenticator in bytes
+	authLength = 16
 	// packetLifetimeMs denotes the maximal lifetime of a packet in milliseconds
 	packetLifetimeMs uint16 = 2000
 	// clockSkewMs denotes the maximal clock skew in milliseconds
@@ -190,7 +189,7 @@ func VerifyHVFIfNecessary(scionRaw *scion.Raw, auth []byte, epicpath *epic.EpicP
 func VerifyHVF(auth []byte, epicpath *epic.EpicPath, s *slayers.SCION,
 	timestamp uint32, last bool) (bool, error) {
 
-	if epicpath == nil || s == nil || len(auth) != AuthLength {
+	if epicpath == nil || s == nil || len(auth) != authLength {
 		return false, serrors.New("invalid input")
 	}
 
@@ -199,11 +198,9 @@ func VerifyHVF(auth []byte, epicpath *epic.EpicPath, s *slayers.SCION,
 		return false, err
 	}
 
-	var hvf []byte
+	hvf := epicpath.PHVF
 	if last {
 		hvf = epicpath.LHVF
-	} else {
-		hvf = epicpath.PHVF
 	}
 	return bytes.Equal(hvf, mac), nil
 }
