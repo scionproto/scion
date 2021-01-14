@@ -161,15 +161,15 @@ func CalculateEpicMac(auth []byte, epicpath *epic.EpicPath, s *slayers.SCION,
 // VerifyHVFIfNecessary verifies the correctness of the HVF if necessary, i.e., if the current hop
 // is either the penultimate or the last hop of the path.
 func VerifyHVFIfNecessary(scionRaw *scion.Raw, auth []byte, epicpath *epic.EpicPath,
-	s *slayers.SCION, timestamp uint32) (bool, error) {
+	s *slayers.SCION, timestamp uint32) error {
 
 	IsPenHop, errPenHop := isPenultimateHop(scionRaw)
 	if errPenHop != nil {
-		return false, errPenHop
+		return errPenHop
 	}
 	IsLastHop, errLastHop := isLastHop(scionRaw)
 	if errLastHop != nil {
-		return false, errLastHop
+		return errLastHop
 	}
 
 	switch {
@@ -178,31 +178,37 @@ func VerifyHVFIfNecessary(scionRaw *scion.Raw, auth []byte, epicpath *epic.EpicP
 	case IsLastHop:
 		return VerifyHVF(auth, epicpath, s, timestamp, true)
 	default:
-		return true, nil
+		return nil
 	}
 }
 
 // VerifyHVF verifies the correctness of the PHVF (if "last" is false) or the LHVF (if "last" is
 // true) field in the EPIC packet by recalculating and comparing them. If the EPIC
 // authenticator (auth), which denotes the full 16 bytes of the SCION path type MAC, has invalid
-// length, or if the MAC calculation gives an error, also VerifyHVF returns an error.
+// length, or if the MAC calculation gives an error, also VerifyHVF returns an error. The
+// verification was successful if and only if VerifyHVF returns nil.
 func VerifyHVF(auth []byte, epicpath *epic.EpicPath, s *slayers.SCION,
-	timestamp uint32, last bool) (bool, error) {
+	timestamp uint32, last bool) error {
 
 	if epicpath == nil || s == nil || len(auth) != authLength {
-		return false, serrors.New("invalid input")
+		return serrors.New("invalid input")
 	}
 
 	mac, err := CalculateEpicMac(auth, epicpath, s, timestamp)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	hvf := epicpath.PHVF
 	if last {
 		hvf = epicpath.LHVF
 	}
-	return bytes.Equal(hvf, mac), nil
+
+	err = nil
+	if !bytes.Equal(hvf, mac) {
+		err = serrors.New("epic hop validation field verification failed")
+	}
+	return err
 }
 
 // isPenultimateHop returns whether the current hop is the penultimate hop on the path.

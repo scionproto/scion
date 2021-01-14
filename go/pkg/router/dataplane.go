@@ -658,13 +658,13 @@ func (d *DataPlane) processSCION(ingressID uint16, rawPkt []byte, s slayers.SCIO
 	origPacket []byte, buffer gopacket.SerializeBuffer) (processResult, error) {
 
 	p := scionPacketProcessor{
-		d:           d,
-		ingressID:   ingressID,
-		rawPkt:      rawPkt,
-		scionLayer:  s,
-		origPacket:  origPacket,
-		buffer:      buffer,
-		isSubheader: false,
+		d:          d,
+		ingressID:  ingressID,
+		rawPkt:     rawPkt,
+		scionLayer: s,
+		origPacket: origPacket,
+		buffer:     buffer,
+		isEpic:     false,
 	}
 	return p.process()
 }
@@ -692,13 +692,13 @@ func (d *DataPlane) processEPIC(ingressID uint16, rawPkt []byte, s slayers.SCION
 	libepic.VerifyTimestamp(timestamp, packetTimestamp)
 
 	p := scionPacketProcessor{
-		d:           d,
-		ingressID:   ingressID,
-		rawPkt:      rawPkt,
-		scionLayer:  s,
-		origPacket:  origPacket,
-		buffer:      buffer,
-		isSubheader: true,
+		d:          d,
+		ingressID:  ingressID,
+		rawPkt:     rawPkt,
+		scionLayer: s,
+		origPacket: origPacket,
+		buffer:     buffer,
+		isEpic:     true,
 	}
 	result, err := p.process()
 	if err != nil {
@@ -706,12 +706,9 @@ func (d *DataPlane) processEPIC(ingressID uint16, rawPkt []byte, s slayers.SCION
 	}
 	auth := p.cachedMac
 
-	ok, err = libepic.VerifyHVFIfNecessary(scionRaw, auth, epicpath, &s, timestamp)
+	err = libepic.VerifyHVFIfNecessary(scionRaw, auth, epicpath, &s, timestamp)
 	if err != nil {
 		return processResult{}, err
-	}
-	if !ok {
-		return processResult{}, serrors.New("epic HVF verification failed")
 	}
 
 	return result, nil
@@ -732,8 +729,8 @@ type scionPacketProcessor struct {
 	origPacket []byte
 	// buffer is the buffer that can be used to serialize gopacket layers.
 	buffer gopacket.SerializeBuffer
-	// isSubheader indicates whether the scion path is part of an epic-hp path.
-	isSubheader bool
+	// isEpic indicates whether the scion path is part of an epic-hp path.
+	isEpic bool
 
 	// path is the raw SCION path. Will be set during processing.
 	path *scion.Raw
@@ -817,7 +814,7 @@ func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.Seri
 }
 
 func (p *scionPacketProcessor) parsePath() (processResult, error) {
-	switch p.isSubheader {
+	switch p.isEpic {
 	case true:
 		epicpath, ok := p.scionLayer.Path.(*epic.EpicPath)
 		if !ok {
@@ -964,15 +961,16 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 
 func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 	fullMac := path.FullMAC(p.d.macFactory(), p.infoField, p.hopField)
-	if err := path.VerifyMAC(fullMac[:6], p.hopField); err != nil {
+	if !bytes.Equal(p.hopField.Mac[:6], fullMac[:6]) {
 		return p.packSCMP(
 			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
 				slayers.SCMPCodeInvalidHopFieldMAC),
 			},
 			&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
-			serrors.WithCtx(err, "cons_dir", p.infoField.ConsDir, "if_id", p.ingressID,
-				"curr_inf", p.path.PathMeta.CurrINF, "curr_hf", p.path.PathMeta.CurrHF,
-				"seg_id", p.infoField.SegID),
+			serrors.New("MAC", "expected", fmt.Sprintf("%x", fullMac[:6]),
+				"actual", fmt.Sprintf("%x", p.hopField.Mac[:6]), "cons_dir", p.infoField.ConsDir,
+				"if_id", p.ingressID, "curr_inf", p.path.PathMeta.CurrINF,
+				"curr_hf", p.path.PathMeta.CurrHF, "seg_id", p.infoField.SegID),
 		)
 	}
 	// Add the full MAC to the SCION packet processor,
@@ -1246,9 +1244,10 @@ func (d *DataPlane) processOHP(ingressID uint16, rawPkt []byte, s slayers.SCION,
 	// OHP leaving our IA
 	if d.localIA.Equal(s.SrcIA) {
 		fullMac := path.FullMAC(d.macFactory(), &p.Info, &p.FirstHop)
-		if err := path.VerifyMAC(fullMac[:6], &p.FirstHop); err != nil {
+		if !bytes.Equal(p.FirstHop.Mac[:6], fullMac[:6]) {
 			// TODO parameter problem -> invalid MAC
-			return processResult{}, serrors.WithCtx(err, "type", "ohp")
+			return processResult{}, serrors.New("MAC", "expected", fmt.Sprintf("%x", fullMac[:6]),
+				"actual", fmt.Sprintf("%x", p.FirstHop.Mac[:6]), "type", "ohp")
 		}
 		p.Info.UpdateSegID(p.FirstHop.Mac)
 

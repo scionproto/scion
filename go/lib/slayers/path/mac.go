@@ -15,25 +15,15 @@
 package path
 
 import (
-	"bytes"
 	"encoding/binary"
-	"fmt"
 	"hash"
-
-	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // MAC calculates the HopField MAC according to
 // https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#hop-field-mac-computation
 // this method does not modify info or hf.
 func MAC(h hash.Hash, info *InfoField, hf *HopField) []byte {
-	h.Reset()
-	input := MACInput(info.SegID, info.Timestamp, hf.ExpTime, hf.ConsIngress, hf.ConsEgress)
-	// Write must not return an error: https://godoc.org/hash#Hash
-	if _, err := h.Write(input); err != nil {
-		panic(err)
-	}
-	return h.Sum(nil)[:6]
+	return FullMAC(h, info, hf)[:6]
 }
 
 // FullMAC calculates the HopField MAC according to
@@ -48,19 +38,6 @@ func FullMAC(h hash.Hash, info *InfoField, hf *HopField) []byte {
 		panic(err)
 	}
 	return h.Sum(nil)[:16]
-}
-
-// VerifyMAC verifies that the MAC in the hop field is correct by
-// comparing it to the calculated expectedMac.
-// If the expectedMac matches the value in the hop field nil is returned,
-// otherwise an error is returned.
-func VerifyMAC(expectedMac []byte, hf *HopField) error {
-	if !bytes.Equal(hf.Mac[:6], expectedMac[:6]) {
-		return serrors.New("MAC",
-			"expected", fmt.Sprintf("%x", expectedMac),
-			"actual", fmt.Sprintf("%x", hf.Mac))
-	}
-	return nil
 }
 
 // MACInput returns the MAC input data block with the following layout:
