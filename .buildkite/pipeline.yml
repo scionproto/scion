@@ -2,8 +2,6 @@ steps:
   - label: "build scion code :bazel:"
     if: build.message !~ /\[doc\]/
     command:
-      # create version files so that deb and rpm release targets work.
-      - ./tools/package-version 0.1.0-citest
       - bazel build --verbose_failures --announce_rc //:all
       - bazel run --verbose_failures //docker:prod //docker:test
     key: build

@@ -1,5 +1,5 @@
-load("@rules_python//python:defs.bzl", "py_library")
 load("@pip3_deps//:requirements.bzl", "requirement")
+load("//lint:py.bzl", "py_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -8,9 +8,9 @@ py_library(
     srcs = ["base.py"],
     deps = [
         requirement("plumbum"),
+        "docker",
         "log",
         "scion",
-        "tools",
     ],
 )
 
@@ -40,13 +40,5 @@ py_library(
         requirement("toml"),
         "log",
         "//python/lib:scion_addr",
-    ],
-)
-
-py_library(
-    name = "tools",
-    srcs = ["tools.py"],
-    deps = [
-        requirement("plumbum"),
     ],
 )

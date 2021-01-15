@@ -1,4 +1,5 @@
 load("@pip3_deps//:requirements.bzl", "requirement")
+load("//lint:py.bzl", "py_binary", "py_library")
 
 package(default_visibility = ["//visibility:public"])
 

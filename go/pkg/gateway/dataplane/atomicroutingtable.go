@@ -57,22 +57,6 @@ func (t *AtomicRoutingTable) RouteIPv6(packet layers.IPv6) control.PktWriter {
 	return table.RouteIPv6(packet)
 }
 
-func (t *AtomicRoutingTable) AddRoute(index int, pktWriter control.PktWriter) error {
-	table := t.getPointer()
-	if table == nil {
-		return nil
-	}
-	return table.AddRoute(index, pktWriter)
-}
-
-func (t *AtomicRoutingTable) DelRoute(index int) error {
-	table := t.getPointer()
-	if table == nil {
-		return nil
-	}
-	return table.DelRoute(index)
-}
-
 func (t *AtomicRoutingTable) SetRoutingTable(table control.RoutingTable) {
 	t.setPointer(table)
 }

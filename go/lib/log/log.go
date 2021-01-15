@@ -16,9 +16,12 @@
 package log
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -146,7 +149,62 @@ type Level struct {
 // PUT requests change the logging level and expect a payload like:
 //   {"level":"info"}
 func (l Level) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	l.a.ServeHTTP(w, r)
+	type errorResponse struct {
+		Error string `json:"error"`
+	}
+	type payload struct {
+		Level *zapcore.Level `json:"level"`
+	}
+	enc := json.NewEncoder(w)
+	switch r.Method {
+	case http.MethodGet:
+		lvl := l.a.Level()
+		enc.Encode(payload{Level: &lvl})
+	case http.MethodPut:
+		lvl, err := func() (*zapcore.Level, error) {
+			switch r.Header.Get("Content-Type") {
+			case "application/x-www-form-urlencoded":
+				body, err := ioutil.ReadAll(r.Body)
+				if err != nil {
+					return nil, err
+				}
+				values, err := url.ParseQuery(string(body))
+				if err != nil {
+					return nil, err
+				}
+				lvl := values.Get("level")
+				if lvl == "" {
+					return nil, serrors.New("must specify logging level")
+				}
+				var l zapcore.Level
+				if err := l.UnmarshalText([]byte(lvl)); err != nil {
+					return nil, err
+				}
+				return &l, nil
+			default:
+				var pld payload
+				if err := json.NewDecoder(r.Body).Decode(&pld); err != nil {
+					return nil, fmt.Errorf("malformed request body: %v", err)
+				}
+				if pld.Level == nil {
+					return nil, serrors.New("must specify logging level")
+				}
+				return pld.Level, nil
+			}
+		}()
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			enc.Encode(errorResponse{Error: err.Error()})
+			return
+		}
+		l.a.SetLevel(*lvl)
+		enc.Encode(payload{Level: lvl})
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		enc.Encode(errorResponse{
+			Error: fmt.Sprintf("HTTP method not supported: %v", r.Method),
+		})
+	}
 }
 
 // SafeNewLogger creates a new logger as a child of l only if l is not nil. If l is nil, then

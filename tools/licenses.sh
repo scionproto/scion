@@ -3,9 +3,9 @@
 set -e
 
 ROOTDIR=$(dirname "$0")/..
+TARGET="${TARGET:-"//:scion"}"
 
-$ROOTDIR/tools/package-version 0.1.0-citest
-bazel build //:all
+bazel build $TARGET
 
 DSTDIR=${1:-$ROOTDIR/licenses/data}
 PROJECT=${2:-scion}
@@ -28,6 +28,3 @@ rm -rf $DSTDIR/com_github_uber_jaeger_client_go/scripts
 rm -rf $DSTDIR/com_github_uber_jaeger_lib/scripts
 rm -rf $DSTDIR/com_github_prometheus_procfs/scripts
 rm -rf $DSTDIR/org_uber_go_zap/checklicense.sh
-rm -rf $DSTDIR/com_github_hashicorp_consul_api/operator_license.go
-rm -rf $DSTDIR/com_github_opencontainers_image_spec/.tool
-rm -rf $DSTDIR/com_github_google_jsonnet/test_suite/*.jsonnet*

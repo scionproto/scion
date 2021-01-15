@@ -5,7 +5,6 @@ go_library(
     srcs = [
         "env.go",
         "features.go",
-        "flags.go",
         "logging.go",
         "sample.go",
     ],
