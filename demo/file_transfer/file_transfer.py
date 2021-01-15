@@ -15,15 +15,13 @@
 # limitations under the License.
 
 import json
-import logging
 import re
 import time
 import yaml
 from http import client
-from plumbum import cmd
 
 from acceptance.common import base
-from acceptance.common import tools
+from acceptance.common import docker
 from acceptance.common import scion
 
 
@@ -41,13 +39,13 @@ class Test(base.TestBase):
 
     def _refresh_paths(self):
         self.test_state.dc("exec", "-T", "tester_1-ff00_0_110", "ping", "-c", "2",
-                             "172.20.0.39")
+                           "172.20.0.39")
         self.test_state.dc("exec", "-T", "tester_1-ff00_0_111", "ping", "-c", "2",
-                             "172.20.0.23")
+                           "172.20.0.23")
         self.test_state.dc("exec", "-T", "tester_1-ff00_0_110", "scion", "sp", "1-ff00:0:111",
-                             "--timeout", "5s", "--refresh")
+                           "--timeout", "5s", "--refresh")
         self.test_state.dc("exec", "-T", "tester_1-ff00_0_111", "scion", "sp", "1-ff00:0:110",
-                             "--timeout", "5s", "--refresh")
+                           "--timeout", "5s", "--refresh")
 
     def _set_path_count(self, path_count):
         # Change the gateway config.
@@ -103,13 +101,13 @@ class Test(base.TestBase):
             "image": "tester:latest",
             "cap_add": ["NET_ADMIN"],
             "entrypoint": ["/bin/sh", "-ec",
-                "/share/tc_setup.sh scn_000 16.0mbit ; /share/tc_setup.sh scn_001 16.0mbit"],
+                           "/share/tc_setup.sh scn_000 16.0mbit ;"
+                           " /share/tc_setup.sh scn_001 16.0mbit"],
             "depends_on": ["scion_br1-ff00_0_111-1", "scion_br1-ff00_0_111-2"],
             "network_mode": "host",
         }
         with open(scion_dc, "w") as file:
             yaml.dump(dc, file)
-
 
         # Start the topology
         self.setup_start()
@@ -150,5 +148,5 @@ class Test(base.TestBase):
 
 if __name__ == "__main__":
     base.register_commands(Test)
-    Test.test_state = base.TestState(scion.SCIONDocker(), tools.DC())
+    Test.test_state = base.TestState(scion.SCIONDocker(), docker.Compose())
     Test.run()

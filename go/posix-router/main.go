@@ -15,73 +15,36 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sync"
 
-	"github.com/spf13/cobra"
-
-	libconfig "github.com/scionproto/scion/go/lib/config"
-	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/pkg/command"
+	"github.com/scionproto/scion/go/pkg/app/launcher"
 	"github.com/scionproto/scion/go/pkg/router"
 	"github.com/scionproto/scion/go/pkg/router/config"
 	"github.com/scionproto/scion/go/pkg/router/control"
 	"github.com/scionproto/scion/go/pkg/service"
 )
 
+var globalCfg config.Config
+
 func main() {
-	var flags struct {
-		config string
+	application := launcher.Application{
+		TOMLConfig: &globalCfg,
+		ShortName:  "SCION Router",
+		Main:       realMain,
 	}
-	metrics := router.NewMetrics()
-	executable := filepath.Base(os.Args[0])
-	cmd := &cobra.Command{
-		Use:           executable,
-		Short:         "SCION router",
-		Example:       "  " + executable + " --config router.toml",
-		SilenceErrors: true,
-		SilenceUsage:  true,
-		Args:          cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return run(flags.config, metrics)
-		},
-	}
-	cmd.AddCommand(
-		command.NewCompletion(cmd),
-		command.NewSample(cmd, command.NewSampleConfig(&config.Config{})),
-		command.NewVersion(cmd),
-	)
-	cmd.Flags().StringVar(&flags.config, "config", "", "Configuration file (required)")
-	cmd.MarkFlagRequired("config")
-	if err := cmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
-		os.Exit(1)
-	}
+	application.Run()
 }
 
-func run(file string, metrics *router.Metrics) error {
-	fatal.Init()
-	fileConfig, err := setupBasic(file)
+func realMain() error {
+	controlConfig, err := loadControlConfig()
 	if err != nil {
 		return err
 	}
-	defer log.Flush()
-	defer env.LogAppStopped("BR", fileConfig.General.ID)
-	defer log.HandlePanic()
-	if err := validateConfig(fileConfig); err != nil {
-		return err
-	}
-	controlConfig, err := loadControlConfig(fileConfig)
-	if err != nil {
-		return err
-	}
+	metrics := router.NewMetrics()
 	stop := make(chan struct{})
 	wg := new(sync.WaitGroup)
 	dp := &router.Connector{
@@ -97,7 +60,7 @@ func run(file string, metrics *router.Metrics) error {
 	if err := iaCtx.Start(wg); err != nil {
 		return serrors.WrapStr("starting dataplane", err)
 	}
-	if err := setupHTTPHandlers(fileConfig); err != nil {
+	if err := setupHTTPHandlers(); err != nil {
 		return serrors.WrapStr("starting HTTP endpoints", err)
 	}
 	if err := dp.DataPlane.Run(); err != nil {
@@ -118,47 +81,24 @@ func run(file string, metrics *router.Metrics) error {
 	}
 }
 
-func setupBasic(file string) (config.Config, error) {
-	var cfg config.Config
-	if err := libconfig.LoadFile(file, &cfg); err != nil {
-		return config.Config{}, serrors.WrapStr("loading config from file", err, "file", file)
-	}
-	cfg.InitDefaults()
-	if err := log.Setup(cfg.Logging); err != nil {
-		return config.Config{}, serrors.WrapStr("initialize logging", err)
-	}
-	prom.ExportElementID(cfg.General.ID)
-	if err := env.LogAppStarted("BR", cfg.General.ID); err != nil {
-		return config.Config{}, err
-	}
-	return cfg, nil
-}
-
-func validateConfig(cfg config.Config) error {
-	if err := cfg.Validate(); err != nil {
-		return serrors.WrapStr("validating config", err)
-	}
-	return nil
-}
-
-func loadControlConfig(cfg config.Config) (*control.Config, error) {
-	newConf, err := control.LoadConfig(cfg.General.ID, cfg.General.ConfigDir)
+func loadControlConfig() (*control.Config, error) {
+	newConf, err := control.LoadConfig(globalCfg.General.ID, globalCfg.General.ConfigDir)
 	if err != nil {
 		return nil, serrors.WrapStr("loading topology", err)
 	}
 	return newConf, nil
 }
 
-func setupHTTPHandlers(cfg config.Config) error {
+func setupHTTPHandlers() error {
 	statusPages := service.StatusPages{
 		"info":      service.NewInfoHandler(),
-		"config":    service.NewConfigHandler(cfg),
+		"config":    service.NewConfigHandler(globalCfg),
 		"log/level": log.ConsoleLevel.ServeHTTP,
 		// TODO: Add topology page
 	}
-	if err := statusPages.Register(http.DefaultServeMux, cfg.General.ID); err != nil {
+	if err := statusPages.Register(http.DefaultServeMux, globalCfg.General.ID); err != nil {
 		return err
 	}
-	cfg.Metrics.StartPrometheus()
+	globalCfg.Metrics.StartPrometheus()
 	return nil
 }

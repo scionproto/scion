@@ -276,21 +276,10 @@ go_cover() {
 cmd_lint() {
     set -o pipefail
     local ret=0
-    py_lint || ret=1
     go_lint || ret=1
     bazel_lint || ret=1
     protobuf_lint || ret=1
     md_lint || ret=1
-    return $ret
-}
-
-py_lint() {
-    lint_header "python"
-    local ret=0
-    dirs="acceptance python"
-    binaries="tools/github_releasenotes tools/package-version tools/gomocks"
-    lint_step "flake8"
-    flake8 $dirs $binaries | sort -t: -k1,1 -k2n,2 -k3n,3 || ((ret++))
     return $ret
 }
 

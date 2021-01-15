@@ -30,12 +30,18 @@ The following APIs are exposed by most applications:
 - ``/log/level``: (**EXPERIMENTAL**)
 
   - Method **GET**: Returns the current logging level, in JSON.
-  - Method **POST**: Sets the current logging level. Expects a JSON input. For example, to
-    set the logging level to ``debug`` run:
+  - Method **PUT**: Sets the current logging level. Either JSON or URL encoded
+    request body is supported.For example, to set the logging level to ``debug``
+    run:
 
     .. code-block:: bash
 
-       curl -X PUT "http://172.20.1.3:30442/log/level" -H "Content-Type: application/json" -d "{\"level\":\"debug\"}"
+       curl -X PUT "http://172.20.1.3:30442/log/level" -d level=debug
+       curl -X PUT "http://172.20.1.3:30442/log/level" -H "Content-Type: application/json" -d '{"level":"debug"}'
+
+    If the content type is set to ``application/x-www-form-urlencoded`` (curl
+    default), the endpoint expects a URL encoded request body. In all other
+    cases, a JSON encoded request body is expected.
 
 - ``/metrics``:
 

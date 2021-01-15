@@ -7,18 +7,14 @@ go_library(
     importpath = "github.com/scionproto/scion/go/posix-router",
     visibility = ["//visibility:private"],
     deps = [
-        "//go/lib/config:go_default_library",
-        "//go/lib/env:go_default_library",
         "//go/lib/fatal:go_default_library",
         "//go/lib/log:go_default_library",
-        "//go/lib/prom:go_default_library",
         "//go/lib/serrors:go_default_library",
-        "//go/pkg/command:go_default_library",
+        "//go/pkg/app/launcher:go_default_library",
         "//go/pkg/router:go_default_library",
         "//go/pkg/router/config:go_default_library",
         "//go/pkg/router/control:go_default_library",
         "//go/pkg/service:go_default_library",
-        "@com_github_spf13_cobra//:go_default_library",
     ],
 )
 

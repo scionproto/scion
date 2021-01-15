@@ -20,6 +20,7 @@ load("@apple_rules_lint//lint:setup.bzl", "lint_setup")
 # Add your linters here.
 lint_setup({
     "go": "//:go_lint_config",
+    "flake8": "//:flake8_lint_config",
 })
 
 # Bazel rules for Golang
@@ -67,8 +68,9 @@ gazelle_dependencies()
 # Python rules
 http_archive(
     name = "rules_python",
-    sha256 = "b6d46438523a3ec0f3cead544190ee13223a52f6a6765a29eae7b7cc24cc83a0",
-    url = "https://github.com/bazelbuild/rules_python/releases/download/0.1.0/rules_python-0.1.0.tar.gz",
+    sha256 = "48f7e716f4098b85296ad93f5a133baf712968c13fbc2fdf3a6136158fe86eac",
+    strip_prefix = "rules_python-0.1.0",
+    url = "https://github.com/bazelbuild/rules_python/archive/0.1.0.tar.gz",
 )
 
 load("@rules_python//python:repositories.bzl", "py_repositories")
@@ -283,17 +285,33 @@ http_file(
     ],
 )
 
-# Protobuf
+# protobuf/gRPC
 http_archive(
-    name = "com_google_protobuf",
-    sha256 = "9748c0d90e54ea09e5e75fb7fac16edce15d2028d4356f32211cfa3c0e956564",
-    strip_prefix = "protobuf-3.11.4",
-    urls = ["https://github.com/protocolbuffers/protobuf/archive/v3.11.4.zip"],
+    name = "rules_proto_grpc",
+    sha256 = "d771584bbff98698e7cb3cb31c132ee206a972569f4dc8b65acbdd934d156b33",
+    strip_prefix = "rules_proto_grpc-2.0.0",
+    urls = ["https://github.com/rules-proto-grpc/rules_proto_grpc/archive/2.0.0.tar.gz"],
 )
 
-load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
+load("@rules_proto_grpc//:repositories.bzl", "rules_proto_grpc_repos", "rules_proto_grpc_toolchains")
 
-protobuf_deps()
+rules_proto_grpc_toolchains()
+
+rules_proto_grpc_repos()
+
+load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_proto_toolchains")
+
+rules_proto_dependencies()
+
+rules_proto_toolchains()
+
+load("@rules_proto_grpc//python:repositories.bzl", rules_proto_grpc_python_repos = "python_repos")
+
+rules_proto_grpc_python_repos()
+
+load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
+
+grpc_deps()
 
 http_archive(
     name = "com_github_bazelbuild_buildtools",
@@ -327,3 +345,7 @@ dlv_repositories()
 load("//:bbcp.bzl", "bbcp_repository")
 
 bbcp_repository()
+
+load("//lint/private/python:deps.bzl", "python_lint_deps")
+
+python_lint_deps()

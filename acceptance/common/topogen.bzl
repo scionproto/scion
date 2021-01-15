@@ -1,5 +1,5 @@
 load("@io_bazel_rules_docker//container:container.bzl", "container_bundle")
-load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
+load("//lint:py.bzl", "py_binary", "py_library", "py_test")
 load("@pip3_deps//:requirements.bzl", "requirement")
 load("//python/topology:topology.bzl", "topology")
 
@@ -33,7 +33,7 @@ def topogen_test(
             requirement("plumbum"),
             "//acceptance/common:base",
             "//acceptance/common:log",
-            "//acceptance/common:tools",
+            "//acceptance/common:docker",
         ] + deps,
         visibility = ["//visibility:public"],
     )

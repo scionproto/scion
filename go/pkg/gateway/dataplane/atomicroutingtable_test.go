@@ -34,7 +34,6 @@ func TestAtomicRoutingTable(t *testing.T) {
 	// Do not set any routing table yet
 	assert.Nil(t, art.RouteIPv4(layers.IPv4{}))
 	assert.Nil(t, art.RouteIPv6(layers.IPv6{}))
-	assert.NotPanics(t, func() { art.AddRoute(1, nil) })
 
 	// Use a mocked routing table
 	rt := mock_control.NewMockRoutingTable(ctrl)
@@ -43,12 +42,9 @@ func TestAtomicRoutingTable(t *testing.T) {
 	assert.Nil(t, art.RouteIPv4(layers.IPv4{}))
 	rt.EXPECT().RouteIPv6(layers.IPv6{})
 	assert.Nil(t, art.RouteIPv6(layers.IPv6{}))
-	rt.EXPECT().AddRoute(1, nil)
-	assert.NotPanics(t, func() { art.AddRoute(1, nil) })
 
 	// Set routing table back to nil
 	art.SetRoutingTable(nil)
 	assert.Nil(t, art.RouteIPv4(layers.IPv4{}))
 	assert.Nil(t, art.RouteIPv6(layers.IPv6{}))
-	assert.NotPanics(t, func() { art.AddRoute(1, nil) })
 }

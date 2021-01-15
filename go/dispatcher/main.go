@@ -16,7 +16,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
@@ -24,47 +23,29 @@ import (
 
 	"github.com/scionproto/scion/go/dispatcher/config"
 	"github.com/scionproto/scion/go/dispatcher/network"
-	libconfig "github.com/scionproto/scion/go/lib/config"
-	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/app/launcher"
 	"github.com/scionproto/scion/go/pkg/service"
 )
 
-var (
-	cfg config.Config
-)
+var globalCfg config.Config
 
 func main() {
-	os.Exit(realMain())
+	application := launcher.Application{
+		TOMLConfig: &globalCfg,
+		ShortName:  "SCION Dispatcher",
+		Main:       realMain,
+	}
+	application.Run()
 }
 
-func realMain() int {
-	fatal.Init()
-	env.AddFlags()
-	flag.Parse()
-	if returnCode, ok := env.CheckFlags(&cfg); !ok {
-		return returnCode
-	}
-	if err := setupBasic(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	defer log.Flush()
-	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
-	defer log.HandlePanic()
-	if err := cfg.Validate(); err != nil {
-		log.Error("Configuration validation failed", "err", err)
-		return 1
-	}
-
-	if err := util.CreateParentDirs(cfg.Dispatcher.ApplicationSocket); err != nil {
-		log.Error("Creating directory tree for socket failed", "err", err)
-		return 1
+func realMain() error {
+	if err := util.CreateParentDirs(globalCfg.Dispatcher.ApplicationSocket); err != nil {
+		return serrors.WrapStr("creating directory tree for socket", err)
 	}
 
 	path.StrictDecoding(false)
@@ -72,66 +53,42 @@ func realMain() int {
 	go func() {
 		defer log.HandlePanic()
 		err := RunDispatcher(
-			cfg.Dispatcher.DeleteSocket,
-			cfg.Dispatcher.ApplicationSocket,
-			os.FileMode(cfg.Dispatcher.SocketFileMode),
-			cfg.Dispatcher.UnderlayPort,
+			globalCfg.Dispatcher.DeleteSocket,
+			globalCfg.Dispatcher.ApplicationSocket,
+			os.FileMode(globalCfg.Dispatcher.SocketFileMode),
+			globalCfg.Dispatcher.UnderlayPort,
 		)
 		if err != nil {
+			// FIXME(scrye): properly clean this up.
 			fatal.Fatal(err)
 		}
 	}()
 
-	env.SetupEnv(nil)
-
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
 		"info":      service.NewInfoHandler(),
-		"config":    service.NewConfigHandler(cfg),
+		"config":    service.NewConfigHandler(globalCfg),
 		"log/level": log.ConsoleLevel.ServeHTTP,
 	}
-	if err := statusPages.Register(http.DefaultServeMux, cfg.Dispatcher.ID); err != nil {
-		log.Error("registering status pages", "err", err)
-		return 1
+	if err := statusPages.Register(http.DefaultServeMux, globalCfg.Dispatcher.ID); err != nil {
+		return serrors.WrapStr("registering status pages", err)
 	}
-	cfg.Metrics.StartPrometheus()
+	globalCfg.Metrics.StartPrometheus()
+
+	defer deleteSocket(globalCfg.Dispatcher.ApplicationSocket)
 
 	returnCode := waitForTeardown()
-	// XXX(scrye): if the dispatcher is shut down on purpose, it is usually
-	// done together with the whole stack on top the dispatcher. Cleaning
-	// up gracefully does not give us anything in this case. We just clean
-	// up the sockets and let the application close.
-	errDelete := deleteSocket(cfg.Dispatcher.ApplicationSocket)
-	if errDelete != nil {
-		log.Info("Unable to delete socket when shutting down", "err", errDelete)
+	if returnCode != 0 {
+		return serrors.New("fatal teardown exited with non-zero code", "code", returnCode)
 	}
-	switch {
-	case returnCode != 0:
-		return returnCode
-	case errDelete != nil:
-		return 1
-	default:
-		return 0
-	}
-}
-
-func setupBasic() error {
-	if err := libconfig.LoadFile(env.ConfigFile(), &cfg); err != nil {
-		return serrors.WrapStr("failed to load config", err, "file", env.ConfigFile())
-	}
-	cfg.InitDefaults()
-	if err := log.Setup(cfg.Logging); err != nil {
-		return serrors.WrapStr("failed to initialize logging", err)
-	}
-	prom.ExportElementID(cfg.Dispatcher.ID)
-	return env.LogAppStarted("Dispatcher", cfg.Dispatcher.ID)
+	return nil
 }
 
 func RunDispatcher(deleteSocketFlag bool, applicationSocket string, socketFileMode os.FileMode,
 	underlayPort int) error {
 
 	if deleteSocketFlag {
-		if err := deleteSocket(cfg.Dispatcher.ApplicationSocket); err != nil {
+		if err := deleteSocket(globalCfg.Dispatcher.ApplicationSocket); err != nil {
 			return err
 		}
 	}

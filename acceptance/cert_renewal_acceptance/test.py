@@ -27,9 +27,9 @@ from plumbum import local
 from plumbum.path.local import LocalPath
 
 from acceptance.common.base import CmdBase, TestBase, TestState, set_name
+from acceptance.common.docker import Compose
 from acceptance.common.log import LogExec, init_log
 from acceptance.common.scion import sciond_addr, SCIONDocker
-from acceptance.common.tools import DC
 from python.lib.scion_addr import ISD_AS
 
 
@@ -230,5 +230,5 @@ def rel(path: LocalPath):
 
 if __name__ == '__main__':
     init_log()
-    Test.test_state = TestState(SCIONDocker(), DC())
+    Test.test_state = TestState(SCIONDocker(), Compose())
     Test.run()
