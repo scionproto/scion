@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/rand"
 	"net"
 	"strings"
 	"time"
@@ -342,9 +343,10 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			DstIA:   dst,
 			LocalIA: localIA,
 			LocalIP: localIP,
+			ID:      uint16(rand.Uint32()),
 		}.GetStatuses(ctx, p)
 		if err != nil {
-			serrors.WrapStr("failed to get status", err)
+			return nil, serrors.WrapStr("failed to get status", err)
 		}
 	}
 	app.SortPaths(paths)
