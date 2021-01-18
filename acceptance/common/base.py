@@ -103,6 +103,9 @@ class TestBase(cli.Application):
         self.test_state.dc.compose_file = self.test_state.artifacts / 'gen/scion-dc.yml'
 
     def setup_prepare(self):
+        """Unpacks the topology and loads local docker images.
+        """
+
         print('artifacts dir: %s' % self.test_state.artifacts)
         self._unpack_topo()
         print(cmd.docker('image', 'load', '-i', self.test_state.containers_tar))
@@ -112,6 +115,8 @@ class TestBase(cli.Application):
         self.setup_start()
 
     def setup_start(self):
+        """Starts the docker containers in the topology.
+        """
         print(self.test_state.dc('up', '-d'))
         print(self.test_state.dc('ps'))
         print('artifacts dir: %s' % self.test_state.artifacts)
