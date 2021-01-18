@@ -35,7 +35,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/gateway/dataplane"
 )
 
-func TestIPReader(t *testing.T) {
+func TestIPForwarderRun(t *testing.T) {
 	t.Run("nil routing table", func(t *testing.T) {
 		t.Parallel()
 		ctrl := gomock.NewController(t)
@@ -58,6 +58,86 @@ func TestIPReader(t *testing.T) {
 		}
 		err := ipForwarder.Run()
 		assert.Error(t, err)
+	})
+
+	t.Run("fragmented packets", func(t *testing.T) {
+		testCases := map[string]struct {
+			input func(*testing.T) gopacket.Packet
+		}{
+			"ipv4 middle fragment": {
+				input: func(t *testing.T) gopacket.Packet {
+					buf, opts := gopacket.NewSerializeBuffer(), gopacket.SerializeOptions{}
+					err := gopacket.SerializeLayers(buf, opts,
+						&layers.IPv4{
+							Version: 4,
+							TTL:     20,
+							IHL:     5,
+							Length:  20,
+							SrcIP:   net.IPv4(1, 1, 1, 1),
+							DstIP:   net.IPv4(2, 2, 2, 2),
+							Flags:   layers.IPv4MoreFragments,
+						},
+					)
+					require.NoError(t, err)
+					return gopacket.NewPacket(buf.Bytes(), layers.LayerTypeIPv4,
+						gopacket.DecodeOptions{NoCopy: true, Lazy: true})
+				},
+			},
+			"ipv4 last fragment": {
+				input: func(t *testing.T) gopacket.Packet {
+					buf, opts := gopacket.NewSerializeBuffer(), gopacket.SerializeOptions{}
+					err := gopacket.SerializeLayers(buf, opts,
+						&layers.IPv4{
+							Version:    4,
+							TTL:        20,
+							IHL:        5,
+							Length:     20,
+							SrcIP:      net.IPv4(1, 1, 1, 1),
+							DstIP:      net.IPv4(2, 2, 2, 2),
+							FragOffset: 64,
+						},
+					)
+					require.NoError(t, err)
+					return gopacket.NewPacket(buf.Bytes(), layers.LayerTypeIPv4,
+						gopacket.DecodeOptions{NoCopy: true, Lazy: true})
+				},
+			},
+		}
+
+		for name, tc := range testCases {
+			name, tc := name, tc
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+
+				ctrl := gomock.NewController(t)
+				defer ctrl.Finish()
+				reader := mock_io.NewMockReader(ctrl)
+
+				ipForwarder := &dataplane.IPForwarder{
+					Reader:       reader,
+					RoutingTable: mock_control.NewMockRoutingTable(ctrl),
+				}
+
+				reader.EXPECT().Read(gomock.Any()).DoAndReturn(
+					func(b []byte) (int, error) {
+						return copy(b, tc.input(t).Data()), nil
+					},
+				)
+				done := make(chan struct{})
+				reader.EXPECT().Read(gomock.Any()).DoAndReturn(
+					func(b []byte) (int, error) {
+						close(done)
+						select {}
+					})
+
+				go func() {
+					err := ipForwarder.Run()
+					require.NoError(t, err)
+				}()
+
+				xtest.AssertReadReturnsBefore(t, done, time.Second)
+			})
+		}
 	})
 
 	t.Run("successful run", func(t *testing.T) {

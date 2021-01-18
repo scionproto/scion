@@ -647,14 +647,12 @@ func (g *Gateway) Run() error {
 			g.Metrics.IPPktBytesLocalReceivedTotal)
 		fwMetrics.IPPktsLocalRecv = metrics.NewPromCounter(g.Metrics.IPPktsLocalReceivedTotal)
 		fwMetrics.IPPktsInvalid = metrics.CounterWith(
-			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal),
-			"reason", "invalid",
-		)
+			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal), "reason", "invalid")
+		fwMetrics.IPPktsFragmented = metrics.CounterWith(
+			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal), "reason", "fragmented")
 		fwMetrics.ReceiveLocalErrors = metrics.NewPromCounter(g.Metrics.ReceiveLocalErrorsTotal)
 		fwMetrics.IPPktsNoRoute = metrics.CounterWith(
-			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal),
-			"reason", "no_route",
-		)
+			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal), "reason", "no_route")
 	}
 	forwarder := &dataplane.IPForwarder{
 		Reader:       g.InternalDevice,

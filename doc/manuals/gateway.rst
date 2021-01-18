@@ -213,6 +213,7 @@ Possible values are:
 
 - ``invalid``: discarded because the received IP packet was corrupted
 - ``no_route``: discarded because there is no route for the IP packet
+- ``fragmented``: discarded because the IP packet was fragmented.
 
 **Labels**: ``reason``
 
