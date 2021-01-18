@@ -1,0 +1,15 @@
+load("//lint:go.bzl", "go_test")
+
+go_test(
+    name = "go_default_test",
+    srcs = ["schema_test.go"],
+    data = [
+        "configuration.schema.json",
+        "example_configuration.gatewaytest",
+    ],
+    deps = [
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+        "@com_github_xeipuuv_gojsonschema//:go_default_library",
+    ],
+)
