@@ -4,6 +4,9 @@ set -euo pipefail
 
 . .buildkite/hooks/pre-exit
 
+echo "--- Pre-allocating hugepages"
+sudo sysctl -w vm.nr_hugepages=100
+
 echo "--- Setting up bazel environment"
 
 # ACCEPTANCE_ARTIFACTS is used for acceptance tests built with the "old"
