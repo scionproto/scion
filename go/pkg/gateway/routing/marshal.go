@@ -144,6 +144,8 @@ func parseAction(b []byte) (Action, error) {
 		return Reject, nil
 	case Advertise.String():
 		return Advertise, nil
+	case RedistributeBGP.String():
+		return RedistributeBGP, nil
 	default:
 		return 0, serrors.New("unknown action", "input", string(b))
 	}

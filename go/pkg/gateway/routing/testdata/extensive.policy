@@ -1,5 +1,6 @@
-accept       1-ff00:0:110     1-ff00:0:112    127.0.0.0/24,127.0.1.0/24    # Rule one
-reject       1-ff00:0:110     1-ff00:0:112    !127.0.0.0/24                # Rule two
-reject       1-0              1-ff00:0:112    127.0.0.0/24
-accept       1-ff00:0:111     0-0             127.0.1.0/24                 # Rule four
-advertise    !1-ff00:0:111    2-ff00:0:220    127.0.1.0/24                 # Rule Five
+accept              1-ff00:0:110     1-ff00:0:112    127.0.0.0/24,127.0.1.0/24    # Rule one
+reject              1-ff00:0:110     1-ff00:0:112    !127.0.0.0/24                # Rule two
+reject              1-0              1-ff00:0:112    127.0.0.0/24
+accept              1-ff00:0:111     0-0             127.0.1.0/24                 # Rule four
+advertise           !1-ff00:0:111    2-ff00:0:220    127.0.1.0/24                 # Rule Five
+redistribute-bgp    0-0              2-ff00:0:212    0.0.0.0/0

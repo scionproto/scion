@@ -157,16 +157,15 @@ func (ignoreSCMP) Handle(pkt *snet.Packet) error {
 	return nil
 }
 
-// ConfigPublisherAdvertiser computes the networks that should be advertised depending
-// on the state of the last published routing policy file.
-type ConfigPublisherAdvertiser struct {
+// SelectAdvertisedRoutes computes the networks that should be advertised
+// depending on the state of the last published routing policy file.
+type SelectAdvertisedRoutes struct {
 	ConfigPublisher *control.ConfigPublisher
 }
 
-func (a *ConfigPublisherAdvertiser) AdvertiseList(from, to addr.IA) []*net.IPNet {
+func (a *SelectAdvertisedRoutes) AdvertiseList(from, to addr.IA) []*net.IPNet {
 	policy := a.ConfigPublisher.RoutingPolicy()
 	return routing.AdvertiseList(*policy, from, to)
-
 }
 
 type RoutingPolicyPublisherAdapter struct {
@@ -515,7 +514,7 @@ func (g *Gateway) Run() error {
 		discoveryServer,
 		controlgrpc.IPPrefixServer{
 			LocalIA: localIA,
-			Advertiser: &ConfigPublisherAdvertiser{
+			Advertiser: &SelectAdvertisedRoutes{
 				ConfigPublisher: configPublisher,
 			},
 			PrefixesAdvertised: paMetric,

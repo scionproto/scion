@@ -96,6 +96,12 @@ func testPolicies(t *testing.T) map[string]routing.Policy {
 					Network: routing.NewNetworkMatcher(t, "127.0.1.0/24"),
 					Comment: "Rule Five",
 				},
+				{
+					Action:  routing.RedistributeBGP,
+					From:    routing.NewIAMatcher(t, "0-0"),
+					To:      routing.NewIAMatcher(t, "2-ff00:0:212"),
+					Network: routing.NewNetworkMatcher(t, "0.0.0.0/0"),
+				},
 			},
 		},
 		"ipv6.policy": {
