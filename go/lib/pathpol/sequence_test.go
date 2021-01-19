@@ -54,6 +54,42 @@ func TestSequenceEval(t *testing.T) {
 			Dst:        xtest.MustParseIA("2-ff00:0:212"),
 			ExpPathNum: 0,
 		},
+		"Asterisk matches empty path": {
+			Seq:        newSequence(t, "0*"),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:212"),
+			ExpPathNum: 1,
+		},
+		"Asterisk on non-wildcard matches empty path": {
+			Seq:        newSequence(t, "1-ff00:0:110#1,2*"),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:212"),
+			ExpPathNum: 1,
+		},
+		"Double Asterisk matches empty path": {
+			Seq:        newSequence(t, "0* 0*"),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:212"),
+			ExpPathNum: 1,
+		},
+		"QuestionMark matches empty path": {
+			Seq:        newSequence(t, "0*"),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:212"),
+			ExpPathNum: 1,
+		},
+		"Asterisk and QuestionMark matches empty path": {
+			Seq:        newSequence(t, "0* 0?"),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:212"),
+			ExpPathNum: 1,
+		},
+		"Plus does not match empty path": {
+			Seq:        newSequence(t, "0+"),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:212"),
+			ExpPathNum: 0,
+		},
 		"Length not matching": {
 			Seq:        newSequence(t, "0-0#0"),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
