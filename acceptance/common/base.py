@@ -14,6 +14,7 @@
 
 import logging
 import os
+import re
 import typing
 
 from plumbum import cli
@@ -123,8 +124,12 @@ class TestBase(cli.Application):
 
     def teardown(self):
         self._unpack_topo()
-        self.test_state.dc.collect_logs(out_dir=self.test_state.artifacts / 'logs')
+        out_dir = self.test_state.artifacts / 'logs'
+        self.test_state.dc.collect_logs(out_dir=out_dir)
+        ps = self.test_state.dc('ps')
         print(self.test_state.dc('down', '-v'))
+        if re.search(r"Exit\s+[1-9]\d*", ps):
+            raise Exception("Failed services.\n" + ps)
 
     def send_signal(self, container, signal):
         """Sends signal to a container.
