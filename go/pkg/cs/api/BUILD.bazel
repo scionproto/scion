@@ -3,6 +3,7 @@ load("//lint:go.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
+        "api.go",
         "server.gen.go",
         "spec.gen.go",
         "types.gen.go",
@@ -10,6 +11,10 @@ go_library(
     importpath = "github.com/scionproto/scion/go/pkg/cs/api",
     visibility = ["//visibility:public"],
     deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/scrypto:go_default_library",
+        "//go/lib/scrypto/cppki:go_default_library",
+        "//go/pkg/cs/trust:go_default_library",
         "@com_github_getkin_kin_openapi//openapi3:go_default_library",
         "@com_github_go_chi_chi//:go_default_library",
         "@com_github_pkg_errors//:go_default_library",
