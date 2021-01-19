@@ -1329,18 +1329,9 @@ type scmpPacker struct {
 }
 
 func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
-	incPath bool, cause error) ([]byte, error) {
+	external bool, cause error) ([]byte, error) {
 
-	// We use the original packet but put the already updated path, because usually a router will
-	// not keep a copy of the original/unmodified packet around.
-	pathRaw := s.scionL.Path.(*scion.Raw).Raw
-
-	if err := s.scionL.DecodeFromBytes(s.origPacket, gopacket.NilDecodeFeedback); err != nil {
-		panic(err)
-	}
 	path := s.scionL.Path.(*scion.Raw)
-
-	path.Raw = pathRaw
 	decPath, err := path.ToDecoded()
 	if err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "decoding raw path")
@@ -1350,7 +1341,16 @@ func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.Serializable
 		return nil, serrors.Wrap(cannotRoute, err, "details", "reversing path for SCMP")
 	}
 	revPath := s.scionL.Path.(*scion.Decoded)
-	if incPath || revPath.IsXover() {
+
+	// Revert potential path segment switches that were done during processing.
+	if revPath.IsXover() {
+		if err := revPath.IncPath(); err != nil {
+			return nil, serrors.Wrap(cannotRoute, err, "details", "reverting cross over for SCMP")
+		}
+	}
+	// If the packet is sent to an external router, we need to increment the
+	// path to prepare it for the next hop.
+	if external {
 		infoField := revPath.InfoFields[revPath.PathMeta.CurrINF]
 		if infoField.ConsDir {
 			hopField := revPath.HopFields[revPath.PathMeta.CurrHF]

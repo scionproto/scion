@@ -92,6 +92,14 @@ func (s *Raw) ToDecoded() (*Decoded, error) {
 	return decoded, nil
 }
 
+// IncPath increments the path and writes it to the buffer.
+func (s *Raw) IncPath() error {
+	if err := s.Base.IncPath(); err != nil {
+		return err
+	}
+	return s.PathMeta.SerializeTo(s.Raw[:MetaLen])
+}
+
 // GetInfoField returns the InfoField at a given index.
 func (s *Raw) GetInfoField(idx int) (*path.InfoField, error) {
 	if idx >= s.NumINF {
