@@ -160,13 +160,13 @@ func TestIPForwarderRun(t *testing.T) {
 		art.SetRoutingTable(rt)
 
 		sessionOne := mock_control.NewMockPktWriter(ctrl)
-		rt.AddRoute(
+		rt.SetSession(
 			1,
 			sessionOne,
 		)
 
 		sessionTwo := mock_control.NewMockPktWriter(ctrl)
-		rt.AddRoute(
+		rt.SetSession(
 			2,
 			sessionTwo,
 		)

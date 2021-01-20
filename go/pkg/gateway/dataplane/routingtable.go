@@ -50,7 +50,7 @@ func (e *entry) route(pkt gopacket.Layer) control.PktWriter {
 	return nil
 }
 
-func (e *entry) isHealthy() bool {
+func (e *entry) hasSession() bool {
 	for _, sub := range e.Table {
 		if sub.Session != nil {
 			return true
@@ -171,7 +171,7 @@ func (rt *RoutingTable) route(dst net.IP, pkt gopacket.Layer) control.PktWriter 
 	return ret
 }
 
-func (rt *RoutingTable) AddRoute(index int, session control.PktWriter) error {
+func (rt *RoutingTable) SetSession(index int, session control.PktWriter) error {
 	rt.mtx.Lock()
 	defer rt.mtx.Unlock()
 
@@ -183,16 +183,15 @@ func (rt *RoutingTable) AddRoute(index int, session control.PktWriter) error {
 		return serrors.New("invalid index")
 	}
 	for _, e := range rt.indexToEntries[index] {
-		healthyBefore := e.isHealthy()
-		if !healthyBefore {
-			rt.addNetwork(e.Prefix)
+		if !e.hasSession() {
+			rt.pushPrefix(e.Prefix)
 		}
 	}
 	se.Session = session
 	return nil
 }
 
-func (rt *RoutingTable) DelRoute(index int) error {
+func (rt *RoutingTable) ClearSession(index int) error {
 	rt.mtx.Lock()
 	defer rt.mtx.Unlock()
 
@@ -202,20 +201,36 @@ func (rt *RoutingTable) DelRoute(index int) error {
 	}
 	se.Session = nil
 	for _, e := range rt.indexToEntries[index] {
-		if !e.isHealthy() {
-			rt.deleteNetwork(e.Prefix)
+		if !e.hasSession() {
+			rt.popPrefix(e.Prefix)
 		}
 	}
 	return nil
 }
 
-func (rt *RoutingTable) addNetwork(prefix *net.IPNet) {
+// Activate should be called to mark the routing table as active.
+func (rt *RoutingTable) Activate() {}
+
+// Deactivate should be called when the routing table is no longer needed. It
+// removes from the external routing exporter all the prefixes which have a
+// not-nil session.
+func (rt *RoutingTable) Deactivate() {
+	rt.mtx.RLock()
+	defer rt.mtx.RUnlock()
+	for _, e := range rt.table {
+		if e.hasSession() {
+			rt.popPrefix(e.Prefix)
+		}
+	}
+}
+
+func (rt *RoutingTable) pushPrefix(prefix *net.IPNet) {
 	if rt.RouteExporter != nil {
 		rt.RouteExporter.AddNetwork(*prefix)
 	}
 }
 
-func (rt *RoutingTable) deleteNetwork(prefix *net.IPNet) {
+func (rt *RoutingTable) popPrefix(prefix *net.IPNet) {
 	if rt.RouteExporter != nil {
 		rt.RouteExporter.DeleteNetwork(*prefix)
 	}

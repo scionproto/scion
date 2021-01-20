@@ -77,7 +77,7 @@ func TestRoutingTableRouteIPv4(t *testing.T) {
 						},
 					},
 				})
-				require.NoError(t, rt.AddRoute(1, testPktWriter{}))
+				require.NoError(t, rt.SetSession(1, testPktWriter{}))
 				return rt
 			},
 			input: []layers.IPv4{{DstIP: net.IP{192, 168, 100, 2}}},
@@ -94,7 +94,7 @@ func TestRoutingTableRouteIPv4(t *testing.T) {
 						},
 					},
 				})
-				require.NoError(t, rt.AddRoute(2, testPktWriter{}))
+				require.NoError(t, rt.SetSession(2, testPktWriter{}))
 				return rt
 			},
 			input: []layers.IPv4{{DstIP: net.IP{192, 168, 100, 2}}},
@@ -122,7 +122,7 @@ func TestRoutingTableRouteIPv4(t *testing.T) {
 						},
 					},
 				})
-				require.NoError(t, rt.AddRoute(2, testPktWriter{}))
+				require.NoError(t, rt.SetSession(2, testPktWriter{}))
 				return rt
 			},
 			input: []layers.IPv4{{DstIP: net.IP{192, 168, 100, 2}}},
@@ -138,7 +138,7 @@ func TestRoutingTableRouteIPv4(t *testing.T) {
 						},
 					},
 				})
-				require.NoError(t, rt.AddRoute(1, testPktWriter{}))
+				require.NoError(t, rt.SetSession(1, testPktWriter{}))
 				return rt
 			},
 			input: []layers.IPv4{{DstIP: net.IP{192, 168, 100, 2}}},
@@ -154,7 +154,7 @@ func TestRoutingTableRouteIPv4(t *testing.T) {
 						},
 					},
 				})
-				require.NoError(t, rt.AddRoute(1, testPktWriter{ID: 1}))
+				require.NoError(t, rt.SetSession(1, testPktWriter{ID: 1}))
 				return rt
 			},
 			input: []layers.IPv4{
@@ -201,7 +201,7 @@ func TestRoutingTableRouteIPv6(t *testing.T) {
 						},
 					},
 				})
-				require.NoError(t, rt.AddRoute(2, testPktWriter{}))
+				require.NoError(t, rt.SetSession(2, testPktWriter{}))
 				return rt
 			},
 			input: layers.IPv6{DstIP: net.ParseIP("2001:db8:a0b:12f0::1")},
@@ -229,7 +229,7 @@ func TestRoutingTableRouteIPv6(t *testing.T) {
 						},
 					},
 				})
-				require.NoError(t, rt.AddRoute(2, testPktWriter{}))
+				require.NoError(t, rt.SetSession(2, testPktWriter{}))
 				return rt
 			},
 			input: layers.IPv6{DstIP: net.ParseIP("2001:db8:a0b:12f0::1")},
@@ -247,7 +247,7 @@ func TestRoutingTableRouteIPv6(t *testing.T) {
 	}
 }
 
-func TestRoutingTableAddDelRoute(t *testing.T) {
+func TestRoutingTableAddClearSession(t *testing.T) {
 	buildRT := func() *dataplane.RoutingTable {
 		return dataplane.NewRoutingTable(nil, []*control.RoutingChain{
 			{
@@ -266,33 +266,33 @@ func TestRoutingTableAddDelRoute(t *testing.T) {
 	}
 	testCases := map[string]func(t *testing.T){
 		"add nil session errors": func(t *testing.T) {
-			assert.Error(t, buildRT().AddRoute(2, nil))
+			assert.Error(t, buildRT().SetSession(2, nil))
 		},
 		"add invalid index errors": func(t *testing.T) {
-			assert.Error(t, buildRT().AddRoute(5, testPktWriter{}))
+			assert.Error(t, buildRT().SetSession(5, testPktWriter{}))
 		},
 		"delete invalid index errors": func(t *testing.T) {
-			assert.Error(t, buildRT().DelRoute(5))
+			assert.Error(t, buildRT().ClearSession(5))
 		},
 		"delete non-set session": func(t *testing.T) {
-			assert.NoError(t, buildRT().DelRoute(2))
+			assert.NoError(t, buildRT().ClearSession(2))
 		},
 		"adding a session works correctly": func(t *testing.T) {
 			rt := buildRT()
-			assert.NoError(t, rt.AddRoute(2, testPktWriter{ID: 2}))
+			assert.NoError(t, rt.SetSession(2, testPktWriter{ID: 2}))
 			sess := rt.RouteIPv4(layers.IPv4{DstIP: net.ParseIP("192.168.100.2")})
 			assert.Equal(t, testPktWriter{ID: 2}, sess)
 			// now override
-			assert.NoError(t, rt.AddRoute(2, testPktWriter{ID: 5}))
+			assert.NoError(t, rt.SetSession(2, testPktWriter{ID: 5}))
 			sess = rt.RouteIPv4(layers.IPv4{DstIP: net.ParseIP("192.168.100.2")})
 			assert.Equal(t, testPktWriter{ID: 5}, sess)
 		},
 		"deleting a session works correctly": func(t *testing.T) {
 			rt := buildRT()
-			assert.NoError(t, rt.AddRoute(2, testPktWriter{ID: 2}))
+			assert.NoError(t, rt.SetSession(2, testPktWriter{ID: 2}))
 			sess := rt.RouteIPv4(layers.IPv4{DstIP: net.ParseIP("192.168.100.2")})
 			assert.Equal(t, testPktWriter{ID: 2}, sess)
-			assert.NoError(t, rt.DelRoute(2))
+			assert.NoError(t, rt.ClearSession(2))
 			assert.Nil(t, rt.RouteIPv4(layers.IPv4{DstIP: net.ParseIP("192.168.100.2")}))
 		},
 	}
@@ -318,11 +318,11 @@ func TestRoutingTableRouteExporter(t *testing.T) {
 
 	routeExporter.EXPECT().AddNetwork(*prefixes[0])
 	routeExporter.EXPECT().AddNetwork(*prefixes[1])
-	routingTable.AddRoute(1, session)
+	routingTable.SetSession(1, session)
 
 	routeExporter.EXPECT().DeleteNetwork(*prefixes[0])
 	routeExporter.EXPECT().DeleteNetwork(*prefixes[1])
-	routingTable.DelRoute(1)
+	routingTable.ClearSession(1)
 }
 
 type testPktWriter struct {
@@ -332,4 +332,96 @@ type testPktWriter struct {
 func (_ testPktWriter) Write(gopacket.Packet) {}
 func (w testPktWriter) String() string {
 	return fmt.Sprintf("%d", w.ID)
+}
+
+func TestRoutingTableActivate(t *testing.T) {}
+
+func TestRoutingTableDeactivate(t *testing.T) {
+	nets := xtest.MustParseCIDRs(t, "192.168.100.0/24", "10.0.0.0/8", "172.16.0.0/12")
+
+	testCases := map[string]struct {
+		setupRT func(*testing.T, control.RouteExporter) *dataplane.RoutingTable
+		want    func(re *mock_control.MockRouteExporter)
+	}{
+		"not nil sessions": {
+			setupRT: func(t *testing.T, re control.RouteExporter) *dataplane.RoutingTable {
+				rt := dataplane.NewRoutingTable(re, []*control.RoutingChain{
+					{
+						Prefixes: []*net.IPNet{nets[0]},
+						TrafficMatchers: []control.TrafficMatcher{
+							{ID: 1, Matcher: pktcls.CondFalse},
+						},
+					},
+				})
+				require.NoError(t, rt.SetSession(1, testPktWriter{}))
+				return rt
+			},
+			want: func(re *mock_control.MockRouteExporter) {
+				re.EXPECT().DeleteNetwork(*nets[0])
+			},
+		},
+		"one nil and one non nil session": {
+			setupRT: func(t *testing.T, re control.RouteExporter) *dataplane.RoutingTable {
+				rt := dataplane.NewRoutingTable(re, []*control.RoutingChain{
+					{
+						Prefixes: []*net.IPNet{nets[0], nets[1]},
+						TrafficMatchers: []control.TrafficMatcher{
+							{ID: 1, Matcher: pktcls.CondFalse},
+						},
+					},
+				})
+				require.NoError(t, rt.SetSession(1, testPktWriter{}))
+				return rt
+			},
+			want: func(re *mock_control.MockRouteExporter) {
+				re.EXPECT().DeleteNetwork(*nets[1])
+				re.EXPECT().DeleteNetwork(*nets[0])
+			},
+		},
+		"only nil session": {
+			setupRT: func(t *testing.T, re control.RouteExporter) *dataplane.RoutingTable {
+				rt := dataplane.NewRoutingTable(re, []*control.RoutingChain{
+					{
+						Prefixes: []*net.IPNet{nets[0], nets[1]},
+						TrafficMatchers: []control.TrafficMatcher{
+							{ID: 1, Matcher: pktcls.CondFalse},
+						},
+					},
+					{
+						Prefixes: []*net.IPNet{nets[2]},
+						TrafficMatchers: []control.TrafficMatcher{
+							{ID: 2, Matcher: pktcls.CondFalse},
+						},
+					},
+				})
+				require.NoError(t, rt.SetSession(1, testPktWriter{}))
+				return rt
+			},
+			want: func(re *mock_control.MockRouteExporter) {
+				re.EXPECT().DeleteNetwork(*nets[1])
+				re.EXPECT().DeleteNetwork(*nets[0])
+			},
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			// Setup routing table
+			exporter := mock_control.NewMockRouteExporter(ctrl)
+			exporter.EXPECT().AddNetwork(gomock.Any()).AnyTimes()
+			rt := tc.setupRT(t, exporter)
+
+			// Set up the expected mock calls to exporter per test case
+			tc.want(exporter)
+
+			rt.Deactivate()
+		})
+	}
+
 }

@@ -34,9 +34,10 @@ type AtomicRoutingTable struct {
 	// investigate if it's worth refactoring, because code with atomics will be harder
 	// to read.
 
-	// mtx protects read and write access to the routing table pointer. This does not include access
-	// to the table itself; as soon as the pointer to the table is read, the table operations
-	// will happen outside the mutex-protected area.
+	// mtx protects read and write access to the routing table pointer. This does
+	// not include access to the table itself; as soon as the pointer to the
+	// table is read, the table operations will happen outside the
+	// mutex-protected area.
 	mtx   sync.RWMutex
 	table control.RoutingTable
 }
@@ -58,17 +59,21 @@ func (t *AtomicRoutingTable) RouteIPv6(packet layers.IPv6) control.PktWriter {
 }
 
 func (t *AtomicRoutingTable) SetRoutingTable(table control.RoutingTable) {
-	t.setPointer(table)
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+
+	if t.table != nil {
+		t.table.Deactivate()
+	}
+
+	t.table = table
+	if t.table != nil {
+		t.table.Activate()
+	}
 }
 
 func (t *AtomicRoutingTable) getPointer() control.RoutingTable {
 	t.mtx.RLock()
 	defer t.mtx.RUnlock()
 	return t.table
-}
-
-func (t *AtomicRoutingTable) setPointer(table control.RoutingTable) {
-	t.mtx.Lock()
-	defer t.mtx.Unlock()
-	t.table = table
 }

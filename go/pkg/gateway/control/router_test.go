@@ -75,23 +75,23 @@ func TestRouterRun(t *testing.T) {
 		}
 		// When receiving the session 103 up event, the routing table should get
 		// the session 103 information inserted.
-		rt.EXPECT().AddRoute(1, router.DataplaneSessions[103])
-		rt.EXPECT().AddRoute(3, router.DataplaneSessions[103]).Do(writeCallChan)
+		rt.EXPECT().SetSession(1, router.DataplaneSessions[103])
+		rt.EXPECT().SetSession(3, router.DataplaneSessions[103]).Do(writeCallChan)
 
 		events <- control.SessionEvent{SessionID: 103, Event: control.EventUp}
 		xtest.AssertReadReturnsBefore(t, callChan, time.Second)
 
 		// When receiving the session 102 up event, the routing table should get
 		// the session 102 information inserted.
-		rt.EXPECT().AddRoute(1, router.DataplaneSessions[102])
-		rt.EXPECT().AddRoute(2, router.DataplaneSessions[102]).Do(writeCallChan)
+		rt.EXPECT().SetSession(1, router.DataplaneSessions[102])
+		rt.EXPECT().SetSession(2, router.DataplaneSessions[102]).Do(writeCallChan)
 
 		events <- control.SessionEvent{SessionID: 102, Event: control.EventUp}
 		xtest.AssertReadReturnsBefore(t, callChan, time.Second)
 
 		// When receiving the session 103 down event, the routing table should get
 		// the session 103 information removed.
-		rt.EXPECT().DelRoute(3).Do(func(int) error {
+		rt.EXPECT().ClearSession(3).Do(func(int) error {
 			callChan <- struct{}{}
 			return nil
 		})
@@ -101,7 +101,7 @@ func TestRouterRun(t *testing.T) {
 
 		// When receiving the session 103 up event, the routing table should get
 		// the session 103 information inserted.
-		rt.EXPECT().AddRoute(3, router.DataplaneSessions[103]).Do(writeCallChan)
+		rt.EXPECT().SetSession(3, router.DataplaneSessions[103]).Do(writeCallChan)
 
 		events <- control.SessionEvent{SessionID: 103, Event: control.EventUp}
 		xtest.AssertReadReturnsBefore(t, callChan, time.Second)

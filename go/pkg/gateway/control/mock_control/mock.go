@@ -141,32 +141,42 @@ func (m *MockRoutingTable) EXPECT() *MockRoutingTableMockRecorder {
 	return m.recorder
 }
 
-// AddRoute mocks base method
-func (m *MockRoutingTable) AddRoute(arg0 int, arg1 control.PktWriter) error {
+// Activate mocks base method
+func (m *MockRoutingTable) Activate() {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddRoute", arg0, arg1)
+	m.ctrl.Call(m, "Activate")
+}
+
+// Activate indicates an expected call of Activate
+func (mr *MockRoutingTableMockRecorder) Activate() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Activate", reflect.TypeOf((*MockRoutingTable)(nil).Activate))
+}
+
+// ClearSession mocks base method
+func (m *MockRoutingTable) ClearSession(arg0 int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClearSession", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddRoute indicates an expected call of AddRoute
-func (mr *MockRoutingTableMockRecorder) AddRoute(arg0, arg1 interface{}) *gomock.Call {
+// ClearSession indicates an expected call of ClearSession
+func (mr *MockRoutingTableMockRecorder) ClearSession(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddRoute", reflect.TypeOf((*MockRoutingTable)(nil).AddRoute), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearSession", reflect.TypeOf((*MockRoutingTable)(nil).ClearSession), arg0)
 }
 
-// DelRoute mocks base method
-func (m *MockRoutingTable) DelRoute(arg0 int) error {
+// Deactivate mocks base method
+func (m *MockRoutingTable) Deactivate() {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DelRoute", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
+	m.ctrl.Call(m, "Deactivate")
 }
 
-// DelRoute indicates an expected call of DelRoute
-func (mr *MockRoutingTableMockRecorder) DelRoute(arg0 interface{}) *gomock.Call {
+// Deactivate indicates an expected call of Deactivate
+func (mr *MockRoutingTableMockRecorder) Deactivate() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelRoute", reflect.TypeOf((*MockRoutingTable)(nil).DelRoute), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockRoutingTable)(nil).Deactivate))
 }
 
 // RouteIPv4 mocks base method
@@ -195,6 +205,20 @@ func (m *MockRoutingTable) RouteIPv6(arg0 layers.IPv6) control.PktWriter {
 func (mr *MockRoutingTableMockRecorder) RouteIPv6(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RouteIPv6", reflect.TypeOf((*MockRoutingTable)(nil).RouteIPv6), arg0)
+}
+
+// SetSession mocks base method
+func (m *MockRoutingTable) SetSession(arg0 int, arg1 control.PktWriter) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetSession", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetSession indicates an expected call of SetSession
+func (mr *MockRoutingTableMockRecorder) SetSession(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetSession", reflect.TypeOf((*MockRoutingTable)(nil).SetSession), arg0, arg1)
 }
 
 // MockRoutingTableSwapper is a mock of RoutingTableSwapper interface

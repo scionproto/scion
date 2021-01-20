@@ -56,8 +56,8 @@ func TestDiagnosticWriter(t *testing.T) {
 						},
 					},
 				})
-				dp.AddRoute(1, testPktWriter{ID: 1})
-				dp.AddRoute(2, testPktWriter{ID: 2})
+				dp.SetSession(1, testPktWriter{ID: 1})
+				dp.SetSession(2, testPktWriter{ID: 2})
 				return dp
 			},
 			wantFile: "./testdata/routingtable1.txt",
