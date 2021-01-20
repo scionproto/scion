@@ -228,7 +228,7 @@ name = {{.ShortOrg}} High Security Root Certificate
 
 [req_ext]
 basicConstraints     = critical, CA:TRUE, pathlen:1
-keyUsage             = critical, keyCertSign, cRLSign
+keyUsage             = critical, keyCertSign
 subjectKeyIdentifier = hash
 extendedKeyUsage     = 1.3.6.1.4.1.55324.1.3.3, 1.3.6.1.5.5.7.3.8
 
@@ -251,7 +251,7 @@ name = {{.ShortOrg}} Secure CA Certificate
 
 [req_ext]
 basicConstraints       = critical, CA:TRUE, pathlen:0
-keyUsage               = critical, keyCertSign, cRLSign
+keyUsage               = critical, keyCertSign
 subjectKeyIdentifier   = hash
 authorityKeyIdentifier = keyid
 
