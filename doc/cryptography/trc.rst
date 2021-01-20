@@ -170,8 +170,8 @@ period as an integer of seconds. The start of the grace period is equal to the
 beginning of the validity period of this TRC.
 
 The predecessor of this TRC, if any, should be considered active until either 1.
-the grace period has passed, or 2. the successor TRC of this TRC has been
-announced.
+the grace period has passed, 2. the predecessor's expiration time is reached, or
+3. the successor TRC of this TRC has been announced.
 
 The grace period of a base TRC MUST be zero. The grace period of a non-base TRC
 SHOULD be non-zero and long enough to provide sufficient overlap between the
