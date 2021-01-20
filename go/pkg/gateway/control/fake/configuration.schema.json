@@ -178,7 +178,8 @@
 							"type": "object",
 							"required": [
 								"interfaces",
-								"next_hop"
+								"next_hop",
+								"mtu"
 							],
 							"properties": {
 								"interfaces": {
@@ -226,6 +227,17 @@
 										"242.254.100.3:50000"
 									],
 									"pattern": "^.*$"
+								},
+								"mtu": {
+									"$id": "#root/sessions/items/paths/items/mtu",
+									"title": "Path MTU",
+									"description": "The MTU of the path.",
+									"type": "integer",
+									"examples": [
+										1280,
+										1000
+									],
+									"default": 0
 								}
 							}
 						}
