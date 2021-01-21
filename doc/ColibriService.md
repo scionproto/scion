@@ -50,7 +50,7 @@ The COS is differentiated into these parts:
 ### Segment Reservations
 
 Note: we use "forward the request" with the following meaning: if the current AS is not
-the last AS in the reservation path, send the request to the next AS in the resevation path.
+the last AS in the reservation path, send the request to the next AS in the reservation path.
 If the current AS is the last one, do nothing.
 
 #### Handle a Setup Response
@@ -60,7 +60,7 @@ The request is forwarded from AS<sub>i</sub> to AS<sub>i+1</sub>, where AS<sub>i
 next AS after AS<sub>i</sub> in the path of the reservation.
 
 1. The store saves the reservation as final.
-1. If this AS is the first one in the reservation path (aka *resevation initiator*),
+1. If this AS is the first one in the reservation path (aka *reservation initiator*),
    the store sends an index confirmation request to the next AS in the path.
 1. If this AS is the not the first one in the reservation path, the store sends a
    response message to the previous AS's *COS*.

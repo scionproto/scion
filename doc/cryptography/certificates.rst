@@ -522,7 +522,7 @@ requires that this be marked as critical.
 CP AS Certificate
 =================
 
-**CP AS Certificates** are used by SCION ASes to sign control-plane mesages.
+**CP AS Certificates** are used by SCION ASes to sign control-plane messages.
 
 In X.509 terms, **CP AS Certificates** are end-entity certificates.
 

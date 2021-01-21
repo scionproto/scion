@@ -327,7 +327,7 @@ SV\_A^j that is used to derive K_{A→B} at the current sequence j such that:
 ![Offset figure](fig/offset.png)
 
 The offset function is AS-specific. By default, we suggest to use a function
-that uniformely distributes the offset values in the following interval:
+that uniformly distributes the offset values in the following interval:
 
 ```spec
 [0, minimum epoch length / 2 )

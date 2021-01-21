@@ -45,7 +45,7 @@ The *ceremony administrator* shares the *USB flash drive* with
 each *voting representative*, and waits for each *voting representative*
 to copy the needed certificates.
 
-The *ceremony adminstrator* reminds participants that they need to copy all
+The *ceremony administrator* reminds participants that they need to copy all
 certificates needed for the role of the entity they represent. For those who are
 only voters, this means the *CP sensitive voting certificate* and the *CP
 regular voting certificate*. For those who are also Certificate Authorities in

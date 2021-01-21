@@ -422,7 +422,7 @@ a forwarding path. Currently, it's only used for bootstrapping beaconing between
 neighboring ASes.
 
 A OneHopPath has exactly one info field and two hop fields with the speciality
-that the second hop field is not known apriori, but is instead created by the
+that the second hop field is not known a priori, but is instead created by the
 corresponding BR upon processing of the OneHopPath::
 
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
