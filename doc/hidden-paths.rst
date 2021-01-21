@@ -338,7 +338,7 @@ register in the topology file:
   ``hidden_segment_registration_service``.
 
 Note that having access control on the hidden segment discovery service is not
-strictly required, since even if someone can get access to the enpoints, which
+strictly required, since even if someone can get access to the endpoints, which
 service hidden segment infrastructure, the services themselves must verify
 that only authorized parties read or write hidden segment data.
 

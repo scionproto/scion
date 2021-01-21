@@ -198,7 +198,7 @@ specific use case and have assessed the risks and implications sufficiently.
 Votes
 ^^^^^
 
-Votes contains a sequence of indicies of the voting certificates in the
+Votes contains a sequence of indices of the voting certificates in the
 predecessor TRC. In a *base* TRC, this sequence is empty. Every entry in this
 sequence MUST be unique.
 
@@ -282,7 +282,7 @@ For the the set of certificates, the following MUST hold:
 #. :ref:`trc-voting-quorum-field` <= count(Sensitive Voting Certificates)
 #. :ref:`trc-voting-quorum-field` <= count(Regular Voting Certificate)
 
-.. _signed-trc-fromat:
+.. _signed-trc-format:
 
 Signed TRC Format
 -----------------
@@ -430,7 +430,7 @@ If a TRC update does not qualify as a regular update, it is considered a
 sensitive update. In order for sensitive updates to be verifiable, all votes
 MUST be cast by a **Sensitive Voting Certificate**.
 
-.. _trc-update-verficiation:
+.. _trc-update-verification:
 
 TRC Update Verification
 -----------------------
