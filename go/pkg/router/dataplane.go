@@ -1009,27 +1009,39 @@ func (p *scionPacketProcessor) handleIngressRouterAlert() (processResult, error)
 	if p.ingressID == 0 {
 		return processResult{}, nil
 	}
-	ingressAlert := (!p.infoField.ConsDir && p.hopField.EgressRouterAlert) ||
-		(p.infoField.ConsDir && p.hopField.IngressRouterAlert)
-	if !ingressAlert {
+	alert := p.ingressRouterAlertFlag()
+	if !*alert {
 		return processResult{}, nil
 	}
-	p.hopField.IngressRouterAlert = false
+	*alert = false
 	return p.handleSCMPTraceRouteRequest(p.ingressID)
 }
 
+func (p *scionPacketProcessor) ingressRouterAlertFlag() *bool {
+	if !p.infoField.ConsDir {
+		return &p.hopField.EgressRouterAlert
+	}
+	return &p.hopField.IngressRouterAlert
+}
+
 func (p *scionPacketProcessor) handleEgressRouterAlert() (processResult, error) {
-	egressAlert := (p.infoField.ConsDir && p.hopField.EgressRouterAlert) ||
-		(!p.infoField.ConsDir && p.hopField.IngressRouterAlert)
-	if !egressAlert {
+	alert := p.egressRouterAlertFlag()
+	if !*alert {
 		return processResult{}, nil
 	}
 	egressID := p.egressInterface()
 	if _, ok := p.d.external[egressID]; !ok {
 		return processResult{}, nil
 	}
-	p.hopField.EgressRouterAlert = false
+	*alert = false
 	return p.handleSCMPTraceRouteRequest(egressID)
+}
+
+func (p *scionPacketProcessor) egressRouterAlertFlag() *bool {
+	if !p.infoField.ConsDir {
+		return &p.hopField.IngressRouterAlert
+	}
+	return &p.hopField.EgressRouterAlert
 }
 
 func (p *scionPacketProcessor) handleSCMPTraceRouteRequest(
