@@ -92,7 +92,7 @@ from the RST code blocks in this document.
 Indenting list contents
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-If blocks in a list item require indenting, add it to the base indentantion required by list syntax.
+If blocks in a list item require indenting, add it to the base indentation required by list syntax.
 For example, to embed a code block, write:
 
 .. code-block:: rest

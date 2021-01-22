@@ -89,7 +89,7 @@ by simply combining intra- and inter-AS metrics.
 
 Information about static properties is stored inside the PCBs. This is
 achieved by each AS embedding information about itself in an extension field
-of its ASEntry. Each such extension contains a small amount of metdata
+of its ASEntry. Each such extension contains a small amount of metadata
 describing a section of the path. In order to obtain static properties of
 the end-to-end path, the relevant data in each of these extension entries is
 extracted from the PCBs and combined to deliver the actual information.
@@ -357,7 +357,7 @@ of 2 main types of elements:
   (1 value in total).
 - The interface ID for every interface in the location (1 value per interface).
 
-It is possible to use only the latititude and longitude pair, or the civic
+It is possible to use only the latitude and longitude pair, or the civic
 address by simply omitting one of the two.
 
 #### Concrete Format Geographic Information
@@ -438,7 +438,7 @@ struct LinkTypeInfo {
 The Number of Internal Hops describes how many hops are on the Intra-AS path.
 Use cases of such information include:
 
-- Can be used to exclude undesireable paths from the selection.
+- Can be used to exclude undesirable paths from the selection.
 - Obtain a selection of efficient, low latency paths (especially when combined
   with Latency Information).
 
@@ -557,7 +557,7 @@ between interfaces.
 ![Config Metrics](fig/config_metrics.png)
 
 The config file for this AS would then look like this (actual
-values are abitrary, "asdf" is used as a placeholder for longer strings):
+values are arbitrary, "asdf" is used as a placeholder for longer strings):
 
 ```JSON
 {

@@ -156,7 +156,7 @@ The last AS on the path needs to distribute the authenticators to
 the set of trusted sources that should be able to send EPIC-HP
 traffic over the hidden link. This can be done over any secure
 channel, for example using secure end-to-end protocols, out-of-band
-communication, or the dedicated hidden path infastructure [[2]](#2).
+communication, or the dedicated hidden path infrastructure [[2]](#2).
 
 ### <a id="PathTypeFiltering"></a> Path Type Filtering
 

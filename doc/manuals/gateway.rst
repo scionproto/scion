@@ -403,7 +403,7 @@ The first column represents the action. Currently, we support: ::
 
   accept    <a> <b> <prefixes>: <b> accepts the IP prefixes <prefixes> from <a>.
   reject    <a> <b> <prefixes>: <b> rejects the IP prefixes <prefixes> from <a>.
-  advertise <a> <b> <prefixes>: <a> advertists the IP prefixes <prefixes> to <b>.
+  advertise <a> <b> <prefixes>: <a> advertises the IP prefixes <prefixes> to <b>.
 
 The remaining three columns define the matchers of a rule. The second and
 third column are ISD-AS matchers, the forth column is a prefix matcher.
