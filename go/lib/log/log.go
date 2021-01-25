@@ -49,9 +49,9 @@ func fixedCallerEncoder(caller zapcore.EntryCaller, enc zapcore.PrimitiveArrayEn
 }
 
 // Setup configures the logging library with the given config.
-func Setup(cfg Config) error {
+func Setup(cfg Config, opts ...Option) error {
 	cfg.InitDefaults()
-	if err := setupConsole(cfg.Console); err != nil {
+	if err := setupConsole(cfg.Console, applyOptions(opts)); err != nil {
 		return err
 	}
 	return nil
@@ -95,7 +95,7 @@ func getStacktraceLvl(cfg ConsoleConfig) (zapcore.LevelEnabler, error) {
 	return level, nil
 }
 
-func setupConsole(cfg ConsoleConfig) error {
+func setupConsole(cfg ConsoleConfig, opts options) error {
 	zCfg, err := convertCfg(cfg)
 	if err != nil {
 		return err
@@ -104,7 +104,14 @@ func setupConsole(cfg ConsoleConfig) error {
 	if err != nil {
 		return err
 	}
-	logger, err := zCfg.Build(zap.AddCallerSkip(1), zap.AddStacktrace(stacktrace))
+
+	zapOpts := []zap.Option{
+		zap.AddCallerSkip(1),
+		zap.AddStacktrace(stacktrace),
+	}
+	zapOpts = append(zapOpts, opts.zapOptions()...)
+
+	logger, err := zCfg.Build(zapOpts...)
 	if err != nil {
 		return serrors.WrapStr("creating logger", err)
 	}

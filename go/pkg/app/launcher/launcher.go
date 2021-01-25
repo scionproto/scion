@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"syscall"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -32,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/command"
@@ -152,7 +154,20 @@ func (a *Application) executeCommand(shortName string) error {
 	}
 	a.TOMLConfig.InitDefaults()
 
-	if err := log.Setup(a.getLogging()); err != nil {
+	logEntriesTotal := metrics.NewPromCounterFrom(
+		prometheus.CounterOpts{
+			Name: "lib_log_emitted_entries_total",
+			Help: "Total number of log entries emitted.",
+		},
+		[]string{"level"},
+	)
+	opt := log.WithEntriesCounter(log.EntriesCounter{
+		Debug: logEntriesTotal.With("level", "debug"),
+		Info:  logEntriesTotal.With("level", "info"),
+		Error: logEntriesTotal.With("level", "error"),
+	})
+
+	if err := log.Setup(a.getLogging(), opt); err != nil {
 		return serrors.WrapStr("initialize logging", err)
 	}
 	defer log.Flush()
