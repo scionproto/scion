@@ -530,10 +530,8 @@ func (d *DataPlane) Run() error {
 	}(d.internal)
 
 	d.mtx.Unlock()
-	for d.running {
-		time.Sleep(time.Second)
-	}
-	return nil
+
+	select {}
 }
 
 func (d *DataPlane) initMetrics() {
