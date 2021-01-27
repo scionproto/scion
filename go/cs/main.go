@@ -16,8 +16,11 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"time"
 
+	"github.com/go-chi/chi"
+	"github.com/go-chi/cors"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -51,6 +54,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/app/launcher"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/cs"
+	"github.com/scionproto/scion/go/pkg/cs/api"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	cstrustgrpc "github.com/scionproto/scion/go/pkg/cs/trust/grpc"
 	cstrustmetrics "github.com/scionproto/scion/go/pkg/cs/trust/metrics"
@@ -58,6 +62,7 @@ import (
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	dpb "github.com/scionproto/scion/go/pkg/proto/discovery"
+	"github.com/scionproto/scion/go/pkg/service"
 	"github.com/scionproto/scion/go/pkg/storage"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/compat"
@@ -367,7 +372,28 @@ func realMain() error {
 			fatal.Fatal(err)
 		}
 	}()
-
+	if globalCfg.API.Addr != "" {
+		r := chi.NewRouter()
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins: []string{"*"},
+		}))
+		server := api.Server{
+			CA:       chainBuilder,
+			Config:   service.NewConfigHandler(globalCfg),
+			Info:     service.NewInfoHandler(),
+			LogLevel: log.ConsoleLevel.ServeHTTP,
+			Signer:   signer,
+			Topology: itopo.TopologyHandler,
+		}
+		log.Info("Exposing API", "addr", globalCfg.API.Addr)
+		h := api.HandlerFromMux(&server, r)
+		go func() {
+			defer log.HandlePanic()
+			if err := http.ListenAndServe(globalCfg.API.Addr, h); err != nil {
+				fatal.Fatal(serrors.WrapStr("serving HTTP API", err))
+			}
+		}()
+	}
 	err = cs.StartHTTPEndpoints(globalCfg.General.ID, globalCfg, signer, chainBuilder,
 		globalCfg.Metrics)
 	if err != nil {
