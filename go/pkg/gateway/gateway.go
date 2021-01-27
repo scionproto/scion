@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
+	"github.com/scionproto/scion/go/lib/routemgr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
@@ -47,7 +48,6 @@ import (
 	"github.com/scionproto/scion/go/pkg/gateway/pathhealth"
 	"github.com/scionproto/scion/go/pkg/gateway/pathhealth/policies"
 	"github.com/scionproto/scion/go/pkg/gateway/routing"
-	"github.com/scionproto/scion/go/pkg/gateway/routing/exporters/linux"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	gatewaypb "github.com/scionproto/scion/go/pkg/proto/gateway"
 	"github.com/scionproto/scion/go/pkg/service"
@@ -131,20 +131,15 @@ func (pcf PacketConnFactory) New() (net.PacketConn, error) {
 }
 
 type RoutingTableFactory struct {
-	Device netlink.Link
-	Source net.IP
+	RoutePublisherFactory routemgr.PublisherFactory
+	Source                net.IP
 }
 
 func (rtf RoutingTableFactory) New(
 	routingChains []*control.RoutingChain) (control.RoutingTable, error) {
 
-	if ExperimentalExportMainRT() {
-		return dataplane.NewRoutingTable(linux.RouteExporter{
-			Device: rtf.Device,
-			Source: rtf.Source,
-		}, routingChains), nil
-	}
-	return dataplane.NewRoutingTable(nil, routingChains), nil
+	return dataplane.NewRoutingTable(rtf.RoutePublisherFactory.NewPublisher(), rtf.Source,
+		routingChains), nil
 }
 
 // ignoreSCMP ignores all received SCMP packets.
@@ -221,6 +216,12 @@ type Gateway struct {
 	RouteDevice netlink.Link
 	// RouteSource is the source for routes added to the Linux routing table.
 	RouteSource net.IP
+
+	// RoutePublisherFactory allows to publish routes from the gatyeway.
+	// If nil, no routes will be published.
+	RoutePublisherFactory routemgr.PublisherFactory
+	// RouteConsumerFactory allows to receive routes. If nil, no routes are received.
+	RouteConsumerFactory routemgr.ConsumerFactory
 
 	// ConfigReloadTrigger can be used to trigger a config reload.
 	ConfigReloadTrigger chan struct{}
@@ -603,8 +604,8 @@ func (g *Gateway) Run() error {
 		ConfigurationUpdates: sessionConfigurations,
 		RoutingTableSwapper:  routingTable,
 		RoutingTableFactory: RoutingTableFactory{
-			Device: g.RouteDevice,
-			Source: g.RouteSource,
+			RoutePublisherFactory: g.RoutePublisherFactory,
+			Source:                g.RouteSource,
 		},
 		EngineFactory: &control.DefaultEngineFactory{
 			PathMonitor: pathMonitor,

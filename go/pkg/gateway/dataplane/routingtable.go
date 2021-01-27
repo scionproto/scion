@@ -24,6 +24,7 @@ import (
 	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/pktcls"
+	"github.com/scionproto/scion/go/lib/routemgr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 )
@@ -77,7 +78,9 @@ func (se *subEntry) String() string {
 type RoutingTable struct {
 	// RouteExporter is informed of remote network prefixes that are reachable/unreachable.
 	// If nil, routes are not exported.
-	RouteExporter control.RouteExporter
+	RouteExporter routemgr.Publisher
+	// Address to use as next hop.
+	Source net.IP
 
 	indexToSubEntry map[int]*subEntry
 	indexToEntries  map[int][]*entry
@@ -87,7 +90,7 @@ type RoutingTable struct {
 
 // NewRoutingTable creates a new routing table and initializes it with the given
 // chains.
-func NewRoutingTable(exporter control.RouteExporter,
+func NewRoutingTable(exporter routemgr.Publisher, source net.IP,
 	chains []*control.RoutingChain) *RoutingTable {
 
 	indexToSubEntry := make(map[int]*subEntry)
@@ -113,6 +116,7 @@ func NewRoutingTable(exporter control.RouteExporter,
 
 	return &RoutingTable{
 		RouteExporter:   exporter,
+		Source:          source,
 		indexToSubEntry: indexToSubEntry,
 		indexToEntries:  indexToEntries,
 		table:           table,
@@ -222,16 +226,26 @@ func (rt *RoutingTable) Deactivate() {
 			rt.popPrefix(e.Prefix)
 		}
 	}
+	if rt.RouteExporter != nil {
+		rt.RouteExporter.Close()
+		rt.RouteExporter = nil
+	}
 }
 
 func (rt *RoutingTable) pushPrefix(prefix *net.IPNet) {
 	if rt.RouteExporter != nil {
-		rt.RouteExporter.AddNetwork(*prefix)
+		rt.RouteExporter.AddRoute(routemgr.Route{
+			Prefix:  prefix,
+			NextHop: rt.Source,
+		})
 	}
 }
 
 func (rt *RoutingTable) popPrefix(prefix *net.IPNet) {
 	if rt.RouteExporter != nil {
-		rt.RouteExporter.DeleteNetwork(*prefix)
+		rt.RouteExporter.DeleteRoute(routemgr.Route{
+			Prefix:  prefix,
+			NextHop: rt.Source,
+		})
 	}
 }

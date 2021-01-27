@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"sort"
 	"sync"
 
@@ -67,16 +66,6 @@ type RoutingTableWriter interface {
 	// session for the given index it is a no-op. The method returns an
 	// error if the index is not known.
 	ClearSession(index int) error
-}
-
-// RouteExporter is the interface for announcing prefixes to other routing backends.
-type RouteExporter interface {
-	// AddNetwork will export network to another routing backend. Duplicates are a no-op.
-	AddNetwork(network net.IPNet)
-	// DeleteNetwork will delete a network from another routing backend. If the network
-	// doesn't exist, the deletion is a silent no-op. Only a network that is an exact
-	// match (network address + subnet mask) is removed.
-	DeleteNetwork(network net.IPNet)
 }
 
 // Router contains is a session-health-aware routing table builder that manages

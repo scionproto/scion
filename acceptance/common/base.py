@@ -97,6 +97,10 @@ class TestBase(cli.Application):
     def containers_tar(self, tar: str):
         self.test_state.containers_tar = tar
 
+    @cli.switch('bazel_rule', str, help="The bazel rule that triggered the test")
+    def test_type(self, rule: str):
+        self.test_state.bazel_rule = rule
+
     def _unpack_topo(self):
         cmd.tar('-xf', self.test_state.topology_tar, '-C', self.test_state.artifacts)
         cmd.sed('-i', 's#$SCIONROOT#%s#g' % self.test_state.artifacts,

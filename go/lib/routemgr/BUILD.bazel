@@ -3,6 +3,7 @@ load("//lint:go.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "dummy.go",
         "linux.go",
         "routedb.go",
     ],

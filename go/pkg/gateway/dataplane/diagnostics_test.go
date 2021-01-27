@@ -41,7 +41,7 @@ func TestDiagnosticWriter(t *testing.T) {
 	}{
 		"routingtable": {
 			prepareDW: func(t *testing.T) dataplane.DiagnosticsWriter {
-				dp := dataplane.NewRoutingTable(nil, []*control.RoutingChain{
+				dp := dataplane.NewRoutingTable(nil, net.IP{}, []*control.RoutingChain{
 					{
 						Prefixes: []*net.IPNet{xtest.MustParseCIDR(t, "192.168.0.0/24")},
 						TrafficMatchers: []control.TrafficMatcher{

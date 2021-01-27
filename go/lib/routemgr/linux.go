@@ -47,7 +47,7 @@ func (l *Linux) init() {
 	}
 }
 
-func (l *Linux) NewPublisher() *RoutePublisher {
+func (l *Linux) NewPublisher() Publisher {
 	return l.exportedRoutes.NewPublisher()
 }
 

@@ -43,6 +43,33 @@ type RouteUpdate struct {
 	IsAdd bool
 }
 
+// Publisher is the interface for announcing prefixes to other routing backends.
+type Publisher interface {
+	// AddRoute will export route to another routing backend. Duplicates are a no-op.
+	AddRoute(route Route)
+	// DeleteRoute will delete a route from another routing backend. If the route
+	// doesn't exist, the deletion is a silent no-op. Only a network that is an exact
+	// match (network address, subnet mask, next hop) is removed.
+	DeleteRoute(route Route)
+	// Close retracts all the routes published via this publisher.
+	Close()
+}
+
+type PublisherFactory interface {
+	NewPublisher() Publisher
+}
+
+type Consumer interface {
+	// Updates returns a channel that can be used to receive route updates.
+	Updates() <-chan RouteUpdate
+	// Stops receiving updates.
+	Close()
+}
+
+type ConsumerFactory interface {
+	NewConsumer() Consumer
+}
+
 type routeEntry struct {
 	Route
 	refCount  int
@@ -125,7 +152,7 @@ func (db *RouteDB) Close() {
 
 // NewPublisher creates a new publisher that can be used to insert routes to the
 // database. Calling the function after Close results in undefined behavior.
-func (db *RouteDB) NewPublisher() *RoutePublisher {
+func (db *RouteDB) NewPublisher() Publisher {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 	db.initLocked()
@@ -138,7 +165,7 @@ func (db *RouteDB) NewPublisher() *RoutePublisher {
 
 // NewConsumer creates a new consumer that can be used to get route updates from
 // the database. Calling the function after Close results in undefined behavior.
-func (db *RouteDB) NewConsumer() *RouteConsumer {
+func (db *RouteDB) NewConsumer() Consumer {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 	db.initLocked()
