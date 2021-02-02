@@ -1,8 +1,12 @@
 #!/bin/bash
 
-set -euo pipefail
+if [[ "$BUILDKITE_PIPELINE_SLUG" =~ "performance" ]]; then
+    exit 0
+fi
 
 . .buildkite/hooks/pre-exit
+
+set -euo pipefail
 
 echo "--- Pre-allocating hugepages"
 sudo sysctl -w vm.nr_hugepages=100
