@@ -36,7 +36,7 @@ type Server struct {
 	Topology http.HandlerFunc
 }
 
-// GetCa gets the CA info.
+// GetCa gets the CA info
 func (S *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	s, err := S.CA.PolicyGen.Generate(r.Context())

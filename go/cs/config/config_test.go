@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/log/logtest"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/api/apitest"
 	storagetest "github.com/scionproto/scion/go/pkg/storage/test"
 )
 
@@ -55,6 +56,7 @@ func TestInvalidTTL(t *testing.T) {
 }
 
 func InitTestConfig(cfg *Config) {
+	apitest.InitConfig(&cfg.API)
 	envtest.InitTest(&cfg.General, &cfg.Metrics, &cfg.Tracing, nil)
 	logtest.InitTestLogging(&cfg.Logging)
 	InitTestBSConfig(&cfg.BS)
@@ -73,6 +75,7 @@ func InitTestPolicies(cfg *Policies) {
 }
 
 func CheckTestConfig(t *testing.T, cfg *Config, id string) {
+	apitest.CheckConfig(t, &cfg.API)
 	envtest.CheckTest(t, &cfg.General, &cfg.Metrics, &cfg.Tracing, nil, id)
 	logtest.CheckTestLogging(t, &cfg.Logging, id)
 	storagetest.CheckTestTrustDBConfig(t, &cfg.TrustDB, id)

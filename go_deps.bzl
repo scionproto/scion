@@ -369,6 +369,12 @@ def go_deps():
         version = "v1.5.1",
     )
     go_repository(
+        name = "com_github_go_chi_cors",
+        importpath = "github.com/go-chi/cors",
+        sum = "h1:eHuqxsIw89iXcWnWUN8R72JMibABJTN/4IOYI5WERvw=",
+        version = "v1.1.1",
+    )
+    go_repository(
         name = "com_github_go_errors_errors",
         importpath = "github.com/go-errors/errors",
         sum = "h1:LUHzmkK3GUKUrL/1gfBUxAHzcev3apQlezX/+O7ma6w=",
