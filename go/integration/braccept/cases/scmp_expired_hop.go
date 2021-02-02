@@ -236,10 +236,13 @@ func SCMPExpiredHopAfterXover(artifactsDir string, mac hash.Hash) runner.Case {
 				ConsDir:   false,
 				Timestamp: util.TimeToSecs(time.Now()),
 			},
-			// down seg (expired)
+			// Contrived expired segment on child link. Such a segment will not
+			// be created by the control plane currently. This mimics a cross
+			// over to a core segment that cannot be expressed directly due to
+			// the testing topology setup.
 			{
 				SegID:     0x222,
-				ConsDir:   true,
+				ConsDir:   false,
 				Timestamp: util.TimeToSecs(time.Now().AddDate(0, 0, -5)),
 			},
 		},
@@ -358,5 +361,506 @@ func SCMPExpiredHopAfterXover(artifactsDir string, mac hash.Hash) runner.Case {
 		Input:    input.Bytes(),
 		Want:     want.Bytes(),
 		StoreDir: filepath.Join(artifactsDir, "SCMPExpiredHopAfterXover"),
+	}
+}
+
+// SCMPExpiredHopAfterXoverConsDir tests a packet with an expired hop field after an
+// x-over.
+func SCMPExpiredHopAfterXoverConsDir(artifactsDir string, mac hash.Hash) runner.Case {
+	options := gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+
+	ethernet := &layers.Ethernet{
+		SrcMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef},
+		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x15},
+		EthernetType: layers.EthernetTypeIPv4,
+	}
+
+	ip := &layers.IPv4{
+		Version:  4,
+		IHL:      5,
+		TTL:      64,
+		SrcIP:    net.IP{192, 168, 15, 3},
+		DstIP:    net.IP{192, 168, 15, 2},
+		Protocol: layers.IPProtocolUDP,
+		Flags:    layers.IPv4DontFragment,
+	}
+
+	udp := &layers.UDP{
+		SrcPort: layers.UDPPort(40000),
+		DstPort: layers.UDPPort(50000),
+	}
+	udp.SetNetworkLayerForChecksum(ip)
+
+	sp := &scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				CurrHF:  1,
+				CurrINF: 0,
+				SegLen:  [3]uint8{2, 2, 0},
+			},
+			NumINF:  2,
+			NumHops: 4,
+		},
+		InfoFields: []*path.InfoField{
+			// up seg
+			{
+				SegID:     0x111,
+				ConsDir:   false,
+				Timestamp: util.TimeToSecs(time.Now()),
+			},
+			// down seg (expired)
+			{
+				SegID:     0x222,
+				ConsDir:   true,
+				Timestamp: util.TimeToSecs(time.Now().AddDate(0, 0, -5)),
+			},
+		},
+		HopFields: []*path.HopField{
+			{ConsIngress: 511, ConsEgress: 0},
+			{ConsIngress: 0, ConsEgress: 151},
+			{ConsIngress: 0, ConsEgress: 141},
+			{ConsIngress: 411, ConsEgress: 0},
+		},
+	}
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1])
+	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
+	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2])
+
+	scionL := &slayers.SCION{
+		Version:      0,
+		TrafficClass: 0xb8,
+		FlowID:       0xdead,
+		NextHdr:      common.L4UDP,
+		PathType:     scion.PathType,
+		SrcIA:        xtest.MustParseIA("1-ff00:0:5"),
+		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
+		Path:         sp,
+	}
+
+	srcA := &net.IPAddr{IP: net.ParseIP("172.16.5.1").To4()}
+	if err := scionL.SetSrcAddr(srcA); err != nil {
+		panic(err)
+	}
+	if err := scionL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1").To4()}); err != nil {
+		panic(err)
+	}
+
+	scionudp := &slayers.UDP{}
+	scionudp.SrcPort = layers.UDPPort(40111)
+	scionudp.DstPort = layers.UDPPort(40222)
+	scionudp.SetNetworkLayerForChecksum(scionL)
+
+	payload := []byte("actualpayloadbytes")
+	pointer := slayers.CmnHdrLen + scionL.AddrHdrLen() +
+		(4 + 8*sp.NumINF + 12*int(sp.PathMeta.CurrHF+1))
+
+	// Prepare input packet
+	input := gopacket.NewSerializeBuffer()
+	if err := gopacket.SerializeLayers(input, options,
+		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payload),
+	); err != nil {
+		panic(err)
+	}
+
+	// Prepare quoted packet
+	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
+	if err := sp.IncPath(); err != nil {
+		panic(err)
+	}
+
+	quoted := gopacket.NewSerializeBuffer()
+	if err := gopacket.SerializeLayers(quoted, options,
+		scionL, scionudp, gopacket.Payload(payload),
+	); err != nil {
+		panic(err)
+	}
+	quote := quoted.Bytes()
+
+	// Prepare want packet
+	want := gopacket.NewSerializeBuffer()
+	ethernet.SrcMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x15}
+	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}
+	ip.SrcIP, ip.DstIP = ip.DstIP, ip.SrcIP
+	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
+
+	scionL.DstIA = scionL.SrcIA
+	scionL.SrcIA = xtest.MustParseIA("1-ff00:0:1")
+	if err := scionL.SetDstAddr(srcA); err != nil {
+		panic(err)
+	}
+	intlA := &net.IPAddr{IP: net.IP{192, 168, 0, 11}}
+	if err := scionL.SetSrcAddr(intlA); err != nil {
+		panic(err)
+	}
+
+	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
+	p, err := sp.Reverse()
+	if err != nil {
+		panic(err)
+	}
+	sp = p.(*scion.Decoded)
+	if err := sp.IncPath(); err != nil {
+		panic(err)
+	}
+	if err := sp.IncPath(); err != nil {
+		panic(err)
+	}
+
+	scionL.NextHdr = common.L4SCMP
+	scmpH := &slayers.SCMP{
+		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
+			slayers.SCMPCodePathExpired),
+	}
+
+	scmpH.SetNetworkLayerForChecksum(scionL)
+	scmpP := &slayers.SCMPParameterProblem{
+		Pointer: uint16(pointer),
+	}
+
+	if err := gopacket.SerializeLayers(want, options,
+		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+	); err != nil {
+		panic(err)
+	}
+
+	return runner.Case{
+		Name:     "SCMPExpiredHopAfterXoverConsDir",
+		WriteTo:  "veth_151_host",
+		ReadFrom: "veth_151_host",
+		Input:    input.Bytes(),
+		Want:     want.Bytes(),
+		StoreDir: filepath.Join(artifactsDir, "SCMPExpiredHopAfterXoverConsDir"),
+	}
+}
+
+// SCMPExpiredHopAfterXoverInternal tests a packet with an expired hop
+// field after an x-over received from an internal router. The expired path
+// segment is against construction direction.
+func SCMPExpiredHopAfterXoverInternal(artifactsDir string, mac hash.Hash) runner.Case {
+	options := gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+
+	ethernet := &layers.Ethernet{
+		SrcMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef},
+		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x01},
+		EthernetType: layers.EthernetTypeIPv4,
+	}
+
+	ip := &layers.IPv4{
+		Version:  4,
+		IHL:      5,
+		TTL:      64,
+		SrcIP:    net.IP{192, 168, 0, 13},
+		DstIP:    net.IP{192, 168, 0, 11},
+		Protocol: layers.IPProtocolUDP,
+		Flags:    layers.IPv4DontFragment,
+	}
+
+	udp := &layers.UDP{
+		SrcPort: layers.UDPPort(30003),
+		DstPort: layers.UDPPort(30001),
+	}
+	udp.SetNetworkLayerForChecksum(ip)
+
+	sp := &scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				CurrHF:  2,
+				CurrINF: 1,
+				SegLen:  [3]uint8{2, 2, 0},
+			},
+			NumINF:  2,
+			NumHops: 4,
+		},
+		InfoFields: []*path.InfoField{
+			// up seg
+			{
+				SegID:     0x111,
+				ConsDir:   false,
+				Timestamp: util.TimeToSecs(time.Now()),
+			},
+			// Contrived expired segment on child link. Such a segment will not
+			// be created by the control plane currently. This mimics a cross
+			// over to a core segment that cannot be expressed directly due to
+			// the testing topology setup.
+			{
+				SegID:     0x222,
+				ConsDir:   false,
+				Timestamp: util.TimeToSecs(time.Now().AddDate(0, 0, -5)),
+			},
+		},
+		HopFields: []*path.HopField{
+			{ConsIngress: 811, ConsEgress: 0},
+			{ConsIngress: 191, ConsEgress: 181},
+			{ConsIngress: 121, ConsEgress: 141},
+			{ConsIngress: 411, ConsEgress: 0},
+		},
+	}
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1])
+	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
+	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2])
+
+	scionL := &slayers.SCION{
+		Version:      0,
+		TrafficClass: 0xb8,
+		FlowID:       0xdead,
+		NextHdr:      common.L4UDP,
+		PathType:     scion.PathType,
+		SrcIA:        xtest.MustParseIA("1-ff00:0:8"),
+		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
+		Path:         sp,
+	}
+
+	srcA := &net.IPAddr{IP: net.ParseIP("172.16.5.1").To4()}
+	if err := scionL.SetSrcAddr(srcA); err != nil {
+		panic(err)
+	}
+	if err := scionL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1").To4()}); err != nil {
+		panic(err)
+	}
+
+	scionudp := &slayers.UDP{}
+	scionudp.SrcPort = layers.UDPPort(40111)
+	scionudp.DstPort = layers.UDPPort(40222)
+	scionudp.SetNetworkLayerForChecksum(scionL)
+
+	payload := []byte("actualpayloadbytes")
+	pointer := slayers.CmnHdrLen + scionL.AddrHdrLen() +
+		(4 + 8*sp.NumINF + 12*int(sp.PathMeta.CurrHF))
+
+	// Prepare input packet
+	input := gopacket.NewSerializeBuffer()
+	if err := gopacket.SerializeLayers(input, options,
+		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payload),
+	); err != nil {
+		panic(err)
+	}
+
+	quoted := gopacket.NewSerializeBuffer()
+	if err := gopacket.SerializeLayers(quoted, options,
+		scionL, scionudp, gopacket.Payload(payload),
+	); err != nil {
+		panic(err)
+	}
+	quote := quoted.Bytes()
+
+	// Prepare want packet
+	want := gopacket.NewSerializeBuffer()
+	ethernet.SrcMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x01}
+	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}
+	ip.SrcIP, ip.DstIP = ip.DstIP, ip.SrcIP
+	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
+
+	scionL.DstIA = scionL.SrcIA
+	scionL.SrcIA = xtest.MustParseIA("1-ff00:0:1")
+	if err := scionL.SetDstAddr(srcA); err != nil {
+		panic(err)
+	}
+	intlA := &net.IPAddr{IP: net.IP{192, 168, 0, 11}}
+	if err := scionL.SetSrcAddr(intlA); err != nil {
+		panic(err)
+	}
+
+	p, err := sp.Reverse()
+	if err != nil {
+		panic(err)
+	}
+	sp = p.(*scion.Decoded)
+	if err := sp.IncPath(); err != nil {
+		panic(err)
+	}
+
+	scionL.NextHdr = common.L4SCMP
+	scmpH := &slayers.SCMP{
+		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
+			slayers.SCMPCodePathExpired),
+	}
+
+	scmpH.SetNetworkLayerForChecksum(scionL)
+	scmpP := &slayers.SCMPParameterProblem{
+		Pointer: uint16(pointer),
+	}
+
+	if err := gopacket.SerializeLayers(want, options,
+		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+	); err != nil {
+		panic(err)
+	}
+
+	return runner.Case{
+		Name:     "SCMPExpiredHopAfterXoverInternal",
+		WriteTo:  "veth_int_host",
+		ReadFrom: "veth_int_host",
+		Input:    input.Bytes(),
+		Want:     want.Bytes(),
+		StoreDir: filepath.Join(artifactsDir, "SCMPExpiredHopAfterXoverInternal"),
+	}
+}
+
+// SCMPExpiredHopAfterXoverInternalConsDir tests a packet with an expired hop
+// field after an x-over received from an internal router. The expired path
+// segment is in construction direction.
+func SCMPExpiredHopAfterXoverInternalConsDir(artifactsDir string, mac hash.Hash) runner.Case {
+	options := gopacket.SerializeOptions{
+		FixLengths:       true,
+		ComputeChecksums: true,
+	}
+
+	ethernet := &layers.Ethernet{
+		SrcMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef},
+		DstMAC:       net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x01},
+		EthernetType: layers.EthernetTypeIPv4,
+	}
+
+	ip := &layers.IPv4{
+		Version:  4,
+		IHL:      5,
+		TTL:      64,
+		SrcIP:    net.IP{192, 168, 0, 13},
+		DstIP:    net.IP{192, 168, 0, 11},
+		Protocol: layers.IPProtocolUDP,
+		Flags:    layers.IPv4DontFragment,
+	}
+
+	udp := &layers.UDP{
+		SrcPort: layers.UDPPort(30003),
+		DstPort: layers.UDPPort(30001),
+	}
+	udp.SetNetworkLayerForChecksum(ip)
+
+	sp := &scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				CurrHF:  2,
+				CurrINF: 1,
+				SegLen:  [3]uint8{2, 2, 0},
+			},
+			NumINF:  2,
+			NumHops: 4,
+		},
+		InfoFields: []*path.InfoField{
+			// up seg
+			{
+				SegID:     0x111,
+				ConsDir:   false,
+				Timestamp: util.TimeToSecs(time.Now()),
+			},
+			// down seg (expired)
+			{
+				SegID:     0x222,
+				ConsDir:   true,
+				Timestamp: util.TimeToSecs(time.Now().AddDate(0, 0, -5)),
+			},
+		},
+		HopFields: []*path.HopField{
+			{ConsIngress: 811, ConsEgress: 0},
+			{ConsIngress: 191, ConsEgress: 181},
+			{ConsIngress: 121, ConsEgress: 141},
+			{ConsIngress: 411, ConsEgress: 0},
+		},
+	}
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1])
+	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
+	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2])
+
+	scionL := &slayers.SCION{
+		Version:      0,
+		TrafficClass: 0xb8,
+		FlowID:       0xdead,
+		NextHdr:      common.L4UDP,
+		PathType:     scion.PathType,
+		SrcIA:        xtest.MustParseIA("1-ff00:0:8"),
+		DstIA:        xtest.MustParseIA("1-ff00:0:4"),
+		Path:         sp,
+	}
+
+	srcA := &net.IPAddr{IP: net.ParseIP("172.16.5.1").To4()}
+	if err := scionL.SetSrcAddr(srcA); err != nil {
+		panic(err)
+	}
+	if err := scionL.SetDstAddr(&net.IPAddr{IP: net.ParseIP("174.16.4.1").To4()}); err != nil {
+		panic(err)
+	}
+
+	scionudp := &slayers.UDP{}
+	scionudp.SrcPort = layers.UDPPort(40111)
+	scionudp.DstPort = layers.UDPPort(40222)
+	scionudp.SetNetworkLayerForChecksum(scionL)
+
+	payload := []byte("actualpayloadbytes")
+	pointer := slayers.CmnHdrLen + scionL.AddrHdrLen() +
+		(4 + 8*sp.NumINF + 12*int(sp.PathMeta.CurrHF))
+
+	// Prepare input packet
+	input := gopacket.NewSerializeBuffer()
+	if err := gopacket.SerializeLayers(input, options,
+		ethernet, ip, udp, scionL, scionudp, gopacket.Payload(payload),
+	); err != nil {
+		panic(err)
+	}
+
+	quoted := gopacket.NewSerializeBuffer()
+	if err := gopacket.SerializeLayers(quoted, options,
+		scionL, scionudp, gopacket.Payload(payload),
+	); err != nil {
+		panic(err)
+	}
+	quote := quoted.Bytes()
+
+	// Prepare want packet
+	want := gopacket.NewSerializeBuffer()
+	ethernet.SrcMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0x00, 0x01}
+	ethernet.DstMAC = net.HardwareAddr{0xf0, 0x0d, 0xca, 0xfe, 0xbe, 0xef}
+	ip.SrcIP, ip.DstIP = ip.DstIP, ip.SrcIP
+	udp.SrcPort, udp.DstPort = udp.DstPort, udp.SrcPort
+
+	scionL.DstIA = scionL.SrcIA
+	scionL.SrcIA = xtest.MustParseIA("1-ff00:0:1")
+	if err := scionL.SetDstAddr(srcA); err != nil {
+		panic(err)
+	}
+	intlA := &net.IPAddr{IP: net.IP{192, 168, 0, 11}}
+	if err := scionL.SetSrcAddr(intlA); err != nil {
+		panic(err)
+	}
+
+	p, err := sp.Reverse()
+	if err != nil {
+		panic(err)
+	}
+	sp = p.(*scion.Decoded)
+	if err := sp.IncPath(); err != nil {
+		panic(err)
+	}
+
+	scionL.NextHdr = common.L4SCMP
+	scmpH := &slayers.SCMP{
+		TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
+			slayers.SCMPCodePathExpired),
+	}
+
+	scmpH.SetNetworkLayerForChecksum(scionL)
+	scmpP := &slayers.SCMPParameterProblem{
+		Pointer: uint16(pointer),
+	}
+
+	if err := gopacket.SerializeLayers(want, options,
+		ethernet, ip, udp, scionL, scmpH, scmpP, gopacket.Payload(quote),
+	); err != nil {
+		panic(err)
+	}
+
+	return runner.Case{
+		Name:     "SCMPExpiredHopAfterXoverInternalConsDir",
+		WriteTo:  "veth_int_host",
+		ReadFrom: "veth_int_host",
+		Input:    input.Bytes(),
+		Want:     want.Bytes(),
+		StoreDir: filepath.Join(artifactsDir, "SCMPExpiredHopAfterXoverInternalConsDir"),
 	}
 }

@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"sort"
 	"sync"
 
@@ -40,6 +39,12 @@ type SessionEvent struct {
 
 // RoutingTable is the dataplane routing table as seen from the control plane.
 type RoutingTable interface {
+	// Activate will signal the routing table object that it is active.
+	Activate()
+	// Deactivate will signal the routing table object that is not active. This
+	// call will clean up resources that are not needed anymore, e.g. exported
+	// routes.
+	Deactivate()
 	RoutingTableReader
 	RoutingTableWriter
 }
@@ -52,25 +57,15 @@ type RoutingTableReader interface {
 
 // RoutingTableWriter contains the write operations of a data-plane routing table.
 type RoutingTableWriter interface {
-	// AddRoute sets the session for the routing table index. It replaces an
+	// SetSession sets the session for the routing table index. It replaces an
 	// existing session if there is already one for this index. The method
 	// returns an error if the index is not known. If session is nil the method
 	// returns an error.
-	AddRoute(index int, session PktWriter) error
-	// DelRoute removes any session for the given index. If there is no
+	SetSession(index int, session PktWriter) error
+	// ClearSession removes any session for the given index. If there is no
 	// session for the given index it is a no-op. The method returns an
 	// error if the index is not known.
-	DelRoute(index int) error
-}
-
-// RouteExporter is the interface for announcing prefixes to other routing backends.
-type RouteExporter interface {
-	// AddNetwork will export network to another routing backend. Duplicates are a no-op.
-	AddNetwork(network net.IPNet)
-	// DeleteNetwork will delete a network from another routing backend. If the network
-	// doesn't exist, the deletion is a silent no-op. Only a network that is an exact
-	// match (network address + subnet mask) is removed.
-	DeleteNetwork(network net.IPNet)
+	ClearSession(index int) error
 }
 
 // Router contains is a session-health-aware routing table builder that manages
@@ -163,7 +158,7 @@ func (r *Router) handleEvent(event SessionEvent) error {
 			// check if there is already a session for this index.
 			currentID, ok := r.currentSessions[rtID]
 			if !ok {
-				err := r.RoutingTable.AddRoute(rtID, r.DataplaneSessions[event.SessionID])
+				err := r.RoutingTable.SetSession(rtID, r.DataplaneSessions[event.SessionID])
 				if err != nil {
 					// if the routing table doesn't know the index it means
 					// something was wrongly programmed.
@@ -179,7 +174,7 @@ func (r *Router) handleEvent(event SessionEvent) error {
 			if currentID == bestID {
 				continue
 			}
-			err := r.RoutingTable.AddRoute(rtID, r.DataplaneSessions[bestID])
+			err := r.RoutingTable.SetSession(rtID, r.DataplaneSessions[bestID])
 			if err != nil {
 				// if the routing table doesn't know the index it means
 				// something was wrongly programmed.
@@ -196,14 +191,14 @@ func (r *Router) handleEvent(event SessionEvent) error {
 			// it's the current session find a new one.
 			newID, idx := r.findSession(rtID)
 			if idx == -1 {
-				if err := r.RoutingTable.DelRoute(rtID); err != nil {
+				if err := r.RoutingTable.ClearSession(rtID); err != nil {
 					// if the routing table doesn't know the index it means
 					// something was wrongly programmed.
 					panic(serrors.WrapStr("deleting from routing table", err, "id", rtID))
 				}
 				delete(r.currentSessions, rtID)
 			} else {
-				if err := r.RoutingTable.AddRoute(rtID, r.DataplaneSessions[newID]); err != nil {
+				if err := r.RoutingTable.SetSession(rtID, r.DataplaneSessions[newID]); err != nil {
 					// if the routing table doesn't know the index it means
 					// something was wrongly programmed.
 					panic(serrors.WrapStr("adding to routing table", err, "id", rtID))

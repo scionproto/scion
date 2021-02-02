@@ -1,0 +1,249 @@
+{
+	"definitions": {},
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"$id": "https://github.com/scionproto/scion/blob/master/go/pkg/gateway/control/fake/confguration.schema.json",
+	"title": "Root",
+	"type": "object",
+	"required": [
+		"local_isd_as",
+		"routing_chains",
+		"sessions"
+	],
+	"properties": {
+		"local_isd_as": {
+			"$id": "#root/local_isd_as",
+			"title": "The local ISD-AS",
+			"description": "The local ISD-AS the fake Gateway should run in.",
+			"type": "string",
+			"default": "",
+			"examples": [
+				"1-ff00:0:110"
+			],
+			"pattern": "^.*$"
+		},
+		"routing_chains": {
+			"$id": "#root/routing_chains",
+			"title": "Routing chains",
+			"description": "The routing chain entries as defined in the gateway.",
+			"type": "array",
+			"default": [],
+			"items": {
+				"$id": "#root/routing_chains/items",
+				"title": "Items",
+				"type": "object",
+				"required": [
+					"remote_isd_as",
+					"prefixes",
+					"traffic_matchers"
+				],
+				"properties": {
+					"remote_isd_as": {
+						"$id": "#root/routing_chains/items/remote_isd_as",
+						"title": "Remote ISD-AS",
+						"description": "The remote ISD-AS for this routing chain entry.",
+						"type": "string",
+						"default": "",
+						"examples": [
+							"1-ff00:0:112"
+						],
+						"pattern": "^.*$"
+					},
+					"prefixes": {
+						"$id": "#root/routing_chains/items/prefixes",
+						"title": "Prefixes",
+						"description": "The prefixes exposed by this routing chain entry.",
+						"type": "array",
+						"default": [],
+						"items": {
+							"$id": "#root/routing_chains/items/prefixes/items",
+							"title": "Items",
+							"type": "string",
+							"default": "",
+							"examples": [
+								"10.0.0.0/24"
+							],
+							"pattern": "^.*$"
+						}
+					},
+					"traffic_matchers": {
+						"$id": "#root/routing_chains/items/traffic_matchers",
+						"title": "Traffic matchers",
+						"description": "The traffic matchers for this routing chain entry.",
+						"type": "array",
+						"default": [],
+						"items": {
+							"$id": "#root/routing_chains/items/traffic_matchers/items",
+							"title": "Items",
+							"type": "object",
+							"required": [
+								"id",
+								"matcher"
+							],
+							"properties": {
+								"id": {
+									"$id": "#root/routing_chains/items/traffic_matchers/items/id",
+									"title": "ID",
+									"description": "The ID of the traffic matcher there should be a corresponding session.",
+									"type": "integer",
+									"examples": [
+										1
+									],
+									"default": 0
+								},
+								"matcher": {
+									"$id": "#root/routing_chains/items/traffic_matchers/items/matcher",
+									"title": "Matcher",
+									"type": "string",
+									"description": "The matcher in string format.",
+									"default": "",
+									"examples": [
+										"dscp=0x2",
+										"ANY(dscp=0x2,ALL(dst=12.12.12.0/26,dscp=0x2, NOT(src=12.12.12.0/26)))"
+									],
+									"pattern": "^.*$"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"sessions": {
+			"$id": "#root/sessions",
+			"title": "Sessions",
+			"description": "describes the individual dataplane sessions.",
+			"type": "array",
+			"default": [],
+			"items": {
+				"$id": "#root/sessions/items",
+				"title": "Items",
+				"type": "object",
+				"required": [
+					"id",
+					"status",
+					"remote",
+					"paths"
+				],
+				"properties": {
+					"id": {
+						"$id": "#root/sessions/items/id",
+						"title": "Id",
+						"description": "The ID of the session must have a corresponding entry in the traffic_matchers.",
+						"type": "integer",
+						"examples": [
+							1
+						],
+						"default": 0
+					},
+					"policy_id": {
+						"$id": "#root/sessions/items/policy_id",
+						"title": "Policy ID",
+						"description": "The policy ID, this is optional, if not set the ID value is used.",
+						"type": "integer",
+						"examples": [
+							1
+						],
+						"default": 0
+					},
+					"status": {
+						"$id": "#root/sessions/items/status",
+						"title": "Status",
+						"type": "string",
+						"default": "up",
+						"examples": [
+							"up",
+							"down"
+						],
+						"pattern": "(up|down)"
+					},
+					"remote": {
+						"$id": "#root/sessions/items/remote",
+						"title": "Remote",
+						"description": "The host:port tuple of the remote gateway.",
+						"type": "string",
+						"default": "",
+						"examples": [
+							"10.0.0.1:30056"
+						],
+						"pattern": "^.*$"
+					},
+					"paths": {
+						"$id": "#root/sessions/items/paths",
+						"title": "Paths",
+						"type": "array",
+						"default": [],
+						"items": {
+							"$id": "#root/sessions/items/paths/items",
+							"title": "Items",
+							"type": "object",
+							"required": [
+								"interfaces",
+								"next_hop",
+								"mtu"
+							],
+							"properties": {
+								"interfaces": {
+									"$id": "#root/sessions/items/paths/items/interfaces",
+									"title": "Interfaces",
+									"type": "array",
+									"default": [],
+									"items": {
+										"$id": "#root/sessions/items/paths/items/interfaces/items",
+										"title": "Items",
+										"type": "object",
+										"required": [
+											"isd_as",
+											"id"
+										],
+										"properties": {
+											"isd_as": {
+												"$id": "#root/sessions/items/paths/items/interfaces/items/isd_as",
+												"title": "ISD-AS",
+												"type": "string",
+												"default": "",
+												"examples": [
+													"1-ff00:0:110"
+												],
+												"pattern": "^.*$"
+											},
+											"id": {
+												"$id": "#root/sessions/items/paths/items/interfaces/items/id",
+												"title": "ID",
+												"type": "integer",
+												"examples": [
+													1
+												],
+												"default": 0
+											}
+										}
+									}
+								},
+								"next_hop": {
+									"$id": "#root/sessions/items/paths/items/next_hop",
+									"title": "Next hop",
+									"type": "string",
+									"default": "",
+									"examples": [
+										"242.254.100.3:50000"
+									],
+									"pattern": "^.*$"
+								},
+								"mtu": {
+									"$id": "#root/sessions/items/paths/items/mtu",
+									"title": "Path MTU",
+									"description": "The MTU of the path.",
+									"type": "integer",
+									"examples": [
+										1280,
+										1000
+									],
+									"default": 0
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

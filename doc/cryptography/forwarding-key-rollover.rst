@@ -200,7 +200,7 @@ recommend is:
    Key = HKDF(pad128(2*ExpirationTime//KeyLifetime - 1) || MasterKey)
 
 where ``pad128`` is a left padding function to a bit-length of 128, ``||`` is the bit
-concatentation operator, ``//`` is integer division with integer quotient, and
+concatenation operator, ``//`` is integer division with integer quotient, and
 ``MasterKey`` is a shared secret of the AS. How to disseminate ``MasterKey`` is up
 for discussion, with the solution of storing it in a file on-disk being the
 simplest option for now. Other systems like

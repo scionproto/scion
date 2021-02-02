@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
+	"github.com/scionproto/scion/go/lib/routemgr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
@@ -47,7 +48,6 @@ import (
 	"github.com/scionproto/scion/go/pkg/gateway/pathhealth"
 	"github.com/scionproto/scion/go/pkg/gateway/pathhealth/policies"
 	"github.com/scionproto/scion/go/pkg/gateway/routing"
-	"github.com/scionproto/scion/go/pkg/gateway/routing/exporters/linux"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	gatewaypb "github.com/scionproto/scion/go/pkg/proto/gateway"
 	"github.com/scionproto/scion/go/pkg/service"
@@ -131,20 +131,15 @@ func (pcf PacketConnFactory) New() (net.PacketConn, error) {
 }
 
 type RoutingTableFactory struct {
-	Device netlink.Link
-	Source net.IP
+	RoutePublisherFactory routemgr.PublisherFactory
+	Source                net.IP
 }
 
 func (rtf RoutingTableFactory) New(
 	routingChains []*control.RoutingChain) (control.RoutingTable, error) {
 
-	if ExperimentalExportMainRT() {
-		return dataplane.NewRoutingTable(linux.RouteExporter{
-			Device: rtf.Device,
-			Source: rtf.Source,
-		}, routingChains), nil
-	}
-	return dataplane.NewRoutingTable(nil, routingChains), nil
+	return dataplane.NewRoutingTable(rtf.RoutePublisherFactory.NewPublisher(), rtf.Source,
+		routingChains), nil
 }
 
 // ignoreSCMP ignores all received SCMP packets.
@@ -157,16 +152,15 @@ func (ignoreSCMP) Handle(pkt *snet.Packet) error {
 	return nil
 }
 
-// ConfigPublisherAdvertiser computes the networks that should be advertised depending
-// on the state of the last published routing policy file.
-type ConfigPublisherAdvertiser struct {
+// SelectAdvertisedRoutes computes the networks that should be advertised
+// depending on the state of the last published routing policy file.
+type SelectAdvertisedRoutes struct {
 	ConfigPublisher *control.ConfigPublisher
 }
 
-func (a *ConfigPublisherAdvertiser) AdvertiseList(from, to addr.IA) []*net.IPNet {
+func (a *SelectAdvertisedRoutes) AdvertiseList(from, to addr.IA) []*net.IPNet {
 	policy := a.ConfigPublisher.RoutingPolicy()
 	return routing.AdvertiseList(*policy, from, to)
-
 }
 
 type RoutingPolicyPublisherAdapter struct {
@@ -222,6 +216,12 @@ type Gateway struct {
 	RouteDevice netlink.Link
 	// RouteSource is the source for routes added to the Linux routing table.
 	RouteSource net.IP
+
+	// RoutePublisherFactory allows to publish routes from the gatyeway.
+	// If nil, no routes will be published.
+	RoutePublisherFactory routemgr.PublisherFactory
+	// RouteConsumerFactory allows to receive routes. If nil, no routes are received.
+	RouteConsumerFactory routemgr.ConsumerFactory
 
 	// ConfigReloadTrigger can be used to trigger a config reload.
 	ConfigReloadTrigger chan struct{}
@@ -515,7 +515,7 @@ func (g *Gateway) Run() error {
 		discoveryServer,
 		controlgrpc.IPPrefixServer{
 			LocalIA: localIA,
-			Advertiser: &ConfigPublisherAdvertiser{
+			Advertiser: &SelectAdvertisedRoutes{
 				ConfigPublisher: configPublisher,
 			},
 			PrefixesAdvertised: paMetric,
@@ -604,8 +604,8 @@ func (g *Gateway) Run() error {
 		ConfigurationUpdates: sessionConfigurations,
 		RoutingTableSwapper:  routingTable,
 		RoutingTableFactory: RoutingTableFactory{
-			Device: g.RouteDevice,
-			Source: g.RouteSource,
+			RoutePublisherFactory: g.RoutePublisherFactory,
+			Source:                g.RouteSource,
 		},
 		EngineFactory: &control.DefaultEngineFactory{
 			PathMonitor: pathMonitor,
@@ -647,14 +647,12 @@ func (g *Gateway) Run() error {
 			g.Metrics.IPPktBytesLocalReceivedTotal)
 		fwMetrics.IPPktsLocalRecv = metrics.NewPromCounter(g.Metrics.IPPktsLocalReceivedTotal)
 		fwMetrics.IPPktsInvalid = metrics.CounterWith(
-			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal),
-			"reason", "invalid",
-		)
+			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal), "reason", "invalid")
+		fwMetrics.IPPktsFragmented = metrics.CounterWith(
+			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal), "reason", "fragmented")
 		fwMetrics.ReceiveLocalErrors = metrics.NewPromCounter(g.Metrics.ReceiveLocalErrorsTotal)
 		fwMetrics.IPPktsNoRoute = metrics.CounterWith(
-			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal),
-			"reason", "no_route",
-		)
+			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal), "reason", "no_route")
 	}
 	forwarder := &dataplane.IPForwarder{
 		Reader:       g.InternalDevice,

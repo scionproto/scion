@@ -224,6 +224,9 @@ func MustParseUDPAddr(t *testing.T, s string) *net.UDPAddr {
 
 	a, err := net.ResolveUDPAddr("udp", s)
 	require.NoError(t, err)
+	if ipv4 := a.IP.To4(); ipv4 != nil {
+		a.IP = ipv4
+	}
 	return a
 }
 

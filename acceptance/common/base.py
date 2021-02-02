@@ -14,6 +14,7 @@
 
 import logging
 import os
+import re
 import typing
 
 from plumbum import cli
@@ -96,6 +97,10 @@ class TestBase(cli.Application):
     def containers_tar(self, tar: str):
         self.test_state.containers_tar = tar
 
+    @cli.switch('bazel_rule', str, help="The bazel rule that triggered the test")
+    def test_type(self, rule: str):
+        self.test_state.bazel_rule = rule
+
     def _unpack_topo(self):
         cmd.tar('-xf', self.test_state.topology_tar, '-C', self.test_state.artifacts)
         cmd.sed('-i', 's#$SCIONROOT#%s#g' % self.test_state.artifacts,
@@ -103,6 +108,9 @@ class TestBase(cli.Application):
         self.test_state.dc.compose_file = self.test_state.artifacts / 'gen/scion-dc.yml'
 
     def setup_prepare(self):
+        """Unpacks the topology and loads local docker images.
+        """
+
         print('artifacts dir: %s' % self.test_state.artifacts)
         self._unpack_topo()
         print(cmd.docker('image', 'load', '-i', self.test_state.containers_tar))
@@ -112,14 +120,20 @@ class TestBase(cli.Application):
         self.setup_start()
 
     def setup_start(self):
+        """Starts the docker containers in the topology.
+        """
         print(self.test_state.dc('up', '-d'))
         print(self.test_state.dc('ps'))
         print('artifacts dir: %s' % self.test_state.artifacts)
 
     def teardown(self):
         self._unpack_topo()
-        self.test_state.dc.collect_logs(out_dir=self.test_state.artifacts / 'logs')
+        out_dir = self.test_state.artifacts / 'logs'
+        self.test_state.dc.collect_logs(out_dir=out_dir)
+        ps = self.test_state.dc('ps')
         print(self.test_state.dc('down', '-v'))
+        if re.search(r"Exit\s+[1-9]\d*", ps):
+            raise Exception("Failed services.\n" + ps)
 
     def send_signal(self, container, signal):
         """Sends signal to a container.

@@ -52,7 +52,8 @@
       "/com_github_uber_jaeger_client_go": "",
       "/com_github_marten_seemann_qtls/": "",
       "/org_golang_google_protobuf/": "",
-      "/com_github_magiconair_properties": ""
+      "/com_github_magiconair_properties": "",
+      "/com_github_ghodss_yaml/":""
     }
   },
   "unsafeptr": {

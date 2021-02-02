@@ -16,7 +16,6 @@ gomock(
         "PacketConnFactory",
         "PrefixConsumer",
         "PrefixFetcher",
-        "RouteExporter",
         "DataplaneSessionFactory",
         "PktWriter",
         "Worker",

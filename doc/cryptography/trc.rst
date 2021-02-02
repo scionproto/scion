@@ -170,8 +170,8 @@ period as an integer of seconds. The start of the grace period is equal to the
 beginning of the validity period of this TRC.
 
 The predecessor of this TRC, if any, should be considered active until either 1.
-the grace period has passed, or 2. the successor TRC of this TRC has been
-announced.
+the grace period has passed, 2. the predecessor's expiration time is reached, or
+3. the successor TRC of this TRC has been announced.
 
 The grace period of a base TRC MUST be zero. The grace period of a non-base TRC
 SHOULD be non-zero and long enough to provide sufficient overlap between the
@@ -198,7 +198,7 @@ specific use case and have assessed the risks and implications sufficiently.
 Votes
 ^^^^^
 
-Votes contains a sequence of indicies of the voting certificates in the
+Votes contains a sequence of indices of the voting certificates in the
 predecessor TRC. In a *base* TRC, this sequence is empty. Every entry in this
 sequence MUST be unique.
 
@@ -282,7 +282,7 @@ For the the set of certificates, the following MUST hold:
 #. :ref:`trc-voting-quorum-field` <= count(Sensitive Voting Certificates)
 #. :ref:`trc-voting-quorum-field` <= count(Regular Voting Certificate)
 
-.. _signed-trc-fromat:
+.. _signed-trc-format:
 
 Signed TRC Format
 -----------------
@@ -379,7 +379,7 @@ The following rules MUST hold for both update categories:
 - The ``noTrustReset`` field MUST NOT change.
 - There MUST only be votes cast that are authenticated by **Sensitive Voting
   Certificates** or **Regular Voting Certificates** present in the predecessor
-  TRC. This means, the ``votes`` sequence MUST only contain indicies of the
+  TRC. This means, the ``votes`` sequence MUST only contain indices of the
   **Sensitive Voting Certificates** or **Regular Voting Certificates**.
 - The number of votes MUST be greater than or equal to the ``votingQuorum`` of
   the predecessor TRC.
@@ -430,7 +430,7 @@ If a TRC update does not qualify as a regular update, it is considered a
 sensitive update. In order for sensitive updates to be verifiable, all votes
 MUST be cast by a **Sensitive Voting Certificate**.
 
-.. _trc-update-verficiation:
+.. _trc-update-verification:
 
 TRC Update Verification
 -----------------------

@@ -7,6 +7,7 @@ go_library(
         "context.go",
         "debugid.go",
         "log.go",
+        "options.go",
         "sample.go",
         "span.go",
         "syncbuf.go",
@@ -17,6 +18,7 @@ go_library(
     deps = [
         "//go/lib/common:go_default_library",
         "//go/lib/config:go_default_library",
+        "//go/lib/metrics:go_default_library",
         "//go/lib/serrors:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
         "@org_uber_go_zap//:go_default_library",

@@ -154,3 +154,9 @@ class ISD_AS:
 
     def __hash__(self):  # pragma: no cover
         return hash(str(self))
+
+    @classmethod
+    def parse_int(cls, raw: int):
+        ia = ISD_AS()
+        ia._parse_int(raw)
+        return ia

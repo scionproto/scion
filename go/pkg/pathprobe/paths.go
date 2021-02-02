@@ -18,16 +18,16 @@ package pathprobe
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
-	"sync"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // StatusName defines the different states a path can be in.
@@ -93,6 +93,8 @@ type Prober struct {
 	DstIA   addr.IA
 	LocalIA addr.IA
 	LocalIP net.IP
+	// ID is the SCMP traceroute ID used by the Prober.
+	ID uint16
 }
 
 // GetStatuses probes the paths and returns the statuses of the paths. The
@@ -106,12 +108,100 @@ func (p Prober) GetStatuses(ctx context.Context,
 		return nil, serrors.New("deadline required on ctx")
 	}
 
-	// Check whether paths are alive. This is done by sending a packet
-	// with invalid address via the path. The border router at the destination
-	// is going to reply with SCMP error. Receiving the error means that
-	// the path is alive.
+	// Check whether paths are alive. This is done by sending a traceroute
+	// request for the last interface of the path.
+	// Receiving the traceroute response means that the path is alive.
+
 	pathStatuses := make(map[string]Status, len(paths))
-	scmpH := &scmpHandler{statuses: pathStatuses}
+	scmpReplies := make(chan reply, 10)
+	conn, err := p.listen(ctx, pathStatuses, scmpReplies)
+	if err != nil {
+		return nil, serrors.WrapStr("listening failed", err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(deadline)
+	var sendErrors serrors.List
+	statuses := make(map[string]Status)
+	localAddr := snet.SCIONAddress{IA: p.LocalIA, Host: addr.HostFromIP(p.LocalIP)}
+	// send out one probe per path
+	for i, path := range paths {
+		statuses[PathKey(path)] = timeout
+		if err := p.sendProbe(conn, localAddr, path, uint16(i)); err != nil {
+			sendErrors = append(sendErrors, err)
+		}
+
+	}
+	if err := sendErrors.ToError(); err != nil {
+		return nil, err
+	}
+	var receiveErrors serrors.List
+	subCtx, dCancel := context.WithCancel(ctx)
+	defer dCancel()
+	drainError := make(chan error, 1)
+	go func() {
+		defer log.HandlePanic()
+		p.drain(subCtx, conn, drainError)
+	}()
+	for i := len(statuses); i > 0; i-- {
+		select {
+		case reply := <-scmpReplies:
+			if reply.Error != nil {
+				receiveErrors = append(receiveErrors, reply.Error)
+				continue
+			}
+			statuses[reply.PathKey] = reply.Status
+		case err := <-drainError:
+			return nil, err
+		case <-ctx.Done():
+			break
+		}
+	}
+	if err := receiveErrors.ToError(); err != nil {
+		return nil, err
+	}
+	return statuses, nil
+}
+
+func (p Prober) sendProbe(
+	scionConn snet.PacketConn,
+	localAddr snet.SCIONAddress,
+	path snet.Path,
+	nextSeq uint16,
+) error {
+	alertingPath := path.Path()
+	if err := setAlertFlag(&alertingPath, true); err != nil {
+		return err
+	}
+	pkt := &snet.Packet{
+		PacketInfo: snet.PacketInfo{
+			Destination: snet.SCIONAddress{
+				IA:   p.DstIA,
+				Host: addr.SvcNone,
+			},
+			Source: localAddr,
+			Path:   alertingPath,
+			Payload: snet.SCMPTracerouteRequest{
+				Identifier: p.ID,
+				Sequence:   nextSeq,
+			},
+		},
+	}
+	return scionConn.WriteTo(pkt, path.UnderlayNextHop())
+}
+
+type reply struct {
+	Status  Status
+	Error   error
+	PathKey string
+}
+
+type scmpHandler struct {
+	replies chan<- reply
+}
+
+func (p Prober) listen(ctx context.Context, pathStatuses map[string]Status,
+	scmpReplies chan reply) (snet.PacketConn, error) {
+	scmpH := &scmpHandler{replies: scmpReplies}
 	network := &snet.SCIONNetwork{
 		LocalIA: p.LocalIA,
 		Dispatcher: &snet.DefaultPacketDispatcherService{
@@ -119,111 +209,91 @@ func (p Prober) GetStatuses(ctx context.Context,
 			SCMPHandler: scmpH,
 		},
 	}
-	snetConn, err := network.Listen(ctx, "udp", &net.UDPAddr{IP: p.LocalIP}, addr.SvcNone)
-	if err != nil {
-		return nil, serrors.WrapStr("listening failed", err)
-	}
-	defer snetConn.Close()
-	snetConn.SetDeadline(deadline)
-	var sendErrors serrors.List
-	for _, path := range paths {
-		scmpH.setStatus(PathKey(path), timeout)
-		if err := p.send(snetConn, path); err != nil {
-			sendErrors = append(sendErrors, err)
+	conn, _, err := network.Dispatcher.Register(
+		ctx,
+		p.LocalIA,
+		&net.UDPAddr{IP: p.LocalIP},
+		addr.SvcNone,
+	)
+	return conn, err
+}
+
+func (p Prober) drain(subCtx context.Context, conn snet.PacketConn, drainError chan error) {
+	for {
+		var pkt snet.Packet
+		var ov net.UDPAddr
+		if err := conn.ReadFrom(&pkt, &ov); err != nil {
+			select {
+			case <-subCtx.Done():
+				return
+			default:
+				drainError <- serrors.WrapStr("error reading packet:", err)
+				close(drainError)
+				return
+			}
 		}
 	}
-	if err := sendErrors.ToError(); err != nil {
-		return nil, err
-	}
-	var receiveErrors serrors.List
-	for i := len(scmpH.statuses); i > 0; i-- {
-		if err := p.receive(snetConn); err != nil {
-			receiveErrors = append(receiveErrors, err)
-		}
-	}
-	if err := receiveErrors.ToError(); err != nil {
-		return nil, err
-	}
-	return scmpH.statuses, nil
-}
-
-func (p Prober) send(scionConn *snet.Conn, path snet.Path) error {
-	addr := &snet.SVCAddr{
-		IA:      p.DstIA,
-		Path:    path.Path(),
-		NextHop: path.UnderlayNextHop(),
-		SVC:     addr.SvcNone,
-	}
-	log.Debug("Sending test packet.", "path", fmt.Sprintf("%s", path))
-	_, err := scionConn.WriteTo([]byte{}, addr)
-	if err != nil {
-		return serrors.WrapStr("cannot send packet", err)
-	}
-	return nil
-}
-
-func (p Prober) receive(scionConn *snet.Conn) error {
-	b := make([]byte, 1500, 1500)
-	_, _, err := scionConn.ReadFrom(b)
-	if err == nil {
-		// We've got an actual reply instead of SCMP error. This should not happen.
-		return nil
-	}
-	if errors.Is(err, errBadHost) || errors.Is(err, errSCMP) {
-		return nil
-	}
-	if serrors.IsTimeout(err) {
-		// Timeout expired before all replies were received.
-		return nil
-	}
-	return serrors.WrapStr("failed to read packet", err)
-}
-
-var errBadHost = errors.New("scmp: bad host")
-var errSCMP = errors.New("scmp: other")
-
-type scmpHandler struct {
-	mtx      sync.Mutex
-	statuses map[string]Status
 }
 
 func (h *scmpHandler) Handle(pkt *snet.Packet) error {
-	path, err := h.path(pkt)
-	if err != nil {
+	// XXX(hendrikzuellig): This modifies the packet's path.
+	// We do not care because the packet is discarded in the drain method anyway.
+	reversePath := pkt.Path
+	reversePath.Reverse()
+	if err := setAlertFlag(&reversePath, false); err != nil {
 		return err
 	}
-	switch pld := pkt.Payload.(type) {
-	case snet.SCMPDestinationUnreachable:
-		h.setStatus(path, alive)
-		return errBadHost
-	case snet.SCMPExternalInterfaceDown:
-		h.setStatus(path, Status{
-			Status: StatusSCMP,
-			AdditionalInfo: fmt.Sprintf("external interface down: isd_as=%s interface=%d",
-				pld.IA, pld.Interface),
-		})
-		return errSCMP
-	case snet.SCMPInternalConnectivityDown:
-		h.setStatus(path, Status{
-			Status: StatusSCMP,
-			AdditionalInfo: fmt.Sprintf("internal connectivity down: "+
-				"isd_as=%s ingress=%d egress=%d", pld.IA, pld.Ingress, pld.Egress),
-		})
-		return errSCMP
+	s, err := h.handle(pkt)
+	h.replies <- reply{
+		Status:  s,
+		Error:   err,
+		PathKey: string(reversePath.Raw),
 	}
 	return nil
 }
 
-func (h *scmpHandler) path(pkt *snet.Packet) (string, error) {
-	path := pkt.Path.Copy()
-	if err := path.Reverse(); err != nil {
-		return "", serrors.WrapStr("unable to reverse path on received packet", err)
+func (h *scmpHandler) handle(pkt *snet.Packet) (Status, error) {
+	if pkt.Payload == nil {
+		return Status{}, serrors.New("no payload found")
 	}
-	return string(path.Raw), nil
+	switch pld := pkt.Payload.(type) {
+	case snet.SCMPTracerouteReply:
+		return Status{Status: StatusAlive}, nil
+	case snet.SCMPExternalInterfaceDown:
+		return Status{
+			Status: StatusSCMP,
+			AdditionalInfo: fmt.Sprintf("external interface down: isd_as=%s interface=%d",
+				pld.IA, pld.Interface),
+		}, nil
+	case snet.SCMPInternalConnectivityDown:
+		return Status{
+			Status: StatusSCMP,
+			AdditionalInfo: fmt.Sprintf("internal connectivity down: "+
+				"isd_as=%s ingress=%d egress=%d", pld.IA, pld.Ingress, pld.Egress),
+		}, nil
+	default:
+		return Status{
+			Status:         StatusUnknown,
+			AdditionalInfo: fmt.Sprintf("unknown payload type: (%T)", pld),
+		}, nil
+	}
 }
 
-func (h *scmpHandler) setStatus(path string, status Status) {
-	h.mtx.Lock()
-	defer h.mtx.Unlock()
-	h.statuses[path] = status
+func setAlertFlag(path *spath.Path, flag bool) error {
+	decodedPath := scion.Decoded{}
+	if err := decodedPath.DecodeFromBytes((*path).Raw); err != nil {
+		return serrors.WrapStr("decoding path", err)
+	}
+	if len(decodedPath.InfoFields) > 0 {
+		infoF := decodedPath.InfoFields[len(decodedPath.InfoFields)-1]
+		if infoF.ConsDir {
+			decodedPath.HopFields[len(decodedPath.HopFields)-1].IngressRouterAlert = flag
+		} else {
+			decodedPath.HopFields[len(decodedPath.HopFields)-1].EgressRouterAlert = flag
+		}
+	}
+	if err := decodedPath.SerializeTo((*path).Raw); err != nil {
+		return serrors.WrapStr("serializing path", err)
+	}
+	return nil
 }

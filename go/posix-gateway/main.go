@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/routemgr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -98,6 +99,7 @@ func realMain() error {
 		"config":    service.NewConfigHandler(globalCfg),
 		"log/level": log.ConsoleLevel.ServeHTTP,
 	}
+	routePublisherFactory, routeConsumerFactory := createRouteManager(tunnelLink)
 	gw := &gateway.Gateway{
 		TrafficPolicyFile:        globalCfg.Gateway.TrafficPolicy,
 		RoutingPolicyFile:        globalCfg.Gateway.IPRoutingPolicy,
@@ -115,6 +117,8 @@ func realMain() error {
 		RouteDevice:              tunnelLink,
 		RouteSource:              dataAddress.IP,
 		ConfigReloadTrigger:      reloadConfigTrigger,
+		RoutePublisherFactory:    routePublisherFactory,
+		RouteConsumerFactory:     routeConsumerFactory,
 		HTTPEndpoints:            httpPages,
 		HTTPServeMux:             http.DefaultServeMux,
 		Logger:                   log.New(),
@@ -176,4 +180,18 @@ func dropNetworkCapabilities() error {
 	caps.Clear(capability.CAPS)
 	caps.Apply(capability.CAPS)
 	return nil
+}
+
+func createRouteManager(device netlink.Link) (routemgr.PublisherFactory,
+	routemgr.ConsumerFactory) {
+
+	if gateway.ExperimentalExportMainRT() {
+		linux := &routemgr.Linux{Device: device}
+		go func() {
+			defer log.HandlePanic()
+			linux.Run()
+		}()
+		return linux, &routemgr.Dummy{}
+	}
+	return &routemgr.Dummy{}, &routemgr.Dummy{}
 }
