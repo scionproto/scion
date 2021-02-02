@@ -1547,12 +1547,6 @@ def go_deps():
         version = "v1.2.0",
     )
     go_repository(
-        name = "com_github_syndtr_gocapability",
-        importpath = "github.com/syndtr/gocapability",
-        sum = "h1:w58e6FAOMd+rUgOfhaBb+ZVOQIOfUkpv5AAQVmf6hsI=",
-        version = "v0.0.0-20160928074757-e7cb7fa329f4",
-    )
-    go_repository(
         name = "com_github_tarm_serial",
         importpath = "github.com/tarm/serial",
         sum = "h1:UyzmZLoiDWMRywV4DUYb9Fbt8uiOSooupjTq10vpvnU=",

@@ -16,12 +16,10 @@ package main
 
 import (
 	"context"
-	"io"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
 
-	"github.com/syndtr/gocapability/capability"
 	"github.com/vishvananda/netlink"
 
 	"github.com/scionproto/scion/go/lib/daemon"
@@ -55,18 +53,11 @@ func realMain() error {
 
 	reloadConfigTrigger := make(chan struct{})
 
-	tunnelLink, tunnelIO, err := initTunnel(globalCfg)
+	tunnelLink, tunnelIO, err := xnet.ConnectTun(globalCfg.Tunnel.Name)
 	if err != nil {
 		return serrors.WrapStr("initializing TUN device", err)
 	}
 	log.Debug("Tunnel device initialized", "dev", globalCfg.Tunnel.Name)
-
-	if !gateway.ExperimentalExportMainRT() {
-		if err := dropNetworkCapabilities(); err != nil {
-			return serrors.WrapStr("dropping capabilities", err)
-		}
-		log.Debug("Network capabilities dropped (dropped CAP_NET_ADMIN)")
-	}
 
 	daemonService := &daemon.Service{
 		Address: globalCfg.Daemon.Address,
@@ -114,7 +105,6 @@ func realMain() error {
 		Dispatcher:               reliable.NewDispatcher(""),
 		Daemon:                   daemon,
 		InternalDevice:           tunnelIO,
-		RouteDevice:              tunnelLink,
 		RouteSource:              dataAddress.IP,
 		ConfigReloadTrigger:      reloadConfigTrigger,
 		RoutePublisherFactory:    routePublisherFactory,
@@ -147,51 +137,11 @@ func realMain() error {
 	}
 }
 
-func initTunnel(cfg config.Config) (netlink.Link, io.ReadWriteCloser, error) {
-	tunLink, tunIO, err := xnet.ConnectTun(cfg.Tunnel.Name)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if !gateway.ExperimentalExportMainRT() {
-		defaultV4Net := &net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, net.IPv4len*8)}
-		err = xnet.AddRoute(cfg.Tunnel.RoutingTableID, tunLink, defaultV4Net, nil)
-		if err != nil {
-			return nil, nil,
-				serrors.WrapStr("adding default IPv4 route to gateway routing table", err)
-		}
-
-		// FIXME(scrye): Uncomment this when we start testing IPv6.
-		// defaultV6Net := &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, net.IPv6len*8)}
-		// err = xnet.AddRoute(cfg.Tunnel.RoutingTableID, tunLink, DefaultV6Net, nil)
-		// if err != nil {
-		// 	return nil, nil,
-		// serrors.WrapStr("adding default IPv6 route to gateway routing table", err)
-		// }
-	}
-	return tunLink, tunIO, nil
-}
-
-func dropNetworkCapabilities() error {
-	caps, err := capability.NewPid(0)
-	if err != nil {
-		return serrors.WrapStr("retrieving capabilities", err)
-	}
-	caps.Clear(capability.CAPS)
-	caps.Apply(capability.CAPS)
-	return nil
-}
-
-func createRouteManager(device netlink.Link) (routemgr.PublisherFactory,
-	routemgr.ConsumerFactory) {
-
-	if gateway.ExperimentalExportMainRT() {
-		linux := &routemgr.Linux{Device: device}
-		go func() {
-			defer log.HandlePanic()
-			linux.Run()
-		}()
-		return linux, &routemgr.Dummy{}
-	}
-	return &routemgr.Dummy{}, &routemgr.Dummy{}
+func createRouteManager(device netlink.Link) (routemgr.PublisherFactory, routemgr.ConsumerFactory) {
+	linux := &routemgr.Linux{Device: device}
+	go func() {
+		defer log.HandlePanic()
+		linux.Run()
+	}()
+	return linux, &routemgr.Dummy{}
 }

@@ -24,7 +24,6 @@ import (
 	"time"
 
 	quic "github.com/lucas-clemente/quic-go"
-	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -136,7 +135,8 @@ type RoutingTableFactory struct {
 }
 
 func (rtf RoutingTableFactory) New(
-	routingChains []*control.RoutingChain) (control.RoutingTable, error) {
+	routingChains []*control.RoutingChain,
+) (control.RoutingTable, error) {
 
 	return dataplane.NewRoutingTable(rtf.RoutePublisherFactory.NewPublisher(), rtf.Source,
 		routingChains), nil
@@ -212,8 +212,6 @@ type Gateway struct {
 
 	// InternalDevice is the tunnel interface from which packets are read.
 	InternalDevice io.ReadWriteCloser
-	// RouteDevice is the device for routes added to the Linux routing table.
-	RouteDevice netlink.Link
 	// RouteSource is the source for routes added to the Linux routing table.
 	RouteSource net.IP
 
@@ -678,10 +676,6 @@ func (g *Gateway) Run() error {
 		return serrors.WrapStr("registering HTTP pages", err)
 	}
 	select {}
-}
-
-func ExperimentalExportMainRT() bool {
-	return os.Getenv("SCION_EXPERIMENTAL_GATEWAY_MAIN_RT") != ""
 }
 
 func PathUpdateInterval() time.Duration {

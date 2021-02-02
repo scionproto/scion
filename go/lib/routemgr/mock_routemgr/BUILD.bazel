@@ -6,6 +6,7 @@ gomock(
     out = "mock.go",
     interfaces = [
         "Publisher",
+        "PublisherFactory",
     ],
     library = "//go/lib/routemgr:go_default_library",
     package = "mock_routemgr",

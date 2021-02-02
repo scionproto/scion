@@ -20,7 +20,6 @@ go_library(
         "//go/pkg/gateway/xnet:go_default_library",
         "//go/pkg/service:go_default_library",
         "//go/posix-gateway/config:go_default_library",
-        "@com_github_syndtr_gocapability//capability:go_default_library",
         "@com_github_vishvananda_netlink//:go_default_library",
     ],
 )

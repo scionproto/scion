@@ -28,7 +28,11 @@ import (
 )
 
 const (
-	SIGRPriority = 100
+	// SIGRPriority is the metric to use when inserting routes in the Linux routing table.
+	// This follows the convention of FRR, where BGP routes are inserted with a metric
+	// equal to the administrative distance (in the case of BGP, this would be 20).
+	// For Gateway routes, the administrative distance is 15, hence the priority.
+	SIGRPriority = 15
 	SIGTxQlen    = 1000
 )
 
