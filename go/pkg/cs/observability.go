@@ -63,6 +63,9 @@ type Metrics struct {
 	SegmentLookupRequestsTotal             *prometheus.CounterVec
 	SegmentLookupSegmentsSentTotal         *prometheus.CounterVec
 	SegmentRegistrationsTotal              *prometheus.CounterVec
+	TrustLatestTRCNotBefore                prometheus.Gauge
+	TrustLatestTRCNotAfter                 prometheus.Gauge
+	TrustLatestTRCSerial                   prometheus.Gauge
 }
 
 func NewMetrics() *Metrics {
@@ -136,6 +139,26 @@ func NewMetrics() *Metrics {
 				Help: "Total number of path segments received through registrations.",
 			},
 			[]string{"src", "seg_type", prom.LabelResult},
+		),
+		TrustLatestTRCNotBefore: promauto.NewGauge(
+			prometheus.GaugeOpts{
+				Name: "trustengine_latest_trc_not_before_time_seconds",
+				Help: "The not_before time of the latest TRC for the local ISD " +
+					"in seconds since UNIX epoch.",
+			},
+		),
+		TrustLatestTRCNotAfter: promauto.NewGauge(
+			prometheus.GaugeOpts{
+				Name: "trustengine_latest_trc_not_after_time_seconds",
+				Help: "The not_after time of the latest TRC for the local ISD " +
+					"in seconds since UNIX epoch.",
+			},
+		),
+		TrustLatestTRCSerial: promauto.NewGauge(
+			prometheus.GaugeOpts{
+				Name: "trustengine_latest_trc_serial_number",
+				Help: "The serial number of the latest TRC for the local ISD.",
+			},
 		),
 	}
 

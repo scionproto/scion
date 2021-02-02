@@ -47,6 +47,8 @@ import (
 	libmetrics "github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -332,6 +334,33 @@ func realMain() error {
 		10*time.Second,
 		5*time.Second,
 	)
+
+	trcRunner := periodic.Start(
+		periodic.Func{
+			TaskName: "trc expiration updater",
+			Task: func(ctx context.Context) {
+				trc, err := provider.GetSignedTRC(ctx,
+					cppki.TRCID{
+						ISD:    topo.IA().I,
+						Serial: scrypto.LatestVer,
+						Base:   scrypto.LatestVer,
+					},
+					trust.AllowInactive(),
+				)
+				if err != nil {
+					log.Info("Cannot resolve TRC for local ISD", "err", err)
+					return
+				}
+				metrics.TrustLatestTRCNotBefore.Set(
+					libmetrics.Timestamp(trc.TRC.Validity.NotBefore))
+				metrics.TrustLatestTRCNotAfter.Set(libmetrics.Timestamp(trc.TRC.Validity.NotAfter))
+				metrics.TrustLatestTRCSerial.Set(float64(trc.TRC.ID.Serial))
+			},
+		},
+		10*time.Second,
+		5*time.Second,
+	)
+	trcRunner.TriggerRun()
 
 	ds := discovery.Topology{
 		Provider: itopo.Provider(),
