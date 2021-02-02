@@ -15,7 +15,10 @@
 package fake
 
 import (
+	"net"
+
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/routemgr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 )
@@ -53,10 +56,13 @@ type Gateway struct {
 func (g *Gateway) Run() error {
 	for c := range g.ConfigurationUpdates {
 		log.SafeDebug(g.Logger, "New forwarding engine configuration found", "c", c)
-		rt, err := g.RoutingTableFactory.New(c.Chains)
+		routingTable, err := g.RoutingTableFactory.New(c.Chains)
 		if err != nil {
 			return serrors.WrapStr("creating routing table", err)
 		}
+		dummy := &routemgr.Dummy{}
+		rt := control.NewPublishingRoutingTable(c.Chains, routingTable,
+			dummy.NewPublisher(), net.IP{})
 		newSessions := make(map[int]control.DataplaneSession, len(c.Sessions))
 		for _, s := range c.Sessions {
 			newSessions[s.ID] = g.DataplaneSessionFactory.

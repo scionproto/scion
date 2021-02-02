@@ -146,7 +146,7 @@ func TestIPForwarderRun(t *testing.T) {
 		defer ctrl.Finish()
 
 		reader := mock_io.NewMockReader(ctrl)
-		rt := dataplane.NewRoutingTable(nil, net.IP{}, []*control.RoutingChain{
+		rt := dataplane.NewRoutingTable([]*control.RoutingChain{
 			{
 				Prefixes:        []*net.IPNet{xtest.MustParseCIDR(t, "10.0.0.0/8")},
 				TrafficMatchers: []control.TrafficMatcher{{ID: 1, Matcher: pktcls.CondTrue}},

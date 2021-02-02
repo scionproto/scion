@@ -18,13 +18,11 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"sync"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/pktcls"
-	"github.com/scionproto/scion/go/lib/routemgr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 )
@@ -76,23 +74,14 @@ func (se *subEntry) String() string {
 // RoutingTable contains the data-plane routing table for the gateway. The same
 // routing table is used for both IPv4 and IPv6 traffic.
 type RoutingTable struct {
-	// RouteExporter is informed of remote network prefixes that are reachable/unreachable.
-	// If nil, routes are not exported.
-	RouteExporter routemgr.Publisher
-	// Address to use as next hop.
-	Source net.IP
-
 	indexToSubEntry map[int]*subEntry
 	indexToEntries  map[int][]*entry
 	table           []*entry
-	mtx             sync.RWMutex
 }
 
 // NewRoutingTable creates a new routing table and initializes it with the given
 // chains.
-func NewRoutingTable(exporter routemgr.Publisher, source net.IP,
-	chains []*control.RoutingChain) *RoutingTable {
-
+func NewRoutingTable(chains []*control.RoutingChain) *RoutingTable {
 	indexToSubEntry := make(map[int]*subEntry)
 	indexToEntries := make(map[int][]*entry)
 	var table []*entry
@@ -115,8 +104,6 @@ func NewRoutingTable(exporter routemgr.Publisher, source net.IP,
 	}
 
 	return &RoutingTable{
-		RouteExporter:   exporter,
-		Source:          source,
 		indexToSubEntry: indexToSubEntry,
 		indexToEntries:  indexToEntries,
 		table:           table,
@@ -124,9 +111,6 @@ func NewRoutingTable(exporter routemgr.Publisher, source net.IP,
 }
 
 func (rt *RoutingTable) DiagnosticsWrite(w io.Writer) {
-	rt.mtx.RLock()
-	defer rt.mtx.RUnlock()
-
 	raw := ""
 	for _, e := range rt.table {
 		raw += e.String()
@@ -141,8 +125,6 @@ func (rt *RoutingTable) DiagnosticsWrite(w io.Writer) {
 // for the match is returned. If no routing prefix is matched, or no traffic class is matched,
 // routing will return `nil`.
 func (rt *RoutingTable) RouteIPv4(pkt layers.IPv4) control.PktWriter {
-	rt.mtx.RLock()
-	defer rt.mtx.RUnlock()
 	return rt.route(pkt.DstIP, &pkt)
 }
 
@@ -152,8 +134,6 @@ func (rt *RoutingTable) RouteIPv4(pkt layers.IPv4) control.PktWriter {
 // for the match is returned. If no routing prefix is matched, or no traffic class is matched,
 // routing will return `nil`.
 func (rt *RoutingTable) RouteIPv6(pkt layers.IPv6) control.PktWriter {
-	rt.mtx.RLock()
-	defer rt.mtx.RUnlock()
 	return rt.route(pkt.DstIP, &pkt)
 }
 
@@ -176,9 +156,6 @@ func (rt *RoutingTable) route(dst net.IP, pkt gopacket.Layer) control.PktWriter 
 }
 
 func (rt *RoutingTable) SetSession(index int, session control.PktWriter) error {
-	rt.mtx.Lock()
-	defer rt.mtx.Unlock()
-
 	if session == nil {
 		return serrors.New("nil session")
 	}
@@ -186,66 +163,21 @@ func (rt *RoutingTable) SetSession(index int, session control.PktWriter) error {
 	if !ok {
 		return serrors.New("invalid index")
 	}
-	for _, e := range rt.indexToEntries[index] {
-		if !e.hasSession() {
-			rt.pushPrefix(e.Prefix)
-		}
-	}
 	se.Session = session
 	return nil
 }
 
 func (rt *RoutingTable) ClearSession(index int) error {
-	rt.mtx.Lock()
-	defer rt.mtx.Unlock()
-
 	se, ok := rt.indexToSubEntry[index]
 	if !ok {
 		return serrors.New("invalid index")
 	}
 	se.Session = nil
-	for _, e := range rt.indexToEntries[index] {
-		if !e.hasSession() {
-			rt.popPrefix(e.Prefix)
-		}
-	}
 	return nil
 }
 
 // Activate should be called to mark the routing table as active.
 func (rt *RoutingTable) Activate() {}
 
-// Deactivate should be called when the routing table is no longer needed. It
-// removes from the external routing exporter all the prefixes which have a
-// not-nil session.
-func (rt *RoutingTable) Deactivate() {
-	rt.mtx.RLock()
-	defer rt.mtx.RUnlock()
-	for _, e := range rt.table {
-		if e.hasSession() {
-			rt.popPrefix(e.Prefix)
-		}
-	}
-	if rt.RouteExporter != nil {
-		rt.RouteExporter.Close()
-		rt.RouteExporter = nil
-	}
-}
-
-func (rt *RoutingTable) pushPrefix(prefix *net.IPNet) {
-	if rt.RouteExporter != nil {
-		rt.RouteExporter.AddRoute(routemgr.Route{
-			Prefix:  prefix,
-			NextHop: rt.Source,
-		})
-	}
-}
-
-func (rt *RoutingTable) popPrefix(prefix *net.IPNet) {
-	if rt.RouteExporter != nil {
-		rt.RouteExporter.DeleteRoute(routemgr.Route{
-			Prefix:  prefix,
-			NextHop: rt.Source,
-		})
-	}
-}
+// Deactivate should be called when the routing table is no longer needed.
+func (rt *RoutingTable) Deactivate() {}

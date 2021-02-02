@@ -138,8 +138,7 @@ func (rtf RoutingTableFactory) New(
 	routingChains []*control.RoutingChain,
 ) (control.RoutingTable, error) {
 
-	return dataplane.NewRoutingTable(rtf.RoutePublisherFactory.NewPublisher(), rtf.Source,
-		routingChains), nil
+	return dataplane.NewRoutingTable(routingChains), nil
 }
 
 // ignoreSCMP ignores all received SCMP packets.
@@ -620,7 +619,9 @@ func (g *Gateway) Run() error {
 			},
 			Logger: g.Logger,
 		},
-		Logger: g.Logger,
+		RoutePublisherFactory: g.RoutePublisherFactory,
+		RouteSource:           g.RouteSource,
+		Logger:                g.Logger,
 	}
 	go func() {
 		defer log.HandlePanic()
