@@ -70,7 +70,7 @@ type BadRequest Error
 // SetLogLevelJSONBody defines parameters for SetLogLevel.
 type SetLogLevelJSONBody LogLevel
 
-// SetLogLevelRequestBody defines body for SetLogLevel for application/json ContentType.
+// SetLogLevelJSONRequestBody defines body for SetLogLevel for application/json ContentType.
 type SetLogLevelJSONRequestBody SetLogLevelJSONBody
 
 // Getter for additional properties for Topology. Returns the specified

@@ -1,0 +1,30 @@
+openapi: "3.0.2"
+info:
+  description: "API for the SCION Control Service"
+  title: Control Service API
+  version: "0.0.1"
+servers:
+  - url: http://{host}:{port}
+    variables:
+      host:
+        default: "localhost"
+      port:
+        default: "30452"
+tags:
+  - name: common
+    description: Common API exposed by SCION services.
+  - name: crypto
+    description: API related to SCION cryptography.
+paths:
+  /signer:
+    $ref: "./crypto.yml#/paths/~1signer"
+  /ca:
+    $ref: "./crypto.yml#/paths/~1ca"
+  /info:
+    $ref: "../common/process.yml#/paths/~1info"
+  /log/level:
+    $ref: "../common/process.yml#/paths/~1log~1level"
+  /config:
+    $ref: "../common/process.yml#/paths/~1config"
+  /topology:
+    $ref: "../common/process.yml#/paths/~1topology"

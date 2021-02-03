@@ -36,93 +36,174 @@ type ServerInterface interface {
 
 // ServerInterfaceWrapper converts contexts to parameters.
 type ServerInterfaceWrapper struct {
-	Handler ServerInterface
+	Handler            ServerInterface
+	HandlerMiddlewares []MiddlewareFunc
 }
+
+type MiddlewareFunc func(http.HandlerFunc) http.HandlerFunc
 
 // GetCa operation middleware
 func (siw *ServerInterfaceWrapper) GetCa(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	siw.Handler.GetCa(w, r.WithContext(ctx))
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCa(w, r)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
 }
 
 // GetConfig operation middleware
 func (siw *ServerInterfaceWrapper) GetConfig(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	siw.Handler.GetConfig(w, r.WithContext(ctx))
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetConfig(w, r)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
 }
 
 // GetInfo operation middleware
 func (siw *ServerInterfaceWrapper) GetInfo(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	siw.Handler.GetInfo(w, r.WithContext(ctx))
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetInfo(w, r)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
 }
 
 // GetLogLevel operation middleware
 func (siw *ServerInterfaceWrapper) GetLogLevel(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	siw.Handler.GetLogLevel(w, r.WithContext(ctx))
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetLogLevel(w, r)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
 }
 
 // SetLogLevel operation middleware
 func (siw *ServerInterfaceWrapper) SetLogLevel(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	siw.Handler.SetLogLevel(w, r.WithContext(ctx))
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetLogLevel(w, r)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
 }
 
 // GetSigner operation middleware
 func (siw *ServerInterfaceWrapper) GetSigner(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	siw.Handler.GetSigner(w, r.WithContext(ctx))
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSigner(w, r)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
 }
 
 // GetTopology operation middleware
 func (siw *ServerInterfaceWrapper) GetTopology(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	siw.Handler.GetTopology(w, r.WithContext(ctx))
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTopology(w, r)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
 }
 
 // Handler creates http.Handler with routing matching OpenAPI spec.
 func Handler(si ServerInterface) http.Handler {
-	return HandlerFromMux(si, chi.NewRouter())
+	return HandlerWithOptions(si, ChiServerOptions{})
+}
+
+type ChiServerOptions struct {
+	BaseURL     string
+	BaseRouter  chi.Router
+	Middlewares []MiddlewareFunc
 }
 
 // HandlerFromMux creates http.Handler with routing matching OpenAPI spec based on the provided mux.
 func HandlerFromMux(si ServerInterface, r chi.Router) http.Handler {
-	return HandlerFromMuxWithBaseURL(si, r, "")
+	return HandlerWithOptions(si, ChiServerOptions{
+		BaseRouter: r,
+	})
 }
 
 func HandlerFromMuxWithBaseURL(si ServerInterface, r chi.Router, baseURL string) http.Handler {
+	return HandlerWithOptions(si, ChiServerOptions{
+		BaseURL:    baseURL,
+		BaseRouter: r,
+	})
+}
+
+// HandlerWithOptions creates http.Handler with additional options
+func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handler {
+	r := options.BaseRouter
+
+	if r == nil {
+		r = chi.NewRouter()
+	}
 	wrapper := ServerInterfaceWrapper{
-		Handler: si,
+		Handler:            si,
+		HandlerMiddlewares: options.Middlewares,
 	}
 
 	r.Group(func(r chi.Router) {
-		r.Get(baseURL+"/ca", wrapper.GetCa)
+		r.Get(options.BaseURL+"/ca", wrapper.GetCa)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(baseURL+"/config", wrapper.GetConfig)
+		r.Get(options.BaseURL+"/config", wrapper.GetConfig)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(baseURL+"/info", wrapper.GetInfo)
+		r.Get(options.BaseURL+"/info", wrapper.GetInfo)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(baseURL+"/log/level", wrapper.GetLogLevel)
+		r.Get(options.BaseURL+"/log/level", wrapper.GetLogLevel)
 	})
 	r.Group(func(r chi.Router) {
-		r.Put(baseURL+"/log/level", wrapper.SetLogLevel)
+		r.Put(options.BaseURL+"/log/level", wrapper.SetLogLevel)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(baseURL+"/signer", wrapper.GetSigner)
+		r.Get(options.BaseURL+"/signer", wrapper.GetSigner)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(baseURL+"/topology", wrapper.GetTopology)
+		r.Get(options.BaseURL+"/topology", wrapper.GetTopology)
 	})
 
 	return r
