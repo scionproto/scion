@@ -307,6 +307,31 @@ Advertised IP prefixes
 
 **Labels**: ``remote_isd_as``
 
+Zebra Metrics
+-------------
+
+Connection to Zebra
+^^^^^^^^^^^^^^^^^^^
+
+**Name**: ``gateway_zebra_connected``
+
+**Type**: Gauge
+
+**Description**: Indicates whether gateway is connected to Zebra server.
+
+**Labels**: none
+
+Processing updates from Zebra
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Name**: ``zebra_application_unresponsive``
+
+**Type**: Counter
+
+**Description**: Incremented each time when zebra can't push routes to the gateway.
+
+**Labels**: none
+
 HTTP API
 ========
 
