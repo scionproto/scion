@@ -127,7 +127,6 @@ class TestBase(cli.Application):
         print('artifacts dir: %s' % self.test_state.artifacts)
 
     def teardown(self):
-        self._unpack_topo()
         out_dir = self.test_state.artifacts / 'logs'
         self.test_state.dc.collect_logs(out_dir=out_dir)
         ps = self.test_state.dc('ps')
