@@ -60,7 +60,7 @@ class TestState:
         if 'TEST_UNDECLARED_OUTPUTS_DIR' in os.environ:
             self.artifacts = local.path(os.environ['TEST_UNDECLARED_OUTPUTS_DIR'])
         else:
-            self.artifacts = local.path(cmd.mktemp('-d').strip())
+            self.artifacts = local.path("/tmp/artifacts-scion")
         self.dc.compose_file = self.artifacts / 'gen/scion-dc.yml'
         self.no_docker = False
         self.tools_dc = local['./tools/dc']
@@ -110,12 +110,14 @@ class TestBase(cli.Application):
     def setup_prepare(self):
         """Unpacks the topology and loads local docker images.
         """
-
-        print('artifacts dir: %s' % self.test_state.artifacts)
         self._unpack_topo()
         print(cmd.docker('image', 'load', '-i', self.test_state.containers_tar))
 
     def setup(self):
+        # Delete old artifacts, if any.
+        cmd.rm("-rf", self.test_state.artifacts)
+        cmd.mkdir(self.test_state.artifacts)
+        print('artifacts dir: %s' % self.test_state.artifacts)
         self.setup_prepare()
         self.setup_start()
 
@@ -124,7 +126,6 @@ class TestBase(cli.Application):
         """
         print(self.test_state.dc('up', '-d'))
         print(self.test_state.dc('ps'))
-        print('artifacts dir: %s' % self.test_state.artifacts)
 
     def teardown(self):
         out_dir = self.test_state.artifacts / 'logs'
