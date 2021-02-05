@@ -1,0 +1,28 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "dummy.go",
+        "linux.go",
+        "routedb.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/routemgr",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/log:go_default_library",
+        "//go/lib/metrics:go_default_library",
+        "//go/pkg/gateway/xnet:go_default_library",
+        "@com_github_vishvananda_netlink//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["routedb_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/log:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+    ],
+)

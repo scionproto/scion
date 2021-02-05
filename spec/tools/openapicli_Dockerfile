@@ -1,0 +1,4 @@
+FROM node:13-alpine
+ENV OpenAPI_CLI_toolset_VERSION 1.0.0-beta.29
+RUN npm install -g @redocly/openapi-cli@${OpenAPI_CLI_toolset_VERSION}
+CMD ["openapi", "-h"]

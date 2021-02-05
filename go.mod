@@ -5,6 +5,9 @@ require (
 	github.com/buildkite/go-buildkite v2.2.1-0.20190413010238-568b6651b687+incompatible
 	github.com/dchest/cmac v0.0.0-20150527144652-62ff55a1048c
 	github.com/fatih/color v1.9.0
+	github.com/getkin/kin-openapi v0.38.0
+	github.com/go-chi/chi v1.5.1
+	github.com/go-chi/cors v1.1.1
 	github.com/go-kit/kit v0.10.0
 	github.com/golang/mock v1.4.4
 	github.com/golang/protobuf v1.4.2
@@ -24,7 +27,7 @@ require (
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/patrickmn/go-cache v2.1.1-0.20180815053127-5633e0862627+incompatible
 	github.com/pelletier/go-toml v1.8.1-0.20200708110244-34de94e6a887
-	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.6.0
 	github.com/sergi/go-diff v1.0.1-0.20180205163309-da645544ed44
 	github.com/smartystreets/goconvey v1.6.4
@@ -32,11 +35,11 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.5.1
-	github.com/syndtr/gocapability v0.0.0-20160928074757-e7cb7fa329f4
 	github.com/uber/jaeger-client-go v2.20.1+incompatible
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
 	github.com/vishvananda/netlink v0.0.0-20170924180554-177f1ceba557
 	github.com/vishvananda/netns v0.0.0-20170219233438-54f0e4339ce7 // indirect
+	github.com/xeipuuv/gojsonschema v1.2.0
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 	golang.org/x/net v0.0.0-20200927032502-5d4f70055728

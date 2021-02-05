@@ -49,15 +49,25 @@ func (d *Discoverer) Discover(ctx context.Context, dsAddr net.Addr) (hiddenpath.
 		Lookup:       make([]*net.UDPAddr, 0, len(r.Lookup)),
 		Registration: make([]*net.UDPAddr, 0, len(r.Registration)),
 	}
+	parseUDPAddr := func(addr string) (*net.UDPAddr, error) {
+		a, err := net.ResolveUDPAddr("udp", addr)
+		if err != nil {
+			return nil, err
+		}
+		if ip4 := a.IP.To4(); ip4 != nil {
+			a.IP = ip4
+		}
+		return a, nil
+	}
 	for _, l := range r.Lookup {
-		a, err := net.ResolveUDPAddr("udp", l.Address)
+		a, err := parseUDPAddr(l.Address)
 		if err != nil {
 			return hiddenpath.Servers{}, serrors.WrapStr("parsing address", err, "raw", l.Address)
 		}
 		reply.Lookup = append(reply.Lookup, a)
 	}
 	for _, l := range r.Registration {
-		a, err := net.ResolveUDPAddr("udp", l.Address)
+		a, err := parseUDPAddr(l.Address)
 		if err != nil {
 			return hiddenpath.Servers{}, serrors.WrapStr("parsing address", err, "raw", l.Address)
 		}

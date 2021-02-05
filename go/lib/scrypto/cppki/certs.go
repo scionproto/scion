@@ -221,7 +221,7 @@ func classifyCert(c *x509.Certificate) (CertType, error) {
 			return Root, nil
 		}
 	}
-	if (c.KeyUsage&x509.KeyUsageCRLSign > 0) && (c.KeyUsage&x509.KeyUsageCertSign > 0) {
+	if c.KeyUsage&x509.KeyUsageCertSign > 0 {
 		return CA, nil
 	}
 	if (c.KeyUsage&x509.KeyUsageDigitalSignature > 0) && (c.KeyUsage&x509.KeyUsageCertSign == 0) {
@@ -376,9 +376,6 @@ func commonCAValidation(c *x509.Certificate, pathLen int) error {
 
 	if c.KeyUsage&x509.KeyUsageCertSign == 0 {
 		errs = append(errs, serrors.New("key usage CertSign not set"))
-	}
-	if c.KeyUsage&x509.KeyUsageCRLSign == 0 {
-		errs = append(errs, serrors.New("key usage CRLSign not set"))
 	}
 	if c.KeyUsage&x509.KeyUsageDigitalSignature != 0 {
 		errs = append(errs, serrors.New("key usage DigitalSign set"))

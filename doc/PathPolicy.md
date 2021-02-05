@@ -9,7 +9,7 @@ A hop predicate is of the form **ISD-AS#IF,IF**. The first **IF** means the inbo
 (the interface where packet enters the AS) and the second **IF** means the outbound interface
 (the interface where packet leaves the AS).
 
-_0_ can be used as a wildcard for **ISD**, **AS** and both **IF** elements indepedently.
+_0_ can be used as a wildcard for **ISD**, **AS** and both **IF** elements independently.
 
 It is possible to specify only a single interface for a hop (**ISD-AS#IF**). In that case the packet
 must pass through the specified interface either when it's entering or leaving the AS. This syntax
@@ -128,7 +128,7 @@ _2-ff00:0:233#1_.
 ### Extends
 
 Path policies can be composed by extending other policies. The `extends` attribute requires a list
-of named policies. If an attribute exists in multiple policies in that list, the last occurence has
+of named policies. If an attribute exists in multiple policies in that list, the last occurrence has
 precedence. Also, an attribute specified at top level (the policy that has the `extends` attribute)
 always has precedence over attributes of an extended policy.
 
@@ -164,7 +164,7 @@ The following example uses three sub-policies to create the top-level policy. As
 The `options` attribute requires a list of anonymous policies. Each policy may have `weight` as an
 attribute to specify its importance and may have all other attributes of a policy. Options are
 evaluated in the order of their weight. The paths of the policy with the highest weight are used, if
-the heighest-weight policy does not match any paths, the next policy is evaluated. When multiple
+the highest-weight policy does not match any paths, the next policy is evaluated. When multiple
 policies have the same weight, all of their paths are returned. The default for a weight (when it is
 omitted) is 0. All paths returned by an option must also match every condition of the top-level
 policy (the top-level policy is ANDed to every option).

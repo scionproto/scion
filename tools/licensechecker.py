@@ -55,7 +55,7 @@ def main():
             continue
         first_line = lines[0].decode("utf-8")
         # generated files don't matter
-        if "generated" in first_line or "Generated" in first_line:
+        if "generated" in header.decode("utf-8").lower():
             continue
         comment_marker = "//"
         if not first_line.startswith(comment_marker):

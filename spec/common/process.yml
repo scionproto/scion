@@ -1,0 +1,99 @@
+paths:
+  /info:
+    get:
+      tags:
+        - common
+      summary: Basic information page about the control service process.
+      operationId: get-info
+      responses:
+        "200":
+          description: Successful Operation
+          content:
+            text/plain:
+              schema:
+                type: string
+        "400":
+          $ref: "./base.yml#/components/responses/BadRequest"
+  /log/level:
+      get:
+        tags:
+          - common
+        summary: Get logging level
+        operationId: get-log-level
+        responses:
+          "200":
+            description: Successful Operation
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/LogLevel"
+          "400":
+            $ref: "./base.yml#/components/responses/BadRequest"
+      put:
+        tags:
+          - common
+        summary: Set logging level
+        operationId: set-log-level
+        requestBody:
+          description: Logging Level
+          content:
+            application/json:
+              schema:
+                  $ref: "#/components/schemas/LogLevel"
+          required: true
+        responses:
+          "200":
+            description: Successful Operation
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/LogLevel"
+          "400":
+            $ref: "./base.yml#/components/responses/BadRequest"
+  /config:
+    get:
+      tags:
+        - common
+      summary: Prints the TOML configuration file.
+      operationId: get-config
+      responses:
+        "200":
+          description: Successful Operation
+          content:
+            text/plain:
+              schema:
+                type: string
+        "400":
+          $ref: "./base.yml#/components/responses/BadRequest"
+  /topology:
+    get:
+        tags:
+          - common
+        summary: Prints the contents of the AS topology file.
+        operationId: get-topology
+        responses:
+          "200":
+            description: Successful Operation
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Topology"
+          "400":
+            $ref: "./base.yml#/components/responses/BadRequest"
+components:
+  schemas:
+    LogLevel:
+      type: object
+      properties:
+        level:
+          type: string
+          example: info
+          description: Logging level
+          enum:
+            - debug
+            - info
+            - error
+      required: [level]
+    Topology:
+      type: object
+      additionalProperties: true

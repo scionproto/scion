@@ -23,7 +23,6 @@ from python.lib.util import write_file
 from python.topology.common import (
     ArgsBase,
     json_default,
-    remote_nets,
     sciond_svc_name,
     SD_API_PORT,
     SIG_CONFIG_NAME,
@@ -100,7 +99,6 @@ class SIGGenerator(object):
             'entrypoint': './sig_setup.sh',
             'privileged': True,
             'network_mode': 'service:%s' % disp_id,
-            'command': [remote_nets(self.args.networks, topo_id)],
         }
         self.dc_conf['services']['scion_sig_%s' % topo_id.file_fmt()] = {
             'image': 'posix-gateway:latest',

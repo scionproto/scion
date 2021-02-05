@@ -21,10 +21,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 
 	"github.com/scionproto/scion/antlr/sequence"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -80,28 +83,35 @@ func (s *Sequence) Eval(paths []snet.Path) []snet.Path {
 	}
 	result := []snet.Path{}
 	for _, path := range paths {
+		var desc string
 		ifaces := path.Metadata().Interfaces
+		switch {
 		// Path should contain even number of interfaces. 1 for source AS,
 		// 1 for destination AS and 2 per each intermediate AS. Invalid paths should
 		// not occur but if they do let's ignore them.
-		if len(ifaces) == 0 || len(ifaces)%2 != 0 {
+		case len(ifaces)%2 != 0:
 			log.Error("Invalid path with even number of hops", "path", path)
 			continue
+		// Empty paths are special cased.
+		case len(ifaces) == 0:
+			desc = ""
+		default:
+			// Turn the path into a string. For each AS on the path there will be
+			// one element in form <IA>#<inbound-interface>,<outbound-interface>,
+			// e.g. 64-ff00:0:112#3,5. For the source AS, the inbound interface will be
+			// zero. For destination AS, outbound interface will be zero.
+
+			hops := make([]string, 0, len(ifaces)/2+1)
+			hops = append(hops, hop(ifaces[0].IA, 0, ifaces[0].ID))
+			for i := 1; i < len(ifaces)-1; i += 2 {
+				hops = append(hops, hop(ifaces[i].IA, ifaces[i].ID, ifaces[i+1].ID))
+			}
+			hops = append(hops, hop(ifaces[len(ifaces)-1].IA, ifaces[len(ifaces)-1].ID, 0))
+			desc = strings.Join(hops, " ") + " "
 		}
-		// Turn the path into a string. For each AS on the path there will be
-		// one element in form <IA>#<inbound-interface>,<outbound-interface>,
-		// e.g. 64-ff00:0:112#3,5. For the source AS, the inbound interface will be
-		// zero. For destination AS, outbound interface will be zero.
-		p := fmt.Sprintf("%s#0,%d ", ifaces[0].IA, ifaces[0].ID)
-		for i := 1; i < len(ifaces)-1; i += 2 {
-			p += fmt.Sprintf("%s#%d,%d ", ifaces[i].IA,
-				ifaces[i].ID, ifaces[i+1].ID)
-		}
-		p += fmt.Sprintf("%s#%d,0 ", ifaces[len(ifaces)-1].IA,
-			ifaces[len(ifaces)-1].ID)
+
 		// Check whether the string matches the sequence regexp.
-		//fmt.Printf("EVAL: %s\n", p)
-		if s.re.MatchString(p) {
+		if s.re.MatchString(desc) {
 			result = append(result, path)
 		}
 	}
@@ -282,4 +292,8 @@ func (l *sequenceListener) ExitIFace(c *sequence.IFaceContext) {
 	re := c.GetText()
 	//fmt.Printf("IFace: %s RE: %s\n", c.GetText(), re)
 	l.push(re)
+}
+
+func hop(ia addr.IA, ingress, egress common.IFIDType) string {
+	return fmt.Sprintf("%s#%d,%d", ia, ingress, egress)
 }

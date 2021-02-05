@@ -55,7 +55,4 @@ data_addr = ":30056"
 const tunnelSample = `
 # Name of TUN device to create. (default "sig")
 name = "sig"
-
-# The routing table ID. (default 11)
-routing_table_id = 11
 `

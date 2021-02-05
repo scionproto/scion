@@ -36,5 +36,4 @@ func InitTunnel(cfg *config.Tunnel) {}
 
 func CheckTunnel(t *testing.T, cfg *config.Tunnel) {
 	assert.Equal(t, config.DefaultTunnelName, cfg.Name)
-	assert.Equal(t, config.DefaultTunnelRoutingTableID, cfg.RoutingTableID)
 }

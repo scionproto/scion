@@ -1,0 +1,104 @@
+paths:
+  /ca:
+    get:
+      tags:
+        - crypto
+      summary: Information about the CA.
+      operationId: get-ca
+      responses:
+        "200":
+          description: Successful Operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CA"
+        "400":
+          $ref: "../common/base.yml#/components/responses/BadRequest"
+  /signer:
+    get:
+      tags:
+        - crypto
+      summary: Prints information about the AS Certificate used to sign the control-plane message.
+      operationId: get-signer
+      responses:
+        "200":
+          description: Successful Operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Signer"
+        "400":
+          $ref: "../common/base.yml#/components/responses/BadRequest"
+components:
+  schemas:
+    CA:
+      type: object
+      properties:
+        subject:
+          type: object
+          properties:
+            isd_as:
+              type: string
+              example: 1-ff00:0:110
+        subject_key_id:
+          type: string
+          example: 5D A1 F7 17 F0 C1 35 0C 88 25 FA 61 D3 1D FE 91 8E F5 0F 7C
+        policy:
+          type: object
+          properties:
+            chain_lifetime:
+              type: string
+              example: 72h0m0s
+        cert_validity:
+          type: object
+          properties:
+            not_before:
+              type: string
+              format: date-time
+              example: 2021-01-04T09:59:33Z
+            not_after:
+              type: string
+              format: date-time
+              example: 2023-01-04T09:59:33Z
+    Signer:
+      type: object
+      properties:
+        subject:
+          type: object
+          properties:
+            isd_as:
+              type: string
+              example: 1-ff00:0:110
+        subject_key_id:
+          type: string
+          example: E0 EA 2C BC AF 1C E5 BF A7 D0 17 BD 93 85 36 08 28 DE FA E2
+        expiration:
+          type: string
+          format: date-time
+          example: 2022-01-04T09:59:33Z
+        trc_id:
+          type: object
+          properties:
+            isd:
+              type: number
+              example: 1
+            base_number:
+              type: number
+              example: 1
+            serial_number:
+              type: number
+              example: 1
+        cert_validity:
+          type: object
+          properties:
+            not_before:
+              type: string
+              format: date-time
+              example: 2021-01-04T09:59:33Z
+            not_after:
+              type: string
+              format: date-time
+              example: 2022-01-04T09:59:33Z
+        in_grace_period:
+          type: boolean
+          example: false

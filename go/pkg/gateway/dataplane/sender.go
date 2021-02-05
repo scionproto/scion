@@ -107,7 +107,7 @@ func (c *sender) run() {
 		increaseCounterMetric(c.metrics.FrameBytesSent, float64(len(frame)))
 
 		if c.pathStatsPublisher != nil {
-			c.pathStatsPublisher.PublishEgressStats(string(c.pathFingerprint),
+			c.pathStatsPublisher.PublishEgressStats(c.pathFingerprint.String(),
 				1, int64(len(frame)))
 		}
 	}

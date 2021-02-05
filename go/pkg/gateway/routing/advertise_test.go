@@ -50,3 +50,30 @@ func TestAdvertiseList(t *testing.T) {
 	}, routing.AdvertiseList(policy, from, to))
 	assert.Empty(t, routing.AdvertiseList(policy, to, from))
 }
+
+func TestRedistributeBGPList(t *testing.T) {
+	from := addr.IA{I: 1}
+	to := addr.IA{I: 2}
+
+	policy := routing.Policy{DefaultAction: routing.Reject}
+
+	assert.Empty(t, routing.AllowedPrefixesBGP(policy, from, to))
+
+	policy.Rules = append(policy.Rules, routing.Rule{
+		Action:  routing.RedistributeBGP,
+		From:    routing.NewIAMatcher(t, "1-0"),
+		To:      routing.NewIAMatcher(t, "2-0"),
+		Network: routing.NewNetworkMatcher(t, "127.1.0.0/30,10.0.0.0/16"),
+	})
+	policy.Rules = append(policy.Rules, routing.Rule{
+		Action:  routing.RedistributeBGP,
+		From:    routing.NewIAMatcher(t, "2-0"),
+		To:      routing.NewIAMatcher(t, "1-0"),
+		Network: routing.NewNetworkMatcher(t, "!127.1.0.0/30"),
+	})
+	assert.ElementsMatch(t, []*net.IPNet{
+		{IP: net.ParseIP("127.1.0.0").To4(), Mask: net.CIDRMask(30, 32)},
+		{IP: net.ParseIP("10.0.0.0").To4(), Mask: net.CIDRMask(16, 32)},
+	}, routing.AllowedPrefixesBGP(policy, from, to))
+	assert.Empty(t, routing.AllowedPrefixesBGP(policy, to, from))
+}

@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/pkg/api"
 	"github.com/scionproto/scion/go/pkg/storage"
 	trustengine "github.com/scionproto/scion/go/pkg/trust/config"
 )
@@ -73,6 +74,7 @@ type Config struct {
 	Features    env.Features       `toml:"features,omitempty"`
 	Logging     log.Config         `toml:"log,omitempty"`
 	Metrics     env.Metrics        `toml:"metrics,omitempty"`
+	API         api.Config         `toml:"api,omitempty"`
 	Tracing     env.Tracing        `toml:"tracing,omitempty"`
 	QUIC        env.QUIC           `toml:"quic,omitempty"`
 	BeaconDB    storage.DBConfig   `toml:"beacon_db,omitempty"`
@@ -92,6 +94,7 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.API,
 		&cfg.Tracing,
 		&cfg.BeaconDB,
 		&cfg.TrustDB,
@@ -111,6 +114,7 @@ func (cfg *Config) Validate() error {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.API,
 		&cfg.BeaconDB,
 		&cfg.TrustDB,
 		&cfg.RenewalDB,
@@ -129,6 +133,7 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 		&cfg.Features,
 		&cfg.Logging,
 		&cfg.Metrics,
+		&cfg.API,
 		&cfg.Tracing,
 		&cfg.QUIC,
 		config.OverrideName(
