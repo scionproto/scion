@@ -39,11 +39,16 @@ def fmt_attrs(attrs: Dict[str, str]):
 
 
 def link_attrs(link: Link) -> Dict[str, str]:
-    attrs = {}
+    attrs = {
+        'headlabel': link.a.ifid,
+        'taillabel': link.b.ifid,
+    }
     if link.type in [LinkType.CORE, LinkType.PEER]:
+        attrs['constraint'] = 'false'
         attrs['dir'] = 'none'
     if link.type == LinkType.PEER:
         attrs['constraint'] = 'false'
+        attrs['dir'] = 'none'
         attrs['style'] = 'dotted'
     return attrs
 
