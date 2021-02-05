@@ -332,18 +332,17 @@ func (cfg StaticInfoCfg) generateGeo(ifType map[common.IFIDType]topology.LinkTyp
 func includeIntraInfo(ifType map[common.IFIDType]topology.LinkType,
 	ifid, ingress, egress common.IFIDType) bool {
 
-	is_core_ingress := (ifType[ingress] == topology.Core || ingress == 0)
-	is_core_egress := (ifType[egress] == topology.Core || egress == 0)
-	is_core_seg := is_core_ingress && is_core_egress
-	if is_core_seg {
+	isCoreIngress := (ifType[ingress] == topology.Core || ingress == 0)
+	isCoreEgress := (ifType[egress] == topology.Core || egress == 0)
+	isCoreSeg := isCoreIngress && isCoreEgress
+	if isCoreSeg {
 		return ifid == ingress
-	} else {
-		t := ifType[ifid]
-		return ifid == ingress ||
-			t == topology.Child && ifid > egress ||
-			t == topology.Core ||
-			t == topology.Peer
 	}
+	t := ifType[ifid]
+	return ifid == ingress ||
+		t == topology.Child && ifid > egress ||
+		t == topology.Core ||
+		t == topology.Peer
 }
 
 func interfaceTypeTable(intfs *ifstate.Interfaces) map[common.IFIDType]topology.LinkType {
