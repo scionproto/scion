@@ -41,7 +41,7 @@ func TestDiagnosticWriter(t *testing.T) {
 	}{
 		"routingtable": {
 			prepareDW: func(t *testing.T) dataplane.DiagnosticsWriter {
-				dp := dataplane.NewRoutingTable(nil, []*control.RoutingChain{
+				dp := dataplane.NewRoutingTable([]*control.RoutingChain{
 					{
 						Prefixes: []*net.IPNet{xtest.MustParseCIDR(t, "192.168.0.0/24")},
 						TrafficMatchers: []control.TrafficMatcher{
@@ -56,8 +56,8 @@ func TestDiagnosticWriter(t *testing.T) {
 						},
 					},
 				})
-				dp.AddRoute(1, testPktWriter{ID: 1})
-				dp.AddRoute(2, testPktWriter{ID: 2})
+				dp.SetSession(1, testPktWriter{ID: 1})
+				dp.SetSession(2, testPktWriter{ID: 2})
 				return dp
 			},
 			wantFile: "./testdata/routingtable1.txt",

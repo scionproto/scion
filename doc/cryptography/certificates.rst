@@ -151,8 +151,8 @@ The OIDs for the above curves are::
 Implementations must include support for P-256, P-384, and P-521.
 
 Note that the list might be extended in the future. SCION implementations must
-reject cryptographical algorithms not found on the list. This document currently
-serves as the list of accepted cryptographical algorithms.
+reject cryptographic algorithms not found on the list. This document currently
+serves as the list of accepted cryptographic algorithms.
 
 For convenience, the ``AlgorithmIdentifier`` definition is included below:
 
@@ -381,7 +381,7 @@ Each key usage attribute has the following semantics in SCION:
 - ``dataEncipherment``: not used
 - ``keyAgreement``: not used
 - ``keyCertSign``: the key can be used to sign certificates
-- ``cRLSign``: the key can be used to sign revocation lists
+- ``cRLSign``: not used
 - ``encipherOnly``: not used
 - ``decipherOnly``: not used
 
@@ -472,7 +472,7 @@ The recommended maximum validity period of a **CP Root certificate** is 1 year.
 Extension constraints
 ---------------------
 
-**Key usage**.  The ``keyCertSign`` and ``cRLSign`` attributes must be set. The
+**Key usage**.  The ``keyCertSign`` attributes must be set. The
 ``digitalSignature`` attribute must not be set, as in the context of SCION this
 has the semantics of *allowed to sign control-plane messages*.
 
@@ -505,7 +505,7 @@ The recommended maximum validity period of a **CP CA certificate** is 1 week.
 Extension constraints
 ---------------------
 
-**Key usage**. The ``keyCertSign`` and ``cRLSign`` attributes must be set. The
+**Key usage**. The ``keyCertSign`` attributes must be set. The
 ``digitalSignature`` attribute must not be set, as in the context of SCION this
 has the semantics of *allowed to sign control-plane messages*.
 
@@ -522,7 +522,7 @@ requires that this be marked as critical.
 CP AS Certificate
 =================
 
-**CP AS Certificates** are used by SCION ASes to sign control-plane mesages.
+**CP AS Certificates** are used by SCION ASes to sign control-plane messages.
 
 In X.509 terms, **CP AS Certificates** are end-entity certificates.
 

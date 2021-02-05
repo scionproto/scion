@@ -28,9 +28,11 @@ __pycache__
 #########################
 /go/vendor/*/
 
-# vim generated files #
+# vim files #
 #########################
 .*.sw?
+.ccls
+.vim/
 
 # VSCode folder
 #########################
@@ -40,6 +42,7 @@ __pycache__
 #########################
 .installstamp
 *.d
+compile_commands.json
 
 # Environment files
 #########################

@@ -530,10 +530,8 @@ func (d *DataPlane) Run() error {
 	}(d.internal)
 
 	d.mtx.Unlock()
-	for d.running {
-		time.Sleep(time.Second)
-	}
-	return nil
+
+	select {}
 }
 
 func (d *DataPlane) initMetrics() {
@@ -1009,27 +1007,39 @@ func (p *scionPacketProcessor) handleIngressRouterAlert() (processResult, error)
 	if p.ingressID == 0 {
 		return processResult{}, nil
 	}
-	ingressAlert := (!p.infoField.ConsDir && p.hopField.EgressRouterAlert) ||
-		(p.infoField.ConsDir && p.hopField.IngressRouterAlert)
-	if !ingressAlert {
+	alert := p.ingressRouterAlertFlag()
+	if !*alert {
 		return processResult{}, nil
 	}
-	p.hopField.IngressRouterAlert = false
+	*alert = false
 	return p.handleSCMPTraceRouteRequest(p.ingressID)
 }
 
+func (p *scionPacketProcessor) ingressRouterAlertFlag() *bool {
+	if !p.infoField.ConsDir {
+		return &p.hopField.EgressRouterAlert
+	}
+	return &p.hopField.IngressRouterAlert
+}
+
 func (p *scionPacketProcessor) handleEgressRouterAlert() (processResult, error) {
-	egressAlert := (p.infoField.ConsDir && p.hopField.EgressRouterAlert) ||
-		(!p.infoField.ConsDir && p.hopField.IngressRouterAlert)
-	if !egressAlert {
+	alert := p.egressRouterAlertFlag()
+	if !*alert {
 		return processResult{}, nil
 	}
 	egressID := p.egressInterface()
 	if _, ok := p.d.external[egressID]; !ok {
 		return processResult{}, nil
 	}
-	p.hopField.EgressRouterAlert = false
+	*alert = false
 	return p.handleSCMPTraceRouteRequest(egressID)
+}
+
+func (p *scionPacketProcessor) egressRouterAlertFlag() *bool {
+	if !p.infoField.ConsDir {
+		return &p.hopField.IngressRouterAlert
+	}
+	return &p.hopField.EgressRouterAlert
 }
 
 func (p *scionPacketProcessor) handleSCMPTraceRouteRequest(
@@ -1329,18 +1339,9 @@ type scmpPacker struct {
 }
 
 func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
-	incPath bool, cause error) ([]byte, error) {
+	external bool, cause error) ([]byte, error) {
 
-	// We use the original packet but put the already updated path, because usually a router will
-	// not keep a copy of the original/unmodified packet around.
-	pathRaw := s.scionL.Path.(*scion.Raw).Raw
-
-	if err := s.scionL.DecodeFromBytes(s.origPacket, gopacket.NilDecodeFeedback); err != nil {
-		panic(err)
-	}
 	path := s.scionL.Path.(*scion.Raw)
-
-	path.Raw = pathRaw
 	decPath, err := path.ToDecoded()
 	if err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "decoding raw path")
@@ -1350,7 +1351,16 @@ func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.Serializable
 		return nil, serrors.Wrap(cannotRoute, err, "details", "reversing path for SCMP")
 	}
 	revPath := s.scionL.Path.(*scion.Decoded)
-	if incPath || revPath.IsXover() {
+
+	// Revert potential path segment switches that were done during processing.
+	if revPath.IsXover() {
+		if err := revPath.IncPath(); err != nil {
+			return nil, serrors.Wrap(cannotRoute, err, "details", "reverting cross over for SCMP")
+		}
+	}
+	// If the packet is sent to an external router, we need to increment the
+	// path to prepare it for the next hop.
+	if external {
 		infoField := revPath.InfoFields[revPath.PathMeta.CurrINF]
 		if infoField.ConsDir {
 			hopField := revPath.HopFields[revPath.PathMeta.CurrHF]

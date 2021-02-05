@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"sync"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -50,7 +49,7 @@ func (e *entry) route(pkt gopacket.Layer) control.PktWriter {
 	return nil
 }
 
-func (e *entry) isHealthy() bool {
+func (e *entry) hasSession() bool {
 	for _, sub := range e.Table {
 		if sub.Session != nil {
 			return true
@@ -75,21 +74,14 @@ func (se *subEntry) String() string {
 // RoutingTable contains the data-plane routing table for the gateway. The same
 // routing table is used for both IPv4 and IPv6 traffic.
 type RoutingTable struct {
-	// RouteExporter is informed of remote network prefixes that are reachable/unreachable.
-	// If nil, routes are not exported.
-	RouteExporter control.RouteExporter
-
 	indexToSubEntry map[int]*subEntry
 	indexToEntries  map[int][]*entry
 	table           []*entry
-	mtx             sync.RWMutex
 }
 
 // NewRoutingTable creates a new routing table and initializes it with the given
 // chains.
-func NewRoutingTable(exporter control.RouteExporter,
-	chains []*control.RoutingChain) *RoutingTable {
-
+func NewRoutingTable(chains []*control.RoutingChain) *RoutingTable {
 	indexToSubEntry := make(map[int]*subEntry)
 	indexToEntries := make(map[int][]*entry)
 	var table []*entry
@@ -112,7 +104,6 @@ func NewRoutingTable(exporter control.RouteExporter,
 	}
 
 	return &RoutingTable{
-		RouteExporter:   exporter,
 		indexToSubEntry: indexToSubEntry,
 		indexToEntries:  indexToEntries,
 		table:           table,
@@ -120,9 +111,6 @@ func NewRoutingTable(exporter control.RouteExporter,
 }
 
 func (rt *RoutingTable) DiagnosticsWrite(w io.Writer) {
-	rt.mtx.RLock()
-	defer rt.mtx.RUnlock()
-
 	raw := ""
 	for _, e := range rt.table {
 		raw += e.String()
@@ -137,8 +125,6 @@ func (rt *RoutingTable) DiagnosticsWrite(w io.Writer) {
 // for the match is returned. If no routing prefix is matched, or no traffic class is matched,
 // routing will return `nil`.
 func (rt *RoutingTable) RouteIPv4(pkt layers.IPv4) control.PktWriter {
-	rt.mtx.RLock()
-	defer rt.mtx.RUnlock()
 	return rt.route(pkt.DstIP, &pkt)
 }
 
@@ -148,8 +134,6 @@ func (rt *RoutingTable) RouteIPv4(pkt layers.IPv4) control.PktWriter {
 // for the match is returned. If no routing prefix is matched, or no traffic class is matched,
 // routing will return `nil`.
 func (rt *RoutingTable) RouteIPv6(pkt layers.IPv6) control.PktWriter {
-	rt.mtx.RLock()
-	defer rt.mtx.RUnlock()
 	return rt.route(pkt.DstIP, &pkt)
 }
 
@@ -171,10 +155,7 @@ func (rt *RoutingTable) route(dst net.IP, pkt gopacket.Layer) control.PktWriter 
 	return ret
 }
 
-func (rt *RoutingTable) AddRoute(index int, session control.PktWriter) error {
-	rt.mtx.Lock()
-	defer rt.mtx.Unlock()
-
+func (rt *RoutingTable) SetSession(index int, session control.PktWriter) error {
 	if session == nil {
 		return serrors.New("nil session")
 	}
@@ -182,41 +163,21 @@ func (rt *RoutingTable) AddRoute(index int, session control.PktWriter) error {
 	if !ok {
 		return serrors.New("invalid index")
 	}
-	for _, e := range rt.indexToEntries[index] {
-		healthyBefore := e.isHealthy()
-		if !healthyBefore {
-			rt.addNetwork(e.Prefix)
-		}
-	}
 	se.Session = session
 	return nil
 }
 
-func (rt *RoutingTable) DelRoute(index int) error {
-	rt.mtx.Lock()
-	defer rt.mtx.Unlock()
-
+func (rt *RoutingTable) ClearSession(index int) error {
 	se, ok := rt.indexToSubEntry[index]
 	if !ok {
 		return serrors.New("invalid index")
 	}
 	se.Session = nil
-	for _, e := range rt.indexToEntries[index] {
-		if !e.isHealthy() {
-			rt.deleteNetwork(e.Prefix)
-		}
-	}
 	return nil
 }
 
-func (rt *RoutingTable) addNetwork(prefix *net.IPNet) {
-	if rt.RouteExporter != nil {
-		rt.RouteExporter.AddNetwork(*prefix)
-	}
-}
+// Activate should be called to mark the routing table as active.
+func (rt *RoutingTable) Activate() {}
 
-func (rt *RoutingTable) deleteNetwork(prefix *net.IPNet) {
-	if rt.RouteExporter != nil {
-		rt.RouteExporter.DeleteNetwork(*prefix)
-	}
-}
+// Deactivate should be called when the routing table is no longer needed.
+func (rt *RoutingTable) Deactivate() {}

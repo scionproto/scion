@@ -5,7 +5,7 @@ services:
     command:
       ["--max_size=10", "--experimental_remote_asset_api", "--profile_port=0"]
     network_mode: host
-    image: buchgr/bazel-remote-cache
+    image: $REGISTRY/bazel-remote-cache
     environment:
       BAZEL_REMOTE_S3_BUCKET: $BAZEL_REMOTE_S3_BUCKET
       BAZEL_REMOTE_S3_ENDPOINT: s3.eu-central-1.amazonaws.com

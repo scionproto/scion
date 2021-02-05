@@ -99,6 +99,7 @@ const (
 	Accept
 	Reject
 	Advertise
+	RedistributeBGP
 )
 
 func (a Action) String() string {
@@ -109,6 +110,8 @@ func (a Action) String() string {
 		return "reject"
 	case Advertise:
 		return "advertise"
+	case RedistributeBGP:
+		return "redistribute-bgp"
 	default:
 		return fmt.Sprintf("UNKNOWN (%d)", a)
 	}

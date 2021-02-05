@@ -1,0 +1,42 @@
+{
+    "local_isd_as": "1-ff00:0:110",
+    "routing_chains": [
+        {
+            "remote_isd_as": "1-ff00:0:112",
+            "prefixes": [
+                "10.0.0.0/24",
+                "10.1.0.0/24"
+            ],
+            "traffic_matchers": [
+                {
+                    "id": 1,
+                    "matcher": "ANY(dscp=0x2,ALL(dst=12.12.12.0/26,dscp=0x2, NOT(src=12.12.12.0/26)))"
+                }
+            ]
+        }
+    ],
+    "sessions": [
+        {
+            "id": 1,
+            "policy_id": 1,
+            "status": "up",
+            "remote": "10.0.0.1:30056",
+            "paths": [
+                {
+                    "interfaces": [
+                        {
+                            "isd_as": "1-ff00:0:110",
+                            "id": 1
+                        },
+                        {
+                            "isd_as": "1-ff00:0:112",
+                            "id": 2
+                        }
+                    ],
+                    "next_hop": "242.254.100.3:5000",
+                    "mtu": 1280
+                }
+            ]
+        }
+    ]
+}

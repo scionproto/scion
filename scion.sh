@@ -122,13 +122,10 @@ cmd_mstart() {
 
 run_setup() {
     python/integration/set_ipv6_addr.py -a
-     # Create dispatcher and sciond dirs or change owner
+     # Create dispatcher dir or change owner
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
     [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $disp_dir - [sudo] password for %p: " chown $LOGNAME: "$disp_dir"; }
-    local sciond_dir="/run/shm/sciond"
-    [ -d "$sciond_dir" ] || mkdir "$sciond_dir"
-    [ $(stat -c "%U" "$sciond_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $sciond_dir - [sudo] password for %p: " chown $LOGNAME: "$sciond_dir"; }
 
     run_jaeger
 }
@@ -144,11 +141,10 @@ cmd_stop() {
     if [ "$1" = "clean" ]; then
         python/integration/set_ipv6_addr.py -d
     fi
-    for i in /run/shm/{dispatcher,sciond}/; do
-        if [ -e "$i" ]; then
-            find "$i" -xdev -mindepth 1 -print0 | xargs -r0 rm -v
-        fi
-    done
+    local disp_dir="/run/shm/dispatcher"
+    if [ -e "$disp_dir" ]; then
+      find "$disp_dir" -xdev -mindepth 1 -print0 | xargs -r0 rm -v
+    fi
 }
 
 cmd_mstop() {
@@ -442,7 +438,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond|traces|stop_traces|topo_clean|bazel_remote)
+    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|traces|stop_traces|topo_clean|bazel_remote)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;

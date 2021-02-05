@@ -27,6 +27,11 @@ import (
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 )
 
+var decodeOptions = gopacket.DecodeOptions{
+	NoCopy: true,
+	Lazy:   true,
+}
+
 // IPForwarderMetrics is used by the forwarder to report information about internal operation.
 type IPForwarderMetrics struct {
 	// IPPktBytesLocalRecv counts the IP packet bytes received from the local network. If nil, the
@@ -38,9 +43,11 @@ type IPForwarderMetrics struct {
 	// IPPktsNoRoute counts the number of IP packets received from the local network and that were
 	// discarded because no routing entry was found. If nil, the metric is not reported.
 	IPPktsNoRoute metrics.Counter
-	// MetricInvalidPackets counts the number of packet parsing errors. If nil, the metric
+	// IPPktInvalidPackets counts the number of packet parsing errors. If nil, the metric
 	// is not reported.
 	IPPktsInvalid metrics.Counter
+	//  IPPktsFragmented the number of fragmented packet. If nil, the metric is not reported.
+	IPPktsFragmented metrics.Counter
 	// ReceiveLocalErrors counts the number of read errors encountered on the raw packets source.
 	// If nil, the metric is not reported.
 	ReceiveLocalErrors metrics.Counter
@@ -86,14 +93,18 @@ func (f *IPForwarder) Run() error {
 			continue
 		}
 
-		ipVersion := f.version(buf)
-		if ipVersion != 4 && ipVersion != 6 {
+		var packet gopacket.Packet
+		switch version := int(buf[0] >> 4); version {
+		case 4:
+			packet = gopacket.NewPacket(buf[:length], layers.LayerTypeIPv4, decodeOptions)
+		case 6:
+			packet = gopacket.NewPacket(buf[:length], layers.LayerTypeIPv6, decodeOptions)
+		default:
 			metrics.CounterInc(f.Metrics.IPPktsInvalid)
-			log.SafeDebug(f.Logger, "forwarder: unknown IP version", "version", ipVersion)
+			log.SafeDebug(f.Logger, "forwarder: unknown IP version", "version", version)
 			continue
 		}
 
-		packet := f.parse(ipVersion, buf[:length])
 		if packet.ErrorLayer() != nil {
 			metrics.CounterInc(f.Metrics.IPPktsInvalid)
 			log.SafeDebug(f.Logger, "forwarder: failed to parse packet",
@@ -101,7 +112,19 @@ func (f *IPForwarder) Run() error {
 			continue
 		}
 
-		session := f.route(ipVersion, packet)
+		var session control.PktWriter
+		switch ip := packet.NetworkLayer().(type) {
+		case *layers.IPv4:
+			if ip.Flags&layers.IPv4MoreFragments != 0 || ip.FragOffset != 0 {
+				metrics.CounterInc(f.Metrics.IPPktsFragmented)
+				log.SafeDebug(f.Logger, "forwarder: ignored fragmented packet")
+				continue
+			}
+			session = f.RoutingTable.RouteIPv4(*ip)
+		case *layers.IPv6:
+			session = f.RoutingTable.RouteIPv6(*ip)
+		}
+
 		if session == nil {
 			metrics.CounterInc(f.Metrics.IPPktsNoRoute)
 			continue
@@ -128,27 +151,4 @@ func (f *IPForwarder) initMetrics() {
 	if f.Metrics.ReceiveLocalErrors != nil {
 		f.Metrics.ReceiveLocalErrors.Add(0)
 	}
-}
-
-func (f *IPForwarder) version(b []byte) int {
-	return int(b[0] >> 4)
-}
-
-var decodeOptions = gopacket.DecodeOptions{
-	NoCopy: true,
-	Lazy:   true,
-}
-
-func (f *IPForwarder) parse(version int, b []byte) gopacket.Packet {
-	if version == 4 {
-		return gopacket.NewPacket(b, layers.LayerTypeIPv4, decodeOptions)
-	}
-	return gopacket.NewPacket(b, layers.LayerTypeIPv6, decodeOptions)
-}
-
-func (f *IPForwarder) route(version int, packet gopacket.Packet) control.PktWriter {
-	if version == 4 {
-		return f.RoutingTable.RouteIPv4(*packet.Layer(layers.LayerTypeIPv4).(*layers.IPv4))
-	}
-	return f.RoutingTable.RouteIPv6(*packet.Layer(layers.LayerTypeIPv6).(*layers.IPv6))
 }

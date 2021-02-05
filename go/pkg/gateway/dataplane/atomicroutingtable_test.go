@@ -37,6 +37,7 @@ func TestAtomicRoutingTable(t *testing.T) {
 
 	// Use a mocked routing table
 	rt := mock_control.NewMockRoutingTable(ctrl)
+	rt.EXPECT().Activate()
 	art.SetRoutingTable(rt)
 	rt.EXPECT().RouteIPv4(layers.IPv4{})
 	assert.Nil(t, art.RouteIPv4(layers.IPv4{}))
@@ -44,6 +45,7 @@ func TestAtomicRoutingTable(t *testing.T) {
 	assert.Nil(t, art.RouteIPv6(layers.IPv6{}))
 
 	// Set routing table back to nil
+	rt.EXPECT().Deactivate()
 	art.SetRoutingTable(nil)
 	assert.Nil(t, art.RouteIPv4(layers.IPv4{}))
 	assert.Nil(t, art.RouteIPv6(layers.IPv6{}))

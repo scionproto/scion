@@ -63,13 +63,22 @@ func realMain() error {
 	if err := setupHTTPHandlers(); err != nil {
 		return serrors.WrapStr("starting HTTP endpoints", err)
 	}
-	if err := dp.DataPlane.Run(); err != nil {
-		return serrors.WrapStr("starting dataplane", err)
-	}
 
-	// XXX(lukedirtwalker): Currently not reachable because the dataplan run is
-	// blocking.
+	errs := make(chan error, 1)
+	go func() {
+		defer log.HandlePanic()
+		if err := dp.DataPlane.Run(); err != nil {
+			errs <- serrors.WrapStr("running dataplane", err)
+			return
+		}
+		errs <- serrors.New("dataplane stopped unexpectedly")
+	}()
+
 	select {
+	case err := <-errs:
+		close(stop)
+		wg.Wait()
+		return err
 	case <-fatal.ShutdownChan():
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
 		// Deferred shutdowns for all running servers run now.

@@ -23,9 +23,19 @@ import (
 // AdvertiseList returns the list of prefixes to advertise for the given policy
 // and ISD-ASes.
 func AdvertiseList(pol Policy, from, to addr.IA) []*net.IPNet {
+	return extractList(pol, from, to, Advertise)
+}
+
+// AllowedPrefixesBGP returns the list of prefixes that are allowed to be
+// redistributed from BGP.
+func AllowedPrefixesBGP(pol Policy, from, to addr.IA) []*net.IPNet {
+	return extractList(pol, from, to, RedistributeBGP)
+}
+
+func extractList(pol Policy, from, to addr.IA, action Action) []*net.IPNet {
 	var nets []*net.IPNet
 	for _, r := range pol.Rules {
-		if r.Action != Advertise || !r.From.Match(from) || !r.To.Match(to) {
+		if r.Action != action || !r.From.Match(from) || !r.To.Match(to) {
 			continue
 		}
 		m, ok := r.Network.(allowedNetworkMatcher)

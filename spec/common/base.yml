@@ -1,0 +1,23 @@
+components:
+  schemas:
+    Success:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+      required: [message]
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+      required: [error]
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

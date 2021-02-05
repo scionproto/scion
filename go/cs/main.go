@@ -16,8 +16,11 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"time"
 
+	"github.com/go-chi/chi"
+	"github.com/go-chi/cors"
 	promgrpc "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -44,6 +47,8 @@ import (
 	libmetrics "github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -51,6 +56,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/app/launcher"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/cs"
+	"github.com/scionproto/scion/go/pkg/cs/api"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	cstrustgrpc "github.com/scionproto/scion/go/pkg/cs/trust/grpc"
 	cstrustmetrics "github.com/scionproto/scion/go/pkg/cs/trust/metrics"
@@ -58,6 +64,7 @@ import (
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	dpb "github.com/scionproto/scion/go/pkg/proto/discovery"
+	"github.com/scionproto/scion/go/pkg/service"
 	"github.com/scionproto/scion/go/pkg/storage"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/compat"
@@ -328,6 +335,33 @@ func realMain() error {
 		5*time.Second,
 	)
 
+	trcRunner := periodic.Start(
+		periodic.Func{
+			TaskName: "trc expiration updater",
+			Task: func(ctx context.Context) {
+				trc, err := provider.GetSignedTRC(ctx,
+					cppki.TRCID{
+						ISD:    topo.IA().I,
+						Serial: scrypto.LatestVer,
+						Base:   scrypto.LatestVer,
+					},
+					trust.AllowInactive(),
+				)
+				if err != nil {
+					log.Info("Cannot resolve TRC for local ISD", "err", err)
+					return
+				}
+				metrics.TrustLatestTRCNotBefore.Set(
+					libmetrics.Timestamp(trc.TRC.Validity.NotBefore))
+				metrics.TrustLatestTRCNotAfter.Set(libmetrics.Timestamp(trc.TRC.Validity.NotAfter))
+				metrics.TrustLatestTRCSerial.Set(float64(trc.TRC.ID.Serial))
+			},
+		},
+		10*time.Second,
+		5*time.Second,
+	)
+	trcRunner.TriggerRun()
+
 	ds := discovery.Topology{
 		Provider: itopo.Provider(),
 		Requests: libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
@@ -367,7 +401,28 @@ func realMain() error {
 			fatal.Fatal(err)
 		}
 	}()
-
+	if globalCfg.API.Addr != "" {
+		r := chi.NewRouter()
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins: []string{"*"},
+		}))
+		server := api.Server{
+			CA:       chainBuilder,
+			Config:   service.NewConfigHandler(globalCfg),
+			Info:     service.NewInfoHandler(),
+			LogLevel: log.ConsoleLevel.ServeHTTP,
+			Signer:   signer,
+			Topology: itopo.TopologyHandler,
+		}
+		log.Info("Exposing API", "addr", globalCfg.API.Addr)
+		h := api.HandlerFromMux(&server, r)
+		go func() {
+			defer log.HandlePanic()
+			if err := http.ListenAndServe(globalCfg.API.Addr, h); err != nil {
+				fatal.Fatal(serrors.WrapStr("serving HTTP API", err))
+			}
+		}()
+	}
 	err = cs.StartHTTPEndpoints(globalCfg.General.ID, globalCfg, signer, chainBuilder,
 		globalCfg.Metrics)
 	if err != nil {
