@@ -55,7 +55,7 @@ def topogen_test(
         args = ["setup"] + common_args,
         main = src,
         deps = [":%s_lib" % name],
-        data = common_data,
+        data = data + common_data,
     )
 
     py_binary(
@@ -73,7 +73,7 @@ def topogen_test(
         args = ["teardown"] + common_args,
         main = src,
         deps = [":%s_lib" % name],
-        data = common_data,
+        data = data + common_data,
     )
 
     py_test(
