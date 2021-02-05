@@ -26,92 +26,185 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
+const (
+	latency_intra_1_2 time.Duration = 10 * time.Millisecond
+	latency_intra_1_3 time.Duration = 20 * time.Millisecond
+	latency_intra_1_5 time.Duration = 30 * time.Millisecond
+	latency_intra_2_3 time.Duration = 70 * time.Millisecond
+	latency_intra_2_5 time.Duration = 50 * time.Millisecond
+	latency_intra_3_5 time.Duration = 60 * time.Millisecond
+	latency_inter_1   time.Duration = 30 * time.Millisecond
+	latency_inter_2   time.Duration = 40 * time.Millisecond
+	latency_inter_3   time.Duration = 80 * time.Millisecond
+	latency_inter_5   time.Duration = 90 * time.Millisecond
+
+	bandwidth_intra_1_2 uint64 = 100000000
+	bandwidth_intra_1_3 uint64 = 200000000
+	bandwidth_intra_1_5 uint64 = 300000000
+	bandwidth_intra_2_3 uint64 = 6555550
+	bandwidth_intra_2_5 uint64 = 75555550
+	bandwidth_intra_3_5 uint64 = 1333310
+	bandwidth_inter_1   uint64 = 400000000
+	bandwidth_inter_2   uint64 = 5000000
+	bandwidth_inter_3   uint64 = 80
+	bandwidth_inter_5   uint64 = 120
+
+	link_type_1 staticinfo.LinkType = staticinfo.LinkTypeDirect
+	link_type_2 staticinfo.LinkType = staticinfo.LinkTypeOpennet
+	link_type_3 staticinfo.LinkType = staticinfo.LinkTypeMultihop
+	link_type_5 staticinfo.LinkType = staticinfo.LinkTypeDirect
+
+	hops_intra_1_2 uint32 = 2
+	hops_intra_1_3 uint32 = 3
+	hops_intra_1_5 uint32 = 0
+	hops_intra_2_3 uint32 = 3
+	hops_intra_2_5 uint32 = 1
+	hops_intra_3_5 uint32 = 3
+)
+
+var (
+	geo_1 = staticinfo.GeoCoordinates{
+		Longitude: 62.2,
+		Latitude:  47.2,
+		Address:   "geo1",
+	}
+	geo_2 = staticinfo.GeoCoordinates{
+		Longitude: 45.2,
+		Latitude:  79.2,
+		Address:   "geo2",
+	}
+	geo_3 = staticinfo.GeoCoordinates{
+		Longitude: 42.23,
+		Latitude:  47.22,
+		Address:   "geo3",
+	}
+	geo_5 = staticinfo.GeoCoordinates{
+		Longitude: 46.2,
+		Latitude:  48.2,
+		Address:   "geo5",
+	}
+
+	note = "asdf"
+)
+
 func getTestConfigData() *StaticInfoCfg {
 
-	ms := func(ms int) util.DurWrap {
-		return util.DurWrap{Duration: time.Duration(ms) * time.Millisecond}
+	w := func(d time.Duration) util.DurWrap {
+		return util.DurWrap{Duration: d}
 	}
 
 	return &StaticInfoCfg{
 		Latency: map[common.IFIDType]InterfaceLatencies{
 			1: {
-				Inter: ms(30),
-				Intra: map[common.IFIDType]util.DurWrap{2: ms(10), 3: ms(20), 5: ms(30)},
+				Inter: w(latency_inter_1),
+				Intra: map[common.IFIDType]util.DurWrap{
+					2: w(latency_intra_1_2),
+					3: w(latency_intra_1_3),
+					5: w(latency_intra_1_5),
+				},
 			},
 			2: {
-				Inter: ms(40),
-				Intra: map[common.IFIDType]util.DurWrap{1: ms(10), 3: ms(70), 5: ms(50)},
+				Inter: w(latency_inter_2),
+				Intra: map[common.IFIDType]util.DurWrap{
+					1: w(latency_intra_1_2),
+					3: w(latency_intra_2_3),
+					5: w(latency_intra_2_5),
+				},
 			},
 			3: {
-				Inter: ms(80),
-				Intra: map[common.IFIDType]util.DurWrap{1: ms(20), 2: ms(70), 5: ms(60)},
+				Inter: w(latency_inter_3),
+				Intra: map[common.IFIDType]util.DurWrap{
+					1: w(latency_intra_1_3),
+					2: w(latency_intra_2_3),
+					5: w(latency_intra_3_5),
+				},
 			},
 			5: {
-				Inter: ms(90),
-				Intra: map[common.IFIDType]util.DurWrap{1: ms(30), 2: ms(50), 3: ms(60)},
+				Inter: w(latency_inter_5),
+				Intra: map[common.IFIDType]util.DurWrap{
+					1: w(latency_intra_1_5),
+					2: w(latency_intra_2_5),
+					3: w(latency_intra_3_5),
+				},
 			},
 		},
 		Bandwidth: map[common.IFIDType]InterfaceBandwidths{
 			1: {
-				Inter: 400000000,
-				Intra: map[common.IFIDType]uint64{2: 100000000, 3: 200000000, 5: 300000000},
+				Inter: bandwidth_inter_1,
+				Intra: map[common.IFIDType]uint64{
+					2: bandwidth_intra_1_2,
+					3: bandwidth_intra_1_3,
+					5: bandwidth_intra_1_5,
+				},
 			},
 			2: {
-				Inter: 5000000,
-				Intra: map[common.IFIDType]uint64{1: 5044444, 3: 6555550, 5: 75555550},
+				Inter: bandwidth_inter_2,
+				Intra: map[common.IFIDType]uint64{
+					1: bandwidth_intra_1_2,
+					3: bandwidth_intra_2_3,
+					5: bandwidth_intra_2_5,
+				},
 			},
 			3: {
-				Inter: 80,
-				Intra: map[common.IFIDType]uint64{1: 9333330, 2: 1044440, 5: 1333310},
+				Inter: bandwidth_inter_3,
+				Intra: map[common.IFIDType]uint64{
+					1: bandwidth_intra_1_3,
+					2: bandwidth_intra_2_3,
+					5: bandwidth_intra_3_5,
+				},
 			},
 			5: {
-				Inter: 120,
-				Intra: map[common.IFIDType]uint64{1: 1333330, 2: 1555540, 3: 15666660},
+				Inter: bandwidth_inter_5,
+				Intra: map[common.IFIDType]uint64{
+					1: bandwidth_intra_1_5,
+					2: bandwidth_intra_2_5,
+					3: bandwidth_intra_3_5,
+				},
 			},
 		},
 		LinkType: map[common.IFIDType]LinkType{
-			1: LinkType(staticinfo.LinkTypeDirect),
-			2: LinkType(staticinfo.LinkTypeOpennet),
-			3: LinkType(staticinfo.LinkTypeMultihop),
-			5: LinkType(staticinfo.LinkTypeDirect),
+			1: LinkType(link_type_1),
+			2: LinkType(link_type_2),
+			3: LinkType(link_type_3),
+			5: LinkType(link_type_5),
 		},
 		Geo: map[common.IFIDType]InterfaceGeodata{
-			1: {
-				Longitude: 62.2,
-				Latitude:  47.2,
-				Address:   "geo1",
-			},
-			2: {
-				Longitude: 45.2,
-				Latitude:  79.2,
-				Address:   "geo2",
-			},
-			3: {
-				Longitude: 42.23,
-				Latitude:  47.22,
-				Address:   "geo3",
-			},
-			5: {
-				Longitude: 46.2,
-				Latitude:  48.2,
-				Address:   "geo5",
-			},
+			1: {geo_1.Longitude, geo_1.Latitude, geo_1.Address},
+			2: {geo_2.Longitude, geo_2.Latitude, geo_2.Address},
+			3: {geo_3.Longitude, geo_3.Latitude, geo_3.Address},
+			5: {geo_5.Longitude, geo_5.Latitude, geo_5.Address},
 		},
 		Hops: map[common.IFIDType]InterfaceHops{
 			1: {
-				Intra: map[common.IFIDType]uint32{2: 2, 3: 3, 5: 0},
+				Intra: map[common.IFIDType]uint32{
+					2: hops_intra_1_2,
+					3: hops_intra_1_3,
+					5: hops_intra_1_5,
+				},
 			},
 			2: {
-				Intra: map[common.IFIDType]uint32{1: 2, 3: 3, 5: 1},
+				Intra: map[common.IFIDType]uint32{
+					1: hops_intra_1_2,
+					3: hops_intra_2_3,
+					5: hops_intra_2_5,
+				},
 			},
 			3: {
-				Intra: map[common.IFIDType]uint32{1: 4, 2: 6, 5: 3},
+				Intra: map[common.IFIDType]uint32{
+					1: hops_intra_1_3,
+					2: hops_intra_2_3,
+					5: hops_intra_3_5,
+				},
 			},
 			5: {
-				Intra: map[common.IFIDType]uint32{1: 2, 2: 3, 3: 4},
+				Intra: map[common.IFIDType]uint32{
+					1: hops_intra_1_5,
+					2: hops_intra_2_5,
+					3: hops_intra_3_5,
+				},
 			},
 		},
-		Note: "asdf",
+		Note: note,
 	}
 }
 
@@ -125,261 +218,353 @@ func TestParsing(t *testing.T) {
 
 func TestGenerateStaticInfo(t *testing.T) {
 	cfg := getTestConfigData()
-	ifType := map[common.IFIDType]topology.LinkType{
+
+	// "topology" information for a non-core AS:
+	ifTypeNoncore := map[common.IFIDType]topology.LinkType{
 		1: topology.Child,
 		2: topology.Child,
 		3: topology.Parent,
 		5: topology.Peer,
+	}
+	// "topology" information for a core AS:
+	ifTypeCore := map[common.IFIDType]topology.LinkType{
+		1: topology.Core,
+		2: topology.Child,
+		3: topology.Core,
+		5: topology.Core,
 	}
 
 	testCases := []struct {
 		name     string
 		ingress  common.IFIDType
 		egress   common.IFIDType
+		ifType   map[common.IFIDType]topology.LinkType
 		expected staticinfo.Extension
 	}{
 		{
 			name:    "propagate 3 -> 1",
 			ingress: 3,
 			egress:  1,
+			ifType:  ifTypeNoncore,
 			expected: staticinfo.Extension{
 				Latency: staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{
-						2: 10 * time.Millisecond,
-						3: 20 * time.Millisecond,
-						5: 30 * time.Millisecond,
+						2: latency_intra_1_2,
+						3: latency_intra_1_3,
+						5: latency_intra_1_5,
 					},
 					Inter: map[common.IFIDType]time.Duration{
-						1: 30 * time.Millisecond,
-						5: 90 * time.Millisecond,
+						1: latency_inter_1,
+						5: latency_inter_5,
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint64{
-						2: 100000000,
-						3: 200000000,
-						5: 300000000,
+						2: bandwidth_intra_1_2,
+						3: bandwidth_intra_1_3,
+						5: bandwidth_intra_1_5,
 					},
 					Inter: map[common.IFIDType]uint64{
-						1: 400000000,
-						5: 120,
+						1: bandwidth_inter_1,
+						5: bandwidth_inter_5,
 					},
 				},
 				Geo: staticinfo.GeoInfo{
-					1: staticinfo.GeoCoordinates{
-						Latitude:  47.2,
-						Longitude: 62.2,
-						Address:   "geo1",
-					},
-					3: staticinfo.GeoCoordinates{
-						Latitude:  47.22,
-						Longitude: 42.23,
-						Address:   "geo3",
-					},
-					5: staticinfo.GeoCoordinates{
-						Latitude:  48.2,
-						Longitude: 46.2,
-						Address:   "geo5",
-					},
+					1: geo_1,
+					3: geo_3,
+					5: geo_5,
 				},
 				LinkType: staticinfo.LinkTypeInfo{
-					1: staticinfo.LinkTypeDirect,
-					5: staticinfo.LinkTypeDirect,
+					1: link_type_1,
+					5: link_type_5,
 				},
 				InternalHops: map[common.IFIDType]uint32{
-					2: 2,
-					3: 3,
-					5: 0,
+					2: hops_intra_1_2,
+					3: hops_intra_1_3,
+					5: hops_intra_1_5,
 				},
-				Note: "asdf",
+				Note: note,
 			},
 		},
 		{
 			name:    "propagate 3 -> 2",
 			ingress: 3,
 			egress:  2,
+			ifType:  ifTypeNoncore,
 			expected: staticinfo.Extension{
 				Latency: staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{
-						3: 70 * time.Millisecond,
-						5: 50 * time.Millisecond,
+						3: latency_intra_2_3,
+						5: latency_intra_2_5,
 					},
 					Inter: map[common.IFIDType]time.Duration{
-						2: 40 * time.Millisecond,
-						5: 90 * time.Millisecond,
+						2: latency_inter_2,
+						5: latency_inter_5,
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint64{
-						3: 6555550,
-						5: 75555550,
+						3: bandwidth_intra_2_3,
+						5: bandwidth_intra_2_5,
 					},
 					Inter: map[common.IFIDType]uint64{
-						2: 5000000,
-						5: 120,
+						2: bandwidth_inter_2,
+						5: bandwidth_inter_5,
 					},
 				},
 				Geo: staticinfo.GeoInfo{
-					2: staticinfo.GeoCoordinates{
-						Latitude:  79.2,
-						Longitude: 45.2,
-						Address:   "geo2",
-					},
-					3: staticinfo.GeoCoordinates{
-						Latitude:  47.22,
-						Longitude: 42.23,
-						Address:   "geo3",
-					},
-					5: staticinfo.GeoCoordinates{
-						Latitude:  48.2,
-						Longitude: 46.2,
-						Address:   "geo5",
-					},
+					2: geo_2,
+					3: geo_3,
+					5: geo_5,
 				},
 				LinkType: staticinfo.LinkTypeInfo{
-					2: staticinfo.LinkTypeOpennet,
-					5: staticinfo.LinkTypeDirect,
+					2: link_type_2,
+					5: link_type_5,
 				},
 				InternalHops: map[common.IFIDType]uint32{
-					3: 3,
-					5: 1,
+					3: hops_intra_2_3,
+					5: hops_intra_2_5,
 				},
-				Note: "asdf",
+				Note: note,
 			},
 		},
 		{
 			name:    "terminate",
 			ingress: 3,
 			egress:  0,
+			ifType:  ifTypeNoncore,
 			expected: staticinfo.Extension{
 				Latency: staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{},
 					Inter: map[common.IFIDType]time.Duration{
-						5: 90 * time.Millisecond,
+						5: latency_inter_5,
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint64{},
 					Inter: map[common.IFIDType]uint64{
-						5: 120,
+						5: bandwidth_inter_5,
 					},
 				},
 				Geo: staticinfo.GeoInfo{
-					3: staticinfo.GeoCoordinates{
-						Latitude:  47.22,
-						Longitude: 42.23,
-						Address:   "geo3",
-					},
-					5: staticinfo.GeoCoordinates{
-						Latitude:  48.2,
-						Longitude: 46.2,
-						Address:   "geo5",
-					},
+					3: geo_3,
+					5: geo_5,
 				},
 				LinkType: staticinfo.LinkTypeInfo{
-					5: staticinfo.LinkTypeDirect,
+					5: link_type_5,
 				},
 				InternalHops: map[common.IFIDType]uint32{},
-				Note:         "asdf",
+				Note:         note,
 			},
 		},
 		{
 			name:    "originate 1",
 			ingress: 0,
 			egress:  1,
+			ifType:  ifTypeNoncore,
 			expected: staticinfo.Extension{
 				Latency: staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{
-						2: 10 * time.Millisecond,
-						5: 30 * time.Millisecond,
+						2: latency_intra_1_2,
+						5: latency_intra_1_5,
 					},
 					Inter: map[common.IFIDType]time.Duration{
-						1: 30 * time.Millisecond,
-						5: 90 * time.Millisecond,
+						1: latency_inter_1,
+						5: latency_inter_5,
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint64{
-						2: 100000000,
-						5: 300000000,
+						2: bandwidth_intra_1_2,
+						5: bandwidth_intra_1_5,
 					},
 					Inter: map[common.IFIDType]uint64{
-						1: 400000000,
-						5: 120,
+						1: bandwidth_inter_1,
+						5: bandwidth_inter_5,
 					},
 				},
 				Geo: staticinfo.GeoInfo{
-					1: staticinfo.GeoCoordinates{
-						Latitude:  47.2,
-						Longitude: 62.2,
-						Address:   "geo1",
-					},
-					5: staticinfo.GeoCoordinates{
-						Latitude:  48.2,
-						Longitude: 46.2,
-						Address:   "geo5",
-					},
+					1: geo_1,
+					5: geo_5,
 				},
 				LinkType: staticinfo.LinkTypeInfo{
-					1: staticinfo.LinkTypeDirect,
-					5: staticinfo.LinkTypeDirect,
+					1: link_type_1,
+					5: link_type_5,
 				},
 				InternalHops: map[common.IFIDType]uint32{
-					2: 2,
-					5: 0,
+					2: hops_intra_1_2,
+					5: hops_intra_1_5,
 				},
-				Note: "asdf",
+				Note: note,
 			},
 		},
 		{
 			name:    "originate 2",
 			ingress: 0,
 			egress:  2,
+			ifType:  ifTypeNoncore,
 			expected: staticinfo.Extension{
 				Latency: staticinfo.LatencyInfo{
 					Intra: map[common.IFIDType]time.Duration{
-						5: 50 * time.Millisecond,
+						5: latency_intra_2_5,
 					},
 					Inter: map[common.IFIDType]time.Duration{
-						2: 40 * time.Millisecond,
-						5: 90 * time.Millisecond,
+						2: latency_inter_2,
+						5: latency_inter_5,
 					},
 				},
 				Bandwidth: staticinfo.BandwidthInfo{
 					Intra: map[common.IFIDType]uint64{
-						5: 75555550,
+						5: bandwidth_intra_2_5,
 					},
 					Inter: map[common.IFIDType]uint64{
-						2: 5000000,
-						5: 120,
+						2: bandwidth_inter_2,
+						5: bandwidth_inter_5,
 					},
 				},
 				Geo: staticinfo.GeoInfo{
-					2: staticinfo.GeoCoordinates{
-						Latitude:  79.2,
-						Longitude: 45.2,
-						Address:   "geo2",
-					},
-					5: staticinfo.GeoCoordinates{
-						Latitude:  48.2,
-						Longitude: 46.2,
-						Address:   "geo5",
-					},
+					2: geo_2,
+					5: geo_5,
 				},
 				LinkType: staticinfo.LinkTypeInfo{
-					2: staticinfo.LinkTypeOpennet,
-					5: staticinfo.LinkTypeDirect,
+					2: link_type_2,
+					5: link_type_5,
 				},
 				InternalHops: map[common.IFIDType]uint32{
-					5: 1,
+					5: hops_intra_2_5,
 				},
-				Note: "asdf",
+				Note: note,
+			},
+		},
+		{
+			name:    "core originate child 2",
+			ingress: 0,
+			egress:  2,
+			ifType:  ifTypeCore,
+			expected: staticinfo.Extension{
+				Latency: staticinfo.LatencyInfo{
+					Intra: map[common.IFIDType]time.Duration{
+						1: latency_intra_1_2,
+						3: latency_intra_2_3,
+						5: latency_intra_2_5,
+					},
+					Inter: map[common.IFIDType]time.Duration{
+						2: latency_inter_2,
+					},
+				},
+				Bandwidth: staticinfo.BandwidthInfo{
+					Intra: map[common.IFIDType]uint64{
+						1: bandwidth_intra_1_2,
+						3: bandwidth_intra_2_3,
+						5: bandwidth_intra_2_5,
+					},
+					Inter: map[common.IFIDType]uint64{
+						2: bandwidth_inter_2,
+					},
+				},
+				Geo: staticinfo.GeoInfo{
+					2: geo_2,
+				},
+				LinkType: staticinfo.LinkTypeInfo{
+					2: link_type_2,
+				},
+				InternalHops: map[common.IFIDType]uint32{
+					1: hops_intra_1_2,
+					3: hops_intra_2_3,
+					5: hops_intra_2_5,
+				},
+				Note: note,
+			},
+		},
+		{
+			name:    "core originate core neighbor 1",
+			ingress: 0,
+			egress:  1,
+			ifType:  ifTypeCore,
+			expected: staticinfo.Extension{
+				Latency: staticinfo.LatencyInfo{
+					Intra: map[common.IFIDType]time.Duration{},
+					Inter: map[common.IFIDType]time.Duration{
+						1: latency_inter_1,
+					},
+				},
+				Bandwidth: staticinfo.BandwidthInfo{
+					Intra: map[common.IFIDType]uint64{},
+					Inter: map[common.IFIDType]uint64{
+						1: bandwidth_inter_1,
+					},
+				},
+				Geo: staticinfo.GeoInfo{
+					1: geo_1,
+				},
+				LinkType: staticinfo.LinkTypeInfo{
+					1: link_type_1,
+				},
+				InternalHops: map[common.IFIDType]uint32{},
+				Note:         note,
+			},
+		},
+		{
+			name:    "core propagate 3 -> 1",
+			ingress: 3,
+			egress:  1,
+			ifType:  ifTypeCore,
+			expected: staticinfo.Extension{
+				Latency: staticinfo.LatencyInfo{
+					Intra: map[common.IFIDType]time.Duration{
+						3: latency_intra_1_3,
+					},
+					Inter: map[common.IFIDType]time.Duration{
+						1: latency_inter_1,
+					},
+				},
+				Bandwidth: staticinfo.BandwidthInfo{
+					Intra: map[common.IFIDType]uint64{
+						3: bandwidth_intra_1_3,
+					},
+					Inter: map[common.IFIDType]uint64{
+						1: bandwidth_inter_1,
+					},
+				},
+				Geo: staticinfo.GeoInfo{
+					1: geo_1,
+					3: geo_3,
+				},
+				LinkType: staticinfo.LinkTypeInfo{
+					1: link_type_1,
+				},
+				InternalHops: map[common.IFIDType]uint32{
+					3: hops_intra_1_3,
+				},
+				Note: note,
+			},
+		},
+		{
+			name:    "core terminate",
+			ingress: 3,
+			egress:  0,
+			ifType:  ifTypeCore,
+			expected: staticinfo.Extension{
+				Latency: staticinfo.LatencyInfo{
+					Intra: map[common.IFIDType]time.Duration{},
+					Inter: map[common.IFIDType]time.Duration{},
+				},
+				Bandwidth: staticinfo.BandwidthInfo{
+					Intra: map[common.IFIDType]uint64{},
+					Inter: map[common.IFIDType]uint64{},
+				},
+				Geo: staticinfo.GeoInfo{
+					3: geo_3,
+				},
+				LinkType:     staticinfo.LinkTypeInfo{},
+				InternalHops: map[common.IFIDType]uint32{},
+				Note:         note,
 			},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := cfg.generate(ifType, tc.ingress, tc.egress)
+			actual := cfg.generate(tc.ifType, tc.ingress, tc.egress)
 			assert.Equal(t, tc.expected, *actual)
 		})
 	}
