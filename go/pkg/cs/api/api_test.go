@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
-	pkgapi "github.com/scionproto/scion/go/pkg/api"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/cs/trust/mock_trust"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -45,12 +44,6 @@ var update = flag.Bool("update", false, "set to true to regenerate golden files"
 // TestAPI tests the API response generation of the endpoints implemented in the
 // api package
 func TestAPI(t *testing.T) {
-	type args struct {
-		apiCfg pkgapi.Config
-		cfg    interface{}
-		signer cstrust.RenewingSigner
-		ca     cstrust.ChainBuilder
-	}
 	testCases := map[string]struct {
 		Handler            func(t *testing.T, ctrl *gomock.Controller) http.Handler
 		RequestURL         string

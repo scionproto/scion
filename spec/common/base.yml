@@ -21,3 +21,10 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
