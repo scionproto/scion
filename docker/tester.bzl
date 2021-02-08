@@ -27,14 +27,7 @@ def build_tester_image():
             ":bin",
             ":integration",
         ],
-        srcs = [
-            "files/tester.sh",
-            "files/sig_setup.sh",
-            "files/ssh_setup.sh",
-            "files/id_rsa",
-            "files/id_rsa.pub",
-            "files/ssh_config",
-        ],
+        srcs = [":tester_files"],
         package_dir = "share",
     )
 
