@@ -19,8 +19,8 @@ Static properties
 
 We distinguish between *static* and *dynamic* properties of a path. Static
 properties remain valid over the course of its announced lifetime. The lifetime
-of a path is typically this is on the order of minutes to hours. Properties
-that can vary more quickly are considered *dynamic*.
+of a path typically is on the order of minutes to hours. Properties that can
+vary more quickly are considered *dynamic*.
 
 As an example, the maximum possible bandwidth on each link of a path is
 *static*, as it will not change unless the underlying network infrastructure is
@@ -43,8 +43,8 @@ can just pick the more conservative estimate.
 Path Segments with Metadata
 ===========================
 
-SCION end-end paths are obtained by combining up to three (up, core and down)
-*path segments* which corresponding directly to a PCB. A path segment consists
+SCION end-to-end paths are obtained by combining up to three (up, core and down)
+*path segments* which correspond directly to a PCB. A path segment consists
 of a series of ``ASEntry``\s, one for each AS. An ``ASEntry`` describes the
 traversal of an AS for a specific pair of "ingress" and "egress" interfaces
 (where ingress/egress refer to the dissemination direction of the beacon).
@@ -171,7 +171,7 @@ provides integrity and accountability for the provided metadata.
 -  No AS can tamper with the metadata included in a beacon
 -  The source of the metadata is visible and non-repudiable. Thus, if an AS was
    detected to be including false information, it can be held accountable by
-   e.g. being added to a black list.
+   e.g. being added to a block list.
 
 Metadata types
 ==============

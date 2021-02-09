@@ -19,7 +19,7 @@ import sphinx_rtd_theme  # noqa
 # -- Project information -----------------------------------------------------
 
 project = 'SCION'
-copyright = '2020, Anapaya Systems, ETH Zurich'
+copyright = '2021, Anapaya Systems, ETH Zurich'
 author = 'Anapaya Systems, ETH Zurich'
 
 
