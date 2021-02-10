@@ -16,6 +16,7 @@ package dataplane_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"testing"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/mocks/io/mock_io"
 	"github.com/scionproto/scion/go/lib/pktcls"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 	"github.com/scionproto/scion/go/pkg/gateway/control/mock_control"
@@ -123,16 +125,16 @@ func TestIPForwarderRun(t *testing.T) {
 						return copy(b, tc.input(t).Data()), nil
 					},
 				)
-				done := make(chan struct{})
-				reader.EXPECT().Read(gomock.Any()).DoAndReturn(
-					func(b []byte) (int, error) {
-						close(done)
-						select {}
-					})
 
+				// Force IP forwarder to shut down.
+				errDone := serrors.New("done")
+				reader.EXPECT().Read(gomock.Any()).Return(0, errDone)
+
+				done := make(chan struct{})
 				go func() {
 					err := ipForwarder.Run()
-					require.NoError(t, err)
+					require.True(t, errors.Is(err, errDone), err)
+					close(done)
 				}()
 
 				xtest.AssertReadReturnsBefore(t, done, time.Second)
@@ -195,20 +197,20 @@ func TestIPForwarderRun(t *testing.T) {
 		)
 		sessionTwo.EXPECT().Write(Packet(ipv6Packet))
 
-		done := make(chan struct{})
-		// Block reader forever so it doesn't busy loop reading nothing.
-		reader.EXPECT().Read(gomock.Any()).DoAndReturn(
-			func(b []byte) (int, error) { close(done); select {} },
-		)
+		// Force IP forwarder to shut down.
+		errDone := serrors.New("done")
+		reader.EXPECT().Read(gomock.Any()).Return(0, errDone)
 
 		ipForwarder := &dataplane.IPForwarder{
 			Reader:       reader,
 			RoutingTable: art,
 		}
 
+		done := make(chan struct{})
 		go func() {
 			err := ipForwarder.Run()
-			require.NoError(t, err)
+			require.True(t, errors.Is(err, errDone), err)
+			close(done)
 		}()
 
 		xtest.AssertReadReturnsBefore(t, done, time.Second)
