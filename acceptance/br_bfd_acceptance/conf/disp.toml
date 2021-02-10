@@ -1,6 +1,0 @@
-[log]
-  [log.console]
-    level = "debug"
-
-[dispatcher]
- id = "dispatcher"

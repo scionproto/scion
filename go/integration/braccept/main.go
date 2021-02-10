@@ -35,6 +35,7 @@ import (
 var (
 	bfd        = flag.Bool("bfd", false, "Run BFD tests instead of the common ones")
 	logConsole = flag.String("log.console", "debug", "Console logging level: debug|info|error")
+	dir        = flag.String("artifacts", "", "Artifacts directory")
 )
 
 func main() {
@@ -55,6 +56,9 @@ func realMain() int {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return 1
+	}
+	if *dir != "" {
+		artifactsDir = *dir
 	}
 	if v := os.Getenv("TEST_ARTIFACTS_DIR"); v != "" {
 		artifactsDir = v

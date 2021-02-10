@@ -1,6 +1,0 @@
-[general]
-config_dir = "/share/conf"
-id = <AUTOFILLED>
-
-[log.console]
-level = "debug"
