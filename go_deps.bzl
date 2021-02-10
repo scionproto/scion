@@ -1997,6 +1997,12 @@ def go_deps():
         version = "v1.6.0",
     )
     go_repository(
+        name = "org_uber_go_goleak",
+        importpath = "go.uber.org/goleak",
+        sum = "h1:z+mqJhf6ss6BSfSM671tgKyZBFPTTJM+HLxnhPC3wu0=",
+        version = "v1.1.10",
+    )
+    go_repository(
         name = "org_uber_go_multierr",
         importpath = "go.uber.org/multierr",
         sum = "h1:KCa4XfM8CWFCpxXRGok+Q0SS/0XBhMDbHHGABQLvD2A=",

@@ -23,6 +23,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 
 	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -68,12 +69,55 @@ func TestTwoPaths(t *testing.T) {
 	sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)})
 	sendPackets(t, sess, 22, 10)
 
-	// The previous packets are not yet sent, yet we set a new path thus creating a new
-	// sender. The goal is to test that the old packets will still be sent out.
+	// Reuse the same path, thus reusing the sender.
 	sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)})
 	sendPackets(t, sess, 22, 10)
-	waitFrames(t, frameChan, 22, 20)
 
+	// The previous packets are not yet sent, yet we set a new path thus creating a new
+	// sender. The goal is to test that the old packets will still be sent out.
+	// The MTU is used to differentiate the paths
+	sess.SetPaths([]snet.Path{createMockPath(ctrl, 202)})
+	sendPackets(t, sess, 22, 10)
+	waitFrames(t, frameChan, 22, 30)
+
+	sess.Close()
+}
+
+func TestNoLeak(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	frameChan := make(chan ([]byte))
+	sess := createSession(t, ctrl, frameChan)
+
+	// These parameters are tuned such that no ringbuffer overflows.
+	// E.g. if iterations is set to 10, some packets are lost due
+	// to the ringbuffer not being large enough
+	iterations := 5
+	payloadLen := 22
+	batchSize := 10
+
+	for i := 0; i < iterations; i++ {
+		sess.SetPaths([]snet.Path{createMockPath(ctrl, 200)})
+		sendPackets(t, sess, payloadLen, batchSize)
+
+		sess.SetPaths([]snet.Path{
+			createMockPath(ctrl, 200),
+			createMockPath(ctrl, 201),
+			createMockPath(ctrl, 202),
+			createMockPath(ctrl, 203),
+		})
+		sendPackets(t, sess, payloadLen, batchSize)
+
+		// Cause error
+		err := sess.SetPaths([]snet.Path{createMockPath(ctrl, 15)})
+		assert.Error(t, err)
+		sendPackets(t, sess, payloadLen, batchSize)
+	}
+
+	waitFrames(t, frameChan, payloadLen, batchSize*3*iterations)
 	sess.Close()
 }
 
@@ -107,23 +151,22 @@ func sendPackets(t *testing.T, sess *Session, payloadSize int, pktCount int) {
 }
 
 func waitFrames(t *testing.T, frameChan chan []byte, payloadSize int, pktCount int) {
+	var read int
+Top:
+	for {
+		// Read all frames and accumulate their size.
+		select {
+		case frame := <-frameChan:
+			read += len(frame) - hdrLen
+		case <-time.After(1500 * time.Millisecond):
+			break Top
+		}
+	}
+
 	// Wait for outgoing frames. Make sure that the total length of the outgoing
 	// data matches the total length of the packets.
 	toRead := (20 + payloadSize) * pktCount
-	for toRead > 0 {
-		frame := <-frameChan
-		payloadLen := len(frame) - hdrLen
-		toRead -= payloadLen
-	}
-	// Make sure that we haven't got more data than expected.
-	assert.Equal(t, 0, toRead)
-	// Wait some more to make sure that no more frames are coming.
-	timer := time.NewTimer(50 * time.Millisecond)
-	select {
-	case <-frameChan:
-		assert.Fail(t, "Unexpected frame received")
-	case <-timer.C:
-	}
+	assert.Equal(t, toRead, read)
 }
 
 func createMockPath(ctrl *gomock.Controller, mtu uint16) snet.Path {
