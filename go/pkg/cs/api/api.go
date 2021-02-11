@@ -15,19 +15,28 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/pkg/api"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 )
 
+type SegmentsStore interface {
+	Get(context.Context, *query.Params) (query.Results, error)
+}
+
 // Server implements the Control Service API.
 type Server struct {
+	Segments SegmentsStore
 	CA       cstrust.ChainBuilder
 	Config   http.HandlerFunc
 	Info     http.HandlerFunc
@@ -36,16 +45,46 @@ type Server struct {
 	Topology http.HandlerFunc
 }
 
+// GetSegments gets the stored in the PathDB.
+func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request) {
+	res, err := s.Segments.Get(r.Context(), &query.Params{})
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: int32(http.StatusInternalServerError),
+			Title:  "error getting segments",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	sort.Sort(query.Results(res))
+	rep := make([]*SegmentBrief, 0, len(res))
+	for _, segRes := range res {
+		rep = append(rep, &SegmentBrief{
+			Id:         SegmentID(fmt.Sprintf("%x", segRes.Seg.ID())),
+			StartIsdAs: IsdAs(segRes.Seg.FirstIA().String()),
+			EndIsdAs:   IsdAs(segRes.Seg.LastIA().String()),
+			Length:     len(segRes.Seg.ASEntries),
+		})
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	if err := enc.Encode(rep); err != nil {
+		http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
+		return
+	}
+}
+
 // GetCa gets the CA info
-func (S *Server) GetCa(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	s, err := S.CA.PolicyGen.Generate(r.Context())
+	p, err := s.CA.PolicyGen.Generate(r.Context())
 	if err != nil {
 		http.Error(w, "No active signer", http.StatusInternalServerError)
 		return
 	}
 
-	ia, err := cppki.ExtractIA(s.Certificate.Subject)
+	ia, err := cppki.ExtractIA(p.Certificate.Subject)
 	if err != nil || ia == nil {
 		http.Error(w, "Unable to get extract ISD-AS", http.StatusInternalServerError)
 		return
@@ -68,13 +107,13 @@ func (S *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 		CertValidity Validity `json:"cert_validity"`
 	}{
 		Subject:      Subject{IA: *ia},
-		SubjectKeyID: fmt.Sprintf("% X", s.Certificate.SubjectKeyId),
+		SubjectKeyID: fmt.Sprintf("% X", p.Certificate.SubjectKeyId),
 		Policy: Policy{
-			ChainLifetime: fmt.Sprintf("%s", s.Validity),
+			ChainLifetime: fmt.Sprintf("%s", p.Validity),
 		},
 		CertValidity: Validity{
-			NotBefore: s.Certificate.NotBefore,
-			NotAfter:  s.Certificate.NotAfter,
+			NotBefore: p.Certificate.NotBefore,
+			NotAfter:  p.Certificate.NotAfter,
 		},
 	}
 	enc := json.NewEncoder(w)
@@ -86,29 +125,29 @@ func (S *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetConfig is an indirection to the http handler.
-func (S *Server) GetConfig(w http.ResponseWriter, r *http.Request) {
-	S.Config(w, r)
+func (s *Server) GetConfig(w http.ResponseWriter, r *http.Request) {
+	s.Config(w, r)
 }
 
 // GetInfo is an indirection to the http handler.
-func (S *Server) GetInfo(w http.ResponseWriter, r *http.Request) {
-	S.Info(w, r)
+func (s *Server) GetInfo(w http.ResponseWriter, r *http.Request) {
+	s.Info(w, r)
 }
 
 // GetLogLevel is an indirection to the http handler.
-func (S *Server) GetLogLevel(w http.ResponseWriter, r *http.Request) {
-	S.LogLevel(w, r)
+func (s *Server) GetLogLevel(w http.ResponseWriter, r *http.Request) {
+	s.LogLevel(w, r)
 }
 
 // SetLogLevel is an indirection to the http handler.
-func (S *Server) SetLogLevel(w http.ResponseWriter, r *http.Request) {
-	S.LogLevel(w, r)
+func (s *Server) SetLogLevel(w http.ResponseWriter, r *http.Request) {
+	s.LogLevel(w, r)
 }
 
 // GetSigner  generates the singer response content.
-func (S *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	s, err := S.Signer.SignerGen.Generate(r.Context())
+	p, err := s.Signer.SignerGen.Generate(r.Context())
 	if err != nil {
 		http.Error(w, "Unable to get signer", http.StatusInternalServerError)
 		return
@@ -134,19 +173,19 @@ func (S *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 		ChainValidity Validity  `json:"chain_validity"`
 		InGrace       bool      `json:"in_grace_period"`
 	}{
-		Subject:      Subject{IA: s.IA},
-		SubjectKeyID: fmt.Sprintf("% X", s.SubjectKeyID),
-		Expiration:   s.Expiration,
+		Subject:      Subject{IA: p.IA},
+		SubjectKeyID: fmt.Sprintf("% X", p.SubjectKeyID),
+		Expiration:   p.Expiration,
 		TRCID: TRCID{
-			ISD:    s.TRCID.ISD,
-			Base:   s.TRCID.Base,
-			Serial: s.TRCID.Serial,
+			ISD:    p.TRCID.ISD,
+			Base:   p.TRCID.Base,
+			Serial: p.TRCID.Serial,
 		},
 		ChainValidity: Validity{
-			NotBefore: s.ChainValidity.NotBefore,
-			NotAfter:  s.ChainValidity.NotAfter,
+			NotBefore: p.ChainValidity.NotBefore,
+			NotAfter:  p.ChainValidity.NotAfter,
 		},
-		InGrace: s.InGrace,
+		InGrace: p.InGrace,
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
@@ -157,6 +196,16 @@ func (S *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetTopology is an indirection to the http handler.
-func (S *Server) GetTopology(w http.ResponseWriter, r *http.Request) {
-	S.Topology(w, r)
+func (s *Server) GetTopology(w http.ResponseWriter, r *http.Request) {
+	s.Topology(w, r)
+}
+
+// Error creates an detailed error response.
+func Error(w http.ResponseWriter, p Problem) {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(int(p.Status))
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	// no point in catching error here, there is nothing we can do about it anymore.
+	enc.Encode(p)
 }

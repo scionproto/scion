@@ -15,6 +15,8 @@
 package api
 
 import (
+	"bytes"
+	"context"
 	"crypto/x509"
 	"flag"
 	"io/ioutil"
@@ -28,10 +30,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/pkg/cs/api/mock_api"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/cs/trust/mock_trust"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -51,6 +57,37 @@ func TestAPI(t *testing.T) {
 		Status             int
 		IgnoreResponseBody bool
 	}{
+		"segments": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				seg := mock_api.NewMockSegmentsStore(ctrl)
+				s := &Server{
+					Segments: seg,
+				}
+				dbresult := createSegs()
+				seg.EXPECT().Get(gomock.Any(), &query.Params{}).AnyTimes().Return(
+					dbresult, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/segments.json",
+			RequestURL:   "/segments",
+			Status:       200,
+		},
+		"segments error": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				seg := mock_api.NewMockSegmentsStore(ctrl)
+				s := &Server{
+					Segments: seg,
+				}
+				seg.EXPECT().Get(gomock.Any(), &query.Params{}).AnyTimes().Return(
+					[]*query.Result{}, serrors.New("internal"),
+				)
+				return Handler(s)
+			},
+			RequestURL:   "/segments",
+			ResponseFile: "testdata/segments-error.json",
+			Status:       500,
+		},
 		"signer": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				g := mock_trust.NewMockSignerGen(ctrl)
@@ -206,4 +243,35 @@ func TestAPI(t *testing.T) {
 			assert.Equal(t, string(golden), rr.Body.String())
 		})
 	}
+}
+
+func createSegs() query.Results {
+	asEntry1 := seg.ASEntry{
+		Local: xtest.MustParseIA("1-ff00:0:110"),
+		HopEntry: seg.HopEntry{
+			HopField: seg.HopField{MAC: bytes.Repeat([]byte{0x11}, 6)},
+		},
+	}
+	asEntry2 := seg.ASEntry{
+		Local: xtest.MustParseIA("1-ff00:0:112"),
+		HopEntry: seg.HopEntry{
+			HopField: seg.HopField{MAC: bytes.Repeat([]byte{0x12}, 5)},
+		},
+	}
+	ps, _ := seg.CreateSegment(time.Unix(1611051121, 0).UTC(), 1337)
+	ps2, _ := seg.CreateSegment(time.Unix(1611051121, 0).UTC(), 1337)
+	ps.AddASEntry(context.Background(), asEntry1, graph.NewSigner())
+	ps.AddASEntry(context.Background(), asEntry2, graph.NewSigner())
+	ps2.AddASEntry(context.Background(), asEntry2, graph.NewSigner())
+
+	ret2 := query.Results{
+		&query.Result{
+			Type: seg.TypeDown,
+			Seg:  ps,
+		},
+		&query.Result{
+			Type: seg.TypeUp,
+			Seg:  ps2,
+		}}
+	return ret2
 }

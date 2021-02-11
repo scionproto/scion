@@ -11,11 +11,15 @@ servers:
       port:
         default: "30452"
 tags:
+  - name: segment
+    description: Everything related to SCION path segments.
   - name: common
     description: Common API exposed by SCION services.
   - name: crypto
     description: API related to SCION cryptography.
 paths:
+  /segments:
+    $ref: "./segments.yml#/paths/~1segments"
   /signer:
     $ref: "./crypto.yml#/paths/~1signer"
   /ca:
