@@ -105,6 +105,16 @@ type BadRequest StandardError
 // SetLogLevelJSONBody defines parameters for SetLogLevel.
 type SetLogLevelJSONBody LogLevel
 
+// GetSegmentsParams defines parameters for GetSegments.
+type GetSegmentsParams struct {
+
+	// Start ISD-AS of segment.
+	StartIsdAs *IsdAs `json:"start_isd_as,omitempty"`
+
+	// Terminal AS of segment.
+	EndIsdAs *IsdAs `json:"end_isd_as,omitempty"`
+}
+
 // SetLogLevelJSONRequestBody defines body for SetLogLevel for application/json ContentType.
 type SetLogLevelJSONRequestBody SetLogLevelJSONBody
 

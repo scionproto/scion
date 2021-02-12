@@ -29,6 +29,7 @@ addr = ""
 // Error types
 const (
 	InternalError = "/problems/internal-error"
+	BadRequest    = "/problems/bad-request"
 )
 
 type Config struct {

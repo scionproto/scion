@@ -8,6 +8,19 @@ paths:
         The results can be filtered by the start and end AS of the segment.
         Inspect the individual segments for a more detailed view.
       operationId: get-segments
+      parameters:
+      - in: query
+        description: Start ISD-AS of segment.
+        name: start_isd_as
+        example: 1-ff00:0:110
+        schema:
+          $ref: "../common/process.yml#/components/schemas/IsdAs"
+      - in: query
+        description: Terminal AS of segment.
+        name: end_isd_as
+        example: 2-ff00:0:210
+        schema:
+          $ref: "../common/process.yml#/components/schemas/IsdAs"
       responses:
         "200":
           description: List of matching SCION path segments.

@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
@@ -87,6 +88,38 @@ func TestAPI(t *testing.T) {
 			RequestURL:   "/segments",
 			ResponseFile: "testdata/segments-error.json",
 			Status:       500,
+		},
+		"segments start and dest as": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				seg := mock_api.NewMockSegmentsStore(ctrl)
+				s := &Server{
+					Segments: seg,
+				}
+				dbresult := createSegs()
+				q := query.Params{
+					StartsAt: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
+					EndsAt:   []addr.IA{xtest.MustParseIA("1-ff00:0:112")},
+				}
+				seg.EXPECT().Get(gomock.Any(), &q).AnyTimes().Return(
+					dbresult[:1], nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/segments-filtered.json",
+			RequestURL:   "/segments?start_isd_as=1-ff00:0:110&end_isd_as=1-ff00:0:112",
+			Status:       200,
+		},
+		"segments malformed query parameters": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				seg := mock_api.NewMockSegmentsStore(ctrl)
+				s := &Server{
+					Segments: seg,
+				}
+				return Handler(s)
+			},
+			ResponseFile: "testdata/segments-malformed-query.json",
+			RequestURL:   "/segments?start_isd_as=1-ff001:0:110&end_isd_as=1-ff000:0:112",
+			Status:       400,
 		},
 		"signer": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {

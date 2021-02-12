@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/api"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 )
@@ -46,8 +47,33 @@ type Server struct {
 }
 
 // GetSegments gets the stored in the PathDB.
-func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request) {
-	res, err := s.Segments.Get(r.Context(), &query.Params{})
+func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request, params GetSegmentsParams) {
+	q := query.Params{}
+	var errs serrors.List
+	if params.StartIsdAs != nil {
+		if ia, err := addr.IAFromString(string(*params.StartIsdAs)); err == nil {
+			q.StartsAt = []addr.IA{ia}
+		} else {
+			errs = append(errs, serrors.WithCtx(err, "parameter", "start_isd_as"))
+		}
+	}
+	if params.EndIsdAs != nil {
+		if ia, err := addr.IAFromString(string(*params.EndIsdAs)); err == nil {
+			q.EndsAt = []addr.IA{ia}
+		} else {
+			errs = append(errs, serrors.WithCtx(err, "parameter", "end_isd_as"))
+		}
+	}
+	if err := errs.ToError(); err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: int32(http.StatusBadRequest),
+			Title:  "malformed query parameters",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	res, err := s.Segments.Get(r.Context(), &q)
 	if err != nil {
 		Error(w, Problem{
 			Detail: api.StringRef(err.Error()),
@@ -70,7 +96,12 @@ func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
 	if err := enc.Encode(rep); err != nil {
-		http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: int32(http.StatusInternalServerError),
+			Title:  "unable to marshal response",
+			Type:   api.StringRef(api.InternalError),
+		})
 		return
 	}
 }

@@ -1,0 +1,6 @@
+{
+    "detail": "Unable to parse AS part raw=\"ff001:0:110\"\n    \u003e       strconv.ParseUint: parsing \"ff001\": value out of range\n    \u003e       value out of range parameter=\"start_isd_as\"\nUnable to parse AS part raw=\"ff000:0:112\"\n    \u003e       strconv.ParseUint: parsing \"ff000\": value out of range\n    \u003e       value out of range parameter=\"end_isd_as\"",
+    "status": 400,
+    "title": "malformed query parameters",
+    "type": "/problems/bad-request"
+}

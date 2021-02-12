@@ -4,6 +4,7 @@ require (
 	github.com/antlr/antlr4 v0.0.0-20181218183524-be58ebffde8e
 	github.com/buildkite/go-buildkite v2.2.1-0.20190413010238-568b6651b687+incompatible
 	github.com/dchest/cmac v0.0.0-20150527144652-62ff55a1048c
+	github.com/deepmap/oapi-codegen v1.5.1
 	github.com/fatih/color v1.9.0
 	github.com/getkin/kin-openapi v0.38.0
 	github.com/go-chi/chi v1.5.1
@@ -20,7 +21,6 @@ require (
 	github.com/iancoleman/strcase v0.0.0-20190422225806-e506e3ef7365
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/lucas-clemente/quic-go v0.19.2
-	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/mattn/go-isatty v0.0.12
 	github.com/mattn/go-sqlite3 v1.9.1-0.20180719091609-b3511bfdd742
 	github.com/mdlayher/raw v0.0.0-20191009151244-50f2db8cc065 // indirect
@@ -42,8 +42,8 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.uber.org/goleak v1.1.10
 	go.uber.org/zap v1.16.0
-	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
-	golang.org/x/net v0.0.0-20200927032502-5d4f70055728
+	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
+	golang.org/x/net v0.0.0-20210119194325-5f4716e94777
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 	golang.org/x/tools v0.0.0-20200929223013-bf155c11ec6f
 	google.golang.org/grpc v1.29.1
