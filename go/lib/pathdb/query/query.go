@@ -16,6 +16,7 @@
 package query
 
 import (
+	"bytes"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -89,6 +90,33 @@ func (r Results) SegMetas() []*seg.Meta {
 		}
 	}
 	return segs
+}
+
+// Len returns the number of results.
+func (r Results) Len() int {
+	return len(r)
+}
+
+// Less returns if seg[i] is less than seg[j] based on start_isd_as > end_isd_as > length > id
+func (r Results) Less(i, j int) bool {
+	firstA, lastA := r[i].Seg.FirstIA().IAInt(), r[i].Seg.LastIA().IAInt()
+	firstB, lastB := r[j].Seg.FirstIA().IAInt(), r[j].Seg.LastIA().IAInt()
+	lenA, lenB := len(r[i].Seg.ASEntries), len(r[j].Seg.ASEntries)
+	switch {
+	case firstA != firstB:
+		return firstA < firstB
+	case lastA != lastB:
+		return lastA < lastB
+	case lenA != lenB:
+		return lenA < lenB
+	default:
+		return bytes.Compare(r[i].Seg.ID(), r[j].Seg.ID()) == -1
+	}
+}
+
+// Swap swaps the two elements of Results
+func (r Results) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
 }
 
 // ByLastUpdate implements the sort.Interface to sort results by LastUpdate time stamp.

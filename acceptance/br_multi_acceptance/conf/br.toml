@@ -1,8 +1,0 @@
-[general]
-  id = "br1-ff00_0_110-1"
-  config_dir = "/share/conf"
-
-[log]
-
-  [log.console]
-    level = "debug"

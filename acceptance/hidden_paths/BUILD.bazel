@@ -4,9 +4,9 @@ topogen_test(
     name = "test",
     src = "test.py",
     data = [
-        "testdata/hp_groups_as2_as5.yml",
-        "testdata/hp_groups_as3.yml",
-        "testdata/hp_groups_as4.yml",
+        "//acceptance/hidden_paths/testdata:hp_groups_as2_as5.yml",
+        "//acceptance/hidden_paths/testdata:hp_groups_as3.yml",
+        "//acceptance/hidden_paths/testdata:hp_groups_as4.yml",
     ],
-    topo = "testdata/topology.topo",
+    topo = "//acceptance/hidden_paths/testdata:topology.topo",
 )

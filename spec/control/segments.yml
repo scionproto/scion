@@ -1,0 +1,67 @@
+paths:
+  /segments:
+    get:
+      tags:
+      - segment
+      summary: List the SCION path segments
+      description: List the SCION path segments that are known to the control service.
+        The results can be filtered by the start and end AS of the segment.
+        Inspect the individual segments for a more detailed view.
+      operationId: get-segments
+      parameters:
+      - in: query
+        description: Start ISD-AS of segment.
+        name: start_isd_as
+        example: 1-ff00:0:110
+        schema:
+          $ref: "../common/process.yml#/components/schemas/IsdAs"
+      - in: query
+        description: Terminal AS of segment.
+        name: end_isd_as
+        example: 2-ff00:0:210
+        schema:
+          $ref: "../common/process.yml#/components/schemas/IsdAs"
+      responses:
+        "200":
+          description: List of matching SCION path segments.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SegmentBrief"
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref:  "../common/base.yml#/components/schemas/Problem"
+components:
+  schemas:
+    SegmentID:
+      title: Segment Identifier
+      type: string
+      example: fb45d44d
+      format: hex-string
+    SegmentBrief:
+      title: Brief SCION path segment description
+      type: object
+      required:
+        - id
+        - start_isd_as
+        - end_isd_as
+        - length
+      properties:
+        id:
+          $ref: "#/components/schemas/SegmentID"
+        start_isd_as:
+          description: Start ISD-AS of the segment.
+          $ref:  "../common/process.yml#/components/schemas/IsdAs"
+        end_isd_as:
+          description: End ISD-AS of the segment.
+          $ref: "../common/process.yml#/components/schemas/IsdAs"
+        length:
+          description: "Length of the segment."
+          type: integer
+          example: 1
+

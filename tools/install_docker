@@ -11,11 +11,11 @@ chksum() {
     echo "${1:?} ${2:?}" | sha256sum --status -c -
 }
 
-# Install docker-compose 1.24.1
+# Install docker-compose 1.28.2
 case "$(uname -m)" in
     x86_64)
-        src=https://github.com/docker/compose/releases/download/1.24.1/docker-compose-Linux-x86_64
-        sum=cfb3439956216b1248308141f7193776fcf4b9c9b49cbbe2fb07885678e2bb8a
+        src=https://github.com/docker/compose/releases/download/1.28.2/docker-compose-Linux-x86_64
+        sum=e984402b96bb923319f8ac95c8d26944e12d15692ab0fea4fff63ddfd5fd8d64
         file=/usr/local/bin/docker-compose
         ;;
     *)
@@ -42,5 +42,4 @@ if ! grep -Rq "https://download.docker.com/linux/ubuntu" /etc/apt/sources.list.d
 fi
 
 # Install docker-ce
-DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce=5:19.03*
-echo 'docker-ce hold' | dpkg --set-selections
+DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io

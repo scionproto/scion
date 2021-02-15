@@ -77,3 +77,13 @@ scion_app_images(
     ],
     entrypoint = ["/app/posix-gateway"],
 )
+
+filegroup(
+    name = "tester_files",
+    srcs = glob(["files/*"]),
+    visibility = ["//visibility:public"],
+)
+
+exports_files([
+    "setcap.sh.tpl",
+])

@@ -15,6 +15,9 @@ echo "--- Remove google-auth"
 # See anapaya/scion#5231 for more details.
 sudo -H pip3 uninstall google-auth -y || true
 
+echo "--- Enable loki log driver"
+docker plugin enable loki || true
+
 echo "--- Setting up bazel environment"
 
 # ACCEPTANCE_ARTIFACTS is used for acceptance tests built with the "old"

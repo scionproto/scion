@@ -50,14 +50,13 @@ func newSender(sessID uint8, conn net.PacketConn, path snet.Path,
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	addrLen := addr.IABytes*2 + len(localAddr.IP) + len(gatewayAddr.IP)
 	pathLen := len(path.Path().Raw)
-	mtu := path.Metadata().MTU - slayers.CmnHdrLen - uint16(addrLen) - uint16(pathLen) -
-		udpHdrLen
+	mtu := int(path.Metadata().MTU) - slayers.CmnHdrLen - addrLen - pathLen - udpHdrLen
 	if mtu < minMTU {
 		return nil, serrors.New("insufficient MTU", "mtu", mtu, "minMTU", minMTU)
 	}
 
 	c := &sender{
-		encoder: newEncoder(sessID, NewStreamID(), mtu),
+		encoder: newEncoder(sessID, NewStreamID(), uint16(mtu)),
 		conn:    conn,
 		address: &snet.UDPAddr{
 			IA:      path.Destination(),

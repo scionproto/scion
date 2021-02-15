@@ -117,32 +117,64 @@ func (s *Session) SetPaths(paths []snet.Path) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	var senders []*sender
-Top:
+	created := make([]*sender, 0, len(paths))
+	reused := make(map[*sender]bool, len(s.senders))
+	for _, existingSender := range s.senders {
+		reused[existingSender] = false
+	}
+
 	for _, path := range paths {
 		// Find out whether we already have a sender for this path.
 		// Keep using old senders whenever possible.
-		for _, oldSender := range s.senders {
-			if pathsEqual(path, oldSender.path) {
-				senders = append(senders, oldSender)
-				continue Top
-			}
+		if existingSender, ok := findSenderWithPath(s.senders, path); ok {
+			reused[existingSender] = true
+			continue
 		}
-		newSender, err := newSender(s.SessionID, s.DataPlaneConn, path,
-			s.GatewayAddr, s.PathStatsPublisher, s.Metrics)
+
+		newSender, err := newSender(
+			s.SessionID,
+			s.DataPlaneConn,
+			path,
+			s.GatewayAddr,
+			s.PathStatsPublisher,
+			s.Metrics,
+		)
 		if err != nil {
+			// Collect newly created senders to avoid go routine leak.
+			for _, createdSender := range created {
+				createdSender.Close()
+			}
 			return err
 		}
-		senders = append(senders, newSender)
+		created = append(created, newSender)
 	}
+
+	newSenders := created
+	for existingSender, reuse := range reused {
+		if !reuse {
+			existingSender.Close()
+			continue
+		}
+		newSenders = append(newSenders, existingSender)
+	}
+
 	// Sort the paths to get a minimal amount of consistency,
 	// at least in the case when new paths are the same as old paths.
-	sort.Slice(senders, func(x, y int) bool {
-		return strings.Compare(string(senders[x].pathFingerprint),
-			string(senders[y].pathFingerprint)) == -1
+	sort.Slice(newSenders, func(x, y int) bool {
+		return strings.Compare(string(newSenders[x].pathFingerprint),
+			string(newSenders[y].pathFingerprint)) == -1
 	})
-	s.senders = senders
+	s.senders = newSenders
 	return nil
+}
+
+func findSenderWithPath(senders []*sender, path snet.Path) (*sender, bool) {
+	for _, s := range senders {
+		if pathsEqual(path, s.path) {
+			return s, true
+		}
+	}
+	return nil, false
 }
 
 func pathsEqual(x, y snet.Path) bool {
