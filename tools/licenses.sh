@@ -8,7 +8,7 @@ TARGET="${TARGET:-"//:scion"}"
 bazel build $TARGET
 
 DSTDIR=${1:-$ROOTDIR/licenses/data}
-PROJECT=${2:-scion}
+PROJECT=${2:-com_github_scionproto_scion}
 
 rm -rf $DSTDIR
 
