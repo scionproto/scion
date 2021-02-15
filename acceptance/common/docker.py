@@ -57,8 +57,7 @@ class Compose(object):
     def __call__(self, *args, **kwargs) -> str:
         """Runs docker compose with the given arguments"""
         with redirect_stderr(sys.stdout):
-            return cmd.docker_compose("-f", self.compose_file, "-p", self.project, "--no-ansi",
-                                      *args, **kwargs)
+            return cmd.docker_compose("-f", self.compose_file, "-p", self.project, *args, **kwargs)
 
     def collect_logs(self, out_dir: str = "logs/docker"):
         """Collects the logs from the services into the given directory"""
