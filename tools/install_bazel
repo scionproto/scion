@@ -20,8 +20,8 @@ MACH="$(uname -m)"
 
 mkdir -p ~/.local/bin
 
-BAZELISK_VER=v1.6.1
-BAZELISK_CKSUM=76c3af8cfe19f287b532990296bb58f02074d388856256b45a5f51bdbd196657
+BAZELISK_VER=v1.7.4
+BAZELISK_CKSUM=ab258203db518a54cbd5afa80864d5a3bb366058b95e7a7df4134b0b7765a378
 BAZELISK_FILE="bazelisk-linux-amd64"
 BAZELISK_URL=https://github.com/bazelbuild/bazelisk/releases/download/${BAZELISK_VER}/${BAZELISK_FILE}
 

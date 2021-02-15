@@ -97,3 +97,8 @@ components:
     Topology:
       type: object
       additionalProperties: true
+    IsdAs:
+      title: ISD-AS Identifier
+      type: string
+      pattern: '^\d+-([a-f0-9]{1,4}:){2}([a-f0-9]{1,4})|\d+$'
+      example: 1-ff00:0:110

@@ -39,7 +39,7 @@ import (
 const (
 	// Length of the frame header, in bytes.
 	hdrLen = 16
-	// Location of indidual fields in the frame header.
+	// Location of individual fields in the frame header.
 	versionPos = 0
 	sessPos    = 1
 	indexPos   = 2

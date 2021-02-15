@@ -88,7 +88,7 @@ gen_bazel_test_steps() {
         echo "      - scionproto/metahook#v0.3.0:"
         echo "          post-command: |"
         echo "            cat bazel-testlogs/${1}/${name//://}/test.log"
-        echo "            unzip bazel-testlogs/${1}/${name//://}/test.outputs/outputs.zip -d outputs 2>//dev//null"
+        echo "            unzip bazel-testlogs/${1}/${name//://}/test.outputs/outputs.zip -d outputs 2>//dev//null || true"
         echo "    artifact_paths:"
         echo "      - \"artifacts.out/**/*\""
         echo "    timeout_in_minutes: 20"

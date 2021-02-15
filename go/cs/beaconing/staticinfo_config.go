@@ -99,10 +99,102 @@ func ParseStaticInfoCfg(file string) (*StaticInfoCfg, error) {
 		return nil, serrors.WrapStr("failed to parse static info config: ",
 			err, "file ", file)
 	}
-	// TODO(matzf): validate that there are no entries for 0 the interface ID.
-	// TODO(matzf): the interface-to-interface ("Intra") entries in the json file
-	// are (expected to be!) symmetric. Check & fill in the symmetric entries.
+	cfg.clean()
 	return &cfg, nil
+}
+
+// clean checks or corrects the entries in the static info configuration.
+// In particular, it will
+//  - ensure there are no entries for the 0 interface ID (as this is invalid
+//    and the beacon extender code uses 0 as the interface number for
+//    originating/terminating beacons), and
+//  - ensure the symmetry of the interface-to-interface ("Intra") entries,
+//    allowing to specify them in only one direction.
+func (cfg *StaticInfoCfg) clean() {
+
+	delete(cfg.Latency, 0)
+	for _, s := range cfg.Latency {
+		delete(s.Intra, 0)
+	}
+	delete(cfg.Bandwidth, 0)
+	for _, s := range cfg.Bandwidth {
+		delete(s.Intra, 0)
+	}
+	delete(cfg.LinkType, 0)
+	delete(cfg.Geo, 0)
+	delete(cfg.Hops, 0)
+	for _, s := range cfg.Hops {
+		delete(s.Intra, 0)
+	}
+
+	symmetrizeLatency(cfg.Latency)
+	symmetrizeBandwidth(cfg.Bandwidth)
+	symmetrizeHops(cfg.Hops)
+}
+
+// symmetrizeLatency makes the Intra latency values symmetric
+func symmetrizeLatency(latency map[common.IFIDType]InterfaceLatencies) {
+	for i, sub := range latency {
+		delete(sub.Intra, i) // Remove loopy entry
+		for j, v := range sub.Intra {
+			if _, ok := latency[j]; !ok {
+				continue
+			}
+			if latency[j].Intra == nil {
+				latency[j] = InterfaceLatencies{
+					Inter: latency[j].Inter,
+					Intra: make(map[common.IFIDType]util.DurWrap),
+				}
+			}
+			vTransposed, ok := latency[j].Intra[i]
+			// Set if not specified or pick more conservative value if both are specified
+			if !ok || v.Duration > vTransposed.Duration {
+				latency[j].Intra[i] = v
+			}
+		}
+	}
+}
+
+// symmetrizeBandwidth makes the Intra bandwidth values symmetric
+func symmetrizeBandwidth(bandwidth map[common.IFIDType]InterfaceBandwidths) {
+	for i, sub := range bandwidth {
+		delete(sub.Intra, i) // Remove loopy entry
+		for j, v := range sub.Intra {
+			if _, ok := bandwidth[j]; !ok {
+				continue
+			}
+			if bandwidth[j].Intra == nil {
+				bandwidth[j] = InterfaceBandwidths{
+					Inter: bandwidth[j].Inter,
+					Intra: make(map[common.IFIDType]uint64),
+				}
+			}
+			vTransposed, ok := bandwidth[j].Intra[i]
+			// Set if not specified or pick more conservative value if both are specified
+			if !ok || v < vTransposed {
+				bandwidth[j].Intra[i] = v
+			}
+		}
+	}
+}
+
+// symmetrizeHops makes the Intra hops values symmetric
+func symmetrizeHops(hops map[common.IFIDType]InterfaceHops) {
+	for i, sub := range hops {
+		delete(sub.Intra, i) // Remove loopy entry
+		for j, v := range sub.Intra {
+			if _, ok := hops[j]; !ok {
+				hops[j] = InterfaceHops{
+					Intra: make(map[common.IFIDType]uint32),
+				}
+			}
+			vTransposed, ok := hops[j].Intra[i]
+			// Set if not specified or pick more conservative value if both are specified
+			if !ok || v < vTransposed {
+				hops[j].Intra[i] = v
+			}
+		}
+	}
 }
 
 // Generate creates a StaticInfoExtn struct and
@@ -240,10 +332,16 @@ func (cfg StaticInfoCfg) generateGeo(ifType map[common.IFIDType]topology.LinkTyp
 func includeIntraInfo(ifType map[common.IFIDType]topology.LinkType,
 	ifid, ingress, egress common.IFIDType) bool {
 
+	isCoreIngress := (ifType[ingress] == topology.Core || ingress == 0)
+	isCoreEgress := (ifType[egress] == topology.Core || egress == 0)
+	isCoreSeg := isCoreIngress && isCoreEgress
+	if isCoreSeg {
+		return ifid == ingress
+	}
 	t := ifType[ifid]
 	return ifid == ingress ||
 		t == topology.Child && ifid > egress ||
-		t == topology.Core && (egress == 0 || ingress == 0) && ifid > egress ||
+		t == topology.Core ||
 		t == topology.Peer
 }
 

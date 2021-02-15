@@ -4,8 +4,10 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
+	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/go-chi/chi"
 )
 
@@ -26,6 +28,9 @@ type ServerInterface interface {
 	// Set logging level
 	// (PUT /log/level)
 	SetLogLevel(w http.ResponseWriter, r *http.Request)
+	// List the SCION path segments
+	// (GET /segments)
+	GetSegments(w http.ResponseWriter, r *http.Request, params GetSegmentsParams)
 	// Prints information about the AS Certificate used to sign the control-plane message.
 	// (GET /signer)
 	GetSigner(w http.ResponseWriter, r *http.Request)
@@ -117,6 +122,48 @@ func (siw *ServerInterfaceWrapper) SetLogLevel(w http.ResponseWriter, r *http.Re
 	handler(w, r.WithContext(ctx))
 }
 
+// GetSegments operation middleware
+func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSegmentsParams
+
+	// ------------- Optional query parameter "start_isd_as" -------------
+	if paramValue := r.URL.Query().Get("start_isd_as"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "start_isd_as", r.URL.Query(), &params.StartIsdAs)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter start_isd_as: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "end_isd_as" -------------
+	if paramValue := r.URL.Query().Get("end_isd_as"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "end_isd_as", r.URL.Query(), &params.EndIsdAs)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter end_isd_as: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSegments(w, r, params)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
 // GetSigner operation middleware
 func (siw *ServerInterfaceWrapper) GetSigner(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -198,6 +245,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/log/level", wrapper.SetLogLevel)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/segments", wrapper.GetSegments)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/signer", wrapper.GetSigner)

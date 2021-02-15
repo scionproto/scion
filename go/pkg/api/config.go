@@ -26,6 +26,12 @@ const apiSample = `
 addr = ""
 `
 
+// Error types
+const (
+	InternalError = "/problems/internal-error"
+	BadRequest    = "/problems/bad-request"
+)
+
 type Config struct {
 	config.NoDefaulter
 	config.NoValidator
@@ -38,4 +44,8 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 
 func (cfg *Config) ConfigName() string {
 	return "api"
+}
+
+func StringRef(s string) *string {
+	return &s
 }
