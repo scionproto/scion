@@ -39,8 +39,8 @@ type Diagnostics struct {
 type Route struct {
 	// Prefix is the IP address prefix of the route.
 	Prefix *net.IPNet
-	// NextHop is the next hop to send the packets to.
-	NextHop net.IP
+	// Source is the (optional) source hint for the IP route.
+	Source net.IP
 }
 
 // RouteUpdate is used to inform consumers about changes in the route database.
@@ -191,8 +191,8 @@ func (db *RouteDB) NewConsumer() Consumer {
 		db.publishToUpdateChan(c.updateChan, RouteUpdate{
 			IsAdd: true,
 			Route: Route{
-				Prefix:  entry.Prefix,
-				NextHop: entry.NextHop,
+				Prefix: entry.Prefix,
+				Source: entry.Source,
 			},
 		})
 	}
@@ -204,7 +204,7 @@ func (db *RouteDB) addRoute(route Route) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	key := makeKey(route.Prefix, route.NextHop)
+	key := makeKey(route.Prefix, route.Source)
 	entry, ok := db.routes[key]
 	if ok {
 		entry.refCount++
@@ -226,7 +226,7 @@ func (db *RouteDB) deleteRoute(route Route) {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
 
-	key := makeKey(route.Prefix, route.NextHop)
+	key := makeKey(route.Prefix, route.Source)
 	entry, ok := db.routes[key]
 	if !ok {
 		panic("RouteDB: Removing route that hasn't been added.")
@@ -260,8 +260,8 @@ func (db *RouteDB) cleanUp() {
 				db.publishToUpdateChan(consumer.updateChan, RouteUpdate{
 					IsAdd: false,
 					Route: Route{
-						Prefix:  entry.Prefix,
-						NextHop: entry.NextHop,
+						Prefix: entry.Prefix,
+						Source: entry.Source,
 					},
 				})
 			}
@@ -315,9 +315,9 @@ func sortRoutes(routes []Route) {
 		if aOnes != bOnes {
 			return aOnes < bOnes
 		}
-		aHop := canonicalIP(routes[i].NextHop)
-		bHop := canonicalIP(routes[j].NextHop)
-		if c := bytes.Compare(aHop, bHop); c != 0 {
+		aSrc := canonicalIP(routes[i].Source)
+		bSrc := canonicalIP(routes[j].Source)
+		if c := bytes.Compare(aSrc, bSrc); c != 0 {
 			return c == -1
 		}
 		return false
@@ -345,7 +345,7 @@ type RoutePublisher struct {
 // times is OK. The routes are reference counted. Calling the function
 // after Close results in undefined behavior.
 func (p *RoutePublisher) AddRoute(route Route) {
-	key := makeKey(route.Prefix, route.NextHop)
+	key := makeKey(route.Prefix, route.Source)
 	entry, ok := p.routes[key]
 	if ok {
 		entry.refCount++
@@ -362,7 +362,7 @@ func (p *RoutePublisher) AddRoute(route Route) {
 // hasn't been added via this publisher the function will panic. Calling the function
 // after Close results in undefined behavior.
 func (p *RoutePublisher) DeleteRoute(route Route) {
-	key := makeKey(route.Prefix, route.NextHop)
+	key := makeKey(route.Prefix, route.Source)
 	entry, ok := p.routes[key]
 	if !ok || entry.refCount == 0 {
 		panic("RouteDB: Removing route that hasn't been added.")

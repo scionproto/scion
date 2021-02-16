@@ -341,7 +341,7 @@ configuration setting.
 The HTTP API does not support user authentication or HTTPS. Applications will want to firewall
 this port or bind to a loopback address.
 
-In addition to the :ref:`common HTTP API <common-http-api>`, the ``daemon`` supports the following API calls:
+In addition to the :ref:`common HTTP API <common-http-api>`, the ``gateway`` supports the following API calls:
 
 - ``/status`` (**EXPERIMENTAL**)
 
