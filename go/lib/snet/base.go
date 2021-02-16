@@ -31,9 +31,6 @@ type scionConnBase struct {
 
 	// Reference to SCION networking context
 	scionNet *SCIONNetwork
-
-	// Describes L4 protocol; currently only udp is implemented
-	net string
 }
 
 func (c *scionConnBase) LocalAddr() net.Addr {
