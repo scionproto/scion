@@ -72,7 +72,7 @@ func (g *Gateway) Run() error {
 			pub = &routemgr.Dummy{}
 		}
 		rt := control.NewPublishingRoutingTable(c.Chains, routingTable,
-			pub.NewPublisher(), net.IP{})
+			pub.NewPublisher(), net.IP{}, net.IP{})
 		newSessions := make(map[int]control.DataplaneSession, len(c.Sessions))
 		for _, s := range c.Sessions {
 			newSessions[s.ID] = g.DataplaneSessionFactory.

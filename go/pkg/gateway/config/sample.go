@@ -55,4 +55,10 @@ data_addr = ":30056"
 const tunnelSample = `
 # Name of TUN device to create. (default "sig")
 name = "sig"
+# Source hint to put to put into the routing table for IPv4 routes.
+# (default "")
+src_ipv4 = "192.0.2.100"
+# Source hint to put to put into the routing table for IPv6 routes.
+# (default "")
+src_ipv6 = "2001:db8::2:1"
 `
