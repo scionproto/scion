@@ -5,13 +5,13 @@ GOBIN?=${GOPATH}/bin
 
 bundle_spec_files:
 	docker build -t openapicli -f ./tools/openapicli_Dockerfile .
-	docker run -v "$$PWD"/../:/scion --rm  openapicli openapi bundle --ext yml --output /scion/spec/control.gen.yml /scion/spec/control/spec.yml
+	docker run -v "$$PWD":/spec --rm  openapicli openapi bundle --ext yml --output /spec/control.gen.yml /spec/control/spec.yml
 	sed -i '1s;^;# GENERATED FILE DO NOT EDIT\n;' control.gen.yml
 	docker image remove openapicli
 
 bundle_spec_files_swagger_cli:
 	docker build -t swagger-cli -f ./tools/swagger-cli_Dockerfile .
-	docker run -v "$$PWD"/../:/scion --rm  jeanberu/swagger-cli swagger-cli bundle -t yaml -o /scion/spec/control.gen.yaml /scion/spec/control/spec.yml
+	docker run -v "$$PWD":/spec --rm  jeanberu/swagger-cli swagger-cli bundle -t yaml -o /spec/control.gen.yaml /spec/control/spec.yml
 	sed -i '1s;^;# GENERATED FILE DO NOT EDIT\n;' control.gen.yaml
 	docker image remove swagger-cli
 
