@@ -17,15 +17,12 @@ package config
 import (
 	"bytes"
 	"testing"
-	"time"
 
 	"github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/log/logtest"
-	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/api/apitest"
 	storagetest "github.com/scionproto/scion/go/pkg/storage/test"
 )
@@ -77,8 +74,6 @@ func CheckTestBSConfig(t *testing.T, cfg *BSConfig) {
 	assert.Equal(t, DefaultOriginationInterval, cfg.OriginationInterval.Duration)
 	assert.Equal(t, DefaultPropagationInterval, cfg.PropagationInterval.Duration)
 	assert.Equal(t, DefaultRegistrationInterval, cfg.RegistrationInterval.Duration)
-	assert.Equal(t, DefaultRevTTL, cfg.RevTTL.Duration)
-	assert.Equal(t, DefaultRevOverlap, cfg.RevOverlap.Duration)
 	CheckTestPolicies(t, &cfg.Policies)
 }
 
