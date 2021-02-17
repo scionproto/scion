@@ -356,9 +356,18 @@ components:
             $ref: '#/components/schemas/Hop'
     Signer:
       type: object
+      required:
+        - subject
+        - subject_key_id
+        - expiration
+        - trc_id
+        - cert_validity
+        - in_grace_period
       properties:
         subject:
           type: object
+          required:
+            - isd_as
           properties:
             isd_as:
               type: string
@@ -372,18 +381,25 @@ components:
           example: 2022-01-04T09:59:33.000Z
         trc_id:
           type: object
+          required:
+            - isd
+            - base_number
+            - serial_number
           properties:
             isd:
-              type: number
+              type: integer
               example: 1
             base_number:
-              type: number
+              type: integer
               example: 1
             serial_number:
-              type: number
+              type: integer
               example: 1
         cert_validity:
           type: object
+          required:
+            - not_before
+            - not_after
           properties:
             not_before:
               type: string
@@ -406,9 +422,16 @@ components:
         - error
     CA:
       type: object
+      required:
+        - subject
+        - subject_key_id
+        - policy
+        - cert_validity
       properties:
         subject:
           type: object
+          required:
+            - isd_as
           properties:
             isd_as:
               type: string
@@ -418,12 +441,17 @@ components:
           example: 5D A1 F7 17 F0 C1 35 0C 88 25 FA 61 D3 1D FE 91 8E F5 0F 7C
         policy:
           type: object
+          required:
+            - chain_lifetime
           properties:
             chain_lifetime:
               type: string
               example: 72h0m0s
         cert_validity:
           type: object
+          required:
+            - not_before
+            - not_after
           properties:
             not_before:
               type: string

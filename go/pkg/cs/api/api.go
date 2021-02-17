@@ -24,7 +24,6 @@ import (
 	"io"
 	"net/http"
 	"sort"
-	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -32,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/api"
@@ -228,46 +226,47 @@ func (s *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	p, err := s.CA.PolicyGen.Generate(r.Context())
 	if err != nil {
-		http.Error(w, "No active signer", http.StatusInternalServerError)
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "No active signer",
+			Type:   api.StringRef(api.InternalError),
+		})
 		return
 	}
-
 	ia, err := cppki.ExtractIA(p.Certificate.Subject)
-	if err != nil || ia == nil {
-		http.Error(w, "Unable to get extract ISD-AS", http.StatusInternalServerError)
+	if ia == nil {
+		Error(w, Problem{
+			Status: http.StatusInternalServerError,
+			Title:  "Unable to get extract ISD-AS",
+			Type:   api.StringRef(api.InternalError),
+		})
 		return
 	}
-
-	type Subject struct {
-		IA addr.IA `json:"isd_as"`
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "Unable to get extract ISD-AS",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
 	}
-	type Validity struct {
-		NotBefore time.Time `json:"not_before"`
-		NotAfter  time.Time `json:"not_after"`
-	}
-	type Policy struct {
-		ChainLifetime string `json:"chain_lifetime"`
-	}
-	rep := struct {
-		Subject      Subject  `json:"subject"`
-		SubjectKeyID string   `json:"subject_key_id"`
-		Policy       Policy   `json:"policy"`
-		CertValidity Validity `json:"cert_validity"`
-	}{
-		Subject:      Subject{IA: *ia},
-		SubjectKeyID: fmt.Sprintf("% X", p.Certificate.SubjectKeyId),
-		Policy: Policy{
-			ChainLifetime: fmt.Sprintf("%s", p.Validity),
-		},
-		CertValidity: Validity{
-			NotBefore: p.Certificate.NotBefore,
-			NotAfter:  p.Certificate.NotAfter,
-		},
-	}
+	rep := CA{}
+	rep.CertValidity.NotAfter = p.Certificate.NotBefore
+	rep.CertValidity.NotBefore = p.Certificate.NotAfter
+	rep.Policy.ChainLifetime = fmt.Sprintf("%s", p.Validity)
+	rep.Subject.IsdAs = ia.String()
+	rep.SubjectKeyId = fmt.Sprintf("% X", p.Certificate.SubjectKeyId)
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
 	if err := enc.Encode(rep); err != nil {
-		http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to marshal response",
+			Type:   api.StringRef(api.InternalError),
+		})
 		return
 	}
 }
@@ -297,48 +296,33 @@ func (s *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	p, err := s.Signer.SignerGen.Generate(r.Context())
 	if err != nil {
-		http.Error(w, "Unable to get signer", http.StatusInternalServerError)
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "Unable to get signer",
+			Type:   api.StringRef(api.InternalError),
+		})
 		return
 	}
-
-	type Subject struct {
-		IA addr.IA `json:"isd_as"`
-	}
-	type TRCID struct {
-		ISD    addr.ISD        `json:"isd"`
-		Base   scrypto.Version `json:"base_number"`
-		Serial scrypto.Version `json:"serial_number"`
-	}
-	type Validity struct {
-		NotBefore time.Time `json:"not_before"`
-		NotAfter  time.Time `json:"not_after"`
-	}
-	rep := struct {
-		Subject       Subject   `json:"subject"`
-		SubjectKeyID  string    `json:"subject_key_id"`
-		Expiration    time.Time `json:"expiration"`
-		TRCID         TRCID     `json:"trc_id"`
-		ChainValidity Validity  `json:"chain_validity"`
-		InGrace       bool      `json:"in_grace_period"`
-	}{
-		Subject:      Subject{IA: p.IA},
-		SubjectKeyID: fmt.Sprintf("% X", p.SubjectKeyID),
-		Expiration:   p.Expiration,
-		TRCID: TRCID{
-			ISD:    p.TRCID.ISD,
-			Base:   p.TRCID.Base,
-			Serial: p.TRCID.Serial,
-		},
-		ChainValidity: Validity{
-			NotBefore: p.ChainValidity.NotBefore,
-			NotAfter:  p.ChainValidity.NotAfter,
-		},
-		InGrace: p.InGrace,
-	}
+	rep := Signer{}
+	rep.CertValidity.NotBefore = p.ChainValidity.NotBefore
+	rep.CertValidity.NotAfter = p.ChainValidity.NotAfter
+	rep.Expiration = p.Expiration
+	rep.InGracePeriod = p.InGrace
+	rep.Subject.IsdAs = p.IA.String()
+	rep.SubjectKeyId = fmt.Sprintf("% X", p.SubjectKeyID)
+	rep.TrcId.BaseNumber = int(p.TRCID.Base)
+	rep.TrcId.Isd = int(p.TRCID.ISD)
+	rep.TrcId.SerialNumber = int(p.TRCID.Serial)
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
 	if err := enc.Encode(rep); err != nil {
-		http.Error(w, "Unable to marshal response", http.StatusInternalServerError)
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to marshal response",
+			Type:   api.StringRef(api.InternalError),
+		})
 		return
 	}
 }

@@ -305,9 +305,9 @@ func TestAPI(t *testing.T) {
 				)
 				return Handler(s)
 			},
-			RequestURL:         "/signer",
-			Status:             500,
-			IgnoreResponseBody: true,
+			ResponseFile: "testdata/signer-response-error.json",
+			RequestURL:   "/signer",
+			Status:       500,
 		},
 		"ca": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -347,9 +347,9 @@ func TestAPI(t *testing.T) {
 				)
 				return Handler(s)
 			},
-			RequestURL:         "/ca",
-			Status:             500,
-			IgnoreResponseBody: true,
+			ResponseFile: "testdata/ca-error-empty-certificate.json",
+			RequestURL:   "/ca",
+			Status:       500,
 		},
 		"ca error (no signer)": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -368,9 +368,9 @@ func TestAPI(t *testing.T) {
 				)
 				return Handler(s)
 			},
-			RequestURL:         "/ca",
-			Status:             500,
-			IgnoreResponseBody: true,
+			ResponseFile: "testdata/ca-error-no-signer.json",
+			RequestURL:   "/ca",
+			Status:       500,
 		},
 	}
 

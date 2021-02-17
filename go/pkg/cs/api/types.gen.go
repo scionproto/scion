@@ -13,17 +13,17 @@ import (
 
 // CA defines model for CA.
 type CA struct {
-	CertValidity *struct {
-		NotAfter  *time.Time `json:"not_after,omitempty"`
-		NotBefore *time.Time `json:"not_before,omitempty"`
-	} `json:"cert_validity,omitempty"`
-	Policy *struct {
-		ChainLifetime *string `json:"chain_lifetime,omitempty"`
-	} `json:"policy,omitempty"`
-	Subject *struct {
-		IsdAs *string `json:"isd_as,omitempty"`
-	} `json:"subject,omitempty"`
-	SubjectKeyId *string `json:"subject_key_id,omitempty"`
+	CertValidity struct {
+		NotAfter  time.Time `json:"not_after"`
+		NotBefore time.Time `json:"not_before"`
+	} `json:"cert_validity"`
+	Policy struct {
+		ChainLifetime string `json:"chain_lifetime"`
+	} `json:"policy"`
+	Subject struct {
+		IsdAs string `json:"isd_as"`
+	} `json:"subject"`
+	SubjectKeyId string `json:"subject_key_id"`
 }
 
 // Hop defines model for Hop.
@@ -88,21 +88,21 @@ type SegmentIDs []SegmentID
 
 // Signer defines model for Signer.
 type Signer struct {
-	CertValidity *struct {
-		NotAfter  *time.Time `json:"not_after,omitempty"`
-		NotBefore *time.Time `json:"not_before,omitempty"`
-	} `json:"cert_validity,omitempty"`
-	Expiration    *time.Time `json:"expiration,omitempty"`
-	InGracePeriod *bool      `json:"in_grace_period,omitempty"`
-	Subject       *struct {
-		IsdAs *string `json:"isd_as,omitempty"`
-	} `json:"subject,omitempty"`
-	SubjectKeyId *string `json:"subject_key_id,omitempty"`
-	TrcId        *struct {
-		BaseNumber   *float32 `json:"base_number,omitempty"`
-		Isd          *float32 `json:"isd,omitempty"`
-		SerialNumber *float32 `json:"serial_number,omitempty"`
-	} `json:"trc_id,omitempty"`
+	CertValidity struct {
+		NotAfter  time.Time `json:"not_after"`
+		NotBefore time.Time `json:"not_before"`
+	} `json:"cert_validity"`
+	Expiration    time.Time `json:"expiration"`
+	InGracePeriod bool      `json:"in_grace_period"`
+	Subject       struct {
+		IsdAs string `json:"isd_as"`
+	} `json:"subject"`
+	SubjectKeyId string `json:"subject_key_id"`
+	TrcId        struct {
+		BaseNumber   int `json:"base_number"`
+		Isd          int `json:"isd"`
+		SerialNumber int `json:"serial_number"`
+	} `json:"trc_id"`
 }
 
 // StandardError defines model for StandardError.
