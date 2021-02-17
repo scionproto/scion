@@ -110,14 +110,14 @@ class TestBase(cli.Application):
     def setup_prepare(self):
         """Unpacks the topology and loads local docker images.
         """
-        self._unpack_topo()
-        print(cmd.docker('image', 'load', '-i', self.test_state.containers_tar))
-
-    def setup(self):
         # Delete old artifacts, if any.
         cmd.rm("-rf", self.test_state.artifacts)
         cmd.mkdir(self.test_state.artifacts)
         print('artifacts dir: %s' % self.test_state.artifacts)
+        self._unpack_topo()
+        print(cmd.docker('image', 'load', '-i', self.test_state.containers_tar))
+
+    def setup(self):
         self.setup_prepare()
         self.setup_start()
 
