@@ -81,17 +81,18 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 	// Extract remote address.
 	// Copy the address data to prevent races. See
 	// https://github.com/scionproto/scion/issues/1659.
-	remote := &UDPAddr{}
-	remote.IA = pkt.Source.IA
-	remote.Host = CopyUDPAddr(&net.UDPAddr{
-		IP:   pkt.Source.Host.IP(),
-		Port: int(udp.SrcPort),
-	})
-	remote.Path = pkt.Path.Copy()
+	remote := &UDPAddr{
+		IA: pkt.Source.IA,
+		Host: CopyUDPAddr(&net.UDPAddr{
+			IP:   pkt.Source.Host.IP(),
+			Port: int(udp.SrcPort),
+		}),
+		Path:    pkt.Path.Copy(),
+		NextHop: CopyUDPAddr(&lastHop),
+	}
 	if err = remote.Path.Reverse(); err != nil {
 		return 0, nil, serrors.WrapStr("unable to reverse path on received packet", err)
 	}
-	remote.NextHop = CopyUDPAddr(&lastHop)
 	return n, remote, nil
 }
 
