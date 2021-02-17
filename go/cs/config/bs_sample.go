@@ -15,13 +15,6 @@
 package config
 
 const bsSample = `
-# The interval between sending interface keepalives. (default 1s)
-keepalive_interval = "1s"
-
-# The timeout until an interface that has not received keepalives
-# is considered expired. (default 3s)
-keepalive_timeout = "3s"
-
 # The interval between originating beacons. (default 5s)
 origination_interval = "5s"
 
@@ -30,16 +23,6 @@ propagation_interval = "5s"
 
 # The interval between registering beacons. (default 5s)
 registration_interval = "5s"
-
-# The interval between checking for expired interfaces to revoke. (default 200ms)
-expired_check_interval = "200ms"
-
-# The revocation TTL. (default 10s)
-rev_ttl = "10s"
-
-# The amount of time before the expiry of an existing revocation where the revoker can reissue a
-# new revocation. (default 5s)
-rev_overlap = "5s"
 `
 
 const policiesSample = `
