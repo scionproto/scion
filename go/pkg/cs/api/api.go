@@ -15,14 +15,22 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
@@ -67,7 +75,7 @@ func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request, params GetS
 	if err := errs.ToError(); err != nil {
 		Error(w, Problem{
 			Detail: api.StringRef(err.Error()),
-			Status: int32(http.StatusBadRequest),
+			Status: http.StatusBadRequest,
 			Title:  "malformed query parameters",
 			Type:   api.StringRef(api.BadRequest),
 		})
@@ -77,7 +85,7 @@ func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request, params GetS
 	if err != nil {
 		Error(w, Problem{
 			Detail: api.StringRef(err.Error()),
-			Status: int32(http.StatusInternalServerError),
+			Status: http.StatusInternalServerError,
 			Title:  "error getting segments",
 			Type:   api.StringRef(api.InternalError),
 		})
@@ -87,7 +95,7 @@ func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request, params GetS
 	rep := make([]*SegmentBrief, 0, len(res))
 	for _, segRes := range res {
 		rep = append(rep, &SegmentBrief{
-			Id:         SegmentID(fmt.Sprintf("%x", segRes.Seg.ID())),
+			Id:         SegmentID(segID(segRes.Seg)),
 			StartIsdAs: IsdAs(segRes.Seg.FirstIA().String()),
 			EndIsdAs:   IsdAs(segRes.Seg.LastIA().String()),
 			Length:     len(segRes.Seg.ASEntries),
@@ -98,12 +106,121 @@ func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request, params GetS
 	if err := enc.Encode(rep); err != nil {
 		Error(w, Problem{
 			Detail: api.StringRef(err.Error()),
-			Status: int32(http.StatusInternalServerError),
+			Status: http.StatusInternalServerError,
 			Title:  "unable to marshal response",
 			Type:   api.StringRef(api.InternalError),
 		})
 		return
 	}
+}
+
+// GetSegment gets a segments details specified by its ID.
+func (s *Server) GetSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentIDs) {
+	ids, err := decodeSegmentIDs(segmentId)
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusBadRequest,
+			Title:  "malformed query parameters",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	resp, err := s.getSegmentsByID(r.Context(), ids)
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "error getting segments",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	rep := make([]*Segment, 0, len(resp))
+	for _, segRes := range resp {
+		var hops []Hop
+		for i, as := range segRes.Seg.ASEntries {
+			if i != 0 {
+				hops = append(hops, Hop{
+					Interface: int(as.HopEntry.HopField.ConsIngress),
+					IsdAs:     IsdAs(as.Local.String())})
+			}
+			if i != len(segRes.Seg.ASEntries)-1 {
+				hops = append(hops, Hop{
+					Interface: int(as.HopEntry.HopField.ConsEgress),
+					IsdAs:     IsdAs(as.Local.String())})
+			}
+		}
+		rep = append(rep, &Segment{
+			Id:          SegmentID(segID(segRes.Seg)),
+			Timestamp:   segRes.Seg.Info.Timestamp.UTC(),
+			Expiration:  segRes.Seg.MinExpiry().UTC(),
+			LastUpdated: segRes.LastUpdate.UTC(),
+			Hops:        hops,
+		})
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	if err := enc.Encode(rep); err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to marshal response",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+}
+
+// GetSegmentBlob gets a segment (specified by its ID) as a pem encoded blob.
+func (s *Server) GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentIDs) {
+	ids, err := decodeSegmentIDs(segmentId)
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusBadRequest,
+			Title:  "malformed query parameters",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	resp, err := s.getSegmentsByID(r.Context(), ids)
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "error getting segments",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	var buf bytes.Buffer
+	for _, segRes := range resp {
+		bytes, err := proto.Marshal(seg.PathSegmentToPB(segRes.Seg))
+		if err != nil {
+			Error(w, Problem{
+				Detail: api.StringRef(err.Error()),
+				Status: http.StatusInternalServerError,
+				Title:  "unable to marshal segment",
+				Type:   api.StringRef(api.InternalError),
+			})
+			return
+		}
+		b := &pem.Block{
+			Type:  "PATH SEGMENT",
+			Bytes: bytes,
+		}
+		if err := pem.Encode(&buf, b); err != nil {
+			Error(w, Problem{
+				Detail: api.StringRef(err.Error()),
+				Status: http.StatusInternalServerError,
+				Title:  "unable to marshal response",
+				Type:   api.StringRef(api.InternalError),
+			})
+			return
+		}
+	}
+	io.Copy(w, &buf)
 }
 
 // GetCa gets the CA info
@@ -239,4 +356,40 @@ func Error(w http.ResponseWriter, p Problem) {
 	enc.SetIndent("", "    ")
 	// no point in catching error here, there is nothing we can do about it anymore.
 	enc.Encode(p)
+}
+
+// segID makes a hex encoded string of the segment id.
+func segID(s *seg.PathSegment) string { return fmt.Sprintf("%x", s.ID()) }
+
+// getSegmentsByID requests the segments and Sort the result according to the requested order.
+func (s *Server) getSegmentsByID(ctx context.Context,
+	ids []common.RawBytes) (query.Results, error) {
+	q := query.Params{SegIDs: ids}
+	r, err := s.Segments.Get(ctx, &q)
+	for i, id := range ids {
+		for j := i; j < len(r); j++ {
+			if segID(r[j].Seg) == string(id) {
+				r.Swap(i, j)
+				break
+			}
+		}
+	}
+	return r, err
+}
+
+// decodeSegmentIDs converts segment IDs to RawBytes.
+func decodeSegmentIDs(ids SegmentIDs) ([]common.RawBytes, error) {
+	b := make([]common.RawBytes, 0, len(ids))
+	var errs serrors.List
+	for _, segID := range ids {
+		if id, err := hex.DecodeString(string(segID)); err == nil {
+			b = append(b, id)
+		} else {
+			errs = append(errs, serrors.WithCtx(err, "parameter", "id"))
+		}
+	}
+	if err := errs.ToError(); err != nil {
+		return nil, err
+	}
+	return b, nil
 }

@@ -29,9 +29,12 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
@@ -41,7 +44,14 @@ import (
 	"github.com/scionproto/scion/go/pkg/cs/api/mock_api"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/cs/trust/mock_trust"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/trust"
+)
+
+// id constants
+const (
+	id1 = "50ddb5ffa058302aad1593fc82e3c75531d33b0406cf9ef8f175aa9b00a3959e"
+	id2 = "023dc0cff0be7a9e29fc1ce517dd96face947a7af78d399d210eab0a7cb779ef"
 )
 
 // update is a cmd line flag that enables golden file updates. To update the
@@ -64,7 +74,7 @@ func TestAPI(t *testing.T) {
 				s := &Server{
 					Segments: seg,
 				}
-				dbresult := createSegs()
+				dbresult := createSegs(t, graph.NewSigner())
 				seg.EXPECT().Get(gomock.Any(), &query.Params{}).AnyTimes().Return(
 					dbresult, nil,
 				)
@@ -95,7 +105,7 @@ func TestAPI(t *testing.T) {
 				s := &Server{
 					Segments: seg,
 				}
-				dbresult := createSegs()
+				dbresult := createSegs(t, graph.NewSigner())
 				q := query.Params{
 					StartsAt: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
 					EndsAt:   []addr.IA{xtest.MustParseIA("1-ff00:0:112")},
@@ -120,6 +130,120 @@ func TestAPI(t *testing.T) {
 			ResponseFile: "testdata/segments-malformed-query.json",
 			RequestURL:   "/segments?start_isd_as=1-ff001:0:110&end_isd_as=1-ff000:0:112",
 			Status:       400,
+		},
+		"segment": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				seg := mock_api.NewMockSegmentsStore(ctrl)
+				q := query.Params{
+					SegIDs: []common.RawBytes{
+						xtest.MustParseHexString(id1),
+						xtest.MustParseHexString(id2)},
+				}
+				s := &Server{
+					Segments: seg,
+				}
+				dbresult := createSegs(t, graph.NewSigner())
+				seg.EXPECT().Get(gomock.Any(), &q).AnyTimes().Return(
+					dbresult, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/segments-by-id.json",
+			RequestURL:   "/segments/" + id1 + "," + id2,
+			Status:       200,
+		},
+		"segment invalid id": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				seg := mock_api.NewMockSegmentsStore(ctrl)
+				q := query.Params{
+					SegIDs: []common.RawBytes{
+						xtest.MustParseHexString(id1),
+						xtest.MustParseHexString(id2)},
+				}
+				s := &Server{
+					Segments: seg,
+				}
+				dbresult := createSegs(t, graph.NewSigner())
+				seg.EXPECT().Get(gomock.Any(), &q).AnyTimes().Return(
+					dbresult, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/segments-by-id-parse-error.json",
+			RequestURL:   "/segments/r",
+			Status:       400,
+		},
+		"segment blob": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				seg := mock_api.NewMockSegmentsStore(ctrl)
+				q := query.Params{
+					SegIDs: []common.RawBytes{
+						xtest.MustParseHexString(id1),
+						xtest.MustParseHexString(id2)},
+				}
+				s := &Server{
+					Segments: seg,
+				}
+				signer := mock_seg.NewMockSigner(ctrl)
+				signer.EXPECT().Sign(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any()).AnyTimes().DoAndReturn(
+					func(_ interface{},
+						msg []byte,
+						associatedData ...[]byte) (*cryptopb.SignedMessage, error) {
+						inputHdr := &cryptopb.Header{
+							SignatureAlgorithm: 3,
+							VerificationKeyId:  []byte("id"),
+						}
+						rawHdr, err := proto.Marshal(inputHdr)
+						if err != nil {
+							return nil, serrors.WrapStr("packing header", err)
+						}
+						hdrAndBody := &cryptopb.HeaderAndBodyInternal{
+							Header: rawHdr,
+							Body:   msg,
+						}
+						rawHdrAndBody, err := proto.Marshal(hdrAndBody)
+						if err != nil {
+							return nil, serrors.WrapStr("packing signature input", err)
+						}
+						return &cryptopb.SignedMessage{
+							HeaderAndBody: rawHdrAndBody,
+							Signature:     []byte("signature"),
+						}, nil
+					},
+				)
+
+				dbresult := createSegs(t, signer)
+				seg.EXPECT().Get(gomock.Any(), &q).AnyTimes().Return(
+					dbresult, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/segments-blob-by-id.txt",
+			RequestURL:   "/segments/" + id1 + "," + id2 + "/blob",
+			Status:       200,
+		},
+		"segment blob error": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				seg := mock_api.NewMockSegmentsStore(ctrl)
+				q := query.Params{
+					SegIDs: []common.RawBytes{
+						xtest.MustParseHexString(id1),
+						xtest.MustParseHexString(id2)},
+				}
+				s := &Server{
+					Segments: seg,
+				}
+				seg.EXPECT().Get(gomock.Any(), &q).AnyTimes().Return(
+					query.Results{}, serrors.New("internal"),
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/segments-blob-by-id-error.json",
+			RequestURL:   "/segments/" + id1 + "," + id2 + "/blob",
+			Status:       500,
 		},
 		"signer": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
@@ -278,33 +402,53 @@ func TestAPI(t *testing.T) {
 	}
 }
 
-func createSegs() query.Results {
+func createSegs(t *testing.T, signer seg.Signer) query.Results {
 	asEntry1 := seg.ASEntry{
 		Local: xtest.MustParseIA("1-ff00:0:110"),
 		HopEntry: seg.HopEntry{
-			HopField: seg.HopField{MAC: bytes.Repeat([]byte{0x11}, 6)},
+			HopField: seg.HopField{MAC: bytes.Repeat([]byte{0x11}, 6),
+				ConsEgress: 1,
+			},
 		},
 	}
 	asEntry2 := seg.ASEntry{
-		Local: xtest.MustParseIA("1-ff00:0:112"),
+		Local: xtest.MustParseIA("1-ff00:0:111"),
 		HopEntry: seg.HopEntry{
-			HopField: seg.HopField{MAC: bytes.Repeat([]byte{0x12}, 5)},
+			HopField: seg.HopField{MAC: bytes.Repeat([]byte{0x12}, 5),
+				ConsIngress: 1,
+				ConsEgress:  2},
 		},
 	}
-	ps, _ := seg.CreateSegment(time.Unix(1611051121, 0).UTC(), 1337)
+	asEntry3 := seg.ASEntry{
+		Local: xtest.MustParseIA("1-ff00:0:113"),
+		HopEntry: seg.HopEntry{
+			HopField: seg.HopField{MAC: bytes.Repeat([]byte{0x12}, 5),
+				ConsIngress: 2},
+		},
+	}
+	ps1, _ := seg.CreateSegment(time.Unix(1611051121, 0).UTC(), 1337)
 	ps2, _ := seg.CreateSegment(time.Unix(1611051121, 0).UTC(), 1337)
-	ps.AddASEntry(context.Background(), asEntry1, graph.NewSigner())
-	ps.AddASEntry(context.Background(), asEntry2, graph.NewSigner())
-	ps2.AddASEntry(context.Background(), asEntry2, graph.NewSigner())
-
-	ret2 := query.Results{
+	addEntry := func(ps *seg.PathSegment, asEntry seg.ASEntry) {
+		err := ps.AddASEntry(context.Background(), asEntry, signer)
+		require.NoError(t, err)
+	}
+	addEntry(ps1, asEntry1)
+	addEntry(ps1, asEntry2)
+	addEntry(ps1, asEntry3)
+	asEntry1.HopEntry.HopField.ConsEgress = 2
+	asEntry3.HopEntry.HopField.ConsIngress = 1
+	addEntry(ps2, asEntry1)
+	addEntry(ps2, asEntry3)
+	return query.Results{
 		&query.Result{
-			Type: seg.TypeDown,
-			Seg:  ps,
+			Type:       seg.TypeDown,
+			Seg:        ps1,
+			LastUpdate: time.Unix(1611051125, 0).UTC(),
 		},
 		&query.Result{
-			Type: seg.TypeUp,
-			Seg:  ps2,
-		}}
-	return ret2
+			Type:       seg.TypeUp,
+			Seg:        ps2,
+			LastUpdate: time.Unix(1611051126, 0).UTC(),
+		},
+	}
 }
