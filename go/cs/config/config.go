@@ -19,9 +19,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/config"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -32,12 +30,6 @@ import (
 )
 
 const (
-	// DefaultKeepaliveInterval is the default interval between sending
-	// interface keepalives.
-	DefaultKeepaliveInterval = time.Second
-	// DefaultKeepaliveTimeout is the timeout indicating how long an interface
-	// can receive no keepalive default until it is considered expired.
-	DefaultKeepaliveTimeout = 3 * time.Second
 	// DefaultOriginationInterval is the default interval between originating
 	// beacons in a core BS.
 	DefaultOriginationInterval = 5 * time.Second
@@ -45,25 +37,11 @@ const (
 	DefaultPropagationInterval = 5 * time.Second
 	// DefaultRegistrationInterval is the default interval between registering segments.
 	DefaultRegistrationInterval = 5 * time.Second
-	// DefaultExpiredCheckInterval is the default interval between checking for
-	// expired interfaces.
-	DefaultExpiredCheckInterval = 200 * time.Millisecond
-	// DefaultRevTTL is the default revocation TTL.
-	DefaultRevTTL = path_mgmt.MinRevTTL
-	// DefaultRevOverlap specifies the default for how long before the expiry of an existing
-	// revocation the revoker can reissue a new revocation.
-	DefaultRevOverlap = DefaultRevTTL / 2
 	// DefaultQueryInterval is the default interval after which the segment
 	// cache expires.
 	DefaultQueryInterval = 5 * time.Minute
 	// DefaultMaxASValidity is the default validity period for renewed AS certificates.
 	DefaultMaxASValidity = 3 * 24 * time.Hour
-)
-
-// Error values
-const (
-	ErrKeyConf   common.ErrMsg = "Unable to load KeyConf"
-	ErrCustomers common.ErrMsg = "Unable to load Customers"
 )
 
 var _ config.Config = (*Config)(nil)
@@ -175,25 +153,12 @@ var _ config.Config = (*BSConfig)(nil)
 
 // BSConfig holds the configuration specific to the beacon server.
 type BSConfig struct {
-	// KeepaliveInterval is the interval between sending interface keepalives.
-	KeepaliveInterval util.DurWrap `toml:"keepalive_interval,omitempty"`
-	// KeepaliveTimeout is the timeout indicating how long an interface can
-	// receive no keepalive until it is considered expired.
-	KeepaliveTimeout util.DurWrap `toml:"keepalive_timeout,omitempty"`
 	// OriginationInterval is the interval between originating beacons in a core BS.
 	OriginationInterval util.DurWrap `toml:"origination_interval,omitempty"`
 	// PropagationInterval is the interval between propagating beacons.
 	PropagationInterval util.DurWrap `toml:"propagation_interval,omitempty"`
 	// RegistrationInterval is the interval between registering segments.
 	RegistrationInterval util.DurWrap `toml:"registration_interval,omitempty"`
-	// ExpiredCheckInterval is the interval between checking whether interfaces
-	// have expired and should be revoked.
-	ExpiredCheckInterval util.DurWrap `toml:"expired_check_interval,omitempty"`
-	// RevTTL is the revocation TTL. (default 10s)
-	RevTTL util.DurWrap `toml:"rev_ttl,omitempty"`
-	// RevOverlap specifies for how long before the expiry of an existing revocation the revoker
-	// can reissue a new revocation. (default 5s)
-	RevOverlap util.DurWrap `toml:"rev_overlap,omitempty"`
 	// Policies contains the policy files.
 	Policies Policies `toml:"policies,omitempty"`
 }
@@ -204,12 +169,6 @@ func (cfg *BSConfig) InitDefaults() {
 
 // Validate validates that all durations are set.
 func (cfg *BSConfig) Validate() error {
-	if cfg.KeepaliveInterval.Duration == 0 {
-		initDurWrap(&cfg.KeepaliveInterval, DefaultKeepaliveInterval)
-	}
-	if cfg.KeepaliveTimeout.Duration == 0 {
-		initDurWrap(&cfg.KeepaliveTimeout, DefaultKeepaliveTimeout)
-	}
 	if cfg.OriginationInterval.Duration == 0 {
 		initDurWrap(&cfg.OriginationInterval, DefaultOriginationInterval)
 	}
@@ -218,22 +177,6 @@ func (cfg *BSConfig) Validate() error {
 	}
 	if cfg.RegistrationInterval.Duration == 0 {
 		initDurWrap(&cfg.RegistrationInterval, DefaultRegistrationInterval)
-	}
-	if cfg.ExpiredCheckInterval.Duration == 0 {
-		initDurWrap(&cfg.ExpiredCheckInterval, DefaultExpiredCheckInterval)
-	}
-	if cfg.RevTTL.Duration == 0 {
-		initDurWrap(&cfg.RevTTL, DefaultRevTTL)
-	}
-	if cfg.RevTTL.Duration < path_mgmt.MinRevTTL {
-		return serrors.New("rev_ttl must be equal or greater than MinRevTTL",
-			"MinRevTTL", path_mgmt.MinRevTTL)
-	}
-	if cfg.RevOverlap.Duration == 0 {
-		initDurWrap(&cfg.RevOverlap, DefaultRevOverlap)
-	}
-	if cfg.RevOverlap.Duration > cfg.RevTTL.Duration {
-		return serrors.New("rev_overlap cannot be greater than rev_ttl")
 	}
 	return nil
 }

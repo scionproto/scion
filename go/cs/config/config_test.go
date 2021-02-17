@@ -41,20 +41,6 @@ func TestConfigSample(t *testing.T) {
 	CheckTestConfig(t, &cfg, idSample)
 }
 
-func TestInvalidTTL(t *testing.T) {
-	cfg := BSConfig{}
-	cfg.InitDefaults()
-	err := cfg.Validate()
-	assert.NoError(t, err)
-	cfg.RevOverlap = util.DurWrap{Duration: cfg.RevTTL.Duration + time.Second}
-	err = cfg.Validate()
-	assert.Error(t, err)
-	cfg.InitDefaults()
-	cfg.RevTTL = util.DurWrap{Duration: path_mgmt.MinRevTTL - time.Second}
-	err = cfg.Validate()
-	assert.Error(t, err)
-}
-
 func InitTestConfig(cfg *Config) {
 	apitest.InitConfig(&cfg.API)
 	envtest.InitTest(&cfg.General, &cfg.Metrics, &cfg.Tracing, nil)
@@ -88,12 +74,9 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 }
 
 func CheckTestBSConfig(t *testing.T, cfg *BSConfig) {
-	assert.Equal(t, DefaultKeepaliveTimeout, cfg.KeepaliveTimeout.Duration)
-	assert.Equal(t, DefaultKeepaliveInterval, cfg.KeepaliveInterval.Duration)
 	assert.Equal(t, DefaultOriginationInterval, cfg.OriginationInterval.Duration)
 	assert.Equal(t, DefaultPropagationInterval, cfg.PropagationInterval.Duration)
 	assert.Equal(t, DefaultRegistrationInterval, cfg.RegistrationInterval.Duration)
-	assert.Equal(t, DefaultExpiredCheckInterval, cfg.ExpiredCheckInterval.Duration)
 	assert.Equal(t, DefaultRevTTL, cfg.RevTTL.Duration)
 	assert.Equal(t, DefaultRevOverlap, cfg.RevOverlap.Duration)
 	CheckTestPolicies(t, &cfg.Policies)
