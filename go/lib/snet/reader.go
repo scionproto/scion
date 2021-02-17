@@ -41,6 +41,8 @@ func newScionConnReader(base *scionConnBase, conn PacketConn) *scionConnReader {
 
 // ReadFrom reads data into b, returning the length of copied data and the
 // address of the sender.
+// If a message is too long to fit in the supplied buffer, excess bytes may be
+// discarded.
 func (c *scionConnReader) ReadFrom(b []byte) (int, net.Addr, error) {
 	n, a, err := c.read(b)
 	return n, a, err
@@ -48,6 +50,8 @@ func (c *scionConnReader) ReadFrom(b []byte) (int, net.Addr, error) {
 
 // Read reads data into b from a connection with a fixed remote address. If the
 // remote address for the connection is unknown, Read returns an error.
+// If a message is too long to fit in the supplied buffer, excess bytes may be
+// discarded.
 func (c *scionConnReader) Read(b []byte) (int, error) {
 	n, _, err := c.read(b)
 	return n, err
