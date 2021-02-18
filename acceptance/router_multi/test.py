@@ -18,6 +18,7 @@
 import os
 import argparse
 import shutil
+import time
 
 from typing import List
 from plumbum import cmd
@@ -48,7 +49,7 @@ def create_veth(host: str, container: str, ip: str, mac: str, ns: str, neighbors
     sudo("ip netns exec %s ip link set %s up" % (ns, container))
 
 
-class Test:
+class RouterTest:
     """
     Tests that the implementation of a router pass a number of test case where we
     feed the router an crafted packet and we expect them to route then accordingly.
@@ -61,13 +62,10 @@ class Test:
 
     def __init__(self):
         parser = argparse.ArgumentParser()
-        parser.add_argument('--braccept_bin', default='braccept', dest='bin')
-        parser.add_argument('--conf_dir', default='acceptance/router_multi/conf',
-                            dest='conf')
-        parser.add_argument('--image_tar', default='acceptance/router_multi/router.tar',
-                            dest='image')
-        parser.add_argument('--pause_tar', default='acceptance/router_multi/pause.tar',
-                            dest='pause')
+        parser.add_argument('--braccept_bin', dest='bin')
+        parser.add_argument('--conf_dir', dest='conf')
+        parser.add_argument('--image_tar', dest='image')
+        parser.add_argument('--pause_tar', dest='pause')
         args = parser.parse_args()
 
         self.bin = args.bin
@@ -79,16 +77,10 @@ class Test:
         shutil.copytree(args.conf, self.artifacts + "/conf")
         sudo("mkdir -p /var/run/netns")
 
-        print("artifacts: %s" % self.artifacts)
-        print("braccept: %s" % self.bin)
-        print("router image: %s" % cmd.du("-sLh", self.image_tar))
-        print("pause image: %s" % cmd.du("-sLh", self.pause_tar))
-
     def main(self):
         try:
             self.setup()
-            self.run(bfd=False)
-            self.run(bfd=True)
+            self.run_tests()
         finally:
             self.teardown()
 
@@ -97,28 +89,20 @@ class Test:
         self.router_image = docker("image load -q -i %s" % self.image_tar).rsplit(' ', 1)[1]
         print(docker("images"))
 
-        self.pause = docker("run -d --name pause %s" % self.pause_image)
-
+        self.pause = docker("run -d --network=none --name pause %s" % self.pause_image)
         ns = docker("inspect %s -f '{{.NetworkSettings.SandboxKey}}'" % self.pause).replace("'", "")
+
         sudo("ln -sfT %s /var/run/netns/pause" % ns)
-        create_veth("veth_int_host", "veth_int", "192.168.0.11/24", "f0:0d:ca:fe:00:01", "pause",
-                    ["192.168.0.12", "192.168.0.13", "192.168.0.14", "192.168.0.51", "192.168.0.61",
-                     "192.168.0.71"])
-        create_veth("veth_121_host", "veth_121", "192.168.12.2/31", "f0:0d:ca:fe:00:12", "pause",
-                    ["192.168.12.3"])
-        create_veth("veth_131_host", "veth_131", "192.168.13.2/31", "f0:0d:ca:fe:00:13", "pause",
-                    ["192.168.13.3"])
-        create_veth("veth_141_host", "veth_141", "192.168.14.2/31", "f0:0d:ca:fe:00:14", "pause",
-                    ["192.168.14.3"])
-        create_veth("veth_151_host", "veth_151", "192.168.15.2/31", "f0:0d:ca:fe:00:15", "pause",
-                    ["192.168.15.3"])
+        self.create_veths("pause")
+
         print("# Host Network Stack")
         print(sudo("ip a"))
         print("# Container Network Stack")
         print(sudo("ip netns exec pause ip a"))
+
         sudo("rm /var/run/netns/pause")
 
-    def run(self, bfd: bool):
+    def run(self, bfd: bool, bin: str, args: str = "", wait: int = 0):
         envs = ["-e  SCION_EXPERIMENTAL_BFD_DISABLE=true",
                 "-e SCION_EXPERIMENTAL_DISABLE_SERVICE_HEALTH=\"\""]
         bfd_arg = ""
@@ -127,12 +111,12 @@ class Test:
             envs = ["-e SCION_EXPERIMENTAL_DISABLE_SERVICE_HEALTH=\"\""]
             bfd_arg = "--bfd"
 
-        router = docker("run -v %s/conf:/share/conf -d %s --network container:%s --name router %s"
-                        % (self.artifacts, " ".join(envs), self.pause, self.router_image))[0:11]
-        print(docker("ps"))
-
         try:
-            sudo("%s --artifacts %s %s" % (self.bin, self.artifacts, bfd_arg))
+            router = docker("run -v %s/conf:/share/conf -d %s %s --network container:%s \
+                            --name router %s" % (self.artifacts, " ".join(envs), args,
+                            self.pause, self.router_image))[0:11]
+            time.sleep(wait)
+            sudo("%s --artifacts %s %s" % (bin, self.artifacts, bfd_arg))
         finally:
             print("# Router logs")
             _, _, s = cmd.docker["logs", router].run()
@@ -140,12 +124,29 @@ class Test:
             docker("stop %s" % router)
             docker("rm %s" % router)
 
+    def run_tests(self):
+        self.run(bfd=False, bin=self.bin)
+        self.run(bfd=True, bin=self.bin)
+
     def teardown(self):
         docker("stop %s" % self.pause)
         docker("rm %s" % self.pause)  # veths are deleted automatically
         docker("rmi %s %s" % (self.router_image, self.pause_image))
         sudo("chown -R %s %s" % (cmd.whoami(), self.artifacts))
 
+    def create_veths(self, ns: str):
+        create_veth("veth_int_host", "veth_int", "192.168.0.11/24", "f0:0d:ca:fe:00:01", ns,
+                    ["192.168.0.12", "192.168.0.13", "192.168.0.14", "192.168.0.51", "192.168.0.61",
+                     "192.168.0.71"])
+        create_veth("veth_121_host", "veth_121", "192.168.12.2/31", "f0:0d:ca:fe:00:12", ns,
+                    ["192.168.12.3"])
+        create_veth("veth_131_host", "veth_131", "192.168.13.2/31", "f0:0d:ca:fe:00:13", ns,
+                    ["192.168.13.3"])
+        create_veth("veth_141_host", "veth_141", "192.168.14.2/31", "f0:0d:ca:fe:00:14", ns,
+                    ["192.168.14.3"])
+        create_veth("veth_151_host", "veth_151", "192.168.15.2/31", "f0:0d:ca:fe:00:15", ns,
+                    ["192.168.15.3"])
+
 
 if __name__ == "__main__":
-    Test().main()
+    RouterTest().main()

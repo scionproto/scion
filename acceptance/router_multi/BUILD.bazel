@@ -1,5 +1,5 @@
 load("@io_bazel_rules_docker//container:container.bzl", "container_image")
-load("//lint:py.bzl", "py_test")
+load("//lint:py.bzl", "py_library", "py_test")
 
 exports_files([
     "conf",
@@ -15,6 +15,10 @@ py_test(
         "$(location //go/integration/braccept)",
         "--pause_tar",
         "$(location //acceptance/router_multi:pause.tar)",
+        "--image_tar",
+        "$(location :router.tar)",
+        "--conf_dir",
+        "$(location :conf)",
     ],
     data = [
         "pause.tar",
@@ -31,4 +35,10 @@ py_test(
 container_image(
     name = "router",
     base = "//docker:posix_router",
+)
+
+py_library(
+    name = "test_lib",
+    srcs = ["test.py"],
+    visibility = ["//visibility:public"],
 )

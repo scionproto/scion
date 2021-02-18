@@ -1,5 +1,5 @@
 
-.PHONY: all bazel clean gazelle gogen licenses mocks protobuf setcap antlr
+.PHONY: all bazel clean gazelle gogen licenses mocks protobuf antlr
 .NOTPARALLEL:
 
 GAZELLE_MODE?=fix
@@ -40,9 +40,6 @@ mocks:
 
 gazelle:
 	bazel run //:gazelle -- update -mode=$(GAZELLE_MODE) -go_naming_convention go_default_library -exclude docker/_build $(GAZELLE_DIRS)
-
-setcap:
-	tools/setcap cap_net_admin,cap_net_raw+ep ./bin/braccept
 
 licenses:
 	tools/licenses.sh
