@@ -32,4 +32,8 @@ def py_binary(name, **kwargs):
 
 def py_test(name, **kwargs):
     _add_py_lint_tests(name, **kwargs)
+    tags = kwargs.get("tags", [])
+    if "integration" not in tags and "manual" not in tags:
+        tags = tags + ["unit"]
+    kwargs["tags"] = tags
     _py_test(name = name, **kwargs)
