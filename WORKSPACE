@@ -339,11 +339,6 @@ http_file(
     ],
 )
 
-load("//:dlv_deps.bzl", "dlv_repositories")
-
-# gazelle:repository_macro dlv_deps.bzl%dlv_repositories
-dlv_repositories()
-
 load("//:bbcp.bzl", "bbcp_repository")
 
 bbcp_repository()
