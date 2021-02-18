@@ -12,7 +12,6 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
-        "//go/lib/common:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/pathdb/query:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
@@ -34,7 +33,6 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/lib/addr:go_default_library",
-        "//go/lib/common:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/ctrl/seg/mock_seg:go_default_library",
         "//go/lib/pathdb/query:go_default_library",

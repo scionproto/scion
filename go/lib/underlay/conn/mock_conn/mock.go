@@ -6,7 +6,6 @@ package mock_conn
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	common "github.com/scionproto/scion/go/lib/common"
 	conn "github.com/scionproto/scion/go/lib/underlay/conn"
 	net "net"
 	reflect "reflect"
@@ -65,7 +64,7 @@ func (mr *MockConnMockRecorder) LocalAddr() *gomock.Call {
 }
 
 // Read mocks base method
-func (m *MockConn) Read(arg0 common.RawBytes) (int, *conn.ReadMeta, error) {
+func (m *MockConn) Read(arg0 []byte) (int, *conn.ReadMeta, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Read", arg0)
 	ret0, _ := ret[0].(int)
@@ -152,7 +151,7 @@ func (mr *MockConnMockRecorder) SetWriteDeadline(arg0 interface{}) *gomock.Call 
 }
 
 // Write mocks base method
-func (m *MockConn) Write(arg0 common.RawBytes) (int, error) {
+func (m *MockConn) Write(arg0 []byte) (int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Write", arg0)
 	ret0, _ := ret[0].(int)
@@ -182,7 +181,7 @@ func (mr *MockConnMockRecorder) WriteBatch(arg0 interface{}) *gomock.Call {
 }
 
 // WriteTo mocks base method
-func (m *MockConn) WriteTo(arg0 common.RawBytes, arg1 *net.UDPAddr) (int, error) {
+func (m *MockConn) WriteTo(arg0 []byte, arg1 *net.UDPAddr) (int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WriteTo", arg0, arg1)
 	ret0, _ := ret[0].(int)

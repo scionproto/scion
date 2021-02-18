@@ -14,10 +14,6 @@
 
 package util
 
-import (
-	"github.com/scionproto/scion/go/lib/common"
-)
-
 // CalcPadding returns the number of padding bytes needed to round length bytes
 // to a multiple of blkSize
 func CalcPadding(length, blkSize int) int {
@@ -32,7 +28,7 @@ func PaddedLen(length, blkSize int) int {
 	return length + CalcPadding(length, blkSize)
 }
 
-func FillPadding(b common.RawBytes, length, blkSize int) int {
+func FillPadding(b []byte, length, blkSize int) int {
 	padding := CalcPadding(length, blkSize)
 	total := length + padding
 	for i := range b[length:total] {

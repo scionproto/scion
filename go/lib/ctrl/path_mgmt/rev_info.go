@@ -60,7 +60,7 @@ type RevInfo struct {
 	RawTTL uint32 `capnp:"ttl"`
 }
 
-func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, error) {
+func NewRevInfoFromRaw(b []byte) (*RevInfo, error) {
 	r := &RevInfo{}
 	return r, proto.ParseFromRaw(r, b)
 }
@@ -103,7 +103,7 @@ func (r *RevInfo) ProtoId() proto.ProtoIdType {
 	return proto.RevInfo_TypeID
 }
 
-func (r *RevInfo) Pack() (common.RawBytes, error) {
+func (r *RevInfo) Pack() ([]byte, error) {
 	return proto.PackRoot(r)
 }
 
@@ -148,12 +148,12 @@ type Verifier interface {
 var _ proto.Cerealizable = (*SignedRevInfo)(nil)
 
 type SignedRevInfo struct {
-	Blob    common.RawBytes
+	Blob    []byte
 	Sign    *proto.SignS
 	revInfo *RevInfo `capnp:"-"`
 }
 
-func NewSignedRevInfoFromRaw(b common.RawBytes) (*SignedRevInfo, error) {
+func NewSignedRevInfoFromRaw(b []byte) (*SignedRevInfo, error) {
 	sr := &SignedRevInfo{}
 	return sr, proto.ParseFromRaw(sr, b)
 }
@@ -182,7 +182,7 @@ func (sr *SignedRevInfo) RevInfo() (*RevInfo, error) {
 	return sr.revInfo, err
 }
 
-func (sr *SignedRevInfo) Pack() (common.RawBytes, error) {
+func (sr *SignedRevInfo) Pack() ([]byte, error) {
 	return proto.PackRoot(sr)
 }
 

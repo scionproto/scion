@@ -50,7 +50,7 @@ type PacketConn interface {
 //
 // If Bytes is not initialized, space will be allocated during
 // serialization/decoding.
-type Bytes common.RawBytes
+type Bytes []byte
 
 // Prepare readies a layer's storage for use.
 //

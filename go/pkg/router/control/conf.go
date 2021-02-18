@@ -36,9 +36,9 @@ type Dataplane interface {
 	AddExternalInterface(localIfID common.IFIDType, info LinkInfo, owned bool) error
 	AddSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error
 	DelSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error
-	SetKey(ia addr.IA, index int, key common.RawBytes) error
+	SetKey(ia addr.IA, index int, key []byte) error
 
-	SetRevocation(ia addr.IA, ifid common.IFIDType, rev common.RawBytes) error
+	SetRevocation(ia addr.IA, ifid common.IFIDType, rev []byte) error
 	DelRevocation(ia addr.IA, ifid common.IFIDType) error
 }
 

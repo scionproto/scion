@@ -32,7 +32,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
@@ -135,7 +134,7 @@ func TestAPI(t *testing.T) {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				seg := mock_api.NewMockSegmentsStore(ctrl)
 				q := query.Params{
-					SegIDs: []common.RawBytes{
+					SegIDs: [][]byte{
 						xtest.MustParseHexString(id1),
 						xtest.MustParseHexString(id2)},
 				}
@@ -156,7 +155,7 @@ func TestAPI(t *testing.T) {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				seg := mock_api.NewMockSegmentsStore(ctrl)
 				q := query.Params{
-					SegIDs: []common.RawBytes{
+					SegIDs: [][]byte{
 						xtest.MustParseHexString(id1),
 						xtest.MustParseHexString(id2)},
 				}
@@ -177,7 +176,7 @@ func TestAPI(t *testing.T) {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				seg := mock_api.NewMockSegmentsStore(ctrl)
 				q := query.Params{
-					SegIDs: []common.RawBytes{
+					SegIDs: [][]byte{
 						xtest.MustParseHexString(id1),
 						xtest.MustParseHexString(id2)},
 				}
@@ -229,7 +228,7 @@ func TestAPI(t *testing.T) {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
 				seg := mock_api.NewMockSegmentsStore(ctrl)
 				q := query.Params{
-					SegIDs: []common.RawBytes{
+					SegIDs: [][]byte{
 						xtest.MustParseHexString(id1),
 						xtest.MustParseHexString(id2)},
 				}

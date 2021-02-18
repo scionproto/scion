@@ -28,7 +28,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
@@ -347,7 +346,7 @@ func segID(s *seg.PathSegment) string { return fmt.Sprintf("%x", s.ID()) }
 
 // getSegmentsByID requests the segments and Sort the result according to the requested order.
 func (s *Server) getSegmentsByID(ctx context.Context,
-	ids []common.RawBytes) (query.Results, error) {
+	ids [][]byte) (query.Results, error) {
 	q := query.Params{SegIDs: ids}
 	r, err := s.Segments.Get(ctx, &q)
 	for i, id := range ids {
@@ -362,8 +361,8 @@ func (s *Server) getSegmentsByID(ctx context.Context,
 }
 
 // decodeSegmentIDs converts segment IDs to RawBytes.
-func decodeSegmentIDs(ids SegmentIDs) ([]common.RawBytes, error) {
-	b := make([]common.RawBytes, 0, len(ids))
+func decodeSegmentIDs(ids SegmentIDs) ([][]byte, error) {
+	b := make([][]byte, 0, len(ids))
 	var errs serrors.List
 	for _, segID := range ids {
 		if id, err := hex.DecodeString(string(segID)); err == nil {

@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/dispatcher/internal/registration"
 	"github.com/scionproto/scion/go/dispatcher/internal/respool"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -261,7 +260,7 @@ type underlayConnWrapper struct {
 }
 
 func (o *underlayConnWrapper) ReadFrom(p []byte) (int, net.Addr, error) {
-	n, meta, err := o.Conn.Read(common.RawBytes(p))
+	n, meta, err := o.Conn.Read([]byte(p))
 	if meta == nil {
 		return n, nil, err
 	}
@@ -274,7 +273,7 @@ func (o *underlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
 	if !ok {
 		return 0, serrors.New("address is not UDP", "addr", a)
 	}
-	return o.Conn.WriteTo(common.RawBytes(p), udpAddr)
+	return o.Conn.WriteTo([]byte(p), udpAddr)
 }
 
 func (o *underlayConnWrapper) Close() error {

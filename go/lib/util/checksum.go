@@ -22,7 +22,7 @@ import (
 
 // Calculate RFC1071 checksum of supplied data chunks. If a chunk has
 // an odd length, it is padded with a 0 during checksum computation.
-func Checksum(srcs ...common.RawBytes) uint16 {
+func Checksum(srcs ...[]byte) uint16 {
 	var sum uint32
 	for _, src := range srcs {
 		length := len(src)

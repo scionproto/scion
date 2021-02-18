@@ -170,7 +170,7 @@ type GeoCoordinates struct {
 type PathFingerprint string
 
 func (pf PathFingerprint) String() string {
-	return common.RawBytes(pf).String()
+	return fmt.Sprintf("%x", []byte(pf))
 }
 
 // Fingerprint uniquely identifies the path based on the sequence of

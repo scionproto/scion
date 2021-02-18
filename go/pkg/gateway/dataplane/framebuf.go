@@ -19,7 +19,6 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
@@ -72,13 +71,13 @@ type frameBuf struct {
 	// if there is no such fragment.
 	pktLen int
 	// The raw bytes buffer for the frame.
-	raw common.RawBytes
+	raw []byte
 	// The sender object for the frame.
 	snd ingressSender
 }
 
 func newFrameBuf() *frameBuf {
-	buf := &frameBuf{raw: make(common.RawBytes, frameBufCap)}
+	buf := &frameBuf{raw: make([]byte, frameBufCap)}
 	buf.Reset()
 	return buf
 }

@@ -30,7 +30,6 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spse"
 )
@@ -44,7 +43,7 @@ type DRKeyExtn struct {
 	// Direction indicates which key has been used during authentication.
 	Direction Dir
 	// MAC is the mac of the SCION Packet with CurrHF and CurrINF set to zero.
-	MAC common.RawBytes
+	MAC []byte
 }
 
 const (
@@ -89,7 +88,7 @@ func (d Dir) String() string {
 
 func NewDRKeyExtn() *DRKeyExtn {
 	s := &DRKeyExtn{BaseExtn: &spse.BaseExtn{SecMode: spse.ScmpAuthDRKey}}
-	s.MAC = make(common.RawBytes, MACLength)
+	s.MAC = make([]byte, MACLength)
 	return s
 }
 
@@ -101,7 +100,7 @@ func (s DRKeyExtn) SetDirection(dir Dir) error {
 	return nil
 }
 
-func (s DRKeyExtn) SetMAC(mac common.RawBytes) error {
+func (s DRKeyExtn) SetMAC(mac []byte) error {
 	if len(mac) != MACLength {
 		return serrors.New("Invalid MAC size",
 			"expected", MACLength, "actual", len(mac))
@@ -110,7 +109,7 @@ func (s DRKeyExtn) SetMAC(mac common.RawBytes) error {
 	return nil
 }
 
-func (s *DRKeyExtn) Write(b common.RawBytes) error {
+func (s *DRKeyExtn) Write(b []byte) error {
 	if len(b) < s.Len() {
 		return serrors.New("Buffer too short",
 			"method", "SCMPAuthDRKeyExtn.Write", "expected", s.Len(), "actual", len(b))
@@ -124,8 +123,8 @@ func (s *DRKeyExtn) Write(b common.RawBytes) error {
 	return nil
 }
 
-func (s *DRKeyExtn) Pack() (common.RawBytes, error) {
-	b := make(common.RawBytes, s.Len())
+func (s *DRKeyExtn) Pack() ([]byte, error) {
+	b := make([]byte, s.Len())
 	if err := s.Write(b); err != nil {
 		return nil, err
 	}

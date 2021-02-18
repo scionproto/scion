@@ -45,7 +45,7 @@ type IntfSpec struct {
 }
 
 type Params struct {
-	SegIDs        []common.RawBytes
+	SegIDs        [][]byte
 	SegTypes      []seg.Type
 	HpCfgIDs      []*HPCfgID
 	Intfs         []*IntfSpec

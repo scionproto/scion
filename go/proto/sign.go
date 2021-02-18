@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -37,11 +36,11 @@ type SignS struct {
 	// Src holds the required metadata to verify the signature. The format is "STRING: METADATA".
 	// The prefix consists of "STRING: " and is required to match the regex "^\w+\: ".
 	// There are no format restrictions on the metadata.
-	Src       common.RawBytes
-	Signature common.RawBytes
+	Src       []byte
+	Signature []byte
 }
 
-func NewSignS(type_ SignType, src common.RawBytes) *SignS {
+func NewSignS(type_ SignType, src []byte) *SignS {
 	return &SignS{Type: type_, Src: src}
 }
 
@@ -52,8 +51,8 @@ func (s *SignS) Copy() *SignS {
 	return &SignS{
 		Timestamp: s.Timestamp,
 		Type:      s.Type,
-		Src:       append(common.RawBytes(nil), s.Src...),
-		Signature: append(common.RawBytes(nil), s.Signature...),
+		Src:       append([]byte(nil), s.Src...),
+		Signature: append([]byte(nil), s.Signature...),
 	}
 }
 
@@ -85,7 +84,7 @@ func (s *SignS) Time() time.Time {
 }
 
 // Pack serializes the signature metadata including the signature.
-func (s *SignS) Pack() common.RawBytes {
+func (s *SignS) Pack() []byte {
 	return s.pack(nil, true)
 }
 
@@ -95,7 +94,7 @@ func (s *SignS) Pack() common.RawBytes {
 // the signature input. It should be true when signing to provide a recent
 // timestamp. When verifying, it should be false to guarantee the same
 // produced input.
-func (s *SignS) SigInput(msg common.RawBytes, setTimestamp bool) common.RawBytes {
+func (s *SignS) SigInput(msg []byte, setTimestamp bool) []byte {
 	if setTimestamp {
 		s.SetTimestamp(time.Now())
 	}
@@ -103,14 +102,14 @@ func (s *SignS) SigInput(msg common.RawBytes, setTimestamp bool) common.RawBytes
 }
 
 // pack appends the type, src, signature (if needed) and timestamp fields to msg
-func (s *SignS) pack(msg common.RawBytes, inclSig bool) common.RawBytes {
-	msg = append(common.RawBytes(nil), msg...)
-	msg = append(msg, common.RawBytes(s.Type.String())...)
+func (s *SignS) pack(msg []byte, inclSig bool) []byte {
+	msg = append([]byte(nil), msg...)
+	msg = append(msg, []byte(s.Type.String())...)
 	msg = append(msg, s.Src...)
 	if inclSig {
 		msg = append(msg, s.Signature...)
 	}
-	t := make(common.RawBytes, 4)
+	t := make([]byte, 4)
 	binary.BigEndian.PutUint32(t, s.Timestamp)
 	return append(msg, t...)
 }
@@ -130,12 +129,12 @@ func (s *SignS) String() string {
 var _ Cerealizable = (*SignedBlobS)(nil)
 
 type SignedBlobS struct {
-	Blob common.RawBytes
+	Blob []byte
 	Sign *SignS
 }
 
-func (sbs *SignedBlobS) Pack() common.RawBytes {
-	var raw common.RawBytes
+func (sbs *SignedBlobS) Pack() []byte {
+	var raw []byte
 	raw = append(raw, sbs.Blob...)
 	raw = append(raw, sbs.Sign.Pack()...)
 	return raw

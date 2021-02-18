@@ -20,7 +20,6 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -216,7 +215,7 @@ func (p *Policy) initDefaults(t PolicyType) error {
 }
 
 // ParsePolicyYaml parses the policy in yaml format and initializes the default values.
-func ParsePolicyYaml(b common.RawBytes, t PolicyType) (*Policy, error) {
+func ParsePolicyYaml(b []byte, t PolicyType) (*Policy, error) {
 	p := &Policy{}
 	if err := yaml.UnmarshalStrict(b, p); err != nil {
 		return nil, serrors.WrapStr("Unable to parse policy", err)

@@ -137,7 +137,7 @@ func (e *executor) AllRevocations(ctx context.Context) (<-chan beacon.Revocation
 		defer close(res)
 		defer rows.Close()
 		for rows.Next() {
-			var rawRev common.RawBytes
+			var rawRev []byte
 			err = rows.Scan(&rawRev)
 			if err != nil {
 				res <- beacon.RevocationOrErr{Err: db.NewReadError(beacon.ErrReadingRows, err)}
@@ -285,7 +285,7 @@ func (e *executor) InsertBeacon(ctx context.Context, b beacon.Beacon,
 }
 
 // getBeaconMeta gets the metadata for existing beacons.
-func (e *executor) getBeaconMeta(ctx context.Context, segID common.RawBytes) (*beaconMeta, error) {
+func (e *executor) getBeaconMeta(ctx context.Context, segID []byte) (*beaconMeta, error) {
 	var rowID, infoTime, lastUpdated int64
 	query := "SELECT RowID, InfoTime, LastUpdated FROM Beacons WHERE SegID=?"
 	err := e.db.QueryRowContext(ctx, query, segID).Scan(&rowID, &infoTime, &lastUpdated)

@@ -66,7 +66,7 @@ func (s *DefaultPacketDispatcherService) Register(ctx context.Context, ia addr.I
 // RevocationHandler is called by the default SCMP Handler whenever revocations are encountered.
 type RevocationHandler interface {
 	// RevokeRaw handles a revocation received as raw bytes.
-	RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes)
+	RevokeRaw(ctx context.Context, rawSRevInfo []byte)
 }
 
 // SCMPHandler customizes the way snet connections deal with SCMP.

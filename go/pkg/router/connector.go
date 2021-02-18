@@ -122,7 +122,7 @@ func (c *Connector) DelSvc(ia addr.IA, svc addr.HostSVC, ip net.IP) error {
 }
 
 // SetKey sets the key for the given ISD-AS at the given index.
-func (c *Connector) SetKey(ia addr.IA, index int, key common.RawBytes) error {
+func (c *Connector) SetKey(ia addr.IA, index int, key []byte) error {
 	log.Debug("Setting key", "isd_as", ia, "index", index)
 	if !c.ia.Equal(ia) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
@@ -134,7 +134,7 @@ func (c *Connector) SetKey(ia addr.IA, index int, key common.RawBytes) error {
 }
 
 // SetRevocation sets the revocation for the given ISD-AS and interface.
-func (c *Connector) SetRevocation(ia addr.IA, ifID common.IFIDType, rev common.RawBytes) error {
+func (c *Connector) SetRevocation(ia addr.IA, ifID common.IFIDType, rev []byte) error {
 	if !c.ia.Equal(ia) {
 		return serrors.WithCtx(errMultiIA, "current", c.ia, "new", ia)
 	}

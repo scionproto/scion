@@ -1142,7 +1142,7 @@ func computeMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopFiel
 }
 
 func createMac(t *testing.T) hash.Hash {
-	mac, err := scrypto.InitMac(make(common.RawBytes, 16))
+	mac, err := scrypto.InitMac(make([]byte, 16))
 	xtest.FailOnErr(t, err)
 	return mac
 }

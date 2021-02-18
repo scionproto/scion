@@ -28,7 +28,6 @@ import (
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sockctrl"
@@ -53,10 +52,10 @@ type Messages []ipv4.Message
 // Conn describes the API for an underlay socket with additional metadata on
 // reads.
 type Conn interface {
-	Read(common.RawBytes) (int, *ReadMeta, error)
+	Read([]byte) (int, *ReadMeta, error)
 	ReadBatch(Messages, []ReadMeta) (int, error)
-	Write(common.RawBytes) (int, error)
-	WriteTo(common.RawBytes, *net.UDPAddr) (int, error)
+	Write([]byte) (int, error)
+	WriteTo([]byte, *net.UDPAddr) (int, error)
 	WriteBatch(Messages) (int, error)
 	LocalAddr() *net.UDPAddr
 	RemoteAddr() *net.UDPAddr
@@ -205,7 +204,7 @@ type connUDPBase struct {
 	conn     *net.UDPConn
 	Listen   *net.UDPAddr
 	Remote   *net.UDPAddr
-	oob      common.RawBytes
+	oob      []byte
 	closed   bool
 	readMeta ReadMeta
 }
@@ -260,7 +259,7 @@ func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cf
 		}
 		log.Info(msg, ctx...)
 	}
-	oob := make(common.RawBytes, oobSize)
+	oob := make([]byte, oobSize)
 	cc.conn = c
 	cc.Listen = laddr
 	cc.Remote = raddr
@@ -268,7 +267,7 @@ func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cf
 	return nil
 }
 
-func (c *connUDPBase) Read(b common.RawBytes) (int, *ReadMeta, error) {
+func (c *connUDPBase) Read(b []byte) (int, *ReadMeta, error) {
 	c.readMeta.reset()
 	n, oobn, _, src, err := c.conn.ReadMsgUDP(b, c.oob)
 	readTime := time.Now()
@@ -287,7 +286,7 @@ func (c *connUDPBase) Read(b common.RawBytes) (int, *ReadMeta, error) {
 	return n, &c.readMeta, err
 }
 
-func (c *connUDPBase) handleCmsg(oob common.RawBytes, meta *ReadMeta, readTime time.Time) {
+func (c *connUDPBase) handleCmsg(oob []byte, meta *ReadMeta, readTime time.Time) {
 	// Based on https://github.com/golang/go/blob/release-branch.go1.8/src/syscall/sockcmsg_unix.go#L49
 	// and modified to remove most allocations.
 	sizeofCmsgHdr := syscall.CmsgLen(0)
@@ -321,11 +320,11 @@ func (c *connUDPBase) handleCmsg(oob common.RawBytes, meta *ReadMeta, readTime t
 	}
 }
 
-func (c *connUDPBase) Write(b common.RawBytes) (int, error) {
+func (c *connUDPBase) Write(b []byte) (int, error) {
 	return c.conn.Write(b)
 }
 
-func (c *connUDPBase) WriteTo(b common.RawBytes, dst *net.UDPAddr) (int, error) {
+func (c *connUDPBase) WriteTo(b []byte, dst *net.UDPAddr) (int, error) {
 	if c.Remote != nil {
 		return c.conn.Write(b)
 	}
@@ -392,7 +391,7 @@ func NewReadMessages(n int) Messages {
 	for i := range m {
 		// Allocate a single-element, to avoid allocations when setting the buffer.
 		m[i].Buffers = make([][]byte, 1)
-		m[i].OOB = make(common.RawBytes, oobSize)
+		m[i].OOB = make([]byte, oobSize)
 	}
 	return m
 }

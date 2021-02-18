@@ -21,7 +21,6 @@ import (
 	"github.com/google/gopacket"
 
 	"github.com/scionproto/scion/go/dispatcher/internal/metrics"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 )
@@ -56,7 +55,7 @@ type Packet struct {
 	// IngoreUnsupported is set to true.
 	parser *gopacket.DecodingLayerParser
 	// buffer contains the raw slice that other fields reference
-	buffer common.RawBytes
+	buffer []byte
 
 	mtx      sync.Mutex
 	refCount *int

@@ -23,7 +23,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -190,7 +189,7 @@ type IA struct {
 	A AS
 }
 
-func IAFromRaw(b common.RawBytes) IA {
+func IAFromRaw(b []byte) IA {
 	ia := &IA{}
 	ia.Parse(b)
 	return *ia
@@ -248,11 +247,11 @@ func (ia *IA) UnmarshalText(text []byte) error {
 	return nil
 }
 
-func (ia *IA) Parse(b common.RawBytes) {
+func (ia *IA) Parse(b []byte) {
 	*ia = IAInt(binary.BigEndian.Uint64(b)).IA()
 }
 
-func (ia IA) Write(b common.RawBytes) {
+func (ia IA) Write(b []byte) {
 	binary.BigEndian.PutUint64(b, uint64(ia.IAInt()))
 }
 

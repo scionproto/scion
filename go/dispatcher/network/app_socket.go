@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/dispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/dispatcher/internal/respool"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -133,7 +132,7 @@ func (h *AppConnHandler) logRegistration(ia addr.IA, public *net.UDPAddr, bind n
 	h.Logger.Debug("Client registered address", items...)
 }
 
-func (h *AppConnHandler) recvRegistration(b common.RawBytes) (*reliable.Registration, error) {
+func (h *AppConnHandler) recvRegistration(b []byte) (*reliable.Registration, error) {
 	n, _, err := h.Conn.ReadFrom(b)
 	if err != nil {
 		return nil, err
@@ -147,7 +146,7 @@ func (h *AppConnHandler) recvRegistration(b common.RawBytes) (*reliable.Registra
 	return &rm, nil
 }
 
-func (h *AppConnHandler) sendConfirmation(b common.RawBytes, c *reliable.Confirmation) error {
+func (h *AppConnHandler) sendConfirmation(b []byte, c *reliable.Confirmation) error {
 	n, err := c.SerializeTo(b)
 	if err != nil {
 		return err

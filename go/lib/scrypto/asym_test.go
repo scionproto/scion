@@ -20,7 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -94,7 +93,7 @@ func TestSign(t *testing.T) {
 	// Note from: https://godoc.org/golang.org/x/crypto/ed25519
 	// "...this package's private key representation includes a public key suffix to make
 	// multiple signing operations with the same key more efficient...""
-	privKey := common.RawBytes(ed25519.NewKeyFromSeed(Ed25519TestPrivateKey))
+	privKey := []byte(ed25519.NewKeyFromSeed(Ed25519TestPrivateKey))
 	t.Run("Sign should sign message correctly", func(t *testing.T) {
 		sig, err := scrypto.Sign(Ed25519TestMsg, privKey, scrypto.Ed25519)
 		assert.NoError(t, err)
@@ -126,7 +125,7 @@ func TestVerify(t *testing.T) {
 	})
 
 	t.Run("Verify should throw an error for a mangled signature", func(t *testing.T) {
-		mangled := append(common.RawBytes{}, Ed25519TestSignature...)
+		mangled := append([]byte{}, Ed25519TestSignature...)
 		mangled[0] ^= 0xFF
 		err := scrypto.Verify(Ed25519TestMsg, mangled, Ed25519TestPublicKey, scrypto.Ed25519)
 		assert.Error(t, err)

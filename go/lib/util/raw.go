@@ -16,14 +16,12 @@ package util
 
 import (
 	"io"
-
-	"github.com/scionproto/scion/go/lib/common"
 )
 
 var _ io.ReadWriter = (*Raw)(nil)
 
 type Raw struct {
-	B      common.RawBytes
+	B      []byte
 	Offset int
 }
 

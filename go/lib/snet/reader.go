@@ -28,14 +28,14 @@ type scionConnReader struct {
 	conn PacketConn
 
 	mtx    sync.Mutex
-	buffer common.RawBytes
+	buffer []byte
 }
 
 func newScionConnReader(base *scionConnBase, conn PacketConn) *scionConnReader {
 	return &scionConnReader{
 		base:   base,
 		conn:   conn,
-		buffer: make(common.RawBytes, common.MaxMTU),
+		buffer: make([]byte, common.MaxMTU),
 	}
 }
 

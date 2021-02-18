@@ -43,7 +43,7 @@ type Cerealizable interface {
 
 // WriteRoot creates a complete capnp message for c, and writes it out to b.
 // The int return value is the number of bytes written.
-func WriteRoot(c Cerealizable, b common.RawBytes) (int, error) {
+func WriteRoot(c Cerealizable, b []byte) (int, error) {
 	msg, err := cerealInsert(c)
 	if err != nil {
 		return 0, err
@@ -58,7 +58,7 @@ func WriteRoot(c Cerealizable, b common.RawBytes) (int, error) {
 }
 
 // PackRoot creates a complete capnp message for c, and returns it encoded as bytes.
-func PackRoot(c Cerealizable) (common.RawBytes, error) {
+func PackRoot(c Cerealizable) ([]byte, error) {
 	msg, err := cerealInsert(c)
 	if err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func cerealInsert(c Cerealizable) (*capnp.Message, error) {
 }
 
 // ParseFromRaw is a utility function, which reads a capnp message from b and parses it into c.
-func ParseFromRaw(c Cerealizable, b common.RawBytes) error {
+func ParseFromRaw(c Cerealizable, b []byte) error {
 	return ParseFromReader(c, bytes.NewBuffer(b))
 }
 

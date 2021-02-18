@@ -17,7 +17,6 @@ package cs
 import (
 	"context"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -29,7 +28,7 @@ type RevocationHandler struct {
 	RevCache revcache.RevCache
 }
 
-func (h RevocationHandler) RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes) {
+func (h RevocationHandler) RevokeRaw(ctx context.Context, rawSRevInfo []byte) {
 	logger := log.FromCtx(ctx)
 	sRev, err := path_mgmt.NewSignedRevInfoFromRaw(rawSRevInfo)
 	if err != nil {
