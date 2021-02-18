@@ -15,8 +15,10 @@
 package routemgr
 
 import (
+	"bytes"
 	"fmt"
 	"net"
+	"sort"
 	"sync"
 	"time"
 
@@ -28,6 +30,11 @@ const (
 	updateChannelSize      = 256
 	defaultCleanupInterval = time.Second
 )
+
+// Diagnostics is the diagnostic information about the RouteDB.
+type Diagnostics struct {
+	Routes []Route
+}
 
 type Route struct {
 	// Prefix is the IP address prefix of the route.
@@ -268,6 +275,60 @@ func (db *RouteDB) closeConsumer(c *RouteConsumer) {
 	defer db.mtx.Unlock()
 
 	delete(db.consumers, c)
+}
+
+// Diagnostics takes a diagnostic snapshot of the RouteDB.
+func (db *RouteDB) Diagnostics() Diagnostics {
+	routes := db.snapshot()
+	if len(routes) == 0 {
+		return Diagnostics{}
+	}
+	sortRoutes(routes)
+	return Diagnostics{Routes: routes}
+}
+
+func (db *RouteDB) snapshot() []Route {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+	routes := make([]Route, 0, len(db.routes))
+	for _, route := range db.routes {
+		routes = append(routes, route.Route)
+	}
+	return routes
+}
+
+func sortRoutes(routes []Route) {
+	sort.Slice(routes, func(i, j int) bool {
+		a := routes[i].Prefix.IP.Mask(routes[i].Prefix.Mask)
+		b := routes[j].Prefix.IP.Mask(routes[j].Prefix.Mask)
+		a, b = canonicalIP(a), canonicalIP(b)
+
+		// Sort according to IP family.
+		if aLen, bLen := len(a), len(b); aLen != bLen {
+			return aLen < bLen
+		}
+		if c := bytes.Compare(a, b); c != 0 {
+			return c == -1
+		}
+		aOnes, _ := routes[i].Prefix.Mask.Size()
+		bOnes, _ := routes[j].Prefix.Mask.Size()
+		if aOnes != bOnes {
+			return aOnes < bOnes
+		}
+		aHop := canonicalIP(routes[i].NextHop)
+		bHop := canonicalIP(routes[j].NextHop)
+		if c := bytes.Compare(aHop, bHop); c != 0 {
+			return c == -1
+		}
+		return false
+	})
+}
+
+func canonicalIP(ip net.IP) net.IP {
+	if v4 := ip.To4(); v4 != nil {
+		return v4
+	}
+	return ip
 }
 
 type publisherRouteEntry struct {

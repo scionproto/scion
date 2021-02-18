@@ -15,14 +15,23 @@
 package routemgr
 
 import (
+	"encoding/json"
+	"flag"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
+
+// update is a cmd line flag that enables golden file updates. To update the
+// golden files simply run 'go test -update ./...'.
+var update = flag.Bool("update", false, "set to true to regenerate golden files")
 
 func createRouteDB() *RouteDB {
 	db := &RouteDB{
@@ -218,5 +227,63 @@ func TestDelayed(t *testing.T) {
 
 	pub.Close()
 	cons.Close()
+	db.Close()
+}
+
+func TestRouteDBDiagnosticsWrite(t *testing.T) {
+	db := createRouteDB()
+	pub := db.NewPublisher()
+
+	parseRoute := func(route string) Route {
+		s := strings.Split(route, " ")
+		return Route{
+			Prefix:  xtest.MustParseCIDR(t, s[0]),
+			NextHop: net.ParseIP(s[len(s)-1]),
+		}
+	}
+
+	routes := []Route{
+		parseRoute("dead::/64        deaf::beef"),
+		parseRoute("dead::/65        deaf::beef"),
+		parseRoute("192.168.1.0/24   10.11.12.13"),
+		parseRoute("192.168.100.0/24 10.11.12.13"),
+		parseRoute("192.168.25.0/24  10.11.12.13"),
+		parseRoute("192.168.0.0/24   10.11.12.13"),
+		parseRoute("192.168.0.128/25 10.11.12.13"),
+		parseRoute("192.168.0.192/26 10.11.12.13"),
+		parseRoute("192.168.1.0/24   10.11.12.14"),
+		parseRoute("192.168.100.0/24 10.11.12.14"),
+		parseRoute("192.168.25.0/24  10.11.12.14"),
+		parseRoute("192.168.0.0/24   10.11.12.14"),
+		parseRoute("192.168.0.128/25 10.11.12.14"),
+		parseRoute("192.168.0.192/26 10.11.12.14"),
+	}
+
+	for _, route := range routes {
+		pub.AddRoute(route)
+	}
+
+	all, err := json.MarshalIndent(db.Diagnostics(), "", "    ")
+	require.NoError(t, err)
+	if *update {
+		xtest.MustWriteToFile(t, all, "all-routes.json")
+	}
+	expected := xtest.MustReadFromFile(t, "all-routes.json")
+	require.Equal(t, string(expected), string(all))
+
+	for _, route := range routes[4:] {
+		pub.DeleteRoute(route)
+	}
+	db.cleanUp()
+
+	remaining, err := json.MarshalIndent(db.Diagnostics(), "", "    ")
+	require.NoError(t, err)
+	if *update {
+		xtest.MustWriteToFile(t, remaining, "remaining-routes.json")
+	}
+	expected = xtest.MustReadFromFile(t, "remaining-routes.json")
+	require.Equal(t, string(expected), string(remaining))
+
+	pub.Close()
 	db.Close()
 }

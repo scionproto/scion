@@ -79,7 +79,10 @@ Top:
 func (l *Linux) publishToLinux(update RouteUpdate) error {
 	if update.IsAdd {
 		return xnet.AddRoute(0, l.Device, update.Prefix, update.NextHop)
-	} else {
-		return xnet.DeleteRoute(0, l.Device, update.Prefix, update.NextHop)
 	}
+	return xnet.DeleteRoute(0, l.Device, update.Prefix, update.NextHop)
+}
+
+func (l *Linux) Diagnostics() Diagnostics {
+	return l.exportedRoutes.Diagnostics()
 }

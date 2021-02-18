@@ -16,6 +16,7 @@ package gateway
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net"
 	"net/http"
@@ -640,6 +641,7 @@ func (g *Gateway) Run() error {
 	g.HTTPEndpoints["diagnostics/prefixwatcher"] = func(w http.ResponseWriter, _ *http.Request) {
 		remoteMonitor.DiagnosticsWrite(w)
 	}
+	g.HTTPEndpoints["diagnostics/sgrp"] = g.diagnosticsSGRP(configPublisher)
 	var fwMetrics dataplane.IPForwarderMetrics
 	if g.Metrics != nil {
 		fwMetrics.IPPktBytesLocalRecv = metrics.NewPromCounter(
@@ -677,6 +679,34 @@ func (g *Gateway) Run() error {
 		return serrors.WrapStr("registering HTTP pages", err)
 	}
 	select {}
+}
+
+func (g *Gateway) diagnosticsSGRP(pub *control.ConfigPublisher) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var d struct {
+			Advertise struct {
+				Static []string `json:"static"`
+			} `json:"advertise"`
+			Learned struct {
+				Dynamic []string `json:"dynamic"`
+			} `json:"learned"`
+		}
+		// Avoid null in json output.
+		d.Advertise.Static = []string{}
+		d.Learned.Dynamic = []string{}
+
+		for _, s := range routing.StaticAdvertised(*pub.RoutingPolicy()) {
+			d.Advertise.Static = append(d.Advertise.Static, s.String())
+		}
+		if p, ok := g.RoutePublisherFactory.(interface{ Diagnostics() routemgr.Diagnostics }); ok {
+			for _, r := range p.Diagnostics().Routes {
+				d.Learned.Dynamic = append(d.Learned.Dynamic, r.Prefix.String())
+			}
+		}
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "    ")
+		enc.Encode(d)
+	}
 }
 
 func PathUpdateInterval() time.Duration {
