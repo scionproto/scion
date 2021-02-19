@@ -69,8 +69,8 @@ def fmt_attrs(attrs: Dict[str, str]) -> str:
 
 def link_attrs(link: Link) -> Dict[str, str]:
     attrs = {
-        'headlabel': link.a.ifid,
-        'taillabel': link.b.ifid,
+        'taillabel': link.a.ifid,
+        'headlabel': link.b.ifid,
         'labelfontcolor': 'gray50',
         'labelfontsize': '10.0',
     }
