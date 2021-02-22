@@ -98,6 +98,7 @@ func TestSignerGenGenerate(t *testing.T) {
 					Base:   1,
 					Serial: 1,
 				},
+				Subject:      chain[0].Subject,
 				SubjectKeyID: chain[0].SubjectKeyId,
 				Expiration:   chain[0].NotAfter,
 				ChainValidity: cppki.Validity{
@@ -149,6 +150,7 @@ func TestSignerGenGenerate(t *testing.T) {
 					Base:   1,
 					Serial: 1,
 				},
+				Subject:      chain[0].Subject,
 				SubjectKeyID: []byte("longer"),
 				Expiration:   chain[0].NotAfter.Add(time.Hour),
 				ChainValidity: cppki.Validity{
@@ -215,6 +217,7 @@ func TestSignerGenGenerate(t *testing.T) {
 					Base:   1,
 					Serial: 1,
 				},
+				Subject:      chain[0].Subject,
 				SubjectKeyID: []byte("longer"),
 				Expiration:   now.Add(5 * time.Minute),
 				ChainValidity: cppki.Validity{

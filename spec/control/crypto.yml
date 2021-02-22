@@ -40,93 +40,107 @@ components:
         - cert_validity
       properties:
         subject:
-          type: object
-          required:
-            - isd_as
-          properties:
-            isd_as:
-              type: string
-              example: 1-ff00:0:110
+          $ref: "#/components/schemas/Subject"
         subject_key_id:
-          type: string
-          example: 5D A1 F7 17 F0 C1 35 0C 88 25 FA 61 D3 1D FE 91 8E F5 0F 7C
+          $ref: "#/components/schemas/SubjectKeyID"
         policy:
-          type: object
-          required:
-            - chain_lifetime
-          properties:
-            chain_lifetime:
-              type: string
-              example: 72h0m0s
+          $ref: "#/components/schemas/Policy"
         cert_validity:
-          type: object
-          required:
-            - not_before
-            - not_after
-          properties:
-            not_before:
-              type: string
-              format: date-time
-              example: 2021-01-04T09:59:33Z
-            not_after:
-              type: string
-              format: date-time
-              example: 2023-01-04T09:59:33Z
+          $ref: "#/components/schemas/Validity"
     Signer:
+      title: Control plane signer information
       type: object
       required:
-        - subject
-        - subject_key_id
         - expiration
+        - as_certificate
         - trc_id
-        - cert_validity
-        - in_grace_period
+        - trc_in_grace_period
       properties:
-        subject:
-          type: object
-          required:
-            - isd_as
-          properties:
-            isd_as:
-              type: string
-              example: 1-ff00:0:110
-        subject_key_id:
-          type: string
-          example: E0 EA 2C BC AF 1C E5 BF A7 D0 17 BD 93 85 36 08 28 DE FA E2
         expiration:
+          description: Signer expiration imposed by chain and TRC validity.
           type: string
           format: date-time
           example: 2022-01-04T09:59:33Z
+        as_certificate:
+          $ref: "#/components/schemas/Certificate"
         trc_id:
-          type: object
-          required:
-            - isd
-            - base_number
-            - serial_number
-          properties:
-            isd:
-              type: integer
-              example: 1
-            base_number:
-              type: integer
-              example: 1
-            serial_number:
-              type: integer
-              example: 1
-        cert_validity:
-          type: object
-          required:
-            - not_before
-            - not_after
-          properties:
-            not_before:
-              type: string
-              format: date-time
-              example: 2021-01-04T09:59:33Z
-            not_after:
-              type: string
-              format: date-time
-              example: 2022-01-04T09:59:33Z
-        in_grace_period:
+          $ref: "#/components/schemas/TRCID"
+        trc_in_grace_period:
+          description: |
+            TRC used as trust root is in grace period, and the latest TRC cannot
+            be used as trust root.
           type: boolean
-          example: false
+    Certificate:
+      title: Certificate description
+      type: object
+      required:
+        - distinguished_name
+        - isd_as
+        - validity
+        - subject_key_algo
+        - subject_key_id
+      properties:
+        distinguished_name:
+          type: string
+        isd_as:
+          $ref:  "../common/process.yml#/components/schemas/IsdAs"
+        validity:
+          $ref: "#/components/schemas/Validity"
+        subject_key_algo:
+          type: string
+          example: ECDSA
+        subject_key_id:
+          $ref: "#/components/schemas/SubjectKeyID"
+    Validity:
+      title: Validity period
+      type: object
+      required:
+        - not_before
+        - not_after
+      properties:
+        not_before:
+          type: string
+          format: date-time
+          example: 2021-01-04T09:59:33Z
+        not_after:
+          type: string
+          format: date-time
+          example: 2022-01-04T09:59:33Z
+    TRCID:
+      title: TRC Identifier
+      type: object
+      required:
+          - isd
+          - base_number
+          - serial_number
+      properties:
+        isd:
+          type: integer
+          example: 42
+        base_number:
+          type: integer
+          example: 1
+        serial_number:
+          type: integer
+          example: 3
+    SubjectKeyID:
+      type: string
+      format: spaced-hex-string
+      example: "89 B9 49 C2 2F 2F 9C DD 0D 2A 57 A9 DE 8E 2F 95 F3 09 10 D1"
+    Subject:
+      type: object
+      required:
+        - isd_as
+      properties:
+        isd_as:
+          $ref:  "../common/process.yml#/components/schemas/IsdAs"
+    Policy:
+      type: object
+      required:
+        - chain_lifetime
+      properties:
+        chain_lifetime:
+          type: string
+          example: 72h0m0s
+
+

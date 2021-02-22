@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"flag"
 	"io/ioutil"
 	"net/http"
@@ -254,8 +255,12 @@ func TestAPI(t *testing.T) {
 				}
 				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
 					trust.Signer{
-						IA:           xtest.MustParseIA("1-ff00:0:110"),
-						Algorithm:    signed.ECDSAWithSHA512,
+						IA:        xtest.MustParseIA("1-ff00:0:110"),
+						Algorithm: signed.ECDSAWithSHA512,
+						Subject: pkix.Name{
+							Country:    []string{"CH"},
+							CommonName: "1-ff00:0:110 AS Certificate",
+						},
 						SubjectKeyID: []byte("лучший учитель"),
 						TRCID: cppki.TRCID{
 							ISD:    1,

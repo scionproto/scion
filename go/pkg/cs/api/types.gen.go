@@ -13,17 +13,19 @@ import (
 
 // CA defines model for CA.
 type CA struct {
-	CertValidity struct {
-		NotAfter  time.Time `json:"not_after"`
-		NotBefore time.Time `json:"not_before"`
-	} `json:"cert_validity"`
-	Policy struct {
-		ChainLifetime string `json:"chain_lifetime"`
-	} `json:"policy"`
-	Subject struct {
-		IsdAs string `json:"isd_as"`
-	} `json:"subject"`
-	SubjectKeyId string `json:"subject_key_id"`
+	CertValidity Validity     `json:"cert_validity"`
+	Policy       Policy       `json:"policy"`
+	Subject      Subject      `json:"subject"`
+	SubjectKeyId SubjectKeyID `json:"subject_key_id"`
+}
+
+// Certificate defines model for Certificate.
+type Certificate struct {
+	DistinguishedName string       `json:"distinguished_name"`
+	IsdAs             IsdAs        `json:"isd_as"`
+	SubjectKeyAlgo    string       `json:"subject_key_algo"`
+	SubjectKeyId      SubjectKeyID `json:"subject_key_id"`
+	Validity          Validity     `json:"validity"`
 }
 
 // Hop defines model for Hop.
@@ -40,6 +42,11 @@ type LogLevel struct {
 
 	// Logging level
 	Level string `json:"level"`
+}
+
+// Policy defines model for Policy.
+type Policy struct {
+	ChainLifetime string `json:"chain_lifetime"`
 }
 
 // Problem defines model for Problem.
@@ -88,21 +95,15 @@ type SegmentIDs []SegmentID
 
 // Signer defines model for Signer.
 type Signer struct {
-	CertValidity struct {
-		NotAfter  time.Time `json:"not_after"`
-		NotBefore time.Time `json:"not_before"`
-	} `json:"cert_validity"`
-	Expiration    time.Time `json:"expiration"`
-	InGracePeriod bool      `json:"in_grace_period"`
-	Subject       struct {
-		IsdAs string `json:"isd_as"`
-	} `json:"subject"`
-	SubjectKeyId string `json:"subject_key_id"`
-	TrcId        struct {
-		BaseNumber   int `json:"base_number"`
-		Isd          int `json:"isd"`
-		SerialNumber int `json:"serial_number"`
-	} `json:"trc_id"`
+	AsCertificate Certificate `json:"as_certificate"`
+
+	// Signer expiration imposed by chain and TRC validity.
+	Expiration time.Time `json:"expiration"`
+	TrcId      TRCID     `json:"trc_id"`
+
+	// TRC used as trust root is in grace period, and the latest TRC cannot
+	// be used as trust root.
+	TrcInGracePeriod bool `json:"trc_in_grace_period"`
 }
 
 // StandardError defines model for StandardError.
@@ -112,9 +113,30 @@ type StandardError struct {
 	Error string `json:"error"`
 }
 
+// Subject defines model for Subject.
+type Subject struct {
+	IsdAs IsdAs `json:"isd_as"`
+}
+
+// SubjectKeyID defines model for SubjectKeyID.
+type SubjectKeyID string
+
+// TRCID defines model for TRCID.
+type TRCID struct {
+	BaseNumber   int `json:"base_number"`
+	Isd          int `json:"isd"`
+	SerialNumber int `json:"serial_number"`
+}
+
 // Topology defines model for Topology.
 type Topology struct {
 	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
+// Validity defines model for Validity.
+type Validity struct {
+	NotAfter  time.Time `json:"not_after"`
+	NotBefore time.Time `json:"not_before"`
 }
 
 // BadRequest defines model for BadRequest.

@@ -95,3 +95,7 @@ var signatureAlgorithmDetails = map[SignatureAlgorithm]struct {
 	ECDSAWithSHA384: {name: "ECDSA-SHA384", pubKeyAlgo: pkECDSA, hash: crypto.SHA384},
 	ECDSAWithSHA512: {name: "ECDSA-SHA512", pubKeyAlgo: pkECDSA, hash: crypto.SHA512},
 }
+
+func (a SignatureAlgorithm) String() string {
+	return signatureAlgorithmDetails[a].name
+}

@@ -1,7 +1,7 @@
 {
     "cert_validity": {
-        "not_after": "2020-06-24T12:00:00Z",
-        "not_before": "2025-06-24T12:00:00Z"
+        "not_after": "2025-06-24T12:00:00Z",
+        "not_before": "2020-06-24T12:00:00Z"
     },
     "policy": {
         "chain_lifetime": "72h0m0s"

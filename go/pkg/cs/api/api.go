@@ -251,12 +251,19 @@ func (s *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	rep := CA{}
-	rep.CertValidity.NotAfter = p.Certificate.NotBefore
-	rep.CertValidity.NotBefore = p.Certificate.NotAfter
-	rep.Policy.ChainLifetime = fmt.Sprintf("%s", p.Validity)
-	rep.Subject.IsdAs = ia.String()
-	rep.SubjectKeyId = fmt.Sprintf("% X", p.Certificate.SubjectKeyId)
+	rep := CA{
+		CertValidity: Validity{
+			NotAfter:  p.Certificate.NotAfter,
+			NotBefore: p.Certificate.NotBefore,
+		},
+		Policy: Policy{
+			ChainLifetime: fmt.Sprintf("%s", p.Validity),
+		},
+		Subject: Subject{
+			IsdAs: IsdAs(ia.String()),
+		},
+		SubjectKeyId: SubjectKeyID(fmt.Sprintf("% X", p.Certificate.SubjectKeyId)),
+	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
 	if err := enc.Encode(rep); err != nil {
@@ -303,16 +310,25 @@ func (s *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	rep := Signer{}
-	rep.CertValidity.NotBefore = p.ChainValidity.NotBefore
-	rep.CertValidity.NotAfter = p.ChainValidity.NotAfter
-	rep.Expiration = p.Expiration
-	rep.InGracePeriod = p.InGrace
-	rep.Subject.IsdAs = p.IA.String()
-	rep.SubjectKeyId = fmt.Sprintf("% X", p.SubjectKeyID)
-	rep.TrcId.BaseNumber = int(p.TRCID.Base)
-	rep.TrcId.Isd = int(p.TRCID.ISD)
-	rep.TrcId.SerialNumber = int(p.TRCID.Serial)
+	rep := Signer{
+		AsCertificate: Certificate{
+			DistinguishedName: p.Subject.String(),
+			IsdAs:             IsdAs(p.IA.String()),
+			SubjectKeyAlgo:    p.Algorithm.String(),
+			SubjectKeyId:      SubjectKeyID(fmt.Sprintf("% X", p.SubjectKeyID)),
+			Validity: Validity{
+				NotAfter:  p.ChainValidity.NotAfter,
+				NotBefore: p.ChainValidity.NotBefore,
+			},
+		},
+		Expiration: p.Expiration,
+		TrcId: TRCID{
+			BaseNumber:   int(p.TRCID.Base),
+			Isd:          int(p.TRCID.ISD),
+			SerialNumber: int(p.TRCID.Serial),
+		},
+		TrcInGracePeriod: p.InGrace,
+	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
 	if err := enc.Encode(rep); err != nil {
