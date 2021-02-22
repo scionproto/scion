@@ -19,11 +19,9 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 )
 
@@ -56,8 +54,6 @@ func (q ChainQuery) MarshalJSON() ([]byte, error) {
 
 // DB is the database interface for trust material.
 type DB interface {
-	db.LimitSetter
-	io.Closer
 	// Chains looks up all chains that match the query.
 	Chains(context.Context, ChainQuery) ([][]*x509.Certificate, error)
 	// InsertChain inserts the given chain.

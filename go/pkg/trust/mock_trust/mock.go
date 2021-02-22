@@ -55,20 +55,6 @@ func (mr *MockDBMockRecorder) Chains(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Chains", reflect.TypeOf((*MockDB)(nil).Chains), arg0, arg1)
 }
 
-// Close mocks base method
-func (m *MockDB) Close() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Close")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Close indicates an expected call of Close
-func (mr *MockDBMockRecorder) Close() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockDB)(nil).Close))
-}
-
 // InsertChain mocks base method
 func (m *MockDB) InsertChain(arg0 context.Context, arg1 []*x509.Certificate) (bool, error) {
 	m.ctrl.T.Helper()
@@ -97,30 +83,6 @@ func (m *MockDB) InsertTRC(arg0 context.Context, arg1 cppki.SignedTRC) (bool, er
 func (mr *MockDBMockRecorder) InsertTRC(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertTRC", reflect.TypeOf((*MockDB)(nil).InsertTRC), arg0, arg1)
-}
-
-// SetMaxIdleConns mocks base method
-func (m *MockDB) SetMaxIdleConns(arg0 int) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetMaxIdleConns", arg0)
-}
-
-// SetMaxIdleConns indicates an expected call of SetMaxIdleConns
-func (mr *MockDBMockRecorder) SetMaxIdleConns(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMaxIdleConns", reflect.TypeOf((*MockDB)(nil).SetMaxIdleConns), arg0)
-}
-
-// SetMaxOpenConns mocks base method
-func (m *MockDB) SetMaxOpenConns(arg0 int) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetMaxOpenConns", arg0)
-}
-
-// SetMaxOpenConns indicates an expected call of SetMaxOpenConns
-func (mr *MockDBMockRecorder) SetMaxOpenConns(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMaxOpenConns", reflect.TypeOf((*MockDB)(nil).SetMaxOpenConns), arg0)
 }
 
 // SignedTRC mocks base method

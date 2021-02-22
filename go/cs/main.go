@@ -136,12 +136,12 @@ func realMain() error {
 		Dialer:   quicStack.Dialer,
 	}
 
-	trustDB, err := storage.NewTrustStorage(globalCfg.TrustDB)
+	fullTrustDB, err := storage.NewTrustStorage(globalCfg.TrustDB)
 	if err != nil {
 		return serrors.WrapStr("initializing trust storage", err)
 	}
-	trustDB = trustmetrics.WrapDB(string(storage.BackendSqlite), trustDB)
-	defer trustDB.Close()
+	defer fullTrustDB.Close()
+	trustDB := trustmetrics.WrapDB(string(storage.BackendSqlite), fullTrustDB)
 	if err := cs.LoadTrustMaterial(globalCfg.General.ConfigDir, trustDB, log.Root()); err != nil {
 		return err
 	}

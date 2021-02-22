@@ -18,7 +18,6 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
-	"io"
 
 	"github.com/opentracing/opentracing-go"
 
@@ -55,10 +54,6 @@ var _ (trust.DB) = (*db)(nil)
 
 type db struct {
 	*executor
-	backend interface {
-		io.Closer
-		dblib.LimitSetter
-	}
 }
 
 // WrapDB wraps the given trust database into one that also exports metrics.
@@ -71,20 +66,7 @@ func WrapDB(driver string, trustDB trust.DB) trust.DB {
 	}
 	return &db{
 		executor: rwWrapper,
-		backend:  trustDB,
 	}
-}
-
-func (d *db) SetMaxOpenConns(maxOpenConns int) {
-	d.backend.SetMaxOpenConns(maxOpenConns)
-}
-
-func (d *db) SetMaxIdleConns(maxIdleConns int) {
-	d.backend.SetMaxIdleConns(maxIdleConns)
-}
-
-func (d *db) Close() error {
-	return d.backend.Close()
 }
 
 type executor struct {
