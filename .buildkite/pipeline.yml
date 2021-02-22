@@ -14,7 +14,7 @@ steps:
   - label: "UT: unit tests & lint :bazel::bash:"
     if: build.message !~ /\[doc\]/
     command:
-      - ./scion.sh test
+      - bazel test --config=unit --cache_test_results=${BAZEL_CACHE_TEST_RESULTS:-auto}
       - ./scion.sh lint
     key: unit_tests
     artifact_paths:

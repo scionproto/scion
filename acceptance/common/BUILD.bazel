@@ -44,9 +44,9 @@ py_library(
 )
 
 py_test(
-    name = "test_scion",
+    name = "scion_test",
     srcs = [
-        "test_scion.py",
+        "scion_test.py",
     ],
     deps = [
         "scion",
