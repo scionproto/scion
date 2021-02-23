@@ -297,7 +297,7 @@ func (s *Server) SetLogLevel(w http.ResponseWriter, r *http.Request) {
 	s.LogLevel(w, r)
 }
 
-// GetSigner  generates the singer response content.
+// GetSigner generates the singer response content.
 func (s *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	p, err := s.Signer.SignerGen.Generate(r.Context())
@@ -340,6 +340,41 @@ func (s *Server) GetSigner(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+}
+
+// GetSignerChain generates a certificate chain blob response encoded as PEM.
+func (s *Server) GetSignerChain(w http.ResponseWriter, r *http.Request) {
+	p, err := s.Signer.SignerGen.Generate(r.Context())
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to get signer",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	var buf bytes.Buffer
+	if len(p.Chain) == 0 {
+		Error(w, Problem{
+			Status: http.StatusInternalServerError,
+			Title:  "no certificates available",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	for _, cert := range p.Chain {
+		if err := pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}); err != nil {
+			Error(w, Problem{
+				Detail: api.StringRef(err.Error()),
+				Status: http.StatusInternalServerError,
+				Title:  "unable to marshal response",
+				Type:   api.StringRef(api.InternalError),
+			})
+			return
+		}
+	}
+	io.Copy(w, &buf)
 }
 
 // GetTopology is an indirection to the http handler.

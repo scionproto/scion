@@ -16,8 +16,8 @@ tags:
     description: Everything related to SCION path segments.
   - name: common
     description: Common API exposed by SCION services.
-  - name: crypto
-    description: API related to SCION cryptography.
+  - name: trust
+    description: Everything related to SCION trust material.
 paths:
   /segments:
     get:
@@ -118,7 +118,7 @@ paths:
   /signer:
     get:
       tags:
-        - crypto
+        - trust
       summary: >-
         Prints information about the AS Certificate used to sign the
         control-plane message.
@@ -132,10 +132,32 @@ paths:
                 $ref: '#/components/schemas/Signer'
         '400':
           $ref: '#/components/responses/BadRequest'
+  /signer/blob:
+    get:
+      tags:
+        - trust
+      summary: Get the certificate chain blob
+      description: |
+        Get the certificate chain blob encoded as PEM.
+      operationId: get-signer-chain
+      responses:
+        '200':
+          description: Certificate chain blob
+          content:
+            application/x-pem-file:
+              example: |
+                -----BEGIN CERTIFICATE-----
+                ASCertificate ...
+                -----END CERTIFICATE-----
+                -----BEGIN CERTIFICATE-----
+                CACertificate ...
+                -----END CERTIFICATE-----
+        '400':
+          $ref: '#/components/responses/BadRequest'
   /ca:
     get:
       tags:
-        - crypto
+        - trust
       summary: Information about the CA.
       operationId: get-ca
       responses:

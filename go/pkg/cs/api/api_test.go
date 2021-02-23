@@ -48,7 +48,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
-// id constants
+// segment id constants
 const (
 	id1 = "50ddb5ffa058302aad1593fc82e3c75531d33b0406cf9ef8f175aa9b00a3959e"
 	id2 = "023dc0cff0be7a9e29fc1ce517dd96face947a7af78d399d210eab0a7cb779ef"
@@ -290,27 +290,49 @@ func TestAPI(t *testing.T) {
 					},
 				}
 				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
-					trust.Signer{
-						IA:           xtest.MustParseIA("1-ff00:0:110"),
-						Algorithm:    signed.ECDSAWithSHA512,
-						SubjectKeyID: []byte(""),
-						TRCID: cppki.TRCID{
-							ISD:    1,
-							Serial: 42,
-							Base:   1,
-						},
-						Expiration: time.Unix(1611061121, 0).UTC(),
-						ChainValidity: cppki.Validity{
-							NotBefore: time.Unix(1611051121, 0).UTC(),
-							NotAfter:  time.Unix(1611061121, 0).UTC(),
-						},
-						InGrace: true,
-					}, serrors.New("internal"),
+					trust.Signer{}, serrors.New("internal"),
 				)
 				return Handler(s)
 			},
 			ResponseFile: "testdata/signer-response-error.json",
 			RequestURL:   "/signer",
+			Status:       500,
+		},
+		"signer blob": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				g := mock_trust.NewMockSignerGen(ctrl)
+				s := &Server{
+					Signer: cstrust.RenewingSigner{
+						SignerGen: g,
+					},
+				}
+				validCert, _ := cppki.ReadPEMCerts(filepath.Join("testdata", "signer-chain.crt"))
+				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
+					trust.Signer{
+						Chain: validCert,
+					}, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/signer-blob-response.txt",
+			RequestURL:   "/signer/blob",
+			Status:       200,
+		},
+		"signer blob error": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				g := mock_trust.NewMockSignerGen(ctrl)
+				s := &Server{
+					Signer: cstrust.RenewingSigner{
+						SignerGen: g,
+					},
+				}
+				g.EXPECT().Generate(gomock.Any()).AnyTimes().Return(
+					trust.Signer{}, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/signer-blob-response-error.txt",
+			RequestURL:   "/signer/blob",
 			Status:       500,
 		},
 		"ca": {

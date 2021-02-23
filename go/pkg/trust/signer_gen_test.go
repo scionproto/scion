@@ -58,6 +58,14 @@ func TestSignerGenGenerate(t *testing.T) {
 
 	now := time.Now()
 
+	longer := getChain(t)
+	longer[0].NotAfter = longer[0].NotAfter.Add(time.Hour)
+	longer[0].SubjectKeyId = []byte("longer")
+
+	shorter := getChain(t)
+	shorter[0].NotAfter = shorter[0].NotAfter.Add(-time.Hour)
+	shorter[0].SubjectKeyId = []byte("shorter")
+
 	testCases := map[string]struct {
 		keyRing    func(mctrcl *gomock.Controller) trust.KeyRing
 		db         func(mctrcl *gomock.Controller) trust.DB
@@ -99,6 +107,7 @@ func TestSignerGenGenerate(t *testing.T) {
 					Serial: 1,
 				},
 				Subject:      chain[0].Subject,
+				Chain:        chain,
 				SubjectKeyID: chain[0].SubjectKeyId,
 				Expiration:   chain[0].NotAfter,
 				ChainValidity: cppki.Validity{
@@ -123,14 +132,6 @@ func TestSignerGenGenerate(t *testing.T) {
 					skid: cert.SubjectKeyId,
 				}
 
-				longer := getChain(t)
-				longer[0].NotAfter = longer[0].NotAfter.Add(time.Hour)
-				longer[0].SubjectKeyId = []byte("longer")
-
-				shorter := getChain(t)
-				shorter[0].NotAfter = shorter[0].NotAfter.Add(-time.Hour)
-				shorter[0].SubjectKeyId = []byte("shorter")
-
 				db.EXPECT().SignedTRC(ctxMatcher{}, TRCIDMatcher{ISD: 1}).Return(
 					trc, nil,
 				)
@@ -151,6 +152,7 @@ func TestSignerGenGenerate(t *testing.T) {
 					Serial: 1,
 				},
 				Subject:      chain[0].Subject,
+				Chain:        longer,
 				SubjectKeyID: []byte("longer"),
 				Expiration:   chain[0].NotAfter.Add(time.Hour),
 				ChainValidity: cppki.Validity{
@@ -174,14 +176,6 @@ func TestSignerGenGenerate(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-
-				longer := getChain(t)
-				longer[0].NotAfter = longer[0].NotAfter.Add(time.Hour)
-				longer[0].SubjectKeyId = []byte("longer")
-
-				shorter := getChain(t)
-				shorter[0].NotAfter = shorter[0].NotAfter.Add(-time.Hour)
-				shorter[0].SubjectKeyId = []byte("shorter")
 
 				trc2 := xtest.LoadTRC(t, filepath.Join(goldenDir, "ISD1/trcs/ISD1-B1-S1.trc"))
 				trc2.TRC.ID.Serial = 2
@@ -218,6 +212,7 @@ func TestSignerGenGenerate(t *testing.T) {
 					Serial: 1,
 				},
 				Subject:      chain[0].Subject,
+				Chain:        longer,
 				SubjectKeyID: []byte("longer"),
 				Expiration:   now.Add(5 * time.Minute),
 				ChainValidity: cppki.Validity{

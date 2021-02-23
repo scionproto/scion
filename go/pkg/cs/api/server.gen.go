@@ -40,6 +40,9 @@ type ServerInterface interface {
 	// Prints information about the AS Certificate used to sign the control-plane message.
 	// (GET /signer)
 	GetSigner(w http.ResponseWriter, r *http.Request)
+	// Get the certificate chain blob
+	// (GET /signer/blob)
+	GetSignerChain(w http.ResponseWriter, r *http.Request)
 	// Prints the contents of the AS topology file.
 	// (GET /topology)
 	GetTopology(w http.ResponseWriter, r *http.Request)
@@ -237,6 +240,21 @@ func (siw *ServerInterfaceWrapper) GetSigner(w http.ResponseWriter, r *http.Requ
 	handler(w, r.WithContext(ctx))
 }
 
+// GetSignerChain operation middleware
+func (siw *ServerInterfaceWrapper) GetSignerChain(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSignerChain(w, r)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
 // GetTopology operation middleware
 func (siw *ServerInterfaceWrapper) GetTopology(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -315,6 +333,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/signer", wrapper.GetSigner)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/signer/blob", wrapper.GetSignerChain)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/topology", wrapper.GetTopology)
