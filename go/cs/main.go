@@ -66,6 +66,7 @@ import (
 	dpb "github.com/scionproto/scion/go/pkg/proto/discovery"
 	"github.com/scionproto/scion/go/pkg/service"
 	"github.com/scionproto/scion/go/pkg/storage"
+	truststoragemetrics "github.com/scionproto/scion/go/pkg/storage/trust/metrics"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/compat"
 	trustgrpc "github.com/scionproto/scion/go/pkg/trust/grpc"
@@ -136,12 +137,15 @@ func realMain() error {
 		Dialer:   quicStack.Dialer,
 	}
 
-	fullTrustDB, err := storage.NewTrustStorage(globalCfg.TrustDB)
+	trustDB, err := storage.NewTrustStorage(globalCfg.TrustDB)
 	if err != nil {
 		return serrors.WrapStr("initializing trust storage", err)
 	}
-	defer fullTrustDB.Close()
-	trustDB := trustmetrics.WrapDB(string(storage.BackendSqlite), fullTrustDB)
+	defer trustDB.Close()
+	trustDB = truststoragemetrics.WrapDB(trustDB, truststoragemetrics.Config{
+		Driver:       string(storage.BackendSqlite),
+		QueriesTotal: libmetrics.NewPromCounter(metrics.TrustDBQueriesTotal),
+	})
 	if err := cs.LoadTrustMaterial(globalCfg.General.ConfigDir, trustDB, log.Root()); err != nil {
 		return err
 	}

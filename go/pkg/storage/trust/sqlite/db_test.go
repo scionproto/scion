@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metrics_test
+package sqlite_test
 
 import (
 	"context"
@@ -21,28 +21,26 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/pkg/trust/dbtest"
-	"github.com/scionproto/scion/go/pkg/trust/metrics"
-	"github.com/scionproto/scion/go/pkg/trust/sqlite"
+	"github.com/scionproto/scion/go/pkg/storage/trust/dbtest"
+	"github.com/scionproto/scion/go/pkg/storage/trust/sqlite"
 )
 
 var update = flag.Bool("update", false, "set to true to regenerate certificate files")
 
-type DB struct {
-	trust.DB
+type testDB struct {
+	sqlite.DB
 }
 
-func (b *DB) Prepare(t *testing.T, _ context.Context) {
+func (b *testDB) Prepare(t *testing.T, _ context.Context) {
 	b.DB = newDatabase(t)
 }
 
 func TestDB(t *testing.T) {
-	dbtest.Run(t, &DB{}, dbtest.Config{})
+	dbtest.Run(t, &testDB{}, dbtest.Config{})
 }
 
-func newDatabase(t *testing.T) trust.DB {
+func newDatabase(t *testing.T) sqlite.DB {
 	db, err := sqlite.New("file::memory:")
 	require.NoError(t, err)
-	return metrics.WrapDB("mem-sqlite", db)
+	return db
 }

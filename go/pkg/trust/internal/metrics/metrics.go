@@ -68,8 +68,6 @@ const (
 )
 
 var (
-	// DB exposes the database metrics.
-	DB = newDB()
 	// Provider exposes the provider metrics.
 	Provider = newProvider()
 	// RPC exposes the RPC metrics.

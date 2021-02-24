@@ -1,34 +1,14 @@
-load("//lint:go.bzl", "go_library", "go_test")
+load("//lint:go.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "db.go",
-        "export.go",
-    ],
+    srcs = ["export.go"],
     importpath = "github.com/scionproto/scion/go/pkg/trust/metrics",
     visibility = ["//visibility:public"],
     deps = [
-        "//go/lib/infra/modules/db:go_default_library",
         "//go/lib/prom:go_default_library",
-        "//go/lib/scrypto/cppki:go_default_library",
-        "//go/lib/tracing:go_default_library",
-        "//go/pkg/trust:go_default_library",
         "//go/pkg/trust/internal/metrics:go_default_library",
-        "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
         "@com_github_prometheus_client_golang//prometheus/promauto:go_default_library",
-    ],
-)
-
-go_test(
-    name = "go_default_test",
-    srcs = ["db_test.go"],
-    embed = [":go_default_library"],
-    deps = [
-        "//go/pkg/trust:go_default_library",
-        "//go/pkg/trust/dbtest:go_default_library",
-        "//go/pkg/trust/sqlite:go_default_library",
-        "@com_github_stretchr_testify//require:go_default_library",
     ],
 )

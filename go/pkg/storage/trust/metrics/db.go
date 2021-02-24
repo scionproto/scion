@@ -18,18 +18,44 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
+	"io"
 
 	"github.com/opentracing/opentracing-go"
 
 	dblib "github.com/scionproto/scion/go/lib/infra/modules/db"
+	"github.com/scionproto/scion/go/lib/metrics"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/tracing"
+	"github.com/scionproto/scion/go/pkg/storage"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/pkg/trust/internal/metrics"
 )
 
+const (
+	errNotFound = "err_not_found"
+)
+
+// Config configures the metrics for the wrapped trust database.
+type Config struct {
+	Driver       string
+	QueriesTotal metrics.Counter
+}
+
+// WrapDB wraps the given trust database into one that also exports metrics.
+func WrapDB(trustDB storage.TrustDB, cfg Config) storage.TrustDB {
+	rwWrapper := &executor{
+		db: trustDB,
+		metrics: observer{
+			cfg: cfg,
+		},
+	}
+	return &db{
+		executor: rwWrapper,
+	}
+}
+
 type observer struct {
-	driver string
+	cfg Config
 }
 
 type observable func(context.Context) (label string, err error)
@@ -42,31 +68,23 @@ func (o observer) Observe(ctx context.Context, op string, action observable) {
 	tracing.ResultLabel(span, label)
 	tracing.Error(span, err)
 
-	l := metrics.QueryLabels{
-		Driver:    o.driver,
+	labels := queryLabels{
+		Driver:    o.cfg.Driver,
 		Operation: op,
 		Result:    label,
 	}
-	metrics.DB.Queries(l).Inc()
+	metrics.CounterInc(metrics.CounterWith(o.cfg.QueriesTotal, labels.Expand()...))
 }
 
 var _ (trust.DB) = (*db)(nil)
 
 type db struct {
 	*executor
+	backend io.Closer
 }
 
-// WrapDB wraps the given trust database into one that also exports metrics.
-func WrapDB(driver string, trustDB trust.DB) trust.DB {
-	rwWrapper := &executor{
-		db: trustDB,
-		metrics: observer{
-			driver: driver,
-		},
-	}
-	return &db{
-		executor: rwWrapper,
-	}
+func (db *db) Close() error {
+	return db.backend.Close()
 }
 
 type executor struct {
@@ -79,11 +97,11 @@ type executor struct {
 func (e *executor) SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedTRC, error) {
 	var trc cppki.SignedTRC
 	var err error
-	e.metrics.Observe(ctx, metrics.SignedTRC, func(ctx context.Context) (string, error) {
+	e.metrics.Observe(ctx, "get_signed_trc", func(ctx context.Context) (string, error) {
 		trc, err = e.db.SignedTRC(ctx, id)
 		label := dblib.ErrToMetricLabel(err)
 		if trc.IsZero() && err == nil {
-			label = metrics.ErrNotFound
+			label = errNotFound
 		}
 		return label, err
 	})
@@ -93,7 +111,7 @@ func (e *executor) SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedT
 func (e *executor) InsertTRC(ctx context.Context, trc cppki.SignedTRC) (bool, error) {
 	var inserted bool
 	var err error
-	e.metrics.Observe(ctx, metrics.InsertTRC, func(ctx context.Context) (string, error) {
+	e.metrics.Observe(ctx, "insert_trc", func(ctx context.Context) (string, error) {
 		inserted, err = e.db.InsertTRC(ctx, trc)
 		return dblib.ErrToMetricLabel(err), err
 	})
@@ -103,22 +121,33 @@ func (e *executor) InsertTRC(ctx context.Context, trc cppki.SignedTRC) (bool, er
 func (e *executor) Chains(ctx context.Context, q trust.ChainQuery) ([][]*x509.Certificate, error) {
 	var chains [][]*x509.Certificate
 	var err error
-	e.metrics.Observe(ctx, metrics.Chains, func(ctx context.Context) (string, error) {
+	e.metrics.Observe(ctx, "get_chains", func(ctx context.Context) (string, error) {
 		chains, err = e.db.Chains(ctx, q)
 		label := dblib.ErrToMetricLabel(err)
 		if len(chains) == 0 && err == nil {
-			label = metrics.ErrNotFound
+			label = errNotFound
 		}
 		return label, err
 	})
 	return chains, err
 }
+
 func (e *executor) InsertChain(ctx context.Context, chain []*x509.Certificate) (bool, error) {
 	var inserted bool
 	var err error
-	e.metrics.Observe(ctx, metrics.InsertChain, func(ctx context.Context) (string, error) {
+	e.metrics.Observe(ctx, "insert_chain", func(ctx context.Context) (string, error) {
 		inserted, err = e.db.InsertChain(ctx, chain)
 		return dblib.ErrToMetricLabel(err), err
 	})
 	return inserted, err
+}
+
+type queryLabels struct {
+	Driver    string
+	Operation string
+	Result    string
+}
+
+func (l queryLabels) Expand() []string {
+	return []string{"driver", l.Driver, "operation", l.Operation, prom.LabelResult, l.Result}
 }
