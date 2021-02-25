@@ -28,7 +28,7 @@ a discovery server (e.g., providing its IP address) or can be used to query the 
 network further (e.g., a DNS PTR response).
 
 A **discovery server** is a server that exposes the endpoints required
-by the bootstrapper (more in the *Discovery Server* section).
+by the bootstrapper (more in the :ref:`*Discovery Server*<*Discovery Server*>` section).
 
 A **discoverer** is a client of a `zero conf` service. It communicates with the service
 and provides hints to the bootstrapper.
@@ -63,7 +63,7 @@ and exits with a non-zero value.
 
 NB: The TRCs retrieval is a temporary solution; in the future, they will be
 installed on a device via other means, ideally before it gets connected to
-a network at all (more in the *Security* section).
+a network at all (more in the :ref:`*Security*<Security>` section).
 
 Discovery Mechanisms
 --------------------
@@ -165,9 +165,9 @@ a user's connection is not hijacked. To certify a resource, this resource can be
 so that after the download the bootstrapper can verify its authenticity.
 
 In the current Internet, the root of trust is based on an oligopoly of CAs.
-In SCION, this root of trust is represented by ISD-wise TRCs.
+In SCION, this root of trust is represented by one TRC per ISD.
 Nonetheless, like the current Internet, a device joining a network for the first time
-needs to have some pre-shared knowledge to judge what is authentic or not.
+needs to have some pre-shared knowledge to determine what is authentic or not.
 
 While we can consider the discovery of TRCs a temporary solution, the same is not true for the
 topology -- which is at the heart of the automatic bootstrapping.
