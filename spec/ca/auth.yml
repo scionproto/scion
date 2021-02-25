@@ -1,0 +1,67 @@
+paths:
+  /auth/token:
+    post:
+      summary: Authenticate the SCION control service
+      description: |
+        Authenticates the calling control service and returns the JWT access
+        token. Alternatively, the Control Service can create the JWT access
+        token directly by signing it with the shared secret.
+      operationId: post-auth-token
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessCredentials'
+      responses:
+        '200':
+          description: JWT Access Token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessToken'
+        '400':
+          $ref: './problem.yml#/components/responses/400-BadRequest'
+        '401':
+          $ref: './problem.yml#/components/responses/401-UnauthorizedError'
+        '500':
+          $ref: './problem.yml#/components/responses/500-InternalServerError'
+        '503':
+          $ref: './problem.yml#/components/responses/503-ServiceUnavailable'
+components:
+  schemas:
+    AccessCredentials:
+      type: object
+      properties:
+        client_id:
+          type: string
+          description: ID of the control service requesting authentication.
+        client_secret:
+          type: string
+          description: Secret that authenticates the control service.
+      required:
+        - client_id
+        - client_secret
+    AccessToken:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: The encoded JWT token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        token_type:
+          description: Type of returned access token. Currently always Bearer.
+          type: string
+          enum:
+            - Bearer
+          example: Bearer
+        expires_in:
+          type: integer
+          description: Validity duration of this token in seconds.
+          example: 3600
+      required:
+        - access_token
+        - token_type
+        - expires_in

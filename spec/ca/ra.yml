@@ -1,0 +1,99 @@
+paths:
+  /ra/isds/{isd-number}/ases/{as-number}/certificates/renewal:
+    parameters:
+      - name: isd-number
+        in: path
+        required: true
+        description: ISD number of the Autonomous System requesting the certificate chain renewal.
+        schema:
+          type: integer
+        example: '1'
+      - name: as-number
+        in: path
+        required: true
+        description: AS Number of the Autonomous System requesting the certificate chain renewal.
+        schema:
+          $ref: '#/components/schemas/AS'
+    post:
+      summary: Renew an existing AS certificate
+      description: Request the renewal of an existing AS certificate.
+      security:
+        - BearerAuth: []
+      operationId: post-ra-certificates-renewal
+      tags:
+        - Registration Authority
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenewalRequest'
+      responses:
+        '200':
+          description: Renewed certificate chain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenewalResponse'
+        '400':
+          $ref: './problem.yml#/components/responses/400-BadRequest'
+        '401':
+          $ref: './problem.yml#/components/responses/401-UnauthorizedError'
+        '404':
+          $ref: './problem.yml#/components/responses/404-NotFound'
+        '500':
+          $ref: './problem.yml#/components/responses/500-InternalServerError'
+        '503':
+          $ref: './problem.yml#/components/responses/503-ServiceUnavailable'
+components:
+  schemas:
+    RenewalRequest:
+      type: object
+      properties:
+        csr:
+          type: string
+          format: byte
+          description: |
+            Base64 encoded renewal request as described below.
+
+            The renewal requests consists of a CMS SignedData structure that
+            contains a PKCS#10 defining the parameters of the requested
+            certificate.
+
+            The following must hold for the CMS structure:
+
+            - The `certificates` field in `SignedData` MUST contain an existing
+              and verifiable certificate chain that authenticates the private
+              key that was used to sign the CMS structure. It MUST NOT contain
+              any other certificates.
+
+            - The `eContentType` is set to `id-data`. The contents of `eContent`
+              is the ASN.1 DER encoded PKCS#10. This ensures backwards
+              compatibility with PKCS#7, as described in
+              [RFC5652](https://tools.ietf.org/html/rfc5652#section-5.2.1)
+
+            - The `SignerIdentifier` MUST be the choice `IssuerAndSerialNumber`,
+              thus, `version` in `SignerInfo` must be 1, as required by
+              [RFC5652](https://tools.ietf.org/html/rfc5652#section-5.3)
+      required:
+        - "csr"
+    RenewalResponse:
+      type: object
+      properties:
+        certificate_chain:
+          $ref: "#/components/schemas/CertificateChain"
+      required:
+        - "certificate_chain"
+    CertificateChain:
+      type: string
+      format: bytes
+      description: |
+        Base64 encoded certificate chain in PKCS#7 format.
+
+        The certificate chain is part of the `certificates` field of a
+        `SignedData` in the degenerate case, where `signerInfos` is empty.
+    AS:
+      title: AS Identifier
+      type: string
+      pattern: '^([a-f0-9]{1,4}:){2}([a-f0-9]{1,4})|\d+$'
+      example: 'ff00:0:110'
