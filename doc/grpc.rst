@@ -13,7 +13,7 @@ The following image from the `gRPC Blog
 <https://grpc.io/blog/grpc-on-http2/#grpc-semantics>`_ summarizes the semantics
 around connections in gRPC quite well.
 
-.. image:: fig/grpc_on_http2_mapping.png
+.. image:: fig/grpc/grpc_on_http2_mapping.png
   :width: 400
   :alt: http2 mapping
 
@@ -68,7 +68,7 @@ By default, gRPC uses the following combination:
 Teaching an old dog new tricks |grpc|
 =====================================
 
-.. |grpc| image:: fig/grpc.png
+.. |grpc| image:: fig/grpc/grpc.png
    :width: 30
 
 The way gRPC splits the responsibilities in these different components is very

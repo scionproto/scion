@@ -6,7 +6,7 @@ Certain libraries and applications rely on addresses encoded in an URI format.
 This document defines a URI syntax for encoding SCION addresses.
 
 Schemes
-======
+=======
 
 The SCION control plane uses two mechanisms to establish a QUIC/SCION
 connection. If the client knows the exact address the server is listening for
@@ -108,7 +108,7 @@ Without obvious benefit, this would introduce a constant and redundant prefix
 that needs to be included in every URI.
 
 Encode ISD-AS and IP in ``reg-name``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We could encode the ISD-AS and IP address in the host as a ``reg-name``. The
 drawback is, that neither ``:``, nor ``[]`` are valid characters in
