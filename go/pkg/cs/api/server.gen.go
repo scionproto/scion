@@ -49,6 +49,12 @@ type ServerInterface interface {
 	// List the TRCs
 	// (GET /trcs)
 	GetTrcs(w http.ResponseWriter, r *http.Request, params GetTrcsParams)
+	// Get the TRC
+	// (GET /trcs/isd{isd}-b{base}-s{serial})
+	GetTrc(w http.ResponseWriter, r *http.Request, isd int, base int, serial int)
+	// Get the TRC blob
+	// (GET /trcs/isd{isd}-b{base}-s{serial}/blob)
+	GetTrcBlob(w http.ResponseWriter, r *http.Request, isd int, base int, serial int)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -315,6 +321,94 @@ func (siw *ServerInterfaceWrapper) GetTrcs(w http.ResponseWriter, r *http.Reques
 	handler(w, r.WithContext(ctx))
 }
 
+// GetTrc operation middleware
+func (siw *ServerInterfaceWrapper) GetTrc(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "isd" -------------
+	var isd int
+
+	err = runtime.BindStyledParameter("simple", false, "isd", chi.URLParam(r, "isd"), &isd)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter isd: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "base" -------------
+	var base int
+
+	err = runtime.BindStyledParameter("simple", false, "base", chi.URLParam(r, "base"), &base)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter base: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "serial" -------------
+	var serial int
+
+	err = runtime.BindStyledParameter("simple", false, "serial", chi.URLParam(r, "serial"), &serial)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter serial: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTrc(w, r, isd, base, serial)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetTrcBlob operation middleware
+func (siw *ServerInterfaceWrapper) GetTrcBlob(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "isd" -------------
+	var isd int
+
+	err = runtime.BindStyledParameter("simple", false, "isd", chi.URLParam(r, "isd"), &isd)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter isd: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "base" -------------
+	var base int
+
+	err = runtime.BindStyledParameter("simple", false, "base", chi.URLParam(r, "base"), &base)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter base: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "serial" -------------
+	var serial int
+
+	err = runtime.BindStyledParameter("simple", false, "serial", chi.URLParam(r, "serial"), &serial)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter serial: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTrcBlob(w, r, isd, base, serial)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
 // Handler creates http.Handler with routing matching OpenAPI spec.
 func Handler(si ServerInterface) http.Handler {
 	return HandlerWithOptions(si, ChiServerOptions{})
@@ -387,6 +481,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/trcs", wrapper.GetTrcs)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/trcs/isd{isd}-b{base}-s{serial}", wrapper.GetTrc)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/trcs/isd{isd}-b{base}-s{serial}/blob", wrapper.GetTrcBlob)
 	})
 
 	return r

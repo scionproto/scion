@@ -32,6 +32,10 @@ paths:
     $ref: "./trust.yml#/paths/~1ca"
   /trcs:
     $ref: "./trust.yml#/paths/~1trcs"
+  /trcs/isd{isd}-b{base}-s{serial}:
+    $ref: "./trust.yml#/paths/~1trcs~1isd{isd}-b{base}-s{serial}"
+  /trcs/isd{isd}-b{base}-s{serial}/blob:
+    $ref: "./trust.yml#/paths/~1trcs~1isd{isd}-b{base}-s{serial}~1blob"
   /info:
     $ref: "../common/process.yml#/paths/~1info"
   /log/level:

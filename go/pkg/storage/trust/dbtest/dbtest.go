@@ -115,9 +115,7 @@ func run(t *testing.T, db TestableDB, cfg Config) {
 	})
 }
 
-func modSignedTRCS(
-	t *testing.T,
-	trc cppki.SignedTRC,
+func modSignedTRCS(t *testing.T, trc cppki.SignedTRC,
 	base scrypto.Version,
 	serial scrypto.Version,
 ) cppki.SignedTRC {

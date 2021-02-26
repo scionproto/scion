@@ -121,6 +121,15 @@ type Subject struct {
 // SubjectKeyID defines model for SubjectKeyID.
 type SubjectKeyID string
 
+// TRC defines model for TRC.
+type TRC struct {
+	AuthoritativeAses []IsdAs  `json:"authoritative_ases"`
+	CoreAses          []IsdAs  `json:"core_ases"`
+	Description       string   `json:"description"`
+	Id                TRCID    `json:"id"`
+	Validity          Validity `json:"validity"`
+}
+
 // TRCBrief defines model for TRCBrief.
 type TRCBrief struct {
 	Id TRCID `json:"id"`

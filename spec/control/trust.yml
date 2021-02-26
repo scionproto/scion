@@ -32,6 +32,80 @@ paths:
                   $ref: "#/components/schemas/TRCBrief"
         "400":
           $ref: "../common/base.yml#/components/responses/BadRequest"
+  /trcs/isd{isd}-b{base}-s{serial}:
+    get:
+      tags:
+        - trust
+      summary: Get the TRC
+      description: |
+        Get the SCION Trust Root Configuration.
+      operationId: get-trc
+      parameters:
+      - in: path
+        name: isd
+        required: true
+        schema:
+          type: integer
+          example: 42
+      - in: path
+        name: base
+        required: true
+        schema:
+          type: integer
+          example: 1
+      - in: path
+        name: serial
+        required: true
+        schema:
+          type: integer
+          example: 3
+      responses:
+        "200":
+          description: TRC.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TRC"
+        "400":
+          $ref: "../common/base.yml#/components/responses/BadRequest"
+  /trcs/isd{isd}-b{base}-s{serial}/blob:
+    get:
+      tags:
+        - trust
+      summary: Get the TRC blob
+      description: |
+        Get the SCION Trust Root Configuration as PEM encoded byte blob.
+      operationId: get-trc-blob
+      parameters:
+      - in: path
+        name: isd
+        required: true
+        schema:
+          type: integer
+          example: 42
+      - in: path
+        name: base
+        required: true
+        schema:
+          type: integer
+          example: 1
+      - in: path
+        name: serial
+        required: true
+        schema:
+          type: integer
+          example: 3
+      responses:
+        "200":
+          description: TRC blob
+          content:
+            application/x-pem-file:
+              example: |
+                -----BEGIN TRC-----
+                ZjAwOjA6MTEwI ...
+                -----END TRC-----
+        "400":
+          $ref: "../common/base.yml#/components/responses/BadRequest"
   /ca:
     get:
       tags:
@@ -111,6 +185,30 @@ components:
         serial_number:
           type: integer
           example: 3
+    TRC:
+      title: TRC description
+      type: object
+      required:
+        - id
+        - validity
+        - core_ases
+        - authoritative_ases
+        - description
+      properties:
+        id:
+          $ref: "#/components/schemas/TRCID"
+        validity:
+          $ref:  "#/components/schemas/Validity"
+        core_ases:
+          type: array
+          items:
+            $ref:  "../common/process.yml#/components/schemas/IsdAs"
+        authoritative_ases:
+          type: array
+          items:
+            $ref:  "../common/process.yml#/components/schemas/IsdAs"
+        description:
+          type: string
     CA:
       type: object
       required:

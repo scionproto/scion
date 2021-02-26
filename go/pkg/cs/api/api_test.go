@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/ctrl/seg/mock_seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -502,6 +503,101 @@ func TestAPI(t *testing.T) {
 			ResponseFile: "testdata/trcs-inexistent-error.json",
 			RequestURL:   "/trcs?all=true&isd=1",
 			Status:       404,
+		},
+		"trc": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				sto := mock_storage.NewMockTrustDB(ctrl)
+				s := &Server{TrustDB: sto}
+				sto.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{
+					ISD:    addr.ISD(1),
+					Serial: scrypto.Version(3),
+					Base:   scrypto.Version(2),
+				}).AnyTimes().Return(
+					cppki.SignedTRC{
+						TRC: cppki.TRC{
+							CoreASes: []addr.AS{
+								xtest.MustParseIA("1-ff00:0:130").A,
+								xtest.MustParseIA("1-ff00:0:131").A,
+								xtest.MustParseIA("1-ff00:0:132").A,
+							},
+							AuthoritativeASes: []addr.AS{
+								xtest.MustParseIA("1-ff00:0:131").A,
+								xtest.MustParseIA("1-ff00:0:132").A,
+							},
+							Description: "trc description",
+							ID: cppki.TRCID{
+								ISD:    1,
+								Serial: 3,
+								Base:   2,
+							},
+						},
+					}, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/trc.json",
+			RequestURL:   "/trcs/isd1-b2-s3",
+			Status:       200,
+		},
+		"trc inexistent": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				sto := mock_storage.NewMockTrustDB(ctrl)
+				s := &Server{TrustDB: sto}
+				sto.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{
+					ISD:    addr.ISD(1),
+					Serial: scrypto.Version(1),
+					Base:   scrypto.Version(2),
+				}).AnyTimes().Return(
+					cppki.SignedTRC{}, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/trc-inexistent.json",
+			RequestURL:   "/trcs/isd1-b2-s1",
+			Status:       404,
+		},
+		"trc error": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				sto := mock_storage.NewMockTrustDB(ctrl)
+				s := &Server{TrustDB: sto}
+				sto.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{
+					ISD:    addr.ISD(1),
+					Serial: scrypto.Version(1),
+					Base:   scrypto.Version(2),
+				}).AnyTimes().Return(
+					cppki.SignedTRC{}, serrors.New("internal"),
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/trc-error.json",
+			RequestURL:   "/trcs/isd1-b2-s1",
+			Status:       500,
+		},
+		"trc blob": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				sto := mock_storage.NewMockTrustDB(ctrl)
+				s := &Server{TrustDB: sto}
+				sto.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{
+					ISD:    addr.ISD(1),
+					Serial: scrypto.Version(1),
+					Base:   scrypto.Version(1),
+				}).AnyTimes().Return(
+					cppki.SignedTRC{
+						TRC: cppki.TRC{
+							ID: cppki.TRCID{
+								ISD:    1,
+								Serial: 1,
+								Base:   1,
+							},
+							Raw: bytes.Repeat([]byte{0x11}, 6),
+						},
+					}, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/trc-blob.pem",
+			RequestURL:   "/trcs/isd1-b1-s1/blob",
+			Status:       200,
 		},
 	}
 
