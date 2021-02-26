@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/storage"
+	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
@@ -88,7 +89,10 @@ func (db *db) Close() error {
 }
 
 type executor struct {
-	db      trust.DB
+	db interface {
+		truststorage.TrustAPI
+		trust.DB
+	}
 	metrics observer
 }
 
@@ -106,6 +110,21 @@ func (e *executor) SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedT
 		return label, err
 	})
 	return trc, err
+}
+
+func (e *executor) SignedTRCs(ctx context.Context,
+	query truststorage.TRCsQuery) (cppki.SignedTRCs, error) {
+	var trcs cppki.SignedTRCs
+	var err error
+	e.metrics.Observe(ctx, "get_signed_trcs", func(ctx context.Context) (string, error) {
+		trcs, err = e.db.SignedTRCs(ctx, query)
+		label := dblib.ErrToMetricLabel(err)
+		if len(trcs) == 0 && err == nil {
+			label = errNotFound
+		}
+		return label, err
+	})
+	return trcs, err
 }
 
 func (e *executor) InsertTRC(ctx context.Context, trc cppki.SignedTRC) (bool, error) {

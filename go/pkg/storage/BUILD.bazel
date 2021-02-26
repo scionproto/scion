@@ -19,6 +19,7 @@ go_library(
         "//go/lib/pathdb/sqlite:go_default_library",
         "//go/lib/revcache:go_default_library",
         "//go/lib/revcache/memrevcache:go_default_library",
+        "//go/pkg/storage/trust:go_default_library",
         "//go/pkg/storage/trust/sqlite:go_default_library",
         "//go/pkg/trust:go_default_library",
         "//go/pkg/trust/renewal:go_default_library",

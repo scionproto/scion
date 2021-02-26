@@ -13,10 +13,10 @@ servers:
 tags:
   - name: segment
     description: Everything related to SCION path segments.
-  - name: common
-    description: Common API exposed by SCION services.
   - name: trust
     description: Everything related to SCION trust material.
+  - name: common
+    description: Common API exposed by SCION services.
 paths:
   /segments:
     $ref: "./segments.yml#/paths/~1segments"
@@ -25,11 +25,13 @@ paths:
   /segments/{segment-id}/blob:
     $ref: "./segments.yml#/paths/~1segments~1{segment-id}~1blob"
   /signer:
-    $ref: "./crypto.yml#/paths/~1signer"
+    $ref: "./trust.yml#/paths/~1signer"
   /signer/blob:
-    $ref: "./crypto.yml#/paths/~1signer~1blob"
+    $ref: "./trust.yml#/paths/~1signer~1blob"
   /ca:
-    $ref: "./crypto.yml#/paths/~1ca"
+    $ref: "./trust.yml#/paths/~1ca"
+  /trcs:
+    $ref: "./trust.yml#/paths/~1trcs"
   /info:
     $ref: "../common/process.yml#/paths/~1info"
   /log/level:

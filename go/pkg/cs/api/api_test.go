@@ -45,6 +45,8 @@ import (
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/cs/trust/mock_trust"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
+	"github.com/scionproto/scion/go/pkg/storage/mock_storage"
+	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
@@ -397,6 +399,109 @@ func TestAPI(t *testing.T) {
 			ResponseFile: "testdata/ca-error-no-signer.json",
 			RequestURL:   "/ca",
 			Status:       500,
+		},
+		"trcs": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				sto := mock_storage.NewMockTrustDB(ctrl)
+				s := &Server{TrustDB: sto}
+				q := truststorage.TRCsQuery{Latest: true}
+				sto.EXPECT().SignedTRCs(gomock.Any(), q).AnyTimes().Return(
+					cppki.SignedTRCs{
+						{
+							TRC: cppki.TRC{
+								ID: cppki.TRCID{
+									ISD:    1,
+									Serial: 2,
+									Base:   1,
+								},
+							},
+						},
+						{
+							TRC: cppki.TRC{
+								ID: cppki.TRCID{
+									ISD:    2,
+									Serial: 1,
+									Base:   2,
+								},
+							},
+						},
+					}, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/trcs.json",
+			RequestURL:   "/trcs",
+			Status:       200,
+		},
+		"trcs all and isd": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				sto := mock_storage.NewMockTrustDB(ctrl)
+				s := &Server{TrustDB: sto}
+				q := truststorage.TRCsQuery{
+					ISD:    []addr.ISD{1},
+					Latest: false,
+				}
+				sto.EXPECT().SignedTRCs(gomock.Any(), q).AnyTimes().Return(
+					cppki.SignedTRCs{
+						{
+							TRC: cppki.TRC{
+								ID: cppki.TRCID{
+									ISD:    1,
+									Serial: 2,
+									Base:   1,
+								},
+							},
+						},
+						{
+							TRC: cppki.TRC{
+								ID: cppki.TRCID{
+									ISD:    1,
+									Serial: 1,
+									Base:   1,
+								},
+							},
+						},
+					}, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/trcs-all-and-isd.json",
+			RequestURL:   "/trcs?all=true&isd=1",
+			Status:       200,
+		},
+		"trcs internal error": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				sto := mock_storage.NewMockTrustDB(ctrl)
+				s := &Server{TrustDB: sto}
+				q := truststorage.TRCsQuery{
+					ISD:    []addr.ISD{1},
+					Latest: false,
+				}
+				sto.EXPECT().SignedTRCs(gomock.Any(), q).AnyTimes().Return(
+					nil, serrors.New("internal"),
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/trcs-internal-error.json",
+			RequestURL:   "/trcs?all=true&isd=1",
+			Status:       500,
+		},
+		"inexistent trcs error": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				sto := mock_storage.NewMockTrustDB(ctrl)
+				s := &Server{TrustDB: sto}
+				q := truststorage.TRCsQuery{
+					ISD:    []addr.ISD{1},
+					Latest: false,
+				}
+				sto.EXPECT().SignedTRCs(gomock.Any(), q).AnyTimes().Return(
+					nil, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/trcs-inexistent-error.json",
+			RequestURL:   "/trcs?all=true&isd=1",
+			Status:       404,
 		},
 	}
 

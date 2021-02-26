@@ -46,6 +46,9 @@ type ServerInterface interface {
 	// Prints the contents of the AS topology file.
 	// (GET /topology)
 	GetTopology(w http.ResponseWriter, r *http.Request)
+	// List the TRCs
+	// (GET /trcs)
+	GetTrcs(w http.ResponseWriter, r *http.Request, params GetTrcsParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -270,6 +273,48 @@ func (siw *ServerInterfaceWrapper) GetTopology(w http.ResponseWriter, r *http.Re
 	handler(w, r.WithContext(ctx))
 }
 
+// GetTrcs operation middleware
+func (siw *ServerInterfaceWrapper) GetTrcs(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetTrcsParams
+
+	// ------------- Optional query parameter "isd" -------------
+	if paramValue := r.URL.Query().Get("isd"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", false, false, "isd", r.URL.Query(), &params.Isd)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter isd: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "all" -------------
+	if paramValue := r.URL.Query().Get("all"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "all", r.URL.Query(), &params.All)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter all: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTrcs(w, r, params)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
 // Handler creates http.Handler with routing matching OpenAPI spec.
 func Handler(si ServerInterface) http.Handler {
 	return HandlerWithOptions(si, ChiServerOptions{})
@@ -339,6 +384,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/topology", wrapper.GetTopology)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/trcs", wrapper.GetTrcs)
 	})
 
 	return r

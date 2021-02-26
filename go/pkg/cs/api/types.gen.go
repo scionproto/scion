@@ -121,6 +121,11 @@ type Subject struct {
 // SubjectKeyID defines model for SubjectKeyID.
 type SubjectKeyID string
 
+// TRCBrief defines model for TRCBrief.
+type TRCBrief struct {
+	Id TRCID `json:"id"`
+}
+
 // TRCID defines model for TRCID.
 type TRCID struct {
 	BaseNumber   int `json:"base_number"`
@@ -153,6 +158,12 @@ type GetSegmentsParams struct {
 
 	// Terminal AS of segment.
 	EndIsdAs *IsdAs `json:"end_isd_as,omitempty"`
+}
+
+// GetTrcsParams defines parameters for GetTrcs.
+type GetTrcsParams struct {
+	Isd *[]int `json:"isd,omitempty"`
+	All *bool  `json:"all,omitempty"`
 }
 
 // SetLogLevelJSONRequestBody defines body for SetLogLevel for application/json ContentType.

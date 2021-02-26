@@ -1,4 +1,37 @@
 paths:
+  /trcs:
+   get:
+      tags:
+      - trust
+      summary: List the TRCs
+      description: List the latest SCION Trust Root Configurations for each ISD that are
+        known to the control service. The result can be filtered by ISD.
+        Optionally, all TRCs can be requested instead of only the latest ones.
+      operationId: get-trcs
+      parameters:
+        - in: query
+          name: isd
+          schema:
+            type: array
+            items:
+              type: integer
+          style: form
+          explode: false
+        - in: query
+          name: all
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of applicable TRCs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TRCBrief"
+        "400":
+          $ref: "../common/base.yml#/components/responses/BadRequest"
   /ca:
     get:
       tags:
@@ -53,6 +86,31 @@ paths:
           $ref: "../common/base.yml#/components/responses/BadRequest"
 components:
   schemas:
+    TRCBrief:
+      title: Brief TRC description
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          $ref: "#/components/schemas/TRCID"
+    TRCID:
+      title: TRC Identifier
+      type: object
+      required:
+          - isd
+          - base_number
+          - serial_number
+      properties:
+        isd:
+          type: integer
+          example: 42
+        base_number:
+          type: integer
+          example: 1
+        serial_number:
+          type: integer
+          example: 3
     CA:
       type: object
       required:
@@ -128,23 +186,6 @@ components:
           type: string
           format: date-time
           example: 2022-01-04T09:59:33Z
-    TRCID:
-      title: TRC Identifier
-      type: object
-      required:
-          - isd
-          - base_number
-          - serial_number
-      properties:
-        isd:
-          type: integer
-          example: 42
-        base_number:
-          type: integer
-          example: 1
-        serial_number:
-          type: integer
-          example: 3
     SubjectKeyID:
       type: string
       format: spaced-hex-string

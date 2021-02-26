@@ -31,6 +31,9 @@ type SignedTRC struct {
 	SignerInfos []protocol.SignerInfo
 }
 
+// SignedTRCs represents a list of parsed signed TRC.
+type SignedTRCs []SignedTRC
+
 // DecodeSignedTRC parses the signed TRC.
 func DecodeSignedTRC(raw []byte) (SignedTRC, error) {
 	ci, err := protocol.ParseContentInfo(raw)
@@ -196,4 +199,31 @@ func (s *SignedTRC) verifySignerInfo(cert *x509.Certificate, si protocol.SignerI
 		return err
 	}
 	return nil
+}
+
+// Len returns the number of SignedTRCs.
+func (t SignedTRCs) Len() int {
+	return len(t)
+}
+
+// Less returns if SignedTRC[i] is less than SignedTRC[j] based on isd > base > serial
+func (t SignedTRCs) Less(i, j int) bool {
+	isdA, isdB := t[i].TRC.ID.ISD, t[j].TRC.ID.ISD
+	baseA, baseB := t[i].TRC.ID.Base, t[j].TRC.ID.Base
+	serialA, serialB := t[i].TRC.ID.Serial, t[j].TRC.ID.Serial
+	switch {
+	case isdA != isdB:
+		return isdA < isdB
+	case baseA != baseB:
+		return baseA < baseB
+	case serialA != serialB:
+		return serialA < serialB
+	default:
+		return bytes.Compare(t[i].TRC.Raw, t[j].TRC.Raw) == -1
+	}
+}
+
+// Swap swaps the two elements of SignedTRCs
+func (t SignedTRCs) Swap(i, j int) {
+	t[i], t[j] = t[j], t[i]
 }

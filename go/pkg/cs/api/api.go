@@ -34,6 +34,8 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/api"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
+	"github.com/scionproto/scion/go/pkg/storage"
+	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
 )
 
 type SegmentsStore interface {
@@ -49,6 +51,7 @@ type Server struct {
 	LogLevel http.HandlerFunc
 	Signer   cstrust.RenewingSigner
 	Topology http.HandlerFunc
+	TrustDB  storage.TrustDB
 }
 
 // GetSegments gets the stored in the PathDB.
@@ -275,6 +278,58 @@ func (s *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+}
+
+func (s *Server) GetTrcs(w http.ResponseWriter, r *http.Request, params GetTrcsParams) {
+	db := s.TrustDB
+	q := truststorage.TRCsQuery{Latest: !(params.All != nil && *params.All)}
+	if params.Isd != nil {
+		q.ISD = make([]addr.ISD, 0, len(*params.Isd))
+		for _, isd := range *params.Isd {
+			q.ISD = append(q.ISD, addr.ISD(isd))
+		}
+	}
+	trcs, err := db.SignedTRCs(r.Context(), q)
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "error getting trcs",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	if trcs == nil {
+		Error(w, Problem{
+			Status: http.StatusNotFound,
+			Title:  "there are no matching trcs",
+			Type:   api.StringRef(api.NotFound),
+		})
+		return
+	}
+	sort.Sort(trcs)
+	rep := make([]*TRCBrief, 0, len(trcs))
+	for _, trc := range trcs {
+		rep = append(rep, &TRCBrief{
+			Id: TRCID{
+				BaseNumber:   int(trc.TRC.ID.Base),
+				Isd:          int(trc.TRC.ID.ISD),
+				SerialNumber: int(trc.TRC.ID.Serial),
+			},
+		})
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	if err := enc.Encode(rep); err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to marshal response",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+
 }
 
 // GetConfig is an indirection to the http handler.

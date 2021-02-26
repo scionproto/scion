@@ -29,6 +29,7 @@ import (
 	sqlitepathdb "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
+	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
 	sqlitetrustdb "github.com/scionproto/scion/go/pkg/storage/trust/sqlite"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/renewal"
@@ -74,6 +75,7 @@ func SetID(cfg DBConfig, id string) *DBConfig {
 type TrustDB interface {
 	io.Closer
 	trust.DB
+	truststorage.TrustAPI
 }
 
 var _ (config.Config) = (*DBConfig)(nil)
