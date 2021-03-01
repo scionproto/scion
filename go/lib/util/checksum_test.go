@@ -22,23 +22,22 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
 func TestChecksum(t *testing.T) {
 	tests := []struct {
-		Input  []common.RawBytes
+		Input  [][]byte
 		Output [2]byte
 	}{
-		{[]common.RawBytes{{0x00, 0x01}}, [2]byte{0xff, 0xfe}},
-		{[]common.RawBytes{{0x34, 0x88, 0x19, 0x55}}, [2]byte{0xb2, 0x22}},
-		{[]common.RawBytes{{0x17, 0x00}}, [2]byte{0xe8, 0xff}},
-		{[]common.RawBytes{{0x11, 0x11}}, [2]byte{0xee, 0xee}},
-		{[]common.RawBytes{{0xef}}, [2]byte{0x10, 0xff}},
-		{[]common.RawBytes{{0x11}, {0x80, 0x15, 0x13}},
+		{[][]byte{{0x00, 0x01}}, [2]byte{0xff, 0xfe}},
+		{[][]byte{{0x34, 0x88, 0x19, 0x55}}, [2]byte{0xb2, 0x22}},
+		{[][]byte{{0x17, 0x00}}, [2]byte{0xe8, 0xff}},
+		{[][]byte{{0x11, 0x11}}, [2]byte{0xee, 0xee}},
+		{[][]byte{{0xef}}, [2]byte{0x10, 0xff}},
+		{[][]byte{{0x11}, {0x80, 0x15, 0x13}},
 			[2]byte{0x5b, 0xea}},
-		{[]common.RawBytes{{0xa1, 0xa2, 0xa3, 0xa4},
+		{[][]byte{{0xa1, 0xa2, 0xa3, 0xa4},
 			{0xb1, 0xb2, 0xb3},
 			{0x10, 0x20}}, [2]byte{0x45, 0xe5}},
 	}
@@ -52,7 +51,7 @@ func TestChecksum(t *testing.T) {
 }
 
 func BenchmarkChecksum(b *testing.B) {
-	data := make(common.RawBytes, 1500)
+	data := make([]byte, 1500)
 	for i := 0; i < len(data); i++ {
 		data[i] = byte(i)
 	}

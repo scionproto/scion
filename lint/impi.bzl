@@ -3,19 +3,23 @@ load(":go_config.bzl", "GoLintInfo", "extract_dirs", "extract_files")
 def _impi_impl(ctx):
     dirs = extract_dirs(ctx.attr.srcs, ctx.attr.lint_config)
     srcs = extract_files(ctx.attr.srcs, ctx.attr.lint_config)
+    local = ctx.attr.local_prefix
+    lc = ctx.attr.lint_config[GoLintInfo]
+    if lc.impi_local_prefix != "":
+        local = lc.impi_local_prefix
 
     test = [
         "#!/usr/bin/env bash",
         "echo \"{bin} -scheme {scheme} -local {local} {dirs}\"".format(
             bin = ctx.executable._impi_cli.short_path,
             scheme = ctx.attr.scheme,
-            local = ctx.attr.local_prefix,
+            local = local,
             dirs = " ".join(dirs),
         ),
         "{bin} -scheme {scheme} -local {local} {dirs}".format(
             bin = ctx.executable._impi_cli.short_path,
             scheme = ctx.attr.scheme,
-            local = ctx.attr.local_prefix,
+            local = local,
             dirs = " ".join(dirs),
         ),
     ]

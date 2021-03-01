@@ -1,17 +1,19 @@
 {
-    "subject": {
-        "isd_as": "1-ff00:0:110"
+    "as_certificate": {
+        "distinguished_name": "CN=1-ff00:0:110 AS Certificate,C=CH",
+        "isd_as": "1-ff00:0:110",
+        "subject_key_algo": "ECDSA-SHA512",
+        "subject_key_id": "D0 BB D1 83 D1 87 D1 88 D0 B8 D0 B9 20 D1 83 D1 87 D0 B8 D1 82 D0 B5 D0 BB D1 8C",
+        "validity": {
+            "not_after": "2021-01-19T12:58:41Z",
+            "not_before": "2021-01-19T10:12:01Z"
+        }
     },
-    "subject_key_id": "D0 BB D1 83 D1 87 D1 88 D0 B8 D0 B9 20 D1 83 D1 87 D0 B8 D1 82 D0 B5 D0 BB D1 8C",
     "expiration": "2021-01-19T12:58:41Z",
     "trc_id": {
-        "isd": 1,
         "base_number": 1,
+        "isd": 1,
         "serial_number": 42
     },
-    "chain_validity": {
-        "not_before": "2021-01-19T10:12:01Z",
-        "not_after": "2021-01-19T12:58:41Z"
-    },
-    "in_grace_period": true
+    "trc_in_grace_period": true
 }

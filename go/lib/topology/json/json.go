@@ -137,7 +137,7 @@ func (i BRInfo) String() string {
 }
 
 // Load parses a topology from its raw byte representation.
-func Load(b common.RawBytes) (*Topology, error) {
+func Load(b []byte) (*Topology, error) {
 	rt := &Topology{}
 	if err := json.Unmarshal(b, rt); err != nil {
 		return nil, serrors.WrapStr("unable to parse topology from JSON", err)

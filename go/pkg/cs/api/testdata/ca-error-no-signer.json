@@ -1,0 +1,6 @@
+{
+    "detail": "internal",
+    "status": 500,
+    "title": "No active signer",
+    "type": "/problems/internal-error"
+}

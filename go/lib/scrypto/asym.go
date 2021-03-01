@@ -22,7 +22,6 @@ import (
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/nacl/box"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -53,7 +52,7 @@ var (
 )
 
 // GenKeyPair generates a public/private key pair.
-func GenKeyPair(algo string) (common.RawBytes, common.RawBytes, error) {
+func GenKeyPair(algo string) ([]byte, []byte, error) {
 	switch strings.ToLower(algo) {
 	case Curve25519xSalsa20Poly1305:
 		pubkey, privkey, err := box.GenerateKey(rand.Reader)
@@ -66,7 +65,7 @@ func GenKeyPair(algo string) (common.RawBytes, common.RawBytes, error) {
 		if err != nil {
 			return nil, nil, serrors.Wrap(ErrUnableToGenerateKeyPair, err, "algo", algo)
 		}
-		return common.RawBytes(pubkey), common.RawBytes(privkey), nil
+		return []byte(pubkey), []byte(privkey), nil
 	default:
 		return nil, nil, serrors.WithCtx(ErrUnsupportedAlgo, "algo", algo)
 	}
@@ -171,7 +170,7 @@ func Decrypt(msg, nonce, pubkey, privkey []byte, algo string) ([]byte, error) {
 	}
 }
 
-func prepNaClBox(nonce, pubkey, privkey common.RawBytes) (*[NaClBoxNonceSize]byte,
+func prepNaClBox(nonce, pubkey, privkey []byte) (*[NaClBoxNonceSize]byte,
 	*[NaClBoxKeySize]byte, *[NaClBoxKeySize]byte, error) {
 
 	if len(nonce) != NaClBoxNonceSize {

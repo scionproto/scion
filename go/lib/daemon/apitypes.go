@@ -19,7 +19,6 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -51,7 +50,7 @@ type RevHandler struct {
 	Connector Connector
 }
 
-func (h RevHandler) RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes) {
+func (h RevHandler) RevokeRaw(ctx context.Context, rawSRevInfo []byte) {
 	err := h.Connector.RevNotificationFromRaw(ctx, rawSRevInfo)
 	if err != nil {
 		log.FromCtx(ctx).Error("Revocation notification to the SCION Daemon failed", "err", err)

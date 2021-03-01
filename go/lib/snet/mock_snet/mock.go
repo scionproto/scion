@@ -8,7 +8,6 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
-	common "github.com/scionproto/scion/go/lib/common"
 	snet "github.com/scionproto/scion/go/lib/snet"
 	spath "github.com/scionproto/scion/go/lib/spath"
 	net "net"
@@ -423,7 +422,7 @@ func (m *MockRevocationHandler) EXPECT() *MockRevocationHandlerMockRecorder {
 }
 
 // RevokeRaw mocks base method
-func (m *MockRevocationHandler) RevokeRaw(arg0 context.Context, arg1 common.RawBytes) {
+func (m *MockRevocationHandler) RevokeRaw(arg0 context.Context, arg1 []byte) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "RevokeRaw", arg0, arg1)
 }

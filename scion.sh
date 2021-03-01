@@ -2,8 +2,6 @@
 
 export PYTHONPATH=.
 
-EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
-
 # BEGIN subcommand functions
 
 run_silently() {
@@ -229,40 +227,18 @@ is_supervisor() {
 }
 
 cmd_test(){
-    local ret=0
-    case "$1" in
-        py) shift; py_test "$@"; ret=$((ret+$?));;
-        go) shift; bazel_test ; ret=$((ret+$?));;
-        *) py_test; ret=$((ret+$?)); bazel_test; ret=$((ret+$?));;
-    esac
-    return $ret
-}
-
-py_test() {
-    mkdir -p logs
-    python3 -m unittest discover
-    nosetests3 ${EXTRA_NOSE_ARGS} "$@"
-}
-
-bazel_test() {
-    bazel test ... --test_tag_filters=unit --build_tests_only --print_relative_test_log_paths
+    echo "deprecated, use"
+    echo "bazel test --config=unit"
+    echo "instead"
+    exit 1
 }
 
 cmd_coverage(){
     set -e
     case "$1" in
-        py) shift; py_cover "$@";;
         go) shift; go_cover "$@";;
-        *) py_cover;
-           echo "============================================="
-           go_cover;;
+        *) go_cover;;
     esac
-}
-
-py_cover() {
-    nosetests3 ${EXTRA_NOSE_ARGS} --with-cov --cov-report html "$@"
-    echo
-    echo "Python coverage report here: file://$PWD/python/htmlcov/index.html"
 }
 
 go_cover() {

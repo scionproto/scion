@@ -199,7 +199,7 @@ func testDelete(t *testing.T, pathDB TestablePathDB, inTx bool) {
 				TS := uint32(10)
 				pseg, segID := AllocPathSegment(t, ctrl, ifs1, TS)
 				InsertSeg(t, ctx, pathDB, pseg, hpCfgIDs)
-				return &query.Params{SegIDs: []common.RawBytes{segID}}
+				return &query.Params{SegIDs: [][]byte{segID}}
 			},
 			DeleteCount: 1,
 		},
@@ -259,7 +259,7 @@ func testInsertWithHpCfgIDsFull(t *testing.T, ctrl *gomock.Controller, pathDB pa
 	// Check return value.
 	assert.Equal(t, pathdb.InsertStats{Inserted: 1}, inserted, "Inserted")
 	// Check Insert.
-	res, err := pathDB.Get(ctx, &query.Params{SegIDs: []common.RawBytes{segID}})
+	res, err := pathDB.Get(ctx, &query.Params{SegIDs: [][]byte{segID}})
 	require.NoError(t, err)
 	checkResult(t, res, pseg, hpCfgIDs)
 }
@@ -278,7 +278,7 @@ func testUpdateExisting(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.Rea
 	// Check return value.
 	assert.Equal(t, pathdb.InsertStats{Updated: 1}, inserted, "Inserted")
 	// Check Insert
-	res, err := pathDB.Get(ctx, &query.Params{SegIDs: []common.RawBytes{segID}})
+	res, err := pathDB.Get(ctx, &query.Params{SegIDs: [][]byte{segID}})
 	require.NoError(t, err)
 	checkResult(t, res, newSeg, hpCfgIDs)
 }
@@ -297,7 +297,7 @@ func testUpdateOlderIgnored(t *testing.T, ctrl *gomock.Controller, pathDB pathdb
 	// Check return value.
 	assert.Equal(t, pathdb.InsertStats{}, inserted, "Inserted")
 	// Check Insert
-	res, err := pathDB.Get(ctx, &query.Params{SegIDs: []common.RawBytes{newSegID}})
+	res, err := pathDB.Get(ctx, &query.Params{SegIDs: [][]byte{newSegID}})
 	require.NoError(t, err)
 	checkResult(t, res, newSeg, hpCfgIDs)
 }
@@ -366,7 +366,7 @@ func testGetMixed(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite
 	InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
 	InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
 	params := &query.Params{
-		SegIDs:   []common.RawBytes{segID1},
+		SegIDs:   [][]byte{segID1},
 		SegTypes: []seg.Type{seg.TypeUp},
 	}
 	// Call

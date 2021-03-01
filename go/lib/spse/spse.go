@@ -29,7 +29,6 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -46,9 +45,9 @@ type BaseExtn struct {
 type Extn struct {
 	*BaseExtn
 	// Metadata contains the metadata required by the security mode.
-	Metadata common.RawBytes
+	Metadata []byte
 	// Authenticator contains the authenticator required by the security mode.
-	Authenticator common.RawBytes
+	Authenticator []byte
 }
 
 const (
@@ -146,14 +145,14 @@ func NewExtn(secMode SecMode) (*Extn, error) {
 		return nil, serrors.New("invalid SecMode code", "SecMode", secMode)
 	}
 
-	s.Metadata = make(common.RawBytes, metaLen)
-	s.Authenticator = make(common.RawBytes, authLen)
+	s.Metadata = make([]byte, metaLen)
+	s.Authenticator = make([]byte, authLen)
 
 	return s, nil
 }
 
 // Set the Metadata.
-func (s *Extn) SetMetadata(metadata common.RawBytes) error {
+func (s *Extn) SetMetadata(metadata []byte) error {
 	if len(s.Metadata) != len(metadata) {
 		return serrors.New("length does not match",
 			"expected", len(s.Metadata), "actual", len(metadata))
@@ -163,7 +162,7 @@ func (s *Extn) SetMetadata(metadata common.RawBytes) error {
 }
 
 // Set the Authenticator.
-func (s *Extn) SetAuthenticator(authenticator common.RawBytes) error {
+func (s *Extn) SetAuthenticator(authenticator []byte) error {
 	if len(s.Authenticator) != len(authenticator) {
 		return serrors.New("length does not match",
 			"expected", len(s.Authenticator), "actual", len(authenticator))
@@ -172,7 +171,7 @@ func (s *Extn) SetAuthenticator(authenticator common.RawBytes) error {
 	return nil
 }
 
-func (s *Extn) Write(b common.RawBytes) error {
+func (s *Extn) Write(b []byte) error {
 	if len(b) < s.Len() {
 		return serrors.New("buffer too short",
 			"method", "SCIONPacketSecurityExtn.Write", "expected min", s.Len(), "actual", len(b))
@@ -187,8 +186,8 @@ func (s *Extn) Write(b common.RawBytes) error {
 	return nil
 }
 
-func (s *Extn) Pack() (common.RawBytes, error) {
-	b := make(common.RawBytes, s.Len())
+func (s *Extn) Pack() ([]byte, error) {
+	b := make([]byte, s.Len())
 	if err := s.Write(b); err != nil {
 		return nil, err
 	}

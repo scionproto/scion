@@ -48,6 +48,10 @@ type Gateway struct {
 	// printed.
 	Logger log.Logger
 
+	// RoutingPublisherFactory is used to push routes to make the posix gateway
+	// to work.
+	RoutingPublisherFactory routemgr.PublisherFactory
+
 	sessions map[int]control.DataplaneSession
 }
 
@@ -60,14 +64,22 @@ func (g *Gateway) Run() error {
 		if err != nil {
 			return serrors.WrapStr("creating routing table", err)
 		}
-		dummy := &routemgr.Dummy{}
+
+		var pub routemgr.PublisherFactory
+		if g.RoutingPublisherFactory != nil {
+			pub = g.RoutingPublisherFactory
+		} else {
+			pub = &routemgr.Dummy{}
+		}
 		rt := control.NewPublishingRoutingTable(c.Chains, routingTable,
-			dummy.NewPublisher(), net.IP{})
+			pub.NewPublisher(), net.IP{})
 		newSessions := make(map[int]control.DataplaneSession, len(c.Sessions))
 		for _, s := range c.Sessions {
 			newSessions[s.ID] = g.DataplaneSessionFactory.
 				New(uint8(s.ID), s.PolicyID, s.RemoteIA, s.RemoteAddr)
-			newSessions[s.ID].SetPaths(s.Paths)
+			if err := newSessions[s.ID].SetPaths(s.Paths); err != nil {
+				return err
+			}
 			if s.IsUp {
 				if err := rt.SetSession(s.ID, newSessions[s.ID]); err != nil {
 					return serrors.WrapStr("adding route", err, "session_id", s.ID)

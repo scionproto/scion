@@ -69,6 +69,13 @@ func SetID(cfg DBConfig, id string) *DBConfig {
 	return &cfg
 }
 
+// TrustDB extends the trust.DB interface with methods used outside of the trust
+// package.
+type TrustDB interface {
+	io.Closer
+	trust.DB
+}
+
 var _ (config.Config) = (*DBConfig)(nil)
 
 // DBConfig is the configuration for the connection to a database.
@@ -148,7 +155,7 @@ func NewRevocationStorage() revcache.RevCache {
 	return memrevcache.New()
 }
 
-func NewTrustStorage(c DBConfig) (trust.DB, error) {
+func NewTrustStorage(c DBConfig) (TrustDB, error) {
 	log.Info("Connecting TrustDB", "backend", BackendSqlite, "connection", c.Connection)
 	db, err := sqlitetrustdb.New(c.Connection)
 	if err != nil {

@@ -1,13 +1,13 @@
 {
-    "subject": {
-        "isd_as": "1-ff00:0:110"
+    "cert_validity": {
+        "not_after": "2025-06-24T12:00:00Z",
+        "not_before": "2020-06-24T12:00:00Z"
     },
-    "subject_key_id": "10 B5 09 37 6F 05 9A 47 14 AF DB B7 21 AE 4E BD 60 29 6C B7",
     "policy": {
         "chain_lifetime": "72h0m0s"
     },
-    "cert_validity": {
-        "not_before": "2020-06-24T12:00:00Z",
-        "not_after": "2025-06-24T12:00:00Z"
-    }
+    "subject": {
+        "isd_as": "1-ff00:0:110"
+    },
+    "subject_key_id": "10 B5 09 37 6F 05 9A 47 14 AF DB B7 21 AE 4E BD 60 29 6C B7"
 }

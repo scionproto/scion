@@ -27,7 +27,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -138,7 +137,7 @@ func TestRoundTripper(t *testing.T) {
 				c.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(nil)
 				c.EXPECT().ReadFrom(gomock.Any(), gomock.Any()).DoAndReturn(
 					func(pkt *snet.Packet, _ *net.UDPAddr) error {
-						pkt.Payload = snet.UDPPayload{Payload: common.RawBytes{42}}
+						pkt.Payload = snet.UDPPayload{Payload: []byte{42}}
 						return nil
 					},
 				)

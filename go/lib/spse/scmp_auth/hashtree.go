@@ -30,7 +30,6 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spse"
 )
@@ -45,12 +44,12 @@ type HashTreeExtn struct {
 	Height uint8
 	// Order is a bit vector. The bit at index i is associated with hash i.
 	// 0 (1) indicates hash i shall be used as left (right) input.
-	Order common.RawBytes
+	Order []byte
 	// Signature is the signature of the root hash.
-	Signature common.RawBytes
+	Signature []byte
 	// Hashes are the hashes to verify the proof.
 	// At index 0 is the leaf hash. At index height is the root hash.
-	Hashes common.RawBytes
+	Hashes []byte
 }
 
 const (
@@ -77,13 +76,13 @@ func NewHashTreeExtn(height uint8) (*HashTreeExtn, error) {
 	extn := &HashTreeExtn{BaseExtn: &spse.BaseExtn{SecMode: spse.ScmpAuthHashTree}}
 
 	extn.Height = height
-	extn.Order = make(common.RawBytes, OrderLength)
-	extn.Signature = make(common.RawBytes, SignatureLength)
-	extn.Hashes = make(common.RawBytes, int(height)*HashLength)
+	extn.Order = make([]byte, OrderLength)
+	extn.Signature = make([]byte, SignatureLength)
+	extn.Hashes = make([]byte, int(height)*HashLength)
 	return extn, nil
 }
 
-func (s HashTreeExtn) SetOrder(order common.RawBytes) error {
+func (s HashTreeExtn) SetOrder(order []byte) error {
 	if len(order) != OrderLength {
 		return serrors.New("Invalid order length",
 			"expected", OrderLength, "actual", len(order))
@@ -93,7 +92,7 @@ func (s HashTreeExtn) SetOrder(order common.RawBytes) error {
 
 }
 
-func (s HashTreeExtn) SetSignature(signature common.RawBytes) error {
+func (s HashTreeExtn) SetSignature(signature []byte) error {
 	if len(signature) != SignatureLength {
 		return serrors.New("Invalid signature length",
 			"expected", SignatureLength, "actual", len(signature))
@@ -103,7 +102,7 @@ func (s HashTreeExtn) SetSignature(signature common.RawBytes) error {
 
 }
 
-func (s HashTreeExtn) SetHashes(hashes common.RawBytes) error {
+func (s HashTreeExtn) SetHashes(hashes []byte) error {
 	if len(hashes) != len(s.Hashes) {
 		return serrors.New("Invalid hashes length",
 			"expected", len(s.Hashes), "actual", len(hashes))
@@ -113,7 +112,7 @@ func (s HashTreeExtn) SetHashes(hashes common.RawBytes) error {
 
 }
 
-func (s *HashTreeExtn) Write(b common.RawBytes) error {
+func (s *HashTreeExtn) Write(b []byte) error {
 	if len(b) < s.Len() {
 		return serrors.New("Buffer too short",
 			"method", "SCMPAuthHashTreeExtn.Write", "expected min", s.Len(), "actual", len(b))
@@ -126,8 +125,8 @@ func (s *HashTreeExtn) Write(b common.RawBytes) error {
 	return nil
 }
 
-func (s *HashTreeExtn) Pack() (common.RawBytes, error) {
-	b := make(common.RawBytes, s.Len())
+func (s *HashTreeExtn) Pack() ([]byte, error) {
+	b := make([]byte, s.Len())
 	if err := s.Write(b); err != nil {
 		return nil, err
 	}

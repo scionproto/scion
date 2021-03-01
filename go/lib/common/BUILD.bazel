@@ -7,11 +7,9 @@ go_library(
         "defs.go",
         "errors.go",
         "l4.go",
-        "raw.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/common",
     visibility = ["//visibility:public"],
-    deps = ["//go/lib/serrors:go_default_library"],
 )
 
 go_test(

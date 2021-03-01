@@ -5,8 +5,5 @@ go_library(
     srcs = ["spse.go"],
     importpath = "github.com/scionproto/scion/go/lib/spse",
     visibility = ["//visibility:public"],
-    deps = [
-        "//go/lib/common:go_default_library",
-        "//go/lib/serrors:go_default_library",
-    ],
+    deps = ["//go/lib/serrors:go_default_library"],
 )

@@ -111,12 +111,12 @@ func realMain() error {
 		},
 	}
 
-	trustDB, err := storage.NewTrustStorage(globalCfg.TrustDB)
+	fullTrustDB, err := storage.NewTrustStorage(globalCfg.TrustDB)
 	if err != nil {
 		return serrors.WrapStr("initializing trust database", err)
 	}
-	trustDB = trustmetrics.WrapDB(string(storage.BackendSqlite), trustDB)
-	defer trustDB.Close()
+	defer fullTrustDB.Close()
+	trustDB := trustmetrics.WrapDB(string(storage.BackendSqlite), fullTrustDB)
 	engine, err := daemon.TrustEngine(globalCfg.General.ConfigDir, trustDB, dialer)
 	if err != nil {
 		return serrors.WrapStr("creating trust engine", err)
