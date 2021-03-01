@@ -1,3 +1,5 @@
+workspace(name = "com_github_scionproto_scion")
+
 # Generic stuff for dealing with repositories.
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
@@ -336,11 +338,6 @@ http_file(
         "https://github.com/bufbuild/buf/releases/download/v0.20.5/buf-Linux-x86_64",
     ],
 )
-
-load("//:dlv_deps.bzl", "dlv_repositories")
-
-# gazelle:repository_macro dlv_deps.bzl%dlv_repositories
-dlv_repositories()
 
 load("//:bbcp.bzl", "bbcp_repository")
 

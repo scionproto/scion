@@ -770,7 +770,7 @@ type IfInfo struct {
 }
 
 func AllocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId common.IFIDType,
-	infoTS uint32) (beacon.Beacon, common.RawBytes) {
+	infoTS uint32) (beacon.Beacon, []byte) {
 
 	entries := make([]seg.ASEntry, len(ases))
 	for i, as := range ases {

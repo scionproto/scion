@@ -1,6 +1,7 @@
 GoLintInfo = provider(
     fields = {
         "exclude_filter": "parts of the file name that lead to exclusion from lint checks",
+        "impi_local_prefix": "The local prefix attribute for impi",
     },
 )
 
@@ -8,6 +9,7 @@ def _go_lint_config_impl(ctx):
     return [
         GoLintInfo(
             exclude_filter = ctx.attr.exclude_filter,
+            impi_local_prefix = ctx.attr.impi_local_prefix,
         ),
     ]
 
@@ -16,6 +18,9 @@ go_lint_config = rule(
     attrs = {
         "exclude_filter": attr.string_list(
             doc = "The parts of the file name that lead to exclusion from lint checks",
+        ),
+        "impi_local_prefix": attr.string(
+            doc = "The local prefix attribute for impi",
         ),
     },
     provides = [

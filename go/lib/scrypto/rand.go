@@ -49,7 +49,7 @@ func RandInt64() int64 {
 }
 
 // Nonce takes an input length and returns a random nonce of the given length.
-func Nonce(l int) (common.RawBytes, error) {
+func Nonce(l int) ([]byte, error) {
 	if l <= 0 {
 		return nil, ErrInvalidNonceSize
 	}

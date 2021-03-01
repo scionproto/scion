@@ -46,3 +46,19 @@ func extractList(pol Policy, from, to addr.IA, action Action) []*net.IPNet {
 	}
 	return nets
 }
+
+// StaticAdvertised returns the list of all prefixes that are advertised.
+func StaticAdvertised(pol Policy) []*net.IPNet {
+	var nets []*net.IPNet
+	for _, r := range pol.Rules {
+		if r.Action != Advertise {
+			continue
+		}
+		m, ok := r.Network.(allowedNetworkMatcher)
+		if !ok {
+			continue
+		}
+		nets = append(nets, m.Allowed...)
+	}
+	return nets
+}

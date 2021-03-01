@@ -17,11 +17,10 @@
 """
 # Stdlib
 import builtins
+import unittest
 from unittest.mock import patch, mock_open
 
 # External packages
-import nose
-import nose.tools as ntools
 import yaml
 
 # SCION
@@ -35,14 +34,14 @@ from python.lib.util import (
 )
 
 
-class TestWriteFile(object):
+class TestWriteFile(unittest.TestCase):
     """
     Unit tests for lib.util.write_file
     """
-    @patch("lib.util.os.rename", autospec=True)
+    @patch("python.lib.util.os.rename", autospec=True)
     @patch.object(builtins, 'open', mock_open())
-    @patch("lib.util.os.makedirs", autospec=True)
-    @patch("lib.util.os.path.dirname", autospec=True)
+    @patch("python.lib.util.os.makedirs", autospec=True)
+    @patch("python.lib.util.os.path.dirname", autospec=True)
     def test_basic(self, dirname, makedirs, rename):
         dirname.return_value = "Dir_Name"
         # Call
@@ -54,58 +53,48 @@ class TestWriteFile(object):
         builtins.open.return_value.write.assert_called_once_with("Text")
         rename.assert_called_once_with("File_Path.new", "File_Path")
 
-    @patch("lib.util.os.makedirs", autospec=True)
+    @patch("python.lib.util.os.makedirs", autospec=True)
     def test_mkdir_error(self, mkdir):
         mkdir.side_effect = FileNotFoundError
         # Call
-        ntools.assert_raises(SCIONIOError, write_file, "File_Path", "Text")
+        with self.assertRaises(SCIONIOError):
+            write_file("File_Path", "Text")
 
     @patch.object(builtins, 'open', mock_open())
-    @patch("lib.util.os.makedirs", autospec=True)
+    @patch("python.lib.util.os.makedirs", autospec=True)
     def test_file_error(self, mkdir):
         builtins.open.side_effect = PermissionError
         # Call
-        ntools.assert_raises(SCIONIOError, write_file, "File_Path", "Text")
+        with self.assertRaises(SCIONIOError):
+            write_file("File_Path", "Text")
 
-    @patch("lib.util.os.rename", autospec=True)
+    @patch("python.lib.util.os.rename", autospec=True)
     @patch.object(builtins, 'open', mock_open())
-    @patch("lib.util.os.makedirs", autospec=True)
+    @patch("python.lib.util.os.makedirs", autospec=True)
     def test_rename_error(self, mkdir, rename):
         rename.side_effect = PermissionError
         # Call
-        ntools.assert_raises(SCIONIOError, write_file, "File_Path", "Text")
+        with self.assertRaises(SCIONIOError):
+            write_file("File_Path", "Text")
 
 
-class Loader(object):
-    """
-    Helper class for load_yaml_file tests.
-    """
-    @patch.object(builtins, 'open', mock_open())
-    def _file_error(self, target):
-        builtins.open.side_effect = IsADirectoryError
-        ntools.assert_raises(SCIONIOError, target, "File_Path")
-
-    @patch.object(builtins, 'open', mock_open())
-    def _check_loader_error(self, target, loader_path, excp, expected):
-        with patch(loader_path, autospec=True) as loader:
-            loader.side_effect = excp
-            ntools.assert_raises(expected, target, "File_Path")
-
-
-class TestLoadYAMLFile(Loader):
+class TestLoadYAMLFile(unittest.TestCase):
     """
     Unit tests for lib.util.load_yaml_file
     """
+    @patch.object(builtins, 'open', mock_open())
     def test_file_error(self):
-        self._file_error(load_yaml_file)
+        builtins.open.side_effect = IsADirectoryError
+        with self.assertRaises(SCIONIOError):
+            load_yaml_file("File_Path")
 
-    def test_json_error(self):
-        for excp in (yaml.scanner.ScannerError, ):
-            yield (
-                self._check_loader_error, load_yaml_file, "lib.util.yaml.load",
-                excp, SCIONYAMLError,
-            )
+    @patch.object(builtins, 'open', mock_open())
+    def test_yaml_error(self):
+        with patch("python.lib.util.yaml.load", autospec=True) as loader:
+            loader.side_effect = yaml.scanner.ScannerError
+            with self.assertRaises(SCIONYAMLError):
+                load_yaml_file("File_Path")
 
 
 if __name__ == "__main__":
-    nose.run(defaultTest=__name__)
+    unittest.main()

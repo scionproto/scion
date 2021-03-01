@@ -18,6 +18,8 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"fmt"
 	"time"
 
@@ -40,6 +42,8 @@ type Signer struct {
 	// Deprecated: will be removed soon.
 	Hash          crypto.Hash
 	IA            addr.IA
+	Subject       pkix.Name
+	Chain         []*x509.Certificate
 	SubjectKeyID  []byte
 	Expiration    time.Time
 	TRCID         cppki.TRCID

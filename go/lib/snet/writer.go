@@ -33,7 +33,7 @@ type scionConnWriter struct {
 	conn PacketConn
 
 	mtx    sync.Mutex
-	buffer common.RawBytes
+	buffer []byte
 }
 
 func newScionConnWriter(base *scionConnBase, conn PacketConn) *scionConnWriter {
@@ -41,7 +41,7 @@ func newScionConnWriter(base *scionConnBase, conn PacketConn) *scionConnWriter {
 	return &scionConnWriter{
 		base:   base,
 		conn:   conn,
-		buffer: make(common.RawBytes, common.MaxMTU),
+		buffer: make([]byte, common.MaxMTU),
 	}
 }
 

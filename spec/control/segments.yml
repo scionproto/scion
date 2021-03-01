@@ -36,6 +36,65 @@ paths:
             application/problem+json:
               schema:
                 $ref:  "../common/base.yml#/components/schemas/Problem"
+  /segments/{segment-id}:
+    get:
+      tags:
+      - segment
+      summary: Get the SCION path segment description
+      description: Get the description of a specific SCION path segment.
+      operationId: get-segment
+      parameters:
+      - in: path
+        name: segment-id
+        required: true
+        schema:
+          $ref: "#/components/schemas/SegmentIDs"
+        style: simple
+        explode: false
+      responses:
+        "200":
+          description: SCION path segment information.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Segment"
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref:  "../common/base.yml#/components/schemas/Problem"
+  /segments/{segment-id}/blob:
+    get:
+      tags:
+        - segment
+      summary: Get the SCION path segment blob
+      description: Get the SCION path segment encoded as PEM bytes blob.
+      operationId: get-segment-blob
+      parameters:
+      - in: path
+        name: segment-id
+        required: true
+        schema:
+          $ref: "#/components/schemas/SegmentIDs"
+        style: simple
+        explode: false
+      responses:
+        "200":
+          description: SCION path segment blob
+          content:
+            application/x-pem-file:
+              example: |
+                -----BEGIN PATH SEGMENT-----
+                SCIONPathSegment ...
+                -----END PATH SEGMENT-----
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref:  "../common/base.yml#/components/schemas/Problem"
+
 components:
   schemas:
     SegmentID:
@@ -43,6 +102,12 @@ components:
       type: string
       example: fb45d44d
       format: hex-string
+    SegmentIDs:
+      title: Segment Identifiers
+      type: array
+      items:
+        $ref: "#/components/schemas/SegmentID"
+      minItems: 1
     SegmentBrief:
       title: Brief SCION path segment description
       type: object
@@ -64,4 +129,40 @@ components:
           description: "Length of the segment."
           type: integer
           example: 1
-
+    Segment:
+      title: SCION path segment description
+      type: object
+      required:
+        - id
+        - timestamp
+        - expiration
+        - last_updated
+        - hops
+      properties:
+        id:
+          $ref: "#/components/schemas/SegmentID"
+        timestamp:
+          type: string
+          format: date-time
+        expiration:
+          type: string
+          format: date-time
+        last_updated:
+          type: string
+          format: date-time
+        hops:
+          type: array
+          items:
+            $ref: "#/components/schemas/Hop"
+    Hop:
+      title: Path segment hop
+      type: object
+      required:
+        - isd_as
+        - interface
+      properties:
+        isd_as:
+          $ref: "../common/process.yml#/components/schemas/IsdAs"
+        interface:
+          type: integer
+          example: 42

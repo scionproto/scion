@@ -26,16 +26,16 @@ import (
 
 var bufferPool = sync.Pool{
 	New: func() interface{} {
-		return make(common.RawBytes, common.MaxMTU)
+		return make([]byte, common.MaxMTU)
 	},
 }
 
-func GetBuffer() common.RawBytes {
-	b := bufferPool.Get().(common.RawBytes)
+func GetBuffer() []byte {
+	b := bufferPool.Get().([]byte)
 	return b[:cap(b)]
 }
 
-func PutBuffer(b common.RawBytes) {
+func PutBuffer(b []byte) {
 	if cap(b) == common.MaxMTU {
 		bufferPool.Put(b)
 	}

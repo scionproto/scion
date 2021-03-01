@@ -21,7 +21,6 @@ import (
 	"net"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -79,7 +78,7 @@ const (
 type HostAddr interface {
 	Size() int
 	Type() HostAddrType
-	Pack() common.RawBytes
+	Pack() []byte
 	IP() net.IP
 	Copy() HostAddr
 	Equal(HostAddr) bool
@@ -98,8 +97,8 @@ func (h HostNone) Type() HostAddrType {
 	return HostTypeNone
 }
 
-func (h HostNone) Pack() common.RawBytes {
-	return common.RawBytes{}
+func (h HostNone) Pack() []byte {
+	return []byte{}
 }
 
 func (h HostNone) IP() net.IP {
@@ -131,8 +130,8 @@ func (h HostIPv4) Type() HostAddrType {
 	return HostTypeIPv4
 }
 
-func (h HostIPv4) Pack() common.RawBytes {
-	return common.RawBytes(h.IP())
+func (h HostIPv4) Pack() []byte {
+	return []byte(h.IP())
 }
 
 func (h HostIPv4) IP() net.IP {
@@ -165,8 +164,8 @@ func (h HostIPv6) Type() HostAddrType {
 	return HostTypeIPv6
 }
 
-func (h HostIPv6) Pack() common.RawBytes {
-	return common.RawBytes(h)[:HostLenIPv6]
+func (h HostIPv6) Pack() []byte {
+	return []byte(h)[:HostLenIPv6]
 }
 
 func (h HostIPv6) IP() net.IP {
@@ -227,8 +226,8 @@ func (h HostSVC) Type() HostAddrType {
 	return HostTypeSVC
 }
 
-func (h HostSVC) Pack() common.RawBytes {
-	out := make(common.RawBytes, HostLenSVC)
+func (h HostSVC) Pack() []byte {
+	out := make([]byte, HostLenSVC)
 	binary.BigEndian.PutUint16(out, uint16(h))
 	return out
 }
@@ -296,7 +295,7 @@ func (h HostSVC) Network() string {
 	return ""
 }
 
-func HostFromRaw(b common.RawBytes, htype HostAddrType) (HostAddr, error) {
+func HostFromRaw(b []byte, htype HostAddrType) (HostAddr, error) {
 	switch htype {
 	case HostTypeNone:
 		return HostNone{}, nil

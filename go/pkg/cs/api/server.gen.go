@@ -31,9 +31,18 @@ type ServerInterface interface {
 	// List the SCION path segments
 	// (GET /segments)
 	GetSegments(w http.ResponseWriter, r *http.Request, params GetSegmentsParams)
+	// Get the SCION path segment description
+	// (GET /segments/{segment-id})
+	GetSegment(w http.ResponseWriter, r *http.Request, segmentId SegmentIDs)
+	// Get the SCION path segment blob
+	// (GET /segments/{segment-id}/blob)
+	GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentId SegmentIDs)
 	// Prints information about the AS Certificate used to sign the control-plane message.
 	// (GET /signer)
 	GetSigner(w http.ResponseWriter, r *http.Request)
+	// Get the certificate chain blob
+	// (GET /signer/blob)
+	GetSignerChain(w http.ResponseWriter, r *http.Request)
 	// Prints the contents of the AS topology file.
 	// (GET /topology)
 	GetTopology(w http.ResponseWriter, r *http.Request)
@@ -164,12 +173,79 @@ func (siw *ServerInterfaceWrapper) GetSegments(w http.ResponseWriter, r *http.Re
 	handler(w, r.WithContext(ctx))
 }
 
+// GetSegment operation middleware
+func (siw *ServerInterfaceWrapper) GetSegment(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "segment-id" -------------
+	var segmentId SegmentIDs
+
+	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter segment-id: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSegment(w, r, segmentId)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetSegmentBlob operation middleware
+func (siw *ServerInterfaceWrapper) GetSegmentBlob(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "segment-id" -------------
+	var segmentId SegmentIDs
+
+	err = runtime.BindStyledParameter("simple", false, "segment-id", chi.URLParam(r, "segment-id"), &segmentId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter segment-id: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSegmentBlob(w, r, segmentId)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
 // GetSigner operation middleware
 func (siw *ServerInterfaceWrapper) GetSigner(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var handler = func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetSigner(w, r)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetSignerChain operation middleware
+func (siw *ServerInterfaceWrapper) GetSignerChain(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSignerChain(w, r)
 	}
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -250,7 +326,16 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/segments", wrapper.GetSegments)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/segments/{segment-id}", wrapper.GetSegment)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/segments/{segment-id}/blob", wrapper.GetSegmentBlob)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/signer", wrapper.GetSigner)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/signer/blob", wrapper.GetSignerChain)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/topology", wrapper.GetTopology)

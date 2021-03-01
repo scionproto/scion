@@ -127,6 +127,8 @@ func (s *SignerGen) bestForKey(ctx context.Context, key crypto.Signer,
 		Hash:         crypto.SHA512,
 		IA:           s.IA,
 		TRCID:        id,
+		Subject:      chain[0].Subject,
+		Chain:        chain,
 		SubjectKeyID: chain[0].SubjectKeyId,
 		Expiration:   expiry,
 		ChainValidity: cppki.Validity{

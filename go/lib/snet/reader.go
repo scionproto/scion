@@ -28,19 +28,21 @@ type scionConnReader struct {
 	conn PacketConn
 
 	mtx    sync.Mutex
-	buffer common.RawBytes
+	buffer []byte
 }
 
 func newScionConnReader(base *scionConnBase, conn PacketConn) *scionConnReader {
 	return &scionConnReader{
 		base:   base,
 		conn:   conn,
-		buffer: make(common.RawBytes, common.MaxMTU),
+		buffer: make([]byte, common.MaxMTU),
 	}
 }
 
 // ReadFrom reads data into b, returning the length of copied data and the
 // address of the sender.
+// If a message is too long to fit in the supplied buffer, excess bytes may be
+// discarded.
 func (c *scionConnReader) ReadFrom(b []byte) (int, net.Addr, error) {
 	n, a, err := c.read(b)
 	return n, a, err
@@ -48,6 +50,8 @@ func (c *scionConnReader) ReadFrom(b []byte) (int, net.Addr, error) {
 
 // Read reads data into b from a connection with a fixed remote address. If the
 // remote address for the connection is unknown, Read returns an error.
+// If a message is too long to fit in the supplied buffer, excess bytes may be
+// discarded.
 func (c *scionConnReader) Read(b []byte) (int, error) {
 	n, _, err := c.read(b)
 	return n, err
@@ -72,48 +76,28 @@ func (c *scionConnReader) read(b []byte) (int, *UDPAddr, error) {
 		return 0, nil, err
 	}
 
-	var n int
 	udp, ok := pkt.Payload.(UDPPayload)
 	if !ok {
 		return 0, nil, serrors.New("unexpected payload", "type", common.TypeOf(pkt.Payload))
 	}
-	if len(udp.Payload) > len(b) {
-		return 0, nil, serrors.New("buffer to small",
-			"expected", len(udp.Payload), "actual", len(b))
+	n := copy(b, udp.Payload)
+
+	// Extract remote address.
+	// Copy the address data to prevent races. See
+	// https://github.com/scionproto/scion/issues/1659.
+	remote := &UDPAddr{
+		IA: pkt.Source.IA,
+		Host: CopyUDPAddr(&net.UDPAddr{
+			IP:   pkt.Source.Host.IP(),
+			Port: int(udp.SrcPort),
+		}),
+		Path:    pkt.Path.Copy(),
+		NextHop: CopyUDPAddr(&lastHop),
 	}
-	copy(b, udp.Payload)
-	b = b[:len(udp.Payload)]
-	n = len(udp.Payload)
-
-	remote := &UDPAddr{}
-	// On UDP network we can get either UDP traffic or SCMP messages
-	if c.base.net == "udp" {
-		// Extract remote address
-		remote.IA = pkt.Source.IA
-
-		// Extract path
-		remote.Path = pkt.Path.Copy()
-		if err = remote.Path.Reverse(); err != nil {
-			return 0, nil, serrors.WrapStr("Unable to reverse path on received packet", err)
-		}
-
-		// Copy the address to prevent races. See
-		// https://github.com/scionproto/scion/issues/1659.
-		remote.NextHop = CopyUDPAddr(&lastHop)
-
-		var err error
-		var l4i uint16
-		if udp, ok := pkt.Payload.(UDPPayload); ok {
-			l4i = udp.SrcPort
-		}
-
-		// Copy the address to prevent races. See
-		// https://github.com/scionproto/scion/issues/1659.
-		ip := pkt.Source.Host.IP()
-		remote.Host = &net.UDPAddr{IP: append(ip[:0:0], ip...), Port: int(l4i)}
-		return n, remote, err
+	if err = remote.Path.Reverse(); err != nil {
+		return 0, nil, serrors.WrapStr("unable to reverse path on received packet", err)
 	}
-	return 0, nil, serrors.New("Unknown network", "net", c.base.net)
+	return n, remote, nil
 }
 
 func (c *scionConnReader) SetReadDeadline(t time.Time) error {

@@ -21,7 +21,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -38,7 +37,7 @@ const (
 )
 
 type ingressSender interface {
-	send(common.RawBytes) error
+	send([]byte) error
 }
 
 // worker handles decapsulation of SIG frames.
@@ -149,7 +148,7 @@ func (w *worker) cleanup() {
 	}
 }
 
-func (w *worker) send(packet common.RawBytes) error {
+func (w *worker) send(packet []byte) error {
 	bytesWritten, err := w.tunIO.Write(packet)
 	if err != nil {
 		increaseCounterMetric(w.Metrics.SendLocalError, 1)

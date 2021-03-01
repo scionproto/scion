@@ -1,5 +1,5 @@
 load("@pip3_deps//:requirements.bzl", "requirement")
-load("//lint:py.bzl", "py_library")
+load("//lint:py.bzl", "py_library", "py_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -40,5 +40,15 @@ py_library(
         requirement("toml"),
         "log",
         "//python/lib:scion_addr",
+    ],
+)
+
+py_test(
+    name = "scion_test",
+    srcs = [
+        "scion_test.py",
+    ],
+    deps = [
+        "scion",
     ],
 )

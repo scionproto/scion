@@ -132,7 +132,6 @@ func (n *SCIONNetwork) Listen(ctx context.Context, network string, listen *net.U
 		return nil, serrors.New("unspecified listen IP not supported")
 	}
 	conn := &scionConnBase{
-		net:      network,
 		scionNet: n,
 		svc:      svc,
 		listen:   CopyUDPAddr(listen),

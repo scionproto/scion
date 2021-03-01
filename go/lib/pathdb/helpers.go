@@ -17,10 +17,10 @@ package pathdb
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
@@ -55,7 +55,7 @@ func HashPolicy(policy *pathpol.Policy) (PolicyHash, error) {
 }
 
 func (h PolicyHash) String() string {
-	return common.RawBytes(h).String()
+	return fmt.Sprintf("%x", []byte(h))
 }
 
 // PackSegment packs a path segment.
