@@ -17,6 +17,7 @@ package epic
 
 import (
 	"encoding/binary"
+	"strconv"
 
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
@@ -29,6 +30,11 @@ const (
 	// overhead denotes the number of bytes the EPIC path type contains in addition to the SCION
 	// path type. It is the sum of the PacketTimestamp (8B), the PHVF (4B) and the LHVF (4B) sizes.
 	overhead = 16
+	// lenPckTs denotes the length of the packet timestamp.
+	lenPckTs = 8
+	// lenHVF denotes the length of the hop validation fields. The length is the same for both the
+	// PHVF and the LHVF.
+	lenHVF = 4
 )
 
 // RegisterPath registers the EPIC path type globally.
@@ -56,20 +62,21 @@ func (p *EpicPath) SerializeTo(b []byte) error {
 	if p == nil {
 		return serrors.New("epic path must not be nil")
 	}
-	if len(b) < 16 {
-		return serrors.New("buffer for EpicPath too short (< 16 bytes)")
+	if len(b) < overhead {
+		return serrors.New("buffer for EpicPath too short (< " +
+			strconv.Itoa(overhead) + " bytes)")
 	}
-	if len(p.PHVF) != 4 || len(p.LHVF) != 4 {
-		return serrors.New("PHVF and LHVF must have 4 bytes",
+	if len(p.PHVF) != lenHVF || len(p.LHVF) != lenHVF {
+		return serrors.New("PHVF and LHVF must have "+strconv.Itoa(lenHVF)+" bytes",
 			"PHVF", len(p.PHVF), "LHVF", len(p.LHVF))
 	}
 	if p.ScionRaw == nil {
 		return serrors.New("scion subheader must exist")
 	}
-	binary.BigEndian.PutUint64(b[:8], p.PacketTimestamp)
-	copy(b[8:12], p.PHVF)
-	copy(b[12:16], p.LHVF)
-	return p.ScionRaw.SerializeTo(b[16:])
+	binary.BigEndian.PutUint64(b[:lenPckTs], p.PacketTimestamp)
+	copy(b[lenPckTs:(lenPckTs+lenHVF)], p.PHVF)
+	copy(b[(lenPckTs+lenHVF):overhead], p.LHVF)
+	return p.ScionRaw.SerializeTo(b[overhead:])
 }
 
 // DecodeFromBytes deserializes the buffer b into the EpicPath. On failure, an error is returned,
@@ -78,16 +85,16 @@ func (p *EpicPath) DecodeFromBytes(b []byte) error {
 	if p == nil {
 		return serrors.New("epic path must not be nil")
 	}
-	if len(b) < 16 {
-		return serrors.New("EpicPath bytes too short (< 16 bytes)")
+	if len(b) < overhead {
+		return serrors.New("EpicPath bytes too short (< " + strconv.Itoa(overhead) + " bytes)")
 	}
-	p.PacketTimestamp = binary.BigEndian.Uint64(b[:8])
-	p.PHVF = make([]byte, 4)
-	p.LHVF = make([]byte, 4)
-	copy(p.PHVF, b[8:12])
-	copy(p.LHVF, b[12:16])
+	p.PacketTimestamp = binary.BigEndian.Uint64(b[:lenPckTs])
+	p.PHVF = make([]byte, lenHVF)
+	p.LHVF = make([]byte, lenHVF)
+	copy(p.PHVF, b[lenPckTs:(lenPckTs+lenHVF)])
+	copy(p.LHVF, b[(lenPckTs+lenHVF):overhead])
 	p.ScionRaw = &scion.Raw{}
-	return p.ScionRaw.DecodeFromBytes(b[16:])
+	return p.ScionRaw.DecodeFromBytes(b[overhead:])
 }
 
 // Reverse reverses the EPIC path. In particular, this means that the SCION path type subheader
