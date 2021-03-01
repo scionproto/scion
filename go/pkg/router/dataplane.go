@@ -812,14 +812,13 @@ func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.Seri
 }
 
 func (p *scionPacketProcessor) parsePath() (processResult, error) {
-	switch p.isEpic {
-	case true:
+	if p.isEpic {
 		epicpath, ok := p.scionLayer.Path.(*epic.EpicPath)
 		if !ok {
 			return processResult{}, malformedPath
 		}
 		p.path = epicpath.ScionRaw
-	case false:
+	} else {
 		var ok bool
 		p.path, ok = p.scionLayer.Path.(*scion.Raw)
 		if !ok {
