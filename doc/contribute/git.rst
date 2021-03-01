@@ -70,24 +70,32 @@ Now that you have this setup, the `procedure for doing the
 sync <https://help.github.com/articles/syncing-a-fork/>`__ is pretty
 straight-forward:
 
-1. Fetch the changes from the main repo: ``git fetch upstream``
-1. Switch to your master branch: ``git checkout master``
-1. Merge the upstream changes into your main branch: ``git merge --ff-only upstream/master``
-1. Push the changes to your github fork: ``git push``
+#. Fetch the changes from the main repo: ``git fetch upstream``
+#. Switch to your master branch: ``git checkout master``
+#. Merge the upstream changes into your main branch: ``git merge --ff-only upstream/master``
+#. Push the changes to your github fork: ``git push``
 
 A simple script to automate this can be found in the repo under
 ``/scripts/mastersync.sh``.
 
-Preparing your PR
------------------
+.. _contribute-submit-pull-request:
 
-Before you create your PR, make sure your code passes the unit testing and linting checks.
+Submitting a pull request
+=========================
+
+Pull Requests are a powerful tool provided by github mainly to review code
+before it is merged to the main branch.
+
+Preparing your pull request
+---------------------------
+
+Before you create your pull request (PR), make sure your code passes the unit testing and linting checks.
 
 Run the tests using:
 
 .. code-block:: bash
 
-   ./scion.sh test
+   bazel test --config=unit
 
 The above runs only the unit tests. As soon as you open your PR, some additional tests
 will run automatically.
@@ -99,7 +107,7 @@ To lint the code, run:
    ./scion.sh lint
 
 Good commit messages
---------------------
+^^^^^^^^^^^^^^^^^^^^
 
 We adhere to the rules in the `Go Contribution
 Guide <https://golang.org/doc/contribute.html#commit_messages>`__.
@@ -124,14 +132,10 @@ Here is an example of a good commit message:
 - All letters are lowercase
 - There is always a reference number to an issue
 
+Submitting your pull request
+----------------------------
 
-Pull Requests
--------------
-
-Pull Requests are a powerful tool provided by github mainly to review code
-before it is merged to the main branch.
-
-In order to create a pull request you need to push your branch containing the
+In order to submit a pull request you need to push your branch containing the
 new code to the github repository (as explained above). This new branch will now
 show up in the web interface (under 'branches' on the main repository page).
 From there you can click on 'New pull request' where you can add a description
@@ -145,7 +149,7 @@ Code reviews
 
 Github's code review interface is fairly basic, and is missing some key
 features. To compensate for this, we're using an external review system,
-[reviewable.io](reviewable.io). This integrates into the github PR, and keeps
+`reviewable.io <https://reviewable.io/>`__. This integrates into the github PR, and keeps
 track of comments that have been addressed or not. When all issues pointed out
 by your reviewer are fixed, your code is probably ready to be merged.
 
