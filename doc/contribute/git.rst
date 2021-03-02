@@ -15,14 +15,6 @@ Even if you are experienced with Git, we recommend at least skimming it because
 it includes some additional information on how to write good commit messages,
 and how the code review process works.
 
-Setting up github auth
-----------------------
-
-Interacting with github using git will require you to authenticate every time.
-In order to make your life easier, we strongly suggest setting up automated
-authentication using an ssh-key. Github has a nice `doc on how to set it
-up <https://help.github.com/articles/generating-ssh-keys/>`__.
-
 Forking the repository
 ----------------------
 
@@ -35,6 +27,15 @@ This gives you a complete copy of the main scion repo, in which are you free to
 make changes without affecting anyone else. The only downside to this is that
 you have a little extra work to do to keep it up to date with the main repo.
 This is covered below.
+
+Setting up github auth
+----------------------
+
+Interacting with github using git will require you to authenticate every time.
+In order to make your life easier, we strongly suggest setting up automated
+authentication using an ssh-key. Github has a nice `doc on how to set it
+up <https://help.github.com/articles/generating-ssh-keys/>`__.
+
 
 Cloning the repository
 ----------------------
