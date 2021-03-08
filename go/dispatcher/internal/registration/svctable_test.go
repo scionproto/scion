@@ -16,170 +16,268 @@
 package registration
 
 import (
+	"fmt"
 	"net"
-	"sort"
+	"strconv"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestSVCTableEmpty(t *testing.T) {
+func TestSVCTableLookup(t *testing.T) {
 	address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
 	value := "test value"
-	Convey("Given an empty SVCTable", t, func() {
-		table := NewSVCTable()
-		Convey("Anycast to nil address, not found", func() {
-			retValues := table.Lookup(addr.SvcCS, nil)
-			So(retValues, ShouldBeEmpty)
+
+	testCases := map[string]struct {
+		Svc      addr.HostSVC
+		IP       net.IP
+		Prepare  func(t *testing.T, table SVCTable)
+		Expected []interface{}
+	}{
+		// Empty table test cases:
+		"Anycast to nil address, not found": {
+			Svc:     addr.SvcCS,
+			Prepare: func(*testing.T, SVCTable) {},
+		},
+		"Anycast to some IPv4 address, not found": {
+			Svc:     addr.SvcCS,
+			IP:      net.IP{10, 2, 3, 4},
+			Prepare: func(*testing.T, SVCTable) {},
+		},
+		"Multicast to some IPv4 address, not found": {
+			Svc:     addr.SvcCS.Multicast(),
+			Prepare: func(*testing.T, SVCTable) {},
+		},
+
+		// Table with 1 entry test cases:
+		"anycasting to nil finds the entry": {
+			Svc: addr.SvcCS,
+			Prepare: func(t *testing.T, table SVCTable) {
+				_, err := table.Register(addr.SvcCS, address, value)
+				require.NoError(t, err)
+			},
+			Expected: []interface{}{value},
+		},
+		"multicasting to nil finds the entry": {
+			Svc: addr.SvcCS.Multicast(),
+			Prepare: func(t *testing.T, table SVCTable) {
+				_, err := table.Register(addr.SvcCS, address, value)
+				require.NoError(t, err)
+			},
+			Expected: []interface{}{value},
+		},
+		"anycasting to a different IP does not find the entry": {
+			Svc: addr.SvcCS,
+			IP:  net.IP{10, 5, 6, 7},
+			Prepare: func(t *testing.T, table SVCTable) {
+				_, err := table.Register(addr.SvcCS, address, value)
+				require.NoError(t, err)
+			},
+		},
+		"anycasting to a different SVC does not find the entry": {
+			Svc: addr.SvcDS,
+			IP:  address.IP,
+			Prepare: func(t *testing.T, table SVCTable) {
+				_, err := table.Register(addr.SvcCS, address, value)
+				require.NoError(t, err)
+			},
+		},
+		"anycasting to the same SVC and IP finds the entry": {
+			Svc: addr.SvcCS,
+			IP:  address.IP,
+			Prepare: func(t *testing.T, table SVCTable) {
+				_, err := table.Register(addr.SvcCS, address, value)
+				require.NoError(t, err)
+			},
+			Expected: []interface{}{value},
+		},
+		"multicasting to the same SVC and IP finds the entry": {
+			Svc: addr.SvcCS.Multicast(),
+			Prepare: func(t *testing.T, table SVCTable) {
+				_, err := table.Register(addr.SvcCS, address, value)
+				require.NoError(t, err)
+			},
+			Expected: []interface{}{value},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			table := NewSVCTable()
+			tc.Prepare(t, table)
+
+			retValues := table.Lookup(tc.Svc, tc.IP)
+			assert.Equal(t, tc.Expected, retValues)
 		})
-		Convey("Anycast to some IPv4 address, not found", func() {
-			retValues := table.Lookup(addr.SvcCS, net.IP{10, 2, 3, 4})
-			So(retValues, ShouldBeEmpty)
-		})
-		Convey("Multicast to some IPv4 address, not found", func() {
-			retValues := table.Lookup(addr.SvcCS.Multicast(), nil)
-			So(retValues, ShouldBeEmpty)
-		})
-		Convey("Registering nil address fails", func() {
-			reference, err := table.Register(addr.SvcCS, nil, value)
-			SoMsg("err", err, ShouldNotBeNil)
-			SoMsg("ref", reference, ShouldBeNil)
-		})
-		Convey("Registering IPv4 zero address fails", func() {
-			zeroAddress := &net.UDPAddr{
-				IP:   net.IPv4zero,
-				Port: address.Port,
-			}
-			reference, err := table.Register(addr.SvcCS, zeroAddress, value)
-			SoMsg("err", err, ShouldNotBeNil)
-			SoMsg("ref", reference, ShouldBeNil)
-		})
-		Convey("Registering IPv6 zero address fails", func() {
-			zeroAddress := &net.UDPAddr{
-				IP:   net.IPv6zero,
-				Port: address.Port,
-			}
-			reference, err := table.Register(addr.SvcCS, zeroAddress, value)
-			SoMsg("err", err, ShouldNotBeNil)
-			SoMsg("ref", reference, ShouldBeNil)
-		})
-		Convey("Registering port zero fails", func() {
-			address := &net.UDPAddr{
-				IP: address.IP,
-			}
-			reference, err := table.Register(addr.SvcCS, address, value)
-			SoMsg("err", err, ShouldNotBeNil)
-			SoMsg("ref", reference, ShouldBeNil)
-		})
-		Convey("Registering SvcNone fails", func() {
-			reference, err := table.Register(addr.SvcNone, address, value)
-			SoMsg("err", err, ShouldNotBeNil)
-			SoMsg("ref", reference, ShouldBeNil)
-		})
-		Convey("Adding an address succeeds", func() {
-			reference, err := table.Register(addr.SvcCS, address, value)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("ref", reference, ShouldNotBeNil)
-		})
-	})
+	}
 }
 
-func TestSVCTableOneItem(t *testing.T) {
+func TestSVCTableRegistration(t *testing.T) {
 	address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
-	sameIpDiffPortAddress := &net.UDPAddr{IP: address.IP, Port: address.Port + 1}
+	value := "test value"
+
+	testCases := map[string]struct {
+		Prepare func(t *testing.T, table SVCTable)
+		// Input Register
+		Svc   addr.HostSVC
+		Addr  *net.UDPAddr
+		Value interface{}
+		// Assertions
+		ReferenceAssertion assert.ValueAssertionFunc
+		ErrAssertion       assert.ErrorAssertionFunc
+	}{
+		// Empty table test cases:
+		"Registering nil address fails": {
+			Prepare:            func(*testing.T, SVCTable) {},
+			Svc:                addr.SvcCS,
+			Value:              value,
+			ReferenceAssertion: assert.Nil,
+			ErrAssertion:       assert.Error,
+		},
+		"Registering IPv4 zero address fails": {
+			Prepare:            func(*testing.T, SVCTable) {},
+			Svc:                addr.SvcCS,
+			Addr:               &net.UDPAddr{IP: net.IPv4zero, Port: address.Port},
+			Value:              value,
+			ReferenceAssertion: assert.Nil,
+			ErrAssertion:       assert.Error,
+		},
+		"Registering IPv6 zero address fail": {
+			Prepare:            func(*testing.T, SVCTable) {},
+			Svc:                addr.SvcCS,
+			Addr:               &net.UDPAddr{IP: net.IPv6zero, Port: address.Port},
+			Value:              value,
+			ReferenceAssertion: assert.Nil,
+			ErrAssertion:       assert.Error,
+		},
+		"Registering port zero fails": {
+			Prepare:            func(*testing.T, SVCTable) {},
+			Svc:                addr.SvcCS,
+			Addr:               &net.UDPAddr{IP: address.IP},
+			Value:              value,
+			ReferenceAssertion: assert.Nil,
+			ErrAssertion:       assert.Error,
+		},
+		"Registering SvcNone fails": {
+			Prepare:            func(*testing.T, SVCTable) {},
+			Svc:                addr.SvcNone,
+			Addr:               address,
+			Value:              value,
+			ReferenceAssertion: assert.Nil,
+			ErrAssertion:       assert.Error,
+		},
+		"Adding an address succeeds": {
+			Prepare:            func(*testing.T, SVCTable) {},
+			Svc:                addr.SvcCS,
+			Addr:               address,
+			Value:              value,
+			ReferenceAssertion: assert.NotNil,
+			ErrAssertion:       assert.NoError,
+		},
+
+		// Table with 1 entry test cases:
+		"Registering the same address and different port succeeds": {
+			Prepare: func(t *testing.T, table SVCTable) {
+				_, err := table.Register(addr.SvcCS, address, value)
+				require.NoError(t, err)
+			},
+			Svc: addr.SvcCS,
+			Addr: &net.UDPAddr{
+				IP:   address.IP,
+				Port: address.Port + 1,
+			},
+			Value:              value,
+			ReferenceAssertion: assert.NotNil,
+			ErrAssertion:       assert.NoError,
+		},
+		"Registering the same address and same port fails": {
+			Prepare: func(t *testing.T, table SVCTable) {
+				_, err := table.Register(addr.SvcCS, address, value)
+				require.NoError(t, err)
+			},
+			Svc:                addr.SvcCS,
+			Addr:               address,
+			Value:              value,
+			ReferenceAssertion: assert.Nil,
+			ErrAssertion:       assert.Error,
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			table := NewSVCTable()
+			tc.Prepare(t, table)
+
+			reference, err := table.Register(tc.Svc, tc.Addr, value)
+			tc.ErrAssertion(t, err)
+			tc.ReferenceAssertion(t, reference)
+		})
+	}
+}
+
+func TestSVCTableOneItemAnycast(t *testing.T) {
+	address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
 	diffIpSamePortAddress := &net.UDPAddr{IP: net.IP{10, 5, 6, 7}, Port: address.Port}
 	value := "test value"
 	otherValue := "other test value"
-	Convey("Given a table with one address", t, func() {
+
+	prepare := func(t *testing.T) (SVCTable, Reference) {
 		table := NewSVCTable()
 		reference, err := table.Register(addr.SvcCS, address, value)
-		xtest.FailOnErr(t, err)
-		Convey("anycasting to nil finds the entry", func() {
-			// XXX(scrye): This is a workaround s.t. a simple underlay socket
-			// that does not return IP-header information can still be used to
-			// deliver to SVC addresses. Once IP-header information is passed
-			// into the app, searching for nil should not return an entry.
-			retValues := table.Lookup(addr.SvcCS, nil)
-			SoMsg("len", len(retValues), ShouldEqual, 1)
-		})
-		Convey("multicasting to nil finds the entry", func() {
-			// XXX(scrye): this is the same workaround as above
-			retValues := table.Lookup(addr.SvcCS.Multicast(), nil)
-			SoMsg("values", retValues, ShouldResemble, []interface{}{value})
-		})
-		Convey("anycasting to a different IP does not find the entry", func() {
-			retValues := table.Lookup(addr.SvcCS, diffIpSamePortAddress.IP)
-			So(retValues, ShouldBeEmpty)
-		})
-		Convey("anycasting to a different SVC does not find the entry", func() {
-			retValues := table.Lookup(addr.SvcDS, address.IP)
-			So(retValues, ShouldBeEmpty)
-		})
-		Convey("anycasting to the same SVC and IP finds the entry", func() {
-			retValues := table.Lookup(addr.SvcCS, address.IP)
-			SoMsg("values", retValues, ShouldResemble, []interface{}{value})
-		})
-		Convey("multicasting to the same SVC and IP finds the entry", func() {
-			retValues := table.Lookup(addr.SvcCS.Multicast(), nil)
-			SoMsg("values", retValues, ShouldResemble, []interface{}{value})
-		})
-		Convey("Registering the same address and different port succeeds", func() {
-			ref, err := table.Register(addr.SvcCS, sameIpDiffPortAddress, value)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("ref", ref, ShouldNotBeNil)
-		})
-		Convey("Registering the same address and same port fails", func() {
-			ref, err := table.Register(addr.SvcCS, address, value)
-			SoMsg("err", err, ShouldNotBeNil)
-			SoMsg("ref", ref, ShouldBeNil)
-		})
-		Convey("Freeing the reference yields nil on anycast", func() {
-			reference.Free()
-			retValues := table.Lookup(addr.SvcCS, nil)
-			So(retValues, ShouldBeEmpty)
-			Convey("And double free panics", func() {
-				So(reference.Free, ShouldPanic)
-			})
-			Convey("And adding the same address again now succeeds", func() {
-				_, err := table.Register(addr.SvcCS, address, value)
-				SoMsg("err", err, ShouldBeNil)
-			})
-		})
-		Convey("Adding a second address, anycasting to first one returns correct value", func() {
+		require.NoError(t, err)
+		return table, reference
+	}
+
+	t.Run("Adding a second address, anycasting to first one returns correct value",
+		func(t *testing.T) {
+			table, _ := prepare(t)
 			_, err := table.Register(addr.SvcCS, diffIpSamePortAddress, otherValue)
-			SoMsg("err", err, ShouldBeNil)
+			assert.NoError(t, err)
 			retValues := table.Lookup(addr.SvcCS, address.IP)
-			SoMsg("values", retValues, ShouldResemble, []interface{}{value})
+			assert.Equal(t, []interface{}{value}, retValues)
 		})
+	t.Run("Freeing the reference yields nil on anycast", func(t *testing.T) {
+		table, reference := prepare(t)
+		reference.Free()
+		retValues := table.Lookup(addr.SvcCS, nil)
+		assert.Empty(t, retValues)
+
+		// Check double free panicks
+		assert.Panics(t, func() { reference.Free() })
+
+		_, err := table.Register(addr.SvcCS, address, value)
+		assert.NoError(t, err)
 	})
 }
-
 func TestSVCTableTwoItems(t *testing.T) {
 	address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
 	sameIpDiffPortAddress := &net.UDPAddr{IP: address.IP, Port: address.Port + 1}
 	value := "test value"
 	otherValue := "other test value"
-	Convey("Given a table with two ports for the same address and service", t, func() {
+
+	prepare := func(t *testing.T) SVCTable {
 		table := NewSVCTable()
 		_, err := table.Register(addr.SvcCS, address, value)
-		xtest.FailOnErr(t, err)
+		require.NoError(t, err)
 		_, err = table.Register(addr.SvcCS, sameIpDiffPortAddress, otherValue)
-		xtest.FailOnErr(t, err)
-		Convey("The anycasts will cycle between the values", func() {
-			retValues := table.Lookup(addr.SvcCS, address.IP)
-			SoMsg("values", retValues, ShouldResemble, []interface{}{value})
-			otherRetValue := table.Lookup(addr.SvcCS, address.IP)
-			SoMsg("second values", otherRetValue, ShouldResemble, []interface{}{otherValue})
-		})
-		Convey("A multicast will return both values", func() {
-			retValues := table.Lookup(addr.SvcCS.Multicast(), address.IP)
-			SoMsg("len", len(retValues), ShouldEqual, 2)
-		})
+		require.NoError(t, err)
+		return table
+	}
+
+	t.Run("The anycasts will cycle between the values", func(t *testing.T) {
+		table := prepare(t)
+		retValues := table.Lookup(addr.SvcCS, address.IP)
+		assert.Equal(t, []interface{}{value}, retValues)
+		otherRetValue := table.Lookup(addr.SvcCS, address.IP)
+		assert.Equal(t, []interface{}{otherValue}, otherRetValue)
+	})
+
+	t.Run("A multicast will return both values", func(t *testing.T) {
+		table := prepare(t)
+		retValues := table.Lookup(addr.SvcCS.Multicast(), address.IP)
+		assert.Equal(t, len(retValues), 2)
 	})
 }
 
@@ -188,111 +286,87 @@ func TestSVCTableMulticastTwoAddresses(t *testing.T) {
 	diffAddress := &net.UDPAddr{IP: net.IP{10, 5, 6, 7}, Port: address.Port}
 	value := "test value"
 	otherValue := "other test value"
-	Convey("Given a table with two addresses and the same service", t, func() {
-		table := NewSVCTable()
-		_, err := table.Register(addr.SvcCS, address, value)
-		xtest.FailOnErr(t, err)
-		_, err = table.Register(addr.SvcCS, diffAddress, otherValue)
-		xtest.FailOnErr(t, err)
-		Convey("A multicast will return both values", func() {
-			retValues := table.Lookup(addr.SvcCS.Multicast(), address.IP)
-			sort.Slice(retValues, func(i, j int) bool {
-				return retValues[i].(string) < retValues[j].(string)
-			})
-			So(retValues, ShouldResemble, []interface{}{otherValue, value})
-		})
-	})
+
+	table := NewSVCTable()
+	_, err := table.Register(addr.SvcCS, address, value)
+	require.NoError(t, err)
+	_, err = table.Register(addr.SvcCS, diffAddress, otherValue)
+	require.NoError(t, err)
+
+	retValues := table.Lookup(addr.SvcCS.Multicast(), address.IP)
+	assert.ElementsMatch(t, []interface{}{otherValue, value}, retValues)
 }
 
 func TestSVCTableStress(t *testing.T) {
 	registrationCount := 1000
-	Convey("Generate many random registrations, then free all", t, func() {
-		table := NewSVCTable()
-		references := runRandomRegistrations(registrationCount, table)
-		for _, ref := range references {
-			ref.Free()
-		}
-		Convey("then generate some more, and free again", func() {
-			references := runRandomRegistrations(registrationCount, table)
-			for _, ref := range references {
-				ref.Free()
-			}
-			Convey("table should be empty", func() {
-				So(table.String(), ShouldEqual, "map[]")
-			})
-		})
+	// Generate many random registrations, then free all
+	table := NewSVCTable()
+	references := runRandomRegistrations(registrationCount, table)
+	for _, ref := range references {
+		ref.Free()
+	}
+	// then generate some more, and free again
+	references = runRandomRegistrations(registrationCount, table)
+	for _, ref := range references {
+		ref.Free()
+	}
+	t.Run("Table should be empty", func(t *testing.T) {
+		assert.Equal(t, table.String(), "map[]")
 	})
+}
 
+func runRandomRegistrations(count int, table SVCTable) []Reference {
+	var references []Reference
+	for i := 0; i < count; i++ {
+		ref, err := table.Register(addr.SvcCS, getRandomUDPAddress(), getRandomValue())
+		if err == nil {
+			references = append(references, ref)
+		}
+	}
+	return references
 }
 
 func TestSVCTableFree(t *testing.T) {
-	Convey("", t, func() {
-		Convey("Given a table with three entries on the same IP", func() {
-			ip := net.IP{10, 2, 3, 4}
-			table := NewSVCTable()
-			addressOne := &net.UDPAddr{IP: ip, Port: 10080}
-			refOne, err := table.Register(addr.SvcCS, addressOne, "1")
-			xtest.FailOnErr(t, err)
-			addressTwo := &net.UDPAddr{IP: ip, Port: 10081}
-			refTwo, err := table.Register(addr.SvcCS, addressTwo, "2")
-			xtest.FailOnErr(t, err)
-			addressThree := &net.UDPAddr{IP: ip, Port: 10082}
-			refThree, err := table.Register(addr.SvcCS, addressThree, "3")
-			xtest.FailOnErr(t, err)
-			Convey("if the second address is removed, 1 and 3 should stay", func() {
-				refTwo.Free()
+	ip := net.IP{10, 2, 3, 4}
+	prepare := func(t *testing.T) (SVCTable, []Reference) {
+		// Prepare a table with three entries on the same IP
+		table := NewSVCTable()
+		addressOne := &net.UDPAddr{IP: ip, Port: 10080}
+		refOne, err := table.Register(addr.SvcCS, addressOne, "1")
+		require.NoError(t, err)
+		addressTwo := &net.UDPAddr{IP: ip, Port: 10081}
+		refTwo, err := table.Register(addr.SvcCS, addressTwo, "2")
+		require.NoError(t, err)
+		addressThree := &net.UDPAddr{IP: ip, Port: 10082}
+		refThree, err := table.Register(addr.SvcCS, addressThree, "3")
+		require.NoError(t, err)
+		return table, []Reference{refOne, refTwo, refThree}
+	}
+	for i := 0; i < 3; i++ {
+		addrremainone := strconv.Itoa((i+1)%3 + 1)
+		addrremaintwo := strconv.Itoa((i+2)%3 + 1)
+		name := fmt.Sprintf("Addresses %s and %s must remain", addrremainone, addrremaintwo)
+		t.Run(name, func(t *testing.T) {
+			table, refs := prepare(t)
+			refs[i].Free()
+			retValues := table.Lookup(addr.SvcCS.Multicast(), ip)
+			assert.ElementsMatch(t, []interface{}{addrremainone, addrremaintwo}, retValues)
+			checkAnyCastCycles(t,
+				func() []interface{} { return table.Lookup(addr.SvcCS, ip) },
+				[]string{addrremainone, addrremaintwo})
+
+			if i == 2 {
+				// removing address 1, after removing address 3, should leave us with address 2
+				refs[0].Free()
 				retValues := table.Lookup(addr.SvcCS.Multicast(), ip)
-				sort.Slice(retValues, func(i, j int) bool {
-					return retValues[i].(string) < retValues[j].(string)
-				})
-				So(retValues, ShouldResemble, []interface{}{"1", "3"})
-				Convey("anycasting cycles between addresses one and three", func() {
-					checkAnyCastCycles(t,
-						func() []interface{} { return table.Lookup(addr.SvcCS, ip) },
-						[]string{"1", "3"})
-				})
-			})
-			Convey("if the first address is removed, 2 and 3 should stay", func() {
-				refOne.Free()
-				retValues := table.Lookup(addr.SvcCS.Multicast(), ip)
-				sort.Slice(retValues, func(i, j int) bool {
-					return retValues[i].(string) < retValues[j].(string)
-				})
-				So(retValues, ShouldResemble, []interface{}{"2", "3"})
-				Convey("anycasting cycles between addresses two and three", func() {
-					checkAnyCastCycles(t,
-						func() []interface{} { return table.Lookup(addr.SvcCS, ip) },
-						[]string{"2", "3"})
-				})
-			})
-			Convey("if the third address is removed, 1 and 2 should stay", func() {
-				refThree.Free()
-				retValues := table.Lookup(addr.SvcCS.Multicast(), ip)
-				sort.Slice(retValues, func(i, j int) bool {
-					return retValues[i].(string) < retValues[j].(string)
-				})
-				So(retValues, ShouldResemble, []interface{}{"1", "2"})
-				Convey("anycasting cycles between addresses one and two", func() {
-					checkAnyCastCycles(t,
-						func() []interface{} { return table.Lookup(addr.SvcCS, ip) },
-						[]string{"1", "2"})
-				})
-				Convey("removing the 1st as well should only leave 2", func() {
-					refOne.Free()
-					retValues := table.Lookup(addr.SvcCS.Multicast(), ip)
-					sort.Slice(retValues, func(i, j int) bool {
-						return retValues[i].(string) < retValues[j].(string)
-					})
-					So(retValues, ShouldResemble, []interface{}{"2"})
-					Convey("anycasting cycles between addresses two", func() {
-						checkAnyCastCycles(t,
-							func() []interface{} { return table.Lookup(addr.SvcCS, ip) },
-							[]string{"2"})
-					})
-				})
-			})
+				assert.ElementsMatch(t, []interface{}{"2"}, retValues)
+				checkAnyCastCycles(t,
+					func() []interface{} { return table.Lookup(addr.SvcCS, ip) },
+					[]string{"2"})
+			}
 		})
-	})
+	}
+
 }
 
 func checkAnyCastCycles(t *testing.T, lookup func() []interface{}, expected []string) {
@@ -317,17 +391,6 @@ func checkAnyCastCycles(t *testing.T, lookup func() []interface{}, expected []st
 	}
 }
 
-func runRandomRegistrations(count int, table SVCTable) []Reference {
-	var references []Reference
-	for i := 0; i < count; i++ {
-		ref, err := table.Register(addr.SvcCS, getRandomUDPAddress(), getRandomValue())
-		if err == nil {
-			references = append(references, ref)
-		}
-	}
-	return references
-}
-
 func TestSVCTableWildcard(t *testing.T) {
 	address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
 	value := "test value"
@@ -337,29 +400,25 @@ func TestSVCTableWildcard(t *testing.T) {
 	require.NoError(t, err)
 	defer reference.Free()
 
-	testCases := []*struct {
-		Name              string
+	testCases := map[string]struct {
 		Address           addr.HostSVC
 		LookupResultCount int
 	}{
-		{
-			Name:              "cs",
+		"cs": {
 			Address:           addr.SvcCS.Multicast(),
 			LookupResultCount: 1,
 		},
-		{
-			Name:              "ds",
+		"ds": {
 			Address:           addr.SvcDS.Multicast(),
 			LookupResultCount: 1,
 		},
-		{
-			Name:              "sig",
+		"sig": {
 			Address:           addr.SvcSIG.Multicast(),
 			LookupResultCount: 0,
 		},
 	}
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
 			retValues := table.Lookup(tc.Address, nil)
 			assert.Equal(t, tc.LookupResultCount, len(retValues))
 		})
@@ -386,28 +445,24 @@ func TestSVCTableWildcardRollback(t *testing.T) {
 
 	table := NewSVCTable()
 
-	testCases := []*struct {
-		Name                string
+	testCases := map[string]struct {
 		RegisteredAddress   addr.HostSVC
 		LookupResultCSCount int
 		LookupResultDSCount int
 	}{
-		{
-			Name:                "cs",
+		"cs": {
 			RegisteredAddress:   addr.SvcCS,
 			LookupResultCSCount: 1,
 			LookupResultDSCount: 0,
 		},
-		{
-			Name:                "ds",
+		"ds": {
 			RegisteredAddress:   addr.SvcDS,
 			LookupResultCSCount: 0,
 			LookupResultDSCount: 1,
 		},
 	}
-
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
 			reference, err := table.Register(tc.RegisteredAddress, address, value)
 			require.NoError(t, err)
 			defer reference.Free()
