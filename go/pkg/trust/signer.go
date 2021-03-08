@@ -27,6 +27,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scrypto/cms/protocol"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -51,24 +52,16 @@ type Signer struct {
 	InGrace       bool
 }
 
-// Sign signs the message with the associated data. The associated data is not
-// included in the header or body of the signed message.
+// Sign signs the message with the associated data and returns a SignedMessage protobuf payload. The
+// associated data is not included in the header or body of the signed message.
 func (s Signer) Sign(ctx context.Context, msg []byte,
 	associatedData ...[]byte) (*cryptopb.SignedMessage, error) {
 
 	l := metrics.SignerLabels{}
-
 	now := time.Now()
-	expDiff := s.Expiration.Sub(now)
-	if expDiff < 0 {
-		return nil, serrors.New("signer is expired",
-			"subject_key_id", fmt.Sprintf("%x", s.SubjectKeyID),
-			"expiration", s.Expiration)
-	}
-	if expDiff < time.Hour {
-		log.FromCtx(ctx).Info("Signer expiration time is near",
-			"subject_key_id", fmt.Sprintf("%x", s.SubjectKeyID),
-			"expiration", s.Expiration)
+	if err := s.validate(ctx, now); err != nil {
+		metrics.Signer.Sign(l.WithResult(metrics.ErrValidate)).Inc()
+		return nil, err
 	}
 
 	id := &cppb.VerificationKeyID{
@@ -79,6 +72,7 @@ func (s Signer) Sign(ctx context.Context, msg []byte,
 	}
 	rawID, err := proto.Marshal(id)
 	if err != nil {
+		metrics.Signer.Sign(l.WithResult(metrics.ErrInternal)).Inc()
 		return nil, serrors.WrapStr("packing verification_key_id", err)
 	}
 	hdr := signed.Header{
@@ -94,6 +88,53 @@ func (s Signer) Sign(ctx context.Context, msg []byte,
 	}
 	metrics.Signer.Sign(l.WithResult(metrics.Success)).Inc()
 	return signedMsg, nil
+}
+
+// SignCMS signs the message and returns a CMS/PKCS7 encoded payload.
+func (s Signer) SignCMS(ctx context.Context, msg []byte) ([]byte, error) {
+	l := metrics.SignerLabels{}
+	if err := s.validate(ctx, time.Now()); err != nil {
+		metrics.Signer.Sign(l.WithResult(metrics.ErrValidate)).Inc()
+		return nil, err
+	}
+
+	eci, err := protocol.NewDataEncapsulatedContentInfo(msg)
+	if err != nil {
+		metrics.Signer.Sign(l.WithResult(metrics.ErrParse)).Inc()
+		return nil, err
+	}
+	sd, err := protocol.NewSignedData(eci)
+	if err != nil {
+		metrics.Signer.Sign(l.WithResult(metrics.ErrParse)).Inc()
+		return nil, err
+	}
+	if err := sd.AddSignerInfo(s.Chain, s.PrivateKey); err != nil {
+		metrics.Signer.Sign(l.WithResult(metrics.ErrInternal)).Inc()
+		return nil, err
+	}
+	encoded, err := sd.ContentInfoDER()
+	if err != nil {
+		metrics.Signer.Sign(l.WithResult(metrics.ErrInternal)).Inc()
+		return nil, err
+	}
+	metrics.Signer.Sign(l.WithResult(metrics.Success)).Inc()
+	return encoded, nil
+}
+
+func (s Signer) validate(ctx context.Context, now time.Time) error {
+	expDiff := s.Expiration.Sub(now)
+	if expDiff < 0 {
+		return serrors.New("signer is expired",
+			"subject_key_id", fmt.Sprintf("%x", s.SubjectKeyID),
+			"expiration", s.Expiration)
+	}
+	if expDiff < time.Hour {
+		log.FromCtx(ctx).Info("Signer expiration time is near",
+			"subject_key_id", fmt.Sprintf("%x", s.SubjectKeyID),
+			"expiration", s.Expiration)
+	}
+
+	return nil
 }
 
 func (s Signer) Equal(o Signer) bool {

@@ -321,7 +321,7 @@ func createSigner(srcIA addr.IA, trc cppki.SignedTRC, chain []*x509.Certificate,
 func renew(ctx context.Context, csr []byte, dstIA addr.IA, signer trust.Signer,
 	dialer grpc.Dialer) ([]*x509.Certificate, error) {
 
-	req, err := renewal.NewChainRenewalRequest(ctx, csr, signer)
+	req, err := renewal.NewLegacyChainRenewalRequest(ctx, csr, signer)
 	if err != nil {
 		return nil, err
 	}

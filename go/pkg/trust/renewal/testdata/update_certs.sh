@@ -47,9 +47,9 @@ do
     # For AS certificates we want smaller periods, because we want to check that
     # the database correctly fetches when given a specific point in time.
     KEYDIR=/workdir/$loc/keys PUBDIR=/workdir/$loc/public docker_exec "navigate_pubdir && gen_root && gen_ca \
-        && STARTDATE=20200624120000Z ENDDATE=20200627120000Z gen_as && mv cp-as.crt cp-as1.crt && mv cp-as.csr cp-as1.csr && mv \$KEYDIR/cp-as.key cp-as1.key \
-        && STARTDATE=20200626120000Z ENDDATE=20200629120000Z gen_as && mv cp-as.crt cp-as2.crt && cp cp-as.csr cp-as2.csr && cp \$KEYDIR/cp-as.key cp-as2.key \
-        && STARTDATE=20200628120000Z ENDDATE=20200701120000Z gen_as_ca_steps && mv cp-as.crt cp-as3.crt && mv cp-as.csr cp-as3.csr && mv \$KEYDIR/cp-as.key cp-as3.key\
+        && STARTDATE=20210302120000Z ENDDATE=20210306120000Z gen_as && mv cp-as.crt cp-as1.crt && mv cp-as.csr cp-as1.csr && mv \$KEYDIR/cp-as.key cp-as1.key \
+        && STARTDATE=20210304120000Z ENDDATE=20210308120000Z gen_as && mv cp-as.crt cp-as2.crt && cp cp-as.csr cp-as2.csr && cp \$KEYDIR/cp-as.key cp-as2.key \
+        && STARTDATE=20210306120000Z ENDDATE=20210310120000Z gen_as_ca_steps && mv cp-as.crt cp-as3.crt && mv cp-as.csr cp-as3.csr && mv \$KEYDIR/cp-as.key cp-as3.key\
         && chmod 0755 *.key"
 
     scion-pki certs validate --type cp-root $PUBDIR/cp-root.crt

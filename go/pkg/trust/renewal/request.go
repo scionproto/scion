@@ -15,21 +15,40 @@
 package renewal
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cms/protocol"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
+	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
 // NewChainRenewalRequest builds a ChainRenewalRequest given a serialized CSR
-// and a signer.
+// and a signer enveloped in a CMS SignedData.
 func NewChainRenewalRequest(ctx context.Context, csr []byte,
+	signer trust.Signer) (*cppb.ChainRenewalRequest, error) {
+
+	signedCMS, err := signer.SignCMS(ctx, csr)
+	if err != nil {
+		return nil, err
+	}
+	return &cppb.ChainRenewalRequest{
+		CmsSignedRequest: signedCMS,
+	}, nil
+}
+
+// NewLegacyChainRenewalRequest builds a ChainRenewalRequest given a serialized CSR
+// and a signer enveloped in a protobuf SignedMessage.
+func NewLegacyChainRenewalRequest(ctx context.Context, csr []byte,
 	signer trust.Signer) (*cppb.ChainRenewalRequest, error) {
 
 	body := &cppb.ChainRenewalRequestBody{
@@ -48,21 +67,26 @@ func NewChainRenewalRequest(ctx context.Context, csr []byte,
 	}, nil
 }
 
-// VerifyChainRenewalRequest verifies the renewal request. It checks that the
-// contained CSR is valid and correctly self-signed, and that the signature is
-// valid and can be verified by a chain in the given chains.
-func VerifyChainRenewalRequest(request *cppb.ChainRenewalRequest,
-	chains [][]*x509.Certificate) (*x509.CertificateRequest, error) {
+type TRCFetcher interface {
+	SignedTRC(ctx context.Context, id cppki.TRCID) (cppki.SignedTRC, error)
+}
 
-	if request == nil {
-		return nil, serrors.New("request must not be nil")
-	}
-	var authChain []*x509.Certificate
+type RequestVerifier struct {
+	TRCFetcher TRCFetcher
+}
+
+// VerifyPbSignedRenewalRequest verifies a renewal request that is encapsulated in a protobuf
+// SignedMessage envelop. It checks that the contained CSR is valid and correctly self-signed, and
+// that the signature is valid and can be verified by a chain in the given chains.
+func (r RequestVerifier) VerifyPbSignedRenewalRequest(ctx context.Context,
+	req *cryptopb.SignedMessage, chains [][]*x509.Certificate) (*x509.CertificateRequest, error) {
+
+	var authCert *x509.Certificate
 	var msg *signed.Message
 	for _, chain := range chains {
-		m, err := signed.Verify(request.SignedRequest, chain[0].PublicKey)
+		m, err := signed.Verify(req, chain[0].PublicKey)
 		if err == nil {
-			msg, authChain = m, chain
+			msg, authCert = m, chain[0]
 			break
 		}
 	}
@@ -77,6 +101,140 @@ func VerifyChainRenewalRequest(request *cppb.ChainRenewalRequest,
 	if err != nil {
 		return nil, serrors.WrapStr("parsing CSR", err)
 	}
+
+	return r.processCSR(csr, authCert)
+}
+
+// VerifyCMSSignedRenewalRequest verifies a renewal request that is encapsulated in a CMS
+// envelop. It checks that the contained CSR is valid and correctly self-signed, and
+// that the signature is valid and can be verified by the chain included in the CMS envelop.
+func (r RequestVerifier) VerifyCMSSignedRenewalRequest(ctx context.Context,
+	req []byte) (*x509.CertificateRequest, error) {
+
+	ci, err := protocol.ParseContentInfo(req)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing ContentInfo", err)
+	}
+	sd, err := ci.SignedDataContent()
+	if err != nil {
+		return nil, serrors.WrapStr("parsing SignedData", err)
+	}
+	if sd.Version != 1 {
+		return nil, serrors.New("unsupported SignedData version", "actual", sd.Version,
+			"supported", 1)
+	}
+	if len(sd.SignerInfos) != 1 {
+		return nil, serrors.New("unexpected number of signers", "expected", 1,
+			"actual", len(sd.SignerInfos))
+	}
+	si := sd.SignerInfos[0]
+	certs, err := sd.X509Certificates()
+	if certs == nil {
+		err = protocol.ErrNoCertificate
+	} else if len(certs) != 2 {
+		err = serrors.New("unexpected number of certificates")
+	}
+	if err != nil {
+		return nil, serrors.WrapStr("parsing client chain", err)
+	}
+	cert, err := si.FindCertificate(certs)
+	if err != nil {
+		return nil, serrors.WrapStr("selecting client certificate", err)
+	}
+	if cert != certs[0] {
+		certs[0], certs[1] = certs[1], certs[0]
+	}
+	if err := r.verifyClientChain(ctx, certs); err != nil {
+		return nil, serrors.WrapStr("verifying client chain", err)
+	}
+
+	if !sd.EncapContentInfo.IsTypeData() {
+		return nil, serrors.New("unsupported EncapContentInfo type",
+			"type", sd.EncapContentInfo.EContentType)
+	}
+	pld, err := sd.EncapContentInfo.EContentValue()
+	if err != nil {
+		return nil, serrors.WrapStr("reading payload", err)
+	}
+
+	if err := verifySignerInfo(pld, cert, si); err != nil {
+		return nil, serrors.WrapStr("verifying signer info", err)
+	}
+
+	csr, err := x509.ParseCertificateRequest(pld)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing CSR", err)
+	}
+
+	return r.processCSR(csr, cert)
+}
+
+func (r RequestVerifier) verifyClientChain(ctx context.Context, chain []*x509.Certificate) error {
+	ia, err := cppki.ExtractIA(chain[0].Subject)
+	if err != nil {
+		return err
+	}
+	tid := cppki.TRCID{
+		ISD:    ia.I,
+		Serial: scrypto.LatestVer,
+		Base:   scrypto.LatestVer,
+	}
+	trc, err := r.TRCFetcher.SignedTRC(ctx, tid)
+	if err != nil {
+		return serrors.WrapStr("loading TRC to verify client chain", err)
+	}
+	if trc.IsZero() {
+		return serrors.New("TRC not found", "isd", ia.I)
+	}
+	opts := cppki.VerifyOptions{TRC: &trc.TRC}
+	if err := cppki.VerifyChain(chain, opts); err != nil {
+		// If the the previous TRC is in grace period the CA certificate of the chain might
+		// have been issued with a previous Root. Try verifying with the TRC in grace period.
+		if time.Now().After(trc.TRC.GracePeriodEnd()) {
+			return serrors.WrapStr("verifying client chain", err)
+		}
+		graceID := trc.TRC.ID
+		graceID.Serial--
+		prevTRC, err := r.TRCFetcher.SignedTRC(ctx, graceID)
+		if err != nil {
+			return serrors.WrapStr("loading TRC in grace period to verify client chain", err,
+				"trc_id", graceID)
+		}
+		if prevTRC.IsZero() {
+			return serrors.New("TRC in grace period not found", "trc_id", graceID)
+		}
+		if err := cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: &prevTRC.TRC}); err != nil {
+			return serrors.WrapStr("verifying client chain", err)
+		}
+	}
+	return nil
+}
+
+func verifySignerInfo(pld []byte, cert *x509.Certificate, si protocol.SignerInfo) error {
+	hash, err := si.Hash()
+	if err != nil {
+		return err
+	}
+	attrDigest, err := si.GetMessageDigestAttribute()
+	if err != nil {
+		return err
+	}
+	actualDigest := hash.New()
+	actualDigest.Write(pld)
+	if !bytes.Equal(attrDigest, actualDigest.Sum(nil)) {
+		return serrors.New("message digest does not match")
+	}
+	sigInput, err := si.SignedAttrs.MarshaledForVerifying()
+	if err != nil {
+		return err
+	}
+	algo := si.X509SignatureAlgorithm()
+	return cert.CheckSignature(algo, sigInput, si.Signature)
+}
+
+func (r RequestVerifier) processCSR(csr *x509.CertificateRequest,
+	cert *x509.Certificate) (*x509.CertificateRequest, error) {
+
 	csrIA, err := cppki.ExtractIA(csr.Subject)
 	if err != nil {
 		return nil, serrors.WrapStr("extracting ISD-AS from CSR", err)
@@ -84,7 +242,7 @@ func VerifyChainRenewalRequest(request *cppb.ChainRenewalRequest,
 	if csrIA == nil {
 		return nil, serrors.New("subject without ISD-AS", "subject", csr.Subject)
 	}
-	chainIA, err := cppki.ExtractIA(authChain[0].Subject)
+	chainIA, err := cppki.ExtractIA(cert.Subject)
 	if err != nil {
 		return nil, serrors.WrapStr("extracting ISD-AS from certificate chain", err)
 	}
