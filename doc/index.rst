@@ -24,6 +24,12 @@ is a good place to start.
    grpc
 
 .. toctree::
+   :maxdepth: 1
+   :caption: Proposals:
+
+   endhost-bootstrap
+
+.. toctree::
    :maxdepth: 2
    :caption: Operational manuals:
 

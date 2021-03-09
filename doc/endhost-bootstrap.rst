@@ -4,6 +4,10 @@ Automated end host bootstrapping
 
 This file documents the design of the end host bootstrapping.
 
+- Author(s): Andrea Tulimiero, François Wirz
+- Last updated: 2021-03-09
+- Status: draft
+
 Overview
 ========
 
@@ -27,8 +31,8 @@ Depending on the discovery mechanism, a hint can be either sufficient to contact
 a discovery server (e.g., providing its IP address) or can be used to query the local
 network further (e.g., a DNS PTR response).
 
-A **discovery server** is a server that exposes the endpoints required
-by the bootstrapper (more in the :ref:`*Discovery Server*<*Discovery Server*>` section).
+A **discovery** **server** is a server that exposes the endpoints required
+by the bootstrapper (more in the `Discovery Server`_ section).
 
 A **discoverer** is a client of a `zero conf` service. It communicates with the service
 and provides hints to the bootstrapper.
@@ -63,7 +67,7 @@ and exits with a non-zero value.
 
 NB: The TRCs retrieval is a temporary solution; in the future, they will be
 installed on a device via other means, ideally before it gets connected to
-a network at all (more in the :ref:`*Security*<Security>` section).
+a network at all (more in the `Security`_ section).
 
 Discovery Mechanisms
 --------------------
@@ -148,13 +152,16 @@ Discovery Server
 The discovery server (e.g. *Nginx*) exposes the following endpoints to
 serve the bootstrapping configuration files:
 
-- ``/scion/discovery/<version>/topology.json``: to retrieve the topology of
-  the AS, and
-- ``/scion/discovery/<version>/trcs.tar``: to retrieve the TRCs needed by the SD.
+- ``/topology``: to retrieve the topology of the AS, and
+- ``/trcs/isd{isd}-b{base}-s{serial}`` and ``/trcs/isd{isd}-b{base}-s{serial}/blob``:
+  to retrieve the TRCs needed by the SD.
 
-NB: The endpoints are kept separate since in the future the latter will be removed.
-As previously pointed out, the TRCs will be installed on a device via different out-of-band
-means.
+The API and parameter values are the same as described
+in [spec/control/spec.yml](https://github.com/scionproto/scion/tree/master/spec/control/spec.yml).
+
+NB: The endpoints are kept separate since in the future the latter should no
+longer be used for bootstrapping.  As previously pointed out, the TRCs will be
+installed on a device via different out-of-band means.
 
 
 Security
@@ -173,19 +180,27 @@ While we can consider the discovery of TRCs a temporary solution, the same is no
 topology -- which is at the heart of the automatic bootstrapping.
 For this, a signing solution based on the cryptographic keys of an AS should be implemented.
 
+The bootstrapper has a config option to allow it to download the TRC from the
+local AS infrastructure.
+Only this inital TRC retrieval is allowed to be unauthenticated, under the
+Trust on first use (TOFU) principle, and subsequent requests must be
+authenticated and the user warned if the there is a conflict with an existing
+TRC.
+Otherwise, a user needs to copy a TRC to a well-known location on the system.
+
 Request for Comments
 ====================
 
-1. Unlike the DHCP option, the DNS SRV record can specify a port to reach the
-   service. Currently, if the port is not the canonical one, port 8041,
-   the hint is discarded.
-   Do we want this behavior?
-   In my opinion, we should change this.
-2. The name server the DNS discovery mechanisms uses is now retrieved via DHCP,
-   instead of looking it up locally (since most likely it has been already
-   retrieved with the DHCP exchange when the device obtained an IP address).
-   The motivation for this was to be OS independent.
-   Do we want to keep this behavior?
+1. All discovery mechanisms can provide the port in addition to the discovery
+   server IP. When the port is not provided a default port value of 8041 is
+   assumed.
+2. The DNS discovery mechanisms use the name server and DNS search domain
+   values provided by the host OS. This covers the case where a static network
+   configuration is used and no DHCP server is available on the local network.
+   When DHCP discovery is enabled those values can additional be retrived over
+   DHCP, covering the case where the host uses name servers and DNS search
+   domains not specific to the local network, like the public recursive name
+   servers ``1.1.1.1`` or ``9.9.9.9`` and search domain ``.local``.
 
 References
 ==========
