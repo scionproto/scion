@@ -4,6 +4,9 @@
 How to Use Git and GitHub
 *************************
 
+Getting started
+===============
+
 If you've never used Git and/or GitHub before, GitHub assembled an `awesome list of
 recommendations to get you started <https://try.github.io/>`_.
 
@@ -115,7 +118,7 @@ Guide <https://golang.org/doc/contribute.html#commit_messages>`__.
 
 Here is an example of a good commit message:
 
-.. code-block:: txt
+.. code-block:: text
 
    sciond: do not panic on shutdown
 
