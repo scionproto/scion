@@ -38,10 +38,8 @@ import (
 
 // Signer is used to sign control plane messages with the AS private key.
 type Signer struct {
-	PrivateKey crypto.Signer
-	Algorithm  signed.SignatureAlgorithm
-	// Deprecated: will be removed soon.
-	Hash          crypto.Hash
+	PrivateKey    crypto.Signer
+	Algorithm     signed.SignatureAlgorithm
 	IA            addr.IA
 	Subject       pkix.Name
 	Chain         []*x509.Certificate

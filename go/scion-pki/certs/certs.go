@@ -15,6 +15,7 @@
 package certs
 
 import (
+	"crypto/x509"
 	"fmt"
 	"sort"
 	"strings"
@@ -100,14 +101,43 @@ func runValidate(path string, expectedType cppki.CertType, checkType bool) error
 	if len(certs) > 1 {
 		return serrors.New("file with multiple certificates not supported")
 	}
-	ct, err := cppki.ValidateCert(certs[0])
+	cert := certs[0]
+	ct, err := cppki.ValidateCert(cert)
 	if err != nil {
 		return err
 	}
 	if checkType && expectedType != ct {
 		return serrors.New("wrong certificate type", "expected", expectedType, "actual", ct)
 	}
-
+	if ct == cppki.Root || ct == cppki.Regular || ct == cppki.Sensitive {
+		checkAlgorithm(cert)
+	}
 	fmt.Printf("Valid %s certificate: %q\n", ct, path)
 	return nil
+}
+
+func checkAlgorithm(cert *x509.Certificate) {
+	if cert.PublicKeyAlgorithm != x509.ECDSA {
+		return
+	}
+	return
+
+	// XXX(roosd): We do not print a warning yet, as we are still issuing
+	// certificates with sha512. This will be activated in a follow-up.
+	// https://github.com/Anapaya/scion/issues/5595
+	/*
+		pub, ok := cert.PublicKey.(*ecdsa.PublicKey)
+		if !ok {
+			return
+		}
+			expected := map[elliptic.Curve]x509.SignatureAlgorithm{
+				elliptic.P256(): x509.ECDSAWithSHA256,
+				elliptic.P384(): x509.ECDSAWithSHA384,
+				elliptic.P521(): x509.ECDSAWithSHA512,
+			}[pub.Curve]
+			if expected != cert.SignatureAlgorithm {
+				fmt.Printf("WARNING: Signature with %s curve should use %s instead of %s\n",
+					pub.Curve.Params().Name, cert.SignatureAlgorithm, expected)
+			}
+	*/
 }

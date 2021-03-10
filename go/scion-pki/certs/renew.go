@@ -16,7 +16,6 @@ package certs
 
 import (
 	"context"
-	"crypto"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/tls"
@@ -302,10 +301,13 @@ func createSigner(srcIA addr.IA, trc cppki.SignedTRC, chain []*x509.Certificate,
 	if err != nil {
 		return trust.Signer{}, err
 	}
+	algo, err := signed.SelectSignatureAlgorithm(key.Public())
+	if err != nil {
+		return trust.Signer{}, err
+	}
 	signer := trust.Signer{
 		PrivateKey:   key,
-		Algorithm:    signed.ECDSAWithSHA512,
-		Hash:         crypto.SHA512,
+		Algorithm:    algo,
 		IA:           srcIA,
 		TRCID:        trc.TRC.ID,
 		SubjectKeyID: chain[0].SubjectKeyId,
@@ -369,8 +371,7 @@ func csrTemplate(chain []*x509.Certificate, tmpl string) (*x509.CertificateReque
 		s := chain[0].Subject
 		s.ExtraNames = s.Names
 		return &x509.CertificateRequest{
-			Subject:            s,
-			SignatureAlgorithm: x509.ECDSAWithSHA512,
+			Subject: s,
 		}, nil
 	}
 	vars, err := readVars(tmpl)
@@ -404,8 +405,7 @@ func csrTemplate(chain []*x509.Certificate, tmpl string) (*x509.CertificateReque
 		}
 	}
 	return &x509.CertificateRequest{
-		Subject:            s,
-		SignatureAlgorithm: x509.ECDSAWithSHA512,
+		Subject: s,
 	}, nil
 }
 

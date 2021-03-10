@@ -16,7 +16,6 @@ package trust_test
 
 import (
 	"context"
-	"crypto"
 	"crypto/ecdsa"
 	"crypto/x509"
 	"net"
@@ -210,7 +209,6 @@ func validSignS(t *testing.T, msg []byte, rawIA string,
 	signer := trust.Signer{
 		PrivateKey: key,
 		Algorithm:  signed.ECDSAWithSHA512,
-		Hash:       crypto.SHA512,
 		IA:         ia,
 		TRCID: cppki.TRCID{
 			ISD:    1,

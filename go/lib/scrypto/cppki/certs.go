@@ -47,6 +47,8 @@ var (
 // Valid SCION signatures
 var (
 	ValidSCIONSignatureAlgs = []x509.SignatureAlgorithm{
+		x509.ECDSAWithSHA256,
+		x509.ECDSAWithSHA384,
 		x509.ECDSAWithSHA512,
 	}
 )
@@ -427,11 +429,6 @@ func generalValidation(c *x509.Certificate) error {
 	if v, ok := oidInExtensions(asn1.ObjectIdentifier{2, 5, 29, 35},
 		c.Extensions); ok && v.Critical == true {
 		errs = append(errs, serrors.New("authKeyId is marked as critical"))
-	}
-	// oidExtensionSubjectAltName  []int{2, 5, 29, 17}
-	if _, ok := oidInExtensions(asn1.ObjectIdentifier{2, 5, 29, 17},
-		c.Extensions); ok {
-		errs = append(errs, serrors.New("subjectAltName is set"))
 	}
 
 	return errs.ToError()

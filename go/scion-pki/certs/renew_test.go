@@ -87,7 +87,7 @@ func TestCSRTemplate(t *testing.T) {
 			if err != nil {
 				return
 			}
-			assert.Equal(t, x509.ECDSAWithSHA512, csr.SignatureAlgorithm)
+			assert.Equal(t, x509.UnknownSignatureAlgorithm, csr.SignatureAlgorithm)
 			assert.Equal(t, tc.Expected.String(), csr.Subject.String())
 		})
 	}

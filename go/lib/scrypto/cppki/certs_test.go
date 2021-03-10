@@ -92,14 +92,6 @@ var generalCases = map[string]testCase{
 		},
 		assertErr: assert.Error,
 	},
-	"invalid SubjectAltName is set": {
-		modify: func(c *x509.Certificate) *x509.Certificate {
-			add := pkix.Extension{Id: []int{2, 5, 29, 17}}
-			c.Extensions = append(c.Extensions, add)
-			return c
-		},
-		assertErr: assert.Error,
-	},
 	"invalid no SubjectKeyId": {
 		modify: func(c *x509.Certificate) *x509.Certificate {
 			c.SubjectKeyId = []byte{}

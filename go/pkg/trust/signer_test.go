@@ -68,7 +68,6 @@ func TestSignerSign(t *testing.T) {
 				signer := trust.Signer{
 					PrivateKey: priv,
 					Algorithm:  signed.ECDSAWithSHA512,
-					Hash:       crypto.SHA512,
 					IA:         xtest.MustParseIA("1-ff00:0:110"),
 					TRCID: cppki.TRCID{
 						ISD:    1,
@@ -114,7 +113,6 @@ func TestSignerSign(t *testing.T) {
 		signer := trust.Signer{
 			PrivateKey: priv,
 			Algorithm:  signed.ECDSAWithSHA512,
-			Hash:       crypto.SHA512,
 			IA:         xtest.MustParseIA("1-ff00:0:110"),
 			TRCID: cppki.TRCID{
 				ISD:    1,

@@ -69,6 +69,9 @@ func (ca CAPolicy) CreateChain(csr *x509.CertificateRequest) ([]*x509.Certificat
 	}
 
 	tmpl := &x509.Certificate{
+		// XXX(roosd): We still set the signature algorithm to the wrong value
+		// to allow for a staggered rollout. This will be changed in a
+		// follow-up. https://github.com/Anapaya/scion/issues/5595
 		SignatureAlgorithm: x509.ECDSAWithSHA512,
 		Version:            3,
 		SerialNumber:       big.NewInt(0).SetBytes(serial),

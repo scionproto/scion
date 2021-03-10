@@ -171,7 +171,7 @@ func TestNewChainRenewalRequestLegacy(t *testing.T) {
 			csr: csr.Raw,
 			signer: trust.Signer{
 				PrivateKey: loadKey(t, "./testdata/legacy/bern/cp-as1.key"),
-				Algorithm:  signed.ECDSAWithSHA512,
+				Algorithm:  signed.ECDSAWithSHA256,
 				IA:         xtest.MustExtractIA(t, chain[0]),
 				TRCID: cppki.TRCID{
 					ISD:    1,
@@ -228,7 +228,7 @@ func TestNewChainRenewalRequest(t *testing.T) {
 			csr: csr.Raw,
 			signer: trust.Signer{
 				PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-				Algorithm:  signed.ECDSAWithSHA512,
+				Algorithm:  signed.ECDSAWithSHA256,
 				IA:         xtest.MustExtractIA(t, chain[0]),
 				TRCID: cppki.TRCID{
 					ISD:    1,
@@ -315,7 +315,7 @@ func TestVerifyChainRenewalRequestLegacy(t *testing.T) {
 				signedReq, err := renewal.NewLegacyChainRenewalRequest(context.Background(), rawCSR,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/legacy/bern/cp-as1.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bern1Chain[0]),
 						TRCID: cppki.TRCID{
@@ -362,7 +362,7 @@ func TestVerifyChainRenewalRequestLegacy(t *testing.T) {
 				signedReq, err := renewal.NewLegacyChainRenewalRequest(context.Background(), rawCSR,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/legacy/bern/cp-as1.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bern1Chain[0]),
 						TRCID: cppki.TRCID{
@@ -391,7 +391,7 @@ func TestVerifyChainRenewalRequestLegacy(t *testing.T) {
 					invalid,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/legacy/bern/cp-as1.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bern1Chain[0]),
 						TRCID: cppki.TRCID{
@@ -415,7 +415,7 @@ func TestVerifyChainRenewalRequestLegacy(t *testing.T) {
 					bern2CSR.Raw,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/legacy/bern/cp-as1.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bern1Chain[0]),
 						TRCID: cppki.TRCID{
@@ -438,7 +438,7 @@ func TestVerifyChainRenewalRequestLegacy(t *testing.T) {
 					bern2CSR.Raw,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/legacy/bern/cp-as1.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bern1Chain[0]),
 						TRCID: cppki.TRCID{
@@ -468,7 +468,7 @@ func TestVerifyChainRenewalRequestLegacy(t *testing.T) {
 					bern2CSR.Raw,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/legacy/bern/cp-as2.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bern1Chain[0]),
 						TRCID: cppki.TRCID{
@@ -492,7 +492,7 @@ func TestVerifyChainRenewalRequestLegacy(t *testing.T) {
 					bern2CSR.Raw,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/legacy/bern/cp-as1.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bern1Chain[0]),
 						TRCID: cppki.TRCID{
@@ -510,7 +510,7 @@ func TestVerifyChainRenewalRequestLegacy(t *testing.T) {
 					[]byte("wrong content"),
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/legacy/bern/cp-as1.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bern1Chain[0]),
 						TRCID: cppki.TRCID{
@@ -539,7 +539,7 @@ func TestVerifyChainRenewalRequestLegacy(t *testing.T) {
 					[]byte("wrong content"),
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/legacy/bern/cp-as1.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bern1Chain[0]),
 						TRCID: cppki.TRCID{
@@ -563,7 +563,7 @@ func TestVerifyChainRenewalRequestLegacy(t *testing.T) {
 					bern2CSR.Raw,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/legacy/geneva/cp-as1.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bern1Chain[0]),
 						TRCID: cppki.TRCID{
@@ -589,7 +589,7 @@ func TestVerifyChainRenewalRequestLegacy(t *testing.T) {
 					bern2CSR.Raw,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/legacy/bern/cp-as1.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bern1Chain[0]),
 						TRCID: cppki.TRCID{
@@ -613,7 +613,7 @@ func TestVerifyChainRenewalRequestLegacy(t *testing.T) {
 					bern3CSR.Raw,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/legacy/bern/cp-as2.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bern2Chain[0]),
 						TRCID: cppki.TRCID{
@@ -637,7 +637,7 @@ func TestVerifyChainRenewalRequestLegacy(t *testing.T) {
 					bern3CSR.Raw,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/legacy/bern/cp-as2.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bern2Chain[0]),
 						TRCID: cppki.TRCID{
@@ -706,7 +706,7 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), rawCSR,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -749,7 +749,7 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), rawCSR,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -780,7 +780,7 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), invalid,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -807,7 +807,7 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 					[]byte("wrong content"),
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -833,7 +833,7 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), csr.Raw,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_111/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -859,7 +859,7 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), csr.Raw,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -885,7 +885,7 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), csr.Raw,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
@@ -911,7 +911,7 @@ func TestVerifyChainRenewalRequest(t *testing.T) {
 				signedReq, err := renewal.NewChainRenewalRequest(context.Background(), csr.Raw,
 					trust.Signer{
 						PrivateKey: loadKey(t, "./testdata/cms/ASff00_0_110/crypto/as/cp-as.key"),
-						Algorithm:  signed.ECDSAWithSHA512,
+						Algorithm:  signed.ECDSAWithSHA256,
 
 						IA: xtest.MustExtractIA(t, bernChain[0]),
 						TRCID: cppki.TRCID{
