@@ -4,7 +4,6 @@ go_library(
     name = "go_default_library",
     srcs = [
         "context.go",
-        "db.go",
         "metrics.go",
         "provider.go",
         "rpc.go",

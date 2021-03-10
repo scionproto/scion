@@ -1,0 +1,12 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["trust.go"],
+    importpath = "github.com/scionproto/scion/go/pkg/storage/trust",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/scrypto/cppki:go_default_library",
+    ],
+)

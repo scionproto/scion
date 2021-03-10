@@ -1,0 +1,21 @@
+{
+    "authoritative_ases": [
+        "1-ff00:0:131",
+        "1-ff00:0:132"
+    ],
+    "core_ases": [
+        "1-ff00:0:130",
+        "1-ff00:0:131",
+        "1-ff00:0:132"
+    ],
+    "description": "trc description",
+    "id": {
+        "base_number": 2,
+        "isd": 1,
+        "serial_number": 3
+    },
+    "validity": {
+        "not_after": "0001-01-01T00:00:00Z",
+        "not_before": "0001-01-01T00:00:00Z"
+    }
+}

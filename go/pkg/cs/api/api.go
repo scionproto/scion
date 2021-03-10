@@ -30,10 +30,13 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/api"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
+	"github.com/scionproto/scion/go/pkg/storage"
+	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
 )
 
 type SegmentsStore interface {
@@ -49,6 +52,7 @@ type Server struct {
 	LogLevel http.HandlerFunc
 	Signer   cstrust.RenewingSigner
 	Topology http.HandlerFunc
+	TrustDB  storage.TrustDB
 }
 
 // GetSegments gets the stored in the PathDB.
@@ -267,6 +271,156 @@ func (s *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
 	if err := enc.Encode(rep); err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to marshal response",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+}
+
+func (s *Server) GetTrcs(w http.ResponseWriter, r *http.Request, params GetTrcsParams) {
+	db := s.TrustDB
+	q := truststorage.TRCsQuery{Latest: !(params.All != nil && *params.All)}
+	if params.Isd != nil {
+		q.ISD = make([]addr.ISD, 0, len(*params.Isd))
+		for _, isd := range *params.Isd {
+			q.ISD = append(q.ISD, addr.ISD(isd))
+		}
+	}
+	trcs, err := db.SignedTRCs(r.Context(), q)
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "error getting trcs",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	if trcs == nil {
+		Error(w, Problem{
+			Status: http.StatusNotFound,
+			Title:  "there are no matching trcs",
+			Type:   api.StringRef(api.NotFound),
+		})
+		return
+	}
+	sort.Sort(trcs)
+	rep := make([]*TRCBrief, 0, len(trcs))
+	for _, trc := range trcs {
+		rep = append(rep, &TRCBrief{
+			Id: TRCID{
+				BaseNumber:   int(trc.TRC.ID.Base),
+				Isd:          int(trc.TRC.ID.ISD),
+				SerialNumber: int(trc.TRC.ID.Serial),
+			},
+		})
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	if err := enc.Encode(rep); err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to marshal response",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+
+}
+
+// GetTrc gets the trc specified by it's isd bas and serial.
+func (s *Server) GetTrc(w http.ResponseWriter, r *http.Request, isd int, base int, serial int) {
+	db := s.TrustDB
+	trc, err := db.SignedTRC(r.Context(), cppki.TRCID{
+		ISD:    addr.ISD(isd),
+		Serial: scrypto.Version(serial),
+		Base:   scrypto.Version(base),
+	})
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "error getting trc",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	if trc.IsZero() {
+		Error(w, Problem{
+			Status: http.StatusNotFound,
+			Title: fmt.Sprintf("trc with isd %d, base %d, serial %d does not exist",
+				isd, base, serial),
+			Type: api.StringRef(api.NotFound),
+		})
+		return
+	}
+	authASes := make([]IsdAs, 0, len(trc.TRC.AuthoritativeASes))
+	for _, as := range trc.TRC.AuthoritativeASes {
+		authASes = append(authASes, IsdAs(addr.IA{I: trc.TRC.ID.ISD, A: as}.String()))
+	}
+	coreAses := make([]IsdAs, 0, len(trc.TRC.CoreASes))
+	for _, as := range trc.TRC.CoreASes {
+		coreAses = append(coreAses, IsdAs(addr.IA{I: trc.TRC.ID.ISD, A: as}.String()))
+	}
+	rep := TRC{
+		AuthoritativeAses: authASes,
+		CoreAses:          coreAses,
+		Description:       trc.TRC.Description,
+		Id: TRCID{
+			Isd:          int(trc.TRC.ID.ISD),
+			BaseNumber:   int(trc.TRC.ID.Base),
+			SerialNumber: int(trc.TRC.ID.Serial),
+		},
+		Validity: Validity{
+			NotAfter:  trc.TRC.Validity.NotAfter,
+			NotBefore: trc.TRC.Validity.NotBefore,
+		},
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	if err := enc.Encode(rep); err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to marshal response",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+}
+
+// GetTrcBlob gets the trc encoded pem blob.
+func (s *Server) GetTrcBlob(w http.ResponseWriter, r *http.Request, isd int, base int, serial int) {
+	db := s.TrustDB
+	trc, err := db.SignedTRC(r.Context(), cppki.TRCID{
+		ISD:    addr.ISD(isd),
+		Serial: scrypto.Version(serial),
+		Base:   scrypto.Version(base),
+	})
+	if trc.IsZero() {
+		Error(w, Problem{
+			Status: http.StatusNotFound,
+			Title: fmt.Sprintf("trc with isd %d, base %d, serial %d does not exist",
+				isd, base, serial),
+			Type: api.StringRef(api.NotFound),
+		})
+		return
+	}
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "error getting trc",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	if err := pem.Encode(w, &pem.Block{Type: "TRC", Bytes: trc.TRC.Raw}); err != nil {
 		Error(w, Problem{
 			Detail: api.StringRef(err.Error()),
 			Status: http.StatusInternalServerError,

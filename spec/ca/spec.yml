@@ -1,0 +1,28 @@
+openapi: '3.0.3'
+info:
+  title: CA Service
+  version: '0.1.0'
+  description: API for renewing SCION certificates.
+servers:
+  - url: https://api.server.test/v1
+    description: Server endpoints need to be defined yet
+tags:
+  - name: Registration Authority
+    description: Registration Authority related endpoints
+  - name: Authentication
+    description: Service authentication related endpoints
+  - name: Process
+    description: Process related information
+paths:
+  /ra/isds/{isd-number}/ases/{as-number}/certificates/renewal:
+    $ref: './ra.yml#/paths/~1ra~1isds~1{isd-number}~1ases~1{as-number}~1certificates~1renewal'
+  /auth/token:
+    $ref: './auth.yml#/paths/~1auth~1token'
+  /healthcheck:
+    $ref: './health.yml#/paths/~1healthcheck'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

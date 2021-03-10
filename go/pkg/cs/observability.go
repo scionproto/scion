@@ -63,6 +63,7 @@ type Metrics struct {
 	SegmentLookupRequestsTotal             *prometheus.CounterVec
 	SegmentLookupSegmentsSentTotal         *prometheus.CounterVec
 	SegmentRegistrationsTotal              *prometheus.CounterVec
+	TrustDBQueriesTotal                    *prometheus.CounterVec
 	TrustLatestTRCNotBefore                prometheus.Gauge
 	TrustLatestTRCNotAfter                 prometheus.Gauge
 	TrustLatestTRCSerial                   prometheus.Gauge
@@ -139,6 +140,13 @@ func NewMetrics() *Metrics {
 				Help: "Total number of path segments received through registrations.",
 			},
 			[]string{"src", "seg_type", prom.LabelResult},
+		),
+		TrustDBQueriesTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "trustengine_db_queries_total",
+				Help: "Total queries to the database",
+			},
+			[]string{"driver", "operation", prom.LabelResult},
 		),
 		TrustLatestTRCNotBefore: promauto.NewGauge(
 			prometheus.GaugeOpts{

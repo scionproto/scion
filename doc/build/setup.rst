@@ -15,7 +15,7 @@ Setting up the development environment
    and make sure that ``~/bin`` is on your ``PATH``.
 
    You can also manually install ``bazelisk`` and create an alias so that
-   ``bazel`` will resolve to the ``bazelisk`` command. 
+   ``bazel`` will resolve to the ``bazelisk`` command.
 
 #. Next, clone the SCION repository into the appropriate directory inside your workspace. In the commands below,
    replace ``${WORKSPACE}`` with the directory in which you want to set up the project:
@@ -115,3 +115,72 @@ After that you can test it by running a topology and using a SCION filter for
 example::
 
     tshark -Y 'scion.dst_as == "ff00:0:110"'
+
+
+Work remotely with Wireshark
+----------------------------
+Sometimes it can be handy to use the remote feature of wireshark to tap into an
+interface on a different machine.
+
+
+#. Install wireshark on your local OS.
+
+   - For Ubuntu install as described in the steps above.
+   - For MacOS and Windows just download & install from the `wireshark website
+     <https://www.wireshark.org/#download>`_.
+
+
+#. Install dissector plugin
+
+   To install the dissector lua plugin copy it in the plugin folder of wireshark:
+
+   - Ubuntu:   same as in the previous step
+   - Windows:  ``%APPDATA%\Wireshark\plugins``
+   - MacOS:    ``/Applications/Wireshark.app/Contents/PlugIns/wireshark``
+
+   .. note::
+      The folder needs to be created if it doesn't exist.
+      (for more details visit `wireshark website: Plugin folders
+      <https://www.wireshark.org/docs/wsug_html_chunked/ChPluginFolders.html>`_)
+
+#. Prepare the remote machine
+
+   Install tcpdump::
+
+      sudo apt-get install tcpdump
+
+   The user used to SSH into the remote machine needs to have full access to tcpdump.
+   Hence create a new group and add this user to the group. SSH into the remote machine
+   and execute::
+
+      sudo groupadd pcap
+      sudo usermod -a -G pcap $USER
+
+   set this group as the owner of tcpdump::
+
+      sudo chgrp pcap /usr/sbin/tcpdump
+      sudo chmod 750 /usr/sbin/tcpdump
+
+   give tcpdump the necessary permissions::
+
+      sudo setcap cap_net_raw,cap_net_admin=eip /usr/sbin/tcpdump
+
+   .. note::
+      This will allow every user part of the pcap group to use the full
+      capabilities of tcpdump!
+
+#. Figure out the network interface on the remote host you want to tap into:
+   Get an IP address used by the SCION topology that's probably running with docker.
+   Search for the network-interface that's with the corresponding subnet.
+
+#. Start wireshark and click on the gear next to the interface named
+   "SSH remote capture: sshdump"
+   Fill in the IP address and Port of the remote host, as well as your preferred
+   authentication method in the Authentication tab.
+   At the Capture tab write the name of the interface you found in the previous
+   step. Find the a screenshot of an example below:
+
+   .. image:: wireshark.png
+
+#. Now you are ready to click start and investigate some SCION traffic
+

@@ -1,0 +1,16 @@
+[
+    {
+        "id": {
+            "base_number": 1,
+            "isd": 1,
+            "serial_number": 2
+        }
+    },
+    {
+        "id": {
+            "base_number": 2,
+            "isd": 2,
+            "serial_number": 1
+        }
+    }
+]

@@ -1,0 +1,6 @@
+{
+    "detail": "internal",
+    "status": 500,
+    "title": "error getting trcs",
+    "type": "/problems/internal-error"
+}
