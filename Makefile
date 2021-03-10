@@ -42,6 +42,10 @@ oai-boilerplate: clean
 	cp -r bazel-bin/spec/go/pkg/cs/api/*.gen.go go/pkg/cs/api
 	chmod 0644 go/pkg/cs/api/*.gen.go
 
+	rm -f go/pkg/ca/api/*.gen.go
+	cp -r bazel-bin/spec/go/pkg/ca/api/*.gen.go go/pkg/ca/api
+	chmod 0644 go/pkg/ca/api/*.gen.go
+
 mocks:
 	tools/gomocks
 
