@@ -89,7 +89,7 @@ type Application struct {
 // Run will exit the application if it encounters a fatal error.
 func (a *Application) Run() {
 	if err := a.run(); err != nil {
-		fmt.Fprintf(a.getErrorWriter(), "fatal error: %v", err)
+		fmt.Fprintf(a.getErrorWriter(), "fatal error: %v\n", err)
 		os.Exit(1)
 	}
 }
