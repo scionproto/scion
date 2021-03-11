@@ -42,6 +42,8 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/pkg/ca/renewal"
+	"github.com/scionproto/scion/go/pkg/ca/renewal/mock_renewal"
 	"github.com/scionproto/scion/go/pkg/cs/api/mock_api"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/cs/trust/mock_trust"
@@ -340,9 +342,9 @@ func TestAPI(t *testing.T) {
 		},
 		"ca": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
-				g := mock_trust.NewMockPolicyGen(ctrl)
+				g := mock_renewal.NewMockPolicyGen(ctrl)
 				s := &Server{
-					CA: cstrust.ChainBuilder{
+					CA: renewal.ChainBuilder{
 						PolicyGen: g,
 					},
 				}
@@ -361,9 +363,9 @@ func TestAPI(t *testing.T) {
 		},
 		"ca error (empty certificate)": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
-				g := mock_trust.NewMockPolicyGen(ctrl)
+				g := mock_renewal.NewMockPolicyGen(ctrl)
 				s := &Server{
-					CA: cstrust.ChainBuilder{
+					CA: renewal.ChainBuilder{
 						PolicyGen: g,
 					},
 				}
@@ -382,9 +384,9 @@ func TestAPI(t *testing.T) {
 		},
 		"ca error (no signer)": {
 			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
-				g := mock_trust.NewMockPolicyGen(ctrl)
+				g := mock_renewal.NewMockPolicyGen(ctrl)
 				s := &Server{
-					CA: cstrust.ChainBuilder{
+					CA: renewal.ChainBuilder{
 						PolicyGen: g,
 					},
 				}

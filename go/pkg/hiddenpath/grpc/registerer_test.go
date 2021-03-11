@@ -29,7 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
-	"github.com/scionproto/scion/go/pkg/cs/trust/grpc/mock_grpc"
+	"github.com/scionproto/scion/go/pkg/ca/renewal/grpc/mock_grpc"
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
 	hpgrpc "github.com/scionproto/scion/go/pkg/hiddenpath/grpc"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"

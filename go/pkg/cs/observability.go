@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/discovery"
 	"github.com/scionproto/scion/go/pkg/service"
@@ -175,7 +176,7 @@ func NewMetrics() *Metrics {
 // StartHTTPEndpoints starts the HTTP endpoints that expose the metrics and
 // additional information.
 func StartHTTPEndpoints(elemId string, cfg interface{}, signer cstrust.RenewingSigner,
-	ca cstrust.ChainBuilder, metrics env.Metrics) error {
+	ca renewal.ChainBuilder, metrics env.Metrics) error {
 	statusPages := service.StatusPages{
 		"info":      service.NewInfoHandler(),
 		"config":    service.NewConfigHandler(cfg),
@@ -183,7 +184,7 @@ func StartHTTPEndpoints(elemId string, cfg interface{}, signer cstrust.RenewingS
 		"signer":    signerHandler(signer),
 		"log/level": log.ConsoleLevel.ServeHTTP,
 	}
-	if ca != (cstrust.ChainBuilder{}) {
+	if ca != (renewal.ChainBuilder{}) {
 		statusPages["ca"] = caHandler(ca)
 	}
 	if err := statusPages.Register(http.DefaultServeMux, elemId); err != nil {
@@ -245,7 +246,7 @@ func signerHandler(signer cstrust.RenewingSigner) http.HandlerFunc {
 	}
 }
 
-func caHandler(signer cstrust.ChainBuilder) http.HandlerFunc {
+func caHandler(signer renewal.ChainBuilder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		s, err := signer.PolicyGen.Generate(r.Context())
