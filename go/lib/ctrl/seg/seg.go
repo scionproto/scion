@@ -28,7 +28,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl/seg/unsigned_extensions"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
@@ -196,10 +195,16 @@ func (ps *PathSegment) Validate(validationMethod ValidationMethod) error {
 			if egPeer != egHop {
 				return serrors.New("egress interface of peer entry does not match hop entry",
 					"expected", egHop, "actual", egPeer, "as_entry_idx", i, "peer_entry_idx", j)
-
 			}
 		}
+
+		extensions := ps.ASEntries[i].Extensions
+		unsignedExtensions := ps.ASEntries[i].UnsignedExtensions
+		if err := checkUnsignedExtensions(&unsignedExtensions, &extensions); err != nil {
+			return err
+		}
 	}
+
 	return nil
 }
 
@@ -367,7 +372,7 @@ func PathSegmentToPB(ps *PathSegment) *cppb.PathSegment {
 	for _, entry := range ps.ASEntries {
 		pb.AsEntries = append(pb.AsEntries, &cppb.ASEntry{
 			Signed:   entry.Signed,
-			Unsigned: unsigned_extensions.UnsignedExtensionsToPB(entry.UnsignedExtensions),
+			Unsigned: UnsignedExtensionsToPB(entry.UnsignedExtensions),
 		})
 	}
 	return pb

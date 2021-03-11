@@ -12,24 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package unsigned_extensions
+package seg
 
 import (
-	"github.com/scionproto/scion/go/lib/ctrl/seg/unsigned_extensions/epic_detached"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/epic"
+	"github.com/scionproto/scion/go/lib/serrors"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
 type UnsignedExtensions struct {
 	// EpicDetached contains the detachable epic authenticators. It is nil
 	// if it was detached (or never added).
-	EpicDetached *epic_detached.EpicDetached
+	EpicDetached *epic.Detached
 }
 
 func UnsignedExtensionsFromPB(ue *cppb.PathSegmentUnsignedExtensions) UnsignedExtensions {
 	if ue == nil {
 		return UnsignedExtensions{}
 	}
-	ed := epic_detached.EpicDetachedFromPB(ue.EpicDetachedExtension)
+	ed := epic.DetachedFromPB(ue.Epic)
 	return UnsignedExtensions{
 		EpicDetached: ed,
 	}
@@ -40,6 +41,36 @@ func UnsignedExtensionsToPB(ue UnsignedExtensions) *cppb.PathSegmentUnsignedExte
 		return &cppb.PathSegmentUnsignedExtensions{}
 	}
 	return &cppb.PathSegmentUnsignedExtensions{
-		EpicDetachedExtension: epic_detached.EpicDetachedToPB(ue.EpicDetached),
+		Epic: epic.DetachedToPB(ue.EpicDetached),
 	}
+}
+
+// checkUnsignedExtensions checks whether the unsigned extensions are consistent with the
+// signed hash. Furthermore, an unsigned extension is not valid if it is present in the
+// ASEntry, but the corresponding hash is not.
+func checkUnsignedExtensions(ue *UnsignedExtensions, e *Extensions) error {
+	if ue == nil || e == nil {
+		return serrors.New("invalid input to checkUnsignedExtensions")
+	}
+
+	// If unsigned extension is present but hash is not, return error
+	// EPIC:
+	epicDetached := (ue.EpicDetached != nil)
+	epicDigest := (e.Digests != nil && len(e.Digests.Epic.Digest) != 0)
+	if epicDetached && !epicDigest {
+		return serrors.New("epic authenticators present, but hash is not")
+	}
+
+	// Check consistency (digest extension contains correct hash)
+	// EPIC:
+	if epicDetached && epicDigest {
+		i, err := ue.EpicDetached.DigestInput()
+		if err != nil {
+			return err
+		}
+		if err := e.Digests.Epic.Validate(i); err != nil {
+			return err
+		}
+	}
+	return nil
 }

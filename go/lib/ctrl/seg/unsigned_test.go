@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package unsigned_extensions_test
+package seg
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/ctrl/seg/unsigned_extensions"
-	"github.com/scionproto/scion/go/lib/ctrl/seg/unsigned_extensions/epic_detached"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/epic"
 )
 
 func TestDecodeEncode(t *testing.T) {
@@ -30,16 +29,16 @@ func TestDecodeEncode(t *testing.T) {
 		peer := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 		peers = append(peers, peer)
 
-		ed := &epic_detached.EpicDetached{
+		ed := &epic.Detached{
 			AuthHopEntry:    hop,
 			AuthPeerEntries: peers,
 		}
 
-		ue := unsigned_extensions.UnsignedExtensions{
+		ue := UnsignedExtensions{
 			EpicDetached: ed,
 		}
-		ue2 := unsigned_extensions.UnsignedExtensionsFromPB(
-			unsigned_extensions.UnsignedExtensionsToPB(ue))
+		ue2 := UnsignedExtensionsFromPB(
+			UnsignedExtensionsToPB(ue))
 		assert.Equal(t, ue, ue2)
 	}
 }

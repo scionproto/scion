@@ -20,29 +20,18 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/digest"
-	"github.com/scionproto/scion/go/lib/ctrl/seg/unsigned_extensions/epic_detached"
 )
 
 func TestDecodeEncodeEpicDigest(t *testing.T) {
-	hop := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-	peers := make([][]byte, 0, 5)
-	for i := 0; i < 5; i++ {
-		peer := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-		peers = append(peers, peer)
-
-		ed := &epic_detached.EpicDetached{
-			AuthHopEntry:    hop,
-			AuthPeerEntries: peers,
-		}
-		hash, _ := digest.CalcEpicDigest(ed)
-		dig := &digest.DigestExtension{
-			Epic: hash,
-		}
-
-		ext := Extensions{
-			Digests: dig,
-		}
-		ext2 := ExtensionsFromPB(ExtensionsToPB(ext))
-		assert.Equal(t, ext, ext2)
+	h := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+	dig := &digest.Extension{
+		Epic: digest.Digest{
+			Digest: h,
+		},
 	}
+	ext := Extensions{
+		Digests: dig,
+	}
+	ext2 := ExtensionsFromPB(ExtensionsToPB(ext))
+	assert.Equal(t, ext, ext2)
 }
