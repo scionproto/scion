@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/digest"
-	"github.com/scionproto/scion/go/lib/ctrl/seg/unsigned_extensions/epic_detached"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/epic"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
@@ -63,6 +63,8 @@ type DefaultExtender struct {
 	Task string
 	// StaticInfo contains the configuration used for the StaticInfo Extension.
 	StaticInfo func() *StaticInfoCfg
+	// EPIC defines whether the EPIC authenticators should be added when the segment is extended.
+	EPIC bool
 }
 
 // Extend extends the beacon with hop fields of the old format.
@@ -109,17 +111,23 @@ func (s *DefaultExtender) Extend(ctx context.Context, pseg *seg.PathSegment,
 	}
 
 	// Add the detachable Epic extension
-	epicDetachedExtension := &epic_detached.EpicDetached{
-		AuthHopEntry:    epicHopMac,
-		AuthPeerEntries: epicPeerMacs,
-	}
-	asEntry.UnsignedExtensions.EpicDetached = epicDetachedExtension
-	epicHash, err := digest.CalcEpicDigest(epicDetachedExtension)
-	if err != nil {
-		return err
-	}
-	asEntry.Extensions.Digests = &digest.DigestExtension{
-		Epic: epicHash,
+	if s.EPIC {
+		e := &epic.Detached{
+			AuthHopEntry:    epicHopMac,
+			AuthPeerEntries: epicPeerMacs,
+		}
+		asEntry.UnsignedExtensions.EpicDetached = e
+
+		var d digest.Digest
+		i, err := e.DigestInput()
+		if err != nil {
+			return err
+		}
+		d.Set(i)
+
+		asEntry.Extensions.Digests = &digest.Extension{
+			Epic: d,
+		}
 	}
 
 	if err := pseg.AddASEntry(ctx, asEntry, s.Signer); err != nil {

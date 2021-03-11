@@ -17,15 +17,11 @@
 package seg
 
 import (
-	"bytes"
-	"encoding/hex"
 	"math"
 
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/digest"
-	"github.com/scionproto/scion/go/lib/ctrl/seg/unsigned_extensions"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
@@ -48,7 +44,7 @@ type ASEntry struct {
 	// Extensions holds all the beaconing extensions.
 	Extensions Extensions
 	// UnsignedExtensions holds all the unsigned beaconing extensions.
-	UnsignedExtensions unsigned_extensions.UnsignedExtensions
+	UnsignedExtensions UnsignedExtensions
 }
 
 // ASEntryFromPB creates an AS entry from the protobuf representation.
@@ -91,11 +87,7 @@ func ASEntryFromPB(pb *cppb.ASEntry) (ASEntry, error) {
 	}
 
 	extensions := extensionsFromPB(entry.Extensions)
-	unsignedExtensions := unsigned_extensions.UnsignedExtensionsFromPB(pb.Unsigned)
-	err = checkUnsignedExtensions(&unsignedExtensions, &extensions)
-	if err != nil {
-		return ASEntry{}, err
-	}
+	unsignedExtensions := UnsignedExtensionsFromPB(pb.Unsigned)
 
 	return ASEntry{
 		HopEntry:           hopEntry,
@@ -107,36 +99,4 @@ func ASEntryFromPB(pb *cppb.ASEntry) (ASEntry, error) {
 		Signed:             pb.Signed,
 		UnsignedExtensions: unsignedExtensions,
 	}, nil
-}
-
-// checkUnsignedExtensions checks whether the unsigned extensions are consistent with the
-// signed hash. Furthermore, an unsigned extension is not valid if it is present in the
-// ASEntry, but the corresponding hash is not.
-func checkUnsignedExtensions(ue *unsigned_extensions.UnsignedExtensions, e *Extensions) error {
-	if ue == nil || e == nil {
-		return serrors.New("invalid input to checkUnsignedExtensions")
-	}
-
-	// If unsigned extension is present but hash is not, return error
-	// EPIC:
-	epicDetached := (ue.EpicDetached != nil)
-	epicDigest := (e.Digests != nil && len(e.Digests.Epic) != 0)
-	if epicDetached && !epicDigest {
-		return serrors.New("epic authenticators present, but hash is not")
-	}
-
-	// Check consistency (digest extension contains correct hash)
-	// EPIC:
-	if epicDetached && epicDigest {
-		epicDigest, err := digest.CalcEpicDigest(ue.EpicDetached)
-		if err != nil {
-			return err
-		}
-		if !bytes.Equal(epicDigest, e.Digests.Epic) {
-			return serrors.New("epic authenticators and their hash are not consistent",
-				"calculated", hex.EncodeToString(epicDigest), "beacon:",
-				hex.EncodeToString(e.Digests.Epic))
-		}
-	}
-	return nil
 }

@@ -23,7 +23,7 @@ import (
 type Extensions struct {
 	HiddenPath HiddenPathExtension
 	StaticInfo *staticinfo.Extension
-	Digests    *digest.DigestExtension
+	Digests    *digest.Extension
 }
 
 func extensionsFromPB(pb *cppb.PathSegmentExtensions) Extensions {
@@ -35,7 +35,7 @@ func extensionsFromPB(pb *cppb.PathSegmentExtensions) Extensions {
 		IsHidden: pb.HiddenPath != nil && pb.HiddenPath.IsHidden,
 	}
 	staticInfo := staticinfo.FromPB(pb.StaticInfo)
-	digest := digest.DigestExtensionFromPB(pb.Digests)
+	digest := digest.ExtensionFromPB(pb.Digests)
 	return Extensions{
 		HiddenPath: hiddenPath,
 		StaticInfo: staticInfo,
@@ -49,7 +49,7 @@ func extensionsToPB(ext Extensions) *cppb.PathSegmentExtensions {
 		hiddenPath = &cppb.HiddenPathExtension{IsHidden: true}
 	}
 	staticInfo := staticinfo.ToPB(ext.StaticInfo)
-	digest := digest.DigestExtensionToPB(ext.Digests)
+	digest := digest.ExtensionToPB(ext.Digests)
 
 	if hiddenPath != nil || staticInfo != nil || digest != nil {
 		return &cppb.PathSegmentExtensions{

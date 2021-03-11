@@ -15,58 +15,49 @@
 package digest
 
 import (
+	"bytes"
 	"crypto/sha256"
-	"encoding/binary"
+	"encoding/hex"
 
-	"github.com/scionproto/scion/go/lib/ctrl/seg/unsigned_extensions/epic_detached"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
-type Digest []byte
+type Digest struct {
+	Digest []byte
+}
 
-const EpicDigestLength = 16
+const DigestLength = 16
 
-type DigestExtension struct {
+type Extension struct {
 	// Epic dentoes the digest of the EpicDetachedExtension
 	Epic Digest
 }
 
-func DigestExtensionFromPB(d *cppb.DigestExtension) *DigestExtension {
+func ExtensionFromPB(d *cppb.DigestExtension) *Extension {
 	if d == nil {
 		return nil
 	}
 	if d.Epic == nil {
-		return &DigestExtension{
-			Epic: nil,
+		return &Extension{
+			Epic: Digest{},
 		}
 	}
-	if len(d.Epic.Digest) != EpicDigestLength {
-		log.Debug("Epic digest: invalid length")
-		return &DigestExtension{
-			Epic: nil,
-		}
-	}
-	e := make([]byte, EpicDigestLength)
+	e := make([]byte, DigestLength)
 	copy(e, d.Epic.Digest)
-	return &DigestExtension{
-		Epic: e,
+	return &Extension{
+		Epic: Digest{
+			Digest: e,
+		},
 	}
 }
 
-func DigestExtensionToPB(d *DigestExtension) *cppb.DigestExtension {
+func ExtensionToPB(d *Extension) *cppb.DigestExtension {
 	if d == nil {
 		return nil
 	}
-	if len(d.Epic) != EpicDigestLength {
-		log.Debug("Epic digest: invalid length")
-		return &cppb.DigestExtension{
-			Epic: nil,
-		}
-	}
-	e := make([]byte, EpicDigestLength)
-	copy(e, d.Epic)
+	e := make([]byte, DigestLength)
+	copy(e, d.Epic.Digest)
 	return &cppb.DigestExtension{
 		Epic: &cppb.DigestExtension_Digest{
 			Digest: e,
@@ -74,27 +65,22 @@ func DigestExtensionToPB(d *DigestExtension) *cppb.DigestExtension {
 	}
 }
 
-func CalcEpicDigest(ed *epic_detached.EpicDetached) ([]byte, error) {
-	if ed == nil {
-		return nil, serrors.New("input to CalcEpicDigest must not be nil")
-	}
-	if len(ed.AuthHopEntry) != epic_detached.AuthLen {
-		return nil, serrors.New("authenticator for hop entry has wrong length",
-			"len(ed.AuthHopEntry)", len(ed.AuthHopEntry))
-	}
-	var totalLen uint64 = uint64(1 + len(ed.AuthPeerEntries))
-	totalLenAsBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(totalLenAsBytes, uint64(totalLen))
-	h := sha256.New()
-	h.Write(totalLenAsBytes)
-	h.Write(ed.AuthHopEntry)
+func (d *Digest) Set(input []byte) {
+	b := calculateDigest(input)
+	d.Digest = b
+}
 
-	for _, peer := range ed.AuthPeerEntries {
-		if len(peer) != epic_detached.AuthLen {
-			return nil, serrors.New("authenticator for peer entry has wrong length",
-				"len(peer)", len(peer))
-		}
-		h.Write(peer)
+func (d *Digest) Validate(input []byte) error {
+	b := calculateDigest(input)
+	if !bytes.Equal(b, d.Digest) {
+		return serrors.New("digest validation failed", "calculated", hex.EncodeToString(b),
+			"stored", hex.EncodeToString(d.Digest))
 	}
-	return h.Sum(nil)[0:EpicDigestLength], nil
+	return nil
+}
+
+func calculateDigest(input []byte) []byte {
+	h := sha256.New()
+	h.Write(input)
+	return h.Sum(nil)[0:DigestLength]
 }
