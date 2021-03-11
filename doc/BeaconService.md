@@ -1,4 +1,11 @@
-# Beacon Service Design (Go)
+# Beacon Service Design
+
+---
+NOTE
+
+Outdated contents! This document is kept for historical purpose.
+
+---
 
 ## Overview
 

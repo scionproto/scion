@@ -1,0 +1,38 @@
+paths:
+  /healthcheck:
+    get:
+      summary: Test the availability of the CA service
+      operationId: get-healthcheck
+      tags:
+        - Process
+      responses:
+        '200':
+          description: Service health status
+          headers:
+            Cache-Control:
+              description: Disable caching for health checks.
+              schema:
+                type: string
+                enum: ['no-store']
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckStatus'
+        '500':
+          $ref: './problem.yml#/components/responses/500-InternalServerError'
+        '503':
+          $ref: './problem.yml#/components/responses/503-ServiceUnavailable'
+components:
+  schemas:
+    HealthCheckStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - available
+            - starting
+            - stopping
+            - unavailable
+      required:
+        - 'status'

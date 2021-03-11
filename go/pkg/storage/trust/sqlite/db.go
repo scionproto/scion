@@ -19,6 +19,8 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"database/sql"
+	"fmt"
+	"strings"
 	"sync"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -26,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
+	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
@@ -218,6 +221,46 @@ func (e *executor) InsertChain(ctx context.Context, chain []*x509.Certificate) (
 		return false, err
 	}
 	return inserted, nil
+}
+
+// SignedTRCs returns the TRC from each ISD in the trust database according to the query.
+func (e *executor) SignedTRCs(ctx context.Context,
+	query truststorage.TRCsQuery) (cppki.SignedTRCs, error) {
+	e.RLock()
+	defer e.RUnlock()
+	sqlQuery := []string{"SELECT trc FROM trcs"}
+	var args []interface{}
+	if len(query.ISD) > 0 {
+		subQ := make([]string, 0, len(query.ISD))
+		for _, ISD := range query.ISD {
+			subQ = append(subQ, fmt.Sprintf("isd_id=$%d", len(args)+1))
+			args = append(args, uint16(ISD))
+		}
+		where := fmt.Sprintf("(%s)", strings.Join(subQ, " OR "))
+		sqlQuery = append(sqlQuery, fmt.Sprintf("WHERE %s", where))
+	}
+	if query.Latest == true {
+		sqlQuery = append(sqlQuery, fmt.Sprintf("GROUP BY isd_id ORDER BY base DESC, serial DESC"))
+	}
+	rows, err := e.db.QueryContext(ctx, strings.Join(sqlQuery, "\n"), args...)
+	if err != nil {
+		return nil, serrors.Wrap(db.ErrReadFailed, err)
+	}
+	defer rows.Close()
+	var res cppki.SignedTRCs
+	for rows.Next() {
+		var rawTRC []byte
+		err := rows.Scan(&rawTRC)
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		curRes, err := cppki.DecodeSignedTRC(rawTRC)
+		if err != nil {
+			return nil, serrors.Wrap(db.ErrDataInvalid, err)
+		}
+		res = append(res, curRes)
+	}
+	return res, err
 }
 
 func fingerprint(chain []*x509.Certificate) []byte {

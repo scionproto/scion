@@ -5,23 +5,33 @@ If you would like to contribute to SCION project, the :ref:`contribution-guide`
 is a good place to start.
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Documentation pages:
+   :maxdepth: 2
+   :caption: Developer docs:
 
    contribute
    build/setup
+   testing/index
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Design docs:
+
    cryptography/index
    protocols/index
-   testing/index
-   BeaconService
-   beacon-metadata
-   PathService
    PathPolicy
    hidden-paths
-   EPIC
-   ColibriService
+   beacon-metadata
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Proposals:
+
    uri
    grpc
+   EPIC
+   ColibriService
+   BeaconService
+   PathService
 
 .. toctree::
    :maxdepth: 2
