@@ -48,7 +48,7 @@ class JaegerGenerator(object):
             'version': '2',
             'services': {
                 'jaeger': {
-                    'image': 'jaegertracing/all-in-one:1.16.0',
+                    'image': 'jaegertracing/all-in-one:1.22.0',
                     'container_name': name,
                     'user': '%s:%s' % (str(os.getuid()), str(os.getgid())),
                     'ports': [
