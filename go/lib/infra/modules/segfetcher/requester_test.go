@@ -96,9 +96,8 @@ func TestRequester(t *testing.T) {
 			Reqs: segfetcher.Requests{req_210_110, req_210_120, req_210_130},
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
 				req1 := req_210_110
-				testErr := errors.New("no attempts left")
-				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).Times(3).
-					Return(nil, testErr)
+				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).AnyTimes().
+					Return(nil, errors.New("some error"))
 				req2 := req_210_120
 				reply2 := []*seg.Meta{tg.seg210_120_core}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req2), gomock.Any()).
@@ -108,7 +107,7 @@ func TestRequester(t *testing.T) {
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req3), gomock.Any()).
 					Return(reply3, nil)
 				return []segfetcher.ReplyOrErr{
-					{Req: req_210_110, Err: testErr},
+					{Req: req_210_110, Err: context.DeadlineExceeded},
 					{Req: req_210_120, Segments: reply2},
 					{Req: req_210_130, Segments: reply3},
 				}
@@ -154,7 +153,7 @@ func TestRequester(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+			ctx, cancelF := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancelF()
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
