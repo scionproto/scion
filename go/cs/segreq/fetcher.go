@@ -91,9 +91,8 @@ func NewFetcher(cfg FetcherConfig) *segfetcher.Fetcher {
 			},
 		},
 		Requester: &segfetcher.DefaultRequester{
-			RPC:           cfg.RPC,
-			DstProvider:   d,
-			TimeoutFactor: 0.33,
+			RPC:         cfg.RPC,
+			DstProvider: d,
 		},
 		Metrics: segfetcher.NewFetcherMetrics("control"),
 	}

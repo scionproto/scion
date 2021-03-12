@@ -18,7 +18,6 @@ import (
 	"context"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/opentracing/opentracing-go"
 
@@ -57,10 +56,6 @@ type Requester interface {
 type DefaultRequester struct {
 	RPC         RPC
 	DstProvider DstProvider
-	// TimeoutFactor is the percentage of the total timeout available for a segment request
-	// that is allocated to the next try.
-	TimeoutFactor float64
-	MaxTries      int
 }
 
 // Request all requests in the request set
@@ -102,20 +97,26 @@ func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i i
 	logger := log.FromCtx(ctx).New("req_id", log.NewDebugID(), "request", req)
 	ctx = log.CtxWith(ctx, logger)
 
+	// Keep retrying until the allocated time is up.
+	// In the case where this request is sent over SCION/QUIC, DstProvider will
+	// return random paths. These retries allow to route around broken paths.
+	// When using this on TCP (sciond - CS), these retries are probably useless
+	// but also harmless.
+	// Note: this is a temporary solution. In the future, this should be handled
+	// by using longer lived grpc connections over different paths and thereby
+	// explicitly keeping track of the path health.
 	try := func(ctx context.Context) ([]*seg.Meta, net.Addr, error) {
-		tryCtx, cancel := r.tryDeadline(ctx)
-		defer cancel()
-		dst, err := r.DstProvider.Dst(tryCtx, req)
+		dst, err := r.DstProvider.Dst(ctx, req)
 		if err != nil {
 			return nil, nil, err
 		}
-		segs, err := r.RPC.Segments(tryCtx, req, dst)
+		segs, err := r.RPC.Segments(ctx, req, dst)
 		if err != nil {
 			return nil, dst, err
 		}
 		return segs, dst, nil
 	}
-	for tryIndex := 0; ctx.Err() == nil && tryIndex < r.maxTries(); tryIndex++ {
+	for tryIndex := 0; ctx.Err() == nil; tryIndex++ {
 		segs, peer, err := try(ctx)
 		if err != nil {
 			logger.Debug("Segment lookup failed", "try", tryIndex+1, "peer", peer,
@@ -125,25 +126,5 @@ func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i i
 		replies <- ReplyOrErr{Req: req, Segments: segs, Peer: peer}
 		return
 	}
-	err := ctx.Err()
-	if err == nil {
-		err = serrors.New("no attempts left")
-	}
-	replies <- ReplyOrErr{Req: req, Err: err}
-}
-
-func (r *DefaultRequester) tryDeadline(ctx context.Context) (context.Context, func()) {
-	if deadline, ok := ctx.Deadline(); r.TimeoutFactor != 0 && ok {
-		timeout := time.Duration(float64(time.Until(deadline)) * r.TimeoutFactor)
-		return context.WithTimeout(ctx, timeout)
-
-	}
-	return ctx, func() {}
-}
-
-func (r *DefaultRequester) maxTries() int {
-	if r.MaxTries == 0 {
-		return 3
-	}
-	return r.MaxTries
+	replies <- ReplyOrErr{Req: req, Err: ctx.Err()}
 }
