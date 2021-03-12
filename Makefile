@@ -23,6 +23,9 @@ bazel:
 	tar -kxf bazel-bin/scion.tar -C bin
 	tar -kxf bazel-bin/scion-ci.tar -C bin
 
+test:
+	bazel test --config=unit --test_output=errors
+
 go_deps.bzl: go.mod
 	@tools/godeps.sh
 
