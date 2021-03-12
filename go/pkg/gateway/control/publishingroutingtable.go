@@ -27,7 +27,7 @@ import (
 // NewPublishingRoutingTable publishes routes from rt via the routePublisher. The methods
 // of the returned object can safely be used concurrently by multiple goroutines.
 func NewPublishingRoutingTable(rcs []*RoutingChain, rt RoutingTable,
-	routePublisher routemgr.Publisher, source net.IP) RoutingTable {
+	routePublisher routemgr.Publisher, nextHop, sourceIPv4, sourceIPv6 net.IP) RoutingTable {
 
 	var remoteSites []*remoteSite
 	for _, rc := range rcs {
@@ -44,7 +44,9 @@ func NewPublishingRoutingTable(rcs []*RoutingChain, rt RoutingTable,
 	return &publishingRoutingTable{
 		routingTable:   rt,
 		routePublisher: routePublisher,
-		source:         source,
+		nextHop:        nextHop,
+		sourceIPv4:     sourceIPv4,
+		sourceIPv6:     sourceIPv6,
 		active:         false,
 		routes:         make(map[int]PktWriter),
 		remoteSites:    remoteSites,
@@ -55,7 +57,9 @@ type publishingRoutingTable struct {
 	mutex          sync.RWMutex
 	routingTable   RoutingTable
 	routePublisher routemgr.Publisher
-	source         net.IP
+	nextHop        net.IP
+	sourceIPv4     net.IP
+	sourceIPv6     net.IP
 	// active is true, if the routing table is being actively used at the moment.
 	active bool
 	// routes keeps track of routes while routing table is in inactive state.
@@ -158,7 +162,8 @@ func (rtw *publishingRoutingTable) setSessionLocked(index int, session PktWriter
 			for _, prefix := range site.prefixes {
 				rtw.routePublisher.AddRoute(routemgr.Route{
 					Prefix:  prefix,
-					NextHop: rtw.source,
+					Source:  rtw.sourceForPrefix(prefix),
+					NextHop: rtw.nextHop,
 				})
 			}
 		}
@@ -189,7 +194,8 @@ func (rtw *publishingRoutingTable) ClearSession(index int) error {
 			for _, prefix := range site.prefixes {
 				rtw.routePublisher.DeleteRoute(routemgr.Route{
 					Prefix:  prefix,
-					NextHop: rtw.source,
+					Source:  rtw.sourceForPrefix(prefix),
+					NextHop: rtw.nextHop,
 				})
 			}
 		}
@@ -200,5 +206,14 @@ func (rtw *publishingRoutingTable) ClearSession(index int) error {
 func (rtw *publishingRoutingTable) DiagnosticsWrite(w io.Writer) {
 	if dw, ok := rtw.routingTable.(DiagnosticsWriter); ok {
 		dw.DiagnosticsWrite(w)
+	}
+}
+
+// sourceForPrefix returns the appropriate source hint for IPv4/IPv6 prefixes
+func (rtw *publishingRoutingTable) sourceForPrefix(prefix *net.IPNet) net.IP {
+	if prefix.IP.To4() == nil {
+		return rtw.sourceIPv6
+	} else {
+		return rtw.sourceIPv4
 	}
 }

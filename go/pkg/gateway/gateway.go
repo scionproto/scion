@@ -132,7 +132,6 @@ func (pcf PacketConnFactory) New() (net.PacketConn, error) {
 
 type RoutingTableFactory struct {
 	RoutePublisherFactory routemgr.PublisherFactory
-	Source                net.IP
 }
 
 func (rtf RoutingTableFactory) New(
@@ -212,8 +211,10 @@ type Gateway struct {
 
 	// InternalDevice is the tunnel interface from which packets are read.
 	InternalDevice io.ReadWriteCloser
-	// RouteSource is the source for routes added to the Linux routing table.
-	RouteSource net.IP
+	// RouteSourceIPv4 is the source hint for IPv4 routes added to the Linux routing table.
+	RouteSourceIPv4 net.IP
+	// RouteSourceIPv6 is the source hint for IPv6 routes added to the Linux routing table.
+	RouteSourceIPv6 net.IP
 
 	// RoutePublisherFactory allows to publish routes from the gatyeway.
 	// If nil, no routes will be published.
@@ -603,7 +604,6 @@ func (g *Gateway) Run() error {
 		RoutingTableSwapper:  routingTable,
 		RoutingTableFactory: RoutingTableFactory{
 			RoutePublisherFactory: g.RoutePublisherFactory,
-			Source:                g.RouteSource,
 		},
 		EngineFactory: &control.DefaultEngineFactory{
 			PathMonitor: pathMonitor,
@@ -621,7 +621,8 @@ func (g *Gateway) Run() error {
 			Logger: g.Logger,
 		},
 		RoutePublisherFactory: g.RoutePublisherFactory,
-		RouteSource:           g.RouteSource,
+		RouteSourceIPv4:       g.RouteSourceIPv4,
+		RouteSourceIPv6:       g.RouteSourceIPv6,
 		Logger:                g.Logger,
 	}
 	go func() {
