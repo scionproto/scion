@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/api"
+	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/storage"
 	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
@@ -46,7 +47,7 @@ type SegmentsStore interface {
 // Server implements the Control Service API.
 type Server struct {
 	Segments SegmentsStore
-	CA       cstrust.ChainBuilder
+	CA       renewal.ChainBuilder
 	Config   http.HandlerFunc
 	Info     http.HandlerFunc
 	LogLevel http.HandlerFunc

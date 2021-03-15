@@ -29,18 +29,32 @@ import (
 	"github.com/scionproto/scion/go/pkg/gateway/control/mock_control"
 )
 
-func getRoutingChains(t *testing.T) ([]*control.RoutingChain, routemgr.Route) {
-	prefix := xtest.MustParseCIDR(t, "192.168.100.0/24")
+var (
+	routeSourceIPv4 = net.ParseIP("192.0.100.1")
+	routeSourceIPv6 = net.ParseIP("2001:db8:1::1")
+)
+
+func getRoutingChains(t *testing.T) ([]*control.RoutingChain, routemgr.Route, routemgr.Route) {
+	prefixIPv4 := xtest.MustParseCIDR(t, "192.168.100.0/24")
+	prefixIPv6 := xtest.MustParseCIDR(t, "2001:db8:2::/48")
 	return []*control.RoutingChain{
 			{
-				Prefixes: []*net.IPNet{prefix},
+				Prefixes: []*net.IPNet{
+					prefixIPv4,
+					prefixIPv6,
+				},
 				TrafficMatchers: []control.TrafficMatcher{
 					{ID: 1, Matcher: pktcls.CondFalse},
 					{ID: 2, Matcher: pktcls.CondFalse},
 				},
 			},
 		}, routemgr.Route{
-			Prefix:  prefix,
+			Prefix:  prefixIPv4,
+			Source:  routeSourceIPv4,
+			NextHop: net.IP{},
+		}, routemgr.Route{
+			Prefix:  prefixIPv6,
+			Source:  routeSourceIPv6,
 			NextHop: net.IP{},
 		}
 }
@@ -48,7 +62,7 @@ func getRoutingChains(t *testing.T) ([]*control.RoutingChain, routemgr.Route) {
 func TestNewPublishingRoutingTableEarlyNoActivate(t *testing.T) {
 	// Test that adding routes before activation doesn't publish them.
 
-	chains, _ := getRoutingChains(t)
+	chains, _, _ := getRoutingChains(t)
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -57,7 +71,8 @@ func TestNewPublishingRoutingTableEarlyNoActivate(t *testing.T) {
 
 	routingTable := mock_control.NewMockRoutingTable(ctrl)
 
-	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{})
+	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{},
+		routeSourceIPv4, routeSourceIPv6)
 
 	require.NoError(t, rtw.SetSession(1, testPktWriter{}))
 	require.NoError(t, rtw.ClearSession(1))
@@ -66,13 +81,14 @@ func TestNewPublishingRoutingTableEarlyNoActivate(t *testing.T) {
 func TestNewPublishingRoutingTableEarlyActivate(t *testing.T) {
 	// Test that route added before activation get published after activation.
 
-	chains, route := getRoutingChains(t)
+	chains, routeV4, routeV6 := getRoutingChains(t)
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	publisher := mock_routemgr.NewMockPublisher(ctrl)
-	publisher.EXPECT().AddRoute(route)
+	publisher.EXPECT().AddRoute(routeV4)
+	publisher.EXPECT().AddRoute(routeV6)
 	publisher.EXPECT().Close().Times(1)
 
 	routingTable := mock_control.NewMockRoutingTable(ctrl)
@@ -80,7 +96,8 @@ func TestNewPublishingRoutingTableEarlyActivate(t *testing.T) {
 	routingTable.EXPECT().Activate().Times(1)
 	routingTable.EXPECT().Deactivate().Times(1)
 
-	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{})
+	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{},
+		routeSourceIPv4, routeSourceIPv6)
 
 	require.NoError(t, rtw.SetSession(1, testPktWriter{}))
 	rtw.Activate()
@@ -90,7 +107,7 @@ func TestNewPublishingRoutingTableEarlyActivate(t *testing.T) {
 func TestNewPublishingRoutingTableEarlyAddDelete(t *testing.T) {
 	// Test that route added and deleted before activation doesn't get published.
 
-	chains, _ := getRoutingChains(t)
+	chains, _, _ := getRoutingChains(t)
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -100,7 +117,8 @@ func TestNewPublishingRoutingTableEarlyAddDelete(t *testing.T) {
 	routingTable := mock_control.NewMockRoutingTable(ctrl)
 	routingTable.EXPECT().Activate().Times(1)
 
-	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{})
+	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{},
+		routeSourceIPv4, routeSourceIPv6)
 
 	require.NoError(t, rtw.SetSession(1, testPktWriter{}))
 	require.NoError(t, rtw.ClearSession(1))
@@ -110,14 +128,16 @@ func TestNewPublishingRoutingTableEarlyAddDelete(t *testing.T) {
 func TestNewPublishingRoutingTableLate(t *testing.T) {
 	// Test whether adding/removing routes in active state works.
 
-	chains, route := getRoutingChains(t)
+	chains, routeV4, routeV6 := getRoutingChains(t)
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	publisher := mock_routemgr.NewMockPublisher(ctrl)
-	publisher.EXPECT().AddRoute(route)
-	publisher.EXPECT().DeleteRoute(route)
+	publisher.EXPECT().AddRoute(routeV4)
+	publisher.EXPECT().AddRoute(routeV6)
+	publisher.EXPECT().DeleteRoute(routeV4)
+	publisher.EXPECT().DeleteRoute(routeV6)
 	publisher.EXPECT().Close().Times(1)
 
 	routingTable := mock_control.NewMockRoutingTable(ctrl)
@@ -126,7 +146,8 @@ func TestNewPublishingRoutingTableLate(t *testing.T) {
 	routingTable.EXPECT().SetSession(1, gomock.Any()).Times(1)
 	routingTable.EXPECT().ClearSession(1).Times(1)
 
-	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{})
+	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{},
+		routeSourceIPv4, routeSourceIPv6)
 
 	rtw.Activate()
 	require.NoError(t, rtw.SetSession(1, testPktWriter{}))
@@ -137,13 +158,14 @@ func TestNewPublishingRoutingTableLate(t *testing.T) {
 func TestNewPublishingRoutingTableHealthiness(t *testing.T) {
 	// Make sure that one healthy traffic class is sufficient not to retract the routes.
 
-	chains, route := getRoutingChains(t)
+	chains, routeV4, routeV6 := getRoutingChains(t)
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	publisher := mock_routemgr.NewMockPublisher(ctrl)
-	publisher.EXPECT().AddRoute(route)
+	publisher.EXPECT().AddRoute(routeV4)
+	publisher.EXPECT().AddRoute(routeV6)
 
 	routingTable := mock_control.NewMockRoutingTable(ctrl)
 	routingTable.EXPECT().Activate().Times(1)
@@ -151,7 +173,8 @@ func TestNewPublishingRoutingTableHealthiness(t *testing.T) {
 	routingTable.EXPECT().SetSession(2, gomock.Any()).Times(1)
 	routingTable.EXPECT().ClearSession(1).Times(1)
 
-	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{})
+	rtw := control.NewPublishingRoutingTable(chains, routingTable, publisher, net.IP{},
+		routeSourceIPv4, routeSourceIPv6)
 
 	rtw.Activate()
 	require.NoError(t, rtw.SetSession(1, testPktWriter{}))

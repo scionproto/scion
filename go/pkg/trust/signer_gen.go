@@ -92,7 +92,13 @@ func (s *SignerGen) bestForKey(ctx context.Context, key crypto.Signer,
 	// requires a proper design that also considers certificate renewal.
 	skid, err := cppki.SubjectKeyID(key.Public())
 	if err != nil {
+		// Do not return an error. We might still find a key with a matching
+		// certificate later on.
 		return nil, nil
+	}
+	algo, err := signed.SelectSignatureAlgorithm(key.Public())
+	if err != nil {
+		return nil, err
 	}
 	chains, err := s.DB.Chains(ctx, ChainQuery{
 		IA:           s.IA,
@@ -123,8 +129,7 @@ func (s *SignerGen) bestForKey(ctx context.Context, key crypto.Signer,
 	}
 	return &Signer{
 		PrivateKey:   key,
-		Algorithm:    signed.ECDSAWithSHA512,
-		Hash:         crypto.SHA512,
+		Algorithm:    algo,
 		IA:           s.IA,
 		TRCID:        id,
 		Subject:      chain[0].Subject,

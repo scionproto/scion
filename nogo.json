@@ -1,7 +1,8 @@
 {
   "assign": {
     "exclude_files": {
-      "gazelle/walk/walk.go": ""
+      "gazelle/walk/walk.go": "",
+      "com_github_deepmap_oapi_codegen/pkg/codegen/": ""
     }
   },
   "composites": {
@@ -9,7 +10,8 @@
       "gazelle/language/go/resolve.go": "",
       "/io_bazel_rules_docker/": "",
       "/com_github_bazelbuild_buildtools/": "",
-      "/com_github_grpc_ecosystem_grpc_opentracing/go/otgrpc/": ""
+      "/com_github_grpc_ecosystem_grpc_opentracing/go/otgrpc/": "",
+      "/org_golang_x_tools/internal": ""
     }
   },
   "copylocks": {

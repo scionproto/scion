@@ -4,6 +4,8 @@ package protocol
 import (
 	"bytes"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -642,7 +644,7 @@ func (sd *SignedData) AddSignerInfo(chain []*x509.Certificate, signer crypto.Sig
 	if err != nil {
 		return err
 	}
-
+	digestAlgorithm := digestAlgorithmForPublicKey(pub)
 	pkAlgo := cert.PublicKeyAlgorithm
 	signatureAlgorithm, ok := oid.X509PublicKeyAlgorithmToPKIXAlgorithmIdentifier[pkAlgo]
 	if !ok {
@@ -652,7 +654,7 @@ func (sd *SignedData) AddSignerInfo(chain []*x509.Certificate, signer crypto.Sig
 	si := SignerInfo{
 		Version:            1,
 		SID:                sid,
-		DigestAlgorithm:    pkix.AlgorithmIdentifier{Algorithm: oid.DigestAlgorithmSHA512},
+		DigestAlgorithm:    digestAlgorithm,
 		SignedAttrs:        nil,
 		SignatureAlgorithm: signatureAlgorithm,
 		Signature:          nil,
@@ -708,6 +710,21 @@ func (sd *SignedData) AddSignerInfo(chain []*x509.Certificate, signer crypto.Sig
 	sd.AddDigestAlgorithm(si.DigestAlgorithm)
 	sd.SignerInfos = append(sd.SignerInfos, si)
 	return nil
+}
+
+// algorithmsForPublicKey takes an opinionated stance on what algorithms to use
+// for the given public key.
+func digestAlgorithmForPublicKey(pub crypto.PublicKey) pkix.AlgorithmIdentifier {
+	if ecPub, ok := pub.(*ecdsa.PublicKey); ok {
+		switch ecPub.Curve {
+		case elliptic.P384():
+			return pkix.AlgorithmIdentifier{Algorithm: oid.DigestAlgorithmSHA384}
+		case elliptic.P521():
+			return pkix.AlgorithmIdentifier{Algorithm: oid.DigestAlgorithmSHA512}
+		}
+	}
+
+	return pkix.AlgorithmIdentifier{Algorithm: oid.DigestAlgorithmSHA256}
 }
 
 // ClearCertificates removes all certificates.

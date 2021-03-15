@@ -90,8 +90,10 @@ type EngineController struct {
 	// If nil, no routes will be published.
 	RoutePublisherFactory routemgr.PublisherFactory
 
-	// RouteSource is the source for routes added to the Linux routing table.
-	RouteSource net.IP
+	// RouteSourceIPv4 is the source hint for IPv4 routes added to the Linux routing table.
+	RouteSourceIPv4 net.IP
+	// RouteSourceIPv6 is the source hint for IPv6 routes added to the Linux routing table.
+	RouteSourceIPv6 net.IP
 
 	// SwapDelay is the interval between creating a new engine and setting it to be the active
 	// engine. If 0, the new engine is immediately swapped in.
@@ -163,7 +165,7 @@ func (c *EngineController) run() error {
 			return serrors.WrapStr("creating routing table", err)
 		}
 		routingTable := NewPublishingRoutingTable(rcs, rt,
-			c.RoutePublisherFactory.NewPublisher(), c.RouteSource)
+			c.RoutePublisherFactory.NewPublisher(), net.IP{}, c.RouteSourceIPv4, c.RouteSourceIPv6)
 
 		newEngine := c.EngineFactory.New(routingTable, update, rcMapping)
 

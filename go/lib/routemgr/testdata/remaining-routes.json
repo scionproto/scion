@@ -5,28 +5,32 @@
                 "IP": "192.168.1.0",
                 "Mask": "////AA=="
             },
-            "NextHop": "10.11.12.13"
+            "NextHop": "10.11.12.13",
+            "Source": ""
         },
         {
             "Prefix": {
                 "IP": "192.168.100.0",
                 "Mask": "////AA=="
             },
-            "NextHop": "10.11.12.13"
+            "NextHop": "10.11.12.13",
+            "Source": ""
         },
         {
             "Prefix": {
                 "IP": "dead::",
                 "Mask": "//////////8AAAAAAAAAAA=="
             },
-            "NextHop": "deaf::beef"
+            "NextHop": "deaf::beef",
+            "Source": ""
         },
         {
             "Prefix": {
                 "IP": "dead::",
                 "Mask": "//////////+AAAAAAAAAAA=="
             },
-            "NextHop": "deaf::beef"
+            "NextHop": "deaf::beef",
+            "Source": ""
         }
     ]
 }

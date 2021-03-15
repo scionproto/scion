@@ -316,7 +316,7 @@ func extendCert(now time.Time, cert *x509.Certificate,
 	subject.ExtraNames = subject.Names
 
 	tmpl := *cert
-	tmpl.SignatureAlgorithm = x509.ECDSAWithSHA512
+	tmpl.SignatureAlgorithm = cert.SignatureAlgorithm
 	tmpl.NotBefore = now
 	tmpl.NotAfter = now.Add(730 * 24 * time.Hour)
 	tmpl.Subject = subject
