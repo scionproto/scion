@@ -16,7 +16,6 @@ package trust_test
 
 import (
 	"context"
-	"crypto"
 	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -146,6 +145,5 @@ func loadTrustSigner(b *testing.B, db trust.DB) trust.Signer {
 			Base:   1,
 			Serial: 1,
 		},
-		Hash: crypto.SHA512,
 	}
 }

@@ -30,6 +30,10 @@ message ChainRenewalRequest {
     // The signed certificate chain renewal requests. The body of the
     // SignedMessage is the serialized ChainRenewalRequestBody.
     proto.crypto.v1.SignedMessage signed_request = 1;
+    // The certificate signing request. The content is an ASN.1 DER
+    // encoded CMS SignedData structure that contains an ASN.1 DER
+    // encoded PKCS #10 request.
+    bytes cms_signed_request = 2;
 }
 
 message ChainRenewalRequestBody {
@@ -41,6 +45,10 @@ message ChainRenewalResponse {
     // The signed certificate chain renewal response. The body of the
     // SignedMessage is the serialized ChainRenewalResponseBody.
     proto.crypto.v1.SignedMessage signed_response = 1;
+    // The renewed certificate chain. The content is an ASN.1 DER
+    // encoded CMS SignedData structure that contains the certificate chain.
+    // The chain is the concatenation of the ASN.1 DER encoded certificates.
+    bytes cms_signed_response = 2;
 }
 
 message ChainRenewalResponseBody {

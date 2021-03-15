@@ -29,11 +29,11 @@ import (
 	sqlitepathdb "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
+	"github.com/scionproto/scion/go/pkg/ca/renewal"
+	sqliterenewaldb "github.com/scionproto/scion/go/pkg/ca/renewal/sqlite"
 	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
 	sqlitetrustdb "github.com/scionproto/scion/go/pkg/storage/trust/sqlite"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/pkg/trust/renewal"
-	sqliterenewaldb "github.com/scionproto/scion/go/pkg/trust/renewal/sqlite"
 )
 
 // Backend indicates the database backend type.

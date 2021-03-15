@@ -147,6 +147,9 @@ func testcrypto(topo, cryptoLib, outDir string, noCleanup, isdDir bool) error {
 	if err := flatten(out); err != nil {
 		return err
 	}
+	if err := fixPermissions(cfg); err != nil {
+		return err
+	}
 	if !noCleanup {
 		if err := cleanup(cfg); err != nil {
 			return err
@@ -555,13 +558,24 @@ func flatten(out outConfig) error {
 	return nil
 }
 
-func cleanup(cfg config) error {
+func fixPermissions(cfg config) error {
 	gid := os.Getegid()
 	uid := os.Geteuid()
 
 	c := withLib(`docker_exec "`+
 		fmt.Sprintf("chown %d:%d /workdir/*/crypto/*/*.key && ", uid, gid)+
-		`chmod 0666 /workdir/*/crypto/*/*.key && `+
+		`chmod 0666 /workdir/*/crypto/*/*.key"`, cfg.lib)
+	if cfg.out.isd {
+		c = strings.ReplaceAll(c, "workdir/", "workdir/*/")
+	}
+	cmd := exec.Command("sh", "-c", c)
+	cmd.Env = []string{"CONTAINER_NAME=" + cfg.container}
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	return cmd.Run()
+}
+
+func cleanup(cfg config) error {
+	c := withLib(`docker_exec "`+
 		`rm -f /workdir/*/crypto/*/cp-*.crt && `+
 		`rm -f /workdir/*/crypto/*/regular-*.crt && `+
 		`rm -f /workdir/*/crypto/*/sensitive-*.crt && `+

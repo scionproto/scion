@@ -23,9 +23,9 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/trust"
-	"github.com/scionproto/scion/go/pkg/trust/renewal"
 )
 
 // LoadTrustMaterial loads the trust material from disk. The logger must not be nil.
@@ -93,7 +93,7 @@ func NewSigner(ia addr.IA, db trust.DB, cfgDir string) (cstrust.RenewingSigner, 
 func LoadClientChains(db renewal.DB, configDir string) error {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	return cstrust.ClientLoader{
+	return renewal.ClientLoader{
 		Dir:      filepath.Join(configDir, "crypto/ca/clients"),
 		ClientDB: db,
 	}.LoadClientChains(ctx)
@@ -101,13 +101,13 @@ func LoadClientChains(db renewal.DB, configDir string) error {
 
 // NewChainBuilder creates a renewing chain builder.
 func NewChainBuilder(ia addr.IA, db trust.DB, maxVal time.Duration,
-	configDir string) cstrust.ChainBuilder {
+	configDir string) renewal.ChainBuilder {
 
-	return cstrust.ChainBuilder{
-		PolicyGen: &cstrust.CachingPolicyGen{
-			PolicyGen: cstrust.LoadingPolicyGen{
+	return renewal.ChainBuilder{
+		PolicyGen: &renewal.CachingPolicyGen{
+			PolicyGen: renewal.LoadingPolicyGen{
 				Validity: maxVal,
-				CertProvider: cstrust.CACertLoader{
+				CertProvider: renewal.CACertLoader{
 					IA:  ia,
 					DB:  db,
 					Dir: filepath.Join(configDir, "crypto/ca"),

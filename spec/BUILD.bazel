@@ -1,0 +1,19 @@
+load("@com_github_scionproto_scion//spec:spec.bzl", "generate_boilerplate")
+
+generate_boilerplate(
+    name = "control",
+    out = "go/pkg/cs/api",
+    client = False,
+)
+
+generate_boilerplate(
+    name = "ca",
+    out = "go/pkg/ca/api",
+    server = False,
+    spec = False,
+)
+
+exports_files([
+    "control.gen.yml",
+    "ca.gen.yml",
+])

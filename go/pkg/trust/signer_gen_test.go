@@ -98,8 +98,7 @@ func TestSignerGenGenerate(t *testing.T) {
 			assertFunc: assert.NoError,
 			expected: trust.Signer{
 				PrivateKey: key,
-				Algorithm:  signed.ECDSAWithSHA512,
-				Hash:       crypto.SHA512,
+				Algorithm:  signed.ECDSAWithSHA256,
 				IA:         xtest.MustParseIA("1-ff00:0:110"),
 				TRCID: cppki.TRCID{
 					ISD:    1,
@@ -143,8 +142,7 @@ func TestSignerGenGenerate(t *testing.T) {
 			assertFunc: assert.NoError,
 			expected: trust.Signer{
 				PrivateKey: key,
-				Algorithm:  signed.ECDSAWithSHA512,
-				Hash:       crypto.SHA512,
+				Algorithm:  signed.ECDSAWithSHA256,
 				IA:         xtest.MustParseIA("1-ff00:0:110"),
 				TRCID: cppki.TRCID{
 					ISD:    1,
@@ -203,8 +201,7 @@ func TestSignerGenGenerate(t *testing.T) {
 			assertFunc: assert.NoError,
 			expected: trust.Signer{
 				PrivateKey: key,
-				Algorithm:  signed.ECDSAWithSHA512,
-				Hash:       crypto.SHA512,
+				Algorithm:  signed.ECDSAWithSHA256,
 				IA:         xtest.MustParseIA("1-ff00:0:110"),
 				TRCID: cppki.TRCID{
 					ISD:    1,

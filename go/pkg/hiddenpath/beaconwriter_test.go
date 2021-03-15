@@ -240,7 +240,7 @@ func testBeaconOrErr(g *graph.Graph, desc []common.IFIDType) beacon.BeaconOrErr 
 func testSigner(t *testing.T, priv crypto.Signer, ia addr.IA) seg.Signer {
 	return trust.Signer{
 		PrivateKey: priv,
-		Algorithm:  signed.ECDSAWithSHA512,
+		Algorithm:  signed.ECDSAWithSHA256,
 		IA:         ia,
 		TRCID: cppki.TRCID{
 			ISD:    ia.I,

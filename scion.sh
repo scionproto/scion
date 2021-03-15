@@ -51,17 +51,10 @@ cmd_topology() {
     fi
 }
 
-build_binaries() {
-    rm bin/*
-    bazel build //:scion //:scion-ci
-    tar -kxf bazel-bin/scion.tar -C bin
-    tar -kxf bazel-bin/scion-ci.tar -C bin
-}
-
 cmd_run() {
     if [ "$1" != "nobuild" ]; then
         echo "Compiling..."
-        build_binaries || exit 1
+        make -s build || exit 1
         if is_docker_be; then
             echo "Build perapp images"
             bazel run -c opt //docker:prod
@@ -228,7 +221,7 @@ is_supervisor() {
 
 cmd_test(){
     echo "deprecated, use"
-    echo "bazel test --config=unit"
+    echo "make test"
     echo "instead"
     exit 1
 }
