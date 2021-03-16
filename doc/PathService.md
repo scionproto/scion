@@ -1,8 +1,9 @@
 # Path Service
 
----
-NOTE
+​
 
+---
+⚠️  **NOTE** ⚠️<br/>
 Outdated contents! This document is kept for historical purpose.
 
 ---
