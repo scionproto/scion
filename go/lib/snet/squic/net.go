@@ -146,7 +146,7 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, serrors.WrapStr("dialing QUIC/SCION, after loop", err)
 	}
-	stream, err := session.OpenStream()
+	stream, err := session.OpenStreamSync(ctx)
 	if err != nil {
 		session.CloseWithError(OpenStreamError, "")
 		return nil, serrors.WrapStr("opening stream", err)
