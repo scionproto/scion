@@ -269,9 +269,12 @@ func (g *Gateway) Run() error {
 	revocationHandler := daemon.RevHandler{Connector: g.Daemon}
 
 	var pathsMonitored, sessionPathsAvailable metrics.Gauge
+	var probesSent, probesReceived metrics.Counter
 	if g.Metrics != nil {
 		pathsMonitored = metrics.NewPromGauge(g.Metrics.PathsMonitored)
 		sessionPathsAvailable = metrics.NewPromGauge(g.Metrics.SessionPathsAvailable)
+		probesSent = metrics.NewPromCounter(g.Metrics.PathProbesSent)
+		probesReceived = metrics.NewPromCounter(g.Metrics.PathProbesReceived)
 	}
 	revStore := &pathhealth.MemoryRevocationStore{
 		Logger: g.Logger,
@@ -290,6 +293,8 @@ func (g *Gateway) Run() error {
 				},
 				Logger:         g.Logger,
 				PathsMonitored: pathsMonitored,
+				ProbesSent:     probesSent,
+				ProbesReceived: probesReceived,
 			},
 			Logger:          g.Logger,
 			RevocationStore: revStore,
