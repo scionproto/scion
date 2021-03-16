@@ -127,7 +127,6 @@ same quoting, parentheses, etc.).
 .. literalinclude:: crypto_lib.sh
    :start-after: LITERALINCLUDE payload_conf_sample START
    :end-before: LITERALINCLUDE payload_conf_sample END
-   :dedent: 2
 
 .. note::
 
