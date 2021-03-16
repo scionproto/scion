@@ -27,13 +27,13 @@ The BS is structured similar to the existing go infra services.
 It reuses the existing building blocks for go services:
 
 * [go/lib/env](https://github.com/scionproto/scion/tree/master/go/lib/env):
-Is used for configuration and setup of the service.
+  Is used for configuration and setup of the service.
 * [go/pkg/trust](https://github.com/scionproto/scion/tree/master/go/pkg/trust):
-Is used for TRCs and other crypto material.
+  Is used for TRCs and other crypto material.
 * [go/lib/infra](https://github.com/scionproto/scion/tree/master/go/lib/infra):
-Is used for the messenger to send and receive messages.
+  Is used for the messenger to send and receive messages.
 * [go/lib/periodic](//github.com/scionproto/scion/tree/master/go/lib/periodic):
-Is used for periodic tasks.
+  Is used for periodic tasks.
 * etc. ...
 
 The main parts of the BS are
