@@ -57,7 +57,7 @@ type Requester interface {
 type DefaultRequester struct {
 	RPC         RPC
 	DstProvider DstProvider
-	MaxTries    int
+	MaxRetries  int
 }
 
 // Request all requests in the request set
@@ -118,17 +118,16 @@ func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i i
 		}
 		return segs, dst, nil
 	}
-	for tryIndex := 0; ctx.Err() == nil && tryIndex < r.maxTries(); tryIndex++ {
+	for tryIndex := 0; ctx.Err() == nil && tryIndex < r.MaxRetries+1; tryIndex++ {
 		segs, peer, err := try(ctx)
+		if errors.Is(err, ErrNotReachable) {
+			replies <- ReplyOrErr{Req: req, Err: err}
+			return
+		}
 		if err != nil {
 			logger.Debug("Segment lookup failed", "try", tryIndex+1, "peer", peer,
 				"err", err)
-			if errors.Is(err, ErrNotReachable) {
-				replies <- ReplyOrErr{Req: req, Err: err}
-				return
-			} else {
-				continue
-			}
+			continue
 		}
 		replies <- ReplyOrErr{Req: req, Segments: segs, Peer: peer}
 		return
@@ -138,11 +137,4 @@ func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i i
 		err = serrors.New("no attempts left")
 	}
 	replies <- ReplyOrErr{Req: req, Err: err}
-}
-
-func (r *DefaultRequester) maxTries() int {
-	if r.MaxTries == 0 {
-		return 1
-	}
-	return r.MaxTries
 }

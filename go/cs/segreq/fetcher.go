@@ -93,7 +93,7 @@ func NewFetcher(cfg FetcherConfig) *segfetcher.Fetcher {
 		Requester: &segfetcher.DefaultRequester{
 			RPC:         cfg.RPC,
 			DstProvider: d,
-			MaxTries:    20,
+			MaxRetries:  20,
 		},
 		Metrics: segfetcher.NewFetcherMetrics("control"),
 	}

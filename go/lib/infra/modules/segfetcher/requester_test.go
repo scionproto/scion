@@ -61,7 +61,7 @@ func TestRequester(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
 	defer rootCtrl.Finish()
 	tg := newTestGraph(rootCtrl)
-	const maxTries = 13
+	const maxRetries = 13
 
 	tests := map[string]struct {
 		Reqs   segfetcher.Requests
@@ -99,7 +99,7 @@ func TestRequester(t *testing.T) {
 				// req1 expriences unspecific error, retries until maxTries
 				req1 := req_210_110
 				expectedErr1 := errors.New("no attempts left")
-				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).Times(maxTries).
+				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).Times(maxRetries+1).
 					Return(nil, errors.New("some error"))
 				// req2 sees ErrNotReachable, aborts immediately after first try
 				req2 := req_210_120
@@ -169,7 +169,7 @@ func TestRequester(t *testing.T) {
 			requester := segfetcher.DefaultRequester{
 				RPC:         rpc,
 				DstProvider: dstProvider,
-				MaxTries:    maxTries,
+				MaxRetries:  maxRetries,
 			}
 			var replies []segfetcher.ReplyOrErr
 			for r := range requester.Request(ctx, test.Reqs) {
