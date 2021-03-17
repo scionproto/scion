@@ -99,8 +99,8 @@ func TestRequester(t *testing.T) {
 				// req1 expriences unspecific error, retries until maxTries
 				req1 := req_210_110
 				expectedErr1 := errors.New("no attempts left")
-				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).Times(maxRetries+1).
-					Return(nil, errors.New("some error"))
+				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).
+					Times(maxRetries+1).Return(nil, errors.New("some error"))
 				// req2 sees ErrNotReachable, aborts immediately after first try
 				req2 := req_210_120
 				expectedErr2 := segfetcher.ErrNotReachable
