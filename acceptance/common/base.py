@@ -15,7 +15,8 @@
 import logging
 import os
 import re
-import typing
+from typing import List
+from typing import Type
 
 from plumbum import cli
 from plumbum import local
@@ -135,14 +136,61 @@ class TestBase(cli.Application):
         if re.search(r"Exit\s+[1-9]\d*", ps):
             raise Exception("Failed services.\n" + ps)
 
-    def send_signal(self, container, signal):
-        """Sends signal to a container.
+    def start_container(self, container):
+        """Starts the container with the specified name.
 
-            Args:
-                container: the name of the container.
-                signal: the signal to send
+        Args:
+            container: the name of the container.
+        """
+        print(self.test_state.dc("start", container))
+
+    def stop_container(self, container):
+        """Stops the container with specified name.
+
+        Args:
+            container: the name of the container.
+        """
+        print(self.test_state.dc("stop", container))
+
+    def list_containers(self, container_pattern: str) -> List[str]:
+        """Lists all containers that match the given pattern.
+
+        Args:
+            container_pattern: A regex string to match the container. The regex
+              format is standard Python regex format.
+
+        Returns:
+            A list of strings with the container names that match the
+            container_pattern regex.
+        """
+        containers = self.test_state.dc("config", "--services")
+        matching_containers = []
+        for container in containers.splitlines():
+            if re.match(container_pattern, container):
+                matching_containers.append(container)
+        return matching_containers
+
+    def send_signal(self, container, signal):
+        """Sends signal to the container with the specified name.
+
+        Args:
+            container: the name of the container.
+            signal: the signal to send
         """
         print(self.test_state.dc("kill", "-s", signal, container))
+
+    def execute(self, container, *args):
+        """Executes an arbitrary command in the specified container.
+
+        There's one minute timeout on the command so that tests don't get stuck.
+
+        Args:
+            container: the name of the container to execute the command in.
+
+        Returns:
+            The output of the command.
+        """
+        return self.test_state.dc('exec', '-T', container, "timeout", "1m", *args)
 
 
 class CmdBase(cli.Application):
@@ -214,7 +262,7 @@ class TestTeardown(CmdBase):
         self.cmd_teardown()
 
 
-def register_commands(c: typing.Type[TestBase]):
+def register_commands(c: Type[TestBase]):
     """
     Registers the default subcommands to the test class c.
     """

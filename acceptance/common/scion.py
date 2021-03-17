@@ -19,10 +19,12 @@ from typing import Any, Dict, List, MutableMapping
 
 import toml
 from plumbum import local
+import yaml
 from plumbum.cmd import docker, pkill
 from plumbum.path.local import LocalPath
 
 from acceptance.common.log import LogExec
+from python.lib import scion_addr
 from python.lib.scion_addr import ISD_AS
 
 logger = logging.getLogger(__name__)
@@ -188,11 +190,33 @@ class SCIONSupervisor(SCION):
         self.end2end(*args, retcode=code)
 
 
-def sciond_addr(isd_as: ISD_AS, port: bool = True):
+class ASList(object):
+    """
+    ASList is a list of AS separated by core and non-core ASes. It can be loaded
+    from the as_list.yml file created by the topology generator.
+    """
+    def __init__(self, cores: List[scion_addr.ISD_AS], non_cores: List[scion_addr.ISD_AS]):
+        self.cores = cores
+        self.non_cores = non_cores
+
+    @property
+    def all(self) -> List[scion_addr.ISD_AS]:
+        return self.cores + self.non_cores
+
+    @staticmethod
+    def load(file: str = "gen/as_list.yml") -> "ASList":
+        with open(file, "r") as content:
+            data = yaml.load(content, yaml.Loader)
+        cores = [scion_addr.ISD_AS(raw) for raw in data["Core"]]
+        non_cores = [scion_addr.ISD_AS(raw) for raw in data["Non-core"]]
+        return ASList(cores, non_cores)
+
+
+def sciond_addr(isd_as: ISD_AS, port: bool = True, gen_dir: str = "gen"):
     """
     Return the SCION Daemon address for the given AS.
     """
-    with open('gen/sciond_addresses.json') as f:
+    with open("%s/sciond_addresses.json" % gen_dir) as f:
         addrs = json.load(f)
         ip = addrs[str(isd_as)]
         if not port:
