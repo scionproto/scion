@@ -44,29 +44,58 @@ func (l SignerLabels) WithResult(result string) SignerLabels {
 }
 
 type signer struct {
-	lastGeneratedAS prometheus.Gauge
-	expirationAS    prometheus.Gauge
+	caActive        prometheus.Gauge
+	caSigners       prometheus.CounterVec
+	signedChains    prometheus.CounterVec
+	lastGeneratedCA prometheus.Gauge
+	expirationCA    prometheus.Gauge
 }
 
 func newSigner() signer {
 	return signer{
-		lastGeneratedAS: prom.NewGauge(Namespace, "",
-			"last_signer_generation_time_second",
-			"The last time a signer for control plane messages was successfully generated",
+		caActive: prom.NewGauge(Namespace, "",
+			"ca_signer_active_boolean",
+			"Whether the CA signer is active and can sign certificate chains",
 		),
-		expirationAS: prom.NewGauge(Namespace, "",
+		caSigners: *prom.NewCounterVecWithLabels(Namespace, "",
+			"generated_signers_total",
+			"Number of generated CA signers that sign certificate chains",
+			SignerLabels{},
+		),
+		signedChains: *prom.NewCounterVecWithLabels(Namespace, "",
+			"signed_certificate_chains_total",
+			"Number of certificate chains signed",
+			SignerLabels{},
+		),
+		lastGeneratedCA: prom.NewGauge(Namespace, "",
+			"last_signer_generation_time_second",
+			"The last time a signer for creating AS certificates was successfully generated",
+		),
+		expirationCA: prom.NewGauge(Namespace, "",
 			"signer_expiration_time_second",
-			"The expiration time of the current signer",
+			"The expiration time of the current CA signer",
 		),
 	}
 }
 
-func (s *signer) LastGeneratedAS() prometheus.Gauge {
-	return s.lastGeneratedAS
+func (s *signer) ActiveCA() prometheus.Gauge {
+	return s.caActive
 }
 
-func (s *signer) ExpirationAS() prometheus.Gauge {
-	return s.expirationAS
+func (s *signer) SignedChains(l SignerLabels) prometheus.Counter {
+	return s.signedChains.WithLabelValues(l.Values()...)
+}
+
+func (s *signer) GenerateCA(l SignerLabels) prometheus.Counter {
+	return s.caSigners.WithLabelValues(l.Values()...)
+}
+
+func (s *signer) LastGeneratedCA() prometheus.Gauge {
+	return s.lastGeneratedCA
+}
+
+func (s *signer) ExpirationCA() prometheus.Gauge {
+	return s.expirationCA
 }
 
 // Timestamp return the prometheus value for gauge.

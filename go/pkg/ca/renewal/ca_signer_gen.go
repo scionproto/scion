@@ -31,7 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/pkg/cs/trust/metrics"
+	"github.com/scionproto/scion/go/pkg/ca/renewal/metrics"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 

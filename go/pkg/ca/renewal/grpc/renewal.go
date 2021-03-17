@@ -29,13 +29,14 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/scrypto/cms/protocol"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/ca/renewal"
-	trustmetrics "github.com/scionproto/scion/go/pkg/cs/trust/metrics"
+	renewalmetrics "github.com/scionproto/scion/go/pkg/ca/renewal/metrics"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -79,12 +80,12 @@ func (s RenewalServer) ChainRenewal(ctx context.Context,
 	req *cppb.ChainRenewalRequest) (*cppb.ChainRenewalResponse, error) {
 
 	labels := requestLabels{
-		ReqType: trustmetrics.ChainRenewalReq,
+		ReqType: renewalmetrics.ChainRenewalReq,
 		Client:  infra.PromSrcUnknown,
 	}
 	peer, ok := peer.FromContext(ctx)
 	if ok {
-		labels.Client = trustmetrics.PeerToLabel(peer.Addr, s.IA)
+		labels.Client = renewalmetrics.PeerToLabel(peer.Addr, s.IA)
 	}
 	span := opentracing.SpanFromContext(ctx)
 	logger := log.FromCtx(ctx).New("peer", peer)
@@ -109,18 +110,18 @@ func (s RenewalServer) handlePbSignedRequest(
 	unverfiedHeader, err := signed.ExtractUnverifiedHeader(req.SignedRequest)
 	if err != nil {
 		logger.Debug("Unable to extract signed header", "err", err)
-		return nil, trustmetrics.ErrParse,
+		return nil, renewalmetrics.ErrParse,
 			status.Error(codes.InvalidArgument, "request malformed: cannot extract header")
 	}
 	var keyID cppb.VerificationKeyID
 	if err := proto.Unmarshal(unverfiedHeader.VerificationKeyID, &keyID); err != nil {
 		logger.Debug("Unable to extract verification key ID", "err", err)
-		return nil, trustmetrics.ErrParse, status.Error(codes.InvalidArgument,
+		return nil, renewalmetrics.ErrParse, status.Error(codes.InvalidArgument,
 			"request malformed: cannot extract verification key ID")
 	}
 	if ia := addr.IAInt(keyID.IsdAs).IA(); ia.IsWildcard() {
 		logger.Debug("Verification key ID contains wildcard ISD-AS", "isd_as", ia, "err", err)
-		return nil, trustmetrics.ErrParse, status.Error(codes.InvalidArgument,
+		return nil, renewalmetrics.ErrParse, status.Error(codes.InvalidArgument,
 			"request malformed: verification key ID contains wildcard ISD-AS")
 	}
 	chains, labelValue, err := s.loadClientChains(ctx, addr.IAInt(keyID.IsdAs).IA(),
@@ -132,7 +133,8 @@ func (s RenewalServer) handlePbSignedRequest(
 	csr, err := s.Verifier.VerifyPbSignedRenewalRequest(ctx, req.SignedRequest, chains)
 	if err != nil {
 		logger.Info("Failed to verify certificate chain renewal request", "err", err)
-		return nil, trustmetrics.ErrVerify, status.Error(codes.InvalidArgument, "failed to verify")
+		return nil, renewalmetrics.ErrVerify,
+			status.Error(codes.InvalidArgument, "failed to verify")
 	}
 
 	chain, labelValue, err := s.createNewClientChain(ctx, csr, logger)
@@ -149,14 +151,14 @@ func (s RenewalServer) handlePbSignedRequest(
 	rawBody, err := proto.Marshal(body)
 	if err != nil {
 		logger.Info("Failed to pack body for signature", "err", err)
-		return nil, trustmetrics.ErrInternal,
+		return nil, renewalmetrics.ErrInternal,
 			status.Error(codes.Unavailable, "failed to pack reply")
 	}
 
 	signedMsg, err := s.Signer.Sign(ctx, rawBody)
 	if err != nil {
 		logger.Info("Failed to sign reply", "err", err)
-		return nil, trustmetrics.ErrInternal,
+		return nil, renewalmetrics.ErrInternal,
 			status.Error(codes.Unavailable, "failed to sign reply")
 	}
 
@@ -172,7 +174,7 @@ func (s RenewalServer) handlePbSignedRequest(
 
 	return &cppb.ChainRenewalResponse{
 		SignedResponse: signedMsg,
-	}, trustmetrics.Success, nil
+	}, renewalmetrics.Success, nil
 }
 
 func (s RenewalServer) handleCMSSignedRequest(ctx context.Context, req *cppb.ChainRenewalRequest,
@@ -182,29 +184,30 @@ func (s RenewalServer) handleCMSSignedRequest(ctx context.Context, req *cppb.Cha
 	chain, err := extractClientChain(req.CmsSignedRequest)
 	if err != nil {
 		logger.Debug("Failed to extract client certificate", "err", err)
-		return nil, trustmetrics.ErrParse, status.Error(codes.InvalidArgument,
+		return nil, renewalmetrics.ErrParse, status.Error(codes.InvalidArgument,
 			"request malformed: cannot extract client chain")
 	}
 	issuerIA, err := cppki.ExtractIA(chain[1].Subject)
 	if err != nil {
 		logger.Debug("Failed to extract IA from issuer certificate", "err", err)
-		return nil, trustmetrics.ErrParse, status.Error(codes.InvalidArgument,
+		return nil, renewalmetrics.ErrParse, status.Error(codes.InvalidArgument,
 			"request malformed: cannot extract issuer subject")
 	}
 	if issuerIA == nil {
 		logger.Debug("Failed to extract IA from issuer certificate - issuer nil")
-		return nil, trustmetrics.ErrParse, status.Error(codes.InvalidArgument,
+		return nil, renewalmetrics.ErrParse, status.Error(codes.InvalidArgument,
 			"request malformed: cannot extract issuer subject")
 	}
 	if !issuerIA.Equal(s.IA) {
 		logger.Debug("Renewal requester is not a client", "issuer_isd_as", issuerIA)
-		return nil, trustmetrics.ErrNotFound, status.Error(codes.PermissionDenied, "not a client")
+		return nil, renewalmetrics.ErrNotFound, status.Error(codes.PermissionDenied, "not a client")
 	}
 
 	csr, err := s.Verifier.VerifyCMSSignedRenewalRequest(ctx, req.CmsSignedRequest)
 	if err != nil {
 		logger.Info("Failed to verify certificate chain renewal request", "err", err)
-		return nil, trustmetrics.ErrVerify, status.Error(codes.InvalidArgument, "failed to verify")
+		return nil, renewalmetrics.ErrVerify,
+			status.Error(codes.InvalidArgument, "failed to verify")
 	}
 
 	newClientChain, labelValue, err := s.createNewClientChain(ctx, csr, logger)
@@ -217,7 +220,7 @@ func (s RenewalServer) handleCMSSignedRequest(ctx context.Context, req *cppb.Cha
 	signedCMS, err := s.CMSSigner.SignCMS(ctx, rawBody)
 	if err != nil {
 		logger.Info("Failed to sign reply", "err", err)
-		return nil, trustmetrics.ErrInternal,
+		return nil, renewalmetrics.ErrInternal,
 			status.Error(codes.Unavailable, "failed to sign reply")
 	}
 
@@ -234,7 +237,7 @@ func (s RenewalServer) handleCMSSignedRequest(ctx context.Context, req *cppb.Cha
 
 	return &cppb.ChainRenewalResponse{
 		CmsSignedResponse: signedCMS,
-	}, trustmetrics.Success, nil
+	}, renewalmetrics.Success, nil
 }
 
 func (s RenewalServer) loadClientChains(ctx context.Context, ia addr.IA, keyID []byte,
@@ -247,14 +250,14 @@ func (s RenewalServer) loadClientChains(ctx context.Context, ia addr.IA, keyID [
 	})
 	if err != nil {
 		logger.Info("Failed to load client chains", "err", err)
-		return nil, trustmetrics.ErrDB, status.Error(codes.Unavailable, "db error")
+		return nil, renewalmetrics.ErrDB, status.Error(codes.Unavailable, "db error")
 	}
 	if len(chains) == 0 {
 		logger.Info("No client chain found", "err", err)
-		return nil, trustmetrics.ErrNotFound, status.Error(codes.PermissionDenied, "not a client")
+		return nil, renewalmetrics.ErrNotFound, status.Error(codes.PermissionDenied, "not a client")
 	}
 
-	return chains, trustmetrics.Success, nil
+	return chains, renewalmetrics.Success, nil
 }
 
 func (s RenewalServer) createNewClientChain(ctx context.Context, csr *x509.CertificateRequest,
@@ -263,15 +266,15 @@ func (s RenewalServer) createNewClientChain(ctx context.Context, csr *x509.Certi
 	chain, err := s.ChainBuilder.CreateChain(ctx, csr)
 	if err != nil {
 		logger.Info("Failed to create renewed certificate chain", "err", err)
-		return nil, trustmetrics.ErrInternal,
+		return nil, renewalmetrics.ErrInternal,
 			status.Error(codes.Unavailable, "failed to create chain")
 	}
 	if _, err := s.DB.InsertClientChain(ctx, chain); err != nil {
 		logger.Info("Failed to insert renewed certificate chain", "err", err)
-		return nil, trustmetrics.ErrDB, status.Error(codes.Unavailable, "failed to insert chain")
+		return nil, renewalmetrics.ErrDB, status.Error(codes.Unavailable, "failed to insert chain")
 	}
 
-	return chain, trustmetrics.Success, nil
+	return chain, renewalmetrics.Success, nil
 }
 
 func (s RenewalServer) updateMetric(span opentracing.Span, l requestLabels, err error) {
@@ -316,4 +319,23 @@ func extractClientChain(raw []byte) ([]*x509.Certificate, error) {
 	}
 
 	return certs, nil
+}
+
+type requestLabels struct {
+	Client  string
+	ReqType string
+	Result  string
+}
+
+func (l requestLabels) Expand() []string {
+	return []string{
+		"client", l.Client,
+		"req_type", l.ReqType,
+		prom.LabelResult, l.Result,
+	}
+}
+
+func (l requestLabels) WithResult(result string) requestLabels {
+	l.Result = result
+	return l
 }

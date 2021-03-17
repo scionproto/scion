@@ -24,39 +24,27 @@ import (
 )
 
 // Namespace is the prometheus namespace.
-const Namespace = "trustengine"
+const Namespace = "renewal"
 
-// Trust material
-const (
-	Chain = "chain"
-	TRC   = "trc"
-)
+// Signer exposes the signer metrics.
+var Signer = newSigner()
 
-// Request types
 const (
-	TRCReq   = "trc_request"
-	ChainReq = "chain_request"
+	ChainRenewalReq = "chain_renewal_request"
 )
 
 // Result types
 const (
 	Success = prom.Success
 
+	ErrDB       = prom.ErrDB
+	ErrInactive = "err_inactive"
 	ErrInternal = prom.ErrInternal
+	ErrKey      = "err_key"
+	ErrCerts    = "err_certs"
+	ErrNotFound = "err_not_found"
 	ErrParse    = prom.ErrParse
-)
-
-// Triggers
-const (
-	ASInspector = "trc_inspection"
-	App         = "application"
-)
-
-var (
-	// Handler exposes the handler metrics.
-	Handler = newHandler()
-	// Signer exposes the signer metrics.
-	Signer = newSigner()
+	ErrVerify   = prom.ErrVerify
 )
 
 // PeerToLabel converts the peer address to a peer metric label.
