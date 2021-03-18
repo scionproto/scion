@@ -34,7 +34,7 @@ type AccessToken struct {
 }
 
 // CertificateChain defines model for CertificateChain.
-type CertificateChain string
+type CertificateChain []byte
 
 // HealthCheckStatus defines model for HealthCheckStatus.
 type HealthCheckStatus struct {
@@ -57,7 +57,7 @@ type Problem struct {
 	Status int `json:"status"`
 
 	// A short summary of the problem type. Written in English and readable for engineers, usually not suited for non technical stakeholders and not localized.
-	Title *string `json:"title,omitempty"`
+	Title string `json:"title"`
 
 	// A URI reference that uniquely identifies the problem type in the context of the provided API.
 	Type string `json:"type"`
@@ -103,11 +103,11 @@ type RenewalResponse struct {
 // PostAuthTokenJSONBody defines parameters for PostAuthToken.
 type PostAuthTokenJSONBody AccessCredentials
 
-// PostRaCertificatesRenewalJSONBody defines parameters for PostRaCertificatesRenewal.
-type PostRaCertificatesRenewalJSONBody RenewalRequest
+// PostCertificateRenewalJSONBody defines parameters for PostCertificateRenewal.
+type PostCertificateRenewalJSONBody RenewalRequest
 
 // PostAuthTokenJSONRequestBody defines body for PostAuthToken for application/json ContentType.
 type PostAuthTokenJSONRequestBody PostAuthTokenJSONBody
 
-// PostRaCertificatesRenewalJSONRequestBody defines body for PostRaCertificatesRenewal for application/json ContentType.
-type PostRaCertificatesRenewalJSONRequestBody PostRaCertificatesRenewalJSONBody
+// PostCertificateRenewalJSONRequestBody defines body for PostCertificateRenewal for application/json ContentType.
+type PostCertificateRenewalJSONRequestBody PostCertificateRenewalJSONBody

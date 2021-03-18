@@ -2,7 +2,11 @@ load("//lint:go.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["config.go"],
+    srcs = [
+        "config.go",
+        "errors.go",
+        "helpers.go",
+    ],
     importpath = "github.com/scionproto/scion/go/pkg/api",
     visibility = ["//visibility:public"],
     deps = ["//go/lib/config:go_default_library"],

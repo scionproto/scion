@@ -14,28 +14,7 @@
 
 package api
 
-import (
-	"io"
-
-	"github.com/scionproto/scion/go/lib/config"
-)
-
-const apiSample = `
-# The address to expose the API on (host:port or ip:port).
-# If not set, the API is not exposed.
-addr = ""
-`
-
-type Config struct {
-	config.NoDefaulter
-	config.NoValidator
-	Addr string `toml:"addr,omitempty"`
-}
-
-func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
-	config.WriteString(dst, apiSample)
-}
-
-func (cfg *Config) ConfigName() string {
-	return "api"
+// StringRef takes the reference of a string.
+func StringRef(s string) *string {
+	return &s
 }

@@ -98,10 +98,10 @@ type ClientInterface interface {
 	// GetHealthcheck request
 	GetHealthcheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PostRaCertificatesRenewal request  with any body
-	PostRaCertificatesRenewalWithBody(ctx context.Context, isdNumber int, asNumber AS, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PostCertificateRenewal request  with any body
+	PostCertificateRenewalWithBody(ctx context.Context, isdNumber int, asNumber AS, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PostRaCertificatesRenewal(ctx context.Context, isdNumber int, asNumber AS, body PostRaCertificatesRenewalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostCertificateRenewal(ctx context.Context, isdNumber int, asNumber AS, body PostCertificateRenewalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) PostAuthTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -137,8 +137,8 @@ func (c *Client) GetHealthcheck(ctx context.Context, reqEditors ...RequestEditor
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostRaCertificatesRenewalWithBody(ctx context.Context, isdNumber int, asNumber AS, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostRaCertificatesRenewalRequestWithBody(c.Server, isdNumber, asNumber, contentType, body)
+func (c *Client) PostCertificateRenewalWithBody(ctx context.Context, isdNumber int, asNumber AS, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostCertificateRenewalRequestWithBody(c.Server, isdNumber, asNumber, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -148,8 +148,8 @@ func (c *Client) PostRaCertificatesRenewalWithBody(ctx context.Context, isdNumbe
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostRaCertificatesRenewal(ctx context.Context, isdNumber int, asNumber AS, body PostRaCertificatesRenewalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostRaCertificatesRenewalRequest(c.Server, isdNumber, asNumber, body)
+func (c *Client) PostCertificateRenewal(ctx context.Context, isdNumber int, asNumber AS, body PostCertificateRenewalJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostCertificateRenewalRequest(c.Server, isdNumber, asNumber, body)
 	if err != nil {
 		return nil, err
 	}
@@ -226,19 +226,19 @@ func NewGetHealthcheckRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewPostRaCertificatesRenewalRequest calls the generic PostRaCertificatesRenewal builder with application/json body
-func NewPostRaCertificatesRenewalRequest(server string, isdNumber int, asNumber AS, body PostRaCertificatesRenewalJSONRequestBody) (*http.Request, error) {
+// NewPostCertificateRenewalRequest calls the generic PostCertificateRenewal builder with application/json body
+func NewPostCertificateRenewalRequest(server string, isdNumber int, asNumber AS, body PostCertificateRenewalJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewPostRaCertificatesRenewalRequestWithBody(server, isdNumber, asNumber, "application/json", bodyReader)
+	return NewPostCertificateRenewalRequestWithBody(server, isdNumber, asNumber, "application/json", bodyReader)
 }
 
-// NewPostRaCertificatesRenewalRequestWithBody generates requests for PostRaCertificatesRenewal with any type of body
-func NewPostRaCertificatesRenewalRequestWithBody(server string, isdNumber int, asNumber AS, contentType string, body io.Reader) (*http.Request, error) {
+// NewPostCertificateRenewalRequestWithBody generates requests for PostCertificateRenewal with any type of body
+func NewPostCertificateRenewalRequestWithBody(server string, isdNumber int, asNumber AS, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -332,10 +332,10 @@ type ClientWithResponsesInterface interface {
 	// GetHealthcheck request
 	GetHealthcheckWithResponse(ctx context.Context) (*GetHealthcheckResponse, error)
 
-	// PostRaCertificatesRenewal request  with any body
-	PostRaCertificatesRenewalWithBodyWithResponse(ctx context.Context, isdNumber int, asNumber AS, contentType string, body io.Reader) (*PostRaCertificatesRenewalResponse, error)
+	// PostCertificateRenewal request  with any body
+	PostCertificateRenewalWithBodyWithResponse(ctx context.Context, isdNumber int, asNumber AS, contentType string, body io.Reader) (*PostCertificateRenewalResponse, error)
 
-	PostRaCertificatesRenewalWithResponse(ctx context.Context, isdNumber int, asNumber AS, body PostRaCertificatesRenewalJSONRequestBody) (*PostRaCertificatesRenewalResponse, error)
+	PostCertificateRenewalWithResponse(ctx context.Context, isdNumber int, asNumber AS, body PostCertificateRenewalJSONRequestBody) (*PostCertificateRenewalResponse, error)
 }
 
 type PostAuthTokenResponse struct {
@@ -382,14 +382,14 @@ func (r GetHealthcheckResponse) StatusCode() int {
 	return 0
 }
 
-type PostRaCertificatesRenewalResponse struct {
+type PostCertificateRenewalResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *RenewalResponse
 }
 
 // Status returns HTTPResponse.Status
-func (r PostRaCertificatesRenewalResponse) Status() string {
+func (r PostCertificateRenewalResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -397,7 +397,7 @@ func (r PostRaCertificatesRenewalResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r PostRaCertificatesRenewalResponse) StatusCode() int {
+func (r PostCertificateRenewalResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -430,21 +430,21 @@ func (c *ClientWithResponses) GetHealthcheckWithResponse(ctx context.Context) (*
 	return ParseGetHealthcheckResponse(rsp)
 }
 
-// PostRaCertificatesRenewalWithBodyWithResponse request with arbitrary body returning *PostRaCertificatesRenewalResponse
-func (c *ClientWithResponses) PostRaCertificatesRenewalWithBodyWithResponse(ctx context.Context, isdNumber int, asNumber AS, contentType string, body io.Reader) (*PostRaCertificatesRenewalResponse, error) {
-	rsp, err := c.PostRaCertificatesRenewalWithBody(ctx, isdNumber, asNumber, contentType, body)
+// PostCertificateRenewalWithBodyWithResponse request with arbitrary body returning *PostCertificateRenewalResponse
+func (c *ClientWithResponses) PostCertificateRenewalWithBodyWithResponse(ctx context.Context, isdNumber int, asNumber AS, contentType string, body io.Reader) (*PostCertificateRenewalResponse, error) {
+	rsp, err := c.PostCertificateRenewalWithBody(ctx, isdNumber, asNumber, contentType, body)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostRaCertificatesRenewalResponse(rsp)
+	return ParsePostCertificateRenewalResponse(rsp)
 }
 
-func (c *ClientWithResponses) PostRaCertificatesRenewalWithResponse(ctx context.Context, isdNumber int, asNumber AS, body PostRaCertificatesRenewalJSONRequestBody) (*PostRaCertificatesRenewalResponse, error) {
-	rsp, err := c.PostRaCertificatesRenewal(ctx, isdNumber, asNumber, body)
+func (c *ClientWithResponses) PostCertificateRenewalWithResponse(ctx context.Context, isdNumber int, asNumber AS, body PostCertificateRenewalJSONRequestBody) (*PostCertificateRenewalResponse, error) {
+	rsp, err := c.PostCertificateRenewal(ctx, isdNumber, asNumber, body)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostRaCertificatesRenewalResponse(rsp)
+	return ParsePostCertificateRenewalResponse(rsp)
 }
 
 // ParsePostAuthTokenResponse parses an HTTP response from a PostAuthTokenWithResponse call
@@ -499,15 +499,15 @@ func ParseGetHealthcheckResponse(rsp *http.Response) (*GetHealthcheckResponse, e
 	return response, nil
 }
 
-// ParsePostRaCertificatesRenewalResponse parses an HTTP response from a PostRaCertificatesRenewalWithResponse call
-func ParsePostRaCertificatesRenewalResponse(rsp *http.Response) (*PostRaCertificatesRenewalResponse, error) {
+// ParsePostCertificateRenewalResponse parses an HTTP response from a PostCertificateRenewalWithResponse call
+func ParsePostCertificateRenewalResponse(rsp *http.Response) (*PostCertificateRenewalResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
 	defer rsp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &PostRaCertificatesRenewalResponse{
+	response := &PostCertificateRenewalResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
