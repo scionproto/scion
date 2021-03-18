@@ -16,6 +16,8 @@ package trust
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/x509"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
@@ -32,4 +34,12 @@ type TRCsQuery struct {
 type TrustAPI interface {
 	// SignedTRCs returns the TRCs matching the TRCsQuery from the trust database.
 	SignedTRCs(context.Context, TRCsQuery) (cppki.SignedTRCs, error)
+}
+
+// ChainID maps certificate chain to an ID
+func ChainID(chain []*x509.Certificate) []byte {
+	h := sha256.New()
+	h.Write(chain[0].Raw)
+	h.Write(chain[1].Raw)
+	return h.Sum(nil)
 }

@@ -22,6 +22,7 @@ go_library(
         "//go/pkg/cs/trust:go_default_library",
         "//go/pkg/storage:go_default_library",
         "//go/pkg/storage/trust:go_default_library",
+        "//go/pkg/trust:go_default_library",
         "@com_github_deepmap_oapi_codegen//pkg/runtime:go_default_library",
         "@com_github_getkin_kin_openapi//openapi3:go_default_library",
         "@com_github_go_chi_chi//:go_default_library",

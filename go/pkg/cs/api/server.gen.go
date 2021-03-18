@@ -16,6 +16,9 @@ type ServerInterface interface {
 	// Information about the CA.
 	// (GET /ca)
 	GetCa(w http.ResponseWriter, r *http.Request)
+	// List the certificate chains
+	// (GET /certificates)
+	GetCertificates(w http.ResponseWriter, r *http.Request, params GetCertificatesParams)
 	// Prints the TOML configuration file.
 	// (GET /config)
 	GetConfig(w http.ResponseWriter, r *http.Request)
@@ -71,6 +74,59 @@ func (siw *ServerInterfaceWrapper) GetCa(w http.ResponseWriter, r *http.Request)
 
 	var handler = func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetCa(w, r)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetCertificates operation middleware
+func (siw *ServerInterfaceWrapper) GetCertificates(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetCertificatesParams
+
+	// ------------- Optional query parameter "isd_as" -------------
+	if paramValue := r.URL.Query().Get("isd_as"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "isd_as", r.URL.Query(), &params.IsdAs)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter isd_as: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "valid_at" -------------
+	if paramValue := r.URL.Query().Get("valid_at"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "valid_at", r.URL.Query(), &params.ValidAt)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter valid_at: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "all" -------------
+	if paramValue := r.URL.Query().Get("all"); paramValue != "" {
+
+	}
+
+	err = runtime.BindQueryParameter("form", true, false, "all", r.URL.Query(), &params.All)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter all: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCertificates(w, r, params)
 	}
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -448,6 +504,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ca", wrapper.GetCa)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/certificates", wrapper.GetCertificates)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/config", wrapper.GetConfig)

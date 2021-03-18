@@ -277,6 +277,47 @@ paths:
                 -----END TRC-----
         '400':
           $ref: '#/components/responses/BadRequest'
+  /certificates:
+    get:
+      tags:
+        - trust
+      summary: List the certificate chains
+      description: |
+        List the currently active certificate chains that are known to the
+        control service. The result can be filtered by ISD-AS. Furthermore,
+        one can pass a particular point in time at which the certificate
+        chains are valid as input. A boolean can be provided to return all
+        certificates, regardless of their period of vailidity.
+      operationId: get-certificates
+      parameters:
+        - in: query
+          name: isd_as
+          schema:
+            $ref: '#/components/schemas/IsdAs'
+        - in: query
+          name: valid_at
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: all
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of certificate chains
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChainBrief'
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /info:
     get:
       tags:
@@ -635,6 +676,28 @@ components:
             $ref: '#/components/schemas/IsdAs'
         description:
           type: string
+    ChainID:
+      title: Certificate chain Identifier
+      type: string
+      example: fa53a04a
+      format: hex-string
+    ChainBrief:
+      title: Brief certificate chain description
+      type: object
+      required:
+        - id
+        - subject
+        - issuer
+        - validity
+      properties:
+        id:
+          $ref: '#/components/schemas/ChainID'
+        subject:
+          $ref: '#/components/schemas/IsdAs'
+        issuer:
+          $ref: '#/components/schemas/IsdAs'
+        validity:
+          $ref: '#/components/schemas/Validity'
     LogLevel:
       type: object
       properties:

@@ -601,6 +601,33 @@ func TestAPI(t *testing.T) {
 			RequestURL:   "/trcs/isd1-b1-s1/blob",
 			Status:       200,
 		},
+		"certificates": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				db := mock_storage.NewMockTrustDB(ctrl)
+				s := &Server{TrustDB: db}
+
+				chain, err := cppki.ReadPEMCerts(filepath.Join("testdata", "signer-chain.crt"))
+				require.NoError(t, err)
+
+				db.EXPECT().Chains(gomock.Any(), gomock.Any()).Return(
+					[][]*x509.Certificate{chain}, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/certificates.json",
+			RequestURL:   "/certificates",
+			Status:       200,
+		},
+		"certificates malformed": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				db := mock_storage.NewMockTrustDB(ctrl)
+				s := &Server{TrustDB: db}
+				return Handler(s)
+			},
+			ResponseFile: "testdata/certificates-malformed.json",
+			RequestURL:   "/certificates?isd_as=garbage",
+			Status:       http.StatusBadRequest,
+		},
 	}
 
 	for name, tc := range testCases {

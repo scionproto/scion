@@ -28,6 +28,17 @@ type Certificate struct {
 	Validity          Validity     `json:"validity"`
 }
 
+// ChainBrief defines model for ChainBrief.
+type ChainBrief struct {
+	Id       ChainID  `json:"id"`
+	Issuer   IsdAs    `json:"issuer"`
+	Subject  IsdAs    `json:"subject"`
+	Validity Validity `json:"validity"`
+}
+
+// ChainID defines model for ChainID.
+type ChainID string
+
 // Hop defines model for Hop.
 type Hop struct {
 	Interface int   `json:"interface"`
@@ -155,6 +166,13 @@ type Validity struct {
 
 // BadRequest defines model for BadRequest.
 type BadRequest StandardError
+
+// GetCertificatesParams defines parameters for GetCertificates.
+type GetCertificatesParams struct {
+	IsdAs   *IsdAs     `json:"isd_as,omitempty"`
+	ValidAt *time.Time `json:"valid_at,omitempty"`
+	All     *bool      `json:"all,omitempty"`
+}
 
 // SetLogLevelJSONBody defines parameters for SetLogLevel.
 type SetLogLevelJSONBody LogLevel

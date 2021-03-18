@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -38,6 +39,7 @@ import (
 	cstrust "github.com/scionproto/scion/go/pkg/cs/trust"
 	"github.com/scionproto/scion/go/pkg/storage"
 	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
+	"github.com/scionproto/scion/go/pkg/trust"
 )
 
 type SegmentsStore interface {
@@ -223,6 +225,78 @@ func (s *Server) GetSegmentBlob(w http.ResponseWriter, r *http.Request, segmentI
 		}
 	}
 	io.Copy(w, &buf)
+}
+
+// GetCertificates lists the certificate chains
+func (s *Server) GetCertificates(w http.ResponseWriter,
+	r *http.Request, params GetCertificatesParams) {
+
+	w.Header().Set("Content-Type", "application/json")
+	q := trust.ChainQuery{Date: time.Now()}
+	var errs serrors.List
+	if params.IsdAs != nil {
+		if ia, err := addr.IAFromString(string(*params.IsdAs)); err == nil {
+			q.IA = ia
+		} else {
+			errs = append(errs, serrors.WithCtx(err, "parameter", "isd_as"))
+		}
+	}
+	if params.ValidAt != nil {
+		q.Date = *params.ValidAt
+	}
+	if params.All != nil && *params.All {
+		q.Date = time.Time{}
+	}
+	if err := errs.ToError(); err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusBadRequest,
+			Title:  "malformed query parameters",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	chains, err := s.TrustDB.Chains(r.Context(), q)
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to fetch certificate chains",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+	results := make([]ChainBrief, 0, len(chains))
+	for _, chain := range chains {
+		subject, err := cppki.ExtractIA(chain[0].Subject)
+		if err != nil {
+			continue
+		}
+		issuer, err := cppki.ExtractIA(chain[1].Subject)
+		if err != nil {
+			continue
+		}
+		results = append(results, ChainBrief{
+			Id:      ChainID(fmt.Sprintf("%x", truststorage.ChainID(chain))),
+			Issuer:  IsdAs(issuer.String()),
+			Subject: IsdAs(subject.String()),
+			Validity: Validity{
+				NotAfter:  chain[0].NotAfter,
+				NotBefore: chain[0].NotBefore,
+			},
+		})
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	if err := enc.Encode(results); err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to marshal response",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
 }
 
 // GetCa gets the CA info
