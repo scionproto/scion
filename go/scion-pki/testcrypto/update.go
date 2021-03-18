@@ -133,18 +133,18 @@ func extendTRC(now time.Time, out outConfig, pred cppki.SignedTRC) error {
 		}
 		switch t {
 		case cppki.Regular:
-			key, err := findkey(cryptoVotingDir(*ia, out), cert)
+			key, err := findkey(cryptoVotingDir(ia, out), cert)
 			if err != nil {
-				return serrors.WrapStr("searching key", err, "isd_as", *ia, "type", t)
+				return serrors.WrapStr("searching key", err, "isd_as", ia, "type", t)
 			}
 			extended, err := extendCert(now, cert, key)
 			if err != nil {
-				return serrors.WrapStr("creating certificate", err, "isd_as", *ia, "type", t)
+				return serrors.WrapStr("creating certificate", err, "isd_as", ia, "type", t)
 			}
 			file := filepath.Join(out.base, "certs",
-				regularCertName(*ia, int(pred.TRC.ID.Serial+1)))
+				regularCertName(ia, int(pred.TRC.ID.Serial+1)))
 			if err := writeCert(file, extended); err != nil {
-				return serrors.WrapStr("writing certificate", err, "isd_as", *ia, "type", t)
+				return serrors.WrapStr("writing certificate", err, "isd_as", ia, "type", t)
 			}
 			// Cast vote and show proof of possession.
 			signers[cert] = key
@@ -152,17 +152,17 @@ func extendTRC(now time.Time, out outConfig, pred cppki.SignedTRC) error {
 			signers[extended] = key
 			include = append(include, extended)
 		case cppki.Root:
-			key, err := findkey(cryptoCADir(*ia, out), cert)
+			key, err := findkey(cryptoCADir(ia, out), cert)
 			if err != nil {
-				return serrors.WrapStr("searching key", err, "isd_as", *ia, "type", t)
+				return serrors.WrapStr("searching key", err, "isd_as", ia, "type", t)
 			}
 			extended, err := extendCert(now, cert, key)
 			if err != nil {
-				return serrors.WrapStr("creating certificate", err, "isd_as", *ia, "type", t)
+				return serrors.WrapStr("creating certificate", err, "isd_as", ia, "type", t)
 			}
-			file := filepath.Join(out.base, "certs", rootCertName(*ia, int(pred.TRC.ID.Serial+1)))
+			file := filepath.Join(out.base, "certs", rootCertName(ia, int(pred.TRC.ID.Serial+1)))
 			if err := writeCert(file, extended); err != nil {
-				return serrors.WrapStr("writing certificate", err, "isd_as", *ia, "type", t)
+				return serrors.WrapStr("writing certificate", err, "isd_as", ia, "type", t)
 			}
 			// Show acknowledgment
 			signers[cert] = key
@@ -212,9 +212,9 @@ func resignTRC(now time.Time, out outConfig, pred cppki.SignedTRC) error {
 			return err
 		}
 		if t == cppki.Regular {
-			key, err := findkey(cryptoVotingDir(*ia, out), cert)
+			key, err := findkey(cryptoVotingDir(ia, out), cert)
 			if err != nil {
-				return serrors.WrapStr("searching key", err, "isd_as", *ia, "type", t)
+				return serrors.WrapStr("searching key", err, "isd_as", ia, "type", t)
 			}
 			signers[cert] = key
 			votes = append(votes, i)

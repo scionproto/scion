@@ -142,7 +142,7 @@ func (trc *TRC) Validate() error {
 	}
 	// Check all certificates for this ISD.
 	for i, cert := range trc.Certificates {
-		ia, err := ExtractIA(cert.Subject)
+		ia, err := findIA(cert.Subject)
 		if err != nil {
 			return err
 		}

@@ -269,8 +269,8 @@ func (l CACertLoader) validateCACert(f string, opts x509.VerifyOptions) (*x509.C
 	if err != nil {
 		return nil, err
 	}
-	if !l.IA.Equal(*ia) {
-		return nil, serrors.New("certificate for other ISD-AS", "isd_as", *ia)
+	if !l.IA.Equal(ia) {
+		return nil, serrors.New("certificate for other ISD-AS", "isd_as", ia)
 	}
 	validity := cppki.Validity{NotBefore: chain[0].NotBefore, NotAfter: chain[0].NotAfter}
 	if !validity.Contains(time.Now()) {

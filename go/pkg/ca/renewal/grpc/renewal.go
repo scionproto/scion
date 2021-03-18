@@ -193,11 +193,6 @@ func (s RenewalServer) handleCMSSignedRequest(ctx context.Context, req *cppb.Cha
 		return nil, renewalmetrics.ErrParse, status.Error(codes.InvalidArgument,
 			"request malformed: cannot extract issuer subject")
 	}
-	if issuerIA == nil {
-		logger.Debug("Failed to extract IA from issuer certificate - issuer nil")
-		return nil, renewalmetrics.ErrParse, status.Error(codes.InvalidArgument,
-			"request malformed: cannot extract issuer subject")
-	}
 	if !issuerIA.Equal(s.IA) {
 		logger.Debug("Renewal requester is not a client", "issuer_isd_as", issuerIA)
 		return nil, renewalmetrics.ErrNotFound, status.Error(codes.PermissionDenied, "not a client")

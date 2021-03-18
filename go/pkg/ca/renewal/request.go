@@ -239,17 +239,11 @@ func (r RequestVerifier) processCSR(csr *x509.CertificateRequest,
 	if err != nil {
 		return nil, serrors.WrapStr("extracting ISD-AS from CSR", err)
 	}
-	if csrIA == nil {
-		return nil, serrors.New("subject without ISD-AS", "subject", csr.Subject)
-	}
 	chainIA, err := cppki.ExtractIA(cert.Subject)
 	if err != nil {
 		return nil, serrors.WrapStr("extracting ISD-AS from certificate chain", err)
 	}
-	if chainIA == nil {
-		return nil, serrors.New("subject without ISD-AS", "subject", csr.Subject)
-	}
-	if !csrIA.Equal(*chainIA) {
+	if !csrIA.Equal(chainIA) {
 		return nil, serrors.New("signing subject is different from CSR subject",
 			"csr_isd_as", csrIA, "chain_isd_as", chainIA)
 	}

@@ -81,8 +81,6 @@ func (m *TLSCryptoManager) VerifyPeerCertificate(rawCerts [][]byte,
 	ia, err := cppki.ExtractIA(chain[0].Subject)
 	if err != nil {
 		return serrors.WrapStr("extracting ISD-AS from peer certificate", err)
-	} else if ia == nil {
-		return serrors.New("ISD-AS no present in peer certificate")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), m.Timeout)
 	defer cancel()

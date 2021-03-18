@@ -192,11 +192,7 @@ func (e *executor) InsertChain(ctx context.Context, chain []*x509.Certificate) (
 	ia, err := cppki.ExtractIA(chain[0].Subject)
 	if err != nil {
 		return false, serrors.Wrap(db.ErrInvalidInputData, err,
-			"msg", "invalid AS cert, invalid IA")
-	}
-	if ia == nil {
-		return false, serrors.WithCtx(db.ErrInvalidInputData,
-			"msg", "invalid AS cert, missing IA")
+			"msg", "invalid AS cert, invalid ISD-AS")
 	}
 	query := `INSERT INTO chains (isd_id, as_id, key_id, not_before, not_after,
 								  chain_fingerprint, as_cert, ca_cert)

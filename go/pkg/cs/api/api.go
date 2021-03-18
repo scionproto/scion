@@ -239,19 +239,11 @@ func (s *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ia, err := cppki.ExtractIA(p.Certificate.Subject)
-	if ia == nil {
-		Error(w, Problem{
-			Status: http.StatusInternalServerError,
-			Title:  "Unable to get extract ISD-AS",
-			Type:   api.StringRef(api.InternalError),
-		})
-		return
-	}
 	if err != nil {
 		Error(w, Problem{
 			Detail: api.StringRef(err.Error()),
 			Status: http.StatusInternalServerError,
-			Title:  "Unable to get extract ISD-AS",
+			Title:  "Unable to extract ISD-AS",
 			Type:   api.StringRef(api.InternalError),
 		})
 		return
