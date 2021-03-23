@@ -33,12 +33,24 @@ type RenewingSigner struct {
 }
 
 // Sign signs the message with the latest available Signer.
-func (s RenewingSigner) Sign(ctx context.Context, msg []byte,
-	associatedData ...[]byte) (*cryptopb.SignedMessage, error) {
-	signer, err := s.SignerGen.Generate(ctx)
+func (s RenewingSigner) Sign(
+	ctx context.Context,
+	msg []byte,
+	associatedData ...[]byte,
+) (*cryptopb.SignedMessage, error) {
 
+	signer, err := s.SignerGen.Generate(ctx)
 	if err != nil {
 		return nil, serrors.WrapStr("failed to generate signer", err)
 	}
 	return signer.Sign(ctx, msg, associatedData...)
+}
+
+// SignCMS signs the message with the latest available Signer.
+func (s RenewingSigner) SignCMS(ctx context.Context, msg []byte) ([]byte, error) {
+	signer, err := s.SignerGen.Generate(ctx)
+	if err != nil {
+		return nil, serrors.WrapStr("failed to generate signer", err)
+	}
+	return signer.SignCMS(ctx, msg)
 }

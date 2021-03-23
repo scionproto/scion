@@ -105,9 +105,10 @@ class Test(base.TestBase):
         for isd_as in isd_ases:
             as_dir = self._to_as_dir(isd_as)
             orig_key = as_dir / "crypto/as/cp-as.key"
+            backup_key = as_dir / "cp-as.key"
             logger.info("Removing original private key for %s: %s" %
                         (isd_as, self._rel(orig_key)))
-            orig_key.unlink()
+            orig_key.rename(backup_key)
 
         logger.info("==> Check key and certificate reloads")
         self._check_key_cert(cs_configs)
@@ -138,7 +139,25 @@ class Test(base.TestBase):
             [self.end2end, "-d", "-outDir", self.test_state.artifacts],
             check=True)
 
-    def _renewal_request(self, isd_as: scion_addr.ISD_AS):
+        for isd_as in isd_ases:
+            as_dir = self._to_as_dir(isd_as)
+            orig_key = as_dir / "crypto/as/cp-as.key"
+            backup_key = as_dir / "cp-as.key"
+            logger.info("Recreating original private key for %s: %s" %
+                        (isd_as, self._rel(orig_key)))
+            backup_key.rename(orig_key)
+
+        logger.info("==> Check CMS request only")
+        for isd_as in isd_ases:
+            logging.info("===> Start renewal: %s" % isd_as)
+            self._renewal_request(isd_as, "disable_legacy_request")
+
+        logger.info("==> Check legacy request only")
+        for isd_as in isd_ases:
+            logging.info("===> Start renewal: %s" % isd_as)
+            self._renewal_request(isd_as, "disable_cms_request")
+
+    def _renewal_request(self, isd_as: scion_addr.ISD_AS, features=""):
         as_dir = self._to_as_dir(isd_as)
         csr = as_dir / "crypto/as/csr.json"
         logger.info("Generating CSR for: %s" % self._rel(csr))
@@ -184,6 +203,8 @@ class Test(base.TestBase):
                          "echo $SCION_DAEMON").strip(),
             *self._local_flags(isd_as),
         ]
+        if features:
+            args += ["--features", features]
 
         logger.info("Requesting certificate chain renewal: %s" %
                     chain.relative_to(docker_dir))
