@@ -14,28 +14,11 @@
 
 package api
 
-import (
-	"io"
-
-	"github.com/scionproto/scion/go/lib/config"
+// Error types
+const (
+	InternalError  = "/problems/internal-error"
+	BadRequest     = "/problems/bad-request"
+	Forbidden      = "/problems/forbidden"
+	NotFound       = "/problems/not-found"
+	NotImplemented = "/problems/not-implemented"
 )
-
-const apiSample = `
-# The address to expose the API on (host:port or ip:port).
-# If not set, the API is not exposed.
-addr = ""
-`
-
-type Config struct {
-	config.NoDefaulter
-	config.NoValidator
-	Addr string `toml:"addr,omitempty"`
-}
-
-func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
-	config.WriteString(dst, apiSample)
-}
-
-func (cfg *Config) ConfigName() string {
-	return "api"
-}

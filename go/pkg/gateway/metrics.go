@@ -116,6 +116,16 @@ var (
 		Help:   "Total number of paths being monitored by the gateway.",
 		Labels: []string{"remote_isd_as"},
 	}
+	PathProbesSentMeta = MetricMeta{
+		Name:   "gateway_path_probes_sent",
+		Help:   "Number of path probes being sent.",
+		Labels: []string{"remote_isd_as"},
+	}
+	PathProbesReceivedMeta = MetricMeta{
+		Name:   "gateway_path_probes_received",
+		Help:   "Number of replies to the path probes being received.",
+		Labels: []string{"remote_isd_as"},
+	}
 	SessionPathsAvailableMeta = MetricMeta{
 		Name:   "gateway_session_paths_available",
 		Help:   "Total number of paths available per session policy.",
@@ -196,6 +206,8 @@ type Metrics struct {
 	// Path Monitoring Metrics
 	PathsMonitored        *prometheus.GaugeVec
 	SessionPathsAvailable *prometheus.GaugeVec
+	PathProbesSent        *prometheus.CounterVec
+	PathProbesReceived    *prometheus.CounterVec
 
 	// Discovery Metrics
 	Remotes            *prometheus.GaugeVec
@@ -226,6 +238,8 @@ func NewMetrics() *Metrics {
 		ReceiveExternalErrorsTotal:   ReceiveExternalErrorsTotalMeta.NewCounterVec(),
 		ReceiveLocalErrorsTotal:      ReceiveLocalErrorsTotalMeta.NewCounterVec(),
 		PathsMonitored:               PathsMonitoredMeta.NewGaugeVec(),
+		PathProbesSent:               PathProbesSentMeta.NewCounterVec(),
+		PathProbesReceived:           PathProbesReceivedMeta.NewCounterVec(),
 		SessionPathsAvailable:        SessionPathsAvailableMeta.NewGaugeVec(),
 		Remotes:                      RemotesMeta.NewGaugeVec(),
 		PrefixesAdvertised:           PrefixesAdvertisedMeta.NewGaugeVec(),

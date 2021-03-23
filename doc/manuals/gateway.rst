@@ -258,6 +258,28 @@ Monitored paths
 
 **Labels**: ``remote_isd_as``
 
+Path probes sent
+^^^^^^^^^^^^^^^^
+
+**Name**: ``gateway_path_probes_sent``
+
+**Type**: Counter
+
+**Description**: Number of path probes being sent.
+
+**Labels**: ``remote_isd_as``
+
+Path probe replies received
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**Name**: ``gateway_path_probes_received``
+
+**Type**: Counter
+
+**Description**: Number of replies to the path probes being received.
+
+**Labels**: ``remote_isd_as``
+
 Available session paths
 ^^^^^^^^^^^^^^^^^^^^^^^
 

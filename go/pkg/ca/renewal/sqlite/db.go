@@ -86,11 +86,7 @@ func (e *executor) InsertClientChain(ctx context.Context, chain []*x509.Certific
 	ia, err := cppki.ExtractIA(chain[0].Subject)
 	if err != nil {
 		return false, serrors.Wrap(db.ErrInvalidInputData, err, "msg",
-			"invalid AS cert, invalid IA")
-	}
-	if ia == nil {
-		return false, serrors.WithCtx(db.ErrInvalidInputData,
-			"msg", "invalid AS cert, missing IA")
+			"invalid AS cert, invalid ISD-AS")
 	}
 	query := `INSERT INTO client_chains (isd_id, as_id, serial_number, key_id,
 								  not_before, not_after, as_cert, ca_cert)

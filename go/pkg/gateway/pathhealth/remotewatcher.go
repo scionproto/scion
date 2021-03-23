@@ -70,6 +70,10 @@ type DefaultRemoteWatcherFactory struct {
 	// PathsMonitored is a gauge counting the number of paths currently
 	// monitored to a remote AS.
 	PathsMonitored metrics.Gauge
+	// ProbesSent keeps track of how many path probes have been sent per remote AS.
+	ProbesSent metrics.Counter
+	// ProbesReceived keeps track of how many path probes have been received per remote AS.
+	ProbesReceived metrics.Counter
 }
 
 // New creates an RemoteWatcher that keeps track of all the paths for a given
@@ -86,6 +90,8 @@ func (f *DefaultRemoteWatcherFactory) New(remote addr.IA) RemoteWatcher {
 		pathWatchersByID:   make(map[uint16]*pathWatcherItem),
 		logger:             logger,
 		pathsMonitored:     metrics.GaugeWith(f.PathsMonitored, "remote_isd_as", remote.String()),
+		probesSent:         metrics.CounterWith(f.ProbesSent, "remote_isd_as", remote.String()),
+		probesReceived:     metrics.CounterWith(f.ProbesReceived, "remote_isd_as", remote.String()),
 		// Set this to true so that first failure to get paths is logged.
 		hasPaths: true,
 	}
@@ -109,6 +115,8 @@ type DefaultRemoteWatcher struct {
 
 	logger         log.Logger
 	pathsMonitored metrics.Gauge
+	probesSent     metrics.Counter
+	probesReceived metrics.Counter
 }
 
 // UpdatePaths gets new paths from the SCION daemon. This function may block for
@@ -183,6 +191,7 @@ func (w *DefaultRemoteWatcher) SendProbes(conn snet.PacketConn, localAddr snet.S
 	w.pathWatcherMtx.Lock()
 	defer w.pathWatcherMtx.Unlock()
 
+	metrics.CounterAdd(w.probesSent, float64(len(w.pathWatchers)))
 	for _, pm := range w.pathWatchers {
 		pm.SendProbe(conn, localAddr)
 	}
@@ -193,6 +202,7 @@ func (w *DefaultRemoteWatcher) HandleProbeReply(id, seq uint16) {
 	w.pathWatcherMtx.Lock()
 	defer w.pathWatcherMtx.Unlock()
 
+	metrics.CounterInc(w.probesReceived)
 	pm, ok := w.pathWatchersByID[id]
 	if !ok {
 		log.SafeDebug(w.logger, "unsolicited reply (path no longer monitored)", "id", id)

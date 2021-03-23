@@ -31,10 +31,14 @@ the border router and `sciond` in the endhost:
 The COS is structured similarly to other existing Go infrastructure services. It reuses the
 following:
 
-* [go/lib/env](../go/lib/env): Is used for configuration and setup of the service.
-* [go/pkg/trust](../go/pkg/trust): Is used for crypto material.
-* [go/lib/infra](../go/lib/infra): Is used for the messenger to send and receive messages.
-* [go/lib/periodic](../go/lib/periodic): Is used for periodic tasks.
+* [go/lib/env](https://github.com/scionproto/scion/tree/master/go/lib/env):
+  Is used for configuration and setup of the service.
+* [go/pkg/trust](https://github.com/scionproto/scion/tree/master/go/pkg/trust):
+  Is used for crypto material.
+* [go/lib/infra](https://github.com/scionproto/scion/tree/master/go/lib/infra):
+  Is used for the messenger to send and receive messages.
+* [go/lib/periodic](://github.com/scionproto/scion/tree/master/go/lib/periodic):
+  Is used for periodic tasks.
 
 The COS is differentiated into these parts:
 

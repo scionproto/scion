@@ -61,6 +61,7 @@ func TestRequester(t *testing.T) {
 	rootCtrl := gomock.NewController(t)
 	defer rootCtrl.Finish()
 	tg := newTestGraph(rootCtrl)
+	const maxRetries = 13
 
 	tests := map[string]struct {
 		Reqs   segfetcher.Requests
@@ -95,21 +96,23 @@ func TestRequester(t *testing.T) {
 		"Cores only": {
 			Reqs: segfetcher.Requests{req_210_110, req_210_120, req_210_130},
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
+				// req1 expriences unspecific error, retries until maxTries
 				req1 := req_210_110
-				testErr := errors.New("no attempts left")
-				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).Times(3).
-					Return(nil, testErr)
+				expectedErr1 := errors.New("no attempts left")
+				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).
+					Times(maxRetries+1).Return(nil, errors.New("some error"))
+				// req2 sees ErrNotReachable, aborts immediately after first try
 				req2 := req_210_120
-				reply2 := []*seg.Meta{tg.seg210_120_core}
+				expectedErr2 := segfetcher.ErrNotReachable
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req2), gomock.Any()).
-					Return(reply2, nil)
+					Return(nil, segfetcher.ErrNotReachable)
 				req3 := req_210_130
 				reply3 := []*seg.Meta{tg.seg210_130_core}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req3), gomock.Any()).
 					Return(reply3, nil)
 				return []segfetcher.ReplyOrErr{
-					{Req: req_210_110, Err: testErr},
-					{Req: req_210_120, Segments: reply2},
+					{Req: req_210_110, Err: expectedErr1},
+					{Req: req_210_120, Err: expectedErr2},
 					{Req: req_210_130, Segments: reply3},
 				}
 			},
@@ -154,7 +157,7 @@ func TestRequester(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+			ctx, cancelF := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancelF()
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
@@ -166,6 +169,7 @@ func TestRequester(t *testing.T) {
 			requester := segfetcher.DefaultRequester{
 				RPC:         rpc,
 				DstProvider: dstProvider,
+				MaxRetries:  maxRetries,
 			}
 			var replies []segfetcher.ReplyOrErr
 			for r := range requester.Request(ctx, test.Reqs) {

@@ -56,6 +56,8 @@ var (
 var (
 	// ErrInvalidCertType indicates an invalid certificate type.
 	ErrInvalidCertType = serrors.New("invalid certificate type")
+
+	errIANotFound = serrors.New("ISD-AS not found")
 )
 
 // CertType describes the type of the SCION certificate.
@@ -392,10 +394,10 @@ func commonCAValidation(c *x509.Certificate, pathLen int) error {
 	}
 	if v, ok := oidInExtensions(asn1.ObjectIdentifier{2, 5, 29, 19},
 		c.Extensions); ok && !v.Critical {
-		errs = append(errs, serrors.New("basic contraints not critical"))
+		errs = append(errs, serrors.New("basic constraints not critical"))
 	}
 	if !c.BasicConstraintsValid || !c.IsCA || c.MaxPathLen != pathLen {
-		errs = append(errs, serrors.New("basic contraints not valid"))
+		errs = append(errs, serrors.New("basic constraints not valid"))
 	}
 	if err := subjectAndIssuerIASet(c); err != nil {
 		errs = append(errs, err)
@@ -465,23 +467,32 @@ func containsOID(oids []asn1.ObjectIdentifier, o asn1.ObjectIdentifier) bool {
 
 func subjectAndIssuerIASet(c *x509.Certificate) error {
 	var errs serrors.List
-	if issuerIA, err := ExtractIA(c.Issuer); err != nil {
-		errs = append(errs, err)
-	} else if issuerIA == nil {
-		errs = append(errs, serrors.New("missing issuer IA"))
+	if _, err := ExtractIA(c.Issuer); err != nil {
+		errs = append(errs, serrors.WrapStr("extracting issuer ISD-AS", err))
 	}
-	if subjectIA, err := ExtractIA(c.Subject); err != nil {
-		errs = append(errs, err)
-	} else if subjectIA == nil {
-		errs = append(errs, serrors.New("missing subject IA"))
+	if _, err := ExtractIA(c.Subject); err != nil {
+		errs = append(errs, serrors.WrapStr("extracting subject ISD-AS", err))
 	}
 	return errs.ToError()
 }
 
-// ExtractIA extracts the IA from the distinguished name. Returns nil if the
-// ISD-AS number is not present in the distinguished name. If the ISD-AS
-// number is not parsable, an error is returned.
-func ExtractIA(dn pkix.Name) (*addr.IA, error) {
+// ExtractIA extracts the ISD-AS from the distinguished name. If the ISD-AS
+// number is not present in the distinguished name, an error is returned.
+func ExtractIA(dn pkix.Name) (addr.IA, error) {
+	ia, err := findIA(dn)
+	if err != nil {
+		return addr.IA{}, err
+	}
+	if ia == nil {
+		return addr.IA{}, errIANotFound
+	}
+	return *ia, nil
+}
+
+// findIA extracts the ISD-AS from the distinguished name if it exists. If the
+// ISD-AS number is not present in the distinguished name, it returns nil. If
+// the ISD-AS number is not parsable, an error is returned.
+func findIA(dn pkix.Name) (*addr.IA, error) {
 	for _, name := range dn.Names {
 		if !name.Type.Equal(OIDNameIA) {
 			continue
@@ -530,12 +541,12 @@ func commonVotingValidation(c *x509.Certificate) error {
 		errs = append(errs, serrors.New("id-kp-serverAuth is set"))
 	}
 	if c.BasicConstraintsValid && c.IsCA {
-		errs = append(errs, serrors.New("basicConstraints exists and CA is true"))
+		errs = append(errs, serrors.New("basic constraints exists and CA is true"))
 	}
-	if _, err := ExtractIA(c.Issuer); err != nil {
+	if _, err := findIA(c.Issuer); err != nil {
 		errs = append(errs, err)
 	}
-	if _, err := ExtractIA(c.Subject); err != nil {
+	if _, err := findIA(c.Subject); err != nil {
 		errs = append(errs, err)
 	}
 

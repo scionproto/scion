@@ -182,9 +182,9 @@ func checkChainsMatchQuery(query trust.ChainQuery, chains [][]*x509.Certificate)
 		if err != nil {
 			return serrors.WrapStr("extracting ISD-AS", err, "index", i)
 		}
-		if !query.IA.Equal(*ia) {
+		if !query.IA.Equal(ia) {
 			return serrors.New("ISD-AS mismatch",
-				"index", i, "expected", query.IA, "actual", *ia)
+				"index", i, "expected", query.IA, "actual", ia)
 		}
 		if !bytes.Equal(query.SubjectKeyID, chain[0].SubjectKeyId) {
 			return serrors.New("SubjectKeyID mismatch", "index", i)

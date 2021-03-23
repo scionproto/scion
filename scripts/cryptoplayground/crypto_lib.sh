@@ -79,26 +79,29 @@ in_docker() {
 # Config file creation
 ######################
 
-payload_conf() {
+PAYLOAD_CONF_SAMPLE=$(cat <<-END
 # LITERALINCLUDE payload_conf_sample START
-# {{.ISD}}               = 1
-# {{.Description}}       = "Test ISD"
-# {{.VotingQuorum}}      = 2
-# {{.CoreASes}}          = ["ff00:0:110", "ff00:0:111"]
-# {{.AuthoritativeASes}} = ["ff00:0:110", "ff00:0:111"]
-# {{.NotBefore}}         = 1593000000  # Seconds since UNIX Epoch
-# {{.Validity}}          = "365d"
-# {{.CertFiles}} = [
-#     "bern/sensitive-voting.crt",
-#     "bern/regular-voting.crt",
-#     "bern/cp-root.crt",
-#     "geneva/sensitive-voting.crt",
-#     "geneva/regular-voting.crt",
-#     "zürich/sensitive-voting.crt",
-#     "zürich/regular-voting.crt",
-# ]
+{{.ISD}}               = 1
+{{.Description}}       = "Test ISD"
+{{.VotingQuorum}}      = 2
+{{.CoreASes}}          = ["ff00:0:110", "ff00:0:111"]
+{{.AuthoritativeASes}} = ["ff00:0:110", "ff00:0:111"]
+{{.NotBefore}}         = 1593000000  # Seconds since UNIX Epoch
+{{.Validity}}          = "365d"
+{{.CertFiles}} = [
+    "bern/sensitive-voting.crt",
+    "bern/regular-voting.crt",
+    "bern/cp-root.crt",
+    "geneva/sensitive-voting.crt",
+    "geneva/regular-voting.crt",
+    "zürich/sensitive-voting.crt",
+    "zürich/regular-voting.crt",
+]
 # LITERALINCLUDE payload_conf_sample END
+END
+)
 
+payload_conf() {
 # LITERALINCLUDE payload_conf START
 cat << EOF > ISD-B1-S1.toml
 isd                = {{.ISD}}

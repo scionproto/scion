@@ -19,7 +19,7 @@ paths:
       description: Request the renewal of an existing AS certificate.
       security:
         - BearerAuth: []
-      operationId: post-ra-certificates-renewal
+      operationId: post-certificate-renewal
       tags:
         - Registration Authority
       requestBody:
@@ -86,7 +86,7 @@ components:
         - "certificate_chain"
     CertificateChain:
       type: string
-      format: bytes
+      format: byte
       description: |
         Base64 encoded certificate chain in PKCS#7 format.
 
