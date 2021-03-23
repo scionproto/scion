@@ -117,6 +117,9 @@ class TestBase(cli.Application):
         print('artifacts dir: %s' % self.test_state.artifacts)
         self._unpack_topo()
         print(cmd.docker('image', 'load', '-i', self.test_state.containers_tar))
+        # Define where coredumps will be stored.
+        print(cmd.docker("run", "--rm", "--privileged", "alpine",
+                         "sysctl", "-w", "kernel.core_pattern=/share/coredump"))
 
     def setup(self):
         self.setup_prepare()

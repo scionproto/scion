@@ -68,6 +68,12 @@ class Compose(object):
             with open(dst_f, "w") as log_file:
                 cmd.docker.run(args=("logs", svc), stdout=log_file,
                                stderr=subprocess.STDOUT, retcode=None)
+            coredump_f = out_p / "%s.coredump" % svc
+            try:
+                cmd.docker.run(args=("cp", svc+":/share/coredump", coredump_f))
+            except Exception:
+                # If the coredump does not exist, do nothing.
+                pass
 
 
 class _Network(NamedTuple):
