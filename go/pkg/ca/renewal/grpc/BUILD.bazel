@@ -2,7 +2,10 @@ load("//lint:go.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["renewal.go"],
+    srcs = [
+        "delegating_handler.go",
+        "renewal.go",
+    ],
     importpath = "github.com/scionproto/scion/go/pkg/ca/renewal/grpc",
     visibility = ["//visibility:public"],
     deps = [
@@ -16,6 +19,7 @@ go_library(
         "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/tracing:go_default_library",
+        "//go/pkg/ca/api:go_default_library",
         "//go/pkg/ca/renewal:go_default_library",
         "//go/pkg/ca/renewal/metrics:go_default_library",
         "//go/pkg/proto/control_plane:go_default_library",
@@ -31,14 +35,20 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["renewal_test.go"],
+    srcs = [
+        "delegating_handler_test.go",
+        "renewal_test.go",
+    ],
     embed = [":go_default_library"],
     deps = [
         "//go/lib/addr:go_default_library",
+        "//go/lib/metrics:go_default_library",
+        "//go/lib/scrypto/cms/protocol:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
         "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/xtest:go_default_library",
+        "//go/pkg/ca/api:go_default_library",
         "//go/pkg/ca/renewal:go_default_library",
         "//go/pkg/ca/renewal/grpc/mock_grpc:go_default_library",
         "//go/pkg/ca/renewal/mock_renewal:go_default_library",
