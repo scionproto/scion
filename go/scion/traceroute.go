@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/app"
+	"github.com/scionproto/scion/go/pkg/app/path"
 	"github.com/scionproto/scion/go/pkg/traceroute"
 )
 
@@ -96,9 +97,12 @@ On other errors, traceroute will exit with code 2.
 				return err
 			}
 			span.SetTag("src.isd_as", info.IA)
-			path, err := app.ChoosePath(traceCtx, sd, remote.IA,
-				flags.interactive, flags.refresh, flags.sequence,
-				app.DefaultColorScheme(flags.noColor))
+			path, err := path.Choose(traceCtx, sd, remote.IA,
+				path.WithInteractive(flags.interactive),
+				path.WithRefresh(flags.refresh),
+				path.WithSequence(flags.sequence),
+				path.WithColorScheme(path.DefaultColorScheme(flags.noColor)),
+			)
 			if err != nil {
 				return err
 			}

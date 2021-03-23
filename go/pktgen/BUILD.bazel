@@ -19,6 +19,7 @@ go_library(
         "//go/lib/snet:go_default_library",
         "//go/lib/snet/addrutil:go_default_library",
         "//go/pkg/app:go_default_library",
+        "//go/pkg/app/path:go_default_library",
         "//go/pkg/command:go_default_library",
         "//go/pkg/pktgen:go_default_library",
         "@com_github_google_gopacket//:go_default_library",
