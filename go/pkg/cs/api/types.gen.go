@@ -28,6 +28,12 @@ type Certificate struct {
 	Validity          Validity     `json:"validity"`
 }
 
+// Chain defines model for Chain.
+type Chain struct {
+	Issuer  Certificate `json:"issuer"`
+	Subject Certificate `json:"subject"`
+}
+
 // ChainBrief defines model for ChainBrief.
 type ChainBrief struct {
 	Id       ChainID  `json:"id"`

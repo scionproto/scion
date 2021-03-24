@@ -203,6 +203,30 @@ func (e *executor) Chains(ctx context.Context,
 	return chains, nil
 }
 
+func (e *executor) Chain(ctx context.Context,
+	chainID []byte) ([]*x509.Certificate, error) {
+
+	e.RLock()
+	defer e.RUnlock()
+	sqlQuery := fmt.Sprintf("SELECT as_cert, ca_cert FROM chains WHERE chain_fingerprint=$1")
+	r := e.db.QueryRowContext(ctx, sqlQuery, chainID)
+	var chain []*x509.Certificate
+	var rawAS, rawCA []byte
+	if err := r.Scan(&rawAS, &rawCA); err != nil {
+		return nil, serrors.Wrap(db.ErrReadFailed, err)
+	}
+	as, err := x509.ParseCertificate(rawAS)
+	if err != nil {
+		return nil, serrors.Wrap(db.ErrDataInvalid, err)
+	}
+	ca, err := x509.ParseCertificate(rawCA)
+	if err != nil {
+		return nil, serrors.Wrap(db.ErrDataInvalid, err)
+	}
+	chain = []*x509.Certificate{as, ca}
+	return chain, nil
+}
+
 func (e *executor) InsertChain(ctx context.Context, chain []*x509.Certificate) (bool, error) {
 	e.Lock()
 	defer e.Unlock()
@@ -224,7 +248,7 @@ func (e *executor) InsertChain(ctx context.Context, chain []*x509.Certificate) (
 	err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
 		r, err := tx.ExecContext(ctx, query, ia.I, ia.A, chain[0].SubjectKeyId,
 			chain[0].NotBefore.UTC(), chain[0].NotAfter.UTC(),
-			fingerprint(chain), chain[0].Raw, chain[1].Raw)
+			truststorage.ChainID(chain), chain[0].Raw, chain[1].Raw)
 		if err != nil {
 			return serrors.Wrap(db.ErrWriteFailed, err)
 		}

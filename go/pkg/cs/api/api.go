@@ -299,6 +299,111 @@ func (s *Server) GetCertificates(w http.ResponseWriter,
 	}
 }
 
+// GetCertificate lists the certificate chain for a given ChainID
+func (s *Server) GetCertificate(w http.ResponseWriter, r *http.Request, chainID ChainID) {
+	w.Header().Set("Content-Type", "application/json")
+
+	id, err := hex.DecodeString(string(chainID))
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusBadRequest,
+			Title:  "malformed query parameters",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	chain, err := s.TrustDB.Chain(r.Context(), id)
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to fetch certificate chain",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+
+	// We can safely ignore errors, because only valid chains are stored in the
+	// database.
+	subject, _ := cppki.ExtractIA(chain[0].Subject)
+	issuer, _ := cppki.ExtractIA(chain[1].Subject)
+	result := Chain{
+		Subject: Certificate{
+			DistinguishedName: chain[0].Subject.String(),
+			IsdAs:             IsdAs(subject.String()),
+			SubjectKeyAlgo:    chain[0].PublicKeyAlgorithm.String(),
+			SubjectKeyId:      SubjectKeyID(fmt.Sprintf("% X", chain[0].SubjectKeyId)),
+			Validity: Validity{
+				NotAfter:  chain[0].NotAfter,
+				NotBefore: chain[0].NotBefore,
+			},
+		},
+		Issuer: Certificate{
+			DistinguishedName: chain[1].Subject.String(),
+			IsdAs:             IsdAs(issuer.String()),
+			SubjectKeyAlgo:    chain[1].PublicKeyAlgorithm.String(),
+			SubjectKeyId:      SubjectKeyID(fmt.Sprintf("% X", chain[1].SubjectKeyId)),
+			Validity: Validity{
+				NotAfter:  chain[1].NotAfter,
+				NotBefore: chain[1].NotBefore,
+			},
+		},
+	}
+
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "    ")
+	if err := enc.Encode(result); err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to marshal response",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+}
+
+// GetCertificateBlob gnerates a certificate chain blob response encoded as PEM for a given chainId.
+func (s *Server) GetCertificateBlob(w http.ResponseWriter, r *http.Request, chainID ChainID) {
+	w.Header().Set("Content-Type", "application/x-pem-file")
+
+	id, err := hex.DecodeString(string(chainID))
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusBadRequest,
+			Title:  "malformed query parameters",
+			Type:   api.StringRef(api.BadRequest),
+		})
+		return
+	}
+	chain, err := s.TrustDB.Chain(r.Context(), id)
+	if err != nil {
+		Error(w, Problem{
+			Detail: api.StringRef(err.Error()),
+			Status: http.StatusInternalServerError,
+			Title:  "unable to fetch certificate chain",
+			Type:   api.StringRef(api.InternalError),
+		})
+		return
+	}
+
+	var buf bytes.Buffer
+	for _, cert := range chain {
+		if err := pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}); err != nil {
+			Error(w, Problem{
+				Detail: api.StringRef(err.Error()),
+				Status: http.StatusInternalServerError,
+				Title:  "unable to marshal response",
+				Type:   api.StringRef(api.InternalError),
+			})
+			return
+		}
+	}
+	io.Copy(w, &buf)
+}
+
 // GetCa gets the CA info
 func (s *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

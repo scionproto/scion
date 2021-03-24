@@ -34,6 +34,8 @@ type TRCsQuery struct {
 type TrustAPI interface {
 	// SignedTRCs returns the TRCs matching the TRCsQuery from the trust database.
 	SignedTRCs(context.Context, TRCsQuery) (cppki.SignedTRCs, error)
+	// Chain looks up the chain for a given ChainID.
+	Chain(context.Context, []byte) ([]*x509.Certificate, error)
 }
 
 // ChainID maps certificate chain to an ID

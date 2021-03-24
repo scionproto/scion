@@ -16,6 +16,7 @@ package dbtest
 
 import (
 	"context"
+	"crypto/x509"
 	"path/filepath"
 	"testing"
 	"time"
@@ -112,6 +113,31 @@ func run(t *testing.T, db TestableDB, cfg Config) {
 		actualTRCs, err := db.SignedTRCs(ctx, truststorage.TRCsQuery{ISD: []addr.ISD{1337}})
 		require.NoError(t, err)
 		assert.Empty(t, actualTRCs)
+	})
+
+	t.Run("Chain", func(t *testing.T) {
+		// first load a chain
+		bern1Chain := []*x509.Certificate{
+			xtest.LoadChain(t, cfg.filePath("bern/cp-as1.crt"))[0],
+			xtest.LoadChain(t, cfg.filePath("bern/cp-ca.crt"))[0],
+		}
+		ctx, cancelF := context.WithTimeout(context.Background(), cfg.Timeout)
+		defer cancelF()
+
+		// prefill DB with the chain that we expect to exist.
+		in, err := db.InsertChain(ctx, bern1Chain)
+		require.NoError(t, err)
+		require.True(t, in)
+		t.Run("Valid ChainID", func(t *testing.T) {
+			chain, err := db.Chain(ctx, truststorage.ChainID(bern1Chain))
+			assert.NoError(t, err)
+			assert.Equal(t, bern1Chain, chain)
+		})
+		t.Run("Invalid ChainID", func(t *testing.T) {
+			chain, err := db.Chain(ctx, []byte("fa53a04h"))
+			assert.Error(t, err)
+			assert.Empty(t, chain)
+		})
 	})
 }
 

@@ -19,6 +19,7 @@ import (
 	"context"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"flag"
 	"io/ioutil"
 	"net/http"
@@ -626,6 +627,65 @@ func TestAPI(t *testing.T) {
 			},
 			ResponseFile: "testdata/certificates-malformed.json",
 			RequestURL:   "/certificates?isd_as=garbage",
+			Status:       http.StatusBadRequest,
+		},
+		"certificates chainID": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				db := mock_storage.NewMockTrustDB(ctrl)
+				s := &Server{TrustDB: db}
+
+				chain, err := cppki.ReadPEMCerts(filepath.Join("testdata", "signer-chain.crt"))
+				require.NoError(t, err)
+
+				expectedChainID, err := hex.DecodeString("aabbcc")
+				require.NoError(t, err)
+
+				db.EXPECT().Chain(gomock.Any(), expectedChainID).Return(
+					chain, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/certificate.json",
+			RequestURL:   "/certificates/aabbcc",
+			Status:       200,
+		},
+		"chainID malformed": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				db := mock_storage.NewMockTrustDB(ctrl)
+				s := &Server{TrustDB: db}
+				return Handler(s)
+			},
+			ResponseFile: "testdata/certificate-malformed.json",
+			RequestURL:   "/certificates/garbage",
+			Status:       http.StatusBadRequest,
+		},
+		"Certificates blob": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				db := mock_storage.NewMockTrustDB(ctrl)
+				s := &Server{TrustDB: db}
+
+				chain, err := cppki.ReadPEMCerts(filepath.Join("testdata", "signer-chain.crt"))
+				require.NoError(t, err)
+				expectedChainID, err := hex.DecodeString("aabbcc")
+				require.NoError(t, err)
+
+				db.EXPECT().Chain(gomock.Any(), expectedChainID).Return(
+					chain, nil,
+				)
+				return Handler(s)
+			},
+			ResponseFile: "testdata/certificates-blob-response.txt",
+			RequestURL:   "/certificates/aabbcc/blob",
+			Status:       200,
+		},
+		"chainID blob malformed": {
+			Handler: func(t *testing.T, ctrl *gomock.Controller) http.Handler {
+				db := mock_storage.NewMockTrustDB(ctrl)
+				s := &Server{TrustDB: db}
+				return Handler(s)
+			},
+			ResponseFile: "testdata/certificate-blob-malformed.txt",
+			RequestURL:   "/certificates/garbage/blob",
 			Status:       http.StatusBadRequest,
 		},
 	}
