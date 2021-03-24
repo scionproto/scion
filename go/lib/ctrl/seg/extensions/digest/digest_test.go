@@ -36,10 +36,10 @@ func TestDecodeEncode(t *testing.T) {
 		}
 
 		var d digest.Digest
-		i, err := ed.DigestInput()
+		input, err := ed.DigestInput()
 		assert.NoError(t, err)
-		d.Set(i)
-		err = d.Validate(i)
+		d.Set(input)
+		err = d.Validate(input)
 		assert.NoError(t, err)
 
 		dig := &digest.Extension{

@@ -119,11 +119,11 @@ func (s *DefaultExtender) Extend(ctx context.Context, pseg *seg.PathSegment,
 		asEntry.UnsignedExtensions.EpicDetached = e
 
 		var d digest.Digest
-		i, err := e.DigestInput()
+		input, err := e.DigestInput()
 		if err != nil {
 			return err
 		}
-		d.Set(i)
+		d.Set(input)
 
 		asEntry.Extensions.Digests = &digest.Extension{
 			Epic: d,

@@ -30,9 +30,8 @@ func UnsignedExtensionsFromPB(ue *cppb.PathSegmentUnsignedExtensions) UnsignedEx
 	if ue == nil {
 		return UnsignedExtensions{}
 	}
-	ed := epic.DetachedFromPB(ue.Epic)
 	return UnsignedExtensions{
-		EpicDetached: ed,
+		EpicDetached: epic.DetachedFromPB(ue.Epic),
 	}
 }
 
@@ -64,11 +63,11 @@ func checkUnsignedExtensions(ue *UnsignedExtensions, e *Extensions) error {
 	// Check consistency (digest extension contains correct hash)
 	// EPIC:
 	if epicDetached && epicDigest {
-		i, err := ue.EpicDetached.DigestInput()
+		input, err := ue.EpicDetached.DigestInput()
 		if err != nil {
 			return err
 		}
-		if err := e.Digests.Epic.Validate(i); err != nil {
+		if err := e.Digests.Epic.Validate(input); err != nil {
 			return err
 		}
 	}

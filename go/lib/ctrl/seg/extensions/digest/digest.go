@@ -66,8 +66,7 @@ func ExtensionToPB(d *Extension) *cppb.DigestExtension {
 }
 
 func (d *Digest) Set(input []byte) {
-	b := calculateDigest(input)
-	d.Digest = b
+	d.Digest = calculateDigest(input)
 }
 
 func (d *Digest) Validate(input []byte) error {
