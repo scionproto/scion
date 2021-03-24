@@ -93,17 +93,19 @@ func (ed *Detached) DigestInput() ([]byte, error) {
 	binary.BigEndian.PutUint16(b, totalLen)
 
 	if len(ed.AuthHopEntry) != AuthLen {
-		return nil, serrors.New("authenticator for hop entry has wrong length",
-			"len(ed.AuthHopEntry)", len(ed.AuthHopEntry))
+		return nil, serrors.New("hop entry authenticator of wrong length",
+			"expected", AuthLen, "actual", len(ed.AuthHopEntry))
 	}
 	copy(b[2:12], ed.AuthHopEntry)
 
-	for i, peer := range ed.AuthPeerEntries {
+	offset := 12
+	for _, peer := range ed.AuthPeerEntries {
 		if len(peer) != AuthLen {
-			return nil, serrors.New("authenticator for peer entry has wrong length",
-				"len(peer)", len(peer))
+			return nil, serrors.New("peer entry authenticator of wrong length",
+				"expected", AuthLen, "actual", len(peer))
 		}
-		copy(b[12+(i*AuthLen):12+((i+1)*AuthLen)], peer)
+		copy(b[offset:offset+AuthLen], peer)
+		offset += AuthLen
 	}
 	return b, nil
 }
