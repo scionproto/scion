@@ -226,8 +226,9 @@ func newSignerInfo(info protocol.SignerInfo) (signerInfo, error) {
 }
 
 func extractIA(name pkix.Name) addr.IA {
-	if ia, _ := cppki.ExtractIA(name); ia != nil {
-		return *ia
+	ia, err := cppki.ExtractIA(name)
+	if err != nil {
+		return addr.IA{}
 	}
-	return addr.IA{}
+	return ia
 }

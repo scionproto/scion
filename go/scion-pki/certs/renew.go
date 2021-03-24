@@ -288,10 +288,10 @@ func loadChain(trc cppki.SignedTRC, file string) ([]*x509.Certificate, addr.IA, 
 			"verification of transport cert failed with provided TRC", err)
 	}
 	ia, err := cppki.ExtractIA(chain[0].Issuer)
-	if err != nil || ia == nil {
+	if err != nil {
 		panic("chain is already validated")
 	}
-	return chain, *ia, nil
+	return chain, ia, nil
 }
 
 func createSigner(srcIA addr.IA, trc cppki.SignedTRC, chain []*x509.Certificate,
@@ -519,7 +519,7 @@ func findLocalAddr(ctx context.Context, sds daemon.Service) (*snet.UDPAddr, erro
 
 func outFileFromSubject(renewed []*x509.Certificate, dir string) string {
 	subject, err := cppki.ExtractIA(renewed[0].Subject)
-	if err != nil || subject == nil {
+	if err != nil {
 		panic("chain is already validated")
 	}
 	return filepath.Join(dir, fmt.Sprintf("ISD%d-AS%s.%x.pem", subject.I, subject.A.FileFmt(),

@@ -107,10 +107,7 @@ func rootIAs(trc cppki.TRC) ([]addr.IA, error) {
 		if err != nil {
 			return nil, serrors.WrapStr("failed to extract IA from root cert", err)
 		}
-		if ia == nil {
-			continue
-		}
-		rootIAs = append(rootIAs, *ia)
+		rootIAs = append(rootIAs, ia)
 	}
 	return rootIAs, nil
 }

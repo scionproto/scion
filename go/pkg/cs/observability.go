@@ -256,7 +256,7 @@ func caHandler(signer renewal.ChainBuilder) http.HandlerFunc {
 		}
 
 		ia, err := cppki.ExtractIA(s.Certificate.Subject)
-		if err != nil || ia == nil {
+		if err != nil {
 			http.Error(w, "Unable to get extract ISD-AS", http.StatusInternalServerError)
 			return
 		}
@@ -277,7 +277,7 @@ func caHandler(signer renewal.ChainBuilder) http.HandlerFunc {
 			Policy       Policy   `json:"policy"`
 			CertValidity Validity `json:"cert_validity"`
 		}{
-			Subject:      Subject{IA: *ia},
+			Subject:      Subject{IA: ia},
 			SubjectKeyID: fmt.Sprintf("% X", s.Certificate.SubjectKeyId),
 			Policy: Policy{
 				ChainLifetime: fmt.Sprintf("%s", s.Validity),

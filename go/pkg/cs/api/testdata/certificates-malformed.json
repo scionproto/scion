@@ -1,0 +1,6 @@
+{
+    "detail": "Invalid ISD-AS raw=\"garbage\" parameter=\"isd_as\"",
+    "status": 400,
+    "title": "malformed query parameters",
+    "type": "/problems/bad-request"
+}

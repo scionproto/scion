@@ -16,6 +16,7 @@ package segfetcher
 
 import (
 	"context"
+	"errors"
 	"net"
 	"sync"
 
@@ -56,6 +57,7 @@ type Requester interface {
 type DefaultRequester struct {
 	RPC         RPC
 	DstProvider DstProvider
+	MaxRetries  int
 }
 
 // Request all requests in the request set
@@ -116,8 +118,12 @@ func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i i
 		}
 		return segs, dst, nil
 	}
-	for tryIndex := 0; ctx.Err() == nil; tryIndex++ {
+	for tryIndex := 0; ctx.Err() == nil && tryIndex < r.MaxRetries+1; tryIndex++ {
 		segs, peer, err := try(ctx)
+		if errors.Is(err, ErrNotReachable) {
+			replies <- ReplyOrErr{Req: req, Err: err}
+			return
+		}
 		if err != nil {
 			logger.Debug("Segment lookup failed", "try", tryIndex+1, "peer", peer,
 				"err", err)
@@ -126,5 +132,9 @@ func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i i
 		replies <- ReplyOrErr{Req: req, Segments: segs, Peer: peer}
 		return
 	}
-	replies <- ReplyOrErr{Req: req, Err: ctx.Err()}
+	err := ctx.Err()
+	if err == nil {
+		err = serrors.New("no attempts left")
+	}
+	replies <- ReplyOrErr{Req: req, Err: err}
 }

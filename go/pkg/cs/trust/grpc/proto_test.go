@@ -26,7 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/xtest"
-	renewalgrpc "github.com/scionproto/scion/go/pkg/ca/renewal/grpc"
+	trustgrpc "github.com/scionproto/scion/go/pkg/cs/trust/grpc"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
@@ -41,7 +41,7 @@ func TestReqToChainQuery(t *testing.T) {
 		Date:         date,
 	}
 
-	query, err := renewalgrpc.RequestToChainQuery(req)
+	query, err := trustgrpc.RequestToChainQuery(req)
 	require.NoError(t, err)
 	assert.Equal(t, addr.IAInt(req.IsdAs).IA(), query.IA)
 	assert.Equal(t, req.SubjectKeyId, query.SubjectKeyID)
@@ -88,7 +88,7 @@ func TestReqToTRCQuery(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			id, err := renewalgrpc.RequestToTRCQuery(tc.Input)
+			id, err := trustgrpc.RequestToTRCQuery(tc.Input)
 			tc.Assertion(t, err)
 			assert.Equal(t, tc.Expected, id)
 		})
@@ -129,7 +129,7 @@ func TestChainsToRep(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			chains := renewalgrpc.ChainsToResponse(tc.Input)
+			chains := trustgrpc.ChainsToResponse(tc.Input)
 			assert.Equal(t, tc.Expected, chains)
 		})
 	}
@@ -137,6 +137,6 @@ func TestChainsToRep(t *testing.T) {
 
 func TestTRCToRep(t *testing.T) {
 	trc := cppki.SignedTRC{Raw: []byte("you can trust me, for sure!")}
-	rep := renewalgrpc.TRCToResponse(trc)
+	rep := trustgrpc.TRCToResponse(trc)
 	assert.Equal(t, trc.Raw, rep.Trc)
 }

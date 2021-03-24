@@ -243,7 +243,6 @@ func testChain(t *testing.T, db trust.DB, cfg Config) {
 			// insert another chain to make sure it is not found
 			_, err = db.InsertChain(ctx, bern2Chain)
 			require.NoError(t, err)
-
 			chains, err := db.Chains(ctx, trust.ChainQuery{
 				IA:           xtest.MustParseIA("1-ff00:0:110"),
 				SubjectKeyID: bern1Chain[0].SubjectKeyId,
@@ -258,6 +257,25 @@ func testChain(t *testing.T, db trust.DB, cfg Config) {
 			})
 			assert.NoError(t, err)
 			assert.Empty(t, chains)
+		})
+		t.Run("All certificate chains", func(t *testing.T) {
+			chains, err := db.Chains(ctx, trust.ChainQuery{})
+			assert.NoError(t, err)
+			assert.Equal(t, [][]*x509.Certificate{bern1Chain, geneva1Chain, bern2Chain}, chains)
+		})
+		t.Run("Active certificate chain in a given time", func(t *testing.T) {
+			chains, err := db.Chains(ctx, trust.ChainQuery{
+				Date: time.Date(2020, 6, 26, 11, 59, 59, 0, time.UTC),
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, [][]*x509.Certificate{bern1Chain, geneva1Chain}, chains)
+		})
+		t.Run("certificate chain for a given ISD-AS", func(t *testing.T) {
+			chains, err := db.Chains(ctx, trust.ChainQuery{
+				IA: xtest.MustParseIA("1-ff00:0:110"),
+			})
+			assert.NoError(t, err)
+			assert.Equal(t, [][]*x509.Certificate{bern1Chain, bern2Chain}, chains)
 		})
 		t.Run("Existing chain overlap different key", func(t *testing.T) {
 			_, err := db.InsertChain(ctx, bern2Chain)

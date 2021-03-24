@@ -55,6 +55,7 @@ components:
           example: '7D99A76F-9BA5-4C15-A1C9-114A54D9B1F1'
       required:
         - type
+        - title
         - status
   responses:
     400-BadRequest:

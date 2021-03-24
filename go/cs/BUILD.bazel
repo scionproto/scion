@@ -42,6 +42,7 @@ go_library(
         "//go/pkg/command:go_default_library",
         "//go/pkg/cs:go_default_library",
         "//go/pkg/cs/api:go_default_library",
+        "//go/pkg/cs/trust/grpc:go_default_library",
         "//go/pkg/cs/trust/metrics:go_default_library",
         "//go/pkg/discovery:go_default_library",
         "//go/pkg/grpc:go_default_library",

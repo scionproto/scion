@@ -50,5 +50,5 @@ func MustExtractIA(t *testing.T, cert *x509.Certificate) addr.IA {
 	ia, err := cppki.ExtractIA(cert.Subject)
 	require.NoError(t, err)
 	require.NotNil(t, ia)
-	return *ia
+	return ia
 }

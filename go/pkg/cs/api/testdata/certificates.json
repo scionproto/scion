@@ -1,0 +1,11 @@
+[
+    {
+        "id": "384020491ca8cea54b69c8bfa4b5af4858a4157d413bd47acdf6a6daae0febfe",
+        "issuer": "1-ff00:0:120",
+        "subject": "1-ff00:0:120",
+        "validity": {
+            "not_after": "2022-02-12T10:49:17Z",
+            "not_before": "2021-02-12T10:49:17Z"
+        }
+    }
+]

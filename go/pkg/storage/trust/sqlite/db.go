@@ -151,10 +151,32 @@ func (e *executor) Chains(ctx context.Context,
 	e.RLock()
 	defer e.RUnlock()
 
-	sqlQuery := `SELECT as_cert, ca_cert FROM chains
-			  WHERE isd_id=$1 AND as_id=$2 AND key_id=$3 AND not_before<=$4 AND not_after>=$4`
-	rows, err := e.db.QueryContext(ctx, sqlQuery, query.IA.I, query.IA.A,
-		query.SubjectKeyID, query.Date.UTC())
+	sqlQuery := []string{"SELECT as_cert, ca_cert FROM chains"}
+	var args []interface{}
+	var filters []string
+
+	if len(query.SubjectKeyID) != 0 {
+		args = append(args, query.SubjectKeyID)
+		filters = append(filters, fmt.Sprintf("key_id=$%d", len(args)))
+	}
+	if !query.Date.IsZero() {
+		args = append(args, query.Date.UTC())
+		filters = append(filters, fmt.Sprintf("not_before<=$%d AND not_after>=$%d",
+			len(args), len(args)))
+	}
+	if query.IA.I != 0 {
+		args = append(args, query.IA.I)
+		filters = append(filters, fmt.Sprintf("isd_id=$%d", len(args)))
+	}
+	if query.IA.A != 0 {
+		args = append(args, query.IA.A)
+		filters = append(filters, fmt.Sprintf("as_id=$%d", len(args)))
+	}
+	if len(filters) != 0 {
+		sqlQuery = append(sqlQuery, "WHERE")
+	}
+	sqlQuery = append(sqlQuery, strings.Join(filters, " AND "))
+	rows, err := e.db.QueryContext(ctx, strings.Join(sqlQuery, "\n"), args...)
 	if err != nil {
 		return nil, serrors.Wrap(db.ErrReadFailed, err)
 	}
@@ -192,11 +214,7 @@ func (e *executor) InsertChain(ctx context.Context, chain []*x509.Certificate) (
 	ia, err := cppki.ExtractIA(chain[0].Subject)
 	if err != nil {
 		return false, serrors.Wrap(db.ErrInvalidInputData, err,
-			"msg", "invalid AS cert, invalid IA")
-	}
-	if ia == nil {
-		return false, serrors.WithCtx(db.ErrInvalidInputData,
-			"msg", "invalid AS cert, missing IA")
+			"msg", "invalid AS cert, invalid ISD-AS")
 	}
 	query := `INSERT INTO chains (isd_id, as_id, key_id, not_before, not_after,
 								  chain_fingerprint, as_cert, ca_cert)
