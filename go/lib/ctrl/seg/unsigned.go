@@ -37,7 +37,7 @@ func UnsignedExtensionsFromPB(ue *cppb.PathSegmentUnsignedExtensions) UnsignedEx
 
 func UnsignedExtensionsToPB(ue UnsignedExtensions) *cppb.PathSegmentUnsignedExtensions {
 	if ue.EpicDetached == nil {
-		return &cppb.PathSegmentUnsignedExtensions{}
+		return nil
 	}
 	return &cppb.PathSegmentUnsignedExtensions{
 		Epic: epic.DetachedToPB(ue.EpicDetached),
