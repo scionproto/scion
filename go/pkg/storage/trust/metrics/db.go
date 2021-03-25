@@ -151,6 +151,20 @@ func (e *executor) Chains(ctx context.Context, q trust.ChainQuery) ([][]*x509.Ce
 	return chains, err
 }
 
+func (e *executor) Chain(ctx context.Context, id []byte) ([]*x509.Certificate, error) {
+	var chain []*x509.Certificate
+	var err error
+	e.metrics.Observe(ctx, "get_chain", func(ctx context.Context) (string, error) {
+		chain, err = e.db.Chain(ctx, id)
+		label := dblib.ErrToMetricLabel(err)
+		if len(chain) == 0 && err == nil {
+			label = errNotFound
+		}
+		return label, err
+	})
+	return chain, err
+}
+
 func (e *executor) InsertChain(ctx context.Context, chain []*x509.Certificate) (bool, error) {
 	var inserted bool
 	var err error

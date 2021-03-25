@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/app"
+	"github.com/scionproto/scion/go/pkg/app/path"
 	"github.com/scionproto/scion/go/pkg/ping"
 )
 
@@ -47,6 +48,7 @@ func newPing(pather CommandPather) *cobra.Command {
 		maxMTU      bool
 		noColor     bool
 		refresh     bool
+		healthyOnly bool
 		daemon      string
 		sequence    string
 		size        uint
@@ -63,6 +65,9 @@ func newPing(pather CommandPather) *cobra.Command {
 
 When the --count option is set, ping sends the specified number of SCMP echo packets
 and reports back the statistics.
+
+When the --healthy-only option is set, ping first determines healthy paths through probing and
+chooses amongst them.
 
 If no reply packet is received at all, ping will exit with code 1.
 On other errors, ping will exit with code 2.
@@ -102,15 +107,26 @@ On other errors, ping will exit with code 2.
 				return err
 			}
 			span.SetTag("src.isd_as", info.IA)
-			path, err := app.ChoosePath(traceCtx, sd, remote.IA,
-				flags.interactive, flags.refresh, flags.sequence,
-				app.DefaultColorScheme(flags.noColor))
+
+			opts := []path.Option{
+				path.WithInteractive(flags.interactive),
+				path.WithRefresh(flags.refresh),
+				path.WithSequence(flags.sequence),
+				path.WithColorScheme(path.DefaultColorScheme(flags.noColor)),
+			}
+			if flags.healthyOnly {
+				opts = append(opts, path.WithProbing(&path.ProbeConfig{
+					LocalIA: info.IA,
+				}))
+			}
+			path, err := path.Choose(traceCtx, sd, remote.IA, opts...)
 			if err != nil {
 				return err
 			}
 			remote.Path = path.Path()
 			remote.NextHop = path.UnderlayNextHop()
 
+			// Resolve local IP based on underlay next hop
 			localIP := flags.local
 			if localIP == nil {
 				target := remote.Host.IP
@@ -192,6 +208,7 @@ On other errors, ping will exit with code 2.
 	cmd.Flags().IPVar(&flags.local, "local", nil, "IP address to listen on")
 	cmd.Flags().StringVar(&flags.daemon, "sciond", daemon.DefaultAPIAddress, "SCION Daemon address")
 	cmd.Flags().StringVar(&flags.sequence, "sequence", "", app.SequenceUsage)
+	cmd.Flags().BoolVar(&flags.healthyOnly, "healthy-only", false, "only use healthy paths")
 	cmd.Flags().StringVar(&flags.dispatcher, "dispatcher", reliable.DefaultDispPath,
 		"dispatcher socket")
 	cmd.Flags().BoolVar(&flags.refresh, "refresh", false, "set refresh flag for path request")

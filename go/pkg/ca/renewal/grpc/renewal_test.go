@@ -600,46 +600,67 @@ func genKey(t *testing.T) crypto.Signer {
 
 func genChain(t *testing.T) (*ecdsa.PrivateKey, []*x509.Certificate) {
 	t.Helper()
-	// Generate serial numbers for certs.
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serial1, err := rand.Int(rand.Reader, serialNumberLimit)
-	require.NoError(t, err)
-	serial2, err := rand.Int(rand.Reader, serialNumberLimit)
-	require.NoError(t, err)
 
-	// Generate CA key and cert (to the extent needed)
-	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	caCertTmpl := x509.Certificate{
-		Subject: pkix.Name{ExtraNames: []pkix.AttributeTypeAndValue{{
-			Type:  cppki.OIDNameIA,
-			Value: "1-ff00:0:110",
-		}}},
-		SerialNumber: serial1,
+	caKey, caCert := genCertCA(t, "1-ff00:0:110")
+	ca := cppki.CAPolicy{
+		Validity:    time.Hour,
+		Certificate: caCert,
+		Signer:      caKey,
 	}
-	caCertRaw, err := x509.CreateCertificate(rand.Reader, &caCertTmpl, &caCertTmpl,
-		&caKey.PublicKey, caKey)
-	require.NoError(t, err)
-	caCert, err := x509.ParseCertificate(caCertRaw)
-	require.NoError(t, err)
 
-	// Generate client key and cert (to the extent needed)
 	clientKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
-	clientCertTmpl := x509.Certificate{
-		Subject: pkix.Name{ExtraNames: []pkix.AttributeTypeAndValue{{
+
+	chain, err := ca.CreateChain(&x509.CertificateRequest{
+		Subject: pkix.Name{Names: []pkix.AttributeTypeAndValue{{
 			Type:  cppki.OIDNameIA,
 			Value: "1-ff00:0:111",
 		}}},
-		SerialNumber: serial2,
-	}
-	clientCertRaw, err := x509.CreateCertificate(rand.Reader, &clientCertTmpl, caCert,
-		&clientKey.PublicKey, caKey)
+		PublicKey: clientKey.Public(),
+	})
 	require.NoError(t, err)
-	clientCert, err := x509.ParseCertificate(clientCertRaw)
+	return clientKey, chain
+}
+
+func genCertCA(t *testing.T, ia string) (*ecdsa.PrivateKey, *x509.Certificate) {
+	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	require.NoError(t, err)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	skid, err := cppki.SubjectKeyID(key.Public())
 	require.NoError(t, err)
 
-	return clientKey, []*x509.Certificate{clientCert, caCert}
+	tmpl := &x509.Certificate{
+		Subject: pkix.Name{ExtraNames: []pkix.AttributeTypeAndValue{{
+			Type:  cppki.OIDNameIA,
+			Value: ia,
+		}}},
+		SerialNumber:          serial,
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(7 * 24 * time.Hour),
+		SubjectKeyId:          skid,
+		AuthorityKeyId:        skid,
+		KeyUsage:              x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		MaxPathLen:            0,
+		MaxPathLenZero:        true,
+	}
+	return key, signCert(t, tmpl, tmpl, key.Public(), key)
+}
+
+func signCert(
+	t *testing.T,
+	tmpl, issuer *x509.Certificate,
+	subjectKey crypto.PublicKey,
+	issuerKey crypto.PrivateKey,
+) *x509.Certificate {
+
+	raw, err := x509.CreateCertificate(rand.Reader, tmpl, issuer, subjectKey, issuerKey)
+	require.NoError(t, err)
+	cert, err := x509.ParseCertificate(raw)
+	require.NoError(t, err)
+	return cert
 }
 
 type chainQueryMatcher struct {

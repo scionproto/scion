@@ -108,7 +108,7 @@ To lint the code, run:
 
 .. code-block:: bash
 
-   ./scion.sh lint
+   make lint
 
 Good commit messages
 ^^^^^^^^^^^^^^^^^^^^

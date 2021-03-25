@@ -38,6 +38,10 @@ paths:
     $ref: "./trust.yml#/paths/~1trcs~1isd{isd}-b{base}-s{serial}~1blob"
   /certificates:
     $ref: "./trust.yml#/paths/~1certificates"
+  /certificates/{chain-id}:
+    $ref: "./trust.yml#/paths/~1certificates~1{chain-id}"
+  /certificates/{chain-id}/blob:
+    $ref: "./trust.yml#/paths/~1certificates~1{chain-id}~1blob"
   /info:
     $ref: "../common/process.yml#/paths/~1info"
   /log/level:

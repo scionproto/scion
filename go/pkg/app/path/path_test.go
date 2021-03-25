@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package app_test
+package path_test
 
 import (
 	"testing"
@@ -22,7 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/path"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/pkg/app"
+	apppath "github.com/scionproto/scion/go/pkg/app/path"
 )
 
 func TestFilter(t *testing.T) {
@@ -54,7 +54,7 @@ func TestFilter(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			got, err := app.Filter(tc.sequence, tc.input)
+			got, err := apppath.Filter(tc.sequence, tc.input)
 			tc.asserFunc(t, err)
 			if err != nil {
 				return

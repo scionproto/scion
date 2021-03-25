@@ -31,7 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
-	"github.com/scionproto/scion/go/pkg/app"
+	"github.com/scionproto/scion/go/pkg/app/path"
 	"github.com/scionproto/scion/go/pkg/pathprobe"
 )
 
@@ -63,7 +63,7 @@ type Hop struct {
 
 // Human writes human readable output to the writer.
 func (r Result) Human(w io.Writer, showExtendedMetadata, colored bool) {
-	cs := app.DefaultColorScheme(!colored)
+	cs := path.DefaultColorScheme(!colored)
 
 	idxWidth := len(fmt.Sprint(len(r.Paths) - 1))
 
@@ -128,7 +128,7 @@ func (r Result) Human(w io.Writer, showExtendedMetadata, colored bool) {
 
 // filteredKeyValues is analogous to app.ColorScheme.KeyValues, but ignores
 // entries with an empty value.
-func filteredKeyValues(cs app.ColorScheme, kv ...string) []string {
+func filteredKeyValues(cs path.ColorScheme, kv ...string) []string {
 	if len(kv)%2 != 0 {
 		panic("KeyValues expects even number of parameters")
 	}
@@ -182,7 +182,7 @@ func humanBandwidth(p *snet.PathMetadata) string {
 
 // humanGeo summarizes the geographical information in the meta data in a human
 // readable string. Returns empty string if no information is available.
-func humanGeo(p *snet.PathMetadata, cs app.ColorScheme) string {
+func humanGeo(p *snet.PathMetadata, cs path.ColorScheme) string {
 	geos := make([]string, len(p.Geo))
 	hasAny := false
 	for i, geo := range p.Geo {
@@ -320,7 +320,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("failed to retrieve paths from the SCION Daemon", err)
 	}
-	paths, err := app.Filter(cfg.Sequence, allPaths)
+	paths, err := path.Filter(cfg.Sequence, allPaths)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +349,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			return nil, serrors.WrapStr("failed to get status", err)
 		}
 	}
-	app.SortPaths(paths)
+	path.Sort(paths)
 	res := &Result{
 		Destination: dst,
 		Paths:       []Path{},

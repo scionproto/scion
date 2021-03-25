@@ -1,0 +1,22 @@
+{
+    "issuer": {
+        "distinguished_name": "CN=1-ff00:0:120 Secure CA Certificate,OU=1-ff00:0:120 InfoSec Squad,O=1-ff00:0:120,L=Zürich,ST=Zürich,C=CH,1.3.6.1.4.1.55324.1.2.1=#130c312d666630303a303a313230",
+        "isd_as": "1-ff00:0:120",
+        "subject_key_algo": "ECDSA",
+        "subject_key_id": "0E B6 2F 3C 85 1C 65 09 45 E1 00 BF E0 80 74 11 4B 29 CF 50",
+        "validity": {
+            "not_after": "2023-02-12T10:49:17Z",
+            "not_before": "2021-02-12T10:49:17Z"
+        }
+    },
+    "subject": {
+        "distinguished_name": "CN=1-ff00:0:120 AS Certificate,OU=1-ff00:0:120 InfoSec Squad,O=1-ff00:0:120,L=Zürich,ST=Zürich,C=CH,1.3.6.1.4.1.55324.1.2.1=#130c312d666630303a303a313230",
+        "isd_as": "1-ff00:0:120",
+        "subject_key_algo": "ECDSA",
+        "subject_key_id": "16 66 81 83 09 AB 77 02 CF 38 D7 73 4A C3 48 A1 28 BD A4 F4",
+        "validity": {
+            "not_after": "2022-02-12T10:49:17Z",
+            "not_before": "2021-02-12T10:49:17Z"
+        }
+    }
+}

@@ -147,6 +147,65 @@ paths:
             application/problem+json:
               schema:
                 $ref: "../common/base.yml#/components/schemas/Problem"
+  /certificates/{chain-id}:
+    get:
+      tags:
+        - trust
+      summary: Get the certificate chain
+      description: |
+        Get the certificate chain for a given ChainID.
+      operationId: get-certificate
+      parameters:
+      - in: path
+        name: chain-id
+        required: true
+        schema:
+          $ref: "#/components/schemas/ChainID"
+      responses:
+        "200":
+          description: Certificate chain
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chain"
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../common/base.yml#/components/schemas/Problem"
+  /certificates/{chain-id}/blob:
+    get:
+      tags:
+        - trust
+      summary: Get the certificate chain blob
+      description: |
+        Get the certificate chain encoded as PEM bytes blob for a given ChainID.
+      operationId: get-certificate-blob
+      parameters:
+      - in: path
+        name: chain-id
+        required: true
+        schema:
+          $ref: "#/components/schemas/ChainID"
+      responses:
+        "200":
+          description: Certificate chain blob
+          content:
+            application/x-pem-file:
+              example: |
+                -----BEGIN CERTIFICATE-----
+                ASCertificate ...
+                -----END CERTIFICATE-----
+                -----BEGIN CERTIFICATE-----
+                CACertificate ...
+                -----END CERTIFICATE-----
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../common/base.yml#/components/schemas/Problem"
   /ca:
     get:
       tags:
@@ -347,6 +406,17 @@ components:
           type: string
           format: date-time
           example: 2022-01-04T09:59:33Z
+    Chain:
+      title: Certificate chain description
+      type: object
+      required:
+        - subject
+        - issuer
+      properties:
+        subject:
+          $ref: "#/components/schemas/Certificate"
+        issuer:
+          $ref: "#/components/schemas/Certificate"
     SubjectKeyID:
       type: string
       format: spaced-hex-string

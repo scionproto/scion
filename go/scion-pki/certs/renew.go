@@ -16,11 +16,13 @@ package certs
 
 import (
 	"context"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -37,6 +39,7 @@ import (
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scrypto/cms/protocol"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -52,6 +55,11 @@ import (
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
+
+type Features struct {
+	DisableLegacyRequest bool `feature:"disable_legacy_request"`
+	DisableCMSRequest    bool `feature:"disable_cms_request"`
+}
 
 type subjectVars struct {
 	CommonName         string  `json:"common_name,omitempty"`
@@ -70,6 +78,7 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
 	var flags struct {
 		keyFile           string
 		outFile           string
+		csrFile           string
 		templateFile      string
 		transportCertFile string
 		transportKeyFile  string
@@ -164,6 +173,14 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 			}
 			cmd.SilenceUsage = true
 
+			var features Features
+			if err := feature.Parse(flags.features, &features); err != nil {
+				return err
+			}
+			if features.DisableCMSRequest && features.DisableLegacyRequest {
+				return serrors.New("both legacy and CMS request disabled")
+			}
+
 			log.Setup(log.Config{Console: log.ConsoleConfig{Level: "crit"}})
 
 			trc, err := loadTRC(flags.trcFilePath)
@@ -180,17 +197,27 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 			}
 
 			// Step 1. create CSR.
-			tmpl, err := csrTemplate(chain, flags.templateFile)
+			key, err := readECKey(flags.keyFile)
 			if err != nil {
 				return err
 			}
-			key, err := readECKey(flags.keyFile)
+			tmpl, err := csrTemplate(chain[0], key.Public(), flags.templateFile)
 			if err != nil {
 				return err
 			}
 			csr, err := x509.CreateCertificateRequest(rand.Reader, tmpl, key)
 			if err != nil {
 				return err
+			}
+			if flags.csrFile != "" {
+				pemCSR := pem.EncodeToMemory(&pem.Block{
+					Type:  "CERTIFICATE REQUEST",
+					Bytes: csr,
+				})
+				if err := ioutil.WriteFile(flags.csrFile, pemCSR, 0666); err != nil {
+					// The CSR is not important, carry on with execution.
+					fmt.Fprintln(os.Stderr, "Failed writing CSR:", err.Error())
+				}
 			}
 
 			// Step 2. create messenger.
@@ -206,21 +233,42 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 				local.Host = &net.UDPAddr{IP: flags.listen}
 			}
 
-			remote := &snet.UDPAddr{
-				IA: ca,
-			}
+			remote := &snet.UDPAddr{IA: ca}
 			disp := reliable.NewDispatcher(flags.dispatcherPath)
 			dialer, err := buildDialer(ctx, disp, sds, local, remote)
 			if err != nil {
 				return err
 			}
 
-			// Step 3. renewal scion call.
+			// Step 3. create the request.
 			signer, err := createSigner(local.IA, trc, chain, flags.transportKeyFile)
 			if err != nil {
 				return err
 			}
-			renewed, err := renew(ctx, csr, remote.IA, signer, dialer)
+			var req cppb.ChainRenewalRequest
+			if !features.DisableLegacyRequest {
+				legacyReq, err := renewal.NewLegacyChainRenewalRequest(ctx, csr, signer)
+				if err != nil {
+					return err
+				}
+				req.SignedRequest = legacyReq.SignedRequest
+			}
+			if !features.DisableCMSRequest {
+				cmsReq, err := renewal.NewChainRenewalRequest(ctx, csr, signer)
+				if err != nil {
+					return err
+				}
+				req.CmsSignedRequest = cmsReq.CmsSignedRequest
+			}
+
+			// Step 4. send the request via SCION.
+			rep, err := sendRequest(ctx, remote.IA, dialer, &req)
+			if err != nil {
+				return err
+			}
+
+			// Step 5. extract and verify chain.
+			renewed, err := extractChain(rep)
 			if err != nil {
 				return err
 			}
@@ -230,7 +278,6 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 				out = outFileFromSubject(renewed, filepath.Dir(flags.transportCertFile))
 			}
 
-			// Step 4. verify with trc.
 			if err := cppki.VerifyChain(renewed, cppki.VerifyOptions{TRC: &trc.TRC}); err != nil {
 				out += ".unverified"
 				fmt.Println("Verification failed, writing chain: ", out)
@@ -240,7 +287,7 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 				return serrors.WrapStr("verification failed", err)
 			}
 
-			// Step 5. write to disk.
+			// Step 6. write to disk.
 			if err := writeChain(renewed, out); err != nil {
 				return err
 			}
@@ -273,8 +320,10 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 		"Optional local IP address")
 	cmd.Flags().StringVar(&flags.outFile, "out", "",
 		"File where renewed certificate chain is written")
+	cmd.Flags().StringVar(&flags.csrFile, "csr-out", "",
+		"File where the CSR for the requested certificate chain is written")
 	cmd.Flags().StringSliceVar(&flags.features, "features", nil,
-		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
+		fmt.Sprintf("enable development features (%v)", feature.String(&Features{}, "|")))
 	return cmd
 }
 
@@ -316,17 +365,19 @@ func createSigner(srcIA addr.IA, trc cppki.SignedTRC, chain []*x509.Certificate,
 			NotBefore: chain[0].NotBefore,
 			NotAfter:  chain[0].NotAfter,
 		},
+		Subject: chain[0].Subject,
+		Chain:   chain,
 	}
 	return signer, nil
 }
 
-func renew(ctx context.Context, csr []byte, dstIA addr.IA, signer trust.Signer,
-	dialer grpc.Dialer) ([]*x509.Certificate, error) {
+func sendRequest(
+	ctx context.Context,
+	dstIA addr.IA,
+	dialer grpc.Dialer,
+	req *cppb.ChainRenewalRequest,
+) (*cppb.ChainRenewalResponse, error) {
 
-	req, err := renewal.NewLegacyChainRenewalRequest(ctx, csr, signer)
-	if err != nil {
-		return nil, err
-	}
 	dstSVC := &snet.SVCAddr{
 		IA:  dstIA,
 		SVC: addr.SvcCS,
@@ -341,11 +392,41 @@ func renew(ctx context.Context, csr []byte, dstIA addr.IA, signer trust.Signer,
 	if err != nil {
 		return nil, err
 	}
+	return reply, err
+}
+
+func extractChain(rep *cppb.ChainRenewalResponse) ([]*x509.Certificate, error) {
 	// XXX(karampok). We should verify the signature on the payload, but that
 	// implies having a full trust engine that is capable of resolving missing
 	// certificate chains for the CA. We skip it, since the chain itself is
 	// verified against the TRC, and thus, risk is very low.
-	body, err := signed.ExtractUnverifiedBody(reply.SignedResponse)
+	if len(rep.CmsSignedResponse) == 0 {
+		return extractChainLegacy(rep)
+	}
+	ci, err := protocol.ParseContentInfo(rep.CmsSignedResponse)
+	if err != nil {
+		return nil, err
+	}
+	sd, err := ci.SignedDataContent()
+	if err != nil {
+		return nil, err
+	}
+	raw, err := sd.EncapContentInfo.DataEContent()
+	if err != nil {
+		return nil, err
+	}
+	chain, err := x509.ParseCertificates(raw)
+	if err != nil {
+		return nil, err
+	}
+	if err := cppki.ValidateChain(chain); err != nil {
+		return nil, err
+	}
+	return chain, nil
+}
+
+func extractChainLegacy(rep *cppb.ChainRenewalResponse) ([]*x509.Certificate, error) {
+	body, err := signed.ExtractUnverifiedBody(rep.SignedResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -366,20 +447,38 @@ func renew(ctx context.Context, csr []byte, dstIA addr.IA, signer trust.Signer,
 	return chain, nil
 }
 
-func csrTemplate(chain []*x509.Certificate, tmpl string) (*x509.CertificateRequest, error) {
-	if tmpl == "" {
-		s := chain[0].Subject
-		s.ExtraNames = s.Names
-		return &x509.CertificateRequest{
-			Subject: s,
-		}, nil
+func csrTemplate(
+	prev *x509.Certificate,
+	pub crypto.PublicKey,
+	tmpl string,
+) (*x509.CertificateRequest, error) {
+
+	s := prev.Subject
+	s.ExtraNames = prev.Subject.Names
+
+	if tmpl != "" {
+		var err error
+		if s, err = subjectFromTemplate(tmpl); err != nil {
+			return nil, err
+		}
 	}
+	exts, err := buildExtensions(pub)
+	if err != nil {
+		return nil, serrors.WrapStr("building extensions", err)
+	}
+	return &x509.CertificateRequest{
+		Subject:         s,
+		ExtraExtensions: exts,
+	}, nil
+}
+
+func subjectFromTemplate(tmpl string) (pkix.Name, error) {
 	vars, err := readVars(tmpl)
 	if err != nil {
-		return nil, serrors.WrapStr("reading template", err)
+		return pkix.Name{}, serrors.WrapStr("reading template", err)
 	}
 	if vars.ISDAS.IsZero() {
-		return nil, serrors.New("isd_as required in template")
+		return pkix.Name{}, serrors.New("isd_as required in template")
 	}
 	s := pkix.Name{
 		CommonName:   vars.CommonName,
@@ -404,9 +503,7 @@ func csrTemplate(chain []*x509.Certificate, tmpl string) (*x509.CertificateReque
 			*field = []string{value}
 		}
 	}
-	return &x509.CertificateRequest{
-		Subject: s,
-	}, nil
+	return s, nil
 }
 
 func buildDialer(ctx context.Context, ds reliable.Dispatcher, sds daemon.Service,
@@ -533,4 +630,59 @@ type svcRouter struct {
 func (r svcRouter) GetUnderlay(svc addr.HostSVC) (*net.UDPAddr, error) {
 	// XXX(karampok). We need to change the interface to not use TODO context.
 	return daemon.TopoQuerier{Connector: r.Connector}.UnderlayAnycast(context.TODO(), svc)
+}
+
+func buildExtensions(pub crypto.PublicKey) ([]pkix.Extension, error) {
+	subKeyID, err := subjectKeyID(pub)
+	if err != nil {
+		return nil, serrors.WrapStr("creating SubjectKeyID extension", err)
+	}
+	return []pkix.Extension{
+		keyUsage(),
+		extKeyUsage(),
+		subKeyID,
+	}, nil
+}
+
+func subjectKeyID(pub crypto.PublicKey) (pkix.Extension, error) {
+	skid, err := cppki.SubjectKeyID(pub)
+	if err != nil {
+		return pkix.Extension{}, err
+	}
+	val, err := asn1.Marshal(skid)
+	if err != nil {
+		return pkix.Extension{}, err
+	}
+	return pkix.Extension{
+		Id:    asn1.ObjectIdentifier{2, 5, 29, 14},
+		Value: val,
+	}, nil
+}
+
+func keyUsage() pkix.Extension {
+	// x509.KeyUsageDigitalSignature
+	val, err := asn1.Marshal(asn1.BitString{Bytes: []byte{0x80}, BitLength: 1})
+	if err != nil {
+		panic(err)
+	}
+	return pkix.Extension{
+		Id:       asn1.ObjectIdentifier{2, 5, 29, 15},
+		Critical: true,
+		Value:    val,
+	}
+}
+
+func extKeyUsage() pkix.Extension {
+	val, err := asn1.Marshal([]asn1.ObjectIdentifier{
+		{1, 3, 6, 1, 5, 5, 7, 3, 1}, // ExtKeyUsageServerAuth
+		{1, 3, 6, 1, 5, 5, 7, 3, 2}, // ExtKeyUsageClientAuth
+		{1, 3, 6, 1, 5, 5, 7, 3, 8}, // ExtKeyUsageTimeStamping
+	})
+	if err != nil {
+		panic(err)
+	}
+	return pkix.Extension{
+		Id:    asn1.ObjectIdentifier{2, 5, 29, 37},
+		Value: val,
+	}
 }

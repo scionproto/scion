@@ -15,7 +15,7 @@ steps:
     if: build.message !~ /\[doc\]/
     command:
       - bazel test --config=unit --cache_test_results=${BAZEL_CACHE_TEST_RESULTS:-auto}
-      - ./scion.sh lint
+      - make lint
     key: unit_tests
     artifact_paths:
       - "artifacts.out/**/*"
@@ -58,7 +58,7 @@ steps:
         - exit_status: 255 # Forced agent shutdown
   - label: "Lint"
     if: build.message =~ /\[doc\]/
-    command: ./scion.sh lint
+    command: make lint
     key: lint
     timeout_in_minutes: 15
     retry:

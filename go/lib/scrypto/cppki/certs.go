@@ -161,7 +161,7 @@ func ValidateChain(certs []*x509.Certificate) error {
 
 	first, err := ValidateCert(certs[0])
 	if err != nil {
-		return err
+		return serrors.WrapStr("validating first certificate", err)
 	}
 	if first != AS {
 		return serrors.New("first certificate of invalid type", "expected", AS, "actual", first)
@@ -170,7 +170,7 @@ func ValidateChain(certs []*x509.Certificate) error {
 
 	second, err := ValidateCert(certs[1])
 	if err != nil {
-		return err
+		return serrors.WrapStr("validating second certificate", err)
 	}
 	if second != CA {
 		return serrors.New("second certificate of invalid type", "expected", CA, "actual", second)

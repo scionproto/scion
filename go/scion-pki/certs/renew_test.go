@@ -16,27 +16,20 @@ package certs
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
-	"fmt"
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/xtest"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
-	mock_cp "github.com/scionproto/scion/go/pkg/proto/control_plane/mock_control_plane"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
@@ -55,6 +48,8 @@ func TestCSRTemplate(t *testing.T) {
 			},
 		},
 	}
+	key, err := readECKey("testdata/renew/cp-as.key")
+	require.NoError(t, err)
 	chain, err := cppki.ReadPEMCerts("testdata/renew/ISD1-ASff00_0_111.pem")
 	require.NoError(t, err)
 
@@ -82,7 +77,7 @@ func TestCSRTemplate(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			csr, err := csrTemplate(chain, tc.File)
+			csr, err := csrTemplate(chain[0], key.Public(), tc.File)
 			tc.ErrAssertion(t, err)
 			if err != nil {
 				return
@@ -93,89 +88,87 @@ func TestCSRTemplate(t *testing.T) {
 	}
 }
 
-func TestRenew(t *testing.T) {
-	trc := xtest.LoadTRC(t, "testdata/renew/ISD1-B1-S1.trc")
-	key, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+func TestExtractChain(t *testing.T) {
+	chain := xtest.LoadChain(t, "testdata/renew/ISD1-ASff00_0_111.pem")
+
+	caChain := xtest.LoadChain(t, "testdata/renew/ISD1-ASff00_0_110.pem")
+	key, err := readECKey("testdata/renew/cp-as-110.key")
 	require.NoError(t, err)
-	csr := []byte("dummy")
+	caSigner := trust.Signer{
+		PrivateKey:   key,
+		Algorithm:    signed.ECDSAWithSHA256,
+		IA:           xtest.MustParseIA("1-ff00:0:110"),
+		SubjectKeyID: caChain[0].SubjectKeyId,
+		Expiration:   time.Now().Add(20 * time.Hour),
+		Chain:        caChain,
+	}
 
 	testCases := map[string]struct {
-		Remote addr.IA
-		Server func(t *testing.T, mctrl *gomock.Controller) *mock_cp.MockChainRenewalServiceServer
+		Response     func(t *testing.T) *cppb.ChainRenewalResponse
+		Expected     []*x509.Certificate
+		ErrAssertion assert.ErrorAssertionFunc
 	}{
-		"valid": {
-			Remote: xtest.MustParseIA("1-ff00:0:110"),
-			Server: func(t *testing.T,
-				mctrl *gomock.Controller) *mock_cp.MockChainRenewalServiceServer {
-
-				c := xtest.LoadChain(t, "testdata/renew/ISD1-ASff00_0_111.pem")
-				body := cppb.ChainRenewalResponseBody{
+		"legacy only": {
+			Response: func(t *testing.T) *cppb.ChainRenewalResponse {
+				rawBody, err := proto.Marshal(&cppb.ChainRenewalResponseBody{
 					Chain: &cppb.Chain{
-						AsCert: c[0].Raw,
-						CaCert: c[1].Raw,
+						AsCert: chain[0].Raw,
+						CaCert: chain[1].Raw,
 					},
+				})
+				require.NoError(t, err)
+				signedMsg, err := caSigner.Sign(context.Background(), rawBody)
+				require.NoError(t, err)
+				return &cppb.ChainRenewalResponse{
+					SignedResponse: signedMsg,
 				}
-				rawBody, err := proto.Marshal(&body)
+			},
+			Expected:     chain,
+			ErrAssertion: assert.NoError,
+		},
+		"cms only": {
+			Response: func(t *testing.T) *cppb.ChainRenewalResponse {
+				rawBody := append(chain[0].Raw, chain[1].Raw...)
+				signedCMS, err := caSigner.SignCMS(context.Background(), rawBody)
+				require.NoError(t, err)
+				return &cppb.ChainRenewalResponse{
+					CmsSignedResponse: signedCMS,
+				}
+			},
+			Expected:     chain,
+			ErrAssertion: assert.NoError,
+		},
+		"combined, prefer cms": {
+			Response: func(t *testing.T) *cppb.ChainRenewalResponse {
+				rawBody, err := proto.Marshal(&cppb.ChainRenewalResponseBody{
+					// Use CA chain to see which chain is returned.
+					Chain: &cppb.Chain{
+						AsCert: caChain[0].Raw,
+						CaCert: caChain[1].Raw,
+					},
+				})
+				require.NoError(t, err)
+				signedMsg, err := caSigner.Sign(context.Background(), rawBody)
 				require.NoError(t, err)
 
-				signer := trust.Signer{
-					PrivateKey:   key,
-					Algorithm:    signed.ECDSAWithSHA512,
-					IA:           xtest.MustParseIA("1-ff00:0:110"),
-					TRCID:        trc.TRC.ID,
-					SubjectKeyID: []byte("subject-key-id"),
-					Expiration:   time.Now().Add(20 * time.Hour),
-				}
-				signedMsg, err := signer.Sign(context.Background(), rawBody)
+				rawBody = append(chain[0].Raw, chain[1].Raw...)
+				signedCMS, err := caSigner.SignCMS(context.Background(), rawBody)
 				require.NoError(t, err)
-				// TODO(karampok). Build matchers instead of gomock.Any()
-				// we have to verify that the req is valid signature wise.
-				srv := mock_cp.NewMockChainRenewalServiceServer(mctrl)
-				srv.EXPECT().ChainRenewal(gomock.Any(), gomock.Any()).Return(
-					&cppb.ChainRenewalResponse{
-						SignedResponse: signedMsg,
-					}, nil,
-				)
-				return srv
+				return &cppb.ChainRenewalResponse{
+					SignedResponse:    signedMsg,
+					CmsSignedResponse: signedCMS,
+				}
 			},
+			Expected:     chain,
+			ErrAssertion: assert.NoError,
 		},
 	}
-
 	for name, tc := range testCases {
-		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			mctrl := gomock.NewController(t)
-			defer mctrl.Finish()
-
-			signer := trust.Signer{
-				PrivateKey:   key,
-				Algorithm:    signed.ECDSAWithSHA512,
-				IA:           xtest.MustParseIA("1-ff00:0:111"),
-				TRCID:        trc.TRC.ID,
-				SubjectKeyID: []byte("subject-key-id"),
-				Expiration:   time.Now().Add(20 * time.Hour),
-			}
-
-			svc := xtest.NewGRPCService()
-			cppb.RegisterChainRenewalServiceServer(svc.Server(), tc.Server(t, mctrl))
-			svc.Start(t)
-
-			chain, err := renew(context.Background(), csr, tc.Remote, signer, svc)
-			require.NoError(t, err)
-			err = cppki.ValidateChain(chain)
-			require.NoError(t, err)
+			rep := tc.Response(t)
+			renewed, err := extractChain(rep)
+			tc.ErrAssertion(t, err)
+			assert.Equal(t, tc.Expected, renewed)
 		})
 	}
-}
-
-type ctxMatcher struct{}
-
-func (m ctxMatcher) Matches(x interface{}) bool {
-	_, ok := x.(context.Context)
-	return ok
-}
-
-func (m ctxMatcher) String() string {
-	return fmt.Sprintf("it should be context.context")
 }

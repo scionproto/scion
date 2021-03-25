@@ -1,0 +1,6 @@
+{
+    "detail": "encoding/hex: invalid byte: U+0067 'g'",
+    "status": 400,
+    "title": "malformed query parameters",
+    "type": "/problems/bad-request"
+}

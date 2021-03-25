@@ -24,6 +24,7 @@ go_library(
         "//go/lib/topology:go_default_library",
         "//go/lib/tracing:go_default_library",
         "//go/pkg/app:go_default_library",
+        "//go/pkg/app/path:go_default_library",
         "//go/pkg/command:go_default_library",
         "//go/pkg/ping:go_default_library",
         "//go/pkg/showpaths:go_default_library",

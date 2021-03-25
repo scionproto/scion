@@ -181,7 +181,7 @@ func (s RenewalServer) handleCMSSignedRequest(ctx context.Context, req *cppb.Cha
 	logger log.Logger) (*cppb.ChainRenewalResponse, string, error) {
 
 	// Check that the requester is actually a client of the CA.
-	chain, err := extractClientChain(req.CmsSignedRequest)
+	chain, err := extractChain(req.CmsSignedRequest)
 	if err != nil {
 		logger.Debug("Failed to extract client certificate", "err", err)
 		return nil, renewalmetrics.ErrParse, status.Error(codes.InvalidArgument,
@@ -282,7 +282,7 @@ func (s RenewalServer) updateMetric(span opentracing.Span, l requestLabels, err 
 	}
 }
 
-func extractClientChain(raw []byte) ([]*x509.Certificate, error) {
+func extractChain(raw []byte) ([]*x509.Certificate, error) {
 	ci, err := protocol.ParseContentInfo(raw)
 	if err != nil {
 		return nil, serrors.WrapStr("parsing ContentInfo", err)
@@ -291,11 +291,6 @@ func extractClientChain(raw []byte) ([]*x509.Certificate, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("parsing SignedData", err)
 	}
-	if len(sd.SignerInfos) != 1 {
-		return nil, serrors.New("unexpected number of signers", "expected", 1,
-			"actual", len(sd.SignerInfos))
-	}
-	si := sd.SignerInfos[0]
 	certs, err := sd.X509Certificates()
 	if certs == nil {
 		err = protocol.ErrNoCertificate
@@ -303,16 +298,19 @@ func extractClientChain(raw []byte) ([]*x509.Certificate, error) {
 		err = serrors.New("unexpected number of certificates")
 	}
 	if err != nil {
-		return nil, serrors.WrapStr("parsing client chain", err)
-	}
-	cert, err := si.FindCertificate(certs)
-	if err != nil {
-		return nil, serrors.WrapStr("selecting client certificate", err)
-	}
-	if cert != certs[0] {
-		certs[0], certs[1] = certs[1], certs[0]
+		return nil, serrors.WrapStr("parsing certificate chain", err)
 	}
 
+	certType, err := cppki.ValidateCert(certs[0])
+	if err != nil {
+		return nil, serrors.WrapStr("checking certificate type", err)
+	}
+	if certType == cppki.CA {
+		certs[0], certs[1] = certs[1], certs[0]
+	}
+	if err := cppki.ValidateChain(certs); err != nil {
+		return nil, serrors.WrapStr("validating chain", err)
+	}
 	return certs, nil
 }
 

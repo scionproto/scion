@@ -19,6 +19,12 @@ type ServerInterface interface {
 	// List the certificate chains
 	// (GET /certificates)
 	GetCertificates(w http.ResponseWriter, r *http.Request, params GetCertificatesParams)
+	// Get the certificate chain
+	// (GET /certificates/{chain-id})
+	GetCertificate(w http.ResponseWriter, r *http.Request, chainId ChainID)
+	// Get the certificate chain blob
+	// (GET /certificates/{chain-id}/blob)
+	GetCertificateBlob(w http.ResponseWriter, r *http.Request, chainId ChainID)
 	// Prints the TOML configuration file.
 	// (GET /config)
 	GetConfig(w http.ResponseWriter, r *http.Request)
@@ -127,6 +133,58 @@ func (siw *ServerInterfaceWrapper) GetCertificates(w http.ResponseWriter, r *htt
 
 	var handler = func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetCertificates(w, r, params)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetCertificate operation middleware
+func (siw *ServerInterfaceWrapper) GetCertificate(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "chain-id" -------------
+	var chainId ChainID
+
+	err = runtime.BindStyledParameter("simple", false, "chain-id", chi.URLParam(r, "chain-id"), &chainId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter chain-id: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCertificate(w, r, chainId)
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler(w, r.WithContext(ctx))
+}
+
+// GetCertificateBlob operation middleware
+func (siw *ServerInterfaceWrapper) GetCertificateBlob(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "chain-id" -------------
+	var chainId ChainID
+
+	err = runtime.BindStyledParameter("simple", false, "chain-id", chi.URLParam(r, "chain-id"), &chainId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid format for parameter chain-id: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	var handler = func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCertificateBlob(w, r, chainId)
 	}
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -507,6 +565,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/certificates", wrapper.GetCertificates)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/certificates/{chain-id}", wrapper.GetCertificate)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/certificates/{chain-id}/blob", wrapper.GetCertificateBlob)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/config", wrapper.GetConfig)

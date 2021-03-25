@@ -277,7 +277,7 @@ go_lint() {
     xargs -a $TMPDIR/gofiles.list $TMPDIR/misspell -error || ret=1
     lint_step "bazel"
     run_silently make gazelle GAZELLE_MODE=diff || ret=1
-    bazel test ... --test_tag_filters=lint --build_tests_only --print_relative_test_log_paths --test_summary terse --test_output errors --noshow_progress || ret=1
+    bazel test --config lint || ret=1
     # Clean up the binaries
     rm -rf $TMPDIR
     return $ret

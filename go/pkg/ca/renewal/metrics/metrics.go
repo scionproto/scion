@@ -37,14 +37,16 @@ const (
 const (
 	Success = prom.Success
 
-	ErrDB       = prom.ErrDB
-	ErrInactive = "err_inactive"
-	ErrInternal = prom.ErrInternal
-	ErrKey      = "err_key"
-	ErrCerts    = "err_certs"
-	ErrNotFound = "err_not_found"
-	ErrParse    = prom.ErrParse
-	ErrVerify   = prom.ErrVerify
+	ErrBadRequest  = "err_bad_request"
+	ErrDB          = prom.ErrDB
+	ErrInactive    = "err_inactive"
+	ErrInternal    = prom.ErrInternal
+	ErrKey         = "err_key"
+	ErrCerts       = "err_certs"
+	ErrNotFound    = "err_not_found"
+	ErrParse       = prom.ErrParse
+	ErrUnavailable = "err_unavailable"
+	ErrVerify      = prom.ErrVerify
 )
 
 // PeerToLabel converts the peer address to a peer metric label.

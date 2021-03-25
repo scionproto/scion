@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/pkg/app"
+	"github.com/scionproto/scion/go/pkg/app/path"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/pktgen"
 )
@@ -125,9 +126,12 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 	if err != nil {
 		return serrors.WrapStr("determining local ISD-AS", err)
 	}
-	path, err := app.ChoosePath(ctx, sdConn, dst.IA,
-		cfg.interactive, cfg.refresh, cfg.sequence,
-		app.DefaultColorScheme(cfg.noColor))
+	path, err := path.Choose(ctx, sdConn, dst.IA,
+		path.WithInteractive(cfg.interactive),
+		path.WithRefresh(cfg.refresh),
+		path.WithSequence(cfg.sequence),
+		path.WithColorScheme(path.DefaultColorScheme(cfg.noColor)),
+	)
 	if err != nil {
 		return serrors.WrapStr("fetching paths", err)
 	}

@@ -306,6 +306,7 @@ func realMain() error {
 			DB:           renewalDB,
 			IA:           topo.IA(),
 			Signer:       signer,
+			CMSSigner:    signer,
 			Requests:     libmetrics.NewPromCounter(cstrustmetrics.Handler.Requests),
 		}
 		cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)

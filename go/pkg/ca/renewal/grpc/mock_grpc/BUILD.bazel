@@ -5,10 +5,11 @@ gomock(
     name = "go_default_mock",
     out = "mock.go",
     interfaces = [
+        "CAServiceClient",
         "ChainBuilder",
+        "CMSSigner",
         "RenewalRequestVerifier",
         "Signer",
-        "CMSSigner",
     ],
     library = "//go/pkg/ca/renewal/grpc:go_default_library",
     package = "mock_grpc",
@@ -20,6 +21,7 @@ go_library(
     importpath = "github.com/scionproto/scion/go/pkg/ca/renewal/grpc/mock_grpc",
     visibility = ["//visibility:public"],
     deps = [
+        "//go/pkg/ca/api:go_default_library",
         "//go/pkg/proto/crypto:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
     ],

@@ -6,7 +6,6 @@ go_library(
         "error.go",
         "helper.go",
         "observability.go",
-        "path.go",
         "sequence.go",
     ],
     importpath = "github.com/scionproto/scion/go/pkg/app",
@@ -15,24 +14,12 @@ go_library(
         "//go/lib/addr:go_default_library",
         "//go/lib/daemon:go_default_library",
         "//go/lib/log:go_default_library",
-        "//go/lib/pathpol:go_default_library",
-        "//go/lib/serrors:go_default_library",
-        "//go/lib/snet:go_default_library",
-        "@com_github_fatih_color//:go_default_library",
     ],
 )
 
 go_test(
     name = "go_default_test",
-    srcs = [
-        "error_test.go",
-        "helper_test.go",
-    ],
+    srcs = ["error_test.go"],
     embed = [":go_default_library"],
-    deps = [
-        "//go/lib/snet:go_default_library",
-        "//go/lib/snet/path:go_default_library",
-        "//go/lib/xtest:go_default_library",
-        "@com_github_stretchr_testify//assert:go_default_library",
-    ],
+    deps = ["@com_github_stretchr_testify//assert:go_default_library"],
 )
