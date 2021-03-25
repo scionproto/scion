@@ -1,5 +1,5 @@
 
-.PHONY: all bazel clean gazelle gogen licenses mocks protobuf antlr
+.PHONY: all bazel clean gazelle gogen licenses mocks protobuf antlr lint
 .NOTPARALLEL:
 
 GAZELLE_MODE?=fix
@@ -60,3 +60,5 @@ licenses:
 
 antlr:
 	antlr/generate.sh $(GAZELLE_MODE)
+lint:
+	./scion.sh lint
