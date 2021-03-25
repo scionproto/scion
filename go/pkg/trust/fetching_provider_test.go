@@ -57,10 +57,82 @@ func TestFetchingProviderGetChains(t *testing.T) {
 		Recurser       func(t *testing.T, ctrl *gomock.Controller) trust.Recurser
 		Router         func(t *testing.T, ctrl *gomock.Controller) trust.Router
 		Fetcher        func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher
+		Query          trust.ChainQuery
 		Options        []trust.Option
 		ErrAssertion   assert.ErrorAssertionFunc
 		ExpectedChains [][]*x509.Certificate
 	}{
+		"ISD-AS wildcard": {
+			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
+				return mock_trust.NewMockDB(ctrl)
+			},
+			Recurser: func(t *testing.T, ctrl *gomock.Controller) trust.Recurser {
+				return mock_trust.NewMockRecurser(ctrl)
+			},
+			Router: func(t *testing.T, ctrl *gomock.Controller) trust.Router {
+				return mock_trust.NewMockRouter(ctrl)
+			},
+			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
+				return mock_trust.NewMockFetcher(ctrl)
+			},
+			Query: trust.ChainQuery{
+				IA:           xtest.MustParseIA("1-0"),
+				Date:         query.Date,
+				SubjectKeyID: query.SubjectKeyID,
+			},
+			Options:      []trust.Option{trust.AllowInactive()},
+			ErrAssertion: assert.Error,
+		},
+		"chain in database, allow inactive, subject key ID not set": {
+			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
+				db := mock_trust.NewMockDB(ctrl)
+				db.EXPECT().Chains(gomock.Any(), chainQueryMatcher{
+					ia: query.IA,
+				}).Return(all, nil)
+				return db
+			},
+			Recurser: func(t *testing.T, ctrl *gomock.Controller) trust.Recurser {
+				return mock_trust.NewMockRecurser(ctrl)
+			},
+			Router: func(t *testing.T, ctrl *gomock.Controller) trust.Router {
+				return mock_trust.NewMockRouter(ctrl)
+			},
+			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
+				return mock_trust.NewMockFetcher(ctrl)
+			},
+			Query: trust.ChainQuery{
+				IA:   query.IA,
+				Date: query.Date,
+			},
+			Options:        []trust.Option{trust.AllowInactive()},
+			ErrAssertion:   assert.NoError,
+			ExpectedChains: all,
+		},
+		"chain in database, allow inactive, time not set": {
+			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
+				db := mock_trust.NewMockDB(ctrl)
+				db.EXPECT().Chains(gomock.Any(), chainQueryMatcher{
+					ia:   query.IA,
+					skid: query.SubjectKeyID}).Return(all, nil)
+				return db
+			},
+			Recurser: func(t *testing.T, ctrl *gomock.Controller) trust.Recurser {
+				return mock_trust.NewMockRecurser(ctrl)
+			},
+			Router: func(t *testing.T, ctrl *gomock.Controller) trust.Router {
+				return mock_trust.NewMockRouter(ctrl)
+			},
+			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
+				return mock_trust.NewMockFetcher(ctrl)
+			},
+			Query: trust.ChainQuery{
+				IA:           query.IA,
+				SubjectKeyID: query.SubjectKeyID,
+			},
+			Options:        []trust.Option{trust.AllowInactive()},
+			ErrAssertion:   assert.NoError,
+			ExpectedChains: all,
+		},
 		"chain in database, allow inactive": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(ctrl)
@@ -78,6 +150,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
 				return mock_trust.NewMockFetcher(ctrl)
 			},
+			Query:          query,
 			Options:        []trust.Option{trust.AllowInactive()},
 			ErrAssertion:   assert.NoError,
 			ExpectedChains: all,
@@ -100,6 +173,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
 				return mock_trust.NewMockFetcher(ctrl)
 			},
+			Query:          query,
 			Options:        []trust.Option{},
 			ErrAssertion:   assert.NoError,
 			ExpectedChains: [][]*x509.Certificate{valid},
@@ -130,6 +204,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				f.EXPECT().Chains(gomock.Any(), query, &net.UDPAddr{Port: 90}).Return(all, nil)
 				return f
 			},
+			Query: query,
 			Options: []trust.Option{
 				trust.Client(&net.UDPAddr{Port: 80}),
 				trust.AllowInactive(),
@@ -160,6 +235,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				f.EXPECT().Chains(gomock.Any(), query, &net.UDPAddr{Port: 90}).Return(all, nil)
 				return f
 			},
+			Query:          query,
 			Options:        []trust.Option{trust.Server(&net.UDPAddr{Port: 90})},
 			ErrAssertion:   assert.NoError,
 			ExpectedChains: [][]*x509.Certificate{valid},
@@ -186,10 +262,10 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				f.EXPECT().Chains(gomock.Any(), query, &net.UDPAddr{Port: 90}).Return(nil, nil)
 				return f
 			},
+			Query:        query,
 			Options:      []trust.Option{trust.Server(&net.UDPAddr{Port: 90})},
 			ErrAssertion: assert.NoError,
 		},
-
 		"TRC from db fails": {
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(ctrl)
@@ -207,6 +283,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
 				return mock_trust.NewMockFetcher(ctrl)
 			},
+			Query:        query,
 			ErrAssertion: assert.Error,
 		},
 		"TRC not in db": {
@@ -225,6 +302,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
 				return mock_trust.NewMockFetcher(ctrl)
 			},
+			Query:        query,
 			ErrAssertion: assert.Error,
 		},
 		"chains from db fails": {
@@ -242,6 +320,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
 				return mock_trust.NewMockFetcher(ctrl)
 			},
+			Query:        query,
 			ErrAssertion: assert.Error,
 		},
 		"recursion not allowed": {
@@ -262,6 +341,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
 				return mock_trust.NewMockFetcher(ctrl)
 			},
+			Query:        query,
 			ErrAssertion: assert.Error,
 		},
 		"router fails": {
@@ -285,6 +365,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
 				return mock_trust.NewMockFetcher(ctrl)
 			},
+			Query:        query,
 			ErrAssertion: assert.Error,
 		},
 		"fetcher fails": {
@@ -308,6 +389,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 					nil, serrors.New("internal"))
 				return f
 			},
+			Query:        query,
 			Options:      []trust.Option{trust.Server(&net.UDPAddr{Port: 90})},
 			ErrAssertion: assert.Error,
 		},
@@ -333,6 +415,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				f.EXPECT().Chains(gomock.Any(), query, gomock.Any()).Return(all, nil)
 				return f
 			},
+			Query:        query,
 			Options:      []trust.Option{trust.Server(&net.UDPAddr{Port: 90})},
 			ErrAssertion: assert.Error,
 		},
@@ -363,6 +446,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				)
 				return f
 			},
+			Query:        query,
 			Options:      []trust.Option{trust.Server(&net.UDPAddr{Port: 90})},
 			ErrAssertion: assert.NoError,
 		},
@@ -379,11 +463,8 @@ func TestFetchingProviderGetChains(t *testing.T) {
 				Fetcher:  tc.Fetcher(t, mctrl),
 				Router:   tc.Router(t, mctrl),
 			}
-			c, err := p.GetChains(context.Background(), query, tc.Options...)
+			c, err := p.GetChains(context.Background(), tc.Query, tc.Options...)
 			tc.ErrAssertion(t, err)
-			if err != nil {
-				return
-			}
 			assert.Equal(t, tc.ExpectedChains, c)
 		})
 	}
@@ -405,6 +486,28 @@ func TestFetchingProviderNotifyTRC(t *testing.T) {
 		Options      []trust.Option
 		ErrAssertion assert.ErrorAssertionFunc
 	}{
+		"no TRC in database": {
+			ID: updated.TRC.ID,
+			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {
+				db := mock_trust.NewMockDB(ctrl)
+				db.EXPECT().SignedTRC(
+					gomock.Any(),
+					cppki.TRCID{ISD: 1, Base: scrypto.LatestVer, Serial: scrypto.LatestVer},
+				).Return(cppki.SignedTRC{}, nil)
+				return db
+			},
+			Recurser: func(t *testing.T, ctrl *gomock.Controller) trust.Recurser {
+				return mock_trust.NewMockRecurser(ctrl)
+			},
+			Router: func(t *testing.T, ctrl *gomock.Controller) trust.Router {
+				return mock_trust.NewMockRouter(ctrl)
+			},
+			Fetcher: func(t *testing.T, ctrl *gomock.Controller) trust.Fetcher {
+				return mock_trust.NewMockFetcher(ctrl)
+			},
+			Options:      []trust.Option{},
+			ErrAssertion: assert.Error,
+		},
 		"TRC in database": {
 			ID: updated.TRC.ID,
 			DB: func(t *testing.T, ctrl *gomock.Controller) trust.DB {

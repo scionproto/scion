@@ -88,6 +88,9 @@ func (p FetchingProvider) GetChains(ctx context.Context, query ChainQuery,
 		"date", util.TimeToCompact(query.Date),
 		"subject_key_id", fmt.Sprintf("%x", query.SubjectKeyID))
 
+	if query.IA.IsWildcard() {
+		return nil, serrors.New("ISD-AS must not contain a wildcard", "isd_as", query.IA)
+	}
 	if query.Date.IsZero() {
 		query.Date = time.Now()
 		logger.Debug("Set date for chain request with zero time")
@@ -188,6 +191,11 @@ func (p FetchingProvider) NotifyTRC(ctx context.Context, id cppki.TRCID, opts ..
 	})
 	if err != nil {
 		setProviderMetric(span, l.WithResult(metrics.ErrDB), err)
+		return err
+	}
+	if trc.IsZero() {
+		err := serrors.New("no TRC for ISD present", "isd", id.ISD)
+		setProviderMetric(span, l.WithResult(metrics.ErrNotFound), err)
 		return err
 	}
 	if trc.TRC.ID.Base != id.Base {
