@@ -195,10 +195,16 @@ func (ps *PathSegment) Validate(validationMethod ValidationMethod) error {
 			if egPeer != egHop {
 				return serrors.New("egress interface of peer entry does not match hop entry",
 					"expected", egHop, "actual", egPeer, "as_entry_idx", i, "peer_entry_idx", j)
-
 			}
 		}
+
+		extensions := ps.ASEntries[i].Extensions
+		unsignedExtensions := ps.ASEntries[i].UnsignedExtensions
+		if err := checkUnsignedExtensions(&unsignedExtensions, &extensions); err != nil {
+			return err
+		}
 	}
+
 	return nil
 }
 
@@ -365,7 +371,8 @@ func PathSegmentToPB(ps *PathSegment) *cppb.PathSegment {
 	}
 	for _, entry := range ps.ASEntries {
 		pb.AsEntries = append(pb.AsEntries, &cppb.ASEntry{
-			Signed: entry.Signed,
+			Signed:   entry.Signed,
+			Unsigned: UnsignedExtensionsToPB(entry.UnsignedExtensions),
 		})
 	}
 	return pb
