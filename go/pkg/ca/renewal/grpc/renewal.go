@@ -291,27 +291,7 @@ func extractChain(raw []byte) ([]*x509.Certificate, error) {
 	if err != nil {
 		return nil, serrors.WrapStr("parsing SignedData", err)
 	}
-	certs, err := sd.X509Certificates()
-	if certs == nil {
-		err = protocol.ErrNoCertificate
-	} else if len(certs) != 2 {
-		err = serrors.New("unexpected number of certificates")
-	}
-	if err != nil {
-		return nil, serrors.WrapStr("parsing certificate chain", err)
-	}
-
-	certType, err := cppki.ValidateCert(certs[0])
-	if err != nil {
-		return nil, serrors.WrapStr("checking certificate type", err)
-	}
-	if certType == cppki.CA {
-		certs[0], certs[1] = certs[1], certs[0]
-	}
-	if err := cppki.ValidateChain(certs); err != nil {
-		return nil, serrors.WrapStr("validating chain", err)
-	}
-	return certs, nil
+	return renewal.ExtractChain(sd)
 }
 
 type requestLabels struct {
