@@ -117,6 +117,7 @@ On other errors, ping will exit with code 2.
 			if flags.healthyOnly {
 				opts = append(opts, path.WithProbing(&path.ProbeConfig{
 					LocalIA: info.IA,
+					LocalIP: flags.local,
 				}))
 			}
 			path, err := path.Choose(traceCtx, sd, remote.IA, opts...)

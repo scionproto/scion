@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/pkg/app/path"
 	"github.com/scionproto/scion/go/pkg/pathprobe"
 )
@@ -305,11 +304,11 @@ func (r Result) Alive() int {
 func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	sdConn, err := daemon.NewService(cfg.Daemon).Connect(ctx)
 	if err != nil {
-		return nil, serrors.WrapStr("error connecting to the SCION Daemon", err, "addr", cfg.Daemon)
+		return nil, serrors.WrapStr("connecting to the SCION Daemon", err, "addr", cfg.Daemon)
 	}
 	localIA, err := sdConn.LocalIA(ctx)
 	if err != nil {
-		return nil, serrors.WrapStr("error determining local ISD-AS", err)
+		return nil, serrors.WrapStr("determining local ISD-AS", err)
 	}
 
 	// TODO(lukedirtwalker): Replace this with snet.Router once we have the
@@ -318,7 +317,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	allPaths, err := sdConn.Paths(ctx, dst, addr.IA{},
 		daemon.PathReqFlags{Refresh: cfg.Refresh})
 	if err != nil {
-		return nil, serrors.WrapStr("failed to retrieve paths from the SCION Daemon", err)
+		return nil, serrors.WrapStr("retrieving paths from the SCION Daemon", err)
 	}
 	paths, err := path.Filter(cfg.Sequence, allPaths)
 	if err != nil {
@@ -329,24 +328,16 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 	}
 
 	var statuses map[string]pathprobe.Status
-	var localIP net.IP
 	if !cfg.NoProbe {
-		// Resolve local IP in case it is not configured.
-		if localIP = cfg.Local; localIP == nil {
-			localIP, err = addrutil.DefaultLocalIP(ctx, sdConn)
-			if err != nil {
-				return nil, serrors.WrapStr("failed to determine local IP", err)
-			}
-		}
 		p := pathprobe.FilterEmptyPaths(paths)
 		statuses, err = pathprobe.Prober{
 			DstIA:   dst,
 			LocalIA: localIA,
-			LocalIP: localIP,
+			LocalIP: cfg.Local,
 			ID:      uint16(rand.Uint32()),
 		}.GetStatuses(ctx, p)
 		if err != nil {
-			return nil, serrors.WrapStr("failed to get status", err)
+			return nil, serrors.WrapStr("getting statuses", err)
 		}
 	}
 	path.Sort(paths)
@@ -372,7 +363,6 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 			Expiry:      pathMeta.Expiry,
 			MTU:         pathMeta.MTU,
 			Latency:     pathMeta.Latency,
-			Local:       localIP,
 			Hops:        []Hop{},
 		}
 		for _, hop := range path.Metadata().Interfaces {
@@ -381,6 +371,7 @@ func Run(ctx context.Context, dst addr.IA, cfg Config) (*Result, error) {
 		if status, ok := statuses[pathprobe.PathKey(path)]; ok {
 			rpath.Status = strings.ToLower(string(status.Status))
 			rpath.StatusInfo = status.AdditionalInfo
+			rpath.Local = status.LocalIP
 		}
 		res.Paths = append(res.Paths, rpath)
 	}

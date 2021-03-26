@@ -19,7 +19,6 @@ import os
 from python.lib.util import write_file
 from python.topology.common import (
     ArgsBase,
-    docker_host,
     docker_image,
     remote_nets,
 )
@@ -75,29 +74,26 @@ class DockerUtilsGenerator(object):
         cntr_base = '/share'
         name = 'tester_%s' % topo_id.file_fmt()
         entry = {
-            'extra_hosts': ['jaeger:%s' % docker_host(self.args.docker)],
             'image': docker_image(self.args, 'tester'),
             'container_name': 'tester_%s' % topo_id.file_fmt(),
+            'depends_on': ['scion_disp_%s' % name],
             'privileged': True,
             'entrypoint': 'sh tester.sh',
             'environment': {},
-            'hostname': name,
             # 'user': self.user,
             'volumes': [
-                'vol_scion_disp_cs%s-1:/run/shm/dispatcher:rw' % topo_id.file_fmt(),
+                'vol_scion_disp_%s:/run/shm/dispatcher:rw' % name,
                 self.output_base + '/logs:' + cntr_base + '/logs:rw',
                 self.output_base + '/gen:' + cntr_base + '/gen:rw',
                 self.output_base + '/gen-certs:' + cntr_base + '/gen-certs:rw'
             ],
-            'networks': {}
+            'network_mode': 'service:scion_disp_%s' % name,
         }
         net = self.args.networks[name][0]
-        bridge = self.args.bridges[net['net']]
         ipv = 'ipv4'
         if ipv not in net:
             ipv = 'ipv6'
-        entry['networks'][bridge] = {'%s_address' % ipv: str(net[ipv])}
-        disp_net = self.args.networks['cs%s-1' % topo_id.file_fmt()][0]
+        disp_net = self.args.networks[name][0]
         entry['environment']['SCION_LOCAL_ADDR'] = str(disp_net[ipv])
         sciond_net = self.args.networks['sd%s' % topo_id.file_fmt()][0]
         entry['environment']['SCION_DAEMON'] = '%s:30255' % sciond_net[ipv]

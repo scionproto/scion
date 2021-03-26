@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
 )
@@ -47,6 +48,7 @@ const (
 // Status indicates the state a path is in.
 type Status struct {
 	Status         StatusName
+	LocalIP        net.IP
 	AdditionalInfo string
 }
 
@@ -90,8 +92,13 @@ func FilterEmptyPaths(paths []snet.Path) []snet.Path {
 
 // Prober can be used to get the status of a path.
 type Prober struct {
-	DstIA   addr.IA
+	// DstIA is the destination ISD-AS.
+	DstIA addr.IA
+	// LocalIA is the source ISD-AS.
 	LocalIA addr.IA
+	// LocalIP is the local IP endpoint to be used when probing. If not set, the proper will resolve
+	// an appropriate local IP endpoint depending on the path that should be probed. Note, LocalIP
+	// should not be set, unless you know what you are doing.
 	LocalIP net.IP
 	// ID is the SCMP traceroute ID used by the Prober.
 	ID uint16
@@ -100,8 +107,7 @@ type Prober struct {
 // GetStatuses probes the paths and returns the statuses of the paths. The
 // returned map is keyed with path.Path.FwdPath. The input should only be
 // non-empty paths.
-func (p Prober) GetStatuses(ctx context.Context,
-	paths []snet.Path) (map[string]Status, error) {
+func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path) (map[string]Status, error) {
 
 	deadline, ok := ctx.Deadline()
 	if !ok {
@@ -112,24 +118,47 @@ func (p Prober) GetStatuses(ctx context.Context,
 	// request for the last interface of the path.
 	// Receiving the traceroute response means that the path is alive.
 
-	pathStatuses := make(map[string]Status, len(paths))
+	// conns keeps track of the opened connections with the dispatcher. A connection is needed for
+	// each different underlay network. The key is the source IP.
+	conns := make(map[string]snet.PacketConn)
+	statuses := make(map[string]Status, len(paths))
 	scmpReplies := make(chan reply, 10)
-	conn, err := p.listen(ctx, pathStatuses, scmpReplies)
-	if err != nil {
-		return nil, serrors.WrapStr("listening failed", err)
-	}
-	defer conn.Close()
-	conn.SetDeadline(deadline)
 	var sendErrors serrors.List
-	statuses := make(map[string]Status)
-	localAddr := snet.SCIONAddress{IA: p.LocalIA, Host: addr.HostFromIP(p.LocalIP)}
+
+	// Instantiate dispatcher service
+	disp := &snet.DefaultPacketDispatcherService{
+		Dispatcher:  reliable.NewDispatcher(""),
+		SCMPHandler: &scmpHandler{replies: scmpReplies},
+	}
+
 	// send out one probe per path
 	for i, path := range paths {
+		localIP, err := p.resolveLocalIP(path.UnderlayNextHop())
+		if err != nil {
+			sendErrors = append(sendErrors, err)
+			continue
+		}
+		conn, ok := conns[localIP.String()]
+		if !ok {
+			// Create new conn
+			var err error
+			conn, _, err = disp.Register(ctx, p.LocalIA, &net.UDPAddr{IP: localIP},
+				addr.SvcNone)
+			if err != nil {
+				sendErrors = append(sendErrors,
+					serrors.WrapStr("creating packet conn", err, "local", localIP))
+				continue
+			}
+			defer conn.Close()
+			conn.SetDeadline(deadline)
+			conns[localIP.String()] = conn
+		}
+		localAddr := snet.SCIONAddress{IA: p.LocalIA, Host: addr.HostFromIP(localIP)}
+		timeout.LocalIP = localIP
 		statuses[PathKey(path)] = timeout
 		if err := p.sendProbe(conn, localAddr, path, uint16(i)); err != nil {
 			sendErrors = append(sendErrors, err)
 		}
-
 	}
 	if err := sendErrors.ToError(); err != nil {
 		return nil, err
@@ -137,11 +166,14 @@ func (p Prober) GetStatuses(ctx context.Context,
 	var receiveErrors serrors.List
 	subCtx, dCancel := context.WithCancel(ctx)
 	defer dCancel()
-	drainError := make(chan error, 1)
-	go func() {
-		defer log.HandlePanic()
-		p.drain(subCtx, conn, drainError)
-	}()
+	drainError := make(chan error, len(conns))
+	for _, c := range conns {
+		c := c
+		go func() {
+			defer log.HandlePanic()
+			drain(subCtx, c, drainError)
+		}()
+	}
 	for i := len(statuses); i > 0; i-- {
 		select {
 		case reply := <-scmpReplies:
@@ -160,6 +192,20 @@ func (p Prober) GetStatuses(ctx context.Context,
 		return nil, err
 	}
 	return statuses, nil
+}
+
+func (p Prober) resolveLocalIP(target *net.UDPAddr) (net.IP, error) {
+	if p.LocalIP != nil {
+		return p.LocalIP, nil
+	}
+	if target == nil {
+		return nil, serrors.New("underlay nexthop missing")
+	}
+	localIP, err := addrutil.ResolveLocal(target.IP)
+	if err != nil {
+		return nil, serrors.WrapStr("resolving local IP", err)
+	}
+	return localIP, nil
 }
 
 func (p Prober) sendProbe(
@@ -199,36 +245,16 @@ type scmpHandler struct {
 	replies chan<- reply
 }
 
-func (p Prober) listen(ctx context.Context, pathStatuses map[string]Status,
-	scmpReplies chan reply) (snet.PacketConn, error) {
-	scmpH := &scmpHandler{replies: scmpReplies}
-	network := &snet.SCIONNetwork{
-		LocalIA: p.LocalIA,
-		Dispatcher: &snet.DefaultPacketDispatcherService{
-			Dispatcher:  reliable.NewDispatcher(""),
-			SCMPHandler: scmpH,
-		},
-	}
-	conn, _, err := network.Dispatcher.Register(
-		ctx,
-		p.LocalIA,
-		&net.UDPAddr{IP: p.LocalIP},
-		addr.SvcNone,
-	)
-	return conn, err
-}
-
-func (p Prober) drain(subCtx context.Context, conn snet.PacketConn, drainError chan error) {
+func drain(ctx context.Context, conn snet.PacketConn, drainError chan error) {
 	for {
 		var pkt snet.Packet
 		var ov net.UDPAddr
 		if err := conn.ReadFrom(&pkt, &ov); err != nil {
 			select {
-			case <-subCtx.Done():
+			case <-ctx.Done():
 				return
 			default:
 				drainError <- serrors.WrapStr("error reading packet:", err)
-				close(drainError)
 				return
 			}
 		}
@@ -256,24 +282,28 @@ func (h *scmpHandler) handle(pkt *snet.Packet) (Status, error) {
 	if pkt.Payload == nil {
 		return Status{}, serrors.New("no payload found")
 	}
+	localIP := pkt.Destination.Host.IP()
 	switch pld := pkt.Payload.(type) {
 	case snet.SCMPTracerouteReply:
-		return Status{Status: StatusAlive}, nil
+		return Status{Status: StatusAlive, LocalIP: localIP}, nil
 	case snet.SCMPExternalInterfaceDown:
 		return Status{
-			Status: StatusSCMP,
+			Status:  StatusSCMP,
+			LocalIP: localIP,
 			AdditionalInfo: fmt.Sprintf("external interface down: isd_as=%s interface=%d",
 				pld.IA, pld.Interface),
 		}, nil
 	case snet.SCMPInternalConnectivityDown:
 		return Status{
-			Status: StatusSCMP,
+			Status:  StatusSCMP,
+			LocalIP: localIP,
 			AdditionalInfo: fmt.Sprintf("internal connectivity down: "+
 				"isd_as=%s ingress=%d egress=%d", pld.IA, pld.Ingress, pld.Egress),
 		}, nil
 	default:
 		return Status{
 			Status:         StatusUnknown,
+			LocalIP:        localIP,
 			AdditionalInfo: fmt.Sprintf("unknown payload type: (%T)", pld),
 		}, nil
 	}
