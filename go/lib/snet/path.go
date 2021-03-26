@@ -27,9 +27,6 @@ import (
 )
 
 const (
-	// MaxSegTTL is the maximum expiry for a path segment. It's one day in seconds.
-	MaxSegTTL = 24 * 60 * 60
-
 	// LatencyUnset is the default value for a Latency entry in PathMetadata for
 	// which no latency was announced.
 	LatencyUnset time.Duration = -1
