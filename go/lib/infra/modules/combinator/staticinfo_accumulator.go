@@ -103,7 +103,12 @@ func collectLatency(p pathInfo) []time.Duration {
 	// 2)
 	latencies := make([]time.Duration, len(p.Interfaces)-1)
 	for i := 0; i+1 < len(p.Interfaces); i++ {
-		latencies[i] = hopLatencies[makeHopKey(p.Interfaces[i], p.Interfaces[i+1])]
+		l, ok := hopLatencies[makeHopKey(p.Interfaces[i], p.Interfaces[i+1])]
+		if ok {
+			latencies[i] = l
+		} else {
+			latencies[i] = snet.LatencyUnset
+		}
 	}
 
 	return latencies
@@ -114,9 +119,6 @@ func collectLatency(p pathInfo) []time.Duration {
 func addHopLatency(m map[hopKey]time.Duration, a, b snet.PathInterface, v time.Duration) {
 	// Skip incomplete entries; not strictly necessary, we'd just not look this up
 	if a.ID == 0 || b.ID == 0 {
-		return
-	}
-	if v == 0 {
 		return
 	}
 	k := makeHopKey(a, b)
@@ -165,9 +167,6 @@ func collectBandwidth(p pathInfo) []uint64 {
 func addHopBandwidth(m map[hopKey]uint64, a, b snet.PathInterface, v uint64) {
 	// Skip incomplete entries; not strictly necessary, we'd just not look this up
 	if a.ID == 0 || b.ID == 0 {
-		return
-	}
-	if v == 0 {
 		return
 	}
 	k := makeHopKey(a, b)
@@ -282,9 +281,6 @@ func collectInternalHops(p pathInfo) []uint32 {
 func addHopInternalHops(m map[hopKey]uint32, a, b snet.PathInterface, v uint32) {
 	// Skip incomplete entries; not strictly necessary, we'd just not look this up
 	if a.ID == 0 || b.ID == 0 {
-		return
-	}
-	if v == 0 {
 		return
 	}
 	k := makeHopKey(a, b)
