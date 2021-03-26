@@ -47,6 +47,7 @@ import (
 	libmetrics "github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -298,16 +299,49 @@ func realMain() error {
 			globalCfg.CA.MaxASValidity.Duration,
 			globalCfg.General.ConfigDir,
 		)
+
+		srvCtr := libmetrics.NewPromCounter(metrics.RenewalServerRequestsTotal)
+		cmsCtr := libmetrics.NewPromCounter(metrics.RenewalCMSHandlerRequestsTotal)
+		legacyCtr := libmetrics.NewPromCounter(metrics.RenewalLegacyHandlerRequestsTotal)
 		renewalServer := &renewalgrpc.RenewalServer{
-			Verifier: renewal.RequestVerifier{
-				TRCFetcher: trustDB,
+			CMSHandler: &renewalgrpc.CMS{
+				DB:           renewalDB,
+				IA:           topo.IA(),
+				ChainBuilder: chainBuilder,
+				Verifier: renewal.RequestVerifier{
+					TRCFetcher: trustDB,
+				},
+				Metrics: renewalgrpc.CMSHandlerMetrics{
+					Success:       cmsCtr.With(prom.LabelResult, prom.StatusOk),
+					DatabaseError: cmsCtr.With(prom.LabelResult, prom.ErrDB),
+					InternalError: cmsCtr.With(prom.LabelResult, prom.ErrInternal),
+					NotFoundError: cmsCtr.With(prom.LabelResult, prom.ErrNotFound),
+					ParseError:    cmsCtr.With(prom.LabelResult, prom.ErrParse),
+					VerifyError:   cmsCtr.With(prom.LabelResult, prom.ErrVerify),
+				},
 			},
-			ChainBuilder: chainBuilder,
-			DB:           renewalDB,
-			IA:           topo.IA(),
-			Signer:       signer,
-			CMSSigner:    signer,
-			Requests:     libmetrics.NewPromCounter(cstrustmetrics.Handler.Requests),
+			LegacyHandler: &renewalgrpc.Legacy{
+				Signer:       signer,
+				DB:           renewalDB,
+				ChainBuilder: chainBuilder,
+				Verifier: renewal.RequestVerifier{
+					TRCFetcher: trustDB,
+				},
+				Metrics: renewalgrpc.LegacyHandlerMetrics{
+					Success:       legacyCtr.With(prom.LabelResult, prom.StatusOk),
+					DatabaseError: legacyCtr.With(prom.LabelResult, prom.ErrDB),
+					InternalError: legacyCtr.With(prom.LabelResult, prom.ErrInternal),
+					NotFoundError: legacyCtr.With(prom.LabelResult, prom.ErrNotFound),
+					ParseError:    legacyCtr.With(prom.LabelResult, prom.ErrParse),
+					VerifyError:   legacyCtr.With(prom.LabelResult, prom.ErrVerify),
+				},
+			},
+			IA:        topo.IA(),
+			CMSSigner: signer,
+			Metrics: renewalgrpc.RenewalServerMetrics{
+				Success:       srvCtr.With(prom.LabelResult, prom.StatusOk),
+				BackendErrors: srvCtr.With(prom.LabelResult, prom.StatusErr),
+			},
 		}
 		cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)
 		cppb.RegisterChainRenewalServiceServer(tcpServer, renewalServer)
