@@ -158,8 +158,7 @@ type SelectAdvertisedRoutes struct {
 }
 
 func (a *SelectAdvertisedRoutes) AdvertiseList(from, to addr.IA) []*net.IPNet {
-	policy := a.ConfigPublisher.RoutingPolicy()
-	return routing.AdvertiseList(*policy, from, to)
+	return routing.AdvertiseList(a.ConfigPublisher.RoutingPolicy(), from, to)
 }
 
 type RoutingPolicyPublisherAdapter struct {
@@ -701,7 +700,7 @@ func (g *Gateway) diagnosticsSGRP(pub *control.ConfigPublisher) http.HandlerFunc
 		d.Advertise.Static = []string{}
 		d.Learned.Dynamic = []string{}
 
-		for _, s := range routing.StaticAdvertised(*pub.RoutingPolicy()) {
+		for _, s := range routing.StaticAdvertised(pub.RoutingPolicy()) {
 			d.Advertise.Static = append(d.Advertise.Static, s.String())
 		}
 		if p, ok := g.RoutePublisherFactory.(interface{ Diagnostics() routemgr.Diagnostics }); ok {
