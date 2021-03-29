@@ -16,11 +16,9 @@ package scrypto
 
 import (
 	"crypto/rand"
-	"io"
 	mrand "math/rand"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 const (
@@ -46,17 +44,4 @@ func RandUint64() uint64 {
 // RandInt64 returns a random int64 value. The returned value can be negative.
 func RandInt64() int64 {
 	return int64(RandUint64())
-}
-
-// Nonce takes an input length and returns a random nonce of the given length.
-func Nonce(l int) ([]byte, error) {
-	if l <= 0 {
-		return nil, ErrInvalidNonceSize
-	}
-	nonce := make([]byte, l)
-	_, err := io.ReadFull(rand.Reader, nonce)
-	if err != nil {
-		return nil, serrors.Wrap(ErrUnableToGenerateNonce, err)
-	}
-	return nonce, nil
 }
