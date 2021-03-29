@@ -15,6 +15,7 @@ go_library(
         "//go/lib/serrors:go_default_library",
         "//go/pkg/command:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus/promauto:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
         "@com_github_spf13_viper//:go_default_library",
     ],
