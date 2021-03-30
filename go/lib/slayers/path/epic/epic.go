@@ -17,7 +17,6 @@ package epic
 
 import (
 	"encoding/binary"
-	"strconv"
 
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
@@ -27,14 +26,14 @@ import (
 const (
 	// PathType denotes the EPIC path type identifier.
 	PathType path.Type = 3
-	// overhead denotes the number of bytes the EPIC path type contains in addition to the SCION
+	// MetadataLen denotes the number of bytes the EPIC path type contains in addition to the SCION
 	// path type. It is the sum of the PacketTimestamp (8B), the PHVF (4B) and the LHVF (4B) sizes.
-	overhead = 16
-	// lenPckTs denotes the length of the packet timestamp.
-	lenPckTs = 8
-	// lenHVF denotes the length of the hop validation fields. The length is the same for both the
+	MetadataLen = 16
+	// PktIDLen denotes the length of the packet timestamp.
+	PktIDLen = 8
+	// HVFLen denotes the length of the hop validation fields. The length is the same for both the
 	// PHVF and the LHVF.
-	lenHVF = 4
+	HVFLen = 4
 )
 
 // RegisterPath registers the EPIC path type globally.
@@ -43,93 +42,108 @@ func RegisterPath() {
 		Type: PathType,
 		Desc: "Epic",
 		New: func() path.Path {
-			return &EpicPath{ScionRaw: &scion.Raw{}}
+			return &Path{ScionPath: &scion.Raw{}}
 		},
 	})
 }
 
-// EpicPath denotes the EPIC path type header.
-type EpicPath struct {
-	PacketTimestamp uint64
-	PHVF            []byte
-	LHVF            []byte
-	ScionRaw        *scion.Raw
+// Path denotes the EPIC path type header.
+type Path struct {
+	PktID     PktID
+	PHVF      []byte
+	LHVF      []byte
+	ScionPath *scion.Raw
 }
 
-// SerializeTo serializes the EpicPath into buffer b. On failure, an error is returned, otherwise
+// SerializeTo serializes the Path into buffer b. On failure, an error is returned, otherwise
 // SerializeTo will return nil.
-func (p *EpicPath) SerializeTo(b []byte) error {
+func (p *Path) SerializeTo(b []byte) error {
 	if p == nil {
 		return serrors.New("epic path must not be nil")
 	}
-	if len(b) < overhead {
-		return serrors.New("buffer for EpicPath too short (< " +
-			strconv.Itoa(overhead) + " bytes)")
+	if len(b) < p.Len() {
+		return serrors.New("buffer too small to serialize path.", "expected", p.Len(),
+			"actual", len(b))
 	}
-	if len(p.PHVF) != lenHVF || len(p.LHVF) != lenHVF {
-		return serrors.New("PHVF and LHVF must have "+strconv.Itoa(lenHVF)+" bytes",
-			"PHVF", len(p.PHVF), "LHVF", len(p.LHVF))
+	if len(p.PHVF) != HVFLen {
+		serrors.New("invalid length of PHVF", "expected", HVFLen, "actual", len(p.PHVF))
 	}
-	if p.ScionRaw == nil {
-		return serrors.New("scion subheader must exist")
+	if len(p.LHVF) != HVFLen {
+		serrors.New("invalid length of LHVF", "expected", HVFLen, "actual", len(p.LHVF))
 	}
-	binary.BigEndian.PutUint64(b[:lenPckTs], p.PacketTimestamp)
-	copy(b[lenPckTs:(lenPckTs+lenHVF)], p.PHVF)
-	copy(b[(lenPckTs+lenHVF):overhead], p.LHVF)
-	return p.ScionRaw.SerializeTo(b[overhead:])
+	if p.ScionPath == nil {
+		return serrors.New("SCION path is nil")
+	}
+	p.PktID.SerializeTo(b[:PktIDLen])
+	copy(b[PktIDLen:(PktIDLen+HVFLen)], p.PHVF)
+	copy(b[(PktIDLen+HVFLen):MetadataLen], p.LHVF)
+	return p.ScionPath.SerializeTo(b[MetadataLen:])
 }
 
-// DecodeFromBytes deserializes the buffer b into the EpicPath. On failure, an error is returned,
+// DecodeFromBytes deserializes the buffer b into the Path. On failure, an error is returned,
 // otherwise SerializeTo will return nil.
-func (p *EpicPath) DecodeFromBytes(b []byte) error {
-	if p == nil {
-		return serrors.New("epic path must not be nil")
+func (p *Path) DecodeFromBytes(b []byte) error {
+	if len(b) < MetadataLen {
+		return serrors.New("EPIC Path raw too short", "expected", MetadataLen, "actual", len(b))
 	}
-	if len(b) < overhead {
-		return serrors.New("EpicPath bytes too short (< " + strconv.Itoa(overhead) + " bytes)")
-	}
-	p.PacketTimestamp = binary.BigEndian.Uint64(b[:lenPckTs])
-	p.PHVF = make([]byte, lenHVF)
-	p.LHVF = make([]byte, lenHVF)
-	copy(p.PHVF, b[lenPckTs:(lenPckTs+lenHVF)])
-	copy(p.LHVF, b[(lenPckTs+lenHVF):overhead])
-	p.ScionRaw = &scion.Raw{}
-	return p.ScionRaw.DecodeFromBytes(b[overhead:])
+	p.PktID.DecodeFromBytes(b[:PktIDLen])
+	p.PHVF = make([]byte, HVFLen)
+	p.LHVF = make([]byte, HVFLen)
+	copy(p.PHVF, b[PktIDLen:(PktIDLen+HVFLen)])
+	copy(p.LHVF, b[(PktIDLen+HVFLen):MetadataLen])
+	p.ScionPath = &scion.Raw{}
+	return p.ScionPath.DecodeFromBytes(b[MetadataLen:])
 }
 
 // Reverse reverses the EPIC path. In particular, this means that the SCION path type subheader
 // is reversed.
-func (p *EpicPath) Reverse() (path.Path, error) {
-	if p == nil {
-		return nil, serrors.New("epic path must not be nil")
-	}
-	if p.ScionRaw == nil {
+func (p *Path) Reverse() (path.Path, error) {
+	if p.ScionPath == nil {
 		return nil, serrors.New("scion subpath must not be nil")
 	}
-	revScion, err := p.ScionRaw.Reverse()
+	revScion, err := p.ScionPath.Reverse()
 	if err != nil {
 		return nil, err
 	}
-	scionRaw, ok := revScion.(*scion.Raw)
+	ScionPath, ok := revScion.(*scion.Raw)
 	if !ok {
 		return nil, err
 	}
-	p.ScionRaw = scionRaw
+	p.ScionPath = ScionPath
 	return p, nil
 }
 
 // Len returns the length of the EPIC path in bytes.
-func (p *EpicPath) Len() int {
-	if p == nil {
-		return 0
+func (p *Path) Len() int {
+	if p.ScionPath == nil {
+		return MetadataLen
 	}
-	if p.ScionRaw == nil {
-		return overhead
-	}
-	return overhead + p.ScionRaw.Len()
+	return MetadataLen + p.ScionPath.Len()
 }
 
 // Type returns the EPIC path type identifier.
-func (p *EpicPath) Type() path.Type {
+func (p *Path) Type() path.Type {
 	return PathType
+}
+
+// PktID denotes the EPIC packet ID.
+type PktID struct {
+	Timestamp   uint32
+	CoreID      uint8
+	CoreCounter uint32
+}
+
+// DecodeFromBytes deserializes the buffer (raw) into the PktID.
+func (i *PktID) DecodeFromBytes(raw []byte) {
+	i.Timestamp = binary.BigEndian.Uint32(raw[:4])
+	coreInfo := binary.BigEndian.Uint32(raw[4:8])
+	i.CoreID = uint8(coreInfo >> 24)
+	i.CoreCounter = coreInfo & 0x00FFFFFF
+}
+
+// SerializeTo serializes the PktID into the buffer (b).
+func (i *PktID) SerializeTo(b []byte) {
+	binary.BigEndian.PutUint32(b[:4], i.Timestamp)
+	coreInfo := uint32(i.CoreID)<<24 | (i.CoreCounter & 0x00FFFFFF)
+	binary.BigEndian.PutUint32(b[4:8], coreInfo)
 }

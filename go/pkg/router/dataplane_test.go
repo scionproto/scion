@@ -1117,18 +1117,22 @@ func TestProcessPkt(t *testing.T) {
 				if afterProcessing {
 					tsRel = cachedEpicTsRel
 				} else {
-					tsRel, _ = libepic.CreateTsRel(timestamp)
+					tsRel, _ = libepic.CreateTimestamp(timestamp, time.Now().UnixNano())
 					cachedEpicTsRel = tsRel
 				}
-				packetTimestamp := libepic.CreateEpicTimestamp(tsRel, 1, 2)
+				pktID := epic.PktID{
+					Timestamp:   tsRel,
+					CoreID:      1,
+					CoreCounter: 2,
+				}
 
-				scionRaw, err := dpath.ToRaw()
+				scionPath, err := dpath.ToRaw()
 				assert.NoError(t, err)
-				epicpath := &epic.EpicPath{
-					ScionRaw:        scionRaw,
-					PacketTimestamp: packetTimestamp,
-					PHVF:            make([]byte, 4),
-					LHVF:            make([]byte, 4),
+				epicpath := &epic.Path{
+					ScionPath: scionPath,
+					PktID:     pktID,
+					PHVF:      make([]byte, 4),
+					LHVF:      make([]byte, 4),
 				}
 				spkt.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()})
 				spkt.Path = epicpath
@@ -1137,7 +1141,7 @@ func TestProcessPkt(t *testing.T) {
 				authLast := computeFullMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
 
 				// Calculate PHVF and LHVF
-				macLast, err := libepic.CalculateEpicMac(authLast, epicpath, spkt, timestamp)
+				macLast, err := libepic.CalcMac(authLast, &epicpath.PktID, spkt, timestamp)
 				assert.NoError(t, err)
 				copy(epicpath.LHVF, macLast)
 
@@ -1231,14 +1235,12 @@ func computeMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopFiel
 	mac, err := scrypto.InitMac(key)
 	require.NoError(t, err)
 	return path.MAC(mac, info, hf)
-
 }
 
 func computeFullMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopField) []byte {
 	mac, err := scrypto.InitMac(key)
 	require.NoError(t, err)
 	return path.FullMAC(mac, info, hf)
-
 }
 
 func createMac(t *testing.T) hash.Hash {

@@ -250,3 +250,45 @@ func mkRawPath(t *testing.T, pcase pathCase, infIdx, hopIdx uint8) *scion.Raw {
 	require.NoError(t, err)
 	return raw
 }
+
+func TestPenultimateHop(t *testing.T) {
+	testCases := map[*scion.Raw]bool{
+		createScionPath(0, 2): true,
+		createScionPath(1, 2): false,
+		createScionPath(2, 2): false,
+		createScionPath(5, 7): true,
+		createScionPath(6, 7): false,
+		createScionPath(7, 7): false,
+	}
+	for scionRaw, want := range testCases {
+		got := scionRaw.IsPenultimateHop()
+		assert.Equal(t, want, got)
+	}
+}
+
+func TestLastHop(t *testing.T) {
+	testCases := map[*scion.Raw]bool{
+		createScionPath(0, 2): false,
+		createScionPath(1, 2): true,
+		createScionPath(2, 2): false,
+		createScionPath(5, 7): false,
+		createScionPath(6, 7): true,
+		createScionPath(7, 7): false,
+	}
+	for scionRaw, want := range testCases {
+		got := scionRaw.IsLastHop()
+		assert.Equal(t, want, got)
+	}
+}
+
+func createScionPath(currHF uint8, numHops int) *scion.Raw {
+	scionRaw := &scion.Raw{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				CurrHF: currHF,
+			},
+			NumHops: numHops,
+		},
+	}
+	return scionRaw
+}
