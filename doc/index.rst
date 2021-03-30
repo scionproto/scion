@@ -32,11 +32,6 @@ is a good place to start.
    ColibriService
    BeaconService
    PathService
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Proposals:
-
    endhost-bootstrap
 
 .. toctree::
