@@ -269,7 +269,8 @@ class GoGenerator(object):
             base = topo_id.base_dir(self.args.output_dir)
             elem_ids = ['sig_%s' % topo_id.file_fmt()] + \
                 list(topo.get("border_routers", {})) + \
-                list(topo.get("control_service", {}))
+                list(topo.get("control_service", {})) + \
+                ['tester_%s' % topo_id.file_fmt()]
             for k in elem_ids:
                 disp_id = 'disp_%s' % k
                 disp_conf = self._build_disp_conf(disp_id, topo_id)

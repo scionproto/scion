@@ -210,6 +210,7 @@ func (t *TasksConfig) extender(task string, ia addr.IA, mtu uint16,
 		MaxExpTime: func() uint8 { return uint8(maxExp()) },
 		StaticInfo: t.StaticInfo,
 		Task:       task,
+		EPIC:       false,
 	}
 }
 

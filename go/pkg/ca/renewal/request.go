@@ -123,28 +123,21 @@ func (r RequestVerifier) VerifyCMSSignedRenewalRequest(ctx context.Context,
 		return nil, serrors.New("unsupported SignedData version", "actual", sd.Version,
 			"supported", 1)
 	}
+
+	chain, err := ExtractChain(sd)
+	if err != nil {
+		return nil, serrors.WrapStr("extracting signing certificate chain", err)
+	}
+
 	if len(sd.SignerInfos) != 1 {
 		return nil, serrors.New("unexpected number of signers", "expected", 1,
 			"actual", len(sd.SignerInfos))
 	}
 	si := sd.SignerInfos[0]
-	certs, err := sd.X509Certificates()
-	if certs == nil {
-		err = protocol.ErrNoCertificate
-	} else if len(certs) != 2 {
-		err = serrors.New("unexpected number of certificates")
-	}
-	if err != nil {
-		return nil, serrors.WrapStr("parsing client chain", err)
-	}
-	cert, err := si.FindCertificate(certs)
-	if err != nil {
+	if _, err := si.FindCertificate(chain); err != nil {
 		return nil, serrors.WrapStr("selecting client certificate", err)
 	}
-	if cert != certs[0] {
-		certs[0], certs[1] = certs[1], certs[0]
-	}
-	if err := r.verifyClientChain(ctx, certs); err != nil {
+	if err := r.verifyClientChain(ctx, chain); err != nil {
 		return nil, serrors.WrapStr("verifying client chain", err)
 	}
 
@@ -157,7 +150,7 @@ func (r RequestVerifier) VerifyCMSSignedRenewalRequest(ctx context.Context,
 		return nil, serrors.WrapStr("reading payload", err)
 	}
 
-	if err := verifySignerInfo(pld, cert, si); err != nil {
+	if err := verifySignerInfo(pld, chain[0], si); err != nil {
 		return nil, serrors.WrapStr("verifying signer info", err)
 	}
 
@@ -166,7 +159,7 @@ func (r RequestVerifier) VerifyCMSSignedRenewalRequest(ctx context.Context,
 		return nil, serrors.WrapStr("parsing CSR", err)
 	}
 
-	return r.processCSR(csr, cert)
+	return r.processCSR(csr, chain[0])
 }
 
 func (r RequestVerifier) verifyClientChain(ctx context.Context, chain []*x509.Certificate) error {
@@ -251,4 +244,30 @@ func (r RequestVerifier) processCSR(csr *x509.CertificateRequest,
 		return nil, serrors.WrapStr("invalid CSR signature", err)
 	}
 	return csr, nil
+}
+
+func ExtractChain(sd *protocol.SignedData) ([]*x509.Certificate, error) {
+	certs, err := sd.X509Certificates()
+	if err == nil {
+		if len(certs) == 0 {
+			err = protocol.ErrNoCertificate
+		} else if len(certs) != 2 {
+			err = serrors.New("unexpected number of certificates", "count", len(certs))
+		}
+	}
+	if err != nil {
+		return nil, serrors.WrapStr("parsing certificate chain", err)
+	}
+
+	certType, err := cppki.ValidateCert(certs[0])
+	if err != nil {
+		return nil, serrors.WrapStr("checking certificate type", err)
+	}
+	if certType == cppki.CA {
+		certs[0], certs[1] = certs[1], certs[0]
+	}
+	if err := cppki.ValidateChain(certs); err != nil {
+		return nil, serrors.WrapStr("validating chain", err)
+	}
+	return certs, nil
 }

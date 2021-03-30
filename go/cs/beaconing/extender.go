@@ -24,6 +24,8 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/digest"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/epic"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
@@ -61,6 +63,8 @@ type DefaultExtender struct {
 	Task string
 	// StaticInfo contains the configuration used for the StaticInfo Extension.
 	StaticInfo func() *StaticInfoCfg
+	// EPIC defines whether the EPIC authenticators should be added when the segment is extended.
+	EPIC bool
 }
 
 // Extend extends the beacon with hop fields of the old format.
@@ -82,12 +86,12 @@ func (s *DefaultExtender) Extend(ctx context.Context, pseg *seg.PathSegment,
 	}
 	ts := pseg.Info.Timestamp
 
-	hopEntry, err := s.createHopEntry(ingress, egress, ts, extractBeta(pseg))
+	hopEntry, epicHopMac, err := s.createHopEntry(ingress, egress, ts, extractBeta(pseg))
 	if err != nil {
 		return serrors.WrapStr("creating hop entry", err)
 	}
 	peerBeta := extractBeta(pseg) ^ binary.BigEndian.Uint16(hopEntry.HopField.MAC[:2])
-	peerEntries, err := s.createPeerEntries(egress, peers, ts, peerBeta)
+	peerEntries, epicPeerMacs, err := s.createPeerEntries(egress, peers, ts, peerBeta)
 	if err != nil {
 		return err
 	}
@@ -105,6 +109,27 @@ func (s *DefaultExtender) Extend(ctx context.Context, pseg *seg.PathSegment,
 	if static := s.StaticInfo(); static != nil {
 		asEntry.Extensions.StaticInfo = static.Generate(s.Intfs, ingress, egress)
 	}
+
+	// Add the detachable Epic extension
+	if s.EPIC {
+		e := &epic.Detached{
+			AuthHopEntry:    epicHopMac,
+			AuthPeerEntries: epicPeerMacs,
+		}
+		asEntry.UnsignedExtensions.EpicDetached = e
+
+		var d digest.Digest
+		input, err := e.DigestInput()
+		if err != nil {
+			return err
+		}
+		d.Set(input)
+
+		asEntry.Extensions.Digests = &digest.Extension{
+			Epic: d,
+		}
+	}
+
 	if err := pseg.AddASEntry(ctx, asEntry, s.Signer); err != nil {
 		return err
 	}
@@ -115,30 +140,32 @@ func (s *DefaultExtender) Extend(ctx context.Context, pseg *seg.PathSegment,
 }
 
 func (s *DefaultExtender) createPeerEntries(egress common.IFIDType, peers []common.IFIDType,
-	ts time.Time, beta uint16) ([]seg.PeerEntry, error) {
+	ts time.Time, beta uint16) ([]seg.PeerEntry, [][]byte, error) {
 
 	peerEntries := make([]seg.PeerEntry, 0, len(peers))
+	peerEpicMacs := make([][]byte, 0, len(peers))
 	for _, peer := range peers {
-		peerEntry, err := s.createPeerEntry(peer, egress, ts, beta)
+		peerEntry, epicMac, err := s.createPeerEntry(peer, egress, ts, beta)
 		if err != nil {
 			log.Debug("Ignoring peer link upon error",
 				"task", s.Task, "peer_interface", peer, "err", err)
 			continue
 		}
 		peerEntries = append(peerEntries, peerEntry)
+		peerEpicMacs = append(peerEpicMacs, epicMac)
 	}
-	return peerEntries, nil
+	return peerEntries, peerEpicMacs, nil
 }
 
 func (s *DefaultExtender) createHopEntry(ingress, egress common.IFIDType, ts time.Time,
-	beta uint16) (seg.HopEntry, error) {
+	beta uint16) (seg.HopEntry, []byte, error) {
 
 	remoteInMTU, err := s.remoteMTU(ingress)
 	if err != nil {
-		return seg.HopEntry{}, serrors.WrapStr("checking remote ingress interface (mtu)", err,
+		return seg.HopEntry{}, nil, serrors.WrapStr("checking remote ingress interface (mtu)", err,
 			"interfaces", ingress)
 	}
-	hopF := s.createHopF(uint16(ingress), uint16(egress), ts, beta)
+	hopF, epicMac := s.createHopF(uint16(ingress), uint16(egress), ts, beta)
 	return seg.HopEntry{
 		IngressMTU: int(remoteInMTU),
 		HopField: seg.HopField{
@@ -147,18 +174,18 @@ func (s *DefaultExtender) createHopEntry(ingress, egress common.IFIDType, ts tim
 			ExpTime:     hopF.ExpTime,
 			MAC:         hopF.Mac,
 		},
-	}, nil
+	}, epicMac, nil
 }
 
 func (s *DefaultExtender) createPeerEntry(ingress, egress common.IFIDType, ts time.Time,
-	beta uint16) (seg.PeerEntry, error) {
+	beta uint16) (seg.PeerEntry, []byte, error) {
 
 	remoteInIA, remoteInIfID, remoteInMTU, err := s.remoteInfo(ingress)
 	if err != nil {
-		return seg.PeerEntry{}, serrors.WrapStr("checking remote ingress interface", err,
+		return seg.PeerEntry{}, nil, serrors.WrapStr("checking remote ingress interface", err,
 			"ingress_interface", ingress)
 	}
-	hopF := s.createHopF(uint16(ingress), uint16(egress), ts, beta)
+	hopF, epicMac := s.createHopF(uint16(ingress), uint16(egress), ts, beta)
 	return seg.PeerEntry{
 		PeerMTU:       int(remoteInMTU),
 		Peer:          remoteInIA.IA(),
@@ -169,7 +196,7 @@ func (s *DefaultExtender) createPeerEntry(ingress, egress common.IFIDType, ts ti
 			ExpTime:     hopF.ExpTime,
 			MAC:         hopF.Mac,
 		},
-	}, nil
+	}, epicMac, nil
 }
 
 func (s *DefaultExtender) remoteIA(ifID common.IFIDType) (addr.IAInt, error) {
@@ -220,7 +247,7 @@ func (s *DefaultExtender) remoteInfo(ifid common.IFIDType) (
 }
 
 func (s *DefaultExtender) createHopF(ingress, egress uint16, ts time.Time,
-	beta uint16) path.HopField {
+	beta uint16) (path.HopField, []byte) {
 
 	expTime := s.MaxExpTime()
 	input := path.MACInput(beta, util.TimeToSecs(ts), expTime, ingress, egress)
@@ -236,7 +263,7 @@ func (s *DefaultExtender) createHopF(ingress, egress uint16, ts time.Time,
 		ConsEgress:  egress,
 		ExpTime:     expTime,
 		Mac:         fullMAC[:6],
-	}
+	}, fullMAC[6:16]
 }
 
 func extractBeta(pseg *seg.PathSegment) uint16 {

@@ -68,7 +68,10 @@ func TestParseConfig(t *testing.T) {
 							snetpath.Path{
 								Dst: xtest.MustParseIA("1-ff00:0:112"),
 								SPath: spath.Path{
-									Raw:  make([]byte, 36),
+									Raw: []byte{
+										0, 0, 32, 0, 1, 0, 10, 217, 96, 87, 95, 109,
+										0, 63, 0, 0, 0, 1, 54, 152, 193, 70, 99, 110,
+										0, 63, 0, 1, 0, 0, 203, 228, 96, 228, 101, 248},
 									Type: scion.PathType,
 								},
 								NextHop: xtest.MustParseUDPAddr(t, "242.254.100.3:5000"),

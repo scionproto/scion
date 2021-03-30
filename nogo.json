@@ -55,7 +55,9 @@
       "/com_github_marten_seemann_qtls/": "",
       "/org_golang_google_protobuf/": "",
       "/com_github_magiconair_properties": "",
-      "/com_github_ghodss_yaml/":""
+      "/com_github_ghodss_yaml/": "",
+      "/com_github_lestrrat_go_iter/mapiter/": "",
+      "/com_github_lestrrat_go_iter/arrayiter/": ""
     }
   },
   "unsafeptr": {

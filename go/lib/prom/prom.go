@@ -64,6 +64,8 @@ const (
 	ErrVerify = "err_verify"
 	// ErrNetwork is used for errors when sending something over the network.
 	ErrNetwork = "err_network"
+	// ErrNotFound is used for errors where a resource is not found.
+	ErrNotFound = "err_not_found"
 )
 
 // FIXME(roosd): remove when moving messenger to new metrics style.

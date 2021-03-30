@@ -189,7 +189,8 @@ class DockerGenerator(object):
             'user': self.user,
             'volumes': [],
         }
-        keys = list(topo.get("border_routers", {})) + list(topo.get("control_service", {}))
+        keys = (list(topo.get("border_routers", {})) + list(topo.get("control_service", {})) +
+                ["tester_%s" % topo_id.file_fmt()])
         for disp_id in keys:
             entry = copy.deepcopy(base_entry)
             net_key = disp_id

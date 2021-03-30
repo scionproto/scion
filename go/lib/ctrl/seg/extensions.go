@@ -15,6 +15,7 @@
 package seg
 
 import (
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/digest"
 	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
@@ -22,6 +23,7 @@ import (
 type Extensions struct {
 	HiddenPath HiddenPathExtension
 	StaticInfo *staticinfo.Extension
+	Digests    *digest.Extension
 }
 
 func extensionsFromPB(pb *cppb.PathSegmentExtensions) Extensions {
@@ -33,9 +35,11 @@ func extensionsFromPB(pb *cppb.PathSegmentExtensions) Extensions {
 		IsHidden: pb.HiddenPath != nil && pb.HiddenPath.IsHidden,
 	}
 	staticInfo := staticinfo.FromPB(pb.StaticInfo)
+	digest := digest.ExtensionFromPB(pb.Digests)
 	return Extensions{
 		HiddenPath: hiddenPath,
 		StaticInfo: staticInfo,
+		Digests:    digest,
 	}
 }
 
@@ -45,11 +49,13 @@ func extensionsToPB(ext Extensions) *cppb.PathSegmentExtensions {
 		hiddenPath = &cppb.HiddenPathExtension{IsHidden: true}
 	}
 	staticInfo := staticinfo.ToPB(ext.StaticInfo)
+	digest := digest.ExtensionToPB(ext.Digests)
 
-	if hiddenPath != nil || staticInfo != nil {
+	if hiddenPath != nil || staticInfo != nil || digest != nil {
 		return &cppb.PathSegmentExtensions{
 			HiddenPath: hiddenPath,
 			StaticInfo: staticInfo,
+			Digests:    digest,
 		}
 	}
 	return nil

@@ -119,6 +119,8 @@ message ASEntry {
     //                           ps.as_entries[i-1].signed.signature
     //
     proto.crypto.v1.SignedMessage signed = 1;
+    // The unsigned part of the AS entry.
+    proto.control_plane.v1.PathSegmentUnsignedExtensions unsigned = 2;
 }
 
 message ASEntrySignedBody {

@@ -12,6 +12,7 @@ proto_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
+        "//proto/control_plane/experimental/v1:experimental",
         "//proto/crypto/v1:crypto",
         "@com_google_protobuf//:timestamp_proto",
     ],

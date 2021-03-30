@@ -18,11 +18,16 @@ option go_package = "github.com/scionproto/scion/go/pkg/proto/control_plane";
 
 package proto.control_plane.v1;
 
+import "proto/control_plane/experimental/v1/seg_detached_extensions.proto";
+
 message PathSegmentExtensions {
     // Optional static info extension.
     StaticInfoExtension static_info = 1;
     // Optional hidden path extension.
     HiddenPathExtension hidden_path = 2;
+
+    // Optional digests of detached extensions.
+    DigestExtension digests = 1000;
 }
 
 message HiddenPathExtension {
@@ -117,4 +122,32 @@ enum LinkType {
     LINK_TYPE_MULTI_HOP = 2;
     // Connection overlayed over publicly routed Internet.
     LINK_TYPE_OPEN_NET = 3;
+}
+
+message DigestExtension {
+    message Digest {
+        // Raw digest of the metadata.
+        bytes digest = 1;
+    }
+
+    // The digest of the detached EPIC extension. The hash input is defined as follows:
+    //
+    // input = totalLen ||
+    //         epic.Detached.AuthHopEntry ||
+    //         epic.Detached.AuthPeerEntries[0] ||
+    //         epic.Detached.AuthPeerEntries[1] ||
+    //         ...
+    //         epic.Detached.AuthPeerEntries[n-1]
+    //
+    // Here, 'n' denotes the number of peer entries.
+    //
+    // 'totalLen' is equal to (n+1), and therefore encodes the
+    // total number of authenticators used in the hash.
+    //
+    Digest epic = 1000;
+}
+
+message PathSegmentUnsignedExtensions {
+    // Optional EPIC extension.
+    proto.control_plane.experimental.v1.EPICDetachedExtension epic = 1000;
 }

@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net"
 	"os"
 	"sort"
 	"strconv"
@@ -32,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/pkg/pathprobe"
 )
 
@@ -116,18 +116,10 @@ func filterUnhealthy(
 	}
 	subCtx, cancelF := context.WithTimeout(ctx, 2*time.Second)
 	defer cancelF()
-	// We need a source address to be used with the prober. XXX(shitz): This is actually not correct
-	// in cases the prober needs to reach different routers via different underlay networks. The
-	// prober needs to be fixed to resolve a local address per path instead of fixing a single one.
-	// Tracking issue: https://github.com/Anapaya/scion/issues/5679
-	localIP, err := addrutil.DefaultLocalIP(ctx, sd)
-	if err != nil {
-		return nil, serrors.WrapStr("resolving default address", err)
-	}
 	statuses, err := pathprobe.Prober{
 		DstIA:   remote,
 		LocalIA: cfg.LocalIA,
-		LocalIP: localIP,
+		LocalIP: cfg.LocalIP,
 		ID:      uint16(rand.Uint32()),
 	}.GetStatuses(subCtx, nonEmptyPaths)
 	if err != nil {
@@ -289,6 +281,7 @@ func (cs ColorScheme) Path(path snet.Path) string {
 
 type ProbeConfig struct {
 	LocalIA addr.IA
+	LocalIP net.IP
 }
 
 type options struct {

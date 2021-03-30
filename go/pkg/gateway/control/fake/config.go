@@ -15,6 +15,7 @@
 package fake
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -162,9 +163,10 @@ type rawPathInterface struct {
 }
 
 type rawPath struct {
-	Interfaces []rawPathInterface  `json:"interfaces"`
-	NextHop    *fakedaemon.UDPAddr `json:"next_hop"`
-	MTU        uint16              `json:"mtu"`
+	Interfaces     []rawPathInterface  `json:"interfaces"`
+	NextHop        *fakedaemon.UDPAddr `json:"next_hop"`
+	MTU            uint16              `json:"mtu"`
+	ForwardingPath string              `json:"forwarding_path"`
 }
 
 type rawSession struct {
@@ -214,15 +216,27 @@ func parsePath(rawPath rawPath, creationTime time.Time) (snet.Path, error) {
 			IA: iface.IsdAs,
 		})
 	}
+
 	// for the first and last AS we only have one entry in the interface list
 	// for all others ASes we have 2 entries so we can calculate the number of
 	// hops by the following formula:
 	hopfields := (len(ifaces) + 2) / 2
+	var fwPath []byte
+	if rawPath.ForwardingPath == "" {
+		// empty SCION path with correct length:
+		fwPath = make([]byte, scion.MetaLen+path.InfoLen+path.HopLen*hopfields)
+	} else {
+		var err error
+		fwPath, err = base64.StdEncoding.DecodeString(rawPath.ForwardingPath)
+		if err != nil {
+			return nil, serrors.WrapStr("decoding base64 of forwarding path", err)
+		}
+	}
+
 	p := snetpath.Path{
 		Dst: ifaces[len(ifaces)-1].IA,
-		// empty SCION path with correct length:
 		SPath: spath.Path{
-			Raw:  make([]byte, scion.MetaLen+path.InfoLen+path.HopLen*hopfields),
+			Raw:  fwPath,
 			Type: scion.PathType,
 		},
 		NextHop: (*net.UDPAddr)(rawPath.NextHop),

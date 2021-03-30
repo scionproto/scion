@@ -34,7 +34,8 @@
                         }
                     ],
                     "next_hop": "242.254.100.3:5000",
-                    "mtu": 1280
+                    "mtu": 1280,
+                    "forwarding_path": "AAAgAAEACtlgV19tAD8AAAABNpjBRmNuAD8AAQAAy+Rg5GX4"
                 }
             ]
         }

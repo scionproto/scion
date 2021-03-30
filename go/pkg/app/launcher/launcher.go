@@ -25,6 +25,7 @@ import (
 	"syscall"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -177,6 +178,7 @@ func (a *Application) executeCommand(shortName string) error {
 	defer env.LogAppStopped(shortName, a.config.GetString(cfgGeneralID))
 	defer log.HandlePanic()
 
+	exportBuildInfo()
 	prom.ExportElementID(a.config.GetString(cfgGeneralID))
 	if err := a.TOMLConfig.Validate(); err != nil {
 		return serrors.WrapStr("validate config", err)
@@ -246,4 +248,15 @@ func newCommandTemplate(executable string, shortName string, config config.Sampl
 	cmd.Flags().String(cfgConfigFile, "", "Configuration file (required)")
 	cmd.MarkFlagRequired(cfgConfigFile)
 	return cmd
+}
+
+func exportBuildInfo() {
+	g := promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "scion_build_info",
+			Help: "SCION build information",
+		},
+		[]string{"version"},
+	)
+	g.WithLabelValues(env.StartupVersion).Set(1)
 }

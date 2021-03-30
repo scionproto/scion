@@ -43,6 +43,8 @@ type ASEntry struct {
 	MTU int
 	// Extensions holds all the beaconing extensions.
 	Extensions Extensions
+	// UnsignedExtensions holds all the unsigned beaconing extensions.
+	UnsignedExtensions UnsignedExtensions
 }
 
 // ASEntryFromPB creates an AS entry from the protobuf representation.
@@ -85,14 +87,16 @@ func ASEntryFromPB(pb *cppb.ASEntry) (ASEntry, error) {
 	}
 
 	extensions := extensionsFromPB(entry.Extensions)
+	unsignedExtensions := UnsignedExtensionsFromPB(pb.Unsigned)
 
 	return ASEntry{
-		HopEntry:    hopEntry,
-		PeerEntries: peerEntries,
-		Local:       addr.IAInt(entry.IsdAs).IA(),
-		Next:        addr.IAInt(entry.NextIsdAs).IA(), // Can contain wildcard.
-		MTU:         int(entry.Mtu),
-		Extensions:  extensions,
-		Signed:      pb.Signed,
+		HopEntry:           hopEntry,
+		PeerEntries:        peerEntries,
+		Local:              addr.IAInt(entry.IsdAs).IA(),
+		Next:               addr.IAInt(entry.NextIsdAs).IA(), // Can contain wildcard.
+		MTU:                int(entry.Mtu),
+		Extensions:         extensions,
+		Signed:             pb.Signed,
+		UnsignedExtensions: unsignedExtensions,
 	}, nil
 }

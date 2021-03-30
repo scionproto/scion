@@ -11,6 +11,7 @@ go_library(
         "//go/lib/serrors:go_default_library",
         "//go/lib/slayers/path/scion:go_default_library",
         "//go/lib/snet:go_default_library",
+        "//go/lib/snet/addrutil:go_default_library",
         "//go/lib/sock/reliable:go_default_library",
         "//go/lib/spath:go_default_library",
     ],

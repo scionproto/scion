@@ -74,10 +74,18 @@ func (v Verifier) Verify(ctx context.Context, signedMsg *cryptopb.SignedMessage,
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
 		return nil, serrors.WrapStr("parsing verification key ID", err)
 	}
+	if len(keyID.SubjectKeyId) == 0 {
+		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
+		return nil, serrors.WrapStr("subject key ID must be set", err)
+	}
 	ia := addr.IAInt(keyID.IsdAs).IA()
 	if !v.BoundIA.IsZero() && !v.BoundIA.Equal(ia) {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
 		return nil, serrors.New("does not match bound ISD-AS", "expected", v.BoundIA, "actual", ia)
+	}
+	if ia.IsWildcard() {
+		metrics.Verifier.Verify(l.WithResult(metrics.ErrValidate)).Inc()
+		return nil, serrors.New("ISD-AS must not contain wildcard", "isd_as", ia)
 	}
 	if v.Engine == nil {
 		metrics.Verifier.Verify(l.WithResult(metrics.ErrInternal)).Inc()

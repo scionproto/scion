@@ -61,6 +61,9 @@ type Metrics struct {
 	BeaconingRegisteredTotal               *prometheus.CounterVec
 	BeaconingRegistrarInternalErrorsTotal  *prometheus.CounterVec
 	DiscoveryRequestsTotal                 *prometheus.CounterVec
+	RenewalServerRequestsTotal             *prometheus.CounterVec
+	RenewalCMSHandlerRequestsTotal         *prometheus.CounterVec
+	RenewalLegacyHandlerRequestsTotal      *prometheus.CounterVec
 	SegmentLookupRequestsTotal             *prometheus.CounterVec
 	SegmentLookupSegmentsSentTotal         *prometheus.CounterVec
 	SegmentRegistrationsTotal              *prometheus.CounterVec
@@ -128,6 +131,28 @@ func NewMetrics() *Metrics {
 			},
 			[]string{"dst_isd", "seg_type", prom.LabelResult},
 		),
+		RenewalServerRequestsTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "renewal_received_requests_total",
+				Help: "Total number of renewal requests served.",
+			},
+			[]string{prom.LabelResult},
+		),
+		RenewalCMSHandlerRequestsTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "renewal_cms_handler_requests_total",
+				Help: "Total number of renewal requests served by the in-process CMS handler.",
+			},
+			[]string{prom.LabelResult},
+		),
+		RenewalLegacyHandlerRequestsTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "renewal_legacy_handler_requests_total",
+				Help: "Total number of renewal requests served by the legacy handler.",
+			},
+			[]string{prom.LabelResult},
+		),
+
 		SegmentLookupSegmentsSentTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "control_segment_lookup_segments_sent_total",
