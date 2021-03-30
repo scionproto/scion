@@ -15,6 +15,7 @@
 package trcs
 
 import (
+	"encoding/pem"
 	"io/ioutil"
 
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
@@ -25,6 +26,10 @@ func DecodeFromFile(name string) (cppki.SignedTRC, error) {
 	raw, err := ioutil.ReadFile(name)
 	if err != nil {
 		return cppki.SignedTRC{}, err
+	}
+	block, _ := pem.Decode(raw)
+	if block != nil && block.Type == "TRC" {
+		raw = block.Bytes
 	}
 	return cppki.DecodeSignedTRC(raw)
 }

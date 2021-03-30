@@ -16,6 +16,7 @@ package trust
 
 import (
 	"context"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -127,6 +128,10 @@ func LoadTRCs(ctx context.Context, dir string, db DB) (LoadResult, error) {
 		raw, err := ioutil.ReadFile(f)
 		if err != nil {
 			return res, serrors.WithCtx(err, "file", f)
+		}
+		block, _ := pem.Decode(raw)
+		if block != nil && block.Type == "TRC" {
+			raw = block.Bytes
 		}
 		trc, err := cppki.DecodeSignedTRC(raw)
 		if err != nil {

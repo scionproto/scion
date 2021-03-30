@@ -399,7 +399,7 @@ func createTRCs(cfg config) error {
 		}
 
 		err = trcs.RunCombine(partFiles, pldName,
-			filepath.Join(trcDir(isd, cfg.out), fmt.Sprintf("ISD%d-B1-S1.trc", isd)))
+			filepath.Join(trcDir(isd, cfg.out), fmt.Sprintf("ISD%d-B1-S1.trc", isd)), "")
 		if err != nil {
 			return serrors.WrapStr("failed to combine TRCs", err, "isd", isd)
 		}

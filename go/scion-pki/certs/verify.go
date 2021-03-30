@@ -15,6 +15,7 @@
 package certs
 
 import (
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"time"
@@ -78,6 +79,10 @@ certificate second.
 
 func loadTRC(trcFile string) (cppki.SignedTRC, error) {
 	raw, err := ioutil.ReadFile(trcFile)
+	block, _ := pem.Decode(raw)
+	if block != nil && block.Type == "TRC" {
+		raw = block.Bytes
+	}
 	if err != nil {
 		return cppki.SignedTRC{}, serrors.WrapStr("reading TRC", err, "file", trcFile)
 	}
