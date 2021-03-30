@@ -76,7 +76,7 @@ In this section, we analyze the various discovery mechanisms supported
 by the bootstrapper.
 For clarity's sake, we suppose the following setting:
 
-- the end host is located in the ``ethz.ch`` domain, and
+- the end host is located in the ``example.com`` domain, and
 - the IP address of the discovery server serving the bootstrapping files can
   be reached at ``192.168.1.1``.
 
@@ -84,12 +84,42 @@ DHCP
 ^^^^
 
 The DHCP mechanism requires a DHCP server present in the network.
+
 The DHCP server has to be configured to announce the addresses of the discovery services
 in the option field with ID 72 ”Default WWW server”, in our example ``192.168.1.1``.
 We chose this existing option to ease rapid development without going through a formal standardization
 at IETF and because we use the same application-level protocol as used in the WWW, namely HTTP.
 
 This mechanism is a simple one for small networks, covering scenarios such as household networks.
+The drawback is that only an IP address can be announced via this mechanisms and hence a default port needs to be used.
+
+A more advanced solution is to use a DHCP Vendor-Identifying Vendor Option as defined in [RFC3925]_.
+The enterprise number used to identify the option is the Private Enterprise Number
+assigned to Anapaya Systems, PEN 55324.
+The option has the following format::
+
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |  option-code  |  option-len   |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |      enterprise-number1       |
+    |                               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |   data-len1   |               |
+    +-+-+-+-+-+-+-+-+               |
+    /      vendor-class-data1       /
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+The IP address and the port of the discovery server are encoded as a sequence of code/length/value fields
+as defined in RFC2132 section 2 "DHCP Option Field Format".
+An IPv4 address is encoded as a 4 byte sequence with type code 1.
+A UDP port is encoded as a 2 byte sequence with type code 2.
+The option fields have the following general format::
+
+     Code   Len   Vendor-specific information
+    +-----+-----+-----+-----+---     ---+-----+
+    |  tc |  n  |  i1 |  i2 | ...   ... |   in|
+    +-----+-----+-----+-----+---     ---+-----+
 
 DNS
 ^^^
@@ -102,25 +132,25 @@ Some minimal setups are listed below:
 
 As specified in [RFC2782]_, a DNS SRV record redirects to an ``A`` record pointing to the discovery server:
 
-- ``_sciondiscovery._tcp.ethz.ch IN SRV 8041 sciondiscovery.ethz.ch``
-- ``sciondiscovery.ethz.ch IN A 192.168.1.1``
+- ``_sciondiscovery._tcp.example.com IN SRV 8041 sciondiscovery.example.com``
+- ``sciondiscovery.example.com IN A 192.168.1.1``
 
 *DNS-SD*
 
 As specified in [RFC6763]_, a list of DNS PTR records points to SRV records,
 each of which defines an instance of a SCION discovery service:
 
-- ``_sciondiscovery._tcp.ethz.ch IN PTR SCI-ED._sciondiscovery._tcp.ethz.ch``
-- ``SCI-ED._sciondiscovery._tcp.ethz.ch IN SRV 8041 scied-sciondiscovery.ethz.ch``
-- ``scied-sciondiscovery.ethz.ch IN A 192.168.1.1``
+- ``_sciondiscovery._tcp.example.com IN PTR SCI-ED._sciondiscovery._tcp.example.com``
+- ``SCI-ED._sciondiscovery._tcp.example.com IN SRV 8041 scied-sciondiscovery.example.com``
+- ``scied-sciondiscovery.example.com IN A 192.168.1.1``
 
 *DNS-NAPTR*
 
 In this variant, a DNS NAPTR record redirects to an ``A`` record pointing to the
 discovery server:
 
-- ``ethz.ch IN NAPTR "A" "x-sciondiscovery:tcp" "" sciondiscovery.ethz.ch``
-- ``sciondiscovery.ethz.ch IN A 192.168.1.1``
+- ``example.com IN NAPTR "A" "x-sciondiscovery:tcp" "" sciondiscovery.example.com``
+- ``sciondiscovery.example.com IN A 192.168.1.1``
 
 Like the DNS-SD option, multiple NAPTR records for different discovery services
 can be defined.
@@ -182,7 +212,7 @@ For this, a signing solution based on the cryptographic keys of an AS should be 
 
 The bootstrapper has a config option to allow it to download the TRC from the
 local AS infrastructure.
-Only this inital TRC retrieval is allowed to be unauthenticated, under the
+Only this initial TRC retrieval is allowed to be unauthenticated, under the
 Trust on first use (TOFU) principle, and subsequent requests must be
 authenticated and the user warned if the there is a conflict with an existing
 TRC.
@@ -197,7 +227,7 @@ Request for Comments
 2. The DNS discovery mechanisms use the name server and DNS search domain
    values provided by the host OS. This covers the case where a static network
    configuration is used and no DHCP server is available on the local network.
-   When DHCP discovery is enabled those values can additional be retrived over
+   When DHCP discovery is enabled those values can additional be retrieved over
    DHCP, covering the case where the host uses name servers and DNS search
    domains not specific to the local network, like the public recursive name
    servers ``1.1.1.1`` or ``9.9.9.9`` and search domain ``.local``.
@@ -207,5 +237,6 @@ References
 
 .. [RFC2782] https://tools.ietf.org/html/rfc2782
 .. [RFC6763] https://tools.ietf.org/html/rfc6763
+.. [RFC3925] https://tools.ietf.org/html/rfc3925
 
 
