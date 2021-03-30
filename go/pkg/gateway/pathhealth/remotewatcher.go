@@ -218,7 +218,7 @@ func (w *DefaultRemoteWatcher) Cleanup() {
 	defer w.pathWatcherMtx.Unlock()
 
 	for fingerprint, pm := range w.pathWatchers {
-		if pm.usedRecently() {
+		if !pm.State().IsExpired && pm.usedRecently() {
 			continue
 		}
 		pm.Close()

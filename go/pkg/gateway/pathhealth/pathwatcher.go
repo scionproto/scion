@@ -113,6 +113,13 @@ func (pw *DefaultPathWatcher) Path() snet.Path {
 
 // State returns the state of the monitored path.
 func (pw *DefaultPathWatcher) State() State {
+	now := time.Now()
+	meta := pw.path.Metadata()
+	if meta != nil && meta.Expiry.Before(now) {
+		return State{
+			IsExpired: true,
+		}
+	}
 	return State{
 		IsAlive: pw.pathState.active(),
 	}
@@ -127,6 +134,10 @@ func (pw *DefaultPathWatcher) createProbepacket(localAddr snet.SCIONAddress) (*s
 	p := pw.Path()
 	if p == nil || p.Path().IsEmpty() {
 		return nil, serrors.New("empty path")
+	}
+	meta := p.Metadata()
+	if meta != nil && meta.Expiry.Before(time.Now()) {
+		return nil, serrors.New("expired path", "expiration", meta.Expiry)
 	}
 	sp := p.Path()
 	decodedPath := scion.Decoded{}
