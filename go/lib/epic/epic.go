@@ -22,6 +22,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path/epic"
@@ -31,31 +32,28 @@ const (
 	// AuthLen denotes the size of the authenticator in bytes
 	AuthLen = 16
 	// MaxPacketLifetime denotes the maximal lifetime of a packet in microseconds
-	MaxPacketLifetime uint32 = 2000000
+	MaxPacketLifetime time.Duration = 2 * time.Second
 	// MaxClockSkew denotes the maximal clock skew in microseconds
-	MaxClockSkew uint32 = 1000000
+	MaxClockSkew time.Duration = time.Second
 )
 
-// CreateTimestamp returns tsRel, which encodes the current time (nowNanoseconds)
-// relative to the input timestamp. The input timestamp must be specified in seconds since Unix
-// time. The current time (nowNanoseconds) must be specified in nanoseconds since Unix time.
-// The input timestamp must not be in the future (compared to the current time), otherwise an error
-// is returned. The current time  must be at most 1 day and 63 minutes after the input timestamp,
-// otherwise an error is returned.
-func CreateTimestamp(input uint32, nowNanoseconds int64) (uint32, error) {
-	tsMicro := uint64(input) * 1000000
-	nowMicro := uint64(nowNanoseconds / 1000)
-	if nowMicro < tsMicro {
+// CreateTimestamp returns tsRel, which encodes the current time (now) relative to the input
+// timestamp. The input timestamp must not be in the future (compared to the current time),
+// otherwise an error is returned. An error is also returned if the current time is more than 1 day
+// and 63 minutes after the input timestamp.
+func CreateTimestamp(input time.Time, now time.Time) (uint32, error) {
+	if input.After(now) {
 		return 0, serrors.New("provided input timestamp is in the future",
-			"input timestamp", tsMicro, "now", nowMicro)
+			"input", input, "now", now)
 	}
-	diff := nowMicro - tsMicro
-
-	// Current time must be at most 1 day and 63 minutes after the timestamp
-	tsRel := max(0, (diff/21)-1)
+	diff := now.Sub(input).Microseconds()
+	tsRel := diff/21 - 1
+	if tsRel < 0 {
+		tsRel = 0
+	}
 	if tsRel >= (1 << 32) {
 		return 0, serrors.New("diff between input and now >1d63min",
-			"diff", time.Duration(diff*1000).String())
+			"diff", diff)
 	}
 	return uint32(tsRel), nil
 }
@@ -65,24 +63,19 @@ func CreateTimestamp(input uint32, nowNanoseconds int64) (uint32, error) {
 // does not date back more than the maximal packet lifetime of two seconds. The function also takes
 // a possible clock drift between the packet source and the verifier of up to one second into
 // account.
-func VerifyTimestamp(timestamp uint32, packetTimestamp uint32, nowNanoseconds int64) error {
-	// Get unix time in microseconds when the packet was timestamped by the sender
-	tsInfoMicro := uint64(timestamp) * 1000000
-	tsSenderMicro := tsInfoMicro + ((uint64(packetTimestamp) + 1) * 21)
+func VerifyTimestamp(timestamp time.Time, packetTimestamp uint32, now time.Time) error {
+	diff := (time.Duration(packetTimestamp) + 1) * 21 * time.Microsecond
+	tsSender := timestamp.Add(diff)
 
-	// Current unix time in microseconds
-	nowMicro := uint64(nowNanoseconds / 1000)
-
-	// Verification
-	if nowMicro < tsSenderMicro-uint64(MaxClockSkew) {
-		delta := tsSenderMicro - uint64(MaxClockSkew) - nowMicro
+	if tsSender.After(now.Add(MaxClockSkew)) {
+		delta := tsSender.Sub(now.Add(MaxClockSkew))
 		return serrors.New("epic packet timestamp is in the future",
-			"delta", time.Duration(delta).String())
+			"delta", delta)
 	}
-	if nowMicro > tsSenderMicro+uint64(MaxPacketLifetime)+uint64(MaxClockSkew) {
-		delta := nowMicro - tsSenderMicro - uint64(MaxPacketLifetime) - uint64(MaxClockSkew)
+	if now.After(tsSender.Add(MaxPacketLifetime).Add(MaxClockSkew)) {
+		delta := now.Sub(tsSender.Add(MaxPacketLifetime).Add(MaxClockSkew))
 		return serrors.New("epic packet timestamp expired",
-			"delta", time.Duration(delta).String())
+			"delta", delta)
 	}
 	return nil
 }
@@ -90,7 +83,7 @@ func VerifyTimestamp(timestamp uint32, packetTimestamp uint32, nowNanoseconds in
 // CalcMac derives the EPIC MAC (PHVF/LHVF) given the full 16 bytes of the SCION path type
 // MAC (auth), the EPIC packet ID (pktID), the timestamp in the Info Field (timestamp),
 // and the SCION common/address header (s).
-func CalcMac(auth []byte, pktID *epic.PktID, s *slayers.SCION,
+func CalcMac(auth []byte, pktID epic.PktID, s *slayers.SCION,
 	timestamp uint32) ([]byte, error) {
 
 	// Initialize cryptographic MAC function
@@ -114,10 +107,10 @@ func CalcMac(auth []byte, pktID *epic.PktID, s *slayers.SCION,
 // bytes of the SCION path type MAC, has invalid length, or if the MAC calculation gives an error,
 // also VerifyHVF returns an error. The verification was successful if and only if VerifyHVF
 // returns nil.
-func VerifyHVF(auth []byte, pktID *epic.PktID, s *slayers.SCION,
+func VerifyHVF(auth []byte, pktID epic.PktID, s *slayers.SCION,
 	timestamp uint32, hvf []byte) error {
 
-	if pktID == nil || s == nil || len(auth) != AuthLen {
+	if s == nil || len(auth) != AuthLen {
 		return serrors.New("invalid input")
 	}
 
@@ -133,6 +126,20 @@ func VerifyHVF(auth []byte, pktID *epic.PktID, s *slayers.SCION,
 	return nil
 }
 
+// PktCounterFromCore creates a counter for the packet identifier
+// based on the core ID and the core counter.
+func PktCounterFromCore(coreID uint8, coreCounter uint32) uint32 {
+	return (uint32(coreID) << 24) | (coreCounter & 0x00FFFFFF)
+}
+
+// CoreFromPktCounter reads the core ID and the core counter
+// from a counter belonging to a packet identifier.
+func CoreFromPktCounter(counter uint32) (uint8, uint32) {
+	coreID := uint8(counter >> 24)
+	coreCounter := counter & 0x00FFFFFF
+	return coreID, coreCounter
+}
+
 func initEpicMac(key []byte) (cipher.BlockMode, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -146,7 +153,7 @@ func initEpicMac(key []byte) (cipher.BlockMode, error) {
 	return mode, nil
 }
 
-func prepareMacInput(pktID *epic.PktID, s *slayers.SCION, timestamp uint32) ([]byte, error) {
+func prepareMacInput(pktID epic.PktID, s *slayers.SCION, timestamp uint32) ([]byte, error) {
 	//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	//   | flags (1B) | timestamp (4B) |    packet ID (8B)     |
 	//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -156,9 +163,6 @@ func prepareMacInput(pktID *epic.PktID, s *slayers.SCION, timestamp uint32) ([]b
 	//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	// The "flags" field only encodes the length of the source address.
 
-	if pktID == nil {
-		return nil, serrors.New("pktID must not be nil")
-	}
 	if s == nil {
 		return nil, serrors.New("SCION common+address header must not be nil")
 	}
@@ -177,13 +181,19 @@ func prepareMacInput(pktID *epic.PktID, s *slayers.SCION, timestamp uint32) ([]b
 	input := make([]byte, 16*nrBlocks)
 
 	// Fill input
+	offset := 0
 	input[0] = srcAddrLen
-	binary.BigEndian.PutUint32(input[1:5], timestamp)
-	pktID.SerializeTo(input[5:13])
-	binary.BigEndian.PutUint64(input[13:21], uint64(s.SrcIA.A))
-	binary.BigEndian.PutUint16(input[13:15], uint16(s.SrcIA.I))
-	copy(input[21:(21+l)], srcAddr[:l])
-	binary.BigEndian.PutUint16(input[(21+l):(23+l)], s.PayloadLen)
+	offset += 1
+	binary.BigEndian.PutUint32(input[offset:], timestamp)
+	offset += 4
+	pktID.SerializeTo(input[offset:])
+	offset += epic.PktIDLen
+	s.SrcIA.Write(input[offset:])
+	offset += addr.IABytes
+	copy(input[offset:], srcAddr[:l])
+	offset += l
+	binary.BigEndian.PutUint16(input[offset:], s.PayloadLen)
+
 	return input, nil
 }
 
