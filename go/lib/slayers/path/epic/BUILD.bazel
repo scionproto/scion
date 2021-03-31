@@ -17,6 +17,7 @@ go_test(
     srcs = ["epic_test.go"],
     embed = [":go_default_library"],
     deps = [
+        "//go/lib/epic:go_default_library",
         "//go/lib/slayers/path/scion:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
     ],

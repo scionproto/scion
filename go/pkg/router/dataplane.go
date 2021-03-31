@@ -692,13 +692,6 @@ func (d *DataPlane) processEPIC(ingressID uint16, rawPkt []byte, s slayers.SCION
 		return processResult{}, err
 	}
 
-	timestamp := info.Timestamp
-	packetTimestamp := path.PktID.Timestamp
-	now := time.Now().UnixNano()
-	if err = libepic.VerifyTimestamp(timestamp, packetTimestamp, now); err != nil {
-		return processResult{}, err
-	}
-
 	p := scionPacketProcessor{
 		d:          d,
 		ingressID:  ingressID,
@@ -713,13 +706,22 @@ func (d *DataPlane) processEPIC(ingressID uint16, rawPkt []byte, s slayers.SCION
 		return processResult{}, err
 	}
 
-	if scionPath.IsPenultimateHop() {
-		if err = libepic.VerifyHVF(p.cachedMac, &path.PktID, &s, timestamp, path.PHVF); err != nil {
+	isPenultimate := scionPath.IsPenultimateHop()
+	isLast := scionPath.IsLastHop()
+
+	if isPenultimate || isLast {
+		timestamp := time.Unix(int64(info.Timestamp), 0)
+		packetTimestamp := path.PktID.Timestamp
+		now := time.Now()
+		if err = libepic.VerifyTimestamp(timestamp, packetTimestamp, now); err != nil {
 			return processResult{}, err
 		}
-	}
-	if scionPath.IsLastHop() {
-		if err = libepic.VerifyHVF(p.cachedMac, &path.PktID, &s, timestamp, path.LHVF); err != nil {
+
+		HVF := path.PHVF
+		if isLast {
+			HVF = path.LHVF
+		}
+		if err = libepic.VerifyHVF(p.cachedMac, path.PktID, &s, info.Timestamp, HVF); err != nil {
 			return processResult{}, err
 		}
 	}
@@ -1253,10 +1255,10 @@ func (d *DataPlane) processOHP(ingressID uint16, rawPkt []byte, s slayers.SCION,
 	// OHP leaving our IA
 	if d.localIA.Equal(s.SrcIA) {
 		mac := path.MAC(d.macFactory(), &p.Info, &p.FirstHop)
-		if !bytes.Equal(p.FirstHop.Mac[:6], mac) {
+		if !bytes.Equal(p.FirstHop.Mac[:path.MacLen], mac) {
 			// TODO parameter problem -> invalid MAC
 			return processResult{}, serrors.New("MAC", "expected", fmt.Sprintf("%x", mac),
-				"actual", fmt.Sprintf("%x", p.FirstHop.Mac[:6]), "type", "ohp")
+				"actual", fmt.Sprintf("%x", p.FirstHop.Mac[:path.MacLen]), "type", "ohp")
 		}
 		p.Info.UpdateSegID(p.FirstHop.Mac)
 

@@ -1117,13 +1117,12 @@ func TestProcessPkt(t *testing.T) {
 				if afterProcessing {
 					tsRel = cachedEpicTsRel
 				} else {
-					tsRel, _ = libepic.CreateTimestamp(timestamp, time.Now().UnixNano())
+					tsRel, _ = libepic.CreateTimestamp(time.Unix(int64(timestamp), 0), time.Now())
 					cachedEpicTsRel = tsRel
 				}
 				pktID := epic.PktID{
-					Timestamp:   tsRel,
-					CoreID:      1,
-					CoreCounter: 2,
+					Timestamp: tsRel,
+					Counter:   libepic.PktCounterFromCore(1, 2),
 				}
 
 				scionPath, err := dpath.ToRaw()
@@ -1141,7 +1140,7 @@ func TestProcessPkt(t *testing.T) {
 				authLast := computeFullMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
 
 				// Calculate PHVF and LHVF
-				macLast, err := libepic.CalcMac(authLast, &epicpath.PktID, spkt, timestamp)
+				macLast, err := libepic.CalcMac(authLast, epicpath.PktID, spkt, timestamp)
 				assert.NoError(t, err)
 				copy(epicpath.LHVF, macLast)
 

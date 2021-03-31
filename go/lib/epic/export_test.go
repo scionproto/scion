@@ -19,6 +19,6 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/epic"
 )
 
-func PrepareMacInput(pktID *epic.PktID, s *slayers.SCION, timestamp uint32) ([]byte, error) {
+func PrepareMacInput(pktID epic.PktID, s *slayers.SCION, timestamp uint32) ([]byte, error) {
 	return prepareMacInput(pktID, s, timestamp)
 }

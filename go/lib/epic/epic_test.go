@@ -57,7 +57,7 @@ func TestMacInputGeneration(t *testing.T) {
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-			got, err := libepic.PrepareMacInput(&e.PktID, tc.ScionHeader, ts)
+			got, err := libepic.PrepareMacInput(e.PktID, tc.ScionHeader, ts)
 
 			if tc.Valid {
 				assert.NoError(t, err)
@@ -70,39 +70,38 @@ func TestMacInputGeneration(t *testing.T) {
 }
 
 func TestTsRel(t *testing.T) {
-	now := uint32(time.Now().Unix())
-	nowNanoseconds := int64(int64(now) * 1000000000)
+	now := time.Now().Truncate(time.Second)
 
 	testCases := map[string]struct {
-		Timestamp uint32
+		Timestamp time.Time
 		Valid     bool
 		Expected  uint32
 	}{
 		"Timestamp way too far in the past": {
-			Timestamp: 0,
+			Timestamp: time.Unix(0, 0),
 			Valid:     false,
 		},
 		"Timestamp more than one day in the past": {
-			Timestamp: now - (30 * 60 * 60),
+			Timestamp: now.Add(-30 * 60 * 60 * time.Second),
 			Valid:     false,
 		},
 		"Timestamp one day in the past": {
-			Timestamp: now - (24 * 60 * 60),
+			Timestamp: now.Add(-24 * 60 * 60 * time.Second),
 			Valid:     true,
 			Expected:  4114285713,
 		},
 		"Timestamp one minute in the past": {
-			Timestamp: now - 60,
+			Timestamp: now.Add(-60 * time.Second),
 			Valid:     true,
 			Expected:  2857141,
 		},
 		"Timestamp one second in the past": {
-			Timestamp: now - 1,
+			Timestamp: now.Add(-1 * time.Second),
 			Valid:     true,
 			Expected:  47618,
 		},
 		"Timestamp is in the future": {
-			Timestamp: now + 5,
+			Timestamp: now.Add(5 * time.Second),
 			Valid:     false,
 		},
 	}
@@ -110,7 +109,7 @@ func TestTsRel(t *testing.T) {
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-			tsRel, err := libepic.CreateTimestamp(tc.Timestamp, nowNanoseconds)
+			tsRel, err := libepic.CreateTimestamp(tc.Timestamp, now)
 			if tc.Valid {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.Expected, tsRel)
@@ -124,22 +123,21 @@ func TestTsRel(t *testing.T) {
 
 func TestTimestampVerification(t *testing.T) {
 	// The current time
-	now := uint32(time.Now().Unix())
-	nowNanoseconds := int64(now) * 1000000000
+	now := time.Now().Truncate(time.Second)
 
 	// The Info Field was timestamped 1 minute ago
-	timeInfoCreation := now - 60
+	timeInfoCreation := now.Add(-time.Minute)
 
 	// Create tsRel that represents the current time. It will be modified in the tests in order to
 	// check different cases.
-	tsRel, err := libepic.CreateTimestamp(timeInfoCreation, nowNanoseconds)
+	tsRel, err := libepic.CreateTimestamp(timeInfoCreation, now)
 	assert.NoError(t, err)
 
 	// Abbreviate max. clock skew, abbreviate sum of max. clock skew and max. packet lifetime.
 	// Both are represented as the number of intervals they contain, where an interval is
 	// 21 microseconds long (which corresponds to the precision of the EPIC timestamp).
-	cs := libepic.MaxClockSkew / 21
-	csAndPl := (libepic.MaxClockSkew + libepic.MaxPacketLifetime) / 21
+	cs := uint32((libepic.MaxClockSkew / 21).Microseconds())
+	csAndPl := uint32(((libepic.MaxClockSkew + libepic.MaxPacketLifetime) / 21).Microseconds())
 
 	testCases := map[string]struct {
 		TsRel uint32
@@ -179,7 +177,7 @@ func TestTimestampVerification(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			// Verify the timestamp now
-			err := libepic.VerifyTimestamp(timeInfoCreation, tc.TsRel, nowNanoseconds)
+			err := libepic.VerifyTimestamp(timeInfoCreation, tc.TsRel, now)
 			if tc.Valid {
 				assert.NoError(t, err)
 			} else {
@@ -192,12 +190,12 @@ func TestTimestampVerification(t *testing.T) {
 func TestHVFVerification(t *testing.T) {
 	// Create packet
 	s := createScionCmnAddrHdr(0)
-	timestamp := uint32(time.Now().Unix()) - 60
-	tsRel, _ := libepic.CreateTimestamp(timestamp, time.Now().UnixNano())
+	now := time.Now().Truncate(time.Second)
+	timestamp := uint32(now.Add(-time.Minute).Unix())
+	tsRel, _ := libepic.CreateTimestamp(now.Add(-time.Minute), time.Now())
 	pktID := epic.PktID{
-		Timestamp:   tsRel,
-		CoreID:      1,
-		CoreCounter: 2,
+		Timestamp: tsRel,
+		Counter:   libepic.PktCounterFromCore(1, 2),
 	}
 
 	// Use random authenticators
@@ -205,9 +203,9 @@ func TestHVFVerification(t *testing.T) {
 	authLast := []byte("f5fcc4ce2250db36")
 
 	// Generate PHVF and LHVF
-	PHVF, err := libepic.CalcMac(authPenultimate, &pktID, s, timestamp)
+	PHVF, err := libepic.CalcMac(authPenultimate, pktID, s, timestamp)
 	assert.NoError(t, err)
-	LHVF, err := libepic.CalcMac(authLast, &pktID, s, timestamp)
+	LHVF, err := libepic.CalcMac(authLast, pktID, s, timestamp)
 	assert.NoError(t, err)
 
 	testCases := map[string]struct {
@@ -319,7 +317,7 @@ func TestHVFVerification(t *testing.T) {
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-			err = libepic.VerifyHVF(tc.Authenticator, &tc.PktID,
+			err = libepic.VerifyHVF(tc.Authenticator, tc.PktID,
 				tc.ScionHeader, tc.Timestamp, tc.HVF)
 
 			if tc.Valid {
@@ -344,9 +342,8 @@ func createScionCmnAddrHdr(srcAddrLen slayers.AddrLen) *slayers.SCION {
 
 func createEpicPath() *epic.Path {
 	pktID := epic.PktID{
-		Timestamp:   1,
-		CoreID:      2,
-		CoreCounter: 3,
+		Timestamp: 1,
+		Counter:   libepic.PktCounterFromCore(2, 3),
 	}
 	epicpath := &epic.Path{
 		PktID: pktID,

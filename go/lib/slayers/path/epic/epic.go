@@ -27,9 +27,9 @@ const (
 	// PathType denotes the EPIC path type identifier.
 	PathType path.Type = 3
 	// MetadataLen denotes the number of bytes the EPIC path type contains in addition to the SCION
-	// path type. It is the sum of the PacketTimestamp (8B), the PHVF (4B) and the LHVF (4B) sizes.
+	// path type. It is the sum of the PktID (8B), the PHVF (4B) and the LHVF (4B) sizes.
 	MetadataLen = 16
-	// PktIDLen denotes the length of the packet timestamp.
+	// PktIDLen denotes the length of the packet identifier.
 	PktIDLen = 8
 	// HVFLen denotes the length of the hop validation fields. The length is the same for both the
 	// PHVF and the LHVF.
@@ -58,9 +58,6 @@ type Path struct {
 // SerializeTo serializes the Path into buffer b. On failure, an error is returned, otherwise
 // SerializeTo will return nil.
 func (p *Path) SerializeTo(b []byte) error {
-	if p == nil {
-		return serrors.New("epic path must not be nil")
-	}
 	if len(b) < p.Len() {
 		return serrors.New("buffer too small to serialize path.", "expected", p.Len(),
 			"actual", len(b))
@@ -128,22 +125,18 @@ func (p *Path) Type() path.Type {
 
 // PktID denotes the EPIC packet ID.
 type PktID struct {
-	Timestamp   uint32
-	CoreID      uint8
-	CoreCounter uint32
+	Timestamp uint32
+	Counter   uint32
 }
 
 // DecodeFromBytes deserializes the buffer (raw) into the PktID.
 func (i *PktID) DecodeFromBytes(raw []byte) {
 	i.Timestamp = binary.BigEndian.Uint32(raw[:4])
-	coreInfo := binary.BigEndian.Uint32(raw[4:8])
-	i.CoreID = uint8(coreInfo >> 24)
-	i.CoreCounter = coreInfo & 0x00FFFFFF
+	i.Counter = binary.BigEndian.Uint32(raw[4:8])
 }
 
 // SerializeTo serializes the PktID into the buffer (b).
 func (i *PktID) SerializeTo(b []byte) {
 	binary.BigEndian.PutUint32(b[:4], i.Timestamp)
-	coreInfo := uint32(i.CoreID)<<24 | (i.CoreCounter & 0x00FFFFFF)
-	binary.BigEndian.PutUint32(b[4:8], coreInfo)
+	binary.BigEndian.PutUint32(b[4:8], i.Counter)
 }
