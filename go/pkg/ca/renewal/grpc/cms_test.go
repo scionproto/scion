@@ -16,12 +16,8 @@ package grpc_test
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"math/big"
 	"testing"
 	"time"
 
@@ -69,7 +65,7 @@ var (
 )
 
 func TestCMSHandleCMSRequest(t *testing.T) {
-	clientKey, chain := genChainCMS(t)
+	clientKey, chain := genChain(t)
 	signedReq, err := renewal.NewChainRenewalRequest(context.Background(), mockCSR.Raw,
 		trust.Signer{
 			PrivateKey: clientKey,
@@ -297,48 +293,4 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			}
 		})
 	}
-}
-
-func genChainCMS(t *testing.T) (*ecdsa.PrivateKey, []*x509.Certificate) {
-	t.Helper()
-	// Generate serial numbers for certs.
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serial1, err := rand.Int(rand.Reader, serialNumberLimit)
-	require.NoError(t, err)
-	serial2, err := rand.Int(rand.Reader, serialNumberLimit)
-	require.NoError(t, err)
-
-	// Generate CA key and cert (to the extent needed)
-	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	caCertTmpl := x509.Certificate{
-		Subject: pkix.Name{ExtraNames: []pkix.AttributeTypeAndValue{{
-			Type:  cppki.OIDNameIA,
-			Value: "1-ff00:0:110",
-		}}},
-		SerialNumber: serial1,
-	}
-	caCertRaw, err := x509.CreateCertificate(rand.Reader, &caCertTmpl, &caCertTmpl,
-		&caKey.PublicKey, caKey)
-	require.NoError(t, err)
-	caCert, err := x509.ParseCertificate(caCertRaw)
-	require.NoError(t, err)
-
-	// Generate client key and cert (to the extent needed)
-	clientKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	clientCertTmpl := x509.Certificate{
-		Subject: pkix.Name{ExtraNames: []pkix.AttributeTypeAndValue{{
-			Type:  cppki.OIDNameIA,
-			Value: "1-ff00:0:111",
-		}}},
-		SerialNumber: serial2,
-	}
-	clientCertRaw, err := x509.CreateCertificate(rand.Reader, &clientCertTmpl, caCert,
-		&clientKey.PublicKey, caKey)
-	require.NoError(t, err)
-	clientCert, err := x509.ParseCertificate(clientCertRaw)
-	require.NoError(t, err)
-
-	return clientKey, []*x509.Certificate{clientCert, caCert}
 }
