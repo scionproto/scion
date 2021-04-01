@@ -184,54 +184,9 @@ dpkg_list(
         "netbase",
         "openssl",
         "tzdata",
-        # Needed by sig acceptance
-        # ping and its dependencies
-        "iputils-ping",
+        # Needed to add network capabilities to apps.
         "libcap2",
         "libcap2-bin",
-        "libidn2-0",
-        "libunistring2",
-        "libnettle6",
-        # iproute2 and its dependencies
-        "iproute2",
-        "libelf1",
-        # for perf tests
-        "iperf",
-        # so that status pages can be downloaded
-        "wget",
-        #
-        "ethtool",
-        # iptables and its dependencies (only not already present)
-        "gcc-8-base",
-        "iptables",
-        "libip4tc0",
-        "libip6tc0",
-        "libiptc0",
-        "libnetfilter-conntrack3",
-        "libnfnetlink0",
-        "libnftnl11",
-        "libxtables12",
-        # telnet and its dependencies (only not already present)
-        "telnet",
-        # sysctl and dependencies
-        "procps",
-        "libgpm2",
-        "libncurses6",
-        "libprocps7",
-        "lsb-base",
-        "psmisc",
-        # needed by bbcp
-        "libssl1.1",
-        "openssh-server",
-        "openssh-client",
-        "libwrap0",
-        "libkrb5-3",
-        "libgssapi-krb5-2",
-        "libk5crypto3",
-        "libkrb5support0",
-        "libkeyutils1",
-        # needed for brctl
-        "bridge-utils",
     ],
     # From Distroless WORKSPACE:
     # Takes the first package found: security updates should go first

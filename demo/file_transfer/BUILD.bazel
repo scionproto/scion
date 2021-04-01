@@ -2,25 +2,11 @@ load("@io_bazel_rules_docker//container:container.bzl", "container_image")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("//acceptance/common:topogen.bzl", "topogen_test")
 
-pkg_tar(
-    name = "tc_setup",
-    srcs = ["tc_setup.sh"],
-    package_dir = "share",
-)
-
-container_image(
-    name = "tester",
-    base = "//docker:bbcp_tester",
-    cmd = "tail -f /dev/null",
-    tars = [":tc_setup"],
-)
-
 topogen_test(
     name = "file_transfer",
     src = "file_transfer.py",
     args = [],
     data = [],
     gateway = True,
-    tester = ":tester",
     topo = "topo.topo",
 )
