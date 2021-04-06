@@ -93,8 +93,12 @@ func CheckTestPSConfig(t *testing.T, cfg *PSConfig, id string) {
 	assert.Empty(t, cfg.HiddenPathsCfg)
 }
 
-func InitTestCA(cfg *CA) {}
+func InitTestCA(cfg *CA) {
+	cfg.DisableLegacyRequest = true
+}
 
 func CheckTestCA(t *testing.T, cfg *CA, id string) {
 	assert.Equal(t, DefaultMaxASValidity, cfg.MaxASValidity.Duration)
+	assert.Equal(t, cfg.DisableLegacyRequest, false)
+	assert.Equal(t, cfg.Mode, InProcess)
 }

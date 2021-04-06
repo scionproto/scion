@@ -73,8 +73,16 @@ func (s RenewalServer) ChainRenewal(ctx context.Context,
 	ctx = log.CtxWith(ctx, logger)
 
 	if req.CmsSignedRequest == nil {
+		if s.LegacyHandler == nil {
+			metrics.CounterInc(s.Metrics.BackendErrors)
+			return nil, status.Error(codes.Unimplemented, "legacy request not supported")
+		}
 		response, err := s.LegacyHandler.HandleLegacyRequest(ctx, req)
-		metrics.CounterInc(s.Metrics.BackendErrors)
+		if err != nil {
+			metrics.CounterInc(s.Metrics.BackendErrors)
+			return nil, err
+		}
+		metrics.CounterInc(s.Metrics.Success)
 		return response, err
 	}
 
