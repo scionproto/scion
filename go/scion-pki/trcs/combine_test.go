@@ -93,15 +93,32 @@ func TestCombine(t *testing.T) {
 		"./testdata/admin/geneva/ISD-B1-S1.regular.trc",
 	}
 
-	err := trcs.RunCombine(parts, "./testdata/admin/ISD-B1-S1.pld.der", out)
-	require.NoError(t, err)
-	written, err := trcs.DecodeFromFile(out)
-	require.NoError(t, err)
-	dec, err := trcs.DecodeFromFile(out)
-	require.NoError(t, err)
-	assert.Equal(t, dec, written)
+	testCases := map[string]struct {
+		pld    string
+		format string
+	}{
+		"der format": {
+			pld:    "./testdata/admin/ISD-B1-S1.pld.der",
+			format: "der",
+		},
+		"pem format": {
+			pld:    "./testdata/admin/ISD-B1-S1.pld.pem",
+			format: "pem",
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			err := trcs.RunCombine(parts, tc.pld, out, tc.format)
+			require.NoError(t, err)
+			written, err := trcs.DecodeFromFile(out)
+			require.NoError(t, err)
+			dec, err := trcs.DecodeFromFile(out)
+			require.NoError(t, err)
+			assert.Equal(t, dec, written)
 
-	assert.Len(t, written.SignerInfos, 6)
+			assert.Len(t, written.SignerInfos, 6)
+		})
+	}
 }
 
 func TestCombineSignerInfos(t *testing.T) {

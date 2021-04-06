@@ -1,8 +1,36 @@
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 load("@io_bazel_rules_docker//container:container.bzl", "container_bundle", "container_image")
 load("@packages_debian10//file:packages.bzl", "packages")
+load("@io_bazel_rules_docker//docker/package_managers:download_pkgs.bzl", "download_pkgs")
+load("@io_bazel_rules_docker//docker/package_managers:install_pkgs.bzl", "install_pkgs")
 
 def build_tester_image():
+    download_pkgs(
+        name = "tester_pkgs",
+        image_tar = "@debian10//image",
+        packages = [
+            "bridge-utils",
+            "curl",
+            "iperf",
+            "iptables",
+            "netcat-openbsd",
+            "openssh-server",
+            "openssh-client",
+            "procps",
+            "telnet",
+            "tshark",
+            "wget",
+        ],
+    )
+
+    install_pkgs(
+        name = "tester_pkgs_image",
+        image_tar = "@debian10//image",
+        installables_tar = ":tester_pkgs.tar",
+        installation_cleanup_commands = "rm -rf /var/lib/apt/lists/*",
+        output_image_name = "tester_pkgs_image",
+    )
+
     pkg_tar(
         name = "bin",
         srcs = [
@@ -31,45 +59,6 @@ def build_tester_image():
         package_dir = "share",
     )
 
-    container_image(
-        name = "tester",
-        base = "@debian10//image",
-        env = {
-            "TZ": "UTC",
-            "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/share/bin",
-        },
-        debs = [
-            # iptables and its dependencies (only not already present)
-            packages["gcc-8-base"],
-            packages["iptables"],
-            packages["libip4tc0"],
-            packages["libip6tc0"],
-            packages["libiptc0"],
-            packages["libnetfilter-conntrack3"],
-            packages["libnfnetlink0"],
-            packages["libnftnl11"],
-            packages["libxtables12"],
-            # telnet and its dependencies (only not already present)
-            packages["telnet"],
-            packages["netbase"],
-            # sysctl and dependencies
-            packages["procps"],
-            packages["libgpm2"],
-            packages["libncurses6"],
-            packages["libprocps7"],
-            packages["lsb-base"],
-            packages["psmisc"],
-            # iperf
-            packages["iperf"],
-        ],
-        tars = [
-            ":share",
-        ],
-        workdir = "/share",
-        cmd = "tail -f /dev/null",
-        visibility = ["//visibility:public"],
-    )
-
     pkg_tar(
         name = "bbcp_binary",
         srcs = ["@com_github_eeertekin_bbcp//:bbcp_binary"],
@@ -85,26 +74,18 @@ def build_tester_image():
     )
 
     container_image(
-        name = "bbcp_tester",
-        base = ":tester",
-        debs = [
-            # dependencies of bbcp
-            packages["openssh-server"],
-            packages["openssh-client"],
-            packages["libssl1.1"],
-            packages["libwrap0"],
-            packages["libkrb5-3"],
-            packages["libgssapi-krb5-2"],
-            packages["libk5crypto3"],
-            packages["libkrb5support0"],
-            packages["libkeyutils1"],
-            # dependecies of brctl
-            packages["bridge-utils"],
-        ],
+        name = "tester",
+        base = ":tester_pkgs_image.tar",
+        env = {
+            "TZ": "UTC",
+            "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/share/bin",
+        },
         tars = [
             ":bbcp_binary",
             ":bbcp_sources",
+            ":share",
         ],
+        workdir = "/share",
         cmd = "tail -f /dev/null",
         visibility = ["//visibility:public"],
     )

@@ -42,7 +42,8 @@ func newExtract(pather command.Pather) *cobra.Command {
 
 func newExtractPayload(pather command.Pather) *cobra.Command {
 	var flags struct {
-		out string
+		out    string
+		format string
 	}
 
 	cmd := &cobra.Command{
@@ -63,7 +64,14 @@ To inspect the created asn.1 file you can use the openssl tool:
 			if err != nil {
 				return serrors.WrapStr("failed to load signed TRC", err)
 			}
-			if err := ioutil.WriteFile(flags.out, signed.TRC.Raw, 0644); err != nil {
+			raw := signed.TRC.Raw
+			if flags.format == "pem" {
+				raw = pem.EncodeToMemory(&pem.Block{
+					Type:  "TRC Payload",
+					Bytes: raw,
+				})
+			}
+			if err := ioutil.WriteFile(flags.out, raw, 0644); err != nil {
 				return serrors.WrapStr("failed to write extracted payload", err)
 			}
 			fmt.Printf("Successfully extracted payload at %s\n", flags.out)
@@ -72,6 +80,7 @@ To inspect the created asn.1 file you can use the openssl tool:
 	}
 
 	addOutputFlag(&flags.out, cmd)
+	cmd.Flags().StringVar(&flags.format, "format", "der", "Output format (der|pem)")
 	return cmd
 }
 

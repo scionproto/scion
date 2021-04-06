@@ -176,13 +176,14 @@ func TestLoadTRCs(t *testing.T) {
 			inputDir: filepath.Join(goldenDir, "ISD1/trcs"),
 			setupDB: func() trust.DB {
 				db := mock_trust.NewMockDB(mctrl)
-				db.EXPECT().InsertTRC(gomock.Any(), gomock.Any()).Return(
+				db.EXPECT().InsertTRC(gomock.Any(), gomock.Any()).Times(2).Return(
 					true, nil,
 				)
 				return db
 			},
 			assertFunc: assert.NoError,
-			loaded:     []string{filepath.Join(goldenDir, "ISD1/trcs/ISD1-B1-S1.trc")},
+			loaded: []string{filepath.Join(goldenDir, "ISD1/trcs/ISD1-B1-S1.trc"),
+				filepath.Join(goldenDir, "ISD1/trcs/ISD1-B1-S1.pem.trc")},
 		},
 		"invalid dir": {
 			inputDir: "./path/to/nowhere",
@@ -217,7 +218,7 @@ func TestLoadTRCs(t *testing.T) {
 			t.Parallel()
 			res, err := trust.LoadTRCs(context.Background(), tc.inputDir, tc.setupDB())
 			tc.assertFunc(t, err)
-			assert.Equal(t, tc.loaded, res.Loaded)
+			assert.ElementsMatch(t, tc.loaded, res.Loaded)
 
 			var ignored []string
 			for f := range res.Ignored {

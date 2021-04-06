@@ -2,10 +2,7 @@
 set -ex
 
 # SSH daemon setup
-adduser --disabled-password --gecos "" sshd
-mkdir /etc/ssh/sshd_config
 mkdir /run/sshd
-ssh-keygen -t rsa -N "" -C "host-key" -f /etc/ssh/ssh_host_rsa_key
 cp /share/ssh_config /etc/ssh
 
 # SSH client setup

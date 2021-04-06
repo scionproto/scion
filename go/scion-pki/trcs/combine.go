@@ -17,6 +17,7 @@ package trcs
 import (
 	"bytes"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"sort"
@@ -34,6 +35,7 @@ func newCombine(pather command.Pather) *cobra.Command {
 	var flags struct {
 		out     string
 		payload string
+		format  string
 	}
 
 	cmd := &cobra.Command{
@@ -51,7 +53,7 @@ appropriate commands.
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
-			return RunCombine(args, flags.payload, flags.out)
+			return RunCombine(args, flags.payload, flags.out, flags.format)
 		},
 	}
 
@@ -59,16 +61,21 @@ appropriate commands.
 	cmd.Flags().StringVarP(&flags.payload, "payload", "p", "",
 		"The ASN.1 DER encoded payload (required)")
 	cmd.MarkFlagRequired("payload")
+	cmd.Flags().StringVar(&flags.format, "format", "der", "Output format (der|pem)")
 
 	return cmd
 }
 
-// RunCombine combines the partially signed TRC files files and writes them to
+// RunCombine combines the partially signed TRC files and writes them to
 // the out directory, pld is the payload file.
-func RunCombine(files []string, pld, out string) error {
+func RunCombine(files []string, pld, out string, format string) error {
 	rawPld, err := ioutil.ReadFile(pld)
 	if err != nil {
 		return serrors.WrapStr("error loading payload", err)
+	}
+	block, _ := pem.Decode(rawPld)
+	if block != nil && block.Type == "TRC Payload" {
+		rawPld = block.Bytes
 	}
 	trcs := make(map[string]cppki.SignedTRC)
 	for _, name := range files {
@@ -106,6 +113,12 @@ func RunCombine(files []string, pld, out string) error {
 	packed, err := sd.ContentInfoDER()
 	if err != nil {
 		return serrors.WrapStr("error packing combined TRC", err)
+	}
+	if format == "pem" {
+		packed = pem.EncodeToMemory(&pem.Block{
+			Type:  "TRC",
+			Bytes: packed,
+		})
 	}
 	if err := ioutil.WriteFile(out, packed, 0644); err != nil {
 		return serrors.WrapStr("error writing combined TRC", err)

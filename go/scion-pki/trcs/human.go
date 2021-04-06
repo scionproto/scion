@@ -18,6 +18,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -93,6 +94,10 @@ func getEncoder(w io.Writer, format string) (interface{ Encode(v interface{}) er
 func getHumanEncoding(raw []byte, strict bool) (humanTRC, error) {
 	var h humanTRC
 	var trc cppki.TRC
+	block, _ := pem.Decode(raw)
+	if block != nil && (block.Type == "TRC" || block.Type == "TRC Payload") {
+		raw = block.Bytes
+	}
 	if t, err := cppki.DecodeTRC(raw); err == nil {
 		trc = t
 	} else if signed, err := cppki.DecodeSignedTRC(raw); err == nil {

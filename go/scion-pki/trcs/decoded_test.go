@@ -26,22 +26,28 @@ import (
 )
 
 func TestDecode(t *testing.T) {
-	signed, err := DecodeFromFile("./testdata/admin/ISD-B1-S1.trc")
-	require.NoError(t, err)
-
-	assert.Equal(t, addr.ISD(1), signed.TRC.ID.ISD)
-	assert.Equal(t, scrypto.Version(1), signed.TRC.ID.Serial)
-	assert.Equal(t, scrypto.Version(1), signed.TRC.ID.Base)
-	assert.Zero(t, signed.TRC.GracePeriod)
-	assert.False(t, signed.TRC.NoTrustReset)
-	assert.Empty(t, signed.TRC.Votes)
-	assert.Equal(t, 2, signed.TRC.Quorum)
-	assert.ElementsMatch(t, xtest.MustParseASes("ff00:0:110,ff00:0:111"),
-		signed.TRC.CoreASes)
-	assert.ElementsMatch(t, xtest.MustParseASes("ff00:0:110,ff00:0:111"),
-		signed.TRC.AuthoritativeASes)
-	assert.Equal(t, "Test ISD", signed.TRC.Description)
-	assert.Len(t, signed.TRC.Certificates, 9)
-
-	assert.Len(t, signed.SignerInfos, 6)
+	testCases := map[string]string{
+		"raw TRC file": "./testdata/admin/ISD-B1-S1.trc",
+		"pem TRC file": "./testdata/admin/ISD-B1-S1.pem.trc",
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			signed, err := DecodeFromFile(tc)
+			require.NoError(t, err)
+			assert.Equal(t, addr.ISD(1), signed.TRC.ID.ISD)
+			assert.Equal(t, scrypto.Version(1), signed.TRC.ID.Serial)
+			assert.Equal(t, scrypto.Version(1), signed.TRC.ID.Base)
+			assert.Zero(t, signed.TRC.GracePeriod)
+			assert.False(t, signed.TRC.NoTrustReset)
+			assert.Empty(t, signed.TRC.Votes)
+			assert.Equal(t, 2, signed.TRC.Quorum)
+			assert.ElementsMatch(t, xtest.MustParseASes("ff00:0:110,ff00:0:111"),
+				signed.TRC.CoreASes)
+			assert.ElementsMatch(t, xtest.MustParseASes("ff00:0:110,ff00:0:111"),
+				signed.TRC.AuthoritativeASes)
+			assert.Equal(t, "Test ISD", signed.TRC.Description)
+			assert.Len(t, signed.TRC.Certificates, 9)
+			assert.Len(t, signed.SignerInfos, 6)
+		})
+	}
 }

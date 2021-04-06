@@ -16,6 +16,7 @@ package trcs
 
 import (
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"sort"
@@ -32,9 +33,10 @@ import (
 
 func newPayload(pather command.Pather) *cobra.Command {
 	var flags struct {
-		out  string
-		tmpl string
-		pred string
+		out    string
+		tmpl   string
+		pred   string
+		format string
 	}
 
 	cmd := &cobra.Command{
@@ -79,6 +81,12 @@ openssl asn1parse -inform DER -i -in payload.der
 			if err != nil {
 				return serrors.WrapStr("encoding payload", err)
 			}
+			if flags.format == "pem" {
+				raw = pem.EncodeToMemory(&pem.Block{
+					Type:  "TRC Payload",
+					Bytes: raw,
+				})
+			}
 			err = ioutil.WriteFile(flags.out, raw, 0644)
 			if err != nil {
 				return serrors.WrapStr("failed to write file", err, "file", flags.out)
@@ -92,6 +100,7 @@ openssl asn1parse -inform DER -i -in payload.der
 	cmd.Flags().StringVarP(&flags.tmpl, "template", "t", "", "Template file (required)")
 	cmd.MarkFlagRequired("template")
 	cmd.Flags().StringVarP(&flags.pred, "predecessor", "p", "", "Predecessor TRC")
+	cmd.Flags().StringVar(&flags.format, "format", "der", "Output format (der|pem)")
 	return cmd
 }
 
