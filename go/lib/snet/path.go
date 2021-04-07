@@ -26,8 +26,11 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
-// MaxSegTTL is the maximum expiry for a path segment. It's one day in seconds.
-const MaxSegTTL = 24 * 60 * 60
+const (
+	// LatencyUnset is the default value for a Latency entry in PathMetadata for
+	// which no latency was announced.
+	LatencyUnset time.Duration = -1
+)
 
 // Path is an abstract representation of a path. Most applications do not need
 // access to the raw internals.
@@ -84,7 +87,8 @@ type PathMetadata struct {
 	// Latency lists the latencies between any two consecutive interfaces.
 	// Entry i describes the latency between interface i and i+1.
 	// Consequently, there are N-1 entries for N interfaces.
-	// A 0-value indicates that the AS did not announce a latency for this hop.
+	// A negative value (LatencyUnset) indicates that the AS did not announce a
+	// latency for this hop.
 	Latency []time.Duration
 
 	// Bandwidth lists the bandwidth between any two consecutive interfaces, in Kbit/s.

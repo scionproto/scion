@@ -147,8 +147,10 @@ func humanLatency(p *snet.PathMetadata) string {
 	complete := true
 	var tot time.Duration
 	for _, v := range p.Latency {
-		complete = complete && v > 0
-		tot += v
+		complete = complete && v >= 0
+		if v >= 0 {
+			tot += v
+		}
 	}
 	if complete {
 		return fmt.Sprint(tot)

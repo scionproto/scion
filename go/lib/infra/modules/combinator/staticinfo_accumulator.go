@@ -103,7 +103,11 @@ func collectLatency(p pathInfo) []time.Duration {
 	// 2)
 	latencies := make([]time.Duration, len(p.Interfaces)-1)
 	for i := 0; i+1 < len(p.Interfaces); i++ {
-		latencies[i] = hopLatencies[makeHopKey(p.Interfaces[i], p.Interfaces[i+1])]
+		l, ok := hopLatencies[makeHopKey(p.Interfaces[i], p.Interfaces[i+1])]
+		if !ok {
+			l = snet.LatencyUnset
+		}
+		latencies[i] = l
 	}
 
 	return latencies
@@ -116,7 +120,7 @@ func addHopLatency(m map[hopKey]time.Duration, a, b snet.PathInterface, v time.D
 	if a.ID == 0 || b.ID == 0 {
 		return
 	}
-	if v == 0 {
+	if v < 0 {
 		return
 	}
 	k := makeHopKey(a, b)
