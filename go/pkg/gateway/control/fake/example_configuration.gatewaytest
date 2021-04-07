@@ -23,19 +23,19 @@
             "remote": "10.0.0.1:30056",
             "paths": [
                 {
-                    "interfaces": [
+                    "hop_fields": [
                         {
                             "isd_as": "1-ff00:0:110",
-                            "id": 1
+                            "egress": 1
                         },
                         {
                             "isd_as": "1-ff00:0:112",
-                            "id": 2
+                            "ingress": 2
                         }
                     ],
                     "next_hop": "242.254.100.3:5000",
-                    "mtu": 1280,
-                    "forwarding_path": "AAAgAAEACtlgV19tAD8AAAABNpjBRmNuAD8AAQAAy+Rg5GX4"
+                    "forwarding_path": "AAAgAAEACtlgV19tAD8AAAABNpjBRmNuAD8AAQAAy+Rg5GX4",
+                    "mtu": 1280
                 }
             ]
         }
