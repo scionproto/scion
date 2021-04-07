@@ -304,18 +304,16 @@ func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPEchoReply, error) {
 	if pkt.Payload == nil {
 		return snet.SCMPEchoReply{}, serrors.New("no v2 payload found")
 	}
-	var errDetail []interface{}
 	switch s := pkt.Payload.(type) {
 	case snet.SCMPEchoReply:
 	case snet.SCMPExternalInterfaceDown:
-		errDetail = []interface{}{"IA", s.IA, "interface", s.Interface}
+		return snet.SCMPEchoReply{}, serrors.New("external interface is down",
+			"isd_as", s.IA, "interface", s.Interface)
 	case snet.SCMPInternalConnectivityDown:
-		errDetail = []interface{}{"IA", s.IA, "ingress", s.Ingress, "egress", s.Egress}
+		return snet.SCMPEchoReply{}, serrors.New("internal connectivity is down",
+			"isd_as", s.IA, "ingress", s.Ingress, "egress", s.Egress)
 	default:
-		errDetail = []interface{}{"type", common.TypeOf(pkt.Payload)}
-	}
-	if len(errDetail) > 0 {
-		return snet.SCMPEchoReply{}, serrors.New("not SCMPEchoReply", errDetail...)
+		return snet.SCMPEchoReply{}, serrors.New("not SCMPEchoReply", "type", common.TypeOf(pkt.Payload))
 	}
 	r := pkt.Payload.(snet.SCMPEchoReply)
 	if r.Identifier != h.id {
