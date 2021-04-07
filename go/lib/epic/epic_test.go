@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	libepic "github.com/scionproto/scion/go/lib/epic"
 	"github.com/scionproto/scion/go/lib/slayers"
@@ -27,18 +28,18 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestMacInputGeneration(t *testing.T) {
+func TestPrepareMacInput(t *testing.T) {
 	e := createEpicPath()
 	var ts uint32 = 1257894000 // = [4a f9 f0 70]
 
 	testCases := map[string]struct {
 		ScionHeader *slayers.SCION
-		Valid       bool
+		errorFunc   assert.ErrorAssertionFunc
 		Want        []byte
 	}{
 		"Correct input": {
 			ScionHeader: createScionCmnAddrHdr(0),
-			Valid:       true,
+			errorFunc:   assert.NoError,
 			Want: []byte(
 				"\x00\x4a\xf9\xf0\x70\x00\x00\x00\x01\x02\x00\x00\x03" +
 					"\x00\x02\xff\x00\x00\x00\x02\x22\x0a\x00\x00\x64\x00\x78" +
@@ -46,11 +47,11 @@ func TestMacInputGeneration(t *testing.T) {
 		},
 		"Invalid source address length": {
 			ScionHeader: createScionCmnAddrHdr(3),
-			Valid:       false,
+			errorFunc:   assert.Error,
 		},
 		"SCION header nil": {
 			ScionHeader: nil,
-			Valid:       false,
+			errorFunc:   assert.Error,
 		},
 	}
 
@@ -58,51 +59,60 @@ func TestMacInputGeneration(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			got, err := libepic.PrepareMacInput(e.PktID, tc.ScionHeader, ts)
-
-			if tc.Valid {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.Want, got)
-			} else {
-				assert.Error(t, err)
-			}
+			tc.errorFunc(t, err)
+			assert.Equal(t, tc.Want, got)
 		})
 	}
 }
 
-func TestTsRel(t *testing.T) {
+func TestCreateTimestamp(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 
 	testCases := map[string]struct {
 		Timestamp time.Time
-		Valid     bool
-		Expected  uint32
+		errorFunc assert.ErrorAssertionFunc
+		Expected  time.Duration
 	}{
 		"Timestamp way too far in the past": {
 			Timestamp: time.Unix(0, 0),
-			Valid:     false,
+			errorFunc: assert.Error,
 		},
-		"Timestamp more than one day in the past": {
-			Timestamp: now.Add(-30 * 60 * 60 * time.Second),
-			Valid:     false,
+		"Timestamp one day and 64 minutes in the past": {
+			Timestamp: now.Add(-createTimeHMS(24, 64, 0)),
+			errorFunc: assert.Error,
+		},
+		"Timestamp one day and 63 minutes in the past": {
+			Timestamp: now.Add(-createTimeHMS(24, 63, 0)),
+			errorFunc: assert.NoError,
+			Expected:  createTimeHMS(24, 63, 0)/libepic.TimestampResolution - 1,
 		},
 		"Timestamp one day in the past": {
-			Timestamp: now.Add(-24 * 60 * 60 * time.Second),
-			Valid:     true,
-			Expected:  4114285713,
+			Timestamp: now.Add(-createTimeHMS(24, 0, 0)),
+			errorFunc: assert.NoError,
+			Expected:  createTimeHMS(24, 0, 0)/libepic.TimestampResolution - 1,
 		},
 		"Timestamp one minute in the past": {
-			Timestamp: now.Add(-60 * time.Second),
-			Valid:     true,
-			Expected:  2857141,
+			Timestamp: now.Add(-createTimeHMS(0, 1, 0)),
+			errorFunc: assert.NoError,
+			Expected:  createTimeHMS(0, 1, 0)/libepic.TimestampResolution - 1,
 		},
 		"Timestamp one second in the past": {
-			Timestamp: now.Add(-1 * time.Second),
-			Valid:     true,
-			Expected:  47618,
+			Timestamp: now.Add(-createTimeHMS(0, 0, 1)),
+			errorFunc: assert.NoError,
+			Expected:  createTimeHMS(0, 0, 1)/libepic.TimestampResolution - 1,
 		},
-		"Timestamp is in the future": {
-			Timestamp: now.Add(5 * time.Second),
-			Valid:     false,
+		"Timestamp less than 21 microseconds in the past": {
+			Timestamp: now.Add(-21 * time.Microsecond),
+			errorFunc: assert.NoError,
+			Expected:  createTimeHMS(0, 0, 0),
+		},
+		"Timestamp in the future": {
+			Timestamp: now.Add(1 * time.Nanosecond),
+			errorFunc: assert.Error,
+		},
+		"Timestamp way too far in the future": {
+			Timestamp: now.Add(createTimeHMS(^uint32(0), 0, 0)),
+			errorFunc: assert.Error,
 		},
 	}
 
@@ -110,18 +120,13 @@ func TestTsRel(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			tsRel, err := libepic.CreateTimestamp(tc.Timestamp, now)
-			if tc.Valid {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.Expected, tsRel)
-
-			} else {
-				assert.Error(t, err)
-			}
+			tc.errorFunc(t, err)
+			assert.Equal(t, uint32(tc.Expected), tsRel)
 		})
 	}
 }
 
-func TestTimestampVerification(t *testing.T) {
+func TestVerifyTimestamp(t *testing.T) {
 	// The current time
 	now := time.Now().Truncate(time.Second)
 
@@ -131,7 +136,7 @@ func TestTimestampVerification(t *testing.T) {
 	// Create tsRel that represents the current time. It will be modified in the tests in order to
 	// check different cases.
 	tsRel, err := libepic.CreateTimestamp(timeInfoCreation, now)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Abbreviate max. clock skew, abbreviate sum of max. clock skew and max. packet lifetime.
 	// Both are represented as the number of intervals they contain, where an interval is
@@ -140,36 +145,36 @@ func TestTimestampVerification(t *testing.T) {
 	csAndPl := uint32(((libepic.MaxClockSkew + libepic.MaxPacketLifetime) / 21).Microseconds())
 
 	testCases := map[string]struct {
-		TsRel uint32
-		Valid bool
+		TsRel     uint32
+		errorFunc assert.ErrorAssertionFunc
 	}{
 		"Timestamp one minute old": {
-			TsRel: 0,
-			Valid: false,
+			TsRel:     0,
+			errorFunc: assert.Error,
 		},
 		"Timestamp older than max. clock skew plus max. packet lifetime": {
-			TsRel: tsRel - csAndPl,
-			Valid: false,
+			TsRel:     tsRel - csAndPl,
+			errorFunc: assert.Error,
 		},
 		"Timestamp valid but in the past": {
-			TsRel: tsRel - csAndPl + 1,
-			Valid: true,
+			TsRel:     tsRel - csAndPl + 1,
+			errorFunc: assert.NoError,
 		},
 		"Timestamp valid": {
-			TsRel: tsRel,
-			Valid: true,
+			TsRel:     tsRel,
+			errorFunc: assert.NoError,
 		},
 		"Timestamp valid but in future": {
-			TsRel: tsRel + cs,
-			Valid: true,
+			TsRel:     tsRel + cs,
+			errorFunc: assert.NoError,
 		},
 		"Timestamp newer than clock skew": {
-			TsRel: tsRel + cs + 1,
-			Valid: false,
+			TsRel:     tsRel + cs + 1,
+			errorFunc: assert.Error,
 		},
 		"Timestamp way too far in future": {
-			TsRel: ^uint32(0),
-			Valid: false,
+			TsRel:     ^uint32(0),
+			errorFunc: assert.Error,
 		},
 	}
 
@@ -178,16 +183,12 @@ func TestTimestampVerification(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// Verify the timestamp now
 			err := libepic.VerifyTimestamp(timeInfoCreation, tc.TsRel, now)
-			if tc.Valid {
-				assert.NoError(t, err)
-			} else {
-				assert.Error(t, err)
-			}
+			tc.errorFunc(t, err)
 		})
 	}
 }
 
-func TestHVFVerification(t *testing.T) {
+func TestVerifyHVF(t *testing.T) {
 	// Create packet
 	s := createScionCmnAddrHdr(0)
 	now := time.Now().Truncate(time.Second)
@@ -214,7 +215,7 @@ func TestHVFVerification(t *testing.T) {
 		ScionHeader   *slayers.SCION
 		Timestamp     uint32
 		HVF           []byte
-		Valid         bool
+		errorFunc     assert.ErrorAssertionFunc
 	}{
 		"PHVF valid": {
 			Authenticator: authPenultimate,
@@ -222,7 +223,7 @@ func TestHVFVerification(t *testing.T) {
 			ScionHeader:   s,
 			Timestamp:     timestamp,
 			HVF:           PHVF,
-			Valid:         true,
+			errorFunc:     assert.NoError,
 		},
 		"PHVF with wrong authenticator": {
 			Authenticator: []byte("074487bf22e46742"),
@@ -230,7 +231,7 @@ func TestHVFVerification(t *testing.T) {
 			ScionHeader:   s,
 			Timestamp:     timestamp,
 			HVF:           PHVF,
-			Valid:         false,
+			errorFunc:     assert.Error,
 		},
 		"PHVF with empty pktID": {
 			Authenticator: authPenultimate,
@@ -238,7 +239,7 @@ func TestHVFVerification(t *testing.T) {
 			ScionHeader:   s,
 			Timestamp:     timestamp,
 			HVF:           PHVF,
-			Valid:         false,
+			errorFunc:     assert.Error,
 		},
 		"PHVF with SCION header nil": {
 			Authenticator: authPenultimate,
@@ -246,7 +247,7 @@ func TestHVFVerification(t *testing.T) {
 			ScionHeader:   nil,
 			Timestamp:     timestamp,
 			HVF:           PHVF,
-			Valid:         false,
+			errorFunc:     assert.Error,
 		},
 		"PHVF with wrong timestamp": {
 			Authenticator: authPenultimate,
@@ -254,7 +255,7 @@ func TestHVFVerification(t *testing.T) {
 			ScionHeader:   s,
 			Timestamp:     timestamp - 10,
 			HVF:           PHVF,
-			Valid:         false,
+			errorFunc:     assert.Error,
 		},
 		"PHVF is invalid": {
 			Authenticator: authPenultimate,
@@ -262,7 +263,7 @@ func TestHVFVerification(t *testing.T) {
 			ScionHeader:   s,
 			Timestamp:     timestamp,
 			HVF:           []byte("706c"),
-			Valid:         false,
+			errorFunc:     assert.Error,
 		},
 		"LHVF valid": {
 			Authenticator: authLast,
@@ -270,7 +271,7 @@ func TestHVFVerification(t *testing.T) {
 			ScionHeader:   s,
 			Timestamp:     timestamp,
 			HVF:           LHVF,
-			Valid:         true,
+			errorFunc:     assert.NoError,
 		},
 		"LHVF with wrong authenticator": {
 			Authenticator: []byte("074487bf22e46742"),
@@ -278,7 +279,7 @@ func TestHVFVerification(t *testing.T) {
 			ScionHeader:   s,
 			Timestamp:     timestamp,
 			HVF:           LHVF,
-			Valid:         false,
+			errorFunc:     assert.Error,
 		},
 		"LHVF with empty pktID": {
 			Authenticator: authLast,
@@ -286,7 +287,7 @@ func TestHVFVerification(t *testing.T) {
 			ScionHeader:   s,
 			Timestamp:     timestamp,
 			HVF:           PHVF,
-			Valid:         false,
+			errorFunc:     assert.Error,
 		},
 		"LHVF with SCION header nil": {
 			Authenticator: authLast,
@@ -294,7 +295,7 @@ func TestHVFVerification(t *testing.T) {
 			ScionHeader:   nil,
 			Timestamp:     timestamp,
 			HVF:           LHVF,
-			Valid:         false,
+			errorFunc:     assert.Error,
 		},
 		"LHVF with wrong timestamp": {
 			Authenticator: authLast,
@@ -302,7 +303,7 @@ func TestHVFVerification(t *testing.T) {
 			ScionHeader:   s,
 			Timestamp:     timestamp - 10,
 			HVF:           LHVF,
-			Valid:         false,
+			errorFunc:     assert.Error,
 		},
 		"LHVF is invalid": {
 			Authenticator: authLast,
@@ -310,7 +311,7 @@ func TestHVFVerification(t *testing.T) {
 			ScionHeader:   s,
 			Timestamp:     timestamp,
 			HVF:           []byte("706c"),
-			Valid:         false,
+			errorFunc:     assert.Error,
 		},
 	}
 
@@ -319,12 +320,57 @@ func TestHVFVerification(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			err = libepic.VerifyHVF(tc.Authenticator, tc.PktID,
 				tc.ScionHeader, tc.Timestamp, tc.HVF)
+			tc.errorFunc(t, err)
+		})
+	}
+}
 
-			if tc.Valid {
-				assert.NoError(t, err)
-			} else {
-				assert.Error(t, err)
-			}
+func TestPktCounterFromCore(t *testing.T) {
+	testCases := map[string]struct {
+		CoreID      uint8
+		CoreCounter uint32
+		Want        uint32
+	}{
+		"Basic": {
+			CoreID:      0x01,
+			CoreCounter: 0x1234,
+			Want:        0x01001234,
+		},
+		"Overflow CoreCounter": {
+			CoreID:      0x01,
+			CoreCounter: 0xffffffff,
+			Want:        0x01ffffff,
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			got := libepic.PktCounterFromCore(tc.CoreID, tc.CoreCounter)
+			assert.Equal(t, tc.Want, got)
+		})
+	}
+}
+
+func TestCoreFromPktCounter(t *testing.T) {
+	testCases := map[string]struct {
+		PktCounter      uint32
+		WantCoreID      uint8
+		WantCoreCounter uint32
+	}{
+		"Basic": {
+			PktCounter:      0x12345678,
+			WantCoreID:      0x12,
+			WantCoreCounter: 0x345678,
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			coreID, coreCounter := libepic.CoreFromPktCounter(tc.PktCounter)
+			assert.Equal(t, tc.WantCoreID, coreID)
+			assert.Equal(t, tc.WantCoreCounter, coreCounter)
 		})
 	}
 }
@@ -351,4 +397,10 @@ func createEpicPath() *epic.Path {
 		LHVF:  []byte{5, 6, 7, 8},
 	}
 	return epicpath
+}
+
+func createTimeHMS(hours, minutes, seconds uint32) time.Duration {
+	return (time.Duration(hours) * time.Hour) +
+		(time.Duration(minutes) * time.Minute) +
+		(time.Duration(seconds) * time.Second)
 }

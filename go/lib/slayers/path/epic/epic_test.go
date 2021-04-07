@@ -19,7 +19,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	libepic "github.com/scionproto/scion/go/lib/epic"
 	"github.com/scionproto/scion/go/lib/slayers/path/epic"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 )
@@ -72,12 +71,13 @@ func TestSerialize(t *testing.T) {
 	testCases := map[string]struct {
 		Path       epic.Path
 		Serialized []byte
+		errorFunc  assert.ErrorAssertionFunc
 	}{
 		"Basic": {
 			Path: epic.Path{
 				PktID: epic.PktID{
 					Timestamp: 1,
-					Counter:   libepic.PktCounterFromCore(2, 3),
+					Counter:   0x02000003,
 				},
 				PHVF: []byte{1, 2, 3, 4},
 				LHVF: []byte{5, 6, 7, 8},
@@ -95,6 +95,64 @@ func TestSerialize(t *testing.T) {
 				},
 			},
 			Serialized: rawEpicPath,
+			errorFunc:  assert.NoError,
+		},
+		"HVF too short": {
+			Path: epic.Path{
+				PktID: epic.PktID{
+					Timestamp: 1,
+					Counter:   0x02000003,
+				},
+				PHVF: []byte{1, 2, 3},
+				LHVF: []byte{5, 6, 7, 8},
+				ScionPath: &scion.Raw{
+					Base: scion.Base{
+						PathMeta: scion.MetaHdr{
+							CurrINF: 0,
+							CurrHF:  0,
+							SegLen:  [3]uint8{2, 2, 0},
+						},
+						NumINF:  2,
+						NumHops: 4,
+					},
+					Raw: rawScionPath,
+				},
+			},
+			errorFunc: assert.Error,
+		},
+		"HVF too long": {
+			Path: epic.Path{
+				PktID: epic.PktID{
+					Timestamp: 1,
+					Counter:   0x02000003,
+				},
+				PHVF: []byte{1, 2, 3, 4},
+				LHVF: []byte{5, 6, 7, 8, 9},
+				ScionPath: &scion.Raw{
+					Base: scion.Base{
+						PathMeta: scion.MetaHdr{
+							CurrINF: 0,
+							CurrHF:  0,
+							SegLen:  [3]uint8{2, 2, 0},
+						},
+						NumINF:  2,
+						NumHops: 4,
+					},
+					Raw: rawScionPath,
+				},
+			},
+			errorFunc: assert.Error,
+		},
+		"SCION path nil": {
+			Path: epic.Path{
+				PktID: epic.PktID{
+					Timestamp: 1,
+					Counter:   0x02000003,
+				},
+				PHVF: []byte{1, 2, 3, 4},
+				LHVF: []byte{5, 6, 7, 8},
+			},
+			errorFunc: assert.Error,
 		},
 	}
 
@@ -102,8 +160,11 @@ func TestSerialize(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			b := make([]byte, len(tc.Serialized))
-			assert.NoError(t, tc.Path.SerializeTo(b))
-			assert.Equal(t, tc.Serialized, b)
+			err := tc.Path.SerializeTo(b)
+			tc.errorFunc(t, err)
+			if err == nil {
+				assert.Equal(t, tc.Serialized, b)
+			}
 		})
 	}
 }
@@ -117,7 +178,7 @@ func TestDecode(t *testing.T) {
 			Path: epic.Path{
 				PktID: epic.PktID{
 					Timestamp: 1,
-					Counter:   libepic.PktCounterFromCore(2, 3),
+					Counter:   0x02000003,
 				},
 				PHVF:      []byte{1, 2, 3, 4},
 				LHVF:      []byte{5, 6, 7, 8},
@@ -146,7 +207,7 @@ func TestReverse(t *testing.T) {
 			Path: &epic.Path{
 				PktID: epic.PktID{
 					Timestamp: 1,
-					Counter:   libepic.PktCounterFromCore(2, 3),
+					Counter:   0x02000003,
 				},
 				PHVF: []byte{1, 2, 3, 4},
 				LHVF: []byte{5, 6, 7, 8},
@@ -166,7 +227,7 @@ func TestReverse(t *testing.T) {
 			PathReversed: &epic.Path{
 				PktID: epic.PktID{
 					Timestamp: 1,
-					Counter:   libepic.PktCounterFromCore(2, 3),
+					Counter:   0x02000003,
 				},
 				PHVF: []byte{1, 2, 3, 4},
 				LHVF: []byte{5, 6, 7, 8},
@@ -188,7 +249,7 @@ func TestReverse(t *testing.T) {
 			Path: &epic.Path{
 				PktID: epic.PktID{
 					Timestamp: 1,
-					Counter:   libepic.PktCounterFromCore(2, 3),
+					Counter:   0x02000003,
 				},
 				PHVF: []byte{1, 2, 3, 4},
 				LHVF: []byte{5, 6, 7, 8},
@@ -208,7 +269,7 @@ func TestReverse(t *testing.T) {
 			PathReversed: &epic.Path{
 				PktID: epic.PktID{
 					Timestamp: 1,
-					Counter:   libepic.PktCounterFromCore(2, 3),
+					Counter:   0x02000003,
 				},
 				PHVF: []byte{1, 2, 3, 4},
 				LHVF: []byte{5, 6, 7, 8},
@@ -246,23 +307,16 @@ func TestSerializePktID(t *testing.T) {
 		"Basic": {
 			PktID: epic.PktID{
 				Timestamp: 1,
-				Counter:   libepic.PktCounterFromCore(2, 3),
+				Counter:   0x02000003,
 			},
 			Serialized: []byte{0, 0, 0, 1, 2, 0, 0, 3},
 		},
 		"Max. timestamp": {
 			PktID: epic.PktID{
 				Timestamp: ^uint32(0),
-				Counter:   libepic.PktCounterFromCore(116, 3),
+				Counter:   0x02000003,
 			},
-			Serialized: []byte{255, 255, 255, 255, 116, 0, 0, 3},
-		},
-		"Overflow CoreCounter": {
-			PktID: epic.PktID{
-				Timestamp: 1,
-				Counter:   libepic.PktCounterFromCore(2, (1<<24)+1),
-			},
-			Serialized: []byte{0, 0, 0, 1, 2, 0, 0, 1},
+			Serialized: []byte{255, 255, 255, 255, 2, 0, 0, 3},
 		},
 	}
 
@@ -284,14 +338,14 @@ func TestDecodePktID(t *testing.T) {
 		"Basic": {
 			PktID: epic.PktID{
 				Timestamp: 1,
-				Counter:   libepic.PktCounterFromCore(2, 3),
+				Counter:   0x02000003,
 			},
 			Serialized: []byte{0, 0, 0, 1, 2, 0, 0, 3},
 		},
 		"Max. timestamp": {
 			PktID: epic.PktID{
 				Timestamp: ^uint32(0),
-				Counter:   libepic.PktCounterFromCore(2, 3),
+				Counter:   0x02000003,
 			},
 			Serialized: []byte{255, 255, 255, 255, 2, 0, 0, 3},
 		},

@@ -31,10 +31,12 @@ import (
 const (
 	// AuthLen denotes the size of the authenticator in bytes
 	AuthLen = 16
-	// MaxPacketLifetime denotes the maximal lifetime of a packet in microseconds
+	// MaxPacketLifetime denotes the maximal lifetime of a packet
 	MaxPacketLifetime time.Duration = 2 * time.Second
-	// MaxClockSkew denotes the maximal clock skew in microseconds
+	// MaxClockSkew denotes the maximal clock skew
 	MaxClockSkew time.Duration = time.Second
+	// TimestampResolution denotes the resolution of the epic timestamp
+	TimestampResolution = 21 * time.Microsecond
 )
 
 // CreateTimestamp returns tsRel, which encodes the current time (now) relative to the input
@@ -46,25 +48,23 @@ func CreateTimestamp(input time.Time, now time.Time) (uint32, error) {
 		return 0, serrors.New("provided input timestamp is in the future",
 			"input", input, "now", now)
 	}
-	diff := now.Sub(input).Microseconds()
-	tsRel := diff/21 - 1
+	tsRel := now.Sub(input)/TimestampResolution - 1
 	if tsRel < 0 {
 		tsRel = 0
 	}
 	if tsRel >= (1 << 32) {
-		return 0, serrors.New("diff between input and now >1d63min",
-			"diff", diff)
+		return 0, serrors.New("diff between input and now >1d63min", "tsRel", tsRel)
 	}
 	return uint32(tsRel), nil
 }
 
 // VerifyTimestamp checks whether an EPIC packet is fresh. This means that the time the packet
-// was sent from the source host, which is encoded by the timestamp and the packetTimestamp,
+// was sent from the source host, which is encoded by the timestamp and the epicTimestamp,
 // does not date back more than the maximal packet lifetime of two seconds. The function also takes
 // a possible clock drift between the packet source and the verifier of up to one second into
 // account.
-func VerifyTimestamp(timestamp time.Time, packetTimestamp uint32, now time.Time) error {
-	diff := (time.Duration(packetTimestamp) + 1) * 21 * time.Microsecond
+func VerifyTimestamp(timestamp time.Time, epicTimestamp uint32, now time.Time) error {
+	diff := (time.Duration(epicTimestamp) + 1) * TimestampResolution
 	tsSender := timestamp.Add(diff)
 
 	if tsSender.After(now.Add(MaxClockSkew)) {
@@ -195,11 +195,4 @@ func prepareMacInput(pktID epic.PktID, s *slayers.SCION, timestamp uint32) ([]by
 	binary.BigEndian.PutUint16(input[offset:], s.PayloadLen)
 
 	return input, nil
-}
-
-func max(x, y uint64) uint64 {
-	if x < y {
-		return y
-	}
-	return x
 }
