@@ -64,6 +64,7 @@ type Metrics struct {
 	RenewalServerRequestsTotal             *prometheus.CounterVec
 	RenewalCMSHandlerRequestsTotal         *prometheus.CounterVec
 	RenewalLegacyHandlerRequestsTotal      *prometheus.CounterVec
+	RenewalRegisteredHandlers              *prometheus.GaugeVec
 	SegmentLookupRequestsTotal             *prometheus.CounterVec
 	SegmentLookupSegmentsSentTotal         *prometheus.CounterVec
 	SegmentRegistrationsTotal              *prometheus.CounterVec
@@ -152,7 +153,13 @@ func NewMetrics() *Metrics {
 			},
 			[]string{prom.LabelResult},
 		),
-
+		RenewalRegisteredHandlers: promauto.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "renewal_registered_handlers",
+				Help: "Exposes which handler type (legacy, in-process, delegating) is registered.",
+			},
+			[]string{"type"},
+		),
 		SegmentLookupSegmentsSentTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "control_segment_lookup_segments_sent_total",

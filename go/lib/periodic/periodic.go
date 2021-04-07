@@ -28,8 +28,9 @@ import (
 type Task interface {
 	// Run executes the task once, it should return within the context's timeout.
 	Run(context.Context)
-	// Name returns the tasks name, each successive call should return the same
-	// value as the first call.
+	// Name returns the task's name for use in metrics and tracing. Each
+	// successive call should return the same value as the first call. Names
+	// must only contain [a-z] and _ characters.
 	Name() string
 }
 

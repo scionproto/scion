@@ -276,12 +276,13 @@ http_archive(
     url = "https://github.com/bazelbuild/buildtools/archive/2.2.1.zip",
 )
 
-# TODO(lukedirtwalker): Use in-tree version for this.
-# This commit is from https://github.com/jmhodges/bazel_gomock/pull/49
 http_archive(
     name = "com_github_jmhodges_bazel_gomock",
-    strip_prefix = "bazel_gomock-7e1f48084f0b833bfd1e607555b456639f24bb6e",
-    url = "https://github.com/jmhodges/bazel_gomock/archive/7e1f48084f0b833bfd1e607555b456639f24bb6e.tar.gz",
+    sha256 = "2da16771642ce7f75a8d620a1029b83ee29b206c6665bb8c92f003b427e35dbf",
+    strip_prefix = "bazel_gomock-4f2ee840432b1a08ccc46ee4f2c1f5a2bad8fade",
+    urls = [
+        "https://github.com/jmhodges/bazel_gomock/archive/4f2ee840432b1a08ccc46ee4f2c1f5a2bad8fade.tar.gz",
+    ],
 )
 
 http_file(
