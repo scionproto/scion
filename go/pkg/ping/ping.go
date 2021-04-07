@@ -313,7 +313,8 @@ func (h scmpHandler) handle(pkt *snet.Packet) (snet.SCMPEchoReply, error) {
 		return snet.SCMPEchoReply{}, serrors.New("internal connectivity is down",
 			"isd_as", s.IA, "ingress", s.Ingress, "egress", s.Egress)
 	default:
-		return snet.SCMPEchoReply{}, serrors.New("not SCMPEchoReply", "type", common.TypeOf(pkt.Payload))
+		return snet.SCMPEchoReply{}, serrors.New("not SCMPEchoReply",
+			"type", common.TypeOf(pkt.Payload))
 	}
 	r := pkt.Payload.(snet.SCMPEchoReply)
 	if r.Identifier != h.id {
