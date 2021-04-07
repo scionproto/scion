@@ -285,6 +285,10 @@ func realMain() error {
 
 	var chainBuilder renewal.ChainBuilder
 	if topo.CA() {
+		renewalGauges := libmetrics.NewPromGauge(metrics.RenewalRegisteredHandlers)
+		libmetrics.GaugeWith(renewalGauges, "type", "legacy").Set(0)
+		libmetrics.GaugeWith(renewalGauges, "type", "in-process").Set(0)
+		libmetrics.GaugeWith(renewalGauges, "type", "delegating").Set(0)
 		srvCtr := libmetrics.NewPromCounter(metrics.RenewalServerRequestsTotal)
 		renewalServer := &renewalgrpc.RenewalServer{
 			IA:        topo.IA(),
@@ -327,6 +331,7 @@ func realMain() error {
 
 		if !globalCfg.CA.DisableLegacyRequest {
 			legacyCtr := libmetrics.NewPromCounter(metrics.RenewalLegacyHandlerRequestsTotal)
+			libmetrics.GaugeWith(renewalGauges, "type", "legacy").Set(1)
 			renewalServer.LegacyHandler = &renewalgrpc.Legacy{
 				Signer:       signer,
 				DB:           renewalDB,
@@ -347,6 +352,7 @@ func realMain() error {
 
 		switch globalCfg.CA.Mode {
 		case config.InProcess:
+			libmetrics.GaugeWith(renewalGauges, "type", "in-process").Set(1)
 			cmsCtr := libmetrics.NewPromCounter(metrics.RenewalCMSHandlerRequestsTotal)
 			renewalServer.CMSHandler = &renewalgrpc.CMS{
 				DB:           renewalDB,
@@ -365,6 +371,7 @@ func realMain() error {
 				},
 			}
 		case config.Delegating:
+			libmetrics.GaugeWith(renewalGauges, "type", "delegating").Set(1)
 			renewalServer.CMSHandler = &renewalgrpc.DelegatingHandler{
 				// TODO(roosd): initialize handler
 			}
