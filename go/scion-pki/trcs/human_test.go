@@ -26,9 +26,9 @@ import (
 )
 
 func TestGetHumanEncoding(t *testing.T) {
-	trc, err := trcs.DecodeFromFile("testdata/admin/ISD-B1-S1.trc")
+	trc, err := trcs.DecodeFromFile("testdata/admin/ISD1-B1-S1.trc")
 	require.NoError(t, err)
-	trcpem, err := trcs.DecodeFromFile("testdata/admin/ISD-B1-S1.pem.trc")
+	trcpem, err := trcs.DecodeFromFile("testdata/admin/ISD1-B1-S1.pem.trc")
 	require.NoError(t, err)
 	testCases := map[string]struct {
 		Encoding string

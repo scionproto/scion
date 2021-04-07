@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	fakedaemon "github.com/scionproto/scion/go/lib/daemon/fake"
 	"github.com/scionproto/scion/go/lib/pktcls"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
@@ -157,13 +158,16 @@ type rawRoutingChain struct {
 	TrafficMatchers []rawTrafficMatcher `json:"traffic_matchers"`
 }
 
-type rawPathInterface struct {
-	IsdAs addr.IA `json:"isd_as"`
-	ID    int     `json:"id"`
+type rawPathHopFields struct {
+	IsdAs   addr.IA `json:"isd_as"`
+	Ingress uint16  `json:"ingress"`
+	Egress  uint16  `json:"egress"`
+	ExpTime uint8   `json:"exp_time"`
+	Key     []byte  `json:"key"`
 }
 
 type rawPath struct {
-	Interfaces     []rawPathInterface  `json:"interfaces"`
+	HopFields      []rawPathHopFields  `json:"hop_fields"`
 	NextHop        *fakedaemon.UDPAddr `json:"next_hop"`
 	MTU            uint16              `json:"mtu"`
 	ForwardingPath string              `json:"forwarding_path"`
@@ -209,22 +213,66 @@ func parsePaths(rawPaths []rawPath, creationTime time.Time) ([]snet.Path, error)
 }
 
 func parsePath(rawPath rawPath, creationTime time.Time) (snet.Path, error) {
-	ifaces := make([]snet.PathInterface, 0, len(rawPath.Interfaces))
-	for _, iface := range rawPath.Interfaces {
-		ifaces = append(ifaces, snet.PathInterface{
-			ID: common.IFIDType(iface.ID),
-			IA: iface.IsdAs,
-		})
+	numHops := len(rawPath.HopFields)
+
+	if numHops == 0 {
+		return nil, serrors.New("parsing path without hop fields")
 	}
 
-	// for the first and last AS we only have one entry in the interface list
-	// for all others ASes we have 2 entries so we can calculate the number of
-	// hops by the following formula:
-	hopfields := (len(ifaces) + 2) / 2
+	initialSegID := uint16(0x111)
+	sp := &scion.Decoded{
+		Base: scion.Base{
+			PathMeta: scion.MetaHdr{
+				CurrHF: 0,
+				SegLen: [3]uint8{uint8(numHops), 0, 0},
+			},
+			NumINF:  1,
+			NumHops: numHops,
+		},
+		InfoFields: []*path.InfoField{
+			{
+				SegID:     initialSegID,
+				ConsDir:   true,
+				Timestamp: uint32(creationTime.Unix()),
+			},
+		},
+	}
+	ifaces := make([]snet.PathInterface, 0, numHops*2)
+	for _, rawHF := range rawPath.HopFields {
+		if rawHF.Ingress != 0 {
+			ifaces = append(ifaces, snet.PathInterface{
+				ID: common.IFIDType(rawHF.Ingress),
+				IA: rawHF.IsdAs,
+			})
+		}
+		if rawHF.Egress != 0 {
+			ifaces = append(ifaces, snet.PathInterface{
+				ID: common.IFIDType(rawHF.Egress),
+				IA: rawHF.IsdAs,
+			})
+		}
+		hf := &path.HopField{
+			ConsIngress: rawHF.Ingress,
+			ConsEgress:  rawHF.Egress,
+			ExpTime:     rawHF.ExpTime,
+		}
+		sp.HopFields = append(sp.HopFields, hf)
+		macGen, err := scrypto.HFMacFactory(rawHF.Key)
+		if err != nil {
+			return nil, err
+		}
+		hf.Mac = path.MAC(macGen(), sp.InfoFields[0], hf)
+		sp.InfoFields[0].UpdateSegID(hf.Mac)
+	}
+	sp.InfoFields[0].SegID = initialSegID
+
 	var fwPath []byte
 	if rawPath.ForwardingPath == "" {
 		// empty SCION path with correct length:
-		fwPath = make([]byte, scion.MetaLen+path.InfoLen+path.HopLen*hopfields)
+		fwPath = make([]byte, scion.MetaLen+path.InfoLen+path.HopLen*numHops)
+		if err := sp.SerializeTo(fwPath); err != nil {
+			return nil, serrors.WrapStr("serializing forwarding path", err)
+		}
 	} else {
 		var err error
 		fwPath, err = base64.StdEncoding.DecodeString(rawPath.ForwardingPath)

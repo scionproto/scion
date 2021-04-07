@@ -40,6 +40,7 @@ go_library(
         "//go/lib/log:go_default_library",
         "//go/lib/pktcls:go_default_library",
         "//go/lib/routemgr:go_default_library",
+        "//go/lib/scrypto:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/slayers/path:go_default_library",
         "//go/lib/slayers/path/scion:go_default_library",

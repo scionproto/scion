@@ -177,27 +177,26 @@
 							"title": "Items",
 							"type": "object",
 							"required": [
-								"interfaces",
+								"hop_fields",
 								"next_hop",
 								"mtu"
 							],
 							"properties": {
-								"interfaces": {
-									"$id": "#root/sessions/items/paths/items/interfaces",
-									"title": "Interfaces",
+								"hop_fields": {
+									"$id": "#root/sessions/items/paths/items/hop_fields",
+									"title": "Hop Fields",
 									"type": "array",
 									"default": [],
 									"items": {
-										"$id": "#root/sessions/items/paths/items/interfaces/items",
+										"$id": "#root/sessions/items/paths/items/hop_fields/items",
 										"title": "Items",
 										"type": "object",
 										"required": [
-											"isd_as",
-											"id"
+											"isd_as"
 										],
 										"properties": {
 											"isd_as": {
-												"$id": "#root/sessions/items/paths/items/interfaces/items/isd_as",
+												"$id": "#root/sessions/items/paths/items/hop_fields/items/isd_as",
 												"title": "ISD-AS",
 												"type": "string",
 												"default": "",
@@ -206,14 +205,33 @@
 												],
 												"pattern": "^.*$"
 											},
-											"id": {
-												"$id": "#root/sessions/items/paths/items/interfaces/items/id",
-												"title": "ID",
+											"ingress": {
+												"$id": "#root/sessions/items/paths/items/hop_fields/items/ingress",
+												"title": "Ingress",
 												"type": "integer",
 												"examples": [
 													1
 												],
 												"default": 0
+											},
+											"egress": {
+												"$id": "#root/sessions/items/paths/items/hop_fields/items/egress",
+												"title": "Egress",
+												"type": "integer",
+												"examples": [
+													1
+												],
+												"default": 0
+											},
+											"key": {
+												"$id": "#root/sessions/items/paths/items/hop_fields/items/key",
+												"title": "Key",
+												"type": "string",
+												"default": "",
+												"examples": [
+													"8OsK8olQ7SGuPl0+S5/Pg=="
+												],
+												"pattern": "^.*$"
 											}
 										}
 									}

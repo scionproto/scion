@@ -580,21 +580,24 @@ In this scenario, Australia can configure the topology file as follows:
 
 .. code-block:: json
 
-   "sigs": {
-     "perth": {
-       "ctrl_addr": "...omitted...",
-       "data_addr": "...omitted...",
-      "allow_interfaces": [
-        101
-      ]
-    },
-    "melbourne": {
-      "ctrl_addr": "...omitted...",
-      "data_addr": "...omitted...",
-      "allow_interfaces": [
-        201
-      ]
-    }
+   {
+     "sigs": {
+       "perth": {
+         "ctrl_addr": "...omitted...",
+         "data_addr": "...omitted...",
+         "allow_interfaces": [
+           101
+         ]
+       },
+       "melbourne": {
+         "ctrl_addr": "...omitted...",
+         "data_addr": "...omitted...",
+         "allow_interfaces": [
+           201
+         ]
+       }
+     }
+   }
 
 Due to the additional ``allow_interfaces`` setting, the Discovery Service in
 the Australia AS will announce that the respective gateways should be

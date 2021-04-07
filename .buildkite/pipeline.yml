@@ -148,7 +148,7 @@ steps:
       - mkdir -p /tmp/test-artifacts/trc-ceremony
       - export SAFEDIR="/tmp/test-artifacts/trc-ceremony"
       - ./scripts/cryptoplayground/trc_ceremony.sh
-      - sudo chmod 0777 /tmp/test-artifacts/trc-ceremony/*/keys/*.key
+      - ./scripts/cryptoplayground/trc_ceremony_sensitive.sh
     timeout_in_minutes: 15
     key: trc_ceremony_test
     artifact_paths:

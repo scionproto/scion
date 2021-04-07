@@ -407,6 +407,16 @@ func (s *Server) GetCertificateBlob(w http.ResponseWriter, r *http.Request, chai
 // GetCa gets the CA info
 func (s *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	if s.CA.PolicyGen == nil {
+		Error(w, Problem{
+			Detail: api.StringRef("This instance is not configured with CA capability"),
+			Status: http.StatusNotImplemented,
+			Title:  "Not a CA",
+			Type:   api.StringRef(api.NotImplemented),
+		})
+		return
+	}
+
 	p, err := s.CA.PolicyGen.Generate(r.Context())
 	if err != nil {
 		Error(w, Problem{

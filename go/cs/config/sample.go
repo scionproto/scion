@@ -33,4 +33,24 @@ const caSample = `
 # the case, certificate renewal is not possible until a new CA certificate is
 # loaded that satisfies the condition. (default 3d)
 max_as_validity = "3d"
+
+# The mode the CA handler of this control service operates in.
+#
+# - in-process: In this mode, the certificates are renewed in the control
+#               service process. This means it needs access to the CA private
+#               key and a currently active CA certificate.
+#
+# - delegated: In this mode, the certificate renewal is delegated to the CA
+#              service via an API call. This means the service needs to be
+#              configured with the CA service address and the secrets to
+#              authenticate itself. Note that legacy requests will always
+#              be handled in-process, even if delegated mode is selected.
+#
+# (default in-process)
+mode = "in-process"
+
+# Disable handling of the legacy certificate renewal requests.
+# This option is temporary and will be removed with the support for
+# legacy renewal requests. (default false)
+disable_legacy_request = false
 `

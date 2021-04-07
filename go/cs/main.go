@@ -285,42 +285,49 @@ func realMain() error {
 
 	var chainBuilder renewal.ChainBuilder
 	if topo.CA() {
-		renewalDB, err := storage.NewRenewalStorage(globalCfg.RenewalDB)
-		if err != nil {
-			return serrors.WrapStr("initializing renewal database", err)
-		}
-		defer renewalDB.Close()
-		if err := cs.LoadClientChains(renewalDB, globalCfg.General.ConfigDir); err != nil {
-			return serrors.WrapStr("loading client certificate chains", err)
-		}
-		chainBuilder = cs.NewChainBuilder(
-			topo.IA(),
-			trustDB,
-			globalCfg.CA.MaxASValidity.Duration,
-			globalCfg.General.ConfigDir,
-		)
-
 		srvCtr := libmetrics.NewPromCounter(metrics.RenewalServerRequestsTotal)
-		cmsCtr := libmetrics.NewPromCounter(metrics.RenewalCMSHandlerRequestsTotal)
-		legacyCtr := libmetrics.NewPromCounter(metrics.RenewalLegacyHandlerRequestsTotal)
 		renewalServer := &renewalgrpc.RenewalServer{
-			CMSHandler: &renewalgrpc.CMS{
-				DB:           renewalDB,
-				IA:           topo.IA(),
-				ChainBuilder: chainBuilder,
-				Verifier: renewal.RequestVerifier{
-					TRCFetcher: trustDB,
-				},
-				Metrics: renewalgrpc.CMSHandlerMetrics{
-					Success:       cmsCtr.With(prom.LabelResult, prom.StatusOk),
-					DatabaseError: cmsCtr.With(prom.LabelResult, prom.ErrDB),
-					InternalError: cmsCtr.With(prom.LabelResult, prom.ErrInternal),
-					NotFoundError: cmsCtr.With(prom.LabelResult, prom.ErrNotFound),
-					ParseError:    cmsCtr.With(prom.LabelResult, prom.ErrParse),
-					VerifyError:   cmsCtr.With(prom.LabelResult, prom.ErrVerify),
-				},
+			IA:        topo.IA(),
+			CMSSigner: signer,
+			Metrics: renewalgrpc.RenewalServerMetrics{
+				Success:       srvCtr.With(prom.LabelResult, prom.StatusOk),
+				BackendErrors: srvCtr.With(prom.LabelResult, prom.StatusErr),
 			},
-			LegacyHandler: &renewalgrpc.Legacy{
+		}
+		var renewalDB renewal.DB
+		if !globalCfg.CA.DisableLegacyRequest || globalCfg.CA.Mode == config.InProcess {
+			renewalDB, err = storage.NewRenewalStorage(globalCfg.RenewalDB)
+			if err != nil {
+				return serrors.WrapStr("initializing renewal database", err)
+			}
+			defer renewalDB.Close()
+			if err := cs.LoadClientChains(renewalDB, globalCfg.General.ConfigDir); err != nil {
+				return serrors.WrapStr("loading client certificate chains", err)
+			}
+			chainBuilder = cs.NewChainBuilder(
+				topo.IA(),
+				trustDB,
+				globalCfg.CA.MaxASValidity.Duration,
+				globalCfg.General.ConfigDir,
+			)
+			periodic.Start(
+				periodic.Func{
+					TaskName: "update client certificates from disk",
+					Task: func(ctx context.Context) {
+						err := cs.LoadClientChains(renewalDB, globalCfg.General.ConfigDir)
+						if err != nil {
+							log.Debug("loading client certificate chains", "error", err)
+						}
+					},
+				},
+				30*time.Second,
+				5*time.Second,
+			)
+		}
+
+		if !globalCfg.CA.DisableLegacyRequest {
+			legacyCtr := libmetrics.NewPromCounter(metrics.RenewalLegacyHandlerRequestsTotal)
+			renewalServer.LegacyHandler = &renewalgrpc.Legacy{
 				Signer:       signer,
 				DB:           renewalDB,
 				ChainBuilder: chainBuilder,
@@ -335,30 +342,39 @@ func realMain() error {
 					ParseError:    legacyCtr.With(prom.LabelResult, prom.ErrParse),
 					VerifyError:   legacyCtr.With(prom.LabelResult, prom.ErrVerify),
 				},
-			},
-			IA:        topo.IA(),
-			CMSSigner: signer,
-			Metrics: renewalgrpc.RenewalServerMetrics{
-				Success:       srvCtr.With(prom.LabelResult, prom.StatusOk),
-				BackendErrors: srvCtr.With(prom.LabelResult, prom.StatusErr),
-			},
+			}
 		}
+
+		switch globalCfg.CA.Mode {
+		case config.InProcess:
+			cmsCtr := libmetrics.NewPromCounter(metrics.RenewalCMSHandlerRequestsTotal)
+			renewalServer.CMSHandler = &renewalgrpc.CMS{
+				DB:           renewalDB,
+				IA:           topo.IA(),
+				ChainBuilder: chainBuilder,
+				Verifier: renewal.RequestVerifier{
+					TRCFetcher: trustDB,
+				},
+				Metrics: renewalgrpc.CMSHandlerMetrics{
+					Success:       cmsCtr.With(prom.LabelResult, prom.StatusOk),
+					DatabaseError: cmsCtr.With(prom.LabelResult, prom.ErrDB),
+					InternalError: cmsCtr.With(prom.LabelResult, prom.ErrInternal),
+					NotFoundError: cmsCtr.With(prom.LabelResult, prom.ErrNotFound),
+					ParseError:    cmsCtr.With(prom.LabelResult, prom.ErrParse),
+					VerifyError:   cmsCtr.With(prom.LabelResult, prom.ErrVerify),
+				},
+			}
+		case config.Delegating:
+			renewalServer.CMSHandler = &renewalgrpc.DelegatingHandler{
+				// TODO(roosd): initialize handler
+			}
+			return serrors.New("delegating CA handler currently not supported")
+		default:
+			return serrors.New("unsupported CA handler", "mode", globalCfg.CA.Mode)
+		}
+
 		cppb.RegisterChainRenewalServiceServer(quicServer, renewalServer)
 		cppb.RegisterChainRenewalServiceServer(tcpServer, renewalServer)
-
-		periodic.Start(
-			periodic.Func{
-				TaskName: "update client certificates from disk",
-				Task: func(ctx context.Context) {
-					err := cs.LoadClientChains(renewalDB, globalCfg.General.ConfigDir)
-					if err != nil {
-						log.Debug("loading client certificate chains", "error", err)
-					}
-				},
-			},
-			30*time.Second,
-			5*time.Second,
-		)
 	}
 
 	// Frequently regenerate signers to catch problems, and update the metrics.

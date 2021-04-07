@@ -17,6 +17,7 @@ package config
 
 import (
 	"io"
+	"strings"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/config"
@@ -269,11 +270,31 @@ type CA struct {
 	config.NoDefaulter
 	// MaxASValidity is the maximum AS certificate lifetime.
 	MaxASValidity util.DurWrap `toml:"max_as_validity,omitempty"`
+	// DisableLegacyRequest disables the handler for certificate issuance
+	// requests received in the protobuf signature format, thus allowing only
+	// requests received in the CMS format.
+	DisableLegacyRequest bool `toml:"disable_legacy_request,omitempty"`
+	// Mode defines whether the Control Service should handle certificate
+	// issuance requests on its own, or whether to delegate handling to a
+	// dedicated Certificate Authority. If it is the empty string, the
+	// in-process mode is selected as the default.
+	Mode CAMode `toml:"mode,omitempty"`
 }
 
 func (cfg *CA) Validate() error {
 	if cfg.MaxASValidity.Duration == 0 {
 		cfg.MaxASValidity.Duration = DefaultMaxASValidity
+	}
+	if cfg.Mode == "" {
+		cfg.Mode = InProcess
+	}
+	switch strings.ToLower(string(cfg.Mode)) {
+	case string(Delegating):
+		cfg.Mode = Delegating
+	case string(InProcess):
+		cfg.Mode = InProcess
+	default:
+		return serrors.New("unknown CA mode", "mode", cfg.Mode)
 	}
 	return nil
 }
@@ -285,3 +306,10 @@ func (cfg *CA) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {
 func (cfg *CA) ConfigName() string {
 	return "ca"
 }
+
+type CAMode string
+
+const (
+	Delegating CAMode = "delegating"
+	InProcess  CAMode = "in-process"
+)

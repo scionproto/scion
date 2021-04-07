@@ -86,7 +86,7 @@ func Run(t *testing.T, db TestableDB, cfg Config) {
 }
 
 func testTRC(t *testing.T, db trust.DB, cfg Config) {
-	trc := loadTRCFile(t, "ISD-B1-S1.trc", cfg)
+	trc := loadTRCFile(t, "ISD1-B1-S1.trc", cfg)
 
 	ctx, cancelF := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer cancelF()

@@ -36,25 +36,25 @@ func TestVerify(t *testing.T) {
 		ErrAssertion require.ErrorAssertionFunc
 	}{
 		"base-trc-anchor": {
-			Files:        []string{"./testdata/admin/ISD-B1-S1.trc"},
-			Anchor:       "./testdata/admin/ISD-B1-S1.trc",
+			Files:        []string{"./testdata/admin/ISD1-B1-S1.trc"},
+			Anchor:       "./testdata/admin/ISD1-B1-S1.trc",
 			Prepare:      func(*testing.T) {},
 			ErrAssertion: require.NoError,
 		},
 		"base-bundle-anchor": {
-			Files:  []string{"./testdata/admin/ISD-B1-S1.trc"},
+			Files:  []string{"./testdata/admin/ISD1-B1-S1.trc"},
 			Anchor: filepath.Join(dir, "base.pem"),
 			Prepare: func(*testing.T) {
 				out := filepath.Join(dir, "base.pem")
-				require.NoError(t, runExtractCertificates("./testdata/admin/ISD-B1-S1.trc", out))
+				require.NoError(t, runExtractCertificates("./testdata/admin/ISD1-B1-S1.trc", out))
 			},
 			ErrAssertion: require.NoError,
 		},
 		"base-bundle-missing": {
-			Files:  []string{"./testdata/admin/ISD-B1-S1.trc"},
+			Files:  []string{"./testdata/admin/ISD1-B1-S1.trc"},
 			Anchor: filepath.Join(dir, "base-missing.pem"),
 			Prepare: func(*testing.T) {
-				signed, err := DecodeFromFile("./testdata/admin/ISD-B1-S1.trc")
+				signed, err := DecodeFromFile("./testdata/admin/ISD1-B1-S1.trc")
 				require.NoError(t, err)
 				out := filepath.Join(dir, "base-missing.pem")
 				require.NoError(t, writeBundle(out, signed.TRC.Certificates[:1]))
@@ -63,9 +63,9 @@ func TestVerify(t *testing.T) {
 		},
 		"base-invalid-signature": {
 			Files:  []string{filepath.Join(dir, "base-invalid-signature.der")},
-			Anchor: "./testdata/admin/ISD-B1-S1.trc",
+			Anchor: "./testdata/admin/ISD1-B1-S1.trc",
 			Prepare: func(*testing.T) {
-				signed, err := DecodeFromFile("./testdata/admin/ISD-B1-S1.trc")
+				signed, err := DecodeFromFile("./testdata/admin/ISD1-B1-S1.trc")
 				require.NoError(t, err)
 				out := filepath.Join(dir, "base-invalid-signature.der")
 				// Mangle the signature.

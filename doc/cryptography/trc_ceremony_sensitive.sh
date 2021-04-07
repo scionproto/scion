@@ -1,0 +1,1 @@
+../../scripts/cryptoplayground/trc_ceremony_sensitive.sh

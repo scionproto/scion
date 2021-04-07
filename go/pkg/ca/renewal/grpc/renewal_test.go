@@ -71,6 +71,46 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 		metric        string
 		assertion     assert.ErrorAssertionFunc
 	}{
+		"legacy not configured": {
+			request: func(t *testing.T) *cppb.ChainRenewalRequest {
+				return &cppb.ChainRenewalRequest{
+					SignedRequest: signedReq.SignedRequest,
+				}
+			},
+			legacyHandler: func(ctrl *gomock.Controller) grpc.LegacyRequestHandler {
+				return nil
+			},
+			cmsHandler: func(ctrl *gomock.Controller) grpc.CMSRequestHandler {
+				r := mock_grpc.NewMockCMSRequestHandler(ctrl)
+				return r
+			},
+			cmsSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
+				return mock_grpc.NewMockCMSSigner(ctrl)
+			},
+			assertion: assert.Error,
+			metric:    "err_backend",
+		},
+		"legacy success": {
+			request: func(t *testing.T) *cppb.ChainRenewalRequest {
+				return &cppb.ChainRenewalRequest{}
+			},
+			legacyHandler: func(ctrl *gomock.Controller) grpc.LegacyRequestHandler {
+				r := mock_grpc.NewMockLegacyRequestHandler(ctrl)
+				r.EXPECT().HandleLegacyRequest(
+					gomock.Any(), gomock.Any(),
+				).Return(&cppb.ChainRenewalResponse{}, nil)
+				return r
+			},
+			cmsHandler: func(ctrl *gomock.Controller) grpc.CMSRequestHandler {
+				r := mock_grpc.NewMockCMSRequestHandler(ctrl)
+				return r
+			},
+			cmsSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
+				return mock_grpc.NewMockCMSSigner(ctrl)
+			},
+			assertion: assert.NoError,
+			metric:    "ok_success",
+		},
 		"legacy error": {
 			request: func(t *testing.T) *cppb.ChainRenewalRequest {
 				return &cppb.ChainRenewalRequest{}

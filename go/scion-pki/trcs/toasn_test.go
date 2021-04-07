@@ -25,13 +25,13 @@ import (
 )
 
 func TestMarshalPayload(t *testing.T) {
-	cfg, err := conf.LoadTRC("testdata/admin/ISD-B1-S1.toml")
+	cfg, err := conf.LoadTRC("testdata/admin/ISD1-B1-S1.toml")
 	require.NoError(t, err)
 	trc, err := CreatePayload(cfg)
 	require.NoError(t, err)
 	raw, err := trc.Encode()
 	require.NoError(t, err)
-	expected, err := ioutil.ReadFile("testdata/admin/ISD-B1-S1.pld.der")
+	expected, err := ioutil.ReadFile("testdata/admin/ISD1-B1-S1.pld.der")
 	assert.Equal(t, expected, raw)
 	require.NoError(t, err)
 }

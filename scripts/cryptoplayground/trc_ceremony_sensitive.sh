@@ -10,11 +10,26 @@ export PATH="$PATH:$SCION_ROOT/bin"
 
 . $PLAYGROUND/crypto_lib.sh
 
+if [ ! -d "$SAFEDIR/admin" ]; then
+    echo "#########################"
+    echo "# Running Base Ceremony #"
+    echo "#########################"
+    echo ""
+
+    $PLAYGROUND/trc_ceremony.sh
+
+    echo "##########################"
+    echo "# Finished Base Ceremony #"
+    echo "##########################"
+    echo ""
+fi
+
 set -e
 
-STARTDATE="20200624120000Z"
-ENDDATE="20210624120000Z"
-TRCID="ISD1-B1-S1"
+STARTDATE="20210524120000Z"
+ENDDATE="20220524120000Z"
+PREDID="ISD1-B1-S1"
+TRCID="ISD1-B1-S2"
 
 echo "#####################"
 echo "# Preparation Phase #"
@@ -35,22 +50,9 @@ do
     set_dirs
     # Generate configuration files
     navigate_pubdir
-    basic_conf && sensitive_conf && regular_conf && root_conf && ca_conf && as_conf
-    prepare_ca
-    sed -i \
-        -e 's/{{.Country}}/CH/g' \
-        -e "s/{{.State}}/$loc/g" \
-        -e "s/{{.Location}}/$loc/g" \
-        -e "s/{{.Organization}}/$loc/g" \
-        -e "s/{{.OrganizationalUnit}}/$loc InfoSec Squad/g" \
-        -e "s/{{.ISDAS}}/$IA/g" \
-        basic.cnf
-    for cnf in *.cnf
-    do
-        sed -i \
-        -e "s/{{.ShortOrg}}/$loc/g" \
-        $cnf
-    done
+
+    TRCVERSION=$PREDID && version_sensitive && version_regular && version_root
+
     # Generate certificates
     in_docker 'navigate_pubdir && gen_sensitive && check_sensitive && gen_regular && check_regular && gen_root && check_root'
     check_sensitive_type && check_regular_type && check_root_type
@@ -66,7 +68,7 @@ mkdir -p $SAFEDIR/admin && cd $SAFEDIR/admin
 for loc in {bern,geneva,zürich}
 do
     mkdir -p $loc
-    cp $SAFEDIR/$loc/public/*.crt $loc
+    cp $SAFEDIR/$loc/public/{sensitive-voting,regular-voting,cp-root}.crt $loc
 done
 
 # LITERALINCLUDE display_validity START
@@ -124,7 +126,7 @@ echo "###########"
 
 echo "Phase 2: create payload config"
 cd $SAFEDIR/admin
-payload_conf
+sensitive_payload_conf
 
 files=''
 for file in {bern,geneva,zürich}/*.crt
@@ -136,10 +138,13 @@ files=${files////\\/} # Magic to make sed happy
 sed -i \
     -e 's/{{.ISD}}/1/g' \
     -e 's/{{.Description}}/"Test ISD"/g' \
+    -e 's/{{.SerialNumber}}/2/g' \
+    -e 's/{{.GracePeriod}}/"30d"/g' \
     -e 's/{{.VotingQuorum}}/2/g' \
+    -e 's/{{.Votes}}/[0, 3, 6]/g' \
     -e 's/{{.CoreASes}}/["ff00:0:110", "ff00:0:111"]/g' \
     -e 's/{{.AuthoritativeASes}}/["ff00:0:110", "ff00:0:111"]/g' \
-    -e 's/{{.NotBefore}}/1593000000/g' \
+    -e 's/{{.NotBefore}}/1621857600/g' \
     -e 's/{{.Validity}}/"365d"/g' \
     -e "s/{{.CertFiles}}/[$files]/g" \
     $TRCID.toml
@@ -150,7 +155,7 @@ cat $TRCID.toml
 echo "-------------------------------"
 
 # LITERALINCLUDE create_payload START
-scion-pki trcs payload -t $TRCID.toml -o $TRCID.pld.der
+scion-pki trcs payload --predecessor $PREDID.trc --template $TRCID.toml --out $TRCID.pld.der
 # LITERALINCLUDE create_payload END
 
 echo "Phase 2: display payload digest"
@@ -175,8 +180,8 @@ do
     cd $SAFEDIR/$loc
     set_dirs
 
-    in_docker "cd /workdir && display_payload && sign_payload && check_signed_payload"
-    cp $TRCID.{regular,sensitive}.trc $SAFEDIR/admin/$loc
+    in_docker "cd /workdir && display_payload && sign_payload && check_signed_payload && sensitive_vote && check_sensitive_vote"
+    cp $TRCID.{regular,sensitive,sensitive.vote}.trc $SAFEDIR/admin/$loc
 done
 
 echo "###########"
@@ -188,18 +193,22 @@ cd $SAFEDIR/admin
 
 # LITERALINCLUDE combine_payload START
 scion-pki trcs combine -p $TRCID.pld.der \
+    bern/$TRCID.sensitive.vote.trc \
     bern/$TRCID.sensitive.trc \
     bern/$TRCID.regular.trc \
+    geneva/$TRCID.sensitive.vote.trc \
     geneva/$TRCID.sensitive.trc \
     geneva/$TRCID.regular.trc \
+    zürich/$TRCID.sensitive.vote.trc \
     zürich/$TRCID.sensitive.trc \
     zürich/$TRCID.regular.trc \
     -o $TRCID.trc
 # LITERALINCLUDE combine_payload END
 
 # LITERALINCLUDE verify_payload START
-scion-pki trcs verify --anchor $TRCID.trc $TRCID.trc
+scion-pki trcs verify --anchor $PREDID.trc $TRCID.trc
 # LITERALINCLUDE verify_payload END
+scion-pki trcs extract certificates -o bundle.crt $PREDID.trc
 in_docker "cd /workdir && verify_trc"
 
 
@@ -217,6 +226,7 @@ do
 
     cp $SAFEDIR/admin/$TRCID.trc .
     set_dirs
+    scion-pki trcs extract certificates -o bundle.crt $PREDID.trc
     in_docker "cd /workdir && verify_trc && display_signatures"
 done
 
@@ -239,7 +249,7 @@ do
     in_docker "navigate_pubdir && gen_as && check_as"
     check_as_type
     cat cp-as.crt cp-ca.crt > chain.pem
-    scion-pki certs verify --trc ../$TRCID.trc --currenttime 1593000000 chain.pem
+    scion-pki certs verify --trc ../$TRCID.trc --currenttime 1621857600 chain.pem
 done
 
 echo "###########"

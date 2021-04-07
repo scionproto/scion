@@ -16,6 +16,7 @@ package xtest
 
 import (
 	"crypto/x509"
+	"encoding/pem"
 	"io/ioutil"
 	"testing"
 
@@ -38,6 +39,9 @@ func LoadTRC(t *testing.T, file string) cppki.SignedTRC {
 	t.Helper()
 	raw, err := ioutil.ReadFile(file)
 	require.NoError(t, err)
+	if block, _ := pem.Decode(raw); block != nil {
+		raw = block.Bytes
+	}
 	trc, err := cppki.DecodeSignedTRC(raw)
 	require.NoError(t, err)
 	return trc
