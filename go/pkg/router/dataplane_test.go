@@ -1073,86 +1073,78 @@ func TestProcessPkt(t *testing.T) {
 					nil, xtest.MustParseIA("1-ff00:0:110"), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
-				spkt := &slayers.SCION{
-					Version:      0,
-					TrafficClass: 0xb8,
-					FlowID:       0xdead,
-					NextHdr:      common.L4UDP,
-					PathType:     epic.PathType,
-					DstIA:        xtest.MustParseIA("4-ff00:0:411"),
-					SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
-					Path:         nil,
-					PayloadLen:   18,
-				}
-				dpath := &scion.Decoded{
-					Base: scion.Base{
-						PathMeta: scion.MetaHdr{
-							CurrHF: 1,
-							SegLen: [3]uint8{3, 0, 0},
-						},
-						NumINF:  1,
-						NumHops: 3,
-					},
-					InfoFields: []*path.InfoField{
-						{SegID: 0x111, ConsDir: true, Timestamp: util.TimeToSecs(time.Now())},
-					},
-					HopFields: []*path.HopField{},
-				}
-
-				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
-				dst := &net.IPAddr{IP: net.ParseIP("10.0.100.100").To4()}
-				_ = spkt.SetDstAddr(dst)
-				dpath.HopFields = []*path.HopField{
-					{ConsIngress: 41, ConsEgress: 40},
-					{ConsIngress: 31, ConsEgress: 30},
-					{ConsIngress: 01, ConsEgress: 0},
-				}
-				dpath.Base.PathMeta.CurrHF = 2
-				dpath.Base.PathMeta.CurrINF = 0
-				dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
-
-				// Put scion path into epic path header
-				timestamp := dpath.InfoFields[0].Timestamp
-				var tsRel uint32
-				if afterProcessing {
-					tsRel = cachedEpicTsRel
-				} else {
-					tsRel, _ = libepic.CreateTimestamp(time.Unix(int64(timestamp), 0), time.Now())
+				spkt, epicpath, dpath, tsRel := prepEpicMsg(t,
+					afterProcessing, key, cachedEpicTsRel)
+				if !afterProcessing {
 					cachedEpicTsRel = tsRel
 				}
-				pktID := epic.PktID{
-					Timestamp: tsRel,
-					Counter:   libepic.PktCounterFromCore(1, 2),
-				}
 
-				scionPath, err := dpath.ToRaw()
-				assert.NoError(t, err)
-				epicpath := &epic.Path{
-					ScionPath: scionPath,
-					PktID:     pktID,
-					PHVF:      make([]byte, 4),
-					LHVF:      make([]byte, 4),
-				}
-				spkt.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()})
-				spkt.Path = epicpath
-
-				// Generate epic authenticators
-				authLast := computeFullMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
-
-				// Calculate PHVF and LHVF
-				macLast, err := libepic.CalcMac(authLast, epicpath.PktID, spkt, timestamp)
-				assert.NoError(t, err)
-				copy(epicpath.LHVF, macLast)
-
-				ret := toMsg(t, spkt, epicpath)
-				if afterProcessing {
-					ret.Addr = &net.UDPAddr{IP: dst.IP, Port: topology.EndhostPort}
-					ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
-				}
-				return ret
+				prepareEpicCrypto(t, spkt, epicpath, dpath, key)
+				return toIP(t, spkt, epicpath, afterProcessing)
 			},
 			srcInterface: 1,
 			assertFunc:   assert.NoError,
+		},
+		"epic malformed path": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					nil, xtest.MustParseIA("1-ff00:0:110"), key)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, epicpath, dpath, tsRel := prepEpicMsg(t,
+					afterProcessing, key, cachedEpicTsRel)
+				if !afterProcessing {
+					cachedEpicTsRel = tsRel
+				}
+				prepareEpicCrypto(t, spkt, epicpath, dpath, key)
+
+				// Wrong path type
+				return toIP(t, spkt, &scion.Decoded{}, afterProcessing)
+			},
+			srcInterface: 1,
+			assertFunc:   assert.Error,
+		},
+		"epic invalid timestamp": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					nil, xtest.MustParseIA("1-ff00:0:110"), key)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, epicpath, dpath, tsRel := prepEpicMsg(t,
+					afterProcessing, key, cachedEpicTsRel)
+				if !afterProcessing {
+					cachedEpicTsRel = tsRel
+				}
+
+				// Invalid timestamp
+				epicpath.PktID.Timestamp = epicpath.PktID.Timestamp + 250000
+
+				prepareEpicCrypto(t, spkt, epicpath, dpath, key)
+				return toIP(t, spkt, epicpath, afterProcessing)
+			},
+			srcInterface: 1,
+			assertFunc:   assert.Error,
+		},
+		"epic invalid LHVF": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					nil, xtest.MustParseIA("1-ff00:0:110"), key)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, epicpath, dpath, tsRel := prepEpicMsg(t,
+					afterProcessing, key, cachedEpicTsRel)
+				if !afterProcessing {
+					cachedEpicTsRel = tsRel
+				}
+				prepareEpicCrypto(t, spkt, epicpath, dpath, key)
+
+				// Invalid LHVF
+				epicpath.LHVF = []byte{0, 0, 0, 0}
+
+				return toIP(t, spkt, epicpath, afterProcessing)
+			},
+			srcInterface: 1,
+			assertFunc:   assert.Error,
 		},
 	}
 
@@ -1161,8 +1153,7 @@ func TestProcessPkt(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			dp := tc.prepareDP(ctrl)
-			input := tc.mockMsg(false)
-			want := tc.mockMsg(true)
+			input, want := tc.mockMsg(false), tc.mockMsg(true)
 			buffer := gopacket.NewSerializeBuffer()
 			origMsg := make([]byte, len(input.Buffers[0]))
 			copy(origMsg, input.Buffers[0])
@@ -1210,6 +1201,7 @@ func prepBaseMsg() (*slayers.SCION, *scion.Decoded) {
 		DstIA:        xtest.MustParseIA("4-ff00:0:411"),
 		SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
 		Path:         &scion.Raw{},
+		PayloadLen:   18,
 	}
 
 	dpath := &scion.Decoded{
@@ -1228,6 +1220,77 @@ func prepBaseMsg() (*slayers.SCION, *scion.Decoded) {
 		HopFields: []*path.HopField{},
 	}
 	return spkt, dpath
+}
+
+func prepEpicMsg(t *testing.T, afterProcessing bool, key []byte,
+	cachedEpicTsRel uint32) (*slayers.SCION, *epic.Path, *scion.Decoded, uint32) {
+
+	spkt, dpath := prepBaseMsg()
+	spkt.PathType = epic.PathType
+
+	spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+	dpath.HopFields = []*path.HopField{
+		{ConsIngress: 41, ConsEgress: 40},
+		{ConsIngress: 31, ConsEgress: 30},
+		{ConsIngress: 01, ConsEgress: 0},
+	}
+	dpath.Base.PathMeta.CurrHF = 2
+	dpath.Base.PathMeta.CurrINF = 0
+
+	// Put SCION path into EPIC path header
+	timestamp := dpath.InfoFields[0].Timestamp
+	tsRel := cachedEpicTsRel
+	if !afterProcessing {
+		var err error
+		tsRel, err = libepic.CreateTimestamp(time.Unix(int64(timestamp), 0), time.Now())
+		require.NoError(t, err)
+	}
+
+	pktID := epic.PktID{
+		Timestamp: tsRel,
+		Counter:   libepic.PktCounterFromCore(1, 2),
+	}
+
+	epicpath := &epic.Path{
+		PktID: pktID,
+		PHVF:  make([]byte, 4),
+		LHVF:  make([]byte, 4),
+	}
+	spkt.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()})
+	spkt.Path = epicpath
+
+	return spkt, epicpath, dpath, tsRel
+}
+
+func prepareEpicCrypto(t *testing.T, spkt *slayers.SCION,
+	epicpath *epic.Path, dpath *scion.Decoded, key []byte) {
+
+	// Calculate SCION MAC
+	dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+	scionPath, err := dpath.ToRaw()
+	require.NoError(t, err)
+	epicpath.ScionPath = scionPath
+
+	// Generate EPIC authenticator
+	authLast := computeFullMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+
+	// Calculate PHVF and LHVF
+	macLast, err := libepic.CalcMac(authLast, epicpath.PktID,
+		spkt, dpath.InfoFields[0].Timestamp)
+	require.NoError(t, err)
+	copy(epicpath.LHVF, macLast)
+}
+
+func toIP(t *testing.T, spkt *slayers.SCION, path path.Path, afterProcessing bool) *ipv4.Message {
+	// Encapsulate in IPv4
+	dst := &net.IPAddr{IP: net.ParseIP("10.0.100.100").To4()}
+	_ = spkt.SetDstAddr(dst)
+	ret := toMsg(t, spkt, path)
+	if afterProcessing {
+		ret.Addr = &net.UDPAddr{IP: dst.IP, Port: topology.EndhostPort}
+		ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+	}
+	return ret
 }
 
 func computeMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopField) []byte {

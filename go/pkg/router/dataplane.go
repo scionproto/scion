@@ -22,6 +22,7 @@ import (
 	"hash"
 	"math/big"
 	"net"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -703,6 +704,7 @@ func (d *DataPlane) processEPIC(ingressID uint16, rawPkt []byte, s slayers.SCION
 	}
 	result, err := p.process()
 	if err != nil {
+		// TODO(mawyss): Send back SCMP packet
 		return processResult{}, err
 	}
 
@@ -711,9 +713,8 @@ func (d *DataPlane) processEPIC(ingressID uint16, rawPkt []byte, s slayers.SCION
 
 	if isPenultimate || isLast {
 		timestamp := time.Unix(int64(info.Timestamp), 0)
-		packetTimestamp := path.PktID.Timestamp
-		now := time.Now()
-		if err = libepic.VerifyTimestamp(timestamp, packetTimestamp, now); err != nil {
+		if err = libepic.VerifyTimestamp(timestamp, path.PktID.Timestamp, time.Now()); err != nil {
+			// TODO(mawyss): Send back SCMP packet
 			return processResult{}, err
 		}
 
@@ -722,6 +723,7 @@ func (d *DataPlane) processEPIC(ingressID uint16, rawPkt []byte, s slayers.SCION
 			HVF = path.LHVF
 		}
 		if err = libepic.VerifyHVF(p.cachedMac, path.PktID, &s, info.Timestamp, HVF); err != nil {
+			// TODO(mawyss): Send back SCMP packet
 			return processResult{}, err
 		}
 	}
@@ -1416,7 +1418,12 @@ type scmpPacker struct {
 func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
 	external bool, cause error) ([]byte, error) {
 
-	path := s.scionL.Path.(*scion.Raw)
+	path, ok := s.scionL.Path.(*scion.Raw)
+	if !ok {
+		return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
+			"path type", reflect.TypeOf(path))
+	}
+
 	decPath, err := path.ToDecoded()
 	if err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "decoding raw path")

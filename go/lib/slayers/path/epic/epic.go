@@ -63,10 +63,10 @@ func (p *Path) SerializeTo(b []byte) error {
 			"actual", len(b))
 	}
 	if len(p.PHVF) != HVFLen {
-		serrors.New("invalid length of PHVF", "expected", HVFLen, "actual", len(p.PHVF))
+		return serrors.New("invalid length of PHVF", "expected", HVFLen, "actual", len(p.PHVF))
 	}
 	if len(p.LHVF) != HVFLen {
-		serrors.New("invalid length of LHVF", "expected", HVFLen, "actual", len(p.LHVF))
+		return serrors.New("invalid length of LHVF", "expected", HVFLen, "actual", len(p.LHVF))
 	}
 	if p.ScionPath == nil {
 		return serrors.New("SCION path is nil")
