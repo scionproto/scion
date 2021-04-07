@@ -39,8 +39,8 @@ const (
 	TimestampResolution = 21 * time.Microsecond
 )
 
-// CreateTimestamp returns tsRel, which encodes the current time (now) relative to the input
-// timestamp. The input timestamp must not be in the future (compared to the current time),
+// CreateTimestamp returns the epic timestamp, which encodes the current time (now) relative to the
+// input timestamp. The input timestamp must not be in the future (compared to the current time),
 // otherwise an error is returned. An error is also returned if the current time is more than 1 day
 // and 63 minutes after the input timestamp.
 func CreateTimestamp(input time.Time, now time.Time) (uint32, error) {
@@ -48,14 +48,14 @@ func CreateTimestamp(input time.Time, now time.Time) (uint32, error) {
 		return 0, serrors.New("provided input timestamp is in the future",
 			"input", input, "now", now)
 	}
-	tsRel := now.Sub(input)/TimestampResolution - 1
-	if tsRel < 0 {
-		tsRel = 0
+	epicTS := now.Sub(input)/TimestampResolution - 1
+	if epicTS < 0 {
+		epicTS = 0
 	}
-	if tsRel >= (1 << 32) {
-		return 0, serrors.New("diff between input and now >1d63min", "tsRel", tsRel)
+	if epicTS >= (1 << 32) {
+		return 0, serrors.New("diff between input and now >1d63min", "epicTS", epicTS)
 	}
-	return uint32(tsRel), nil
+	return uint32(epicTS), nil
 }
 
 // VerifyTimestamp checks whether an EPIC packet is fresh. This means that the time the packet
@@ -63,18 +63,18 @@ func CreateTimestamp(input time.Time, now time.Time) (uint32, error) {
 // does not date back more than the maximal packet lifetime of two seconds. The function also takes
 // a possible clock drift between the packet source and the verifier of up to one second into
 // account.
-func VerifyTimestamp(timestamp time.Time, epicTimestamp uint32, now time.Time) error {
-	diff := (time.Duration(epicTimestamp) + 1) * TimestampResolution
+func VerifyTimestamp(timestamp time.Time, epicTS uint32, now time.Time) error {
+	diff := (time.Duration(epicTS) + 1) * TimestampResolution
 	tsSender := timestamp.Add(diff)
 
 	if tsSender.After(now.Add(MaxClockSkew)) {
 		delta := tsSender.Sub(now.Add(MaxClockSkew))
-		return serrors.New("epic packet timestamp is in the future",
+		return serrors.New("epic timestamp is in the future",
 			"delta", delta)
 	}
 	if now.After(tsSender.Add(MaxPacketLifetime).Add(MaxClockSkew)) {
 		delta := now.Sub(tsSender.Add(MaxPacketLifetime).Add(MaxClockSkew))
-		return serrors.New("epic packet timestamp expired",
+		return serrors.New("epic timestamp expired",
 			"delta", delta)
 	}
 	return nil

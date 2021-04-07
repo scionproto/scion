@@ -493,7 +493,7 @@ solves this problem on the last link, which is particularly
 important for the security of hidden paths.
 
 The EPIC-HP header has the following structure:
-   - A *PacketTimestamp* field (8 bytes)
+   - A *PktID* field (8 bytes)
    - A 4-byte *PHVF* (Penultimate Hop Validation Field)  and a
      4-byte *LHVF* (Last Hop Validation Field)
    - The complete SCION path type header
@@ -501,7 +501,7 @@ The EPIC-HP header has the following structure:
 ::
 
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                        PacketTimestamp                        |
+    |                             PktID                             |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     |                             PHVF                              |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -533,7 +533,7 @@ type answer packets do not leak information that would allow
 unauthorized entities to use the hidden path. In particular, a SCION
 path type response packet only contains strictly less information
 than the previously received EPIC-HP packet, as the response packet
-does not include the PacketTimestamp, the PHVF, and the LHVF.
+does not include the PktID, the PHVF, and the LHVF.
 
 If the sender is reachable through a hidden path itself, then it is
 likely that its AS will not accept SCION path type packets, which
@@ -550,16 +550,17 @@ allowed. This is further described in the accompanying
 
 .. _`EPIC design document`: ../EPIC.html
 
-Packet Timestamp
-----------------
+Packet identifier (PktID)
+-------------------------
 
-This timestamp represents the precise time at which a packet was sent.
-It is relative to the Timestamp in the first `Info Field`_.
+The packet identifier represents the precise time at which a packet
+was sent. It contains the EPIC timestamp (EpicTS), which is a
+timestamp relative to the Timestamp in the first `Info Field`_.
 Together with the (ISD, AS, host) triple of the packet source and
-the Timestamp in the first Info Field, the Packet Timestamp uniquely
+the Timestamp in the first Info Field, the packet identifier uniquely
 identifies a packet. Unique packet identifiers are a requirement for
 replay suppression.
-The Packet Timestamp further allows the border router to discard
+The EPIC timestamp further allows the border router to discard
 packets that exceed their lifetime or lie in the future.
 
 ::
@@ -567,14 +568,14 @@ packets that exceed their lifetime or lie in the future.
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                             TsRel                             |
+    |                            EpicTS                             |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                             PckId                             |
+    |                            Counter                            |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-TsRel
+EpicTS
   A 4-byte timestamp relative to the (segment) Timestamp in the
-  first Info Field. TsRel is calculated by the source host as
+  first Info Field. EpicTS is calculated by the source host as
   follows:
 
 .. math::
@@ -585,25 +586,25 @@ TsRel
         \text{q} &= \left\lceil\left(\frac{24 \times 60 \times 60
             \times 10^6}{2^{32}}\right)\right\rceil\mu s
             = \text{21}\mu s\\
-        \text{TsRel} &= \text{max} \left\{0,
+        \text{EpicTS} &= \text{max} \left\{0,
             \frac{\text{Ts - Timestamp}_{\mu s}}
             {\text{q}} -1 \right\} \\
         \textit{Get back the time when} &~\textit{the packet
         was timestamped:} \\
-        \text{Ts} &= \text{Timestamp}_{\mu s} + (1 + \text{TsRel})
+        \text{Ts} &= \text{Timestamp}_{\mu s} + (1 + \text{EpicTS})
             \times \text{q}
     \end{align}
 
-TsRel has a precision of :math:`21 \mu s` and covers at least
+EpicTS has a precision of :math:`21 \mu s` and covers at least
 one day (1 day and 63 minutes). When sending packets at high speeds
 (more than one packet every :math:`21 \mu s`) or when using
-multiple cores, collisions may occur in TsRel. To solve this
-problem, the source further identifies the packet using PckId.
+multiple cores, collisions may occur in EpicTS. To solve this
+problem, the source further identifies the packet using a Counter.
 
-PckId
+Counter
   A 4-byte identifier that allows to distinguish packets with
-  the same TsRel. Every source is free to set PckId arbitrarily
-  (it only needs to be unique for all packets with the same TsRel),
+  the same EpicTS. Every source is free to set the Counter arbitrarily
+  (it only needs to be unique for all packets with the same EpicTS),
   but we recommend to use the following structure:
 
 ::
@@ -622,7 +623,7 @@ CoreCounter
   by CoreID. Every time a core sends an EPIC packet, it increases
   its core counter (modular addition by 1).
 
-Note that the Packet Timestamp is at the very beginning of the
+Note that the Packet Identifier is at the very beginning of the
 header, this allows other components (like the replay suppression
 system) to access it without having to go through any parsing
 overhead.
@@ -655,7 +656,7 @@ calculated can be found in the `EPIC Procedures`_ section.
 EPIC Header Length Calculation
 ------------------------------
 The length of the EPIC Path header is the same as the SCION Path
-header plus 8 bytes (Packet Timestamp), and plus 8 bytes for the
+header plus 8 bytes (Packet Identifier), and plus 8 bytes for the
 PHVF and LHVF.
 
 .. _EPIC Procedures:
@@ -684,10 +685,10 @@ PHVF and LHVF as follows:
     \begin{align}
     \text{Origin} &= \text{(SrcISD, SrcAS, SrcHostAddr)} \\
     \text{PHVF} &= \text{MAC}_{\sigma_{\text{PH}}}
-        (\text{Flags}, \text{Timestamp}, \text{PacketTimestamp},
+        (\text{Flags}, \text{Timestamp}, \text{PktID},
         \text{Origin}, \text{PayloadLen})~\text{[0:4]} \\
     \text{LHVF} &= \text{MAC}_{\sigma_{\text{LH}}}
-        (\text{Flags}, \text{Timestamp}, \text{PacketTimestamp},
+        (\text{Flags}, \text{Timestamp}, \text{PktID},
         \text{Origin}, \text{PayloadLen})~\text{[0:4]} \\
     \end{align}
 
@@ -714,7 +715,7 @@ In addition, the penultimate hop of the last segment recomputes and
 verifies the PHVF field.
 As it has already calculated the 16-byte authenticator
 :math:`\sigma_{\text{PH}}` in the previous step, the penultimate hop
-only needs to extract the Flags, Timestamp, PacketTimestamp and
+only needs to extract the Flags, Timestamp, PktID and
 Origin fields from the EPIC-HP packet, and the PayloadLen from
 the Common Header, which is all the information it
 needs to recompute the PHVF. If the verification fails, i.e., the

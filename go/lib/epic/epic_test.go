@@ -119,9 +119,9 @@ func TestCreateTimestamp(t *testing.T) {
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-			tsRel, err := libepic.CreateTimestamp(tc.Timestamp, now)
+			epicTS, err := libepic.CreateTimestamp(tc.Timestamp, now)
 			tc.errorFunc(t, err)
-			assert.Equal(t, uint32(tc.Expected), tsRel)
+			assert.Equal(t, uint32(tc.Expected), epicTS)
 		})
 	}
 }
@@ -133,9 +133,9 @@ func TestVerifyTimestamp(t *testing.T) {
 	// The Info Field was timestamped 1 minute ago
 	timeInfoCreation := now.Add(-time.Minute)
 
-	// Create tsRel that represents the current time. It will be modified in the tests in order to
+	// Create epicTS that represents the current time. It will be modified in the tests in order to
 	// check different cases.
-	tsRel, err := libepic.CreateTimestamp(timeInfoCreation, now)
+	epicTS, err := libepic.CreateTimestamp(timeInfoCreation, now)
 	require.NoError(t, err)
 
 	// Abbreviate max. clock skew, abbreviate sum of max. clock skew and max. packet lifetime.
@@ -145,35 +145,35 @@ func TestVerifyTimestamp(t *testing.T) {
 	csAndPl := uint32(((libepic.MaxClockSkew + libepic.MaxPacketLifetime) / 21).Microseconds())
 
 	testCases := map[string]struct {
-		TsRel     uint32
+		EpicTS    uint32
 		errorFunc assert.ErrorAssertionFunc
 	}{
 		"Timestamp one minute old": {
-			TsRel:     0,
+			EpicTS:    0,
 			errorFunc: assert.Error,
 		},
 		"Timestamp older than max. clock skew plus max. packet lifetime": {
-			TsRel:     tsRel - csAndPl,
+			EpicTS:    epicTS - csAndPl,
 			errorFunc: assert.Error,
 		},
 		"Timestamp valid but in the past": {
-			TsRel:     tsRel - csAndPl + 1,
+			EpicTS:    epicTS - csAndPl + 1,
 			errorFunc: assert.NoError,
 		},
 		"Timestamp valid": {
-			TsRel:     tsRel,
+			EpicTS:    epicTS,
 			errorFunc: assert.NoError,
 		},
 		"Timestamp valid but in future": {
-			TsRel:     tsRel + cs,
+			EpicTS:    epicTS + cs,
 			errorFunc: assert.NoError,
 		},
 		"Timestamp newer than clock skew": {
-			TsRel:     tsRel + cs + 1,
+			EpicTS:    epicTS + cs + 1,
 			errorFunc: assert.Error,
 		},
 		"Timestamp way too far in future": {
-			TsRel:     ^uint32(0),
+			EpicTS:    ^uint32(0),
 			errorFunc: assert.Error,
 		},
 	}
@@ -182,7 +182,7 @@ func TestVerifyTimestamp(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			// Verify the timestamp now
-			err := libepic.VerifyTimestamp(timeInfoCreation, tc.TsRel, now)
+			err := libepic.VerifyTimestamp(timeInfoCreation, tc.EpicTS, now)
 			tc.errorFunc(t, err)
 		})
 	}
@@ -193,9 +193,9 @@ func TestVerifyHVF(t *testing.T) {
 	s := createScionCmnAddrHdr(0)
 	now := time.Now().Truncate(time.Second)
 	timestamp := uint32(now.Add(-time.Minute).Unix())
-	tsRel, _ := libepic.CreateTimestamp(now.Add(-time.Minute), time.Now())
+	epicTS, _ := libepic.CreateTimestamp(now.Add(-time.Minute), time.Now())
 	pktID := epic.PktID{
-		Timestamp: tsRel,
+		Timestamp: epicTS,
 		Counter:   libepic.PktCounterFromCore(1, 2),
 	}
 

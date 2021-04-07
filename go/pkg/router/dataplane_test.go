@@ -560,11 +560,11 @@ func TestProcessPkt(t *testing.T) {
 
 	key := []byte("testkey_xxxxxxxx")
 
-	// cachedEpicTsRel contains the cached epic TsRel (relative timestamp). Caching is necessary
+	// cachedEpicTS contains the cached epic timestamp (relative timestamp). Caching is necessary
 	// because mockMsg(afterProcessing bool) is called twice, once with afterProcessing set to
-	// false, and then with afterProcessing set to true. Instead of recreating a new TsRel also
-	// in the second case, the old TsRel is reused because they must be consistent.
-	var cachedEpicTsRel uint32
+	// false, and then with afterProcessing set to true. Instead of recreating a new EpicTS also
+	// in the second case, the old EpicTS is reused because they must be consistent.
+	var cachedEpicTS uint32
 
 	testCases := map[string]struct {
 		mockMsg      func(bool) *ipv4.Message
@@ -1073,10 +1073,10 @@ func TestProcessPkt(t *testing.T) {
 					nil, xtest.MustParseIA("1-ff00:0:110"), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
-				spkt, epicpath, dpath, tsRel := prepEpicMsg(t,
-					afterProcessing, key, cachedEpicTsRel)
+				spkt, epicpath, dpath, epicTS := prepEpicMsg(t,
+					afterProcessing, key, cachedEpicTS)
 				if !afterProcessing {
-					cachedEpicTsRel = tsRel
+					cachedEpicTS = epicTS
 				}
 
 				prepareEpicCrypto(t, spkt, epicpath, dpath, key)
@@ -1091,10 +1091,10 @@ func TestProcessPkt(t *testing.T) {
 					nil, xtest.MustParseIA("1-ff00:0:110"), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
-				spkt, epicpath, dpath, tsRel := prepEpicMsg(t,
-					afterProcessing, key, cachedEpicTsRel)
+				spkt, epicpath, dpath, epicTS := prepEpicMsg(t,
+					afterProcessing, key, cachedEpicTS)
 				if !afterProcessing {
-					cachedEpicTsRel = tsRel
+					cachedEpicTS = epicTS
 				}
 				prepareEpicCrypto(t, spkt, epicpath, dpath, key)
 
@@ -1110,10 +1110,10 @@ func TestProcessPkt(t *testing.T) {
 					nil, xtest.MustParseIA("1-ff00:0:110"), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
-				spkt, epicpath, dpath, tsRel := prepEpicMsg(t,
-					afterProcessing, key, cachedEpicTsRel)
+				spkt, epicpath, dpath, epicTS := prepEpicMsg(t,
+					afterProcessing, key, cachedEpicTS)
 				if !afterProcessing {
-					cachedEpicTsRel = tsRel
+					cachedEpicTS = epicTS
 				}
 
 				// Invalid timestamp
@@ -1131,10 +1131,10 @@ func TestProcessPkt(t *testing.T) {
 					nil, xtest.MustParseIA("1-ff00:0:110"), key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
-				spkt, epicpath, dpath, tsRel := prepEpicMsg(t,
-					afterProcessing, key, cachedEpicTsRel)
+				spkt, epicpath, dpath, epicTS := prepEpicMsg(t,
+					afterProcessing, key, cachedEpicTS)
 				if !afterProcessing {
-					cachedEpicTsRel = tsRel
+					cachedEpicTS = epicTS
 				}
 				prepareEpicCrypto(t, spkt, epicpath, dpath, key)
 
@@ -1223,7 +1223,7 @@ func prepBaseMsg() (*slayers.SCION, *scion.Decoded) {
 }
 
 func prepEpicMsg(t *testing.T, afterProcessing bool, key []byte,
-	cachedEpicTsRel uint32) (*slayers.SCION, *epic.Path, *scion.Decoded, uint32) {
+	cachedEpicTS uint32) (*slayers.SCION, *epic.Path, *scion.Decoded, uint32) {
 
 	spkt, dpath := prepBaseMsg()
 	spkt.PathType = epic.PathType
@@ -1239,15 +1239,15 @@ func prepEpicMsg(t *testing.T, afterProcessing bool, key []byte,
 
 	// Put SCION path into EPIC path header
 	timestamp := dpath.InfoFields[0].Timestamp
-	tsRel := cachedEpicTsRel
+	epicTS := cachedEpicTS
 	if !afterProcessing {
 		var err error
-		tsRel, err = libepic.CreateTimestamp(time.Unix(int64(timestamp), 0), time.Now())
+		epicTS, err = libepic.CreateTimestamp(time.Unix(int64(timestamp), 0), time.Now())
 		require.NoError(t, err)
 	}
 
 	pktID := epic.PktID{
-		Timestamp: tsRel,
+		Timestamp: epicTS,
 		Counter:   libepic.PktCounterFromCore(1, 2),
 	}
 
@@ -1259,7 +1259,7 @@ func prepEpicMsg(t *testing.T, afterProcessing bool, key []byte,
 	spkt.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()})
 	spkt.Path = epicpath
 
-	return spkt, epicpath, dpath, tsRel
+	return spkt, epicpath, dpath, epicTS
 }
 
 func prepareEpicCrypto(t *testing.T, spkt *slayers.SCION,
@@ -1284,7 +1284,7 @@ func prepareEpicCrypto(t *testing.T, spkt *slayers.SCION,
 func toIP(t *testing.T, spkt *slayers.SCION, path path.Path, afterProcessing bool) *ipv4.Message {
 	// Encapsulate in IPv4
 	dst := &net.IPAddr{IP: net.ParseIP("10.0.100.100").To4()}
-	_ = spkt.SetDstAddr(dst)
+	require.NoError(t, spkt.SetDstAddr(dst))
 	ret := toMsg(t, spkt, path)
 	if afterProcessing {
 		ret.Addr = &net.UDPAddr{IP: dst.IP, Port: topology.EndhostPort}

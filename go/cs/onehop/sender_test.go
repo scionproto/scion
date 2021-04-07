@@ -56,8 +56,8 @@ func TestSenderCreatePath(t *testing.T) {
 	assert.Equal(t, uint16(0), hop.ConsIngress)
 	assert.Equal(t, uint16(12), hop.ConsEgress)
 	assert.Equal(t, uint8(63), hop.ExpTime)
-	fullMac := libpath.FullMAC(createMac(t), &info, &hop)
-	assert.Equal(t, fullMac[:6], hop.Mac[:6])
+	mac := libpath.MAC(createMac(t), &info, &hop)
+	assert.Equal(t, mac, hop.Mac[:6])
 }
 
 func TestSenderCreatePkt(t *testing.T) {

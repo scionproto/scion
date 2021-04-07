@@ -22,7 +22,6 @@ import (
 	"hash"
 	"math/big"
 	"net"
-	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -1421,7 +1420,7 @@ func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.Serializable
 	path, ok := s.scionL.Path.(*scion.Raw)
 	if !ok {
 		return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
-			"path type", reflect.TypeOf(path))
+			"path type", s.scionL.Path.Type())
 	}
 
 	decPath, err := path.ToDecoded()
