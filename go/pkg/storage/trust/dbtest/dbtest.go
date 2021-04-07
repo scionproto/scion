@@ -71,7 +71,7 @@ func run(t *testing.T, db TestableDB, cfg Config) {
 	defer cancelF()
 	db.Prepare(t, ctx)
 
-	trc1b1s1 := xtest.LoadTRC(t, cfg.filePath("ISD-B1-S1.trc"))
+	trc1b1s1 := xtest.LoadTRC(t, cfg.filePath("ISD1-B1-S1.trc"))
 	trc1b1s2 := modSignedTRCS(t, trc1b1s1, 1, 2)
 	trc2b1s1 := xtest.LoadTRC(t, cfg.filePath("ISD2-B1-S1.trc"))
 	trc2b1s2 := modSignedTRCS(t, trc2b1s1, 1, 2)

@@ -11,7 +11,8 @@ Open source cryptography documentation:
    trc
    trc-signing-ceremony
    trc-signing-ceremony-preparations
-   trc-signing-ceremony-phases
+   trc-signing-ceremony-phases-base
+   trc-signing-ceremony-phases-sensitive
    ca-operations
    interactions
    standards

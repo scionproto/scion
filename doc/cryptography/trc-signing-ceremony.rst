@@ -129,8 +129,8 @@ certificates they contributed have the same hash as what is displayed on the
 monitor. Further, all voting representatives confirm that the bundled
 certificates on their machine all have matching hashes.
 
-Phase 2: TRC Generation
------------------------
+Phase 2: TRC Payload Creation
+-----------------------------
 
 The ceremony administrator generates the TRC based on the bundled certificates
 and the agreed upon ISD policy. The result is displayed on the monitor along
@@ -144,7 +144,7 @@ Each voting representative attaches a signature for each of their new voting
 certificate to the TRC. When signing a non-base TRC, the voting representatives
 further cast a vote with the voting key present in the last TRC.
 
-Phase 4: TRC Validation
+Phase 4: TRC Assembly
 -----------------------
 
 All voting representatives share the signed TRC with the ceremony administrator,

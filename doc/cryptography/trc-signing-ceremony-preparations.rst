@@ -24,8 +24,13 @@ Ceremony administrator role
 ===========================
 
 The ceremony administrator should send out the high-level
-:doc:`trc-signing-ceremony` description, the :doc:`trc-signing-ceremony-phases`
-document, and this document all in digital form to the participants.
+:doc:`trc-signing-ceremony` description, the appropriate TRC Signing Ceremony
+Phases document, and this document all in digital form to the participants.
+
+The existing TRC Signing Ceremony Phases documents are listed here:
+
+* :ref:`trc-signing-ceremony-phases-base`
+* :doc:`trc-signing-ceremony-phases-sensitive`
 
 Furthermore, the ceremony administrator should remind all voters that they need
 to agree on a common TRC policy before scheduling the TRC ceremony. Importantly,
@@ -127,6 +132,20 @@ replace ``{{.ShortOrg}}`` with the name of your organization:
    proposed name makes it easier for human operators to reason about what the
    the purpose of the certificate is.
 
+.. important::
+
+   If this step is executed in preparation for a TRC update signing ceremony,
+   make sure that the previous private key and certificate are not overwritten.
+
+   For example, you can version the predecessor private key and certificate by
+   running the following command:
+
+   .. literalinclude:: crypto_lib.sh
+      :start-after: LITERALINCLUDE version_sensitive START
+      :end-before: LITERALINCLUDE version_sensitive END
+      :dedent: 4
+
+
 Using this configuration, create the sensitive voting key and certificate. The
 start and end date need to be replaced with the time when the certificatk
 becomes valid, and the time when it expires. The format is ``YYYYMMDDHHMMSSZ``.
@@ -178,6 +197,19 @@ Create the regular voting certificate configuration:
    proposed name makes it easier for human operators to reason about what the
    the purpose of the certificate is.
 
+.. important::
+
+   If this step is executed in preparation for a TRC update signing ceremony,
+   make sure that the previous private key and certificate are not overwritten.
+
+   For example, you can version the predecessor private key and certificate by
+   running the following command:
+
+   .. literalinclude:: crypto_lib.sh
+      :start-after: LITERALINCLUDE version_regular START
+      :end-before: LITERALINCLUDE version_regular END
+      :dedent: 4
+
 Using this configuration, create the regular voting key and certificate. The
 start and end date need to be replaced with the time when the certificate
 becomes valid, and the time when it expires. The format is ``YYYYMMDDHHMMSSZ``.
@@ -226,6 +258,19 @@ Create the CP root certificate configuration:
    Make sure the **common name** is **different** for each certificate type. The
    proposed name makes it easier for human operators to reason about what the
    the purpose of the certificate is.
+
+.. important::
+
+   If this step is executed in preparation for a TRC update signing ceremony,
+   make sure that the previous private key and certificate are not overwritten.
+
+   For example, you can version the predecessor private key and certificate by
+   running the following command:
+
+   .. literalinclude:: crypto_lib.sh
+      :start-after: LITERALINCLUDE version_regular START
+      :end-before: LITERALINCLUDE version_regular END
+      :dedent: 4
 
 Using this configuration, create the CP root key and certificate. The start and
 end date need to be replaced with the time when the certificate becomes valid,

@@ -27,8 +27,8 @@ import (
 
 func TestDecode(t *testing.T) {
 	testCases := map[string]string{
-		"raw TRC file": "./testdata/admin/ISD-B1-S1.trc",
-		"pem TRC file": "./testdata/admin/ISD-B1-S1.pem.trc",
+		"raw TRC file": "./testdata/admin/ISD1-B1-S1.trc",
+		"pem TRC file": "./testdata/admin/ISD1-B1-S1.pem.trc",
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {

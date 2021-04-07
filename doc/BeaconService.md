@@ -32,7 +32,7 @@ It reuses the existing building blocks for go services:
   Is used for TRCs and other crypto material.
 * [go/lib/infra](https://github.com/scionproto/scion/tree/master/go/lib/infra):
   Is used for the messenger to send and receive messages.
-* [go/lib/periodic](//github.com/scionproto/scion/tree/master/go/lib/periodic):
+* [go/lib/periodic](https://github.com/scionproto/scion/tree/master/go/lib/periodic):
   Is used for periodic tasks.
 * etc. ...
 

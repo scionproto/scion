@@ -195,6 +195,7 @@ func createVoters(cfg config) error {
 			`"navigate_pubdir && gen_sensitive && gen_regular"`, cfg.lib))
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		cmd.Env = []string{
+			"TRCID=" + fmt.Sprintf("ISD%d-B1-S1", ia.I),
 			"STARTDATE=" + generalizedTime(cfg.now),
 			"ENDDATE=" + generalizedTime(cfg.now.Add(730*24*time.Hour)),
 			"KEYDIR=" + cryptoVotingDir(ia, outConfig{base: "/workdir", isd: cfg.out.isd}),
@@ -238,6 +239,7 @@ func createCAs(cfg config) error {
 			`navigate_pubdir && gen_root && gen_ca"`, cfg.lib))
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		cmd.Env = []string{
+			"TRCID=" + fmt.Sprintf("ISD%d-B1-S1", ia.I),
 			"STARTDATE=" + generalizedTime(cfg.now),
 			"ENDDATE=" + generalizedTime(cfg.now.Add(730*24*time.Hour)),
 			"KEYDIR=" + cryptoCADir(ia, outConfig{base: "/workdir", isd: cfg.out.isd}),
@@ -276,6 +278,7 @@ func createASes(cfg config) error {
 			`chmod 0666 cp-as.csr"`, cfg.lib))
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		cmd.Env = []string{
+			"TRCID=" + fmt.Sprintf("ISD%d-B1-S1", ia.I),
 			"STARTDATE=" + generalizedTime(cfg.now),
 			"ENDDATE=" + generalizedTime(cfg.now.Add(365*24*time.Hour)),
 			"KEYDIR=" + cryptoASDir(ia, outConfig{base: "/workdir", isd: cfg.out.isd}),
@@ -298,6 +301,7 @@ func createASes(cfg config) error {
 			`chmod 0666 cp-as.crt"`, cfg.lib))
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		cmd.Env = []string{
+			"TRCID=" + fmt.Sprintf("ISD%d-B1-S1", ia.I),
 			"STARTDATE=" + generalizedTime(cfg.now),
 			"ENDDATE=" + generalizedTime(cfg.now.Add(365*24*time.Hour)),
 			"KEYDIR=" + cryptoCADir(ca, outConfig{base: "/workdir", isd: cfg.out.isd}),
@@ -380,11 +384,12 @@ func createTRCs(cfg config) error {
 		partFiles := make([]string, 0, len(voters[isd])*2)
 		for _, voter := range voters[isd] {
 			cmd := exec.Command("sh", "-c", withLib(fmt.Sprintf(`docker_exec "
-				cp /workdir/ISD%d/TRC-B1-S1.pld.der $PUBDIR/ISD-B1-S1.pld.der &&
+				cp /workdir/ISD%[1]d/TRC-B1-S1.pld.der $PUBDIR/ISD%[1]d-B1-S1.pld.der &&
 				navigate_pubdir &&
 				sign_payload"`, isd), cfg.lib))
 			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 			cmd.Env = []string{
+				"TRCID=" + fmt.Sprintf("ISD%d-B1-S1", isd),
 				"KEYDIR=" + cryptoVotingDir(voter, outConfig{base: "/workdir", isd: cfg.out.isd}),
 				"PUBDIR=" + cryptoVotingDir(voter, outConfig{base: "/workdir", isd: cfg.out.isd}),
 				"CONTAINER_NAME=" + cfg.container,
@@ -393,8 +398,10 @@ func createTRCs(cfg config) error {
 				return err
 			}
 			partFiles = append(partFiles,
-				filepath.Join(cryptoVotingDir(voter, cfg.out), "ISD-B1-S1.regular.trc"),
-				filepath.Join(cryptoVotingDir(voter, cfg.out), "ISD-B1-S1.sensitive.trc"),
+				filepath.Join(
+					cryptoVotingDir(voter, cfg.out), fmt.Sprintf("ISD%d-B1-S1.regular.trc", isd)),
+				filepath.Join(
+					cryptoVotingDir(voter, cfg.out), fmt.Sprintf("ISD%d-B1-S1.sensitive.trc", isd)),
 			)
 		}
 
@@ -581,7 +588,7 @@ func cleanup(cfg config) error {
 		`rm -f /workdir/*/crypto/*/sensitive-*.crt && `+
 		`rm -f /workdir/*/crypto/*/*.cnf && `+
 		`rm -f /workdir/*/crypto/*/*.csr && `+
-		`rm -f /workdir/*/crypto/voting/ISD-B1-S1.*.trc && `+
+		`rm -f /workdir/*/crypto/voting/ISD*-B1-S1.*.trc && `+
 		`rm -f /workdir/*/crypto/voting/*.der && `+
 		`rm -f /workdir/*/*.der && `+
 		`rm -rf /workdir/*/crypto/*/certificates && `+
