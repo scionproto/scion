@@ -10,7 +10,6 @@ def build_tester_image():
         image_tar = "@debian10//image",
         packages = [
             "bridge-utils",
-            "curl",
             "iperf",
             "iptables",
             "netcat-openbsd",
