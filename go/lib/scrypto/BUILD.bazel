@@ -1,9 +1,10 @@
-load("//lint:go.bzl", "go_library")
+load("//lint:go.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
     srcs = [
         "mac.go",
+        "pem.go",
         "rand.go",
         "version.go",
     ],
@@ -14,5 +15,16 @@ go_library(
         "//go/lib/serrors:go_default_library",
         "@com_github_dchest_cmac//:go_default_library",
         "@org_golang_x_crypto//pbkdf2:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["pem_test.go"],
+    data = glob(["testdata/**"]),
+    embed = [":go_default_library"],
+    deps = [
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
     ],
 )
