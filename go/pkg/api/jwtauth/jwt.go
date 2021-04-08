@@ -17,7 +17,6 @@
 package jwtauth
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -36,7 +35,7 @@ import (
 // does not perform any authorization).
 //
 // For a simple example of how to use this, see the test.
-func NewHTTPClient(ctx context.Context, src TokenSource) *http.Client {
+func NewHTTPClient(src TokenSource) *http.Client {
 	if src == nil {
 		return http.DefaultClient
 	}
@@ -91,16 +90,24 @@ type JWTTokenSource struct {
 	// Subject is an informational field that will be used as the JWT "sub" claim. If empty,
 	// the "sub" claim is not set.
 	Subject string
-	// Key used for HS256. For security reasons, the key must be
-	// at least 256-bit long (see https://tools.ietf.org/html/rfc7518#section-3.2). If the key is
-	// not sufficiently long, token creation will return an error.
-	Key []byte
+	// Generator that creates symmetric keys for HS256. For security
+	// reasons, the generated key must be at least 256-bit long (see
+	// https://tools.ietf.org/html/rfc7518#section-3.2). If the key is not
+	// sufficiently long, token creation will return an error.
+	Generator KeyFunc
 }
 
 func (s *JWTTokenSource) Token() (*Token, error) {
-	if len(s.Key) < 256/8 {
+	if s.Generator == nil {
+		return nil, serrors.New("key generator must not be nil")
+	}
+	key, err := s.Generator()
+	if err != nil {
+		return nil, serrors.WrapStr("generating key", err)
+	}
+	if len(key) < 256/8 {
 		return nil, serrors.New("refusing to sign, key must be at least 256 bits long",
-			"length", len(s.Key)*8)
+			"length", len(key)*8)
 	}
 
 	token := jwt.New()
@@ -110,7 +117,7 @@ func (s *JWTTokenSource) Token() (*Token, error) {
 		}
 	}
 
-	b, err := jwt.Sign(token, jwa.HS256, s.Key)
+	b, err := jwt.Sign(token, jwa.HS256, key)
 	if err != nil {
 		return nil, serrors.WrapStr("signing token", err)
 	}
@@ -124,10 +131,10 @@ func (s *JWTTokenSource) Token() (*Token, error) {
 //
 // The only accepted algorithm is HS256.
 type HTTPVerifier struct {
-	// Key used for HS256. For security reasons, the key must be
+	// Generator that creates keys for HS256. For security reasons, the keys must be
 	// at least 256-bit long (see https://tools.ietf.org/html/rfc7518#section-3.2). If the key is
 	// not sufficiently long, token creation will return an error.
-	Key []byte
+	Generator KeyFunc
 	// Logger is an optional Logger to be used for listing successful/unsuccessful authorization
 	// attempts. If nil, no logging is done.
 	Logger log.Logger
@@ -137,15 +144,28 @@ type HTTPVerifier struct {
 // authorization before chaining the call to the initial handler.
 func (v *HTTPVerifier) AddAuthorization(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		if len(v.Key) < 256/8 {
+		if v.Generator == nil {
+			log.SafeDebug(v.Logger, "Key generator must not be nil")
+			e := &Error{Code: http.StatusInternalServerError, Title: "Server error"}
+			e.Write(rw)
+			return
+		}
+		key, err := v.Generator()
+		if err != nil {
+			log.SafeDebug(v.Logger, "Key generator returned error", "err", err)
+			e := &Error{Code: http.StatusInternalServerError, Title: "Server error"}
+			e.Write(rw)
+			return
+		}
+		if len(key) < 256/8 {
 			log.SafeDebug(v.Logger, "Refusing to verify, key must be at least 256 bits long",
-				"length", len(v.Key)*8)
+				"length", len(key)*8)
 			e := &Error{Code: http.StatusInternalServerError, Title: "Server error"}
 			e.Write(rw)
 			return
 		}
 
-		token, err := jwt.ParseRequest(req, jwt.WithVerify(jwa.HS256, v.Key))
+		token, err := jwt.ParseRequest(req, jwt.WithVerify(jwa.HS256, key))
 		if err != nil {
 			log.SafeDebug(v.Logger, "Parsing failed", "err", err)
 			e := &Error{Code: http.StatusInternalServerError, Title: "Authorization error"}
@@ -182,3 +202,6 @@ func (e *Error) Write(rw http.ResponseWriter) {
 
 	http.Error(rw, string(b), e.Code)
 }
+
+// KeyFunc is a generator for keys used in JWT token creation.
+type KeyFunc func() ([]byte, error)

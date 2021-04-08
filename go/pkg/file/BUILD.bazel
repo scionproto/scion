@@ -1,0 +1,28 @@
+load("@com_github_scionproto_scion//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "io.go",
+        "periodicview.go",
+        "view.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/pkg/file",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/periodic:go_default_library",
+        "//go/lib/serrors:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["periodicview_test.go"],
+    data = glob(["testdata/**"]),
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/scrypto:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

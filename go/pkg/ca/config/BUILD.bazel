@@ -1,0 +1,12 @@
+load("//lint:go.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["pemsymmetrickey.go"],
+    importpath = "github.com/scionproto/scion/go/pkg/ca/config",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/scrypto:go_default_library",
+        "//go/pkg/file:go_default_library",
+    ],
+)

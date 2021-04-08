@@ -67,7 +67,7 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	storagetest.CheckTestRenewalDBConfig(t, &cfg.RenewalDB, id)
 	CheckTestBSConfig(t, &cfg.BS)
 	CheckTestPSConfig(t, &cfg.PS, id)
-	CheckTestCA(t, &cfg.CA, id)
+	CheckTestCA(t, &cfg.CA)
 }
 
 func CheckTestBSConfig(t *testing.T, cfg *BSConfig) {
@@ -97,8 +97,14 @@ func InitTestCA(cfg *CA) {
 	cfg.DisableLegacyRequest = true
 }
 
-func CheckTestCA(t *testing.T, cfg *CA, id string) {
+func CheckTestCA(t *testing.T, cfg *CA) {
 	assert.Equal(t, DefaultMaxASValidity, cfg.MaxASValidity.Duration)
 	assert.Equal(t, cfg.DisableLegacyRequest, false)
 	assert.Equal(t, cfg.Mode, InProcess)
+	CheckTestService(t, &cfg.Service)
+}
+
+func CheckTestService(t *testing.T, cfg *CAService) {
+	assert.Empty(t, cfg.SharedSecret)
+	assert.Empty(t, cfg.Address)
 }

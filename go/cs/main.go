@@ -54,7 +54,10 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/pkg/api/jwtauth"
 	"github.com/scionproto/scion/go/pkg/app/launcher"
+	caapi "github.com/scionproto/scion/go/pkg/ca/api"
+	caconfig "github.com/scionproto/scion/go/pkg/ca/config"
 	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	renewalgrpc "github.com/scionproto/scion/go/pkg/ca/renewal/grpc"
 	"github.com/scionproto/scion/go/pkg/command"
@@ -372,10 +375,19 @@ func realMain() error {
 			}
 		case config.Delegating:
 			libmetrics.GaugeWith(renewalGauges, "type", "delegating").Set(1)
+
+			sharedSecret := caconfig.NewPEMSymmetricKey(globalCfg.CA.Service.SharedSecret)
 			renewalServer.CMSHandler = &renewalgrpc.DelegatingHandler{
-				// TODO(roosd): initialize handler
+				Client: &caapi.Client{
+					Server: globalCfg.CA.Service.Address,
+					Client: jwtauth.NewHTTPClient(
+						&jwtauth.JWTTokenSource{
+							Subject:   globalCfg.General.ID,
+							Generator: sharedSecret.Get,
+						},
+					),
+				},
 			}
-			return serrors.New("delegating CA handler currently not supported")
 		default:
 			return serrors.New("unsupported CA handler", "mode", globalCfg.CA.Mode)
 		}

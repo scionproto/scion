@@ -54,3 +54,10 @@ mode = "in-process"
 # legacy renewal requests. (default false)
 disable_legacy_request = false
 `
+
+const serviceSample = `
+# The path to the PEM-encoded shared secret that is used to create JWT tokens.
+shared_secret = ""
+# The address of the CA Service that handles the delegated certificate renewal requests.
+addr = ""
+`

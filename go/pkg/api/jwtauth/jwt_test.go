@@ -15,7 +15,6 @@
 package jwtauth_test
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -26,6 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/api/jwtauth"
 )
 
@@ -43,6 +43,15 @@ var badKey = []byte{
 	9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
 }
 
+func keyFunc(key []byte, err error) func() ([]byte, error) {
+	// Use a custom function instead of gomock because it is simple to do via a
+	// function and it avoids the creation of an interface type in the API of
+	// the package and the mock creation boilerplate.
+	return func() ([]byte, error) {
+		return key, err
+	}
+}
+
 // startServer launches a server with authorization checks on the loopback
 // address. The port is chosen dynamically to ensure that it doesn't clash with
 // existing servers on the local system.
@@ -52,7 +61,7 @@ var badKey = []byte{
 func startServer(t *testing.T) (*http.Server, string) {
 	handler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
 
-	verifier := jwtauth.HTTPVerifier{Key: serverKey}
+	verifier := jwtauth.HTTPVerifier{Generator: keyFunc(serverKey, nil)}
 	authorizedHandler := verifier.AddAuthorization(handler)
 
 	srv := http.Server{
@@ -80,8 +89,24 @@ func TestNewHTTPClient(t *testing.T) {
 		ExpectedError      require.ErrorAssertionFunc
 		ExpectedHTTPStatus int
 	}{
+		"nil generator": {
+			TokenSource: &jwtauth.JWTTokenSource{
+				Subject: "example",
+			},
+			ExpectedError: require.Error,
+		},
+		"error generator": {
+			TokenSource: &jwtauth.JWTTokenSource{
+				Subject:   "example",
+				Generator: keyFunc(serverKey, serrors.New("test error")),
+			},
+			ExpectedError: require.Error,
+		},
 		"rejected key client": {
-			TokenSource: &jwtauth.JWTTokenSource{Subject: "example", Key: shortKey},
+			TokenSource: &jwtauth.JWTTokenSource{
+				Subject:   "example",
+				Generator: keyFunc(shortKey, nil),
+			},
 			// Key is rejected by client-side code, so the request doesn't even reach the
 			// server.
 			ExpectedError: require.Error,
@@ -92,17 +117,25 @@ func TestNewHTTPClient(t *testing.T) {
 			ExpectedHTTPStatus: http.StatusInternalServerError,
 		},
 		"bad key client": {
-			TokenSource:        &jwtauth.JWTTokenSource{Subject: "example", Key: badKey},
+			TokenSource: &jwtauth.JWTTokenSource{
+				Subject:   "example",
+				Generator: keyFunc(badKey, nil),
+			},
 			ExpectedError:      require.NoError,
 			ExpectedHTTPStatus: http.StatusInternalServerError,
 		},
 		"authorized client": {
-			TokenSource:        &jwtauth.JWTTokenSource{Subject: "example", Key: serverKey},
+			TokenSource: &jwtauth.JWTTokenSource{
+				Subject:   "example",
+				Generator: keyFunc(serverKey, nil),
+			},
 			ExpectedError:      require.NoError,
 			ExpectedHTTPStatus: http.StatusOK,
 		},
 		"authorized client without Subject": {
-			TokenSource:        &jwtauth.JWTTokenSource{Key: serverKey},
+			TokenSource: &jwtauth.JWTTokenSource{
+				Generator: keyFunc(serverKey, nil),
+			},
 			ExpectedError:      require.NoError,
 			ExpectedHTTPStatus: http.StatusOK,
 		},
@@ -116,7 +149,7 @@ func TestNewHTTPClient(t *testing.T) {
 			srv, url := startServer(t)
 			defer srv.Close()
 
-			client := jwtauth.NewHTTPClient(context.Background(), tc.TokenSource)
+			client := jwtauth.NewHTTPClient(tc.TokenSource)
 			response, err := client.Get(url)
 
 			tc.ExpectedError(t, err)
