@@ -1,0 +1,33 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "doc.go",
+        "epic.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/lib/epic",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/serrors:go_default_library",
+        "//go/lib/slayers:go_default_library",
+        "//go/lib/slayers/path/epic:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "epic_test.go",
+        "export_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//go/lib/slayers:go_default_library",
+        "//go/lib/slayers/path/epic:go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

@@ -33,6 +33,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	libepic "github.com/scionproto/scion/go/lib/epic"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -40,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
+	"github.com/scionproto/scion/go/lib/slayers/path/epic"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -589,6 +591,8 @@ func (d *DataPlane) processPkt(ingressID uint16, rawPkt []byte, srcAddr net.Addr
 		return d.processOHP(ingressID, rawPkt, s, buffer)
 	case scion.PathType:
 		return d.processSCION(ingressID, rawPkt, s, origPacket, buffer)
+	case epic.PathType:
+		return d.processEPIC(ingressID, rawPkt, s, origPacket, buffer)
 	default:
 		return processResult{}, serrors.WithCtx(unsupportedPathType, "type", s.PathType)
 	}
@@ -659,7 +663,71 @@ func (d *DataPlane) processSCION(ingressID uint16, rawPkt []byte, s slayers.SCIO
 		origPacket: origPacket,
 		buffer:     buffer,
 	}
+
+	var ok bool
+	p.path, ok = p.scionLayer.Path.(*scion.Raw)
+	if !ok {
+		// TODO(lukedirtwalker) parameter problem invalid path?
+		return processResult{}, malformedPath
+	}
+
 	return p.process()
+}
+
+func (d *DataPlane) processEPIC(ingressID uint16, rawPkt []byte, s slayers.SCION,
+	origPacket []byte, buffer gopacket.SerializeBuffer) (processResult, error) {
+
+	path, ok := s.Path.(*epic.Path)
+	if !ok {
+		return processResult{}, malformedPath
+	}
+
+	scionPath := path.ScionPath
+	if scionPath == nil {
+		return processResult{}, malformedPath
+	}
+
+	info, err := scionPath.GetCurrentInfoField()
+	if err != nil {
+		return processResult{}, err
+	}
+
+	p := scionPacketProcessor{
+		d:          d,
+		ingressID:  ingressID,
+		rawPkt:     rawPkt,
+		scionLayer: s,
+		origPacket: origPacket,
+		buffer:     buffer,
+		path:       scionPath,
+	}
+	result, err := p.process()
+	if err != nil {
+		// TODO(mawyss): Send back SCMP packet
+		return processResult{}, err
+	}
+
+	isPenultimate := scionPath.IsPenultimateHop()
+	isLast := scionPath.IsLastHop()
+
+	if isPenultimate || isLast {
+		timestamp := time.Unix(int64(info.Timestamp), 0)
+		if err = libepic.VerifyTimestamp(timestamp, path.PktID.Timestamp, time.Now()); err != nil {
+			// TODO(mawyss): Send back SCMP packet
+			return processResult{}, err
+		}
+
+		HVF := path.PHVF
+		if isLast {
+			HVF = path.LHVF
+		}
+		if err = libepic.VerifyHVF(p.cachedMac, path.PktID, &s, info.Timestamp, HVF); err != nil {
+			// TODO(mawyss): Send back SCMP packet
+			return processResult{}, err
+		}
+	}
+
+	return result, nil
 }
 
 type scionPacketProcessor struct {
@@ -686,6 +754,10 @@ type scionPacketProcessor struct {
 	infoField *path.InfoField
 	// segmentChange indicates if the path segment was changed during processing.
 	segmentChange bool
+
+	// cachedMac contains the full 16 bytes of the MAC. Will be set during processing.
+	// For a hop performing an Xover, it is the MAC corresponding to the down segment.
+	cachedMac []byte
 }
 
 func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
@@ -756,12 +828,6 @@ func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.Seri
 }
 
 func (p *scionPacketProcessor) parsePath() (processResult, error) {
-	var ok bool
-	p.path, ok = p.scionLayer.Path.(*scion.Raw)
-	if !ok {
-		// TODO(lukedirtwalker) parameter problem invalid path?
-		return processResult{}, malformedPath
-	}
 	var err error
 	p.hopField, err = p.path.GetCurrentHopField()
 	if err != nil {
@@ -892,17 +958,25 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 }
 
 func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
-	if err := path.VerifyMAC(p.d.macFactory(), p.infoField, p.hopField); err != nil {
+	fullMac := path.FullMAC(p.d.macFactory(), p.infoField, p.hopField)
+	if !bytes.Equal(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) {
 		return p.packSCMP(
 			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
 				slayers.SCMPCodeInvalidHopFieldMAC),
 			},
 			&slayers.SCMPParameterProblem{Pointer: p.currentHopPointer()},
-			serrors.WithCtx(err, "cons_dir", p.infoField.ConsDir, "if_id", p.ingressID,
-				"curr_inf", p.path.PathMeta.CurrINF, "curr_hf", p.path.PathMeta.CurrHF,
-				"seg_id", p.infoField.SegID),
+			serrors.New("MAC verification failed", "expected", fmt.Sprintf(
+				"%x", fullMac[:path.MacLen]),
+				"actual", fmt.Sprintf("%x", p.hopField.Mac[:path.MacLen]),
+				"cons_dir", p.infoField.ConsDir,
+				"if_id", p.ingressID, "curr_inf", p.path.PathMeta.CurrINF,
+				"curr_hf", p.path.PathMeta.CurrHF, "seg_id", p.infoField.SegID),
 		)
 	}
+	// Add the full MAC to the SCION packet processor,
+	// such that EPIC does not need to recalculate it.
+	p.cachedMac = fullMac
+
 	return processResult{}, nil
 }
 
@@ -1181,9 +1255,11 @@ func (d *DataPlane) processOHP(ingressID uint16, rawPkt []byte, s slayers.SCION,
 	}
 	// OHP leaving our IA
 	if d.localIA.Equal(s.SrcIA) {
-		if err := path.VerifyMAC(d.macFactory(), &p.Info, &p.FirstHop); err != nil {
+		mac := path.MAC(d.macFactory(), &p.Info, &p.FirstHop)
+		if !bytes.Equal(p.FirstHop.Mac[:path.MacLen], mac) {
 			// TODO parameter problem -> invalid MAC
-			return processResult{}, serrors.WithCtx(err, "type", "ohp")
+			return processResult{}, serrors.New("MAC", "expected", fmt.Sprintf("%x", mac),
+				"actual", fmt.Sprintf("%x", p.FirstHop.Mac[:path.MacLen]), "type", "ohp")
 		}
 		p.Info.UpdateSegID(p.FirstHop.Mac)
 
@@ -1341,7 +1417,12 @@ type scmpPacker struct {
 func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
 	external bool, cause error) ([]byte, error) {
 
-	path := s.scionL.Path.(*scion.Raw)
+	path, ok := s.scionL.Path.(*scion.Raw)
+	if !ok {
+		return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
+			"path type", s.scionL.Path.Type())
+	}
+
 	decPath, err := path.ToDecoded()
 	if err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "decoding raw path")

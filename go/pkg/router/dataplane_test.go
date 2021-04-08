@@ -32,10 +32,12 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	libepic "github.com/scionproto/scion/go/lib/epic"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
+	"github.com/scionproto/scion/go/lib/slayers/path/epic"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -558,6 +560,12 @@ func TestProcessPkt(t *testing.T) {
 
 	key := []byte("testkey_xxxxxxxx")
 
+	// cachedEpicTS contains the cached epic timestamp (relative timestamp). Caching is necessary
+	// because mockMsg(afterProcessing bool) is called twice, once with afterProcessing set to
+	// false, and then with afterProcessing set to true. Instead of recreating a new EpicTS also
+	// in the second case, the old EpicTS is reused because they must be consistent.
+	var cachedEpicTS uint32
+
 	testCases := map[string]struct {
 		mockMsg      func(bool) *ipv4.Message
 		prepareDP    func(*gomock.Controller) *router.DataPlane
@@ -1059,6 +1067,85 @@ func TestProcessPkt(t *testing.T) {
 			srcInterface: 1,
 			assertFunc:   assert.Error,
 		},
+		"epic inbound": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					nil, xtest.MustParseIA("1-ff00:0:110"), key)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, epicpath, dpath, epicTS := prepEpicMsg(t,
+					afterProcessing, key, cachedEpicTS)
+				if !afterProcessing {
+					cachedEpicTS = epicTS
+				}
+
+				prepareEpicCrypto(t, spkt, epicpath, dpath, key)
+				return toIP(t, spkt, epicpath, afterProcessing)
+			},
+			srcInterface: 1,
+			assertFunc:   assert.NoError,
+		},
+		"epic malformed path": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					nil, xtest.MustParseIA("1-ff00:0:110"), key)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, epicpath, dpath, epicTS := prepEpicMsg(t,
+					afterProcessing, key, cachedEpicTS)
+				if !afterProcessing {
+					cachedEpicTS = epicTS
+				}
+				prepareEpicCrypto(t, spkt, epicpath, dpath, key)
+
+				// Wrong path type
+				return toIP(t, spkt, &scion.Decoded{}, afterProcessing)
+			},
+			srcInterface: 1,
+			assertFunc:   assert.Error,
+		},
+		"epic invalid timestamp": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					nil, xtest.MustParseIA("1-ff00:0:110"), key)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, epicpath, dpath, epicTS := prepEpicMsg(t,
+					afterProcessing, key, cachedEpicTS)
+				if !afterProcessing {
+					cachedEpicTS = epicTS
+				}
+
+				// Invalid timestamp
+				epicpath.PktID.Timestamp = epicpath.PktID.Timestamp + 250000
+
+				prepareEpicCrypto(t, spkt, epicpath, dpath, key)
+				return toIP(t, spkt, epicpath, afterProcessing)
+			},
+			srcInterface: 1,
+			assertFunc:   assert.Error,
+		},
+		"epic invalid LHVF": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
+					nil, xtest.MustParseIA("1-ff00:0:110"), key)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, epicpath, dpath, epicTS := prepEpicMsg(t,
+					afterProcessing, key, cachedEpicTS)
+				if !afterProcessing {
+					cachedEpicTS = epicTS
+				}
+				prepareEpicCrypto(t, spkt, epicpath, dpath, key)
+
+				// Invalid LHVF
+				epicpath.LHVF = []byte{0, 0, 0, 0}
+
+				return toIP(t, spkt, epicpath, afterProcessing)
+			},
+			srcInterface: 1,
+			assertFunc:   assert.Error,
+		},
 	}
 
 	for name, tc := range testCases {
@@ -1114,6 +1201,7 @@ func prepBaseMsg() (*slayers.SCION, *scion.Decoded) {
 		DstIA:        xtest.MustParseIA("4-ff00:0:411"),
 		SrcIA:        xtest.MustParseIA("2-ff00:0:222"),
 		Path:         &scion.Raw{},
+		PayloadLen:   18,
 	}
 
 	dpath := &scion.Decoded{
@@ -1134,11 +1222,87 @@ func prepBaseMsg() (*slayers.SCION, *scion.Decoded) {
 	return spkt, dpath
 }
 
+func prepEpicMsg(t *testing.T, afterProcessing bool, key []byte,
+	cachedEpicTS uint32) (*slayers.SCION, *epic.Path, *scion.Decoded, uint32) {
+
+	spkt, dpath := prepBaseMsg()
+	spkt.PathType = epic.PathType
+
+	spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
+	dpath.HopFields = []*path.HopField{
+		{ConsIngress: 41, ConsEgress: 40},
+		{ConsIngress: 31, ConsEgress: 30},
+		{ConsIngress: 01, ConsEgress: 0},
+	}
+	dpath.Base.PathMeta.CurrHF = 2
+	dpath.Base.PathMeta.CurrINF = 0
+
+	// Put SCION path into EPIC path header
+	timestamp := dpath.InfoFields[0].Timestamp
+	epicTS := cachedEpicTS
+	if !afterProcessing {
+		var err error
+		epicTS, err = libepic.CreateTimestamp(time.Unix(int64(timestamp), 0), time.Now())
+		require.NoError(t, err)
+	}
+
+	pktID := epic.PktID{
+		Timestamp: epicTS,
+		Counter:   libepic.PktCounterFromCore(1, 2),
+	}
+
+	epicpath := &epic.Path{
+		PktID: pktID,
+		PHVF:  make([]byte, 4),
+		LHVF:  make([]byte, 4),
+	}
+	spkt.SetSrcAddr(&net.IPAddr{IP: net.ParseIP("10.0.200.200").To4()})
+	spkt.Path = epicpath
+
+	return spkt, epicpath, dpath, epicTS
+}
+
+func prepareEpicCrypto(t *testing.T, spkt *slayers.SCION,
+	epicpath *epic.Path, dpath *scion.Decoded, key []byte) {
+
+	// Calculate SCION MAC
+	dpath.HopFields[2].Mac = computeMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+	scionPath, err := dpath.ToRaw()
+	require.NoError(t, err)
+	epicpath.ScionPath = scionPath
+
+	// Generate EPIC authenticator
+	authLast := computeFullMAC(t, key, dpath.InfoFields[0], dpath.HopFields[2])
+
+	// Calculate PHVF and LHVF
+	macLast, err := libepic.CalcMac(authLast, epicpath.PktID,
+		spkt, dpath.InfoFields[0].Timestamp)
+	require.NoError(t, err)
+	copy(epicpath.LHVF, macLast)
+}
+
+func toIP(t *testing.T, spkt *slayers.SCION, path path.Path, afterProcessing bool) *ipv4.Message {
+	// Encapsulate in IPv4
+	dst := &net.IPAddr{IP: net.ParseIP("10.0.100.100").To4()}
+	require.NoError(t, spkt.SetDstAddr(dst))
+	ret := toMsg(t, spkt, path)
+	if afterProcessing {
+		ret.Addr = &net.UDPAddr{IP: dst.IP, Port: topology.EndhostPort}
+		ret.Flags, ret.NN, ret.N, ret.OOB = 0, 0, 0, nil
+	}
+	return ret
+}
+
 func computeMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopField) []byte {
 	mac, err := scrypto.InitMac(key)
 	require.NoError(t, err)
 	return path.MAC(mac, info, hf)
+}
 
+func computeFullMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopField) []byte {
+	mac, err := scrypto.InitMac(key)
+	require.NoError(t, err)
+	return path.FullMAC(mac, info, hf)
 }
 
 func createMac(t *testing.T) hash.Hash {
