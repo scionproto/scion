@@ -34,6 +34,12 @@ func Error(msg string, ctx ...interface{}) {
 	zap.L().Error(msg, convertCtx(ctx)...)
 }
 
+// WithOptions returns the logger with the options applied.
+func WithOptions(opts ...Option) Logger {
+	co := applyOptions(opts)
+	return &logger{logger: zap.L().WithOptions(co.zapOptions()...)}
+}
+
 // Logger describes the logger interface.
 type Logger interface {
 	New(ctx ...interface{}) Logger
@@ -65,7 +71,6 @@ func (l *logger) Info(msg string, ctx ...interface{}) {
 
 func (l *logger) Error(msg string, ctx ...interface{}) {
 	l.logger.Error(msg, convertCtx(ctx)...)
-
 }
 
 // Root returns the root logger. It's a logger without any context.
@@ -86,14 +91,9 @@ func Discard() {
 // To see how to use this, see the example.
 type DiscardLogger struct{}
 
-func (d DiscardLogger) New(ctx ...interface{}) Logger {
-	return d
-}
-
+func (d DiscardLogger) New(ctx ...interface{}) Logger      { return d }
 func (DiscardLogger) Debug(msg string, ctx ...interface{}) {}
-
-func (DiscardLogger) Info(msg string, ctx ...interface{}) {}
-
+func (DiscardLogger) Info(msg string, ctx ...interface{})  {}
 func (DiscardLogger) Error(msg string, ctx ...interface{}) {}
 
 func convertCtx(ctx []interface{}) []zap.Field {
