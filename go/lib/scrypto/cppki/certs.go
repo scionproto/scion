@@ -32,16 +32,29 @@ const (
 	CertVersion = 3
 )
 
-// KeyUsage oids.
+// ExtKeyUsage oids.
 var (
 	OIDExtKeyUsageSensitive = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 55324, 1, 3, 1}
 	OIDExtKeyUsageRegular   = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 55324, 1, 3, 2}
 	OIDExtKeyUsageRoot      = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 55324, 1, 3, 3}
+
+	OIDExtKeyUsageServerAuth   = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 1}
+	OIDExtKeyUsageClientAuth   = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 2}
+	OIDExtKeyUsageTimeStamping = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 8}
 )
 
-// Other oids.
+// DistinguishedName oids.
 var (
 	OIDNameIA = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 55324, 1, 2, 1}
+)
+
+// x.509v3 extension oids.
+var (
+	OIDExtensionSubjectKeyID     = asn1.ObjectIdentifier{2, 5, 29, 14}
+	OIDExtensionKeyUsage         = asn1.ObjectIdentifier{2, 5, 29, 15}
+	OIDExtensionBasicConstraints = asn1.ObjectIdentifier{2, 5, 29, 19}
+	OIDExtensionAuthorityKeyID   = asn1.ObjectIdentifier{2, 5, 29, 35}
+	OIDExtensionExtendedKeyUsage = asn1.ObjectIdentifier{2, 5, 29, 37}
 )
 
 // Valid SCION signatures
@@ -392,8 +405,7 @@ func commonCAValidation(c *x509.Certificate, pathLen int) error {
 			errs = append(errs, serrors.New("cannot have id-kp-serverAuth as ExtKeyUsage"))
 		}
 	}
-	if v, ok := oidInExtensions(asn1.ObjectIdentifier{2, 5, 29, 19},
-		c.Extensions); ok && !v.Critical {
+	if v, ok := oidInExtensions(OIDExtensionBasicConstraints, c.Extensions); ok && !v.Critical {
 		errs = append(errs, serrors.New("basic constraints not critical"))
 	}
 	if !c.BasicConstraintsValid || !c.IsCA || c.MaxPathLen != pathLen {
@@ -422,14 +434,12 @@ func generalValidation(c *x509.Certificate) error {
 	if len(c.SubjectKeyId) == 0 {
 		errs = append(errs, serrors.New("subjectKeyID is missing"))
 	}
-	// oidSubjectKeyId  []int{2, 5, 29, 14}
-	if v, ok := oidInExtensions(asn1.ObjectIdentifier{2, 5, 29, 14},
-		c.Extensions); ok && v.Critical == true {
-		errs = append(errs, serrors.New("subjecKeyID is marked as critical"))
+	if v, ok := oidInExtensions(OIDExtensionSubjectKeyID, c.Extensions); ok && v.Critical == true {
+		errs = append(errs, serrors.New("subjectKeyID is marked as critical"))
 	}
-	// oidAuthorityKeyId  []int{2, 5, 29, 35}
-	if v, ok := oidInExtensions(asn1.ObjectIdentifier{2, 5, 29, 35},
+	if v, ok := oidInExtensions(OIDExtensionAuthorityKeyID,
 		c.Extensions); ok && v.Critical == true {
+
 		errs = append(errs, serrors.New("authKeyId is marked as critical"))
 	}
 

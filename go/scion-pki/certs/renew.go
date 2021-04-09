@@ -654,19 +654,19 @@ func subjectKeyID(pub crypto.PublicKey) (pkix.Extension, error) {
 		return pkix.Extension{}, err
 	}
 	return pkix.Extension{
-		Id:    asn1.ObjectIdentifier{2, 5, 29, 14},
+		Id:    cppki.OIDExtensionSubjectKeyID,
 		Value: val,
 	}, nil
 }
 
 func keyUsage() pkix.Extension {
-	// x509.KeyUsageDigitalSignature
+	// 0x80 corresponds to x509.KeyUsageDigitalSignature
 	val, err := asn1.Marshal(asn1.BitString{Bytes: []byte{0x80}, BitLength: 1})
 	if err != nil {
 		panic(err)
 	}
 	return pkix.Extension{
-		Id:       asn1.ObjectIdentifier{2, 5, 29, 15},
+		Id:       cppki.OIDExtensionKeyUsage,
 		Critical: true,
 		Value:    val,
 	}
@@ -674,15 +674,15 @@ func keyUsage() pkix.Extension {
 
 func extKeyUsage() pkix.Extension {
 	val, err := asn1.Marshal([]asn1.ObjectIdentifier{
-		{1, 3, 6, 1, 5, 5, 7, 3, 1}, // ExtKeyUsageServerAuth
-		{1, 3, 6, 1, 5, 5, 7, 3, 2}, // ExtKeyUsageClientAuth
-		{1, 3, 6, 1, 5, 5, 7, 3, 8}, // ExtKeyUsageTimeStamping
+		cppki.OIDExtKeyUsageServerAuth,
+		cppki.OIDExtKeyUsageClientAuth,
+		cppki.OIDExtKeyUsageTimeStamping,
 	})
 	if err != nil {
 		panic(err)
 	}
 	return pkix.Extension{
-		Id:    asn1.ObjectIdentifier{2, 5, 29, 37},
+		Id:    cppki.OIDExtensionExtendedKeyUsage,
 		Value: val,
 	}
 }
