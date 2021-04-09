@@ -23,9 +23,9 @@ and the therein contained certificates.
 
 The script for each role is described in the following sections:
 
-- :ref:`ceremony-administrator-role`
-- :ref:`voting-as-representative-role`
-- :ref:`witness-role`
+- :ref:`ceremony-administrator-role-sensitive-update`
+- :ref:`voting-as-representative-role-sensitive-update`
+- :ref:`witness-role-sensitive-update`
 
 Prior to the start, the *ceremony administrator* assigns a short identifier
 to each *voting representative*. This identifier will later be used in the
@@ -35,7 +35,7 @@ to include new certificates that were previously not part of the predecessor
 TRC. Also for the purpose of this document, ``bern`` is assumed to be a
 Certificate Authority for the ISD
 
-.. _ceremony-administrator-role:
+.. _ceremony-administrator-role-sensitive-update:
 
 Ceremony administrator role
 ===========================
@@ -143,7 +143,8 @@ below.
 
 Seventh, ask the *voting representatives* which voters from the predecessor TRC
 should take part in the voting process. The value will be used to fill the
-``{{.Votes}}`` variable below. To find the indices, you can use the ``scion-pki
+``{{.Votes}}`` variable below. Votes contains a sequence of indices of the voting 
+certificates in the predecessor TRC. To find the indices, you can use the ``scion-pki
 trcs human`` command.
 
 Last, ask the *voting representatives* for the validity period of the new TRC.
@@ -242,9 +243,9 @@ the votes and proof-of-possessions (signatures) cast by the *voting representati
 Connect the *USB flash drive* to the *device*. Given the example data, the votes
 should be available at the following locations on the *USB flash drive*:
 
-- ``/bern/isd.sensitive.voting.trc``
-- ``/geneva/isd.sensitive.voting.trc``
-- ``/zürich/isd.sensitive.voting.trc``
+- ``/bern/isd.sensitive.vote.trc``
+- ``/geneva/isd.sensitive.vote.trc``
+- ``/zürich/isd.sensitive.vote.trc``
 
 The proof-of-possessions for the freshly included certificates should be available
 at the following locations on the *USB flash drive*:
@@ -268,19 +269,6 @@ To check that the resulting TRC is correct, run:
    :start-after: LITERALINCLUDE verify_payload START
    :end-before: LITERALINCLUDE verify_payload END
 
-.. note::
-
-   For this step, the sensitive voting certificates contained in the predecessor
-   TRC must be available. In the following command, they are assumed to exist in
-   ``bundle.crt`` as a PEM bundle. The certificate bundle can be extracted from
-   the predecessor TRC with the ``scion-pki trcs extract certificates`` command.
-
-
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE verify_trc START
-   :end-before: LITERALINCLUDE verify_trc END
-   :dedent: 4
-
 Copy the signed TRC to the *USB flash drive* in the root directory. Disconnect
 the *USB flash drive*.
 
@@ -300,10 +288,9 @@ confirm that verification has finished successfully. If any verification fails,
 Furthermore, the *voting representatives* inspect that all signatures are present.
 Display the signed TRC with this command:
 
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE display_signatures START
-   :end-before: LITERALINCLUDE display_signatures END
-   :dedent: 4
+.. literalinclude:: trc_ceremony_sensitive.sh
+   :start-after: LITERALINCLUDE trc_content START
+   :end-before: LITERALINCLUDE trc_content END
 
 Walk the *voting representatives* through the output and describe the meaning
 and implications of each part.
@@ -313,7 +300,7 @@ confirms they have successfully verified the TRC, announce that **Phase 4** has
 finished successfully. Then, announce that the key signing ceremony has
 concluded successfully.
 
-.. _voting-as-representative-role:
+.. _voting-as-representative-role-sensitive-update:
 
 Voting AS representative role
 =============================
@@ -529,33 +516,15 @@ If the sum differs, then **Phase 3** and **Phase 4** need to be repeated.
 Next, check that all the fields are consistent with earlier choices. To print the fields
 that are present in the TRC, run:
 
-.. note::
-
-   For this step, the sensitive voting certificates contained in the predecessor
-   TRC must be available. In the following command, they are assumed to exist
-   in ``bundle.crt`` as a PEM bundle.
-
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE verify_trc START
-   :end-before: LITERALINCLUDE verify_trc END
+.. literalinclude:: trc_ceremony_sensitive.sh
+   :start-after: LITERALINCLUDE trc_content_rep START
+   :end-before: LITERALINCLUDE trc_content_rep END
    :dedent: 4
 
 If there is a mismatch between any of the fields and the desired policy, then
 **Phase 3** and **Phase 4** need to be repeated.
 
-.. note::
-
-   The ``-no_check_time`` flag is needed when the validity time of the TRC is in
-   the future.
-
-As a final check, run:
-
-.. literalinclude:: crypto_lib.sh
-   :start-after: LITERALINCLUDE display_signatures START
-   :end-before: LITERALINCLUDE display_signatures END
-   :dedent: 4
-
-and check that the signature information of each signature is present; there
+As a final check, verify that the signature information of each signature is present; there
 should be one signature for each *voting representative* that voted, and one
 signature for each sensitive or regular voting certificate that was previously
 not part of the predecessor TRC. If a signature is missing, then **Phase 3** and
@@ -563,7 +532,7 @@ not part of the predecessor TRC. If a signature is missing, then **Phase 3** and
 
 Inform the *ceremony administrator* of the outcome of the verification.
 
-.. _witness-role:
+.. _witness-role-sensitive-update:
 
 Witness role
 ============

@@ -30,7 +30,8 @@
             "validity": {
                 "not_before": "2020-06-24T12:00:00Z",
                 "not_after": "2021-06-24T12:00:00Z"
-            }
+            },
+            "index": 0
         },
         {
             "type": "regular-voting",
@@ -40,7 +41,8 @@
             "validity": {
                 "not_before": "2020-06-24T12:00:00Z",
                 "not_after": "2021-06-24T12:00:00Z"
-            }
+            },
+            "index": 1
         },
         {
             "type": "cp-root",
@@ -50,7 +52,8 @@
             "validity": {
                 "not_before": "2020-06-24T12:00:00Z",
                 "not_after": "2021-06-24T12:00:00Z"
-            }
+            },
+            "index": 2
         },
         {
             "type": "sensitive-voting",
@@ -60,7 +63,8 @@
             "validity": {
                 "not_before": "2020-06-24T12:00:00Z",
                 "not_after": "2021-06-24T12:00:00Z"
-            }
+            },
+            "index": 3
         },
         {
             "type": "regular-voting",
@@ -70,7 +74,8 @@
             "validity": {
                 "not_before": "2020-06-24T12:00:00Z",
                 "not_after": "2021-06-24T12:00:00Z"
-            }
+            },
+            "index": 4
         },
         {
             "type": "cp-root",
@@ -80,7 +85,8 @@
             "validity": {
                 "not_before": "2020-06-24T12:00:00Z",
                 "not_after": "2021-06-24T12:00:00Z"
-            }
+            },
+            "index": 5
         },
         {
             "type": "sensitive-voting",
@@ -90,7 +96,8 @@
             "validity": {
                 "not_before": "2020-06-24T12:00:00Z",
                 "not_after": "2021-06-24T12:00:00Z"
-            }
+            },
+            "index": 6
         },
         {
             "type": "regular-voting",
@@ -100,7 +107,8 @@
             "validity": {
                 "not_before": "2020-06-24T12:00:00Z",
                 "not_after": "2021-06-24T12:00:00Z"
-            }
+            },
+            "index": 7
         },
         {
             "type": "cp-root",
@@ -110,7 +118,8 @@
             "validity": {
                 "not_before": "2020-06-24T12:00:00Z",
                 "not_after": "2021-06-24T12:00:00Z"
-            }
+            },
+            "index": 8
         }
     ],
     "signatures": [

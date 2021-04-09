@@ -15,6 +15,7 @@
 package trcs
 
 import (
+	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/json"
@@ -35,10 +36,17 @@ import (
 	"github.com/scionproto/scion/go/pkg/command"
 )
 
+var (
+	purposeVote     = "vote"
+	purposeNewVoter = "new voter"
+	purposeRootAck  = "root acknowledgement"
+)
+
 func newHuman(pather command.Pather) *cobra.Command {
 	var flags struct {
-		format string
-		strict bool
+		format      string
+		strict      bool
+		predecessor string
 	}
 
 	cmd := &cobra.Command{
@@ -66,7 +74,18 @@ return an error if parts of a TRC fail to decode, enable the strict mode.
 			if err != nil {
 				return err
 			}
-			h, err := getHumanEncoding(raw, flags.strict)
+			var predTRC *cppki.TRC
+			if flags.predecessor != "" {
+				predRaw, err := ioutil.ReadFile(flags.predecessor)
+				if err != nil {
+					return err
+				}
+				predTRC, _, err = decodeTRCorPayload(predRaw)
+				if err != nil {
+					return err
+				}
+			}
+			h, err := getHumanEncoding(raw, predTRC, flags.strict)
 			if err != nil {
 				return err
 			}
@@ -75,6 +94,8 @@ return an error if parts of a TRC fail to decode, enable the strict mode.
 	}
 	cmd.Flags().StringVar(&flags.format, "format", "yaml", "Output format (yaml|json)")
 	cmd.Flags().BoolVar(&flags.strict, "strict", false, "Enable strict decoding mode")
+	cmd.Flags().StringVar(&flags.predecessor, "predecessor", "",
+		"Predecessor TRC (needed to display signature purpose)")
 	return cmd
 }
 
@@ -91,31 +112,42 @@ func getEncoder(w io.Writer, format string) (interface{ Encode(v interface{}) er
 	}
 }
 
-func getHumanEncoding(raw []byte, strict bool) (humanTRC, error) {
+func getHumanEncoding(raw []byte, predTRC *cppki.TRC, strict bool) (humanTRC, error) {
 	var h humanTRC
-	var trc cppki.TRC
-	block, _ := pem.Decode(raw)
-	if block != nil && (block.Type == "TRC" || block.Type == "TRC Payload") {
-		raw = block.Bytes
+	trc, signed, err := decodeTRCorPayload(raw)
+	if err != nil {
+		return humanTRC{}, serrors.New("file is neither TRC nor signed TRC")
 	}
-	if t, err := cppki.DecodeTRC(raw); err == nil {
-		trc = t
-	} else if signed, err := cppki.DecodeSignedTRC(raw); err == nil {
-		trc = signed.TRC
+	if signed != nil {
+		var predCerts []*x509.Certificate
+		if predTRC != nil {
+			predCerts = predTRC.Certificates
+		}
 		for i, info := range signed.SignerInfos {
-			d, err := newSignerInfo(info)
+			d, err := newSignerInfo(info, predCerts)
 			if err != nil && strict {
 				return humanTRC{}, serrors.WrapStr("decoding signer info", err, "index", i)
 			}
 			h.Signatures = append(h.Signatures, d)
 		}
-	} else {
-		return humanTRC{}, serrors.New("file is neither TRC nor signed TRC")
 	}
-	if err := h.setTRC(trc); err != nil && strict {
+	if err := h.setTRC(*trc); err != nil && strict {
 		return humanTRC{}, err
 	}
 	return h, nil
+}
+
+func decodeTRCorPayload(raw []byte) (*cppki.TRC, *cppki.SignedTRC, error) {
+	block, _ := pem.Decode(raw)
+	if block != nil && (block.Type == "TRC" || block.Type == "TRC Payload") {
+		raw = block.Bytes
+	}
+	if t, err := cppki.DecodeTRC(raw); err == nil {
+		return &t, nil, nil
+	} else if s, err := cppki.DecodeSignedTRC(raw); err == nil {
+		return &s.TRC, &s, nil
+	}
+	return nil, nil, serrors.New("file is neither TRC nor signed TRC")
 }
 
 type humanTRC struct {
@@ -169,6 +201,7 @@ func (h *humanTRC) setTRC(trc cppki.TRC) error {
 				IA:           extractIA(cert.Subject),
 				SerialNumber: fmt.Sprintf("% X", cert.SerialNumber.Bytes()),
 				Type:         t.String(),
+				Index:        i,
 			}
 			desc.Validity.NotBefore, desc.Validity.NotAfter = cert.NotBefore, cert.NotAfter
 			h.Certificates = append(h.Certificates, desc)
@@ -186,6 +219,7 @@ type certDesc struct {
 		NotBefore time.Time `yaml:"not_before,omitempty" json:"not_before,omitempty"`
 		NotAfter  time.Time `yaml:"not_after,omitempty" json:"not_after,omitempty"`
 	} `yaml:"validity,omitempty" json:"validity,omitempty"`
+	Index int    `yaml:"index" json:"index"`
 	Error string `yaml:"error,omitempty" json:"error,omitempty"`
 }
 
@@ -194,10 +228,11 @@ type signerInfo struct {
 	IA           addr.IA   `yaml:"isd_as,omitempty" json:"isd_as,omitempty"`
 	SerialNumber string    `yaml:"serial_number,omitempty" json:"serial_number,omitempty"`
 	SigningTime  time.Time `yaml:"signing_time,omitempty" json:"signing_time,omitempty"`
+	Purpose      string    `yaml:"purpose,omitempty" json:"purpose,omitempty"`
 	Error        string    `yaml:"error,omitempty" json:"error,omitempty"`
 }
 
-func newSignerInfo(info protocol.SignerInfo) (signerInfo, error) {
+func newSignerInfo(info protocol.SignerInfo, certs []*x509.Certificate) (signerInfo, error) {
 	if info.SID.Class != asn1.ClassUniversal || info.SID.Tag != asn1.TagSequence {
 		err := serrors.New("unsupported signer info type")
 		return signerInfo{Error: err.Error()}, err
@@ -220,6 +255,7 @@ func newSignerInfo(info protocol.SignerInfo) (signerInfo, error) {
 	if err != nil {
 		return signerInfo{Error: err.Error()}, err
 	}
+
 	var name pkix.Name
 	name.FillFromRDNSequence(&issuer)
 	return signerInfo{
@@ -227,6 +263,7 @@ func newSignerInfo(info protocol.SignerInfo) (signerInfo, error) {
 		IA:           extractIA(name),
 		SerialNumber: fmt.Sprintf("% X", isn.SerialNumber.Bytes()),
 		SigningTime:  signingTime,
+		Purpose:      getPurpose(info, certs),
 	}, nil
 }
 
@@ -236,4 +273,27 @@ func extractIA(name pkix.Name) addr.IA {
 		return addr.IA{}
 	}
 	return ia
+}
+
+func getPurpose(info protocol.SignerInfo, certs []*x509.Certificate) string {
+	if len(certs) == 0 {
+		return ""
+	}
+	cert, err := info.FindCertificate(certs)
+	if err == protocol.ErrNoCertificate {
+		return purposeNewVoter
+	} else if err != nil {
+		return ""
+	}
+	certType, err := cppki.ValidateCert(cert)
+	if err != nil {
+		return ""
+	}
+	switch certType {
+	case cppki.Sensitive, cppki.Regular:
+		return purposeVote
+	case cppki.Root:
+		return purposeRootAck
+	}
+	return ""
 }
