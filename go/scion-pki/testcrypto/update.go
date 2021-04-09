@@ -22,6 +22,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"path/filepath"
 	"time"
@@ -320,6 +321,7 @@ func extendCert(now time.Time, cert *x509.Certificate,
 	tmpl.NotBefore = now
 	tmpl.NotAfter = now.Add(730 * 24 * time.Hour)
 	tmpl.Subject = subject
+	tmpl.SerialNumber = new(big.Int).SetBytes(serial)
 
 	raw, err := x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, key.Public(), key)
 	if err != nil {
