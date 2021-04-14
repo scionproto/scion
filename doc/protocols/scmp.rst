@@ -116,6 +116,39 @@ entire SCMP message, starting with the SCMP message type field, and prepended
 with a "pseudo-header" consisting of the SCION address header and the layer-4
 protocol type as defined in :ref:`pseudo-header-upper-layer-checksum`.
 
+Authentication
+--------------
+SCMP messages can be authenticated with a MAC based on a symmetric key
+established with the DRKey infrastructure. The MAC is transported in the
+:ref:`authenticator-option` End-to-End extension header.
+
+The Authenticator MAC algorithm is AES-CMAC (identifier :code:`0`).
+
+SCMP error messages are always authenticated.
+SCMP informational messages are optionally authenticated; a response message is
+authenticated if and only if the corresponding request message was
+authenticated.
+
+All DRKey keys used here are derived with protocol identifier :code:`scmp`.
+
+SCMP messages from (and to) routers are authenticated with AS-to-Host keys.
+SCMP response messages from a router in AS :math:`D` to a node :math:`H_s` in
+AS :math:`S` are authenticated with the DRKey :math:`K_{D \rightarrow S:H_s}`.
+SCMP requests (specifically, :ref:`traceroute-request`) to are authenticated
+with the same key.
+
+SCMP messages between two end-hosts are authenticated with Host-to-Host keys.
+An SCMP response message from a node :math:`H_d` in AS :math:`D` to a node
+:math:`H_s` in AS :math:`S` is authenticated with the key
+:math:`K_{D:H_d \rightarrow S:H_s}`.
+SCMP requests and data packets from :math:`H_s` to :math:`H_d` are
+authenticated with this same key.
+
+For packets addressed to a router directly (specifically for Echo request and
+response) it is treated like an end-host and the corresponding Host-to-Host
+keys are used.
+
+
 Processing Rules
 ----------------
 
@@ -147,6 +180,44 @@ Implementations MUST respect the following rules when processing SCMP messages:
 
    #. A packet whose source address does not uniquely identify a single node.
       E.g., an IPv4 or IPv6 multicast address.
+
+#. Every SCMP error message MUST be authenticated.
+
+   Every SCMP informational reply message MUST be authenticated if and only if
+   the corresponding request was authenticated.
+
+   .. note::
+      Consequentially, an implementation without support for SCMP
+      authentication MUST never send SCMP error messages and MUST NOT reply to
+      authenticated SCMP informational request messages.
+
+#. When an SCMP message is received, the receiver SHOULD check the
+   authentication header.
+
+   - SCMP error messages without or with an invalid authentication header and
+     SCMP informational messages with an invalid authentication header SHOULD
+     be silently dropped.
+
+     .. note::
+        As SCMP authentication is a new addition, there will be a transition period
+        during which receivers may accept SCMP error messages without authentication.
+
+   - The receiver derives or fetches the relevant key for validation, by
+     inspecting the SCMP message type and code and/or by comparing the source
+     address of the SCMP reply with the destination address of the packet
+     quoted in an SCMP error.
+
+   - Before checking the authentication, and in particular before fetching a
+     key, the receiver SHOULD check whether the quoted message was possibly
+     recently sent via/to the originator of the error message.
+
+   - The receiver MUST limit the traffic to the control service to fetch keys
+     for verifying the authentication of an SCMP message.
+     At most one packet SHOULD be sent to fetch the key for a received SCMP
+     message. If this fails or is not possible (e.g. because there is no
+     existing TCP session to the control service), the message SHOULD be
+     silently dropped.
+
 
 SCMP Error Messages
 ===================
