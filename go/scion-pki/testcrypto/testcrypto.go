@@ -280,7 +280,7 @@ func createASes(cfg config) error {
 		cmd.Env = []string{
 			"TRCID=" + fmt.Sprintf("ISD%d-B1-S1", ia.I),
 			"STARTDATE=" + generalizedTime(cfg.now),
-			"ENDDATE=" + generalizedTime(cfg.now.Add(365*24*time.Hour)),
+			"ENDDATE=" + generalizedTime(cfg.now.Add(550*24*time.Hour)),
 			"KEYDIR=" + cryptoASDir(ia, outConfig{base: "/workdir", isd: cfg.out.isd}),
 			"PUBDIR=" + cryptoASDir(ia, outConfig{base: "/workdir", isd: cfg.out.isd}),
 			"CONTAINER_NAME=" + cfg.container,

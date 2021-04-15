@@ -48,6 +48,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet/squic"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/svc"
+	"github.com/scionproto/scion/go/lib/tracing"
 	"github.com/scionproto/scion/go/pkg/app/feature"
 	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	"github.com/scionproto/scion/go/pkg/command"
@@ -90,6 +91,7 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
 		timeout        time.Duration
 
 		features []string
+		tracer   string
 	}
 
 	cmd := &cobra.Command{
@@ -171,6 +173,12 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 					return err
 				}
 			}
+			closer, err := setupTracer("scion-pki", flags.tracer)
+			if err != nil {
+				return serrors.WrapStr("setting up tracing", err)
+			}
+			defer closer()
+
 			cmd.SilenceUsage = true
 
 			var features Features
@@ -180,6 +188,11 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 			if features.DisableCMSRequest && features.DisableLegacyRequest {
 				return serrors.New("both legacy and CMS request disabled")
 			}
+
+			span, ctx := tracing.CtxWith(context.Background(), "certs.renew")
+			span.SetTag("feature.disable_legacy_request", features.DisableLegacyRequest)
+			span.SetTag("feature.disable_cms_request", features.DisableCMSRequest)
+			defer span.Finish()
 
 			log.Setup(log.Config{Console: log.ConsoleConfig{Level: "crit"}})
 
@@ -195,6 +208,7 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 				ca = transportCA
 				fmt.Println("Extracted remote from transport certificate chain: ", ca)
 			}
+			span.SetTag("dst.isd_as", ca)
 
 			// Step 1. create CSR.
 			key, err := readECKey(flags.keyFile)
@@ -221,7 +235,7 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 			}
 
 			// Step 2. create messenger.
-			ctx, cancel := context.WithTimeout(context.Background(), flags.timeout)
+			ctx, cancel := context.WithTimeout(ctx, flags.timeout)
 			defer cancel()
 			sds := daemon.NewService(flags.daemon)
 
@@ -324,6 +338,7 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 		"File where the CSR for the requested certificate chain is written")
 	cmd.Flags().StringSliceVar(&flags.features, "features", nil,
 		fmt.Sprintf("enable development features (%v)", feature.String(&Features{}, "|")))
+	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
 	return cmd
 }
 
