@@ -17,6 +17,8 @@ package testcrypto
 import (
 	"bytes"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
@@ -44,6 +46,7 @@ func newUpdate() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "update",
+		Args:  cobra.NoArgs,
 		Short: "Generate TRC update for test topology",
 		Long: `'update' generates a TRC update for a given scenario.
 
@@ -67,6 +70,12 @@ Scenarios:
 
     In this scenario, the certificates that are part of the updated TRC remain
     the same. Only the TRC lifetime is extended a bit.
+
+  - re-gen:
+	sensitive update, certificateion path broken
+
+	In this scenario, all the voting and root certificates are changed for
+	new ones.
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if _, err := os.Stat(flags.out); err != nil {
@@ -96,15 +105,19 @@ Scenarios:
 				isd:  err == nil && len(matches) != 0,
 			}
 			now := time.Now()
-			for isd, pred := range isds {
+			for isd, predecessor := range isds {
 				switch flags.scenario {
 				case "extend":
-					if err := extendTRC(now, out, pred); err != nil {
+					if err := extendTRC(now, out, predecessor); err != nil {
 						return serrors.WrapStr("generating extension", err, "isd", isd)
 					}
 				case "re-sign":
-					if err := resignTRC(now, out, pred); err != nil {
+					if err := resignTRC(now, out, predecessor); err != nil {
 						return serrors.WrapStr("re-signing", err)
+					}
+				case "re-gen":
+					if err := regenTRC(now, out, predecessor); err != nil {
+						return err
 					}
 				default:
 					return serrors.New("unknown scenario", "scenario", flags.scenario)
@@ -115,15 +128,21 @@ Scenarios:
 	}
 	cmd.Flags().StringVarP(&flags.out, "out", "o", "gen", "Output directory")
 	cmd.Flags().StringVar(&flags.scenario, "scenario", "extend", "TRC update scenario "+
-		"(extend|re-sign)")
+		"(extend|re-sign|re-gen)")
 	return cmd
 }
 
-func extendTRC(now time.Time, out outConfig, pred cppki.SignedTRC) error {
+func extendTRC(now time.Time, out outConfig, predecessor cppki.SignedTRC) error {
+	id := cppki.TRCID{
+		ISD:    predecessor.TRC.ID.ISD,
+		Base:   predecessor.TRC.ID.Base,
+		Serial: predecessor.TRC.ID.Serial + 1,
+	}
+
 	signers := map[*x509.Certificate]crypto.Signer{}
 	var include []*x509.Certificate
 	var votes []int
-	for i, cert := range pred.TRC.Certificates {
+	for i, cert := range predecessor.TRC.Certificates {
 		t, err := cppki.ValidateCert(cert)
 		if err != nil {
 			return err
@@ -142,8 +161,7 @@ func extendTRC(now time.Time, out outConfig, pred cppki.SignedTRC) error {
 			if err != nil {
 				return serrors.WrapStr("creating certificate", err, "isd_as", ia, "type", t)
 			}
-			file := filepath.Join(out.base, "certs",
-				regularCertName(ia, int(pred.TRC.ID.Serial+1)))
+			file := filepath.Join(out.base, "certs", regularCertName(ia, int(id.Serial)))
 			if err := writeCert(file, extended); err != nil {
 				return serrors.WrapStr("writing certificate", err, "isd_as", ia, "type", t)
 			}
@@ -161,7 +179,7 @@ func extendTRC(now time.Time, out outConfig, pred cppki.SignedTRC) error {
 			if err != nil {
 				return serrors.WrapStr("creating certificate", err, "isd_as", ia, "type", t)
 			}
-			file := filepath.Join(out.base, "certs", rootCertName(ia, int(pred.TRC.ID.Serial+1)))
+			file := filepath.Join(out.base, "certs", rootCertName(ia, int(id.Serial)))
 			if err := writeCert(file, extended); err != nil {
 				return serrors.WrapStr("writing certificate", err, "isd_as", ia, "type", t)
 			}
@@ -175,21 +193,17 @@ func extendTRC(now time.Time, out outConfig, pred cppki.SignedTRC) error {
 
 	pld := cppki.TRC{
 		Version: 1,
-		ID: cppki.TRCID{
-			ISD:    pred.TRC.ID.ISD,
-			Base:   pred.TRC.ID.Base,
-			Serial: pred.TRC.ID.Serial + 1,
-		},
+		ID:      id,
 		Validity: cppki.Validity{
 			NotBefore: now,
 			NotAfter:  now.Add(450 * 24 * time.Hour),
 		},
 		GracePeriod:       7 * 24 * time.Hour,
 		Votes:             votes,
-		Quorum:            pred.TRC.Quorum,
-		CoreASes:          pred.TRC.CoreASes,
-		AuthoritativeASes: pred.TRC.AuthoritativeASes,
-		Description:       pred.TRC.Description,
+		Quorum:            predecessor.TRC.Quorum,
+		CoreASes:          predecessor.TRC.CoreASes,
+		AuthoritativeASes: predecessor.TRC.AuthoritativeASes,
+		Description:       predecessor.TRC.Description,
 		Certificates:      include,
 	}
 	trc, err := signTRC(pld, signers)
@@ -199,11 +213,11 @@ func extendTRC(now time.Time, out outConfig, pred cppki.SignedTRC) error {
 	return writeTRC(out, trc)
 }
 
-func resignTRC(now time.Time, out outConfig, pred cppki.SignedTRC) error {
+func resignTRC(now time.Time, out outConfig, predecessor cppki.SignedTRC) error {
 	signers := map[*x509.Certificate]crypto.Signer{}
 	var include []*x509.Certificate
 	var votes []int
-	for i, cert := range pred.TRC.Certificates {
+	for i, cert := range predecessor.TRC.Certificates {
 		t, err := cppki.ValidateCert(cert)
 		if err != nil {
 			return err
@@ -226,9 +240,9 @@ func resignTRC(now time.Time, out outConfig, pred cppki.SignedTRC) error {
 	pld := cppki.TRC{
 		Version: 1,
 		ID: cppki.TRCID{
-			ISD:    pred.TRC.ID.ISD,
-			Base:   pred.TRC.ID.Base,
-			Serial: pred.TRC.ID.Serial + 1,
+			ISD:    predecessor.TRC.ID.ISD,
+			Base:   predecessor.TRC.ID.Base,
+			Serial: predecessor.TRC.ID.Serial + 1,
 		},
 		Validity: cppki.Validity{
 			NotBefore: now,
@@ -236,10 +250,110 @@ func resignTRC(now time.Time, out outConfig, pred cppki.SignedTRC) error {
 		},
 		GracePeriod:       7 * 24 * time.Hour,
 		Votes:             votes,
-		Quorum:            pred.TRC.Quorum,
-		CoreASes:          pred.TRC.CoreASes,
-		AuthoritativeASes: pred.TRC.AuthoritativeASes,
-		Description:       pred.TRC.Description,
+		Quorum:            predecessor.TRC.Quorum,
+		CoreASes:          predecessor.TRC.CoreASes,
+		AuthoritativeASes: predecessor.TRC.AuthoritativeASes,
+		Description:       predecessor.TRC.Description,
+		Certificates:      include,
+	}
+	trc, err := signTRC(pld, signers)
+	if err != nil {
+		return serrors.WrapStr("signing TRC", err)
+	}
+	return writeTRC(out, trc)
+}
+
+func regenTRC(now time.Time, out outConfig, predecessor cppki.SignedTRC) error {
+	id := cppki.TRCID{
+		ISD:    predecessor.TRC.ID.ISD,
+		Base:   predecessor.TRC.ID.Base,
+		Serial: predecessor.TRC.ID.Serial + 1,
+	}
+
+	signers := map[*x509.Certificate]crypto.Signer{}
+	var include []*x509.Certificate
+	var votes []int
+	for i, cert := range predecessor.TRC.Certificates {
+		ia, err := cppki.ExtractIA(cert.Subject)
+		if err != nil {
+			return err
+		}
+		t, err := cppki.ValidateCert(cert)
+		if err != nil {
+			return err
+		}
+		switch t {
+		case cppki.Sensitive:
+			dir := cryptoVotingDir(ia, out)
+			key, err := findkey(dir, cert)
+			if err != nil {
+				return serrors.WrapStr("searching key", err, "isd_as", ia, "type", t)
+			}
+			newKey, err := createKey(fmt.Sprintf("%s/sensitive-voting.s%d.key", dir, id.Serial))
+			if err != nil {
+				return err
+			}
+			newCert, err := extendCert(now, cert, newKey)
+			if err != nil {
+				return serrors.WrapStr("creating certificate", err, "isd_as", ia, "type", t)
+			}
+			file := filepath.Join(out.base, "certs", sensitiveCertName(ia, int(id.Serial)))
+			if err := writeCert(file, newCert); err != nil {
+				return serrors.WrapStr("writing certificate", err, "isd_as", ia, "type", t)
+			}
+			// Cast vote and show proof of possession.
+			signers[cert] = key
+			votes = append(votes, i)
+			signers[newCert] = newKey
+			include = append(include, newCert)
+		case cppki.Regular:
+			dir := cryptoVotingDir(ia, out)
+			newKey, err := createKey(fmt.Sprintf("%s/regular-voting.s%d.key", dir, id.Serial))
+			if err != nil {
+				return err
+			}
+			newCert, err := extendCert(now, cert, newKey)
+			if err != nil {
+				return serrors.WrapStr("creating certificate", err, "isd_as", ia, "type", t)
+			}
+			file := filepath.Join(out.base, "certs", regularCertName(ia, int(id.Serial)))
+			if err := writeCert(file, newCert); err != nil {
+				return serrors.WrapStr("writing certificate", err, "isd_as", ia, "type", t)
+			}
+			// Show proof of possession.
+			signers[newCert] = newKey
+			include = append(include, newCert)
+		case cppki.Root:
+			dir := cryptoCADir(ia, out)
+			newKey, err := createKey(fmt.Sprintf("%s/cp-root.s%d.key", dir, id.Serial))
+			if err != nil {
+				return err
+			}
+			newCert, err := extendCert(now, cert, newKey)
+			if err != nil {
+				return serrors.WrapStr("creating certificate", err, "isd_as", ia, "type", t)
+			}
+			file := filepath.Join(out.base, "certs", rootCertName(ia, int(id.Serial)))
+			if err := writeCert(file, newCert); err != nil {
+				return serrors.WrapStr("writing certificate", err, "isd_as", ia, "type", t)
+			}
+			include = append(include, newCert)
+		}
+	}
+
+	pld := cppki.TRC{
+		Version: 1,
+		ID:      id,
+		Validity: cppki.Validity{
+			NotBefore: now,
+			NotAfter:  now.Add(450 * 24 * time.Hour),
+		},
+		GracePeriod:       7 * 24 * time.Hour,
+		Votes:             votes,
+		Quorum:            predecessor.TRC.Quorum,
+		CoreASes:          predecessor.TRC.CoreASes,
+		AuthoritativeASes: predecessor.TRC.AuthoritativeASes,
+		Description:       predecessor.TRC.Description,
 		Certificates:      include,
 	}
 	trc, err := signTRC(pld, signers)
@@ -264,7 +378,7 @@ func signTRC(pld cppki.TRC, signers map[*x509.Certificate]crypto.Signer) (cppki.
 	}
 	for cert, key := range signers {
 		if err := sd.AddSignerInfo([]*x509.Certificate{cert}, key); err != nil {
-			return cppki.SignedTRC{}, err
+			return cppki.SignedTRC{}, serrors.WithCtx(err, "common_name", cert.Subject.CommonName)
 		}
 
 	}
@@ -302,6 +416,29 @@ func findkey(dir string, cert *x509.Certificate) (crypto.Signer, error) {
 		}
 	}
 	return nil, serrors.New("not found")
+}
+
+func createKey(file string) (crypto.Signer, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	packed, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		return nil, err
+	}
+	block := &pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: packed,
+	}
+	raw := pem.EncodeToMemory(block)
+	if raw == nil {
+		return nil, serrors.New("failed to pack private key")
+	}
+	if err := ioutil.WriteFile(file, raw, 0644); err != nil {
+		return nil, serrors.WrapStr("writing private key", err)
+	}
+	return key, nil
 }
 
 func extendCert(now time.Time, cert *x509.Certificate,
