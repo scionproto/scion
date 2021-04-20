@@ -25,8 +25,8 @@ go_test(
         "config_test.go",
         "loader_test.go",
     ],
-    embed = [":go_default_library"],
     deps = [
+        ":go_default_library",
         "//go/lib/log/mock_log:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/xtest:go_default_library",

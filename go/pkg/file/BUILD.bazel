@@ -19,8 +19,8 @@ go_test(
     name = "go_default_test",
     srcs = ["periodicview_test.go"],
     data = glob(["testdata/**"]),
-    embed = [":go_default_library"],
     deps = [
+        ":go_default_library",
         "//go/lib/scrypto:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",

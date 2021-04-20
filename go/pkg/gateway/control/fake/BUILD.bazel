@@ -10,8 +10,8 @@ go_test(
         "configuration.schema.json",
         "example_configuration.gatewaytest",
     ],
-    embed = [":go_default_library"],
     deps = [
+        ":go_default_library",
         "//go/lib/pktcls:go_default_library",
         "//go/lib/slayers/path/scion:go_default_library",
         "//go/lib/snet:go_default_library",

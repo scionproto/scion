@@ -23,8 +23,8 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = ["colibri_mgmt_test.go"],
-    embed = [":go_default_library"],
     deps = [
+        ":go_default_library",
         "//go/lib/xtest:go_default_library",
         "//go/proto:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",

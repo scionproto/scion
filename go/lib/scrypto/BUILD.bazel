@@ -22,8 +22,8 @@ go_test(
     name = "go_default_test",
     srcs = ["pem_test.go"],
     data = glob(["testdata/**"]),
-    embed = [":go_default_library"],
     deps = [
+        ":go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
     ],

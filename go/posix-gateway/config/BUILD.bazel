@@ -16,8 +16,8 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = ["config_test.go"],
-    embed = [":go_default_library"],
     deps = [
+        ":go_default_library",
         "//go/lib/env/envtest:go_default_library",
         "//go/lib/log/logtest:go_default_library",
         "//go/pkg/gateway/config/configtest:go_default_library",
