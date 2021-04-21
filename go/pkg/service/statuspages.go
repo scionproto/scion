@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strings"
 
 	toml "github.com/pelletier/go-toml"
 
@@ -72,6 +73,17 @@ func (s StatusPages) Register(serveMux *http.ServeMux, elemId string) error {
 	}
 	serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, mainBuf.String())
+	})
+	serveMux.HandleFunc("/all", func(w http.ResponseWriter, r *http.Request) {
+		var endpoints []string
+		for endpoint := range s {
+			endpoints = append(endpoints, endpoint)
+		}
+		sort.Strings(endpoints)
+		for _, endpoint := range endpoints {
+			fmt.Fprintf(w, "\n\n%s\n%s\n\n", endpoint, strings.Repeat("=", len(endpoint)))
+			s[endpoint](w, r)
+		}
 	})
 	return nil
 }
