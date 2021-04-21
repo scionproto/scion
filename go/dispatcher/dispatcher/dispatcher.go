@@ -17,10 +17,8 @@ package dispatcher
 import (
 	"context"
 	"net"
-	"sync"
 	"time"
 
-	"github.com/scionproto/scion/go/dispatcher/internal/metrics"
 	"github.com/scionproto/scion/go/dispatcher/internal/registration"
 	"github.com/scionproto/scion/go/dispatcher/internal/respool"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -30,10 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/underlay/conn"
 )
-
-// OverflowLoggingInterval is the minimum amount of time that needs to
-// pass before another overflow logging message is printed (if needed).
-const OverflowLoggingInterval = 10 * time.Second
 
 // ReceiveBufferSize is the size of receive buffers used by the dispatcher.
 const ReceiveBufferSize = 1 << 20
@@ -49,20 +43,16 @@ type Server struct {
 // NewServer creates new instance of Server. Internally, it opens the dispatcher ports
 // for both IPv4 and IPv6. Returns error if the ports can't be opened.
 func NewServer(address string, ipv4Conn, ipv6Conn net.PacketConn) (*Server, error) {
-	metaLogger := &throttledMetaLogger{
-		Logger:      log.Root(),
-		MinInterval: OverflowLoggingInterval,
-	}
 	if ipv4Conn == nil {
 		var err error
-		ipv4Conn, err = openConn("udp4", address, metaLogger)
+		ipv4Conn, err = openConn("udp4", address)
 		if err != nil {
 			return nil, err
 		}
 	}
 	if ipv6Conn == nil {
 		var err error
-		ipv6Conn, err = openConn("udp6", address, metaLogger)
+		ipv6Conn, err = openConn("udp6", address)
 		if err != nil {
 			ipv4Conn.Close()
 			return nil, err
@@ -205,7 +195,7 @@ func (ac *Conn) SetWriteDeadline(t time.Time) error {
 //
 // Note that Go-style dual-stacked IPv4/IPv6 connections are not supported. If
 // network is udp, it will be treated as udp4.
-func openConn(network, address string, p SocketMetaHandler) (net.PacketConn, error) {
+func openConn(network, address string) (net.PacketConn, error) {
 	// We cannot allow the Go standard library to open both types of sockets
 	// because the socket options are specific to only one socket type, so we
 	// degrade udp to only udp4.
@@ -228,7 +218,7 @@ func openConn(network, address string, p SocketMetaHandler) (net.PacketConn, err
 		return nil, serrors.WrapStr("unable to open conn", err)
 	}
 
-	return &underlayConnWrapper{Conn: c, Handler: p}, nil
+	return &underlayConnWrapper{Conn: c}, nil
 }
 
 // registerIfSCMPInfo registers the ID of the SCMP request if it is an echo or
@@ -254,18 +244,10 @@ func registerIfSCMPInfo(ref registration.RegReference, pkt *respool.Packet) erro
 type underlayConnWrapper struct {
 	// Conn is the wrapped underlay connection object.
 	conn.Conn
-	// Handler is used to customize how the connection treats socket
-	// metadata.
-	Handler SocketMetaHandler
 }
 
 func (o *underlayConnWrapper) ReadFrom(p []byte) (int, net.Addr, error) {
-	n, meta, err := o.Conn.Read([]byte(p))
-	if meta == nil {
-		return n, nil, err
-	}
-	o.Handler.Handle(meta)
-	return n, meta.Src, err
+	return o.Conn.ReadFrom(p)
 }
 
 func (o *underlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
@@ -273,7 +255,7 @@ func (o *underlayConnWrapper) WriteTo(p []byte, a net.Addr) (int, error) {
 	if !ok {
 		return 0, serrors.New("address is not UDP", "addr", a)
 	}
-	return o.Conn.WriteTo([]byte(p), udpAddr)
+	return o.Conn.WriteTo(p, udpAddr)
 }
 
 func (o *underlayConnWrapper) Close() error {
@@ -294,40 +276,4 @@ func (o *underlayConnWrapper) SetReadDeadline(t time.Time) error {
 
 func (o *underlayConnWrapper) SetWriteDeadline(t time.Time) error {
 	return o.Conn.SetWriteDeadline(t)
-}
-
-// SocketMetaHandler processes OS socket metadata during reads.
-type SocketMetaHandler interface {
-	Handle(*conn.ReadMeta)
-}
-
-// throttledMetaLogger logs packets dropped due to full receive buffers,
-// with a configurable threshold on how often logging messages are printed.
-type throttledMetaLogger struct {
-	// Logger is used to print the logging messages.
-	Logger log.Logger
-	// MinInterval is the minimum duration of time that has passed since the
-	MinInterval time.Duration
-
-	mu sync.Mutex
-	// lastPrintTimestamp is the time when the previous logging message was
-	// printed.
-	lastPrintTimestamp time.Time
-	// lastPrintValue is the overflow value printed in the last logging message.
-	lastPrintValue uint32
-}
-
-func (p *throttledMetaLogger) Handle(m *conn.ReadMeta) {
-	p.mu.Lock()
-	if m.RcvOvfl != p.lastPrintValue && time.Since(p.lastPrintTimestamp) > p.MinInterval {
-		if m.RcvOvfl > p.lastPrintValue {
-			metrics.M.NetReadOverflows().Add(float64(m.RcvOvfl - p.lastPrintValue))
-		} else {
-			metrics.M.NetReadOverflows().Add(float64(m.RcvOvfl))
-		}
-		p.Logger.Debug("Detected socket overflow", "total_cnt", m.RcvOvfl)
-		p.lastPrintTimestamp = time.Now()
-		p.lastPrintValue = m.RcvOvfl
-	}
-	p.mu.Unlock()
 }

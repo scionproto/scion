@@ -48,18 +48,18 @@ func (mr *MockBatchConnMockRecorder) Close() *gomock.Call {
 }
 
 // ReadBatch mocks base method
-func (m *MockBatchConn) ReadBatch(arg0 conn.Messages, arg1 []conn.ReadMeta) (int, error) {
+func (m *MockBatchConn) ReadBatch(arg0 conn.Messages) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadBatch", arg0, arg1)
+	ret := m.ctrl.Call(m, "ReadBatch", arg0)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ReadBatch indicates an expected call of ReadBatch
-func (mr *MockBatchConnMockRecorder) ReadBatch(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockBatchConnMockRecorder) ReadBatch(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadBatch", reflect.TypeOf((*MockBatchConn)(nil).ReadBatch), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadBatch", reflect.TypeOf((*MockBatchConn)(nil).ReadBatch), arg0)
 }
 
 // WriteBatch mocks base method
