@@ -37,24 +37,57 @@ func TestCAPolicyCreateChain(t *testing.T) {
 		Subject:   chain[0].Subject,
 		PublicKey: chain[0].PublicKey,
 	}
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	p256, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
 	testCases := map[string]struct {
-		CSR          func(t *testing.T) *x509.CertificateRequest
-		Signer       func(t *testing.T) crypto.Signer
-		Validity     time.Duration
-		ErrAssertion assert.ErrorAssertionFunc
+		CSR                   func(t *testing.T) *x509.CertificateRequest
+		Signer                func(t *testing.T) crypto.Signer
+		Validity              time.Duration
+		ForceECDSAWithSHA512  bool
+		ExpectedSignatureAlgo x509.SignatureAlgorithm
+		ErrAssertion          assert.ErrorAssertionFunc
 	}{
-		"valid": {
-			CSR:          func(t *testing.T) *x509.CertificateRequest { return &csr },
-			Signer:       func(t *testing.T) crypto.Signer { return priv },
-			Validity:     chain[0].NotAfter.Sub(chain[0].NotBefore),
-			ErrAssertion: assert.NoError,
+		"valid p256": {
+			CSR:                   func(t *testing.T) *x509.CertificateRequest { return &csr },
+			Signer:                func(t *testing.T) crypto.Signer { return p256 },
+			Validity:              chain[0].NotAfter.Sub(chain[0].NotBefore),
+			ExpectedSignatureAlgo: x509.ECDSAWithSHA256,
+			ErrAssertion:          assert.NoError,
+		},
+		"valid p384": {
+			CSR: func(t *testing.T) *x509.CertificateRequest { return &csr },
+			Signer: func(t *testing.T) crypto.Signer {
+				p384, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+				require.NoError(t, err)
+				return p384
+			},
+			Validity:              chain[0].NotAfter.Sub(chain[0].NotBefore),
+			ExpectedSignatureAlgo: x509.ECDSAWithSHA384,
+			ErrAssertion:          assert.NoError,
+		},
+		"valid p521": {
+			CSR: func(t *testing.T) *x509.CertificateRequest { return &csr },
+			Signer: func(t *testing.T) crypto.Signer {
+				p521, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+				require.NoError(t, err)
+				return p521
+			},
+			Validity:              chain[0].NotAfter.Sub(chain[0].NotBefore),
+			ExpectedSignatureAlgo: x509.ECDSAWithSHA512,
+			ErrAssertion:          assert.NoError,
+		},
+		"valid legacy": {
+			CSR:                   func(t *testing.T) *x509.CertificateRequest { return &csr },
+			Signer:                func(t *testing.T) crypto.Signer { return p256 },
+			Validity:              chain[0].NotAfter.Sub(chain[0].NotBefore),
+			ForceECDSAWithSHA512:  true,
+			ExpectedSignatureAlgo: x509.ECDSAWithSHA512,
+			ErrAssertion:          assert.NoError,
 		},
 		"validity not covered": {
 			CSR:          func(t *testing.T) *x509.CertificateRequest { return &csr },
-			Signer:       func(t *testing.T) crypto.Signer { return priv },
+			Signer:       func(t *testing.T) crypto.Signer { return p256 },
 			Validity:     chain[1].NotAfter.Sub(chain[1].NotBefore) + time.Hour,
 			ErrAssertion: assert.Error,
 		},
@@ -66,7 +99,7 @@ func TestCAPolicyCreateChain(t *testing.T) {
 				c.PublicKey = pub
 				return &c
 			},
-			Signer:       func(t *testing.T) crypto.Signer { return priv },
+			Signer:       func(t *testing.T) crypto.Signer { return p256 },
 			Validity:     chain[0].NotAfter.Sub(chain[0].NotBefore),
 			ErrAssertion: assert.Error,
 		},
@@ -87,10 +120,11 @@ func TestCAPolicyCreateChain(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ca := cppki.CAPolicy{
-				Validity:    tc.Validity,
-				Certificate: chain[1],
-				Signer:      tc.Signer(t),
-				CurrentTime: chain[0].NotBefore,
+				Validity:             tc.Validity,
+				Certificate:          chain[1],
+				Signer:               tc.Signer(t),
+				CurrentTime:          chain[0].NotBefore,
+				ForceECDSAWithSHA512: tc.ForceECDSAWithSHA512,
 			}
 			gen, err := ca.CreateChain(tc.CSR(t))
 			tc.ErrAssertion(t, err)
@@ -99,7 +133,7 @@ func TestCAPolicyCreateChain(t *testing.T) {
 			}
 			assert.NoError(t, cppki.ValidateChain(gen))
 			assert.Equal(t, chain[1], gen[1])
-			assert.Equal(t, chain[0].SignatureAlgorithm, gen[0].SignatureAlgorithm)
+			assert.Equal(t, tc.ExpectedSignatureAlgo, gen[0].SignatureAlgorithm)
 			assert.Equal(t, chain[0].Subject, gen[0].Subject)
 			assert.Equal(t, chain[0].PublicKey, gen[0].PublicKey)
 			assert.Equal(t, chain[0].PublicKeyAlgorithm, gen[0].PublicKeyAlgorithm)

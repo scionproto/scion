@@ -99,22 +99,37 @@ func LoadClientChains(db renewal.DB, configDir string) error {
 	}.LoadClientChains(ctx)
 }
 
+type ChainBuilderConfig struct {
+	IA          addr.IA
+	DB          trust.DB
+	MaxValidity time.Duration
+	ConfigDir   string
+
+	// ForceECDSAWithSHA512 forces the CA policy to use ECDSAWithSHA512 as the
+	// signature algorithm for signing the issued certificate. This field
+	// forces the old behavior extending the acceptable signature algorithms
+	// in https://github.com/scionproto/scion/commit/df8565dc97cb6ef7c7925c26f23f3e9954ab2a97.
+	//
+	// Experimental: This field is experimental and will be subject to change.
+	ForceECDSAWithSHA512 bool
+}
+
 // NewChainBuilder creates a renewing chain builder.
-func NewChainBuilder(ia addr.IA, db trust.DB, maxVal time.Duration,
-	configDir string) renewal.ChainBuilder {
+func NewChainBuilder(cfg ChainBuilderConfig) renewal.ChainBuilder {
 
 	return renewal.ChainBuilder{
 		PolicyGen: &renewal.CachingPolicyGen{
 			PolicyGen: renewal.LoadingPolicyGen{
-				Validity: maxVal,
+				Validity: cfg.MaxValidity,
 				CertProvider: renewal.CACertLoader{
-					IA:  ia,
-					DB:  db,
-					Dir: filepath.Join(configDir, "crypto/ca"),
+					IA:  cfg.IA,
+					DB:  cfg.DB,
+					Dir: filepath.Join(cfg.ConfigDir, "crypto/ca"),
 				},
 				KeyRing: cstrust.LoadingRing{
-					Dir: filepath.Join(configDir, "crypto/ca"),
+					Dir: filepath.Join(cfg.ConfigDir, "crypto/ca"),
 				},
+				ForceECDSAWithSHA512: cfg.ForceECDSAWithSHA512,
 			},
 		},
 	}

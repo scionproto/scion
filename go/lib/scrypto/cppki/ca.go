@@ -38,6 +38,14 @@ type CAPolicy struct {
 	// CurrentTime indicates the signing time. If zero, the current time is
 	// used.
 	CurrentTime time.Time
+
+	// ForceECDSAWithSHA512 forces the CA policy to use ECDSAWithSHA512 as the
+	// signature algorithm for signing the issued certificate. This field
+	// forces the old behavior extending the acceptable signature algorithms
+	// in https://github.com/scionproto/scion/commit/df8565dc97cb6ef7c7925c26f23f3e9954ab2a97.
+	//
+	// Experimental: This field is experimental and will be subject to change.
+	ForceECDSAWithSHA512 bool
 }
 
 // CreateChain takes the certificate request and creates a certificate chain.
@@ -68,11 +76,13 @@ func (ca CAPolicy) CreateChain(csr *x509.CertificateRequest) ([]*x509.Certificat
 		return nil, serrors.WrapStr("computing subject key ID", err)
 	}
 
+	// x509 stdlib selects the appropriate signature algorithm based on the curve.
+	var signatureAlgo x509.SignatureAlgorithm
+	if ca.ForceECDSAWithSHA512 {
+		signatureAlgo = x509.ECDSAWithSHA512
+	}
 	tmpl := &x509.Certificate{
-		// XXX(roosd): We still set the signature algorithm to the wrong value
-		// to allow for a staggered rollout. This will be changed in a
-		// follow-up. https://github.com/Anapaya/scion/issues/5595
-		SignatureAlgorithm: x509.ECDSAWithSHA512,
+		SignatureAlgorithm: signatureAlgo,
 		Version:            3,
 		SerialNumber:       big.NewInt(0).SetBytes(serial),
 		Subject:            subject,

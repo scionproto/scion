@@ -28,6 +28,12 @@ type Features struct {
 	config.NoDefaulter
 	config.NoValidator
 
+	// AppropriateDigest enables the CA module to sign issued certificates
+	// with the appropriate digest algorithm instead of always using ECDSAWithSHA512.
+	//
+	// Experimental: This field is experimental and will be subject to change.
+	AppropriateDigest bool `toml:"appropriate_digest_algorithm"`
+
 	// Example:
 	// DanceAtMidnight bool `toml:"dance_at_midnight,omitempty"`
 }

@@ -131,6 +131,14 @@ type LoadingPolicyGen struct {
 	Validity     time.Duration
 	KeyRing      trust.KeyRing
 	CertProvider CACertProvider
+
+	// ForceECDSAWithSHA512 forces the CA policy to use ECDSAWithSHA512 as the
+	// signature algorithm for signing the issued certificate. This field
+	// forces the old behavior extending the acceptable signature algorithms
+	// in https://github.com/scionproto/scion/commit/df8565dc97cb6ef7c7925c26f23f3e9954ab2a97.
+	//
+	// Experimental: This field is experimental and will be subject to change.
+	ForceECDSAWithSHA512 bool
 }
 
 // Generate fetches private keys from the key ring and searches active CA
@@ -183,9 +191,10 @@ func (g LoadingPolicyGen) Generate(ctx context.Context) (cppki.CAPolicy, error) 
 	}
 	metrics.Signer.GenerateCA(l.WithResult(metrics.Success)).Inc()
 	return cppki.CAPolicy{
-		Validity:    g.Validity,
-		Certificate: bestCert,
-		Signer:      bestKey,
+		Validity:             g.Validity,
+		Certificate:          bestCert,
+		Signer:               bestKey,
+		ForceECDSAWithSHA512: g.ForceECDSAWithSHA512,
 	}, nil
 }
 

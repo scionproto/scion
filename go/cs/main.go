@@ -312,10 +312,13 @@ func realMain() error {
 				return serrors.WrapStr("loading client certificate chains", err)
 			}
 			chainBuilder = cs.NewChainBuilder(
-				topo.IA(),
-				trustDB,
-				globalCfg.CA.MaxASValidity.Duration,
-				globalCfg.General.ConfigDir,
+				cs.ChainBuilderConfig{
+					IA:                   topo.IA(),
+					DB:                   trustDB,
+					MaxValidity:          globalCfg.CA.MaxASValidity.Duration,
+					ConfigDir:            globalCfg.General.ConfigDir,
+					ForceECDSAWithSHA512: !globalCfg.Features.AppropriateDigest,
+				},
 			)
 			periodic.Start(
 				periodic.Func{
