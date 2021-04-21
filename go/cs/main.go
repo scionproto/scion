@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"net/http"
+	_ "net/http/pprof"
 	"time"
 
 	"github.com/go-chi/chi"
