@@ -139,6 +139,6 @@ func (s *DRKeyExtn) String() string {
 	buf := &bytes.Buffer{}
 	fmt.Fprintf(buf, "AuthDRKeyExtn (%dB): SecMode: %d\n", s.Len(), s.SecMode)
 	fmt.Fprintf(buf, " Direction: %x", s.Direction)
-	fmt.Fprintf(buf, " MAC: %s", s.MAC.String())
+	fmt.Fprintf(buf, " MAC: %x", s.MAC)
 	return buf.String()
 }
