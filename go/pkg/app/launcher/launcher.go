@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/pprof"
 	"syscall"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -47,6 +48,7 @@ const (
 	cfgLogConsoleStacktraceLevel = "log.console.stacktrace_level"
 	cfgGeneralID                 = "general.id"
 	cfgConfigFile                = "config"
+	cfgCpuprofile                = "cpuprofile"
 )
 
 // Application models a SCION server application.
@@ -112,11 +114,12 @@ func (a *Application) run() error {
 	// Once the comand-line flags are parsed, we register the location of the
 	// config file with the viper config.
 	a.config.BindPFlag(cfgConfigFile, cmd.Flags().Lookup(cfgConfigFile))
+	a.config.BindPFlag(cfgCpuprofile, cmd.Flags().Lookup(cfgCpuprofile))
 
 	// All servers accept SIGTERM to perform clean shutdown (for example, this
 	// is used behind the scenes by docker stop to cleanly shut down a container).
 	sigterm := make(chan os.Signal)
-	signal.Notify(sigterm, syscall.SIGTERM)
+	signal.Notify(sigterm, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		defer log.HandlePanic()
 		<-sigterm
@@ -184,10 +187,35 @@ func (a *Application) executeCommand(shortName string) error {
 		return serrors.WrapStr("validate config", err)
 	}
 
+	if cpuprofile := a.config.GetString(cfgCpuprofile); cpuprofile != "" {
+		if err := a.startCpuProfile(cpuprofile); err != nil {
+			return err
+		}
+		defer a.stopCpuProfile()
+	}
 	if a.Main == nil {
 		return nil
 	}
 	return a.Main()
+}
+
+func (a *Application) startCpuProfile(filename string) error {
+	fmt.Println("startCpuProfile", filename)
+	if filename == "" {
+		return nil
+	}
+	f, err := os.Create(filename)
+	if err != nil {
+		return serrors.WrapStr("could not create CPU profile", err)
+	}
+	if err := pprof.StartCPUProfile(f); err != nil {
+		return serrors.WrapStr("could not start CPU profile", err)
+	}
+	return nil
+}
+
+func (a *Application) stopCpuProfile() {
+	pprof.StopCPUProfile()
 }
 
 func (a *Application) getLogging() log.Config {
@@ -247,6 +275,8 @@ func newCommandTemplate(executable string, shortName string, config config.Sampl
 	)
 	cmd.Flags().String(cfgConfigFile, "", "Configuration file (required)")
 	cmd.MarkFlagRequired(cfgConfigFile)
+	cmd.Flags().String(cfgCpuprofile, "",
+		"Enable CPU profiling and write profile to the specified file path")
 	return cmd
 }
 
