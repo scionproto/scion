@@ -46,3 +46,8 @@ The following APIs are exposed by most applications:
 - ``/metrics``:
 
   - Method **GET**: Returns the Prometheus metrics exposed by the application.
+
+- ``/debug/pprof``:
+
+  - Serves runtime profiling data in the format expected by the pprof visualization tool.
+    See `net/http/pprof <https://golang.org/pkg/net/http/pprof/>`_ for details on usage.
