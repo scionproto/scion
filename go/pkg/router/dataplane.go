@@ -545,7 +545,7 @@ func (d *DataPlane) initMetrics() {
 	d.forwardingMetrics = make(map[uint16]forwardingMetrics)
 	labels := interfaceToMetricLabels(0, d.localIA, d.neighborIAs)
 	d.forwardingMetrics[0] = initForwardingMetrics(d.Metrics, labels)
-	for id := range d.neighborIAs {
+	for id := range d.external {
 		if _, notOwned := d.internalNextHops[id]; notOwned {
 			continue
 		}
