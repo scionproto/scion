@@ -15,6 +15,7 @@
 package certs
 
 import (
+	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -65,6 +66,76 @@ certificate second.
 			}
 
 			fmt.Printf("Successfully verified certificate chain: %q\n", args[0])
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&flags.trcFile, "trc", "", "trusted TRC (required)")
+	cmd.Flags().Int64Var(&flags.unixTime, "currenttime", 0,
+		"Optional unix timestamp that sets the current time")
+	cmd.MarkFlagRequired("trc")
+
+	joined := command.Join(pather, cmd)
+	cmd.AddCommand(newVerifyCACmd(joined))
+
+	return cmd
+}
+
+func newVerifyCACmd(pather command.Pather) *cobra.Command {
+	var flags struct {
+		trcFile  string
+		unixTime int64
+	}
+
+	cmd := &cobra.Command{
+		Use:   "ca",
+		Short: "Verify a CA certificate",
+		Long: `'ca' verifies the CA certificate based on a trusted TRC.
+
+The CA certificate must be a PEM encoded.
+`,
+		Example: fmt.Sprintf(`  %[1]s --trc ISD1-B1-S1.trc ISD1-ASff00_0_110.ca.crt`,
+			pather.CommandPath()),
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+			certs, err := cppki.ReadPEMCerts(args[0])
+			if err != nil {
+				return serrors.WrapStr("reading certificate", err, "file", args[0])
+			}
+			if len(certs) != 1 {
+				return serrors.New("file contains multiple certificates", "count", len(certs))
+			}
+			ct, err := cppki.ValidateCert(certs[0])
+			if err != nil {
+				return serrors.WrapStr("validating CA certificate", err)
+			}
+			if ct != cppki.CA {
+				return serrors.New("certificate of wrong type", "type", ct)
+			}
+
+			trc, err := loadTRC(flags.trcFile)
+			if err != nil {
+				return err
+			}
+			rootPool, err := trc.TRC.RootPool()
+			if err != nil {
+				return serrors.WrapStr("failed to extract root certificates from TRC", err)
+			}
+			var currTime time.Time
+			if flags.unixTime != 0 {
+				currTime = time.Unix(flags.unixTime, 0)
+			}
+			_, err = certs[0].Verify(x509.VerifyOptions{
+				Roots:       rootPool,
+				KeyUsages:   []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+				CurrentTime: currTime,
+			})
+			if err != nil {
+				return serrors.WrapStr("verification failed", err)
+			}
+
+			fmt.Printf("Successfully verified CA certificate: %q\n", args[0])
 			return nil
 		},
 	}
