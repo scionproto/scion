@@ -88,19 +88,20 @@ type BatchConn interface {
 // Currently, only the following features are supported:
 //  - initializing connections; MUST be done prior to calling Run
 type DataPlane struct {
-	external         map[uint16]BatchConn
-	linkTypes        map[uint16]topology.LinkType
-	neighborIAs      map[uint16]addr.IA
-	internal         BatchConn
-	internalIP       net.IP
-	internalNextHops map[uint16]net.Addr
-	svc              *services
-	macFactory       func() hash.Hash
-	bfdSessions      map[uint16]bfdSession
-	localIA          addr.IA
-	mtx              sync.Mutex
-	running          bool
-	Metrics          *Metrics
+	external          map[uint16]BatchConn
+	linkTypes         map[uint16]topology.LinkType
+	neighborIAs       map[uint16]addr.IA
+	internal          BatchConn
+	internalIP        net.IP
+	internalNextHops  map[uint16]net.Addr
+	svc               *services
+	macFactory        func() hash.Hash
+	bfdSessions       map[uint16]bfdSession
+	localIA           addr.IA
+	mtx               sync.Mutex
+	running           bool
+	Metrics           *Metrics
+	forwardingMetrics map[uint16]forwardingMetrics
 }
 
 var (
@@ -439,6 +440,7 @@ func (d *DataPlane) Run() error {
 	d.initMetrics()
 
 	read := func(ingressID uint16, rd BatchConn) {
+
 		msgs := conn.NewReadMessages(inputBatchCnt)
 		for _, msg := range msgs {
 			msg.Buffers[0] = make([]byte, bufSize)
@@ -466,9 +468,9 @@ func (d *DataPlane) Run() error {
 				copy(origPacket[:p.N], p.Buffers[0])
 
 				// input metric
-				inputLabels := interfaceToMetricLabels(ingressID, d.localIA, d.neighborIAs)
-				d.Metrics.InputPacketsTotal.With(inputLabels).Inc()
-				d.Metrics.InputBytesTotal.With(inputLabels).Add(float64(p.N))
+				inputCounters := d.forwardingMetrics[ingressID]
+				inputCounters.InputPacketsTotal.Inc()
+				inputCounters.InputBytesTotal.Add(float64(p.N))
 
 				result, err := d.processPkt(ingressID, p.Buffers[0], p.Addr, spkt, origPacket,
 					buffer)
@@ -484,7 +486,7 @@ func (d *DataPlane) Run() error {
 					result.OutConn = rd
 				default:
 					log.Debug("Error processing packet", "err", err)
-					d.Metrics.DroppedPacketsTotal.With(inputLabels).Inc()
+					inputCounters.DroppedPacketsTotal.Inc()
 					continue
 				}
 				if result.OutConn == nil { // e.g. BFD case no message is forwarded
@@ -500,9 +502,9 @@ func (d *DataPlane) Run() error {
 					continue
 				}
 				// ok metric
-				outputLabels := interfaceToMetricLabels(result.EgressID, d.localIA, d.neighborIAs)
-				d.Metrics.OutputPacketsTotal.With(outputLabels).Inc()
-				d.Metrics.OutputBytesTotal.With(outputLabels).Add(float64(len(result.OutPkt)))
+				outputCounters := d.forwardingMetrics[result.EgressID]
+				outputCounters.OutputPacketsTotal.Inc()
+				outputCounters.OutputBytesTotal.Add(float64(len(result.OutPkt)))
 			}
 
 			// Reset buffers to original capacity.
@@ -536,23 +538,19 @@ func (d *DataPlane) Run() error {
 	select {}
 }
 
+// initMetrics initializes the metrics related to packet forwarding. The
+// counters are already instantiated for all the relevant interfaces so this
+// will not have to be repeated during packet forwarding.
 func (d *DataPlane) initMetrics() {
+	d.forwardingMetrics = make(map[uint16]forwardingMetrics)
 	labels := interfaceToMetricLabels(0, d.localIA, d.neighborIAs)
-	d.Metrics.InputBytesTotal.With(labels).Add(0)
-	d.Metrics.InputPacketsTotal.With(labels).Add(0)
-	d.Metrics.OutputBytesTotal.With(labels).Add(0)
-	d.Metrics.OutputPacketsTotal.With(labels).Add(0)
-	d.Metrics.DroppedPacketsTotal.With(labels).Add(0)
-	for id := range d.neighborIAs {
+	d.forwardingMetrics[0] = initForwardingMetrics(d.Metrics, labels)
+	for id := range d.external {
 		if _, notOwned := d.internalNextHops[id]; notOwned {
 			continue
 		}
 		labels = interfaceToMetricLabels(id, d.localIA, d.neighborIAs)
-		d.Metrics.InputBytesTotal.With(labels).Add(0)
-		d.Metrics.InputPacketsTotal.With(labels).Add(0)
-		d.Metrics.OutputBytesTotal.With(labels).Add(0)
-		d.Metrics.OutputPacketsTotal.With(labels).Add(0)
-		d.Metrics.DroppedPacketsTotal.With(labels).Add(0)
+		d.forwardingMetrics[id] = initForwardingMetrics(d.Metrics, labels)
 	}
 }
 
@@ -1520,6 +1518,32 @@ type pathIncrementer struct{}
 
 func (pathIncrementer) update(p *scion.Raw) error {
 	return p.IncPath()
+}
+
+// forwardingMetrics contains the subset of Metrics relevant for forwarding,
+// instantiated with some interface-specific labels.
+type forwardingMetrics struct {
+	InputBytesTotal     prometheus.Counter
+	OutputBytesTotal    prometheus.Counter
+	InputPacketsTotal   prometheus.Counter
+	OutputPacketsTotal  prometheus.Counter
+	DroppedPacketsTotal prometheus.Counter
+}
+
+func initForwardingMetrics(metrics *Metrics, labels prometheus.Labels) forwardingMetrics {
+	c := forwardingMetrics{
+		InputBytesTotal:     metrics.InputBytesTotal.With(labels),
+		InputPacketsTotal:   metrics.InputPacketsTotal.With(labels),
+		OutputBytesTotal:    metrics.OutputBytesTotal.With(labels),
+		OutputPacketsTotal:  metrics.OutputPacketsTotal.With(labels),
+		DroppedPacketsTotal: metrics.DroppedPacketsTotal.With(labels),
+	}
+	c.InputBytesTotal.Add(0)
+	c.InputPacketsTotal.Add(0)
+	c.OutputBytesTotal.Add(0)
+	c.OutputPacketsTotal.Add(0)
+	c.DroppedPacketsTotal.Add(0)
+	return c
 }
 
 func interfaceToMetricLabels(id uint16, localIA addr.IA,
