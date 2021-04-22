@@ -62,8 +62,7 @@ type Metrics struct {
 	BeaconingRegistrarInternalErrorsTotal  *prometheus.CounterVec
 	DiscoveryRequestsTotal                 *prometheus.CounterVec
 	RenewalServerRequestsTotal             *prometheus.CounterVec
-	RenewalCMSHandlerRequestsTotal         *prometheus.CounterVec
-	RenewalLegacyHandlerRequestsTotal      *prometheus.CounterVec
+	RenewalHandledRequestsTotal            *prometheus.CounterVec
 	RenewalRegisteredHandlers              *prometheus.GaugeVec
 	SegmentLookupRequestsTotal             *prometheus.CounterVec
 	SegmentLookupSegmentsSentTotal         *prometheus.CounterVec
@@ -139,19 +138,13 @@ func NewMetrics() *Metrics {
 			},
 			[]string{prom.LabelResult},
 		),
-		RenewalCMSHandlerRequestsTotal: promauto.NewCounterVec(
+		RenewalHandledRequestsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "renewal_cms_handler_requests_total",
-				Help: "Total number of renewal requests served by the in-process CMS handler.",
+				Name: "renewal_handled_requests_total",
+				Help: "Total number of renewal requests served by each handler type" +
+					" (legacy, in-process, delegating).",
 			},
-			[]string{prom.LabelResult},
-		),
-		RenewalLegacyHandlerRequestsTotal: promauto.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "renewal_legacy_handler_requests_total",
-				Help: "Total number of renewal requests served by the legacy handler.",
-			},
-			[]string{prom.LabelResult},
+			[]string{prom.LabelResult, "type"},
 		),
 		RenewalRegisteredHandlers: promauto.NewGaugeVec(
 			prometheus.GaugeOpts{

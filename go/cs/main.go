@@ -298,7 +298,7 @@ func realMain() error {
 			IA:        topo.IA(),
 			CMSSigner: signer,
 			Metrics: renewalgrpc.RenewalServerMetrics{
-				Success:       srvCtr.With(prom.LabelResult, prom.StatusOk),
+				Success:       srvCtr.With(prom.LabelResult, prom.Success),
 				BackendErrors: srvCtr.With(prom.LabelResult, prom.StatusErr),
 			},
 		}
@@ -337,8 +337,11 @@ func realMain() error {
 		}
 
 		if !globalCfg.CA.DisableLegacyRequest {
-			legacyCtr := libmetrics.NewPromCounter(metrics.RenewalLegacyHandlerRequestsTotal)
 			libmetrics.GaugeWith(renewalGauges, "type", "legacy").Set(1)
+			legacyCtr := libmetrics.CounterWith(
+				libmetrics.NewPromCounter(metrics.RenewalHandledRequestsTotal),
+				"type", "legacy",
+			)
 			renewalServer.LegacyHandler = &renewalgrpc.Legacy{
 				Signer:       signer,
 				DB:           renewalDB,
@@ -347,7 +350,7 @@ func realMain() error {
 					TRCFetcher: trustDB,
 				},
 				Metrics: renewalgrpc.LegacyHandlerMetrics{
-					Success:       legacyCtr.With(prom.LabelResult, prom.StatusOk),
+					Success:       legacyCtr.With(prom.LabelResult, prom.Success),
 					DatabaseError: legacyCtr.With(prom.LabelResult, prom.ErrDB),
 					InternalError: legacyCtr.With(prom.LabelResult, prom.ErrInternal),
 					NotFoundError: legacyCtr.With(prom.LabelResult, prom.ErrNotFound),
@@ -360,7 +363,10 @@ func realMain() error {
 		switch globalCfg.CA.Mode {
 		case config.InProcess:
 			libmetrics.GaugeWith(renewalGauges, "type", "in-process").Set(1)
-			cmsCtr := libmetrics.NewPromCounter(metrics.RenewalCMSHandlerRequestsTotal)
+			cmsCtr := libmetrics.CounterWith(
+				libmetrics.NewPromCounter(metrics.RenewalHandledRequestsTotal),
+				"type", "in-process",
+			)
 			renewalServer.CMSHandler = &renewalgrpc.CMS{
 				DB:           renewalDB,
 				IA:           topo.IA(),
@@ -369,7 +375,7 @@ func realMain() error {
 					TRCFetcher: trustDB,
 				},
 				Metrics: renewalgrpc.CMSHandlerMetrics{
-					Success:       cmsCtr.With(prom.LabelResult, prom.StatusOk),
+					Success:       cmsCtr.With(prom.LabelResult, prom.Success),
 					DatabaseError: cmsCtr.With(prom.LabelResult, prom.ErrDB),
 					InternalError: cmsCtr.With(prom.LabelResult, prom.ErrInternal),
 					NotFoundError: cmsCtr.With(prom.LabelResult, prom.ErrNotFound),
@@ -379,7 +385,10 @@ func realMain() error {
 			}
 		case config.Delegating:
 			libmetrics.GaugeWith(renewalGauges, "type", "delegating").Set(1)
-
+			delCtr := libmetrics.CounterWith(
+				libmetrics.NewPromCounter(metrics.RenewalHandledRequestsTotal),
+				"type", "delegating",
+			)
 			sharedSecret := caconfig.NewPEMSymmetricKey(globalCfg.CA.Service.SharedSecret)
 			renewalServer.CMSHandler = &renewalgrpc.DelegatingHandler{
 				Client: &caapi.Client{
@@ -390,6 +399,15 @@ func realMain() error {
 							Generator: sharedSecret.Get,
 						},
 					),
+				},
+				Metrics: renewalgrpc.DelegatingHandlerMetrics{
+					BadRequests: libmetrics.CounterWith(delCtr,
+						prom.LabelResult, prom.ErrInvalidReq),
+					InternalError: libmetrics.CounterWith(delCtr,
+						prom.LabelResult, prom.ErrInternal),
+					Unavailable: libmetrics.CounterWith(delCtr,
+						prom.LabelResult, prom.ErrUnavailable),
+					Success: libmetrics.CounterWith(delCtr, prom.LabelResult, prom.Success),
 				},
 			}
 		default:

@@ -54,7 +54,7 @@ type signer struct {
 func newSigner() signer {
 	return signer{
 		caActive: prom.NewGauge(Namespace, "",
-			"ca_signer_active_boolean",
+			"signer_active_boolean",
 			"Whether the CA signer is active and can sign certificate chains",
 		),
 		caSigners: *prom.NewCounterVecWithLabels(Namespace, "",

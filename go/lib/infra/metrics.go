@@ -14,68 +14,9 @@
 
 package infra
 
-import (
-	"github.com/scionproto/scion/go/lib/prom"
-	"github.com/scionproto/scion/go/lib/serrors"
-)
-
 const (
 	PromSrcASLocal   = "as_local"
 	PromSrcISDLocal  = "isd_local"
 	PromSrcISDRemote = "isd_remote"
 	PromSrcUnknown   = "unknown"
 )
-
-// HandlerResult contains a result label and a status label.
-type HandlerResult struct {
-	// Result is the label used for the result metric.
-	Result string
-	// Status is one of prom.StatusOk, prom.StatusErr, prom.StatusTimeout it is used for the latency
-	// histogram. This is a reduced view of the result, so that we don't get too many timeseries on
-	// the histogram.
-	Status string
-}
-
-var (
-	MetricsErrInternal = &HandlerResult{Result: "err_internal", Status: prom.StatusErr}
-	MetricsErrInvalid  = &HandlerResult{Result: "err_invalid_req", Status: prom.StatusErr}
-
-	metricsErrMsger        = &HandlerResult{Result: "err_msger", Status: prom.StatusErr}
-	metricsErrMsgerTimeout = &HandlerResult{Result: "err_msger_to", Status: prom.StatusTimeout}
-
-	metricsErrTrustDB        = &HandlerResult{Result: "err_trustdb", Status: prom.StatusErr}
-	metricsErrTrustDBTimeout = &HandlerResult{Result: "err_trustdb_to", Status: prom.StatusTimeout}
-
-	metricsErrTS        = &HandlerResult{Result: "err_truststore", Status: prom.StatusErr}
-	metricsErrTSTimeout = &HandlerResult{Result: "err_truststore_to", Status: prom.StatusTimeout}
-
-	metricsErrRevCache   = &HandlerResult{Result: "err_revcache", Status: prom.StatusErr}
-	metricsErrRevCacheTo = &HandlerResult{Result: "err_revcache_to", Status: prom.StatusTimeout}
-
-	MetricsResultOk = &HandlerResult{Result: prom.Success, Status: prom.StatusOk}
-)
-
-func MetricsErrTrustDB(err error) *HandlerResult {
-	return MetricsErrWithTimeout(err, metricsErrTrustDBTimeout, metricsErrTrustDB)
-}
-
-func MetricsErrRevCache(err error) *HandlerResult {
-	return MetricsErrWithTimeout(err, metricsErrRevCacheTo, metricsErrRevCache)
-}
-
-func MetricsErrMsger(err error) *HandlerResult {
-	return MetricsErrWithTimeout(err, metricsErrMsgerTimeout, metricsErrMsger)
-}
-
-func MetricsErrTrustStore(err error) *HandlerResult {
-	return MetricsErrWithTimeout(err, metricsErrTSTimeout, metricsErrTS)
-}
-
-// MetricsErrWithTimeout checks if the error is a timeout and if so returns
-// timeoutResult otherwise returns result.
-func MetricsErrWithTimeout(err error, timeoutResult, result *HandlerResult) *HandlerResult {
-	if serrors.IsTimeout(err) {
-		return timeoutResult
-	}
-	return result
-}
