@@ -80,6 +80,7 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
 		keyFile           string
 		outFile           string
 		csrFile           string
+		reqFile           string
 		templateFile      string
 		transportCertFile string
 		transportKeyFile  string
@@ -274,6 +275,19 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 				}
 				req.CmsSignedRequest = cmsReq.CmsSignedRequest
 			}
+			if flags.reqFile != "" {
+				if req.CmsSignedRequest == nil {
+					return serrors.New("cannot write request to file: no request created")
+				}
+				pemReq := pem.EncodeToMemory(&pem.Block{
+					Type:  "CMS",
+					Bytes: req.CmsSignedRequest,
+				})
+				if err := ioutil.WriteFile(flags.reqFile, pemReq, 0666); err != nil {
+					// The request is not important, carry on with execution.
+					fmt.Fprintln(os.Stderr, "Failed writing CSR:", err.Error())
+				}
+			}
 
 			// Step 4. send the request via SCION.
 			rep, err := sendRequest(ctx, remote.IA, dialer, &req)
@@ -336,6 +350,8 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 		"File where renewed certificate chain is written")
 	cmd.Flags().StringVar(&flags.csrFile, "csr-out", "",
 		"File where the CSR for the requested certificate chain is written")
+	cmd.Flags().StringVar(&flags.reqFile, "req-out", "",
+		"File where the signed CMS request is written")
 	cmd.Flags().StringSliceVar(&flags.features, "features", nil,
 		fmt.Sprintf("enable development features (%v)", feature.String(&Features{}, "|")))
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
