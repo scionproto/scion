@@ -202,7 +202,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 				totalCount := 10
 				mInternal := mock_router.NewMockBatchConn(ctrl)
-				mInternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				for i := 0; i < 10; i++ {
 					ii := i
@@ -222,8 +222,8 @@ func TestDataPlaneRun(t *testing.T) {
 				_ = ret.AddInternalInterface(mInternal, net.IP{})
 
 				mExternal := mock_router.NewMockBatchConn(ctrl)
-				mExternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(m underlayconn.Messages, _ []underlayconn.ReadMeta) (int, error) {
+				mExternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
+					func(m underlayconn.Messages) (int, error) {
 						// 10 scion messages to external
 						for i := 0; i < totalCount; i++ {
 							spkt, dpath := prepBaseMsg(time.Now())
@@ -250,7 +250,7 @@ func TestDataPlaneRun(t *testing.T) {
 						return 10, nil
 					},
 				).Times(1)
-				mExternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 				mExternal.EXPECT().WriteBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				_ = ret.AddExternalInterface(1, mExternal)
@@ -292,8 +292,8 @@ func TestDataPlaneRun(t *testing.T) {
 				}
 
 				mInternal := mock_router.NewMockBatchConn(ctrl)
-				mInternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(m underlayconn.Messages, _ []underlayconn.ReadMeta) (int, error) {
+				mInternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
+					func(m underlayconn.Messages) (int, error) {
 						i := 0
 						for k := range routers { // post a BFD from each neighbor router
 							disc := layers.BFDDiscriminator(i)
@@ -308,7 +308,7 @@ func TestDataPlaneRun(t *testing.T) {
 						return len(routers), nil
 					},
 				).Times(1)
-				mInternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				mInternal.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
 					func(ms underlayconn.Messages) (int, error) {
@@ -384,7 +384,7 @@ func TestDataPlaneRun(t *testing.T) {
 						done <- struct{}{}
 						return 1, nil
 					}).MinTimes(1)
-				mInternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				_ = ret.SetKey([]byte("randomkeyformacs"))
 				_ = ret.AddInternalInterface(mInternal, net.IP{})
@@ -399,10 +399,10 @@ func TestDataPlaneRun(t *testing.T) {
 				ret := &router.DataPlane{Metrics: metrics}
 				ifID := uint16(1)
 				mInternal := mock_router.NewMockBatchConn(ctrl)
-				mInternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				mExternal := mock_router.NewMockBatchConn(ctrl)
-				mExternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 				mExternal.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
 					func(ms underlayconn.Messages) (int, error) {
 						pkt := gopacket.NewPacket(ms[0].Buffers[0],
@@ -474,14 +474,14 @@ func TestDataPlaneRun(t *testing.T) {
 				}
 
 				mInternal := mock_router.NewMockBatchConn(ctrl)
-				mInternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				mtx := sync.Mutex{}
 				expectRemoteDiscriminators := map[int]struct{}{}
 
 				mExternal := mock_router.NewMockBatchConn(ctrl)
-				mExternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(m underlayconn.Messages, _ []underlayconn.ReadMeta) (int, error) {
+				mExternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
+					func(m underlayconn.Messages) (int, error) {
 						raw := postExternalBFD(2, 1)
 						expectRemoteDiscriminators[2] = struct{}{}
 						copy(m[0].Buffers[0], raw)
@@ -490,7 +490,7 @@ func TestDataPlaneRun(t *testing.T) {
 						return 1, nil
 					},
 				).Times(1)
-				mExternal.EXPECT().ReadBatch(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				mExternal.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
 					func(ms underlayconn.Messages) (int, error) {

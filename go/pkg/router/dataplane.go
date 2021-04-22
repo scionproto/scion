@@ -75,7 +75,7 @@ type bfdSession interface {
 
 // BatchConn is a connection that supports batch reads and writes.
 type BatchConn interface {
-	ReadBatch(underlayconn.Messages, []underlayconn.ReadMeta) (int, error)
+	ReadBatch(underlayconn.Messages) (int, error)
 	WriteBatch(underlayconn.Messages) (int, error)
 	Close() error
 }
@@ -447,12 +447,11 @@ func (d *DataPlane) Run() error {
 		}
 
 		var scmpErr scmpError
-		metas := make([]conn.ReadMeta, inputBatchCnt)
 		spkt := slayers.SCION{}
 		buffer := gopacket.NewSerializeBuffer()
 		origPacket := make([]byte, bufSize)
 		for d.running {
-			pkts, err := rd.ReadBatch(msgs, metas)
+			pkts, err := rd.ReadBatch(msgs)
 			if err != nil {
 				log.Debug("Failed to read batch", "err", err)
 				// error metric
