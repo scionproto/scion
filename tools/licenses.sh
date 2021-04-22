@@ -28,3 +28,4 @@ rm -rf $DSTDIR/com_github_uber_jaeger_client_go/scripts
 rm -rf $DSTDIR/com_github_uber_jaeger_lib/scripts
 rm -rf $DSTDIR/com_github_prometheus_procfs/scripts
 rm -rf $DSTDIR/org_uber_go_zap/checklicense.sh
+rm -rf $DSTDIR/org_golang_x_tools/gopls/

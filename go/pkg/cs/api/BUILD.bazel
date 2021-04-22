@@ -25,7 +25,7 @@ go_library(
         "//go/pkg/trust:go_default_library",
         "@com_github_deepmap_oapi_codegen//pkg/runtime:go_default_library",
         "@com_github_getkin_kin_openapi//openapi3:go_default_library",
-        "@com_github_go_chi_chi//:go_default_library",
+        "@com_github_go_chi_chi_v5//:go_default_library",
         "@com_github_pkg_errors//:go_default_library",
         "@org_golang_google_protobuf//proto:go_default_library",
     ],
