@@ -17,6 +17,7 @@ package router
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"hash"
@@ -956,7 +957,7 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 
 func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 	fullMac := path.FullMAC(p.d.macFactory(), p.infoField, p.hopField)
-	if !bytes.Equal(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) {
+	if subtle.ConstantTimeCompare(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) == 0 {
 		return p.packSCMP(
 			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
 				slayers.SCMPCodeInvalidHopFieldMAC),
@@ -1253,7 +1254,7 @@ func (d *DataPlane) processOHP(ingressID uint16, rawPkt []byte, s slayers.SCION,
 	// OHP leaving our IA
 	if d.localIA.Equal(s.SrcIA) {
 		mac := path.MAC(d.macFactory(), &p.Info, &p.FirstHop)
-		if !bytes.Equal(p.FirstHop.Mac[:path.MacLen], mac) {
+		if subtle.ConstantTimeCompare(p.FirstHop.Mac[:path.MacLen], mac) == 0 {
 			// TODO parameter problem -> invalid MAC
 			return processResult{}, serrors.New("MAC", "expected", fmt.Sprintf("%x", mac),
 				"actual", fmt.Sprintf("%x", p.FirstHop.Mac[:path.MacLen]), "type", "ohp")
