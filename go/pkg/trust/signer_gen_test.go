@@ -206,7 +206,7 @@ func TestSignerGenGenerate(t *testing.T) {
 				TRCID: cppki.TRCID{
 					ISD:    1,
 					Base:   1,
-					Serial: 1,
+					Serial: 2,
 				},
 				Subject:      chain[0].Subject,
 				Chain:        longer,
