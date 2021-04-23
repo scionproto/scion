@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/ca/api"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
@@ -129,8 +130,7 @@ func (h *DelegatingHandler) HandleCMSRequest(
 			"reading server response failed",
 		)
 	}
-
-	renewed, err := extractChain(r.CertificateChain)
+	renewed, err := h.parseChain(r.CertificateChain)
 	if err != nil {
 		logger.Info("Failed to extract renewal certificate chain", "err", err)
 		metrics.CounterInc(h.Metrics.InternalError)
@@ -141,6 +141,22 @@ func (h *DelegatingHandler) HandleCMSRequest(
 	}
 	metrics.CounterInc(h.Metrics.Success)
 	return renewed, nil
+}
+
+func (h *DelegatingHandler) parseChain(rep api.CertificateChain) ([]*x509.Certificate, error) {
+	as, err := x509.ParseCertificate(rep.AsCertificate)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing AS certificate", err)
+	}
+	ca, err := x509.ParseCertificate(rep.CaCertificate)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing CA certificate", err)
+	}
+	chain := []*x509.Certificate{as, ca}
+	if err := cppki.ValidateChain(chain); err != nil {
+		return nil, serrors.WrapStr("validating certificate chain", err)
+	}
+	return chain, nil
 }
 
 func (h *DelegatingHandler) handleErrors(code int, body []byte, logger log.Logger) error {

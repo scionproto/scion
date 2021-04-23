@@ -42,7 +42,6 @@ go_test(
         ":go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/metrics:go_default_library",
-        "//go/lib/scrypto/cms/protocol:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
         "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/serrors:go_default_library",

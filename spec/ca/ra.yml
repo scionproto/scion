@@ -85,13 +85,21 @@ components:
       required:
         - "certificate_chain"
     CertificateChain:
-      type: string
-      format: byte
-      description: |
-        Base64 encoded certificate chain in PKCS#7 format.
-
-        The certificate chain is part of the `certificates` field of a
-        `SignedData` in the degenerate case, where `signerInfos` is empty.
+      type: object
+      properties:
+        as_certificate:
+          type: string
+          format: byte
+          description: |
+            Base64 encoded AS certificate.
+        ca_certificate:
+          type: string
+          format: byte
+          description: |
+            Base64 encoded CA certificate.
+      required:
+        - "as_certificate"
+        - "ca_certificate"
     AS:
       title: AS Identifier
       type: string

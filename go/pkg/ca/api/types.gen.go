@@ -52,11 +52,15 @@ type AccessToken struct {
 // Type of returned access token. Currently always Bearer.
 type AccessTokenTokenType string
 
-// Base64 encoded certificate chain in PKCS#7 format.
-//
-// The certificate chain is part of the `certificates` field of a
-// `SignedData` in the degenerate case, where `signerInfos` is empty.
-type CertificateChain []byte
+// CertificateChain defines model for CertificateChain.
+type CertificateChain struct {
+
+	// Base64 encoded AS certificate.
+	AsCertificate []byte `json:"as_certificate"`
+
+	// Base64 encoded CA certificate.
+	CaCertificate []byte `json:"ca_certificate"`
+}
 
 // HealthCheckStatus defines model for HealthCheckStatus.
 type HealthCheckStatus struct {
@@ -118,11 +122,6 @@ type RenewalRequest struct {
 
 // RenewalResponse defines model for RenewalResponse.
 type RenewalResponse struct {
-
-	// Base64 encoded certificate chain in PKCS#7 format.
-	//
-	// The certificate chain is part of the `certificates` field of a
-	// `SignedData` in the degenerate case, where `signerInfos` is empty.
 	CertificateChain CertificateChain `json:"certificate_chain"`
 }
 
