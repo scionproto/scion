@@ -134,6 +134,6 @@ func checkAlgorithm(cert *x509.Certificate) {
 	}[pub.Curve]
 	if expected != cert.SignatureAlgorithm {
 		fmt.Printf("WARNING: Signature with %s curve should use %s instead of %s\n",
-			pub.Curve.Params().Name, cert.SignatureAlgorithm, expected)
+			pub.Curve.Params().Name, expected, cert.SignatureAlgorithm)
 	}
 }
