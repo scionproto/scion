@@ -49,8 +49,9 @@ func getTypes() []string {
 
 func Cmd(pather command.Pather) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "certs",
-		Short: "Interact with certificates for the SCION control plane PKI.",
+		Use:     "certificate",
+		Aliases: []string{"cert", "certs"},
+		Short:   "Manage certificates for the SCION control plane PKI.",
 	}
 	joined := command.Join(pather, cmd)
 	cmd.AddCommand(
