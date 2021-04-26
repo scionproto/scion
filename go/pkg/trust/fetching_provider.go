@@ -279,7 +279,8 @@ func filterVerifiableChains(chains [][]*x509.Certificate,
 	verified := make([][]*x509.Certificate, 0, len(chains))
 	for _, chain := range chains {
 		for _, trc := range trcs {
-			if err := cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: &trc.TRC}); err == nil {
+			verifyOptions := cppki.VerifyOptions{TRC: []*cppki.TRC{&trc.TRC}}
+			if err := cppki.VerifyChain(chain, verifyOptions); err == nil {
 				verified = append(verified, chain)
 				break
 			}

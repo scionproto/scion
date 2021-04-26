@@ -44,6 +44,7 @@ go_test(
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
+        "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
         "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/xtest:go_default_library",

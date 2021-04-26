@@ -84,7 +84,7 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
 		templateFile      string
 		transportCertFile string
 		transportKeyFile  string
-		trcFilePath       string
+		trcFiles          []string
 
 		dispatcherPath string
 		daemon         string
@@ -103,7 +103,7 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
 	--key cp-as.key \
 	--transportcert ISD1-ASff00_0_112.pem \
 	--transportkey cp-as.key \
-	--trc ISD1-B1-S1.trc
+	--trc ISD1-B1-S1.trc,ISD1-B1-S2.trc
 
   %[1]s renew
 	--key fresh.key \
@@ -117,18 +117,18 @@ func newRenewCmd(pather command.Pather) *cobra.Command {
 
 The transport certificate chain and key are used to sign the renewal requests.
 In order for the CA to be able to verify the request, the chain must already
-be known to the CA. Either through an out-of-bound bootstrapping mechanism where
+be known to the CA either through an out-of-bound bootstrapping mechanism where
 the CA preloads it, or from a previous certificate chain renewal.
 
 The TRC is used to validate and verify the renewed certificate chain. Ensure
 that it contains the root certificate that the CA is using.
 
 The renewed certificate chain is written to the file system, if it is verifiable
-with the supplied TRC. In case the out flag is not specified, the chain is
+with the supplied TRCs. In case the out flag is not specified, the chain is
 written to 'ISDx-ASy.s.pem' in the same directory as the transport certificate
 chain, where x is the ISD number, y is the AS number, and s is the hex encoded
 serial number of the AS certificate in the renewed certificate chain. If the
-chain verification against the TRC fails, the renewed certificate chain is
+chain verification against the TRCs fails, the renewed certificate chain is
 written to the out file with the suffix '.unverified' and the command fails.
 
 The positional argument is the ISD-AS of the CA where the renewal request is
@@ -197,11 +197,11 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 
 			log.Setup(log.Config{Console: log.ConsoleConfig{Level: "crit"}})
 
-			trc, err := loadTRC(flags.trcFilePath)
+			trcs, err := loadTRCs(flags.trcFiles)
 			if err != nil {
 				return err
 			}
-			chain, transportCA, err := loadChain(trc, flags.transportCertFile)
+			chain, transportCA, err := loadChain(trcs, flags.transportCertFile)
 			if err != nil {
 				return err
 			}
@@ -256,7 +256,7 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 			}
 
 			// Step 3. create the request.
-			signer, err := createSigner(local.IA, trc, chain, flags.transportKeyFile)
+			signer, err := createSigner(local.IA, trcs[0], chain, flags.transportKeyFile)
 			if err != nil {
 				return err
 			}
@@ -306,11 +306,19 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 				out = outFileFromSubject(renewed, filepath.Dir(flags.transportCertFile))
 			}
 
-			if err := cppki.VerifyChain(renewed, cppki.VerifyOptions{TRC: &trc.TRC}); err != nil {
+			verifyOptions := cppki.VerifyOptions{TRC: trcs}
+			if err := cppki.VerifyChain(renewed, verifyOptions); err != nil {
 				out += ".unverified"
 				fmt.Println("Verification failed, writing chain: ", out)
 				if err := writeChain(renewed, out); err != nil {
 					fmt.Println("Failed to write unverified chain: ", err)
+				}
+
+				if maybeMissingTRCInGrace(trcs) {
+					fmt.Println("Verification failed, but current time still in Grace Period " +
+						"of latest TRC")
+					fmt.Printf("Try to verify with the predecessor TRC: (Base = %d, Serial = %d)\n",
+						trcs[0].ID.Base, trcs[0].ID.Serial-1)
 				}
 				return serrors.WrapStr("verification failed", err)
 			}
@@ -336,7 +344,9 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 	cmd.Flags().StringVar(&flags.transportKeyFile, "transportkey", "",
 		"Private key file to sign the CSR control-plane message (required)")
 	cmd.MarkFlagRequired("transportkey")
-	cmd.Flags().StringVar(&flags.trcFilePath, "trc", "", "Trusted TRC (required)")
+	cmd.Flags().StringSliceVar(&flags.trcFiles, "trc", []string{},
+		"Comma-separated trusted TRCs. If more than two TRCs are specified, only up to "+
+			"two active TRCs with the highest Base version are used (required)")
 	cmd.MarkFlagRequired("trc")
 	cmd.Flags().DurationVar(&flags.timeout, "timeout", 5*time.Second,
 		"Timeout for command")
@@ -358,12 +368,17 @@ schema. For more information on JSON schemas, see https://json-schema.org/.
 	return cmd
 }
 
-func loadChain(trc cppki.SignedTRC, file string) ([]*x509.Certificate, addr.IA, error) {
+func loadChain(trcs []*cppki.TRC, file string) ([]*x509.Certificate, addr.IA, error) {
 	chain, err := cppki.ReadPEMCerts(file)
 	if err != nil {
 		return nil, addr.IA{}, err
 	}
-	if err := cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: &trc.TRC}); err != nil {
+	if err := cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: trcs}); err != nil {
+		if maybeMissingTRCInGrace(trcs) {
+			fmt.Println("Verification failed, but current time still in Grace Period of latest TRC")
+			fmt.Printf("Try to verify with the predecessor TRC: (Base = %d, Serial = %d)\n",
+				trcs[0].ID.Base, trcs[0].ID.Serial-1)
+		}
 		return nil, addr.IA{}, serrors.WrapStr(
 			"verification of transport cert failed with provided TRC", err)
 	}
@@ -374,7 +389,7 @@ func loadChain(trc cppki.SignedTRC, file string) ([]*x509.Certificate, addr.IA, 
 	return chain, ia, nil
 }
 
-func createSigner(srcIA addr.IA, trc cppki.SignedTRC, chain []*x509.Certificate,
+func createSigner(srcIA addr.IA, trc *cppki.TRC, chain []*x509.Certificate,
 	keyFile string) (trust.Signer, error) {
 
 	key, err := readECKey(keyFile)
@@ -389,7 +404,7 @@ func createSigner(srcIA addr.IA, trc cppki.SignedTRC, chain []*x509.Certificate,
 		PrivateKey:   key,
 		Algorithm:    algo,
 		IA:           srcIA,
-		TRCID:        trc.TRC.ID,
+		TRCID:        trc.ID,
 		SubjectKeyID: chain[0].SubjectKeyId,
 		Expiration:   time.Now().Add(2 * time.Hour),
 		ChainValidity: cppki.Validity{
@@ -716,4 +731,8 @@ func extKeyUsage() pkix.Extension {
 		Id:    cppki.OIDExtensionExtendedKeyUsage,
 		Value: val,
 	}
+}
+
+func maybeMissingTRCInGrace(trcs []*cppki.TRC) bool {
+	return len(trcs) == 1 && trcs[0].InGracePeriod(time.Now())
 }

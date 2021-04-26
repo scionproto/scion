@@ -145,7 +145,7 @@ func (s *SignerGen) bestForKey(ctx context.Context, key crypto.Signer,
 }
 
 func bestChain(trc *cppki.TRC, chains [][]*x509.Certificate) []*x509.Certificate {
-	opts := cppki.VerifyOptions{TRC: trc}
+	opts := cppki.VerifyOptions{TRC: []*cppki.TRC{trc}}
 	var best []*x509.Certificate
 	for _, chain := range chains {
 		if err := cppki.VerifyChain(chain, opts); err != nil {

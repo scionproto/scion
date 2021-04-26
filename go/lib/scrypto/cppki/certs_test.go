@@ -816,7 +816,7 @@ func TestVerifyChain(t *testing.T) {
 		"valid client": {
 			chain: clientChain,
 			opts: cppki.VerifyOptions{
-				TRC:         &trc.TRC,
+				TRC:         []*cppki.TRC{&trc.TRC},
 				CurrentTime: clientChain[0].NotBefore.Add(time.Hour),
 			},
 			assertErr: assert.NoError,
@@ -824,7 +824,7 @@ func TestVerifyChain(t *testing.T) {
 		"valid issuer": {
 			chain: issuerChain,
 			opts: cppki.VerifyOptions{
-				TRC:         &trc.TRC,
+				TRC:         []*cppki.TRC{&trc.TRC},
 				CurrentTime: issuerChain[0].NotBefore.Add(time.Hour),
 			},
 			assertErr: assert.NoError,
@@ -836,10 +836,18 @@ func TestVerifyChain(t *testing.T) {
 			},
 			assertErr: assert.Error,
 		},
+		"empty TRC slice": {
+			chain: clientChain,
+			opts: cppki.VerifyOptions{
+				TRC:         []*cppki.TRC{},
+				CurrentTime: clientChain[0].NotBefore.Add(time.Hour),
+			},
+			assertErr: assert.Error,
+		},
 		"zero TRC": {
 			chain: clientChain,
 			opts: cppki.VerifyOptions{
-				TRC:         &cppki.TRC{},
+				TRC:         []*cppki.TRC{{}},
 				CurrentTime: clientChain[0].NotBefore.Add(time.Hour),
 			},
 			assertErr: assert.Error,
@@ -847,7 +855,7 @@ func TestVerifyChain(t *testing.T) {
 		"empty roots in TRC": {
 			chain: clientChain,
 			opts: cppki.VerifyOptions{
-				TRC:         &cppki.TRC{Quorum: 2},
+				TRC:         []*cppki.TRC{{Quorum: 2}},
 				CurrentTime: clientChain[0].NotBefore.Add(time.Hour),
 			},
 			assertErr: assert.Error,
@@ -855,7 +863,7 @@ func TestVerifyChain(t *testing.T) {
 		"invalid chain": {
 			chain: clientChain[:1],
 			opts: cppki.VerifyOptions{
-				TRC:         &trc.TRC,
+				TRC:         []*cppki.TRC{&trc.TRC},
 				CurrentTime: clientChain[0].NotBefore.Add(time.Hour),
 			},
 			assertErr: assert.Error,
@@ -863,7 +871,39 @@ func TestVerifyChain(t *testing.T) {
 		"invalid TRC": {
 			chain: clientChain,
 			opts: cppki.VerifyOptions{
-				TRC:         &invalidTRC.TRC,
+				TRC:         []*cppki.TRC{&invalidTRC.TRC},
+				CurrentTime: clientChain[0].NotBefore.Add(time.Hour),
+			},
+			assertErr: assert.Error,
+		},
+		"valid and valid TRC": {
+			chain: clientChain,
+			opts: cppki.VerifyOptions{
+				TRC:         []*cppki.TRC{&trc.TRC, &trc.TRC},
+				CurrentTime: clientChain[0].NotBefore.Add(time.Hour),
+			},
+			assertErr: assert.NoError,
+		},
+		"valid and invalid TRC": {
+			chain: clientChain,
+			opts: cppki.VerifyOptions{
+				TRC:         []*cppki.TRC{&trc.TRC, &invalidTRC.TRC},
+				CurrentTime: clientChain[0].NotBefore.Add(time.Hour),
+			},
+			assertErr: assert.NoError,
+		},
+		"invalid and valid TRC": {
+			chain: clientChain,
+			opts: cppki.VerifyOptions{
+				TRC:         []*cppki.TRC{&invalidTRC.TRC, &trc.TRC},
+				CurrentTime: clientChain[0].NotBefore.Add(time.Hour),
+			},
+			assertErr: assert.NoError,
+		},
+		"invalid and invalid TRC": {
+			chain: clientChain,
+			opts: cppki.VerifyOptions{
+				TRC:         []*cppki.TRC{&invalidTRC.TRC, &invalidTRC.TRC},
 				CurrentTime: clientChain[0].NotBefore.Add(time.Hour),
 			},
 			assertErr: assert.Error,
@@ -871,7 +911,7 @@ func TestVerifyChain(t *testing.T) {
 		"invalid time before": {
 			chain: clientChain,
 			opts: cppki.VerifyOptions{
-				TRC:         &trc.TRC,
+				TRC:         []*cppki.TRC{&trc.TRC},
 				CurrentTime: clientChain[0].NotBefore.Add(-time.Hour),
 			},
 			assertErr: assert.Error,
@@ -879,7 +919,7 @@ func TestVerifyChain(t *testing.T) {
 		"invalid time after": {
 			chain: clientChain,
 			opts: cppki.VerifyOptions{
-				TRC:         &trc.TRC,
+				TRC:         []*cppki.TRC{&trc.TRC},
 				CurrentTime: clientChain[0].NotAfter.Add(time.Hour),
 			},
 			assertErr: assert.Error,
@@ -887,7 +927,7 @@ func TestVerifyChain(t *testing.T) {
 		"wrong TRC": {
 			chain: clientChain,
 			opts: cppki.VerifyOptions{
-				TRC:         &trc2.TRC,
+				TRC:         []*cppki.TRC{&trc2.TRC},
 				CurrentTime: clientChain[0].NotBefore.Add(time.Hour),
 			},
 			assertErr: assert.Error,
@@ -895,7 +935,7 @@ func TestVerifyChain(t *testing.T) {
 		"invalid intermediate": {
 			chain: invalidIntermediate,
 			opts: cppki.VerifyOptions{
-				TRC:         &trc.TRC,
+				TRC:         []*cppki.TRC{&trc.TRC},
 				CurrentTime: invalidIntermediate[0].NotBefore.Add(time.Hour),
 			},
 			assertErr: assert.Error,

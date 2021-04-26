@@ -210,7 +210,7 @@ func (r RequestVerifier) verifyClientChain(ctx context.Context, chain []*x509.Ce
 	if val := trc.TRC.Validity; !val.Contains(now) {
 		return serrors.New("latest TRC currently not active", "validity", val, "current_time", now)
 	}
-	opts := cppki.VerifyOptions{TRC: &trc.TRC}
+	opts := cppki.VerifyOptions{TRC: []*cppki.TRC{&trc.TRC}}
 	if err := cppki.VerifyChain(chain, opts); err != nil {
 		// If the the previous TRC is in grace period the CA certificate of the chain might
 		// have been issued with a previous Root. Try verifying with the TRC in grace period.
@@ -251,7 +251,8 @@ func (r RequestVerifier) verifyWithGraceTRC(
 			"current_time", now,
 		)
 	}
-	if err := cppki.VerifyChain(chain, cppki.VerifyOptions{TRC: &trc.TRC}); err != nil {
+	verifyOptions := cppki.VerifyOptions{TRC: []*cppki.TRC{&trc.TRC}}
+	if err := cppki.VerifyChain(chain, verifyOptions); err != nil {
 		return serrors.WrapStr("verifying client chain", err)
 	}
 	return nil

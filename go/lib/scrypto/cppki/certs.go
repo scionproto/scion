@@ -137,30 +137,52 @@ func ReadPEMCerts(file string) ([]*x509.Certificate, error) {
 
 // VerifyOptions contains parameters for certificate chain verification.
 type VerifyOptions struct {
-	TRC         *TRC
+	TRC         []*TRC
 	CurrentTime time.Time // if zero, the current time is used
 }
 
-// VerifyChain attempts to verify the certificate chain by iterating over the
-// root certificates in the TRC and searching for a valid verification path.
+// VerifyChain attempts to verify the certificate chain against every TRC
+// included in opts. Success (nil error) is returned if at least one verification
+// succeeds. If all verifications fail, an error containing the details of why
+// each verification failed is returned.
+//
+// The certificate chain is verified by building a trust root based on the Root
+// Certificates in each TRC, and searching for a valid verification path.
 func VerifyChain(certs []*x509.Certificate, opts VerifyOptions) error {
+	var errs []error
+	for _, trc := range opts.TRC {
+		if err := verifyChain(certs, trc, opts.CurrentTime); err != nil {
+			errs = append(errs,
+				serrors.WrapStr("verifying chain", err,
+					"trc_base", trc.ID.Base,
+					"trc_serial", trc.ID.Serial,
+				),
+			)
+		} else {
+			return nil
+		}
+	}
+	return serrors.New("chain did not verify against any selected TRC", "errors", errs)
+}
+
+func verifyChain(certs []*x509.Certificate, trc *TRC, now time.Time) error {
 	if err := ValidateChain(certs); err != nil {
 		return serrors.WrapStr("chain validation failed", err)
 	}
-	if opts.TRC == nil || opts.TRC.IsZero() {
+	if trc == nil || trc.IsZero() {
 		return serrors.New("TRC required for chain verification")
 	}
 	intPool := x509.NewCertPool()
 	intPool.AddCert(certs[1])
-	rootPool, err := opts.TRC.RootPool()
+	rootPool, err := trc.RootPool()
 	if err != nil {
-		return serrors.WrapStr("failed to extract root certs", err, "trc", opts.TRC.ID)
+		return serrors.WrapStr("failed to extract root certs", err, "trc", trc.ID)
 	}
 	_, err = certs[0].Verify(x509.VerifyOptions{
 		Intermediates: intPool,
 		Roots:         rootPool,
 		KeyUsages:     certs[0].ExtKeyUsage,
-		CurrentTime:   opts.CurrentTime,
+		CurrentTime:   now,
 	})
 	return err
 }
