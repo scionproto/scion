@@ -132,7 +132,7 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			DB: func(ctrl *gomock.Controller) renewal.DB {
 				return mock_renewal.NewMockDB(ctrl)
 			},
-			IA:        xtest.MustParseIA("1-ff00:0:112"),
+			IA:        xtest.MustParseIA("2-ff00:0:112"),
 			Assertion: assert.Error,
 			Code:      codes.PermissionDenied,
 			Metric:    "err_notfound",

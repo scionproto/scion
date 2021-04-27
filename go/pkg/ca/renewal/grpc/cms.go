@@ -77,8 +77,8 @@ func (s CMS) HandleCMSRequest(
 		metrics.CounterInc(s.Metrics.ParseError)
 		return nil, err
 	}
-	if !issuerIA.Equal(s.IA) {
-		logger.Debug("Renewal requester is not a client", "issuer_isd_as", issuerIA)
+	if issuerIA.I != s.IA.I {
+		logger.Debug("Renewal requester is not part of the ISD", "issuer_isd_as", issuerIA)
 		metrics.CounterInc(s.Metrics.NotFoundError)
 		return nil, status.Error(codes.PermissionDenied, "not a client")
 	}
