@@ -10,5 +10,6 @@ go_library(
         "//go/lib/serrors:go_default_library",
         "//go/lib/util:go_default_library",
         "@com_github_pelletier_go_toml//:go_default_library",
+        "@com_github_prometheus_client_golang//prometheus/promhttp:go_default_library",
     ],
 )
