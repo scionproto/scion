@@ -29,9 +29,9 @@ import (
 	"github.com/scionproto/scion/go/scion-pki/file"
 )
 
-// NewKeyPublicCmd returns a cobra command that returns the public key for a
+// NewPublicCmd returns a cobra command that returns the public key for a
 // given private key.
-func NewKeyPublicCmd(pather command.Pather) *cobra.Command {
+func NewPublicCmd(pather command.Pather) *cobra.Command {
 	var flags struct {
 		out   string
 		force bool
@@ -50,31 +50,9 @@ By default, the public key is written to standard out.
 			cmd.SilenceUsage = true
 
 			filename := args[0]
-			raw, err := ioutil.ReadFile(filename)
+			priv, err := LoadPrivateKey(filename)
 			if err != nil {
-				return serrors.WrapStr("reading private key", err)
-			}
-			p, rest := pem.Decode(raw)
-			if p == nil {
-				return serrors.New("parsing private key failed")
-			}
-			if len(rest) != 0 {
-				return serrors.New("file must only contain private key")
-			}
-			if p.Type != "PRIVATE KEY" {
-				return serrors.New("file does not contain a private key", "type", p.Type)
-			}
-
-			key, err := x509.ParsePKCS8PrivateKey(p.Bytes)
-			if err != nil {
-				return serrors.WrapStr("parsing private key", err)
-			}
-
-			priv, ok := key.(interface{ Public() crypto.PublicKey })
-			if !ok {
-				return serrors.New("cannot get public key from private key",
-					"type", fmt.Sprintf("%T", priv),
-				)
+				return err
 			}
 
 			out, err := x509.MarshalPKIXPublicKey(priv.Public())
@@ -97,7 +75,7 @@ By default, the public key is written to standard out.
 			if err := file.CheckDirExists(filepath.Dir(flags.out)); err != nil {
 				return serrors.WrapStr("checking that directory of public key exists", err)
 			}
-			err = file.WriteFile(flags.out, raw, 0644, file.WithForce(flags.force))
+			err = file.WriteFile(flags.out, encoded, 0644, file.WithForce(flags.force))
 			if err != nil {
 				return serrors.WrapStr("writing public key", err)
 			}
@@ -112,4 +90,35 @@ By default, the public key is written to standard out.
 		"Force overwritting existing public key",
 	)
 	return cmd
+}
+
+// LoadPrivate key loads a private key from file.
+func LoadPrivateKey(filename string) (crypto.Signer, error) {
+	raw, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, serrors.WrapStr("reading private key", err)
+	}
+	p, rest := pem.Decode(raw)
+	if p == nil {
+		return nil, serrors.New("parsing private key failed")
+	}
+	if len(rest) != 0 {
+		return nil, serrors.New("file must only contain private key")
+	}
+	if p.Type != "PRIVATE KEY" {
+		return nil, serrors.New("file does not contain a private key", "type", p.Type)
+	}
+
+	key, err := x509.ParsePKCS8PrivateKey(p.Bytes)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing private key", err)
+	}
+
+	priv, ok := key.(crypto.Signer)
+	if !ok {
+		return nil, serrors.New("cannot get public key from private key",
+			"type", fmt.Sprintf("%T", priv),
+		)
+	}
+	return priv, nil
 }

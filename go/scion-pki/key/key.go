@@ -30,8 +30,8 @@ func Cmd(pather command.Pather) *cobra.Command {
 	joined := command.Join(pather, cmd)
 
 	cmd.AddCommand(
-		NewKeyPrivateCmd(joined),
-		NewKeyPublicCmd(joined),
+		NewPrivateCmd(joined),
+		NewPublicCmd(joined),
 	)
 
 	return cmd

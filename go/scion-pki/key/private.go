@@ -32,8 +32,8 @@ import (
 	"github.com/scionproto/scion/go/scion-pki/file"
 )
 
-// NewKeyPrivateCmd returns a cobra command that generates new private keys.
-func NewKeyPrivateCmd(pather command.Pather) *cobra.Command {
+// NewPrivateCmd returns a cobra command that generates new private keys.
+func NewPrivateCmd(pather command.Pather) *cobra.Command {
 	var flags struct {
 		curve string
 		force bool

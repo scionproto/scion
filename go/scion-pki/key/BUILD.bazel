@@ -1,4 +1,4 @@
-load("//lint:go.bzl", "go_library")
+load("//lint:go.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
@@ -14,5 +14,21 @@ go_library(
         "//go/pkg/command:go_default_library",
         "//go/scion-pki/file:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "private_test.go",
+        "public_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    deps = [
+        ":go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "//go/pkg/command:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
     ],
 )

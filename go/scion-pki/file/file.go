@@ -62,19 +62,22 @@ func CheckDirExists(dir string) error {
 
 func WriteFile(filename string, data []byte, perm os.FileMode, opts ...Option) error {
 	options := apply(opts)
-	if options.force {
-		return ioutil.WriteFile(filename, data, perm)
-	}
 
-	st, err := os.Stat(filename)
+	info, err := os.Stat(filename)
 	if errors.Is(err, os.ErrNotExist) {
 		return ioutil.WriteFile(filename, data, perm)
 	}
 	if err != nil {
 		return serrors.WrapStr("reading stat information", err)
 	}
-	if st.IsDir() {
+	if info.IsDir() {
 		return serrors.New("file is a directory")
 	}
-	return os.ErrExist
+	if !options.force {
+		return os.ErrExist
+	}
+	if err := os.Remove(filename); err != nil {
+		return serrors.WrapStr("removing existing file", err)
+	}
+	return ioutil.WriteFile(filename, data, perm)
 }
