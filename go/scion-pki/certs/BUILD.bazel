@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "certs.go",
+        "create.go",
         "observability.go",
         "renew.go",
         "verify.go",
@@ -27,11 +28,14 @@ go_library(
         "//go/lib/svc:go_default_library",
         "//go/lib/tracing:go_default_library",
         "//go/pkg/app/feature:go_default_library",
+        "//go/pkg/app/flag:go_default_library",
         "//go/pkg/ca/renewal:go_default_library",
         "//go/pkg/command:go_default_library",
         "//go/pkg/grpc:go_default_library",
         "//go/pkg/proto/control_plane:go_default_library",
         "//go/pkg/trust:go_default_library",
+        "//go/scion-pki/file:go_default_library",
+        "//go/scion-pki/key:go_default_library",
         "@com_github_opentracing_opentracing_go//:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
         "@org_golang_google_protobuf//proto:go_default_library",
@@ -40,7 +44,10 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["renew_test.go"],
+    srcs = [
+        "create_test.go",
+        "renew_test.go",
+    ],
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
@@ -48,6 +55,7 @@ go_test(
         "//go/lib/scrypto/cppki:go_default_library",
         "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/xtest:go_default_library",
+        "//go/pkg/command:go_default_library",
         "//go/pkg/proto/control_plane:go_default_library",
         "//go/pkg/trust:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",

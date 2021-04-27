@@ -32,6 +32,10 @@ import (
 	"github.com/scionproto/scion/go/scion-pki/file"
 )
 
+type PrivateKey interface {
+	Public() crypto.PublicKey
+}
+
 // NewPrivateCmd returns a cobra command that generates new private keys.
 func NewPrivateCmd(pather command.Pather) *cobra.Command {
 	var flags struct {
@@ -80,7 +84,7 @@ The contents are the private key in PKCS #8 ASN.1 DER format.
 }
 
 // GeneratePrivateKey generates a new private key.
-func GeneratePrivateKey(curve string) (crypto.PrivateKey, error) {
+func GeneratePrivateKey(curve string) (PrivateKey, error) {
 	switch strings.ToLower(curve) {
 	case "p-256", "p256":
 		return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

@@ -117,7 +117,7 @@ func LoadPrivateKey(filename string) (crypto.Signer, error) {
 	priv, ok := key.(crypto.Signer)
 	if !ok {
 		return nil, serrors.New("cannot get public key from private key",
-			"type", fmt.Sprintf("%T", priv),
+			"type", fmt.Sprintf("%T", key),
 		)
 	}
 	return priv, nil

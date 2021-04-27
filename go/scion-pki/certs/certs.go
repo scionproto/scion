@@ -43,6 +43,7 @@ func getTypes() []string {
 		options = append(options, k)
 	}
 	options = append(options, "any")
+	options = append(options, "chain")
 	sort.Strings(options)
 	return options
 }
@@ -55,6 +56,7 @@ func Cmd(pather command.Pather) *cobra.Command {
 	}
 	joined := command.Join(pather, cmd)
 	cmd.AddCommand(
+		newCreateCmd(joined),
 		newValidateCmd(joined),
 		newVerifyCmd(joined),
 		newRenewCmd(joined),
@@ -81,11 +83,30 @@ the output.
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			expectedType, checkType := certTypes[flags.certType]
-			if !checkType && flags.certType != "any" {
+			if !checkType && (flags.certType != "any" && flags.certType != "chain") {
 				return serrors.New("invalid type flag", "type", flags.certType)
 			}
 			cmd.SilenceUsage = true
-			return runValidate(args[0], expectedType, checkType)
+
+			filename := args[0]
+			certs, err := cppki.ReadPEMCerts(filename)
+			if err != nil {
+				return err
+			}
+			if flags.certType == "chain" || len(certs) != 1 && flags.certType == "any" {
+				if err := validateChain(certs); err != nil {
+					return err
+				}
+				fmt.Printf("Valid certificate chain: %q\n", filename)
+
+			} else {
+				ct, err := validateCert(certs, expectedType, checkType)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("Valid %s certificate: %q\n", ct, filename)
+			}
+			return nil
 		},
 	}
 
@@ -96,27 +117,39 @@ the output.
 	return cmd
 }
 
-func runValidate(path string, expectedType cppki.CertType, checkType bool) error {
-	certs, err := cppki.ReadPEMCerts(path)
-	if err != nil {
+func validateChain(certs []*x509.Certificate) error {
+	if err := cppki.ValidateChain(certs); err != nil {
 		return err
 	}
+	checkAlgorithm(certs[0])
+	checkAlgorithm(certs[1])
+	return nil
+}
+
+func validateCert(
+	certs []*x509.Certificate,
+	expectedType cppki.CertType,
+	checkType bool,
+) (cppki.CertType, error) {
+
 	if len(certs) > 1 {
-		return serrors.New("file with multiple certificates not supported")
+		return cppki.Invalid, serrors.New("file with multiple certificates not supported")
 	}
 	cert := certs[0]
 	ct, err := cppki.ValidateCert(cert)
 	if err != nil {
-		return err
+		return cppki.Invalid, err
 	}
 	if checkType && expectedType != ct {
-		return serrors.New("wrong certificate type", "expected", expectedType, "actual", ct)
+		return cppki.Invalid, serrors.New("wrong certificate type",
+			"expected", expectedType,
+			"actual", ct,
+		)
 	}
 	if ct == cppki.Root || ct == cppki.Regular || ct == cppki.Sensitive {
 		checkAlgorithm(cert)
 	}
-	fmt.Printf("Valid %s certificate: %q\n", ct, path)
-	return nil
+	return ct, nil
 }
 
 func checkAlgorithm(cert *x509.Certificate) {

@@ -57,6 +57,36 @@ import (
 	"github.com/scionproto/scion/go/pkg/trust"
 )
 
+const (
+	subjectHelp = `
+  {
+    "common_name": "1-ff00:0:110 AS certificate",
+    "country": "CH",
+    "isd_as": "1-ff00:0:110"
+  }
+
+All configurable fields with their type are defined by the following JSON
+schema. For more information on JSON schemas, see https://json-schema.org/.
+
+  {
+    "type": "object",
+    "properties": {
+      "isd_as":              { "type": "string" },
+      "common_name":         { "type": "string" },
+      "country":             { "type": "string" },
+      "locality":            { "type": "string" },
+      "organization":        { "type": "string" },
+      "organizational_unit": { "type": "string" },
+      "postal_code":         { "type": "string" },
+      "province":            { "type": "string" },
+      "serial_number":       { "type": "string" },
+      "street_address":      { "type": "string" },
+    },
+    "required": ["isd_as"]
+  }
+`
+)
+
 type Features struct {
 	DisableLegacyRequest bool `feature:"disable_legacy_request"`
 	DisableCMSRequest    bool `feature:"disable_cms_request"`
@@ -139,33 +169,7 @@ Unless a template is specified, the subject of the transport certificate chain
 is used as the subject for the renewal request.
 
 The template is expressed in JSON. A valid example:
-
-  {
-    "common_name": "1-ff00:0:110 AS certificate",
-    "country": "CH",
-    "isd_as": "1-ff00:0:110"
-  }
-
-All configurable fields with their type are defined by the following JSON
-schema. For more information on JSON schemas, see https://json-schema.org/.
-
-  {
-    "type": "object",
-    "properties": {
-      "isd_as":              { "type": "string" },
-      "common_name":         { "type": "string" },
-      "country":             { "type": "string" },
-      "locality":            { "type": "string" },
-      "organization":        { "type": "string" },
-      "organizational_unit": { "type": "string" },
-      "postal_code":         { "type": "string" },
-      "province":            { "type": "string" },
-      "serial_number":       { "type": "string" },
-      "street_address":      { "type": "string" },
-    },
-    "required": ["isd_as"]
-  }
-		`,
+` + subjectHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var ca addr.IA
 			if len(args) != 0 {
@@ -523,6 +527,10 @@ func subjectFromTemplate(tmpl string) (pkix.Name, error) {
 	if err != nil {
 		return pkix.Name{}, serrors.WrapStr("reading template", err)
 	}
+	return subjectFromVars(vars)
+}
+
+func subjectFromVars(vars subjectVars) (pkix.Name, error) {
 	if vars.ISDAS.IsZero() {
 		return pkix.Name{}, serrors.New("isd_as required in template")
 	}
@@ -719,18 +727,11 @@ func keyUsage() pkix.Extension {
 }
 
 func extKeyUsage() pkix.Extension {
-	val, err := asn1.Marshal([]asn1.ObjectIdentifier{
+	return extendedKeyUsages(
 		cppki.OIDExtKeyUsageServerAuth,
 		cppki.OIDExtKeyUsageClientAuth,
 		cppki.OIDExtKeyUsageTimeStamping,
-	})
-	if err != nil {
-		panic(err)
-	}
-	return pkix.Extension{
-		Id:    cppki.OIDExtensionExtendedKeyUsage,
-		Value: val,
-	}
+	)
 }
 
 func maybeMissingTRCInGrace(trcs []*cppki.TRC) bool {

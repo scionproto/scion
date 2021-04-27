@@ -32,7 +32,7 @@ const (
 // This code is lightly adapted from
 // https://github.com/prometheus/common/blob/2e54d0b93cba2fd133edc32211dcc32c06ef72ca/model/time.go#L182
 
-var durationRE = regexp.MustCompile("^([0-9]+)(y|w|d|h|m|s|ms|us|µs|ns)$")
+var durationRE = regexp.MustCompile(`^([\-0-9]+)(y|w|d|h|m|s|ms|us|µs|ns)$`)
 
 // ParseDuration parses a string into a time.Duration, assuming that a year
 // always has 365d, a week always has 7d, and a day always has 24h.
