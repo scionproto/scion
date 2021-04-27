@@ -45,7 +45,6 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/lib/underlay/conn"
 	underlayconn "github.com/scionproto/scion/go/lib/underlay/conn"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/router/bfd"
@@ -55,6 +54,11 @@ import (
 const (
 	// Number of packets to read in a single ReadBatch call.
 	inputBatchCnt = 64
+	// Multiplier on number of allocated buffer slots.
+	// This should not be too large (buffer bloat), but still large enough such
+	// that the readers and writers have some elbow room-to work somewhat
+	// asynchronously.
+	bufSlotCntMult = 3
 
 	// TODO(karampok). Investigate whether that value should be higher.  In
 	// theory, PayloadLen in SCION header is 16 bits long, supporting a maximum
@@ -439,28 +443,44 @@ func (d *DataPlane) Run() error {
 
 	d.initMetrics()
 
+	// buffers is a circular free list to recycle read/write buffers.
+	numConns := len(d.external) + 1
+	freeBufs := make(chan []byte, bufSlotCntMult*inputBatchCnt*numConns)
+	for i := 0; i < cap(freeBufs); i++ {
+		freeBufs <- make([]byte, bufSize)
+	}
+
+	egressChans := make(map[uint16]chan processResult)
+	egressChans[0] = make(chan processResult, bufSlotCntMult*inputBatchCnt)
+	for ifID := range d.external {
+		egressChans[ifID] = make(chan processResult, bufSlotCntMult*inputBatchCnt)
+	}
+
 	read := func(ingressID uint16, rd BatchConn) {
-
-		msgs := conn.NewReadMessages(inputBatchCnt)
-		for _, msg := range msgs {
-			msg.Buffers[0] = make([]byte, bufSize)
-		}
-
+		msgs := underlayconn.NewReadMessages(inputBatchCnt)
+		inputCounters := d.forwardingMetrics[ingressID]
 		processor := newPacketProcessor(d, ingressID)
 		var scmpErr scmpError
 		for d.running {
+			for i := range msgs {
+				buf := <-freeBufs
+				msgs[i].Buffers[0] = buf[:bufSize]
+			}
 			pkts, err := rd.ReadBatch(msgs)
 			if err != nil {
 				log.Debug("Failed to read batch", "err", err)
+				// put back buffers
+				for _, p := range msgs {
+					freeBufs <- p.Buffers[0]
+				}
 				// error metric
 				continue
 			}
-			if pkts == 0 {
-				continue
+			for _, p := range msgs[pkts:] {
+				freeBufs <- p.Buffers[0] // put back unused buffers immediately
 			}
 			for _, p := range msgs[:pkts] {
 				// input metric
-				inputCounters := d.forwardingMetrics[ingressID]
 				inputCounters.InputPacketsTotal.Inc()
 				inputCounters.InputBytesTotal.Add(float64(p.N))
 
@@ -475,25 +495,47 @@ func (d *DataPlane) Run() error {
 					}
 					// SCMP go back the way they came.
 					result.OutAddr = srcAddr
-					result.OutConn = rd
+					result.EgressID = ingressID
 				default:
 					log.Debug("Error processing packet", "err", err)
 					inputCounters.DroppedPacketsTotal.Inc()
+					freeBufs <- processor.rawPkt
 					continue
 				}
-				if result.OutConn == nil { // e.g. BFD case no message is forwarded
+				if result.NoEgress { // e.g. BFD case no message is forwarded
+					freeBufs <- processor.rawPkt
 					continue
 				}
-				_, err = result.OutConn.WriteTo(result.OutPkt, result.OutAddr)
-				if err != nil {
-					log.Debug("Error writing packet", "err", err)
-					// error metric
-					continue
+				// XXX(matzf) output was not written back to read buffer, make sure to recycle it
+				if &result.OutPkt[0] != &processor.rawPkt[0] {
+					freeBufs <- processor.rawPkt
 				}
-				// ok metric
-				outputCounters := d.forwardingMetrics[result.EgressID]
-				outputCounters.OutputPacketsTotal.Inc()
-				outputCounters.OutputBytesTotal.Add(float64(len(result.OutPkt)))
+				// Hand over to write. If channel is full, drop the message here.
+				select {
+				case egressChans[result.EgressID] <- result:
+				default:
+					inputCounters.DroppedPacketsTotal.Inc()
+					freeBufs <- processor.rawPkt
+				}
+			}
+		}
+	}
+
+	write := func(egressID uint16, wd BatchConn) {
+		egressChan := egressChans[egressID]
+		for result := range egressChan {
+			_, err := wd.WriteTo(result.OutPkt, result.OutAddr)
+			if err != nil {
+				log.Debug("Error writing packet", "err", err)
+				// error metric
+				continue
+			}
+			// ok metric
+			outputCounters := d.forwardingMetrics[egressID]
+			outputCounters.OutputPacketsTotal.Inc()
+			outputCounters.OutputBytesTotal.Add(float64(len(result.OutPkt)))
+			if cap(result.OutPkt) == bufSize {
+				freeBufs <- result.OutPkt
 			}
 		}
 	}
@@ -511,10 +553,18 @@ func (d *DataPlane) Run() error {
 			defer log.HandlePanic()
 			read(i, c)
 		}(ifID, v)
+		go func(i uint16, c BatchConn) {
+			defer log.HandlePanic()
+			write(i, c)
+		}(ifID, v)
 	}
 	go func(c BatchConn) {
 		defer log.HandlePanic()
 		read(0, c)
+	}(d.internal)
+	go func(c BatchConn) {
+		defer log.HandlePanic()
+		write(0, c)
 	}(d.internal)
 
 	d.mtx.Unlock()
@@ -539,8 +589,8 @@ func (d *DataPlane) initMetrics() {
 }
 
 type processResult struct {
+	NoEgress bool
 	EgressID uint16
-	OutConn  BatchConn
 	OutAddr  *net.UDPAddr
 	OutPkt   []byte
 }
@@ -587,7 +637,7 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	switch s.PathType {
 	case empty.PathType:
 		if s.NextHdr == common.L4BFD {
-			return processResult{}, p.processIntraBFD(srcAddr, s.Payload)
+			return processResult{NoEgress: true}, p.processIntraBFD(srcAddr, s.Payload)
 		}
 		return processResult{}, serrors.WithCtx(unsupportedPathTypeNextHeader,
 			"type", s.PathType, "header", s.NextHdr)
@@ -597,7 +647,7 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 			if !ok {
 				return processResult{}, malformedPath
 			}
-			return processResult{}, p.processInterBFD(ohp, s.Payload)
+			return processResult{NoEgress: true}, p.processInterBFD(ohp, s.Payload)
 		}
 		return p.processOHP()
 	case scion.PathType:
@@ -809,7 +859,7 @@ func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.Seri
 		external,
 		cause,
 	)
-	return processResult{OutPkt: rawSCMP}, err
+	return processResult{EgressID: p.ingressID, OutPkt: rawSCMP}, err
 }
 
 func (p *scionPacketProcessor) parsePath() (processResult, error) {
@@ -1170,7 +1220,7 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 		if err != nil {
 			return r, err
 		}
-		return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil
+		return processResult{EgressID: 0, OutAddr: a, OutPkt: p.rawPkt}, nil
 	}
 
 	// Outbound: pkts leaving the local IA.
@@ -1195,16 +1245,16 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 	}
 
 	egressID := p.egressInterface()
-	if c, ok := p.d.external[egressID]; ok {
+	if _, ok := p.d.external[egressID]; ok {
 		if err := p.processEgress(); err != nil {
 			return processResult{}, err
 		}
-		return processResult{EgressID: egressID, OutConn: c, OutPkt: p.rawPkt}, nil
+		return processResult{EgressID: egressID, OutPkt: p.rawPkt}, nil
 	}
 
 	// ASTransit: pkts leaving from another AS BR.
 	if a, ok := p.d.internalNextHops[egressID]; ok {
-		return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil
+		return processResult{EgressID: 0, OutAddr: a, OutPkt: p.rawPkt}, nil
 	}
 	errCode := slayers.SCMPCodeUnknownHopFieldEgress
 	if !p.infoField.ConsDir {
@@ -1251,9 +1301,9 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 			return processResult{}, err
 		}
 		// OHP should always be directed to the correct BR.
-		if c, ok := p.d.external[ohp.FirstHop.ConsEgress]; ok {
+		if _, ok := p.d.external[ohp.FirstHop.ConsEgress]; ok {
 			// buffer should already be correct
-			return processResult{EgressID: ohp.FirstHop.ConsEgress, OutConn: c, OutPkt: p.rawPkt},
+			return processResult{EgressID: ohp.FirstHop.ConsEgress, OutPkt: p.rawPkt},
 				nil
 		}
 		// TODO parameter problem invalid interface
@@ -1275,7 +1325,7 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	if err != nil {
 		return processResult{}, err
 	}
-	return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil
+	return processResult{EgressID: 0, OutAddr: a, OutPkt: p.rawPkt}, nil
 }
 
 func (d *DataPlane) resolveLocalDst(s slayers.SCION) (*net.UDPAddr, error) {
