@@ -17,11 +17,9 @@ package router
 import (
 	"net"
 
-	"github.com/google/gopacket"
 	"golang.org/x/net/ipv4"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -56,10 +54,10 @@ func (d *DataPlane) FakeStart() {
 	d.running = true
 }
 
-func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message, s slayers.SCION,
-	origPacket []byte, b gopacket.SerializeBuffer) (ProcessResult, error) {
+func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message) (ProcessResult, error) {
 
-	result, err := d.processPkt(ifID, m.Buffers[0], m.Addr, s, origPacket, b, d.macFactory())
+	p := newPacketProcessor(d, ifID)
+	result, err := p.processPkt(m.Buffers[0], m.Addr)
 	return ProcessResult{processResult: result}, err
 }
 
