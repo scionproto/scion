@@ -119,6 +119,7 @@ func newCreateCmd(pather command.Pather) *cobra.Command {
 	var flags struct {
 		csr         bool
 		profile     string
+		commonName  string
 		notBefore   flag.Time
 		notAfter    flag.Time
 		ca          string
@@ -178,7 +179,9 @@ example, -1h indicates the time of tool invocation minus one hour. Note that
 --not-after is relative to the current time if a relative time offset is used,
 and not to --not-before.
 
-The <subject-template> must either be a x.509 certificate or a JSON file.
+The <subject-template> is the template for the distinguished name of the
+requested certificate and must either be a x.509 certificate or a JSON file.
+The common name can be overridden by supplying the --common-name flag.
 
 If it is a x.509 certificate, the subject of the template is used as the subject
 of the created certificate or certificate chain request.
@@ -197,6 +200,9 @@ A valid example for a JSON formatted template:
 			subject, err := createSubject(args[0])
 			if err != nil {
 				return serrors.WrapStr("creating subject", err)
+			}
+			if flags.commonName != "" {
+				subject.CommonName = flags.commonName
 			}
 
 			// Only check that the flags are set appropriately here.
@@ -329,6 +335,9 @@ offset from the current time.`,
 If the value is a timestamp, it is expected to either be an RFC 3339 formatted
 timestamp or a unix timestamp. If the value is a duration, it is used as the
 offset from the current time.`,
+	)
+	cmd.Flags().StringVar(&flags.commonName, "common-name", "",
+		"The common name that replaces the common name in the subject template",
 	)
 	cmd.Flags().StringVar(&flags.ca, "ca", "",
 		"The path to the issuer certificate",

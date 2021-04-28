@@ -169,6 +169,7 @@ func TestNewCreateCmd(t *testing.T) {
 				ct, err := cppki.ValidateCert(certs[0])
 				require.NoError(t, err)
 				require.Equal(t, cppki.Sensitive, ct)
+				require.Equal(t, "1-ff00:0:111 Certificate", certs[0].Subject.CommonName)
 			},
 		},
 		"regular": {
@@ -183,6 +184,7 @@ func TestNewCreateCmd(t *testing.T) {
 				ct, err := cppki.ValidateCert(certs[0])
 				require.NoError(t, err)
 				require.Equal(t, cppki.Regular, ct)
+				require.Equal(t, "1-ff00:0:111 Certificate", certs[0].Subject.CommonName)
 			},
 		},
 		"cp-root": {
@@ -197,6 +199,7 @@ func TestNewCreateCmd(t *testing.T) {
 				ct, err := cppki.ValidateCert(certs[0])
 				require.NoError(t, err)
 				require.Equal(t, cppki.Root, ct)
+				require.Equal(t, "1-ff00:0:111 Certificate", certs[0].Subject.CommonName)
 			},
 		},
 		"cp-ca": {
@@ -223,6 +226,7 @@ func TestNewCreateCmd(t *testing.T) {
 				ct, err := cppki.ValidateCert(certs[0])
 				require.NoError(t, err)
 				require.Equal(t, cppki.CA, ct)
+				require.Equal(t, "1-ff00:0:111 Certificate", certs[0].Subject.CommonName)
 			},
 		},
 		"cp-as": {
@@ -258,6 +262,7 @@ func TestNewCreateCmd(t *testing.T) {
 				ct, err := cppki.ValidateCert(certs[0])
 				require.NoError(t, err)
 				require.Equal(t, cppki.AS, ct)
+				require.Equal(t, "1-ff00:0:111 Certificate", certs[0].Subject.CommonName)
 			},
 		},
 		"chain": {
@@ -292,6 +297,7 @@ func TestNewCreateCmd(t *testing.T) {
 			ErrAssertion: assert.NoError,
 			Validate: func(t *testing.T, certs []*x509.Certificate) {
 				require.NoError(t, cppki.ValidateChain(certs))
+				require.Equal(t, "1-ff00:0:111 Certificate", certs[0].Subject.CommonName)
 			},
 		},
 		"existing key": {
@@ -306,6 +312,7 @@ func TestNewCreateCmd(t *testing.T) {
 				ct, err := cppki.ValidateCert(certs[0])
 				require.NoError(t, err)
 				require.Equal(t, cppki.Sensitive, ct)
+				require.Equal(t, "1-ff00:0:111 Certificate", certs[0].Subject.CommonName)
 			},
 		},
 		"optional flags": {
@@ -323,6 +330,8 @@ func TestNewCreateCmd(t *testing.T) {
 				ct, err := cppki.ValidateCert(certs[0])
 				require.NoError(t, err)
 				require.Equal(t, cppki.Sensitive, ct)
+				require.Equal(t, "1-ff00:0:111 Certificate", certs[0].Subject.CommonName)
+
 				key := certs[0].PublicKey.(*ecdsa.PublicKey)
 				require.Equal(t, elliptic.P521(), key.Curve)
 				withinDelta := func(expected, actual time.Time) {
@@ -331,7 +340,6 @@ func TestNewCreateCmd(t *testing.T) {
 				}
 				withinDelta(now.Add(-time.Hour), certs[0].NotBefore)
 				withinDelta(now.Add(time.Hour), certs[0].NotAfter)
-
 			},
 		},
 		"unix time": {
@@ -347,6 +355,8 @@ func TestNewCreateCmd(t *testing.T) {
 				ct, err := cppki.ValidateCert(certs[0])
 				require.NoError(t, err)
 				require.Equal(t, cppki.Sensitive, ct)
+				require.Equal(t, "1-ff00:0:111 Certificate", certs[0].Subject.CommonName)
+
 				require.Equal(t, now.Add(time.Hour).UTC().Truncate(time.Second), certs[0].NotBefore)
 			},
 		},
@@ -364,12 +374,30 @@ func TestNewCreateCmd(t *testing.T) {
 				ct, err := cppki.ValidateCert(certs[0])
 				require.NoError(t, err)
 				require.Equal(t, cppki.Sensitive, ct)
+				require.Equal(t, "1-ff00:0:111 Certificate", certs[0].Subject.CommonName)
+
 				withinDelta := func(expected, actual time.Time) {
 					require.Less(t, int64(expected.Sub(actual)), int64(5*time.Second))
 					require.Less(t, int64(actual.Sub(expected)), int64(5*time.Second))
 				}
 				withinDelta(now.Add(-time.Hour), certs[0].NotBefore)
 				withinDelta(now.Add(time.Hour), certs[0].NotAfter)
+			},
+		},
+		"custom common name": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/common-name.crt",
+				dir + "/common-name.key",
+				"--profile=sensitive-voting",
+				"--common-name=custom",
+			},
+			ErrAssertion: assert.NoError,
+			Validate: func(t *testing.T, certs []*x509.Certificate) {
+				ct, err := cppki.ValidateCert(certs[0])
+				require.NoError(t, err)
+				require.Equal(t, cppki.Sensitive, ct)
+				require.Equal(t, "custom", certs[0].Subject.CommonName)
 			},
 		},
 	}
