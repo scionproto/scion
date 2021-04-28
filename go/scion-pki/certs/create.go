@@ -399,7 +399,7 @@ func createSubject(tmpl string) (pkix.Name, error) {
 	}
 
 	// Assume template is a json file.
-	var vars subjectVars
+	var vars SubjectVars
 	if err := json.Unmarshal(raw, &vars); err != nil {
 		return pkix.Name{}, err
 	}

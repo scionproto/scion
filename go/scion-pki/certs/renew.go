@@ -92,7 +92,7 @@ type Features struct {
 	DisableCMSRequest    bool `feature:"disable_cms_request"`
 }
 
-type subjectVars struct {
+type SubjectVars struct {
 	CommonName         string  `json:"common_name,omitempty"`
 	Country            string  `json:"country,omitempty"`
 	ISDAS              addr.IA `json:"isd_as,omitempty"`
@@ -530,7 +530,7 @@ func subjectFromTemplate(tmpl string) (pkix.Name, error) {
 	return subjectFromVars(vars)
 }
 
-func subjectFromVars(vars subjectVars) (pkix.Name, error) {
+func subjectFromVars(vars SubjectVars) (pkix.Name, error) {
 	if vars.ISDAS.IsZero() {
 		return pkix.Name{}, serrors.New("isd_as required in template")
 	}
@@ -624,14 +624,14 @@ func readECKey(file string) (*ecdsa.PrivateKey, error) {
 	return v, nil
 }
 
-func readVars(file string) (subjectVars, error) {
-	c := subjectVars{}
+func readVars(file string) (SubjectVars, error) {
+	c := SubjectVars{}
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
-		return subjectVars{}, err
+		return SubjectVars{}, err
 	}
 	if err := json.Unmarshal(raw, &c); err != nil {
-		return subjectVars{}, err
+		return SubjectVars{}, err
 	}
 	return c, nil
 }
