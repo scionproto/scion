@@ -280,13 +280,13 @@ func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn,
 		}
 	}
 	s := &bfdSend{
-		conn:       conn,
-		srcAddr:    src.Addr,
-		dstAddr:    dst.Addr,
-		srcIA:      src.IA,
-		dstIA:      dst.IA,
-		ifID:       ifID,
-		macFactory: d.macFactory,
+		conn:    conn,
+		srcAddr: src.Addr,
+		dstAddr: dst.Addr,
+		srcIA:   src.IA,
+		dstIA:   dst.IA,
+		ifID:    ifID,
+		mac:     d.macFactory(),
 	}
 	return d.addBFDController(ifID, s, cfg, m)
 }
@@ -421,13 +421,13 @@ func (d *DataPlane) AddNextHopBFD(ifID uint16, src, dst *net.UDPAddr, cfg contro
 		}
 	}
 	s := &bfdSend{
-		conn:       d.internal,
-		srcAddr:    src,
-		dstAddr:    dst,
-		srcIA:      d.localIA,
-		dstIA:      d.localIA,
-		ifID:       0,
-		macFactory: d.macFactory,
+		conn:    d.internal,
+		srcAddr: src,
+		dstAddr: dst,
+		srcIA:   d.localIA,
+		dstIA:   d.localIA,
+		ifID:    0,
+		mac:     d.macFactory(),
 	}
 	return d.addBFDController(ifID, s, cfg, m)
 }
@@ -446,6 +446,7 @@ func (d *DataPlane) Run() error {
 		for _, msg := range msgs {
 			msg.Buffers[0] = make([]byte, bufSize)
 		}
+		mac := d.macFactory()
 
 		var scmpErr scmpError
 		spkt := slayers.SCION{}
@@ -473,7 +474,7 @@ func (d *DataPlane) Run() error {
 				inputCounters.InputBytesTotal.Add(float64(p.N))
 
 				result, err := d.processPkt(ingressID, p.Buffers[0], p.Addr, spkt, origPacket,
-					buffer)
+					buffer, mac)
 
 				switch {
 				case err == nil:
@@ -562,7 +563,7 @@ type processResult struct {
 }
 
 func (d *DataPlane) processPkt(ingressID uint16, rawPkt []byte, srcAddr net.Addr, s slayers.SCION,
-	origPacket []byte, buffer gopacket.SerializeBuffer) (processResult, error) {
+	origPacket []byte, buffer gopacket.SerializeBuffer, mac hash.Hash) (processResult, error) {
 
 	if err := s.DecodeFromBytes(rawPkt, gopacket.NilDecodeFeedback); err != nil {
 		return processResult{}, err
@@ -586,11 +587,11 @@ func (d *DataPlane) processPkt(ingressID uint16, rawPkt []byte, srcAddr net.Addr
 			}
 			return processResult{}, d.processInterBFD(ingressID, ohp, s.Payload)
 		}
-		return d.processOHP(ingressID, rawPkt, s, buffer)
+		return d.processOHP(ingressID, rawPkt, s, buffer, mac)
 	case scion.PathType:
-		return d.processSCION(ingressID, rawPkt, s, origPacket, buffer)
+		return d.processSCION(ingressID, rawPkt, s, origPacket, buffer, mac)
 	case epic.PathType:
-		return d.processEPIC(ingressID, rawPkt, s, origPacket, buffer)
+		return d.processEPIC(ingressID, rawPkt, s, origPacket, buffer, mac)
 	default:
 		return processResult{}, serrors.WithCtx(unsupportedPathType, "type", s.PathType)
 	}
@@ -651,7 +652,7 @@ func (d *DataPlane) processIntraBFD(src net.Addr, data []byte) error {
 }
 
 func (d *DataPlane) processSCION(ingressID uint16, rawPkt []byte, s slayers.SCION,
-	origPacket []byte, buffer gopacket.SerializeBuffer) (processResult, error) {
+	origPacket []byte, buffer gopacket.SerializeBuffer, mac hash.Hash) (processResult, error) {
 
 	p := scionPacketProcessor{
 		d:          d,
@@ -660,6 +661,7 @@ func (d *DataPlane) processSCION(ingressID uint16, rawPkt []byte, s slayers.SCIO
 		scionLayer: s,
 		origPacket: origPacket,
 		buffer:     buffer,
+		mac:        mac,
 	}
 
 	var ok bool
@@ -673,7 +675,7 @@ func (d *DataPlane) processSCION(ingressID uint16, rawPkt []byte, s slayers.SCIO
 }
 
 func (d *DataPlane) processEPIC(ingressID uint16, rawPkt []byte, s slayers.SCION,
-	origPacket []byte, buffer gopacket.SerializeBuffer) (processResult, error) {
+	origPacket []byte, buffer gopacket.SerializeBuffer, mac hash.Hash) (processResult, error) {
 
 	path, ok := s.Path.(*epic.Path)
 	if !ok {
@@ -697,6 +699,7 @@ func (d *DataPlane) processEPIC(ingressID uint16, rawPkt []byte, s slayers.SCION
 		scionLayer: s,
 		origPacket: origPacket,
 		buffer:     buffer,
+		mac:        mac,
 		path:       scionPath,
 	}
 	result, err := p.process()
@@ -743,6 +746,8 @@ type scionPacketProcessor struct {
 	origPacket []byte
 	// buffer is the buffer that can be used to serialize gopacket layers.
 	buffer gopacket.SerializeBuffer
+	// mac is the hasher for the MAC computation.
+	mac hash.Hash
 
 	// path is the raw SCION path. Will be set during processing.
 	path *scion.Raw
@@ -956,7 +961,7 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 }
 
 func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
-	fullMac := path.FullMAC(p.d.macFactory(), p.infoField, p.hopField)
+	fullMac := path.FullMAC(p.mac, p.infoField, p.hopField)
 	if subtle.ConstantTimeCompare(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) == 0 {
 		return p.packSCMP(
 			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
@@ -1233,7 +1238,7 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 }
 
 func (d *DataPlane) processOHP(ingressID uint16, rawPkt []byte, s slayers.SCION,
-	buffer gopacket.SerializeBuffer) (processResult, error) {
+	buffer gopacket.SerializeBuffer, mac hash.Hash) (processResult, error) {
 
 	p, ok := s.Path.(*onehop.Path)
 	if !ok {
@@ -1253,7 +1258,7 @@ func (d *DataPlane) processOHP(ingressID uint16, rawPkt []byte, s slayers.SCION,
 	}
 	// OHP leaving our IA
 	if d.localIA.Equal(s.SrcIA) {
-		mac := path.MAC(d.macFactory(), &p.Info, &p.FirstHop)
+		mac := path.MAC(mac, &p.Info, &p.FirstHop)
 		if subtle.ConstantTimeCompare(p.FirstHop.Mac[:path.MacLen], mac) == 0 {
 			// TODO parameter problem -> invalid MAC
 			return processResult{}, serrors.New("MAC", "expected", fmt.Sprintf("%x", mac),
@@ -1279,7 +1284,7 @@ func (d *DataPlane) processOHP(ingressID uint16, rawPkt []byte, s slayers.SCION,
 		ConsIngress: ingressID,
 		ExpTime:     p.FirstHop.ExpTime,
 	}
-	p.SecondHop.Mac = path.MAC(d.macFactory(), &p.Info, &p.SecondHop)
+	p.SecondHop.Mac = path.MAC(mac, &p.Info, &p.SecondHop)
 
 	if err := updateSCIONLayer(rawPkt, s, buffer); err != nil {
 		return processResult{}, err
@@ -1335,7 +1340,7 @@ type bfdSend struct {
 	conn             BatchConn
 	srcAddr, dstAddr *net.UDPAddr
 	srcIA, dstIA     addr.IA
-	macFactory       func() hash.Hash
+	mac              hash.Hash
 	ifID             uint16
 }
 
@@ -1343,6 +1348,9 @@ func (b *bfdSend) String() string {
 	return b.srcAddr.String()
 }
 
+// Send sends out a BFD message.
+// Due to the internal state of the MAC computation, this is not goroutine
+// safe.
 func (b *bfdSend) Send(bfd *layers.BFD) error {
 	scn := &slayers.SCION{
 		Version:      0,
@@ -1375,7 +1383,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 				ExpTime:    hopFieldDefaultExpTime,
 			},
 		}
-		ohp.FirstHop.Mac = path.MAC(b.macFactory(), &ohp.Info, &ohp.FirstHop)
+		ohp.FirstHop.Mac = path.MAC(b.mac, &ohp.Info, &ohp.FirstHop)
 		scn.PathType = onehop.PathType
 		scn.Path = ohp
 	}
