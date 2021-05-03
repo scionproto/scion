@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/env/envtest"
 	"github.com/scionproto/scion/go/lib/log/logtest"
 	"github.com/scionproto/scion/go/pkg/api/apitest"
+	"github.com/scionproto/scion/go/pkg/api/jwtauth"
 	storagetest "github.com/scionproto/scion/go/pkg/storage/test"
 )
 
@@ -107,4 +108,6 @@ func CheckTestCA(t *testing.T, cfg *CA) {
 func CheckTestService(t *testing.T, cfg *CAService) {
 	assert.Empty(t, cfg.SharedSecret)
 	assert.Empty(t, cfg.Address)
+	assert.Equal(t, jwtauth.DefaultTokenLifetime, cfg.Lifetime.Duration)
+	assert.Empty(t, cfg.ClientID)
 }

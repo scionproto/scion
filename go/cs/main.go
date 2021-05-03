@@ -390,13 +390,18 @@ func realMain() error {
 				"type", "delegating",
 			)
 			sharedSecret := caconfig.NewPEMSymmetricKey(globalCfg.CA.Service.SharedSecret)
+			subject := globalCfg.General.ID
+			if globalCfg.CA.Service.ClientID != "" {
+				subject = globalCfg.CA.Service.ClientID
+			}
 			renewalServer.CMSHandler = &renewalgrpc.DelegatingHandler{
 				Client: &caapi.Client{
 					Server: globalCfg.CA.Service.Address,
 					Client: jwtauth.NewHTTPClient(
 						&jwtauth.JWTTokenSource{
-							Subject:   globalCfg.General.ID,
+							Subject:   subject,
 							Generator: sharedSecret.Get,
+							Lifetime:  globalCfg.CA.Service.Lifetime.Duration,
 						},
 					),
 				},

@@ -60,4 +60,10 @@ const serviceSample = `
 shared_secret = ""
 # The address of the CA Service that handles the delegated certificate renewal requests.
 addr = ""
+# The validity period of self-generated JWT authorization tokens. The format
+# is a Go duration. If not set, the application default in this sample is used instead.
+lifetime = "10m"
+# The client identification string that should be used in self-generated JWT
+# authorization tokens. If not set, the SCION ID is used instead.
+client_id = ""
 `

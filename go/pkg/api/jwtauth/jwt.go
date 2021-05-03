@@ -18,7 +18,9 @@ package jwtauth
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwt"
@@ -26,6 +28,14 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/ca/api"
+)
+
+const (
+	// DefaultTokenLifetime is the default duration tokens are valid for.
+	DefaultTokenLifetime = 10 * time.Minute
+	// DefaultAcceptableSkew is the clock skew allowed between token creation and token validation
+	// machines. Tokens are not valid before (iat - clock_skew) and after (exp + clock_skew).
+	DefaultAcceptableSkew = 5 * time.Second
 )
 
 // NewHTTPClient constructs a new HTTP client that attempts to perform authorization
@@ -87,9 +97,15 @@ func (t *httpTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 //
 // The signature algorithm is set to HS256.
 type JWTTokenSource struct {
-	// Subject is an informational field that will be used as the JWT "sub" claim. If empty,
-	// the "sub" claim is not set.
+	// Subject is an informational field that will be used as the JWT "sub" and
+	// "iss" claims. If empty, the "sub" and "iss" claims are not set.
 	Subject string
+	// Lifetime is the duration a token is valid for. If it is 0, then DefaultTokenLifetime is
+	// used.
+	Lifetime time.Duration
+	// IssuedAt is the timestamp when the token should report that it was issued. Values are
+	// rounded down to whole seconds. If not set, time.Now() is used instead.
+	IssuedAt time.Time
 	// Generator that creates symmetric keys for HS256. For security
 	// reasons, the generated key must be at least 256-bit long (see
 	// https://tools.ietf.org/html/rfc7518#section-3.2). If the key is not
@@ -98,6 +114,16 @@ type JWTTokenSource struct {
 }
 
 func (s *JWTTokenSource) Token() (*Token, error) {
+	issuedAt := s.IssuedAt
+	if issuedAt.IsZero() {
+		issuedAt = time.Now()
+	}
+
+	lifetime := s.Lifetime
+	if lifetime == 0 {
+		lifetime = DefaultTokenLifetime
+	}
+
 	if s.Generator == nil {
 		return nil, serrors.New("key generator must not be nil")
 	}
@@ -112,9 +138,19 @@ func (s *JWTTokenSource) Token() (*Token, error) {
 
 	token := jwt.New()
 	if s.Subject != "" {
-		if err := token.Set("sub", s.Subject); err != nil {
-			return nil, serrors.WrapStr("setting subject claim", err)
+		if err := token.Set(jwt.SubjectKey, s.Subject); err != nil {
+			return nil, jwtSetError(jwt.SubjectKey, err)
 		}
+		if err := token.Set(jwt.IssuerKey, s.Subject); err != nil {
+			return nil, jwtSetError(jwt.IssuerKey, err)
+		}
+	}
+
+	if err := token.Set(jwt.IssuedAtKey, issuedAt.Unix()); err != nil {
+		return nil, jwtSetError(jwt.IssuedAtKey, err)
+	}
+	if err := token.Set(jwt.ExpirationKey, issuedAt.Add(lifetime).Unix()); err != nil {
+		return nil, jwtSetError(jwt.ExpirationKey, err)
 	}
 
 	b, err := jwt.Sign(token, jwa.HS256, key)
@@ -165,9 +201,22 @@ func (v *HTTPVerifier) AddAuthorization(handler http.Handler) http.Handler {
 			return
 		}
 
-		token, err := jwt.ParseRequest(req, jwt.WithVerify(jwa.HS256, key))
+		token, err := jwt.ParseRequest(req,
+			jwt.WithVerify(jwa.HS256, key),
+		)
 		if err != nil {
-			log.SafeDebug(v.Logger, "Parsing failed", "err", err)
+			log.SafeDebug(v.Logger, "Token verification failed", "err", err)
+			e := &Error{Code: http.StatusInternalServerError, Title: "Authorization error"}
+			e.Write(rw)
+			return
+		}
+
+		err = jwt.Validate(token,
+			jwt.WithClock(jwt.ClockFunc(time.Now)),
+			jwt.WithAcceptableSkew(DefaultAcceptableSkew),
+		)
+		if err != nil {
+			log.SafeDebug(v.Logger, "Token validation failed", "err", err)
 			e := &Error{Code: http.StatusInternalServerError, Title: "Authorization error"}
 			e.Write(rw)
 			return
@@ -205,3 +254,8 @@ func (e *Error) Write(rw http.ResponseWriter) {
 
 // KeyFunc is a generator for keys used in JWT token creation.
 type KeyFunc func() ([]byte, error)
+
+func jwtSetError(claim string, err error) error {
+	s := fmt.Sprintf("setting %v claim", claim)
+	return serrors.WrapStr(s, err)
+}

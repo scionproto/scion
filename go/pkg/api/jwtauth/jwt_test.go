@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -132,6 +133,53 @@ func TestNewHTTPClient(t *testing.T) {
 			ExpectedError:      require.NoError,
 			ExpectedHTTPStatus: http.StatusOK,
 		},
+		"issued in the future": {
+			TokenSource: &jwtauth.JWTTokenSource{
+				Subject:   "example",
+				IssuedAt:  time.Now().Add(time.Minute),
+				Generator: keyFunc(serverKey, nil),
+			},
+			ExpectedError:      require.NoError,
+			ExpectedHTTPStatus: http.StatusInternalServerError,
+		},
+		"issued in the future within skew": {
+			TokenSource: &jwtauth.JWTTokenSource{
+				Subject:   "example",
+				IssuedAt:  time.Now().Add(time.Second),
+				Generator: keyFunc(serverKey, nil),
+			},
+			ExpectedError:      require.NoError,
+			ExpectedHTTPStatus: http.StatusOK,
+		},
+		"issued in the past with default lifetime but expired": {
+			TokenSource: &jwtauth.JWTTokenSource{
+				Subject:   "example",
+				IssuedAt:  time.Now().Add(-1 * (jwtauth.DefaultTokenLifetime + time.Minute)),
+				Generator: keyFunc(serverKey, nil),
+			},
+			ExpectedError:      require.NoError,
+			ExpectedHTTPStatus: http.StatusInternalServerError,
+		},
+		"issued in the past with custom lifetime but expired": {
+			TokenSource: &jwtauth.JWTTokenSource{
+				Subject:   "example",
+				IssuedAt:  time.Now().Add(-6 * time.Minute),
+				Lifetime:  5 * time.Minute,
+				Generator: keyFunc(serverKey, nil),
+			},
+			ExpectedError:      require.NoError,
+			ExpectedHTTPStatus: http.StatusInternalServerError,
+		},
+		"issued in the past with custom lifetime and valid": {
+			TokenSource: &jwtauth.JWTTokenSource{
+				Subject:   "example",
+				IssuedAt:  time.Now().Add(-6 * time.Minute),
+				Lifetime:  10 * time.Minute,
+				Generator: keyFunc(serverKey, nil),
+			},
+			ExpectedError:      require.NoError,
+			ExpectedHTTPStatus: http.StatusOK,
+		},
 		"authorized client without Subject": {
 			TokenSource: &jwtauth.JWTTokenSource{
 				Generator: keyFunc(serverKey, nil),
@@ -154,7 +202,7 @@ func TestNewHTTPClient(t *testing.T) {
 
 			tc.ExpectedError(t, err)
 			if err == nil {
-				assert.Equal(t, response.StatusCode, tc.ExpectedHTTPStatus)
+				assert.Equal(t, tc.ExpectedHTTPStatus, response.StatusCode)
 			}
 		})
 	}
