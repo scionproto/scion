@@ -50,8 +50,9 @@ func newHuman(pather command.Pather) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "human",
-		Short: "Represent TRC in a human readable form",
+		Use:     "inspect",
+		Aliases: []string{"human"},
+		Short:   "Represent TRC in a human readable form",
 		Example: fmt.Sprintf(`  %[1]s human ISD1-B1-S1.pld.der
   %[1]s human ISD1-B1-S1.trc`, pather.CommandPath()),
 		Long: `'human' outputs the TRC contents in a human readable form.
@@ -139,7 +140,7 @@ func getHumanEncoding(raw []byte, predTRC *cppki.TRC, strict bool) (humanTRC, er
 
 func decodeTRCorPayload(raw []byte) (*cppki.TRC, *cppki.SignedTRC, error) {
 	block, _ := pem.Decode(raw)
-	if block != nil && (block.Type == "TRC" || block.Type == "TRC Payload") {
+	if block != nil && (block.Type == "TRC" || block.Type == "TRC PAYLOAD") {
 		raw = block.Bytes
 	}
 	if t, err := cppki.DecodeTRC(raw); err == nil {

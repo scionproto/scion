@@ -30,6 +30,7 @@ func Cmd(pather command.Pather) *cobra.Command {
 	cmd.AddCommand(
 		newCombine(joined),
 		newHuman(joined),
+		newFormatCmd(joined),
 		newExtract(joined),
 		newPayload(joined),
 		newVerify(joined),

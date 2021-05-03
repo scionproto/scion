@@ -74,7 +74,7 @@ func RunCombine(files []string, pld, out string, format string) error {
 		return serrors.WrapStr("error loading payload", err)
 	}
 	block, _ := pem.Decode(rawPld)
-	if block != nil && block.Type == "TRC Payload" {
+	if block != nil && block.Type == "TRC PAYLOAD" {
 		rawPld = block.Bytes
 	}
 	trcs := make(map[string]cppki.SignedTRC)
