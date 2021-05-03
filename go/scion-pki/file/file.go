@@ -19,6 +19,8 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -27,10 +29,31 @@ import (
 type Option func(o *options)
 
 type options struct {
-	force bool
+	backupPattern string
+	force         bool
 }
 
-// WithForce overwrites an existing file if it already exists.
+// WithBackup specifies the backup pattern for backing up files that already
+// exist. If the filename has an extension, the pattern is inserted between
+// filename base and extension. If the filename does not have an extension, the
+// pattern is added as a suffix.
+//
+// WithBackup takes precedence over WithForce, meaning, if a file exists, it
+// is backed up and not overwritten.
+//
+// Example: (pattern: 2021-05-06)
+// - example.txt -> example.2021-05-06.txt
+// - example     -> example.2021-05-06
+func WithBackup(pattern string) Option {
+	return func(o *options) {
+		o.backupPattern = pattern
+	}
+}
+
+// WithForce specifies whether a file should be overwritten if it already exists.
+//
+// WithBackup takes precedence over WithForce, meaning, if a file exists, it
+// is backed up and not overwritten.
 func WithForce(force bool) Option {
 	return func(o *options) {
 		o.force = force
@@ -60,6 +83,7 @@ func CheckDirExists(dir string) error {
 	return nil
 }
 
+// WriteFile writes the supplied data to the file.
 func WriteFile(filename string, data []byte, perm os.FileMode, opts ...Option) error {
 	options := apply(opts)
 
@@ -73,11 +97,21 @@ func WriteFile(filename string, data []byte, perm os.FileMode, opts ...Option) e
 	if info.IsDir() {
 		return serrors.New("file is a directory")
 	}
-	if !options.force {
+
+	switch {
+	case options.backupPattern != "":
+		ext := filepath.Ext(filename)
+		backup := strings.TrimSuffix(filename, ext) + "." + options.backupPattern + ext
+		if err := os.Rename(filename, backup); err != nil {
+			return serrors.WrapStr("backing up file", err)
+		}
+	case options.force:
+		if err := os.Remove(filename); err != nil {
+			return serrors.WrapStr("removing existing file", err)
+		}
+	default:
 		return os.ErrExist
 	}
-	if err := os.Remove(filename); err != nil {
-		return serrors.WrapStr("removing existing file", err)
-	}
+
 	return ioutil.WriteFile(filename, data, perm)
 }
