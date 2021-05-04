@@ -2093,12 +2093,6 @@ def go_deps():
         version = "v0.0.0-20201020160332-67f06af15bc9",
     )
     go_repository(
-        name = "org_golang_x_sys",
-        importpath = "golang.org/x/sys",
-        sum = "h1:b3NXsE2LusjYGGjL5bxEVZZORm/YEFFrWFjR8eFrw/c=",
-        version = "v0.0.0-20210423082822-04245dca01da",
-    )
-    go_repository(
         name = "org_golang_x_term",
         importpath = "golang.org/x/term",
         sum = "h1:v+OssWQX+hTHEmOBgwxdZxK4zHq3yOs8F9J7mk0PY8E=",
