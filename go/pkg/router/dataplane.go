@@ -77,7 +77,6 @@ type bfdSession interface {
 type BatchConn interface {
 	ReadBatch(underlayconn.Messages) (int, error)
 	WriteTo([]byte, *net.UDPAddr) (int, error)
-	WriteBatch(underlayconn.Messages) (int, error)
 	Close() error
 }
 
