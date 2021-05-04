@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
@@ -172,6 +173,49 @@ func TestPacketSerializeDecodeLoop(t *testing.T) {
 					IA:      xtest.MustParseIA("1-ff00:0:111"),
 					Ingress: 14,
 					Egress:  25,
+					Payload: []byte("scmp quote"),
+				},
+			},
+		},
+		"SCMP ParameterProblem": {
+			PacketInfo: snet.PacketInfo{
+				Destination: snet.SCIONAddress{
+					IA:   xtest.MustParseIA("1-ff00:0:110"),
+					Host: addr.SvcCS,
+				},
+				Source: snet.SCIONAddress{
+					IA:   xtest.MustParseIA("1-ff00:0:112"),
+					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
+				},
+				Path: spath.Path{
+					Raw:  rawSP,
+					Type: scion.PathType,
+				},
+				Payload: snet.SCMPParameterProblemWithCode(
+					snet.SCMPParameterProblem{
+						Pointer: 16,
+						Payload: []byte("scmp quote"),
+					},
+					slayers.SCMPCodePathExpired,
+				),
+			},
+		},
+		"SCMP PacketTooBig": {
+			PacketInfo: snet.PacketInfo{
+				Destination: snet.SCIONAddress{
+					IA:   xtest.MustParseIA("1-ff00:0:110"),
+					Host: addr.SvcCS,
+				},
+				Source: snet.SCIONAddress{
+					IA:   xtest.MustParseIA("1-ff00:0:112"),
+					Host: addr.HostIPv4(net.ParseIP("127.0.0.1").To4()),
+				},
+				Path: spath.Path{
+					Raw:  rawSP,
+					Type: scion.PathType,
+				},
+				Payload: snet.SCMPPacketTooBig{
+					MTU:     1503,
 					Payload: []byte("scmp quote"),
 				},
 			},

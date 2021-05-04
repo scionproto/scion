@@ -78,6 +78,13 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeSCMPDestinationUnreachable),
 		},
 	)
+	LayerTypeSCMPPacketTooBig = gopacket.RegisterLayerType(
+		1009,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPPacketTooBig",
+			Decoder: gopacket.DecodeFunc(decodeSCMPPacketTooBig),
+		},
+	)
 	LayerTypeSCMPEcho = gopacket.RegisterLayerType(
 		1128,
 		gopacket.LayerTypeMetadata{
