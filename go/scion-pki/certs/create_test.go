@@ -400,6 +400,22 @@ func TestNewCreateCmd(t *testing.T) {
 				require.Equal(t, "custom", certs[0].Subject.CommonName)
 			},
 		},
+		"custom common name cert": {
+			Args: []string{
+				"testdata/create/template.crt",
+				dir + "/common-name-cert.crt",
+				dir + "/common-name-cert.key",
+				"--profile=sensitive-voting",
+				"--common-name=custom",
+			},
+			ErrAssertion: assert.NoError,
+			Validate: func(t *testing.T, certs []*x509.Certificate) {
+				ct, err := cppki.ValidateCert(certs[0])
+				require.NoError(t, err)
+				require.Equal(t, cppki.Sensitive, ct)
+				require.Equal(t, "custom", certs[0].Subject.CommonName)
+			},
+		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {

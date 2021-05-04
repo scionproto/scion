@@ -403,7 +403,13 @@ func createSubject(tmpl string) (pkix.Name, error) {
 	cert, err := parseCertificate(raw)
 	if err == nil {
 		s := cert.Subject
-		s.ExtraNames = cert.Subject.Names
+		for _, name := range cert.Subject.Names {
+			// Ignore common name.
+			if name.Type.Equal(asn1.ObjectIdentifier{2, 5, 4, 3}) {
+				continue
+			}
+			s.ExtraNames = append(s.ExtraNames, name)
+		}
 		return s, nil
 	}
 
