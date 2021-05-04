@@ -483,7 +483,10 @@ func (d *DataPlane) Run() error {
 				if result.OutConn == nil { // e.g. BFD case no message is forwarded
 					continue
 				}
-				outAddr, _ := result.OutAddr.(*net.UDPAddr)
+				var outAddr *net.UDPAddr
+				if result.OutAddr != nil {
+					outAddr = result.OutAddr.(*net.UDPAddr)
+				}
 				_, err = result.OutConn.WriteTo(result.OutPkt, outAddr)
 				if err != nil {
 					log.Debug("Error writing packet", "err", err)
