@@ -17,11 +17,9 @@ package router
 import (
 	"net"
 
-	"github.com/google/gopacket"
 	"golang.org/x/net/ipv4"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/slayers"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -35,7 +33,7 @@ func NewDP(
 	external map[uint16]BatchConn,
 	linkTypes map[uint16]topology.LinkType,
 	internal BatchConn,
-	internalNextHops map[uint16]net.Addr,
+	internalNextHops map[uint16]*net.UDPAddr,
 	svc map[addr.HostSVC][]*net.UDPAddr,
 	local addr.IA,
 	key []byte) *DataPlane {
@@ -56,10 +54,16 @@ func (d *DataPlane) FakeStart() {
 	d.running = true
 }
 
-func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message, s slayers.SCION,
-	origPacket []byte, b gopacket.SerializeBuffer) (ProcessResult, error) {
+func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message) (ProcessResult, error) {
 
-	result, err := d.processPkt(ifID, m.Buffers[0], m.Addr, s, origPacket, b, d.macFactory())
+	p := newPacketProcessor(d, ifID)
+	var srcAddr *net.UDPAddr
+	// for real packets received from ReadBatch this is always non-nil.
+	// Allow nil in test cases for brevity.
+	if m.Addr != nil {
+		srcAddr = m.Addr.(*net.UDPAddr)
+	}
+	result, err := p.processPkt(m.Buffers[0], srcAddr)
 	return ProcessResult{processResult: result}, err
 }
 
