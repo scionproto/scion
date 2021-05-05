@@ -93,7 +93,7 @@ type DataPlane struct {
 	neighborIAs       map[uint16]addr.IA
 	internal          BatchConn
 	internalIP        net.IP
-	internalNextHops  map[uint16]net.Addr
+	internalNextHops  map[uint16]*net.UDPAddr
 	svc               *services
 	macFactory        func() hash.Hash
 	bfdSessions       map[uint16]bfdSession
@@ -362,7 +362,7 @@ func (d *DataPlane) DelSvc(svc addr.HostSVC, a *net.UDPAddr) error {
 // AddNextHop sets the next hop address for the given interface ID. If the
 // interface ID already has an address associated this operation fails. This can
 // only be called on a not yet running dataplane.
-func (d *DataPlane) AddNextHop(ifID uint16, a net.Addr) error {
+func (d *DataPlane) AddNextHop(ifID uint16, a *net.UDPAddr) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 	if d.running {
@@ -375,7 +375,7 @@ func (d *DataPlane) AddNextHop(ifID uint16, a net.Addr) error {
 		return serrors.WithCtx(alreadySet, "ifID", ifID)
 	}
 	if d.internalNextHops == nil {
-		d.internalNextHops = make(map[uint16]net.Addr)
+		d.internalNextHops = make(map[uint16]*net.UDPAddr)
 	}
 	d.internalNextHops[ifID] = a
 	return nil
@@ -464,7 +464,8 @@ func (d *DataPlane) Run() error {
 				inputCounters.InputPacketsTotal.Inc()
 				inputCounters.InputBytesTotal.Add(float64(p.N))
 
-				result, err := processor.processPkt(p.Buffers[0][:p.N], p.Addr)
+				srcAddr := p.Addr.(*net.UDPAddr)
+				result, err := processor.processPkt(p.Buffers[0][:p.N], srcAddr)
 
 				switch {
 				case err == nil:
@@ -473,7 +474,7 @@ func (d *DataPlane) Run() error {
 						log.Debug("SCMP", "err", scmpErr, "dst_addr", p.Addr)
 					}
 					// SCMP go back the way they came.
-					result.OutAddr = p.Addr
+					result.OutAddr = srcAddr
 					result.OutConn = rd
 				default:
 					log.Debug("Error processing packet", "err", err)
@@ -483,11 +484,7 @@ func (d *DataPlane) Run() error {
 				if result.OutConn == nil { // e.g. BFD case no message is forwarded
 					continue
 				}
-				var outAddr *net.UDPAddr
-				if result.OutAddr != nil {
-					outAddr = result.OutAddr.(*net.UDPAddr)
-				}
-				_, err = result.OutConn.WriteTo(result.OutPkt, outAddr)
+				_, err = result.OutConn.WriteTo(result.OutPkt, result.OutAddr)
 				if err != nil {
 					log.Debug("Error writing packet", "err", err)
 					// error metric
@@ -544,7 +541,7 @@ func (d *DataPlane) initMetrics() {
 type processResult struct {
 	EgressID uint16
 	OutConn  BatchConn
-	OutAddr  net.Addr
+	OutAddr  *net.UDPAddr
 	OutPkt   []byte
 }
 
@@ -574,7 +571,9 @@ func (p *scionPacketProcessor) reset() error {
 	return nil
 }
 
-func (p *scionPacketProcessor) processPkt(rawPkt []byte, srcAddr net.Addr) (processResult, error) {
+func (p *scionPacketProcessor) processPkt(rawPkt []byte,
+	srcAddr *net.UDPAddr) (processResult, error) {
+
 	p.reset()
 	p.rawPkt = rawPkt
 	p.origPacket = p.origPacket[:len(p.rawPkt)]
@@ -628,7 +627,7 @@ func (p *scionPacketProcessor) processInterBFD(oh *onehop.Path, data []byte) err
 	return noBFDSessionFound
 }
 
-func (p *scionPacketProcessor) processIntraBFD(src net.Addr, data []byte) error {
+func (p *scionPacketProcessor) processIntraBFD(src *net.UDPAddr, data []byte) error {
 	if len(p.d.bfdSessions) == 0 {
 		return noBFDSessionConfigured
 	}
@@ -638,19 +637,8 @@ func (p *scionPacketProcessor) processIntraBFD(src net.Addr, data []byte) error 
 	}
 
 	ifID := uint16(0)
-	srcUDPAddr, ok := src.(*net.UDPAddr)
-	if !ok {
-		return serrors.New("type assertion failure", "from", fmt.Sprintf("%v(%T)", src, src),
-			"expected", "*net.IPAddr")
-	}
-
 	for k, v := range p.d.internalNextHops {
-		remoteUDPAddr, ok := v.(*net.UDPAddr)
-		if !ok {
-			return serrors.New("type assertion failure", "from",
-				fmt.Sprintf("%v(%T)", remoteUDPAddr, remoteUDPAddr), "expected", "*net.UDPAddr")
-		}
-		if bytes.Equal(remoteUDPAddr.IP, srcUDPAddr.IP) && remoteUDPAddr.Port == srcUDPAddr.Port {
+		if bytes.Equal(v.IP, src.IP) && v.Port == src.Port {
 			ifID = k
 			continue
 		}
@@ -977,7 +965,7 @@ func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
 	return processResult{}, nil
 }
 
-func (p *scionPacketProcessor) resolveInbound() (net.Addr, processResult, error) {
+func (p *scionPacketProcessor) resolveInbound() (*net.UDPAddr, processResult, error) {
 	a, err := p.d.resolveLocalDst(p.scionLayer)
 	switch {
 	case errors.Is(err, noSVCBackend):
@@ -1290,13 +1278,14 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil
 }
 
-func (d *DataPlane) resolveLocalDst(s slayers.SCION) (net.Addr, error) {
+func (d *DataPlane) resolveLocalDst(s slayers.SCION) (*net.UDPAddr, error) {
 	dst, err := s.DstAddr()
 	if err != nil {
 		// TODO parameter problem.
 		return nil, err
 	}
-	if v, ok := dst.(addr.HostSVC); ok {
+	switch v := dst.(type) {
+	case addr.HostSVC:
 		// For map lookup use the Base address, i.e. strip the multi cast
 		// information, because we only register base addresses in the map.
 		a, ok := d.svc.Any(v.Base())
@@ -1304,15 +1293,15 @@ func (d *DataPlane) resolveLocalDst(s slayers.SCION) (net.Addr, error) {
 			return nil, noSVCBackend
 		}
 		return a, nil
+	case *net.IPAddr:
+		return addEndhostPort(v), nil
+	default:
+		panic("unexpected address type returned from DstAddr")
 	}
-	return addEndhostPort(dst), nil
 }
 
-func addEndhostPort(dst net.Addr) net.Addr {
-	if ip, ok := dst.(*net.IPAddr); ok {
-		return &net.UDPAddr{IP: ip.IP, Port: topology.EndhostPort}
-	}
-	return dst
+func addEndhostPort(dst *net.IPAddr) *net.UDPAddr {
+	return &net.UDPAddr{IP: dst.IP, Port: topology.EndhostPort}
 }
 
 func updateSCIONLayer(rawPkt []byte, s slayers.SCION, buffer gopacket.SerializeBuffer) error {

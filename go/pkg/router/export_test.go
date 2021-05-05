@@ -33,7 +33,7 @@ func NewDP(
 	external map[uint16]BatchConn,
 	linkTypes map[uint16]topology.LinkType,
 	internal BatchConn,
-	internalNextHops map[uint16]net.Addr,
+	internalNextHops map[uint16]*net.UDPAddr,
 	svc map[addr.HostSVC][]*net.UDPAddr,
 	local addr.IA,
 	key []byte) *DataPlane {
@@ -57,7 +57,13 @@ func (d *DataPlane) FakeStart() {
 func (d *DataPlane) ProcessPkt(ifID uint16, m *ipv4.Message) (ProcessResult, error) {
 
 	p := newPacketProcessor(d, ifID)
-	result, err := p.processPkt(m.Buffers[0], m.Addr)
+	var srcAddr *net.UDPAddr
+	// for real packets received from ReadBatch this is always non-nil.
+	// Allow nil in test cases for brevity.
+	if m.Addr != nil {
+		srcAddr = m.Addr.(*net.UDPAddr)
+	}
+	result, err := p.processPkt(m.Buffers[0], srcAddr)
 	return ProcessResult{processResult: result}, err
 }
 
