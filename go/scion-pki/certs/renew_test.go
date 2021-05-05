@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	"github.com/scionproto/scion/go/pkg/trust"
+	"github.com/scionproto/scion/go/scion-pki/key"
 )
 
 var baseTime = time.Now()
@@ -51,24 +52,35 @@ func TestCSRTemplate(t *testing.T) {
 			},
 		},
 	}
-	key, err := readECKey("testdata/renew/cp-as.key")
-	require.NoError(t, err)
-	chain, err := cppki.ReadPEMCerts("testdata/renew/ISD1-ASff00_0_111.pem")
-	require.NoError(t, err)
+	customSubject := wantSubject
+	customSubject.CommonName = "custom"
 
 	testCases := map[string]struct {
 		File         string
-		Expected     pkix.Name
+		CommonName   string
+		Expected     pkix.RDNSequence
 		ErrAssertion assert.ErrorAssertionFunc
 	}{
 		"valid": {
 			File:         "testdata/renew/ISD1-ASff00_0_111.csr.json",
-			Expected:     wantSubject,
+			Expected:     wantSubject.ToRDNSequence(),
 			ErrAssertion: assert.NoError,
 		},
 		"from chain": {
-			File:         "",
-			Expected:     wantSubject,
+			File:         "testdata/renew/ISD1-ASff00_0_111.pem",
+			Expected:     wantSubject.ToRDNSequence(),
+			ErrAssertion: assert.NoError,
+		},
+		"custom common name": {
+			File:         "testdata/renew/ISD1-ASff00_0_111.csr.json",
+			CommonName:   "custom",
+			Expected:     customSubject.ToRDNSequence(),
+			ErrAssertion: assert.NoError,
+		},
+		"custom common name from chain": {
+			File:         "testdata/renew/ISD1-ASff00_0_111.pem",
+			CommonName:   "custom",
+			Expected:     customSubject.ToRDNSequence(),
 			ErrAssertion: assert.NoError,
 		},
 		"no ISD-AS": {
@@ -80,13 +92,12 @@ func TestCSRTemplate(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			csr, err := csrTemplate(chain[0], key.Public(), tc.File)
+			subject, err := createSubject(tc.File, tc.CommonName)
 			tc.ErrAssertion(t, err)
 			if err != nil {
 				return
 			}
-			assert.Equal(t, x509.UnknownSignatureAlgorithm, csr.SignatureAlgorithm)
-			assert.Equal(t, tc.Expected.String(), csr.Subject.String())
+			assert.ElementsMatch(t, tc.Expected, subject.ToRDNSequence())
 		})
 	}
 }
@@ -95,7 +106,7 @@ func TestExtractChain(t *testing.T) {
 	chain := xtest.LoadChain(t, "testdata/renew/ISD1-ASff00_0_111.pem")
 
 	caChain := xtest.LoadChain(t, "testdata/renew/ISD1-ASff00_0_110.pem")
-	key, err := readECKey("testdata/renew/cp-as-110.key")
+	key, err := key.LoadPrivateKey("testdata/renew/cp-as-110.key")
 	require.NoError(t, err)
 	caSigner := trust.Signer{
 		PrivateKey:   key,

@@ -15,6 +15,7 @@
 package certs
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -197,12 +198,9 @@ A valid example for a JSON formatted template:
 			if err != nil {
 				return serrors.WrapStr("parsing profile", err)
 			}
-			subject, err := createSubject(args[0])
+			subject, err := createSubject(args[0], flags.commonName)
 			if err != nil {
 				return serrors.WrapStr("creating subject", err)
-			}
-			if flags.commonName != "" {
-				subject.CommonName = flags.commonName
 			}
 
 			// Only check that the flags are set appropriately here.
@@ -394,7 +392,18 @@ func parseCertType(input string) (cppki.CertType, error) {
 	}
 }
 
-func createSubject(tmpl string) (pkix.Name, error) {
+func createSubject(tmpl, commonName string) (pkix.Name, error) {
+	subject, err := loadSubject(tmpl)
+	if err != nil {
+		return pkix.Name{}, err
+	}
+	if commonName != "" {
+		subject.CommonName = commonName
+	}
+	return subject, nil
+}
+
+func loadSubject(tmpl string) (pkix.Name, error) {
 	raw, err := ioutil.ReadFile(tmpl)
 	if err != nil {
 		return pkix.Name{}, err
@@ -481,8 +490,8 @@ func CreateCSR(certType cppki.CertType, subject pkix.Name, priv key.PrivateKey) 
 	return x509.CreateCertificateRequest(
 		rand.Reader,
 		&x509.CertificateRequest{
-			Subject:    subject,
-			Extensions: extensions,
+			Subject:         subject,
+			ExtraExtensions: extensions,
 		},
 		priv,
 	)
@@ -596,5 +605,33 @@ func extendedKeyUsages(usages ...asn1.ObjectIdentifier) pkix.Extension {
 	return pkix.Extension{
 		Id:    cppki.OIDExtensionExtendedKeyUsage,
 		Value: val,
+	}
+}
+
+func subjectKeyID(pub crypto.PublicKey) (pkix.Extension, error) {
+	skid, err := cppki.SubjectKeyID(pub)
+	if err != nil {
+		return pkix.Extension{}, err
+	}
+	val, err := asn1.Marshal(skid)
+	if err != nil {
+		return pkix.Extension{}, err
+	}
+	return pkix.Extension{
+		Id:    cppki.OIDExtensionSubjectKeyID,
+		Value: val,
+	}, nil
+}
+
+func keyUsage() pkix.Extension {
+	// 0x80 corresponds to x509.KeyUsageDigitalSignature
+	val, err := asn1.Marshal(asn1.BitString{Bytes: []byte{0x80}, BitLength: 1})
+	if err != nil {
+		panic(err)
+	}
+	return pkix.Extension{
+		Id:       cppki.OIDExtensionKeyUsage,
+		Critical: true,
+		Value:    val,
 	}
 }

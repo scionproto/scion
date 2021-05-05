@@ -59,7 +59,8 @@ class TestState:
         self.topology_tar = ""
         self.containers_tar = ""
         if 'TEST_UNDECLARED_OUTPUTS_DIR' in os.environ:
-            self.artifacts = local.path(os.environ['TEST_UNDECLARED_OUTPUTS_DIR'])
+            self.artifacts = local.path(
+                os.environ['TEST_UNDECLARED_OUTPUTS_DIR'])
         else:
             self.artifacts = local.path("/tmp/artifacts-scion")
         self.dc.compose_file = self.artifacts / 'gen/scion-dc.yml'
@@ -74,23 +75,30 @@ class TestBase(cli.Application):
     """
     test_state = None  # type: TestState
 
-    @cli.switch('disable-docker', envname='DISABLE_DOCKER',
+    @cli.switch('disable-docker',
+                envname='DISABLE_DOCKER',
                 help='Run in supervisor environment.')
     def disable_docker(self):
         self.test_state.no_docker = True
         self.test_state.scion = SCIONSupervisor()
 
-    @cli.switch('artifacts', str, envname='ACCEPTANCE_ARTIFACTS',
+    @cli.switch('artifacts',
+                str,
+                envname='ACCEPTANCE_ARTIFACTS',
                 help='Artifacts directory (for legacy tests)')
     def artifacts_dir(self, a_dir: str):
         self.test_state.artifacts = local.path('%s/%s/' % (a_dir, NAME))
 
-    @cli.switch('artifacts_dir', str, help='Artifacts directory (for bazel tests)')
+    @cli.switch('artifacts_dir',
+                str,
+                help='Artifacts directory (for bazel tests)')
     def artifacts_dir_new(self, a_dir: str):
         self.test_state.artifacts = local.path(a_dir)
         self.test_state.dc.compose_file = self.test_state.artifacts / 'gen/scion-dc.yml'
 
-    @cli.switch('topology_tar', str, help="The tarball with the topology files")
+    @cli.switch('topology_tar',
+                str,
+                help="The tarball with the topology files")
     def topology_tar(self, tar: str):
         self.test_state.topology_tar = tar
 
@@ -98,12 +106,15 @@ class TestBase(cli.Application):
     def containers_tar(self, tar: str):
         self.test_state.containers_tar = tar
 
-    @cli.switch('bazel_rule', str, help="The bazel rule that triggered the test")
+    @cli.switch('bazel_rule',
+                str,
+                help="The bazel rule that triggered the test")
     def test_type(self, rule: str):
         self.test_state.bazel_rule = rule
 
     def _unpack_topo(self):
-        cmd.tar('-xf', self.test_state.topology_tar, '-C', self.test_state.artifacts)
+        cmd.tar('-xf', self.test_state.topology_tar, '-C',
+                self.test_state.artifacts)
         cmd.sed('-i', 's#$SCIONROOT#%s#g' % self.test_state.artifacts,
                 self.test_state.artifacts / 'gen/scion-dc.yml')
         self.test_state.dc.compose_file = self.test_state.artifacts / 'gen/scion-dc.yml'
@@ -116,10 +127,12 @@ class TestBase(cli.Application):
         cmd.mkdir(self.test_state.artifacts)
         print('artifacts dir: %s' % self.test_state.artifacts)
         self._unpack_topo()
-        print(cmd.docker('image', 'load', '-i', self.test_state.containers_tar))
+        print(cmd.docker('image', 'load', '-i',
+                         self.test_state.containers_tar))
         # Define where coredumps will be stored.
-        print(cmd.docker("run", "--rm", "--privileged", "alpine",
-                         "sysctl", "-w", "kernel.core_pattern=/share/coredump"))
+        print(
+            cmd.docker("run", "--rm", "--privileged", "alpine", "sysctl", "-w",
+                       "kernel.core_pattern=/share/coredump"))
 
     def setup(self):
         self.setup_prepare()
@@ -182,7 +195,7 @@ class TestBase(cli.Application):
         """
         print(self.test_state.dc("kill", "-s", signal, container))
 
-    def execute(self, container, *args):
+    def execute(self, container, *args, **kwargs):
         """Executes an arbitrary command in the specified container.
 
         There's one minute timeout on the command so that tests don't get stuck.
@@ -193,7 +206,9 @@ class TestBase(cli.Application):
         Returns:
             The output of the command.
         """
-        return self.test_state.dc('exec', '-T', container, "timeout", "1m", *args)
+        user = kwargs.get("user", "{}:{}".format(os.getuid(), os.getgid()))
+        return self.test_state.dc('exec', '-T', '--user', user, container,
+                                  "timeout", "1m", *args)
 
 
 class CmdBase(cli.Application):
@@ -215,14 +230,16 @@ class CmdBase(cli.Application):
 
     def _collect_logs(self, name: str):
         if path.local.LocalPath('gen/%s-dc.yml' % name).exists():
-            self.tools_dc('collect_logs', name, self.artifacts / 'logs' / 'docker')
+            self.tools_dc('collect_logs', name,
+                          self.artifacts / 'logs' / 'docker')
 
     def _teardown(self, name: str):
         if path.local.LocalPath('gen/%s-dc.yml' % name).exists():
             self.tools_dc(name, 'down')
 
     @staticmethod
-    def test_dir(prefix: str = '', directory: str = 'acceptance') -> path.local.LocalPath:
+    def test_dir(prefix: str = '',
+                 directory: str = 'acceptance') -> path.local.LocalPath:
         return local.path(prefix, directory) / DIR
 
     @staticmethod
@@ -259,7 +276,6 @@ class TestTeardown(CmdBase):
     Teardown topology by stopping all running services..
     In a dockerized topology, the logs are collected.
     """
-
     @LogExec(logger, 'teardown')
     def main(self):
         self.cmd_teardown()
@@ -269,7 +285,6 @@ def register_commands(c: Type[TestBase]):
     """
     Registers the default subcommands to the test class c.
     """
-
     class TestSetup(c):
         def main(self):
             self.setup()

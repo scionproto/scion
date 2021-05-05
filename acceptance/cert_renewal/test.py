@@ -17,7 +17,6 @@
 import json
 import logging
 import pathlib
-import shutil
 import subprocess
 import time
 from typing import List
@@ -43,25 +42,24 @@ class Test(base.TestBase):
     the renewed certificate.
 
     The test is split into multiple steps:
-      0. Before starting the topology, remove the client certificate for 112 in the CA CS.
       1. Start the topology.
-      2. Restore the client certificate for 112 and wait for it to be picked up by the CA CS.
-      3. For each AS in the topology, create a new private key and request
+      2. For each AS in the topology, create a new private key and request
          certificate chain renewal. The renewed chain is verified against the
          TRC.
-      4. Remove the previous private key from the control servers.
-      5. Ensure that the new private key and certificate are loaded by observing
+      3. Remove the previous private key from the control servers.
+      4. Ensure that the new private key and certificate are loaded by observing
          the http endpoint.
-      6. Check connectivity with an end to end test.
-      7. Stop all control servers and purge the state. This includes deleting
+      5. Check connectivity with an end to end test.
+      6. Stop all control servers and purge the state. This includes deleting
          all databases with cached data, including the path and trust database.
-      8. Restart control servers and check connectivity again.
+      7. Restart control servers and check connectivity again.
     """
     end2end = cli.SwitchAttr(
         "end2end_integration",
         str,
         default="./bin/end2end_integration",
-        help="The end2end_integration binary (default: ./bin/end2end_integration)",
+        help="The end2end_integration binary " +
+        "(default: ./bin/end2end_integration)",
     )
 
     def main(self):
@@ -74,23 +72,6 @@ class Test(base.TestBase):
             finally:
                 self.teardown()
 
-    def setup(self):
-        self.setup_prepare()
-        logger.info("==> Remove client certificate for 112")
-        path = pathlib.Path("%s/crypto/ca/clients/ISD1-ASff00_0_112.pem" %
-                            self._to_as_dir(scion_addr.ISD_AS("1-ff00:0:110")))
-        path.unlink()
-
-        self.setup_start()
-        logger.info("==> Restore client certificate for 112")
-        cert = pathlib.Path("%s/gen/certs/ISD1-ASff00_0_112.pem" %
-                            self.test_state.artifacts)
-        shutil.copy2(cert, path)
-
-        logger.info("==> Sleep thirty seconds to make sure the CS "
-                    "has picked up the client certificate")
-        time.sleep(30)
-
     def _run(self):
         isd_ases = scion.ASList.load("%s/gen/as_list.yml" %
                                      self.test_state.artifacts).all
@@ -100,15 +81,6 @@ class Test(base.TestBase):
         for isd_as in isd_ases:
             logging.info("===> Start renewal: %s" % isd_as)
             self._renewal_request(isd_as)
-
-        logger.info("==> Remove original private keys")
-        for isd_as in isd_ases:
-            as_dir = self._to_as_dir(isd_as)
-            orig_key = as_dir / "crypto/as/cp-as.key"
-            backup_key = as_dir / "cp-as.key"
-            logger.info("Removing original private key for %s: %s" %
-                        (isd_as, self._rel(orig_key)))
-            orig_key.rename(backup_key)
 
         logger.info("==> Check key and certificate reloads")
         self._check_key_cert(cs_configs)
@@ -139,14 +111,6 @@ class Test(base.TestBase):
             [self.end2end, "-d", "-outDir", self.test_state.artifacts],
             check=True)
 
-        for isd_as in isd_ases:
-            as_dir = self._to_as_dir(isd_as)
-            orig_key = as_dir / "crypto/as/cp-as.key"
-            backup_key = as_dir / "cp-as.key"
-            logger.info("Recreating original private key for %s: %s" %
-                        (isd_as, self._rel(orig_key)))
-            backup_key.rename(orig_key)
-
         logger.info("==> Check CMS request only")
         for isd_as in isd_ases:
             logging.info("===> Start renewal: %s" % isd_as)
@@ -157,47 +121,36 @@ class Test(base.TestBase):
             logging.info("===> Start renewal: %s" % isd_as)
             self._renewal_request(isd_as, "disable_cms_request")
 
-    def _renewal_request(self, isd_as: scion_addr.ISD_AS, features=""):
+        logger.info("==> Backup mode")
+        for isd_as in isd_ases:
+            logging.info("===> Start renewal: %s" % isd_as)
+            self._renewal_request(isd_as, mode="--backup")
+
+    def _renewal_request(
+        self,
+        isd_as: scion_addr.ISD_AS,
+        features: str = "",
+        mode: str = "--force",
+    ):
         as_dir = self._to_as_dir(isd_as)
-        csr = as_dir / "crypto/as/csr.json"
-        logger.info("Generating CSR for: %s" % self._rel(csr))
-        template = {
-            "common_name": "%s InfoSec Squad" % isd_as,
-            "country": "CH",
-            "isd_as": str(isd_as),
-        }
-        with open(csr, "w") as out:
-            json.dump(template, out, indent=4)
-
-        key = as_dir / "crypto/as/renewed.key"
-        logger.info("Generating new private key: %s" % self._rel(key))
-        subprocess.run([
-            "openssl",
-            "genpkey",
-            "-algorithm",
-            "EC",
-            "-pkeyopt",
-            "ec_paramgen_curve:P-256",
-            "-pkeyopt",
-            "ec_param_enc:named_curve",
-            "-out",
-            as_dir / "crypto/as/renewed.key",
-        ])
-
         docker_dir = pathlib.Path("/share") / self._rel(as_dir)
-        chain = docker_dir / "crypto/as/renewed.pem"
+
+        def read_file(filename: str) -> str:
+            with open(as_dir / "crypto/as" / filename) as f:
+                return f.read()
+
+        chain_name = "ISD%s-AS%s.pem" % (isd_as.isd_str(),
+                                         isd_as.as_file_fmt())
+        old_chain = read_file(chain_name)
+        old_key = read_file("cp-as.key")
+
+        chain = docker_dir / "crypto/as" / chain_name
         args = [
-            "--key",
-            docker_dir / "crypto/as/renewed.key",
-            "--transportkey",
+            chain,
             docker_dir / "crypto/as/cp-as.key",
-            "--transportcert",
-            docker_dir / ("crypto/as/ISD%s-AS%s.pem" %
-                          (isd_as.isd_str(), isd_as.as_file_fmt())),
+            mode,
             "--trc",
             docker_dir / "certs/ISD1-B1-S1.trc",
-            "--out",
-            chain,
             "--sciond",
             self.execute("tester_%s" % isd_as.file_fmt(), "sh", "-c",
                          "echo $SCION_DAEMON").strip(),
@@ -210,13 +163,22 @@ class Test(base.TestBase):
                     chain.relative_to(docker_dir))
         logger.info(
             self.execute("tester_%s" % isd_as.file_fmt(), "./bin/scion-pki",
-                         "certs", "renew", *args))
+                         "certificate", "renew", *args))
 
         logger.info("Verify renewed certificate chain")
         verify_out = self.execute("tester_%s" % isd_as.file_fmt(),
-                                  "./bin/scion-pki", "certs", "verify", chain,
-                                  "--trc", "/share/gen/trcs/ISD1-B1-S1.trc")
+                                  "./bin/scion-pki", "certificate", "verify",
+                                  chain, "--trc",
+                                  "/share/gen/trcs/ISD1-B1-S1.trc")
         logger.info(str(verify_out).rstrip("\n"))
+
+        renewed_chain = read_file(chain_name)
+        renewed_key = read_file("cp-as.key")
+        if renewed_chain == old_chain:
+            raise Exception(
+                "renewed chain does not differ from previous chain")
+        if renewed_key == old_key:
+            raise Exception("renewed key does not differ from previous key")
 
     def _check_key_cert(self, cs_configs: List[pathlib.Path]):
         not_ready = [*cs_configs]
@@ -234,11 +196,14 @@ class Test(base.TestBase):
                                 resp.reason)
                     continue
 
+                isd_as = scion_addr.ISD_AS(cs_config.stem[2:-2])
+                as_dir = self._to_as_dir(isd_as)
+                chain_name = "ISD%s-AS%s.pem" % (isd_as.isd_str(),
+                                                 isd_as.as_file_fmt())
+
                 pld = json.loads(resp.read().decode("utf-8"))
-                as_dir = self._to_as_dir(
-                    scion_addr.ISD_AS(cs_config.stem[2:-2]))
                 if pld["subject_key_id"] != self._extract_skid(
-                        as_dir / "crypto/as/renewed.pem"):
+                        as_dir / "crypto/as" / chain_name):
                     continue
                 logger.info(
                     "Control server successfully loaded new key and certificate: %s"
