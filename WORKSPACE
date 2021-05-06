@@ -38,8 +38,6 @@ http_archive(
 
 load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
 
-go_rules_dependencies()
-
 go_register_toolchains(
     nogo = "@//:nogo",
     version = "1.15.11",
@@ -57,6 +55,17 @@ http_archive(
 
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
 load("//:tool_deps.bzl", "tool_deps")
+
+# override dependency version set in go_rules_dependencies.
+# See https://github.com/bazelbuild/rules_go/blob/master/go/dependencies.rst#overriding-dependencies.
+go_repository(
+    name = "org_golang_x_sys",
+    importpath = "golang.org/x/sys",
+    sum = "h1:b3NXsE2LusjYGGjL5bxEVZZORm/YEFFrWFjR8eFrw/c=",
+    version = "v0.0.0-20210423082822-04245dca01da",
+)
+
+go_rules_dependencies()
 
 tool_deps()
 
