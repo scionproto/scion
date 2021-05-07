@@ -10,6 +10,7 @@ is a good place to start.
 
    contribute
    build/setup
+   build/dependencies
    testing/index
 
 .. toctree::
