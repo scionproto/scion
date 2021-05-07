@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pktcls"
-	"github.com/scionproto/scion/go/lib/routemgr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/worker"
 )
@@ -88,7 +87,7 @@ type EngineController struct {
 
 	// RoutePublisherFactory allows to publish routes from the gateway.
 	// If nil, no routes will be published.
-	RoutePublisherFactory routemgr.PublisherFactory
+	RoutePublisherFactory PublisherFactory
 
 	// RouteSourceIPv4 is the source hint for IPv4 routes added to the Linux routing table.
 	RouteSourceIPv4 net.IP

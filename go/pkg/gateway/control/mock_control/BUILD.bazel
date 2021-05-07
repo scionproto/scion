@@ -23,6 +23,8 @@ gomock(
         "RoutingPolicyProvider",
         "Runner",
         "GatewayWatcherFactory",
+        "Publisher",
+        "PublisherFactory",
     ],
     library = "//go/pkg/gateway/control:go_default_library",
     package = "mock_control",

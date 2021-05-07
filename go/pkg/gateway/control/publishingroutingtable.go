@@ -20,14 +20,12 @@ import (
 	"sync"
 
 	"github.com/google/gopacket/layers"
-
-	"github.com/scionproto/scion/go/lib/routemgr"
 )
 
 // NewPublishingRoutingTable publishes routes from rt via the routePublisher. The methods
 // of the returned object can safely be used concurrently by multiple goroutines.
 func NewPublishingRoutingTable(rcs []*RoutingChain, rt RoutingTable,
-	routePublisher routemgr.Publisher, nextHop, sourceIPv4, sourceIPv6 net.IP) RoutingTable {
+	routePublisher Publisher, nextHop, sourceIPv4, sourceIPv6 net.IP) RoutingTable {
 
 	var remoteSites []*remoteSite
 	for _, rc := range rcs {
@@ -56,7 +54,7 @@ func NewPublishingRoutingTable(rcs []*RoutingChain, rt RoutingTable,
 type publishingRoutingTable struct {
 	mutex          sync.RWMutex
 	routingTable   RoutingTable
-	routePublisher routemgr.Publisher
+	routePublisher Publisher
 	nextHop        net.IP
 	sourceIPv4     net.IP
 	sourceIPv6     net.IP
@@ -160,7 +158,7 @@ func (rtw *publishingRoutingTable) setSessionLocked(index int, session PktWriter
 		isHealthy := site.healthy()
 		if !wasHealthy && isHealthy {
 			for _, prefix := range site.prefixes {
-				rtw.routePublisher.AddRoute(routemgr.Route{
+				rtw.routePublisher.AddRoute(Route{
 					Prefix:  prefix,
 					Source:  rtw.sourceForPrefix(prefix),
 					NextHop: rtw.nextHop,
@@ -192,7 +190,7 @@ func (rtw *publishingRoutingTable) ClearSession(index int) error {
 		isHealthy := site.healthy()
 		if wasHealthy && !isHealthy {
 			for _, prefix := range site.prefixes {
-				rtw.routePublisher.DeleteRoute(routemgr.Route{
+				rtw.routePublisher.DeleteRoute(Route{
 					Prefix:  prefix,
 					Source:  rtw.sourceForPrefix(prefix),
 					NextHop: rtw.nextHop,

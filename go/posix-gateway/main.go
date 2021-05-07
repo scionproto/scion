@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/pkg/app/launcher"
 	"github.com/scionproto/scion/go/pkg/gateway"
+	"github.com/scionproto/scion/go/pkg/gateway/control"
 	"github.com/scionproto/scion/go/pkg/gateway/xnet"
 	"github.com/scionproto/scion/go/pkg/service"
 	"github.com/scionproto/scion/go/posix-gateway/config"
@@ -138,7 +139,7 @@ func realMain() error {
 	}
 }
 
-func createRouteManager(device netlink.Link) (routemgr.PublisherFactory, routemgr.ConsumerFactory) {
+func createRouteManager(device netlink.Link) (control.PublisherFactory, control.ConsumerFactory) {
 	linux := &routemgr.Linux{Device: device}
 	go func() {
 		defer log.HandlePanic()

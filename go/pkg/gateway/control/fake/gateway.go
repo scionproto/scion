@@ -50,7 +50,7 @@ type Gateway struct {
 
 	// RoutingPublisherFactory is used to push routes to make the posix gateway
 	// to work.
-	RoutingPublisherFactory routemgr.PublisherFactory
+	RoutingPublisherFactory control.PublisherFactory
 
 	sessions map[int]control.DataplaneSession
 }
@@ -65,7 +65,7 @@ func (g *Gateway) Run() error {
 			return serrors.WrapStr("creating routing table", err)
 		}
 
-		var pub routemgr.PublisherFactory
+		var pub control.PublisherFactory
 		if g.RoutingPublisherFactory != nil {
 			pub = g.RoutingPublisherFactory
 		} else {

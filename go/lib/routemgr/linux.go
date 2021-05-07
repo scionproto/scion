@@ -20,6 +20,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/pkg/gateway/control"
 	"github.com/scionproto/scion/go/pkg/gateway/xnet"
 )
 
@@ -47,7 +48,7 @@ func (l *Linux) init() {
 	}
 }
 
-func (l *Linux) NewPublisher() Publisher {
+func (l *Linux) NewPublisher() control.Publisher {
 	return l.exportedRoutes.NewPublisher()
 }
 
@@ -76,13 +77,13 @@ Top:
 	l.exportedRoutes.Close()
 }
 
-func (l *Linux) publishToLinux(update RouteUpdate) error {
+func (l *Linux) publishToLinux(update control.RouteUpdate) error {
 	if update.IsAdd {
 		return xnet.AddRoute(0, l.Device, update.Prefix, update.Source)
 	}
 	return xnet.DeleteRoute(0, l.Device, update.Prefix, update.Source)
 }
 
-func (l *Linux) Diagnostics() Diagnostics {
+func (l *Linux) Diagnostics() control.Diagnostics {
 	return l.exportedRoutes.Diagnostics()
 }

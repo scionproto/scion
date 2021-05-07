@@ -63,7 +63,7 @@ type IngressMetrics struct {
 }
 
 // IngressServer reads new encapsulated packets, classifies the packet by
-// source ISD-AS -> source host Addr -> Sess Id and hands it off to the
+// source ISD-AS -> source host Addr -> Sess ID and hands it off to the
 // appropriate Worker, starting a new one if none currently exists.
 type IngressServer struct {
 	Conn    ReadConn

@@ -33,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
-	"github.com/scionproto/scion/go/lib/routemgr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
@@ -131,7 +130,7 @@ func (pcf PacketConnFactory) New() (net.PacketConn, error) {
 }
 
 type RoutingTableFactory struct {
-	RoutePublisherFactory routemgr.PublisherFactory
+	RoutePublisherFactory control.PublisherFactory
 }
 
 func (rtf RoutingTableFactory) New(
@@ -217,9 +216,9 @@ type Gateway struct {
 
 	// RoutePublisherFactory allows to publish routes from the gatyeway.
 	// If nil, no routes will be published.
-	RoutePublisherFactory routemgr.PublisherFactory
+	RoutePublisherFactory control.PublisherFactory
 	// RouteConsumerFactory allows to receive routes. If nil, no routes are received.
-	RouteConsumerFactory routemgr.ConsumerFactory
+	RouteConsumerFactory control.ConsumerFactory
 
 	// ConfigReloadTrigger can be used to trigger a config reload.
 	ConfigReloadTrigger chan struct{}
@@ -703,7 +702,7 @@ func (g *Gateway) diagnosticsSGRP(pub *control.ConfigPublisher) http.HandlerFunc
 		for _, s := range routing.StaticAdvertised(pub.RoutingPolicy()) {
 			d.Advertise.Static = append(d.Advertise.Static, s.String())
 		}
-		if p, ok := g.RoutePublisherFactory.(interface{ Diagnostics() routemgr.Diagnostics }); ok {
+		if p, ok := g.RoutePublisherFactory.(interface{ Diagnostics() control.Diagnostics }); ok {
 			for _, r := range p.Diagnostics().Routes {
 				d.Learned.Dynamic = append(d.Learned.Dynamic, r.Prefix.String())
 			}
