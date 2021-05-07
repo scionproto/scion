@@ -33,6 +33,7 @@ gogen:
 	$(MAKE) -C go/proto
 
 protobuf:
+	rm -rf bazel-bin/go/pkg/proto/*/go_default_library_/github.com/scionproto/scion/go/pkg/proto/*
 	bazel build --output_groups=go_generated_srcs //go/pkg/proto/...
 	rm -f go/pkg/proto/*/*.pb.go
 	cp -r bazel-bin/go/pkg/proto/*/go_default_library_/github.com/scionproto/scion/go/pkg/proto/* go/pkg/proto
