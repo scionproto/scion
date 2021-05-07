@@ -31,6 +31,7 @@ type OptionType uint8
 const (
 	OptTypePad1 OptionType = iota
 	OptTypePadN
+	OptTypeAuthenticator
 )
 
 type tlvOption struct {
@@ -341,4 +342,63 @@ func (e *EndToEndExtn) SerializeTo(b gopacket.SerializeBuffer,
 	}
 
 	return e.extnBase.serializeToWithTLVOptions(b, opts, o)
+}
+
+// FindAuthenticator returns the Authenticator option header, if any exists.
+// Returns an error if no authenticator header was found or if it is malformed (zero length).
+// The authenticator data slice returned points to the underlying buffer and
+// should not be modified by the caller. The data is not checked in any form,
+// the caller is responsible for checking the length and interpreting the data.
+// Only returns the first entry with this type, subsequent entries will be
+// ignored.
+func (e *EndToEndExtn) FindAuthenticator() (EndToEndAuthenticatorAlgorithm, []byte, error) {
+	for _, o := range e.Options {
+		if o.OptType == OptTypeAuthenticator {
+			return o.parseOptAuthenticator()
+		}
+	}
+	return 0, nil, serrors.New("no authenticator option")
+}
+
+type EndToEndAuthenticatorAlgorithm uint8
+
+const (
+	E2EAuthCMAC       EndToEndAuthenticatorAlgorithm = 0
+	E2EAuthGMAC       EndToEndAuthenticatorAlgorithm = 1
+	E2EAuthHMACSHA256 EndToEndAuthenticatorAlgorithm = 16
+	E2EAuthEd25519    EndToEndAuthenticatorAlgorithm = 32
+)
+
+// MakeAuthenticator initializes o as an OptTypeAuthenticator option.
+// If the capacity of the OptData buffer is large enough, it will be overwritten.
+func (o *EndToEndOption) MakeAuthenticator(alg EndToEndAuthenticatorAlgorithm, data []byte) {
+	o.OptType = OptTypeAuthenticator
+
+	n := 1 + len(data)
+	if n <= cap(o.OptData) {
+		o.OptData = o.OptData[:n]
+	} else {
+		o.OptData = make([]byte, n)
+	}
+	o.OptData[0] = byte(alg)
+	copy(o.OptData[1:], data)
+
+	o.OptAlign = [2]uint8{4, 1}
+	// reset unused/implicit fields
+	o.OptDataLen = 0
+	o.ActualLength = 0
+}
+
+// parseOptAuthenticator parses o as an OptTypeAuthenticator option.
+// OptType must be OptTypeAuthenticator.
+func (o *EndToEndOption) parseOptAuthenticator() (EndToEndAuthenticatorAlgorithm, []byte, error) {
+	if o.OptType != OptTypeAuthenticator {
+		panic("type must be OptTypeAuthenticator")
+	}
+	if len(o.OptData) < 2 {
+		return 0, nil, serrors.New("buffer too short", "expected", 2, "actual", len(o.OptData))
+	}
+	alg := EndToEndAuthenticatorAlgorithm(o.OptData[0])
+	data := o.OptData[1:]
+	return alg, data, nil
 }
