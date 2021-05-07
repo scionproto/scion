@@ -18,6 +18,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/x509"
+	"encoding/pem"
+	"io/ioutil"
 	"strconv"
 	"testing"
 	"time"
@@ -28,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/command"
+	"github.com/scionproto/scion/go/scion-pki/key"
 )
 
 func TestNewCreateCmd(t *testing.T) {
@@ -430,6 +433,255 @@ func TestNewCreateCmd(t *testing.T) {
 			if tc.Validate != nil {
 				certs, _ := cppki.ReadPEMCerts(tc.Args[1])
 				tc.Validate(t, certs)
+			}
+		})
+	}
+}
+
+func TestNewCreateCmdCSR(t *testing.T) {
+	dir, cleanup := xtest.MustTempDir("", "certificate-create-csr-test")
+	defer cleanup()
+
+	testCases := map[string]struct {
+		Prepare      func(t *testing.T)
+		Args         []string
+		ErrAssertion assert.ErrorAssertionFunc
+		Validate     func(t *testing.T, csr *x509.CertificateRequest)
+	}{
+		"missing arguments": {
+			Args:         []string{"testdata/create/subject.json", "--csr"},
+			ErrAssertion: assert.Error,
+		},
+		"missing key": {
+			Args:         []string{"testdata/create/subject.json", dir + "/missing.csr", "--csr"},
+			ErrAssertion: assert.Error,
+		},
+		"unknown profile": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/unknown.csr",
+				dir + "/unknown.key",
+				"--profile=garbage",
+				"--csr",
+			},
+			ErrAssertion: assert.Error,
+			Validate: func(t *testing.T, csr *x509.CertificateRequest) {
+				require.NoFileExists(t, dir+"/unknown.csr")
+				require.NoFileExists(t, dir+"/unknown.key")
+			},
+		},
+		"unknown curve": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/unknown.csr",
+				dir + "/unknown.key",
+				"--curve=garbage",
+				"--csr",
+			},
+			ErrAssertion: assert.Error,
+			Validate: func(t *testing.T, csr *x509.CertificateRequest) {
+				require.NoFileExists(t, dir+"/unknown.csr")
+				require.NoFileExists(t, dir+"/unknown.key")
+			},
+		},
+		"key does not exist": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/missing-key.csr",
+				"--key=testdata/create/garbage.key",
+				"--profile=sensitive-voting",
+				"--csr",
+			},
+			ErrAssertion: assert.Error,
+			Validate: func(t *testing.T, csr *x509.CertificateRequest) {
+				require.NoFileExists(t, dir+"/missing-key.csr")
+			},
+		},
+		"csr with CA info": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/csr-ca.csr",
+				dir + "/csr-ca.key",
+				"--ca=some/ca",
+				"--csr",
+			},
+			ErrAssertion: assert.Error,
+			Validate: func(t *testing.T, csr *x509.CertificateRequest) {
+				require.NoFileExists(t, dir+"/csr-ca.csr")
+				require.NoFileExists(t, dir+"/csr-ca.key")
+			},
+		},
+		"key exists": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/key-exists.csr",
+				"testdata/create/private.key",
+				"--csr",
+			},
+			ErrAssertion: assert.Error,
+		},
+		"csr exists": {
+			Args: []string{
+				"testdata/create/subject.json",
+				"testdata/create/subject.json",
+				dir + "/cert-exists.key",
+				"--csr",
+			},
+			ErrAssertion: assert.Error,
+		},
+		"sensitive": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/sensitive.csr",
+				dir + "/sensitive.key",
+				"--profile=sensitive-voting",
+				"--csr",
+			},
+			ErrAssertion: assert.NoError,
+			Validate: func(t *testing.T, csr *x509.CertificateRequest) {
+				require.NoError(t, csr.CheckSignature())
+				require.Equal(t, "1-ff00:0:111 Certificate", csr.Subject.CommonName)
+			},
+		},
+		"regular": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/regular.csr",
+				dir + "/regular.key",
+				"--profile=regular-voting",
+				"--csr",
+			},
+			ErrAssertion: assert.NoError,
+			Validate: func(t *testing.T, csr *x509.CertificateRequest) {
+				require.NoError(t, csr.CheckSignature())
+				require.Equal(t, "1-ff00:0:111 Certificate", csr.Subject.CommonName)
+			},
+		},
+		"cp-root": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/cp-root.csr",
+				dir + "/cp-root.key",
+				"--profile=cp-root",
+				"--csr",
+			},
+			ErrAssertion: assert.NoError,
+			Validate: func(t *testing.T, csr *x509.CertificateRequest) {
+				require.NoError(t, csr.CheckSignature())
+				require.Equal(t, "1-ff00:0:111 Certificate", csr.Subject.CommonName)
+			},
+		},
+		"cp-ca": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/cp-ca.csr",
+				dir + "/cp-ca.key",
+				"--profile=cp-ca",
+				"--csr",
+			},
+			ErrAssertion: assert.NoError,
+			Validate: func(t *testing.T, csr *x509.CertificateRequest) {
+				require.NoError(t, csr.CheckSignature())
+				require.Equal(t, "1-ff00:0:111 Certificate", csr.Subject.CommonName)
+			},
+		},
+		"cp-as": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/cp-as.csr",
+				dir + "/cp-as.key",
+				"--csr",
+			},
+			ErrAssertion: assert.NoError,
+			Validate: func(t *testing.T, csr *x509.CertificateRequest) {
+				require.NoError(t, csr.CheckSignature())
+				require.Equal(t, "1-ff00:0:111 Certificate", csr.Subject.CommonName)
+			},
+		},
+		"existing key": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/existing-key.csr",
+				"--key=testdata/create/private.key",
+				"--profile=sensitive-voting",
+				"--csr",
+			},
+			ErrAssertion: assert.NoError,
+			Validate: func(t *testing.T, csr *x509.CertificateRequest) {
+				require.NoError(t, csr.CheckSignature())
+				require.Equal(t, "1-ff00:0:111 Certificate", csr.Subject.CommonName)
+				priv, err := key.LoadPrivateKey("testdata/create/private.key")
+				require.NoError(t, err)
+				require.Equal(t, priv.Public(), csr.PublicKey)
+			},
+		},
+		"optional flags": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/optional-flags.csr",
+				dir + "/optional-flags.key",
+				"--profile=sensitive-voting",
+				"--curve=p-521",
+				"--csr",
+			},
+			ErrAssertion: assert.NoError,
+			Validate: func(t *testing.T, csr *x509.CertificateRequest) {
+				require.NoError(t, csr.CheckSignature())
+				require.Equal(t, "1-ff00:0:111 Certificate", csr.Subject.CommonName)
+				require.Equal(t, elliptic.P521(), csr.PublicKey.(*ecdsa.PublicKey).Curve)
+			},
+		},
+		"custom common name": {
+			Args: []string{
+				"testdata/create/subject.json",
+				dir + "/common-name.csr",
+				dir + "/common-name.key",
+				"--profile=sensitive-voting",
+				"--common-name=custom",
+				"--csr",
+			},
+			ErrAssertion: assert.NoError,
+			Validate: func(t *testing.T, csr *x509.CertificateRequest) {
+				require.NoError(t, csr.CheckSignature())
+				require.Equal(t, "custom", csr.Subject.CommonName)
+			},
+		},
+		"custom common name cert": {
+			Args: []string{
+				"testdata/create/template.crt",
+				dir + "/common-name-cert.csr",
+				dir + "/common-name-cert.key",
+				"--profile=sensitive-voting",
+				"--common-name=custom",
+				"--csr",
+			},
+			ErrAssertion: assert.NoError,
+			Validate: func(t *testing.T, csr *x509.CertificateRequest) {
+				require.NoError(t, csr.CheckSignature())
+				require.Equal(t, "custom", csr.Subject.CommonName)
+			},
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			if tc.Prepare != nil {
+				tc.Prepare(t)
+			}
+
+			cmd := newCreateCmd(command.StringPather("test"))
+			cmd.SetArgs(tc.Args)
+			err := cmd.Execute()
+			tc.ErrAssertion(t, err)
+			if tc.Validate != nil {
+				var csr *x509.CertificateRequest
+				if raw, err := ioutil.ReadFile(tc.Args[1]); err == nil {
+					block, rest := pem.Decode(raw)
+					require.NotNil(t, block)
+					require.Empty(t, rest)
+					csr, err = x509.ParseCertificateRequest(block.Bytes)
+					require.NoError(t, err)
+				}
+				tc.Validate(t, csr)
 			}
 		})
 	}

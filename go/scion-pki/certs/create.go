@@ -214,7 +214,7 @@ A valid example for a JSON formatted template:
 			case !flags.csr && isSelfSigned && withCA:
 				return serrors.New("CA information set for self-signed certificate")
 			default:
-				loadCA = !isSelfSigned
+				loadCA = !isSelfSigned && !flags.csr
 			}
 
 			cmd.SilenceUsage = true
