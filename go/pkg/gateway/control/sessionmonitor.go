@@ -58,6 +58,8 @@ type SessionMonitorMetrics struct {
 	Probes metrics.Counter
 	// ProbeReplies is the number of probe replies received.
 	ProbeReplies metrics.Counter
+	// IsHealthy is a binary gauge showing a sessions healthiness.
+	IsHealthy metrics.Gauge
 }
 
 func safeInc(counter metrics.Counter) {
@@ -224,6 +226,8 @@ func (m *SessionMonitor) handleProbeReply() {
 
 	if m.state != EventUp {
 		m.state = EventUp
+		metrics.GaugeSet(m.Metrics.IsHealthy, 1)
+
 		select {
 		case <-m.workerBase.GetDoneChan():
 		case m.Events <- m.notification(m.state):
@@ -241,7 +245,10 @@ func (m *SessionMonitor) handleExpiration() {
 	if m.state == EventDown {
 		return
 	}
+
 	m.state = EventDown
+	metrics.GaugeSet(m.Metrics.IsHealthy, 0)
+
 	select {
 	case <-m.workerBase.GetDoneChan():
 	case m.Events <- m.notification(m.state):

@@ -20,6 +20,7 @@ import (
 	"io"
 	"net"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +29,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/gateway/pathhealth/policies"
 	"github.com/scionproto/scion/go/pkg/worker"
@@ -297,6 +299,12 @@ func (e *Engine) initWorkers() error {
 		}
 
 		sessionMonitorEvents := make(chan SessionEvent, 1)
+		labels := []string{
+			"remote_isd_as", remoteIA.String(),
+			"policy_id", strconv.Itoa(config.PolicyID),
+			"session_id", strconv.Itoa(int(config.ID)),
+		}
+
 		sessionMonitor := &SessionMonitor{
 			ID:        config.ID,
 			RemoteIA:  remoteIA,
@@ -304,8 +312,15 @@ func (e *Engine) initWorkers() error {
 			Events:    sessionMonitorEvents,
 			Paths:     pathMonitorRegistration,
 			ProbeConn: probeConn,
-			Metrics:   e.Metrics.SessionMonitorMetrics,
-			Logger:    e.Logger,
+			Metrics: SessionMonitorMetrics{
+				Probes: metrics.CounterWith(
+					e.Metrics.SessionMonitorMetrics.Probes, labels...),
+				ProbeReplies: metrics.CounterWith(
+					e.Metrics.SessionMonitorMetrics.ProbeReplies, labels...),
+				IsHealthy: metrics.GaugeWith(
+					e.Metrics.SessionMonitorMetrics.IsHealthy, labels...),
+			},
+			Logger: e.Logger,
 		}
 		e.workerBase.WG.Add(1)
 		go func() {

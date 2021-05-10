@@ -621,7 +621,8 @@ func (g *Gateway) Run() error {
 				},
 				Metrics: CreateSessionMetrics(g.Metrics),
 			},
-			Logger: g.Logger,
+			Logger:  g.Logger,
+			Metrics: CreateEngineMetrics(g.Metrics),
 		},
 		RoutePublisherFactory: g.RoutePublisherFactory,
 		RouteSourceIPv4:       g.RouteSourceIPv4,
@@ -754,5 +755,18 @@ func CreateSessionMetrics(m *Metrics) dataplane.SessionMetrics {
 		FrameBytesSent:     metrics.NewPromCounter(m.FrameBytesSentTotal),
 		FramesSent:         metrics.NewPromCounter(m.FramesSentTotal),
 		SendExternalErrors: metrics.NewPromCounter(m.SendExternalErrorsTotal),
+	}
+}
+
+func CreateEngineMetrics(m *Metrics) control.EngineMetrics {
+	if m == nil {
+		return control.EngineMetrics{}
+	}
+	return control.EngineMetrics{
+		SessionMonitorMetrics: control.SessionMonitorMetrics{
+			Probes:       metrics.NewPromCounter(m.SessionProbes),
+			ProbeReplies: metrics.NewPromCounter(m.SessionProbeReplies),
+			IsHealthy:    metrics.NewPromGauge(m.SessionIsHealthy),
+		},
 	}
 }

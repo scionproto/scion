@@ -126,6 +126,21 @@ var (
 		Help:   "Number of replies to the path probes being received.",
 		Labels: []string{"remote_isd_as"},
 	}
+	SessionProbesMeta = MetricMeta{
+		Name:   "gateway_session_probes",
+		Help:   "Number of probes sent per session.",
+		Labels: []string{"remote_isd_as", "session_id", "policy_id"},
+	}
+	SessionProbeRepliesMeta = MetricMeta{
+		Name:   "gateway_session_probe_replies",
+		Help:   "Number of probes received per session.",
+		Labels: []string{"remote_isd_as", "session_id", "policy_id"},
+	}
+	SessionIsHealthyMeta = MetricMeta{
+		Name:   "gateway_session_is_healthy",
+		Help:   "Flag reflecting session healthiness.",
+		Labels: []string{"remote_isd_as", "session_id", "policy_id"},
+	}
 	SessionPathsAvailableMeta = MetricMeta{
 		Name:   "gateway_session_paths_available",
 		Help:   "Total number of paths available per session policy.",
@@ -214,6 +229,11 @@ type Metrics struct {
 	PrefixesAdvertised *prometheus.GaugeVec
 	PrefixesAccepted   *prometheus.GaugeVec
 	PrefixesRejected   *prometheus.GaugeVec
+
+	// SessionMonitor Metrics
+	SessionProbes       *prometheus.CounterVec
+	SessionProbeReplies *prometheus.CounterVec
+	SessionIsHealthy    *prometheus.GaugeVec
 }
 
 // NewMetrics initializes the metrics for the gateway and registers them with the default registry.
@@ -240,6 +260,9 @@ func NewMetrics() *Metrics {
 		PathsMonitored:               PathsMonitoredMeta.NewGaugeVec(),
 		PathProbesSent:               PathProbesSentMeta.NewCounterVec(),
 		PathProbesReceived:           PathProbesReceivedMeta.NewCounterVec(),
+		SessionIsHealthy:             SessionIsHealthyMeta.NewGaugeVec(),
+		SessionProbes:                SessionProbesMeta.NewCounterVec(),
+		SessionProbeReplies:          SessionProbeRepliesMeta.NewCounterVec(),
 		SessionPathsAvailable:        SessionPathsAvailableMeta.NewGaugeVec(),
 		Remotes:                      RemotesMeta.NewGaugeVec(),
 		PrefixesAdvertised:           PrefixesAdvertisedMeta.NewGaugeVec(),

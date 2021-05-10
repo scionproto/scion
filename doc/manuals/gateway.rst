@@ -293,6 +293,45 @@ Available session paths
 
 **Labels**: ``remote_isd_as``, ``policy_id``, ``status``
 
+Session Monitoring Metrics
+--------------------------
+
+Session probes
+^^^^^^^^^^^^^^
+
+**Name**: ``gateway_session_probes``
+
+**Type**: Counter
+
+**Description**: Number of probes sent to a remote AS per session id.
+
+**Labels**: ``remote_isd_as``, ``policy_id``, ``session_id``
+
+Session probe replies
+^^^^^^^^^^^^^^^^^^^^^
+
+**Name**: ``gateway_session_probe_replies``
+
+**Type**: Counter
+
+**Description**: Number of probes from a remote AS per session id.
+
+**Labels**: ``remote_isd_as``, ``policy_id``, ``session_id``
+
+Session is healthy
+^^^^^^^^^^^^^^^^^^
+
+**Name**: ``gateway_session_is_healthy``
+
+**Type**: Gauge
+
+**Description**: Healthiness flag to a remote AS per session ID. The
+session is ephemeral so it is recommended to use after aggregating
+per `remote_isd_as` and `policy_id`.
+
+**Labels**: ``remote_isd_as``, ``policy_id``, ``session_id``
+
+
 Discovery Metrics
 -----------------
 
