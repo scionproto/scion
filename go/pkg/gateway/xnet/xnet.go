@@ -25,6 +25,7 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/gateway/control"
 )
 
 const (
@@ -67,6 +68,32 @@ Cleanup:
 	tun.Close()
 	netlink.LinkDel(link)
 	return nil, nil, err
+}
+
+// Open creates a new DeviceHandle backed by a Linux network interface of type tun.
+// The interface will have the specified name.
+func Open(name string) (control.DeviceHandle, error) {
+	link, rwc, err := ConnectTun(name)
+	if err != nil {
+		return nil, err
+	}
+	return &deviceHandle{
+		link:            link,
+		ReadWriteCloser: rwc,
+	}, nil
+}
+
+type deviceHandle struct {
+	link netlink.Link
+	io.ReadWriteCloser
+}
+
+func (h deviceHandle) AddRoute(r *control.Route) error {
+	return AddRoute(0, h.link, r.Prefix, r.Source)
+}
+
+func (h deviceHandle) DeleteRoute(r *control.Route) error {
+	return DeleteRoute(0, h.link, r.Prefix, r.Source)
 }
 
 func AddRoute(rTable int, link netlink.Link, dest *net.IPNet, src net.IP) error {

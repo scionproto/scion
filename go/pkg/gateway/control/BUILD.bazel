@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "aggregator.go",
         "configpublisher.go",
+        "device.go",
         "diagnostics.go",
         "engine.go",
         "enginecontroller.go",

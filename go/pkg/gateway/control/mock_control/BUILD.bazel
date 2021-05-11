@@ -25,6 +25,8 @@ gomock(
         "GatewayWatcherFactory",
         "Publisher",
         "PublisherFactory",
+        "DeviceOpener",
+        "DeviceHandle",
     ],
     library = "//go/pkg/gateway/control:go_default_library",
     package = "mock_control",
