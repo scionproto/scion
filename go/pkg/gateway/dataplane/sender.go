@@ -111,7 +111,3 @@ func (c *sender) run() {
 		}
 	}
 }
-
-func addrHdrLen(src net.IP, dst net.IP) int {
-	return addr.IABytes*2 + len(src) + len(dst)
-}

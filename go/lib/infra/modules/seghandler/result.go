@@ -86,7 +86,6 @@ func (s *Stats) verificationErrs(verErrors []error) {
 // ProcessedResult is the result of handling a segment reply.
 type ProcessedResult struct {
 	stats      Stats
-	revs       []*path_mgmt.SignedRevInfo
 	err        error
 	verifyErrs serrors.List
 }

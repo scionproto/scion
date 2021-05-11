@@ -43,7 +43,6 @@ type TickingReconnecter struct {
 	// the reconnecter take significant time, depending on the timeout of the
 	// reconnection function.
 	reconnectF func(timeout time.Duration) (net.PacketConn, uint16, error)
-	state      *State
 	stopping   *AtomicBool
 }
 

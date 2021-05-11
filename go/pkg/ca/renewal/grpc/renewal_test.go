@@ -237,12 +237,6 @@ func TestRenewalServerChainRenewal(t *testing.T) {
 	}
 }
 
-func genKey(t *testing.T) crypto.Signer {
-	privateKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
-	require.NoError(t, err)
-	return privateKey
-}
-
 func genChain(t *testing.T) (*ecdsa.PrivateKey, []*x509.Certificate) {
 	t.Helper()
 

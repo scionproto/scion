@@ -53,7 +53,6 @@ go_test(
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
-        "//go/lib/addr:go_default_library",
         "//go/lib/mocks/io/mock_io:go_default_library",
         "//go/lib/mocks/net/mock_net:go_default_library",
         "//go/lib/pktcls:go_default_library",

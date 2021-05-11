@@ -57,7 +57,6 @@ func updateCert(goldenCert string) ([]byte, error) {
 }
 
 type testCase struct {
-	name      string
 	modify    func(*x509.Certificate) *x509.Certificate
 	assertErr assert.ErrorAssertionFunc
 }

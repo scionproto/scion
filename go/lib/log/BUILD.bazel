@@ -10,7 +10,6 @@ go_library(
         "options.go",
         "sample.go",
         "span.go",
-        "syncbuf.go",
         "wrappers.go",
     ],
     importpath = "github.com/scionproto/scion/go/lib/log",

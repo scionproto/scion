@@ -17,7 +17,6 @@ package router_test
 import (
 	"bytes"
 	"fmt"
-	"hash"
 	"net"
 	"sync"
 	"testing"
@@ -1280,12 +1279,6 @@ func computeFullMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.Hop
 	mac, err := scrypto.InitMac(key)
 	require.NoError(t, err)
 	return path.FullMAC(mac, info, hf)
-}
-
-func createMac(t *testing.T) hash.Hash {
-	mac, err := scrypto.InitMac(make([]byte, 16))
-	xtest.FailOnErr(t, err)
-	return mac
 }
 
 func bfd() control.BFD {

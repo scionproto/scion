@@ -1381,10 +1381,6 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	return err
 }
 
-type pathUpdater interface {
-	update(p *scion.Raw) error
-}
-
 type scmpPacker struct {
 	internalIP net.IP
 	localIA    addr.IA
@@ -1481,27 +1477,6 @@ func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.Serializable
 		return nil, serrors.Wrap(cannotRoute, err, "details", "serializing SCMP message")
 	}
 	return s.buffer.Bytes(), scmpError{TypeCode: scmpH.TypeCode, Cause: cause}
-}
-
-type segIDUpdater struct{}
-
-func (segIDUpdater) update(p *scion.Raw) error {
-	cHF, err := p.GetCurrentHopField()
-	if err != nil {
-		return err
-	}
-	cIF, err := p.GetCurrentInfoField()
-	if err != nil {
-		return err
-	}
-	cIF.UpdateSegID(cHF.Mac)
-	return nil
-}
-
-type pathIncrementer struct{}
-
-func (pathIncrementer) update(p *scion.Raw) error {
-	return p.IncPath()
 }
 
 // forwardingMetrics contains the subset of Metrics relevant for forwarding,

@@ -222,22 +222,3 @@ func TestReplyHandlerStorageError(t *testing.T) {
 	assert.Empty(t, stats.VerifiedRevs)
 	assert.Empty(t, stats.StoredRevs)
 }
-
-func AssertChanEmpty(t *testing.T, ch <-chan struct{}) {
-	t.Helper()
-	select {
-	case <-ch:
-		t.Fatalf("Expected channel to be empty but was not")
-	default:
-	}
-}
-
-func AssertRead(t *testing.T, ch <-chan int, expected int, timeout time.Duration) {
-	t.Helper()
-	select {
-	case res := <-ch:
-		assert.Equal(t, expected, res, "Wrong result in channel")
-	case <-time.After(timeout):
-		t.Fatalf("Timed out while waiting for channel result")
-	}
-}

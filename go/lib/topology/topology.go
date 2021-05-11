@@ -627,10 +627,6 @@ func (s ServiceNames) GetRandom() (string, error) {
 	return s[rand.Intn(numServers)], nil
 }
 
-func (s ServiceNames) copy() ServiceNames {
-	return append(s[:0:0], s...)
-}
-
 func copyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
 	if a == nil {
 		return nil

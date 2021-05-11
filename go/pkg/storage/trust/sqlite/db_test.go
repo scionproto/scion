@@ -16,7 +16,6 @@ package sqlite_test
 
 import (
 	"context"
-	"flag"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -24,8 +23,6 @@ import (
 	"github.com/scionproto/scion/go/pkg/storage/trust/dbtest"
 	"github.com/scionproto/scion/go/pkg/storage/trust/sqlite"
 )
-
-var update = flag.Bool("update", false, "set to true to regenerate certificate files")
 
 type testDB struct {
 	sqlite.DB

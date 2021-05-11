@@ -44,6 +44,7 @@ func InitTestConfig(cfg *Config) {
 	envtest.InitTest(&cfg.General, &cfg.Metrics, &cfg.Tracing, nil)
 	logtest.InitTestLogging(&cfg.Logging)
 	InitTestBSConfig(&cfg.BS)
+	InitTestPSConfig(&cfg.PS)
 	InitTestCA(&cfg.CA)
 }
 

@@ -30,7 +30,6 @@ import (
 var (
 	a110 = xtest.MustParseAS("ff00:0:110")
 	a120 = xtest.MustParseAS("ff00:0:120")
-	a130 = xtest.MustParseAS("ff00:0:130")
 )
 
 func TestTRCValidateInvariant(t *testing.T) {
