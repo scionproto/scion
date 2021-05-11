@@ -258,13 +258,3 @@ func (s *packetStorer) storePkt(fileName string, packet gopacket.Packet) {
 		return
 	}
 }
-
-func isBFD(pkt gopacket.Packet) bool {
-	for _, l := range pkt.Layers() {
-		_, ok := l.(*layers.BFD)
-		if ok {
-			return true
-		}
-	}
-	return false
-}

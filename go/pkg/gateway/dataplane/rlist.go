@@ -214,10 +214,6 @@ func (l *reassemblyList) removeEntry(e *list.Element) {
 	l.entries.Remove(e)
 }
 
-func (l *reassemblyList) removeOldest() {
-	l.removeEntry(l.entries.Front())
-}
-
 func (l *reassemblyList) removeProcessed() {
 	var next *list.Element
 	for e := l.entries.Front(); e != nil; e = next {

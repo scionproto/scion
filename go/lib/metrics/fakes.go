@@ -183,7 +183,6 @@ func CounterValue(c Counter) float64 {
 // that represent the same time-series. The examples illustrate how this can be used to write a
 // simple test.
 type TestGauge struct {
-	mtx sync.Mutex
 	*node
 }
 

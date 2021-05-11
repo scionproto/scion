@@ -52,13 +52,6 @@ type Status struct {
 	AdditionalInfo string
 }
 
-// Predefined path status
-var (
-	unknown = Status{Status: StatusUnknown}
-	timeout = Status{Status: StatusTimeout}
-	alive   = Status{Status: StatusAlive}
-)
-
 func (s Status) String() string {
 	if s.AdditionalInfo == "" {
 		return string(s.Status)
@@ -154,8 +147,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path) (map[string]
 			conns[localIP.String()] = conn
 		}
 		localAddr := snet.SCIONAddress{IA: p.LocalIA, Host: addr.HostFromIP(localIP)}
-		timeout.LocalIP = localIP
-		statuses[PathKey(path)] = timeout
+		statuses[PathKey(path)] = Status{Status: StatusTimeout, LocalIP: localIP}
 		if err := p.sendProbe(conn, localAddr, path, uint16(i)); err != nil {
 			sendErrors = append(sendErrors, err)
 		}

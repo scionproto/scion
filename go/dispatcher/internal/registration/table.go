@@ -27,7 +27,6 @@ type Table struct {
 	udpPortTable *UDPPortTable
 	svcTable     SVCTable
 	size         int
-	ids          []uint64
 	// XXX(scrye): Note that SCMP General IDs are globally scoped inside an IA
 	// (i.e., all all hosts share the same ID namespace, and thus can collide
 	// with each other). Because the IDs are random, it is very unlikely for a

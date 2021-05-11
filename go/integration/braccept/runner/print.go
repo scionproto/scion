@@ -47,24 +47,3 @@ func stringDiffPrettyPrint(actStr, expStr string) string {
 	}
 	return fmt.Sprintf("Expected: %s\nActual:   %s\n", expStr, actStr)
 }
-
-const (
-	passUni = "\u2714"
-	failUni = "\u2715"
-	green   = 32
-	red     = 31
-)
-
-func pass() string {
-	if colorTerm {
-		return fmt.Sprintf("\x1b[%dm%s\x1b[0m", green, passUni)
-	}
-	return "PASS"
-}
-
-func fail() string {
-	if colorTerm {
-		return fmt.Sprintf("\x1b[%dm%s\x1b[0m", red, failUni)
-	}
-	return "FAIL"
-}

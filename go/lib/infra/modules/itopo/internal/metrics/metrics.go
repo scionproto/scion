@@ -64,7 +64,6 @@ func (l CurrentLabels) Values() []string {
 
 type current struct {
 	timestamp *prometheus.GaugeVec
-	expiry    *prometheus.GaugeVec
 	active    prometheus.Gauge
 }
 
