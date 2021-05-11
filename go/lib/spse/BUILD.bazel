@@ -1,9 +1,0 @@
-load("//lint:go.bzl", "go_library")
-
-go_library(
-    name = "go_default_library",
-    srcs = ["spse.go"],
-    importpath = "github.com/scionproto/scion/go/lib/spse",
-    visibility = ["//visibility:public"],
-    deps = ["//go/lib/serrors:go_default_library"],
-)
