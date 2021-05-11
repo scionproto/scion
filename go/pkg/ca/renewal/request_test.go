@@ -146,7 +146,7 @@ func TestUpdateCrypto(t *testing.T) {
 	require.NoError(t, err, "generating private key AS111")
 	writeKey(t, filepath.Join(asDir, "crypto/as", "cp-as1.key"), privKeyGeneva)
 
-	csrGeneva, err := x509.CreateCertificateRequest(rand.Reader, &csrTmplBern, privKeyBern)
+	csrGeneva, err := x509.CreateCertificateRequest(rand.Reader, &csrTmplGeneva, privKeyGeneva)
 	require.NoError(t, err, "generating CSR AS111")
 	writeCSR(t, filepath.Join(asDir, "crypto/as", "cp-as1.csr"), csrGeneva)
 
