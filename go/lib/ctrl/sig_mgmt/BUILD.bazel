@@ -1,8 +1,0 @@
-load("//lint:go.bzl", "go_library")
-
-go_library(
-    name = "go_default_library",
-    srcs = ["common.go"],
-    importpath = "github.com/scionproto/scion/go/lib/ctrl/sig_mgmt",
-    visibility = ["//visibility:public"],
-)
