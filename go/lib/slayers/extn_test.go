@@ -265,7 +265,7 @@ var rawE2EOptAuth = append(
 )
 
 func TestOptAuthenticatorSerialize(t *testing.T) {
-	optAuth := slayers.NewPacketAuthenticatorOption(slayers.E2EAuthCMAC, optAuthMAC)
+	optAuth := slayers.NewPacketAuthenticatorOption(slayers.PacketAuthCMAC, optAuthMAC)
 
 	e2e := slayers.EndToEndExtn{}
 	e2e.NextHdr = common.L4UDP
@@ -290,7 +290,7 @@ func TestOptAuthenticatorDeserialize(t *testing.T) {
 	require.NoError(t, err, "FindOption")
 	auth, err := slayers.ParsePacketAuthenticatorOption(optAuth)
 	require.NoError(t, err, "ParsePacketAuthenticatorOption")
-	assert.Equal(t, slayers.E2EAuthCMAC, auth.Algorithm(), "Algorithm Type")
+	assert.Equal(t, slayers.PacketAuthCMAC, auth.Algorithm(), "Algorithm Type")
 	assert.Equal(t, optAuthMAC, auth.Authenticator(), "Authenticator data (MAC)")
 }
 
