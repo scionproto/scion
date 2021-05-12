@@ -24,6 +24,8 @@ To add/remove or update dependencies:
 1. Modify ``go.mod``, manually or using e.g. ``go get``.
 2. ``go mod tidy``
 3. ``make go_deps.bzl``
+4. ``make licenses``, to update the licenses with the new dependency
+5. ``make gazelle``, to update the build files that depend on the newly added dependency
 
 .. Warning::
   The Go rules for Bazel (rules_go) declare some internally used dependencies.
@@ -31,7 +33,7 @@ To add/remove or update dependencies:
   ``go_deps.bzl``.
 
   To explicitly override such a dependency version, the corresponding
-  ``go_repository`` rule can be has to moved to from ``go_deps.bzl`` to the
+  ``go_repository`` rule can be moved from ``go_deps.bzl`` to the
   ``WORKSPACE`` file, *before* the call to ``go_rules_dependencies``.
   See the `go_rules documentation on overriding dependencies <https://github.com/bazelbuild/rules_go/blob/master/go/dependencies.rst#overriding-dependencies>`_.
 
