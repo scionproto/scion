@@ -11,7 +11,6 @@ This option only transports the authentication data, i.e., it explicitly is not
 concerned with establishing or identifying keys to create or verify the
 authentication data.
 
-
 Format of the Authenticator Option
 ==================================
 Alignment requirement: 4n + 1::
@@ -43,16 +42,10 @@ Algorithms
 Decimal Algorithm     Description                             Reference
 ======= ============= ======================================= =============
 0       AES-CMAC      16-byte MAC                             [`RFC 4493 <https://tools.ietf.org/html/rfc4493>`_]
-1       AES-GMAC      16-byte MAC with a 12-byte nonce        [`NIST SP 800-38D <https://dx.doi.org/10.6028/NIST.SP.800-38D>`_]
-16      HMAC-SHA256   32-byte MAC                             [`RFC 2104 <https://tools.ietf.org/html/rfc2104>`_].
-32      Ed25519       64-byte digital signature               [`RFC 8032 <https://tools.ietf.org/html/rfc8032>`_]
 253                   use for experimentation and testing
 254                   use for experimentation and testing
 255                   reserved
 ======= ============= ======================================= =============
-
-.. note:: Only AES-CMAC will be implemented at first, the rest are just defined as placeholders.
-
 
 Authenticated Data
 ==================
