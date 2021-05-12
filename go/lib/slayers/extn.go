@@ -367,26 +367,28 @@ const (
 )
 
 type PacketAuthenticatorOption struct {
-	EndToEndOption
+	*EndToEndOption
 }
 
-func NewPacketAuthenticatorOption(alg PacketAuthAlg, data []byte) *PacketAuthenticatorOption {
-	o := new(PacketAuthenticatorOption)
+func NewPacketAuthenticatorOption(alg PacketAuthAlg, data []byte) PacketAuthenticatorOption {
+	o := PacketAuthenticatorOption{EndToEndOption: new(EndToEndOption)}
 	o.Reset(alg, data)
 	return o
 }
 
-func ParsePacketAuthenticatorOption(o *EndToEndOption) (*PacketAuthenticatorOption, error) {
+func ParsePacketAuthenticatorOption(o *EndToEndOption) (PacketAuthenticatorOption, error) {
 	if o.OptType != OptTypeAuthenticator {
-		return nil, serrors.New("wrong option type", "expected", OptTypeAuthenticator, "actual", o.OptType)
+		return PacketAuthenticatorOption{},
+			serrors.New("wrong option type", "expected", OptTypeAuthenticator, "actual", o.OptType)
 	}
 	if len(o.OptData) < 2 {
-		return nil, serrors.New("buffer too short", "expected", 2, "actual", len(o.OptData))
+		return PacketAuthenticatorOption{},
+			serrors.New("buffer too short", "expected", 2, "actual", len(o.OptData))
 	}
-	return &PacketAuthenticatorOption{*o}, nil
+	return PacketAuthenticatorOption{o}, nil
 }
 
-func (o *PacketAuthenticatorOption) Reset(alg PacketAuthAlg, data []byte) {
+func (o PacketAuthenticatorOption) Reset(alg PacketAuthAlg, data []byte) {
 	o.OptType = OptTypeAuthenticator
 
 	n := 1 + len(data)
@@ -404,10 +406,10 @@ func (o *PacketAuthenticatorOption) Reset(alg PacketAuthAlg, data []byte) {
 	o.ActualLength = 0
 }
 
-func (o *PacketAuthenticatorOption) Algorithm() PacketAuthAlg {
+func (o PacketAuthenticatorOption) Algorithm() PacketAuthAlg {
 	return PacketAuthAlg(o.OptData[0])
 }
 
-func (o *PacketAuthenticatorOption) Authenticator() []byte {
+func (o PacketAuthenticatorOption) Authenticator() []byte {
 	return o.OptData[1:]
 }
