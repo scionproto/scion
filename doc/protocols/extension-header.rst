@@ -98,7 +98,7 @@ Decimal Option
 ======= =================================
 0       :ref:`Pad1 Option <pad-1-option>`
 1       :ref:`PadN Option <pad-n-option>`
-2       :ref:`Authenticator Option <authenticator-option>`
+2       :ref:`SCION Packet Authenticator Option <authenticator-option>`
 253     use for experimentation and testing
 254     use for experimentation and testing
 255     reserved

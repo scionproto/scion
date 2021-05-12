@@ -1,13 +1,13 @@
 .. _authenticator-option:
 
-**************************
-SCION Authenticator Option
-**************************
+*********************************
+SCION Packet Authenticator Option
+*********************************
 
 This document describes the Authenticator :ref:`End-to-End option <end-to-end-options>`.
 This option allows to add authentication data to a SCION packet, providing
 crpytographic assurance of authenticity and and data integrity.
-This option only transports the authentication data, i.e. it explicitly is not
+This option only transports the authentication data, i.e., it explicitly is not
 concerned with establishing or identifying keys to create or verify the
 authentication data.
 
