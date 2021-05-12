@@ -269,7 +269,7 @@ func TestOptAuthenticatorSerialize(t *testing.T) {
 
 	e2e := slayers.EndToEndExtn{}
 	e2e.NextHdr = common.L4UDP
-	e2e.Options = []*slayers.EndToEndOption{&optAuth.EndToEndOption}
+	e2e.Options = []*slayers.EndToEndOption{optAuth.EndToEndOption}
 
 	b := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{FixLengths: true}
