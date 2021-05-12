@@ -265,12 +265,11 @@ var rawE2EOptAuth = append(
 )
 
 func TestOptAuthenticatorSerialize(t *testing.T) {
-	var optAuth slayers.EndToEndOption
-	optAuth.MakeAuthenticator(slayers.E2EAuthCMAC, optAuthMAC)
+	optAuth := slayers.NewPacketAuthenticatorOption(slayers.E2EAuthCMAC, optAuthMAC)
 
 	e2e := slayers.EndToEndExtn{}
 	e2e.NextHdr = common.L4UDP
-	e2e.Options = []*slayers.EndToEndOption{&optAuth}
+	e2e.Options = []*slayers.EndToEndOption{&optAuth.EndToEndOption}
 
 	b := gopacket.NewSerializeBuffer()
 	opts := gopacket.SerializeOptions{FixLengths: true}
@@ -282,15 +281,17 @@ func TestOptAuthenticatorSerialize(t *testing.T) {
 func TestOptAuthenticatorDeserialize(t *testing.T) {
 	e2e := slayers.EndToEndExtn{}
 
-	_, _, err := e2e.FindAuthenticator()
+	_, err := e2e.FindOption(slayers.OptTypeAuthenticator)
 	assert.Error(t, err)
 
 	assert.NoError(t, e2e.DecodeFromBytes(rawE2EOptAuth, gopacket.NilDecodeFeedback))
 	assert.Equal(t, common.L4UDP, e2e.NextHdr, "NextHeader")
-	alg, data, err := e2e.FindAuthenticator()
-	assert.NoError(t, err, "FindAuthenticator")
-	assert.Equal(t, slayers.E2EAuthCMAC, alg, "Algorithm Type")
-	assert.Equal(t, optAuthMAC, data, "Authenticator data (MAC)")
+	optAuth, err := e2e.FindOption(slayers.OptTypeAuthenticator)
+	require.NoError(t, err, "FindOption")
+	auth, err := slayers.ParsePacketAuthenticatorOption(optAuth)
+	require.NoError(t, err, "ParsePacketAuthenticatorOption")
+	assert.Equal(t, slayers.E2EAuthCMAC, auth.Algorithm(), "Algorithm Type")
+	assert.Equal(t, optAuthMAC, auth.Authenticator(), "Authenticator data (MAC)")
 }
 
 func TestOptAuthenticatorDeserializeCorrupt(t *testing.T) {
@@ -307,6 +308,8 @@ func TestOptAuthenticatorDeserializeCorrupt(t *testing.T) {
 	assert.NoError(t, e2e.SerializeTo(b, opts), "SerializeTo")
 
 	assert.NoError(t, e2e.DecodeFromBytes(b.Bytes(), gopacket.NilDecodeFeedback))
-	_, _, err := e2e.FindAuthenticator()
-	assert.Error(t, err, "FindAuthenticator should fail")
+	optAuth, err := e2e.FindOption(slayers.OptTypeAuthenticator)
+	require.NoError(t, err, "FindOption")
+	_, err = slayers.ParsePacketAuthenticatorOption(optAuth)
+	require.Error(t, err, "ParsePacketAuthenticatorOption should fail")
 }
