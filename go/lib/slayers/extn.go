@@ -360,10 +360,7 @@ func (e *EndToEndExtn) FindOption(typ OptionType) (*EndToEndOption, error) {
 type PacketAuthAlg uint8
 
 const (
-	PacketAuthCMAC       PacketAuthAlg = 0
-	PacketAuthGMAC       PacketAuthAlg = 1
-	PacketAuthHMACSHA256 PacketAuthAlg = 16
-	PacketAuthEd25519    PacketAuthAlg = 32
+	PacketAuthCMAC PacketAuthAlg = 0
 )
 
 type PacketAuthenticatorOption struct {
