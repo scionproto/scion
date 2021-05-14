@@ -348,6 +348,8 @@ func (e *EndToEndExtn) SerializeTo(b gopacket.SerializeBuffer,
 	return e.extnBase.serializeToWithTLVOptions(b, opts, o)
 }
 
+// FindOption returns the first option entry of the given type if any exists,
+// or ErrOptionNotFound otherwise.
 func (e *EndToEndExtn) FindOption(typ OptionType) (*EndToEndOption, error) {
 	for _, o := range e.Options {
 		if o.OptType == typ {
@@ -357,22 +359,34 @@ func (e *EndToEndExtn) FindOption(typ OptionType) (*EndToEndOption, error) {
 	return nil, ErrOptionNotFound
 }
 
+// PacketAuthAlg is the enumerator for authenticator algorithm types in the
+// packet authenticator option.
 type PacketAuthAlg uint8
 
 const (
 	PacketAuthCMAC PacketAuthAlg = 0
 )
 
+// PacketAuthenticatorOption wraps an EndToEndOption of OptTypeAuthenticator.
+// This can be used to serialize and parse the internal structure of the packet authenticator
+// option.
 type PacketAuthenticatorOption struct {
 	*EndToEndOption
 }
 
+// NewPacketAuthenticatorOption creates a new EndTOEndOption of
+// OptTypeAuthenticator, initialized with the given algorithm type and
+// authenticator data.
 func NewPacketAuthenticatorOption(alg PacketAuthAlg, data []byte) PacketAuthenticatorOption {
 	o := PacketAuthenticatorOption{EndToEndOption: new(EndToEndOption)}
 	o.Reset(alg, data)
 	return o
 }
 
+// ParsePacketAuthenticatorOption parses o as a packet authenticator option.
+// Performs minimal checks to ensure that Algorithm and Authenticator are set.
+// Checking the size and content of the Authenticator data must be done by the
+// caller.
 func ParsePacketAuthenticatorOption(o *EndToEndOption) (PacketAuthenticatorOption, error) {
 	if o.OptType != OptTypeAuthenticator {
 		return PacketAuthenticatorOption{},
@@ -385,6 +399,9 @@ func ParsePacketAuthenticatorOption(o *EndToEndOption) (PacketAuthenticatorOptio
 	return PacketAuthenticatorOption{o}, nil
 }
 
+// Reset reinitializes the underlying EndToEndOption with the given algorithm
+// type and authenticator data.
+// Reuses the OptData buffer if it is of sufficient capacity.
 func (o PacketAuthenticatorOption) Reset(alg PacketAuthAlg, data []byte) {
 	o.OptType = OptTypeAuthenticator
 
@@ -403,10 +420,14 @@ func (o PacketAuthenticatorOption) Reset(alg PacketAuthAlg, data []byte) {
 	o.ActualLength = 0
 }
 
+// Algorithm returns the algorithm type stored in the data buffer.
 func (o PacketAuthenticatorOption) Algorithm() PacketAuthAlg {
 	return PacketAuthAlg(o.OptData[0])
 }
 
+// Algorithm returns the authenticator data part of the data buffer.
+// Returns a slice of the underlying OptData buffer. Changes to this slice will
+// be reflected on the wire when the extension is serialized.
 func (o PacketAuthenticatorOption) Authenticator() []byte {
 	return o.OptData[1:]
 }
