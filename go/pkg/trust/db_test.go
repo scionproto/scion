@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/scion-pki/testcrypto"
+	"github.com/scionproto/scion/go/scion-pki/trcs"
 )
 
 var update = flag.Bool("update", false, "set to true to regenerate certificate files")
@@ -55,11 +56,21 @@ func TestUpdateCerts(t *testing.T) {
 		"-l", "../../../scripts/cryptoplayground/crypto_lib.sh",
 		"-o", dir,
 		"--isd-dir",
+		"--as-validity", "1y",
 	})
 	err := cmd.Execute()
 	require.NoError(t, err)
 
 	cmd.SetArgs([]string{"update", "-o", dir})
+	err = cmd.Execute()
+	require.NoError(t, err)
+
+	cmd = trcs.Cmd(command.StringPather(""))
+	cmd.SetArgs([]string{
+		"format",
+		"--out=" + filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.pem.trc"),
+		filepath.Join(dir, "ISD1/trcs/ISD1-B1-S1.trc"),
+	})
 	err = cmd.Execute()
 	require.NoError(t, err)
 

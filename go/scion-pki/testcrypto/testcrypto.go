@@ -43,11 +43,12 @@ const defaultCryptoLib = "./scripts/cryptoplayground/crypto_lib.sh"
 
 func Cmd(pather command.Pather) *cobra.Command {
 	var flags struct {
-		topo      string
-		out       string
-		cryptoLib string
-		noCleanup bool
-		isdDir    bool
+		topo       string
+		out        string
+		cryptoLib  string
+		noCleanup  bool
+		isdDir     bool
+		asValidity string
 	}
 
 	// cmd implements the testcrypto sub-command. The bash library needs to be
@@ -71,8 +72,19 @@ This command should only be used in testing.
 					flags.cryptoLib = altLib
 				}
 			}
+			asValidity, err := util.ParseDuration(flags.asValidity)
+			if err != nil {
+				return err
+			}
 			cmd.SilenceUsage = true
-			return testcrypto(flags.topo, flags.cryptoLib, flags.out, flags.noCleanup, flags.isdDir)
+			return testcrypto(
+				flags.topo,
+				flags.cryptoLib,
+				flags.out,
+				flags.noCleanup,
+				flags.isdDir,
+				asValidity,
+			)
 		},
 	}
 
@@ -81,6 +93,7 @@ This command should only be used in testing.
 	cmd.Flags().StringVarP(&flags.cryptoLib, "cryptolib", "l",
 		defaultCryptoLib, "Path to bash crypto library")
 	cmd.Flags().BoolVar(&flags.isdDir, "isd-dir", false, "Group ASes in ISD directory")
+	cmd.Flags().StringVar(&flags.asValidity, "as-validity", "3d", "AS certificate validity")
 	cmd.MarkFlagRequired("topo")
 
 	cmd.AddCommand(newUpdate())
@@ -89,14 +102,23 @@ This command should only be used in testing.
 }
 
 type config struct {
-	topo      topo
-	out       outConfig
-	container string
-	lib       string
-	now       time.Time
+	topo       topo
+	out        outConfig
+	container  string
+	lib        string
+	now        time.Time
+	asValidity time.Duration
 }
 
-func testcrypto(topo, cryptoLib, outDir string, noCleanup, isdDir bool) error {
+func testcrypto(
+	topo string,
+	cryptoLib string,
+	outDir string,
+	noCleanup bool,
+	isdDir bool,
+	asValidity time.Duration,
+) error {
+
 	t, err := loadTopo(topo)
 	if err != nil {
 		return err
@@ -123,11 +145,12 @@ func testcrypto(topo, cryptoLib, outDir string, noCleanup, isdDir bool) error {
 	defer stopDocker(container, lib)
 
 	cfg := config{
-		topo:      t,
-		container: container,
-		out:       out,
-		lib:       lib,
-		now:       time.Now(),
+		topo:       t,
+		container:  container,
+		out:        out,
+		lib:        lib,
+		now:        time.Now(),
+		asValidity: asValidity,
 	}
 
 	if err := setupTemplates(cfg); err != nil {
@@ -287,7 +310,7 @@ func createASes(cfg config) error {
 			filepath.Join(asDir, "cp-as.key"),
 			"--profile=cp-as",
 			"--not-before=" + strconv.Itoa(int(cfg.now.Unix())),
-			"--not-after=3d",
+			"--not-after=" + util.FmtDuration(cfg.asValidity),
 			"--ca=" + filepath.Join(caDir, caCertName(ca)),
 			"--ca-key=" + filepath.Join(caDir, "cp-ca.key"),
 			"--bundle",

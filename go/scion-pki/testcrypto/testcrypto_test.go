@@ -37,7 +37,7 @@ func TestCmd(t *testing.T) {
 	outDir, cleanF := xtest.MustTempDir("", "testcrypto")
 	topo := "./testdata/test.topo"
 	cryptoLib := "../../../scripts/cryptoplayground/crypto_lib.sh"
-	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false)
+	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false, asValidity)
 	require.NoError(t, err)
 
 	allASes := []addr.IA{

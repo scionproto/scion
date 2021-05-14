@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -30,6 +31,8 @@ import (
 	"github.com/scionproto/scion/go/scion-pki/trcs"
 )
 
+const asValidity = 3 * 24 * time.Hour
+
 func TestUpdateExtend(t *testing.T) {
 	if _, bazel := os.LookupEnv("TEST_UNDECLARED_OUTPUTS_DIR"); bazel {
 		t.Skip("Test can't run through bazel because of symlinks and docker not playing nice")
@@ -38,7 +41,7 @@ func TestUpdateExtend(t *testing.T) {
 	defer cleanF()
 	topo := "./testdata/test.topo"
 	cryptoLib := "../../../scripts/cryptoplayground/crypto_lib.sh"
-	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false)
+	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false, asValidity)
 	require.NoError(t, err)
 
 	cmd := testcrypto.NewUpdate()
@@ -111,7 +114,7 @@ func TestUpdateReSign(t *testing.T) {
 	defer cleanF()
 	topo := "./testdata/test.topo"
 	cryptoLib := "../../../scripts/cryptoplayground/crypto_lib.sh"
-	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false)
+	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false, asValidity)
 	require.NoError(t, err)
 
 	cmd := testcrypto.NewUpdate()
@@ -180,7 +183,7 @@ func TestUpdateReGen(t *testing.T) {
 	defer cleanF()
 	topo := "./testdata/test.topo"
 	cryptoLib := "../../../scripts/cryptoplayground/crypto_lib.sh"
-	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false)
+	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false, asValidity)
 	require.NoError(t, err)
 
 	cmd := testcrypto.NewUpdate()
