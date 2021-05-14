@@ -374,7 +374,7 @@ type PacketAuthenticatorOption struct {
 	*EndToEndOption
 }
 
-// NewPacketAuthenticatorOption creates a new EndTOEndOption of
+// NewPacketAuthenticatorOption creates a new EndToEndOption of
 // OptTypeAuthenticator, initialized with the given algorithm type and
 // authenticator data.
 func NewPacketAuthenticatorOption(alg PacketAuthAlg, data []byte) PacketAuthenticatorOption {
