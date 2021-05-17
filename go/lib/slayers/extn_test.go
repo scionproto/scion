@@ -240,3 +240,76 @@ func TestEndToEndExtnSerializeDecode(t *testing.T) {
 	assert.NoError(t, got.DecodeFromBytes(b.Bytes(), gopacket.NilDecodeFeedback))
 	assert.Equal(t, e2e, got)
 }
+
+var optAuthMAC = []byte("16byte_mac_foooo")
+
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |Next Header=UDP| Hdr Ext Len=5 | PadN Option=1 |Opt Data Len=1 |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |       0       | Auth Option=2 |Opt Data Len=17| Algo = CMAC   |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |                                                               |
+//   +                                                               +
+//   |                                                               |
+//   +                        16-octet MAC data                      +
+//   |                                                               |
+//   +                                                               +
+//   |                                                               |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+var rawE2EOptAuth = append(
+	[]byte{
+		0x11, 0x05, 0x01, 0x01,
+		0x0, 0x2, 0x11, 0x0,
+	},
+	optAuthMAC...,
+)
+
+func TestOptAuthenticatorSerialize(t *testing.T) {
+	optAuth := slayers.NewPacketAuthenticatorOption(slayers.PacketAuthCMAC, optAuthMAC)
+
+	e2e := slayers.EndToEndExtn{}
+	e2e.NextHdr = common.L4UDP
+	e2e.Options = []*slayers.EndToEndOption{optAuth.EndToEndOption}
+
+	b := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{FixLengths: true}
+	assert.NoError(t, e2e.SerializeTo(b, opts), "SerializeTo")
+
+	assert.Equal(t, rawE2EOptAuth, b.Bytes(), "Raw Buffer")
+}
+
+func TestOptAuthenticatorDeserialize(t *testing.T) {
+	e2e := slayers.EndToEndExtn{}
+
+	_, err := e2e.FindOption(slayers.OptTypeAuthenticator)
+	assert.Error(t, err)
+
+	assert.NoError(t, e2e.DecodeFromBytes(rawE2EOptAuth, gopacket.NilDecodeFeedback))
+	assert.Equal(t, common.L4UDP, e2e.NextHdr, "NextHeader")
+	optAuth, err := e2e.FindOption(slayers.OptTypeAuthenticator)
+	require.NoError(t, err, "FindOption")
+	auth, err := slayers.ParsePacketAuthenticatorOption(optAuth)
+	require.NoError(t, err, "ParsePacketAuthenticatorOption")
+	assert.Equal(t, slayers.PacketAuthCMAC, auth.Algorithm(), "Algorithm Type")
+	assert.Equal(t, optAuthMAC, auth.Authenticator(), "Authenticator data (MAC)")
+}
+
+func TestOptAuthenticatorDeserializeCorrupt(t *testing.T) {
+	optAuthCorrupt := slayers.EndToEndOption{
+		OptType: slayers.OptTypeAuthenticator,
+		OptData: []byte{},
+	}
+	e2e := slayers.EndToEndExtn{}
+	e2e.NextHdr = common.L4UDP
+	e2e.Options = []*slayers.EndToEndOption{&optAuthCorrupt}
+
+	b := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{FixLengths: true}
+	assert.NoError(t, e2e.SerializeTo(b, opts), "SerializeTo")
+
+	assert.NoError(t, e2e.DecodeFromBytes(b.Bytes(), gopacket.NilDecodeFeedback))
+	optAuth, err := e2e.FindOption(slayers.OptTypeAuthenticator)
+	require.NoError(t, err, "FindOption")
+	_, err = slayers.ParsePacketAuthenticatorOption(optAuth)
+	require.Error(t, err, "ParsePacketAuthenticatorOption should fail")
+}

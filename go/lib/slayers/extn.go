@@ -24,6 +24,10 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
+var (
+	ErrOptionNotFound = serrors.New("Option not found")
+)
+
 // OptionType indicates the type of a TLV Option that is part of an extension header.
 type OptionType uint8
 
@@ -31,6 +35,7 @@ type OptionType uint8
 const (
 	OptTypePad1 OptionType = iota
 	OptTypePadN
+	OptTypeAuthenticator
 )
 
 type tlvOption struct {
@@ -341,4 +346,88 @@ func (e *EndToEndExtn) SerializeTo(b gopacket.SerializeBuffer,
 	}
 
 	return e.extnBase.serializeToWithTLVOptions(b, opts, o)
+}
+
+// FindOption returns the first option entry of the given type if any exists,
+// or ErrOptionNotFound otherwise.
+func (e *EndToEndExtn) FindOption(typ OptionType) (*EndToEndOption, error) {
+	for _, o := range e.Options {
+		if o.OptType == typ {
+			return o, nil
+		}
+	}
+	return nil, ErrOptionNotFound
+}
+
+// PacketAuthAlg is the enumerator for authenticator algorithm types in the
+// packet authenticator option.
+type PacketAuthAlg uint8
+
+const (
+	PacketAuthCMAC PacketAuthAlg = 0
+)
+
+// PacketAuthenticatorOption wraps an EndToEndOption of OptTypeAuthenticator.
+// This can be used to serialize and parse the internal structure of the packet authenticator
+// option.
+type PacketAuthenticatorOption struct {
+	*EndToEndOption
+}
+
+// NewPacketAuthenticatorOption creates a new EndToEndOption of
+// OptTypeAuthenticator, initialized with the given algorithm type and
+// authenticator data.
+func NewPacketAuthenticatorOption(alg PacketAuthAlg, data []byte) PacketAuthenticatorOption {
+	o := PacketAuthenticatorOption{EndToEndOption: new(EndToEndOption)}
+	o.Reset(alg, data)
+	return o
+}
+
+// ParsePacketAuthenticatorOption parses o as a packet authenticator option.
+// Performs minimal checks to ensure that Algorithm and Authenticator are set.
+// Checking the size and content of the Authenticator data must be done by the
+// caller.
+func ParsePacketAuthenticatorOption(o *EndToEndOption) (PacketAuthenticatorOption, error) {
+	if o.OptType != OptTypeAuthenticator {
+		return PacketAuthenticatorOption{},
+			serrors.New("wrong option type", "expected", OptTypeAuthenticator, "actual", o.OptType)
+	}
+	if len(o.OptData) < 2 {
+		return PacketAuthenticatorOption{},
+			serrors.New("buffer too short", "expected", 2, "actual", len(o.OptData))
+	}
+	return PacketAuthenticatorOption{o}, nil
+}
+
+// Reset reinitializes the underlying EndToEndOption with the given algorithm
+// type and authenticator data.
+// Reuses the OptData buffer if it is of sufficient capacity.
+func (o PacketAuthenticatorOption) Reset(alg PacketAuthAlg, data []byte) {
+	o.OptType = OptTypeAuthenticator
+
+	n := 1 + len(data)
+	if n <= cap(o.OptData) {
+		o.OptData = o.OptData[:n]
+	} else {
+		o.OptData = make([]byte, n)
+	}
+	o.OptData[0] = byte(alg)
+	copy(o.OptData[1:], data)
+
+	o.OptAlign = [2]uint8{4, 1}
+	// reset unused/implicit fields
+	o.OptDataLen = 0
+	o.ActualLength = 0
+}
+
+// Algorithm returns the algorithm type stored in the data buffer.
+func (o PacketAuthenticatorOption) Algorithm() PacketAuthAlg {
+	return PacketAuthAlg(o.OptData[0])
+}
+
+// Algorithm returns the authenticator data part of the data buffer.
+// Returns a slice of the underlying OptData buffer. Changes to this slice will
+// be reflected on the wire when the extension is serialized.
+func (o PacketAuthenticatorOption) Authenticator() []byte {
+	return o.OptData[1:]
 }
