@@ -41,6 +41,21 @@ Options
 
 The Hop-by-Hop Options header is aligned to 4 bytes.
 
+Assigned Option Types
+---------------------
+
+The following option types are assigned for Hop-by-Hop options:
+
+======= =================================
+Decimal Option
+======= =================================
+0       :ref:`Pad1 Option <pad-1-option>`
+1       :ref:`PadN Option <pad-n-option>`
+253     use for experimentation and testing
+254     use for experimentation and testing
+255     reserved
+======= =================================
+
 .. _end-to-end-options:
 
 End-to-End Options Header
@@ -72,6 +87,22 @@ Options
     TLV-encoded options, as described below.
 
 The End-to-End Options header is aligned to 4 bytes.
+
+Assigned Option Types
+---------------------
+
+The following option types are assigned for End-to-End options:
+
+======= =================================
+Decimal Option
+======= =================================
+0       :ref:`Pad1 Option <pad-1-option>`
+1       :ref:`PadN Option <pad-n-option>`
+2       :ref:`SCION Packet Authenticator Option <authenticator-option>`
+253     use for experimentation and testing
+254     use for experimentation and testing
+255     reserved
+======= =================================
 
 TLV-encoded Options
 ===================
@@ -114,6 +145,8 @@ There are two padding options that are used when necessary to align subsequent
 options and to pad out the containing header to a multiple of 4 bytes in length.
 These padding options must be recognized by all SCION implementations:
 
+.. _pad-1-option:
+
 Pad1 Option
 -----------
 Alignment requirement: none::
@@ -131,6 +164,8 @@ Alignment requirement: none::
 The Pad1 option is used to insert 1 byte of padding into the Options area of a
 header.  If more than one byte of padding is required, the PadN option,
 described next, should be used, rather han multiple Pad1 options.
+
+.. _pad-n-option:
 
 PadN Option
 -----------
