@@ -20,6 +20,8 @@ import (
 	"sync"
 
 	"github.com/google/gopacket/layers"
+
+	"github.com/scionproto/scion/go/lib/addr"
 )
 
 // NewPublishingRoutingTable publishes routes from rt via the routePublisher. The methods
@@ -32,6 +34,7 @@ func NewPublishingRoutingTable(rcs []*RoutingChain, rt RoutingTable,
 		site := &remoteSite{
 			prefixes:       rc.Prefixes,
 			trafficClasses: make(map[int]PktWriter),
+			ia:             rc.RemoteIA,
 		}
 		for _, tm := range rc.TrafficMatchers {
 			site.trafficClasses[tm.ID] = nil
@@ -70,6 +73,7 @@ type publishingRoutingTable struct {
 type remoteSite struct {
 	prefixes       []*net.IPNet
 	trafficClasses map[int]PktWriter
+	ia             addr.IA
 }
 
 func (r *remoteSite) healthy() bool {

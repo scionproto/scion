@@ -111,7 +111,7 @@ func (h ConfigHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // LocalIAExtractor extracts the local IA from the config updates. It extracts
 // only once and writes it to the local IA channel. All configurations are
-// forwared.
+// forwarded.
 type LocalIAExtractor struct {
 	ConfigUpdatesRead <-chan *Config
 	ConfigUpdateWrite chan<- *Config

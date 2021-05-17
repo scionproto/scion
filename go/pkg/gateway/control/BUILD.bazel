@@ -53,6 +53,7 @@ go_test(
         "prefixesfilter_test.go",
         "publishingroutingtable_test.go",
         "remotemonitor_test.go",
+        "routemgr_test.go",
         "router_test.go",
         "session_test.go",
         "sessionconfigurator_test.go",

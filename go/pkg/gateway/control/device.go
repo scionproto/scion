@@ -24,13 +24,24 @@ import (
 // DeviceOpener can be used to open readable/writeable objects that support
 // IPv4/IPv6 routing. Typically, this is a Linux network device.
 type DeviceOpener interface {
-	Open(name string) (DeviceHandle, error)
+	Open(name string) (Device, error)
+}
+
+// Device models an object that implements the reading and writing of packets and supports
+// the addition of IPv4 and IPv6 routes through it. To destroy the interface, call Close. Calling
+// Close multiple times should result in an error.
+type Device interface {
+	io.ReadWriteCloser
+	// AddRoute creates a route going through the device.
+	AddRoute(r *Route) error
+	// DeleteRoute destroys a route going through the device.
+	DeleteRoute(r *Route) error
 }
 
 // DeviceOpenerFunc is a function type that implements DeviceOpener.
-type DeviceOpenerFunc func(name string) (DeviceHandle, error)
+type DeviceOpenerFunc func(name string) (Device, error)
 
-func (f DeviceOpenerFunc) Open(name string) (DeviceHandle, error) {
+func (f DeviceOpenerFunc) Open(name string) (Device, error) {
 	return f(name)
 }
 
@@ -42,20 +53,15 @@ var (
 	ObjectDestroyedError = serrors.New("object was destroyed")
 )
 
-// DeviceHandle models an object that implements the reading and writing of packets and supports
-// the addition of IPv4 and IPv6 routes through it. To destroy the interface, call Close. Calling
-// Close multiple times is undefined behavior. Check the documentation of the component returning
-// the DeviceHandle to see how Close should be called.
-type DeviceHandle interface {
-	io.ReadWriteCloser
-	// AddRoute creates a route going through the device.
-	AddRoute(r *Route) error
-	// DeleteRoute destroys a route going through the device.
-	DeleteRoute(r *Route) error
-}
+// DeviceHandle implements reference counting for a Device. Close should be called once
+// for each time the DeviceHandle was obtained from a DeviceManager.
+type DeviceHandle Device
 
 // DeviceManager returns handles to shared device objects. If an error is returned, no resource
 // has been created.
 type DeviceManager interface {
+	// Get returns a DeviceHandle to a Device created by the DeviceManager. The reference
+	// count of the handle is increased the 1. To ensure resources are not leaked,
+	// each DeviceHandle should be closed after use.
 	Get(ia addr.IA) (DeviceHandle, error)
 }

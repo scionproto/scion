@@ -6,7 +6,8 @@
                 "Mask": "////AA=="
             },
             "NextHop": "10.11.12.13",
-            "Source": ""
+            "Source": "",
+            "IA": "0-0"
         },
         {
             "Prefix": {
@@ -14,7 +15,8 @@
                 "Mask": "////AA=="
             },
             "NextHop": "10.11.12.14",
-            "Source": ""
+            "Source": "",
+            "IA": "0-0"
         },
         {
             "Prefix": {
@@ -22,7 +24,8 @@
                 "Mask": "////gA=="
             },
             "NextHop": "10.11.12.13",
-            "Source": ""
+            "Source": "",
+            "IA": "0-0"
         },
         {
             "Prefix": {
@@ -30,7 +33,8 @@
                 "Mask": "////gA=="
             },
             "NextHop": "10.11.12.14",
-            "Source": ""
+            "Source": "",
+            "IA": "0-0"
         },
         {
             "Prefix": {
@@ -38,7 +42,8 @@
                 "Mask": "////wA=="
             },
             "NextHop": "10.11.12.13",
-            "Source": ""
+            "Source": "",
+            "IA": "0-0"
         },
         {
             "Prefix": {
@@ -46,7 +51,8 @@
                 "Mask": "////wA=="
             },
             "NextHop": "10.11.12.14",
-            "Source": ""
+            "Source": "",
+            "IA": "0-0"
         },
         {
             "Prefix": {
@@ -54,7 +60,8 @@
                 "Mask": "////AA=="
             },
             "NextHop": "10.11.12.13",
-            "Source": ""
+            "Source": "",
+            "IA": "0-0"
         },
         {
             "Prefix": {
@@ -62,7 +69,8 @@
                 "Mask": "////AA=="
             },
             "NextHop": "10.11.12.14",
-            "Source": ""
+            "Source": "",
+            "IA": "0-0"
         },
         {
             "Prefix": {
@@ -70,7 +78,8 @@
                 "Mask": "////AA=="
             },
             "NextHop": "10.11.12.13",
-            "Source": ""
+            "Source": "",
+            "IA": "0-0"
         },
         {
             "Prefix": {
@@ -78,7 +87,8 @@
                 "Mask": "////AA=="
             },
             "NextHop": "10.11.12.14",
-            "Source": ""
+            "Source": "",
+            "IA": "0-0"
         },
         {
             "Prefix": {
@@ -86,7 +96,8 @@
                 "Mask": "////AA=="
             },
             "NextHop": "10.11.12.13",
-            "Source": ""
+            "Source": "",
+            "IA": "0-0"
         },
         {
             "Prefix": {
@@ -94,7 +105,8 @@
                 "Mask": "////AA=="
             },
             "NextHop": "10.11.12.14",
-            "Source": ""
+            "Source": "",
+            "IA": "0-0"
         },
         {
             "Prefix": {
@@ -102,7 +114,8 @@
                 "Mask": "//////////8AAAAAAAAAAA=="
             },
             "NextHop": "deaf::beef",
-            "Source": ""
+            "Source": "",
+            "IA": "0-0"
         },
         {
             "Prefix": {
@@ -110,7 +123,8 @@
                 "Mask": "//////////+AAAAAAAAAAA=="
             },
             "NextHop": "deaf::beef",
-            "Source": ""
+            "Source": "",
+            "IA": "0-0"
         }
     ]
 }

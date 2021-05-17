@@ -17,17 +17,15 @@ package routemgr
 import (
 	"sync"
 
-	"github.com/vishvananda/netlink"
-
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
-	"github.com/scionproto/scion/go/pkg/gateway/xnet"
 )
 
 // Linux is a one-way exporter of routes to Linux kernel.
 type Linux struct {
-	// Device is the device for exporting the routes.
-	Device netlink.Link
+	// DeviceManager is used to export routes to external routing tables (e.g., Linux).
+	DeviceManager control.DeviceManager
 
 	mtx sync.Mutex
 	// exportedRoutes stores routes published by the local process.
@@ -78,10 +76,19 @@ Top:
 }
 
 func (l *Linux) publishToLinux(update control.RouteUpdate) error {
-	if update.IsAdd {
-		return xnet.AddRoute(0, l.Device, update.Prefix, update.Source)
+	handle, err := l.DeviceManager.Get(update.IA)
+	if err != nil {
+		return serrors.WrapStr("retrieving device for ISD-AS", err, "isd_as", update.IA)
 	}
-	return xnet.DeleteRoute(0, l.Device, update.Prefix, update.Source)
+	defer func() {
+		if err := handle.Close(); err != nil {
+			log.Info("unable to clean up device", "isd_as", update.IA, "err", err)
+		}
+	}()
+	if update.IsAdd {
+		return handle.AddRoute(&update.Route)
+	}
+	return handle.DeleteRoute(&update.Route)
 }
 
 func (l *Linux) Diagnostics() control.Diagnostics {

@@ -14,7 +14,12 @@
 
 package control
 
-import "net"
+import (
+	"fmt"
+	"net"
+
+	"github.com/scionproto/scion/go/lib/addr"
+)
 
 // Diagnostics is the diagnostic information about the RouteDB.
 type Diagnostics struct {
@@ -28,6 +33,37 @@ type Route struct {
 	NextHop net.IP
 	// Source is the (optional) source hint for the IP route.
 	Source net.IP
+	// IA is the ISD-AS which contains the route prefix. For route prefixes not advertised
+	// over SCION this is the Zero AS.
+	IA addr.IA
+}
+
+func (r *Route) String() string {
+	if r == nil {
+		return "<nil>"
+	}
+
+	prefix := "<nil>"
+	if r.Prefix != nil {
+		prefix = r.Prefix.String()
+	}
+
+	nextHop := "<nil>"
+	if r.NextHop != nil {
+		nextHop = r.NextHop.String()
+	}
+
+	src := ""
+	if r.Source != nil {
+		// add a space for separation from previous word in final route
+		src = " src " + r.Source.String()
+	}
+
+	ia := ""
+	if !r.IA.IsZero() {
+		ia = " isd-as " + r.IA.String()
+	}
+	return fmt.Sprintf("%s via %s%s%s", prefix, nextHop, src, ia)
 }
 
 // RouteUpdate is used to inform consumers about changes in the route database.
