@@ -547,17 +547,15 @@ type processResult struct {
 
 func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
 	return &scionPacketProcessor{
-		d:          d,
-		ingressID:  ingressID,
-		buffer:     gopacket.NewSerializeBuffer(),
-		origPacket: make([]byte, bufSize),
-		mac:        d.macFactory(),
+		d:         d,
+		ingressID: ingressID,
+		buffer:    gopacket.NewSerializeBuffer(),
+		mac:       d.macFactory(),
 	}
 }
 
 func (p *scionPacketProcessor) reset() error {
 	p.rawPkt = nil
-	p.origPacket = p.origPacket[:0]
 	//p.scionLayer // cannot easily be reset
 	p.path = nil
 	p.hopField = nil
@@ -576,28 +574,38 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 
 	p.reset()
 	p.rawPkt = rawPkt
-	p.origPacket = p.origPacket[:len(p.rawPkt)]
-	copy(p.origPacket, p.rawPkt)
 
-	if err := p.scionLayer.DecodeFromBytes(p.rawPkt, gopacket.NilDecodeFeedback); err != nil {
+	// parse SCION header and skip extensions;
+	var err error
+	p.lastLayer, err = decodeLayers(p.rawPkt, &p.scionLayer, &p.hbhLayer, &p.e2eLayer)
+	if err != nil {
 		return processResult{}, err
 	}
+	var nextHdr common.L4ProtocolType
+	if p.lastLayer == &p.e2eLayer {
+		nextHdr = p.e2eLayer.NextHdr
+	} else if p.lastLayer == &p.hbhLayer {
+		nextHdr = p.hbhLayer.NextHdr
+	} else {
+		nextHdr = p.scionLayer.NextHdr
+	}
+	pld := p.lastLayer.LayerPayload()
 
-	s := &p.scionLayer
-	switch s.PathType {
+	pathType := p.scionLayer.PathType
+	switch pathType {
 	case empty.PathType:
-		if s.NextHdr == common.L4BFD {
-			return processResult{}, p.processIntraBFD(srcAddr, s.Payload)
+		if nextHdr == common.L4BFD {
+			return processResult{}, p.processIntraBFD(srcAddr, pld)
 		}
 		return processResult{}, serrors.WithCtx(unsupportedPathTypeNextHeader,
-			"type", s.PathType, "header", s.NextHdr)
+			"type", pathType, "header", nextHdr)
 	case onehop.PathType:
-		if s.NextHdr == common.L4BFD {
-			ohp, ok := s.Path.(*onehop.Path)
+		if nextHdr == common.L4BFD {
+			ohp, ok := p.scionLayer.Path.(*onehop.Path)
 			if !ok {
 				return processResult{}, malformedPath
 			}
-			return processResult{}, p.processInterBFD(ohp, s.Payload)
+			return processResult{}, p.processInterBFD(ohp, pld)
 		}
 		return p.processOHP()
 	case scion.PathType:
@@ -605,7 +613,7 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	case epic.PathType:
 		return p.processEPIC()
 	default:
-		return processResult{}, serrors.WithCtx(unsupportedPathType, "type", s.PathType)
+		return processResult{}, serrors.WithCtx(unsupportedPathType, "type", pathType)
 	}
 }
 
@@ -722,8 +730,6 @@ type scionPacketProcessor struct {
 	// rawPkt is the raw packet, it is updated during processing to contain the
 	// message to send out.
 	rawPkt []byte
-	// origPacket is the raw original packet, must not be modified.
-	origPacket []byte
 	// buffer is the buffer that can be used to serialize gopacket layers.
 	buffer gopacket.SerializeBuffer
 	// mac is the hasher for the MAC computation.
@@ -731,6 +737,11 @@ type scionPacketProcessor struct {
 
 	// scionLayer is the SCION gopacket layer.
 	scionLayer slayers.SCION
+	hbhLayer   slayers.HopByHopExtnSkipper
+	e2eLayer   slayers.EndToEndExtnSkipper
+	// last is the last parsed layer, i.e. either &scionLayer, &hbhLayer or &e2eLayer
+	lastLayer gopacket.DecodingLayer
+
 	// path is the raw SCION path. Will be set during processing.
 	path *scion.Raw
 	// hopField is the current hopField field, is updated during processing.
@@ -748,65 +759,21 @@ type scionPacketProcessor struct {
 func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
 	cause error) (processResult, error) {
 
-	// parse everything to see if the original packet was an SCMP error.
-	var (
-		scionLayer slayers.SCION
-		udpLayer   slayers.UDP
-		hbhExtn    slayers.HopByHopExtn
-		e2eExtn    slayers.EndToEndExtn
-		scmpLayer  slayers.SCMP
-	)
-	parser := gopacket.NewDecodingLayerParser(
-		slayers.LayerTypeSCION, &scionLayer, &udpLayer, &hbhExtn, &e2eExtn, &scmpLayer,
-	)
-	decoded := make([]gopacket.LayerType, 5)
-	if err := parser.DecodeLayers(p.origPacket, &decoded); err != nil {
-		if _, ok := err.(gopacket.UnsupportedLayerType); !ok {
-			return processResult{}, serrors.WrapStr("decoding packet", err)
+	// check invoking packet was an SCMP error:
+	if p.lastLayer.NextLayerType() == slayers.LayerTypeSCMP {
+		var scmpLayer slayers.SCMP
+		err := scmpLayer.DecodeFromBytes(p.lastLayer.LayerPayload(), gopacket.NilDecodeFeedback)
+		if err != nil {
+			return processResult{}, serrors.WrapStr("decoding SCMP layer", err)
+		}
+		if !scmpLayer.TypeCode.InfoMsg() {
+			return processResult{}, serrors.WrapStr("SCMP error for SCMP error pkt -> DROP", cause)
 		}
 	}
-	// in reply to an SCMP error do nothing:
-	if decoded[len(decoded)-1] == slayers.LayerTypeSCMP && !scmpLayer.TypeCode.InfoMsg() {
-		return processResult{}, serrors.WrapStr("SCMP error for SCMP error pkt -> DROP", cause)
-	}
 
-	// the quoted packet is the packet in its current state
-	if err := p.path.SetInfoField(p.infoField, int(p.path.PathMeta.CurrINF)); err != nil {
-		return processResult{}, serrors.WrapStr("update info field", err)
-	}
-	if err := p.path.SetHopField(p.hopField, int(p.path.PathMeta.CurrHF)); err != nil {
-		return processResult{}, serrors.WrapStr("update hop field", err)
-	}
-	if err := p.buffer.Clear(); err != nil {
-		return processResult{}, err
-	}
-	if err := p.scionLayer.SerializeTo(p.buffer, gopacket.SerializeOptions{}); err != nil {
-		return processResult{}, err
-	}
-	// quoteLen is used to limit the size of the quote buffer, the final quote
-	// length is calculated inside the scmpPacker.
-	quoteLen := len(p.origPacket)
-	if quoteLen > slayers.MaxSCMPPacketLen {
-		quoteLen = slayers.MaxSCMPPacketLen
-	}
-	quote := make([]byte, quoteLen)
-	updated := p.buffer.Bytes()
-	copy(quote[:len(updated)], updated)
-	copy(quote[len(updated):], p.origPacket[len(updated):quoteLen])
-
-	_, external := p.d.external[p.ingressID]
-	rawSCMP, err := scmpPacker{
-		internalIP: p.d.internalIP,
-		localIA:    p.d.localIA,
-		origPacket: p.origPacket,
-		ingressID:  p.ingressID,
-		scionL:     &p.scionLayer,
-		buffer:     p.buffer,
-		quote:      quote,
-	}.prepareSCMP(
+	rawSCMP, err := p.prepareSCMP(
 		scmpH,
 		scmpP,
-		external,
 		cause,
 	)
 	return processResult{OutPkt: rawSCMP}, err
@@ -1062,6 +1029,9 @@ func (p *scionPacketProcessor) handleIngressRouterAlert() (processResult, error)
 		return processResult{}, nil
 	}
 	*alert = false
+	if err := p.path.SetHopField(p.hopField, int(p.path.PathMeta.CurrHF)); err != nil {
+		return processResult{}, serrors.WrapStr("update hop field", err)
+	}
 	return p.handleSCMPTraceRouteRequest(p.ingressID)
 }
 
@@ -1082,6 +1052,9 @@ func (p *scionPacketProcessor) handleEgressRouterAlert() (processResult, error) 
 		return processResult{}, nil
 	}
 	*alert = false
+	if err := p.path.SetHopField(p.hopField, int(p.path.PathMeta.CurrHF)); err != nil {
+		return processResult{}, serrors.WrapStr("update hop field", err)
+	}
 	return p.handleSCMPTraceRouteRequest(egressID)
 }
 
@@ -1095,8 +1068,13 @@ func (p *scionPacketProcessor) egressRouterAlertFlag() *bool {
 func (p *scionPacketProcessor) handleSCMPTraceRouteRequest(
 	interfaceID uint16) (processResult, error) {
 
+	if p.lastLayer.NextLayerType() != slayers.LayerTypeSCMP {
+		log.Debug("Packet with router alert, but not SCMP")
+		return processResult{}, nil
+	}
+	scionPld := p.lastLayer.LayerPayload()
 	var scmpH slayers.SCMP
-	if err := scmpH.DecodeFromBytes(p.scionLayer.Payload, gopacket.NilDecodeFeedback); err != nil {
+	if err := scmpH.DecodeFromBytes(scionPld, gopacket.NilDecodeFeedback); err != nil {
 		log.Debug("Parsing SCMP header of router alert", "err", err)
 		return processResult{}, nil
 	}
@@ -1401,35 +1379,25 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	return err
 }
 
-type scmpPacker struct {
-	internalIP net.IP
-	localIA    addr.IA
-	origPacket []byte
-	ingressID  uint16
+func (p *scionPacketProcessor) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
+	cause error) ([]byte, error) {
 
-	scionL *slayers.SCION
-	buffer gopacket.SerializeBuffer
-	quote  []byte
-}
-
-func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
-	external bool, cause error) ([]byte, error) {
-
-	path, ok := s.scionL.Path.(*scion.Raw)
+	// *copy* and reverse path -- the original path should not be modified as this writes directly
+	// back to rawPkt (quote).
+	path, ok := p.scionLayer.Path.(*scion.Raw)
 	if !ok {
 		return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
-			"path type", s.scionL.Path.Type())
+			"path type", p.scionLayer.Path.Type())
 	}
-
 	decPath, err := path.ToDecoded()
 	if err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "decoding raw path")
 	}
-	s.scionL.Path, err = decPath.Reverse()
+	revPathTmp, err := decPath.Reverse()
 	if err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "reversing path for SCMP")
 	}
-	revPath := s.scionL.Path.(*scion.Decoded)
+	revPath := revPathTmp.(*scion.Decoded)
 
 	// Revert potential path segment switches that were done during processing.
 	if revPath.IsXover() {
@@ -1439,6 +1407,7 @@ func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.Serializable
 	}
 	// If the packet is sent to an external router, we need to increment the
 	// path to prepare it for the next hop.
+	_, external := p.d.external[p.ingressID]
 	if external {
 		infoField := revPath.InfoFields[revPath.PathMeta.CurrINF]
 		if infoField.ConsDir {
@@ -1450,23 +1419,29 @@ func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.Serializable
 		}
 	}
 
-	s.scionL.DstIA = s.scionL.SrcIA
-	s.scionL.SrcIA = s.localIA
-	srcA, err := s.scionL.SrcAddr()
+	// create new SCION header for reply.
+	var scionL slayers.SCION
+	scionL.FlowID = p.scionLayer.FlowID
+	scionL.TrafficClass = p.scionLayer.TrafficClass
+	scionL.PathType = revPath.Type()
+	scionL.Path = revPath
+	scionL.DstIA = p.scionLayer.SrcIA
+	scionL.SrcIA = p.d.localIA
+	srcA, err := p.scionLayer.SrcAddr()
 	if err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "extracting src addr")
 	}
-	if err := s.scionL.SetDstAddr(srcA); err != nil {
+	if err := scionL.SetDstAddr(srcA); err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "setting dest addr")
 	}
-	if err := s.scionL.SetSrcAddr(&net.IPAddr{IP: s.internalIP}); err != nil {
+	if err := scionL.SetSrcAddr(&net.IPAddr{IP: p.d.internalIP}); err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "setting src addr")
 	}
-	s.scionL.NextHdr = common.L4SCMP
+	scionL.NextHdr = common.L4SCMP
 
-	scmpH.SetNetworkLayerForChecksum(s.scionL)
+	scmpH.SetNetworkLayerForChecksum(&scionL)
 
-	if err := s.buffer.Clear(); err != nil {
+	if err := p.buffer.Clear(); err != nil {
 		return nil, err
 	}
 
@@ -1474,10 +1449,10 @@ func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.Serializable
 		ComputeChecksums: true,
 		FixLengths:       true,
 	}
-	scmpLayers := []gopacket.SerializableLayer{s.scionL, scmpH, scmpP}
+	scmpLayers := []gopacket.SerializableLayer{&scionL, scmpH, scmpP}
 	if cause != nil {
 		// add quote for errors.
-		hdrLen := slayers.CmnHdrLen + s.scionL.AddrHdrLen() + s.scionL.Path.Len()
+		hdrLen := slayers.CmnHdrLen + scionL.AddrHdrLen() + scionL.Path.Len()
 		switch scmpH.TypeCode.Type() {
 		case slayers.SCMPTypeExternalInterfaceDown:
 			hdrLen += 20
@@ -1486,17 +1461,42 @@ func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.Serializable
 		default:
 			hdrLen += 8
 		}
+		quote := p.rawPkt
 		maxQuoteLen := slayers.MaxSCMPPacketLen - hdrLen
-		if len(s.quote) > maxQuoteLen {
-			s.quote = s.quote[:maxQuoteLen]
+		if len(quote) > maxQuoteLen {
+			quote = quote[:maxQuoteLen]
 		}
-		scmpLayers = append(scmpLayers, gopacket.Payload(s.quote))
+		scmpLayers = append(scmpLayers, gopacket.Payload(quote))
 	}
-	err = gopacket.SerializeLayers(s.buffer, sopts, scmpLayers...)
+	// XXX(matzf) could we use iovec gather to avoid copying quote?
+	err = gopacket.SerializeLayers(p.buffer, sopts, scmpLayers...)
 	if err != nil {
 		return nil, serrors.Wrap(cannotRoute, err, "details", "serializing SCMP message")
 	}
-	return s.buffer.Bytes(), scmpError{TypeCode: scmpH.TypeCode, Cause: cause}
+	return p.buffer.Bytes(), scmpError{TypeCode: scmpH.TypeCode, Cause: cause}
+}
+
+// decodeLayers implements roughly the functionality of
+// gopacket.DecodingLayerParser, but customized to our use case with a "base"
+// layer and additional, optional layers in the given order.
+// Returns the last decoded layer.
+func decodeLayers(data []byte, base gopacket.DecodingLayer,
+	opts ...gopacket.DecodingLayer) (gopacket.DecodingLayer, error) {
+
+	if err := base.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
+		return nil, err
+	}
+	last := base
+	for _, opt := range opts {
+		if opt.CanDecode().Contains(last.NextLayerType()) {
+			data := last.LayerPayload()
+			if err := opt.DecodeFromBytes(data, gopacket.NilDecodeFeedback); err != nil {
+				return nil, err
+			}
+			last = opt
+		}
+	}
+	return last, nil
 }
 
 // forwardingMetrics contains the subset of Metrics relevant for forwarding,
