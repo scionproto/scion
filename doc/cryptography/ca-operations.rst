@@ -18,6 +18,8 @@ The process of creating new AS Certificates is described in section `AS Certific
 To follow the steps in this document, ``openssl`` version ``1.1.1d`` or later is
 required.
 
+.. _ca-cert:
+
 CA Certificates
 ===============
 
