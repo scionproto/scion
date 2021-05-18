@@ -144,7 +144,12 @@ func addTestFlags() {
 
 func validateFlags() error {
 	flag.Parse()
-	logCfg := log.Config{Console: log.ConsoleConfig{Level: logConsole}}
+	logCfg := log.Config{
+		Console: log.ConsoleConfig{
+			Level:           logConsole,
+			StacktraceLevel: "none",
+			DisableCaller:   true,
+		}}
 	if err := log.Setup(logCfg); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
 		flag.Usage()

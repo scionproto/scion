@@ -23,11 +23,14 @@ import (
 )
 
 // InitTestLogging prepares the config for testing.
-func InitTestLogging(cfg *log.Config) {}
+func InitTestLogging(cfg *log.Config) {
+	cfg.Console.DisableCaller = true
+}
 
 // CheckTestLogging checks that the given config matches the sample values.
 func CheckTestLogging(t *testing.T, cfg *log.Config, id string) {
 	assert.Equal(t, log.DefaultConsoleLevel, cfg.Console.Level)
 	assert.Equal(t, "human", cfg.Console.Format)
 	assert.Equal(t, log.DefaultStacktraceLevel, cfg.Console.StacktraceLevel)
+	assert.False(t, cfg.Console.DisableCaller)
 }

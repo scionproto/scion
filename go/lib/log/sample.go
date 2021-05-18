@@ -24,4 +24,8 @@ stacktrace_level = "error"
 
 # Logging fromat (human|json) (default human)
 format = "human"
+
+# Disable annotating logs with the calling function's file name and line number.
+# (default false)
+disable_caller = false
 `
