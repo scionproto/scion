@@ -16,7 +16,7 @@ Hop-by-Hop Options Header
 
 The Hop-by-Hop Options header is used to carry optional information that may be
 examined and processed by every node along a packet's delivery path. The
-Hop-by-Hop Options header is identified by a Next Header value of ``0`` in the
+Hop-by-Hop Options header is identified by a Next Header value of ``200`` in the
 SCION common header and has the following format::
 
      0                   1                   2                   3
@@ -63,7 +63,7 @@ End-to-End Options Header
 
 The End-to-end  Options header is used to carry optional information that may be
 examined and processed by sender and/or receiver of the packet.  The End-to-end
-Options header is identified by a Next Header value of ``0xfd`` in the SCION
+Options header is identified by a Next Header value of ``201`` in the SCION
 common header and has the following format::
 
      0                   1                   2                   3
