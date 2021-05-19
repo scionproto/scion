@@ -392,6 +392,96 @@ func TestExtnOrderDecode(t *testing.T) {
 				assert.NoError(t, packet.ErrorLayer().Error())
 			}
 		})
+		t.Run(fmt.Sprintf("decode skip %s", c.name), func(t *testing.T) {
+			raw := prepRawPacketWithExtn(t, c.extns...)
+			var (
+				scn slayers.SCION
+				e2e slayers.EndToEndExtnSkipper
+				hbh slayers.HopByHopExtnSkipper
+				udp slayers.UDP
+				pld gopacket.Payload
+			)
+			parser := gopacket.NewDecodingLayerParser(slayers.LayerTypeSCION,
+				&scn, &e2e, &hbh, &udp, &pld,
+			)
+			decoded := []gopacket.LayerType{}
+			err := parser.DecodeLayers(raw, &decoded)
+			if c.err {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestExtnSkipDecode(t *testing.T) {
+	cases := []struct {
+		name string
+		hbh  bool
+		e2e  bool
+	}{
+		{
+			name: "none",
+		},
+		{
+			name: "e2e",
+			e2e:  true,
+		},
+		{
+			name: "hbh",
+			hbh:  true,
+		},
+		{
+			name: "hbh e2e",
+			e2e:  true,
+			hbh:  true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			extns := []common.L4ProtocolType{}
+			if c.hbh {
+				extns = append(extns, common.HopByHopClass)
+			}
+			if c.e2e {
+				extns = append(extns, common.End2EndClass)
+			}
+			raw := prepRawPacketWithExtn(t, extns...)
+			var (
+				scn slayers.SCION
+				e2e slayers.EndToEndExtnSkipper
+				hbh slayers.HopByHopExtnSkipper
+				udp slayers.UDP
+				pld gopacket.Payload
+			)
+			parser := gopacket.NewDecodingLayerParser(slayers.LayerTypeSCION,
+				&scn, &e2e, &hbh, &udp, &pld,
+			)
+			decoded := []gopacket.LayerType{}
+			err := parser.DecodeLayers(raw, &decoded)
+			require.NoError(t, err)
+
+			// decoded should be: SCION, the expected extension headers, and the UDP + payload
+			expected := []gopacket.LayerType{slayers.LayerTypeSCION}
+			if c.hbh {
+				expected = append(expected, slayers.LayerTypeHopByHopExtn)
+			}
+			if c.e2e {
+				expected = append(expected, slayers.LayerTypeEndToEndExtn)
+			}
+			expected = append(expected, slayers.LayerTypeSCIONUDP)
+			expected = append(expected, gopacket.LayerTypePayload)
+			assert.Equal(t, expected, decoded)
+
+			// check that the skipper "captured" the expected part of the packet
+			if c.hbh {
+				assert.Equal(t, hbh.Contents[2:], rawTLVOptionsXY)
+			}
+			if c.e2e {
+				assert.Equal(t, e2e.Contents[2:], rawTLVOptionsXY)
+			}
+		})
 	}
 }
 
@@ -426,7 +516,11 @@ func prepPacketWithExtn(t *testing.T,
 func prepRawPacketWithExtn(t *testing.T, extns ...common.L4ProtocolType) []byte {
 	t.Helper()
 
-	scn := prepPacket(t, extns[0])
+	first := common.L4UDP
+	if len(extns) > 0 {
+		first = extns[0]
+	}
+	scn := prepPacket(t, first)
 	buf := gopacket.NewSerializeBuffer()
 	require.NoError(t, scn.SerializeTo(buf, gopacket.SerializeOptions{FixLengths: true}))
 
@@ -434,16 +528,17 @@ func prepRawPacketWithExtn(t *testing.T, extns ...common.L4ProtocolType) []byte 
 	// logic checks for the correct ordering of the extensions, but we want to
 	// create packets with bad order.
 	for i := range extns {
-		b, err := buf.AppendBytes(slayers.LineLen)
+		b, err := buf.AppendBytes(2 + len(rawTLVOptionsXY))
 		require.NoError(t, err)
 		next := common.L4UDP
 		if i+1 < len(extns) {
 			next = extns[i+1]
 		}
 		b[0] = uint8(next)
-		b[1] = 0 // one LineLen
+		b[1] = 6 // ExtLen, see rawTLVOptionsXY
+		copy(b[2:], rawTLVOptionsXY)
 	}
-	buf.AppendBytes(8) // dummy UDP payload
+	buf.AppendBytes(9) // dummy UDP with 1 byte payload
 
 	return buf.Bytes()
 }
