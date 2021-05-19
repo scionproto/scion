@@ -16,8 +16,6 @@ sub-command that sub-classes `common.CmdBase` (see below).
 
 - `--artifacts/ACCEPTANCE_ARTIFACTS` defines the directory for artifacts
   (required)
-- `--disable-docker/DISABLE_DOCKER` disables the dockerized topology.
-  This allows for faster development cycle.
 
 The sub-commands should sub-class `common.CmdBase`. `CmdBase` has defined some
 common properties and methods that are useful for test writing and interacting

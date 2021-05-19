@@ -1,21 +1,7 @@
 load("@io_bazel_rules_docker//container:container.bzl", "container_bundle")
 load("//lint:py.bzl", "py_binary", "py_library", "py_test")
 load("@pip3_deps//:requirements.bzl", "requirement")
-load("//python/topology:topology.bzl", "topology")
 
-# Creates a test based on a topology file. It creates a target specified
-# by the 'name' argument that runs the entire test. Additionally, It
-# creates <name>_setup, <name>_run and <name>_teardown targets that allow
-# to run the test in stages.
-#  name - name of the test
-#  src - the source code of the test
-#  topo - the topology (.topo) file to use for the test
-#  gateway - whether gateways should be present in the topology
-#  debug - if true, debug docker images are used instead of prod images
-#  args - additional arguments to pass to the test
-#  deps - additional dependencies
-#  data - additional data files
-#  tester - tester image to use
 def topogen_test(
         name,
         src,
@@ -26,6 +12,24 @@ def topogen_test(
         deps = [],
         data = [],
         tester = "//docker:tester"):
+    """Creates a test based on a topology file.
+
+    It creates a target specified by the 'name' argument that runs the entire
+    test. Additionally, It creates <name>_setup, <name>_run and <name>_teardown
+    targets that allow to run the test in stages.
+
+    Args:
+        name: name of the test
+        src: the source code of the test
+        topo: the topology (.topo) file to use for the test
+        gateway: whether gateways should be present in the topology
+        debug: if true, debug docker images are used instead of prod images
+        args: additional arguments to pass to the test
+        deps: additional dependencies
+        data: additional data files
+        tester: tester image to use
+    """
+
     py_library(
         name = "%s_lib" % name,
         srcs = [src],
@@ -38,15 +42,25 @@ def topogen_test(
         visibility = ["//visibility:public"],
     )
 
+    setup_params = " "
+    if gateway:
+        setup_params += " --sig"
+
     common_args = [
-        "--topology_tar",
-        "$(location :%s_topo)" % name,
-        "--containers_tar",
-        "$(location :%s_containers.tar)" % name,
+        "--executables=scion-pki:$(location //go/scion-pki)",
+        "--executables=crypto_lib.sh:$(location //scripts/cryptoplayground:crypto_lib.sh)",
+        "--executables=topogen:$(location //python/topology:topogen)",
+        "--topo=$(location %s)" % topo,
+        "--containers_tar=$(location :%s_containers.tar)" % name,
+        "--setup-params='%s'" % setup_params,
     ]
     common_data = [
+        "//scripts/cryptoplayground:crypto_lib.sh",
+        "//go/scion-pki",
+        "//python/topology:topogen",
+        "//tools:docker_ip",
+        topo,
         ":%s_containers.tar" % name,
-        ":%s_topo" % name,
     ]
 
     py_binary(
@@ -100,11 +114,4 @@ def topogen_test(
     container_bundle(
         name = "%s_containers" % name,
         images = images,
-    )
-
-    topology(
-        name = "%s_topo" % name,
-        src = topo,
-        out = "%s_gen.tar" % name,
-        sig = gateway,
     )

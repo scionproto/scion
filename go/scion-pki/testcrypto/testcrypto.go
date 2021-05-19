@@ -149,7 +149,7 @@ func testcrypto(
 		container:  container,
 		out:        out,
 		lib:        lib,
-		now:        time.Now(),
+		now:        time.Now().Add(-time.Minute),
 		asValidity: asValidity,
 	}
 

@@ -20,7 +20,7 @@ from typing import Any, Dict, List, MutableMapping
 import toml
 from plumbum import local
 import yaml
-from plumbum.cmd import docker, pkill
+from plumbum.cmd import docker
 from plumbum.path.local import LocalPath
 
 from acceptance.common.log import LogExec
@@ -166,28 +166,6 @@ class SCIONDocker(SCION):
 
     def _run_end2end(self, *args, code=0):
         self.end2end('-d', *args, retcode=code)
-
-
-class SCIONSupervisor(SCION):
-    """
-    SCIONSupervisor is used for interacting with the supervisor
-    SCION infrastructure.
-    """
-
-    @LogExec(logger, "creating supervisor topology")
-    def topology(self, topo_file: str, *args: str):
-        """ Create the topology files. """
-        self.scion_sh('topology', '-c', topo_file, *args)
-
-    def execute(self, isd_as: ISD_AS, cmd: str, *args: str) -> str:
-        return local[cmd](*args)
-
-    def _send_signals(self, svc_names: List[str], sig: str):
-        for svc_name in svc_names:
-            pkill('-f', '--signal', sig, 'bin/.*%s' % svc_name)
-
-    def _run_end2end(self, *args, code=0):
-        self.end2end(*args, retcode=code)
 
 
 class ASList(object):
