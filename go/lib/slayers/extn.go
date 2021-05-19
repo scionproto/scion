@@ -239,8 +239,8 @@ func (h *HopByHopExtn) LayerPayload() []byte {
 func (h *HopByHopExtn) SerializeTo(b gopacket.SerializeBuffer,
 	opts gopacket.SerializeOptions) error {
 
-	if h.NextHdr == common.HopByHopClass {
-		return serrors.New("hbh extension must not be repeated")
+	if err := checkHopByHopExtnNextHdr(h.NextHdr); err != nil {
+		return err
 	}
 
 	o := make([]*tlvOption, 0, len(h.Options))
@@ -258,8 +258,8 @@ func (h *HopByHopExtn) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) 
 	if err != nil {
 		return err
 	}
-	if h.NextHdr == common.HopByHopClass {
-		return serrors.New("hbh extension must not be repeated")
+	if err := checkHopByHopExtnNextHdr(h.NextHdr); err != nil {
+		return err
 	}
 	offset := 2
 	for offset < h.ActualLen {
@@ -281,6 +281,13 @@ func decodeHopByHopExtn(data []byte, p gopacket.PacketBuilder) error {
 		return err
 	}
 	return p.NextDecoder(scionNextLayerTypeAfterHBH(h.NextHdr))
+}
+
+func checkHopByHopExtnNextHdr(t common.L4ProtocolType) error {
+	if t == common.HopByHopClass {
+		return serrors.New("hbh extension must not be repeated")
+	}
+	return nil
 }
 
 // EndToEndOption is a TLV option present in a SCION end-to-end extension.
@@ -315,10 +322,8 @@ func (e *EndToEndExtn) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) 
 	if err != nil {
 		return err
 	}
-	if e.NextHdr == common.HopByHopClass {
-		return serrors.New("e2e extension must not come before the HBH extension")
-	} else if e.NextHdr == common.End2EndClass {
-		return serrors.New("e2e extension must not be repeated")
+	if err := checkEndToEndExtnNextHdr(e.NextHdr); err != nil {
+		return err
 	}
 	offset := 2
 	for offset < e.ActualLen {
@@ -342,14 +347,21 @@ func decodeEndToEndExtn(data []byte, p gopacket.PacketBuilder) error {
 	return p.NextDecoder(scionNextLayerTypeAfterE2E(e.NextHdr))
 }
 
+func checkEndToEndExtnNextHdr(t common.L4ProtocolType) error {
+	if t == common.HopByHopClass {
+		return serrors.New("e2e extension must not come before the HBH extension")
+	} else if t == common.End2EndClass {
+		return serrors.New("e2e extension must not be repeated")
+	}
+	return nil
+}
+
 // SerializeTo implementation according to gopacket.SerializableLayer
 func (e *EndToEndExtn) SerializeTo(b gopacket.SerializeBuffer,
 	opts gopacket.SerializeOptions) error {
 
-	if e.NextHdr == common.HopByHopClass {
-		return serrors.New("e2e extension must not come before the HBH extension")
-	} else if e.NextHdr == common.End2EndClass {
-		return serrors.New("e2e extension must not be repeated")
+	if err := checkEndToEndExtnNextHdr(e.NextHdr); err != nil {
+		return err
 	}
 
 	o := make([]*tlvOption, 0, len(e.Options))
@@ -369,6 +381,72 @@ func (e *EndToEndExtn) FindOption(typ OptionType) (*EndToEndOption, error) {
 		}
 	}
 	return nil, ErrOptionNotFound
+}
+
+// HopByHopExtnSkipper is a DecodingLayer which decodes a HopByHop extension
+// without parsing its content.
+// This can be used with a DecodingLayerParser to handle SCION packets which
+// may or may not have a HopByHop extension.
+type HopByHopExtnSkipper struct {
+	extnBase
+}
+
+// DecodeFromBytes implementation according to gopacket.DecodingLayer
+func (s *HopByHopExtnSkipper) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
+	var err error
+	s.extnBase, err = decodeExtnBase(data, df)
+	if err != nil {
+		return err
+	}
+	if err := checkHopByHopExtnNextHdr(s.NextHdr); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *HopByHopExtnSkipper) LayerType() gopacket.LayerType {
+	return LayerTypeHopByHopExtn
+}
+
+func (s *HopByHopExtnSkipper) CanDecode() gopacket.LayerClass {
+	return LayerTypeHopByHopExtn
+}
+
+func (h *HopByHopExtnSkipper) NextLayerType() gopacket.LayerType {
+	return scionNextLayerTypeAfterHBH(h.NextHdr)
+}
+
+// EndToEndExtnSkipper is a DecodingLayer which decodes a HopByHop extensions
+// without parsing its content.
+// This can be used with a DecodingLayerParser to handle SCION packets which
+// may or may not have an EndToEnd extension.
+type EndToEndExtnSkipper struct {
+	extnBase
+}
+
+// DecodeFromBytes implementation according to gopacket.DecodingLayer
+func (s *EndToEndExtnSkipper) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
+	var err error
+	s.extnBase, err = decodeExtnBase(data, df)
+	if err != nil {
+		return err
+	}
+	if err := checkEndToEndExtnNextHdr(s.NextHdr); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *EndToEndExtnSkipper) LayerType() gopacket.LayerType {
+	return LayerTypeEndToEndExtn
+}
+
+func (s *EndToEndExtnSkipper) CanDecode() gopacket.LayerClass {
+	return LayerTypeEndToEndExtn
+}
+
+func (e *EndToEndExtnSkipper) NextLayerType() gopacket.LayerType {
+	return scionNextLayerTypeAfterE2E(e.NextHdr)
 }
 
 // PacketAuthAlg is the enumerator for authenticator algorithm types in the
