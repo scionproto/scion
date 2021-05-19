@@ -62,6 +62,10 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeEndToEndExtn),
 		},
 	)
+	LayerClassExtn = gopacket.NewLayerClass([]gopacket.LayerType{
+		LayerTypeHopByHopExtn,
+		LayerTypeEndToEndExtn,
+	})
 	LayerTypeSCMPExternalInterfaceDown = gopacket.RegisterLayerType(
 		1005,
 		gopacket.LayerTypeMetadata{
