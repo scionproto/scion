@@ -227,7 +227,7 @@ func (h *HopByHopExtn) CanDecode() gopacket.LayerClass {
 }
 
 func (h *HopByHopExtn) NextLayerType() gopacket.LayerType {
-	return scionNextLayerType(h.NextHdr)
+	return scionNextLayerTypeAfterHBH(h.NextHdr)
 }
 
 func (h *HopByHopExtn) LayerPayload() []byte {
@@ -237,6 +237,10 @@ func (h *HopByHopExtn) LayerPayload() []byte {
 // SerializeTo implementation according to gopacket.SerializableLayer
 func (h *HopByHopExtn) SerializeTo(b gopacket.SerializeBuffer,
 	opts gopacket.SerializeOptions) error {
+
+	if h.NextHdr == common.HopByHopClass {
+		return serrors.New("hbh extension must not be repeated")
+	}
 
 	o := make([]*tlvOption, 0, len(h.Options))
 	for _, v := range h.Options {
@@ -252,6 +256,9 @@ func (h *HopByHopExtn) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) 
 	h.extnBase, err = decodeExtnBase(data, df)
 	if err != nil {
 		return err
+	}
+	if h.NextHdr == common.HopByHopClass {
+		return serrors.New("hbh extension must not be repeated")
 	}
 	offset := 2
 	for offset < h.ActualLen {
@@ -272,7 +279,7 @@ func decodeHopByHopExtn(data []byte, p gopacket.PacketBuilder) error {
 	if err != nil {
 		return err
 	}
-	return p.NextDecoder(scionNextLayerType(h.NextHdr))
+	return p.NextDecoder(scionNextLayerTypeAfterHBH(h.NextHdr))
 }
 
 // EndToEndOption is a TLV option present in a SCION end-to-end extension.
@@ -293,7 +300,7 @@ func (e *EndToEndExtn) CanDecode() gopacket.LayerClass {
 }
 
 func (e *EndToEndExtn) NextLayerType() gopacket.LayerType {
-	return scionNextLayerType(e.NextHdr)
+	return scionNextLayerTypeAfterE2E(e.NextHdr)
 }
 
 func (e *EndToEndExtn) LayerPayload() []byte {
@@ -309,6 +316,8 @@ func (e *EndToEndExtn) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) 
 	}
 	if e.NextHdr == common.HopByHopClass {
 		return serrors.New("e2e extension must not come before the HBH extension")
+	} else if e.NextHdr == common.End2EndClass {
+		return serrors.New("e2e extension must not be repeated")
 	}
 	offset := 2
 	for offset < e.ActualLen {
@@ -329,7 +338,7 @@ func decodeEndToEndExtn(data []byte, p gopacket.PacketBuilder) error {
 	if err != nil {
 		return err
 	}
-	return p.NextDecoder(scionNextLayerType(e.NextHdr))
+	return p.NextDecoder(scionNextLayerTypeAfterE2E(e.NextHdr))
 }
 
 // SerializeTo implementation according to gopacket.SerializableLayer
@@ -338,6 +347,8 @@ func (e *EndToEndExtn) SerializeTo(b gopacket.SerializeBuffer,
 
 	if e.NextHdr == common.HopByHopClass {
 		return serrors.New("e2e extension must not come before the HBH extension")
+	} else if e.NextHdr == common.End2EndClass {
+		return serrors.New("e2e extension must not be repeated")
 	}
 
 	o := make([]*tlvOption, 0, len(e.Options))
