@@ -37,7 +37,6 @@ import (
 	"github.com/scionproto/scion/go/pkg/ca/renewal/grpc"
 	renewalgrpc "github.com/scionproto/scion/go/pkg/ca/renewal/grpc"
 	"github.com/scionproto/scion/go/pkg/ca/renewal/grpc/mock_grpc"
-	"github.com/scionproto/scion/go/pkg/ca/renewal/mock_renewal"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	"github.com/scionproto/scion/go/pkg/trust"
 )
@@ -87,7 +86,6 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 		Verifier     func(ctrl *gomock.Controller) renewalgrpc.RenewalRequestVerifier
 		ChainBuilder func(ctrl *gomock.Controller) renewalgrpc.ChainBuilder
 		CMSSigner    func(ctrl *gomock.Controller) renewalgrpc.CMSSigner
-		DB           func(ctrl *gomock.Controller) renewal.DB
 		IA           addr.IA
 		Metric       string
 		Assertion    assert.ErrorAssertionFunc
@@ -108,9 +106,6 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			CMSSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
 				return mock_grpc.NewMockCMSSigner(ctrl)
 			},
-			DB: func(ctrl *gomock.Controller) renewal.DB {
-				return mock_renewal.NewMockDB(ctrl)
-			},
 			IA:        xtest.MustParseIA("1-ff00:0:110"),
 			Assertion: assert.Error,
 			Code:      codes.InvalidArgument,
@@ -128,9 +123,6 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			},
 			CMSSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
 				return mock_grpc.NewMockCMSSigner(ctrl)
-			},
-			DB: func(ctrl *gomock.Controller) renewal.DB {
-				return mock_renewal.NewMockDB(ctrl)
 			},
 			IA:        xtest.MustParseIA("2-ff00:0:112"),
 			Assertion: assert.Error,
@@ -154,9 +146,6 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			},
 			CMSSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
 				return mock_grpc.NewMockCMSSigner(ctrl)
-			},
-			DB: func(ctrl *gomock.Controller) renewal.DB {
-				return mock_renewal.NewMockDB(ctrl)
 			},
 			IA:        xtest.MustParseIA("1-ff00:0:110"),
 			Assertion: assert.Error,
@@ -183,43 +172,10 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			CMSSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
 				return mock_grpc.NewMockCMSSigner(ctrl)
 			},
-			DB: func(ctrl *gomock.Controller) renewal.DB {
-				return mock_renewal.NewMockDB(ctrl)
-			},
 			IA:        xtest.MustParseIA("1-ff00:0:110"),
 			Assertion: assert.Error,
 			Code:      codes.Unavailable,
 			Metric:    "err_internal",
-		},
-		"db write error": {
-			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
-				return signedReq
-			},
-			Verifier: func(ctrl *gomock.Controller) renewalgrpc.RenewalRequestVerifier {
-				v := mock_grpc.NewMockRenewalRequestVerifier(ctrl)
-				v.EXPECT().VerifyCMSSignedRenewalRequest(
-					context.Background(),
-					signedReq.CmsSignedRequest,
-				).Return(mockCSR, nil)
-				return v
-			},
-			ChainBuilder: func(ctrl *gomock.Controller) renewalgrpc.ChainBuilder {
-				cb := mock_grpc.NewMockChainBuilder(ctrl)
-				cb.EXPECT().CreateChain(gomock.Any(), gomock.Any()).Return(mockIssuedChain, nil)
-				return cb
-			},
-			CMSSigner: func(ctrl *gomock.Controller) renewalgrpc.CMSSigner {
-				return mock_grpc.NewMockCMSSigner(ctrl)
-			},
-			DB: func(ctrl *gomock.Controller) renewal.DB {
-				db := mock_renewal.NewMockDB(ctrl)
-				db.EXPECT().InsertClientChain(gomock.Any(), mockIssuedChain).Return(false, mockErr)
-				return db
-			},
-			IA:        xtest.MustParseIA("1-ff00:0:110"),
-			Assertion: assert.Error,
-			Code:      codes.Unavailable,
-			Metric:    "err_database",
 		},
 		"valid": {
 			Request: func(t *testing.T) *cppb.ChainRenewalRequest {
@@ -241,11 +197,6 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 				signer.EXPECT().SignCMS(gomock.Any(), gomock.Any())
 				return signer
 			},
-			DB: func(ctrl *gomock.Controller) renewal.DB {
-				db := mock_renewal.NewMockDB(ctrl)
-				db.EXPECT().InsertClientChain(gomock.Any(), mockIssuedChain)
-				return db
-			},
 			IA:        xtest.MustParseIA("1-ff00:0:110"),
 			Assertion: assert.NoError,
 			Code:      codes.OK,
@@ -262,7 +213,6 @@ func TestCMSHandleCMSRequest(t *testing.T) {
 			s := &renewalgrpc.CMS{
 				Verifier:     tc.Verifier(ctrl),
 				ChainBuilder: tc.ChainBuilder(ctrl),
-				DB:           tc.DB(ctrl),
 				IA:           tc.IA,
 				Metrics: grpc.CMSHandlerMetrics{
 					DatabaseError: ctr.With("result", "err_database"),

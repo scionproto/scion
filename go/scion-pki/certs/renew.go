@@ -99,8 +99,6 @@ type SubjectVars struct {
 }
 
 type Features struct {
-	DisableLegacyRequest bool `feature:"disable_legacy_request"`
-	DisableCMSRequest    bool `feature:"disable_cms_request"`
 }
 
 func newRenewCmd(pather command.Pather) *cobra.Command {
@@ -233,12 +231,7 @@ The template is expressed in JSON. A valid example:
 			if err := feature.Parse(flags.features, &features); err != nil {
 				return err
 			}
-			if features.DisableCMSRequest && features.DisableLegacyRequest {
-				return serrors.New("both legacy and CMS request disabled")
-			}
 			span, ctx := tracing.CtxWith(context.Background(), "certs.renew")
-			span.SetTag("feature.disable_legacy_request", features.DisableLegacyRequest)
-			span.SetTag("feature.disable_cms_request", features.DisableCMSRequest)
 			defer span.Finish()
 
 			trcs, err := loadTRCs(flags.trcFiles)
@@ -346,20 +339,11 @@ The template is expressed in JSON. A valid example:
 				Chain:   chain,
 			}
 			var req cppb.ChainRenewalRequest
-			if !features.DisableLegacyRequest {
-				legacyReq, err := renewal.NewLegacyChainRenewalRequest(ctx, csr, signer)
-				if err != nil {
-					return err
-				}
-				req.SignedRequest = legacyReq.SignedRequest
+			cmsReq, err := renewal.NewChainRenewalRequest(ctx, csr, signer)
+			if err != nil {
+				return err
 			}
-			if !features.DisableCMSRequest {
-				cmsReq, err := renewal.NewChainRenewalRequest(ctx, csr, signer)
-				if err != nil {
-					return err
-				}
-				req.CmsSignedRequest = cmsReq.CmsSignedRequest
-			}
+			req.CmsSignedRequest = cmsReq.CmsSignedRequest
 			if flags.outCMS != "" {
 				if req.CmsSignedRequest == nil {
 					return serrors.New("cannot write request to file: no request created")

@@ -111,16 +111,6 @@ class Test(base.TestBase):
             [self.end2end, "-d", "-outDir", self.test_state.artifacts],
             check=True)
 
-        logger.info("==> Check CMS request only")
-        for isd_as in isd_ases:
-            logging.info("===> Start renewal: %s" % isd_as)
-            self._renewal_request(isd_as, "disable_legacy_request")
-
-        logger.info("==> Check legacy request only")
-        for isd_as in isd_ases:
-            logging.info("===> Start renewal: %s" % isd_as)
-            self._renewal_request(isd_as, "disable_cms_request")
-
         logger.info("==> Backup mode")
         for isd_as in isd_ases:
             logging.info("===> Start renewal: %s" % isd_as)
@@ -129,7 +119,6 @@ class Test(base.TestBase):
     def _renewal_request(
         self,
         isd_as: scion_addr.ISD_AS,
-        features: str = "",
         mode: str = "--force",
     ):
         as_dir = self._to_as_dir(isd_as)
@@ -156,8 +145,6 @@ class Test(base.TestBase):
                          "echo $SCION_DAEMON").strip(),
             *self._local_flags(isd_as),
         ]
-        if features:
-            args += ["--features", features]
 
         logger.info("Requesting certificate chain renewal: %s" %
                     chain.relative_to(docker_dir))

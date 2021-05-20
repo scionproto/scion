@@ -48,11 +48,6 @@ max_as_validity = "3d"
 #
 # (default in-process)
 mode = "in-process"
-
-# Disable handling of the legacy certificate renewal requests.
-# This option is temporary and will be removed with the support for
-# legacy renewal requests. (default false)
-disable_legacy_request = false
 `
 
 const serviceSample = `

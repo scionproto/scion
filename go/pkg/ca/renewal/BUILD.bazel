@@ -4,15 +4,12 @@ go_library(
     name = "go_default_library",
     srcs = [
         "ca_signer_gen.go",
-        "client_loader.go",
-        "db.go",
         "request.go",
     ],
     importpath = "github.com/scionproto/scion/go/pkg/ca/renewal",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
-        "//go/lib/infra/modules/db:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/scrypto:go_default_library",
         "//go/lib/scrypto/cms/protocol:go_default_library",
@@ -31,7 +28,6 @@ go_test(
     name = "go_default_test",
     srcs = [
         "ca_signer_gen_test.go",
-        "client_loader_test.go",
         "request_test.go",
     ],
     data = glob(["testdata/**"]),

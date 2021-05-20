@@ -89,16 +89,6 @@ func NewSigner(ia addr.IA, db trust.DB, cfgDir string) (cstrust.RenewingSigner, 
 	}, nil
 }
 
-// LoadClientChains loads the client certificate chains.
-func LoadClientChains(db renewal.DB, configDir string) error {
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	defer cancelF()
-	return renewal.ClientLoader{
-		Dir:      filepath.Join(configDir, "crypto/ca/clients"),
-		ClientDB: db,
-	}.LoadClientChains(ctx)
-}
-
 type ChainBuilderConfig struct {
 	IA          addr.IA
 	DB          trust.DB

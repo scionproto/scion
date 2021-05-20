@@ -302,16 +302,14 @@ func realMain() error {
 				BackendErrors: srvCtr.With(prom.LabelResult, prom.StatusErr),
 			},
 		}
-		var renewalDB renewal.DB
-		if !globalCfg.CA.DisableLegacyRequest || globalCfg.CA.Mode == config.InProcess {
-			renewalDB, err = storage.NewRenewalStorage(globalCfg.RenewalDB)
-			if err != nil {
-				return serrors.WrapStr("initializing renewal database", err)
-			}
-			defer renewalDB.Close()
-			if err := cs.LoadClientChains(renewalDB, globalCfg.General.ConfigDir); err != nil {
-				return serrors.WrapStr("loading client certificate chains", err)
-			}
+
+		switch globalCfg.CA.Mode {
+		case config.InProcess:
+			libmetrics.GaugeWith(renewalGauges, "type", "in-process").Set(1)
+			cmsCtr := libmetrics.CounterWith(
+				libmetrics.NewPromCounter(metrics.RenewalHandledRequestsTotal),
+				"type", "in-process",
+			)
 			chainBuilder = cs.NewChainBuilder(
 				cs.ChainBuilderConfig{
 					IA:                   topo.IA(),
@@ -321,54 +319,8 @@ func realMain() error {
 					ForceECDSAWithSHA512: !globalCfg.Features.AppropriateDigest,
 				},
 			)
-			periodic.Start(
-				periodic.Func{
-					TaskName: "update client certificates from disk",
-					Task: func(ctx context.Context) {
-						err := cs.LoadClientChains(renewalDB, globalCfg.General.ConfigDir)
-						if err != nil {
-							log.Debug("loading client certificate chains", "error", err)
-						}
-					},
-				},
-				30*time.Second,
-				5*time.Second,
-			)
-		}
 
-		if !globalCfg.CA.DisableLegacyRequest {
-			libmetrics.GaugeWith(renewalGauges, "type", "legacy").Set(1)
-			legacyCtr := libmetrics.CounterWith(
-				libmetrics.NewPromCounter(metrics.RenewalHandledRequestsTotal),
-				"type", "legacy",
-			)
-			renewalServer.LegacyHandler = &renewalgrpc.Legacy{
-				Signer:       signer,
-				DB:           renewalDB,
-				ChainBuilder: chainBuilder,
-				Verifier: renewal.RequestVerifier{
-					TRCFetcher: trustDB,
-				},
-				Metrics: renewalgrpc.LegacyHandlerMetrics{
-					Success:       legacyCtr.With(prom.LabelResult, prom.Success),
-					DatabaseError: legacyCtr.With(prom.LabelResult, prom.ErrDB),
-					InternalError: legacyCtr.With(prom.LabelResult, prom.ErrInternal),
-					NotFoundError: legacyCtr.With(prom.LabelResult, prom.ErrNotFound),
-					ParseError:    legacyCtr.With(prom.LabelResult, prom.ErrParse),
-					VerifyError:   legacyCtr.With(prom.LabelResult, prom.ErrVerify),
-				},
-			}
-		}
-
-		switch globalCfg.CA.Mode {
-		case config.InProcess:
-			libmetrics.GaugeWith(renewalGauges, "type", "in-process").Set(1)
-			cmsCtr := libmetrics.CounterWith(
-				libmetrics.NewPromCounter(metrics.RenewalHandledRequestsTotal),
-				"type", "in-process",
-			)
 			renewalServer.CMSHandler = &renewalgrpc.CMS{
-				DB:           renewalDB,
 				IA:           topo.IA(),
 				ChainBuilder: chainBuilder,
 				Verifier: renewal.RequestVerifier{
