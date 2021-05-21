@@ -1232,13 +1232,27 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 			"OneHop path in reverse construction direction is not allowed",
 			malformedPath, "srcIA", s.SrcIA, "dstIA", s.DstIA)
 	}
-	if !p.d.localIA.Equal(s.DstIA) && !p.d.localIA.Equal(s.SrcIA) {
-		// TODO parameter problem -> invalid path
-		return processResult{}, serrors.WrapStr("OneHop neither destined or originating from IA",
-			cannotRoute, "localIA", p.d.localIA, "srcIA", s.SrcIA, "dstIA", s.DstIA)
-	}
+
 	// OHP leaving our IA
-	if p.d.localIA.Equal(s.SrcIA) {
+	if p.ingressID == 0 {
+		if !p.d.localIA.Equal(s.SrcIA) {
+			// TODO parameter problem -> invalid path
+			return processResult{}, serrors.WrapStr("bad source IA", cannotRoute,
+				"type", "ohp", "egress", ohp.FirstHop.ConsEgress,
+				"localIA", p.d.localIA, "srcIA", s.SrcIA)
+		}
+		neighborIA, ok := p.d.neighborIAs[ohp.FirstHop.ConsEgress]
+		if !ok {
+			// TODO parameter problem invalid interface
+			return processResult{}, serrors.WithCtx(cannotRoute,
+				"type", "ohp", "egress", ohp.FirstHop.ConsEgress)
+		}
+		if !neighborIA.Equal(s.DstIA) {
+			return processResult{}, serrors.WrapStr("bad destination IA", cannotRoute,
+				"type", "ohp", "egress", ohp.FirstHop.ConsEgress,
+				"neighborIA", neighborIA, "dstIA", s.DstIA)
+		}
+
 		mac := path.MAC(p.mac, &ohp.Info, &ohp.FirstHop)
 		if subtle.ConstantTimeCompare(ohp.FirstHop.Mac[:path.MacLen], mac) == 0 {
 			// TODO parameter problem -> invalid MAC
@@ -1262,6 +1276,18 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	}
 
 	// OHP entering our IA
+	if !p.d.localIA.Equal(s.DstIA) {
+		return processResult{}, serrors.WrapStr("bad destination IA", cannotRoute,
+			"type", "ohp", "ingress", p.ingressID,
+			"localIA", p.d.localIA, "dstIA", s.DstIA)
+	}
+	neighborIA := p.d.neighborIAs[p.ingressID]
+	if !neighborIA.Equal(s.SrcIA) {
+		return processResult{}, serrors.WrapStr("bad source IA", cannotRoute,
+			"type", "ohp", "ingress", p.ingressID,
+			"neighborIA", neighborIA, "srcIA", s.SrcIA)
+	}
+
 	ohp.SecondHop = path.HopField{
 		ConsIngress: p.ingressID,
 		ExpTime:     ohp.FirstHop.ExpTime,

@@ -36,12 +36,14 @@ func NewDP(
 	internalNextHops map[uint16]*net.UDPAddr,
 	svc map[addr.HostSVC][]*net.UDPAddr,
 	local addr.IA,
+	neighbors map[uint16]addr.IA,
 	key []byte) *DataPlane {
 
 	dp := &DataPlane{
 		localIA:          local,
 		external:         external,
 		linkTypes:        linkTypes,
+		neighborIAs:      neighbors,
 		internalNextHops: internalNextHops,
 		svc:              &services{m: svc},
 		internal:         internal,

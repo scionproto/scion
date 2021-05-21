@@ -574,7 +574,7 @@ func TestProcessPkt(t *testing.T) {
 		"inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), key)
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -607,7 +607,7 @@ func TestProcessPkt(t *testing.T) {
 					map[uint16]topology.LinkType{
 						1: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), key)
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -642,7 +642,7 @@ func TestProcessPkt(t *testing.T) {
 						1: topology.Parent,
 						2: topology.Child,
 					},
-					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), key)
+					nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -675,7 +675,7 @@ func TestProcessPkt(t *testing.T) {
 					map[uint16]topology.LinkType{
 						2: topology.Parent,
 						1: topology.Child,
-					}, nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), key)
+					}, nil, nil, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -710,7 +710,7 @@ func TestProcessPkt(t *testing.T) {
 					mock_router.NewMockBatchConn(ctrl),
 					map[uint16]*net.UDPAddr{
 						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
-					}, nil, xtest.MustParseIA("1-ff00:0:110"), key)
+					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -740,7 +740,7 @@ func TestProcessPkt(t *testing.T) {
 					mock_router.NewMockBatchConn(ctrl),
 					map[uint16]*net.UDPAddr{
 						uint16(3): {IP: net.ParseIP("10.0.200.200").To4(), Port: 30043},
-					}, nil, xtest.MustParseIA("1-ff00:0:110"), key)
+					}, nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
@@ -793,7 +793,7 @@ func TestProcessPkt(t *testing.T) {
 							},
 						},
 					},
-					xtest.MustParseIA("1-ff00:0:110"), key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -821,7 +821,7 @@ func TestProcessPkt(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
 					map[addr.HostSVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -848,7 +848,7 @@ func TestProcessPkt(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
 					map[addr.HostSVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -874,9 +874,7 @@ func TestProcessPkt(t *testing.T) {
 		"onehop inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
-					map[uint16]router.BatchConn{
-						uint16(2): mock_router.NewMockBatchConn(ctrl),
-					},
+					nil,
 					nil,
 					mock_router.NewMockBatchConn(ctrl), nil,
 					map[addr.HostSVC][]*net.UDPAddr{
@@ -885,11 +883,15 @@ func TestProcessPkt(t *testing.T) {
 							Port: topology.EndhostPort,
 						}},
 					},
-					xtest.MustParseIA("1-ff00:0:110"), key)
+					xtest.MustParseIA("1-ff00:0:110"),
+					map[uint16]addr.IA{
+						uint16(1): xtest.MustParseIA("1-ff00:0:111"),
+					}, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
 				spkt.PathType = onehop.PathType
+				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:111")
 				spkt.DstIA = xtest.MustParseIA("1-ff00:0:110")
 				err := spkt.SetDstAddr(addr.SVCMcast | addr.SvcCS)
 				require.NoError(t, err)
@@ -933,6 +935,42 @@ func TestProcessPkt(t *testing.T) {
 			srcInterface: 1,
 			assertFunc:   assert.NoError,
 		},
+		"onehop inbound invalid src": {
+			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
+				return router.NewDP(
+					nil, nil, nil, nil, nil,
+					xtest.MustParseIA("1-ff00:0:110"),
+					map[uint16]addr.IA{
+						uint16(1): xtest.MustParseIA("1-ff00:0:111"),
+					}, key)
+			},
+			mockMsg: func(afterProcessing bool) *ipv4.Message {
+				spkt, _ := prepBaseMsg(now)
+				spkt.PathType = onehop.PathType
+				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110") // sneaky
+				spkt.DstIA = xtest.MustParseIA("1-ff00:0:111")
+				err := spkt.SetDstAddr(addr.SVCMcast | addr.SvcCS)
+				require.NoError(t, err)
+				dpath := &onehop.Path{
+					Info: path.InfoField{
+						ConsDir:   true,
+						SegID:     0x222,
+						Timestamp: 0x100,
+					},
+					FirstHop: path.HopField{
+						IngressRouterAlert: true,
+						EgressRouterAlert:  true,
+						ExpTime:            63,
+						ConsIngress:        0,
+						ConsEgress:         21,
+						Mac:                []byte{1, 2, 3, 4, 5, 6},
+					},
+				}
+				return toMsg(t, spkt, dpath)
+			},
+			srcInterface: 1,
+			assertFunc:   assert.Error,
+		},
 		"reversed onehop outbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(
@@ -947,7 +985,7 @@ func TestProcessPkt(t *testing.T) {
 							Port: topology.EndhostPort,
 						}},
 					},
-					xtest.MustParseIA("1-ff00:0:110"), key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
@@ -1005,12 +1043,16 @@ func TestProcessPkt(t *testing.T) {
 					nil,
 					mock_router.NewMockBatchConn(ctrl), nil,
 					nil,
-					xtest.MustParseIA("1-ff00:0:110"), key)
+					xtest.MustParseIA("1-ff00:0:110"),
+					map[uint16]addr.IA{
+						uint16(2): xtest.MustParseIA("1-ff00:0:111"),
+					}, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, _ := prepBaseMsg(now)
 				spkt.PathType = onehop.PathType
 				spkt.SrcIA = xtest.MustParseIA("1-ff00:0:110")
+				spkt.DstIA = xtest.MustParseIA("1-ff00:0:111")
 				err := spkt.SetDstAddr(addr.SVCMcast | addr.SvcCS)
 				require.NoError(t, err)
 				dpath := &onehop.Path{
@@ -1044,7 +1086,7 @@ func TestProcessPkt(t *testing.T) {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
 					map[addr.HostSVC][]*net.UDPAddr{},
-					xtest.MustParseIA("1-ff00:0:110"), key)
+					xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, dpath := prepBaseMsg(now)
@@ -1069,7 +1111,7 @@ func TestProcessPkt(t *testing.T) {
 		"epic inbound": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), key)
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1084,7 +1126,7 @@ func TestProcessPkt(t *testing.T) {
 		"epic malformed path": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), key)
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1100,7 +1142,7 @@ func TestProcessPkt(t *testing.T) {
 		"epic invalid timestamp": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), key)
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
@@ -1118,7 +1160,7 @@ func TestProcessPkt(t *testing.T) {
 		"epic invalid LHVF": {
 			prepareDP: func(ctrl *gomock.Controller) *router.DataPlane {
 				return router.NewDP(nil, nil, mock_router.NewMockBatchConn(ctrl), nil,
-					nil, xtest.MustParseIA("1-ff00:0:110"), key)
+					nil, xtest.MustParseIA("1-ff00:0:110"), nil, key)
 			},
 			mockMsg: func(afterProcessing bool) *ipv4.Message {
 				spkt, epicpath, dpath := prepEpicMsg(t,
