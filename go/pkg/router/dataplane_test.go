@@ -1286,7 +1286,8 @@ func prepareEpicCrypto(t *testing.T, spkt *slayers.SCION,
 
 	// Calculate PHVF and LHVF
 	macLast, err := libepic.CalcMac(authLast, epicpath.PktID,
-		spkt, dpath.InfoFields[0].Timestamp)
+		spkt, dpath.InfoFields[0].Timestamp,
+		make([]byte, libepic.MACBufferSize), make([]byte, libepic.MACBufferSize))
 	require.NoError(t, err)
 	copy(epicpath.LHVF, macLast)
 }

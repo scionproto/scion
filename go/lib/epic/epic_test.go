@@ -58,7 +58,8 @@ func TestPrepareMacInput(t *testing.T) {
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
-			got, err := libepic.PrepareMacInput(e.PktID, tc.ScionHeader, ts)
+			got, err := libepic.PrepareMacInput(e.PktID, tc.ScionHeader, ts,
+				make([]byte, libepic.MACBufferSize))
 			tc.errorFunc(t, err)
 			assert.Equal(t, tc.Want, got)
 		})
@@ -204,9 +205,11 @@ func TestVerifyHVF(t *testing.T) {
 	authLast := []byte("f5fcc4ce2250db36")
 
 	// Generate PHVF and LHVF
-	PHVF, err := libepic.CalcMac(authPenultimate, pktID, s, timestamp)
+	PHVF, err := libepic.CalcMac(authPenultimate, pktID, s, timestamp,
+		make([]byte, libepic.MACBufferSize), make([]byte, libepic.MACBufferSize))
 	assert.NoError(t, err)
-	LHVF, err := libepic.CalcMac(authLast, pktID, s, timestamp)
+	LHVF, err := libepic.CalcMac(authLast, pktID, s, timestamp,
+		make([]byte, libepic.MACBufferSize), make([]byte, libepic.MACBufferSize))
 	assert.NoError(t, err)
 
 	testCases := map[string]struct {
@@ -319,7 +322,8 @@ func TestVerifyHVF(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			err = libepic.VerifyHVF(tc.Authenticator, tc.PktID,
-				tc.ScionHeader, tc.Timestamp, tc.HVF)
+				tc.ScionHeader, tc.Timestamp, tc.HVF,
+				make([]byte, libepic.MACBufferSize), make([]byte, libepic.MACBufferSize))
 			tc.errorFunc(t, err)
 		})
 	}

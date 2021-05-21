@@ -706,7 +706,8 @@ func (p *scionPacketProcessor) processEPIC() (processResult, error) {
 		if isLast {
 			HVF = epicPath.LHVF
 		}
-		err = libepic.VerifyHVF(p.cachedMac, epicPath.PktID, &p.scionLayer, info.Timestamp, HVF)
+		err = libepic.VerifyHVF(p.cachedMac, epicPath.PktID, &p.scionLayer, info.Timestamp, HVF,
+			p.macBuffers.epicInput, p.macBuffers.epicOutput)
 		if err != nil {
 			// TODO(mawyss): Send back SCMP packet
 			return processResult{}, err
