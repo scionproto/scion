@@ -547,10 +547,15 @@ type processResult struct {
 
 func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
 	return &scionPacketProcessor{
-		d:         d,
-		ingressID: ingressID,
-		buffer:    gopacket.NewSerializeBuffer(),
-		mac:       d.macFactory(),
+		d:          d,
+		ingressID:  ingressID,
+		buffer:     gopacket.NewSerializeBuffer(),
+		mac:        d.macFactory(),
+		macBuffers: &macBuffers{
+			scionInput: make([]byte, path.MACBufferSize),
+			epicInput:  make([]byte, libepic.MACBufferSize),
+			epicOutput: make([]byte, libepic.MACBufferSize),
+		},
 	}
 }
 
@@ -746,6 +751,15 @@ type scionPacketProcessor struct {
 	// cachedMac contains the full 16 bytes of the MAC. Will be set during processing.
 	// For a hop performing an Xover, it is the MAC corresponding to the down segment.
 	cachedMac []byte
+	// macBuffers avoid allocating memory during processing.
+	macBuffers *macBuffers
+}
+
+// macBuffers are preallocated buffers for the in- and outputs of MAC functions.
+type macBuffers struct {
+	scionInput []byte
+	epicInput  []byte
+	epicOutput []byte
 }
 
 func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
@@ -899,7 +913,10 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 }
 
 func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
-	fullMac := path.FullMAC(p.mac, p.infoField, p.hopField)
+	fullMac, err := path.FullMAC(p.mac, p.infoField, p.hopField, p.macBuffers.scionInput)
+	if err != nil {
+		return processResult{}, err
+	}
 	if subtle.ConstantTimeCompare(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) == 0 {
 		return p.packSCMP(
 			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
@@ -1213,8 +1230,10 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 				"type", "ohp", "egress", ohp.FirstHop.ConsEgress,
 				"neighborIA", neighborIA, "dstIA", s.DstIA)
 		}
-
-		mac := path.MAC(p.mac, &ohp.Info, &ohp.FirstHop)
+		mac, err := path.MAC(p.mac, &ohp.Info, &ohp.FirstHop, p.macBuffers.scionInput)
+		if err != nil {
+			return processResult{}, err
+		}
 		if subtle.ConstantTimeCompare(ohp.FirstHop.Mac[:path.MacLen], mac) == 0 {
 			// TODO parameter problem -> invalid MAC
 			return processResult{}, serrors.New("MAC", "expected", fmt.Sprintf("%x", mac),
@@ -1253,7 +1272,11 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 		ConsIngress: p.ingressID,
 		ExpTime:     ohp.FirstHop.ExpTime,
 	}
-	ohp.SecondHop.Mac = path.MAC(p.mac, &ohp.Info, &ohp.SecondHop)
+	var err error
+	ohp.SecondHop.Mac, err = path.MAC(p.mac, &ohp.Info, &ohp.SecondHop, p.macBuffers.scionInput)
+	if err != nil {
+		return processResult{}, err
+	}
 
 	if err := updateSCIONLayer(p.rawPkt, s, p.buffer); err != nil {
 		return processResult{}, err
@@ -1356,7 +1379,12 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 				ExpTime:    hopFieldDefaultExpTime,
 			},
 		}
-		ohp.FirstHop.Mac = path.MAC(b.mac, &ohp.Info, &ohp.FirstHop)
+		var err error
+		ohp.FirstHop.Mac, err = path.MAC(b.mac, &ohp.Info, &ohp.FirstHop,
+			make([]byte, path.MACBufferSize))
+		if err != nil {
+			return err
+		}
 		scn.PathType = onehop.PathType
 		scn.Path = ohp
 	}

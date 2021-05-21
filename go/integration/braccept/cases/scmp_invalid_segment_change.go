@@ -94,8 +94,17 @@ func SCMPParentToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 0, ConsEgress: 911},
 		},
 	}
-	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1])
-	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2])
+	var err error
+	sp.HopFields[1].Mac, err = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1],
+		make([]byte, path.MACBufferSize))
+	if err != nil {
+		panic(err)
+	}
+	sp.HopFields[2].Mac, err = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2],
+		make([]byte, path.MACBufferSize))
+	if err != nil {
+		panic(err)
+	}
 
 	scionL := &slayers.SCION{
 		Version:      0,
@@ -266,8 +275,17 @@ func SCMPParentToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 811, ConsEgress: 0},
 		},
 	}
-	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1])
-	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2])
+	var err error
+	sp.HopFields[1].Mac, err = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1],
+		make([]byte, path.MACBufferSize))
+	if err != nil {
+		panic(err)
+	}
+	sp.HopFields[2].Mac, err = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2],
+		make([]byte, path.MACBufferSize))
+	if err != nil {
+		panic(err)
+	}
 
 	scionL := &slayers.SCION{
 		Version:      0,
@@ -439,9 +457,18 @@ func SCMPChildToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 0, ConsEgress: 911},
 		},
 	}
-	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1])
+	var err error
+	sp.HopFields[1].Mac, err = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1],
+		make([]byte, path.MACBufferSize))
+	if err != nil {
+		panic(err)
+	}
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
-	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2])
+	sp.HopFields[2].Mac, err = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2],
+		make([]byte, path.MACBufferSize))
+	if err != nil {
+		panic(err)
+	}
 
 	scionL := &slayers.SCION{
 		Version:      0,
@@ -613,9 +640,18 @@ func SCMPInternalXover(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 411, ConsEgress: 0},
 		},
 	}
-	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1])
+	var err error
+	sp.HopFields[1].Mac, err = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1],
+		make([]byte, path.MACBufferSize))
+	if err != nil {
+		panic(err)
+	}
 	// sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
-	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2])
+	sp.HopFields[2].Mac, err = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2],
+		make([]byte, path.MACBufferSize))
+	if err != nil {
+		panic(err)
+	}
 
 	scionL := &slayers.SCION{
 		Version:      0,

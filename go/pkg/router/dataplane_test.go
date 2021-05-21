@@ -1306,13 +1306,17 @@ func toIP(t *testing.T, spkt *slayers.SCION, path path.Path, afterProcessing boo
 func computeMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopField) []byte {
 	mac, err := scrypto.InitMac(key)
 	require.NoError(t, err)
-	return path.MAC(mac, info, hf)
+	output, err := path.MAC(mac, info, hf, make([]byte, path.MACBufferSize))
+	require.NoError(t, err)
+	return output
 }
 
 func computeFullMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopField) []byte {
 	mac, err := scrypto.InitMac(key)
 	require.NoError(t, err)
-	return path.FullMAC(mac, info, hf)
+	output, err := path.FullMAC(mac, info, hf, make([]byte, path.MACBufferSize))
+	require.NoError(t, err)
+	return output
 }
 
 func bfd() control.BFD {

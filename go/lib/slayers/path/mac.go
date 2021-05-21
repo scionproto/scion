@@ -17,27 +17,39 @@ package path
 import (
 	"encoding/binary"
 	"hash"
+
+	"github.com/scionproto/scion/go/lib/serrors"
 )
+
+const MACBufferSize = 16
 
 // MAC calculates the HopField MAC according to
 // https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#hop-field-mac-computation
 // this method does not modify info or hf.
-func MAC(h hash.Hash, info *InfoField, hf *HopField) []byte {
-	return FullMAC(h, info, hf)[:6]
+func MAC(h hash.Hash, info *InfoField, hf *HopField, inputBuffer []byte) ([]byte, error) {
+	mac, err := FullMAC(h, info, hf, inputBuffer)
+	if err != nil {
+		return nil, err
+	}
+	return mac[:6], nil
 }
 
 // FullMAC calculates the HopField MAC according to
 // https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#hop-field-mac-computation
 // this method does not modify info or hf.
 // In contrast to MAC(), FullMAC returns all the 16 bytes instead of only 6 bytes of the MAC.
-func FullMAC(h hash.Hash, info *InfoField, hf *HopField) []byte {
+func FullMAC(h hash.Hash, info *InfoField, hf *HopField, inputBuffer []byte) ([]byte, error) {
 	h.Reset()
-	input := MACInput(info.SegID, info.Timestamp, hf.ExpTime, hf.ConsIngress, hf.ConsEgress)
+	err := MACInput(info.SegID, info.Timestamp, hf.ExpTime,
+		hf.ConsIngress, hf.ConsEgress, inputBuffer)
+	if err != nil {
+		return nil, err
+	}
 	// Write must not return an error: https://godoc.org/hash#Hash
-	if _, err := h.Write(input); err != nil {
+	if _, err := h.Write(inputBuffer); err != nil {
 		panic(err)
 	}
-	return h.Sum(nil)[:16]
+	return h.Sum(nil)[:16], nil
 }
 
 // MACInput returns the MAC input data block with the following layout:
@@ -55,13 +67,17 @@ func FullMAC(h hash.Hash, info *InfoField, hf *HopField) []byte {
 //   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 func MACInput(segID uint16, timestamp uint32, expTime uint8,
-	consIngress, consEgress uint16) []byte {
+	consIngress, consEgress uint16, buffer []byte) error {
 
-	input := make([]byte, 16)
-	binary.BigEndian.PutUint16(input[2:4], segID)
-	binary.BigEndian.PutUint32(input[4:8], timestamp)
-	input[9] = expTime
-	binary.BigEndian.PutUint16(input[10:12], consIngress)
-	binary.BigEndian.PutUint16(input[12:14], consEgress)
-	return input
+	if len(buffer) < MACBufferSize {
+		return serrors.New("buffer too small", "provided", len(buffer),
+			"expected", MACBufferSize)
+	}
+
+	binary.BigEndian.PutUint16(buffer[2:4], segID)
+	binary.BigEndian.PutUint32(buffer[4:8], timestamp)
+	buffer[9] = expTime
+	binary.BigEndian.PutUint16(buffer[10:12], consIngress)
+	binary.BigEndian.PutUint16(buffer[12:14], consEgress)
+	return nil
 }

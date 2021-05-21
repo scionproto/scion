@@ -261,7 +261,10 @@ func parsePath(rawPath rawPath, creationTime time.Time) (snet.Path, error) {
 		if err != nil {
 			return nil, err
 		}
-		hf.Mac = path.MAC(macGen(), sp.InfoFields[0], hf)
+		hf.Mac, err = path.MAC(macGen(), sp.InfoFields[0], hf, make([]byte, path.MACBufferSize))
+		if err != nil {
+			return nil, err
+		}
 		sp.InfoFields[0].UpdateSegID(hf.Mac)
 	}
 	sp.InfoFields[0].SegID = initialSegID

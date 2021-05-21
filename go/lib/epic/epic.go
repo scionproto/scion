@@ -37,7 +37,11 @@ const (
 	MaxClockSkew time.Duration = time.Second
 	// TimestampResolution denotes the resolution of the epic timestamp
 	TimestampResolution = 21 * time.Microsecond
+	// MACBufferSize denotes the buffer size of the CBC input and output.
+	MACBufferSize = 64
 )
+
+var zeroInitVector = make([]byte, 16)
 
 // CreateTimestamp returns the epic timestamp, which encodes the current time (now) relative to the
 // input timestamp. The input timestamp must not be in the future (compared to the current time),
@@ -146,8 +150,6 @@ func initEpicMac(key []byte) (cipher.BlockMode, error) {
 		return nil, serrors.New("Unable to initialize AES cipher")
 	}
 
-	// Zero initialization vector
-	zeroInitVector := make([]byte, 16)
 	// CBC-MAC = CBC-Encryption with zero initialization vector
 	mode := cipher.NewCBCEncrypter(block, zeroInitVector)
 	return mode, nil
