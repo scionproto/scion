@@ -192,67 +192,57 @@ func TestDataPlaneRun(t *testing.T) {
 	testCases := map[string]struct {
 		prepareDP func(*gomock.Controller, chan<- struct{}) *router.DataPlane
 	}{
-		"route 10 msg from external to internal": {
+		"route 1 msg from external to internal": {
 			prepareDP: func(ctrl *gomock.Controller, done chan<- struct{}) *router.DataPlane {
 				ret := &router.DataPlane{Metrics: metrics}
 
 				key := []byte("testkey_xxxxxxxx")
 				local := xtest.MustParseIA("1-ff00:0:110")
 
-				totalCount := 10
 				mInternal := mock_router.NewMockBatchConn(ctrl)
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
-				matchFlags := gomock.Eq(syscall.MSG_DONTWAIT)
-				for i := 0; i < 10; i++ {
-					ii := i
-					mInternal.EXPECT().WriteBatch(gomock.Any(), matchFlags).DoAndReturn(
-						func(ms underlayconn.Messages, flags int) (int, error) {
-							want := bytes.Repeat([]byte("actualpayloadbytes"), ii)
-							if len(ms[0].Buffers[0]) != len(want)+84 {
-								return 1, nil
-							}
-							totalCount--
-							if totalCount == 0 {
-								done <- struct{}{}
-							}
+				mInternal.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
+					func(ms underlayconn.Messages) (int, error) {
+						want := bytes.Repeat([]byte("actualpayloadbytes"), 1)
+						if len(ms[0].Buffers[0]) != len(want)+84 {
 							return 1, nil
-						})
-				}
+						}
+						done <- struct{}{}
+						return 1, nil
+					})
 				_ = ret.AddInternalInterface(mInternal, net.IP{})
 
 				mExternal := mock_router.NewMockBatchConn(ctrl)
 				mExternal.EXPECT().ReadBatch(gomock.Any()).DoAndReturn(
 					func(m underlayconn.Messages) (int, error) {
-						// 10 scion messages to external
-						for i := 0; i < totalCount; i++ {
-							spkt, dpath := prepBaseMsg(time.Now())
-							spkt.DstIA = local
-							dpath.HopFields = []*path.HopField{
-								{ConsIngress: 41, ConsEgress: 40},
-								{ConsIngress: 31, ConsEgress: 30},
-								{ConsIngress: 1, ConsEgress: 0},
-							}
-							dpath.Base.PathMeta.CurrHF = 2
-							dpath.HopFields[2].Mac = computeMAC(t, key,
-								dpath.InfoFields[0], dpath.HopFields[2])
-							spkt.Path = dpath
-							payload := bytes.Repeat([]byte("actualpayloadbytes"), i)
-							buffer := gopacket.NewSerializeBuffer()
-							err := gopacket.SerializeLayers(buffer,
-								gopacket.SerializeOptions{FixLengths: true},
-								spkt, gopacket.Payload(payload))
-							require.NoError(t, err)
-							raw := buffer.Bytes()
-							copy(m[i].Buffers[0], raw)
-							m[i].N = len(raw)
-							m[i].Addr = &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
+						// 1 scion messages to external
+						spkt, dpath := prepBaseMsg(time.Now())
+						spkt.DstIA = local
+						dpath.HopFields = []*path.HopField{
+							{ConsIngress: 41, ConsEgress: 40},
+							{ConsIngress: 31, ConsEgress: 30},
+							{ConsIngress: 1, ConsEgress: 0},
 						}
-						return 10, nil
+						dpath.Base.PathMeta.CurrHF = 2
+						dpath.HopFields[2].Mac = computeMAC(t, key,
+							dpath.InfoFields[0], dpath.HopFields[2])
+						spkt.Path = dpath
+						payload := bytes.Repeat([]byte("actualpayloadbytes"), 1)
+						buffer := gopacket.NewSerializeBuffer()
+						err := gopacket.SerializeLayers(buffer,
+							gopacket.SerializeOptions{FixLengths: true},
+							spkt, gopacket.Payload(payload))
+						require.NoError(t, err)
+						raw := buffer.Bytes()
+						copy(m[0].Buffers[0], raw)
+						m[0].N = len(raw)
+						m[0].Addr = &net.UDPAddr{IP: net.IP{10, 0, 200, 200}}
+						return 1, nil
 					},
 				).Times(1)
 				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
-				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mExternal.EXPECT().WriteBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				_ = ret.AddExternalInterface(1, mExternal)
 
@@ -311,9 +301,9 @@ func TestDataPlaneRun(t *testing.T) {
 				).Times(1)
 				mInternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
-				mInternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ net.Addr) (int, error) {
-						pkt := gopacket.NewPacket(data,
+				mInternal.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
+					func(ms underlayconn.Messages) (int, error) {
+						pkt := gopacket.NewPacket(ms[0].Buffers[0],
 							slayers.LayerTypeSCION, gopacket.Default)
 						if b := pkt.Layer(layers.LayerTypeBFD); b != nil {
 							v := b.(*layers.BFD).YourDiscriminator
@@ -328,7 +318,7 @@ func TestDataPlaneRun(t *testing.T) {
 
 						return 0, fmt.Errorf("no valid BFD message")
 					}).MinTimes(1)
-				mInternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mInternal.EXPECT().WriteBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				local := &net.UDPAddr{IP: net.ParseIP("10.0.200.100").To4()}
 				_ = ret.SetKey([]byte("randomkeyformacs"))
@@ -348,9 +338,9 @@ func TestDataPlaneRun(t *testing.T) {
 				localAddr := &net.UDPAddr{IP: net.ParseIP("10.0.200.100").To4()}
 				remoteAddr := &net.UDPAddr{IP: net.ParseIP("10.0.200.200").To4()}
 				mInternal := mock_router.NewMockBatchConn(ctrl)
-				mInternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ net.Addr) (int, error) {
-						pkt := gopacket.NewPacket(data,
+				mInternal.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
+					func(ms underlayconn.Messages) (int, error) {
+						pkt := gopacket.NewPacket(ms[0].Buffers[0],
 							slayers.LayerTypeSCION, gopacket.Default)
 
 						if b := pkt.Layer(layers.LayerTypeBFD); b == nil {
@@ -404,9 +394,9 @@ func TestDataPlaneRun(t *testing.T) {
 
 				mExternal := mock_router.NewMockBatchConn(ctrl)
 				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
-				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ net.Addr) (int, error) {
-						pkt := gopacket.NewPacket(data,
+				mExternal.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
+					func(ms underlayconn.Messages) (int, error) {
+						pkt := gopacket.NewPacket(ms[0].Buffers[0],
 							slayers.LayerTypeSCION, gopacket.Default)
 
 						if b := pkt.Layer(layers.LayerTypeBFD); b == nil {
@@ -431,7 +421,7 @@ func TestDataPlaneRun(t *testing.T) {
 						done <- struct{}{}
 						return 1, nil
 					}).MinTimes(1)
-				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mExternal.EXPECT().WriteBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				local := control.LinkEnd{
 					IA:   xtest.MustParseIA("1-ff00:0:1"),
@@ -494,9 +484,9 @@ func TestDataPlaneRun(t *testing.T) {
 				).Times(1)
 				mExternal.EXPECT().ReadBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
-				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(data []byte, _ net.Addr) (int, error) {
-						pkt := gopacket.NewPacket(data,
+				mExternal.EXPECT().WriteBatch(gomock.Any()).DoAndReturn(
+					func(ms underlayconn.Messages) (int, error) {
+						pkt := gopacket.NewPacket(ms[0].Buffers[0],
 							slayers.LayerTypeSCION, gopacket.Default)
 
 						if b := pkt.Layer(layers.LayerTypeBFD); b != nil {
@@ -511,7 +501,7 @@ func TestDataPlaneRun(t *testing.T) {
 						}
 						return 0, fmt.Errorf("no valid BFD message")
 					}).MinTimes(1)
-				mExternal.EXPECT().WriteTo(gomock.Any(), gomock.Any()).Return(0, nil).AnyTimes()
+				mExternal.EXPECT().WriteBatch(gomock.Any()).Return(0, nil).AnyTimes()
 
 				local := control.LinkEnd{
 					IA:   xtest.MustParseIA("1-ff00:0:1"),
