@@ -38,7 +38,7 @@ const (
 	// TimestampResolution denotes the resolution of the epic timestamp
 	TimestampResolution = 21 * time.Microsecond
 	// MACBufferSize denotes the buffer size of the CBC input and output.
-	MACBufferSize = 64
+	MACBufferSize = 48
 )
 
 var zeroInitVector = make([]byte, 16)
@@ -88,7 +88,12 @@ func VerifyTimestamp(timestamp time.Time, epicTS uint32, now time.Time) error {
 // MAC (auth), the EPIC packet ID (pktID), the timestamp in the Info Field (timestamp),
 // and the SCION common/address header (s).
 func CalcMac(auth []byte, pktID epic.PktID, s *slayers.SCION,
-	timestamp uint32) ([]byte, error) {
+	timestamp uint32, inputBuffer []byte, outputBuffer []byte) ([]byte, error) {
+
+	if len(outputBuffer) < MACBufferSize {
+		return nil, serrors.New("output buffer too small", "provided", len(outputBuffer),
+			"expected", MACBufferSize)
+	}
 
 	// Initialize cryptographic MAC function
 	f, err := initEpicMac(auth)
@@ -96,14 +101,14 @@ func CalcMac(auth []byte, pktID epic.PktID, s *slayers.SCION,
 		return nil, err
 	}
 	// Prepare the input for the MAC function
-	input, err := prepareMacInput(pktID, s, timestamp)
+	input, err := prepareMacInput(pktID, s, timestamp, inputBuffer)
 	if err != nil {
 		return nil, err
 	}
 	// Calculate Epic MAC = first 4 bytes of the last CBC block
-	mac := make([]byte, len(input))
-	f.CryptBlocks(mac, input)
-	return mac[len(mac)-f.BlockSize() : len(mac)-f.BlockSize()+4], nil
+	output := outputBuffer[:len(input)]
+	f.CryptBlocks(output, input)
+	return output[len(output)-f.BlockSize() : len(output)-f.BlockSize()+4], nil
 }
 
 // VerifyHVF verifies the correctness of the HVF (PHVF or the LHVF) field in the EPIC packet by
@@ -112,13 +117,13 @@ func CalcMac(auth []byte, pktID epic.PktID, s *slayers.SCION,
 // also VerifyHVF returns an error. The verification was successful if and only if VerifyHVF
 // returns nil.
 func VerifyHVF(auth []byte, pktID epic.PktID, s *slayers.SCION,
-	timestamp uint32, hvf []byte) error {
+	timestamp uint32, hvf []byte, inputBuffer []byte, outputBuffer []byte) error {
 
 	if s == nil || len(auth) != AuthLen {
 		return serrors.New("invalid input")
 	}
 
-	mac, err := CalcMac(auth, pktID, s, timestamp)
+	mac, err := CalcMac(auth, pktID, s, timestamp, inputBuffer, outputBuffer)
 	if err != nil {
 		return err
 	}
@@ -155,7 +160,9 @@ func initEpicMac(key []byte) (cipher.BlockMode, error) {
 	return mode, nil
 }
 
-func prepareMacInput(pktID epic.PktID, s *slayers.SCION, timestamp uint32) ([]byte, error) {
+func prepareMacInput(pktID epic.PktID, s *slayers.SCION, timestamp uint32,
+	inputBuffer []byte) ([]byte, error) {
+
 	//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	//   | flags (1B) | timestamp (4B) |    packet ID (8B)     |
 	//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -178,23 +185,26 @@ func prepareMacInput(pktID epic.PktID, s *slayers.SCION, timestamp uint32) ([]by
 			"l", l)
 	}
 
-	// Create a multiple of 16 such that the input fits in
-	nrBlocks := uint8(math.Ceil((23 + float64(l)) / 16))
-	input := make([]byte, 16*nrBlocks)
+	// Calculate a multiple of 16 such that the input fits in
+	nrBlocks := int(math.Ceil((23 + float64(l)) / 16))
+	inputLength := 16 * nrBlocks
+	if len(inputBuffer) < inputLength {
+		return nil, serrors.New("input buffer too small", "provided", len(inputBuffer),
+			"expected", inputLength)
+	}
 
 	// Fill input
 	offset := 0
-	input[0] = srcAddrLen
+	inputBuffer[0] = srcAddrLen
 	offset += 1
-	binary.BigEndian.PutUint32(input[offset:], timestamp)
+	binary.BigEndian.PutUint32(inputBuffer[offset:], timestamp)
 	offset += 4
-	pktID.SerializeTo(input[offset:])
+	pktID.SerializeTo(inputBuffer[offset:])
 	offset += epic.PktIDLen
-	s.SrcIA.Write(input[offset:])
+	s.SrcIA.Write(inputBuffer[offset:])
 	offset += addr.IABytes
-	copy(input[offset:], srcAddr[:l])
+	copy(inputBuffer[offset:], srcAddr[:l])
 	offset += l
-	binary.BigEndian.PutUint16(input[offset:], s.PayloadLen)
-
-	return input, nil
+	binary.BigEndian.PutUint16(inputBuffer[offset:], s.PayloadLen)
+	return inputBuffer[:inputLength], nil
 }
