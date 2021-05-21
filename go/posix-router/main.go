@@ -51,6 +51,7 @@ func realMain() error {
 	dp := &router.Connector{
 		DataPlane: router.DataPlane{
 			Metrics: metrics,
+			TE:      true,
 		},
 	}
 	iaCtx := &control.IACtx{
