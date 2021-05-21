@@ -29,6 +29,7 @@ go_library(
         "//go/lib/util:go_default_library",
         "//go/pkg/router/bfd:go_default_library",
         "//go/pkg/router/control:go_default_library",
+        "//go/pkg/router/te:go_default_library",
         "@com_github_google_gopacket//:go_default_library",
         "@com_github_google_gopacket//layers:go_default_library",
         "@com_github_prometheus_client_golang//prometheus:go_default_library",
