@@ -63,7 +63,11 @@ func NewOneHop(isd addr.ISD, ifID uint16, ts time.Time, exp uint8, hfmac hash.Ha
 			ExpTime:    exp,
 		},
 	}
-	ohp.FirstHop.Mac = path.MAC(hfmac, &ohp.Info, &ohp.FirstHop)
+	ohp.FirstHop.Mac, err = path.MAC(hfmac, &ohp.Info, &ohp.FirstHop,
+		make([]byte, path.MACBufferSize))
+	if err != nil {
+		return Path{}, err
+	}
 
 	raw := make([]byte, onehop.PathLen)
 	if err := ohp.SerializeTo(raw); err != nil {

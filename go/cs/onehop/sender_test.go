@@ -56,7 +56,8 @@ func TestSenderCreatePath(t *testing.T) {
 	assert.Equal(t, uint16(0), hop.ConsIngress)
 	assert.Equal(t, uint16(12), hop.ConsEgress)
 	assert.Equal(t, uint8(63), hop.ExpTime)
-	mac := libpath.MAC(createMac(t), &info, &hop)
+	mac, err := libpath.MAC(createMac(t), &info, &hop, make([]byte, libpath.MACBufferSize))
+	require.NoError(t, err)
 	assert.Equal(t, mac, hop.Mac[:6])
 }
 
