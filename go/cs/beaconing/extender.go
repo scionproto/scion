@@ -247,8 +247,7 @@ func (s *DefaultExtender) createHopF(ingress, egress uint16, ts time.Time,
 	beta uint16) (path.HopField, []byte) {
 
 	expTime := s.MaxExpTime()
-	input := make([]byte, path.MACBufferSize)
-	path.MACInput(beta, util.TimeToSecs(ts), expTime, ingress, egress, input)
+	input := path.MACInput(beta, util.TimeToSecs(ts), expTime, ingress, egress, nil)
 
 	mac := s.MAC()
 	// Write must not return an error: https://godoc.org/hash#Hash

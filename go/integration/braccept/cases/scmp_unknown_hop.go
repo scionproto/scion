@@ -93,12 +93,7 @@ func SCMPUnknownHop(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 411, ConsEgress: 0},
 		},
 	}
-	var err error
-	sp.HopFields[1].Mac, err = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1],
-		make([]byte, path.MACBufferSize))
-	if err != nil {
-		panic(err)
-	}
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,
@@ -253,12 +248,7 @@ func SCMPUnknownHopEgress(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 161, ConsEgress: 0},
 		},
 	}
-	var err error
-	sp.HopFields[1].Mac, err = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1],
-		make([]byte, path.MACBufferSize))
-	if err != nil {
-		panic(err)
-	}
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,
