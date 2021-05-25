@@ -139,6 +139,11 @@ func (c *RunConfig) ExpectPacket(pkt ExpectedPacket, normalizeFn NormalizePacket
 				"pkt", i, "expected", pkt.DevName, "actual", c.deviceNames[idx], "packet", got))
 			continue
 		}
+		if err := got.ErrorLayer(); err != nil {
+			errors = append(errors, serrors.WrapStr("error decoding packet", err.Error(),
+				"pkt", i))
+			continue
+		}
 		if err := comparePkts(got, pkt.Pkt, normalizeFn); err != nil {
 			errors = append(errors, serrors.WrapStr("received mismatching packet", err,
 				"pkt", i))
