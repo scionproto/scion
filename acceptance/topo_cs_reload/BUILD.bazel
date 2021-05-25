@@ -4,6 +4,14 @@ load("@io_bazel_rules_docker//container:container.bzl", "container_image")
 go_test(
     name = "go_default_test",
     srcs = ["reload_test.go"],
+    args = [
+        "-scion_pki",
+        "$(location //go/scion-pki:scion-pki)",
+        "-topo",
+        "$(location testdata/test.topo)",
+        "-crypto_lib",
+        "$(location //scripts/cryptoplayground:crypto_lib.sh)",
+    ],
     data = [
         "docker-compose.yml",
         "testdata/topology_reload.json",
@@ -11,14 +19,20 @@ go_test(
         ":dispatcher.tar",
         ":invalid_changed_ip",
         ":invalid_changed_port",
+        ":testdata/gen_crypto.sh",
+        ":testdata/test.topo",
         "//acceptance/topo_common:invalid_reloads",
         "//acceptance/topo_common:topology",
+        "//go/scion-pki",
+        "//scripts/cryptoplayground:crypto_lib.sh",
     ],
     tags = ["integration"],
     deps = [
         "//go/lib/topology:go_default_library",
+        "//go/lib/xtest:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
+        "@io_bazel_rules_go//go/tools/bazel:go_default_library",
     ],
 )
 
@@ -51,7 +65,6 @@ container_image(
         "//acceptance/topo_common:invalid_reloads",
         "//acceptance/topo_common:topology",
     ],
-    tars = [":gen_crypto_tar"],
 )
 
 genrule(
@@ -66,18 +79,4 @@ genrule(
     srcs = ["//acceptance/topo_common:topology"],
     outs = ["topology_invalid_changed_port.json"],
     cmd = "jq '.control_service[].addr = \"127.0.0.12:42424\"' $(location //acceptance/topo_common:topology) > $@",
-)
-
-genrule(
-    name = "gen_crypto_tar",
-    srcs = ["testdata/test.topo"],
-    outs = [
-        "crypto.tar",
-    ],
-    cmd = "$(location :testdata/gen_crypto.sh) $(location //go/scion-pki:scion-pki) $@ $(location testdata/test.topo) $(location //scripts/cryptoplayground:crypto_lib.sh)",
-    tools = [
-        ":testdata/gen_crypto.sh",
-        "//go/scion-pki",
-        "//scripts/cryptoplayground:crypto_lib.sh",
-    ],
 )
