@@ -204,5 +204,7 @@ func prepareMacInput(pktID epic.PktID, s *slayers.SCION, timestamp uint32,
 	copy(inputBuffer[offset:], srcAddr[:l])
 	offset += l
 	binary.BigEndian.PutUint16(inputBuffer[offset:], s.PayloadLen)
+	offset += 2
+	copy(inputBuffer[offset:inputLength], zeroInitVector)
 	return inputBuffer[:inputLength], nil
 }
