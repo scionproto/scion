@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"sort"
 	"sync"
 
 	"github.com/google/gopacket/layers"
@@ -245,13 +244,4 @@ func (r *Router) DiagnosticsWrite(w io.Writer) {
 	}
 	w.Write(raw)
 	w.Write([]byte("\n"))
-}
-
-func orderedIDs(sessions map[uint8]PktWriter) []uint8 {
-	ordered := make([]uint8, 0, len(sessions))
-	for id := range sessions {
-		ordered = append(ordered, id)
-	}
-	sort.Slice(ordered, func(i, j int) bool { return ordered[i] < ordered[j] })
-	return ordered
 }

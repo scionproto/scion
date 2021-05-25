@@ -39,12 +39,8 @@ var (
 var (
 	localNoPortAddr = MustParseSnet("1-ff00:0:1,[192.168.0.1]:0")
 	localAddr       = MustParseSnet("1-ff00:0:1,[192.168.0.1]:80")
-	otherLocalAddr  = MustParseSnet("1-ff00:0:1,[192.168.0.1]:10080")
-	bindAddr        = &net.UDPAddr{IP: net.IP{192, 168, 0, 2}, Port: 80}
-	otherBindAddr   = &net.UDPAddr{IP: net.IP{192, 168, 0, 2}, Port: 10080}
 	remoteAddr      = MustParseSnet("2-ff00:0:2,[172.16.0.1]:80")
 	svc             = addr.SvcNone
-	timeout         = time.Duration(0)
 	testBuffer      = []byte{1, 2, 3}
 )
 

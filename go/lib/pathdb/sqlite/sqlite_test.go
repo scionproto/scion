@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/pathdb/pathdbtest"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var (
@@ -42,7 +41,6 @@ var (
 		&query.NullHpCfgID,
 		{IA: ia330, ID: 0xdeadbeef},
 	}
-	segType = proto.PathSegType_up
 	timeout = time.Second
 )
 

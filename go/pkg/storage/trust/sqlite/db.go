@@ -305,13 +305,6 @@ func (e *executor) SignedTRCs(ctx context.Context,
 	return res, err
 }
 
-func fingerprint(chain []*x509.Certificate) []byte {
-	h := sha256.New()
-	h.Write(chain[0].Raw)
-	h.Write(chain[1].Raw)
-	return h.Sum(nil)
-}
-
 func trcFingerprint(trc cppki.SignedTRC) []byte {
 	h := sha256.New()
 	h.Write(trc.TRC.Raw)
