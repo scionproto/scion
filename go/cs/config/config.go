@@ -271,10 +271,6 @@ type CA struct {
 	config.NoDefaulter
 	// MaxASValidity is the maximum AS certificate lifetime.
 	MaxASValidity util.DurWrap `toml:"max_as_validity,omitempty"`
-	// DisableLegacyRequest disables the handler for certificate issuance
-	// requests received in the protobuf signature format, thus allowing only
-	// requests received in the CMS format.
-	DisableLegacyRequest bool `toml:"disable_legacy_request,omitempty"`
 	// Mode defines whether the Control Service should handle certificate
 	// issuance requests on its own, or whether to delegate handling to a
 	// dedicated Certificate Authority. If it is the empty string, the

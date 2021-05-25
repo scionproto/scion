@@ -5,7 +5,6 @@ go_library(
     srcs = [
         "cms.go",
         "delegating_handler.go",
-        "legacy.go",
         "renewal.go",
     ],
     importpath = "github.com/scionproto/scion/go/pkg/ca/renewal/grpc",
@@ -16,17 +15,14 @@ go_library(
         "//go/lib/metrics:go_default_library",
         "//go/lib/scrypto/cms/protocol:go_default_library",
         "//go/lib/scrypto/cppki:go_default_library",
-        "//go/lib/scrypto/signed:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/pkg/ca/api:go_default_library",
         "//go/pkg/ca/renewal:go_default_library",
         "//go/pkg/proto/control_plane:go_default_library",
         "//go/pkg/proto/crypto:go_default_library",
-        "//go/pkg/trust:go_default_library",
         "@org_golang_google_grpc//codes:go_default_library",
         "@org_golang_google_grpc//peer:go_default_library",
         "@org_golang_google_grpc//status:go_default_library",
-        "@org_golang_google_protobuf//proto:go_default_library",
     ],
 )
 
@@ -35,7 +31,6 @@ go_test(
     srcs = [
         "cms_test.go",
         "delegating_handler_test.go",
-        "legacy_test.go",
         "renewal_test.go",
     ],
     deps = [
@@ -49,7 +44,6 @@ go_test(
         "//go/pkg/ca/api:go_default_library",
         "//go/pkg/ca/renewal:go_default_library",
         "//go/pkg/ca/renewal/grpc/mock_grpc:go_default_library",
-        "//go/pkg/ca/renewal/mock_renewal:go_default_library",
         "//go/pkg/proto/control_plane:go_default_library",
         "//go/pkg/trust:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",

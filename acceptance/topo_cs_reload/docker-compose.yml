@@ -22,6 +22,9 @@ services:
       - topo_cs_reload_dispatcher
     volumes:
     - vol_topo_cs_reload_disp:/run/shm/dispatcher:ro
+    - "${TOPO_CS_RELOAD_CONFIG_DIR}/certs:/certs:ro"
+    - "${TOPO_CS_RELOAD_CONFIG_DIR}/keys:/keys:ro"
+    - "${TOPO_CS_RELOAD_CONFIG_DIR}/crypto:/crypto:ro"
     network_mode: service:topo_cs_reload_dispatcher
 version: '2.4'
 volumes:

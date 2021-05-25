@@ -16,6 +16,7 @@ package reload_test
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -24,15 +25,25 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bazelbuild/rules_go/go/tools/bazel"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/xtest"
+)
+
+var (
+	genCryptoLocation = flag.String("gen_crypto", "testdata/gen_crypto.sh",
+		"Location of the gen_crypto.sh script.")
+	scionPKILocation  = flag.String("scion_pki", "", "Location of the scion-pki binary.")
+	topoLocation      = flag.String("topo", "", "Location of the topolgy file.")
+	cryptoLibLocation = flag.String("crypto_lib", "", "Location of the cryptolib.")
 )
 
 func TestPSTopoReload(t *testing.T) {
-	setupTest(t)
-	defer teardownTest(t)
+	s := setupTest(t)
+	defer s.teardownTest(t)
 
 	// first load the topo files to memory for comparison.
 	origTopo, err := topology.RWTopologyFromJSONFile("../topo_common/topology.json")
@@ -54,33 +65,53 @@ func TestPSTopoReload(t *testing.T) {
 	for _, invalidFile := range invalidFiles {
 		t.Run(fmt.Sprintf("file %s", invalidFile), func(t *testing.T) {
 			t.Logf("loading %s", invalidFile)
-			loadTopo(t, invalidFile)
+			s.loadTopo(t, invalidFile)
 			checkTopology(t, origTopo)
 		})
 	}
 
 	// now try to load a valid one.
 	t.Run("valid", func(t *testing.T) {
-		loadTopo(t, "/topology_reload.json")
+		s.loadTopo(t, "/topology_reload.json")
 		checkTopology(t, reloadTopo)
 	})
 }
 
-func setupTest(t *testing.T) {
+type testState struct {
+	extraEnv     []string
+	extraCleanup []func()
+}
+
+func setupTest(t *testing.T) testState {
+	tmpDir, clean := xtest.MustTempDir("", "topo_cs_reload")
+	s := testState{
+		extraEnv:     []string{"TOPO_CS_RELOAD_CONFIG_DIR=" + tmpDir},
+		extraCleanup: []func(){clean},
+	}
+	scionPKI, err := bazel.Runfile(*scionPKILocation)
+	require.NoError(t, err)
+	cryptoLib, err := bazel.Runfile(*cryptoLibLocation)
+	require.NoError(t, err)
+	topoFile, err := bazel.Runfile(*topoLocation)
+	require.NoError(t, err)
+	s.mustExec(t, *genCryptoLocation, scionPKI,
+		"crypto.tar", topoFile, cryptoLib)
+	s.mustExec(t, "tar", "-xf", "crypto.tar", "-C", tmpDir)
 	// first load the docker images from bazel into the docker deamon, the
 	// tars are in the same folder as this test runs in bazel.
-	mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar")
-	mustExec(t, "docker", "image", "load", "-i", "control.tar")
+	s.mustExec(t, "docker", "image", "load", "-i", "dispatcher.tar")
+	s.mustExec(t, "docker", "image", "load", "-i", "control.tar")
 	// now start the docker containers
-	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "up", "-d")
+	s.mustExec(t, "docker-compose", "-f", "docker-compose.yml", "up", "-d")
 	// wait a bit to make sure the containers are ready.
 	time.Sleep(time.Second / 2)
 	t.Log("Test setup done")
-	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "ps")
+	s.mustExec(t, "docker-compose", "-f", "docker-compose.yml", "ps")
+	return s
 }
 
-func teardownTest(t *testing.T) {
-	defer mustExec(t, "docker-compose", "-f", "docker-compose.yml", "down", "-v")
+func (s testState) teardownTest(t *testing.T) {
+	defer s.mustExec(t, "docker-compose", "-f", "docker-compose.yml", "down", "-v")
 
 	outdir, exists := os.LookupEnv("TEST_UNDECLARED_OUTPUTS_DIR")
 	require.True(t, exists, "TEST_UNDECLARED_OUTPUTS_DIR must be defined")
@@ -103,24 +134,32 @@ func teardownTest(t *testing.T) {
 			t.Logf("Failed to read log for service %s: %v\n", service, err)
 		}
 	}
+	s.Cleanup()
 }
 
-func loadTopo(t *testing.T, name string) {
+func (s testState) loadTopo(t *testing.T, name string) {
 	t.Helper()
 
-	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "exec", "-T",
+	s.mustExec(t, "docker-compose", "-f", "docker-compose.yml", "exec", "-T",
 		"topo_cs_reload_control_srv", "mv", name, "/topology.json")
-	mustExec(t, "docker-compose", "-f", "docker-compose.yml", "kill", "-s", "SIGHUP",
+	s.mustExec(t, "docker-compose", "-f", "docker-compose.yml", "kill", "-s", "SIGHUP",
 		"topo_cs_reload_control_srv")
 }
 
-func mustExec(t *testing.T, name string, arg ...string) {
+func (s testState) mustExec(t *testing.T, name string, arg ...string) {
 	t.Helper()
 
 	cmd := exec.Command(name, arg...)
+	cmd.Env = append(os.Environ(), s.extraEnv...)
 	output, err := cmd.CombinedOutput()
 	t.Logf("%s %v\n%s\n", name, arg, string(output))
 	require.NoError(t, err, "Failed to run %s %v: %v\n%s", name, arg, err, string(output))
+}
+
+func (s testState) Cleanup() {
+	for _, c := range s.extraCleanup {
+		c()
+	}
 }
 
 func checkTopology(t *testing.T, expectedTopo *topology.RWTopology) {

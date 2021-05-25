@@ -95,12 +95,10 @@ func CheckTestPSConfig(t *testing.T, cfg *PSConfig, id string) {
 }
 
 func InitTestCA(cfg *CA) {
-	cfg.DisableLegacyRequest = true
 }
 
 func CheckTestCA(t *testing.T, cfg *CA) {
 	assert.Equal(t, DefaultMaxASValidity, cfg.MaxASValidity.Duration)
-	assert.Equal(t, cfg.DisableLegacyRequest, false)
 	assert.Equal(t, cfg.Mode, InProcess)
 	CheckTestService(t, &cfg.Service)
 }

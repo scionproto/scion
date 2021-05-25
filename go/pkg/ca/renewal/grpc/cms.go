@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
-	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
@@ -57,7 +56,6 @@ type CMSHandlerMetrics struct {
 type CMS struct {
 	Verifier     RenewalRequestVerifier
 	ChainBuilder ChainBuilder
-	DB           renewal.DB
 	IA           addr.IA
 
 	// Metrics contains the counters. It is safe to pass nil-counters.
@@ -95,11 +93,6 @@ func (s CMS) HandleCMSRequest(
 		logger.Info("Failed to create renewed certificate chain", "err", err)
 		metrics.CounterInc(s.Metrics.InternalError)
 		return nil, status.Error(codes.Unavailable, "failed to create chain")
-	}
-	if _, err := s.DB.InsertClientChain(ctx, newClientChain); err != nil {
-		logger.Info("Failed to insert renewed certificate chain", "err", err)
-		metrics.CounterInc(s.Metrics.DatabaseError)
-		return nil, status.Error(codes.Unavailable, "failed to insert chain")
 	}
 
 	metrics.CounterInc(s.Metrics.Success)
