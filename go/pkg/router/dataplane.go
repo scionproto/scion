@@ -958,10 +958,7 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 }
 
 func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
-	fullMac, err := path.FullMAC(p.mac, p.infoField, p.hopField, p.macBuffers.scionInput)
-	if err != nil {
-		return processResult{}, err
-	}
+	fullMac := path.FullMAC(p.mac, p.infoField, p.hopField, p.macBuffers.scionInput)
 	if subtle.ConstantTimeCompare(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) == 0 {
 		return p.packSCMP(
 			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
@@ -1257,10 +1254,7 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	}
 	// OHP leaving our IA
 	if p.d.localIA.Equal(s.SrcIA) {
-		mac, err := path.MAC(p.mac, &ohp.Info, &ohp.FirstHop, p.macBuffers.scionInput)
-		if err != nil {
-			return processResult{}, err
-		}
+		mac := path.MAC(p.mac, &ohp.Info, &ohp.FirstHop, p.macBuffers.scionInput)
 		if subtle.ConstantTimeCompare(ohp.FirstHop.Mac[:path.MacLen], mac) == 0 {
 			// TODO parameter problem -> invalid MAC
 			return processResult{}, serrors.New("MAC", "expected", fmt.Sprintf("%x", mac),
@@ -1287,11 +1281,7 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 		ConsIngress: p.ingressID,
 		ExpTime:     ohp.FirstHop.ExpTime,
 	}
-	var err error
-	ohp.SecondHop.Mac, err = path.MAC(p.mac, &ohp.Info, &ohp.SecondHop, p.macBuffers.scionInput)
-	if err != nil {
-		return processResult{}, err
-	}
+	ohp.SecondHop.Mac = path.MAC(p.mac, &ohp.Info, &ohp.SecondHop, p.macBuffers.scionInput)
 
 	if err := updateSCIONLayer(p.rawPkt, s, p.buffer); err != nil {
 		return processResult{}, err
@@ -1391,12 +1381,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 				ExpTime:    hopFieldDefaultExpTime,
 			},
 		}
-		var err error
-		ohp.FirstHop.Mac, err = path.MAC(b.mac, &ohp.Info, &ohp.FirstHop,
-			make([]byte, path.MACBufferSize))
-		if err != nil {
-			return err
-		}
+		ohp.FirstHop.Mac = path.MAC(b.mac, &ohp.Info, &ohp.FirstHop, nil)
 		scn.PathType = onehop.PathType
 		scn.Path = ohp
 	}

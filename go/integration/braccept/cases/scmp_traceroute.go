@@ -81,12 +81,7 @@ func SCMPTracerouteIngress(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 0, ConsEgress: 211},
 		},
 	}
-	var err error
-	sp.HopFields[1].Mac, err = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1],
-		make([]byte, path.MACBufferSize))
-	if err != nil {
-		panic(err)
-	}
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	scionL := &slayers.SCION{
@@ -227,12 +222,7 @@ func SCMPTracerouteIngressConsDir(artifactsDir string, mac hash.Hash) runner.Cas
 			{ConsIngress: 411, ConsEgress: 0},
 		},
 	}
-	var err error
-	sp.HopFields[1].Mac, err = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1],
-		make([]byte, path.MACBufferSize))
-	if err != nil {
-		panic(err)
-	}
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,
@@ -377,11 +367,7 @@ func SCMPTracerouteEgress(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 0, ConsEgress: 211},
 		},
 	}
-	var err error
-	sp.HopFields[1].Mac, err = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], make([]byte, path.MACBufferSize))
-	if err != nil {
-		panic(err)
-	}
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	scionL := &slayers.SCION{
@@ -522,12 +508,7 @@ func SCMPTracerouteEgressConsDir(artifactsDir string, mac hash.Hash) runner.Case
 			{ConsIngress: 411, ConsEgress: 0},
 		},
 	}
-	var err error
-	sp.HopFields[1].Mac, err = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1],
-		make([]byte, path.MACBufferSize))
-	if err != nil {
-		panic(err)
-	}
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,
@@ -685,18 +666,9 @@ func SCMPTracerouteEgressAfterXover(artifactsDir string, mac hash.Hash) runner.C
 			{ConsIngress: 411, ConsEgress: 0},
 		},
 	}
-	var err error
-	sp.HopFields[1].Mac, err = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], make([]byte,
-		path.MACBufferSize))
-	if err != nil {
-		panic(err)
-	}
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
-	sp.HopFields[2].Mac, err = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], make([]byte,
-		path.MACBufferSize))
-	if err != nil {
-		panic(err)
-	}
+	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,
@@ -838,12 +810,7 @@ func SCMPTracerouteInternal(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 411, ConsEgress: 0},
 		},
 	}
-	var err error
-	sp.HopFields[0].Mac, err = path.MAC(mac, sp.InfoFields[0], sp.HopFields[0],
-		make([]byte, path.MACBufferSize))
-	if err != nil {
-		panic(err)
-	}
+	sp.HopFields[0].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[0], nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,
