@@ -91,8 +91,7 @@ func CalcMac(auth []byte, pktID epic.PktID, s *slayers.SCION,
 	timestamp uint32, inputBuffer []byte, outputBuffer []byte) ([]byte, error) {
 
 	if len(outputBuffer) < MACBufferSize {
-		return nil, serrors.New("output buffer too small", "provided", len(outputBuffer),
-			"expected", MACBufferSize)
+		outputBuffer = make([]byte, MACBufferSize)
 	}
 
 	// Initialize cryptographic MAC function
@@ -189,8 +188,7 @@ func prepareMacInput(pktID epic.PktID, s *slayers.SCION, timestamp uint32,
 	nrBlocks := int(math.Ceil((23 + float64(l)) / 16))
 	inputLength := 16 * nrBlocks
 	if len(inputBuffer) < inputLength {
-		return nil, serrors.New("input buffer too small", "provided", len(inputBuffer),
-			"expected", inputLength)
+		inputBuffer = make([]byte, inputLength)
 	}
 
 	// Fill input

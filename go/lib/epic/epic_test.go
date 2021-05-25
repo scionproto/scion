@@ -205,11 +205,9 @@ func TestVerifyHVF(t *testing.T) {
 	authLast := []byte("f5fcc4ce2250db36")
 
 	// Generate PHVF and LHVF
-	PHVF, err := libepic.CalcMac(authPenultimate, pktID, s, timestamp,
-		make([]byte, libepic.MACBufferSize), make([]byte, libepic.MACBufferSize))
+	PHVF, err := libepic.CalcMac(authPenultimate, pktID, s, timestamp, nil, nil)
 	assert.NoError(t, err)
-	LHVF, err := libepic.CalcMac(authLast, pktID, s, timestamp,
-		make([]byte, libepic.MACBufferSize), make([]byte, libepic.MACBufferSize))
+	LHVF, err := libepic.CalcMac(authLast, pktID, s, timestamp, nil, nil)
 	assert.NoError(t, err)
 
 	testCases := map[string]struct {

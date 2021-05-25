@@ -90,12 +90,7 @@ func ExternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 			ConsEgress:  131,
 		},
 	}
-	var err error
-	ohp.FirstHop.Mac, err = path.MAC(mac, &ohp.Info, &ohp.FirstHop,
-		make([]byte, path.MACBufferSize))
-	if err != nil {
-		panic(err)
-	}
+	ohp.FirstHop.Mac = path.MAC(mac, &ohp.Info, &ohp.FirstHop, nil)
 	scionL := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,
@@ -106,7 +101,7 @@ func ExternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 		DstIA:        localIA,
 		SrcIA:        remoteIA,
 	}
-	err = scionL.SetSrcAddr(&net.IPAddr{IP: net.IP{192, 168, 13, 3}})
+	err := scionL.SetSrcAddr(&net.IPAddr{IP: net.IP{192, 168, 13, 3}})
 	if err != nil {
 		panic(err)
 	}
