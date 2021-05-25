@@ -925,9 +925,6 @@ func (p *scionPacketProcessor) updateNonConsDirIngressSegID() error {
 		if err := p.path.SetInfoField(p.infoField, int(p.path.PathMeta.CurrINF)); err != nil {
 			return serrors.WrapStr("update info field", err)
 		}
-		if err := updateSCIONLayer(p.rawPkt, p.scionLayer, p.buffer); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -995,9 +992,6 @@ func (p *scionPacketProcessor) processEgress() error {
 		// TODO parameter problem invalid path
 		return serrors.WrapStr("incrementing path", err)
 	}
-	if err := updateSCIONLayer(p.rawPkt, p.scionLayer, p.buffer); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -1014,9 +1008,6 @@ func (p *scionPacketProcessor) doXover() (processResult, error) {
 	}
 	if p.infoField, err = p.path.GetCurrentInfoField(); err != nil {
 		// TODO parameter problem invalid path
-		return processResult{}, err
-	}
-	if err := updateSCIONLayer(p.rawPkt, p.scionLayer, p.buffer); err != nil {
 		return processResult{}, err
 	}
 	if r, err := p.validateHopExpiry(); err != nil {
@@ -1330,6 +1321,9 @@ func addEndhostPort(dst *net.IPAddr) *net.UDPAddr {
 	return &net.UDPAddr{IP: dst.IP, Port: topology.EndhostPort}
 }
 
+// TODO(matzf) this function is now only used to update the OneHop-path.
+// This should be changed so that the OneHop-path can be updated in-place, like
+// the scion.Raw path.
 func updateSCIONLayer(rawPkt []byte, s slayers.SCION, buffer gopacket.SerializeBuffer) error {
 	if err := buffer.Clear(); err != nil {
 		return err
