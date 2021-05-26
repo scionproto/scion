@@ -79,12 +79,12 @@ func NewQueues(scheduling bool, maxPacketLength int) *Queues {
 	qs.mapping = make(map[TrafficClass]*ZeroAllocQueue)
 
 	if scheduling {
-		qs.mapping[ClsOthers] = newZeroAllocQueue(4, maxPacketLength)
-		qs.mapping[ClsColibri] = newZeroAllocQueue(16, maxPacketLength)
-		qs.mapping[ClsEpic] = newZeroAllocQueue(16, maxPacketLength)
-		qs.mapping[ClsBfd] = newZeroAllocQueue(4, maxPacketLength)
-		qs.mapping[ClsOhp] = newZeroAllocQueue(4, maxPacketLength)
-		qs.mapping[ClsScmp] = newZeroAllocQueue(4, maxPacketLength)
+		qs.mapping[ClsOthers] = newZeroAllocQueue(32, maxPacketLength)
+		qs.mapping[ClsColibri] = newZeroAllocQueue(32, maxPacketLength)
+		qs.mapping[ClsEpic] = newZeroAllocQueue(32, maxPacketLength)
+		qs.mapping[ClsBfd] = newZeroAllocQueue(32, maxPacketLength)
+		qs.mapping[ClsOhp] = newZeroAllocQueue(32, maxPacketLength)
+		qs.mapping[ClsScmp] = newZeroAllocQueue(32, maxPacketLength)
 		qs.mapping[ClsScion] = newZeroAllocQueue(128, maxPacketLength)
 	} else {
 		qs.mapping[ClsOthers] = newZeroAllocQueue(128, maxPacketLength)
