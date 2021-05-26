@@ -52,7 +52,7 @@ const (
 
 // Number of packets to write in a single WriteBatch call. It has to be at least as high as
 // the number of different traffic classes.
-const outputBatchCnt = 16
+const outputBatchCnt = 64
 
 // Queues describes the queues (one for each traffic class) for a certain router interface.
 // The 'mapping' translates traffic classes to their respective queue. The 'nonempty' channel is
@@ -85,9 +85,9 @@ func NewQueues(scheduling bool, maxPacketLength int) *Queues {
 		qs.mapping[ClsBfd] = newZeroAllocQueue(4, maxPacketLength)
 		qs.mapping[ClsOhp] = newZeroAllocQueue(4, maxPacketLength)
 		qs.mapping[ClsScmp] = newZeroAllocQueue(4, maxPacketLength)
-		qs.mapping[ClsScion] = newZeroAllocQueue(16, maxPacketLength)
+		qs.mapping[ClsScion] = newZeroAllocQueue(128, maxPacketLength)
 	} else {
-		qs.mapping[ClsOthers] = newZeroAllocQueue(64, maxPacketLength)
+		qs.mapping[ClsOthers] = newZeroAllocQueue(128, maxPacketLength)
 	}
 
 	qs.writeBuffer = conn.NewReadMessages(outputBatchCnt)

@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package te adds traffic engineering capabilities to the border router.
-// Traffic engineering can be enabled/disabled in 'scion/go/posix-router/main.go'.
-// The purpose of this package is to demonstrate the feasibility of integrating
-// scheduling into the border router. Only basic scheduling algorithms are
-// implemented, more elaborate ones might be necessary in the future.
 package te
 
 import (
