@@ -78,7 +78,7 @@ func ExternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 	udp.SetNetworkLayerForChecksum(ip)
 	localIA, _ := addr.IAFromString("1-ff00:0:1")
-	remoteIA, _ := addr.IAFromString("2-ff00:0:3")
+	remoteIA, _ := addr.IAFromString("1-ff00:0:3")
 	ohp := &onehop.Path{
 		Info: path.InfoField{
 			ConsDir:   true,
