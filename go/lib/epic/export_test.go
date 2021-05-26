@@ -20,7 +20,7 @@ import (
 )
 
 func PrepareMacInput(pktID epic.PktID, s *slayers.SCION, timestamp uint32,
-	inputBuffer []byte) ([]byte, error) {
+	inputBuffer []byte) (int, error) {
 
 	return prepareMacInput(pktID, s, timestamp, inputBuffer)
 }

@@ -41,7 +41,7 @@ const (
 	MACBufferSize = 48
 )
 
-var zeroInitVector = make([]byte, 16)
+var zeroInitVector [16]byte
 
 // CreateTimestamp returns the epic timestamp, which encodes the current time (now) relative to the
 // input timestamp. The input timestamp must not be in the future (compared to the current time),
@@ -88,10 +88,10 @@ func VerifyTimestamp(timestamp time.Time, epicTS uint32, now time.Time) error {
 // MAC (auth), the EPIC packet ID (pktID), the timestamp in the Info Field (timestamp),
 // and the SCION common/address header (s).
 func CalcMac(auth []byte, pktID epic.PktID, s *slayers.SCION,
-	timestamp uint32, inputBuffer []byte, outputBuffer []byte) ([]byte, error) {
+	timestamp uint32, buffer []byte) ([]byte, error) {
 
-	if len(outputBuffer) < MACBufferSize {
-		outputBuffer = make([]byte, MACBufferSize)
+	if len(buffer) < MACBufferSize {
+		buffer = make([]byte, MACBufferSize)
 	}
 
 	// Initialize cryptographic MAC function
@@ -100,14 +100,14 @@ func CalcMac(auth []byte, pktID epic.PktID, s *slayers.SCION,
 		return nil, err
 	}
 	// Prepare the input for the MAC function
-	input, err := prepareMacInput(pktID, s, timestamp, inputBuffer)
+	inputLength, err := prepareMacInput(pktID, s, timestamp, buffer)
 	if err != nil {
 		return nil, err
 	}
 	// Calculate Epic MAC = first 4 bytes of the last CBC block
-	output := outputBuffer[:len(input)]
-	f.CryptBlocks(output, input)
-	return output[len(output)-f.BlockSize() : len(output)-f.BlockSize()+4], nil
+	input := buffer[:inputLength]
+	f.CryptBlocks(input, input)
+	return input[len(input)-f.BlockSize() : len(input)-f.BlockSize()+4], nil
 }
 
 // VerifyHVF verifies the correctness of the HVF (PHVF or the LHVF) field in the EPIC packet by
@@ -116,13 +116,13 @@ func CalcMac(auth []byte, pktID epic.PktID, s *slayers.SCION,
 // also VerifyHVF returns an error. The verification was successful if and only if VerifyHVF
 // returns nil.
 func VerifyHVF(auth []byte, pktID epic.PktID, s *slayers.SCION,
-	timestamp uint32, hvf []byte, inputBuffer []byte, outputBuffer []byte) error {
+	timestamp uint32, hvf []byte, buffer []byte) error {
 
 	if s == nil || len(auth) != AuthLen {
 		return serrors.New("invalid input")
 	}
 
-	mac, err := CalcMac(auth, pktID, s, timestamp, inputBuffer, outputBuffer)
+	mac, err := CalcMac(auth, pktID, s, timestamp, buffer)
 	if err != nil {
 		return err
 	}
@@ -155,12 +155,12 @@ func initEpicMac(key []byte) (cipher.BlockMode, error) {
 	}
 
 	// CBC-MAC = CBC-Encryption with zero initialization vector
-	mode := cipher.NewCBCEncrypter(block, zeroInitVector)
+	mode := cipher.NewCBCEncrypter(block, zeroInitVector[:])
 	return mode, nil
 }
 
 func prepareMacInput(pktID epic.PktID, s *slayers.SCION, timestamp uint32,
-	inputBuffer []byte) ([]byte, error) {
+	inputBuffer []byte) (int, error) {
 
 	//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	//   | flags (1B) | timestamp (4B) |    packet ID (8B)     |
@@ -172,28 +172,18 @@ func prepareMacInput(pktID epic.PktID, s *slayers.SCION, timestamp uint32,
 	// The "flags" field only encodes the length of the source address.
 
 	if s == nil {
-		return nil, serrors.New("SCION common+address header must not be nil")
+		return 0, serrors.New("SCION common+address header must not be nil")
 	}
-	srcAddrLen := uint8(s.SrcAddrLen)
 	srcAddr := s.RawSrcAddr
-
-	l := int((srcAddrLen + 1) * 4)
-	if srcAddrLen > 3 || l != len(srcAddr) {
-		return nil, serrors.New("srcAddrLen must be between 0 and 3, and encode the "+
-			"srcAddr length", "srcAddrLen", srcAddrLen, "len(srcAddr)", len(srcAddr),
-			"l", l)
-	}
+	l := len(srcAddr)
 
 	// Calculate a multiple of 16 such that the input fits in
 	nrBlocks := int(math.Ceil((23 + float64(l)) / 16))
 	inputLength := 16 * nrBlocks
-	if len(inputBuffer) < inputLength {
-		inputBuffer = make([]byte, inputLength)
-	}
 
 	// Fill input
 	offset := 0
-	inputBuffer[0] = srcAddrLen
+	inputBuffer[0] = uint8(s.SrcAddrLen)
 	offset += 1
 	binary.BigEndian.PutUint32(inputBuffer[offset:], timestamp)
 	offset += 4
@@ -201,10 +191,10 @@ func prepareMacInput(pktID epic.PktID, s *slayers.SCION, timestamp uint32,
 	offset += epic.PktIDLen
 	s.SrcIA.Write(inputBuffer[offset:])
 	offset += addr.IABytes
-	copy(inputBuffer[offset:], srcAddr[:l])
+	copy(inputBuffer[offset:], srcAddr)
 	offset += l
 	binary.BigEndian.PutUint16(inputBuffer[offset:], s.PayloadLen)
 	offset += 2
-	copy(inputBuffer[offset:inputLength], zeroInitVector)
-	return inputBuffer[:inputLength], nil
+	copy(inputBuffer[offset:inputLength], zeroInitVector[:])
+	return inputLength, nil
 }

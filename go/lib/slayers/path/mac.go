@@ -33,11 +33,15 @@ func MAC(h hash.Hash, info *InfoField, hf *HopField, inputBuffer []byte) []byte 
 // this method does not modify info or hf.
 // In contrast to MAC(), FullMAC returns all the 16 bytes instead of only 6 bytes of the MAC.
 func FullMAC(h hash.Hash, info *InfoField, hf *HopField, inputBuffer []byte) []byte {
+	if len(inputBuffer) < MACBufferSize {
+		inputBuffer = make([]byte, MACBufferSize)
+	}
+
 	h.Reset()
-	input := MACInput(info.SegID, info.Timestamp, hf.ExpTime,
+	MACInput(info.SegID, info.Timestamp, hf.ExpTime,
 		hf.ConsIngress, hf.ConsEgress, inputBuffer)
 	// Write must not return an error: https://godoc.org/hash#Hash
-	if _, err := h.Write(input); err != nil {
+	if _, err := h.Write(inputBuffer); err != nil {
 		panic(err)
 	}
 	return h.Sum(nil)[:16]
@@ -58,11 +62,7 @@ func FullMAC(h hash.Hash, info *InfoField, hf *HopField, inputBuffer []byte) []b
 //   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 func MACInput(segID uint16, timestamp uint32, expTime uint8,
-	consIngress, consEgress uint16, buffer []byte) []byte {
-
-	if len(buffer) < MACBufferSize {
-		buffer = make([]byte, MACBufferSize)
-	}
+	consIngress, consEgress uint16, buffer []byte) {
 
 	binary.BigEndian.PutUint16(buffer[0:2], 0)
 	binary.BigEndian.PutUint16(buffer[2:4], segID)
@@ -72,5 +72,4 @@ func MACInput(segID uint16, timestamp uint32, expTime uint8,
 	binary.BigEndian.PutUint16(buffer[10:12], consIngress)
 	binary.BigEndian.PutUint16(buffer[12:14], consEgress)
 	binary.BigEndian.PutUint16(buffer[14:16], 0)
-	return buffer
 }

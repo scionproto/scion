@@ -551,10 +551,9 @@ func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
 		ingressID:  ingressID,
 		buffer:     gopacket.NewSerializeBuffer(),
 		mac:        d.macFactory(),
-		macBuffers: &macBuffers{
+		macBuffers: macBuffers{
 			scionInput: make([]byte, path.MACBufferSize),
 			epicInput:  make([]byte, libepic.MACBufferSize),
-			epicOutput: make([]byte, libepic.MACBufferSize),
 		},
 	}
 }
@@ -707,7 +706,7 @@ func (p *scionPacketProcessor) processEPIC() (processResult, error) {
 			HVF = epicPath.LHVF
 		}
 		err = libepic.VerifyHVF(p.cachedMac, epicPath.PktID, &p.scionLayer, info.Timestamp, HVF,
-			p.macBuffers.epicInput, p.macBuffers.epicOutput)
+			p.macBuffers.epicInput)
 		if err != nil {
 			// TODO(mawyss): Send back SCMP packet
 			return processResult{}, err
@@ -753,14 +752,13 @@ type scionPacketProcessor struct {
 	// For a hop performing an Xover, it is the MAC corresponding to the down segment.
 	cachedMac []byte
 	// macBuffers avoid allocating memory during processing.
-	macBuffers *macBuffers
+	macBuffers macBuffers
 }
 
 // macBuffers are preallocated buffers for the in- and outputs of MAC functions.
 type macBuffers struct {
 	scionInput []byte
 	epicInput  []byte
-	epicOutput []byte
 }
 
 func (p *scionPacketProcessor) packSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
