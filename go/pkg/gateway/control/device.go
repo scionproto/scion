@@ -24,7 +24,7 @@ import (
 // DeviceOpener can be used to open readable/writeable objects that support
 // IPv4/IPv6 routing. Typically, this is a Linux network device.
 type DeviceOpener interface {
-	Open(name string) (Device, error)
+	Open(ia addr.IA) (Device, error)
 }
 
 // Device models an object that implements the reading and writing of packets and supports
@@ -39,10 +39,10 @@ type Device interface {
 }
 
 // DeviceOpenerFunc is a function type that implements DeviceOpener.
-type DeviceOpenerFunc func(name string) (Device, error)
+type DeviceOpenerFunc func(ia addr.IA) (Device, error)
 
-func (f DeviceOpenerFunc) Open(name string) (Device, error) {
-	return f(name)
+func (f DeviceOpenerFunc) Open(ia addr.IA) (Device, error) {
+	return f(ia)
 }
 
 var (

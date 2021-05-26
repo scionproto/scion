@@ -21,6 +21,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/routemgr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -46,7 +47,7 @@ func TestSingleDeviceManager(t *testing.T) {
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open(routemgr.DefaultDeviceName).Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(gomock.Any()).Return(mockDeviceHandle, nil)
 
 		m := routemgr.SingleDeviceManager{
 			DeviceOpener: mockDeviceOpener,
@@ -67,7 +68,7 @@ func TestSingleDeviceManager(t *testing.T) {
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open(routemgr.DefaultDeviceName).Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(gomock.Any()).Return(mockDeviceHandle, nil)
 
 		m := routemgr.SingleDeviceManager{
 			DeviceOpener: mockDeviceOpener,
@@ -91,7 +92,7 @@ func TestSingleDeviceManager(t *testing.T) {
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open(routemgr.DefaultDeviceName).Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(gomock.Any()).Return(mockDeviceHandle, nil)
 
 		m := routemgr.SingleDeviceManager{
 			DeviceOpener: mockDeviceOpener,
@@ -114,7 +115,7 @@ func TestSingleDeviceManager(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open(routemgr.DefaultDeviceName).
+		mockDeviceOpener.EXPECT().Open(gomock.Any()).
 			Return(nil, serrors.New("test error"))
 
 		m := routemgr.SingleDeviceManager{
@@ -134,7 +135,7 @@ func TestSingleDeviceManager(t *testing.T) {
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open(routemgr.DefaultDeviceName).Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(gomock.Any()).Return(mockDeviceHandle, nil)
 
 		m := routemgr.SingleDeviceManager{
 			DeviceOpener: mockDeviceOpener,
@@ -155,7 +156,7 @@ func TestSingleDeviceManager(t *testing.T) {
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open(routemgr.DefaultDeviceName).Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(gomock.Any()).Return(mockDeviceHandle, nil)
 
 		m := routemgr.SingleDeviceManager{
 			DeviceOpener: mockDeviceOpener,
@@ -169,28 +170,6 @@ func TestSingleDeviceManager(t *testing.T) {
 		assert.NotNil(t, handle.Close())
 	})
 
-	t.Run("custom device name", func(t *testing.T) {
-		t.Parallel()
-
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
-		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open("foo").Return(mockDeviceHandle, nil)
-
-		m := routemgr.SingleDeviceManager{
-			DeviceOpener: mockDeviceOpener,
-			DeviceName:   "foo",
-		}
-
-		handle, err := m.Get(xtest.MustParseIA("1-ff00:0:1"))
-		assert.Nil(t, err)
-
-		mockDeviceHandle.EXPECT().Close()
-		assert.Nil(t, handle.Close())
-	})
-
 	t.Run("forward Handle APIs", func(t *testing.T) {
 		t.Parallel()
 
@@ -199,7 +178,7 @@ func TestSingleDeviceManager(t *testing.T) {
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open(routemgr.DefaultDeviceName).Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(gomock.Any()).Return(mockDeviceHandle, nil)
 
 		m := routemgr.SingleDeviceManager{
 			DeviceOpener: mockDeviceOpener,
@@ -251,7 +230,7 @@ func TestSingleDeviceManager(t *testing.T) {
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open(routemgr.DefaultDeviceName).Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(gomock.Any()).Return(mockDeviceHandle, nil)
 
 		m := routemgr.SingleDeviceManager{
 			DeviceOpener: mockDeviceOpener,
@@ -284,7 +263,7 @@ func TestSingleDeviceManager(t *testing.T) {
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open(routemgr.DefaultDeviceName).Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(gomock.Any()).Return(mockDeviceHandle, nil)
 
 		m := routemgr.SingleDeviceManager{
 			DeviceOpener: mockDeviceOpener,
@@ -326,7 +305,7 @@ func TestSingleDeviceManager(t *testing.T) {
 
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open(routemgr.DefaultDeviceName).Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(gomock.Any()).Return(mockDeviceHandle, nil)
 
 		m := routemgr.SingleDeviceManager{
 			DeviceOpener: mockDeviceOpener,
@@ -367,7 +346,7 @@ func TestSingleDeviceManager(t *testing.T) {
 
 		mockDeviceHandle1 := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open(routemgr.DefaultDeviceName).Return(mockDeviceHandle1, nil)
+		mockDeviceOpener.EXPECT().Open(gomock.Any()).Return(mockDeviceHandle1, nil)
 
 		m := routemgr.SingleDeviceManager{
 			DeviceOpener: mockDeviceOpener,
@@ -380,7 +359,7 @@ func TestSingleDeviceManager(t *testing.T) {
 		assert.Nil(t, handle1.Close())
 
 		mockDeviceHandle2 := mock_control.NewMockDeviceHandle(ctrl)
-		mockDeviceOpener.EXPECT().Open(routemgr.DefaultDeviceName).Return(mockDeviceHandle2, nil)
+		mockDeviceOpener.EXPECT().Open(gomock.Any()).Return(mockDeviceHandle2, nil)
 
 		handle2, err := m.Get(xtest.MustParseIA("1-ff00:0:1"))
 		assert.Nil(t, err)
@@ -388,6 +367,36 @@ func TestSingleDeviceManager(t *testing.T) {
 		mockDeviceHandle2.EXPECT().Close()
 		assert.Nil(t, handle2.Close())
 	})
+}
+
+func TestFixedTunnelName(t *testing.T) {
+	namer := routemgr.FixedTunnelName("foo")
+	assert.Equal(t, "foo", namer(xtest.MustParseIA("1-ff00:0:1")))
+}
+
+func TestBase32TunnelName(t *testing.T) {
+	testCases := map[string]*struct {
+		IA   addr.IA
+		Name string
+	}{
+		"1-ff00:0:1": {
+			IA:   xtest.MustParseIA("1-ff00:0:1"),
+			Name: "s.AAA76AAAAAAAC",
+		},
+		"1-ff00:0:2": {
+			IA:   xtest.MustParseIA("1-ff00:0:2"),
+			Name: "s.AAA76AAAAAAAE",
+		},
+	}
+
+	for name, tc := range testCases {
+		tc := tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.Name, routemgr.Base32TunnelName(tc.IA))
+		})
+	}
 }
 
 func TestMultiDeviceManager(t *testing.T) {
@@ -407,15 +416,17 @@ func TestMultiDeviceManager(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
+		ia := xtest.MustParseIA("1-ff00:0:1")
+
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open("s.AAA76AAAAAAAC").Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(ia).Return(mockDeviceHandle, nil)
 
 		m := routemgr.MultiDeviceManager{
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle, err := m.Get(xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(ia)
 		assert.Nil(t, err)
 
 		mockDeviceHandle.EXPECT().Close()
@@ -428,19 +439,22 @@ func TestMultiDeviceManager(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
+		ia1 := xtest.MustParseIA("1-ff00:0:1")
+		ia2 := xtest.MustParseIA("1-ff00:0:2")
+
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
 		mockDeviceHandle1 := mock_control.NewMockDeviceHandle(ctrl)
-		mockDeviceOpener.EXPECT().Open("s.AAA76AAAAAAAC").Return(mockDeviceHandle1, nil)
+		mockDeviceOpener.EXPECT().Open(ia1).Return(mockDeviceHandle1, nil)
 		mockDeviceHandle2 := mock_control.NewMockDeviceHandle(ctrl)
-		mockDeviceOpener.EXPECT().Open("s.AAA76AAAAAAAE").Return(mockDeviceHandle2, nil)
+		mockDeviceOpener.EXPECT().Open(ia2).Return(mockDeviceHandle2, nil)
 
 		m := routemgr.MultiDeviceManager{
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle1, err := m.Get(xtest.MustParseIA("1-ff00:0:1"))
+		handle1, err := m.Get(ia1)
 		assert.Nil(t, err)
-		handle2, err := m.Get(xtest.MustParseIA("1-ff00:0:2"))
+		handle2, err := m.Get(ia2)
 		assert.Nil(t, err)
 
 		mockDeviceHandle1.EXPECT().Close()
@@ -456,17 +470,19 @@ func TestMultiDeviceManager(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
+		ia := xtest.MustParseIA("1-ff00:0:1")
+
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open("s.AAA76AAAAAAAC").Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(ia).Return(mockDeviceHandle, nil)
 
 		m := routemgr.MultiDeviceManager{
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle1, err := m.Get(xtest.MustParseIA("1-ff00:0:1"))
+		handle1, err := m.Get(ia)
 		assert.Nil(t, err)
-		handle2, err := m.Get(xtest.MustParseIA("1-ff00:0:1"))
+		handle2, err := m.Get(ia)
 		assert.Nil(t, err)
 
 		mockDeviceHandle.EXPECT().Close()
@@ -480,14 +496,16 @@ func TestMultiDeviceManager(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
+		ia := xtest.MustParseIA("1-ff00:0:1")
+
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open("s.AAA76AAAAAAAC").Return(nil, serrors.New("test error"))
+		mockDeviceOpener.EXPECT().Open(ia).Return(nil, serrors.New("test error"))
 
 		m := routemgr.MultiDeviceManager{
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle, err := m.Get(xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(ia)
 		assert.Nil(t, handle)
 		assert.NotNil(t, err)
 	})
@@ -498,15 +516,17 @@ func TestMultiDeviceManager(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
+		ia := xtest.MustParseIA("1-ff00:0:1")
+
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open("s.AAA76AAAAAAAC").Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(ia).Return(mockDeviceHandle, nil)
 
 		m := routemgr.MultiDeviceManager{
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle, err := m.Get(xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(ia)
 		assert.Nil(t, err)
 
 		mockDeviceHandle.EXPECT().Close().Return(serrors.New("test error"))
@@ -519,15 +539,17 @@ func TestMultiDeviceManager(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
+		ia := xtest.MustParseIA("1-ff00:0:1")
+
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open("s.AAA76AAAAAAAC").Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(ia).Return(mockDeviceHandle, nil)
 
 		m := routemgr.MultiDeviceManager{
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle, err := m.Get(xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(ia)
 		assert.Nil(t, err)
 
 		mockDeviceHandle.EXPECT().Close()
@@ -541,15 +563,17 @@ func TestMultiDeviceManager(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
+		ia := xtest.MustParseIA("1-ff00:0:1")
+
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
-		mockDeviceOpener.EXPECT().Open("s.AAA76AAAAAAAC").Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(ia).Return(mockDeviceHandle, nil)
 
 		m := routemgr.MultiDeviceManager{
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle, err := m.Get(xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(ia)
 		assert.NotNil(t, handle)
 		assert.Nil(t, err)
 
@@ -565,15 +589,17 @@ func TestMultiDeviceManager(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
+		ia := xtest.MustParseIA("1-ff00:0:1")
+
 		mockDeviceHandle := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open("s.AAA76AAAAAAAC").Return(mockDeviceHandle, nil)
+		mockDeviceOpener.EXPECT().Open(ia).Return(mockDeviceHandle, nil)
 
 		m := routemgr.MultiDeviceManager{
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle, err := m.Get(xtest.MustParseIA("1-ff00:0:1"))
+		handle, err := m.Get(ia)
 		assert.Nil(t, err)
 
 		t.Run("read", func(t *testing.T) {
@@ -617,24 +643,26 @@ func TestMultiDeviceManager(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
+		ia := xtest.MustParseIA("1-ff00:0:1")
+
 		mockDeviceHandle1 := mock_control.NewMockDeviceHandle(ctrl)
 		mockDeviceOpener := mock_control.NewMockDeviceOpener(ctrl)
-		mockDeviceOpener.EXPECT().Open("s.AAA76AAAAAAAC").Return(mockDeviceHandle1, nil)
+		mockDeviceOpener.EXPECT().Open(ia).Return(mockDeviceHandle1, nil)
 
 		m := routemgr.MultiDeviceManager{
 			DeviceOpener: mockDeviceOpener,
 		}
 
-		handle1, err := m.Get(xtest.MustParseIA("1-ff00:0:1"))
+		handle1, err := m.Get(ia)
 		assert.Nil(t, err)
 
 		mockDeviceHandle1.EXPECT().Close()
 		assert.Nil(t, handle1.Close())
 
 		mockDeviceHandle2 := mock_control.NewMockDeviceHandle(ctrl)
-		mockDeviceOpener.EXPECT().Open("s.AAA76AAAAAAAC").Return(mockDeviceHandle2, nil)
+		mockDeviceOpener.EXPECT().Open(ia).Return(mockDeviceHandle2, nil)
 
-		handle2, err := m.Get(xtest.MustParseIA("1-ff00:0:1"))
+		handle2, err := m.Get(ia)
 		assert.Nil(t, err)
 
 		mockDeviceHandle2.EXPECT().Close()

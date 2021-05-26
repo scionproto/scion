@@ -920,7 +920,7 @@ func (m *MockDeviceOpener) EXPECT() *MockDeviceOpenerMockRecorder {
 }
 
 // Open mocks base method
-func (m *MockDeviceOpener) Open(arg0 string) (control.Device, error) {
+func (m *MockDeviceOpener) Open(arg0 addr.IA) (control.Device, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Open", arg0)
 	ret0, _ := ret[0].(control.Device)

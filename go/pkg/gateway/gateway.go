@@ -212,6 +212,9 @@ type Gateway struct {
 	RouteSourceIPv4 net.IP
 	// RouteSourceIPv6 is the source hint for IPv6 routes added to the Linux routing table.
 	RouteSourceIPv6 net.IP
+	// TunnelName is the device name for the Linux global tunnel device.
+	TunnelName string
+
 	// RoutingTableReader is used for routing the packets.
 	RoutingTableReader control.RoutingTableReader
 	// RoutingTableSwapper is used for switching the routing tables.
@@ -251,11 +254,19 @@ func (g *Gateway) Run() error {
 			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal), "reason", "no_route")
 	}
 
+	tunnelName := g.TunnelName
+	if tunnelName == "" {
+		tunnelName = "tun0"
+	}
+
 	tunnelReader := TunnelReader{
-		DeviceOpener: xnet.OpenerWithOptions(xnet.WithLogger(log.Root())),
-		Router:       g.RoutingTableReader,
-		Logger:       g.Logger,
-		Metrics:      fwMetrics,
+		DeviceOpener: xnet.UseNameResolver(
+			routemgr.FixedTunnelName(tunnelName),
+			xnet.OpenerWithOptions(xnet.WithLogger(g.Logger)),
+		),
+		Router:  g.RoutingTableReader,
+		Logger:  g.Logger,
+		Metrics: fwMetrics,
 	}
 	deviceManager := &routemgr.SingleDeviceManager{
 		DeviceOpener: tunnelReader.GetDeviceOpenerWithAsyncReader(),
@@ -807,8 +818,8 @@ type TunnelReader struct {
 }
 
 func (r *TunnelReader) GetDeviceOpenerWithAsyncReader() control.DeviceOpener {
-	f := func(name string) (control.Device, error) {
-		handle, err := r.DeviceOpener.Open(name)
+	f := func(ia addr.IA) (control.Device, error) {
+		handle, err := r.DeviceOpener.Open(ia)
 		if err != nil {
 			return nil, serrors.WrapStr("opening device", err)
 		}
@@ -823,8 +834,7 @@ func (r *TunnelReader) GetDeviceOpenerWithAsyncReader() control.DeviceOpener {
 		go func() {
 			defer log.HandlePanic()
 			if err := forwarder.Run(); err != nil {
-				log.SafeDebug(r.Logger, "Encountered error when reading from tun", "tun", name,
-					"err", err)
+				log.SafeDebug(r.Logger, "Encountered error when reading from tun", "err", err)
 				return
 			}
 		}()

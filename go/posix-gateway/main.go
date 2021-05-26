@@ -97,6 +97,7 @@ func realMain() error {
 		Daemon:                   daemon,
 		RouteSourceIPv4:          globalCfg.Tunnel.SrcIPv4,
 		RouteSourceIPv6:          globalCfg.Tunnel.SrcIPv6,
+		TunnelName:               globalCfg.Tunnel.Name,
 		RoutingTableReader:       routingTable,
 		RoutingTableSwapper:      routingTable,
 		ConfigReloadTrigger:      reloadConfigTrigger,
