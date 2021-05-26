@@ -523,17 +523,19 @@ func (d *DataPlane) Run() error {
 
 		for d.running {
 			myQueues.WaitUntilNonempty()
-			ms, err := myQueues.Schedule()
-			if err != nil {
-				log.Debug("Error scheduling packet", "err", err)
-			}
+			//ms, err := myQueues.Schedule()
+			ms, _ := myQueues.Schedule()
+			//if err != nil {
+			//log.Debug("Error scheduling packet", "err", err)
+			//}
 
 			if len(ms) > 0 {
-				_, err = rd.WriteBatch(ms)
+				//_, err = rd.WriteBatch(ms)
+				rd.WriteBatch(ms)
 
-				if err != nil {
-					log.Debug("Error writing packet", "err", err)
-				}
+				//if err != nil {
+				//log.Debug("Error writing packet", "err", err)
+				//}
 				myQueues.ReturnBuffers(ms)
 			}
 		}
