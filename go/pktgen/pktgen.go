@@ -43,7 +43,6 @@ import (
 type flags struct {
 	daemon      string
 	out         string
-	destination string
 	logLevel    string
 	payload     int
 	config      string

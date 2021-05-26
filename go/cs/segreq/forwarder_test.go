@@ -30,9 +30,6 @@ import (
 )
 
 var (
-	isd1 = xtest.MustParseIA("1-0")
-	isd2 = xtest.MustParseIA("2-0")
-
 	core110 = xtest.MustParseIA("1-ff00:0:110")
 	core120 = xtest.MustParseIA("1-ff00:0:120")
 	core130 = xtest.MustParseIA("1-ff00:0:130")

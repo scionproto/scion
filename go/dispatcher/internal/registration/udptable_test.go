@@ -16,7 +16,6 @@ package registration
 
 import (
 	"net"
-	"strconv"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -36,10 +35,6 @@ func testUDPTableWithPorts(v4, v6 map[int]IPTable) *UDPPortTable {
 		v6 = map[int]IPTable{}
 	}
 	return NewUDPPortTableFromMap(minPort, maxPort, v4, v6)
-}
-
-func v6Format(ip string, port int) string {
-	return "[" + ip + "]:" + strconv.Itoa(port)
 }
 
 func TestUDPPortTableLookup(t *testing.T) {

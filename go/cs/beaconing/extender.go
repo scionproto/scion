@@ -32,9 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-// legacyIfIDSize is the default bit-size for ifids in the hop-fields.
-const legacyIfIDSize = 12
-
 // Extender extends path segments.
 type Extender interface {
 	// Extend extends the path segment. The zero value for ingress indicates
@@ -273,11 +270,4 @@ func extractBeta(pseg *seg.PathSegment) uint16 {
 		beta = beta ^ sigma
 	}
 	return beta
-}
-
-func min(a, b uint8) uint8 {
-	if a > b {
-		return b
-	}
-	return a
 }

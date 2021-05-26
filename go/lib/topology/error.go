@@ -17,13 +17,5 @@ package topology
 import "github.com/scionproto/scion/go/lib/serrors"
 
 var (
-	errAtLeastOnePub         = serrors.New("underlay requires at least one public address")
-	errUnsupportedUnderlay   = serrors.New("unsupported underlay")
-	errInvalidPub            = serrors.New("invalid public address")
-	errBindNotSupported      = serrors.New("bind addresses are not supported for this address type")
-	errCustomUnderlayPort    = serrors.New("custom underlay port not supported")
-	errUnderlayPort          = serrors.New("underlay port set for non-UDP underlay")
-	errUnderlayAddrNotFound  = serrors.New("underlay address not found")
-	errExpectedIPv4FoundIPv6 = serrors.New("expected IPv4 address, but found IPv6 address")
-	errExpectedIPv6FoundIPv4 = serrors.New("expected IPv6 address, but found IPv4 address")
+	errUnderlayAddrNotFound = serrors.New("underlay address not found")
 )

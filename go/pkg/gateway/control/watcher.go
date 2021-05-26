@@ -412,6 +412,8 @@ func fmtPrefixes(prefixes []*net.IPNet) []string {
 }
 
 func (w *prefixWatcher) runOnceCheck() error {
+	w.runMarkerLock.Lock()
+	defer w.runMarkerLock.Unlock()
 	if w.runMarker {
 		return ErrAlreadyRunning
 	}

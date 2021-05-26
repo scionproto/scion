@@ -346,17 +346,6 @@ func (h SCMPHandler) reverseSCION(pkt *respool.Packet) error {
 	return nil
 }
 
-func extractIP(dst net.Addr, err error) (net.IP, error) {
-	if err != nil {
-		return nil, err
-	}
-	ipAddr, ok := dst.(*net.IPAddr)
-	if !ok {
-		return nil, serrors.New("unsupported address", "type", common.TypeOf(dst))
-	}
-	return ipAddr.IP, nil
-}
-
 func extractSCMPIdentifier(scmp *slayers.SCMP) (uint16, error) {
 	l, err := decodeSCMP(scmp)
 	if err != nil {

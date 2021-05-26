@@ -127,16 +127,6 @@ func checkTestPkt(t *testing.T, s *Sender, msg *Msg, pkt *snet.Packet) {
 	assert.Equal(t, msg.Pld, pkt.Payload.(snet.UDPPayload).Payload)
 }
 
-// testConn is a packet conn that returns an empty underlay address.
-type testConn struct {
-	net.PacketConn
-}
-
-func (conn *testConn) ReadFrom(b []byte) (int, net.Addr, error) {
-	n, _, err := conn.PacketConn.ReadFrom(b)
-	return n, &net.UDPAddr{}, err
-}
-
 func createMac(t *testing.T) hash.Hash {
 	mac, err := scrypto.InitMac(make([]byte, 16))
 	require.NoError(t, err)
