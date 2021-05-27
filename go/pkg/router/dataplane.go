@@ -534,16 +534,12 @@ func (d *DataPlane) Run() error {
 
 			if len(ms) > 0 {
 				for _, m := range ms {
-					_, err = rd.WriteBatch(conn.Messages{m})
+					addr := m.Addr.(*net.UDPAddr)
+					_, err = rd.WriteTo(m.Buffers[0], addr)
 					if err != nil {
 						log.Debug("Error writing packet", "err", err)
 					}
 				}
-				//_, err = rd.WriteBatch(ms)
-
-				//if err != nil {
-				//log.Debug("Error writing packet", "err", err)
-				//}
 				myQueues.ReturnBuffers(ms)
 			}
 		}
