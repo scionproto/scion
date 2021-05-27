@@ -15,6 +15,7 @@
 package slayers_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/gopacket"
@@ -239,6 +240,131 @@ func TestEndToEndExtnSerializeDecode(t *testing.T) {
 	got := slayers.EndToEndExtn{}
 	assert.NoError(t, got.DecodeFromBytes(b.Bytes(), gopacket.NilDecodeFeedback))
 	assert.Equal(t, e2e, got)
+}
+
+func TestExtnOrderDecode(t *testing.T) {
+	const (
+		e2e = common.End2EndClass // shorthand
+		hbh = common.HopByHopClass
+	)
+	cases := []struct {
+		name  string
+		extns []common.L4ProtocolType
+		err   bool
+	}{
+		{
+			name:  "e2e",
+			extns: []common.L4ProtocolType{e2e},
+		},
+		{
+			name:  "hbh",
+			extns: []common.L4ProtocolType{hbh},
+		},
+		{
+			name:  "hbh e2e",
+			extns: []common.L4ProtocolType{hbh, e2e},
+		},
+		{
+			name:  "e2e e2e",
+			extns: []common.L4ProtocolType{e2e, e2e},
+			err:   true, // illegal repetition
+		},
+		{
+			name:  "hbh hbh",
+			extns: []common.L4ProtocolType{hbh, hbh},
+			err:   true, // illegal repetition
+		},
+		{
+			name:  "e2e hbh",
+			extns: []common.L4ProtocolType{e2e, hbh},
+			err:   true, // invalid order
+		},
+		{
+			name:  "hbh e2e e2e",
+			extns: []common.L4ProtocolType{hbh, e2e, e2e},
+			err:   true, // illegal repetition
+		},
+		{
+			name:  "hbh e2e hbh",
+			extns: []common.L4ProtocolType{hbh, e2e, hbh},
+			err:   true, // illegal repetition, invalid order
+		},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("serialize %s", c.name), func(t *testing.T) {
+			layers := prepPacketWithExtn(t, c.extns...)
+			buf := gopacket.NewSerializeBuffer()
+			opts := gopacket.SerializeOptions{FixLengths: true}
+			err := gopacket.SerializeLayers(buf, opts, layers...)
+			if c.err {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+		t.Run(fmt.Sprintf("decode %s", c.name), func(t *testing.T) {
+			raw := prepRawPacketWithExtn(t, c.extns...)
+			packet := gopacket.NewPacket(raw, slayers.LayerTypeSCION, gopacket.Default)
+			if c.err {
+				assert.NotNil(t, packet.ErrorLayer())
+			} else if packet.ErrorLayer() != nil {
+				assert.NoError(t, packet.ErrorLayer().Error())
+			}
+		})
+	}
+}
+
+// prepPacketWithExtn creates a (potentially invalid) list of SCION packet layers
+// with extension layers in the given order.
+func prepPacketWithExtn(t *testing.T,
+	extns ...common.L4ProtocolType) []gopacket.SerializableLayer {
+
+	scn := prepPacket(t, extns[0])
+	layers := []gopacket.SerializableLayer{scn}
+	for i, e := range extns {
+		next := common.L4UDP
+		if i+1 < len(extns) {
+			next = extns[i+1]
+		}
+		switch e {
+		case common.End2EndClass:
+			extn := &slayers.EndToEndExtn{}
+			extn.NextHdr = next
+			layers = append(layers, extn)
+		case common.HopByHopClass:
+			extn := &slayers.HopByHopExtn{}
+			extn.NextHdr = next
+			layers = append(layers, extn)
+		}
+	}
+	return layers
+}
+
+// prepRawPacketWithExtn creates a (potentially invalid) raw SCION packet with
+// extensions in the given order.
+func prepRawPacketWithExtn(t *testing.T, extns ...common.L4ProtocolType) []byte {
+	t.Helper()
+
+	scn := prepPacket(t, extns[0])
+	buf := gopacket.NewSerializeBuffer()
+	require.NoError(t, scn.SerializeTo(buf, gopacket.SerializeOptions{FixLengths: true}))
+
+	// Create fake extension headers manually; the extension layers' Serialize
+	// logic checks for the correct ordering of the extensions, but we want to
+	// create packets with bad order.
+	for i := range extns {
+		b, err := buf.AppendBytes(slayers.LineLen)
+		require.NoError(t, err)
+		next := common.L4UDP
+		if i+1 < len(extns) {
+			next = extns[i+1]
+		}
+		b[0] = uint8(next)
+		b[1] = 0 // one LineLen
+	}
+	buf.AppendBytes(8) // dummy UDP payload
+
+	return buf.Bytes()
 }
 
 var optAuthMAC = []byte("16byte_mac_foooo")
