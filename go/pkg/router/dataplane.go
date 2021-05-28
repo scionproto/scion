@@ -105,7 +105,7 @@ type DataPlane struct {
 	Metrics           *Metrics
 	forwardingMetrics map[uint16]forwardingMetrics
 	TE                bool
-	queueMap          map[BatchConn]*te.Queues
+	queueMap          map[uint16]*te.Queues
 }
 
 var (
@@ -192,7 +192,6 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip net.IP) error {
 	d.internal = conn
 	d.internalIP = ip
 
-	d.addQueues(conn)
 	return nil
 }
 
@@ -216,7 +215,6 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn) error {
 	}
 	d.external[ifID] = conn
 
-	d.addQueues(conn)
 	return nil
 }
 
@@ -286,8 +284,6 @@ func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn,
 				With(labels...),
 		}
 	}
-
-	d.addQueues(conn)
 
 	s := &bfdSend{
 		conn:    conn,
@@ -500,25 +496,21 @@ func (d *DataPlane) Run() error {
 				if !d.enqueue(&result) {
 					continue
 				}
-				// ok metric
-				outputCounters := d.forwardingMetrics[result.EgressID]
-				outputCounters.OutputPacketsTotal.Inc()
-				outputCounters.OutputBytesTotal.Add(float64(len(result.OutPkt)))
 			}
 		}
 	}
 
-	write := func(rd BatchConn) {
+	write := func(egressID uint16, rd BatchConn) {
 		defer log.HandlePanic()
 
-		myQueues, ok := d.queueMap[rd]
+		myQueues, ok := d.queueMap[egressID]
+		if !ok {
+			panic("Error getting queues for scheduling")
+		}
 		if d.TE {
 			myQueues.SetScheduler(te.SchedStrictPriority)
 		} else {
 			myQueues.SetScheduler(te.SchedOthersOnly)
-		}
-		if !ok {
-			panic("Error getting queues for scheduling")
 		}
 
 		for d.running {
@@ -529,17 +521,34 @@ func (d *DataPlane) Run() error {
 			}
 
 			if len(ms) > 0 {
-				for _, m := range ms {
-					addr := m.Addr.(*net.UDPAddr)
-					_, err = rd.WriteTo(m.Buffers[0], addr)
-					if err != nil {
-						log.Debug("Error writing packet", "err", err)
-					}
+				pkts, err := rd.WriteBatch(ms)
+				if err != nil {
+					log.Debug("Error writing packet batch", "err", err)
+					continue
 				}
+				if pkts < len(ms) {
+					log.Debug("Not all packets of the batch could be sent",
+						"input", len(ms), "sent", pkts)
+				}
+
+				// ok metric
+				outputCounters := d.forwardingMetrics[egressID]
+				sum := 0
+				for _, m := range ms[:pkts] {
+					outputCounters.OutputPacketsTotal.Inc()
+					sum = sum + len(m.Buffers[0])
+				}
+				outputCounters.OutputBytesTotal.Add(float64(sum))
+
 				myQueues.ReturnBuffers(ms)
 			}
 		}
 	}
+
+	for ifID := range d.external {
+		d.addQueues(ifID)
+	}
+	d.addQueues(0)
 
 	for k, v := range d.bfdSessions {
 		go func(ifID uint16, c bfdSession) {
@@ -551,10 +560,10 @@ func (d *DataPlane) Run() error {
 	}
 
 	for ifID, v := range d.external {
-		go func(c BatchConn) {
+		go func(i uint16, c BatchConn) {
 			defer log.HandlePanic()
-			write(c)
-		}(v)
+			write(i, c)
+		}(ifID, v)
 		go func(i uint16, c BatchConn) {
 			defer log.HandlePanic()
 			read(i, c)
@@ -563,7 +572,7 @@ func (d *DataPlane) Run() error {
 
 	go func(c BatchConn) {
 		defer log.HandlePanic()
-		write(c)
+		write(0, c)
 	}(d.internal)
 	go func(c BatchConn) {
 		defer log.HandlePanic()
@@ -591,19 +600,19 @@ func (d *DataPlane) initMetrics() {
 	}
 }
 
-// addQueues creates new packet queues for the given connection.
-func (d *DataPlane) addQueues(conn BatchConn) {
+// addQueues creates new packet queues for the given interface.
+func (d *DataPlane) addQueues(ifID uint16) {
 	if d.queueMap == nil {
-		d.queueMap = make(map[BatchConn]*te.Queues)
+		d.queueMap = make(map[uint16]*te.Queues)
 	}
-	if _, ok := d.queueMap[conn]; !ok {
-		d.queueMap[conn] = te.NewQueues(d.TE, bufSize)
+	if _, ok := d.queueMap[ifID]; !ok {
+		d.queueMap[ifID] = te.NewQueues(d.TE, bufSize)
 	}
 }
 
 // enqueue puts the processed packet into the queue of the correct router interface.
 func (d *DataPlane) enqueue(result *processResult) bool {
-	otherConnectionQueues, ok := d.queueMap[result.OutConn]
+	otherConnectionQueues, ok := d.queueMap[result.EgressID]
 	if !ok {
 		log.Debug("Error finding queues for scheduling")
 		return false
@@ -1495,20 +1504,14 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 		return err
 	}
 
-	d := b.d
-	myQueue, ok := d.queueMap[b.conn]
-	if !ok {
-		return serrors.New("Error finding queues for scheduling")
+	r := &processResult{
+		OutAddr:  b.dstAddr,
+		OutPkt:   buffer.Bytes(),
+		EgressID: b.ifID,
+		Class:    te.ClsBfd,
 	}
-	var cls te.TrafficClass
-	if d.TE {
-		cls = te.ClsBfd
-	} else {
-		cls = te.ClsOthers
-	}
-	err = myQueue.Enqueue(cls, buffer.Bytes(), b.dstAddr)
-	if err != nil {
-		return serrors.WrapStr("Enqueue failed", err)
+	if !b.d.enqueue(r) {
+		return serrors.New("Bfd enqueue failed")
 	}
 	return nil
 }
