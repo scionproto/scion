@@ -52,7 +52,7 @@ const (
 
 // Number of packets to write in a single WriteBatch call. It has to be at least as high as
 // the number of different traffic classes.
-const outputBatchCnt = 64
+const outputBatchCnt = 8
 
 // Queues describes the queues (one for each traffic class) for a certain router interface.
 // The 'mapping' translates traffic classes to their respective queue. The 'nonempty' channel is
@@ -270,4 +270,25 @@ L:
 
 	q.borrowed = q.borrowed + counter
 	return counter
+}
+
+func (tc TrafficClass) String() string {
+	switch tc {
+	case ClsOthers:
+		return "Others"
+	case ClsColibri:
+		return "COLIBRI"
+	case ClsEpic:
+		return "EPIC"
+	case ClsBfd:
+		return "BFD"
+	case ClsOhp:
+		return "OHP"
+	case ClsScmp:
+		return "SCMP"
+	case ClsScion:
+		return "SCION"
+	default:
+		return "Unknown traffic class"
+	}
 }
