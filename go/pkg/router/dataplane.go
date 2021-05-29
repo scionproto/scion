@@ -525,24 +525,18 @@ func (d *DataPlane) Run() error {
 			}
 
 			if len(ms) > 0 {
-				pkts, err := rd.WriteBatch(ms)
-				if err != nil {
-					log.Debug("Error writing packet batch", "err", err)
-				}
-				if pkts < len(ms) {
-					log.Debug("Not all packets of the batch could be sent",
-						"input", len(ms), "sent", pkts)
-				}
+				for _, m := range ms {
+					addr := m.Addr.(*net.UDPAddr)
+					_, err = rd.WriteTo(m.Buffers[0], addr)
+					if err != nil {
+						log.Debug("Error writing packet", "err", err)
+					}
 
-				// ok metric
-				outputCounters := d.forwardingMetrics[egressID]
-				sum := 0
-				for _, m := range ms[:pkts] {
+					// ok metric
+					outputCounters := d.forwardingMetrics[egressID]
 					outputCounters.OutputPacketsTotal.Inc()
-					sum = sum + len(m.Buffers[0])
+					outputCounters.OutputBytesTotal.Add(float64(len(m.Buffers[0])))
 				}
-				outputCounters.OutputBytesTotal.Add(float64(sum))
-
 				myQueues.ReturnBuffers(ms)
 			}
 		}
