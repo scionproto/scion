@@ -524,7 +524,6 @@ func (d *DataPlane) Run() error {
 				pkts, err := rd.WriteBatch(ms)
 				if err != nil {
 					log.Debug("Error writing packet batch", "err", err)
-					continue
 				}
 				if pkts < len(ms) {
 					log.Debug("Not all packets of the batch could be sent",
