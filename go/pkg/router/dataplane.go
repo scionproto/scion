@@ -107,7 +107,7 @@ type DataPlane struct {
 	Metrics           *Metrics
 	forwardingMetrics map[uint16]forwardingMetrics
 	TE                bool
-	queueMap          map[uint16]*te.Queues
+	queueMap          map[BatchConn]*te.Queues
 }
 
 var (
@@ -507,7 +507,7 @@ func (d *DataPlane) Run() error {
 	write := func(egressID uint16, rd BatchConn) {
 		defer log.HandlePanic()
 
-		myQueues, ok := d.queueMap[egressID]
+		myQueues, ok := d.queueMap[rd]
 		if !ok {
 			panic("Error getting queues for scheduling")
 		}
@@ -530,6 +530,7 @@ func (d *DataPlane) Run() error {
 					_, err = rd.WriteTo(m.Buffers[0], addr)
 					if err != nil {
 						log.Debug("Error writing packet", "err", err)
+						continue
 					}
 
 					// ok metric
@@ -542,10 +543,10 @@ func (d *DataPlane) Run() error {
 		}
 	}
 
-	for ifID := range d.external {
-		d.addQueues(ifID)
+	for _, v := range d.external {
+		d.addQueues(v)
 	}
-	d.addQueues(0)
+	d.addQueues(d.internal)
 
 	for k, v := range d.bfdSessions {
 		go func(ifID uint16, c bfdSession) {
@@ -597,19 +598,19 @@ func (d *DataPlane) initMetrics() {
 	}
 }
 
-// addQueues creates new packet queues for the given interface.
-func (d *DataPlane) addQueues(ifID uint16) {
+// addQueues creates new packet queues for the given connection.
+func (d *DataPlane) addQueues(conn BatchConn) {
 	if d.queueMap == nil {
-		d.queueMap = make(map[uint16]*te.Queues)
+		d.queueMap = make(map[BatchConn]*te.Queues)
 	}
-	if _, ok := d.queueMap[ifID]; !ok {
-		d.queueMap[ifID] = te.NewQueues(d.TE, bufSize)
+	if _, ok := d.queueMap[conn]; !ok {
+		d.queueMap[conn] = te.NewQueues(d.TE, bufSize)
 	}
 }
 
 // enqueue puts the processed packet into the queue of the correct router interface.
 func (d *DataPlane) enqueue(result *processResult) bool {
-	otherConnectionQueues, ok := d.queueMap[result.EgressID]
+	otherConnectionQueues, ok := d.queueMap[result.OutConn]
 	if !ok {
 		log.Debug("Error finding queues for scheduling")
 		return false
@@ -1483,6 +1484,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 	r := &processResult{
 		OutAddr:  b.dstAddr,
 		OutPkt:   buffer.Bytes(),
+		OutConn:  b.conn,
 		EgressID: b.ifID,
 		Class:    te.ClsBfd,
 	}
