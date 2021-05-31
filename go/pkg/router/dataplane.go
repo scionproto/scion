@@ -77,7 +77,6 @@ type bfdSession interface {
 // BatchConn is a connection that supports batch reads and writes.
 type BatchConn interface {
 	ReadBatch(underlayconn.Messages) (int, error)
-	WriteBatch(underlayconn.Messages) (int, error)
 	WriteTo([]byte, *net.UDPAddr) (int, error)
 	Close() error
 }
