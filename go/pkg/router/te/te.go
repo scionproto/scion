@@ -50,7 +50,7 @@ const (
 	SchedStrictPriority
 )
 
-// Number of packets to write in a single WriteBatch call. It has to be at least as high as
+// Number of packets to schedule in a single scheduling round. It has to be at least as high as
 // the number of different traffic classes.
 const outputBatchCnt = 8
 
@@ -59,7 +59,7 @@ const outputBatchCnt = 8
 // used to signal to the scheduler that packets are ready, which is necessary to omit
 // computationally expensive spinning over the queues. The 'scheduler' denotes the scheduling
 // algorithm that will be used, and 'writeBuffer' is a pre-allocated buffer to speed up the
-// WriteBatch() function.
+// WriteTo() function.
 type Queues struct {
 	mapping     map[TrafficClass]*ZeroAllocQueue
 	nonempty    chan bool
