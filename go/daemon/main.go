@@ -184,7 +184,6 @@ func realMain() error {
 			},
 		),
 		Engine:       engine,
-		PathDB:       pathDB,
 		RevCache:     revCache,
 		TopoProvider: itopo.Provider(),
 	}))

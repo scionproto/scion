@@ -34,6 +34,7 @@ func Cmd(pather command.Pather) *cobra.Command {
 		newExtract(joined),
 		newPayload(joined),
 		newVerify(joined),
+		newSign(joined),
 	)
 	return cmd
 }

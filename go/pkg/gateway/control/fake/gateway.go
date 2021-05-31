@@ -34,6 +34,9 @@ import (
 // Gateway is a fake gateway. It uses the configurations provided by the
 // configuration updates channel to configure a dataplane.
 type Gateway struct {
+	// TunnelName is the device name for the Linux global tunnel device.
+	TunnelName string
+
 	// RoutingTableReader is used for routing the packets.
 	RoutingTableReader control.RoutingTableReader
 	// RoutingTableSwapper permits the concurrency-safe swapping of an entire
@@ -81,9 +84,15 @@ type Gateway struct {
 // Run runs the fake gateway, it reads configurations from the configuration
 // channel.
 func (g *Gateway) Run() error {
+	tunnelName := g.TunnelName
+	if tunnelName == "" {
+		tunnelName = "tun0"
+	}
+
 	tunnelReader := gateway.TunnelReader{
-		DeviceOpener: xnet.OpenerWithOptions(
-			xnet.WithLogger(g.Logger),
+		DeviceOpener: xnet.UseNameResolver(
+			routemgr.FixedTunnelName(tunnelName),
+			xnet.OpenerWithOptions(xnet.WithLogger(g.Logger)),
 		),
 		Router:  g.RoutingTableReader,
 		Logger:  g.Logger,

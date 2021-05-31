@@ -24,6 +24,7 @@ import (
 	"github.com/songgao/water"
 	"github.com/vishvananda/netlink"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
@@ -78,9 +79,30 @@ func Open(name string) (control.DeviceHandle, error) {
 }
 
 // OpenerWithOptions returns an Open implementation with the desired options attached.
-func OpenerWithOptions(options ...DeviceOption) control.DeviceOpener {
+func OpenerWithOptions(options ...DeviceOption) DeviceOpener {
 	f := func(name string) (control.Device, error) {
 		return open(name, options...)
+	}
+	return DeviceOpenerFunc(f)
+}
+
+// DeviceOpener opens Linux tunnels.
+type DeviceOpener interface {
+	Open(string) (control.Device, error)
+}
+
+type DeviceOpenerFunc func(name string) (control.Device, error)
+
+func (f DeviceOpenerFunc) Open(name string) (control.Device, error) {
+	return f(name)
+}
+
+// UseNameResolver constructs a control.DeviceOpener implementation that opens
+// Linux devices with names resolved using the selected naming function.
+func UseNameResolver(namer func(addr.IA) string, opener DeviceOpener) control.DeviceOpener {
+	f := func(ia addr.IA) (control.Device, error) {
+		n := namer(ia)
+		return opener.Open(n)
 	}
 	return control.DeviceOpenerFunc(f)
 }

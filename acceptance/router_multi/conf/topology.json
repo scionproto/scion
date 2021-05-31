@@ -23,7 +23,7 @@
             "remote": "192.168.13.3:40000"
           },
           "bandwidth": 1000,
-          "isd_as": "2-ff00:0:3",
+          "isd_as": "1-ff00:0:3",
           "link_to": "PARENT",
           "mtu": 8000
         },

@@ -38,7 +38,7 @@ var L4Protocols = map[L4ProtocolType]bool{
 func (p L4ProtocolType) String() string {
 	switch p {
 	case L4None:
-		return "None/HopByHop"
+		return "None"
 	case L4SCMP:
 		return "SCMP"
 	case L4TCP:
@@ -47,6 +47,8 @@ func (p L4ProtocolType) String() string {
 		return "UDP"
 	case L4BFD:
 		return "BFD"
+	case HopByHopClass:
+		return "HopByHop"
 	case End2EndClass:
 		return "End2End"
 	}
