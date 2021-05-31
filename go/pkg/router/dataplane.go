@@ -50,7 +50,7 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/router/bfd"
 	"github.com/scionproto/scion/go/pkg/router/control"
-	"github.com/scionproto/scion/go/pkg/router/te"
+	"github.com/scionproto/scion/go/pkg/router/tc"
 )
 
 const (
@@ -103,8 +103,8 @@ type DataPlane struct {
 	running           bool
 	Metrics           *Metrics
 	forwardingMetrics map[uint16]forwardingMetrics
-	TE                bool
-	queueMap          map[BatchConn]*te.Queues
+	TC                bool
+	queueMap          map[BatchConn]*tc.Queues
 }
 
 var (
@@ -190,7 +190,6 @@ func (d *DataPlane) AddInternalInterface(conn BatchConn, ip net.IP) error {
 	}
 	d.internal = conn
 	d.internalIP = ip
-
 	return nil
 }
 
@@ -213,7 +212,6 @@ func (d *DataPlane) AddExternalInterface(ifID uint16, conn BatchConn) error {
 		d.external = make(map[uint16]BatchConn)
 	}
 	d.external[ifID] = conn
-
 	return nil
 }
 
@@ -283,7 +281,6 @@ func (d *DataPlane) AddExternalInterfaceBFD(ifID uint16, conn BatchConn,
 				With(labels...),
 		}
 	}
-
 	s := &bfdSend{
 		conn:    conn,
 		srcAddr: src.Addr,
@@ -506,10 +503,10 @@ func (d *DataPlane) Run() error {
 		if !ok {
 			panic("Error getting queues for scheduling")
 		}
-		if d.TE {
-			myQueues.SetScheduler(te.SchedStrictPriority)
+		if d.TC {
+			myQueues.SetScheduler(tc.SchedStrictPriority)
 		} else {
-			myQueues.SetScheduler(te.SchedOthersOnly)
+			myQueues.SetScheduler(tc.SchedOthersOnly)
 		}
 
 		for d.running {
@@ -596,10 +593,10 @@ func (d *DataPlane) initMetrics() {
 // addQueues creates new packet queues for the given connection.
 func (d *DataPlane) addQueues(conn BatchConn) {
 	if d.queueMap == nil {
-		d.queueMap = make(map[BatchConn]*te.Queues)
+		d.queueMap = make(map[BatchConn]*tc.Queues)
 	}
 	if _, ok := d.queueMap[conn]; !ok {
-		d.queueMap[conn] = te.NewQueues(d.TE, bufSize)
+		d.queueMap[conn] = tc.NewQueues(d.TC, bufSize)
 	}
 }
 
@@ -610,11 +607,11 @@ func (d *DataPlane) enqueue(result *processResult) bool {
 		log.Debug("Error finding queues for scheduling")
 		return false
 	}
-	var cls te.TrafficClass
-	if d.TE {
+	var cls tc.TrafficClass
+	if d.TC {
 		cls = result.Class
 	} else {
-		cls = te.ClsOthers
+		cls = tc.ClsOthers
 	}
 	err := otherConnectionQueues.Enqueue(cls, result.OutPkt, result.OutAddr)
 	if err != nil {
@@ -629,7 +626,7 @@ type processResult struct {
 	OutConn  BatchConn
 	OutAddr  *net.UDPAddr
 	OutPkt   []byte
-	Class    te.TrafficClass
+	Class    tc.TrafficClass
 }
 
 func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
@@ -795,7 +792,7 @@ func (p *scionPacketProcessor) processEPIC() (processResult, error) {
 		}
 	}
 
-	result.Class = te.ClsEpic
+	result.Class = tc.ClsEpic
 	return result, nil
 }
 
@@ -1259,7 +1256,7 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 			return r, err
 		}
 		return processResult{OutConn: p.d.internal, OutAddr: a,
-			OutPkt: p.rawPkt, Class: te.ClsScion}, nil
+			OutPkt: p.rawPkt, Class: tc.ClsScion}, nil
 	}
 
 	// Outbound: pkts leaving the local IA.
@@ -1289,13 +1286,13 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 			return processResult{}, err
 		}
 		return processResult{EgressID: egressID, OutConn: c,
-			OutPkt: p.rawPkt, Class: te.ClsScion}, nil
+			OutPkt: p.rawPkt, Class: tc.ClsScion}, nil
 	}
 
 	// ASTransit: pkts leaving from another AS BR.
 	if a, ok := p.d.internalNextHops[egressID]; ok {
 		return processResult{OutConn: p.d.internal, OutAddr: a,
-			OutPkt: p.rawPkt, Class: te.ClsScion}, nil
+			OutPkt: p.rawPkt, Class: tc.ClsScion}, nil
 	}
 	errCode := slayers.SCMPCodeUnknownHopFieldEgress
 	if !p.infoField.ConsDir {
@@ -1359,7 +1356,7 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 		if c, ok := p.d.external[ohp.FirstHop.ConsEgress]; ok {
 			// buffer should already be correct
 			return processResult{EgressID: ohp.FirstHop.ConsEgress, OutConn: c, OutPkt: p.rawPkt,
-				Class: te.ClsOhp}, nil
+				Class: tc.ClsOhp}, nil
 		}
 		// TODO parameter problem invalid interface
 		return processResult{}, serrors.WithCtx(cannotRoute, "type", "ohp",
@@ -1393,7 +1390,7 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 		return processResult{}, err
 	}
 	return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt,
-		Class: te.ClsOhp}, nil
+		Class: tc.ClsOhp}, nil
 }
 
 func (d *DataPlane) resolveLocalDst(s slayers.SCION) (*net.UDPAddr, error) {
@@ -1502,7 +1499,7 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 		OutPkt:   buffer.Bytes(),
 		OutConn:  b.conn,
 		EgressID: b.ifID,
-		Class:    te.ClsBfd,
+		Class:    tc.ClsBfd,
 	}
 	if !b.d.enqueue(r) {
 		return serrors.New("Bfd enqueue failed")

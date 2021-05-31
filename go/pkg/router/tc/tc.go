@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package te adds traffic engineering capabilities (packet prioritization) to the
-// border router. Traffic engineering can be enabled/disabled in 'scion/go/posix-router/main.go'.
-package te
+// Package tc adds traffic control capabilities (packet prioritization) to the
+// border router. Traffic control can be enabled/disabled in 'scion/go/posix-router/main.go'.
+package tc
 
 import (
 	"net"
 
 	"golang.org/x/net/ipv4"
 
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/underlay/conn"
 )
@@ -187,7 +186,6 @@ func (qs *Queues) ReturnBuffers(ms []ipv4.Message) error {
 			select {
 			case q.emptyPackets <- ms[counter+i]:
 			default:
-				log.Debug("test")
 				return serrors.New("queueBuffer full", "traffic class", tc)
 			}
 		}

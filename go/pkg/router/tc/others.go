@@ -12,33 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package te
+package tc
 
 import (
 	"golang.org/x/net/ipv4"
 )
 
-type ColibriPriorityScheduler struct{}
+type OthersOnlyScheduler struct{}
 
-// Schedule gives priority to Colibri packets, but also includes up to one packet of
-// each other traffic class.
-func (s *ColibriPriorityScheduler) Schedule(qs *Queues) ([]ipv4.Message, error) {
-	// Prioritize Colibri packets
-	nrQueues := len(qs.mapping)
-	read := 0
-	n, err := qs.dequeue(ClsColibri, outputBatchCnt-nrQueues, qs.writeBuffer[read:])
+// Schedule only forwards packets from the 'Others' queue, all other queues are ignored.
+func (s *OthersOnlyScheduler) Schedule(qs *Queues) ([]ipv4.Message, error) {
+	read, err := qs.dequeue(ClsOthers, outputBatchCnt, qs.writeBuffer)
 	if err != nil {
 		return nil, err
-	}
-	read = read + n
-
-	// Remaining classes are scheduled using round-robin (including one Colibri packet)
-	for cls := range qs.mapping {
-		n, err := qs.dequeue(cls, 1, qs.writeBuffer[read:])
-		if err != nil {
-			return nil, err
-		}
-		read = read + n
 	}
 
 	if read > 0 {
