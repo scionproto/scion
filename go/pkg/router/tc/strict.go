@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package te
+package tc
 
 import (
 	"golang.org/x/net/ipv4"

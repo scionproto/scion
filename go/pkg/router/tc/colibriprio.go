@@ -12,17 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package te
+package tc
 
 import (
 	"golang.org/x/net/ipv4"
 )
 
-type RoundRobinScheduler struct{}
+type ColibriPriorityScheduler struct{}
 
-// Schedule schedules the packets based on round-robin over all queues.
-func (s *RoundRobinScheduler) Schedule(qs *Queues) ([]ipv4.Message, error) {
+// Schedule gives priority to Colibri packets, but also includes up to one packet of
+// each other traffic class.
+func (s *ColibriPriorityScheduler) Schedule(qs *Queues) ([]ipv4.Message, error) {
+	// Prioritize Colibri packets
+	nrQueues := len(qs.mapping)
 	read := 0
+	n, err := qs.dequeue(ClsColibri, outputBatchCnt-nrQueues, qs.writeBuffer[read:])
+	if err != nil {
+		return nil, err
+	}
+	read = read + n
+
+	// Remaining classes are scheduled using round-robin (including one Colibri packet)
 	for cls := range qs.mapping {
 		n, err := qs.dequeue(cls, 1, qs.writeBuffer[read:])
 		if err != nil {

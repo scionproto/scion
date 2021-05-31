@@ -12,19 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package te
+package tc
 
 import (
 	"golang.org/x/net/ipv4"
 )
 
-type OthersOnlyScheduler struct{}
+type RoundRobinScheduler struct{}
 
-// Schedule only forwards packets from the 'Others' queue, all other queues are ignored.
-func (s *OthersOnlyScheduler) Schedule(qs *Queues) ([]ipv4.Message, error) {
-	read, err := qs.dequeue(ClsOthers, outputBatchCnt, qs.writeBuffer)
-	if err != nil {
-		return nil, err
+// Schedule schedules the packets based on round-robin over all queues.
+func (s *RoundRobinScheduler) Schedule(qs *Queues) ([]ipv4.Message, error) {
+	read := 0
+	for cls := range qs.mapping {
+		n, err := qs.dequeue(cls, 1, qs.writeBuffer[read:])
+		if err != nil {
+			return nil, err
+		}
+		read = read + n
 	}
 
 	if read > 0 {
