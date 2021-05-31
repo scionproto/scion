@@ -385,7 +385,6 @@ func createScionCmnAddrHdr() *slayers.SCION {
 	}
 	ip4Addr := &net.IPAddr{IP: net.ParseIP("10.0.0.100")}
 	spkt.SetSrcAddr(ip4Addr)
-	spkt.SrcAddrLen = 0
 	return spkt
 }
 
