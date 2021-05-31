@@ -87,6 +87,9 @@ func VerifyTimestamp(timestamp time.Time, epicTS uint32, now time.Time) error {
 // CalcMac derives the EPIC MAC (PHVF/LHVF) given the full 16 bytes of the SCION path type
 // MAC (auth), the EPIC packet ID (pktID), the timestamp in the Info Field (timestamp),
 // and the SCION common/address header (s).
+// If the same buffer is provided in subsequent calls to this function, the previously returned
+// EPIC MAC may get overwritten. Only the most recently returned EPIC MAC is guaranteed to be
+// valid.
 func CalcMac(auth []byte, pktID epic.PktID, s *slayers.SCION,
 	timestamp uint32, buffer []byte) ([]byte, error) {
 
