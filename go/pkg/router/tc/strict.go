@@ -31,12 +31,6 @@ func (s *StrictPriorityScheduler) Schedule(qs *Queues) ([]ipv4.Message, error) {
 	}
 	read = read + n
 
-	n, err = qs.dequeue(ClsEpic, outputBatchCnt-read, qs.writeBuffer[read:])
-	if err != nil {
-		return nil, err
-	}
-	read = read + n
-
 	n, err = qs.dequeue(ClsBfd, outputBatchCnt-read, qs.writeBuffer[read:])
 	if err != nil {
 		return nil, err
@@ -44,6 +38,12 @@ func (s *StrictPriorityScheduler) Schedule(qs *Queues) ([]ipv4.Message, error) {
 	read = read + n
 
 	n, err = qs.dequeue(ClsOhp, outputBatchCnt-read, qs.writeBuffer[read:])
+	if err != nil {
+		return nil, err
+	}
+	read = read + n
+
+	n, err = qs.dequeue(ClsEpic, outputBatchCnt-read, qs.writeBuffer[read:])
 	if err != nil {
 		return nil, err
 	}
