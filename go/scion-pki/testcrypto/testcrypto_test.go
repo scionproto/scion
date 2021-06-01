@@ -35,9 +35,9 @@ func TestCmd(t *testing.T) {
 		t.Skip("Test can't run through bazel because of symlinks and docker not playing nice")
 	}
 	outDir, cleanF := xtest.MustTempDir("", "testcrypto")
+	defer cleanF()
 	topo := "./testdata/test.topo"
-	cryptoLib := "../../../scripts/cryptoplayground/crypto_lib.sh"
-	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false, asValidity)
+	err := testcrypto.Testcrypto(topo, outDir, false, false, asValidity)
 	require.NoError(t, err)
 
 	allASes := []addr.IA{
@@ -72,7 +72,6 @@ func TestCmd(t *testing.T) {
 	}
 	checkISD(t, outDir, 1)
 	checkISD(t, outDir, 2)
-	cleanF()
 }
 
 func checkISD(t *testing.T, outDir string, isd addr.ISD) {
