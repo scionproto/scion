@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
@@ -226,7 +225,6 @@ type Tasks struct {
 
 func StartTasks(cfg TasksConfig) (*Tasks, error) {
 	beaconCleaner := newBeaconCleaner(cfg.BeaconStore)
-	revCleaner := newRevocationCleaner(cfg.BeaconStore)
 
 	segCleaner := pathdb.NewCleaner(cfg.PathDB, "control_pathstorage_segments")
 	segRevCleaner := revcache.NewCleaner(cfg.RevCache, "control_pathstorage_revocation")
@@ -238,7 +236,6 @@ func StartTasks(cfg TasksConfig) (*Tasks, error) {
 			periodic.Func{
 				Task: func(ctx context.Context) {
 					beaconCleaner.Run(ctx)
-					revCleaner.Run(ctx)
 				},
 				TaskName: "control_beaconstorage_cleaner",
 			},
@@ -311,11 +308,6 @@ type Store interface {
 		<-chan beacon.BeaconOrErr, error)
 	// InsertBeacon adds a verified beacon to the store, ignoring revocations.
 	InsertBeacon(ctx context.Context, beacon beacon.Beacon) (beacon.InsertStats, error)
-	// InsertRevocations inserts the revocation into the BeaconDB.
-	// The provided revocation must be verified by the caller.
-	InsertRevocations(ctx context.Context, revocations ...*path_mgmt.SignedRevInfo) error
-	// DeleteRevocation deletes the revocation from the BeaconDB.
-	DeleteRevocation(ctx context.Context, ia addr.IA, ifid common.IFIDType) error
 	// UpdatePolicy updates the policy. Beacons that are filtered by all
 	// policies after the update are removed.
 	UpdatePolicy(ctx context.Context, policy beacon.Policy) error
@@ -323,8 +315,6 @@ type Store interface {
 	MaxExpTime(policyType beacon.PolicyType) uint8
 	// DeleteExpired deletes expired Beacons from the store.
 	DeleteExpiredBeacons(ctx context.Context) (int, error)
-	// DeleteExpiredRevocations deletes expired Revocations from the store.
-	DeleteExpiredRevocations(ctx context.Context) (int, error)
 	// Close closes the store.
 	Close() error
 }
@@ -340,17 +330,4 @@ func newBeaconCleaner(s expiredBeaconsDeleter) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		return s.DeleteExpiredBeacons(ctx)
 	}, "control_beaconstorage_beacon")
-}
-
-// expiredRevocationsDeleter deletes expired Revocations from the store.
-type expiredRevocationsDeleter interface {
-	// DeleteExpiredRevocations deletes expired Revocations from the store.
-	DeleteExpiredRevocations(ctx context.Context) (int, error)
-}
-
-// newRevocationCleaner creates a cleaner task, which deletes expired revocations.
-func newRevocationCleaner(s expiredRevocationsDeleter) *cleaner.Cleaner {
-	return cleaner.New(func(ctx context.Context) (int, error) {
-		return s.DeleteExpiredRevocations(ctx)
-	}, "control_beaconstorage_revocation")
 }

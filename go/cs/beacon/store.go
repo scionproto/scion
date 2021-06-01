@@ -20,8 +20,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -234,40 +232,9 @@ func (s *baseStore) InsertBeacon(ctx context.Context, beacon Beacon) (InsertStat
 	return s.db.InsertBeacon(ctx, beacon, usage)
 }
 
-// InsertRevocations inserts the revocation into the BeaconDB. The provided
-// revocation must be verified by the caller.
-func (s *baseStore) InsertRevocations(ctx context.Context,
-	revocations ...*path_mgmt.SignedRevInfo) error {
-
-	tx, err := s.db.BeginTransaction(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	for _, sRev := range revocations {
-		if err := tx.InsertRevocation(ctx, sRev); err != nil {
-			return err
-		}
-	}
-	if _, err := tx.DeleteRevokedBeacons(ctx, time.Now()); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-// DeleteRevocation deletes the revocation from the BeaconDB.
-func (s *baseStore) DeleteRevocation(ctx context.Context, ia addr.IA, ifid common.IFIDType) error {
-	return s.db.DeleteRevocation(ctx, ia, ifid)
-}
-
 // DeleteExpiredBeacons deletes expired Beacons from the store.
 func (s *baseStore) DeleteExpiredBeacons(ctx context.Context) (int, error) {
 	return s.db.DeleteExpiredBeacons(ctx, time.Now())
-}
-
-// DeleteExpiredRevocations deletes expired Revocations from the store.
-func (s *baseStore) DeleteExpiredRevocations(ctx context.Context) (int, error) {
-	return s.db.DeleteExpiredRevocations(ctx, time.Now())
 }
 
 // UpdatePolicy updates the policy. Beacons that are filtered by all

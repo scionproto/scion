@@ -17,7 +17,6 @@ package beacondbtest
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -28,12 +27,9 @@ import (
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/slayers/path"
-	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
-	"github.com/scionproto/scion/go/proto"
 )
 
 var (
@@ -134,16 +130,6 @@ func Test(t *testing.T, db Testable) {
 		tableWrapper(false, testCandidateBeacons))
 	t.Run("DeleteExpired should delete expired segments",
 		testWrapper(testDeleteExpiredBeacons))
-	t.Run("DeleteRevokedBeacons",
-		tableWrapper(false, testDeleteRevokedBeacons))
-	t.Run("AllRevocations",
-		tableWrapper(false, testAllRevocations))
-	t.Run("InsertRevocation updates existing rev",
-		testWrapper(testInsertUpdateRevocation))
-	t.Run("DeleteRevocations should delete revocations",
-		tableWrapper(false, testDeleteRevocation2))
-	t.Run("DeleteExpiredRevocations should delete expired revocations",
-		testWrapper(testDeleteExpiredRevocations))
 	txTestWrapper := func(test func(*testing.T, *gomock.Controller,
 		beacon.DBReadWrite)) func(t *testing.T) {
 
@@ -173,16 +159,6 @@ func Test(t *testing.T, db Testable) {
 			tableWrapper(true, testCandidateBeacons))
 		t.Run("DeleteExpired should delete expired segments",
 			txTestWrapper(testDeleteExpiredBeacons))
-		t.Run("DeleteRevokedBeacons",
-			tableWrapper(true, testDeleteRevokedBeacons))
-		t.Run("AllRevocations",
-			tableWrapper(true, testAllRevocations))
-		t.Run("InsertRevocation updates existing rev",
-			txTestWrapper(testInsertUpdateRevocation))
-		t.Run("DeleteRevocations should delete revocations",
-			tableWrapper(true, testDeleteRevocation2))
-		t.Run("DeleteExpiredRevocations should delete expired revocations",
-			txTestWrapper(testDeleteExpiredRevocations))
 		t.Run("Test transaction rollback", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
@@ -318,22 +294,6 @@ func testCandidateBeacons(t *testing.T, db Testable, inTx bool) {
 			Src:      beacons[0].Segment.FirstIA(),
 			Expected: []beacon.Beacon{beacons[0]},
 		},
-		"Revoked beacons are not returned": {
-			PrepareDB: func(t *testing.T, ctx context.Context, db beacon.DBReadWrite) {
-				insertBeacons(t, db)
-				sRev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
-					IfID:         Info3[2].Ingress,
-					RawIsdas:     Info3[2].IA.IAInt(),
-					LinkType:     proto.LinkType_child,
-					RawTimestamp: util.TimeToSecs(time.Now().Add(-5 * time.Second)),
-					RawTTL:       10,
-				})
-				require.NoError(t, err)
-				InsertRevocation(t, db, sRev)
-			},
-			// last beacon (info3) is revoked
-			Expected: beacons[:2],
-		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -372,274 +332,6 @@ func testDeleteExpiredBeacons(t *testing.T, ctrl *gomock.Controller, db beacon.D
 	deleted, err = db.DeleteExpiredBeacons(ctx, time.Unix(30, 0).Add(defaultExp))
 	require.NoError(t, err)
 	assert.Equal(t, 1, deleted, "Deleted")
-}
-
-func testDeleteRevokedBeacons(t *testing.T, db Testable, inTx bool) {
-	rootCtrl := gomock.NewController(t)
-	defer rootCtrl.Finish()
-
-	ts := uint32(10)
-	now := time.Unix(int64(ts)+2, 0)
-	b3 := InsertBeacon(t, rootCtrl, db, Info3, 12, ts, beacon.UsageProp)
-	b2 := InsertBeacon(t, rootCtrl, db, Info2, 13, ts, beacon.UsageProp)
-	srev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
-		IfID:         Info3[2].Ingress,
-		RawIsdas:     Info3[2].IA.IAInt(),
-		LinkType:     proto.LinkType_child,
-		RawTimestamp: ts,
-		RawTTL:       10,
-	})
-	require.NoError(t, err)
-	srev2, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
-		IfID:         Info2[1].Ingress,
-		RawIsdas:     Info2[1].IA.IAInt(),
-		LinkType:     proto.LinkType_child,
-		RawTimestamp: ts,
-		RawTTL:       10,
-	})
-	require.NoError(t, err)
-
-	tests := map[string]struct {
-		PrepareDB       func(t *testing.T, ctx context.Context, db beacon.DBReadWrite)
-		ExpectedDeleted int
-		ExpectedBeacons []beacon.Beacon
-	}{
-		"DeleteRevokedBeacons with no revocations should not delete anything": {
-			PrepareDB:       func(t *testing.T, ctx context.Context, db beacon.DBReadWrite) {},
-			ExpectedBeacons: []beacon.Beacon{b2, b3},
-		},
-		"DeleteRevokedBeacon with revocation on one beacon should delete it": {
-			PrepareDB: func(t *testing.T, ctx context.Context, db beacon.DBReadWrite) {
-				InsertRevocation(t, db, srev1)
-			},
-			ExpectedDeleted: 1,
-			ExpectedBeacons: []beacon.Beacon{b2},
-		},
-		"DeleteRevokedBeacon with revocation on both beacons should delete both": {
-			PrepareDB: func(t *testing.T, ctx context.Context, db beacon.DBReadWrite) {
-				InsertRevocation(t, db, srev1)
-				InsertRevocation(t, db, srev2)
-			},
-			ExpectedDeleted: 2,
-			ExpectedBeacons: []beacon.Beacon{},
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-			defer cancelF()
-			db.Prepare(t, ctx)
-			// reinsert b3 and b2 since the prepare above deletes them.
-			InsertBeacon(t, rootCtrl, db, Info3, 12, ts, beacon.UsageProp)
-			InsertBeacon(t, rootCtrl, db, Info2, 13, ts, beacon.UsageProp)
-
-			test.PrepareDB(t, ctx, db)
-			var deleted int
-			if inTx {
-				tx, err := db.BeginTransaction(ctx, nil)
-				require.NoError(t, err)
-				deleted, err = tx.DeleteRevokedBeacons(ctx, now)
-				require.NoError(t, err)
-				require.NoError(t, tx.Commit())
-			} else {
-				var err error
-				deleted, err = db.DeleteRevokedBeacons(ctx, now)
-				require.NoError(t, err)
-			}
-			assert.Equal(t, test.ExpectedDeleted, deleted)
-			results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
-			require.NoError(t, err)
-			CheckResults(t, results, test.ExpectedBeacons)
-		})
-	}
-}
-
-func testAllRevocations(t *testing.T, db Testable, inTx bool) {
-	ts := util.TimeToSecs(time.Now().Add(-5 * time.Second))
-	srev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
-		IfID:         Info3[2].Ingress,
-		RawIsdas:     Info3[2].IA.IAInt(),
-		LinkType:     proto.LinkType_child,
-		RawTimestamp: ts,
-		RawTTL:       10,
-	})
-	require.NoError(t, err)
-
-	tests := map[string]struct {
-		PrepareDB    func(t *testing.T, ctx context.Context, db beacon.DBReadWrite)
-		ExpectedRevs []*path_mgmt.SignedRevInfo
-	}{
-		"AllRevocations on empty db should return an empty channel": {
-			PrepareDB: func(t *testing.T, ctx context.Context, db beacon.DBReadWrite) {},
-		},
-		"AllRevocations returns revocations in db": {
-			PrepareDB: func(t *testing.T, ctx context.Context, db beacon.DBReadWrite) {
-				InsertRevocation(t, db, srev1)
-			},
-			ExpectedRevs: []*path_mgmt.SignedRevInfo{srev1},
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-			defer cancelF()
-			db.Prepare(t, ctx)
-
-			test.PrepareDB(t, ctx, db)
-			if inTx {
-				tx, err := db.BeginTransaction(ctx, nil)
-				require.NoError(t, err)
-				revs, err := tx.AllRevocations(ctx)
-				require.NoError(t, err)
-				CheckRevs(t, revs, test.ExpectedRevs)
-				require.NoError(t, tx.Commit())
-			} else {
-				revs, err := db.AllRevocations(ctx)
-				require.NoError(t, err)
-				CheckRevs(t, revs, test.ExpectedRevs)
-			}
-		})
-	}
-}
-
-func testInsertUpdateRevocation(t *testing.T, _ *gomock.Controller, db beacon.DBReadWrite) {
-	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-	defer cancelF()
-	ts := util.TimeToSecs(time.Now().Add(-5 * time.Second))
-	srev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
-		IfID:         Info3[2].Ingress,
-		RawIsdas:     Info3[2].IA.IAInt(),
-		LinkType:     proto.LinkType_child,
-		RawTimestamp: ts,
-		RawTTL:       20,
-	})
-	require.NoError(t, err)
-	err = db.InsertRevocation(ctx, srev1)
-	require.NoError(t, err)
-	// insert newer revocation should override old one
-	srev2, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
-		IfID:         Info3[2].Ingress,
-		RawIsdas:     Info3[2].IA.IAInt(),
-		LinkType:     proto.LinkType_child,
-		RawTimestamp: ts + 1,
-		RawTTL:       10,
-	})
-	require.NoError(t, err)
-	err = db.InsertRevocation(ctx, srev2)
-	require.NoError(t, err)
-	revs, err := db.AllRevocations(ctx)
-	require.NoError(t, err)
-	CheckRevs(t, revs, []*path_mgmt.SignedRevInfo{srev2})
-	// older revocation should keep the newer one.
-	err = db.InsertRevocation(ctx, srev1)
-	require.NoError(t, err)
-	revs, err = db.AllRevocations(ctx)
-	require.NoError(t, err)
-	CheckRevs(t, revs, []*path_mgmt.SignedRevInfo{srev2})
-}
-
-func testDeleteRevocation2(t *testing.T, db Testable, inTx bool) {
-	ts := util.TimeToSecs(time.Now().Add(-5 * time.Second))
-
-	srev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
-		IfID:         Info3[2].Ingress,
-		RawIsdas:     Info3[2].IA.IAInt(),
-		LinkType:     proto.LinkType_child,
-		RawTimestamp: ts,
-		RawTTL:       10,
-	})
-	require.NoError(t, err)
-
-	tests := map[string]struct {
-		PrepareDB    func(t *testing.T, ctx context.Context, db beacon.DBReadWrite)
-		Delete       func(ctx context.Context, db beacon.DBReadWrite) error
-		ExpectedRevs []*path_mgmt.SignedRevInfo
-	}{
-		"Delete on empty db": {
-			PrepareDB: func(t *testing.T, ctx context.Context, db beacon.DBReadWrite) {},
-			Delete: func(ctx context.Context, db beacon.DBReadWrite) error {
-				return db.DeleteRevocation(ctx, Info3[2].IA, Info3[2].Ingress)
-			},
-		},
-		"Deleting an existing revocation removes it": {
-			PrepareDB: func(t *testing.T, ctx context.Context, db beacon.DBReadWrite) {
-				InsertRevocation(t, db, srev1)
-			},
-			Delete: func(ctx context.Context, db beacon.DBReadWrite) error {
-				return db.DeleteRevocation(ctx, Info3[2].IA, Info3[2].Ingress)
-			},
-		},
-		"Deleting non-existing other revocation does not delete existing": {
-			PrepareDB: func(t *testing.T, ctx context.Context, db beacon.DBReadWrite) {
-				InsertRevocation(t, db, srev1)
-			},
-			Delete: func(ctx context.Context, db beacon.DBReadWrite) error {
-				return db.DeleteRevocation(ctx, Info3[2].IA, Info3[2].Egress)
-			},
-			ExpectedRevs: []*path_mgmt.SignedRevInfo{srev1},
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-			defer cancelF()
-			db.Prepare(t, ctx)
-
-			test.PrepareDB(t, ctx, db)
-			if inTx {
-				tx, err := db.BeginTransaction(ctx, nil)
-				require.NoError(t, err)
-				err = test.Delete(ctx, tx)
-				require.NoError(t, err)
-				revs, err := tx.AllRevocations(ctx)
-				require.NoError(t, err)
-				CheckRevs(t, revs, test.ExpectedRevs)
-				require.NoError(t, tx.Commit())
-			} else {
-				err := test.Delete(ctx, db)
-				require.NoError(t, err)
-				revs, err := db.AllRevocations(ctx)
-				require.NoError(t, err)
-				CheckRevs(t, revs, test.ExpectedRevs)
-			}
-		})
-	}
-}
-
-func testDeleteExpiredRevocations(t *testing.T, _ *gomock.Controller, db beacon.DBReadWrite) {
-	now := time.Now()
-	ts := util.TimeToSecs(now.Add(-5 * time.Second))
-	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-	defer cancelF()
-	// delete on empty should work
-	cnt, err := db.DeleteExpiredRevocations(ctx, now)
-	require.NoError(t, err)
-	assert.Zero(t, cnt)
-	revs, err := db.AllRevocations(ctx)
-	CheckEmptyRevs(t, revs, err)
-	// delete with non empty db:
-	srev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{
-		IfID:         Info3[2].Ingress,
-		RawIsdas:     Info3[2].IA.IAInt(),
-		LinkType:     proto.LinkType_child,
-		RawTimestamp: ts,
-		RawTTL:       10,
-	})
-	require.NoError(t, err)
-	InsertRevocation(t, db, srev1)
-	// non-expired revocation is not deleted.
-	cnt, err = db.DeleteExpiredRevocations(ctx, now)
-	require.NoError(t, err)
-	assert.Zero(t, cnt)
-	revs, err = db.AllRevocations(ctx)
-	require.NoError(t, err)
-	CheckRevs(t, revs, []*path_mgmt.SignedRevInfo{srev1})
-	// expired is deleted
-	cnt, err = db.DeleteExpiredRevocations(ctx, now.Add(6*time.Second))
-	require.NoError(t, err)
-	assert.Equal(t, 1, cnt, "Deletion expected")
-	revs, err = db.AllRevocations(ctx)
-	CheckEmptyRevs(t, revs, err)
 }
 
 func testRollback(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
@@ -712,33 +404,6 @@ func CheckEmpty(t *testing.T, name string, results <-chan beacon.BeaconOrErr, er
 	assert.Zero(t, res)
 }
 
-func CheckRevs(t *testing.T, results <-chan beacon.RevocationOrErr,
-	expectedRevs []*path_mgmt.SignedRevInfo) {
-
-	for i, expected := range expectedRevs {
-		select {
-		case res := <-results:
-			require.NoError(t, res.Err, fmt.Sprintf("Rev %d err", i))
-			require.NotNil(t, res.Rev, fmt.Sprintf("Rev %d nil", i))
-			// make sure revinfo is initialized so comparison works.
-			_, err := res.Rev.RevInfo()
-			require.NoError(t, err)
-			assert.Equal(t, expected, res.Rev, fmt.Sprintf("Rev %d rev", i))
-		case <-time.After(timeout):
-			t.Fatalf("Rev %d took too long", i)
-		}
-	}
-	CheckEmptyRevs(t, results, nil)
-}
-
-func CheckEmptyRevs(t *testing.T, results <-chan beacon.RevocationOrErr, err error) {
-	t.Helper()
-	assert.NoError(t, err)
-	res, more := <-results
-	assert.False(t, more)
-	assert.Zero(t, res)
-}
-
 func InsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite, ases []IfInfo,
 	inIfId common.IFIDType, infoTS uint32, allowed beacon.Usage) beacon.Beacon {
 	b, _ := AllocBeacon(t, ctrl, ases, inIfId, infoTS)
@@ -747,13 +412,6 @@ func InsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite, 
 	_, err := db.InsertBeacon(ctx, b, allowed)
 	require.NoError(t, err)
 	return b
-}
-
-func InsertRevocation(t *testing.T, db beacon.DBReadWrite, sRev *path_mgmt.SignedRevInfo) {
-	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-	defer cancelF()
-	err := db.InsertRevocation(ctx, sRev)
-	require.NoError(t, err)
 }
 
 type PeerEntry struct {

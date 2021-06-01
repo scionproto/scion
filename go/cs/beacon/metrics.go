@@ -26,8 +26,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/tracing"
@@ -213,16 +211,6 @@ func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
 	return ret, err
 }
 
-func (e *executor) AllRevocations(ctx context.Context) (<-chan RevocationOrErr, error) {
-	var ret <-chan RevocationOrErr
-	var err error
-	e.metrics.Observe(ctx, "all_revocations", func(ctx context.Context) error {
-		ret, err = e.db.AllRevocations(ctx)
-		return err
-	})
-	return ret, err
-}
-
 func (e *executor) InsertBeacon(ctx context.Context, beacon Beacon,
 	usage Usage) (InsertStats, error) {
 	var ret InsertStats
@@ -239,46 +227,6 @@ func (e *executor) DeleteExpiredBeacons(ctx context.Context, now time.Time) (int
 	var err error
 	e.metrics.Observe(ctx, "delete_expired_beacon", func(ctx context.Context) error {
 		ret, err = e.db.DeleteExpiredBeacons(ctx, now)
-		return err
-	})
-	return ret, err
-}
-
-func (e *executor) DeleteRevokedBeacons(ctx context.Context, now time.Time) (int, error) {
-	var ret int
-	var err error
-	e.metrics.Observe(ctx, "delete_revoked_beacons", func(ctx context.Context) error {
-		ret, err = e.db.DeleteRevokedBeacons(ctx, now)
-		return err
-	})
-	return ret, err
-}
-
-func (e *executor) InsertRevocation(ctx context.Context,
-	revocation *path_mgmt.SignedRevInfo) error {
-
-	var err error
-	e.metrics.Observe(ctx, "insert_revocation", func(ctx context.Context) error {
-		err = e.db.InsertRevocation(ctx, revocation)
-		return err
-	})
-	return err
-}
-
-func (e *executor) DeleteRevocation(ctx context.Context, ia addr.IA, ifid common.IFIDType) error {
-	var err error
-	e.metrics.Observe(ctx, "delete_revocation", func(ctx context.Context) error {
-		err = e.db.DeleteRevocation(ctx, ia, ifid)
-		return err
-	})
-	return err
-}
-
-func (e *executor) DeleteExpiredRevocations(ctx context.Context, now time.Time) (int, error) {
-	var ret int
-	var err error
-	e.metrics.Observe(ctx, "delete_expired_revocations", func(ctx context.Context) error {
-		ret, err = e.db.DeleteExpiredRevocations(ctx, now)
 		return err
 	})
 	return ret, err
