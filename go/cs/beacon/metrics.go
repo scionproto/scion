@@ -16,7 +16,6 @@ package beacon
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"sync"
 	"time"
@@ -106,56 +105,6 @@ func (db *MetricsDB) SetMaxIdleConns(maxIdleConns int) {
 
 func (db *MetricsDB) Close() error {
 	return db.db.Close()
-}
-
-func (db *MetricsDB) BeginTransaction(ctx context.Context,
-	opts *sql.TxOptions) (Transaction, error) {
-
-	var tx Transaction
-	var err error
-	db.metrics.Observe(ctx, "begin_tx", func(ctx context.Context) error {
-		tx, err = db.db.BeginTransaction(ctx, opts)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &MetricsTransaction{
-		executor: &executor{
-			db:      tx,
-			metrics: db.metrics,
-		},
-		tx:  tx,
-		ctx: ctx,
-	}, nil
-}
-
-// MetricsTransaction is a wrapper around a beacon db transaction that exports metrics.
-type MetricsTransaction struct {
-	*executor
-	tx  Transaction
-	ctx context.Context
-}
-
-func (tx *MetricsTransaction) Commit() error {
-	var err error
-	tx.metrics.Observe(tx.ctx, "tx_commit", func(_ context.Context) error {
-		err = tx.tx.Commit()
-		return err
-	})
-	return err
-}
-
-func (tx *MetricsTransaction) Rollback() error {
-	var err error
-	tx.metrics.Observe(tx.ctx, "tx_rollback", func(_ context.Context) error {
-		err = tx.tx.Rollback()
-		if err == sql.ErrTxDone {
-			return nil
-		}
-		return err
-	})
-	return err
 }
 
 type counters struct {

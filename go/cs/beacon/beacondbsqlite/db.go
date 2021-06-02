@@ -65,47 +65,9 @@ func (b *Backend) SetMaxIdleConns(maxIdleConns int) {
 	b.db.SetMaxIdleConns(maxIdleConns)
 }
 
-// BeginTransaction begins a transaction on the database.
-func (b *Backend) BeginTransaction(ctx context.Context,
-	opts *sql.TxOptions) (beacon.Transaction, error) {
-
-	b.Lock()
-	defer b.Unlock()
-	tx, err := b.db.BeginTx(ctx, opts)
-	if err != nil {
-		return nil, db.NewTxError("create tx", err)
-	}
-	return &transaction{
-		executor: &executor{
-			db: tx,
-			ia: b.ia,
-		},
-		tx: tx,
-	}, nil
-}
-
 // Close closes the database.
 func (b *Backend) Close() error {
 	return b.db.Close()
-}
-
-var _ (beacon.Transaction) = (*transaction)(nil)
-
-type transaction struct {
-	*executor
-	tx *sql.Tx
-}
-
-func (tx *transaction) Commit() error {
-	tx.Lock()
-	defer tx.Unlock()
-	return tx.tx.Commit()
-}
-
-func (tx *transaction) Rollback() error {
-	tx.Lock()
-	defer tx.Unlock()
-	return tx.tx.Rollback()
 }
 
 var _ (beacon.DBReadWrite) = (*executor)(nil)

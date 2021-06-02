@@ -16,7 +16,6 @@ package beacon
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"strings"
@@ -69,17 +68,9 @@ type DBReadWrite interface {
 	DBWrite
 }
 
-// Transaction defines all operations of a transaction on the beacon DB.
-type Transaction interface {
-	DBReadWrite
-	Commit() error
-	Rollback() error
-}
-
 // DB defines the interface that all beacon DB backends have to implement.
 type DB interface {
 	DBReadWrite
-	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
 	db.LimitSetter
 	io.Closer
 }

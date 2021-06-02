@@ -130,44 +130,6 @@ func Test(t *testing.T, db Testable) {
 		tableWrapper(false, testCandidateBeacons))
 	t.Run("DeleteExpired should delete expired segments",
 		testWrapper(testDeleteExpiredBeacons))
-	txTestWrapper := func(test func(*testing.T, *gomock.Controller,
-		beacon.DBReadWrite)) func(t *testing.T) {
-
-		return func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-			defer cancelF()
-			db.Prepare(t, ctx)
-			tx, err := db.BeginTransaction(ctx, nil)
-			require.NoError(t, err)
-			test(t, ctrl, tx)
-			err = tx.Commit()
-			require.NoError(t, err)
-		}
-	}
-	t.Run("WithTransaction", func(t *testing.T) {
-		t.Run("BeaconSources should report all sources",
-			txTestWrapper(testBeaconSources))
-		t.Run("InsertBeacon should correctly insert a new beacon",
-			txTestWrapper(testInsertBeacon))
-		t.Run("InsertBeacon should correctly update a new beacon",
-			txTestWrapper(testUpdateExisting))
-		t.Run("InsertBeacon should correctly ignore an older beacon",
-			txTestWrapper(testUpdateOlderIgnored))
-		t.Run("CandidateBeacons returns the expected beacons",
-			tableWrapper(true, testCandidateBeacons))
-		t.Run("DeleteExpired should delete expired segments",
-			txTestWrapper(testDeleteExpiredBeacons))
-		t.Run("Test transaction rollback", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			prepareCtx, cancelF := context.WithTimeout(context.Background(), timeout)
-			defer cancelF()
-			db.Prepare(t, prepareCtx)
-			testRollback(t, ctrl, db)
-		})
-	})
 }
 
 func testBeaconSources(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
@@ -332,22 +294,6 @@ func testDeleteExpiredBeacons(t *testing.T, ctrl *gomock.Controller, db beacon.D
 	deleted, err = db.DeleteExpiredBeacons(ctx, time.Unix(30, 0).Add(defaultExp))
 	require.NoError(t, err)
 	assert.Equal(t, 1, deleted, "Deleted")
-}
-
-func testRollback(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	defer cancelF()
-	tx, err := db.BeginTransaction(ctx, nil)
-	require.NoError(t, err)
-	b, _ := AllocBeacon(t, ctrl, Info3, 12, uint32(10))
-	inserted, err := tx.InsertBeacon(ctx, b, beacon.UsageProp)
-	require.NoError(t, err)
-	exp := beacon.InsertStats{Inserted: 1, Updated: 0}
-	assert.Equal(t, exp, inserted, "Insert should succeed")
-	err = tx.Rollback()
-	require.NoError(t, err)
-	results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
-	CheckEmpty(t, beacon.UsageProp.String(), results, err)
 }
 
 // CheckResult checks that the expected beacon is returned in results, and

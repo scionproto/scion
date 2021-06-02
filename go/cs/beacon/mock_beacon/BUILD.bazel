@@ -4,10 +4,7 @@ load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
 gomock(
     name = "go_default_mock",
     out = "mock.go",
-    interfaces = [
-        "DB",
-        "Transaction",
-    ],
+    interfaces = ["DB"],
     library = "//go/cs/beacon:go_default_library",
     package = "mock_beacon",
 )
