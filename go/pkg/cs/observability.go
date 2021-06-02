@@ -71,6 +71,7 @@ type Metrics struct {
 	TrustLatestTRCNotBefore                prometheus.Gauge
 	TrustLatestTRCNotAfter                 prometheus.Gauge
 	TrustLatestTRCSerial                   prometheus.Gauge
+	TrustTRCFileWritesTotal                *prometheus.CounterVec
 }
 
 func NewMetrics() *Metrics {
@@ -193,6 +194,13 @@ func NewMetrics() *Metrics {
 				Name: "trustengine_latest_trc_serial_number",
 				Help: "The serial number of the latest TRC for the local ISD.",
 			},
+		),
+		TrustTRCFileWritesTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "trustengine_trc_file_writes_total",
+				Help: "Total TRC filesystem file operations.",
+			},
+			[]string{prom.LabelResult},
 		),
 	}
 

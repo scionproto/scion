@@ -71,6 +71,18 @@ registered.
 
 **Labels**: ``type``.
 
+TRC local filesystem writes
+---------------------------
+
+**Name**: ``trustengine_trc_file_writes_total``
+
+**Type**: Counter
+
+**Description**: Total number of TRC local filesystem write results. A result
+can be one of (ok_success, err_write, err_stat).
+
+**Labels**: ``result``.
+
 HTTP API
 ========
 

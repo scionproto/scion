@@ -72,6 +72,7 @@ import (
 	dpb "github.com/scionproto/scion/go/pkg/proto/discovery"
 	"github.com/scionproto/scion/go/pkg/service"
 	"github.com/scionproto/scion/go/pkg/storage"
+	truststoragefspersister "github.com/scionproto/scion/go/pkg/storage/trust/fspersister"
 	truststoragemetrics "github.com/scionproto/scion/go/pkg/storage/trust/metrics"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/compat"
@@ -147,6 +148,27 @@ func realMain() error {
 		return serrors.WrapStr("initializing trust storage", err)
 	}
 	defer trustDB.Close()
+	fileWrites := libmetrics.NewPromCounter(metrics.TrustTRCFileWritesTotal)
+	trustDB = truststoragefspersister.WrapDB(
+		trustDB,
+		truststoragefspersister.Config{
+			TRCDir: globalCfg.General.ConfigDir,
+			Metrics: truststoragefspersister.Metrics{
+				TRCFileWriteSuccesses: fileWrites.With(
+					prom.LabelResult,
+					truststoragefspersister.WriteSuccess,
+				),
+				TRCFileWriteErrors: fileWrites.With(
+					prom.LabelResult,
+					truststoragefspersister.WriteError,
+				),
+				TRCFileStatErrors: fileWrites.With(
+					prom.LabelResult,
+					truststoragefspersister.StatError,
+				),
+			},
+		},
+	)
 	trustDB = truststoragemetrics.WrapDB(trustDB, truststoragemetrics.Config{
 		Driver:       string(storage.BackendSqlite),
 		QueriesTotal: libmetrics.NewPromCounter(metrics.TrustDBQueriesTotal),
