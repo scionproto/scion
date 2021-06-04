@@ -139,9 +139,9 @@ type executor struct {
 }
 
 func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage Usage,
-	src addr.IA) (<-chan BeaconOrErr, error) {
+	src addr.IA) ([]BeaconOrErr, error) {
 
-	var ret <-chan BeaconOrErr
+	var ret []BeaconOrErr
 	var err error
 	e.metrics.Observe(ctx, "candidate_beacons", func(ctx context.Context) error {
 		ret, err = e.db.CandidateBeacons(ctx, setSize, usage, src)
@@ -162,6 +162,7 @@ func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
 
 func (e *executor) InsertBeacon(ctx context.Context, beacon Beacon,
 	usage Usage) (InsertStats, error) {
+
 	var ret InsertStats
 	var err error
 	e.metrics.Observe(ctx, "insert_beacon", func(ctx context.Context) error {

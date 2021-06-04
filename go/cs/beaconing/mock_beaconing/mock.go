@@ -92,10 +92,10 @@ func (m *MockBeaconProvider) EXPECT() *MockBeaconProviderMockRecorder {
 }
 
 // BeaconsToPropagate mocks base method
-func (m *MockBeaconProvider) BeaconsToPropagate(arg0 context.Context) (<-chan beacon.BeaconOrErr, error) {
+func (m *MockBeaconProvider) BeaconsToPropagate(arg0 context.Context) ([]beacon.BeaconOrErr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BeaconsToPropagate", arg0)
-	ret0, _ := ret[0].(<-chan beacon.BeaconOrErr)
+	ret0, _ := ret[0].([]beacon.BeaconOrErr)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -204,10 +204,10 @@ func (m *MockSegmentProvider) EXPECT() *MockSegmentProviderMockRecorder {
 }
 
 // SegmentsToRegister mocks base method
-func (m *MockSegmentProvider) SegmentsToRegister(arg0 context.Context, arg1 seg.Type) (<-chan beacon.BeaconOrErr, error) {
+func (m *MockSegmentProvider) SegmentsToRegister(arg0 context.Context, arg1 seg.Type) ([]beacon.BeaconOrErr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SegmentsToRegister", arg0, arg1)
-	ret0, _ := ret[0].(<-chan beacon.BeaconOrErr)
+	ret0, _ := ret[0].([]beacon.BeaconOrErr)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

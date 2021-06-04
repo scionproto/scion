@@ -151,17 +151,21 @@ func testInsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWri
 	defer cancelF()
 	inserted, err := db.InsertBeacon(ctx, b, beacon.UsageProp)
 	require.NoError(t, err)
+
 	exp := beacon.InsertStats{Inserted: 1, Updated: 0}
 	assert.Equal(t, exp, inserted)
+
 	// Fetch the candidate beacons
 	results, err := db.CandidateBeacons(ctx, 10, beacon.UsageProp, addr.IA{})
 	require.NoError(t, err)
+
 	// There should only be one candidate beacon, and it should match the inserted.
 	CheckResult(t, results, b)
 	for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageDownReg,
 		beacon.UsageCoreReg} {
 		results, err = db.CandidateBeacons(ctx, 10, usage, addr.IA{})
-		CheckEmpty(t, usage.String(), results, err)
+		assert.NoError(t, err)
+		assert.Empty(t, results)
 	}
 }
 
@@ -171,26 +175,34 @@ func testUpdateExisting(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadW
 
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
+
 	inserted, err := db.InsertBeacon(ctx, oldB, beacon.UsageProp)
 	require.NoError(t, err)
+
 	exp := beacon.InsertStats{Inserted: 1, Updated: 0}
 	assert.Equal(t, exp, inserted)
+
 	newTS := uint32(20)
 	newB, newId := AllocBeacon(t, ctrl, Info3, 12, newTS)
 	assert.Equal(t, oldId, newId, "IDs should match")
+
 	inserted, err = db.InsertBeacon(ctx, newB, beacon.UsageDownReg)
 	require.NoError(t, err)
+
 	exp = beacon.InsertStats{Inserted: 0, Updated: 1}
 	assert.Equal(t, exp, inserted)
+
 	// Fetch the candidate beacons
 	results, err := db.CandidateBeacons(ctx, 10, beacon.UsageDownReg, addr.IA{})
 	require.NoError(t, err, "CandidateBeacons err")
+
 	// There should only be one candidate beacon, and it should match the inserted.
 	CheckResult(t, results, newB)
 	for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageProp,
 		beacon.UsageCoreReg} {
 		results, err = db.CandidateBeacons(ctx, 10, usage, addr.IA{})
-		CheckEmpty(t, usage.String(), results, err)
+		assert.NoError(t, err)
+		assert.Empty(t, results)
 	}
 }
 
@@ -200,13 +212,17 @@ func testUpdateOlderIgnored(t *testing.T, ctrl *gomock.Controller, db beacon.DBR
 
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
+
 	inserted, err := db.InsertBeacon(ctx, newB, beacon.UsageProp)
 	require.NoError(t, err)
+
 	exp := beacon.InsertStats{Inserted: 1, Updated: 0}
 	assert.Equal(t, exp, inserted, "Inserted new")
+
 	oldTS := uint32(10)
 	oldB, oldId := AllocBeacon(t, ctrl, Info3, 12, oldTS)
 	assert.Equal(t, oldId, newId, "IDs should match")
+
 	inserted, err = db.InsertBeacon(ctx, oldB, beacon.UsageDownReg)
 	require.NoError(t, err)
 
@@ -220,7 +236,8 @@ func testUpdateOlderIgnored(t *testing.T, ctrl *gomock.Controller, db beacon.DBR
 	for _, usage := range []beacon.Usage{beacon.UsageUpReg, beacon.UsageDownReg,
 		beacon.UsageCoreReg} {
 		results, err = db.CandidateBeacons(ctx, 10, usage, addr.IA{})
-		CheckEmpty(t, usage.String(), results, err)
+		assert.NoError(t, err)
+		assert.Empty(t, results)
 	}
 }
 
@@ -298,56 +315,40 @@ func testDeleteExpiredBeacons(t *testing.T, ctrl *gomock.Controller, db beacon.D
 
 // CheckResult checks that the expected beacon is returned in results, and
 // that it is the only returned beacon
-func CheckResult(t *testing.T, results <-chan beacon.BeaconOrErr, expected beacon.Beacon) {
+func CheckResult(t *testing.T, results []beacon.BeaconOrErr, expected beacon.Beacon) {
 	CheckResults(t, results, []beacon.Beacon{expected})
 }
 
-func CheckResults(t *testing.T, results <-chan beacon.BeaconOrErr,
-	expectedBeacons []beacon.Beacon) {
-
+func CheckResults(t *testing.T, results []beacon.BeaconOrErr, expectedBeacons []beacon.Beacon) {
 	for i, expected := range expectedBeacons {
-		select {
-		case res := <-results:
-			assert.NoError(t, res.Err, "Beacon %d err", i)
-			require.NotNil(t, res.Beacon.Segment, "Beacon %d segment", i)
-			// Make sure the segment is properly initialized.
+		res := results[i]
+		assert.NoError(t, res.Err, "Beacon %d err", i)
+		require.NotNil(t, res.Beacon.Segment, "Beacon %d segment", i)
+		// Make sure the segment is properly initialized.
 
-			assert.Equal(t, expected.Segment.Info, res.Beacon.Segment.Info)
-			assert.Equal(t, expected.Segment.MaxIdx(), res.Beacon.Segment.MaxIdx())
-			for i := range expected.Segment.ASEntries {
-				expected := seg.ASEntry{
-					Extensions:  expected.Segment.ASEntries[i].Extensions,
-					HopEntry:    expected.Segment.ASEntries[i].HopEntry,
-					Local:       expected.Segment.ASEntries[i].Local,
-					MTU:         expected.Segment.ASEntries[i].MTU,
-					Next:        expected.Segment.ASEntries[i].Next,
-					PeerEntries: expected.Segment.ASEntries[i].PeerEntries,
-				}
-				actual := seg.ASEntry{
-					Extensions:  res.Beacon.Segment.ASEntries[i].Extensions,
-					HopEntry:    res.Beacon.Segment.ASEntries[i].HopEntry,
-					Local:       res.Beacon.Segment.ASEntries[i].Local,
-					MTU:         res.Beacon.Segment.ASEntries[i].MTU,
-					Next:        res.Beacon.Segment.ASEntries[i].Next,
-					PeerEntries: res.Beacon.Segment.ASEntries[i].PeerEntries,
-				}
-				assert.Equal(t, expected, actual)
+		assert.Equal(t, expected.Segment.Info, res.Beacon.Segment.Info)
+		assert.Equal(t, expected.Segment.MaxIdx(), res.Beacon.Segment.MaxIdx())
+		for i := range expected.Segment.ASEntries {
+			expected := seg.ASEntry{
+				Extensions:  expected.Segment.ASEntries[i].Extensions,
+				HopEntry:    expected.Segment.ASEntries[i].HopEntry,
+				Local:       expected.Segment.ASEntries[i].Local,
+				MTU:         expected.Segment.ASEntries[i].MTU,
+				Next:        expected.Segment.ASEntries[i].Next,
+				PeerEntries: expected.Segment.ASEntries[i].PeerEntries,
 			}
-			assert.Equal(t, expected.InIfId, res.Beacon.InIfId, "InIfId %d should match", i)
-		case <-time.After(timeout):
-			t.Fatalf("Beacon %d took too long", i)
+			actual := seg.ASEntry{
+				Extensions:  res.Beacon.Segment.ASEntries[i].Extensions,
+				HopEntry:    res.Beacon.Segment.ASEntries[i].HopEntry,
+				Local:       res.Beacon.Segment.ASEntries[i].Local,
+				MTU:         res.Beacon.Segment.ASEntries[i].MTU,
+				Next:        res.Beacon.Segment.ASEntries[i].Next,
+				PeerEntries: res.Beacon.Segment.ASEntries[i].PeerEntries,
+			}
+			assert.Equal(t, expected, actual)
 		}
+		assert.Equal(t, expected.InIfId, res.Beacon.InIfId, "InIfId %d should match", i)
 	}
-	CheckEmpty(t, "", results, nil)
-}
-
-// CheckEmpty checks that no beacon is in the result channel.
-func CheckEmpty(t *testing.T, name string, results <-chan beacon.BeaconOrErr, err error) {
-	t.Helper()
-	assert.NoError(t, err, name)
-	res, more := <-results
-	assert.False(t, more)
-	assert.Zero(t, res)
 }
 
 func InsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite, ases []IfInfo,

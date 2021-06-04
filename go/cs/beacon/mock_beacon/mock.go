@@ -52,10 +52,10 @@ func (mr *MockDBMockRecorder) BeaconSources(arg0 interface{}) *gomock.Call {
 }
 
 // CandidateBeacons mocks base method
-func (m *MockDB) CandidateBeacons(arg0 context.Context, arg1 int, arg2 beacon.Usage, arg3 addr.IA) (<-chan beacon.BeaconOrErr, error) {
+func (m *MockDB) CandidateBeacons(arg0 context.Context, arg1 int, arg2 beacon.Usage, arg3 addr.IA) ([]beacon.BeaconOrErr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CandidateBeacons", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(<-chan beacon.BeaconOrErr)
+	ret0, _ := ret[0].([]beacon.BeaconOrErr)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

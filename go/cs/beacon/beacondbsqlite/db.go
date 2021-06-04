@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -108,7 +107,7 @@ func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
 }
 
 func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beacon.Usage,
-	src addr.IA) (<-chan beacon.BeaconOrErr, error) {
+	src addr.IA) ([]beacon.BeaconOrErr, error) {
 
 	e.RLock()
 	defer e.RUnlock()
@@ -134,39 +133,33 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 		return nil, db.NewReadError("Error selecting beacons", err)
 	}
 	defer rows.Close()
-	beacons := make([]beacon.Beacon, 0, setSize)
-	var errors []error
+
+	beacons := make([]beacon.BeaconOrErr, 0, setSize)
 	// Read all beacons that are available into memory first to free the lock.
 	for rows.Next() {
 		var rawBeacon sql.RawBytes
 		var inIntfID common.IFIDType
 		if err = rows.Scan(&rawBeacon, &inIntfID); err != nil {
-			errors = append(errors, db.NewReadError(beacon.ErrReadingRows, err))
+			beacons = append(beacons, beacon.BeaconOrErr{
+				Err: db.NewReadError(beacon.ErrReadingRows, err),
+			})
 			continue
 		}
 		s, err := beacon.UnpackBeacon(rawBeacon)
 		if err != nil {
-			errors = append(errors, db.NewDataError(beacon.ErrParse, err))
+			beacons = append(beacons, beacon.BeaconOrErr{
+				Err: db.NewDataError(beacon.ErrParse, err),
+			})
 			continue
 		}
-		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: inIntfID})
+		beacons = append(beacons, beacon.BeaconOrErr{
+			Beacon: beacon.Beacon{Segment: s, InIfId: inIntfID},
+		})
 	}
 	if err := rows.Err(); err != nil {
-		errors = append(errors, err)
+		beacons = append(beacons, beacon.BeaconOrErr{Err: err})
 	}
-	results := make(chan beacon.BeaconOrErr)
-	go func() {
-		defer log.HandlePanic()
-		defer close(results)
-		for _, b := range beacons {
-			results <- beacon.BeaconOrErr{Beacon: b}
-		}
-		for _, e := range errors {
-			results <- beacon.BeaconOrErr{Err: e}
-			return
-		}
-	}()
-	return results, nil
+	return beacons, nil
 }
 
 // InsertBeacon inserts the beacon if it is new or updates the changed

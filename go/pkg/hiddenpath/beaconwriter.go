@@ -72,7 +72,7 @@ type BeaconWriter struct {
 // it, it finds the remotes via the registration policy, it finds a path for
 // each remote, it sends the segment via the found path. Peers are the peer
 // interfaces in this AS.
-func (w *BeaconWriter) Write(ctx context.Context, segments <-chan beacon.BeaconOrErr,
+func (w *BeaconWriter) Write(ctx context.Context, segments []beacon.BeaconOrErr,
 	peers []common.IFIDType) (beaconing.WriteStats, error) {
 
 	logger := log.FromCtx(ctx)
@@ -80,7 +80,7 @@ func (w *BeaconWriter) Write(ctx context.Context, segments <-chan beacon.BeaconO
 	var expected int
 	var wg sync.WaitGroup
 
-	for bOrErr := range segments {
+	for _, bOrErr := range segments {
 		if bOrErr.Err != nil {
 			logger.Error("Unable to get beacon", "err", bOrErr.Err)
 			metrics.CounterInc(w.InternalErrors)
