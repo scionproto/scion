@@ -49,7 +49,6 @@ def topology(
         name = name,
         srcs = [
             src,
-            "//scripts/cryptoplayground:crypto_lib.sh",  # needed for topogen.
         ],
         outs = [out],
         cmd = cmd,

@@ -9,8 +9,6 @@ go_test(
         "$(location //go/scion-pki:scion-pki)",
         "-topo",
         "$(location testdata/test.topo)",
-        "-crypto_lib",
-        "$(location //scripts/cryptoplayground:crypto_lib.sh)",
     ],
     data = [
         "docker-compose.yml",
@@ -24,7 +22,6 @@ go_test(
         "//acceptance/topo_common:invalid_reloads",
         "//acceptance/topo_common:topology",
         "//go/scion-pki",
-        "//scripts/cryptoplayground:crypto_lib.sh",
     ],
     tags = ["integration"],
     deps = [
