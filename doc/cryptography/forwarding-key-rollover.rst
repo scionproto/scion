@@ -270,7 +270,7 @@ For each packet, the router must first compute the expiration time of the HF, si
 .. code-block:: python
 
    def get_key(ExpirationTime):
-       if ExpirationTime < CurrentKeyCtx.ExpirationTimeKey0
+       if ExpirationTime < CurrentKeyCtx.ExpirationTimeKey0:
            return CurrentKeyCtx.Key0
        else
            return CurrentKeyCtx.Key1
