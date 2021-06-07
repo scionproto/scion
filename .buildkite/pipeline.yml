@@ -59,7 +59,7 @@ steps:
     if: build.message =~ /\[doc\]/
     command:
       - make lint
-      - pip install --user rstcheck
+      - pip install --user rstcheck sphinx
       - ~/.local/bin/rstcheck --report warning --recursive .
     key: lint
     timeout_in_minutes: 15
