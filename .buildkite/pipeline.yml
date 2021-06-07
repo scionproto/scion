@@ -16,8 +16,8 @@ steps:
     command:
       - bazel test --config=unit --cache_test_results=${BAZEL_CACHE_TEST_RESULTS:-auto}
       - make lint
-      - pip install rstcheck
-      - rstcheck --recursive .
+      - pip install --user rstcheck
+      - ~/usr/local/bin/rstcheck --recursive .
     key: unit_tests
     artifact_paths:
       - "artifacts.out/**/*"
