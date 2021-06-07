@@ -2,8 +2,6 @@
 Cryptography Testing
 ********************
 
-.. highlight:: text
-
 This document describes how the cryptography related parts of SCION are tested.
 Indirectly, the correct functionality of the cryptography related parts are
 always tested when a SCION topology runs, as they are an integral prat of the
