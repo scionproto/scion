@@ -20,6 +20,7 @@ import (
 	"fmt"
 	mrand "math/rand"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/lucas-clemente/quic-go"
@@ -41,6 +42,9 @@ const (
 	errNoError quic.ErrorCode = 0x100
 )
 
+// streamAcceptTimeout is the default timeout for accepting connections.
+const streamAcceptTimeout = 5 * time.Second
+
 // ConnListener wraps a quic.Listener as a net.Listener.
 type ConnListener struct {
 	quic.Listener
@@ -61,18 +65,12 @@ func NewConnListener(l quic.Listener) *ConnListener {
 }
 
 // Accept accepts the first stream on a session and wraps it as a net.Conn.
-//
-// XXX(roosd): Accept blocks until the first bytes on the stream are received.
-// This will limit QPS heavily, but we should not yet be in a range where this
-// matters too much.
 func (l *ConnListener) Accept() (net.Conn, error) {
 	session, err := l.Listener.Accept(l.ctx)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(l.ctx, 5*time.Second)
-	defer cancel()
-	return acceptStream(ctx, session)
+	return newAcceptingConn(l.ctx, session), nil
 }
 
 // AcceptCtx accepts the first stream on a session and wraps it as a net.Conn. Accepts a context in
@@ -82,7 +80,7 @@ func (l *ConnListener) AcceptCtx(ctx context.Context) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return acceptStream(ctx, session)
+	return newAcceptingConn(ctx, session), nil
 }
 
 // Close closes the listener.
@@ -91,16 +89,253 @@ func (l *ConnListener) Close() error {
 	return l.Listener.Close()
 }
 
-func acceptStream(ctx context.Context, session quic.Session) (net.Conn, error) {
-	stream, err := session.AcceptStream(ctx)
-	if err != nil {
-		log.Debug("Accepting stream failed", "err", err)
+// acceptingConn is a net.Conn wrapper for a QUIC stream that is yet to
+// be accepted. The connection is accepted with the first call to Read or
+// Write.
+type acceptingConn struct {
+	session quic.Session
+
+	// once ensures that the stream is accepted at most once.
+	once sync.Once
+	// acceptedStream is closed as soon as soon as we are done attempting
+	// to accept the stream.
+	acceptedStream chan struct{}
+
+	// deadlineStreamMtx protects the deadline and stream from concurrent
+	// access. It is used to avoid a race between setting the deadline
+	// on accept and through the setter methods.
+	deadlineStreamMtx sync.Mutex
+	// stream contains the accepted stream.
+	stream quic.Stream
+	// err contains the potential error during accepting the stream.
+	err error
+	// readDeadline keeps track of the deadline that is set on the conn
+	// before it has been accepted.
+	readDeadline time.Time
+	// writeDeadline keeps track of the deadline that is set on the conn before
+	// it has been accepted.
+	writeDeadline time.Time
+
+	acceptCtx       context.Context
+	acceptCtxCancel context.CancelFunc
+	acceptDeadline  time.Time
+	timer           *time.Timer
+}
+
+// newAcceptingConn constructs a new acceptingConn. The context restricts the
+// time spent on accepting the stream.
+func newAcceptingConn(ctx context.Context, session quic.Session) net.Conn {
+	var cancel context.CancelFunc
+
+	// Use deadline from parent if it exists. Otherwise, use default.
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(streamAcceptTimeout)
+		ctx, cancel = context.WithDeadline(ctx, deadline)
+	} else {
+		ctx, cancel = context.WithCancel(ctx)
 	}
+
+	// The timer triggers when the deadline is hit.
+	// This is only needed to implement the Set{Read,Write}Deadline behavior
+	// correctly in case we have to wait for the accept.
+	timer := time.NewTimer(time.Until(deadline))
+	go func() {
+		defer log.HandlePanic()
+		select {
+		case <-ctx.Done():
+		case <-timer.C:
+			cancel()
+		}
+	}()
+
 	return &acceptingConn{
-		stream:  stream,
-		Session: session,
-		err:     err,
-	}, nil
+		acceptedStream:  make(chan struct{}),
+		session:         session,
+		acceptCtx:       ctx,
+		acceptCtxCancel: cancel,
+		acceptDeadline:  deadline,
+		timer:           timer,
+	}
+}
+
+func (c *acceptingConn) Read(b []byte) (n int, err error) {
+	c.acceptStream()
+	stream, err := c.waitForStream()
+	if err != nil {
+		return 0, err
+	}
+	return stream.Read(b)
+}
+
+func (c *acceptingConn) Write(b []byte) (n int, err error) {
+	c.acceptStream()
+	stream, err := c.waitForStream()
+	if err != nil {
+		return 0, err
+	}
+	return stream.Write(b)
+}
+
+// waitForStream blocks until a stream has been accepted, or failed to accept.
+func (c *acceptingConn) waitForStream() (quic.Stream, error) {
+	<-c.acceptedStream
+	return c.stream, c.err
+}
+
+// acceptStream accepts a stream and sets the c.stream and c.err values.
+// After a stream has been accepted, or it failed to accept, the
+// acceptedStream channel is closed.
+func (c *acceptingConn) acceptStream() {
+	c.once.Do(c.acceptStreamOnce)
+}
+
+func (c *acceptingConn) acceptStreamOnce() {
+	// Cancel the context to free the go routine waiting for the ticker.
+	defer c.acceptCtxCancel()
+	// Unblock routines that wait for the stream to be accepted.
+	defer close(c.acceptedStream)
+
+	// Accept the stream outside of the deadlineStreamMtx lock to
+	// allow setting the deadlines concurrently with accepting.
+	// This is especially important when the calling code wants
+	// to reduce the timeout. If this code is in the guarded
+	// block below, the timer cannot be adjusted with a call
+	// to Set{Read,Write}Deadline.
+	stream, err := c.session.AcceptStream(c.acceptCtx)
+
+	// We need to protect against races with Set{Read,Write}Deadline.
+	c.deadlineStreamMtx.Lock()
+	defer c.deadlineStreamMtx.Unlock()
+
+	c.stream, c.err = stream, err
+	if c.err != nil {
+		log.Debug("Accepting stream failed", "err", c.err)
+		return
+	}
+
+	// Potentially set the deadlines to the values that were set before the
+	// stream was accepted.
+	c.stream.SetReadDeadline(c.readDeadline)
+	c.stream.SetWriteDeadline(c.writeDeadline)
+}
+
+func (c *acceptingConn) SetDeadline(t time.Time) error {
+	c.deadlineStreamMtx.Lock()
+	defer c.deadlineStreamMtx.Unlock()
+
+	// Check if we have already a stream that is accepted.
+	stream, err := c.getStreamLocked()
+	if err != nil {
+		return err
+	}
+	if stream != nil {
+		return stream.SetDeadline(t)
+	}
+
+	// The stream has not been accepted yet.
+	c.readDeadline = t
+	c.writeDeadline = t
+	return c.setTimerLocked()
+}
+
+func (c *acceptingConn) SetReadDeadline(t time.Time) error {
+	c.deadlineStreamMtx.Lock()
+	defer c.deadlineStreamMtx.Unlock()
+
+	// Check if we have already a stream that is accepted.
+	stream, err := c.getStreamLocked()
+	if err != nil {
+		return err
+	}
+	if stream != nil {
+		return c.stream.SetReadDeadline(t)
+	}
+
+	// The stream has not been accepted yet
+	c.readDeadline = t
+	return c.setTimerLocked()
+}
+
+func (c *acceptingConn) SetWriteDeadline(t time.Time) error {
+	c.deadlineStreamMtx.Lock()
+	defer c.deadlineStreamMtx.Unlock()
+
+	// Check if we have already a stream that is accepted.
+	stream, err := c.getStreamLocked()
+	if err != nil {
+		return err
+	}
+	if stream != nil {
+		return c.stream.SetWriteDeadline(t)
+	}
+
+	// The stream has not been accepted yet
+	c.writeDeadline = t
+	return c.setTimerLocked()
+}
+
+// getStreamLocked returns the stream and error. It assumes that the
+// deadlineStreamMtx lock is held.
+func (c *acceptingConn) getStreamLocked() (quic.Stream, error) {
+	return c.stream, c.err
+}
+
+// getTimerLocked resets the timer. It assumes that the deadlineStreamMtx lock
+// is held.
+func (c *acceptingConn) setTimerLocked() error {
+	if !c.timer.Stop() {
+		return serrors.New("accept timer already fired")
+	}
+	// We do not need to drain the ticker channel. If we reach this branch of
+	// the code, it means that the ticker was active and has not fired yet.
+	// This, coupled with the fact that we never reset a timer that has fired or
+	// stopped guarantees that there is nothing on the channel when we reset
+	// the timer.
+
+	deadline := c.acceptDeadline
+	if !c.readDeadline.IsZero() && c.readDeadline.Before(deadline) {
+		deadline = c.readDeadline
+	}
+	if !c.writeDeadline.IsZero() && c.writeDeadline.Before(deadline) {
+		deadline = c.writeDeadline
+	}
+	c.timer.Reset(time.Until(deadline))
+	return nil
+}
+
+func (c *acceptingConn) LocalAddr() net.Addr {
+	return c.session.LocalAddr()
+}
+
+func (c *acceptingConn) RemoteAddr() net.Addr {
+	return c.session.RemoteAddr()
+}
+
+func (c *acceptingConn) Close() error {
+	// Prevent the stream from being accepted.
+	c.once.Do(func() {
+		c.err = serrors.New("connection is closed")
+		close(c.acceptedStream)
+	})
+
+	// Cancel potentially accepting routine and wait for it to finish.
+	c.acceptCtxCancel()
+	stream, _ := c.waitForStream()
+
+	var errs []error
+	if stream != nil {
+		if err := stream.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if err := c.session.CloseWithError(errNoError, ""); err != nil {
+		errs = append(errs, err)
+	}
+	if len(errs) != 0 {
+		return fmt.Errorf("closing connection: %v", errs)
+	}
+	return nil
 }
 
 // ConnDialer dials a net.Conn over a QUIC stream.
@@ -151,9 +386,9 @@ func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 		session.CloseWithError(OpenStreamError, "")
 		return nil, serrors.WrapStr("opening stream", err)
 	}
-	return &acceptingConn{
+	return &acceptedConn{
 		stream:  stream,
-		Session: session,
+		session: session,
 	}, nil
 
 }
@@ -167,55 +402,46 @@ func computeAddressStr(address net.Addr) string {
 	return address.String()
 }
 
-type acceptingConn struct {
-	stream quic.Stream
-	quic.Session
-	err error
+// acceptedConn is a net.Conn wrapper for a QUIC stream.
+type acceptedConn struct {
+	stream  quic.Stream
+	session quic.Session
 }
 
-func (c *acceptingConn) Read(b []byte) (int, error) {
-	if c.err != nil {
-		return 0, c.err
-	}
+func (c *acceptedConn) Read(b []byte) (int, error) {
 	return c.stream.Read(b)
 }
 
-func (c *acceptingConn) Write(b []byte) (int, error) {
-	if c.err != nil {
-		return 0, c.err
-	}
+func (c *acceptedConn) Write(b []byte) (int, error) {
 	return c.stream.Write(b)
 }
 
-func (c *acceptingConn) SetDeadline(t time.Time) error {
-	if c.err != nil {
-		return c.err
-	}
+func (c *acceptedConn) SetDeadline(t time.Time) error {
 	return c.stream.SetDeadline(t)
 }
 
-func (c *acceptingConn) SetReadDeadline(t time.Time) error {
-	if c.err != nil {
-		return c.err
-	}
+func (c *acceptedConn) SetReadDeadline(t time.Time) error {
 	return c.stream.SetReadDeadline(t)
 }
 
-func (c *acceptingConn) SetWriteDeadline(t time.Time) error {
-	if c.err != nil {
-		return c.err
-	}
+func (c *acceptedConn) SetWriteDeadline(t time.Time) error {
 	return c.stream.SetWriteDeadline(t)
 }
 
-func (c *acceptingConn) Close() error {
+func (c *acceptedConn) LocalAddr() net.Addr {
+	return c.session.LocalAddr()
+}
+
+func (c *acceptedConn) RemoteAddr() net.Addr {
+	return c.session.RemoteAddr()
+}
+
+func (c *acceptedConn) Close() error {
 	var errs []error
-	if c.stream != nil {
-		if err := c.stream.Close(); err != nil {
-			errs = append(errs, err)
-		}
+	if err := c.stream.Close(); err != nil {
+		errs = append(errs, err)
 	}
-	if err := c.Session.CloseWithError(errNoError, ""); err != nil {
+	if err := c.session.CloseWithError(errNoError, ""); err != nil {
 		errs = append(errs, err)
 	}
 	if len(errs) != 0 {

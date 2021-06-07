@@ -19,6 +19,7 @@ import (
 	"crypto/tls"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -32,6 +33,70 @@ import (
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	mock_cp "github.com/scionproto/scion/go/pkg/proto/control_plane/mock_control_plane"
 )
+
+func TestAcceptLoopParallelism(t *testing.T) {
+	mctrl := gomock.NewController(t)
+	defer mctrl.Finish()
+
+	handler := mock_cp.NewMockTrustMaterialServiceServer(mctrl)
+	handler.EXPECT().TRC(gomock.Any(), gomock.Any()).Return(
+		&cppb.TRCResponse{
+			Trc: make([]byte, 500),
+		},
+		nil,
+	).AnyTimes()
+	grpcServer := grpc.NewServer()
+	cppb.RegisterTrustMaterialServiceServer(grpcServer, handler)
+
+	srv, srvConn := netListener(t)
+	go func() {
+		err := grpcServer.Serve(srv)
+		require.NoError(t, err)
+	}()
+
+	// Count the number of re-attempts that are necessary to grab a connection.
+	var reattempts int32
+
+	var wg sync.WaitGroup
+	for i := 0; i < 500; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			attempt := func() bool {
+				ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+				defer cancel()
+
+				dialer := connDialer(t)
+				conn, err := grpc.DialContext(ctx, "server",
+					grpc.WithInsecure(),
+					grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
+						return dialer.Dial(ctx, srvConn.LocalAddr())
+					}),
+				)
+				if err != nil {
+					return false
+				}
+				defer conn.Close()
+
+				client := cppb.NewTrustMaterialServiceClient(conn)
+				if _, err := client.TRC(ctx, &cppb.TRCRequest{}); err != nil {
+					return false
+				}
+				return true
+			}
+
+			for {
+				if attempt() {
+					return
+				}
+				atomic.AddInt32(&reattempts, 1)
+			}
+		}()
+	}
+	wg.Wait()
+
+	require.Less(t, reattempts, int32(100))
+}
 
 func TestGRPCQUIC(t *testing.T) {
 	mctrl := gomock.NewController(t)
