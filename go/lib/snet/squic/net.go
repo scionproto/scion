@@ -358,10 +358,21 @@ type ConnDialer struct {
 func (d ConnDialer) Dial(ctx context.Context, dst net.Addr) (net.Conn, error) {
 	addressStr := computeAddressStr(dst)
 
+	if d.TLSConfig == nil {
+		return nil, serrors.New("tls.Config not set")
+	}
 	var session quic.Session
 	for sleep := 2 * time.Millisecond; ctx.Err() == nil; sleep = sleep * 2 {
+		// Clone TLS config to avoid data races.
+		tlsConfig := d.TLSConfig.Clone()
+		// Clone QUIC config to avoid data races, if it exists.
+		var quicConfig *quic.Config
+		if d.QUICConfig != nil {
+			quicConfig = d.QUICConfig.Clone()
+		}
+
 		var err error
-		session, err = quic.DialContext(ctx, d.Conn, dst, addressStr, d.TLSConfig, d.QUICConfig)
+		session, err = quic.DialContext(ctx, d.Conn, dst, addressStr, tlsConfig, quicConfig)
 		if err == nil {
 			break
 		}
