@@ -16,7 +16,6 @@ package beacon
 
 import (
 	"context"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -209,20 +208,10 @@ func (s *baseStore) InsertBeacon(ctx context.Context, beacon Beacon) (InsertStat
 	return s.db.InsertBeacon(ctx, beacon, usage)
 }
 
-// DeleteExpiredBeacons deletes expired Beacons from the store.
-func (s *baseStore) DeleteExpiredBeacons(ctx context.Context) (int, error) {
-	return s.db.DeleteExpiredBeacons(ctx, time.Now())
-}
-
 // UpdatePolicy updates the policy. Beacons that are filtered by all
 // policies after the update are removed.
 func (s *baseStore) UpdatePolicy(ctx context.Context, policy Policy) error {
 	return serrors.New("policy update not supported")
-}
-
-// Close closes the store and the underlying database connection.
-func (s *baseStore) Close() error {
-	return s.db.Close()
 }
 
 func min(a, b int) int {

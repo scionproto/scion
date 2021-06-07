@@ -52,6 +52,7 @@ func WrapDB(trustDB storage.TrustDB, cfg Config) storage.TrustDB {
 	}
 	return &db{
 		executor: rwWrapper,
+		backend:  trustDB,
 	}
 }
 

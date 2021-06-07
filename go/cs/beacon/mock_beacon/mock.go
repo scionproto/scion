@@ -10,7 +10,6 @@ import (
 	beacon "github.com/scionproto/scion/go/cs/beacon"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	reflect "reflect"
-	time "time"
 )
 
 // MockDB is a mock of DB interface
@@ -66,35 +65,6 @@ func (mr *MockDBMockRecorder) CandidateBeacons(arg0, arg1, arg2, arg3 interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CandidateBeacons", reflect.TypeOf((*MockDB)(nil).CandidateBeacons), arg0, arg1, arg2, arg3)
 }
 
-// Close mocks base method
-func (m *MockDB) Close() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Close")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Close indicates an expected call of Close
-func (mr *MockDBMockRecorder) Close() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockDB)(nil).Close))
-}
-
-// DeleteExpiredBeacons mocks base method
-func (m *MockDB) DeleteExpiredBeacons(arg0 context.Context, arg1 time.Time) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteExpiredBeacons", arg0, arg1)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DeleteExpiredBeacons indicates an expected call of DeleteExpiredBeacons
-func (mr *MockDBMockRecorder) DeleteExpiredBeacons(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpiredBeacons", reflect.TypeOf((*MockDB)(nil).DeleteExpiredBeacons), arg0, arg1)
-}
-
 // InsertBeacon mocks base method
 func (m *MockDB) InsertBeacon(arg0 context.Context, arg1 beacon.Beacon, arg2 beacon.Usage) (beacon.InsertStats, error) {
 	m.ctrl.T.Helper()
@@ -108,28 +78,4 @@ func (m *MockDB) InsertBeacon(arg0 context.Context, arg1 beacon.Beacon, arg2 bea
 func (mr *MockDBMockRecorder) InsertBeacon(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertBeacon", reflect.TypeOf((*MockDB)(nil).InsertBeacon), arg0, arg1, arg2)
-}
-
-// SetMaxIdleConns mocks base method
-func (m *MockDB) SetMaxIdleConns(arg0 int) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetMaxIdleConns", arg0)
-}
-
-// SetMaxIdleConns indicates an expected call of SetMaxIdleConns
-func (mr *MockDBMockRecorder) SetMaxIdleConns(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMaxIdleConns", reflect.TypeOf((*MockDB)(nil).SetMaxIdleConns), arg0)
-}
-
-// SetMaxOpenConns mocks base method
-func (m *MockDB) SetMaxOpenConns(arg0 int) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetMaxOpenConns", arg0)
-}
-
-// SetMaxOpenConns indicates an expected call of SetMaxOpenConns
-func (mr *MockDBMockRecorder) SetMaxOpenConns(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMaxOpenConns", reflect.TypeOf((*MockDB)(nil).SetMaxOpenConns), arg0)
 }

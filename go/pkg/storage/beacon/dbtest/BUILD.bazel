@@ -2,15 +2,15 @@ load("//lint:go.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["beacondbtest.go"],
-    importpath = "github.com/scionproto/scion/go/cs/beacon/beacondbtest",
+    srcs = ["dbtest.go"],
+    importpath = "github.com/scionproto/scion/go/pkg/storage/beacon/dbtest",
     visibility = ["//visibility:public"],
     deps = [
         "//go/cs/beacon:go_default_library",
-        "//go/lib/addr:go_default_library",
-        "//go/lib/common:go_default_library",
-        "//go/lib/ctrl/seg:go_default_library",
-        "//go/lib/xtest/graph:go_default_library",
+        "//go/cs/beacon/beacondbtest:go_default_library",
+        "//go/lib/slayers/path:go_default_library",
+        "//go/pkg/storage:go_default_library",
+        "//go/pkg/storage/beacon:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",

@@ -72,6 +72,7 @@ import (
 	dpb "github.com/scionproto/scion/go/pkg/proto/discovery"
 	"github.com/scionproto/scion/go/pkg/service"
 	"github.com/scionproto/scion/go/pkg/storage"
+	beaconstoragemetrics "github.com/scionproto/scion/go/pkg/storage/beacon/metrics"
 	truststoragefspersister "github.com/scionproto/scion/go/pkg/storage/trust/fspersister"
 	truststoragemetrics "github.com/scionproto/scion/go/pkg/storage/trust/metrics"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -177,11 +178,24 @@ func realMain() error {
 		return err
 	}
 
-	beaconStore, isdLoopAllowed, err := loadBeaconStore(topo.Core(), topo.IA(), globalCfg)
+	beaconDB, err := storage.NewBeaconStorage(globalCfg.BeaconDB, topo.IA())
+	if err != nil {
+		return serrors.WrapStr("initializing beacon storage", err)
+	}
+	defer beaconDB.Close()
+	beaconDB = beaconstoragemetrics.WrapDB(beaconDB, beaconstoragemetrics.Config{
+		Driver:       string(storage.BackendSqlite),
+		QueriesTotal: libmetrics.NewPromCounter(metrics.BeaconDBQueriesTotal),
+	})
+
+	beaconStore, isdLoopAllowed, err := createBeaconStore(
+		beaconDB,
+		topo.Core(),
+		globalCfg.BS.Policies,
+	)
 	if err != nil {
 		return serrors.WrapStr("initializing beacon store", err)
 	}
-	defer beaconStore.Close()
 
 	trustengineCache := globalCfg.TrustEngine.Cache.New()
 	cacheHits := libmetrics.NewPromCounter(trustmetrics.CacheHitsTotal)
@@ -600,21 +614,21 @@ func setup(cfg *config.Config) (*ifstate.Interfaces, error) {
 	return intfs, nil
 }
 
-func loadBeaconStore(core bool, ia addr.IA, cfg config.Config) (cs.Store, bool, error) {
-	db, err := storage.NewBeaconStorage(cfg.BeaconDB, ia)
-	if err != nil {
-		return nil, false, err
-	}
-	db = beacon.DBWithMetrics(string(storage.BackendSqlite), db)
+func createBeaconStore(
+	db storage.BeaconDB,
+	core bool,
+	policyConfig config.Policies,
+) (cs.Store, bool, error) {
+
 	if core {
-		policies, err := cs.LoadCorePolicies(cfg.BS.Policies)
+		policies, err := cs.LoadCorePolicies(policyConfig)
 		if err != nil {
 			return nil, false, err
 		}
 		store, err := beacon.NewCoreBeaconStore(policies, db)
 		return store, *policies.Prop.Filter.AllowIsdLoop, err
 	}
-	policies, err := cs.LoadNonCorePolicies(cfg.BS.Policies)
+	policies, err := cs.LoadNonCorePolicies(policyConfig)
 	if err != nil {
 		return nil, false, err
 	}

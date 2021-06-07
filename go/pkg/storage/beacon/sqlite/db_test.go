@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beacondbsqlite
+package sqlite_test
 
 import (
 	"context"
@@ -32,25 +32,25 @@ import (
 	"github.com/scionproto/scion/go/cs/beacon/beacondbtest"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/pkg/storage/beacon/dbtest"
+	"github.com/scionproto/scion/go/pkg/storage/beacon/sqlite"
 )
 
 var testIA = xtest.MustParseIA("1-ff00:0:333")
 
-var _ beacondbtest.Testable = (*TestBackend)(nil)
-
 type TestBackend struct {
-	*Backend
+	*sqlite.Backend
 }
 
 func (b *TestBackend) Prepare(t *testing.T, _ context.Context) {
-	db, err := New("file::memory:", testIA)
+	db, err := sqlite.New("file::memory:", testIA)
 	require.NoError(t, err)
 	b.Backend = db
 }
 
 func TestBeaconDBSuite(t *testing.T) {
 	tdb := &TestBackend{}
-	beacondbtest.Test(t, tdb)
+	dbtest.Run(t, tdb)
 }
 
 // TestOpenExisting tests that New does not overwrite an existing database if
@@ -63,7 +63,7 @@ func TestOpenExisting(t *testing.T) {
 	b := beacondbtest.InsertBeacon(t, ctrl, db, beacondbtest.Info1, 2, 10, beacon.UsageProp)
 	db.Close()
 	// Open existing database
-	db, err := New(tmpF, testIA)
+	db, err := sqlite.New(tmpF, testIA)
 	require.NoError(t, err)
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
@@ -79,23 +79,23 @@ func TestOpenNewer(t *testing.T) {
 	b, tmpF := setupDB(t)
 	defer cleanup(tmpF)
 	// Write a newer version
-	_, err := b.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion+1))
+	_, err := b.DB().Exec(fmt.Sprintf("PRAGMA user_version = %d", sqlite.SchemaVersion+1))
 	require.NoError(t, err)
-	b.db.Close()
-	b, err = New(tmpF, testIA)
+	b.DB().Close()
+	b, err = sqlite.New(tmpF, testIA)
 	assert.Error(t, err)
 	assert.Nil(t, b)
 }
 
-func setupDB(t *testing.T) (*Backend, string) {
+func setupDB(t *testing.T) (*sqlite.Backend, string) {
 	tmpFile := tempFilename(t)
-	b, err := New(tmpFile, testIA)
+	b, err := sqlite.New(tmpFile, testIA)
 	require.NoError(t, err, "Failed to open DB")
 	return b, tmpFile
 }
 
 func tempFilename(t *testing.T) string {
-	dir, err := ioutil.TempDir("", "pathdb-sqlite")
+	dir, err := ioutil.TempDir("", "beacondb-sqlite")
 	require.NoError(t, err)
 	return path.Join(dir, t.Name())
 }

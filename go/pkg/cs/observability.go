@@ -54,6 +54,7 @@ func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
 // XXX(roosd): Currently, most counters are created in the packages. The will
 // eventually be moved here.
 type Metrics struct {
+	BeaconDBQueriesTotal                   *prometheus.CounterVec
 	BeaconingOriginatedTotal               *prometheus.CounterVec
 	BeaconingPropagatedTotal               *prometheus.CounterVec
 	BeaconingPropagatorInternalErrorsTotal *prometheus.CounterVec
@@ -76,6 +77,13 @@ type Metrics struct {
 
 func NewMetrics() *Metrics {
 	return &Metrics{
+		BeaconDBQueriesTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "beacondb_queries_total",
+				Help: "Total queries to the database",
+			},
+			[]string{"driver", "operation", prom.LabelResult},
+		),
 		BeaconingOriginatedTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "control_beaconing_originated_beacons_total",

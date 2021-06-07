@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beacondbsqlite
+package sqlite
 
 import (
 	"context"
@@ -68,8 +68,6 @@ func (b *Backend) SetMaxIdleConns(maxIdleConns int) {
 func (b *Backend) Close() error {
 	return b.db.Close()
 }
-
-var _ (beacon.DBReadWrite) = (*executor)(nil)
 
 type executor struct {
 	sync.RWMutex

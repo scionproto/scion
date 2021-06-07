@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
@@ -101,9 +100,7 @@ type Testable interface {
 // implementation of the BeaconDB interface should at least have one test
 // method that calls this test-suite.
 func Test(t *testing.T, db Testable) {
-	testWrapper := func(test func(*testing.T, *gomock.Controller,
-		beacon.DBReadWrite)) func(t *testing.T) {
-
+	testWrapper := func(test func(*testing.T, *gomock.Controller, beacon.DB)) func(t *testing.T) {
 		return func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
@@ -111,11 +108,6 @@ func Test(t *testing.T, db Testable) {
 			defer cancelF()
 			db.Prepare(t, prepareCtx)
 			test(t, ctrl, db)
-		}
-	}
-	tableWrapper := func(inTx bool, test func(*testing.T, Testable, bool)) func(t *testing.T) {
-		return func(t *testing.T) {
-			test(t, db, inTx)
 		}
 	}
 	t.Run("BeaconSources should report all sources",
@@ -126,13 +118,12 @@ func Test(t *testing.T, db Testable) {
 		testWrapper(testUpdateExisting))
 	t.Run("InsertBeacon should correctly ignore an older beacon",
 		testWrapper(testUpdateOlderIgnored))
-	t.Run("CandidateBeacons returns the expected beacons",
-		tableWrapper(false, testCandidateBeacons))
-	t.Run("DeleteExpired should delete expired segments",
-		testWrapper(testDeleteExpiredBeacons))
+	t.Run("CandidateBeacons returns the expected beacons", func(t *testing.T) {
+		testCandidateBeacons(t, db)
+	})
 }
 
-func testBeaconSources(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
+func testBeaconSources(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 	for i, info := range [][]IfInfo{Info3, Info2, Info1} {
 		InsertBeacon(t, ctrl, db, info, 12, uint32(i), beacon.UsageProp)
 	}
@@ -143,7 +134,7 @@ func testBeaconSources(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWr
 	assert.ElementsMatch(t, []addr.IA{ia311, ia330}, ias)
 }
 
-func testInsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
+func testInsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 	TS := uint32(10)
 	b, _ := AllocBeacon(t, ctrl, Info3, 12, TS)
 
@@ -169,7 +160,7 @@ func testInsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWri
 	}
 }
 
-func testUpdateExisting(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
+func testUpdateExisting(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 	oldTS := uint32(10)
 	oldB, oldId := AllocBeacon(t, ctrl, Info3, 12, oldTS)
 
@@ -206,7 +197,7 @@ func testUpdateExisting(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadW
 	}
 }
 
-func testUpdateOlderIgnored(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
+func testUpdateOlderIgnored(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 	newTS := uint32(20)
 	newB, newId := AllocBeacon(t, ctrl, Info3, 12, newTS)
 
@@ -241,13 +232,13 @@ func testUpdateOlderIgnored(t *testing.T, ctrl *gomock.Controller, db beacon.DBR
 	}
 }
 
-func testCandidateBeacons(t *testing.T, db Testable, inTx bool) {
+func testCandidateBeacons(t *testing.T, db Testable) {
 	rootCtrl := gomock.NewController(t)
 	defer rootCtrl.Finish()
 	// Insert beacons from longest to shortest path such that the insertion
 	// order is not sorted the same as the expected outcome.
 	var beacons []beacon.Beacon
-	insertBeacons := func(t *testing.T, db beacon.DBReadWrite) {
+	insertBeacons := func(t *testing.T, db beacon.DB) {
 		for i, info := range [][]IfInfo{Info3, Info2, Info1} {
 			b := InsertBeacon(t, rootCtrl, db, info, 12, uint32(i), beacon.UsageProp)
 			// Prepend to get beacons sorted from shortest to longest path.
@@ -256,18 +247,18 @@ func testCandidateBeacons(t *testing.T, db Testable, inTx bool) {
 	}
 	insertBeacons(t, db)
 	tests := map[string]struct {
-		PrepareDB func(t *testing.T, ctx context.Context, db beacon.DBReadWrite)
+		PrepareDB func(t *testing.T, ctx context.Context, db beacon.DB)
 		Src       addr.IA
 		Expected  []beacon.Beacon
 	}{
 		"If no source ISD-AS is specified, all beacons are returned": {
-			PrepareDB: func(t *testing.T, ctx context.Context, db beacon.DBReadWrite) {
+			PrepareDB: func(t *testing.T, ctx context.Context, db beacon.DB) {
 				insertBeacons(t, db)
 			},
 			Expected: beacons,
 		},
 		"Only beacons with matching source ISD-AS are returned, if specified": {
-			PrepareDB: func(t *testing.T, ctx context.Context, db beacon.DBReadWrite) {
+			PrepareDB: func(t *testing.T, ctx context.Context, db beacon.DB) {
 				insertBeacons(t, db)
 			},
 			Src:      beacons[0].Segment.FirstIA(),
@@ -288,29 +279,6 @@ func testCandidateBeacons(t *testing.T, db Testable, inTx bool) {
 			CheckResults(t, results, test.Expected)
 		})
 	}
-}
-
-func testDeleteExpiredBeacons(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite) {
-	ts1 := uint32(10)
-	ts2 := uint32(20)
-	// defaultExp is the default expiry of the hopfields.
-	defaultExp := path.ExpTimeToDuration(63)
-	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-	defer cancelF()
-	InsertBeacon(t, ctrl, db, Info3, 12, ts1, beacon.UsageProp)
-	InsertBeacon(t, ctrl, db, Info2, 13, ts2, beacon.UsageProp)
-	// No expired beacon
-	deleted, err := db.DeleteExpiredBeacons(ctx, time.Unix(10, 0).Add(defaultExp))
-	require.NoError(t, err)
-	assert.Equal(t, 0, deleted, "Deleted")
-	// 1 expired
-	deleted, err = db.DeleteExpiredBeacons(ctx, time.Unix(20, 0).Add(defaultExp))
-	require.NoError(t, err)
-	assert.Equal(t, 1, deleted, "Deleted")
-	// 1 expired
-	deleted, err = db.DeleteExpiredBeacons(ctx, time.Unix(30, 0).Add(defaultExp))
-	require.NoError(t, err)
-	assert.Equal(t, 1, deleted, "Deleted")
 }
 
 // CheckResult checks that the expected beacon is returned in results, and
@@ -351,7 +319,7 @@ func CheckResults(t *testing.T, results []beacon.BeaconOrErr, expectedBeacons []
 	}
 }
 
-func InsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DBReadWrite, ases []IfInfo,
+func InsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DB, ases []IfInfo,
 	inIfId common.IFIDType, infoTS uint32, allowed beacon.Usage) beacon.Beacon {
 	b, _ := AllocBeacon(t, ctrl, ases, inIfId, infoTS)
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)

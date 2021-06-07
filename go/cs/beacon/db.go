@@ -17,16 +17,13 @@ package beacon
 import (
 	"context"
 	"fmt"
-	"io"
 	"strings"
-	"time"
 
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
@@ -38,38 +35,22 @@ const (
 	ErrParse common.ErrMsg = "Failed to parse entry"
 )
 
-// DBRead defines all read operations of the beacon DB.
-type DBRead interface {
-	// CandidateBeacons returns up to `setSize` beacons that are allowed for the given usage.
-	// The beacons in the slice are ordered by segment length from shortest to longest.
-	CandidateBeacons(ctx context.Context, setSize int, usage Usage,
-		src addr.IA) ([]BeaconOrErr, error)
-	// BeaconSources returns all source ISD-AS of the beacons in the database.
-	BeaconSources(ctx context.Context) ([]addr.IA, error)
-}
-
 // InsertStats provides statistics about an insertion.
 type InsertStats struct {
 	Inserted, Updated, Filtered int
 }
 
-// DBWrite defines all write operations of the beacon DB.
-type DBWrite interface {
-	InsertBeacon(ctx context.Context, beacon Beacon, usage Usage) (InsertStats, error)
-	DeleteExpiredBeacons(ctx context.Context, now time.Time) (int, error)
-}
-
-// DBReadWrite defines all read an write operations of the beacon DB.
-type DBReadWrite interface {
-	DBRead
-	DBWrite
-}
-
 // DB defines the interface that all beacon DB backends have to implement.
 type DB interface {
-	DBReadWrite
-	db.LimitSetter
-	io.Closer
+	// CandidateBeacons returns up to `setSize` beacons that are allowed for the
+	// given usage. The beacons in the slice are ordered by segment length from
+	// shortest to longest.
+	CandidateBeacons(ctx context.Context, setSize int, usage Usage,
+		src addr.IA) ([]BeaconOrErr, error)
+	// BeaconSources returns all source ISD-AS of the beacons in the database.
+	BeaconSources(ctx context.Context) ([]addr.IA, error)
+	// Insert inserts a beacon with its allowed usage into the database.
+	InsertBeacon(ctx context.Context, beacon Beacon, usage Usage) (InsertStats, error)
 }
 
 const (
