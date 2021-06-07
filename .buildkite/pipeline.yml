@@ -11,13 +11,10 @@ steps:
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
   - wait
-  - label: "UT: unit tests & lint :bazel::bash::python:"
+  - label: "UT: unit tests"
     if: build.message !~ /\[doc\]/
     command:
       - bazel test --config=unit --cache_test_results=${BAZEL_CACHE_TEST_RESULTS:-auto}
-      - make lint
-      - pip install --user rstcheck
-      - ~/.local/bin/rstcheck --recursive .
     key: unit_tests
     artifact_paths:
       - "artifacts.out/**/*"
@@ -58,9 +55,12 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
-  - label: "Lint"
+  - label: "Lint :bazel::bash::python:"
     if: build.message =~ /\[doc\]/
-    command: make lint
+    command:
+      - make lint
+      - pip install --user rstcheck
+      - ~/.local/bin/rstcheck --recursive .
     key: lint
     timeout_in_minutes: 15
     retry:
