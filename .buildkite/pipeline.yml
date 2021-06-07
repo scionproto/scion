@@ -60,7 +60,7 @@ steps:
     command:
       - make lint
       - pip install --user rstcheck
-      - ~/.local/bin/rstcheck --recursive .
+      - ~/.local/bin/rstcheck --report warning --recursive .
     key: lint
     timeout_in_minutes: 15
     retry:
