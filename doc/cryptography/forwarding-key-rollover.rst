@@ -253,7 +253,7 @@ forth. Key ``K_n`` is thus valid from ``n*KeyLifetime//2`` to
 
 .. code-block:: python
 
-   set_new_key(NewKey, ExpTimeNewKey):
+   def set_new_key(NewKey, ExpTimeNewKey):
        NewKeyCtx.Key0 = CurrentKeyCtx.Key1
        NewKeyCtx.ExpirationTimeKey0 = CurrentKeyCtx.ExpirationTimeKey1
        NewKeyCtx.Key1 = NewKey
@@ -269,7 +269,7 @@ For each packet, the router must first compute the expiration time of the HF, si
 
 .. code-block:: python
 
-   get_key(ExpirationTime):
+   def get_key(ExpirationTime):
        if ExpirationTime < CurrentKeyCtx.ExpirationTimeKey0
            return CurrentKeyCtx.Key0
        else
