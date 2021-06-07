@@ -272,7 +272,7 @@ For each packet, the router must first compute the expiration time of the HF, si
    def get_key(ExpirationTime):
        if ExpirationTime < CurrentKeyCtx.ExpirationTimeKey0:
            return CurrentKeyCtx.Key0
-       else
+       else:
            return CurrentKeyCtx.Key1
 
 The key can then be used by the router to verify the MAC.
