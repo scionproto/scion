@@ -60,7 +60,7 @@ steps:
     command:
       - make lint
       - pip install --user rstcheck sphinx
-      - ~/.local/bin/rstcheck --report warning --recursive .
+      - ~/.local/bin/rstcheck --report warning  --ignore-messages "Unknown target name .*" --recursive .
     key: lint
     timeout_in_minutes: 15
     retry:
