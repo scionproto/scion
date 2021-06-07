@@ -11,11 +11,13 @@ steps:
         - exit_status: 255 # Forced agent shutdown
     timeout_in_minutes: 10
   - wait
-  - label: "UT: unit tests & lint :bazel::bash:"
+  - label: "UT: unit tests & lint :bazel::bash::python:"
     if: build.message !~ /\[doc\]/
     command:
       - bazel test --config=unit --cache_test_results=${BAZEL_CACHE_TEST_RESULTS:-auto}
       - make lint
+      - pip install rstcheck
+      - rstcheck --recursive .
     key: unit_tests
     artifact_paths:
       - "artifacts.out/**/*"
