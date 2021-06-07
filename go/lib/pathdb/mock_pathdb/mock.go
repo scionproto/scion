@@ -68,21 +68,6 @@ func (mr *MockPathDBMockRecorder) Close() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockPathDB)(nil).Close))
 }
 
-// Delete mocks base method
-func (m *MockPathDB) Delete(arg0 context.Context, arg1 *query.Params) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delete", arg0, arg1)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Delete indicates an expected call of Delete
-func (mr *MockPathDBMockRecorder) Delete(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockPathDB)(nil).Delete), arg0, arg1)
-}
-
 // DeleteExpired mocks base method
 func (m *MockPathDB) DeleteExpired(arg0 context.Context, arg1 time.Time) (int, error) {
 	m.ctrl.T.Helper()
@@ -96,36 +81,6 @@ func (m *MockPathDB) DeleteExpired(arg0 context.Context, arg1 time.Time) (int, e
 func (mr *MockPathDBMockRecorder) DeleteExpired(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpired", reflect.TypeOf((*MockPathDB)(nil).DeleteExpired), arg0, arg1)
-}
-
-// DeleteExpiredNQ mocks base method
-func (m *MockPathDB) DeleteExpiredNQ(arg0 context.Context, arg1 time.Time) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteExpiredNQ", arg0, arg1)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DeleteExpiredNQ indicates an expected call of DeleteExpiredNQ
-func (mr *MockPathDBMockRecorder) DeleteExpiredNQ(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpiredNQ", reflect.TypeOf((*MockPathDB)(nil).DeleteExpiredNQ), arg0, arg1)
-}
-
-// DeleteNQ mocks base method
-func (m *MockPathDB) DeleteNQ(arg0 context.Context, arg1, arg2 addr.IA, arg3 pathdb.PolicyHash) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteNQ", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DeleteNQ indicates an expected call of DeleteNQ
-func (mr *MockPathDBMockRecorder) DeleteNQ(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteNQ", reflect.TypeOf((*MockPathDB)(nil).DeleteNQ), arg0, arg1, arg2, arg3)
 }
 
 // Get mocks base method
@@ -279,21 +234,6 @@ func (mr *MockTransactionMockRecorder) Commit() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockTransaction)(nil).Commit))
 }
 
-// Delete mocks base method
-func (m *MockTransaction) Delete(arg0 context.Context, arg1 *query.Params) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delete", arg0, arg1)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Delete indicates an expected call of Delete
-func (mr *MockTransactionMockRecorder) Delete(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockTransaction)(nil).Delete), arg0, arg1)
-}
-
 // DeleteExpired mocks base method
 func (m *MockTransaction) DeleteExpired(arg0 context.Context, arg1 time.Time) (int, error) {
 	m.ctrl.T.Helper()
@@ -307,36 +247,6 @@ func (m *MockTransaction) DeleteExpired(arg0 context.Context, arg1 time.Time) (i
 func (mr *MockTransactionMockRecorder) DeleteExpired(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpired", reflect.TypeOf((*MockTransaction)(nil).DeleteExpired), arg0, arg1)
-}
-
-// DeleteExpiredNQ mocks base method
-func (m *MockTransaction) DeleteExpiredNQ(arg0 context.Context, arg1 time.Time) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteExpiredNQ", arg0, arg1)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DeleteExpiredNQ indicates an expected call of DeleteExpiredNQ
-func (mr *MockTransactionMockRecorder) DeleteExpiredNQ(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpiredNQ", reflect.TypeOf((*MockTransaction)(nil).DeleteExpiredNQ), arg0, arg1)
-}
-
-// DeleteNQ mocks base method
-func (m *MockTransaction) DeleteNQ(arg0 context.Context, arg1, arg2 addr.IA, arg3 pathdb.PolicyHash) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteNQ", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DeleteNQ indicates an expected call of DeleteNQ
-func (mr *MockTransactionMockRecorder) DeleteNQ(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteNQ", reflect.TypeOf((*MockTransaction)(nil).DeleteNQ), arg0, arg1, arg2, arg3)
 }
 
 // Get mocks base method
@@ -466,21 +376,6 @@ func (m *MockReadWrite) EXPECT() *MockReadWriteMockRecorder {
 	return m.recorder
 }
 
-// Delete mocks base method
-func (m *MockReadWrite) Delete(arg0 context.Context, arg1 *query.Params) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delete", arg0, arg1)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Delete indicates an expected call of Delete
-func (mr *MockReadWriteMockRecorder) Delete(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockReadWrite)(nil).Delete), arg0, arg1)
-}
-
 // DeleteExpired mocks base method
 func (m *MockReadWrite) DeleteExpired(arg0 context.Context, arg1 time.Time) (int, error) {
 	m.ctrl.T.Helper()
@@ -494,36 +389,6 @@ func (m *MockReadWrite) DeleteExpired(arg0 context.Context, arg1 time.Time) (int
 func (mr *MockReadWriteMockRecorder) DeleteExpired(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpired", reflect.TypeOf((*MockReadWrite)(nil).DeleteExpired), arg0, arg1)
-}
-
-// DeleteExpiredNQ mocks base method
-func (m *MockReadWrite) DeleteExpiredNQ(arg0 context.Context, arg1 time.Time) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteExpiredNQ", arg0, arg1)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DeleteExpiredNQ indicates an expected call of DeleteExpiredNQ
-func (mr *MockReadWriteMockRecorder) DeleteExpiredNQ(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpiredNQ", reflect.TypeOf((*MockReadWrite)(nil).DeleteExpiredNQ), arg0, arg1)
-}
-
-// DeleteNQ mocks base method
-func (m *MockReadWrite) DeleteNQ(arg0 context.Context, arg1, arg2 addr.IA, arg3 pathdb.PolicyHash) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteNQ", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DeleteNQ indicates an expected call of DeleteNQ
-func (mr *MockReadWriteMockRecorder) DeleteNQ(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteNQ", reflect.TypeOf((*MockReadWrite)(nil).DeleteNQ), arg0, arg1, arg2, arg3)
 }
 
 // Get mocks base method
