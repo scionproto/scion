@@ -334,21 +334,19 @@ func testGetAll(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) 
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
 
-	// Empty db should return an empty chan
-	resChan, err := pathDB.GetAll(ctx)
+	// Empty db should return an empty slice
+	s, err := pathDB.GetAll(ctx)
 	require.NoError(t, err)
-	res, more := <-resChan
-	assert.Equal(t, query.ResultOrErr{}, res, "No result expected")
-	assert.False(t, more, "No more entries expected")
+	assert.Empty(t, s, "No result expected")
 
 	pseg1, segID1 := AllocPathSegment(t, ctrl, ifs1, TS)
 	pseg2, segID2 := AllocPathSegment(t, ctrl, ifs2, TS)
 	InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
 	InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
 
-	resChan, err = pathDB.GetAll(ctx)
+	s, err = pathDB.GetAll(ctx)
 	require.NoError(t, err)
-	for r := range resChan {
+	for _, r := range s {
 		assert.NoError(t, r.Err)
 		assert.Equal(t, seg.TypeUp, r.Result.Type)
 		resSegID := r.Result.Seg.ID()
@@ -522,11 +520,9 @@ func testRollback(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.PathDB) {
 		InsertSeg(t, ctx, tx, pseg, hpCfgIDs), "Insert should succeed")
 	err = tx.Rollback()
 	assert.NoError(t, err)
-	segChan, err := pathDB.GetAll(ctx)
+	s, err := pathDB.GetAll(ctx)
 	assert.NoError(t, err)
-	res, more := <-segChan
-	assert.Equal(t, query.ResultOrErr{}, res, "No entries expected")
-	assert.False(t, more, "No more entries expected")
+	assert.Empty(t, s, "No entries expected")
 }
 
 func AllocPathSegment(t *testing.T, ctrl *gomock.Controller, ifs []uint64,

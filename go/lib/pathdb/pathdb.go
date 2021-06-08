@@ -40,14 +40,12 @@ type InsertStats struct {
 type ReadWrite interface {
 	// Get returns all path segment(s) matching the parameters specified.
 	Get(context.Context, *query.Params) (query.Results, error)
-	// GetAll returns a channel that will provide all items in the path db. If the path db cannot
-	// prepare the query a nil channel and the error are returned. If the querying succeeds the
-	// channel will be filled with the segments in the database. If an error occurs during reading a
-	// segment the error is pushed in the channel and the operation is aborted, that means that the
-	// result might be incomplete. Note that implementations can spawn a goroutine to fill the
-	// channel, which means the channel must be fully drained to guarantee the destruction of the
-	// goroutine.
-	GetAll(context.Context) (<-chan query.ResultOrErr, error)
+	// GetAll returns a slice which contains all items in the path db. If the path db cannot
+	// prepare the query, an empty slice and the error are returned. If the querying succeeds, the
+	// slice will be filled with the segments in the database. If an error occurs during reading a
+	// segment the error is appanded to the slice and the operation is aborted; thus, the
+	// result might be incomplete.
+	GetAll(context.Context) ([]query.ResultOrErr, error)
 	// GetNextQuery returns the nextQuery timestamp for the given src-dst pair
 	// and policy , or a zero time if it hasn't been queried.
 	GetNextQuery(ctx context.Context, src, dst addr.IA, policy PolicyHash) (time.Time, error)
