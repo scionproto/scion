@@ -54,6 +54,8 @@ go_library(
         "//go/pkg/proto/discovery:go_default_library",
         "//go/pkg/service:go_default_library",
         "//go/pkg/storage:go_default_library",
+        "//go/pkg/storage/beacon/metrics:go_default_library",
+        "//go/pkg/storage/trust/fspersister:go_default_library",
         "//go/pkg/storage/trust/metrics:go_default_library",
         "//go/pkg/trust:go_default_library",
         "//go/pkg/trust/compat:go_default_library",

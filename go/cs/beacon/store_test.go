@@ -17,6 +17,7 @@ package beacon_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -32,22 +33,23 @@ import (
 )
 
 func TestStoreSegmentsToRegister(t *testing.T) {
-	testStoreSelection(t, func(store *beacon.Store) (<-chan beacon.BeaconOrErr, error) {
+	testStoreSelection(t, func(store *beacon.Store) ([]beacon.BeaconOrErr, error) {
 		return store.SegmentsToRegister(context.Background(), seg.TypeUp)
 	})
-	testStoreSelection(t, func(store *beacon.Store) (<-chan beacon.BeaconOrErr, error) {
+	testStoreSelection(t, func(store *beacon.Store) ([]beacon.BeaconOrErr, error) {
 		return store.SegmentsToRegister(context.Background(), seg.TypeDown)
 	})
 }
 
 func TestStoreBeaconsToPropagate(t *testing.T) {
-	testStoreSelection(t, func(store *beacon.Store) (<-chan beacon.BeaconOrErr, error) {
+	testStoreSelection(t, func(store *beacon.Store) ([]beacon.BeaconOrErr, error) {
 		return store.BeaconsToPropagate(context.Background())
 	})
 }
 
 func testStoreSelection(t *testing.T,
-	methodToTest func(store *beacon.Store) (<-chan beacon.BeaconOrErr, error)) {
+	methodToTest func(store *beacon.Store) ([]beacon.BeaconOrErr, error)) {
+
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
 	g := graph.NewDefaultGraph(mctrl)
@@ -163,22 +165,19 @@ func testStoreSelection(t *testing.T,
 			require.NoError(t, err)
 			db.EXPECT().CandidateBeacons(gomock.Any(), gomock.Any(), gomock.Any(),
 				addr.IA{}).DoAndReturn(
-				func(_ ...interface{}) (<-chan beacon.BeaconOrErr, error) {
-					results := make(chan beacon.BeaconOrErr, len(test.results))
-					defer close(results)
-					for _, res := range test.results {
-						results <- res
-					}
-					return results, nil
+				func(_ ...interface{}) ([]beacon.BeaconOrErr, error) {
+					return test.results, nil
 				},
 			)
 			res, err := methodToTest(store)
 			xtest.FailOnErr(t, err, "err")
 			seen := make(map[beacon.BeaconOrErr]bool)
-			for bOrErr := range res {
+			for _, bOrErr := range res {
 				if bOrErr.Err == nil {
 					if !test.expected[bOrErr] {
-						t.Errorf("Unexpected beacon %s", bOrErr.Beacon)
+						fmt.Printf("===\n")
+						fmt.Printf("%v\n", res)
+						t.Errorf("Unexpected beacon %s", bOrErr)
 					}
 					seen[bOrErr] = true
 				} else if !test.expectErr {
@@ -188,6 +187,7 @@ func testStoreSelection(t *testing.T,
 			for bOrErr := range test.expected {
 				if !seen[bOrErr] {
 					t.Errorf("Expected beacon not seen %s", bOrErr.Beacon)
+					return
 				}
 			}
 		})
@@ -195,19 +195,19 @@ func testStoreSelection(t *testing.T,
 }
 
 func TestCoreStoreSegmentsToRegister(t *testing.T) {
-	testCoreStoreSelection(t, func(store *beacon.CoreStore) (<-chan beacon.BeaconOrErr, error) {
+	testCoreStoreSelection(t, func(store *beacon.CoreStore) ([]beacon.BeaconOrErr, error) {
 		return store.SegmentsToRegister(context.Background(), seg.TypeCore)
 	})
 }
 
 func TestCoreStoreBeaconsToPropagate(t *testing.T) {
-	testCoreStoreSelection(t, func(store *beacon.CoreStore) (<-chan beacon.BeaconOrErr, error) {
+	testCoreStoreSelection(t, func(store *beacon.CoreStore) ([]beacon.BeaconOrErr, error) {
 		return store.BeaconsToPropagate(context.Background())
 	})
 }
 
 func testCoreStoreSelection(t *testing.T,
-	methodToTest func(store *beacon.CoreStore) (<-chan beacon.BeaconOrErr, error)) {
+	methodToTest func(store *beacon.CoreStore) ([]beacon.BeaconOrErr, error)) {
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
 	g := graph.NewDefaultGraph(mctrl)
@@ -327,17 +327,13 @@ func testCoreStoreSelection(t *testing.T,
 			}
 			store, err := beacon.NewCoreBeaconStore(policies, db)
 			require.NoError(t, err)
-			// respFunc serves beacons on the returned channel.
-			type respFunc func(_ ...interface{}) (<-chan beacon.BeaconOrErr, error)
+
+			// respFunc serves beacons on the returned slice
+			type respFunc func(_ ...interface{}) ([]beacon.BeaconOrErr, error)
 			// responder is a factory that generates a function serving the specified beacons.
 			responder := func(ia addr.IA) respFunc {
-				return func(_ ...interface{}) (<-chan beacon.BeaconOrErr, error) {
-					results := make(chan beacon.BeaconOrErr, len(test.results[ia]))
-					defer close(results)
-					for _, res := range test.results[ia] {
-						results <- res
-					}
-					return results, nil
+				return func(_ ...interface{}) ([]beacon.BeaconOrErr, error) {
+					return test.results[ia], nil
 				}
 			}
 			db.EXPECT().BeaconSources(gomock.Any()).Return([]addr.IA{ia120, ia130}, nil)
@@ -349,7 +345,7 @@ func testCoreStoreSelection(t *testing.T,
 			res, err := methodToTest(store)
 			xtest.FailOnErr(t, err, "err")
 			seen := make(map[beacon.BeaconOrErr]bool)
-			for bOrErr := range res {
+			for _, bOrErr := range res {
 				if bOrErr.Err == nil {
 					if !test.expected[bOrErr] {
 						t.Errorf("Unexpected beacon %s", bOrErr.Beacon)

@@ -101,7 +101,7 @@ func RunSign(pld, certfile, keyfile, out, outDir string) error {
 	if err != nil {
 		return serrors.WrapStr("error parsing signer", err)
 	}
-	signed, err := sign(rawPld, priv, cert)
+	signed, err := SignPayload(rawPld, priv, cert)
 	if err != nil {
 		return serrors.WrapStr("error signing TRC payload", err)
 	}
@@ -128,7 +128,7 @@ func RunSign(pld, certfile, keyfile, out, outDir string) error {
 	return nil
 }
 
-func sign(pld []byte, signer crypto.Signer, cert *x509.Certificate) ([]byte, error) {
+func SignPayload(pld []byte, signer crypto.Signer, cert *x509.Certificate) ([]byte, error) {
 	eci, err := protocol.NewDataEncapsulatedContentInfo(pld)
 	if err != nil {
 		return nil, err

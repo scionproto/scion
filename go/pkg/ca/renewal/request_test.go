@@ -124,7 +124,6 @@ func TestUpdateCrypto(t *testing.T) {
 	cmd := testcrypto.Cmd(command.StringPather(""))
 	cmd.SetArgs([]string{
 		"-t", "testdata/golden.topo",
-		"-l", "../../../../scripts/cryptoplayground/crypto_lib.sh",
 		"-o", dir,
 	})
 	err := cmd.Execute()

@@ -6,8 +6,9 @@ import os
 import shutil
 import tempfile
 
-from plumbum import cli, local
-from plumbum.cmd import cp, sed, tar
+from plumbum import cli
+from plumbum import cmd
+from plumbum import local
 
 
 class Gen(cli.Application):
@@ -18,7 +19,6 @@ class Gen(cli.Application):
     as output, therefore a tar is used to pack everything up.
     """
     topogen_bin = './python/generator.py'
-    cryptolib = './scripts/cryptoplayground/crypto_lib.sh'
     scion_pki_bin = './bin/scion-pki'
     topo = "default.topo"
     outfile = 'gen.tar'
@@ -50,22 +50,18 @@ class Gen(cli.Application):
             scion_pki = local.path(self.scion_pki_bin)
             topogen = local[self.topogen_bin]
             local.env.path.insert(0, scion_pki.parent)
-            # bazel only creates a symlink to the crypto_lib,
-            # we copy it to tmp so that it works with docker.
-            cp('-L', local.path('./scripts/cryptoplayground/crypto_lib.sh'), tmpdir)
             topogen_args = ['-o', tmpdir / 'gen', '-c', self.topo]
             if self.params != '':
                 topogen_args += self.params.split()
-            with local.env(CRYPTOLIB=tmpdir / 'crypto_lib.sh'):
-                print('Running topogen with following arguments: ' + ' '.join(topogen_args))
-                print(topogen(*topogen_args))
+            print('Running topogen with following arguments: ' + ' '.join(topogen_args))
+            print(topogen(*topogen_args))
             # Remove the explicit scion root dir, so that tests can adapt this to wherever they
             # unpack the tar.
-            sed('-i', 's@%s@$SCIONROOT@g' % local.path('.'), tmpdir / 'gen' / 'scion-dc.yml')
-            sed('-i', 's@%s@$SCIONROOT@g' % tmpdir, tmpdir / 'gen' / 'scion-dc.yml')
+            cmd.sed('-i', 's@%s@$SCIONROOT@g' % local.path('.'), tmpdir / 'gen' / 'scion-dc.yml')
+            cmd.sed('-i', 's@%s@$SCIONROOT@g' % tmpdir, tmpdir / 'gen' / 'scion-dc.yml')
             for support_dir in ['logs', 'gen-cache', 'gen-data', 'traces']:
                 os.mkdir(tmpdir / support_dir)
-            tar('-C', tmpdir, '-cf', self.outfile, '.')
+            cmd.tar('-C', tmpdir, '-cf', self.outfile, '.')
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 

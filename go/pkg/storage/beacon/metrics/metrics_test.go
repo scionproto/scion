@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beacon_test
+package metrics_test
 
 import (
 	"context"
@@ -20,27 +20,35 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/cs/beacon"
-	"github.com/scionproto/scion/go/cs/beacon/beacondbsqlite"
-	"github.com/scionproto/scion/go/cs/beacon/beacondbtest"
+	libmetrics "github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/pkg/storage"
+	"github.com/scionproto/scion/go/pkg/storage/beacon"
+	"github.com/scionproto/scion/go/pkg/storage/beacon/dbtest"
+	"github.com/scionproto/scion/go/pkg/storage/beacon/metrics"
+	"github.com/scionproto/scion/go/pkg/storage/beacon/sqlite"
 )
 
 var testIA = xtest.MustParseIA("1-ff00:0:333")
 
-var _ beacondbtest.Testable = (*TestBackend)(nil)
-
 type TestBackend struct {
-	beacon.DB
+	storage.BeaconDB
+	beacon.Cleanable
 }
 
 func (b *TestBackend) Prepare(t *testing.T, _ context.Context) {
-	db, err := beacondbsqlite.New("file::memory:", testIA)
+	db, err := sqlite.New("file::memory:", testIA)
 	require.NoError(t, err)
-	b.DB = beacon.DBWithMetrics("testdb", db)
+	b.BeaconDB = metrics.WrapDB(db, metrics.Config{
+		Driver:       "mem-sqlite",
+		QueriesTotal: libmetrics.NewTestCounter(),
+	})
 }
+
+// IgnoreCleanable instructs the test to ignore testing the cleanup functionality.
+func (b *TestBackend) IgnoreCleanable() {}
 
 func TestBeaconDBSuite(t *testing.T) {
 	tdb := &TestBackend{}
-	beacondbtest.Test(t, tdb)
+	dbtest.Run(t, tdb)
 }

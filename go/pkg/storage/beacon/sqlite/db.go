@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beacondbsqlite
+package sqlite
 
 import (
 	"context"
@@ -26,9 +26,7 @@ import (
 	"github.com/scionproto/scion/go/cs/beacon"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -66,50 +64,10 @@ func (b *Backend) SetMaxIdleConns(maxIdleConns int) {
 	b.db.SetMaxIdleConns(maxIdleConns)
 }
 
-// BeginTransaction begins a transaction on the database.
-func (b *Backend) BeginTransaction(ctx context.Context,
-	opts *sql.TxOptions) (beacon.Transaction, error) {
-
-	b.Lock()
-	defer b.Unlock()
-	tx, err := b.db.BeginTx(ctx, opts)
-	if err != nil {
-		return nil, db.NewTxError("create tx", err)
-	}
-	return &transaction{
-		executor: &executor{
-			db: tx,
-			ia: b.ia,
-		},
-		tx: tx,
-	}, nil
-}
-
 // Close closes the database.
 func (b *Backend) Close() error {
 	return b.db.Close()
 }
-
-var _ (beacon.Transaction) = (*transaction)(nil)
-
-type transaction struct {
-	*executor
-	tx *sql.Tx
-}
-
-func (tx *transaction) Commit() error {
-	tx.Lock()
-	defer tx.Unlock()
-	return tx.tx.Commit()
-}
-
-func (tx *transaction) Rollback() error {
-	tx.Lock()
-	defer tx.Unlock()
-	return tx.tx.Rollback()
-}
-
-var _ (beacon.DBReadWrite) = (*executor)(nil)
 
 type executor struct {
 	sync.RWMutex
@@ -121,42 +79,6 @@ type beaconMeta struct {
 	RowID       int64
 	InfoTime    time.Time
 	LastUpdated time.Time
-}
-
-func (e *executor) AllRevocations(ctx context.Context) (<-chan beacon.RevocationOrErr, error) {
-	e.RLock()
-	defer e.RUnlock()
-	query := `SELECT RawSignedRev FROM Revocations`
-	rows, err := e.db.QueryContext(ctx, query)
-	if err != nil {
-		return nil, db.NewReadError("Error selecting revocations", err)
-	}
-	res := make(chan beacon.RevocationOrErr)
-	go func() {
-		defer log.HandlePanic()
-		defer close(res)
-		defer rows.Close()
-		for rows.Next() {
-			var rawRev []byte
-			err = rows.Scan(&rawRev)
-			if err != nil {
-				res <- beacon.RevocationOrErr{Err: db.NewReadError(beacon.ErrReadingRows, err)}
-				return
-			}
-			srev, err := path_mgmt.NewSignedRevInfoFromRaw(rawRev)
-			if err != nil {
-				err = db.NewDataError(beacon.ErrParse, err)
-			}
-			res <- beacon.RevocationOrErr{
-				Rev: srev,
-				Err: err,
-			}
-			// Continue here as this should not really happen if the insertion
-			// is properly guarded.
-			// Like this the client might still be able to proceed.
-		}
-	}()
-	return res, nil
 }
 
 func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
@@ -183,7 +105,7 @@ func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
 }
 
 func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beacon.Usage,
-	src addr.IA) (<-chan beacon.BeaconOrErr, error) {
+	src addr.IA) ([]beacon.BeaconOrErr, error) {
 
 	e.RLock()
 	defer e.RUnlock()
@@ -209,39 +131,33 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 		return nil, db.NewReadError("Error selecting beacons", err)
 	}
 	defer rows.Close()
-	beacons := make([]beacon.Beacon, 0, setSize)
-	var errors []error
+
+	beacons := make([]beacon.BeaconOrErr, 0, setSize)
 	// Read all beacons that are available into memory first to free the lock.
 	for rows.Next() {
 		var rawBeacon sql.RawBytes
 		var inIntfID common.IFIDType
 		if err = rows.Scan(&rawBeacon, &inIntfID); err != nil {
-			errors = append(errors, db.NewReadError(beacon.ErrReadingRows, err))
+			beacons = append(beacons, beacon.BeaconOrErr{
+				Err: db.NewReadError(beacon.ErrReadingRows, err),
+			})
 			continue
 		}
 		s, err := beacon.UnpackBeacon(rawBeacon)
 		if err != nil {
-			errors = append(errors, db.NewDataError(beacon.ErrParse, err))
+			beacons = append(beacons, beacon.BeaconOrErr{
+				Err: db.NewDataError(beacon.ErrParse, err),
+			})
 			continue
 		}
-		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: inIntfID})
+		beacons = append(beacons, beacon.BeaconOrErr{
+			Beacon: beacon.Beacon{Segment: s, InIfId: inIntfID},
+		})
 	}
 	if err := rows.Err(); err != nil {
-		errors = append(errors, err)
+		beacons = append(beacons, beacon.BeaconOrErr{Err: err})
 	}
-	results := make(chan beacon.BeaconOrErr)
-	go func() {
-		defer log.HandlePanic()
-		defer close(results)
-		for _, b := range beacons {
-			results <- beacon.BeaconOrErr{Beacon: b}
-		}
-		for _, e := range errors {
-			results <- beacon.BeaconOrErr{Err: e}
-			return
-		}
-	}()
-	return results, nil
+	return beacons, nil
 }
 
 // InsertBeacon inserts the beacon if it is new or updates the changed
@@ -418,87 +334,4 @@ func (e *executor) deleteInTx(ctx context.Context,
 	e.Lock()
 	defer e.Unlock()
 	return db.DeleteInTx(ctx, e.db, delFunc)
-}
-
-func (e *executor) DeleteRevokedBeacons(ctx context.Context, now time.Time) (int, error) {
-	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
-		delStmt := `
-		DELETE FROM Beacons
-		WHERE EXISTS(
-			SELECT 1
-			FROM IntfToBeacon ib
-			JOIN Revocations r USING (IsdID, AsID, IntfID)
-			WHERE ib.BeaconRowID = RowID AND r.ExpirationTime >= ?
-		)
-		`
-		return tx.ExecContext(ctx, delStmt, now.Unix())
-	})
-}
-
-func (e *executor) InsertRevocation(ctx context.Context,
-	revocation *path_mgmt.SignedRevInfo) error {
-
-	revInfo, err := revocation.RevInfo()
-	if err != nil {
-		return db.NewInputDataError("extract revocation", err)
-	}
-	packedRev, err := revocation.Pack()
-	if err != nil {
-		return db.NewInputDataError("pack revocation", err)
-	}
-	e.Lock()
-	defer e.Unlock()
-	query := `
-	INSERT OR REPLACE INTO Revocations
-	(IsdID, AsID, IntfID, LinkType, IssuingTime, ExpirationTime, RawSignedRev)
-	VALUES (?, ?, ?, ?, ?, ?, ?)
-	`
-	return db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
-		existingRev, err := containsNewerRev(ctx, tx, revInfo)
-		if err != nil {
-			return db.NewReadError("check for existing rev", err)
-		}
-		if !existingRev {
-			_, err = tx.ExecContext(ctx, query, revInfo.IA().I, revInfo.IA().A, revInfo.IfID,
-				revInfo.LinkType, revInfo.RawTimestamp, revInfo.Expiration().Unix(), packedRev)
-		}
-		return err
-	})
-}
-
-func containsNewerRev(ctx context.Context, tx *sql.Tx,
-	revInfo *path_mgmt.RevInfo) (bool, error) {
-
-	var one int
-	query := `
-	SELECT 1 FROM Revocations
-	WHERE IsdID = ? AND AsID = ? AND IntfID = ? AND IssuingTime > ?
-	`
-	err := tx.QueryRowContext(ctx, query, revInfo.IA().I, revInfo.IA().A,
-		revInfo.IfID, revInfo.RawTimestamp).Scan(&one)
-	if err == sql.ErrNoRows {
-		return false, nil
-	}
-	return err == nil, err
-}
-
-func (e *executor) DeleteRevocation(ctx context.Context, ia addr.IA, ifid common.IFIDType) error {
-	query := `
-	DELETE FROM Revocations
-	WHERE IsdID = ? AND AsID = ? AND IntfID = ?
-	`
-	_, err := e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
-		return tx.ExecContext(ctx, query, ia.I, ia.A, ifid)
-	})
-	return err
-}
-
-func (e *executor) DeleteExpiredRevocations(ctx context.Context, now time.Time) (int, error) {
-	query := `
-	DELETE FROM Revocations
-	WHERE ExpirationTime < ?
-	`
-	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
-		return tx.ExecContext(ctx, query, now.Unix())
-	})
 }

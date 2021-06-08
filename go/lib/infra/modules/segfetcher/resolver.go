@@ -45,7 +45,8 @@ type LocalInfo interface {
 }
 
 // NewResolver creates a new resolver with the given DB.
-func NewResolver(DB pathdb.Read, revCache revcache.RevCache, localInfo LocalInfo) *DefaultResolver {
+func NewResolver(DB pathdb.ReadWrite, revCache revcache.RevCache,
+	localInfo LocalInfo) *DefaultResolver {
 	return &DefaultResolver{
 		DB:        DB,
 		RevCache:  revCache,
@@ -55,7 +56,7 @@ func NewResolver(DB pathdb.Read, revCache revcache.RevCache, localInfo LocalInfo
 
 // DefaultResolver is the default resolver implementation.
 type DefaultResolver struct {
-	DB        pathdb.Read
+	DB        pathdb.ReadWrite
 	RevCache  revcache.RevCache
 	LocalInfo LocalInfo
 }

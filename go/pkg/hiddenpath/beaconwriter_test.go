@@ -209,12 +209,10 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				AddressResolver:    tc.resolver(ctrl),
 			}
 			g := graph.NewDefaultGraph(ctrl)
-			beacons := make(chan beacon.BeaconOrErr, len(tc.beacons))
+			var beacons []beacon.BeaconOrErr
 			for _, desc := range tc.beacons {
-				beacons <- testBeaconOrErr(g, desc)
+				beacons = append(beacons, testBeaconOrErr(g, desc))
 			}
-			close(beacons)
-			// Collect the segments that are sent on the messenger.
 
 			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 			defer cancelF()

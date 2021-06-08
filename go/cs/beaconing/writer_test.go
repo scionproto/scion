@@ -20,7 +20,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"hash"
 	"net"
@@ -111,16 +110,17 @@ func TestRegistrarRun(t *testing.T) {
 				Provider: segProvider,
 				Type:     test.segType,
 			}
+
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
-				func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
-					res := make(chan beacon.BeaconOrErr, len(test.beacons))
+				func(_, _ interface{}) ([]beacon.BeaconOrErr, error) {
+					res := make([]beacon.BeaconOrErr, 0, len(test.beacons))
 					for _, desc := range test.beacons {
-						res <- testBeaconOrErr(g, desc)
+						res = append(res, testBeaconOrErr(g, desc))
 					}
-					close(res)
 					return res, nil
 				})
+
 			var stored []*seg.Meta
 			segStore.EXPECT().StoreSegs(gomock.Any(), gomock.Any()).DoAndReturn(
 				func(_ context.Context, segs []*seg.Meta) (seghandler.SegStats, error) {
@@ -133,6 +133,7 @@ func TestRegistrarRun(t *testing.T) {
 
 			r.Run(context.Background())
 			assert.Len(t, stored, len(test.beacons))
+
 			for _, s := range stored {
 				assert.NoError(t, s.Segment.Validate(seg.ValidateSegment))
 				assert.NoError(t, s.Segment.VerifyASEntry(context.Background(),
@@ -197,12 +198,11 @@ func TestRegistrarRun(t *testing.T) {
 			}
 			g := graph.NewDefaultGraph(mctrl)
 			segProvider.EXPECT().SegmentsToRegister(gomock.Any(), test.segType).DoAndReturn(
-				func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
-					res := make(chan beacon.BeaconOrErr, len(test.beacons))
+				func(_, _ interface{}) ([]beacon.BeaconOrErr, error) {
+					res := make([]beacon.BeaconOrErr, len(test.beacons))
 					for _, desc := range test.beacons {
-						res <- testBeaconOrErr(g, desc)
+						res = append(res, testBeaconOrErr(g, desc))
 					}
-					close(res)
 					return res, nil
 				})
 			type regMsg struct {
@@ -257,49 +257,7 @@ func TestRegistrarRun(t *testing.T) {
 			r.Run(context.Background())
 		})
 	}
-	t.Run("Run drains the channel", func(t *testing.T) {
-		mctrl := gomock.NewController(t)
-		defer mctrl.Finish()
-		topoProvider := itopotest.TopoProviderFromFile(t, topoCore)
-		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
-		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 
-		r := WriteScheduler{
-			Writer: &LocalWriter{
-				Extender: &DefaultExtender{
-					IA:         topoProvider.Get().IA(),
-					MTU:        topoProvider.Get().MTU(),
-					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
-					Intfs:      intfs,
-					MAC:        macFactory,
-					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
-					StaticInfo: func() *StaticInfoCfg { return nil },
-				},
-				Intfs: intfs,
-				Type:  seg.TypeCore,
-			},
-			Intfs:    intfs,
-			Tick:     NewTick(time.Hour),
-			Provider: segProvider,
-			Type:     seg.TypeCore,
-		}
-		res := make(chan beacon.BeaconOrErr, 3)
-		segProvider.EXPECT().SegmentsToRegister(gomock.Any(), seg.TypeCore).DoAndReturn(
-			func(_, _ interface{}) (<-chan beacon.BeaconOrErr, error) {
-				for i := 0; i < 3; i++ {
-					res <- beacon.BeaconOrErr{Err: errors.New("Invalid beacon")}
-				}
-				close(res)
-				return res, nil
-			})
-		r.Run(context.Background())
-		select {
-		case b := <-res:
-			assert.Zero(t, b)
-		default:
-			t.Fatal("Must not block")
-		}
-	})
 	t.Run("Faulty beacons are not sent", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()

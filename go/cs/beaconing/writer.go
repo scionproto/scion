@@ -44,10 +44,9 @@ type Pather interface {
 // SegmentProvider provides segments to register for the specified type.
 type SegmentProvider interface {
 	// SegmentsToRegister returns the segments that should be registered for the
-	// given segment type. The returned channel must not be nil if the returned
+	// given segment type. The returned slice must not be nil if the returned
 	// error is nil.
-	SegmentsToRegister(ctx context.Context, segType seg.Type) (
-		<-chan beacon.BeaconOrErr, error)
+	SegmentsToRegister(ctx context.Context, segType seg.Type) ([]beacon.BeaconOrErr, error)
 }
 
 // SegmentStore stores segments in the path database.
@@ -70,12 +69,11 @@ type WriteStats struct {
 
 // Writer writes segments.
 type Writer interface {
-	// Write must consume the segments channel until it's closed by the caller.
-	// The provided channel is always non-nil. Peers indicate the peering
+	// Write writes passed slice of segments.Peers indicate the peering
 	// interface IDs of the local IA. The returned statistics should provide
 	// insights about how many segments have been successfully written. The
 	// method should return an error if the writing did fail.
-	Write(ctx context.Context, segments <-chan beacon.BeaconOrErr,
+	Write(ctx context.Context, segments []beacon.BeaconOrErr,
 		peers []common.IFIDType) (WriteStats, error)
 }
 
@@ -159,14 +157,14 @@ type RemoteWriter struct {
 }
 
 // Write writes the segment at the source AS of the segment.
-func (r *RemoteWriter) Write(ctx context.Context, segments <-chan beacon.BeaconOrErr,
+func (r *RemoteWriter) Write(ctx context.Context, segments []beacon.BeaconOrErr,
 	peers []common.IFIDType) (WriteStats, error) {
 
 	logger := log.FromCtx(ctx)
 	s := newSummary()
 	var expected int
 	var wg sync.WaitGroup
-	for bOrErr := range segments {
+	for _, bOrErr := range segments {
 		if bOrErr.Err != nil {
 			logger.Error("Unable to get beacon", "err", bOrErr.Err)
 			metrics.CounterInc(r.InternalErrors)
@@ -220,13 +218,13 @@ type LocalWriter struct {
 }
 
 // Write terminates the segments and registers them in the SegmentStore.
-func (r *LocalWriter) Write(ctx context.Context, segments <-chan beacon.BeaconOrErr,
+func (r *LocalWriter) Write(ctx context.Context, segments []beacon.BeaconOrErr,
 	peers []common.IFIDType) (WriteStats, error) {
 
 	logger := log.FromCtx(ctx)
 	beacons := make(map[string]beacon.Beacon)
 	var toRegister []*seg.Meta
-	for bOrErr := range segments {
+	for _, bOrErr := range segments {
 		if bOrErr.Err != nil {
 			logger.Error("Unable to get beacon", "err", bOrErr.Err)
 			metrics.CounterInc(r.InternalErrors)

@@ -43,14 +43,11 @@ type promOp string
 const (
 	promOpInsert          promOp = "insert"
 	promOpInsertHpCfg     promOp = "insert_with_hpcfg"
-	promOpDelete          promOp = "delete"
 	promOpDeleteExpired   promOp = "delete_expired"
 	promOpGet             promOp = "get"
 	promOpGetAll          promOp = "get_all"
 	promOpInsertNextQuery promOp = "insert_next_query"
 	promOpGetNextQuery    promOp = "get_next_query"
-	promOpDeleteExpiredNQ promOp = "delete_expired_nq"
-	promOpDeleteNQ        promOp = "delete_nq"
 
 	promOpBeginTx    promOp = "tx_begin"
 	promOpCommitTx   promOp = "tx_commit"
@@ -211,16 +208,6 @@ func (db *metricsExecutor) InsertWithHPCfgIDs(ctx context.Context,
 	return cnt, err
 }
 
-func (db *metricsExecutor) Delete(ctx context.Context, params *query.Params) (int, error) {
-	var cnt int
-	var err error
-	db.metrics.Observe(ctx, promOpDelete, func(ctx context.Context) error {
-		cnt, err = db.pathDB.Delete(ctx, params)
-		return err
-	})
-	return cnt, err
-}
-
 func (db *metricsExecutor) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
 	var cnt int
 	var err error
@@ -282,26 +269,4 @@ func (db *metricsExecutor) GetNextQuery(ctx context.Context, src, dst addr.IA,
 		return err
 	})
 	return t, err
-}
-
-func (db *metricsExecutor) DeleteExpiredNQ(ctx context.Context, now time.Time) (int, error) {
-	var cnt int
-	var err error
-	db.metrics.Observe(ctx, promOpDeleteExpiredNQ, func(ctx context.Context) error {
-		cnt, err = db.pathDB.DeleteExpiredNQ(ctx, now)
-		return err
-	})
-	return cnt, err
-}
-
-func (db *metricsExecutor) DeleteNQ(ctx context.Context, src, dst addr.IA,
-	policy PolicyHash) (int, error) {
-
-	var cnt int
-	var err error
-	db.metrics.Observe(ctx, promOpDeleteNQ, func(ctx context.Context) error {
-		cnt, err = db.pathDB.DeleteNQ(ctx, src, dst, policy)
-		return err
-	})
-	return cnt, err
 }
