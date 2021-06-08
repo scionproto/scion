@@ -101,12 +101,11 @@ func TestPropagatorRun(t *testing.T) {
 			}
 			g := graph.NewDefaultGraph(mctrl)
 			provider.EXPECT().BeaconsToPropagate(gomock.Any()).MaxTimes(2).DoAndReturn(
-				func(_ interface{}) (<-chan beacon.BeaconOrErr, error) {
-					res := make(chan beacon.BeaconOrErr, len(beacons[test.core]))
+				func(_ interface{}) ([]beacon.BeaconOrErr, error) {
+					res := make([]beacon.BeaconOrErr, 0, len(beacons[test.core]))
 					for _, desc := range beacons[test.core] {
-						res <- testBeaconOrErr(g, desc)
+						res = append(res, testBeaconOrErr(g, desc))
 					}
-					close(res)
 					return res, nil
 				},
 			)
@@ -167,11 +166,8 @@ func TestPropagatorRun(t *testing.T) {
 		// We call run 4 times in this test, since the interface to 1-ff00:0:120
 		// will never be beaconed on, because the beacons are filtered for loops.
 		provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(4).DoAndReturn(
-			func(_ interface{}) (<-chan beacon.BeaconOrErr, error) {
-				res := make(chan beacon.BeaconOrErr, 1)
-				res <- testBeaconOrErr(g, beacons[true][0])
-				close(res)
-				return res, nil
+			func(_ interface{}) ([]beacon.BeaconOrErr, error) {
+				return []beacon.BeaconOrErr{testBeaconOrErr(g, beacons[true][0])}, nil
 			},
 		)
 		// 1. Initial run where one beacon fails to send. -> 2 calls

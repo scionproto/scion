@@ -151,11 +151,6 @@ class TestBase(cli.Application):
             subprocess.run(["mkdir", "-p", os.path.dirname(dst)], check=True)
             subprocess.run(["cp", "-L", src, dst], check=True)
 
-        cryptolib = self.test_state.artifacts + "/crypto_lib.sh"
-        copy_file(
-            self.test_state.executable("crypto_lib.sh"),
-            cryptolib,
-        )
         copy_file(
             self.test_state.topo,
             self.test_state.artifacts + "/topology.json",
@@ -168,7 +163,6 @@ class TestBase(cli.Application):
         env = os.environ.copy()
         spki_path = os.path.dirname(self.test_state.executable("scion-pki"))
         env["PATH"] = spki_path + ":" + env["PATH"]
-        env["CRYPTOLIB"] = cryptolib
         subprocess.run(
             [
                 self.test_state.executable("topogen"),

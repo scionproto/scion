@@ -345,14 +345,6 @@ func insertInterfaces(ctx context.Context, tx *sql.Tx, ases []seg.ASEntry, segRo
 	return nil
 }
 
-func (e *executor) Delete(ctx context.Context, params *query.Params) (int, error) {
-	q, args := e.buildQuery(params)
-	query := fmt.Sprintf("DELETE FROM Segments WHERE RowId IN(SELECT RowID FROM (%s))", q)
-	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
-		return tx.ExecContext(ctx, query, args...)
-	})
-}
-
 func (e *executor) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
 	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
 		delStmt := `DELETE FROM Segments WHERE MaxExpiry < ?`
@@ -627,37 +619,4 @@ func (e *executor) GetNextQuery(ctx context.Context, src, dst addr.IA,
 		return time.Time{}, err
 	}
 	return time.Unix(0, nanos), nil
-}
-
-func (e *executor) DeleteExpiredNQ(ctx context.Context, now time.Time) (int, error) {
-	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
-		delStmt := `DELETE FROM NextQuery WHERE NextQuery < ?`
-		return tx.ExecContext(ctx, delStmt, now.UnixNano())
-	})
-}
-
-func (e *executor) DeleteNQ(ctx context.Context, src, dst addr.IA,
-	policy pathdb.PolicyHash) (int, error) {
-
-	return e.deleteInTx(ctx, func(tx *sql.Tx) (sql.Result, error) {
-		delStmt := `DELETE FROM NextQuery`
-		var whereParts []string
-		var args []interface{}
-		if !src.IsZero() {
-			whereParts = append(whereParts, "SrcIsdID = ? AND SrcASID = ?")
-			args = append(args, src.I, src.A)
-		}
-		if !dst.IsZero() {
-			whereParts = append(whereParts, "DstIsdID = ? AND DstASID = ?")
-			args = append(args, dst.I, dst.A)
-		}
-		if policy != nil {
-			whereParts = append(whereParts, "Policy = ?")
-			args = append(args, policy)
-		}
-		if len(whereParts) > 0 {
-			delStmt = fmt.Sprintf("%s WHERE %s", delStmt, strings.Join(whereParts, " AND "))
-		}
-		return tx.ExecContext(ctx, delStmt, args...)
-	})
 }

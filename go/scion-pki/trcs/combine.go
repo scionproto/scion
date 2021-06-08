@@ -42,8 +42,7 @@ func newCombine(pather command.Pather) *cobra.Command {
 		Use:   "combine",
 		Short: "Combine partially signed TRCs",
 		Long: `'combine' combines the signatures on partially signed TRCs into one single TRC.
-The command checks that all parts sign the same TRC payload contents, which is
-provided with the '--payload' flag.
+The command checks that all parts sign the same TRC payload content.
 
 No further checks are made. Check that the TRC is valid and verifiable with the
 appropriate commands.
@@ -59,8 +58,8 @@ appropriate commands.
 
 	addOutputFlag(&flags.out, cmd)
 	cmd.Flags().StringVarP(&flags.payload, "payload", "p", "",
-		"The ASN.1 DER encoded payload (required)")
-	cmd.MarkFlagRequired("payload")
+		"The TRC payload. If provided, it will be used as a reference payload to compare the "+
+			"partially signed TRC payloads against. It can be either DER or PEM encoded.")
 	cmd.Flags().StringVar(&flags.format, "format", "der", "Output format (der|pem)")
 
 	return cmd
@@ -69,14 +68,6 @@ appropriate commands.
 // RunCombine combines the partially signed TRC files and writes them to
 // the out directory, pld is the payload file.
 func RunCombine(files []string, pld, out string, format string) error {
-	rawPld, err := ioutil.ReadFile(pld)
-	if err != nil {
-		return serrors.WrapStr("error loading payload", err)
-	}
-	block, _ := pem.Decode(rawPld)
-	if block != nil && block.Type == "TRC PAYLOAD" {
-		rawPld = block.Bytes
-	}
 	trcs := make(map[string]cppki.SignedTRC)
 	for _, name := range files {
 		dec, err := DecodeFromFile(name)
@@ -85,34 +76,12 @@ func RunCombine(files []string, pld, out string, format string) error {
 		}
 		trcs[name] = dec
 	}
-	// Check all payloads are the same.
-	var errs serrors.List
-	for name, signed := range trcs {
-		if !bytes.Equal(signed.TRC.Raw, rawPld) {
-			errs = append(errs, serrors.New("different payload contents", "file", name))
-		}
-	}
-	if err := errs.ToError(); err != nil {
+	if err := verifyPayload(pld, trcs); err != nil {
 		return err
 	}
-	infos, err := combineSignerInfos(trcs)
+	packed, err := CombineSignedPayloads(trcs)
 	if err != nil {
 		return err
-	}
-	eci, err := protocol.NewDataEncapsulatedContentInfo(rawPld)
-	if err != nil {
-		return serrors.WrapStr("error encoding payload", err)
-	}
-	sd := protocol.SignedData{
-		Version:          1,
-		EncapContentInfo: eci,
-		SignerInfos:      infos,
-		DigestAlgorithms: combineDigestAlgorithms(infos),
-	}
-	// Write signed TRC.
-	packed, err := sd.ContentInfoDER()
-	if err != nil {
-		return serrors.WrapStr("error packing combined TRC", err)
 	}
 	if format == "pem" {
 		packed = pem.EncodeToMemory(&pem.Block{
@@ -125,6 +94,40 @@ func RunCombine(files []string, pld, out string, format string) error {
 	}
 	fmt.Printf("Successfully combined TRC at %s\n", out)
 	return nil
+}
+
+// CombineSignedPayloads combines the signed TRC payloads and checks that all payloads and
+// signer infos are consistent.
+func CombineSignedPayloads(trcs map[string]cppki.SignedTRC) ([]byte, error) {
+	if err := verifyPayload("", trcs); err != nil {
+		return nil, err
+	}
+	infos, err := combineSignerInfos(trcs)
+	if err != nil {
+		return nil, err
+	}
+	// Extract any payload. They are guaranteed to be the same
+	var pld []byte
+	for _, signed := range trcs {
+		pld = signed.TRC.Raw
+		break
+	}
+	eci, err := protocol.NewDataEncapsulatedContentInfo(pld)
+	if err != nil {
+		return nil, serrors.WrapStr("error encoding payload", err)
+	}
+	sd := protocol.SignedData{
+		Version:          1,
+		EncapContentInfo: eci,
+		SignerInfos:      infos,
+		DigestAlgorithms: combineDigestAlgorithms(infos),
+	}
+	// Write signed TRC.
+	packed, err := sd.ContentInfoDER()
+	if err != nil {
+		return nil, serrors.WrapStr("error packing combined TRC", err)
+	}
+	return packed, nil
 }
 
 // combineSignerInfos combines all singer infos. It checks that non-unique
@@ -188,4 +191,31 @@ func findDigestAlgorithm(algo pkix.AlgorithmIdentifier, algos []pkix.AlgorithmId
 		}
 	}
 	return false
+}
+
+func verifyPayload(pld string, trcs map[string]cppki.SignedTRC) error {
+	var errs serrors.List
+	var rawPld []byte
+	if pld != "" {
+		var err error
+		rawPld, err = ioutil.ReadFile(pld)
+		if err != nil {
+			return serrors.WrapStr("error loading payload", err)
+		}
+		block, _ := pem.Decode(rawPld)
+		if block != nil && block.Type == "TRC PAYLOAD" {
+			rawPld = block.Bytes
+		}
+	}
+	for name, signed := range trcs {
+		if rawPld == nil {
+			rawPld = signed.TRC.Raw
+			continue
+		}
+		if !bytes.Equal(signed.TRC.Raw, rawPld) {
+			errs = append(errs, serrors.New("different payload contents", "file", name))
+		}
+	}
+
+	return errs.ToError()
 }

@@ -16,19 +16,23 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/scionproto/scion/go/cs/beacon"
-	sqlitebeacondb "github.com/scionproto/scion/go/cs/beacon/beacondbsqlite"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/config"
+	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	sqlitepathdb "github.com/scionproto/scion/go/lib/pathdb/sqlite"
+	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
+	sqlitebeacondb "github.com/scionproto/scion/go/pkg/storage/beacon/sqlite"
 	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
 	sqlitetrustdb "github.com/scionproto/scion/go/pkg/storage/trust/sqlite"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -74,6 +78,11 @@ type TrustDB interface {
 	io.Closer
 	trust.DB
 	truststorage.TrustAPI
+}
+
+type BeaconDB interface {
+	io.Closer
+	beacon.DB
 }
 
 var _ (config.Config) = (*DBConfig)(nil)
@@ -131,14 +140,43 @@ func (cfg *DBConfig) ConfigName() string {
 	return "db"
 }
 
-func NewBeaconStorage(c DBConfig, ia addr.IA) (beacon.DB, error) {
+func NewBeaconStorage(c DBConfig, ia addr.IA) (BeaconDB, error) {
 	log.Info("Connecting BeaconDB", "backend", BackendSqlite, "connection", c.Connection)
 	db, err := sqlitebeacondb.New(c.Connection, ia)
 	if err != nil {
 		return nil, err
 	}
 	SetConnLimits(db, c)
-	return db, nil
+
+	// Start a periodic task that cleans up the expired beacons.
+	cleaner := periodic.Start(
+		cleaner.New(
+			func(ctx context.Context) (int, error) {
+				return db.DeleteExpiredBeacons(ctx, time.Now())
+			},
+			"control_beaconstorage_cleaner",
+		),
+		30*time.Second,
+		30*time.Second,
+	)
+	return beaconDBWithCleaner{
+		DB:       db,
+		cleaner:  cleaner,
+		dbCloser: db,
+	}, nil
+}
+
+// beaconDBWithCleaner implements the BeaconDB interface and stops both the
+// database and the cleanup task on Close.
+type beaconDBWithCleaner struct {
+	beacon.DB
+	cleaner  *periodic.Runner
+	dbCloser io.Closer
+}
+
+func (b beaconDBWithCleaner) Close() error {
+	b.cleaner.Kill()
+	return b.dbCloser.Close()
 }
 
 func NewPathStorage(c DBConfig) (pathdb.PathDB, error) {

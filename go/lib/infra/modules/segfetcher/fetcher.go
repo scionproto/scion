@@ -118,7 +118,9 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context,
 			return segs, serrors.WrapStr("processing reply", err)
 		}
 		if len(r.VerificationErrors()) > 0 {
-			log.FromCtx(ctx).Info("Error during verification of segments/revocations",
+			log.FromCtx(ctx).Info("Errors during verification of segments/revocations",
+				"number", len(r.VerificationErrors()))
+			log.FromCtx(ctx).Debug("Error during verification of segments/revocations",
 				"errors", r.VerificationErrors().ToError())
 		}
 		segs = append(segs, Segments(r.Stats().VerifiedSegs)...)

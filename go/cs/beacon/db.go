@@ -16,19 +16,14 @@ package beacon
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"io"
 	"strings"
-	"time"
 
 	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
@@ -40,60 +35,22 @@ const (
 	ErrParse common.ErrMsg = "Failed to parse entry"
 )
 
-// DBRead defines all read operations of the beacon DB.
-type DBRead interface {
-	// CandidateBeacons returns up to setSize beacons that are allowed for the
-	// given usage. The result channel either carries beacons or errors. The
-	// beacons in the channel are ordered by segment length from shortest to
-	// longest. The channel must be drained, since the db might spawn go routines
-	// to fill the channel.
-	CandidateBeacons(ctx context.Context, setSize int, usage Usage, src addr.IA) (
-		<-chan BeaconOrErr, error)
-	// BeaconSources returns all source ISD-AS of the beacons in the database.
-	BeaconSources(ctx context.Context) ([]addr.IA, error)
-	// AllRevocations returns all revocations in the database as a channel. The
-	// result channel either carries revocations or errors. The error can
-	// either be ErrReadingRows or ErrParse. After a ErrReadingRows occurs the
-	// channel is closed and the result might be incomplete. The channel must
-	// be drained, since the implementation might spawn go routines to fill the
-	// channel.
-	AllRevocations(ctx context.Context) (<-chan RevocationOrErr, error)
-}
-
 // InsertStats provides statistics about an insertion.
 type InsertStats struct {
 	Inserted, Updated, Filtered int
 }
 
-// DBWrite defines all write operations of the beacon DB.
-type DBWrite interface {
-	InsertBeacon(ctx context.Context, beacon Beacon, usage Usage) (InsertStats, error)
-	DeleteExpiredBeacons(ctx context.Context, now time.Time) (int, error)
-	DeleteRevokedBeacons(ctx context.Context, now time.Time) (int, error)
-	InsertRevocation(ctx context.Context, revocation *path_mgmt.SignedRevInfo) error
-	DeleteRevocation(ctx context.Context, ia addr.IA, ifid common.IFIDType) error
-	DeleteExpiredRevocations(ctx context.Context, now time.Time) (int, error)
-}
-
-// DBReadWrite defines all read an write operations of the beacon DB.
-type DBReadWrite interface {
-	DBRead
-	DBWrite
-}
-
-// Transaction defines all operations of a transaction on the beacon DB.
-type Transaction interface {
-	DBReadWrite
-	Commit() error
-	Rollback() error
-}
-
 // DB defines the interface that all beacon DB backends have to implement.
 type DB interface {
-	DBReadWrite
-	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
-	db.LimitSetter
-	io.Closer
+	// CandidateBeacons returns up to `setSize` beacons that are allowed for the
+	// given usage. The beacons in the slice are ordered by segment length from
+	// shortest to longest.
+	CandidateBeacons(ctx context.Context, setSize int, usage Usage,
+		src addr.IA) ([]BeaconOrErr, error)
+	// BeaconSources returns all source ISD-AS of the beacons in the database.
+	BeaconSources(ctx context.Context) ([]addr.IA, error)
+	// Insert inserts a beacon with its allowed usage into the database.
+	InsertBeacon(ctx context.Context, beacon Beacon, usage Usage) (InsertStats, error)
 }
 
 const (

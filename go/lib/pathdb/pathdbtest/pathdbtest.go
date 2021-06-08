@@ -87,15 +87,6 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 			test(t, ctrl, db)
 		}
 	}
-	tableWrapper := func(inTx bool, test func(t *testing.T, db TestablePathDB,
-		inTx bool)) func(t *testing.T) {
-
-		return func(t *testing.T) {
-			test(t, db, inTx)
-		}
-	}
-	t.Run("Delete",
-		tableWrapper(false, testDelete))
 	t.Run("InsertWithHpCfgID should correctly insert a new segment",
 		testWrapper(testInsertWithHpCfgIDsFull))
 	t.Run("InsertWithHpCfgID should correctly update a new segment",
@@ -122,10 +113,6 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 		testWrapper(testGetModifiedIDs))
 	t.Run("NextQuery",
 		testWrapper(testNextQuery))
-	t.Run("DeleteExpiredNQ",
-		tableWrapper(false, testNextQueryDeleteExpired))
-	t.Run("DeleteNQ",
-		tableWrapper(false, testDeleteNQ))
 
 	txTestWrapper := func(test func(*testing.T, *gomock.Controller,
 		pathdb.ReadWrite)) func(t *testing.T) {
@@ -144,8 +131,6 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 		}
 	}
 	t.Run("WithTransaction", func(t *testing.T) {
-		t.Run("Delete",
-			tableWrapper(true, testDelete))
 		t.Run("InsertWithHpCfgID should correctly insert a new segment",
 			txTestWrapper(testInsertWithHpCfgIDsFull))
 		t.Run("InsertWithHpCfgID should correctly update a new segment",
@@ -172,10 +157,6 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 			txTestWrapper(testGetModifiedIDs))
 		t.Run("NextQuery",
 			txTestWrapper(testNextQuery))
-		t.Run("DeleteExpiredNQ",
-			tableWrapper(true, testNextQueryDeleteExpired))
-		t.Run("DeleteNQ",
-			tableWrapper(true, testDeleteNQ))
 		t.Run("Rollback", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
@@ -185,63 +166,6 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 			testRollback(t, ctrl, db)
 		})
 	})
-}
-
-func testDelete(t *testing.T, pathDB TestablePathDB, inTx bool) {
-	tests := map[string]struct {
-		Setup func(ctx context.Context, t *testing.T, ctrl *gomock.Controller,
-			pathDB pathdb.PathDB) *query.Params
-		DeleteCount int
-	}{
-		"Delete by id": {
-			Setup: func(ctx context.Context, t *testing.T, ctrl *gomock.Controller,
-				pathDB pathdb.PathDB) *query.Params {
-				TS := uint32(10)
-				pseg, segID := AllocPathSegment(t, ctrl, ifs1, TS)
-				InsertSeg(t, ctx, pathDB, pseg, hpCfgIDs)
-				return &query.Params{SegIDs: [][]byte{segID}}
-			},
-			DeleteCount: 1,
-		},
-		"Delete by interfaces": {
-			Setup: func(ctx context.Context, t *testing.T, ctrl *gomock.Controller,
-				pathDB pathdb.PathDB) *query.Params {
-				TS := uint32(10)
-				pseg, _ := AllocPathSegment(t, ctrl, ifs1, TS)
-				InsertSeg(t, ctx, pathDB, pseg, hpCfgIDs)
-				pseg, _ = AllocPathSegment(t, ctrl, ifs2, TS)
-				InsertSeg(t, ctx, pathDB, pseg, hpCfgIDs)
-				return &query.Params{
-					Intfs: []*query.IntfSpec{&ifspecs[0]},
-				}
-			},
-			DeleteCount: 1,
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-			defer cancelF()
-			pathDB.Prepare(t, ctx)
-
-			params := test.Setup(ctx, t, ctrl, pathDB)
-			var deleted int
-			if inTx {
-				tx, err := pathDB.BeginTransaction(ctx, nil)
-				require.NoError(t, err)
-				deleted, err = tx.Delete(ctx, params)
-				require.NoError(t, err)
-				require.NoError(t, tx.Commit())
-			} else {
-				var err error
-				deleted, err = pathDB.Delete(ctx, params)
-				require.NoError(t, err)
-			}
-			assert.Equal(t, test.DeleteCount, deleted)
-		})
-	}
 }
 
 func testInsertWithHpCfgIDsFull(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) {
@@ -586,174 +510,6 @@ type nqDescriptor struct {
 	Src    addr.IA
 	Dst    addr.IA
 	Policy pathdb.PolicyHash
-}
-
-func testNextQueryDeleteExpired(t *testing.T, pathDB TestablePathDB, inTx bool) {
-	ia110 := xtest.MustParseIA("1-ff00:0:110")
-	ia120 := xtest.MustParseIA("1-ff00:0:120")
-	ia130 := xtest.MustParseIA("1-ff00:0:130")
-
-	tests := map[string]struct {
-		PrepareDB func(t *testing.T, ctx context.Context,
-			now time.Time, pathDB pathdb.ReadWrite)
-		ExpectedDeleted   int
-		ExpectedRemaining []nqDescriptor
-	}{
-		"Empty table, no deletions": {
-			PrepareDB: func(t *testing.T, ctx context.Context,
-				now time.Time, pathDB pathdb.ReadWrite) {
-			},
-		},
-		"Table with non expired entry no deletions": {
-			PrepareDB: func(t *testing.T, ctx context.Context,
-				now time.Time, pathDB pathdb.ReadWrite) {
-
-				_, err := pathDB.InsertNextQuery(ctx, ia110, ia110, nil, now.Add(time.Minute))
-				require.NoError(t, err)
-			},
-			ExpectedRemaining: []nqDescriptor{{ia110, ia110, nil}},
-		},
-		"Table with 2 old entries and 1 new entry -> 2 deletions": {
-			PrepareDB: func(t *testing.T, ctx context.Context,
-				now time.Time, pathDB pathdb.ReadWrite) {
-
-				_, err := pathDB.InsertNextQuery(ctx, ia110, ia110, nil, now.Add(-time.Minute))
-				require.NoError(t, err)
-				_, err = pathDB.InsertNextQuery(ctx, ia110, ia120, nil, now.Add(-time.Minute))
-				require.NoError(t, err)
-				_, err = pathDB.InsertNextQuery(ctx, ia110, ia130, nil, now)
-				require.NoError(t, err)
-			},
-			ExpectedDeleted:   2,
-			ExpectedRemaining: []nqDescriptor{{ia110, ia130, nil}},
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-			defer cancelF()
-			pathDB.Prepare(t, ctx)
-
-			now := time.Now()
-			var deleted int
-			test.PrepareDB(t, ctx, now, pathDB)
-			if inTx {
-				tx, err := pathDB.BeginTransaction(ctx, nil)
-				require.NoError(t, err)
-				deleted, err = tx.DeleteExpiredNQ(ctx, now)
-				require.NoError(t, err)
-				require.NoError(t, tx.Commit())
-			} else {
-				var err error
-				deleted, err = pathDB.DeleteExpiredNQ(ctx, now)
-				assert.NoError(t, err)
-			}
-			assert.Equal(t, test.ExpectedDeleted, deleted)
-			for _, nq := range test.ExpectedRemaining {
-				nextQuery, err := pathDB.GetNextQuery(ctx, nq.Src, nq.Dst, nq.Policy)
-				assert.NoError(t, err, "Expected NQ %v to be in DB", nq)
-				assert.NotZero(t, nextQuery, "Expected NQ %v to be in DB", nq)
-			}
-		})
-	}
-}
-
-func testDeleteNQ(t *testing.T, pathDB TestablePathDB, inTx bool) {
-	ia110 := xtest.MustParseIA("1-ff00:0:110")
-	ia120 := xtest.MustParseIA("1-ff00:0:120")
-	ia130 := xtest.MustParseIA("1-ff00:0:130")
-	pol := []byte("policy")
-
-	insertStdEntries := func(t *testing.T, ctx context.Context, pathDB pathdb.ReadWrite) {
-		now := time.Now()
-		_, err := pathDB.InsertNextQuery(ctx, ia110, ia110, nil, now.Add(time.Minute))
-		require.NoError(t, err)
-		_, err = pathDB.InsertNextQuery(ctx, ia110, ia120, nil, now.Add(time.Minute))
-		require.NoError(t, err)
-		_, err = pathDB.InsertNextQuery(ctx, ia120, ia130, nil, now.Add(time.Minute))
-		require.NoError(t, err)
-		_, err = pathDB.InsertNextQuery(ctx, ia120, ia130, pol, now.Add(time.Minute))
-		require.NoError(t, err)
-	}
-
-	tests := map[string]struct {
-		PrepareDB         func(t *testing.T, ctx context.Context, pathDB pathdb.ReadWrite)
-		Src               addr.IA
-		Dst               addr.IA
-		Policy            pathdb.PolicyHash
-		ExpectedDeleted   int
-		ExpectedRemaining []nqDescriptor
-	}{
-		"Empty DB -> no deletions": {
-			PrepareDB: func(t *testing.T, ctx context.Context, pathDB pathdb.ReadWrite) {},
-		},
-		"Full DB, delete all -> deletes all": {
-			PrepareDB:       insertStdEntries,
-			ExpectedDeleted: 4,
-		},
-		"Full DB, delete src -> deletes all with matching src": {
-			PrepareDB:         insertStdEntries,
-			Src:               ia120,
-			ExpectedDeleted:   2,
-			ExpectedRemaining: []nqDescriptor{{ia110, ia110, nil}, {ia110, ia120, nil}},
-		},
-		"Full DB, delete dst -> deletes all with matching dst": {
-			PrepareDB:       insertStdEntries,
-			Dst:             ia120,
-			ExpectedDeleted: 1,
-			ExpectedRemaining: []nqDescriptor{
-				{ia110, ia110, nil}, {ia120, ia130, nil}, {ia120, ia130, pol}},
-		},
-		"Full DB, delete pol -> deletes all with matching policy": {
-			PrepareDB:       insertStdEntries,
-			Policy:          pol,
-			ExpectedDeleted: 1,
-			ExpectedRemaining: []nqDescriptor{
-				{ia110, ia110, nil}, {ia110, ia120, nil}, {ia120, ia130, nil}},
-		},
-		"Full DB, delete src,dst -> deletes all with matching src & dst": {
-			PrepareDB:       insertStdEntries,
-			Src:             ia110,
-			Dst:             ia110,
-			ExpectedDeleted: 1,
-			ExpectedRemaining: []nqDescriptor{
-				{ia110, ia120, nil}, {ia120, ia130, nil}, {ia120, ia130, pol}},
-		},
-		"Not matching query -> deletes nothing": {
-			PrepareDB: insertStdEntries,
-			Src:       ia110,
-			Policy:    pol,
-			ExpectedRemaining: []nqDescriptor{
-				{ia110, ia110, nil}, {ia110, ia120, nil}, {ia120, ia130, nil}, {ia120, ia130, pol}},
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-			defer cancelF()
-			pathDB.Prepare(t, ctx)
-
-			var deleted int
-			test.PrepareDB(t, ctx, pathDB)
-			if inTx {
-				tx, err := pathDB.BeginTransaction(ctx, nil)
-				require.NoError(t, err)
-				deleted, err = tx.DeleteNQ(ctx, test.Src, test.Dst, test.Policy)
-				require.NoError(t, err)
-				require.NoError(t, tx.Commit())
-			} else {
-				var err error
-				deleted, err = pathDB.DeleteNQ(ctx, test.Src, test.Dst, test.Policy)
-				assert.NoError(t, err)
-			}
-			assert.Equal(t, test.ExpectedDeleted, deleted)
-			for _, nq := range test.ExpectedRemaining {
-				nextQuery, err := pathDB.GetNextQuery(ctx, nq.Src, nq.Dst, nq.Policy)
-				assert.NoError(t, err, "Expected NQ %v to be in DB", nq)
-				assert.NotZero(t, nextQuery, "Expected NQ %v to be in DB", nq)
-			}
-		})
-	}
 }
 
 func testRollback(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.PathDB) {

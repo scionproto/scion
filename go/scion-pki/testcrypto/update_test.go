@@ -40,8 +40,7 @@ func TestUpdateExtend(t *testing.T) {
 	outDir, cleanF := xtest.MustTempDir("", "testcrypto")
 	defer cleanF()
 	topo := "./testdata/test.topo"
-	cryptoLib := "../../../scripts/cryptoplayground/crypto_lib.sh"
-	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false, asValidity)
+	err := testcrypto.Testcrypto(topo, outDir, false, false, asValidity)
 	require.NoError(t, err)
 
 	cmd := testcrypto.NewUpdate()
@@ -113,8 +112,7 @@ func TestUpdateReSign(t *testing.T) {
 	outDir, cleanF := xtest.MustTempDir("", "testcrypto")
 	defer cleanF()
 	topo := "./testdata/test.topo"
-	cryptoLib := "../../../scripts/cryptoplayground/crypto_lib.sh"
-	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false, asValidity)
+	err := testcrypto.Testcrypto(topo, outDir, false, false, asValidity)
 	require.NoError(t, err)
 
 	cmd := testcrypto.NewUpdate()
@@ -182,8 +180,7 @@ func TestUpdateReGen(t *testing.T) {
 	outDir, cleanF := xtest.MustTempDir("", "testcrypto")
 	defer cleanF()
 	topo := "./testdata/test.topo"
-	cryptoLib := "../../../scripts/cryptoplayground/crypto_lib.sh"
-	err := testcrypto.Testcrypto(topo, cryptoLib, outDir, false, false, asValidity)
+	err := testcrypto.Testcrypto(topo, outDir, false, false, asValidity)
 	require.NoError(t, err)
 
 	cmd := testcrypto.NewUpdate()

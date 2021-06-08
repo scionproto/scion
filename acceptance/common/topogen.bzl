@@ -48,14 +48,12 @@ def topogen_test(
 
     common_args = [
         "--executables=scion-pki:$(location //go/scion-pki)",
-        "--executables=crypto_lib.sh:$(location //scripts/cryptoplayground:crypto_lib.sh)",
         "--executables=topogen:$(location //python/topology:topogen)",
         "--topo=$(location %s)" % topo,
         "--containers_tar=$(location :%s_containers.tar)" % name,
         "--setup-params='%s'" % setup_params,
     ]
     common_data = [
-        "//scripts/cryptoplayground:crypto_lib.sh",
         "//go/scion-pki",
         "//python/topology:topogen",
         "//tools:docker_ip",

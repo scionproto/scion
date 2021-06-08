@@ -17,62 +17,62 @@ package beacon
 import "math"
 
 type selectionAlgorithm interface {
-	// SelectAndServe selects the n best beacons from the beacons channel and
-	// serves them on the results channel.
-	SelectAndServe(beacons <-chan BeaconOrErr, results chan<- BeaconOrErr, resultSize int)
+	// SelectBeacons selects the `n` best beacons from the provided slice of beacons.
+	SelectBeacons(beacons []BeaconOrErr, resultSize int) []BeaconOrErr
 }
 
 // baseAlgo implements a very simple selection algorithm that optimizes for
 // short paths, but also tries to achieve some path diversity.
 type baseAlgo struct{}
 
-// selectAndServe implements a very simple selection algorithm. The best beacon
-// is the one with a shortest path. The channel is filled with the k-1 shortest
+// SelectBeacons implements a very simple selection algorithm. The best beacon
+// is the one with a shortest path. The slice contains the k-1 shortest
 // beacons. The last beacon is either the most diverse beacon from the remaining
 // beacons, if the diversity exceeds what has already been served. Or the
-// shortest remaining beacon, otherswise.
-func (baseAlgo) SelectAndServe(beacons <-chan BeaconOrErr, results chan<- BeaconOrErr,
-	resultSize int) {
-
-	best, diversity := baseAlgo{}.serveShortestBeacons(beacons, results, resultSize-1)
-	baseAlgo{}.serveMostDiverse(beacons, results, best, diversity)
+// shortest remaining beacon, otherwise.
+func (alg baseAlgo) SelectBeacons(beacons []BeaconOrErr, resultSize int) []BeaconOrErr {
+	results, best, diversity := alg.selectShortestBeacons(beacons, resultSize-1)
+	diverseBeacon, ok := alg.selectMostDiverse(beacons[len(results):], best, diversity)
+	if ok {
+		results = append(results, diverseBeacon)
+	}
+	return results
 }
 
-// serveShortsestBeacons serves the resultSize shortest beacons on the result channel.
-// It returns the first beacon and the maximum served diversity.
-func (baseAlgo) serveShortestBeacons(beacons <-chan BeaconOrErr, results chan<- BeaconOrErr,
-	resultSize int) (Beacon, int) {
+// serveShortsestBeacons computes the resultSize shortest beacons.
+// It returns the shortest beacons, the first beacon and the maximum served diversity.
+func (baseAlgo) selectShortestBeacons(beacons []BeaconOrErr,
+	resultSize int) ([]BeaconOrErr, Beacon, int) {
 
-	var best Beacon
-	var maxDiversity int
-	i := 0
-	for res := range beacons {
+	var (
+		results      []BeaconOrErr
+		best         Beacon
+		maxDiversity int
+
+		i = 0
+	)
+	for _, res := range beacons {
 		if res.Err == nil {
 			if (best == Beacon{}) {
-				// Create shallow copy to avoid data race.
-				best = Beacon{
-					Segment: res.Beacon.Segment.ShallowCopy(),
-					InIfId:  res.Beacon.InIfId,
-				}
+				best = res.Beacon
 			}
 			// Compute diversity before serving beacon to avoid data race.
 			maxDiversity = max(maxDiversity, best.Diversity(res.Beacon))
 			i++
 		}
-		results <- res
+		results = append(results, res)
 		if i == resultSize {
 			break
 		}
 	}
-	return best, maxDiversity
+	return results, best, maxDiversity
 }
 
-// serveMostDiverse selects the most diverse beacon compared to the provided
-// best beacon from all beacons that are in the channel and serves it in the
-// result channel if it exceeds the already served diversity. Otherwise, the
+// selectMostDiverse selects the most diverse beacon compared to the provided best beacon from all
+// provided beacons and returns it if it exceeds the already served diversity. Otherwise, the
 // shortest beacon is served.
-func (baseAlgo) serveMostDiverse(beacons <-chan BeaconOrErr, results chan<- BeaconOrErr,
-	best Beacon, servedDiversity int) {
+func (baseAlgo) selectMostDiverse(beacons []BeaconOrErr, best Beacon,
+	servedDiversity int) (BeaconOrErr, bool) {
 
 	var err error
 	// Most diverse beacon of the remaining beacons.
@@ -83,7 +83,7 @@ func (baseAlgo) serveMostDiverse(beacons <-chan BeaconOrErr, results chan<- Beac
 	// already served diversity.
 	var first Beacon
 
-	for res := range beacons {
+	for _, res := range beacons {
 		if (first == Beacon{}) {
 			first = res.Beacon
 		}
@@ -99,15 +99,14 @@ func (baseAlgo) serveMostDiverse(beacons <-chan BeaconOrErr, results chan<- Beac
 	}
 	if (first == Beacon{}) {
 		if err != nil {
-			results <- BeaconOrErr{Err: err}
+			return BeaconOrErr{Err: err}, true
 		}
-		return
+		return BeaconOrErr{}, false
 	}
 	if (diverse != Beacon{}) && maxDiversity > servedDiversity {
-		results <- BeaconOrErr{Beacon: diverse}
-		return
+		return BeaconOrErr{Beacon: diverse}, true
 	}
-	results <- BeaconOrErr{Beacon: first}
+	return BeaconOrErr{Beacon: first}, true
 }
 
 func max(a, b int) int {

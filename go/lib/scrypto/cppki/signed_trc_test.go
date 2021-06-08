@@ -42,11 +42,8 @@ func TestUpdateTRCs(t *testing.T) {
 
 	root, err := filepath.Abs("../../../../")
 	require.NoError(t, err)
-	playground, err := filepath.Abs(filepath.Join(root, "scripts", "cryptoplayground"))
-	require.NoError(t, err)
 
 	cmd := exec.Command(filepath.Join(root, "bin/scion-pki"), "testcrypto",
-		"--cryptolib", filepath.Join(playground, "crypto_lib.sh"),
 		"--topo", "./testdata/update_trc.topo",
 		"--out", dir,
 	)

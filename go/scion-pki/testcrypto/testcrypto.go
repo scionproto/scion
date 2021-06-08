@@ -15,46 +15,41 @@
 package testcrypto
 
 import (
+	"crypto"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math/rand"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/scion-pki/certs"
 	"github.com/scionproto/scion/go/scion-pki/conf"
+	"github.com/scionproto/scion/go/scion-pki/key"
 	"github.com/scionproto/scion/go/scion-pki/trcs"
 )
-
-const defaultCryptoLib = "./scripts/cryptoplayground/crypto_lib.sh"
 
 func Cmd(pather command.Pather) *cobra.Command {
 	var flags struct {
 		topo       string
 		out        string
-		cryptoLib  string
 		noCleanup  bool
 		isdDir     bool
 		asValidity string
 	}
 
-	// cmd implements the testcrypto sub-command. The bash library needs to be
-	// present on the file system. This approach is brittle when distributing the
-	// application. But this is only a temporary solution for generating the test
-	// crypto material and should be enough.
 	cmd := &cobra.Command{
 		Use:     "testcrypto",
 		Short:   "Generate crypto material for test topology",
@@ -62,16 +57,9 @@ func Cmd(pather command.Pather) *cobra.Command {
 		Hidden:  true,
 		Long: `'testcrypto' generates the crypto material for a test topology.
 
-To generate the crypto material, this command calls out to a docker container
-running openssl. In order for it to succeed, the crypto_lib must be available.
 This command should only be used in testing.
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if flags.cryptoLib == defaultCryptoLib {
-				if altLib, ok := os.LookupEnv("CRYPTOLIB"); ok {
-					flags.cryptoLib = altLib
-				}
-			}
 			asValidity, err := util.ParseDuration(flags.asValidity)
 			if err != nil {
 				return err
@@ -79,7 +67,6 @@ This command should only be used in testing.
 			cmd.SilenceUsage = true
 			return testcrypto(
 				flags.topo,
-				flags.cryptoLib,
 				flags.out,
 				flags.noCleanup,
 				flags.isdDir,
@@ -90,8 +77,6 @@ This command should only be used in testing.
 
 	cmd.Flags().StringVarP(&flags.topo, "topo", "t", "", "Topology description file (required)")
 	cmd.Flags().StringVarP(&flags.out, "out", "o", "gen", "Output directory")
-	cmd.Flags().StringVarP(&flags.cryptoLib, "cryptolib", "l",
-		defaultCryptoLib, "Path to bash crypto library")
 	cmd.Flags().BoolVar(&flags.isdDir, "isd-dir", false, "Group ASes in ISD directory")
 	cmd.Flags().StringVar(&flags.asValidity, "as-validity", "3d", "AS certificate validity")
 	cmd.MarkFlagRequired("topo")
@@ -104,15 +89,12 @@ This command should only be used in testing.
 type config struct {
 	topo       topo
 	out        outConfig
-	container  string
-	lib        string
 	now        time.Time
 	asValidity time.Duration
 }
 
 func testcrypto(
 	topo string,
-	cryptoLib string,
 	outDir string,
 	noCleanup bool,
 	isdDir bool,
@@ -123,14 +105,6 @@ func testcrypto(
 	if err != nil {
 		return err
 	}
-	lib, err := filepath.Abs(cryptoLib)
-	if err != nil {
-		return err
-	}
-	base, err := filepath.Abs(outDir)
-	if err != nil {
-		return err
-	}
 	out := outConfig{
 		base: outDir,
 		isd:  isdDir,
@@ -138,17 +112,10 @@ func testcrypto(
 	if err := prepareDirectories(t, out); err != nil {
 		return err
 	}
-	container, err := startDocker(base, lib)
-	if err != nil {
-		return err
-	}
-	defer stopDocker(container, lib)
 
 	cfg := config{
 		topo:       t,
-		container:  container,
 		out:        out,
-		lib:        lib,
 		now:        time.Now().Add(-time.Minute),
 		asValidity: asValidity,
 	}
@@ -171,34 +138,12 @@ func testcrypto(
 	if err := flatten(out); err != nil {
 		return err
 	}
-	if err := fixPermissions(cfg); err != nil {
-		return err
-	}
 	if !noCleanup {
 		if err := cleanup(cfg); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-func startDocker(out, lib string) (string, error) {
-	container := fmt.Sprintf("crypto_lib_%x", rand.Uint64())
-	cmd := exec.Command("sh", "-c", withLib("start_docker", lib))
-	cmd.Dir = out
-	cmd.Env = []string{
-		"PLAYGROUND=" + filepath.Dir(lib),
-		"CONTAINER_NAME=" + container,
-	}
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	return container, cmd.Run()
-}
-
-func stopDocker(container, lib string) {
-	cmd := exec.Command("sh", "-c", withLib("stop_docker", lib))
-	cmd.Env = []string{"CONTAINER_NAME=" + container}
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	cmd.Run()
 }
 
 func createVoters(cfg config) error {
@@ -322,6 +267,13 @@ func createASes(cfg config) error {
 	return nil
 }
 
+type voterInfo struct {
+	sensitiveKey  crypto.Signer
+	sensitiveCert *x509.Certificate
+	regularKey    crypto.Signer
+	regularCert   *x509.Certificate
+}
+
 func createTRCs(cfg config) error {
 	authoritatives := make(map[addr.ISD][]addr.AS)
 	cores := make(map[addr.ISD][]addr.AS)
@@ -368,48 +320,89 @@ func createTRCs(cfg config) error {
 		sort.Strings(trcConf.CertificateFiles)
 		trc, err := trcs.CreatePayload(trcConf)
 		if err != nil {
-			return serrors.WrapStr("creating TRC", err, "isd", isd)
+			return serrors.WrapStr("creating TRC payload", err, "isd", isd)
 		}
 		raw, err := trc.Encode()
 		if err != nil {
-			return serrors.WrapStr("encoding TRC", err, "isd", isd)
-		}
-		pldName := filepath.Join(cfg.out.base, fmt.Sprintf("ISD%d", isd), "TRC-B1-S1.pld.der")
-		err = ioutil.WriteFile(pldName, raw, 0666)
-		if err != nil {
-			return serrors.WrapStr("failed to write TRC payload", err, "isd", isd)
-		}
-		partFiles := make([]string, 0, len(voters[isd])*2)
-		for _, voter := range voters[isd] {
-			cmd := exec.Command("sh", "-c", withLib(fmt.Sprintf(`docker_exec "
-				cp /workdir/ISD%[1]d/TRC-B1-S1.pld.der $PUBDIR/ISD%[1]d-B1-S1.pld.der &&
-				navigate_pubdir &&
-				sign_payload"`, isd), cfg.lib))
-			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-			cmd.Env = []string{
-				"TRCID=" + fmt.Sprintf("ISD%d-B1-S1", isd),
-				"KEYDIR=" + cryptoVotingDir(voter, outConfig{base: "/workdir", isd: cfg.out.isd}),
-				"PUBDIR=" + cryptoVotingDir(voter, outConfig{base: "/workdir", isd: cfg.out.isd}),
-				"CONTAINER_NAME=" + cfg.container,
-			}
-			if err := cmd.Run(); err != nil {
-				return err
-			}
-			partFiles = append(partFiles,
-				filepath.Join(
-					cryptoVotingDir(voter, cfg.out), fmt.Sprintf("ISD%d-B1-S1.regular.trc", isd)),
-				filepath.Join(
-					cryptoVotingDir(voter, cfg.out), fmt.Sprintf("ISD%d-B1-S1.sensitive.trc", isd)),
-			)
+			return serrors.WrapStr("encoding TRC payload", err, "isd", isd)
 		}
 
-		err = trcs.RunCombine(partFiles, pldName,
-			filepath.Join(trcDir(isd, cfg.out), fmt.Sprintf("ISD%d-B1-S1.trc", isd)), "")
+		parts := make(map[string]cppki.SignedTRC, len(voters[isd])*2)
+		for _, voter := range voters[isd] {
+			voterInfo, err := loadVoterInfo(voter, cryptoVotingDir(voter, cfg.out))
+			if err != nil {
+				return err
+			}
+
+			sensitive, err := signPayload(raw, voterInfo.sensitiveKey, voterInfo.sensitiveCert)
+			if err != nil {
+				return serrors.WrapStr("signing TRC payload - sensitive", err)
+			}
+			parts[fmt.Sprintf("ISD%d-B1-S1.%s-sensitive.trc", isd, voter)] = sensitive
+			regular, err := signPayload(raw, voterInfo.regularKey, voterInfo.regularCert)
+			if err != nil {
+				return serrors.WrapStr("signing TRC payload - regular", err)
+			}
+			parts[fmt.Sprintf("ISD%d-B1-S1.%s-regular.trc", isd, voter)] = regular
+		}
+
+		combined, err := trcs.CombineSignedPayloads(parts)
 		if err != nil {
-			return serrors.WrapStr("failed to combine TRCs", err, "isd", isd)
+			return serrors.WrapStr("combining signed TRC payloads", err)
+		}
+		combined = pem.EncodeToMemory(&pem.Block{
+			Type:  "TRC",
+			Bytes: combined,
+		})
+		if err := ioutil.WriteFile(filepath.Join(trcDir(isd, cfg.out),
+			fmt.Sprintf("ISD%d-B1-S1.trc", isd)), combined, 0644); err != nil {
+			return serrors.WrapStr("writing TRC", err)
 		}
 	}
 	return nil
+}
+
+func loadVoterInfo(voter addr.IA, votingDir string) (*voterInfo, error) {
+	sensitiveKey, err := key.LoadPrivateKey(
+		filepath.Join(votingDir, "sensitive-voting.key"))
+	if err != nil {
+		return nil, serrors.WrapStr("loading sensitive key", err)
+	}
+	regularKey, err := key.LoadPrivateKey(filepath.Join(votingDir, "regular-voting.key"))
+	if err != nil {
+		return nil, serrors.WrapStr("loading regular key", err)
+	}
+	sensitiveCerts, err := cppki.ReadPEMCerts(
+		filepath.Join(votingDir, sensitiveCertName(voter)))
+	if err != nil {
+		return nil, serrors.WrapStr("loading sensitive cert", err)
+	}
+	if len(sensitiveCerts) > 1 {
+		return nil, serrors.New("more than one sensitive cert found", "ia", voter)
+	}
+	regularCerts, err := cppki.ReadPEMCerts(
+		filepath.Join(votingDir, regularCertName(voter)))
+	if err != nil {
+		return nil, serrors.WrapStr("loading regular cert", err)
+	}
+	if len(regularCerts) > 1 {
+		return nil, serrors.New("more than one regular cert found", "ia", voter)
+	}
+
+	return &voterInfo{
+		sensitiveKey:  sensitiveKey,
+		regularKey:    regularKey,
+		sensitiveCert: sensitiveCerts[0],
+		regularCert:   regularCerts[0],
+	}, nil
+}
+
+func signPayload(pld []byte, key crypto.Signer, cert *x509.Certificate) (cppki.SignedTRC, error) {
+	signedPld, err := trcs.SignPayload(pld, key, cert)
+	if err != nil {
+		return cppki.SignedTRC{}, err
+	}
+	return cppki.DecodeSignedTRC(signedPld)
 }
 
 func setupTemplates(cfg config) error {
@@ -517,41 +510,38 @@ func flatten(out outConfig) error {
 	return nil
 }
 
-func fixPermissions(cfg config) error {
-	gid := os.Getegid()
-	uid := os.Geteuid()
-
-	c := withLib(`docker_exec "`+
-		fmt.Sprintf("chown %d:%d /workdir/*/crypto/*/*.key && ", uid, gid)+
-		`chmod 0666 /workdir/*/crypto/*/*.key"`, cfg.lib)
-	if cfg.out.isd {
-		c = strings.ReplaceAll(c, "workdir/", "workdir/*/")
-	}
-	cmd := exec.Command("sh", "-c", c)
-	cmd.Env = []string{"CONTAINER_NAME=" + cfg.container}
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	return cmd.Run()
-}
-
 func cleanup(cfg config) error {
-	c := withLib(`docker_exec "`+
-		`rm -f /workdir/*/crypto/*/cp-*.crt && `+
-		`rm -f /workdir/*/crypto/*/regular-*.crt && `+
-		`rm -f /workdir/*/crypto/*/sensitive-*.crt && `+
-		`rm -f /workdir/*/crypto/*/*.cnf && `+
-		`rm -f /workdir/*/crypto/*/*.csr && `+
-		`rm -f /workdir/*/crypto/voting/ISD*-B1-S1.*.trc && `+
-		`rm -f /workdir/*/crypto/voting/*.der && `+
-		`rm -f /workdir/*/*.der && `+
-		`rm -rf /workdir/*/crypto/*/certificates && `+
-		`rm -rf /workdir/*/crypto/*/database"`, cfg.lib)
+	base := cfg.out.base
 	if cfg.out.isd {
-		c = strings.ReplaceAll(c, "workdir/", "workdir/*/")
+		base = filepath.Join(base, "*/")
 	}
-	cmd := exec.Command("sh", "-c", c)
-	cmd.Env = []string{"CONTAINER_NAME=" + cfg.container}
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	return cmd.Run()
+	var files []string
+	match, err := filepath.Glob(filepath.Join(base, "*/crypto/*/cp-*.crt"))
+	if err != nil {
+		return err
+	}
+	files = append(files, match...)
+	match, err = filepath.Glob(filepath.Join(base, "*/crypto/*/regular-*.crt"))
+	if err != nil {
+		return err
+	}
+	files = append(files, match...)
+	match, err = filepath.Glob(filepath.Join(base, "*/crypto/*/sensitive-*.crt"))
+	if err != nil {
+		return err
+	}
+	files = append(files, match...)
+	match, err = filepath.Glob(filepath.Join(base, "*/crypto/voting/ISD*-B1-S1.*.trc"))
+	if err != nil {
+		return err
+	}
+	files = append(files, match...)
+	for _, file := range files {
+		if err := os.Remove(file); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func copyFile(dst string, src string) error {
@@ -641,8 +631,4 @@ func regularCertName(ia addr.IA, serial ...int) string {
 		return fmt.Sprintf("%s.regular.crt", ia.FileFmt(true))
 	}
 	return fmt.Sprintf("%s.regular.s%d.crt", ia.FileFmt(true), serial[0])
-}
-
-func withLib(cmd, lib string) string {
-	return fmt.Sprintf(". %s && %s", lib, cmd)
 }
