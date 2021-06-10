@@ -49,9 +49,6 @@ from python.topology.prometheus import (
 )
 from python.topology.topo import DEFAULT_LINK_BW
 
-CS_QUIC_PORT = 30352
-CO_QUIC_PORT = 30357
-
 
 class GoGenArgs(ArgsTopoDicts):
     def __init__(self, args, topo_dicts, networks: Mapping[IPNetwork, NetworkDescription]):
