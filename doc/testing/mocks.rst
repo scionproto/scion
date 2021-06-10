@@ -5,39 +5,44 @@ Go mocks
 ********
 
 For some tests it is helpful to mock an interface. The `gomock
-<https://github.com/golang/mock>`_ library should be used. To generate a mock
-file and the required Bazel declaration a helper script is used.
+<https://github.com/golang/mock>`_ library should be used.
 
-Adding a new mock file
-----------------------
+Adding mocked interface
+-----------------------
 
-Assume you want to mock an interface ``Foo`` and ``Bar`` that are defined in the
-directory ``go/lib/foo``. To create the mocks and the required bazel files
-simply run::
+Assume that you want to mock an interface ``Foo`` and ``Bar`` that are defined in the
+directory ``go/lib/foo``. First, you need to create the subdirectory
+``go/lib/foo/mock_foo``. Inside this subdirectory, we add the build bazel file
+``BUILD.bazl``. We need to add a ``gomock`` target in this BUILD.bazel file for our
+interfaces. This would look like the following::
 
-    ./tools/gomocks add --package go/lib/foo --interfaces Foo,Bar
+    load("@com_github_jmhodges_bazel_gomock//:gomock.bzl", "gomock")
+    gomock(
+        name = "go_default_mock",
+        out = "mock.go",
+        interfaces = [
+            "Foo",
+            "Bar",
+        ],
+        library = "//go/lib/foo:go_default_library",
+        package = "mock_foo",
+    )
 
-The tool will create two files under ``go/lib/foo/mock_foo``:
+For an example, refer to
+`this exmaple file <https://github.com/scionproto/scion/blob/master/go/lib/log/mock_log/BUILD.bazel>`_.
+For further information on the gomock bazel rules, refer to
+`gomock for Bazel <https://github.com/jmhodges/bazel_gomock>`_.
 
-- ``mock.go``: contains the mocked interfaces.
-- ``BUILD.bazel``: contains the required Bazel rules.
+After making the aforementioned changes, we need to run the following
+command form the root of the repository::
 
-Adding an interface to existing mock
-------------------------------------
+    make mocks
 
-Unfortunately the current tooling doesn't provide a way to only add a single
-interface. You need to look up which interfaces are currently mocked under
-``path/to/package/mock_package/BUILD.bazel`` the interfaces should be listed.
-Extract the interface list and add your interface, then go through the steps to
-add an a new mock file with the interface list you collected.
+This will create a mock file; for instance, in the above example this file will be
+``/go/lib/foo/mock_foo/mock.go``.
 
-Verifying mocks are up to date
-------------------------------
+Updating generated mocks
+------------------------
 
-To verify the mock files in the workspace are up to date run::
-
-    ./tools/gomocks diff
-
-To update the files in the workspace run::
-
-    ./tools/gomocks
+One can delete or add new interfaces to the ``BUILD.bazel`` file and then run
+``make mocks`` to update the corresponding ``mock.go`` files.
