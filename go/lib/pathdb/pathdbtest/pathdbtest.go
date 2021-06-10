@@ -334,7 +334,7 @@ func testGetAll(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) 
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
 
-	// Empty db should return an empty slice
+	// Empty db should return an empty slice and no error
 	s, err := pathDB.GetAll(ctx)
 	require.NoError(t, err)
 	assert.Empty(t, s, "No result expected")
@@ -347,15 +347,14 @@ func testGetAll(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) 
 	s, err = pathDB.GetAll(ctx)
 	require.NoError(t, err)
 	for _, r := range s {
-		assert.NoError(t, r.Err)
-		assert.Equal(t, seg.TypeUp, r.Result.Type)
-		resSegID := r.Result.Seg.ID()
+		assert.Equal(t, seg.TypeUp, r.Type)
+		resSegID := r.Seg.ID()
 		if bytes.Compare(resSegID, segID1) == 0 {
-			checkSameHpCfgs(t, "HpCfgIDs match", r.Result.HpCfgIDs, hpCfgIDs)
+			checkSameHpCfgs(t, "HpCfgIDs match", r.HpCfgIDs, hpCfgIDs)
 		} else if bytes.Compare(resSegID, segID2) == 0 {
-			checkSameHpCfgs(t, "HpCfgIDs match", r.Result.HpCfgIDs, hpCfgIDs[:1])
+			checkSameHpCfgs(t, "HpCfgIDs match", r.HpCfgIDs, hpCfgIDs[:1])
 		} else {
-			t.Fatal("Unexpected result", "seg", r.Result.Seg)
+			t.Fatal("Unexpected result", "seg", r.Seg)
 		}
 	}
 }
@@ -597,7 +596,7 @@ func InsertSeg(t *testing.T, ctx context.Context, pathDB pathdb.ReadWrite,
 	return inserted
 }
 
-func checkResult(t *testing.T, results []*query.Result, expectedSeg *seg.PathSegment,
+func checkResult(t *testing.T, results query.Results, expectedSeg *seg.PathSegment,
 	hpCfgsIds []*query.HPCfgID) {
 
 	require.Equal(t, 1, len(results), "Expect one result")

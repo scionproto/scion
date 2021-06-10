@@ -237,8 +237,8 @@ func (db *metricsExecutor) Get(ctx context.Context, params *query.Params) (query
 	return res, err
 }
 
-func (db *metricsExecutor) GetAll(ctx context.Context) ([]query.ResultOrErr, error) {
-	var res []query.ResultOrErr
+func (db *metricsExecutor) GetAll(ctx context.Context) (query.Results, error) {
+	var res query.Results
 	var err error
 	db.metrics.Observe(ctx, promOpGetAll, func(ctx context.Context) error {
 		res, err = db.pathDB.GetAll(ctx)

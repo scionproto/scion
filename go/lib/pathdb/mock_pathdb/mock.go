@@ -99,10 +99,10 @@ func (mr *MockPathDBMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // GetAll mocks base method
-func (m *MockPathDB) GetAll(arg0 context.Context) ([]query.ResultOrErr, error) {
+func (m *MockPathDB) GetAll(arg0 context.Context) (query.Results, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAll", arg0)
-	ret0, _ := ret[0].([]query.ResultOrErr)
+	ret0, _ := ret[0].(query.Results)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -265,10 +265,10 @@ func (mr *MockTransactionMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call 
 }
 
 // GetAll mocks base method
-func (m *MockTransaction) GetAll(arg0 context.Context) ([]query.ResultOrErr, error) {
+func (m *MockTransaction) GetAll(arg0 context.Context) (query.Results, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAll", arg0)
-	ret0, _ := ret[0].([]query.ResultOrErr)
+	ret0, _ := ret[0].(query.Results)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -407,10 +407,10 @@ func (mr *MockReadWriteMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 }
 
 // GetAll mocks base method
-func (m *MockReadWrite) GetAll(arg0 context.Context) ([]query.ResultOrErr, error) {
+func (m *MockReadWrite) GetAll(arg0 context.Context) (query.Results, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAll", arg0)
-	ret0, _ := ret[0].([]query.ResultOrErr)
+	ret0, _ := ret[0].(query.Results)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

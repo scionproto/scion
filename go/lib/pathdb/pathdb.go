@@ -43,9 +43,10 @@ type ReadWrite interface {
 	// GetAll returns a slice which contains all items in the path db. If the path db cannot
 	// prepare the query, an empty slice and the error are returned. If the querying succeeds, the
 	// slice will be filled with the segments in the database. If an error occurs during reading a
-	// segment the error is appanded to the slice and the operation is aborted; thus, the
-	// result might be incomplete.
-	GetAll(context.Context) ([]query.ResultOrErr, error)
+	// segment an empty slice and the error are returned; otherwise, it returns no error and a slice
+	// which contains all the path segments in the database. (Note that in this case the slice will
+	// be empty if no path segment is found.)
+	GetAll(context.Context) (query.Results, error)
 	// GetNextQuery returns the nextQuery timestamp for the given src-dst pair
 	// and policy , or a zero time if it hasn't been queried.
 	GetNextQuery(ctx context.Context, src, dst addr.IA, policy PolicyHash) (time.Time, error)

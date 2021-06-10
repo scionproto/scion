@@ -500,19 +500,19 @@ func (e *executor) buildQuery(params *query.Params) (string, []interface{}) {
 	return strings.Join(query, "\n"), args
 }
 
-func (e *executor) GetAll(ctx context.Context) ([]query.ResultOrErr, error) {
+func (e *executor) GetAll(ctx context.Context) (query.Results, error) {
 	e.RLock()
 	defer e.RUnlock()
 	if e.db == nil {
-		return []query.ResultOrErr{}, serrors.New("No database open")
+		return query.Results{}, serrors.New("No database open")
 	}
 	stmt, args := e.buildQuery(nil)
 	rows, err := e.db.QueryContext(ctx, stmt, args...)
 	if err != nil {
-		return []query.ResultOrErr{},
+		return query.Results{},
 			serrors.WrapStr("Error looking up path segment", err, "q", stmt)
 	}
-	var ret []query.ResultOrErr
+	var ret query.Results
 
 	defer rows.Close()
 	prevID := -1
@@ -526,14 +526,12 @@ func (e *executor) GetAll(ctx context.Context) ([]query.ResultOrErr, error) {
 		err = rows.Scan(&segRowID, &rawSeg, &lastUpdated,
 			&hpCfgID.IA.I, &hpCfgID.IA.A, &hpCfgID.ID, &segType)
 		if err != nil {
-			ret = append(ret, query.ResultOrErr{
-				Err: serrors.WrapStr("Error reading DB response", err)})
-			return ret, nil
+			return query.Results{}, serrors.WrapStr("Error reading DB response", err)
 		}
 		// Check if we have a new segment.
 		if segRowID != prevID {
 			if curRes != nil {
-				ret = append(ret, query.ResultOrErr{Result: curRes})
+				ret = append(ret, curRes)
 			}
 			curRes = &query.Result{
 				LastUpdate: time.Unix(0, lastUpdated),
@@ -542,9 +540,7 @@ func (e *executor) GetAll(ctx context.Context) ([]query.ResultOrErr, error) {
 			var err error
 			curRes.Seg, err = pathdb.UnpackSegment(rawSeg)
 			if err != nil {
-				ret = append(ret, query.ResultOrErr{
-					Err: serrors.WrapStr("Error unmarshalling segment", err)})
-				return ret, nil
+				return query.Results{}, serrors.WrapStr("Error unmarshalling segment", err)
 			}
 		}
 		// Append hpCfgID to result
@@ -552,7 +548,7 @@ func (e *executor) GetAll(ctx context.Context) ([]query.ResultOrErr, error) {
 		prevID = segRowID
 	}
 	if curRes != nil {
-		ret = append(ret, query.ResultOrErr{Result: curRes})
+		ret = append(ret, curRes)
 	}
 
 	return ret, nil

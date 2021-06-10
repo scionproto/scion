@@ -97,7 +97,7 @@ func TestAPI(t *testing.T) {
 					Segments: seg,
 				}
 				seg.EXPECT().Get(gomock.Any(), &query.Params{}).AnyTimes().Return(
-					[]*query.Result{}, serrors.New("internal"),
+					query.Results{}, serrors.New("internal"),
 				)
 				return Handler(s)
 			},
