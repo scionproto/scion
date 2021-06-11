@@ -123,15 +123,15 @@ func (s *SignerGen) bestForKey(ctx context.Context, key crypto.Signer,
 		}
 		inGrace = true
 	}
-	id, expiry := trcs[0].TRC.ID, min(chain[0].NotAfter, trcs[0].TRC.Validity.NotAfter)
+	expiry := min(chain[0].NotAfter, trcs[0].TRC.Validity.NotAfter)
 	if inGrace {
-		id, expiry = trcs[1].TRC.ID, min(chain[0].NotAfter, trcs[0].TRC.GracePeriodEnd())
+		expiry = min(chain[0].NotAfter, trcs[0].TRC.GracePeriodEnd())
 	}
 	return &Signer{
 		PrivateKey:   key,
 		Algorithm:    algo,
 		IA:           s.IA,
-		TRCID:        id,
+		TRCID:        trcs[0].TRC.ID,
 		Subject:      chain[0].Subject,
 		Chain:        chain,
 		SubjectKeyID: chain[0].SubjectKeyId,
@@ -145,7 +145,7 @@ func (s *SignerGen) bestForKey(ctx context.Context, key crypto.Signer,
 }
 
 func bestChain(trc *cppki.TRC, chains [][]*x509.Certificate) []*x509.Certificate {
-	opts := cppki.VerifyOptions{TRC: trc}
+	opts := cppki.VerifyOptions{TRC: []*cppki.TRC{trc}}
 	var best []*x509.Certificate
 	for _, chain := range chains {
 		if err := cppki.VerifyChain(chain, opts); err != nil {

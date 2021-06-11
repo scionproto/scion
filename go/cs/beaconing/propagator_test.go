@@ -45,7 +45,6 @@ func TestPropagatorRun(t *testing.T) {
 
 	type test struct {
 		name     string
-		inactive map[common.IFIDType]bool
 		expected int
 		core     bool
 	}
@@ -64,59 +63,11 @@ func TestPropagatorRun(t *testing.T) {
 	}
 	tests := []test{
 		{
-			name:     "Non-core: All interfaces active",
+			name:     "Non-core",
 			expected: 3,
 		},
 		{
-			name:     "Non-core: One peer inactive",
-			inactive: map[common.IFIDType]bool{graph.If_111_C_121_X: true},
-			expected: 3,
-		},
-		{
-			name: "Non-core: All peers inactive",
-			inactive: map[common.IFIDType]bool{
-				graph.If_111_C_121_X: true,
-				graph.If_111_B_211_A: true,
-				graph.If_111_C_211_A: true,
-			},
-			expected: 3,
-		},
-		{
-			name:     "Non-core: Child interface inactive",
-			inactive: map[common.IFIDType]bool{graph.If_111_A_112_X: true},
-			expected: 3,
-		},
-		{
-			name:     "Core: All interfaces active",
-			expected: 3,
-			core:     true,
-		},
-		{
-			name:     "Core: 1-ff00:0:120 inactive",
-			inactive: map[common.IFIDType]bool{graph.If_110_X_120_A: true},
-			// Should not create beacon if ingress interface is down.
-			expected: 3,
-			core:     true,
-		},
-		{
-			name:     "Core: 1-ff00:0:130 inactive",
-			inactive: map[common.IFIDType]bool{graph.If_110_X_130_A: true},
-			expected: 3,
-			core:     true,
-		},
-		{
-			name:     "Core: 2-ff00:0:210 inactive",
-			inactive: map[common.IFIDType]bool{graph.If_110_X_210_X: true},
-			expected: 3,
-			core:     true,
-		},
-		{
-			name: "Core: All inactive",
-			inactive: map[common.IFIDType]bool{
-				graph.If_110_X_120_A: true,
-				graph.If_110_X_130_A: true,
-				graph.If_110_X_210_X: true,
-			},
+			name:     "Core",
 			expected: 3,
 			core:     true,
 		},
@@ -150,12 +101,11 @@ func TestPropagatorRun(t *testing.T) {
 			}
 			g := graph.NewDefaultGraph(mctrl)
 			provider.EXPECT().BeaconsToPropagate(gomock.Any()).MaxTimes(2).DoAndReturn(
-				func(_ interface{}) (<-chan beacon.BeaconOrErr, error) {
-					res := make(chan beacon.BeaconOrErr, len(beacons[test.core]))
+				func(_ interface{}) ([]beacon.BeaconOrErr, error) {
+					res := make([]beacon.BeaconOrErr, 0, len(beacons[test.core]))
 					for _, desc := range beacons[test.core] {
-						res <- testBeaconOrErr(g, desc)
+						res = append(res, testBeaconOrErr(g, desc))
 					}
-					close(res)
 					return res, nil
 				},
 			)
@@ -216,11 +166,8 @@ func TestPropagatorRun(t *testing.T) {
 		// We call run 4 times in this test, since the interface to 1-ff00:0:120
 		// will never be beaconed on, because the beacons are filtered for loops.
 		provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(4).DoAndReturn(
-			func(_ interface{}) (<-chan beacon.BeaconOrErr, error) {
-				res := make(chan beacon.BeaconOrErr, 1)
-				res <- testBeaconOrErr(g, beacons[true][0])
-				close(res)
-				return res, nil
+			func(_ interface{}) ([]beacon.BeaconOrErr, error) {
+				return []beacon.BeaconOrErr{testBeaconOrErr(g, beacons[true][0])}, nil
 			},
 		)
 		// 1. Initial run where one beacon fails to send. -> 2 calls

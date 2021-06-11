@@ -6,7 +6,10 @@ go_library(
     importpath = "github.com/scionproto/scion/go/pkg/gateway/xnet",
     visibility = ["//visibility:public"],
     deps = [
+        "//go/lib/addr:go_default_library",
+        "//go/lib/log:go_default_library",
         "//go/lib/serrors:go_default_library",
+        "//go/pkg/gateway/control:go_default_library",
         "@com_github_songgao_water//:go_default_library",
         "@com_github_vishvananda_netlink//:go_default_library",
     ],

@@ -17,7 +17,6 @@ package gateway
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net"
 	"net/http"
 	"os"
@@ -48,6 +47,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/gateway/pathhealth"
 	"github.com/scionproto/scion/go/pkg/gateway/pathhealth/policies"
 	"github.com/scionproto/scion/go/pkg/gateway/routing"
+	"github.com/scionproto/scion/go/pkg/gateway/xnet"
 	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	gatewaypb "github.com/scionproto/scion/go/pkg/proto/gateway"
 	"github.com/scionproto/scion/go/pkg/service"
@@ -131,7 +131,7 @@ func (pcf PacketConnFactory) New() (net.PacketConn, error) {
 }
 
 type RoutingTableFactory struct {
-	RoutePublisherFactory routemgr.PublisherFactory
+	RoutePublisherFactory control.PublisherFactory
 }
 
 func (rtf RoutingTableFactory) New(
@@ -208,18 +208,17 @@ type Gateway struct {
 	// Daemon is the API of the SCION Daemon.
 	Daemon daemon.Connector
 
-	// InternalDevice is the tunnel interface from which packets are read.
-	InternalDevice io.ReadWriteCloser
 	// RouteSourceIPv4 is the source hint for IPv4 routes added to the Linux routing table.
 	RouteSourceIPv4 net.IP
 	// RouteSourceIPv6 is the source hint for IPv6 routes added to the Linux routing table.
 	RouteSourceIPv6 net.IP
+	// TunnelName is the device name for the Linux global tunnel device.
+	TunnelName string
 
-	// RoutePublisherFactory allows to publish routes from the gatyeway.
-	// If nil, no routes will be published.
-	RoutePublisherFactory routemgr.PublisherFactory
-	// RouteConsumerFactory allows to receive routes. If nil, no routes are received.
-	RouteConsumerFactory routemgr.ConsumerFactory
+	// RoutingTableReader is used for routing the packets.
+	RoutingTableReader control.RoutingTableReader
+	// RoutingTableSwapper is used for switching the routing tables.
+	RoutingTableSwapper control.RoutingTableSwapper
 
 	// ConfigReloadTrigger can be used to trigger a config reload.
 	ConfigReloadTrigger chan struct{}
@@ -238,6 +237,48 @@ type Gateway struct {
 func (g *Gateway) Run() error {
 	log.SafeDebug(g.Logger, "Gateway starting up...")
 
+	// *************************************************************************
+	// Set up support for Linux tunnel devices.
+	// *************************************************************************
+	var fwMetrics dataplane.IPForwarderMetrics
+	if g.Metrics != nil {
+		fwMetrics.IPPktBytesLocalRecv = metrics.NewPromCounter(
+			g.Metrics.IPPktBytesLocalReceivedTotal)
+		fwMetrics.IPPktsLocalRecv = metrics.NewPromCounter(g.Metrics.IPPktsLocalReceivedTotal)
+		fwMetrics.IPPktsInvalid = metrics.CounterWith(
+			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal), "reason", "invalid")
+		fwMetrics.IPPktsFragmented = metrics.CounterWith(
+			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal), "reason", "fragmented")
+		fwMetrics.ReceiveLocalErrors = metrics.NewPromCounter(g.Metrics.ReceiveLocalErrorsTotal)
+		fwMetrics.IPPktsNoRoute = metrics.CounterWith(
+			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal), "reason", "no_route")
+	}
+
+	tunnelName := g.TunnelName
+	if tunnelName == "" {
+		tunnelName = "tun0"
+	}
+
+	tunnelReader := TunnelReader{
+		DeviceOpener: xnet.UseNameResolver(
+			routemgr.FixedTunnelName(tunnelName),
+			xnet.OpenerWithOptions(xnet.WithLogger(g.Logger)),
+		),
+		Router:  g.RoutingTableReader,
+		Logger:  g.Logger,
+		Metrics: fwMetrics,
+	}
+	deviceManager := &routemgr.SingleDeviceManager{
+		DeviceOpener: tunnelReader.GetDeviceOpenerWithAsyncReader(),
+	}
+
+	log.SafeDebug(g.Logger, "Egress started")
+
+	routePublisherFactory := createRouteManager(deviceManager)
+
+	// *************************************************************************
+	// Initialize base SCION network information: IA + Dispatcher connectivity
+	// *************************************************************************
 	localIA, err := g.Daemon.LocalIA(context.Background())
 	if err != nil {
 		return serrors.WrapStr("unable to learn local ISD-AS number", err)
@@ -554,28 +595,10 @@ func (g *Gateway) Run() error {
 	}()
 
 	// Start dataplane ingress
-	dataplaneServerConn, err := scionNetwork.Listen(
-		context.TODO(),
-		"udp",
-		g.DataServerAddr,
-		addr.SvcNone,
-	)
-	if err != nil {
-		return serrors.WrapStr("creating ingress conn", err)
+	if err := StartIngress(scionNetwork, g.DataServerAddr, deviceManager, g.Metrics); err != nil {
+		return err
 	}
-	ingressMetrics := CreateIngressMetrics(g.Metrics)
-	ingressServer := &dataplane.IngressServer{
-		Conn:    dataplaneServerConn,
-		TUN:     g.InternalDevice,
-		Metrics: ingressMetrics,
-	}
-	go func() {
-		defer log.HandlePanic()
-		if err := ingressServer.Run(); err != nil {
-			log.Error("Ingress server error", "err", err)
-			panic(err)
-		}
-	}()
+	log.SafeDebug(g.Logger, "Ingress started")
 
 	// *************************************************
 	// Connect Session Configurator to Engine Controller
@@ -600,14 +623,12 @@ func (g *Gateway) Run() error {
 		sessionConfigurator.DiagnosticsWrite(w)
 	}
 
-	routingTable := &dataplane.AtomicRoutingTable{}
-
 	// Start control-plane configuration watcher and forwarding engine controller
 	engineController := &control.EngineController{
 		ConfigurationUpdates: sessionConfigurations,
-		RoutingTableSwapper:  routingTable,
+		RoutingTableSwapper:  g.RoutingTableSwapper,
 		RoutingTableFactory: RoutingTableFactory{
-			RoutePublisherFactory: g.RoutePublisherFactory,
+			RoutePublisherFactory: routePublisherFactory,
 		},
 		EngineFactory: &control.DefaultEngineFactory{
 			PathMonitor: pathMonitor,
@@ -615,6 +636,7 @@ func (g *Gateway) Run() error {
 				Network: scionNetwork,
 				Addr:    &net.UDPAddr{IP: g.ProbeClientIP},
 			},
+			DeviceManager: deviceManager,
 			DataplaneSessionFactory: DataplaneSessionFactory{
 				PacketConnFactory: PacketConnFactory{
 					Network: scionNetwork,
@@ -622,11 +644,13 @@ func (g *Gateway) Run() error {
 				},
 				Metrics: CreateSessionMetrics(g.Metrics),
 			},
-			Logger: g.Logger,
+			Logger:  g.Logger,
+			Metrics: CreateEngineMetrics(g.Metrics),
 		},
-		RoutePublisherFactory: g.RoutePublisherFactory,
+		RoutePublisherFactory: routePublisherFactory,
 		RouteSourceIPv4:       g.RouteSourceIPv4,
 		RouteSourceIPv6:       g.RouteSourceIPv6,
+		SwapDelay:             3 * time.Second,
 		Logger:                g.Logger,
 	}
 	go func() {
@@ -646,33 +670,7 @@ func (g *Gateway) Run() error {
 	g.HTTPEndpoints["diagnostics/prefixwatcher"] = func(w http.ResponseWriter, _ *http.Request) {
 		remoteMonitor.DiagnosticsWrite(w)
 	}
-	g.HTTPEndpoints["diagnostics/sgrp"] = g.diagnosticsSGRP(configPublisher)
-	var fwMetrics dataplane.IPForwarderMetrics
-	if g.Metrics != nil {
-		fwMetrics.IPPktBytesLocalRecv = metrics.NewPromCounter(
-			g.Metrics.IPPktBytesLocalReceivedTotal)
-		fwMetrics.IPPktsLocalRecv = metrics.NewPromCounter(g.Metrics.IPPktsLocalReceivedTotal)
-		fwMetrics.IPPktsInvalid = metrics.CounterWith(
-			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal), "reason", "invalid")
-		fwMetrics.IPPktsFragmented = metrics.CounterWith(
-			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal), "reason", "fragmented")
-		fwMetrics.ReceiveLocalErrors = metrics.NewPromCounter(g.Metrics.ReceiveLocalErrorsTotal)
-		fwMetrics.IPPktsNoRoute = metrics.CounterWith(
-			metrics.NewPromCounter(g.Metrics.IPPktsDiscardedTotal), "reason", "no_route")
-	}
-	forwarder := &dataplane.IPForwarder{
-		Reader:       g.InternalDevice,
-		RoutingTable: routingTable,
-		Logger:       g.Logger,
-		Metrics:      fwMetrics,
-	}
-	go func() {
-		defer log.HandlePanic()
-		if err := forwarder.Run(); err != nil {
-			panic(err)
-		}
-	}()
-	log.SafeDebug(g.Logger, "IP forwarder started")
+	g.HTTPEndpoints["diagnostics/sgrp"] = g.diagnosticsSGRP(routePublisherFactory, configPublisher)
 
 	// XXX(scrye): Use an empty file here because the server often doesn't have
 	// write access to its configuration folder.
@@ -686,7 +684,11 @@ func (g *Gateway) Run() error {
 	select {}
 }
 
-func (g *Gateway) diagnosticsSGRP(pub *control.ConfigPublisher) http.HandlerFunc {
+func (g *Gateway) diagnosticsSGRP(
+	routePublisherFactory control.PublisherFactory,
+	pub *control.ConfigPublisher,
+) http.HandlerFunc {
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		var d struct {
 			Advertise struct {
@@ -703,7 +705,7 @@ func (g *Gateway) diagnosticsSGRP(pub *control.ConfigPublisher) http.HandlerFunc
 		for _, s := range routing.StaticAdvertised(pub.RoutingPolicy()) {
 			d.Advertise.Static = append(d.Advertise.Static, s.String())
 		}
-		if p, ok := g.RoutePublisherFactory.(interface{ Diagnostics() routemgr.Diagnostics }); ok {
+		if p, ok := routePublisherFactory.(interface{ Diagnostics() control.Diagnostics }); ok {
 			for _, r := range p.Diagnostics().Routes {
 				d.Learned.Dynamic = append(d.Learned.Dynamic, r.Prefix.String())
 			}
@@ -745,6 +747,34 @@ func CreateIngressMetrics(m *Metrics) dataplane.IngressMetrics {
 	}
 }
 
+func StartIngress(scionNetwork *snet.SCIONNetwork, dataAddr *net.UDPAddr,
+	deviceManager control.DeviceManager, metrics *Metrics) error {
+
+	dataplaneServerConn, err := scionNetwork.Listen(
+		context.TODO(),
+		"udp",
+		dataAddr,
+		addr.SvcNone,
+	)
+	if err != nil {
+		return serrors.WrapStr("creating ingress conn", err)
+	}
+	ingressMetrics := CreateIngressMetrics(metrics)
+	ingressServer := &dataplane.IngressServer{
+		Conn:          dataplaneServerConn,
+		DeviceManager: deviceManager,
+		Metrics:       ingressMetrics,
+	}
+	go func() {
+		defer log.HandlePanic()
+		if err := ingressServer.Run(); err != nil {
+			log.Error("Ingress server error", "err", err)
+			panic(err)
+		}
+	}()
+	return nil
+}
+
 func CreateSessionMetrics(m *Metrics) dataplane.SessionMetrics {
 	if m == nil {
 		return dataplane.SessionMetrics{}
@@ -756,4 +786,60 @@ func CreateSessionMetrics(m *Metrics) dataplane.SessionMetrics {
 		FramesSent:         metrics.NewPromCounter(m.FramesSentTotal),
 		SendExternalErrors: metrics.NewPromCounter(m.SendExternalErrorsTotal),
 	}
+}
+
+func CreateEngineMetrics(m *Metrics) control.EngineMetrics {
+	if m == nil {
+		return control.EngineMetrics{}
+	}
+	return control.EngineMetrics{
+		SessionMonitorMetrics: control.SessionMonitorMetrics{
+			Probes:       metrics.NewPromCounter(m.SessionProbes),
+			ProbeReplies: metrics.NewPromCounter(m.SessionProbeReplies),
+			IsHealthy:    metrics.NewPromGauge(m.SessionIsHealthy),
+		},
+	}
+}
+
+func createRouteManager(deviceManager control.DeviceManager) control.PublisherFactory {
+	linux := &routemgr.Linux{DeviceManager: deviceManager}
+	go func() {
+		defer log.HandlePanic()
+		linux.Run()
+	}()
+	return linux
+}
+
+type TunnelReader struct {
+	DeviceOpener control.DeviceOpener
+	Router       control.RoutingTableReader
+	Logger       log.Logger
+	Metrics      dataplane.IPForwarderMetrics
+}
+
+func (r *TunnelReader) GetDeviceOpenerWithAsyncReader() control.DeviceOpener {
+	f := func(ia addr.IA) (control.Device, error) {
+		handle, err := r.DeviceOpener.Open(ia)
+		if err != nil {
+			return nil, serrors.WrapStr("opening device", err)
+		}
+
+		forwarder := &dataplane.IPForwarder{
+			Reader:       handle,
+			RoutingTable: r.Router,
+			Logger:       r.Logger,
+			Metrics:      r.Metrics,
+		}
+
+		go func() {
+			defer log.HandlePanic()
+			if err := forwarder.Run(); err != nil {
+				log.SafeDebug(r.Logger, "Encountered error when reading from tun", "err", err)
+				return
+			}
+		}()
+
+		return handle, nil
+	}
+	return control.DeviceOpenerFunc(f)
 }

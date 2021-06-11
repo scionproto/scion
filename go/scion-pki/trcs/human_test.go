@@ -83,7 +83,7 @@ func TestGetHumanEncoding(t *testing.T) {
 			var buf bytes.Buffer
 			enc, err := trcs.GetEncoder(&buf, tc.Encoding)
 			require.NoError(t, err)
-			h, err := trcs.GetHumanEncoding(tc.Raw, false)
+			h, err := trcs.GetHumanEncoding(tc.Raw, nil, false)
 			require.NoError(t, err)
 			err = enc.Encode(h)
 			require.NoError(t, err)

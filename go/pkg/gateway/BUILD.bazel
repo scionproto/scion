@@ -3,6 +3,7 @@ load("//lint:go.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
+        "dataplane.go",
         "gateway.go",
         "metrics.go",
         "pathmonitor.go",
@@ -31,6 +32,7 @@ go_library(
         "//go/pkg/gateway/pathhealth:go_default_library",
         "//go/pkg/gateway/pathhealth/policies:go_default_library",
         "//go/pkg/gateway/routing:go_default_library",
+        "//go/pkg/gateway/xnet:go_default_library",
         "//go/pkg/grpc:go_default_library",
         "//go/pkg/proto/gateway:go_default_library",
         "//go/pkg/service:go_default_library",

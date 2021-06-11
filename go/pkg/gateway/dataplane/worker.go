@@ -49,11 +49,11 @@ type worker struct {
 	Metrics          IngressMetrics
 	rlists           map[int]*reassemblyList
 	markedForCleanup bool
-	tunIO            io.Writer
+	tunIO            io.WriteCloser
 }
 
 func newWorker(remote *snet.UDPAddr, sessID uint8,
-	tunIO io.Writer, metrics IngressMetrics) *worker {
+	tunIO io.WriteCloser, metrics IngressMetrics) *worker {
 
 	worker := &worker{
 		Logger:  log.New("ingress", remote.String(), "sessId", sessID),

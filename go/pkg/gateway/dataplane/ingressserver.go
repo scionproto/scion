@@ -17,7 +17,6 @@ package dataplane
 
 import (
 	"fmt"
-	"io"
 	"net"
 	"time"
 
@@ -27,11 +26,10 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/pkg/gateway/control"
 )
 
 const (
-	// tunDevName is the name of the internal ingress tunnel interface.
-	tunDevName = "scion-local"
 	// workerCleanupInterval is the interval between worker cleanup rounds.
 	workerCleanupInterval = 60 * time.Second
 )
@@ -63,12 +61,12 @@ type IngressMetrics struct {
 }
 
 // IngressServer reads new encapsulated packets, classifies the packet by
-// source ISD-AS -> source host Addr -> Sess Id and hands it off to the
+// source ISD-AS -> source host Addr -> Sess ID and hands it off to the
 // appropriate Worker, starting a new one if none currently exists.
 type IngressServer struct {
-	Conn    ReadConn
-	TUN     io.Writer
-	Metrics IngressMetrics
+	Conn          ReadConn
+	DeviceManager control.DeviceManager
+	Metrics       IngressMetrics
 
 	workers map[string]*worker
 }
@@ -137,10 +135,25 @@ func (d *IngressServer) dispatch(frame *frameBuf, src *snet.UDPAddr) {
 	worker, ok := d.workers[dispatchStr]
 	if !ok {
 		metrics := createWorkerMetrics(d.Metrics, src.IA.String())
-		worker = newWorker(src, frame.sessId, d.TUN, metrics)
+
+		handle, err := d.DeviceManager.Get(src.IA)
+		if err != nil {
+			log.Info("Unable to get device handle for ingress dispatch, dropping packet",
+				"err", err, "isd_as", src.IA)
+			return
+		}
+		// Handle will be cleaned up when worker goroutine finishes.
+
+		worker = newWorker(src, frame.sessId, handle, metrics)
 		d.workers[dispatchStr] = worker
 		go func() {
 			defer log.HandlePanic()
+			defer func() {
+				if err := handle.Close(); err != nil {
+					log.Info("Encountered error when closing device handle in ingress dispatch",
+						"err", err)
+				}
+			}()
 			worker.Run()
 		}()
 	}

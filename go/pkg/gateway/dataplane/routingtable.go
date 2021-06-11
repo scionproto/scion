@@ -49,15 +49,6 @@ func (e *entry) route(pkt gopacket.Layer) control.PktWriter {
 	return nil
 }
 
-func (e *entry) hasSession() bool {
-	for _, sub := range e.Table {
-		if sub.Session != nil {
-			return true
-		}
-	}
-	return false
-}
-
 type subEntry struct {
 	Class   pktcls.Cond
 	Session control.PktWriter

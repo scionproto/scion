@@ -27,6 +27,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/pkg/gateway/control"
 )
 
 // update is a cmd line flag that enables golden file updates. To update the
@@ -51,7 +52,7 @@ func TestSimple(t *testing.T) {
 	_, prefix, _ := net.ParseCIDR("192.168.0.0/24")
 	nh := net.ParseIP("10.11.12.13")
 	src := net.ParseIP("10.14.15.16")
-	route := Route{Prefix: prefix, NextHop: nh, Source: src}
+	route := control.Route{Prefix: prefix, NextHop: nh, Source: src}
 
 	pub.AddRoute(route)
 	upd := <-cons.Updates()
@@ -80,8 +81,8 @@ func TestMultiple(t *testing.T) {
 	_, prefix2, _ := net.ParseCIDR("192.168.1.0/24")
 	nh := net.ParseIP("10.11.12.13")
 	src := net.ParseIP("10.14.15.16")
-	route1 := Route{Prefix: prefix1, NextHop: nh, Source: src}
-	route2 := Route{Prefix: prefix2, NextHop: nh, Source: src}
+	route1 := control.Route{Prefix: prefix1, NextHop: nh, Source: src}
+	route2 := control.Route{Prefix: prefix2, NextHop: nh, Source: src}
 
 	pub1.AddRoute(route1)
 	upd := <-cons1.Updates()
@@ -133,7 +134,7 @@ func TestPublisherRefcount(t *testing.T) {
 	_, prefix, _ := net.ParseCIDR("192.168.0.0/24")
 	nh := net.ParseIP("10.11.12.13")
 	src := net.ParseIP("10.14.15.16")
-	route := Route{Prefix: prefix, NextHop: nh, Source: src}
+	route := control.Route{Prefix: prefix, NextHop: nh, Source: src}
 
 	pub.AddRoute(route)
 	pub.AddRoute(route)
@@ -165,7 +166,7 @@ func TestDBRefcount(t *testing.T) {
 	_, prefix, _ := net.ParseCIDR("192.168.0.0/24")
 	nh := net.ParseIP("10.11.12.13")
 	src := net.ParseIP("10.14.15.16")
-	route := Route{Prefix: prefix, NextHop: nh, Source: src}
+	route := control.Route{Prefix: prefix, NextHop: nh, Source: src}
 
 	pub1.AddRoute(route)
 	pub2.AddRoute(route)
@@ -197,7 +198,7 @@ func TestPublisherClose(t *testing.T) {
 	_, prefix, _ := net.ParseCIDR("192.168.0.0/24")
 	nh := net.ParseIP("10.11.12.13")
 	src := net.ParseIP("10.14.15.16")
-	route := Route{Prefix: prefix, NextHop: nh, Source: src}
+	route := control.Route{Prefix: prefix, NextHop: nh, Source: src}
 
 	pub.AddRoute(route)
 	upd := <-cons.Updates()
@@ -234,7 +235,7 @@ func TestDelayed(t *testing.T) {
 	_, prefix, _ := net.ParseCIDR("192.168.0.0/24")
 	nh := net.ParseIP("10.11.12.13")
 	src := net.ParseIP("10.14.15.16")
-	route := Route{Prefix: prefix, NextHop: nh, Source: src}
+	route := control.Route{Prefix: prefix, NextHop: nh, Source: src}
 
 	pub.AddRoute(route)
 
@@ -254,15 +255,15 @@ func TestRouteDBDiagnosticsWrite(t *testing.T) {
 	db := createRouteDB()
 	pub := db.NewPublisher()
 
-	parseRoute := func(route string) Route {
+	parseRoute := func(route string) control.Route {
 		s := strings.Split(route, " ")
-		return Route{
+		return control.Route{
 			Prefix:  xtest.MustParseCIDR(t, s[0]),
 			NextHop: net.ParseIP(s[len(s)-1]),
 		}
 	}
 
-	routes := []Route{
+	routes := []control.Route{
 		parseRoute("dead::/64        deaf::beef"),
 		parseRoute("dead::/65        deaf::beef"),
 		parseRoute("192.168.1.0/24   10.11.12.13"),

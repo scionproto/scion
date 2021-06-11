@@ -23,6 +23,7 @@ certificates:
   validity:
     not_before: 2020-06-24T12:00:00Z
     not_after: 2021-06-24T12:00:00Z
+  index: 0
 - type: regular-voting
   common_name: zürich Regular Voting Certificate
   isd_as: 1-ff00:0:130
@@ -30,6 +31,7 @@ certificates:
   validity:
     not_before: 2020-06-24T12:00:00Z
     not_after: 2021-06-24T12:00:00Z
+  index: 1
 - type: cp-root
   common_name: zürich High Security Root Certificate
   isd_as: 1-ff00:0:130
@@ -37,6 +39,7 @@ certificates:
   validity:
     not_before: 2020-06-24T12:00:00Z
     not_after: 2021-06-24T12:00:00Z
+  index: 2
 - type: sensitive-voting
   common_name: geneva High Security Voting Certificate
   isd_as: 1-ff00:0:120
@@ -44,6 +47,7 @@ certificates:
   validity:
     not_before: 2020-06-24T12:00:00Z
     not_after: 2021-06-24T12:00:00Z
+  index: 3
 - type: regular-voting
   common_name: geneva Regular Voting Certificate
   isd_as: 1-ff00:0:120
@@ -51,6 +55,7 @@ certificates:
   validity:
     not_before: 2020-06-24T12:00:00Z
     not_after: 2021-06-24T12:00:00Z
+  index: 4
 - type: cp-root
   common_name: geneva High Security Root Certificate
   isd_as: 1-ff00:0:120
@@ -58,6 +63,7 @@ certificates:
   validity:
     not_before: 2020-06-24T12:00:00Z
     not_after: 2021-06-24T12:00:00Z
+  index: 5
 - type: sensitive-voting
   common_name: bern High Security Voting Certificate
   isd_as: 1-ff00:0:110
@@ -65,6 +71,7 @@ certificates:
   validity:
     not_before: 2020-06-24T12:00:00Z
     not_after: 2021-06-24T12:00:00Z
+  index: 6
 - type: regular-voting
   common_name: bern Regular Voting Certificate
   isd_as: 1-ff00:0:110
@@ -72,6 +79,7 @@ certificates:
   validity:
     not_before: 2020-06-24T12:00:00Z
     not_after: 2021-06-24T12:00:00Z
+  index: 7
 - type: cp-root
   common_name: bern High Security Root Certificate
   isd_as: 1-ff00:0:110
@@ -79,6 +87,7 @@ certificates:
   validity:
     not_before: 2020-06-24T12:00:00Z
     not_after: 2021-06-24T12:00:00Z
+  index: 8
 signatures:
 - common_name: bern Regular Voting Certificate
   isd_as: 1-ff00:0:110

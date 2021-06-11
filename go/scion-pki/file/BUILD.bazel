@@ -1,0 +1,20 @@
+load("//lint:go.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["file.go"],
+    importpath = "github.com/scionproto/scion/go/scion-pki/file",
+    visibility = ["//visibility:public"],
+    deps = ["//go/lib/serrors:go_default_library"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["file_test.go"],
+    deps = [
+        ":go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
+        "@com_github_stretchr_testify//require:go_default_library",
+    ],
+)

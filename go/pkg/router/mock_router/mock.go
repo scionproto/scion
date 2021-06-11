@@ -7,6 +7,7 @@ package mock_router
 import (
 	gomock "github.com/golang/mock/gomock"
 	conn "github.com/scionproto/scion/go/lib/underlay/conn"
+	net "net"
 	reflect "reflect"
 )
 
@@ -48,31 +49,31 @@ func (mr *MockBatchConnMockRecorder) Close() *gomock.Call {
 }
 
 // ReadBatch mocks base method
-func (m *MockBatchConn) ReadBatch(arg0 conn.Messages, arg1 []conn.ReadMeta) (int, error) {
+func (m *MockBatchConn) ReadBatch(arg0 conn.Messages) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadBatch", arg0, arg1)
+	ret := m.ctrl.Call(m, "ReadBatch", arg0)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ReadBatch indicates an expected call of ReadBatch
-func (mr *MockBatchConnMockRecorder) ReadBatch(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockBatchConnMockRecorder) ReadBatch(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadBatch", reflect.TypeOf((*MockBatchConn)(nil).ReadBatch), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadBatch", reflect.TypeOf((*MockBatchConn)(nil).ReadBatch), arg0)
 }
 
-// WriteBatch mocks base method
-func (m *MockBatchConn) WriteBatch(arg0 conn.Messages) (int, error) {
+// WriteTo mocks base method
+func (m *MockBatchConn) WriteTo(arg0 []byte, arg1 *net.UDPAddr) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WriteBatch", arg0)
+	ret := m.ctrl.Call(m, "WriteTo", arg0, arg1)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// WriteBatch indicates an expected call of WriteBatch
-func (mr *MockBatchConnMockRecorder) WriteBatch(arg0 interface{}) *gomock.Call {
+// WriteTo indicates an expected call of WriteTo
+func (mr *MockBatchConnMockRecorder) WriteTo(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteBatch", reflect.TypeOf((*MockBatchConn)(nil).WriteBatch), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteTo", reflect.TypeOf((*MockBatchConn)(nil).WriteTo), arg0, arg1)
 }

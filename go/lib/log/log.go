@@ -80,6 +80,7 @@ func convertCfg(cfg ConsoleConfig) (zap.Config, error) {
 		EncoderConfig:     encoderConfig,
 		OutputPaths:       []string{"stderr"},
 		ErrorOutputPaths:  []string{"stderr"},
+		DisableCaller:     cfg.DisableCaller,
 	}, nil
 }
 

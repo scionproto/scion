@@ -63,6 +63,64 @@ type SCMPPayload interface {
 	Code() slayers.SCMPCode
 }
 
+// SCMPDestinationUnreachable is the message that a destination is not
+// reachable.
+type SCMPDestinationUnreachable struct {
+	code    slayers.SCMPCode
+	Payload []byte
+}
+
+func (m SCMPDestinationUnreachable) toLayers(scn *slayers.SCION) []gopacket.SerializableLayer {
+	return toLayers(m, scn, &slayers.SCMPDestinationUnreachable{}, m.Payload)
+}
+
+// Type returns the SCMP type.
+func (SCMPDestinationUnreachable) Type() slayers.SCMPType {
+	return slayers.SCMPTypeDestinationUnreachable
+}
+
+// Code returns the SCMP code.
+func (m SCMPDestinationUnreachable) Code() slayers.SCMPCode { return m.code }
+
+// SCMPPacketTooBig indicates that a packet was too big.
+type SCMPPacketTooBig struct {
+	MTU     uint16
+	Payload []byte
+}
+
+func (m SCMPPacketTooBig) toLayers(scn *slayers.SCION) []gopacket.SerializableLayer {
+	return toLayers(m, scn, &slayers.SCMPPacketTooBig{MTU: m.MTU}, m.Payload)
+}
+
+// Type returns the SCMP type.
+func (SCMPPacketTooBig) Type() slayers.SCMPType {
+	return slayers.SCMPTypePacketTooBig
+}
+
+// Code returns the SCMP code.
+func (SCMPPacketTooBig) Code() slayers.SCMPCode { return 0 }
+
+// SCMPParameterProblem is the SCMP parameter problem message.
+type SCMPParameterProblem struct {
+	code    slayers.SCMPCode
+	Pointer uint16
+	Payload []byte
+}
+
+func (m SCMPParameterProblem) toLayers(scn *slayers.SCION) []gopacket.SerializableLayer {
+	return toLayers(m, scn, &slayers.SCMPParameterProblem{
+		Pointer: m.Pointer,
+	}, m.Payload)
+}
+
+// Type returns the SCMP type.
+func (SCMPParameterProblem) Type() slayers.SCMPType {
+	return slayers.SCMPTypeParameterProblem
+}
+
+// Code returns the SCMP code.
+func (m SCMPParameterProblem) Code() slayers.SCMPCode { return m.code }
+
 // SCMPExternalInterfaceDown is the message that indicates that an interface is
 // down.
 type SCMPExternalInterfaceDown struct {
@@ -115,25 +173,6 @@ func (SCMPInternalConnectivityDown) Type() slayers.SCMPType {
 
 // Code returns the SCMP code.
 func (SCMPInternalConnectivityDown) Code() slayers.SCMPCode { return 0 }
-
-// SCMPDestinationUnreachable is the message that a destination is not
-// reachable.
-type SCMPDestinationUnreachable struct {
-	code    slayers.SCMPCode
-	Payload []byte
-}
-
-func (m SCMPDestinationUnreachable) toLayers(scn *slayers.SCION) []gopacket.SerializableLayer {
-	return toLayers(m, scn, &slayers.SCMPDestinationUnreachable{}, m.Payload)
-}
-
-// Type returns the SCMP type.
-func (SCMPDestinationUnreachable) Type() slayers.SCMPType {
-	return slayers.SCMPTypeDestinationUnreachable
-}
-
-// Code returns the SCMP code.
-func (m SCMPDestinationUnreachable) Code() slayers.SCMPCode { return m.code }
 
 // SCMPEchoRequest is the SCMP echo request payload.
 type SCMPEchoRequest struct {
@@ -329,6 +368,29 @@ func (p *Packet) Decode() error {
 			}
 			p.Payload = SCMPDestinationUnreachable{
 				code:    scmpLayer.TypeCode.Code(),
+				Payload: v.Payload,
+			}
+		case slayers.SCMPTypePacketTooBig:
+			v, ok := layer.(*slayers.SCMPPacketTooBig)
+			if !ok {
+				return serrors.New("invalid SCMP packet",
+					"scmp.type", scmpLayer.TypeCode,
+					"payload.type", common.TypeOf(layer))
+			}
+			p.Payload = SCMPPacketTooBig{
+				MTU:     v.MTU,
+				Payload: v.Payload,
+			}
+		case slayers.SCMPTypeParameterProblem:
+			v, ok := layer.(*slayers.SCMPParameterProblem)
+			if !ok {
+				return serrors.New("invalid SCMP packet",
+					"scmp.type", scmpLayer.TypeCode,
+					"payload.type", common.TypeOf(layer))
+			}
+			p.Payload = SCMPParameterProblem{
+				code:    scmpLayer.TypeCode.Code(),
+				Pointer: v.Pointer,
 				Payload: v.Payload,
 			}
 		case slayers.SCMPTypeExternalInterfaceDown:

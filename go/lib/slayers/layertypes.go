@@ -48,8 +48,20 @@ var (
 		},
 	)
 
-	LayerTypeHopByHopExtn              gopacket.LayerType
-	LayerTypeEndToEndExtn              gopacket.LayerType
+	LayerTypeHopByHopExtn = gopacket.RegisterLayerType(
+		1003,
+		gopacket.LayerTypeMetadata{
+			Name:    "HopByHopExtn",
+			Decoder: gopacket.DecodeFunc(decodeHopByHopExtn),
+		},
+	)
+	LayerTypeEndToEndExtn = gopacket.RegisterLayerType(
+		1004,
+		gopacket.LayerTypeMetadata{
+			Name:    "EndToEndExtn",
+			Decoder: gopacket.DecodeFunc(decodeEndToEndExtn),
+		},
+	)
 	LayerTypeSCMPExternalInterfaceDown = gopacket.RegisterLayerType(
 		1005,
 		gopacket.LayerTypeMetadata{
@@ -78,6 +90,13 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeSCMPDestinationUnreachable),
 		},
 	)
+	LayerTypeSCMPPacketTooBig = gopacket.RegisterLayerType(
+		1009,
+		gopacket.LayerTypeMetadata{
+			Name:    "SCMPPacketTooBig",
+			Decoder: gopacket.DecodeFunc(decodeSCMPPacketTooBig),
+		},
+	)
 	LayerTypeSCMPEcho = gopacket.RegisterLayerType(
 		1128,
 		gopacket.LayerTypeMetadata{
@@ -93,20 +112,3 @@ var (
 		},
 	)
 )
-
-func init() {
-	LayerTypeHopByHopExtn = gopacket.RegisterLayerType(
-		1003,
-		gopacket.LayerTypeMetadata{
-			Name:    "HopByHopExtn",
-			Decoder: gopacket.DecodeFunc(decodeHopByHopExtn),
-		},
-	)
-	LayerTypeEndToEndExtn = gopacket.RegisterLayerType(
-		1004,
-		gopacket.LayerTypeMetadata{
-			Name:    "EndToEndExtn",
-			Decoder: gopacket.DecodeFunc(decodeEndToEndExtn),
-		},
-	)
-}

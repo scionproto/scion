@@ -171,7 +171,37 @@ func TestSCMP(t *testing.T) {
 			},
 			assertFunc: assert.NoError,
 		},
-		// "packet too big":          {},
+		"packet too big": {
+			raw: append([]byte{
+				0x2, 0x0, 0x98, 0x73, // header SCMP
+				0x0, 0x0, 0x05, 0x7c, // header SCMP msg
+			}, bytes.Repeat([]byte{0xff}, 15)...), // final payload
+			decodedLayers: []gopacket.SerializableLayer{
+				&slayers.SCMP{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x2, 0x0, 0x98, 0x73, // header SCMP
+						},
+						Payload: append([]byte{
+							0x0, 0x0, 0x05, 0x7c,
+						}, bytes.Repeat([]byte{0xff}, 15)...),
+					},
+					TypeCode: slayers.CreateSCMPTypeCode(2, 0),
+					Checksum: 0x9873,
+				},
+				&slayers.SCMPPacketTooBig{
+					BaseLayer: layers.BaseLayer{
+						Contents: []byte{
+							0x0, 0x0, 0x05, 0x7c,
+						},
+						Payload: bytes.Repeat([]byte{0xff}, 15),
+					},
+					MTU: 1404,
+				},
+				gopacket.Payload(bytes.Repeat([]byte{0xff}, 15)),
+			},
+			assertFunc: assert.NoError,
+		},
 		"parameter problem": {
 			raw: append([]byte{
 				0x4, 0x0, 0x9b, 0xad, // header SCMP

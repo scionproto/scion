@@ -83,7 +83,7 @@ openssl asn1parse -inform DER -i -in payload.der
 			}
 			if flags.format == "pem" {
 				raw = pem.EncodeToMemory(&pem.Block{
-					Type:  "TRC Payload",
+					Type:  "TRC PAYLOAD",
 					Bytes: raw,
 				})
 			}

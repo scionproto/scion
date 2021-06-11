@@ -44,6 +44,7 @@ func TestParseDuration(t *testing.T) {
 		{"104d", 104 * 24 * time.Hour, assert.NoError},
 		{"105w", 105 * 7 * 24 * time.Hour, assert.NoError},
 		{"106y", 106 * 365 * 24 * time.Hour, assert.NoError},
+		{"-1h", -1 * time.Hour, assert.NoError},
 	}
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("Input: %q", test.input), func(t *testing.T) {
@@ -69,6 +70,7 @@ func TestFmtDuration(t *testing.T) {
 		{30 * util.Day, "30d"},
 		{35 * util.Day, "5w"},
 		{101 * util.Year, "101y"},
+		{-101 * util.Year, "-101y"},
 	}
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("Input: %v", test.output), func(t *testing.T) {

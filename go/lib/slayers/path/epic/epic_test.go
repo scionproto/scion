@@ -53,18 +53,6 @@ var (
 		},
 		Raw: rawScionPath,
 	}
-	decodedScionReversePath = &scion.Raw{
-		Base: scion.Base{
-			PathMeta: scion.MetaHdr{
-				CurrINF: 1,
-				CurrHF:  3,
-				SegLen:  [3]uint8{2, 2, 0},
-			},
-			NumINF:  2,
-			NumHops: 4,
-		},
-		Raw: rawScionPath,
-	}
 )
 
 func TestSerialize(t *testing.T) {

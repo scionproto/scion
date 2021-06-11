@@ -208,8 +208,6 @@ scion-pki trcs combine -p $TRCID.pld.der \
 # LITERALINCLUDE verify_payload START
 scion-pki trcs verify --anchor $PREDID.trc $TRCID.trc
 # LITERALINCLUDE verify_payload END
-scion-pki trcs extract certificates -o bundle.crt $PREDID.trc
-in_docker "cd /workdir && verify_trc"
 
 
 echo "Phase 4: display trc digest"
@@ -219,6 +217,11 @@ sha256sum $TRCID.trc
 # LITERALINCLUDE trc_digest END
 echo "---------------------------"
 
+echo "Phase 4: display trc contents"
+# LITERALINCLUDE trc_content START
+scion-pki trcs human --predecessor $PREDID.trc $TRCID.trc
+# LITERALINCLUDE trc_content END
+
 for loc in {bern,geneva,zürich}
 do
     echo "Phase 4: $loc verify"
@@ -226,8 +229,10 @@ do
 
     cp $SAFEDIR/admin/$TRCID.trc .
     set_dirs
-    scion-pki trcs extract certificates -o bundle.crt $PREDID.trc
-    in_docker "cd /workdir && verify_trc && display_signatures"
+    scion-pki trcs verify --anchor $PREDID.trc $TRCID.trc
+    # LITERALINCLUDE trc_content_rep START
+    scion-pki trcs human --predecessor $PREDID.trc $TRCID.trc
+    # LITERALINCLUDE trc_content_rep END
 done
 
 echo "Phase 5: sanity check - generate CA and AS Certificates"

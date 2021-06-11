@@ -40,19 +40,14 @@ max_as_validity = "3d"
 #               service process. This means it needs access to the CA private
 #               key and a currently active CA certificate.
 #
-# - delegated: In this mode, the certificate renewal is delegated to the CA
-#              service via an API call. This means the service needs to be
-#              configured with the CA service address and the secrets to
-#              authenticate itself. Note that legacy requests will always
-#              be handled in-process, even if delegated mode is selected.
+# - delegating: In this mode, the certificate renewal is delegated to the CA
+#               service via an API call. This means the service needs to be
+#               configured with the CA service address and the secrets to
+#               authenticate itself. Note that legacy requests will always
+#               be handled in-process, even if delegating mode is selected.
 #
 # (default in-process)
 mode = "in-process"
-
-# Disable handling of the legacy certificate renewal requests.
-# This option is temporary and will be removed with the support for
-# legacy renewal requests. (default false)
-disable_legacy_request = false
 `
 
 const serviceSample = `
@@ -60,4 +55,10 @@ const serviceSample = `
 shared_secret = ""
 # The address of the CA Service that handles the delegated certificate renewal requests.
 addr = ""
+# The validity period of self-generated JWT authorization tokens. The format
+# is a Go duration. If not set, the application default in this sample is used instead.
+lifetime = "10m"
+# The client identification string that should be used in self-generated JWT
+# authorization tokens. If not set, the SCION ID is used instead.
+client_id = ""
 `

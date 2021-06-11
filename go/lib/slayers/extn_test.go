@@ -15,6 +15,7 @@
 package slayers_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/gopacket"
@@ -239,4 +240,202 @@ func TestEndToEndExtnSerializeDecode(t *testing.T) {
 	got := slayers.EndToEndExtn{}
 	assert.NoError(t, got.DecodeFromBytes(b.Bytes(), gopacket.NilDecodeFeedback))
 	assert.Equal(t, e2e, got)
+}
+
+func TestExtnOrderDecode(t *testing.T) {
+	const (
+		e2e = common.End2EndClass // shorthand
+		hbh = common.HopByHopClass
+	)
+	cases := []struct {
+		name  string
+		extns []common.L4ProtocolType
+		err   bool
+	}{
+		{
+			name:  "e2e",
+			extns: []common.L4ProtocolType{e2e},
+		},
+		{
+			name:  "hbh",
+			extns: []common.L4ProtocolType{hbh},
+		},
+		{
+			name:  "hbh e2e",
+			extns: []common.L4ProtocolType{hbh, e2e},
+		},
+		{
+			name:  "e2e e2e",
+			extns: []common.L4ProtocolType{e2e, e2e},
+			err:   true, // illegal repetition
+		},
+		{
+			name:  "hbh hbh",
+			extns: []common.L4ProtocolType{hbh, hbh},
+			err:   true, // illegal repetition
+		},
+		{
+			name:  "e2e hbh",
+			extns: []common.L4ProtocolType{e2e, hbh},
+			err:   true, // invalid order
+		},
+		{
+			name:  "hbh e2e e2e",
+			extns: []common.L4ProtocolType{hbh, e2e, e2e},
+			err:   true, // illegal repetition
+		},
+		{
+			name:  "hbh e2e hbh",
+			extns: []common.L4ProtocolType{hbh, e2e, hbh},
+			err:   true, // illegal repetition, invalid order
+		},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("serialize %s", c.name), func(t *testing.T) {
+			layers := prepPacketWithExtn(t, c.extns...)
+			buf := gopacket.NewSerializeBuffer()
+			opts := gopacket.SerializeOptions{FixLengths: true}
+			err := gopacket.SerializeLayers(buf, opts, layers...)
+			if c.err {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+		t.Run(fmt.Sprintf("decode %s", c.name), func(t *testing.T) {
+			raw := prepRawPacketWithExtn(t, c.extns...)
+			packet := gopacket.NewPacket(raw, slayers.LayerTypeSCION, gopacket.Default)
+			if c.err {
+				assert.NotNil(t, packet.ErrorLayer())
+			} else if packet.ErrorLayer() != nil {
+				assert.NoError(t, packet.ErrorLayer().Error())
+			}
+		})
+	}
+}
+
+// prepPacketWithExtn creates a (potentially invalid) list of SCION packet layers
+// with extension layers in the given order.
+func prepPacketWithExtn(t *testing.T,
+	extns ...common.L4ProtocolType) []gopacket.SerializableLayer {
+
+	scn := prepPacket(t, extns[0])
+	layers := []gopacket.SerializableLayer{scn}
+	for i, e := range extns {
+		next := common.L4UDP
+		if i+1 < len(extns) {
+			next = extns[i+1]
+		}
+		switch e {
+		case common.End2EndClass:
+			extn := &slayers.EndToEndExtn{}
+			extn.NextHdr = next
+			layers = append(layers, extn)
+		case common.HopByHopClass:
+			extn := &slayers.HopByHopExtn{}
+			extn.NextHdr = next
+			layers = append(layers, extn)
+		}
+	}
+	return layers
+}
+
+// prepRawPacketWithExtn creates a (potentially invalid) raw SCION packet with
+// extensions in the given order.
+func prepRawPacketWithExtn(t *testing.T, extns ...common.L4ProtocolType) []byte {
+	t.Helper()
+
+	scn := prepPacket(t, extns[0])
+	buf := gopacket.NewSerializeBuffer()
+	require.NoError(t, scn.SerializeTo(buf, gopacket.SerializeOptions{FixLengths: true}))
+
+	// Create fake extension headers manually; the extension layers' Serialize
+	// logic checks for the correct ordering of the extensions, but we want to
+	// create packets with bad order.
+	for i := range extns {
+		b, err := buf.AppendBytes(slayers.LineLen)
+		require.NoError(t, err)
+		next := common.L4UDP
+		if i+1 < len(extns) {
+			next = extns[i+1]
+		}
+		b[0] = uint8(next)
+		b[1] = 0 // one LineLen
+	}
+	buf.AppendBytes(8) // dummy UDP payload
+
+	return buf.Bytes()
+}
+
+var optAuthMAC = []byte("16byte_mac_foooo")
+
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |Next Header=UDP| Hdr Ext Len=5 | PadN Option=1 |Opt Data Len=1 |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |       0       | Auth Option=2 |Opt Data Len=17| Algo = CMAC   |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//   |                                                               |
+//   +                                                               +
+//   |                                                               |
+//   +                        16-octet MAC data                      +
+//   |                                                               |
+//   +                                                               +
+//   |                                                               |
+//   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+var rawE2EOptAuth = append(
+	[]byte{
+		0x11, 0x05, 0x01, 0x01,
+		0x0, 0x2, 0x11, 0x0,
+	},
+	optAuthMAC...,
+)
+
+func TestOptAuthenticatorSerialize(t *testing.T) {
+	optAuth := slayers.NewPacketAuthenticatorOption(slayers.PacketAuthCMAC, optAuthMAC)
+
+	e2e := slayers.EndToEndExtn{}
+	e2e.NextHdr = common.L4UDP
+	e2e.Options = []*slayers.EndToEndOption{optAuth.EndToEndOption}
+
+	b := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{FixLengths: true}
+	assert.NoError(t, e2e.SerializeTo(b, opts), "SerializeTo")
+
+	assert.Equal(t, rawE2EOptAuth, b.Bytes(), "Raw Buffer")
+}
+
+func TestOptAuthenticatorDeserialize(t *testing.T) {
+	e2e := slayers.EndToEndExtn{}
+
+	_, err := e2e.FindOption(slayers.OptTypeAuthenticator)
+	assert.Error(t, err)
+
+	assert.NoError(t, e2e.DecodeFromBytes(rawE2EOptAuth, gopacket.NilDecodeFeedback))
+	assert.Equal(t, common.L4UDP, e2e.NextHdr, "NextHeader")
+	optAuth, err := e2e.FindOption(slayers.OptTypeAuthenticator)
+	require.NoError(t, err, "FindOption")
+	auth, err := slayers.ParsePacketAuthenticatorOption(optAuth)
+	require.NoError(t, err, "ParsePacketAuthenticatorOption")
+	assert.Equal(t, slayers.PacketAuthCMAC, auth.Algorithm(), "Algorithm Type")
+	assert.Equal(t, optAuthMAC, auth.Authenticator(), "Authenticator data (MAC)")
+}
+
+func TestOptAuthenticatorDeserializeCorrupt(t *testing.T) {
+	optAuthCorrupt := slayers.EndToEndOption{
+		OptType: slayers.OptTypeAuthenticator,
+		OptData: []byte{},
+	}
+	e2e := slayers.EndToEndExtn{}
+	e2e.NextHdr = common.L4UDP
+	e2e.Options = []*slayers.EndToEndOption{&optAuthCorrupt}
+
+	b := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{FixLengths: true}
+	assert.NoError(t, e2e.SerializeTo(b, opts), "SerializeTo")
+
+	assert.NoError(t, e2e.DecodeFromBytes(b.Bytes(), gopacket.NilDecodeFeedback))
+	optAuth, err := e2e.FindOption(slayers.OptTypeAuthenticator)
+	require.NoError(t, err, "FindOption")
+	_, err = slayers.ParsePacketAuthenticatorOption(optAuth)
+	require.Error(t, err, "ParsePacketAuthenticatorOption should fail")
 }

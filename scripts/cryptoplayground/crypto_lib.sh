@@ -332,7 +332,7 @@ keyUsage               = critical, keyCertSign
 subjectKeyIdentifier   = hash
 
 [ca_defaults]
-default_days = 7
+default_days = 11
 
 .include basic.cnf
 EOF

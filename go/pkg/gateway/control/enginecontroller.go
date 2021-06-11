@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pktcls"
-	"github.com/scionproto/scion/go/lib/routemgr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/worker"
 )
@@ -88,7 +87,7 @@ type EngineController struct {
 
 	// RoutePublisherFactory allows to publish routes from the gateway.
 	// If nil, no routes will be published.
-	RoutePublisherFactory routemgr.PublisherFactory
+	RoutePublisherFactory PublisherFactory
 
 	// RouteSourceIPv4 is the source hint for IPv4 routes added to the Linux routing table.
 	RouteSourceIPv4 net.IP
@@ -212,6 +211,9 @@ type DefaultEngineFactory struct {
 	// packets.
 	ProbeConnFactory PacketConnFactory
 
+	// DeviceManager is used to construct tunnel devices needed for forwarding and/or routing.
+	DeviceManager DeviceManager
+
 	// DataplaneSessionFactory is used to construct dataplane sessions.
 	DataplaneSessionFactory DataplaneSessionFactory
 
@@ -236,6 +238,7 @@ func (f *DefaultEngineFactory) New(table RoutingTable,
 		RoutingTableIndices:     routingTableIndices,
 		PathMonitor:             f.PathMonitor,
 		ProbeConnFactory:        f.ProbeConnFactory,
+		DeviceManager:           f.DeviceManager,
 		DataplaneSessionFactory: f.DataplaneSessionFactory,
 		Logger:                  f.Logger,
 		Metrics:                 f.Metrics,

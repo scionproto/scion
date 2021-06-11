@@ -34,7 +34,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/scionproto/scion/go/lib/metrics"
-	"github.com/scionproto/scion/go/lib/scrypto/cms/protocol"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -166,17 +165,11 @@ func TestDelegatingHandler(t *testing.T) {
 				return dummyReq
 			},
 			Client: func(t *testing.T, ctrl *gomock.Controller) renewalgrpc.CAServiceClient {
-				eci, err := protocol.NewDataEncapsulatedContentInfo(nil)
-				require.NoError(t, err)
-				sd, err := protocol.NewSignedData(eci)
-				require.NoError(t, err)
-				require.NoError(t, sd.AddCertificate(chain[0]))
-				require.NoError(t, sd.AddCertificate(chain[1]))
-				encoded, err := sd.ContentInfoDER()
-				require.NoError(t, err)
-
 				rep, err := json.Marshal(api.RenewalResponse{
-					CertificateChain: encoded,
+					CertificateChain: api.CertificateChain{
+						AsCertificate: chain[0].Raw,
+						CaCertificate: chain[1].Raw,
+					},
 				})
 				require.NoError(t, err)
 

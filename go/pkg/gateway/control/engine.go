@@ -20,6 +20,7 @@ import (
 	"io"
 	"net"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +29,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/pkg/gateway/pathhealth/policies"
 	"github.com/scionproto/scion/go/pkg/worker"
@@ -61,6 +63,9 @@ type Engine struct {
 	// Run will return an error if ProbeConnFactory is nil.
 	ProbeConnFactory PacketConnFactory
 
+	// DeviceManager is used to construct tunnel devices needed for forwarding and/or routing.
+	DeviceManager DeviceManager
+
 	// DataplaneSessionFactory is used to construct dataplane sessions.
 	DataplaneSessionFactory DataplaneSessionFactory
 
@@ -88,6 +93,8 @@ type Engine struct {
 	// pathMonitorRegistrations are registrations constructed by the engine for path
 	// retrieval in sessions.
 	pathMonitorRegistrations []PathMonitorRegistration
+	// deviceHandles contains references to tun devices currently used by data-plane sessions.
+	deviceHandles []DeviceHandle
 	// probeConns are local connections used to send probes.
 	probeConns []net.PacketConn
 
@@ -281,6 +288,7 @@ func (e *Engine) initWorkers() error {
 	e.sessions = make([]*Session, 0, numSessions)
 	e.sessionMonitors = make([]*SessionMonitor, 0, numSessions)
 	e.pathMonitorRegistrations = make([]PathMonitorRegistration, 0, numSessions)
+	e.deviceHandles = make([]DeviceHandle, 0, numSessions)
 
 	for _, config := range e.SessionConfigs {
 		dataplaneSession := e.DataplaneSessionFactory.New(config.ID, config.PolicyID,
@@ -296,7 +304,19 @@ func (e *Engine) initWorkers() error {
 			return err
 		}
 
+		deviceHandle, err := e.DeviceManager.Get(remoteIA)
+		if err != nil {
+			return serrors.WrapStr("getting tun device handle", err)
+		}
+		e.deviceHandles = append(e.deviceHandles, deviceHandle)
+
 		sessionMonitorEvents := make(chan SessionEvent, 1)
+		labels := []string{
+			"remote_isd_as", remoteIA.String(),
+			"policy_id", strconv.Itoa(config.PolicyID),
+			"session_id", strconv.Itoa(int(config.ID)),
+		}
+
 		sessionMonitor := &SessionMonitor{
 			ID:        config.ID,
 			RemoteIA:  remoteIA,
@@ -304,8 +324,15 @@ func (e *Engine) initWorkers() error {
 			Events:    sessionMonitorEvents,
 			Paths:     pathMonitorRegistration,
 			ProbeConn: probeConn,
-			Metrics:   e.Metrics.SessionMonitorMetrics,
-			Logger:    e.Logger,
+			Metrics: SessionMonitorMetrics{
+				Probes: metrics.CounterWith(
+					e.Metrics.SessionMonitorMetrics.Probes, labels...),
+				ProbeReplies: metrics.CounterWith(
+					e.Metrics.SessionMonitorMetrics.ProbeReplies, labels...),
+				IsHealthy: metrics.GaugeWith(
+					e.Metrics.SessionMonitorMetrics.IsHealthy, labels...),
+			},
+			Logger: e.Logger,
 		}
 		e.workerBase.WG.Add(1)
 		go func() {
@@ -383,6 +410,14 @@ func (e *Engine) close() error {
 	if e.router != nil {
 		if err := e.router.Close(); err != nil {
 			panic(err) // application can't recover from an error here
+		}
+	}
+	for i := range e.SessionConfigs {
+		if err := e.deviceHandles[i].Close(); err != nil {
+			// This can fail because an operator changed the device in some way. This means
+			// the failure of some cleanup steps in Close is expected, so we log that something
+			// unexpected happened but don't panic like in the other cases.
+			log.SafeInfo(e.Logger, "Encountered error when closing device", "err", err)
 		}
 	}
 	e.workerBase.WG.Wait()

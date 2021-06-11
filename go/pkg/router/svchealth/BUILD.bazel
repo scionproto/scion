@@ -22,8 +22,8 @@ go_test(
         "diff_test.go",
         "watcher_test.go",
     ],
-    embed = [":go_default_library"],
     deps = [
+        ":go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/topology:go_default_library",

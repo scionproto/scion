@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/scion-pki/certs"
+	"github.com/scionproto/scion/go/scion-pki/key"
 	"github.com/scionproto/scion/go/scion-pki/testcrypto"
 	"github.com/scionproto/scion/go/scion-pki/trcs"
 )
@@ -46,6 +47,7 @@ func main() {
 	cmd.AddCommand(
 		command.NewCompletion(cmd),
 		newVersion(),
+		key.Cmd(cmd),
 		certs.Cmd(cmd),
 		trcs.Cmd(cmd),
 		testcrypto.Cmd(cmd),

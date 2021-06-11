@@ -70,10 +70,6 @@ func main() {
 	application.Run()
 }
 
-const (
-	shutdownWaitTimeout = 5 * time.Second
-)
-
 func realMain() error {
 	if err := setup(); err != nil {
 		return err
@@ -188,7 +184,6 @@ func realMain() error {
 			},
 		),
 		Engine:       engine,
-		PathDB:       pathDB,
 		RevCache:     revCache,
 		TopoProvider: itopo.Provider(),
 	}))

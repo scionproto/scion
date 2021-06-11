@@ -22,16 +22,19 @@ import (
 
 func Cmd(pather command.Pather) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "trcs",
-		Short: "Generate TRCs for the SCION control plane PKI",
+		Use:     "trc",
+		Aliases: []string{"trcs"},
+		Short:   "Manage TRCs for the SCION control plane PKI",
 	}
 	joined := command.Join(pather, cmd)
 	cmd.AddCommand(
 		newCombine(joined),
 		newHuman(joined),
+		newFormatCmd(joined),
 		newExtract(joined),
 		newPayload(joined),
 		newVerify(joined),
+		newSign(joined),
 	)
 	return cmd
 }

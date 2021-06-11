@@ -2,7 +2,14 @@ load("//lint:go.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["addr.go"],
+    srcs = [
+        "addr.go",
+        "time.go",
+    ],
     importpath = "github.com/scionproto/scion/go/pkg/app/flag",
     visibility = ["//visibility:public"],
+    deps = [
+        "//go/lib/serrors:go_default_library",
+        "//go/lib/util:go_default_library",
+    ],
 )

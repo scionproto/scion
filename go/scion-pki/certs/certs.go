@@ -15,6 +15,8 @@
 package certs
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/x509"
 	"fmt"
 	"sort"
@@ -41,17 +43,20 @@ func getTypes() []string {
 		options = append(options, k)
 	}
 	options = append(options, "any")
+	options = append(options, "chain")
 	sort.Strings(options)
 	return options
 }
 
 func Cmd(pather command.Pather) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "certs",
-		Short: "Interact with certificates for the SCION control plane PKI.",
+		Use:     "certificate",
+		Aliases: []string{"cert", "certs"},
+		Short:   "Manage certificates for the SCION control plane PKI.",
 	}
 	joined := command.Join(pather, cmd)
 	cmd.AddCommand(
+		newCreateCmd(joined),
 		newValidateCmd(joined),
 		newVerifyCmd(joined),
 		newRenewCmd(joined),
@@ -78,11 +83,30 @@ the output.
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			expectedType, checkType := certTypes[flags.certType]
-			if !checkType && flags.certType != "any" {
+			if !checkType && (flags.certType != "any" && flags.certType != "chain") {
 				return serrors.New("invalid type flag", "type", flags.certType)
 			}
 			cmd.SilenceUsage = true
-			return runValidate(args[0], expectedType, checkType)
+
+			filename := args[0]
+			certs, err := cppki.ReadPEMCerts(filename)
+			if err != nil {
+				return err
+			}
+			if flags.certType == "chain" || len(certs) != 1 && flags.certType == "any" {
+				if err := validateChain(certs); err != nil {
+					return err
+				}
+				fmt.Printf("Valid certificate chain: %q\n", filename)
+
+			} else {
+				ct, err := validateCert(certs, expectedType, checkType)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("Valid %s certificate: %q\n", ct, filename)
+			}
+			return nil
 		},
 	}
 
@@ -93,51 +117,57 @@ the output.
 	return cmd
 }
 
-func runValidate(path string, expectedType cppki.CertType, checkType bool) error {
-	certs, err := cppki.ReadPEMCerts(path)
-	if err != nil {
+func validateChain(certs []*x509.Certificate) error {
+	if err := cppki.ValidateChain(certs); err != nil {
 		return err
 	}
+	checkAlgorithm(certs[0])
+	checkAlgorithm(certs[1])
+	return nil
+}
+
+func validateCert(
+	certs []*x509.Certificate,
+	expectedType cppki.CertType,
+	checkType bool,
+) (cppki.CertType, error) {
+
 	if len(certs) > 1 {
-		return serrors.New("file with multiple certificates not supported")
+		return cppki.Invalid, serrors.New("file with multiple certificates not supported")
 	}
 	cert := certs[0]
 	ct, err := cppki.ValidateCert(cert)
 	if err != nil {
-		return err
+		return cppki.Invalid, err
 	}
 	if checkType && expectedType != ct {
-		return serrors.New("wrong certificate type", "expected", expectedType, "actual", ct)
+		return cppki.Invalid, serrors.New("wrong certificate type",
+			"expected", expectedType,
+			"actual", ct,
+		)
 	}
 	if ct == cppki.Root || ct == cppki.Regular || ct == cppki.Sensitive {
 		checkAlgorithm(cert)
 	}
-	fmt.Printf("Valid %s certificate: %q\n", ct, path)
-	return nil
+	return ct, nil
 }
 
 func checkAlgorithm(cert *x509.Certificate) {
 	if cert.PublicKeyAlgorithm != x509.ECDSA {
 		return
 	}
-	return
 
-	// XXX(roosd): We do not print a warning yet, as we are still issuing
-	// certificates with sha512. This will be activated in a follow-up.
-	// https://github.com/Anapaya/scion/issues/5595
-	/*
-		pub, ok := cert.PublicKey.(*ecdsa.PublicKey)
-		if !ok {
-			return
-		}
-			expected := map[elliptic.Curve]x509.SignatureAlgorithm{
-				elliptic.P256(): x509.ECDSAWithSHA256,
-				elliptic.P384(): x509.ECDSAWithSHA384,
-				elliptic.P521(): x509.ECDSAWithSHA512,
-			}[pub.Curve]
-			if expected != cert.SignatureAlgorithm {
-				fmt.Printf("WARNING: Signature with %s curve should use %s instead of %s\n",
-					pub.Curve.Params().Name, cert.SignatureAlgorithm, expected)
-			}
-	*/
+	pub, ok := cert.PublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return
+	}
+	expected := map[elliptic.Curve]x509.SignatureAlgorithm{
+		elliptic.P256(): x509.ECDSAWithSHA256,
+		elliptic.P384(): x509.ECDSAWithSHA384,
+		elliptic.P521(): x509.ECDSAWithSHA512,
+	}[pub.Curve]
+	if expected != cert.SignatureAlgorithm {
+		fmt.Printf("WARNING: Signature with %s curve should use %s instead of %s\n",
+			pub.Curve.Params().Name, expected, cert.SignatureAlgorithm)
+	}
 }

@@ -15,15 +15,13 @@
 
 // +build go1.9,linux
 
-// Package conn implements underlay sockets with additional metadata on reads.
+// Package conn implements underlay sockets.
 package conn
 
 import (
-	"flag"
 	"net"
 	"syscall"
 	"time"
-	"unsafe"
 
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
@@ -31,29 +29,16 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/sockctrl"
-	"github.com/scionproto/scion/go/lib/topology/underlay"
 )
-
-// ReceiveBufferSize is the default size, in bytes, of receive buffers for
-// opened sockets.
-const ReceiveBufferSize = 1 << 20
-
-const sizeOfRxqOvfl = 4 // Defined to be uint32
-const sizeOfTimespec = int(unsafe.Sizeof(syscall.Timespec{}))
-
-var oobSize = syscall.CmsgSpace(sizeOfRxqOvfl) + syscall.CmsgSpace(sizeOfTimespec)
-var sizeIgnore = flag.Bool("overlay.conn.sizeIgnore", true,
-	"Ignore failing to set the receive buffer size on a socket.")
 
 // Messages is a list of ipX.Messages. It is necessary to hide the type alias
 // between ipv4.Message, ipv6.Message and socket.Message.
 type Messages []ipv4.Message
 
-// Conn describes the API for an underlay socket with additional metadata on
-// reads.
+// Conn describes the API for an underlay socket
 type Conn interface {
-	Read([]byte) (int, *ReadMeta, error)
-	ReadBatch(Messages, []ReadMeta) (int, error)
+	ReadFrom([]byte) (int, *net.UDPAddr, error)
+	ReadBatch(Messages) (int, error)
 	Write([]byte) (int, error)
 	WriteTo([]byte, *net.UDPAddr) (int, error)
 	WriteBatch(Messages) (int, error)
@@ -68,25 +53,14 @@ type Conn interface {
 // Config customizes the behavior of an underlay socket.
 type Config struct {
 	// ReceiveBufferSize is the size of the operating system receive buffer, in
-	// bytes. If 0, the package constant is used instead.
+	// bytes.
 	ReceiveBufferSize int
-}
-
-func (c *Config) getReceiveBufferSize() int {
-	if c.ReceiveBufferSize != 0 {
-		return c.ReceiveBufferSize
-	}
-	return ReceiveBufferSize
 }
 
 // New opens a new underlay socket on the specified addresses.
 //
-// The config can be used to customize socket behavior. If config is nil,
-// default values are used.
+// The config can be used to customize socket behavior.
 func New(listen, remote *net.UDPAddr, cfg *Config) (Conn, error) {
-	if cfg == nil {
-		cfg = &Config{}
-	}
 	a := listen
 	if remote != nil {
 		a = remote
@@ -114,22 +88,10 @@ func newConnUDPIPv4(listen, remote *net.UDPAddr, cfg *Config) (*connUDPIPv4, err
 	return cc, nil
 }
 
-// ReadBatch reads up to len(msgs) packets, and stores them in msgs, with their
-// corresponding ReadMeta in metas. It returns the number of packets read, and an error if any.
-func (c *connUDPIPv4) ReadBatch(msgs Messages, metas []ReadMeta) (int, error) {
-	for i := range metas {
-		metas[i].reset()
-	}
+// ReadBatch reads up to len(msgs) packets, and stores them in msgs.
+// It returns the number of packets read, and an error if any.
+func (c *connUDPIPv4) ReadBatch(msgs Messages) (int, error) {
 	n, err := c.pconn.ReadBatch(msgs, syscall.MSG_WAITFORONE)
-	readTime := time.Now()
-	for i := 0; i < n; i++ {
-		msg := msgs[i]
-		meta := &metas[i]
-		if msg.NN > 0 {
-			c.handleCmsg(msg.OOB[:msg.NN], meta, readTime)
-		}
-		meta.setSrc(c.Remote, msg.Addr.(*net.UDPAddr), underlay.UDPIPv4)
-	}
 	return n, err
 }
 
@@ -164,22 +126,10 @@ func newConnUDPIPv6(listen, remote *net.UDPAddr, cfg *Config) (*connUDPIPv6, err
 	return cc, nil
 }
 
-// ReadBatch reads up to len(msgs) packets, and stores them in msgs, with their
-// corresponding ReadMeta in metas. It returns the number of packets read, and an error if any.
-func (c *connUDPIPv6) ReadBatch(msgs Messages, metas []ReadMeta) (int, error) {
-	for i := range metas {
-		metas[i].reset()
-	}
+// ReadBatch reads up to len(msgs) packets, and stores them in msgs.
+// It returns the number of packets read, and an error if any.
+func (c *connUDPIPv6) ReadBatch(msgs Messages) (int, error) {
 	n, err := c.pconn.ReadBatch(msgs, syscall.MSG_WAITFORONE)
-	readTime := time.Now()
-	for i := 0; i < n; i++ {
-		msg := msgs[i]
-		meta := &metas[i]
-		if msg.NN > 0 {
-			c.handleCmsg(msg.OOB[:msg.NN], meta, readTime)
-		}
-		meta.setSrc(c.Remote, msg.Addr.(*net.UDPAddr), underlay.UDPIPv6)
-	}
 	return n, err
 }
 
@@ -201,12 +151,10 @@ func (c *connUDPIPv6) SetDeadline(t time.Time) error {
 }
 
 type connUDPBase struct {
-	conn     *net.UDPConn
-	Listen   *net.UDPAddr
-	Remote   *net.UDPAddr
-	oob      []byte
-	closed   bool
-	readMeta ReadMeta
+	conn   *net.UDPConn
+	Listen *net.UDPAddr
+	Remote *net.UDPAddr
+	closed bool
 }
 
 func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cfg *Config) error {
@@ -226,22 +174,14 @@ func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cf
 				"network", network, "listen", laddr, "remote", raddr)
 		}
 	}
-	// Set reporting socket options
-	if err := sockctrl.SetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RXQ_OVFL, 1); err != nil {
-		return serrors.WrapStr("Error setting SO_RXQ_OVFL socket option", err,
-			"listen", laddr, "remote", raddr)
-	}
-	if err := sockctrl.SetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_TIMESTAMPNS, 1); err != nil {
-		return serrors.WrapStr("Error setting SO_TIMESTAMPNS socket option", err,
-			"listen", laddr, "remote", raddr)
-	}
 	// Set and confirm receive buffer size
 	before, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
 	if err != nil {
 		return serrors.WrapStr("Error getting SO_RCVBUF socket option (before)", err,
 			"listen", laddr, "remote", raddr)
 	}
-	if err = c.SetReadBuffer(cfg.getReceiveBufferSize()); err != nil {
+	target := cfg.ReceiveBufferSize
+	if err = c.SetReadBuffer(target); err != nil {
 		return serrors.WrapStr("Error setting recv buffer size", err,
 			"listen", laddr, "remote", raddr)
 	}
@@ -250,74 +190,19 @@ func (cc *connUDPBase) initConnUDP(network string, laddr, raddr *net.UDPAddr, cf
 		return serrors.WrapStr("Error getting SO_RCVBUF socket option (after)", err,
 			"listen", laddr, "remote", raddr)
 	}
-	if after/2 != ReceiveBufferSize {
-		msg := "Receive buffer size smaller than requested"
-		ctx := []interface{}{"expected", ReceiveBufferSize, "actual", after / 2,
-			"before", before / 2}
-		if !*sizeIgnore {
-			return serrors.New(msg, ctx...)
-		}
-		log.Info(msg, ctx...)
+	if after/2 < target {
+		// Note: kernel doubles value passed in SetReadBuffer, value returned is the doubled value
+		log.Info("Receive buffer size smaller than requested",
+			"expected", target, "actual", after/2, "before", before/2)
 	}
-	oob := make([]byte, oobSize)
 	cc.conn = c
 	cc.Listen = laddr
 	cc.Remote = raddr
-	cc.oob = oob
 	return nil
 }
 
-func (c *connUDPBase) Read(b []byte) (int, *ReadMeta, error) {
-	c.readMeta.reset()
-	n, oobn, _, src, err := c.conn.ReadMsgUDP(b, c.oob)
-	readTime := time.Now()
-	if oobn > 0 {
-		c.handleCmsg(c.oob[:oobn], &c.readMeta, readTime)
-	}
-	if c.Remote != nil {
-		c.readMeta.Src = c.Remote
-	} else if src != nil {
-		c.readMeta.Src = &net.UDPAddr{
-			IP:   src.IP,
-			Port: src.Port,
-			Zone: src.Zone,
-		}
-	}
-	return n, &c.readMeta, err
-}
-
-func (c *connUDPBase) handleCmsg(oob []byte, meta *ReadMeta, readTime time.Time) {
-	// Based on https://github.com/golang/go/blob/release-branch.go1.8/src/syscall/sockcmsg_unix.go#L49
-	// and modified to remove most allocations.
-	sizeofCmsgHdr := syscall.CmsgLen(0)
-	for sizeofCmsgHdr <= len(oob) {
-		hdr := (*syscall.Cmsghdr)(unsafe.Pointer(&oob[0]))
-		if hdr.Len < syscall.SizeofCmsghdr {
-			log.Error("Cmsg from ReadMsgUDP has corrupted header length", "listen", c.Listen,
-				"remote", c.Remote, "min", syscall.SizeofCmsghdr, "actual", hdr.Len)
-			return
-		}
-		if uint64(hdr.Len) > uint64(len(oob)) {
-			log.Error("Cmsg from ReadMsgUDP longer than remaining buffer",
-				"listen", c.Listen, "remote", c.Remote, "max", len(oob), "actual", hdr.Len)
-			return
-		}
-		switch {
-		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_RXQ_OVFL:
-			meta.RcvOvfl = *(*uint32)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
-		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_TIMESTAMPNS:
-			tv := *(*syscall.Timespec)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
-			meta.Recvd = time.Unix(int64(tv.Sec), int64(tv.Nsec))
-			meta.ReadDelay = readTime.Sub(meta.Recvd)
-			// Guard against leap-seconds.
-			if meta.ReadDelay < 0 {
-				meta.ReadDelay = 0
-			}
-		}
-		// What we actually want is the padded length of the cmsg, but CmsgLen
-		// adds a CmsgHdr length to the result, so we subtract that.
-		oob = oob[syscall.CmsgLen(int(hdr.Len))-sizeofCmsgHdr:]
-	}
+func (c *connUDPBase) ReadFrom(b []byte) (int, *net.UDPAddr, error) {
+	return c.conn.ReadFromUDP(b)
 }
 
 func (c *connUDPBase) Write(b []byte) (int, error) {
@@ -347,43 +232,6 @@ func (c *connUDPBase) Close() error {
 	return c.conn.Close()
 }
 
-// ReadMeta contains extra information about socket reads.
-type ReadMeta struct {
-	// Src is the remote address from which the datagram was received
-	Src *net.UDPAddr
-	// Local is the address on which the datagram was received
-	Local *net.UDPAddr
-	// RcvOvfl is the total number of packets that were dropped by the OS due
-	// to the receive buffers being full.
-	RcvOvfl uint32
-	// Recvd is the timestamp when the kernel placed the packet in the socket's
-	// receive buffer. N.B. this is in system time, it is _not_ monotonic.
-	Recvd time.Time
-	// ReadDelay is the time elapsed between the kernel adding a packet to the
-	// socket's receive buffer, and the application reading it from the Go
-	// network stack (i.e., kernel to application latency).
-	ReadDelay time.Duration
-}
-
-func (m *ReadMeta) reset() {
-	m.Src = nil
-	m.RcvOvfl = 0
-	m.Recvd = time.Unix(0, 0)
-	m.ReadDelay = 0
-}
-
-func (m *ReadMeta) setSrc(a *net.UDPAddr, raddr *net.UDPAddr, ot underlay.Type) {
-	if a != nil {
-		m.Src = a
-	} else {
-		m.Src = &net.UDPAddr{
-			IP:   raddr.IP,
-			Port: raddr.Port,
-			Zone: raddr.Zone,
-		}
-	}
-}
-
 // NewReadMessages allocates memory for reading IPv4 Linux network stack
 // messages.
 func NewReadMessages(n int) Messages {
@@ -391,19 +239,6 @@ func NewReadMessages(n int) Messages {
 	for i := range m {
 		// Allocate a single-element, to avoid allocations when setting the buffer.
 		m[i].Buffers = make([][]byte, 1)
-		m[i].OOB = make([]byte, oobSize)
-	}
-	return m
-}
-
-// NewWriteMessages allocates memory for writing IPv4 Linux network stack
-// messages.
-func NewWriteMessages(n int) Messages {
-	m := make(Messages, n)
-	for i := range m {
-		// Allocate a single-element, to avoid allocations when setting the buffer.
-		m[i].Buffers = make([][]byte, 1)
-		m[i].Addr = &net.UDPAddr{}
 	}
 	return m
 }

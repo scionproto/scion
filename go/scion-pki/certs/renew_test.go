@@ -26,12 +26,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/xtest"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	"github.com/scionproto/scion/go/pkg/trust"
+	"github.com/scionproto/scion/go/scion-pki/key"
 )
+
+var baseTime = time.Now()
 
 func TestCSRTemplate(t *testing.T) {
 	wantSubject := pkix.Name{
@@ -48,24 +52,35 @@ func TestCSRTemplate(t *testing.T) {
 			},
 		},
 	}
-	key, err := readECKey("testdata/renew/cp-as.key")
-	require.NoError(t, err)
-	chain, err := cppki.ReadPEMCerts("testdata/renew/ISD1-ASff00_0_111.pem")
-	require.NoError(t, err)
+	customSubject := wantSubject
+	customSubject.CommonName = "custom"
 
 	testCases := map[string]struct {
 		File         string
-		Expected     pkix.Name
+		CommonName   string
+		Expected     pkix.RDNSequence
 		ErrAssertion assert.ErrorAssertionFunc
 	}{
 		"valid": {
 			File:         "testdata/renew/ISD1-ASff00_0_111.csr.json",
-			Expected:     wantSubject,
+			Expected:     wantSubject.ToRDNSequence(),
 			ErrAssertion: assert.NoError,
 		},
 		"from chain": {
-			File:         "",
-			Expected:     wantSubject,
+			File:         "testdata/renew/ISD1-ASff00_0_111.pem",
+			Expected:     wantSubject.ToRDNSequence(),
+			ErrAssertion: assert.NoError,
+		},
+		"custom common name": {
+			File:         "testdata/renew/ISD1-ASff00_0_111.csr.json",
+			CommonName:   "custom",
+			Expected:     customSubject.ToRDNSequence(),
+			ErrAssertion: assert.NoError,
+		},
+		"custom common name from chain": {
+			File:         "testdata/renew/ISD1-ASff00_0_111.pem",
+			CommonName:   "custom",
+			Expected:     customSubject.ToRDNSequence(),
 			ErrAssertion: assert.NoError,
 		},
 		"no ISD-AS": {
@@ -77,13 +92,12 @@ func TestCSRTemplate(t *testing.T) {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			csr, err := csrTemplate(chain[0], key.Public(), tc.File)
+			subject, err := createSubject(tc.File, tc.CommonName)
 			tc.ErrAssertion(t, err)
 			if err != nil {
 				return
 			}
-			assert.Equal(t, x509.UnknownSignatureAlgorithm, csr.SignatureAlgorithm)
-			assert.Equal(t, tc.Expected.String(), csr.Subject.String())
+			assert.ElementsMatch(t, tc.Expected, subject.ToRDNSequence())
 		})
 	}
 }
@@ -92,7 +106,7 @@ func TestExtractChain(t *testing.T) {
 	chain := xtest.LoadChain(t, "testdata/renew/ISD1-ASff00_0_111.pem")
 
 	caChain := xtest.LoadChain(t, "testdata/renew/ISD1-ASff00_0_110.pem")
-	key, err := readECKey("testdata/renew/cp-as-110.key")
+	key, err := key.LoadPrivateKey("testdata/renew/cp-as-110.key")
 	require.NoError(t, err)
 	caSigner := trust.Signer{
 		PrivateKey:   key,
@@ -170,5 +184,98 @@ func TestExtractChain(t *testing.T) {
 			tc.ErrAssertion(t, err)
 			assert.Equal(t, tc.Expected, renewed)
 		})
+	}
+}
+
+func TestSelectLatestTRCs(t *testing.T) {
+	testCases := map[string]struct {
+		Input  []cppki.SignedTRC
+		Output []cppki.SignedTRC
+		Error  assert.ErrorAssertionFunc
+	}{
+		"nil": {
+			Error: assert.Error,
+		},
+		"empty": {
+			Input: []cppki.SignedTRC{},
+			Error: assert.Error,
+		},
+		"one": {
+			Input:  []cppki.SignedTRC{buildTRC(1, 1, true)},
+			Output: []cppki.SignedTRC{buildTRC(1, 1, true)},
+			Error:  assert.NoError,
+		},
+		"two": {
+			Input:  []cppki.SignedTRC{buildTRC(1, 1, true), buildTRC(1, 2, true)},
+			Output: []cppki.SignedTRC{buildTRC(1, 2, true), buildTRC(1, 1, true)},
+			Error:  assert.NoError,
+		},
+		"two, not in grace": {
+			Input:  []cppki.SignedTRC{buildTRC(1, 1, true), buildTRC(1, 2, false)},
+			Output: []cppki.SignedTRC{buildTRC(1, 2, false)},
+			Error:  assert.NoError,
+		},
+		"only one on latest base": {
+			Input:  []cppki.SignedTRC{buildTRC(1, 1, true), buildTRC(2, 2, true)},
+			Output: []cppki.SignedTRC{buildTRC(2, 2, true)},
+			Error:  assert.NoError,
+		},
+		"equal serial": {
+			Input:  []cppki.SignedTRC{buildTRC(1, 1, true), buildTRC(1, 1, true)},
+			Output: []cppki.SignedTRC{buildTRC(1, 1, true)},
+			Error:  assert.NoError,
+		},
+		"gap serial": {
+			Input:  []cppki.SignedTRC{buildTRC(1, 1, true), buildTRC(1, 3, true)},
+			Output: []cppki.SignedTRC{buildTRC(1, 3, true)},
+			Error:  assert.NoError,
+		},
+		"four": {
+			Input: []cppki.SignedTRC{
+				buildTRC(1, 1, true), buildTRC(1, 2, true),
+				buildTRC(1, 6, true), buildTRC(1, 7, true),
+			},
+			Output: []cppki.SignedTRC{buildTRC(1, 7, true), buildTRC(1, 6, true)},
+			Error:  assert.NoError,
+		},
+		"four with 2 bases": {
+			Input: []cppki.SignedTRC{
+				buildTRC(2, 8, true), buildTRC(1, 2, true),
+				buildTRC(2, 7, true), buildTRC(1, 9, true),
+			},
+			Output: []cppki.SignedTRC{buildTRC(2, 8, true), buildTRC(2, 7, true)},
+			Error:  assert.NoError,
+		},
+	}
+	for name, tc := range testCases {
+		tc := tc
+		t.Run(name, func(t *testing.T) {
+			_ = tc
+			t.Parallel()
+			output, err := selectLatestTRCs(tc.Input)
+			tc.Error(t, err)
+			assert.Equal(t, tc.Output, output)
+		})
+	}
+}
+
+// buildTRC builds a skeleton of a TRC containing only version information.
+func buildTRC(base, serial scrypto.Version, grace bool) cppki.SignedTRC {
+	var gracePeriod time.Duration
+	if grace {
+		gracePeriod = 2 * time.Hour
+	}
+	return cppki.SignedTRC{
+		TRC: cppki.TRC{
+			ID: cppki.TRCID{
+				Base:   base,
+				Serial: serial,
+			},
+			Validity: cppki.Validity{
+				NotBefore: baseTime.Add(-1 * time.Hour),
+				NotAfter:  baseTime.Add(2 * time.Hour),
+			},
+			GracePeriod: gracePeriod,
+		},
 	}
 }

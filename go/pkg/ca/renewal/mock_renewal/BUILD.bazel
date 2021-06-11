@@ -7,7 +7,6 @@ gomock(
     interfaces = [
         "CACertProvider",
         "PolicyGen",
-        "DB",
     ],
     library = "//go/pkg/ca/renewal:go_default_library",
     package = "mock_renewal",
@@ -20,7 +19,6 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/scrypto/cppki:go_default_library",
-        "//go/pkg/trust:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
     ],
 )

@@ -123,9 +123,3 @@ func TestRouterRun(t *testing.T) {
 		t.Fatalf("Timeout waiting on run to complete")
 	}
 }
-
-type testSession struct {
-	id uint8
-}
-
-func (testSession) Write([]byte) {}

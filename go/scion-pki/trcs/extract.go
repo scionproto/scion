@@ -67,7 +67,7 @@ To inspect the created asn.1 file you can use the openssl tool:
 			raw := signed.TRC.Raw
 			if flags.format == "pem" {
 				raw = pem.EncodeToMemory(&pem.Block{
-					Type:  "TRC Payload",
+					Type:  "TRC PAYLOAD",
 					Bytes: raw,
 				})
 			}

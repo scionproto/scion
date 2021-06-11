@@ -16,6 +16,7 @@ package main
 
 import (
 	"net/http"
+	_ "net/http/pprof"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/fatal"

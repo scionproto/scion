@@ -1,3 +1,5 @@
+.. _trc-ceremony:
+
 ********************
 TRC Signing Ceremony
 ********************

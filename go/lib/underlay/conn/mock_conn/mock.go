@@ -63,35 +63,35 @@ func (mr *MockConnMockRecorder) LocalAddr() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LocalAddr", reflect.TypeOf((*MockConn)(nil).LocalAddr))
 }
 
-// Read mocks base method
-func (m *MockConn) Read(arg0 []byte) (int, *conn.ReadMeta, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Read", arg0)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(*conn.ReadMeta)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// Read indicates an expected call of Read
-func (mr *MockConnMockRecorder) Read(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Read", reflect.TypeOf((*MockConn)(nil).Read), arg0)
-}
-
 // ReadBatch mocks base method
-func (m *MockConn) ReadBatch(arg0 conn.Messages, arg1 []conn.ReadMeta) (int, error) {
+func (m *MockConn) ReadBatch(arg0 conn.Messages) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadBatch", arg0, arg1)
+	ret := m.ctrl.Call(m, "ReadBatch", arg0)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ReadBatch indicates an expected call of ReadBatch
-func (mr *MockConnMockRecorder) ReadBatch(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockConnMockRecorder) ReadBatch(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadBatch", reflect.TypeOf((*MockConn)(nil).ReadBatch), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadBatch", reflect.TypeOf((*MockConn)(nil).ReadBatch), arg0)
+}
+
+// ReadFrom mocks base method
+func (m *MockConn) ReadFrom(arg0 []byte) (int, *net.UDPAddr, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReadFrom", arg0)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(*net.UDPAddr)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ReadFrom indicates an expected call of ReadFrom
+func (mr *MockConnMockRecorder) ReadFrom(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFrom", reflect.TypeOf((*MockConn)(nil).ReadFrom), arg0)
 }
 
 // RemoteAddr mocks base method

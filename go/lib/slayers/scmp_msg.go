@@ -459,3 +459,62 @@ func decodeSCMPDestinationUnreachable(data []byte, pb gopacket.PacketBuilder) er
 	pb.AddLayer(s)
 	return pb.NextDecoder(s.NextLayerType())
 }
+
+// SCMPPacketTooBig represents the structure of a packet too big message.
+//
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |            reserved           |             MTU               |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+type SCMPPacketTooBig struct {
+	layers.BaseLayer
+	MTU uint16
+}
+
+// LayerType returns LayerTypeSCMPParameterProblem.
+func (*SCMPPacketTooBig) LayerType() gopacket.LayerType {
+	return LayerTypeSCMPPacketTooBig
+}
+
+// NextLayerType returns the layer type contained by this DecodingLayer.
+func (*SCMPPacketTooBig) NextLayerType() gopacket.LayerType {
+	return gopacket.LayerTypePayload
+}
+
+// DecodeFromBytes decodes the given bytes into this layer.
+func (i *SCMPPacketTooBig) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
+	minLength := 2 + 2
+	if size := len(data); size < minLength {
+		df.SetTruncated()
+		return serrors.New("buffer too short", "min", minLength, "actual", size)
+	}
+	i.MTU = binary.BigEndian.Uint16(data[2:4])
+	i.BaseLayer = layers.BaseLayer{
+		Contents: data[:4],
+		Payload:  data[4:],
+	}
+	return nil
+}
+
+// SerializeTo writes the serialized form of this layer into the
+// SerializationBuffer, implementing gopacket.SerializableLayer.
+func (i *SCMPPacketTooBig) SerializeTo(b gopacket.SerializeBuffer,
+	opts gopacket.SerializeOptions) error {
+
+	buf, err := b.PrependBytes(2 + 2)
+	if err != nil {
+		return err
+	}
+	binary.BigEndian.PutUint16(buf[0:2], uint16(0)) //Reserved
+	binary.BigEndian.PutUint16(buf[2:4], i.MTU)
+	return nil
+}
+
+func decodeSCMPPacketTooBig(data []byte, pb gopacket.PacketBuilder) error {
+	s := &SCMPPacketTooBig{}
+	if err := s.DecodeFromBytes(data, pb); err != nil {
+		return err
+	}
+	pb.AddLayer(s)
+	return pb.NextDecoder(s.NextLayerType())
+}

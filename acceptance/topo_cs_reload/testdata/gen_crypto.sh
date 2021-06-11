@@ -11,8 +11,7 @@ base64_pwd_gen() {
     dd if=/dev/urandom bs=1 count="${1:-16}" status=none | base64
 }
 
-cat $CRYPTOLIB > "$TMP/crypto_lib.sh"
-$PKIBIN testcrypto -t $TMPL -l "$TMP/crypto_lib.sh" -o $TMP > /dev/null
+$PKIBIN testcrypto -t $TMPL -o $TMP > /dev/null
 
 CONFDIR=`mktemp -d`
 mkdir -p $CONFDIR/certs $CONFDIR/keys $CONFDIR/crypto

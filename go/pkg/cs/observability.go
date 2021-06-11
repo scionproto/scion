@@ -54,6 +54,7 @@ func InitTracer(tracing env.Tracing, id string) (io.Closer, error) {
 // XXX(roosd): Currently, most counters are created in the packages. The will
 // eventually be moved here.
 type Metrics struct {
+	BeaconDBQueriesTotal                   *prometheus.CounterVec
 	BeaconingOriginatedTotal               *prometheus.CounterVec
 	BeaconingPropagatedTotal               *prometheus.CounterVec
 	BeaconingPropagatorInternalErrorsTotal *prometheus.CounterVec
@@ -62,8 +63,7 @@ type Metrics struct {
 	BeaconingRegistrarInternalErrorsTotal  *prometheus.CounterVec
 	DiscoveryRequestsTotal                 *prometheus.CounterVec
 	RenewalServerRequestsTotal             *prometheus.CounterVec
-	RenewalCMSHandlerRequestsTotal         *prometheus.CounterVec
-	RenewalLegacyHandlerRequestsTotal      *prometheus.CounterVec
+	RenewalHandledRequestsTotal            *prometheus.CounterVec
 	RenewalRegisteredHandlers              *prometheus.GaugeVec
 	SegmentLookupRequestsTotal             *prometheus.CounterVec
 	SegmentLookupSegmentsSentTotal         *prometheus.CounterVec
@@ -72,10 +72,18 @@ type Metrics struct {
 	TrustLatestTRCNotBefore                prometheus.Gauge
 	TrustLatestTRCNotAfter                 prometheus.Gauge
 	TrustLatestTRCSerial                   prometheus.Gauge
+	TrustTRCFileWritesTotal                *prometheus.CounterVec
 }
 
 func NewMetrics() *Metrics {
 	return &Metrics{
+		BeaconDBQueriesTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "beacondb_queries_total",
+				Help: "Total queries to the database",
+			},
+			[]string{"driver", "operation", prom.LabelResult},
+		),
 		BeaconingOriginatedTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "control_beaconing_originated_beacons_total",
@@ -139,19 +147,13 @@ func NewMetrics() *Metrics {
 			},
 			[]string{prom.LabelResult},
 		),
-		RenewalCMSHandlerRequestsTotal: promauto.NewCounterVec(
+		RenewalHandledRequestsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "renewal_cms_handler_requests_total",
-				Help: "Total number of renewal requests served by the in-process CMS handler.",
+				Name: "renewal_handled_requests_total",
+				Help: "Total number of renewal requests served by each handler type" +
+					" (legacy, in-process, delegating).",
 			},
-			[]string{prom.LabelResult},
-		),
-		RenewalLegacyHandlerRequestsTotal: promauto.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "renewal_legacy_handler_requests_total",
-				Help: "Total number of renewal requests served by the legacy handler.",
-			},
-			[]string{prom.LabelResult},
+			[]string{prom.LabelResult, "type"},
 		),
 		RenewalRegisteredHandlers: promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -200,6 +202,13 @@ func NewMetrics() *Metrics {
 				Name: "trustengine_latest_trc_serial_number",
 				Help: "The serial number of the latest TRC for the local ISD.",
 			},
+		),
+		TrustTRCFileWritesTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "trustengine_trc_file_writes_total",
+				Help: "Total TRC filesystem file operations.",
+			},
+			[]string{prom.LabelResult},
 		),
 	}
 

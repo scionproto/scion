@@ -94,10 +94,10 @@ func TestSCMPExternalInterfaceDownSerializeTo(t *testing.T) {
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			opts := gopacket.SerializeOptions{}
 			tc.decoded.Contents = tc.raw[:16]
 			tc.decoded.Payload = tc.raw[16:]
-			t.Parallel()
 			buffer := gopacket.NewSerializeBuffer()
 			err := tc.decoded.SerializeTo(buffer, opts)
 			tc.assertFunc(t, err)
@@ -184,10 +184,10 @@ func TestSCMPInternalConnectivityDownSerializeTo(t *testing.T) {
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			opts := gopacket.SerializeOptions{}
 			tc.decoded.Contents = tc.raw[:24]
 			tc.decoded.Payload = tc.raw[24:]
-			t.Parallel()
 			buffer := gopacket.NewSerializeBuffer()
 			err := tc.decoded.SerializeTo(buffer, opts)
 			tc.assertFunc(t, err)
@@ -259,10 +259,10 @@ func TestSCMPEchoSerializeTo(t *testing.T) {
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			opts := gopacket.SerializeOptions{}
 			tc.decoded.Contents = tc.raw[:4]
 			tc.decoded.Payload = tc.raw[4:]
-			t.Parallel()
 			buffer := gopacket.NewSerializeBuffer()
 			err := tc.decoded.SerializeTo(buffer, opts)
 			tc.assertFunc(t, err)
@@ -332,10 +332,10 @@ func TestSCMPParameterProblemSerializeTo(t *testing.T) {
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			opts := gopacket.SerializeOptions{}
 			tc.decoded.Contents = tc.raw[:4]
 			tc.decoded.Payload = tc.raw[4:]
-			t.Parallel()
 			buffer := gopacket.NewSerializeBuffer()
 			err := tc.decoded.SerializeTo(buffer, opts)
 			tc.assertFunc(t, err)
@@ -419,10 +419,10 @@ func TestSCMPTracerouteSerializeTo(t *testing.T) {
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			opts := gopacket.SerializeOptions{}
 			tc.decoded.Contents = tc.raw[:20]
 			tc.decoded.Payload = tc.raw[20:]
-			t.Parallel()
 			buffer := gopacket.NewSerializeBuffer()
 			err := tc.decoded.SerializeTo(buffer, opts)
 			tc.assertFunc(t, err)
@@ -490,10 +490,83 @@ func TestSCMPDestinationUnreachableSerializeTo(t *testing.T) {
 	for name, tc := range testCases {
 		name, tc := name, tc
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			opts := gopacket.SerializeOptions{}
 			tc.decoded.Contents = tc.raw[:4]
 			tc.decoded.Payload = tc.raw[4:]
+			buffer := gopacket.NewSerializeBuffer()
+			err := tc.decoded.SerializeTo(buffer, opts)
+			tc.assertFunc(t, err)
+			if err != nil {
+				return
+			}
+			assert.Equal(t, tc.raw[:len(tc.decoded.Contents)], buffer.Bytes())
+		})
+	}
+}
+
+func TestSCMPPacketTooBigDecodeFromBytes(t *testing.T) {
+	testCases := map[string]struct {
+		raw        []byte
+		decoded    *slayers.SCMPPacketTooBig
+		assertFunc assert.ErrorAssertionFunc
+	}{
+		"valid": {
+			raw: append([]byte{
+				0x00, 0x00, 0x05, 0x7c,
+			}, bytes.Repeat([]byte{0xff}, 10)...),
+			decoded: &slayers.SCMPPacketTooBig{
+				MTU: 1404,
+			},
+			assertFunc: assert.NoError,
+		},
+		"invalid": {
+			raw:        bytes.Repeat([]byte{0x0}, 1),
+			decoded:    &slayers.SCMPPacketTooBig{},
+			assertFunc: assert.Error,
+		},
+	}
+
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+			got := &slayers.SCMPPacketTooBig{}
+			err := got.DecodeFromBytes(tc.raw, gopacket.NilDecodeFeedback)
+			tc.assertFunc(t, err)
+			if err != nil {
+				return
+			}
+			tc.decoded.Contents = tc.raw[:4]
+			tc.decoded.Payload = tc.raw[4:]
+			assert.Equal(t, tc.decoded, got)
+		})
+	}
+}
+
+func TestSCMPPacketTooBigSerializeTo(t *testing.T) {
+	testCases := map[string]struct {
+		raw        []byte
+		decoded    *slayers.SCMPPacketTooBig
+		assertFunc assert.ErrorAssertionFunc
+	}{
+		"valid": {
+			raw: append([]byte{
+				0x00, 0x00, 0x05, 0x7c,
+			}, bytes.Repeat([]byte{0xff}, 10)...),
+			decoded: &slayers.SCMPPacketTooBig{
+				MTU: 1404,
+			},
+			assertFunc: assert.NoError,
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			opts := gopacket.SerializeOptions{}
+			tc.decoded.Contents = tc.raw[:4]
+			tc.decoded.Payload = tc.raw[4:]
 			buffer := gopacket.NewSerializeBuffer()
 			err := tc.decoded.SerializeTo(buffer, opts)
 			tc.assertFunc(t, err)

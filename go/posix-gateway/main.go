@@ -20,19 +20,16 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
-	"github.com/vishvananda/netlink"
-
 	"github.com/scionproto/scion/go/lib/daemon"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/routemgr"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/snet/addrutil"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/pkg/app/launcher"
 	"github.com/scionproto/scion/go/pkg/gateway"
-	"github.com/scionproto/scion/go/pkg/gateway/xnet"
+	"github.com/scionproto/scion/go/pkg/gateway/dataplane"
 	"github.com/scionproto/scion/go/pkg/service"
 	"github.com/scionproto/scion/go/posix-gateway/config"
 )
@@ -52,12 +49,6 @@ func realMain() error {
 	globalCfg.Metrics.StartPrometheus()
 
 	reloadConfigTrigger := make(chan struct{})
-
-	tunnelLink, tunnelIO, err := xnet.ConnectTun(globalCfg.Tunnel.Name)
-	if err != nil {
-		return serrors.WrapStr("initializing TUN device", err)
-	}
-	log.Debug("Tunnel device initialized", "dev", globalCfg.Tunnel.Name)
 
 	daemonService := &daemon.Service{
 		Address: globalCfg.Daemon.Address,
@@ -90,7 +81,7 @@ func realMain() error {
 		"config":    service.NewConfigHandler(globalCfg),
 		"log/level": log.ConsoleLevel.ServeHTTP,
 	}
-	routePublisherFactory, routeConsumerFactory := createRouteManager(tunnelLink)
+	routingTable := &dataplane.AtomicRoutingTable{}
 	gw := &gateway.Gateway{
 		TrafficPolicyFile:        globalCfg.Gateway.TrafficPolicy,
 		RoutingPolicyFile:        globalCfg.Gateway.IPRoutingPolicy,
@@ -104,12 +95,12 @@ func realMain() error {
 		DataClientIP:             dataAddress.IP,
 		Dispatcher:               reliable.NewDispatcher(""),
 		Daemon:                   daemon,
-		InternalDevice:           tunnelIO,
 		RouteSourceIPv4:          globalCfg.Tunnel.SrcIPv4,
 		RouteSourceIPv6:          globalCfg.Tunnel.SrcIPv6,
+		TunnelName:               globalCfg.Tunnel.Name,
+		RoutingTableReader:       routingTable,
+		RoutingTableSwapper:      routingTable,
 		ConfigReloadTrigger:      reloadConfigTrigger,
-		RoutePublisherFactory:    routePublisherFactory,
-		RouteConsumerFactory:     routeConsumerFactory,
 		HTTPEndpoints:            httpPages,
 		HTTPServeMux:             http.DefaultServeMux,
 		Logger:                   log.New(),
@@ -136,13 +127,4 @@ func realMain() error {
 	case <-fatal.FatalChan():
 		return serrors.New("received fatal error")
 	}
-}
-
-func createRouteManager(device netlink.Link) (routemgr.PublisherFactory, routemgr.ConsumerFactory) {
-	linux := &routemgr.Linux{Device: device}
-	go func() {
-		defer log.HandlePanic()
-		linux.Run()
-	}()
-	return linux, &routemgr.Dummy{}
 }

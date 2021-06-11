@@ -1,0 +1,9 @@
+---
+ASes:
+  "1-ff00:0:110":
+    core: true
+    voting: true
+    authoritative: true
+    issuing: true
+  "1-ff00:0:111":
+    cert_issuer: 1-ff00:0:110

@@ -147,7 +147,7 @@ replace ``{{.ShortOrg}}`` with the name of your organization:
 
 
 Using this configuration, create the sensitive voting key and certificate. The
-start and end date need to be replaced with the time when the certificatk
+start and end date need to be replaced with the time when the certificate
 becomes valid, and the time when it expires. The format is ``YYYYMMDDHHMMSSZ``.
 For example, June 24th, 2020 UTC at noon, is formatted as ``20200624120000Z``.
 The required commands are:

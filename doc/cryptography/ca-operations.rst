@@ -18,6 +18,8 @@ The process of creating new AS Certificates is described in section `AS Certific
 To follow the steps in this document, ``openssl`` version ``1.1.1d`` or later is
 required.
 
+.. _ca-cert:
+
 CA Certificates
 ===============
 
@@ -51,7 +53,7 @@ ExampleCorp Secure CA Certificate``.
 
 .. attention::
 
-   SCION CA certificates have short lifetimes (a lifetime of 7 days is recommended).
+   SCION CA certificates have short lifetimes (a lifetime of 11 days is recommended).
 
 Once the file is ready, the rest of the steps can be executed through a series
 of ``openssl`` commands.
@@ -96,16 +98,29 @@ The certificate can be validated with with the ``scion-pki`` binary:
    :end-before: LITERALINCLUDE check_ca_type END
    :dedent: 4
 
-Creating future CA Certificates
--------------------------------
+Updating CA certificates
+------------------------
+
+CA certificates should be periodically rolled over. A validity of 11 days with 4
+days overlap between two CA certificates is recommended. The recommended
+schedule is shown below::
+
+       Su | Mo | Tu | We | Th | Fr | Sa | Su | Mo | Tu | We | Th | Fr | Sa | Su | Mo
+    ... 1 |  1 |  1 |  1 |  1 |    |    |    |    |    |    |    |    |    |    |
+          |  2 |  2 |  2 |  2 |  2 |  2 |  2 |  2 |  2 |  2 |  2 |    |    |    |
+          |    |    |    |    |    |    |    |  3 |  3 |  3 |  3 |  3 |  3 |  3 |  3 ...
+
+Always on Monday a CA certificate with a validity of 11 days is created and
+enabled. This way there is an overlap period until Thursday with the previous CA
+certificate. That should leave enough room to debug issues during the work week
+and renewals never fall on a Weekend.
 
 Because CA certificates are created by signing them with the Root certificate,
 the process for creating future CA certificates is the same as the initial one.
 
 To comply with custom security policies that dictate that a Root Key should sit
 behind an air gap, multiple CA certificates can be pre-generated for the same
-entity. Such CA certificates should be generated with overlapping validity
-periods to allow for smooth transition from one to the next.
+entity.
 
 AS Certificates
 ===============

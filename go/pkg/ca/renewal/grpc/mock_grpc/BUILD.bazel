@@ -7,7 +7,6 @@ gomock(
     interfaces = [
         "ChainBuilder",
         "RenewalRequestVerifier",
-        "Signer",
         "CMSSigner",
         "CMSRequestHandler",
         "LegacyRequestHandler",

@@ -27,8 +27,8 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = ["revocations_test.go"],
-    embed = [":go_default_library"],
     deps = [
+        ":go_default_library",
         "//go/lib/addr:go_default_library",
         "//go/lib/common:go_default_library",
         "//go/lib/ctrl/path_mgmt:go_default_library",

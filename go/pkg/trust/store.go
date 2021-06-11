@@ -91,7 +91,7 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 			res.Ignored[f] = serrors.New("TRC not found", "isd", ia.I)
 			continue
 		}
-		opts := cppki.VerifyOptions{TRC: &trc.TRC}
+		opts := cppki.VerifyOptions{TRC: []*cppki.TRC{&trc.TRC}}
 		if err := cppki.VerifyChain(chain, opts); err != nil {
 			res.Ignored[f] = err
 			continue

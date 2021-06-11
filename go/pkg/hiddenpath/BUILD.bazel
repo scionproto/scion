@@ -48,8 +48,8 @@ go_test(
         "store_test.go",
     ],
     data = glob(["testdata/**"]),
-    embed = [":go_default_library"],
     deps = [
+        ":go_default_library",
         "//go/cs/beacon:go_default_library",
         "//go/cs/beaconing:go_default_library",
         "//go/cs/ifstate:go_default_library",

@@ -21,8 +21,8 @@ go_test(
     name = "go_default_test",
     srcs = ["net_test.go"],
     data = glob(["testdata/**"]),
-    embed = [":go_default_library"],
     deps = [
+        ":go_default_library",
         "//go/pkg/proto/control_plane:go_default_library",
         "//go/pkg/proto/control_plane/mock_control_plane:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",

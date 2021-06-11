@@ -66,11 +66,12 @@ const (
 	ErrNetwork = "err_network"
 	// ErrNotFound is used for errors where a resource is not found.
 	ErrNotFound = "err_not_found"
+	// ErrUnavailable is used for errors where a resource is not available.
+	ErrUnavailable = "err_unavailable"
 )
 
 // FIXME(roosd): remove when moving messenger to new metrics style.
 const (
-	StatusOk      = "ok"
 	StatusErr     = "err"
 	StatusTimeout = "err_timeout"
 )

@@ -25,7 +25,7 @@ from acceptance.common import scion
 
 class Test(base.TestBase):
     """
-    Tests that IP pinging between SIGs works.
+    Tests that IP pinging between Gateways works.
     """
     gateway_acceptance = plumbum.cli.SwitchAttr("gateway_acceptance", str,
                                                 default="./bin/sig_ping_acceptance",

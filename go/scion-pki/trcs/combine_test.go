@@ -105,6 +105,10 @@ func TestCombine(t *testing.T) {
 			pld:    "./testdata/admin/ISD1-B1-S1.pld.pem",
 			format: "pem",
 		},
+		"no payload": {
+			pld:    "",
+			format: "pem",
+		},
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {

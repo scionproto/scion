@@ -14,25 +14,27 @@
 
 package routemgr
 
+import "github.com/scionproto/scion/go/pkg/gateway/control"
+
 // Dummy is a route management backend that does nothing. It is useful to use instead of nil
 // pointer. It saves the user the pain of checking whether interface is nil which happens to
 // be non-trivial in Go.
 type Dummy struct {
 }
 
-func (d *Dummy) NewPublisher() Publisher {
+func (d *Dummy) NewPublisher() control.Publisher {
 	return d
 }
 
-func (d *Dummy) NewConsumer() Consumer {
+func (d *Dummy) NewConsumer() control.Consumer {
 	return d
 }
 
-func (d *Dummy) AddRoute(route Route) {}
+func (d *Dummy) AddRoute(route control.Route) {}
 
-func (d *Dummy) DeleteRoute(route Route) {}
+func (d *Dummy) DeleteRoute(route control.Route) {}
 
-func (d *Dummy) Updates() <-chan RouteUpdate {
+func (d *Dummy) Updates() <-chan control.RouteUpdate {
 	return nil
 }
 

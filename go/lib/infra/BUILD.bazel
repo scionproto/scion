@@ -11,7 +11,5 @@ go_library(
     deps = [
         "//go/lib/addr:go_default_library",
         "//go/lib/ctrl/seg:go_default_library",
-        "//go/lib/prom:go_default_library",
-        "//go/lib/serrors:go_default_library",
     ],
 )

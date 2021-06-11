@@ -22,8 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/pktcls"
-	"github.com/scionproto/scion/go/lib/routemgr"
-	"github.com/scionproto/scion/go/lib/routemgr/mock_routemgr"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 	"github.com/scionproto/scion/go/pkg/gateway/control/mock_control"
@@ -34,7 +32,7 @@ var (
 	routeSourceIPv6 = net.ParseIP("2001:db8:1::1")
 )
 
-func getRoutingChains(t *testing.T) ([]*control.RoutingChain, routemgr.Route, routemgr.Route) {
+func getRoutingChains(t *testing.T) ([]*control.RoutingChain, control.Route, control.Route) {
 	prefixIPv4 := xtest.MustParseCIDR(t, "192.168.100.0/24")
 	prefixIPv6 := xtest.MustParseCIDR(t, "2001:db8:2::/48")
 	return []*control.RoutingChain{
@@ -48,11 +46,11 @@ func getRoutingChains(t *testing.T) ([]*control.RoutingChain, routemgr.Route, ro
 					{ID: 2, Matcher: pktcls.CondFalse},
 				},
 			},
-		}, routemgr.Route{
+		}, control.Route{
 			Prefix:  prefixIPv4,
 			Source:  routeSourceIPv4,
 			NextHop: net.IP{},
-		}, routemgr.Route{
+		}, control.Route{
 			Prefix:  prefixIPv6,
 			Source:  routeSourceIPv6,
 			NextHop: net.IP{},
@@ -67,7 +65,7 @@ func TestNewPublishingRoutingTableEarlyNoActivate(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	publisher := mock_routemgr.NewMockPublisher(ctrl)
+	publisher := mock_control.NewMockPublisher(ctrl)
 
 	routingTable := mock_control.NewMockRoutingTable(ctrl)
 
@@ -86,7 +84,7 @@ func TestNewPublishingRoutingTableEarlyActivate(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	publisher := mock_routemgr.NewMockPublisher(ctrl)
+	publisher := mock_control.NewMockPublisher(ctrl)
 	publisher.EXPECT().AddRoute(routeV4)
 	publisher.EXPECT().AddRoute(routeV6)
 	publisher.EXPECT().Close().Times(1)
@@ -112,7 +110,7 @@ func TestNewPublishingRoutingTableEarlyAddDelete(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	publisher := mock_routemgr.NewMockPublisher(ctrl)
+	publisher := mock_control.NewMockPublisher(ctrl)
 
 	routingTable := mock_control.NewMockRoutingTable(ctrl)
 	routingTable.EXPECT().Activate().Times(1)
@@ -133,7 +131,7 @@ func TestNewPublishingRoutingTableLate(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	publisher := mock_routemgr.NewMockPublisher(ctrl)
+	publisher := mock_control.NewMockPublisher(ctrl)
 	publisher.EXPECT().AddRoute(routeV4)
 	publisher.EXPECT().AddRoute(routeV6)
 	publisher.EXPECT().DeleteRoute(routeV4)
@@ -163,7 +161,7 @@ func TestNewPublishingRoutingTableHealthiness(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	publisher := mock_routemgr.NewMockPublisher(ctrl)
+	publisher := mock_control.NewMockPublisher(ctrl)
 	publisher.EXPECT().AddRoute(routeV4)
 	publisher.EXPECT().AddRoute(routeV6)
 

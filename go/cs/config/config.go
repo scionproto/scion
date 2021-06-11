@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/pkg/api"
+	"github.com/scionproto/scion/go/pkg/api/jwtauth"
 	"github.com/scionproto/scion/go/pkg/storage"
 	trustengine "github.com/scionproto/scion/go/pkg/trust/config"
 )
@@ -270,10 +271,6 @@ type CA struct {
 	config.NoDefaulter
 	// MaxASValidity is the maximum AS certificate lifetime.
 	MaxASValidity util.DurWrap `toml:"max_as_validity,omitempty"`
-	// DisableLegacyRequest disables the handler for certificate issuance
-	// requests received in the protobuf signature format, thus allowing only
-	// requests received in the CMS format.
-	DisableLegacyRequest bool `toml:"disable_legacy_request,omitempty"`
 	// Mode defines whether the Control Service should handle certificate
 	// issuance requests on its own, or whether to delegate handling to a
 	// dedicated Certificate Authority. If it is the empty string, the
@@ -324,6 +321,19 @@ type CAService struct {
 	SharedSecret string `toml:"shared_secret,omitempty"`
 	// Address of the CA Service that handles the delegated certificate renewal requests.
 	Address string `toml:"addr,omitempty"`
+	// Lifetime contains the validity period of self-generated JWT authorization tokens. The format
+	// is a Go duration. If not set, the application default is used instead (see the sample for
+	// the value).
+	Lifetime util.DurWrap `toml:"lifetime,omitempty"`
+	// ClientID is the client identification string that should be used in self-generated JWT
+	// authorization tokens. If not set, the SCION ID is used instead.
+	ClientID string `toml:"client_id,omitempty"`
+}
+
+func (cfg *CAService) InitDefault() {
+	if cfg.Lifetime.Duration == 0 {
+		cfg.Lifetime.Duration = jwtauth.DefaultTokenLifetime
+	}
 }
 
 func (cfg *CAService) Sample(dst io.Writer, _ config.Path, _ config.CtxMap) {

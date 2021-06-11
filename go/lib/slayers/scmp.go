@@ -80,6 +80,8 @@ func (s *SCMP) NextLayerType() gopacket.LayerType {
 	switch s.TypeCode.Type() {
 	case SCMPTypeDestinationUnreachable:
 		return LayerTypeSCMPDestinationUnreachable
+	case SCMPTypePacketTooBig:
+		return LayerTypeSCMPPacketTooBig
 	case SCMPTypeParameterProblem:
 		return LayerTypeSCMPParameterProblem
 	case SCMPTypeExternalInterfaceDown:

@@ -65,6 +65,9 @@ type ConsoleConfig struct {
 	Format string `toml:"format,omitempty"`
 	// StacktraceLevel sets from which level stacktraces are included.
 	StacktraceLevel string `toml:"stacktrace_level,omitempty"`
+	// DisableCaller stops annotating logs with the calling function's file
+	// name and line number. By default, all logs are annotated.
+	DisableCaller bool `toml:"disable_caller,omitempty"`
 }
 
 // InitDefaults populates unset fields in cfg to their default values (if they

@@ -23,6 +23,7 @@ import (
 
 type options struct {
 	entriesCounter *EntriesCounter
+	callerSkip     int
 }
 
 func applyOptions(opts []Option) options {
@@ -44,11 +45,24 @@ func WithEntriesCounter(m EntriesCounter) Option {
 	}
 }
 
-func (opts *options) zapOptions() []zap.Option {
-	if opts.entriesCounter == nil {
-		return nil
+// AddCallerSkip increases the number of callers skipped by caller annotation.
+// When building wrappers around the Logger, supplying this Option prevents the
+// Logger from always reporting the wrapper code as the caller.
+func AddCallerSkip(skip int) Option {
+	return func(o *options) {
+		o.callerSkip = skip
 	}
-	return []zap.Option{zap.Hooks(opts.entriesCounter.hook)}
+}
+
+func (opts *options) zapOptions() []zap.Option {
+	var zapOpts []zap.Option
+	if opts.entriesCounter != nil {
+		zapOpts = append(zapOpts, zap.Hooks(opts.entriesCounter.hook))
+	}
+	if opts.callerSkip != 0 {
+		zapOpts = append(zapOpts, zap.AddCallerSkip(opts.callerSkip))
+	}
+	return zapOpts
 }
 
 // EntriesCounter defines the metrics that are incremented when emitting a log

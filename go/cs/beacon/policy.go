@@ -39,7 +39,7 @@ const (
 
 const (
 	// DefaultBestSetSize is the default BestSetSize value.
-	DefaultBestSetSize = 5
+	DefaultBestSetSize = 20
 	// DefaultCandidateSetSize is the default CandidateSetSize value.
 	DefaultCandidateSetSize = 100
 	// DefaultMaxHopsLength is the default MaxHopsLength value.

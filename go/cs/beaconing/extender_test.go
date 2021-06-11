@@ -250,15 +250,3 @@ type failSigner struct{}
 func (f *failSigner) Sign(context.Context, []byte, ...[]byte) (*cryptopb.SignedMessage, error) {
 	return nil, errors.New("fail")
 }
-
-func maxExpTimeFactory(max uint8) func() uint8 {
-	return func() uint8 {
-		return max
-	}
-}
-
-func testBeacon(g *graph.Graph, ifids []common.IFIDType) *seg.PathSegment {
-	bseg := g.Beacon(ifids)
-	bseg.ASEntries = bseg.ASEntries[:len(bseg.ASEntries)-1]
-	return bseg
-}

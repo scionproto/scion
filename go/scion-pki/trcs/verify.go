@@ -16,7 +16,6 @@ package trcs
 
 import (
 	"bytes"
-	"crypto/sha512"
 	"crypto/x509"
 	"fmt"
 	"os"
@@ -149,16 +148,15 @@ func verifyBundle(signed cppki.SignedTRC, certs []*x509.Certificate) error {
 	if len(signed.SignerInfos) == 0 {
 		return serrors.New("no signatures found")
 	}
-	digest := sha512.Sum512(signed.TRC.Raw)
 	for i, si := range signed.SignerInfos {
-		if err := verifySignerInfo(si, digest[:], certs); err != nil {
+		if err := verifySignerInfo(si, signed.TRC.Raw, certs); err != nil {
 			return serrors.WithCtx(err, "index", i)
 		}
 	}
 	return nil
 }
 
-func verifySignerInfo(si protocol.SignerInfo, digest []byte, certs []*x509.Certificate) error {
+func verifySignerInfo(si protocol.SignerInfo, pld []byte, certs []*x509.Certificate) error {
 	if si.SignedAttrs == nil {
 		return serrors.New("SignerInfo without signed attributes")
 	}
@@ -169,14 +167,17 @@ func verifySignerInfo(si protocol.SignerInfo, digest []byte, certs []*x509.Certi
 	if !siContentType.Equal(oid.ContentTypeData) {
 		return serrors.New("SignerInfo with invalid ContentType", "type", siContentType)
 	}
-	if !si.DigestAlgorithm.Algorithm.Equal(oid.DigestAlgorithmSHA512) {
-		return serrors.New("unsupported digest algorithm", "oid", si.DigestAlgorithm)
+	hash, err := si.Hash()
+	if err != nil {
+		return err
 	}
-	msgDigest, err := si.GetMessageDigestAttribute()
+	attrDigest, err := si.GetMessageDigestAttribute()
 	if err != nil {
 		return serrors.WrapStr("SignerInfo with invalid message digest", err)
 	}
-	if !bytes.Equal(msgDigest, digest[:]) {
+	actualDigest := hash.New()
+	actualDigest.Write(pld)
+	if !bytes.Equal(attrDigest, actualDigest.Sum(nil)) {
 		return serrors.New("invalid SignerInfo message digest")
 	}
 	input, err := si.SignedAttrs.MarshaledForVerifying()
