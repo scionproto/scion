@@ -116,12 +116,7 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 	query := fmt.Sprintf(`
 		SELECT b.Beacon, b.InIntfID
 		FROM Beacons b
-		WHERE ( b.Usage & ?1 ) == ?1 %s AND NOT EXISTS(
-			SELECT 1
-			FROM IntfToBeacon ib
-			JOIN Revocations r USING (IsdID, AsID, IntfID)
-			WHERE ib.BeaconRowID = RowID AND r.ExpirationTime >= ?3
-		)
+		WHERE ( b.Usage & ?1 ) == ?1 %s
 		ORDER BY b.HopsLength ASC
 		LIMIT ?2
 	`, srcCond)
@@ -263,60 +258,10 @@ func insertNewBeacon(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
 		ExpirationTime, LastUpdated, Usage, Beacon)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	res, err := tx.ExecContext(ctx, inst, segID, fullID, start.I, start.A, b.InIfId,
+	_, err = tx.ExecContext(ctx, inst, segID, fullID, start.I, start.A, b.InIfId,
 		len(b.Segment.ASEntries), infoTime, expTime, lastUpdated, usage, packed)
 	if err != nil {
 		return db.NewWriteError("insert beacon", err)
-	}
-	rowID, err := res.LastInsertId()
-	if err != nil {
-		return db.NewWriteError("retrieve RowID of inserted beacon", err)
-	}
-	// Insert all interfaces.
-	if err = insertInterfaces(ctx, tx, b, rowID, localIA); err != nil {
-		return err
-	}
-	return nil
-}
-
-func insertInterfaces(ctx context.Context, tx *sql.Tx, b beacon.Beacon,
-	rowID int64, localIA addr.IA) error {
-
-	stmtStr := `INSERT INTO IntfToBeacon (IsdID, AsID, IntfID, BeaconRowID)
-				VALUES (?, ?, ?, ?)`
-	stmt, err := tx.PrepareContext(ctx, stmtStr)
-	if err != nil {
-		return db.NewWriteError("prepare insert into IntfToBeacon", err)
-	}
-	defer stmt.Close()
-	for _, as := range b.Segment.ASEntries {
-		ia := as.Local
-		// Do not insert peering interfaces.
-		hof := as.HopEntry.HopField
-		if err != nil {
-			return db.NewInputDataError("extract hop field", err)
-		}
-		// Ignore the null interface of the first hop.
-		if hof.ConsIngress != 0 {
-			_, err = stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsIngress, rowID)
-			if err != nil {
-				return db.NewWriteError("insert Ingress into IntfToSeg", err,
-					"ia", ia, "hof", hof)
-			}
-		}
-		// Ignore the null interface of the last hop
-		if hof.ConsEgress != 0 {
-			_, err := stmt.ExecContext(ctx, ia.I, ia.A, hof.ConsEgress, rowID)
-			if err != nil {
-				return db.NewWriteError("insert Egress into IntfToSeg", err,
-					"ia", ia, "hof", hof)
-			}
-		}
-	}
-	_, err = stmt.ExecContext(ctx, localIA.I, localIA.A, b.InIfId, rowID)
-	if err != nil {
-		return db.NewWriteError("insert Ingress into IntfToSeg", err,
-			"ia", localIA, "inIfId", b.InIfId)
 	}
 	return nil
 }

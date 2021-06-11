@@ -110,20 +110,17 @@ are filtered by all policies are not added to the BeaconDB.
 
 ![beacon db overview](fig/beacon_srv/db_overview.png)
 
-The BeaconDB consists of three tables:
+The BeaconDB consists of one table:
 
 * `Beacons`: This table stores the raw beacons with some additional metadata used to select the
   beacons.
-* `IntfToBeacons`: This table maps the (ISD-AS, IfId) pair to all beacons containing that IfId.
-* `Revocations`: This table contains all revocations that are not expired.
 
 #### Beacon Insertion
 
 Before inserting, the beacon store checks that at least one policy does not filter the beacon
 (i.e., the beacon does not contain a blacklisted AS or ISD and the `HopsLength` does not exceed
 `MaxHopsLength`).
-If that is not the case, the beacon is discarded.
-Otherwise, the beacon and the `IntfToBeacon` mappings are inserted.
+If that is not the case, the beacon is discarded. Otherwise, the beacon is inserted.
 
 #### Beacon Selection
 
