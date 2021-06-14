@@ -96,16 +96,26 @@ type Monitor struct {
 	stopChannel chan struct{}
 
 	mutex sync.Mutex
+	// initialized is set to true once the internals of the object have been initialized.
+	initialized bool
+	// runCalled is set to true once Run has been called at least once.
+	runCalled bool
 	// remoteWatchers is a map of all monitored IAs.
 	remoteWatchers map[addr.IA]*remoteWatcherItem
 	pktChan        <-chan traceroutePkt
 }
 
-// Run starts the monitor and blocks until Close is called.
-func (m *Monitor) Run() {
-	if m.stopChannel != nil {
-		panic("monitor must only be started once")
+func (m *Monitor) ensureInitialized() {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.ensureInitializedLocked()
+}
+
+func (m *Monitor) ensureInitializedLocked() {
+	if m.initialized {
+		return
 	}
+	m.initialized = true
 
 	if m.PathUpdateInterval == 0 {
 		m.PathUpdateInterval = defaultPathUpdateInterval
@@ -115,6 +125,7 @@ func (m *Monitor) Run() {
 	}
 	m.stopChannel = make(chan struct{})
 	m.remoteWatchers = make(map[addr.IA]*remoteWatcherItem)
+
 	pktChan := make(chan traceroutePkt, 10)
 	m.pktChan = pktChan
 	m.conn = snet.NewSCIONPacketConn(m.Conn,
@@ -124,7 +135,14 @@ func (m *Monitor) Run() {
 		},
 		true,
 	)
+}
 
+// Run starts the monitor and blocks until Close is called.
+func (m *Monitor) Run() {
+	m.ensureInitialized()
+	if m.runCalledF() {
+		panic("Run can only be called once")
+	}
 	log.SafeInfo(m.Logger, "Started PathMonitor")
 	go func() {
 		defer log.HandlePanic()
@@ -137,10 +155,24 @@ func (m *Monitor) Run() {
 	m.run()
 }
 
+func (m *Monitor) runCalledF() bool {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	if m.runCalled {
+		return true
+	}
+	m.runCalled = true
+	return false
+}
+
 // Register starts monitoring given AS under the specified selector.
 func (m *Monitor) Register(remote addr.IA, selector PathSelector) *Registration {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
+
+	m.ensureInitializedLocked()
+
 	// If a monitor for the given AS does not exist, create it.
 	// Otherwise, increase its reference count.
 	remoteWatcher := m.remoteWatchers[remote]
@@ -163,6 +195,9 @@ func (m *Monitor) Register(remote addr.IA, selector PathSelector) *Registration 
 
 // Close stops the path monitor.
 func (m *Monitor) Close() {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	m.ensureInitializedLocked()
 	close(m.stopChannel)
 }
 

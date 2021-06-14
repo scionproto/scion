@@ -18,6 +18,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -95,7 +96,13 @@ func TestAcceptLoopParallelism(t *testing.T) {
 	}
 	wg.Wait()
 
-	require.Less(t, reattempts, int32(100))
+	// Increase the threshold in CI environments as they have less processing
+	// power.
+	threshold := 50
+	if _, ok := os.LookupEnv("CI"); ok {
+		threshold = 300
+	}
+	require.Less(t, int(reattempts), threshold)
 }
 
 func TestGRPCQUIC(t *testing.T) {

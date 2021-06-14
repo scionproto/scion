@@ -62,12 +62,12 @@ func realMain() error {
 	}
 	defer db.Close()
 
-	ch, err := db.GetAll(context.Background())
+	s, err := db.GetAll(context.Background())
 	if err != nil {
 		return err
 	}
 	var segments []segment
-	for res := range ch {
+	for _, res := range s {
 		if res.Err != nil {
 			return res.Err
 		}
