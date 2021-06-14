@@ -42,6 +42,7 @@ if [ "$BUILDKITE_PIPELINE_SLUG" == "scion" ]; then
 else
     echo "build --stamp" > $HOME/.bazelrc
 fi
+echo "test --test_env CI" >> $HOME/.bazelrc
 
 echo "--- Starting bazel remote cache proxy"
 
