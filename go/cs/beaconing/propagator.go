@@ -44,7 +44,7 @@ const (
 
 // BeaconProvider provides beacons to send to neighboring ASes.
 type BeaconProvider interface {
-	BeaconsToPropagate(ctx context.Context) ([]beacon.BeaconOrErr, error)
+	BeaconsToPropagate(ctx context.Context) ([]beacon.Beacon, error)
 }
 
 var _ periodic.Task = (*Propagator)(nil)
@@ -101,24 +101,19 @@ func (p *Propagator) run(ctx context.Context) error {
 	}
 	s := newSummary()
 	var wg sync.WaitGroup
-	for _, bOrErr := range beacons {
-		if bOrErr.Err != nil {
-			logger.Error("Unable to get beacon", "err", bOrErr.Err)
-			p.incrementInternalErrors()
+	for _, b := range beacons {
+		if p.Intfs.Get(b.InIfId) == nil {
 			continue
 		}
-		if p.Intfs.Get(bOrErr.Beacon.InIfId) == nil {
-			continue
-		}
-		b := beaconPropagator{
+		bp := beaconPropagator{
 			Propagator: p,
-			beacon:     bOrErr.Beacon,
+			beacon:     b,
 			intfs:      intfs,
 			peers:      peers,
 			summary:    s,
 			logger:     logger,
 		}
-		b.start(ctx, &wg)
+		bp.start(ctx, &wg)
 	}
 	wg.Wait()
 	p.logSummary(logger, s)

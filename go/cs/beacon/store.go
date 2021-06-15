@@ -58,14 +58,14 @@ func NewBeaconStore(policies Policies, db DB) (*Store, error) {
 
 // BeaconsToPropagate returns a slice  all beacons to propagate at the time of the call.
 // The selection is based on the configured propagation policy.
-func (s *Store) BeaconsToPropagate(ctx context.Context) ([]BeaconOrErr, error) {
+func (s *Store) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 	return s.getBeacons(ctx, &s.policies.Prop)
 }
 
 // SegmentsToRegister returns a channel that provides all beacons to register at
 // the time of the call. The selections is based on the configured policy for
 // the requested segment type.
-func (s *Store) SegmentsToRegister(ctx context.Context, segType seg.Type) ([]BeaconOrErr, error) {
+func (s *Store) SegmentsToRegister(ctx context.Context, segType seg.Type) ([]Beacon, error) {
 	switch segType {
 	case seg.TypeDown:
 		return s.getBeacons(ctx, &s.policies.DownReg)
@@ -78,7 +78,7 @@ func (s *Store) SegmentsToRegister(ctx context.Context, segType seg.Type) ([]Bea
 
 // getBeacons fetches the candidate beacons from the database and serves the
 // best beacons according to the policy.
-func (s *Store) getBeacons(ctx context.Context, policy *Policy) ([]BeaconOrErr, error) {
+func (s *Store) getBeacons(ctx context.Context, policy *Policy) ([]Beacon, error) {
 	beacons, err := s.db.CandidateBeacons(ctx, policy.CandidateSetSize,
 		UsageFromPolicyType(policy.Type), addr.IA{})
 	if err != nil {
@@ -128,14 +128,13 @@ func NewCoreBeaconStore(policies CorePolicies, db DB) (*CoreStore, error) {
 
 // BeaconsToPropagate returns a slice of all beacons to propagate at the time of the call.
 // The selection is based on the configured propagation policy.
-func (s *CoreStore) BeaconsToPropagate(ctx context.Context) ([]BeaconOrErr, error) {
+func (s *CoreStore) BeaconsToPropagate(ctx context.Context) ([]Beacon, error) {
 	return s.getBeacons(ctx, &s.policies.Prop)
 }
 
 // SegmentsToRegister returns a slice of all beacons to register at the time of the call.
 // The selections is based on the configured policy for the requested segment type.
-func (s *CoreStore) SegmentsToRegister(ctx context.Context,
-	segType seg.Type) ([]BeaconOrErr, error) {
+func (s *CoreStore) SegmentsToRegister(ctx context.Context, segType seg.Type) ([]Beacon, error) {
 
 	if segType != seg.TypeCore {
 		return nil, serrors.New("Unsupported segment type", "type", segType)
@@ -145,29 +144,22 @@ func (s *CoreStore) SegmentsToRegister(ctx context.Context,
 
 // getBeacons fetches the candidate beacons from the database and serves the
 // best beacons according to the policy.
-func (s *CoreStore) getBeacons(ctx context.Context, policy *Policy) ([]BeaconOrErr, error) {
+func (s *CoreStore) getBeacons(ctx context.Context, policy *Policy) ([]Beacon, error) {
 	srcs, err := s.db.BeaconSources(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var beacons []BeaconOrErr
-	var errs []addr.IA
+	var beacons []Beacon
 	for _, src := range srcs {
 		candidateBeacons, err := s.db.CandidateBeacons(ctx, policy.CandidateSetSize,
 			UsageFromPolicyType(policy.Type), src)
 		// Must not return as a partial result is better than no result at all.
 		if err != nil {
 			log.FromCtx(ctx).Error("Error getting candidate beacons", "src", src, "err", err)
-			errs = append(errs, src)
 			continue
 		}
 		selBeacons := s.algo.SelectBeacons(candidateBeacons, policy.BestSetSize)
 		beacons = append(beacons, selBeacons...)
-	}
-	if len(errs) > 0 {
-		beacons = append(beacons, BeaconOrErr{
-			Err: serrors.New("Unable to get beacons from db", "srcs", errs),
-		})
 	}
 	return beacons, nil
 }

@@ -283,19 +283,18 @@ func testCandidateBeacons(t *testing.T, db Testable) {
 
 // CheckResult checks that the expected beacon is returned in results, and
 // that it is the only returned beacon
-func CheckResult(t *testing.T, results []beacon.BeaconOrErr, expected beacon.Beacon) {
+func CheckResult(t *testing.T, results []beacon.Beacon, expected beacon.Beacon) {
 	CheckResults(t, results, []beacon.Beacon{expected})
 }
 
-func CheckResults(t *testing.T, results []beacon.BeaconOrErr, expectedBeacons []beacon.Beacon) {
+func CheckResults(t *testing.T, results []beacon.Beacon, expectedBeacons []beacon.Beacon) {
 	for i, expected := range expectedBeacons {
 		res := results[i]
-		assert.NoError(t, res.Err, "Beacon %d err", i)
-		require.NotNil(t, res.Beacon.Segment, "Beacon %d segment", i)
+		require.NotNil(t, res.Segment, "Beacon %d segment", i)
 		// Make sure the segment is properly initialized.
 
-		assert.Equal(t, expected.Segment.Info, res.Beacon.Segment.Info)
-		assert.Equal(t, expected.Segment.MaxIdx(), res.Beacon.Segment.MaxIdx())
+		assert.Equal(t, expected.Segment.Info, res.Segment.Info)
+		assert.Equal(t, expected.Segment.MaxIdx(), res.Segment.MaxIdx())
 		for i := range expected.Segment.ASEntries {
 			expected := seg.ASEntry{
 				Extensions:  expected.Segment.ASEntries[i].Extensions,
@@ -306,16 +305,16 @@ func CheckResults(t *testing.T, results []beacon.BeaconOrErr, expectedBeacons []
 				PeerEntries: expected.Segment.ASEntries[i].PeerEntries,
 			}
 			actual := seg.ASEntry{
-				Extensions:  res.Beacon.Segment.ASEntries[i].Extensions,
-				HopEntry:    res.Beacon.Segment.ASEntries[i].HopEntry,
-				Local:       res.Beacon.Segment.ASEntries[i].Local,
-				MTU:         res.Beacon.Segment.ASEntries[i].MTU,
-				Next:        res.Beacon.Segment.ASEntries[i].Next,
-				PeerEntries: res.Beacon.Segment.ASEntries[i].PeerEntries,
+				Extensions:  res.Segment.ASEntries[i].Extensions,
+				HopEntry:    res.Segment.ASEntries[i].HopEntry,
+				Local:       res.Segment.ASEntries[i].Local,
+				MTU:         res.Segment.ASEntries[i].MTU,
+				Next:        res.Segment.ASEntries[i].Next,
+				PeerEntries: res.Segment.ASEntries[i].PeerEntries,
 			}
 			assert.Equal(t, expected, actual)
 		}
-		assert.Equal(t, expected.InIfId, res.Beacon.InIfId, "InIfId %d should match", i)
+		assert.Equal(t, expected.InIfId, res.InIfId, "InIfId %d should match", i)
 	}
 }
 

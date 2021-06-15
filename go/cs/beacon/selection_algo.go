@@ -18,7 +18,7 @@ import "math"
 
 type selectionAlgorithm interface {
 	// SelectBeacons selects the `n` best beacons from the provided slice of beacons.
-	SelectBeacons(beacons []BeaconOrErr, resultSize int) []BeaconOrErr
+	SelectBeacons(beacons []Beacon, resultSize int) []Beacon
 }
 
 // baseAlgo implements a very simple selection algorithm that optimizes for
@@ -30,83 +30,42 @@ type baseAlgo struct{}
 // beacons. The last beacon is either the most diverse beacon from the remaining
 // beacons, if the diversity exceeds what has already been served. Or the
 // shortest remaining beacon, otherwise.
-func (alg baseAlgo) SelectBeacons(beacons []BeaconOrErr, resultSize int) []BeaconOrErr {
-	results, best, diversity := alg.selectShortestBeacons(beacons, resultSize-1)
-	diverseBeacon, ok := alg.selectMostDiverse(beacons[len(results):], best, diversity)
-	if ok {
-		results = append(results, diverseBeacon)
+func (a baseAlgo) SelectBeacons(beacons []Beacon, resultSize int) []Beacon {
+	if len(beacons) <= resultSize {
+		return beacons
 	}
-	return results
-}
 
-// serveShortsestBeacons computes the resultSize shortest beacons.
-// It returns the shortest beacons, the first beacon and the maximum served diversity.
-func (baseAlgo) selectShortestBeacons(beacons []BeaconOrErr,
-	resultSize int) ([]BeaconOrErr, Beacon, int) {
+	result := make([]Beacon, resultSize-1, resultSize)
+	copy(result, beacons[:resultSize-1])
+	mostDiverse, diversity := a.selectMostDiverse(result, result[0])
 
-	var (
-		results      []BeaconOrErr
-		best         Beacon
-		maxDiversity int
-
-		i = 0
-	)
-	for _, res := range beacons {
-		if res.Err == nil {
-			if (best == Beacon{}) {
-				best = res.Beacon
-			}
-			// Compute diversity before serving beacon to avoid data race.
-			maxDiversity = max(maxDiversity, best.Diversity(res.Beacon))
-			i++
-		}
-		results = append(results, res)
-		if i == resultSize {
-			break
-		}
+	// check if we find a more diverse beacon in the rest
+	mostDiverseRest, diversityRest := a.selectMostDiverse(beacons[resultSize-1:], result[0])
+	if diversityRest > diversity {
+		return append(result, mostDiverseRest)
 	}
-	return results, best, maxDiversity
+	return append(result, mostDiverse)
 }
 
 // selectMostDiverse selects the most diverse beacon compared to the provided best beacon from all
-// provided beacons and returns it if it exceeds the already served diversity. Otherwise, the
-// shortest beacon is served.
-func (baseAlgo) selectMostDiverse(beacons []BeaconOrErr, best Beacon,
-	servedDiversity int) (BeaconOrErr, bool) {
+// provided beacons and returns it and its diversity.
+func (baseAlgo) selectMostDiverse(beacons []Beacon, best Beacon) (Beacon, int) {
+	if len(beacons) == 0 {
+		return Beacon{}, -1
+	}
 
-	var err error
-	// Most diverse beacon of the remaining beacons.
-	var diverse Beacon
 	maxDiversity := -1
 	minLen := math.MaxUint16
-	// First is the shortest beacon and selected if the diversity is below the
-	// already served diversity.
-	var first Beacon
+	var diverse Beacon
+	for _, b := range beacons {
+		diversity := best.Diversity(b)
+		l := len(b.Segment.ASEntries)
 
-	for _, res := range beacons {
-		if (first == Beacon{}) {
-			first = res.Beacon
-		}
-		if res.Err != nil {
-			err = res.Err
-			continue
-		}
-		diversity := best.Diversity(res.Beacon)
-		l := len(res.Beacon.Segment.ASEntries)
 		if diversity > maxDiversity || (diversity == maxDiversity && minLen > l) {
-			diverse, minLen, maxDiversity = res.Beacon, l, diversity
+			diverse, minLen, maxDiversity = b, l, diversity
 		}
 	}
-	if (first == Beacon{}) {
-		if err != nil {
-			return BeaconOrErr{Err: err}, true
-		}
-		return BeaconOrErr{}, false
-	}
-	if (diverse != Beacon{}) && maxDiversity > servedDiversity {
-		return BeaconOrErr{Beacon: diverse}, true
-	}
-	return BeaconOrErr{Beacon: first}, true
+	return diverse, maxDiversity
 }
 
 func max(a, b int) int {

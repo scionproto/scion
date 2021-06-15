@@ -94,9 +94,9 @@ func (e *executor) CandidateBeacons(
 	setSize int,
 	usage beacon.Usage,
 	src addr.IA,
-) ([]beacon.BeaconOrErr, error) {
+) ([]beacon.Beacon, error) {
 
-	var ret []beacon.BeaconOrErr
+	var ret []beacon.Beacon
 	var err error
 	e.metrics.Observe(ctx, "candidate_beacons", func(ctx context.Context) (string, error) {
 		ret, err = e.db.CandidateBeacons(ctx, setSize, usage, src)

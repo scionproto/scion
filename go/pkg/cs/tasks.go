@@ -282,12 +282,16 @@ type Store interface {
 	// returning an error with the reason. This allows the caller to drop
 	// ignored beacons.
 	PreFilter(beacon beacon.Beacon) error
-	// BeaconsToPropagate returns a slice of all beacons to propagate at the time of the call.
+	// BeaconsToPropagate returns an error and an empty slice if an error (e.g., connection or
+	// parsing error) occurs; otherwise, it returns a slice containing the beacons (which
+	// potentially could be empty when no beacon is found) and no error.
 	// The selection is based on the configured propagation policy.
-	BeaconsToPropagate(ctx context.Context) ([]beacon.BeaconOrErr, error)
-	// SegmentsToRegister returns a slice of all beacons to register at the time of the call.
+	BeaconsToPropagate(ctx context.Context) ([]beacon.Beacon, error)
+	// SegmentsToRegister returns an error and an empty slice if an error (e.g., connection or
+	// parsing error) occurs; otherwise, it returns a slice containing the beacons (which
+	// potentially could be empty when no beacon is found) and no error.
 	// The selections is based on the configured propagation policy for the requested segment type.
-	SegmentsToRegister(ctx context.Context, segType seg.Type) ([]beacon.BeaconOrErr, error)
+	SegmentsToRegister(ctx context.Context, segType seg.Type) ([]beacon.Beacon, error)
 	// InsertBeacon adds a verified beacon to the store, ignoring revocations.
 	InsertBeacon(ctx context.Context, beacon beacon.Beacon) (beacon.InsertStats, error)
 	// UpdatePolicy updates the policy. Beacons that are filtered by all

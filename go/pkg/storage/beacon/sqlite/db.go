@@ -105,7 +105,7 @@ func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
 }
 
 func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beacon.Usage,
-	src addr.IA) ([]beacon.BeaconOrErr, error) {
+	src addr.IA) ([]beacon.Beacon, error) {
 
 	e.RLock()
 	defer e.RUnlock()
@@ -127,30 +127,21 @@ func (e *executor) CandidateBeacons(ctx context.Context, setSize int, usage beac
 	}
 	defer rows.Close()
 
-	beacons := make([]beacon.BeaconOrErr, 0, setSize)
-	// Read all beacons that are available into memory first to free the lock.
+	beacons := make([]beacon.Beacon, 0, setSize)
 	for rows.Next() {
 		var rawBeacon sql.RawBytes
 		var inIntfID common.IFIDType
 		if err = rows.Scan(&rawBeacon, &inIntfID); err != nil {
-			beacons = append(beacons, beacon.BeaconOrErr{
-				Err: db.NewReadError(beacon.ErrReadingRows, err),
-			})
-			continue
+			return nil, db.NewReadError(beacon.ErrReadingRows, err)
 		}
 		s, err := beacon.UnpackBeacon(rawBeacon)
 		if err != nil {
-			beacons = append(beacons, beacon.BeaconOrErr{
-				Err: db.NewDataError(beacon.ErrParse, err),
-			})
-			continue
+			return nil, db.NewDataError(beacon.ErrParse, err)
 		}
-		beacons = append(beacons, beacon.BeaconOrErr{
-			Beacon: beacon.Beacon{Segment: s, InIfId: inIntfID},
-		})
+		beacons = append(beacons, beacon.Beacon{Segment: s, InIfId: inIntfID})
 	}
 	if err := rows.Err(); err != nil {
-		beacons = append(beacons, beacon.BeaconOrErr{Err: err})
+		return nil, err
 	}
 	return beacons, nil
 }

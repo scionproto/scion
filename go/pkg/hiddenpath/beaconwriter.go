@@ -72,7 +72,7 @@ type BeaconWriter struct {
 // it, it finds the remotes via the registration policy, it finds a path for
 // each remote, it sends the segment via the found path. Peers are the peer
 // interfaces in this AS.
-func (w *BeaconWriter) Write(ctx context.Context, segments []beacon.BeaconOrErr,
+func (w *BeaconWriter) Write(ctx context.Context, segments []beacon.Beacon,
 	peers []common.IFIDType) (beaconing.WriteStats, error) {
 
 	logger := log.FromCtx(ctx)
@@ -80,27 +80,20 @@ func (w *BeaconWriter) Write(ctx context.Context, segments []beacon.BeaconOrErr,
 	var expected int
 	var wg sync.WaitGroup
 
-	for _, bOrErr := range segments {
-		if bOrErr.Err != nil {
-			logger.Error("Unable to get beacon", "err", bOrErr.Err)
+	for _, b := range segments {
+		if w.Intfs.Get(b.InIfId) == nil {
+			logger.Error("Received beacon for non-existing interface", "interface", b.InIfId)
 			metrics.CounterInc(w.InternalErrors)
 			continue
 		}
-		if w.Intfs.Get(bOrErr.Beacon.InIfId) == nil {
-			logger.Error("Received beacon for non-existing interface",
-				"interface", bOrErr.Beacon.InIfId)
-			metrics.CounterInc(w.InternalErrors)
-			continue
-		}
-		regPolicy, ok := w.RegistrationPolicy[uint64(bOrErr.Beacon.InIfId)]
+		regPolicy, ok := w.RegistrationPolicy[uint64(b.InIfId)]
 		if !ok {
-			logger.Info("no HP nor public registration policy for beacon",
-				"interface", bOrErr.Beacon.InIfId)
+			logger.Info("no HP nor public registration policy for beacon", "interface", b.InIfId)
 			continue
 		}
-		err := w.Extender.Extend(ctx, bOrErr.Beacon.Segment, bOrErr.Beacon.InIfId, 0, peers)
+		err := w.Extender.Extend(ctx, b.Segment, b.InIfId, 0, peers)
 		if err != nil {
-			logger.Error("Unable to terminate beacon", "beacon", bOrErr.Beacon, "err", err)
+			logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
 			metrics.CounterInc(w.InternalErrors)
 			continue
 		}
@@ -119,7 +112,7 @@ func (w *BeaconWriter) Write(ctx context.Context, segments []beacon.BeaconOrErr,
 				}
 				if id.ToUint64() == 0 {
 					// public
-					seg := bOrErr.Beacon.Segment
+					seg := b.Segment
 					rw.resolveRemote = func(_ context.Context) (net.Addr, error) {
 						return w.Pather.GetPath(addr.SvcCS, seg)
 					}
@@ -129,7 +122,7 @@ func (w *BeaconWriter) Write(ctx context.Context, segments []beacon.BeaconOrErr,
 					defer log.HandlePanic()
 					defer wg.Done()
 					rw.run(ctx, bseg)
-				}(bOrErr.Beacon)
+				}(b)
 			}
 		}
 	}

@@ -101,10 +101,10 @@ func TestPropagatorRun(t *testing.T) {
 			}
 			g := graph.NewDefaultGraph(mctrl)
 			provider.EXPECT().BeaconsToPropagate(gomock.Any()).MaxTimes(2).DoAndReturn(
-				func(_ interface{}) ([]beacon.BeaconOrErr, error) {
-					res := make([]beacon.BeaconOrErr, 0, len(beacons[test.core]))
+				func(_ interface{}) ([]beacon.Beacon, error) {
+					res := make([]beacon.Beacon, 0, len(beacons[test.core]))
 					for _, desc := range beacons[test.core] {
-						res = append(res, testBeaconOrErr(g, desc))
+						res = append(res, testBeacon(g, desc))
 					}
 					return res, nil
 				},
@@ -166,8 +166,8 @@ func TestPropagatorRun(t *testing.T) {
 		// We call run 4 times in this test, since the interface to 1-ff00:0:120
 		// will never be beaconed on, because the beacons are filtered for loops.
 		provider.EXPECT().BeaconsToPropagate(gomock.Any()).Times(4).DoAndReturn(
-			func(_ interface{}) ([]beacon.BeaconOrErr, error) {
-				return []beacon.BeaconOrErr{testBeaconOrErr(g, beacons[true][0])}, nil
+			func(_ interface{}) ([]beacon.Beacon, error) {
+				return []beacon.Beacon{testBeacon(g, beacons[true][0])}, nil
 			},
 		)
 		// 1. Initial run where one beacon fails to send. -> 2 calls
@@ -178,8 +178,10 @@ func TestPropagatorRun(t *testing.T) {
 			gomock.Any())
 		first.Return(serrors.New("fail"))
 
-		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-			gomock.Any()).Times(4).Return(nil)
+		sender.EXPECT().Send(
+			gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
+		).Times(4).Return(nil)
+
 		// Initial run. Two writes expected, one write will fail.
 		p.Run(context.Background())
 		time.Sleep(1 * time.Second)

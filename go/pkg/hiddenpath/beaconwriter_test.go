@@ -209,9 +209,9 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 				AddressResolver:    tc.resolver(ctrl),
 			}
 			g := graph.NewDefaultGraph(ctrl)
-			var beacons []beacon.BeaconOrErr
+			var beacons []beacon.Beacon
 			for _, desc := range tc.beacons {
-				beacons = append(beacons, testBeaconOrErr(g, desc))
+				beacons = append(beacons, testBeacon(g, desc))
 			}
 
 			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
@@ -222,16 +222,14 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 	}
 }
 
-func testBeaconOrErr(g *graph.Graph, desc []common.IFIDType) beacon.BeaconOrErr {
+func testBeacon(g *graph.Graph, desc []common.IFIDType) beacon.Beacon {
 	bseg := g.Beacon(desc)
 	asEntry := bseg.ASEntries[bseg.MaxIdx()]
 	bseg.ASEntries = bseg.ASEntries[:len(bseg.ASEntries)-1]
 
-	return beacon.BeaconOrErr{
-		Beacon: beacon.Beacon{
-			InIfId:  common.IFIDType(asEntry.HopEntry.HopField.ConsIngress),
-			Segment: bseg,
-		},
+	return beacon.Beacon{
+		InIfId:  common.IFIDType(asEntry.HopEntry.HopField.ConsIngress),
+		Segment: bseg,
 	}
 }
 

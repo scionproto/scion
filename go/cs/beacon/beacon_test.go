@@ -52,12 +52,13 @@ func TestBeaconDiversity(t *testing.T) {
 	}
 	mctrl := gomock.NewController(t)
 	defer mctrl.Finish()
+
 	g := graph.NewDefaultGraph(mctrl)
-	bseg := testBeaconOrErr(g, tests[0].beacon...)
+	bseg := testBeacon(g, tests[0].beacon...)
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			other := testBeaconOrErr(g, test.beacon...)
-			diversity := bseg.Beacon.Diversity(other.Beacon)
+			other := testBeacon(g, test.beacon...)
+			diversity := bseg.Diversity(other)
 			assert.Equal(t, test.diversity, diversity)
 		})
 	}

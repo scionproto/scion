@@ -65,12 +65,6 @@ func link(entry seg.ASEntry) (addr.IA, common.IFIDType) {
 	return entry.Local, common.IFIDType(entry.HopEntry.HopField.ConsIngress)
 }
 
-// BeaconOrErr contains a read-only beacon or an error.
-type BeaconOrErr struct {
-	Beacon Beacon
-	Err    error
-}
-
 // RevocationOrErr contains a signed revocation or an error.
 type RevocationOrErr struct {
 	Rev *path_mgmt.SignedRevInfo

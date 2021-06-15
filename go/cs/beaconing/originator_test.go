@@ -130,12 +130,13 @@ func TestOriginatorRun(t *testing.T) {
 		// 3. Run where no beacon is sent. -> no call
 		// 4. Run where beacons are sent on all interfaces. -> 4 calls
 
-		first := sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-			gomock.Any())
-		first.Return(serrors.New("fail"))
+		sender.EXPECT().Send(
+			gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
+		).Return(serrors.New("fail"))
+		sender.EXPECT().Send(
+			gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
+		).Times(8).Return(nil)
 
-		sender.EXPECT().Send(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
-			gomock.Any()).Times(8).Return(nil)
 		// Initial run. Two writes expected, one write will fail.
 		o.Run(context.Background())
 		time.Sleep(1 * time.Second)

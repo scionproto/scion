@@ -46,7 +46,7 @@ type SegmentProvider interface {
 	// SegmentsToRegister returns the segments that should be registered for the
 	// given segment type. The returned slice must not be nil if the returned
 	// error is nil.
-	SegmentsToRegister(ctx context.Context, segType seg.Type) ([]beacon.BeaconOrErr, error)
+	SegmentsToRegister(ctx context.Context, segType seg.Type) ([]beacon.Beacon, error)
 }
 
 // SegmentStore stores segments in the path database.
@@ -73,8 +73,7 @@ type Writer interface {
 	// interface IDs of the local IA. The returned statistics should provide
 	// insights about how many segments have been successfully written. The
 	// method should return an error if the writing did fail.
-	Write(ctx context.Context, segments []beacon.BeaconOrErr,
-		peers []common.IFIDType) (WriteStats, error)
+	Write(ctx context.Context, segs []beacon.Beacon, peers []common.IFIDType) (WriteStats, error)
 }
 
 var _ periodic.Task = (*WriteScheduler)(nil)
@@ -157,25 +156,20 @@ type RemoteWriter struct {
 }
 
 // Write writes the segment at the source AS of the segment.
-func (r *RemoteWriter) Write(ctx context.Context, segments []beacon.BeaconOrErr,
+func (r *RemoteWriter) Write(ctx context.Context, segments []beacon.Beacon,
 	peers []common.IFIDType) (WriteStats, error) {
 
 	logger := log.FromCtx(ctx)
 	s := newSummary()
 	var expected int
 	var wg sync.WaitGroup
-	for _, bOrErr := range segments {
-		if bOrErr.Err != nil {
-			logger.Error("Unable to get beacon", "err", bOrErr.Err)
-			metrics.CounterInc(r.InternalErrors)
+	for _, b := range segments {
+		if r.Intfs.Get(b.InIfId) == nil {
 			continue
 		}
-		if r.Intfs.Get(bOrErr.Beacon.InIfId) == nil {
-			continue
-		}
-		err := r.Extender.Extend(ctx, bOrErr.Beacon.Segment, bOrErr.Beacon.InIfId, 0, peers)
+		err := r.Extender.Extend(ctx, b.Segment, b.InIfId, 0, peers)
 		if err != nil {
-			logger.Error("Unable to terminate beacon", "beacon", bOrErr.Beacon, "err", err)
+			logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
 			metrics.CounterInc(r.InternalErrors)
 			continue
 		}
@@ -189,7 +183,7 @@ func (r *RemoteWriter) Write(ctx context.Context, segments []beacon.BeaconOrErr,
 		}
 
 		// Avoid head-of-line blocking when sending message to slow servers.
-		s.start(ctx, bOrErr.Beacon)
+		s.start(ctx, b)
 	}
 	wg.Wait()
 	if expected > 0 && s.count <= 0 {
@@ -218,29 +212,24 @@ type LocalWriter struct {
 }
 
 // Write terminates the segments and registers them in the SegmentStore.
-func (r *LocalWriter) Write(ctx context.Context, segments []beacon.BeaconOrErr,
+func (r *LocalWriter) Write(ctx context.Context, segments []beacon.Beacon,
 	peers []common.IFIDType) (WriteStats, error) {
 
 	logger := log.FromCtx(ctx)
 	beacons := make(map[string]beacon.Beacon)
 	var toRegister []*seg.Meta
-	for _, bOrErr := range segments {
-		if bOrErr.Err != nil {
-			logger.Error("Unable to get beacon", "err", bOrErr.Err)
-			metrics.CounterInc(r.InternalErrors)
+	for _, b := range segments {
+		if r.Intfs.Get(b.InIfId) == nil {
 			continue
 		}
-		if r.Intfs.Get(bOrErr.Beacon.InIfId) == nil {
-			continue
-		}
-		err := r.Extender.Extend(ctx, bOrErr.Beacon.Segment, bOrErr.Beacon.InIfId, 0, peers)
+		err := r.Extender.Extend(ctx, b.Segment, b.InIfId, 0, peers)
 		if err != nil {
-			logger.Error("Unable to terminate beacon", "beacon", bOrErr.Beacon, "err", err)
+			logger.Error("Unable to terminate beacon", "beacon", b, "err", err)
 			metrics.CounterInc(r.InternalErrors)
 			continue
 		}
-		toRegister = append(toRegister, &seg.Meta{Type: r.Type, Segment: bOrErr.Beacon.Segment})
-		beacons[bOrErr.Beacon.Segment.GetLoggingID()] = bOrErr.Beacon
+		toRegister = append(toRegister, &seg.Meta{Type: r.Type, Segment: b.Segment})
+		beacons[b.Segment.GetLoggingID()] = b
 	}
 	if len(toRegister) == 0 {
 		return WriteStats{}, nil
