@@ -500,9 +500,9 @@ func realMain() error {
 		server := api.Server{
 			Segments: pathDB,
 			CA:       chainBuilder,
-			Config:   service.NewConfigHandler(globalCfg),
-			Info:     service.NewInfoHandler(),
-			LogLevel: log.ConsoleLevel.ServeHTTP,
+			Config:   service.NewConfigStatusPage(globalCfg).Handler,
+			Info:     service.NewInfoStatusPage().Handler,
+			LogLevel: service.NewLogLevelStatusPage().Handler,
 			Signer:   signer,
 			Topology: itopo.TopologyHandler,
 			TrustDB:  trustDB,

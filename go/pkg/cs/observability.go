@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
@@ -219,14 +218,14 @@ func NewMetrics() *Metrics {
 func StartHTTPEndpoints(elemId string, cfg interface{}, signer cstrust.RenewingSigner,
 	ca renewal.ChainBuilder, metrics env.Metrics) error {
 	statusPages := service.StatusPages{
-		"info":      service.NewInfoHandler(),
-		"config":    service.NewConfigHandler(cfg),
-		"topology":  itopo.TopologyHandler,
-		"signer":    signerHandler(signer),
-		"log/level": log.ConsoleLevel.ServeHTTP,
+		"info":      service.NewInfoStatusPage(),
+		"config":    service.NewConfigStatusPage(cfg),
+		"log/level": service.NewLogLevelStatusPage(),
+		"topology":  service.StatusPage{Handler: itopo.TopologyHandler},
+		"signer":    signerStatusPage(signer),
 	}
 	if ca != (renewal.ChainBuilder{}) {
-		statusPages["ca"] = caHandler(ca)
+		statusPages["ca"] = caStatusPage(ca)
 	}
 	if err := statusPages.Register(http.DefaultServeMux, elemId); err != nil {
 		return serrors.WrapStr("registering status pages", err)
@@ -235,8 +234,8 @@ func StartHTTPEndpoints(elemId string, cfg interface{}, signer cstrust.RenewingS
 	return nil
 }
 
-func signerHandler(signer cstrust.RenewingSigner) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func signerStatusPage(signer cstrust.RenewingSigner) service.StatusPage {
+	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		s, err := signer.SignerGen.Generate(r.Context())
 		if err != nil {
@@ -285,10 +284,11 @@ func signerHandler(signer cstrust.RenewingSigner) http.HandlerFunc {
 			return
 		}
 	}
+	return service.StatusPage{Handler: handler}
 }
 
-func caHandler(signer renewal.ChainBuilder) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func caStatusPage(signer renewal.ChainBuilder) service.StatusPage {
+	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		s, err := signer.PolicyGen.Generate(r.Context())
 		if err != nil {
@@ -335,4 +335,5 @@ func caHandler(signer renewal.ChainBuilder) http.HandlerFunc {
 			return
 		}
 	}
+	return service.StatusPage{Handler: handler}
 }

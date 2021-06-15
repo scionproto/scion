@@ -27,6 +27,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -51,8 +52,19 @@ type mainData struct {
 	Pages  []string
 }
 
-// StatusPages maps from a page name to the HTTP handler serving that page.
-type StatusPages map[string]http.HandlerFunc
+// StatusPages describes a status page (HTTP endpoint exposed by the service).
+type StatusPage struct {
+	// Handler processes the HTTP request for this status page.
+	Handler http.HandlerFunc
+	// Special status page is one that should not be dumped via /all endpoint.
+	// This can be because it uses PUT instead of GET, because it requires extra
+	// query parameters, because it has side effects or simply because it is too
+	// expensive to evaluate.
+	Special bool
+}
+
+// StatusPages maps the page URL to the page description.
+type StatusPages map[string]StatusPage
 
 // Register registers the pages with the supplied HTTP server.
 // Additionally it registers the main page that links to all the other pages.
@@ -62,9 +74,9 @@ func (s StatusPages) Register(serveMux *http.ServeMux, elemId string) error {
 		return err
 	}
 	var pages []string
-	for endpoint, handler := range s {
+	for endpoint, page := range s {
 		pages = append(pages, endpoint)
-		serveMux.HandleFunc(fmt.Sprintf("/%s", endpoint), handler)
+		serveMux.HandleFunc(fmt.Sprintf("/%s", endpoint), page.Handler)
 	}
 	pages = append(pages, "metrics")
 	sort.Strings(pages)
@@ -82,8 +94,11 @@ func (s StatusPages) Register(serveMux *http.ServeMux, elemId string) error {
 		}
 		sort.Strings(endpoints)
 		for _, endpoint := range endpoints {
+			if s[endpoint].Special {
+				continue
+			}
 			fmt.Fprintf(w, "\n\n%s\n%s\n\n", endpoint, strings.Repeat("=", len(endpoint)))
-			s[endpoint](w, r)
+			s[endpoint].Handler(w, r)
 		}
 		// There's a lot of metrics, put them at the end so that they don't obscure other stuff.
 		fmt.Fprintf(w, "\n\nmetrics\n=======\n\n")
@@ -92,21 +107,20 @@ func (s StatusPages) Register(serveMux *http.ServeMux, elemId string) error {
 	return nil
 }
 
-// NewConfigHandler returns an HTTP handler that serves a page with the
-// specified TOML config.
-func NewConfigHandler(config interface{}) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, _ *http.Request) {
+// NewConfigStatusPage returns a page with the specified TOML config.
+func NewConfigStatusPage(config interface{}) StatusPage {
+	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		var buf bytes.Buffer
 		toml.NewEncoder(&buf).Order(toml.OrderPreserve).Encode(config)
 		fmt.Fprint(w, buf.String())
 	}
+	return StatusPage{Handler: handler}
 }
 
-// NewInfoHandler returns an HTTP handler that serves a page with basic info
-// about the process.
-func NewInfoHandler() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, _ *http.Request) {
+// NewInfoStatusPage returns a page with basic info about the process.
+func NewInfoStatusPage() StatusPage {
+	handler := func(w http.ResponseWriter, r *http.Request) {
 		info := env.VersionInfo()
 		inDocker, err := util.RunsInDocker()
 		if err == nil {
@@ -118,4 +132,10 @@ func NewInfoHandler() func(http.ResponseWriter, *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		fmt.Fprintf(w, info)
 	}
+	return StatusPage{Handler: handler}
+}
+
+// NewLogLevelStatusPage returns a page with basic info about the process.
+func NewLogLevelStatusPage() StatusPage {
+	return StatusPage{Handler: log.ConsoleLevel.ServeHTTP}
 }

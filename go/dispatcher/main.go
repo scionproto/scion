@@ -66,9 +66,9 @@ func realMain() error {
 
 	// Start HTTP endpoints.
 	statusPages := service.StatusPages{
-		"info":      service.NewInfoHandler(),
-		"config":    service.NewConfigHandler(globalCfg),
-		"log/level": log.ConsoleLevel.ServeHTTP,
+		"info":      service.NewInfoStatusPage(),
+		"config":    service.NewConfigStatusPage(globalCfg),
+		"log/level": service.NewLogLevelStatusPage(),
 	}
 	if err := statusPages.Register(http.DefaultServeMux, globalCfg.Dispatcher.ID); err != nil {
 		return serrors.WrapStr("registering status pages", err)

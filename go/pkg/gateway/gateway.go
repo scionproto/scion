@@ -619,8 +619,10 @@ func (g *Gateway) Run() error {
 		}
 	}()
 	log.SafeDebug(g.Logger, "Session configurator started")
-	g.HTTPEndpoints["sessionconfigurator"] = func(w http.ResponseWriter, _ *http.Request) {
-		sessionConfigurator.DiagnosticsWrite(w)
+	g.HTTPEndpoints["sessionconfigurator"] = service.StatusPage{
+		Handler: func(w http.ResponseWriter, _ *http.Request) {
+			sessionConfigurator.DiagnosticsWrite(w)
+		},
 	}
 
 	// Start control-plane configuration watcher and forwarding engine controller
@@ -661,22 +663,31 @@ func (g *Gateway) Run() error {
 	}()
 	log.SafeDebug(g.Logger, "Engine controller started")
 
-	g.HTTPEndpoints["engine"] = func(w http.ResponseWriter, _ *http.Request) {
-		engineController.DiagnosticsWrite(w)
+	g.HTTPEndpoints["engine"] = service.StatusPage{
+		Handler: func(w http.ResponseWriter, _ *http.Request) {
+			engineController.DiagnosticsWrite(w)
+		},
 	}
-	g.HTTPEndpoints["status"] = func(w http.ResponseWriter, _ *http.Request) {
-		engineController.Status(w)
+	g.HTTPEndpoints["status"] = service.StatusPage{
+		Handler: func(w http.ResponseWriter, _ *http.Request) {
+			engineController.Status(w)
+		},
 	}
-	g.HTTPEndpoints["diagnostics/prefixwatcher"] = func(w http.ResponseWriter, _ *http.Request) {
-		remoteMonitor.DiagnosticsWrite(w)
+	g.HTTPEndpoints["diagnostics/prefixwatcher"] = service.StatusPage{
+		Handler: func(w http.ResponseWriter, _ *http.Request) {
+			remoteMonitor.DiagnosticsWrite(w)
+		},
 	}
-	g.HTTPEndpoints["diagnostics/sgrp"] = g.diagnosticsSGRP(routePublisherFactory, configPublisher)
+	g.HTTPEndpoints["diagnostics/sgrp"] = service.StatusPage{
+		Handler: g.diagnosticsSGRP(routePublisherFactory, configPublisher),
+	}
 
 	// XXX(scrye): Use an empty file here because the server often doesn't have
 	// write access to its configuration folder.
-	g.HTTPEndpoints["ip-routing/policy"] = routing.NewPolicyHandler(
-		RoutingPolicyPublisherAdapter{ConfigPublisher: configPublisher},
-		"")
+	g.HTTPEndpoints["ip-routing/policy"] = service.StatusPage{
+		Handler: routing.NewPolicyHandler(
+			RoutingPolicyPublisherAdapter{ConfigPublisher: configPublisher}, ""),
+	}
 
 	if err := g.HTTPEndpoints.Register(g.HTTPServeMux, g.ID); err != nil {
 		return serrors.WrapStr("registering HTTP pages", err)
