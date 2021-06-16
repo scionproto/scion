@@ -245,6 +245,7 @@ cmd_lint() {
     bazel_lint || ret=1
     protobuf_lint || ret=1
     md_lint || ret=1
+    semgrep_lint || ret=1
     return $ret
 }
 
@@ -307,6 +308,13 @@ md_lint() {
     lint_header "markdown"
     lint_step "mdlint"
     ./tools/mdlint
+}
+
+semgrep_lint() {
+    lint_header "semgrep"
+    lint_step "custom rules"
+    docker run --rm -v "${PWD}:/src" returntocorp/semgrep@sha256:8b0735959a6eb737aa945f4d591b6db23b75344135d74c3021b7d427bd317a66 \
+        --config=/src/lint/semgrep
 }
 
 lint_header() {

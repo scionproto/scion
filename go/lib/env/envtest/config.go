@@ -15,8 +15,9 @@
 package envtest
 
 import (
-	"fmt"
+	"net"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -91,7 +92,10 @@ func CheckTestTracing(t *testing.T, cfg *env.Tracing) {
 	assert.False(t, cfg.Debug)
 	assert.Equal(
 		t,
-		fmt.Sprintf("%s:%d", jaeger.DefaultUDPSpanServerHost, jaeger.DefaultUDPSpanServerPort),
+		net.JoinHostPort(
+			jaeger.DefaultUDPSpanServerHost,
+			strconv.Itoa(jaeger.DefaultUDPSpanServerPort),
+		),
 		cfg.Agent,
 	)
 }

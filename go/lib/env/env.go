@@ -22,10 +22,12 @@ package env
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -254,8 +256,10 @@ type Tracing struct {
 
 func (cfg *Tracing) InitDefaults() {
 	if cfg.Agent == "" {
-		cfg.Agent = fmt.Sprintf("%s:%d",
-			jaeger.DefaultUDPSpanServerHost, jaeger.DefaultUDPSpanServerPort)
+		cfg.Agent = net.JoinHostPort(
+			jaeger.DefaultUDPSpanServerHost,
+			strconv.Itoa(jaeger.DefaultUDPSpanServerPort),
+		)
 	}
 }
 
