@@ -18,13 +18,11 @@ package pathdb
 import (
 	"context"
 	"database/sql"
-	"io"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
-	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 )
 
@@ -49,7 +47,7 @@ type ReadWrite interface {
 	GetAll(context.Context) (query.Results, error)
 	// GetNextQuery returns the nextQuery timestamp for the given src-dst pair
 	// and policy , or a zero time if it hasn't been queried.
-	GetNextQuery(ctx context.Context, src, dst addr.IA, policy PolicyHash) (time.Time, error)
+	GetNextQuery(ctx context.Context, src, dst addr.IA) (time.Time, error)
 	// Insert inserts or updates a path segment. It returns the number of path segments
 	// that have been inserted/updated.
 	Insert(context.Context, *seg.Meta) (InsertStats, error)
@@ -62,8 +60,7 @@ type ReadWrite interface {
 	// InsertNextQuery inserts or updates the timestamp nextQuery for the given
 	// src-dst pair and policy. Returns true if an insert/update happened or
 	// false if the stored timestamp is already newer.
-	InsertNextQuery(ctx context.Context, src, dst addr.IA, policy PolicyHash,
-		nextQuery time.Time) (bool, error)
+	InsertNextQuery(ctx context.Context, src, dst addr.IA, nextQuery time.Time) (bool, error)
 }
 
 type Transaction interface {
@@ -72,16 +69,14 @@ type Transaction interface {
 	Rollback() error
 }
 
-// PathDB defines the interface that all PathDB backends have to implement.
-type PathDB interface {
+// DB defines the interface that all DB backends have to implement.
+type DB interface {
 	ReadWrite
 	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
-	db.LimitSetter
-	io.Closer
 }
 
 // NewCleaner creates a cleaner task that deletes expired segments.
-func NewCleaner(db PathDB, namespace string) *cleaner.Cleaner {
+func NewCleaner(db DB, namespace string) *cleaner.Cleaner {
 	return cleaner.New(func(ctx context.Context) (int, error) {
 		return db.DeleteExpired(ctx, time.Now())
 	}, namespace)

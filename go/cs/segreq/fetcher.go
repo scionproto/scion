@@ -49,7 +49,7 @@ type FetcherConfig struct {
 	// Verifier is the verifier to use.
 	Verifier infra.Verifier
 	// PathDB is the path db to use.
-	PathDB pathdb.PathDB
+	PathDB pathdb.DB
 	// RevCache is the revocation cache to use.
 	RevCache revcache.RevCache
 	// RPC is the RPC used to request segments.

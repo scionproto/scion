@@ -28,11 +28,11 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/db"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
-	sqlitepathdb "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	sqlitebeacondb "github.com/scionproto/scion/go/pkg/storage/beacon/sqlite"
+	sqlitepathdb "github.com/scionproto/scion/go/pkg/storage/path/sqlite"
 	truststorage "github.com/scionproto/scion/go/pkg/storage/trust"
 	sqlitetrustdb "github.com/scionproto/scion/go/pkg/storage/trust/sqlite"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -83,6 +83,11 @@ type TrustDB interface {
 type BeaconDB interface {
 	io.Closer
 	beacon.DB
+}
+
+type PathDB interface {
+	io.Closer
+	pathdb.DB
 }
 
 var _ (config.Config) = (*DBConfig)(nil)
@@ -179,7 +184,7 @@ func (b beaconDBWithCleaner) Close() error {
 	return b.dbCloser.Close()
 }
 
-func NewPathStorage(c DBConfig) (pathdb.PathDB, error) {
+func NewPathStorage(c DBConfig) (PathDB, error) {
 	log.Info("Connecting PathDB", "backend", BackendSqlite, "connection", c.Connection)
 	db, err := sqlitepathdb.New(c.Connection)
 	if err != nil {

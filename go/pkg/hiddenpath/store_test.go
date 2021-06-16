@@ -39,7 +39,7 @@ func TestStorerGet(t *testing.T) {
 	testCases := map[string]struct {
 		inputGroups []hiddenpath.GroupID
 		inputIA     addr.IA
-		db          func(*gomock.Controller) pathdb.PathDB
+		db          func(*gomock.Controller) pathdb.DB
 		want        []*seg.Meta
 		assertErr   assert.ErrorAssertionFunc
 	}{
@@ -48,8 +48,8 @@ func TestStorerGet(t *testing.T) {
 				{OwnerAS: xtest.MustParseAS("ff00:0:111"), Suffix: 42},
 			},
 			inputIA: xtest.MustParseIA("1-ff00:0:110"),
-			db: func(c *gomock.Controller) pathdb.PathDB {
-				ret := mock_pathdb.NewMockPathDB(c)
+			db: func(c *gomock.Controller) pathdb.DB {
+				ret := mock_pathdb.NewMockDB(c)
 				ret.EXPECT().Get(gomock.Any(), &query.Params{
 					EndsAt: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
 					HpCfgIDs: []*query.HPCfgID{
@@ -67,8 +67,8 @@ func TestStorerGet(t *testing.T) {
 				{OwnerAS: xtest.MustParseAS("ff00:0:111"), Suffix: 42},
 			},
 			inputIA: xtest.MustParseIA("1-ff00:0:110"),
-			db: func(c *gomock.Controller) pathdb.PathDB {
-				ret := mock_pathdb.NewMockPathDB(c)
+			db: func(c *gomock.Controller) pathdb.DB {
+				ret := mock_pathdb.NewMockDB(c)
 				ret.EXPECT().Get(gomock.Any(), &query.Params{
 					EndsAt: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
 					HpCfgIDs: []*query.HPCfgID{
@@ -104,7 +104,7 @@ func TestStorerPut(t *testing.T) {
 	testCases := map[string]struct {
 		inputGroup hiddenpath.GroupID
 		inputSegs  []*seg.Meta
-		db         func(*gomock.Controller) pathdb.PathDB
+		db         func(*gomock.Controller) pathdb.DB
 		assertErr  assert.ErrorAssertionFunc
 	}{
 		"valid": {
@@ -112,8 +112,8 @@ func TestStorerPut(t *testing.T) {
 				OwnerAS: xtest.MustParseAS("ff00:0:111"), Suffix: 42,
 			},
 			inputSegs: want,
-			db: func(c *gomock.Controller) pathdb.PathDB {
-				ret := mock_pathdb.NewMockPathDB(c)
+			db: func(c *gomock.Controller) pathdb.DB {
+				ret := mock_pathdb.NewMockDB(c)
 				ret.EXPECT().InsertWithHPCfgIDs(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(pathdb.InsertStats{}, nil)
 				return ret
@@ -125,8 +125,8 @@ func TestStorerPut(t *testing.T) {
 				OwnerAS: xtest.MustParseAS("ff00:0:111"), Suffix: 42,
 			},
 			inputSegs: want,
-			db: func(c *gomock.Controller) pathdb.PathDB {
-				ret := mock_pathdb.NewMockPathDB(c)
+			db: func(c *gomock.Controller) pathdb.DB {
+				ret := mock_pathdb.NewMockDB(c)
 				ret.EXPECT().InsertWithHPCfgIDs(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(pathdb.InsertStats{}, serrors.New("dummy-error"))
 				return ret

@@ -25,7 +25,7 @@ import (
 
 // NewSplitter creates a segfetcher.Splitter for a segfetcher.Pather used in the path service.
 func NewSplitter(ia addr.IA, core bool, inspector trust.Inspector,
-	pathDB pathdb.PathDB) segfetcher.Splitter {
+	pathDB pathdb.DB) segfetcher.Splitter {
 
 	return &splitter{
 		Splitter: &segfetcher.MultiSegmentSplitter{

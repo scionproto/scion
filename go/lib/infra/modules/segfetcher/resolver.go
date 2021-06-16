@@ -129,7 +129,7 @@ func (r *DefaultResolver) loadSegment(ctx context.Context, req Request) (query.R
 }
 
 func (r *DefaultResolver) needsFetching(ctx context.Context, req Request) (bool, error) {
-	nq, err := r.DB.GetNextQuery(ctx, req.Src, req.Dst, nil)
+	nq, err := r.DB.GetNextQuery(ctx, req.Src, req.Dst)
 	return time.Now().After(nq), err
 }
 

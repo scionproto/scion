@@ -2,8 +2,8 @@ load("//lint:go.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["pathdbtest.go"],
-    importpath = "github.com/scionproto/scion/go/lib/pathdb/pathdbtest",
+    srcs = ["dbtest.go"],
+    importpath = "github.com/scionproto/scion/go/pkg/storage/path/dbtest",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",

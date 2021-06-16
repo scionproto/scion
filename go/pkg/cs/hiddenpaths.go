@@ -34,7 +34,7 @@ type HiddenPathConfigurator struct {
 	LocalIA           addr.IA
 	Verifier          infra.Verifier
 	Signer            hpgrpc.Signer
-	PathDB            pathdb.PathDB
+	PathDB            pathdb.DB
 	Dialer            libgrpc.Dialer
 	FetcherConfig     segreq.FetcherConfig
 	IntraASTCPServer  *grpc.Server

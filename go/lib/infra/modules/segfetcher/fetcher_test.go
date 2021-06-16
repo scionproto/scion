@@ -33,7 +33,7 @@ type TestableFetcher struct {
 	Resolver      *mock_segfetcher.MockResolver
 	Requester     *mock_segfetcher.MockRequester
 	ReplyHandler  *mock_segfetcher.MockReplyHandler
-	PathDB        *mock_pathdb.MockPathDB
+	PathDB        *mock_pathdb.MockDB
 	QueryInterval time.Duration
 }
 
@@ -42,7 +42,7 @@ func NewTestFetcher(ctrl *gomock.Controller) *TestableFetcher {
 		Resolver:      mock_segfetcher.NewMockResolver(ctrl),
 		Requester:     mock_segfetcher.NewMockRequester(ctrl),
 		ReplyHandler:  mock_segfetcher.NewMockReplyHandler(ctrl),
-		PathDB:        mock_pathdb.NewMockPathDB(ctrl),
+		PathDB:        mock_pathdb.NewMockDB(ctrl),
 		QueryInterval: time.Minute,
 	}
 }

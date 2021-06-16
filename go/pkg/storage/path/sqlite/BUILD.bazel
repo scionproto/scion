@@ -6,7 +6,7 @@ go_library(
         "schema.go",
         "sqlite.go",
     ],
-    importpath = "github.com/scionproto/scion/go/lib/pathdb/sqlite",
+    importpath = "github.com/scionproto/scion/go/pkg/storage/path/sqlite",
     visibility = ["//visibility:public"],
     deps = [
         "//go/lib/addr:go_default_library",
@@ -25,8 +25,8 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//go/lib/addr:go_default_library",
-        "//go/lib/pathdb/pathdbtest:go_default_library",
         "//go/lib/pathdb/query:go_default_library",
+        "//go/pkg/storage/path/dbtest:go_default_library",
         "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",

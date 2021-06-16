@@ -36,7 +36,7 @@ type Store interface {
 
 // Storer implements the path DB interface for a hidden segments.
 type Storer struct {
-	DB pathdb.PathDB
+	DB pathdb.DB
 }
 
 // Get returns segments from the store using a db provider.

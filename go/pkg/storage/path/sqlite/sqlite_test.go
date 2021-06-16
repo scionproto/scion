@@ -30,8 +30,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/pathdb/pathdbtest"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	pathdbtest "github.com/scionproto/scion/go/pkg/storage/path/dbtest"
 )
 
 var (

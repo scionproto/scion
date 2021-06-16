@@ -40,13 +40,13 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 
 	tests := map[string]struct {
 		Segs           []*seg.Meta
-		PathDB         func(ctrl *gomock.Controller) pathdb.PathDB
+		PathDB         func(ctrl *gomock.Controller) pathdb.DB
 		ExpectedStats  seghandler.SegStats
 		ErrorAssertion assert.ErrorAssertionFunc
 	}{
 		"Transaction creation error": {
-			PathDB: func(ctrl *gomock.Controller) pathdb.PathDB {
-				pathDB := mock_pathdb.NewMockPathDB(ctrl)
+			PathDB: func(ctrl *gomock.Controller) pathdb.DB {
+				pathDB := mock_pathdb.NewMockDB(ctrl)
 				pathDB.EXPECT().BeginTransaction(gomock.Any(), gomock.Any()).
 					Return(nil, errors.New("test err"))
 				return pathDB
@@ -54,8 +54,8 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 			ErrorAssertion: assert.Error,
 		},
 		"Empty input": {
-			PathDB: func(ctrl *gomock.Controller) pathdb.PathDB {
-				pathDB := mock_pathdb.NewMockPathDB(ctrl)
+			PathDB: func(ctrl *gomock.Controller) pathdb.DB {
+				pathDB := mock_pathdb.NewMockDB(ctrl)
 				tx := mock_pathdb.NewMockTransaction(ctrl)
 				gomock.InOrder(
 					pathDB.EXPECT().BeginTransaction(gomock.Any(), gomock.Any()).
@@ -68,8 +68,8 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 			ErrorAssertion: assert.NoError,
 		},
 		"Commit error": {
-			PathDB: func(ctrl *gomock.Controller) pathdb.PathDB {
-				pathDB := mock_pathdb.NewMockPathDB(ctrl)
+			PathDB: func(ctrl *gomock.Controller) pathdb.DB {
+				pathDB := mock_pathdb.NewMockDB(ctrl)
 				tx := mock_pathdb.NewMockTransaction(ctrl)
 				gomock.InOrder(
 					pathDB.EXPECT().BeginTransaction(gomock.Any(), gomock.Any()).
@@ -86,8 +86,8 @@ func TestDefaultStorageStoreSegs(t *testing.T) {
 				{Segment: seg110To130, Type: seg.TypeCore},
 				{Segment: seg110To130Short, Type: seg.TypeCore},
 			},
-			PathDB: func(ctrl *gomock.Controller) pathdb.PathDB {
-				pathDB := mock_pathdb.NewMockPathDB(ctrl)
+			PathDB: func(ctrl *gomock.Controller) pathdb.DB {
+				pathDB := mock_pathdb.NewMockDB(ctrl)
 				tx := mock_pathdb.NewMockTransaction(ctrl)
 				gomock.InOrder(
 					pathDB.EXPECT().BeginTransaction(gomock.Any(), gomock.Any()).

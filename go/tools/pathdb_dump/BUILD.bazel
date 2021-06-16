@@ -11,7 +11,7 @@ go_library(
         "//go/lib/ctrl/seg:go_default_library",
         "//go/lib/env:go_default_library",
         "//go/lib/pathdb/query:go_default_library",
-        "//go/lib/pathdb/sqlite:go_default_library",
+        "//go/pkg/storage/path/sqlite:go_default_library",
     ],
 )
 

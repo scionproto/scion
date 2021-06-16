@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pathdbtest
+package dbtest
 
 import (
 	"bytes"
@@ -65,7 +65,7 @@ var (
 // TestablePathDB extends the path db interface with methods that are needed
 // for testing.
 type TestablePathDB interface {
-	pathdb.PathDB
+	pathdb.DB
 	// Prepare should reset the internal state so that the DB is empty and is
 	// ready to be tested.
 	Prepare(t *testing.T, ctx context.Context)
@@ -456,60 +456,45 @@ func testNextQuery(t *testing.T, _ *gomock.Controller, pathDB pathdb.ReadWrite) 
 	src := xtest.MustParseIA("1-ff00:0:111")
 	dst := xtest.MustParseIA("1-ff00:0:133")
 	oldT := time.Now().Add(-10 * time.Second)
-	updated, err := pathDB.InsertNextQuery(ctx, src, dst, nil, oldT)
+	updated, err := pathDB.InsertNextQuery(ctx, src, dst, oldT)
 	require.NoError(t, err)
 	assert.True(t, updated, "Should Insert new")
-	dbT, err := pathDB.GetNextQuery(ctx, src, dst, nil)
+	dbT, err := pathDB.GetNextQuery(ctx, src, dst)
 	require.NoError(t, err)
 	assert.Equal(t, oldT.Unix(), dbT.Unix(), "Should return inserted time")
 	newT := time.Now()
-	updated, err = pathDB.InsertNextQuery(ctx, src, dst, nil, newT)
+	updated, err = pathDB.InsertNextQuery(ctx, src, dst, newT)
 	require.NoError(t, err)
 	assert.True(t, updated, "Should Update existing")
-	dbT, err = pathDB.GetNextQuery(ctx, src, dst, nil)
+	dbT, err = pathDB.GetNextQuery(ctx, src, dst)
 	require.NoError(t, err)
 	assert.Equal(t, newT.Unix(), dbT.Unix(), "Should return updated time")
-	updated, err = pathDB.InsertNextQuery(ctx, src, dst, nil, oldT)
+	updated, err = pathDB.InsertNextQuery(ctx, src, dst, oldT)
 	require.NoError(t, err)
 	assert.False(t, updated, "Should not update to older")
-	dbT, err = pathDB.GetNextQuery(ctx, src, dst, nil)
+	dbT, err = pathDB.GetNextQuery(ctx, src, dst)
 	require.NoError(t, err)
 	assert.Equal(t, newT.Unix(), dbT.Unix(), "Should return updated time")
-	// with policy
-	pol := []byte("policy")
-	dbT, err = pathDB.GetNextQuery(ctx, src, dst, pol)
-	require.NoError(t, err)
-	assert.Zero(t, dbT, "Should be zero")
-	updated, err = pathDB.InsertNextQuery(ctx, src, dst, pol, oldT)
-	require.NoError(t, err)
-	assert.True(t, updated, "Should Insert new")
-	updated, err = pathDB.InsertNextQuery(ctx, src, dst, pol, oldT)
-	require.NoError(t, err)
-	assert.False(t, updated, "Should not update existing")
-	dbT, err = pathDB.GetNextQuery(ctx, src, dst, pol)
-	require.NoError(t, err)
-	assert.Equal(t, oldT.Unix(), dbT.Unix(), "Should return inserted time")
 	// other dst
-	dbT, err = pathDB.GetNextQuery(ctx, src, xtest.MustParseIA("1-ff00:0:122"), nil)
+	dbT, err = pathDB.GetNextQuery(ctx, src, xtest.MustParseIA("1-ff00:0:122"))
 	require.NoError(t, err)
 	assert.Zero(t, dbT)
-	dbT, err = pathDB.GetNextQuery(ctx, xtest.MustParseIA("1-ff00:0:122"), dst, nil)
+	dbT, err = pathDB.GetNextQuery(ctx, xtest.MustParseIA("1-ff00:0:122"), dst)
 	require.NoError(t, err)
 	assert.Zero(t, dbT)
 	ctx, cancelF = context.WithDeadline(context.Background(), time.Now().Add(-3*time.Second))
 	defer cancelF()
-	_, err = pathDB.GetNextQuery(ctx, src, xtest.MustParseIA("1-ff00:0:122"), nil)
+	_, err = pathDB.GetNextQuery(ctx, src, xtest.MustParseIA("1-ff00:0:122"))
 	assert.Error(t, err)
 }
 
 // nqDescriptor describes a next query entry.
 type nqDescriptor struct {
-	Src    addr.IA
-	Dst    addr.IA
-	Policy pathdb.PolicyHash
+	Src addr.IA
+	Dst addr.IA
 }
 
-func testRollback(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.PathDB) {
+func testRollback(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.DB) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	tx, err := pathDB.BeginTransaction(ctx, nil)

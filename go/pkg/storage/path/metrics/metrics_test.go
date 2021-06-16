@@ -20,13 +20,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/pathdb"
-	"github.com/scionproto/scion/go/lib/pathdb/pathdbtest"
-	"github.com/scionproto/scion/go/lib/pathdb/sqlite"
+	"github.com/scionproto/scion/go/pkg/storage"
+	pathdbtest "github.com/scionproto/scion/go/pkg/storage/path/dbtest"
+	pathstoragemetrics "github.com/scionproto/scion/go/pkg/storage/path/metrics"
+	"github.com/scionproto/scion/go/pkg/storage/path/sqlite"
 )
 
 type TestPathDB struct {
-	pathdb.PathDB
+	storage.PathDB
 }
 
 func (b *TestPathDB) Prepare(t *testing.T, _ context.Context) {
@@ -40,8 +41,10 @@ func TestMetricWrapperFunctionality(t *testing.T) {
 	pathdbtest.TestPathDB(t, tdb)
 }
 
-func setupDB(t *testing.T) pathdb.PathDB {
+func setupDB(t *testing.T) storage.PathDB {
 	db, err := sqlite.New("file::memory:")
 	require.NoError(t, err)
-	return pathdb.WithMetrics("testdb", db)
+	return pathstoragemetrics.WrapDB(db, pathstoragemetrics.Config{
+		Driver: "test_sqlite",
+	})
 }

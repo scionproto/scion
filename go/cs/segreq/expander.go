@@ -30,7 +30,7 @@ type WildcardExpander struct {
 	LocalIA   addr.IA
 	Core      bool
 	Inspector trust.Inspector
-	PathDB    pathdb.PathDB
+	PathDB    pathdb.DB
 }
 
 func (e *WildcardExpander) ExpandSrcWildcard(ctx context.Context,

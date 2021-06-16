@@ -46,7 +46,7 @@ type segMeta struct {
 
 var noInsertion = pathdb.InsertStats{}
 
-var _ pathdb.PathDB = (*Backend)(nil)
+var _ pathdb.DB = (*Backend)(nil)
 
 type Backend struct {
 	db *sql.DB
@@ -554,7 +554,7 @@ func (e *executor) GetAll(ctx context.Context) (query.Results, error) {
 	return ret, nil
 }
 
-func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA, policy pathdb.PolicyHash,
+func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA,
 	nextQuery time.Time) (bool, error) {
 
 	e.Lock()
@@ -562,24 +562,20 @@ func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA, policy
 	if e.db == nil {
 		return false, serrors.New("No database open")
 	}
-	if policy == nil {
-		policy = pathdb.NoPolicy
-	}
 	// Select the data from the input only if the new NextQuery is larger than the existing
 	// or if there is no existing (NextQuery.DstIsdID IS NULL)
 	query := `
-		INSERT OR REPLACE INTO NextQuery (SrcIsdID, SrcAsID, DstIsdID, DstAsID, Policy, NextQuery)
+		INSERT OR REPLACE INTO NextQuery (SrcIsdID, SrcAsID, DstIsdID, DstAsID, NextQuery)
 		SELECT data.* FROM
-		(SELECT ? AS SrcIsdID, ? AS SrcAsID, ? AS DstIsdID, ? AS DstAsID, ? AS Policy, ? AS lq)
+		(SELECT ? AS SrcIsdID, ? AS SrcAsID, ? AS DstIsdID, ? AS DstAsID, ? AS lq)
 			AS data
-		LEFT JOIN NextQuery USING (SrcIsdID, SrcAsID, DstIsdID, DstAsID, Policy)
+		LEFT JOIN NextQuery USING (SrcIsdID, SrcAsID, DstIsdID, DstAsID)
 		WHERE data.lq > NextQuery.NextQuery OR NextQuery.DstIsdID IS NULL;
 	`
 	var r sql.Result
 	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
 		var err error
-		r, err = tx.ExecContext(ctx, query, src.I, src.A, dst.I, dst.A, policy,
-			nextQuery.UnixNano())
+		r, err = tx.ExecContext(ctx, query, src.I, src.A, dst.I, dst.A, nextQuery.UnixNano())
 		return err
 	})
 	if err != nil {
@@ -589,23 +585,19 @@ func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA, policy
 	return n > 0, err
 }
 
-func (e *executor) GetNextQuery(ctx context.Context, src, dst addr.IA,
-	policy pathdb.PolicyHash) (time.Time, error) {
+func (e *executor) GetNextQuery(ctx context.Context, src, dst addr.IA) (time.Time, error) {
 
 	e.RLock()
 	defer e.RUnlock()
 	if e.db == nil {
 		return time.Time{}, serrors.New("No database open")
 	}
-	if policy == nil {
-		policy = pathdb.NoPolicy
-	}
 	query := `
 		SELECT NextQuery from NextQuery
-		WHERE SrcIsdID = ? AND SrcAsID = ? AND DstIsdID = ? AND DstAsID = ? AND Policy = ?
+		WHERE SrcIsdID = ? AND SrcAsID = ? AND DstIsdID = ? AND DstAsID = ?
 	`
 	var nanos int64
-	err := e.db.QueryRowContext(ctx, query, src.I, src.A, dst.I, dst.A, policy).Scan(&nanos)
+	err := e.db.QueryRowContext(ctx, query, src.I, src.A, dst.I, dst.A).Scan(&nanos)
 	if err == sql.ErrNoRows {
 		return time.Time{}, nil
 	}

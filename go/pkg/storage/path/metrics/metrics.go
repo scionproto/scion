@@ -27,9 +27,11 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	dblib "github.com/scionproto/scion/go/lib/infra/modules/db"
+	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/tracing"
+	"github.com/scionproto/scion/go/pkg/storage"
 )
 
 const (
@@ -61,6 +63,10 @@ var (
 	initMetricsOnce sync.Once
 )
 
+type Config struct {
+	Driver string
+}
+
 func initMetrics() {
 	initMetricsOnce.Do(func() {
 		// Cardinality: X (dbName) * 13 (len(all ops))
@@ -73,11 +79,12 @@ func initMetrics() {
 	})
 }
 
-// WithMetrics wraps the given PathDB into one that also exports metrics.
-// dbName will be added as a label to all metrics, so that multiple path DBs can be differentiated.
-func WithMetrics(dbName string, pathDB PathDB) PathDB {
+// WrapDB wraps the given PathDB into one that also exports metrics. dbName will
+// be added as a label to all metrics, so that multiple path DBs can be
+// differentiated.
+func WrapDB(pathDB storage.PathDB, cfg Config) storage.PathDB {
 	initMetrics()
-	labels := prometheus.Labels{promDBName: dbName}
+	labels := prometheus.Labels{promDBName: cfg.Driver}
 	return &metricsPathDB{
 		metricsExecutor: &metricsExecutor{
 			pathDB: pathDB,
@@ -108,30 +115,19 @@ func (c *counters) Observe(ctx context.Context, op promOp, action func(ctx conte
 	c.resultsTotal.WithLabelValues(label, string(op)).Inc()
 }
 
-var _ (PathDB) = (*metricsPathDB)(nil)
+var _ (storage.PathDB) = (*metricsPathDB)(nil)
 
 // metricsPathDB is a PathDB wrapper that exports the counts of operations as prometheus metrics.
 type metricsPathDB struct {
 	*metricsExecutor
 	// db is only needed to have BeginTransaction method.
-	db PathDB
-}
-
-func (db *metricsPathDB) Close() error {
-	return db.db.Close()
-}
-
-func (db *metricsPathDB) SetMaxOpenConns(maxOpenConns int) {
-	db.db.SetMaxOpenConns(maxOpenConns)
-}
-func (db *metricsPathDB) SetMaxIdleConns(maxIdleConns int) {
-	db.db.SetMaxIdleConns(maxIdleConns)
+	db storage.PathDB
 }
 
 func (db *metricsPathDB) BeginTransaction(ctx context.Context,
-	opts *sql.TxOptions) (Transaction, error) {
+	opts *sql.TxOptions) (pathdb.Transaction, error) {
 
-	var tx Transaction
+	var tx pathdb.Transaction
 	var err error
 	db.metricsExecutor.metrics.Observe(ctx, promOpBeginTx, func(ctx context.Context) error {
 		tx, err = db.db.BeginTransaction(ctx, opts)
@@ -150,11 +146,15 @@ func (db *metricsPathDB) BeginTransaction(ctx context.Context,
 	}, err
 }
 
-var _ (Transaction) = (*metricsTransaction)(nil)
+func (db *metricsPathDB) Close() error {
+	return db.db.Close()
+}
+
+var _ (pathdb.Transaction) = (*metricsTransaction)(nil)
 
 type metricsTransaction struct {
 	*metricsExecutor
-	tx  Transaction
+	tx  pathdb.Transaction
 	ctx context.Context
 }
 
@@ -179,15 +179,15 @@ func (tx *metricsTransaction) Rollback() error {
 	return err
 }
 
-var _ (ReadWrite) = (*metricsExecutor)(nil)
+var _ (pathdb.ReadWrite) = (*metricsExecutor)(nil)
 
 type metricsExecutor struct {
-	pathDB  ReadWrite
+	pathDB  pathdb.ReadWrite
 	metrics *counters
 }
 
-func (db *metricsExecutor) Insert(ctx context.Context, meta *seg.Meta) (InsertStats, error) {
-	var cnt InsertStats
+func (db *metricsExecutor) Insert(ctx context.Context, meta *seg.Meta) (pathdb.InsertStats, error) {
+	var cnt pathdb.InsertStats
 	var err error
 	db.metrics.Observe(ctx, promOpInsert, func(ctx context.Context) error {
 		cnt, err = db.pathDB.Insert(ctx, meta)
@@ -197,9 +197,9 @@ func (db *metricsExecutor) Insert(ctx context.Context, meta *seg.Meta) (InsertSt
 }
 
 func (db *metricsExecutor) InsertWithHPCfgIDs(ctx context.Context,
-	meta *seg.Meta, hpCfgIds []*query.HPCfgID) (InsertStats, error) {
+	meta *seg.Meta, hpCfgIds []*query.HPCfgID) (pathdb.InsertStats, error) {
 
-	var cnt InsertStats
+	var cnt pathdb.InsertStats
 	var err error
 	db.metrics.Observe(ctx, promOpInsertHpCfg, func(ctx context.Context) error {
 		cnt, err = db.pathDB.InsertWithHPCfgIDs(ctx, meta, hpCfgIds)
@@ -248,24 +248,23 @@ func (db *metricsExecutor) GetAll(ctx context.Context) (query.Results, error) {
 }
 
 func (db *metricsExecutor) InsertNextQuery(ctx context.Context,
-	src, dst addr.IA, policy PolicyHash, nextQuery time.Time) (bool, error) {
+	src, dst addr.IA, nextQuery time.Time) (bool, error) {
 
 	var ok bool
 	var err error
 	db.metrics.Observe(ctx, promOpInsertNextQuery, func(ctx context.Context) error {
-		ok, err = db.pathDB.InsertNextQuery(ctx, src, dst, policy, nextQuery)
+		ok, err = db.pathDB.InsertNextQuery(ctx, src, dst, nextQuery)
 		return err
 	})
 	return ok, err
 }
 
-func (db *metricsExecutor) GetNextQuery(ctx context.Context, src, dst addr.IA,
-	policy PolicyHash) (time.Time, error) {
+func (db *metricsExecutor) GetNextQuery(ctx context.Context, src, dst addr.IA) (time.Time, error) {
 
 	var t time.Time
 	var err error
 	db.metrics.Observe(ctx, promOpGetNextQuery, func(ctx context.Context) error {
-		t, err = db.pathDB.GetNextQuery(ctx, src, dst, policy)
+		t, err = db.pathDB.GetNextQuery(ctx, src, dst)
 		return err
 	})
 	return t, err

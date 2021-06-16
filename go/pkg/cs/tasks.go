@@ -45,7 +45,7 @@ type TasksConfig struct {
 	Intfs           *ifstate.Interfaces
 	OneHopConn      snet.PacketConn
 	TrustDB         trust.DB
-	PathDB          pathdb.PathDB
+	PathDB          pathdb.DB
 	RevCache        revcache.RevCache
 	BeaconSender    beaconing.BeaconSender
 	SegmentRegister beaconing.RPC

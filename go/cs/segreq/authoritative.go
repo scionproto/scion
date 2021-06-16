@@ -31,7 +31,7 @@ import (
 type AuthoritativeLookup struct {
 	LocalIA     addr.IA
 	CoreChecker CoreChecker
-	PathDB      pathdb.PathDB
+	PathDB      pathdb.DB
 }
 
 func (a AuthoritativeLookup) LookupSegments(ctx context.Context, src,
@@ -81,7 +81,7 @@ func (a AuthoritativeLookup) classify(ctx context.Context,
 
 // getCoreSegments loads core segments from localIA to dstIA from the path DB.
 // Wildcard dstIA is allowed.
-func getCoreSegments(ctx context.Context, pathDB pathdb.PathDB,
+func getCoreSegments(ctx context.Context, pathDB pathdb.DB,
 	localIA, dstIA addr.IA) (segfetcher.Segments, error) {
 
 	res, err := pathDB.Get(ctx, &query.Params{
@@ -97,7 +97,7 @@ func getCoreSegments(ctx context.Context, pathDB pathdb.PathDB,
 
 // getDownSegments loads down segments from localIA to dstIA from the path DB.
 // Wildcard dstIA is _not_ allowed.
-func getDownSegments(ctx context.Context, pathDB pathdb.PathDB,
+func getDownSegments(ctx context.Context, pathDB pathdb.DB,
 	localIA, dstIA addr.IA) (segfetcher.Segments, error) {
 
 	res, err := pathDB.Get(ctx, &query.Params{

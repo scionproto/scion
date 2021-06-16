@@ -57,7 +57,7 @@ type Fetcher struct {
 	Resolver     Resolver
 	Requester    Requester
 	ReplyHandler ReplyHandler
-	PathDB       pathdb.PathDB
+	PathDB       pathdb.DB
 	// QueryInterval specifies after how much time segments should be
 	// refetched at the remote server.
 	QueryInterval time.Duration
@@ -125,7 +125,7 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context,
 		}
 		segs = append(segs, Segments(r.Stats().VerifiedSegs)...)
 		nextQuery := f.nextQuery(segs)
-		_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nil, nextQuery)
+		_, err := f.PathDB.InsertNextQuery(ctx, reply.Req.Src, reply.Req.Dst, nextQuery)
 		if err != nil {
 			logger.Info("NextQuery insertion failed", "err", err)
 		}

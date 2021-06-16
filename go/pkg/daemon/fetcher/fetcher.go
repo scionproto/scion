@@ -53,7 +53,7 @@ type fetcher struct {
 
 type FetcherConfig struct {
 	RPC       segfetcher.RPC
-	PathDB    pathdb.PathDB
+	PathDB    pathdb.DB
 	Inspector trust.Inspector
 
 	Verifier infra.Verifier

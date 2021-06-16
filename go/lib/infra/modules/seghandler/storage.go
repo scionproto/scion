@@ -57,7 +57,7 @@ type Storage interface {
 // DefaultStorage wraps path DB and revocation cache and offers
 // convenience methods that implement the Storage interface.
 type DefaultStorage struct {
-	PathDB   pathdb.PathDB
+	PathDB   pathdb.DB
 	RevCache revcache.RevCache
 }
 

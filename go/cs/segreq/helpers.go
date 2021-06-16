@@ -49,7 +49,7 @@ func (c *CoreChecker) IsCore(ctx context.Context, ia addr.IA) (bool, error) {
 
 // SegSelector selects segments to use for a connection to a remote server.
 type SegSelector struct {
-	PathDB       pathdb.PathDB
+	PathDB       pathdb.DB
 	RevCache     revcache.RevCache
 	TopoProvider topology.Provider
 	Pather       Pather
