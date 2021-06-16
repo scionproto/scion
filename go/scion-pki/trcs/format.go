@@ -39,7 +39,7 @@ func newFormatCmd(pather command.Pather) *cobra.Command {
 		Use:   "format [flags] <trc-file>",
 		Short: "Reformat a TRC or TRC payload",
 		Example: fmt.Sprintf(`  %[1]s format ISD1-B1-S1.trc.der
-  %[1]s format --der ISD1-B1-S2.pld --out ISD1-B1-S2.pld.der`,
+  %[1]s --format der ISD1-B1-S2.pld --out ISD1-B1-S2.pld.der`,
 			pather.CommandPath(),
 		),
 		Long: `'format' prints the TRC or TRC payload in a different format.

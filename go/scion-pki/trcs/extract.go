@@ -30,7 +30,7 @@ import (
 func newExtract(pather command.Pather) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "extract",
-		Short: "Exctract parts of a signed TRC",
+		Short: "Extract parts of a signed TRC",
 	}
 	joined := command.Join(pather, cmd)
 	cmd.AddCommand(
