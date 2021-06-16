@@ -27,8 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/pkg/gateway"
 	"github.com/scionproto/scion/go/pkg/gateway/control"
-	"github.com/scionproto/scion/go/pkg/gateway/dataplane"
-	"github.com/scionproto/scion/go/pkg/gateway/xnet"
 )
 
 // Gateway is a fake gateway. It uses the configurations provided by the
@@ -45,6 +43,8 @@ type Gateway struct {
 	// is ready, the fresh routing table is swapped in place of the old one. It
 	// must not be nil.
 	RoutingTableSwapper control.RoutingTableSwapper
+	// DeviceManager is used to create devices for remote IAs.
+	DeviceManager control.DeviceManager
 
 	// DataPlaneRunner is an interface to start different data plane components.
 	DataPlaneRunner gateway.DataPlaneRunner
@@ -84,24 +84,7 @@ type Gateway struct {
 // Run runs the fake gateway, it reads configurations from the configuration
 // channel.
 func (g *Gateway) Run() error {
-	tunnelName := g.TunnelName
-	if tunnelName == "" {
-		tunnelName = "tun0"
-	}
-
-	tunnelReader := gateway.TunnelReader{
-		DeviceOpener: xnet.UseNameResolver(
-			routemgr.FixedTunnelName(tunnelName),
-			xnet.OpenerWithOptions(xnet.WithLogger(g.Logger)),
-		),
-		Router:  g.RoutingTableReader,
-		Logger:  g.Logger,
-		Metrics: dataplane.IPForwarderMetrics{},
-	}
-	deviceManager := &routemgr.SingleDeviceManager{
-		DeviceOpener: tunnelReader.GetDeviceOpenerWithAsyncReader(),
-	}
-	routePublisherFactory := createRouteManager(deviceManager, g.DummyRouting)
+	routePublisherFactory := createRouteManager(g.DeviceManager, g.DummyRouting)
 
 	localIA, err := g.Daemon.LocalIA(context.Background())
 	if err != nil {
@@ -112,7 +95,7 @@ func (g *Gateway) Run() error {
 
 	log.Info("Starting ingress", "local_isd_as", localIA)
 	if err := g.DataPlaneRunner.StartIngress(scionNetwork, g.DataServerAddr,
-		deviceManager, nil); err != nil {
+		g.DeviceManager, nil); err != nil {
 
 		return err
 	}
@@ -137,7 +120,7 @@ func (g *Gateway) Run() error {
 		newSessions := make(map[int]control.DataplaneSession, len(c.Sessions))
 		newHandles := make([]control.DeviceHandle, 0)
 		for _, s := range c.Sessions {
-			handle, err := deviceManager.Get(s.RemoteIA)
+			handle, err := g.DeviceManager.Get(s.RemoteIA)
 			if err != nil {
 				return serrors.WrapStr("getting handle", err)
 			}
