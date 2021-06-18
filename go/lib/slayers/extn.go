@@ -144,8 +144,9 @@ func serializeTLVOptions(buf []byte, options []*tlvOption, fixLengths bool) int 
 		length += opt.length(fixLengths)
 	}
 	if fixLengths {
-		pad := length % LineLen
-		if pad != 0 {
+		p := length % LineLen
+		if p != 0 {
+			pad := LineLen - p
 			if !dryrun {
 				serializeTLVOptionPadding(buf[length-2:], pad)
 			}

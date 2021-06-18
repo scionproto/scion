@@ -99,6 +99,87 @@ func TestSerializeTLVOptions(t *testing.T) {
 	assert.Equal(t, rawTLVOptionsYX, b, "Serialize OptY|OptX")
 }
 
+func TestSerializeTLVOptionsWithFinalPadding(t *testing.T) {
+	// variable length option test padding after different data lengths
+	var optV = slayers.TLVOption{
+		OptType:  0x76,
+		OptAlign: [2]uint8{1, 0},
+		// data filled with repeated 0xff
+	}
+	ones := [5]byte{0xff, 0xff, 0xff, 0xff, 0xff}
+
+	cases := []struct {
+		optLen   int
+		expected []byte
+	}{
+		{
+			optLen: 0,
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |  Next Header  | Hdr Ext Len=0 | Option Type=V |Opt Data Len=0 |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			expected: []byte{0x76, 0x00},
+		},
+		{
+			optLen: 1,
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |  Next Header  | Hdr Ext Len=1 | Option Type=V |Opt Data Len=1 |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |  1-octet data | PadN Option=1 |Opt Data Len=1 |       0       |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			expected: []byte{0x76, 0x01, 0xff, 0x01, 0x01, 0x00},
+		},
+		{
+			optLen: 2,
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |  Next Header  | Hdr Ext Len=1 | Option Type=V |Opt Data Len=2 |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |         2-octet data          | PadN Option=1 |Opt Data Len=0 |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			expected: []byte{0x76, 0x02, 0xff, 0xff, 0x01, 0x00},
+		},
+		{
+			optLen: 3,
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |  Next Header  | Hdr Ext Len=1 | Option Type=V |Opt Data Len=3 |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |                 3-octet data                  | Pad1 Option=0 |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			expected: []byte{0x76, 0x03, 0xff, 0xff, 0xff, 0x00},
+		},
+		{
+			optLen: 4,
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |  Next Header  | Hdr Ext Len=1 | Option Type=V |Opt Data Len=4 |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |                          4-octet data                         |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			expected: []byte{0x76, 0x04, 0xff, 0xff, 0xff, 0xff},
+		},
+		{
+			optLen: 5,
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |  Next Header  | Hdr Ext Len=2 | Option Type=V |Opt Data Len=5 |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |                          5-octet data                         |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			// |      ...      | PadN Option=1 |Opt Data Len=1 |       0       |
+			// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			expected: []byte{0x76, 0x05, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01, 0x01, 0x00},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("Opt Data Len %d", c.optLen), func(t *testing.T) {
+			optV.OptData = ones[:c.optLen]
+
+			l := slayers.SerializeTLVOptions(nil, []*slayers.TLVOption{&optV}, true)
+			b := make([]byte, l)
+			slayers.SerializeTLVOptions(b, []*slayers.TLVOption{&optV}, true)
+			assert.Equal(t, c.expected, b)
+		})
+	}
+}
+
 func TestHopByHopExtnSerialize(t *testing.T) {
 	hbh := slayers.HopByHopExtn{}
 	hbh.NextHdr = common.L4UDP
