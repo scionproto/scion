@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
@@ -81,6 +82,25 @@ func TestPropagatorRun(t *testing.T) {
 			provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 			sender := mock_beaconing.NewMockBeaconSender(mctrl)
 
+			var filter func(intf *ifstate.Interface) bool
+			if test.core {
+				filter = func(intf *ifstate.Interface) bool {
+					topoInfo := intf.TopoInfo()
+					if topoInfo.LinkType == topology.Core {
+						return true
+					}
+					return false
+				}
+			} else {
+				filter = func(intf *ifstate.Interface) bool {
+					topoInfo := intf.TopoInfo()
+					if topoInfo.LinkType == topology.Child {
+						return true
+					}
+					return false
+				}
+			}
+
 			p := Propagator{
 				Extender: &DefaultExtender{
 					IA:         topoProvider.Get().IA(),
@@ -91,13 +111,15 @@ func TestPropagatorRun(t *testing.T) {
 					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 					StaticInfo: func() *StaticInfoCfg { return nil },
 				},
-				BeaconSender: sender,
-				IA:           topoProvider.Get().IA(),
-				Signer:       testSigner(t, priv, topoProvider.Get().IA()),
-				Intfs:        intfs,
-				Tick:         NewTick(time.Hour),
-				Core:         test.core,
-				Provider:     provider,
+				BeaconSender:  sender,
+				IA:            topoProvider.Get().IA(),
+				Signer:        testSigner(t, priv, topoProvider.Get().IA()),
+				AllInterfaces: intfs,
+				PropagationInterfaces: func() []*ifstate.Interface {
+					return intfs.Filtered(filter)
+				},
+				Tick:     NewTick(time.Hour),
+				Provider: provider,
 			}
 			g := graph.NewDefaultGraph(mctrl)
 			provider.EXPECT().BeaconsToPropagate(gomock.Any()).MaxTimes(2).DoAndReturn(
@@ -143,6 +165,15 @@ func TestPropagatorRun(t *testing.T) {
 		provider := mock_beaconing.NewMockBeaconProvider(mctrl)
 		sender := mock_beaconing.NewMockBeaconSender(mctrl)
 
+		var filter func(intf *ifstate.Interface) bool
+		filter = func(intf *ifstate.Interface) bool {
+			topoInfo := intf.TopoInfo()
+			if topoInfo.LinkType == topology.Core {
+				return true
+			}
+			return false
+		}
+
 		p := Propagator{
 			Extender: &DefaultExtender{
 				IA:         topoProvider.Get().IA(),
@@ -153,13 +184,15 @@ func TestPropagatorRun(t *testing.T) {
 				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
-			BeaconSender: sender,
-			IA:           topoProvider.Get().IA(),
-			Signer:       testSigner(t, priv, topoProvider.Get().IA()),
-			Intfs:        intfs,
-			Tick:         NewTick(2 * time.Second),
-			Core:         true,
-			Provider:     provider,
+			BeaconSender:  sender,
+			IA:            topoProvider.Get().IA(),
+			Signer:        testSigner(t, priv, topoProvider.Get().IA()),
+			AllInterfaces: intfs,
+			PropagationInterfaces: func() []*ifstate.Interface {
+				return intfs.Filtered(filter)
+			},
+			Tick:     NewTick(2 * time.Second),
+			Provider: provider,
 		}
 
 		g := graph.NewDefaultGraph(mctrl)

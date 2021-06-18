@@ -84,6 +84,19 @@ func (intfs *Interfaces) Update(ifInfomap topology.IfInfoMap) {
 	intfs.intfs = m
 }
 
+// Filtered returns the subset of interfaces which pass the given filter function.
+func (intfs *Interfaces) Filtered(filter func(*Interface) bool) []*Interface {
+	intfs.mu.RLock()
+	defer intfs.mu.RUnlock()
+	var propagationInterfaces []*Interface
+	for _, intf := range intfs.intfs {
+		if filter(intf) {
+			propagationInterfaces = append(propagationInterfaces, intf)
+		}
+	}
+	return propagationInterfaces
+}
+
 // Reset resets all interface states to inactive. This should be called
 // by the beacon server if it is elected leader.
 func (intfs *Interfaces) Reset() {

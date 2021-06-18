@@ -544,9 +544,44 @@ func realMain() error {
 			},
 		},
 	)
+
+	var propagationFilter func(intf *ifstate.Interface) bool
+	if topo.Core() {
+		propagationFilter = func(intf *ifstate.Interface) bool {
+			topoInfo := intf.TopoInfo()
+			if topoInfo.LinkType == topology.Core {
+				return true
+			}
+			return false
+		}
+	} else {
+		propagationFilter = func(intf *ifstate.Interface) bool {
+			topoInfo := intf.TopoInfo()
+			if topoInfo.LinkType == topology.Child {
+				return true
+			}
+			return false
+		}
+	}
+
+	var originationFilter func(intf *ifstate.Interface) bool
+	originationFilter = func(intf *ifstate.Interface) bool {
+		topoInfo := intf.TopoInfo()
+		if topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child {
+			return true
+		}
+		return false
+	}
+
 	tasks, err := cs.StartTasks(cs.TasksConfig{
-		Public:   nc.Public,
-		Intfs:    intfs,
+		Public:        nc.Public,
+		AllInterfaces: intfs,
+		PropagationInterfaces: func() []*ifstate.Interface {
+			return intfs.Filtered(propagationFilter)
+		},
+		OriginationInterfaces: func() []*ifstate.Interface {
+			return intfs.Filtered(originationFilter)
+		},
 		TrustDB:  trustDB,
 		PathDB:   pathDB,
 		RevCache: revCache,

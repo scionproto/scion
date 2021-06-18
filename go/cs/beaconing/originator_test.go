@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/topology"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
 
@@ -51,6 +52,14 @@ func TestOriginatorRun(t *testing.T) {
 	require.NoError(t, err)
 	pub := priv.Public()
 	signer := testSigner(t, priv, topoProvider.Get().IA())
+	var originationFilter func(intf *ifstate.Interface) bool
+	originationFilter = func(intf *ifstate.Interface) bool {
+		topoInfo := intf.TopoInfo()
+		if topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child {
+			return true
+		}
+		return false
+	}
 	t.Run("run originates ifid packets on all active interfaces", func(t *testing.T) {
 		mctrl := gomock.NewController(t)
 		defer mctrl.Finish()
@@ -66,11 +75,14 @@ func TestOriginatorRun(t *testing.T) {
 				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
-			BeaconSender: sender,
-			IA:           topoProvider.Get().IA(),
-			Signer:       signer,
-			Intfs:        intfs,
-			Tick:         NewTick(time.Hour),
+			BeaconSender:  sender,
+			IA:            topoProvider.Get().IA(),
+			Signer:        signer,
+			AllInterfaces: intfs,
+			OriginationInterfaces: func() []*ifstate.Interface {
+				return intfs.Filtered(originationFilter)
+			},
+			Tick: NewTick(time.Hour),
 		}
 
 		require.NoError(t, err)
@@ -118,11 +130,14 @@ func TestOriginatorRun(t *testing.T) {
 				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
 				StaticInfo: func() *StaticInfoCfg { return nil },
 			},
-			BeaconSender: sender,
-			IA:           topoProvider.Get().IA(),
-			Signer:       signer,
-			Intfs:        intfs,
-			Tick:         NewTick(2 * time.Second),
+			BeaconSender:  sender,
+			IA:            topoProvider.Get().IA(),
+			Signer:        signer,
+			AllInterfaces: intfs,
+			OriginationInterfaces: func() []*ifstate.Interface {
+				return intfs.Filtered(originationFilter)
+			},
+			Tick: NewTick(2 * time.Second),
 		}
 
 		// 1. Initial run where one beacon fails to send. -> 4 calls
