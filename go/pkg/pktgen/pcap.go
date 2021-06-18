@@ -26,7 +26,7 @@ import (
 
 // StorePcap stores a Pcap file with the given raw packet and file name.
 func StorePcap(file string, pkt []byte) error {
-	f, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return serrors.WrapStr("creating file", err, "file", file)
 	}
