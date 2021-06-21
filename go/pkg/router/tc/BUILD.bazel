@@ -3,9 +3,7 @@ load("//lint:go.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
-        "colibriprio.go",
         "others.go",
-        "roundrobin.go",
         "strict.go",
         "tc.go",
     ],

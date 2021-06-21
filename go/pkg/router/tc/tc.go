@@ -35,17 +35,11 @@ const (
 	ClsOthers TrafficClass = iota
 	ClsColibri
 	ClsEpic
-	ClsBfd
-	ClsOhp
-	ClsScmp
-	ClsScion
 )
 
 // Identify the possible scheduling algorithms.
 const (
 	SchedOthersOnly SchedulerId = iota
-	SchedRoundRobin
-	SchedColibriPrio
 	SchedStrictPriority
 )
 
@@ -77,16 +71,10 @@ func NewQueues(scheduling bool, maxPacketLength int) *Queues {
 	qs.nonempty = make(chan bool, 1)
 	qs.mapping = make(map[TrafficClass]*ZeroAllocQueue)
 
+	qs.mapping[ClsOthers] = newZeroAllocQueue(128, maxPacketLength)
 	if scheduling {
-		qs.mapping[ClsOthers] = newZeroAllocQueue(32, maxPacketLength)
 		qs.mapping[ClsColibri] = newZeroAllocQueue(32, maxPacketLength)
 		qs.mapping[ClsEpic] = newZeroAllocQueue(32, maxPacketLength)
-		qs.mapping[ClsBfd] = newZeroAllocQueue(32, maxPacketLength)
-		qs.mapping[ClsOhp] = newZeroAllocQueue(32, maxPacketLength)
-		qs.mapping[ClsScmp] = newZeroAllocQueue(32, maxPacketLength)
-		qs.mapping[ClsScion] = newZeroAllocQueue(128, maxPacketLength)
-	} else {
-		qs.mapping[ClsOthers] = newZeroAllocQueue(128, maxPacketLength)
 	}
 
 	qs.writeBuffer = conn.NewReadMessages(outputBatchCnt)
@@ -96,16 +84,12 @@ func NewQueues(scheduling bool, maxPacketLength int) *Queues {
 // SetScheduler assigns the provided scheduler to the queues.
 func (qs *Queues) SetScheduler(s SchedulerId) {
 	switch s {
-	case SchedRoundRobin:
-		qs.scheduler = &RoundRobinScheduler{}
-	case SchedColibriPrio:
-		qs.scheduler = &ColibriPriorityScheduler{}
 	case SchedOthersOnly:
 		qs.scheduler = &OthersOnlyScheduler{}
 	case SchedStrictPriority:
 		qs.scheduler = &StrictPriorityScheduler{}
 	default:
-		qs.scheduler = &RoundRobinScheduler{}
+		qs.scheduler = &StrictPriorityScheduler{}
 	}
 }
 
@@ -278,14 +262,6 @@ func (tc TrafficClass) String() string {
 		return "COLIBRI"
 	case ClsEpic:
 		return "EPIC"
-	case ClsBfd:
-		return "BFD"
-	case ClsOhp:
-		return "OHP"
-	case ClsScmp:
-		return "SCMP"
-	case ClsScion:
-		return "SCION"
 	default:
 		return "Unknown traffic class"
 	}

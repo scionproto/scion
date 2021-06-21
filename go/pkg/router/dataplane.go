@@ -792,7 +792,12 @@ func (p *scionPacketProcessor) processEPIC() (processResult, error) {
 		}
 	}
 
-	result.Class = tc.ClsEpic
+	// Prioritize EPIC packets at the last two hops:
+	result.Class = tc.ClsOthers
+	if isPenultimate || isLast {
+		result.Class = tc.ClsEpic
+	}
+
 	return result, nil
 }
 
@@ -1255,8 +1260,7 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 		if err != nil {
 			return r, err
 		}
-		return processResult{OutConn: p.d.internal, OutAddr: a,
-			OutPkt: p.rawPkt, Class: tc.ClsScion}, nil
+		return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil
 	}
 
 	// Outbound: pkts leaving the local IA.
@@ -1285,14 +1289,12 @@ func (p *scionPacketProcessor) process() (processResult, error) {
 		if err := p.processEgress(); err != nil {
 			return processResult{}, err
 		}
-		return processResult{EgressID: egressID, OutConn: c,
-			OutPkt: p.rawPkt, Class: tc.ClsScion}, nil
+		return processResult{EgressID: egressID, OutConn: c, OutPkt: p.rawPkt}, nil
 	}
 
 	// ASTransit: pkts leaving from another AS BR.
 	if a, ok := p.d.internalNextHops[egressID]; ok {
-		return processResult{OutConn: p.d.internal, OutAddr: a,
-			OutPkt: p.rawPkt, Class: tc.ClsScion}, nil
+		return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil
 	}
 	errCode := slayers.SCMPCodeUnknownHopFieldEgress
 	if !p.infoField.ConsDir {
@@ -1355,8 +1357,8 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 		// OHP should always be directed to the correct BR.
 		if c, ok := p.d.external[ohp.FirstHop.ConsEgress]; ok {
 			// buffer should already be correct
-			return processResult{EgressID: ohp.FirstHop.ConsEgress, OutConn: c, OutPkt: p.rawPkt,
-				Class: tc.ClsOhp}, nil
+			return processResult{EgressID: ohp.FirstHop.ConsEgress, OutConn: c,
+				OutPkt: p.rawPkt}, nil
 		}
 		// TODO parameter problem invalid interface
 		return processResult{}, serrors.WithCtx(cannotRoute, "type", "ohp",
@@ -1389,8 +1391,7 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 	if err != nil {
 		return processResult{}, err
 	}
-	return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt,
-		Class: tc.ClsOhp}, nil
+	return processResult{OutConn: p.d.internal, OutAddr: a, OutPkt: p.rawPkt}, nil
 }
 
 func (d *DataPlane) resolveLocalDst(s slayers.SCION) (*net.UDPAddr, error) {
@@ -1494,17 +1495,8 @@ func (b *bfdSend) Send(bfd *layers.BFD) error {
 		return err
 	}
 
-	r := &processResult{
-		OutAddr:  b.dstAddr,
-		OutPkt:   buffer.Bytes(),
-		OutConn:  b.conn,
-		EgressID: b.ifID,
-		Class:    tc.ClsBfd,
-	}
-	if !b.d.enqueue(r) {
-		return serrors.New("Bfd enqueue failed")
-	}
-	return nil
+	_, err = b.conn.WriteTo(buffer.Bytes(), b.dstAddr)
+	return err
 }
 
 type scmpPacker struct {
