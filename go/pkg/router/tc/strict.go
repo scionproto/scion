@@ -22,7 +22,7 @@ type StrictPriorityScheduler struct{}
 
 // Schedule schedules packets based on a strict hierarchy, where a message from a
 // queue is only scheduled if all higher priority queues are empty.
-// The priorities are: COLIBRI > BFD > OHP > EPIC > SCMP > SCION > Others.
+// The priorities are: COLIBRI > EPIC > Others.
 func (s *StrictPriorityScheduler) Schedule(qs *Queues) ([]ipv4.Message, error) {
 	read := 0
 	n, err := qs.dequeue(ClsColibri, outputBatchCnt-read, qs.writeBuffer[read:])
@@ -31,31 +31,7 @@ func (s *StrictPriorityScheduler) Schedule(qs *Queues) ([]ipv4.Message, error) {
 	}
 	read = read + n
 
-	n, err = qs.dequeue(ClsBfd, outputBatchCnt-read, qs.writeBuffer[read:])
-	if err != nil {
-		return nil, err
-	}
-	read = read + n
-
-	n, err = qs.dequeue(ClsOhp, outputBatchCnt-read, qs.writeBuffer[read:])
-	if err != nil {
-		return nil, err
-	}
-	read = read + n
-
 	n, err = qs.dequeue(ClsEpic, outputBatchCnt-read, qs.writeBuffer[read:])
-	if err != nil {
-		return nil, err
-	}
-	read = read + n
-
-	n, err = qs.dequeue(ClsScmp, outputBatchCnt-read, qs.writeBuffer[read:])
-	if err != nil {
-		return nil, err
-	}
-	read = read + n
-
-	n, err = qs.dequeue(ClsScion, outputBatchCnt-read, qs.writeBuffer[read:])
 	if err != nil {
 		return nil, err
 	}
