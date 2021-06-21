@@ -17,6 +17,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -36,9 +37,10 @@ var globalCfg config.Config
 
 func main() {
 	application := launcher.Application{
-		TOMLConfig: &globalCfg,
-		ShortName:  "SCION Dispatcher",
-		Main:       realMain,
+		TOMLConfig:  &globalCfg,
+		ShortName:   "SCION Dispatcher",
+		RequiredIPs: requiredIPs,
+		Main:        realMain,
 	}
 	application.Run()
 }
@@ -119,4 +121,15 @@ func waitForTeardown() int {
 	case <-fatal.FatalChan():
 		return 1
 	}
+}
+
+func requiredIPs() ([]net.IP, error) {
+	if globalCfg.Metrics.Prometheus == "" {
+		return nil, nil
+	}
+	promAddr, err := net.ResolveTCPAddr("tcp", globalCfg.Metrics.Prometheus)
+	if err != nil {
+		return nil, serrors.WrapStr("parsing prometheus address", err)
+	}
+	return []net.IP{promAddr.IP}, nil
 }

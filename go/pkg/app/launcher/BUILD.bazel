@@ -1,8 +1,11 @@
-load("//lint:go.bzl", "go_library")
+load("//lint:go.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["launcher.go"],
+    srcs = [
+        "launcher.go",
+        "network.go",
+    ],
     importpath = "github.com/scionproto/scion/go/pkg/app/launcher",
     visibility = ["//visibility:public"],
     deps = [
@@ -18,5 +21,15 @@ go_library(
         "@com_github_prometheus_client_golang//prometheus/promauto:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
         "@com_github_spf13_viper//:go_default_library",
+        "@com_github_vishvananda_netlink//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["network_test.go"],
+    deps = [
+        ":go_default_library",
+        "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )
