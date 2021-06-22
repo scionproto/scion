@@ -61,8 +61,8 @@ Decimal Option
 End-to-End Options Header
 =========================
 
-The End-to-end  Options header is used to carry optional information that may be
-examined and processed by sender and/or receiver of the packet.  The End-to-end
+The End-to-End  Options header is used to carry optional information that may be
+examined and processed by sender and/or receiver of the packet.  The End-to-End
 Options header is identified by a Next Header value of ``201`` in the SCION
 common header and has the following format::
 
@@ -76,13 +76,13 @@ common header and has the following format::
 
 NextHdr
     Unsigned 8-bit integer. Identifies the type of header immediately following
-    the Hop-by-Hop Options header. Values of this field respect the
+    the End-to-End Options header. Values of this field respect the
     :ref:`Assigned SCION Protocol Numbers <assigned-protocol-numbers>`.
 ExtLen
     Unsigned 8-bit integer. Length of the extension header computed as :math:`4B
     \cdot ExtLen`.
 Options
-    Variable-length field, of length such that the complete Hop-by-Hop Options
+    Variable-length field, of length such that the complete End-to-End Options
     header is an integer multiple of 4 bytes long.  Contains one or more
     TLV-encoded options, as described below.
 
