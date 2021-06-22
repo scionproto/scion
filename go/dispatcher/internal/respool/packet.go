@@ -44,9 +44,8 @@ type Packet struct {
 	UnderlayRemote *net.UDPAddr
 
 	SCION slayers.SCION
-	// FIXME(roosd): currently no support for extensions.
-	UDP  slayers.UDP
-	SCMP slayers.SCMP
+	UDP   slayers.UDP
+	SCMP  slayers.SCMP
 
 	// L4 indicates what type is at layer 4.
 	L4 gopacket.LayerType
@@ -72,8 +71,10 @@ func newPacket() *Packet {
 		buffer:   GetBuffer(),
 		refCount: &refCount,
 	}
+	hbh := slayers.HopByHopExtnSkipper{}
+	e2e := slayers.EndToEndExtnSkipper{}
 	pkt.parser = gopacket.NewDecodingLayerParser(slayers.LayerTypeSCION,
-		&pkt.SCION, &pkt.UDP, &pkt.SCMP,
+		&pkt.SCION, &hbh, &e2e, &pkt.UDP, &pkt.SCMP,
 	)
 	pkt.parser.IgnoreUnsupported = true
 	return pkt
@@ -155,7 +156,7 @@ func (pkt *Packet) DecodeFromReliableConn(conn net.PacketConn) error {
 }
 
 func (pkt *Packet) decodeBuffer() error {
-	decoded := make([]gopacket.LayerType, 3)
+	decoded := make([]gopacket.LayerType, 0, 4)
 
 	// Unsupported layers are ignored by the parser.
 	if err := pkt.parser.DecodeLayers(pkt.buffer, &decoded); err != nil {
