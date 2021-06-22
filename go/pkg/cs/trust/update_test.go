@@ -15,7 +15,6 @@
 package trust_test
 
 import (
-	"flag"
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
@@ -28,13 +27,11 @@ import (
 	"github.com/scionproto/scion/go/scion-pki/testcrypto"
 )
 
-// update is a cmd line flag that enables golden file updates. To update the
-// golden files simply run 'go test -update ./...'.
-var update = flag.Bool("update", false, "set to true to regenerate golden files")
+var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
 
 func TestUpdate(t *testing.T) {
-	if !(*update) {
-		t.Skip("Specify -update to update certs")
+	if !(*updateNonDeterministic) {
+		t.Skip("Specify -update-non-deterministic to update certs")
 		return
 	}
 	dir, cleanF := xtest.MustTempDir("", "tmp")

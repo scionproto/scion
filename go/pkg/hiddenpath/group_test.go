@@ -15,7 +15,6 @@
 package hiddenpath_test
 
 import (
-	"flag"
 	"io/ioutil"
 	"strconv"
 	"testing"
@@ -29,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/hiddenpath"
 )
 
-var update = flag.Bool("update", false, "Update the golden files for this test.")
+var update = xtest.UpdateGoldenFiles()
 
 func TestGroupIDUint64Conversion(t *testing.T) {
 	testCases := []hiddenpath.GroupID{

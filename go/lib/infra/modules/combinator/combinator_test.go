@@ -17,7 +17,6 @@ package combinator_test
 import (
 	"bytes"
 	"encoding/binary"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -40,7 +39,7 @@ import (
 )
 
 var (
-	update = flag.Bool("update", false, "set to true to update reference testdata files")
+	update = xtest.UpdateGoldenFiles()
 )
 
 func TestBadPeering(t *testing.T) {

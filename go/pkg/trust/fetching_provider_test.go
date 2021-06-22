@@ -35,7 +35,7 @@ import (
 )
 
 func TestFetchingProviderGetChains(t *testing.T) {
-	if *update {
+	if *updateNonDeterministic {
 		t.Skip("test crypto is being updated")
 	}
 	trc := xtest.LoadTRC(t, filepath.Join(goldenDir, "ISD1/trcs/ISD1-B1-S1.trc"))
@@ -471,7 +471,7 @@ func TestFetchingProviderGetChains(t *testing.T) {
 }
 
 func TestFetchingProviderNotifyTRC(t *testing.T) {
-	if *update {
+	if *updateNonDeterministic {
 		t.Skip("test crypto is being updated")
 	}
 	base := xtest.LoadTRC(t, filepath.Join(goldenDir, "trcs/ISD1-B1-S1.trc"))

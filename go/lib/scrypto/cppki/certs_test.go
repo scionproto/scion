@@ -18,7 +18,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
@@ -33,7 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-var update = flag.Bool("update", false, "set to true to regenerate certificate files")
+var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
 
 func updateCert(goldenCert string) ([]byte, error) {
 	dir, cleanF := xtest.MustTempDir("", "safedir")
@@ -275,7 +274,7 @@ func TestValidateRoot(t *testing.T) {
 	goldenCert := "cp-root.crt"
 	testF := cppki.ValidateRoot
 
-	if *update {
+	if *updateNonDeterministic {
 		out, err := updateCert(goldenCert)
 		require.NoError(t, err, string(out))
 		t.Logf("git add ./testdata/%s", goldenCert)
@@ -338,7 +337,7 @@ func TestValidateCA(t *testing.T) {
 	testF := cppki.ValidateCA
 	goldenCert := "cp-ca.crt"
 
-	if *update {
+	if *updateNonDeterministic {
 		out, err := updateCert(goldenCert)
 		require.NoError(t, err, string(out))
 		t.Logf("git add ./testdata/%s", goldenCert)
@@ -386,7 +385,7 @@ func TestValidateAS(t *testing.T) {
 	testF := cppki.ValidateAS
 	goldenCert := "cp-as.crt"
 
-	if *update {
+	if *updateNonDeterministic {
 		out, err := updateCert(goldenCert)
 		require.NoError(t, err, string(out))
 		t.Logf("git add ./testdata/%s", goldenCert)
@@ -542,7 +541,7 @@ func TestValidateRegular(t *testing.T) {
 	goldenCert := "regular-voting.crt"
 	testF := cppki.ValidateRegular
 
-	if *update {
+	if *updateNonDeterministic {
 		out, err := updateCert(goldenCert)
 		require.NoError(t, err, out)
 		t.Logf("git add ./testdata/%s", goldenCert)
@@ -597,7 +596,7 @@ func TestValidateSensitive(t *testing.T) {
 	goldenCert := "sensitive-voting.crt"
 	testF := cppki.ValidateSensitive
 
-	if *update {
+	if *updateNonDeterministic {
 		out, err := updateCert(goldenCert)
 		require.NoError(t, err, out)
 		t.Logf("git add ./testdata/%s", goldenCert)

@@ -32,7 +32,7 @@ import (
 )
 
 func TestLoadChains(t *testing.T) {
-	if *update {
+	if *updateNonDeterministic {
 		t.Skip("test crypto is being updated")
 	}
 	trc := xtest.LoadTRC(t, filepath.Join(goldenDir, "ISD1/trcs/ISD1-B1-S1.trc"))
@@ -158,7 +158,7 @@ func TestLoadChains(t *testing.T) {
 }
 
 func TestLoadTRCs(t *testing.T) {
-	if *update {
+	if *updateNonDeterministic {
 		t.Skip("test crypto is being updated")
 	}
 

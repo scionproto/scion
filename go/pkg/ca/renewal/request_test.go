@@ -23,7 +23,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
@@ -48,7 +47,7 @@ import (
 	"github.com/scionproto/scion/go/scion-pki/testcrypto"
 )
 
-var update = flag.Bool("update", false, "Update all the testdata crypto")
+var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
 
 var goldenDir = "./testdata/cms"
 
@@ -87,7 +86,7 @@ var csrTmplGeneva = x509.CertificateRequest{
 }
 
 func TestUpdateCryptoLegacy(t *testing.T) {
-	if !(*update) {
+	if !(*updateNonDeterministic) {
 		t.Skip("Only runs if -update is specified")
 	}
 
@@ -114,7 +113,7 @@ func TestUpdateCryptoLegacy(t *testing.T) {
 }
 
 func TestUpdateCrypto(t *testing.T) {
-	if !(*update) {
+	if !(*updateNonDeterministic) {
 		t.Skip("Only runs if -update is specified")
 	}
 

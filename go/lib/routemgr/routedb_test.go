@@ -16,7 +16,6 @@ package routemgr
 
 import (
 	"encoding/json"
-	"flag"
 	"net"
 	"strings"
 	"testing"
@@ -30,9 +29,7 @@ import (
 	"github.com/scionproto/scion/go/pkg/gateway/control"
 )
 
-// update is a cmd line flag that enables golden file updates. To update the
-// golden files simply run 'go test -update ./...'.
-var update = flag.Bool("update", false, "set to true to regenerate golden files")
+var update = xtest.UpdateGoldenFiles()
 
 func createRouteDB() *RouteDB {
 	db := &RouteDB{

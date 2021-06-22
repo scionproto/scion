@@ -88,7 +88,7 @@ func TestGetHumanEncoding(t *testing.T) {
 			err = enc.Encode(h)
 			require.NoError(t, err)
 
-			if *update {
+			if *updateNonDeterministic {
 				err := ioutil.WriteFile(tc.Golden, buf.Bytes(), 0644)
 				require.NoError(t, err)
 				return

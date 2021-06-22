@@ -16,7 +16,6 @@ package conf_test
 
 import (
 	"crypto/x509"
-	"flag"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -29,11 +28,11 @@ import (
 	"github.com/scionproto/scion/go/scion-pki/conf"
 )
 
-var update = flag.Bool("update", false, "set to true to regenerate certificate files")
+var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
 
 func TestUpdateCerts(t *testing.T) {
-	if !(*update) {
-		t.Skip("Specify -update to update certs")
+	if !(*updateNonDeterministic) {
+		t.Skip("Specify -update-non-deterministic to update certs")
 		return
 	}
 	dir, cleanF := xtest.MustTempDir("", "safedir")
@@ -56,7 +55,7 @@ func TestUpdateCerts(t *testing.T) {
 }
 
 func TestLoadTRC(t *testing.T) {
-	if *update {
+	if *updateNonDeterministic {
 		t.Skip("test crypto is being updated")
 	}
 
@@ -85,7 +84,7 @@ func TestLoadTRC(t *testing.T) {
 }
 
 func TestTRCCertificates(t *testing.T) {
-	if *update {
+	if *updateNonDeterministic {
 		t.Skip("test crypto is being updated")
 	}
 

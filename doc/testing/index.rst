@@ -10,3 +10,4 @@ Testing documentation:
    crypto
    hiddenpaths
    mocks
+   goldenfiles

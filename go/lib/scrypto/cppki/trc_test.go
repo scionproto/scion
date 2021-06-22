@@ -33,7 +33,7 @@ var (
 )
 
 func TestTRCValidateInvariant(t *testing.T) {
-	if *update {
+	if *updateNonDeterministic {
 		t.Skip("test crypto is being updated")
 	}
 	testCases := map[string]struct {
@@ -203,7 +203,7 @@ const (
 )
 
 func TestTRCValidateUpdate(t *testing.T) {
-	if *update {
+	if *updateNonDeterministic {
 		t.Skip("test crypto is being updated")
 	}
 	testCases := map[string]struct {

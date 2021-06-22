@@ -20,7 +20,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/pem"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
@@ -38,13 +37,13 @@ import (
 	"github.com/scionproto/scion/go/scion-pki/trcs"
 )
 
-var update = flag.Bool("update", false, "set to true to regenerate certificate files")
+var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
 
 var goldenDir = "./testdata/common"
 
 func TestUpdateCerts(t *testing.T) {
-	if !(*update) {
-		t.Skip("Specify -update to update certs")
+	if !(*updateNonDeterministic) {
+		t.Skip("Specify -update-non-deterministic to update certs")
 		return
 	}
 	dir, cleanF := xtest.MustTempDir("", "tmp")

@@ -15,7 +15,6 @@
 package scrypto_test
 
 import (
-	"flag"
 	"io/ioutil"
 	"testing"
 
@@ -23,10 +22,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 var (
-	update = flag.Bool("update", false, "set to true to update reference testdata files")
+	update = xtest.UpdateGoldenFiles()
 )
 
 func TestPEMSymmetricKey(t *testing.T) {

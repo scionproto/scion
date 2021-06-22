@@ -15,7 +15,6 @@
 package routing_test
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -24,10 +23,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/gateway/routing"
 )
 
-var update = flag.Bool("update", false, "update test golden files")
+var update = xtest.UpdateGoldenFiles()
 
 func TestPolicyMarshalText(t *testing.T) {
 	for name, policy := range testPolicies(t) {

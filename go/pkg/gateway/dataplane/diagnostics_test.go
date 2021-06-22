@@ -16,7 +16,6 @@ package dataplane_test
 
 import (
 	"bytes"
-	"flag"
 	"io/ioutil"
 	"net"
 	"testing"
@@ -31,7 +30,7 @@ import (
 )
 
 var (
-	update = flag.Bool("update", false, "update the golden files of this test")
+	update = xtest.UpdateGoldenFiles()
 )
 
 func TestDiagnosticWriter(t *testing.T) {

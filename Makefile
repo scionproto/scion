@@ -62,5 +62,9 @@ licenses:
 
 antlr:
 	antlr/generate.sh $(GAZELLE_MODE)
+
 lint:
 	./scion.sh lint
+
+golden:
+	./tools/update_testdata.sh

@@ -15,7 +15,6 @@
 package dbtest_test
 
 import (
-	"flag"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -25,11 +24,11 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-var update = flag.Bool("update", false, "Update all the testdata crypto")
+var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
 
 func TestUpdateCrypto(t *testing.T) {
-	if !(*update) {
-		t.Skip("Only runs if -update is specified")
+	if !(*updateNonDeterministic) {
+		t.Skip("Only runs if -update-non-deterministic is specified")
 	}
 
 	dir, cleanF := xtest.MustTempDir("", "trustdbtest")

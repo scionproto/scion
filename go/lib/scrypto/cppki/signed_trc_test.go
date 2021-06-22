@@ -33,8 +33,8 @@ import (
 )
 
 func TestUpdateTRCs(t *testing.T) {
-	if !*update {
-		t.Skip("Specify -update to update TRCs")
+	if !*updateNonDeterministic {
+		t.Skip("Specify -update-non-deterministic to update TRCs")
 	}
 
 	dir, cleanF := xtest.MustTempDir("", "safedir")
@@ -76,7 +76,7 @@ func TestUpdateTRCs(t *testing.T) {
 }
 
 func TestTRCVerifyUpdate(t *testing.T) {
-	if *update {
+	if *updateNonDeterministic {
 		t.Skip("test crypto is being updated")
 	}
 	testCases := map[string]struct {
@@ -203,7 +203,7 @@ func forgeSig(infos []protocol.SignerInfo, cert *x509.Certificate) []protocol.Si
 }
 
 func TestTRCVerifyBase(t *testing.T) {
-	if *update {
+	if *updateNonDeterministic {
 		t.Skip("test crypto is being updated")
 	}
 	testCases := map[string]struct {

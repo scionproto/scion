@@ -43,7 +43,7 @@ import (
 )
 
 func TestSignerGenGenerate(t *testing.T) {
-	if *update {
+	if *updateNonDeterministic {
 		t.Skip("test crypto is being updated")
 	}
 

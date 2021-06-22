@@ -16,7 +16,6 @@ package slayers_test
 
 import (
 	"bytes"
-	"flag"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -41,7 +40,7 @@ var (
 	goldenDir          = "./testdata"
 )
 
-var update = flag.Bool("update", false, "set to true to regenerate files")
+var update = xtest.UpdateGoldenFiles()
 
 func TestSCIONSCMP(t *testing.T) {
 	testCases := map[string]struct {

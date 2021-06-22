@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"crypto/x509/pkix"
 	"encoding/asn1"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
@@ -35,10 +34,10 @@ import (
 	"github.com/scionproto/scion/go/scion-pki/trcs"
 )
 
-var update = flag.Bool("update", false, "set to true to regenerate certificate files")
+var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
 
 func TestCombine(t *testing.T) {
-	if *update {
+	if *updateNonDeterministic {
 		dir, cleanF := xtest.MustTempDir("", "safedir")
 		defer cleanF()
 
@@ -234,5 +233,4 @@ func TestCombineDigestAlgorithms(t *testing.T) {
 			assert.Equal(t, tc.expected, res)
 		})
 	}
-
 }

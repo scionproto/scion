@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -35,6 +36,50 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 )
+
+// Update registers the '-update' flag for the test.
+//
+// This flag should be checked by golden file tests to see whether the golden
+// files should be updated or not. The golden files should be deterministic.
+// Use UpdateNonDeterminsticGoldenFiles instead, if they are not deterministic.
+//
+// To update all golden files, run the following command:
+//
+//   go test ./... -update
+//
+// To update a specific package, run the following command:
+//
+//   go test ./path/to/package -update
+//
+// The flag should be registered as a package global variable:
+//
+//   var update = xtest.UpdateGoldenFiles()
+func UpdateGoldenFiles() *bool {
+	return flag.Bool("update", false, "set to regenerate the golden files")
+}
+
+// UpdateNonDeterminsticGoldenFiles registers the '-update-non-deterministic'
+// flag for the test.
+//
+// This flag should be checked by golden file tests to see whether the
+// non-deterministic golden files should be updated or not.
+//
+// To update all golden files, run the following command:
+//
+//   go test ./... -update-non-deterministic
+//
+// To update a specific package, run the following command:
+//
+//   go test ./path/to/package -update-non-deterministic
+//
+// The flag should be registered as a package global variable:
+//
+//   var updateNonDeterministic = xtest.UpdateNonDeterminsticGoldenFiles()
+func UpdateNonDeterminsticGoldenFiles() *bool {
+	return flag.Bool("update-non-deterministic", false,
+		"set to regenerate the non-deterministic golden files",
+	)
+}
 
 // TempFileName creates a temporary file in dir with the specified prefix, and
 // then closes and deletes the file and returns its name. It is useful for

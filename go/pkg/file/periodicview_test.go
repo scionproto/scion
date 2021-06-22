@@ -16,7 +16,6 @@ package file_test
 
 import (
 	"encoding/pem"
-	"flag"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -25,11 +24,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/file"
 )
 
 var (
-	update = flag.Bool("update", false, "set to true to update reference testdata files")
+	update = xtest.UpdateGoldenFiles()
 )
 
 const (

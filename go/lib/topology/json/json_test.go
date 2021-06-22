@@ -17,7 +17,6 @@ package json_test
 
 import (
 	"encoding/json"
-	"flag"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -29,10 +28,11 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	jsontopo "github.com/scionproto/scion/go/lib/topology/json"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 var (
-	update = flag.Bool("update", false, "set to true to update golden files")
+	update = xtest.UpdateGoldenFiles()
 )
 
 func TestLoadRawFromFile(t *testing.T) {

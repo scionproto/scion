@@ -20,7 +20,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/hex"
-	"flag"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -60,9 +59,7 @@ const (
 	id2 = "023dc0cff0be7a9e29fc1ce517dd96face947a7af78d399d210eab0a7cb779ef"
 )
 
-// update is a cmd line flag that enables golden file updates. To update the
-// golden files simply run 'go test -update ./...'.
-var update = flag.Bool("update", false, "set to true to regenerate golden files")
+var update = xtest.UpdateGoldenFiles()
 
 // TestAPI tests the API response generation of the endpoints implemented in the
 // api package

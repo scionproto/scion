@@ -17,7 +17,6 @@ package pktcls_test
 
 import (
 	"encoding/json"
-	"flag"
 	"io/ioutil"
 	"net"
 	"strings"
@@ -31,7 +30,7 @@ import (
 )
 
 var (
-	update = flag.Bool("update", false, "set to true to update reference testdata files")
+	update = xtest.UpdateGoldenFiles()
 )
 
 func TestClassMapMarshalUnMarshal(t *testing.T) {
