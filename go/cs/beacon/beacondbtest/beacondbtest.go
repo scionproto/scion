@@ -136,7 +136,7 @@ func testBeaconSources(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 
 func testInsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 	TS := uint32(10)
-	b, _ := AllocBeacon(t, ctrl, Info3, 12, TS)
+	b, _ := allocBeacon(t, ctrl, Info3, 12, TS)
 
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
@@ -162,7 +162,7 @@ func testInsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 
 func testUpdateExisting(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 	oldTS := uint32(10)
-	oldB, oldId := AllocBeacon(t, ctrl, Info3, 12, oldTS)
+	oldB, oldId := allocBeacon(t, ctrl, Info3, 12, oldTS)
 
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
@@ -174,7 +174,7 @@ func testUpdateExisting(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 	assert.Equal(t, exp, inserted)
 
 	newTS := uint32(20)
-	newB, newId := AllocBeacon(t, ctrl, Info3, 12, newTS)
+	newB, newId := allocBeacon(t, ctrl, Info3, 12, newTS)
 	assert.Equal(t, oldId, newId, "IDs should match")
 
 	inserted, err = db.InsertBeacon(ctx, newB, beacon.UsageDownReg)
@@ -199,7 +199,7 @@ func testUpdateExisting(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 
 func testUpdateOlderIgnored(t *testing.T, ctrl *gomock.Controller, db beacon.DB) {
 	newTS := uint32(20)
-	newB, newId := AllocBeacon(t, ctrl, Info3, 12, newTS)
+	newB, newId := allocBeacon(t, ctrl, Info3, 12, newTS)
 
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
@@ -211,7 +211,7 @@ func testUpdateOlderIgnored(t *testing.T, ctrl *gomock.Controller, db beacon.DB)
 	assert.Equal(t, exp, inserted, "Inserted new")
 
 	oldTS := uint32(10)
-	oldB, oldId := AllocBeacon(t, ctrl, Info3, 12, oldTS)
+	oldB, oldId := allocBeacon(t, ctrl, Info3, 12, oldTS)
 	assert.Equal(t, oldId, newId, "IDs should match")
 
 	inserted, err = db.InsertBeacon(ctx, oldB, beacon.UsageDownReg)
@@ -320,7 +320,7 @@ func CheckResults(t *testing.T, results []beacon.Beacon, expectedBeacons []beaco
 
 func InsertBeacon(t *testing.T, ctrl *gomock.Controller, db beacon.DB, ases []IfInfo,
 	inIfId common.IFIDType, infoTS uint32, allowed beacon.Usage) beacon.Beacon {
-	b, _ := AllocBeacon(t, ctrl, ases, inIfId, infoTS)
+	b, _ := allocBeacon(t, ctrl, ases, inIfId, infoTS)
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
 	_, err := db.InsertBeacon(ctx, b, allowed)
@@ -341,7 +341,7 @@ type IfInfo struct {
 	Peers   []PeerEntry
 }
 
-func AllocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId common.IFIDType,
+func allocBeacon(t *testing.T, ctrl *gomock.Controller, ases []IfInfo, inIfId common.IFIDType,
 	infoTS uint32) (beacon.Beacon, []byte) {
 
 	entries := make([]seg.ASEntry, len(ases))

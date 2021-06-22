@@ -385,6 +385,10 @@ func (g *Graph) InternalHops(a, b common.IFIDType) uint32 {
 
 type Signer struct {
 	PrivateKey crypto.Signer
+	// Timestamp is the timestamp that this signer is bound to. If it is set,
+	// all signatures are created with this timestamp. If it is not set, the
+	// current time is used for the signature timestamp.
+	Timestamp time.Time
 }
 
 func NewSigner() Signer {
@@ -404,9 +408,14 @@ func (s Signer) Sign(ctx context.Context, msg []byte,
 	for _, d := range associatedData {
 		l += len(d)
 	}
+	ts := s.Timestamp
+	if ts.IsZero() {
+		ts = time.Now()
+	}
 	hdr := signed.Header{
 		SignatureAlgorithm:   signed.ECDSAWithSHA256,
 		AssociatedDataLength: l,
+		Timestamp:            ts,
 	}
 
 	return signed.Sign(hdr, msg, s.PrivateKey, associatedData...)

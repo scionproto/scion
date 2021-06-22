@@ -164,7 +164,6 @@ func (e *executor) InsertBeacon(ctx context.Context, b beacon.Beacon,
 	if meta != nil {
 		// Update the beacon data if it is newer.
 		if b.Segment.Info.Timestamp.After(meta.InfoTime) {
-			meta.LastUpdated = time.Now()
 			if err := e.updateExistingBeacon(ctx, b, usage, meta.RowID, time.Now()); err != nil {
 				return ret, err
 			}
