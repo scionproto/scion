@@ -51,7 +51,7 @@ func (s *SegStats) Log(logger log.Logger) {
 // Storage is used to store segments and revocations.
 type Storage interface {
 	StoreSegs(context.Context, []*seg.Meta) (SegStats, error)
-	StoreRevs(context.Context, []*path_mgmt.SignedRevInfo) error
+	StoreRevs(context.Context, []*path_mgmt.RevInfo) error
 }
 
 // DefaultStorage wraps path DB and revocation cache and offers
@@ -93,7 +93,7 @@ func (s *DefaultStorage) StoreSegs(ctx context.Context, segs []*seg.Meta) (SegSt
 
 // StoreRevs stores the given revocations in the revocation cache.
 func (s *DefaultStorage) StoreRevs(ctx context.Context,
-	revs []*path_mgmt.SignedRevInfo) error {
+	revs []*path_mgmt.RevInfo) error {
 
 	for _, rev := range revs {
 		if _, err := s.RevCache.Insert(ctx, rev); err != nil {

@@ -1,5 +1,5 @@
 
-.PHONY: all bazel clean gazelle gogen licenses mocks protobuf antlr lint
+.PHONY: all bazel clean gazelle licenses mocks protobuf antlr lint
 .NOTPARALLEL:
 
 GAZELLE_MODE?=fix
@@ -11,7 +11,7 @@ build: bazel
 # is git controlled, and therefore this is only necessary when changing the
 # sources for the code generation.
 # Note: built in correct order, because .NOTPARALLEL.
-all: go_deps.bzl gogen protobuf mocks gazelle licenses build antlr
+all: go_deps.bzl protobuf mocks gazelle licenses build antlr
 
 clean:
 	bazel clean
@@ -28,9 +28,6 @@ test:
 
 go_deps.bzl: go.mod
 	@tools/godeps.sh
-
-gogen:
-	$(MAKE) -C go/proto
 
 protobuf:
 	rm -rf bazel-bin/go/pkg/proto/*/go_default_library_/github.com/scionproto/scion/go/pkg/proto/*

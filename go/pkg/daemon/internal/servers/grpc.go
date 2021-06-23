@@ -321,15 +321,7 @@ func (s *DaemonServer) notifyInterfaceDown(ctx context.Context,
 		RawTTL:       10,
 		RawTimestamp: util.TimeToSecs(time.Now()),
 	}
-	sRev, err := path_mgmt.NewSignedRevInfo(revInfo)
-	if err != nil {
-		log.FromCtx(ctx).Error("Signing revocation", "err", err, "req", req)
-		return nil, metricsError{
-			err:    serrors.WrapStr("signing revocation", err),
-			result: prom.ErrInternal,
-		}
-	}
-	_, err = s.RevCache.Insert(ctx, sRev)
+	_, err := s.RevCache.Insert(ctx, revInfo)
 	if err != nil {
 		log.FromCtx(ctx).Error("Inserting revocation", "err", err, "req", req)
 		return nil, metricsError{

@@ -52,7 +52,6 @@ require (
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.23.0
 	gopkg.in/yaml.v2 v2.4.0
-	zombiezen.com/go/capnproto2 v0.0.0-20190813022230-ddfb9bb855fa
 )
 
 replace github.com/nxadm/tail => github.com/lukedirtwalker/tail v1.3.1-0.20190919080739-7f7d37fab281

@@ -146,24 +146,9 @@ func (c grpcConn) SVCInfo(ctx context.Context, _ []addr.HostSVC) (map[addr.HostS
 	return result, nil
 }
 
-func (c grpcConn) RevNotificationFromRaw(ctx context.Context, b []byte) error {
-	// Extract information from notification
-	sRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(b)
-	if err != nil {
-		return err
-	}
-	return c.RevNotification(ctx, sRevInfo)
-}
-
-func (c grpcConn) RevNotification(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) error {
-	revInfo, err := sRevInfo.RevInfo()
-	if err != nil {
-		c.metrics.incIfDown(err)
-		return serrors.WrapStr("extracting rev info", err)
-	}
-
+func (c grpcConn) RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error {
 	client := sdpb.NewDaemonServiceClient(c.conn)
-	_, err = client.NotifyInterfaceDown(ctx, &sdpb.NotifyInterfaceDownRequest{
+	_, err := client.NotifyInterfaceDown(ctx, &sdpb.NotifyInterfaceDownRequest{
 		Id:    uint64(revInfo.IfID),
 		IsdAs: uint64(revInfo.RawIsdas),
 	})

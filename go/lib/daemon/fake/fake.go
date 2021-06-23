@@ -179,12 +179,8 @@ func (c connector) SVCInfo(ctx context.Context,
 	panic("not implemented")
 }
 
-func (c connector) RevNotificationFromRaw(ctx context.Context, b []byte) error {
-	panic("not implemented")
-}
-
 func (c connector) RevNotification(ctx context.Context,
-	sRevInfo *path_mgmt.SignedRevInfo) error {
+	revInfo *path_mgmt.RevInfo) error {
 
 	panic("not implemented")
 }

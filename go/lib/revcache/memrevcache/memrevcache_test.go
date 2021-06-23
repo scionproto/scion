@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/revcache/revcachetest"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 var _ (revcachetest.TestableRevCache) = (*testRevCache)(nil)
@@ -34,15 +33,13 @@ type testRevCache struct {
 }
 
 func (c *testRevCache) InsertExpired(t *testing.T, _ context.Context,
-	rev *path_mgmt.SignedRevInfo) {
+	rev *path_mgmt.RevInfo) {
 
-	newInfo, err := rev.RevInfo()
-	xtest.FailOnErr(t, err)
-	ttl := newInfo.Expiration().Sub(time.Now())
+	ttl := rev.Expiration().Sub(time.Now())
 	if ttl >= 0 {
 		panic("Should only be used for expired elements")
 	}
-	k := revcache.NewKey(newInfo.IA(), newInfo.IfID)
+	k := revcache.NewKey(rev.IA(), rev.IfID)
 	key := k.String()
 	c.c.Set(key, rev, time.Microsecond)
 	// Unfortunately inserting with negative TTL makes entries available forever,

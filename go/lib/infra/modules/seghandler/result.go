@@ -31,9 +31,9 @@ type Stats struct {
 	// VerifiedSegs contains all segments that were successfully verified.
 	VerifiedSegs []*seg.Meta
 	// StoredRevs contains all revocations that were verified and stored.
-	StoredRevs []*path_mgmt.SignedRevInfo
+	StoredRevs []*path_mgmt.RevInfo
 	// VerifiedRevs contains all revocations that were verified.
-	VerifiedRevs []*path_mgmt.SignedRevInfo
+	VerifiedRevs []*path_mgmt.RevInfo
 	revErrors    int
 }
 
@@ -74,9 +74,6 @@ func (s *Stats) addStoredSegs(segs SegStats) {
 
 func (s *Stats) verificationErrs(verErrors []error) {
 	for _, err := range verErrors {
-		if errors.Is(err, segverifier.ErrRevocation) {
-			s.revErrors++
-		}
 		if errors.Is(err, segverifier.ErrSegment) {
 			s.segVerifyErrors++
 		}

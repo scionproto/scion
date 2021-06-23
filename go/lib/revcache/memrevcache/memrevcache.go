@@ -61,7 +61,7 @@ func (c *memRevCache) GetAll(_ context.Context) (revcache.ResultChan, error) {
 	items := c.c.Items()
 	resCh := make(chan revcache.RevOrErr, len(items))
 	for _, item := range items {
-		if rev, ok := item.Object.(*path_mgmt.SignedRevInfo); ok {
+		if rev, ok := item.Object.(*path_mgmt.RevInfo); ok {
 			resCh <- revcache.RevOrErr{Rev: rev}
 		}
 	}
@@ -69,37 +69,29 @@ func (c *memRevCache) GetAll(_ context.Context) (revcache.ResultChan, error) {
 	return resCh, nil
 }
 
-func (c *memRevCache) get(key string) (*path_mgmt.SignedRevInfo, bool) {
+func (c *memRevCache) get(key string) (*path_mgmt.RevInfo, bool) {
 	obj, ok := c.c.Get(key)
 	if !ok {
 		return nil, false
 	}
-	return obj.(*path_mgmt.SignedRevInfo), true
+	return obj.(*path_mgmt.RevInfo), true
 }
 
-func (c *memRevCache) Insert(_ context.Context, rev *path_mgmt.SignedRevInfo) (bool, error) {
+func (c *memRevCache) Insert(_ context.Context, rev *path_mgmt.RevInfo) (bool, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	newInfo, err := rev.RevInfo()
-	if err != nil {
-		panic(err)
-	}
-	ttl := newInfo.Expiration().Sub(time.Now())
+	ttl := rev.Expiration().Sub(time.Now())
 	if ttl <= 0 {
 		return false, nil
 	}
-	k := revcache.NewKey(newInfo.IA(), newInfo.IfID)
+	k := revcache.NewKey(rev.IA(), rev.IfID)
 	key := k.String()
 	val, ok := c.get(key)
 	if !ok {
 		c.c.Set(key, rev, ttl)
 		return true, nil
 	}
-	existingInfo, err := val.RevInfo()
-	if err != nil {
-		panic(err)
-	}
-	if newInfo.Timestamp().After(existingInfo.Timestamp()) {
+	if rev.Timestamp().After(val.Timestamp()) {
 		c.c.Set(key, rev, ttl)
 		return true, nil
 	}

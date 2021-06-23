@@ -28,13 +28,9 @@ type RevocationHandler struct {
 	RevCache revcache.RevCache
 }
 
-func (h RevocationHandler) RevokeRaw(ctx context.Context, rawSRevInfo []byte) {
+func (h RevocationHandler) Revoke(ctx context.Context, revInfo *path_mgmt.RevInfo) {
 	logger := log.FromCtx(ctx)
-	sRev, err := path_mgmt.NewSignedRevInfoFromRaw(rawSRevInfo)
-	if err != nil {
-		logger.Debug("Unparsable revocation received", "err", err)
-	}
-	_, err = h.RevCache.Insert(ctx, sRev)
+	_, err := h.RevCache.Insert(ctx, revInfo)
 	if err != nil {
 		logger.Debug("Failed to insert revocation from snet", "err", err)
 	}

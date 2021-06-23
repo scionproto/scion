@@ -184,11 +184,6 @@ func TestSVCInfo(t *testing.T) {
 
 }
 
-func TestRevNotificationFromRaw(t *testing.T) {
-	c := fake.New(&fake.Script{})
-	assert.PanicsWithValue(t, "not implemented", func() { c.RevNotificationFromRaw(nil, nil) })
-}
-
 func TestRevNotification(t *testing.T) {
 	c := fake.New(&fake.Script{})
 	assert.PanicsWithValue(t, "not implemented", func() { c.RevNotification(nil, nil) })
