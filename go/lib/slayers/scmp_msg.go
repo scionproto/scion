@@ -18,7 +18,6 @@ import (
 	"encoding/binary"
 
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -41,7 +40,7 @@ const scmpRawInterfaceLen = 8
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 type SCMPExternalInterfaceDown struct {
-	layers.BaseLayer
+	BaseLayer
 	IA   addr.IA
 	IfID uint64
 }
@@ -70,7 +69,7 @@ func (i *SCMPExternalInterfaceDown) DecodeFromBytes(data []byte,
 	offset += addr.IABytes
 	i.IfID = binary.BigEndian.Uint64(data[offset : offset+scmpRawInterfaceLen])
 	offset += scmpRawInterfaceLen
-	i.BaseLayer = layers.BaseLayer{
+	i.BaseLayer = BaseLayer{
 		Contents: data[:offset],
 		Payload:  data[offset:],
 	}
@@ -123,7 +122,7 @@ func decodeSCMPExternalInterfaceDown(data []byte, pb gopacket.PacketBuilder) err
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 type SCMPInternalConnectivityDown struct {
-	layers.BaseLayer
+	BaseLayer
 	IA      addr.IA
 	Ingress uint64
 	Egress  uint64
@@ -155,7 +154,7 @@ func (i *SCMPInternalConnectivityDown) DecodeFromBytes(data []byte,
 	offset += scmpRawInterfaceLen
 	i.Egress = binary.BigEndian.Uint64(data[offset : offset+scmpRawInterfaceLen])
 	offset += scmpRawInterfaceLen
-	i.BaseLayer = layers.BaseLayer{
+	i.BaseLayer = BaseLayer{
 		Contents: data[:offset],
 		Payload:  data[offset:],
 	}
@@ -198,7 +197,7 @@ func decodeSCMPInternalConnectivityDown(data []byte, pb gopacket.PacketBuilder) 
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 type SCMPEcho struct {
-	layers.BaseLayer
+	BaseLayer
 	Identifier uint16
 	SeqNumber  uint16
 }
@@ -225,7 +224,7 @@ func (i *SCMPEcho) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) erro
 	offset += 2
 	i.SeqNumber = binary.BigEndian.Uint16(data[offset : offset+2])
 	offset += 2
-	i.BaseLayer = layers.BaseLayer{
+	i.BaseLayer = BaseLayer{
 		Contents: data[:offset],
 		Payload:  data[offset:],
 	}
@@ -262,7 +261,7 @@ func decodeSCMPEcho(data []byte, pb gopacket.PacketBuilder) error {
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 type SCMPParameterProblem struct {
-	layers.BaseLayer
+	BaseLayer
 	Pointer uint16
 }
 
@@ -284,7 +283,7 @@ func (i *SCMPParameterProblem) DecodeFromBytes(data []byte, df gopacket.DecodeFe
 		return serrors.New("buffer too short", "min", minLength, "actual", size)
 	}
 	i.Pointer = binary.BigEndian.Uint16(data[2:4])
-	i.BaseLayer = layers.BaseLayer{
+	i.BaseLayer = BaseLayer{
 		Contents: data[:4],
 		Payload:  data[4:],
 	}
@@ -331,7 +330,7 @@ func decodeSCMPParameterProblem(data []byte, pb gopacket.PacketBuilder) error {
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 type SCMPTraceroute struct {
-	layers.BaseLayer
+	BaseLayer
 	Identifier uint16
 	Sequence   uint16
 	IA         addr.IA
@@ -364,7 +363,7 @@ func (i *SCMPTraceroute) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback
 	offset += addr.IABytes
 	i.Interface = binary.BigEndian.Uint64(data[offset : offset+scmpRawInterfaceLen])
 	offset += scmpRawInterfaceLen
-	i.BaseLayer = layers.BaseLayer{
+	i.BaseLayer = BaseLayer{
 		Contents: data[:offset],
 		Payload:  data[offset:],
 	}
@@ -409,7 +408,7 @@ func decodeSCMPTraceroute(data []byte, pb gopacket.PacketBuilder) error {
 //  |                             Unused                            |
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 type SCMPDestinationUnreachable struct {
-	layers.BaseLayer
+	BaseLayer
 }
 
 // LayerType returns LayerTypeSCMPTraceroute.
@@ -431,7 +430,7 @@ func (i *SCMPDestinationUnreachable) DecodeFromBytes(data []byte,
 		df.SetTruncated()
 		return serrors.New("buffer too short", "min", minLength, "actual", size)
 	}
-	i.BaseLayer = layers.BaseLayer{
+	i.BaseLayer = BaseLayer{
 		Contents: data[:minLength],
 		Payload:  data[minLength:],
 	}
@@ -467,7 +466,7 @@ func decodeSCMPDestinationUnreachable(data []byte, pb gopacket.PacketBuilder) er
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 type SCMPPacketTooBig struct {
-	layers.BaseLayer
+	BaseLayer
 	MTU uint16
 }
 
@@ -489,7 +488,7 @@ func (i *SCMPPacketTooBig) DecodeFromBytes(data []byte, df gopacket.DecodeFeedba
 		return serrors.New("buffer too short", "min", minLength, "actual", size)
 	}
 	i.MTU = binary.BigEndian.Uint16(data[2:4])
-	i.BaseLayer = layers.BaseLayer{
+	i.BaseLayer = BaseLayer{
 		Contents: data[:4],
 		Payload:  data[4:],
 	}

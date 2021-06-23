@@ -19,17 +19,22 @@ import (
 	"fmt"
 
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-// UDP is the SCION/UDP header. It reuses layers.UDP as much as possible and only customizes
-// checksum calculation.
+// UDP is the SCION/UDP header.
+// Note; this _could_ mostly reuse gopacket/layers.UDP and only customize
+// checksum calculation, but as this pulls in every layer available in
+// gopacket, we avoid this and implement it manually (i.e. copy-paste).
 type UDP struct {
-	layers.UDP
-	scn *SCION
+	BaseLayer
+	SrcPort, DstPort uint16
+	Length           uint16
+	Checksum         uint16
+	sPort, dPort     []byte
+	scn              *SCION
 }
 
 func (u *UDP) LayerType() gopacket.LayerType {
@@ -38,6 +43,42 @@ func (u *UDP) LayerType() gopacket.LayerType {
 
 func (u *UDP) CanDecode() gopacket.LayerClass {
 	return LayerTypeSCIONUDP
+}
+
+func (u *UDP) NextLayerType() gopacket.LayerType {
+	return gopacket.LayerTypePayload
+}
+
+func (u *UDP) TransportFlow() gopacket.Flow {
+	return gopacket.NewFlow(EndpointUDPPort, u.sPort, u.dPort)
+}
+
+func (u *UDP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
+	if len(data) < 8 {
+		df.SetTruncated()
+		return fmt.Errorf("Invalid UDP header. Length %d less than 8", len(data))
+	}
+	u.SrcPort = binary.BigEndian.Uint16(data[0:2])
+	u.sPort = data[0:2]
+	u.DstPort = binary.BigEndian.Uint16(data[2:4])
+	u.dPort = data[2:4]
+	u.Length = binary.BigEndian.Uint16(data[4:6])
+	u.Checksum = binary.BigEndian.Uint16(data[6:8])
+	u.BaseLayer = BaseLayer{Contents: data[:8]}
+	switch {
+	case u.Length >= 8:
+		hlen := int(u.Length)
+		if hlen > len(data) {
+			df.SetTruncated()
+			hlen = len(data)
+		}
+		u.Payload = data[8:hlen]
+	case u.Length == 0: // Jumbogram, use entire rest of data
+		u.Payload = data[8:]
+	default:
+		return fmt.Errorf("UDP packet too small: %d bytes", u.Length)
+	}
+	return nil
 }
 
 func (u *UDP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
@@ -80,11 +121,11 @@ func (u *UDP) SetNetworkLayerForChecksum(l gopacket.NetworkLayer) error {
 		u.scn = l.(*SCION)
 		return nil
 	}
-	return u.UDP.SetNetworkLayerForChecksum(l)
+	return fmt.Errorf("cannot use layer type %v for UDP checksum network layer", l.LayerType())
 }
 
 func (u *UDP) String() string {
-	return fmt.Sprintf("SrcPort=%s, DstPort=%s", u.SrcPort, u.DstPort)
+	return fmt.Sprintf("SrcPort=%d, DstPort=%d", u.SrcPort, u.DstPort)
 }
 
 func decodeSCIONUDP(data []byte, pb gopacket.PacketBuilder) error {

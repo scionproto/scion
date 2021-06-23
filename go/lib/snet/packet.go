@@ -18,7 +18,6 @@ import (
 	"net"
 
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -44,10 +43,8 @@ type UDPPayload struct {
 func (m UDPPayload) toLayers(scn *slayers.SCION) []gopacket.SerializableLayer {
 	scn.NextHdr = common.L4UDP
 	udp := slayers.UDP{
-		UDP: layers.UDP{
-			SrcPort: layers.UDPPort(m.SrcPort),
-			DstPort: layers.UDPPort(m.DstPort),
-		},
+		SrcPort: m.SrcPort,
+		DstPort: m.DstPort,
 	}
 	udp.SetNetworkLayerForChecksum(scn)
 	return []gopacket.SerializableLayer{&udp, gopacket.Payload(m.Payload)}

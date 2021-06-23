@@ -84,5 +84,16 @@ Packet data can be created by instantiating the various slayers.* types. To gene
 	}
 	packedData := buf.Bytes()
 
+BFD and gopacket/layers
+
+slayers does intentionally not import gopacket/layers, as this contains a
+considerable amount of bloat in the form of layer types that are never used by
+most users of the slayers package.
+At the same time, the slayers.SCION layer supports parsing SCION/BFD packets
+using the gopacket/layers.BFD layer type. Applications that want to parse
+SCION/BFD packets need to ensure that gopacket/layers is imported somewhere in
+the application so that the corresponding layer decoder is registered. Note
+that this is naturally ensured when using the DecodingLayer style.
+
 */
 package slayers

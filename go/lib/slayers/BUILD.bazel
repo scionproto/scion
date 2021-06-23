@@ -24,13 +24,13 @@ go_library(
         "//go/lib/slayers/path/onehop:go_default_library",
         "//go/lib/slayers/path/scion:go_default_library",
         "@com_github_google_gopacket//:go_default_library",
-        "@com_github_google_gopacket//layers:go_default_library",
     ],
 )
 
 go_test(
     name = "go_default_test",
     srcs = [
+        "bfd_test.go",
         "export_test.go",
         "extn_test.go",
         "scion_test.go",
@@ -39,7 +39,7 @@ go_test(
         "scmp_typecode_test.go",
         "slayers_test.go",
     ],
-    data = glob(["testdata/**"]),
+    data = [":testdata"],
     embed = [":go_default_library"],
     deps = [
         "//go/lib/addr:go_default_library",
@@ -51,8 +51,13 @@ go_test(
         "//go/lib/util:go_default_library",
         "//go/lib/xtest:go_default_library",
         "@com_github_google_gopacket//:go_default_library",
-        "@com_github_google_gopacket//layers:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
         "@com_github_stretchr_testify//require:go_default_library",
     ],
+)
+
+filegroup(
+    name = "testdata",
+    srcs = glob(["testdata/**"]),
+    visibility = ["//go/lib/slayers:__subpackages__"],
 )

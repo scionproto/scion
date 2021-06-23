@@ -15,6 +15,9 @@
 package slayers
 
 import (
+	"encoding/binary"
+	"strconv"
+
 	"github.com/google/gopacket"
 )
 
@@ -111,4 +114,20 @@ var (
 			Decoder: gopacket.DecodeFunc(decodeSCMPTraceroute),
 		},
 	)
+
+	EndpointUDPPort = gopacket.RegisterEndpointType(
+		1005,
+		gopacket.EndpointTypeMetadata{
+			Name: "UDP",
+			Formatter: func(b []byte) string {
+				return strconv.Itoa(int(binary.BigEndian.Uint16(b)))
+			},
+		},
+	)
+
+	// layerTypeBFD is the identifier for gopacket/layers.LayerTypeBFD.
+	// Defining this with a constant here allows to build slayers without linking
+	// against gopacket/layers and still allow easily parsing SCION/BFD packets
+	// where gopacket/layers is imported.
+	layerTypeBFD = gopacket.LayerType(122)
 )

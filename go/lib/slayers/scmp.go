@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -57,7 +56,7 @@ const MaxSCMPPacketLen = 1232
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 type SCMP struct {
-	layers.BaseLayer
+	BaseLayer
 	TypeCode SCMPTypeCode
 	Checksum uint16
 
@@ -130,7 +129,7 @@ func (s *SCMP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	}
 	s.TypeCode = CreateSCMPTypeCode(SCMPType(data[0]), SCMPCode(data[1]))
 	s.Checksum = binary.BigEndian.Uint16(data[2:4])
-	s.BaseLayer = layers.BaseLayer{Contents: data[:4], Payload: data[4:]}
+	s.BaseLayer = BaseLayer{Contents: data[:4], Payload: data[4:]}
 	return nil
 }
 

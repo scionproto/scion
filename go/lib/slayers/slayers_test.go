@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -208,12 +207,10 @@ func TestPaths(t *testing.T) {
 				require.NoError(t, s.SetDstAddr(ip6Addr))
 				require.NoError(t, s.SetSrcAddr(ip4Addr))
 				u := &slayers.UDP{
-					UDP: layers.UDP{
-						SrcPort:  1280,
-						DstPort:  80,
-						Length:   1032,
-						Checksum: 0xb8e4,
-					},
+					SrcPort:  1280,
+					DstPort:  80,
+					Length:   1032,
+					Checksum: 0xb8e4,
 				}
 				require.NoError(t, u.SetNetworkLayerForChecksum(s))
 				return []gopacket.SerializableLayer{s, u, gopacket.Payload(mkPayload(1024))}
@@ -242,12 +239,10 @@ func TestPaths(t *testing.T) {
 				require.NoError(t, s.SetSrcAddr(ip4Addr))
 				require.NoError(t, s.Path.DecodeFromBytes(rawPath))
 				u := &slayers.UDP{
-					UDP: layers.UDP{
-						SrcPort:  1280,
-						DstPort:  80,
-						Length:   1032,
-						Checksum: 0xb7d2,
-					},
+					SrcPort:  1280,
+					DstPort:  80,
+					Length:   1032,
+					Checksum: 0xb7d2,
 				}
 				require.NoError(t, u.SetNetworkLayerForChecksum(s))
 				return []gopacket.SerializableLayer{s, u, gopacket.Payload(mkPayload(1024))}
@@ -334,8 +329,8 @@ func TestDecodeSCIONUDP(t *testing.T) {
 	require.NotNil(t, udpL, "SCION/UDP layer should exist")
 	udpHdr := udpL.(*slayers.UDP) // Guaranteed to work
 
-	assert.Equal(t, layers.UDPPort(1280), udpHdr.SrcPort, "UDP.SrcPort")
-	assert.Equal(t, layers.UDPPort(80), udpHdr.DstPort, "UDP.DstPort")
+	assert.Equal(t, uint16(1280), udpHdr.SrcPort, "UDP.SrcPort")
+	assert.Equal(t, uint16(80), udpHdr.DstPort, "UDP.DstPort")
 	assert.Equal(t, uint16(1032), udpHdr.Length, "UDP.Len")
 	assert.Equal(t, uint16(0xb7d2), udpHdr.Checksum, "UDP.Checksum")
 
@@ -350,8 +345,8 @@ func TestSerializeSCIONUPDExtn(t *testing.T) {
 	s := prepPacket(t, common.L4UDP)
 	s.NextHdr = common.HopByHopClass
 	u := &slayers.UDP{}
-	u.SrcPort = layers.UDPPort(1280)
-	u.DstPort = layers.UDPPort(80)
+	u.SrcPort = 1280
+	u.DstPort = 80
 	require.NoError(t, u.SetNetworkLayerForChecksum(s))
 	hbh := &slayers.HopByHopExtn{}
 	hbh.NextHdr = common.End2EndClass
@@ -423,8 +418,8 @@ func TestDecodeSCIONUDPExtn(t *testing.T) {
 	udpL := packet.Layer(slayers.LayerTypeSCIONUDP)
 	require.NotNil(t, udpL, "SCION/UDP layer should exist")
 	udpHdr := udpL.(*slayers.UDP) // Guaranteed to work
-	assert.Equal(t, layers.UDPPort(1280), udpHdr.SrcPort, "UDP.SrcPort")
-	assert.Equal(t, layers.UDPPort(80), udpHdr.DstPort, "UDP.DstPort")
+	assert.Equal(t, uint16(1280), udpHdr.SrcPort, "UDP.SrcPort")
+	assert.Equal(t, uint16(80), udpHdr.DstPort, "UDP.DstPort")
 	assert.Equal(t, uint16(1032), udpHdr.Length, "UDP.Len")
 	assert.Equal(t, uint16(0xb7d2), udpHdr.Checksum, "UDP.Checksum")
 

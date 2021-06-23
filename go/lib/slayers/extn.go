@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -157,7 +156,7 @@ func serializeTLVOptions(buf []byte, options []*tlvOption, fixLengths bool) int 
 }
 
 type extnBase struct {
-	layers.BaseLayer
+	BaseLayer
 	NextHdr common.L4ProtocolType
 	// ExtLen is the length of the extension header in multiple of 4-bytes NOT including the
 	// first 4 bytes.
