@@ -72,12 +72,11 @@ type Application struct {
 	// The ShortName could be, for example, "SCION Daemon" for the SCION Daemon.
 	ShortName string
 
-	// RequiredIPs should return the IPs that this application expects the host
-	// it runs on to have configured. The launcher will wait until those IPs are
-	// configured on the host with a timeout of 10s. The function is called
-	// after the configuration has been initialized. If this function is not set
-	// the launcher will immediately start the application without waiting for
-	// any IPs to be configured.
+	// RequiredIPs should return the IPs that this application wants to listen
+	// on. The launcher will wait until those IPs can be listened on with a
+	// timeout of 10s. The function is called after the configuration has been
+	// initialized. If this function is not set the launcher will immediately
+	// start the application without waiting for any IPs.
 	RequiredIPs func() ([]net.IP, error)
 
 	// Main is the custom logic of the application. If nil, no custom logic is executed

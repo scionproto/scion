@@ -19,17 +19,14 @@ import (
 	"net"
 	"time"
 
-	"github.com/vishvananda/netlink"
-
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-// WaitForNetworkReady checks that all IPs have a corresponding interface on
-// the host that is up. This function blocks until either all IPs have been
-// found on interfaces that are up or the context expires. The error is nil if
-// the interfaces have been found, otherwise it will conain details about what
-// IPs have not been found on interfaces.
+// WaitForNetworkReady checks that all IPs listed in the argument can be bound
+// to. This function blocks until either all IPs can be bound to or the context
+// expires. The error is nil if all IPs can be bound to. If the error is non nil
+// it will contain the IPs for which the binding failed.
 //
 // Note in general this function is called directly by the application launcher,
 // and therefore doesn't need to be used. It is public for applications that
@@ -49,38 +46,26 @@ func WaitForNetworkReady(ctx context.Context, ips []net.IP) error {
 				"missingIPs", previousMissingIPs)
 		case <-time.After(time.Duration(i*100) * time.Millisecond):
 		}
-		var err error
-		previousMissingIPs, err = checkNetwork(ips)
-		if err != nil {
-			return err
-		}
+		previousMissingIPs = checkNetwork(ctx, ips)
 	}
 	return nil
 }
 
-func checkNetwork(ips []net.IP) ([]string, error) {
+func checkNetwork(ctx context.Context, ips []net.IP) []string {
 	missingIPs := make(map[string]net.IP, len(ips))
 	for _, ip := range ips {
 		missingIPs[ip.String()] = ip
 	}
-	links, err := netlink.LinkList()
-	if err != nil {
-		return nil, serrors.WrapStr("listing links", err)
-	}
-	for _, link := range links {
-		addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
+	cfg := net.ListenConfig{}
+	for k := range missingIPs {
+		listener, err := cfg.Listen(ctx, "tcp", net.JoinHostPort(k, "0"))
 		if err != nil {
-			return nil, serrors.WrapStr("listing addresses", err, "interface", link.Attrs().Name)
+			continue
 		}
-		for _, la := range addrs {
-			for k, a := range missingIPs {
-				if a.Equal(la.IP) {
-					delete(missingIPs, k)
-				}
-			}
-		}
+		listener.Close()
+		delete(missingIPs, k)
 	}
-	return keysToList(missingIPs), nil
+	return keysToList(missingIPs)
 }
 
 func keysToList(m map[string]net.IP) []string {
