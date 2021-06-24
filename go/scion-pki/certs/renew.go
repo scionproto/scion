@@ -366,7 +366,7 @@ The template is expressed in JSON. A valid example:
 			}
 			renewed, err := extractChain(rep)
 			if err != nil {
-				return err
+				return serrors.WrapStr("extracting certificate chain from response", err)
 			}
 			pemRenewed, err := encodeChain(renewed)
 			if err != nil {
@@ -571,15 +571,17 @@ func sendRequest(
 	}
 	conn, err := dialer.Dial(ctx, dstSVC)
 	if err != nil {
-		return nil, err
+		return nil, serrors.WrapStr("dialing gRPC connection", err, "remote", dstSVC)
 	}
 	defer conn.Close()
 	client := cppb.NewChainRenewalServiceClient(conn)
 	reply, err := client.ChainRenewal(ctx, req, grpc.RetryProfile...)
 	if err != nil {
-		return nil, err
+		return nil, serrors.WrapStr("requesting certificate chain", err,
+			"remote", conn.Target(),
+		)
 	}
-	return reply, err
+	return reply, nil
 }
 
 func extractChain(rep *cppb.ChainRenewalResponse) ([]*x509.Certificate, error) {
