@@ -31,10 +31,11 @@ import (
 )
 
 var (
-	name     = "sig_ping_acceptance"
-	cmd      = "ping"
-	attempts = flag.Int("attempts", 5, "Number of ping attempts.")
-	fail     = flag.Bool("fail", false, "Succeed if the pings don't make it through.")
+	name        = "sig_ping_acceptance"
+	cmd         = "ping"
+	attempts    = flag.Int("attempts", 5, "Number of ping attempts.")
+	fail        = flag.Bool("fail", false, "Succeed if the pings don't make it through.")
+	timeoutFlag = flag.Int("timeout", 0, "The timeout that is passed to the ping command")
 )
 
 func main() {
@@ -56,10 +57,20 @@ func realMain() int {
 		log.Error("Testing conf reading failed", "err", err)
 		return 1
 	}
+
 	args := []string{cmd, "-c", strconv.Itoa(*attempts), "-O", integration.DstHostReplace}
+	timeout := time.Duration(*attempts)*2*time.Second + integration.DefaultRunTimeout
+	if *timeoutFlag != 0 {
+		args = append(args, "-w", strconv.Itoa(*timeoutFlag))
+		timeout = time.Duration(*timeoutFlag)*time.Second + integration.DefaultRunTimeout
+	}
 	in := integration.NewBinaryIntegration(name, integration.WrapperCmd, args, nil)
-	err := integration.RunUnaryTests(in, integration.UniqueIAPairs(acceptance.SigAddr),
-		time.Duration(*attempts)*2*time.Second+integration.DefaultRunTimeout, nil)
+	err := integration.RunUnaryTests(
+		in,
+		integration.UniqueIAPairs(acceptance.SigAddr),
+		timeout,
+		nil,
+	)
 	if !*fail && err != nil {
 		// The pings were supposed to get through but they didn't.
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
