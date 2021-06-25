@@ -18,7 +18,6 @@ import (
 	"context"
 	"net"
 
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -78,7 +77,6 @@ func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.
 
 	var verifyErrs []error
 	segs := make([]*seg.Meta, 0, len(verifiedUnits))
-	var revs []*path_mgmt.RevInfo
 	for _, unit := range verifiedUnits {
 		if err := unit.SegError(); err != nil {
 			verifyErrs = append(verifyErrs, err)
@@ -93,12 +91,6 @@ func (h *Handler) storeResults(ctx context.Context, verifiedUnits []segverifier.
 			return verifyErrs, err
 		}
 		stats.addStoredSegs(storeSegStats)
-	}
-	if len(revs) > 0 {
-		if err := h.Storage.StoreRevs(ctx, revs); err != nil {
-			return verifyErrs, err
-		}
-		stats.StoredRevs = append(stats.StoredRevs, revs...)
 	}
 	return verifyErrs, nil
 }

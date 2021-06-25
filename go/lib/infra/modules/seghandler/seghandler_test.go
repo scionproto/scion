@@ -59,8 +59,6 @@ func TestReplyHandlerEmptyReply(t *testing.T) {
 	assert.Zero(t, len(stats.VerifiedSegs))
 	assert.Zero(t, stats.SegsUpdated())
 	assert.Zero(t, stats.SegsInserted())
-	assert.Empty(t, stats.VerifiedRevs)
-	assert.Empty(t, stats.StoredRevs)
 }
 
 // TestHandleAllVerificationsFail tests erros that happen during verification
@@ -112,8 +110,6 @@ func TestHandleAllVerificationsFail(t *testing.T) {
 	assert.Zero(t, len(stats.VerifiedSegs))
 	assert.Zero(t, stats.SegsUpdated())
 	assert.Zero(t, stats.SegsInserted())
-	assert.Empty(t, stats.VerifiedRevs)
-	assert.Empty(t, stats.StoredRevs)
 }
 
 // TestReplyHandlerNoErrors tests the happy case of the reply handler: 3
@@ -205,6 +201,4 @@ func TestReplyHandlerStorageError(t *testing.T) {
 	assert.Equal(t, 2, len(stats.VerifiedSegs))
 	assert.Zero(t, stats.SegsUpdated())
 	assert.Zero(t, stats.SegsInserted())
-	assert.Empty(t, stats.VerifiedRevs)
-	assert.Empty(t, stats.StoredRevs)
 }

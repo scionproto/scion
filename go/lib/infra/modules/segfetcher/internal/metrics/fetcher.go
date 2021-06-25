@@ -69,7 +69,6 @@ func (l RevocationLabels) WithResult(result string) RevocationLabels {
 type Fetcher interface {
 	SegRequests(labels RequestLabels) prometheus.Counter
 	RevocationsReceived(labels RevocationLabels) prometheus.Counter
-	UpdateRevocation(stored int, dbErrs int, verifyErrs int)
 }
 
 type fetcher struct {
@@ -96,10 +95,4 @@ func (f fetcher) SegRequests(l RequestLabels) prometheus.Counter {
 func (f fetcher) RevocationsReceived(l RevocationLabels) prometheus.Counter {
 	l.Src = revSrcPathReply
 	return f.revocations.WithLabelValues(l.Values()...)
-}
-
-func (f fetcher) UpdateRevocation(stored int, dbErrs int, verifyErrs int) {
-	f.RevocationsReceived(RevocationLabels{Result: OkSuccess}).Add(float64(stored))
-	f.RevocationsReceived(RevocationLabels{Result: ErrDB}).Add(float64(dbErrs))
-	f.RevocationsReceived(RevocationLabels{Result: ErrVerify}).Add(float64(verifyErrs))
 }

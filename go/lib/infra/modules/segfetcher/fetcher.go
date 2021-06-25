@@ -111,8 +111,6 @@ func (f *Fetcher) waitOnProcessed(ctx context.Context,
 			continue
 		}
 		r := f.ReplyHandler.Handle(ctx, replyToRecs(reply.Segments), reply.Peer)
-		defer f.Metrics.UpdateRevocation(r.Stats().RevStored(),
-			r.Stats().RevDBErrs(), r.Stats().RevVerifyErrors())
 		if err := r.Err(); err != nil {
 			f.Metrics.SegRequests(labels.WithResult(metrics.ErrProcess)).Inc()
 			return segs, serrors.WrapStr("processing reply", err)
