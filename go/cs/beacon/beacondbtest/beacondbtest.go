@@ -287,7 +287,11 @@ func CheckResult(t *testing.T, results []beacon.Beacon, expected beacon.Beacon) 
 	CheckResults(t, results, []beacon.Beacon{expected})
 }
 
+// CheckResults checks whether results and expectedBeacons are equivalent.
 func CheckResults(t *testing.T, results []beacon.Beacon, expectedBeacons []beacon.Beacon) {
+	assert.Equal(t, len(results), len(expectedBeacons),
+		"results and expected do not have the same number of beacons")
+
 	for i, expected := range expectedBeacons {
 		res := results[i]
 		require.NotNil(t, res.Segment, "Beacon %d segment", i)
