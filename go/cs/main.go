@@ -16,6 +16,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"time"
@@ -456,8 +458,8 @@ func realMain() error {
 	trcRunner.TriggerRun()
 
 	ds := discovery.Topology{
-		Provider: itopo.Provider(),
-		Requests: libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
+		Information: topoInformation{},
+		Requests:    libmetrics.NewPromCounter(metrics.DiscoveryRequestsTotal),
 	}
 	dpb.RegisterDiscoveryServiceServer(quicServer, ds)
 
@@ -549,28 +551,19 @@ func realMain() error {
 	if topo.Core() {
 		propagationFilter = func(intf *ifstate.Interface) bool {
 			topoInfo := intf.TopoInfo()
-			if topoInfo.LinkType == topology.Core {
-				return true
-			}
-			return false
+			return topoInfo.LinkType == topology.Core
 		}
 	} else {
 		propagationFilter = func(intf *ifstate.Interface) bool {
 			topoInfo := intf.TopoInfo()
-			if topoInfo.LinkType == topology.Child {
-				return true
-			}
-			return false
+			return topoInfo.LinkType == topology.Child
 		}
 	}
 
 	var originationFilter func(intf *ifstate.Interface) bool
 	originationFilter = func(intf *ifstate.Interface) bool {
 		topoInfo := intf.TopoInfo()
-		if topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child {
-			return true
-		}
-		return false
+		return topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child
 	}
 
 	tasks, err := cs.StartTasks(cs.TasksConfig{
@@ -671,4 +664,26 @@ func createBeaconStore(
 	}
 	store, err := beacon.NewBeaconStore(policies, db)
 	return store, *policies.Prop.Filter.AllowIsdLoop, err
+}
+
+type topoInformation struct{}
+
+func (topoInformation) Gateways() ([]topology.GatewayInfo, error) {
+	return itopo.Get().Gateways()
+}
+
+func (topoInformation) HiddenSegmentLookupAddresses() ([]*net.UDPAddr, error) {
+	a, err := itopo.Get().MakeHostInfos(topology.HiddenSegmentLookup)
+	if errors.Is(err, topology.ErrAddressNotFound) {
+		return nil, nil
+	}
+	return a, err
+}
+
+func (topoInformation) HiddenSegmentRegistrationAddresses() ([]*net.UDPAddr, error) {
+	a, err := itopo.Get().MakeHostInfos(topology.HiddenSegmentRegistration)
+	if errors.Is(err, topology.ErrAddressNotFound) {
+		return nil, nil
+	}
+	return a, err
 }

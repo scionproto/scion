@@ -16,7 +16,6 @@ package discovery
 
 import (
 	"context"
-	"errors"
 	"net"
 
 	"github.com/opentracing/opentracing-go"
@@ -31,10 +30,23 @@ import (
 	dpb "github.com/scionproto/scion/go/pkg/proto/discovery"
 )
 
-// Topology implements a service discovery server based on a topology provider.
+// TopologyInformation provides the discovery service with topology information.
+type TopologyInformation interface {
+	// Gateways returns all the Gateways in the AS.
+	Gateways() ([]topology.GatewayInfo, error)
+	// HiddenSegmentLookupAddresses returns the addresses of the hidden segment
+	// lookup services.
+	HiddenSegmentLookupAddresses() ([]*net.UDPAddr, error)
+	// HiddenSegmentRegistrationAddresses returns the addresses of the hidden
+	// segment registration services.
+	HiddenSegmentRegistrationAddresses() ([]*net.UDPAddr, error)
+}
+
+// Topology implements a service discovery server based on the topology
+// information.
 type Topology struct {
-	// Provider is used to get a topology instance.
-	Provider topology.Provider
+	// Information is the toplogy information.
+	Information TopologyInformation
 
 	// Requests aggregates all the incoming requests received by the handler.
 	// If it is not initialized, nothing is reported.
@@ -49,8 +61,7 @@ func (t Topology) Gateways(ctx context.Context,
 	labels := requestLabels{ReqType: "gateways"}
 	logger := log.FromCtx(ctx)
 
-	topo := t.Provider.Get()
-	gateways, err := topo.Gateways()
+	gateways, err := t.Information.Gateways()
 	if err != nil {
 		logger.Debug("Failed to list gateways", "err", err)
 		t.updateTelemetry(span, labels.WithResult(prom.ErrInternal), err)
@@ -87,13 +98,12 @@ func (t Topology) HiddenSegmentServices(ctx context.Context,
 	labels := requestLabels{ReqType: "hidden_segment_services"}
 	logger := log.FromCtx(ctx)
 
-	topo := t.Provider.Get()
-	lookups, err := topo.MakeHostInfos(topology.HiddenSegmentLookup)
-	if err != nil && !errors.Is(err, topology.ErrAddressNotFound) {
+	lookups, err := t.Information.HiddenSegmentLookupAddresses()
+	if err != nil {
 		return nil, err
 	}
-	registration, err := topo.MakeHostInfos(topology.HiddenSegmentRegistration)
-	if err != nil && !errors.Is(err, topology.ErrAddressNotFound) {
+	registration, err := t.Information.HiddenSegmentRegistrationAddresses()
+	if err != nil {
 		return nil, err
 	}
 

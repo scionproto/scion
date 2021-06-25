@@ -87,7 +87,7 @@ type Topology interface {
 	UnderlayNextHop(ifID common.IFIDType) (*net.UDPAddr, bool)
 
 	// MakeHostInfos returns the underlay addresses of all services for the specified service type.
-	MakeHostInfos(st ServiceType) ([]net.UDPAddr, error)
+	MakeHostInfos(st ServiceType) ([]*net.UDPAddr, error)
 
 	// Gateways returns an array of all gateways.
 	Gateways() ([]GatewayInfo, error)
@@ -190,15 +190,15 @@ func (t *topologyS) UnderlayNextHop2(ifid common.IFIDType) (*net.UDPAddr, bool) 
 	return copyUDPAddr(ifInfo.InternalAddr), true
 }
 
-func (t *topologyS) MakeHostInfos(st ServiceType) ([]net.UDPAddr, error) {
-	var hostInfos []net.UDPAddr
+func (t *topologyS) MakeHostInfos(st ServiceType) ([]*net.UDPAddr, error) {
+	var hostInfos []*net.UDPAddr
 	addresses, err := t.Topology.getAllTopoAddrs(st)
 	if err != nil {
 		return nil, err
 	}
 	for _, a := range addresses {
 		if tmp := a.SCIONAddress; tmp != nil {
-			hostInfos = append(hostInfos, *tmp)
+			hostInfos = append(hostInfos, copyUDPAddr(tmp))
 		}
 	}
 	return hostInfos, nil

@@ -16,27 +16,52 @@ package discovery_test
 
 import (
 	"context"
+	"net"
 	"sort"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo/itopotest"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/discovery"
+	"github.com/scionproto/scion/go/pkg/discovery/mock_discovery"
 	dpb "github.com/scionproto/scion/go/pkg/proto/discovery"
 )
 
 func TestGateways(t *testing.T) {
 	testCases := map[string]struct {
-		provider    topology.Provider
+		info        func(*testing.T, *gomock.Controller) discovery.TopologyInformation
 		want        *dpb.GatewaysResponse
 		assertError assert.ErrorAssertionFunc
 	}{
 		"valid": {
-			provider: itopotest.TopoProviderFromFile(t, "testdata/topology.json"),
+			info: func(t *testing.T, ctrl *gomock.Controller) discovery.TopologyInformation {
+				info := mock_discovery.NewMockTopologyInformation(ctrl)
+				info.EXPECT().Gateways().Return(
+					[]topology.GatewayInfo{
+						{
+							CtrlAddr: &topology.TopoAddr{
+								SCIONAddress: xtest.MustParseUDPAddr(t, "127.0.0.82:30100"),
+							},
+							DataAddr:        xtest.MustParseUDPAddr(t, "127.0.0.82:30101"),
+							AllowInterfaces: []uint64{1, 3, 5},
+						},
+						{
+							CtrlAddr: &topology.TopoAddr{
+								SCIONAddress: xtest.MustParseUDPAddr(t,
+									"[2001:db8:f00:b43::1%some-zone]:23425"),
+							},
+							DataAddr: xtest.MustParseUDPAddr(t,
+								"[2001:db8:f00:b43::1%some-zone]:30101"),
+						},
+					},
+					nil,
+				)
+				return info
+			},
 			want: &dpb.GatewaysResponse{
 				Gateways: []*dpb.Gateway{
 					{
@@ -61,8 +86,11 @@ func TestGateways(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
 			d := discovery.Topology{
-				Provider: tc.provider,
+				Information: tc.info(t, ctrl),
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -77,29 +105,33 @@ func TestGateways(t *testing.T) {
 
 func TestHiddenSegmentServices(t *testing.T) {
 	testCases := map[string]struct {
-		topo        []byte
+		info        func(*testing.T, *gomock.Controller) discovery.TopologyInformation
 		want        *dpb.HiddenSegmentServicesResponse
 		assertError assert.ErrorAssertionFunc
 	}{
 		"no service": {
-			topo: []byte(`
-			{
-				"isd_as": "1-ff00:0:311"
-			}
-			`),
+			info: func(_ *testing.T, ctrl *gomock.Controller) discovery.TopologyInformation {
+				info := mock_discovery.NewMockTopologyInformation(ctrl)
+				info.EXPECT().HiddenSegmentLookupAddresses()
+				info.EXPECT().HiddenSegmentRegistrationAddresses()
+				return info
+			},
 			want:        &dpb.HiddenSegmentServicesResponse{},
 			assertError: assert.NoError,
 		},
 		"only lookup service": {
-			topo: []byte(`
-			{
-				"isd_as": "1-ff00:0:311",
-				"hidden_segment_lookup_service": {
-					"hsls-1": {"addr": "10.1.0.1:30254"},
-					"hsls-2": {"addr": "10.1.0.2:30254"}
-				}
-			}
-			`),
+			info: func(t *testing.T, ctrl *gomock.Controller) discovery.TopologyInformation {
+				info := mock_discovery.NewMockTopologyInformation(ctrl)
+				info.EXPECT().HiddenSegmentLookupAddresses().Return(
+					[]*net.UDPAddr{
+						xtest.MustParseUDPAddr(t, "10.1.0.1:30254"),
+						xtest.MustParseUDPAddr(t, "10.1.0.2:30254"),
+					},
+					nil,
+				)
+				info.EXPECT().HiddenSegmentRegistrationAddresses()
+				return info
+			},
 			want: &dpb.HiddenSegmentServicesResponse{
 				Lookup: []*dpb.HiddenSegmentLookupServer{
 					{Address: "10.1.0.1:30254"},
@@ -109,15 +141,18 @@ func TestHiddenSegmentServices(t *testing.T) {
 			assertError: assert.NoError,
 		},
 		"only registration service": {
-			topo: []byte(`
-			{
-				"isd_as": "1-ff00:0:311",
-				"hidden_segment_registration_service": {
-					"hsls-3": {"addr": "10.1.0.3:30254"},
-					"hsls-4": {"addr": "10.1.0.4:30254"}
-				}
-			}
-			`),
+			info: func(t *testing.T, ctrl *gomock.Controller) discovery.TopologyInformation {
+				info := mock_discovery.NewMockTopologyInformation(ctrl)
+				info.EXPECT().HiddenSegmentLookupAddresses()
+				info.EXPECT().HiddenSegmentRegistrationAddresses().Return(
+					[]*net.UDPAddr{
+						xtest.MustParseUDPAddr(t, "10.1.0.3:30254"),
+						xtest.MustParseUDPAddr(t, "10.1.0.4:30254"),
+					},
+					nil,
+				)
+				return info
+			},
 			want: &dpb.HiddenSegmentServicesResponse{
 				Registration: []*dpb.HiddenSegmentRegistrationServer{
 					{Address: "10.1.0.3:30254"},
@@ -127,19 +162,24 @@ func TestHiddenSegmentServices(t *testing.T) {
 			assertError: assert.NoError,
 		},
 		"both services": {
-			topo: []byte(`
-			{
-				"isd_as": "1-ff00:0:311",
-				"hidden_segment_lookup_service": {
-					"hsls-1": {"addr": "10.1.0.1:30254"},
-					"hsls-2": {"addr": "10.1.0.2:30254"}
-				},
-				"hidden_segment_registration_service": {
-					"hsls-3": {"addr": "10.1.0.3:30254"},
-					"hsls-4": {"addr": "10.1.0.4:30254"}
-				}
-			}
-			`),
+			info: func(t *testing.T, ctrl *gomock.Controller) discovery.TopologyInformation {
+				info := mock_discovery.NewMockTopologyInformation(ctrl)
+				info.EXPECT().HiddenSegmentLookupAddresses().Return(
+					[]*net.UDPAddr{
+						xtest.MustParseUDPAddr(t, "10.1.0.1:30254"),
+						xtest.MustParseUDPAddr(t, "10.1.0.2:30254"),
+					},
+					nil,
+				)
+				info.EXPECT().HiddenSegmentRegistrationAddresses().Return(
+					[]*net.UDPAddr{
+						xtest.MustParseUDPAddr(t, "10.1.0.3:30254"),
+						xtest.MustParseUDPAddr(t, "10.1.0.4:30254"),
+					},
+					nil,
+				)
+				return info
+			},
 			want: &dpb.HiddenSegmentServicesResponse{
 				Lookup: []*dpb.HiddenSegmentLookupServer{
 					{Address: "10.1.0.1:30254"},
@@ -158,9 +198,9 @@ func TestHiddenSegmentServices(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			rwTopo, err := topology.RWTopologyFromJSONBytes(tc.topo)
-			require.NoError(t, err)
-			d := discovery.Topology{Provider: &itopotest.TestTopoProvider{RWTopology: rwTopo}}
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			d := discovery.Topology{Information: tc.info(t, ctrl)}
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()

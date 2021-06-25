@@ -24,10 +24,11 @@ go_test(
     data = glob(["testdata/**"]),
     deps = [
         ":go_default_library",
-        "//go/lib/infra/modules/itopo/itopotest:go_default_library",
         "//go/lib/topology:go_default_library",
+        "//go/lib/xtest:go_default_library",
+        "//go/pkg/discovery/mock_discovery:go_default_library",
         "//go/pkg/proto/discovery:go_default_library",
+        "@com_github_golang_mock//gomock:go_default_library",
         "@com_github_stretchr_testify//assert:go_default_library",
-        "@com_github_stretchr_testify//require:go_default_library",
     ],
 )
