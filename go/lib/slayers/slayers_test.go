@@ -508,6 +508,25 @@ func BenchmarkDecodeLayerParserExtn(b *testing.B) {
 	}
 }
 
+func BenchmarkDecodeLayerParserExtnSkipper(b *testing.B) {
+	raw := xtest.MustReadFromFile(b, rawFullPktFilename)
+	var scn slayers.SCION
+	var hbh slayers.HopByHopExtnSkipper
+	var e2e slayers.EndToEndExtnSkipper
+	var udp slayers.UDP
+	var scmp slayers.SCMP
+	var pld gopacket.Payload
+	parser := gopacket.NewDecodingLayerParser(
+		slayers.LayerTypeSCION, &scn, &hbh, &e2e, &udp, &scmp, &pld,
+	)
+	decoded := []gopacket.LayerType{}
+	for i := 0; i < b.N; i++ {
+		if err := parser.DecodeLayers(raw, &decoded); err != nil {
+			b.Fatalf("error: %v\n", err)
+		}
+	}
+}
+
 func mkPayload(plen int) []byte {
 	b := make([]byte, plen)
 	for i := 0; i < plen; i++ {

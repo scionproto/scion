@@ -295,14 +295,16 @@ type Packet struct {
 func (p *Packet) Decode() error {
 	var (
 		scionLayer slayers.SCION
+		hbhLayer   slayers.HopByHopExtnSkipper
+		e2eLayer   slayers.EndToEndExtnSkipper
 		udpLayer   slayers.UDP
 		scmpLayer  slayers.SCMP
 	)
 	parser := gopacket.NewDecodingLayerParser(
-		slayers.LayerTypeSCION, &scionLayer, &udpLayer, &scmpLayer,
+		slayers.LayerTypeSCION, &scionLayer, &hbhLayer, &e2eLayer, &udpLayer, &scmpLayer,
 	)
 	parser.IgnoreUnsupported = true
-	decoded := make([]gopacket.LayerType, 3)
+	decoded := make([]gopacket.LayerType, 0, 4)
 	if err := parser.DecodeLayers(p.Bytes, &decoded); err != nil {
 		return err
 	}
