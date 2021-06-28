@@ -1,19 +1,8 @@
 #!/bin/bash
 
-if [[ "$BUILDKITE_PIPELINE_SLUG" =~ "performance" ]]; then
-    exit 0
-fi
-
 . .buildkite/hooks/pre-exit
 
 set -euo pipefail
-
-echo "--- Pre-allocating hugepages"
-sudo sysctl -w vm.nr_hugepages=100
-
-echo "--- Remove google-auth"
-# See anapaya/scion#5231 for more details.
-sudo -H pip3 uninstall google-auth -y || true
 
 echo "--- Enable loki log driver"
 docker plugin enable loki || true
