@@ -16,6 +16,7 @@ import logging
 import os
 import subprocess
 import re
+import webbrowser
 from typing import List
 from typing import Type
 
@@ -193,6 +194,9 @@ class TestBase(cli.Application):
         if re.search(r"Exit\s+[1-9]\d*", ps):
             raise Exception("Failed services.\n" + ps)
 
+    def browse(self):
+        webbrowser.open(self.test_state.artifacts / "gen/browse/index.html")
+
     def start_container(self, container):
         """Starts the container with the specified name.
 
@@ -338,6 +342,11 @@ def register_commands(c: Type[TestBase]):
         def main(self):
             self.teardown()
 
+    class TestBrowse(c):
+        def main(self):
+            self.browse()
+
     c.subcommand("setup", TestSetup)
     c.subcommand("run", TestRun)
     c.subcommand("teardown", TestTeardown)
+    c.subcommand("browse", TestBrowse)
