@@ -105,8 +105,8 @@ func ChildToInternalHost(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	scionudp := &slayers.UDP{}
-	scionudp.SrcPort = layers.UDPPort(2345)
-	scionudp.DstPort = layers.UDPPort(53)
+	scionudp.SrcPort = 2345
+	scionudp.DstPort = 53
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -212,8 +212,8 @@ func ChildToInternalHostShortcut(artifactsDir string, mac hash.Hash) runner.Case
 	}
 
 	scionudp := &slayers.UDP{}
-	scionudp.SrcPort = layers.UDPPort(2345)
-	scionudp.DstPort = layers.UDPPort(53)
+	scionudp.SrcPort = 2345
+	scionudp.DstPort = 53
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -330,8 +330,8 @@ func ChildToInternalParent(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	scionudp := &slayers.UDP{}
-	scionudp.SrcPort = layers.UDPPort(2345)
-	scionudp.DstPort = layers.UDPPort(53)
+	scionudp.SrcPort = 2345
+	scionudp.DstPort = 53
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")

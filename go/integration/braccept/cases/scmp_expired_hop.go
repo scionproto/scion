@@ -115,8 +115,8 @@ func SCMPExpiredHop(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	scionudp := &slayers.UDP{}
-	scionudp.SrcPort = layers.UDPPort(40111)
-	scionudp.DstPort = layers.UDPPort(40222)
+	scionudp.SrcPort = 40111
+	scionudp.DstPort = 40222
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -277,8 +277,8 @@ func SCMPExpiredHopAfterXover(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	scionudp := &slayers.UDP{}
-	scionudp.SrcPort = layers.UDPPort(40111)
-	scionudp.DstPort = layers.UDPPort(40222)
+	scionudp.SrcPort = 40111
+	scionudp.DstPort = 40222
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -449,8 +449,8 @@ func SCMPExpiredHopAfterXoverConsDir(artifactsDir string, mac hash.Hash) runner.
 	}
 
 	scionudp := &slayers.UDP{}
-	scionudp.SrcPort = layers.UDPPort(40111)
-	scionudp.DstPort = layers.UDPPort(40222)
+	scionudp.SrcPort = 40111
+	scionudp.DstPort = 40222
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -625,8 +625,8 @@ func SCMPExpiredHopAfterXoverInternal(artifactsDir string, mac hash.Hash) runner
 	}
 
 	scionudp := &slayers.UDP{}
-	scionudp.SrcPort = layers.UDPPort(40111)
-	scionudp.DstPort = layers.UDPPort(40222)
+	scionudp.SrcPort = 40111
+	scionudp.DstPort = 40222
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -788,8 +788,8 @@ func SCMPExpiredHopAfterXoverInternalConsDir(artifactsDir string, mac hash.Hash)
 	}
 
 	scionudp := &slayers.UDP{}
-	scionudp.SrcPort = layers.UDPPort(40111)
-	scionudp.DstPort = layers.UDPPort(40222)
+	scionudp.SrcPort = 40111
+	scionudp.DstPort = 40222
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")

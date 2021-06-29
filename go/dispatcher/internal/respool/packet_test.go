@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -40,10 +39,8 @@ func TestDecodeBuffer(t *testing.T) {
 			Layers: func(t *testing.T) []gopacket.SerializableLayer {
 				scion := scionLayer(t, common.L4UDP)
 				udp := &slayers.UDP{
-					UDP: layers.UDP{
-						SrcPort: 1337,
-						DstPort: 42,
-					},
+					SrcPort: 1337,
+					DstPort: 42,
 				}
 				udp.SetNetworkLayerForChecksum(scion)
 				pld := gopacket.Payload("I am a payload")

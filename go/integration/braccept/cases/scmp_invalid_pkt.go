@@ -102,8 +102,8 @@ func SCMPBadPktLen(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	scionudp := &slayers.UDP{}
-	scionudp.SrcPort = layers.UDPPort(40111)
-	scionudp.DstPort = layers.UDPPort(40222)
+	scionudp.SrcPort = 40111
+	scionudp.DstPort = 40222
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := []byte("actualpayloadbytes")
@@ -253,8 +253,8 @@ func SCMPQuoteCut(artifactsDir string, mac hash.Hash) runner.Case {
 	}
 
 	scionudp := &slayers.UDP{}
-	scionudp.SrcPort = layers.UDPPort(40111)
-	scionudp.DstPort = layers.UDPPort(40222)
+	scionudp.SrcPort = 40111
+	scionudp.DstPort = 40222
 	scionudp.SetNetworkLayerForChecksum(scionL)
 
 	payload := make([]byte, slayers.MaxSCMPPacketLen)

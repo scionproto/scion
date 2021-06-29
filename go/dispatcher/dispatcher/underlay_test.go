@@ -22,7 +22,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -59,9 +58,7 @@ func TestGetDst(t *testing.T) {
 						DstIA: xtest.MustParseIA("1-ff00:0:110"),
 					},
 					UDP: slayers.UDP{
-						UDP: layers.UDP{
-							DstPort: 1337,
-						},
+						DstPort: 1337,
 					},
 					L4: slayers.LayerTypeSCIONUDP,
 				}
@@ -81,9 +78,7 @@ func TestGetDst(t *testing.T) {
 						DstIA: xtest.MustParseIA("1-ff00:0:110"),
 					},
 					UDP: slayers.UDP{
-						UDP: layers.UDP{
-							DstPort: 1337,
-						},
+						DstPort: 1337,
 					},
 					L4: slayers.LayerTypeSCIONUDP,
 				}
@@ -113,7 +108,7 @@ func TestGetDst(t *testing.T) {
 					},
 					SCMP: slayers.SCMP{
 						TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
-						BaseLayer: layers.BaseLayer{
+						BaseLayer: slayers.BaseLayer{
 							Payload: buf.Bytes(),
 						},
 					},
@@ -141,7 +136,7 @@ func TestGetDst(t *testing.T) {
 					},
 					SCMP: slayers.SCMP{
 						TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoReply, 0),
-						BaseLayer: layers.BaseLayer{
+						BaseLayer: slayers.BaseLayer{
 							Payload: buf.Bytes(),
 						},
 					},
@@ -171,7 +166,7 @@ func TestGetDst(t *testing.T) {
 					},
 					SCMP: slayers.SCMP{
 						TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0),
-						BaseLayer: layers.BaseLayer{
+						BaseLayer: slayers.BaseLayer{
 							Payload: buf.Bytes(),
 						},
 					},
@@ -198,7 +193,7 @@ func TestGetDst(t *testing.T) {
 					},
 					SCMP: slayers.SCMP{
 						TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteReply, 0),
-						BaseLayer: layers.BaseLayer{
+						BaseLayer: slayers.BaseLayer{
 							Payload: buf.Bytes(),
 						},
 					},
@@ -217,10 +212,8 @@ func TestGetDst(t *testing.T) {
 				// Construct offending packet.
 				scion := newSCIONHdr(t, common.L4UDP)
 				udp := &slayers.UDP{
-					UDP: layers.UDP{
-						SrcPort: 1337,
-						DstPort: 42,
-					},
+					SrcPort: 1337,
+					DstPort: 42,
 				}
 				udp.SetNetworkLayerForChecksum(scion)
 				buf := gopacket.NewSerializeBuffer()
@@ -254,7 +247,7 @@ func TestGetDst(t *testing.T) {
 					SCMP: slayers.SCMP{
 						TypeCode: slayers.CreateSCMPTypeCode(
 							slayers.SCMPTypeExternalInterfaceDown, 0),
-						BaseLayer: layers.BaseLayer{
+						BaseLayer: slayers.BaseLayer{
 							Payload: scmpPld.Bytes(),
 						},
 					},
@@ -310,7 +303,7 @@ func TestGetDst(t *testing.T) {
 					SCMP: slayers.SCMP{
 						TypeCode: slayers.CreateSCMPTypeCode(
 							slayers.SCMPTypeInternalConnectivityDown, 0),
-						BaseLayer: layers.BaseLayer{
+						BaseLayer: slayers.BaseLayer{
 							Payload: scmpPld.Bytes(),
 						},
 					},
@@ -366,7 +359,7 @@ func TestGetDst(t *testing.T) {
 					SCMP: slayers.SCMP{
 						TypeCode: slayers.CreateSCMPTypeCode(
 							slayers.SCMPTypeInternalConnectivityDown, 0),
-						BaseLayer: layers.BaseLayer{
+						BaseLayer: slayers.BaseLayer{
 							Payload: scmpPld.Bytes(),
 						},
 					},
@@ -386,10 +379,8 @@ func TestGetDst(t *testing.T) {
 				// Construct offending packet.
 				scion := newSCIONHdr(t, common.L4UDP)
 				udp := &slayers.UDP{
-					UDP: layers.UDP{
-						SrcPort: 1337,
-						DstPort: 42,
-					},
+					SrcPort: 1337,
+					DstPort: 42,
 				}
 				udp.SetNetworkLayerForChecksum(scion)
 				buf := gopacket.NewSerializeBuffer()
@@ -423,7 +414,7 @@ func TestGetDst(t *testing.T) {
 					SCMP: slayers.SCMP{
 						TypeCode: slayers.CreateSCMPTypeCode(
 							slayers.SCMPTypeExternalInterfaceDown, 0),
-						BaseLayer: layers.BaseLayer{
+						BaseLayer: slayers.BaseLayer{
 							Payload: scmpPld.Bytes(),
 						},
 					},
@@ -480,7 +471,7 @@ func TestGetDst(t *testing.T) {
 					SCMP: slayers.SCMP{
 						TypeCode: slayers.CreateSCMPTypeCode(
 							slayers.SCMPTypeInternalConnectivityDown, 0),
-						BaseLayer: layers.BaseLayer{
+						BaseLayer: slayers.BaseLayer{
 							Payload: scmpPld.Bytes(),
 						},
 					},
@@ -537,7 +528,7 @@ func TestGetDst(t *testing.T) {
 					SCMP: slayers.SCMP{
 						TypeCode: slayers.CreateSCMPTypeCode(
 							slayers.SCMPTypeInternalConnectivityDown, 0),
-						BaseLayer: layers.BaseLayer{
+						BaseLayer: slayers.BaseLayer{
 							Payload: scmpPld.Bytes(),
 						},
 					},
@@ -557,10 +548,8 @@ func TestGetDst(t *testing.T) {
 				// Construct offending packet.
 				scion := newSCIONHdr(t, common.L4UDP)
 				udp := &slayers.UDP{
-					UDP: layers.UDP{
-						SrcPort: 1337,
-						DstPort: 42,
-					},
+					SrcPort: 1337,
+					DstPort: 42,
 				}
 				udp.SetNetworkLayerForChecksum(scion)
 				buf := gopacket.NewSerializeBuffer()
@@ -594,7 +583,7 @@ func TestGetDst(t *testing.T) {
 					SCMP: slayers.SCMP{
 						TypeCode: slayers.CreateSCMPTypeCode(
 							slayers.SCMPTypeExternalInterfaceDown, 0),
-						BaseLayer: layers.BaseLayer{
+						BaseLayer: slayers.BaseLayer{
 							Payload: scmpPld.Bytes(),
 						},
 					},
@@ -647,7 +636,7 @@ func TestGetDst(t *testing.T) {
 					SCMP: slayers.SCMP{
 						TypeCode: slayers.CreateSCMPTypeCode(
 							slayers.SCMPTypeInternalConnectivityDown, 0),
-						BaseLayer: layers.BaseLayer{
+						BaseLayer: slayers.BaseLayer{
 							Payload: scmpPld.Bytes(),
 						},
 					},
@@ -688,7 +677,7 @@ func TestSCMPHandlerReverse(t *testing.T) {
 				return slayers.SCMP{
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
 					Checksum: 1337,
-					BaseLayer: layers.BaseLayer{
+					BaseLayer: slayers.BaseLayer{
 						Payload: buf.Bytes(),
 					},
 				}
@@ -726,7 +715,7 @@ func TestSCMPHandlerReverse(t *testing.T) {
 				return slayers.SCMP{
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeEchoRequest, 0),
 					Checksum: 1337,
-					BaseLayer: layers.BaseLayer{
+					BaseLayer: slayers.BaseLayer{
 						Payload: buf.Bytes(),
 					},
 				}
@@ -766,7 +755,7 @@ func TestSCMPHandlerReverse(t *testing.T) {
 				return slayers.SCMP{
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0),
 					Checksum: 1337,
-					BaseLayer: layers.BaseLayer{
+					BaseLayer: slayers.BaseLayer{
 						Payload: buf.Bytes(),
 					},
 				}
@@ -806,7 +795,7 @@ func TestSCMPHandlerReverse(t *testing.T) {
 				return slayers.SCMP{
 					TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeTracerouteRequest, 0),
 					Checksum: 1337,
-					BaseLayer: layers.BaseLayer{
+					BaseLayer: slayers.BaseLayer{
 						Payload: buf.Bytes(),
 					},
 				}
@@ -911,7 +900,7 @@ func TestSCMPHandlerReverse(t *testing.T) {
 				require.NoError(t, expected.SetSrcAddr(&net.IPAddr{IP: net.IP{127, 0, 0, 2}}))
 				require.NoError(t, expected.SetDstAddr(&net.IPAddr{IP: net.IP{127, 0, 0, 1}}))
 
-				scionL.BaseLayer = layers.BaseLayer{}
+				scionL.BaseLayer = slayers.BaseLayer{}
 				var decodedPath scion.Decoded
 				require.NoError(t, decodedPath.DecodeFromBytes(scionL.Path.(*scion.Raw).Raw))
 				scionL.Path = &decodedPath

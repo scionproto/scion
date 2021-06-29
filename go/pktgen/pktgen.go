@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/daemon"
@@ -156,8 +155,8 @@ func run(cfg flags, dst *snet.UDPAddr) error {
 		return serrors.WrapStr("setting SCION source address", err)
 	}
 	scionudpLayer := &slayers.UDP{}
-	scionudpLayer.SrcPort = layers.UDPPort(40111)
-	scionudpLayer.DstPort = layers.UDPPort(40222)
+	scionudpLayer.SrcPort = 40111
+	scionudpLayer.DstPort = 40222
 	scionudpLayer.SetNetworkLayerForChecksum(scionLayer)
 	payload := make([]byte, cfg.payload)
 
