@@ -17,13 +17,13 @@ package trust
 import (
 	"context"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
@@ -78,22 +78,24 @@ func LoadChains(ctx context.Context, dir string, db DB) (LoadResult, error) {
 			res.Ignored[f] = err
 			continue
 		}
-		tid := cppki.TRCID{
-			ISD:    ia.I,
-			Serial: scrypto.LatestVer,
-			Base:   scrypto.LatestVer,
-		}
-		trc, err := db.SignedTRC(ctx, tid)
-		if err != nil {
-			return res, serrors.WrapStr("loading TRC to verify certificate chain", err, "file", f)
-		}
-		if trc.IsZero() {
+		trcs, _, err := activeTRCs(ctx, db, ia.I)
+		if errors.Is(err, errNotFound) {
 			res.Ignored[f] = serrors.New("TRC not found", "isd", ia.I)
 			continue
 		}
-		opts := cppki.VerifyOptions{TRC: []*cppki.TRC{&trc.TRC}}
-		if err := cppki.VerifyChain(chain, opts); err != nil {
-			res.Ignored[f] = err
+		if err != nil {
+			return res, serrors.WrapStr("loading TRC(s) to verify certificate chain", err,
+				"file", f)
+		}
+		var verifyErrors serrors.List
+		for _, trc := range trcs {
+			opts := cppki.VerifyOptions{TRC: []*cppki.TRC{&trc.TRC}}
+			if err := cppki.VerifyChain(chain, opts); err != nil {
+				verifyErrors = append(verifyErrors, err)
+			}
+		}
+		if len(verifyErrors) == len(trcs) {
+			res.Ignored[f] = verifyErrors.ToError()
 			continue
 		}
 		inserted, err := db.InsertChain(ctx, chain)

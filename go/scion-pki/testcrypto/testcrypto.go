@@ -59,7 +59,7 @@ func Cmd(pather command.Pather) *cobra.Command {
 
 This command should only be used in testing.
 `,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			asValidity, err := util.ParseDuration(flags.asValidity)
 			if err != nil {
 				return err

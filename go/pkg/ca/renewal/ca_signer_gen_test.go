@@ -22,6 +22,8 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"io/ioutil"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -34,8 +36,10 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/ca/renewal"
 	"github.com/scionproto/scion/go/pkg/ca/renewal/mock_renewal"
+	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/trust"
 	"github.com/scionproto/scion/go/pkg/trust/mock_trust"
+	"github.com/scionproto/scion/go/scion-pki/testcrypto"
 )
 
 func TestChachingPolicyGenGenerate(t *testing.T) {
@@ -158,12 +162,12 @@ func TestLoadingPolicyGenGenerate(t *testing.T) {
 		ErrAssertion assert.ErrorAssertionFunc
 	}{
 		"valid": {
-			CertProvider: func(t *testing.T, mctrl *gomock.Controller) renewal.CACertProvider {
+			CertProvider: func(_ *testing.T, mctrl *gomock.Controller) renewal.CACertProvider {
 				p := mock_renewal.NewMockCACertProvider(mctrl)
 				p.EXPECT().CACerts(gomock.Any()).Return(ca, nil)
 				return p
 			},
-			KeyRing: func(t *testing.T, mctrl *gomock.Controller) trust.KeyRing {
+			KeyRing: func(_ *testing.T, mctrl *gomock.Controller) trust.KeyRing {
 				k := mock_trust.NewMockKeyRing(mctrl)
 				k.EXPECT().PrivateKeys(gomock.Any()).Return([]crypto.Signer{key}, nil)
 				return k
@@ -196,12 +200,12 @@ func TestLoadingPolicyGenGenerate(t *testing.T) {
 			ErrAssertion: assert.NoError,
 		},
 		"err cert provider": {
-			CertProvider: func(t *testing.T, mctrl *gomock.Controller) renewal.CACertProvider {
+			CertProvider: func(_ *testing.T, mctrl *gomock.Controller) renewal.CACertProvider {
 				p := mock_renewal.NewMockCACertProvider(mctrl)
 				p.EXPECT().CACerts(gomock.Any()).Return(nil, serrors.New("internal"))
 				return p
 			},
-			KeyRing: func(t *testing.T, mctrl *gomock.Controller) trust.KeyRing {
+			KeyRing: func(_ *testing.T, mctrl *gomock.Controller) trust.KeyRing {
 				k := mock_trust.NewMockKeyRing(mctrl)
 				k.EXPECT().PrivateKeys(gomock.Any()).Return([]crypto.Signer{key}, nil)
 				return k
@@ -209,12 +213,12 @@ func TestLoadingPolicyGenGenerate(t *testing.T) {
 			ErrAssertion: assert.Error,
 		},
 		"no cert": {
-			CertProvider: func(t *testing.T, mctrl *gomock.Controller) renewal.CACertProvider {
+			CertProvider: func(_ *testing.T, mctrl *gomock.Controller) renewal.CACertProvider {
 				p := mock_renewal.NewMockCACertProvider(mctrl)
 				p.EXPECT().CACerts(gomock.Any()).Return(nil, nil)
 				return p
 			},
-			KeyRing: func(t *testing.T, mctrl *gomock.Controller) trust.KeyRing {
+			KeyRing: func(_ *testing.T, mctrl *gomock.Controller) trust.KeyRing {
 				k := mock_trust.NewMockKeyRing(mctrl)
 				k.EXPECT().PrivateKeys(gomock.Any()).Return([]crypto.Signer{key}, nil)
 				return k
@@ -225,7 +229,7 @@ func TestLoadingPolicyGenGenerate(t *testing.T) {
 			CertProvider: func(t *testing.T, mctrl *gomock.Controller) renewal.CACertProvider {
 				return mock_renewal.NewMockCACertProvider(mctrl)
 			},
-			KeyRing: func(t *testing.T, mctrl *gomock.Controller) trust.KeyRing {
+			KeyRing: func(_ *testing.T, mctrl *gomock.Controller) trust.KeyRing {
 				k := mock_trust.NewMockKeyRing(mctrl)
 				k.EXPECT().PrivateKeys(gomock.Any()).Return(nil, serrors.New("internal"))
 				return k
@@ -236,7 +240,7 @@ func TestLoadingPolicyGenGenerate(t *testing.T) {
 			CertProvider: func(t *testing.T, mctrl *gomock.Controller) renewal.CACertProvider {
 				return mock_renewal.NewMockCACertProvider(mctrl)
 			},
-			KeyRing: func(t *testing.T, mctrl *gomock.Controller) trust.KeyRing {
+			KeyRing: func(_ *testing.T, mctrl *gomock.Controller) trust.KeyRing {
 				k := mock_trust.NewMockKeyRing(mctrl)
 				k.EXPECT().PrivateKeys(gomock.Any()).Return(nil, nil)
 				return k
@@ -244,7 +248,7 @@ func TestLoadingPolicyGenGenerate(t *testing.T) {
 			ErrAssertion: assert.Error,
 		},
 		"no matching key": {
-			CertProvider: func(t *testing.T, mctrl *gomock.Controller) renewal.CACertProvider {
+			CertProvider: func(_ *testing.T, mctrl *gomock.Controller) renewal.CACertProvider {
 				p := mock_renewal.NewMockCACertProvider(mctrl)
 				p.EXPECT().CACerts(gomock.Any()).Return(ca, nil)
 				return p
@@ -285,35 +289,84 @@ func TestLoadingPolicyGenGenerate(t *testing.T) {
 }
 
 func TestCACertLoaderCACerts(t *testing.T) {
-	trc := xtest.LoadTRC(t, "testdata/common/trcs/ISD1-B1-S1.trc")
+	defaultGen := func(t *testing.T) (string, func()) {
+		dir, cleanF := xtest.MustTempDir("", "trust_ca_cert_loader_ca_certs")
+
+		cmd := testcrypto.Cmd(command.StringPather(""))
+		cmd.SetArgs([]string{
+			"-t", "testdata/golden.topo",
+			"-o", dir,
+			"--isd-dir",
+			"--as-validity", "1y",
+		})
+		err := cmd.Execute()
+		require.NoError(t, err)
+		return dir, cleanF
+	}
+	noFiles := func(string) []*x509.Certificate { return nil }
 	testCases := map[string]struct {
-		prepare   func(t *testing.T, ctrl *gomock.Controller) (string, trust.DB)
-		expected  []*x509.Certificate
+		prepare   func(t *testing.T, ctrl *gomock.Controller) (string, func(), trust.DB)
+		expected  func(string) []*x509.Certificate
 		assertErr assert.ErrorAssertionFunc
 	}{
 		"non-existing/empty dir": {
-			prepare: func(t *testing.T, ctrl *gomock.Controller) (string, trust.DB) {
+			prepare: func(_ *testing.T, ctrl *gomock.Controller) (string, func(), trust.DB) {
 				db := mock_trust.NewMockDB(ctrl)
-				return "not-existing-dir", db
+				return "not-existing-dir", func() {}, db
 			},
 			assertErr: assert.Error,
+			expected:  noFiles,
 		},
 		"invalid chain": {
-			prepare: func(t *testing.T, ctrl *gomock.Controller) (string, trust.DB) {
+			prepare: func(_ *testing.T, ctrl *gomock.Controller) (string, func(), trust.DB) {
+				dir, cleanF := defaultGen(t)
+				trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
+				err := ioutil.WriteFile(filepath.Join(dir, "dummy.crt"), []byte{}, 0666)
+				require.NoError(t, err)
 				db := mock_trust.NewMockDB(ctrl)
 				db.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{ISD: 1}).Return(trc, nil)
-				return "testdata/common", db
+				return filepath.Join(dir), cleanF, db
+			},
+			assertErr: assert.NoError,
+			expected:  noFiles,
+		},
+		"valid single CA cert": {
+			prepare: func(_ *testing.T, ctrl *gomock.Controller) (string, func(), trust.DB) {
+				dir, cleanF := defaultGen(t)
+				trc := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
+				db := mock_trust.NewMockDB(ctrl)
+				db.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{ISD: 1}).Return(trc, nil)
+				return filepath.Join(dir, "ISD1/ASff00_0_110/crypto/ca"), cleanF, db
+			},
+			expected: func(dir string) []*x509.Certificate {
+				return xtest.LoadChain(t,
+					filepath.Join(dir, "ISD1-ASff00_0_110.ca.crt"))
 			},
 			assertErr: assert.NoError,
 		},
-		"valid single CA cert": {
-			prepare: func(t *testing.T, ctrl *gomock.Controller) (string, trust.DB) {
+		"CA cert in grace period": {
+			prepare: func(_ *testing.T, ctrl *gomock.Controller) (string, func(), trust.DB) {
+				dir, cleanF := defaultGen(t)
+				cmd := testcrypto.Cmd(command.StringPather(""))
+				cmd.SetArgs([]string{
+					"update",
+					"--scenario", "re-gen",
+					"--out", dir,
+				})
+				err := cmd.Execute()
+				require.NoError(t, err)
+
+				trc1 := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S1.trc"))
+				trc2 := xtest.LoadTRC(t, filepath.Join(dir, "trcs/ISD1-B1-S2.trc"))
 				db := mock_trust.NewMockDB(ctrl)
-				db.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{ISD: 1}).Return(trc, nil)
-				return "testdata/common/ISD1/ASff00_0_110/crypto/ca", db
+				db.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{ISD: 1, Serial: 1, Base: 1}).
+					Return(trc1, nil)
+				db.EXPECT().SignedTRC(gomock.Any(), cppki.TRCID{ISD: 1}).Return(trc2, nil)
+				return filepath.Join(dir, "certs"), cleanF, db
 			},
-			expected: xtest.LoadChain(t,
-				"testdata/common/ISD1/ASff00_0_110/crypto/ca/ISD1-ASff00_0_110.ca.crt"),
+			expected: func(dir string) []*x509.Certificate {
+				return xtest.LoadChain(t, filepath.Join(dir, "ISD1-ASff00_0_110.ca.crt"))
+			},
 			assertErr: assert.NoError,
 		},
 	}
@@ -324,7 +377,8 @@ func TestCACertLoaderCACerts(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			dir, db := tc.prepare(t, ctrl)
+			dir, cleanF, db := tc.prepare(t, ctrl)
+			defer cleanF()
 			loader := renewal.CACertLoader{
 				IA:  xtest.MustParseIA("1-ff00:0:110"),
 				Dir: dir,
@@ -332,7 +386,7 @@ func TestCACertLoaderCACerts(t *testing.T) {
 			}
 			chains, err := loader.CACerts(context.Background())
 			tc.assertErr(t, err)
-			assert.Equal(t, tc.expected, chains)
+			assert.Equal(t, tc.expected(dir), chains)
 		})
 	}
 }

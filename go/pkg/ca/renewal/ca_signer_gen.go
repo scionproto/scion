@@ -206,7 +206,7 @@ type CACertLoader struct {
 }
 
 // CACerts returns a list of CA certificates from disk that are verifiable with
-// an active TRC .
+// an active TRC.
 func (l CACertLoader) CACerts(ctx context.Context) ([]*x509.Certificate, error) {
 	if _, err := os.Stat(l.Dir); err != nil {
 		return nil, serrors.WithCtx(err, "dir", l.Dir)
@@ -216,21 +216,20 @@ func (l CACertLoader) CACerts(ctx context.Context) ([]*x509.Certificate, error) 
 		return nil, serrors.WithCtx(err, "dir", l.Dir)
 	}
 
-	trc, err := l.DB.SignedTRC(ctx, cppki.TRCID{ISD: l.IA.I,
-		Base:   scrypto.LatestVer,
-		Serial: scrypto.LatestVer,
-	})
+	trcs, err := activeTRCs(ctx, l.DB, l.IA.I)
 	if err != nil {
-		return nil, serrors.WrapStr("loading TRC", err)
+		return nil, serrors.WrapStr("looking for active TRCs", err, "isd", l.IA.I)
 	}
-	if trc.IsZero() {
-		return nil, serrors.New("TRC not found")
+	rootPool := x509.NewCertPool()
+	for _, trc := range trcs {
+		certs, err := trc.TRC.RootCerts()
+		if err != nil {
+			return nil, serrors.WrapStr("extracting root certs", err, "trc", trc.TRC.ID)
+		}
+		for _, cert := range certs {
+			rootPool.AddCert(cert)
+		}
 	}
-	rootPool, err := trc.TRC.RootPool()
-	if err != nil {
-		return nil, serrors.WrapStr("failed to extract root certs", err, "trc", trc.TRC.ID)
-	}
-
 	logger := log.FromCtx(ctx)
 	opts := x509.VerifyOptions{
 		Roots:     rootPool,
@@ -289,4 +288,37 @@ func (l CACertLoader) validateCACert(f string, opts x509.VerifyOptions) (*x509.C
 		return nil, err
 	}
 	return chain[0], nil
+}
+
+func activeTRCs(ctx context.Context, db trust.DB, isd addr.ISD) ([]cppki.SignedTRC, error) {
+	errNotFound := serrors.New("not found")
+	trc, err := db.SignedTRC(ctx, cppki.TRCID{
+		ISD:    isd,
+		Base:   scrypto.LatestVer,
+		Serial: scrypto.LatestVer,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if trc.IsZero() {
+		return nil, errNotFound
+	}
+	if !trc.TRC.Validity.Contains(time.Now()) {
+		return nil, serrors.New("no active TRC found in database")
+	}
+	if !trc.TRC.InGracePeriod(time.Now()) {
+		return []cppki.SignedTRC{trc}, nil
+	}
+	grace, err := db.SignedTRC(ctx, cppki.TRCID{
+		ISD:    isd,
+		Base:   trc.TRC.ID.Base,
+		Serial: trc.TRC.ID.Serial - 1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if grace.IsZero() {
+		return nil, errNotFound
+	}
+	return []cppki.SignedTRC{trc, grace}, nil
 }

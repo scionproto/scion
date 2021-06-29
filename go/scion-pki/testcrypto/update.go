@@ -72,12 +72,12 @@ Scenarios:
     the same. Only the TRC lifetime is extended a bit.
 
   - re-gen:
-	sensitive update, certificateion path broken
+	sensitive update, certification path broken
 
 	In this scenario, all the voting and root certificates are changed for
 	new ones.
 `,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if _, err := os.Stat(flags.out); err != nil {
 				return err
 			}

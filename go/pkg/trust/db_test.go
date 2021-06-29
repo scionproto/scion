@@ -29,7 +29,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/pkg/trust"
@@ -97,22 +96,6 @@ func (m chainQueryMatcher) Matches(x interface{}) bool {
 
 func (m chainQueryMatcher) String() string {
 	return fmt.Sprintf("%+v, %+v", m.ia, m.skid)
-}
-
-type TRCIDMatcher struct {
-	ISD addr.ISD
-}
-
-func (m TRCIDMatcher) Matches(x interface{}) bool {
-	v, ok := x.(cppki.TRCID)
-	if !ok {
-		return false
-	}
-	return v.ISD == m.ISD
-}
-
-func (m TRCIDMatcher) String() string {
-	return fmt.Sprintf("TRCID has the wrong ISD %+v", m.ISD)
 }
 
 type ctxMatcher struct{}

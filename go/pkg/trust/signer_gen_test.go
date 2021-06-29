@@ -87,9 +87,8 @@ func TestSignerGenGenerate(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-				db.EXPECT().SignedTRC(ctxMatcher{}, TRCIDMatcher{ISD: 1}).Return(
-					trc, nil,
-				)
+				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).
+					Return(trc, nil)
 				db.EXPECT().Chains(ctxMatcher{}, matcher).Return(
 					[][]*x509.Certificate{chain}, nil,
 				)
@@ -131,9 +130,8 @@ func TestSignerGenGenerate(t *testing.T) {
 					skid: cert.SubjectKeyId,
 				}
 
-				db.EXPECT().SignedTRC(ctxMatcher{}, TRCIDMatcher{ISD: 1}).Return(
-					trc, nil,
-				)
+				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).
+					Return(trc, nil)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(
 					[][]*x509.Certificate{chain, longer, shorter}, nil,
 				)
@@ -187,12 +185,10 @@ func TestSignerGenGenerate(t *testing.T) {
 				for _, root := range roots {
 					root.PublicKey = key.Public()
 				}
-				db.EXPECT().SignedTRC(ctxMatcher{}, TRCIDMatcher{ISD: 1}).Return(
-					trc2, nil,
-				)
-				db.EXPECT().SignedTRC(ctxMatcher{}, TRCIDMatcher{ISD: 1}).Return(
-					trc, nil,
-				)
+				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).
+					Return(trc2, nil)
+				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1, Base: 1, Serial: 1}).
+					Return(trc, nil)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(
 					[][]*x509.Certificate{chain, longer, shorter}, nil,
 				)
@@ -245,9 +241,8 @@ func TestSignerGenGenerate(t *testing.T) {
 			},
 			db: func(mctrl *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(mctrl)
-				db.EXPECT().SignedTRC(ctxMatcher{}, TRCIDMatcher{ISD: 1}).Return(
-					trc, nil,
-				)
+				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).
+					Return(trc, nil)
 				return db
 			},
 			assertFunc: assert.Error,
@@ -267,8 +262,7 @@ func TestSignerGenGenerate(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-				db.EXPECT().SignedTRC(ctxMatcher{},
-					TRCIDMatcher{ISD: 1}).Return(trc, nil)
+				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(trc, nil)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(nil, nil)
 				return db
 			},
@@ -284,8 +278,7 @@ func TestSignerGenGenerate(t *testing.T) {
 			},
 			db: func(mctrl *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(mctrl)
-				db.EXPECT().SignedTRC(ctxMatcher{},
-					TRCIDMatcher{ISD: 1}).Return(
+				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(
 					cppki.SignedTRC{}, serrors.New("fail"))
 				return db
 			},
@@ -301,8 +294,8 @@ func TestSignerGenGenerate(t *testing.T) {
 			},
 			db: func(mctrl *gomock.Controller) trust.DB {
 				db := mock_trust.NewMockDB(mctrl)
-				db.EXPECT().SignedTRC(ctxMatcher{}, TRCIDMatcher{ISD: 1}).Return(
-					cppki.SignedTRC{}, nil)
+				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).
+					Return(cppki.SignedTRC{}, nil)
 				return db
 			},
 			assertFunc: assert.Error,
@@ -322,8 +315,7 @@ func TestSignerGenGenerate(t *testing.T) {
 					ia:   xtest.MustParseIA("1-ff00:0:110"),
 					skid: cert.SubjectKeyId,
 				}
-				db.EXPECT().SignedTRC(ctxMatcher{},
-					TRCIDMatcher{ISD: 1}).Return(trc, nil)
+				db.EXPECT().SignedTRC(ctxMatcher{}, cppki.TRCID{ISD: 1}).Return(trc, nil)
 				db.EXPECT().Chains(gomock.Any(), matcher).Return(
 					nil, serrors.New("fail"),
 				)
