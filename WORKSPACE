@@ -85,10 +85,6 @@ http_archive(
     url = "https://github.com/bazelbuild/rules_python/archive/0.2.0.tar.gz",
 )
 
-load("@rules_python//python:repositories.bzl", "py_repositories")
-
-py_repositories()
-
 load("@rules_python//python:pip.bzl", "pip_install")
 
 pip_install(
