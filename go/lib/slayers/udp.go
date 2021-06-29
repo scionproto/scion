@@ -53,6 +53,8 @@ func (u *UDP) TransportFlow() gopacket.Flow {
 	return gopacket.NewFlow(EndpointUDPPort, u.sPort, u.dPort)
 }
 
+// DecodeFromBytes implements the gopacket.DecodingLayer.DecodeFromBytes method.
+// This implementation is copied from gopacket/layers/udp.go.
 func (u *UDP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	if len(data) < 8 {
 		df.SetTruncated()
