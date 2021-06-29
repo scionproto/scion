@@ -18,7 +18,6 @@
 package path_mgmt
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -47,22 +46,15 @@ func (ee RevTimeError) Error() string {
 	return string(ee)
 }
 
-var _ proto.Cerealizable = (*RevInfo)(nil)
-
 type RevInfo struct {
 	IfID     common.IFIDType
-	RawIsdas addr.IAInt `capnp:"isdas"`
+	RawIsdas addr.IAInt
 	// LinkType of revocation
 	LinkType proto.LinkType
 	// RawTimestamp the issuing timestamp in seconds.
-	RawTimestamp uint32 `capnp:"timestamp"`
+	RawTimestamp uint32
 	// RawTTL validity period of the revocation in seconds
-	RawTTL uint32 `capnp:"ttl"`
-}
-
-func NewRevInfoFromRaw(b []byte) (*RevInfo, error) {
-	r := &RevInfo{}
-	return r, proto.ParseFromRaw(r, b)
+	RawTTL uint32
 }
 
 func (r *RevInfo) IA() addr.IA {
@@ -99,14 +91,6 @@ func (r *RevInfo) Active() error {
 	return nil
 }
 
-func (r *RevInfo) ProtoId() proto.ProtoIdType {
-	return proto.RevInfo_TypeID
-}
-
-func (r *RevInfo) Pack() ([]byte, error) {
-	return proto.PackRoot(r)
-}
-
 func (r *RevInfo) String() string {
 	return fmt.Sprintf("IA: %s IfID: %d Link type: %s Timestamp: %s TTL: %s", r.IA(), r.IfID,
 		r.LinkType, util.TimeToCompact(r.Timestamp()), r.TTL())
@@ -136,60 +120,4 @@ func (r *RevInfo) SameIntf(other *RevInfo) bool {
 	return r.IfID == other.IfID &&
 		r.RawIsdas == other.RawIsdas &&
 		r.LinkType == other.LinkType
-}
-
-// Verifier is used to verify signatures.
-type Verifier interface {
-	// Verify verifies the packed signed revocation based on the signature meta
-	// data.
-	Verify(ctx context.Context, msg []byte, sign *proto.SignS) error
-}
-
-var _ proto.Cerealizable = (*SignedRevInfo)(nil)
-
-type SignedRevInfo struct {
-	Blob    []byte
-	Sign    *proto.SignS
-	revInfo *RevInfo `capnp:"-"`
-}
-
-func NewSignedRevInfoFromRaw(b []byte) (*SignedRevInfo, error) {
-	sr := &SignedRevInfo{}
-	return sr, proto.ParseFromRaw(sr, b)
-}
-
-func NewSignedRevInfo(r *RevInfo) (*SignedRevInfo, error) {
-	rawR, err := r.Pack()
-	if err != nil {
-		return nil, err
-	}
-	return &SignedRevInfo{
-		Blob:    rawR,
-		Sign:    &proto.SignS{},
-		revInfo: r,
-	}, nil
-}
-
-func (sr *SignedRevInfo) ProtoId() proto.ProtoIdType {
-	return proto.SignedBlob_TypeID
-}
-
-func (sr *SignedRevInfo) RevInfo() (*RevInfo, error) {
-	var err error
-	if sr.revInfo == nil {
-		sr.revInfo, err = NewRevInfoFromRaw(sr.Blob)
-	}
-	return sr.revInfo, err
-}
-
-func (sr *SignedRevInfo) Pack() ([]byte, error) {
-	return proto.PackRoot(sr)
-}
-
-func (sr *SignedRevInfo) String() string {
-	revInfo, err := sr.RevInfo()
-	if err != nil {
-		return fmt.Sprintf("SignedRevInfo: Error parsing RevInfo, Blob: %s Sign: %s", err, sr.Sign)
-	}
-	return fmt.Sprintf("SignedRevInfo: RevInfo: %s Sign: %s", revInfo, sr.Sign)
 }

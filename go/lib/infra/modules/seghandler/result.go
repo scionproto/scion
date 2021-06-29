@@ -17,7 +17,6 @@ package seghandler
 import (
 	"errors"
 
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -30,11 +29,6 @@ type Stats struct {
 	segVerifyErrors int
 	// VerifiedSegs contains all segments that were successfully verified.
 	VerifiedSegs []*seg.Meta
-	// StoredRevs contains all revocations that were verified and stored.
-	StoredRevs []*path_mgmt.SignedRevInfo
-	// VerifiedRevs contains all revocations that were verified.
-	VerifiedRevs []*path_mgmt.SignedRevInfo
-	revErrors    int
 }
 
 // SegsInserted returns the amount of inserted segments.
@@ -52,21 +46,6 @@ func (s Stats) SegVerifyErrors() int {
 	return s.segVerifyErrors
 }
 
-// RevStored returns the amount of stored revocations.
-func (s Stats) RevStored() int {
-	return len(s.StoredRevs)
-}
-
-// RevDBErrs returns the amount of db errors for storing revocations.
-func (s Stats) RevDBErrs() int {
-	return len(s.VerifiedRevs) - len(s.StoredRevs)
-}
-
-// RevVerifyErrors returns the amount of verification errors for revocations.
-func (s Stats) RevVerifyErrors() int {
-	return s.revErrors
-}
-
 func (s *Stats) addStoredSegs(segs SegStats) {
 	s.segDB.InsertedSegs = append(s.segDB.InsertedSegs, segs.InsertedSegs...)
 	s.segDB.UpdatedSegs = append(s.segDB.UpdatedSegs, segs.UpdatedSegs...)
@@ -74,9 +53,6 @@ func (s *Stats) addStoredSegs(segs SegStats) {
 
 func (s *Stats) verificationErrs(verErrors []error) {
 	for _, err := range verErrors {
-		if errors.Is(err, segverifier.ErrRevocation) {
-			s.revErrors++
-		}
 		if errors.Is(err, segverifier.ErrSegment) {
 			s.segVerifyErrors++
 		}

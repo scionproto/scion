@@ -22,14 +22,12 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler"
 	"github.com/scionproto/scion/go/lib/infra/modules/seghandler/mock_seghandler"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/mocks/net/mock_net"
 	"github.com/scionproto/scion/go/lib/serrors"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 var TestTimeout = time.Second
@@ -61,8 +59,6 @@ func TestReplyHandlerEmptyReply(t *testing.T) {
 	assert.Zero(t, len(stats.VerifiedSegs))
 	assert.Zero(t, stats.SegsUpdated())
 	assert.Zero(t, stats.SegsInserted())
-	assert.Empty(t, stats.VerifiedRevs)
-	assert.Empty(t, stats.StoredRevs)
 }
 
 // TestHandleAllVerificationsFail tests erros that happen during verification
@@ -80,10 +76,7 @@ func TestHandleAllVerificationsFail(t *testing.T) {
 		serrors.WrapStr("test err 1", segverifier.ErrSegment),
 		serrors.WrapStr("test err 2", segverifier.ErrSegment),
 		serrors.WrapStr("test err 3", segverifier.ErrSegment),
-		serrors.WrapStr("test err rev 1", segverifier.ErrRevocation),
 	}
-	rev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{})
-	xtest.FailOnErr(t, err)
 
 	storage := mock_seghandler.NewMockStorage(ctrl)
 	verifier := mock_seghandler.NewMockVerifier(ctrl)
@@ -106,10 +99,9 @@ func TestHandleAllVerificationsFail(t *testing.T) {
 	}
 	verified <- segverifier.UnitResult{
 		Unit: &segverifier.Unit{
-			SegMeta:   &seg.Meta{},
-			SRevInfos: []*path_mgmt.SignedRevInfo{rev1},
+			SegMeta: &seg.Meta{},
 		},
-		Errors: map[int]error{-1: verifyErrs[2], 0: verifyErrs[3]},
+		Errors: map[int]error{-1: verifyErrs[2]},
 	}
 	r := handler.Handle(ctx, segs, nil)
 	assert.Error(t, r.Err())
@@ -118,8 +110,6 @@ func TestHandleAllVerificationsFail(t *testing.T) {
 	assert.Zero(t, len(stats.VerifiedSegs))
 	assert.Zero(t, stats.SegsUpdated())
 	assert.Zero(t, stats.SegsInserted())
-	assert.Empty(t, stats.VerifiedRevs)
-	assert.Empty(t, stats.StoredRevs)
 }
 
 // TestReplyHandlerNoErrors tests the happy case of the reply handler: 3
@@ -133,8 +123,6 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 	seg1 := &seg.Meta{Type: seg.TypeDown}
 	seg2 := &seg.Meta{Type: seg.TypeUp}
 	seg3 := &seg.Meta{Type: seg.TypeCore}
-	rev1, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{})
-	xtest.FailOnErr(t, err)
 	segs := seghandler.Segments{}
 	verified := make(chan segverifier.UnitResult, 3)
 
@@ -148,8 +136,6 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 	storage.EXPECT().StoreSegs(gomock.Any(),
 		gomock.Eq([]*seg.Meta{seg1, seg2, seg3})).
 		Return(seghandler.SegStats{InsertedSegs: []string{"seg1", "seg2", "seg3"}}, nil)
-	storage.EXPECT().StoreRevs(gomock.Any(),
-		gomock.Eq([]*path_mgmt.SignedRevInfo{rev1}))
 
 	verified <- segverifier.UnitResult{
 		Unit: &segverifier.Unit{
@@ -163,8 +149,7 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 	}
 	verified <- segverifier.UnitResult{
 		Unit: &segverifier.Unit{
-			SegMeta:   seg3,
-			SRevInfos: []*path_mgmt.SignedRevInfo{rev1},
+			SegMeta: seg3,
 		},
 	}
 	r := handler.Handle(ctx, segs, nil)
@@ -174,9 +159,6 @@ func TestReplyHandlerNoErrors(t *testing.T) {
 	assert.Equal(t, 3, len(stats.VerifiedSegs))
 	assert.Equal(t, 3, stats.SegsInserted())
 	assert.Zero(t, stats.SegsUpdated())
-	expectedRevs := []*path_mgmt.SignedRevInfo{rev1}
-	assert.ElementsMatch(t, expectedRevs, stats.VerifiedRevs)
-	assert.ElementsMatch(t, expectedRevs, stats.StoredRevs)
 }
 
 func TestReplyHandlerStorageError(t *testing.T) {
@@ -219,6 +201,4 @@ func TestReplyHandlerStorageError(t *testing.T) {
 	assert.Equal(t, 2, len(stats.VerifiedSegs))
 	assert.Zero(t, stats.SegsUpdated())
 	assert.Zero(t, stats.SegsInserted())
-	assert.Empty(t, stats.VerifiedRevs)
-	assert.Empty(t, stats.StoredRevs)
 }

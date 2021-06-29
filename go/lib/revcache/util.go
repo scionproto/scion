@@ -36,7 +36,7 @@ func NewCleaner(rc RevCache, s string) *cleaner.Cleaner {
 // which are not in the cache are returned. This is a convenience wrapper
 // around the Revocations type and its filter new method.
 func FilterNew(ctx context.Context, revCache RevCache,
-	revocations []*path_mgmt.SignedRevInfo) ([]*path_mgmt.SignedRevInfo, error) {
+	revocations []*path_mgmt.RevInfo) ([]*path_mgmt.RevInfo, error) {
 
 	rMap, err := RevocationToMap(revocations)
 	if err != nil {
@@ -66,7 +66,7 @@ func NoRevokedHopIntf(ctx context.Context, revCache RevCache,
 
 // RelevantRevInfos finds all revocations for the given segments.
 func RelevantRevInfos(ctx context.Context, revCache RevCache,
-	allSegs ...[]*seg.PathSegment) ([]*path_mgmt.SignedRevInfo, error) {
+	allSegs ...[]*seg.PathSegment) ([]*path_mgmt.RevInfo, error) {
 
 	revKeys := make(KeySet)
 	for _, segs := range allSegs {
@@ -76,7 +76,7 @@ func RelevantRevInfos(ctx context.Context, revCache RevCache,
 	if err != nil {
 		return nil, err
 	}
-	allRevs := make([]*path_mgmt.SignedRevInfo, 0, len(revs))
+	allRevs := make([]*path_mgmt.RevInfo, 0, len(revs))
 	for _, rev := range revs {
 		allRevs = append(allRevs, rev)
 	}

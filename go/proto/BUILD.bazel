@@ -1,40 +1,8 @@
-load("//lint:go.bzl", "go_library", "go_test")
+load("//lint:go.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = [
-        "cereal.go",
-        "colibri.capnp.go",
-        "common.capnp.go",
-        "ctrl_pld.capnp.go",
-        "doc.go",
-        "drkey_mgmt.capnp.go",
-        "path_seg.capnp.go",
-        "rev_info.capnp.go",
-        "sign.capnp.go",
-        "sign.go",
-        "structs.gen.go",
-    ],
+    srcs = ["defs.go"],
     importpath = "github.com/scionproto/scion/go/proto",
     visibility = ["//visibility:public"],
-    deps = [
-        "//go/lib/common:go_default_library",
-        "//go/lib/serrors:go_default_library",
-        "//go/lib/util:go_default_library",
-        "@com_zombiezen_go_capnproto2//:go_default_library",
-        "@com_zombiezen_go_capnproto2//encoding/text:go_default_library",
-        "@com_zombiezen_go_capnproto2//pogs:go_default_library",
-        "@com_zombiezen_go_capnproto2//schemas:go_default_library",
-    ],
-)
-
-go_test(
-    name = "go_default_test",
-    srcs = ["cereal_test.go"],
-    embed = [":go_default_library"],
-    deps = [
-        "@com_github_stretchr_testify//require:go_default_library",
-        "@com_zombiezen_go_capnproto2//:go_default_library",
-        "@com_zombiezen_go_capnproto2//pogs:go_default_library",
-    ],
 )

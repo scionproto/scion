@@ -149,7 +149,7 @@ type VerifierAdapter struct {
 // Verify verifies the segments. It returns an error if a verification of any of
 // the segments fails.
 func (v VerifierAdapter) Verify(ctx context.Context, segments []*seg.Meta, server net.Addr) error {
-	resCh, units := segverifier.StartVerification(ctx, v.Verifier, server, segments, nil)
+	resCh, units := segverifier.StartVerification(ctx, v.Verifier, server, segments)
 
 	var errors serrors.List
 	for u := 0; u < units; u++ {

@@ -95,7 +95,7 @@ func (mr *MockRevCacheMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 }
 
 // Insert mocks base method
-func (m *MockRevCache) Insert(arg0 context.Context, arg1 *path_mgmt.SignedRevInfo) (bool, error) {
+func (m *MockRevCache) Insert(arg0 context.Context, arg1 *path_mgmt.RevInfo) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Insert", arg0, arg1)
 	ret0, _ := ret[0].(bool)

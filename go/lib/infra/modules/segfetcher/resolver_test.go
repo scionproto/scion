@@ -22,7 +22,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -391,10 +390,9 @@ func TestResolverWithRevocations(t *testing.T) {
 
 	revoke := func(t *testing.T, revCache *mock_revcache.MockRevCache, key revcache.Key) {
 		ksMatcher := keySetContains{keys: []revcache.Key{key}}
-		srev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{})
-		require.NoError(t, err)
+		rev := &path_mgmt.RevInfo{}
 		revCache.EXPECT().Get(gomock.Any(), ksMatcher).
-			Return(revcache.Revocations{key: srev}, nil)
+			Return(revcache.Revocations{key: rev}, nil)
 	}
 	tests := map[string]resolverTest{
 		"Up wildcard (cached)": {
@@ -444,10 +442,9 @@ func TestResolverWithRevocations(t *testing.T) {
 			ExpectRevcache: func(t *testing.T, revCache *mock_revcache.MockRevCache) {
 				key110 := revcache.Key{IA: core_110, IfId: graph.If_110_X_130_A}
 				ksMatcher := keySetContains{keys: []revcache.Key{key110}}
-				srev, err := path_mgmt.NewSignedRevInfo(&path_mgmt.RevInfo{})
-				require.NoError(t, err)
+				rev := &path_mgmt.RevInfo{}
 				revCache.EXPECT().Get(gomock.Any(), ksMatcher).Return(revcache.Revocations{
-					key110: srev,
+					key110: rev,
 				}, nil)
 				revCache.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes()
 			},

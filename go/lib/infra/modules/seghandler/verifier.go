@@ -37,5 +37,5 @@ type DefaultVerifier struct {
 func (v *DefaultVerifier) Verify(ctx context.Context, recs Segments,
 	server net.Addr) (chan segverifier.UnitResult, int) {
 
-	return segverifier.StartVerification(ctx, v.Verifier, server, recs.Segs, recs.SRevInfos)
+	return segverifier.StartVerification(ctx, v.Verifier, server, recs.Segs)
 }

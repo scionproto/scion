@@ -79,23 +79,6 @@ func (s LookupServer) Segments(ctx context.Context,
 		span.SetTag("seg_type", labels.Desc.SegType)
 	}
 
-	// TODO(roosd): Remove this part when revocations are dropped.
-	// https://github.com/Anapaya/scion/issues/3264
-	revs, err := revcache.RelevantRevInfos(ctx, s.RevCache, segs.Segs())
-	if err != nil {
-		// the client might still be able to use the segments so continue here.
-		logger.Debug("Failed to find revocations", "err", err)
-	}
-	rawRevs := make([][]byte, 0, len(revs))
-	for _, rev := range revs {
-		rawRev, err := rev.Pack()
-		if err != nil {
-			logger.Debug("Failed to pack revocation", "err", err)
-			continue
-		}
-		rawRevs = append(rawRevs, rawRev)
-	}
-
 	m := map[int32]*cppb.SegmentsResponse_Segments{}
 	for _, meta := range segs {
 		s, ok := m[int32(meta.Type)]
@@ -110,8 +93,7 @@ func (s LookupServer) Segments(ctx context.Context,
 	s.updateMetric(span, labels.WithResult(prom.Success), nil)
 	s.incSent(s.SegmentsSent, labels.Desc, len(segs))
 	return &cppb.SegmentsResponse{
-		Segments:                    m,
-		DeprecatedSignedRevocations: rawRevs,
+		Segments: m,
 	}, nil
 }
 

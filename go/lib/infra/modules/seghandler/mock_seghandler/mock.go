@@ -39,7 +39,7 @@ func (m *MockStorage) EXPECT() *MockStorageMockRecorder {
 }
 
 // StoreRevs mocks base method
-func (m *MockStorage) StoreRevs(arg0 context.Context, arg1 []*path_mgmt.SignedRevInfo) error {
+func (m *MockStorage) StoreRevs(arg0 context.Context, arg1 []*path_mgmt.RevInfo) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreRevs", arg0, arg1)
 	ret0, _ := ret[0].(error)

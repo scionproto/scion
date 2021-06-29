@@ -885,12 +885,6 @@ def go_deps():
         version = "v0.2.0",
     )
     go_repository(
-        name = "com_github_kylelemons_godebug",
-        importpath = "github.com/kylelemons/godebug",
-        sum = "h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=",
-        version = "v1.1.0",
-    )
-    go_repository(
         name = "com_github_labstack_echo_v4",
         importpath = "github.com/labstack/echo/v4",
         sum = "h1:LF5Iq7t/jrtUuSutNuiEWtB5eiHfZ5gSe2pcu5exjQw=",
@@ -1282,12 +1276,6 @@ def go_deps():
         version = "v3.0.0+incompatible",
     )
     go_repository(
-        name = "com_github_philhofer_fwd",
-        importpath = "github.com/philhofer/fwd",
-        sum = "h1:UbZqGr5Y38ApvM/V/jEljVxwocdweyH+vmYvRPBnbqQ=",
-        version = "v1.0.0",
-    )
-    go_repository(
         name = "com_github_pierrec_lz4",
         importpath = "github.com/pierrec/lz4",
         sum = "h1:2xWsjqPFWcplujydGg4WmhC/6fZqK42wMM8aXeqhl0I=",
@@ -1673,12 +1661,6 @@ def go_deps():
         version = "v0.0.0-20180830185346-98f6abe2eb07",
     )
     go_repository(
-        name = "com_github_tinylib_msgp",
-        importpath = "github.com/tinylib/msgp",
-        sum = "h1:9fQd+ICuRIu/ue4vxJZu6/LzxN0HwMds2nq/0cFvxHU=",
-        version = "v1.1.0",
-    )
-    go_repository(
         name = "com_github_tmc_grpc_websocket_proxy",
         importpath = "github.com/tmc/grpc-websocket-proxy",
         sum = "h1:LnC5Kc/wtumK+WB441p7ynQJzVuNRJiqddSIE3IlSEQ=",
@@ -1857,12 +1839,6 @@ def go_deps():
         importpath = "sourcegraph.com/sqs/pbtypes",
         sum = "h1:JPJh2pk3+X4lXAkZIk2RuE/7/FoK9maXw+TNPJhVS/c=",
         version = "v0.0.0-20180604144634-d3ebe8f20ae4",
-    )
-    go_repository(
-        name = "com_zombiezen_go_capnproto2",
-        importpath = "zombiezen.com/go/capnproto2",
-        sum = "h1:oaUsHxHA/DGY+XtWA4i5FLMxwWheqW21Az6xSLS1OzY=",
-        version = "v0.0.0-20190813022230-ddfb9bb855fa",
     )
     go_repository(
         name = "in_gopkg_alecthomas_kingpin_v2",

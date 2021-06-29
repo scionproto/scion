@@ -114,7 +114,7 @@ func (mr *MockConnectorMockRecorder) Paths(arg0, arg1, arg2, arg3 interface{}) *
 }
 
 // RevNotification mocks base method
-func (m *MockConnector) RevNotification(arg0 context.Context, arg1 *path_mgmt.SignedRevInfo) error {
+func (m *MockConnector) RevNotification(arg0 context.Context, arg1 *path_mgmt.RevInfo) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RevNotification", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -125,20 +125,6 @@ func (m *MockConnector) RevNotification(arg0 context.Context, arg1 *path_mgmt.Si
 func (mr *MockConnectorMockRecorder) RevNotification(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevNotification", reflect.TypeOf((*MockConnector)(nil).RevNotification), arg0, arg1)
-}
-
-// RevNotificationFromRaw mocks base method
-func (m *MockConnector) RevNotificationFromRaw(arg0 context.Context, arg1 []byte) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RevNotificationFromRaw", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RevNotificationFromRaw indicates an expected call of RevNotificationFromRaw
-func (mr *MockConnectorMockRecorder) RevNotificationFromRaw(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevNotificationFromRaw", reflect.TypeOf((*MockConnector)(nil).RevNotificationFromRaw), arg0, arg1)
 }
 
 // SVCInfo mocks base method

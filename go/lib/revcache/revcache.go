@@ -53,7 +53,7 @@ func SingleKey(ia addr.IA, ifId common.IFIDType) KeySet {
 
 // RevOrErr is either a revocation or an error.
 type RevOrErr struct {
-	Rev *path_mgmt.SignedRevInfo
+	Rev *path_mgmt.RevInfo
 	Err error
 }
 
@@ -74,7 +74,7 @@ type RevCache interface {
 	GetAll(ctx context.Context) (ResultChan, error)
 	// Insert inserts or updates the given revocation into the cache.
 	// Returns whether an insert was performed.
-	Insert(ctx context.Context, rev *path_mgmt.SignedRevInfo) (bool, error)
+	Insert(ctx context.Context, rev *path_mgmt.RevInfo) (bool, error)
 	// DeleteExpired deletes expired entries from the cache.
 	// Users of the revcache should make sure to periodically call this method to prevent an
 	// ever growing cache.
@@ -85,18 +85,14 @@ type RevCache interface {
 }
 
 // Revocations is the map of revocations.
-type Revocations map[Key]*path_mgmt.SignedRevInfo
+type Revocations map[Key]*path_mgmt.RevInfo
 
 // RevocationToMap converts a slice of revocations to a revocation map. If extracting the info field
 // fails from a revocation, nil and the error is returned.
-func RevocationToMap(revs []*path_mgmt.SignedRevInfo) (Revocations, error) {
+func RevocationToMap(revs []*path_mgmt.RevInfo) (Revocations, error) {
 	res := make(Revocations)
 	for _, rev := range revs {
-		info, err := rev.RevInfo()
-		if err != nil {
-			return nil, err
-		}
-		res[Key{IA: info.IA(), IfId: info.IfID}] = rev
+		res[Key{IA: rev.IA(), IfId: rev.IfID}] = rev
 	}
 	return res, nil
 }
@@ -111,8 +107,8 @@ func (r Revocations) Keys() KeySet {
 }
 
 // ToSlice extracts the values from this revocation map.
-func (r Revocations) ToSlice() []*path_mgmt.SignedRevInfo {
-	res := make([]*path_mgmt.SignedRevInfo, 0, len(r))
+func (r Revocations) ToSlice() []*path_mgmt.RevInfo {
+	res := make([]*path_mgmt.RevInfo, 0, len(r))
 	for _, rev := range r {
 		res = append(res, rev)
 	}
@@ -126,17 +122,9 @@ func (r Revocations) FilterNew(ctx context.Context, revCache RevCache) error {
 		return err
 	}
 	for key, rev := range r {
-		info, err := rev.RevInfo()
-		if err != nil {
-			panic(fmt.Sprintf("Revocation should have been sanitized, err: %s", err))
-		}
 		existingRev, exists := inCache[key]
 		if exists {
-			existingInfo, err := existingRev.RevInfo()
-			if err != nil {
-				panic("Revocation should be sanitized in cache")
-			}
-			if !newerInfo(existingInfo, info) {
+			if !newerInfo(existingRev, rev) {
 				delete(r, key)
 			}
 		}

@@ -78,11 +78,8 @@ type Connector interface {
 	// service types is returned. The reply is a map from service type to URI of
 	// the service.
 	SVCInfo(ctx context.Context, svcTypes []addr.HostSVC) (map[addr.HostSVC]string, error)
-	// RevNotification sends a raw revocation to the daemon, as contained in an
-	// SCMP message.
-	RevNotificationFromRaw(ctx context.Context, b []byte) error
 	// RevNotification sends a RevocationInfo message to the daemon.
-	RevNotification(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) error
+	RevNotification(ctx context.Context, revInfo *path_mgmt.RevInfo) error
 	// Close shuts down the connection to the daemon.
 	Close(ctx context.Context) error
 }

@@ -91,8 +91,7 @@ func (s *RegistrationServer) SegmentsRegistration(ctx context.Context,
 
 	res := s.SegHandler.Handle(ctx,
 		seghandler.Segments{
-			Segs:      segs,
-			SRevInfos: nil,
+			Segs: segs,
 		},
 		&snet.SVCAddr{
 			IA:      peer.IA,

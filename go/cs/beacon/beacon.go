@@ -19,7 +19,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 )
 
@@ -63,10 +62,4 @@ func (b Beacon) String() string {
 
 func link(entry seg.ASEntry) (addr.IA, common.IFIDType) {
 	return entry.Local, common.IFIDType(entry.HopEntry.HopField.ConsIngress)
-}
-
-// RevocationOrErr contains a signed revocation or an error.
-type RevocationOrErr struct {
-	Rev *path_mgmt.SignedRevInfo
-	Err error
 }

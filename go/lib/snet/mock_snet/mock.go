@@ -8,6 +8,7 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
+	path_mgmt "github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	snet "github.com/scionproto/scion/go/lib/snet"
 	spath "github.com/scionproto/scion/go/lib/spath"
 	net "net"
@@ -421,14 +422,14 @@ func (m *MockRevocationHandler) EXPECT() *MockRevocationHandlerMockRecorder {
 	return m.recorder
 }
 
-// RevokeRaw mocks base method
-func (m *MockRevocationHandler) RevokeRaw(arg0 context.Context, arg1 []byte) {
+// Revoke mocks base method
+func (m *MockRevocationHandler) Revoke(arg0 context.Context, arg1 *path_mgmt.RevInfo) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RevokeRaw", arg0, arg1)
+	m.ctrl.Call(m, "Revoke", arg0, arg1)
 }
 
-// RevokeRaw indicates an expected call of RevokeRaw
-func (mr *MockRevocationHandlerMockRecorder) RevokeRaw(arg0, arg1 interface{}) *gomock.Call {
+// Revoke indicates an expected call of Revoke
+func (mr *MockRevocationHandlerMockRecorder) Revoke(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeRaw", reflect.TypeOf((*MockRevocationHandler)(nil).RevokeRaw), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockRevocationHandler)(nil).Revoke), arg0, arg1)
 }
