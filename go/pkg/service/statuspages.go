@@ -41,7 +41,7 @@ const mainTmpl = `
 	<body style="font-family:sans-serif">
 		<h1>{{ .ElemId }}</h1>
 		{{ range .Pages }}
-		<p><a href="{{ . }}">[{{ . }}]</a></p>
+		<a href="{{ . }}">[{{ . }}]</a><br>
 		{{ end }}
 	</body>
 </html>

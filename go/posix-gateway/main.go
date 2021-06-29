@@ -83,6 +83,7 @@ func realMain() error {
 	}
 	routingTable := &dataplane.AtomicRoutingTable{}
 	gw := &gateway.Gateway{
+		ID:                       globalCfg.Gateway.ID,
 		TrafficPolicyFile:        globalCfg.Gateway.TrafficPolicy,
 		RoutingPolicyFile:        globalCfg.Gateway.IPRoutingPolicy,
 		ControlServerAddr:        controlAddress,
