@@ -187,7 +187,7 @@ serve the bootstrapping configuration files:
   to retrieve the TRCs needed by the SD.
 
 The API and parameter values are the same as described
-in [spec/control/spec.yml](https://github.com/scionproto/scion/tree/master/spec/control/spec.yml).
+in `spec/control/spec.yml <https://github.com/scionproto/scion/tree/master/spec/control/spec.yml>`_.
 
 NB: The endpoints are kept separate since in the future the latter should no
 longer be used for bootstrapping.  As previously pointed out, the TRCs will be
