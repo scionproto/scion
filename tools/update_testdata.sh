@@ -12,7 +12,6 @@ folders=$(grep \
 for f in $folders; do
   pushd  $f >/dev/null
   echo "$f"
-  go test . -count=1
   go test . -update
   go test . -count=1
   popd  >/dev/null
