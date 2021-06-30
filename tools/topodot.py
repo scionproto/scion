@@ -24,7 +24,7 @@ from plumbum import cli, local
 from typing import Dict, List, NamedTuple
 
 from python.lib.types import LinkType
-from python.topology.topo import LinkEP
+from python.topology.topo import LinkEP, TopoID
 
 graph_fmt = """digraph topo {{
 \tnode [margin=0.2]
@@ -84,27 +84,13 @@ class Link(NamedTuple):
 def topodot(topofile) -> str:
     with open(topofile, 'r') as f:
         topo_config = yaml.safe_load(f)
+
     links = topo_links(topo_config)
+    clusters = topo_clusters(topo_config)
 
-    clusters = defaultdict(list)
-    for link in links:
-        if link.type == LinkType.CHILD:
-            clusters["cluster_%s" % link.a.ISD()].append(link)
-        elif link.type == LinkType.CORE:
-            if link.a.ISD() != link.b.ISD():
-                clusters["top"].append(link)
-            else:
-                clusters["cluster_%s_core" % link.a.ISD()].append(link)
-        else:
-            if link.a.ISD() != link.b.ISD():
-                clusters["top"].append(link)
-            else:
-                clusters["cluster_%s" % link.a.ISD()].append(link)
-
-    isds = set()
-    for link in links:
-        isds.add(link.a.ISD())
-        isds.add(link.b.ISD())
+    def format_nodes(indent, ases):
+        fmt = '\t' * indent + '"%s"'
+        return '\n'.join(fmt % isd_as for isd_as in ases)
 
     def format_links(indent, links):
         fmt = '\t' * indent + '"%s" -> "%s"%s'
@@ -112,15 +98,15 @@ def topodot(topofile) -> str:
                          for link in links)
 
     formatted_clusters = []
-    for isd in sorted(isds):
+    for isd in sorted(clusters.keys()):
         core = core_fmt.format(
             isd=isd,
-            core=format_links(3, clusters['cluster_%s_core' % isd]),
+            core=format_nodes(3, clusters[isd]["core"]),
         )
-        rest = format_links(2, clusters['cluster_%s' % isd])
+        rest = format_nodes(2, clusters[isd]["noncore"])
         formatted_clusters.append(isd_fmt.format(isd=isd, core=core,
                                                  rest=rest))
-    rest = format_links(1, clusters['top'])
+    rest = format_links(1, links)
     return graph_fmt.format('\n'.join(c for c in formatted_clusters + [rest]))
 
 
@@ -151,6 +137,17 @@ def topo_links(topo_config) -> List[Link]:
              b=LinkEP(link['b']),
              type=link['linkAtoB'].lower()) for link in topo_config['links']
     ]
+
+
+def topo_clusters(topo_config) -> Dict[str, Dict[str, List[str]]]:
+    clusters = defaultdict(lambda: defaultdict(list))
+    for raw_isd_as, config in topo_config['ASes'].items():
+        isd_as = TopoID(raw_isd_as)
+        if config.get("core"):
+            clusters[isd_as.ISD()]["core"].append(str(isd_as))
+        else:
+            clusters[isd_as.ISD()]["noncore"].append(str(isd_as))
+    return clusters
 
 
 if __name__ == "__main__":
