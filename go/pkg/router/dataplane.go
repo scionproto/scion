@@ -581,26 +581,18 @@ func (p *scionPacketProcessor) processPkt(rawPkt []byte,
 	if err != nil {
 		return processResult{}, err
 	}
-	var nextHdr common.L4ProtocolType
-	if p.lastLayer == &p.e2eLayer {
-		nextHdr = p.e2eLayer.NextHdr
-	} else if p.lastLayer == &p.hbhLayer {
-		nextHdr = p.hbhLayer.NextHdr
-	} else {
-		nextHdr = p.scionLayer.NextHdr
-	}
 	pld := p.lastLayer.LayerPayload()
 
 	pathType := p.scionLayer.PathType
 	switch pathType {
 	case empty.PathType:
-		if nextHdr == common.L4BFD {
+		if p.lastLayer.NextLayerType() == layers.LayerTypeBFD {
 			return processResult{}, p.processIntraBFD(srcAddr, pld)
 		}
 		return processResult{}, serrors.WithCtx(unsupportedPathTypeNextHeader,
-			"type", pathType, "header", nextHdr)
+			"type", pathType, "header", nextHdr(p.lastLayer))
 	case onehop.PathType:
-		if nextHdr == common.L4BFD {
+		if p.lastLayer.NextLayerType() == layers.LayerTypeBFD {
 			ohp, ok := p.scionLayer.Path.(*onehop.Path)
 			if !ok {
 				return processResult{}, malformedPath
@@ -1497,6 +1489,19 @@ func decodeLayers(data []byte, base gopacket.DecodingLayer,
 		}
 	}
 	return last, nil
+}
+
+func nextHdr(layer gopacket.DecodingLayer) common.L4ProtocolType {
+	switch v := layer.(type) {
+	case *slayers.SCION:
+		return v.NextHdr
+	case *slayers.EndToEndExtn:
+		return v.NextHdr
+	case *slayers.HopByHopExtn:
+		return v.NextHdr
+	default:
+		return common.L4None
+	}
 }
 
 // forwardingMetrics contains the subset of Metrics relevant for forwarding,
