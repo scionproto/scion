@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beaconing
+package beaconing_test
 
 import (
 	"testing"
@@ -20,6 +20,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/scionproto/scion/go/cs/beaconing"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -87,14 +88,14 @@ var (
 	note = "asdf"
 )
 
-func getTestConfigData() *StaticInfoCfg {
+func getTestConfigData() *beaconing.StaticInfoCfg {
 
 	w := func(d time.Duration) util.DurWrap {
 		return util.DurWrap{Duration: d}
 	}
 
-	return &StaticInfoCfg{
-		Latency: map[common.IFIDType]InterfaceLatencies{
+	return &beaconing.StaticInfoCfg{
+		Latency: map[common.IFIDType]beaconing.InterfaceLatencies{
 			1: {
 				Inter: w(latency_inter_1),
 				Intra: map[common.IFIDType]util.DurWrap{
@@ -128,7 +129,7 @@ func getTestConfigData() *StaticInfoCfg {
 				},
 			},
 		},
-		Bandwidth: map[common.IFIDType]InterfaceBandwidths{
+		Bandwidth: map[common.IFIDType]beaconing.InterfaceBandwidths{
 			1: {
 				Inter: bandwidth_inter_1,
 				Intra: map[common.IFIDType]uint64{
@@ -162,19 +163,19 @@ func getTestConfigData() *StaticInfoCfg {
 				},
 			},
 		},
-		LinkType: map[common.IFIDType]LinkType{
-			1: LinkType(link_type_1),
-			2: LinkType(link_type_2),
-			3: LinkType(link_type_3),
-			5: LinkType(link_type_5),
+		LinkType: map[common.IFIDType]beaconing.LinkType{
+			1: beaconing.LinkType(link_type_1),
+			2: beaconing.LinkType(link_type_2),
+			3: beaconing.LinkType(link_type_3),
+			5: beaconing.LinkType(link_type_5),
 		},
-		Geo: map[common.IFIDType]InterfaceGeodata{
+		Geo: map[common.IFIDType]beaconing.InterfaceGeodata{
 			1: {geo_1.Longitude, geo_1.Latitude, geo_1.Address},
 			2: {geo_2.Longitude, geo_2.Latitude, geo_2.Address},
 			3: {geo_3.Longitude, geo_3.Latitude, geo_3.Address},
 			5: {geo_5.Longitude, geo_5.Latitude, geo_5.Address},
 		},
-		Hops: map[common.IFIDType]InterfaceHops{
+		Hops: map[common.IFIDType]beaconing.InterfaceHops{
 			1: {
 				Intra: map[common.IFIDType]uint32{
 					2: hops_intra_1_2,
@@ -211,7 +212,7 @@ func getTestConfigData() *StaticInfoCfg {
 // TestParsing tests whether or not ParseStaticInfoCfg works properly.
 func TestParsing(t *testing.T) {
 	expected := getTestConfigData()
-	actual, err := ParseStaticInfoCfg("testdata/testconfigfile.json")
+	actual, err := beaconing.ParseStaticInfoCfg("testdata/testconfigfile.json")
 	assert.NoError(t, err, "error occurred during parsing")
 	assert.Equal(t, expected, actual)
 }
@@ -564,7 +565,7 @@ func TestGenerateStaticInfo(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := cfg.generate(tc.ifType, tc.ingress, tc.egress)
+			actual := cfg.TestGenerate(tc.ifType, tc.ingress, tc.egress)
 			assert.Equal(t, tc.expected, *actual)
 		})
 	}

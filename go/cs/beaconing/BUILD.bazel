@@ -44,6 +44,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "export_test.go",
         "extender_test.go",
         "handler_test.go",
         "originator_test.go",

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beaconing
+package beaconing_test
 
 import (
 	"context"
@@ -32,6 +32,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
+	"github.com/scionproto/scion/go/cs/beaconing"
 	"github.com/scionproto/scion/go/cs/beaconing/mock_beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -90,23 +91,23 @@ func TestRegistrarRun(t *testing.T) {
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			segStore := mock_beaconing.NewMockSegmentStore(mctrl)
 
-			r := WriteScheduler{
-				Writer: &LocalWriter{
-					Extender: &DefaultExtender{
+			r := beaconing.WriteScheduler{
+				Writer: &beaconing.LocalWriter{
+					Extender: &beaconing.DefaultExtender{
 						IA:         topoProvider.Get().IA(),
 						MTU:        topoProvider.Get().MTU(),
 						Signer:     testSigner(t, priv, topoProvider.Get().IA()),
 						Intfs:      intfs,
 						MAC:        macFactory,
 						MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
-						StaticInfo: func() *StaticInfoCfg { return nil },
+						StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 					},
 					Intfs: intfs,
 					Store: segStore,
 					Type:  test.segType,
 				},
 				Intfs:    intfs,
-				Tick:     NewTick(time.Hour),
+				Tick:     beaconing.NewTick(time.Hour),
 				Provider: segProvider,
 				Type:     test.segType,
 			}
@@ -172,16 +173,16 @@ func TestRegistrarRun(t *testing.T) {
 			segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 			rpc := mock_beaconing.NewMockRPC(mctrl)
 
-			r := WriteScheduler{
-				Writer: &RemoteWriter{
-					Extender: &DefaultExtender{
+			r := beaconing.WriteScheduler{
+				Writer: &beaconing.RemoteWriter{
+					Extender: &beaconing.DefaultExtender{
 						IA:         topoProvider.Get().IA(),
 						MTU:        topoProvider.Get().MTU(),
 						Signer:     testSigner(t, priv, topoProvider.Get().IA()),
 						Intfs:      intfs,
 						MAC:        macFactory,
 						MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
-						StaticInfo: func() *StaticInfoCfg { return nil },
+						StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 					},
 					Pather: addrutil.Pather{
 						UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
@@ -193,7 +194,7 @@ func TestRegistrarRun(t *testing.T) {
 					Intfs: intfs,
 				},
 				Intfs:    intfs,
-				Tick:     NewTick(time.Hour),
+				Tick:     beaconing.NewTick(time.Hour),
 				Provider: segProvider,
 				Type:     test.segType,
 			}
@@ -270,16 +271,16 @@ func TestRegistrarRun(t *testing.T) {
 		segProvider := mock_beaconing.NewMockSegmentProvider(mctrl)
 		rpc := mock_beaconing.NewMockRPC(mctrl)
 
-		r := WriteScheduler{
-			Writer: &RemoteWriter{
-				Extender: &DefaultExtender{
+		r := beaconing.WriteScheduler{
+			Writer: &beaconing.RemoteWriter{
+				Extender: &beaconing.DefaultExtender{
 					IA:         topoProvider.Get().IA(),
 					MTU:        topoProvider.Get().MTU(),
 					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
 					Intfs:      intfs,
 					MAC:        macFactory,
 					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
-					StaticInfo: func() *StaticInfoCfg { return nil },
+					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 				},
 				Pather: addrutil.Pather{
 					UnderlayNextHop: func(ifID uint16) (*net.UDPAddr, bool) {
@@ -291,7 +292,7 @@ func TestRegistrarRun(t *testing.T) {
 				Type:  seg.TypeDown,
 			},
 			Intfs:    intfs,
-			Tick:     NewTick(time.Hour),
+			Tick:     beaconing.NewTick(time.Hour),
 			Provider: segProvider,
 			Type:     seg.TypeDown,
 		}

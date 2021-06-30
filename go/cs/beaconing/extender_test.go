@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package beaconing
+package beaconing_test
 
 import (
 	"context"
@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/cs/beacon"
+	"github.com/scionproto/scion/go/cs/beaconing"
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -83,7 +84,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			// Setup interfaces with active parent, child and one peer interface.
 			intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 			intfs.Get(peer).Activate(graph.If_121_X_111_C)
-			ext := &DefaultExtender{
+			ext := &beaconing.DefaultExtender{
 				IA:     topoProvider.Get().IA(),
 				Signer: testSigner(t, priv, topoProvider.Get().IA()),
 				MAC: func() hash.Hash {
@@ -94,7 +95,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				Intfs:      intfs,
 				MTU:        1337,
 				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
-				StaticInfo: func() *StaticInfoCfg { return nil },
+				StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 			}
 			pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
 			require.NoError(t, err)
@@ -155,7 +156,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 		defer mctrl.Finish()
 		intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
 		require.NoError(t, err)
-		ext := &DefaultExtender{
+		ext := &beaconing.DefaultExtender{
 			IA:     topoProvider.Get().IA(),
 			Signer: testSigner(t, priv, topoProvider.Get().IA()),
 			MAC: func() hash.Hash {
@@ -166,7 +167,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 			Intfs:      intfs,
 			MTU:        1337,
 			MaxExpTime: func() uint8 { return 1 },
-			StaticInfo: func() *StaticInfoCfg { return nil },
+			StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 		}
 		require.NoError(t, err)
 		pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
@@ -222,7 +223,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				mctrl := gomock.NewController(t)
 				defer mctrl.Finish()
 				intfs := ifstate.NewInterfaces(topoProvider.Get().IFInfoMap(), ifstate.Config{})
-				ext := &DefaultExtender{
+				ext := &beaconing.DefaultExtender{
 					IA:     topoProvider.Get().IA(),
 					Signer: testSigner(t, priv, topoProvider.Get().IA()),
 					MAC: func() hash.Hash {
@@ -233,7 +234,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 					Intfs:      intfs,
 					MTU:        1337,
 					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
-					StaticInfo: func() *StaticInfoCfg { return nil },
+					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 				}
 				pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
 				require.NoError(t, err)

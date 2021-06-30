@@ -8,7 +8,7 @@
     "voting"
   ],
   "border_routers": {
-    "br1-ff00_0_111-1": {
+    "br1-ff00_0_110-1": {
       "internal_addr": "127.0.0.17:0",
       "ctrl_addr": "127.0.0.17:0",
       "interfaces": {

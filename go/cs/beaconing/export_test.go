@@ -1,4 +1,4 @@
-// Copyright 2020 Anapaya Systems
+// Copyright 2021 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cs
+package beaconing
 
 import (
-	"hash"
-	"path/filepath"
-
-	"github.com/scionproto/scion/go/lib/keyconf"
-	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
-// MACGenFactory creates a MAC factory
-func MACGenFactory(configDir string) (func() hash.Hash, error) {
-	mk, err := keyconf.LoadMaster(filepath.Join(configDir, "keys"))
-	if err != nil {
-		return nil, serrors.WrapStr("loading master key", err)
-	}
-	hfMacFactory, err := scrypto.HFMacFactory(mk.Key0)
-	if err != nil {
-		return nil, err
-	}
-	return hfMacFactory, nil
+func (cfg StaticInfoCfg) TestGenerate(ifType map[common.IFIDType]topology.LinkType,
+	ingress, egress common.IFIDType) *staticinfo.Extension {
+	return cfg.generate(ifType, ingress, egress)
 }

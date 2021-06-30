@@ -18,30 +18,63 @@ import (
 	"context"
 	"net"
 
+	"google.golang.org/grpc"
+
+	"github.com/scionproto/scion/go/cs/beaconing"
+	"github.com/scionproto/scion/go/cs/onehop"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/pkg/grpc"
+	"github.com/scionproto/scion/go/lib/serrors"
+	libgrpc "github.com/scionproto/scion/go/pkg/grpc"
 	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 )
 
-// BeaconSender propagates beacons.
-type BeaconSender struct {
-	// Dialer dials a new gRPC connection.
-	Dialer grpc.Dialer
+// BeaconSenderFactory can be used to create beacon senders.
+type BeaconSenderFactory struct {
+	// Dialer is used to dial the gRPC connection to the remote.
+	Dialer libgrpc.Dialer
 }
 
-// SendBeacon sends a beacon to the remote.
-func (r BeaconSender) SendBeacon(ctx context.Context, b *seg.PathSegment, remote net.Addr) error {
-	conn, err := r.Dialer.Dial(ctx, remote)
-	if err != nil {
-		return err
+// NewSender returns a beacon sender that can be used to send beacons to a remote CS.
+func (f *BeaconSenderFactory) NewSender(
+	ctx context.Context,
+	dstIA addr.IA,
+	egIfId uint16,
+	nextHop *net.UDPAddr,
+) (beaconing.Sender, error) {
+	addr := &onehop.Addr{
+		IA:      dstIA,
+		Egress:  egIfId,
+		SVC:     addr.SvcCS,
+		NextHop: nextHop,
 	}
-	defer conn.Close()
-	client := cppb.NewSegmentCreationServiceClient(conn)
-	_, err = client.Beacon(ctx,
+	conn, err := f.Dialer.Dial(ctx, addr)
+	if err != nil {
+		return nil, serrors.WrapStr("dialing gRPC conn", err)
+	}
+	return &BeaconSender{
+		Conn: conn,
+	}, nil
+}
+
+// BeaconSender propagates beacons.
+type BeaconSender struct {
+	Conn *grpc.ClientConn
+}
+
+// Send sends a beacon to the remote.
+func (s BeaconSender) Send(ctx context.Context, b *seg.PathSegment) error {
+	client := cppb.NewSegmentCreationServiceClient(s.Conn)
+	_, err := client.Beacon(ctx,
 		&cppb.BeaconRequest{
 			Segment: seg.PathSegmentToPB(b),
 		},
-		grpc.RetryProfile...,
+		libgrpc.RetryProfile...,
 	)
 	return err
+}
+
+// Close closes the BeaconSender and releases all underlying resources.
+func (s BeaconSender) Close() error {
+	return s.Conn.Close()
 }

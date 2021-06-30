@@ -45,11 +45,10 @@ type TasksConfig struct {
 	AllInterfaces         *ifstate.Interfaces
 	PropagationInterfaces func() []*ifstate.Interface
 	OriginationInterfaces func() []*ifstate.Interface
-	OneHopConn            snet.PacketConn
 	TrustDB               trust.DB
 	PathDB                pathdb.DB
 	RevCache              revcache.RevCache
-	BeaconSender          beaconing.BeaconSender
+	BeaconSenderFactory   beaconing.SenderFactory
 	SegmentRegister       beaconing.RPC
 	BeaconStore           Store
 	Signer                seg.Signer
@@ -82,7 +81,7 @@ func (t *TasksConfig) Originator() *periodic.Runner {
 		Extender: t.extender("originator", topo.IA(), topo.MTU(), func() uint8 {
 			return t.BeaconStore.MaxExpTime(beacon.PropPolicy)
 		}),
-		BeaconSender:          t.BeaconSender,
+		SenderFactory:         t.BeaconSenderFactory,
 		IA:                    topo.IA(),
 		AllInterfaces:         t.AllInterfaces,
 		OriginationInterfaces: t.OriginationInterfaces,
@@ -102,7 +101,7 @@ func (t *TasksConfig) Propagator() *periodic.Runner {
 		Extender: t.extender("propagator", topo.IA(), topo.MTU(), func() uint8 {
 			return t.BeaconStore.MaxExpTime(beacon.PropPolicy)
 		}),
-		BeaconSender:          t.BeaconSender,
+		SenderFactory:         t.BeaconSenderFactory,
 		Provider:              t.BeaconStore,
 		IA:                    topo.IA(),
 		Signer:                t.Signer,

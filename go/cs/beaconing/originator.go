@@ -26,7 +26,6 @@ import (
 
 	"github.com/scionproto/scion/go/cs/ifstate"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/metrics"
@@ -37,16 +36,27 @@ import (
 
 var _ periodic.Task = (*Originator)(nil)
 
-// BeaconSender sends the beacon on the provided interface.
-type BeaconSender interface {
-	Send(ctx context.Context, beacon *seg.PathSegment, dst addr.IA,
-		egress common.IFIDType, nextHop *net.UDPAddr) error
+// SenderFactory can be used to create a new beacon sender.
+type SenderFactory interface {
+	// NewSender creates a new beacon sender to the specified ISD-AS over the given egress
+	// interface. Nexthop is the internal router endpoint that owns the egress interface. The caller
+	// is required to close the sender once it's not used anymore.
+	NewSender(ctx context.Context, dst addr.IA, egress uint16, nexthop *net.UDPAddr) (Sender, error)
+}
+
+// Sender sends beacons on an established connection.
+type Sender interface {
+	// Send sends the beacon on an established connection
+	Send(ctx context.Context, b *seg.PathSegment) error
+	// Close closes the resources associated with the sender. It must be invoked to avoid leaking
+	// connections.
+	Close() error
 }
 
 // Originator originates beacons. It should only be used by core ASes.
 type Originator struct {
 	Extender              Extender
-	BeaconSender          BeaconSender
+	SenderFactory         SenderFactory
 	IA                    addr.IA
 	Signer                seg.Signer
 	AllInterfaces         *ifstate.Interfaces
@@ -148,16 +158,24 @@ func (o *beaconOriginator) originateBeacon(ctx context.Context) error {
 
 	rpcContext, cancelF := context.WithTimeout(ctx, DefaultRPCTimeout)
 	defer cancelF()
-
 	rpcStart := time.Now()
-	err = o.BeaconSender.Send(
+
+	sender, err := o.SenderFactory.NewSender(
 		rpcContext,
-		bseg,
 		topoInfo.IA,
-		o.intf.TopoInfo().ID,
+		uint16(o.intf.TopoInfo().ID),
 		topoInfo.InternalAddr,
 	)
 	if err != nil {
+		if rpcContext.Err() != nil {
+			err = serrors.WrapStr("timed out getting beacon sender", err,
+				"waited_for", time.Since(rpcStart))
+		}
+		o.incrementMetrics(labels.WithResult(prom.ErrNetwork))
+		return err
+	}
+	defer sender.Close()
+	if err := sender.Send(rpcContext, bseg); err != nil {
 		if rpcContext.Err() != nil {
 			err = serrors.WrapStr("timed out waiting for RPC to complete", err,
 				"waited_for", time.Since(rpcStart))
