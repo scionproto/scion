@@ -66,7 +66,6 @@ func CheckTestConfig(t *testing.T, cfg *Config, id string) {
 	storagetest.CheckTestTrustDBConfig(t, &cfg.TrustDB, id)
 	storagetest.CheckTestBeaconDBConfig(t, &cfg.BeaconDB, id)
 	storagetest.CheckTestPathDBConfig(t, &cfg.PathDB, id)
-	storagetest.CheckTestRenewalDBConfig(t, &cfg.RenewalDB, id)
 	CheckTestBSConfig(t, &cfg.BS)
 	CheckTestPSConfig(t, &cfg.PS, id)
 	CheckTestCA(t, &cfg.CA)

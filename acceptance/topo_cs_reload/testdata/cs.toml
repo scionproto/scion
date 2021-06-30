@@ -6,9 +6,6 @@ id = "cs1-ff00_0_110-1"
 [trust_db]
 connection = "cs1-ff00_0_110-1.trust.db"
 
-[renewal_db]
-connection = "cs1-ff00_0_110-1.renewal.db"
-
 [log.console]
 level = "debug"
 

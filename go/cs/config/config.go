@@ -59,7 +59,6 @@ type Config struct {
 	QUIC        env.QUIC           `toml:"quic,omitempty"`
 	BeaconDB    storage.DBConfig   `toml:"beacon_db,omitempty"`
 	TrustDB     storage.DBConfig   `toml:"trust_db,omitempty"`
-	RenewalDB   storage.DBConfig   `toml:"renewal_db,omitempty"`
 	PathDB      storage.DBConfig   `toml:"path_db,omitempty"`
 	BS          BSConfig           `toml:"beaconing,omitempty"`
 	PS          PSConfig           `toml:"path,omitempty"`
@@ -78,7 +77,6 @@ func (cfg *Config) InitDefaults() {
 		&cfg.Tracing,
 		&cfg.BeaconDB,
 		&cfg.TrustDB,
-		&cfg.RenewalDB,
 		&cfg.PathDB,
 		&cfg.BS,
 		&cfg.PS,
@@ -97,7 +95,6 @@ func (cfg *Config) Validate() error {
 		&cfg.API,
 		&cfg.BeaconDB,
 		&cfg.TrustDB,
-		&cfg.RenewalDB,
 		&cfg.PathDB,
 		&cfg.BS,
 		&cfg.PS,
@@ -129,13 +126,6 @@ func (cfg *Config) Sample(dst io.Writer, path config.Path, _ config.CtxMap) {
 				storage.SetID(storage.SampleTrustDB, idSample).Connection,
 			),
 			"trust_db",
-		),
-		config.OverrideName(
-			config.FormatData(
-				&cfg.RenewalDB,
-				storage.SetID(storage.SampleRenewalDB, idSample).Connection,
-			),
-			"renewal_db",
 		),
 		config.OverrideName(
 			config.FormatData(

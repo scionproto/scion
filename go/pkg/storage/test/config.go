@@ -30,10 +30,6 @@ func CheckTestPathDBConfig(t *testing.T, cfg *storage.DBConfig, id string) {
 	assert.Equal(t, storage.SetID(storage.SamplePathDB, id), cfg)
 }
 
-func CheckTestRenewalDBConfig(t *testing.T, cfg *storage.DBConfig, id string) {
-	assert.Equal(t, storage.SetID(storage.SampleRenewalDB, id), cfg)
-}
-
 func CheckTestTrustDBConfig(t *testing.T, cfg *storage.DBConfig, id string) {
 	assert.Equal(t, storage.SetID(storage.SampleTrustDB, id), cfg)
 }

@@ -123,10 +123,6 @@ class GoGenerator(object):
             'metrics': self._metrics_entry(infra_elem, CS_PROM_PORT),
             'features': translate_features(self.args.features),
         }
-        if ca:
-            raw_entry['renewal_db'] = {
-                'connection': os.path.join(self.db_dir, '%s.renewal.db' % name),
-            }
         return raw_entry
 
     def generate_co(self):
