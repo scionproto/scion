@@ -344,8 +344,8 @@ func (p *Packet) Decode() error {
 	switch l4 {
 	case slayers.LayerTypeSCIONUDP:
 		p.Payload = UDPPayload{
-			SrcPort: uint16(udpLayer.SrcPort),
-			DstPort: uint16(udpLayer.DstPort),
+			SrcPort: udpLayer.SrcPort,
+			DstPort: udpLayer.DstPort,
 			Payload: udpLayer.Payload,
 		}
 	case slayers.LayerTypeSCMP:

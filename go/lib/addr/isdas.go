@@ -101,7 +101,7 @@ func ASFromFileFmt(s string, prefix bool) (AS, error) {
 }
 
 func asParse(s string, sep string) (AS, error) {
-	if strings.Index(s, sep) == -1 {
+	if !strings.Contains(s, sep) {
 		// Must be a BGP AS, parse as 32-bit decimal number
 		as, err := strconv.ParseUint(s, 10, BGPASBits)
 		if err != nil {
@@ -309,7 +309,7 @@ func (iaI IAInt) String() string {
 }
 
 func (ia IAInt) MarshalText() ([]byte, error) {
-	return []byte(IAInt(ia).String()), nil
+	return []byte(ia.String()), nil
 }
 
 func (ia *IAInt) UnmarshalText(b []byte) error {

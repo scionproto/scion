@@ -54,7 +54,7 @@ type InfoField struct {
 }
 
 // DecodeFromBytes populates the fields from a raw buffer. The buffer must be of length >=
-// path.InfoLen
+// path.InfoLen.
 func (inf *InfoField) DecodeFromBytes(raw []byte) error {
 	if len(raw) < InfoLen {
 		return serrors.New("InfoField raw too short", "expected", InfoLen, "actual", len(raw))
@@ -67,7 +67,7 @@ func (inf *InfoField) DecodeFromBytes(raw []byte) error {
 }
 
 // SerializeTo writes the fields into the provided buffer. The buffer must be of length >=
-// path.InfoLen
+// path.InfoLen.
 func (inf *InfoField) SerializeTo(b []byte) error {
 	if len(b) < InfoLen {
 		return serrors.New("buffer for InfoField too short", "expected", InfoLen,

@@ -31,7 +31,7 @@ func (f *AtomicBool) Set(v bool) {
 
 func (f *AtomicBool) IsTrue() bool {
 	f.m.Lock()
-	result := f.v == true
+	result := f.v
 	f.m.Unlock()
 	return result
 }

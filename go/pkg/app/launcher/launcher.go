@@ -125,7 +125,7 @@ func (a *Application) run() error {
 
 	// All servers accept SIGTERM to perform clean shutdown (for example, this
 	// is used behind the scenes by docker stop to cleanly shut down a container).
-	sigterm := make(chan os.Signal)
+	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGTERM)
 	go func() {
 		defer log.HandlePanic()

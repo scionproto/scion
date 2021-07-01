@@ -59,7 +59,7 @@ func Setup() {
 }
 
 func addFlags() {
-	flag.Var((*snet.UDPAddr)(&Local), "local", "(Mandatory) address to listen on")
+	flag.Var(&Local, "local", "(Mandatory) address to listen on")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	flag.StringVar(&Progress, "progress", "", "Socket to write progress to")
 	flag.StringVar(&daemonAddr, "sciond", daemon.DefaultAPIAddress, "SCION Daemon address")

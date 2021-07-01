@@ -63,7 +63,7 @@ type observer struct {
 type observable func(context.Context) (label string, err error)
 
 func (o observer) Observe(ctx context.Context, op string, action observable) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("trustdb.%s", string(op)))
+	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("trustdb.%s", op))
 	defer span.Finish()
 	label, err := action(ctx)
 

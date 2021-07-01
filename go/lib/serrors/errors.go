@@ -145,7 +145,7 @@ func New(msg string, logCtx ...interface{}) error {
 	}
 }
 
-// List is a slice of errors
+// List is a slice of errors.
 type List []error
 
 // ToError returns the object as error interface implementation.

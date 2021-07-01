@@ -88,8 +88,8 @@ func (u *UDP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOpt
 	if err != nil {
 		return err
 	}
-	binary.BigEndian.PutUint16(bytes, uint16(u.SrcPort))
-	binary.BigEndian.PutUint16(bytes[2:], uint16(u.DstPort))
+	binary.BigEndian.PutUint16(bytes, u.SrcPort)
+	binary.BigEndian.PutUint16(bytes[2:], u.DstPort)
 	if opts.FixLengths {
 		u.fixLengths(len(b.Bytes()))
 	}

@@ -99,7 +99,7 @@ func TestRegistrarRun(t *testing.T) {
 						Signer:     testSigner(t, priv, topoProvider.Get().IA()),
 						Intfs:      intfs,
 						MAC:        macFactory,
-						MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
+						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 						StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 					},
 					Intfs: intfs,
@@ -125,9 +125,7 @@ func TestRegistrarRun(t *testing.T) {
 			var stored []*seg.Meta
 			segStore.EXPECT().StoreSegs(gomock.Any(), gomock.Any()).DoAndReturn(
 				func(_ context.Context, segs []*seg.Meta) (seghandler.SegStats, error) {
-					for _, s := range segs {
-						stored = append(stored, s)
-					}
+					stored = append(stored, segs...)
 					return seghandler.SegStats{}, nil
 				},
 			)
@@ -181,7 +179,7 @@ func TestRegistrarRun(t *testing.T) {
 						Signer:     testSigner(t, priv, topoProvider.Get().IA()),
 						Intfs:      intfs,
 						MAC:        macFactory,
-						MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
+						MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 						StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 					},
 					Pather: addrutil.Pather{
@@ -247,7 +245,7 @@ func TestRegistrarRun(t *testing.T) {
 						pathHopField := path.HopFields[0]
 
 						segHopField := pseg.ASEntries[pseg.MaxIdx()].HopEntry.HopField
-						assert.Equal(t, []byte(pathHopField.Mac), segHopField.MAC)
+						assert.Equal(t, pathHopField.Mac, segHopField.MAC)
 						assert.Equal(t, pathHopField.ConsIngress, segHopField.ConsIngress)
 						assert.Equal(t, pathHopField.ConsEgress, segHopField.ConsEgress)
 
@@ -279,7 +277,7 @@ func TestRegistrarRun(t *testing.T) {
 					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
 					Intfs:      intfs,
 					MAC:        macFactory,
-					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
+					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 				},
 				Pather: addrutil.Pather{

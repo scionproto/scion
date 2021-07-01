@@ -94,7 +94,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 				},
 				Intfs:      intfs,
 				MTU:        1337,
-				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
+				MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 				StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 			}
 			pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))
@@ -233,7 +233,7 @@ func TestDefaultExtenderExtend(t *testing.T) {
 					},
 					Intfs:      intfs,
 					MTU:        1337,
-					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
+					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 				}
 				pseg, err := seg.CreateSegment(time.Now(), uint16(mrand.Int()))

@@ -273,7 +273,7 @@ func TestDataPlaneRun(t *testing.T) {
 					bfdL := &layers.BFD{
 						Version:           1,
 						DetectMultiplier:  layers.BFDDetectMultiplier(2),
-						MyDiscriminator:   layers.BFDDiscriminator(id),
+						MyDiscriminator:   id,
 						YourDiscriminator: 0,
 					}
 

@@ -67,10 +67,3 @@ func (baseAlgo) selectMostDiverse(beacons []Beacon, best Beacon) (Beacon, int) {
 	}
 	return diverse, maxDiversity
 }
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}

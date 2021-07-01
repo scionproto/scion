@@ -30,7 +30,6 @@ import (
 	"context"
 	"net"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
@@ -80,24 +79,6 @@ func BuildUnits(segMetas []*seg.Meta) []*Unit {
 		units = append(units, unit)
 	}
 	return units
-}
-
-func containsInterface(asEntries []seg.ASEntry, ia addr.IA, ifid uint16) bool {
-	for _, as := range asEntries {
-		if !as.Local.Equal(ia) {
-			continue
-		}
-		if as.HopEntry.HopField.ConsIngress == ifid || as.HopEntry.HopField.ConsEgress == ifid {
-			return true
-		}
-		// Only ingress interface differ.
-		for _, peer := range as.PeerEntries {
-			if peer.HopField.ConsIngress == ifid {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func (u *Unit) Len() int {

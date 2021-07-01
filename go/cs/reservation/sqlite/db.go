@@ -432,6 +432,10 @@ func getSegReservations(ctx context.Context, x db.Sqler, condition string, param
 		}
 		reservationFields = append(reservationFields, &f)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	reservations := []*segment.Reservation{}
 	for _, rf := range reservationFields {
 		rsv, err := buildSegRsvFromFields(ctx, x, rf)
@@ -498,6 +502,9 @@ func getSegIndices(ctx context.Context, x db.Sqler, rowID int) (segment.Indices,
 			util.SecsToTime(expiration), segment.IndexState(state), reservation.BWCls(minBW),
 			reservation.BWCls(maxBW), reservation.BWCls(allocBW), tok)
 		indices = append(indices, *index)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	// sort indices so they are consecutive modulo 16
 	base.SortIndices(indices)
@@ -628,6 +635,9 @@ func getE2ERsvsFromSegment(ctx context.Context, x *sql.Tx, ID *reservation.Segme
 		}
 		rowID2e2eIDs[rowID] = id
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	rsvs := make([]*e2e.Reservation, 0, len(rowID2e2eIDs))
 	for rowID, e2eID := range rowID2e2eIDs {
 		// read indices
@@ -677,6 +687,9 @@ func getE2EIndices(ctx context.Context, x db.Sqler, rowID int) (e2e.Indices, err
 			Token:      tok,
 		})
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return indices, nil
 }
 
@@ -709,6 +722,9 @@ func getExpiredSegIndexRowIDs(ctx context.Context, x db.Sqler, now time.Time) (
 		}
 		rowIDs = append(rowIDs, indexID)
 		rsvRowIDs = append(rsvRowIDs, rsvRowID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
 	}
 	return rowIDs, rsvRowIDs, nil
 }
@@ -759,6 +775,9 @@ func getExpiredE2EIndexRowIDs(ctx context.Context, x db.Sqler, now time.Time) (
 		}
 		rowIDs = append(rowIDs, indexID)
 		rsvRowIDs = append(rsvRowIDs, rsvRowID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
 	}
 	return rowIDs, rsvRowIDs, nil
 }

@@ -47,7 +47,7 @@ func (a Attribute) IsSubset(super Attribute) bool {
 func (a Attribute) String() string {
 	parts := make([]string, 0, 3)
 	for _, attr := range []Attribute{Authoritative, Core, RootCA} {
-		if Attribute(a)&attr != 0 {
+		if a&attr != 0 {
 			parts = append(parts, attributeString[attr])
 		}
 	}

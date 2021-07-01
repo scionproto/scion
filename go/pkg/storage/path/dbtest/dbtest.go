@@ -52,13 +52,6 @@ var (
 	}
 	segType = seg.TypeUp
 
-	ifspecs = []query.IntfSpec{
-		{IA: ia330, IfID: 5},
-		{IA: ia331, IfID: 2},
-		{IA: ia331, IfID: 3},
-		{IA: ia331, IfID: 6},
-		{IA: ia332, IfID: 1},
-	}
 	timeout = 5 * time.Second
 )
 
@@ -318,9 +311,9 @@ func testGetNilParams(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadW
 	for _, r := range res {
 		assert.Equal(t, seg.TypeUp, r.Type)
 		resSegID := r.Seg.ID()
-		if bytes.Compare(resSegID, segID1) == 0 {
+		if bytes.Equal(resSegID, segID1) {
 			checkSameHpCfgs(t, "HpCfgIDs match", r.HpCfgIDs, hpCfgIDs)
-		} else if bytes.Compare(resSegID, segID2) == 0 {
+		} else if bytes.Equal(resSegID, segID2) {
 			checkSameHpCfgs(t, "HpCfgIDs match", r.HpCfgIDs, hpCfgIDs[:1])
 		} else {
 			t.Fatal("Unexpected result", "seg", r.Seg)
@@ -349,9 +342,9 @@ func testGetAll(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.ReadWrite) 
 	for _, r := range s {
 		assert.Equal(t, seg.TypeUp, r.Type)
 		resSegID := r.Seg.ID()
-		if bytes.Compare(resSegID, segID1) == 0 {
+		if bytes.Equal(resSegID, segID1) {
 			checkSameHpCfgs(t, "HpCfgIDs match", r.HpCfgIDs, hpCfgIDs)
-		} else if bytes.Compare(resSegID, segID2) == 0 {
+		} else if bytes.Equal(resSegID, segID2) {
 			checkSameHpCfgs(t, "HpCfgIDs match", r.HpCfgIDs, hpCfgIDs[:1])
 		} else {
 			t.Fatal("Unexpected result", "seg", r.Seg)
@@ -486,12 +479,6 @@ func testNextQuery(t *testing.T, _ *gomock.Controller, pathDB pathdb.ReadWrite) 
 	defer cancelF()
 	_, err = pathDB.GetNextQuery(ctx, src, xtest.MustParseIA("1-ff00:0:122"))
 	assert.Error(t, err)
-}
-
-// nqDescriptor describes a next query entry.
-type nqDescriptor struct {
-	Src addr.IA
-	Dst addr.IA
 }
 
 func testRollback(t *testing.T, ctrl *gomock.Controller, pathDB pathdb.DB) {

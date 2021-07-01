@@ -140,7 +140,7 @@ func (s *Session) runCalledCheck() error {
 	s.runCalledMutex.Lock()
 	defer s.runCalledMutex.Unlock()
 
-	if s.runCalled == true {
+	if s.runCalled {
 		return serrors.New("run called more than once")
 	}
 	s.runCalled = true

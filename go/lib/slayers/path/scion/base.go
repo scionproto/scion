@@ -105,7 +105,7 @@ func (s *Base) infIndexForHF(hf uint8) uint8 {
 
 // Len returns the length of the path in bytes.
 func (s *Base) Len() int {
-	return MetaLen + int(s.NumINF)*path.InfoLen + int(s.NumHops)*path.HopLen
+	return MetaLen + s.NumINF*path.InfoLen + s.NumHops*path.HopLen
 }
 
 // Type returns the type of the path.
@@ -121,7 +121,7 @@ type MetaHdr struct {
 }
 
 // DecodeFromBytes populates the fields from a raw buffer. The buffer must be of length >=
-// scion.MetaLen
+// scion.MetaLen.
 func (m *MetaHdr) DecodeFromBytes(raw []byte) error {
 	if len(raw) < MetaLen {
 		return serrors.New("MetaHdr raw too short", "expected", MetaLen, "actual", len(raw))
@@ -137,7 +137,7 @@ func (m *MetaHdr) DecodeFromBytes(raw []byte) error {
 }
 
 // SerializeTo writes the fields into the provided buffer. The buffer must be of length >=
-// scion.MetaLen
+// scion.MetaLen.
 func (m *MetaHdr) SerializeTo(b []byte) error {
 	if len(b) < MetaLen {
 		return serrors.New("buffer for MetaHdr too short", "expected", MetaLen, "actual", len(b))

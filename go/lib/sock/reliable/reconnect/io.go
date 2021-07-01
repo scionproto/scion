@@ -28,8 +28,8 @@ type IOOperation interface {
 }
 
 type BaseOperation struct {
-	buffer   []byte
-	numBytes int
+	buffer   []byte //nolint:golint,structcheck
+	numBytes int    //nolint:golint,structcheck
 }
 
 type WriteOperation struct {

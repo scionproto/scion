@@ -410,6 +410,9 @@ func (e *executor) Get(ctx context.Context, params *query.Params) (query.Results
 	if curRes != nil {
 		res = append(res, curRes)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return res, nil
 }
 
@@ -550,7 +553,9 @@ func (e *executor) GetAll(ctx context.Context) (query.Results, error) {
 	if curRes != nil {
 		ret = append(ret, curRes)
 	}
-
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return ret, nil
 }
 

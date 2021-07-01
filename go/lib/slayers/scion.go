@@ -177,7 +177,7 @@ func (s *SCION) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeO
 	}
 	if opts.FixLengths {
 		s.HdrLen = uint8(scnLen / LineLen)
-		s.PayloadLen = uint16(len(b.Bytes()) - int(scnLen))
+		s.PayloadLen = uint16(len(b.Bytes()) - scnLen)
 	}
 	// Serialize common header.
 	firstLine := uint32(s.Version&0xF)<<28 | uint32(s.TrafficClass)<<20 | s.FlowID&0xFFFFF

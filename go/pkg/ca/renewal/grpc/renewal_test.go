@@ -15,7 +15,6 @@
 package grpc_test
 
 import (
-	"bytes"
 	"context"
 	"crypto"
 	"crypto/ecdsa"
@@ -32,7 +31,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/metrics"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
@@ -300,21 +298,4 @@ func signCert(
 	cert, err := x509.ParseCertificate(raw)
 	require.NoError(t, err)
 	return cert
-}
-
-type chainQueryMatcher struct {
-	IA           addr.IA
-	SubjectKeyID []byte
-}
-
-func (m chainQueryMatcher) Matches(x interface{}) bool {
-	v, ok := x.(trust.ChainQuery)
-	if !ok {
-		return false
-	}
-	return v.IA.Equal(m.IA) && bytes.Equal(v.SubjectKeyID, m.SubjectKeyID)
-}
-
-func (m chainQueryMatcher) String() string {
-	return fmt.Sprintf("%+v, %+v", m.IA, m.SubjectKeyID)
 }

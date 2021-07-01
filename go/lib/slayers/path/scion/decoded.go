@@ -48,7 +48,7 @@ func (s *Decoded) DecodeFromBytes(data []byte) error {
 
 	offset := MetaLen
 	s.InfoFields = make([]*path.InfoField, s.NumINF)
-	for i := 0; i < int(s.NumINF); i++ {
+	for i := 0; i < s.NumINF; i++ {
 		info := &path.InfoField{}
 		if err := info.DecodeFromBytes(data[offset : offset+path.InfoLen]); err != nil {
 			return err
@@ -57,7 +57,7 @@ func (s *Decoded) DecodeFromBytes(data []byte) error {
 		offset += path.InfoLen
 	}
 	s.HopFields = make([]*path.HopField, s.NumHops)
-	for i := 0; i < int(s.NumHops); i++ {
+	for i := 0; i < s.NumHops; i++ {
 		hop := &path.HopField{}
 		if err := hop.DecodeFromBytes(data[offset : offset+path.HopLen]); err != nil {
 			return err
@@ -121,7 +121,7 @@ func (s *Decoded) Reverse() (path.Path, error) {
 	return s, nil
 }
 
-// ToRaw tranforms scion.Decoded into scion.Raw
+// ToRaw tranforms scion.Decoded into scion.Raw.
 func (s *Decoded) ToRaw() (*Raw, error) {
 	b := make([]byte, s.Len())
 	if err := s.SerializeTo(b); err != nil {

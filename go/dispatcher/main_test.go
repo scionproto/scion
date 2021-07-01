@@ -51,7 +51,7 @@ func InitTestSettings(t *testing.T, dispatcherTestPort int) *TestSettings {
 	}
 	return &TestSettings{
 		ApplicationSocket: socketName,
-		UnderlayPort:      int(dispatcherTestPort),
+		UnderlayPort:      dispatcherTestPort,
 	}
 }
 

@@ -456,11 +456,11 @@ func generalValidation(c *x509.Certificate) error {
 	if len(c.SubjectKeyId) == 0 {
 		errs = append(errs, serrors.New("subjectKeyID is missing"))
 	}
-	if v, ok := oidInExtensions(OIDExtensionSubjectKeyID, c.Extensions); ok && v.Critical == true {
+	if v, ok := oidInExtensions(OIDExtensionSubjectKeyID, c.Extensions); ok && v.Critical {
 		errs = append(errs, serrors.New("subjectKeyID is marked as critical"))
 	}
 	if v, ok := oidInExtensions(OIDExtensionAuthorityKeyID,
-		c.Extensions); ok && v.Critical == true {
+		c.Extensions); ok && v.Critical {
 
 		errs = append(errs, serrors.New("authKeyId is marked as critical"))
 	}

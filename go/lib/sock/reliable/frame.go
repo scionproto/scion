@@ -73,7 +73,7 @@ func (f *frame) SerializeTo(b []byte) (int, error) {
 	}
 	binary.BigEndian.PutUint64(b, f.Cookie)
 	b[8] = f.AddressType
-	binary.BigEndian.PutUint32(b[9:], uint32(f.Length))
+	binary.BigEndian.PutUint32(b[9:], f.Length)
 	copy(b[13:], f.Address)
 	copy(b[13+len(f.Address):], f.Port)
 	copy(b[13+len(f.Address)+len(f.Port):], f.Payload)

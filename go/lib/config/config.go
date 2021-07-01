@@ -197,7 +197,7 @@ type formatDataSampler struct {
 func (s formatDataSampler) Sample(dst io.Writer, path Path, ctx CtxMap) {
 	buf := &bytes.Buffer{}
 	s.Sampler.Sample(buf, path, ctx)
-	WriteString(dst, fmt.Sprintf(string(buf.Bytes()), s.data...))
+	WriteString(dst, fmt.Sprintf(buf.String(), s.data...))
 }
 
 // FormatData creates a sampler that will call fmt.Sprintf on the string returned

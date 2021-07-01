@@ -229,15 +229,13 @@ func TestValidatePathType(t *testing.T) {
 		CorePath,
 	}
 	for _, vt := range validTypes {
-		pt := PathType(vt)
-		err := pt.Validate()
+		err := vt.Validate()
 		require.NoError(t, err)
 	}
-	pt := PathType(UnknownPath)
-	err := pt.Validate()
+	err := UnknownPath.Validate()
 	require.Error(t, err)
 
-	pt = PathType(CorePath + 1)
+	pt := CorePath + 1
 	err = pt.Validate()
 	require.Error(t, err)
 }

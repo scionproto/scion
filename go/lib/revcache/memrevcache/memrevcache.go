@@ -80,7 +80,7 @@ func (c *memRevCache) get(key string) (*path_mgmt.RevInfo, bool) {
 func (c *memRevCache) Insert(_ context.Context, rev *path_mgmt.RevInfo) (bool, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	ttl := rev.Expiration().Sub(time.Now())
+	ttl := time.Until(rev.Expiration())
 	if ttl <= 0 {
 		return false, nil
 	}

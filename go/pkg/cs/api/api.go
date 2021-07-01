@@ -95,7 +95,7 @@ func (s *Server) GetSegments(w http.ResponseWriter, r *http.Request, params GetS
 		})
 		return
 	}
-	sort.Sort(query.Results(res))
+	sort.Sort(res)
 	rep := make([]*SegmentBrief, 0, len(res))
 	for _, segRes := range res {
 		rep = append(rep, &SegmentBrief{
@@ -443,7 +443,7 @@ func (s *Server) GetCa(w http.ResponseWriter, r *http.Request) {
 			NotBefore: p.Certificate.NotBefore,
 		},
 		Policy: Policy{
-			ChainLifetime: fmt.Sprintf("%s", p.Validity),
+			ChainLifetime: p.Validity.String(),
 		},
 		Subject: Subject{
 			IsdAs: IsdAs(ia.String()),
@@ -721,7 +721,7 @@ func (s *Server) GetTopology(w http.ResponseWriter, r *http.Request) {
 // Error creates an detailed error response.
 func Error(w http.ResponseWriter, p Problem) {
 	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(int(p.Status))
+	w.WriteHeader(p.Status)
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
 	// no point in catching error here, there is nothing we can do about it anymore.
