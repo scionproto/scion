@@ -45,13 +45,12 @@ type IntfSpec struct {
 }
 
 type Params struct {
-	SegIDs        [][]byte
-	SegTypes      []seg.Type
-	HpCfgIDs      []*HPCfgID
-	Intfs         []*IntfSpec
-	StartsAt      []addr.IA
-	EndsAt        []addr.IA
-	MinLastUpdate *time.Time
+	SegIDs   [][]byte
+	SegTypes []seg.Type
+	HpCfgIDs []*HPCfgID
+	Intfs    []*IntfSpec
+	StartsAt []addr.IA
+	EndsAt   []addr.IA
 }
 
 type Result struct {

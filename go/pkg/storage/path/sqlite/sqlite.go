@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/storage/utils"
 )
 
 type segMeta struct {
@@ -136,34 +137,40 @@ func (e *executor) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
 		return noInsertion, serrors.New("No database open")
 	}
 	pseg := segMeta.Segment
-	// Check if we already have a path segment.
 	segID := pseg.ID()
 	newFullID := pseg.FullID()
 	meta, err := e.get(ctx, segID)
 	if err != nil {
-		return noInsertion, err
-	}
-	if meta != nil {
-		// Check if the new segment is more recent.
-		if pseg.Info.Timestamp.After(meta.Seg.Info.Timestamp) {
-			// Update existing path segment.
-			meta.Seg = pseg
-			meta.LastUpdated = time.Now()
-			if err := e.updateExisting(ctx, meta, segMeta.Type, newFullID, hpCfgIDs); err != nil {
-				return noInsertion, err
-			}
-			return pathdb.InsertStats{Updated: 1}, nil
-		}
-		return noInsertion, nil
+		return pathdb.InsertStats{}, err
 	}
 	// Do full insert.
-	err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
-		return insertFull(ctx, tx, segMeta, hpCfgIDs)
-	})
-	if err != nil {
-		return noInsertion, err
+	if meta == nil {
+		if err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+			return insertFull(ctx, tx, segMeta, hpCfgIDs)
+		}); err != nil {
+			return pathdb.InsertStats{}, err
+		}
+		return pathdb.InsertStats{Inserted: 1}, nil
 	}
-	return pathdb.InsertStats{Inserted: 1}, nil
+	newLastHopVersion, err := utils.ExtractLastHopVersion(pseg)
+	if err != nil {
+		return pathdb.InsertStats{}, err
+	}
+	oldLastHopVersion, err := utils.ExtractLastHopVersion(meta.Seg)
+	if err != nil {
+		return pathdb.InsertStats{}, err
+	}
+	// If the segment is older than the one already present in the pathDB
+	if newLastHopVersion <= oldLastHopVersion {
+		return pathdb.InsertStats{}, nil
+	}
+	// Update the existing segment
+	meta.Seg = pseg
+	meta.LastUpdated = time.Now()
+	if err := e.updateExisting(ctx, meta, segMeta.Type, newFullID, hpCfgIDs); err != nil {
+		return pathdb.InsertStats{}, err
+	}
+	return pathdb.InsertStats{Updated: 1}, nil
 }
 
 func (e *executor) get(ctx context.Context, segID []byte) (*segMeta, error) {
@@ -306,7 +313,6 @@ func insertFull(ctx context.Context, tx *sql.Tx, segMeta *seg.Meta,
 }
 
 func insertInterfaces(ctx context.Context, tx *sql.Tx, ases []seg.ASEntry, segRowID int64) error {
-
 	stmtStr := `INSERT INTO IntfToSeg (IsdID, AsID, IntfID, SegRowID) VALUES (?, ?, ?, ?)`
 	stmt, err := tx.PrepareContext(ctx, stmtStr)
 	if err != nil {
@@ -488,10 +494,6 @@ func (e *executor) buildQuery(params *query.Params) (string, []interface{}) {
 		}
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
-	if params.MinLastUpdate != nil {
-		where = append(where, "(s.LastUpdated>?)")
-		args = append(args, params.MinLastUpdate.UnixNano())
-	}
 	// Assemble the query.
 	if len(joins) > 0 {
 		query = append(query, strings.Join(joins, "\n"))
@@ -504,59 +506,7 @@ func (e *executor) buildQuery(params *query.Params) (string, []interface{}) {
 }
 
 func (e *executor) GetAll(ctx context.Context) (query.Results, error) {
-	e.RLock()
-	defer e.RUnlock()
-	if e.db == nil {
-		return query.Results{}, serrors.New("No database open")
-	}
-	stmt, args := e.buildQuery(nil)
-	rows, err := e.db.QueryContext(ctx, stmt, args...)
-	if err != nil {
-		return query.Results{},
-			serrors.WrapStr("Error looking up path segment", err, "q", stmt)
-	}
-	var ret query.Results
-
-	defer rows.Close()
-	prevID := -1
-	var curRes *query.Result
-	for rows.Next() {
-		var segRowID int
-		var rawSeg sql.RawBytes
-		var lastUpdated int64
-		var segType seg.Type
-		hpCfgID := &query.HPCfgID{IA: addr.IA{}}
-		err = rows.Scan(&segRowID, &rawSeg, &lastUpdated,
-			&hpCfgID.IA.I, &hpCfgID.IA.A, &hpCfgID.ID, &segType)
-		if err != nil {
-			return query.Results{}, serrors.WrapStr("Error reading DB response", err)
-		}
-		// Check if we have a new segment.
-		if segRowID != prevID {
-			if curRes != nil {
-				ret = append(ret, curRes)
-			}
-			curRes = &query.Result{
-				LastUpdate: time.Unix(0, lastUpdated),
-				Type:       segType,
-			}
-			var err error
-			curRes.Seg, err = pathdb.UnpackSegment(rawSeg)
-			if err != nil {
-				return query.Results{}, serrors.WrapStr("Error unmarshalling segment", err)
-			}
-		}
-		// Append hpCfgID to result
-		curRes.HpCfgIDs = append(curRes.HpCfgIDs, hpCfgID)
-		prevID = segRowID
-	}
-	if curRes != nil {
-		ret = append(ret, curRes)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return ret, nil
+	return e.Get(ctx, nil)
 }
 
 func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA,
@@ -591,7 +541,6 @@ func (e *executor) InsertNextQuery(ctx context.Context, src, dst addr.IA,
 }
 
 func (e *executor) GetNextQuery(ctx context.Context, src, dst addr.IA) (time.Time, error) {
-
 	e.RLock()
 	defer e.RUnlock()
 	if e.db == nil {
