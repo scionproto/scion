@@ -141,5 +141,6 @@ On other errors, showpaths will exit with code 2.
 		"Optional local IP address to use for probing health checks")
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
+	cmd.Flags().BoolVar(&flags.cfg.Epic, "epic", false, "Enable EPIC.")
 	return cmd
 }

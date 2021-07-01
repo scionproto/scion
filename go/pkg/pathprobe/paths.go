@@ -106,7 +106,9 @@ type Prober struct {
 // GetStatuses probes the paths and returns the statuses of the paths. The
 // returned map is keyed with path.Path.FwdPath. The input should only be
 // non-empty paths.
-func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path) (map[string]Status, error) {
+func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path,
+	epic bool) (map[string]Status, error) {
+
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		return nil, serrors.New("deadline required on ctx")
@@ -172,7 +174,7 @@ func (p Prober) GetStatuses(ctx context.Context, paths []snet.Path) (map[string]
 					IA:   p.LocalIA,
 					Host: addr.HostFromIP(localIP),
 				}
-				if err := p.sendProbe(conn, localAddr, path, uint16(seqNr)); err != nil {
+				if err := p.sendProbe(conn, localAddr, path, uint16(seqNr), epic); err != nil {
 					return serrors.WrapStr("sending probe", err, "local", localIP)
 				}
 			}
@@ -223,10 +225,16 @@ func (p Prober) sendProbe(
 	localAddr snet.SCIONAddress,
 	path snet.Path,
 	nextSeq uint16,
+	epic bool,
 ) error {
 	alertingPath := path.Path()
 	if err := setAlertFlag(&alertingPath, true); err != nil {
 		return err
+	}
+	if epic {
+		if err := alertingPath.EnableEpic(); err != nil {
+			return err
+		}
 	}
 	pkt := &snet.Packet{
 		PacketInfo: snet.PacketInfo{
