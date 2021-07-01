@@ -28,6 +28,8 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/slayers"
+	"github.com/scionproto/scion/go/lib/slayers/path/epic"
+	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 )
 
 const (
@@ -339,6 +341,15 @@ func (h SCMPHandler) reverseSCION(pkt *respool.Packet) error {
 	}
 	if err := pkt.SCION.SetDstAddr(src); err != nil {
 		return serrors.WrapStr("setting destination address", err)
+	}
+	if pkt.SCION.PathType == epic.PathType {
+		log.Debug("Received EPIC packet, reverse it to SCION")
+		epicPath, ok := pkt.SCION.Path.(*epic.Path)
+		if !ok {
+			return serrors.New("Path type and path data do not match")
+		}
+		pkt.SCION.Path = epicPath.ScionPath
+		pkt.SCION.PathType = scion.PathType
 	}
 	if pkt.SCION.Path, err = pkt.SCION.Path.Reverse(); err != nil {
 		return serrors.WrapStr("reversing path", err)

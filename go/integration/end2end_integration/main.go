@@ -43,6 +43,7 @@ var (
 	name        string
 	cmd         string
 	features    string
+	epic        bool
 )
 
 func getCmd() (string, bool) {
@@ -75,6 +76,7 @@ func realMain() int {
 		"-sciond", integration.Daemon,
 		"-local", integration.SrcAddrPattern + ":0",
 		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
+		fmt.Sprintf("-epic=%s", strconv.FormatBool(epic)),
 	}
 	serverArgs := []string{
 		"-mode", "server",
@@ -112,6 +114,7 @@ func addFlags() {
 	flag.IntVar(&parallelism, "parallelism", 1, "How many end2end tests run in parallel.")
 	flag.StringVar(&features, "features", "",
 		fmt.Sprintf("enable development features (%v)", feature.String(&feature.Default{}, "|")))
+	flag.BoolVar(&epic, "epic", false, "Enable EPIC.")
 }
 
 // runTests runs the end2end tests for all pairs. In case of an error the
@@ -273,6 +276,7 @@ func clientTemplate(progressSock string) integration.Cmd {
 			"-sciond", integration.Daemon,
 			"-local", integration.SrcAddrPattern + ":0",
 			"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace,
+			fmt.Sprintf("-epic=%s", strconv.FormatBool(epic)),
 		},
 	}
 	if len(features) != 0 {

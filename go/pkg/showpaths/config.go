@@ -38,4 +38,7 @@ type Config struct {
 	// Sequence is a string of space separated Hop Predicates that is used for
 	// filtering.
 	Sequence string
+	// Epic filters paths for which EPIC is not available, and when probing, the
+	// EPIC path type header is used.
+	Epic bool
 }
