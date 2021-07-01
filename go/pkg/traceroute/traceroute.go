@@ -94,7 +94,7 @@ type tracerouter struct {
 
 // Run runs the traceroute.
 func Run(ctx context.Context, cfg Config) (Stats, error) {
-	if cfg.PathEntry.Path().IsEmpty() {
+	if cfg.Remote.Path.IsEmpty() {
 		return Stats{}, serrors.New("empty path is not allowed for traceroute")
 	}
 	id := rand.Uint64()
@@ -126,11 +126,11 @@ func Run(ctx context.Context, cfg Config) (Stats, error) {
 
 func (t *tracerouter) Traceroute(ctx context.Context) (Stats, error) {
 	pktPath := scion.Decoded{}
-	if err := pktPath.DecodeFromBytes(t.path.Path().Raw); err != nil {
+	if err := pktPath.DecodeFromBytes(t.remote.Path.Raw); err != nil {
 		return t.stats, serrors.WrapStr("decoding path", err)
 	}
 	idxPath := scion.Decoded{}
-	if err := idxPath.DecodeFromBytes(t.path.Path().Raw); err != nil {
+	if err := idxPath.DecodeFromBytes(t.remote.Path.Raw); err != nil {
 		return t.stats, serrors.WrapStr("decoding path", err)
 	}
 	ctx, cancel := context.WithCancel(ctx)
@@ -192,7 +192,7 @@ func (t *tracerouter) probeHop(ctx context.Context, dp *scion.Decoded,
 		hf.IngressRouterAlert = true
 		defer func() { hf.IngressRouterAlert = false }()
 	}
-	p := t.path.Path()
+	p := t.remote.Path
 	if err := dp.SerializeTo(p.Raw); err != nil {
 		return Update{}, serrors.WrapStr("serializing path", err)
 	}

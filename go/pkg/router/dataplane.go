@@ -675,22 +675,21 @@ func (p *scionPacketProcessor) processEPIC() (processResult, error) {
 		return processResult{}, malformedPath
 	}
 
-	info, err := p.path.GetCurrentInfoField()
-	if err != nil {
-		return processResult{}, err
-	}
-
-	result, err := p.process()
-	if err != nil {
-		// TODO(mawyss): Send back SCMP packet
-		return processResult{}, err
-	}
-
 	isPenultimate := p.path.IsPenultimateHop()
 	isLast := p.path.IsLastHop()
 
+	result, err := p.process()
+	if err != nil {
+		return result, err
+	}
+
 	if isPenultimate || isLast {
-		timestamp := time.Unix(int64(info.Timestamp), 0)
+		firstInfo, err := p.path.GetInfoField(0)
+		if err != nil {
+			return processResult{}, err
+		}
+
+		timestamp := time.Unix(int64(firstInfo.Timestamp), 0)
 		err = libepic.VerifyTimestamp(timestamp, epicPath.PktID.Timestamp, time.Now())
 		if err != nil {
 			// TODO(mawyss): Send back SCMP packet
@@ -701,7 +700,8 @@ func (p *scionPacketProcessor) processEPIC() (processResult, error) {
 		if isLast {
 			HVF = epicPath.LHVF
 		}
-		err = libepic.VerifyHVF(p.cachedMac, epicPath.PktID, &p.scionLayer, info.Timestamp, HVF)
+		err = libepic.VerifyHVF(p.cachedMac, epicPath.PktID,
+			&p.scionLayer, firstInfo.Timestamp, HVF)
 		if err != nil {
 			// TODO(mawyss): Send back SCMP packet
 			return processResult{}, err
@@ -1421,10 +1421,25 @@ type scmpPacker struct {
 func (s scmpPacker) prepareSCMP(scmpH *slayers.SCMP, scmpP gopacket.SerializableLayer,
 	external bool, cause error) ([]byte, error) {
 
-	path, ok := s.scionL.Path.(*scion.Raw)
-	if !ok {
-		return nil, serrors.WithCtx(cannotRoute, "details", "unsupported path type",
-			"path type", s.scionL.Path.Type())
+	var path *scion.Raw
+	badPathErr := serrors.WithCtx(cannotRoute, "details", "unsupported path type",
+		"path type", s.scionL.PathType)
+	switch s.scionL.PathType {
+	case scion.PathType:
+		var ok bool
+		path, ok = s.scionL.Path.(*scion.Raw)
+		if !ok {
+			return nil, badPathErr
+		}
+	case epic.PathType:
+		epicPath, ok := s.scionL.Path.(*epic.Path)
+		if !ok {
+			return nil, badPathErr
+		}
+		path = epicPath.ScionPath
+		s.scionL.PathType = scion.PathType
+	default:
+		return nil, badPathErr
 	}
 
 	decPath, err := path.ToDecoded()
