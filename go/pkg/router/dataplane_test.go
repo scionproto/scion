@@ -901,12 +901,10 @@ func TestProcessPkt(t *testing.T) {
 						Timestamp: 0x100,
 					},
 					FirstHop: path.HopField{
-						IngressRouterAlert: true,
-						EgressRouterAlert:  true,
-						ExpTime:            63,
-						ConsIngress:        0,
-						ConsEgress:         21,
-						Mac:                []byte{1, 2, 3, 4, 5, 6},
+						ExpTime:     63,
+						ConsIngress: 0,
+						ConsEgress:  21,
+						Mac:         []byte{1, 2, 3, 4, 5, 6},
 					},
 				}
 				if !afterProcessing {
@@ -999,18 +997,14 @@ func TestProcessPkt(t *testing.T) {
 						Timestamp: util.TimeToSecs(time.Now()),
 					},
 					FirstHop: path.HopField{
-						IngressRouterAlert: true,
-						EgressRouterAlert:  true,
-						ExpTime:            63,
-						ConsIngress:        0,
-						ConsEgress:         21,
-						Mac:                []byte{1, 2, 3, 4, 5, 6},
+						ExpTime:     63,
+						ConsIngress: 0,
+						ConsEgress:  21,
+						Mac:         []byte{1, 2, 3, 4, 5, 6},
 					},
 					SecondHop: path.HopField{
-						IngressRouterAlert: true,
-						EgressRouterAlert:  true,
-						ExpTime:            63,
-						ConsIngress:        1,
+						ExpTime:     63,
+						ConsIngress: 1,
 					},
 				}
 				dpath.SecondHop.Mac = computeMAC(t, key, &dpath.Info, &dpath.SecondHop)
@@ -1061,11 +1055,9 @@ func TestProcessPkt(t *testing.T) {
 						Timestamp: 0x100,
 					},
 					FirstHop: path.HopField{
-						IngressRouterAlert: true,
-						EgressRouterAlert:  true,
-						ExpTime:            63,
-						ConsIngress:        0,
-						ConsEgress:         2,
+						ExpTime:     63,
+						ConsIngress: 0,
+						ConsEgress:  2,
 					},
 				}
 				dpath.FirstHop.Mac = computeMAC(t, key, &dpath.Info, &dpath.FirstHop)
