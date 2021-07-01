@@ -229,6 +229,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 			LinkType:     linkType,
 			InternalHops: p.InternalHops,
 			Notes:        p.Notes,
+			EpicAuths:    epicAuths,
 		},
 	}
 
