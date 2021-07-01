@@ -7,6 +7,9 @@ set -euo pipefail
 echo "--- Enable loki log driver"
 docker plugin enable loki || true
 
+echo "--- Increase receive network buffer size"
+sudo sysctl -w net.core.rmem_max=1048576
+
 echo "--- Setting up bazel environment"
 
 # ACCEPTANCE_ARTIFACTS is used for acceptance tests built with the "old"
