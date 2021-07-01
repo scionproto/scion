@@ -98,7 +98,7 @@ func TestReplyFromProtoFormat(t *testing.T) {
 		Error         assert.ErrorAssertionFunc
 	}{
 		{
-			Name:       "nil capnp object",
+			Name:       "nil object",
 			ProtoReply: nil,
 			ExpectedReply: &Reply{
 				Transports: make(map[Transport]string),

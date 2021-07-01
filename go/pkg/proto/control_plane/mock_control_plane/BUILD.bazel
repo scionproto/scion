@@ -6,8 +6,6 @@ gomock(
     out = "mock.go",
     interfaces = [
         "ChainRenewalServiceServer",
-        "InterfaceStateConsumerServiceServer",
-        "InterfaceStateServiceServer",
         "TrustMaterialServiceServer",
     ],
     library = "//go/pkg/proto/control_plane:go_default_library",

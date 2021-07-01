@@ -257,7 +257,6 @@ go_lint() {
     find go acceptance -type f -iname '*.go' \
       -a '!' -ipath '*.pb.go' \
       -a '!' -ipath '*.gen.go' \
-      -a '!' -ipath 'go/proto/*.capnp.go' \
       -a '!' -ipath '*mock_*' > $TMPDIR/gofiles.list
     lint_step "Building lint tools"
 
