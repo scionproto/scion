@@ -67,6 +67,7 @@ var (
 	timeout                = &util.DurWrap{Duration: 10 * time.Second}
 	scionPacketConnMetrics = metrics.NewSCIONPacketConnMetrics()
 	scmpErrorsCounter      = scionPacketConnMetrics.SCMPErrors
+	epic                   bool
 )
 
 func main() {
@@ -97,6 +98,7 @@ func realMain() int {
 func addFlags() {
 	flag.Var(&remote, "remote", "(Mandatory for clients) address to connect to")
 	flag.Var(timeout, "timeout", "The timeout for each attempt")
+	flag.BoolVar(&epic, "epic", false, "Enable EPIC.")
 }
 
 func validateFlags() {
@@ -377,6 +379,12 @@ func (c *client) getRemote(ctx context.Context, n int) (snet.Path, error) {
 	}
 	// Extract forwarding path from the SCION Daemon response
 	remote.Path = path.Path()
+	// If the epic flag is set, try to use the EPIC path type header
+	if epic {
+		if err = remote.Path.EnableEpic(); err != nil {
+			return nil, err
+		}
+	}
 	remote.NextHop = path.UnderlayNextHop()
 	return path, nil
 }

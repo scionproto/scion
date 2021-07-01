@@ -94,6 +94,15 @@ message Path {
     // occurrence.
     // Entry i is the note of AS i on the path.
     repeated string notes = 11;
+    // EpicAuths contains the EPIC authenticators used to calculate the PHVF and LHVF.
+    EpicAuths epic_auths = 12;
+}
+
+message EpicAuths {
+    // AuthPHVF is the authenticator use to calculate the PHVF.
+    bytes auth_phvf = 1;
+    // AuthLHVF is the authenticator use to calculate the LHVF.
+    bytes auth_lhvf = 2;
 }
 
 message PathInterface {

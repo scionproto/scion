@@ -82,8 +82,21 @@ func Choose(
 	if err != nil {
 		return nil, serrors.WrapStr("fetching paths", err)
 	}
+	if o.epic {
+		// Only use paths that support EPIC and intra-AS (empty) paths.
+		epicPaths := []snet.Path{}
+		for _, path := range paths {
+			if path.Path().SupportsEpic() || path.Path().IsEmpty() {
+				epicPaths = append(epicPaths, path)
+			}
+		}
+		if len(epicPaths) == 0 {
+			return nil, serrors.New("no EPIC paths available.")
+		}
+		paths = epicPaths
+	}
 	if o.probeCfg != nil {
-		paths, err = filterUnhealthy(ctx, paths, remote, conn, o.probeCfg)
+		paths, err = filterUnhealthy(ctx, paths, remote, conn, o.probeCfg, o.epic)
 		if err != nil {
 			return nil, serrors.WrapStr("probing paths", err)
 		}
@@ -101,6 +114,7 @@ func filterUnhealthy(
 	remote addr.IA,
 	sd daemon.Connector,
 	cfg *ProbeConfig,
+	epic bool,
 ) ([]snet.Path, error) {
 
 	// Filter and save empty paths. They are considered healthy by definition, but must not be used
@@ -123,7 +137,7 @@ func filterUnhealthy(
 		ID:                     uint16(rand.Uint32()),
 		SCIONPacketConnMetrics: cfg.SCIONPacketConnMetrics,
 		Dispatcher:             cfg.Dispatcher,
-	}.GetStatuses(subCtx, nonEmptyPaths)
+	}.GetStatuses(subCtx, nonEmptyPaths, epic)
 	if err != nil {
 		return nil, serrors.WrapStr("probing paths", err)
 	}
@@ -296,6 +310,7 @@ type options struct {
 	seq         string
 	colorScheme ColorScheme
 	probeCfg    *ProbeConfig
+	epic        bool
 }
 
 type Option func(o *options)
@@ -335,5 +350,11 @@ func WithColorScheme(cs ColorScheme) Option {
 func WithProbing(cfg *ProbeConfig) Option {
 	return func(o *options) {
 		o.probeCfg = cfg
+	}
+}
+
+func WithEpic(epic bool) Option {
+	return func(o *options) {
+		o.epic = epic
 	}
 }

@@ -19,6 +19,8 @@ go_library(
         "//go/lib/ringbuf:go_default_library",
         "//go/lib/serrors:go_default_library",
         "//go/lib/slayers:go_default_library",
+        "//go/lib/slayers/path/epic:go_default_library",
+        "//go/lib/slayers/path/scion:go_default_library",
         "//go/lib/underlay/conn:go_default_library",
         "@com_github_google_gopacket//:go_default_library",
     ],
