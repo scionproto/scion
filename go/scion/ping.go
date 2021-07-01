@@ -54,6 +54,7 @@ func newPing(pather CommandPather) *cobra.Command {
 		size        uint
 		timeout     time.Duration
 		tracer      string
+		epic        bool
 	}
 
 	var cmd = &cobra.Command{
@@ -125,6 +126,7 @@ On other errors, ping will exit with code 2.
 				path.WithRefresh(flags.refresh),
 				path.WithSequence(flags.sequence),
 				path.WithColorScheme(path.DefaultColorScheme(flags.noColor)),
+				path.WithEpic(flags.epic),
 			}
 			if flags.healthyOnly {
 				opts = append(opts, path.WithProbing(&path.ProbeConfig{
@@ -235,6 +237,7 @@ SCMP echo header and payload are equal to the MTU of the path. This flag overrid
 'payload_size' flag.`)
 	cmd.Flags().StringVar(&flags.logLevel, "log.level", "", app.LogLevelUsage)
 	cmd.Flags().StringVar(&flags.tracer, "tracing.agent", "", "Tracing agent address")
+	cmd.Flags().BoolVar(&flags.epic, "epic", false, "Enable EPIC for path probing.")
 	return cmd
 }
 

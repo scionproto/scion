@@ -211,7 +211,7 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 		linkType[i] = linkTypeFromPB(v)
 	}
 
-	return path.Path{
+	res := path.Path{
 		Dst: dst,
 		DataplanePath: path.SCION{
 			Raw: p.Raw,
@@ -227,8 +227,20 @@ func convertPath(p *sdpb.Path, dst addr.IA) (path.Path, error) {
 			LinkType:     linkType,
 			InternalHops: p.InternalHops,
 			Notes:        p.Notes,
+			EpicAuths:    epicAuths,
 		},
-	}, nil
+	}
+
+	if p.EpicAuths == nil {
+		return res, nil
+	}
+
+	res.DataplanePath = &path.EPIC{
+		AuthPHVF: p.EpicAuths.AuthPhvf,
+		AuthLHVF: p.EpicAuths.AuthLhvf,
+		SCION:    p.Raw,
+	}
+	return res, nil
 }
 
 func linkTypeFromPB(lt sdpb.LinkType) snet.LinkType {
