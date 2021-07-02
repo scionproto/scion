@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -56,9 +55,6 @@ func run(t *testing.T, db TestableDB) {
 			t.Skip("Ignoring beacon cleaning test")
 		}
 
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
 		ctx, cancelF := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancelF()
 		db.Prepare(t, ctx)
@@ -67,8 +63,8 @@ func run(t *testing.T, db TestableDB) {
 		ts2 := uint32(20)
 		// defaultExp is the default expiry of the hopfields.
 		defaultExp := path.ExpTimeToDuration(63)
-		dbtest.InsertBeacon(t, ctrl, db, dbtest.Info3, 12, ts1, beaconlib.UsageProp)
-		dbtest.InsertBeacon(t, ctrl, db, dbtest.Info2, 13, ts2, beaconlib.UsageProp)
+		dbtest.InsertBeacon(t, db, dbtest.Info3, 12, ts1, beaconlib.UsageProp)
+		dbtest.InsertBeacon(t, db, dbtest.Info2, 13, ts2, beaconlib.UsageProp)
 		// No expired beacon
 		deleted, err := db.DeleteExpiredBeacons(ctx, time.Unix(10, 0).Add(defaultExp))
 		require.NoError(t, err)
