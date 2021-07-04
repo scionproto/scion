@@ -310,6 +310,9 @@ func HostFromRaw(b []byte, htype HostAddrType) (HostAddr, error) {
 		}
 		return HostIPv6(b[:HostLenIPv6]), nil
 	case HostTypeSVC:
+		if len(b) < HostLenSVC {
+			return nil, serrors.WithCtx(ErrMalformedHostAddrType, "type", htype)
+		}
 		return HostSVC(binary.BigEndian.Uint16(b)), nil
 	default:
 		return nil, serrors.WithCtx(ErrBadHostAddrType, "type", htype)
