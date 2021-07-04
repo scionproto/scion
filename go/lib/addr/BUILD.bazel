@@ -14,7 +14,10 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["isdas_test.go"],
+    srcs = [
+        "host_test.go",
+        "isdas_test.go",
+    ],
     embed = [":go_default_library"],
     deps = ["@com_github_stretchr_testify//assert:go_default_library"],
 )
