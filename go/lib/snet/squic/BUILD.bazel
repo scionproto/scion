@@ -21,6 +21,7 @@ go_test(
     name = "go_default_test",
     srcs = ["net_test.go"],
     data = glob(["testdata/**"]),
+    tags = ["exclusive"],
     deps = [
         ":go_default_library",
         "//go/pkg/proto/control_plane:go_default_library",
