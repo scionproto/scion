@@ -582,7 +582,7 @@ epic_path.fields = {
 }
 
 function epic_path_dissect(tvbuf, pktinfo, root)
-    local tree = root:add(tvbuf, "EPIC")
+    local tree = root:add(epic_path, tvbuf()):set_text("EPIC")
 
     -- The EPIC fields have a total size of 16 bytes
     if tvbuf:len() < 16 then
