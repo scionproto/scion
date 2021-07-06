@@ -188,7 +188,36 @@ func NewPathStorage(c DBConfig) (PathDB, error) {
 		return nil, err
 	}
 	SetConnLimits(db, c)
-	return db, nil
+
+	// Start a periodic task that cleans up the expired path segments.
+	cleaner := periodic.Start(
+		cleaner.New(
+			func(ctx context.Context) (int, error) {
+				return db.DeleteExpired(ctx, time.Now())
+			},
+			"control_pathstorage_cleaner",
+		),
+		30*time.Second,
+		30*time.Second,
+	)
+	return pathDBWithCleaner{
+		DB:       db,
+		cleaner:  cleaner,
+		dbCloser: db,
+	}, nil
+}
+
+// pathDBWithCleaner implements the path DB interface and stops both the
+// database and the cleanup task on Close.
+type pathDBWithCleaner struct {
+	pathdb.DB
+	cleaner  *periodic.Runner
+	dbCloser io.Closer
+}
+
+func (b pathDBWithCleaner) Close() error {
+	b.cleaner.Kill()
+	return b.dbCloser.Close()
 }
 
 func NewRevocationStorage() revcache.RevCache {
