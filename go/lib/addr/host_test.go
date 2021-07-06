@@ -1,5 +1,4 @@
-// Copyright 2016 ETH Zurich
-// Copyright 2020 ETH Zurich, Anapaya Systems
+// Copyright 2021 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,31 +12,74 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package addr
+package addr_test
 
 import (
+	"net"
 	"testing"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHostFromRaw(t *testing.T) {
-	var testSlice = []byte{}
-	var hostAddrTypes = []struct {
-		name     string
-		addrType HostAddrType
+	testCases := map[string]struct {
+		input        []byte
+		addrType     addr.HostAddrType
+		expected     addr.HostAddr
+		errAssertion assert.ErrorAssertionFunc
 	}{
-		{"HostTypeIPv4", HostTypeIPv4},
-		{"HostTypeIPv6", HostTypeIPv6},
-		{"HostTypeSVC", HostTypeSVC},
+		"nil IPv4": {
+			addrType:     addr.HostTypeIPv4,
+			errAssertion: assert.Error,
+		},
+		"short IPv4": {
+			input:        make([]byte, 3),
+			addrType:     addr.HostTypeIPv4,
+			errAssertion: assert.Error,
+		},
+		"valid IPv4": {
+			input:        []byte{127, 0, 0, 1},
+			addrType:     addr.HostTypeIPv4,
+			expected:     addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
+			errAssertion: assert.NoError,
+		},
+		"nil IPv6": {
+			addrType:     addr.HostTypeIPv6,
+			errAssertion: assert.Error,
+		},
+		"short IPv6": {
+			input:        make([]byte, 14),
+			addrType:     addr.HostTypeIPv6,
+			errAssertion: assert.Error,
+		},
+		"valid IPv6": {
+			input:        net.ParseIP("dead::beef"),
+			addrType:     addr.HostTypeIPv6,
+			expected:     addr.HostFromIP(net.ParseIP("dead::beef")),
+			errAssertion: assert.NoError,
+		},
+		"nil SVC": {
+			addrType:     addr.HostTypeSVC,
+			errAssertion: assert.Error,
+		},
+		"short SVC": {
+			input:        make([]byte, 1),
+			addrType:     addr.HostTypeSVC,
+			errAssertion: assert.Error,
+		},
+		"valid SVC": {
+			input:        addr.SvcDS.Pack(),
+			addrType:     addr.HostTypeSVC,
+			expected:     addr.SvcDS,
+			errAssertion: assert.NoError,
+		},
 	}
-
-	t.Log("HostFromRaw should return a non-nil error when the length of the slice argument is less than expected")
-
-	for _, addrType := range hostAddrTypes {
-		t.Run(addrType.name, func(t *testing.T) {
-			_, err := HostFromRaw(testSlice, addrType.addrType)
-			assert.Error(t, err, "Must return non-nil error")
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			got, err := addr.HostFromRaw(tc.input, tc.addrType)
+			tc.errAssertion(t, err)
+			assert.Equal(t, tc.expected, got)
 		})
 	}
 }
