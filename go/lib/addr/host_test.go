@@ -18,8 +18,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/scionproto/scion/go/lib/addr"
 )
 
 func TestHostFromRaw(t *testing.T) {
