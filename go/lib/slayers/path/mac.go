@@ -24,27 +24,29 @@ const MACBufferSize = 16
 // MAC calculates the HopField MAC according to
 // https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#hop-field-mac-computation
 // this method does not modify info or hf.
-func MAC(h hash.Hash, info *InfoField, hf *HopField, inputBuffer []byte) []byte {
-	return FullMAC(h, info, hf, inputBuffer)[0:6]
+// Modifying the provided buffer after calling this function may change the returned HopField MAC.
+func MAC(h hash.Hash, info *InfoField, hf *HopField, buffer []byte) []byte {
+	return FullMAC(h, info, hf, buffer)[0:6]
 }
 
 // FullMAC calculates the HopField MAC according to
 // https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#hop-field-mac-computation
 // this method does not modify info or hf.
+// Modifying the provided buffer after calling this function may change the returned HopField MAC.
 // In contrast to MAC(), FullMAC returns all the 16 bytes instead of only 6 bytes of the MAC.
-func FullMAC(h hash.Hash, info *InfoField, hf *HopField, inputBuffer []byte) []byte {
-	if len(inputBuffer) < MACBufferSize {
-		inputBuffer = make([]byte, MACBufferSize)
+func FullMAC(h hash.Hash, info *InfoField, hf *HopField, buffer []byte) []byte {
+	if len(buffer) < MACBufferSize {
+		buffer = make([]byte, MACBufferSize)
 	}
 
 	h.Reset()
 	MACInput(info.SegID, info.Timestamp, hf.ExpTime,
-		hf.ConsIngress, hf.ConsEgress, inputBuffer)
+		hf.ConsIngress, hf.ConsEgress, buffer)
 	// Write must not return an error: https://godoc.org/hash#Hash
-	if _, err := h.Write(inputBuffer); err != nil {
+	if _, err := h.Write(buffer); err != nil {
 		panic(err)
 	}
-	return h.Sum(nil)[:16]
+	return h.Sum(buffer[:0])[:16]
 }
 
 // MACInput returns the MAC input data block with the following layout:
