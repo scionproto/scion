@@ -61,7 +61,7 @@ class TestState:
         self.setup_params = []
         self.executables = []
         self.topo = ""
-        self.containers_tar = ""
+        self.containers_tars = []
         if "TEST_UNDECLARED_OUTPUTS_DIR" in os.environ:
             self.artifacts = local.path(
                 os.environ["TEST_UNDECLARED_OUTPUTS_DIR"])
@@ -117,9 +117,12 @@ class TestBase(cli.Application):
         self.test_state.artifacts = local.path(a_dir)
         self.test_state.dc.compose_file = self.test_state.artifacts / "gen/scion-dc.yml"
 
-    @cli.switch("containers_tar", str, help="The tarball with the containers")
-    def containers_tar(self, tar: str):
-        self.test_state.containers_tar = tar
+    @cli.switch(
+        "containers_tar", str, list=True,
+        help="The tarball with containers, can be repeated",
+    )
+    def containers_tar(self, tars: List):
+        self.test_state.containers_tars = tars
 
     @cli.switch("bazel_rule",
                 str,
@@ -138,8 +141,8 @@ class TestBase(cli.Application):
         cmd.rm("-rf", self.test_state.artifacts)
         cmd.mkdir(self.test_state.artifacts)
         print("artifacts dir: %s" % self.test_state.artifacts)
-        print(cmd.docker("image", "load", "-i",
-                         self.test_state.containers_tar))
+        for tar in self.test_state.containers_tars:
+            print(cmd.docker("image", "load", "-i", tar))
         # Define where coredumps will be stored.
         print(
             cmd.docker("run", "--rm", "--privileged", "alpine", "sysctl", "-w",
