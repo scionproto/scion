@@ -547,10 +547,10 @@ type processResult struct {
 
 func newPacketProcessor(d *DataPlane, ingressID uint16) *scionPacketProcessor {
 	return &scionPacketProcessor{
-		d:          d,
-		ingressID:  ingressID,
-		buffer:     gopacket.NewSerializeBuffer(),
-		mac:        d.macFactory(),
+		d:         d,
+		ingressID: ingressID,
+		buffer:    gopacket.NewSerializeBuffer(),
+		mac:       d.macFactory(),
 		macBuffers: macBuffers{
 			scionInput: make([]byte, path.MACBufferSize),
 			epicInput:  make([]byte, libepic.MACBufferSize),
