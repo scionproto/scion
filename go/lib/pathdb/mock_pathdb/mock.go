@@ -144,19 +144,19 @@ func (mr *MockDBMockRecorder) InsertNextQuery(arg0, arg1, arg2, arg3 interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertNextQuery", reflect.TypeOf((*MockDB)(nil).InsertNextQuery), arg0, arg1, arg2, arg3)
 }
 
-// InsertWithHPCfgIDs mocks base method
-func (m *MockDB) InsertWithHPCfgIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []*query.HPCfgID) (pathdb.InsertStats, error) {
+// InsertWithHPGroupIDs mocks base method
+func (m *MockDB) InsertWithHPGroupIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []uint64) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InsertWithHPCfgIDs", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "InsertWithHPGroupIDs", arg0, arg1, arg2)
 	ret0, _ := ret[0].(pathdb.InsertStats)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// InsertWithHPCfgIDs indicates an expected call of InsertWithHPCfgIDs
-func (mr *MockDBMockRecorder) InsertWithHPCfgIDs(arg0, arg1, arg2 interface{}) *gomock.Call {
+// InsertWithHPGroupIDs indicates an expected call of InsertWithHPGroupIDs
+func (mr *MockDBMockRecorder) InsertWithHPGroupIDs(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertWithHPCfgIDs", reflect.TypeOf((*MockDB)(nil).InsertWithHPCfgIDs), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertWithHPGroupIDs", reflect.TypeOf((*MockDB)(nil).InsertWithHPGroupIDs), arg0, arg1, arg2)
 }
 
 // MockTransaction is a mock of Transaction interface
@@ -286,19 +286,19 @@ func (mr *MockTransactionMockRecorder) InsertNextQuery(arg0, arg1, arg2, arg3 in
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertNextQuery", reflect.TypeOf((*MockTransaction)(nil).InsertNextQuery), arg0, arg1, arg2, arg3)
 }
 
-// InsertWithHPCfgIDs mocks base method
-func (m *MockTransaction) InsertWithHPCfgIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []*query.HPCfgID) (pathdb.InsertStats, error) {
+// InsertWithHPGroupIDs mocks base method
+func (m *MockTransaction) InsertWithHPGroupIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []uint64) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InsertWithHPCfgIDs", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "InsertWithHPGroupIDs", arg0, arg1, arg2)
 	ret0, _ := ret[0].(pathdb.InsertStats)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// InsertWithHPCfgIDs indicates an expected call of InsertWithHPCfgIDs
-func (mr *MockTransactionMockRecorder) InsertWithHPCfgIDs(arg0, arg1, arg2 interface{}) *gomock.Call {
+// InsertWithHPGroupIDs indicates an expected call of InsertWithHPGroupIDs
+func (mr *MockTransactionMockRecorder) InsertWithHPGroupIDs(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertWithHPCfgIDs", reflect.TypeOf((*MockTransaction)(nil).InsertWithHPCfgIDs), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertWithHPGroupIDs", reflect.TypeOf((*MockTransaction)(nil).InsertWithHPGroupIDs), arg0, arg1, arg2)
 }
 
 // Rollback mocks base method
@@ -428,17 +428,17 @@ func (mr *MockReadWriteMockRecorder) InsertNextQuery(arg0, arg1, arg2, arg3 inte
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertNextQuery", reflect.TypeOf((*MockReadWrite)(nil).InsertNextQuery), arg0, arg1, arg2, arg3)
 }
 
-// InsertWithHPCfgIDs mocks base method
-func (m *MockReadWrite) InsertWithHPCfgIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []*query.HPCfgID) (pathdb.InsertStats, error) {
+// InsertWithHPGroupIDs mocks base method
+func (m *MockReadWrite) InsertWithHPGroupIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []uint64) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InsertWithHPCfgIDs", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "InsertWithHPGroupIDs", arg0, arg1, arg2)
 	ret0, _ := ret[0].(pathdb.InsertStats)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// InsertWithHPCfgIDs indicates an expected call of InsertWithHPCfgIDs
-func (mr *MockReadWriteMockRecorder) InsertWithHPCfgIDs(arg0, arg1, arg2 interface{}) *gomock.Call {
+// InsertWithHPGroupIDs indicates an expected call of InsertWithHPGroupIDs
+func (mr *MockReadWriteMockRecorder) InsertWithHPGroupIDs(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertWithHPCfgIDs", reflect.TypeOf((*MockReadWrite)(nil).InsertWithHPCfgIDs), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertWithHPGroupIDs", reflect.TypeOf((*MockReadWrite)(nil).InsertWithHPGroupIDs), arg0, arg1, arg2)
 }

@@ -45,9 +45,9 @@ var (
 	ifs1 = []uint64{0, 5, 2, 3, 6, 3, 1, 0}
 	ifs2 = []uint64{0, 4, 2, 3, 1, 3, 2, 0}
 
-	hpCfgIDs = []*query.HPCfgID{
-		&query.NullHpCfgID,
-		{IA: ia330, ID: 0xdeadbeef},
+	hpGroupIDs = []uint64{
+		0,
+		0xffffffffffffffff,
 	}
 	segType = seg.TypeUp
 
@@ -77,11 +77,11 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 			test(t, db)
 		}
 	}
-	t.Run("InsertWithHpCfgID should correctly insert a new segment",
-		testWrapper(testInsertWithHpCfgIDsFull))
-	t.Run("InsertWithHpCfgID should correctly update a new segment",
+	t.Run("InsertWithHPGroupID should correctly insert a new segment",
+		testWrapper(testInsertWithHPGroupIDsFull))
+	t.Run("InsertWithHPGroupID should correctly update a new segment",
 		testWrapper(testUpdateExisting))
-	t.Run("InsertWithHpCfgID should correctly ignore an older segment",
+	t.Run("InsertWithHPGroupID should correctly ignore an older segment",
 		testWrapper(testUpdateOlderIgnored))
 	t.Run("Updating a segment with new peer links should update interface to seg mapping",
 		testWrapper(testUpdateIntfToSeg))
@@ -97,8 +97,8 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 		testWrapper(testGetStartsAtEndsAt))
 	t.Run("Get should return all path segment with given ifIDs",
 		testWrapper(testGetWithIntfs))
-	t.Run("Get should return all path segment with given HpCfgIDs",
-		testWrapper(testGetWithHpCfgIDs))
+	t.Run("Get should return all path segment with given HPGroupIDs",
+		testWrapper(testGetWithHPGroupIDs))
 	t.Run("NextQuery",
 		testWrapper(testNextQuery))
 
@@ -117,11 +117,11 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 		}
 	}
 	t.Run("WithTransaction", func(t *testing.T) {
-		t.Run("InsertWithHpCfgID should correctly insert a new segment",
-			txTestWrapper(testInsertWithHpCfgIDsFull))
-		t.Run("InsertWithHpCfgID should correctly update a new segment",
+		t.Run("InsertWithHPGroupID should correctly insert a new segment",
+			txTestWrapper(testInsertWithHPGroupIDsFull))
+		t.Run("InsertWithHPGroupID should correctly update a new segment",
 			txTestWrapper(testUpdateExisting))
-		t.Run("InsertWithHpCfgID should correctly ignore an older segment",
+		t.Run("InsertWithHPGroupID should correctly ignore an older segment",
 			txTestWrapper(testUpdateOlderIgnored))
 		t.Run("Updating a segment with new peer links should update interface to seg mapping",
 			txTestWrapper(testUpdateIntfToSeg))
@@ -137,8 +137,8 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 			txTestWrapper(testGetStartsAtEndsAt))
 		t.Run("Get should return all path segment with given ifIDs",
 			txTestWrapper(testGetWithIntfs))
-		t.Run("Get should return all path segment with given HpCfgIDs",
-			txTestWrapper(testGetWithHpCfgIDs))
+		t.Run("Get should return all path segment with given HPGroupIDs",
+			txTestWrapper(testGetWithHPGroupIDs))
 		t.Run("NextQuery",
 			txTestWrapper(testNextQuery))
 		t.Run("Rollback", func(t *testing.T) {
@@ -150,16 +150,16 @@ func TestPathDB(t *testing.T, db TestablePathDB) {
 	})
 }
 
-func testInsertWithHpCfgIDsFull(t *testing.T, pathDB pathdb.ReadWrite) {
+func testInsertWithHPGroupIDsFull(t *testing.T, pathDB pathdb.ReadWrite) {
 	TS := uint32(10)
 	pseg, segID := AllocPathSegment(t, ifs1, TS)
 
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
 	// Call
-	stat, err := pathDB.InsertWithHPCfgIDs(ctx,
+	stat, err := pathDB.InsertWithHPGroupIDs(ctx,
 		&seg.Meta{Segment: pseg, Type: segType},
-		hpCfgIDs,
+		hpGroupIDs,
 	)
 	require.NoError(t, err)
 	// Check return value.
@@ -167,7 +167,7 @@ func testInsertWithHpCfgIDsFull(t *testing.T, pathDB pathdb.ReadWrite) {
 	// Check Insert.
 	res, err := pathDB.Get(ctx, &query.Params{SegIDs: [][]byte{segID}})
 	require.NoError(t, err)
-	checkResult(t, res, pseg, hpCfgIDs)
+	checkResult(t, res, pseg, hpGroupIDs)
 }
 
 func testUpdateExisting(t *testing.T, pathDB pathdb.ReadWrite) {
@@ -178,16 +178,16 @@ func testUpdateExisting(t *testing.T, pathDB pathdb.ReadWrite) {
 	newTS := uint32(20)
 	newSeg, newSegID := AllocPathSegment(t, ifs1, newTS)
 	assert.Equal(t, segID, newSegID, "IDs should match")
-	stat := InsertSeg(t, ctx, pathDB, oldSeg, hpCfgIDs[:1])
+	stat := InsertSeg(t, ctx, pathDB, oldSeg, hpGroupIDs[:1])
 	assert.Equal(t, pathdb.InsertStats{Inserted: 1}, stat)
 	// Call
-	stat = InsertSeg(t, ctx, pathDB, newSeg, hpCfgIDs)
+	stat = InsertSeg(t, ctx, pathDB, newSeg, hpGroupIDs)
 	// Check return value.
 	assert.Equal(t, pathdb.InsertStats{Updated: 1}, stat, "Inserted")
 	// Check Insert
 	res, err := pathDB.Get(ctx, &query.Params{SegIDs: [][]byte{segID}})
 	require.NoError(t, err)
-	checkResult(t, res, newSeg, hpCfgIDs)
+	checkResult(t, res, newSeg, hpGroupIDs)
 }
 
 func testUpdateOlderIgnored(t *testing.T, pathDB pathdb.ReadWrite) {
@@ -198,23 +198,23 @@ func testUpdateOlderIgnored(t *testing.T, pathDB pathdb.ReadWrite) {
 	oldTS := uint32(10)
 	oldSeg, oldSegId := AllocPathSegment(t, ifs1, oldTS)
 	assert.Equal(t, newSegID, oldSegId, "IDs should match")
-	stat := InsertSeg(t, ctx, pathDB, newSeg, hpCfgIDs)
+	stat := InsertSeg(t, ctx, pathDB, newSeg, hpGroupIDs)
 	assert.Equal(t, pathdb.InsertStats{Inserted: 1}, stat)
 	// Call
-	stat = InsertSeg(t, ctx, pathDB, oldSeg, hpCfgIDs[:1])
+	stat = InsertSeg(t, ctx, pathDB, oldSeg, hpGroupIDs[:1])
 	// Check return value.
 	assert.Equal(t, pathdb.InsertStats{}, stat, "Inserted")
 	// Check Insert
 	res, err := pathDB.Get(ctx, &query.Params{SegIDs: [][]byte{newSegID}})
 	require.NoError(t, err)
-	checkResult(t, res, newSeg, hpCfgIDs)
+	checkResult(t, res, newSeg, hpGroupIDs)
 }
 
 func testUpdateIntfToSeg(t *testing.T, pathDB pathdb.ReadWrite) {
 	ctx, cancelF := context.WithTimeout(context.Background(), 200*timeout)
 	defer cancelF()
 	ps, _ := AllocPathSegment(t, ifs1, uint32(20))
-	stat := InsertSeg(t, ctx, pathDB, ps, hpCfgIDs)
+	stat := InsertSeg(t, ctx, pathDB, ps, hpGroupIDs)
 	require.Equal(t, pathdb.InsertStats{Inserted: 1}, stat)
 	checkInterfacesPresent(t, ctx, ps.ASEntries, pathDB)
 
@@ -232,12 +232,12 @@ func testUpdateIntfToSeg(t *testing.T, pathDB pathdb.ReadWrite) {
 		},
 	})
 
-	stat = InsertSeg(t, ctx, pathDB, newPS, hpCfgIDs)
+	stat = InsertSeg(t, ctx, pathDB, newPS, hpGroupIDs)
 	require.Equal(t, pathdb.InsertStats{Updated: 1}, stat)
 	checkInterfacesPresent(t, ctx, newPS.ASEntries, pathDB)
 	// Now check that the new interface is removed again.
 	ps, _ = AllocPathSegment(t, ifs1, uint32(40))
-	stat = InsertSeg(t, ctx, pathDB, ps, hpCfgIDs)
+	stat = InsertSeg(t, ctx, pathDB, ps, hpGroupIDs)
 	require.Equal(t, pathdb.InsertStats{Updated: 1}, stat)
 	checkInterfacesPresent(t, ctx, ps.ASEntries, pathDB)
 	checkInterface(t, ctx, newPS.ASEntries[1].Local, 23, pathDB, false)
@@ -252,9 +252,9 @@ func testDeleteExpired(t *testing.T, pathDB pathdb.ReadWrite) {
 	defer cancelF()
 	pseg1, _ := AllocPathSegment(t, ifs1, ts1)
 	pseg2, _ := AllocPathSegment(t, ifs2, ts2)
-	stat := InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	stat := InsertSeg(t, ctx, pathDB, pseg1, hpGroupIDs)
 	require.Equal(t, pathdb.InsertStats{Inserted: 1}, stat)
-	stat = InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs)
+	stat = InsertSeg(t, ctx, pathDB, pseg2, hpGroupIDs)
 	require.Equal(t, pathdb.InsertStats{Inserted: 1}, stat)
 	deleted, err := pathDB.DeleteExpired(ctx, time.Unix(10, 0).Add(defaultExp))
 	require.NoError(t, err)
@@ -274,9 +274,9 @@ func testGetMixed(t *testing.T, pathDB pathdb.ReadWrite) {
 	defer cancelF()
 	pseg1, segID1 := AllocPathSegment(t, ifs1, TS)
 	pseg2, _ := AllocPathSegment(t, ifs2, TS)
-	stat := InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	stat := InsertSeg(t, ctx, pathDB, pseg1, hpGroupIDs)
 	require.Equal(t, stat, pathdb.InsertStats{Inserted: 1})
-	stat = InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
+	stat = InsertSeg(t, ctx, pathDB, pseg2, hpGroupIDs[:1])
 	require.Equal(t, stat, pathdb.InsertStats{Inserted: 1})
 	params := &query.Params{
 		SegIDs:   [][]byte{segID1},
@@ -288,7 +288,7 @@ func testGetMixed(t *testing.T, pathDB pathdb.ReadWrite) {
 	assert.Equal(t, 1, len(res), "Result count")
 	assert.Equal(t, segID1, res[0].Seg.ID(), "SegIDs match")
 	assert.Equal(t, seg.TypeUp, res[0].Type)
-	checkSameHpCfgs(t, "HpCfgIDs match", res[0].HpCfgIDs, hpCfgIDs)
+	checkSameHpCfgs(t, "HPGroupIDs match", res[0].HPGroupIDs, hpGroupIDs)
 }
 
 func testGetNilParams(t *testing.T, pathDB pathdb.ReadWrite) {
@@ -298,9 +298,9 @@ func testGetNilParams(t *testing.T, pathDB pathdb.ReadWrite) {
 	defer cancelF()
 	pseg1, segID1 := AllocPathSegment(t, ifs1, TS)
 	pseg2, segID2 := AllocPathSegment(t, ifs2, TS)
-	stat := InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	stat := InsertSeg(t, ctx, pathDB, pseg1, hpGroupIDs)
 	require.Equal(t, stat, pathdb.InsertStats{Inserted: 1})
-	stat = InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
+	stat = InsertSeg(t, ctx, pathDB, pseg2, hpGroupIDs[:1])
 	require.Equal(t, stat, pathdb.InsertStats{Inserted: 1})
 	// Call
 	res, err := pathDB.Get(ctx, nil)
@@ -310,9 +310,9 @@ func testGetNilParams(t *testing.T, pathDB pathdb.ReadWrite) {
 		assert.Equal(t, seg.TypeUp, r.Type)
 		resSegID := r.Seg.ID()
 		if bytes.Equal(resSegID, segID1) {
-			checkSameHpCfgs(t, "HpCfgIDs match", r.HpCfgIDs, hpCfgIDs)
+			checkSameHpCfgs(t, "HPGroupIDs match", r.HPGroupIDs, hpGroupIDs)
 		} else if bytes.Equal(resSegID, segID2) {
-			checkSameHpCfgs(t, "HpCfgIDs match", r.HpCfgIDs, hpCfgIDs[:1])
+			checkSameHpCfgs(t, "HPGroupIDs match", r.HPGroupIDs, hpGroupIDs[:1])
 		} else {
 			t.Fatal("Unexpected result", "seg", r.Seg)
 		}
@@ -332,9 +332,9 @@ func testGetAll(t *testing.T, pathDB pathdb.ReadWrite) {
 
 	pseg1, segID1 := AllocPathSegment(t, ifs1, TS)
 	pseg2, segID2 := AllocPathSegment(t, ifs2, TS)
-	stat := InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	stat := InsertSeg(t, ctx, pathDB, pseg1, hpGroupIDs)
 	require.Equal(t, stat, pathdb.InsertStats{Inserted: 1})
-	stat = InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
+	stat = InsertSeg(t, ctx, pathDB, pseg2, hpGroupIDs[:1])
 	require.Equal(t, stat, pathdb.InsertStats{Inserted: 1})
 
 	s, err = pathDB.GetAll(ctx)
@@ -343,9 +343,9 @@ func testGetAll(t *testing.T, pathDB pathdb.ReadWrite) {
 		assert.Equal(t, seg.TypeUp, r.Type)
 		resSegID := r.Seg.ID()
 		if bytes.Equal(resSegID, segID1) {
-			checkSameHpCfgs(t, "HpCfgIDs match", r.HpCfgIDs, hpCfgIDs)
+			checkSameHpCfgs(t, "HPGroupIDs match", r.HPGroupIDs, hpGroupIDs)
 		} else if bytes.Equal(resSegID, segID2) {
-			checkSameHpCfgs(t, "HpCfgIDs match", r.HpCfgIDs, hpCfgIDs[:1])
+			checkSameHpCfgs(t, "HPGroupIDs match", r.HPGroupIDs, hpGroupIDs[:1])
 		} else {
 			t.Fatal("Unexpected result", "seg", r.Seg)
 		}
@@ -359,9 +359,9 @@ func testGetStartsAtEndsAt(t *testing.T, pathDB pathdb.ReadWrite) {
 	defer cancelF()
 	pseg1, _ := AllocPathSegment(t, ifs1, TS)
 	pseg2, _ := AllocPathSegment(t, ifs2, TS)
-	stat := InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	stat := InsertSeg(t, ctx, pathDB, pseg1, hpGroupIDs)
 	require.Equal(t, stat, pathdb.InsertStats{Inserted: 1})
-	stat = InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
+	stat = InsertSeg(t, ctx, pathDB, pseg2, hpGroupIDs[:1])
 	require.Equal(t, stat, pathdb.InsertStats{Inserted: 1})
 	// Call
 	res, err := pathDB.Get(ctx, &query.Params{StartsAt: []addr.IA{ia330, ia332}})
@@ -379,9 +379,9 @@ func testGetWithIntfs(t *testing.T, pathDB pathdb.ReadWrite) {
 	defer cancelF()
 	pseg1, _ := AllocPathSegment(t, ifs1, TS)
 	pseg2, _ := AllocPathSegment(t, ifs2, TS)
-	stat := InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	stat := InsertSeg(t, ctx, pathDB, pseg1, hpGroupIDs)
 	require.Equal(t, stat, pathdb.InsertStats{Inserted: 1})
-	stat = InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
+	stat = InsertSeg(t, ctx, pathDB, pseg2, hpGroupIDs[:1])
 	require.Equal(t, stat, pathdb.InsertStats{Inserted: 1})
 	params := &query.Params{
 		Intfs: []*query.IntfSpec{
@@ -395,19 +395,19 @@ func testGetWithIntfs(t *testing.T, pathDB pathdb.ReadWrite) {
 	assert.Equal(t, 2, len(res), "Result count")
 }
 
-func testGetWithHpCfgIDs(t *testing.T, pathDB pathdb.ReadWrite) {
+func testGetWithHPGroupIDs(t *testing.T, pathDB pathdb.ReadWrite) {
 	// Setup
 	TS := uint32(10)
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
 	pseg1, _ := AllocPathSegment(t, ifs1, TS)
 	pseg2, _ := AllocPathSegment(t, ifs2, TS)
-	stat := InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+	stat := InsertSeg(t, ctx, pathDB, pseg1, hpGroupIDs)
 	require.Equal(t, stat, pathdb.InsertStats{Inserted: 1})
-	stat = InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
+	stat = InsertSeg(t, ctx, pathDB, pseg2, hpGroupIDs[:1])
 	require.Equal(t, stat, pathdb.InsertStats{Inserted: 1})
 	params := &query.Params{
-		HpCfgIDs: hpCfgIDs[1:],
+		HPGroupIDs: hpGroupIDs[1:],
 	}
 	// Call
 	res, err := pathDB.Get(ctx, params)
@@ -460,7 +460,7 @@ func testRollback(t *testing.T, pathDB pathdb.DB) {
 	require.NoError(t, err)
 	pseg, _ := AllocPathSegment(t, ifs1, uint32(10))
 	assert.Equal(t, pathdb.InsertStats{Inserted: 1},
-		InsertSeg(t, ctx, tx, pseg, hpCfgIDs), "Insert should succeed")
+		InsertSeg(t, ctx, tx, pseg, hpGroupIDs), "Insert should succeed")
 	err = tx.Rollback()
 	assert.NoError(t, err)
 	s, err := pathDB.GetAll(ctx)
@@ -529,21 +529,21 @@ func AllocPathSegment(t *testing.T, ifs []uint64, infoTS uint32) (*seg.PathSegme
 }
 
 func InsertSeg(t *testing.T, ctx context.Context, pathDB pathdb.ReadWrite,
-	pseg *seg.PathSegment, hpCfgIDs []*query.HPCfgID) pathdb.InsertStats {
+	pseg *seg.PathSegment, hpGroupIDs []uint64) pathdb.InsertStats {
 
-	inserted, err := pathDB.InsertWithHPCfgIDs(ctx,
+	inserted, err := pathDB.InsertWithHPGroupIDs(ctx,
 		&seg.Meta{
 			Segment: pseg,
 			Type:    segType,
 		},
-		hpCfgIDs,
+		hpGroupIDs,
 	)
 	require.NoError(t, err)
 	return inserted
 }
 
 func checkResult(t *testing.T, results query.Results, expectedSeg *seg.PathSegment,
-	hpCfgsIds []*query.HPCfgID) {
+	hpCfgsIds []uint64) {
 
 	require.Equal(t, 1, len(results), "Expect one result")
 
@@ -567,14 +567,12 @@ func checkResult(t *testing.T, results query.Results, expectedSeg *seg.PathSegme
 		}
 		assert.Equal(t, expected, actual)
 	}
-	checkSameHpCfgs(t, "HiddenPath Ids should match", results[0].HpCfgIDs, hpCfgsIds)
+	checkSameHpCfgs(t, "HiddenPath Ids should match", results[0].HPGroupIDs, hpCfgsIds)
 }
 
-func checkSameHpCfgs(t *testing.T, msg string, actual, expected []*query.HPCfgID) {
+func checkSameHpCfgs(t *testing.T, msg string, actual, expected []uint64) {
 	sort.Slice(actual, func(i, j int) bool {
-		return actual[i].IA.I < actual[j].IA.I ||
-			actual[i].IA.I == actual[j].IA.I && actual[i].IA.A < actual[j].IA.A ||
-			actual[i].IA.Equal(actual[j].IA) && actual[i].ID < actual[j].ID
+		return actual[i] < actual[j]
 	})
 	assert.Equal(t, expected, actual, msg)
 }

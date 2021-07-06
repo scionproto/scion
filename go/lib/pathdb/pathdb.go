@@ -51,9 +51,9 @@ type ReadWrite interface {
 	// Insert inserts or updates a path segment. It returns the number of path segments
 	// that have been inserted/updated.
 	Insert(context.Context, *seg.Meta) (InsertStats, error)
-	// InsertWithHPCfgIDs inserts or updates a path segment with a set of HPCfgIDs. It
+	// InsertWithHPGroupIDs inserts or updates a path segment with a set of HPGroupIDs. It
 	// returns the number of path segments that have been inserted/updated.
-	InsertWithHPCfgIDs(context.Context, *seg.Meta, []*query.HPCfgID) (InsertStats, error)
+	InsertWithHPGroupIDs(context.Context, *seg.Meta, []uint64) (InsertStats, error)
 	// DeleteExpired deletes all paths segments that are expired, using now as a reference.
 	// Returns the number of deleted segments.
 	DeleteExpired(ctx context.Context, now time.Time) (int, error)

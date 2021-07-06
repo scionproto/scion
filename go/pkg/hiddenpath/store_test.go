@@ -36,6 +36,7 @@ import (
 
 func TestStorerGet(t *testing.T) {
 	want, dbresult := createSegs()
+	groupID := hiddenpath.GroupID{OwnerAS: xtest.MustParseAS("ff00:0:111"), Suffix: 42}
 	testCases := map[string]struct {
 		inputGroups []hiddenpath.GroupID
 		inputIA     addr.IA
@@ -45,15 +46,15 @@ func TestStorerGet(t *testing.T) {
 	}{
 		"valid": {
 			inputGroups: []hiddenpath.GroupID{
-				{OwnerAS: xtest.MustParseAS("ff00:0:111"), Suffix: 42},
+				groupID,
 			},
 			inputIA: xtest.MustParseIA("1-ff00:0:110"),
 			db: func(c *gomock.Controller) pathdb.DB {
 				ret := mock_pathdb.NewMockDB(c)
 				ret.EXPECT().Get(gomock.Any(), &query.Params{
 					EndsAt: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
-					HpCfgIDs: []*query.HPCfgID{
-						{IA: xtest.MustParseIA("0-ff00:0:111"), ID: 42},
+					HPGroupIDs: []uint64{
+						groupID.ToUint64(),
 					},
 				}).
 					Return(dbresult, nil)
@@ -64,15 +65,15 @@ func TestStorerGet(t *testing.T) {
 		},
 		"db error": {
 			inputGroups: []hiddenpath.GroupID{
-				{OwnerAS: xtest.MustParseAS("ff00:0:111"), Suffix: 42},
+				groupID,
 			},
 			inputIA: xtest.MustParseIA("1-ff00:0:110"),
 			db: func(c *gomock.Controller) pathdb.DB {
 				ret := mock_pathdb.NewMockDB(c)
 				ret.EXPECT().Get(gomock.Any(), &query.Params{
 					EndsAt: []addr.IA{xtest.MustParseIA("1-ff00:0:110")},
-					HpCfgIDs: []*query.HPCfgID{
-						{IA: xtest.MustParseIA("0-ff00:0:111"), ID: 42},
+					HPGroupIDs: []uint64{
+						groupID.ToUint64(),
 					},
 				}).Return(nil, serrors.New("dummy-error"))
 				return ret
@@ -114,7 +115,7 @@ func TestStorerPut(t *testing.T) {
 			inputSegs: want,
 			db: func(c *gomock.Controller) pathdb.DB {
 				ret := mock_pathdb.NewMockDB(c)
-				ret.EXPECT().InsertWithHPCfgIDs(gomock.Any(), gomock.Any(), gomock.Any()).
+				ret.EXPECT().InsertWithHPGroupIDs(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(pathdb.InsertStats{}, nil)
 				return ret
 			},
@@ -127,7 +128,7 @@ func TestStorerPut(t *testing.T) {
 			inputSegs: want,
 			db: func(c *gomock.Controller) pathdb.DB {
 				ret := mock_pathdb.NewMockDB(c)
-				ret.EXPECT().InsertWithHPCfgIDs(gomock.Any(), gomock.Any(), gomock.Any()).
+				ret.EXPECT().InsertWithHPGroupIDs(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(pathdb.InsertStats{}, serrors.New("dummy-error"))
 				return ret
 			},

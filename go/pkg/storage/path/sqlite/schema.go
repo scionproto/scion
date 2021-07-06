@@ -50,12 +50,10 @@ const (
 		PRIMARY KEY (SegRowID, Type) ON CONFLICT IGNORE,
 		FOREIGN KEY (SegRowID) REFERENCES Segments(RowID) ON DELETE CASCADE
 	);
-	CREATE TABLE HpCfgIds(
+	CREATE TABLE HPGroupIDs(
 		SegRowID INTEGER NOT NULL,
-		IsdID INTEGER NOT NULL,
-		AsID INTEGER NOT NULL,
-		CfgID INTEGER NOT NULL,
-		PRIMARY KEY (SegRowID, IsdID, AsID, CfgID) ON CONFLICT IGNORE,
+		GroupID INTEGER NOT NULL,
+		PRIMARY KEY (SegRowID, GroupID) ON CONFLICT IGNORE,
 		FOREIGN KEY (SegRowID) REFERENCES Segments(RowID) ON DELETE CASCADE
 	);
 	CREATE TABLE NextQuery(
@@ -67,11 +65,11 @@ const (
 		NextQuery INTEGER NOT NULL,
 		UNIQUE(SrcIsdID, SrcAsID, DstIsdID, DstAsID) ON CONFLICT REPLACE
 	);`
-	SegmentsTable  = "Segments"
-	IntfToSegTable = "IntfToSeg"
-	StartsAtTable  = "StartsAt"
-	EndsAtTable    = "EndsAt"
-	SegTypesTable  = "SegTypes"
-	HpCfgIdsTable  = "HpCfgIds"
-	NextQueryTable = "NextQuery"
+	SegmentsTable   = "Segments"
+	IntfToSegTable  = "IntfToSeg"
+	StartsAtTable   = "StartsAt"
+	EndsAtTable     = "EndsAt"
+	SegTypesTable   = "SegTypes"
+	HPGroupIDsTable = "HPGroupIDs"
+	NextQueryTable  = "NextQuery"
 )

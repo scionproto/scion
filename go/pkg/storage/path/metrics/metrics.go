@@ -196,13 +196,13 @@ func (db *metricsExecutor) Insert(ctx context.Context, meta *seg.Meta) (pathdb.I
 	return cnt, err
 }
 
-func (db *metricsExecutor) InsertWithHPCfgIDs(ctx context.Context,
-	meta *seg.Meta, hpCfgIds []*query.HPCfgID) (pathdb.InsertStats, error) {
+func (db *metricsExecutor) InsertWithHPGroupIDs(ctx context.Context,
+	meta *seg.Meta, hpGroupIDs []uint64) (pathdb.InsertStats, error) {
 
 	var cnt pathdb.InsertStats
 	var err error
 	db.metrics.Observe(ctx, promOpInsertHpCfg, func(ctx context.Context) error {
-		cnt, err = db.pathDB.InsertWithHPCfgIDs(ctx, meta, hpCfgIds)
+		cnt, err = db.pathDB.InsertWithHPGroupIDs(ctx, meta, hpGroupIDs)
 		return err
 	})
 	return cnt, err

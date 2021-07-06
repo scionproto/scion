@@ -44,8 +44,8 @@ func (s *Storer) Get(ctx context.Context, ia addr.IA,
 	groups []GroupID) ([]*seg.Meta, error) {
 
 	res, err := s.DB.Get(ctx, &query.Params{
-		EndsAt:   []addr.IA{ia},
-		HpCfgIDs: convert(groups),
+		EndsAt:     []addr.IA{ia},
+		HPGroupIDs: convert(groups),
 	})
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func (s *Storer) Get(ctx context.Context, ia addr.IA,
 func (s *Storer) Put(ctx context.Context, segs []*seg.Meta, g GroupID) error {
 	var errs serrors.List
 	for _, seg := range segs {
-		_, e := s.DB.InsertWithHPCfgIDs(ctx, seg, convert([]GroupID{g}))
+		_, e := s.DB.InsertWithHPGroupIDs(ctx, seg, convert([]GroupID{g}))
 		if e != nil {
 			errs = append(errs, e)
 		}
@@ -65,13 +65,9 @@ func (s *Storer) Put(ctx context.Context, segs []*seg.Meta, g GroupID) error {
 	return errs.ToError()
 }
 
-func convert(ids []GroupID) (ret []*query.HPCfgID) {
+func convert(ids []GroupID) (ret []uint64) {
 	for _, id := range ids {
-		queryID := &query.HPCfgID{
-			IA: addr.IA{A: id.OwnerAS},
-			ID: uint64(id.Suffix),
-		}
-		ret = append(ret, queryID)
+		ret = append(ret, id.ToUint64())
 	}
 	return
 }

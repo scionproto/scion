@@ -28,17 +28,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/pathdb/query"
 	pathdbtest "github.com/scionproto/scion/go/pkg/storage/path/dbtest"
 )
 
 var (
-	ia330    = addr.IA{I: 1, A: 0xff0000000330}
-	ifs1     = []uint64{0, 5, 2, 3, 6, 3, 1, 0}
-	hpCfgIDs = []*query.HPCfgID{
-		&query.NullHpCfgID,
-		{IA: ia330, ID: 0xdeadbeef},
+	ifs1       = []uint64{0, 5, 2, 3, 6, 3, 1, 0}
+	hpGroupIDs = []uint64{
+		0,
+		0xffffffffffffffff,
 	}
 	timeout = time.Second
 )
@@ -69,7 +66,7 @@ func TestOpenExisting(t *testing.T) {
 	pseg1, _ := pathdbtest.AllocPathSegment(t, ifs1, TS)
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
-	pathdbtest.InsertSeg(t, ctx, b, pseg1, hpCfgIDs)
+	pathdbtest.InsertSeg(t, ctx, b, pseg1, hpGroupIDs)
 	b.db.Close()
 	// Call
 	b, err := New(tmpF)

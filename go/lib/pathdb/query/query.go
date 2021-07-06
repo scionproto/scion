@@ -24,39 +24,24 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 )
 
-// TODO(shitz): This should be moved when we have hidden path sets.
-type HPCfgID struct {
-	IA addr.IA
-	ID uint64
-}
-
-func (h *HPCfgID) Equal(other *HPCfgID) bool {
-	if h == nil || other == nil {
-		return h == other
-	}
-	return h.IA.Equal(other.IA) && h.ID == other.ID
-}
-
-var NullHpCfgID = HPCfgID{IA: addr.IAInt(0).IA(), ID: 0}
-
 type IntfSpec struct {
 	IA   addr.IA
 	IfID common.IFIDType
 }
 
 type Params struct {
-	SegIDs   [][]byte
-	SegTypes []seg.Type
-	HpCfgIDs []*HPCfgID
-	Intfs    []*IntfSpec
-	StartsAt []addr.IA
-	EndsAt   []addr.IA
+	SegIDs     [][]byte
+	SegTypes   []seg.Type
+	HPGroupIDs []uint64
+	Intfs      []*IntfSpec
+	StartsAt   []addr.IA
+	EndsAt     []addr.IA
 }
 
 type Result struct {
 	Seg        *seg.PathSegment
 	LastUpdate time.Time
-	HpCfgIDs   []*HPCfgID
+	HPGroupIDs []uint64
 	Type       seg.Type
 }
 
