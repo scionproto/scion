@@ -35,12 +35,15 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/ctrl/seg/extensions/staticinfo"
+	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/scrypto/signed"
+	cppb "github.com/scionproto/scion/go/pkg/proto/control_plane"
 	cryptopb "github.com/scionproto/scion/go/pkg/proto/crypto"
 )
 
@@ -60,7 +63,7 @@ type Graph struct {
 	// maps ASes to a structure containing a slice of their IFIDs
 	ases map[addr.IA]*AS
 
-	signers map[addr.IA]Signer
+	signers map[addr.IA]*Signer
 
 	ctrl *gomock.Controller
 	lock sync.Mutex
@@ -74,7 +77,7 @@ func New(ctrl *gomock.Controller) *Graph {
 		isPeer:  make(map[common.IFIDType]bool),
 		parents: make(map[common.IFIDType]addr.IA),
 		ases:    make(map[addr.IA]*AS),
-		signers: make(map[addr.IA]Signer),
+		signers: make(map[addr.IA]*Signer),
 	}
 }
 
@@ -99,7 +102,21 @@ func (g *Graph) Add(ia string) {
 	g.ases[isdas] = &AS{
 		IFIDs: make(map[common.IFIDType]struct{}),
 	}
-	g.signers[isdas] = NewSigner()
+	g.signers[isdas] = NewSigner(
+		WithIA(isdas),
+		WithTRCID(cppki.TRCID{
+			ISD:    isdas.I,
+			Serial: 1,
+			Base:   1,
+		}),
+	)
+}
+
+// GetSigner returns the signer for the ISD-AS.
+func (g *Graph) GetSigner(ia string) *Signer {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+	return g.signers[MustParseIA(ia)]
 }
 
 // AddLink adds a new edge between the ASes described by xIA and yIA, with
@@ -383,22 +400,60 @@ func (g *Graph) InternalHops(a, b common.IFIDType) uint32 {
 	return uint32(a * b % 10)
 }
 
+// SignerOption allows customizing the generated Signer.
+type SignerOption func(o *Signer)
+
+// WithPrivateKey customizes the private key for the Signer.
+func WithPrivateKey(key crypto.Signer) SignerOption {
+	return func(o *Signer) {
+		o.PrivateKey = key
+	}
+}
+
+// WithIA customizes the ISD-AS for the Signer.
+func WithIA(ia addr.IA) SignerOption {
+	return func(o *Signer) {
+		o.IA = ia
+	}
+}
+
+// WithTRCID customizes the TRCID for the Signer.
+func WithTRCID(trcID cppki.TRCID) SignerOption {
+	return func(o *Signer) {
+		o.TRCID = trcID
+	}
+}
+
+// WithTimestamp customizes the signature timestamp for the Signer.
+func WithTimestamp(ts time.Time) SignerOption {
+	return func(o *Signer) {
+		o.Timestamp = ts
+	}
+}
+
 type Signer struct {
 	PrivateKey crypto.Signer
 	// Timestamp is the timestamp that this signer is bound to. If it is set,
 	// all signatures are created with this timestamp. If it is not set, the
 	// current time is used for the signature timestamp.
 	Timestamp time.Time
+	IA        addr.IA
+	TRCID     cppki.TRCID
 }
 
-func NewSigner() Signer {
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), crand.Reader)
-	if err != nil {
-		panic(err)
+func NewSigner(opts ...SignerOption) *Signer {
+	var s Signer
+	for _, opt := range opts {
+		opt(&s)
 	}
-	return Signer{
-		PrivateKey: priv,
+	if s.PrivateKey == nil {
+		var err error
+		s.PrivateKey, err = ecdsa.GenerateKey(elliptic.P256(), crand.Reader)
+		if err != nil {
+			panic(err)
+		}
 	}
+	return &s
 }
 
 func (s Signer) Sign(ctx context.Context, msg []byte,
@@ -412,10 +467,27 @@ func (s Signer) Sign(ctx context.Context, msg []byte,
 	if ts.IsZero() {
 		ts = time.Now()
 	}
+	skid, err := cppki.SubjectKeyID(s.PrivateKey.Public())
+	if err != nil {
+		return nil, err
+	}
+
+	id := &cppb.VerificationKeyID{
+		IsdAs:        uint64(s.IA.IAInt()),
+		TrcBase:      uint64(s.TRCID.Base),
+		TrcSerial:    uint64(s.TRCID.Serial),
+		SubjectKeyId: skid,
+	}
+	rawID, err := proto.Marshal(id)
+	if err != nil {
+		return nil, err
+	}
+
 	hdr := signed.Header{
 		SignatureAlgorithm:   signed.ECDSAWithSHA256,
 		AssociatedDataLength: l,
 		Timestamp:            ts,
+		VerificationKeyID:    rawID,
 	}
 
 	return signed.Sign(hdr, msg, s.PrivateKey, associatedData...)
