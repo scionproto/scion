@@ -69,7 +69,7 @@ type HopField struct {
 }
 
 // DecodeFromBytes populates the fields from a raw buffer. The buffer must be of length >=
-// path.HopLen
+// path.HopLen.
 func (h *HopField) DecodeFromBytes(raw []byte) error {
 	if len(raw) < HopLen {
 		return serrors.New("HopField raw too short", "expected", HopLen, "actual", len(raw))
@@ -84,7 +84,7 @@ func (h *HopField) DecodeFromBytes(raw []byte) error {
 }
 
 // SerializeTo writes the fields into the provided buffer. The buffer must be of length >=
-// path.HopLen
+// path.HopLen.
 func (h *HopField) SerializeTo(b []byte) error {
 	if len(b) < HopLen {
 		return serrors.New("buffer for HopField too short", "expected", MacLen, "actual", len(b))

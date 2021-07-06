@@ -23,8 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
-const maxResultChanSize = 32
-
 type usager interface {
 	Filter(beacon Beacon) error
 	Usage(beacon Beacon) Usage
@@ -204,11 +202,4 @@ func (s *baseStore) InsertBeacon(ctx context.Context, beacon Beacon) (InsertStat
 // policies after the update are removed.
 func (s *baseStore) UpdatePolicy(ctx context.Context, policy Policy) error {
 	return serrors.New("policy update not supported")
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

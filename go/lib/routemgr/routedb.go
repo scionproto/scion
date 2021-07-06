@@ -211,7 +211,7 @@ func (db *RouteDB) cleanUp() {
 	defer db.mtx.Unlock()
 
 	for key, entry := range db.routes {
-		if entry.refCount == 0 && time.Now().Sub(entry.deletedAt) > db.RouteExpiration {
+		if entry.refCount == 0 && time.Since(entry.deletedAt) > db.RouteExpiration {
 			for consumer := range db.consumers {
 				db.publishToUpdateChan(consumer.updateChan, control.RouteUpdate{
 					IsAdd: false,

@@ -1,4 +1,5 @@
 load("@bazel_gazelle//:deps.bzl", "go_repository")
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
 def tool_deps():
     go_repository(
@@ -48,4 +49,11 @@ def tool_deps():
         name = "com_github_pavius_impi",
         commit = "c1cbdcb8df2b23af8530360d87ac9a7fabc48618",
         importpath = "github.com/pavius/impi",
+    )
+
+    git_repository(
+        name = "com_github_ash2k_bazel_tools",
+        commit = "1975881d802316fd94078b15a4f6ba96ac3650ae",
+        remote = "https://github.com/ash2k/bazel-tools.git",
+        shallow_since = "1622973143 +1000",
     )

@@ -63,7 +63,7 @@ func (s *SegSelector) SelectSeg(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	segs := query.Results(res).Segs()
+	segs := res.Segs()
 	_, err = segs.FilterSegs(func(ps *seg.PathSegment) (bool, error) {
 		return revcache.NoRevokedHopIntf(ctx, s.RevCache, ps)
 	})

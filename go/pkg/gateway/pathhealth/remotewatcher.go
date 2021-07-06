@@ -267,7 +267,7 @@ func (pm *pathWatcherItem) usedRecently() bool {
 		return true
 	}
 	// Keep paths that have been used recently.
-	if time.Now().Sub(pm.lastUsed) < graceInterval {
+	if time.Since(pm.lastUsed) < graceInterval {
 		return true
 	}
 	return false

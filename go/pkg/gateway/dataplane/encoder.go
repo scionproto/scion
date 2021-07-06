@@ -95,7 +95,7 @@ func (e *encoder) Read() []byte {
 	e.frame = e.frame[:hdrLen]
 	// Write the header.
 	e.frame[versionPos] = 0
-	e.frame[sessPos] = uint8(e.sessionID)
+	e.frame[sessPos] = e.sessionID
 	binary.BigEndian.PutUint16(e.frame[indexPos:indexPos+2], 0xffff)
 	binary.BigEndian.PutUint32(e.frame[streamPos:streamPos+4], e.streamID&0xfffff)
 	binary.BigEndian.PutUint64(e.frame[seqPos:seqPos+8], e.seq)

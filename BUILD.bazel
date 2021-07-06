@@ -15,7 +15,6 @@ go_lint_config(
     exclude_filter = [
         "mock_",
         ".pb.go",
-        ".capnp.go",
         ".gen.go",
     ],
     visibility = [

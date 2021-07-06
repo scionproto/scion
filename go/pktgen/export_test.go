@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//nolint:golint,deadcode
 package main
 
 type JSONConfig = jsonConfig

@@ -1,0 +1,19 @@
+linters:
+  # FIXME(roosd): For now, we disable all linters and turn them on one-by-one.
+  disable-all: true
+  enable:
+    # Default linters.
+    - deadcode
+    - gosimple
+    - govet
+    - ineffassign
+    - structcheck
+    - unused
+    - varcheck
+    # Extended linters.
+    - exportloopref
+    - rowserrcheck
+    - sqlclosecheck
+    - unconvert
+
+linter-settings:

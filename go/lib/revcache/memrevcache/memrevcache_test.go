@@ -35,7 +35,7 @@ type testRevCache struct {
 func (c *testRevCache) InsertExpired(t *testing.T, _ context.Context,
 	rev *path_mgmt.RevInfo) {
 
-	ttl := rev.Expiration().Sub(time.Now())
+	ttl := time.Until(rev.Expiration())
 	if ttl >= 0 {
 		panic("Should only be used for expired elements")
 	}

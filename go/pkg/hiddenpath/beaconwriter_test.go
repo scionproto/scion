@@ -74,7 +74,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 			pathHopField := path.HopFields[0]
 
 			segHopField := pseg.ASEntries[pseg.MaxIdx()].HopEntry.HopField
-			assert.Equal(t, []byte(pathHopField.Mac), segHopField.MAC)
+			assert.Equal(t, pathHopField.Mac, segHopField.MAC)
 			assert.Equal(t, pathHopField.ConsIngress, segHopField.ConsIngress)
 			assert.Equal(t, pathHopField.ConsEgress, segHopField.ConsEgress)
 
@@ -196,7 +196,7 @@ func TestRemoteBeaconWriterWrite(t *testing.T) {
 					Signer:     testSigner(t, priv, topoProvider.Get().IA()),
 					Intfs:      intfs,
 					MAC:        macFactory,
-					MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
+					MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 					StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 				},
 				RPC: tc.createRPC(t, ctrl),

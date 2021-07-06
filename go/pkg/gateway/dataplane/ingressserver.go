@@ -107,7 +107,7 @@ func (d *IngressServer) read() error {
 							"supported", 0, "actual", frame.raw[0])
 					}
 					frame.frameLen = read
-					frame.sessId = uint8((frame.raw[1]))
+					frame.sessId = frame.raw[1]
 					metrics.CounterInc(metrics.CounterWith(d.Metrics.FramesRecv,
 						"remote_isd_as", v.IA.String()))
 					metrics.CounterAdd(metrics.CounterWith(d.Metrics.FrameBytesRecv,

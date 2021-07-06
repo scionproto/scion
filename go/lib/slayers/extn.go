@@ -107,7 +107,6 @@ func serializeTLVOptionPadding(data []byte, padLength int) {
 		OptData:    make([]byte, dataLen),
 	}
 	padN.serializeTo(data, false)
-	return
 }
 
 // serializeTLVOptions serializes options to buf and returns the length of the serialized options.
@@ -186,7 +185,7 @@ func (e *extnBase) serializeToWithTLVOptions(b gopacket.SerializeBuffer,
 	if opts.FixLengths {
 		e.ExtLen = uint8((length / LineLen) - 1)
 	}
-	bytes[1] = uint8(e.ExtLen)
+	bytes[1] = e.ExtLen
 	return nil
 }
 
@@ -234,7 +233,7 @@ func (h *HopByHopExtn) LayerPayload() []byte {
 	return h.Payload
 }
 
-// SerializeTo implementation according to gopacket.SerializableLayer
+// SerializeTo implementation according to gopacket.SerializableLayer.
 func (h *HopByHopExtn) SerializeTo(b gopacket.SerializeBuffer,
 	opts gopacket.SerializeOptions) error {
 
@@ -250,7 +249,7 @@ func (h *HopByHopExtn) SerializeTo(b gopacket.SerializeBuffer,
 	return h.extnBase.serializeToWithTLVOptions(b, opts, o)
 }
 
-// DecodeFromBytes implementation according to gopacket.DecodingLayer
+// DecodeFromBytes implementation according to gopacket.DecodingLayer.
 func (h *HopByHopExtn) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	var err error
 	h.extnBase, err = decodeExtnBase(data, df)
@@ -314,7 +313,7 @@ func (e *EndToEndExtn) LayerPayload() []byte {
 	return e.Payload
 }
 
-// DecodeFromBytes implementation according to gopacket.DecodingLayer
+// DecodeFromBytes implementation according to gopacket.DecodingLayer.
 func (e *EndToEndExtn) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	var err error
 	e.extnBase, err = decodeExtnBase(data, df)

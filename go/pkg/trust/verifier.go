@@ -153,7 +153,7 @@ func (v *Verifier) getChains(ctx context.Context, q ChainQuery) ([][]*x509.Certi
 	if err != nil {
 		return nil, err
 	}
-	if chains != nil {
+	if len(chains) != 0 {
 		v.cacheAdd(key, chains, v.cacheExpiration(chains))
 	}
 	return chains, nil

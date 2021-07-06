@@ -14,5 +14,4 @@
 
 package log
 
-var ConvertCfg = convertCfg
 var FmtCaller = fmtCaller

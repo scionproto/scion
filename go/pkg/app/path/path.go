@@ -191,7 +191,7 @@ func printAndChoose(paths []snet.Path, remote addr.IA, cs ColorScheme) (snet.Pat
 			return nil, err
 		}
 		idx, err := strconv.Atoi(pathIndexStr[:len(pathIndexStr)-1])
-		if err == nil && int(idx) < len(paths) {
+		if err == nil && idx < len(paths) {
 			return paths[idx], nil
 		}
 		fmt.Fprintf(os.Stderr, "Path index outside of valid range: [0, %v]\n", len(paths)-1)

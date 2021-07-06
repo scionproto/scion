@@ -166,10 +166,7 @@ func decodeID(raw asn1ID) (TRCID, error) {
 }
 
 func decodeValidity(a asn1Validity) (Validity, error) {
-	validity := Validity{
-		NotBefore: a.NotBefore,
-		NotAfter:  a.NotAfter,
-	}
+	validity := Validity(a)
 	if err := validity.Validate(); err != nil {
 		return Validity{}, err
 	}

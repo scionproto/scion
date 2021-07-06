@@ -33,7 +33,6 @@ func TestPolicyCopy(t *testing.T) {
 		"change default action": {
 			action: func(p *routing.Policy) {
 				p.DefaultAction = routing.Accept
-				return
 			},
 			policy: &routing.Policy{
 				DefaultAction: routing.Reject,
@@ -42,7 +41,6 @@ func TestPolicyCopy(t *testing.T) {
 		"change rule custom": {
 			action: func(p *routing.Policy) {
 				p.Rules[0].To = routing.SingleIAMatcher{IA: xtest.MustParseIA("1-ff00:0:113")}
-				return
 			},
 			policy: &routing.Policy{
 				Rules: []routing.Rule{

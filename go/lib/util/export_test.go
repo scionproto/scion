@@ -14,7 +14,7 @@
 
 package util
 
-// Test exports
+// Test exports.
 const (
 	Day  = day
 	Week = week

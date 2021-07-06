@@ -119,7 +119,7 @@ func TestSessionConfigurator(t *testing.T) {
 				IA:             xtest.MustParseIA("1-ff00:0:110"),
 				ID:             42,
 				TrafficMatcher: pktcls.CondTrue,
-				PerfPolicy:     namedPerfPolicy{},
+				PerfPolicy:     dummyPerfPolicy{},
 				PathPolicy:     control.DefaultPathPolicy,
 				PathCount:      control.DefaultPathCount,
 				Prefixes:       xtest.MustParseCIDRs(t, "10.1.0.0/24"),
@@ -131,7 +131,7 @@ func TestSessionConfigurator(t *testing.T) {
 				PolicyID:       42,
 				IA:             xtest.MustParseIA("1-ff00:0:110"),
 				TrafficMatcher: pktcls.CondTrue,
-				PerfPolicy:     namedPerfPolicy{},
+				PerfPolicy:     dummyPerfPolicy{},
 				PathPolicy:     control.DefaultPathPolicy,
 				PathCount:      control.DefaultPathCount,
 				Prefixes:       xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
@@ -144,7 +144,7 @@ func TestSessionConfigurator(t *testing.T) {
 				PolicyID:       42,
 				IA:             xtest.MustParseIA("1-ff00:0:110"),
 				TrafficMatcher: pktcls.CondTrue,
-				PerfPolicy:     namedPerfPolicy{},
+				PerfPolicy:     dummyPerfPolicy{},
 				PathPolicy:     control.DefaultPathPolicy,
 				PathCount:      control.DefaultPathCount,
 				Prefixes:       xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
@@ -236,7 +236,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					IA:             xtest.MustParseIA("1-ff00:0:110"),
 					ID:             42,
 					TrafficMatcher: pktcls.CondTrue,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy:     control.DefaultPathPolicy,
 					PathCount:      1,
 					Prefixes:       []*net.IPNet{xtest.MustParseCIDR(t, "10.1.0.0/24")},
@@ -250,7 +250,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					IA:             xtest.MustParseIA("1-ff00:0:110"),
 					ID:             42,
 					TrafficMatcher: pktcls.CondTrue,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy:     control.DefaultPathPolicy,
 					PathCount:      1,
 					Prefixes:       []*net.IPNet{xtest.MustParseCIDR(t, "10.1.0.0/24")},
@@ -280,7 +280,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					PolicyID:       42,
 					IA:             xtest.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy:     control.DefaultPathPolicy,
 					PathCount:      control.DefaultPathCount,
 					Prefixes:       xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
@@ -293,7 +293,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					PolicyID:       42,
 					IA:             xtest.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy:     control.DefaultPathPolicy,
 					PathCount:      control.DefaultPathCount,
 					Prefixes:       xtest.MustParseCIDRs(t, "10.1.0.0/24", "10.2.0.0/24"),
@@ -309,7 +309,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					IA:             xtest.MustParseIA("1-ff00:0:110"),
 					ID:             1,
 					TrafficMatcher: pktcls.CondTrue,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy:     control.DefaultPathPolicy,
 					PathCount:      control.DefaultPathCount,
 					Prefixes:       []*net.IPNet{xtest.MustParseCIDR(t, "10.1.0.0/24")},
@@ -318,7 +318,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					IA:             xtest.MustParseIA("1-ff00:0:110"),
 					ID:             2,
 					TrafficMatcher: pktcls.CondTrue,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy:     &pathpol.Policy{Name: "pol2"},
 					PathCount:      control.DefaultPathCount,
 					Prefixes:       []*net.IPNet{xtest.MustParseCIDR(t, "10.1.0.0/24")},
@@ -327,7 +327,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					IA:             xtest.MustParseIA("1-ff00:0:110"),
 					ID:             3,
 					TrafficMatcher: pktcls.CondFalse,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy:     &pathpol.Policy{Name: "pol2"},
 					PathCount:      control.DefaultPathCount,
 					Prefixes:       []*net.IPNet{xtest.MustParseCIDR(t, "10.1.0.0/24")},
@@ -336,7 +336,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					IA:             xtest.MustParseIA("1-ff00:0:111"),
 					ID:             1,
 					TrafficMatcher: pktcls.CondTrue,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy:     control.DefaultPathPolicy,
 					PathCount:      control.DefaultPathCount,
 					Prefixes:       []*net.IPNet{xtest.MustParseCIDR(t, "10.25.0.0/24")},
@@ -378,7 +378,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					PolicyID:       1,
 					IA:             xtest.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"),
 						[]uint64{40, 4}),
 					PathCount: control.DefaultPathCount,
@@ -394,7 +394,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					PolicyID:       1,
 					IA:             xtest.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"),
 						[]uint64{13, 37}),
 					PathCount: control.DefaultPathCount,
@@ -410,7 +410,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					PolicyID:       2,
 					IA:             xtest.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy: control.ConjunctionPathPol{
 						Pol1: &pathpol.Policy{Name: "pol2"},
 						Pol2: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"),
@@ -429,7 +429,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					PolicyID:       2,
 					IA:             xtest.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondTrue,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy: control.ConjunctionPathPol{
 						Pol1: &pathpol.Policy{Name: "pol2"},
 						Pol2: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"), []uint64{13, 37}),
@@ -447,7 +447,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					PolicyID:       3,
 					IA:             xtest.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondFalse,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy: control.ConjunctionPathPol{
 						Pol1: &pathpol.Policy{Name: "pol2"},
 						Pol2: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"), []uint64{40, 4}),
@@ -465,7 +465,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					PolicyID:       3,
 					IA:             xtest.MustParseIA("1-ff00:0:110"),
 					TrafficMatcher: pktcls.CondFalse,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy: control.ConjunctionPathPol{
 						Pol1: &pathpol.Policy{Name: "pol2"},
 						Pol2: gatewayPolicy(xtest.MustParseIA("1-ff00:0:110"), []uint64{13, 37}),
@@ -483,7 +483,7 @@ func TestBuildSessionConfigs(t *testing.T) {
 					PolicyID:       1,
 					IA:             xtest.MustParseIA("1-ff00:0:111"),
 					TrafficMatcher: pktcls.CondTrue,
-					PerfPolicy:     namedPerfPolicy{},
+					PerfPolicy:     dummyPerfPolicy{},
 					PathPolicy:     gatewayPolicy(xtest.MustParseIA("1-ff00:0:111"), []uint64{1}),
 					PathCount:      control.DefaultPathCount,
 					Prefixes:       xtest.MustParseCIDRs(t, "10.25.0.0/24", "10.21.0.0/24"),
@@ -812,10 +812,8 @@ type denyAllPathPolicy struct{}
 
 func (denyAllPathPolicy) Filter(s []snet.Path) []snet.Path { return nil }
 
-type namedPerfPolicy struct {
-	name string
-}
+type dummyPerfPolicy struct{}
 
-func (namedPerfPolicy) Better(_, _ *policies.Stats) bool {
+func (dummyPerfPolicy) Better(_, _ *policies.Stats) bool {
 	return false
 }

@@ -15,20 +15,8 @@
 package snet
 
 import (
-	"net"
-
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/slayers"
 )
-
-var NewScionConnWriter = newScionConnWriter
-
-func NewScionConnBase(localIA addr.IA, listen *net.UDPAddr) *scionConnBase {
-	return &scionConnBase{
-		listen:   listen,
-		scionNet: &SCIONNetwork{LocalIA: localIA},
-	}
-}
 
 func SCMPParameterProblemWithCode(m SCMPParameterProblem, c slayers.SCMPCode) SCMPParameterProblem {
 	m.code = c

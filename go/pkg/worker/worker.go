@@ -81,7 +81,7 @@ func (wb *Base) RunWrapper(setupF func() error, runF func() error) error {
 }
 
 func (wb *Base) callSetupLocked(setupF func() error) error {
-	if wb.runCalled == true {
+	if wb.runCalled {
 		return serrors.New("function called more than once")
 	}
 	wb.runCalled = true

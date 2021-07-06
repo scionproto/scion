@@ -83,7 +83,5 @@ func (r *AddressRewriter) getPath(egress uint16) (spath.Path, error) {
 	r.macMtx.Lock()
 	defer r.macMtx.Unlock()
 
-	// XXX(shitz): The ISD parameter of spath.NewOneHop is not actually used anymore. The InfoField
-	// of the onehop path does not contain the ISD anymore since the SCION header v2.
-	return spath.NewOneHop(addr.ISD(0), egress, time.Now(), 63, r.MAC)
+	return spath.NewOneHop(egress, time.Now(), 63, r.MAC)
 }

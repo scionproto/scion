@@ -321,7 +321,7 @@ func caStatusPage(signer renewal.ChainBuilder) service.StatusPage {
 			Subject:      Subject{IA: ia},
 			SubjectKeyID: fmt.Sprintf("% X", s.Certificate.SubjectKeyId),
 			Policy: Policy{
-				ChainLifetime: fmt.Sprintf("%s", s.Validity),
+				ChainLifetime: s.Validity.String(),
 			},
 			CertValidity: Validity{
 				NotBefore: s.Certificate.NotBefore,

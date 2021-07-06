@@ -83,7 +83,7 @@ func (e *WildcardExpander) providerCoreASes(ctx context.Context) ([]addr.IA, err
 	if err != nil {
 		return nil, err
 	}
-	segs := query.Results(res).Segs()
+	segs := res.Segs()
 	return segs.FirstIAs(), nil
 }
 

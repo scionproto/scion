@@ -266,7 +266,7 @@ func (conn *PacketConn) setConn(newConn net.PacketConn) {
 func returnOnDeadline(deadline time.Time) <-chan time.Time {
 	var deadlineChannel <-chan time.Time
 	if !deadline.IsZero() {
-		deadlineChannel = time.After(deadline.Sub(time.Now()))
+		deadlineChannel = time.After(time.Until(deadline))
 	}
 	return deadlineChannel
 }

@@ -15,7 +15,7 @@
 package util
 
 // CalcPadding returns the number of padding bytes needed to round length bytes
-// to a multiple of blkSize
+// to a multiple of blkSize.
 func CalcPadding(length, blkSize int) int {
 	spare := length % blkSize
 	if spare != 0 {

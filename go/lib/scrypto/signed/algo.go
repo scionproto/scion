@@ -81,7 +81,7 @@ func (a SignatureAlgorithm) toPB() pbcrypto.SignatureAlgorithm {
 }
 
 const (
-	unknownPublicKeyAlgorithm publicKeyAlgorithm = iota
+	unknownPublicKeyAlgorithm publicKeyAlgorithm = iota //nolint:golint,deadcode,varcheck
 	pkECDSA
 )
 

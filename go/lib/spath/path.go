@@ -23,7 +23,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/onehop"
@@ -47,7 +46,8 @@ type Path struct {
 	Type path.Type
 }
 
-func NewOneHop(isd addr.ISD, ifID uint16, ts time.Time, exp uint8, hfmac hash.Hash) (Path, error) {
+// NewOneHop creates a onehop path that has the first hopfield initialized.
+func NewOneHop(egress uint16, timestamp time.Time, expiration uint8, mac hash.Hash) (Path, error) {
 	segID, err := rand.Int(rand.Reader, big.NewInt(1<<16))
 	if err != nil {
 		return Path{}, err
@@ -55,15 +55,15 @@ func NewOneHop(isd addr.ISD, ifID uint16, ts time.Time, exp uint8, hfmac hash.Ha
 	ohp := onehop.Path{
 		Info: path.InfoField{
 			ConsDir:   true,
-			Timestamp: util.TimeToSecs(ts),
+			Timestamp: util.TimeToSecs(timestamp),
 			SegID:     uint16(segID.Uint64()),
 		},
 		FirstHop: path.HopField{
-			ConsEgress: ifID,
-			ExpTime:    exp,
+			ConsEgress: egress,
+			ExpTime:    expiration,
 		},
 	}
-	ohp.FirstHop.Mac = path.MAC(hfmac, &ohp.Info, &ohp.FirstHop)
+	ohp.FirstHop.Mac = path.MAC(mac, &ohp.Info, &ohp.FirstHop)
 
 	raw := make([]byte, onehop.PathLen)
 	if err := ohp.SerializeTo(raw); err != nil {

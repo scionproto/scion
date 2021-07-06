@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -56,11 +55,9 @@ func TestBeaconDBSuite(t *testing.T) {
 // TestOpenExisting tests that New does not overwrite an existing database if
 // versions match.
 func TestOpenExisting(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	db, tmpF := setupDB(t)
 	defer cleanup(tmpF)
-	b := beacondbtest.InsertBeacon(t, ctrl, db, beacondbtest.Info1, 2, 10, beacon.UsageProp)
+	b := beacondbtest.InsertBeacon(t, db, beacondbtest.Info1, 2, 10, beacon.UsageProp)
 	db.Close()
 	// Open existing database
 	db, err := sqlite.New(tmpF, testIA)

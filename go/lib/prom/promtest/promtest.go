@@ -29,7 +29,7 @@ import (
 // checks that labels.Labels() returns the struct field names.
 func CheckLabelsStruct(t *testing.T, xLabels interface{}) {
 	v, ok := xLabels.(prom.Labels)
-	if ok != true {
+	if !ok {
 		assert.Fail(t, "should implement labels interface")
 	}
 

@@ -71,7 +71,7 @@ func (r *TickingReconnecter) Reconnect(ctx context.Context) (net.PacketConn, uin
 
 	var timeout time.Duration
 	if deadline, ok := ctx.Deadline(); ok {
-		timeout = deadline.Sub(time.Now())
+		timeout = time.Until(deadline)
 	}
 
 	timeoutExpired := afterTimeout(timeout)
@@ -119,7 +119,7 @@ func getNewTimeout(timeout time.Duration, start time.Time) (time.Duration, bool)
 	if timeout == 0 {
 		return 0, true
 	}
-	newTimeout := timeout - time.Now().Sub(start)
+	newTimeout := timeout - time.Since(start)
 	if newTimeout > 0 {
 		return newTimeout, true
 	}

@@ -45,7 +45,7 @@ func (r *Reply) Unmarshal(raw []byte) error {
 	return r.fromProtoFormat(&rep)
 }
 
-// SerializeTo encodes a reply message into its capnp representation. No
+// SerializeTo encodes a reply message into its protobuf representation. No
 // validation of transport keys is performed.
 func (r *Reply) Marshal() ([]byte, error) {
 	return proto.Marshal(r.toProtoFormat())
@@ -55,11 +55,9 @@ func (r *Reply) Marshal() ([]byte, error) {
 // network exchanges. The serializer uses this under the hood to convert the
 // reply message to a byte stream.
 //
-// A nil high-level object will produce a capnp object with an empty slice. A
-// high-level object with a nil or empty map will produce a capnp object with
+// A nil high-level object will produce a protobuf object with an empty slice. A
+// high-level object with a nil or empty map will produce a protobuf object with
 // an empty slice. Unknown Transport keys are included in the Reply.
-//
-// Elements of the slice are always sorted by Key in ascending order.
 func (r *Reply) toProtoFormat() *cppb.ServiceResolutionResponse {
 	if r == nil || len(r.Transports) == 0 {
 		return &cppb.ServiceResolutionResponse{}

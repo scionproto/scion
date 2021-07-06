@@ -64,7 +64,7 @@ type UpdateType int
 
 // Update types.
 const (
-	unknownUpdate UpdateType = iota
+	unknownUpdate UpdateType = iota //nolint:golint,deadcode,varcheck
 	SensitiveUpdate
 	RegularUpdate
 )
@@ -231,7 +231,7 @@ func (trc *TRC) IsZero() bool {
 		trc.ID == TRCID{} &&
 		trc.Validity == Validity{} &&
 		trc.GracePeriod == 0 &&
-		trc.NoTrustReset == false &&
+		!trc.NoTrustReset &&
 		len(trc.Votes) == 0 &&
 		trc.Quorum == 0 &&
 		len(trc.CoreASes) == 0 &&

@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -64,12 +63,10 @@ func TestPathDBSuite(t *testing.T) {
 // TestOpenExisting tests that New does not overwrite an existing database if
 // versions match.
 func TestOpenExisting(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	b, tmpF := setupDB(t)
 	defer cleanup(tmpF)
 	TS := uint32(10)
-	pseg1, _ := pathdbtest.AllocPathSegment(t, ctrl, ifs1, TS)
+	pseg1, _ := pathdbtest.AllocPathSegment(t, ifs1, TS)
 	ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 	defer cancelF()
 	pathdbtest.InsertSeg(t, ctx, b, pseg1, hpCfgIDs)

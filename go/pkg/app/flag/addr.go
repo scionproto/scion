@@ -18,7 +18,7 @@ import (
 	"net"
 )
 
-// TCPAddr implements pflags.Value
+// TCPAddr implements pflags.Value.
 type TCPAddr net.TCPAddr
 
 func (addr *TCPAddr) Set(input string) error {
@@ -46,7 +46,7 @@ func (addr *TCPAddr) String() string {
 	return (*net.TCPAddr)(addr).String()
 }
 
-// UDPAddr implements pflags.Value
+// UDPAddr implements pflags.Value.
 type UDPAddr net.UDPAddr
 
 func (addr *UDPAddr) Set(input string) error {

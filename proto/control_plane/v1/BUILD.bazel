@@ -4,7 +4,6 @@ proto_library(
     name = "control_plane",
     srcs = [
         "cppki.proto",
-        "legacy.proto",
         "renewal.proto",
         "seg.proto",
         "seg_extensions.proto",

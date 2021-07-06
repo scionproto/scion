@@ -106,7 +106,7 @@ func (m ctxMatcher) Matches(x interface{}) bool {
 }
 
 func (m ctxMatcher) String() string {
-	return fmt.Sprintf("it should be context.context")
+	return "it should be context.context"
 }
 
 func loadKey(t *testing.T, file string) *ecdsa.PrivateKey {

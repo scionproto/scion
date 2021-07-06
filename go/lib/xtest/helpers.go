@@ -20,7 +20,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -189,7 +188,7 @@ func MustReadFromFile(t testing.TB, baseName string) []byte {
 
 // ExpandPath returns testdata/file.
 func ExpandPath(file string) string {
-	return filepath.Join("testdata", fmt.Sprintf("%s", file))
+	return filepath.Join("testdata", file)
 }
 
 // MustParseIA parses s and returns the corresponding addr.IA object. It

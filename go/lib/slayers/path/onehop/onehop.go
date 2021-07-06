@@ -20,7 +20,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 )
 
-// PathLen is the length of a serialized one hop path in bytes
+// PathLen is the length of a serialized one hop path in bytes.
 const PathLen = path.InfoLen + 2*path.HopLen
 
 const PathType path.Type = 2
@@ -121,7 +121,7 @@ func (o *Path) ToSCIONDecoded() (*scion.Decoded, error) {
 	return p, nil
 }
 
-// Rerverse a OneHop path that returns a reversed SCION path
+// Rerverse a OneHop path that returns a reversed SCION path.
 func (o Path) Reverse() (path.Path, error) {
 	sp, err := o.ToSCIONDecoded()
 	if err != nil {

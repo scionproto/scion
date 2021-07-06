@@ -44,7 +44,7 @@ func TestConfigPublisherPublish(t *testing.T) {
 		{
 			IA:             xtest.MustParseIA("1-ff00:0:110"),
 			TrafficMatcher: pktcls.CondTrue,
-			PerfPolicy:     namedPerfPolicy{},
+			PerfPolicy:     dummyPerfPolicy{},
 			PathPolicy:     control.DefaultPathPolicy,
 			PathCount:      1,
 			Prefixes:       xtest.MustParseCIDRs(t, "127.0.0.0/8"),

@@ -26,7 +26,7 @@ const LatestVer Version = 0
 // marshalled/unmarshalled to/from LatestVer.
 type Version uint64
 
-// IsLatest checks if the value is LatestVer
+// IsLatest checks if the value is LatestVer.
 func (v Version) IsLatest() bool {
 	return v == LatestVer
 }

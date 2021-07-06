@@ -247,11 +247,11 @@ func (h HostSVC) IsMulticast() bool {
 }
 
 func (h HostSVC) Base() HostSVC {
-	return h & ^HostSVC(SVCMcast)
+	return h & ^SVCMcast
 }
 
 func (h HostSVC) Multicast() HostSVC {
-	return h | HostSVC(SVCMcast)
+	return h | SVCMcast
 }
 
 func (h HostSVC) Copy() HostAddr {

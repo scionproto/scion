@@ -26,7 +26,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/slayers"
-	"github.com/scionproto/scion/go/lib/slayers/path"
 	"github.com/scionproto/scion/go/lib/slayers/path/empty"
 	"github.com/scionproto/scion/go/lib/slayers/path/scion"
 	"github.com/scionproto/scion/go/lib/util"
@@ -319,7 +318,7 @@ func TestDecodeSCIONUDP(t *testing.T) {
 	require.NotNil(t, scnL, "SCION layer should exist")
 	s := scnL.(*slayers.SCION) // Guaranteed to work
 	// Check SCION Header
-	assert.Equal(t, path.Type(scion.PathType), s.PathType)
+	assert.Equal(t, scion.PathType, s.PathType)
 	assert.Equal(t, uint8(29), s.HdrLen, "HdrLen")
 	assert.Equal(t, uint16(1032), s.PayloadLen, "PayloadLen")
 	assert.Equal(t, common.L4UDP, s.NextHdr, "CmnHdr.NextHdr")

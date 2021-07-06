@@ -266,7 +266,7 @@ type packetMatcher struct {
 
 func (pm *packetMatcher) Matches(x interface{}) bool {
 	packet := x.(gopacket.Packet)
-	return bytes.Compare(packet.Data(), pm.packet.Data()) == 0
+	return bytes.Equal(packet.Data(), pm.packet.Data())
 }
 
 func (pm *packetMatcher) String() string {

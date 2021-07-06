@@ -1,6 +1,5 @@
 bridge-utils
 build-essential
-capnproto
 cgroup-tools
 curl
 g++

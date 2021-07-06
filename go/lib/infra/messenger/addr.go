@@ -209,7 +209,7 @@ func (r AddressRewriter) resolutionCtx(ctx context.Context) (context.Context, co
 		return context.WithCancel(ctx)
 	}
 
-	timeout := deadline.Sub(time.Now())
+	timeout := time.Until(deadline)
 	timeout = time.Duration(float64(timeout) * r.SVCResolutionFraction)
 	return context.WithTimeout(ctx, timeout)
 }

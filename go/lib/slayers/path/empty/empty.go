@@ -19,7 +19,7 @@ import (
 	"github.com/scionproto/scion/go/lib/slayers/path"
 )
 
-// PathLen is the length of a serialized empty path in bytes
+// PathLen is the length of a serialized empty path in bytes.
 const PathLen = 0
 
 const PathType path.Type = 0

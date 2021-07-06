@@ -209,10 +209,7 @@ func selectLatestTRCs(trcs []cppki.SignedTRC) ([]cppki.SignedTRC, error) {
 	}
 
 	// copy the slice contents to avoid mutating the arg
-	var copyTRCs []cppki.SignedTRC
-	for _, v := range trcs {
-		copyTRCs = append(copyTRCs, v)
-	}
+	copyTRCs := append([]cppki.SignedTRC(nil), trcs...)
 
 	// Sort according to Greater than, s.t. the highest values are at the start of the slice
 	sort.Slice(copyTRCs, func(i, j int) bool {

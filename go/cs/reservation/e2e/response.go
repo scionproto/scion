@@ -45,7 +45,7 @@ func NewResponse(ts time.Time, id *reservation.E2EID, idx reservation.IndexNumbe
 	return &Response{
 		RequestMetadata: *metadata,
 		ID:              *id,
-		Index:           reservation.IndexNumber(idx),
+		Index:           idx,
 		Accepted:        accepted,
 		FailedHop:       failedHop,
 	}, nil

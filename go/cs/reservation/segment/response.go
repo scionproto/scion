@@ -47,7 +47,7 @@ func NewResponse(ts time.Time, id *reservation.SegmentID, idx reservation.IndexN
 	return &Response{
 		RequestMetadata: *metadata,
 		ID:              *id,
-		Index:           reservation.IndexNumber(idx),
+		Index:           idx,
 		Accepted:        accepted,
 		FailedHop:       failedHop,
 	}, nil

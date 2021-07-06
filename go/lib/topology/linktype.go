@@ -23,7 +23,7 @@ import (
 type LinkType int
 
 // XXX(scrye): These constants might end up in files or on the network, so they should not
-// change. They are defined here s.t. they are not subject to the capnp generator.
+// change. They are defined here s.t. they are not subject to the protobuf generator.
 
 const (
 	// Unset is used for unknown link types.

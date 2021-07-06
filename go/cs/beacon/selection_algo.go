@@ -37,14 +37,16 @@ func (a baseAlgo) SelectBeacons(beacons []Beacon, resultSize int) []Beacon {
 
 	result := make([]Beacon, resultSize-1, resultSize)
 	copy(result, beacons[:resultSize-1])
-	mostDiverse, diversity := a.selectMostDiverse(result, result[0])
+	_, diversity := a.selectMostDiverse(result, result[0])
 
-	// check if we find a more diverse beacon in the rest
+	// Check if we find a more diverse beacon in the rest.
 	mostDiverseRest, diversityRest := a.selectMostDiverse(beacons[resultSize-1:], result[0])
 	if diversityRest > diversity {
 		return append(result, mostDiverseRest)
 	}
-	return append(result, mostDiverse)
+	// If the most diverse beacon was already served, serve shortest from the
+	// rest.
+	return append(result, beacons[resultSize-1])
 }
 
 // selectMostDiverse selects the most diverse beacon compared to the provided best beacon from all
@@ -66,11 +68,4 @@ func (baseAlgo) selectMostDiverse(beacons []Beacon, best Beacon) (Beacon, int) {
 		}
 	}
 	return diverse, maxDiversity
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

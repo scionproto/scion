@@ -208,7 +208,7 @@ func (e *executor) Chain(ctx context.Context,
 
 	e.RLock()
 	defer e.RUnlock()
-	sqlQuery := fmt.Sprintf("SELECT as_cert, ca_cert FROM chains WHERE chain_fingerprint=$1")
+	sqlQuery := "SELECT as_cert, ca_cert FROM chains WHERE chain_fingerprint=$1"
 	r := e.db.QueryRowContext(ctx, sqlQuery, chainID)
 	var chain []*x509.Certificate
 	var rawAS, rawCA []byte
@@ -281,8 +281,8 @@ func (e *executor) SignedTRCs(ctx context.Context,
 		where := fmt.Sprintf("(%s)", strings.Join(subQ, " OR "))
 		sqlQuery = append(sqlQuery, fmt.Sprintf("WHERE %s", where))
 	}
-	if query.Latest == true {
-		sqlQuery = append(sqlQuery, fmt.Sprintf("GROUP BY isd_id ORDER BY base DESC, serial DESC"))
+	if query.Latest {
+		sqlQuery = append(sqlQuery, "GROUP BY isd_id ORDER BY base DESC, serial DESC")
 	}
 	rows, err := e.db.QueryContext(ctx, strings.Join(sqlQuery, "\n"), args...)
 	if err != nil {
@@ -301,6 +301,9 @@ func (e *executor) SignedTRCs(ctx context.Context,
 			return nil, serrors.Wrap(db.ErrDataInvalid, err)
 		}
 		res = append(res, curRes)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return res, err
 }

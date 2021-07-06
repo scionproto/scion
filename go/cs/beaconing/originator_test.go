@@ -53,8 +53,7 @@ func TestOriginatorRun(t *testing.T) {
 	require.NoError(t, err)
 	pub := priv.Public()
 	signer := testSigner(t, priv, topoProvider.Get().IA())
-	var originationFilter func(intf *ifstate.Interface) bool
-	originationFilter = func(intf *ifstate.Interface) bool {
+	originationFilter := func(intf *ifstate.Interface) bool {
 		topoInfo := intf.TopoInfo()
 		if topoInfo.LinkType == topology.Core || topoInfo.LinkType == topology.Child {
 			return true
@@ -73,7 +72,7 @@ func TestOriginatorRun(t *testing.T) {
 				Signer:     signer,
 				Intfs:      intfs,
 				MAC:        macFactory,
-				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
+				MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 				StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 			},
 			SenderFactory: senderFactory,
@@ -134,7 +133,7 @@ func TestOriginatorRun(t *testing.T) {
 				Signer:     signer,
 				Intfs:      intfs,
 				MAC:        macFactory,
-				MaxExpTime: func() uint8 { return uint8(beacon.DefaultMaxExpTime) },
+				MaxExpTime: func() uint8 { return beacon.DefaultMaxExpTime },
 				StaticInfo: func() *beaconing.StaticInfoCfg { return nil },
 			},
 			SenderFactory: senderFactory,

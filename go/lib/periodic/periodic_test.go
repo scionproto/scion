@@ -61,10 +61,11 @@ func TestPeriodicExecution(t *testing.T) {
 					return
 				}
 			case <-time.After(5 * p):
-				t.Fatalf("timed out while waiting %d run", v)
+				panic(fmt.Sprintf("timed out while waiting %d run", v))
 			}
 		}
 	}()
+
 	xtest.AssertReadReturnsBefore(t, done, time.Second)
 	assert.WithinDurationf(t, start, time.Now(), time.Duration(want+2)*p,
 		"more or less %d * periods", want+2)
@@ -110,7 +111,7 @@ func TestTaskDoesntRunAfterKill(t *testing.T) {
 		select {
 		case <-cnt:
 		case <-time.After(2 * p):
-			t.Fatalf("timed out while waiting on first run")
+			panic("timed out while waiting on first run")
 		}
 
 		err := runWithTimeout(r.Kill, 2*p)
@@ -139,7 +140,7 @@ func TestTriggerNow(t *testing.T) {
 		select {
 		case <-cnt:
 		case <-time.After(2 * p):
-			t.Fatalf("timed out while waiting on first run")
+			panic("timed out while waiting on first run")
 		}
 		for i := 0; i < want; i++ {
 			err := runWithTimeout(r.TriggerRun, p)

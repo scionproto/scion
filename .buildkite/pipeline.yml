@@ -16,6 +16,7 @@ steps:
     command:
       - bazel test --config=unit --cache_test_results=${BAZEL_CACHE_TEST_RESULTS:-auto}
       - make lint
+      - make golangci-lint
     key: unit_tests
     artifact_paths:
       - "artifacts.out/**/*"

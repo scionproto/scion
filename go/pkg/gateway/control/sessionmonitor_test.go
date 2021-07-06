@@ -60,7 +60,7 @@ func (m pktMatcher) String() string {
 func matchPkt(t *testing.T, pkt *gatewaypb.ControlRequest) gomock.Matcher {
 	raw, err := proto.Marshal(pkt)
 	require.NoError(t, err)
-	return pktMatcher{raw: raw, description: fmt.Sprintf("%s", pkt)}
+	return pktMatcher{raw: raw, description: pkt.String()}
 }
 
 type udpAddrMatcher struct {
@@ -78,7 +78,7 @@ func (m udpAddrMatcher) Matches(x interface{}) bool {
 
 // String describes what the matcher matches.
 func (m udpAddrMatcher) String() string {
-	return fmt.Sprintf("%s", m.a)
+	return m.a.String()
 }
 
 func TestSessionMonitorTestProbing(t *testing.T) {
