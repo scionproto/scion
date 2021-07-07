@@ -139,18 +139,29 @@ func (e *executor) InsertWithHPGroupIDs(ctx context.Context, segMeta *seg.Meta,
 	if e.db == nil {
 		return noInsertion, serrors.New("No database open")
 	}
+	var stats pathdb.InsertStats
+	err := db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
+		var err error
+		stats, err = insert(ctx, tx, segMeta, hpGroupIDs)
+		return err
+	})
+	return stats, err
+}
+
+func insert(ctx context.Context, tx *sql.Tx, segMeta *seg.Meta,
+	hpGroupIDs []uint64) (pathdb.InsertStats, error) {
+
 	pseg := segMeta.Segment
 	segID := pseg.ID()
 	newFullID := pseg.FullID()
-	meta, err := e.get(ctx, segID)
+	meta, err := get(ctx, tx, segID)
 	if err != nil {
 		return pathdb.InsertStats{}, err
 	}
 	// Do full insert.
 	if meta == nil {
-		if err = db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
-			return insertFull(ctx, tx, segMeta.Segment, []seg.Type{segMeta.Type}, hpGroupIDs)
-		}); err != nil {
+		err := insertFull(ctx, tx, segMeta.Segment, []seg.Type{segMeta.Type}, hpGroupIDs)
+		if err != nil {
 			return pathdb.InsertStats{}, err
 		}
 		return pathdb.InsertStats{Inserted: 1}, nil
@@ -170,19 +181,19 @@ func (e *executor) InsertWithHPGroupIDs(ctx context.Context, segMeta *seg.Meta,
 	// Update the existing segment
 	meta.Seg = pseg
 	meta.LastUpdated = time.Now()
-	err = e.updateExisting(ctx, meta, []seg.Type{segMeta.Type}, newFullID, hpGroupIDs)
+	err = updateExisting(ctx, tx, meta, []seg.Type{segMeta.Type}, newFullID, hpGroupIDs)
 	if err != nil {
 		return pathdb.InsertStats{}, err
 	}
 	return pathdb.InsertStats{Updated: 1}, nil
 }
 
-func (e *executor) get(ctx context.Context, segID []byte) (*segMeta, error) {
+func get(ctx context.Context, tx *sql.Tx, segID []byte) (*segMeta, error) {
 	query := "SELECT RowID, SegID, FullID, LastUpdated, Segment FROM Segments WHERE SegID=?"
 	var meta segMeta
 	var lastUpdated int64
 	var rawSeg []byte
-	err := e.db.QueryRowContext(ctx, query, segID).Scan(
+	err := tx.QueryRowContext(ctx, query, segID).Scan(
 		&meta.RowID, &meta.SegID, &meta.FullID, &lastUpdated, &rawSeg)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -198,41 +209,38 @@ func (e *executor) get(ctx context.Context, segID []byte) (*segMeta, error) {
 	return &meta, nil
 }
 
-func (e *executor) updateExisting(ctx context.Context, meta *segMeta,
+func updateExisting(ctx context.Context, tx *sql.Tx, meta *segMeta,
 	types []seg.Type, newFullID []byte, hpGroupIDs []uint64) error {
 
-	return db.DoInTx(ctx, e.db, func(ctx context.Context, tx *sql.Tx) error {
-
-		// Update segment.
-		if err := updateSeg(ctx, tx, meta); err != nil {
+	// Update segment.
+	if err := updateSeg(ctx, tx, meta); err != nil {
+		return err
+	}
+	// Make sure the existing segment is registered as the given type.
+	for _, t := range types {
+		if err := insertType(ctx, tx, meta.RowID, t); err != nil {
 			return err
 		}
-		// Make sure the existing segment is registered as the given type.
-		for _, t := range types {
-			if err := insertType(ctx, tx, meta.RowID, t); err != nil {
-				return err
-			}
+	}
+	// Check if the existing segment is registered with the given hpGroupIDs.
+	for _, hpGroupID := range hpGroupIDs {
+		if err := insertHPGroupID(ctx, tx, meta.RowID, hpGroupID); err != nil {
+			return err
 		}
-		// Check if the existing segment is registered with the given hpGroupIDs.
-		for _, hpGroupID := range hpGroupIDs {
-			if err := insertHPGroupID(ctx, tx, meta.RowID, hpGroupID); err != nil {
-				return err
-			}
+	}
+	// Update the IntfToSeg table
+	if !bytes.Equal(newFullID, meta.FullID) {
+		// Delete all old interfaces and then insert the new ones.
+		// Calculating the actual diffset would be better, but this is way easier to implement.
+		_, err := tx.ExecContext(ctx, `DELETE FROM IntfToSeg WHERE SegRowID=?`, meta.RowID)
+		if err != nil {
+			return err
 		}
-		// Update the IntfToSeg table
-		if !bytes.Equal(newFullID, meta.FullID) {
-			// Delete all old interfaces and then insert the new ones.
-			// Calculating the actual diffset would be better, but this is way easier to implement.
-			_, err := tx.ExecContext(ctx, `DELETE FROM IntfToSeg WHERE SegRowID=?`, meta.RowID)
-			if err != nil {
-				return err
-			}
-			if err := insertInterfaces(ctx, tx, meta.Seg.ASEntries, meta.RowID); err != nil {
-				return err
-			}
+		if err := insertInterfaces(ctx, tx, meta.Seg.ASEntries, meta.RowID); err != nil {
+			return err
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
 func updateSeg(ctx context.Context, tx *sql.Tx, meta *segMeta) error {
