@@ -6,35 +6,36 @@ package mock_seg
 
 import (
 	context "context"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	crypto "github.com/scionproto/scion/go/pkg/proto/crypto"
-	reflect "reflect"
 )
 
-// MockSigner is a mock of Signer interface
+// MockSigner is a mock of Signer interface.
 type MockSigner struct {
 	ctrl     *gomock.Controller
 	recorder *MockSignerMockRecorder
 }
 
-// MockSignerMockRecorder is the mock recorder for MockSigner
+// MockSignerMockRecorder is the mock recorder for MockSigner.
 type MockSignerMockRecorder struct {
 	mock *MockSigner
 }
 
-// NewMockSigner creates a new mock instance
+// NewMockSigner creates a new mock instance.
 func NewMockSigner(ctrl *gomock.Controller) *MockSigner {
 	mock := &MockSigner{ctrl: ctrl}
 	mock.recorder = &MockSignerMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockSigner) EXPECT() *MockSignerMockRecorder {
 	return m.recorder
 }
 
-// Sign mocks base method
+// Sign mocks base method.
 func (m *MockSigner) Sign(arg0 context.Context, arg1 []byte, arg2 ...[]byte) (*crypto.SignedMessage, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
@@ -47,7 +48,7 @@ func (m *MockSigner) Sign(arg0 context.Context, arg1 []byte, arg2 ...[]byte) (*c
 	return ret0, ret1
 }
 
-// Sign indicates an expected call of Sign
+// Sign indicates an expected call of Sign.
 func (mr *MockSignerMockRecorder) Sign(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)

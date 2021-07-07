@@ -6,35 +6,36 @@ package mock_reconnect
 
 import (
 	context "context"
-	gomock "github.com/golang/mock/gomock"
 	net "net"
 	reflect "reflect"
+
+	gomock "github.com/golang/mock/gomock"
 )
 
-// MockIOOperation is a mock of IOOperation interface
+// MockIOOperation is a mock of IOOperation interface.
 type MockIOOperation struct {
 	ctrl     *gomock.Controller
 	recorder *MockIOOperationMockRecorder
 }
 
-// MockIOOperationMockRecorder is the mock recorder for MockIOOperation
+// MockIOOperationMockRecorder is the mock recorder for MockIOOperation.
 type MockIOOperationMockRecorder struct {
 	mock *MockIOOperation
 }
 
-// NewMockIOOperation creates a new mock instance
+// NewMockIOOperation creates a new mock instance.
 func NewMockIOOperation(ctrl *gomock.Controller) *MockIOOperation {
 	mock := &MockIOOperation{ctrl: ctrl}
 	mock.recorder = &MockIOOperationMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockIOOperation) EXPECT() *MockIOOperationMockRecorder {
 	return m.recorder
 }
 
-// Do mocks base method
+// Do mocks base method.
 func (m *MockIOOperation) Do(arg0 net.PacketConn) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Do", arg0)
@@ -42,13 +43,13 @@ func (m *MockIOOperation) Do(arg0 net.PacketConn) error {
 	return ret0
 }
 
-// Do indicates an expected call of Do
+// Do indicates an expected call of Do.
 func (mr *MockIOOperationMockRecorder) Do(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Do", reflect.TypeOf((*MockIOOperation)(nil).Do), arg0)
 }
 
-// IsWrite mocks base method
+// IsWrite mocks base method.
 func (m *MockIOOperation) IsWrite() bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsWrite")
@@ -56,36 +57,36 @@ func (m *MockIOOperation) IsWrite() bool {
 	return ret0
 }
 
-// IsWrite indicates an expected call of IsWrite
+// IsWrite indicates an expected call of IsWrite.
 func (mr *MockIOOperationMockRecorder) IsWrite() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsWrite", reflect.TypeOf((*MockIOOperation)(nil).IsWrite))
 }
 
-// MockReconnecter is a mock of Reconnecter interface
+// MockReconnecter is a mock of Reconnecter interface.
 type MockReconnecter struct {
 	ctrl     *gomock.Controller
 	recorder *MockReconnecterMockRecorder
 }
 
-// MockReconnecterMockRecorder is the mock recorder for MockReconnecter
+// MockReconnecterMockRecorder is the mock recorder for MockReconnecter.
 type MockReconnecterMockRecorder struct {
 	mock *MockReconnecter
 }
 
-// NewMockReconnecter creates a new mock instance
+// NewMockReconnecter creates a new mock instance.
 func NewMockReconnecter(ctrl *gomock.Controller) *MockReconnecter {
 	mock := &MockReconnecter{ctrl: ctrl}
 	mock.recorder = &MockReconnecterMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockReconnecter) EXPECT() *MockReconnecterMockRecorder {
 	return m.recorder
 }
 
-// Reconnect mocks base method
+// Reconnect mocks base method.
 func (m *MockReconnecter) Reconnect(arg0 context.Context) (net.PacketConn, uint16, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Reconnect", arg0)
@@ -95,19 +96,19 @@ func (m *MockReconnecter) Reconnect(arg0 context.Context) (net.PacketConn, uint1
 	return ret0, ret1, ret2
 }
 
-// Reconnect indicates an expected call of Reconnect
+// Reconnect indicates an expected call of Reconnect.
 func (mr *MockReconnecterMockRecorder) Reconnect(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reconnect", reflect.TypeOf((*MockReconnecter)(nil).Reconnect), arg0)
 }
 
-// Stop mocks base method
+// Stop mocks base method.
 func (m *MockReconnecter) Stop() {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Stop")
 }
 
-// Stop indicates an expected call of Stop
+// Stop indicates an expected call of Stop.
 func (mr *MockReconnecterMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockReconnecter)(nil).Stop))

@@ -260,7 +260,6 @@ func newCommandTemplate(executable string, shortName string, config config.Sampl
 		Args:          cobra.NoArgs,
 	}
 	cmd.AddCommand(
-		command.NewCompletion(cmd),
 		command.NewSample(
 			cmd,
 			append(samplers, command.NewSampleConfig(config))...,

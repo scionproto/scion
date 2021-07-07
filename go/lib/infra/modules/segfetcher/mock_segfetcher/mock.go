@@ -6,39 +6,40 @@ package mock_segfetcher
 
 import (
 	context "context"
+	net "net"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	seg "github.com/scionproto/scion/go/lib/ctrl/seg"
 	segfetcher "github.com/scionproto/scion/go/lib/infra/modules/segfetcher"
 	seghandler "github.com/scionproto/scion/go/lib/infra/modules/seghandler"
-	net "net"
-	reflect "reflect"
 )
 
-// MockDstProvider is a mock of DstProvider interface
+// MockDstProvider is a mock of DstProvider interface.
 type MockDstProvider struct {
 	ctrl     *gomock.Controller
 	recorder *MockDstProviderMockRecorder
 }
 
-// MockDstProviderMockRecorder is the mock recorder for MockDstProvider
+// MockDstProviderMockRecorder is the mock recorder for MockDstProvider.
 type MockDstProviderMockRecorder struct {
 	mock *MockDstProvider
 }
 
-// NewMockDstProvider creates a new mock instance
+// NewMockDstProvider creates a new mock instance.
 func NewMockDstProvider(ctrl *gomock.Controller) *MockDstProvider {
 	mock := &MockDstProvider{ctrl: ctrl}
 	mock.recorder = &MockDstProviderMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDstProvider) EXPECT() *MockDstProviderMockRecorder {
 	return m.recorder
 }
 
-// Dst mocks base method
+// Dst mocks base method.
 func (m *MockDstProvider) Dst(arg0 context.Context, arg1 segfetcher.Request) (net.Addr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Dst", arg0, arg1)
@@ -47,36 +48,36 @@ func (m *MockDstProvider) Dst(arg0 context.Context, arg1 segfetcher.Request) (ne
 	return ret0, ret1
 }
 
-// Dst indicates an expected call of Dst
+// Dst indicates an expected call of Dst.
 func (mr *MockDstProviderMockRecorder) Dst(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Dst", reflect.TypeOf((*MockDstProvider)(nil).Dst), arg0, arg1)
 }
 
-// MockReplyHandler is a mock of ReplyHandler interface
+// MockReplyHandler is a mock of ReplyHandler interface.
 type MockReplyHandler struct {
 	ctrl     *gomock.Controller
 	recorder *MockReplyHandlerMockRecorder
 }
 
-// MockReplyHandlerMockRecorder is the mock recorder for MockReplyHandler
+// MockReplyHandlerMockRecorder is the mock recorder for MockReplyHandler.
 type MockReplyHandlerMockRecorder struct {
 	mock *MockReplyHandler
 }
 
-// NewMockReplyHandler creates a new mock instance
+// NewMockReplyHandler creates a new mock instance.
 func NewMockReplyHandler(ctrl *gomock.Controller) *MockReplyHandler {
 	mock := &MockReplyHandler{ctrl: ctrl}
 	mock.recorder = &MockReplyHandlerMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockReplyHandler) EXPECT() *MockReplyHandlerMockRecorder {
 	return m.recorder
 }
 
-// Handle mocks base method
+// Handle mocks base method.
 func (m *MockReplyHandler) Handle(arg0 context.Context, arg1 seghandler.Segments, arg2 net.Addr) *seghandler.ProcessedResult {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Handle", arg0, arg1, arg2)
@@ -84,36 +85,36 @@ func (m *MockReplyHandler) Handle(arg0 context.Context, arg1 seghandler.Segments
 	return ret0
 }
 
-// Handle indicates an expected call of Handle
+// Handle indicates an expected call of Handle.
 func (mr *MockReplyHandlerMockRecorder) Handle(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockReplyHandler)(nil).Handle), arg0, arg1, arg2)
 }
 
-// MockRequester is a mock of Requester interface
+// MockRequester is a mock of Requester interface.
 type MockRequester struct {
 	ctrl     *gomock.Controller
 	recorder *MockRequesterMockRecorder
 }
 
-// MockRequesterMockRecorder is the mock recorder for MockRequester
+// MockRequesterMockRecorder is the mock recorder for MockRequester.
 type MockRequesterMockRecorder struct {
 	mock *MockRequester
 }
 
-// NewMockRequester creates a new mock instance
+// NewMockRequester creates a new mock instance.
 func NewMockRequester(ctrl *gomock.Controller) *MockRequester {
 	mock := &MockRequester{ctrl: ctrl}
 	mock.recorder = &MockRequesterMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockRequester) EXPECT() *MockRequesterMockRecorder {
 	return m.recorder
 }
 
-// Request mocks base method
+// Request mocks base method.
 func (m *MockRequester) Request(arg0 context.Context, arg1 segfetcher.Requests) <-chan segfetcher.ReplyOrErr {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Request", arg0, arg1)
@@ -121,36 +122,36 @@ func (m *MockRequester) Request(arg0 context.Context, arg1 segfetcher.Requests) 
 	return ret0
 }
 
-// Request indicates an expected call of Request
+// Request indicates an expected call of Request.
 func (mr *MockRequesterMockRecorder) Request(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Request", reflect.TypeOf((*MockRequester)(nil).Request), arg0, arg1)
 }
 
-// MockResolver is a mock of Resolver interface
+// MockResolver is a mock of Resolver interface.
 type MockResolver struct {
 	ctrl     *gomock.Controller
 	recorder *MockResolverMockRecorder
 }
 
-// MockResolverMockRecorder is the mock recorder for MockResolver
+// MockResolverMockRecorder is the mock recorder for MockResolver.
 type MockResolverMockRecorder struct {
 	mock *MockResolver
 }
 
-// NewMockResolver creates a new mock instance
+// NewMockResolver creates a new mock instance.
 func NewMockResolver(ctrl *gomock.Controller) *MockResolver {
 	mock := &MockResolver{ctrl: ctrl}
 	mock.recorder = &MockResolverMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
 	return m.recorder
 }
 
-// Resolve mocks base method
+// Resolve mocks base method.
 func (m *MockResolver) Resolve(arg0 context.Context, arg1 segfetcher.Requests, arg2 bool) (segfetcher.Segments, segfetcher.Requests, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", arg0, arg1, arg2)
@@ -160,36 +161,36 @@ func (m *MockResolver) Resolve(arg0 context.Context, arg1 segfetcher.Requests, a
 	return ret0, ret1, ret2
 }
 
-// Resolve indicates an expected call of Resolve
+// Resolve indicates an expected call of Resolve.
 func (mr *MockResolverMockRecorder) Resolve(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockResolver)(nil).Resolve), arg0, arg1, arg2)
 }
 
-// MockRPC is a mock of RPC interface
+// MockRPC is a mock of RPC interface.
 type MockRPC struct {
 	ctrl     *gomock.Controller
 	recorder *MockRPCMockRecorder
 }
 
-// MockRPCMockRecorder is the mock recorder for MockRPC
+// MockRPCMockRecorder is the mock recorder for MockRPC.
 type MockRPCMockRecorder struct {
 	mock *MockRPC
 }
 
-// NewMockRPC creates a new mock instance
+// NewMockRPC creates a new mock instance.
 func NewMockRPC(ctrl *gomock.Controller) *MockRPC {
 	mock := &MockRPC{ctrl: ctrl}
 	mock.recorder = &MockRPCMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockRPC) EXPECT() *MockRPCMockRecorder {
 	return m.recorder
 }
 
-// Segments mocks base method
+// Segments mocks base method.
 func (m *MockRPC) Segments(arg0 context.Context, arg1 segfetcher.Request, arg2 net.Addr) ([]*seg.Meta, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Segments", arg0, arg1, arg2)
@@ -198,36 +199,36 @@ func (m *MockRPC) Segments(arg0 context.Context, arg1 segfetcher.Request, arg2 n
 	return ret0, ret1
 }
 
-// Segments indicates an expected call of Segments
+// Segments indicates an expected call of Segments.
 func (mr *MockRPCMockRecorder) Segments(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Segments", reflect.TypeOf((*MockRPC)(nil).Segments), arg0, arg1, arg2)
 }
 
-// MockSplitter is a mock of Splitter interface
+// MockSplitter is a mock of Splitter interface.
 type MockSplitter struct {
 	ctrl     *gomock.Controller
 	recorder *MockSplitterMockRecorder
 }
 
-// MockSplitterMockRecorder is the mock recorder for MockSplitter
+// MockSplitterMockRecorder is the mock recorder for MockSplitter.
 type MockSplitterMockRecorder struct {
 	mock *MockSplitter
 }
 
-// NewMockSplitter creates a new mock instance
+// NewMockSplitter creates a new mock instance.
 func NewMockSplitter(ctrl *gomock.Controller) *MockSplitter {
 	mock := &MockSplitter{ctrl: ctrl}
 	mock.recorder = &MockSplitterMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockSplitter) EXPECT() *MockSplitterMockRecorder {
 	return m.recorder
 }
 
-// Split mocks base method
+// Split mocks base method.
 func (m *MockSplitter) Split(arg0 context.Context, arg1 addr.IA) (segfetcher.Requests, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Split", arg0, arg1)
@@ -236,36 +237,36 @@ func (m *MockSplitter) Split(arg0 context.Context, arg1 addr.IA) (segfetcher.Req
 	return ret0, ret1
 }
 
-// Split indicates an expected call of Split
+// Split indicates an expected call of Split.
 func (mr *MockSplitterMockRecorder) Split(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Split", reflect.TypeOf((*MockSplitter)(nil).Split), arg0, arg1)
 }
 
-// MockLocalInfo is a mock of LocalInfo interface
+// MockLocalInfo is a mock of LocalInfo interface.
 type MockLocalInfo struct {
 	ctrl     *gomock.Controller
 	recorder *MockLocalInfoMockRecorder
 }
 
-// MockLocalInfoMockRecorder is the mock recorder for MockLocalInfo
+// MockLocalInfoMockRecorder is the mock recorder for MockLocalInfo.
 type MockLocalInfoMockRecorder struct {
 	mock *MockLocalInfo
 }
 
-// NewMockLocalInfo creates a new mock instance
+// NewMockLocalInfo creates a new mock instance.
 func NewMockLocalInfo(ctrl *gomock.Controller) *MockLocalInfo {
 	mock := &MockLocalInfo{ctrl: ctrl}
 	mock.recorder = &MockLocalInfoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockLocalInfo) EXPECT() *MockLocalInfoMockRecorder {
 	return m.recorder
 }
 
-// IsSegLocal mocks base method
+// IsSegLocal mocks base method.
 func (m *MockLocalInfo) IsSegLocal(arg0 segfetcher.Request) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsSegLocal", arg0)
@@ -273,7 +274,7 @@ func (m *MockLocalInfo) IsSegLocal(arg0 segfetcher.Request) bool {
 	return ret0
 }
 
-// IsSegLocal indicates an expected call of IsSegLocal
+// IsSegLocal indicates an expected call of IsSegLocal.
 func (mr *MockLocalInfoMockRecorder) IsSegLocal(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSegLocal", reflect.TypeOf((*MockLocalInfo)(nil).IsSegLocal), arg0)

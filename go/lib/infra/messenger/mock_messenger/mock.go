@@ -6,38 +6,39 @@ package mock_messenger
 
 import (
 	context "context"
+	net "net"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	snet "github.com/scionproto/scion/go/lib/snet"
 	svc "github.com/scionproto/scion/go/lib/svc"
-	net "net"
-	reflect "reflect"
 )
 
-// MockLocalSVCRouter is a mock of LocalSVCRouter interface
+// MockLocalSVCRouter is a mock of LocalSVCRouter interface.
 type MockLocalSVCRouter struct {
 	ctrl     *gomock.Controller
 	recorder *MockLocalSVCRouterMockRecorder
 }
 
-// MockLocalSVCRouterMockRecorder is the mock recorder for MockLocalSVCRouter
+// MockLocalSVCRouterMockRecorder is the mock recorder for MockLocalSVCRouter.
 type MockLocalSVCRouterMockRecorder struct {
 	mock *MockLocalSVCRouter
 }
 
-// NewMockLocalSVCRouter creates a new mock instance
+// NewMockLocalSVCRouter creates a new mock instance.
 func NewMockLocalSVCRouter(ctrl *gomock.Controller) *MockLocalSVCRouter {
 	mock := &MockLocalSVCRouter{ctrl: ctrl}
 	mock.recorder = &MockLocalSVCRouterMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockLocalSVCRouter) EXPECT() *MockLocalSVCRouterMockRecorder {
 	return m.recorder
 }
 
-// GetUnderlay mocks base method
+// GetUnderlay mocks base method.
 func (m *MockLocalSVCRouter) GetUnderlay(arg0 addr.HostSVC) (*net.UDPAddr, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUnderlay", arg0)
@@ -46,36 +47,36 @@ func (m *MockLocalSVCRouter) GetUnderlay(arg0 addr.HostSVC) (*net.UDPAddr, error
 	return ret0, ret1
 }
 
-// GetUnderlay indicates an expected call of GetUnderlay
+// GetUnderlay indicates an expected call of GetUnderlay.
 func (mr *MockLocalSVCRouterMockRecorder) GetUnderlay(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUnderlay", reflect.TypeOf((*MockLocalSVCRouter)(nil).GetUnderlay), arg0)
 }
 
-// MockResolver is a mock of Resolver interface
+// MockResolver is a mock of Resolver interface.
 type MockResolver struct {
 	ctrl     *gomock.Controller
 	recorder *MockResolverMockRecorder
 }
 
-// MockResolverMockRecorder is the mock recorder for MockResolver
+// MockResolverMockRecorder is the mock recorder for MockResolver.
 type MockResolverMockRecorder struct {
 	mock *MockResolver
 }
 
-// NewMockResolver creates a new mock instance
+// NewMockResolver creates a new mock instance.
 func NewMockResolver(ctrl *gomock.Controller) *MockResolver {
 	mock := &MockResolver{ctrl: ctrl}
 	mock.recorder = &MockResolverMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
 	return m.recorder
 }
 
-// LookupSVC mocks base method
+// LookupSVC mocks base method.
 func (m *MockResolver) LookupSVC(arg0 context.Context, arg1 snet.Path, arg2 addr.HostSVC) (*svc.Reply, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LookupSVC", arg0, arg1, arg2)
@@ -84,7 +85,7 @@ func (m *MockResolver) LookupSVC(arg0 context.Context, arg1 snet.Path, arg2 addr
 	return ret0, ret1
 }
 
-// LookupSVC indicates an expected call of LookupSVC
+// LookupSVC indicates an expected call of LookupSVC.
 func (mr *MockResolverMockRecorder) LookupSVC(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LookupSVC", reflect.TypeOf((*MockResolver)(nil).LookupSVC), arg0, arg1, arg2)

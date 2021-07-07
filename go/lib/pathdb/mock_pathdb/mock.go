@@ -7,39 +7,40 @@ package mock_pathdb
 import (
 	context "context"
 	sql "database/sql"
+	reflect "reflect"
+	time "time"
+
 	gomock "github.com/golang/mock/gomock"
 	addr "github.com/scionproto/scion/go/lib/addr"
 	seg "github.com/scionproto/scion/go/lib/ctrl/seg"
 	pathdb "github.com/scionproto/scion/go/lib/pathdb"
 	query "github.com/scionproto/scion/go/lib/pathdb/query"
-	reflect "reflect"
-	time "time"
 )
 
-// MockDB is a mock of DB interface
+// MockDB is a mock of DB interface.
 type MockDB struct {
 	ctrl     *gomock.Controller
 	recorder *MockDBMockRecorder
 }
 
-// MockDBMockRecorder is the mock recorder for MockDB
+// MockDBMockRecorder is the mock recorder for MockDB.
 type MockDBMockRecorder struct {
 	mock *MockDB
 }
 
-// NewMockDB creates a new mock instance
+// NewMockDB creates a new mock instance.
 func NewMockDB(ctrl *gomock.Controller) *MockDB {
 	mock := &MockDB{ctrl: ctrl}
 	mock.recorder = &MockDBMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDB) EXPECT() *MockDBMockRecorder {
 	return m.recorder
 }
 
-// BeginTransaction mocks base method
+// BeginTransaction mocks base method.
 func (m *MockDB) BeginTransaction(arg0 context.Context, arg1 *sql.TxOptions) (pathdb.Transaction, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BeginTransaction", arg0, arg1)
@@ -48,13 +49,13 @@ func (m *MockDB) BeginTransaction(arg0 context.Context, arg1 *sql.TxOptions) (pa
 	return ret0, ret1
 }
 
-// BeginTransaction indicates an expected call of BeginTransaction
+// BeginTransaction indicates an expected call of BeginTransaction.
 func (mr *MockDBMockRecorder) BeginTransaction(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeginTransaction", reflect.TypeOf((*MockDB)(nil).BeginTransaction), arg0, arg1)
 }
 
-// DeleteExpired mocks base method
+// DeleteExpired mocks base method.
 func (m *MockDB) DeleteExpired(arg0 context.Context, arg1 time.Time) (int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteExpired", arg0, arg1)
@@ -63,13 +64,13 @@ func (m *MockDB) DeleteExpired(arg0 context.Context, arg1 time.Time) (int, error
 	return ret0, ret1
 }
 
-// DeleteExpired indicates an expected call of DeleteExpired
+// DeleteExpired indicates an expected call of DeleteExpired.
 func (mr *MockDBMockRecorder) DeleteExpired(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpired", reflect.TypeOf((*MockDB)(nil).DeleteExpired), arg0, arg1)
 }
 
-// Get mocks base method
+// Get mocks base method.
 func (m *MockDB) Get(arg0 context.Context, arg1 *query.Params) (query.Results, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1)
@@ -78,13 +79,13 @@ func (m *MockDB) Get(arg0 context.Context, arg1 *query.Params) (query.Results, e
 	return ret0, ret1
 }
 
-// Get indicates an expected call of Get
+// Get indicates an expected call of Get.
 func (mr *MockDBMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockDB)(nil).Get), arg0, arg1)
 }
 
-// GetAll mocks base method
+// GetAll mocks base method.
 func (m *MockDB) GetAll(arg0 context.Context) (query.Results, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAll", arg0)
@@ -93,13 +94,13 @@ func (m *MockDB) GetAll(arg0 context.Context) (query.Results, error) {
 	return ret0, ret1
 }
 
-// GetAll indicates an expected call of GetAll
+// GetAll indicates an expected call of GetAll.
 func (mr *MockDBMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockDB)(nil).GetAll), arg0)
 }
 
-// GetNextQuery mocks base method
+// GetNextQuery mocks base method.
 func (m *MockDB) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA) (time.Time, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1, arg2)
@@ -108,13 +109,13 @@ func (m *MockDB) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA) (time.Ti
 	return ret0, ret1
 }
 
-// GetNextQuery indicates an expected call of GetNextQuery
+// GetNextQuery indicates an expected call of GetNextQuery.
 func (mr *MockDBMockRecorder) GetNextQuery(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNextQuery", reflect.TypeOf((*MockDB)(nil).GetNextQuery), arg0, arg1, arg2)
 }
 
-// Insert mocks base method
+// Insert mocks base method.
 func (m *MockDB) Insert(arg0 context.Context, arg1 *seg.Meta) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Insert", arg0, arg1)
@@ -123,13 +124,13 @@ func (m *MockDB) Insert(arg0 context.Context, arg1 *seg.Meta) (pathdb.InsertStat
 	return ret0, ret1
 }
 
-// Insert indicates an expected call of Insert
+// Insert indicates an expected call of Insert.
 func (mr *MockDBMockRecorder) Insert(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Insert", reflect.TypeOf((*MockDB)(nil).Insert), arg0, arg1)
 }
 
-// InsertNextQuery mocks base method
+// InsertNextQuery mocks base method.
 func (m *MockDB) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 time.Time) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2, arg3)
@@ -138,13 +139,13 @@ func (m *MockDB) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 
 	return ret0, ret1
 }
 
-// InsertNextQuery indicates an expected call of InsertNextQuery
+// InsertNextQuery indicates an expected call of InsertNextQuery.
 func (mr *MockDBMockRecorder) InsertNextQuery(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertNextQuery", reflect.TypeOf((*MockDB)(nil).InsertNextQuery), arg0, arg1, arg2, arg3)
 }
 
-// InsertWithHPGroupIDs mocks base method
+// InsertWithHPGroupIDs mocks base method.
 func (m *MockDB) InsertWithHPGroupIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []uint64) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertWithHPGroupIDs", arg0, arg1, arg2)
@@ -153,36 +154,36 @@ func (m *MockDB) InsertWithHPGroupIDs(arg0 context.Context, arg1 *seg.Meta, arg2
 	return ret0, ret1
 }
 
-// InsertWithHPGroupIDs indicates an expected call of InsertWithHPGroupIDs
+// InsertWithHPGroupIDs indicates an expected call of InsertWithHPGroupIDs.
 func (mr *MockDBMockRecorder) InsertWithHPGroupIDs(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertWithHPGroupIDs", reflect.TypeOf((*MockDB)(nil).InsertWithHPGroupIDs), arg0, arg1, arg2)
 }
 
-// MockTransaction is a mock of Transaction interface
+// MockTransaction is a mock of Transaction interface.
 type MockTransaction struct {
 	ctrl     *gomock.Controller
 	recorder *MockTransactionMockRecorder
 }
 
-// MockTransactionMockRecorder is the mock recorder for MockTransaction
+// MockTransactionMockRecorder is the mock recorder for MockTransaction.
 type MockTransactionMockRecorder struct {
 	mock *MockTransaction
 }
 
-// NewMockTransaction creates a new mock instance
+// NewMockTransaction creates a new mock instance.
 func NewMockTransaction(ctrl *gomock.Controller) *MockTransaction {
 	mock := &MockTransaction{ctrl: ctrl}
 	mock.recorder = &MockTransactionMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTransaction) EXPECT() *MockTransactionMockRecorder {
 	return m.recorder
 }
 
-// Commit mocks base method
+// Commit mocks base method.
 func (m *MockTransaction) Commit() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Commit")
@@ -190,13 +191,13 @@ func (m *MockTransaction) Commit() error {
 	return ret0
 }
 
-// Commit indicates an expected call of Commit
+// Commit indicates an expected call of Commit.
 func (mr *MockTransactionMockRecorder) Commit() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockTransaction)(nil).Commit))
 }
 
-// DeleteExpired mocks base method
+// DeleteExpired mocks base method.
 func (m *MockTransaction) DeleteExpired(arg0 context.Context, arg1 time.Time) (int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteExpired", arg0, arg1)
@@ -205,13 +206,13 @@ func (m *MockTransaction) DeleteExpired(arg0 context.Context, arg1 time.Time) (i
 	return ret0, ret1
 }
 
-// DeleteExpired indicates an expected call of DeleteExpired
+// DeleteExpired indicates an expected call of DeleteExpired.
 func (mr *MockTransactionMockRecorder) DeleteExpired(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpired", reflect.TypeOf((*MockTransaction)(nil).DeleteExpired), arg0, arg1)
 }
 
-// Get mocks base method
+// Get mocks base method.
 func (m *MockTransaction) Get(arg0 context.Context, arg1 *query.Params) (query.Results, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1)
@@ -220,13 +221,13 @@ func (m *MockTransaction) Get(arg0 context.Context, arg1 *query.Params) (query.R
 	return ret0, ret1
 }
 
-// Get indicates an expected call of Get
+// Get indicates an expected call of Get.
 func (mr *MockTransactionMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockTransaction)(nil).Get), arg0, arg1)
 }
 
-// GetAll mocks base method
+// GetAll mocks base method.
 func (m *MockTransaction) GetAll(arg0 context.Context) (query.Results, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAll", arg0)
@@ -235,13 +236,13 @@ func (m *MockTransaction) GetAll(arg0 context.Context) (query.Results, error) {
 	return ret0, ret1
 }
 
-// GetAll indicates an expected call of GetAll
+// GetAll indicates an expected call of GetAll.
 func (mr *MockTransactionMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockTransaction)(nil).GetAll), arg0)
 }
 
-// GetNextQuery mocks base method
+// GetNextQuery mocks base method.
 func (m *MockTransaction) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA) (time.Time, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1, arg2)
@@ -250,13 +251,13 @@ func (m *MockTransaction) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA)
 	return ret0, ret1
 }
 
-// GetNextQuery indicates an expected call of GetNextQuery
+// GetNextQuery indicates an expected call of GetNextQuery.
 func (mr *MockTransactionMockRecorder) GetNextQuery(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNextQuery", reflect.TypeOf((*MockTransaction)(nil).GetNextQuery), arg0, arg1, arg2)
 }
 
-// Insert mocks base method
+// Insert mocks base method.
 func (m *MockTransaction) Insert(arg0 context.Context, arg1 *seg.Meta) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Insert", arg0, arg1)
@@ -265,13 +266,13 @@ func (m *MockTransaction) Insert(arg0 context.Context, arg1 *seg.Meta) (pathdb.I
 	return ret0, ret1
 }
 
-// Insert indicates an expected call of Insert
+// Insert indicates an expected call of Insert.
 func (mr *MockTransactionMockRecorder) Insert(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Insert", reflect.TypeOf((*MockTransaction)(nil).Insert), arg0, arg1)
 }
 
-// InsertNextQuery mocks base method
+// InsertNextQuery mocks base method.
 func (m *MockTransaction) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 time.Time) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2, arg3)
@@ -280,13 +281,13 @@ func (m *MockTransaction) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.
 	return ret0, ret1
 }
 
-// InsertNextQuery indicates an expected call of InsertNextQuery
+// InsertNextQuery indicates an expected call of InsertNextQuery.
 func (mr *MockTransactionMockRecorder) InsertNextQuery(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertNextQuery", reflect.TypeOf((*MockTransaction)(nil).InsertNextQuery), arg0, arg1, arg2, arg3)
 }
 
-// InsertWithHPGroupIDs mocks base method
+// InsertWithHPGroupIDs mocks base method.
 func (m *MockTransaction) InsertWithHPGroupIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []uint64) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertWithHPGroupIDs", arg0, arg1, arg2)
@@ -295,13 +296,13 @@ func (m *MockTransaction) InsertWithHPGroupIDs(arg0 context.Context, arg1 *seg.M
 	return ret0, ret1
 }
 
-// InsertWithHPGroupIDs indicates an expected call of InsertWithHPGroupIDs
+// InsertWithHPGroupIDs indicates an expected call of InsertWithHPGroupIDs.
 func (mr *MockTransactionMockRecorder) InsertWithHPGroupIDs(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertWithHPGroupIDs", reflect.TypeOf((*MockTransaction)(nil).InsertWithHPGroupIDs), arg0, arg1, arg2)
 }
 
-// Rollback mocks base method
+// Rollback mocks base method.
 func (m *MockTransaction) Rollback() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Rollback")
@@ -309,36 +310,36 @@ func (m *MockTransaction) Rollback() error {
 	return ret0
 }
 
-// Rollback indicates an expected call of Rollback
+// Rollback indicates an expected call of Rollback.
 func (mr *MockTransactionMockRecorder) Rollback() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rollback", reflect.TypeOf((*MockTransaction)(nil).Rollback))
 }
 
-// MockReadWrite is a mock of ReadWrite interface
+// MockReadWrite is a mock of ReadWrite interface.
 type MockReadWrite struct {
 	ctrl     *gomock.Controller
 	recorder *MockReadWriteMockRecorder
 }
 
-// MockReadWriteMockRecorder is the mock recorder for MockReadWrite
+// MockReadWriteMockRecorder is the mock recorder for MockReadWrite.
 type MockReadWriteMockRecorder struct {
 	mock *MockReadWrite
 }
 
-// NewMockReadWrite creates a new mock instance
+// NewMockReadWrite creates a new mock instance.
 func NewMockReadWrite(ctrl *gomock.Controller) *MockReadWrite {
 	mock := &MockReadWrite{ctrl: ctrl}
 	mock.recorder = &MockReadWriteMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockReadWrite) EXPECT() *MockReadWriteMockRecorder {
 	return m.recorder
 }
 
-// DeleteExpired mocks base method
+// DeleteExpired mocks base method.
 func (m *MockReadWrite) DeleteExpired(arg0 context.Context, arg1 time.Time) (int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteExpired", arg0, arg1)
@@ -347,13 +348,13 @@ func (m *MockReadWrite) DeleteExpired(arg0 context.Context, arg1 time.Time) (int
 	return ret0, ret1
 }
 
-// DeleteExpired indicates an expected call of DeleteExpired
+// DeleteExpired indicates an expected call of DeleteExpired.
 func (mr *MockReadWriteMockRecorder) DeleteExpired(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteExpired", reflect.TypeOf((*MockReadWrite)(nil).DeleteExpired), arg0, arg1)
 }
 
-// Get mocks base method
+// Get mocks base method.
 func (m *MockReadWrite) Get(arg0 context.Context, arg1 *query.Params) (query.Results, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1)
@@ -362,13 +363,13 @@ func (m *MockReadWrite) Get(arg0 context.Context, arg1 *query.Params) (query.Res
 	return ret0, ret1
 }
 
-// Get indicates an expected call of Get
+// Get indicates an expected call of Get.
 func (mr *MockReadWriteMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockReadWrite)(nil).Get), arg0, arg1)
 }
 
-// GetAll mocks base method
+// GetAll mocks base method.
 func (m *MockReadWrite) GetAll(arg0 context.Context) (query.Results, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAll", arg0)
@@ -377,13 +378,13 @@ func (m *MockReadWrite) GetAll(arg0 context.Context) (query.Results, error) {
 	return ret0, ret1
 }
 
-// GetAll indicates an expected call of GetAll
+// GetAll indicates an expected call of GetAll.
 func (mr *MockReadWriteMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockReadWrite)(nil).GetAll), arg0)
 }
 
-// GetNextQuery mocks base method
+// GetNextQuery mocks base method.
 func (m *MockReadWrite) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA) (time.Time, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNextQuery", arg0, arg1, arg2)
@@ -392,13 +393,13 @@ func (m *MockReadWrite) GetNextQuery(arg0 context.Context, arg1, arg2 addr.IA) (
 	return ret0, ret1
 }
 
-// GetNextQuery indicates an expected call of GetNextQuery
+// GetNextQuery indicates an expected call of GetNextQuery.
 func (mr *MockReadWriteMockRecorder) GetNextQuery(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNextQuery", reflect.TypeOf((*MockReadWrite)(nil).GetNextQuery), arg0, arg1, arg2)
 }
 
-// Insert mocks base method
+// Insert mocks base method.
 func (m *MockReadWrite) Insert(arg0 context.Context, arg1 *seg.Meta) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Insert", arg0, arg1)
@@ -407,13 +408,13 @@ func (m *MockReadWrite) Insert(arg0 context.Context, arg1 *seg.Meta) (pathdb.Ins
 	return ret0, ret1
 }
 
-// Insert indicates an expected call of Insert
+// Insert indicates an expected call of Insert.
 func (mr *MockReadWriteMockRecorder) Insert(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Insert", reflect.TypeOf((*MockReadWrite)(nil).Insert), arg0, arg1)
 }
 
-// InsertNextQuery mocks base method
+// InsertNextQuery mocks base method.
 func (m *MockReadWrite) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA, arg3 time.Time) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertNextQuery", arg0, arg1, arg2, arg3)
@@ -422,13 +423,13 @@ func (m *MockReadWrite) InsertNextQuery(arg0 context.Context, arg1, arg2 addr.IA
 	return ret0, ret1
 }
 
-// InsertNextQuery indicates an expected call of InsertNextQuery
+// InsertNextQuery indicates an expected call of InsertNextQuery.
 func (mr *MockReadWriteMockRecorder) InsertNextQuery(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertNextQuery", reflect.TypeOf((*MockReadWrite)(nil).InsertNextQuery), arg0, arg1, arg2, arg3)
 }
 
-// InsertWithHPGroupIDs mocks base method
+// InsertWithHPGroupIDs mocks base method.
 func (m *MockReadWrite) InsertWithHPGroupIDs(arg0 context.Context, arg1 *seg.Meta, arg2 []uint64) (pathdb.InsertStats, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "InsertWithHPGroupIDs", arg0, arg1, arg2)
@@ -437,7 +438,7 @@ func (m *MockReadWrite) InsertWithHPGroupIDs(arg0 context.Context, arg1 *seg.Met
 	return ret0, ret1
 }
 
-// InsertWithHPGroupIDs indicates an expected call of InsertWithHPGroupIDs
+// InsertWithHPGroupIDs indicates an expected call of InsertWithHPGroupIDs.
 func (mr *MockReadWriteMockRecorder) InsertWithHPGroupIDs(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertWithHPGroupIDs", reflect.TypeOf((*MockReadWrite)(nil).InsertWithHPGroupIDs), arg0, arg1, arg2)

@@ -5,35 +5,36 @@
 package mock_pktcls
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	gopacket "github.com/google/gopacket"
-	reflect "reflect"
 )
 
-// MockCond is a mock of Cond interface
+// MockCond is a mock of Cond interface.
 type MockCond struct {
 	ctrl     *gomock.Controller
 	recorder *MockCondMockRecorder
 }
 
-// MockCondMockRecorder is the mock recorder for MockCond
+// MockCondMockRecorder is the mock recorder for MockCond.
 type MockCondMockRecorder struct {
 	mock *MockCond
 }
 
-// NewMockCond creates a new mock instance
+// NewMockCond creates a new mock instance.
 func NewMockCond(ctrl *gomock.Controller) *MockCond {
 	mock := &MockCond{ctrl: ctrl}
 	mock.recorder = &MockCondMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockCond) EXPECT() *MockCondMockRecorder {
 	return m.recorder
 }
 
-// Eval mocks base method
+// Eval mocks base method.
 func (m *MockCond) Eval(arg0 gopacket.Layer) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Eval", arg0)
@@ -41,13 +42,13 @@ func (m *MockCond) Eval(arg0 gopacket.Layer) bool {
 	return ret0
 }
 
-// Eval indicates an expected call of Eval
+// Eval indicates an expected call of Eval.
 func (mr *MockCondMockRecorder) Eval(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Eval", reflect.TypeOf((*MockCond)(nil).Eval), arg0)
 }
 
-// String mocks base method
+// String mocks base method.
 func (m *MockCond) String() string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "String")
@@ -55,13 +56,13 @@ func (m *MockCond) String() string {
 	return ret0
 }
 
-// String indicates an expected call of String
+// String indicates an expected call of String.
 func (mr *MockCondMockRecorder) String() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "String", reflect.TypeOf((*MockCond)(nil).String))
 }
 
-// Type mocks base method
+// Type mocks base method.
 func (m *MockCond) Type() string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Type")
@@ -69,7 +70,7 @@ func (m *MockCond) Type() string {
 	return ret0
 }
 
-// Type indicates an expected call of Type
+// Type indicates an expected call of Type.
 func (mr *MockCondMockRecorder) Type() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Type", reflect.TypeOf((*MockCond)(nil).Type))

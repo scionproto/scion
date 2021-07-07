@@ -5,35 +5,36 @@
 package mock_ctxconn
 
 import (
-	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 	time "time"
+
+	gomock "github.com/golang/mock/gomock"
 )
 
-// MockDeadlineCloser is a mock of DeadlineCloser interface
+// MockDeadlineCloser is a mock of DeadlineCloser interface.
 type MockDeadlineCloser struct {
 	ctrl     *gomock.Controller
 	recorder *MockDeadlineCloserMockRecorder
 }
 
-// MockDeadlineCloserMockRecorder is the mock recorder for MockDeadlineCloser
+// MockDeadlineCloserMockRecorder is the mock recorder for MockDeadlineCloser.
 type MockDeadlineCloserMockRecorder struct {
 	mock *MockDeadlineCloser
 }
 
-// NewMockDeadlineCloser creates a new mock instance
+// NewMockDeadlineCloser creates a new mock instance.
 func NewMockDeadlineCloser(ctrl *gomock.Controller) *MockDeadlineCloser {
 	mock := &MockDeadlineCloser{ctrl: ctrl}
 	mock.recorder = &MockDeadlineCloserMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDeadlineCloser) EXPECT() *MockDeadlineCloserMockRecorder {
 	return m.recorder
 }
 
-// Close mocks base method
+// Close mocks base method.
 func (m *MockDeadlineCloser) Close() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Close")
@@ -41,13 +42,13 @@ func (m *MockDeadlineCloser) Close() error {
 	return ret0
 }
 
-// Close indicates an expected call of Close
+// Close indicates an expected call of Close.
 func (mr *MockDeadlineCloserMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockDeadlineCloser)(nil).Close))
 }
 
-// SetDeadline mocks base method
+// SetDeadline mocks base method.
 func (m *MockDeadlineCloser) SetDeadline(arg0 time.Time) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetDeadline", arg0)
@@ -55,7 +56,7 @@ func (m *MockDeadlineCloser) SetDeadline(arg0 time.Time) error {
 	return ret0
 }
 
-// SetDeadline indicates an expected call of SetDeadline
+// SetDeadline indicates an expected call of SetDeadline.
 func (mr *MockDeadlineCloserMockRecorder) SetDeadline(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDeadline", reflect.TypeOf((*MockDeadlineCloser)(nil).SetDeadline), arg0)

@@ -6,36 +6,37 @@ package mock_reliable
 
 import (
 	context "context"
-	gomock "github.com/golang/mock/gomock"
-	addr "github.com/scionproto/scion/go/lib/addr"
 	net "net"
 	reflect "reflect"
+
+	gomock "github.com/golang/mock/gomock"
+	addr "github.com/scionproto/scion/go/lib/addr"
 )
 
-// MockDispatcher is a mock of Dispatcher interface
+// MockDispatcher is a mock of Dispatcher interface.
 type MockDispatcher struct {
 	ctrl     *gomock.Controller
 	recorder *MockDispatcherMockRecorder
 }
 
-// MockDispatcherMockRecorder is the mock recorder for MockDispatcher
+// MockDispatcherMockRecorder is the mock recorder for MockDispatcher.
 type MockDispatcherMockRecorder struct {
 	mock *MockDispatcher
 }
 
-// NewMockDispatcher creates a new mock instance
+// NewMockDispatcher creates a new mock instance.
 func NewMockDispatcher(ctrl *gomock.Controller) *MockDispatcher {
 	mock := &MockDispatcher{ctrl: ctrl}
 	mock.recorder = &MockDispatcherMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDispatcher) EXPECT() *MockDispatcherMockRecorder {
 	return m.recorder
 }
 
-// Register mocks base method
+// Register mocks base method.
 func (m *MockDispatcher) Register(arg0 context.Context, arg1 addr.IA, arg2 *net.UDPAddr, arg3 addr.HostSVC) (net.PacketConn, uint16, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Register", arg0, arg1, arg2, arg3)
@@ -45,7 +46,7 @@ func (m *MockDispatcher) Register(arg0 context.Context, arg1 addr.IA, arg2 *net.
 	return ret0, ret1, ret2
 }
 
-// Register indicates an expected call of Register
+// Register indicates an expected call of Register.
 func (mr *MockDispatcherMockRecorder) Register(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockDispatcher)(nil).Register), arg0, arg1, arg2, arg3)

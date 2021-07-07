@@ -40,7 +40,7 @@ load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_depe
 
 go_register_toolchains(
     nogo = "@//:nogo",
-    version = "1.15.11",
+    version = "1.16.5",
 )
 
 # Gazelle
@@ -61,8 +61,8 @@ load("//:tool_deps.bzl", "tool_deps")
 go_repository(
     name = "org_golang_x_sys",
     importpath = "golang.org/x/sys",
-    sum = "h1:b3NXsE2LusjYGGjL5bxEVZZORm/YEFFrWFjR8eFrw/c=",
-    version = "v0.0.0-20210423082822-04245dca01da",
+    sum = "h1:gG67DSER+11cZvqIMb8S8bt0vZtiN6xWYARwirrOSfE=",
+    version = "v0.0.0-20210510120138-977fb7262007",
 )
 
 go_rules_dependencies()
@@ -262,9 +262,9 @@ http_file(
 # protobuf/gRPC
 http_archive(
     name = "rules_proto_grpc",
-    sha256 = "d771584bbff98698e7cb3cb31c132ee206a972569f4dc8b65acbdd934d156b33",
-    strip_prefix = "rules_proto_grpc-2.0.0",
-    urls = ["https://github.com/rules-proto-grpc/rules_proto_grpc/archive/2.0.0.tar.gz"],
+    sha256 = "7954abbb6898830cd10ac9714fbcacf092299fda00ed2baf781172f545120419",
+    strip_prefix = "rules_proto_grpc-3.1.1",
+    urls = ["https://github.com/rules-proto-grpc/rules_proto_grpc/archive/3.1.1.tar.gz"],
 )
 
 load("@rules_proto_grpc//:repositories.bzl", "rules_proto_grpc_repos", "rules_proto_grpc_toolchains")

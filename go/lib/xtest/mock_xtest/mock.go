@@ -5,40 +5,41 @@
 package mock_xtest
 
 import (
-	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
+
+	gomock "github.com/golang/mock/gomock"
 )
 
-// MockCallback is a mock of Callback interface
+// MockCallback is a mock of Callback interface.
 type MockCallback struct {
 	ctrl     *gomock.Controller
 	recorder *MockCallbackMockRecorder
 }
 
-// MockCallbackMockRecorder is the mock recorder for MockCallback
+// MockCallbackMockRecorder is the mock recorder for MockCallback.
 type MockCallbackMockRecorder struct {
 	mock *MockCallback
 }
 
-// NewMockCallback creates a new mock instance
+// NewMockCallback creates a new mock instance.
 func NewMockCallback(ctrl *gomock.Controller) *MockCallback {
 	mock := &MockCallback{ctrl: ctrl}
 	mock.recorder = &MockCallbackMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockCallback) EXPECT() *MockCallbackMockRecorder {
 	return m.recorder
 }
 
-// Call mocks base method
+// Call mocks base method.
 func (m *MockCallback) Call() {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Call")
 }
 
-// Call indicates an expected call of Call
+// Call indicates an expected call of Call.
 func (mr *MockCallbackMockRecorder) Call() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Call", reflect.TypeOf((*MockCallback)(nil).Call))

@@ -6,35 +6,36 @@ package mock_api
 
 import (
 	context "context"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	query "github.com/scionproto/scion/go/lib/pathdb/query"
-	reflect "reflect"
 )
 
-// MockSegmentsStore is a mock of SegmentsStore interface
+// MockSegmentsStore is a mock of SegmentsStore interface.
 type MockSegmentsStore struct {
 	ctrl     *gomock.Controller
 	recorder *MockSegmentsStoreMockRecorder
 }
 
-// MockSegmentsStoreMockRecorder is the mock recorder for MockSegmentsStore
+// MockSegmentsStoreMockRecorder is the mock recorder for MockSegmentsStore.
 type MockSegmentsStoreMockRecorder struct {
 	mock *MockSegmentsStore
 }
 
-// NewMockSegmentsStore creates a new mock instance
+// NewMockSegmentsStore creates a new mock instance.
 func NewMockSegmentsStore(ctrl *gomock.Controller) *MockSegmentsStore {
 	mock := &MockSegmentsStore{ctrl: ctrl}
 	mock.recorder = &MockSegmentsStoreMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockSegmentsStore) EXPECT() *MockSegmentsStoreMockRecorder {
 	return m.recorder
 }
 
-// Get mocks base method
+// Get mocks base method.
 func (m *MockSegmentsStore) Get(arg0 context.Context, arg1 *query.Params) (query.Results, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", arg0, arg1)
@@ -43,7 +44,7 @@ func (m *MockSegmentsStore) Get(arg0 context.Context, arg1 *query.Params) (query
 	return ret0, ret1
 }
 
-// Get indicates an expected call of Get
+// Get indicates an expected call of Get.
 func (mr *MockSegmentsStoreMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockSegmentsStore)(nil).Get), arg0, arg1)

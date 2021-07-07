@@ -6,35 +6,36 @@ package mock_trust
 
 import (
 	context "context"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	trust "github.com/scionproto/scion/go/pkg/trust"
-	reflect "reflect"
 )
 
-// MockSignerGen is a mock of SignerGen interface
+// MockSignerGen is a mock of SignerGen interface.
 type MockSignerGen struct {
 	ctrl     *gomock.Controller
 	recorder *MockSignerGenMockRecorder
 }
 
-// MockSignerGenMockRecorder is the mock recorder for MockSignerGen
+// MockSignerGenMockRecorder is the mock recorder for MockSignerGen.
 type MockSignerGenMockRecorder struct {
 	mock *MockSignerGen
 }
 
-// NewMockSignerGen creates a new mock instance
+// NewMockSignerGen creates a new mock instance.
 func NewMockSignerGen(ctrl *gomock.Controller) *MockSignerGen {
 	mock := &MockSignerGen{ctrl: ctrl}
 	mock.recorder = &MockSignerGenMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockSignerGen) EXPECT() *MockSignerGenMockRecorder {
 	return m.recorder
 }
 
-// Generate mocks base method
+// Generate mocks base method.
 func (m *MockSignerGen) Generate(arg0 context.Context) (trust.Signer, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Generate", arg0)
@@ -43,7 +44,7 @@ func (m *MockSignerGen) Generate(arg0 context.Context) (trust.Signer, error) {
 	return ret0, ret1
 }
 
-// Generate indicates an expected call of Generate
+// Generate indicates an expected call of Generate.
 func (mr *MockSignerGenMockRecorder) Generate(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Generate", reflect.TypeOf((*MockSignerGen)(nil).Generate), arg0)
