@@ -80,14 +80,10 @@ gazelle_dependencies()
 # Python rules
 http_archive(
     name = "rules_python",
-    sha256 = "0d25ab1c7b18b3f48d1bff97bfa70c1625438b40c5f661946fb43eca4ba9d9dd",
-    strip_prefix = "rules_python-0.2.0",
-    url = "https://github.com/bazelbuild/rules_python/archive/0.2.0.tar.gz",
+    sha256 = "4feecd37ec6e9941a455a19e7392bed65003eab0aa6ea347ca431bce2640e530",
+    strip_prefix = "rules_python-0.3.0",
+    url = "https://github.com/bazelbuild/rules_python/archive/0.3.0.tar.gz",
 )
-
-load("@rules_python//python:repositories.bzl", "py_repositories")
-
-py_repositories()
 
 load("@rules_python//python:pip.bzl", "pip_install")
 
