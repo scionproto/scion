@@ -119,14 +119,15 @@ protocol type as defined in :ref:`pseudo-header-upper-layer-checksum`.
 Authentication
 --------------
 SCMP messages can be authenticated with a MAC based on a symmetric key
-established with the DRKey infrastructure. The MAC is transported in the
-:ref:`authenticator-option` End-to-End extension header.
+established with the `DRKey infrastructure<../cryptography/DRKeyInfra.html>`_.
+The MAC is transported in the :ref:`authenticator-option` End-to-End extension
+header.
 
 The Authenticator MAC algorithm is AES-CMAC (identifier :code:`0`).
 
-SCMP error messages are always authenticated.
-SCMP informational messages are optionally authenticated; a response message is
-authenticated if and only if the corresponding request message was
+SCMP error messages MUST always be authenticated.
+SCMP informational messages CAN optionally be authenticated; a response message
+MUST be authenticated if and only if the corresponding request message was
 authenticated.
 
 All DRKey keys used here are derived with protocol identifier :code:`scmp`.
@@ -134,8 +135,8 @@ All DRKey keys used here are derived with protocol identifier :code:`scmp`.
 SCMP messages from (and to) routers are authenticated with AS-to-Host keys.
 SCMP response messages from a router in AS :math:`D` to a node :math:`H_s` in
 AS :math:`S` are authenticated with the DRKey :math:`K_{D \rightarrow S:H_s}`.
-SCMP requests (specifically, :ref:`traceroute-request`) to are authenticated
-with the same key.
+SCMP requests (specifically, :ref:`traceroute-request`) processed by a router
+are authenticated with the same key.
 
 SCMP messages between two end-hosts are authenticated with Host-to-Host keys.
 An SCMP response message from a node :math:`H_d` in AS :math:`D` to a node
@@ -144,9 +145,13 @@ An SCMP response message from a node :math:`H_d` in AS :math:`D` to a node
 SCMP requests and data packets from :math:`H_s` to :math:`H_d` are
 authenticated with this same key.
 
-For packets addressed to a router directly (specifically for Echo request and
-response) it is treated like an end-host and the corresponding Host-to-Host
-keys are used.
+For packets addressed to a router directly (specifically for
+:ref:`echo-request` and :ref:`echo-reply`) it is treated like an end-host and
+the corresponding Host-to-Host keys are used.
+
+.. note::
+   Recall that :ref:`traceroute-request`\s are *not* addressed to the router.
+   Instead, the router processes the request if its router alert flag is set.
 
 
 Processing Rules
