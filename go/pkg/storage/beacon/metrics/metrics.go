@@ -17,7 +17,6 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"io"
 
 	"github.com/opentracing/opentracing-go"
 
@@ -37,25 +36,19 @@ type Config struct {
 
 // WrapDB wraps the given beacon database into one that also exports metrics.
 func WrapDB(beaconDB storage.BeaconDB, cfg Config) storage.BeaconDB {
-	wrapper := &executor{
-		db: beaconDB,
-		metrics: observer{
-			cfg: cfg,
-		},
-	}
 	return &db{
-		executor: wrapper,
-		backend:  beaconDB,
+		db:      beaconDB,
+		metrics: Observer{Cfg: cfg},
 	}
 }
 
-type observer struct {
-	cfg Config
+type Observer struct {
+	Cfg Config
 }
 
-type observable func(context.Context) (label string, err error)
+type Observable func(context.Context) (label string, err error)
 
-func (o observer) Observe(ctx context.Context, op string, action observable) {
+func (o Observer) Observe(ctx context.Context, op string, action Observable) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, fmt.Sprintf("beacondb.%s", op))
 	defer span.Finish()
 	label, err := action(ctx)
@@ -64,32 +57,21 @@ func (o observer) Observe(ctx context.Context, op string, action observable) {
 	tracing.Error(span, err)
 
 	labels := queryLabels{
-		Driver:    o.cfg.Driver,
+		Driver:    o.Cfg.Driver,
 		Operation: op,
 		Result:    label,
 	}
-	metrics.CounterInc(metrics.CounterWith(o.cfg.QueriesTotal, labels.Expand()...))
+	metrics.CounterInc(metrics.CounterWith(o.Cfg.QueriesTotal, labels.Expand()...))
 }
 
 type db struct {
-	*executor
-	backend io.Closer
-}
-
-func (db *db) Close() error {
-	return db.backend.Close()
-}
-
-type executor struct {
-	db interface {
-		beacon.DB
-	}
-	metrics observer
+	db      storage.BeaconDB
+	metrics Observer
 }
 
 // below here is very boilerplaty code that implements all DB ops and calls the Observe function.
 
-func (e *executor) CandidateBeacons(
+func (d *db) CandidateBeacons(
 	ctx context.Context,
 	setSize int,
 	usage beacon.Usage,
@@ -98,24 +80,24 @@ func (e *executor) CandidateBeacons(
 
 	var ret []beacon.Beacon
 	var err error
-	e.metrics.Observe(ctx, "candidate_beacons", func(ctx context.Context) (string, error) {
-		ret, err = e.db.CandidateBeacons(ctx, setSize, usage, src)
+	d.metrics.Observe(ctx, "candidate_beacons", func(ctx context.Context) (string, error) {
+		ret, err = d.db.CandidateBeacons(ctx, setSize, usage, src)
 		return dblib.ErrToMetricLabel(err), err
 	})
 	return ret, err
 }
 
-func (e *executor) BeaconSources(ctx context.Context) ([]addr.IA, error) {
+func (d *db) BeaconSources(ctx context.Context) ([]addr.IA, error) {
 	var ret []addr.IA
 	var err error
-	e.metrics.Observe(ctx, "beacon_srcs", func(ctx context.Context) (string, error) {
-		ret, err = e.db.BeaconSources(ctx)
+	d.metrics.Observe(ctx, "beacon_srcs", func(ctx context.Context) (string, error) {
+		ret, err = d.db.BeaconSources(ctx)
 		return dblib.ErrToMetricLabel(err), err
 	})
 	return ret, err
 }
 
-func (e *executor) InsertBeacon(
+func (d *db) InsertBeacon(
 	ctx context.Context,
 	b beacon.Beacon,
 	usage beacon.Usage,
@@ -123,11 +105,15 @@ func (e *executor) InsertBeacon(
 
 	var ret beacon.InsertStats
 	var err error
-	e.metrics.Observe(ctx, "insert_beacon", func(ctx context.Context) (string, error) {
-		ret, err = e.db.InsertBeacon(ctx, b, usage)
+	d.metrics.Observe(ctx, "insert_beacon", func(ctx context.Context) (string, error) {
+		ret, err = d.db.InsertBeacon(ctx, b, usage)
 		return dblib.ErrToMetricLabel(err), err
 	})
 	return ret, err
+}
+
+func (d *db) Close() error {
+	return d.db.Close()
 }
 
 type queryLabels struct {

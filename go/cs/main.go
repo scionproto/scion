@@ -117,7 +117,8 @@ func realMain() error {
 		return serrors.WrapStr("initializing path storage", err)
 	}
 	pathDB = pathstoragemetrics.WrapDB(pathDB, pathstoragemetrics.Config{
-		Driver: string(storage.BackendSqlite),
+		Driver:       string(storage.BackendSqlite),
+		QueriesTotal: libmetrics.NewPromCounter(metrics.PathDBQueriesTotal),
 	})
 	defer pathDB.Close()
 

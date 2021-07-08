@@ -61,6 +61,7 @@ type Metrics struct {
 	BeaconingRegisteredTotal               *prometheus.CounterVec
 	BeaconingRegistrarInternalErrorsTotal  *prometheus.CounterVec
 	DiscoveryRequestsTotal                 *prometheus.CounterVec
+	PathDBQueriesTotal                     *prometheus.CounterVec
 	RenewalServerRequestsTotal             *prometheus.CounterVec
 	RenewalHandledRequestsTotal            *prometheus.CounterVec
 	RenewalRegisteredHandlers              *prometheus.GaugeVec
@@ -132,12 +133,12 @@ func NewMetrics() *Metrics {
 			},
 			discovery.Topology{}.RequestsLabels(),
 		),
-		SegmentLookupRequestsTotal: promauto.NewCounterVec(
+		PathDBQueriesTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "control_segment_lookup_requests_total",
-				Help: "Total number of path segments requests received.",
+				Name: "pathdb_queries_total",
+				Help: "Total queries to the database",
 			},
-			[]string{"dst_isd", "seg_type", prom.LabelResult},
+			[]string{"driver", "operation", prom.LabelResult},
 		),
 		RenewalServerRequestsTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
@@ -160,6 +161,13 @@ func NewMetrics() *Metrics {
 				Help: "Exposes which handler type (legacy, in-process, delegating) is registered.",
 			},
 			[]string{"type"},
+		),
+		SegmentLookupRequestsTotal: promauto.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "control_segment_lookup_requests_total",
+				Help: "Total number of path segments requests received.",
+			},
+			[]string{"dst_isd", "seg_type", prom.LabelResult},
 		),
 		SegmentLookupSegmentsSentTotal: promauto.NewCounterVec(
 			prometheus.CounterOpts{
