@@ -120,9 +120,7 @@ func (qs *Queues) setToNonempty() {
 
 // WaitUntilNonempty blocks until new messages are ready to be scheduled.
 func (qs *Queues) WaitUntilNonempty() {
-	select {
-	case <-qs.nonempty:
-	}
+	<-qs.nonempty
 }
 
 // dequeue reads up to 'batchSize' number of messages from the queue corresponding to the traffic
@@ -132,20 +130,7 @@ func (qs *Queues) dequeue(tc TrafficClass, batchSize int, ms []ipv4.Message) (in
 	if !ok {
 		return 0, serrors.New("unknown traffic class")
 	}
-
-	var counter int
-L:
-	for counter = 0; counter < batchSize; counter++ {
-		select {
-		case m := <-q.filledPackets:
-			ms[counter] = m
-		default:
-			break L
-		}
-	}
-
-	q.borrowed = q.borrowed + counter
-	return counter, nil
+	return q.dequeue(batchSize, ms), nil
 }
 
 // Schedule dequeues messages from the queues and prioritizes them according the the specified
