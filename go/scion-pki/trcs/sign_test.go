@@ -20,7 +20,10 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/pkg/command"
 	"github.com/scionproto/scion/go/scion-pki/certs"
 	"github.com/scionproto/scion/go/scion-pki/key"
 	"github.com/scionproto/scion/go/scion-pki/trcs"
@@ -99,9 +103,89 @@ func TestSign(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			err := trcs.RunSign(tc.pld, tc.cert, tc.key, "", outDir)
 			assert.NoError(t, err)
-			_, err = trcs.DecodeFromFile(
-				filepath.Join(outDir, fmt.Sprintf("ISD1-B1-S2.1-1-%s.trc", tc.signType)))
+			fn := filepath.Join(outDir, fmt.Sprintf("ISD1-B1-S2.1-1-%s.trc", tc.signType))
+
+			_, err = trcs.DecodeFromFile(fn)
 			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestOpensslCompatible(t *testing.T) {
+	if !strings.HasSuffix(os.Getenv("TEST_TARGET"), "go_integration_test") && false {
+		t.Skip("This test only runs as integration test")
+	}
+
+	outDir, cleanF := xtest.MustTempDir("", "scion-pki-trcs-sign")
+	defer cleanF()
+	gen(t, outDir)
+
+	testCases := map[string]struct {
+		pld      string
+		cert     string
+		key      string
+		signType string
+	}{
+		"sensitive - der|pem": {
+			pld:      filepath.Join(outDir, "ISD1-B1-S2.pld.der"),
+			cert:     filepath.Join(outDir, "sensitive-voting.crt.pem"),
+			key:      filepath.Join(outDir, "sensitive-voting.key"),
+			signType: "sensitive",
+		},
+		"regular": {
+			pld:      filepath.Join(outDir, "ISD1-B1-S2.pld.der"),
+			cert:     filepath.Join(outDir, "regular-voting.crt.pem"),
+			key:      filepath.Join(outDir, "regular-voting.key"),
+			signType: "regular",
+		},
+		"root-ack": {
+			pld:      filepath.Join(outDir, "ISD1-B1-S2.pld.der"),
+			cert:     filepath.Join(outDir, "cp-root.crt.pem"),
+			key:      filepath.Join(outDir, "cp-root.key"),
+			signType: "root-ack",
+		},
+		"sensitive-vote": {
+			pld:      filepath.Join(outDir, "ISD1-B1-S2.pld.der"),
+			cert:     filepath.Join(outDir, "sensitive-voting.prev.crt.pem"),
+			key:      filepath.Join(outDir, "sensitive-voting.prev.key"),
+			signType: "sensitive-vote",
+		},
+		"regular-vote": {
+			pld:      filepath.Join(outDir, "ISD1-B1-S2.pld.der"),
+			cert:     filepath.Join(outDir, "regular-voting.prev.crt.pem"),
+			key:      filepath.Join(outDir, "regular-voting.prev.key"),
+			signType: "regular-vote",
+		},
+	}
+	for name, tc := range testCases {
+		name, tc := name, tc
+		t.Run(name, func(t *testing.T) {
+			err := trcs.RunSign(tc.pld, tc.cert, tc.key, "", outDir)
+			assert.NoError(t, err)
+			fn := filepath.Join(outDir, fmt.Sprintf("ISD1-B1-S2.1-1-%s.trc", tc.signType))
+
+			// Format TRC in DER for openssl.
+			format := trcs.NewFormatCmd(command.StringPather("scion-pki"))
+			format.SetArgs([]string{fn, "--format=der", "--out=" + fn + ".der"})
+			err = format.Execute()
+			require.NoError(t, err)
+
+			cmd := exec.Command(
+				"docker", "run", "-v", outDir+":"+outDir, "emberstack/openssl",
+				"openssl",
+				"cms",
+				"-verify",
+				"-in="+fn+".der",
+				"-inform=der",
+				"-certfile="+tc.cert,
+				"-CAfile="+tc.cert,
+				"-purpose=any",
+				"-no_check_time",
+				">",
+				"/dev/null",
+			)
+			out, err := cmd.CombinedOutput()
+			require.NoError(t, err, string(out))
 		})
 	}
 }

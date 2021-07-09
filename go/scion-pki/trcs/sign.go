@@ -47,9 +47,17 @@ func newSign(pather command.Pather) *cobra.Command {
   %[1]s sign ISD1-B1-S1.pld.der regular-voting.crt regular-voting.key --out ISD1-B1-S1.regular.trc`,
 			pather.CommandPath()),
 		Long: `'sign' signs a TRC payload with the signing key and signing certificate.
-		
+
 Voting, proof-of-possession, and root acknowledgement signatures can be added by using the
 corresponding signing keys and certificates.
+
+By default, the resulting signed object is written to a file with the following
+naming pattern:
+
+	ISD<isd>-B<base_version>-S<serial_number>.<signing-isd_as>-<signature-type>.trc
+
+An alternative name can be specified with the --out flag.
+
 `,
 		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -58,11 +66,11 @@ corresponding signing keys and certificates.
 		},
 	}
 
-	cmd.Flags().StringVarP(&flags.out, "out", "o", "", "Output file path. If --out is set, "+
-		"--out-dir is ignored. If not set, the output is written to "+
-		"ISD<isd>-B<base_version>-S<serial_number>.<signing-ia>-<signature-type>.trc")
-	cmd.Flags().StringVar(&flags.outDir, "out-dir", ".", "Output directory. If --out is set, "+
-		"--out-dir is ignored.")
+	cmd.Flags().StringVarP(&flags.out, "out", "o", "", "Output file path. "+
+		"If --out is set, --out-dir is ignored.",
+	)
+	cmd.Flags().StringVar(&flags.outDir, "out-dir", ".", "Output directory. "+
+		"If --out is set, --out-dir is ignored.")
 
 	return cmd
 }

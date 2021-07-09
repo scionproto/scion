@@ -63,6 +63,18 @@ steps:
       automatic:
         - exit_status: -1  # Agent was lost
         - exit_status: 255 # Forced agent shutdown
+  - label: "IT: :bazel:"
+    if: build.message !~ /\[doc\]/
+    command:
+    - bazel test --config=integration_go
+    artifact_paths:
+      - "artifacts.out/**/*"
+    timeout_in_minutes: 10
+    key: anapaya_integration_tests
+    retry:
+      automatic:
+        - exit_status: -1  # Agent was lost
+        - exit_status: 255 # Forced agent shutdown
   - label: "E2E: default :go: :man_in_business_suit_levitating: (scion, ping)"
     if: build.message !~ /\[doc\]/
     parallelism: "${SCION_TESTING_FLAKE_PARALLELISM-1}"
