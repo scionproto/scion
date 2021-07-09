@@ -3,6 +3,9 @@
 
    The list of control service metrics is incomplete.
 
+Renewal
+^^^^^^^
+
 Renewal requests
 ----------------
 

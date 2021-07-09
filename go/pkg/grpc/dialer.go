@@ -47,6 +47,7 @@ func (SimpleDialer) Dial(ctx context.Context, address net.Addr) (*grpc.ClientCon
 		grpc.WithInsecure(),
 		grpc.WithBlock(),
 		UnaryClientInterceptor(),
+		StreamClientInterceptor(),
 	)
 }
 
@@ -107,12 +108,14 @@ func (t *TCPDialer) Dial(ctx context.Context, dst net.Addr) (*grpc.ClientConn, e
 			grpc.WithInsecure(),
 			grpc.WithResolvers(r),
 			UnaryClientInterceptor(),
+			StreamClientInterceptor(),
 		)
 	}
 
 	return grpc.DialContext(ctx, dst.String(),
 		grpc.WithInsecure(),
 		UnaryClientInterceptor(),
+		StreamClientInterceptor(),
 	)
 }
 
@@ -154,6 +157,7 @@ func (d *QUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientConn,
 		grpc.WithInsecure(),
 		grpc.WithContextDialer(dialer),
 		UnaryClientInterceptor(),
+		StreamClientInterceptor(),
 	)
 
 }
@@ -182,6 +186,7 @@ func (d *TLSQUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientCo
 		grpc.WithTransportCredentials(d.Credentials),
 		grpc.WithContextDialer(dialer),
 		UnaryClientInterceptor(),
+		StreamClientInterceptor(),
 	)
 }
 
