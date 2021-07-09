@@ -24,8 +24,10 @@ import (
 )
 
 const (
-	// BufSize is the receive and send buffer sizes
-	BufSize = 1<<16 - 1
+	// defBufSize is the receive and send buffer sizes
+	// The theoretical maximum MTU is 64K, but we only support up to Ethernet
+	// jumbo frames (9K minus IP/UDP header) to avoid excessive overallocation.
+	defBufSize = 9000 - 20 - 8
 )
 
 type OpError struct {

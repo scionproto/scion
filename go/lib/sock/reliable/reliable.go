@@ -83,7 +83,10 @@ var (
 const (
 	// DefaultDispPath contains the system default for a dispatcher socket.
 	DefaultDispPath = "/run/shm/dispatcher/default.sock"
-	defBufSize      = 1 << 18
+	// defBufSize is the buffer size
+	// The theoretical maximum MTU is 64K, but we only support up to Ethernet
+	// jumbo frames (9K minus IP/UDP header) to avoid excessive overallocation.
+	defBufSize = 9000 - 20 - 8
 	// DefaultDispSocketFileMode allows read/write to the user and group only.
 	DefaultDispSocketFileMode = 0770
 )

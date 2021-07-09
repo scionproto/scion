@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology/underlay"
@@ -41,7 +40,7 @@ func newScionConnWriter(base *scionConnBase, conn PacketConn) *scionConnWriter {
 	return &scionConnWriter{
 		base:   base,
 		conn:   conn,
-		buffer: make([]byte, common.MaxMTU),
+		buffer: make([]byte, defBufSize),
 	}
 }
 
