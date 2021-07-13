@@ -70,6 +70,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -83,10 +84,6 @@ var (
 const (
 	// DefaultDispPath contains the system default for a dispatcher socket.
 	DefaultDispPath = "/run/shm/dispatcher/default.sock"
-	// defBufSize is the buffer size
-	// The theoretical maximum MTU is 64K, but we only support up to Ethernet
-	// jumbo frames (9K minus IP/UDP header) to avoid excessive overallocation.
-	defBufSize = 9000 - 20 - 8
 	// DefaultDispSocketFileMode allows read/write to the user and group only.
 	DefaultDispSocketFileMode = 0770
 )
@@ -139,9 +136,9 @@ func newConn(c net.Conn) *Conn {
 	conn := c.(*net.UnixConn)
 	return &Conn{
 		UnixConn:       c.(*net.UnixConn),
-		writeBuffer:    make([]byte, defBufSize),
+		writeBuffer:    make([]byte, common.SupportedMTU),
 		writeStreamer:  NewWriteStreamer(conn),
-		readBuffer:     make([]byte, defBufSize),
+		readBuffer:     make([]byte, common.SupportedMTU),
 		readPacketizer: NewReadPacketizer(conn),
 	}
 }
