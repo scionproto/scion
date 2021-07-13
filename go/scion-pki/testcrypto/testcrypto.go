@@ -462,7 +462,6 @@ func prepareDirectories(t topo, out outConfig) error {
 		}
 		if d.Issuing {
 			dirs = append(dirs, cryptoCADir(ia, out))
-			dirs = append(dirs, cryptoCAClientDir(ia, out))
 		}
 		if d.Voting {
 			dirs = append(dirs, cryptoVotingDir(ia, out))
@@ -594,10 +593,6 @@ func cryptoASDir(ia addr.IA, out outConfig) string {
 
 func cryptoCADir(ia addr.IA, out outConfig) string {
 	return filepath.Join(out.AS(ia), "crypto", "ca")
-}
-
-func cryptoCAClientDir(ia addr.IA, out outConfig) string {
-	return filepath.Join(cryptoCADir(ia, out), "clients")
 }
 
 func cryptoVotingDir(ia addr.IA, out outConfig) string {
