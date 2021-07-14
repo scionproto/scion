@@ -21,11 +21,13 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/scrypto/cppki"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/pkg/app/flag"
 	"github.com/scionproto/scion/go/pkg/command"
 )
 
@@ -65,10 +67,16 @@ func Cmd(pather command.Pather) *cobra.Command {
 }
 
 func newValidateCmd(pather command.Pather) *cobra.Command {
+	now := time.Now()
 	var flags struct {
-		certType string
+		certType    string
+		checkTime   bool
+		currentTime flag.Time
 	}
-
+	flags.currentTime = flag.Time{
+		Time:    now,
+		Current: now,
+	}
 	cmd := &cobra.Command{
 		Use:   "validate",
 		Short: "Validate a SCION cert according to its type",
@@ -77,6 +85,9 @@ func newValidateCmd(pather command.Pather) *cobra.Command {
 In case the 'any' type is specified, this command attempts to identify what type
 a certificate is and validates it accordingly. The identified type is stated in
 the output.
+
+By default, the command does not check that the certificate is in its validity
+period. This can be enabled by specifying the --check-time flag.
 `,
 		Example: fmt.Sprintf(`  %[1]s validate --type cp-root /tmp/certs/cp-root.crt
   %[1]s validate --type any /tmp/certs/cp-root.crt`, pather.CommandPath()),
@@ -92,6 +103,19 @@ the output.
 			certs, err := cppki.ReadPEMCerts(filename)
 			if err != nil {
 				return err
+			}
+			if flags.checkTime {
+				validity := cppki.Validity{
+					NotBefore: certs[0].NotBefore,
+					NotAfter:  certs[0].NotAfter,
+				}
+				if current := flags.currentTime.Time; !validity.Contains(current) {
+					return serrors.New("time not covered by certificate",
+						"current_time", current,
+						"validity.not_before", validity.NotBefore,
+						"validity.not_after", validity.NotAfter,
+					)
+				}
 			}
 			if flags.certType == "chain" || len(certs) != 1 && flags.certType == "any" {
 				if err := validateChain(certs); err != nil {
@@ -111,7 +135,19 @@ the output.
 	}
 
 	cmd.Flags().StringVar(&flags.certType, "type", "",
-		fmt.Sprintf("type of cert (%s) (required)", strings.Join(getTypes(), "|")))
+		fmt.Sprintf("type of cert (%s) (required)", strings.Join(getTypes(), "|")),
+	)
+	cmd.Flags().BoolVar(&flags.checkTime, "check-time", false,
+		"Check that the certificate covers the current time.",
+	)
+	cmd.Flags().Var(&flags.currentTime, "current-time",
+		`The time that needs to be covered by the certificate.
+Can either be a timestamp or an offset.
+
+If the value is a timestamp, it is expected to either be an RFC 3339 formatted
+timestamp or a unix timestamp. If the value is a duration, it is used as the
+offset from the current time.`,
+	)
 	cmd.MarkFlagRequired("type")
 
 	return cmd
