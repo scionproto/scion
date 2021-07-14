@@ -257,7 +257,7 @@ func (m *SessionMonitor) handleExpiration() {
 }
 
 func (m *SessionMonitor) drainConn() {
-	buf := make([]byte, common.MaxMTU)
+	buf := make([]byte, common.SupportedMTU)
 	for {
 		n, _, err := m.ProbeConn.ReadFrom(buf)
 		// XXX(karampok): The .ReadFrom(buf) is a blocking action and when
