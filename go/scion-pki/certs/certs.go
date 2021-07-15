@@ -62,6 +62,7 @@ func Cmd(pather command.Pather) *cobra.Command {
 		newValidateCmd(joined),
 		newVerifyCmd(joined),
 		newRenewCmd(joined),
+		newMatchCmd(joined),
 	)
 	return cmd
 }
