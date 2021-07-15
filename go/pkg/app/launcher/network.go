@@ -26,12 +26,18 @@ import (
 // WaitForNetworkReady checks that all IPs listed in the argument can be bound
 // to. This function blocks until either all IPs can be bound to or the context
 // expires. The error is nil if all IPs can be bound to. If the error is non nil
-// it will contain the IPs for which the binding failed.
+// it will contain the IPs for which the binding failed. Nil IPs in the input
+// list are ignored.
 //
 // Note in general this function is called directly by the application launcher,
 // and therefore doesn't need to be used. It is public for applications that
 // have custom constraints when the call should happen.
 func WaitForNetworkReady(ctx context.Context, ips []net.IP) error {
+	for i, ip := range ips {
+		if ip == nil {
+			ips = append(ips[:i], ips[i+1:]...)
+		}
+	}
 	previousMissingIPs := make([]string, 0, len(ips))
 	for _, ip := range ips {
 		previousMissingIPs = append(previousMissingIPs, ip.String())
