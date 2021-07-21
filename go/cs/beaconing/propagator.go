@@ -270,8 +270,6 @@ func (p *propagator) extendAndSend(
 // interface because it creates a loop.
 func (p *propagator) shouldIgnore(bseg beacon.Beacon, intf *ifstate.Interface) bool {
 	if err := beacon.FilterLoop(bseg, intf.TopoInfo().IA, p.AllowIsdLoop); err != nil {
-		p.logger.Debug("Ignoring beacon on loop", "egress_interface",
-			intf.TopoInfo().ID, "err", err)
 		return true
 	}
 	return false
