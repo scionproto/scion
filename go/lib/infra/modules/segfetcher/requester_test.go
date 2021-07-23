@@ -17,6 +17,7 @@ package segfetcher_test
 import (
 	"context"
 	"errors"
+	"net"
 	"testing"
 	"time"
 
@@ -77,20 +78,30 @@ func TestRequester(t *testing.T) {
 			Reqs: segfetcher.Requests{req_111_1},
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
 				req := req_111_1
-				reply := []*seg.Meta{tg.seg120_111_up}
+				reply := segfetcher.SegmentsReply{
+					Segments: []*seg.Meta{tg.seg120_111_up},
+					Peer:     &net.TCPAddr{Port: 42},
+				}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req), gomock.Any()).
 					Return(reply, nil)
-				return []segfetcher.ReplyOrErr{{Req: req_111_1, Segments: reply}}
+				return []segfetcher.ReplyOrErr{
+					{Req: req_111_1, Segments: reply.Segments, Peer: reply.Peer},
+				}
 			},
 		},
 		"Down only": {
 			Reqs: segfetcher.Requests{req_1_111},
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
 				req := req_1_111
-				reply := []*seg.Meta{tg.seg120_111_down, tg.seg130_111_down}
+				reply := segfetcher.SegmentsReply{
+					Segments: []*seg.Meta{tg.seg120_111_down, tg.seg130_111_down},
+					Peer:     &net.TCPAddr{Port: 42},
+				}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req), gomock.Any()).
 					Return(reply, nil)
-				return []segfetcher.ReplyOrErr{{Req: req_1_111, Segments: reply}}
+				return []segfetcher.ReplyOrErr{
+					{Req: req_1_111, Segments: reply.Segments, Peer: reply.Peer},
+				}
 			},
 		},
 		"Cores only": {
@@ -100,20 +111,23 @@ func TestRequester(t *testing.T) {
 				req1 := req_210_110
 				expectedErr1 := errors.New("no attempts left")
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).
-					Times(maxRetries+1).Return(nil, errors.New("some error"))
+					Times(maxRetries+1).Return(segfetcher.SegmentsReply{}, errors.New("some error"))
 				// req2 sees ErrNotReachable, aborts immediately after first try
 				req2 := req_210_120
 				expectedErr2 := segfetcher.ErrNotReachable
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req2), gomock.Any()).
-					Return(nil, segfetcher.ErrNotReachable)
+					Return(segfetcher.SegmentsReply{}, segfetcher.ErrNotReachable)
 				req3 := req_210_130
-				reply3 := []*seg.Meta{tg.seg210_130_core}
+				reply3 := segfetcher.SegmentsReply{
+					Segments: []*seg.Meta{tg.seg210_130_core},
+					Peer:     &net.TCPAddr{Port: 42},
+				}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req3), gomock.Any()).
 					Return(reply3, nil)
 				return []segfetcher.ReplyOrErr{
 					{Req: req_210_110, Err: expectedErr1},
 					{Req: req_210_120, Err: expectedErr2},
-					{Req: req_210_130, Segments: reply3},
+					{Req: req_210_130, Segments: reply3.Segments, Peer: reply3.Peer},
 				}
 			},
 		},
@@ -121,36 +135,52 @@ func TestRequester(t *testing.T) {
 			Reqs: segfetcher.Requests{req_111_1},
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
 				req := req_111_1
-				reply := []*seg.Meta{tg.seg120_111_up}
+				reply := segfetcher.SegmentsReply{
+					Segments: []*seg.Meta{tg.seg120_111_up},
+					Peer:     &net.TCPAddr{Port: 42},
+				}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req), gomock.Any()).
 					Return(reply, nil)
-				return []segfetcher.ReplyOrErr{{Req: req_111_1, Segments: reply}}
+				return []segfetcher.ReplyOrErr{
+					{Req: req_111_1, Segments: reply.Segments, Peer: reply.Peer},
+				}
 			},
 		},
 		"Cores down": {
 			Reqs: segfetcher.Requests{req_1_111},
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
 				req := req_1_111
-				reply := []*seg.Meta{tg.seg120_111_down, tg.seg130_111_down}
+				reply := segfetcher.SegmentsReply{
+					Segments: []*seg.Meta{tg.seg120_111_down, tg.seg130_111_down},
+					Peer:     &net.TCPAddr{Port: 42},
+				}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req), gomock.Any()).
 					Return(reply, nil)
-				return []segfetcher.ReplyOrErr{{Req: req_1_111, Segments: reply}}
+				return []segfetcher.ReplyOrErr{
+					{Req: req_1_111, Segments: reply.Segments, Peer: reply.Peer},
+				}
 			},
 		},
 		"Up cores down": {
 			Reqs: segfetcher.Requests{req_111_1, req_2_211},
 			Expect: func(api *mock_segfetcher.MockRPC) []segfetcher.ReplyOrErr {
 				req1 := req_111_1
-				reply1 := []*seg.Meta{tg.seg120_111_up, tg.seg130_111_up}
+				reply1 := segfetcher.SegmentsReply{
+					Segments: []*seg.Meta{tg.seg120_111_up, tg.seg130_111_up},
+					Peer:     &net.TCPAddr{Port: 42},
+				}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req1), gomock.Any()).
 					Return(reply1, nil)
 				req2 := req_2_211
-				reply2 := []*seg.Meta{tg.seg210_211_down}
+				reply2 := segfetcher.SegmentsReply{
+					Segments: []*seg.Meta{tg.seg210_211_down},
+					Peer:     &net.TCPAddr{Port: 43},
+				}
 				api.EXPECT().Segments(gomock.Any(), gomock.Eq(req2), gomock.Any()).
 					Return(reply2, nil)
 				return []segfetcher.ReplyOrErr{
-					{Req: req_111_1, Segments: reply1},
-					{Req: req_2_211, Segments: reply2},
+					{Req: req_111_1, Segments: reply1.Segments, Peer: reply1.Peer},
+					{Req: req_2_211, Segments: reply2.Segments, Peer: reply2.Peer},
 				}
 			},
 		},

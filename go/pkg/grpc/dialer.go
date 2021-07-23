@@ -190,7 +190,9 @@ func (d *TLSQUICDialer) Dial(ctx context.Context, addr net.Addr) (*grpc.ClientCo
 	)
 }
 
+var RetryOption grpc.CallOption = grpc_retry.WithPerRetryTimeout(3 * time.Second)
+
 // RetryProfile is the common retry profile for RPCs.
 var RetryProfile = []grpc.CallOption{
-	grpc_retry.WithPerRetryTimeout(3 * time.Second),
+	RetryOption,
 }

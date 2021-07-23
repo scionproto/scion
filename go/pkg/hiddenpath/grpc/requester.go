@@ -41,20 +41,20 @@ type Requester struct {
 }
 
 func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
-	server net.Addr) ([]*seg.Meta, error) {
+	server net.Addr) (segfetcher.SegmentsReply, error) {
 
 	var (
-		regularSegs []*seg.Meta
-		hiddenSegs  []*seg.Meta
+		regularReply segfetcher.SegmentsReply
+		hiddenSegs   []*seg.Meta
 	)
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		segs, err := f.RegularLookup.Segments(ctx, req, server)
+		r, err := f.RegularLookup.Segments(ctx, req, server)
 		if err != nil {
 			return err
 		}
-		regularSegs = segs
+		regularReply = r
 		return nil
 	})
 
@@ -68,10 +68,17 @@ func (f *Requester) Segments(ctx context.Context, req segfetcher.Request,
 	})
 
 	if err := g.Wait(); err != nil {
-		return nil, err
+		return segfetcher.SegmentsReply{}, err
 	}
 
-	return append(regularSegs, hiddenSegs...), nil
+	// XXX(lukedirtwalker): this is a bit of a hack, the hidden segments could
+	// theoretically have a different verification endpoint than the regular
+	// segments, but since the API only allows to return one peer we assume they
+	// come from the same CS, which is currently the case.
+	return segfetcher.SegmentsReply{
+		Segments: append(regularReply.Segments, hiddenSegs...),
+		Peer:     regularReply.Peer,
+	}, nil
 }
 
 func (f *Requester) hiddenSegments(ctx context.Context, req segfetcher.Request,
