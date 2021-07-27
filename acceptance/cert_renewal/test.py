@@ -27,7 +27,6 @@ from plumbum import cli
 
 from acceptance.common import base
 from acceptance.common import docker
-from acceptance.common import log
 from acceptance.common import scion
 from python.lib import scion_addr
 import toml
@@ -242,7 +241,6 @@ class Test(base.TestBase):
 
 
 if __name__ == "__main__":
-    log.init_log()
     base.register_commands(Test)
     base.TestBase.test_state = base.TestState(scion.SCIONDocker(),
                                               docker.Compose())

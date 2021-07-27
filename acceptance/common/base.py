@@ -27,6 +27,7 @@ from plumbum import path
 
 from acceptance.common.docker import Compose
 from acceptance.common.log import LogExec
+from acceptance.common import log
 from acceptance.common.scion import SCION
 
 NAME = "NOT_SET"  # must be set by users of the Base class.
@@ -81,7 +82,7 @@ class TestState:
             executable_name, path = pair.split(":")
             if executable_name == name:
                 return os.path.abspath(path)
-        return "./bin/"+name
+        return "./bin/" + name
 
 
 class TestBase(cli.Application):
@@ -118,7 +119,9 @@ class TestBase(cli.Application):
         self.test_state.dc.compose_file = self.test_state.artifacts / "gen/scion-dc.yml"
 
     @cli.switch(
-        "containers_tar", str, list=True,
+        "containers_tar",
+        str,
+        list=True,
         help="The tarball with containers, can be repeated",
     )
     def containers_tar(self, tars: List):
@@ -349,6 +352,7 @@ def register_commands(c: Type[TestBase]):
         def main(self):
             self.browse()
 
+    log.init_log()
     c.subcommand("setup", TestSetup)
     c.subcommand("run", TestRun)
     c.subcommand("teardown", TestTeardown)
