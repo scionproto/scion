@@ -63,6 +63,7 @@ class TestState:
         self.executables = []
         self.topo = ""
         self.containers_tars = []
+        self.container_loaders = []
         if "TEST_UNDECLARED_OUTPUTS_DIR" in os.environ:
             self.artifacts = local.path(
                 os.environ["TEST_UNDECLARED_OUTPUTS_DIR"])
@@ -127,6 +128,15 @@ class TestBase(cli.Application):
     def containers_tar(self, tars: List):
         self.test_state.containers_tars = tars
 
+    @cli.switch(
+        "container_loader",
+        str,
+        list=True,
+        help="The container loader, format tag#path",
+    )
+    def container_loader(self, loaders: List[str]):
+        self.test_state.container_loaders = loaders
+
     @cli.switch("bazel_rule",
                 str,
                 help="The bazel rule that triggered the test")
@@ -146,6 +156,22 @@ class TestBase(cli.Application):
         print("artifacts dir: %s" % self.test_state.artifacts)
         for tar in self.test_state.containers_tars:
             print(cmd.docker("image", "load", "-i", tar))
+        for loader in self.test_state.container_loaders:
+            parts = loader.split("#")
+            if len(parts) != 2:
+                logger.error("Invalid container loader argument: %s, ignored" % loader)
+                continue
+            tag, script = parts[0], parts[1]
+            o = subprocess.check_output(
+                [script]
+            ).decode("utf-8")
+            idx = o.index("as ")
+            if idx < 0:
+                logger.error("extracting tag from loader script %s" % loader)
+                continue
+            bazel_tag = o[idx+len("as "):].strip()
+            logger.info("docker tag %s %s" % (bazel_tag, tag))
+            subprocess.run(["docker", "tag", bazel_tag, tag], check=True)
         # Define where coredumps will be stored.
         print(
             cmd.docker("run", "--rm", "--privileged", "alpine", "sysctl", "-w",
