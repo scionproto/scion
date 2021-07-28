@@ -118,22 +118,21 @@ func TestGetInfoField(t *testing.T) {
 func TestGetHopField(t *testing.T) {
 	testCases := map[string]struct {
 		idx       int
-		want      *path.HopField
+		want      path.HopField
 		errorFunc assert.ErrorAssertionFunc
 	}{
 		"first hop": {
 			idx:       0,
-			want:      testHopFields[0],
+			want:      *testHopFields[0],
 			errorFunc: assert.NoError,
 		},
 		"third hop": {
 			idx:       2,
-			want:      testHopFields[2],
+			want:      *testHopFields[2],
 			errorFunc: assert.NoError,
 		},
 		"out of bounds": {
 			idx:       4,
-			want:      nil,
 			errorFunc: assert.Error,
 		},
 	}
@@ -199,27 +198,21 @@ func TestSetInfoField(t *testing.T) {
 func TestSetHopField(t *testing.T) {
 	testCases := map[string]struct {
 		idx       int
-		want      *path.HopField
+		want      path.HopField
 		errorFunc assert.ErrorAssertionFunc
 	}{
 		"first hop": {
 			idx:       0,
-			want:      testHopFields[3],
+			want:      *testHopFields[3],
 			errorFunc: assert.NoError,
 		},
 		"third hop": {
 			idx:       2,
-			want:      testHopFields[0],
+			want:      *testHopFields[0],
 			errorFunc: assert.NoError,
 		},
 		"out of bounds": {
 			idx:       4,
-			want:      nil,
-			errorFunc: assert.Error,
-		},
-		"nil info": {
-			idx:       0,
-			want:      nil,
 			errorFunc: assert.Error,
 		},
 	}

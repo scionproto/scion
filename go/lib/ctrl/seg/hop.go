@@ -96,7 +96,7 @@ type HopField struct {
 	ExpTime     uint8
 	ConsIngress uint16
 	ConsEgress  uint16
-	MAC         []byte
+	MAC         [6]byte
 }
 
 func hopFieldFromPB(pb *cppb.HopField) (HopField, error) {
@@ -112,10 +112,12 @@ func hopFieldFromPB(pb *cppb.HopField) (HopField, error) {
 	if len(pb.Mac) != 6 {
 		return HopField{}, serrors.New("MAC must be 6 bytes", "len", len(pb.Mac))
 	}
+	m := [6]byte{}
+	copy(m[:], pb.Mac)
 	return HopField{
 		ExpTime:     uint8(pb.ExpTime),
 		ConsIngress: uint16(pb.Ingress),
 		ConsEgress:  uint16(pb.Egress),
-		MAC:         pb.Mac,
+		MAC:         m,
 	}, nil
 }

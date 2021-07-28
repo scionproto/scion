@@ -594,7 +594,7 @@ func (p *scionPacketProcessor) reset() error {
 	p.rawPkt = nil
 	//p.scionLayer // cannot easily be reset
 	p.path = nil
-	p.hopField = nil
+	p.hopField = path.HopField{}
 	p.infoField = nil
 	p.segmentChange = false
 	if err := p.buffer.Clear(); err != nil {
@@ -774,7 +774,7 @@ type scionPacketProcessor struct {
 	// path is the raw SCION path. Will be set during processing.
 	path *scion.Raw
 	// hopField is the current hopField field, is updated during processing.
-	hopField *path.HopField
+	hopField path.HopField
 	// infoField is the current infoField field, is updated during processing.
 	infoField *path.InfoField
 	// segmentChange indicates if the path segment was changed during processing.
@@ -944,7 +944,7 @@ func (p *scionPacketProcessor) currentHopPointer() uint16 {
 }
 
 func (p *scionPacketProcessor) verifyCurrentMAC() (processResult, error) {
-	fullMac := path.FullMAC(p.mac, p.infoField, p.hopField, p.macBuffers.scionInput)
+	fullMac := path.FullMAC(p.mac, p.infoField, &p.hopField, p.macBuffers.scionInput)
 	if subtle.ConstantTimeCompare(p.hopField.Mac[:path.MacLen], fullMac[:path.MacLen]) == 0 {
 		return p.packSCMP(
 			&slayers.SCMP{TypeCode: slayers.CreateSCMPTypeCode(slayers.SCMPTypeParameterProblem,
@@ -1259,10 +1259,10 @@ func (p *scionPacketProcessor) processOHP() (processResult, error) {
 				"neighborIA", neighborIA, "dstIA", s.DstIA)
 		}
 		mac := path.MAC(p.mac, &ohp.Info, &ohp.FirstHop, p.macBuffers.scionInput)
-		if subtle.ConstantTimeCompare(ohp.FirstHop.Mac[:path.MacLen], mac) == 0 {
+		if subtle.ConstantTimeCompare(ohp.FirstHop.Mac[:], mac[:]) == 0 {
 			// TODO parameter problem -> invalid MAC
 			return processResult{}, serrors.New("MAC", "expected", fmt.Sprintf("%x", mac),
-				"actual", fmt.Sprintf("%x", ohp.FirstHop.Mac[:path.MacLen]), "type", "ohp")
+				"actual", fmt.Sprintf("%x", ohp.FirstHop.Mac), "type", "ohp")
 		}
 		ohp.Info.UpdateSegID(ohp.FirstHop.Mac)
 

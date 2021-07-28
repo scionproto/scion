@@ -15,7 +15,6 @@
 package beacondbtest
 
 import (
-	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -369,7 +368,7 @@ func AllocBeacon(
 					ExpTime:     63,
 					ConsIngress: uint16(peer.Ingress),
 					ConsEgress:  uint16(as.Egress),
-					MAC:         bytes.Repeat([]byte{0xff}, 6),
+					MAC:         [6]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 				},
 			})
 		}
@@ -383,7 +382,7 @@ func AllocBeacon(
 					ExpTime:     63,
 					ConsIngress: uint16(as.Ingress),
 					ConsEgress:  uint16(as.Egress),
-					MAC:         bytes.Repeat([]byte{0xff}, 6),
+					MAC:         [6]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 				},
 			},
 			PeerEntries: peers,

@@ -22,7 +22,6 @@
 package graph
 
 import (
-	"bytes"
 	"context"
 	"crypto"
 	"crypto/ecdsa"
@@ -282,6 +281,7 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 			outIA = 0
 		}
 
+		mac := [6]byte{byte(i)}
 		asEntry := seg.ASEntry{
 			Local: currIA,
 			Next:  outIA,
@@ -289,9 +289,9 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 			HopEntry: seg.HopEntry{
 				HopField: seg.HopField{
 					ExpTime:     63,
-					ConsIngress: inIF,
-					ConsEgress:  outIF,
-					MAC:         bytes.Repeat([]byte{uint8(i)}, 6),
+					ConsIngress: uint16(inIF),
+					ConsEgress:  uint16(outIF),
+					MAC:         mac,
 				},
 				IngressMTU: 1280,
 			},
@@ -316,9 +316,9 @@ func (g *Graph) beacon(ifids []uint16, addStaticInfo bool) *seg.PathSegment {
 					PeerMTU:       1280,
 					HopField: seg.HopField{
 						ExpTime:     63,
-						ConsIngress: peeringLocalIF,
-						ConsEgress:  outIF,
-						MAC:         bytes.Repeat([]byte{uint8(i)}, 6),
+						ConsIngress: uint16(peeringLocalIF),
+						ConsEgress:  uint16(outIF),
+						MAC:         mac,
 					},
 				})
 			}
