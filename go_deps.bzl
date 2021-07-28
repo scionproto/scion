@@ -23,8 +23,8 @@ def go_deps():
     go_repository(
         name = "com_github_alecthomas_units",
         importpath = "github.com/alecthomas/units",
-        sum = "h1:Hs82Z41s6SdL1CELW+XaDYmOH4hkBN4/N9og/AsOv7E=",
-        version = "v0.0.0-20190717042225-c3de453c63f4",
+        sum = "h1:UQZhZ2O0vMHr2cI+DC1Mbh0TJxzA3RcLoMsFw+aXw7E=",
+        version = "v0.0.0-20190924025748-f65c72e2690d",
     )
     go_repository(
         name = "com_github_anmitsu_go_shlex",
@@ -129,10 +129,10 @@ def go_deps():
         version = "v0.0.0-20181115193947-bf1c66bbce23",
     )
     go_repository(
-        name = "com_github_buildkite_go_buildkite",
-        importpath = "github.com/buildkite/go-buildkite",
-        sum = "h1:wELXQi9HWcUzDcns3k5p3Qj9hLN6jrnO8uwcC6ba/ac=",
-        version = "v2.2.1-0.20190413010238-568b6651b687+incompatible",
+        name = "com_github_buildkite_go_buildkite_v2",
+        importpath = "github.com/buildkite/go-buildkite/v2",
+        sum = "h1:aWsgMl3lA6xLSAyAhEO0DaHg7a7GVf/50mqVDC1Zt0A=",
+        version = "v2.8.1",
     )
     go_repository(
         name = "com_github_burntsushi_toml",
