@@ -848,9 +848,9 @@ func TestSCMPHandlerReverse(t *testing.T) {
 							{SegID: 0x111, ConsDir: true, Timestamp: 0x100},
 						},
 						HopFields: []*path.HopField{
-							{ConsIngress: 0, ConsEgress: 311, Mac: bytes.Repeat([]byte{0x00}, 6)},
-							{ConsIngress: 131, ConsEgress: 141, Mac: bytes.Repeat([]byte{0x01}, 6)},
-							{ConsIngress: 411, ConsEgress: 0, Mac: bytes.Repeat([]byte{0x02}, 6)},
+							{ConsIngress: 0, ConsEgress: 311, Mac: [6]byte{0, 0, 0, 0, 0, 0}},
+							{ConsIngress: 131, ConsEgress: 141, Mac: [6]byte{1, 1, 1, 1, 1, 1}},
+							{ConsIngress: 411, ConsEgress: 0, Mac: [6]byte{2, 2, 2, 2, 2, 2}},
 						},
 					},
 				},
@@ -891,9 +891,9 @@ func TestSCMPHandlerReverse(t *testing.T) {
 							{SegID: 0x111, ConsDir: false, Timestamp: 0x100},
 						},
 						HopFields: []*path.HopField{
-							{ConsIngress: 411, ConsEgress: 0, Mac: bytes.Repeat([]byte{0x02}, 6)},
-							{ConsIngress: 131, ConsEgress: 141, Mac: bytes.Repeat([]byte{0x01}, 6)},
-							{ConsIngress: 0, ConsEgress: 311, Mac: bytes.Repeat([]byte{0x00}, 6)},
+							{ConsIngress: 411, ConsEgress: 0, Mac: [6]byte{2, 2, 2, 2, 2, 2}},
+							{ConsIngress: 131, ConsEgress: 141, Mac: [6]byte{1, 1, 1, 1, 1, 1}},
+							{ConsIngress: 0, ConsEgress: 311, Mac: [6]byte{0, 0, 0, 0, 0, 0}},
 						},
 					},
 				}

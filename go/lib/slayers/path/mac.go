@@ -25,8 +25,11 @@ const MACBufferSize = 16
 // https://scion.docs.anapaya.net/en/latest/protocols/scion-header.html#hop-field-mac-computation
 // this method does not modify info or hf.
 // Modifying the provided buffer after calling this function may change the returned HopField MAC.
-func MAC(h hash.Hash, info *InfoField, hf *HopField, buffer []byte) []byte {
-	return FullMAC(h, info, hf, buffer)[0:6]
+func MAC(h hash.Hash, info *InfoField, hf *HopField, buffer []byte) [6]byte {
+	mac := FullMAC(h, info, hf, buffer)
+	var res [6]byte
+	copy(res[:], mac[0:6])
+	return res
 }
 
 // FullMAC calculates the HopField MAC according to

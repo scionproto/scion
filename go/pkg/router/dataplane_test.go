@@ -908,7 +908,7 @@ func TestProcessPkt(t *testing.T) {
 						ExpTime:     63,
 						ConsIngress: 0,
 						ConsEgress:  21,
-						Mac:         []byte{1, 2, 3, 4, 5, 6},
+						Mac:         [6]byte{1, 2, 3, 4, 5, 6},
 					},
 				}
 				if !afterProcessing {
@@ -964,7 +964,7 @@ func TestProcessPkt(t *testing.T) {
 						ExpTime:            63,
 						ConsIngress:        0,
 						ConsEgress:         21,
-						Mac:                []byte{1, 2, 3, 4, 5, 6},
+						Mac:                [6]byte{1, 2, 3, 4, 5, 6},
 					},
 				}
 				return toMsg(t, spkt, dpath)
@@ -1004,7 +1004,7 @@ func TestProcessPkt(t *testing.T) {
 						ExpTime:     63,
 						ConsIngress: 0,
 						ConsEgress:  21,
-						Mac:         []byte{1, 2, 3, 4, 5, 6},
+						Mac:         [6]byte{1, 2, 3, 4, 5, 6},
 					},
 					SecondHop: path.HopField{
 						ExpTime:     63,
@@ -1307,7 +1307,7 @@ func toIP(t *testing.T, spkt *slayers.SCION, path path.Path, afterProcessing boo
 	return ret
 }
 
-func computeMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopField) []byte {
+func computeMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopField) [6]byte {
 	mac, err := scrypto.InitMac(key)
 	require.NoError(t, err)
 	return path.MAC(mac, info, hf, nil)

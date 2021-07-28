@@ -268,7 +268,7 @@ func (ps *PathSegment) AddASEntry(ctx context.Context, asEntry ASEntry, signer S
 				ExpTime: uint32(asEntry.HopEntry.HopField.ExpTime),
 				Ingress: uint64(asEntry.HopEntry.HopField.ConsIngress),
 				Egress:  uint64(asEntry.HopEntry.HopField.ConsEgress),
-				Mac:     asEntry.HopEntry.HopField.MAC,
+				Mac:     asEntry.HopEntry.HopField.MAC[:],
 			},
 		},
 		PeerEntries: make([]*cppb.PeerEntry, 0, len(asEntry.PeerEntries)),
@@ -284,7 +284,7 @@ func (ps *PathSegment) AddASEntry(ctx context.Context, asEntry ASEntry, signer S
 					ExpTime: uint32(peer.HopField.ExpTime),
 					Ingress: uint64(peer.HopField.ConsIngress),
 					Egress:  uint64(peer.HopField.ConsEgress),
-					Mac:     peer.HopField.MAC,
+					Mac:     peer.HopField.MAC[:],
 				},
 			},
 		)

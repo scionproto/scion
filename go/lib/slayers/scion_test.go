@@ -119,7 +119,7 @@ func TestSCIONLayerString(t *testing.T) {
 						ExpTime:            63,
 						ConsIngress:        4,
 						ConsEgress:         5,
-						Mac:                []byte{6, 7, 8},
+						Mac:                [6]byte{6, 7, 8, 9, 10, 11},
 					},
 				},
 			},
@@ -142,7 +142,7 @@ func TestSCIONLayerString(t *testing.T) {
 				`ExpTime=63 ` +
 				`ConsIngress=4 ` +
 				`ConsEgress=5 ` +
-				`Mac=[6, 7, 8]` +
+				`Mac=[6 7 8 9 10 11]` +
 				`}]}` + expectEnd,
 		},
 		"onehop": {
@@ -157,13 +157,13 @@ func TestSCIONLayerString(t *testing.T) {
 					ConsIngress: 5,
 					ConsEgress:  6,
 					ExpTime:     63,
-					Mac:         []byte{1, 2, 3},
+					Mac:         [6]byte{1, 2, 3, 4, 5, 6},
 				},
 				SecondHop: path.HopField{
 					ConsIngress: 2,
 					ConsEgress:  3,
 					ExpTime:     63,
-					Mac:         []byte{7, 8, 9},
+					Mac:         [6]byte{7, 8, 9, 10, 11, 12},
 				},
 			},
 			expect: expectBegin + `PathType=OneHop (2) ` + expectMiddle +
@@ -179,14 +179,14 @@ func TestSCIONLayerString(t *testing.T) {
 				`ExpTime=63 ` +
 				`ConsIngress=5 ` +
 				`ConsEgress=6 ` +
-				`Mac=[1, 2, 3]` +
+				`Mac=[1 2 3 4 5 6]` +
 				`} SecondHop={ ` +
 				`IngressRouterAlert=false ` +
 				`EgressRouterAlert=false ` +
 				`ExpTime=63 ` +
 				`ConsIngress=2 ` +
 				`ConsEgress=3 ` +
-				`Mac=[7, 8, 9]` +
+				`Mac=[7 8 9 10 11 12]` +
 				`}}` + expectEnd,
 		},
 	}

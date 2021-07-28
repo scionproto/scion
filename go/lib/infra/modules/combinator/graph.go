@@ -320,7 +320,7 @@ func (solution *pathSolution) Path() Path {
 					ExpTime:     entry.HopField.ExpTime,
 					ConsIngress: entry.HopField.ConsIngress,
 					ConsEgress:  entry.HopField.ConsEgress,
-					Mac:         append([]byte(nil), entry.HopField.MAC...),
+					Mac:         entry.HopField.MAC,
 				}
 				forwardingLinkMtu = entry.IngressMTU
 			} else {
@@ -331,7 +331,7 @@ func (solution *pathSolution) Path() Path {
 					ExpTime:     peer.HopField.ExpTime,
 					ConsIngress: peer.HopField.ConsIngress,
 					ConsEgress:  peer.HopField.ConsEgress,
-					Mac:         append([]byte(nil), peer.HopField.MAC...),
+					Mac:         peer.HopField.MAC,
 				}
 				forwardingLinkMtu = peer.PeerMTU
 			}
@@ -433,7 +433,7 @@ func calculateBeta(se *solutionEdge) uint16 {
 	beta := se.segment.Info.SegmentID
 	for i := 0; i < index; i++ {
 		hop := se.segment.ASEntries[i].HopEntry
-		beta = beta ^ binary.BigEndian.Uint16(hop.HopField.MAC)
+		beta = beta ^ binary.BigEndian.Uint16(hop.HopField.MAC[:])
 	}
 	return beta
 }

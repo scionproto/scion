@@ -15,7 +15,6 @@
 package hiddenpath_test
 
 import (
-	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -156,7 +155,7 @@ func createSegs() ([]*seg.Meta, query.Results) {
 	asEntry := seg.ASEntry{
 		Local: xtest.MustParseIA("1-ff00:0:110"),
 		HopEntry: seg.HopEntry{
-			HopField: seg.HopField{MAC: bytes.Repeat([]byte{0x11}, 6)},
+			HopField: seg.HopField{MAC: [6]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11}},
 		},
 	}
 	ps, _ := seg.CreateSegment(time.Now(), 1337)
