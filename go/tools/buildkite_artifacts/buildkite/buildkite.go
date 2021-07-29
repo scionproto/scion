@@ -70,7 +70,11 @@ func (d *Downloader) ArtifactsFromBuild(build *buildkite.Build) error {
 			continue
 		}
 		if job.StepKey == nil {
-			d.info("Ignoring job without step key: %s (%s)\n", *job.ID, *job.Command)
+			var a string
+			if job.Command != nil {
+				a = " (" + *job.Command + ")"
+			}
+			d.info("Ignoring job without step key: %s%s", *job.ID, a)
 			continue
 		}
 		if !d.All && job.ExitStatus != nil && *job.ExitStatus == 0 {
