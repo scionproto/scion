@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 
+	bk "github.com/buildkite/go-buildkite/v2/buildkite"
 	"github.com/spf13/cobra"
 
 	"github.com/scionproto/scion/go/lib/serrors"
@@ -58,7 +59,9 @@ set. The token must have the following permissions:
 				return err
 			}
 
-			b, _, err := client.Builds.Get(flags.org, flags.pipeline, build, nil)
+			b, _, err := client.Builds.Get(flags.org, flags.pipeline, build, &bk.BuildsListOptions{
+				IncludeRetriedJobs: true,
+			})
 			if err != nil {
 				return serrors.WrapStr("fetching build", err)
 			}

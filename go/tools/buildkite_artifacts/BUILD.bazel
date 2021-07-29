@@ -10,6 +10,7 @@ go_library(
         "//go/lib/serrors:go_default_library",
         "//go/pkg/app:go_default_library",
         "//go/tools/buildkite_artifacts/buildkite:go_default_library",
+        "@com_github_buildkite_go_buildkite_v2//buildkite:go_default_library",
         "@com_github_spf13_cobra//:go_default_library",
     ],
 )
