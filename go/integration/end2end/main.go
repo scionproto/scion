@@ -116,7 +116,8 @@ func (s server) run() {
 		fmt.Printf("Port=%d\n", port)
 		fmt.Printf("%s%s\n\n", libint.ReadySignal, integration.Local.IA)
 	}
-	log.Debug("Listening", "local", fmt.Sprintf("%v:%d", integration.Local.Host, port))
+	log.Info("Listening", "local", fmt.Sprintf("%v:%d", integration.Local.Host, port))
+
 	// Receive ping message
 	for {
 		var p snet.Packet
@@ -127,7 +128,10 @@ func (s server) run() {
 		}
 		udp, ok := p.Payload.(snet.UDPPayload)
 		if !ok {
-			log.Error("Unexpected payload received", "type", common.TypeOf(p.Payload))
+			log.Error("Unexpected payload received",
+				"source", p.Source,
+				"destination", p.Destination,
+				"type", common.TypeOf(p.Payload))
 			continue
 		}
 		pld := string(udp.Payload)
@@ -139,17 +143,26 @@ func (s server) run() {
 			Payload: pongMessage(integration.Local.IA, p.Destination.IA),
 		}
 		if pld != ping+integration.Local.IA.String() {
-			integration.LogFatal("Received unexpected data", "data", pld)
+			log.Error("Unexpected data in payload",
+				"source", p.Source,
+				"destination", p.Destination,
+				"data", pld,
+			)
+			continue
 		}
-		log.Debug(fmt.Sprintf("Ping received from %s, sending pong.", p.Source))
+		log.Info(fmt.Sprintf("Ping received from %s, sending pong.", p.Source))
 		// reverse path
 		if err := p.Path.Reverse(); err != nil {
-			log.Debug(fmt.Sprintf("Error reversing path, err = %v", err))
+			log.Info("Error reversing path",
+				"source", p.Source,
+				"destination", p.Destination,
+				"err", err)
 			continue
 		}
 		// Send pong
 		if err := conn.WriteTo(&p, &ov); err != nil {
-			integration.LogFatal("Unable to send reply", "err", err)
+			log.Error("Unable to send reply", "err", err)
+			continue
 		}
 		log.Info("Sent pong to", "client", p.Destination)
 	}
@@ -181,7 +194,7 @@ func (c *client) run() int {
 	if err != nil {
 		integration.LogFatal("Unable to listen", "err", err)
 	}
-	log.Debug("Send on", "local",
+	log.Info("Send on", "local",
 		fmt.Sprintf("%v,[%v]:%d", integration.Local.IA, integration.Local.Host.IP, c.port))
 	c.sdConn = integration.SDConn()
 	c.errorPaths = make(map[snet.PathFingerprint]struct{})
@@ -207,7 +220,7 @@ func (c *client) attemptRequest(n int) bool {
 	}
 	// Receive pong
 	if err := c.pong(ctx); err != nil {
-		logger.Debug("Error receiving pong", "err", err)
+		logger.Info("Error receiving pong", "err", err)
 		ext.Error.Set(span, true)
 		if path != nil {
 			c.errorPaths[snet.Fingerprint(path)] = struct{}{}
@@ -247,7 +260,7 @@ func (c *client) ping(ctx context.Context, n int) (snet.Path, error) {
 			},
 		},
 	}
-	log.Debug("sending ping", "attempt", n, "path", path)
+	log.Info("sending ping", "attempt", n, "path", path)
 	return path, c.conn.WriteTo(pkt, remote.NextHop)
 }
 
