@@ -124,12 +124,12 @@ func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i i
 	for tryIndex := 0; ctx.Err() == nil && tryIndex < r.MaxRetries+1; tryIndex++ {
 		r, err := try(ctx)
 		if errors.Is(err, ErrNotReachable) {
+			logger.Debug("Segment lookup failed", "try", tryIndex+1, "peer", r.Peer, "err", err)
 			replies <- ReplyOrErr{Req: req, Err: err}
 			return
 		}
 		if err != nil {
-			logger.Debug("Segment lookup failed", "try", tryIndex+1, "peer", r.Peer,
-				"err", err)
+			logger.Debug("Segment lookup failed", "try", tryIndex+1, "peer", r.Peer, "err", err)
 			continue
 		}
 		replies <- ReplyOrErr{Req: req, Segments: r.Segments, Peer: r.Peer}
