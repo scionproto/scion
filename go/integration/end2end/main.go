@@ -17,6 +17,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -124,6 +125,13 @@ func (s server) run() {
 		var ov net.UDPAddr
 		if err := conn.ReadFrom(&p, &ov); err != nil {
 			log.Error("Error reading packet", "err", err)
+			var opErr *snet.OpError
+			if errors.As(err, &opErr) && opErr.RevInfo() != nil {
+				log.Info("Broken interface",
+					"isd_as", opErr.RevInfo().IA(),
+					"interface", opErr.RevInfo().IfID,
+				)
+			}
 			continue
 		}
 		udp, ok := p.Payload.(snet.UDPPayload)
