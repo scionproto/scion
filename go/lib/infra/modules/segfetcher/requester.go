@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/serrors"
+	"github.com/scionproto/scion/go/lib/tracing"
 )
 
 // ErrNotReachable indicates that the destination is not reachable from this process.
@@ -106,6 +107,11 @@ func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i i
 	logger := log.FromCtx(ctx).New("req_id", log.NewDebugID(), "request", req)
 	ctx = log.CtxWith(ctx, logger)
 
+	reply := func(reply ReplyOrErr) {
+		replies <- reply
+		tracing.Error(span, reply.Err)
+	}
+
 	// Keep retrying until the allocated time is up.
 	// In the case where this request is sent over SCION/QUIC, DstProvider will
 	// return random paths. These retries allow to route around broken paths.
@@ -125,19 +131,20 @@ func (r *DefaultRequester) requestWorker(ctx context.Context, reqs Requests, i i
 		r, err := try(ctx)
 		if errors.Is(err, ErrNotReachable) {
 			logger.Debug("Segment lookup failed", "try", tryIndex+1, "peer", r.Peer, "err", err)
-			replies <- ReplyOrErr{Req: req, Err: err}
+			reply(ReplyOrErr{Req: req, Err: err})
 			return
 		}
 		if err != nil {
 			logger.Debug("Segment lookup failed", "try", tryIndex+1, "peer", r.Peer, "err", err)
 			continue
 		}
-		replies <- ReplyOrErr{Req: req, Segments: r.Segments, Peer: r.Peer}
+		reply(ReplyOrErr{Req: req, Segments: r.Segments, Peer: r.Peer})
 		return
 	}
 	err := ctx.Err()
 	if err == nil {
 		err = serrors.New("no attempts left")
 	}
-	replies <- ReplyOrErr{Req: req, Err: err}
+	logger.Debug("Unable to fetch paths in time", "err", err)
+	reply(ReplyOrErr{Req: req, Err: err})
 }
