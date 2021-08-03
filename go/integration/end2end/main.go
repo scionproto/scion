@@ -123,15 +123,8 @@ func (s server) run() {
 	for {
 		var p snet.Packet
 		var ov net.UDPAddr
-		if err := conn.ReadFrom(&p, &ov); err != nil {
+		if err := readFrom(conn, &p, &ov); err != nil {
 			log.Error("Error reading packet", "err", err)
-			var opErr *snet.OpError
-			if errors.As(err, &opErr) && opErr.RevInfo() != nil {
-				log.Info("Broken interface",
-					"isd_as", opErr.RevInfo().IA(),
-					"interface", opErr.RevInfo().IfID,
-				)
-			}
 			continue
 		}
 		udp, ok := p.Payload.(snet.UDPPayload)
@@ -308,7 +301,7 @@ func (c *client) pong(ctx context.Context) error {
 	c.conn.SetReadDeadline(getDeadline(ctx))
 	var p snet.Packet
 	var ov net.UDPAddr
-	if err := c.conn.ReadFrom(&p, &ov); err != nil {
+	if err := readFrom(c.conn, &p, &ov); err != nil {
 		return serrors.WrapStr("Error reading packet", err)
 	}
 	expected := pong + remote.IA.String() + integration.Local.IA.String()
@@ -331,6 +324,19 @@ func getDeadline(ctx context.Context) time.Time {
 		integration.LogFatal("No deadline in context")
 	}
 	return dl
+}
+
+func readFrom(conn snet.PacketConn, pkt *snet.Packet, ov *net.UDPAddr) error {
+	err := conn.ReadFrom(pkt, ov)
+	// Attach more context to error
+	var opErr *snet.OpError
+	if !(errors.As(err, &opErr) && opErr.RevInfo() != nil) {
+		return err
+	}
+	return serrors.WithCtx(err,
+		"isd_as", opErr.RevInfo().IA(),
+		"interface", opErr.RevInfo().IfID,
+	)
 }
 
 func pingMessage(server addr.IA) []byte {
