@@ -38,7 +38,7 @@ func (d *ProbeDispatcher) Listen(ctx context.Context, conn net.PacketConn) error
 	d.logInfo("ProbeDispatcher: starting")
 	defer d.logInfo("ProbeDispatcher: stopped")
 
-	buf := make([]byte, common.MaxMTU)
+	buf := make([]byte, common.SupportedMTU)
 	for {
 		select {
 		case <-ctx.Done():

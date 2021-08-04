@@ -19,6 +19,7 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/serrors"
 )
 
@@ -26,7 +27,7 @@ import (
 //
 // FIXME(scrye): This will be deleted when we move to SEQPACKET.
 type ReadPacketizer struct {
-	buffer    [1 << 16]byte
+	buffer    [common.SupportedMTU]byte
 	data      []byte
 	freeSpace []byte
 	conn      net.Conn

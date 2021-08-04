@@ -84,7 +84,7 @@ func SVC(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 0, ConsEgress: 141},
 		},
 	}
-	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1])
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 	scionL := &slayers.SCION{
 		Version:      0,

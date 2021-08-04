@@ -25,6 +25,8 @@ import (
 	"github.com/scionproto/scion/go/pkg/command"
 )
 
+var NewFormatCmd = newFormatCmd
+
 func TestNewFormatCmd(t *testing.T) {
 	dir, cleanup := xtest.MustTempDir("", "format-trc-test")
 	defer cleanup()

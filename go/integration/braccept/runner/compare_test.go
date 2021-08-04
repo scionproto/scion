@@ -81,7 +81,7 @@ func prepareSCION(t *testing.T, diff string) gopacket.Packet {
 			{ConsIngress: 0, ConsEgress: 311},
 		},
 	}
-	sp.HopFields[1].Mac = path.MAC(hash(), sp.InfoFields[0], sp.HopFields[1])
+	sp.HopFields[1].Mac = path.MAC(hash(), sp.InfoFields[0], sp.HopFields[1], nil)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
 
 	scionL := &slayers.SCION{

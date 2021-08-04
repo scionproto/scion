@@ -1286,7 +1286,7 @@ func prepareEpicCrypto(t *testing.T, spkt *slayers.SCION,
 
 	// Calculate PHVF and LHVF
 	macLast, err := libepic.CalcMac(authLast, epicpath.PktID,
-		spkt, dpath.InfoFields[0].Timestamp)
+		spkt, dpath.InfoFields[0].Timestamp, nil)
 	require.NoError(t, err)
 	copy(epicpath.LHVF, macLast)
 }
@@ -1306,13 +1306,13 @@ func toIP(t *testing.T, spkt *slayers.SCION, path path.Path, afterProcessing boo
 func computeMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopField) []byte {
 	mac, err := scrypto.InitMac(key)
 	require.NoError(t, err)
-	return path.MAC(mac, info, hf)
+	return path.MAC(mac, info, hf, nil)
 }
 
 func computeFullMAC(t *testing.T, key []byte, info *path.InfoField, hf *path.HopField) []byte {
 	mac, err := scrypto.InitMac(key)
 	require.NoError(t, err)
-	return path.FullMAC(mac, info, hf)
+	return path.FullMAC(mac, info, hf, nil)
 }
 
 func bfd() control.BFD {

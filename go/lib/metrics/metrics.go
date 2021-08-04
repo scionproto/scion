@@ -47,6 +47,8 @@
 package metrics
 
 import (
+	"time"
+
 	"github.com/go-kit/kit/metrics"
 )
 
@@ -92,6 +94,20 @@ func GaugeSet(g Gauge, value float64) {
 	if g != nil {
 		g.Set(value)
 	}
+}
+
+// GaugeSetTimestamp sets the passed gauge to the specified time stamp.
+// This is a no-op if g is nil.
+func GaugeSetTimestamp(g Gauge, ts time.Time) {
+	if g != nil {
+		g.Set(Timestamp(ts))
+	}
+}
+
+// GaugeSetCurrentTime sets the passed gauge to the current time.
+// This is a no-op if g is nil.
+func GaugeSetCurrentTime(g Gauge) {
+	GaugeSetTimestamp(g, time.Now())
 }
 
 // GaugeAdd increases the passed in gauge by the amount specified.

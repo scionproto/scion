@@ -44,6 +44,24 @@ func LogIDClientInterceptor() grpc.UnaryClientInterceptor {
 	}
 }
 
+func LogIDClientStreamInterceptor() grpc.StreamClientInterceptor {
+	return func(
+		ctx context.Context,
+		desc *grpc.StreamDesc,
+		cc *grpc.ClientConn,
+		method string,
+		streamer grpc.Streamer,
+		opts ...grpc.CallOption,
+	) (grpc.ClientStream, error) {
+
+		logger := loggerFromSpan(opentracing.SpanFromContext(ctx))
+		logger.Debug("Outgoing RPC", "method", method, "target", cc.Target())
+		ctx = log.CtxWith(ctx, logger)
+
+		return streamer(ctx, desc, cc, method, opts...)
+	}
+}
+
 func LogIDServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
@@ -56,6 +74,27 @@ func LogIDServerInterceptor() grpc.UnaryServerInterceptor {
 		logger.Debug("Serving RPC", "method", info.FullMethod)
 		ctx = log.CtxWith(ctx, logger)
 		return handler(ctx, req)
+	}
+}
+
+func LogIDServerStreamInterceptor() grpc.StreamServerInterceptor {
+	return func(
+		srv interface{},
+		ss grpc.ServerStream,
+		info *grpc.StreamServerInfo,
+		handler grpc.StreamHandler,
+	) error {
+
+		ctx := ss.Context()
+		logger := loggerFromSpan(opentracing.SpanFromContext(ctx))
+		logger.Debug("Serving RPC", "method", info.FullMethod)
+		ctx = log.CtxWith(ctx, logger)
+
+		ss = &serverStream{
+			ServerStream: ss,
+			ctx:          ctx,
+		}
+		return handler(srv, ss)
 	}
 }
 
@@ -112,6 +151,16 @@ func UnaryClientInterceptor() grpc.DialOption {
 	)
 }
 
+// StreamClientInterceptor constructs the default stream RPC client-side interceptor for
+// SCION control-plane applications.
+func StreamClientInterceptor() grpc.DialOption {
+	return grpc.WithChainStreamInterceptor(
+		grpcprom.StreamClientInterceptor,
+		otgrpc.OpenTracingStreamClientInterceptor(opentracing.GlobalTracer()),
+		LogIDClientStreamInterceptor(),
+	)
+}
+
 // UnaryServerInterceptor constructs the default unary RPC server-side interceptor for
 // SCION control-plane applications.
 func UnaryServerInterceptor() grpc.ServerOption {
@@ -120,4 +169,23 @@ func UnaryServerInterceptor() grpc.ServerOption {
 		otgrpc.OpenTracingServerInterceptor(opentracing.GlobalTracer()),
 		LogIDServerInterceptor(),
 	)
+}
+
+// StreamServerInterceptor constructs the default stream RPC server-side interceptor for
+// SCION control-plane applications.
+func StreamServerInterceptor() grpc.ServerOption {
+	return grpc.ChainStreamInterceptor(
+		grpcprom.StreamServerInterceptor,
+		otgrpc.OpenTracingStreamServerInterceptor(opentracing.GlobalTracer()),
+		LogIDServerStreamInterceptor(),
+	)
+}
+
+type serverStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (ss *serverStream) Context() context.Context {
+	return ss.ctx
 }

@@ -22,14 +22,15 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/integration/progress"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/serrors"
 )
 
 // ListenDone opens a RPC server to listen for done signals.
-func ListenDone(onDone func(src, dst addr.IA)) (string, func(), error) {
-	if err := os.MkdirAll("logs/socks", os.ModePerm); err != nil {
-		return "", nil, err
+func ListenDone(dir string, onDone func(src, dst addr.IA)) (string, func(), error) {
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return "", nil, serrors.WrapStr("creating socket directory", err)
 	}
-	file, err := ioutil.TempFile("logs/socks", "integration-*.sock")
+	file, err := ioutil.TempFile(dir, "integration-*.sock")
 	if err != nil {
 		return "", nil, err
 	}

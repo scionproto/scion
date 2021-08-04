@@ -35,7 +35,7 @@ func newScionConnReader(base *scionConnBase, conn PacketConn) *scionConnReader {
 	return &scionConnReader{
 		base:   base,
 		conn:   conn,
-		buffer: make([]byte, common.MaxMTU),
+		buffer: make([]byte, common.SupportedMTU),
 	}
 }
 

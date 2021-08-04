@@ -90,7 +90,7 @@ func ExternalBFD(artifactsDir string, mac hash.Hash) runner.Case {
 			ConsEgress:  131,
 		},
 	}
-	ohp.FirstHop.Mac = path.MAC(mac, &ohp.Info, &ohp.FirstHop)
+	ohp.FirstHop.Mac = path.MAC(mac, &ohp.Info, &ohp.FirstHop, nil)
 	scionL := &slayers.SCION{
 		Version:      0,
 		TrafficClass: 0xb8,

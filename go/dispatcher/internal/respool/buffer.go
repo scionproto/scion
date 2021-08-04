@@ -26,7 +26,7 @@ import (
 
 var bufferPool = sync.Pool{
 	New: func() interface{} {
-		return make([]byte, common.MaxMTU)
+		return make([]byte, common.SupportedMTU)
 	},
 }
 
@@ -36,7 +36,7 @@ func GetBuffer() []byte {
 }
 
 func PutBuffer(b []byte) {
-	if cap(b) == common.MaxMTU {
+	if cap(b) == common.SupportedMTU {
 		bufferPool.Put(b)
 	}
 }

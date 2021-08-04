@@ -94,8 +94,8 @@ func SCMPParentToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 0, ConsEgress: 911},
 		},
 	}
-	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1])
-	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2])
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
+	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,
@@ -266,8 +266,8 @@ func SCMPParentToChildXover(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 811, ConsEgress: 0},
 		},
 	}
-	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1])
-	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2])
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
+	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,
@@ -439,9 +439,9 @@ func SCMPChildToParentXover(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 0, ConsEgress: 911},
 		},
 	}
-	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1])
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 	sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
-	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2])
+	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,
@@ -613,9 +613,9 @@ func SCMPInternalXover(artifactsDir string, mac hash.Hash) runner.Case {
 			{ConsIngress: 411, ConsEgress: 0},
 		},
 	}
-	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1])
+	sp.HopFields[1].Mac = path.MAC(mac, sp.InfoFields[0], sp.HopFields[1], nil)
 	// sp.InfoFields[0].UpdateSegID(sp.HopFields[1].Mac)
-	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2])
+	sp.HopFields[2].Mac = path.MAC(mac, sp.InfoFields[1], sp.HopFields[2], nil)
 
 	scionL := &slayers.SCION{
 		Version:      0,
