@@ -166,6 +166,7 @@ func (rtw *publishingRoutingTable) setSessionLocked(index int, session PktWriter
 					Prefix:  prefix,
 					Source:  rtw.sourceForPrefix(prefix),
 					NextHop: rtw.nextHop,
+					IA:      site.ia,
 				})
 			}
 		}
@@ -198,6 +199,7 @@ func (rtw *publishingRoutingTable) ClearSession(index int) error {
 					Prefix:  prefix,
 					Source:  rtw.sourceForPrefix(prefix),
 					NextHop: rtw.nextHop,
+					IA:      site.ia,
 				})
 			}
 		}

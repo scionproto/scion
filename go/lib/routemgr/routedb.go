@@ -149,6 +149,7 @@ func (db *RouteDB) NewConsumer() control.Consumer {
 				Prefix:  entry.Prefix,
 				NextHop: entry.NextHop,
 				Source:  entry.Source,
+				IA:      entry.IA,
 			},
 		})
 	}
@@ -219,6 +220,7 @@ func (db *RouteDB) cleanUp() {
 						Prefix:  entry.Prefix,
 						NextHop: entry.NextHop,
 						Source:  entry.Source,
+						IA:      entry.IA,
 					},
 				})
 			}
