@@ -48,6 +48,8 @@ type Controller struct {
 	// controller has been started.
 	Sessions []*Session
 
+	// sessionsLock protects the sessions map.
+	sessionsLock sync.RWMutex
 	// sessions indexes sessions by discriminator, to provide fast routing of messages.
 	sessions map[layers.BFDDiscriminator]*Session
 
@@ -80,23 +82,9 @@ type Controller struct {
 // Run will continue to execute even if all sessions exited (and will run even though zero sessions
 // are configured). To force Run to finish execution, close the controller's message channel.
 func (c *Controller) Run() error {
-	c.sessions = make(map[layers.BFDDiscriminator]*Session)
-
-	for _, s := range c.Sessions {
-		if s == nil {
-			return serrors.New("session must not be nil")
-		}
-		if s.LocalDiscriminator == 0 {
-			return serrors.New("local discriminator must not be 0")
-		}
-		_, ok := c.sessions[s.LocalDiscriminator]
-		if ok {
-			return serrors.New("duplicate local discriminator",
-				"discriminator", s.LocalDiscriminator)
-		}
-		c.sessions[s.LocalDiscriminator] = s
+	if err := c.initSessions(); err != nil {
+		return serrors.WrapStr("initializing sessions index", err)
 	}
-
 	c.initMessages()
 	c.initErrors()
 
@@ -119,7 +107,7 @@ func (c *Controller) Run() error {
 
 	for msg := range c.messages {
 		localDiscriminator := msg.YourDiscriminator
-		session, ok := c.sessions[localDiscriminator]
+		session, ok := c.getSession(localDiscriminator)
 		if !ok {
 			c.debug("discriminator not found, message discarded", "local_disc", localDiscriminator)
 			continue
@@ -143,7 +131,7 @@ func (c *Controller) Run() error {
 //
 // If a session with the local discriminator does not exist, the function returns False.
 func (c *Controller) IsUp(discriminator layers.BFDDiscriminator) bool {
-	session, ok := c.sessions[discriminator]
+	session, ok := c.getSession(discriminator)
 	if !ok {
 		return false
 	}
@@ -186,8 +174,39 @@ func (c *Controller) initErrors() {
 	c.errorsLock.Lock()
 	defer c.errorsLock.Unlock()
 	if c.errors == nil {
-		c.errors = make(chan error, len(c.sessions))
+		c.errors = make(chan error, len(c.Sessions))
 	}
+}
+
+// initSessions initiazlizes sessions index. Method is thread-safe.
+func (c *Controller) initSessions() error {
+	c.sessionsLock.Lock()
+	defer c.sessionsLock.Unlock()
+	c.sessions = make(map[layers.BFDDiscriminator]*Session, len(c.Sessions))
+
+	for _, s := range c.Sessions {
+		if s == nil {
+			return serrors.New("session must not be nil")
+		}
+		if s.LocalDiscriminator == 0 {
+			return serrors.New("local discriminator must not be 0")
+		}
+		_, ok := c.sessions[s.LocalDiscriminator]
+		if ok {
+			return serrors.New("duplicate local discriminator",
+				"discriminator", s.LocalDiscriminator)
+		}
+		c.sessions[s.LocalDiscriminator] = s
+	}
+	return nil
+}
+
+// getSession returns a session based on BFD discriminator, method is thread-safe.
+func (c *Controller) getSession(discriminator layers.BFDDiscriminator) (*Session, bool) {
+	c.sessionsLock.RLock()
+	defer c.sessionsLock.RUnlock()
+	session, ok := c.sessions[discriminator]
+	return session, ok
 }
 
 // debug logs a debug message if a logger is configured.
