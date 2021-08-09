@@ -48,8 +48,6 @@ func NewPublishingRoutingTable(rcs []*RoutingChain, rt RoutingTable,
 		nextHop:        nextHop,
 		sourceIPv4:     sourceIPv4,
 		sourceIPv6:     sourceIPv6,
-		active:         false,
-		routes:         make(map[int]PktWriter),
 		remoteSites:    remoteSites,
 	}
 }
@@ -61,10 +59,6 @@ type publishingRoutingTable struct {
 	nextHop        net.IP
 	sourceIPv4     net.IP
 	sourceIPv6     net.IP
-	// active is true, if the routing table is being actively used at the moment.
-	active bool
-	// routes keeps track of routes while routing table is in inactive state.
-	routes map[int]PktWriter
 	// remoteSites is a list of remote sites. Site is a part of remote AS serving
 	// particular set of prefixes.
 	remoteSites []*remoteSite
@@ -94,35 +88,6 @@ func (r *remoteSite) healthy() bool {
 	return false
 }
 
-func (rtw *publishingRoutingTable) Activate() {
-	rtw.mutex.Lock()
-	defer rtw.mutex.Unlock()
-
-	if rtw.active {
-		panic("activating active routing table")
-	}
-	rtw.routingTable.Activate()
-	rtw.active = true
-	// Activate sessions that have been added while in inactive state.
-	for index, session := range rtw.routes {
-		rtw.setSessionLocked(index, session)
-	}
-}
-
-func (rtw *publishingRoutingTable) Deactivate() {
-	rtw.mutex.Lock()
-	defer rtw.mutex.Unlock()
-
-	if !rtw.active {
-		panic("deactivating inactive routing table")
-	}
-	rtw.routingTable.Deactivate()
-	// Retract the published routes.
-	rtw.routePublisher.Close()
-	rtw.routePublisher = nil
-	rtw.active = false
-}
-
 func (rtw *publishingRoutingTable) RouteIPv4(pkt layers.IPv4) PktWriter {
 	rtw.mutex.RLock()
 	defer rtw.mutex.RUnlock()
@@ -144,11 +109,17 @@ func (rtw *publishingRoutingTable) SetSession(index int, session PktWriter) erro
 	return rtw.setSessionLocked(index, session)
 }
 
+func (rtw *publishingRoutingTable) Close() error {
+	rtw.mutex.Lock()
+	defer rtw.mutex.Unlock()
+
+	rtw.routePublisher.Close()
+	rtw.routePublisher = nil
+
+	return rtw.routingTable.Close()
+}
+
 func (rtw *publishingRoutingTable) setSessionLocked(index int, session PktWriter) error {
-	if !rtw.active {
-		rtw.routes[index] = session
-		return nil
-	}
 	if err := rtw.routingTable.SetSession(index, session); err != nil {
 		return err
 	}
@@ -178,10 +149,6 @@ func (rtw *publishingRoutingTable) ClearSession(index int) error {
 	rtw.mutex.Lock()
 	defer rtw.mutex.Unlock()
 
-	if !rtw.active {
-		delete(rtw.routes, index)
-		return nil
-	}
 	if err := rtw.routingTable.ClearSession(index); err != nil {
 		return err
 	}

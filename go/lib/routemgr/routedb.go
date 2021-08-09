@@ -191,16 +191,30 @@ func (db *RouteDB) deleteRoute(route control.Route) {
 	entry.refCount--
 	if entry.refCount == 0 {
 		entry.deletedAt = time.Now()
+		if db.RouteExpiration != 0 {
+			return
+		}
+		for consumer := range db.consumers {
+			db.publishToUpdateChan(consumer.updateChan, control.RouteUpdate{
+				IsAdd: false,
+				Route: control.Route{
+					Prefix:  entry.Prefix,
+					NextHop: entry.NextHop,
+					Source:  entry.Source,
+					IA:      entry.IA,
+				},
+			})
+		}
+		delete(db.routes, key)
 	}
 }
 
 func (db *RouteDB) publishToUpdateChan(ch chan control.RouteUpdate, ru control.RouteUpdate) {
-	after := time.After(time.Minute)
 	for {
 		select {
 		case ch <- ru:
 			return
-		case <-after:
+		case <-time.After(time.Minute):
 			log.Error("RouteDB: Update channel full.")
 			metrics.CounterInc(db.Metrics.Unresponsive)
 		}

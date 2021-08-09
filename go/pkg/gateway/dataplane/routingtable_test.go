@@ -308,7 +308,3 @@ func (_ testPktWriter) Write(gopacket.Packet) {}
 func (w testPktWriter) String() string {
 	return fmt.Sprintf("%d", w.ID)
 }
-
-func TestRoutingTableActivate(t *testing.T) {}
-
-func TestRoutingTableDeactivate(t *testing.T) {}

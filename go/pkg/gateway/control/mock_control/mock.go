@@ -6,6 +6,7 @@ package mock_control
 
 import (
 	context "context"
+	io "io"
 	net "net"
 	reflect "reflect"
 
@@ -142,18 +143,6 @@ func (m *MockRoutingTable) EXPECT() *MockRoutingTableMockRecorder {
 	return m.recorder
 }
 
-// Activate mocks base method.
-func (m *MockRoutingTable) Activate() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Activate")
-}
-
-// Activate indicates an expected call of Activate.
-func (mr *MockRoutingTableMockRecorder) Activate() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Activate", reflect.TypeOf((*MockRoutingTable)(nil).Activate))
-}
-
 // ClearSession mocks base method.
 func (m *MockRoutingTable) ClearSession(arg0 int) error {
 	m.ctrl.T.Helper()
@@ -168,16 +157,18 @@ func (mr *MockRoutingTableMockRecorder) ClearSession(arg0 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearSession", reflect.TypeOf((*MockRoutingTable)(nil).ClearSession), arg0)
 }
 
-// Deactivate mocks base method.
-func (m *MockRoutingTable) Deactivate() {
+// Close mocks base method.
+func (m *MockRoutingTable) Close() error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Deactivate")
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
-// Deactivate indicates an expected call of Deactivate.
-func (mr *MockRoutingTableMockRecorder) Deactivate() *gomock.Call {
+// Close indicates an expected call of Close.
+func (mr *MockRoutingTableMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockRoutingTable)(nil).Deactivate))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockRoutingTable)(nil).Close))
 }
 
 // RouteIPv4 mocks base method.
@@ -246,9 +237,11 @@ func (m *MockRoutingTableSwapper) EXPECT() *MockRoutingTableSwapperMockRecorder 
 }
 
 // SetRoutingTable mocks base method.
-func (m *MockRoutingTableSwapper) SetRoutingTable(arg0 control.RoutingTable) {
+func (m *MockRoutingTableSwapper) SetRoutingTable(arg0 control.RoutingTable) io.Closer {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetRoutingTable", arg0)
+	ret := m.ctrl.Call(m, "SetRoutingTable", arg0)
+	ret0, _ := ret[0].(io.Closer)
+	return ret0
 }
 
 // SetRoutingTable indicates an expected call of SetRoutingTable.

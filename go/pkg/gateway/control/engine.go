@@ -443,7 +443,7 @@ type PacketConnFactory interface {
 
 // RoutingTableSwapper is a concurrency-safe setter for a routing table's entire state.
 type RoutingTableSwapper interface {
-	SetRoutingTable(RoutingTable)
+	SetRoutingTable(RoutingTable) io.Closer
 }
 
 // PktWriter is the interface exposed by a data-plane session for forwarding packets.

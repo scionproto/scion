@@ -179,7 +179,12 @@ func (c *EngineController) run() error {
 		time.Sleep(c.SwapDelay)
 
 		log.SafeDebug(c.Logger, "Swapping data-plane routing to use new forwarding engine.")
-		c.RoutingTableSwapper.SetRoutingTable(routingTable)
+		old := c.RoutingTableSwapper.SetRoutingTable(routingTable)
+		if old != nil {
+			if err := old.Close(); err != nil {
+				return serrors.WrapStr("closing old routing table", err)
+			}
+		}
 
 		if c.engine != nil {
 			log.SafeDebug(c.Logger, "Shutting down old forwarding engine.")
