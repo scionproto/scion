@@ -246,7 +246,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 					Tester:   tester,
 				})
 				if err != nil {
-					err = serrors.WithCtx(err, "file", logFile)
+					err = serrors.WithCtx(err, "file", relFile(logFile))
 				}
 				clientResults <- err
 			}(src, dsts)
@@ -338,4 +338,12 @@ func contains(ases *util.ASList, core bool, ia addr.IA) bool {
 
 func logDir() string {
 	return filepath.Join(integration.LogDir(), name)
+}
+
+func relFile(file string) string {
+	rel, err := filepath.Rel(filepath.Dir(integration.LogDir()), file)
+	if err != nil {
+		return file
+	}
+	return rel
 }

@@ -136,13 +136,6 @@ func (s server) run() {
 			continue
 		}
 		pld := string(udp.Payload)
-
-		p.Destination, p.Source = p.Source, p.Destination
-		p.Payload = snet.UDPPayload{
-			DstPort: udp.SrcPort,
-			SrcPort: udp.DstPort,
-			Payload: pongMessage(integration.Local.IA, p.Destination.IA),
-		}
 		if pld != ping+integration.Local.IA.String() {
 			log.Error("Unexpected data in payload",
 				"source", p.Source,
@@ -152,11 +145,18 @@ func (s server) run() {
 			continue
 		}
 		log.Info(fmt.Sprintf("Ping received from %s, sending pong.", p.Source))
+
+		p.Destination, p.Source = p.Source, p.Destination
+		p.Payload = snet.UDPPayload{
+			DstPort: udp.SrcPort,
+			SrcPort: udp.DstPort,
+			Payload: pongMessage(integration.Local.IA, p.Destination.IA),
+		}
 		// reverse path
 		if err := p.Path.Reverse(); err != nil {
 			log.Info("Error reversing path",
-				"source", p.Source,
-				"destination", p.Destination,
+				"source", p.Destination,
+				"destination", p.Source,
 				"err", err)
 			continue
 		}
