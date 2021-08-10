@@ -53,6 +53,14 @@ import (
 	"github.com/scionproto/scion/go/pkg/service"
 )
 
+const (
+	// swapDelay is the delay between instantiation a new gateway config in the
+	// control plane and pushing it to the dataplane. It's needed to make the probes
+	// pass through the new paths. Probes are send every 500ms, 3 are needed to
+	// make the path "alive", add some transmission delay - 2 seconds should be fine.
+	swapDelay = 2 * time.Second
+)
+
 type WatcherFactory struct {
 	Dialer      libgrpc.Dialer
 	PathMonitor control.PathMonitor
@@ -652,7 +660,7 @@ func (g *Gateway) Run() error {
 		RoutePublisherFactory: routePublisherFactory,
 		RouteSourceIPv4:       g.RouteSourceIPv4,
 		RouteSourceIPv6:       g.RouteSourceIPv6,
-		SwapDelay:             3 * time.Second,
+		SwapDelay:             swapDelay,
 		Logger:                g.Logger,
 	}
 	go func() {

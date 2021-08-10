@@ -169,12 +169,9 @@ func (c *EngineController) run() error {
 		newEngine := c.EngineFactory.New(routingTable, update, rcMapping)
 
 		log.SafeDebug(c.Logger, "Starting new forwarding engine.")
-		go func() {
-			defer log.HandlePanic()
-			if err := newEngine.Run(); err != nil {
-				panic(err) // application can't recover from an error here
-			}
-		}()
+		if err := newEngine.Run(); err != nil {
+			return serrors.WrapStr("setting up the engine", err)
+		}
 
 		time.Sleep(c.SwapDelay)
 

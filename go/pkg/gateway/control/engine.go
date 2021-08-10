@@ -101,11 +101,11 @@ type Engine struct {
 	workerBase worker.Base
 }
 
-// Run constructs the necessary channels, starts session goroutines and runs the router.
-// It returns when the context terminates.
+// Run sets up the gateway engine and starts all necessary goroutines.
+// It returns when the setup is done.
 func (e *Engine) Run() error {
 	log.SafeDebug(e.Logger, "Engine starting")
-	return e.workerBase.RunWrapper(e.setup, e.run)
+	return e.workerBase.RunWrapper(e.setup, nil)
 }
 
 // DiagnosticsWrite writes diagnostics to the writer.
@@ -251,14 +251,6 @@ func (e *Engine) setup() error {
 		return err
 	}
 	return e.initWorkers()
-}
-
-func (e *Engine) run() error {
-	log.SafeDebug(e.Logger, "Engine worker setup finished")
-	// Wait for the channel to be closed before returning. This is to ensure that the worker
-	// doesn't return from Run until it has shut down.
-	<-e.workerBase.GetDoneChan()
-	return nil
 }
 
 func (e *Engine) validate() error {
