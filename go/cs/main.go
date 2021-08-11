@@ -20,6 +20,7 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"path/filepath"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -165,7 +166,7 @@ func realMain() error {
 	trustDB = truststoragefspersister.WrapDB(
 		trustDB,
 		truststoragefspersister.Config{
-			TRCDir: globalCfg.General.ConfigDir,
+			TRCDir: filepath.Join(globalCfg.General.ConfigDir, "certs"),
 			Metrics: truststoragefspersister.Metrics{
 				TRCFileWriteSuccesses: fileWrites.With(
 					prom.LabelResult,
